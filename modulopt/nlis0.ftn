@@ -1,3 +1,19 @@
+!--------------------------------------- LICENCE BEGIN -----------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+
       subroutine nlis0 (n,simul,prosca,xn,fn,fpn,t,tmin,tmax,d,g,
      1                  amd,amf,imp,io,logic,nap,napmax,x,izs,rzs,dzs)
 c ----
@@ -37,7 +53,7 @@ c
       double precision tesf,tesd,tg,fg,fpg,td,ta,fa,fpa,d2,f,fp,ffn,fd,
      / fpd,z,test,barmin,barmul,barmax,barr,gauche,droite,taa,ps
 c
-      call tmg_start(74,'NLIS0')
+      !bhe call tmg_start(74,'NLIS0')
  1000 format (/4x,9h nlis0   ,4x,4hfpn=,d10.3,4h d2=,d9.2,
      1 7h  tmin=,d9.2,6h tmax=,d9.2)
  1001 format (/4x,6h mlis0,3x,"stop on tmin",8x,

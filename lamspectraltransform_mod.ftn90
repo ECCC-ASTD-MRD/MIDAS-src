@@ -1,3 +1,19 @@
+!--------------------------------------- LICENCE BEGIN -----------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+
 !--------------------------------------------------------------------------
 ! > MODULE LamSpectralTransform (prefix="lst")
 !
@@ -112,6 +128,7 @@ contains
 
     integer, allocatable            :: KfromMN(:,:)
     integer, allocatable            :: KfromMNglb(:,:)
+    integer, allocatable            :: my_KfromMNglb(:,:)
     integer                         :: kmax, id
     integer                         :: m, n, k, ila, nfact
     integer                         :: ier, ilaglb, i, j, p
@@ -408,6 +425,7 @@ contains
     !      FOR THE LOCAL PROCESSOR
     allocate( KfromMN(0:lst(id)%mmax,0:lst(id)%nmax) )
     KFromMN(:,:) = -1
+    ! bhe should be ==> KFromMN(:,:) = 0 ????
 
     ! We follow here the method described in Denis et al., MWR, 2002
 !    kmax = min(mmax,nmax)
@@ -436,11 +454,14 @@ contains
     lst_out%nla = lst(id)%nla ! Number of spectral element per phase in the VAR array
 
     allocate( KfromMNglb(0:lst(id)%mmax,0:lst(id)%nmax) )
-    KFromMNglb(:,:) = KFromMN(:,:)
+    allocate( my_KfromMNglb(0:lst(id)%mmax,0:lst(id)%nmax) )
+    my_KfromMNglb = 0
+    my_KFromMNglb(:,:) = KFromMN(:,:)
     if ( trim(lst(id)%MpiMode) /= 'NoMpi') then
-      call rpn_comm_allreduce(KFromMNglb,KFromMNglb, &
+      call rpn_comm_allreduce(my_KFromMNglb,KFromMNglb, &
                                 (lst(id)%mmax+1)*(lst(id)%nmax+1),"MPI_INTEGER","MPI_MAX","GRID",ier)
     end if
+    deallocate(my_KfromMNglb) 
 
     !- 1.6 VAR spectral element ordering &
     !      Total Wavenumbers and Weights associated with each spectral element

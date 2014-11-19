@@ -1,3 +1,19 @@
+!--------------------------------------- LICENCE BEGIN -----------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+
 !--------------------------------------------------------------------------
 ! MODULE BmatrixEnsemble (Background-error Covariance Matrix estimated
 !                         using ensemble members and spatial localization
@@ -56,7 +72,7 @@ MODULE BmatrixEnsemble
   integer             :: ngposituu,ngpositvv,ngposittt,ngpositq,ngpositps,ngposittg
   integer             :: gstID
   character(len=256)  :: enspathname,ensfilebasename
-  integer             :: get_max_rss
+  integer,external    :: get_max_rss
 
   type :: struct_ens
     real(4), allocatable :: member_r4(:,:,:,:)
@@ -1230,12 +1246,15 @@ CONTAINS
     real(8) :: zsp_gst(nla_mpiglobal,nphase,myMemBeg:myMemEnd)
     real(8) :: zgd_gst(myLonBeg:myLonEnd,nEns,myLatBeg:myLatEnd)
     real(8), allocatable :: zsp(:,:,:)
+    real(8), allocatable :: my_zsp(:,:,:)
 
     integer :: ilen,jn,jlat,jla,jlon,jk,jk1,jk2,nsize,ierr
 
     if(local_length(1).gt.0.0d0) then
 
       allocate(zsp(nla_mpiglobal,nphase,nLevEns_M))
+      allocate(my_zsp(nla_mpiglobal,nphase,nLevEns_M))
+      my_zsp=0.0d0 
       zgd_gst(:,:,:) = 0.0d0
       do jk = 1, nLevEns_M
 
@@ -1254,15 +1273,15 @@ CONTAINS
         call gst_setID(gstID)
         call gst_reespe5(zsp_gst,zgd_gst)
         if(myMemBeg.eq.1) then
-          zsp(:,:,jk) = zsp_gst(:,:,myMemBeg)
+          my_zsp(:,:,jk) = zsp_gst(:,:,myMemBeg)
         else
-          zsp(:,:,jk) = 0.0d0
+          my_zsp(:,:,jk) = 0.0d0
         endif
       enddo
 
       nsize = nla_mpiglobal*nphase*nLevEns_M
-      call RPN_COMM_allreduce(zsp,zsp,nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
-
+      call RPN_COMM_allreduce(my_zsp,zsp,nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
+      deallocate(my_zsp) 
       ! Copy over to EnsLocalCor and truncate to NTRUNC
       do jk = 1, nLevEns_M
         do jn = 0, ntrunc
@@ -1649,6 +1668,7 @@ CONTAINS
     integer, allocatable :: allMemBeg(:),allMemEnd(:)
     integer :: jdim_mpilocal, jdim_mpiglobal, ila_mpiglobal, ila_mpilocal, cvDim_maxmpilocal
     integer :: jm, jn, jproc, memberIndex, jlev, ierr, p
+    real(8), allocatable :: my_cv_mpiglobal(:)
 
     cvDim_mpiglobal_out = cvDim_mpiglobal
 
@@ -1749,7 +1769,8 @@ CONTAINS
     else
 
       ! LAM
-      cv_mpiglobal(:) = 0.0d0
+      allocate(my_cv_mpiglobal(cvDim_mpiglobal)) 
+      my_cv_mpiglobal(:) = 0.0d0
 
       do memberIndex = myMemBeg, myMemEnd
          do jlev = 1, nLevEns_M
@@ -1774,15 +1795,15 @@ CONTAINS
                      call abort3d('BEN_expandToMPIGlobal')
                   end if
             
-                  cv_mpiglobal(jdim_mpiglobal) = cv_mpilocal(jdim_mpilocal)
+                  my_cv_mpiglobal(jdim_mpiglobal) = cv_mpilocal(jdim_mpilocal)
 
                end do
             end do
          end do
       end do
 
-      call rpn_comm_allreduce(cv_mpiglobal,cv_mpiglobal,cvDim_mpiglobal,"mpi_double_precision","mpi_sum","GRID",ierr)
-
+      call rpn_comm_allreduce(my_cv_mpiglobal,cv_mpiglobal,cvDim_mpiglobal,"mpi_double_precision","mpi_sum","GRID",ierr)
+      deallocate(my_cv_mpiglobal) 
     end if
 
   end SUBROUTINE BEN_expandToMPIGlobal
@@ -2366,6 +2387,7 @@ CONTAINS
     real(8)           :: zsp_all(nLevEns_M,nla_mpiglobal,nphase,myMemBeg:myMemEnd)
 
     integer          :: jlev,jla,memberIndex,p
+     real(8) ,allocatable :: zsp(:,:,:,:)
 
     !
     !- 1.  Horizontal Localization
@@ -2381,14 +2403,22 @@ CONTAINS
     !
     !- 2.  Vertical localization
     !
+    allocate(zsp(nLevEns_M,nla_mpiglobal,nphase,myMemBeg:myMemEnd)) 
     call tmg_start(63,'BEN_VLOC')
 
-    call dgemul(ensLocalVert(1,1),nLevEns_M,'N',  &
-                zsp_all(1,1,1,myMemBeg),nLevEns_M,'N',  &
-                zsp_all(1,1,1,myMemBeg),nLevEns_M,  &
-                nLevEns_M,nLevEns_M,nphase*nla_mpiglobal*myMemCount)
+!    call dgemul(ensLocalVert(1,1),nLevEns_M,'N',  &
+!                zsp_all(1,1,1,myMemBeg),nLevEns_M,'N',  &
+!                zsp_all(1,1,1,myMemBeg),nLevEns_M,  &
+!                nLevEns_M,nLevEns_M,nphase*nla_mpiglobal*myMemCount)
+
+    call dgemm('N','N',nLevEns_M,nphase*nla_mpiglobal*myMemCount,nLevEns_M,1.0D0,&
+                ensLocalVert(1,1),nLevEns_M,zsp_all(1,1,1,myMemBeg),nLevEns_M,&
+                0.0D0,zsp(1,1,1,myMemBeg),nLevEns_M)
 
     call tmg_stop(63)
+    zsp_all = zsp
+    deallocate(zsp)
+
     
   END SUBROUTINE localizationSqrt
 
@@ -2488,16 +2518,25 @@ CONTAINS
     real(8) :: zsp_all(nLevEns_M,nla_mpiglobal,nphase,myMemBeg:myMemEnd)
 
     integer :: jlev,jla,memberIndex,p
+    real(8),allocatable::zsp(:,:,:,:)
 
     !
     !- 2.  Vertical Localization
+
+    allocate(zsp(nLevEns_M,nla_mpiglobal,nphase,myMemBeg:myMemEnd) ) 
+    zsp=0.0D0
     !
     call tmg_start(63,'BEN_VLOC')
 
-    call dgemul(ensLocalVert(1,1),nLevEns_M,'N',  &
-                zsp_all(1,1,1,myMemBeg),nLevEns_M,'N',  &
-                zsp_all(1,1,1,myMemBeg),nLevEns_M,  &
-                nLevEns_M,nLevEns_M,nphase*nla_mpiglobal*myMemCount)
+!    call dgemul(ensLocalVert(1,1),nLevEns_M,'N',  &
+!                zsp_all(1,1,1,myMemBeg),nLevEns_M,'N',  &
+!                zsp_all(1,1,1,myMemBeg),nLevEns_M,  &
+!                nLevEns_M,nLevEns_M,nphase*nla_mpiglobal*myMemCount)
+
+    call dgemm('N','N',nLevEns_M,nphase*nla_mpiglobal*myMemCount,nLevEns_M,1.0D0, &
+                ensLocalVert(1,1),nLevEns_M, zsp_all(1,1,1,myMemBeg),nLevEns_M,&
+                0.0D0,zsp(1,1,1,myMemBeg),nLevEns_M)
+
 
     call tmg_stop(63)
 
@@ -2505,12 +2544,13 @@ CONTAINS
     !- 1.  Horizontal Localization
     !
     if (hco_ben % global) then
-      call GlobalHLocAd( zsp_all,           & ! IN
+      call GlobalHLocAd( zsp,           & ! IN
                          controlVector_out )  ! OUT
     else
-      call LamHLocAd( zsp_all,           & ! IN
+      call LamHLocAd( zsp,           & ! IN
                       controlVector_out )  ! OUT
     endif
+     deallocate(zsp)
 
   END SUBROUTINE localizationSqrtAd
 

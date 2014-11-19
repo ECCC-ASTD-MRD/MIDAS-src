@@ -1,3 +1,19 @@
+!--------------------------------------- LICENCE BEGIN -----------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+
 !--------------------------------------------------------------------------
 ! MODULE bMatrixHI (Background-error Covariance Matrix estimated
 !                       using lagged forecast differences or ensemble 
@@ -98,7 +114,7 @@ MODULE BmatrixHI
   integer, pointer    :: ilaList_mpiglobal(:)
   integer, pointer    :: ilaList_mpilocal(:)
 
-  integer             :: get_max_rss
+  integer,external    :: get_max_rss
 
 
 CONTAINS
@@ -876,6 +892,7 @@ CONTAINS
     real(8) :: zgd(myLonBeg:myLonEnd,nlev_T_even,myLatBeg:myLatEnd)
     real(8) :: zsp_mpiglobal(nla_mpiglobal,2,1)
 
+    real(8),allocatable :: my_zsp_mpiglobal(:,:,:)
     ! standard file variables
     integer :: ini,inj,ink, inpas, inbits, idatyp, ideet
     integer :: ip1,ip2,ip3,ig1,ig2,ig3,ig4,iswa,ilength,idltf
@@ -946,7 +963,8 @@ CONTAINS
 
     zgd(:,:,:) = 0.0d0
     zsp_mpilocal(:,:,:) = 0.0d0
-    zsp_mpiglobal(:,:,:) = 0.0d0
+    allocate(my_zsp_mpiglobal(nla_mpiglobal,2,1)) 
+    my_zsp_mpiglobal(:,:,:) = 0.0d0
 
     do jla = 1, nla_mpiglobal
        cortgg(jla,1) = 0.0d0
@@ -967,13 +985,13 @@ CONTAINS
         if(jm.le.jn) then
           ila_mpiglobal = gst_getNIND(jm,gstID) + jn - jm
           ila_mpilocal  = ilaList_mpilocal(ila_mpiglobal)
-          zsp_mpiglobal(ila_mpiglobal,:,1) = zsp_mpilocal(ila_mpilocal,:,1)
+          my_zsp_mpiglobal(ila_mpiglobal,:,1) = zsp_mpilocal(ila_mpilocal,:,1)
         endif
       enddo
     enddo
     nsize = 2*nla_mpiglobal
-    call rpn_comm_allreduce(zsp_mpiglobal(:,:,1),zsp_mpiglobal(:,:,1),nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
-
+    call rpn_comm_allreduce(my_zsp_mpiglobal(:,:,1),zsp_mpiglobal(:,:,1),nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
+    deallocate(my_zsp_mpiglobal) 
     ! 4.4  Check positiveness
     llpb = .false.
     do jla = 1, ntrunc+1
@@ -2305,7 +2323,8 @@ CONTAINS
 
       if(icount.gt.0) then
 
-        CALL DGEMUL(corns(1,1,jn),nkgdim2,'N',zsp(1,1,1),nkgdimSqrt,'N',zsp2(1,1,1),nkgdim2,nkgdim2,nkgdimSqrt,2*icount)
+        !CALL DGEMUL(corns(1,1,jn),nkgdim2,'N',zsp(1,1,1),nkgdimSqrt,'N',zsp2(1,1,1),nkgdim2,nkgdim2,nkgdimSqrt,2*icount)
+        CALL DGEMM('N','N',nkgdim2,2*icount,nkgdimSqrt,1.0d0,corns(1,1,jn),nkgdim2,zsp(1,1,1),nkgdimSqrt,0.0d0,zsp2(1,1,1),nkgdim2)
 
         icount = 0
         do jm = mymBeg, mymEnd, mymSkip
@@ -2617,7 +2636,8 @@ CONTAINS
 
       if(icount.gt.0) then
 
-        CALL DGEMUL(corns(1,1,jn),nkgdim2,'T',zsp2(1,1,1),nkgdim2,'N',zsp(1,1,1),nkgdimSqrt,nkgdimSqrt,nkgdim2,2*icount)
+        !CALL DGEMUL(corns(1,1,jn),nkgdim2,'T',zsp2(1,1,1),nkgdim2,'N',zsp(1,1,1),nkgdimSqrt,nkgdimSqrt,nkgdim2,2*icount)
+        CALL DGEMM('T','N',nkgdimSqrt,2*icount,nkgdim2,1.0d0,corns(1,1,jn),nkgdim2,zsp2(1,1,1),nkgdim2,0.0d0,zsp(1,1,1),nkgdimSqrt)
 
         icount = 0
         do jm = mymBeg, jn, mymSkip
@@ -2684,7 +2704,8 @@ CONTAINS
          END DO
       END DO
 
-      CALL DGEMUL(ZWORK(0,1),KTRUNC+1,'N',PF(1,1),KNJDIM,'N',PN(0,1),KNDIM+1,KNDIM+1,KNJ,KLEV) 
+      !CALL DGEMM('N','N',ZWORK(0,1),KTRUNC+1,'N',PF(1,1),KNJDIM,'N',PN(0,1),KNDIM+1,KNDIM+1,KNJ,KLEV) 
+      CALL DGEMM('N','N',KNDIM+1,KLEV,KNJ,1.0d0,ZWORK(0,1),KTRUNC+1,PF(1,1),KNJDIM,0.0d0,PN(0,1),KNDIM+1) 
 
       DEALLOCATE(ZWORK)
 
@@ -2723,7 +2744,8 @@ CONTAINS
          END DO
       END DO
 
-      CALL DGEMUL(ZWORK(0,1),KTRUNC+1,'T',PN(0,1),KNDIM+1,'N',PF(1,1),KNJDIM,KNJ,KTRUNC+1,KLEV) 
+      !CALL DGEMUL(ZWORK(0,1),KTRUNC+1,'T',PN(0,1),KNDIM+1,'N',PF(1,1),KNJDIM,KNJ,KTRUNC+1,KLEV) 
+      CALL DGEMM('T','N',KNJ,KLEV,KTRUNC+1,1.0d0, ZWORK(0,1),KTRUNC+1,PN(0,1),KNDIM+1,0.0d0,PF(1,1),KNJDIM) 
 
       DEALLOCATE(ZWORK)
 
@@ -2760,7 +2782,8 @@ CONTAINS
          END DO
       END DO
 
-      CALL DGEMUL(ZWORK(0,1),KTRUNC+1,'T',PN(0,1),KNDIM+1,'N',PF(1,1),KNJDIM,KNJ,KTRUNC+1,KLEV) 
+      !CALL DGEMUL(ZWORK(0,1),KTRUNC+1,'T',PN(0,1),KNDIM+1,'N',PF(1,1),KNJDIM,KNJ,KTRUNC+1,KLEV) 
+      CALL DGEMM('T','N',KNJ,KLEV,KTRUNC+1,1.0d0,ZWORK(0,1),KTRUNC+1,PN(0,1),KNDIM+1,0.0d0,PF(1,1),KNJDIM) 
 
       DEALLOCATE(ZWORK)
 
