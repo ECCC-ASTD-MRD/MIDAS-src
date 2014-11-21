@@ -25,27 +25,32 @@ SUBROUTINE BGCHECK_CONV(columng,columnhr,obsSpaceData)
 !    -------------------
 !*    Purpose: DO  a background check on all conventionnal observations
 !
+  use mpivar_mod
   use obsSpaceData_mod
   use columnData_mod
   IMPLICIT NONE
 
-  type(struct_obs) :: obsSpaceData
-  type(struct_columnData) :: columng,columnhr
+  type(struct_obs)        :: obsSpaceData  ! Observation-related data
+  type(struct_columnData) :: columng       !
+  type(struct_columnData) :: columnhr      ! 
+
   INTEGER J,JDATA
   REAL*8 ZJO
       
 !
   call tmg_start(2,'BGCHECK_CONV')
+
   WRITE(*,FMT=9000)
 9000 FORMAT(//,3(" **********"),/," BEGIN CONVENTIONNAL BACKGROUND CHECK",/,3(" **********"),/)
+
 !
-!     Preliminary initializations
-!     ---------------------------
-!
-!     CALCULATE Sigmap AND INNOVATIONS(O-P)
+!     CALCULATE HBHT (sigma_B in observation space)
 !     ----------------------------------------------
 !
-  CALL SIGMAOP(columng,columnhr,obsSpaceData)
+  call compute_HBHT( columng,   &   ! IN
+                     columnhr,  &   ! IN
+                     obsSpaceData ) ! INOUT
+
 !
 !     DO A BACKGROUND CHECK ON ALL THE OBSERVATIONS
 !     ----------------------------------------------
@@ -65,21 +70,17 @@ SUBROUTINE BGCHECK_CONV(columng,columnhr,obsSpaceData)
 !     Write out contents of obsSpaceData into BURP files
 !
   CALL UPDATE_BURPFILES(obsSpaceData)
-      
-  DO j =1,1
-     call obs_prnthdr(obsSpaceData,j)
-     call obs_prntbdy(obsSpaceData,j)
-  END DO
 
-      ! deallocate obsSpaceData
+  if (mpi_myid == 0 ) then
+     DO j =1,1
+        call obs_prnthdr(obsSpaceData,j)
+        call obs_prntbdy(obsSpaceData,j)
+     END DO
+  end if
+
+  ! deallocate obsSpaceData
   call obs_finalize(obsSpaceData)
 
   call tmg_stop(2)
 
-
 END SUBROUTINE BGCHECK_CONV
-
-
-
-
-

@@ -17,10 +17,12 @@ module topLevelControl_mod
   ! public variables
   public :: top_crevision
   ! public procedures
-  public :: top_setup,top_AnalysisMode,top_BgckIrMode,top_BgckConvMode,top_OmpMode
+  public :: top_setup,top_AnalysisMode,top_BgckIrMode,top_BgckConvMode,top_OmpMode,top_BurpSplitMode
 
   character(len=len('XXXXX')),parameter :: top_crevision='XXXXX'
   integer :: top_nconf
+
+  logical :: burp_split_L
 
   contains
 
@@ -29,6 +31,9 @@ module topLevelControl_mod
       integer :: nconf
       NAMELIST /NAMCT0/NCONF
       integer nulnam,ierr,fnom,fclos 
+
+      character(len=256) :: BURP_SPLIT_VAR
+      integer :: length_burp_split, status
 
       ! Set the default values
       nconf  = 141
@@ -43,6 +48,23 @@ module topLevelControl_mod
       ierr=fclos(nulnam)
 
       top_nconf = nconf
+
+      !
+      !- Determine if the observation files are already split by subdomain
+      !
+      status = 0
+      burp_split_L = .false.
+      call get_environment_variable('ARMA_BURP_SPLIT',BURP_SPLIT_VAR,length_burp_split,status,.true.)
+      if (status.gt.1) then
+        write(*,*) 'top_setup: Problem when getting the environment variable ARMA_BURP_SPLIT'
+      end if
+      if (status.eq.1) then !! The variable 'ARMA_BURP_SPLIT' does not exist so we didn't split the observations
+        write(*,*) 'top_setup: The environment variable ARMA_BURP_SPLIT has not been detected so we read global observation files'
+        burp_split_L = .false.
+      else
+        write(*,*) 'top_setup: The environment variable ARMA_BURP_SPLIT has been detected so we read splitted observation files'
+        burp_split_L = .true.
+      end if
 
     end subroutine top_setup
 
@@ -78,5 +100,12 @@ module topLevelControl_mod
         
     end function top_BgckConvMode
 
+    function top_BurpSplitMode() result(BurpSplitMode)
+      implicit none
+      logical :: BurpSplitMode
+
+    BurpSplitMode = burp_split_L
+        
+    end function top_BurpSplitMode
 
 end module topLevelControl_mod

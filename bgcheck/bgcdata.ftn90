@@ -136,11 +136,23 @@
                     ELSE
                       ZOER = ZOER/YSFERRWGT
                     ENDIF
-                    IF (ZFGE .LT. 1.D-3 .OR. ZOER .LT. 1.D-3 ) THEN
-                      WRITE(*,*)' Problem for STNID FGE ZOER=',  &
-                         obs_elem_c(lobsSpaceData,'STID',index_header),ZFGE,ZOER
-                      CALL ABORT3D('BGCDATA: PROBLEM WITH FGE, OER.')
+                    !jfc IF (ZFGE .LT. 1.D-3 .OR. ZOER .LT. 1.D-3 ) THEN
+                    !jfc  WRITE(*,*)' Problem for STNID FGE ZOER=',  &
+                    !jfc     obs_elem_c(lobsSpaceData,'STID',index_header),ZFGE,ZOER
+                    !jfc  CALL ABORT3D('BGCDATA: PROBLEM WITH FGE, OER.')
+                    !jfc ENDIF
+                    !jfc new version - start
+                    IF (ZOER .LT. 1.D-3 ) THEN
+                      WRITE(*,*)' Problem for GP STNID ZOER= ' ,  &
+                         obs_elem_c(lobsSpaceData,'STID',index_header),ZOER
+                      CALL ABORT3D('BGCDATA: PROBLEM WITH OER.')
                     ENDIF
+                    IF (ZFGE .LT. 1.D-3 ) THEN
+                      WRITE(*,*)' Problem for GP STNID FGE= ',  &
+                         obs_elem_c(lobsSpaceData,'STID',index_header),ZFGE
+                      ZFGE=1.D-3
+                    ENDIF
+                    !jfc new version - end
                   ELSE
                     IF ( ZFGE**2 + ZOER**2 .LT. 1.D-5)THEN
                         WRITE(*,*)' Problem for STNID FGE ZOER=',  &

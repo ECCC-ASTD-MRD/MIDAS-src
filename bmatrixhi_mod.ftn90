@@ -119,13 +119,16 @@ MODULE BmatrixHI
 
 CONTAINS
 
-  SUBROUTINE BHI_setup(hco_in,vco_in,CVDIM_OUT)
+  SUBROUTINE BHI_setup(hco_in,vco_in,CVDIM_OUT, mode)
     implicit none
 
     type(struct_hco),pointer :: hco_in
     type(struct_vco),pointer :: vco_in
     integer                  :: cvDim_out
+    character(len=*), intent(in), optional :: mode
 
+    character(len=15) :: bhi_mode
+    
     integer :: jlev, mpiMode, nulnam, ierr, fnom, fclos, fstouv, fstfrm
     integer :: jm, jn, status, latPerPE, lonPerPE, Vcode_anl
     logical :: llfound, lExists
@@ -135,6 +138,22 @@ CONTAINS
     NAMELIST /NAMBHI/ntrunc,scaleFactor,scaleFactorLQ,scaleTG,numModeZero,squareSqrt
 
     call tmg_start(15,'BHI_SETUP')
+
+    if ( present(mode) ) then
+       if ( trim(mode) == 'Analysis' .or. trim(mode) == 'BackgroundCheck') then
+         bhi_mode = trim(mode)
+         if(mpi_myid.eq.0) write(*,*)
+         if(mpi_myid.eq.0) write(*,*) 'bmatrixHI: Mode activated = ', trim(bhi_mode)
+       else
+          write(*,*)
+          write(*,*) 'mode = ', trim(mode)
+          call abort3d('bmatrixHI: unknown mode')
+       end if
+    else
+       bhi_mode = 'Analysis'
+       if(mpi_myid.eq.0) write(*,*)
+       if(mpi_myid.eq.0) write(*,*) 'bmatrixHI: Analysis mode activated (by default)'
+    end if
 
     vco_anl => vco_in
     nLev_M = vco_anl%nlev_M
@@ -196,6 +215,13 @@ CONTAINS
         scaleFactorLQ(jlev) = 0.0d0
       endif
     enddo
+
+    if ( trim(bhi_mode) == 'BackgroundCheck' ) then
+       cvDim_out = 9999 ! Dummy value > 0 to indicate to the background check (s/r compute_HBHT_ensemble) 
+                        ! that Bhi is used
+       initialized = .true.
+       return
+    end if
 
     numvar3d = 4
     numvar2d = 2

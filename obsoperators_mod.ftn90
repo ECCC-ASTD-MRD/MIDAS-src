@@ -935,9 +935,7 @@ module obsOperators_mod
       
     numgpsztd = icountp
 
-    if ( analysisMode .and. icount .gt. 0 ) then
-
-      if ( .not.l1obs ) then
+    if ( analysisMode .and. icount .gt. 0 .and. .not.l1obs ) then
         write(*,*) ' '
         write(*,*) '-----------------------------------------'
         write(*,*) ' SUMMARY OF ZTD REJECTIONS IN OONL_GPSGB '
@@ -954,15 +952,21 @@ module obsOperators_mod
           write(*, *) 'MEAN Jo = (jobs/numGPSZTD)*YZDERRWGT**2 = ',(jobs/real(icountp,8))*yzderrwgt**2
         endif
         write(*,*) ' '
-      endif
+    end if
 
-      if (numgpsztd .gt. 0) then
-        write(*,*) ' Number of GPS ZTD data to be assimilated (numGPSZTD) = ', numgpsztd
-        write(*,*) ' Allocating and setting vGPSZTD_Index(numGPSZTD)...'
-        if(allocated(vgpsztd_index)) deallocate(vgpsztd_index)
-        allocate(vgpsztd_index(numgpsztd))
-        iztd = 0
-        call obs_set_current_header_list(obsSpaceData,'GP')
+    if ( icount .gt. 0 .and. numgpsztd .gt. 0) then
+
+       if ( analysisMode ) then
+          write(*,*) ' Number of GPS ZTD data to be assimilated (numGPSZTD) = ', numgpsztd
+       else
+          write(*,*) ' Number of GPS ZTD data for background check (numGPSZTD) = ', numgpsztd
+       end if
+       
+       write(*,*) ' Allocating and setting vGPSZTD_Index(numGPSZTD)...'
+       if(allocated(vgpsztd_index)) deallocate(vgpsztd_index)
+       allocate(vgpsztd_index(numgpsztd))
+       iztd = 0
+       call obs_set_current_header_list(obsSpaceData,'GP')
         HEADER_2: do
           headerIndex = obs_getHeaderIndex(obsSpaceData)
           if (headerIndex < 0) exit HEADER_2
@@ -985,15 +989,9 @@ module obsOperators_mod
         if ( iztd .ne. numgpsztd ) then
           call abort3d('ERROR: vGPSZTD_Index init: iztd .ne. numGPSZTD!')
         endif
-          
-      endif
 
-    else
-      
-      if ( icount .gt. 0 ) write(*,*) ' '
-        
-    endif
-      
+     endif
+
     if(present(jobs_out)) jobs_out=jobs
 
     write(*,*)'EXIT oonl_gpsgb'

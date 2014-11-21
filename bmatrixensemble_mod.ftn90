@@ -52,7 +52,7 @@ MODULE BmatrixEnsemble
 
   ! public procedures
   public :: ben_Setup,ben_BSqrt,ben_BSqrtAd,ben_reduceToMPILocal,ben_expandToMPIGlobal,ben_Finalize
-  public :: ben_getScaleFactor
+  public :: ben_getScaleFactor, ben_getnEns, ben_getPerturbation
 
   logical             :: initialized = .false.
   integer,parameter   :: maxNumLevels=200
@@ -93,11 +93,16 @@ CONTAINS
 !--------------------------------------------------------------------------
 ! BEN_setup
 !--------------------------------------------------------------------------
-  SUBROUTINE BEN_setup(hco_in,vco_in,NUMTIME_IN,stamp_in,CVDIM_OUT)
+  SUBROUTINE BEN_setup(hco_in,vco_in,NUMTIME_IN,stamp_in,CVDIM_OUT,&
+                       mode)
     implicit none
   
     type(struct_hco), pointer, intent(in) :: hco_in
     type(struct_vco), pointer, intent(in) :: vco_in
+
+    character(len=*), intent(in), optional :: mode
+
+    character(len=15) :: ben_mode
 
     real(8)        :: hLocalize(2),vLocalize,zps
     real(8),allocatable :: pressureProfileEns_M(:)
@@ -144,6 +149,22 @@ CONTAINS
     hco_ben => hco_in
     ni = hco_ben % ni
     nj = hco_ben % nj
+
+    if ( present(mode) ) then
+       if ( trim(mode) == 'Analysis' .or. trim(mode) == 'BackgroundCheck') then
+         ben_mode = trim(mode)
+         if(mpi_myid.eq.0) write(*,*)
+         if(mpi_myid.eq.0) write(*,*) 'bmatrixEnsemble: Mode activated = ', trim(ben_mode)
+       else
+          write(*,*)
+          write(*,*) 'mode = ', trim(mode)
+          call abort3d('bmatrixEnsemble: unknown mode')
+       end if
+    else
+       ben_mode = 'Analysis'
+       if(mpi_myid.eq.0) write(*,*)
+       if(mpi_myid.eq.0) write(*,*) 'bmatrixEnsemble: Analysis mode activated (by default)'
+    end if
 
     !- 2.1 Global or LAM?
     if (hco_ben % global) then
@@ -258,64 +279,69 @@ CONTAINS
     nip1_T(1:nLevEns_T) = vco_in%ip1_T(topLevIndex_T:nLevInc_T)
 
     !- 2.3 Spectral Transform
+    if ( trim(ben_mode) == 'Analysis' ) then
 
-    if (hco_ben % global) then
+      if (hco_ben % global) then
 
-      ! Global Mode
-      nphase = 2
-      nla_mpiglobal = (ntrunc+1)*(ntrunc+2)/2
+        ! Global Mode
+        nphase = 2
+        nla_mpiglobal = (ntrunc+1)*(ntrunc+2)/2
 
-      mpimode = 5
-      gstID = gst_setup(ni,nj,ntrunc,mpiMode,nEns)
-      if(mpi_myid.eq.0) write(*,*) 'BEN : returned value of gstID = ',gstID
+        mpimode = 5
+        gstID = gst_setup(ni,nj,ntrunc,mpiMode,nEns)
+        if(mpi_myid.eq.0) write(*,*) 'BEN : returned value of gstID = ',gstID
 
-      allocate(jn_vec(nla_mpiglobal),stat=ierr)
-      if(ierr.ne.0) then
-        write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=5',ierr
-        call abort3d('aborting in ben_setup')
-      endif
-      do jn = 0, ntrunc
-        do jm = 0, jn
-          ila = gst_getnind(jm,gstID)+jn-jm
-          jn_vec(ila) = jn
+        allocate(jn_vec(nla_mpiglobal),stat=ierr)
+        if(ierr.ne.0) then
+          write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=5',ierr
+          call abort3d('aborting in ben_setup')
+        endif
+        do jn = 0, ntrunc
+          do jm = 0, jn
+            ila = gst_getnind(jm,gstID)+jn-jm
+            jn_vec(ila) = jn
+          enddo
         enddo
-      enddo
 
-    else
+      else
 
-       ! LAM mode
-       call lst_Setup( lst_ben,                          & ! OUT
-                       ni, nj, hco_ben % dlon, ntrunc,   & ! IN
-                       'LatLonMLev', nEns )                ! IN
+        ! LAM mode
+        call lst_Setup( lst_ben,                          & ! OUT
+                        ni, nj, hco_ben % dlon, ntrunc,   & ! IN
+                        'LatLonMLev', nEns )                ! IN
 
-       if(mpi_myid.eq.0) write(*,*) 'BEN : returned value of lstID = ', lst_ben % id
-       nphase       = lst_ben % nphase
-       nla_mpilocal = lst_ben % nla
-       nla_mpiglobal= nla_mpilocal !!!! Because the variables in the global-mode code 
-                                   !    still uses the global size of nla
+        if(mpi_myid.eq.0) write(*,*) 'BEN : returned value of lstID = ', lst_ben % id
+        nphase       = lst_ben % nphase
+        nla_mpilocal = lst_ben % nla
+        nla_mpiglobal= nla_mpilocal !!!! Because the variables in the global-mode code 
+                                    !    still uses the global size of nla
 
-    endif
+      end if
+
+    end if ! ben_mode
 
     !- 2.4 Distribute control vector over mpi processes according to member index and m
-    call mpivar_setup_levels_npex(nEns,myMemBeg,myMemEnd,myMemCount)
-    write(*,*) 'ben_setup: myMemBeg,End,Count=',myMemBeg,myMemEnd,myMemCount
+    if ( trim(ben_mode) == 'Analysis' ) then
+      call mpivar_setup_levels_npex(nEns,myMemBeg,myMemEnd,myMemCount)
+      write(*,*) 'ben_setup: myMemBeg,End,Count=',myMemBeg,myMemEnd,myMemCount
 
-    if ( myMemCount .le. 0 ) then
-      write(*,*) 'ERROR: Number of MPI processes must be <= number of ensemble members'
-      call abort3d('ben_setup')
-    endif
+      if ( myMemCount .le. 0 ) then
+        write(*,*) 'ERROR: Number of MPI processes must be <= number of ensemble members'
+        call abort3d('ben_setup')
+      endif
 
-    call mpivar_setup_m(ntrunc,mymBeg,mymEnd,mymSkip,mymCount)
+      call mpivar_setup_m(ntrunc,mymBeg,mymEnd,mymSkip,mymCount)
 
-    if (hco_ben % global) then
-      ! all total wavenumbers "n" on each mpi task
-      mynBeg = 0
-      mynEnd = ntrunc
-      mynSkip = 1
+      if (hco_ben % global) then
+        ! all total wavenumbers "n" on each mpi task
+        mynBeg = 0
+        mynEnd = ntrunc
+        mynSkip = 1
 
-      ! compute arrays to facilitate conversions between ila_mpilocal and ila_mpiglobal (only split by m)
-      call gst_ilaList_mpiglobal(ilaList_mpiglobal,nla_mpilocal,maxMyNla,gstID,mymBeg,mymEnd,mymSkip,mynBeg,mynEnd,mynSkip)
-      call gst_ilaList_mpilocal(ilaList_mpilocal,gstID,mymBeg,mymEnd,mymSkip,mynBeg,mynEnd,mynSkip)
+        ! compute arrays to facilitate conversions between ila_mpilocal and ila_mpiglobal (only split by m)
+        call gst_ilaList_mpiglobal(ilaList_mpiglobal,nla_mpilocal,maxMyNla,gstID,mymBeg,mymEnd,mymSkip,mynBeg,mynEnd,mynSkip)
+        call gst_ilaList_mpilocal(ilaList_mpilocal,gstID,mymBeg,mymEnd,mymSkip,mynBeg,mynEnd,mynSkip)
+      end if
     end if
 
     !- 2.5 Domain Partionning
@@ -330,15 +356,17 @@ CONTAINS
     endif
 
     !- 2.7 Localization
-    zps = 101000.D0
-    status = vgd_levels( vco_in%vgrid, ip1_list=vco_in%ip1_M, levels=pressureProfileInc_M, &
-                         sfc_field=zps, in_log=.false.)
+    if ( trim(ben_mode) == 'Analysis' ) then
+      zps = 101000.D0
+      status = vgd_levels( vco_in%vgrid, ip1_list=vco_in%ip1_M, levels=pressureProfileInc_M, &
+                           sfc_field=zps, in_log=.false.)
 
-    allocate(pressureProfileEns_M(nLevEns_M),stat=ierr)
-    pressureProfileEns_M(1:nLevEns_M) = pressureProfileInc_M(topLevIndex_M:nLevInc_M)
-    call setupLocalization(hLocalize,vLocalize,pressureProfileEns_M)
-    deallocate(pressureProfileEns_M)
-    deallocate(pressureProfileInc_M)
+      allocate(pressureProfileEns_M(nLevEns_M),stat=ierr)
+      pressureProfileEns_M(1:nLevEns_M) = pressureProfileInc_M(topLevIndex_M:nLevInc_M)
+      call setupLocalization(hLocalize,vLocalize,pressureProfileEns_M)
+      deallocate(pressureProfileEns_M)
+      deallocate(pressureProfileInc_M)
+    end if
 
     !
     !- 3.  Read/Process the Ensemble
@@ -349,27 +377,32 @@ CONTAINS
       call setupEnsemble(stamp_in)
     endif
 
-    if (hco_ben % global) then
-      cvDim_mpiglobal = (ntrunc+1)*(ntrunc+1)*nLevEns_M*nEns
-      cvDim_mpilocal  = 0
-      do jm = mymBeg, mymEnd, mymSkip
-        do jn = jm, ntrunc
-          if(jm.eq.0) then
-            ! controlVector only contains real part for jm=0
-            cvDim_mpilocal = cvDim_mpilocal + 1*myMemCount*nLevEns_M
-          else
-            ! controlVector contains real and imag parts for jm>0
-            cvDim_mpilocal = cvDim_mpilocal + 2*myMemCount*nLevEns_M
-          endif
+    if ( trim(ben_mode) == 'Analysis' ) then
+      if (hco_ben % global) then
+        cvDim_mpiglobal = (ntrunc+1)*(ntrunc+1)*nLevEns_M*nEns
+        cvDim_mpilocal  = 0
+        do jm = mymBeg, mymEnd, mymSkip
+          do jn = jm, ntrunc
+            if(jm.eq.0) then
+              ! controlVector only contains real part for jm=0
+              cvDim_mpilocal = cvDim_mpilocal + 1*myMemCount*nLevEns_M
+            else
+              ! controlVector contains real and imag parts for jm>0
+              cvDim_mpilocal = cvDim_mpilocal + 2*myMemCount*nLevEns_M
+            endif
+          enddo
         enddo
-      enddo
+      else
+        cvDim_mpiglobal = lst_ben % nlaGlobal * nphase * nLevEns_M * nEns
+        cvDim_mpilocal  = nla_mpilocal        * nphase * nLevEns_M * myMemCount
+        print*,'cvDim_mpiglobal ', cvDim_mpiglobal, lst_ben % nlaGlobal, nphase, nLevEns_M, nEns
+        print*,'cvDim_mpilocal  ', cvDim_mpilocal, nla_mpilocal, nphase, nLevEns_M, myMemCount
+      endif
+      cvDim_out = cvDim_mpilocal
     else
-      cvDim_mpiglobal = lst_ben % nlaGlobal * nphase * nLevEns_M * nEns
-      cvDim_mpilocal  = nla_mpilocal        * nphase * nLevEns_M * myMemCount
-      print*,'cvDim_mpiglobal ', cvDim_mpiglobal, lst_ben % nlaGlobal, nphase, nLevEns_M, nEns
-      print*,'cvDim_mpilocal  ', cvDim_mpilocal, nla_mpilocal, nphase, nLevEns_M, myMemCount
-    endif
-    cvDim_out = cvDim_mpilocal
+      cvDim_out = 9999 ! Dummy value > 0 to indicate to the background check (s/r compute_HBHT_ensemble) 
+                       ! that Bens is used
+    end if
 
     !
     !- 4.  Ending
@@ -397,7 +430,9 @@ CONTAINS
 
   END SUBROUTINE BEN_finalize
 
-
+!--------------------------------------------------------------------------
+! ben_getScaleFactor
+!--------------------------------------------------------------------------
   subroutine ben_getScaleFactor(scaleFactor_out)
     implicit none
     real(8) :: scaleFactor_out(:)
@@ -409,6 +444,14 @@ CONTAINS
 
   end subroutine ben_getScaleFactor
 
+!--------------------------------------------------------------------------
+! ben_getnEns
+!--------------------------------------------------------------------------
+  integer function ben_getnEns()
+    !func getnEns - returns the number ensemble member
+    implicit none
+    ben_getnEns = nEns
+  end function ben_getnEns
 
 !--------------------------------------------------------------------------
 ! setupEnsemble
@@ -1093,6 +1136,87 @@ CONTAINS
     write(*,*) 'finished adjusting ensemble members...'
 
   END SUBROUTINE setupEnsemble_latlon
+
+!--------------------------------------------------------------------------
+! ben_getPerturbation
+!--------------------------------------------------------------------------
+  SUBROUTINE ben_getPerturbation(statevector, memberIndexWanted, upwardExtrapolationMethod)
+    implicit none
+
+    type(struct_gsv) :: statevector
+    integer,          intent(in) :: memberIndexWanted
+    character(len=*), intent(in) :: upwardExtrapolationMethod
+
+    real(8), pointer :: field(:,:,:,:)
+
+    integer :: jj,jvar,ilev1,ilev2,topLevOffset,jt,jk,jkInc,ji
+
+    if ( trim(upwardExtrapolationMethod) /= "ConstantValue" ) then
+       call abort3d('ben_getPerturbation : Invalid value for upwardExtrapolationMethod')
+    end if
+
+!$OMP PARALLEL
+!$OMP DO PRIVATE(jj,jvar,field,ilev1,ilev2,topLevOffset,jt,jk,jkInc,ji)
+    do jj = myLatBeg, myLatEnd
+      do jvar = 1, vnl_numvarmax 
+
+        if (gsv_varExist(vnl_varNameList(jvar))) then
+          field => gsv_getField(statevector,vnl_varNameList(jvar))
+          if (vnl_varNameList(jvar).eq.'UU  ') then
+            ilev1 = ngposituu
+          elseif (vnl_varNameList(jvar).eq.'VV  ') then
+            ilev1 = ngpositvv
+          elseif (vnl_varNameList(jvar).eq.'TT  ') then
+            ilev1 = ngposittt
+          elseif (vnl_varNameList(jvar).eq.'HU  ') then
+            ilev1 = ngpositq
+          elseif (vnl_varNameList(jvar).eq.'P0  ') then
+            ilev1 = ngpositps
+          elseif (vnl_varNameList(jvar).eq.'TG  ') then
+            ilev1 = ngposittg
+          else
+            call abort3d('ben_getPerturbation: No perturbations available for variable:' // vnl_varNameList(jvar))
+          endif
+
+          if (vnl_vartypeFromVarname(vnl_varNameList(jvar)).eq.'SF') then
+            ilev2 = ilev1
+            topLevOffset = 1
+          elseif (vnl_vartypeFromVarname(vnl_varNameList(jvar)).eq.'MM') then
+            ilev2 = ilev1 - 1 + nlevEns_M
+            topLevOffset = topLevIndex_M
+          else
+            ilev2 = ilev1 - 1 + nlevEns_T
+            topLevOffset = topLevIndex_T
+          endif
+
+          do jt = 1, numTime
+            ! Select the corresponding ensemble perturbations
+            do jk = ilev1, ilev2
+              jkInc = jk-ilev1 + topLevOffset
+              do ji = myLonBeg, myLonEnd
+                field(ji,jkInc,jj,jt) = dble(ensPerturbations(memberIndexWanted)%member_r4(ji,jj,jk,jt))
+              enddo
+            enddo
+
+            if ( topLevOffset > 1 ) then
+              ! Fill the gap between the ensemble lid and the analysis lid
+              do jkInc = 1, topLevOffset-1
+                ! using a constant value (the value at the ensemble lid: k = ilev1)
+                do ji = myLonBeg, myLonEnd
+                  field(ji,jkInc,jj,jt) = dble(ensPerturbations(memberIndexWanted)%member_r4(ji,jj,ilev1,jt))
+                end do
+              end do
+            end if
+          end do
+
+        endif
+
+      enddo
+    enddo
+!$OMP END DO
+!$OMP END PARALLEL
+
+  END SUBROUTINE ben_getPerturbation
 
 !--------------------------------------------------------------------------
 ! CheckEnsDim

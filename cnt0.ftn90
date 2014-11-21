@@ -37,6 +37,8 @@ program cnt0
   type(struct_vco),pointer :: vco_anl => NULL()
   type(struct_vco),pointer :: vco_trl => NULL()
 
+  character(len=11) :: obsMpiStrategy
+
   istamp = exdb('3DVAR','DEBUT','NON')
 
   write(*,'(/,' //                                            &
@@ -68,11 +70,17 @@ program cnt0
     numAnalyses = 1
     indexAnalysis = 0
 
+    if ( top_BurpSplitMode() ) then
+       obsMpiStrategy="ROUNDROBIN"
+    else
+       obsMpiStrategy="LATLONTILES"
+    end if
+
     ! Do initial set up
     call tmg_start(1,'PREMIN')
     call preproc(columng,columnhr,obsSpaceData,  &
-                 "ALL",        & ! obsColumnMode   
-                 "ROUNDROBIN", & ! obsMpiStrategy
+                 "ALL",                & ! obsColumnMode   
+                 trim(obsMpiStrategy), &
                  numAnalyses)
 
     ! Reading, horizontal interpolation and unit conversions of the 3D trial fields

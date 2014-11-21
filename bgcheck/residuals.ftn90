@@ -37,7 +37,7 @@
 !C*    1. Preliminary initializations
 !C     .  ---------------------------
 !C
-      CALL SIGMAOP(columng,columnhr,obsSpaceData)
+      call compute_HBHT(columng,columnhr,obsSpaceData)
 
       DO j =1,1
          call obs_prnthdr(obsSpaceData,j)

@@ -31,30 +31,11 @@
       type(struct_obs) :: lobsSpaceData
       character(len=*) :: obsMpiStrategy
       character(len=*) :: obsColumnMode
-      character(len=256) :: BURP_SPLIT_VAR
-      integer :: length_burp_split, status
-      logical :: burp_split_L
       integer :: get_max_rss
 
       WRITE(*,FMT=9000)
  9000 FORMAT(/,1x,' SUOBS- Initialisation of observations',/,1x,3('- -----------'))
 
-      !
-      !- Determine if the observation files are already split by subdomain
-      !
-      status = 0
-      burp_split_L = .false.
-      call get_environment_variable('ARMA_BURP_SPLIT',BURP_SPLIT_VAR,length_burp_split,status,.true.)
-      if (status.gt.1) then
-        write(*,*) 'suobs: Problem when getting the environment variable ARMA_BURP_SPLIT'
-      end if
-      if (status.eq.1) then !! The variable 'ARMA_BURP_SPLIT' does not exist so we didn't split the observations
-        write(*,*) 'suobs: The environment variable ARMA_BURP_SPLIT has not been detected so we read global observation files'
-        burp_split_L = .false.
-      else
-        write(*,*) 'suobs: The environment variable ARMA_BURP_SPLIT has been detected so we read splitted observation files'
-        burp_split_L = .true.
-      end if 
       !
       ! Specify the active observation-array columns
       !
@@ -63,7 +44,7 @@
       !
       ! Allocate memory for observation arrays
       !
-      call obs_initialize(lobsSpaceData,mpi_local=burp_split_L)
+      call obs_initialize(lobsSpaceData,mpi_local=top_BurpSplitMode() )
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
       !
       ! Read the NAMELIST NAMGGPSRO
@@ -92,7 +73,7 @@
       !
       ! Check env variable ARMA_BURP_SPLIT to know if burp files already split by subdomains
       !
-      if (.not.burp_split_L) then !! global observations files so have to localize them for each MPI process
+      if ( .not. top_BurpSplitMode() ) then !! global observations files so have to localize them for each MPI process
         call setObsMpiStrategy(lobsSpaceData,obsMpiStrategy)
         call obs_reduceToMpiLocal(lobsSpaceData)
       end if
@@ -105,7 +86,7 @@
       call tmg_stop(14)
 
       if (obsMpiStrategy.eq.'LATBANDS' .or. obsMpiStrategy.eq.'LATLONTILES') then
-        call checkObsMpiIP(lobsSpaceData,burp_split_L)
+        call checkObsMpiIP(lobsSpaceData,top_BurpSplitMode())
       end if
 
       !
