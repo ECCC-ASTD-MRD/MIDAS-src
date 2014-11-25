@@ -662,13 +662,13 @@ module writeIncrement_mod
       if(Vcode_anl.eq.5001) then 
 
         write(*,*) 'Writing variable HY in analysis-increment file'
-        zptop_r4 = statevector%vco%dpt_M*MPC_MBAR_PER_PA_R8
-        zpref_r4 = statevector%vco%dprf_M*MPC_MBAR_PER_PA_R8
+        zptop_r4 = statevector%vco%dptop*MPC_MBAR_PER_PA_R8
+        zpref_r4 = statevector%vco%dprf*MPC_MBAR_PER_PA_R8
         zrcoef_r4 = statevector%vco%drcf1
         ierr    = write_encode_hyb(nulfile,'HY',nip2,nip3,cletiket,  &
                                    datestamp,zptop_r4,zpref_r4,zrcoef_r4)
 
-      elseif(Vcode_anl.eq.5002) then
+      elseif(Vcode_anl.eq.5002 .or. Vcode_anl.eq.5004) then
 
         write(*,*) 'Writing Vgrid descriptor record in analysis-increment file'
         status = vgd_write(statevector%vco%vgrid,nulfile,'fst')
@@ -685,8 +685,8 @@ module writeIncrement_mod
       write(*,*)'************************************** '
       write(*,*) ' The hybride coordinate parameters from increment', &
                  ' analysis  grid are:'
-      write(*,*) ' PTOP = ',statevector%vco%dpt_M*MPC_MBAR_PER_PA_R8,' MB'
-      write(*,*) ' PREF = ',statevector%vco%dprf_M*MPC_MBAR_PER_PA_R8,' MB'
+      write(*,*) ' PTOP = ',statevector%vco%dptop*MPC_MBAR_PER_PA_R8,' MB'
+      write(*,*) ' PREF = ',statevector%vco%dprf*MPC_MBAR_PER_PA_R8,' MB'
       write(*,*) ' RCOEF= ',statevector%vco%drcf1
       write(*,*)'************************************** '
       write(*,*)' '
@@ -854,7 +854,7 @@ module writeIncrement_mod
       type(struct_gsv) :: statevector,statevectorg
 
       integer :: jlat,jlon,lev_M,lev_T,nlev_M,nlev_T
-      integer :: status
+      integer :: status,Vcode_anl
       real(8) :: hu,tt,ratioP1
       real(8), allocatable :: tv(:),ratioP(:)
       real(8), allocatable :: delLnP_M(:),delLnP_T(:)
@@ -862,13 +862,18 @@ module writeIncrement_mod
       real(8), pointer :: dP_dPsfc_M(:,:,:),dP_dPsfc_T(:,:,:)
       real(8), pointer :: Pres_M(:,:,:),Pres_T(:,:,:)
       real(8), pointer :: hu_ptr(:,:,:,:),tt_ptr(:,:,:,:),delPsfc(:,:,:,:)
+      type(struct_vco), pointer :: vco_anl
 
       write(*,FMT='(/,4X,"Starting LTT2PHIGD_GEM4",//)')
+
+      vco_anl => gsv_getVco(statevectorg)
+      status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
 
       nlev_T = gsv_getNumLev(statevectorg,'TH')
       nlev_M = gsv_getNumLev(statevectorg,'MM')
 
-      if(nlev_T .ne. nlev_M+1) call abort3d('ltt2phi_gem4: nlev_T is not equal to nlev_M+1!')
+      if(Vcode_anl .eq. 5002 .and. nlev_T .ne. nlev_M+1) call abort3d('ltt2phigd_gem4: nlev_T is not equal to nlev_M+1!')
+      if(Vcode_anl .eq. 5004 .and. nlev_T .ne. nlev_M) call abort3d('ltt2phigd_gem4: nlev_T is not equal to nlev_M!')
 
       delPsfc => gsv_getField(statevector ,'P0')
 
@@ -891,63 +896,120 @@ module writeIncrement_mod
       hu_ptr => gsv_getField(statevectorg,'HU')
       tt_ptr => gsv_getField(statevectorg,'TT')
 
-      ! loop over all horizontal gridpoints
-      do jlat = 1, statevectorg%nj
-        do jlon = 1, statevectorg%ni
+      if(Vcode_anl .eq. 5002) then
+
+        ! loop over all horizontal gridpoints
+        do jlat = 1, statevectorg%nj
+          do jlon = 1, statevectorg%ni
  
-          ! initialize GZ increment to zero
-          delGz_M(jlon,:,jlat) = 0.0d0
-          delGz_T(jlon,:,jlat) = 0.0d0
+            ! initialize GZ increment to zero
+            delGz_M(jlon,:,jlat) = 0.0d0
+            delGz_T(jlon,:,jlat) = 0.0d0
 
-          ! compute lnP increment on momentum and thermo levels
-          do lev_M = 1, nlev_M
-            delLnP_M(lev_M) = dP_dPsfc_M(jlon,jlat,lev_M)*delPsfc(jlon,1,jlat,1)/  &
-                              Pres_M(jlon,jlat,lev_M)
-          enddo
-          do lev_T = 1, nlev_T
-            delLnP_T(lev_T) = dP_dPsfc_T(jlon,jlat,lev_T)*delPsfc(jlon,1,jlat,1)/  &
-                              Pres_T(jlon,jlat,lev_T)
-          enddo
+            ! compute lnP increment on momentum and thermo levels
+            do lev_M = 1, nlev_M
+              delLnP_M(lev_M) = dP_dPsfc_M(jlon,jlat,lev_M)*delPsfc(jlon,1,jlat,1)/  &
+                                Pres_M(jlon,jlat,lev_M)
+            enddo
+            do lev_T = 1, nlev_T
+              delLnP_T(lev_T) = dP_dPsfc_T(jlon,jlat,lev_T)*delPsfc(jlon,1,jlat,1)/  &
+                                Pres_T(jlon,jlat,lev_T)
+            enddo
 
-          ! compute background virtual temperature
-          do lev_T = 1, nlev_T
-            hu = hu_ptr(jlon,lev_T,jlat,1)
-            tt = tt_ptr(jlon,lev_T,jlat,1)
-            tv(lev_T) = fotvt8(tt,hu)
-          enddo
+            ! compute background virtual temperature
+            do lev_T = 1, nlev_T
+              hu = hu_ptr(jlon,lev_T,jlat,1)
+              tt = tt_ptr(jlon,lev_T,jlat,1)
+              tv(lev_T) = fotvt8(tt,hu)
+            enddo
     
-          ! compute natural log of momenutum level pressure ratios for each layer
-          do lev_M = 1,(nlev_M-1)
-            lev_T = lev_M+1 ! thermo level just below momentum level
-            ratioP(lev_T) = log( Pres_M(jlon,jlat,lev_M+1) /  &
-                                 Pres_M(jlon,jlat,lev_M  ) )
+            ! compute natural log of momenutum level pressure ratios for each layer
+            do lev_M = 1,(nlev_M-1)
+              lev_T = lev_M+1 ! thermo level just below momentum level
+              ratioP(lev_T) = log( Pres_M(jlon,jlat,lev_M+1) /  &
+                                   Pres_M(jlon,jlat,lev_M  ) )
+            enddo
+
+            ! compute GZ increment on momentum levels
+            do lev_M = (nlev_M-1), 1, -1
+              lev_T = lev_M+1 ! thermo level just below momentum level being computed
+              delGz_M(jlon,lev_M,jlat) = delGz_M(jlon,lev_M+1,jlat) +   &
+                               MPC_RGAS_DRY_AIR_R8*( ratioP(lev_T)*delTv(jlon,lev_T,jlat) +  & 
+                                                     tv(lev_T)*(delLnP_M(lev_M+1) -  &
+                                                     delLnP_M(lev_M)) )
+            enddo
+
+            ! compute GZ increment for top thermo level (from top momentum level)
+            ratioP1 = log( Pres_M(jlon,jlat,1) /  &
+                           Pres_T(jlon,jlat,1) )
+            delGz_T(jlon,1,jlat) = delGz_M(jlon,1,jlat) +  &
+                         MPC_RGAS_DRY_AIR_R8*( ratioP1*delTv(jlon,1,jlat) +  &
+                                               tv(1)*(delLnP_M(1) - delLnP_T(1)) )
+
+            ! compute GZ increment on remaining thermo levels by simple averaging
+            do lev_T = 2, (nlev_T-1)
+              lev_M = lev_T ! momentum level just below thermo level being computed
+              delGz_T(jlon,lev_T,jlat) = 0.5d0*( delGz_M(jlon,lev_M-1,jlat) +  &
+                                                 delGz_M(jlon,lev_M,jlat) )
+            enddo
+
           enddo
-
-          ! compute GZ increment on momentum levels
-          do lev_M = (nlev_M-1), 1, -1
-            lev_T = lev_M+1 ! thermo level just below momentum level being computed
-            delGz_M(jlon,lev_M,jlat) = delGz_M(jlon,lev_M+1,jlat) +   &
-                             MPC_RGAS_DRY_AIR_R8*( ratioP(lev_T)*delTv(jlon,lev_T,jlat) +  & 
-                                                   tv(lev_T)*(delLnP_M(lev_M+1) -  &
-                                                   delLnP_M(lev_M)) )
-          enddo
-
-          ! compute GZ increment for top thermo level (from top momentum level)
-          ratioP1 = log( Pres_M(jlon,jlat,1) /  &
-                         Pres_T(jlon,jlat,1) )
-          delGz_T(jlon,1,jlat) = delGz_M(jlon,1,jlat) +  &
-                       MPC_RGAS_DRY_AIR_R8*( ratioP1*delTv(jlon,1,jlat) +  &
-                                             tv(1)*(delLnP_M(1) - delLnP_T(1)) )
-
-          ! compute GZ increment on remaining thermo levels by simple averaging
-          do lev_T = 2, (nlev_T-1)
-            lev_M = lev_T ! momentum level just below thermo level being computed
-            delGz_T(jlon,lev_T,jlat) = 0.5d0*( delGz_M(jlon,lev_M-1,jlat) +  &
-                                               delGz_M(jlon,lev_M,jlat) )
-          enddo
-
         enddo
-      enddo
+
+      elseif(Vcode_anl .eq. 5004) then
+
+        ! loop over all horizontal gridpoints
+        do jlat = 1, statevectorg%nj
+          do jlon = 1, statevectorg%ni
+ 
+            ! initialize GZ increment to zero
+            delGz_M(jlon,:,jlat) = 0.0d0
+            delGz_T(jlon,:,jlat) = 0.0d0
+
+            ! compute lnP increment on momentum and thermo levels
+            do lev_M = 1, nlev_M
+              delLnP_M(lev_M) = dP_dPsfc_M(jlon,jlat,lev_M)*delPsfc(jlon,1,jlat,1)/  &
+                                Pres_M(jlon,jlat,lev_M)
+            enddo
+            do lev_T = 1, nlev_T
+              delLnP_T(lev_T) = dP_dPsfc_T(jlon,jlat,lev_T)*delPsfc(jlon,1,jlat,1)/  &
+                                Pres_T(jlon,jlat,lev_T)
+            enddo
+
+            ! compute background virtual temperature
+            do lev_T = 1, nlev_T
+              hu = hu_ptr(jlon,lev_T,jlat,1)
+              tt = tt_ptr(jlon,lev_T,jlat,1)
+              tv(lev_T) = fotvt8(tt,hu)
+            enddo
+    
+            ! compute natural log of momenutum level pressure ratios for each layer
+            do lev_M = 1,(nlev_M-1)
+              lev_T = lev_M ! thermo level just below momentum level
+              ratioP(lev_T) = log( Pres_M(jlon,jlat,lev_M+1) /  &
+                                   Pres_M(jlon,jlat,lev_M  ) )
+            enddo
+
+            ! compute GZ increment on momentum levels
+            do lev_M = (nlev_M-1), 1, -1
+              lev_T = lev_M ! thermo level just below momentum level being computed
+              delGz_M(jlon,lev_M,jlat) = delGz_M(jlon,lev_M+1,jlat) +   &
+                               MPC_RGAS_DRY_AIR_R8*( ratioP(lev_T)*delTv(jlon,lev_T,jlat) +  & 
+                                                     tv(lev_T)*(delLnP_M(lev_M+1) -  &
+                                                     delLnP_M(lev_M)) )
+            enddo
+
+            ! compute GZ increment on remaining thermo levels by simple averaging
+            do lev_T = 1, (nlev_T-1)
+              lev_M = lev_T+1 ! momentum level just below thermo level being computed
+              delGz_T(jlon,lev_T,jlat) = 0.5d0*( delGz_M(jlon,lev_M-1,jlat) +  &
+                                                 delGz_M(jlon,lev_M,jlat) )
+            enddo
+
+          enddo
+        enddo
+
+      endif
 
       deallocate(tv)
       deallocate(ratioP)
@@ -1445,7 +1507,7 @@ module writeIncrement_mod
       integer :: iip1s(kmaxlev),iip1,iip2,iip3,itrlnlev,itrlgid
       integer :: ikey,ezgprm,vfstluk,fstluk,ezsetopt,ezsint
       integer :: ezdefset,iset
-      integer :: ikind,imode,ip1style,ip1kind
+      integer :: ikind(kmaxlev),imode,ip1style,ip1kind
       integer :: koutmpg
       real*8 ::  zeta(kmaxlev)
       real*8, allocatable :: zhighvar(:,:)
@@ -1479,22 +1541,6 @@ module writeIncrement_mod
              ,ip1style,ip1kind,ktrials,koutmpg)
       endif
 
-      ! Convert ip1 to real value P
-      imode = -1
-      ikind = ip1kind
-      do jlev = 1,itrlnlev
-        call VCONVIP( iip1s(jlev), zeta(jlev), ikind, imode, clstring, .false. )
-      enddo
-
-      call vsort(zeta,itrlnlev)
-
-      ! Convert real value P to IP
-      imode = ip1style
-      ikind = ip1kind
-      do jlev = 1,itrlnlev
-        call VCONVIP(iip1s(jlev),zeta(jlev),ikind,imode,clstring, .false.)
-      enddo
-
       iset = ezdefset(ktrggid,itrlgid)
 
       ierr = ezgprm(itrlgid,clgrtyp,ini,inj,ig1,ig2,ig3,ig4)
@@ -1505,13 +1551,19 @@ module writeIncrement_mod
 
       call rpn_comm_barrier("GRID",ierr)
       call tmg_start(96,'POST_READBASIC')
-      do JLEV = (1+mpi_myid),itrlnlev,mpi_nprocs
+      do jlev = (1+mpi_myid), itrlnlev, mpi_nprocs
+
+        if(trim(varName).eq.'P0') then
+          iip1 = IIP1S(1)
+        else
+          iip1 = vco_trl%ip1_T(jlev)
+        endif
 
         ! Read the high-res trial field
-        ikey = fstinf(koutmpg, INI, INJ, INK, kstampv, cletiket, iip1s(jlev), iip2, iip3,cltypvar,varName)
+        ikey = fstinf(koutmpg, INI, INJ, INK, kstampv, cletiket, iip1, iip2, iip3,cltypvar,varName)
 
         if (ikey.lt.0) then
-          write(*,*) 'Problems finding variable ',varName,' at level ',iip1s(jlev),' in trial file'
+          write(*,*) 'Problems finding variable ',varName,' at level ',iip1,' in trial file'
           call abort3d('VHFSTFLD')
         endif
 

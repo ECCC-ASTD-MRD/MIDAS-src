@@ -53,7 +53,7 @@ c
       double precision tesf,tesd,tg,fg,fpg,td,ta,fa,fpa,d2,f,fp,ffn,fd,
      / fpd,z,test,barmin,barmul,barmax,barr,gauche,droite,taa,ps
 c
-      !bhe call tmg_start(74,'NLIS0')
+      call tmg_start(74,'NLIS0')
  1000 format (/4x,9h nlis0   ,4x,4hfpn=,d10.3,4h d2=,d9.2,
      1 7h  tmin=,d9.2,6h tmax=,d9.2)
  1001 format (/4x,6h mlis0,3x,"stop on tmin",8x,
@@ -280,6 +280,5 @@ c
   950 do 960 i=1,n
   960 x(i)=xn(i)+t*d(i)
       go to 100
-      call tmg_stop(74)
-  999 return
+  999 call tmg_stop(74)
       end

@@ -45,7 +45,7 @@ module columnData_mod
     logical           :: mpi_local
     real*8,pointer    :: all(:,:)
     real*8,pointer    :: gz_T(:,:),gz_M(:,:)
-    real*8,pointer    :: rppobs_T(:,:),rppobs_M(:,:)
+    real*8,pointer    :: pressure_T(:,:),pressure_M(:,:)
     real*8,pointer    :: dP_dPsfc_T(:,:),dP_dPsfc_M(:,:)
     real*8,pointer    :: oltv(:,:,:)    ! Tangent linear operator of virtual temperature
     real*8,pointer    :: rtapfac(:,:)   ! Background surface pressure dependant factor used for Temperature to Phi calc.
@@ -142,8 +142,8 @@ module columnData_mod
 
       if(column%numCol.gt.0) then
         column%all(:,:)=0.0d0
-        column%rppobs_M(:,:)=0.0d0
-        column%rppobs_T(:,:)=0.0d0
+        column%pressure_M(:,:)=0.0d0
+        column%pressure_T(:,:)=0.0d0
         column%gz_M(:,:)=0.0d0
         column%gz_T(:,:)=0.0d0
       endif
@@ -207,10 +207,10 @@ module columnData_mod
         column%gz_T(:,:)=0.0d0
         column%gz_M(:,:)=0.0d0
 
-        allocate(column%rppobs_T(col_getNumLev(column,'TH'),column%numCol))
-        allocate(column%rppobs_M(col_getNumLev(column,'MM'),column%numCol))
-        column%rppobs_T(:,:)=0.0d0
-        column%rppobs_M(:,:)=0.0d0
+        allocate(column%pressure_T(col_getNumLev(column,'TH'),column%numCol))
+        allocate(column%pressure_M(col_getNumLev(column,'MM'),column%numCol))
+        column%pressure_T(:,:)=0.0d0
+        column%pressure_M(:,:)=0.0d0
 
         allocate(column%dP_dPsfc_T(col_getNumLev(column,'TH'),column%numCol))
         allocate(column%dP_dPsfc_M(col_getNumLev(column,'MM'),column%numCol))
@@ -259,8 +259,8 @@ module columnData_mod
         deallocate(column%all)
         deallocate(column%gz_T)
         deallocate(column%gz_M)
-        deallocate(column%rppobs_T)
-        deallocate(column%rppobs_M)
+        deallocate(column%pressure_T)
+        deallocate(column%pressure_M)
         deallocate(column%dP_dPsfc_T)
         deallocate(column%dP_dPsfc_M)
         deallocate(column%lat)
@@ -306,13 +306,13 @@ module columnData_mod
         if(varType.eq.'TH') then
           do jobs = 1,columnghr%numCol
             do jlev = 1,col_getNumLev(columnghr,'TH')
-              columnghr%rppobs_T(jlev,jobs) = pvar(jlev,jobs)
+              columnghr%pressure_T(jlev,jobs) = pvar(jlev,jobs)
             enddo
           enddo
         elseif(varType.eq.'MM') then
           do jobs = 1,columnghr%numCol
             do jlev = 1,col_getNumLev(columnghr,'MM')
-              columnghr%rppobs_M(jlev,jobs) = pvar(jlev,jobs)
+              columnghr%pressure_M(jlev,jobs) = pvar(jlev,jobs)
             enddo
           enddo
         else
@@ -485,9 +485,9 @@ module columnData_mod
     real*8                              :: pressure
 
     if (varType .eq. 'TH') then
-      pressure = column%rppobs_t(ilev,headerIndex)
+      pressure = column%pressure_t(ilev,headerIndex)
     elseif (varType .eq. 'MM' ) then
-      pressure = column%rppobs_m(ilev,headerIndex)
+      pressure = column%pressure_m(ilev,headerIndex)
     else
       call abort3d('col_getPressure: Unknown variable type: ' // varType)
     endif
@@ -656,9 +656,9 @@ module columnData_mod
         case('PR')
           if(present(varType)) then 
             if(varType.eq.'TH') then
-              onecolumn => column%rppobs_T(:,headerIndex)
+              onecolumn => column%pressure_T(:,headerIndex)
             elseif(varType.eq.'MM') then
-              onecolumn => column%rppobs_M(:,headerIndex)
+              onecolumn => column%pressure_M(:,headerIndex)
             else
               call abort3d('col_getColumn: varType must MM or TH for Pressure! ' // varType)         
             endif

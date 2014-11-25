@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-subroutine tovs_fill_profiles_tl(lcolumn,lcolumng)
+subroutine tovs_fill_profiles_tl(column,columng)
 #if defined (doc)
 !
 !**s/r tovs_fill_profiles_tl  - tangent linear of interpolation of obs.space to rttov space
@@ -51,20 +51,21 @@ subroutine tovs_fill_profiles_tl(lcolumn,lcolumng)
 
   implicit none
 
-  type(struct_columnData) :: lcolumn,lcolumng
+  type(struct_columnData) :: column,columng
 
   type(struct_vco), pointer :: vco_anl
   integer, allocatable :: iptobs    (:) 
   integer, allocatable :: iptobscma (:) 
 
   integer :: alloc_status(40)
-
+  logical :: diagTtop,TopNotAt10hPa
   integer :: omp_get_num_threads, nthreads
   integer :: istride, ilen, imodulo
-  integer :: nlevels,knlev,nobmax
+  integer :: nlevels,nobmax
   integer :: j, i, krtid, jf, iobs, jj, stat
-  integer :: ilowlvl_M,ilowlvl_T, knpf, jo
+  integer :: ilowlvl_M,ilowlvl_T,knpf,jo,nlv_M,nlv_T
   integer :: jk, jn, jl
+  integer :: status, Vcode
 
   real*8, allocatable :: to_tl    (:,:)
   real*8, allocatable :: lqo_tl   (:,:)
@@ -91,26 +92,31 @@ subroutine tovs_fill_profiles_tl(lcolumn,lcolumng)
 !     1.    Set index for model's lowest level and model top
 !     .     ------------------------------------------------
                  
-  vco_anl => col_getVco(lcolumng)
-  knlev = col_getNumLev(lcolumng,'TH')
+  nlv_M = col_getNumLev(columng,'MM')
+  nlv_T = col_getNumLev(columng,'TH')
 
-  if (  col_getPressure(lcolumng,1,1,'TH') .lt. col_getPressure(lcolumng,knlev,1,'TH') ) then
-     ilowlvl_M = col_getNumLev(lcolumng,'MM')
-     ilowlvl_T = col_getNumLev(lcolumng,'TH')
+  if (  col_getPressure(columng,1,1,'TH') .lt. col_getPressure(columng,nlv_T,1,'TH') ) then
+     ilowlvl_M = nlv_M
+     ilowlvl_T = nlv_T
   else
      ilowlvl_M = 1
      ilowlvl_T = 1
   endif
 
+  vco_anl => col_getVco(columng)
+  status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode)
+  diagTtop = (Vcode.eq.5002)
  
   nlevels=coefs(1) %coef%  nlevels
   allocate (xpres(nlevels))
   xpres(1:nlevels) = coefs(1)% coef % ref_prfl_p(1:nlevels)
-! find model level top, within 0.000001 mbs.
 
-  zptop    = col_getPressure(lcolumng,1,1,'TH')
+  ! find model level top, within 0.000001 mbs.
+  zptop    = col_getPressure(columng,1,1,'TH')
   zptopmbs = zptop/100.d0
   zptopmbs = zptopmbs - 0.000001d0
+
+  TopNotAt10hPa = ( abs( zptopmbs - 10.0d0 ) > .1d0 ) !could be replaced by another logical test
 
   jpmotop = 1
   do jl = 2, nlevels
@@ -120,7 +126,6 @@ subroutine tovs_fill_profiles_tl(lcolumn,lcolumng)
         exit
      endif
   enddo
-
   jpmolev = (nlevels-jpmotop+1)
 
 !     1.1   Number of threads and memory allocation
@@ -137,12 +142,12 @@ subroutine tovs_fill_profiles_tl(lcolumn,lcolumng)
   allocate (lqo_tl    (jpmolev,jppf*nthreads)  ,stat= alloc_status(4) )
   allocate (toext_tl  (nlevels  ,jppf*nthreads),stat= alloc_status(5) )
   allocate (qoext_tl  (nlevels  ,jppf*nthreads),stat= alloc_status(6) )
-  allocate (zvlev     (knlev,jppf*nthreads)    ,stat= alloc_status(7) )
-  allocate (dPdPs     (knlev,jppf*nthreads)    ,stat= alloc_status(8) )
-  allocate (zt_tl     (knlev,jppf*nthreads)    ,stat= alloc_status(9) )
-  allocate (zlq_tl    (knlev,jppf*nthreads)    ,stat= alloc_status(10))
-  allocate (zt        (knlev,jppf*nthreads)    ,stat= alloc_status(11))
-  allocate (zlq       (knlev,jppf*nthreads)    ,stat= alloc_status(12))
+  allocate (zvlev     (nlv_T,jppf*nthreads)    ,stat= alloc_status(7) )
+  allocate (dPdPs     (nlv_T,jppf*nthreads)    ,stat= alloc_status(8) )
+  allocate (zt_tl     (nlv_T,jppf*nthreads)    ,stat= alloc_status(9) )
+  allocate (zlq_tl    (nlv_T,jppf*nthreads)    ,stat= alloc_status(10))
+  allocate (zt        (nlv_T,jppf*nthreads)    ,stat= alloc_status(11))
+  allocate (zlq       (nlv_T,jppf*nthreads)    ,stat= alloc_status(12))
   allocate (qoext     (nlevels,jppf*nthreads)  ,stat= alloc_status(13))
 
   allocate (zps_tl    (jppf*nthreads)          ,stat= alloc_status(14))
@@ -189,22 +194,28 @@ subroutine tovs_fill_profiles_tl(lcolumn,lcolumng)
        
         knpf = knpf + 1
 
-        zps_tl  (knpf) = col_getElem(lcolumn,1,jo,'P0')*MPC_MBAR_PER_PA_R8
-        do jl = 1, knlev
-           zt_tl   (jl,knpf) = col_getElem(lcolumn,jl,jo,'TT')
-           zlq_tl  (jl,knpf) = col_getElem(lcolumn,jl,jo,'HU')
-           zt   (jl,knpf) = col_getElem(lcolumng,jl,jo,'TT')
-           zlq  (jl,knpf) = col_getElem(lcolumng,jl,jo,'HU')
-           zvlev(jl,knpf) = col_getPressure(lcolumng,jl,jo,'TH') *MPC_MBAR_PER_PA_R8
-           dPdPs(jl,knpf) = col_getPressureDeriv(lcolumng,jl,jo,'TH')
+        zps_tl  (knpf) = col_getElem(column,1,jo,'P0')*MPC_MBAR_PER_PA_R8
+        do jl = 1, nlv_T
+           zt_tl   (jl,knpf) = col_getElem(column,jl,jo,'TT')
+           zlq_tl  (jl,knpf) = col_getElem(column,jl,jo,'HU')
+           zt   (jl,knpf) = col_getElem(columng,jl,jo,'TT')
+           zlq  (jl,knpf) = col_getElem(columng,jl,jo,'HU')
+           zvlev(jl,knpf) = col_getPressure(columng,jl,jo,'TH') *MPC_MBAR_PER_PA_R8
+           dPdPs(jl,knpf) = col_getPressureDeriv(columng,jl,jo,'TH')
         enddo
-!!! Fix pour eviter probleme au toit avec GEM 4
-!!! (grosse varibilite temperature au dernier niveau thermo due a l'extrapolation utilisee)
-        zt_tl   (1,knpf) =  0.d0
-        zlq_tl  (1,knpf) =  0.d0
-        zt   (1,knpf) =  zt   (2,knpf) - 8.0d0 ! base sur derniere couche environ 4km, lapse rate 2K/km
-        zlq  (1,knpf) =  zlq  (2,knpf)
-!!!!
+
+        ! Fix pour eviter probleme au toit avec GEM 4
+        ! (grosse varibilite temperature au dernier niveau thermo due 
+        !  a l'extrapolation utilisee)
+        if ( diagTtop ) then
+           zt_tl   (1,knpf) =  0.d0
+           zlq_tl  (1,knpf) =  0.d0
+           zt   (1,knpf) =  zt   (2,knpf) + mesosphere_lapse_rate *  &
+                            log( col_getPressure(columng,1,jo,'TH') /  &
+                                 col_getPressure(columng,2,jo,'TH') )
+           zlq  (1,knpf) =  zlq  (2,knpf)
+        endif
+
         iptobs   (knpf) = iobs
         iptobscma(knpf) = jo
         if ( knpf .le. 0                                    ) cycle bobs
@@ -233,10 +244,10 @@ subroutine tovs_fill_profiles_tl(lcolumn,lcolumng)
            if ( ilen .gt. 0) then
 
               call intavgtl(zvlev(:,jn:jn+ilen-1),dPdPs(:,jn:jn+ilen-1),zt_tl(:,jn:jn+ilen-1),zt(:,jn:jn+ilen-1), &
-                   zps_tl(jn:jn+ilen-1),knlev,knlev,ilen, &
+                   zps_tl(jn:jn+ilen-1),nlv_T,nlv_T,ilen, &
                    jpmolev,xpres(jpmotop:nlevels),to_tl(:,jn:jn+ilen-1))
               call intavgtl(zvlev(:,jn:jn+ilen-1),dPdPs(:,jn:jn+ilen-1),zlq_tl(:,jn:jn+ilen-1),zlq(:,jn:jn+ilen-1), &
-                   zps_tl(jn:jn+ilen-1),knlev,knlev,ilen, &
+                   zps_tl(jn:jn+ilen-1),nlv_T,nlv_T,ilen, &
                    jpmolev,xpres(jpmotop:nlevels),lqo_tl(:,jn:jn+ilen-1))
 
            endif
@@ -247,7 +258,7 @@ subroutine tovs_fill_profiles_tl(lcolumn,lcolumng)
 !     .  2.2  Extrapolation of temperature profile above 10mb
 !     .       -----------------------------------------------
         toext_tl(:,:) = 0.0d0
-        if ( abs( zptopmbs - 10.0d0 ) > .1d0 ) then
+        if ( TopNotAt10hPa ) then
            do jn = 1, knpf
               toext_tl(jpmotop:nlevels,jn)=to_tl(1:jpmolev,jn)
               toext_tl(1:jpmotop-1,jn)=0.d0
@@ -272,7 +283,7 @@ subroutine tovs_fill_profiles_tl(lcolumn,lcolumng)
            enddo
         enddo
 
-        if ( abs( zptopmbs - 10.0d0 ) < .1d0 ) then
+        if (  .not.TopNotAt10hPa ) then
            if ( ldbgtov ) then
               do jn = 1, knpf
                  write(*,*)'qoext_tl*1000 avant exthum4    = '
@@ -315,22 +326,22 @@ subroutine tovs_fill_profiles_tl(lcolumn,lcolumng)
            profiles_tl(jj) % zenangle        = 0.0d0
            profiles_tl(jj) % azangle         = 0.0d0
            profiles_tl(jj) % skin % surftype = 0
-           profiles_tl(jj) % skin % t        = col_getElem(lcolumn,1,iptobscma(j),'TG')
+           profiles_tl(jj) % skin % t        = col_getElem(column,1,iptobscma(j),'TG')
            profiles_tl(jj) % skin % fastem(:)= 0.0d0
            profiles_tl(jj) % skin % salinity = 0.0d0
-           profiles_tl(jj) % s2m % t         = col_getElem(lcolumn,ilowlvl_T,iptobscma(j),'TT')
+           profiles_tl(jj) % s2m % t         = col_getElem(column,ilowlvl_T,iptobscma(j),'TT')
 
    !! The following line has been commented out because qoext(ilowlvl_T,j) may be out of bound
-!!!        profiles_tl(jj) % s2m % q         = qoext(ilowlvl_T,j) * col_getElem(lcolumn,ilowlvl_T,iptobscma(j),'HU') * q_mixratio_to_ppmv
+!!!        profiles_tl(jj) % s2m % q         = qoext(ilowlvl_T,j) * col_getElem(column,ilowlvl_T,iptobscma(j),'HU') * q_mixratio_to_ppmv
    !! The right code should be
         !!profiles_tl(jj) % s2m % q         = exp(gomq1(ilowlvl_T,iptobscma(j))) * pgomq_tl(ilowlvl_T,iptobscma(j)) * q_mixratio_to_ppmv
    !! but since the logical flag 'use_q2m' is set to .false. in rttov_const.F90 (in RTTOV code)
    !! this variable profiles_tl(jj) % s2m % q is not used so it can be set to 0
            profiles_tl(jj) % s2m % q         = 0.d0
 
-           profiles_tl(jj) % s2m % p         = col_getElem(lcolumn,1,iptobscma(j),'P0')*MPC_MBAR_PER_PA_R8
-           profiles_tl(jj) % s2m % u         = col_getElem(lcolumn,ilowlvl_M,iptobscma(j),'UU')
-           profiles_tl(jj) % s2m % v         = col_getElem(lcolumn,ilowlvl_M,iptobscma(j),'VV')
+           profiles_tl(jj) % s2m % p         = col_getElem(column,1,iptobscma(j),'P0')*MPC_MBAR_PER_PA_R8
+           profiles_tl(jj) % s2m % u         = col_getElem(column,ilowlvl_M,iptobscma(j),'UU')
+           profiles_tl(jj) % s2m % v         = col_getElem(column,ilowlvl_M,iptobscma(j),'VV')
         
            profiles_tl(jj) % p(1:nlevels)    = 0.d0
            profiles_tl(jj) % t(1:nlevels)    = toext_tl(1:nlevels,j)

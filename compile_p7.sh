@@ -68,8 +68,8 @@ cat ${trunkdir}/toplevelcontrol_mod.ftn90_template |sed "s!XXXXX!${revnum} ${rev
 ## for rmn_014, lapack_3.4.0, rpncomm
 . ssmuse-sh -d rpn/libs/15.0
 . s.ssmuse.dot ENV/d/x/modelutils/modelutils_1.1.0-a8
-. s.ssmuse.dot CMDN/vgrid/4.4.1
-
+#. s.ssmuse.dot CMDN/vgrid/4.5.0-a2
+. ssmuse-sh -d /ssm/net/cmdn/vgrid/5.3.0-a2/xlf13
 . s.ssmuse.dot cmda
 . ssmuse-sh -d arma/rttov/10v1
 

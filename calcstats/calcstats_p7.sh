@@ -44,6 +44,7 @@ ssh $machine ls -l $gest
 
 cat << EOF > go_calcstats.sh
  echo "!!STARTING SCRIPT!!"
+ ulimit -a
  cd $gest
  export TMG_ON=YES
  ./calcb.abs

@@ -61,7 +61,6 @@ MODULE BmatrixHI
   integer             :: gstID, gstID2
   integer             :: nlev_bdl
   type(struct_vco),pointer :: vco_anl
-  logical             :: is_staggered
 
   real(8),allocatable :: tantheta(:,:)
   real(8),allocatable :: PtoT(:,:,:)
@@ -167,16 +166,10 @@ CONTAINS
     if(mpi_myid.eq.0) write(*,*) 'BHI_setup: nLev_M, nLev_T, nLev_T_even=',nLev_M, nLev_T, nLev_T_even
 
     status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
-    if(Vcode_anl .eq. 5001) then
-      is_staggered = .false.
-    elseif(Vcode_anl .eq. 5002) then
-      is_staggered = .true.
-    else
+    if(Vcode_anl .ne. 5001 .and. Vcode_anl .ne. 5002 .and. Vcode_anl .ne. 5004) then
       write(*,*) 'Vcode_anl = ',Vcode_anl
       call abort3d('bmatrixHI: unknown vertical coordinate type!')
     endif
-    if(mpi_myid.eq.0) write(*,*) 'bmatrixHI: vertical coord is_staggered = ',is_staggered
-
 
     ! default values for namelist variables
     ntrunc = 108
@@ -358,9 +351,10 @@ CONTAINS
   SUBROUTINE BHI_scalestd
     implicit none
 
-    integer :: jlev, jlon, jlat, shift_level
+    integer :: jlev, jlon, jlat, shift_level, Vcode_anl, status
 
-    if(is_staggered) then
+    status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
+    if(Vcode_anl .eq. 5002) then
       shift_level = 1
     else
       shift_level = 0

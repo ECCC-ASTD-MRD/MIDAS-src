@@ -49,6 +49,8 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
   !            - use new ZTD-specific GPS modules modgps04profilezd, modgps08ztdop
   !            - merged with latest version (oda_Hro) from Josep (Rev.213M)
   !            - like oda_Hro, use OpenMP and Jacobian storage for GPS ZTD
+  ! S. Macpherson ARMA  18 Nov 2014
+  !            - in oda_Hgp, add surface pressure (P0) argument to call gpsstructztd()
   !
   !Local declarations
   integer, save :: nl_ncall = 0
@@ -403,7 +405,7 @@ end subroutine oda_Hto
       REAL*8 zLon, Lon
       REAL*8 zAzm, Azm
       INTEGER IAZM, ISAT
-      REAL*8 Rad, Geo, WFGPS
+      REAL*8 Rad, Geo, WFGPS, zP0
       REAL*8, allocatable :: zPP(:)
       REAL*8, allocatable :: zDP(:)
       REAL*8, allocatable :: zTT(:)
@@ -523,6 +525,7 @@ end subroutine oda_Hto
                   Azm  = zAzm * MPC_DEGREES_PER_RADIAN_R8
                   sLat = sin(zLat)
                   zMT  = zMT * RG / gpsgravitysrf(sLat)
+                  zP0  = col_getElem(lcolumng,1,index_header,'P0')
                   DO JL = 1, NGPSLEV
 !C
 !C     *             Profile x_b
@@ -532,19 +535,30 @@ end subroutine oda_Hto
                      zDP(JL) = col_getPressureDeriv(lcolumng,JL,INDEX_HEADER,'TH')
                      zTT(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'TT') - p_TC
                      zHU(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'HU')
-                     zUU(JL) = 0.d0
-                     zVV(JL) = 0.d0
                   ENDDO
-                  DO JL = 1, NWNDLEV
-                     zUU(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'UU') * p_knot
-                     zVV(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'VV') * p_knot
-                  ENDDO
-                  zUU(NGPSLEV) = zUU(NWNDLEV)
-                  zVV(NGPSLEV) = zUU(NWNDLEV)
+
+                  if((col_getPressure(lcolumng,1,index_header,'TH') + 1.0d-4) .lt. &
+                      col_getPressure(lcolumng,1,index_header,'MM')) then
+                    ! case with top thermo level above top momentum level (Vcode=5002)
+                    do jl = 1, nwndlev
+                      zuu(jl) = col_getElem(lcolumng,jl  ,index_header,'UU') * p_knot
+                      zvv(jl) = col_getElem(lcolumng,jl  ,index_header,'VV') * p_knot
+                    enddo
+                  else
+                    ! case without top thermo above top momentum level or unstaggered (Vcode=5001/4/5)
+                    do jl = 1, nwndlev-1
+                      zuu(jl) = col_getElem(lcolumng,jl+1,index_header,'UU') * p_knot
+                      zvv(jl) = col_getElem(lcolumng,jl+1,index_header,'VV') * p_knot
+                    enddo
+                    zuu(nwndlev) = zuu(nwndlev-1)
+                    zvv(nwndlev) = zuu(nwndlev-1)
+                  endif
+                  zuu(ngpslev) = zuu(nwndlev)
+                  zvv(ngpslev) = zuu(nwndlev)
 !C     
 !C     *          GPS profile structure:
 !C
-                  call gpsstruct1sw(ngpslev,zLat,zLon,zAzm,zMT,Rad,geo,zPP,zDP,zTT,zHU,zUU,zVV,prf)
+                  call gpsstruct1sw(ngpslev,zLat,zLon,zAzm,zMT,Rad,geo,zP0,zPP,zDP,zTT,zHU,zUU,zVV,prf)
 !C
 !C     *          Prepare the vector of all the observations:
 !C
@@ -839,7 +853,7 @@ end subroutine oda_Hto
             ZMT  = col_getHeight(lcolumng,NFLEV,INDEX_HEADER,'TH')/RG
             if ( icount .eq. 1 .and. LTESTOP ) write(*,*) 'ZDP (dpdp0) = ', (ZDP(JL),JL= 1,NFLEV)
 !c
-            CALL gpsstructztd(NFLEV,Lat,Lon,ZMT,ZPPB,ZDP,ZTTB,ZHUB,LBEVIS,IREFOPT,PRF)
+            CALL gpsstructztd(NFLEV,Lat,Lon,ZMT,ZP0B,ZPPB,ZDP,ZTTB,ZHUB,LBEVIS,IREFOPT,PRF)
             CALL gpsZTDopv(ZLEV,PRF,LBEVIS,ZDZMIN,ZTDopv,ZPSMOD,IZTDOP)
 !C          Observation Jacobian H'(xb)            
             JAC = ZTDopv%DVar
@@ -854,23 +868,23 @@ end subroutine oda_Hto
                write(*,*) iztd, obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER),'ZTDopv (m) = ', ZTDopv%Var
                CALL gpsPW(PRF,ZPWMOD)
 !           sfc pressure dx               
-               ZPPB(NFLEV) = ZPPB(NFLEV) + 50.0d0
+!               ZPPB(NFLEV) = ZPPB(NFLEV) + 50.0d0
                nullify(dpdp0)
                sfcfield = ZP0B + 50.0d0
                status = vgd_dpidpis(vco_anl%vgrid,vco_anl%ip1_T,dpdp0,sfcfield)
                ZDP = dpdp0(1:NFLEV)
-               CALL gpsstructztd(NFLEV,Lat,Lon,ZMT,ZPPB,ZDP,ZTTB,ZHUB,LBEVIS,IREFOPT,PRF2)
+               CALL gpsstructztd(NFLEV,Lat,Lon,ZMT,sfcfield,ZPPB,ZDP,ZTTB,ZHUB,LBEVIS,IREFOPT,PRF2)
                CALL gpsZTDopv(ZLEV,PRF2,LBEVIS,ZDZMIN,ZTDopv2,ZPSMOD,IZTDOP)
                write(*,*) ' ZTD Operator Test:  dP0 = +50 Pa'
                write(*,*) ' dZTD NL     = ', ZTDopv2%Var - ZTDopv%Var
                write(*,*) ' dZTD Linear = ', vGPSZTD_Jacobian(iztd,2*NFLEV+1)*50.0d0
                write(*,*) ' '
-               ZPPB(NFLEV) = ZPPB(NFLEV) - 50.0d0
+!               ZPPB(NFLEV) = ZPPB(NFLEV) - 50.0d0
 !           log(q) dx 
                ZHUB(64) = ZHUB(64) - 0.44D-01
                ZHUB(65) = ZHUB(65) - 0.44D-01
                ZHUB(66) = ZHUB(66) - 0.44D-01
-               CALL gpsstructztd(NFLEV,Lat,Lon,ZMT,ZPPB,ZDP,ZTTB,ZHUB,LBEVIS,IREFOPT,PRF2)
+               CALL gpsstructztd(NFLEV,Lat,Lon,ZMT,ZP0B,ZPPB,ZDP,ZTTB,ZHUB,LBEVIS,IREFOPT,PRF2)
                CALL gpsZTDopv(ZLEV,PRF2,LBEVIS,ZDZMIN,ZTDopv2,ZPSMOD,IZTDOP)
                CALL gpsPW(PRF2,ZPWMOD2)
                write(*,*) ' ZTD Operator Test:  dLQ = -0.44E-01 JL = 64,65,66'
@@ -887,7 +901,7 @@ end subroutine oda_Hto
                ZTTB(64) = ZTTB(64) + 2.0d0
                ZTTB(65) = ZTTB(65) + 2.0d0
                ZTTB(66) = ZTTB(66) + 2.0d0
-               CALL gpsstructztd(NFLEV,Lat,Lon,ZMT,ZPPB,ZDP,ZTTB,ZHUB,LBEVIS,IREFOPT,PRF2)
+               CALL gpsstructztd(NFLEV,Lat,Lon,ZMT,ZP0B,ZPPB,ZDP,ZTTB,ZHUB,LBEVIS,IREFOPT,PRF2)
                CALL gpsZTDopv(ZLEV,PRF2,LBEVIS,ZDZMIN,ZTDopv2,ZPSMOD,IZTDOP)
                write(*,*) ' ZTD Operator Test:  dTT = +2.0K JL = 64,65,66'
                write(*,*) ' dZTD NL     = ', ZTDopv2%Var - ZTDopv%Var

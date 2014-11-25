@@ -73,6 +73,7 @@ MODULE BmatrixEnsemble
   integer             :: gstID
   character(len=256)  :: enspathname,ensfilebasename
   integer,external    :: get_max_rss
+  type(struct_vco),pointer :: vco_anl
 
   type :: struct_ens
     real(4), allocatable :: member_r4(:,:,:,:)
@@ -119,6 +120,9 @@ CONTAINS
                      nLevEns_M,nLevEns_T,hLocalize,vLocalize
 
     call tmg_start(12,'BEN_SETUP')
+
+    vco_anl => vco_in
+
     !
     !- 1.  Read namelist-dependent options
     !
@@ -128,8 +132,8 @@ CONTAINS
     scaleFactorLQ(:)= 1.0d0
     nEns            = 10
     ntrunc          = 31
-    nLevEns_M       = vco_in%nLev_M
-    nLevEns_T       = vco_in%nLev_T
+    nLevEns_M       = vco_anl%nLev_M
+    nLevEns_T       = vco_anl%nLev_T
     enspathname     = '***NOT_DEFINED***'
     ensfilebasename = ''
     hLocalize(1)    = 2800.0d0
@@ -200,7 +204,7 @@ CONTAINS
     enddo
 
     !- 2.2. Levels
-    status = vgd_get(vco_in%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
+    status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
     if(Vcode_anl .eq. 5001) then
       is_staggered = .false.
       if(nLevEns_T.ne.nLevEns_M) then
@@ -213,23 +217,29 @@ CONTAINS
         write(*,*) 'bmatrixEnsemble: nLevEns_T, nLevEns_M = ',nLevEns_T,nLevEns_M
         call abort3d('bmatrixEnsemble: Vcode=5002, nLevEns_T must equal nLevEns_M+1!')
       endif
+    elseif(Vcode_anl .eq. 5004) then
+      is_staggered = .true.
+      if(nLevEns_T.ne.nLevEns_M) then
+        write(*,*) 'bmatrixEnsemble: nLevEns_T, nLevEns_M = ',nLevEns_T,nLevEns_M
+        call abort3d('bmatrixEnsemble: Vcode=5004, nLevEns_T must equal nLevEns_M!')
+      endif
     else
       write(*,*) 'Vcode_anl = ',Vcode_anl
       call abort3d('bmatrixEnsemble: unknown vertical coordinate type!')
     endif
     write(*,*) 'bmatrixEnsemble: vertical coord is_staggered = ',is_staggered
 
-    if(nLevEns_M.gt.vco_in%nLev_M) then
+    if(nLevEns_M.gt.vco_anl%nLev_M) then
       call abort3d('bmatrixEnsemble: ensemble has more levels than increment - not allowed!')
     endif
 
-    if(nLevEns_M.lt.vco_in%nLev_M) then
+    if(nLevEns_M.lt.vco_anl%nLev_M) then
       if(mpi_myid.eq.0) write(*,*) 'bmatrixEnsemble: ensemble has less levels than increment'
       if(mpi_myid.eq.0) write(*,*) '                 some levels near top will have zero increment'
     endif
 
-    nLevInc_M = vco_in%nLev_M
-    nLevInc_T = vco_in%nLev_T
+    nLevInc_M = vco_anl%nLev_M
+    nLevInc_T = vco_anl%nLev_T
     nkgdimInc = 2*nLevInc_M+2*nLevInc_T+2  ! assume 4 3d and 2 2d variables
     nkgdimEns = 2*nLevEns_M+2*nLevEns_T+2  ! assume 4 3d and 2 2d variables
     topLevIndex_M = nLevInc_M-nLevEns_M+1
@@ -262,7 +272,7 @@ CONTAINS
       verticalLevelEns(                      jlev) = jlev ! UU
       verticalLevelEns(1*nLevEns_M          +jlev) = jlev ! VV
     enddo
-    if(is_staggered) then
+    if(Vcode_anl .eq. 5002) then
       ! adjust so that same scale factor used at the surface (nLevEns_T) for all variables
       verticalLevelEns(:) = verticalLevelEns(:)+1
     endif
@@ -274,9 +284,9 @@ CONTAINS
     verticalLevelEns(2*nLevEns_M+2*nLevEns_T+2) = nLevEns_T ! TG
 
     allocate(nip1_M(nLevEns_M),stat=ierr)
-    nip1_M(1:nLevEns_M) = vco_in%ip1_M(topLevIndex_M:nLevInc_M)
+    nip1_M(1:nLevEns_M) = vco_anl%ip1_M(topLevIndex_M:nLevInc_M)
     allocate(nip1_T(nLevEns_T),stat=ierr)
-    nip1_T(1:nLevEns_T) = vco_in%ip1_T(topLevIndex_T:nLevInc_T)
+    nip1_T(1:nLevEns_T) = vco_anl%ip1_T(topLevIndex_T:nLevInc_T)
 
     !- 2.3 Spectral Transform
     if ( trim(ben_mode) == 'Analysis' ) then
@@ -358,7 +368,7 @@ CONTAINS
     !- 2.7 Localization
     if ( trim(ben_mode) == 'Analysis' ) then
       zps = 101000.D0
-      status = vgd_levels( vco_in%vgrid, ip1_list=vco_in%ip1_M, levels=pressureProfileInc_M, &
+      status = vgd_levels( vco_anl%vgrid, ip1_list=vco_anl%ip1_M, levels=pressureProfileInc_M, &
                            sfc_field=zps, in_log=.false.)
 
       allocate(pressureProfileEns_M(nLevEns_M),stat=ierr)
@@ -2247,11 +2257,13 @@ CONTAINS
     real(8)      :: ensAmplitude2_in(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nEns)
     real(8)      :: incrementLocal_out(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdimEns,numTime)
 
-    integer     :: jvar,jlev,memberIndex,jt,jj,ji,numVar
+    integer     :: jvar, jlev, memberIndex, jt, jj, ji, numVar, status, Vcode_anl
 
     call tmg_start(62,'ADDMEM')
 
-    if(is_staggered) then
+    status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
+
+    if(Vcode_anl .eq. 5002) then
 
       if(levelIndex.eq.1) then
         ! use top momentum level amplitudes for top thermo levels
@@ -2320,6 +2332,77 @@ CONTAINS
 !$OMP END PARALLEL
       enddo
 
+    elseif(Vcode_anl .eq. 5004) then
+
+      if(levelIndex .eq. 1) then
+        ! there is no thermo level above the top momentum level
+        ensAmplitude2_in(:,:,:) = 0.0d0
+      else
+        ! for other levels, interpolate momentum weights to get thermo amplitudes
+        ensAmplitude2_in(:,:,:) = 0.5d0*( ensAmplitude2_in(:,:,:) +   &
+                                          ensAmplitude_in(:,:,:) )
+      endif
+
+      do memberIndex = 1, nEns
+!$OMP PARALLEL
+!$OMP DO PRIVATE (JT,JJ,JVAR,JLEV,JI)
+        do jt = 1, numTime
+
+          ! momentum variables
+          do jvar = 1, 2
+            jlev = verticalLevel(levelIndex,jvar)
+            do jj = myLatBeg, myLatEnd
+              do ji = myLonBeg, myLonEnd
+                incrementLocal_out(ji,jj,jlev,jt) = incrementLocal_out(ji,jj,jlev,jt) +   &
+                  ensAmplitude_in(ji,jj,memberIndex)*dble(ensPerturbations(memberIndex)%member_r4(ji,jj,jlev,jt))
+              enddo
+            enddo
+          enddo
+
+          ! non-surface thermo variables (uses interpolated amplitude field)
+          if(levelIndex .gt. 1) then
+            do jvar = 3, 4
+              jlev = verticalLevel(levelIndex,jvar)-1
+              do jj = myLatBeg, myLatEnd
+                do ji = myLonBeg, myLonEnd
+                  incrementLocal_out(ji,jj,jlev,jt) = incrementLocal_out(ji,jj,jlev,jt) +   &
+                    ensAmplitude2_in(ji,jj,memberIndex)*dble(ensPerturbations(memberIndex)%member_r4(ji,jj,jlev,jt))
+                enddo
+              enddo
+            enddo
+          endif
+
+          ! surface thermo variables (uses sfc amplitude field)
+          if(levelIndex .eq. nLevEns_M) then
+            do jvar = 3, 4
+              jlev = verticalLevel(levelIndex,jvar)
+              do jj = myLatBeg, myLatEnd
+                do ji = myLonBeg, myLonEnd
+                  incrementLocal_out(ji,jj,jlev,jt) = incrementLocal_out(ji,jj,jlev,jt) +   &
+                    ensAmplitude_in(ji,jj,memberIndex)*dble(ensPerturbations(memberIndex)%member_r4(ji,jj,jlev,jt))
+                enddo
+              enddo
+            enddo
+          endif
+
+          ! other surface variables (uses sfc amplitude field)
+          if(levelIndex .eq. nLevEns_M) then
+            do jvar = 5, 6
+              jlev = verticalLevel(levelIndex,jvar)
+              do jj = myLatBeg, myLatEnd
+                do ji = myLonBeg, myLonEnd
+                  incrementLocal_out(ji,jj,jlev,jt) = incrementLocal_out(ji,jj,jlev,jt) +   &
+                    ensAmplitude_in(ji,jj,memberIndex)*dble(ensPerturbations(memberIndex)%member_r4(ji,jj,jlev,jt))
+                enddo
+              enddo
+            enddo
+          endif
+
+        enddo ! jt
+!$OMP END DO
+!$OMP END PARALLEL
+      enddo
+
     else ! not staggered
 
       if(levelIndex.eq.nLevEns_M) then
@@ -2365,9 +2448,11 @@ CONTAINS
     real(8)      :: incrementLocal_in(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdimEns,numTime)
 
     real(8)     :: dfact
-    integer     :: jvar,jlev,memberIndex,jt,jj,ji,numVar
+    integer     :: jvar, jlev, memberIndex, jt, jj, ji, numVar, status, Vcode_anl
 
     call tmg_start(62,'ADDMEM')
+
+    status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
 
 !$OMP PARALLEL
 !$OMP DO PRIVATE (JJ,memberIndex,JI)
@@ -2381,7 +2466,7 @@ CONTAINS
 !$OMP END DO
 !$OMP END PARALLEL
 
-    if(is_staggered) then
+    if(Vcode_anl .eq. 5002) then
 
       do jt = 1, numTime
 
@@ -2432,6 +2517,94 @@ CONTAINS
         endif
         do jvar = 3, 4
           jlev = verticalLevel(levelIndex,jvar) + 1
+!$OMP PARALLEL
+!$OMP DO PRIVATE (memberIndex,JJ,JI)
+          do memberIndex = 1, nEns
+            do jj = myLatBeg, myLatEnd
+              do ji = myLonBeg, myLonEnd
+                ensAmplitude_out(ji,jj,memberIndex) = ensAmplitude_out(ji,jj,memberIndex) +   &
+                  dfact*incrementLocal_in(ji,jj,jlev,jt)*dble(ensPerturbations(memberIndex)%member_r4(ji,jj,jlev,jt))
+              enddo
+            enddo
+          enddo
+!$OMP END DO
+!$OMP END PARALLEL
+        enddo ! jvar
+
+        ! surface variables (impact on amplitude at the surface)
+        if(levelIndex.eq.nLevEns_M) then
+          do jvar = 5, 6
+            jlev = verticalLevel(levelIndex,jvar)
+!$OMP PARALLEL
+!$OMP DO PRIVATE (memberIndex,JJ,JI)
+            do memberIndex = 1, nEns
+              do jj = myLatBeg, myLatEnd
+                do ji = myLonBeg, myLonEnd
+                  ensAmplitude_out(ji,jj,memberIndex) = ensAmplitude_out(ji,jj,memberIndex) +   &
+                    incrementLocal_in(ji,jj,jlev,jt)*dble(ensPerturbations(memberIndex)%member_r4(ji,jj,jlev,jt))
+                enddo
+              enddo
+            enddo
+!$OMP END DO
+!$OMP END PARALLEL
+          enddo ! jvar
+        endif
+
+      enddo ! jt
+
+    elseif(Vcode_anl .eq. 5004) then
+
+      do jt = 1, numTime
+
+        ! momentum variables
+        do jvar = 1, 2
+          jlev = verticalLevel(levelIndex,jvar)
+!$OMP PARALLEL
+!$OMP DO PRIVATE (memberIndex,JJ,JI)
+          do memberIndex = 1, nEns
+            do jj = myLatBeg, myLatEnd
+              do ji = myLonBeg, myLonEnd
+                ensAmplitude_out(ji,jj,memberIndex) = ensAmplitude_out(ji,jj,memberIndex) +   &
+                  incrementLocal_in(ji,jj,jlev,jt)*dble(ensPerturbations(memberIndex)%member_r4(ji,jj,jlev,jt))
+              enddo
+            enddo
+          enddo
+!$OMP END DO
+!$OMP END PARALLEL
+        enddo ! jvar
+
+        ! non-surface thermo variables (impact on amplitude just below: same level index)
+        if(levelIndex .gt. 1) then
+          do jvar = 3, 4
+            jlev = verticalLevel(levelIndex,jvar)-1
+            if(levelIndex.eq.1) then
+              dfact = 1.0d0
+            else
+              dfact = 0.5d0
+            endif
+!$OMP PARALLEL
+!$OMP DO PRIVATE (memberIndex,JJ,JI)
+            do memberIndex = 1, nEns
+              do jj = myLatBeg, myLatEnd
+                do ji = myLonBeg, myLonEnd
+                  ensAmplitude_out(ji,jj,memberIndex) = ensAmplitude_out(ji,jj,memberIndex) +   &
+                    dfact*incrementLocal_in(ji,jj,jlev,jt)*dble(ensPerturbations(memberIndex)%member_r4(ji,jj,jlev,jt))
+                enddo
+              enddo
+            enddo
+!$OMP END DO
+!$OMP END PARALLEL
+          enddo ! jvar
+        endif
+
+        ! thermo variables (impact on amplitude just above)
+        if(levelIndex.eq.nLevEns_M) then
+          dfact = 1.0d0
+        else
+          dfact = 0.5d0
+        endif
+        do jvar = 3, 4
+          jlev = verticalLevel(levelIndex,jvar)
 !$OMP PARALLEL
 !$OMP DO PRIVATE (memberIndex,JJ,JI)
           do memberIndex = 1, nEns

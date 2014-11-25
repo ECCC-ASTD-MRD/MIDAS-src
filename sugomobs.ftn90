@@ -128,15 +128,15 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
   nlv_M = vco_getNumLev(vco_trl,'MM')
   nlv_T = vco_getNumLev(vco_trl,'TH')
   if(mpi_myid.eq.0) write(*,*)'sugomobs:niv thermo:',nlv_T,' momentum',nlv_M
-  if(mpi_myid.eq.0) write(*,*)'sugomobs:zptophr,zprefhr,zrcoefhr ',  &
-       vco_trl%dpt_T,vco_trl%dprf_T,vco_trl%drcf1
 
   status = vgd_get(vco_trl%vgrid,key='ig_1 - vertical coord code',value=Vcode_trl)
   status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
   if(mpi_myid.eq.0) write(*,*) 'sugomobs: Vcode_trl= ',Vcode_trl, &
                                        '  Vcode_anl= ',Vcode_anl
-  if(Vcode_trl.ne.5001.and.Vcode_trl.ne.5002) call abort3d('sugomobs: invalid vertical coord for background state!')
-  if(Vcode_anl.ne.5001.and.Vcode_anl.ne.5002) call abort3d('sugomobs: invalid vertical coord for analysis grid!')
+  if(Vcode_trl.ne.5001.and.Vcode_trl.ne.5002.and.Vcode_trl.ne.5004.and.Vcode_trl.ne.5005) &
+    call abort3d('sugomobs: invalid vertical coord for background state!')
+  if(Vcode_anl.ne.5001.and.Vcode_anl.ne.5002.and.Vcode_anl.ne.5004) &
+    call abort3d('sugomobs: invalid vertical coord for analysis grid!')
 
   !
   !     Compute the maximum number of columns over all processors (lat-lon tiles)
@@ -438,7 +438,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
   do jvar=1,vnl_numvarmax2D
     if(.not.gsv_varExist(vnl_varNameList2D(jvar))) cycle
 
-    call readTrialField4(varInterphr_M,varInterphr_VV,vnl_varNameList2D(jvar),'SF')
+    call readTrialField(varInterphr_M,varInterphr_VV,vnl_varNameList2D(jvar),'SF')
 
     if(col_getNumCol(columng).gt.0) then       
       if(vnl_varNameList2D(jvar).eq.'P0  ') then
@@ -490,7 +490,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
   !
   !     Lire les GZ des niveaux Momentum
   !
-  call readTrialField4(varInterphr_M,varInterphr_VV,'GZ','MM')
+  call readTrialField(varInterphr_M,varInterphr_VV,'GZ  ','MM')
 
   if(col_getNumCol(columng).gt.0) then       
     varInterphr_M(:,:)=varInterphr_M(:,:)*10.0d0*RG
@@ -504,7 +504,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
   !
   !     Lire les GZ des niveaux Thermodynamique
   !
-  call readTrialField4(varInterphr_T,varInterphr_VV,'GZ','TH')
+  call readTrialField(varInterphr_T,varInterphr_VV,'GZ  ','TH')
 
   if(col_getNumCol(columng).gt.0) then       
     varInterphr_T(:,:)=varInterphr_T(:,:)*10.0d0*RG
@@ -529,7 +529,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
       case ('UU')
         write(*,*)' ----- Initializing UU and VV  ----'
 
-        call readTrialField4(varInterphr_M,varInterphr_VV,'UV','MM')
+        call readTrialField(varInterphr_M,varInterphr_VV,'UV  ','MM')
          
         if(col_getNumCol(columng).gt.0) then       
 
@@ -575,7 +575,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
       case ('TT','HU')
         write(*,*)' ----- Initializing ',vnl_varNameList3D(jvar),' ----'
 
-        call readTrialField4(varInterphr_T,varInterphr_VV,vnl_varNameList3D(jvar),'TH')
+        call readTrialField(varInterphr_T,varInterphr_VV,vnl_varNameList3D(jvar),'TH')
 
         if(col_getNumCol(columng).gt.0) then       
 
@@ -624,7 +624,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
   if(Vcode_anl .eq. 5001) then
     ! initialize virtual temperature and GZ operators
     call subasic_obs(columng)
-  elseif(Vcode_anl .eq. 5002) then
+  elseif(Vcode_anl .eq. 5002 .or. Vcode_anl .eq. 5004) then
     ! only initialize virtual temperature operator
     call subasic_obs_gem4(columng)
   else
@@ -639,7 +639,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
   enddo
   if(Vcode_anl .eq. 5001) then
     call tt2phi(columng)
-  elseif(Vcode_anl .eq. 5002) then
+  elseif(Vcode_anl .eq. 5002 .or. Vcode_anl .eq. 5004) then
     call tt2phi_gem4(columng)
   else
     call abort3d('sugomobs: invalid vertical coord for analysis increment grid!')
@@ -694,7 +694,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
 !--------------------------------------------------------------------------------
   CONTAINS
 
-    subroutine readTrialField4(varInterphr_MT,varInterphr_VV,varName_in,varType_in)
+    subroutine readTrialField(varInterphr_MT,varInterphr_VV,varName_in,varType_in)
       !
       ! s/r readTrialField
       !
@@ -705,7 +705,9 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
       implicit none
       character(len=*) :: varName_in
       character(len=*),optional :: varType_in
-      character(len=2) :: varType,varName
+      character(len=2) :: varType
+      character(len=4) :: varName
+      character(len=10) :: blk_S
       real*8 :: varInterphr_MT(:,:),varInterphr_VV(:,:)
       real*4, allocatable :: varTrial_r4(:,:),varTrial_VV_r4(:,:)
       real*4, allocatable :: varTrial_zero_r4(:,:)
@@ -726,7 +728,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
       ! Determine the type and number of vertical levels
       !
       if(trim(varName_in).eq.'UV') then
-        varName='UU'
+        varName='UU  '
       else
         varName=varName_in
       endif
@@ -748,9 +750,9 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
       ip3    = -1
       cltypvar = ' '
 
-      key = fstinf( nultrl(1),                                    & ! IN
-                    ni, nj, nk,                                   & ! OUT
-                    dateo, cletiket, ip1, ip2, ip3, cltypvar, varName )! IN
+      key = fstinf( nultrl(1),                                        & ! IN
+                    ni, nj, nk,                                       & ! OUT
+                    dateo, cletiket, ip1, ip2, ip3, cltypvar, varName ) ! IN
 
       if (key < 0) then
         write(6,*)
@@ -758,15 +760,13 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
         stop
       end if
 
-      ierr = fstprm( key,                                             & ! IN
-                    dateo, deet, npas, ni, nj, nk, nbits,            & ! OUT
-                    datyp, ip1, ip2, ip3, cltypvar, varName, cletiket,    & ! OUT
-                    clgrtyp, ig1, ig2, ig3,                          & ! OUT
-                    ig4, swa, lng, dltf, ubc, extra1, extra2, extra3 ) ! OUT
+      ierr = fstprm( key,                                              & ! IN
+                    dateo, deet, npas, ni, nj, nk, nbits,              & ! OUT
+                    datyp, ip1, ip2, ip3, cltypvar, varName, cletiket, & ! OUT
+                    clgrtyp, ig1, ig2, ig3,                            & ! OUT
+                    ig4, swa, lng, dltf, ubc, extra1, extra2, extra3 )   ! OUT
 
       EZscintID  = ezqkdef( ni, nj, clgrtyp, ig1, ig2, ig3, ig4, nultrl(1) )   ! IN
-
-      !
 
       allocate(varTrial_r4(ni,nj))
       allocate(varTrial_VV_r4(ni,nj))
@@ -791,8 +791,11 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
           call rpn_comm_barrier("GRID",ierr)
 
           do jlev = (1+mpi_myid),nlevel,mpi_nprocs
-
-            if(varType.eq.'MM') then
+            
+            if(Vcode_trl.eq.5005.and.trim(varName).eq.'GZ'.and.jlev.eq.nlevel) then
+              ! set surface level IP1 for GZ in case of Vcode=5005
+              IIP1 = vco_trl%ip1_sfc
+            elseif(varType.eq.'MM') then
               IIP1 = vco_trl%ip1_M(jlev)
             elseif(varType.eq.'TH') then
               IIP1 = vco_trl%ip1_T(jlev)
@@ -919,6 +922,6 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
  2001 format(1x,'SUGOMOBS: Problem finding variable',1x,a4,1x,'at level',  &
              i10,1x,', on',1x,i8,1x,'at',1x,i8.8,1x,'HHMMSSss')
 
-    end subroutine readTrialField4
+    end subroutine readTrialField
 
 end subroutine sugomobs

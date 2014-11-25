@@ -31,6 +31,8 @@
 !            - use new ZTD-specific GPS modules modgps04profilezd, modgps08ztdop
 !            - LTESTOP option now set in 3dvar namelist
 !            - if numGPSZTD=0, does nothing and returns
+!*        S. Macpherson *ARMA/MSC   November 2014
+!            - add surface pressure (P0) argument to call gpsstructztd()
 !*    -------------------
 !**    Purpose: Set FGE for all GPS ZTD observations using
 !*                Jacobians from ZTD observation operator
@@ -70,7 +72,6 @@
       
       REAL*8 ZP0
       REAL*8 ZP0B, ZP0B_P
-      REAL*8 ZPT, ZPR, ZCF
       REAL*8 ZMT, ZTOP, ZBOT
  
       REAL*8 JAC(ngpscvmx)
@@ -134,10 +135,6 @@
          LSTAG = .FALSE.
          WRITE(*,*)'VERTICAL COORD OF ANALYSIS FIELDS IS NOT STAGGERED'
          WRITE(*,*)'VCODE= ',iversion,' LSTAG= ',LSTAG
-         ZPR = vco_anl%dprf_M
-         ZCF = vco_anl%drcf1
-         WRITE(*,*) 'ZPR = ', ZPR
-         WRITE(*,*) 'ZCF = ', ZCF
       endif
 
 !C
@@ -200,9 +197,8 @@
                      ENDDO
                      ZP0  = col_getElem(lcolumn,1,INDEX_HEADER,'P0')
                      DX(2*NFLEV_T+1) = ZP0
-                     ZPT  = col_getPressure(lcolumng,1,INDEX_HEADER,'TH')
                      ZMT  = ZGZ(NFLEV_T)/GRAV
-                     CALL gpsstructztd(NFLEV_T,Lat,Lon,ZMT,ZPP,ZDP,ZTTB,ZHUB,LBEVIS,IREFOPT,PRF)
+                     CALL gpsstructztd(NFLEV_T,Lat,Lon,ZMT,ZP0B,ZPP,ZDP,ZTTB,ZHUB,LBEVIS,IREFOPT,PRF)
                      CALL gpsZTDopv(ZLEV,PRF,LBEVIS,ZDZMIN,ZTDopv,ZPSMOD,IZTDOP)
                      JAC = ZTDopv%DVar
 !c
@@ -289,7 +285,6 @@
             ZGZ(JL)  = col_getHeight(lcolumng,JL,INDEX_HEADER,'TH')
          ENDDO
          ZP0  = col_getElem(lcolumn,1,INDEX_HEADER,'P0') * PERTFAC
-         ZPT  = col_getPressure(lcolumng,1,INDEX_HEADER,'TH')
          ZMT  = ZGZ(NFLEV_T)/GRAV
 
          DO JL = 1, NFLEV_T
@@ -330,8 +325,8 @@
 !C
 !C         Non-linear observation operator --> delta_H = H(x+delta_x) - H(x)
 !c
-           CALL gpsstructztd(NFLEV_T,Lat,Lon,ZMT,ZPP,ZDP,ZTTB,ZHUB,LBEVIS,IREFOPT,PRF)
-           CALL gpsstructztd(NFLEV_T,Lat,Lon,ZMT,ZPP_P,ZDP,ZTTB_P,RZHUB_P,LBEVIS,IREFOPT,PRFP)
+           CALL gpsstructztd(NFLEV_T,Lat,Lon,ZMT,ZP0B,ZPP,ZDP,ZTTB,ZHUB,LBEVIS,IREFOPT,PRF)
+           CALL gpsstructztd(NFLEV_T,Lat,Lon,ZMT,ZP0B_P,ZPP_P,ZDP,ZTTB_P,RZHUB_P,LBEVIS,IREFOPT,PRFP)
            CALL gpsZTDopv(ZLEV,PRF,LBEVIS,ZDZMIN,ZTDopv,ZPSMOD,IZTDOP)
            JAC  = ZTDopv%DVar
            ZTDM = ZTDopv%Var

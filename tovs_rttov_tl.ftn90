@@ -503,6 +503,8 @@ subroutine tovs_rttov_tl(lobsSpaceData)
    
        if (errorstatus_th(ith)/=0) then
           Write(*,*) "Error in rttov_tl2",ith,errorstatus_th(ith)
+          write(*,*) 'temperature           profile=',profilesdata_th(1,1) % t(:)
+          write(*,*) 'temperature increment profile=',profilesdata_tl_th(1,1) % t(:)
           call abort3d('tovs_rttov_tl     ')
        endif
 

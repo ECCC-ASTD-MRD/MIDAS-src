@@ -116,7 +116,7 @@ contains
       endif
     enddo
 
-    if (h <= prf%gst(ngpslev)%Var) then  ! obs is at or below model surface
+    if (h <= prf%gst(ngpslev)%Var) then  ! obs is at or below model lowest level
       jloc = ngpslev
     endif
     
@@ -174,7 +174,7 @@ contains
 
       if ( jloc /= ngpslev ) then
         !
-        ! Linear-log interpolation in height between levels when obs above surface
+        ! Linear-log interpolation in height between levels when obs above lowest level
         !
         dz  = prf%gst(jloc) - prf%gst(jloc+1)
 
@@ -184,17 +184,17 @@ contains
         ZTDopv = exp( (dzm*log(prf%ztd(jloc)) + dzp*log(prf%ztd(jloc+1))) / dz )
         Pobs   = exp( (dzm*log(prf%pst(jloc)) + dzp*log(prf%pst(jloc+1))) / dz )
 
-      else   ! jloc = ngpslev ; obs is at or below model surface
+      else   ! jloc = ngpslev ; obs is at or below model lowest level
         !
-        if ( abs(dh) <= dzmin ) then  ! take surface values when obs is close to sfc
+        if ( abs(dh) <= dzmin ) then  ! take lowest level values when obs is close to sfc
           ZTDopv = prf%ztd(jloc)
           Pobs   = prf%pst(jloc)
-        else ! otherwise do extrapolation from surface values
+        else ! otherwise do extrapolation from lowest level values
           x      = p_g_GEM/(p_Rd*gamma)
           tvsfc  = prf%tst(jloc)*(1._dp+delta*prf%qst(jloc))
           Pobs   = prf%pst(jloc)*(((tvsfc-gamma*dh)/tvsfc)**x)
           if ( abs(dh) <= dzmax ) then
-            dztddpm = prf%rst(jloc)   ! surface value of dZTD/dp
+            dztddpm = prf%rst(jloc)   ! lowest level value of dZTD/dp
           else
             tobs   = prf%tst(jloc)-gamma*dh
             qobs   = prf%qst(jloc)
@@ -216,7 +216,7 @@ contains
 
   subroutine gpsPW(prf, PW)
   !
-  !  Subroutine to compute surface PW (kg/m2) using layer mean Q and layer delta_p (Pa)
+  !  Subroutine to compute lowest level PW (kg/m2) using layer mean Q and layer delta_p (Pa)
   !
   !   Author:  S. Macpherson,  2010-2012
   !

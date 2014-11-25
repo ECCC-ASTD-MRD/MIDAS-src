@@ -50,7 +50,7 @@ calcstatsdir=$PWD
 trunkdir=$PWD/../
 
 VAR3D_VERSION="11.2.1"
-LIBAPPL="rttov10.2.0_coef_io rttov10.2.0_main rttov10.2.0_other burp_module descrip $MPILIB "
+LIBAPPL="rttov10.2.0_coef_io rttov10.2.0_main rttov10.2.0_other burp_module modelutils_base descrip $MPILIB "
 
 LIBSYS="lapack blas mass"
 LIBRMN="rmn_014_rc2"
@@ -92,7 +92,8 @@ if [ $mode == full ] ; then
   . ssmuse-sh -d /ssm/net/rpn/libs/201309/01
   . s.ssmuse.dot Xlf13.110
   . s.ssmuse.dot devtools
-  . s.ssmuse.dot CMDN/vgrid/3.4.0
+  . s.ssmuse.dot ENV/d/x/modelutils/modelutils_1.1.0-a8
+  . s.ssmuse.dot CMDN/vgrid/4.4.0-a2
   . s.ssmuse.dot rpn_comm
 
   # Create a local copy of the source code
@@ -100,12 +101,11 @@ if [ $mode == full ] ; then
             gaussgrid_mod.ftn90 fft_mod.ftn90 globalspectraltransform_mod.ftn90 lamanalysisgrid_mod.ftn90 \
             gridstatevector_mod.ftn90 maincompileswitch.inc varnamelist_mod.ftn90 \
             utils_3dvar.ftn lamspectraltransform_mod.ftn90 \
-            verticalcoord_mod.ftn90 horizontalcoord_mod.ftn90"
+            verticalcoord_mod.ftn90 horizontalcoord_mod.ftn90 dsyev2.ftn"
 
   cd ${trunkdir}
   cp -f calcstats/*.ftn90 ${compiledir}
   cp -f ${trunkfiles} ${compiledir}
-  cp -f modulopt/*ftn ${compiledir}
   cd ${trunkdir}/shared; ls -1F | grep -v '/' | grep -v "*" | cpio -pl ${compiledir}
   cd ${compiledir}
 
@@ -122,14 +122,6 @@ if [ $mode == full ] ; then
   s.compile $INCLUDES $COMPF -O -src $SRC0 > listing0a 2>&1
   grep fail listing0a
   if [ $? = "0" ] ; then exit ; fi
-
-  echo "compiling modulopt (n1qn3)"
-  #SRC0="dcube.ftn ddd.ftn ddds.ftn dsyev.ftn dystbl.ftn mupdts.ftn n1qn3.ftn n1qn3a.ftn nlis0.ftn"
-  SRC0="dcube.ftn ddd.ftn ddds.ftn dystbl.ftn mupdts.ftn n1qn3.ftn n1qn3a.ftn nlis0.ftn"
-  s.compile $INCLUDES $COMPF_NOC -O -src $SRC0 > listingm 2>&1
-  grep fail listingm
-  if [ $? = "0" ] ; then exit ; fi
-  rm -f $SRC0
 
   echo "compiling analysis grid modules"
   SRC0="gaussgrid_mod.ftn90 lamanalysisgrid_mod.ftn90"

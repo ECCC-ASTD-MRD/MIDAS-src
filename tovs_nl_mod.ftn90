@@ -31,7 +31,7 @@ Module tovs_nl_mod
   public :: radiance_type,profile_type,rttov_chanprof,rttov_coefs,transmission_Type,rttov_options
 
   ! public variables (parameters)
-  public :: jppf, jpchmax, jpchus, jpnsatmax, jplev, MXPLATFORM, MXINSTR
+  public :: jppf, jpchmax, jpchus, jpnsatmax, jplev, MXPLATFORM, MXINSTR, mesosphere_lapse_rate
   ! public variables (non-parameters)
   public :: nchan, ichan, lsensor, lobsno, ltovsno, JPMOTOP, JPMOLEV, nobtov
   public :: l_really_present,list_sensors
@@ -51,6 +51,13 @@ Module tovs_nl_mod
   Integer, PARAMETER :: jpchus    = 616      ! Max. no. of channels computed/call
   Integer, PARAMETER :: jpnsatmax = 40       ! Max no sensors to be used
   Integer, PARAMETER :: jplev     = 51       ! No. of pressure levels including "rttov top" at 0.005 hPa for rttov-10
+!**********************************************************
+! S. Heilliette this parameter was computed from the mean lapse rate between 50 km and 85 km
+! of the US standard atmosphere from data contained in "AFGL Atmospheric Constituent Profiles (0-120km)"
+! AFGL 1986, G.P. ANDERSON, J.H. CHETWYND, S.A. CLOUGH, E. P. SHETTLE and F.X. KNEIZYS
+  real*8, PARAMETER :: mesosphere_lapse_rate=16.2_8
+! unit is K/log(P), a positive value corresponds to decrease of temperature with height
+!**********************************************************
 
   ! Module variables
   Integer, allocatable :: nchan(:)              ! number of channels per instrument

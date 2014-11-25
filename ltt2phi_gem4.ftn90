@@ -33,7 +33,7 @@ SUBROUTINE ltt2phi_gem4(column,columng)
 
   type(struct_columnData) :: column,columng
 
-  integer :: columnIndex,lev_M,lev_T,nlev_M,nlev_T
+  integer :: columnIndex,lev_M,lev_T,nlev_M,nlev_T,status,Vcode_anl
   real(8) :: hu,tt,delPsfc,ratioP1
   real(8), allocatable :: tv(:),delTv(:),ratioP(:)
   real(8), allocatable :: delLnP_M(:),delLnP_T(:)
@@ -41,11 +41,10 @@ SUBROUTINE ltt2phi_gem4(column,columng)
   type(struct_vco), pointer :: vco_anl
 
   vco_anl => col_getVco(columng)
+  status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
 
   nlev_T = col_getNumLev(columng,'TH')
   nlev_M = col_getNumLev(columng,'MM')
-  !write(*,*) 'ltt2phi_gem4: nlev_T,nlev_M=',nlev_T,nlev_M
-  if(nlev_T .ne. nlev_M+1) call abort3d('ltt2phi_gem4: nlev_T is not equal to nlev_M+1!')
 
   allocate(tv(nlev_T))
   allocate(delTv(nlev_T))
@@ -53,81 +52,152 @@ SUBROUTINE ltt2phi_gem4(column,columng)
   allocate(delLnP_M(nlev_M))
   allocate(delLnP_T(nlev_T))
 
-  ! loop over all columns
+  if(Vcode_anl .eq. 5002) then
+
+    ! loop over all columns
 
 !$OMP PARALLEL DO PRIVATE(columnIndex,delGz_M,delGz_T, &
 !$OMP delPsfc,lev_M,lev_T, &
 !$OMP delLnP_M,delLnP_T,hu,tt,tv,delTv,ratioP,ratioP1)
-  do columnIndex = 1, col_getNumCol(columng)
+    do columnIndex = 1, col_getNumCol(columng)
 
-    delGz_M => col_getColumn(column,columnIndex,'GZ','MM')
-    delGz_T => col_getColumn(column,columnIndex,'GZ','TH')
+      delGz_M => col_getColumn(column,columnIndex,'GZ','MM')
+      delGz_T => col_getColumn(column,columnIndex,'GZ','TH')
 
-    ! initialize GZ increment to zero
-    delGz_M(1:nlev_M) = 0.0d0
-    delGz_T(1:nlev_T) = 0.0d0
+      ! initialize GZ increment to zero
+      delGz_M(1:nlev_M) = 0.0d0
+      delGz_T(1:nlev_T) = 0.0d0
 
-    ! compute lnP increment on momentum and thermo levels
-    delPsfc = col_getElem(column,1,columnIndex,'P0')
-    do lev_M = 1, nlev_M
-      delLnP_M(lev_M) = col_getPressureDeriv(columng,lev_M,columnIndex,'MM')*delPsfc/  &
-                        col_getPressure(columng,lev_M,columnIndex,'MM')
-    enddo
-    do lev_T = 1, nlev_T
-      delLnP_T(lev_T) = col_getPressureDeriv(columng,lev_T,columnIndex,'TH')*delPsfc/  &
-                        col_getPressure(columng,lev_T,columnIndex,'TH')
-    enddo
+      ! compute lnP increment on momentum and thermo levels
+      delPsfc = col_getElem(column,1,columnIndex,'P0')
+      do lev_M = 1, nlev_M
+        delLnP_M(lev_M) = col_getPressureDeriv(columng,lev_M,columnIndex,'MM')*delPsfc/  &
+                          col_getPressure(columng,lev_M,columnIndex,'MM')
+      enddo
+      do lev_T = 1, nlev_T
+        delLnP_T(lev_T) = col_getPressureDeriv(columng,lev_T,columnIndex,'TH')*delPsfc/  &
+                          col_getPressure(columng,lev_T,columnIndex,'TH')
+      enddo
 
-    ! compute background virtual temperature and its increment on thermo levels
-    do lev_T = 1, nlev_T
-      hu = exp(col_getElem(columng,lev_T,columnIndex,'HU'))
-      tt = col_getElem(columng,lev_T,columnIndex,'TT')
-      tv(lev_T) = fotvt8(tt,hu)
-      ! delTv = dTv_dT*delT + dTv_dLQ*delLQ
-      delTv(lev_T) = fottva(hu,1.0d0)*col_getElem(column,lev_T,columnIndex,'TT') +   &
-                     folnqva(hu,tt,1.0d0)*col_getElem(column,lev_T,columnIndex,'HU')
-    enddo
+      ! compute background virtual temperature and its increment on thermo levels
+      do lev_T = 1, nlev_T
+        hu = exp(col_getElem(columng,lev_T,columnIndex,'HU'))
+        tt = col_getElem(columng,lev_T,columnIndex,'TT')
+        tv(lev_T) = fotvt8(tt,hu)
+        ! delTv = dTv_dT*delT + dTv_dLQ*delLQ
+        delTv(lev_T) = fottva(hu,1.0d0)*col_getElem(column,lev_T,columnIndex,'TT') +   &
+                       folnqva(hu,tt,1.0d0)*col_getElem(column,lev_T,columnIndex,'HU')
+      enddo
     
-    ! compute natural log of momenutum level pressure ratios for each layer
-    do lev_M = 1,(nlev_M-1)
-      lev_T = lev_M+1 ! thermo level just below momentum level
-      ratioP(lev_T) = log( col_getPressure(columng,lev_M+1,columnIndex,'MM') /  &
-                           col_getPressure(columng,lev_M,columnIndex,'MM') )
+      ! compute natural log of momenutum level pressure ratios for each layer
+      do lev_M = 1,(nlev_M-1)
+        lev_T = lev_M+1 ! thermo level just below momentum level
+        ratioP(lev_T) = log( col_getPressure(columng,lev_M+1,columnIndex,'MM') /  &
+                             col_getPressure(columng,lev_M,columnIndex,'MM') )
+      enddo
+
+      ! compute GZ increment on momentum levels
+      do lev_M = (nlev_M-1), 1, -1
+        lev_T = lev_M+1 ! thermo level just below momentum level being computed
+        delGz_M(lev_M) = delGz_M(lev_M+1) +   &
+                         MPC_RGAS_DRY_AIR_R8*( ratioP(lev_T)*delTv(lev_T) +  & 
+                                               tv(lev_T)*(delLnP_M(lev_M+1) -  &
+                                               delLnP_M(lev_M)) )
+      enddo
+
+      ! compute GZ increment for top thermo level (from top momentum level)
+      ratioP1 = log( col_getPressure(columng,1,columnIndex,'MM') /  &
+                     col_getPressure(columng,1,columnIndex,'TH') )
+      delGz_T(1) = delGz_M(1) +  &
+                   MPC_RGAS_DRY_AIR_R8*( ratioP1*delTv(1) +  &
+                                         tv(1)*(delLnP_M(1) - delLnP_T(1)) )
+
+      ! compute GZ increment on remaining thermo levels by simple averaging
+      do lev_T = 2, (nlev_T-1)
+        lev_M = lev_T ! momentum level just below thermo level being computed
+        delGz_T(lev_T) = 0.5d0*( delGz_M(lev_M-1) + delGz_M(lev_M) )
+      enddo
+
+      !if(columnIndex.eq.1) then
+      !  do lev_M = 1, nlev_M
+      !    write(*,*) 'ltt2phi_gem4: delGz_M=',lev_M,delGz_M(lev_M)
+      !  enddo
+      !  do lev_T = 1, nlev_T
+      !    write(*,*) 'ltt2phi_gem4: delGz_T=',lev_T,delGz_T(lev_T)
+      !  enddo
+      !endif
+
     enddo
-
-    ! compute GZ increment on momentum levels
-    do lev_M = (nlev_M-1), 1, -1
-      lev_T = lev_M+1 ! thermo level just below momentum level being computed
-      delGz_M(lev_M) = delGz_M(lev_M+1) +   &
-                       MPC_RGAS_DRY_AIR_R8*( ratioP(lev_T)*delTv(lev_T) +  & 
-                                             tv(lev_T)*(delLnP_M(lev_M+1) -  &
-                                             delLnP_M(lev_M)) )
-    enddo
-
-    ! compute GZ increment for top thermo level (from top momentum level)
-    ratioP1 = log( col_getPressure(columng,1,columnIndex,'MM') /  &
-                   col_getPressure(columng,1,columnIndex,'TH') )
-    delGz_T(1) = delGz_M(1) +  &
-                 MPC_RGAS_DRY_AIR_R8*( ratioP1*delTv(1) +  &
-                                       tv(1)*(delLnP_M(1) - delLnP_T(1)) )
-
-    ! compute GZ increment on remaining thermo levels by simple averaging
-    do lev_T = 2, (nlev_T-1)
-      lev_M = lev_T ! momentum level just below thermo level being computed
-      delGz_T(lev_T) = 0.5d0*( delGz_M(lev_M-1) + delGz_M(lev_M) )
-    enddo
-
-    !if(columnIndex.eq.1) then
-    !  do lev_M = 1, nlev_M
-    !    write(*,*) 'ltt2phi_gem4: delGz_M=',lev_M,delGz_M(lev_M)
-    !  enddo
-    !  do lev_T = 1, nlev_T
-    !    write(*,*) 'ltt2phi_gem4: delGz_T=',lev_T,delGz_T(lev_T)
-    !  enddo
-    !endif
-
-  enddo
 !$OMP END PARALLEL DO
+
+  elseif(Vcode_anl .eq. 5004) then
+
+    ! loop over all columns
+
+!$OMP PARALLEL DO PRIVATE(columnIndex,delGz_M,delGz_T, &
+!$OMP delPsfc,lev_M,lev_T, &
+!$OMP delLnP_M,hu,tt,tv,delTv,ratioP,ratioP1)
+    do columnIndex = 1, col_getNumCol(columng)
+
+      delGz_M => col_getColumn(column,columnIndex,'GZ','MM')
+      delGz_T => col_getColumn(column,columnIndex,'GZ','TH')
+
+      ! initialize GZ increment to zero
+      delGz_M(1:nlev_M) = 0.0d0
+      delGz_T(1:nlev_T) = 0.0d0
+
+      ! compute lnP increment on momentum and thermo levels
+      delPsfc = col_getElem(column,1,columnIndex,'P0')
+      do lev_M = 1, nlev_M
+        delLnP_M(lev_M) = col_getPressureDeriv(columng,lev_M,columnIndex,'MM')*delPsfc/  &
+                          col_getPressure(columng,lev_M,columnIndex,'MM')
+      enddo
+
+      ! compute background virtual temperature and its increment on thermo levels
+      do lev_T = 1, nlev_T
+        hu = exp(col_getElem(columng,lev_T,columnIndex,'HU'))
+        tt = col_getElem(columng,lev_T,columnIndex,'TT')
+        tv(lev_T) = fotvt8(tt,hu)
+        ! delTv = dTv_dT*delT + dTv_dLQ*delLQ
+        delTv(lev_T) = fottva(hu,1.0d0)*col_getElem(column,lev_T,columnIndex,'TT') +   &
+                       folnqva(hu,tt,1.0d0)*col_getElem(column,lev_T,columnIndex,'HU')
+      enddo
+    
+      ! compute natural log of momenutum level pressure ratios for each layer
+      do lev_M = 1,(nlev_M-1)
+        lev_T = lev_M ! thermo level just below momentum level
+        ratioP(lev_T) = log( col_getPressure(columng,lev_M+1,columnIndex,'MM') /  &
+                             col_getPressure(columng,lev_M,columnIndex,'MM') )
+      enddo
+
+      ! compute GZ increment on momentum levels
+      do lev_M = (nlev_M-1), 1, -1
+        lev_T = lev_M ! thermo level just below momentum level being computed
+        delGz_M(lev_M) = delGz_M(lev_M+1) +   &
+                         MPC_RGAS_DRY_AIR_R8*( ratioP(lev_T)*delTv(lev_T) +  & 
+                                               tv(lev_T)*(delLnP_M(lev_M+1) -  &
+                                               delLnP_M(lev_M)) )
+      enddo
+
+      ! compute GZ increment on thermo levels by simple averaging
+      do lev_T = 1, (nlev_T-1)
+        lev_M = lev_T+1 ! momentum level just below thermo level being computed
+        delGz_T(lev_T) = 0.5d0*( delGz_M(lev_M-1) + delGz_M(lev_M) )
+      enddo
+
+      !if(columnIndex.eq.1) then
+      !  do lev_M = 1, nlev_M
+      !    write(*,*) 'ltt2phi_gem4: delGz_M=',lev_M,delGz_M(lev_M)
+      !  enddo
+      !  do lev_T = 1, nlev_T
+      !    write(*,*) 'ltt2phi_gem4: delGz_T=',lev_T,delGz_T(lev_T)
+      !  enddo
+      !endif
+
+    enddo
+!$OMP END PARALLEL DO
+
+  endif
 
   deallocate(tv)
   deallocate(delTv)

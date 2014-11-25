@@ -490,21 +490,32 @@ module obsOperators_mod
         !
         zpp(jl) = col_getPressure(columnhr,jl,index_header,'TH')
         zdp(jl) = col_getPressureDeriv(columnhr,jl,index_header,'TH')
-        ztt(jl) = col_getElem(columnhr,JL,index_header,'TT') - p_tc
-        zhu(jl) = col_getElem(columnhr,JL,index_header,'HU')
-        zuu(jl) = 0.d0
-        zvv(jl) = 0.d0
+        ztt(jl) = col_getElem(columnhr,jl,index_header,'TT') - p_tc
+        zhu(jl) = col_getElem(columnhr,jl,index_header,'HU')
       enddo
-      do jl = 1, nwndlev
-        zuu(jl) = col_getElem(columnhr,jl,index_header,'UU') * p_knot
-        zvv(jl) = col_getElem(columnhr,JL,index_header,'VV') * p_knot
-      enddo
+
+      if((col_getPressure(columnhr,1,index_header,'TH') + 1.0d-4) .lt. &
+         col_getPressure(columnhr,1,index_header,'MM')) then
+        ! case with top thermo level above top momentum level (Vcode=5002)
+        do jl = 1, nwndlev
+          zuu(jl) = col_getElem(columnhr,jl  ,index_header,'UU') * p_knot
+          zvv(jl) = col_getElem(columnhr,jl  ,index_header,'VV') * p_knot
+        enddo
+      else
+        ! case without top thermo above top momentum level or unstaggered (Vcode=5001/4/5)
+        do jl = 1, nwndlev-1
+          zuu(jl) = col_getElem(columnhr,jl+1,index_header,'UU') * p_knot
+          zvv(jl) = col_getElem(columnhr,jl+1,index_header,'VV') * p_knot
+        enddo
+        zuu(nwndlev) = zuu(nwndlev-1)
+        zvv(nwndlev) = zuu(nwndlev-1)
+      endif
       zuu(ngpslev) = zuu(nwndlev)
       zvv(ngpslev) = zuu(nwndlev)
       !     
       ! GPS profile structure:
       !
-      call gpsstruct1sw(ngpslev,zLat,zLon,zAzm,zMT,Rad,geo,zPP,zDP,zTT,zHU,zUU,zVV,prf)
+      call gpsstruct1sw(ngpslev,zLat,zLon,zAzm,zMT,Rad,geo,zP0,zPP,zDP,zTT,zHU,zUU,zVV,prf)
       ldsc=.not.btest(iclf,16-3)
       !
       ! Prepare the vector of all the observations:
@@ -645,6 +656,9 @@ module obsOperators_mod
     !          S. Macpherson Jun 2013
     !           -- Use true implementation of ZDP (dP/dP0), although not needed here
     !
+    !          S. Macpherson Nov 2014
+    !           -- modifications for case where P(nlev) is not equal to P0
+    !
     !Arguments (out)
     !     jobs_out: total value of Jo for all GB-GPS (ZTD) observations
     !
@@ -660,7 +674,7 @@ module obsOperators_mod
     real(8), allocatable :: ztt (:)
     real(8), allocatable :: zhu (:)
     real(8) :: zlat, lat, zlon, lon, jobs
-    real(8) :: zmt, zdzmin
+    real(8) :: zp0, zmt, zdzmin
     real(8) :: zobs, zoer, zinc, zhx, zlev
     real(8) :: zdz, zpsobs, zpsmod, zpwmod, zpomp, zpomps
     real(8) :: ztdomp(max_gps_data)
@@ -779,6 +793,7 @@ module obsOperators_mod
       zlat = lat * MPC_DEGREES_PER_RADIAN_R8
       zlon = lon * MPC_DEGREES_PER_RADIAN_R8
       zmt  = col_getHeight(columnhr,nlev_T,headerIndex,'TH')/RG
+      zp0  = col_getElem(columnhr,1,headerIndex,'P0')
       do jl = 1, nlev_T
         zpp(jl) = col_getPressure(columnhr,jl,headerIndex,'TH')
         ! True implementation of ZDP (dP/dP0)
@@ -789,7 +804,7 @@ module obsOperators_mod
       zdz = zlev - zmt
 
       ! Fill GPS ZTD profile structure (PRF):
-      call gpsstructztd(nlev_T,lat,lon,zmt,zpp,zdp,ztt,zhu,lbevis,irefopt,prf)
+      call gpsstructztd(nlev_T,lat,lon,zmt,zp0,zpp,zdp,ztt,zhu,lbevis,irefopt,prf)
 
       ! Apply the GPS ZTD observation operator
       ! --> output is model ZTD (type gpsdiff) and P at obs height ZLEV

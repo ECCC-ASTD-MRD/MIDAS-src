@@ -34,7 +34,6 @@ else
   echo
 fi
 
-#nompi=$1
 if [ "$nompi" = "NOMPI" -o "$nompi" = "nompi" ] 
 then
   echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
@@ -66,7 +65,7 @@ mkdir -p compiledir
 cd compiledir
 rm -f *.o *.f *.f90 *.mod
 
-# automatically set the global revision number in comct0.cdk by
+# automatically set the global revision number in toplevelcontrol_mod.ftn90 by
 # replacing the string XXXXX with the actual revision number
 revpath=$(ssh pollux "cd $trunkdir; svn info | awk '/^URL/ {print \$2}'")
 revnum=$(ssh pollux "cd $trunkdir;  svnversion")
@@ -75,7 +74,6 @@ echo "-----------------------"
 echo "Revision number='$revnum' '$revpath'"
 echo "-----------------------"
 echo " "
-
 cat ${trunkdir}/toplevelcontrol_mod.ftn90_template |sed "s!XXXXX!${revnum} ${revpath}!g" > toplevelcontrol_mod.ftn90
 
 
@@ -104,8 +102,8 @@ varabs=oavar_${BASE_ARCH}${ABSTAG}
 echo "loading rpn/libs/15.0"
 . ssmuse-sh -d rpn/libs/15.0
 ## for 'vgrid'
-echo "loading cmdn/vgrid/5.0.2/${COMP_ARCH}"
-. ssmuse-sh -d cmdn/vgrid/5.0.2/${COMP_ARCH}
+echo "loading cmdn/vgrid/5.3.0-a2/${COMP_ARCH}"
+. ssmuse-sh -d cmdn/vgrid/5.3.0-a2/${COMP_ARCH}
 ## for 'burplib'
 echo "loading cmda/base/master/burplib_1.3.3-${COMP_ARCH}_$(ssm platforms | cut -d' ' -f1)"
 . ssmuse-sh -p cmda/base/master/burplib_1.3.3-${COMP_ARCH}_$(ssm platforms | cut -d' ' -f1)
@@ -130,21 +128,23 @@ LIBRMN="rmn_015"
 COMPF_NOC="-openmp $MPIKEY "
 COMPF="$COMPF_NOC"
 if [ $mode == full ] ; then
- rm -f  *.o *.mod *.cdk* *.h *.ftn* *.f *.f90
- cd ${trunkdir};          ls -1F | grep -v '/' | grep -v "*" | grep -v "@" | cpio -pl $compiledir ; cd $compiledir
- cd ${trunkdir}/bgcheck;  ls -1F | grep -v '/' | grep -v "*" | cpio -pl $compiledir ; cd $compiledir
- cd ${trunkdir}/shared;   ls -1F | grep -v '/' | grep -v "*" | cpio -pl $compiledir ; cd $compiledir
- cd ${trunkdir}/modulopt; ls -1F | grep -v '/' | grep -v "*" | cpio -pl $compiledir ; cd $compiledir
 
- rm -f *.ftn~ *.ftn90~
+  rm -f *.o *.mod *.cdk* *.h *.ftn* *.f *.f90
 
- echo "STARTING COMPILATION AT:"
- date
+  # Create a local copy of the source code
+  cd ${trunkdir};          ls -1F | grep -v '/' | grep -v "*" | grep -v "@" | cpio -pl $compiledir ; cd $compiledir
+  cd ${trunkdir}/bgcheck;  ls -1F | grep -v '/' | grep -v "*" | cpio -pl $compiledir ; cd $compiledir
+  cd ${trunkdir}/shared;   ls -1F | grep -v '/' | grep -v "*" | cpio -pl $compiledir ; cd $compiledir
+  cd ${trunkdir}/modulopt; ls -1F | grep -v '/' | grep -v "*" | cpio -pl $compiledir ; cd $compiledir
+  rm -f *.ftn~ *.ftn90~
 
-# remove enkf_pturb.ftn main program from compilation directory
- rm -f enkf_pturb.ftn
+  echo "STARTING COMPILATION AT:" 
+  date
 
-# Compile the subroutines...
+  # Remove enkf_pturb.ftn main program from compilation directory
+  rm -f enkf_pturb.ftn
+
+  # Compile the subroutines...
   echo "compiling low-level independent modules"
   SRC0="toplevelcontrol_mod.ftn90"
   SRC0="$SRC0 mathphysconstants_mod.ftn90 earthconstants_mod.ftn90 mpi_mod.ftn90 mpivar_mod.ftn90 bufr_mod.ftn90 codtyp_mod.ftn90"

@@ -407,7 +407,6 @@ contains
     type(struct_obs),intent(inout) :: lobsSpaceData
     character (len=*),intent(in) :: CINST
 !******************************************************************
-    type(struct_vco), pointer :: vco_trl
     INTEGER       :: JC,NCHN,JCH,JF,JL,NLEV,NLEVB,iextr,NPRF,NFLG,ICHN
     INTEGER       :: IWINDO,IWINDO_ALT
     INTEGER       :: INDEX_BODY,IDATA,IDATEND,INDEX_HEADER
@@ -418,7 +417,7 @@ contains
     REAL(8)       :: T_EFFECTIVE
     integer       :: alloc_status(30)
 
-    real(8) :: ZTG,ZPS,ZTS
+    real(8) :: ZTG,ZPS,ZTS,ptop_T
     real(8), allocatable :: ZT(:),ZHT(:),ZLQ(:),ZVLEV(:)
     real(8), allocatable :: ZLEVMOD(:)
     real(8), allocatable :: BTOBSERR(:),BTOBS(:),BTCALC(:),RCAL_CLR(:),SFCTAU(:)
@@ -479,7 +478,6 @@ contains
     lcris= ( trim(cinst)=="CRIS" .or.  trim(cinst)=="cris")
 
     call BGCK_GET_QCPARAM(cinst,IWINDOW,IWINDOW_ALT,ILIST1,ILIST2,ILIST2_PAIR,ICHN_SUN)
-    vco_trl => col_getVco(lcolumnhr)
 
     if (present(id_in)) then
        id=id_in
@@ -605,15 +603,16 @@ contains
   DIFFTOP_MIN = 100000.d0
   IMODTOP     = 1
 
+  ptop_T = col_getPressure(lcolumnhr,1,1,'TH')
   DO JL = 1, NLEVB
-     IF ( ABS(vco_trl%DPT_M-100.d0*ZVLEV(JL)) < DIFFTOP_MIN ) THEN
-        DIFFTOP_MIN = ABS(vco_trl%DPT_M-100.d0*ZVLEV(JL))
+     IF ( ABS(ptop_T-100.d0*ZVLEV(JL)) < DIFFTOP_MIN ) THEN
+        DIFFTOP_MIN = ABS(ptop_T-100.d0*ZVLEV(JL))
         IMODTOP = JL
      END IF
   END DO
 !* -- FIND RADIATIVE TRANSFER MODEL LEVEL NEAREST TO TRIAL TOP (only compute one time)
   write(*,*) 'TOIT DU MODELE (MB)'
-  write(*,*) 0.01d0*vco_trl%DPT_M
+  write(*,*) 0.01d0*ptop_T
   write(*,*) 'NIVEAU DU MODELE DE TRANSFERT RADIATIF LE PLUS PRES DU TOIT DU MODELE'
   write(*,*) IMODTOP
 
@@ -1200,7 +1199,7 @@ contains
 ! *** Do not assimilate if jacobian has a significant contribution over model top ***
 
 ! Condition valid if model top at 10mb or lower only
-           IF ( NINT(vco_trl%DPT_M) >= 1000 ) THEN
+           IF ( NINT(ptop_T) >= 1000 ) THEN
               IF ( REJFLAG(JC,9) /= 1 .AND. DTAUDP1(JC)  > 0.50d0 ) THEN
                  REJFLAG(JC,11) = 1
                  REJFLAG(JC,21) = 1
@@ -1208,7 +1207,7 @@ contains
            END IF
         
 ! Condition valid if model top at 10mb or lower only
-           IF ( NINT(vco_trl%DPT_M) >= 1000 ) THEN
+           IF ( NINT(ptop_T) >= 1000 ) THEN
               IF ( REJFLAG(JC,9) /= 1 .AND. TRANSM(JC,1) < 0.99d0 ) THEN
                  REJFLAG(JC,11) = 1
                  REJFLAG(JC,21) = 1 
@@ -1216,7 +1215,7 @@ contains
            END IF
 
 ! Condition valid if model top is higher than 10 mb
-           IF ( NINT(vco_trl%DPT_M) < 1000 ) THEN
+           IF ( NINT(ptop_T) < 1000 ) THEN
               IF ( REJFLAG(JC,9) /= 1 .AND. TRANSM(JC,1) < 0.95d0 ) THEN
                  REJFLAG(JC,11) = 1
                  REJFLAG(JC,21) = 1 
