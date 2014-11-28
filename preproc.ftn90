@@ -114,7 +114,7 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   !     
   !- Initialisation of the analysis grid vertical coordinate from !! in Bnmc file
   !
-  call vco_SetupFromFile(vco_anl,'./bgcov',.true.,'SPSTDDEV')
+  call vco_SetupFromFile(vco_anl,'./bgcov',.true.,'BGCK_STDDEV')
   call col_setVco(lcolumng,vco_anl)
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 

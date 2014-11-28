@@ -115,9 +115,11 @@ CONTAINS
     integer        :: fnom,fclos,ierr,nulnam
     integer        :: mynBeg,mynEnd,mynSkip
 
+    logical        :: TweakTG
+
     !namelist
     NAMELIST /NAMBEN/nEns,scaleFactor,scaleFactorLQ,ntrunc,enspathname,ensfilebasename, &
-                     nLevEns_M,nLevEns_T,hLocalize,vLocalize
+                     nLevEns_M,nLevEns_T,hLocalize,vLocalize,tweakTG
 
     call tmg_start(12,'BEN_SETUP')
 
@@ -139,6 +141,7 @@ CONTAINS
     hLocalize(1)    = 2800.0d0
     hLocalize(2)    = -1.0d0
     vLocalize       = 2.0d0
+    tweakTG         = .false.
 
     nulnam = 0
     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -386,6 +389,10 @@ CONTAINS
       ! could not open local ensemble files, try global files
       call setupEnsemble(stamp_in)
     endif
+
+    if ( tweakTG ) then
+       call AdjustTGOverOpenWater() 
+    end if
 
     if ( trim(ben_mode) == 'Analysis' ) then
       if (hco_ben % global) then
@@ -1227,6 +1234,284 @@ CONTAINS
 !$OMP END PARALLEL
 
   END SUBROUTINE ben_getPerturbation
+
+!--------------------------------------------------------------------------
+! AdjustTGOverOpenWater
+!--------------------------------------------------------------------------
+  SUBROUTINE AdjustTGOverOpenWater()
+    use timeCoord_mod
+    implicit none
+
+    real(4), allocatable :: TrialLandSeaMask(:,:), TrialSeaIceMask(:,:)
+    real(4), allocatable :: AnalLandSeaMask(:,:), AnalSeaIceMask(:,:)
+
+    real(4), allocatable :: tgstdbg_tmp(:,:)
+
+    integer :: jlat, jlon, jt, memberIndex
+
+    integer :: ini,inj,ink, inpas, inbits, idatyp, ideet
+    integer :: ip1,ip2,ip3,ig1,ig2,ig3,ig4
+    integer :: ierr,ipas,ntrials
+    integer :: idateo
+    integer :: fstprm,fstinf,iultg,fnom,fclos,fstouv,fstfrm
+    integer :: TrlmNumberWanted
+    integer :: fstlir, fstecr, key, fstinl, nultrl, ni_trial, nj_trial
+    integer :: deet, npas, nbits, datyp
+    integer :: swa, lng, dltf, ubc
+    integer :: extra1, extra2, extra3
+    
+    integer :: ezdefset, ezqkdef, ezsint, ezsetopt, TrialGridID
+
+    character(len=2)  :: cltypvar
+    character(len=1)  :: clgrtyp
+    character(len=4)  :: clnomvar
+    character(len=12) :: cletiket
+
+    character(len=2) :: flnum
+    character(len=128) :: trialfile
+
+    logical :: trialExists
+
+    integer :: levTG, levTT2m
+
+    if ( mpi_myid == 0 ) write(*,*)
+    if ( mpi_myid == 0 ) write(*,*) 'Adjusting TG ensemble perturbations over Open Water'
+
+    !- Read MG and GL in the middle of the assimilation time window
+    if ( tim_nStepObs == 1 ) then
+       TrlmNumberWanted = 1
+    else
+       TrlmNumberWanted = nint( (tim_nStepObs + 1.d0) / 2.d0)
+    end if
+    
+    write(flnum,'(I2.2)') TrlmNumberWanted
+    trialfile='./trlm_'//trim(flnum)
+    inquire(file=trim(trialfile),exist=trialExists)
+
+    if ( .not. trialExists ) then
+       if ( mpi_myid == 0 ) write(*,*)
+       if ( mpi_myid == 0 ) write(*,*) 'Trial file not found = ', trialfile
+       if ( mpi_myid == 0 ) write(*,*) 'Look for an ensemble of trial files '
+       
+       trialfile='./trlm_'//trim(flnum)//'_0001'
+       inquire(file=trim(trialfile),exist=trialExists)
+       if ( .not. trialExists ) then
+          if ( mpi_myid == 0 ) write(*,*) 'Ensemble trial file not found = ', trialfile
+          call abort3d('BMatrixEnsemble : DID NOT FIND A TRIAL FIELD FILE')
+       end if
+    end if
+
+    nultrl = 0
+    ierr = fnom(nultrl,trim(trialfile),'RND+OLD+R/O',0)
+    ierr = fstouv(nultrl,'RND+OLD')
+
+    !- Determine grid size and EZSCINT ID
+    idateo    = -1
+    cletiket = ' '
+    ip1      = -1
+    ip2      = -1
+    ip3      = -1
+    cltypvar = ' '
+    clnomvar = 'MG'
+
+    key = fstinf( nultrl,                                             & ! IN
+                  ni_trial, nj_trial, ink,                            & ! OUT
+                  idateo, cletiket, ip1, ip2, ip3, cltypvar, clnomvar ) ! IN
+
+    if (key < 0) then
+       write(*,*)
+       write(*,*) 'bMatrixEnsemble: Unable to find trial field = ',clnomvar
+       call abort3d('BMatrixEnsemble')
+    end if
+
+    ierr = fstprm( key,                                                 & ! IN
+                   idateo, deet, npas, ni_trial, nj_trial, ink, nbits,  & ! OUT
+                   datyp, ip1, ip2, ip3, cltypvar, clnomvar, cletiket,  & ! OUT
+                   clgrtyp, ig1, ig2, ig3,                              & ! OUT
+                   ig4, swa, lng, dltf, ubc, extra1, extra2, extra3 )     ! OUT
+
+    allocate(TrialLandSeaMask(ni_trial, nj_trial))
+    allocate(TrialSeaIceMask(ni_trial, nj_trial))
+
+    idateo   = -1
+    cletiket = ' '
+    ip1      = -1
+    ip2      = -1
+    ip3      = -1
+    cltypvar = ' '
+    clnomvar = 'MG'
+    ierr = fstlir(TrialLandSeaMask, nultrl, ini, inj, ink,  &
+                  idateo ,cletiket, ip1, ip2, ip3, cltypvar, clnomvar)
+    if ( ierr < 0 ) then
+       write(*,*)
+       write(*,*) 'bMatrixEnsemble: Unable to read trial field = ',clnomvar
+       call abort3d('BMatrixEnsemble : fstlir failed')
+    end if
+
+    if (ini /= ni_trial .or. inj /= nj_trial) then
+       write(*,*)
+       write(*,*) 'bMatrixEnsemble: Invalid dimensions for ...'
+       write(*,*) 'nomvar      =', trim(clnomvar)
+       write(*,*) 'etiket      =', trim(cletiket)
+       write(*,*) 'ip1         =', ip1
+       write(*,*) 'Found ni,nj =', ini, inj 
+       write(*,*) 'Should be   =', ni_trial, nj_trial
+       call abort3d('bMatrixEnsemble')
+    end if
+
+    clnomvar = 'GL'
+    ierr = fstlir(TrialSeaIceMask, nultrl, ini, inj, ink,  &
+                    idateo ,cletiket, ip1, ip2, ip3, cltypvar, clnomvar)
+    if ( ierr < 0 ) then
+       write(*,*)
+       write(*,*) 'bMatrixEnsemble: Unable to read trial field = ',clnomvar
+       call abort3d('BMatrixEnsemble : fstlir failed')
+    end if
+
+    if (ini /= ni_trial .or. inj /= nj_trial) then
+       write(*,*)
+       write(*,*) 'bMatrixEnsemble: Invalid dimensions for ...'
+       write(*,*) 'nomvar      =', trim(clnomvar)
+       write(*,*) 'etiket      =', trim(cletiket)
+       write(*,*) 'ip1         =', ip1
+       write(*,*) 'Found ni,nj =', ini, inj 
+       write(*,*) 'Should be   =', ni_trial, nj_trial
+       call abort3d('bMatrixEnsemble')
+    end if
+
+    TrialGridID  = ezqkdef( ni_trial, nj_trial, clgrtyp, ig1, ig2, ig3, ig4, nultrl )   ! IN
+ 
+    ierr = fstfrm(nultrl)  
+    ierr = fclos(nultrl)
+
+    !- Interpolate to the Analysis Grid
+    allocate(AnalLandSeaMask(hco_ben%ni, hco_ben%nj))
+    allocate(AnalSeaIceMask(hco_ben%ni, hco_ben%nj))
+
+    ierr = ezdefset( hco_ben%EZscintID, TrialGridID ) ! IN,  IN
+    ierr = ezsetopt('INTERP_DEGREE', 'NEAREST') ! Nearest-neighbor interpolation
+
+    ierr = ezsint  (AnalLandSeaMask, TrialLandSeaMask) ! OUT, IN
+    ierr = ezsint  (AnalSeaIceMask , TrialSeaIceMask ) ! OUT, IN
+
+    deallocate(TrialLandSeaMask)
+    deallocate(TrialSeaIceMask)
+
+    !- Modify the TG ensemble perturbations
+    levTG   = ngposittg
+    levTT2m = ngposittt+nLevEns_T-1
+
+    do jlat = myLatBeg, myLatEnd
+       do jlon = myLonBeg, myLonEnd
+
+          if ( AnalLandSeaMask(jlon,jlat) <= 0.1 .and. AnalSeaIceMask(jlon,jlat) <= 0.2 ) then
+             ! We have an open water point. Replace TG perturbations by 2m T perturbations.
+             ! This is done because the EnKF does not perturbed the SST => TG ens pert = 0 over open water.
+             do jt = 1, numTime
+                do memberIndex = 1, nens
+                   ensPerturbations(memberIndex)%member_r4(jlon,jlat,levTG  ,jt) = &
+                   ensPerturbations(memberIndex)%member_r4(jlon,jlat,levTT2m,jt)
+                end do
+             end do
+          end if
+
+       end do
+    end do
+
+    !- Write the modified TG
+
+    !allocate(tgstdbg_tmp(hco_ben%ni,hco_ben%nj))
+    !tgstdbg_tmp(:,:) = 0.0
+    !do jlat = myLatBeg, myLatEnd
+    !   do jlon = myLonBeg, myLonEnd
+    !      tgstdbg_tmp(jlon,hco_ben%nj-jlat+1) = ensPerturbations(1)%member_r4(jlon,jlat,levTG  ,1)
+    !   end do
+    !end do
+    !call RPN_COMM_allreduce(tgstdbg_tmp,tgstdbg_tmp,hco_ben%ni*hco_ben%nj,"mpi_real","mpi_sum","GRID",ierr)
+    !
+    !if ( mpi_myid == 0 ) then
+    !
+    !    iultg = 0
+    !    ierr = fnom(iultg,'tg_enspert_tweaked.fst','RND',0)
+    !    ierr = fstouv(iultg,'RND')
+    !
+    !    ini = hco_ben%ni
+    !    inj = hco_ben%nj
+    !    ink = 1
+    !    ip1 = 0
+    !    ip2 = 0
+    !    ip3 = 0
+    !    idateo = 0
+    !    cltypvar = 'E'
+    !    clnomvar = 'TG'
+    !    cletiket = 'MOD_ENS_PERT'
+    !    clgrtyp = 'G'
+    !    ig1 = 0
+    !    ig2 = 0
+    !    ig3 = 0
+    !    ig4 = 0
+    !    idatyp = 1
+    !
+    !    ierr = fstecr(tgstdbg_tmp, tgstdbg_tmp, -32, iultg, idateo,         &
+    !                   0, 0, ini, inj, ink, ip1, ip2, ip3, cltypvar,         &
+    !                   clnomvar,cletiket,clgrtyp,ig1, ig2, ig3, ig4, idatyp, &
+    !                   .true.)
+    !
+    ! end if
+    !
+    ! tgstdbg_tmp(:,:) = 0.0
+    ! do jlat = myLatBeg, myLatEnd
+    !    do jlon = myLonBeg, myLonEnd
+    !       tgstdbg_tmp(jlon,hco_ben%nj-jlat+1) = ensPerturbations(1)%member_r4(jlon,jlat,levTT2m  ,1)
+    !    end do
+    ! end do
+    ! call RPN_COMM_allreduce(tgstdbg_tmp,tgstdbg_tmp,hco_ben%ni*hco_ben%nj,"mpi_real","mpi_sum","GRID",ierr)
+    !
+    ! if ( mpi_myid == 0 ) then
+    !    cltypvar = 'E'
+    !    clnomvar = 'TT'
+    !    cletiket = 'RAW_ENS_PERT'
+    !    ierr = fstecr(tgstdbg_tmp, tgstdbg_tmp, -32, iultg, idateo,         &
+    !                   0, 0, ini, inj, ink, 12000, ip2, ip3, cltypvar,         &
+    !                   clnomvar,cletiket,clgrtyp,ig1, ig2, ig3, ig4, idatyp, &
+    !                   .true.)
+    !
+    !    do jlat = 1, hco_ben%nj
+    !      do jlon = 1,hco_ben%ni
+    !         tgstdbg_tmp(jlon,jlat) = AnalLandSeaMask(jlon,hco_ben%nj-jlat+1)
+    !      end do
+    !    end do
+    !    cltypvar = 'P'
+    !    clnomvar = 'MG'
+    !    cletiket = 'TRIAL2ANAL'
+    !    ierr = fstecr(tgstdbg_tmp, tgstdbg_tmp, -32, iultg, idateo,         &
+    !                   0, 0, ini, inj, ink, ip1, ip2, ip3, cltypvar,         &
+    !                   clnomvar,cletiket,clgrtyp,ig1, ig2, ig3, ig4, idatyp, &
+    !                   .true.)
+    !
+    !    do jlat = 1, hco_ben%nj
+    !      do jlon = 1,hco_ben%ni
+    !         tgstdbg_tmp(jlon,jlat) = AnalSeaIceMask(jlon,hco_ben%nj-jlat+1)
+    !      end do
+    !    end do       
+    !    cltypvar = 'P'
+    !    clnomvar = 'GL'
+    !    cletiket = 'TRIAL2ANAL'
+    !    ierr = fstecr(tgstdbg_tmp, tgstdbg_tmp, -32, iultg, idateo,         &
+    !                   0, 0, ini, inj, ink, ip1, ip2, ip3, cltypvar,         &
+    !                   clnomvar,cletiket,clgrtyp,ig1, ig2, ig3, ig4, idatyp, &
+    !                   .true.)
+    !
+    !    ierr = fstfrm(iultg)
+    !    ierr = fclos(iultg)
+    ! end if
+    !
+    ! deallocate(tgstdbg_tmp)
+
+    deallocate(AnalLandSeaMask)
+    deallocate(AnalSeaIceMask)
+
+  END SUBROUTINE AdjustTGOverOpenWater
 
 !--------------------------------------------------------------------------
 ! CheckEnsDim

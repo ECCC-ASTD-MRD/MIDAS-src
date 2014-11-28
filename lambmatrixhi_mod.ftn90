@@ -454,7 +454,7 @@ contains
     integer :: dateo, deet, npas, nk, nbits, datyp
     integer :: ip1, ip2, ip3, swa, lng, dltf, ubc
     integer :: extra1, extra2, extra3
-    integer :: ezdefset, ezqkdef
+    integer :: ezdefset, ezqkdef, ezsetopt
 
     character(len=4 )      :: nomvar
     character(len=2 )      :: typvar
@@ -506,6 +506,7 @@ contains
                                         hco_bstats%ig2, hco_bstats%ig3,   & ! IN
                                         hco_bstats%ig4, iu_bstats )         ! IN
       ier = ezdefset(hco_bhi%EZscintID, hco_bstats%EZscintID)               ! IN
+      ier = ezsetopt('INTERP_DEGREE', 'LINEAR')
       write(*,*)
       write(*,*) 'lbhi_GetHorizGridInfo: Horizontal regridding is needed'
     end if

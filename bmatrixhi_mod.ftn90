@@ -54,6 +54,7 @@ MODULE BmatrixHI
 
   logical             :: initialized = .false.
   integer             :: nj_l,ni_l
+  integer             :: AnalGridID ! EZscintID
   integer             :: nlev_M,nlev_T,nlev_T_even,nkgdim,nkgdim2,nkgdimSqrt
   integer             :: ntrunc,nla_mpiglobal,nla_mpilocal
   integer             :: cvDim_mpilocal,cvDim_mpiglobal
@@ -82,6 +83,7 @@ MODULE BmatrixHI
   real(8)             :: rfacthum=1.0d0
   real(8)             :: rlimsuptg=3.0d0
   logical             :: llimtg=.true.
+  logical             :: TweakTG
   integer             :: nulbgst=0
   integer             :: nLevPtoT
   real(8)             :: rvlocbalt   = 6.0d0
@@ -134,7 +136,7 @@ CONTAINS
     real(8) :: zps
     character(len=8) :: bFileName = './bgcov'
 
-    NAMELIST /NAMBHI/ntrunc,scaleFactor,scaleFactorLQ,scaleTG,numModeZero,squareSqrt
+    NAMELIST /NAMBHI/ntrunc,scaleFactor,scaleFactorLQ,scaleTG,numModeZero,squareSqrt,TweakTG
 
     call tmg_start(15,'BHI_SETUP')
 
@@ -178,6 +180,7 @@ CONTAINS
     scaleTG = .true.
     numModeZero = 0
     squareSqrt = .false.
+    TweakTG = .false.
 
     nulnam = 0
     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -237,6 +240,7 @@ CONTAINS
     
     ni_l = hco_in%ni
     nj_l = hco_in%nj
+    AnalGridID = hco_in%EZscintID
 
     mpiMode = 4
     gstID  = gst_setup(ni_l,nj_l,ntrunc,mpiMode,nkgdim)
@@ -896,12 +900,13 @@ CONTAINS
 
 
   SUBROUTINE BHI_SUTG
+    use timeCoord_mod
     implicit none
 
     logical :: llpb
     integer :: ikey, jlat, jlon, jla, ezgprm, igdgid, ezqkdef
     integer :: jn, jm, ila_mpilocal, ila_mpiglobal, inlev, itggid, inmxlev, iset, nsize
-    integer :: ezdefset, vezsint
+    integer :: ezdefset, vezsint, ezsetopt
     integer :: ip1style,ip1kind
     integer :: koutmpg
     real(8), allocatable :: dltg(:,:), tgstdbg_tmp(:,:)
@@ -913,17 +918,40 @@ CONTAINS
     real(8) :: zsp_mpiglobal(nla_mpiglobal,2,1)
 
     real(8),allocatable :: my_zsp_mpiglobal(:,:,:)
+
+    real(4), allocatable :: TrialLandSeaMask(:,:), TrialSeaIceMask(:,:)
+    real(4), allocatable :: AnalLandSeaMask(:,:), AnalSeaIceMask(:,:)
+
     ! standard file variables
     integer :: ini,inj,ink, inpas, inbits, idatyp, ideet
     integer :: ip1,ip2,ip3,ig1,ig2,ig3,ig4,iswa,ilength,idltf
     integer :: iubc,iextr1,iextr2,iextr3,ierr,ipak,ipas,ntrials
     integer :: iliste(100),idate(100),idimax,infon,iheures,idateo
+    integer :: vfstlir,vfstecr,fstprm,fstinf,iultg,fnom,fclos,fstouv,fstfrm
+
+    integer :: TrlmNumberWanted
+    integer :: fstlir, key, fstinl, nultrl, ni_trial, nj_trial
+    integer :: deet, npas, nbits, datyp
+    integer :: swa, lng, dltf, ubc
+    integer :: extra1, extra2, extra3
+    
+    integer :: ezsint, TrialGridID
+
     character(len=2)  :: cltypvar
     character(len=1)  :: clgrtyp
     character(len=4)  :: clnomvar
     character(len=12) :: cletiket
-    integer :: vfstlir,vfstecr,fstprm,fstinf
 
+    character(len=2) :: flnum
+    character(len=128) :: trialfile
+
+    logical :: trialExists
+
+    !
+    !- 1.  Reading and processing TG standard deviations
+    !
+
+    !- 1.1 Read the Std. Dev. field from ./bgcov file
     clnomvar = 'TG'
     idateo = -1
     inmxlev = 1
@@ -936,14 +964,13 @@ CONTAINS
     ierr = ezgprm(itggid,CLGRTYP,INI,INJ,IG1,IG2,IG3,IG4)
     allocate(dltg(ini,inj))
 
-    !write(*,*)'reading TG variances'
-
     ikey = vfstlir(dltg,koutmpg,ini,inj,ink,idateo,cletiket,ip1,   &
            ip2, ip3, cltypvar, clnomvar)
 
+    !- 1.2 Rearrange the data according to the analysis grid (if necessary)
     if(clgrtyp == 'G' .and. ni_l == ini .and. nj_l == inj .and. ig1 == 0  &
           .and. ig2 ==0 .and. ig3 == 0 .and.ig4 == 0) then
-
+      !- 1.2.1 The std. dev. on the analysis grid but with REVERSED LATITUDE
       do jlat = 1, nj_l
         do jlon = 1,ni_l
           tgstdbg(jlon,jlat) = dltg(jlon,nj_l-jlat+1)
@@ -952,6 +979,7 @@ CONTAINS
 
     elseif(clgrtyp == 'G' .and. ni_l == ini .and. nj_l == inj .and. ig1 ==   &
             0 .and. ig2 ==1 .and. ig3 == 0 .and.ig4 == 0) then
+       !- 1.2.2 The std. dev. ARE on the analysis grid
       do jlat = 1, nj_l
         do jlon = 1,ni_l
           tgstdbg(jlon,jlat) = dltg(jlon,jlat)
@@ -959,28 +987,250 @@ CONTAINS
       enddo
 
     else
+       !- 1.2.3 The std. dev. are NOT on the analysis grid. Interpolation is needed
+       iset = ezdefset(AnalGridID,itggid)
+       if ( TweakTG ) then
+          ierr = ezsetopt('INTERP_DEGREE', 'NEAREST') ! Nearest-neighbor interpolation
+       else
+          ierr = ezsetopt('INTERP_DEGREE', 'CUBIC') ! Cubic interpolation (legacy mode)
+       end if
+       ierr = vezsint(tgstdbg,dltg,ni_l,nj_l,1,ini,inj,1)
 
-       allocate(tgstdbg_tmp(ni_l,nj_l))
-       ! Interpolate to a gaussian grid stored from North to South(IG2=1)
-       ! First, from 'G' to 'G'
-       igdgid = ezqkdef(ni_l, nj_l, 'G', 0, 0, 0, 0 ,0)
-       iset = ezdefset(igdgid,itggid)
-       ierr = vezsint(tgstdbg_tmp,dltg,ni_l,nj_l,1,ini,inj,1)
-       ! Then, inverse the vector directly
-       do jlat = 1, nj_l
-          do jlon = 1,ni_l
-             tgstdbg(jlon,jlat) = tgstdbg_tmp(jlon,nj_l-jlat+1)
-          enddo
-       enddo
-       deallocate(tgstdbg_tmp)
+    end if
 
-    endif
+    !- 1.3 Tweaking the Std Dev.
 
-    ! If specified in namelist, do not accept tg errors of more than value specified in namelist
+    !- 1.3.1 If specified at the top of the module, do not accept TG errors of more than value specified above
     if ( llimtg ) then
+       if ( mpi_myid == 0 ) write(*,*)
+       if ( mpi_myid == 0 ) write(*,*) 'Capping TG Std. Dev. using a max value (K) = ', rlimsuptg
        where ( tgstdbg > rlimsuptg) tgstdbg = rlimsuptg
-    endif
+    end if
 
+    !- 1.3.2 Take into account the Land-Sea mask and the Sea-Ice mask of the day
+    if ( TweakTG ) then
+
+      if ( mpi_myid == 0 ) write(*,*)
+      if ( mpi_myid == 0 ) write(*,*) 'Adjusting TG Std Dev based on LandSea and SeaIce masks'
+
+      !- Read MG and GL in the middle of the assimilation time window
+      if ( tim_nStepObs == 1 ) then
+         TrlmNumberWanted = 1
+      else
+         TrlmNumberWanted = nint( (tim_nStepObs + 1.d0) / 2.d0)
+      end if
+
+      write(flnum,'(I2.2)') TrlmNumberWanted
+      trialfile='./trlm_'//trim(flnum)
+      inquire(file=trim(trialfile),exist=trialExists)
+
+      if ( .not. trialExists ) then
+        if ( mpi_myid == 0 ) write(*,*)
+        if ( mpi_myid == 0 ) write(*,*) 'Trial file not found = ', trialfile
+        if ( mpi_myid == 0 ) write(*,*) 'Look for an ensemble of trial files '
+
+        trialfile='./trlm_'//trim(flnum)//'_0001'
+        inquire(file=trim(trialfile),exist=trialExists)
+        if ( .not. trialExists ) then
+           if ( mpi_myid == 0 ) write(*,*) 'Ensemble trial file not found = ', trialfile
+           call abort3d('BMatrixHI : DID NOT FIND A TRIAL FIELD FILE')
+        end if
+      end if
+
+      nultrl = 0
+      ierr = fnom(nultrl,trim(trialfile),'RND+OLD+R/O',0)
+      ierr = fstouv(nultrl,'RND+OLD')
+
+      !- Determine grid size and EZSCINT ID
+      idateo    = -1
+      cletiket = ' '
+      ip1      = -1
+      ip2      = -1
+      ip3      = -1
+      cltypvar = ' '
+      clnomvar = 'MG'
+
+      key = fstinf( nultrl,                                             & ! IN
+                    ni_trial, nj_trial, ink,                            & ! OUT
+                    idateo, cletiket, ip1, ip2, ip3, cltypvar, clnomvar ) ! IN
+
+      if (key < 0) then
+         write(*,*)
+         write(*,*) 'bMatrixHI: Unable to find trial field = ',clnomvar
+         call abort3d('BMatrixHI')
+      end if
+
+      ierr = fstprm( key,                                                 & ! IN
+                     idateo, deet, npas, ni_trial, nj_trial, ink, nbits,  & ! OUT
+                     datyp, ip1, ip2, ip3, cltypvar, clnomvar, cletiket,  & ! OUT
+                     clgrtyp, ig1, ig2, ig3,                              & ! OUT
+                     ig4, swa, lng, dltf, ubc, extra1, extra2, extra3 )     ! OUT
+
+      allocate(TrialLandSeaMask(ni_trial, nj_trial))
+      allocate(TrialSeaIceMask(ni_trial, nj_trial))
+
+      idateo   = -1
+      cletiket = ' '
+      ip1      = -1
+      ip2      = -1
+      ip3      = -1
+      cltypvar = ' '
+      clnomvar = 'MG'
+      ierr = fstlir(TrialLandSeaMask, nultrl, ini, inj, ink,  &
+                    idateo ,cletiket, ip1, ip2, ip3, cltypvar, clnomvar)
+      if ( ierr < 0 ) then
+         write(*,*)
+         write(*,*) 'bMatrixHI: Unable to read trial field = ',clnomvar
+         call abort3d('BMatrixHI : fstlir failed')
+      end if
+
+      if (ini /= ni_trial .or. inj /= nj_trial) then
+          write(*,*)
+          write(*,*) 'bMatrixHI: Invalid dimensions for ...'
+          write(*,*) 'nomvar      =', trim(clnomvar)
+          write(*,*) 'etiket      =', trim(cletiket)
+          write(*,*) 'ip1         =', ip1
+          write(*,*) 'Found ni,nj =', ini, inj 
+          write(*,*) 'Should be   =', ni_trial, nj_trial
+          call abort3d('bMatrixHI')
+        end if
+
+      clnomvar = 'GL'
+      ierr = fstlir(TrialSeaIceMask, nultrl, ini, inj, ink,  &
+                    idateo ,cletiket, ip1, ip2, ip3, cltypvar, clnomvar)
+      if ( ierr < 0 ) then
+         write(*,*)
+         write(*,*) 'bMatrixHI: Unable to read trial field = ',clnomvar
+         call abort3d('BMatrixHI : fstlir failed')
+      end if
+
+      if (ini /= ni_trial .or. inj /= nj_trial) then
+          write(*,*)
+          write(*,*) 'bMatrixHI: Invalid dimensions for ...'
+          write(*,*) 'nomvar      =', trim(clnomvar)
+          write(*,*) 'etiket      =', trim(cletiket)
+          write(*,*) 'ip1         =', ip1
+          write(*,*) 'Found ni,nj =', ini, inj 
+          write(*,*) 'Should be   =', ni_trial, nj_trial
+          call abort3d('bMatrixHI')
+      end if
+
+      TrialGridID  = ezqkdef( ni_trial, nj_trial, clgrtyp, ig1, ig2, ig3, ig4, nultrl )   ! IN
+ 
+      ierr = fstfrm(nultrl)  
+      ierr = fclos(nultrl)
+
+      !- Interpolate to the Analysis Grid
+      allocate(AnalLandSeaMask(ni_l, nj_l))
+      allocate(AnalSeaIceMask(ni_l, nj_l))
+
+      ierr = ezdefset(AnalGridID     , TrialGridID     ) ! IN,  IN
+      ierr = ezsetopt('INTERP_DEGREE', 'NEAREST') ! Nearest-neighbor interpolation
+
+      ierr = ezsint  (AnalLandSeaMask, TrialLandSeaMask) ! OUT, IN
+      ierr = ezsint  (AnalSeaIceMask , TrialSeaIceMask ) ! OUT, IN
+
+      deallocate(TrialLandSeaMask)
+      deallocate(TrialSeaIceMask)
+
+      !- Modify the input/regridded TG Std. Dev.
+      do jlat = 1, nj_l
+         do jlon = 1,ni_l
+
+           if ( AnalLandSeaMask(jlon,jlat) > 0.1 ) then
+             ! We take this as a land point.
+             ! Force std. dev. to capping value
+             tgstdbg(jlon,jlat) = rlimsuptg
+           else if ( AnalSeaIceMask(jlon,jlat) > 0.2 ) then
+             ! We have significant sea ice on this sea point.
+             ! Force std. dev. to capping value
+             tgstdbg(jlon,jlat) = rlimsuptg
+           else
+             ! We have an open water point. Make sure that the std. dev. is realistic
+             ! 1.55 is slightly above the max value over the ocean in the legacy TG Std. Dev. field (in 2014)
+             if ( tgstdbg(jlon,jlat) > 1.55d0 ) then
+                tgstdbg(jlon,jlat) = 0.9d0
+             end if
+           end if
+
+         end do
+      end do
+
+      !- Write the modified Std. Dev.
+      if ( mpi_myid == 0 ) then
+        allocate(tgstdbg_tmp(ni_l,nj_l))
+        do jlat = 1, nj_l
+          do jlon = 1,ni_l
+             tgstdbg_tmp(jlon,jlat) = tgstdbg(jlon,nj_l-jlat+1)
+          end do
+        end do
+
+        iultg = 0
+        ierr = fnom(iultg,'tg_stddev_of_the_day.fst','RND',0)
+        ierr = fstouv(iultg,'RND')
+
+        ini = ni_l
+        inj = nj_l
+        ink = 1
+        ip1 = 0
+        ip2 = 0
+        ip3 = 0
+        idateo = 0
+        cltypvar = 'E'
+        clnomvar = 'TG'
+        cletiket = 'TWEAK_STDDEV'
+        clgrtyp = 'G'
+        ig1 = 0
+        ig2 = 0
+        ig3 = 0
+        ig4 = 0
+        idatyp = 1
+
+        ierr = vfstecr(tgstdbg_tmp, tgstdbg_tmp, -32, iultg, idateo,         &
+                       0, 0, ini, inj, ink, ip1, ip2, ip3, cltypvar,         &
+                       clnomvar,cletiket,clgrtyp,ig1, ig2, ig3, ig4, idatyp, &
+                       .true.)
+
+        do jlat = 1, nj_l
+          do jlon = 1,ni_l
+             tgstdbg_tmp(jlon,jlat) = AnalLandSeaMask(jlon,nj_l-jlat+1)
+          end do
+        end do
+        cltypvar = 'P'
+        clnomvar = 'MG'
+        cletiket = 'TRIAL2ANAL'
+        ierr = vfstecr(tgstdbg_tmp, tgstdbg_tmp, -32, iultg, idateo,         &
+                       0, 0, ini, inj, ink, ip1, ip2, ip3, cltypvar,         &
+                       clnomvar,cletiket,clgrtyp,ig1, ig2, ig3, ig4, idatyp, &
+                       .true.)
+
+        do jlat = 1, nj_l
+          do jlon = 1,ni_l
+             tgstdbg_tmp(jlon,jlat) = AnalSeaIceMask(jlon,nj_l-jlat+1)
+          end do
+        end do       
+        cltypvar = 'P'
+        clnomvar = 'GL'
+        cletiket = 'TRIAL2ANAL'
+        ierr = vfstecr(tgstdbg_tmp, tgstdbg_tmp, -32, iultg, idateo,         &
+                       0, 0, ini, inj, ink, ip1, ip2, ip3, cltypvar,         &
+                       clnomvar,cletiket,clgrtyp,ig1, ig2, ig3, ig4, idatyp, &
+                       .true.)
+
+        ierr = fstfrm(iultg)
+        ierr = fclos(iultg)
+
+        deallocate(tgstdbg_tmp)
+      end if
+
+      deallocate(AnalLandSeaMask)
+      deallocate(AnalSeaIceMask)
+
+    end if ! if ( TweakTG )
+
+    !
+    !- 2. Compute correlations in spectral space (CORNS)
+    !
     zgd(:,:,:) = 0.0d0
     zsp_mpilocal(:,:,:) = 0.0d0
     allocate(my_zsp_mpiglobal(nla_mpiglobal,2,1)) 
@@ -991,11 +1241,11 @@ CONTAINS
        cortgg(jla,2) = 0.0d0
     enddo
 
-    ! 4.2  Compute correlations in physical space
+    ! 2.4.2  Compute correlations in physical space
     rcscltg_vec(:) = rcscltg(1)
     call BHI_calccorr(zgd,rcscltg_vec,nlev_T_even)
 
-    ! 4.3  Bring back the result in spectral space
+    ! 2.4.3  Bring back the result in spectral space
     call gst_setID(gstID2)
     call gst_reespe4(zsp_mpilocal,zgd)
 
@@ -1012,7 +1262,7 @@ CONTAINS
     nsize = 2*nla_mpiglobal
     call rpn_comm_allreduce(my_zsp_mpiglobal(:,:,1),zsp_mpiglobal(:,:,1),nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
     deallocate(my_zsp_mpiglobal) 
-    ! 4.4  Check positiveness
+    ! 2.4.4  Check positiveness
     llpb = .false.
     do jla = 1, ntrunc+1
       zabs = abs(zsp_mpiglobal(jla,1,1))
@@ -1038,7 +1288,7 @@ CONTAINS
       zsp_mpiglobal(jla,2,1) = zsp_mpiglobal(jla,2,1)/zpole
     enddo
 
-    !  4.5  Correlation
+    !  2.4.5  Correlation
     do jm = 0, ntrunc
       do jn = jm, ntrunc
         jla = gst_getNIND(jm,gstID) + jn - jm
@@ -1048,13 +1298,13 @@ CONTAINS
       enddo
     enddo
 
-    ! 5. For zonal modes : set to zero the imaginary part and set the correct factor 1.0 for the real part
+    ! 2.5. For zonal modes : set to zero the imaginary part and set the correct factor 1.0 for the real part
     do jla = 1, ntrunc + 1
       cortgg(jla,1) = 0.5d0*cortgg(jla,1)
       cortgg(jla,2) = 0.0d0
     enddo
 
-    ! 6. Result in corns array
+    ! 2.6. Result in corns array
     do jn = 0, ntrunc
       ila_mpiglobal = jn + 1
       corns(nspositTG,nspositTG,jn) = 2.d0*cortgg(ila_mpiglobal,1)
