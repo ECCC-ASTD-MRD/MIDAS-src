@@ -8,6 +8,12 @@
 !
 ! Dependencies:
 !
+! Author: Mark Buehner
+! Revisions:
+!       Ping Du, June-Sept 2014
+!       - Introduced optional consideration of arrays/variables for
+!         constituents. See variables *Btr*.
+!
 !--------------------------------------------------------------------------
 MODULE ControlVector_mod
 
@@ -29,26 +35,35 @@ MODULE ControlVector_mod
   integer             :: cvm_dimBEN_mpiglobal
   integer             :: cvm_nvadim_mpiglobal
 
+  ! Addition for constituents
+  integer             :: cvm_dimBTR
+  integer             :: cvm_dimBTR_mpiglobal
+
+
   real*8, allocatable,target :: cvm_vazx(:)
 
 CONTAINS
 
-  SUBROUTINE CVM_setup(DIMBHI_IN,DIMBEN_IN)
+  SUBROUTINE CVM_setup(DIMBHI_IN,DIMBEN_IN, DIMBTR_IN)
     implicit none
 
-    integer           :: dimBHI_in,dimBEN_in
+    integer           :: dimBHI_in,dimBEN_in, dimBTR_in
     integer           :: ierr
 
     cvm_dimbhi = dimbhi_in
     cvm_dimben = dimben_in
+    cvm_dimbtr = dimbtr_in 
+
     call rpn_comm_allreduce(cvm_dimbhi,cvm_dimbhi_mpiglobal,1,"MPI_INTEGER","MPI_SUM","GRID",ierr)
     call rpn_comm_allreduce(cvm_dimben,cvm_dimben_mpiglobal,1,"MPI_INTEGER","MPI_SUM","GRID",ierr)
+    call rpn_comm_allreduce(cvm_dimbtr,cvm_dimbtr_mpiglobal,1,"MPI_INTEGER","MPI_SUM","GRID",ierr)
 
-    cvm_nvadim = cvm_dimben + cvm_dimbhi
-    cvm_nvadim_mpiglobal = cvm_dimben_mpiglobal + cvm_dimbhi_mpiglobal
+    cvm_nvadim = cvm_dimben + cvm_dimbhi + cvm_dimbtr
+    cvm_nvadim_mpiglobal = cvm_dimben_mpiglobal + cvm_dimbhi_mpiglobal + cvm_dimbtr_mpiglobal
 
-    write(*,*) 'cvm_setup: subvector dimensions            =',cvm_dimbhi,cvm_dimben,cvm_nvadim
-    write(*,*) 'cvm_setup: subvector dimensions (mpiglobal)=',cvm_dimbhi_mpiglobal,cvm_dimben_mpiglobal,cvm_nvadim_mpiglobal
+    write(*,*) 'cvm_setup: subvector dimensions            =',cvm_dimbhi,cvm_dimben, cvm_dimbtr, cvm_nvadim
+    write(*,*) 'cvm_setup: subvector dimensions (mpiglobal)=',cvm_dimbhi_mpiglobal,cvm_dimben_mpiglobal,       & 
+                                               cvm_dimbtr_mpiglobal,cvm_nvadim_mpiglobal
 
     allocate(cvm_vazx(cvm_nvadim),stat=ierr)
     if(ierr.ne.0) then
@@ -76,6 +91,9 @@ CONTAINS
       subVector => controlVector(1:cvm_dimbhi)
     elseif(subVectorIndex.eq.2 .and. cvm_dimben.gt.0) then
       subVector => controlVector((cvm_dimbhi+1):(cvm_dimbhi+cvm_dimben))
+    elseif(subVectorIndex.eq.3 .and. cvm_dimbtr.gt.0) then
+      ! Addition for constituents
+      subVector => controlVector((cvm_dimbhi+cvm_dimben+1):(cvm_dimbhi+cvm_dimben+cvm_dimbtr))
     else
       if(firstCall) then
         write(*,*) 'CVM_getSubVector: subVectorIndex ',subVectorIndex,' is not available'
@@ -99,6 +117,9 @@ CONTAINS
       subVector => controlVector(1:cvm_dimbhi_mpiglobal)
     elseif(subVectorIndex.eq.2 .and. cvm_dimben_mpiglobal.gt.0) then
       subVector => controlVector((cvm_dimbhi_mpiglobal+1):(cvm_dimbhi_mpiglobal+cvm_dimben_mpiglobal))
+    elseif(subVectorIndex.eq.3 .and. cvm_dimbtr_mpiglobal.gt.0) then
+      ! Addition for constituents
+      subVector => controlVector((cvm_dimbhi_mpiglobal+cvm_dimben_mpiglobal+1):(cvm_dimbhi_mpiglobal+cvm_dimben_mpiglobal+cvm_dimbtr_mpiglobal))
     else
       if(firstCall) then
         write(*,*) 'CVM_getSubVector_mpiglobal: subVectorIndex ',subVectorIndex,' is not available'

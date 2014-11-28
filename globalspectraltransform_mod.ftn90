@@ -369,10 +369,11 @@ CONTAINS
   end SUBROUTINE GST_nList_mpilocal
 
 
-  integer FUNCTION GST_SETUP(NI_IN,NJ_IN,NTRUNC_IN,MPIMODE_IN,MAXLEVELS_IN)
+  integer FUNCTION GST_SETUP(NI_IN,NJ_IN,NTRUNC_IN,MPIMODE_IN,MAXLEVELS_IN,makeEven_in)
     implicit none
     integer  :: ni_in,nj_in,ntrunc_in,mpiMode_in
     integer,optional :: maxlevels_in
+    logical,optional :: makeEven_in
     integer  :: jn,jm,ila,ierr
     integer  :: latPerPE,myLatBeg,myLatEnd,myLatHalfBeg,myLatHalfEnd
     integer  :: lonPerPE,myLonBeg,myLonEnd
@@ -411,7 +412,11 @@ CONTAINS
       gst(gstID)%nk = maxlevels_in
       if(gst(gstID)%mpiMode.gt.3) then
         ! 2D MPI decomposition: split levels across npex
-        call mpivar_setup_levels_npex(maxlevels_in,myLevBeg,myLevEnd,myLevCount)
+        if(present(makeEven_in)) then
+          call mpivar_setup_levels_npex(maxlevels_in,myLevBeg,myLevEnd,myLevCount,makeEven_in)
+        else
+          call mpivar_setup_levels_npex(maxlevels_in,myLevBeg,myLevEnd,myLevCount)
+        endif
       else
         ! 1D MPI decomposition: split levels across npey
         call mpivar_setup_levels_npey(maxlevels_in,myLevBeg,myLevEnd,myLevCount)

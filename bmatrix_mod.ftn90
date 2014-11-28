@@ -8,6 +8,7 @@ MODULE BMatrix_mod
   use horizontalCoord_mod
   use timeCoord_mod
   use gaussGrid_mod
+  use bMatrixTracer
   implicit none
   save
   private
@@ -39,6 +40,9 @@ contains
     integer :: cvdimens, cvdimhi
     integer :: get_max_rss
 
+!PingDu for tracers
+    integer :: cvdimtr
+   
     !
     !- 1.  Get/Check the analysis grid info
     !
@@ -51,6 +55,9 @@ contains
     !
     cvdimhi  = 0
     cvdimens = 0
+
+!PingDu for tracers
+    cvdimtr = 0
 
     !- 2.1 Time-Mean Homogeneous and Isotropic...
     if ( hco_anl % global ) then
@@ -80,10 +87,27 @@ contains
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     write(*,*) 'Dimension of ENS control vector returned:',cvdimens
 
+    !-2.3 PingDu For tracers
+    if ( hco_anl % global ) then
+      write(*,*)
+      write(*,*) 'Setting up the modular GLOBAL HI covariances...'
+      call btr_Setup( hco_anl, vco_anl_in, & ! IN
+                      cvdimtr )              ! OUT
+    else
+      write(*,*)
+      write(*,*) 'Setting up the modular LAM HI covariances...'
+!      call lbtr_Setup( hco_anl, vco_anl_in, & ! IN
+!                       cvdimtr )              ! OUT
+    end if
+
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    write(*,*) 'Dimension of TR  control vector returned:',cvdimtr
+
+
     !
     !- 3.  Setup the control vector
     !
-    call cvm_Setup( cvdimhi, cvdimens ) ! IN
+    call cvm_Setup( cvdimhi, cvdimens, cvdimtr ) ! IN
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     write(*,*) 'Dimension of TOTAL control vector:',cvm_nvadim
@@ -103,6 +127,8 @@ contains
 
     real(8)         :: da_v(na_vdim)
     real(8),pointer :: cvBhi(:), cvBen(:), field(:,:,:), field4d(:,:,:,:)
+!PingDU
+    real(8),pointer :: cvBtr(:)
 
     type(struct_gsv) :: statevector, statevector_temp
 
@@ -141,13 +167,37 @@ contains
     end if
     call tmg_stop(50)
 
+!PingDu
+        !- 2.2T  Compute 3D contribution to increment from BmatrixTR
+     call tmg_start(50,'B_TR')
+     cvBtr => cvm_getSubVector(da_v,3)
+
+    if ( associated(cvBtr) ) then
+      if ( statevector % hco % global ) then
+        !- 2.2.1 Global mode
+        call btr_bsqrt( cvBtr,      & ! IN
+                        statevector ) ! OUT
+      else
+        !- 2.2.2 LAM mode
+!        call lbhi_bSqrt( cvBtr,      & ! IN
+!                         statevector ) ! OUT
+      end if
+      !- copy 3D increment to other timesteps to create 4D increment
+      call gsv_3dto4d(statevector)
+    end if
+    call tmg_stop(50)
+
+
+
     !- 2.3 compute 4D contribution to increment from BmatrixEnsemble
     call tmg_start(60,'B_ENS')
     cvBen => cvm_getSubVector(da_v,2)
 
     if ( associated(cvBen) ) call ben_bsqrt(cvBen, statevector_temp)
     call tmg_stop(60)
-      
+
+     
+ 
     !- 2.4 Add the two contributions together, result in statevector
     call gsv_add(statevector_temp,statevector)
 
@@ -167,6 +217,7 @@ contains
     integer :: na_vdim
     real*8 :: da_v(na_vdim)
     real*8,pointer :: cvBhi(:),cvBen(:)
+    real*8,pointer :: cvBtr(:)     !PingDu
     type(struct_gsv) :: statevector
 
     if ( statevector % hco % global ) then
@@ -184,12 +235,34 @@ contains
     if ( associated(cvBen) ) call ben_bsqrtad(statevector,cvBen)
     call tmg_stop(61)
 
+!PingDu
+      call gsv_3dto4dAdj(statevector)
+    !- 1.5 add contribution to gradient from BmatrixTR
+    call tmg_start(62,'B_TR_T')
+    cvBtr=>cvm_getSubVector(da_v,3)
+
+    if ( associated(cvBtr) ) then
+      !- 1.4.1 adjoint of copy 3D increment to 4D increment
+!      call gsv_3dto4dAdj(statevector)
+
+      if ( statevector % hco % global ) then
+        !- 1.4.2 add contribution to gradient from GLOBAL BmatrixTracer
+        call btr_bsqrtad( statevector, & ! IN
+                          cvBtr )        ! OUT
+      else
+        !- 1.4.3 add contribution to gradient from LAM BmatrixTracer
+!        call lbtr_bSqrtAdj( statevector, & ! IN
+!                            cvBtr )        ! OUT
+      end if
+    end if
+    call tmg_stop(62)
+
     !- 1.4 add contribution to gradient from BmatrixHI
     call tmg_start(51,'B_HI_T')
     cvBhi=>cvm_getSubVector(da_v,1)
     if ( associated(cvBhi) ) then
       !- 1.4.1 adjoint of copy 3D increment to 4D increment
-      call gsv_3dto4dAdj(statevector)
+!      call gsv_3dto4dAdj(statevector)
 
       if ( statevector % hco % global ) then
         !- 1.4.2 add contribution to gradient from GLOBAL BmatrixHI
@@ -202,6 +275,8 @@ contains
       end if
     end if
     call tmg_stop(51)
+
+
 
   END SUBROUTINE bmat_sqrtBT
 
@@ -255,6 +330,7 @@ contains
     !- Purpose: Releases memory used by B matrices.
     !
     real(8), pointer :: cvBhi(:), cvBen(:)
+    real(8), pointer :: cvBtr(:)          !PingDu
 
     cvBhi => cvm_getSubVector(da_v,1)
     if ( associated(cvBhi) ) then
@@ -266,7 +342,17 @@ contains
     end if
 
     cvBen => cvm_getSubVector(da_v,2)
-    if ( associated(cvBen) ) call ben_finalize() 
+    if ( associated(cvBen) ) call ben_finalize()
+
+    cvBtr => cvm_getSubVector(da_v,3)  
+    if ( associated(cvBtr) ) then
+      if ( hco_anl % global ) then
+        call btr_finalize()
+      else
+!        call lbtr_finalize
+      end if
+    end if
+ 
 
   END SUBROUTINE bmat_finalize
 
@@ -279,9 +365,11 @@ contains
     real*8  :: cv_mpiglobal(:)
     integer :: cvDim_mpilocal_out
 
-    integer :: cvDim_Bhi_mpilocal,cvDim_Ben_mpilocal
+!    integer :: cvDim_Bhi_mpilocal,cvDim_Ben_mpilocal
+    integer :: cvDim_Bhi_mpilocal,cvDim_Ben_mpilocal,cvDim_Btr_mpilocal
     real*8,pointer :: cvBhi_mpilocal(:),cvBen_mpilocal(:)
     real*8,pointer :: cvBhi_mpiglobal(:),cvBen_mpiglobal(:)
+    real*8,pointer :: cvBtr_mpiglobal(:),cvBtr_mpilocal(:) !PingDu
 
     cvBhi_mpilocal =>cvm_getSubVector(cv_mpilocal,1)
     cvBhi_mpiglobal=>cvm_getSubVector_mpiglobal(cv_mpiglobal,1)
@@ -299,7 +387,17 @@ contains
        call ben_reduceToMPILocal(cvBen_mpilocal,cvBen_mpiglobal,cvDim_Ben_mpilocal)
     end if
 
-    cvDim_mpilocal_out = cvDim_Bhi_mpilocal + cvDim_Ben_mpilocal
+!PingDu
+
+    cvBtr_mpilocal =>cvm_getSubVector(cv_mpilocal,3)  
+    cvBtr_mpiglobal=>cvm_getSubVector_mpiglobal(cv_mpiglobal,3)
+!  
+    if(associated(cvBtr_mpilocal)) then
+       call btr_reduceToMPILocal(cvBtr_mpilocal,cvBtr_mpiglobal,cvDim_Btr_mpilocal)
+    end if
+
+!    cvDim_mpilocal_out = cvDim_Bhi_mpilocal + cvDim_Ben_mpilocal
+    cvDim_mpilocal_out = cvDim_Bhi_mpilocal + cvDim_Ben_mpilocal + cvDim_Btr_mpilocal
 
   END SUBROUTINE BMAT_reduceToMPILocal
 
@@ -312,9 +410,9 @@ contains
     real*8  :: cv_mpiglobal(:)
     integer :: cvDim_mpiglobal_out
 
-    integer :: cvDim_Bhi_mpiglobal,cvDim_Ben_mpiglobal
-    real*8,pointer :: cvBhi_mpilocal(:),cvBen_mpilocal(:)
-    real*8,pointer :: cvBhi_mpiglobal(:),cvBen_mpiglobal(:)
+    integer :: cvDim_Bhi_mpiglobal,cvDim_Ben_mpiglobal,cvDim_Btr_mpiglobal
+    real*8,pointer :: cvBhi_mpilocal(:),cvBen_mpilocal(:), cvBtr_mpilocal(:)
+    real*8,pointer :: cvBhi_mpiglobal(:),cvBen_mpiglobal(:),cvBtr_mpiglobal(:)
 
     cvBhi_mpilocal =>cvm_getSubVector(cv_mpilocal,1)
     cvBhi_mpiglobal=>cvm_getSubVector_mpiglobal(cv_mpiglobal,1)
@@ -332,7 +430,14 @@ contains
        call ben_expandToMPIGlobal(cvBen_mpilocal,cvBen_mpiglobal,cvDim_Ben_mpiglobal)
     endif
 
-    cvDim_mpiglobal_out = cvDim_Bhi_mpiglobal + cvDim_Ben_mpiglobal
+    cvBtr_mpilocal =>cvm_getSubVector(cv_mpilocal,3) 
+    cvBtr_mpiglobal=>cvm_getSubVector_mpiglobal(cv_mpiglobal,3) 
+    if(associated(cvBtr_mpilocal)) then
+       call btr_expandToMPIGlobal(cvBtr_mpilocal,cvBtr_mpiglobal,cvDim_Btr_mpiglobal)
+    endif
+
+!    cvDim_mpiglobal_out = cvDim_Bhi_mpiglobal + cvDim_Ben_mpiglobal
+    cvDim_mpiglobal_out = cvDim_Bhi_mpiglobal + cvDim_Ben_mpiglobal + cvDim_Btr_mpiglobal
 
   end SUBROUTINE BMAT_expandToMPIGlobal
 

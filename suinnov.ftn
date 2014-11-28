@@ -50,8 +50,11 @@
       real*8 zjo,zjoraob,zjosatwind,zjosurfc
       real*8 zjosfcsf,zjosfcua,zjotov,zjoairep,zjosfcsc,zjoprof
       real*8 zjogpsro,zjogpsgb,zjosfcgp
+      real*8 zjotracer
       integer :: ierr
       logical lgpdata
+!PDD
+!      real*8 ZJOTRACER
 
       write(*,*) '--Starting subrouting suinnov--'
 
@@ -113,6 +116,11 @@
       CALL FILTERGPSRO(columnhr,obsSpaceData)
       CALL SETERRGPSRO(columnhr,obsSpaceData)
       call oonl_gpsro(columnhr,obsSpaceData,ZJOGPSRO)
+
+!PDD for tracers
+!      call oonl_tracers(columnhr,obsSpaceData,ZJOTRACER)
+      ZJOTRACER = 0.
+
 !
 !        GPS - GROUND-BASED ZENITH DELAY
 !-------------------------------
@@ -123,9 +131,14 @@
 
       call tmg_stop(48)
 !
+! PDD for tracers
+!=======================================================================
+!      ZJO =  ZJORAOB + ZJOAIREP + ZJOSATWIND +
+!     $     ZJOSURFC + ZJOTOV + ZJOPROF + ZJOGPSRO + ZJOGPSGB
+!=======================================================================
 !=======================================================================
       ZJO =  ZJORAOB + ZJOAIREP + ZJOSATWIND +
-     $     ZJOSURFC + ZJOTOV + ZJOPROF + ZJOGPSRO + ZJOGPSGB
+     $     ZJOSURFC + ZJOTOV + ZJOPROF + ZJOGPSRO + ZJOGPSGB + ZJOTRACER
 !=======================================================================
 
       write(*,*) 'Cost function values for this MPI task:'
@@ -141,6 +154,7 @@
       write(*,'(a15,f23.16)') 'JOPROF   = ',ZJOPROF
       write(*,'(a15,f23.16)') 'JOGPSRO  = ',ZJOGPSRO
       write(*,'(a15,f23.16)') 'JOGPSGB  = ',ZJOGPSGB
+      write(*,'(a15,f23.16)') 'JOTR     = ',ZJOTRACER   !PDD
       write(*,'(a15,f23.16)') 'Total Jo = ',ZJO
 
       call mpi_allreduce_sumreal8scalar(ZJORAOB,"GRID")
@@ -155,6 +169,7 @@
       call mpi_allreduce_sumreal8scalar(ZJOPROF,"GRID")
       call mpi_allreduce_sumreal8scalar(ZJOGPSRO,"GRID")
       call mpi_allreduce_sumreal8scalar(ZJOGPSGB,"GRID")
+      call mpi_allreduce_sumreal8scalar(ZJOTRACER,"GRID")  !PDD
       call mpi_allreduce_sumreal8scalar(ZJO,"GRID")
 
       write(*,*) 'Cost function values summed for all MPI tasks:'
@@ -170,6 +185,7 @@
       write(*,'(a15,f23.16)') 'JOPROF   = ',ZJOPROF
       write(*,'(a15,f23.16)') 'JOGPSRO  = ',ZJOGPSRO
       write(*,'(a15,f23.16)') 'JOGPSGB  = ',ZJOGPSGB
+      write(*,'(a15,f23.16)') 'JOTRACER  = ',ZJOTRACER   !PDD
       write(*,'(a15,f23.16)') 'Total Jo = ',ZJO
 !
 !     Find interpolation layer in model profiles 

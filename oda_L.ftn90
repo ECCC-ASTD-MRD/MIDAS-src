@@ -21,19 +21,32 @@ subroutine oda_L(statevector,column,columng,lobsSpaceData)
   use obsSpaceData_mod
   use columnData_mod
   use timeCoord_mod
+  use varNameList_mod
   implicit none
 
   !
   ! Purpose: Localisation (3D) operator
   !          Compute profiled increments from grided increments
   !
-
+  !
+  ! Author:
+  ! Revisions:
+  !       Ping Du, Oct 2014.
+  !       - Input of varNameList_mod module and generalization of 
+  !         the selection of fields via vnl_varNameList in section 1.2
+  !
+  !-------------------------------------------------------------------------------------
   type(struct_columnData) :: column, columng
   type(struct_obs)        :: lobsSpaceData
   type(struct_gsv)        :: statevector
 
   integer :: nl_ilev, ierr, myLonEndP1, myLatEndP1, status, Vcode_anl
   type(struct_vco), pointer :: vco_anl
+
+  ! Additional variables for section 1.2  
+  character(len=2) :: varType
+  character(len=4) :: varName
+  integer :: jvar
 
   myLonEndP1 = statevector%myLonEnd + 1
   myLatEndP1 = min(statevector%myLatEnd + 1, statevector%nj)
@@ -53,48 +66,46 @@ subroutine oda_L(statevector,column,columng,lobsSpaceData)
   if (mpi_nprocs /= 1) call gsv_commLatLon(statevector)
   call tmg_stop(39)
 
+  !- 1.2 Horizontal interpolation of field
+  
 !$OMP PARALLEL
-!$OMP SECTIONS PRIVATE(nl_ilev)
+!$OMP DO PRIVATE(jvar,varName,varType,nl_ilev) 
 
-    !- 1.2 3D fields interpolation
-!$OMP SECTION
-    if (gsv_varExist('UU') ) call gd2mvo('UU',col_getNumLev(column,'MM'))
-!$OMP SECTION
-    if (gsv_varExist('VV') ) call gd2mvo('VV',col_getNumLev(column,'MM'))
-!$OMP SECTION
-    if (gsv_varExist('HU') ) call gd2mvo('HU',col_getNumLev(column,'TH'))
-!$OMP SECTION
-    if (gsv_varExist('TT') ) call gd2mvo('TT',col_getNumLev(column,'TH'))
-
-    !- 1.3 2D fields interpolation
-!$OMP SECTION
-    nl_ilev = 1
-    if (gsv_varExist('P0') ) call gd2mvo('P0',nl_ilev)
-    if (gsv_varExist('TG') ) call gd2mvo('TG',nl_ilev)
-
-!$OMP END SECTIONS
+  do jvar = 1, vnl_numvarmax
+    if(gsv_varExist(vnl_varNameList(jvar))) then
+       varName = trim(vnl_varNameList(jvar))
+       varType = vnl_vartypeFromVarname(varName)
+       nl_ilev = col_getNumLev(column,varType)
+       call gd2mvo(varName,nl_ilev)
+    end if
+  end do
+  
+!$OMP END DO
 !$OMP END PARALLEL
+ 
+  !
+  !- 2.  Variable conversions
+  !
 
-    !
-    !- 2.  Variable conversions
-    !
-
-    !- 2.1 Mass fields (TT,PS,HU) to hydrostatic geopotential
+  !- 2.1 Mass fields (TT,PS,HU) to hydrostatic geopotential
     vco_anl => col_getVco(columng)
     status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
     call tmg_start(36,'INTERP_LTT2PHI')
-    if(Vcode_anl .eq. 5001) then
-      call ltt2phi(column,columng)
-    else
-      call ltt2phi_gem4(column,columng)
-    endif
+  if (gsv_varExist('TT')) then
+   write(*,*) 'mass-field Active'
+   if(Vcode_anl .eq. 5001) then
+    call ltt2phi(column,columng)
+   else
+     call ltt2phi_gem4(column,columng)
+   endif
+  endif
     call tmg_stop(36)
-
-    !- 2.2 Rotated wind to Meteorological wind
-    if ( gsv_varExist('UU') .and. gsv_varExist('VV') .and. statevector%hco%Rotated ) then
-      write(*,*) 'uvrot2uv Active'
-      call uvrot2uv('UU', 'VV', col_getNumLev(column,'MM')) ! IN
-    end if
+ 
+  !- 2.2 Rotated wind to Meteorological wind
+  if ( gsv_varExist('UU') .and. gsv_varExist('VV') .and. statevector%hco%Rotated ) then
+     write(*,*) 'uvrot2uv Active'
+     call uvrot2uv('UU', 'VV', col_getNumLev(column,'MM')) ! IN
+  end if
   
 CONTAINS
 

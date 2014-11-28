@@ -147,14 +147,21 @@ module mpivar_mod
   end subroutine mpivar_setup_levels_npey
 
 
-  subroutine mpivar_setup_levels_npex(numlevels,myLevBeg,myLevEnd,myLevCount)
+  subroutine mpivar_setup_levels_npex(numlevels,myLevBeg,myLevEnd,myLevCount,makeEven_in)
     ! Purpose: compute parameters that define the mpi distribution of
     !          levels over tasks in X direction (npex)
     implicit none
     integer :: numlevels,myLevBeg,myLevEnd,myLevCount
     integer :: jlev,jproc,factor
     integer :: myLevCounts(mpi_npex)
-    logical :: makeEven = .true. ! for simplicity (for now) always divide into even number of levels per MPI task
+    logical, optional :: makeEven_in
+    logical :: makeEven
+
+    if(present(makeEven_in)) then
+      makeEven = makeEven_in
+    else
+      makeEven = .true.
+    endif
 
     if(numlevels .lt. mpi_npex) then
       write(*,*) 'mpivar_setup_levels_npex: NPEX (=',mpi_npex,') ',  &

@@ -21,6 +21,12 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
   !     Author  : S. Pellerin ARMA/AES Nov. 1999
   !
   !     Purpose: Fill in COLUMNG and COLUMNHR with trial profiles
+  !  
+  ! 
+  !Revisions:
+  !   Ping Du, Oct. 2014
+  !   - Input O3 in reading trial profiles
+  !
   !
   !Arguments: COLUMNG, COLUMNHR
   !
@@ -523,6 +529,8 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
       do jvar=1, vnl_numvarmax3D
 
         if(.not.gsv_varExist(vnl_varNameList3D(jvar))) cycle
+! to avoid cycle for VV      
+        if(vnl_varNameList3D(jvar) .eq. 'VV') cycle
 
         select case ( vnl_varNameList3D(jvar) )
            !
@@ -613,9 +621,30 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
                   column_ptr(jlev)=log(max(column_ptr(jlev),rhumin))
                 enddo
               enddo
+             
             endif
 
           endif
+
+        case default
+        
+         call readTrialField4(varInterphr_T,varInterphr_VV,vnl_varNameList3D(jvar),'TH')
+
+         if(col_getNumCol(columng).gt.0) then
+
+            if(mpi_myid.eq.0) write(*,*) 'sugomobs:',vnl_varNameList3D(jvar)
+            do jlev = 1,nlv_T
+              if(mpi_myid.eq.0) write(*,*) trim(vnl_varNameList3D(jvar)),',',jlev,varInterphr_T(jlev,1)
+            enddo
+
+            call col_fillmvo(columnhr,varInterphr_T,vnl_varNameList3D(jvar))
+            call col_vintprof(columnhr,columng,vnl_varNameList3D(jvar))
+
+
+           do jobs=1,col_getNumCol(columng)
+                column_ptr => col_getColumn(columng,jobs,vnl_varNameList3D(jvar))
+           end do
+         end if
 
         end select 
       enddo
@@ -727,6 +756,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
 !
 !     Determine the type and number of vertical levels
 !
+      
       if(trim(varName_in).eq.'UV') then
         varName='UU'
       else
@@ -765,6 +795,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
                     datyp, ip1, ip2, ip3, cltypvar, varName, cletiket,    & ! OUT
                     clgrtyp, ig1, ig2, ig3,                          & ! OUT
                     ig4, swa, lng, dltf, ubc, extra1, extra2, extra3 ) ! OUT
+
 
       EZscintID  = ezqkdef( ni, nj, clgrtyp, ig1, ig2, ig3, ig4, nultrl(1) )   ! IN
 
