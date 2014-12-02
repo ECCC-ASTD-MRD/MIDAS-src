@@ -95,7 +95,7 @@ program cnt0
 
  ! ---BGCHECK (AIRS, IASI, CrIS)--- !
   elseif(top_BgckIrMode()) then
-
+     if(mpi_myid == 0) write(*,*) 'CNT0: HYPERSPECTRAL IR BGCHECK MODE'
 
     numAnalyses = 1
     indexAnalysis = 0

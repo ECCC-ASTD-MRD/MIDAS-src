@@ -2232,7 +2232,7 @@ CONTAINS
 
 
     INTEGER     ::   IFLAG,LN,BITSflagoff,BITSflagon
-    REAL(OBS_REAL) :: MISG,OBSV,ELEV,ELEV_R,REMIS
+    REAL(OBS_REAL) :: MISG,OBSV,ELEV,ELEV_R,REMIS,emmissivite
     INTEGER     ::   VCO
     INTEGER     ::   NONELEV
     REAL        ::   ZEMFACT
@@ -2319,7 +2319,12 @@ CONTAINS
           if ( REMIS .ne. PPMIS .and. FAMTYP .eq. 'TO') THEN
             call obs_bodySet_r(obsdat,OBS_SEM,count,REMIS)
           else
-            call obs_bodySet_r(obsdat,OBS_SEM,count,MISG)
+             if ( FAMTYP .eq. 'TO') then
+                emmissivite=0.95
+                call obs_bodySet_r(obsdat,OBS_SEM,count,emmissivite)
+             else
+                call obs_bodySet_r(obsdat,OBS_SEM,count,MISG)
+             endif
           endif
           !call obs_set_i(obsdat,'OBS',count,NOBS)
 

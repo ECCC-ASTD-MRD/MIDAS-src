@@ -1262,16 +1262,14 @@ contains
         call obs_headSet_i(lobsSpaceData, OBS_STYP, index_header, KSURF )
 
         DO INDEX_BODY= IDATA, IDATEND
-           IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY).EQ.1 ) THEN
-              ICHN = NINT(obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY))
-              ICHN = MAX(0,MIN(ICHN,JPCHMAX+1))
-              chan_indx=hir_get_chindx_fr_chn(CINST,ichn)
-              call obs_bodySet_r(lobsSpaceData,OBS_SEM,INDEX_BODY,EMI_SFC(chan_indx))
-              DO NFLG = 0, BITFLAG
-                 IF ( REJFLAG(chan_indx,NFLG) == 1 ) &
-                      call obs_bodySet_i(lobsSpaceData,OBS_FLG,INDEX_BODY,IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY),NFLG))
-              END DO
-           END IF
+           ICHN = NINT(obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY))
+           ICHN = MAX(0,MIN(ICHN,JPCHMAX+1))
+           chan_indx=hir_get_chindx_fr_chn(CINST,ichn)
+           call obs_bodySet_r(lobsSpaceData,OBS_SEM,INDEX_BODY,EMI_SFC(chan_indx))
+           DO NFLG = 0, BITFLAG
+              IF ( REJFLAG(chan_indx,NFLG) == 1 ) &
+                   call obs_bodySet_i(lobsSpaceData,OBS_FLG,INDEX_BODY,IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY),NFLG))
+           END DO
         END DO
               
      END IF
@@ -2802,7 +2800,181 @@ contains
     END DO channels
 
   END SUBROUTINE CLOUD_TOP_AVHRR
- 
+
+  SUBROUTINE GET_TOP (HT,NHT, bt,tt,pp,nlev,lev_start,iopt)
+
+#if defined (DOC)
+!**************************************************************************
+!
+!**ID GET_TOP -- CLOUD TOP HEIGHT COMPUTATION
+!
+!       AUTHOR:   L. GARAND                       2004
+!                 A. BEAULNE (CMDA/SMC)  February 2006  (ADAPT TO 3DVAR)                 
+!
+!       REVISION:
+!
+!       OBJECT:   COMPUTATION OF CLOUD TOP HEIGHT AND NUMBER OF POSSIBLE HEIGHTS
+!
+!       ARGUMENTS:
+!          INPUT:
+!            -BT        : OBSERVED BRIGHTNESS TEMPERATURES (DEG K)
+!                          OR COMPUTED OBSERVED RADIANCES (MW/M2/SR/CM-1)
+!            -TT(NLEV)  : TEMPERATURE PROFILE (DEG K)
+!                          OR COMPUTED CLOUD RADIANCE FROM EACH LEVEL TO TOP (")
+!            -PP(NLEV)  : PRESSURE (HPA) OR HEIGHTS (M) PROFILE (IOPT=1 OR 2)
+!            -NLEV      : NUMBER OF VERTICAL LEVELS
+!            -IOPT      : HEIGHT UNITS IN HPA (1) OR IN METERS (2)
+!
+!          INPUT/OUTPUT:
+!            -LEV_START : LEVEL TO START ITERATION (IDEALLY TROPOPAUSE)
+!                         (IF <= 0, SEARCH & START AT COLDEST LEVEL)
+!
+!          OUTPUT:
+!            -HT(NLEV)  : CLOUD TOP HEIGHT IN HPA OR METERS (IOPT = 1 OR 2)
+!            -NHT       : NUMBER OF POSSIBLE CLOUD HEIGHT SOLUTIONS
+!
+!***************************************************************************
+#endif
+
+    IMPLICIT NONE
+    integer ,intent   (in) :: NLEV,IOPT
+    integer ,intent (inout) :: lev_start
+    REAL(8)  ,intent (in) :: BT, TT(NLEV), PP(NLEV)
+    REAL(8)  ,intent (out) :: HT(NLEV)
+    integer ,intent (out) :: NHT
+!*******************************************************
+     
+    INTEGER   :: I, IM, i10
+    REAL(8)   :: P(NLEV)
+    REAL(8)   :: DT, A, AA, B
+
+    HT(:) = -1.
+    
+    IF (IOPT==1) P(:) = LOG(PP(:))
+
+
+    IM = LEV_START
+
+
+    IF ( LEV_START <= 0 ) THEN
+
+!*      SEARCH INDEX IM WHERE TT IS MINIMUM
+
+       CALL FMIN (IM, tt,nlev)
+  
+       i10=-1
+       DO I=2,NLEV
+          IF (pp(i-1)<=100.d0 .AND. pp(i)>100.d0) THEN
+             I10=I
+             EXIT
+          ENDIF
+       ENDDO
+       
+       LEV_START = IM
+       
+       IF ( IM == NLEV ) THEN
+          LEV_START = MAX(LEV_START,i10)
+          NHT = 1
+          HT(1) = PP(NLEV)
+          RETURN
+       ENDIF
+       
+    END IF
+
+
+    NHT = 0        
+    
+    DO I = IM, NLEV-1
+       DT = TT(I+1) - TT(I) + 1.D-12
+       IF ( BT > TT(I) .AND. BT <= TT(I+1) ) THEN
+
+          NHT      = NHT+1
+
+          IF (IOPT==1) then
+             A    = P(I) + (P(I+1)-P(I))/DT*(BT-TT(I))
+             HT(NHT)=EXP(A)
+          ENDIF
+
+          IF (IOPT==2) then
+             B    = PP(I) + (PP(I+1)-PP(I))/DT*(BT-TT(I))
+             HT(NHT)=B
+          ENDIF
+         
+       ELSE IF ( BT >= TT(I+1) .AND. BT < TT(I) ) THEN
+
+          NHT      = NHT+1
+
+          IF(IOPT==1) THEN
+             A    = P(I+1)- (P(I+1)-P(I))/DT* (TT(I+1)-BT)
+             HT(NHT)=EXP(A)
+          ENDIF
+
+          IF(IOPT==2) THEN
+             B    = PP(I+1)- (PP(I+1)-PP(I))/DT* (TT(I+1)-BT)
+             HT(NHT)=B
+          ENDIF
+       
+       ENDIF
+    END DO
+    
+    
+    IF ( NHT == 0 .AND. BT < TT(IM) )  THEN
+       NHT  = 1
+       HT(1) = PP(IM)
+    ELSE IF ( NHT == 0 .AND. BT > TT(NLEV) )  THEN
+       NHT   = 1
+       HT(1) = PP(NLEV)
+    ENDIF
+    
+  END SUBROUTINE GET_TOP
+
+  SUBROUTINE FMIN ( IMIN, f, ndim )
+
+#if defined (DOC)
+!***********************************************************************
+!
+!**ID FMIN -- SEARCH MINIMUM VALUE OF VECTOR
+!
+!       AUTHOR:   L. GARAND
+!                 A. BEAULNE (CMDA/SMC)  February 2006  (ADAPT TO 3DVAR)                 
+!
+!       REVISION:
+!
+!       OBJECT:   SEARCH THE POSITION IN VECTOR F WHERE VALUE IF MINIMUM
+!
+!       ARGUMENTS:
+!          INPUT:
+!            -F     : 1D VECTOR
+!            -NDIM  : VECTOR DIMENSION
+!
+!          OUTPUT:
+!            -IM    : INDEX OF VECTOR F WHERE VALUE IS MINIMUM
+!
+!
+!***********************************************************************
+#endif
+
+    integer,intent (in) :: ndim
+    REAL(8),intent (in) :: f(ndim)
+    integer,intent (out):: imin
+!*********************************
+    INTEGER  :: I
+    REAL(8)  :: X
+
+
+    IMIN = 1
+    X  = F(1)
+    
+    DO I=2,NDIM
+       IF (F(I)<X) THEN
+          X=F(I)
+          IMIN=I
+       END IF
+    END DO
+    
+
+  END SUBROUTINE FMIN
+
   subroutine get_avhrr_emiss(iasi_surfem1,freqiasi,nchaniasi,avhrr_surfem1)
 ! choisi l'emissivité d'un canal IASI proche pour AVHRR
 ! a raffiner pour prendre en  compte la largeur  des canaux AVHRR ??
