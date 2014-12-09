@@ -37,15 +37,15 @@ program cnt0
   type(struct_vco),pointer :: vco_anl => NULL()
   type(struct_vco),pointer :: vco_trl => NULL()
 
-  character(len=11) :: obsMpiStrategy
+  character(len=48) :: obsMpiStrategy
 
   istamp = exdb('3DVAR','DEBUT','NON')
 
   write(*,'(/,' //                                            &
             '3(" *****************"),/,' //                   &
             '14x,"-- START OF MAIN PROGRAM CNT0: --",/,' //   &
-            '14x,"-- 3D VARIATIONAL ASSIMILATION --",/, ' //  &
-            '14x,"-- VARGLB Revision number ",a," --",/,' //  &
+            '14x,"-- VARIATIONAL ASSIMILATION    --",/, ' //  &
+            '14x,"-- VAR Revision number   ",a," --",/,' //  &
             '3(" *****************"))') top_crevision
 
   ! MPI initilization
@@ -70,14 +70,15 @@ program cnt0
     numAnalyses = 1
     indexAnalysis = 0
 
-    if ( top_BurpSplitMode() ) then
-       obsMpiStrategy="ROUNDROBIN"
-    else
-       obsMpiStrategy="LATLONTILES"
-    end if
-
     ! Do initial set up
     call tmg_start(1,'PREMIN')
+
+    if ( trim(top_BurpSplitMode()) == 'DEFAULT' ) then
+       obsMpiStrategy = 'ROUNDROBIN' ! default mode
+    else
+       obsMpiStrategy = trim(top_BurpSplitMode())
+    end if
+
     call preproc(columng,columnhr,obsSpaceData,  &
                  "ALL",                & ! obsColumnMode   
                  trim(obsMpiStrategy), &
@@ -102,9 +103,16 @@ program cnt0
 
     ! Do initial set up
     call tmg_start(1,'PREMIN')
+
+    if ( trim(top_BurpSplitMode()) == 'DEFAULT' ) then
+       obsMpiStrategy = 'ROUNDROBIN' ! default mode
+    else
+       obsMpiStrategy = trim(top_BurpSplitMode())
+    end if
+
     call preproc(columng,columnhr,obsSpaceData,  &
                  "ALL",        & ! obsColumnMode   
-                 "ROUNDROBIN", & ! obsMpiStrategy
+                 trim(obsMpiStrategy), & ! obsMpiStrategy
                  numAnalyses)
 
     ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
@@ -127,9 +135,16 @@ program cnt0
 
     ! Do initial set up
     call tmg_start(1,'PREMIN')
+
+    if ( trim(top_BurpSplitMode()) == 'DEFAULT' ) then
+       obsMpiStrategy = 'ROUNDROBIN' ! default mode
+    else
+       obsMpiStrategy = trim(top_BurpSplitMode())
+    end if
+
     call preproc(columng,columnhr,obsSpaceData,  &
                  "VAR",        & ! obsColumnMode
-                 "ROUNDROBIN", & ! obsMpiStrategy
+                 trim(obsMpiStrategy), & ! obsMpiStrategy
                  numAnalyses)
 
     ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
@@ -151,9 +166,16 @@ program cnt0
 
     ! Do initial set up
     call tmg_start(1,'PREMIN')
+
+    if ( trim(top_BurpSplitMode()) == 'DEFAULT' ) then
+       obsMpiStrategy = 'LATLONTILES' ! default mode
+    else
+       obsMpiStrategy = trim(top_BurpSplitMode())
+    end if
+
     call preproc(columng,columnhr,obsSpaceData,  &
                  "VAR",          &  ! obsColumnMode
-                 "LATLONTILES",  &  ! obsMpiStrategy
+                 trim(obsMpiStrategy),  &  ! obsMpiStrategy
                  numAnalyses)
     call tmg_stop(1)
 

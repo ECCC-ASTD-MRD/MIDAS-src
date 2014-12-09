@@ -59,20 +59,13 @@ SUBROUTINE UPDATE_BURPFILES(obsSpaceData)
       WRITE(*,*)'================================================='
       WRITE(*,*)' '
 
-      ier = 0
-      call get_environment_variable('ARMA_BURP_SPLIT',BURP_SPLIT_VAR,length_burp_split,ier,.true.)
-      if (ier.gt.1) then
-         write(*,*) 'update_burpfiles: Problem when getting the environment variable ARMA_BURP_SPLIT'
-      end if
-      if (ier.eq.1) then 
-         write(*,*) 'update_burpfiles: The environment variable ARMA_BURP_SPLIT has not been detected so we read global observation files'
+      if ( .not. top_BurpSplit() ) then 
+         write(*,*) 'update_burpfiles: We read/write global observation files'
          CALL obs_expandToMpiGlobal(obsSpaceData)
          IF(mpi_myid /= 0) then
            call tmg_stop(93)
            RETURN
          endif
-      else
-         write(*,*) 'update_burpfiles: The environment variable ARMA_BURP_SPLIT has been detected so we read splitted observation files'
       end if
 
       DO J =1,burp_nfiles

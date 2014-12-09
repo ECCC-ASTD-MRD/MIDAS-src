@@ -34,7 +34,10 @@
       integer :: get_max_rss
 
       WRITE(*,FMT=9000)
- 9000 FORMAT(/,1x,' SUOBS- Initialisation of observations',/,1x,3('- -----------'))
+ 9000 FORMAT(/,1x,' SUOBS - Initialisation of observations',/,1x,3('- -----------'))
+
+      write(*,*)
+      write(*,*) 'SUOBS - Using obsMpiStrategy = ', trim(obsMpiStrategy)
 
       !
       ! Specify the active observation-array columns
@@ -44,7 +47,7 @@
       !
       ! Allocate memory for observation arrays
       !
-      call obs_initialize(lobsSpaceData,mpi_local=top_BurpSplitMode() )
+      call obs_initialize(lobsSpaceData,mpi_local=top_BurpSplit() )
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
       !
       ! Read the NAMELIST NAMGGPSRO
@@ -73,7 +76,7 @@
       !
       ! Check env variable ARMA_BURP_SPLIT to know if burp files already split by subdomains
       !
-      if ( .not. top_BurpSplitMode() ) then !! global observations files so have to localize them for each MPI process
+      if ( .not. top_BurpSplit() ) then !! global observations files so have to localize them for each MPI process
         call setObsMpiStrategy(lobsSpaceData,obsMpiStrategy)
         call obs_reduceToMpiLocal(lobsSpaceData)
       end if
@@ -85,8 +88,8 @@
       call filt_suprep(lobsSpaceData)
       call tmg_stop(14)
 
-      if (obsMpiStrategy.eq.'LATBANDS' .or. obsMpiStrategy.eq.'LATLONTILES') then
-        call checkObsMpiIP(lobsSpaceData,top_BurpSplitMode())
+      if ( trim(obsMpiStrategy) .eq. 'LATLONTILES' ) then
+        call checkObsMpiIP(lobsSpaceData,top_BurpSplit())
       end if
 
       !
