@@ -1470,7 +1470,7 @@ module writeIncrement_mod
     end subroutine subasic_gd
 
 
-    subroutine vhfstfld(pvar,ini_anl,inj_anl,ktrggid,knk,varName,kstampv,kulfst,ktrials,kstep,vco_anl,vco_trl)
+    subroutine vhfstfld(pvar,ini_anl,inj_anl,ktrggid,nlev_anl,varName,kstampv,kulfst,ktrials,kstep,vco_anl,vco_trl)
       !
       !**s/r vhfstfld  - Interpolate background fields on analysis grid.
       !                  These fields are need for posprocessing diagnostic
@@ -1481,11 +1481,11 @@ module writeIncrement_mod
       !
       !Arguments
       !    Output:
-      !      pvar(ini_anl,inj_anl,knk) : Interpolated Output variable 
+      !      pvar(ini_anl,inj_anl,nlev_anl) : Interpolated Output variable 
       !    Input:
       !      ini_anl,inj_anl: dimensions of horizontal analysis grid
       !      ktrggid        : grid id of output variable
-      !      knk            : Number of level of targetted variable
+      !      nlev_anl       : Number of level of targetted variable
       !      varName        : Variable nomvar 
       !      kstampv        : Valid CMC date-time stamp values for reserch in
       !                       fst source file
@@ -1496,15 +1496,15 @@ module writeIncrement_mod
       type(struct_vco), pointer :: vco_anl, vco_trl
       integer :: ktrials,kstep
       integer :: kulfst(ktrials)
-      integer :: INI_ANL,INJ_ANL,KNK,ktrggid,kstampv
+      integer :: INI_ANL,INJ_ANL,nlev_anl,ktrggid,kstampv
       integer :: INI,INJ,INK,IG1,IG2,IG3,IG4,fstinf
-      integer :: inlev
-      real*8 :: pvar(ini_anl,inj_anl,knk)
+      integer :: inlev,nlev_trl
+      real*8 :: pvar(ini_anl,inj_anl,nlev_anl)
       character(len=*) :: varName
 
       integer, parameter :: kmaxlev=200
       integer :: jlev,jlat,jlon
-      integer :: iip1s(kmaxlev),iip1,iip2,iip3,itrlnlev,itrlgid
+      integer :: iip1s(kmaxlev),iip1,iip2,iip3,itrlgid
       integer :: ikey,ezgprm,vfstluk,fstluk,ezsetopt,ezsint
       integer :: ezdefset,iset
       integer :: ikind(kmaxlev),imode,ip1style,ip1kind
@@ -1536,23 +1536,34 @@ module writeIncrement_mod
       if (varName .eq. 'GZ') then
         call abort3d('vhfstfld (subasic_gd): use of GZ background state not supported!')
       else
-        call getfldprm2(IIP1S,IIP2,IIP3,ITRLNLEV,CLETIKET,CLTYPVAR  &
+        call getfldprm2(IIP1S,IIP2,IIP3,INLEV,CLETIKET,CLTYPVAR  &
              ,ITRLGID,varName,kstampv,kmaxlev,kulfst  &
              ,ip1style,ip1kind,ktrials,koutmpg)
+      endif
+
+      if(nlev_anl.eq.1) then
+        nlev_trl = 1
+      else
+        nlev_trl = vco_getNumLev(vco_trl,'TH')
+      endif
+
+      if(inlev.lt.nlev_trl) then
+        write(*,*) 'number of levels found in trial file = ',inlev
+        write(*,*) 'number of levels expected (from vco) = ',nlev_trl
+        call abort3d('vhfstfld: not enough levels found in trial file')
       endif
 
       iset = ezdefset(ktrggid,itrlgid)
 
       ierr = ezgprm(itrlgid,clgrtyp,ini,inj,ig1,ig2,ig3,ig4)
       allocate(zhighvar(ini,inj))
-      allocate(zlowvar(ini_anl,inj_anl,itrlnlev))
+      allocate(zlowvar(ini_anl,inj_anl,nlev_trl))
 
       write(*,*)'vhfstfld: reading ',varName
 
       call rpn_comm_barrier("GRID",ierr)
       call tmg_start(96,'POST_READBASIC')
-      do jlev = (1+mpi_myid), itrlnlev, mpi_nprocs
-
+      do jlev = (1+mpi_myid), nlev_trl, mpi_nprocs
         if(trim(varName).eq.'P0') then
           iip1 = IIP1S(1)
         else
@@ -1585,7 +1596,7 @@ module writeIncrement_mod
       call rpn_comm_barrier("GRID",ierr)
       call tmg_start(94,'POST_COMM1')
 
-      do jlev = 1,itrlnlev
+      do jlev = 1,nlev_trl
         pe_send = mod(jlev-1,mpi_nprocs)
         pe_recv = kstep-1
         tag = pe_send+1
@@ -1611,7 +1622,7 @@ module writeIncrement_mod
         !
         ! Do vertical interpolation:
         !
-        if (itrlnlev.gt.1) then
+        if (nlev_anl.gt.1) then
 
           write(*,*) 'vhfstfld: Reading P0 trial field for vertical interpolation'
 
@@ -1658,7 +1669,7 @@ module writeIncrement_mod
              call abort3d('ERROR with vgd_levels for trl levels')
           endif
 
-          call vintgd(pvar,zpresanl,knk,zlowvar,zprestrl,itrlnlev,ini_anl,inj_anl)
+          call vintgd(pvar,zpresanl,nlev_anl,zlowvar,zprestrl,nlev_trl,ini_anl,inj_anl)
 
           deallocate(zpresanl)
           deallocate(zps)
@@ -1666,21 +1677,12 @@ module writeIncrement_mod
 
         else
 
-          if (knk.ne.itrlnlev) then
-            write(*,*) ' *********** ERROR ***********'
-            write(*,*) 'Number of level inconsistancies'
-            write(*,*) knk,' levels asked on output and '
-            write(*,*) itrlnlev,' levels found in standard file'
-            write(*,*) ' *********** ERROR ***********'
-            call abort3d('VHFSTFLD')
-          else
-            jlev=1
-            do jlat = 1, inj_anl
-              do jlon = 1, ini_anl
-                pvar(jlon,jlat,jlev) = zlowvar(jlon,jlat,jlev)
-              enddo
+          jlev=1
+          do jlat = 1, inj_anl
+            do jlon = 1, ini_anl
+              pvar(jlon,jlat,jlev) = zlowvar(jlon,jlat,jlev)
             enddo
-          endif
+          enddo
 
         endif
         !

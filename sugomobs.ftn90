@@ -792,8 +792,8 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
 
           do jlev = (1+mpi_myid),nlevel,mpi_nprocs
             
-            if(Vcode_trl.eq.5005.and.trim(varName).eq.'GZ'.and.jlev.eq.nlevel) then
-              ! set surface level IP1 for GZ in case of Vcode=5005
+            if(trim(varName).eq.'GZ'.and.jlev.eq.nlevel) then
+              ! use surface level IP1 for GZ (essential for Vcode=5005)
               IIP1 = vco_trl%ip1_sfc
             elseif(varType.eq.'MM') then
               IIP1 = vco_trl%ip1_M(jlev)
