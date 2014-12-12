@@ -50,7 +50,7 @@ SUBROUTINE SELECTB(obsdat)
          Nstn2=obs_numheader(obsdat)
          IEND=obs_numbody(obsdat)
 
-	 IF ( trim(burp_cfamtyp(J)) .ne. 'TO') THEN
+	 IF ( trim(burp_cfamtyp(J)) .ne. 'TO'.and. trim(burp_cfamtyp(J)) .ne. 'TR') THEN
             call FDTOUV_OBSDAT(  obsdat,Nstn1+1,Nstn2,PPMIS)
             call ADJUST_HUM_GZ(  obsdat,Nstn1+1,Nstn2)
             call ADJUST_SFVCOORD(obsdat,Nstn1+1,Nstn2)
@@ -75,11 +75,22 @@ SUBROUTINE SELECTB(obsdat)
            print * ,' Initializing OBS_OER for GB-GPS ZTD to formal error (ele 15032)'
            CALL SET_ERR_GBGPS(obsdat,Nstn1+1,Nstn2)
          ENDIF
+
+!PDD
+!
+!    For TR family, To put the scale (8090) to OBS_VAR (15198) 
+!    
+         IF ( trim(burp_cfamtyp(J)) .eq. 'TR') THEN
+           print * ,' Scaling OBS_VAR for TR observation value'
+           CALL SET_SCAL_TR(obsdat,Nstn1+1,Nstn2)
+         ENDIF
+
 !
       END DO
 
       WRITE(*,*) '  readburp obs_numheader(obsdat)', obs_numheader(obsdat)
       WRITE(*,*) '  readburp obs_numbody(obsdat)  ', obs_numbody  (obsdat)
+
 !
       WRITE(*,*)' '
       WRITE(*,*)'================================================='
