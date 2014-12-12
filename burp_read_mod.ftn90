@@ -1210,6 +1210,8 @@ CONTAINS
     CHARACTER(LEN=128)     :: BRP_FILE
     INTEGER                :: FILENUMB
     CHARACTER *2           :: FAMILYTYPE
+!PDD
+    CHARACTER *2           :: UNI_FAMILYTYPE
     
     type (struct_obs), intent(inout) :: obsdat
     
@@ -1284,6 +1286,8 @@ CONTAINS
     BNBITSOFF=0
     BNBITSON=0
     ENFORCE_CLASSIC_SONDES=.false.
+    !PDD
+    UNI_FAMILYTYPE = 'SF'
     SELECT CASE(trim(FAMILYTYPE))
       CASE('UA')
         BURP_TYP='multi'
@@ -1373,6 +1377,8 @@ CONTAINS
         NELE_INFO=16
 !PDD
      CASE('TR')
+
+        UNI_FAMILYTYPE = 'TR'
         BURP_TYP='uni'
         vcord_type=0
         LISTE_ELE = (/15198,08090,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1/)
@@ -1896,7 +1902,8 @@ CONTAINS
                 HM_SFC=time2
               ENDIF
 
-              NDATA_SF= WRITE_BODY(obsdat,'SF',RELEV,vcoord_sfc ,OBSERV_sfc,qcflags_sfc,NELE_SFC,1,LISTE_ELE_SFC)
+!PDD              NDATA_SF= WRITE_BODY(obsdat,'SF',RELEV,vcoord_sfc ,OBSERV_sfc,qcflags_sfc,NELE_SFC,1,LISTE_ELE_SFC)
+              NDATA_SF= WRITE_BODY(obsdat,UNI_FAMILYTYPE,RELEV,vcoord_sfc ,OBSERV_sfc,qcflags_sfc,NELE_SFC,1,LISTE_ELE_SFC)
               IF ( NDATA_SF .GT. 0) THEN
                 call WRITE_HEADER(obsdat,STNID,XLAT,XLON,YMD_DATE_SFC,HM_SFC,idtyp,STATUS,RELEV,FILENUMB)
                 OBSN=obs_numHeader(obsdat)
@@ -1973,7 +1980,8 @@ CONTAINS
 
               OBSERV_SFC (1:NELE_SFC,1:1)=obsvalue_sfc(1:NELE_SFC,1:1,k)
               QCFLAGS_sfc(1:NELE_SFC,1:1)=qcflag_sfc  (1:NELE_SFC,1:1,k)
-              NDATA_SF= WRITE_BODY(obsdat,'SF',RELEV,vcoord_sfc ,OBSERV_sfc,qcflags_sfc,NELE_SFC,1,LISTE_ELE_SFC)
+!PDD              NDATA_SF= WRITE_BODY(obsdat,'SF',RELEV,vcoord_sfc ,OBSERV_sfc,qcflags_sfc,NELE_SFC,1,LISTE_ELE_SFC)
+              NDATA_SF= WRITE_BODY(obsdat,UNI_FAMILYTYPE,RELEV,vcoord_sfc ,OBSERV_sfc,qcflags_sfc,NELE_SFC,1,LISTE_ELE_SFC)
               IF ( NDATA_SF .GT. 0) THEN
                 call WRITE_HEADER(obsdat,STNID,XLAT,XLON,YMD_DATE,HM,idtyp,STATUS,RELEV,FILENUMB)
                 OBSN=obs_numHeader(obsdat) 
@@ -2268,6 +2276,8 @@ CONTAINS
         VCO=1 ! HEIGHT COORD
       CASE ( 'TO'  )
         VCO=3 ! CHANNEL NUMBER
+      CASE ( 'TR'  )
+        VCO=4 ! FOR TRACERS PDD 
     END SELECT
 
     !-------------------SPECIAL CASES--------------
