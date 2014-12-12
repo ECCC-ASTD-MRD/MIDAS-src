@@ -147,6 +147,84 @@
       RETURN
   END SUBROUTINE SET_ERR_GBGPS
 
+!PDD
+  SUBROUTINE  SET_SCAL_TR(obsdat,START,END)
+!**s/r SET_SCAL_TR  - SET the scale to TR
+!
+!
+!Author  : P. Du *CMC/CMDA Nov. 2014 
+!Revision:
+!
+!*    Purpose:  - PUT 8090 observation scale to the 15198 observation value  in obsdat
+!
+!
+!Arguments
+!
+!               INPUT:
+!                  -OBSDAT    : instance of obsspace_data module object
+!                  -START     : FIRST OBERVATION
+!                  -END       : LAST  OBERVATION
+!
+    use ObsSpaceData_mod
+!
+      IMPLICIT NONE
+      INTEGER  :: START,END
+
+      INTEGER  :: J,JO,RLN,NLV
+      INTEGER  :: VARNO
+      type (struct_obs), intent(inout):: obsdat
+
+      REAL(OBS_REAL)    :: OBSV, SCAL, obs
+      REAL              :: MISG
+
+!-----------------------------------------------------------------------
+      WRITE(*,*)'   SET_SCAL_TR '
+      MISG=-999.
+!
+!-----------------------------------
+!      STN LOOP
+!-----------------------------------
+      DO JO=START,END
+        RLN=obs_headElem_i(obsdat,OBS_RLN,JO)
+        NLV=obs_headElem_i(obsdat,OBS_NLV,JO)
+        !=================================
+        ! DATA LOOP
+        !=================================
+        SCAL=MISG
+        DO J = RLN, NLV + RLN -1
+
+          VARNO=obs_bodyElem_i(obsdat,OBS_VNM,j)
+          IF ( VARNO .eq. 8090 ) THEN
+             SCAL=obs_bodyElem_r(obsdat,OBS_VAR,j)
+!	      write(*,*) 'PDD-scal', scal, j
+!             call obs_bodySet_i(obsdat,OBS_VNM,j,999 )
+             EXIT
+          ENDIF
+        END DO
+
+        DO J = RLN, NLV + RLN -1
+
+          VARNO=obs_bodyElem_i(obsdat,OBS_VNM,j)
+          IF ( VARNO .eq. 15198 .and. SCAL .ne. MISG ) THEN
+             obs=obs_bodyElem_r(obsdat,OBS_VAR,j)
+!	     if(j.eq.rln) write(*,*) 'PDD-obs', scal 
+             call obs_bodySet_r(obsdat,OBS_VAR,j,obs*10**(SCAL) )
+             EXIT
+          ENDIF
+!
+        END DO
+        !=================================
+!
+      END DO
+!-----------------------------------
+!
+      WRITE(*,*)' DONE   SET_SCAL_TR '
+      RETURN
+  END SUBROUTINE SET_SCAL_TR
+
+
+  
+
 
   SUBROUTINE  ADJUST_SFVCOORD(obsdat,START,END)
 !
