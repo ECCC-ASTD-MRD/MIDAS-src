@@ -198,6 +198,12 @@ module verticalCoord_mod
         if(ikey.gt.0) vco%nlev_T = vco%nlev_T + 1
       enddo
     endif
+    if(vco%nlev_T.eq.0) then
+      write(*,*) 'vco_setupfromfile: template file name=',templatefile
+      write(*,*) 'vco_setupfromfile: etiket=',etiket
+      write(*,*) 'vco_setupfromfile: variable name=',nomvar_T
+      call abort3d('vco_setupfromfile: Could not find a valid thermodynamic variable in the template file!')
+    endif
 
     vco%nlev_M = 0
     nomvar_M = 'UU  '
@@ -212,6 +218,12 @@ module verticalCoord_mod
         ikey = fstinf(nultemplate, ni, nj, nk, -1 ,etiket, vgd_ip1_M(jlev), -1, -1, ' ', nomvar_M)
         if(ikey.gt.0) vco%nlev_M = vco%nlev_M + 1
       enddo
+    endif
+    if(vco%nlev_M.eq.0) then
+      write(*,*) 'vco_setupfromfile: template file name=',templatefile
+      write(*,*) 'vco_setupfromfile: etiket=',etiket
+      write(*,*) 'vco_setupfromfile: variable name=',nomvar_M
+      call abort3d('vco_setupfromfile: Could not find a valid momentum variable in the template file!')
     endif
 
     if(mpi_myid.eq.0) write(*,*) 'vco: nlev_M, nlev_T=',vco%nlev_M,vco%nlev_T
