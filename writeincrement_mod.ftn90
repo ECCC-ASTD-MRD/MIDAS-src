@@ -1325,7 +1325,7 @@ module writeIncrement_mod
 
       logical ltrial 
       integer datestamp,jfile,jstep
-      integer anl_gid,ezqkdef
+      integer anl_gid,ezqkdef,ezgprm
       REAL*8, allocatable :: zttg(:,:,:), zqqg(:,:,:), zpsg(:,:)
       real*8, pointer :: ps_ptr(:,:,:,:),tt_ptr(:,:,:,:),hu_ptr(:,:,:,:)
       integer ntrials, nlev_T
@@ -1377,7 +1377,15 @@ module writeIncrement_mod
       ! Define horizontal analysis grid
       !
       hco_anl => hco_Get('Analysis')
-      anl_gid = hco_anl % EZscintID
+      if ( trim(hco_anl % grtyp) == 'G' .and. hco_anl % ig2 == 1 ) then
+        ! Revert latitudes since ezsint does not handle properly this grid type
+        write(*,*) 'subasic_gd: WARNING due to bug in ezsint, changing Gaussian grid to ig2=0!!!' 
+        ierr = ezgprm(hco_anl % EZscintID,clgrtyp,ini,inj,ig1,ig2,ig3,ig4)
+        ig2=0
+        anl_gid = ezqkdef(ini,inj,clgrtyp,ig1,ig2,ig3,ig4,0)
+      else 
+        anl_gid = hco_anl % EZscintID
+      end if
 
       !
       ! Read trial fields and interpolate them (horizontal & vertical) to analysis grid
@@ -1494,6 +1502,7 @@ module writeIncrement_mod
       IMPLICIT NONE
 
       type(struct_vco), pointer :: vco_anl, vco_trl
+      type(struct_hco), pointer :: hco_anl
       integer :: ktrials,kstep
       integer :: kulfst(ktrials)
       integer :: INI_ANL,INJ_ANL,nlev_anl,ktrggid,kstampv
@@ -1509,7 +1518,7 @@ module writeIncrement_mod
       integer :: ezdefset,iset
       integer :: ikind(kmaxlev),imode,ip1style,ip1kind
       integer :: koutmpg
-      real*8 ::  zeta(kmaxlev)
+      real*8 ::  ztemp
       real*8, allocatable :: zhighvar(:,:)
       real*8, allocatable :: zlowvar(:,:,:)
       real*8, allocatable :: zpstrl(:,:),zps(:,:)
@@ -1584,6 +1593,18 @@ module writeIncrement_mod
         !
         if(trim(varName).ne.'UV') then
           call vezsint(zlowvar(:,:,jlev),zhighvar,ini_anl,inj_anl,1,ini,inj,1)
+
+          ! WARNING: WORK-AROUND FOR EZSINT, FLIPPING THE GAUSSIAN GRID BACK TO IG2=1 
+          hco_anl => hco_Get('Analysis')
+          if ( trim(hco_anl % grtyp) == 'G' .and. hco_anl % ig2 == 1 ) then
+            do jlat = 1, inj_anl/2
+              do jlon = 1, ini_anl
+                ztemp = zlowvar(jlon,jlat,jlev)
+                zlowvar(jlon,jlat,jlev) = zlowvar(jlon,inj_anl-jlat+1,jlev)
+                zlowvar(jlon,inj_anl-jlat+1,jlev) = ztemp
+              enddo
+            enddo
+          endif
         else
           call abort3d('vhfstfld: vector interpolation no longer supported')
         endif
