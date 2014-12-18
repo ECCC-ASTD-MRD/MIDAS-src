@@ -56,9 +56,8 @@ SUBROUTINE hir_cldprm_to_brp(lobsspacedata,brp_file)
   TYPE(BURP_FILE)        :: FILE_IN
   TYPE(BURP_RPT)         :: RPT_IN,CP_RPT
   TYPE(BURP_BLOCK)       :: BLOCK_IN
-
       
-  CHARACTER(LEN=9)       :: ID,OPT_MISSING
+  CHARACTER(LEN=9)       :: OPT_MISSING
   INTEGER                :: NEW_BTYP
   INTEGER                :: BTYP10
   INTEGER                :: BTYP10DES,BTYP10INF,BTYP10OBS,BTYP10FLG,BTYP10OMP
@@ -139,7 +138,7 @@ SUBROUTINE hir_cldprm_to_brp(lobsspacedata,brp_file)
 
   do
      ref_rpt = BURP_Find_Report(File_in, &
-          REPORT      = Rpt_in, &
+          REPORT      = Rpt_in,  &
           SEARCH_FROM = ref_rpt, &
           IOSTAT      = error)
      if (ref_rpt < 0) Exit
@@ -151,11 +150,15 @@ SUBROUTINE hir_cldprm_to_brp(lobsspacedata,brp_file)
 
   if ( count > 0 ) then
 
-! crate a new report
+! create a new report
 ! ------------------
-!cpik Call BURP_New(Cp_rpt, ALLOC_SPACE=10000000, IOSTAT=error)
-     Call BURP_New(Cp_rpt, ALLOC_SPACE=20000000, IOSTAT=error)
 
+!pik  Call BURP_New(Cp_rpt, ALLOC_SPACE=10000000, IOSTAT=error)
+      Call BURP_New(Cp_rpt, ALLOC_SPACE=20000000, IOSTAT=error)
+      if (error/=burp_noerr) then
+         Write(*,*) "Error creating new directory ",error 
+         call handle_error('hir_cldprm_to_brp')
+      endif
 
 ! LOOP ON REPORTS
 ! ---------------
@@ -224,10 +227,16 @@ SUBROUTINE hir_cldprm_to_brp(lobsspacedata,brp_file)
 
 
         Call BURP_Copy_Header(TO=Cp_rpt,FROM=Rpt_in)
+        IF (error/=BURP_NOERR) then
+           Write(*,*) "Error= ",error
+           call handle_error("Erreur dans BURP_Copy_Header")
+        endif
 
         Call BURP_Init_Report_Write(File_in,Cp_Rpt, IOSTAT=error)
-
-
+        IF (error/=BURP_NOERR) then
+           Write(*,*) "Error= ",error
+           call handle_error("Erreur dans BURP_Init_Report_Write")
+        endif
 
 ! SECOND LOOP ON BLOCKS
 ! ---------------------
@@ -311,6 +320,9 @@ SUBROUTINE hir_cldprm_to_brp(lobsspacedata,brp_file)
               flag_passage2 = 1
 
               Call BURP_Resize_Block(Block_in, ADD_NELE=11, IOSTAT=error)
+              if (error/=burp_noerr) then
+                 call handle_error("Erreur dans BURP_Resize_Block info")
+              endif
               Call BURP_Set_Element(Block_in, NELE_IND=nbele+ 1, ELEMENT=014213, IOSTAT=error)
               Call BURP_Set_Element(Block_in, NELE_IND=nbele+ 2, ELEMENT=014214, IOSTAT=error)
               Call BURP_Set_Element(Block_in, NELE_IND=nbele+ 3, ELEMENT=014215, IOSTAT=error)
@@ -381,6 +393,9 @@ SUBROUTINE hir_cldprm_to_brp(lobsspacedata,brp_file)
               flag_passage3 = 1
 
               Call BURP_Resize_Block(Block_in, ADD_NELE=1, IOSTAT=error)
+              if (error/=burp_noerr) then
+                 call handle_error("Erreur dans BURP_Resize_Block data")
+              endif
               Call BURP_Set_Element(Block_in, NELE_IND=nbele+1, ELEMENT=055043, IOSTAT=error)
               indchan  = BURP_Find_Element(Block_in, ELEMENT=005042, IOSTAT=error)
               do k = 1, nte
@@ -427,6 +442,9 @@ SUBROUTINE hir_cldprm_to_brp(lobsspacedata,brp_file)
               flag_passage4 = 1
 
               Call BURP_Resize_Block(Block_in, ADD_NELE=1, IOSTAT=error)
+              if (error/=burp_noerr) then
+                 call handle_error("Erreur dans BURP_Resize_Block marqueur")
+              endif
               Call BURP_Set_Element(Block_in, NELE_IND=nbele+1, ELEMENT=255043, IOSTAT=error)
 
               do k = 1, nte
@@ -451,6 +469,9 @@ SUBROUTINE hir_cldprm_to_brp(lobsspacedata,brp_file)
               flag_passage5 = 1
               
               Call BURP_Resize_Block(Block_in, ADD_NELE=1, IOSTAT=error)
+              if (error/=burp_noerr) then
+                 call handle_error("Erreur dans BURP_Resize_Block O-P")
+              endif
               Call BURP_Set_Element(Block_in, NELE_IND=nbele+1, ELEMENT=055043, IOSTAT=error)
 
               do k = 1, nte
@@ -474,7 +495,10 @@ SUBROUTINE hir_cldprm_to_brp(lobsspacedata,brp_file)
                    CONVERT_BLOCK = .true., &
                    IOSTAT        = error)
            end if
-           
+           if (error/=burp_noerr) then
+              write(*,*)"Btyp= ",btyp
+              call handle_error("Erreur dans BURP_Write_Block")
+           endif
         end do BLOCKS2
 
 
@@ -525,23 +549,25 @@ CONTAINS
 
 !------------------------------------- HANDLE_ERROR -----
   
-  subroutine handle_error()
+  subroutine handle_error(errormessage)
     implicit none
+    character (len=*) :: errormessage
     write(*,*) BURP_STR_ERROR()
     write(*,*) "history"
     Call BURP_STR_ERROR_HISTORY()
-    Deallocate(address)
+    if (allocated(address)) Deallocate(address)
     Call BURP_Free(File_in)
     Call BURP_Free(Rpt_in,Cp_rpt)
     Call BURP_Free(Block_in)
-    stop
+    call abort3d(trim(errormessage))
   end subroutine handle_error
 
   subroutine Insert_into_burp_r8(r8val,pele,pval,pt)
     implicit none
     real (8), intent(in):: r8val
     integer, intent(in) :: pele,pval,pt
-    
+    integer :: error
+
     if ( r8val >= 0.d0 ) then
        Call BURP_Set_Rval(Block_in, &
             NELE_IND = pele, &
@@ -557,6 +583,10 @@ CONTAINS
             RVAL     = val_option_r4, &
             IOSTAT   = error)
     end if
+    if (error/=burp_noerr) then
+       Write(*,*) "r8val,pele,pval,pt",r8val,pele,pval,pt
+       call handle_error("Insert_into_burp_r8")
+    endif
 
   end subroutine Insert_into_burp_r8
 
@@ -564,7 +594,8 @@ CONTAINS
     implicit none
     integer, intent(in) :: ival
     integer, intent(in) :: pele,pval,pt
-    
+    integer :: error
+
     if ( ival >= 0 ) then
        Call BURP_Set_Rval(Block_in, &
             NELE_IND = pele, &
@@ -580,7 +611,11 @@ CONTAINS
             RVAL   = val_option_r4, &
             IOSTAT   = error)
     end if
-    
+
+    if (error/=burp_noerr) then
+       Write(*,*) "ival,pele,pval,pt",ival,pele,pval,pt
+       call handle_error("Insert_into_burp_i")
+    endif
   end subroutine Insert_into_burp_i
 
 

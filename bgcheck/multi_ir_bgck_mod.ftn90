@@ -31,8 +31,8 @@ Module multi_ir_bgck_mod
 !*
 !************************************************************************
  Use tovs_nl_mod, only : jplev,rttov_coefs,transmission_Type,tvs_Is_idburp_tovs, &
-      tvs_Is_idburp_inst, &
-      radiance_d,lsensor,coefs,nchan,NSENSORS,PLATFORM,SATELLITE,INSTRUMENT,NOBTOV
+      tvs_Is_idburp_inst, radiance_d,lsensor,coefs,nchan,NSENSORS,PLATFORM,SATELLITE, &
+      INSTRUMENT,NOBTOV
 
   implicit none
   save
@@ -55,7 +55,7 @@ Module multi_ir_bgck_mod
 
   INTEGER, PARAMETER :: IWINDOW_AIRS = 787, IWINDOW_ALT_AIRS = 950
   INTEGER, PARAMETER :: IWINDOW_IASI = 1090, IWINDOW_ALT_IASI = 1133
-  INTEGER, PARAMETER :: IWINDOW_CRIS = 427, IWINDOW_ALT_CRIS = 529
+  INTEGER, PARAMETER :: IWINDOW_CRIS = 427, IWINDOW_ALT_CRIS = 534
 
   ! Number of channels (and their values) to use for cloud top height detection
   ! with the "background profile matching" method (subroutine cloud_top)
@@ -66,7 +66,7 @@ Module multi_ir_bgck_mod
 
   INTEGER, PARAMETER  :: ILIST1_IASI(NCH_HE) = (/ 705, 1090, 1133, 7475 /)
 
-  INTEGER, PARAMETER  :: ILIST1_CRIS(NCH_HE) = (/ 279, 427, 529, 1290 /)
+  INTEGER, PARAMETER  :: ILIST1_CRIS(NCH_HE) = (/ 275, 427, 534, 1290 /)
 
   ! Number of channels (and their values) to use for cloud top height detection
   ! with the CO2-slicing method. IREFR is the reference channel number (and alternate).
@@ -87,11 +87,11 @@ Module multi_ir_bgck_mod
   INTEGER, PARAMETER  :: ILIST2_PAIR_IASI(NCO2) = (/ 309, 320, 332,363, 371, 375, &
                                                      433, 442, 459, 459, 320, 309, 252 /)
 
-  INTEGER, PARAMETER  :: ILIST2_CRIS(NCO2) = (/ 99, 116, 138, 133, 158, 154, &
-                                               123, 143, 168, 163, 175, 198, 198 /)
+  INTEGER, PARAMETER  :: ILIST2_CRIS(NCO2) = (/ 97, 130, 116, 153, 169, 158, &
+                                               143, 151, 239, 160, 228, 200, 200 /)
 
-  INTEGER, PARAMETER  :: ILIST2_PAIR_CRIS(NCO2) = (/ 133, 158, 154, 123, 143, 168, &
-                                                     163, 175, 198, 198, 158, 133, 99 /)
+  INTEGER, PARAMETER  :: ILIST2_PAIR_CRIS(NCO2) = (/ 153, 169, 158, 143, 151, 239, &
+                                                     160, 228, 200, 200, 169, 153, 97 /)
 
   ! Cloud top units : (1) mb, (2) meters
   ! (subroutines cloud_height (IOPT1) and cloud_top (IOPT2))

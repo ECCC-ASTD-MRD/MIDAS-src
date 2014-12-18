@@ -23,6 +23,9 @@ Module tovs_nl_mod
      radiance_type       ,&
      transmission_Type   ,&
      rttov_chanprof
+
+  use codtyp_mod
+
   implicit none
   save
   private
@@ -726,16 +729,16 @@ END SUBROUTINE TOVS_NL_SETUPALLO
     implicit none
     integer ,intent(in) :: idatyp
 
-    tvs_Is_idburp_tovs=( IDATYP .EQ. 164 .OR. &
-         IDATYP .EQ. 168 .OR. &
-         IDATYP .EQ. 180 .OR. &
-         IDATYP .EQ. 181 .OR. &
-         IDATYP .EQ. 182 .OR. &
-         IDATYP .EQ. 183 .OR. &
-         IDATYP .EQ. 185 .OR. &
-         IDATYP .EQ. 186 .OR. &
-         IDATYP .EQ. 192 .OR. &
-         IDATYP .EQ. 193 )
+    tvs_Is_idburp_tovs=( IDATYP .EQ. CODTYP_AMSUA.OR. &
+         IDATYP .EQ. CODTYP_SSMI .OR. &
+         IDATYP .EQ. CODTYP_GOES .OR. &
+         IDATYP .EQ. CODTYP_AMSUB .OR. &
+         IDATYP .EQ. CODTYP_MHS .OR. &
+         IDATYP .EQ. CODTYP_AIRS .OR. &
+         IDATYP .EQ. CODTYP_RADIANCECLEAR .OR. &
+         IDATYP .EQ. CODTYP_IASI .OR. &
+         IDATYP .EQ. CODTYP_ATMS .OR. &
+         IDATYP .EQ. CODTYP_CRIS )
 
   end function tvs_Is_idburp_tovs
 
@@ -746,45 +749,16 @@ END SUBROUTINE TOVS_NL_SETUPALLO
 
     select case(trim(cinst))
     case("IASI","iasi")
-       tvs_Is_idburp_inst = ( idburp == 186 )
+       tvs_Is_idburp_inst = ( idburp == CODTYP_IASI )
     case("AIRS","airs")
-       tvs_Is_idburp_inst = ( idburp == 183 )
+       tvs_Is_idburp_inst = ( idburp == CODTYP_AIRS )
     case("CRIS","cris")
-       tvs_Is_idburp_inst = ( idburp == 193 )
+       tvs_Is_idburp_inst = ( idburp == CODTYP_CRIS )
     case default
        CALL ABORT3D('tvs_Is_idburp_inst: unknown instrument: '//trim(cinst))
     end select
 
   end function tvs_Is_idburp_inst
-
-
-
-!  logical function tvs_Is_idburp_iasi(idburp)
-!    implicit none
-!    integer ,intent(in) :: idburp
-!
-!    tvs_Is_idburp_iasi = ( idburp == 186 )
-!
-!  end function tvs_Is_idburp_iasi
-
-
-!  logical function tvs_Is_idburp_airs(idburp)
-!    implicit none
-!    integer ,intent(in) :: idburp
-!
-!    tvs_Is_idburp_airs = ( idburp == 183 )
-!
-!  end function tvs_Is_idburp_airs
-
-
-!  logical function tvs_Is_idburp_cris(idburp)
-!    implicit none
-!    integer ,intent(in) :: idburp
-!
-!    tvs_Is_idburp_cris = ( idburp == 193 )
-!
-!  end function tvs_Is_idburp_cris
-
 
 End Module tovs_nl_mod
 
