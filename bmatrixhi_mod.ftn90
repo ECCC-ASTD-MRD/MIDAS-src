@@ -1255,7 +1255,7 @@ CONTAINS
 
     ! Apply convolution to RSTDDEV correlations
 
-    call BHI_convol
+    call BHI_convol 
 
     do jn = 0, ntrunc
 
@@ -1838,7 +1838,6 @@ CONTAINS
     allocate(gd_out(myLonBeg:myLonEnd,nkgdim,myLatBeg:myLatEnd))
 
     call bhi_cain(controlVector_in,hiControlVector)
-
     call bhi_spa2gd(hiControlVector,gd_out)
 
     call copyToStatevector(statevector,gd_out)
@@ -1913,8 +1912,10 @@ CONTAINS
         elseif(vnl_varNameList(jvar).eq.'TG  ') then
           ilev1 = nspositTG
         else
-          call abort3d('bmatrixhi_mod: copyToStatevector: No covariances available for variable:' // vnl_varNameList(jvar))
+!          call abort3d('bmatrixhi_mod: copyToStatevector: No covariances available for variable:' // vnl_varNameList(jvar))
+        cycle
         endif
+      
         ilev2 = ilev1 - 1 + gsv_getNumLev(statevector,vnl_vartypeFromVarname(vnl_varNameList(jvar)))
 !!!$OMP PARALLEL DO PRIVATE(jlat,jlev,jlev2,jlon)
         do jlat = myLatBeg, myLatEnd
@@ -1955,7 +1956,8 @@ CONTAINS
         elseif(vnl_varNameList(jvar).eq.'TG  ') then
           ilev1 = nspositTG
         else
-          call abort3d('bmatrixhi_mod: copyFromStatevector: No covariances available for variable:' // vnl_varNameList(jvar))
+!          call abort3d('bmatrixhi_mod: copyFromStatevector: No covariances available for variable:' // vnl_varNameList(jvar))
+          cycle
         endif
         ilev2 = ilev1 - 1 + gsv_getNumLev(statevector,vnl_vartypeFromVarname(vnl_varNameList(jvar)))
 !!!$OMP PARALLEL DO PRIVATE(jlat,jlev,jlev2,jlon)
@@ -2042,7 +2044,6 @@ CONTAINS
     integer :: jlev, jn, jm, jproc, ila_mpiglobal, jdim_mpilocal, jdim_mpiglobal, ierr, cvDim_maxmpilocal
 
     cvDim_mpiglobal_out = cvDim_mpiglobal
-
     ! gather all local control vectors onto mpi task 0
     call rpn_comm_allreduce(cvDim_mpilocal,cvDim_maxmpilocal,1,"mpi_integer","mpi_max","GRID",ierr)
 
@@ -2073,6 +2074,7 @@ CONTAINS
     call rpn_comm_allgather(mymBeg,1,"mpi_integer",       &
                             allmBeg,1,"mpi_integer","GRID",ierr)
     allocate(allmEnd(mpi_nprocs))
+
     call rpn_comm_allgather(mymEnd,1,"mpi_integer",       &
                             allmEnd,1,"mpi_integer","GRID",ierr)
     allocate(allmSkip(mpi_nprocs))
