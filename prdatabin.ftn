@@ -19,12 +19,27 @@
       use obsSpaceData_mod
       use timeCoord_mod, only: tim_getDatestamp
       IMPLICIT NONE
+
+!
+! Purpose: Localisation (3D) operator
+!          Compute profiled increments from grided increments
+!
+!
+! Author:
+! Revisions:
+!       Ping Du, Oct 2014.
+!       - add Tracer family  
+!         
+!
+!-------------------------------------------------------------------------------------
+
       type(struct_obs) :: lobsSpaceData
       integer :: nstepobs
 
       integer :: jstep,jobs,jfamily,jdata,iobs,idatabeg,idatend,nsize,ierr
       integer, allocatable, dimension(:,:) :: idataass,inumheader
-      integer, parameter :: nfamily=9
+!PDD      integer, parameter :: nfamily=9
+      integer, parameter :: nfamily=10
       character*2 :: familylist(nfamily)
       character*256 :: formatspec,formatspec2
       real*8 :: stepObsIndex
@@ -43,6 +58,8 @@
       familylist(7)='PR'
       familylist(8)='RO'
       familylist(9)='GP'
+!PDD
+      familylist(10)='TR'
  
       do jobs = 1, obs_numheader(lobsSpaceData)
         call getStepObsIndex(stepObsIndex,tim_getDatestamp(),

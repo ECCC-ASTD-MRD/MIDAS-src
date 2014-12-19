@@ -1,0 +1,73 @@
+module topLevelControl_mod
+!
+! ***NOTE:*** The compilation script will automatically create topLevelControl_mod.ftn90 from this file
+!
+!     Control variables for the job - constant within job
+!
+!     TOP_CREVISION : string parameter that will be replaced by the compilation
+!                     script to contain the latest SVN global revision number 
+!                     (trailing "M" indicates working directory is "modified" 
+!                     relative to the repository version)
+!     TOP_NCONF     : configuration of the job
+!
+  implicit none
+  save
+  private
+
+  ! public variables
+  public :: top_crevision
+  ! public procedures
+  public :: top_setup,top_AnalysisMode,top_BgckMode,top_OmpMode
+
+  character(len=len('505M svn://mrbsvn/assimilation/var/branches/ping')),parameter :: top_crevision='505M svn://mrbsvn/assimilation/var/branches/ping'
+  integer :: top_nconf
+
+  contains
+
+    subroutine top_setup
+      implicit none
+      integer :: nconf
+      NAMELIST /NAMCT0/NCONF
+      integer nulnam,ierr,fnom,fclos 
+
+      ! Set the default values
+      nconf  = 141
+
+      ! Read the NAMELIST to modify these values
+      nulnam=0
+      ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      if(ierr.ne.0) call abort3d('top_setup: Error opening file flnml')
+      read(nulnam,nml=namct0,iostat=ierr)
+      if(ierr.ne.0) call abort3d('top_setup: Error reading namelist')
+      write(*,nml=namct0)
+      ierr=fclos(nulnam)
+
+      top_nconf = nconf
+
+    end subroutine top_setup
+
+    function top_AnalysisMode() result(analysisMode)
+      implicit none
+      logical :: analysisMode
+
+      analysisMode= (top_nconf.eq.141)
+        
+    end function top_AnalysisMode
+
+    function top_OmpMode() result(ompMode)
+      implicit none
+      logical :: ompMode
+
+      ompMode= (top_nconf.eq.121)
+        
+    end function top_OmpMode
+
+    function top_BgckMode() result(bgckMode)
+      implicit none
+      logical :: bgckMode
+
+      bgckMode= (top_nconf.eq.101)
+        
+    end function top_BgckMode
+
+end module topLevelControl_mod
