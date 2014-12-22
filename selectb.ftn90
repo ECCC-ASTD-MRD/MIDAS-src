@@ -1,3 +1,19 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
 #include "maincompileswitch.inc"
 #include "compileswitches.inc"
 SUBROUTINE SELECTB(obsdat)
@@ -13,6 +29,9 @@ SUBROUTINE SELECTB(obsdat)
 !       Revisions:
 !         1 Oct 2013:  S. Macpherson ARMA
 !                      Bug fix: Put CALL SET_ERR_GBGPS *after* OBS_OER initialized to 0
+!         Dec 2014:    Ping Du, CMDA (revision statement added by Y. Rochon, ARQI)
+!                      - Addition of TR family consideration for scaling
+!                        via element 8090
 !
 !     NOTE:
 !     BURP FILES ARE ASSUMED TO BE PRESENT IN CURRENT WORKING DIRECTORY
@@ -75,16 +94,13 @@ SUBROUTINE SELECTB(obsdat)
            print * ,' Initializing OBS_OER for GB-GPS ZTD to formal error (ele 15032)'
            CALL SET_ERR_GBGPS(obsdat,Nstn1+1,Nstn2)
          ENDIF
-
-!PDD
 !
-!    For TR family, To put the scale (8090) to OBS_VAR (15198) 
+!    For TR family, Apply scaling from the element (8090) when present.
 !    
          IF ( trim(burp_cfamtyp(J)) .eq. 'TR') THEN
            print * ,' Scaling OBS_VAR for TR observation value'
            CALL SET_SCAL_TR(obsdat,Nstn1+1,Nstn2)
          ENDIF
-
 !
       END DO
 

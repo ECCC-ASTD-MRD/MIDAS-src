@@ -89,8 +89,7 @@ SUBROUTINE burp_setupfiles(datestamp)
   CLVALU(31) = 'brpo3'  
   CLVALU(32) = 'brpoz'  
   CLVALU(33) = 'brpgp'  
-  
-  CLVALU(34) = ' '  
+  CLVALU(34) = 'brptr'  
 
   CFAMI( 1)  = 'UA' 
   CFAMI( 2)  = 'UA' 
@@ -125,8 +124,7 @@ SUBROUTINE burp_setupfiles(datestamp)
   CFAMI(31)  = 'OZ' 
   CFAMI(32)  = 'OZ' 
   CFAMI(33)  = 'GP' 
-
-  CFAMI(34)  = ' ' 
+  CFAMI(34)  = 'TR' 
 
   IER =MRFOPC('MSGLVL','FATAL')
 

@@ -50,10 +50,11 @@
       real*8 zjo,zjoraob,zjosatwind,zjosurfc
       real*8 zjosfcsf,zjosfcua,zjotov,zjoairep,zjosfcsc,zjoprof
       real*8 zjogpsro,zjogpsgb,zjosfcgp
+      real*8 zjotracer
       integer :: ierr
       logical lgpdata
 !PDD
-      real*8 ZJOTRACER
+!      real*8 ZJOTRACER
 
       write(*,*) '--Starting subrouting suinnov--'
 
@@ -117,7 +118,7 @@
       call oonl_gpsro(columnhr,obsSpaceData,ZJOGPSRO)
 
 !PDD for tracers
-      call oonl_tr(columnhr,obsSpaceData,ZJOTRACER)
+!      call oonl_tracers(columnhr,obsSpaceData,ZJOTRACER)
       ZJOTRACER = 0.
 
 !

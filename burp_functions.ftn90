@@ -1,3 +1,19 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
 #include "maincompileswitch.inc"
 #include "compileswitches.inc"
 
@@ -155,13 +171,13 @@
 !Author  : P. Du *CMC/CMDA Nov. 2014 
 !Revision:
 !
-!*    Purpose:  - PUT 8090 observation scale to the 15198 observation value  in obsdat
-!
+!*    Purpose:  - Scale obs value by 10^{expnt} with the exponent
+!                 provided by element 8090 if provided.
 !
 !Arguments
 !
 !               INPUT:
-!                  -OBSDAT    : instance of obsspace_data module object
+!                  -OBSDAT    : obsspace_data module object
 !                  -START     : FIRST OBERVATION
 !                  -END       : LAST  OBERVATION
 !
@@ -205,7 +221,7 @@
         DO J = RLN, NLV + RLN -1
 
           VARNO=obs_bodyElem_i(obsdat,OBS_VNM,j)
-          IF ( VARNO .eq. 15198 .and. SCAL .ne. MISG ) THEN
+          IF ( VARNO .ne. 8090 .and. SCAL .ne. MISG ) THEN
              obs=obs_bodyElem_r(obsdat,OBS_VAR,j)
 !	     if(j.eq.rln) write(*,*) 'PDD-obs', scal 
              call obs_bodySet_r(obsdat,OBS_VAR,j,obs*10**(SCAL) )
