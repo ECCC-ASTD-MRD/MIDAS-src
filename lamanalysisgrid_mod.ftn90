@@ -99,8 +99,7 @@ module LamAnalysisGrid_mod
     real(8), allocatable :: r1mmu2 (:) ! (1.-mu**2)
     real(8), allocatable :: r1mmu2h(:) ! (1.-muh**2)
 
-    real(8) :: lon_test, lat_test
-    real(8) :: dlon_test, dlat_test
+    real(8) :: dlon_test, dlat_test, dlon_ref, dlat_ref
 
     integer :: i, j, njper
 
@@ -151,7 +150,7 @@ module LamAnalysisGrid_mod
       write(*,*)
       write(*,*) 'lag_SetupFromHCO: Domain extension is less than 10 gridpoints'
       write(*,*) ' ext_i = ', ext_i,' ext_j = ', ext_j
-      call abort3d('lag_SetupFromHCO: abort')
+      call abort3d('lag_SetupFromHCO')
     end if
 
     ni_ext_per = ni_ext + 1  ! Fields will be periodic (i = 1 repeated) at ni_ext+1
@@ -160,36 +159,56 @@ module LamAnalysisGrid_mod
     !- 2.2 First Make sure we have a uniform grid in x and y direction
 
     !- 2.2.1 Analysis core grid
-    dlon_test = hco_core%lon(2) - hco_core%lon(1)
-    do i = 1, ni_core
-      lon_test = hco_core%lon(1) + dlon_test * real((i-1),8)
-      if ( lon_test - hco_core%lon(i) > dlon_test/100.0d0 ) then
-        call abort3d('lag_SetupFromHCO: Core grid spacing is not uniform in x-direction')
+    dlon_ref = hco_core%lon(2) - hco_core%lon(1)
+    do i = 2, ni_core
+      dlon_test = hco_core%lon(i) - hco_core%lon(i-1)
+      if ( (dlon_test - dlon_ref) > dlon_ref/100.0d0 ) then
+        write(*,*)
+        write(*,*) 'lag_SetupFromHCO: Core grid spacing is not uniform in x-direction'
+        write(*,*) ' i         = ', i
+        write(*,*) ' dlon      = ', dlon_test
+        write(*,*) ' dlon ref  = ', dlon_ref
+        call abort3d('lag_SetupFromHCO')
       end if
     end do
-    
-    dlat_test = hco_core%lat(2) - hco_core%lat(1)
-    do j = 1, nj_core
-      lat_test = hco_core%lat(1) + dlat_test * real((j-1),8)
-      if ( lat_test - hco_core%lat(j) > dlat_test/100.0d0 ) then
-        call abort3d('lag_SetupFromHCO: Core grid spacing is not uniform in y-direction')
+
+    dlat_ref = hco_core%lat(2) - hco_core%lat(1)
+    do j = 2, nj_core
+      dlat_test = hco_core%lat(j) - hco_core%lat(j-1) 
+      if ( (dlat_test - dlat_ref) > dlat_ref/100.0d0 ) then
+        write(*,*)
+        write(*,*) 'lag_SetupFromHCO: Core grid spacing is not uniform in x-direction'
+        write(*,*) ' j         = ', j
+        write(*,*) ' dlat      = ', dlon_test
+        write(*,*) ' dlat ref  = ', dlon_ref
+        call abort3d('lag_SetupFromHCO') 
       end if
     end do
 
     !- 2.2.2 Extended Analysis grid
-    dlon_test = hco_ext%lon(2) - hco_ext%lon(1)
-    do i = 1, ni_ext
-      lon_test = hco_ext%lon(1) + dlon_test * real((i-1),8)
-      if ( lon_test - hco_ext%lon(i) > dlon_test/100.0d0 ) then
-        call abort3d('lag_SetupFromHCO: Extended grid spacing is not uniform in x-direction')
+    dlon_ref = hco_ext%lon(2) - hco_ext%lon(1)
+    do i = 2, ni_ext
+      dlon_test = hco_ext%lon(i) - hco_ext%lon(i-1)
+      if ( (dlon_test - dlon_ref) > dlon_ref/100.0d0 ) then
+        write(*,*)
+        write(*,*) 'lag_SetupFromHCO: Extended grid spacing is not uniform in x-direction'
+        write(*,*) ' i         = ', i
+        write(*,*) ' dlon      = ', dlon_test
+        write(*,*) ' dlon ref  = ', dlon_ref
+        call abort3d('lag_SetupFromHCO')
       end if
     end do
 
-    dlat_test = hco_ext%lat(2) - hco_ext%lat(1)
-    do j = 1, nj_ext
-      lat_test = hco_ext%lat(1) + dlat_test * real((j-1),8)
-      if ( lat_test - hco_ext%lat(j) > dlat_test/100.0d0 ) then
-        call abort3d('lag_SetupFromHCO: Extended grid spacing is not uniform in y-direction')
+    dlat_ref = hco_ext%lat(2) - hco_ext%lat(1)
+    do j = 2, nj_ext
+      dlat_test = hco_ext%lat(j) - hco_ext%lat(j-1)
+      if ( (dlat_test - dlat_ref) > dlat_ref/100.0d0 ) then
+        write(*,*)
+        write(*,*) 'lag_SetupFromHCO: Extended grid spacing is not uniform in x-direction'
+        write(*,*) ' j         = ', j
+        write(*,*) ' dlat      = ', dlon_test
+        write(*,*) ' dlat ref  = ', dlon_ref
+        call abort3d('lag_SetupFromHCO') 
       end if
     end do
 
@@ -220,11 +239,11 @@ module LamAnalysisGrid_mod
 
     !- 3.2 Lat-Lon
 
-    !  3.2.1 Extract the lat-lon from the core grid
+    !  3.2.1 Extract the lat-lon from the extended grid
     glmf%rlon(1:ni_ext) = hco_ext%lon(1:ni_ext)
     glmf%rlat(1:nj_ext) = hco_ext%lat(1:nj_ext)
 
-    !  3.2.2 Extend to the full computational extended grid
+    !  3.2.2 Extend to the full computational grid (larger than the extended grid!)
 
     ! West
     do i = istart, 0

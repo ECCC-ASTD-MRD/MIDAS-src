@@ -326,8 +326,10 @@ module verticalCoord_mod
       endif
       precision=10.0d0**(sigdigits-int(log10(vco%dprf)))
       vco%dprf  = real(nint(precision*vco%dprf),8)/precision
-      precision=10.0d0**(sigdigits-int(log10(vco%drcf1)))
-      vco%drcf1 = real(nint(precision*vco%drcf1),8)/precision
+      if(vco%drcf1 .gt. 0.0d0) then
+        precision=10.0d0**(sigdigits-int(log10(vco%drcf1)))
+        vco%drcf1 = real(nint(precision*vco%drcf1),8)/precision
+      endif
     endif
 
     !==========================================================================

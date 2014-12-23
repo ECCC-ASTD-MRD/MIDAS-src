@@ -69,7 +69,7 @@ module calcbmatrix_lam_mod
   integer :: nkgdim
 
   logical :: initialized = .false.
-  logical :: NormByStdDev
+  logical :: NormByStdDev, SetTGtoZero
 
   character(len=12) :: WindTransform
 
@@ -100,7 +100,7 @@ module calcbmatrix_lam_mod
 
     logical :: mask(nMaxControlVar)
 
-    NAMELIST /NAMCALCB_LAM/ntrunc,grd_ext_x,grd_ext_y,NormByStdDev
+    NAMELIST /NAMCALCB_LAM/ntrunc,grd_ext_x,grd_ext_y,NormByStdDev,SetTGtoZero
     NAMELIST /NAMSTATE/CGNEED
 
     write(*,*)
@@ -124,6 +124,7 @@ module calcbmatrix_lam_mod
     grd_ext_x     = 10       ! Default value
     grd_ext_y     = 10       ! Default value
     NormByStdDev  = .true.   ! Default value
+    SetTGtoZero   = .false.  ! Default value
 
     WindTransform = 'PsiChi' ! Hardwired
 
@@ -747,6 +748,7 @@ module calcbmatrix_lam_mod
 ! ReadEnsemble
 !--------------------------------------------------------------------------
   subroutine ReadEnsemble(ensPerturbations)
+    use MathPhysConstants_mod, only: MPC_M_PER_S_PER_KNOT_R4
     implicit none
 
     real(4), intent(inout) :: ensPerturbations(hco_bhi%ni,hco_bhi%nj,nkgdim,nens)
@@ -790,13 +792,13 @@ module calcbmatrix_lam_mod
           nomvar = trim(ControlVariable(var)%nomvar(cv_model))
           etiket = ' '
           if ( trim(nomvar) == 'UU' .or. trim(nomvar) == 'VV') then
-            factor = 1.0/1.94246 ! knots -> m/s
+            factor = MPC_M_PER_S_PER_KNOT_R4 ! knots -> m/s
           else if ( trim(nomvar) == 'P0' ) then
             factor = 100.0 ! hPa -> Pa
-          else if ( trim(nomvar) == 'TG' ) then
+          else if ( trim(nomvar) == 'TG' .and. SetTGtoZero ) then
             nomvar = 'TT'
             ip1    = 93423264
-            factor = 0.0  ! On Force a ZERO !!!!!!!! JFC
+            factor = 0.0
           else
             factor = 1.0
           end if
@@ -810,18 +812,18 @@ module calcbmatrix_lam_mod
           if (ier < 0) then
             write(*,*)
             write(*,*) 'Read Ensemble: Cannot find field ...'
-            write(*,*) 'nomvar =', trim(ControlVariable(var)%nomvar(cv_model))
+            write(*,*) 'nomvar =', trim(nomvar)
             write(*,*) 'etiket =', trim(etiket)
-            write(*,*) 'ip1    =', ControlVariable(var)%ip1(k)
+            write(*,*) 'ip1    =', ip1
             stop
           end if
 
           if (ni_t /= hco_ens%ni .or. nj_t /= hco_ens%nj) then
             write(*,*)
             write(*,*) 'ReadEnsemble: Invalid dimensions for ...'
-            write(*,*) 'nomvar      =', trim(ControlVariable(var)%nomvar(cv_model))
+            write(*,*) 'nomvar      =', trim(nomvar)
             write(*,*) 'etiket      =', trim(etiket)
-            write(*,*) 'ip1         =', ControlVariable(var)%ip1(k)
+            write(*,*) 'ip1         =', ip1
             write(*,*) 'Found ni,nj =', ni_t, nj_t 
             write(*,*) 'Should be   =', hco_ens%ni, hco_ens%nj
             stop
@@ -1900,6 +1902,7 @@ module calcbmatrix_lam_mod
 ! WriteEnsemble
 !--------------------------------------------------------------------------
   subroutine WriteEnsemble(ensPerturbations, OutputBaseName, cv_type)
+    use MathPhysConstants_mod, only: MPC_KNOTS_PER_M_PER_S_R4
     implicit none
 
     real(4), intent(in) :: ensPerturbations(hco_bhi%ni,hco_bhi%nj,nkgdim,nens)
@@ -1974,7 +1977,7 @@ module calcbmatrix_lam_mod
           datyp  = 1
 
           if ( trim(nomvar) == 'UU' .or. trim(nomvar) == 'VV') then
-            factor = 1.94246 ! m/s -> knots
+            factor = MPC_KNOTS_PER_M_PER_S_R4 ! m/s -> knots
           else if ( trim(nomvar) == 'P0' ) then
             factor = 0.01 ! Pa -> hPa
           else
@@ -2007,6 +2010,7 @@ module calcbmatrix_lam_mod
 ! Write3D
 !--------------------------------------------------------------------------
   subroutine Write3D(Field3d, iun, Etiket_in, cv_type)
+    use MathPhysConstants_mod, only: MPC_KNOTS_PER_M_PER_S_R4
     implicit none
 
     real(8), intent(in) :: Field3d(hco_bhi%ni,hco_bhi%nj,nkgdim)
@@ -2060,7 +2064,7 @@ module calcbmatrix_lam_mod
         datyp  = 1
 
         if ( trim(nomvar) == 'UU' .or. trim(nomvar) == 'VV') then
-          factor = 1.94246 ! m/s -> knots
+          factor = MPC_KNOTS_PER_M_PER_S_R4 ! m/s -> knots
         else if ( trim(nomvar) == 'P0' ) then
           factor = 0.01 ! Pa -> hPa
         else

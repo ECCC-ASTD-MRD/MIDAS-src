@@ -50,6 +50,8 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
 
   integer :: get_max_rss
 
+  character(len=12) :: etiket
+
   write(*,*) ''
   write(*,*) '-------------------------------'
   write(*,*) '--Starting subroutine preproc--'
@@ -114,7 +116,12 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   !     
   !- Initialisation of the analysis grid vertical coordinate from !! in Bnmc file
   !
-  call vco_SetupFromFile(vco_anl,'./bgcov',.true.,'BGCK_STDDEV')
+  if ( hco_anl % global ) then
+     etiket = 'BGCK_STDDEV'
+  else
+     etiket = 'STDDEV'
+  end if
+  call vco_SetupFromFile(vco_anl,'./bgcov',.true.,etiket)
   call col_setVco(lcolumng,vco_anl)
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 

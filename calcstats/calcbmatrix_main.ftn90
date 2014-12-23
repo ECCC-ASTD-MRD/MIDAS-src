@@ -70,8 +70,8 @@ program calcbmatrix_main
   hco_ens => hco_Get('Ensemble')
 
   !- 1.4 Initialize the vertical grid
-  call vco_SetupFromFile( vco_ens,            & ! OUT
-                          cflensin(1), .false. ) ! IN
+  call vco_SetupFromFile( vco_ens,                 & ! OUT
+                          cflensin(1), .false., ' ') ! IN
 
   !- 1.5 Read NAMCONF namelist to find the mode
   cmode  = 'BHI'  ! default value

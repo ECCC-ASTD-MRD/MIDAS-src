@@ -757,7 +757,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
       if (key < 0) then
         write(6,*)
         write(6,*) 'SUGOMOBS: Unable to find trial field = ',varName
-        stop
+        call abort3d('SUGOMOBS')
       end if
 
       ierr = fstprm( key,                                              & ! IN
