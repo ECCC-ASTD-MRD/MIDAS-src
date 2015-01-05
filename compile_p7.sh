@@ -1,11 +1,5 @@
 #!/bin/ksh
 
-# Revisions:
-#            Y.J. Rochon, Dec 2014
-#            - Added compilation of bmatrixtracer_mod.ftn90
-#            - Added . ssmuse-sh -d arma/rttov/10v1 
-#              following inquiry with S. Heilliette
-
 mode=$1
 nompi=$2
 
@@ -102,7 +96,6 @@ compiledir=$PWD
 ## To access 'rmn_014_rc2'
 . /ssm/net/hpcs/shortcuts/ssmuse_ssm_v10.sh 
 . ssmuse-sh -d /ssm/net/rpn/libs/201309/01
-. ssmuse-sh -d arma/rttov/10v1
 . s.ssmuse.dot Xlf13.110
 . s.ssmuse.dot devtools
 . s.ssmuse.dot ENV/d/x/modelutils/modelutils_1.1.0-a8
@@ -152,8 +145,8 @@ if [ $mode == full ] ; then
   SRC1="controlvector_mod.ftn90 rmatrix_mod.ftn90 hir_chans_mod.ftn90 tovs_nl_mod.ftn90 tovs_lin_mod.ftn90 multi_ir_bgck_mod.ftn90 emissivities_mod.ftn90 fft_mod.ftn90"
   SRC1="$SRC1 globalspectraltransform_mod.ftn90 varnamelist_mod.ftn90"
   SRC1="$SRC1 lamspectraltransform_mod.ftn90 columndata_mod.ftn90 gridstatevector_mod.ftn90"
-  SRC1="$SRC1 bmatrixensemble_mod.ftn90 bmatrixhi_mod.ftn90 lambmatrixhi_mod.ftn90"
-  SRC1="$SRC1 bmatrixtracer_mod.ftn90 bmatrix_mod.ftn90 minimization_mod.ftn90"
+  SRC1="$SRC1 bmatrixensemble_mod.ftn90 bmatrixhi_mod.ftn90 lambmatrixhi_mod.ftn90 bmatrixtracer_mod.ftn90"
+  SRC1="$SRC1 bmatrix_mod.ftn90 minimization_mod.ftn90"
   SRC1="$SRC1 ozoneclim_mod.ftn90 tovs_extrap_mod.ftn90"
   SRC1="$SRC1 burpfiles_mod.ftn90 obsspacediag_mod.ftn90 observation_erreurs_mod.ftn90"
 

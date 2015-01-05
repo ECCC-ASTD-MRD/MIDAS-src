@@ -119,6 +119,8 @@ CONTAINS
 
     INTEGER                :: LISTE_INFO(16),LISTE_ELE(15),LISTE_ELE_SFC(15),is_in_list
     INTEGER                :: ADDSIZE,SIZE_DATA_BK
+!PDD
+    integer                :: LISTE_ELE_TRM(15)
 
 
     DATA LISTE_INFO  &
@@ -250,16 +252,21 @@ CONTAINS
         ADDSIZE=600000
 !PDD
      CASE('TR')
-        BURP_TYP='uni'
-        vcord_type=0
+        BURP_TYP='multi'
+        vcord_type=7204
 
-        LISTE_ELE = (/15198,08090,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1/)
-        NELE=1
+        LISTE_ELE_SFC = (/15198,08090,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1/)
+        NELE_SFC=2
         CALL BRPACMA_NML('namburp_tr')
-        NELE=NELEMS
+        NELE_SFC=NELEMS_SFC
         WINDS=.FALSE.
         ADDSIZE=10000
 
+        FAMILYTYPE2= 'TR'
+        LISTE_ELE = (/15198,08090,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1/)
+        NELE=2
+        CALL BRPACMA_NML('namburp_trm')
+        NELE=NELEMS
 
     END SELECT
     LISTE_ELE    (1:NELE    )=BLISTELEMENTS(1:NELE)
@@ -298,6 +305,9 @@ CONTAINS
       btyp_offset_uni= 256 +32
     elseif ( TRIM(FAMILYTYPE2) .eq. 'UA') then
       btyp_offset_uni= 256 +32
+    elseif ( TRIM(FAMILYTYPE2) .eq. 'TR') then
+!PDD      btyp_offset_uni= 256 +32
+      btyp_offset_uni= 256 
     else 
       btyp_offset_uni= -999 !set to -999 when not used
     endif
@@ -1153,7 +1163,8 @@ CONTAINS
     NAMELIST /NAMBURP_FILTER_SFC/ NELEMS_SFC,BLISTELEMENTS_SFC,BNBITSOFF,BBITOFF,BNBITSON,BBITON
     NAMELIST /NAMBURP_FILTER_TOVS/NELEMS,BLISTELEMENTS,BNBITSOFF,BBITOFF,BNBITSON,BBITON
 !PDD
-    NAMELIST /NAMBURP_FILTER_TR/NELEMS,BLISTELEMENTS,BNBITSOFF,BBITOFF,BNBITSON,BBITON
+    NAMELIST /NAMBURP_FILTER_TR/NELEMS_SFC,BLISTELEMENTS_SFC,BNBITSOFF,BBITOFF,BNBITSON,BBITON
+    NAMELIST /NAMBURP_FILTER_TRM/NELEMS,BLISTELEMENTS,BNBITSOFF,BBITOFF,BNBITSON,BBITON
     NAMELIST /NAMBURP_UPDATE/BN_ITEMS, BITEMLIST,TYPE_RESUME
 
 
@@ -1172,6 +1183,8 @@ CONTAINS
 !PDD
       CASE( 'namburp_tr')
         READ(NULNAM,NML=NAMBURP_FILTER_TR)
+      CASE( 'namburp_trm')
+        READ(NULNAM,NML=NAMBURP_FILTER_TRM)
       CASE( 'namburp_update')
         READ(NULNAM,NML=NAMBURP_UPDATE)
     END SELECT
@@ -1249,6 +1262,8 @@ CONTAINS
     REAL(OBS_REAL), ALLOCATABLE :: RADMOY(:,:,:)
     REAL(OBS_REAL), ALLOCATABLE :: radstd(:,:,:)
     INTEGER                :: LISTE_INFO(16),LISTE_ELE(15),LISTE_ELE_SFC(15)
+!PDD
+    INTEGER                :: LISTE_ELE_TRM(15)
 
     INTEGER                :: NBELE,NVALE,NTE
     INTEGER                :: I,J,JJ,K,KK,KL,IL,ERROR,OBSN
@@ -1378,13 +1393,20 @@ CONTAINS
 !PDD
      CASE('TR')
 
+        BURP_TYP='multi'
+        vcord_type=7204
+
         UNI_FAMILYTYPE = 'TR'
-        BURP_TYP='uni'
-        vcord_type=0
-        LISTE_ELE = (/15198,08090,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1/)
-        NELE=1
+        LISTE_ELE_SFC = (/15198,08090,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1/)
+        NELE_SFC=2
         CALL BRPACMA_NML('namburp_tr')
-        NELE=NELEMS 
+        NELE_SFC=NELEMS_SFC 
+
+        FAMILYTYPE2= 'TR'
+        LISTE_ELE = (/15198,08090,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1/)
+        NELE=2
+        CALL BRPACMA_NML('namburp_trm')
+        NELE=NELEMS
     END SELECT
     LISTE_ELE    (1:NELE    )=BLISTELEMENTS(1:NELE)
     LISTE_ELE_SFC(1:NELE_SFC)=BLISTELEMENTS_SFC(1:NELE_SFC)
@@ -1403,6 +1425,9 @@ CONTAINS
       btyp_offset_uni= 256 +32
     elseif ( TRIM(FAMILYTYPE2) .eq. 'UA') then
       btyp_offset_uni= 256 +32
+    elseif ( TRIM(FAMILYTYPE2) .eq. 'TR') then
+ !PDD      btyp_offset_uni= 256 +32
+      btyp_offset_uni= 256 
     else
       btyp_offset_uni= -999 ! set to -999 when not used
     endif
@@ -1545,6 +1570,8 @@ CONTAINS
 
           ! observation block (btyp = 0100 100011X XXXX)
           btyp10    = ishft(btyp,-5)
+
+
           if ( btyp10 - btyp10obs_uni == 0 .and. bkstp <= 4 ) then
 
             ALLOCATE(obsvalue_sfc(NELE_SFC,1,nte))
@@ -1627,7 +1654,7 @@ CONTAINS
 
             IND_VCOORD  = BURP_Find_Element(Block_in, ELEMENT=vcord_type,   IOSTAT=error)
             if (IND_VCOORD <= 0)IND_VCOORD  = BURP_Find_Element(Block_in, ELEMENT=vcord_type2, IOSTAT=error)
-            !if (IND_VCOORD == -1)write(*,*) 'PAS DE COORDONNEE VERTICALE STNID=',STNID,trim(FAMILYTYPE)
+            if (IND_VCOORD == -1)write(*,*) 'PDD-PAS DE COORDONNEE VERTICALE STNID=',STNID,trim(FAMILYTYPE),vcord_type,btyp
 
             ! LAT LON TIME IN DATA BLOCK
             IND_LAT   = BURP_Find_Element(Block_in, ELEMENT=5001, IOSTAT=error)
@@ -1648,7 +1675,6 @@ CONTAINS
               iele=LISTE_ELE(IL)
               IND_ele  = BURP_Find_Element(Block_in, ELEMENT=iele, IOSTAT=error)
               if (IND_ele .lt. 0 ) cycle
-
               do k=1,nte
                 do j=1,nvale
                   obsvalue(IL,j,k) =  BURP_Get_Rval(Block_in, &
