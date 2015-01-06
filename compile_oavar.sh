@@ -36,17 +36,13 @@ fi
 
 if [ "$nompi" = "NOMPI" -o "$nompi" = "nompi" ] 
 then
-  echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
   echo "!!Compiling for a NON-MPI executable!!"
-  echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-  MPILIB="rpn_commstubs_40511 rpn_comm_40511"
+  MPILIB="rpn_commstubs rpn_comm"
   MPIKEY=""
   ABSTAG="_nompi"
 else
-  echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
   echo "!!Compiling for an MPI executable!!"
-  echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-  MPILIB="rpn_comm_40511"
+  MPILIB="rpn_comm"
   MPIKEY="-mpi"
   ABSTAG=""
 fi
@@ -76,7 +72,6 @@ echo "-----------------------"
 echo " "
 cat ${trunkdir}/toplevelcontrol_mod.ftn90_template |sed "s!XXXXX!${revnum} ${revpath}!g" > toplevelcontrol_mod.ftn90
 
-
 compiledir=$PWD
 
 #----------------------------------------------------------------
@@ -99,14 +94,14 @@ fi
 varabs=oavar_${BASE_ARCH}${ABSTAG}
 
 ## for rmn_015, rpncomm
-echo "loading rpn/libs/15.0"
-. ssmuse-sh -d rpn/libs/15.0
+echo "loading rpn/libs/15.1"
+. ssmuse-sh -d rpn/libs/15.1
 ## for 'vgrid'
-echo "loading cmdn/vgrid/5.3.0-a2/${COMP_ARCH}"
-. ssmuse-sh -d cmdn/vgrid/5.3.0-a2/${COMP_ARCH}
+echo "loading cmdn/vgrid/5.3.0/${COMP_ARCH}"
+. ssmuse-sh -d cmdn/vgrid/5.3.0/${COMP_ARCH}
 ## for 'burplib'
-echo "loading cmda/base/master/burplib_1.3.3-${COMP_ARCH}_$(ssm platforms | cut -d' ' -f1)"
-. ssmuse-sh -p cmda/base/master/burplib_1.3.3-${COMP_ARCH}_$(ssm platforms | cut -d' ' -f1)
+echo "loading cmda/base/201411/00-test/${COMP_ARCH}"
+. ssmuse-sh -d cmda/base/201411/00-test/${COMP_ARCH}
 
 ## For hpcsperf needed for TMG timings
 . ssmuse-sh -d hpcs/exp/aspgjdm/perftools
@@ -121,13 +116,13 @@ if [ "${BASE_ARCH}" = "AIX-powerpc7" ];then
 elif [ "${BASE_ARCH}" = "Linux_x86-64" ];then
     LIBSYS="hpcsperf lapack blas"
 else
-    echo "This platform 'ARCH=${ARCH}' is not supported.  Only 'AIX-powerpc7' and 'Linux_x86-64' are."
+    echo "This platform 'BASE_ARCH=${BASE_ARCH}' is not supported.  Only 'AIX-powerpc7' and 'Linux_x86-64' are."
     exit 1
 fi
-LIBRMN="rmn_015"
+LIBRMN="rmn"
 COMPF_NOC="-openmp $MPIKEY "
-COMPF="$COMPF_NOC"
-if [ $mode == full ] ; then
+COMPF="$COMPF_NOC  -debug DEBUG -optf=-C"
+if [ "${mode}" == full ] ; then
 
   rm -f *.o *.mod *.cdk* *.h *.ftn* *.f *.f90
 
@@ -232,7 +227,7 @@ if [ $mode == full ] ; then
   echo "FINISHED COMPILATION AT:"
   date
 
-elif [ $mode == abs ] ; then
+elif [ "${mode}" == abs ] ; then
 
   rm -f 3dvar_p7.abs$ABSTAG
 
