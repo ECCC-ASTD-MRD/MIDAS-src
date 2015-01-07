@@ -22,7 +22,17 @@ SUBROUTINE burp_setupfiles(datestamp)
   implicit none
 !s/r  setup_burpfiles -INITIALZE BURP FILE NAMES and return datestamp
 !
-!
+!Revisions:
+!          Ping Du (Fall 2014)
+!          -- Added CVALUE for brptr and CFAMI for TR.
+!          Yves Rochon (Jan 2015)
+!          -- Removed CVALUEs for brpo3 and brpoz
+!          -- Removed CFAMIs for OZ
+!          Mike Sitwell (Jan 2015)
+!          -- Initialized CVALUEs and CFAMI to ''. This prevents 
+!             the possibility of related issues with statements such as
+!                  IF (CVALUE(JJ) == '') EXIT
+!             
   INTEGER IER,INBLKS,nulburp,JJ
   INTEGER FNOM,FCLOS,NUMBLKS
   CHARACTER(len=20) :: CLVALU(JPFILES)
@@ -56,6 +66,7 @@ SUBROUTINE burp_setupfiles(datestamp)
   cmyidx = '0001'
   cmyid  = trim(cmyidx)//'_'//trim(cmyidy)
 
+  CLVALU(:)=''
   CLVALU( 1) = 'brpuan'  
   CLVALU( 2) = 'brpuas'  
   CLVALU( 3) = 'brpai'  
@@ -86,11 +97,10 @@ SUBROUTINE burp_setupfiles(datestamp)
   CLVALU(28) = 'brphum'  
   CLVALU(29) = 'brpsat'  
   CLVALU(30) = 'brpssm'  
-  CLVALU(31) = 'brpo3'  
-  CLVALU(32) = 'brpoz'  
-  CLVALU(33) = 'brpgp'  
-  CLVALU(34) = 'brptr'  
+  CLVALU(31) = 'brpgp'  
+  CLVALU(32) = 'brptr'  
 
+  CFAMI(:)   = ''
   CFAMI( 1)  = 'UA' 
   CFAMI( 2)  = 'UA' 
   CFAMI( 3)  = 'AI' 
@@ -121,10 +131,8 @@ SUBROUTINE burp_setupfiles(datestamp)
   CFAMI(28)  = 'HU' 
   CFAMI(29)  = 'ST' 
   CFAMI(30)  = 'MI' 
-  CFAMI(31)  = 'OZ' 
-  CFAMI(32)  = 'OZ' 
-  CFAMI(33)  = 'GP' 
-  CFAMI(34)  = 'TR' 
+  CFAMI(31)  = 'GP' 
+  CFAMI(32)  = 'TR' 
 
   IER =MRFOPC('MSGLVL','FATAL')
 
