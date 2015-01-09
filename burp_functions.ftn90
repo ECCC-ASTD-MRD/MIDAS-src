@@ -210,31 +210,24 @@
         DO J = RLN, NLV + RLN -1
 
           VARNO=obs_bodyElem_i(obsdat,OBS_VNM,j)
-          write(*,*) 'PDD-varno', varno
           IF ( VARNO .eq. 8090 ) THEN
              SCAL=obs_bodyElem_r(obsdat,OBS_VAR,j)
-	      write(*,*) 'PDD-scal-01', scal, j
+!	      write(*,*) 'PDD-scal', scal, j
 !             call obs_bodySet_i(obsdat,OBS_VNM,j,999 )
              EXIT
           ENDIF
-!          IF ( VARNO .eq. 15198 .and. SCAL .ne. MISG ) THEN
-!             obs=obs_bodyElem_r(obsdat,OBS_VAR,j)
-!             write(*,*) 'PDD-obs',scal,obs
-!             call obs_bodySet_r(obsdat,OBS_VAR,j,obs*10**(SCAL) )
-!          end if
-
         END DO
 
         DO J = RLN, NLV + RLN -1
 
           VARNO=obs_bodyElem_i(obsdat,OBS_VNM,j)
-          IF ( VARNO .eq. 15198 .and. SCAL .ne. MISG ) THEN
+          IF ( VARNO .ne. 8090 .and. SCAL .ne. MISG ) THEN
              obs=obs_bodyElem_r(obsdat,OBS_VAR,j)
-	     write(*,*) 'PDD-obs',scal,obs
+!	     if(j.eq.rln) write(*,*) 'PDD-obs', scal 
              call obs_bodySet_r(obsdat,OBS_VAR,j,obs*10**(SCAL) )
-!             EXIT
+             EXIT
           ENDIF
-
+!
         END DO
         !=================================
 !
