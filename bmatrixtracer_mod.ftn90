@@ -1,10 +1,10 @@
 ! MODULE bMmatrixTracer : Contains routines involving preparation and application
-!                        of background-error covariance matrix(ces). Matrix
-!                        based on horizontally homogeneous/isotropic
-!                        correlations.  prefix="btr" for constituents
+!                         of background-error covariance matrix(ces). Matrix
+!                         based on horizontally homogeneous/isotropic
+!                         correlations.  prefix="btr" for constituents
 !
 ! Purpose: Performs transformation from control vector to analysis increment
-!          using the spatially localized ensemble covariance matrix
+!          using the background error covariance matrix
 !
 ! Subroutines:
 !    btr_setup (public)
@@ -236,7 +236,6 @@ CONTAINS
 
     call BTR_sunewstats
     call BTR_sucorns2
-
 
 
     if(mpi_myid.eq.0) write(*,*) 'END OF BTR_SETUP'
@@ -895,9 +894,9 @@ CONTAINS
     if(ztlen.gt.0.0d0) then
       ! calculate 5'th order function (from Gaspari and Cohn)
       do jk1 = 1, nlev_T
-        zpres1 = log(pressureProfile_M(jk1))
+        zpres1 = log(pressureProfile_T(jk1))
         do jk2 = 1, nlev_T
-          zpres2 = log(pressureProfile_M(jk2))
+          zpres2 = log(pressureProfile_T(jk2))
           zr = abs(zpres2 - zpres1)
           zcorr = gasparicohn(ztlen,zr)
           do jn = 0, ntrunc
