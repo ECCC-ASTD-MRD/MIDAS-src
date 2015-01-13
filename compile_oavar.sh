@@ -59,7 +59,7 @@ fi
 cd ../
 mkdir -p compiledir
 cd compiledir
-rm -f *.o *.f *.f90 *.mod
+#rm -f *.o *.f *.f90 *.mod
 
 # automatically set the global revision number in toplevelcontrol_mod.ftn90 by
 # replacing the string XXXXX with the actual revision number
@@ -250,7 +250,8 @@ if [ "${mode}" == full ] ; then
       exit 1
   fi
 
-  echo "building the executable..."
+  echo "building the executable ${varabs}.Abs"
+  rm -f ${varabs}.Abs
   echo "If aborting, check in ${PWD}/listing8"
   s.compile $COMPF  -O ${FOPTMIZ} -libappl $LIBAPPL $LIBEXTRA -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o ${varabs}.Abs > listing8 2>&1
   status=1
@@ -267,7 +268,7 @@ if [ "${mode}" == full ] ; then
       exit 1
   fi
 
-  rm -f *.ftn* *.f *.f90
+  #rm -f *.ftn* *.f *.f90
 
   echo "FINISHED COMPILATION AT:"
   date
