@@ -916,15 +916,17 @@ module obsOperators_mod
       
     write(*,*) ' '
     write(*,*) 'NUMBER OF GPS ZTD DATA FLAGGED FOR ASSIMILATION = ', icountp
-    bias = sum(ztdomp(1:icountp))/real(icountp,8)
-    std = 0.d0
-    do jl = 1, icountp
-      std = std + (ztdomp(jl)-bias)**2
-    enddo
-    std = sqrt(std/(real(icountp,8)-1.d0))
-    write(*, *) '     MEAN O-P (BIAS) [mm] = ', bias*1000.d0
-    write(*, *) '     STD  O-P        [mm] = ', std*1000.d0
-    write(*, *) ' '
+    if ( icountp.gt.0 ) then
+       bias = sum(ztdomp(1:icountp))/real(icountp,8)
+       std = 0.d0
+       do jl = 1, icountp
+          std = std + (ztdomp(jl)-bias)**2
+       enddo
+       std = sqrt(std/(real(icountp,8)-1.d0))
+       write(*, *) '     MEAN O-P (BIAS) [mm] = ', bias*1000.d0
+       write(*, *) '     STD  O-P        [mm] = ', std*1000.d0
+       write(*, *) ' '
+    endif
 
     if ( l1obs .and. analysisMode ) then
       ! Set assim flag to 0 for all observations except for selected record (site/time)
