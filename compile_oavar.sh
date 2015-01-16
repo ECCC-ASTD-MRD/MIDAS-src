@@ -95,11 +95,11 @@ varabs=oavar_${BASE_ARCH}${ABSTAG}
 echo "loading rpn/libs/15.1"
 . ssmuse-sh -d rpn/libs/15.1
 ## for 'vgrid'
-echo "loading cmdn/vgrid/5.3.0/${COMP_ARCH}"
-. ssmuse-sh -d cmdn/vgrid/5.3.0/${COMP_ARCH}
+echo "loading cmdn/vgrid/5.3.1/${COMP_ARCH}"
+. ssmuse-sh -d cmdn/vgrid/5.3.1/${COMP_ARCH}
 ## for 'burplib'
-echo "loading cmda/base/201411/00-test/${COMP_ARCH}"
-. ssmuse-sh -d cmda/base/201411/00-test/${COMP_ARCH}
+echo "loading cmda/base/201411/00/${COMP_ARCH}"
+. ssmuse-sh -d cmda/base/201411/00/${COMP_ARCH}
 
 ## For hpcsperf needed for TMG timings
 . ssmuse-sh -d hpcs/exp/aspgjdm/perftools
