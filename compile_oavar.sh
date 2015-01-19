@@ -59,7 +59,7 @@ fi
 cd ../
 mkdir -p compiledir
 cd compiledir
-rm -f *.o *.f *.f90 *.mod
+#rm -f *.o *.f *.f90 *.mod
 
 # automatically set the global revision number in toplevelcontrol_mod.ftn90 by
 # replacing the string XXXXX with the actual revision number
@@ -95,11 +95,11 @@ varabs=oavar_${BASE_ARCH}${ABSTAG}
 echo "loading rpn/libs/15.1"
 . ssmuse-sh -d rpn/libs/15.1
 ## for 'vgrid'
-echo "loading cmdn/vgrid/5.3.0/${COMP_ARCH}"
-. ssmuse-sh -d cmdn/vgrid/5.3.0/${COMP_ARCH}
+echo "loading cmdn/vgrid/5.3.1/${COMP_ARCH}"
+. ssmuse-sh -d cmdn/vgrid/5.3.1/${COMP_ARCH}
 ## for 'burplib'
-echo "loading cmda/base/201411/00-test/${COMP_ARCH}"
-. ssmuse-sh -d cmda/base/201411/00-test/${COMP_ARCH}
+echo "loading cmda/base/201411/00/${COMP_ARCH}"
+. ssmuse-sh -d cmda/base/201411/00/${COMP_ARCH}
 
 ## For hpcsperf needed for TMG timings
 . ssmuse-sh -d hpcs/exp/aspgjdm/perftools
@@ -250,7 +250,8 @@ if [ "${mode}" == full ] ; then
       exit 1
   fi
 
-  echo "building the executable..."
+  echo "building the executable ${varabs}.Abs"
+  rm -f ${varabs}.Abs
   echo "If aborting, check in ${PWD}/listing8"
   s.compile $COMPF  -O ${FOPTMIZ} -libappl $LIBAPPL $LIBEXTRA -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o ${varabs}.Abs > listing8 2>&1
   status=1
@@ -267,7 +268,7 @@ if [ "${mode}" == full ] ; then
       exit 1
   fi
 
-  rm -f *.ftn* *.f *.f90
+  #rm -f *.ftn* *.f *.f90
 
   echo "FINISHED COMPILATION AT:"
   date

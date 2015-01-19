@@ -83,9 +83,12 @@ subroutine checkObsMpiIP(lobsSpaceData,burp_split_L)
            write(*,*) 'checkObsMpiIP: IP_x , IP_y , IP   = ', IP_x, IP_y, IP
            write(*,*) 'checkObsMpiIP: myidx, myidy, myid = ', mpi_myidx, mpi_myidy, mpi_myid
            write(*,*) 'checkObsMpiIP: obs lon       =',obs_headElem_r(lobsSpaceData,OBS_LON,headerIndex)*MPC_DEGREES_PER_RADIAN_R8
-           lonIndex = 1 + (mpi_myidx * hco_anl % ni / mpi_npex)
+           lonIndex = 1 + (mpi_myidx     * hco_anl % ni / mpi_npex)
            write(*,*) 'checkObsMpiIP: tile lon west =',hco_anl % lon(lonIndex) * MPC_DEGREES_PER_RADIAN_R8
            lonIndex = 1 + ((mpi_myidx+1) * hco_anl % ni / mpi_npex)
+           if ( lonindex == hco_anl%ni+1 ) then
+              lonindex = 1
+           endif
            write(*,*) 'checkObsMpiIP: tile lon east =',hco_anl % lon(lonIndex) * MPC_DEGREES_PER_RADIAN_R8
 
            write(*,*) 'checkObsMpiIP: obs lat        =',obs_headElem_r(lobsSpaceData,OBS_LAT,headerIndex)*MPC_DEGREES_PER_RADIAN_R8
@@ -124,6 +127,9 @@ subroutine checkObsMpiIP(lobsSpaceData,burp_split_L)
 
            ! for obs east of the correct longitude band
            lonIndex = 1 + ((mpi_myidx+1) * hco_anl % ni / mpi_npex)
+           if ( lonindex == hco_anl%ni+1 ) then
+              lonindex = 1
+           endif
            delta_lon=obs_headElem_r(lobsSpaceData,OBS_LON,headerIndex) - hco_anl % lon(lonindex)
            if(IP_x .gt. mpi_myidx) then
               if(abs(delta_lon) .lt. epsilon_lon) then

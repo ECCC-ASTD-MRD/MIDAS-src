@@ -51,7 +51,7 @@ Module tovs_nl_mod
   ! Module parameters
   Integer, PARAMETER :: jppf      = 40      ! Max no. profiles per RTTOV call
   Integer, PARAMETER :: jpchmax   = 8461     ! Max. no. of channels
-  Integer, PARAMETER :: jpchus    = 616      ! Max. no. of channels computed/call
+  Integer, PARAMETER :: jpchus    = 1305     ! Max. no. of channels computed/call
   Integer, PARAMETER :: jpnsatmax = 40       ! Max no sensors to be used
   Integer, PARAMETER :: jplev     = 51       ! No. of pressure levels including "rttov top" at 0.005 hPa for rttov-10
 !**********************************************************
