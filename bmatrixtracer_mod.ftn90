@@ -804,7 +804,7 @@ CONTAINS
     ikey = fstinf(nulbgst,inix,injx,inkx,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
     write(*,*) 'ini,inj,ink=',inix,injx,inkx
     if(inix.gt.1) then
-      write(*,*) 'BHI_RDSPSTD_NEWFMT: ini>1, SPSTDDEV is in old format, calling BHI_RDSPSTD...'
+      write(*,*) 'BTR_RDSPSTD_NEWFMT: ini>1, SPSTDDEV is in old format, calling BTR_RDSPSTD...'
       call btr_rdspstd
       return
     endif
