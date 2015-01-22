@@ -24,14 +24,13 @@ program cnt0
   use obsSpaceDiag_mod
   use writeIncrement_mod
   use controlVector_mod
-  use bmatrix_mod
   use filterObs_mod  
 
   implicit none
   integer :: istamp,exdb,exfin
   character(len=9) :: clmsg
   integer :: ierr,numAnalyses,indexAnalysis_loop,indexAnalysis,getNumAnalyses
-  logical :: isControlAnalysis
+  logical :: isControlAnalysis, isLastAnalysis
   type(struct_obs),target :: obsSpaceData, obsSpaceData_out
   type(struct_columnData),target :: columng,columnhr
   type(struct_vco),pointer :: vco_anl => NULL()
@@ -186,6 +185,7 @@ program cnt0
       write(*,*) '============================='
 
       isControlAnalysis = (indexAnalysis_loop.eq.1)
+      isLastAnalysis    = (indexAnalysis_loop.eq.numAnalyses)
       if(numAnalyses.eq.1) then
         indexAnalysis = 0
       else
@@ -209,7 +209,7 @@ program cnt0
       ! Calculate and write out the resulting analysis increment
       vco_anl => col_getVco(columng)
       vco_trl => col_getVco(columnhr)
-      call calcWriteIncrement(vco_anl,vco_trl,indexAnalysis)
+      call calcWriteIncrement(vco_anl,vco_trl,indexAnalysis,isLastAnalysis)
 
       ! Set the QC flags to be consistent with VAR-QC if control analysis
       if(isControlAnalysis) then
@@ -235,9 +235,6 @@ program cnt0
 
     ! Compute obs-space diagnostics (only does computation if NAMOSD present in flnml)
     call osd_calcInflation(obsSpaceData_out,columng)
-
-    ! Deallocate B matrices
-    call bmat_finalize(cvm_vazx)
 
     ! Now write out the observation data files
     call update_burpfiles(obsSpaceData_out)
