@@ -174,7 +174,7 @@ module writeIncrement_mod
     END SUBROUTINE SUPOST
 
 
-    subroutine calcWriteIncrement(vco_anl,vco_trl,indexAnalysis)
+    subroutine calcWriteIncrement(vco_anl,vco_trl,indexAnalysis,isLastAnalysis)
       !
       !  s/r calcWriteIncrement - calculate and write analysis increment after minimization
       !
@@ -182,6 +182,7 @@ module writeIncrement_mod
 
       type(struct_vco), pointer :: vco_anl, vco_trl
       integer :: indexAnalysis
+      logical :: isLastAnalysis
 
       type(struct_hco),      pointer :: hco_anl
       type(struct_gsv) :: statevector,statevectorg,statevectorp
@@ -202,7 +203,7 @@ module writeIncrement_mod
       character(len=1) :: flnum3
       character(len=128) :: incFileName
       integer :: get_max_rss
-      logical :: globalGSVpresent
+      logical :: globalGSVpresent, onlyDeterministic
 
       write(*,*) '-------------------------------'
       write(*,*) '--Starting subroutine calcWriteIncrement--'
@@ -210,6 +211,8 @@ module writeIncrement_mod
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
       call rpn_comm_barrier("GRID",ierr)
       call tmg_start(3,'WRITEINCR')
+
+      onlyDeterministic = (indexAnalysis.eq.0)
       !
       ! Read namelist and do some setup
       !
@@ -280,6 +283,10 @@ module writeIncrement_mod
       call tmg_start(91,'POST_COMPUTEDX')
 
       call bmat_sqrtB(cvm_vazx,cvm_nvadim,statevector)
+      if(onlyDeterministic) then
+        ! Deallocate B matrices
+        call bmat_finalize(cvm_vazx)
+      endif
 
       if(write4dInc) then
         ! mpiglobal result for 4D increment only on myid=(increment_time_step -1)
@@ -317,10 +324,10 @@ module writeIncrement_mod
       !
       ! If ens-EnVar, loop over additional types of perturbations to analysis increment
       !
-      if(indexAnalysis.gt.0) then
-        numPerturbLoop = 2
-      else
+      if(onlyDeterministic) then
         numPerturbLoop = 0
+      else
+        numPerturbLoop = 2
       endif
       do perturbLoop = 0, numPerturbLoop
 
@@ -492,7 +499,7 @@ module writeIncrement_mod
           ! Now, write out the increment, including diagostic variables
           !
           incFileName = './rebm'
-          if(indexAnalysis.gt.0) then
+          if(.not.onlyDeterministic) then
             write(flnum3,'(I1.1)') perturbLoop
             incFileName = trim(incFileName) // trim(flnum3)
           endif
@@ -507,7 +514,7 @@ module writeIncrement_mod
             write(*,*) 'calcWriteIncrement: flnum=###',trim(flnum),'###'
             incFileName = trim(incFileName) // '_' // trim(flnum) // 'm'
           endif
-          if(indexAnalysis.gt.0) then
+          if(.not.onlyDeterministic) then
             write(flnum2,'(I4.4)') (indexAnalysis-1)
             incFileName = trim(incFileName) // '_' // trim(flnum2)
           endif
@@ -530,6 +537,11 @@ module writeIncrement_mod
       if(indexAnalysis.gt.1) call gsv_deallocate(statevectorp)
       call gsv_deallocate(statevectorg)
       call gsv_deallocate(statevector)
+
+      if(.not.onlyDeterministic.and.isLastAnalysis) then
+        ! Deallocate B matrices (deallocated earlier if onlyDeterministic)
+        call bmat_finalize(cvm_vazx)
+      endif
 
       call tmg_stop (3)
       write(*,*) 'LEAVING calcWriteIncrement'
