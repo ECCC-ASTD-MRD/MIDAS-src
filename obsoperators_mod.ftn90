@@ -659,6 +659,9 @@ module obsOperators_mod
     !          S. Macpherson Nov 2014
     !           -- modifications for case where P(nlev) is not equal to P0
     !
+    !          S. Macpherson Jan 2015
+    !           -- adadpt for E-GVAP data (assimilate ZTD without surface met data, i.e. Psfc)
+    !
     !Arguments (out)
     !     jobs_out: total value of Jo for all GB-GPS (ZTD) observations
     !
@@ -682,7 +685,8 @@ module obsOperators_mod
     integer :: headerIndex, bodyIndex, ioneobs, idatyp, ityp, index_ztd, iztd
     integer :: jl, nlev_T, nobs2p, stat
     integer :: icount1, icount2, icount3, icount, icountp
-    logical  :: assim, llrej, analysisMode
+    logical  :: assim, llrej, analysisMode, lfsl
+    character(9) :: cstnid
     type(gpsprofilezd)    :: prf
     type(gpsdiff)         :: ztdopv
     !
@@ -758,6 +762,9 @@ module obsOperators_mod
 
       assim = .false.
       zpsobs = -100.0d0
+      lfsl = .false.
+      cstnid = obs_elem_c(obsSpaceData,'STID',headerIndex)
+      if (index(cstnid,'FSL_') > 0 .or. index(cstnid,'-NOAA') > 0) lfsl = .true.
 
       ! Scan for requested ZTD assimilation.
       ! Get GPS antenna height ZLEV and Ps(ZLEV) (ZPSOBS)
@@ -817,14 +824,14 @@ module obsOperators_mod
 
       ! If analysis mode, reject ZTD data for any of the following conditions:
       !    (1) the trial PW is too low (extremely dry) 
-      !        and if LASSMET=true
-      !    (2) Ps observation is missing or out of normal range
-      !    (3) the ABS(Ps(obs)-Ps(mod)) difference is too large
+      !    and if LASSMET=true and for NOAA/FSL sites only:
+      !      (2) Ps observation is missing or out of normal range
+      !      (3) the ABS(Ps(obs)-Ps(mod)) difference is too large
       llrej = .false.
       zpomp = -9999.0D0
       if ( analysisMode ) then
         llrej = ( zpwmod .lt. zpwmin )
-        if ( lassmet ) then
+        if ( lassmet .and. lfsl ) then
           if ( .not. llrej ) then
             if ( zpsobs .gt. 40000.0d0 .and. zpsobs .le. 110000.0d0 ) then
               zpomp = zpsobs - zpsmod
@@ -866,7 +873,7 @@ module obsOperators_mod
           zoer = obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
           if ( zoer .le. 0.0d0 ) then
             write(*,*) ' Problem with ZTD observation error!'
-            write(*,*) ' Station =',obs_elem_c(obsSpaceData,'STID',headerIndex)
+            write(*,*) ' Station =',cstnid
             write(*,*) ' Error =', zoer
             call abort3d('OONL_GPSGB: ABORT! BAD ZTD OBSERR') 
           endif
@@ -889,7 +896,7 @@ module obsOperators_mod
             if ( (zobs-zhx).gt.xompmin .and. zpwmod.gt.xpwmin .and.  &
                  abs(zdz).lt.xdzmax ) then
               ioneobs = headerIndex
-              write(*,*) 'SINGLE OBS SITE = ',obs_elem_c(obsSpaceData,'STID',headerIndex)
+              write(*,*) 'SINGLE OBS SITE = ',cstnid
             endif
           endif
           !
@@ -898,8 +905,7 @@ module obsOperators_mod
           if ( icountp .le. nobs2p ) then
             write(*,  &
                   '(A12,A9,3(1x,f7.2),1x,f8.2,4(1x,f7.5),2(1x,f8.4),2x,f5.2,1x,f9.2,1x,f10.5)')  &
-                  'OONL_GPSGB: ',obs_elem_c(obsSpaceData,'STID',headerIndex),  &
-                  zlat,zlon,zlev,zdz,zobs,zoer/yzderrwgt,zhx,-zinc*zoer,  &
+                  'OONL_GPSGB: ',cstnid,zlat,zlon,zlev,zdz,zobs,zoer/yzderrwgt,zhx,-zinc*zoer,  &
                   zpomps/100.d0,zpomp/100.d0,zpwmod,jobs,zinc/zoer
           endif
                  
