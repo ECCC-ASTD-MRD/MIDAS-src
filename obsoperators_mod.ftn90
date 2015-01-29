@@ -40,7 +40,7 @@ module obsOperators_mod
   private
 
   ! public procedures
-  public :: oonl_ppp, oonl_sfc, oonl_zzz, oonl_gpsro, oonl_gpsgb, oonl_tovs
+  public :: oonl_ppp, oonl_sfc, oonl_zzz, oonl_gpsro, oonl_gpsgb, oonl_tovs, oonl_tracers
 
   contains
 
@@ -1090,6 +1090,50 @@ module obsOperators_mod
     if(present(jobs_out)) jobs_out=jobs
 
   end subroutine oonl_tovs
+
+
+
+  subroutine oonl_tracers(columnhr,obsSpaceData,jobs_out)
+    !
+    !**s/r oonl_tracers - Temporary subroutine to set innovation for tracers to zero from
+    !                   default value of -999.0 until nonlinear obs operator for tracers
+    !                   is complete.
+    !
+    !author        : M. Sitwell Jan 2015
+    !
+    implicit none
+
+    type(struct_columnData) :: columnhr
+    type(struct_obs)        :: obsSpaceData
+    real(8), optional :: jobs_out
+    
+    integer :: INDEX_BODY, INDEX_HEADER
+
+    write(*,*)'ENTER oonl_tracers'
+
+    !
+    ! Loop over all header indices of the 'TR' family:
+    !
+    call obs_set_current_header_list(obsSpaceData,'TR')
+
+    HEADER: do
+      index_header = obs_getHeaderIndex(obsSpaceData)
+      if (index_header < 0) exit HEADER
+
+      call obs_set_current_body_list(obsSpaceData, index_header)
+      BODY: do 
+        index_body = obs_getBodyIndex(obsSpaceData)
+        if (index_body < 0) exit BODY
+        call obs_bodySet_r(obsSpaceData,OBS_OMP,index_body,0.0d0)
+      enddo BODY
+
+   enddo HEADER 
+   
+   if(present(jobs_out)) jobs_out=0.0d0
+
+  end subroutine oonl_tracers
+
+
 
 
 end module obsOperators_mod

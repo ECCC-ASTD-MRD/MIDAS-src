@@ -90,6 +90,7 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
   if (numGPSZTD > 0)  call oda_Hgp
   call tmg_stop (47)        !
 
+  call oda_Htr  ! calculate Hdx for tracers
 
   CONTAINS
 
@@ -1007,6 +1008,40 @@ end subroutine oda_Hto
 
       RETURN
       END subroutine oda_Hgp
+
+
+      SUBROUTINE oda_Htr
+        !
+        !**s/r oda_Htr - Temporary subroutine to set Hdx for tracers to zero from
+        !                   default value of -999.0 until linear obs operator for tracers
+        !                   is complete.
+        !
+        !author        : M. Sitwell Jan 2015
+        !
+        implicit none
+    
+        integer :: INDEX_BODY, INDEX_HEADER
+        
+        !
+        ! Loop over all header indices of the 'TR' family:
+        !
+        call obs_set_current_header_list(lobsSpaceData,'TR')
+        
+        HEADER: do
+           index_header = obs_getHeaderIndex(lobsSpaceData)
+           if (index_header < 0) exit HEADER
+
+           call obs_set_current_body_list(lobsSpaceData, index_header)
+           BODY: do 
+              index_body = obs_getBodyIndex(lobsSpaceData)
+              if (index_body < 0) exit BODY
+              call obs_bodySet_r(lobsSpaceData,OBS_WORK,index_body,0.0d0)
+           enddo BODY
+
+        enddo HEADER
+
+      end subroutine oda_Htr
+
 
 
 end subroutine oda_H

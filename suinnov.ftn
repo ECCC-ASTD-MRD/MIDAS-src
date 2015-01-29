@@ -53,8 +53,6 @@
       real*8 zjotracer
       integer :: ierr
       logical lgpdata
-!PDD
-!      real*8 ZJOTRACER
 
       write(*,*) '--Starting subrouting suinnov--'
 
@@ -117,9 +115,11 @@
       CALL SETERRGPSRO(columnhr,obsSpaceData)
       call oonl_gpsro(columnhr,obsSpaceData,ZJOGPSRO)
 
-!PDD for tracers
-!      call oonl_tracers(columnhr,obsSpaceData,ZJOTRACER)
-      ZJOTRACER = 0.
+
+!
+!        Tracers
+!-------------------------------
+      call oonl_tracers(columnhr,obsSpaceData,ZJOTRACER)
 
 !
 !        GPS - GROUND-BASED ZENITH DELAY
