@@ -366,13 +366,19 @@ module columnData_mod
     end function col_varExist
 
 
-    function col_getOffsetFromVarno(column,varnum) result(offset)
+    function col_getOffsetFromVarno(column,varnum,varTRnumber) result(offset)
+!
+!   Revisions:
+!             Y.J. Rochon (ARQI), Jan. 2015
+!             - Added optional varTRnumber
+!          
       implicit none
       type(struct_columnData) :: column
       integer, intent(in)     :: varnum
+      integer, intent(in), optional     :: varTRnumber
       integer                 :: offset
 
-      offset=column%varOffset(vnl_varListIndex(vnl_varnameFromVarnum(varnum)))
+      offset=column%varOffset(vnl_varListIndex(vnl_varnameFromVarnum(varnum,varTRnumber)))
 
     end function col_getOffsetFromVarno
 

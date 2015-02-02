@@ -1,4 +1,9 @@
 module varNameList_mod
+!
+! Revisions: 
+!           Y.J. Rochon (ARQI/AQRD) Jan 2015
+!           - Added vnl_numunits_chm and vnl_varunits_chm
+!
   use bufr
   implicit none
   save
@@ -6,9 +11,10 @@ module varNameList_mod
 
   ! public variables (parameters)
   public :: vnl_numvarmax3D,vnl_numvarmax2D,vnl_numvarmax,vnl_varNameList3D,vnl_varNameList2D,vnl_varNameList
+  public :: vnl_numunits_chm,vnl_varunits_chm
   ! public procedures
   public :: vnl_varListIndex3d,vnl_varListIndex2d,vnl_varListIndex,vnl_varnameFromVarnum
-  public :: vnl_vartypeFromVarname,vnl_vartypeFromVarnum
+  public :: vnl_vartypeFromVarname,vnl_vartypeFromVarnum,vnl_IsAtmosConstituent
 
 
   integer, parameter          :: vnl_numvarmax3D=23,vnl_numvarmax2D=4
@@ -26,6 +32,11 @@ module varNameList_mod
   integer, parameter          :: vnl_numvarmax=vnl_numvarmax3D+vnl_numvarmax2D
   character(len=4), parameter :: vnl_varNameList(vnl_numvarmax) = (/ vnl_varNameList3D, vnl_varNameList2D /)
   character(len=2), parameter :: varTypeList(vnl_numvarmax) = (/ varTypeList3D, varTypeList2D /)
+
+  integer, parameter            :: vnl_numunits_chm=12
+  integer, parameter            :: vnl_varunits_chm(vnl_numunits_chm)= &
+              (/15198,15008,15011,15012,15020,15024,15026,15027,15028, &
+                15029,15199,15230/)
 
   contains
 
@@ -89,12 +100,18 @@ module varNameList_mod
     end function vnl_varListIndex
 
 
-    function vnl_varnameFromVarnum(varNumber,varTrNumber) result(varName)
+    function vnl_varnameFromVarnum(varNumber,varNumber_chm) result(varName)
+!
+!   Revisions:
+!             Y.J. Rochon (ARQI), Jan. 2015
+!             - Modified search for chemical constituents 
+!          
       implicit none
       integer, intent(in) :: varNumber
-      integer, intent(in), optional :: varTrNumber
+      integer, intent(in), optional :: varNumber_chm
       character(len=4)    :: varName
-
+      integer             :: i
+      
       varName='    '
       select case (varNumber)
       case(BUFR_NEUU,BUFR_NEUS)
@@ -113,37 +130,38 @@ module varNameList_mod
         varName='TT'   ! temporarily associate refractivity and ZTD with temperature
       case(BUFR_NEDW)
         varName='DW'
-      case(BUFR_NETR)
-        if (present(varTrNumber)) then      
-           select case (varTrNumber)
-           case(BUFR_NETR_O3)
-              varname='O3'
-           case(BUFR_NETR_H2O)
-              varname='HU'
-           case(BUFR_NETR_CH4)
-              varname='CH4'
-           case(BUFR_NETR_CO2)
-              varname='CO2'
-           case(BUFR_NETR_CO)
-              varname='CO'
-           case(BUFR_NETR_NO2)
-              varname='NO2'
-           case(BUFR_NETR_N2O)
-              varname='N2O'
-           case(BUFR_NETR_HCHO)
-              varname='HCHO'
-           case(BUFR_NETR_SO2)
-              varname='SO2'
-           case default
-              write(*,*) 'vnl_varnameFromVarnum: Unknown TR variable number! ',varTrNumber
-              call abort3d('aborting in vnl_varnameFromVarnum')
+      case default
+!
+!       Search for constituents. Identification depends on value and presence of second parameter.
+!
+        if (present(varNumber_chm)) then 
+           select case (varnumber_chm)
+              case(BUFR_NETR_O3)
+                 varname='O3'
+              case(BUFR_NETR_H2O)
+                 varname='HU'
+              case(BUFR_NETR_CH4)
+                 varname='CH4'
+              case(BUFR_NETR_CO2)
+                 varname='CO2'
+              case(BUFR_NETR_CO)
+                 varname='CO'
+              case(BUFR_NETR_NO2)
+                 varname='NO2'
+              case(BUFR_NETR_N2O)
+                 varname='N2O'
+              case(BUFR_NETR_HCHO)
+                 varname='HCHO'
+              case(BUFR_NETR_SO2)
+                 varname='SO2'
+              case default
+                 write(*,*) 'vnl_varnameFromVarnum: Unknown variable number! ',varNumber, varNumber_chm
+                 call abort3d('aborting in vnl_varnameFromVarnum')
            end select
         else
-           call abort3d('vnl_varnameFromVarnum: Missing TR variable number ')
+           write(*,*) 'vnl_varnameFromVarnum: Unknown variable number! ',varNumber
+           call abort3d('aborting in vnl_varnameFromVarnum')
         endif 
-      case default
-        write(*,*) 'vnl_varnameFromVarnum: Unknown variable number! ',varNumber
-        call abort3d('aborting in vnl_varnameFromVarnum')
       end select
 
     end function vnl_varnameFromVarnum
@@ -160,22 +178,50 @@ module varNameList_mod
     end function vnl_vartypeFromVarname
 
 
-    function vnl_vartypeFromVarnum(varNumber,varTrNumber) result(varType)
+    function vnl_vartypeFromVarnum(varNumber,varNumber_chm) result(varType)
       implicit none
 
       integer, intent(in)           :: varNumber
-      integer, intent(in), optional :: varTrNumber
+      integer, intent(in), optional :: varNumber_chm
       character(len=2)              :: varType
       character(len=4)              :: varName
 
-      if (present(varTrNumber)) then      
-         varName = vnl_varnameFromVarnum(varNumber,varTrNumber)
+      if (present(varNumber_chm)) then      
+         varName = vnl_varnameFromVarnum(varNumber,varNumber_chm)
       else 
          varName = vnl_varnameFromVarnum(varNumber)
       endif 
       varType = varTypeList(vnl_varListIndex(varName))
 
     end function vnl_vartypeFromVarnum
+
+
+    function vnl_IsAtmosConstituent(varNumber) result(var_chm)
+!
+!   Purpose: Determine if 'varNumber' refers to constituent data
+!   from the CH family with recognized data units. 
+!
+!   Author: Y.J. Rochon (ARQI/AQRD) Jan 2015
+!           Following recommendation by M. Buehner.
+!   Revisions:
+!
+!   ------------------------------------------------------------
+
+      implicit none
+
+      integer, intent(in)           :: varNumber
+      logical                       :: var_chm
+      integer                       :: i
+                
+      var_chm=.false.
+      do i=1,vnl_numunits_chm
+         if (varNumber.eq.vnl_varunits_chm(i)) then
+            var_chm=.true.
+            exit
+         end if
+      end do
+
+    end function vnl_IsAtmosConstituent
 
 
 end module varNameList_mod
