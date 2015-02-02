@@ -19,6 +19,7 @@ module observation_erreurs_mod
   use MathPhysConstants_mod
   use obsSpaceData_mod
   use tovs_nl_mod
+  use codtyp_mod
   use bufr
   implicit none
   private
@@ -65,7 +66,7 @@ module observation_erreurs_mod
   !                                                   or
   !                                              not applicable
   ! nstd_ibegin_tr        Position index of start of data for given
-  !                       sub-family.
+  !                       sub-family in the arrays xstd_std1_tr,xstd_lvl_tr,xstd_lat_tr
   ! nstd_lvl_tr           Number of vertical levels
   ! xstd_lvl_tr           Vertical levels (in coordinate of sub-family data)
   ! nstd_lat_tr           Number of latitudes
@@ -596,15 +597,16 @@ module observation_erreurs_mod
 !-----------------------------------------------------------------------------------------
 
   subroutine oer_read_obs_erreurs_tr
-  !
-  ! s/r oer_read_obs_erreurs_tr -READ OBSERVATION ERROR OF CONSTITUENT DATA 
-  !
-  ! Author  : Y. Rochon, Nov 2014 
-  !           (initial part follows the format of oer_read_obs_erreurs_conv)
-  ! Revision: 
-  !          
-  ! Purpose: Read observation error std. dev. as needed.
-  !
+!
+!  s/r oer_read_obs_erreurs_tr - READ OBSERVATION ERROR OF CONSTITUENT DATA 
+!
+!  Author   : Y. Rochon, Nov 2014 
+!             (initial part follows the format of oer_read_obs_erreurs_conv)
+!  Revisions: 
+!          
+! Purpose: Read observation error std. dev. as needed for TR family obs.
+!
+!----------------------------------------------------------------------------------------
 
   implicit none
 
@@ -619,54 +621,50 @@ module observation_erreurs_mod
 ! Initialization
 
   nstd_stnid_tr=0
-
 !
-!     CHECK THE EXISTENCE OF THE NEW FILE WITH STATISTICS
-!     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! CHECK THE EXISTENCE OF THE NEW FILE WITH STATISTICS
+! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
-  INQUIRE(FILE='obserr_tr',EXIST=LnewExists)
+  INQUIRE(FILE='obsinfo_tr',EXIST=LnewExists)
   IF (LnewExists )then
-    WRITE(*,*) '---------------------------------------------------------------'
-    WRITE(*,*) 'read_obs_errors_tr: reads observation error stddev in obserr_tr'
-    WRITE(*,*) '---------------------------------------------------------------'
+!    WRITE(*,*) '---------------------------------------------------------------'
+!    WRITE(*,*) 'oer_read_*_tr: read observation error stddev in obsinfo_tr     '
+!    WRITE(*,*) '---------------------------------------------------------------'
   else
     WRITE(*,*) '---------------------------------------------------------------'
-    WRITE(*,*) 'WARNING! read_obs_errors_tr: obserr_tr not available.          '
+    WRITE(*,*) 'WARNING! read_obs_errors_tr: obsinfo_tr not available.         '
     WRITE(*,*) 'WARNING! Default TR family stddev to be applied if needed.     '
     WRITE(*,*) '---------------------------------------------------------------'
 !    CALL ABORT3D('read_obs_errors_tr: NO OBSERVATION STAT FILE FOUND!!')     
   ENDIF
 !
-!     Read observation error std dev. from file obserr_tr for constituent data
-!     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Read observation error std dev. from file obsinfo_tr for constituent data
+! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
   NULSTAT=0
-  IERR=FNOM(NULSTAT,'obserr_tr','SEQ',0)
+  IERR=FNOM(NULSTAT,'obsinfo_tr','SEQ',0)
   IF ( IERR .EQ. 0 ) THEN
-    write(*,*) 'read_obs_errors_tr: File =  ./obserr_tr'
-    write(*,*) 'opened as unit file ',nulstat
-    open(unit=nulstat, file='obserr_tr', status='OLD')
+!    write(*,*) 'read_obs_errors_tr: File =  ./obsinfo_tr'
+!    write(*,*) 'opened as unit file ',nulstat
+    open(unit=nulstat, file='obsinfo_tr', status='OLD')
   ELSE
-    CALL ABORT3D('read_obs_errors_tr: COULD NOT OPEN FILE obserr_tr!!!')
+    CALL ABORT3D('read_obs_errors_tr: COULD NOT OPEN FILE obsinfo_tr!')
   ENDIF
 
-  write(*, '(A)') ' '
 
 ! Read error standard deviations for constituents if available.
 ! (TR family; ozone and others)
   
-! Check for any additional lines. End if not found
-  
   ios=0
   read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
-  write(*, '(A)') ligne 
+  do while (trim(adjustl(ligne(1:12))).ne.'SECTION I:') 
+      read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
+  end do    
   
-! Read number of sub-families (STNIDs) and allocate space
-   
+! Read number of observation set sub-families (STNIDs and ...) and allocate space
+
   read(nulstat,*,iostat=ios,err=10,end=10) nstd_stnid_tr
-  write(*, '(I6)') nstd_stnid_tr
   read(nulstat,*,iostat=ios,err=10,end=10) isize
-  write(*, '(I6)') isize
 
   allocate(cstd_stnid_tr(nstd_stnid_tr))
   allocate(nstd_type_tr(nstd_stnid_tr),nstd_lat_tr(nstd_stnid_tr))
@@ -674,29 +672,39 @@ module observation_erreurs_mod
   allocate(nstd_bfr_tr(nstd_stnid_tr),nstd_lvl_tr(nstd_stnid_tr))
   allocate(xstd_std1_tr(isize),xstd_std2_tr(nstd_stnid_tr),xstd_std3_tr(nstd_stnid_tr))
   allocate(xstd_lvl_tr(isize),xstd_lat_tr(isize))
-  
+ 
+  nstd_bfr_tr(:)=0
   nstd_brp_tr(:)=0
   nstd_type_tr(:)=0
   nstd_lvl_tr(:)=1
   nstd_lat_tr(:)=1
 
 ! Begin reading for each sub-family
+! Important: Combination of STNID, BUFR element and number of vertical levels
+!            to determine association to the observations.
 
   icount=0
   do jelm=1,nstd_stnid_tr
     nstd_ibegin_tr(jelm)=icount+1
 
+    ! disregard line of dashes
     read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
-    write(*, '(A)') ligne 
 
+    ! Read STNID (* as wildcard)    
     read(nulstat,'(2X,A9)',iostat=ios,err=10,end=10) cstd_stnid_tr(jelm) 
-    write(*, '(A9)') cstd_stnid_tr(jelm)
 
+!   Read (1) BUFR element,
+!        (2) Flag indication if EOR provided from this ascii file or
+!            to be read from the BURP file,
+!        (3) Index specifying OER setup method,
+!        (4) Number of vertical levels
+!        (5) Number of latitudes
+!
+!   Important: Combination of STNID, BUFR element and number of vertical levels
+!              to determine association to the observations.
+!
     read(nulstat,*,iostat=ios,err=10,end=10) nstd_bfr_tr(jelm),nstd_brp_tr(jelm),  &
        nstd_type_tr(jelm), nstd_lvl_tr(jelm), nstd_lat_tr(jelm),  &
-       xstd_std2_tr(jelm), xstd_std3_tr(jelm)
-    write(*, '(2X,I5,4I4)') nstd_bfr_tr(jelm),nstd_brp_tr(jelm),  &
-       nstd_type_tr(jelm), nstd_lvl_tr(jelm), nstd_lat_tr(jelm), &
        xstd_std2_tr(jelm), xstd_std3_tr(jelm)
 
     if (nstd_lvl_tr(jelm).lt.1) nstd_lvl_tr(jelm)=1
@@ -704,57 +712,66 @@ module observation_erreurs_mod
     
     if (icount+nstd_lvl_tr(jelm)*nstd_lat_tr(jelm).gt.isize) then
        write(*,'(10X,"Max array size exceeded: ",I6)') isize
-       CALL ABORT3D('oer_read_obs_erreurs_conv: PROBLEM READING OBSERR STD DEV.')    
+       CALL ABORT3D('oer_read_obs_erreurs_tr: PROBLEM READING OBSERR STD DEV.')    
     end if
 
+    ! disregard line of dashes
     read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
-    write(*, '(A)') ligne 
     
     if (nstd_lvl_tr(jelm).eq.1.and.nstd_lat_tr(jelm).eq.1) then
     
-       ! One value only (independent of level and latitude)
+!      Read one value only (independent of level and latitude)
        
-       read(nulstat,*,iostat=ios,err=10,end=10) xstd_std1_tr(jelm)
-       write(*, '(f8.3)') xstd_std1_tr(jelm)
-       
+       icount=icount+1
+       read(nulstat,*,iostat=ios,err=10,end=10) xstd_std1_tr(icount)
+
     else if (nstd_lvl_tr(jelm).eq.1.and.nstd_lat_tr(jelm).gt.1) then
     
-       ! Value dependent on latitude only
+!      Value dependent on latitude only
+       
+!      Read reference latitudes (must be in order of increasing size)
        
        read(nulstat,*,iostat=ios,err=10,end=10)                      &
               xstd_lat_tr(icount+1:icount+nstd_lat_tr(jelm))
-       write(*, '(20f8.3)') xstd_lat_tr(icount+1:icount+nstd_lat_tr(jelm))
       
+!      Read OER-related values
+  
        read(nulstat,*,iostat=ios,err=10,end=10)                 &
                  xstd_std1_tr(icount+1:icount+nstd_lat_tr(jelm))
-       write(*, '(20f8.3)') xstd_std1_tr(icount+1:icount+nstd_lat_tr(jelm))
+
        icount=icount+nstd_lat_tr(jelm)
 
     else if (nstd_lvl_tr(jelm).gt.1.and.nstd_lat_tr(jelm).eq.1) then
     
-       ! Value dependent on vertical level only
+!      Value dependent on vertical level only
       
        do jlev=1,nstd_lvl_tr(jelm)
           icount=icount+1
+          
+!         Read vertical level and OER-related value.
+          
           read(nulstat,*,iostat=ios,err=10,end=10)                 &
                  xstd_lvl_tr(icount),xstd_std1_tr(icount)
-          write(*, '(f10.3,f8.3)') xstd_lvl_tr(icount),xstd_std1_tr(icount)
+
        end do
    
     else if (nstd_lvl_tr(jelm).gt.1.and.nstd_lat_tr(jelm).gt.1) then
     
-       ! Value dependent on vertical level and latitude 
+!      Value dependent on vertical level and latitude 
        
+!      Read reference latitudes (must be in order of increasing size)
        read(nulstat,*,iostat=ios,err=10,end=10)                      &
               xstd_lat_tr(icount+1:icount+nstd_lat_tr(jelm))
-       write(*, '(10X,20f8.3)') xstd_lat_tr(icount+1:icount+nstd_lat_tr(jelm))
+!       write(*, '(10X,20F9.3)') xstd_lat_tr(icount+1:icount+nstd_lat_tr(jelm))
       
        do jlev=1,nstd_lvl_tr(jelm)
+          
+!         Read vertical level and OER-related lat-dependent values.
+          
           read(nulstat,*,iostat=ios,err=10,end=10)                   &
                  xstd_lvl_tr(icount+jlev),                           &
                  xstd_std1_tr(icount+(jlev-1)*nstd_lat_tr(jelm)+1:icount+jlev*nstd_lat_tr(jelm))
-          write(*, '(f10.3,20f8.3)')  xstd_lvl_tr(icount+jlev),              &
-                 xstd_std1_tr(icount+(jlev-1)*nstd_lat_tr(jelm)+1:icount+jlev*nstd_lat_tr(jelm))
+
        end do
        icount=icount+nstd_lat_tr(jelm)*nstd_lvl_tr(jelm)
     end if
@@ -786,15 +803,15 @@ module observation_erreurs_mod
   !
   ! Purpose: read observation errors (modification of former readcovo subroutine).
   !
-  !
+  !--------------------------------------------------------------------------------------
 
   implicit none
 
   type(struct_obs) :: lobsSpaceData
 
   integer :: JN, JI, INDEX_BODY, INDEX_HEADER, ITYP, IFLG, IASS, IDATA, IDATEND, IDBURP
-  integer :: ISAT, ICHN, IPLATF, INSTR, IPLATFORM, INSTRUM, IBUFR
-  integer :: ILEV,ISTNID,IBEGIN,JINT
+  integer :: ISAT, ICHN, IPLATF, INSTR, IPLATFORM, INSTRUM
+  integer :: ILEV,ISTNID,IBEGIN,JINT,NLEV,IFIRST
   integer :: ielem,icodtyp,ilen1,ilen2,iset
   real(8) :: ZLAT, ZLON, ZLEV, ZVAL, ZSIG, zwb, zwt, sigma(300), wgt
 
@@ -816,7 +833,6 @@ module observation_erreurs_mod
   !
   DO INDEX_HEADER = 1, obs_numheader(lobsSpaceData)
 
-
      IDATA   = obs_headElem_i(lobsSpaceData,OBS_RLN,INDEX_HEADER)
      IDATEND = obs_headElem_i(lobsSpaceData,OBS_NLV,INDEX_HEADER) + IDATA - 1
      CFAM    = obs_getFamily(lobsSpaceData,INDEX_HEADER)
@@ -825,10 +841,11 @@ module observation_erreurs_mod
      IDBURP  = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
      IPLATF  = obs_headElem_i(lobsSpaceData,OBS_SAT,INDEX_HEADER)
      INSTR   = obs_headElem_i(lobsSpaceData,OBS_INS,INDEX_HEADER)
-!PDD     IBUFR   = obs_headElem_i(lobsSpaceData,OBS_VNM,INDEX_HEADER)
-!PDD     CSTNID  = obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER)
+     CSTNID  = obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER)
 
-!PDD     write(*,*) 'PDD-fill', IBUFR, CSTNID
+     IFIRST=0
+     NLEV = IDATEND-IDATA+1
+
      DO INDEX_BODY  = IDATA, IDATEND
 
       ITYP  = obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
@@ -1071,169 +1088,180 @@ module observation_erreurs_mod
              call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,xstd_pr(1))
           ENDIF
 
-  !***********************************************************************
-  !               CONSTITUENT DATA (OZONE AND OTHER CHEMICALS)
-  !***********************************************************************
-
+ !***********************************************************************
+ !               CONSTITUENT DATA (OZONE AND OTHER CHEMICALS)
+ !***********************************************************************
+ 
         ELSE IF ( CFAM .EQ. 'TR' ) THEN
-
-          IF ( obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER) .EQ. 195 ) THEN
-
-             IF ( ITYP .EQ. 15198 ) THEN
-                call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, 1.D0)
-             ENDIF
-          ENDIF
-
-  !
-  !       Process only retrieved constituent data (codtyps 195 and 196)
-  !
-
-!          IF ( obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER) .EQ. 195 .OR. &
-!               obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER) .EQ. 196) THEN
-!
-!             IF (INDEX_BODY.EQ.IDATA) THEN  
+ !
+ !        Process only retrieved constituent data
+ !        Also, exclude 8090 element as a data value!
+           
+           IF (IDBURP .EQ. CODTYP_CHEMREMOTE .OR. &
+                IDBURP .EQ. CODTYP_CHEMINSITU) THEN
+         
              
-                ! Find stnid (with same number of vertical levels and same BUFR element)
-!                
-!!                ISTNID=0
-!                DO JN=1,nstd_stnid_tr
+             IF (IFIRST.EQ.0) THEN  
+                IFIRST=1
+               
+                ! Subtract the number of occurances of code 8090 from number of levels
+                do ji=0,nlev-1
+                   if (obs_bodyElem_i(lobsSpaceData,OBS_VNM,IDATA+ji).eq.8090) then
+                      nlev = nlev-1
+                   end if
+                end do
+ 
+ !              Important: Combination of STNID, BUFR element and number of vertical levels
+ !              to determine association to the observations.
 
-                   ! First compare STNID values allowing for * and blanks in 
-                   ! cstd_stnid_tr(JN) as wildcards
+ !              Find stnid with same number of vertical levels and same BUFR element.
+ !              Note: * in cstd_stndi_tr stands for a wildcard
+                
+                ISTNID=0
+                DO JN=1,nstd_stnid_tr
 
-!                   ilen1=len_trim(cstd_stnid_tr(JN))
-!                   ilen2=len_trim(CSTNID)            
-!                   IF (ilen1.le.ilen2) THEN          
-!                       iset=1
-!                       DO ji=1,ilen1
-!                          IF (cstd_stnid_tr(JN)(ji:ji).ne.'*'.AND.   &
-!                             CSTNID(ji:ji).ne.cstd_stnid_tr(JN)(ji:ji)) THEN
-!                              iset=0
-!                              exit
-!                          END IF
-!                       END DO
-!                   END IF
+!                  First compare STNID values allowing for * and blanks in 
+!                  cstd_stnid_tr(JN) as wildcards
+
+                   ilen1=len_trim(cstd_stnid_tr(JN))
+                   ilen2=len_trim(CSTNID)            
+                   IF (ilen1.le.ilen2) THEN          
+                       iset=1
+                       DO ji=1,ilen1
+                          IF (cstd_stnid_tr(JN)(ji:ji).ne.'*'.AND.   &
+                             CSTNID(ji:ji).ne.cstd_stnid_tr(JN)(ji:ji)) THEN
+                              iset=0
+                              exit
+                          END IF
+                       END DO
+                   END IF
                    
-!                   IF (iset.eq.1) THEN
-!                      IF (IDATEND-IDATA+1 .EQ. nstd_lvl_tr(JN) .AND. &
-!                            IBUFR .EQ. nstd_bfr_tr(JN) ) THEN
-!                         ISTNID=JN
-!                         exit
-!                      END IF
-!                   END IF 
-!                END DO
-!                IF (ISTNID.EQ.0) THEN
-!                   WRITE(*,'(1X,"Error std. dev. for STNID= ",A10," not found. Set to 5%.")') &
-!                         CSTNID
+                   IF (iset.eq.1) THEN
+                      IF (NLEV .EQ. nstd_lvl_tr(JN) .AND. &
+                          ITYP .EQ. nstd_bfr_tr(JN) ) THEN
+                         ISTNID=JN
+                         exit
+                      END IF
+                   END IF 
+                END DO
 
-!                   IF (nstd_lat_tr(ISTNID) .GT. 1) THEN
+                IF (ISTNID.EQ.0) THEN
+                   WRITE(*,'(1X,"Error std. dev. for STNID= ",A10," not found. Set to 5%.")') &
+                         CSTNID
+                ELSE
+                   ! IF (nstd_brp_tr(ISTNID).NE.0) THEN
+               
+                      !   Read initial error standard deviations from obs BURP file.
+                      !   Dimension must be equivalent to NLEV
+                      ! ...
+                   
+                      ! sigma(:) = ...
+                   
+                   ! END IF
 
-                      ! Find latitude index for interpolation.
-                      ! Assuming increasing latitudes in xstd_lvl_tr
+                   IF (nstd_lat_tr(ISTNID) .GT. 1) THEN
 
-!                      ibegin=nstd_ibegin_tr(ISTNID)-1
-!                      IF (ZLAT .GE. xstd_lvl_tr(ibegin+nstd_lat_tr(ISTNID))) THEN
-!                         JINT=nstd_lat_tr(ISTNID)+1
-!                      ELSE
-!                         DO JINT=1,nstd_lat_tr(ISTNID)
-!                            IF (ZLAT .LE. xstd_lvl_tr(ibegin+JINT) ) exit
-!                         END DO
-!                      END IF
-!                                           
-!                   END IF
-!                END IF 
-!             END IF
+!                     Find latitude index for interpolation.
+!                     Assuming increasing latitudes in xstd_lat_tr
+
+                      ibegin=nstd_ibegin_tr(ISTNID)-1
+                      IF (ZLAT .GE. xstd_lat_tr(ibegin+nstd_lat_tr(ISTNID))) THEN
+                         JINT=nstd_lat_tr(ISTNID)+1
+                      ELSE
+                         DO JINT=1,nstd_lat_tr(ISTNID)
+                            IF (ZLAT .LE. xstd_lat_tr(ibegin+JINT) ) exit
+                         END DO
+                      END IF
+                                           
+                   END IF
+                END IF 
+             END IF
             
-             ! Identify level if needed
+!            Identify level if needed
                    
-!             IF (ISTNID .EQ. 0) THEN
+             IF (ISTNID .EQ. 0) THEN
 
-!                IF (nstd_brp_tr(ISTNID).EQ.0) THEN
-               
-                   ! Set error standard deviations from scratch.
+!               Set error standard deviations as 5% default value.
                 
-!                   call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, &
-!                          0.05D0*ZVAL)
-!                ELSE
-!                   call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, &
-!                          sigma(INDEX_BODY-IDATA+1))
-!                END IF
-              
-!             ELSE
-!             
-!                IF (nstd_lvl_tr(ISTNID) .GT. 1) THEN
-                  
-                   ! Find nearest vertical level (no interpolation)
-                 
-!                   ZLEV  = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
-!                   zwb=1.E10
-!                   ibegin=nstd_ibegin_tr(ISTNID)-1
-!                   DO JN=1,nstd_lvl_tr(ISTNID)
-!                      IF (zwb .GT. abs(ZLEV-xstd_lvl_tr(ibegin+JN)) ) THEN
-!                         ILEV=JN
-!                         zwb=abs(ZLEV-xstd_lvl_tr(ibegin+JN))
-!                      END IF
-!                   END DO
-!                   ILEV=ibegin+(ILEV-1)*nstd_lat_tr(ISTNID)+1
-!                ELSE
-!                   ILEV=nstd_ibegin_tr(ISTNID)     
-!                END IF
-!
-!                IF (nstd_lat_tr(ISTNID) .GT. 1) THEN
-                
-                   ! Apply interpolation
-
-!                   ILEV=ILEV+JINT-1
-!                   ibegin=nstd_ibegin_tr(ISTNID)-1
-!                   IF (JINT.EQ.1.OR.JINT.GT.nstd_lat_tr(ISTNID)) THEN
-!                      wgt=xstd_std1_tr(ILEV)
-!                   ELSE
-!                      wgt=(xstd_std1_tr(ILEV-1)*(xstd_lat_tr(ibegin+JINT)-ZLAT)+ &
-!                           xstd_std1_tr(ILEV)*(ZLAT-xstd_lat_tr(ibegin+JINT-1)))/ &
-!                           (xstd_lat_tr(ibegin+JINT)-xstd_lat_tr(ibegin+JINT-1))
-!                   END IF                    
-!                ELSE
-!                    wgt=xstd_std1_tr(ILEV)                
-!                END IF 
-!                                         
-!                IF (nstd_brp_tr(ISTNID).EQ.0) THEN
-               
-                   ! Set error standard deviations from scratch.
-                
-!                   IF (nstd_type_tr(ISTNID).EQ. 0) THEN
-!                        call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,wgt)
-!                   ELSE IF (nstd_type_tr(ISTNID).EQ. 1) THEN
-!                        call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, &
-!                             min(xstd_std3_tr(ISTNID),                         &
-!                             max(xstd_std2_tr(ISTNID),wgt*ZVAL)))
-!                   ELSE IF (nstd_type_tr(ISTNID) .EQ. 2) THEN
-!                        call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, &
-!                             sqrt(xstd_std2_tr(ISTNID)**2+(wgt*ZVAL)**2))
-!                   ELSE 
-!                        IF (INDEX_BODY.EQ.IDATA)  &
-!                           WRITE(*,'(1X,"EOR setup type ",I3," for STNID ",A10," is not recognized.")')     &
-!                                  nstd_type_tr(ISTNID) , CSTNID
-!                   END IF
-
-!                ELSE
+                call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, &
+                          0.05D0*ZVAL)
              
-                   ! Adjust initial error standard deviations if requested.
+             ELSE
+             
+                IF (nstd_lvl_tr(ISTNID) .GT. 1) THEN
+                  
+!                  Find nearest vertical level (no interpolation)
+                 
+                   ZLEV  = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
+                   zwb=1.E10
+                   ibegin=nstd_ibegin_tr(ISTNID)-1
+                   DO JN=1,nstd_lvl_tr(ISTNID)
+                      IF (zwb .GT. abs(ZLEV-xstd_lvl_tr(ibegin+JN)) ) THEN
+                         ILEV=JN
+                         zwb=abs(ZLEV-xstd_lvl_tr(ibegin+JN))
+                      END IF
+                   END DO
+                   ILEV=ibegin+(ILEV-1)*nstd_lat_tr(ISTNID)+1
+                ELSE
+                   ILEV=nstd_ibegin_tr(ISTNID)     
+                END IF
+
+                IF (nstd_lat_tr(ISTNID) .GT. 1) THEN
+                
+!                  Apply interpolation
+
+                   ILEV=ILEV+JINT-1
+                   ibegin=nstd_ibegin_tr(ISTNID)-1
+                   IF (JINT.EQ.1.OR.JINT.GT.nstd_lat_tr(ISTNID)) THEN
+                      wgt=xstd_std1_tr(ILEV)
+                   ELSE
+                      wgt=(xstd_std1_tr(ILEV-1)*(xstd_lat_tr(ibegin+JINT)-ZLAT)+ &
+                           xstd_std1_tr(ILEV)*(ZLAT-xstd_lat_tr(ibegin+JINT-1)))/ &
+                           (xstd_lat_tr(ibegin+JINT)-xstd_lat_tr(ibegin+JINT-1))
+                   END IF                    
+                ELSE
+                    wgt=xstd_std1_tr(ILEV)                
+                END IF 
+                                         
+                IF (nstd_brp_tr(ISTNID).EQ.0) THEN
+               
+!                  Set error standard deviations from scratch using content of
+!                  previously read content of the "obsinfo_tr" file.
+                
+                   IF (nstd_type_tr(ISTNID).EQ. 0) THEN
+                        call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,wgt)
+                   ELSE IF (nstd_type_tr(ISTNID).EQ. 1) THEN
+                        call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, &
+                             min(xstd_std3_tr(ISTNID),                         &
+                             max(xstd_std2_tr(ISTNID),wgt*ZVAL)))
+                   ELSE IF (nstd_type_tr(ISTNID) .EQ. 2) THEN
+                        call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, &
+                             sqrt(xstd_std2_tr(ISTNID)**2+(wgt*ZVAL)**2))
+                   ELSE 
+                        IF (INDEX_BODY.EQ.IDATA)  &
+                           WRITE(*,'(1X,"EOR setup type ",I3," for STNID ",A10," is not recognized.")')     &
+                                  nstd_type_tr(ISTNID) , CSTNID
+                   END IF
+
+                ELSE
+          
+!                  Adjust error standard deviations read from BURP file if requested.
                      
-!                   IF (nstd_type_tr(ISTNID).EQ. 0) THEN
-!                        call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, &
-!                             sigma(INDEX_BODY-IDATA+1))
-!                   ELSE IF (nstd_type_tr(ISTNID).EQ. 1) THEN
-!                        call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, &
-!                             max(xstd_std2_tr(ISTNID),wgt*sigma(INDEX_BODY-IDATA+1)))
-!                   ELSE 
-!                        IF (INDEX_BODY.EQ.IDATA)  &
-!                            WRITE(*,'(1X,"EOR setup type ",I3," for STNID ",A10," is not recognized.")')     &
-!                                    nstd_type_tr(ISTNID) , CSTNID
-!                   END IF
-!                END IF   
+                   IF (nstd_type_tr(ISTNID).EQ. 0) THEN
+                        call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, &
+                             sigma(INDEX_BODY-IDATA+1))
+                   ELSE IF (nstd_type_tr(ISTNID).EQ. 1) THEN
+                        call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, &
+                             max(xstd_std2_tr(ISTNID),wgt*sigma(INDEX_BODY-IDATA+1)))
+                   ELSE 
+                        IF (INDEX_BODY.EQ.IDATA)  &
+                            WRITE(*,'(1X,"EOR setup type ",I3," for STNID ",A10," is not recognized.")')     &
+                                    nstd_type_tr(ISTNID) , CSTNID
+                   END IF
+                END IF   
               
-!             END IF
-!          END IF
+             END IF
+          END IF
           
         ELSE
 
@@ -1297,12 +1325,14 @@ module observation_erreurs_mod
       deallocate(cstd_stnid_tr)
       deallocate(nstd_lvl_tr,nstd_type_tr,nstd_ibegin_tr)
       deallocate(nstd_bfr_tr,nstd_brp_tr,nstd_lat_tr)
-      deallocate(xstd_std1_tr,xstd_std2_tr,xstd_std3_tr,xstd_lvl_tr)
-      deallocate(xstd_lat_tr)
+      deallocate(xstd_std1_tr,xstd_std2_tr,xstd_std3_tr)
+      deallocate(xstd_lvl_tr,xstd_lat_tr)
   end if
   
   end subroutine oer_dealloc_obs_erreurs
 
 !-----------------------------------------------------------------------------------------
+
+
 
 end module observation_erreurs_mod

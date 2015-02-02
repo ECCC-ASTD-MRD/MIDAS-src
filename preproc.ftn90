@@ -19,6 +19,12 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   !
   !**s/r preproc  - Control of the preprocessing of the 3D variational assimilation
   !
+  ! Revisions:
+  !           Y.J. Rochon, Dec. 2014
+  !           - Addition of obsSpaceTR_mod, lobsSpaceTR, and call to 
+  !             obsSpaceTR_setup for inclusion of constituent data 
+  !             info not included in obsSpaceData_mod.
+  !
   use topLevelControl_mod
   use mpivar_mod
   use MathPhysConstants_mod
@@ -26,6 +32,7 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   use timeCoord_mod
   use WindRotation_mod
   use obsSpaceData_mod
+  use obsSpaceTR_mod
   use controlVector_mod
   use gridStateVector_mod
   use minimization_mod
@@ -39,6 +46,7 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   IMPLICIT NONE
   
   type(struct_obs) :: lobsSpaceData
+  type(struct_obs_tr) :: lobsSpaceTR
   type(struct_columnData) :: lcolumng,lcolumnhr
   character (len=*) :: obsColumnMode
   character (len=*) :: obsMpiStrategy
@@ -122,6 +130,12 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   !- Setup and read observations
   !
   call suobs(lobsSpaceData,obsColumnMode,obsMpiStrategy)
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+  !
+  !- Setup additional constituent obs related info not found in lobsSpaceData
+  !
+  call obsSpaceTR_setup(lobsSpaceData,lobsSpaceTR)
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   !

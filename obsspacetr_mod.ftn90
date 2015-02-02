@@ -1,0 +1,583 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+
+! ObsSpaceTR_mod:  The module ObsSpaceTR_mod must be used in conjuction with
+!                  ObsSpaceData_mod.
+! 
+!
+#include "maincompileswitch.inc"
+#include "compileswitches.inc"
+
+module ObsSpaceTR_mod
+!
+! PURPOSE:
+!    Read, store, and associate information related to constituent observations
+!    which are not included in ObsSpaceData_mod. This information is
+!    made available within the 'ObsSpaceTR' structure (type struct_obs_tr).
+!    The association of information within 'ObsSpaceTR' to specific observations 
+!    is done through an index array within 'ObsSpaceTR'. 
+!
+!    The content of ObsSpaceTR is relevant only to the constituent 
+!    observation operators.
+!
+! COMMENT:
+!
+!    Ths module could be expanded to contain other constituent related info
+!    or routines (e.g. unit conversions)
+!
+! Author  : Y.J Rochon - ARQI, 2014
+!
+! Revisions:
+!
+!----------------------------------------------------------------------------------
+
+    use MathPhysConstants_mod
+    use obsSpaceData_mod
+    use codtyp_mod
+    use bufr
+   
+   implicit none
+    private
+
+!   public procedures
+!   -----------------
+
+    public :: ObsSpaceTR_setup
+  
+!
+!   Position indices of content within header (index) array struct_obs_tr%header
+!   Content of struct_obs_tr%header mostly provides location of relevant content 
+!   within struct_obs_tr%*.
+!
+!  TR report location index in ObsSpaceData (association to OBS_RLN but for TR family obs only)
+   integer, parameter, public :: OBSTR_RLN = 1 
+   
+!  Start location in storage arrays containing layer top and bottom levels.
+!  Index location set to 0 if not relevant.
+   integer, parameter, public :: OBSTR_PPP = OBSTR_RLN+1
+                                                  
+!  Start location in storage array containing averaging kernel matrix.
+!  Index location set to 0 if not relevant.
+   integer, parameter, public :: OBSTR_NAK = OBSTR_PPP
+   
+   integer, parameter, public :: OBSTR_SIZE=OBSTR_NAK
+                                                  
+!  This type contains the information arrays of the ObsSpaceTR module. 
+!  Content:
+!        obsindex(:)    Association of obs index to header array content 
+!                       Also, struct_obs_tr%header(OBSTR_RLN,obsindex(j))=j 
+!        header(:,:)    Index given by (OBSTR_*,obsindex(:))
+!        vtp(:)         Top of layer. Start index given by header(OBSTR_PPP,obsindex(:)) 
+!        vbt(:)         Bottom of layer. Start index given by header(OBSTR_PPP,obsindex(:)) 
+!        avgkern(:,:,:) Averaging kernel matrices. (:,:,header(OBSTR_NAK,obsindex(:))
+!        numHead        Number of header elements
+
+   type, public :: struct_obs_tr
+      integer, dimension(:),        pointer :: obsindex 
+      integer, dimension(:,:),      pointer :: header    
+      real(OBS_REAL), dimension(:), pointer :: vtp,vbt
+      real(OBS_REAL), dimension(:,:,:), pointer :: avgkern
+      integer :: numHead     
+   end type struct_obs_tr
+
+!  Information arrays retrieved from obsinfo_tr to produce content of
+!  struct_obs_tr
+!
+!  Variable               Description
+!  --------               -----------
+!  ninfo_stnid_tr         Number of sub-families (identified via STNIDs)
+!  cinfo_stnid_tr         sub-families (STNIDs; * are wild cards)
+!  ninfo_bfr_tr           BUFR/BURP element in data block
+!  ninfo_brp_tr           0: Set entirely from the ascii file being read. No 
+!                            initial values read from BURP files
+!                         1: Initial values in obs BURP files 
+!                            (may be adjusted after input)
+!  ninfo_vco_tr           Vertical coordinate type (1, 2, or 3, see bufr_read_mod)
+
+!  ninfo_ibegin_tr        Position index of start of data for given
+!                         sub-family.
+!  ninfo_lvl_tr           Number of vertical levels
+!  xinfo_vtp_tr           Layer top 
+!  xinfo_vbt_tr           Layer bottom
+  
+!  ninfo_lat_tr           Number of latitudes
+!  xinfo_lat_tr           Latitudes (degrees; ordering in increasing size)
+!  xinfo_rak_tr           Averaging kernel matrices
+! 
+  integer ::  ninfo_stnid_tr
+  character(len=12), allocatable :: cinfo_stnid_tr(:)
+  integer, allocatable :: ninfo_bfr_tr(:),ninfo_brp_tr(:)
+  integer, allocatable :: ninfo_vco_tr(:),ninfo_lat_tr(:)
+  integer, allocatable :: ninfo_ibegin_tr(:),ninfo_lvl_tr(:)
+  real(8), allocatable :: xinfo_rak_tr(:),xinfo_vtp_tr(:),xinfo_vbt_tr(:)
+  real(8), allocatable :: xinfo_lat_tr(:)
+
+contains
+
+!-----------------------------------------------------------------------------------------
+
+  subroutine obsSpaceTR_setup(lobsSpaceData,lobsSpaceTR)
+!
+! Author   : Y. Rochon, Dec 2014 
+! 
+! Revisions: 
+!          
+! Purpose: Setup additional information required by constituent obs and not provided in
+!          lobsSpaceData. Additional information incorporated in lobsSpaceTR.
+!
+!----------------------------------------------------------------------------------------
+
+  implicit none
+
+  type(struct_obs) :: lobsSpaceData
+  type(struct_obs_tr) :: lobsSpaceTR
+
+  integer :: index_header, idburp, icount
+
+! Check for the presence of the TR family and count number of 
+! corresponding observations
+
+  icount=0
+  do index_header = 1, obs_numheader(lobsSpaceData)
+  
+     idburp = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
+
+     if (obs_getFamily(lobsSpaceData,index_header).EQ.'TR'.and.   &
+         (idburp.eq.codtyp_chemremote.or.idburp.eq.codtyp_cheminsitu)) &
+             icount=icount+1
+  end do 
+
+  if (icount.eq.0) return
+  
+  write(*,*) 'Begin ObsSpaceTR_setup'
+ 
+! Allocate space for header array
+  
+  allocate(lobsSpaceTR%header(OBSTR_SIZE,icount)) 
+  lobsSpaceTR%numhead=icount  
+        
+! Allocate space for array used to associate to lobsSpaceData
+   
+  allocate(lobsSpaceTR%obsindex(obs_numheader(lobsSpaceData)))
+
+  write(*,*) 'Total and TR number of obs: ',obs_numheader(lobsSpaceData),icount
+  
+!------------------------ Top and bottom layer boundaries ------------------------
+  
+! Read top and bottom layer boundaries of partial (or total) column meausurements
+  
+  call obsspaceTR_layers(lobsSpaceTR)
+  
+! Fill lobsSpaceTR with above info for associated lobsSpaceData observations for the TR family.
+  
+  call obsSpaceTR_layers_fill(lobsSpaceData,lobsSpaceTR)
+  
+! Deallocate space
+  
+  call obsSpaceTR_layers_deallocate 
+
+!--------------------------- Averaging kernel matrices ------------------------
+   
+! Read averaging kernel matrices
+  
+! call obsSpaceTR_avgkern(lobsSpaceTR)
+  
+! Fill lobsSpaceTR with above info for associated lobsSpaceData observations for the TR family.
+  
+! call obsSpacetr_avgkern_fill(lobsSpaceData,lobsSpaceTR)
+
+! Deallocate space
+  
+! call obsSpaceTR_avgkern_deallocate 
+
+
+  write(*,*) 'Completed ObsSpaceTR_setup'
+  
+  end subroutine obsSpaceTR_setup
+
+!-----------------------------------------------------------------------------------------
+
+  subroutine obsspacetr_layers(lobsSpaceTR)
+!
+! Author   : Y. Rochon, Dec 2014 
+!
+! Revisions: 
+!          
+! Purpose: Read top and bottom layer boundaries for TR sub-families.
+!
+!----------------------------------------------------------------------------------------
+
+  implicit none
+
+  type(struct_obs_tr) :: lobsSpaceTR
+  integer :: FNOM, FCLOS
+  integer :: IERR, JLEV, JELM, nulstat, ios, isize, icount
+  logical :: LnewExists
+  
+  character (len=128) :: ligne
+
+  EXTERNAL FNOM,FCLOS
+
+! Initialization
+
+  ninfo_stnid_tr=0
+
+  INQUIRE(FILE='obsinfo_tr',EXIST=LnewExists)
+  IF (LnewExists )then
+!    WRITE(*,*) '---------------------------------------------------------------'
+!    WRITE(*,*) 'obsspacetr_layers: read info from obsinfo_tr                  '
+!    WRITE(*,*) '---------------------------------------------------------------'
+  else
+    WRITE(*,*) '---------------------------------------------------------------'
+    WRITE(*,*) 'WARNING! read_obs_error_tr: obsinfo_tr not available.          '
+    WRITE(*,*) 'WARNING! Default TR family stddev to be applied if needed.     '
+    WRITE(*,*) '---------------------------------------------------------------'
+  ENDIF
+!
+! Check for available layer info.
+!
+  NULSTAT=0
+  IERR=FNOM(NULSTAT,'obsinfo_tr','SEQ',0)
+  IF ( IERR .EQ. 0 ) THEN
+    open(unit=nulstat, file='obsinfo_tr', status='OLD')
+  ELSE
+    CALL ABORT3D('obsspacetr_layers: COULD NOT OPEN FILE obsinfo_tr!')
+  ENDIF
+
+!  write(*, '(A)') ' '
+  
+  ios=0
+  read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
+!  write(*,'(A)') ligne   
+  do while (trim(adjustl(ligne(1:13))).ne.'SECTION II:') 
+      read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
+!      write(*, '(A)') ligne   
+  end do    
+  
+! Read number of observation set sub-families (STNIDs and ...) and allocate space
+   
+  read(nulstat,*,iostat=ios,err=10,end=10) ninfo_stnid_tr
+!  write(*, '(I6)') ninfo_stnid_tr
+  read(nulstat,*,iostat=ios,err=10,end=10) isize
+!  write(*, '(I8)') isize
+
+  allocate(cinfo_stnid_tr(ninfo_stnid_tr))
+  allocate(ninfo_vco_tr(ninfo_stnid_tr))
+  allocate(ninfo_brp_tr(ninfo_stnid_tr),ninfo_ibegin_tr(ninfo_stnid_tr))
+  allocate(ninfo_bfr_tr(ninfo_stnid_tr),ninfo_lvl_tr(ninfo_stnid_tr))
+  allocate(xinfo_vtp_tr(isize),xinfo_vbt_tr(isize))
+  allocate(lobsSpaceTR%vtp(isize),lobsSpaceTR%vbt(isize))
+ 
+  ninfo_bfr_tr(:)=0
+  ninfo_vco_tr(:)=0
+  ninfo_brp_tr(:)=0
+  ninfo_lvl_tr(:)=1
+
+! Begin reading for each sub-family
+! Important: Combination of STNID, BUFR element and number of vertical levels
+!            to determine association to the observations.
+
+  icount=0
+  do jelm=1,ninfo_stnid_tr
+    ninfo_ibegin_tr(jelm)=icount+1
+
+    read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
+!    write(*, '(A)') ligne 
+
+!   Read STNID (* as wildcard)
+    
+    read(nulstat,'(2X,A9)',iostat=ios,err=10,end=10) cinfo_stnid_tr(jelm) 
+!    write(*, '(A9)') cinfo_stnid_tr(jelm)
+
+!   Read (1) Obs BUFR element.
+!        (2) Vertical coord type (1, 2, or 3)
+!        (3) Flag indication if EOR provided from this ascii file or
+!            to be read from teh BURP file,
+!        (4) Number of vertical levels
+!
+!   Important: Combination of STNID, BUFR element and number of vertical levels
+!              to determine association to the observations.
+!
+    read(nulstat,*,iostat=ios,err=10,end=10) ninfo_bfr_tr(jelm),ninfo_vco_tr(jelm),  &
+       ninfo_brp_tr(jelm),ninfo_lvl_tr(jelm)  
+!    write(*, '(2X,I5,4I4)') ninfo_bfr_tr(jelm),ninfo_vco_tr(jelm), &
+!       ninfo_brp_tr(jelm),ninfo_lvl_tr(jelm)
+    
+    if (icount+ninfo_lvl_tr(jelm).gt.isize) then
+       write(*,'(10X,"Max array size exceeded: ",I6)') isize
+       CALL ABORT3D('obsspacetr_layers: READING PROBLEM.')    
+    end if
+
+    read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
+!    write(*, '(A)') ligne 
+    
+    if (ninfo_lvl_tr(jelm).ge.1) then   
+       do jlev=1,ninfo_lvl_tr(jelm)
+          icount=icount+1
+          
+          ! Read top and bottom levels
+          
+          read(nulstat,*,iostat=ios,err=10,end=10)                 &
+                 xinfo_vtp_tr(icount),xinfo_vbt_tr(icount)
+!          write(*, *) xinfo_vtp_tr(icount),xinfo_vbt_tr(icount)
+          lobsSpaceTR%vtp(icount)=xinfo_vtp_tr(icount)
+          lobsSpaceTR%vbt(icount)=xinfo_vbt_tr(icount)
+       end do
+    else 
+       icount=icount+1
+       ninfo_lvl_tr(jelm)=1
+       if (ninfo_vco_tr(jelm).eq.2) then
+          xinfo_vtp_tr(icount)=1.0
+          xinfo_vbt_tr(icount)=120000.
+          lobsSpaceTR%vtp(icount)=xinfo_vtp_tr(icount)
+          lobsSpaceTR%vbt(icount)=xinfo_vbt_tr(icount)
+       else if (ninfo_vco_tr(jelm).eq.1) then
+          xinfo_vtp_tr(icount)=70000.   ! 70 km
+          xinfo_vbt_tr(icount)=0.0      !  0 km
+          lobsSpaceTR%vtp(icount)=xinfo_vtp_tr(icount)
+          lobsSpaceTR%vbt(icount)=xinfo_vbt_tr(icount)
+       end if
+    end if
+  end do
+   
+ 10 if (ios.gt.0) then
+       WRITE(*,*) 'File read error message number: ',ios
+       CALL ABORT3D('obsspacetr_layers: READING PROBLEM')    
+    end if
+ 
+ 11 CLOSE(UNIT=NULSTAT)
+    IERR=FCLOS(NULSTAT)    
+
+  end subroutine obsspacetr_layers
+
+!-----------------------------------------------------------------------------------------
+
+  subroutine obsSpaceTR_layers_fill(lobsSpaceData,lobsSpaceTR)
+!
+! Author  : Y. Rochon, Dec 2014.
+!
+! Revision: M. Sitwell Jan 2015
+!             - When comparing a record with info in ascii file, allowed for arbitrary
+!               ordering of code 8090 within a block of data so that it gives the correct
+!               number of data elements (i.e. not counting the 8090 codes)
+!               
+!          
+! Purpose: Store observation information in lobsSpaceTR and create associtation
+!          to observation in lobsSpaceData.
+!
+!          Info to specify: top and bottom of partial/total column measurements
+!
+! Comment:
+!
+! Vertical levels will be given by
+!
+!     lobsSpaceTR%vtp(i1:i2)   ! Layer top
+!     lobsSpaceTR%vbt(i1:i2)   ! Layer bottom
+!
+!     where
+!
+!          i1=lobsSpaceTR%header(OBSTR_PPP,lobsSpaceTR%obsindex(INDEX_HEADER))
+!          i2=i1+obs_headElem_i(lobsSpaceData,OBS_NLV,INDEX_HEADER)-1
+!
+!--------------------------------------------------------------------------------------
+
+  implicit none
+
+  type(struct_obs)    :: lobsSpaceData
+  type(struct_obs_tr) :: lobsSpaceTR
+
+  integer :: JN, JI, INDEX_BODY, INDEX_HEADER, IDATA, IDATEND, IDBURP
+  integer :: ILEV,ISTNID,IBEGIN,IVCO,ITYP,ITYP2
+  integer :: ielem,icodtyp,ilen1,ilen2,iset,icount
+
+  CHARACTER(len=2)  :: CFAM
+  CHARACTER(len=12) :: CSTNID
+  
+  if (ninfo_stnid_tr.eq.0) return
+  
+  icount=0
+  DO INDEX_HEADER = 1, obs_numheader(lobsSpaceData)
+
+     CFAM    = obs_getFamily(lobsSpaceData,INDEX_HEADER)
+     IDBURP  = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
+     
+     IF (CFAM.EQ.'TR'.AND.(IDBURP.EQ.codtyp_chemremote.OR.IDBURP.EQ.codtyp_cheminsitu)) THEN
+
+           IDATA   = obs_headElem_i(lobsSpaceData,OBS_RLN,INDEX_HEADER)
+           ILEV    = obs_headElem_i(lobsSpaceData,OBS_NLV,INDEX_HEADER)
+           CSTNID  = obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER)
+           
+           ITYP    = obs_bodyElem_i(lobsSpaceData,OBS_VNM,IDATA)
+           IVCO    = obs_bodyElem_i(lobsSpaceData,OBS_VCO,IDATA)
+
+           ! Subtract the number of occurances of code 8090 from number of levels
+           do ji=0,ilev-1
+                 if (obs_bodyElem_i(lobsSpaceData,OBS_VNM,IDATA+ji).eq.8090) then
+                    ilev = ilev-1
+                 end if
+           end do
+
+           
+!          Important: Combination of STNID, BUFR element and number of vertical levels
+!                     to determine association to the observations.
+
+!          Find stnid with same number of vertical levels, and same BUFR element
+!          Note: * in cinfo_stndi_tr stands for a wildcard
+          
+           ISTNID=0
+           DO JN=1,ninfo_stnid_tr
+
+!               First compare STNID values allowing for * and blanks in 
+!               cinfo_stnid_tr(JN) as wildcards
+                ilen1=len_trim(cinfo_stnid_tr(JN))
+                ilen2=len_trim(CSTNID)            
+                IF (ilen1.le.ilen2) THEN          
+                    iset=1
+                    DO ji=1,ilen1
+                       IF (cinfo_stnid_tr(JN)(ji:ji).ne.'*'.AND.   &
+                          CSTNID(ji:ji).ne.cinfo_stnid_tr(JN)(ji:ji)) THEN
+                           iset=0
+                           exit
+                       END IF
+                    END DO
+                END IF
+ 
+                ! Check if number of levels, code, and vertical coordinate type are equal
+                IF (iset.eq.1) THEN
+                   IF (ILEV .EQ. ninfo_lvl_tr(JN) .AND. &
+                      ITYP .EQ. ninfo_bfr_tr(JN).AND.             &
+                      (IVCO.EQ.ninfo_vco_tr(JN).OR.IVCO.EQ.4)) THEN
+                      ISTNID=JN
+                      exit
+                   END IF
+                END IF 
+                
+                IF (ISTNID.NE.0) THEN
+                   !   IF (ninfo_brp_tr(ISTNID).NE.0) THEN
+               
+                      !   Read from obs BURP file.
+                      !   Dimension must be equivalent to ILEV
+                      ! ...
+                   
+                      ! ...
+                   
+                   !   END IF
+                END IF
+       
+           END DO
+
+           icount=icount+1
+           lobsSpaceTR%obsindex(index_header)=icount        
+           lobsSpaceTR%header(OBSTR_RLN,icount)=index_header
+
+           ! Set the starting position for the record in the arrays vtp,vbt
+           IF (ISTNID.EQ.0) THEN
+               IF (ityp.eq.15198.or.ityp.eq.15020) THEN
+                  CALL ABORT3D ('obsspacetr_layers_fill: Top and bottom of layers not found for STNID=' // CSTNID)
+               END IF
+               lobsSpaceTR%header(OBSTR_PPP,icount)=0
+           ELSE
+               if (IVCO.eq.4) call obs_bodySet_i(lobsSpaceData,OBS_VCO,IDATA, &
+                                      ninfo_vco_tr(ISTNID))
+               lobsSpaceTR%header(OBSTR_PPP,icount)=ninfo_ibegin_tr(ISTNID)           
+           END IF 
+         
+     END IF 
+  END DO 
+  
+  end subroutine obsSpaceTR_layers_fill
+
+!-----------------------------------------------------------------------------------------
+
+  subroutine obsspacetr_layers_deallocate
+!
+! Author  : Y. Rochon, Dec 2014
+! Revision: 
+!
+! Purpose: Deallocate temporary storage space.
+!
+! ---------------------------------------------------------------------------------------
+  
+!
+! Deallocate temporary space used for the TR family
+!
+  if (ninfo_stnid_tr.gt.0) then
+      deallocate(cinfo_stnid_tr)
+      deallocate(ninfo_lvl_tr,ninfo_ibegin_tr)
+      deallocate(ninfo_bfr_tr,ninfo_brp_tr,ninfo_vco_tr)
+      deallocate(xinfo_vtp_tr,xinfo_vbt_tr)
+  end if
+ 
+ 
+  end subroutine obsspacetr_layers_deallocate
+
+!-----------------------------------------------------------------------------------------
+
+  subroutine obsspacetr_avgkern_deallocate
+!
+! Author  : Y. Rochon, Dec 2014
+! Revision: 
+!
+! Purpose: Deallocate temporary storage space.
+!
+!---------------------------------------------------------------------------------------
+  
+!
+! Deallocate temporary space used for the TR family
+!
+  if (ninfo_stnid_tr.gt.0) then
+      deallocate(cinfo_stnid_tr)
+      deallocate(ninfo_ibegin_tr)
+      deallocate(ninfo_bfr_tr,ninfo_brp_tr,ninfo_lat_tr)
+      deallocate(xinfo_rak_tr,xinfo_lat_tr)
+  end if
+ 
+ 
+  end subroutine obsspacetr_avgkern_deallocate
+
+!-----------------------------------------------------------------------------------------
+
+
+  subroutine obsspacetr_debug(lobsSpaceData,lobsSpaceTR)
+    ! Output for debugging
+
+    type(struct_obs)    :: lobsSpaceData
+    type(struct_obs_tr) :: lobsSpaceTR
+    integer :: i,index_header,p_index,ilev
+    CHARACTER(len=2)  :: CFAM
+    CHARACTER(len=12) :: CSTNID
+
+    write(*,*) "+++ Output of obsspacetr +++"
+   
+    do i=1,lobsSpaceTR%numHead
+
+       p_index = lobsSpaceTR%header(OBSTR_PPP,i)
+       index_header = lobsSpaceTR%header(OBSTR_RLN,i)
+       CFAM    = obs_getFamily(lobsSpaceData,INDEX_HEADER)
+       CSTNID  = obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER)
+       ILEV    = obs_headElem_i(lobsSpaceData,OBS_NLV,INDEX_HEADER)
+
+       write(*,*) i,CSTNID,CFAM,ILEV,p_index
+
+    end do
+    
+    write(*,*) "+++ Done +++"
+
+    CALL ABORT3D('End obsspacetr_debug')
+
+  end subroutine obsspacetr_debug
+
+end module ObsSpaceTR_mod
