@@ -305,7 +305,7 @@ contains
 !   Read (1) Obs BUFR element.
 !        (2) Vertical coord type (1, 2, or 3)
 !        (3) Flag indication if EOR provided from this ascii file or
-!            to be read from teh BURP file,
+!            to be read from the BURP file,
 !        (4) Number of vertical levels
 !
 !   Important: Combination of STNID, BUFR element and number of vertical levels
@@ -373,7 +373,10 @@ contains
 !             - When comparing a record with info in ascii file, allowed for arbitrary
 !               ordering of code 8090 within a block of data so that it gives the correct
 !               number of data elements (i.e. not counting the 8090 codes)
-!               
+!             - When matching observation from lobsSpaceData to lobsSpaceTR to set vertical
+!               levels, the check of vertical coordinate type is disregarded if number of levels
+!               is one and the value of OBS_PPP is less than 0 (to indicate default value), as would
+!               be the case for a total column measurement.
 !          
 ! Purpose: Store observation information in lobsSpaceTR and create associtation
 !          to observation in lobsSpaceData.
@@ -399,15 +402,17 @@ contains
   type(struct_obs)    :: lobsSpaceData
   type(struct_obs_tr) :: lobsSpaceTR
 
-  integer :: JN, JI, INDEX_BODY, INDEX_HEADER, IDATA, IDATEND, IDBURP
+  integer :: JN, JI, INDEX_HEADER, IDATA, IDATEND, IDBURP
   integer :: ILEV,ISTNID,IBEGIN,IVCO,ITYP,ITYP2
   integer :: ielem,icodtyp,ilen1,ilen2,iset,icount
+  real*8  :: ZLEV
 
   CHARACTER(len=2)  :: CFAM
   CHARACTER(len=12) :: CSTNID
   
   if (ninfo_stnid_tr.eq.0) return
   
+
   icount=0
   DO INDEX_HEADER = 1, obs_numheader(lobsSpaceData)
 
@@ -422,6 +427,7 @@ contains
            
            ITYP    = obs_bodyElem_i(lobsSpaceData,OBS_VNM,IDATA)
            IVCO    = obs_bodyElem_i(lobsSpaceData,OBS_VCO,IDATA)
+           ZLEV    = obs_bodyElem_r(lobsSpaceData,OBS_PPP,IDATA)
 
            ! Subtract the number of occurances of code 8090 from number of levels
            do ji=0,ilev-1
@@ -455,11 +461,14 @@ contains
                     END DO
                 END IF
  
-                ! Check if number of levels, code, and vertical coordinate type are equal
+                ! Check if number of levels, code, and vertical coordinate type are equal.
+                ! If number of levels is one and there is no value set for OBS_PPP (as for
+                ! a total column measurement), the check of vertical coordinate type is disregarded.
                 IF (iset.eq.1) THEN
-                   IF (ILEV .EQ. ninfo_lvl_tr(JN) .AND. &
-                      ITYP .EQ. ninfo_bfr_tr(JN).AND.             &
-                      (IVCO.EQ.ninfo_vco_tr(JN).OR.IVCO.EQ.4)) THEN
+                   IF ( ITYP .EQ. ninfo_bfr_tr(JN) .AND. &
+                        ( (ILEV .EQ. ninfo_lvl_tr(JN) .AND. (IVCO.EQ.ninfo_vco_tr(JN).OR.IVCO.EQ.4)) .OR. &
+                          (ILEV .EQ. 1 .AND. ZLEV .LE. 0.) ) &
+                      ) THEN
                       ISTNID=JN
                       exit
                    END IF
@@ -482,6 +491,7 @@ contains
            icount=icount+1
            lobsSpaceTR%obsindex(index_header)=icount        
            lobsSpaceTR%header(OBSTR_RLN,icount)=index_header
+
 
            ! Set the starting position for the record in the arrays vtp,vbt
            IF (ISTNID.EQ.0) THEN
@@ -550,34 +560,5 @@ contains
 
 !-----------------------------------------------------------------------------------------
 
-
-  subroutine obsspacetr_debug(lobsSpaceData,lobsSpaceTR)
-    ! Output for debugging
-
-    type(struct_obs)    :: lobsSpaceData
-    type(struct_obs_tr) :: lobsSpaceTR
-    integer :: i,index_header,p_index,ilev
-    CHARACTER(len=2)  :: CFAM
-    CHARACTER(len=12) :: CSTNID
-
-    write(*,*) "+++ Output of obsspacetr +++"
-   
-    do i=1,lobsSpaceTR%numHead
-
-       p_index = lobsSpaceTR%header(OBSTR_PPP,i)
-       index_header = lobsSpaceTR%header(OBSTR_RLN,i)
-       CFAM    = obs_getFamily(lobsSpaceData,INDEX_HEADER)
-       CSTNID  = obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER)
-       ILEV    = obs_headElem_i(lobsSpaceData,OBS_NLV,INDEX_HEADER)
-
-       write(*,*) i,CSTNID,CFAM,ILEV,p_index
-
-    end do
-    
-    write(*,*) "+++ Done +++"
-
-    CALL ABORT3D('End obsspacetr_debug')
-
-  end subroutine obsspacetr_debug
 
 end module ObsSpaceTR_mod

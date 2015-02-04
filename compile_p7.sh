@@ -120,12 +120,12 @@ if [ $mode == full ] ; then
   cd ${trunkdir}/shared;   ls -1F | grep -v '/' | grep -v "*" | cpio -pl $compiledir ; cd $compiledir
   cd ${trunkdir}/modulopt; ls -1F | grep -v '/' | grep -v "*" | cpio -pl $compiledir ; cd $compiledir
   rm -f *.ftn~ *.ftn90~
-
   
   # temporarily use the version of obsspacedata_mod.ftn90 that is in the main directory until these
   # changes get committed to the 'shared' repository
+  rm -f $compiledir/obsspacedata_mod.ftn90
   cp ${trunkdir}/obsspacedata_mod.ftn90 $compiledir
-  
+
   echo "STARTING COMPILATION AT:" 
   date
 
