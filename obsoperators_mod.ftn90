@@ -40,7 +40,7 @@ module obsOperators_mod
   private
 
   ! public procedures
-  public :: oonl_ppp, oonl_sfc, oonl_zzz, oonl_gpsro, oonl_gpsgb, oonl_tovs, oonl_tracers
+  public :: oonl_ppp, oonl_sfc, oonl_zzz, oonl_gpsro, oonl_gpsgb, oonl_tovs, oonl_chm
 
   contains
 
@@ -1093,9 +1093,9 @@ module obsOperators_mod
 
 
 
-  subroutine oonl_tracers(columnhr,obsSpaceData,jobs_out)
+  subroutine oonl_chm(columnhr,obsSpaceData,jobs_out)
     !
-    !**s/r oonl_tracers - Temporary subroutine to set innovation for tracers to zero from
+    !**s/r oonl_chm - Temporary subroutine to set innovation for tracers to zero from
     !                   default value of -999.0 until nonlinear obs operator for tracers
     !                   is complete.
     !
@@ -1109,12 +1109,12 @@ module obsOperators_mod
     
     integer :: INDEX_BODY, INDEX_HEADER
 
-    write(*,*)'ENTER oonl_tracers'
+    write(*,*)'ENTER oonl_chm'
 
     !
-    ! Loop over all header indices of the 'TR' family:
+    ! Loop over all header indices of the 'CH' family:
     !
-    call obs_set_current_header_list(obsSpaceData,'TR')
+    call obs_set_current_header_list(obsSpaceData,'CH')
 
     HEADER: do
       index_header = obs_getHeaderIndex(obsSpaceData)
@@ -1131,7 +1131,7 @@ module obsOperators_mod
    
    if(present(jobs_out)) jobs_out=0.0d0
 
-  end subroutine oonl_tracers
+  end subroutine oonl_chm
 
 
 

@@ -1,11 +1,11 @@
-#!/bin/ksh
+./#!/bin/ksh
 
 # Revisions:
 #            Y.J. Rochon, Dec 2014
 #            - Added compilation of bmatrixtracer_mod.ftn90
 #            - Added . ssmuse-sh -d arma/rttov/10v1 
 #              following inquiry with S. Heilliette
-#            - Addition of obsspacetr_mod.ftn90
+#            - Addition of chem_mod.ftn90
 
 mode=$1
 nompi=$2
@@ -121,10 +121,11 @@ if [ $mode == full ] ; then
   cd ${trunkdir}/modulopt; ls -1F | grep -v '/' | grep -v "*" | cpio -pl $compiledir ; cd $compiledir
   rm -f *.ftn~ *.ftn90~
   
-  # temporarily use the version of obsspacedata_mod.ftn90 that is in the main directory until these
+  # temporarily use the version of obsspacedata_mod.ftn90 and bufr_mod.ftn90 that is in the main directory until these
   # changes get committed to the 'shared' repository
-  rm -f $compiledir/obsspacedata_mod.ftn90
+  rm -f $compiledir/obsspacedata_mod.ftn90 $compiledir/bufr_mod.ftn90
   cp ${trunkdir}/obsspacedata_mod.ftn90 $compiledir
+  cp ${trunkdir}/bufr_mod.ftn90 $compiledir
 
   echo "STARTING COMPILATION AT:" 
   date
@@ -159,10 +160,10 @@ if [ $mode == full ] ; then
   SRC1="$SRC1 globalspectraltransform_mod.ftn90 varnamelist_mod.ftn90"
   SRC1="$SRC1 lamspectraltransform_mod.ftn90 columndata_mod.ftn90 gridstatevector_mod.ftn90"
   SRC1="$SRC1 bmatrixensemble_mod.ftn90 bmatrixhi_mod.ftn90 lambmatrixhi_mod.ftn90"
-  SRC1="$SRC1 bmatrixtracer_mod.ftn90 bmatrix_mod.ftn90 minimization_mod.ftn90"
+  SRC1="$SRC1 bmatrixchem_mod.ftn90 bmatrix_mod.ftn90 minimization_mod.ftn90"
   SRC1="$SRC1 ozoneclim_mod.ftn90 tovs_extrap_mod.ftn90"
   SRC1="$SRC1 burpfiles_mod.ftn90 obsspacediag_mod.ftn90 observation_erreurs_mod.ftn90"
-  SRC1="$SRC1 obsspacetr_mod.ftn90"
+  SRC1="$SRC1 chem_mod.ftn90"
 
   s.compile $INCLUDES $COMPF -O -src $SRC1 > listing3 2>&1
   grep fail listing3

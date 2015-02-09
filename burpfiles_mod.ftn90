@@ -132,7 +132,7 @@ SUBROUTINE burp_setupfiles(datestamp)
   CFAMI(29)  = 'ST' 
   CFAMI(30)  = 'MI' 
   CFAMI(31)  = 'GP' 
-  CFAMI(32)  = 'TR' 
+  CFAMI(32)  = 'CH' 
 
   IER =MRFOPC('MSGLVL','FATAL')
 

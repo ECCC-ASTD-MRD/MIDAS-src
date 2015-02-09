@@ -48,17 +48,17 @@ CONTAINS
     !                 S. MACPHERSON (ARMA) Oct 2013
     !                  -- add 'GP' family (ground-based GPS) as type "SFC"
     !                 Ping Du (CMDA), Nov/Dec 2014
-    !                  -- Added CASE('TR') option with intitial settings.
+    !                  -- Added CASE('CH') option with intitial settings.
     !                  -- Added use of FAMILYTYPE2 and the 'namburp_tr' and 
-    !                     'namburp_trm' namelists for the TR family 
+    !                     'namburp_trm' namelists for the CH family 
     !                 Y.J. Rochon (ARQI), Dec 2014
     !                  -- Added 08046 (constituent code table) in LISTE_INFO.
-    !                     Corresponds to new ObsSpaceData integer-header element OBS_TRF.
+    !                     Corresponds to new ObsSpaceData integer-header element OBS_CHM.
     !                  -- Added 15008,15011,15012,15020,15024,15026-29,15199,
-    !                     and 15230 under LISTE_ELE for CASE('TR'). This
+    !                     and 15230 under LISTE_ELE for CASE('CH'). This
     !                     denotes the/a possible set of elements.
     !                  -- Modified 'vcord_type' to an array of dimension 10.
-    !                  -- Extended vcord_type from 1 to 7 elements for TR
+    !                  -- Extended vcord_type from 1 to 7 elements for CH
     !                  -- Setting of ELEVFACT to 1.0 for 7006 coordinate.
     !
     !       OBJECT: UPDATE CMC BURP FILE 
@@ -264,7 +264,7 @@ CONTAINS
         NELE_INFO=16
         WINDS=.FALSE.
         ADDSIZE=600000
-     CASE('TR')
+     CASE('CH')
         BURP_TYP='multi'   ! Both 'multi' and 'uni' are possible for this family.
         vcord_type(1:7) = (/7004,7204,7006,7007,7009,2150,0/)  ! 0 must be at end.
 
@@ -276,7 +276,7 @@ CONTAINS
         WINDS=.FALSE.
         ADDSIZE=10000
 
-        FAMILYTYPE2='TR'
+        FAMILYTYPE2='CH'
         LISTE_ELE = (/15008,15020,15024,15026,15027, &
                       15029,15198,15199,15230,08090,-1,-1,-1,-1,-1/)
         NELE=13
@@ -319,7 +319,7 @@ CONTAINS
       btyp_offset_uni= 256 +32
     elseif ( TRIM(FAMILYTYPE2) .eq. 'UA') then
       btyp_offset_uni= 256 +32
-    elseif ( TRIM(FAMILYTYPE2) .eq. 'TR') then
+    elseif ( TRIM(FAMILYTYPE2) .eq. 'CH') then
       btyp_offset_uni= 256
     else
       btyp_offset_uni= -999 !set to -999 when not used
@@ -811,7 +811,7 @@ CONTAINS
                IND_VCOORD  = BURP_Find_Element(BLOCK_OBS_MUL_CP, ELEMENT=vcord_type(k),IOSTAT=error)
             end do
             IF ( IND_VCOORD .gt. 0 ) then
-              IF (trim(FAMILYTYPE) == trim('TR')) THEN
+              IF (trim(FAMILYTYPE) == trim('CH')) THEN
                  ELEVFACT=0.0
                  IF (vcord_type(k) == 7006) ELEVFACT=1.0
               END IF
@@ -1186,8 +1186,8 @@ CONTAINS
     NAMELIST /NAMBURP_FILTER_CONV/NELEMS,    BLISTELEMENTS,    BNBITSOFF,BBITOFF,BNBITSON,BBITON,ENFORCE_CLASSIC_SONDES
     NAMELIST /NAMBURP_FILTER_SFC/ NELEMS_SFC,BLISTELEMENTS_SFC,BNBITSOFF,BBITOFF,BNBITSON,BBITON
     NAMELIST /NAMBURP_FILTER_TOVS/NELEMS,BLISTELEMENTS,BNBITSOFF,BBITOFF,BNBITSON,BBITON
-    NAMELIST /NAMBURP_FILTER_TR/NELEMS_SFC,BLISTELEMENTS_SFC,BNBITSOFF,BBITOFF,BNBITSON,BBITON
-    NAMELIST /NAMBURP_FILTER_TRM/NELEMS,BLISTELEMENTS,BNBITSOFF,BBITOFF,BNBITSON,BBITON
+    NAMELIST /NAMBURP_FILTER_CHM_SFC/NELEMS_SFC,BLISTELEMENTS_SFC,BNBITSOFF,BBITOFF,BNBITSON,BBITON
+    NAMELIST /NAMBURP_FILTER_CHM/NELEMS,BLISTELEMENTS,BNBITSOFF,BBITOFF,BNBITSON,BBITON
     NAMELIST /NAMBURP_UPDATE/BN_ITEMS, BITEMLIST,TYPE_RESUME
 
 
@@ -1203,10 +1203,10 @@ CONTAINS
         READ(NULNAM,NML=NAMBURP_FILTER_CONV)
       CASE( 'namburp_tovs')
         READ(NULNAM,NML=NAMBURP_FILTER_TOVS)
-      CASE( 'namburp_tr')
-        READ(NULNAM,NML=NAMBURP_FILTER_TR)
-      CASE( 'namburp_trm')
-        READ(NULNAM,NML=NAMBURP_FILTER_TRM)
+      CASE( 'namburp_chm_sfc')
+        READ(NULNAM,NML=NAMBURP_FILTER_CHM_SFC)
+      CASE( 'namburp_chm')
+        READ(NULNAM,NML=NAMBURP_FILTER_CHM)
       CASE( 'namburp_update')
         READ(NULNAM,NML=NAMBURP_UPDATE)
     END SELECT
@@ -1227,17 +1227,17 @@ CONTAINS
     !                 S. MACPHERSON (ARMA) Oct 2013
     !                  -- add 'GP' family (ground-based GPS)
     !                 Ping Du (CMDA) Nov/Dec 2014 (revision comments added by Y. Rochon)
-    !                  -- Added initial CASE('TR') section with addition of 'namburp_tr'
-    !                     and 'namburp_trm' namelists
+    !                  -- Added initial CASE('CH') section with addition of 'namburp_chm_sfc'
+    !                     and 'namburp_chm' namelists
     !                  -- Added UNI_FAMILYTYPE.
     !                  -- Replaced "NDATA_SF= WRITE_BODY(*" to use UNI_FAMILYTYPE
     !                     (see !PDD at corresponding locations)
     !                  -- Added use of FAMILYTYPE2 for the TR family.
     !                 Y.J. Rochon (ARQI) Dec 2014
     !                  -- Added 08046 (constituent code table) in LISTE_INFO.
-    !                     Corresponds to new ObsSpaceData integer-header element OBS_TRF.
+    !                     Corresponds to new ObsSpaceData integer-header element OBS_CHM.
     !                  -- Added 15008,15011,15012,15020,15024,15026-29,15199,
-    !                     and 15230 under LISTE_ELE for CASE('TR')
+    !                     and 15230 under LISTE_ELE for CASE('CH')
     !                  -- Modified 'vcord_type' to an array of dimension 10.
     !                  -- Extended 'vcord_type' from 1 to 7 elements for TR
     !                  -- Addition/use of 'vcoord_type'. Added 'vcoord_type' 
@@ -1426,24 +1426,24 @@ CONTAINS
         NELE=NELEMS
 
         NELE_INFO=16
-     CASE('TR')
+     CASE('CH')
 
         BURP_TYP='multi'  ! Both 'multi' and 'uni' are possible for this family.
         vcord_type(1:7) = (/7004,7204,7006,7007,7009,2150,0/) ! 0 must be at end.
         NELE_INFO=17
 
-        UNI_FAMILYTYPE = 'TR'
+        UNI_FAMILYTYPE = 'CH'
         LISTE_ELE_SFC = (/15008,15020,15024,15026,15027, &
                       15029,15198,15199,15230,08090,-1,-1,-1,-1,-1/)
         NELE_SFC=13
-        CALL BRPACMA_NML('namburp_tr')
+        CALL BRPACMA_NML('namburp_chm_sfc')
         NELE_SFC=NELEMS_SFC
 
-        FAMILYTYPE2='TR'
+        FAMILYTYPE2='CH'
         LISTE_ELE = (/15008,15020,15024,15026,15027, &
                       15029,15198,15199,15230,08090,-1,-1,-1,-1,-1/)
         NELE=13
-        CALL BRPACMA_NML('namburp_trm')
+        CALL BRPACMA_NML('namburp_chm')
         NELE=NELEMS 
     END SELECT
     LISTE_ELE    (1:NELE    )=BLISTELEMENTS(1:NELE)
@@ -1463,7 +1463,7 @@ CONTAINS
       btyp_offset_uni= 256 +32
     elseif ( TRIM(FAMILYTYPE2) .eq. 'UA') then
       btyp_offset_uni= 256 +32
-    elseif (TRIM(FAMILYTYPE2) .eq. 'TR') then
+    elseif (TRIM(FAMILYTYPE2) .eq. 'CH') then
       btyp_offset_uni= 256
     else
       btyp_offset_uni= -999 ! set to -999 when not used
@@ -2278,7 +2278,7 @@ CONTAINS
     !
     !       REVISION:
     !                 Ping Du (CMDA), Nov 2014 (revision comments added by Y. Rochon)
-    !                  -- Added  CASE ('TR') with VCO=4 
+    !                  -- Added  CASE ('CH') with VCO=4 
     !                 Y.J. Rochon (ARQI), Dec 2014
     !                  -- Added VCOORD_TYPE as input argument and applied in function.
     !                  -- Added new VCO cases for the TR family.
@@ -2360,7 +2360,7 @@ CONTAINS
         VCO=1 ! HEIGHT COORD
       CASE ( 'TO'  )
         VCO=3 ! CHANNEL NUMBER
-      CASE ( 'TR'  ) ! CONSTITUENTS
+      CASE ( 'CH'  ) ! CONSTITUENTS
         IF (VCOORD_TYPE == 7006 .OR. VCOORD_TYPE == 7007) THEN
            VCO=1
            IF (VCOORD_TYPE == 7006) ELEVFACT=1.0
@@ -2673,7 +2673,7 @@ CONTAINS
             IRO_QCFLAG=NINT ( RRO_QCFLAG )
           ENDIF
         CASE( 08046)
-          IF (trim(FAMTYP) == 'TR') THEN
+          IF (trim(FAMTYP) == 'CH') THEN
              RCONSTITUENT=INFOV
              IF (RCONSTITUENT .eq. PPMIS) THEN
                 call abort3d('WRITE_INFO: Missing 08046 element for the TR family.')
@@ -2725,10 +2725,10 @@ CONTAINS
     call obs_headSet_i(obsdat,OBS_ROQF,nobs,IRO_QCFLAG)
     call obs_headSet_r(obsdat,OBS_TRAD,nobs,RTANGENT_RADIUS)
     call obs_headSet_r(obsdat,OBS_GEOI,nobs,RGEOID)
-    if (trim(FAMTYP) .eq. trim('TR')) then
-        call obs_headSet_i(obsdat,OBS_TRF,nobs,CONSTITUENT_TYPE)
+    if (trim(FAMTYP) .eq. trim('CH')) then
+        call obs_headSet_i(obsdat,OBS_CHM,nobs,CONSTITUENT_TYPE)
     else
-        call obs_headSet_i(obsdat,OBS_TRF,nobs,-1)
+        call obs_headSet_i(obsdat,OBS_CHM,nobs,-1)
     end if
 
   END SUBROUTINE  WRITE_INFO

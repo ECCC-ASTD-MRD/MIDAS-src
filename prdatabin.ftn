@@ -38,7 +38,6 @@
 
       integer :: jstep,jobs,jfamily,jdata,iobs,idatabeg,idatend,nsize,ierr
       integer, allocatable, dimension(:,:) :: idataass,inumheader
-!PDD      integer, parameter :: nfamily=9
       integer, parameter :: nfamily=10
       character*2 :: familylist(nfamily)
       character*256 :: formatspec,formatspec2
@@ -58,8 +57,7 @@
       familylist(7)='PR'
       familylist(8)='RO'
       familylist(9)='GP'
-!PDD
-      familylist(10)='TR'
+      familylist(10)='CH'
  
       do jobs = 1, obs_numheader(lobsSpaceData)
         call getStepObsIndex(stepObsIndex,tim_getDatestamp(),

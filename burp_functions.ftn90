@@ -164,8 +164,8 @@
   END SUBROUTINE SET_ERR_GBGPS
 
 !PDD
-  SUBROUTINE  SET_SCAL_TR(obsdat,START,END)
-!**s/r SET_SCAL_TR  - SET the scale to TR
+  SUBROUTINE  SET_SCAL_CHM(obsdat,START,END)
+!**s/r SET_SCAL_CHM  - SET the scale to TR
 !
 !
 !Author  : P. Du *CMC/CMDA Nov. 2014 
@@ -194,7 +194,7 @@
       REAL              :: MISG
 
 !-----------------------------------------------------------------------
-      WRITE(*,*)'   SET_SCAL_TR '
+      WRITE(*,*)'   SET_SCAL_CHM '
       MISG=-999.
 !
 !-----------------------------------
@@ -234,9 +234,9 @@
       END DO
 !-----------------------------------
 !
-      WRITE(*,*)' DONE   SET_SCAL_TR '
+      WRITE(*,*)' DONE   SET_SCAL_CHM '
       RETURN
-  END SUBROUTINE SET_SCAL_TR
+  END SUBROUTINE SET_SCAL_CHM
 
 
   

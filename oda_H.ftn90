@@ -1023,9 +1023,9 @@ end subroutine oda_Hto
         integer :: INDEX_BODY, INDEX_HEADER
         
         !
-        ! Loop over all header indices of the 'TR' family:
+        ! Loop over all header indices of the 'CH' family:
         !
-        call obs_set_current_header_list(lobsSpaceData,'TR')
+        call obs_set_current_header_list(lobsSpaceData,'CH')
         
         HEADER: do
            index_header = obs_getHeaderIndex(lobsSpaceData)

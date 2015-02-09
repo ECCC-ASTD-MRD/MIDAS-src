@@ -1,17 +1,17 @@
-! MODULE bMmatrixTracer : Contains routines involving preparation and application
+! MODULE bMatrixChem : Contains routines involving preparation and application
 !                         of background-error covariance matrix(ces). Matrix
 !                         based on horizontally homogeneous/isotropic
-!                         correlations.  prefix="btr" for constituents
+!                         correlations.  prefix="bchm" for constituents
 !
 ! Purpose: Performs transformation from control vector to analysis increment
 !          using the background error covariance matrix
 !
 ! Subroutines:
-!    btr_setup (public)
-!    btr_BSqrt (public)
-!    btr_BSqrtAd (public)
-!    cain
-!    cainAd
+!    bchm_setup (public)
+!    bchm_BSqrt (public)
+!    bchm_BSqrtAd (public)
+!    bchm_cain
+!    bchm_cainAd
 !
 ! Dependencies:
 !    globalSpectralTransform
@@ -28,7 +28,7 @@
 !        - Addition and modification of comments
 !
 !--------------------------------------------------------------------------
-MODULE BmatrixTracer
+MODULE BmatrixChem
   use mpivar_mod
   use MathPhysConstants_mod
   use earthConstants_mod
@@ -43,7 +43,7 @@ MODULE BmatrixTracer
   private
 
   ! public procedures
-  public :: btr_Setup,btr_BSqrt,btr_BSqrtAd,btr_Finalize,btr_expandToMPIglobal,btr_reduceToMPIlocal
+  public :: bchm_Setup,bchm_BSqrt,bchm_BSqrtAd,bchm_Finalize,bchm_expandToMPIglobal,bchm_reduceToMPIlocal
 
   logical             :: initialized = .false.                    
   integer             :: nj_l,ni_l                    
@@ -70,7 +70,7 @@ MODULE BmatrixTracer
   integer             :: numvar3d
   integer             :: numvar2d
 
-! new variables for tracers  
+! new variables for chemical constituents  
   integer             :: numvar3d_tr
   integer             :: numvar2d_tr
   integer             :: nspositO3
@@ -92,7 +92,7 @@ MODULE BmatrixTracer
 
 CONTAINS
 
-    SUBROUTINE BTR_setup(hco_in,vco_in,CVDIM_OUT)
+    SUBROUTINE BCHM_setup(hco_in,vco_in,CVDIM_OUT)
     implicit none
 
     type(struct_hco),pointer :: hco_in
@@ -107,8 +107,8 @@ CONTAINS
   
     integer :: jvar
 
-    NAMELIST /NAMBTR/ntrunc
-    call tmg_start(15,'BTR_SETUP')
+    NAMELIST /NAMBCHM/ntrunc
+    call tmg_start(15,'BCHM_SETUP')
 
     vco_anl => vco_in
     nLev_M = vco_anl%nlev_M
@@ -119,14 +119,14 @@ CONTAINS
     else
       nLev_T_even = nLev_T
     endif
-    if(mpi_myid.eq.0) write(*,*) 'BTR_setup: nLev_T, nLev_T_even=',nLev_T, nLev_T_even
+    if(mpi_myid.eq.0) write(*,*) 'BCHM_setup: nLev_T, nLev_T_even=',nLev_T, nLev_T_even
 
 
     nulnam = 0
     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-    read(nulnam,nml=nambtr,iostat=ierr)
-    if(ierr.ne.0) call abort3d('btr_setup: Error reading namelist')
-    if(mpi_myid.eq.0) write(*,nml=nambtr)
+    read(nulnam,nml=nambchm,iostat=ierr)
+    if(ierr.ne.0) call abort3d('bchm_setup: Error reading namelist')
+    if(mpi_myid.eq.0) write(*,nml=nambchm)
     ierr = fclos(nulnam)
 
     numvar3d_tr=0
@@ -135,7 +135,7 @@ CONTAINS
     allocate(vnl_varNameList2D_tr(vnl_numvarmax2D))
 
   
-! to find the 3D tracer variable
+! to find the 3D chemical constituent variable
     do jvar = 1, vnl_numvarmax3D
      if(gsv_varExist(vnl_varNameList3D(jvar))) then
 
@@ -155,7 +155,7 @@ CONTAINS
       end select
      end if
     end do
-  ! for 2D tracer variable (not well done, need to be modified)
+  ! for 2D chemical constituent variable (not well done, need to be modified)
 !   do jvar=1,vnl_numvarmax2D
 !      if(gsv_varExist(vnl_varNameList2D(jvar))) then
 !
@@ -189,8 +189,8 @@ CONTAINS
     mpiMode = 4
     gstID  = gst_setup(ni_l,nj_l,ntrunc,mpiMode,nkgdim,makeEven_in)
     gstID2 = gst_setup(ni_l,nj_l,ntrunc,mpiMode,nlev_T_even)
-    if(mpi_myid.eq.0) write(*,*) 'BTR:returned value of gstID =',gstID
-    if(mpi_myid.eq.0) write(*,*) 'BTR:returned value of gstID2=',gstID2
+    if(mpi_myid.eq.0) write(*,*) 'BCHM:returned value of gstID =',gstID
+    if(mpi_myid.eq.0) write(*,*) 'BCHM:returned value of gstID2=',gstID2
 
     call mpivar_setup_latbands(nj_l,latPerPE,myLatBeg,myLatEnd)
     call mpivar_setup_lonbands(ni_l,lonPerPE,myLonBeg,myLonEnd)
@@ -234,19 +234,19 @@ CONTAINS
 
 
 
-    call BTR_sunewstats
-    call BTR_sucorns2
+    call BCHM_sunewstats
+    call BCHM_sucorns2
 
 
-    if(mpi_myid.eq.0) write(*,*) 'END OF BTR_SETUP'
+    if(mpi_myid.eq.0) write(*,*) 'END OF BCHM_SETUP'
     
     initialized = .true.
 
     call tmg_stop(15)
 
-  END SUBROUTINE BTR_setup
+  END SUBROUTINE BCHM_setup
 
-  SUBROUTINE BTR_SUNEWSTATS
+  SUBROUTINE BCHM_SUNEWSTATS
    implicit none
 
     integer :: ierr, fnom, fstouv, fstfrm, fclos
@@ -259,22 +259,22 @@ CONTAINS
       if ( ierr .eq. 0 ) then
         ierr =  fstouv(nulbgst,'RND+OLD')
       else
-        call abort3d('BTR_SUNEWSTATS:NO BACKGROUND TRACER STAT FILE!!')
+        call abort3d('BCHM_SUNEWSTATS:NO BACKGROUND CHEMICAL CONSTITUENT STAT FILE!!')
       endif
     endif
 
-    call BTR_readcorns2
+    call BCHM_readcorns2
 
 
-    call BTR_rdspstd_newfmt 
-    call BTR_rdspstd
+    call BCHM_rdspstd_newfmt 
+    call BCHM_rdspstd
 
     ierr = fstfrm(nulbgst)
     ierr = fclos(nulbgst)
 
-  END SUBROUTINE BTR_SUNEWSTATS
+  END SUBROUTINE BCHM_SUNEWSTATS
 
- SUBROUTINE BTR_bSqrt(controlvector_in,statevector)
+ SUBROUTINE BCHM_bSqrt(controlvector_in,statevector)
   
    implicit none
 
@@ -284,19 +284,19 @@ CONTAINS
     real(8)   :: hiControlVector(nla_mpilocal,2,nkgdim)
     integer   :: jvar, ilev1, ilev2
 
-    if(mpi_myid.eq.0) write(*,*) 'btr_bsqrt: starting'
+    if(mpi_myid.eq.0) write(*,*) 'bchm_bsqrt: starting'
     if(mpi_myid.eq.0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     if(.not. initialized) then
-      if(mpi_myid.eq.0) write(*,*) 'bMatrixTR not initialized'
+      if(mpi_myid.eq.0) write(*,*) 'bMatrixChem not initialized'
       return
     endif
 
     allocate(gd_out(myLonBeg:myLonEnd,nkgdim,myLatBeg:myLatEnd))
 
-     call btr_cain(controlVector_in,hiControlVector)
+     call bchm_cain(controlVector_in,hiControlVector)
 
-     call btr_spa2gd(hiControlVector,gd_out)
+     call bchm_spa2gd(hiControlVector,gd_out)
 
      call copyToStatevector(statevector,gd_out)
 
@@ -304,11 +304,11 @@ CONTAINS
 
 
     if(mpi_myid.eq.0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    if(mpi_myid.eq.0) write(*,*) 'btr_bsqrt: done'
+    if(mpi_myid.eq.0) write(*,*) 'bchm_bsqrt: done'
 
-  END SUBROUTINE BTR_bSqrt
+  END SUBROUTINE BCHM_bSqrt
 
-    SUBROUTINE BTR_cain(controlVector_in,hiControlVector_out)
+    SUBROUTINE BCHM_cain(controlVector_in,hiControlVector_out)
     implicit none
 
     real(8) :: controlVector_in(cvDim_mpilocal)
@@ -340,7 +340,7 @@ CONTAINS
       enddo
     enddo
 
-  end SUBROUTINE BTR_cain
+  end SUBROUTINE BCHM_cain
 
 
 
@@ -379,7 +379,7 @@ CONTAINS
 
 
 
-  SUBROUTINE BTR_bSqrtAd(statevector,controlVector_out)
+  SUBROUTINE BCHM_bSqrtAd(statevector,controlVector_out)
     implicit none
 
     real(8)   :: controlVector_out(cvDim_mpilocal)
@@ -393,26 +393,26 @@ CONTAINS
       return
     endif
 
-    if(mpi_myid.eq.0) write(*,*) 'btr_bsqrtad: starting'
+    if(mpi_myid.eq.0) write(*,*) 'bchm_bsqrtad: starting'
     if(mpi_myid.eq.0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
 
 
     allocate(gd_in(myLonBeg:myLonEnd,nkgdim,myLatBeg:myLatEnd))
-    call BTR_copyFromStatevector(statevector,gd_in)
+    call bchm_copyFromStatevector(statevector,gd_in)
 
-    call btr_spa2gdad(gd_in,hiControlVector)
+    call bchm_spa2gdad(gd_in,hiControlVector)
 
-    call btr_cainad(hiControlVector,controlVector_out)
+    call bchm_cainad(hiControlVector,controlVector_out)
 
     deallocate(gd_in)
 
     if(mpi_myid.eq.0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    if(mpi_myid.eq.0) write(*,*) 'btr_bsqrtad: done'
+    if(mpi_myid.eq.0) write(*,*) 'bchm_bsqrtad: done'
 
-  END SUBROUTINE BTR_bSqrtAd
+  END SUBROUTINE BCHM_bSqrtAd
 
-  SUBROUTINE BTR_copyFromStatevector(statevector,gd)
+  SUBROUTINE BCHM_copyFromStatevector(statevector,gd)
     implicit none
     type(struct_gsv) :: statevector
     real(8)          :: gd(myLonBeg:myLonEnd,nkgdim,myLatBeg:myLatEnd)
@@ -441,12 +441,12 @@ CONTAINS
       endif
     enddo
 
-  END SUBROUTINE BTR_copyFromStatevector
+  END SUBROUTINE BCHM_copyFromStatevector
 
 
 
 
-  SUBROUTINE BTR_READCORNS2
+  SUBROUTINE BCHM_READCORNS2
     implicit none
 
     integer :: kip1
@@ -538,7 +538,7 @@ CONTAINS
 
     ! Apply convolution to RSTDDEV correlation
 
-    call BTR_convol
+    call BCHM_convol
 
     do jn = 0, ntrunc
 
@@ -554,10 +554,10 @@ CONTAINS
     deallocate(zcornssrc)
     deallocate(zstdsrc)
 
-    !write(*,*) 'Done in BTR_READCORNS2'
-  END SUBROUTINE BTR_READCORNS2
+    !write(*,*) 'Done in BCHM_READCORNS2'
+  END SUBROUTINE BCHM_READCORNS2
 
-  SUBROUTINE BTR_convol
+  SUBROUTINE BCHM_convol
     implicit none
 
     real(8) dlfact2,dlc,dsummed
@@ -672,10 +672,10 @@ CONTAINS
       enddo
     enddo
 
-  END SUBROUTINE BTR_convol
+  END SUBROUTINE BCHM_convol
 
 
-  SUBROUTINE BTR_RDSPSTD
+  SUBROUTINE BCHM_RDSPSTD
       implicit none
 
     integer, parameter  :: inbrvar3d=1
@@ -758,9 +758,9 @@ CONTAINS
 
      enddo 
 
-  END SUBROUTINE BTR_RDSPSTD
+  END SUBROUTINE BCHM_RDSPSTD
 
-   SUBROUTINE BTR_RDSPSTD_NEWFMT
+   SUBROUTINE BCHM_RDSPSTD_NEWFMT
     implicit none
 
     integer, parameter  :: inbrvar3d=1
@@ -804,8 +804,8 @@ CONTAINS
     ikey = fstinf(nulbgst,inix,injx,inkx,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
     write(*,*) 'ini,inj,ink=',inix,injx,inkx
     if(inix.gt.1) then
-      write(*,*) 'BTR_RDSPSTD_NEWFMT: ini>1, SPSTDDEV is in old format, calling BTR_RDSPSTD...'
-      call btr_rdspstd
+      write(*,*) 'BCHM_RDSPSTD_NEWFMT: ini>1, SPSTDDEV is in old format, calling BCHM_RDSPSTD...'
+      call bchm_rdspstd
       return
     endif
 
@@ -854,9 +854,9 @@ CONTAINS
 
     enddo
 
-  END SUBROUTINE BTR_RDSPSTD_NEWFMT
+  END SUBROUTINE BCHM_RDSPSTD_NEWFMT
 
-   SUBROUTINE BTR_SUCORNS2
+   SUBROUTINE BCHM_SUCORNS2
     implicit none
 
     real(8) :: eigenval(nkgdim), eigenvec(nkgdim,nkgdim),result(nkgdim,nkgdim)
@@ -926,8 +926,8 @@ CONTAINS
       ilwork = 4*nkgdim*2
       call dsyev('V','U',nkgdim,eigenvec,nkgdim,eigenval,zwork,ilwork,info)
       if(info.ne.0) then
-        write(*,*) 'btr_sucorns2: non-zero value of info =',info,' returned by dsyev for wavenumber ',jn
-        call abort3d('BTR_SUCORNS')
+        write(*,*) 'bchm_sucorns2: non-zero value of info =',info,' returned by dsyev for wavenumber ',jn
+        call abort3d('BCHM_SUCORNS')
       endif
       
 
@@ -961,7 +961,7 @@ CONTAINS
     call rpn_comm_allreduce(corns_temp,corns,nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
     deallocate(corns_temp)
 
- END SUBROUTINE BTR_SUCORNS2
+ END SUBROUTINE BCHM_SUCORNS2
 
   FUNCTION GASPARICOHN(ztlen,zr)
 
@@ -984,7 +984,7 @@ CONTAINS
   END FUNCTION GASPARICOHN
 
 
- SUBROUTINE BTR_SPA2GD(hiControlVector_in,gd_out)
+ SUBROUTINE BCHM_SPA2GD(hiControlVector_in,gd_out)
     IMPLICIT NONE
 
     real(8) :: hiControlVector_in(nla_mpilocal,2,nkgdim)
@@ -1001,7 +1001,7 @@ CONTAINS
 
     klatPtoT = 1
 
-    call tmg_start(53,'BTR_SPA2GD1')
+    call tmg_start(53,'BCHM_SPA2GD1')
 
     ! maybe not needed:
     sp(:,:,:) = 0.0d0
@@ -1074,13 +1074,13 @@ CONTAINS
     enddo
 !$OMP END PARALLEL DO
 
-    call tmg_start(55,'BTR_SPEREE')
+    call tmg_start(55,'BCHM_SPEREE')
     call gst_setID(gstID)
     call gst_speree4(sp,gd)
     call gst_setID(gstID2)
     call tmg_stop(55)
 
-    call tmg_start(54,'BTR_SPA2GD2')
+    call tmg_start(54,'BCHM_SPA2GD2')
 
 !$OMP PARALLEL DO PRIVATE(jlat,jlev,jlon)
     do jlat = myLatBeg, myLatEnd
@@ -1104,9 +1104,9 @@ CONTAINS
     enddo
 !$OMP END PARALLEL DO
 
-  END SUBROUTINE BTR_SPA2GD
+  END SUBROUTINE BCHM_SPA2GD
 
-    SUBROUTINE BTR_SPA2GDAD(gd_in,hiControlVector_out)
+    SUBROUTINE BCHM_SPA2GDAD(gd_in,hiControlVector_out)
     implicit none
 
     real(8) :: hiControlVector_out(nla_mpilocal,2,nkgdim)
@@ -1134,7 +1134,7 @@ CONTAINS
     enddo
 !$OMP END PARALLEL DO
 
-   call tmg_start(54,'BTR_SPA2GD2')
+   call tmg_start(54,'BCHM_SPA2GD2')
 
 !$OMP PARALLEL DO PRIVATE(jlat,jlev,jlon)
     do jlat = myLatBeg, myLatEnd
@@ -1149,12 +1149,12 @@ CONTAINS
 !$OMP END PARALLEL DO
     call tmg_stop(54)
 
-    call tmg_start(56,'BTR_REESPE')
+    call tmg_start(56,'BCHM_REESPE')
     call gst_setID(gstID)
     call gst_reespe4(sp,gd)
     call tmg_stop(56)
 
-    call tmg_start(53,'BTR_SPA2GD1')
+    call tmg_start(53,'BCHM_SPA2GD1')
 
     hiControlVector_out(:,:,:) = 0.0d0
     sq2 = sqrt(2.0d0)
@@ -1212,9 +1212,9 @@ CONTAINS
     deallocate(zsp2)
     call tmg_stop(53)
 
-  END SUBROUTINE BTR_SPA2GDAD
+  END SUBROUTINE BCHM_SPA2GDAD
  
-  SUBROUTINE BTR_cainAd(hiControlVector_in,controlVector_out)
+  SUBROUTINE BCHM_cainAd(hiControlVector_in,controlVector_out)
     IMPLICIT NONE
 
     real(8) :: controlVector_out(cvDim_mpilocal)
@@ -1245,10 +1245,10 @@ CONTAINS
       enddo
     enddo
 
-  END SUBROUTINE BTR_cainAd
+  END SUBROUTINE BCHM_cainAd
 
 
-  SUBROUTINE BTR_Finalize()
+  SUBROUTINE BCHM_Finalize()
     implicit none
 
     deallocate(pressureProfile_M)
@@ -1257,9 +1257,9 @@ CONTAINS
     deallocate(corns)
     deallocate(rstddev)
 
-  END SUBROUTINE BTR_Finalize
+  END SUBROUTINE BCHM_Finalize
 
-  SUBROUTINE BTR_reduceToMPILocal(cv_mpilocal,cv_mpiglobal,cvDim_mpilocal_out)
+  SUBROUTINE BCHM_reduceToMPILocal(cv_mpilocal,cv_mpiglobal,cvDim_mpilocal_out)
     implicit none
     real(8) :: cv_mpilocal(cvDim_mpilocal)
     real(8) :: cv_mpiglobal(cvDim_mpiglobal)
@@ -1311,9 +1311,9 @@ CONTAINS
       enddo
     enddo
 
-  END SUBROUTINE BTR_reduceToMPILocal
+  END SUBROUTINE BCHM_reduceToMPILocal
 
-  SUBROUTINE BTR_expandToMPIGlobal(cv_mpilocal,cv_mpiglobal,cvDim_mpiglobal_out)
+  SUBROUTINE BCHM_expandToMPIGlobal(cv_mpilocal,cv_mpiglobal,cvDim_mpiglobal_out)
     implicit none
     real(8) :: cv_mpilocal(cvDim_mpilocal)
     real(8) :: cv_mpiglobal(cvDim_mpiglobal)
@@ -1336,7 +1336,7 @@ CONTAINS
     cv_maxmpilocal(:) = 0.0d0
     cv_maxmpilocal(1:cvDim_mpilocal) = cv_mpilocal(1:cvDim_mpilocal)
 
-    call tmg_start(59,'BTR_COMM')
+    call tmg_start(59,'BCHM_COMM')
     call rpn_comm_gather(cv_maxmpilocal,    cvDim_maxmpilocal, "mpi_double_precision",  &
                          cv_allmaxmpilocal, cvDim_maxmpilocal, "mpi_double_precision", 0, "GRID", ierr )
     call tmg_stop(59)
@@ -1422,7 +1422,7 @@ CONTAINS
     deallocate(allmSkip)
     if(mpi_myid.eq.0) deallocate(cv_allmaxmpilocal)
 
-  end SUBROUTINE BTR_expandToMPIGlobal
+  end SUBROUTINE BCHM_expandToMPIGlobal
 
   SUBROUTINE ZLEGINV(PF,PN,PLEG,DDWT,KTRUNC,KNJ,KLEV,KNJDIM,KLEVDIM,KNDIM)
 !***s/r ZLEGINV  - Direct Legendre transform restricted to
@@ -1535,4 +1535,4 @@ CONTAINS
 
 
 
-END MODULE BmatrixTracer
+END MODULE BmatrixChem

@@ -14,23 +14,23 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-! ObsSpaceTR_mod:  The module ObsSpaceTR_mod must be used in conjuction with
+! chm_obsspace_mod:  The module chm_obsspace_mod must be used in conjuction with
 !                  ObsSpaceData_mod.
 ! 
 !
 #include "maincompileswitch.inc"
 #include "compileswitches.inc"
 
-module ObsSpaceTR_mod
+module chm_obsspace_mod
 !
 ! PURPOSE:
 !    Read, store, and associate information related to constituent observations
 !    which are not included in ObsSpaceData_mod. This information is
-!    made available within the 'ObsSpaceTR' structure (type struct_obs_tr).
-!    The association of information within 'ObsSpaceTR' to specific observations 
-!    is done through an index array within 'ObsSpaceTR'. 
+!    made available within the 'chm_ObsSpace' structure (type struct_obs_chm).
+!    The association of information within 'chm_obsspace' to specific observations 
+!    is done through an index array within 'chm_obsspace'. 
 !
-!    The content of ObsSpaceTR is relevant only to the constituent 
+!    The content of chm_ObsSpace is relevant only to the constituent 
 !    observation operators.
 !
 ! COMMENT:
@@ -55,14 +55,14 @@ module ObsSpaceTR_mod
 !   public procedures
 !   -----------------
 
-    public :: ObsSpaceTR_setup
+    public :: chm_obsspace_setup
   
 !
-!   Position indices of content within header (index) array struct_obs_tr%header
-!   Content of struct_obs_tr%header mostly provides location of relevant content 
-!   within struct_obs_tr%*.
+!   Position indices of content within header (index) array struct_obs_chm%header
+!   Content of struct_obs_chm%header mostly provides location of relevant content 
+!   within struct_obs_chm%*.
 !
-!  TR report location index in ObsSpaceData (association to OBS_RLN but for TR family obs only)
+!  CHM report location index in ObsSpaceData (association to OBS_RLN but for CH family obs only)
    integer, parameter, public :: OBSTR_RLN = 1 
    
 !  Start location in storage arrays containing layer top and bottom levels.
@@ -75,75 +75,75 @@ module ObsSpaceTR_mod
    
    integer, parameter, public :: OBSTR_SIZE=OBSTR_NAK
                                                   
-!  This type contains the information arrays of the ObsSpaceTR module. 
+!  This type contains the information arrays of the chm_obsspace module. 
 !  Content:
 !        obsindex(:)    Association of obs index to header array content 
-!                       Also, struct_obs_tr%header(OBSTR_RLN,obsindex(j))=j 
+!                       Also, struct_obs_chm%header(OBSTR_RLN,obsindex(j))=j 
 !        header(:,:)    Index given by (OBSTR_*,obsindex(:))
 !        vtp(:)         Top of layer. Start index given by header(OBSTR_PPP,obsindex(:)) 
 !        vbt(:)         Bottom of layer. Start index given by header(OBSTR_PPP,obsindex(:)) 
 !        avgkern(:,:,:) Averaging kernel matrices. (:,:,header(OBSTR_NAK,obsindex(:))
 !        numHead        Number of header elements
 
-   type, public :: struct_obs_tr
+   type, public :: struct_obs_chm
       integer, dimension(:),        pointer :: obsindex 
       integer, dimension(:,:),      pointer :: header    
       real(OBS_REAL), dimension(:), pointer :: vtp,vbt
       real(OBS_REAL), dimension(:,:,:), pointer :: avgkern
       integer :: numHead     
-   end type struct_obs_tr
+   end type struct_obs_chm
 
-!  Information arrays retrieved from obsinfo_tr to produce content of
-!  struct_obs_tr
+!  Information arrays retrieved from obsinfo_chm to produce content of
+!  struct_obs_chm
 !
 !  Variable               Description
 !  --------               -----------
-!  ninfo_stnid_tr         Number of sub-families (identified via STNIDs)
-!  cinfo_stnid_tr         sub-families (STNIDs; * are wild cards)
-!  ninfo_bfr_tr           BUFR/BURP element in data block
-!  ninfo_brp_tr           0: Set entirely from the ascii file being read. No 
+!  ninfo_stnid_chm         Number of sub-families (identified via STNIDs)
+!  cinfo_stnid_chm         sub-families (STNIDs; * are wild cards)
+!  ninfo_bfr_chm           BUFR/BURP element in data block
+!  ninfo_brp_chm           0: Set entirely from the ascii file being read. No 
 !                            initial values read from BURP files
 !                         1: Initial values in obs BURP files 
 !                            (may be adjusted after input)
-!  ninfo_vco_tr           Vertical coordinate type (1, 2, or 3, see bufr_read_mod)
+!  ninfo_vco_chm           Vertical coordinate type (1, 2, or 3, see bufr_read_mod)
 
-!  ninfo_ibegin_tr        Position index of start of data for given
+!  ninfo_ibegin_chm        Position index of start of data for given
 !                         sub-family.
-!  ninfo_lvl_tr           Number of vertical levels
-!  xinfo_vtp_tr           Layer top 
-!  xinfo_vbt_tr           Layer bottom
+!  ninfo_lvl_chm           Number of vertical levels
+!  xinfo_vtp_chm           Layer top 
+!  xinfo_vbt_chm           Layer bottom
   
-!  ninfo_lat_tr           Number of latitudes
-!  xinfo_lat_tr           Latitudes (degrees; ordering in increasing size)
-!  xinfo_rak_tr           Averaging kernel matrices
+!  ninfo_lat_chm           Number of latitudes
+!  xinfo_lat_chm           Latitudes (degrees; ordering in increasing size)
+!  xinfo_rak_chm           Averaging kernel matrices
 ! 
-  integer ::  ninfo_stnid_tr
-  character(len=12), allocatable :: cinfo_stnid_tr(:)
-  integer, allocatable :: ninfo_bfr_tr(:),ninfo_brp_tr(:)
-  integer, allocatable :: ninfo_vco_tr(:),ninfo_lat_tr(:)
-  integer, allocatable :: ninfo_ibegin_tr(:),ninfo_lvl_tr(:)
-  real(8), allocatable :: xinfo_rak_tr(:),xinfo_vtp_tr(:),xinfo_vbt_tr(:)
-  real(8), allocatable :: xinfo_lat_tr(:)
+  integer ::  ninfo_stnid_chm
+  character(len=12), allocatable :: cinfo_stnid_chm(:)
+  integer, allocatable :: ninfo_bfr_chm(:),ninfo_brp_chm(:)
+  integer, allocatable :: ninfo_vco_chm(:),ninfo_lat_chm(:)
+  integer, allocatable :: ninfo_ibegin_chm(:),ninfo_lvl_chm(:)
+  real(8), allocatable :: xinfo_rak_chm(:),xinfo_vtp_chm(:),xinfo_vbt_chm(:)
+  real(8), allocatable :: xinfo_lat_chm(:)
 
 contains
 
 !-----------------------------------------------------------------------------------------
 
-  subroutine obsSpaceTR_setup(lobsSpaceData,lobsSpaceTR)
+  subroutine chm_obsSpace_setup(lobsSpaceData,lobsSpaceCHM)
 !
 ! Author   : Y. Rochon, Dec 2014 
 ! 
 ! Revisions: 
 !          
 ! Purpose: Setup additional information required by constituent obs and not provided in
-!          lobsSpaceData. Additional information incorporated in lobsSpaceTR.
+!          lobsSpaceData. Additional information incorporated in lobsSpaceCHM.
 !
 !----------------------------------------------------------------------------------------
 
   implicit none
 
   type(struct_obs) :: lobsSpaceData
-  type(struct_obs_tr) :: lobsSpaceTR
+  type(struct_obs_chm) :: lobsSpaceCHM
 
   integer :: index_header, idburp, icount
 
@@ -155,74 +155,74 @@ contains
   
      idburp = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
 
-     if (obs_getFamily(lobsSpaceData,index_header).EQ.'TR'.and.   &
+     if (obs_getFamily(lobsSpaceData,index_header).EQ.'CH'.and.   &
          (idburp.eq.codtyp_chemremote.or.idburp.eq.codtyp_cheminsitu)) &
              icount=icount+1
   end do 
 
   if (icount.eq.0) return
   
-  write(*,*) 'Begin ObsSpaceTR_setup'
+  write(*,*) 'Begin chm_obsspace_setup'
  
 ! Allocate space for header array
   
-  allocate(lobsSpaceTR%header(OBSTR_SIZE,icount)) 
-  lobsSpaceTR%numhead=icount  
+  allocate(lobsSpaceCHM%header(OBSTR_SIZE,icount)) 
+  lobsSpaceCHM%numhead=icount  
         
 ! Allocate space for array used to associate to lobsSpaceData
    
-  allocate(lobsSpaceTR%obsindex(obs_numheader(lobsSpaceData)))
+  allocate(lobsSpaceCHM%obsindex(obs_numheader(lobsSpaceData)))
 
-  write(*,*) 'Total and TR number of obs: ',obs_numheader(lobsSpaceData),icount
+  write(*,*) 'Total and CHM number of obs: ',obs_numheader(lobsSpaceData),icount
   
 !------------------------ Top and bottom layer boundaries ------------------------
   
 ! Read top and bottom layer boundaries of partial (or total) column meausurements
   
-  call obsspaceTR_layers(lobsSpaceTR)
+  call chm_obsspace_layers(lobsSpaceCHM)
   
-! Fill lobsSpaceTR with above info for associated lobsSpaceData observations for the TR family.
+! Fill lobsSpaceCHM with above info for associated lobsSpaceData observations for the TR family.
   
-  call obsSpaceTR_layers_fill(lobsSpaceData,lobsSpaceTR)
+  call chm_obsSpace_layers_fill(lobsSpaceData,lobsSpaceCHM)
   
 ! Deallocate space
   
-  call obsSpaceTR_layers_deallocate 
+  call chm_obsSpace_layers_deallocate 
 
 !--------------------------- Averaging kernel matrices ------------------------
    
 ! Read averaging kernel matrices
   
-! call obsSpaceTR_avgkern(lobsSpaceTR)
+! call chm_obsSpace_avgkern(lobsSpaceCHM)
   
-! Fill lobsSpaceTR with above info for associated lobsSpaceData observations for the TR family.
+! Fill lobsSpaceCHM with above info for associated lobsSpaceData observations for the TR family.
   
-! call obsSpacetr_avgkern_fill(lobsSpaceData,lobsSpaceTR)
+! call chm_obsSpace_avgkern_fill(lobsSpaceData,lobsSpaceCHM)
 
 ! Deallocate space
   
-! call obsSpaceTR_avgkern_deallocate 
+! call chm_obsSpace_avgkern_deallocate 
 
 
-  write(*,*) 'Completed ObsSpaceTR_setup'
+  write(*,*) 'Completed chm_obsspace_setup'
   
-  end subroutine obsSpaceTR_setup
+  end subroutine chm_obsSpace_setup
 
 !-----------------------------------------------------------------------------------------
 
-  subroutine obsspacetr_layers(lobsSpaceTR)
+  subroutine chm_obsSpace_layers(lobsSpaceCHM)
 !
 ! Author   : Y. Rochon, Dec 2014 
 !
 ! Revisions: 
 !          
-! Purpose: Read top and bottom layer boundaries for TR sub-families.
+! Purpose: Read top and bottom layer boundaries for CH sub-families.
 !
 !----------------------------------------------------------------------------------------
 
   implicit none
 
-  type(struct_obs_tr) :: lobsSpaceTR
+  type(struct_obs_chm) :: lobsSpaceCHM
   integer :: FNOM, FCLOS
   integer :: IERR, JLEV, JELM, nulstat, ios, isize, icount
   logical :: LnewExists
@@ -233,28 +233,28 @@ contains
 
 ! Initialization
 
-  ninfo_stnid_tr=0
+  ninfo_stnid_chm=0
 
-  INQUIRE(FILE='obsinfo_tr',EXIST=LnewExists)
+  INQUIRE(FILE='obsinfo_chm',EXIST=LnewExists)
   IF (LnewExists )then
 !    WRITE(*,*) '---------------------------------------------------------------'
-!    WRITE(*,*) 'obsspacetr_layers: read info from obsinfo_tr                  '
+!    WRITE(*,*) 'obsSpaceCHm_layers: read info from obsinfo_chm                  '
 !    WRITE(*,*) '---------------------------------------------------------------'
   else
     WRITE(*,*) '---------------------------------------------------------------'
-    WRITE(*,*) 'WARNING! read_obs_error_tr: obsinfo_tr not available.          '
-    WRITE(*,*) 'WARNING! Default TR family stddev to be applied if needed.     '
+    WRITE(*,*) 'WARNING! read_obs_error_chm: obsinfo_chm not available.          '
+    WRITE(*,*) 'WARNING! Default CH family stddev to be applied if needed.     '
     WRITE(*,*) '---------------------------------------------------------------'
   ENDIF
 !
 ! Check for available layer info.
 !
   NULSTAT=0
-  IERR=FNOM(NULSTAT,'obsinfo_tr','SEQ',0)
+  IERR=FNOM(NULSTAT,'obsinfo_chm','SEQ',0)
   IF ( IERR .EQ. 0 ) THEN
-    open(unit=nulstat, file='obsinfo_tr', status='OLD')
+    open(unit=nulstat, file='obsinfo_chm', status='OLD')
   ELSE
-    CALL ABORT3D('obsspacetr_layers: COULD NOT OPEN FILE obsinfo_tr!')
+    CALL ABORT3D('obsSpaceCHM_layers: COULD NOT OPEN FILE obsinfo_chm!')
   ENDIF
 
 !  write(*, '(A)') ' '
@@ -269,38 +269,38 @@ contains
   
 ! Read number of observation set sub-families (STNIDs and ...) and allocate space
    
-  read(nulstat,*,iostat=ios,err=10,end=10) ninfo_stnid_tr
-!  write(*, '(I6)') ninfo_stnid_tr
+  read(nulstat,*,iostat=ios,err=10,end=10) ninfo_stnid_chm
+!  write(*, '(I6)') ninfo_stnid_chm
   read(nulstat,*,iostat=ios,err=10,end=10) isize
 !  write(*, '(I8)') isize
 
-  allocate(cinfo_stnid_tr(ninfo_stnid_tr))
-  allocate(ninfo_vco_tr(ninfo_stnid_tr))
-  allocate(ninfo_brp_tr(ninfo_stnid_tr),ninfo_ibegin_tr(ninfo_stnid_tr))
-  allocate(ninfo_bfr_tr(ninfo_stnid_tr),ninfo_lvl_tr(ninfo_stnid_tr))
-  allocate(xinfo_vtp_tr(isize),xinfo_vbt_tr(isize))
-  allocate(lobsSpaceTR%vtp(isize),lobsSpaceTR%vbt(isize))
+  allocate(cinfo_stnid_chm(ninfo_stnid_chm))
+  allocate(ninfo_vco_chm(ninfo_stnid_chm))
+  allocate(ninfo_brp_chm(ninfo_stnid_chm),ninfo_ibegin_chm(ninfo_stnid_chm))
+  allocate(ninfo_bfr_chm(ninfo_stnid_chm),ninfo_lvl_chm(ninfo_stnid_chm))
+  allocate(xinfo_vtp_chm(isize),xinfo_vbt_chm(isize))
+  allocate(lobsSpaceCHM%vtp(isize),lobsSpaceCHM%vbt(isize))
  
-  ninfo_bfr_tr(:)=0
-  ninfo_vco_tr(:)=0
-  ninfo_brp_tr(:)=0
-  ninfo_lvl_tr(:)=1
+  ninfo_bfr_chm(:)=0
+  ninfo_vco_chm(:)=0
+  ninfo_brp_chm(:)=0
+  ninfo_lvl_chm(:)=1
 
 ! Begin reading for each sub-family
 ! Important: Combination of STNID, BUFR element and number of vertical levels
 !            to determine association to the observations.
 
   icount=0
-  do jelm=1,ninfo_stnid_tr
-    ninfo_ibegin_tr(jelm)=icount+1
+  do jelm=1,ninfo_stnid_chm
+    ninfo_ibegin_chm(jelm)=icount+1
 
     read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
 !    write(*, '(A)') ligne 
 
 !   Read STNID (* as wildcard)
     
-    read(nulstat,'(2X,A9)',iostat=ios,err=10,end=10) cinfo_stnid_tr(jelm) 
-!    write(*, '(A9)') cinfo_stnid_tr(jelm)
+    read(nulstat,'(2X,A9)',iostat=ios,err=10,end=10) cinfo_stnid_chm(jelm) 
+!    write(*, '(A9)') cinfo_stnid_chm(jelm)
 
 !   Read (1) Obs BUFR element.
 !        (2) Vertical coord type (1, 2, or 3)
@@ -311,61 +311,61 @@ contains
 !   Important: Combination of STNID, BUFR element and number of vertical levels
 !              to determine association to the observations.
 !
-    read(nulstat,*,iostat=ios,err=10,end=10) ninfo_bfr_tr(jelm),ninfo_vco_tr(jelm),  &
-       ninfo_brp_tr(jelm),ninfo_lvl_tr(jelm)  
-!    write(*, '(2X,I5,4I4)') ninfo_bfr_tr(jelm),ninfo_vco_tr(jelm), &
-!       ninfo_brp_tr(jelm),ninfo_lvl_tr(jelm)
+    read(nulstat,*,iostat=ios,err=10,end=10) ninfo_bfr_chm(jelm),ninfo_vco_chm(jelm),  &
+       ninfo_brp_chm(jelm),ninfo_lvl_chm(jelm)  
+!    write(*, '(2X,I5,4I4)') ninfo_bfr_chm(jelm),ninfo_vco_chm(jelm), &
+!       ninfo_brp_chm(jelm),ninfo_lvl_chm(jelm)
     
-    if (icount+ninfo_lvl_tr(jelm).gt.isize) then
+    if (icount+ninfo_lvl_chm(jelm).gt.isize) then
        write(*,'(10X,"Max array size exceeded: ",I6)') isize
-       CALL ABORT3D('obsspacetr_layers: READING PROBLEM.')    
+       CALL ABORT3D('chm_obsSpace_layers: READING PROBLEM.')    
     end if
 
     read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
 !    write(*, '(A)') ligne 
     
-    if (ninfo_lvl_tr(jelm).ge.1) then   
-       do jlev=1,ninfo_lvl_tr(jelm)
+    if (ninfo_lvl_chm(jelm).ge.1) then   
+       do jlev=1,ninfo_lvl_chm(jelm)
           icount=icount+1
           
           ! Read top and bottom levels
           
           read(nulstat,*,iostat=ios,err=10,end=10)                 &
-                 xinfo_vtp_tr(icount),xinfo_vbt_tr(icount)
-!          write(*, *) xinfo_vtp_tr(icount),xinfo_vbt_tr(icount)
-          lobsSpaceTR%vtp(icount)=xinfo_vtp_tr(icount)
-          lobsSpaceTR%vbt(icount)=xinfo_vbt_tr(icount)
+                 xinfo_vtp_chm(icount),xinfo_vbt_chm(icount)
+!          write(*, *) xinfo_vtp_chm(icount),xinfo_vbt_chm(icount)
+          lobsSpaceCHM%vtp(icount)=xinfo_vtp_chm(icount)
+          lobsSpaceCHM%vbt(icount)=xinfo_vbt_chm(icount)
        end do
     else 
        icount=icount+1
-       ninfo_lvl_tr(jelm)=1
-       if (ninfo_vco_tr(jelm).eq.2) then
-          xinfo_vtp_tr(icount)=1.0
-          xinfo_vbt_tr(icount)=120000.
-          lobsSpaceTR%vtp(icount)=xinfo_vtp_tr(icount)
-          lobsSpaceTR%vbt(icount)=xinfo_vbt_tr(icount)
-       else if (ninfo_vco_tr(jelm).eq.1) then
-          xinfo_vtp_tr(icount)=70000.   ! 70 km
-          xinfo_vbt_tr(icount)=0.0      !  0 km
-          lobsSpaceTR%vtp(icount)=xinfo_vtp_tr(icount)
-          lobsSpaceTR%vbt(icount)=xinfo_vbt_tr(icount)
+       ninfo_lvl_chm(jelm)=1
+       if (ninfo_vco_chm(jelm).eq.2) then
+          xinfo_vtp_chm(icount)=1.0
+          xinfo_vbt_chm(icount)=120000.
+          lobsSpaceCHM%vtp(icount)=xinfo_vtp_chm(icount)
+          lobsSpaceCHM%vbt(icount)=xinfo_vbt_chm(icount)
+       else if (ninfo_vco_chm(jelm).eq.1) then
+          xinfo_vtp_chm(icount)=70000.   ! 70 km
+          xinfo_vbt_chm(icount)=0.0      !  0 km
+          lobsSpaceCHM%vtp(icount)=xinfo_vtp_chm(icount)
+          lobsSpaceCHM%vbt(icount)=xinfo_vbt_chm(icount)
        end if
     end if
   end do
    
  10 if (ios.gt.0) then
        WRITE(*,*) 'File read error message number: ',ios
-       CALL ABORT3D('obsspacetr_layers: READING PROBLEM')    
+       CALL ABORT3D('chm_obsSpace_layers: READING PROBLEM')    
     end if
  
  11 CLOSE(UNIT=NULSTAT)
     IERR=FCLOS(NULSTAT)    
 
-  end subroutine obsspacetr_layers
+  end subroutine chm_obsSpace_layers
 
 !-----------------------------------------------------------------------------------------
 
-  subroutine obsSpaceTR_layers_fill(lobsSpaceData,lobsSpaceTR)
+  subroutine chm_obsspace_layers_fill(lobsSpaceData,lobsSpaceCHM)
 !
 ! Author  : Y. Rochon, Dec 2014.
 !
@@ -373,12 +373,12 @@ contains
 !             - When comparing a record with info in ascii file, allowed for arbitrary
 !               ordering of code 8090 within a block of data so that it gives the correct
 !               number of data elements (i.e. not counting the 8090 codes)
-!             - When matching observation from lobsSpaceData to lobsSpaceTR to set vertical
+!             - When matching observation from lobsSpaceData to lobsSpaceCHM to set vertical
 !               levels, the check of vertical coordinate type is disregarded if number of levels
 !               is one and the value of OBS_PPP is less than 0 (to indicate default value), as would
 !               be the case for a total column measurement.
 !          
-! Purpose: Store observation information in lobsSpaceTR and create associtation
+! Purpose: Store observation information in lobsSpaceCHM and create associtation
 !          to observation in lobsSpaceData.
 !
 !          Info to specify: top and bottom of partial/total column measurements
@@ -387,12 +387,12 @@ contains
 !
 ! Vertical levels will be given by
 !
-!     lobsSpaceTR%vtp(i1:i2)   ! Layer top
-!     lobsSpaceTR%vbt(i1:i2)   ! Layer bottom
+!     lobsSpaceCHM%vtp(i1:i2)   ! Layer top
+!     lobsSpaceCHM%vbt(i1:i2)   ! Layer bottom
 !
 !     where
 !
-!          i1=lobsSpaceTR%header(OBSTR_PPP,lobsSpaceTR%obsindex(INDEX_HEADER))
+!          i1=lobsSpaceCHM%header(OBSTR_PPP,lobsSpaceCHM%obsindex(INDEX_HEADER))
 !          i2=i1+obs_headElem_i(lobsSpaceData,OBS_NLV,INDEX_HEADER)-1
 !
 !--------------------------------------------------------------------------------------
@@ -400,7 +400,7 @@ contains
   implicit none
 
   type(struct_obs)    :: lobsSpaceData
-  type(struct_obs_tr) :: lobsSpaceTR
+  type(struct_obs_chm) :: lobsSpaceCHM
 
   integer :: JN, JI, INDEX_HEADER, IDATA, IDATEND, IDBURP
   integer :: ILEV,ISTNID,IBEGIN,IVCO,ITYP,ITYP2
@@ -410,7 +410,7 @@ contains
   CHARACTER(len=2)  :: CFAM
   CHARACTER(len=12) :: CSTNID
   
-  if (ninfo_stnid_tr.eq.0) return
+  if (ninfo_stnid_chm.eq.0) return
   
 
   icount=0
@@ -419,7 +419,7 @@ contains
      CFAM    = obs_getFamily(lobsSpaceData,INDEX_HEADER)
      IDBURP  = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
      
-     IF (CFAM.EQ.'TR'.AND.(IDBURP.EQ.codtyp_chemremote.OR.IDBURP.EQ.codtyp_cheminsitu)) THEN
+     IF (CFAM.EQ.'CH'.AND.(IDBURP.EQ.codtyp_chemremote.OR.IDBURP.EQ.codtyp_cheminsitu)) THEN
 
            IDATA   = obs_headElem_i(lobsSpaceData,OBS_RLN,INDEX_HEADER)
            ILEV    = obs_headElem_i(lobsSpaceData,OBS_NLV,INDEX_HEADER)
@@ -441,20 +441,20 @@ contains
 !                     to determine association to the observations.
 
 !          Find stnid with same number of vertical levels, and same BUFR element
-!          Note: * in cinfo_stndi_tr stands for a wildcard
+!          Note: * in cinfo_stndi_chm stands for a wildcard
           
            ISTNID=0
-           DO JN=1,ninfo_stnid_tr
+           DO JN=1,ninfo_stnid_chm
 
 !               First compare STNID values allowing for * and blanks in 
-!               cinfo_stnid_tr(JN) as wildcards
-                ilen1=len_trim(cinfo_stnid_tr(JN))
+!               cinfo_stnid_chm(JN) as wildcards
+                ilen1=len_trim(cinfo_stnid_chm(JN))
                 ilen2=len_trim(CSTNID)            
                 IF (ilen1.le.ilen2) THEN          
                     iset=1
                     DO ji=1,ilen1
-                       IF (cinfo_stnid_tr(JN)(ji:ji).ne.'*'.AND.   &
-                          CSTNID(ji:ji).ne.cinfo_stnid_tr(JN)(ji:ji)) THEN
+                       IF (cinfo_stnid_chm(JN)(ji:ji).ne.'*'.AND.   &
+                          CSTNID(ji:ji).ne.cinfo_stnid_chm(JN)(ji:ji)) THEN
                            iset=0
                            exit
                        END IF
@@ -465,8 +465,8 @@ contains
                 ! If number of levels is one and there is no value set for OBS_PPP (as for
                 ! a total column measurement), the check of vertical coordinate type is disregarded.
                 IF (iset.eq.1) THEN
-                   IF ( ITYP .EQ. ninfo_bfr_tr(JN) .AND. &
-                        ( (ILEV .EQ. ninfo_lvl_tr(JN) .AND. (IVCO.EQ.ninfo_vco_tr(JN).OR.IVCO.EQ.4)) .OR. &
+                   IF ( ITYP .EQ. ninfo_bfr_chm(JN) .AND. &
+                        ( (ILEV .EQ. ninfo_lvl_chm(JN) .AND. (IVCO.EQ.ninfo_vco_chm(JN).OR.IVCO.EQ.4)) .OR. &
                           (ILEV .EQ. 1 .AND. ZLEV .LE. 0.) ) &
                       ) THEN
                       ISTNID=JN
@@ -475,7 +475,7 @@ contains
                 END IF 
                 
                 IF (ISTNID.NE.0) THEN
-                   !   IF (ninfo_brp_tr(ISTNID).NE.0) THEN
+                   !   IF (ninfo_brp_chm(ISTNID).NE.0) THEN
                
                       !   Read from obs BURP file.
                       !   Dimension must be equivalent to ILEV
@@ -489,30 +489,30 @@ contains
            END DO
 
            icount=icount+1
-           lobsSpaceTR%obsindex(index_header)=icount        
-           lobsSpaceTR%header(OBSTR_RLN,icount)=index_header
+           lobsSpaceCHM%obsindex(index_header)=icount        
+           lobsSpaceCHM%header(OBSTR_RLN,icount)=index_header
 
 
            ! Set the starting position for the record in the arrays vtp,vbt
            IF (ISTNID.EQ.0) THEN
                IF (ityp.eq.15198.or.ityp.eq.15020) THEN
-                  CALL ABORT3D ('obsspacetr_layers_fill: Top and bottom of layers not found for STNID=' // CSTNID)
+                  CALL ABORT3D ('obsSpaceCHM_layers_fill: Top and bottom of layers not found for STNID=' // CSTNID)
                END IF
-               lobsSpaceTR%header(OBSTR_PPP,icount)=0
+               lobsSpaceCHM%header(OBSTR_PPP,icount)=0
            ELSE
                if (IVCO.eq.4) call obs_bodySet_i(lobsSpaceData,OBS_VCO,IDATA, &
-                                      ninfo_vco_tr(ISTNID))
-               lobsSpaceTR%header(OBSTR_PPP,icount)=ninfo_ibegin_tr(ISTNID)           
+                                      ninfo_vco_chm(ISTNID))
+               lobsSpaceCHM%header(OBSTR_PPP,icount)=ninfo_ibegin_chm(ISTNID)           
            END IF 
          
      END IF 
   END DO 
   
-  end subroutine obsSpaceTR_layers_fill
+  end subroutine chm_obsspace_layers_fill
 
 !-----------------------------------------------------------------------------------------
 
-  subroutine obsspacetr_layers_deallocate
+  subroutine chm_obsspace_layers_deallocate
 !
 ! Author  : Y. Rochon, Dec 2014
 ! Revision: 
@@ -522,21 +522,21 @@ contains
 ! ---------------------------------------------------------------------------------------
   
 !
-! Deallocate temporary space used for the TR family
+! Deallocate temporary space used for the CH family
 !
-  if (ninfo_stnid_tr.gt.0) then
-      deallocate(cinfo_stnid_tr)
-      deallocate(ninfo_lvl_tr,ninfo_ibegin_tr)
-      deallocate(ninfo_bfr_tr,ninfo_brp_tr,ninfo_vco_tr)
-      deallocate(xinfo_vtp_tr,xinfo_vbt_tr)
+  if (ninfo_stnid_chm.gt.0) then
+      deallocate(cinfo_stnid_chm)
+      deallocate(ninfo_lvl_chm,ninfo_ibegin_chm)
+      deallocate(ninfo_bfr_chm,ninfo_brp_chm,ninfo_vco_chm)
+      deallocate(xinfo_vtp_chm,xinfo_vbt_chm)
   end if
  
  
-  end subroutine obsspacetr_layers_deallocate
+  end subroutine chm_obsspace_layers_deallocate
 
 !-----------------------------------------------------------------------------------------
 
-  subroutine obsspacetr_avgkern_deallocate
+  subroutine chm_obsSpace_avgkern_deallocate
 !
 ! Author  : Y. Rochon, Dec 2014
 ! Revision: 
@@ -546,19 +546,19 @@ contains
 !---------------------------------------------------------------------------------------
   
 !
-! Deallocate temporary space used for the TR family
+! Deallocate temporary space used for the CH family
 !
-  if (ninfo_stnid_tr.gt.0) then
-      deallocate(cinfo_stnid_tr)
-      deallocate(ninfo_ibegin_tr)
-      deallocate(ninfo_bfr_tr,ninfo_brp_tr,ninfo_lat_tr)
-      deallocate(xinfo_rak_tr,xinfo_lat_tr)
+  if (ninfo_stnid_chm.gt.0) then
+      deallocate(cinfo_stnid_chm)
+      deallocate(ninfo_ibegin_chm)
+      deallocate(ninfo_bfr_chm,ninfo_brp_chm,ninfo_lat_chm)
+      deallocate(xinfo_rak_chm,xinfo_lat_chm)
   end if
  
  
-  end subroutine obsspacetr_avgkern_deallocate
+  end subroutine chm_obsSpace_avgkern_deallocate
 
 !-----------------------------------------------------------------------------------------
 
 
-end module ObsSpaceTR_mod
+end module chm_obsspace_mod

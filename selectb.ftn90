@@ -69,7 +69,7 @@ SUBROUTINE SELECTB(obsdat)
          Nstn2=obs_numheader(obsdat)
          IEND=obs_numbody(obsdat)
 
-	 IF ( trim(burp_cfamtyp(J)) .ne. 'TO'.and. trim(burp_cfamtyp(J)) .ne. 'TR') THEN
+	 IF ( trim(burp_cfamtyp(J)) .ne. 'TO'.and. trim(burp_cfamtyp(J)) .ne. 'CH') THEN
             call FDTOUV_OBSDAT(  obsdat,Nstn1+1,Nstn2,PPMIS)
             call ADJUST_HUM_GZ(  obsdat,Nstn1+1,Nstn2)
             call ADJUST_SFVCOORD(obsdat,Nstn1+1,Nstn2)
@@ -97,9 +97,9 @@ SUBROUTINE SELECTB(obsdat)
 !
 !    For TR family, Apply scaling from the element (8090) when present.
 !    
-         IF ( trim(burp_cfamtyp(J)) .eq. 'TR') THEN
+         IF ( trim(burp_cfamtyp(J)) .eq. 'CH') THEN
            print * ,' Scaling OBS_VAR for TR observation value'
-           CALL SET_SCAL_TR(obsdat,Nstn1+1,Nstn2)
+           CALL SET_SCAL_CHM(obsdat,Nstn1+1,Nstn2)
          ENDIF
 !
       END DO

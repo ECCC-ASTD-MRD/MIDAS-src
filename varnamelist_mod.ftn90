@@ -136,23 +136,23 @@ module varNameList_mod
 !
         if (present(varNumber_chm)) then 
            select case (varnumber_chm)
-              case(BUFR_NETR_O3)
+              case(BUFR_NECH_O3)
                  varname='O3'
-              case(BUFR_NETR_H2O)
+              case(BUFR_NECH_H2O)
                  varname='HU'
-              case(BUFR_NETR_CH4)
+              case(BUFR_NECH_CH4)
                  varname='CH4'
-              case(BUFR_NETR_CO2)
+              case(BUFR_NECH_CO2)
                  varname='CO2'
-              case(BUFR_NETR_CO)
+              case(BUFR_NECH_CO)
                  varname='CO'
-              case(BUFR_NETR_NO2)
+              case(BUFR_NECH_NO2)
                  varname='NO2'
-              case(BUFR_NETR_N2O)
+              case(BUFR_NECH_N2O)
                  varname='N2O'
-              case(BUFR_NETR_HCHO)
+              case(BUFR_NECH_HCHO)
                  varname='HCHO'
-              case(BUFR_NETR_SO2)
+              case(BUFR_NECH_SO2)
                  varname='SO2'
               case default
                  write(*,*) 'vnl_varnameFromVarnum: Unknown variable number! ',varNumber, varNumber_chm
