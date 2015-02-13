@@ -14,215 +14,196 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-! chm_obsspace_mod:  The module chm_obsspace_mod must be used in conjuction with
-!                  ObsSpaceData_mod.
-! 
-!
 #include "maincompileswitch.inc"
 #include "compileswitches.inc"
 
-module chm_obsspace_mod
+module chem_mod
 !
 ! PURPOSE:
-!    Read, store, and associate information related to constituent observations
-!    which are not included in ObsSpaceData_mod. This information is
-!    made available within the 'chm_ObsSpace' structure (type struct_obs_chm).
-!    The association of information within 'chm_obsspace' to specific observations 
-!    is done through an index array within 'chm_obsspace'. 
+!    Repository of obs space structures, arrays, and routines specific to the 
+!    CH chemical constituents family.
 !
-!    The content of chm_ObsSpace is relevant only to the constituent 
-!    observation operators.
+!    Main content:
 !
+!       - Routines and strucure for setting of obs error std. dev. used in
+!         'observation_erreurs_mod.ftn90'
+!       - Observation operators. See main routine 'chm_obsoperators',
+!       - Routines and structure for setting and assignment of observation layer 
+!         top and bottom levels. See 'preproc.ftn90' and 'chm_obsoperators'.
+!       - Routines and structure for setting and assignment of averagin kernel
+!         matrices. CODE NOT COMPLETED. See 'preproc.ftn90' and 'chm_obsoperators'.
+!       
 ! COMMENT:
 !
-!    Ths module could be expanded to contain other constituent related info
-!    or routines (e.g. unit conversions)
+!    This module can be expanded to contain other constituent related info
+!    or routines.
 !
-! Author  : Y.J Rochon - ARQI, 2014
+! Author  : Y.J Rochon - ARQI/AQRD, 2014
 !
 ! Revisions:
+!           M. Sitwell, ARQI/AQRD, Feb 2015
+!           - Created struct_chm_info and struct_chm_std structures for storing
+!             information read from ascii/burp file and removal of earlier structure.
 !
 !----------------------------------------------------------------------------------
 
-    use MathPhysConstants_mod
-    use obsSpaceData_mod
-    use codtyp_mod
-    use bufr
+  use EarthConstants_mod
+  use MathPhysConstants_mod
+  use obsSpaceData_mod
+  use codtyp_mod
+  use bufr
    
-   implicit none
-    private
+  implicit none
+  private
 
-!   public procedures
-!   -----------------
+! public procedures
+! -----------------
 
-    public :: chm_obsspace_setup
+  public :: chm_setup,chm_dealloc_obs_err_stddev,chm_read_obs_err_stddev,chm_get_obs_err_stddev
   
-!
-!   Position indices of content within header (index) array struct_obs_chm%header
-!   Content of struct_obs_chm%header mostly provides location of relevant content 
-!   within struct_obs_chm%*.
-!
-!  CHM report location index in ObsSpaceData (association to OBS_RLN but for CH family obs only)
-   integer, parameter, public :: OBSTR_RLN = 1 
-   
-!  Start location in storage arrays containing layer top and bottom levels.
-!  Index location set to 0 if not relevant.
-   integer, parameter, public :: OBSTR_PPP = OBSTR_RLN+1
-                                                  
-!  Start location in storage array containing averaging kernel matrix.
-!  Index location set to 0 if not relevant.
-   integer, parameter, public :: OBSTR_NAK = OBSTR_PPP
-   
-   integer, parameter, public :: OBSTR_SIZE=OBSTR_NAK
-                                                  
-!  This type contains the information arrays of the chm_obsspace module. 
-!  Content:
-!        obsindex(:)    Association of obs index to header array content 
-!                       Also, struct_obs_chm%header(OBSTR_RLN,obsindex(j))=j 
-!        header(:,:)    Index given by (OBSTR_*,obsindex(:))
-!        vtp(:)         Top of layer. Start index given by header(OBSTR_PPP,obsindex(:)) 
-!        vbt(:)         Bottom of layer. Start index given by header(OBSTR_PPP,obsindex(:)) 
-!        avgkern(:,:,:) Averaging kernel matrices. (:,:,header(OBSTR_NAK,obsindex(:))
-!        numHead        Number of header elements
-
-   type, public :: struct_obs_chm
-      integer, dimension(:),        pointer :: obsindex 
-      integer, dimension(:,:),      pointer :: header    
-      real(OBS_REAL), dimension(:), pointer :: vtp,vbt
-      real(OBS_REAL), dimension(:,:,:), pointer :: avgkern
-      integer :: numHead     
-   end type struct_obs_chm
-
-!  Information arrays retrieved from obsinfo_chm to produce content of
-!  struct_obs_chm
-!
-!  Variable               Description
-!  --------               -----------
-!  ninfo_stnid_chm         Number of sub-families (identified via STNIDs)
-!  cinfo_stnid_chm         sub-families (STNIDs; * are wild cards)
-!  ninfo_bfr_chm           BUFR/BURP element in data block
-!  ninfo_brp_chm           0: Set entirely from the ascii file being read. No 
-!                            initial values read from BURP files
-!                         1: Initial values in obs BURP files 
-!                            (may be adjusted after input)
-!  ninfo_vco_chm           Vertical coordinate type (1, 2, or 3, see bufr_read_mod)
-
-!  ninfo_ibegin_chm        Position index of start of data for given
-!                         sub-family.
-!  ninfo_lvl_chm           Number of vertical levels
-!  xinfo_vtp_chm           Layer top 
-!  xinfo_vbt_chm           Layer bottom
+  type :: struct_chm_info
+     !  Information arrays retrieved from obsinfo_chm regarding vertical levels 
+     !  or averaging kernels
+     !
+     !  Variable               Description
+     !  --------               -----------
+     !  n_stnid                Number of sub-families (identified via STNIDs)
+     !  stnids                 Sub-families (STNIDs; * are wild cards)
+     !  bfr                    BUFR/BURP element in data block
+     !  brp                    0: Set entirely from the ascii file being read. No 
+     !                            initial values read from BURP files
+     !                         1: Initial values in obs BURP files 
+     !                             (may be adjusted after input)
+     !  vco                    Vertical coordinate type (1, 2, or 3, see bufr_read_mod)
+     !
+     !  ibegin                 Position index of start of data for given
+     !                         sub-family.
+     !  n_lvl                  Number of vertical levels
+     !  n_lat                  Number of latitudes
+     !  lat                    Latitudes (degrees; ordered in increasing size)
+     !
+     !  vlayertop              Layer top 
+     !  vlayerbottom           Layer bottom
+     !  rak                    Averaging kernel matrices
+     
+     integer ::  n_stnid
+     character(len=12), allocatable :: stnids(:)
+     integer, allocatable :: bfr(:),brp(:)
+     integer, allocatable :: vco(:),n_lat(:)
+     integer, allocatable :: ibegin(:),n_lvl(:)
+     real(8), allocatable :: rak(:),vlayertop(:),vlayerbottom(:)
+     real(8), allocatable :: lat(:)
   
-!  ninfo_lat_chm           Number of latitudes
-!  xinfo_lat_chm           Latitudes (degrees; ordering in increasing size)
-!  xinfo_rak_chm           Averaging kernel matrices
-! 
-  integer ::  ninfo_stnid_chm
-  character(len=12), allocatable :: cinfo_stnid_chm(:)
-  integer, allocatable :: ninfo_bfr_chm(:),ninfo_brp_chm(:)
-  integer, allocatable :: ninfo_vco_chm(:),ninfo_lat_chm(:)
-  integer, allocatable :: ninfo_ibegin_chm(:),ninfo_lvl_chm(:)
-  real(8), allocatable :: xinfo_rak_chm(:),xinfo_vtp_chm(:),xinfo_vbt_chm(:)
-  real(8), allocatable :: xinfo_lat_chm(:)
+  end type struct_chm_info
+
+
+  type :: struct_chm_std
+     !
+     ! Structure for holding observation std information
+     !
+     !  Variable               Description
+     !  --------               -----------
+     !  n_stnid                Number of sub-families (identified via STNIDs)
+     !  stnids                 Sub-families (STNIDs; * are wild cards)
+     !  bfr                    BUFR/BURP element in data block 
+     !  brp                    0: Set entirely from the ascii file being read. No 
+     !                            initial values read from BURP files
+     !                         1: Initial values in obs BURP files 
+     !                            (may be adjusted after input)
+     !  std_type               Index of setup approach (used in combination with
+     !                            nstd_brp_chm)
+     !                         For nstd_brp_chm value 0 or 1, 
+     !                         0: std1 or BURP file vales (sigma)
+     !                         1: min(std3,max(std2,std1_chm*ZVAL))
+     !                                                   or
+     !                            max(std2(ISTNID),xstd_std1_chm(ILEV)*sigma)
+     !                         2: sqrt(std2**2+(std1*ZVAL)**2))
+     !                                                   or
+     !                                              not applicable
+     !  ibegin                 Position index of start of data for given
+     !                         sub-family in the arrays std1,levels,lat
+     !  n_lvl                  Number of vertical levels
+     !  levels                 Vertical levels (in coordinate of sub-family data)
+     !  n_lat                  Number of latitudes
+     !  lat                    Latitudes (degrees; ordered in increasing size)
+     !  std1                   See std_type for usage
+     !  std2                   See std_type for usage
+     !  std3                   See std_type for usage     
+
+     integer ::  n_stnid
+     character(len=12), allocatable :: stnids(:)
+     integer, allocatable :: bfr(:),std_type(:),n_lat(:)
+     integer, allocatable :: brp(:),ibegin(:),n_lvl(:)
+     real(8),  allocatable :: std1(:),std2(:),std3(:)
+     real(8), allocatable :: levels(:),lat(:)
+
+  end type struct_chm_std
+
+
+  type(struct_chm_info) :: chm_layers
+  type(struct_chm_info) :: chm_avgkern
+  type(struct_chm_std)  :: chm_std
 
 contains
 
 !-----------------------------------------------------------------------------------------
 
-  subroutine chm_obsSpace_setup(lobsSpaceData,lobsSpaceCHM)
+  subroutine chm_setup
 !
 ! Author   : Y. Rochon, Dec 2014 
 ! 
-! Revisions: 
+! Revisions: M. Sitwell, Feb 2015
+!            - Removed references to earlier structure
 !          
 ! Purpose: Setup additional information required by constituent obs and not provided in
-!          lobsSpaceData. Additional information incorporated in lobsSpaceCHM.
+!          lobsSpaceData.
 !
 !----------------------------------------------------------------------------------------
 
   implicit none
-
-  type(struct_obs) :: lobsSpaceData
-  type(struct_obs_chm) :: lobsSpaceCHM
-
-  integer :: index_header, idburp, icount
-
-! Check for the presence of the TR family and count number of 
-! corresponding observations
-
-  icount=0
-  do index_header = 1, obs_numheader(lobsSpaceData)
   
-     idburp = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
-
-     if (obs_getFamily(lobsSpaceData,index_header).EQ.'CH'.and.   &
-         (idburp.eq.codtyp_chemremote.or.idburp.eq.codtyp_cheminsitu)) &
-             icount=icount+1
-  end do 
-
-  if (icount.eq.0) return
-  
-  write(*,*) 'Begin chm_obsspace_setup'
- 
-! Allocate space for header array
-  
-  allocate(lobsSpaceCHM%header(OBSTR_SIZE,icount)) 
-  lobsSpaceCHM%numhead=icount  
-        
-! Allocate space for array used to associate to lobsSpaceData
-   
-  allocate(lobsSpaceCHM%obsindex(obs_numheader(lobsSpaceData)))
-
-  write(*,*) 'Total and CHM number of obs: ',obs_numheader(lobsSpaceData),icount
-  
+  write(*,*) 'Begin chm_setup'
+     
 !------------------------ Top and bottom layer boundaries ------------------------
   
 ! Read top and bottom layer boundaries of partial (or total) column meausurements
   
-  call chm_obsspace_layers(lobsSpaceCHM)
-  
-! Fill lobsSpaceCHM with above info for associated lobsSpaceData observations for the TR family.
-  
-  call chm_obsSpace_layers_fill(lobsSpaceData,lobsSpaceCHM)
-  
-! Deallocate space
-  
-  call chm_obsSpace_layers_deallocate 
+  call chm_read_layers
+      
+! Deallocate space (call this somewhere else?)
+
+!  call chm_dealloc_layers
 
 !--------------------------- Averaging kernel matrices ------------------------
    
 ! Read averaging kernel matrices
   
-! call chm_obsSpace_avgkern(lobsSpaceCHM)
+! call chm_avgkern
   
-! Fill lobsSpaceCHM with above info for associated lobsSpaceData observations for the TR family.
-  
-! call chm_obsSpace_avgkern_fill(lobsSpaceData,lobsSpaceCHM)
-
 ! Deallocate space
   
-! call chm_obsSpace_avgkern_deallocate 
+! call chm_dealloc_avgkern
 
-
-  write(*,*) 'Completed chm_obsspace_setup'
+  write(*,*) 'Completed chm_setup'
   
-  end subroutine chm_obsSpace_setup
+  end subroutine chm_setup
 
 !-----------------------------------------------------------------------------------------
 
-  subroutine chm_obsSpace_layers(lobsSpaceCHM)
+  subroutine chm_read_layers
 !
-! Author   : Y. Rochon, Dec 2014 
+! Author   : Y. Rochon, ARQI/AQRD, Dec 2014 
 !
 ! Revisions: 
+!            M. Sitwell, ARQI/AQRD, Feb 2015
+!            - Renaming of routine and removal of lines no longer required.
 !          
-! Purpose: Read top and bottom layer boundaries for CH sub-families.
+! Purpose: Read and store top and bottom layer boundaries for CH sub-families
 !
 !----------------------------------------------------------------------------------------
 
   implicit none
 
-  type(struct_obs_chm) :: lobsSpaceCHM
   integer :: FNOM, FCLOS
   integer :: IERR, JLEV, JELM, nulstat, ios, isize, icount
   logical :: LnewExists
@@ -233,18 +214,14 @@ contains
 
 ! Initialization
 
-  ninfo_stnid_chm=0
+  chm_layers%n_stnid=0
 
   INQUIRE(FILE='obsinfo_chm',EXIST=LnewExists)
-  IF (LnewExists )then
-!    WRITE(*,*) '---------------------------------------------------------------'
-!    WRITE(*,*) 'obsSpaceCHm_layers: read info from obsinfo_chm                  '
-!    WRITE(*,*) '---------------------------------------------------------------'
-  else
-    WRITE(*,*) '---------------------------------------------------------------'
-    WRITE(*,*) 'WARNING! read_obs_error_chm: obsinfo_chm not available.          '
-    WRITE(*,*) 'WARNING! Default CH family stddev to be applied if needed.     '
-    WRITE(*,*) '---------------------------------------------------------------'
+  IF (.not.LnewExists )then
+    WRITE(*,*)   '-------------------------------------------------'
+    WRITE(*,*)   'chm_read_layers: COULD NOT FIND FILE obsinfo_chm!'
+    WRITE(*,*)   '-------------------------------------------------'
+    return
   ENDIF
 !
 ! Check for available layer info.
@@ -254,53 +231,44 @@ contains
   IF ( IERR .EQ. 0 ) THEN
     open(unit=nulstat, file='obsinfo_chm', status='OLD')
   ELSE
-    CALL ABORT3D('obsSpaceCHM_layers: COULD NOT OPEN FILE obsinfo_chm!')
+    CALL ABORT3D('chm_read_layers: COULD NOT OPEN FILE obsinfo_chm!')
   ENDIF
 
-!  write(*, '(A)') ' '
-  
   ios=0
   read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
-!  write(*,'(A)') ligne   
   do while (trim(adjustl(ligne(1:13))).ne.'SECTION II:') 
       read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
-!      write(*, '(A)') ligne   
   end do    
   
 ! Read number of observation set sub-families (STNIDs and ...) and allocate space
    
-  read(nulstat,*,iostat=ios,err=10,end=10) ninfo_stnid_chm
-!  write(*, '(I6)') ninfo_stnid_chm
+  read(nulstat,*,iostat=ios,err=10,end=10) chm_layers%n_stnid
   read(nulstat,*,iostat=ios,err=10,end=10) isize
-!  write(*, '(I8)') isize
 
-  allocate(cinfo_stnid_chm(ninfo_stnid_chm))
-  allocate(ninfo_vco_chm(ninfo_stnid_chm))
-  allocate(ninfo_brp_chm(ninfo_stnid_chm),ninfo_ibegin_chm(ninfo_stnid_chm))
-  allocate(ninfo_bfr_chm(ninfo_stnid_chm),ninfo_lvl_chm(ninfo_stnid_chm))
-  allocate(xinfo_vtp_chm(isize),xinfo_vbt_chm(isize))
-  allocate(lobsSpaceCHM%vtp(isize),lobsSpaceCHM%vbt(isize))
+  allocate(chm_layers%stnids(chm_layers%n_stnid))
+  allocate(chm_layers%vco(chm_layers%n_stnid))
+  allocate(chm_layers%brp(chm_layers%n_stnid),chm_layers%ibegin(chm_layers%n_stnid))
+  allocate(chm_layers%bfr(chm_layers%n_stnid),chm_layers%n_lvl(chm_layers%n_stnid))
+  allocate(chm_layers%vlayertop(isize),chm_layers%vlayerbottom(isize))
  
-  ninfo_bfr_chm(:)=0
-  ninfo_vco_chm(:)=0
-  ninfo_brp_chm(:)=0
-  ninfo_lvl_chm(:)=1
+  chm_layers%bfr(:)=0
+  chm_layers%vco(:)=0
+  chm_layers%brp(:)=0
+  chm_layers%n_lvl(:)=1
 
 ! Begin reading for each sub-family
 ! Important: Combination of STNID, BUFR element and number of vertical levels
 !            to determine association to the observations.
 
   icount=0
-  do jelm=1,ninfo_stnid_chm
-    ninfo_ibegin_chm(jelm)=icount+1
+  do jelm=1,chm_layers%n_stnid
+    chm_layers%ibegin(jelm)=icount+1
 
     read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
-!    write(*, '(A)') ligne 
 
-!   Read STNID (* as wildcard)
+!   Read STNID (* is a wildcard)
     
-    read(nulstat,'(2X,A9)',iostat=ios,err=10,end=10) cinfo_stnid_chm(jelm) 
-!    write(*, '(A9)') cinfo_stnid_chm(jelm)
+    read(nulstat,'(2X,A9)',iostat=ios,err=10,end=10) chm_layers%stnids(jelm) 
 
 !   Read (1) Obs BUFR element.
 !        (2) Vertical coord type (1, 2, or 3)
@@ -311,208 +279,52 @@ contains
 !   Important: Combination of STNID, BUFR element and number of vertical levels
 !              to determine association to the observations.
 !
-    read(nulstat,*,iostat=ios,err=10,end=10) ninfo_bfr_chm(jelm),ninfo_vco_chm(jelm),  &
-       ninfo_brp_chm(jelm),ninfo_lvl_chm(jelm)  
-!    write(*, '(2X,I5,4I4)') ninfo_bfr_chm(jelm),ninfo_vco_chm(jelm), &
-!       ninfo_brp_chm(jelm),ninfo_lvl_chm(jelm)
+    read(nulstat,*,iostat=ios,err=10,end=10) chm_layers%bfr(jelm),chm_layers%vco(jelm),  &
+       chm_layers%brp(jelm),chm_layers%n_lvl(jelm)  
     
-    if (icount+ninfo_lvl_chm(jelm).gt.isize) then
+    if (icount+chm_layers%n_lvl(jelm).gt.isize) then
        write(*,'(10X,"Max array size exceeded: ",I6)') isize
-       CALL ABORT3D('chm_obsSpace_layers: READING PROBLEM.')    
+       CALL ABORT3D('chm_read_layers: READING PROBLEM.')    
     end if
 
     read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
-!    write(*, '(A)') ligne 
     
-    if (ninfo_lvl_chm(jelm).ge.1) then   
-       do jlev=1,ninfo_lvl_chm(jelm)
+    if (chm_layers%n_lvl(jelm).ge.1) then   
+       do jlev=1,chm_layers%n_lvl(jelm)
           icount=icount+1
           
           ! Read top and bottom levels
           
           read(nulstat,*,iostat=ios,err=10,end=10)                 &
-                 xinfo_vtp_chm(icount),xinfo_vbt_chm(icount)
-!          write(*, *) xinfo_vtp_chm(icount),xinfo_vbt_chm(icount)
-          lobsSpaceCHM%vtp(icount)=xinfo_vtp_chm(icount)
-          lobsSpaceCHM%vbt(icount)=xinfo_vbt_chm(icount)
+                 chm_layers%vlayertop(icount),chm_layers%vlayerbottom(icount)
        end do
     else 
        icount=icount+1
-       ninfo_lvl_chm(jelm)=1
-       if (ninfo_vco_chm(jelm).eq.2) then
-          xinfo_vtp_chm(icount)=1.0
-          xinfo_vbt_chm(icount)=120000.
-          lobsSpaceCHM%vtp(icount)=xinfo_vtp_chm(icount)
-          lobsSpaceCHM%vbt(icount)=xinfo_vbt_chm(icount)
-       else if (ninfo_vco_chm(jelm).eq.1) then
-          xinfo_vtp_chm(icount)=70000.   ! 70 km
-          xinfo_vbt_chm(icount)=0.0      !  0 km
-          lobsSpaceCHM%vtp(icount)=xinfo_vtp_chm(icount)
-          lobsSpaceCHM%vbt(icount)=xinfo_vbt_chm(icount)
+       chm_layers%n_lvl(jelm)=1
+       if (chm_layers%vco(jelm).eq.2) then
+          chm_layers%vlayertop(icount)=1.0
+          chm_layers%vlayerbottom(icount)=120000.
+       else if (chm_layers%vco(jelm).eq.1) then
+          chm_layers%vlayertop(icount)=70000.   ! 70 km
+          chm_layers%vlayerbottom(icount)=0.0      !  0 km
        end if
     end if
   end do
    
  10 if (ios.gt.0) then
        WRITE(*,*) 'File read error message number: ',ios
-       CALL ABORT3D('chm_obsSpace_layers: READING PROBLEM')    
+       CALL ABORT3D('chm_read_layers: READING PROBLEM')    
     end if
  
  11 CLOSE(UNIT=NULSTAT)
     IERR=FCLOS(NULSTAT)    
 
-  end subroutine chm_obsSpace_layers
+  end subroutine chm_read_layers
+
 
 !-----------------------------------------------------------------------------------------
 
-  subroutine chm_obsspace_layers_fill(lobsSpaceData,lobsSpaceCHM)
-!
-! Author  : Y. Rochon, Dec 2014.
-!
-! Revision: M. Sitwell Jan 2015
-!             - When comparing a record with info in ascii file, allowed for arbitrary
-!               ordering of code 8090 within a block of data so that it gives the correct
-!               number of data elements (i.e. not counting the 8090 codes)
-!             - When matching observation from lobsSpaceData to lobsSpaceCHM to set vertical
-!               levels, the check of vertical coordinate type is disregarded if number of levels
-!               is one and the value of OBS_PPP is less than 0 (to indicate default value), as would
-!               be the case for a total column measurement.
-!          
-! Purpose: Store observation information in lobsSpaceCHM and create associtation
-!          to observation in lobsSpaceData.
-!
-!          Info to specify: top and bottom of partial/total column measurements
-!
-! Comment:
-!
-! Vertical levels will be given by
-!
-!     lobsSpaceCHM%vtp(i1:i2)   ! Layer top
-!     lobsSpaceCHM%vbt(i1:i2)   ! Layer bottom
-!
-!     where
-!
-!          i1=lobsSpaceCHM%header(OBSTR_PPP,lobsSpaceCHM%obsindex(INDEX_HEADER))
-!          i2=i1+obs_headElem_i(lobsSpaceData,OBS_NLV,INDEX_HEADER)-1
-!
-!--------------------------------------------------------------------------------------
-
-  implicit none
-
-  type(struct_obs)    :: lobsSpaceData
-  type(struct_obs_chm) :: lobsSpaceCHM
-
-  integer :: JN, JI, INDEX_HEADER, IDATA, IDATEND, IDBURP
-  integer :: ILEV,ISTNID,IBEGIN,IVCO,ITYP,ITYP2
-  integer :: ielem,icodtyp,ilen1,ilen2,iset,icount
-  real*8  :: ZLEV
-
-  CHARACTER(len=2)  :: CFAM
-  CHARACTER(len=12) :: CSTNID
-  
-  if (ninfo_stnid_chm.eq.0) return
-  
-
-  icount=0
-  DO INDEX_HEADER = 1, obs_numheader(lobsSpaceData)
-
-     CFAM    = obs_getFamily(lobsSpaceData,INDEX_HEADER)
-     IDBURP  = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
-     
-     IF (CFAM.EQ.'CH'.AND.(IDBURP.EQ.codtyp_chemremote.OR.IDBURP.EQ.codtyp_cheminsitu)) THEN
-
-           IDATA   = obs_headElem_i(lobsSpaceData,OBS_RLN,INDEX_HEADER)
-           ILEV    = obs_headElem_i(lobsSpaceData,OBS_NLV,INDEX_HEADER)
-           CSTNID  = obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER)
-           
-           ITYP    = obs_bodyElem_i(lobsSpaceData,OBS_VNM,IDATA)
-           IVCO    = obs_bodyElem_i(lobsSpaceData,OBS_VCO,IDATA)
-           ZLEV    = obs_bodyElem_r(lobsSpaceData,OBS_PPP,IDATA)
-
-           ! Subtract the number of occurances of code 8090 from number of levels
-           do ji=0,ilev-1
-                 if (obs_bodyElem_i(lobsSpaceData,OBS_VNM,IDATA+ji).eq.8090) then
-                    ilev = ilev-1
-                 end if
-           end do
-
-           
-!          Important: Combination of STNID, BUFR element and number of vertical levels
-!                     to determine association to the observations.
-
-!          Find stnid with same number of vertical levels, and same BUFR element
-!          Note: * in cinfo_stndi_chm stands for a wildcard
-          
-           ISTNID=0
-           DO JN=1,ninfo_stnid_chm
-
-!               First compare STNID values allowing for * and blanks in 
-!               cinfo_stnid_chm(JN) as wildcards
-                ilen1=len_trim(cinfo_stnid_chm(JN))
-                ilen2=len_trim(CSTNID)            
-                IF (ilen1.le.ilen2) THEN          
-                    iset=1
-                    DO ji=1,ilen1
-                       IF (cinfo_stnid_chm(JN)(ji:ji).ne.'*'.AND.   &
-                          CSTNID(ji:ji).ne.cinfo_stnid_chm(JN)(ji:ji)) THEN
-                           iset=0
-                           exit
-                       END IF
-                    END DO
-                END IF
- 
-                ! Check if number of levels, code, and vertical coordinate type are equal.
-                ! If number of levels is one and there is no value set for OBS_PPP (as for
-                ! a total column measurement), the check of vertical coordinate type is disregarded.
-                IF (iset.eq.1) THEN
-                   IF ( ITYP .EQ. ninfo_bfr_chm(JN) .AND. &
-                        ( (ILEV .EQ. ninfo_lvl_chm(JN) .AND. (IVCO.EQ.ninfo_vco_chm(JN).OR.IVCO.EQ.4)) .OR. &
-                          (ILEV .EQ. 1 .AND. ZLEV .LE. 0.) ) &
-                      ) THEN
-                      ISTNID=JN
-                      exit
-                   END IF
-                END IF 
-                
-                IF (ISTNID.NE.0) THEN
-                   !   IF (ninfo_brp_chm(ISTNID).NE.0) THEN
-               
-                      !   Read from obs BURP file.
-                      !   Dimension must be equivalent to ILEV
-                      ! ...
-                   
-                      ! ...
-                   
-                   !   END IF
-                END IF
-       
-           END DO
-
-           icount=icount+1
-           lobsSpaceCHM%obsindex(index_header)=icount        
-           lobsSpaceCHM%header(OBSTR_RLN,icount)=index_header
-
-
-           ! Set the starting position for the record in the arrays vtp,vbt
-           IF (ISTNID.EQ.0) THEN
-               IF (ityp.eq.15198.or.ityp.eq.15020) THEN
-                  CALL ABORT3D ('obsSpaceCHM_layers_fill: Top and bottom of layers not found for STNID=' // CSTNID)
-               END IF
-               lobsSpaceCHM%header(OBSTR_PPP,icount)=0
-           ELSE
-               if (IVCO.eq.4) call obs_bodySet_i(lobsSpaceData,OBS_VCO,IDATA, &
-                                      ninfo_vco_chm(ISTNID))
-               lobsSpaceCHM%header(OBSTR_PPP,icount)=ninfo_ibegin_chm(ISTNID)           
-           END IF 
-         
-     END IF 
-  END DO 
-  
-  end subroutine chm_obsspace_layers_fill
-
-!-----------------------------------------------------------------------------------------
-
-  subroutine chm_obsspace_layers_deallocate
+  subroutine chm_dealloc_layers
 !
 ! Author  : Y. Rochon, Dec 2014
 ! Revision: 
@@ -524,19 +336,540 @@ contains
 !
 ! Deallocate temporary space used for the CH family
 !
-  if (ninfo_stnid_chm.gt.0) then
-      deallocate(cinfo_stnid_chm)
-      deallocate(ninfo_lvl_chm,ninfo_ibegin_chm)
-      deallocate(ninfo_bfr_chm,ninfo_brp_chm,ninfo_vco_chm)
-      deallocate(xinfo_vtp_chm,xinfo_vbt_chm)
+  if (chm_layers%n_stnid.gt.0) then
+      deallocate(chm_layers%stnids)
+      deallocate(chm_layers%n_lvl,chm_layers%ibegin)
+      deallocate(chm_layers%bfr,chm_layers%brp,chm_layers%vco)
+      deallocate(chm_layers%vlayertop,chm_layers%vlayerbottom)
   end if
  
+  end subroutine chm_dealloc_layers
+
+!-----------------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------------------
+
+  subroutine chm_read_obs_err_stddev
+!
+!  s/r chm_read_obs_err_stddev - READ OBSERVATION ERROR OF CONSTITUENT DATA 
+!
+!  Author   : Y. Rochon, Nov 2014 
+!             (initial part follows the format of oer_read_obs_erreurs_conv)
+!  Revisions: 
+!             M. Sitwell, Fdeb 2015
+!             - Content formed as a separate routine called in oer_read_obs_erreurs_chm.
+!          
+! Purpose: Read and store observation error std. dev. as needed for CH family obs.
+!
+!----------------------------------------------------------------------------------------
+
+  implicit none
+
+  integer :: FNOM, FCLOS
+  integer :: IERR, JLEV, JELM, nulstat, ios, isize, icount
+  logical :: LnewExists
+  
+  character (len=128) :: ligne
+
+  EXTERNAL FNOM,FCLOS
+
+! Initialization
+
+  chm_std%n_stnid=0
+!
+! CHECK THE EXISTENCE OF THE NEW FILE WITH STATISTICS
+! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!
+  INQUIRE(FILE='obsinfo_chm',EXIST=LnewExists)
+  IF (.not.LnewExists) then
+    WRITE(*,*) '---------------------------------------------------------------'
+    WRITE(*,*) 'WARNING! chm_read_obs_err_stddev: obsinfo_chm not available.   '
+    WRITE(*,*) 'WARNING! Default CH family stddev to be applied if needed.     '
+    WRITE(*,*) '---------------------------------------------------------------'
+    return
+  ENDIF
+!
+! Read observation error std dev. from file obsinfo_chm for constituent data
+! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!
+  NULSTAT=0
+  IERR=FNOM(NULSTAT,'obsinfo_chm','SEQ',0)
+  IF ( IERR .EQ. 0 ) THEN
+    open(unit=nulstat, file='obsinfo_chm', status='OLD')
+  ELSE
+    CALL ABORT3D('chm_read_obs_err_stddev: COULD NOT OPEN FILE obsinfo_chm!')
+  ENDIF
+
+! Read error standard deviations for constituents if available.
+! (CH family; ozone and others)
+  
+  ios=0
+  read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
+  do while (trim(adjustl(ligne(1:12))).ne.'SECTION I:') 
+      read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
+  end do    
+  
+! Read number of observation set sub-families (STNIDs and ...) and allocate space
+
+  read(nulstat,*,iostat=ios,err=10,end=10) chm_std%n_stnid
+  read(nulstat,*,iostat=ios,err=10,end=10) isize
+
+  allocate(chm_std%stnids(chm_std%n_stnid))
+  allocate(chm_std%std_type(chm_std%n_stnid),chm_std%n_lat(chm_std%n_stnid))
+  allocate(chm_std%brp(chm_std%n_stnid),chm_std%ibegin(chm_std%n_stnid))
+  allocate(chm_std%bfr(chm_std%n_stnid),chm_std%n_lvl(chm_std%n_stnid))
+  allocate(chm_std%std1(isize),chm_std%std2(chm_std%n_stnid),chm_std%std3(chm_std%n_stnid))
+  allocate(chm_std%levels(isize),chm_std%lat(isize))
  
-  end subroutine chm_obsspace_layers_deallocate
+  chm_std%bfr(:)=0
+  chm_std%brp(:)=0
+  chm_std%std_type(:)=0
+  chm_std%n_lvl(:)=1
+  chm_std%n_lat(:)=1
+
+! Begin reading for each sub-family
+! Important: Combination of STNID, BUFR element and number of vertical levels
+!            to determine association to the observations.
+
+  icount=0
+  do jelm=1,chm_std%n_stnid
+    chm_std%ibegin(jelm)=icount+1
+
+    ! disregard line of dashes
+    read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
+
+    ! Read STNID (* as wildcard)    
+    read(nulstat,'(2X,A9)',iostat=ios,err=10,end=10) chm_std%stnids(jelm) 
+
+!   Read (1) BUFR element,
+!        (2) Flag indication if EOR provided from this ascii file or
+!            to be read from the BURP file,
+!        (3) Index specifying OER setup method,
+!        (4) Number of vertical levels
+!        (5) Number of latitudes
+!
+!   Important: Combination of STNID, BUFR element and number of vertical levels
+!              to determine association to the observations.
+!
+    read(nulstat,*,iostat=ios,err=10,end=10) chm_std%bfr(jelm),chm_std%brp(jelm),  &
+       chm_std%std_type(jelm), chm_std%n_lvl(jelm), chm_std%n_lat(jelm),  &
+       chm_std%std2(jelm), chm_std%std3(jelm)
+
+    if (chm_std%n_lvl(jelm).lt.1) chm_std%n_lvl(jelm)=1
+    if (chm_std%n_lat(jelm).lt.1) chm_std%n_lat(jelm)=1
+    
+    if (icount+chm_std%n_lvl(jelm)*chm_std%n_lat(jelm).gt.isize) then
+       write(*,'(10X,"Max array size exceeded: ",I6)') isize
+       CALL ABORT3D('oer_read_obs_erreurs_chm: PROBLEM READING OBSERR STD DEV.')    
+    end if
+
+    ! disregard line of dashes
+    read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
+    
+    if (chm_std%n_lvl(jelm).eq.1.and.chm_std%n_lat(jelm).eq.1) then
+    
+!      Read one value only (independent of level and latitude)
+       
+       icount=icount+1
+       read(nulstat,*,iostat=ios,err=10,end=10) chm_std%std1(icount)
+
+    else if (chm_std%n_lvl(jelm).eq.1.and.chm_std%n_lat(jelm).gt.1) then
+    
+!      Value dependent on latitude only
+       
+!      Read reference latitudes (must be in order of increasing size)
+       
+       read(nulstat,*,iostat=ios,err=10,end=10)                      &
+              chm_std%lat(icount+1:icount+chm_std%n_lat(jelm))
+      
+!      Read OER-related values
+  
+       read(nulstat,*,iostat=ios,err=10,end=10)                 &
+                 chm_std%std1(icount+1:icount+chm_std%n_lat(jelm))
+
+       icount=icount+chm_std%n_lat(jelm)
+
+    else if (chm_std%n_lvl(jelm).gt.1.and.chm_std%n_lat(jelm).eq.1) then
+    
+!      Value dependent on vertical level only
+      
+       do jlev=1,chm_std%n_lvl(jelm)
+          icount=icount+1
+          
+!         Read vertical level and OER-related value.
+          
+          read(nulstat,*,iostat=ios,err=10,end=10)                 &
+                 chm_std%levels(icount),chm_std%std1(icount)
+
+       end do
+   
+    else if (chm_std%n_lvl(jelm).gt.1.and.chm_std%n_lat(jelm).gt.1) then
+    
+!      Value dependent on vertical level and latitude 
+       
+!      Read reference latitudes (must be in order of increasing size)
+       read(nulstat,*,iostat=ios,err=10,end=10)                      &
+              chm_std%lat(icount+1:icount+chm_std%n_lat(jelm))
+!       write(*, '(10X,20F9.3)') chm_std%lat(icount+1:icount+chm_std%n_lat(jelm))
+      
+       do jlev=1,chm_std%n_lvl(jelm)
+          
+!         Read vertical level and OER-related lat-dependent values.
+          
+          read(nulstat,*,iostat=ios,err=10,end=10)                   &
+                 chm_std%levels(icount+jlev),                           &
+                 chm_std%std1(icount+(jlev-1)*chm_std%n_lat(jelm)+1:icount+jlev*chm_std%n_lat(jelm))
+
+       end do
+       icount=icount+chm_std%n_lat(jelm)*chm_std%n_lvl(jelm)
+    end if
+  end do
+   
+ 10 if (ios.gt.0) then
+       WRITE(*,*) 'File read error message number: ',ios
+       CALL ABORT3D('oer_read_obs_erreurs_chm: PROBLEM READING OBSERR STD DEV.')    
+    end if
+ 
+ 11 CLOSE(UNIT=NULSTAT)
+    IERR=FCLOS(NULSTAT)    
+
+  end subroutine chm_read_obs_err_stddev
 
 !-----------------------------------------------------------------------------------------
 
-  subroutine chm_obsSpace_avgkern_deallocate
+  subroutine chm_obs_err_stddev_index(CSTNID,NLEV,ITYP,ZLAT,ISTNID,JINT)
+!
+!  s/r chm_set_obs_err_stddev_index - Returns the station ID and latitude indices corresponding to a measurement
+!
+!  Author   : M. Sitwell Feb 2015 
+!             - Content moved from code originally in oer_fill_obs_erreurs.
+!             
+!  Revisions: 
+!
+!----------------------------------------------------------------------------------------
+
+    implicit none
+
+    CHARACTER(len=12), intent(in) :: CSTNID
+    integer, intent(in)           :: NLEV,ITYP
+    real(8), intent(in)           :: ZLAT
+    integer, intent(out)          :: ISTNID,JINT
+    integer                       :: JN,ilen1,ilen2,ji,ibegin
+    logical                       :: iset
+
+
+ ! Important: Combination of STNID, BUFR element and number of vertical levels
+ !            to determine association to the observations.
+
+ !            Find stnid with same number of vertical levels and same BUFR element.
+ !            Note: * in cstd_stndi_chm stands for a wildcard
+                
+    ISTNID=0
+    DO JN=1,chm_std%n_stnid
+
+       ! First compare STNID values allowing for * and blanks in 
+       ! chm_std%stnids(JN) as wildcards
+       iset = stnid_equal(chm_std%stnids(JN),CSTNID)
+                   
+       IF (iset) THEN
+          IF (NLEV .EQ. chm_std%n_lvl(JN) .AND. &
+               ITYP .EQ. chm_std%bfr(JN) ) THEN
+             ISTNID=JN
+             exit
+          END IF
+       END IF
+
+    END DO
+
+    IF (ISTNID.EQ.0) THEN
+       WRITE(*,'(1X,"Error std. dev. for STNID= ",A10," not found. Set to 5%.")') &
+            CSTNID
+    ELSE
+       ! IF (chm_std%brp(ISTNID).NE.0) THEN
+       
+       !   Read initial error standard deviations from obs BURP file.
+       !   Dimension must be equivalent to NLEV
+       ! ...
+       
+       ! sigma(:) = ...
+       
+       ! END IF
+
+       IF (chm_std%n_lat(ISTNID) .GT. 1) THEN
+
+          ! Find latitude index for interpolation.
+          ! Assuming increasing latitudes in chm_std%lat
+
+          ibegin=chm_std%ibegin(ISTNID)-1
+          IF (ZLAT .GE. chm_std%lat(ibegin+chm_std%n_lat(ISTNID))) THEN
+             JINT=chm_std%n_lat(ISTNID)+1
+          ELSE
+             DO JINT=1,chm_std%n_lat(ISTNID)
+                IF (ZLAT .LE. chm_std%lat(ibegin+JINT) ) exit
+             END DO
+          END IF
+                                           
+       END IF
+    END IF
+
+  end subroutine chm_obs_err_stddev_index
+
+!----------------------------------------------------------------------------------------
+
+  function chm_get_obs_err_stddev(CSTNID,NLEV,ITYP,ZLAT,ZVAL,ZLEV,IFIRST) result(obs_err_stddev) 
+!
+!  s/r chm_set_obs_err_stddev - Returns the observational error std for a CH family measurement
+!
+!  Author   : M. Sitwell, ARQI/AQRD, Feb 2015 
+!             - Content moved from code originally in oer_fill_obs_erreurs.
+!
+!  Revisions: 
+!
+!----------------------------------------------------------------------------------------
+
+    implicit none
+    
+    CHARACTER(len=12) :: CSTNID
+    real(8)  :: ZVAL,ZLEV,ZLAT
+    real(8)  :: obs_err_stddev
+    real(8)  :: wgt,zwb
+    integer  :: NLEV,ITYP,ibegin,ILEV,JN
+    logical  :: IFIRST
+    integer, save  :: ISTNID,JINT
+
+
+    ! If this call is for the first level for this measurement, get
+    ! the station ID and latitude indices corresponding to this measurement
+    if (ifirst) call chm_obs_err_stddev_index(CSTNID,NLEV,ITYP,ZLAT,ISTNID,JINT)
+
+
+    ! Identify level if needed
+                   
+    IF (ISTNID .EQ. 0) THEN
+       
+       ! Set error standard deviations as 5% default value.       
+       obs_err_stddev = 0.05D0*ZVAL
+       
+    ELSE
+             
+       IF (chm_std%n_lvl(ISTNID) .GT. 1) THEN
+                  
+          ! Find nearest vertical level (no interpolation)
+                 
+          zwb=1.E10
+          ibegin=chm_std%ibegin(ISTNID)-1
+          DO JN=1,chm_std%n_lvl(ISTNID)
+             IF (zwb .GT. abs(ZLEV-chm_std%levels(ibegin+JN)) ) THEN
+                ILEV=JN
+                zwb=abs(ZLEV-chm_std%levels(ibegin+JN))
+             END IF
+          END DO
+          ILEV=ibegin+(ILEV-1)*chm_std%n_lat(ISTNID)+1
+       ELSE
+          ILEV=chm_std%ibegin(ISTNID)     
+       END IF
+
+       IF (chm_std%n_lat(ISTNID) .GT. 1) THEN
+                
+          ! Apply interpolation
+
+          ILEV=ILEV+JINT-1
+          ibegin=chm_std%ibegin(ISTNID)-1
+          IF (JINT.EQ.1.OR.JINT.GT.chm_std%n_lat(ISTNID)) THEN
+             wgt=chm_std%std1(ILEV)
+          ELSE
+             wgt=(chm_std%std1(ILEV-1)*(chm_std%lat(ibegin+JINT)-ZLAT)+ &
+                  chm_std%std1(ILEV)*(ZLAT-chm_std%lat(ibegin+JINT-1)))/ &
+                  (chm_std%lat(ibegin+JINT)-chm_std%lat(ibegin+JINT-1))
+          END IF
+       ELSE
+          wgt=chm_std%std1(ILEV)                
+       END IF
+                                         
+       IF (chm_std%brp(ISTNID).EQ.0) THEN
+               
+          ! Set error standard deviations from scratch using content of
+          ! previously read content of the "obsinfo_chm" file.
+                
+          IF (chm_std%std_type(ISTNID).EQ. 0) THEN
+             obs_err_stddev = wgt
+          ELSE IF (chm_std%std_type(ISTNID).EQ. 1) THEN
+             obs_err_stddev = min(chm_std%std3(ISTNID),max(chm_std%std2(ISTNID),wgt*ZVAL))
+          ELSE IF (chm_std%std_type(ISTNID) .EQ. 2) THEN
+             obs_err_stddev = sqrt(chm_std%std2(ISTNID)**2+(wgt*ZVAL)**2)
+          ELSE 
+!             IF (INDEX_BODY.EQ.IDATA)  &
+!                  WRITE(*,'(1X,"EOR setup type ",I3," for STNID ",A10," is not recognized.")')     &
+!                  chm_std%std_type(ISTNID) , CSTNID
+             WRITE(*,'(1X,"EOR setup type ",I3," is not recognized.")')     &
+                  chm_std%std_type(ISTNID)
+          END IF
+
+       ELSE
+          
+!                  Adjust error standard deviations read from BURP file if requested.
+!                     
+!          IF (chm_std%std_type(ISTNID).EQ. 0) THEN
+!             obs_err_stddev = sigma(INDEX_BODY-IDATA+1)
+!          ELSE IF (chm_std%std_type(ISTNID).EQ. 1) THEN
+!             obs_err_stddev = max(chm_std%std2(ISTNID),wgt*sigma(INDEX_BODY-IDATA+1))
+!          ELSE 
+!             IF (INDEX_BODY.EQ.IDATA)  &
+!                  WRITE(*,'(1X,"EOR setup type ",I3," for STNID ",A10," is not recognized.")')     &
+!                  chm_std%std_type(ISTNID) , CSTNID
+!          END IF
+!       END IF
+              
+       END IF
+    END IF
+
+  end function chm_get_obs_err_stddev
+
+!-----------------------------------------------------------------------------------------
+
+  subroutine chm_dealloc_obs_err_stddev
+!
+! Author  : Y. Rochon  Nov 2014
+! Revision: 
+!
+! Purpose: Deallocate temporary storage space used for observation errors for the CH family
+!
+!---------------------------------------------------------------------------------------
+  
+  if (chm_std%n_stnid.gt.0) then
+      deallocate(chm_std%stnids)
+      deallocate(chm_std%n_lvl,chm_std%std_type,chm_std%ibegin)
+      deallocate(chm_std%bfr,chm_std%brp,chm_std%n_lat)
+      deallocate(chm_std%std1,chm_std%std2,chm_std%std3)
+      deallocate(chm_std%levels,chm_std%lat)
+  end if
+  
+  end subroutine chm_dealloc_obs_err_stddev
+
+!-----------------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------------------
+
+  subroutine chm_read_avgkern
+!
+! Author   : Y. Rochon, ARQI/AQRD, Feb 2015 
+!            - Initial framework only. 
+!            - Actual reading code for averaging kernels not included as yet.
+!
+! Revisions: 
+!          
+! Purpose: Read and store averaging kernel matricesfor CH sub-families
+!
+!----------------------------------------------------------------------------------------
+
+  implicit none
+
+  integer :: FNOM, FCLOS
+  integer :: IERR, JLEV, JELM, nulstat, ios, isize, icount
+  logical :: LnewExists
+  
+  character (len=128) :: ligne
+
+  EXTERNAL FNOM,FCLOS
+
+! Initialization
+
+  chm_avgkern%n_stnid=0
+
+  INQUIRE(FILE='obsinfo_chm',EXIST=LnewExists)
+  IF (.not.LnewExists )then
+    WRITE(*,*)   '--------------------------------------------------'
+    WRITE(*,*)   'chm_read_avgkern: COULD NOT FIND FILE obsinfo_chm!'
+    WRITE(*,*)   '--------------------------------------------------'
+    return
+  ENDIF
+!
+! Check for available layer info.
+!
+  NULSTAT=0
+  IERR=FNOM(NULSTAT,'obsinfo_chm','SEQ',0)
+  IF ( IERR .EQ. 0 ) THEN
+    open(unit=nulstat, file='obsinfo_chm', status='OLD')
+  ELSE
+    CALL ABORT3D('chm_read_avgkern: COULD NOT OPEN FILE obsinfo_chm!')
+  ENDIF
+
+  ios=0
+  read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
+  do while (trim(adjustl(ligne(1:13))).ne.'SECTION II:') 
+      read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
+  end do    
+  
+! Read number of observation set sub-families (STNIDs and ...) and allocate space
+   
+  read(nulstat,*,iostat=ios,err=10,end=10) chm_avgkern%n_stnid
+  read(nulstat,*,iostat=ios,err=10,end=10) isize
+
+  allocate(chm_avgkern%stnids(chm_avgkern%n_stnid))
+  allocate(chm_avgkern%brp(chm_avgkern%n_stnid),chm_avgkern%ibegin(chm_avgkern%n_stnid))
+  allocate(chm_avgkern%bfr(chm_avgkern%n_stnid),chm_avgkern%n_lvl(chm_avgkern%n_stnid))
+!!  allocate(chm_avgkern%rak(isize)
+ 
+  chm_avgkern%bfr(:)=0
+  chm_avgkern%brp(:)=0
+  chm_avgkern%n_lvl(:)=1
+
+! Begin reading for each sub-family
+! Important: Combination of STNID, BUFR element and number of vertical levels
+!            to determine association to the observations.
+
+  icount=0
+  do jelm=1,chm_avgkern%n_stnid
+    chm_avgkern%ibegin(jelm)=icount+1
+
+    read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
+
+!   Read STNID (* is a wildcard)
+    
+    read(nulstat,'(2X,A9)',iostat=ios,err=10,end=10) chm_avgkern%stnids(jelm) 
+
+!   Read (1) Obs BUFR element.
+!        (2) Vertical coord type (1, 2, or 3)
+!        (3) Flag indication if EOR provided from this ascii file or
+!            to be read from the BURP file,
+!        (4) Number of vertical levels
+!
+!   Important: Combination of STNID, BUFR element and number of vertical levels
+!              to determine association to the observations.
+!
+    read(nulstat,*,iostat=ios,err=10,end=10) chm_avgkern%bfr(jelm),  &
+       chm_avgkern%brp(jelm),chm_avgkern%n_lvl(jelm)  
+    
+    if (icount+chm_avgkern%n_lvl(jelm).gt.isize) then
+       write(*,'(10X,"Max array size exceeded: ",I6)') isize
+       CALL ABORT3D('chm_read_layers: READING PROBLEM.')    
+    end if
+
+    read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
+    
+    if (chm_avgkern%n_lvl(jelm).gt.1) then   
+       do jlev=1,chm_avgkern%n_lvl(jelm)
+          icount=icount+1
+          
+          ! Read averaging kernel matrix
+          
+!!          read(nulstat,*,iostat=ios,err=10,end=10)                 &
+!!                 chm_avgkern%rak......
+       end do
+    end if
+  end do
+   
+ 10 if (ios.gt.0) then
+       WRITE(*,*) 'File read error message number: ',ios
+       CALL ABORT3D('chm_read_avgkern: READING PROBLEM')    
+    end if
+ 
+ 11 CLOSE(UNIT=NULSTAT)
+    IERR=FCLOS(NULSTAT)    
+
+  end subroutine chm_read_avgkern
+
+!-----------------------------------------------------------------------------------------
+
+  subroutine chm_dealloc_avgkern
 !
 ! Author  : Y. Rochon, Dec 2014
 ! Revision: 
@@ -548,17 +881,50 @@ contains
 !
 ! Deallocate temporary space used for the CH family
 !
-  if (ninfo_stnid_chm.gt.0) then
-      deallocate(cinfo_stnid_chm)
-      deallocate(ninfo_ibegin_chm)
-      deallocate(ninfo_bfr_chm,ninfo_brp_chm,ninfo_lat_chm)
-      deallocate(xinfo_rak_chm,xinfo_lat_chm)
+  if (chm_avgkern%n_stnid.gt.0) then
+      deallocate(chm_avgkern%stnids)
+      deallocate(chm_avgkern%ibegin)
+      deallocate(chm_avgkern%bfr,chm_avgkern%brp,chm_avgkern%n_lat)
+      deallocate(chm_avgkern%rak,chm_avgkern%lat)
   end if
  
  
-  end subroutine chm_obsSpace_avgkern_deallocate
+  end subroutine chm_dealloc_avgkern
 
 !-----------------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------------------
 
+  function stnid_equal(id1,id2) result(same)
+!
+! Author  : Y. Rochon  Nov 2014
+! Revision: 
+!           M. Sitwell, Feb 2015
+!           - Code set as a function.
+!
+! Purpose: Compares STNID values allowing for * and blanks in id1 as wildcards
+!
+!-----------------------------------------------------------------------------------------
+    
+    implicit none
 
-end module chm_obsspace_mod
+    logical :: same
+    CHARACTER(len=12) :: id1,id2
+    integer :: ilen1,ilen2,ji
+
+    ilen1=len_trim(id1)
+    ilen2=len_trim(id2)            
+    IF (ilen1.le.ilen2) THEN          
+       same = .TRUE.
+       DO ji=1,ilen1
+          IF ( id1(ji:ji).ne.'*' .AND. id2(ji:ji).ne.id1(ji:ji) ) THEN
+             same = .FALSE.
+             exit
+          END IF
+       END DO
+    END IF
+    
+  end function stnid_equal
+           
+!-------------------------------------------------------------------------------------------
+
+end module chem_mod

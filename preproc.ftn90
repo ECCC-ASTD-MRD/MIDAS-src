@@ -21,8 +21,7 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   !
   ! Revisions:
   !           Y.J. Rochon, Dec. 2014
-  !           - Addition of chm_obsSpace_mod, lobsSpaceCHM, and call to 
-  !             chm_obsSpace_setup for inclusion of constituent data 
+  !           - Addition of call to chm_setup for inclusion of constituent data 
   !             info not included in obsSpaceData_mod.
   !
   use topLevelControl_mod
@@ -32,7 +31,7 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   use timeCoord_mod
   use WindRotation_mod
   use obsSpaceData_mod
-  use chm_obsSpace_mod
+  use chem_mod
   use controlVector_mod
   use gridStateVector_mod
   use minimization_mod
@@ -46,7 +45,6 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   IMPLICIT NONE
   
   type(struct_obs) :: lobsSpaceData
-  type(struct_obs_chm) :: lobsSpaceCHM
   type(struct_columnData) :: lcolumng,lcolumnhr
   character (len=*) :: obsColumnMode
   character (len=*) :: obsMpiStrategy
@@ -135,7 +133,7 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   !
   !- Setup additional constituent obs related info not found in lobsSpaceData
   !
-  call chm_obsSpace_setup(lobsSpaceData,lobsSpaceCHM)
+  call chm_setup
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   !
