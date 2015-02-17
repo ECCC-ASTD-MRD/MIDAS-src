@@ -1,10 +1,9 @@
-./#!/bin/ksh
+#!/bin/ksh
 
 # Revisions:
-#            Y.J. Rochon, Dec 2014
-#            - Added compilation of bmatrixtracer_mod.ftn90
-#            - Added . ssmuse-sh -d arma/rttov/10v1 
-#              following inquiry with S. Heilliette
+#            Ping Du, and Mike Sitwell and Y.J. Rochon (as of Dec 2014)
+#            - The following are changes/additions for chemical constituents.
+#            - Added compilation of bmatrixchem_mod.ftn90
 #            - Addition of chem_mod.ftn90
 
 mode=$1
