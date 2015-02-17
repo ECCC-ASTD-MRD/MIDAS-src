@@ -90,7 +90,7 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
   if (numGPSZTD > 0)  call oda_Hgp
   call tmg_stop (47)        !
 
-  call oda_Htr  ! calculate Hdx for tracers
+  call oda_Hchm  ! calculate Hdx for tracers
 
   CONTAINS
 
@@ -1010,9 +1010,9 @@ end subroutine oda_Hto
       END subroutine oda_Hgp
 
 
-      SUBROUTINE oda_Htr
+      SUBROUTINE oda_Hchm
         !
-        !**s/r oda_Htr - Temporary subroutine to set Hdx for tracers to zero from
+        !**s/r oda_Hchm- Temporary subroutine to set Hdx for tracers to zero from
         !                   default value of -999.0 until linear obs operator for tracers
         !                   is complete.
         !
@@ -1040,7 +1040,7 @@ end subroutine oda_Hto
 
         enddo HEADER
 
-      end subroutine oda_Htr
+      end subroutine oda_Hchm
 
 
 
