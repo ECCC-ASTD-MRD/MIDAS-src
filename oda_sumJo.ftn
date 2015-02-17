@@ -120,7 +120,7 @@
         write(*,'(a15,f25.17)') 'Jo(PR)   = ',dljoprof
         write(*,'(a15,f25.17)') 'Jo(RO)   = ',dljogpsro
         write(*,'(a15,f25.17)') 'Jo(GP)   = ',dljogpsztd
-        write(*,'(a15,f25.17)') 'Jo(TR)   = ',dljochm
+        write(*,'(a15,f25.17)') 'Jo(CH)   = ',dljochm
         write(*,*) ' '
         write(*,'(1x,a)') 'For TOVS decomposition by sensor:'
         write(*,'(1x,a)') '#  plt sat ins    Jo'

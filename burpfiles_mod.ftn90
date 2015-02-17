@@ -24,7 +24,7 @@ SUBROUTINE burp_setupfiles(datestamp)
 !
 !Revisions:
 !          Ping Du (Fall 2014)
-!          -- Added CVALUE for brptr and CFAMI for TR.
+!          -- Added CVALUE for brpch and CFAMI for CH.
 !          Yves Rochon (Jan 2015)
 !          -- Removed CVALUEs for brpo3 and brpoz
 !          -- Removed CFAMIs for OZ
@@ -98,7 +98,7 @@ SUBROUTINE burp_setupfiles(datestamp)
   CLVALU(29) = 'brpsat'  
   CLVALU(30) = 'brpssm'  
   CLVALU(31) = 'brpgp'  
-  CLVALU(32) = 'brptr'  
+  CLVALU(32) = 'brpch'  
 
   CFAMI(:)   = ''
   CFAMI( 1)  = 'UA' 
