@@ -32,6 +32,15 @@ contains
     !- bmat_setup - Initializes the analysis Background term for the 
     !               specific analysis configuration used.
     !
+    ! Revision:
+    !           Ping Du, CMDA/MSC, July 2014
+    !           - Additions for chemical constituents (see cvdimchm and 
+    !             section 2.3)
+    !
+    ! Comments:
+    !
+    ! - LAM and ensemble components for constituents tbd.
+    !
     IMPLICIT NONE
 
     type(struct_vco), pointer :: vco_anl_in
@@ -39,8 +48,6 @@ contains
 
     integer :: cvdimens, cvdimhi
     integer :: get_max_rss
-
-!PingDu for tracers
     integer :: cvdimchm
    
     !
@@ -56,7 +63,6 @@ contains
     cvdimhi  = 0
     cvdimens = 0
 
-!PingDu for tracers
     cvdimchm = 0
 
     !- 2.1 Time-Mean Homogeneous and Isotropic...
@@ -87,15 +93,15 @@ contains
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     write(*,*) 'Dimension of ENS control vector returned:',cvdimens
 
-    !-2.3 PingDu For tracers
+    !-2.3 Addition for constituents
     if ( hco_anl % global ) then
       write(*,*)
-      write(*,*) 'Setting up the modular GLOBAL HI covariances...'
+      write(*,*) 'Setting up the modular GLOBAL HI-chm covariances...'
       call bchm_Setup( hco_anl, vco_anl_in, & ! IN
                       cvdimchm )              ! OUT
     else
       write(*,*)
-      write(*,*) 'Setting up the modular LAM HI covariances...'
+      write(*,*) 'Setting up the modular LAM HI-chm covariances...'
 !      call lbchm_Setup( hco_anl, vco_anl_in, & ! IN
 !                       cvdimchm )              ! OUT
     end if
@@ -123,11 +129,19 @@ contains
     !- Purpose: Transforms model state from error covariance space
     !           to grid point space.
     !
+    ! Revision:
+    !           Ping Du, CMDA/MSC, July 2014
+    !           - Additions for chemical constituents (see cvBchm and 
+    !             section 2.2chm)
+    !
+    ! Comments:
+    !
+    ! - LAM and ensemble components for constituents tbd.
+    !
     integer         :: na_vdim
 
     real(8)         :: da_v(na_vdim)
     real(8),pointer :: cvBhi(:), cvBen(:), field(:,:,:), field4d(:,:,:,:)
-!PingDU
     real(8),pointer :: cvBchm(:)
 
     type(struct_gsv) :: statevector, statevector_temp
@@ -167,26 +181,24 @@ contains
     end if
     call tmg_stop(50)
 
-!PingDu
-        !- 2.2T  Compute 3D contribution to increment from BmatrixTR
-     call tmg_start(50,'B_TR')
-     cvBchm => cvm_getSubVector(da_v,3)
+    !- 2.2chm  Compute 3D contribution to increment from BmatrixChem
+    call tmg_start(50,'B_CHM')
+    cvBchm => cvm_getSubVector(da_v,3)
 
     if ( associated(cvBchm) ) then
       if ( statevector % hco % global ) then
         !- 2.2.1 Global mode
         call bchm_bsqrt( cvBchm,      & ! IN
-                        statevector ) ! OUT
+                        statevector )   ! OUT
       else
         !- 2.2.2 LAM mode
 !        call lbhi_bSqrt( cvBchm,      & ! IN
-!                         statevector ) ! OUT
+!                         statevector )  ! OUT
       end if
       !- copy 3D increment to other timesteps to create 4D increment
       call gsv_3dto4d(statevector)
     end if
     call tmg_stop(50)
-
 
 
     !- 2.3 compute 4D contribution to increment from BmatrixEnsemble
@@ -214,10 +226,19 @@ contains
     !- Purpose: Transforms model state from grid point space 
     !           to error covariance space.
     !
+    ! Revision:
+    !           Ping Du, CMDA/MSC, July 2014
+    !           - Additions for chemical constituents (see cvBchm and
+    !             section 1.4chm)
+    !
+    ! Comments:
+    !
+    ! - LAM and ensemble components for constituents tbd.
+    !
     integer :: na_vdim
     real*8 :: da_v(na_vdim)
     real*8,pointer :: cvBhi(:),cvBen(:)
-    real*8,pointer :: cvBchm(:)     !PingDu
+    real*8,pointer :: cvBchm(:)     
     type(struct_gsv) :: statevector
 
     if ( statevector % hco % global ) then
@@ -235,22 +256,22 @@ contains
     if ( associated(cvBen) ) call ben_bsqrtad(statevector,cvBen)
     call tmg_stop(61)
 
-!PingDu
-      call gsv_3dto4dAdj(statevector)
-    !- 1.5 add contribution to gradient from BmatrixTR
-    call tmg_start(62,'B_TR_T')
+    call gsv_3dto4dAdj(statevector)
+
+    !- 1.4chm add contribution to gradient from BmatrixChem
+    call tmg_start(62,'B_CHM_T')
     cvBchm=>cvm_getSubVector(da_v,3)
 
     if ( associated(cvBchm) ) then
-      !- 1.4.1 adjoint of copy 3D increment to 4D increment
+      !- 1.4.1chm adjoint of copy 3D increment to 4D increment
 !      call gsv_3dto4dAdj(statevector)
 
       if ( statevector % hco % global ) then
-        !- 1.4.2 add contribution to gradient from GLOBAL BmatrixTracer
+        !- 1.4.2chm add contribution to gradient from GLOBAL BmatrixChem
         call bchm_bsqrtad( statevector, & ! IN
                           cvBchm )        ! OUT
       else
-        !- 1.4.3 add contribution to gradient from LAM BmatrixTracer
+        !- 1.4.3chm add contribution to gradient from LAM BmatrixChem
 !        call lbchm_bSqrtAdj( statevector, & ! IN
 !                            cvBchm )        ! OUT
       end if
@@ -324,13 +345,22 @@ contains
 ! bmat_finalize
 !--------------------------------------------------------------------------
   SUBROUTINE bmat_finalize(da_v)
+    !
+    ! Revision:
+    !           Ping Du, CMDA/MSC, July 2014
+    !           - Additions for chemical constituents (see cvBchm)
+    !
+    ! Comments:
+    !
+    ! - LAM component for constituents tbd.
+    !
     implicit none
     real*8 :: da_v(:)
     !
     !- Purpose: Releases memory used by B matrices.
     !
     real(8), pointer :: cvBhi(:), cvBen(:)
-    real(8), pointer :: cvBchm(:)          !PingDu
+    real(8), pointer :: cvBchm(:)        
 
     cvBhi => cvm_getSubVector(da_v,1)
     if ( associated(cvBhi) ) then
@@ -360,12 +390,20 @@ contains
 ! BMAT_reduceToMPILocal
 !--------------------------------------------------------------------------
   SUBROUTINE BMAT_reduceToMPILocal(cv_mpilocal,cv_mpiglobal,cvDim_mpilocal_out)
+    !
+    ! Revision:
+    !           Ping Du, CMDA/MSC, Dec 2014
+    !           - Additions for chemical constituents (see cv*Bchm*)
+    !
+    ! Comments:
+    !
+    ! - LAM and ensemble components for constituents tbd.
+    !
     implicit none
     real*8  :: cv_mpilocal(:)
     real*8  :: cv_mpiglobal(:)
     integer :: cvDim_mpilocal_out
 
-!    integer :: cvDim_Bhi_mpilocal,cvDim_Ben_mpilocal
     integer :: cvDim_Bhi_mpilocal,cvDim_Ben_mpilocal,cvDim_Bchm_mpilocal
     real*8,pointer :: cvBhi_mpilocal(:),cvBen_mpilocal(:)
     real*8,pointer :: cvBhi_mpiglobal(:),cvBen_mpiglobal(:)
@@ -387,8 +425,6 @@ contains
        call ben_reduceToMPILocal(cvBen_mpilocal,cvBen_mpiglobal,cvDim_Ben_mpilocal)
     end if
 
-!PingDu
-
     cvBchm_mpilocal =>cvm_getSubVector(cv_mpilocal,3)  
     cvBchm_mpiglobal=>cvm_getSubVector_mpiglobal(cv_mpiglobal,3)
 !  
@@ -396,7 +432,6 @@ contains
        call bchm_reduceToMPILocal(cvBchm_mpilocal,cvBchm_mpiglobal,cvDim_Bchm_mpilocal)
     end if
 
-!    cvDim_mpilocal_out = cvDim_Bhi_mpilocal + cvDim_Ben_mpilocal
     cvDim_mpilocal_out = cvDim_Bhi_mpilocal + cvDim_Ben_mpilocal + cvDim_Bchm_mpilocal
 
   END SUBROUTINE BMAT_reduceToMPILocal
@@ -405,6 +440,15 @@ contains
 ! BMAT_expandToMPIGlobal
 !--------------------------------------------------------------------------
   SUBROUTINE BMAT_expandToMPIGlobal(cv_mpilocal,cv_mpiglobal,cvDim_mpiglobal_out)
+    !
+    ! Revision:
+    !           Ping Du, CMDA/MSC, July 2014
+    !           - Additions for chemical constituents (see cvBchm*)
+    !
+    ! Comments:
+    !
+    ! - LAM and ensemble components for constituents tbd.
+    !
     implicit none
     real*8  :: cv_mpilocal(:)
     real*8  :: cv_mpiglobal(:)
@@ -436,7 +480,6 @@ contains
        call bchm_expandToMPIGlobal(cvBchm_mpilocal,cvBchm_mpiglobal,cvDim_Bchm_mpiglobal)
     endif
 
-!    cvDim_mpiglobal_out = cvDim_Bhi_mpiglobal + cvDim_Ben_mpiglobal
     cvDim_mpiglobal_out = cvDim_Bhi_mpiglobal + cvDim_Ben_mpiglobal + cvDim_Bchm_mpiglobal
 
   end SUBROUTINE BMAT_expandToMPIGlobal
