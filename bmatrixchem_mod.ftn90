@@ -18,7 +18,7 @@
 !
 ! Author: Ping Du (based on bMatrixHI_mod.ftn90 by Mark Buehner), July-Sept 2014
 !         - Code changes mainly pertain to the addition of all aspects related to
-!           constituents and the introduction of the variables *_tr
+!           constituents and the introduction of the variables *_chm
 !         - Partial removal of bMatrixHI_mod components related to standard weather
 !           incremental variables
 !         - Additions currently hardcoded to assume O3 as the one and only constituent variable.
@@ -71,11 +71,11 @@ MODULE BmatrixChem
   integer             :: numvar2d
 
 ! new variables for chemical constituents  
-  integer             :: numvar3d_tr
-  integer             :: numvar2d_tr
+  integer             :: numvar3d_chm
+  integer             :: numvar2d_chm
   integer             :: nspositO3
-  character(len=4),allocatable    :: vnl_varNameList3D_tr(:)
-  character(len=4),allocatable    :: vnl_varNameList2D_tr(:)
+  character(len=4),allocatable    :: vnl_varNameList3D_chm(:)
+  character(len=4),allocatable    :: vnl_varNameList2D_chm(:)
 
   real(8), pointer    :: pressureProfile_M(:),pressureProfile_T(:)
 
@@ -129,10 +129,10 @@ CONTAINS
     if(mpi_myid.eq.0) write(*,nml=nambchm)
     ierr = fclos(nulnam)
 
-    numvar3d_tr=0
-    numvar2d_tr=0
-    allocate(vnl_varNameList3D_tr(vnl_numvarmax3D))
-    allocate(vnl_varNameList2D_tr(vnl_numvarmax2D))
+    numvar3d_chm=0
+    numvar2d_chm=0
+    allocate(vnl_varNameList3D_chm(vnl_numvarmax3D))
+    allocate(vnl_varNameList2D_chm(vnl_numvarmax2D))
 
   
 ! to find the 3D chemical constituent variable
@@ -143,14 +143,14 @@ CONTAINS
       case ('UU','VV','TT','HU')
        numvar3d = numvar3d + 1
       case ('O3') 
-       numvar3d_tr = numvar3d_tr + 1
-       vnl_varNameList3D_tr(numvar3d_tr)='O3  '
+       numvar3d_chm = numvar3d_chm + 1
+       vnl_varNameList3D_chm(numvar3d_chm)='O3  '
       case ('NO2') 
-       numvar3d_tr = numvar3d_tr + 1 
-       vnl_varNameList3D_tr(numvar3d_tr)='NO2 '
+       numvar3d_chm = numvar3d_chm + 1 
+       vnl_varNameList3D_chm(numvar3d_chm)='NO2 '
       case ('CO2') 
-       numvar3d_tr = numvar3d_tr + 1 
-       vnl_varNameList3D_tr(numvar3d_tr)='CO2 '
+       numvar3d_chm = numvar3d_chm + 1 
+       vnl_varNameList3D_chm(numvar3d_chm)='CO2 '
       case default
       end select
      end if
@@ -163,21 +163,21 @@ CONTAINS
 !        case ('P0','TG')
 !         numvar2d = numvar2d + 1
 !       case ('NO2 ')
-!         numvar2d_tr = numvar2d_tr + 1
-!         vnl_varNameList2D_tr(numvar2d_tr) = 'NO2 '
+!         numvar2d_chm = numvar2d_chm + 1
+!         vnl_varNameList2D_chm(numvar2d_chm) = 'NO2 '
 !       case default
-!         write(*,*) 'PDD-no more 2D variable'
+!         write(*,*) 'No more 2D variable'
 !       end select
 !      end if
 !    end do
 
-    write(*,*) 'PDD Number of 3D variable', numvar3d_tr,vnl_varNameList3D_tr(numvar3d_tr)
-!    write(*,*) 'PDD Number of 2D variable', numvar2d_tr,vnl_varNameList2D_tr(numvar2d_tr)
+    write(*,*) 'Number of 3D variable', numvar3d_chm,vnl_varNameList3D_chm(numvar3d_chm)
+!    write(*,*) 'Number of 2D variable', numvar2d_chm,vnl_varNameList2D_chm(numvar2d_chm)
 
 
     nspositO3 = 1
 
-    nkgdim =  nLev_T*numvar3d_tr + numvar2d_tr
+    nkgdim =  nLev_T*numvar3d_chm + numvar2d_chm
 !    nkgdim2 = nkgdim+nLev_T
     nkgdim2 = nkgdim
 
@@ -467,7 +467,7 @@ CONTAINS
     character(len=12) :: cletiket
     integer :: vfstlir,vfstecr,fstprm,fstinf
 
-    iksdim = nlev_T*numvar3d_tr+numvar2d_tr     
+    iksdim = nlev_T*numvar3d_chm+numvar2d_chm     
     allocate(zcornssrc(iksdim,iksdim))
     allocate(zstdsrc(iksdim))
 
