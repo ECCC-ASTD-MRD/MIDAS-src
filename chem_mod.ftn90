@@ -21,7 +21,7 @@ module chem_mod
 !
 ! PURPOSE:
 !    Repository of obs space structures, arrays, and routines specific to the 
-!    CH chemical constituents family.
+!    CH chemical constituents family and constituent observations.
 !
 !    Main content:
 !
@@ -60,41 +60,6 @@ module chem_mod
 ! -----------------
 
   public :: chm_setup,chm_dealloc_obs_err_stddev,chm_read_obs_err_stddev,chm_get_obs_err_stddev
-  
-  type :: struct_chm_info
-     !  Information arrays retrieved from obsinfo_chm regarding vertical levels 
-     !  or averaging kernels
-     !
-     !  Variable               Description
-     !  --------               -----------
-     !  n_stnid                Number of sub-families (identified via STNIDs)
-     !  stnids                 Sub-families (STNIDs; * are wild cards)
-     !  bfr                    BUFR/BURP element in data block
-     !  brp                    0: Set entirely from the ascii file being read. No 
-     !                            initial values read from BURP files
-     !                         1: Initial values in obs BURP files 
-     !                             (may be adjusted after input)
-     !  vco                    Vertical coordinate type (1, 2, or 3, see bufr_read_mod)
-     !
-     !  ibegin                 Position index of start of data for given
-     !                         sub-family.
-     !  n_lvl                  Number of vertical levels
-     !  n_lat                  Number of latitudes
-     !  lat                    Latitudes (degrees; ordered in increasing size)
-     !
-     !  vlayertop              Layer top 
-     !  vlayerbottom           Layer bottom
-     !  rak                    Averaging kernel matrices
-     
-     integer ::  n_stnid
-     character(len=12), allocatable :: stnids(:)
-     integer, allocatable :: bfr(:),brp(:)
-     integer, allocatable :: vco(:),n_lat(:)
-     integer, allocatable :: ibegin(:),n_lvl(:)
-     real(8), allocatable :: rak(:),vlayertop(:),vlayerbottom(:)
-     real(8), allocatable :: lat(:)
-  
-  end type struct_chm_info
 
 
   type :: struct_chm_std
@@ -138,15 +103,78 @@ module chem_mod
      real(8), allocatable :: levels(:),lat(:)
 
   end type struct_chm_std
+  
+  type :: struct_chm_info
+     !  Information arrays retrieved from obsinfo_chm regarding vertical levels 
+     !  or averaging kernels
+     !
+     !  Variable               Description
+     !  --------               -----------
+     !  n_stnid                Number of sub-families (identified via STNIDs)
+     !  stnids                 Sub-families (STNIDs; * are wild cards)
+     !  bfr                    BUFR/BURP element in data block
+     !  brp                    0: Set entirely from the ascii file being read. No 
+     !                            initial values read from BURP files
+     !                         1: Initial values in obs BURP files 
+     !                             (may be adjusted after input)
+     !  vco                    Vertical coordinate type (1, 2, or 3, see bufr_read_mod)
+     !
+     !  ibegin                 Position index of start of data for given
+     !                         sub-family.
+     !  n_lvl                  Number of vertical levels
+     !  n_lat                  Number of latitudes
+     !  lat                    Latitudes (degrees; ordered in increasing size)
+     !
+     !  vlayertop              Layer top 
+     !  vlayerbottom           Layer bottom
+     !  rak                    Averaging kernel matrices
+     
+     integer ::  n_stnid
+     character(len=12), allocatable :: stnids(:)
+     integer, allocatable :: bfr(:),brp(:)
+     integer, allocatable :: vco(:),n_lat(:)
+     integer, allocatable :: ibegin(:),n_lvl(:)
+     real(8), allocatable :: rak(:),vlayertop(:),vlayerbottom(:)
+     real(8), allocatable :: lat(:)
+  
+  end type struct_chm_info
 
+  type :: struct_chm_obsoperators  
+  
+     !  Structure holding work variables for observation operators
+     !     
+     !  Variable               Description
+     !  --------               -----------
+     !  modelIndex             Obs operator index
+     !                         0 - vertical interpolator
+     !                         1 - layer averaging
+     !                         2 - layer integration
+     !  layer_identified       .true. if a layer (with identified layer boundaries)
+     !                         .false if layer boundaries are not available.
+     !  modelvarcolumn         Field or increment column at observation location
+     !                         with necessary unit conversions.
+     !  vmodpress              Model layer boundaries taken as middle between model level
+     !  vlayertop              Layer top (final work values in Pa)
+     !  vlayerbottom           Layer bottom (final work values in Pa)
+     !  vh                     Second order Lagrangian interp integration weights
+     !  zh                     Initial innovation model array (other than conversion constants)
+     !  zhp                    Part of innovation operator not related to resolution.
+     
+     integer :: modelIndex
+     logical :: layer_identified
+     real(8), allocatable :: vlayertop(:),vlayerbottom(:),vmodpress(:)      
+     real(8), allocatable :: modelvarcolumn(:),zh(:,:),zhp(:,:),vh(:,:)
+
+  end type struct_chm_obsoperators
 
   type(struct_chm_info) :: chm_layers
   type(struct_chm_info) :: chm_avgkern
   type(struct_chm_std)  :: chm_std
+  type(struct_chm_obsoperators) :: chm_obsoper
 
 contains
 
-!-----------------------------------------------------------------------------------------
+!------------------------------- Setup called from "preproc" ---------------------------
 
   subroutine chm_setup
 !
@@ -170,9 +198,8 @@ contains
   
   call chm_read_layers
       
-! Deallocate space (call this somewhere else?)
-
-!  call chm_dealloc_layers
+! To deallocate space if required elsewhere, one should use
+! call chm_dealloc_layers
 
 !--------------------------- Averaging kernel matrices ------------------------
    
@@ -180,8 +207,7 @@ contains
   
 ! call chm_avgkern
   
-! Deallocate space
-  
+! To deallocate space if required elsewhere, one should use
 ! call chm_dealloc_avgkern
 
   write(*,*) 'Completed chm_setup'
@@ -189,6 +215,7 @@ contains
   end subroutine chm_setup
 
 !-----------------------------------------------------------------------------------------
+!--------------------- Routines related to layer top & bottom levels----------------------
 
   subroutine chm_read_layers
 !
@@ -346,7 +373,153 @@ contains
   end subroutine chm_dealloc_layers
 
 !-----------------------------------------------------------------------------------------
+!-------------------- Routines related averaging kernel matrices -------------------------
+
+  subroutine chm_read_avgkern
+!
+! Author   : Y. Rochon, ARQI/AQRD, Feb 2015 
+!            - Initial framework only. 
+!            - Actual reading code for averaging kernels not included as yet.
+!
+! Revisions: 
+!          
+! Purpose: Read and store averaging kernel matricesfor CH sub-families
+!
+!----------------------------------------------------------------------------------------
+
+  implicit none
+
+  integer :: FNOM, FCLOS
+  integer :: IERR, JLEV, JELM, nulstat, ios, isize, icount
+  logical :: LnewExists
+  
+  character (len=128) :: ligne
+
+  EXTERNAL FNOM,FCLOS
+
+! Initialization
+
+  chm_avgkern%n_stnid=0
+
+  INQUIRE(FILE='obsinfo_chm',EXIST=LnewExists)
+  IF (.not.LnewExists )then
+    WRITE(*,*)   '--------------------------------------------------'
+    WRITE(*,*)   'chm_read_avgkern: COULD NOT FIND FILE obsinfo_chm!'
+    WRITE(*,*)   '--------------------------------------------------'
+    return
+  ENDIF
+!
+! Check for available layer info.
+!
+  NULSTAT=0
+  IERR=FNOM(NULSTAT,'obsinfo_chm','SEQ',0)
+  IF ( IERR .EQ. 0 ) THEN
+    open(unit=nulstat, file='obsinfo_chm', status='OLD')
+  ELSE
+    CALL ABORT3D('chm_read_avgkern: COULD NOT OPEN FILE obsinfo_chm!')
+  ENDIF
+
+  ios=0
+  read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
+  do while (trim(adjustl(ligne(1:13))).ne.'SECTION II:') 
+      read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
+  end do    
+  
+! Read number of observation set sub-families (STNIDs and ...) and allocate space
+   
+  read(nulstat,*,iostat=ios,err=10,end=10) chm_avgkern%n_stnid
+  read(nulstat,*,iostat=ios,err=10,end=10) isize
+
+  allocate(chm_avgkern%stnids(chm_avgkern%n_stnid))
+  allocate(chm_avgkern%brp(chm_avgkern%n_stnid),chm_avgkern%ibegin(chm_avgkern%n_stnid))
+  allocate(chm_avgkern%bfr(chm_avgkern%n_stnid),chm_avgkern%n_lvl(chm_avgkern%n_stnid))
+!!  allocate(chm_avgkern%rak(isize)
+ 
+  chm_avgkern%bfr(:)=0
+  chm_avgkern%brp(:)=0
+  chm_avgkern%n_lvl(:)=1
+
+! Begin reading for each sub-family
+! Important: Combination of STNID, BUFR element and number of vertical levels
+!            to determine association to the observations.
+
+  icount=0
+  do jelm=1,chm_avgkern%n_stnid
+    chm_avgkern%ibegin(jelm)=icount+1
+
+    read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
+
+!   Read STNID (* is a wildcard)
+    
+    read(nulstat,'(2X,A9)',iostat=ios,err=10,end=10) chm_avgkern%stnids(jelm) 
+
+!   Read (1) Obs BUFR element.
+!        (2) Vertical coord type (1, 2, or 3)
+!        (3) Flag indication if EOR provided from this ascii file or
+!            to be read from the BURP file,
+!        (4) Number of vertical levels
+!
+!   Important: Combination of STNID, BUFR element and number of vertical levels
+!              to determine association to the observations.
+!
+    read(nulstat,*,iostat=ios,err=10,end=10) chm_avgkern%bfr(jelm),  &
+       chm_avgkern%brp(jelm),chm_avgkern%n_lvl(jelm)  
+    
+    if (icount+chm_avgkern%n_lvl(jelm).gt.isize) then
+       write(*,'(10X,"Max array size exceeded: ",I6)') isize
+       CALL ABORT3D('chm_read_layers: READING PROBLEM.')    
+    end if
+
+    read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
+    
+    if (chm_avgkern%n_lvl(jelm).gt.1) then   
+       do jlev=1,chm_avgkern%n_lvl(jelm)
+          icount=icount+1
+          
+          ! Read averaging kernel matrix
+          
+!!          read(nulstat,*,iostat=ios,err=10,end=10)                 &
+!!                 chm_avgkern%rak......
+       end do
+    end if
+  end do
+   
+ 10 if (ios.gt.0) then
+       WRITE(*,*) 'File read error message number: ',ios
+       CALL ABORT3D('chm_read_avgkern: READING PROBLEM')    
+    end if
+ 
+ 11 CLOSE(UNIT=NULSTAT)
+    IERR=FCLOS(NULSTAT)    
+
+  end subroutine chm_read_avgkern
+
 !-----------------------------------------------------------------------------------------
+
+  subroutine chm_dealloc_avgkern
+!
+! Author  : Y. Rochon, Dec 2014
+! Revision: 
+!
+! Purpose: Deallocate temporary storage space.
+!
+!---------------------------------------------------------------------------------------
+  
+!
+! Deallocate temporary space used for the CH family
+!
+  if (chm_avgkern%n_stnid.gt.0) then
+      deallocate(chm_avgkern%stnids)
+      deallocate(chm_avgkern%ibegin)
+      deallocate(chm_avgkern%bfr,chm_avgkern%brp,chm_avgkern%n_lat)
+      deallocate(chm_avgkern%rak,chm_avgkern%lat)
+  end if
+ 
+ 
+  end subroutine chm_dealloc_avgkern
+
+!-----------------------------------------------------------------------------------------
+!----------- Routines relevant to error std. dev. (observation_erreurs.ftn90) ------------
 
   subroutine chm_read_obs_err_stddev
 !
@@ -459,7 +632,7 @@ contains
     
     if (icount+chm_std%n_lvl(jelm)*chm_std%n_lat(jelm).gt.isize) then
        write(*,'(10X,"Max array size exceeded: ",I6)') isize
-       CALL ABORT3D('oer_read_obs_erreurs_chm: PROBLEM READING OBSERR STD DEV.')    
+       CALL ABORT3D('chm_read_obs_err_stddev: PROBLEM READING OBSERR STD DEV.')    
     end if
 
     ! disregard line of dashes
@@ -526,7 +699,7 @@ contains
    
  10 if (ios.gt.0) then
        WRITE(*,*) 'File read error message number: ',ios
-       CALL ABORT3D('oer_read_obs_erreurs_chm: PROBLEM READING OBSERR STD DEV.')    
+       CALL ABORT3D('chm_read_obs_err_stddev: PROBLEM READING OBSERR STD DEV.')    
     end if
  
  11 CLOSE(UNIT=NULSTAT)
@@ -538,7 +711,8 @@ contains
 
   subroutine chm_obs_err_stddev_index(CSTNID,NLEV,ITYP,ZLAT,ISTNID,JINT)
 !
-!  s/r chm_set_obs_err_stddev_index - Returns the station ID and latitude indices corresponding to a measurement
+!  s/r chm_set_obs_err_stddev_index - Returns the station ID and latitude 
+!                                     indices corresponding to a measurement
 !
 !  Author   : M. Sitwell Feb 2015 
 !             - Content moved from code originally in oer_fill_obs_erreurs.
@@ -746,153 +920,7 @@ contains
   end subroutine chm_dealloc_obs_err_stddev
 
 !-----------------------------------------------------------------------------------------
-!-----------------------------------------------------------------------------------------
-
-  subroutine chm_read_avgkern
-!
-! Author   : Y. Rochon, ARQI/AQRD, Feb 2015 
-!            - Initial framework only. 
-!            - Actual reading code for averaging kernels not included as yet.
-!
-! Revisions: 
-!          
-! Purpose: Read and store averaging kernel matricesfor CH sub-families
-!
-!----------------------------------------------------------------------------------------
-
-  implicit none
-
-  integer :: FNOM, FCLOS
-  integer :: IERR, JLEV, JELM, nulstat, ios, isize, icount
-  logical :: LnewExists
-  
-  character (len=128) :: ligne
-
-  EXTERNAL FNOM,FCLOS
-
-! Initialization
-
-  chm_avgkern%n_stnid=0
-
-  INQUIRE(FILE='obsinfo_chm',EXIST=LnewExists)
-  IF (.not.LnewExists )then
-    WRITE(*,*)   '--------------------------------------------------'
-    WRITE(*,*)   'chm_read_avgkern: COULD NOT FIND FILE obsinfo_chm!'
-    WRITE(*,*)   '--------------------------------------------------'
-    return
-  ENDIF
-!
-! Check for available layer info.
-!
-  NULSTAT=0
-  IERR=FNOM(NULSTAT,'obsinfo_chm','SEQ',0)
-  IF ( IERR .EQ. 0 ) THEN
-    open(unit=nulstat, file='obsinfo_chm', status='OLD')
-  ELSE
-    CALL ABORT3D('chm_read_avgkern: COULD NOT OPEN FILE obsinfo_chm!')
-  ENDIF
-
-  ios=0
-  read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
-  do while (trim(adjustl(ligne(1:13))).ne.'SECTION II:') 
-      read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
-  end do    
-  
-! Read number of observation set sub-families (STNIDs and ...) and allocate space
-   
-  read(nulstat,*,iostat=ios,err=10,end=10) chm_avgkern%n_stnid
-  read(nulstat,*,iostat=ios,err=10,end=10) isize
-
-  allocate(chm_avgkern%stnids(chm_avgkern%n_stnid))
-  allocate(chm_avgkern%brp(chm_avgkern%n_stnid),chm_avgkern%ibegin(chm_avgkern%n_stnid))
-  allocate(chm_avgkern%bfr(chm_avgkern%n_stnid),chm_avgkern%n_lvl(chm_avgkern%n_stnid))
-!!  allocate(chm_avgkern%rak(isize)
- 
-  chm_avgkern%bfr(:)=0
-  chm_avgkern%brp(:)=0
-  chm_avgkern%n_lvl(:)=1
-
-! Begin reading for each sub-family
-! Important: Combination of STNID, BUFR element and number of vertical levels
-!            to determine association to the observations.
-
-  icount=0
-  do jelm=1,chm_avgkern%n_stnid
-    chm_avgkern%ibegin(jelm)=icount+1
-
-    read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
-
-!   Read STNID (* is a wildcard)
-    
-    read(nulstat,'(2X,A9)',iostat=ios,err=10,end=10) chm_avgkern%stnids(jelm) 
-
-!   Read (1) Obs BUFR element.
-!        (2) Vertical coord type (1, 2, or 3)
-!        (3) Flag indication if EOR provided from this ascii file or
-!            to be read from the BURP file,
-!        (4) Number of vertical levels
-!
-!   Important: Combination of STNID, BUFR element and number of vertical levels
-!              to determine association to the observations.
-!
-    read(nulstat,*,iostat=ios,err=10,end=10) chm_avgkern%bfr(jelm),  &
-       chm_avgkern%brp(jelm),chm_avgkern%n_lvl(jelm)  
-    
-    if (icount+chm_avgkern%n_lvl(jelm).gt.isize) then
-       write(*,'(10X,"Max array size exceeded: ",I6)') isize
-       CALL ABORT3D('chm_read_layers: READING PROBLEM.')    
-    end if
-
-    read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
-    
-    if (chm_avgkern%n_lvl(jelm).gt.1) then   
-       do jlev=1,chm_avgkern%n_lvl(jelm)
-          icount=icount+1
-          
-          ! Read averaging kernel matrix
-          
-!!          read(nulstat,*,iostat=ios,err=10,end=10)                 &
-!!                 chm_avgkern%rak......
-       end do
-    end if
-  end do
-   
- 10 if (ios.gt.0) then
-       WRITE(*,*) 'File read error message number: ',ios
-       CALL ABORT3D('chm_read_avgkern: READING PROBLEM')    
-    end if
- 
- 11 CLOSE(UNIT=NULSTAT)
-    IERR=FCLOS(NULSTAT)    
-
-  end subroutine chm_read_avgkern
-
-!-----------------------------------------------------------------------------------------
-
-  subroutine chm_dealloc_avgkern
-!
-! Author  : Y. Rochon, Dec 2014
-! Revision: 
-!
-! Purpose: Deallocate temporary storage space.
-!
-!---------------------------------------------------------------------------------------
-  
-!
-! Deallocate temporary space used for the CH family
-!
-  if (chm_avgkern%n_stnid.gt.0) then
-      deallocate(chm_avgkern%stnids)
-      deallocate(chm_avgkern%ibegin)
-      deallocate(chm_avgkern%bfr,chm_avgkern%brp,chm_avgkern%n_lat)
-      deallocate(chm_avgkern%rak,chm_avgkern%lat)
-  end if
- 
- 
-  end subroutine chm_dealloc_avgkern
-
-!-----------------------------------------------------------------------------------------
-!-----------------------------------------------------------------------------------------
+!------------------- Miscellaneous utilities functions and routines ----------------------
 
   function stnid_equal(id1,id2) result(same)
 !
