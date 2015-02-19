@@ -16,6 +16,14 @@
 !
 module obsOperators_mod
   !
+  ! Revision:
+  !          Ping Du, CDMA/MSC Jan 2015
+  !          - Addition of 
+  !                 use chem_mod
+  !            and 
+  !                 public oonl_chm
+  !
+  
   ! Nonlinear observation operators (OONL)
   !
   use earthConstants_mod
@@ -35,6 +43,11 @@ module obsOperators_mod
   use modgps08refop     , only : gpsrefopv
   use modgps09bend      , only : gpsbndopv1
   use modgpsro_mod
+
+  ! only for oonl_chm
+  use chem_mod
+  use codtyp_mod
+  
   implicit none
   save
   private
@@ -1091,49 +1104,212 @@ module obsOperators_mod
 
   end subroutine oonl_tovs
 
-
+!---------------------------------------------------------------------------------------
 
   subroutine oonl_chm(columnhr,obsSpaceData,jobs_out)
     !
-    !**s/r oonl_chm - Temporary subroutine to set innovation for tracers to zero from
-    !                   default value of -999.0 until nonlinear obs operator for tracers
-    !                   is complete.
+    !**s/r oonl_chm - Computation of Jo and the residuals to the observations
+    !                for all observations of the CH (chemical constituents) family.
     !
-    !author        : M. Sitwell Jan 2015
+    ! Author: Ping Du, CMDA/MSC, Jan 2015
+    !         - Partially based on other oonl_* routines and also corresponding 
+    !           pre-EnVar routine by Y.J. Rochon and Y. Yang, July 2005 to Feb 2013
+    !         - Set for uni-level data
     !
+    ! Revision:
+    !           Yves Rochon, ARQI/AQRD Feb 2015
+    !           - Generalized with call to chm_obsoperators.
+    !           - Initial revision of EnVar version
+    ! 
+    ! Purpose:  Computation of Jo and the residuals to the observations
+    !           for all observations of the CH (chemical constituents) family.
+    !           The array columnhr contains the input model array.
+    !
+    !
+    ! Arguments
+    !
+    !   Input
+    !
+    !     columnhr      : Columnar arrays from model fields
+    !     obsSpaceData  : Obs space data structure
+    !
+    !   Output
+    !
+    !     jobs_out  : contribution to Jo
+    !
+    ! Comments:
+    !
+    !-----------------------------------------------------------------------------------
     implicit none
-
     type(struct_columnData) :: columnhr
-    type(struct_obs)        :: obsSpaceData
+    type(struct_obs) :: obsSpaceData
     real(8), optional :: jobs_out
+
+    ! Local variables
     
-    integer :: INDEX_BODY, INDEX_HEADER
+    integer :: jl,icount
+    real(8) :: zinc,zomp,jobs
+    logical :: success
 
-    write(*,*)'ENTER oonl_chm'
+    ! Obs space local variables
+    
+    character(len=4)  :: varName
+    character(len=12) :: cstnid
+    integer :: headerIndex,bodyIndex,bodyIndexCount
+    integer :: ivnm, ivco, ixtr, iass, kmode 
+    integer :: icodtyp, iobslev, nobslev
+    integer :: isunza,idate,ihhmm
+    integer :: iconstituent_id
+    real(8) :: zobslev,zlat,zlon
 
-    !
-    ! Loop over all header indices of the 'CH' family:
-    !
+    ! Local variables: model space profile data
+    
+    character(len=2)   :: varType
+    real(8), allocatable :: zpp(:),zdp(:),zval(:),ztt(:),zgz(:),zvalinc(:)
+    real(8) :: zp0,zmhx
+    integer :: nlev
+    
+    Write(*,*) "Entering subroutine oonl_chm"
+    
+    ! Initializations
+
+    jobs=0.d0
+    
+    varType = 'TH'
+    nlev = col_getNumLev(columnhr,varType)        
+    allocate(zval(nlev))
+    allocate(ztt(nlev))
+    allocate(zdp(nlev))
+    allocate(zpp(nlev))
+    allocate(zgz(nlev))
+    allocate(zvalinc(nlev)) ! Must be a copy of zval when kmode=0,1. 
+
+    kmode = 0 ! 0 for general (non-linear) simulation operator
+              ! 1 for tangent linear operator applied to error std. dev. 
+              ! 2 for tangent linear operator
+              ! 3 for adjoint of tangent linear operator
+                 
+    ! Loop over all report header of the 'CH' family:
+    
     call obs_set_current_header_list(obsSpaceData,'CH')
-
     HEADER: do
-      index_header = obs_getHeaderIndex(obsSpaceData)
-      if (index_header < 0) exit HEADER
+      headerIndex = obs_getHeaderIndex(obsSpaceData)
+      if (headerIndex < 0) exit HEADER
 
-      call obs_set_current_body_list(obsSpaceData, index_header)
-      BODY: do 
-        index_body = obs_getBodyIndex(obsSpaceData)
-        if (index_body < 0) exit BODY
-        call obs_bodySet_r(obsSpaceData,OBS_OMP,index_body,0.0d0)
+      icodtyp  = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
+     
+      if (icodtyp.ne.codtyp_chemremote.and.icodtyp.ne.codtyp_cheminsitu) cycle HEADER
+            
+      ! Loop over all body indices (profile elements) for this report      
+
+      iobslev=0
+      icount=0
+      call obs_set_current_body_list(obsSpaceData,headerIndex)
+      BODY: do
+        bodyIndex = obs_getBodyIndex(obsSpaceData)
+        if (bodyIndex < 0) exit BODY
+       
+        ! Get position in profile and skip over 08090 elements
+        
+        ivnm = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)                
+         write(*,*) 'PDD-oonl', ivnm
+        if (ivnm.ne.08090) then
+           iobslev=iobslev+1
+        else
+           cycle BODY
+        end if
+        
+        ixtr = obs_bodyElem_i (obsSpaceData,OBS_XTR,bodyIndex)
+        iass = obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex)
+
+        if (ixtr.ne.0.or.iass.ne.1) cycle BODY
+
+        icount=icount+1
+        
+        ! Get data that only needs to be read once for each obs profile
+        if (icount.eq.1) then 
+
+           ! Get obs space info that are part of the profile header
+           
+           nobslev = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex)
+           do jl=0,obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex)-1
+              if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex+jl).eq.8090) nobslev = nobslev-1
+           end do
+           
+           cstnid  = obs_elem_c(obsSpaceData,'STID',headerIndex)      
+           idate  = obs_headElem_i(obsSpaceData,OBS_DAT,headerIndex)
+           ihhmm  = obs_headElem_i(obsSpaceData,OBS_ETM,headerIndex)
+           isunza  = obs_headElem_i(obsSpaceData,OBS_SUN,headerIndex)
+           iconstituent_id=obs_headElem_i(obsSpaceData,OBS_CHM,headerIndex)
+     
+           varName = vnl_varnameFromVarnum(ivnm,iconstituent_id)
+           ! varType = vnl_varTypeFromVarnum(ivnm,iconstituent_id)
+           ! nlev = col_getNumLev(columnhr,varType)
+      
+           ivco = obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex)
+
+           ! Get observation coordinates
+
+           zlat = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex) * MPC_DEGREES_PER_RADIAN_R8
+           zlon = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex) * MPC_DEGREES_PER_RADIAN_R8
+
+           ! Get trial/background column data at observation location
+
+           zp0 = col_getElem(columnhr,1,headerIndex,'P0')
+           do jl = 1, nlev
+              zpp(jl) = col_getPressure(columnhr,jl,headerIndex, varType)
+              ! True implementation of ZDP (dP/dP0) - not currently used for constituents
+              zdp(jl) = col_getPressureDeriv(columnhr,jl,headerIndex,varType)
+              zval(jl) = col_getElem(columnhr,jl,headerIndex,varName)
+              ztt(jl) = col_getElem(columnhr,jl,headerIndex,'TT')
+!              zgz(jl) = col_getElem(columnhr,jl,headerIndex,'GZ')
+
+              
+           enddo
+           zvalinc(1:nlev)=zval(1:nlev)
+           write(*,*) 'PDD-oonlchm', zpp(nlev),ztt(nlev),zvalinc(nlev)
+
+        end if 
+        
+        ! Get vertical coordinate data. Valid for point data values in profiles.
+        ! For layer data values, vertical coordinate data will instead be assigned within chm_obsoperators.
+
+        zobslev = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
+      
+        ! Apply observation operator(s) for specified data element.
+       
+        write(*,*) 'PDD-oonl', nlev,kmode,varName,ivnm,cstnid,idate,ihhmm,ivco,nobslev,icount,iobslev 
+        call chm_obsoperators(nlev,zvalinc,zval,ztt,zpp,kmode,varName,&
+                ivnm,cstnid,idate,ihhmm,ivco,nobslev,icount,iobslev,zobslev,zlat,zlon, &
+                iconstituent_id,success,zmhx)
+                
+        ! Check for success in calculations
+                
+        if (.not.success) then
+           call obs_bodySet_i (obsSpaceData,OBS_XTR,bodyIndex,1)
+           call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
+           cycle BODY
+        end if
+        
+        ! Determine and store OmP  
+
+        zomp = obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex) - zmhx
+        call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex,zomp)
+
+        ! Add to Jo contribution (factor of 0.5 to be applied outside report loop)
+        
+        zinc = zomp/obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
+        jobs = jobs + zinc*zinc
+        write(*,*) 'PDD-oonlchm-jobs', jobs
+         
       enddo BODY
 
-   enddo HEADER 
-   
-   if(present(jobs_out)) jobs_out=0.0d0
+    enddo HEADER
+
+    deallocate(zval,ztt,zdp,zpp)
+
+    if (present(jobs_out)) jobs_out=0.5d0*jobs
 
   end subroutine oonl_chm
-
-
-
-
+!---------------------------------------------------------------------------------------
 end module obsOperators_mod
