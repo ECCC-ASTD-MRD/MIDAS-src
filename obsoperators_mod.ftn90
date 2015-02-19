@@ -1165,8 +1165,8 @@ module obsOperators_mod
     ! Local variables: model space profile data
     
     character(len=2)   :: varType
-    real(8), allocatable :: zpp(:),zdp(:),zval(:),ztt(:),zgz(:),zvalinc(:)
-    real(8) :: zp0,zmhx
+    real(8), allocatable :: zpp(:),zval(:),ztt(:),zgz(:),zvalinc(:)
+    real(8) :: zmhx
     integer :: nlev
     
     Write(*,*) "Entering subroutine oonl_chm"
@@ -1179,7 +1179,6 @@ module obsOperators_mod
     nlev = col_getNumLev(columnhr,varType)        
     allocate(zval(nlev))
     allocate(ztt(nlev))
-    allocate(zdp(nlev))
     allocate(zpp(nlev))
     allocate(zgz(nlev))
     allocate(zvalinc(nlev)) ! Must be a copy of zval when kmode=0,1. 
@@ -1212,7 +1211,6 @@ module obsOperators_mod
         ! Get position in profile and skip over 08090 elements
         
         ivnm = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)                
-         write(*,*) 'PDD-oonl', ivnm
         if (ivnm.ne.08090) then
            iobslev=iobslev+1
         else
@@ -1255,19 +1253,13 @@ module obsOperators_mod
 
            ! Get trial/background column data at observation location
 
-           zp0 = col_getElem(columnhr,1,headerIndex,'P0')
            do jl = 1, nlev
               zpp(jl) = col_getPressure(columnhr,jl,headerIndex, varType)
-              ! True implementation of ZDP (dP/dP0) - not currently used for constituents
-              zdp(jl) = col_getPressureDeriv(columnhr,jl,headerIndex,varType)
               zval(jl) = col_getElem(columnhr,jl,headerIndex,varName)
               ztt(jl) = col_getElem(columnhr,jl,headerIndex,'TT')
-!              zgz(jl) = col_getElem(columnhr,jl,headerIndex,'GZ')
-
-              
+              zgz(jl) = col_getElem(columnhr,jl,headerIndex,'GZ')
            enddo
            zvalinc(1:nlev)=zval(1:nlev)
-           write(*,*) 'PDD-oonlchm', zpp(nlev),ztt(nlev),zvalinc(nlev)
 
         end if 
         
@@ -1277,9 +1269,8 @@ module obsOperators_mod
         zobslev = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
       
         ! Apply observation operator(s) for specified data element.
-       
-        write(*,*) 'PDD-oonl', nlev,kmode,varName,ivnm,cstnid,idate,ihhmm,ivco,nobslev,icount,iobslev 
-        call chm_obsoperators(nlev,zvalinc,zval,ztt,zpp,kmode,varName,&
+        
+        call chm_obsoperators(nlev,zvalinc,zval,ztt,zpp,zgz,kmode,varName,&
                 ivnm,cstnid,idate,ihhmm,ivco,nobslev,icount,iobslev,zobslev,zlat,zlon, &
                 iconstituent_id,success,zmhx)
                 
@@ -1300,13 +1291,12 @@ module obsOperators_mod
         
         zinc = zomp/obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
         jobs = jobs + zinc*zinc
-        write(*,*) 'PDD-oonlchm-jobs', jobs
          
       enddo BODY
 
     enddo HEADER
 
-    deallocate(zval,ztt,zdp,zpp)
+    deallocate(zvalinc,zval,ztt,zpp,zgz)
 
     if (present(jobs_out)) jobs_out=0.5d0*jobs
 
