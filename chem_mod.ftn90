@@ -325,17 +325,8 @@ contains
           read(nulstat,*,iostat=ios,err=10,end=10)                 &
                  chm_layers%vlayertop(icount),chm_layers%vlayerbottom(icount)
        end do
-    else 
-       icount=icount+1
-       chm_layers%n_lvl(jelm)=1
-       if (chm_layers%vco(jelm).eq.2) then
-          chm_layers%vlayertop(icount)=1.0
-          chm_layers%vlayerbottom(icount)=120000.
-       else if (chm_layers%vco(jelm).eq.1) then
-          chm_layers%vlayertop(icount)=70000.   ! 70 km
-          chm_layers%vlayerbottom(icount)=0.0      !  0 km
-       end if
     end if
+
   end do
    
  10 if (ios.gt.0) then
@@ -347,6 +338,87 @@ contains
     IERR=FCLOS(NULSTAT)    
 
   end subroutine chm_read_layers
+
+
+  !-----------------------------------------------------------------------------------------
+
+  subroutine chm_get_layer_boundaries(cstnid,ivnm,ivco,nlev,zlev,default_top,default_bottom,layertop,layerbottom)
+!
+! Author  : M. Sitwell, Y. Rochon, Feb 2015
+! Revision: 
+!
+! Purpose: Return layer boundaries for an observation. Combination of STNID, BUFR element
+!          and number of vertical levels to determine association to the observations.
+!          Default values for top and bottom layers for total column measurements are to
+!          be provided.
+!
+! Inputs:
+!   - cstnid          station id
+!   - ivnm            BUFR descriptor element
+!   - ivco            type of vertical coordinate
+!   - nlev            number of levels in the observation
+!   - zlev            first vertical coordinate value in the profile
+!   - default_top     default value for top layer for total column measurement
+!   - default_bottom  default value for bottom layer for total column measurement
+!
+! Outputs:
+!   - layertop        top layer values
+!   - layerbottom     bottom layer values
+! ---------------------------------------------------------------------------------------
+
+    implicit none
+
+    character(len=12), intent(in) :: cstnid
+    integer, intent(in)           :: ivnm,ivco,nlev
+    real(8), intent(in)           :: zlev,default_top,default_bottom
+    real(8), intent(out)          :: layertop(nlev),layerbottom(nlev)
+    integer                       :: ISTNID,JN,start_index
+    logical                       :: iset,total_col
+
+    ! If a total column measurement, second condition to check for default value
+    ! of height coordinate
+    total_col = NLEV.EQ.1 .AND. abs(ZLEV).le.1.0D-10
+
+    ! Find stnid with same number of vertical levels, and same BUFR element
+    ! Note: * in cinfo_stndi_chm stands for a wildcard
+          
+    ISTNID=0
+    
+    DO JN=1,chm_layers%n_stnid
+
+       ! First compare STNID values allowing for * and blanks in 
+       ! chm_layers%stnids(JN) as wildcards
+       iset = stnid_equal(chm_layers%stnids(JN),CSTNID)
+
+       ! Check if number of levels, code, and vertical coordinate type are equal.
+       ! If number of levels is one and there is no value set for ZLEV (as for
+       ! a total column measurement), the check of vertical coordinate type is disregarded.
+       IF (iset) THEN
+          IF ( ivnm.EQ.chm_layers%bfr(JN) .AND. NLEV.EQ.chm_layers%n_lvl(JN) .AND. &
+               ( (IVCO.EQ.chm_layers%vco(JN).OR.IVCO.EQ.4) .OR. total_col ) &
+             ) THEN
+             ISTNID=JN
+             exit
+          END IF
+       END IF
+       
+    END DO
+
+    IF ( ISTNID.EQ.0 .AND. (ivnm.eq.15198.or.ivnm.eq.15020) ) THEN
+       ! if layer information not found in ascii file
+       if (total_col) then
+          layertop(1) = default_top
+          layerbottom(1) = default_bottom
+       else
+          CALL ABORT3D ('chm_get_layer_boundaries: Top and bottom of layers not found for STNID=' // CSTNID)
+       end if
+    ELSE
+       start_index = chm_layers%ibegin(ISTNID)
+       layertop(:) = chm_layers%vlayertop(start_index:start_index+nlev-1)
+       layerbottom(:) = chm_layers%vlayerbottom(start_index:start_index+nlev-1)  
+    END IF
+
+  end subroutine chm_get_layer_boundaries
 
 
 !-----------------------------------------------------------------------------------------
