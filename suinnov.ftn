@@ -33,6 +33,8 @@
 !         - DOBGPSGB is now ready for GEM-4 staggered grid
 !         - added CALL SETERRGPSGB(obsSpaceData,lgpdata) to set ZTD errors
 !         - NEW: >>if (lgpdata)<< CALL DOBSGPSGB
+!     Ping Du CMDA/MSC, Dec 2014
+!         - Added ZJOCHM and call to oonl_chm
 !
       use mpi_mod
       use topLevelControl_mod
@@ -115,12 +117,11 @@
       CALL SETERRGPSRO(columnhr,obsSpaceData)
       call oonl_gpsro(columnhr,obsSpaceData,ZJOGPSRO)
 
-
 !
-!        Tracers
+!        CH - Chemical constituents
 !-------------------------------
       call oonl_chm(columnhr,obsSpaceData,ZJOCHM)
-
+      
 !
 !        GPS - GROUND-BASED ZENITH DELAY
 !-------------------------------
@@ -131,11 +132,6 @@
 
       call tmg_stop(48)
 !
-! PDD for tracers
-!=======================================================================
-!      ZJO =  ZJORAOB + ZJOAIREP + ZJOSATWIND +
-!     $     ZJOSURFC + ZJOTOV + ZJOPROF + ZJOGPSRO + ZJOGPSGB
-!=======================================================================
 !=======================================================================
       ZJO =  ZJORAOB + ZJOAIREP + ZJOSATWIND +
      $     ZJOSURFC + ZJOTOV + ZJOPROF + ZJOGPSRO + ZJOGPSGB + ZJOCHM
@@ -154,7 +150,7 @@
       write(*,'(a15,f23.16)') 'JOPROF   = ',ZJOPROF
       write(*,'(a15,f23.16)') 'JOGPSRO  = ',ZJOGPSRO
       write(*,'(a15,f23.16)') 'JOGPSGB  = ',ZJOGPSGB
-      write(*,'(a15,f23.16)') 'JOCHM     = ',ZJOCHM   !PDD
+      write(*,'(a15,f23.16)') 'JOCHM    = ',ZJOCHM  
       write(*,'(a15,f23.16)') 'Total Jo = ',ZJO
 
       call mpi_allreduce_sumreal8scalar(ZJORAOB,"GRID")
@@ -169,7 +165,7 @@
       call mpi_allreduce_sumreal8scalar(ZJOPROF,"GRID")
       call mpi_allreduce_sumreal8scalar(ZJOGPSRO,"GRID")
       call mpi_allreduce_sumreal8scalar(ZJOGPSGB,"GRID")
-      call mpi_allreduce_sumreal8scalar(ZJOCHM,"GRID")  !PDD
+      call mpi_allreduce_sumreal8scalar(ZJOCHM,"GRID") 
       call mpi_allreduce_sumreal8scalar(ZJO,"GRID")
 
       write(*,*) 'Cost function values summed for all MPI tasks:'
@@ -185,7 +181,7 @@
       write(*,'(a15,f23.16)') 'JOPROF   = ',ZJOPROF
       write(*,'(a15,f23.16)') 'JOGPSRO  = ',ZJOGPSRO
       write(*,'(a15,f23.16)') 'JOGPSGB  = ',ZJOGPSGB
-      write(*,'(a15,f23.16)') 'JOCHM  = ',ZJOCHM   !PDD
+      write(*,'(a15,f23.16)') 'JOCHM    = ',ZJOCHM  
       write(*,'(a15,f23.16)') 'Total Jo = ',ZJO
 !
 !     Find interpolation layer in model profiles 

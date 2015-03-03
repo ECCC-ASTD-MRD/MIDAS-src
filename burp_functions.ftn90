@@ -163,13 +163,16 @@
       RETURN
   END SUBROUTINE SET_ERR_GBGPS
 
-!PDD
   SUBROUTINE  SET_SCAL_CHM(obsdat,START,END)
-!**s/r SET_SCAL_CHM  - SET the scale to TR
+!**s/r SET_SCAL_CHM  - Identify and apply scaling to CH obs if required.
 !
 !
-!Author  : P. Du *CMC/CMDA Nov. 2014 
+!Author  : P. Du *CMC/CMDA Nov. 2014, Feb 2015
 !Revision:
+!          Y. Rochon, ARQI/AQRD, Feb 2015
+!          - Generalized except for the assumption that if 
+!            exponents are present, then they must be present 
+!            for all obs and in the same sequential order.
 !
 !*    Purpose:  - Scale obs value by 10^{expnt} with the exponent
 !                 provided by element 8090 if provided.
@@ -190,49 +193,55 @@
       INTEGER  :: VARNO
       type (struct_obs), intent(inout):: obsdat
 
-      REAL(OBS_REAL)    :: OBSV, SCAL, obs
-      REAL              :: MISG
-
-!-----------------------------------------------------------------------
+      REAL(OBS_REAL)    :: OBSV
+      real, allocatable  :: scal(:)
+      integer            :: kk,jj
+!     ------------------------------------------------------------------
       WRITE(*,*)'   SET_SCAL_CHM '
-      MISG=-999.
 !
-!-----------------------------------
-!      STN LOOP
-!-----------------------------------
       DO JO=START,END
+
         RLN=obs_headElem_i(obsdat,OBS_RLN,JO)
         NLV=obs_headElem_i(obsdat,OBS_NLV,JO)
-        !=================================
-        ! DATA LOOP
-        !=================================
-        SCAL=MISG
+        if (allocated(scal)) deallocate(scal)
+        allocate(scal(nlv))
+        
+!       ========================================
+!       Record power of 10 exponents if present
+!       ========================================
+   
+        kk=0      
         DO J = RLN, NLV + RLN -1
-
           VARNO=obs_bodyElem_i(obsdat,OBS_VNM,j)
-          IF ( VARNO .eq. 8090 ) THEN
-             SCAL=obs_bodyElem_r(obsdat,OBS_VAR,j)
-!	      write(*,*) 'PDD-scal', scal, j
-!             call obs_bodySet_i(obsdat,OBS_VNM,j,999 )
-             EXIT
-          ENDIF
+          if (VARNO.eq.8090) then
+             kk=kk+1
+             scal(kk) = obs_bodyElem_r(obsdat,OBS_VAR,j)
+          end if
         END DO
 
-        DO J = RLN, NLV + RLN -1
+!       ========================================
+!       Apply power of 10 exponents if present
+!       ========================================
 
-          VARNO=obs_bodyElem_i(obsdat,OBS_VNM,j)
-          IF ( VARNO .ne. 8090 .and. SCAL .ne. MISG ) THEN
-             obs=obs_bodyElem_r(obsdat,OBS_VAR,j)
-!	     if(j.eq.rln) write(*,*) 'PDD-obs', scal 
-             call obs_bodySet_r(obsdat,OBS_VAR,j,obs*10**(SCAL) )
-             EXIT
-          ENDIF
-!
-        END DO
-        !=================================
+        if (kk.gt.0) then 
+           if (kk.ne.nlv/2) then
+               write(*,*) 'NLV/2 =',nlv/2,' Nexp=',kk
+               call abort3d('set_scal_chm: Inconsistent number of exponents')           
+           else
+              jj=0
+              DO J = RLN, NLV + RLN -1
+                 VARNO=obs_bodyElem_i(obsdat,OBS_VNM,j)
+                 IF (VARNO.ne.8090) THEN
+                   jj=jj+1
+                   obsv=obs_bodyElem_r(obsdat,OBS_VAR,j)
+                   call obs_bodySet_r(obsdat,OBS_VAR,j,obsv*10**(scal(jj)) )
+                 end if     
+             END DO
+           end if
+        end if
 !
       END DO
-!-----------------------------------
+!     -----------------------------------
 !
       WRITE(*,*)' DONE   SET_SCAL_CHM '
       RETURN

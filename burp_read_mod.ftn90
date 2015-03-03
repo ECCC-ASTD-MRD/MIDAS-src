@@ -271,7 +271,7 @@ CONTAINS
         LISTE_ELE_SFC = (/15008,15011,15012,15020,15024,15026,15027,15028, &
                           15029,15198,15199,15230,08090,-1,-1/)
         NELE_SFC=13
-        CALL BRPACMA_NML('namburp_tr')
+        CALL BRPACMA_NML('namburp_chm_sfc')
         NELE_SFC=NELEMS_SFC
         WINDS=.FALSE.
         ADDSIZE=10000
@@ -280,7 +280,7 @@ CONTAINS
         LISTE_ELE = (/15008,15020,15024,15026,15027, &
                       15029,15198,15199,15230,08090,-1,-1,-1,-1,-1/)
         NELE=13
-        CALL BRPACMA_NML('namburp_trm')
+        CALL BRPACMA_NML('namburp_chm')
         NELE=NELEMS
     END SELECT
     LISTE_ELE    (1:NELE    )=BLISTELEMENTS(1:NELE)
@@ -1170,7 +1170,7 @@ CONTAINS
     !******************************************************************************** 
     !
     !       REVISION:
-    !                 Ping Du (CMDA), Nov 2014 (revision comments added by Y. Rochon)
+    !                 Ping Du (CMDA), Nov 2014 
     !                  -- Added NAMBURP_FILTER_TR and NAMBURP_FILTER_TRM namelists
     !                  -- Added CASE('namburp_tr') and CASE('namburp_trm')
     !
@@ -1226,13 +1226,13 @@ CONTAINS
     !       REVISION:
     !                 S. MACPHERSON (ARMA) Oct 2013
     !                  -- add 'GP' family (ground-based GPS)
-    !                 Ping Du (CMDA) Nov/Dec 2014 (revision comments added by Y. Rochon)
+    !                 Ping Du (CMDA) Nov/Dec 2014 
     !                  -- Added initial CASE('CH') section with addition of 'namburp_chm_sfc'
     !                     and 'namburp_chm' namelists
     !                  -- Added UNI_FAMILYTYPE.
     !                  -- Replaced "NDATA_SF= WRITE_BODY(*" to use UNI_FAMILYTYPE
     !                     (see !PDD at corresponding locations)
-    !                  -- Added use of FAMILYTYPE2 for the TR family.
+    !                  -- Added use of FAMILYTYPE2 for the CH family.
     !                 Y.J. Rochon (ARQI) Dec 2014
     !                  -- Added 08046 (constituent code table) in LISTE_INFO.
     !                     Corresponds to new ObsSpaceData integer-header element OBS_CHM.
@@ -1614,6 +1614,7 @@ CONTAINS
 
             ALLOCATE( vcoord_sfc(1))
 
+            vcoord_type=0
             vcoord_SFC(:)       = 0
             obsvalue_sfc(:,:,:) = PPMIS
             IND_LAT   = BURP_Find_Element(Block_in, ELEMENT=5001, IOSTAT=error)
@@ -2277,14 +2278,11 @@ CONTAINS
     !******************************************************************************** 
     !
     !       REVISION:
-    !                 Ping Du (CMDA), Nov 2014 (revision comments added by Y. Rochon)
+    !                 Ping Du (CMDA), Nov 2014
     !                  -- Added  CASE ('CH') with VCO=4 
-    !                 Y.J. Rochon (ARQI), Dec 2014
+    !                 Y.J. Rochon (ARQI) and M. Sitwell (ARQI), Dec 2014, Feb 2015
     !                  -- Added VCOORD_TYPE as input argument and applied in function.
-    !                  -- Added new VCO cases for the TR family.
-    !                 M. Sitwell (ARQI), Feb 2015
-    !                  -- Changed setting of VCO for VCOORD_TYPE==0 to be set to 
-    !                     VCO=2 (presuure coord) instead of VCO=1 (height coord).
+    !                  -- Added new VCO cases for the CH family.
     !
     !****************************************************************************
 
@@ -2360,15 +2358,16 @@ CONTAINS
         VCO=1 ! HEIGHT COORD
       CASE ( 'TO'  )
         VCO=3 ! CHANNEL NUMBER
-      CASE ( 'CH'  ) ! CONSTITUENTS
+      CASE ( 'CH'  ) ! CONSTITUENTS (consider different possibilities)
         IF (VCOORD_TYPE == 7006 .OR. VCOORD_TYPE == 7007) THEN
            VCO=1
            IF (VCOORD_TYPE == 7006) ELEVFACT=1.0
-        ELSE IF (VCOORD_TYPE == 7004 .OR. VCOORD_TYPE == 7204 .OR. VCOORD_TYPE == 0) THEN
+        ELSE IF (VCOORD_TYPE == 7004 .OR. VCOORD_TYPE == 7204) THEN
            VCO=2
         ELSE IF (VCOORD_TYPE == 2150) THEN
            VCO=3
-        ELSE
+        ELSE 
+           ! Vertical coordinate not provided or not recognized.
            VCO=4  
         END IF
     END SELECT
@@ -2525,7 +2524,7 @@ CONTAINS
     !
     !       REVISION:
     !                 Y.J. Rochon (ARQI), Dec 2014
-    !                  -- Added consideraton of 08046 for the TR family.
+    !                  -- Added consideraton of 08046 for the CH family.
     !                     (see *CONSTITUENT*)
     !
     !****************************************************************************
@@ -2676,7 +2675,7 @@ CONTAINS
           IF (trim(FAMTYP) == 'CH') THEN
              RCONSTITUENT=INFOV
              IF (RCONSTITUENT .eq. PPMIS) THEN
-                call abort3d('WRITE_INFO: Missing 08046 element for the TR family.')
+                call abort3d('WRITE_INFO: Missing 08046 element for the CH family.')
              ELSE
                 CONSTITUENT_TYPE=NINT(RCONSTITUENT)
              END IF

@@ -1,8 +1,8 @@
 module varNameList_mod
 !
 ! Revisions: 
-!           Y.J. Rochon (ARQI/AQRD) Jan 2015
-!           - Added vnl_numunits_chm and vnl_varunits_chm
+!            Y.J. Rochon (ARQI/AQRD) Jan 2015
+!            - Added public vnl_IsAtmosConstituent
 !
   use bufr
   implicit none
@@ -11,7 +11,6 @@ module varNameList_mod
 
   ! public variables (parameters)
   public :: vnl_numvarmax3D,vnl_numvarmax2D,vnl_numvarmax,vnl_varNameList3D,vnl_varNameList2D,vnl_varNameList
-  public :: vnl_numunits_chm,vnl_varunits_chm
   ! public procedures
   public :: vnl_varListIndex3d,vnl_varListIndex2d,vnl_varListIndex,vnl_varnameFromVarnum
   public :: vnl_vartypeFromVarname,vnl_vartypeFromVarnum,vnl_IsAtmosConstituent
@@ -32,11 +31,6 @@ module varNameList_mod
   integer, parameter          :: vnl_numvarmax=vnl_numvarmax3D+vnl_numvarmax2D
   character(len=4), parameter :: vnl_varNameList(vnl_numvarmax) = (/ vnl_varNameList3D, vnl_varNameList2D /)
   character(len=2), parameter :: varTypeList(vnl_numvarmax) = (/ varTypeList3D, varTypeList2D /)
-
-  integer, parameter            :: vnl_numunits_chm=12
-  integer, parameter            :: vnl_varunits_chm(vnl_numunits_chm)= &
-              (/15198,15008,15011,15012,15020,15024,15026,15027,15028, &
-                15029,15199,15230/)
 
   contains
 
@@ -203,6 +197,7 @@ module varNameList_mod
 !
 !   Author: Y.J. Rochon (ARQI/AQRD) Jan 2015
 !           Following recommendation by M. Buehner.
+!
 !   Revisions:
 !
 !   ------------------------------------------------------------
@@ -212,6 +207,11 @@ module varNameList_mod
       integer, intent(in)           :: varNumber
       logical                       :: var_chm
       integer                       :: i
+
+      integer, parameter            :: vnl_numunits_chm=16
+      integer, parameter            :: vnl_varunits_chm(vnl_numunits_chm)= &
+                  (/15198,15008,15009,15010,15011,15012,15020,15022,15023,15024, &
+                    15026,15027,15028,15029,15199,15230/)
                 
       var_chm=.false.
       do i=1,vnl_numunits_chm

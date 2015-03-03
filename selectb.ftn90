@@ -29,8 +29,8 @@ SUBROUTINE SELECTB(obsdat)
 !       Revisions:
 !         1 Oct 2013:  S. Macpherson ARMA
 !                      Bug fix: Put CALL SET_ERR_GBGPS *after* OBS_OER initialized to 0
-!         Dec 2014:    Ping Du, CMDA (revision statement added by Y. Rochon, ARQI)
-!                      - Addition of TR family consideration for scaling
+!         Dec 2014:    Ping Du, CMDA
+!                      - Addition of CH family consideration for scaling
 !                        via element 8090
 !
 !     NOTE:
@@ -95,10 +95,10 @@ SUBROUTINE SELECTB(obsdat)
            CALL SET_ERR_GBGPS(obsdat,Nstn1+1,Nstn2)
          ENDIF
 !
-!    For TR family, Apply scaling from the element (8090) when present.
+!    For CH family, Apply scaling from the element (8090) when present.
 !    
          IF ( trim(burp_cfamtyp(J)) .eq. 'CH') THEN
-           print * ,' Scaling OBS_VAR for TR observation value'
+           print * ,' Scaling OBS_VAR for CH observation value'
            CALL SET_SCAL_CHM(obsdat,Nstn1+1,Nstn2)
          ENDIF
 !

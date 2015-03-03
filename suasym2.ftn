@@ -32,12 +32,18 @@
 *             . add parameters for GB-GPS ZTD
 *          S. Macpherson ARMA/CMC March 2013
 *             . modified GPS ZTD parameters to increase QC-Var rejections
+*          Y.J. Rochon ARQI/AQRD, Feb 2015
+*             . Added ZACH and ZDCH for chemical constituents
+*             . Added call to vnl_IsAtmosConstituent(ITYP)
+*               with addition of 'use varNamelist_mod'
+*
 *
 *Arguments
 *
 #endif
       use MathPhysConstants_mod
       use obsSpaceData_mod
+      use varNamelist_mod
       use bufr
       IMPLICIT NONE
       type(struct_obs) :: lobsSpaceData
@@ -45,7 +51,7 @@
       INTEGER JDATA,KINDIC,ITER,JJO,IDATA,IDATEND,IDBURP
       INTEGER ITYP,IASS,IFLD,IOTHER,JJ,ISTYP,ILEV
       real(8) ZAGZ,ZAHU,ZATT,ZDUV,ZDGZ,ZDTT,ZDHU,ZAUV,ZSLEV,ZAPN,ZDPN
-      real(8) ZABT,ZDBT,ZABTB,ZDBTB
+      real(8) ZABT,ZDBT,ZABTB,ZDBTB,ZACH,ZDCH
       real(8) ZLEV,ZJO,ZVAL,ZSPDO,ZSPDF,ZOFCST,ZOVAL,ZDIFF,ZAASYM,ZOER
       real(8) ZFCST,ZLAT,ZLON,ZPRIOR,ZAPS,ZDPS,ZAUVRA,ZATTRA,ZATTSYM
       LOGICAL LLOK
@@ -73,6 +79,8 @@
       ZABTB  = 1.0d-1
       ZATTSYM = 1.d-1
       ZAZD = 2.0d-2
+      ZACH = 1.d-3
+      
       ZDUV = 5.d0
       ZDGZ = 5.d0
       ZDTT = 5.d0
@@ -82,6 +90,7 @@
       ZDBT = 3.d0
       ZDBTB = 3.d0
       ZDZD = 3.d0
+      ZDCH = 10.d0
 *
 *
       DO JJO = 1, obs_numheader(lobsSpaceData)
@@ -243,6 +252,12 @@ C
 *
                   call obs_bodySet_r(lobsSpaceData,OBS_POB,JDATA,(ZAZD*
      1                SQRT(2.d0*MPC_PI_R8))/((1.d0-ZAZD)*(2.d0*ZDZD)))
+               ELSEIF (vnl_IsAtmosConstituent(ITYP)) then
+*
+*                 INITIAL VALUE OF GAMMA FOR THE CH (constituents) family
+*
+                  call obs_bodySet_r(lobsSpaceData,OBS_POB,JDATA,(ZACH*
+     1                SQRT(2.d0*MPC_PI_R8))/((1.d0-ZAHU)*(2.d0*ZDCH)))
                ELSE
 *
 *                 INITIAL VALUE OF GAMMA FOR QCVAR (OTHERS)

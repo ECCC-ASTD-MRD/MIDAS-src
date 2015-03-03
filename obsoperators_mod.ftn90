@@ -18,10 +18,7 @@ module obsOperators_mod
   !
   ! Revision:
   !          Ping Du, CDMA/MSC Jan 2015
-  !          - Addition of 
-  !                 use chem_mod
-  !            and 
-  !                 public oonl_chm
+  !          - Addition of public oonl_chm
   !
   
   ! Nonlinear observation operators (OONL)
@@ -43,10 +40,6 @@ module obsOperators_mod
   use modgps08refop     , only : gpsrefopv
   use modgps09bend      , only : gpsbndopv1
   use modgpsro_mod
-
-  ! only for oonl_chm
-  use chem_mod
-  use codtyp_mod
   
   implicit none
   save
@@ -1139,7 +1132,14 @@ module obsOperators_mod
     !
     ! Comments:
     !
+    ! A) Passing of arrays zval, zvalinc, ztt, zpp, zgz to be changed to use
+    !    a pointer similarly to oonl_tovs.
+    !
     !-----------------------------------------------------------------------------------
+
+    use chem_mod
+    use codtyp_mod
+    
     implicit none
     type(struct_columnData) :: columnhr
     type(struct_obs) :: obsSpaceData
@@ -1155,7 +1155,7 @@ module obsOperators_mod
     
     character(len=4)  :: varName
     character(len=12) :: cstnid
-    integer :: headerIndex,bodyIndex,bodyIndexCount
+    integer :: headerIndex,bodyIndex,bodyIndexCount,bodyInd
     integer :: ivnm, ivco, ixtr, iass, kmode 
     integer :: icodtyp, iobslev, nobslev
     integer :: isunza,idate,ihhmm
@@ -1165,7 +1165,8 @@ module obsOperators_mod
     ! Local variables: model space profile data
     
     character(len=2)   :: varType
-    real(8), allocatable :: zpp(:),zval(:),ztt(:),zgz(:),zvalinc(:)
+    real(8), allocatable :: zpp(:),zval(:),ztt(:),zvalinc(:)
+    real(8), pointer :: col_ptr_gz(:)
     real(8) :: zmhx
     integer :: nlev
     
@@ -1180,7 +1181,6 @@ module obsOperators_mod
     allocate(zval(nlev))
     allocate(ztt(nlev))
     allocate(zpp(nlev))
-    allocate(zgz(nlev))
     allocate(zvalinc(nlev)) ! Must be a copy of zval when kmode=0,1. 
 
     kmode = 0 ! 0 for general (non-linear) simulation operator
@@ -1196,18 +1196,26 @@ module obsOperators_mod
       if (headerIndex < 0) exit HEADER
 
       icodtyp  = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
-     
+
       if (icodtyp.ne.codtyp_chemremote.and.icodtyp.ne.codtyp_cheminsitu) cycle HEADER
+
+      ! Identify max number of profile points in the profile (exclude 8090 elements)
+      
+      nobslev = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex)
+      bodyInd =obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
+      do jl=0,obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex)-1
+          if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyInd+jl).eq.8090) nobslev = nobslev-1
+      end do
             
       ! Loop over all body indices (profile elements) for this report      
-
+      
       iobslev=0
       icount=0
       call obs_set_current_body_list(obsSpaceData,headerIndex)
       BODY: do
         bodyIndex = obs_getBodyIndex(obsSpaceData)
         if (bodyIndex < 0) exit BODY
-       
+              
         ! Get position in profile and skip over 08090 elements
         
         ivnm = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)                
@@ -1228,12 +1236,7 @@ module obsOperators_mod
         if (icount.eq.1) then 
 
            ! Get obs space info that are part of the profile header
-           
-           nobslev = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex)
-           do jl=0,obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex)-1
-              if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex+jl).eq.8090) nobslev = nobslev-1
-           end do
-           
+                      
            cstnid  = obs_elem_c(obsSpaceData,'STID',headerIndex)      
            idate  = obs_headElem_i(obsSpaceData,OBS_DAT,headerIndex)
            ihhmm  = obs_headElem_i(obsSpaceData,OBS_ETM,headerIndex)
@@ -1257,8 +1260,9 @@ module obsOperators_mod
               zpp(jl) = col_getPressure(columnhr,jl,headerIndex, varType)
               zval(jl) = col_getElem(columnhr,jl,headerIndex,varName)
               ztt(jl) = col_getElem(columnhr,jl,headerIndex,'TT')
-              zgz(jl) = col_getElem(columnhr,jl,headerIndex,'GZ')
            enddo
+           col_ptr_gz => col_getColumn(columnhr,headerIndex,'GZ','TH')
+    
            zvalinc(1:nlev)=zval(1:nlev)
 
         end if 
@@ -1270,14 +1274,13 @@ module obsOperators_mod
       
         ! Apply observation operator(s) for specified data element.
         
-        call chm_obsoperators(nlev,zvalinc,zval,ztt,zpp,zgz,kmode,varName,&
-                ivnm,cstnid,idate,ihhmm,ivco,nobslev,icount,iobslev,zobslev,zlat,zlon, &
-                iconstituent_id,success,zmhx)
+        call chm_obsoperators(nlev,zvalinc,zval,ztt,zpp,col_ptr_gz,kmode,varName,&
+                ivnm,cstnid,idate,ihhmm,ivco,nobslev,icount,iobslev, &
+                zobslev,zlat,zlon,iconstituent_id,success,zmhx)
                 
         ! Check for success in calculations
-                
+
         if (.not.success) then
-           call obs_bodySet_i (obsSpaceData,OBS_XTR,bodyIndex,1)
            call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
            cycle BODY
         end if
@@ -1291,12 +1294,11 @@ module obsOperators_mod
         
         zinc = zomp/obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
         jobs = jobs + zinc*zinc
-         
       enddo BODY
 
     enddo HEADER
 
-    deallocate(zvalinc,zval,ztt,zpp,zgz)
+    deallocate(zvalinc,zval,ztt,zpp)
 
     if (present(jobs_out)) jobs_out=0.5d0*jobs
 

@@ -1700,6 +1700,11 @@ CONTAINS
 ! BEN_BSqrt
 !--------------------------------------------------------------------------
   SUBROUTINE BEN_BSqrt(controlVector_in,statevector)
+  
+  ! Revisions: 
+  !           Ping Du, July 2014
+  !           - Commented out 'call abort3d('ben_bsqrt: No ...'
+  
     implicit none
 
     real(8)    :: controlVector_in(cvDim_mpilocal) 
@@ -1841,7 +1846,6 @@ CONTAINS
             ilev1 = ngposittg
           else
 !            call abort3d('ben_bsqrt: No covariances available for variable:' // vnl_varNameList(jvar))
-            write(*,*) 'PDD-in-ensemble'
             cycle 
           endif
           if(vnl_vartypeFromVarname(vnl_varNameList(jvar)).eq.'SF') then
@@ -1879,6 +1883,11 @@ CONTAINS
 ! BEN_BSqrtAd
 !--------------------------------------------------------------------------
   SUBROUTINE BEN_BSqrtAd(statevector,controlVector_out)
+
+  ! Revisions: 
+  !           Ping Du, July 2014
+  !           - Commented out 'call abort3d('ben_bsqrtad: No ...'
+  !
     implicit none
 
     real(8)    :: controlVector_out(cvDim_mpilocal) 
@@ -1935,8 +1944,7 @@ CONTAINS
           elseif(vnl_varNameList(jvar).eq.'TG  ') then
             ilev1 = ngposittg
           else
-!            call abort3d('ben_bsqrtad: No covariances available for variable:' // vnl_varNameList(jvar))
-           write(*,*) 'PDD-in-bsqrtad'
+!           call abort3d('ben_bsqrtad: No covariances available for variable:' // vnl_varNameList(jvar))
            cycle 
           endif
           if(vnl_vartypeFromVarname(vnl_varNameList(jvar)).eq.'SF') then

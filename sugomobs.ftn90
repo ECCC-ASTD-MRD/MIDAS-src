@@ -25,7 +25,8 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
   ! 
   !Revisions:
   !   Ping Du, Oct. 2014
-  !   - Input O3 in reading trial profiles
+  !   - Added input of constituents trial fields and related setting of trial profiles.
+  !     This was done by including the "case(default)" in the loop over 3D variables.
   !
   !
   !Arguments: COLUMNG, COLUMNHR

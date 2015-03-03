@@ -559,11 +559,11 @@ module observation_erreurs_mod
 
   subroutine oer_read_obs_erreurs_chm
 !
-!  s/r oer_read_obs_erreurs_chm - READ OBSERVATION ERROR OF CONSTITUENT DATA 
+! s/r oer_read_obs_erreurs_chm - READ OBSERVATION ERROR OF CONSTITUENT DATA 
 !
-!  Author   : Y. Rochon and M. Sitwell, ARQI/AQRD, Nov 2014 - Feb 2015
+! Author   : Y. Rochon and M. Sitwell, ARQI/AQRD, Nov 2014 - Feb 2015
 !
-!  Revisions: 
+! Revisions: 
 !          
 ! Purpose: Read observation error std. dev. as needed for CH family obs.
 !
@@ -902,9 +902,9 @@ module observation_erreurs_mod
 
               END IF
 
-             ZLEV  = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
-             obs_err_stddev = chm_get_obs_err_stddev(CSTNID,NLEV,ITYP,ZLAT,ZVAL,ZLEV,IFIRST)
-             call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, obs_err_stddev)
+              ZLEV  = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
+              obs_err_stddev = chm_get_obs_err_stddev(CSTNID,NLEV,ITYP,ZLAT,ZVAL,ZLEV,IFIRST)
+              call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, obs_err_stddev)
              
           END IF
           

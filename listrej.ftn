@@ -51,6 +51,14 @@
 *          - List GP family (GPS) rejects (idtyp 189)
 *          S. Macpherson (ARMA/MRD) Feb 2013
 *          - added idtyp=192 for ATMS
+*          Y.J. Rochon ARQI Jan 2015
+*          - Additions of CH families with CODTYP=195 (remote sounding)
+*            and 196 (in-situ). 
+*          - Changed meters to hectometers (hm) for CH output
+*          - Output ZVAR, ZFCST and ZANA as percent difference relative to 
+*            ZFCST for CH constituents 
+*          - Extended output of obs_headElem_i(lobsSpaceData,OBS_ONM,INDEX_HEADER)
+*            from I5 to I7.
 ************************************************************************
 #endif
 *
@@ -63,9 +71,9 @@
       IMPLICIT NONE
 *
       type(struct_obs) :: lobsSpaceData
-      INTEGER, parameter :: numFamily = 9
-      CHARACTER(len=2), parameter :: listFamily(numFamily) = (/'UA','AI','SF','SW','PR','RO','GP','SC','TO'/)
-      INTEGER, parameter :: MAXNUMTYPE=254,NUMITEM=13
+      INTEGER, parameter :: numFamily = 10
+      CHARACTER(len=2), parameter :: listFamily(numFamily) = (/'UA','AI','SF','SW','PR','RO','GP','SC','TO','CH'/)
+      INTEGER, parameter :: MAXNUMTYPE=254,NUMITEM=14
       CHARACTER *16 CLOBTP(MAXNUMTYPE)
       INTEGER ICOUNT(NUMITEM,numFamily)
 *
@@ -82,14 +90,14 @@
       LOGICAL LLOK,LLELREJ
 *
 *  ------NOTE----------
-* CURRENTLY SUPPORTED FAMILIES OF DATA 'UA' 'AI' 'SF' 'HU' 'TO' 'GO' 'GP'
+* CURRENTLY SUPPORTED FAMILIES OF DATA 'UA' 'AI' 'SF' 'HU' 'TO' 'GO' 'GP' 'CH'
 *
       DATA ZCUT /0.75D0/
       DATA CLITM(1), CLITM(2), CLITM(3), CLITM(4), CLITM(5), CLITM(6)
      1       /'WND',    'WND',    'HGT',    'TMP',    'DPD',   'STNP'/
       DATA CLITM(7), CLITM(8), CLITM(9), CLITM(10), CLITM(11), CLITM(12)
      1      /'MSLP',   'TSFC',   'SDPD',   'SWND',   'SWND',   'BTMP'/
-      DATA CLITM(13) /'ZTD'/
+      DATA CLITM(13),CLITM(14) /'ZTD', 'CHFM'/
       DATA   CLOBTP(12),   CLOBTP(13),    CLOBTP(14),    CLOBTP(15)
      1    /     'SYNOP',       'SHIP', 'SYNOP MOBIL',       'METAR'/
       DATA   CLOBTP(16),   CLOBTP(18),    CLOBTP(20),    CLOBTP(32)
@@ -140,8 +148,8 @@
      1  /          'GEORAD',            'IASI',           'SATOB'/
       DATA      CLOBTP(189),       CLOBTP(192),       CLOBTP(193)   
      1  /          'GB-GPS',       'TOVS ATMS',            'CRIS'/
-      DATA      CLOBTP(254)  
-     1  /   'SCATTEROMETER'/
+      DATA      CLOBTP(195), CLOBTP(196), CLOBTP(254)
+     1  /       'CH remote sens.','CH in-situ', 'SCATTEROMETER'/
 *
       IF(.NOT.min_lvarqc) RETURN
 
@@ -212,6 +220,10 @@
 *
                  ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
                  CLUNITS = ' M'
+                 IF (listFamily(JFAM).EQ.'CH') THEN
+                    ZLEV = ZLEV*0.01
+                    CLUNITS = 'HM'
+                 END IF 
                ENDIF
                IF (obs_bodyElem_i(lobsSpaceData,OBS_VCO,INDEX_BODY) .EQ. -1) THEN
 *
@@ -346,13 +358,22 @@
      3                ISPDA,ZPOST,obs_headElem_i(lobsSpaceData,OBS_ONM,INDEX_HEADER)
  620                 FORMAT(A9,1X,i3,1x,A16,F5.1,2X,F5.1,2X,I4,A2,2X,
      1                'WND',3X,I3,'/',I3,3X,I3,'/',I3,3X,I3,
-     2                '/',I3,2X,F6.4,1X,I5)
+     2                '/',I3,2X,F6.4,1X,I7)
                    ENDIF
                  ENDIF
                ELSE
                  ILEV = NINT(ZLEV)
                  IF (ZPOST .GT. ZCUT) THEN
                    LLELREJ = .TRUE.
+                   IF (listFamily(JFAM).EQ.'CH') THEN
+                      ICOUNT(14,JFAM)=ICOUNT(14,JFAM)+1
+                      ZVAR=(ZVAR-ZFCST)/ZFCST*100.
+                      ZANA=(ZANA-ZFCST)/ZFCST*100.
+                      ZFCST=0.0
+                      CLDESC=CLITM(14)
+                      if (obs_bodyElem_i(lobsSpaceData,OBS_CHM,INDEX_HEADER).ge.0) 
+     &                    CLDESC=vnl_varnameFromVarnum(ITYP,obs_bodyElem_i(lobsSpaceData,OBS_CHM,INDEX_HEADER)) 
+                   ENDIF
                    IF (ITYP .EQ. BUFR_NEGZ) THEN
                      CLDESC = CLITM(3)
                      ICOUNT(3,JFAM) = ICOUNT(3,JFAM) + 1

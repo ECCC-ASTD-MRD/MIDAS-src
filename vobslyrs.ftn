@@ -37,7 +37,7 @@
 *          - Adapted to process data with pressure vertical coordinate
 *          D. Anselmo *ARMA/MSC OCT 2004
 *          - Adapted to process atmospheric and surface ln specific humidity
-*          Y.J. Rochon *ARQI/AQRD Jan. 2015
+*          Y.J. Rochon *ARQI/AQRD Feb. 2015
 *          - Added use of ICHM in accounting for possible constituents
 *            with consideration of vnl_IsAtmosConstituent.
 *

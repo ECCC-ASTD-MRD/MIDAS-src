@@ -8,6 +8,14 @@ module bufr
  ! Table B:
  !          Universal Field-Identity Numbers
  !          (At the CMC, these have also been known as burp_id.)
+ !
+ ! Revisions:
+ !           Y.J. Rochon, ARQI/AQRD, Feb 2015
+ !           - Removed BUFR_NEOZ
+ !           - Removed BUFR_NECH
+ !           M. Sitwell, ARQI/AQRD, Feb 2015
+ !           - Replaced BUFR_NETR_* by BUFR_NECH_*
+ !
  integer, parameter :: BUFR_NETT=12001
  integer, parameter :: BUFR_NEUU=11003
  integer, parameter :: BUFR_NEVV=11004
@@ -37,8 +45,8 @@ module bufr
  integer, parameter :: BUFR_NEFE=15032
  ! Doppler wind 
  integer, parameter :: BUFR_NEDW=11200  
+
  ! Atmospheric chemical or physical constituent type
- integer, parameter :: BUFR_NECH=08046   
  !
  ! Table C-14: (for Code Table 08046)
  !             Atmospheric chemical or physical constituent type
