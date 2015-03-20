@@ -371,8 +371,8 @@
                       ZANA=(ZANA-ZFCST)/ZFCST*100.
                       ZFCST=0.0
                       CLDESC=CLITM(14)
-                      if (obs_bodyElem_i(lobsSpaceData,OBS_CHM,INDEX_HEADER).ge.0) 
-     &                    CLDESC=vnl_varnameFromVarnum(ITYP,obs_bodyElem_i(lobsSpaceData,OBS_CHM,INDEX_HEADER)) 
+                      if (obs_headElem_i(lobsSpaceData,OBS_CHM,INDEX_HEADER).ge.0) 
+     &                    CLDESC=vnl_varnameFromVarnum(ITYP,obs_headElem_i(lobsSpaceData,OBS_CHM,INDEX_HEADER)) 
                    ENDIF
                    IF (ITYP .EQ. BUFR_NEGZ) THEN
                      CLDESC = CLITM(3)
