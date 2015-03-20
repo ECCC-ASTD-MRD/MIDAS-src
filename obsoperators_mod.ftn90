@@ -1132,9 +1132,6 @@ module obsOperators_mod
     !
     ! Comments:
     !
-    ! A) Passing of arrays zval, zvalinc, ztt, zpp, zgz to be changed to use
-    !    a pointer similarly to oonl_tovs.
-    !
     !-----------------------------------------------------------------------------------
 
     use chem_mod
@@ -1155,7 +1152,7 @@ module obsOperators_mod
     
     character(len=4)  :: varName
     character(len=12) :: cstnid
-    integer :: headerIndex,bodyIndex,bodyIndexCount,bodyInd
+    integer :: headerIndex,bodyIndex,bodyIndexCount
     integer :: ivnm, ivco, ixtr, iass, kmode 
     integer :: icodtyp, iobslev, nobslev
     integer :: isunza,idate,ihhmm
@@ -1165,8 +1162,8 @@ module obsOperators_mod
     ! Local variables: model space profile data
     
     character(len=2)   :: varType
-    real(8), allocatable :: zpp(:),zval(:),ztt(:),zvalinc(:)
-    real(8), pointer :: col_ptr_gz(:)
+    real(8), allocatable :: zppb(:),zvalb(:),zttb(:),zvalbc(:)
+    real(8), pointer :: col_ptr_gzb(:)
     real(8) :: zmhx
     integer :: nlev
     
@@ -1178,10 +1175,12 @@ module obsOperators_mod
     
     varType = 'TH'
     nlev = col_getNumLev(columnhr,varType)        
-    allocate(zval(nlev))
-    allocate(ztt(nlev))
-    allocate(zpp(nlev))
-    allocate(zvalinc(nlev)) ! Must be a copy of zval when kmode=0,1. 
+    allocate(zvalb(nlev))
+    allocate(zttb(nlev))
+    allocate(zppb(nlev))
+    allocate(zvalbc(nlev)) ! Must be a copy of zval when kmode=0,1. 
+                           ! Required for generality in usage of chm_obsoperators
+                           ! also for tangent linear and adjoint cases.
 
     kmode = 0 ! 0 for general (non-linear) simulation operator
               ! 1 for tangent linear operator applied to error std. dev. 
@@ -1202,9 +1201,9 @@ module obsOperators_mod
       ! Identify max number of profile points in the profile (exclude 8090 elements)
       
       nobslev = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex)
-      bodyInd =obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
+      bodyIndex =obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
       do jl=0,obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex)-1
-          if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyInd+jl).eq.8090) nobslev = nobslev-1
+          if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex+jl).eq.8090) nobslev = nobslev-1
       end do
             
       ! Loop over all body indices (profile elements) for this report      
@@ -1257,13 +1256,13 @@ module obsOperators_mod
            ! Get trial/background column data at observation location
 
            do jl = 1, nlev
-              zpp(jl) = col_getPressure(columnhr,jl,headerIndex, varType)
-              zval(jl) = col_getElem(columnhr,jl,headerIndex,varName)
-              ztt(jl) = col_getElem(columnhr,jl,headerIndex,'TT')
+              zppb(jl) = col_getPressure(columnhr,jl,headerIndex, varType)
+              zvalb(jl) = col_getElem(columnhr,jl,headerIndex,varName)
+              zttb(jl) = col_getElem(columnhr,jl,headerIndex,'TT')
            enddo
-           col_ptr_gz => col_getColumn(columnhr,headerIndex,'GZ','TH')
+           col_ptr_gzb => col_getColumn(columnhr,headerIndex,'GZ','TH')
     
-           zvalinc(1:nlev)=zval(1:nlev)
+           zvalbc(1:nlev)=zvalb(1:nlev)
 
         end if 
         
@@ -1274,7 +1273,7 @@ module obsOperators_mod
       
         ! Apply observation operator(s) for specified data element.
         
-        call chm_obsoperators(nlev,zvalinc,zval,ztt,zpp,col_ptr_gz,kmode,varName,&
+        call chm_obsoperators(nlev,zvalbc,zvalb,zttb,zppb,col_ptr_gzb,kmode,varName,&
                 ivnm,cstnid,idate,ihhmm,ivco,nobslev,icount,iobslev, &
                 zobslev,zlat,zlon,iconstituent_id,success,zmhx)
                 
@@ -1298,7 +1297,7 @@ module obsOperators_mod
 
     enddo HEADER
 
-    deallocate(zvalinc,zval,ztt,zpp)
+    deallocate(zvalbc,zvalb,zttb,zppb)
 
     if (present(jobs_out)) jobs_out=0.5d0*jobs
 
