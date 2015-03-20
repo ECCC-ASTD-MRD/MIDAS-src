@@ -1386,10 +1386,6 @@ contains
      end if
      
   end if
-!  if (nobslev.ne.1) then
-!    success=.false.
-!    return
-!  end if
 
 ! Convert observation vertical coordinate value(s) to pressure if needed 
 ! and provide values to this routine.
@@ -1429,7 +1425,7 @@ contains
 !        Layer integration operator
 
          call chm_layer_integ_operator(n_modlvl,rvalinc,rval,rtt,pressmodlvl, &
-                kmode,icount,nobslev,iobslev,vlayertop,vlayerbot, &
+                kmode,ivnm,icount,nobslev,iobslev,vlayertop,vlayerbot, &
                 iconstituent_id,success,rmhx)
 
 !  end select
@@ -1537,8 +1533,8 @@ contains
 !
 ! ---------------------------------------------------------------------------------------
 
-use earthconstants_mod
-use MathPhysConstants_mod
+  use earthconstants_mod
+  use MathPhysConstants_mod
   
   implicit none
   integer, intent(in) :: ntrlev,kmode,ivnm
@@ -1643,12 +1639,14 @@ use MathPhysConstants_mod
 !---------------------------------------------------------------------------------------
 
   subroutine chm_layer_integ_operator(n_modlvl,rvalinc,rval,rtt,pressmodlvl, &
-                kmode,icount,nobslev,iobslev,vlayertop,vlayerbot, &
+                kmode,ivnm,icount,nobslev,iobslev,vlayertop,vlayerbot, &
                 iconstituent_id,success,rmhx)
 !
 ! Author  : Y. Rochon, ARQI/AQRD, Feb 2015 (not completed - remains to be generalized)
 !
 ! Revision: 
+!           Ping Du, Mar 2015
+!           - Finalization of Ht*grad contribution (case(3))
 !
 ! Purpose:  Perform layer integration and calculations according kmode.
 !
@@ -1663,17 +1661,19 @@ use MathPhysConstants_mod
 
   implicit none
 
-  integer :: n_modlvl,icount,nobslev,kmode,iobslev
-  real(8) :: rval(n_modlvl),rtt(n_modlvl),rvalinc(n_modlvl), pressmodlvl(n_modlvl)
-  real(8) :: vlayerbot,vlayertop,rmhx
-  logical :: success
-  integer :: iconstituent_id
+  integer, intent(in) :: n_modlvl,icount,nobslev,kmode,iobslev,ivnm
+  integer, intent(in) :: iconstituent_id
+  real(8), intent(in) :: rtt(n_modlvl),pressmodlvl(n_modlvl)
+  real(8), intent(inout) :: rval(n_modlvl),rvalinc(n_modlvl),rmhx
+  real(8), intent(inout) :: vlayerbot,vlayertop
+  logical, intent(inout) :: success
 
   integer :: ij
+  real(8) :: zwork(n_modlvl)
 
 ! Conduct initial setup for vertical integration components
 
-  if (icount.eq.1) call chm_vertintg_setup(pressmodlvl,n_modlvl)
+  if (icount.eq.1) call chm_vertintg_setup(pressmodlvl,n_modlvl,nobslev)
 
 ! Ensure that layer is within model vertical range.
   
@@ -1700,34 +1700,36 @@ use MathPhysConstants_mod
 !
 ! Finalize required quantities depending on kmode
    
-!  select case(kmode)
+  select case(kmode)
 !
-!     case(0,1,2)
+    case(0,1,2)
 !
-!        Finalize non-linear/linear operator step
+!       Finalize non-linear/linear operator step
 !
-         rmhx=dot_product(chm_obsoper%zh(iobslev,:),chm_obsoper%modelvarcolumn(:))
+        rmhx=dot_product(chm_obsoper%zh(iobslev,:),chm_obsoper%modelvarcolumn(:))
 !
-!     case(3)
+    case(3)
 !
-!        ....
-!        if (iobslev.eq.nobslev) then 
-!           chm_convert(n_modlvl,rvalinc,zval,ztt,pressmodlvl,ivnm,kmode)
-!           rvalinc(:)=rvalinc(:)+chm_obsoper%modelvarcolumn(:)       
-!        end if
+!       Ht*grad contribution from adjoint of tangent linear model.
 !
-!  end select
+        zwork(:)= rmhx*chm_obsoper%zh(iobslev,:)
+        call chm_convert(n_modlvl,zwork,rval,rtt,pressmodlvl,ivnm,kmode)
+        rvalinc(:)=rvalinc(:) + chm_obsoper%modelvarcolumn(:)       
+!
+  end select
    
   end subroutine chm_layer_integ_operator
 
 !-----------------------------------------------------------------------------------------
 
-  subroutine chm_vertintg_setup(ppeta,knflev)
+  subroutine chm_vertintg_setup(pressmod,knflev,nobslev)
 !
-! Author  : Y. Rochon (ARQI/ARQD) and Ping Du (CMDA), Feb 2015.
+! Author  : Y. Rochon (ARQI/AQRD) and Ping Du (CMDA), Feb 2015.
 !           - Based Y. Yang and S. Ren, Nov 2004 to Dec 2012
 !           - Pre-EnVar version
 ! Revision: 
+!           M. Sitwell (ARQI/AQRD), Mar 2015.
+!           - Use of nobslev in space allocation.
 !           
 !
 ! Purpose:  Preliminary calcs for producing components required for vertical 
@@ -1750,7 +1752,8 @@ use MathPhysConstants_mod
 !
 !  Input   
 !           knflev            -- # of vertical levels
-!           ppeta             -- pressures at eta levels
+!           pressmod          -- pressures at model levels
+!           nobslev           -- Obs profile dimension.
 !
 !  Output  
 !           chm_obsoper%zh(knflev)  -- Initial innovation model array 
@@ -1759,15 +1762,15 @@ use MathPhysConstants_mod
 !           chm_obsoper%zhp(knflev) -- Part of innovation operator not 
 !                                      related to resolution
 !                                      Initialized to zero.
-!           chm_obsoper%vmodpress(knflev+1) -- Model layer boundaries given that ppeta are
+!           chm_obsoper%vmodpress(knflev+1) -- Model layer boundaries given that pressmod are
 !                                              taken at mid-layer values.
 !           chm_obsoper%vh(knflev,knflev)   -- Second order Lagrangian interp integration weights
 !
 !-----------------------------------------------------------------------------------------
       implicit none
       
-      integer, intent(in) :: knflev
-      real(8), intent(in) :: ppeta(knflev)
+      integer, intent(in) :: knflev,nobslev
+      real(8), intent(in) :: pressmod(knflev)
 !
 !*    Declaration of local variables
 !
@@ -1783,8 +1786,8 @@ use MathPhysConstants_mod
          
       if (allocated(chm_obsoper%vh)) deallocate(chm_obsoper%vh,chm_obsoper%zh,chm_obsoper%zhp,chm_obsoper%vmodpress)
       allocate(chm_obsoper%vh(knflev,knflev))
-      allocate(chm_obsoper%zh(knflev,knflev))
-      allocate(chm_obsoper%zhp(knflev,knflev))
+      allocate(chm_obsoper%zh(nobslev,knflev))
+      allocate(chm_obsoper%zhp(nobslev,knflev))
       allocate(chm_obsoper%vmodpress(knflev+1))
 !      
 !     Initialize to zero  
@@ -1795,11 +1798,11 @@ use MathPhysConstants_mod
 
 !     Calculate layer boundaries
 !
-      chm_obsoper%vmodpress(1)=ppeta(1)
-      chm_obsoper%vmodpress(knflev+1)= ppeta(knflev)
+      chm_obsoper%vmodpress(1)=pressmod(1)
+      chm_obsoper%vmodpress(knflev+1)= pressmod(knflev)
 !
       DO JK = 2, KNFLEV
-         chm_obsoper%vmodpress(jk)=sqrt(ppeta(jk-1)*ppeta(jk))
+         chm_obsoper%vmodpress(jk)=sqrt(pressmod(jk-1)*pressmod(jk))
       END DO
          
 !     Interpolation to mid-layer level in P using
@@ -1808,9 +1811,9 @@ use MathPhysConstants_mod
 !
 !     Calculating for jk=1
 !
-      zp1= ppeta(1)
-      zp2= ppeta(2)
-      zp3= ppeta(3)
+      zp1= pressmod(1)
+      zp2= pressmod(2)
+      zp3= pressmod(3)
       zp = (chm_obsoper%vmodpress(2)+chm_obsoper%vmodpress(1))/2.0
       zr1=(zp-zp2)*(zp-zp3)/(zp1-zp2)/(zp1-zp3)
       zr2=(zp-zp1)*(zp-zp3)/(zp2-zp1)/(zp2-zp3)
@@ -1819,9 +1822,9 @@ use MathPhysConstants_mod
       chm_obsoper%vh(3,1)=zr3
 !
       DO JK=2,knflev-1
-         zp1=ppeta(jk-1)
-         zp2=ppeta(jk)
-         zp3=ppeta(jk+1)
+         zp1=pressmod(jk-1)
+         zp2=pressmod(jk)
+         zp3=pressmod(jk+1)
          zp=(chm_obsoper%vmodpress(jk+1)+chm_obsoper%vmodpress(jk))/2.0
          zr1=(zp-zp2)*(zp-zp3)/(zp1-zp2)/(zp1-zp3)
          zr2=(zp-zp1)*(zp-zp3)/(zp2-zp1)/(zp2-zp3)
@@ -1833,9 +1836,9 @@ use MathPhysConstants_mod
 !
 !     Calculating  for jk=knflev
 !
-      zp1= ppeta(knflev-2)
-      zp2= ppeta(knflev-1)
-      zp3= ppeta(knflev)
+      zp1= pressmod(knflev-2)
+      zp2= pressmod(knflev-1)
+      zp3= pressmod(knflev)
       zp = (chm_obsoper%vmodpress(knflev+1)+chm_obsoper%vmodpress(knflev))/2.0
       zr1=(zp-zp2)*(zp-zp3)/(zp1-zp2)/(zp1-zp3)
       zr2=(zp-zp1)*(zp-zp3)/(zp2-zp1)/(zp2-zp3)
