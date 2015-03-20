@@ -163,19 +163,22 @@
       RETURN
   END SUBROUTINE SET_ERR_GBGPS
 
-  SUBROUTINE  SET_SCAL_CHM(obsdat,START,END)
-!**s/r SET_SCAL_CHM  - Identify and apply scaling to CH obs if required.
+  SUBROUTINE  SET_SCAL_CHM(obsdat,START,END,kmode)
+  
+!**s/r SET_SCAL_CHM  - Identify and apply scaling to CH obs 
+!                      input/output if required.
 !
 !
 !Author  : P. Du *CMC/CMDA Nov. 2014, Feb 2015
 !Revision:
 !          Y. Rochon, ARQI/AQRD, Feb 2015
-!          - Generalized except for the assumption that if 
-!            exponents are present, then they must be present 
+!          - Generalized except for the assumption that if
+!            exponents are present, then they must be present
 !            for all obs and in the same sequential order.
 !
-!*    Purpose:  - Scale obs value by 10^{expnt} with the exponent
-!                 provided by element 8090 if provided.
+!*    Purpose:  - Regenerate (or apply scaling of) the obs related value(s) 
+!                 by multiplying (or dividing) with 10^{expnt} 
+!                 where the exponent is from element 8090 if provided.
 !
 !Arguments
 !
@@ -183,6 +186,10 @@
 !                  -OBSDAT    : obsspace_data module object
 !                  -START     : FIRST OBERVATION
 !                  -END       : LAST  OBERVATION
+!                  -KMODE     : 0 to re-construct the actual obs value as 
+!                             :   val <- input_val*10**(scal) 
+!                             : 1 to scale the output values by 1/(10**(scal)) 
+!                             :   before storage in BURP files.
 !
     use ObsSpaceData_mod
 !
@@ -193,9 +200,10 @@
       INTEGER  :: VARNO
       type (struct_obs), intent(inout):: obsdat
 
-      REAL(OBS_REAL)    :: OBSV
-      real, allocatable  :: scal(:)
-      integer            :: kk,jj
+      REAL(OBS_REAL)     :: OBSV
+      real(OBS_REAL), allocatable  :: scal(:)
+      real(OBS_REAL)     :: vomp, voma, voer,scale
+      integer            :: kk,jj, kmode
 !     ------------------------------------------------------------------
       WRITE(*,*)'   SET_SCAL_CHM '
 !
@@ -205,12 +213,12 @@
         NLV=obs_headElem_i(obsdat,OBS_NLV,JO)
         if (allocated(scal)) deallocate(scal)
         allocate(scal(nlv))
-        
+
 !       ========================================
 !       Record power of 10 exponents if present
 !       ========================================
-   
-        kk=0      
+
+        kk=0
         DO J = RLN, NLV + RLN -1
           VARNO=obs_bodyElem_i(obsdat,OBS_VNM,j)
           if (VARNO.eq.8090) then
@@ -223,27 +231,63 @@
 !       Apply power of 10 exponents if present
 !       ========================================
 
-        if (kk.gt.0) then 
+        if (kk.gt.0) then
            if (kk.ne.nlv/2) then
                write(*,*) 'NLV/2 =',nlv/2,' Nexp=',kk
-               call abort3d('set_scal_chm: Inconsistent number of exponents')           
+               call abort3d('set_scal_chm: Inconsistent number of exponents')
            else
+             if (kmode.eq.0) then
+               jj=0
+               DO J = RLN, NLV + RLN -1
+                  VARNO=obs_bodyElem_i(obsdat,OBS_VNM,j)
+                  IF (VARNO.ne.8090) THEN
+                    jj=jj+1
+                    obsv=obs_bodyElem_r(obsdat,OBS_VAR,j)
+                    call obs_bodySet_r(obsdat,OBS_VAR,j,obsv*10**(scal(jj)) )
+                  end if
+               END DO
+             else
+             
+!             Scale values
+
               jj=0
               DO J = RLN, NLV + RLN -1
                  VARNO=obs_bodyElem_i(obsdat,OBS_VNM,j)
                  IF (VARNO.ne.8090) THEN
                    jj=jj+1
                    obsv=obs_bodyElem_r(obsdat,OBS_VAR,j)
-                   call obs_bodySet_r(obsdat,OBS_VAR,j,obsv*10**(scal(jj)) )
-                 end if     
-             END DO
+                   vomp=obs_bodyElem_r(obsdat,OBS_OMP,j)
+                   voma=obs_bodyElem_r(obsdat,OBS_OMA,j)
+                   voer=obs_bodyElem_r(obsdat,OBS_OER,j)
+                   scale=10**(-scal(jj))
+                   call obs_bodySet_r(obsdat,OBS_VAR,j,obsv*scale )
+                   call obs_bodySet_r(obsdat,OBS_OMP,j,vomp*scale )
+                   call obs_bodySet_r(obsdat,OBS_OMA,j,voma*scale )
+                   call obs_bodySet_r(obsdat,OBS_OER,j,voer*scale )
+                 END IF 
+              END DO
+
+!             Store scaling exponents
+              
+              jj=0
+              DO J = RLN, NLV + RLN -1
+                 VARNO=obs_bodyElem_i(obsdat,OBS_VNM,j)
+                 IF (VARNO.eq.8090) THEN
+                    jj=jj+1
+                    call obs_bodySet_r(obsdat,OBS_OMP,j,scal(jj))
+                    call obs_bodySet_r(obsdat,OBS_OMA,j,scal(jj))
+                    call obs_bodySet_r(obsdat,OBS_OER,j,scal(jj))
+                 END IF 
+              END DO
+
+             end if
            end if
         end if
 !
       END DO
 !     -----------------------------------
 !
-      WRITE(*,*)' DONE   SET_SCAL_CHM '
+      WRITE(*,*)' DONE SET_SCAL_CHM '
       RETURN
   END SUBROUTINE SET_SCAL_CHM
 

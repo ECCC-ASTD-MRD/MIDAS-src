@@ -6,7 +6,12 @@ SUBROUTINE UPDATE_BURPFILES(obsSpaceData)
 !                   obsSpaceData   - obsdat-file object
 !
 !       AUTHOR: P. KOCLAS(CMC CMDA)
+!
 !       Revision:
+!                Ping Du, CMDA, Feb-Mar 2015
+!                - Added scaling for CH family data
+!                  from use of 8090 element when required.
+!
 !     NOTE:
 !     BURP FILES ARE ASSUMED TO BE PRESENT IN CURRENT WORKING DIRECTORY
 !
@@ -25,7 +30,14 @@ SUBROUTINE UPDATE_BURPFILES(obsSpaceData)
       character(len=256) :: BURP_SPLIT_VAR
       integer length_burp_split
 
+      integer   :: nstn1, nstn2, kmode, headerIndex
+
       call tmg_start(93,'POST_UPDATEBRP')
+
+      KMODE=1  ! Request power of 10 exponent determination for 
+               ! scaling of the CH family data. Flag set to apply inverse 
+               ! scaling of values (as compared to kmode=0) before storage
+               ! to BURP files.
 
       if(top_AnalysisMode()) call vint3dfd(obs_oma,obsSpaceData)
       call vint3dfd(obs_omp,obsSpaceData)
@@ -33,7 +45,7 @@ SUBROUTINE UPDATE_BURPFILES(obsSpaceData)
       call flaguvtofd_obsdat(obsSpaceData)
 !
 !  ------NOTE----------
-! currently supported families of data 'UA' 'AI' 'SC' 'SF' 'SW' 'TO'
+! currently supported families of data 'UA' 'AI' 'SC' 'SF' 'SW' 'TO' 'CH'
 !
 !     READ DATA FROM FILES CONTAINED IN ARRAY CLVAL.
 !
@@ -56,14 +68,37 @@ SUBROUTINE UPDATE_BURPFILES(obsSpaceData)
          write(*,*) 'update_burpfiles: The environment variable ARMA_BURP_SPLIT has been detected so we read splitted observation files'
       end if
 
+!     CH family: Scaling of the obs related values to be stored in the BURP files
+
+      print *, 'Scaling of obs related values for CH observation values'
+
+      call obs_set_current_header_list(obsSpaceData,'CH')
+      nstn1=0
+      nstn2=0
+      HEADER: do
+         headerIndex = obs_getHeaderIndex(obsSpaceData)
+         if (headerIndex < 0) exit HEADER
+
+         ! Identify start and accumulate number of points over reports
+      
+         if (nstn1.eq.0) nstn1 = headerIndex
+         nstn2 = headerIndex
+         
+      enddo HEADER
+            
+      if (nstn2.gt.0) CALL SET_SCAL_CHM(obsSpaceData,nstn1,nstn2,kmode)
+
+!     Storage to BURP files.
+        
       DO J =1,burp_nfiles
+
 !      IER   =FNOM(IBRP1,burp_cfilnam(J),'RND+OLD',0)
 !      IF ( IER .EQ. 0 ) THEN
 !       INRECS=MRFOPN(IBRP1,'READ')
 !       LNMX =MRFMXL(IBRP1)
 !       ISTAT=MRFCLS(IBRP1)
 !       print *,  ' LONGUEUR MAX=',trim(burp_cfilnam(J)),LNMX
-!IER = FCLOS(IBRP1)
+!       IER = FCLOS(IBRP1)
 !      ENDIF
 !        call UPDATE_BURP(obsSpaceData,burp_cfamtyp(J),burp_cfilnam(J),J,LNMX)
          call UPDATE_BURP(obsSpaceData,burp_cfamtyp(J),burp_cfilnam(J),J)

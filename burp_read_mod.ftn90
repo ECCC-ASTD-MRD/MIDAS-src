@@ -49,8 +49,8 @@ CONTAINS
     !                  -- add 'GP' family (ground-based GPS) as type "SFC"
     !                 Ping Du (CMDA), Nov/Dec 2014
     !                  -- Added CASE('CH') option with intitial settings.
-    !                  -- Added use of FAMILYTYPE2 and the 'namburp_tr' and 
-    !                     'namburp_trm' namelists for the CH family 
+    !                  -- Added use of FAMILYTYPE2 and the 'namburp_ch' and 
+    !                     'namburp_chm' namelists for the CH family 
     !                 Y.J. Rochon (ARQI), Dec 2014
     !                  -- Added 08046 (constituent code table) in LISTE_INFO.
     !                     Corresponds to new ObsSpaceData integer-header element OBS_CHM.

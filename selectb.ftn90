@@ -48,6 +48,8 @@ SUBROUTINE SELECTB(obsdat)
 !
       INTEGER :: J,JO
       REAL(OBS_REAL)  :: MISG
+
+      INTEGER :: kmode
 !
 !
       WRITE(*,*)' '
@@ -56,7 +58,9 @@ SUBROUTINE SELECTB(obsdat)
       WRITE(*,*)'================================================='
       WRITE(*,*)' '
       MISG=PPMIS
-
+      KMODE=0   ! Flag set to indicate applying power of 10 scaling 
+                ! to CH family data when required
+ 
       IBEG=obs_numbody(obsdat)
       DO J =1,burp_nfiles
 !
@@ -95,11 +99,11 @@ SUBROUTINE SELECTB(obsdat)
            CALL SET_ERR_GBGPS(obsdat,Nstn1+1,Nstn2)
          ENDIF
 !
-!    For CH family, Apply scaling from the element (8090) when present.
+!    For CH family, apply scaling from the element (8090) when present.
 !    
          IF ( trim(burp_cfamtyp(J)) .eq. 'CH') THEN
            print * ,' Scaling OBS_VAR for CH observation value'
-           CALL SET_SCAL_CHM(obsdat,Nstn1+1,Nstn2)
+           CALL SET_SCAL_CHM(obsdat,Nstn1+1,Nstn2,kmode)
          ENDIF
 !
       END DO
