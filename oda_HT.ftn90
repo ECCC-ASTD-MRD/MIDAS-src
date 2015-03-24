@@ -864,9 +864,6 @@ end subroutine oda_HTto
            zlat = obs_headElem_r(lobsSpaceData,OBS_LAT,headerIndex) * MPC_DEGREES_PER_RADIAN_R8
            zlon = obs_headElem_r(lobsSpaceData,OBS_LON,headerIndex) * MPC_DEGREES_PER_RADIAN_R8
 
-           ! Get normalized increment
-           
-           zinc = -obs_bodyElem_r(lobsSpaceData,OBS_WORK,bodyIndex)
 
            ! Get local vector states (trial/background column data at observation location)
 
@@ -883,6 +880,10 @@ end subroutine oda_HTto
         ! For layer data values, vertical coordinate data will instead be assigned within chm_obsoperators.
 
         zobslev = obs_bodyElem_r(lobsSpaceData,OBS_PPP,bodyIndex)
+
+        ! Get normalized increment
+           
+        zinc = -obs_bodyElem_r(lobsSpaceData,OBS_WORK,bodyIndex)
 
         ! Produce Ht*grad(Index_header) contribution (zvalinc_adj) 
           
