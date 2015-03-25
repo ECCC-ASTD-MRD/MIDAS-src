@@ -1817,6 +1817,7 @@ contains
       zp = (chm_obsoper%vmodpress(2)+chm_obsoper%vmodpress(1))/2.0
       zr1=(zp-zp2)*(zp-zp3)/(zp1-zp2)/(zp1-zp3)
       zr2=(zp-zp1)*(zp-zp3)/(zp2-zp1)/(zp2-zp3)
+      zr3=(zp-zp2)*(zp-zp1)/(zp3-zp2)/(zp3-zp1)
       chm_obsoper%vh(1,1)=zr1
       chm_obsoper%vh(2,1)=zr2
       chm_obsoper%vh(3,1)=zr3
