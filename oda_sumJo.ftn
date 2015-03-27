@@ -22,6 +22,11 @@
 !   diagnostic purposes)
 !
 ! Author  : S. Pellerin *ARMA/MRB January 2009
+!
+! Revisions:
+!           Ping Du, CDMA/MSC Dec 2014
+!           - Addition of dljochm for the CH family.
+!
       use mpivar_mod
       use obsSpaceData_mod
       use tovs_nl_mod
@@ -78,7 +83,7 @@
         case('GP')
           dljogpsztd  = dljogpsztd  + pjo_1
         case('CH')
-          dljochm      = dljochm      + pjo_1
+          dljochm     = dljochm     + pjo_1
         end select
       enddo
 
