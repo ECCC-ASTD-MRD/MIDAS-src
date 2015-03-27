@@ -58,7 +58,7 @@ subroutine tovs_fill_profiles_tl(column,columng)
   integer, allocatable :: iptobscma (:) 
 
   integer :: alloc_status(40)
-  logical :: diagTtop,TopNotAt10hPa
+  logical :: diagTtop,TopAt10hPa
   integer :: omp_get_num_threads, nthreads
   integer :: istride, ilen, imodulo
   integer :: nlevels,nobmax
@@ -116,7 +116,7 @@ subroutine tovs_fill_profiles_tl(column,columng)
   zptopmbs = zptop/100.d0
   zptopmbs = zptopmbs - 0.000001d0
 
-  TopNotAt10hPa = ( abs( zptopmbs - 10.0d0 ) > .1d0 ) !could be replaced by another logical test
+  TopAt10hPa = ( abs( zptopmbs - 10.0d0 ) <= .1d0 )
 
   jpmotop = 1
   do jl = 2, nlevels
@@ -258,7 +258,7 @@ subroutine tovs_fill_profiles_tl(column,columng)
 !     .  2.2  Extrapolation of temperature profile above 10mb
 !     .       -----------------------------------------------
         toext_tl(:,:) = 0.0d0
-        if ( TopNotAt10hPa ) then
+        if ( .not. TopAt10hPa ) then
            do jn = 1, knpf
               toext_tl(jpmotop:nlevels,jn)=to_tl(1:jpmolev,jn)
               toext_tl(1:jpmotop-1,jn)=0.d0
@@ -283,7 +283,7 @@ subroutine tovs_fill_profiles_tl(column,columng)
            enddo
         enddo
 
-        if (  .not.TopNotAt10hPa ) then
+        if ( TopAt10hPa ) then
            if ( ldbgtov ) then
               do jn = 1, knpf
                  write(*,*)'qoext_tl*1000 avant exthum4    = '

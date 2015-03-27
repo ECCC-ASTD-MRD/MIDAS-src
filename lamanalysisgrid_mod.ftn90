@@ -424,11 +424,6 @@ module LamAnalysisGrid_mod
     call symmetrize( chi_ext,                                        & ! OUT
                      chi, myLonBeg, myLonEnd, myLatBeg, myLatEnd, nk ) ! IN
 
-!    psi_ext = 0.d0
-!    chi_ext = 0.d0
-!    psi_ext(1:ni_ext,myLatBeg:myLatEnd,:) = psi(1:ni_ext,myLatBeg:myLatEnd,:)
-!    chi_ext(1:ni_ext,myLatBeg:myLatEnd,:) = chi(1:ni_ext,myLatBeg:myLatEnd,:)
-
     !
     !- 2.  Compute Wind on staggered grid
     !
@@ -574,9 +569,6 @@ module LamAnalysisGrid_mod
                         chi,                                       & ! OUT
                         myLonBeg, myLonEnd, myLatBeg, myLatEnd, nk ) ! IN
 
-!    psi(1:ni_ext,myLatBeg:myLatEnd,:) = psi_ext(1:ni_ext,myLatBeg:myLatEnd,:)
-!    chi(1:ni_ext,myLatBeg:myLatEnd,:) = chi_ext(1:ni_ext,myLatBeg:myLatEnd,:)
-
     deallocate(psi_ext)
     deallocate(chi_ext)
     deallocate(uimg)
@@ -659,26 +651,24 @@ module LamAnalysisGrid_mod
     real(8), intent(out):: field_out(iBeg-1:iEnd+1,jBeg-1:jEnd+1, nk)
     real(8), intent(in) :: field_in(iBeg:iEnd,jBeg:jEnd,nk)
 
-    real, allocatable :: field_out4(:,:,:)
+    real(8), allocatable :: field_8(:,:,:)
 
     integer :: i,j,k,ni,nj
 
     ni = iEnd-iBeg+1
     nj = jEnd-jBeg+1
 
-    field_out(:,:,:) = 0.d0
-    
-    field_out(iBeg:iEnd,jBeg:jEnd,1:nk) = field_in(iBeg:iEnd,jBeg:jEnd,1:nk)
+    allocate(field_8(0:ni+1,0:nj+1, nk))
+    field_8(:,:,:) = 0.d0
 
-    allocate(field_out4(0:ni+1,0:nj+1, nk))
-    field_out4(0:ni+1,0:nj+1,:) = real(field_out(iBeg-1:iEnd+1,jBeg-1:jEnd+1,:),4)
+    field_8(1:ni,1:nj,:) = field_in(iBeg:iEnd,jBeg:jEnd,:)
 
-    call RPN_COMM_xch_halo (field_out4,             & ! INOUT
-                            0,ni+1,0,nj+1,ni,nj,nk, & ! IN
-                            1,1,.true.,.true.,ni,0)   ! IN
+    call RPN_COMM_xch_halo_8(field_8,                & ! INOUT
+                             0,ni+1,0,nj+1,ni,nj,nk, & ! IN
+                             1,1,.true.,.true.,ni,0)   ! IN
 
-    field_out(iBeg-1:iEnd+1,jBeg-1:jEnd+1,:) = real(field_out4(0:ni+1,0:nj+1,:),8)
-    deallocate(field_out4)
+    field_out(iBeg-1:iEnd+1,jBeg-1:jEnd+1,:) = field_8(0:ni+1,0:nj+1,:)
+    deallocate(field_8)
 
   end subroutine symmetrize
 
@@ -690,41 +680,40 @@ module LamAnalysisGrid_mod
     !
     ! Adjoint of sub. symmetrize.
     !
-    integer, intent(in)    :: iBeg, iEnd, jBeg, jEnd, nk
-    real(8), intent(inout) :: field_in(iBeg-1:iEnd+1,jBeg-1:jEnd+1, nk)
-    real(8), intent(out)   :: field_out(iBeg:iEnd,jBeg:jEnd,nk)
+    integer, intent(in)  :: iBeg, iEnd, jBeg, jEnd, nk
+    real(8), intent(in)  :: field_in(iBeg-1:iEnd+1,jBeg-1:jEnd+1, nk)
+    real(8), intent(out) :: field_out(iBeg:iEnd,jBeg:jEnd,nk)
 
-    real, allocatable :: field_in4(:,:,:)
+    real(8), allocatable :: field_8(:,:,:)
 
     integer :: i,j,k,ni,nj
 
     ni = iEnd-iBeg+1
     nj = jEnd-jBeg+1
 
-    allocate(field_in4(0:ni+1,0:nj+1, nk))
-    field_in4(0:ni+1,0:nj+1,:) = real(field_in(iBeg-1:iEnd+1,jBeg-1:jEnd+1,:),4)
+    allocate(field_8(0:ni+1,0:nj+1, nk))
+    field_8(0:ni+1,0:nj+1,:) = field_in(iBeg-1:iEnd+1,jBeg-1:jEnd+1,:)
 
-    call RPN_COMM_adj_halo (field_in4,               & ! INOUT
+    call RPN_COMM_adj_halo8(field_8,                 & ! INOUT
                             0,ni+1,0,nj+1,ni,nj,nk,  & ! IN
                             1,1,.true.,.true.,ni,0)    ! IN
-
-    field_in(iBeg-1:iEnd+1,jBeg-1:jEnd+1,:) = real(field_in4(0:ni+1,0:nj+1,:),8)
-    deallocate(field_in4)
 
 !$OMP PARALLEL
 !$OMP DO PRIVATE (k,j,i)
     do k = 1, nk
        do j = jBeg, jEnd
           do i = iBeg, iEnd
-             field_out(i,j,k) = field_out(i,j,k) + field_in(i,j,k)
+             field_out(i,j,k) = field_out(i,j,k) + field_8(i-iBeg+1,j-jBeg+1,k)
           end do
        end do
     end do
 !$OMP END DO
 !$OMP END PARALLEL
 
+    deallocate(field_8)
+
   end subroutine symmetrizeAdj
-  
+
 !--------------------------------------------------------------------------
 ! lag_Mach
 !--------------------------------------------------------------------------

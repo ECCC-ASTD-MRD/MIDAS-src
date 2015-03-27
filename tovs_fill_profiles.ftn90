@@ -71,7 +71,7 @@ subroutine tovs_fill_profiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode
   integer :: datestamp
   real*8  :: LIMLVHU
   logical :: bgckMode
-  logical :: diagTtop,TopNotAt10hPa
+  logical :: diagTtop,TopAt10hPa
 
   integer, allocatable :: ksurf     (:) 
   integer, allocatable :: iptobs    (:) 
@@ -148,7 +148,7 @@ subroutine tovs_fill_profiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode
   zptopmbs = zptopmbs - 0.000001d0
   write(*,*) 'tovs_fill_profiles: zptopmbs=',zptopmbs
 
-  TopNotAt10hPa = ( abs( zptopmbs - 10.0d0 ) > .1d0 ) !could be replaced by another logical test
+  TopAt10hPa = ( abs( zptopmbs - 10.0d0 ) <= .1d0 )
 
   jpmotop = 1
   do jl = 2, nlevels
@@ -288,7 +288,7 @@ subroutine tovs_fill_profiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode
 !     .  2.2  Extrapolation of temperature profile above model top
 !     .       ----------------------------------------------------
         toext(:,:) = 0.0d0
-        if (TopNotAt10hPa) then ! si le toit n'est pas a 10. hPa 
+        if ( .not. TopAt10hPa) then ! si le toit n'est pas a 10. hPa 
            do jn=1,knpf
               toext(jpmotop:nlevels,jn) = to(1:jpmolev,jn)
               ! New approach based on a specified lapse rate
@@ -319,7 +319,7 @@ subroutine tovs_fill_profiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode
            enddo
         enddo
 
-        if (TopNotAt10hPa) then ! if model top not at 10. hPa
+        if ( .not. TopAt10hPa ) then ! if model top not at 10. hPa
            qoext(1:jpmotop,1:knpf) = MPC_MINIMUM_HU_R8 ! to replace with LIMLVHU ?
         else                    
            if ( ldbgtov ) then

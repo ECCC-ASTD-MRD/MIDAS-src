@@ -51,7 +51,7 @@ subroutine tovs_fill_profiles_ad(column,columng)
   integer, allocatable :: iptobscma (:) 
 
   integer :: alloc_status(40)
-  logical :: diagTtop,TopNotAt10hPa
+  logical :: diagTtop,TopAt10hPa
   integer :: omp_get_num_threads, nthreads
   integer :: istride, ilen, imodulo
   integer :: nlevels,nobmax
@@ -112,7 +112,7 @@ subroutine tovs_fill_profiles_ad(column,columng)
   zptopmbs = zptop/100.d0
   zptopmbs = zptopmbs - 0.000001d0
 
-  TopNotAt10hPa = ( abs( zptopmbs - 10.0d0 ) > .1d0 ) !could be replaced by another logical test
+  TopAt10hPa = ( abs( zptopmbs - 10.0d0 ) <= .1d0 )
 
   jpmotop = 1
   do jl = 2, nlevels
@@ -227,7 +227,7 @@ subroutine tovs_fill_profiles_ad(column,columng)
 !     .  2.3  Adjoint of extrapolation of humidity profile (kg/kg)
 !             above rlimlvhu (normally 300mbs or 70mbs)
 !     .  
-        if ( .not. TopNotAt10hPa ) then
+        if ( TopAt10hPa ) then
            if ( ldbgtov ) then
               do jn = 1, knpf
                  write(*,*)'qoext_ad*1000 avant aexthum4    = '
@@ -256,10 +256,11 @@ subroutine tovs_fill_profiles_ad(column,columng)
 !     .  2.2  Adjoint of extrapolation of temperature profile above 10mb
 !     .       ----------------------------------------------------------
         to_ad(:,:) = 0.0d0
-        do jn = 1, knpf
-           to_ad(1:jpmolev,jn)=to_ad(1:jpmolev,jn)+toext_ad(jpmotop:nlevels,jn)
-        enddo
-        if ( .not. TopNotAt10hPa ) then
+        if ( .not. TopAt10hPa ) then
+           do jn = 1, knpf
+              to_ad(1:jpmolev,jn)=to_ad(1:jpmolev,jn)+toext_ad(jpmotop:nlevels,jn)
+           enddo
+        else
            call aextrap (to_ad,toext_ad,jpmolev,nlevels,knpf)
         endif
  
@@ -314,7 +315,7 @@ subroutine tovs_fill_profiles_ad(column,columng)
            hu_column => col_getColumn(column,iptobscma(jn),'HU')
 
            ps_column(1) = ps_column(1) + zps_ad  (jn) * MPC_MBAR_PER_PA_R8
-           do jl = 2, col_getNumLev(column,'TH')
+           do jl = 1, col_getNumLev(column,'TH')
               tt_column(jl) = tt_column(jl) + zt_ad  (jl,jn)
               hu_column(jl) = hu_column(jl) + zlq_ad (jl,jn)
            enddo

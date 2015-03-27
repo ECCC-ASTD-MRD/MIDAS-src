@@ -37,12 +37,14 @@ fi
 if [ "$nompi" = "NOMPI" -o "$nompi" = "nompi" ] 
 then
   echo "!!Compiling for a NON-MPI executable!!"
+  MPILIBDIR=""
   MPILIB="rpn_commstubs rpn_comm"
   MPIKEY=""
   ABSTAG="_nompi"
 else
   echo "!!Compiling for an MPI executable!!"
-  MPILIB="rpn_comm"
+  MPILIBDIR="-libpath /users/dor/arma/gr3/userlibs/AIX-powerpc7/xlf13" # JFC : Mesure temporaire pour avoir acces a
+  MPILIB="rpn_comm_adj_halo8"                                          #       la S-R RPN_COMM_adj_halo8 de M. Valin
   MPIKEY="-mpi"
   ABSTAG=""
 fi
@@ -253,7 +255,7 @@ if [ "${mode}" == full ] ; then
   echo "building the executable ${varabs}.Abs"
   rm -f ${varabs}.Abs
   echo "If aborting, check in ${PWD}/listing8"
-  s.compile $COMPF  -O ${FOPTMIZ} -libappl $LIBAPPL $LIBEXTRA -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o ${varabs}.Abs > listing8 2>&1
+  s.compile $COMPF  -O ${FOPTMIZ} ${MPILIBDIR} -libappl $LIBAPPL $LIBEXTRA -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o ${varabs}.Abs > listing8 2>&1
   status=1
   grep fail listing8 || status=0
   if [ "${status}" -ne 0 ]; then
@@ -280,7 +282,7 @@ elif [ "${mode}" == abs ] ; then
   echo
   echo "building the executable..."
   echo
-  s.compile $COMPF  -O ${FOPTMIZ} -libappl $LIBAPPL $LIBEXTRA -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o ${varabs}.Abs
+  s.compile $COMPF  -O ${FOPTMIZ} ${MPILIBDIR} -libappl $LIBAPPL $LIBEXTRA -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o ${varabs}.Abs
 
 else
     if [ -f $trunkdir/$mode ] ; then
@@ -296,4 +298,6 @@ fi
 
 echo "FINISHED COMPILATION AT:"
 date
-echo "The program can be found here: ${PWD}/${varabs}.Abs"
+if [ "${mode}" == full -o "${mode}" == abs ] ; then
+    echo "The program can be found here: ${PWD}/${varabs}.Abs"
+fi
