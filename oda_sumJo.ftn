@@ -24,7 +24,7 @@
 ! Author  : S. Pellerin *ARMA/MRB January 2009
 !
 ! Revisions:
-!           Ping Du, CDMA/MSC Dec 2014
+!           Ping Du, CMDA/MSC Dec 2014
 !           - Addition of dljochm for the CH family.
 !
       use mpivar_mod
