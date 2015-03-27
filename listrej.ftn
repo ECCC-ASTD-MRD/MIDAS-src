@@ -213,8 +213,7 @@
                IF (obs_bodyElem_i(lobsSpaceData,OBS_VCO,INDEX_BODY) .EQ. 2) THEN
                  ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)*MPC_MBAR_PER_PA_R8
                  CLUNITS = 'MB'
-               ENDIF
-               IF (obs_bodyElem_i(lobsSpaceData,OBS_VCO,INDEX_BODY) .EQ. 1) THEN
+               ELSE IF (obs_bodyElem_i(lobsSpaceData,OBS_VCO,INDEX_BODY) .EQ. 1) THEN
 *
 *________________VERTICAL COORDINATE IS HEIGHT
 *
@@ -224,13 +223,15 @@
                     ZLEV = ZLEV*0.01
                     CLUNITS = 'HM'
                  END IF 
-               ENDIF
-               IF (obs_bodyElem_i(lobsSpaceData,OBS_VCO,INDEX_BODY) .EQ. -1) THEN
+               ELSE IF (obs_bodyElem_i(lobsSpaceData,OBS_VCO,INDEX_BODY) .EQ. -1) THEN
 *
 *________________TOVS CHANNEL NUMBER
 *
                  ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
                  CLUNITS = '  '
+               ELSE 
+                 ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
+                 CLUNITS = '  '               
                ENDIF
                ZVAR = obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY)
                ZFCST= ZVAR - obs_bodyElem_r(lobsSpaceData,OBS_OMP,INDEX_BODY)
@@ -334,7 +335,7 @@
                      IF (DEG .LT. 0.D0)  DEG = DEG + 360.D0
                      IDIRA = NINT(DEG)
                    ENDIF
-                   ILEV = NINT(ZLEV)
+                   ILEV = NINT(ZLEV)                  
                    IF (ZPOST .GT. ZCUT) THEN
                      LLELREJ = .TRUE.
                      call obs_bodySet_i(lobsSpaceData,OBS_FLG,INDEX_BODY,
@@ -367,14 +368,26 @@
                    LLELREJ = .TRUE.
                    IF (listFamily(JFAM).EQ.'CH') THEN
                       ICOUNT(14,JFAM)=ICOUNT(14,JFAM)+1
-                      ZVAR=(ZVAR-ZFCST)/ZFCST*100.
-                      ZANA=(ZANA-ZFCST)/ZFCST*100.
-                      ZFCST=0.0
                       CLDESC=CLITM(14)
-                      if (obs_headElem_i(lobsSpaceData,OBS_CHM,INDEX_HEADER).ge.0) 
-     &                    CLDESC=vnl_varnameFromVarnum(ITYP,obs_headElem_i(lobsSpaceData,OBS_CHM,INDEX_HEADER)) 
-                   ENDIF
-                   IF (ITYP .EQ. BUFR_NEGZ) THEN
+                      if (obs_headElem_i(lobsSpaceData,OBS_CHM,INDEX_HEADER).ge.0) then
+*
+*                        CONVERT TO PERCENTAGE DIFFERENCE FROM THE FORECAST
+*
+                         ZVAR=(ZVAR-ZFCST)/ZFCST*100.
+                         ZANA=(ZANA-ZFCST)/ZFCST*100.
+                         ZFCST=0.0
+                         CLDESC=vnl_varnameFromVarnum(ITYP,obs_headElem_i(lobsSpaceData,OBS_CHM,INDEX_HEADER))
+                         
+                       else if (ITYP .EQ. BUFR_NETT) THEN
+*
+*                        CONVERT FROM KELVIN TO CELCIUS
+*
+                         CLDESC = CLITM(4)
+                         ZVAR = ZVAR - MPC_K_C_DEGREE_OFFSET_R8
+                         ZFCST = ZFCST - MPC_K_C_DEGREE_OFFSET_R8
+                         ZANA  = ZANA - MPC_K_C_DEGREE_OFFSET_R8
+                       end if 
+                   ELSE IF (ITYP .EQ. BUFR_NEGZ) THEN
                      CLDESC = CLITM(3)
                      ICOUNT(3,JFAM) = ICOUNT(3,JFAM) + 1
 *
@@ -383,8 +396,7 @@
                      ZVAR = ZVAR/RG
                      ZFCST = ZFCST/RG
                      ZANA  = ZANA/RG
-                   ENDIF
-                   IF (ITYP .EQ. BUFR_NETT) THEN
+                   ELSE IF (ITYP .EQ. BUFR_NETT) THEN
                      CLDESC = CLITM(4)
                      ICOUNT(4,JFAM) = ICOUNT(4,JFAM) + 1
 *
@@ -393,12 +405,10 @@
                      ZVAR = ZVAR - MPC_K_C_DEGREE_OFFSET_R8
                      ZFCST = ZFCST - MPC_K_C_DEGREE_OFFSET_R8
                      ZANA  = ZANA - MPC_K_C_DEGREE_OFFSET_R8
-                   ENDIF
-                   IF (ITYP .EQ. BUFR_NEES) THEN
+                   ELSE IF (ITYP .EQ. BUFR_NEES) THEN
                      CLDESC = CLITM(5)
                      ICOUNT(5,JFAM) = ICOUNT(5,JFAM) + 1
-                   ENDIF
-                   IF (ITYP .EQ. BUFR_NEPS) THEN
+                   ELSE IF (ITYP .EQ. BUFR_NEPS) THEN
                      CLDESC = CLITM(6)
                      ICOUNT(6,JFAM) = ICOUNT(6,JFAM) + 1
 *
@@ -407,8 +417,7 @@
                      ZVAR = ZVAR*MPC_MBAR_PER_PA_R8
                      ZANA = ZANA*MPC_MBAR_PER_PA_R8
                      ZFCST = ZFCST*MPC_MBAR_PER_PA_R8
-                   ENDIF
-                   IF (ITYP .EQ. BUFR_NEPN) THEN
+                   ELSE IF (ITYP .EQ. BUFR_NEPN) THEN
                      CLDESC = CLITM(7)
                      ICOUNT(7,JFAM) = ICOUNT(7,JFAM) + 1
 *
@@ -417,8 +426,7 @@
                      ZVAR = ZVAR*MPC_MBAR_PER_PA_R8
                      ZANA = ZANA*MPC_MBAR_PER_PA_R8
                      ZFCST = ZFCST*MPC_MBAR_PER_PA_R8
-                   ENDIF
-                   IF (ITYP .EQ. BUFR_NETS) THEN
+                   ELSE IF (ITYP .EQ. BUFR_NETS) THEN
                      CLDESC = CLITM(8)
                      ICOUNT(8,JFAM) = ICOUNT(8,JFAM) + 1
 *
@@ -427,17 +435,14 @@
                      ZVAR = ZVAR - MPC_K_C_DEGREE_OFFSET_R8
                      ZFCST = ZFCST - MPC_K_C_DEGREE_OFFSET_R8
                      ZANA  = ZANA - MPC_K_C_DEGREE_OFFSET_R8
-                   ENDIF
-                   IF (ITYP .EQ. BUFR_NESS) THEN
+                   ELSE IF (ITYP .EQ. BUFR_NESS) THEN
                      CLDESC = CLITM(9)
                      ICOUNT(9,JFAM) = ICOUNT(9,JFAM) + 1
-                   ENDIF
-                   IF ( ITYP.EQ.BUFR_NBT1 .OR. ITYP.EQ.BUFR_NBT2 .OR.
+                   ELSE IF ( ITYP.EQ.BUFR_NBT1 .OR. ITYP.EQ.BUFR_NBT2 .OR.
      1                  ITYP.EQ.BUFR_NBT3      ) THEN
                      CLDESC = CLITM(12)
                      ICOUNT(12,JFAM) = ICOUNT(12,JFAM) + 1
-                   ENDIF
-                   IF (ITYP .EQ. BUFR_NEZD) THEN
+                   ELSE IF (ITYP .EQ. BUFR_NEZD) THEN
                      CLDESC = CLITM(13)
                      ICOUNT(13,JFAM) = ICOUNT(13,JFAM) + 1
 *
@@ -456,7 +461,7 @@
      1              CLOBTP(IDBURP),ZLAT,ZLON,ILEV,CLUNITS,CLDESC,
      2              ZVAR,ZFCST,ZANA,ZPOST,obs_headElem_i(lobsSpaceData,OBS_ONM,INDEX_HEADER)
  630               FORMAT(A9,1X,I3,1X,A16,F5.1,2X,F5.1,2X,I4,A2,2X,
-     2                A4,2X,F7.1,3X,F7.1,3X,F7.1,2X,F6.4,1X,I5,1X)
+     2                A4,2X,F7.1,3X,F7.1,3X,F7.1,2X,F6.4,1X,I7,1X)
                  ENDIF
                ENDIF
              ENDIF

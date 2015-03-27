@@ -1171,8 +1171,8 @@ CONTAINS
     !
     !       REVISION:
     !                 Ping Du (CMDA), Nov 2014 
-    !                  -- Added NAMBURP_FILTER_TR and NAMBURP_FILTER_TRM namelists
-    !                  -- Added CASE('namburp_tr') and CASE('namburp_trm')
+    !                  -- Added NAMBURP_FILTER_CHM and NAMBURP_FILTER_CHM_SFC namelists
+    !                  -- Added CASE('namburp_chm') and CASE('namburp_chm_sfc')
     !
     !
     !****************************************************************************

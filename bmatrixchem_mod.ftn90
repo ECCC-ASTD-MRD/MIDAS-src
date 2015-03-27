@@ -1,31 +1,93 @@
-! MODULE bMatrixChem : Contains routines involving preparation and application
-!                         of background-error covariance matrix(ces). Matrix
-!                         based on horizontally homogeneous/isotropic
-!                         correlations.  prefix="bchm" for constituents
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
 !
-! Purpose: Performs transformation from control vector to analysis increment
-!          using the background error covariance matrix
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
 !
-! Subroutines:
-!    bchm_setup (public)
-!    bchm_BSqrt (public)
-!    bchm_BSqrtAd (public)
-!    bchm_cain
-!    bchm_cainAd
+! MODULE bMatrixChem:  Contains routines involving preparation and application
+!                      of background-error covariance matrix(ces). Matrix
+!                      based on horizontally homogeneous/isotropic
+!                      correlations.  prefix="bchm_" used for routines in 
+!                      this module ("chm_" in other modules).
 !
-! Dependencies:
-!    globalSpectralTransform
+! Purpose: Holds routines for (1) reading and preparing the static bacground 
+!          error covariance matrix (if reading of balance operators if any are
+!          eventually added) and (2) transformations from control 
+!          vector (spectral space) to analysis increments (and its adjoint) 
+!          using the background error covariance matrix (and the balance 
+!          operators when present).
+!
+!          Based on bmatrixHI_mod.ftn90. See bmatrix_mod.ftn90 for usage of public routines.
 !
 ! Author: Ping Du (based on bMatrixHI_mod.ftn90 by Mark Buehner), July-Sept 2014
 !         - Code changes mainly pertain to the addition of all aspects related to
-!           constituents and the introduction of the variables *_chm
+!           O3 as constituent and the introduction of the variables *_chm
 !         - Partial removal of bMatrixHI_mod components related to standard weather
 !           incremental variables
-!         - Additions currently hardcoded to assume O3 as the one and only constituent variable.
 !
 ! Revisions:
-!        Yves Rochon, October 2014
-!        - Addition and modification of comments
+!        Ping Du, Jan 2015
+!         - Change from btr/tr to bchm/chm prefixes/suffixes.
+!        Yves Rochon, October 2014 - Feb 2015
+!        - Addition and modification of comments.
+!        - Generalizations for any constituent or set of constituents.
+!        - Extended use of nsposit and numvar*d instead of nlev_* beyond
+!          bchm_setup.
+!        - Main revised routines: BCHM_setup, BCHM_copyToStatevector,
+!                 BCHM_copyFromStatevector, BCHM_readcorns2, BCHM_convol,
+!                 BCHM_rdspstd, BCHM_rdstsrtd_newfmt, BCHM_sucorns2, BCHM_finalize
+!        - Addition of corvert and corverti. 
+!
+! Comments and  questions:
+!
+! (1) Covariances uncoupled from weather variable.
+!
+! (2) Currently assumes univariate constituent assimilation (constituent variables 
+!     currently uncorrelated). See routines BCHM_READCORNS2 and BCHM_SUCORNS2. These 
+!     routines would need to be modified if cross-correlations were included.
+!
+! (3) One could potentially make public the functions/routines which are identical to
+!     those in bmatrixhi_mod.ftn90 (except possibly in name) so that one copy is 
+!     present in the code. 
+!
+! (4) For multiple univariate variables (or univarite blocks of one to multiple variables), 
+!     one could alternatively have multiple sets of covariance matrices within this module
+!     instead of a single covariance matrix setup (similarly to what was done for corvert*_chm).
+!
+! Public Subroutines (which call other internal routines/functions):
+!    BCHM_setup:      Must be called first. Sets of background covariance matrix
+!                     (and balance operators if any are eventually added)
+!                     calls BCHM_sunewsta ts (BCHM_readcorns2, BCHM_rdspstd_newfmt,
+!                                             BCHM_scalestd), 
+!                           BCHM_sucorns2 (gasparicohn, dsyev, rpn_comm_allreduce)
+!    BCHM_BSqrt:      Transformations from control vector to analysis increments 
+!                     in the minimization process.
+!                     calls BCHM_cain, BCHM_spa2gd (dgemul), BCHM_copytoStatevector 
+!    BCHM_BSqrtAd:    Adjoint of BCHM_BSqrt.
+!                     calls BCHM_copyFromStatvector, BCHM_spa2gdad (dgemul), BCHM_cainad
+!    BCHM_Finalize    Deallocate internal module arrays.
+!    BCHM_expandToMPIglobal
+!    BCHM_reduceToMPIlocal:  calls rpn_comm_*
+!    BCHM_getScaleFactor
+!    BCHM_corvert_mult: Multiple an input matrix/array with 'corvert' or 'corverti'
+!
+! Other subroutines/functions info:
+!    BCHM_readcorns2:        calls BCHM_convol (zleginv, zlegdir)
+!    BCHM_rdspstd:           calls zleginv2
+!    BCHM_rdspstd_newfmt:    calls gst_setID, gst_zlegpol, zleginv2, BCHM_rdspstd
+!
+! Dependencies:
+!    globalSpectralTransform, ....
 !
 !--------------------------------------------------------------------------
 MODULE BmatrixChem
@@ -43,39 +105,18 @@ MODULE BmatrixChem
   private
 
   ! public procedures
-  public :: bchm_Setup,bchm_BSqrt,bchm_BSqrtAd,bchm_Finalize,bchm_expandToMPIglobal,bchm_reduceToMPIlocal
-
+  public :: bchm_Setup,bchm_BSqrt,bchm_BSqrtAd,bchm_Finalize
+  public :: bchm_expandToMPIglobal,bchm_reduceToMPIlocal,bchm_getScaleFactor
+  public :: bchm_corvert_mult
+  
   logical             :: initialized = .false.                    
   integer             :: nj_l,ni_l                    
   integer             :: nlev_M,nlev_T,nlev_T_even,nkgdim,nkgdim2    
-  integer             :: ntrunc,nla_mpiglobal,nla_mpilocal           
+  integer             :: nla_mpiglobal,nla_mpilocal           
   integer             :: cvDim_mpilocal,cvDim_mpiglobal           
   integer             :: gstID, gstID2          
   integer             :: nlev_bdl           
   type(struct_vco),pointer :: vco_anl          
-
-
-  real(8),pointer     :: rgsig(:,:)
-  real(8),pointer     :: rgsigo3(:,:)
-
-  real(8),allocatable :: corns(:,:,:)
-  real(8),allocatable :: rstddev(:,:)
-
-  ! originally from common blocks and possibly from the namelist:
-  integer,parameter   :: maxNumLevels=200
-  integer             :: nulbgst=0
-  real(8)             :: rvloctr=4.0d0
-
-  ! this should come from state vector object
-  integer             :: numvar3d
-  integer             :: numvar2d
-
-! new variables for chemical constituents  
-  integer             :: numvar3d_chm
-  integer             :: numvar2d_chm
-  integer             :: nspositO3
-  character(len=4),allocatable    :: vnl_varNameList3D_chm(:)
-  character(len=4),allocatable    :: vnl_varNameList2D_chm(:)
 
   real(8), pointer    :: pressureProfile_M(:),pressureProfile_T(:)
 
@@ -89,10 +130,43 @@ MODULE BmatrixChem
 
   integer             :: get_max_rss
 
+  integer             :: nulbgst=0
+
+! Bacgkround error covariance matrix elements.
+! One could add an additional dimension to corns  
+! for separate block-univariate correlation matrices.
+! This would also permit merging of bmatrixhi_mod and bmatrixchem_mod 
+! into one module.
+
+  real(8),allocatable :: rgsig(:,:)
+  real(8),allocatable :: corns(:,:,:)
+  real(8),allocatable :: rstddev(:,:)
+
+! Physical space (total) vertical correlation matrices and its inverse.
+  
+!  real(8), allocatble, dimension(:,:) :: corvert,corverti
+  real(8), allocatable, dimension(:,:,:) :: corvert,corverti
+
+! Parameters of the NAMBCHM namelist
+
+  integer             :: ntrunc
+  real(8)             :: rpor(100)
+  real(8)             :: rvloc(100)
+  integer,parameter   :: maxNumLevels=200
+  real(8)             :: scaleFactor(maxNumLevels,100)
+  integer             :: numModeZero  ! number of eigenmodes to set to zero
+
+! Number of incremental variables/fields
+  integer             :: numvar3d,numvar2d
+! Start position of each field in composite arrays
+  integer, allocatable :: nsposit(:)
+! Name list of incremental variables/fields
+  character(len=4),allocatable    :: varNameList(:)
 
 CONTAINS
 
-    SUBROUTINE BCHM_setup(hco_in,vco_in,CVDIM_OUT)
+!-------------------------------------------------------------------------------------------
+  SUBROUTINE BCHM_setup(hco_in,vco_in,CVDIM_OUT)
     implicit none
 
     type(struct_hco),pointer :: hco_in
@@ -106,86 +180,108 @@ CONTAINS
     logical :: makeEven_in = .false. ! to avoid the even number requirement in mpivar_setup_levels_npex 
   
     integer :: jvar
+    
+    NAMELIST /NAMBCHM/ntrunc,rpor,rvloc,scaleFactor,numModeZero
 
-    NAMELIST /NAMBCHM/ntrunc
     call tmg_start(15,'BCHM_SETUP')
+
+    numvar3d=0
+    numvar2d=0
+    allocate(varNameList(vnl_numvarmax))
+    allocate(nsposit(vnl_numvarmax+1))
+    nsposit(1)=1
+    
+!   Set vertical dimensions
 
     vco_anl => vco_in
     nLev_M = vco_anl%nlev_M
     nLev_T = vco_anl%nlev_T
-    ! need an even number of levels for spectral transform (gstID2)
     if(mod(nLev_T,2).ne.0) then
       nLev_T_even = nLev_T+1
     else
       nLev_T_even = nLev_T
     endif
     if(mpi_myid.eq.0) write(*,*) 'BCHM_setup: nLev_T, nLev_T_even=',nLev_T, nLev_T_even
+    
+!   Find the 3D variables (within NAMSTATE namelist)
 
-
-    nulnam = 0
-    ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-    read(nulnam,nml=nambchm,iostat=ierr)
-    if(ierr.ne.0) call abort3d('bchm_setup: Error reading namelist')
-    if(mpi_myid.eq.0) write(*,nml=nambchm)
-    ierr = fclos(nulnam)
-
-    numvar3d_chm=0
-    numvar2d_chm=0
-    allocate(vnl_varNameList3D_chm(vnl_numvarmax3D))
-    allocate(vnl_varNameList2D_chm(vnl_numvarmax2D))
-
-  
-! to find the 3D chemical constituent variable
-    do jvar = 1, vnl_numvarmax3D
-     if(gsv_varExist(vnl_varNameList3D(jvar))) then
-
-      select case (vnl_varNameList3D(jvar))
-      case ('UU','VV','TT','HU')
-       numvar3d = numvar3d + 1
-      case ('O3') 
-       numvar3d_chm = numvar3d_chm + 1
-       vnl_varNameList3D_chm(numvar3d_chm)='O3  '
-      case ('NO2') 
-       numvar3d_chm = numvar3d_chm + 1 
-       vnl_varNameList3D_chm(numvar3d_chm)='NO2 '
-      case ('CO2') 
-       numvar3d_chm = numvar3d_chm + 1 
-       vnl_varNameList3D_chm(numvar3d_chm)='CO2 '
-      case default
-      end select
-     end if
+    do jvar = 1, vnl_numvarmax3D    
+       if(gsv_varExist(vnl_varNameList3D(jvar))) then
+          select case (vnl_varNameList3D(jvar))
+          case ('UU','VV','TT','HU')
+             ! Skip over
+          case default
+             numvar3d = numvar3d + 1
+             nsposit(numvar3d+1)=nsposit(numvar3d)+nLev_T
+             varNameList(numvar3d)=vnl_varNameList3D(jvar)
+          end select
+       end if
     end do
-  ! for 2D chemical constituent variable (not well done, need to be modified)
-!   do jvar=1,vnl_numvarmax2D
-!      if(gsv_varExist(vnl_varNameList2D(jvar))) then
-!
-!       select case (vnl_varNameList2D(jvar))
-!        case ('P0','TG')
-!         numvar2d = numvar2d + 1
-!       case ('NO2 ')
-!         numvar2d_chm = numvar2d_chm + 1
-!         vnl_varNameList2D_chm(numvar2d_chm) = 'NO2 '
-!       case default
-!         write(*,*) 'No more 2D variable'
-!       end select
-!      end if
-!    end do
 
-    write(*,*) 'Number of 3D variable', numvar3d_chm,vnl_varNameList3D_chm(numvar3d_chm)
-!    write(*,*) 'Number of 2D variable', numvar2d_chm,vnl_varNameList2D_chm(numvar2d_chm)
+!   Find the 2D variables (within NAMSTATE namelist)
 
+    do jvar=1,vnl_numvarmax2D
+       if(gsv_varExist(vnl_varNameList2D(jvar))) then
+          select case (vnl_varNameList2D(jvar))
+          case ('P0','TG')
+             ! Skip over
+          case default
+             numvar2d = numvar2d + 1
+             nsposit(numvar3d+numvar2d+1)=nsposit(numvar3d+numvar2d)+1
+             varNameList(numvar2d)=vnl_varNameList2D(jvar)
+          end select
+       end if
+    end do
+    
+    if (numvar3d+numvar2d.eq.0) then    
+       if(mpi_myid.eq.0) then
+           write(*,*) 'Bhi matrix for CH family not produced.'
+           write(*,*) 'No chemical assimilation to be performed.'
+           write(*,*) 'END OF BCHM_SETUP'
+       end if
+       call tmg_stop(15)
+       return
+    else if (mpi_myid.eq.0) then
+       if (numvar3d.gt.0) &
+       write(*,*) 'BCHM_setup: Number of 3D variables', numvar3d,varNameList(1:numvar3d)
+       if (numvar2d.gt.0) &
+       write(*,*) 'BCHM_setup: Number of 2D variables', numvar2d,varNameList(numvar3d+1:numvar3d+numvar2d)
+    end if
 
-    nspositO3 = 1
-
-    nkgdim =  nLev_T*numvar3d_chm + numvar2d_chm
-!    nkgdim2 = nkgdim+nLev_T
+    nkgdim =  nsposit(numvar3d+numvar2d+1)-1
     nkgdim2 = nkgdim
 
-    nla_mpiglobal = (ntrunc+1)*(ntrunc+2)/2
+    ! Initialization of namelist NAMBCHM parameters
+    
+    ntrunc=108
+    rpor(:)=3000.D3
+    rvloc(:)=4.0D0
+    scaleFactor(:,:) = 1.0d0
+    numModeZero = 0
+ 
+    ! Read namelist input
+    
+    nulnam = 0
+    ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+    read(nulnam,nml=NAMBCHM,iostat=ierr)
+    if(ierr.ne.0) call abort3d('BCHM_setup: Error reading namelist')
+    if(mpi_myid.eq.0) write(*,nml=NAMBCHM)
+    ierr = fclos(nulnam)
 
+    ! Assumes the input 'scalefactor' is a scaling factor of the error std.
+    ! dev. and not the variances (contrary to what is in bhimatrix_mod.ftn90.)
+    
+    where (scaleFactor(1:max(nLev_M,nLev_T),1:numvar3d+numvar2d).lt.0.0) &
+           scaleFactor(1:max(nLev_M,nLev_T),1:numvar3d+numvar2d)=0.0d0
+
+    nla_mpiglobal = (ntrunc+1)*(ntrunc+2)/2
     ni_l = hco_in%ni
     nj_l = hco_in%nj
 
+    ! Begin calcs.
+    
+    ! Need an even number of levels for spectral transform (gstID2)
+    
     mpiMode = 4
     gstID  = gst_setup(ni_l,nj_l,ntrunc,mpiMode,nkgdim,makeEven_in)
     gstID2 = gst_setup(ni_l,nj_l,ntrunc,mpiMode,nlev_T_even)
@@ -217,14 +313,14 @@ CONTAINS
     enddo
     cvDim_out = cvDim_mpilocal
 
-
     ! also compute mpiglobal control vector dimension
     call rpn_comm_allreduce(cvDim_mpilocal,cvDim_mpiglobal,1,"mpi_integer","mpi_sum","GRID",ierr)
 
     allocate(rgsig(nj_l,nkgdim))
-    rgsigo3 =>  rgsig(1:nj_l,nspositO3:nspositO3+nlev_T-1)
     allocate(corns(nkgdim,nkgdim,0:ntrunc))  
-    allocate(rstddev(nkgdim,0:ntrunc))       
+    allocate(rstddev(nkgdim,0:ntrunc))  
+    allocate(corvert(nlev_T,nlev_T,numvar3d+numvar2d))
+    allocate(corverti(nlev_T,nlev_T,numvar3d+numvar2d))
 
     zps = 101000.D0
     status = vgd_levels( vco_anl%vgrid, ip1_list=vco_anl%ip1_M, levels=pressureProfile_M, &
@@ -232,11 +328,8 @@ CONTAINS
     status = vgd_levels( vco_anl%vgrid, ip1_list=vco_anl%ip1_T, levels=pressureProfile_T, &
                          sfc_field=zps, in_log=.false.)
 
-
-
     call BCHM_sunewstats
     call BCHM_sucorns2
-
 
     if(mpi_myid.eq.0) write(*,*) 'END OF BCHM_SETUP'
     
@@ -245,7 +338,26 @@ CONTAINS
     call tmg_stop(15)
 
   END SUBROUTINE BCHM_setup
+!-----------------------------------------------------------------------------------------------
+  subroutine bchm_getScaleFactor(scaleFactor_out)
+!
+! Revisions: 
+!           Y.J. Rochon, ARQI/AQRD, Mar 2015
+!           - Changed from 1D to 2D arrays
+!           - Use of nsposit.
+!
+    implicit none
+    real(8) :: scaleFactor_out(:,:)
+    integer :: jlev,jvar
 
+    do jvar = 1, numvar3d+numvar2d
+    do jlev = 1, nsposit(jvar+1)-nsposit(jvar)
+       scaleFactor_out(jlev,jvar) = scaleFactor(jlev,jvar)
+    end do
+    enddo
+
+  end subroutine bchm_getScaleFactor
+!-----------------------------------------------------------------------------------------------
   SUBROUTINE BCHM_SUNEWSTATS
    implicit none
 
@@ -259,56 +371,72 @@ CONTAINS
       if ( ierr .eq. 0 ) then
         ierr =  fstouv(nulbgst,'RND+OLD')
       else
-        call abort3d('BCHM_SUNEWSTATS:NO BACKGROUND CHEMICAL CONSTITUENT STAT FILE!!')
+        call abort3d('BCHM_SUNEWSTATS: NO BACKGROUND CHEMICAL CONSTITUENT STAT FILE!!')
       endif
     endif
 
     call BCHM_readcorns2
 
-
     call BCHM_rdspstd_newfmt 
-    call BCHM_rdspstd
-
+    
+    call BCHM_scalestd
+    
     ierr = fstfrm(nulbgst)
     ierr = fclos(nulbgst)
 
   END SUBROUTINE BCHM_SUNEWSTATS
+!-------------------------------------------------------------------------------------------
+  SUBROUTINE BCHM_scalestd
+    implicit none
 
+    integer :: jlon, jlat, jvar
+
+    do jvar = 1,numvar3d+numvar2d
+!       do jlon = 1, ni_l
+       do jlat = 1, nj_l
+           rgsig(jlat,nsposit(jvar):nsposit(jvar+1)-1) = &
+               scaleFactor(nsposit(jvar):nsposit(jvar+1)-1,jvar)* &
+               rgsig(jlat,nsposit(jvar):nsposit(jvar+1)-1)
+!           rgsig(jlon,jlat,nsposit(jvar):nsposit(jvar+1)-1) = &
+!               scaleFactor(nsposit(jvar):nsposit(jvar+1)-1,jvar)*
+!               rgsig(jlon,jlat,nsposit(jvar):nsposit(jvar+1)-1)
+       enddo
+!       enddo
+    enddo
+
+  END SUBROUTINE BCHM_scalestd
+!-------------------------------------------------------------------------------------------
  SUBROUTINE BCHM_bSqrt(controlvector_in,statevector)
   
    implicit none
 
     real(8)   :: controlVector_in(cvDim_mpilocal)
     type(struct_gsv) :: statevector
-   real(8),allocatable :: gd_out(:,:,:)
+    real(8),allocatable :: gd_out(:,:,:)
     real(8)   :: hiControlVector(nla_mpilocal,2,nkgdim)
     integer   :: jvar, ilev1, ilev2
 
-    if(mpi_myid.eq.0) write(*,*) 'bchm_bsqrt: starting'
-    if(mpi_myid.eq.0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    if(.not. initialized) return
 
-    if(.not. initialized) then
-      if(mpi_myid.eq.0) write(*,*) 'bMatrixChem not initialized'
-      return
-    endif
+    if(mpi_myid.eq.0) write(*,*) 'BCHM_bsqrt: starting'
+    if(mpi_myid.eq.0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     allocate(gd_out(myLonBeg:myLonEnd,nkgdim,myLatBeg:myLatEnd))
 
-     call bchm_cain(controlVector_in,hiControlVector)
+    call bchm_cain(controlVector_in,hiControlVector)
 
-     call bchm_spa2gd(hiControlVector,gd_out)
+    call bchm_spa2gd(hiControlVector,gd_out)
 
-     call copyToStatevector(statevector,gd_out)
+    call bchm_copyToStatevector(statevector,gd_out)
 
-     deallocate(gd_out)
-
+    deallocate(gd_out)
 
     if(mpi_myid.eq.0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     if(mpi_myid.eq.0) write(*,*) 'bchm_bsqrt: done'
 
   END SUBROUTINE BCHM_bSqrt
-
-    SUBROUTINE BCHM_cain(controlVector_in,hiControlVector_out)
+!-----------------------------------------------------------------------------------------------
+  SUBROUTINE BCHM_cain(controlVector_in,hiControlVector_out)
     implicit none
 
     real(8) :: controlVector_in(cvDim_mpilocal)
@@ -341,27 +469,19 @@ CONTAINS
     enddo
 
   end SUBROUTINE BCHM_cain
-
-
-
-  SUBROUTINE copyToStatevector(statevector,gd)
+!-----------------------------------------------------------------------------------------------
+  SUBROUTINE BCHM_copyToStatevector(statevector,gd)
     implicit none
     type(struct_gsv) :: statevector
     real(8) :: gd(myLonBeg:myLonEnd,nkgdim,myLatBeg:myLatEnd)
     integer :: jlon, jlev, jlev2, jlat, jvar, ilev1, ilev2
     real(8), pointer :: field(:,:,:)
 
-
-
-    do jvar=1,vnl_numvarmax 
-     if(gsv_varExist(vnl_varNameList(jvar))) then
-        field => gsv_getField3D(statevector,vnl_varNameList(jvar))
-        if(vnl_varNameList(jvar).eq.'O3  ') then
-          ilev1 = nspositO3
-        else
-         cycle    
-        endif
-        ilev2 = ilev1 - 1 + gsv_getNumLev(statevector,vnl_vartypeFromVarname(vnl_varNameList(jvar)))
+    do jvar = 1,numvar3d+numvar2d
+        field => gsv_getField3D(statevector,varNameList(jvar))
+        
+        ilev1 = nsposit(jvar)
+        ilev2 = nsposit(jvar+1)-1 
         
 !!!$OMP PARALLEL DO PRIVATE(jlat,jlev,jlev2,jlon)
         do jlat = myLatBeg, myLatEnd
@@ -373,12 +493,9 @@ CONTAINS
           enddo
         enddo
 !!!$OMP END PARALLEL DO
-      endif
     enddo
-  END SUBROUTINE copyToStatevector
-
-
-
+  END SUBROUTINE BCHM_copyToStatevector
+!-----------------------------------------------------------------------------------------------
   SUBROUTINE BCHM_bSqrtAd(statevector,controlVector_out)
     implicit none
 
@@ -389,14 +506,12 @@ CONTAINS
     integer   :: jvar, ilev1, ilev2
 
     if(.not. initialized) then
-      if(mpi_myid.eq.0) write(*,*) 'bMatrixTR not initialized'
+      if(mpi_myid.eq.0) write(*,*) 'bMatrixChem not initialized'
       return
     endif
 
     if(mpi_myid.eq.0) write(*,*) 'bchm_bsqrtad: starting'
     if(mpi_myid.eq.0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-
 
     allocate(gd_in(myLonBeg:myLonEnd,nkgdim,myLatBeg:myLatEnd))
     call bchm_copyFromStatevector(statevector,gd_in)
@@ -408,10 +523,10 @@ CONTAINS
     deallocate(gd_in)
 
     if(mpi_myid.eq.0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    if(mpi_myid.eq.0) write(*,*) 'bchm_bsqrtad: done'
+    if(mpi_myid.eq.0) write(*,*) 'BCHM_bsqrtad: done'
 
   END SUBROUTINE BCHM_bSqrtAd
-
+!-----------------------------------------------------------------------------------------------
   SUBROUTINE BCHM_copyFromStatevector(statevector,gd)
     implicit none
     type(struct_gsv) :: statevector
@@ -419,15 +534,12 @@ CONTAINS
     integer :: jlon, jlev, jlev2, jlat, jvar, ilev1, ilev2
     real(8), pointer :: field(:,:,:)
 
-    do jvar = 1, vnl_numvarmax
-      if(gsv_varExist(vnl_varNameList(jvar))) then
-        field => gsv_getField3D(statevector,vnl_varNameList(jvar))
-        if(vnl_varNameList(jvar).eq.'O3  ') then
-          ilev1 = nspositO3
-        else
-          cycle
-        endif
-        ilev2 = ilev1 - 1 + gsv_getNumLev(statevector,vnl_vartypeFromVarname(vnl_varNameList(jvar)))
+    do jvar = 1,numvar3d+numvar2d
+        field => gsv_getField3D(statevector,varNameList(jvar))
+
+        ilev1 = nsposit(jvar)
+        ilev2 = nsposit(jvar+1)-1 
+
 !!!$OMP PARALLEL DO PRIVATE(jlat,jlev,jlev2,jlon)
         do jlat = myLatBeg, myLatEnd
           do jlev = ilev1, ilev2
@@ -438,131 +550,108 @@ CONTAINS
           enddo
         enddo
 !!!$OMP END PARALLEL DO
-      endif
     enddo
 
   END SUBROUTINE BCHM_copyFromStatevector
-
-
-
-
+!-----------------------------------------------------------------------------------------------
   SUBROUTINE BCHM_READCORNS2
+!
+!
+! N.B.: Currently assumes distinct block diagonal matrices (no cross-correlations)
+!
+!  
     implicit none
 
-    integer :: kip1
-    integer :: jn, istdkey,icornskey
-    integer :: iksdim,jcol,jrow,jblock,jlevo,jlevi
+    integer :: jn, istdkey,icornskey,jvar
+    integer :: jcol,jrow,jstart,jnum
     real(8) :: zwork
     real(8), allocatable, dimension(:) :: zstdsrc
     real(8), allocatable, dimension(:,:) :: zcornssrc
 
-    ! standard file variables
-    integer :: ini,inj,ink, inpas, inbits, idatyp, ideet
-    integer :: ip1,ip2,ip3,ig1,ig2,ig3,ig4,iswa,ilength,idltf
-    integer :: iubc,iextr1,iextr2,iextr3,ierr,ipak,ipas
-    integer :: iliste(100),idate(100),idimax,infon,iheures,idateo
+    ! Standard file variables
+    integer :: ini,inj,ink,in1,in2
+    integer :: ip1,ip2,ip3,idateo
     character(len=2)  :: cltypvar
-    character(len=1)  :: clgrtyp
     character(len=4)  :: clnomvar
     character(len=12) :: cletiket
     integer :: vfstlir,vfstecr,fstprm,fstinf
 
-    iksdim = nlev_T*numvar3d_chm+numvar2d_chm     
-    allocate(zcornssrc(iksdim,iksdim))
-    allocate(zstdsrc(iksdim))
+    rstddev(:,:)=0.0d0
+    corns(:,:,:)=0.0d0
+    
+    do jvar = 1,numvar3d+numvar2d
+   
+       clnomvar=varNameList(jvar)
+       jstart=nsposit(jvar)
+       jnum=nsposit(jvar+1)-nsposit(jvar)
+       allocate(zcornssrc(jnum,jnum))
+       allocate(zstdsrc(jnum))
 
-    kip1 = -1
+       do jn = 0, ntrunc
 
-    do jn = 0, ntrunc
+          ! Looking for FST record parameters..
+      
 
-      ! Looking for FST record parameters..
+          idateo = -1
+          cletiket = 'RSTDDEV'
+          ip1 = -1
+          ip2 = jn
+          ip3 = -1
+          cltypvar = 'X'
+          
+          istdkey = vfstlir(ZSTDSRC,nulbgst,INI,INJ,INK,idateo,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+          
+          if (istdkey.lt.0) call abort3d('BCHM_READCORNS2: Problem with constituents background stat file')
+          if (ini.ne.jnum)  call abort3d('BCHM_READCORNS2: Constituents background stat levels inconsitencies')
 
-      idateo = -1
-      cletiket = 'RSTDDEV'
-      ip1 = kip1
-      ip2 = jn
-      ip3 = -1
-      cltypvar = 'X'
-      clnomvar = 'O3'
+          ! Looking for FST record parameters..
 
-      istdkey = vfstlir(ZSTDSRC,nulbgst,INI,INJ,INK,idateo,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+          idateo = -1
+          cletiket = 'CORRNS'
+          ip1 = -1
+          ip2 = jn
+          ip3 = -1
+          cltypvar = 'X'
+          icornskey = vfstlir(ZCORNSSRC,nulbgst,INI,INJ,INK,idateo,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
 
-      if(istdkey .lt.0 ) then
-        call abort3d('READCORNS2: Problem with TRACER background stat file')
-      endif
+          if (icornskey.lt.0) call abort3d('BCHM_READCORNS2: Problem with constituents background stat file')
+          if (ini.ne.jnum.and.inj.ne.jnum) call abort3d('BCHM_READCORNS2: Constituents BG stat levels inconsitencies')
 
-      if (ini .ne. iksdim) then
-        call abort3d('READCORNS2: TRACER background stat levels inconsitencies')
-      endif
-
-      ! Looking for FST record parameters..
-
-      idateo = -1
-      cletiket = 'CORRNS'
-      ip1 = kip1
-      IP2 = JN
-      ip3 = -1
-      cltypvar = 'X'
-      clnomvar = 'O3'
-      icornskey = vfstlir(ZCORNSSRC,nulbgst,INI,INJ,INK,idateo,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
-
-      if(icornskey .lt.0 ) then
-        call abort3d('READCORNS2: Problem with TRACER background stat file')
-      endif
-
-      if (ini .ne. iksdim .or. inj .ne. iksdim) then
-        call abort3d('READCORNS2: TRACER BG stat levels inconsitencies')
-      endif
-
-      do jcol = 1, nkgdim
-        rstddev(jcol,jn) = 0.0d0
-        do jrow = 1, nkgdim
-          corns(jrow,jcol,jn) = 0.0d0 
-        enddo
-      enddo
-
-      do jcol = 1, iksdim
-        do jrow = 1, iksdim
-          corns(jrow,jcol,jn) = zcornssrc(jrow,jcol)
-        enddo
-      enddo
-
-
-      do jrow = 1, iksdim
-        rstddev(jrow,jn) = zstdsrc(jrow)
-      enddo
+          rstddev(jstart:jstart+jnum-1,jn) = zstdsrc(1:jnum)
+          corns(jstart:jstart+jnum-1,jstart:jstart+jnum-1,jn)=zcornssrc(1:jnum,1:jnum)
+          
+       enddo
+       
+       deallocate(zcornssrc)
+       deallocate(zstdsrc)
 
     enddo
-
-    
 
     ! Apply convolution to RSTDDEV correlation
 
     call BCHM_convol
-
+    
     do jn = 0, ntrunc
 
-      ! Re-build of correlation matrix: factorization of corns with convoluted RSTDDEV
+      ! Re-build correlation matrix: factorization of corns with convoluted RSTDDEV
       do jcol = 1, nkgdim
         do jrow = 1, nkgdim
           corns(jrow,jcol,jn) = rstddev(jrow,jn) * corns(jrow,jcol,jn)* rstddev(jcol,jn)
         enddo
       enddo
 
-    enddo
 
-    deallocate(zcornssrc)
-    deallocate(zstdsrc)
+    enddo
 
     !write(*,*) 'Done in BCHM_READCORNS2'
   END SUBROUTINE BCHM_READCORNS2
-
+!-----------------------------------------------------------------------------------------------
   SUBROUTINE BCHM_convol
     implicit none
 
     real(8) dlfact2,dlc,dsummed
     real(8) dtlen,zr,dlfact
-    integer ilen,jn,jlat,jk
+    integer ilen,jn,jlat,jk,jvar
     real(8) zlegi(0:ntrunc, nj_l),zleg(0:ntrunc, nj_l),zsp(0:ntrunc,nkgdim),zgr(nj_l,nkgdim)
     real(8) dlwti(nj_l),zrmu(nj_l)
 
@@ -571,8 +660,6 @@ CONTAINS
     real(8) zsinm1(nj_l),zsinm2(nj_l),zsin2(nj_l),zsinlat(nj_l)
     real(8) dlfact1, dln
     real(8) dlnorm(0:ntrunc)
-
-    real(8)         :: RPORTR   = 3000.D3
 
     do jlat = 1, nj_l
        dlwti(jlat) = gst_getrwt(jlat,gstID)
@@ -605,6 +692,7 @@ CONTAINS
 !     1.2 CONVERT THE CORRELATIONS IN SPECTRAL SPACE INTO SPECTRAL
 !         COEFFICIENTS OF THE CORRELATION FUNCTION AND FUNCTION TO BE
 !         SELF-CONVOLVED
+
     do jn = 0, ntrunc
       dlfact = ((2.0d0*jn+1)/2.0d0)**0.25d0
       dlfact2 = ((2.0d0*JN +1.0d0)/2.0d0)**(0.25d0)
@@ -617,9 +705,12 @@ CONTAINS
     call zleginv(zgr,zsp,zlegi,dlwti,ntrunc,nj_l,nkgdim,nj_l,nkgdim,ntrunc)
 
     ! Truncate in horizontal extent with Gaussian window
+    
+    jvar=1
     do jk = 1, nkgdim
-      if (jk.eq.nspositO3) then
-        dtlen = rportr 
+      if (jk.eq.nsposit(jvar)) then
+        dtlen = rpor(jvar)
+        jvar=jvar+1 
       endif
       if(dtlen.gt.0.0d0) then
         dlc = 1.d0/dble(dtlen)
@@ -673,19 +764,15 @@ CONTAINS
     enddo
 
   END SUBROUTINE BCHM_convol
-
-
+!-----------------------------------------------------------------------------------------------
   SUBROUTINE BCHM_RDSPSTD
-      implicit none
+    implicit none
 
-    integer, parameter  :: inbrvar3d=1
-    integer, parameter  :: inbrvar2d=2
     integer :: jvar,jn,inix,injx,inkx
     integer :: ikey, jlevo, jlat,firstn,lastn
     real(8) :: zsp(0:ntrunc,max(nlev_M,nlev_T)),zspbuf(max(nlev_M,nlev_T)),zwork
-    real(8) :: zleg(0:ntrunc,nj_l),zgr(nj_l,max(nlev_M,nlev_T)),zgsig(1,nj_l,max(nlev_M,nlev_T)),zstddev(nkgdim,nj_l)
-    character(len=4) :: varName3d(inbrvar3d),varName2d(inbrvar2d)
-
+    real(8) :: zleg(0:ntrunc,nj_l),zgr(nj_l,max(nlev_M,nlev_T)),zstddev(nkgdim,nj_l)
+    
     ! standard file variables
     integer :: ini,inj,ink, inpas, inbits, idatyp, ideet
     integer :: ip1,ip2,ip3,ig1,ig2,ig3,ig4,iswa,ilength,idltf
@@ -697,13 +784,12 @@ CONTAINS
     character(len=12) :: cletiket
     integer :: vfstlir,vfstecr,fstprm,fstinf
 
-    data varName3d/'O3  '/
-
     call gst_setID(gstID)
     call gst_zlegpol(zleg)
 
     rgsig(:,:) = 0.0d0
-!   2. Reading the data
+    
+!   Reading the Legendre poly representation of the 2D background error std. dev. field
 
     idate(1) = -1
     ip1      = -1
@@ -712,14 +798,11 @@ CONTAINS
 
     cletiket = 'SPSTDDEV'
     cltypvar = 'X'
-
-    do jvar = 1, inbrvar3d
-      clnomvar = varName3d(jvar)
-      if(vnl_varTypeFromVarName(clnomvar).eq.'MM') then
-        nlev_MT = nlev_M
-      else
-        nlev_MT = nlev_T
-      endif
+    
+    do jvar = 1,numvar3d+numvar2d
+      clnomvar=varNameList(jvar)
+      nlev_MT=nsposit(jvar+1)-nsposit(jvar)
+      
       firstn = -1
       do jn = 0, ntrunc
         ip2 = jn
@@ -733,43 +816,31 @@ CONTAINS
           zspbuf(:) = 0.0d0
         endif
 
-        if (ini .ne. nlev_MT) then
-          call abort3d('RDSPSTD: TRACER background stat levels inconsitencies')
-        endif
+        if (ini.ne.nlev_MT) call abort3d('RDSPSTD: Constituents background stat levels inconsitencies')
 
         do jlevo = 1, nlev_MT
           zsp(jn,jlevo) = zspbuf(jlevo)
         enddo
       enddo
-      if(mpi_myid.eq.0.and.firstn.ne.-1) then
-        write(*,*) 'WARNING: CANNOT FIND SPSTD FOR ',clnomvar, &
-                     ' AT N BETWEEN ',firstn,' AND ',lastn,', SETTING TO ZERO!!!'
-      endif
+      
+      if(mpi_myid.eq.0.and.firstn.ne.-1) write(*,*) 'WARNING: CANNOT FIND SPSTD FOR ',clnomvar, &
+            ' AT N BETWEEN ',firstn,' AND ',lastn,', SETTING TO ZERO!!!'
+
       call zleginv2(zgr(:,1:nlev_MT),zsp(:,1:nlev_MT),zleg,ntrunc,nj_l,nlev_MT,nj_l,nlev_MT,ntrunc)
 
-      if(clnomvar .eq. 'O3') then
-        do jlat = 1, nj_l
-          do jlevo = 1, nlev_MT
-            rgsigo3(jlat,jlevo) = zgr(jlat,jlevo)
-          enddo
-        enddo
-      endif
+      rgsig(1:nj_l,nsposit(jvar):nsposit(jvar+1)-1)= zgr(1:nj_l,1:nlev_MT)
 
-
-     enddo 
+    enddo 
 
   END SUBROUTINE BCHM_RDSPSTD
-
-   SUBROUTINE BCHM_RDSPSTD_NEWFMT
+!-----------------------------------------------------------------------------------------------
+  SUBROUTINE BCHM_RDSPSTD_NEWFMT
     implicit none
 
-    integer, parameter  :: inbrvar3d=1
-    integer, parameter  :: inbrvar2d=2
     integer :: jvar,jn,inix,injx,inkx,ntrunc_file
     integer :: ikey,jlevo,jlat
     real(8) :: zsp(0:ntrunc,max(nlev_M,nlev_T)),zspbuf(0:ntrunc),zwork
-    real(8) :: zleg(0:ntrunc,nj_l),zgr(nj_l,max(nlev_M,nlev_T)),zgsig(1,nj_l,max(nlev_M,nlev_T)),zstddev(nkgdim,nj_l)
-    character(len=4) :: varName3d(inbrvar3d),varName2d(inbrvar2d)
+    real(8) :: zleg(0:ntrunc,nj_l),zgr(nj_l,max(nlev_M,nlev_T)),zstddev(nkgdim,nj_l)
 
     ! standard file variables
     integer :: ini,inj,ink, inpas, inbits, idatyp, ideet
@@ -782,14 +853,12 @@ CONTAINS
     character(len=12) :: cletiket
     integer :: vfstlir,vfstecr,fstprm,fstinf
 
-    data varName3d/'O3  '/
-    
     call gst_setID(gstID)
     call gst_zlegpol(zleg)
 
     rgsig(:,:) = 0.0d0
 
-!   2. Reading the data
+!   Reading the data
 
     idate(1) = -1
     ip2      = -1
@@ -798,32 +867,35 @@ CONTAINS
     cletiket = 'SPSTDDEV'
     cltypvar = 'X'
 
-    ! check if file is old format
+    ! Check if file is old format
+    
     ip1 = -1
-    clnomvar = varName3d(1)
+    clnomvar = varNameList(1) 
     ikey = fstinf(nulbgst,inix,injx,inkx,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
     write(*,*) 'ini,inj,ink=',inix,injx,inkx
     if(inix.gt.1) then
       write(*,*) 'BCHM_RDSPSTD_NEWFMT: ini>1, SPSTDDEV is in old format, calling BCHM_RDSPSTD...'
-      call bchm_rdspstd
+      call BCHM_rdspstd
       return
     endif
 
-    !write(*,*) 'Reading 3D variables'
-    do jvar = 1, inbrvar3d
-      clnomvar = varName3d(jvar)
-      if(vnl_varTypeFromVarName(clnomvar).eq.'MM') then
-        nlev_MT = nlev_M
-      else
-        nlev_MT = nlev_T
-      endif
-      !write(*,*)'Reading ',clnomvar
+    ! write(*,*) 'Reading for 3D and 2D variables'
+    
+    do jvar = 1,numvar3d+numvar2d
+      clnomvar=varNameList(jvar)
+      nlev_MT=nsposit(jvar+1)-nsposit(jvar)
+
+      !write(*,*) 'Reading ',clnomvar
+
       do jlevo = 1, nlev_MT
-        if(vnl_varTypeFromVarName(clnomvar).eq.'MM') then
+        if (nlev_MT.eq.1) then
+           ip1=-1
+        else if(vnl_varTypeFromVarName(clnomvar).eq.'MM') then
           ip1 = vco_anl%ip1_M(jlevo)
         else
           ip1 = vco_anl%ip1_T(jlevo)
         endif
+        
         ikey = fstinf(nulbgst,inix,ntrunc_file,inkx,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
         ntrunc_file = ntrunc_file-1
 
@@ -844,37 +916,29 @@ CONTAINS
 
       call zleginv2(zgr(:,1:nlev_MT),zsp(:,1:nlev_MT),zleg,ntrunc,nj_l,nlev_MT,nj_l,nlev_MT,ntrunc)
 
-      if(clnomvar .eq. 'O3') then
-        do jlat = 1, nj_l
-          do jlevo = 1, nlev_T
-            rgsigo3(jlat,jlevo) = zgr(jlat,jlevo)
-          enddo
-        enddo
-      endif
+      rgsig(1:nj_l,nsposit(jvar):nsposit(jvar+1)-1)= zgr(1:nj_l,1:nlev_MT)
 
     enddo
 
   END SUBROUTINE BCHM_RDSPSTD_NEWFMT
-
-   SUBROUTINE BCHM_SUCORNS2
+!-----------------------------------------------------------------------------------------------
+  SUBROUTINE BCHM_SUCORNS2
     implicit none
 
     real(8) :: eigenval(nkgdim), eigenvec(nkgdim,nkgdim),result(nkgdim,nkgdim)
     real(8) :: eigenvalsqrt(nkgdim)
 
-    integer :: jlat,jn,jk1,jk2,jk3,jr
-    integer :: ilwork,info,klatPtoT
+    integer :: jlat,jn,jk1,jk2,jk3,jr,jvar
+    integer :: ilwork,info,jnum
     integer :: ikey, nsize
 
     real(8) :: zwork(2*4*nkgdim)
-    real(8) :: ztt(nlev_T,nlev_T,(ntrunc+1)),ztpsi(nlev_T,nlev_M,(ntrunc+1))
-    real(8) :: ztlen,zcorr,zr,zpres1,zpres2
-    real(8) :: zfact,zfact2,zcoriolis
-    real(8) :: zpsi(nlev_M,nlev_M),zfacttb(nj_l,nlev_T),zfactpsb(nj_l)
+    real(8) :: ztlen,zcorr,zr,zpres1,zpres2,eigenvalmax
     real(8),allocatable :: corns_temp(:,:,:)
     logical :: lldebug
-
-    ! standard file variables
+    integer iulcorvert
+    
+    ! Standard file variables
     integer :: ini,inj,ink, inpas, inbits, idatyp, ideet
     integer :: ip1,ip2,ip3,ig1,ig2,ig3,ig4,iswa,ilength,idltf
     integer :: iubc,iextr1,iextr2,iextr3,ierr,ipak,ipas,ntrials
@@ -888,51 +952,193 @@ CONTAINS
 
     lldebug = .false.
 
+    ! Apply vertical localization to correlations of 3D fields.
+    ! Currently assumes no-cross correlations for variables (block diagonal matrix)
+    
+    do jvar = 1,numvar3d
+        ztlen = rvloc(jvar)    ! specify length scale (in units of ln(Pressure))
+        
+        jnum=nsposit(jvar+1)-nsposit(jvar)
+        
+        if(ztlen.gt.0.0d0) then
+           ! calculate 5'th order function (from Gaspari and Cohn)
+           do jk1 = 1,jnum
+              zpres1 = log(pressureProfile_T(jk1))
+              do jk2 = 1,jnum
+                 zpres2 = log(pressureProfile_T(jk2))
+                 zr = abs(zpres2 - zpres1)
+                 zcorr = gasparicohn(ztlen,zr)
+                 corns(nsposit(jvar)-1+jk1,nsposit(jvar)-1+jk2,0:ntrunc)= &
+                       corns(nsposit(jvar)-1+jk1,nsposit(jvar)-1+jk2,0:ntrunc)*zcorr  
+              enddo
+           enddo
+         endif
+    enddo
 
+    ! Compute total vertical correlations and its inverse (currently for each block matrix).
 
-    ztlen = rvloctr    ! specify length scale (in units of ln(Pressure))
-    if(ztlen.gt.0.0d0) then
-      ! calculate 5'th order function (from Gaspari and Cohn)
-      do jk1 = 1, nlev_T
-        zpres1 = log(pressureProfile_T(jk1))
-        do jk2 = 1, nlev_T
-          zpres2 = log(pressureProfile_T(jk2))
-          zr = abs(zpres2 - zpres1)
-          zcorr = gasparicohn(ztlen,zr)
-          do jn = 0, ntrunc
-            corns(jk1,jk2,jn)  =       &
-                 corns(jk1,jk2,jn)*zcorr  
+    if(mpi_myid == 0) then
+       iulcorvert = 0
+       ierr = fnom(iulcorvert,'corvert_modular_chm.fst','RND',0)
+       ierr = fstouv(iulcorvert,'RND')
+    end if
+    
+    do jvar = 1,numvar3d
+   
+       jnum=nsposit(jvar+1)-nsposit(jvar)
+       
+       corvert(1:jnum,1:jnum,jvar) = 0.0d0
+       do jn = 0, ntrunc
+            corvert(1:jnum,1:jnum,jvar) = corvert(1:jnum,1:jnum,jvar)+ ((2*jn+1)* &
+                corns(nsposit(jvar):nsposit(jvar+1)-1,nsposit(jvar):nsposit(jvar+1)-1,jn))
+       enddo
+       eigenvec(1:jnum,1:jnum)=corvert(1:jnum,1:jnum,jvar)       
+
+       ! CALCULATE EIGENVALUES AND EIGENVECTORS.
+       ilwork = 4*jnum*2
+       call dsyev('V','U',jnum,eigenvec(1:jnum,1:jnum),jnum,eigenval,zwork,ilwork,info)
+       if(info.ne.0) then
+         write(*,*) 'BCHM_sucorns2: non-zero value of info =',info,' returned by dsyev for wavenumber ',jn
+         call abort3d('BCHM_SUCORNS')
+       endif
+      
+       ! Set selected number of eigenmodes to zero
+       if(numModeZero.gt.0) then
+         write(*,*) 'bchm_sucorns2: setting ',numModeZero,' eigenvalues to zero for wavenumber n=',jn
+         write(*,*) 'bchm_sucorns2: original eigenvalues=',eigenval(:)
+         do jk1 = 1, numModeZero
+           eigenval(jk1) = 0.0d0
+         enddo
+         write(*,*) 'bchm_sucorns2: modified eigenvalues=',eigenval(:)
+       endif
+
+       ! E * lambda^{-1}
+       eigenvalmax=maxval(eigenval(1:jnum))
+       do jk1 = 1, jnum
+          if (eigenval(jk1).gt.1.0d-6*eigenvalmax) then
+             result(1:jnum,jk1) = eigenvec(1:jnum,jk1)/eigenval(jk1)
+          else
+             result(1:jnum,jk1)=0.0D0
+          end if
+       enddo
+
+       ! E * lambda^{-1} * E^T
+       corverti(1:jnum,1:jnum,jvar)=0.0D0
+       do jk1 = 1, jnum
+       do jk2 = 1, jnum
+          do jk3 = 1, jnum
+             corverti(jk2,jk1,jvar) = corverti(jk2,jk1,jvar) + result(jk2,jk3)*eigenvec(jk1,jk3)
           enddo
-        enddo
-      enddo
-    endif
+       enddo
+       enddo
 
+       ! Check inverse (for output when mpi_myid is 0)
+       result(1:jnum,1:jnum)=0.0D0
+       do jk1 = 1, jnum
+       do jk2 = 1, jnum
+          do jk3 = 1, jnum
+             result(jk2,jk1) = result(jk2,jk1) + &
+                corvert(jk2,jk3,jvar)*corverti(jk3,jk1,jvar)
+          enddo
+       enddo
+       enddo
 
+       where (abs(corvert(1:jnum,1:jnum,jvar)) .lt. 1.E-3) corvert(1:jnum,1:jnum,jvar)=0.0D0
+       zr=maxval(abs(corverti(1:jnum,1:jnum,jvar)))
+       where (abs(corverti(1:jnum,1:jnum,jvar)) .lt. 1.E-5*zr) corverti(1:jnum,1:jnum,jvar)=0.0D0
+            
+       if(mpi_myid == 0) then
+          ikey = fstinf(NULBGST,ini,inj,ink,-1,'CORRNS',-1,0,-1,' ',varNameList(jvar))
+          ierr = fstprm(ikey,idateo,ideet,inpas,ini,inj,ink, inbits        &
+             ,idatyp,ip1,ip2,ip3,cltypvar,clnomvar,cletiket,clgrtyp      &
+             ,ig1,ig2,ig3,ig4,iswa,ilength,idltf,iubc,iextr1,iextr2      &
+             ,iextr3)
 
+          ini = jnum
+          inj = jnum
+          ink = 1
+          ip1 = 0
+          ip2 = ntrunc
+          ip3 = 0
+          clnomvar = varNameList(jvar)
+          cletiket = 'CORVERT'
+          idatyp = 5
 
+          ierr = vfstecr(corvert(1:jnum,1:jnum,jvar),corvert(1:jnum,1:jnum,jvar) &
+             , -inbits, iulcorvert, idateo    &
+             , ideet,inpas, ini, inj, ink, ip1, ip2, ip3, cltypvar,     &
+             clnomvar,cletiket,clgrtyp,ig1, ig2, ig3, ig4, idatyp,      &
+             .true.)
 
+          cletiket = 'CORVERTI'
+
+          ierr = vfstecr(corverti(1:jnum,1:jnum,jvar),corverti(1:jnum,1:jnum,jvar) &
+             ,  -inbits, iulcorvert, idateo    &
+             , ideet,inpas, ini, inj, ink, ip1, ip2, ip3, cltypvar,     &
+             clnomvar,cletiket,clgrtyp,ig1, ig2, ig3, ig4, idatyp,      &
+             .true.)
+
+          cletiket = 'C*C^-1'
+          
+          ierr = vfstecr(result(1:jnum,1:jnum),result(1:jnum,1:jnum) &
+             ,  -inbits, iulcorvert, idateo    &
+             , ideet,inpas, ini, inj, ink, ip1, ip2, ip3, cltypvar,     &
+             clnomvar,cletiket,clgrtyp,ig1, ig2, ig3, ig4, idatyp,      &
+             .true.)
+
+          if(lldebug) then
+             write(701,*)
+             write(701,*) varNameList(jvar)
+             write(701,*) 'Total correlation matrix'
+             write(701,*) corvert(1:jnum,1:jnum,jvar)
+             write(701,*) 'Inverse'
+             write(701,*) corverti(1:jnum,1:jnum,jvar)
+             write(701,*) 'Product'
+             write(701,*) result(1:jnum,1:jnum)
+          endif
+                     
+       endif
+
+    end do
+    
+    if(mpi_myid == 0) then
+       ierr = fstfrm(iulcorvert)
+       ierr = fclos(iulcorvert)
+    end if
+    
+    ! Following assumes full matrices. It does not take advantage of any block diagonal structure.
+    ! Accounting for block diagonal structures would/might improve computation time.
+    
     ! compute square-root of corns for each total wavenumber
+    
     allocate(corns_temp(nkgdim,nkgdim,0:ntrunc))
     corns_temp(:,:,:)=0.0d0
     do jn = mpi_myid, ntrunc, mpi_nprocs
 
-      do jk1 = 1, nkgdim
-         do jk2 = 1, nkgdim
-            eigenvec(jk2,jk1) = corns(jk2,jk1,jn)
-         enddo
-      enddo
+      eigenvec(1:nkgdim,1:nkgdim) = corns(1:nkgdim,1:nkgdim,jn)
 
       ! CALCULATE EIGENVALUES AND EIGENVECTORS.
       ilwork = 4*nkgdim*2
       call dsyev('V','U',nkgdim,eigenvec,nkgdim,eigenval,zwork,ilwork,info)
       if(info.ne.0) then
-        write(*,*) 'bchm_sucorns2: non-zero value of info =',info,' returned by dsyev for wavenumber ',jn
+        write(*,*) 'BCHM_sucorns2: non-zero value of info =',info,' returned by dsyev for wavenumber ',jn
         call abort3d('BCHM_SUCORNS')
       endif
       
+      ! set selected number of eigenmodes to zero
+      if(numModeZero.gt.0) then
+        write(*,*) 'bchm_sucorns2: setting ',numModeZero,' eigenvalues to zero for wavenumber n=',jn
+        write(*,*) 'bchm_sucorns2: original eigenvalues=',eigenval(:)
+        do jk1 = 1, numModeZero
+          eigenval(jk1) = 0.0d0
+        enddo
+        write(*,*) 'bchm_sucorns2: modified eigenvalues=',eigenval(:)
+      endif
 
+      eigenvalmax=maxval(eigenval(1:jnum))
       do jk1 = 1, nkgdim
-        if(eigenval(jk1).lt.1.0d-15) then
+!        if(eigenval(jk1).lt.1.0d-15) then
+        if(eigenval(jk1).lt.1.0d-8*eigenvalmax) then
           eigenvalsqrt(jk1) = 0.0d0
         else
           eigenvalsqrt(jk1) = sqrt(eigenval(jk1))
@@ -941,18 +1147,16 @@ CONTAINS
 
       ! E * lambda^1/2
       do jk1 = 1, nkgdim
-         do jk2 = 1, nkgdim
-            result(jk2,jk1) = eigenvec(jk2,jk1)*eigenvalsqrt(jk1)
-         enddo
+         result(1:nkgdim,jk1) = eigenvec(1:nkgdim,jk1)*eigenvalsqrt(jk1)
       enddo
 
       ! (E * lambda^1/2) * E^T
       do jk1 = 1, nkgdim
-         do jk2 = 1, nkgdim
-            do jk3 = 1, nkgdim
-              corns_temp(jk2,jk1,jn) = corns_temp(jk2,jk1,jn) + result(jk2,jk3)*eigenvec(jk1,jk3)
-            enddo
+      do jk2 = 1, nkgdim
+         do jk3 = 1, nkgdim
+           corns_temp(jk2,jk1,jn) = corns_temp(jk2,jk1,jn) + result(jk2,jk3)*eigenvec(jk1,jk3)
          enddo
+      enddo
       enddo
 
     enddo ! jn
@@ -961,8 +1165,8 @@ CONTAINS
     call rpn_comm_allreduce(corns_temp,corns,nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
     deallocate(corns_temp)
 
- END SUBROUTINE BCHM_SUCORNS2
-
+  END SUBROUTINE BCHM_SUCORNS2
+!-----------------------------------------------------------------------------------------------
   FUNCTION GASPARICOHN(ztlen,zr)
 
     real(8)  :: gasparicohn
@@ -982,9 +1186,8 @@ CONTAINS
     if(gasparicohn.lt.0.0d0) gasparicohn = 0.0d0
 
   END FUNCTION GASPARICOHN
-
-
- SUBROUTINE BCHM_SPA2GD(hiControlVector_in,gd_out)
+!-----------------------------------------------------------------------------------------------
+  SUBROUTINE BCHM_SPA2GD(hiControlVector_in,gd_out)
     IMPLICIT NONE
 
     real(8) :: hiControlVector_in(nla_mpilocal,2,nkgdim)
@@ -995,11 +1198,9 @@ CONTAINS
     integer :: jn,jm,ila_mpilocal,ila_mpiglobal,icount
     real(8) :: sq2, zp
     real(8) , allocatable :: zsp(:,:,:), zsp2(:,:,:)
-    integer :: ilon, jlev, jlon, jlat, jla_mpilocal, klatPtoT
+    integer :: ilon, jlev, jlon, jlat, jla_mpilocal
     real(8), target  :: gd(myLonBeg:myLonEnd,nkgdim,myLatBeg:myLatEnd)
-    real(8) :: dla2, dl1sa2, zcoriolis, zpsb(myLonBeg:myLonEnd,myLatBeg:myLatEnd)
-
-    klatPtoT = 1
+    real(8) :: dla2, dl1sa2, zpsb(myLonBeg:myLonEnd,myLatBeg:myLatEnd)
 
     call tmg_start(53,'BCHM_SPA2GD1')
 
@@ -1027,7 +1228,7 @@ CONTAINS
       enddo
       if(icount.gt.0) then
 
-  CALL DGEMUL(corns(1,1,jn),nkgdim,'N',zsp(1,1,1),nkgdim,'N',zsp2(1,1,1),nkgdim,nkgdim,nkgdim,2*icount)
+        CALL DGEMUL(corns(1,1,jn),nkgdim,'N',zsp(1,1,1),nkgdim,'N',zsp2(1,1,1),nkgdim,nkgdim,nkgdim,2*icount)
 
         icount = 0
         do jm = mymBeg, mymEnd, mymSkip
@@ -1085,7 +1286,7 @@ CONTAINS
 !$OMP PARALLEL DO PRIVATE(jlat,jlev,jlon)
     do jlat = myLatBeg, myLatEnd
 
-     do jlev = 1, nkgdim
+      do jlev = 1, nkgdim
         do jlon = myLonBeg, myLonEnd
             gd(jlon,jlev,jlat) = gd(jlon,jlev,jlat)*rgsig(jlat,jlev)
         enddo
@@ -1105,8 +1306,8 @@ CONTAINS
 !$OMP END PARALLEL DO
 
   END SUBROUTINE BCHM_SPA2GD
-
-    SUBROUTINE BCHM_SPA2GDAD(gd_in,hiControlVector_out)
+!-----------------------------------------------------------------------------------------------
+  SUBROUTINE BCHM_SPA2GDAD(gd_in,hiControlVector_out)
     implicit none
 
     real(8) :: hiControlVector_out(nla_mpilocal,2,nkgdim)
@@ -1116,18 +1317,17 @@ CONTAINS
 
     integer :: jn, jm, ila_mpilocal, ila_mpiglobal, icount
     real(8) :: sq2, zp
-    real(8) ,allocatable :: zsp(:,:,:), zsp2(:,:,:)
+    real(8), allocatable :: zsp(:,:,:), zsp2(:,:,:)
 
-    integer :: ilon, jlev, jlon, jlat, jla_mpilocal, klatPtoT
-    real(8) :: dl1sa2, dla2, zcoriolis, zpsb(myLonBeg:myLonEnd,myLatBeg:myLatEnd)
+    integer :: ilon, jlev, jlon, jlat, jla_mpilocal
+    real(8) :: dl1sa2, dla2, zpsb(myLonBeg:myLonEnd,myLatBeg:myLatEnd)
     real(8), target :: gd(myLonBeg:myLonEnd,nkgdim,myLatBeg:myLatEnd)
 
 
 !$OMP PARALLEL DO PRIVATE(JLAT,JLEV,JLON)
     do jlat = myLatBeg, myLatEnd
       do jlev = 1, nkgdim
-        do jlon = myLonBeg, myLonEnd
-                                                      
+        do jlon = myLonBeg, myLonEnd                                                      
           gd(jlon,jlev,jlat) = gd_in(jlon,jlev,jlat)
         enddo
       enddo
@@ -1178,7 +1378,7 @@ CONTAINS
 
       if(icount.gt.0) then
 
-       CALL DGEMUL(corns(1,1,jn),nkgdim,'T',zsp2(1,1,1),nkgdim,'N',zsp(1,1,1),nkgdim,nkgdim,nkgdim,2*icount)
+        CALL DGEMUL(corns(1,1,jn),nkgdim,'T',zsp2(1,1,1),nkgdim,'N',zsp(1,1,1),nkgdim,nkgdim,nkgdim,2*icount)
 
         icount = 0
         do jm = mymBeg, jn, mymSkip
@@ -1213,7 +1413,7 @@ CONTAINS
     call tmg_stop(53)
 
   END SUBROUTINE BCHM_SPA2GDAD
- 
+!----------------------------------------------------------------------------------------------- 
   SUBROUTINE BCHM_cainAd(hiControlVector_in,controlVector_out)
     IMPLICIT NONE
 
@@ -1246,19 +1446,21 @@ CONTAINS
     enddo
 
   END SUBROUTINE BCHM_cainAd
-
-
+!-----------------------------------------------------------------------------------------------
   SUBROUTINE BCHM_Finalize()
     implicit none
 
-    deallocate(pressureProfile_M)
-    deallocate(pressureProfile_T)
-    deallocate(rgsig)
-    deallocate(corns)
-    deallocate(rstddev)
+    if(initialized) then
+       deallocate(pressureProfile_M)
+       deallocate(pressureProfile_T)
+       deallocate(rgsig)
+       deallocate(corns)
+       deallocate(rstddev)
+       deallocate(corvert,corverti)
+    end if
 
   END SUBROUTINE BCHM_Finalize
-
+!-----------------------------------------------------------------------------------------------
   SUBROUTINE BCHM_reduceToMPILocal(cv_mpilocal,cv_mpiglobal,cvDim_mpilocal_out)
     implicit none
     real(8) :: cv_mpilocal(cvDim_mpilocal)
@@ -1266,6 +1468,8 @@ CONTAINS
     integer :: cvDim_mpilocal_out
 
     integer :: jlev,jn,jm,ila_mpilocal,ila_mpiglobal,jdim_mpilocal,jdim_mpiglobal
+
+    if(.not. initialized) return
 
     cvDim_mpilocal_out = cvDim_mpilocal
 
@@ -1312,7 +1516,7 @@ CONTAINS
     enddo
 
   END SUBROUTINE BCHM_reduceToMPILocal
-
+!-----------------------------------------------------------------------------------------------
   SUBROUTINE BCHM_expandToMPIGlobal(cv_mpilocal,cv_mpiglobal,cvDim_mpiglobal_out)
     implicit none
     real(8) :: cv_mpilocal(cvDim_mpilocal)
@@ -1324,6 +1528,8 @@ CONTAINS
     integer, allocatable :: allnBeg(:),allnEnd(:),allnSkip(:)
     integer, allocatable :: allmBeg(:),allmEnd(:),allmSkip(:)
     integer :: jlev, jn, jm, jproc, ila_mpiglobal, jdim_mpilocal, jdim_mpiglobal, ierr, cvDim_maxmpilocal
+
+    if(.not. initialized) return
 
     cvDim_mpiglobal_out = cvDim_mpiglobal
 
@@ -1423,7 +1629,7 @@ CONTAINS
     if(mpi_myid.eq.0) deallocate(cv_allmaxmpilocal)
 
   end SUBROUTINE BCHM_expandToMPIGlobal
-
+!-----------------------------------------------------------------------------------------------
   SUBROUTINE ZLEGINV(PF,PN,PLEG,DDWT,KTRUNC,KNJ,KLEV,KNJDIM,KLEVDIM,KNDIM)
 !***s/r ZLEGINV  - Direct Legendre transform restricted to
 !*     .           fields that vary with latitude only
@@ -1461,6 +1667,7 @@ CONTAINS
       DEALLOCATE(ZWORK)
 
   END SUBROUTINE ZLEGINV
+!-----------------------------------------------------------------------------------------------
   SUBROUTINE ZLEGINV2(PF,PN,PLEG,KTRUNC,KNJ,KLEV,KNJDIM,KLEVDIM,KNDIM)
 !***s/r ZLEGINV2  - Direct Legendre transform restricted to
 !*     .            fields that vary with latitude only
@@ -1496,7 +1703,7 @@ CONTAINS
       DEALLOCATE(ZWORK)
 
   END SUBROUTINE ZLEGINV2
-
+!-----------------------------------------------------------------------------------------------
   SUBROUTINE ZLEGDIR(PF,PN,PLEG,DDWT,KTRUNC,KNJ,KLEV,KNJDIM,KLEVDIM,KNDIM)
 !**s/r ZLEGDIR  - Direct Legendre transform restricted to
 !
@@ -1532,7 +1739,88 @@ CONTAINS
       DEALLOCATE(ZWORK)
 
   END SUBROUTINE ZLEGDIR
+!-----------------------------------------------------------------------------------------------
+  Subroutine bchm_corvert_mult(varName,rmat_in,ndim1,ndim2,rmat_out,itype)
+!
+! Purpose: Multiplication with local matrix C=corvert (itype>0) or CI=corverti (itype<0).
+!
+!          Given A=rmat_in (=input)
+!
+!          itype       Output
+!          -----       ------
+!            1          A*C
+!            2          C*A
+!           -1          A*CI
+!           -2          CI*A
+!
+! Author: Y.J. Rochon, ARQI/AQRD, Mar 2015
+!
+! Revisions:
+!
+! Comments:
+!
+! (A) corverti is the inverse of corvert.
+!
+!-----------------------------------------------------------------------------------------------
+    implicit none
+    character(len=*), intent(in) :: varName
+    integer, intent(in) :: ndim1,ndim2,itype
+    real(8), intent(in) :: rmat_in(ndim1,ndim2)
+    real(8), intent(out) :: rmat_out(ndim1,ndim2)
+   
+    integer :: jvar,jk1,jk2,jk3,nsize
+     
+!   Determine location in corvert/corverti
+    
+    do jvar=1,numvar3d+numvar2d
+       if (trim(varName).eq.trim(varNameList(jvar))) exit
+    end do
+    if  (jvar.gt.numvar3d+numvar2d) call abort3d('BCHM_corvert_mult: Variable not found')
+    
+    nsize=nsposit(jvar+1)-nsposit(jvar)
+    rmat_out(1:ndim1,1:ndim2)=0.0d0
 
-
-
+!   Apply matrix/vector multiplication.
+    
+    if (itype.eq.2) then
+       if (ndim1.le.nsize) call abort3d('BCHM_corvert_mult: Size does not match - 1')
+       do jk1=1,nsize
+       do jk2=1,ndim2
+          do jk3=1,nsize
+             rmat_out(jk1,jk2)=rmat_out(jk1,jk2)+corvert(jk1,jk3,jvar)*rmat_in(jk3,jk2)
+          end do
+       end do
+       end do
+    else if (itype.eq.-2) then
+       if (ndim1.le.nsize) call abort3d('BCHM_corvert_mult: Size does match - 2')
+       do jk1=1,nsize
+       do jk2=1,ndim2
+          do jk3=1,nsize
+             rmat_out(jk1,jk2)=rmat_out(jk1,jk2)+corverti(jk1,jk3,jvar)*rmat_in(jk3,jk2)
+          end do
+       end do
+       end do
+    else if (itype.eq.1) then
+       if (ndim2.le.nsize) call abort3d('BCHM_corvert_mult: Size does not match - 3')
+       do jk1=1,ndim1
+       do jk2=1,nsize
+          do jk3=1,nsize
+             rmat_out(jk1,jk2)=rmat_out(jk1,jk2)+rmat_in(jk1,jk3)*corvert(jk3,jk2,jvar)
+          end do
+       end do
+       end do
+    else if (itype.eq.-11) then
+       if (ndim2.le.nsize) call abort3d('BCHM_corvert_mult: Size does not match - 4')
+       do jk1=1,ndim1
+       do jk2=1,nsize
+          do jk3=1,nsize
+             rmat_out(jk1,jk2)=rmat_out(jk1,jk2)+rmat_in(jk1,jk3)*corverti(jk3,jk2,jvar)
+          end do
+       end do
+       end do
+    else
+       call abort3d('BCHM_corvert_mult: Requested type not found')
+    end if
+   
+  end subroutine bchm_corvert_mult  
 END MODULE BmatrixChem
