@@ -745,6 +745,8 @@ end subroutine oda_HTto
 !*Revisions:
 !          Y.J. Rochon, ARQI/AQRD. Mar 2015
 !          - Initial revision.
+!          M. Sitwell, ARQI/AQRD Mar 2015
+!          - Re-organized to pass entire profiles to chm_obsoperators
 !
 !**   Purpose: Compute Ht*grad(Jo) for all CH observations
 !
@@ -757,22 +759,24 @@ end subroutine oda_HTto
 
     ! Local variables
     
-    integer :: jl,icount
-    real(8) :: zinc,zomp,jobs
-    logical :: success    
-    integer :: nflev
+    integer :: jl
+    real(8) :: zomp,jobs
     
     ! Obs space local variables
     
     character(len=4)  :: varName
     character(len=12) :: cstnid
     integer :: headerIndex,bodyIndex,bodyIndexCount
-    integer :: ivnm, ivco, ixtr, iass, kmode
+    integer :: ivnm, ivco, kmode, varno
     integer :: icodtyp, iobslev, nobslev
     integer :: isunza,idate,ihhmm
     integer :: iconstituent_id
-    real(8) :: zobslev,zlat,zlon
+    real(8) :: zlat,zlon
     real(8) :: zerr 
+
+    integer, allocatable :: ixtr(:), iass(:)
+    real(8), allocatable :: zobslev(:),zinc(:)
+    logical, allocatable :: success(:)
 
     real(8), pointer :: chm_column(:)
 
@@ -781,20 +785,20 @@ end subroutine oda_HTto
     character(len=2)   :: varType
     real(8), allocatable :: zppb(:),zvalb(:),zttb(:),zvalinc_adj(:)
     real(8), pointer :: col_ptr_gzb(:)
+    integer :: nflev
     
     ! WRITE(*,*)'ENTER oda_HTchm'
    
     ! Initializations
 
+    kmode = 3 !  for adjoint of the tangent linear operator    
     varType = 'TH'
     NFLEV  = col_getNumLev(lcolumng,'TH')
 
     allocate(zvalb(nflev))
     allocate(zttb(nflev))
     allocate(zppb(nflev))
-    allocate(zvalinc_adj(nflev))
-    
-    kmode = 3 !  for adjoint of the tangent linear operator
+    allocate(zvalinc_adj(nflev))  
     
     ! Loop over all header indices of the 'CH' family:
     
@@ -807,22 +811,46 @@ end subroutine oda_HTto
 
       if (icodtyp.ne.codtyp_chemremote.and.icodtyp.ne.codtyp_cheminsitu) cycle HEADER
 
-      ! Identify max number of profile points in the profile (exclude 8090 elements)
-      
-      nobslev = obs_headElem_i(lobsSpaceData,OBS_NLV,headerIndex)
-      bodyIndex =obs_headElem_i(lobsSpaceData,OBS_RLN,headerIndex)
+      ! Get obs space info that are part of the profile header
+      cstnid    = obs_elem_c(lobsSpaceData,'STID',headerIndex)
+      nobslev   = obs_headElem_i(lobsSpaceData,OBS_NLV,headerIndex)
+      idate     = obs_headElem_i(lobsSpaceData,OBS_DAT,headerIndex)
+      ihhmm     = obs_headElem_i(lobsSpaceData,OBS_ETM,headerIndex)
+      isunza    = obs_headElem_i(lobsSpaceData,OBS_SUN,headerIndex)
+      iconstituent_id = obs_headElem_i(lobsSpaceData,OBS_CHM,headerIndex)
+      zlat = obs_headElem_r(lobsSpaceData,OBS_LAT,headerIndex) * MPC_DEGREES_PER_RADIAN_R8
+      zlon = obs_headElem_r(lobsSpaceData,OBS_LON,headerIndex) * MPC_DEGREES_PER_RADIAN_R8
+
+      ! Body info that we only need for first point in the profile
+      bodyIndex = obs_headElem_i(lobsSpaceData,OBS_RLN,headerIndex)     
+      ivco      = obs_bodyElem_i(lobsSpaceData,OBS_VCO,bodyIndex)
+      varno     = obs_bodyElem_i(lobsSpaceData,OBS_VNM,bodyIndex)
+      varName = vnl_varnameFromVarnum(obs_bodyElem_i(lobsSpaceData,OBS_VNM,bodyIndex), iconstituent_id)
+
+      ! Identify max number of profile points in the profile (exclude 8090 elements)      
       do jl=0,obs_headElem_i(lobsSpaceData,OBS_NLV,headerIndex)-1
           if (obs_bodyElem_i(lobsSpaceData,OBS_VNM,bodyIndex+jl).eq.8090) nobslev = nobslev-1
       end do
 
+      ! Allocate memory for profile data
+      allocate(ixtr(nobslev), iass(nobslev))
+      allocate(zobslev(nobslev), zinc(nobslev))
+      allocate(success(nobslev))
+
+      ! Get local vector states (trial/background column data at observation location)
+      do jl = 1, nflev
+         zppb(jl) = col_getPressure(lcolumng,jl,headerIndex, varType)
+         zvalb(jl) = col_getElem(lcolumng,jl,headerIndex,varName)
+         zttb(jl) = col_getElem(lcolumng,jl,headerIndex,'TT')
+      enddo
+      col_ptr_gzb => col_getColumn(lcolumng,headerIndex,'GZ','TH')
+
       ! Initialize Ht*grad to zero
-      
       zvalinc_adj(:) = 0.0
 
       ! Loop over all body indices (profile elements) for this report
       
       iobslev=0
-      icount=0
       call obs_set_current_body_list(lobsSpaceData,headerIndex)
       BODY: do
         bodyIndex = obs_getBodyIndex(lobsSpaceData)
@@ -833,70 +861,40 @@ end subroutine oda_HTto
         ivnm = obs_bodyElem_i(lobsSpaceData,OBS_VNM,bodyIndex)
         if (ivnm.ne.08090) then
            iobslev=iobslev+1
+           varno=ivnm   ! varno/ivnm is expected to be the same for all profile points with ivnm.ne.8090
         else
            cycle BODY
         end if
 
-        ixtr = obs_bodyElem_i (lobsSpaceData,OBS_XTR,bodyIndex)
-        iass = obs_bodyElem_i(lobsSpaceData,OBS_ASS,bodyIndex)
-
-        if (ixtr.ne.0.or.iass.ne.1) cycle BODY
-
-        icount=icount+1
-
-        ! Get data that only needs to be read once for each obs profile
-        if (icount.eq.1) then
-
-           ! Get obs space info that are part of the profile header
-
-           cstnid  = obs_elem_c(lobsSpaceData,'STID',headerIndex)
-           idate  = obs_headElem_i(lobsSpaceData,OBS_DAT,headerIndex)
-           ihhmm  = obs_headElem_i(lobsSpaceData,OBS_ETM,headerIndex)
-           isunza  = obs_headElem_i(lobsSpaceData,OBS_SUN,headerIndex)
-           iconstituent_id=obs_headElem_i(lobsSpaceData,OBS_CHM,headerIndex)
-
-           varName = vnl_varnameFromVarnum(ivnm,iconstituent_id)
-           ivco = obs_bodyElem_i(lobsSpaceData,OBS_VCO,bodyIndex)
-           zerr = obs_bodyElem_r(lobsSpaceData,OBS_OER,bodyIndex)
-
-           ! Get observation coordinates
-
-           zlat = obs_headElem_r(lobsSpaceData,OBS_LAT,headerIndex) * MPC_DEGREES_PER_RADIAN_R8
-           zlon = obs_headElem_r(lobsSpaceData,OBS_LON,headerIndex) * MPC_DEGREES_PER_RADIAN_R8
-
-
-           ! Get local vector states (trial/background column data at observation location)
-
-           do jl = 1, nflev
-              zppb(jl) = col_getPressure(lcolumng,jl,headerIndex, varType)
-              zvalb(jl) = col_getElem(lcolumng,jl,headerIndex,varName)
-              zttb(jl) = col_getElem(lcolumng,jl,headerIndex,'TT')
-           enddo
-           col_ptr_gzb => col_getColumn(lcolumng,headerIndex,'GZ','TH')
-
-        end if
+        ixtr(iobslev) = obs_bodyElem_i (lobsSpaceData,OBS_XTR,bodyIndex)
+        iass(iobslev) = obs_bodyElem_i(lobsSpaceData,OBS_ASS,bodyIndex)
 
         ! Get vertical coordinate data. Valid for point data values in profiles.
         ! For layer data values, vertical coordinate data will instead be assigned within chm_obsoperators.
 
-        zobslev = obs_bodyElem_r(lobsSpaceData,OBS_PPP,bodyIndex)
+        zobslev(iobslev) = obs_bodyElem_r(lobsSpaceData,OBS_PPP,bodyIndex)
 
         ! Get normalized increment
-           
-        zinc = -obs_bodyElem_r(lobsSpaceData,OBS_WORK,bodyIndex)
 
-        ! Produce Ht*grad(Index_header) contribution (zvalinc_adj) 
+        zinc(iobslev) = -obs_bodyElem_r(lobsSpaceData,OBS_WORK,bodyIndex)
+
+      enddo BODY
+
+      ! Produce Ht*grad(Index_header) contribution (zvalinc_adj) 
           
-        call chm_obsoperators(nflev,zvalinc_adj,zvalb,zttb,zppb,col_ptr_gzb,kmode,varName,&
-              ivnm,cstnid,idate,ihhmm,ivco,nobslev,icount,iobslev,zobslev,zlat,zlon, &
-              iconstituent_id,success,zinc)
-                                                 
-      ENDDO BODY
-
+      call chm_obsoperators(nflev,zvalinc_adj,zvalb,zttb,zppb,col_ptr_gzb,kmode,varName,&
+           varno,cstnid,idate,ihhmm,ivco,nobslev,zobslev,ixtr,iass,zlat,zlon, &
+           iconstituent_id,success,zinc)
+                                            
       ! Store Ht*grad(Index_header) in COMMVO
-        
+      
       chm_column => col_getColumn(lcolumn,headerIndex,varName)
       chm_column(1:nflev) = zvalinc_adj(1:nflev)
+
+      ! Deallocate profile data
+      deallocate(ixtr,iass)
+      deallocate(zobslev,zinc)
+      deallocate(success)
 
     ENDDO HEADER
 

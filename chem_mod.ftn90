@@ -171,7 +171,6 @@ module chem_mod
   type(struct_chm_info) :: chm_layers
   type(struct_chm_info) :: chm_avgkern
   type(struct_chm_std)  :: chm_std
-  type(struct_chm_obsoperators) :: chm_obsoper
 
 contains
 
@@ -359,7 +358,7 @@ contains
 
 !-----------------------------------------------------------------------------------------
 
-  subroutine chm_get_layer_boundaries(cstnid,ivnm,ivco,nlev,default_top,default_bottom,lfound,layertop,layerbottom)
+  subroutine chm_get_layer_boundaries(cstnid,varno,ivco,nlev,default_top,default_bottom,lfound,layertop,layerbottom)
 !
 ! Author  : M. Sitwell, Y. Rochon, Feb 2015
 ! Revision: 
@@ -371,7 +370,7 @@ contains
 !
 ! Inputs:
 !   - cstnid          station id
-!   - ivnm            BUFR descriptor element
+!   - varno           BUFR descriptor element
 !   - ivco            type of vertical coordinate (see burp_read_mod.ftn90 for definitions)
 !   - nlev            number of levels in the observation
 !   - default_top     default value for top layer for total column measurement
@@ -386,7 +385,7 @@ contains
     implicit none
 
     character(len=12), intent(in) :: cstnid
-    integer, intent(in)           :: ivnm,ivco,nlev
+    integer, intent(in)           :: varno,ivco,nlev
     real(8), intent(in)           :: default_top,default_bottom
     real(8), intent(out)          :: layertop(nlev),layerbottom(nlev)
     logical, intent(inout)        :: lfound
@@ -410,7 +409,7 @@ contains
        ! If number of levels is one and no vertical coordinate provided in the obs file (i.e. IVCO=4;
        ! as for a total column measurement), then check of vertical coordinate type is disregarded.
        IF (iset) THEN
-          IF ( ivnm.EQ.chm_layers%bfr(JN) .AND. NLEV.EQ.chm_layers%n_lvl(JN) .AND. &
+          IF ( varno.EQ.chm_layers%bfr(JN) .AND. NLEV.EQ.chm_layers%n_lvl(JN) .AND. &
               (IVCO.EQ.chm_layers%vco(JN).OR.IVCO.EQ.4) ) THEN
              ISTNID=JN
              exit
@@ -419,7 +418,7 @@ contains
        
     END DO
 
-    IF ( ISTNID.EQ.0 .AND. chm_checkfor_integlayer(ivnm) ) THEN
+    IF ( ISTNID.EQ.0 .AND. chm_checkfor_integlayer(varno) ) THEN
        ! If integrated layer information not found
        if (nlev.eq.1) then
           lfound=.true.
@@ -1234,22 +1233,24 @@ contains
 !--------------------------- Routines for observation operators ----------------------------
 
   subroutine chm_obsoperators(n_modlvl,rvalinc,rval,rtt,pressmodlvl,rgz,kmode,varName, &
-                ivnm,cstnid,idate,ihhmm,ivco,nobslev,icount,iobslev, &
-                robslev,rlat,rlon,iconstituent_id,success,rmhx)
+                varno,cstnid,idate,ihhmm,ivco,nobslev, &
+                robslev,ixtr,iass,rlat,rlon,iconstituent_id,success,rmhx)
 !
 ! Author  : Y. Rochon, ARQI/AQRD, Feb 2015
 !
 ! Revision: 
-!           Ping Du, CDMA,Jan 2015
-!           - Adapted for the EnVar
 !           Y. Rochon, ARQI/AQRD, Feb. 2015
 !           - Modifications of adaptations and update of BUFR elements
+!           Ping Du, Mar 2015
+!           - Finalization of Ht*grad contribution (case(3))
+!           M. Sitwell, ARQI/AQRD, Mar 2015
+!           - Modified to calculate whole profile within a single call
 !
 ! Purpose: Apply obs operator for indicated obs data. 
 !
 !          Usable as
 !
-!                 - general (non-linear) simulation operator (kmode=0)
+!                 - general (potentially non-linear) simulation operator (kmode=0)
 !                 - tangent linear operator for error std. dev. conversion (kmode=1)
 !                 - tangent linear operator (kmode=2)
 !                 - Linear adjoint operator (kmode=3)
@@ -1266,33 +1267,37 @@ contains
 !
 !   Input (to be completed)
 !
-!     ivnm      BUFR descriptor element for obs units.
-!     rvalinc   Increment, trial field, or sigma column when kmode<3.
-!               Expected to be equal to rval when kmode=0
+!     varno     BUFR descriptor element for obs units.
 !     rval      Trial field column 
 !     rtt       Temperature array (Kelvin)
 !     rpp       Pressure array (Pascal; kg/(m s^2))
 !     rgz       Geopotential altitudes (for conversion of obs altitudes to pressure when needed)
+!          
 !     kmode     0 for non-linear model in assimilation
 !               1 for tangent linear model applied for error std.dev. conversion
 !               2 for tangent linear model
 !               3 for adjoint model 
 !   
-!   Output (to be completed)
+!   Inout (to be completed)
 !
-!     rmhx      H(x) element value when kmode=0.
-!               Hsigma Converted error std. dev. estimate  when kmode=1.
-!               Hx increment element value when kmode=2.
-!               Not relevant when kmode=3. 
-!     rvalinc   Adjoint product when kmode=3. Not changed otherwise.
+!     rmhx      H(x) element value when kmode=0 (out).
+!               Hsigma Converted error std. dev. estimate  when kmode=1 (out).
+!               Hx increment element value when kmode=2 (out).
+!               R**-1 (Hdx-d) when kmode=3 (in).
+!
+!     rvalinc   Increment, trial field, or sigma column when kmode<3 (in).
+!               Expected to be equal to rval when kmode=0
+!               Adjoint product when kmode=3 (out).
 !
 !     rval      Scaled or transformed analysis field on increment/analysis grid
 !               (only when kmode=2; used as work array only)
 !
+!     success   Indicates if the observation was successfully assimilated
+!
 ! Comments:
 !
 !     A. Does not account for potential future applications of obs 
-!        vertical correlation matrices that would be applied when iobslev=nobslev.
+!        vertical correlation matrices.
 !        
 !-------------------------------------------------------------------------------------------
   implicit none
@@ -1303,105 +1308,101 @@ contains
     
   character(len=*), intent(in) :: varName
   character(len=*), intent(in) :: cstnid
-  integer, intent(in) :: ivnm, ivco, kmode 
-  integer, intent(in) :: iobslev, nobslev
+  integer, intent(in) :: varno, ivco, kmode 
+  integer, intent(in) :: nobslev
   integer, intent(in) :: idate,ihhmm
-  integer, intent(in) :: iconstituent_id,icount
-  real(8), intent(in) :: robslev,rlat,rlon
-  logical, intent(out) :: success
+  integer, intent(in) :: iconstituent_id,ixtr(nobslev),iass(nobslev)
+  real(8), intent(in) :: robslev(nobslev),rlat,rlon
+  logical, intent(out) :: success(nobslev)
 
 ! I/O arguments: model space profile data and others
     
   integer, intent(in) :: n_modlvl
   real(8), intent(in) :: pressmodlvl(n_modlvl)
   real(8), intent(in) :: rtt(n_modlvl),rgz(n_modlvl)
-  real(8), intent(inout) :: rval(n_modlvl),rvalinc(n_modlvl),rmhx
+  real(8), intent(inout) :: rval(n_modlvl),rvalinc(n_modlvl), rmhx(nobslev)
+
+! Structure to hold observation operator information
+
+  type(struct_chm_obsoperators) :: chm_obsoper
 
 ! Local variables
   
-  real(8) :: vlayertop,vlayerbot,vpressure
-  
-! Initialization: steps to be applied once per profile
+  real(8) :: vpressure,zwork(n_modlvl)
+  integer :: iobslev
 
-  if (icount.eq.1) then
+! Allocate memory for chm_obsoper
+  allocate(chm_obsoper%modelvarcolumn(n_modlvl))
+  allocate(chm_obsoper%vlayertop(nobslev))
+  allocate(chm_obsoper%vlayerbottom(nobslev))
+  allocate(chm_obsoper%vh(n_modlvl,n_modlvl))
+  allocate(chm_obsoper%zh(nobslev,n_modlvl))
+  allocate(chm_obsoper%zhp(nobslev,n_modlvl))
+  allocate(chm_obsoper%vmodpress(n_modlvl+1))
 
-!    Set work array to hold increment/trial profiles with needed unit (kmode.ne.3) or
-!    output for adjoint contribution (kmode=3)
+! Initialize to zero 
+  chm_obsoper%modelvarcolumn(:)=0.0     
+  chm_obsoper%vh(:,:)=0.0D0
+  chm_obsoper%zh(:,:)=0.0D0
+  chm_obsoper%zhp(:,:)=0.0D0
 
-     if (allocated(chm_obsoper%modelvarcolumn)) deallocate(chm_obsoper%modelvarcolumn)
-     allocate(chm_obsoper%modelvarcolumn(n_modlvl))
-     chm_obsoper%modelvarcolumn(:)=0.0
-
-!    Apply unit conversion (apply later - near end of chm_*_operator routines - when kmode=3)
-     
-     if (kmode.eq.3) then
-         rvalinc(:)=0.0
+! Initialize success of calculation
+  do iobslev=1,nobslev
+     if (ixtr(iobslev).ne.0.or.iass(iobslev).ne.1) then
+        success(iobslev)=.false.
      else
-        call chm_convert(n_modlvl,rvalinc,rval,rtt,pressmodlvl,ivnm,kmode)
+        success(iobslev)=.true.
      end if
-       
-!    Determine if layer boundaries are assigned to this data source.
-!    If so, obtain them for use in this routine. 
-!    Provides chm_obsoper%layer_identified,
-!             chm_obsoper%vlayertop(nobslev), 
-!             chm_obsoper%vlayerbottom(nobslev) 
-!
- 
-     if (allocated(chm_obsoper%vlayertop))   &
-         deallocate(chm_obsoper%vlayertop,chm_obsoper%vlayerbottom)
-     allocate(chm_obsoper%vlayertop(nobslev))
-     allocate(chm_obsoper%vlayerbottom(nobslev))
+  end do
 
-     call chm_get_layer_boundaries(cstnid,ivnm,ivco,nobslev,pressmodlvl(1), &
-          pressmodlvl(n_modlvl),chm_obsoper%layer_identified,chm_obsoper%vlayertop, &
-          chm_obsoper%vlayerbottom)
-!     chm_obsoper%layer_identified=.false.
-!     if (nobslev.eq.1) then
-!        chm_obsoper%layer_identified=.true.
-!        chm_obsoper%vlayertop(1)=pressmodlvl(1)
-!        chm_obsoper%vlayerbottom(1)=pressmodlvl(n_modlvl)
-!     else  
-!       success=.false.
-!       return
-!     end if
-            
-!    Identify observation operator based on observation units and presence or
-!    not of layer boundaries
-
-     if (chm_checkfor_integlayer(ivnm)) then
-        if (.not.chm_obsoper%layer_identified) then
-           write(*,*)   '----------------------------------------------------------'
-           write(*,*)   'STNID, BUFR_index, nobslev: ',cstnid,' ',ivnm,nobslev
-           call abort3d('chm_obsoperators: Required layer boundaries not available!')
-        else
-           ! Vertical integration operator
-           chm_obsoper%modelIndex=3
-        end if
-     else if (chm_obsoper%layer_identified) then
-        ! Layer averaging operator
-        chm_obsoper%modelIndex=2
-      else
-        ! Vertical interpolation operator
-        chm_obsoper%modelIndex=1
-     end if
-     
+! Apply unit conversion (apply later - near end of chm_*_operator routines - when kmode=3)
+  if (kmode.eq.3) then
+     rvalinc(:)=0.0
+  else
+     call chm_convert(chm_obsoper,n_modlvl,rvalinc,rval,rtt,pressmodlvl,varno,kmode)
   end if
+       
+! Determine if layer boundaries are assigned to this data source.
+! If so, obtain them for use in this routine. 
+! Provides chm_obsoper%layer_identified,
+!          chm_obsoper%vlayertop(nobslev), 
+!          chm_obsoper%vlayerbottom(nobslev) 
+ 
+  call chm_get_layer_boundaries(cstnid,varno,ivco,nobslev,pressmodlvl(1), &
+       pressmodlvl(n_modlvl),chm_obsoper%layer_identified,chm_obsoper%vlayertop, &
+       chm_obsoper%vlayerbottom)
+            
+! Identify observation operator based on observation units and presence or
+! not of layer boundaries
+
+  if (chm_checkfor_integlayer(varno)) then
+     if (.not.chm_obsoper%layer_identified) then
+        write(*,*)   '----------------------------------------------------------'
+        write(*,*)   'STNID, BUFR_index, nobslev: ',cstnid,' ',varno,nobslev
+        call abort3d('chm_obsoperators: Required layer boundaries not available!')
+     else
+        ! Vertical integration operator
+        chm_obsoper%modelIndex=3
+     end if
+  else if (chm_obsoper%layer_identified) then
+     ! Layer averaging operator
+     chm_obsoper%modelIndex=2
+  else
+     ! Vertical interpolation operator
+     chm_obsoper%modelIndex=1
+  end if
+  
 
 ! Convert observation vertical coordinate value(s) to pressure if needed 
 ! and provide values to this routine.
 
 !   if (ivco.ne.2) then 
-!     call chm_convert2pressure(ivco,robslev,chm_obsoper%layer_identified,chm_obsoper%vlayertop(iobslev), &
+!      call chm_convert2pressure(ivco,robslev,chm_obsoper%layer_identified,chm_obsoper%vlayertop(iobslev), &
 !                            chm_obsoper&vlayerbottom(iobslev),vpressure, &
 !                            vlayertop,vlayerbot...)  ! see 3dvar_chem routine ch_vobs_to_p.
 !
 !   else
-       if (chm_obsoper%modelIndex.eq.2.or.chm_obsoper%modelIndex.eq.3) then
-          vlayertop=chm_obsoper%vlayertop(iobslev)
-          vlayerbot=chm_obsoper%vlayerbottom(iobslev)
-       else
-          vpressure=robslev 
-       end if
+!      if (chm_obsoper%modelIndex.ne.2.and.chm_obsoper%modelIndex.ne.3) tvpressure=robslev 
 !   end if
 
 ! Apply appropriate core observation operator
@@ -1424,17 +1425,58 @@ contains
 
 !        Layer integration operator
 
-         call chm_layer_integ_operator(n_modlvl,rvalinc,rval,rtt,pressmodlvl, &
-                kmode,ivnm,icount,nobslev,iobslev,vlayertop,vlayerbot, &
-                iconstituent_id,success,rmhx)
+  call chm_layer_integ_operator(chm_obsoper,n_modlvl,rvalinc,rval,rtt,pressmodlvl, &
+       kmode,varno,nobslev,iconstituent_id,success)
 
 !  end select
+
+
+! Apply averaging kernel if requested
+!
+! if ... call ...
+!
+! Apply generalized innovation operator if requested
+!
+! if ... call ...
+
+! Finalize required quantities depending on kmode
+   
+  select case(kmode)
+
+  case(0,1,2)
+!
+!    Finalize non-linear/linear operator step
+!
+     do iobslev=1,nobslev
+        if (success(iobslev)) then
+           rmhx(iobslev)=dot_product(chm_obsoper%zh(iobslev,:),chm_obsoper%modelvarcolumn(:))
+        end if
+     end do
+     
+  case(3)
+!
+!    Ht*grad contribution from adjoint of tangent linear model.
+!
+     do iobslev=1,nobslev
+        if (success(iobslev)) then
+           zwork(:)= rmhx(iobslev)*chm_obsoper%zh(iobslev,:)
+           call chm_convert(chm_obsoper,n_modlvl,zwork,rval,rtt,pressmodlvl,varno,kmode)
+           rvalinc(:)=rvalinc(:) + chm_obsoper%modelvarcolumn(:)
+        end if
+     end do
+     
+  end select
+
+  ! deallocate chm_obsoper arrays
+  deallocate(chm_obsoper%modelvarcolumn)
+  deallocate(chm_obsoper%vlayertop,chm_obsoper%vlayerbottom)
+  deallocate(chm_obsoper%vh,chm_obsoper%zh,chm_obsoper%zhp,chm_obsoper%vmodpress)
 
   end subroutine chm_obsoperators
 
 !-------------------------------------------------------------------------------------------
 
-  logical function chm_checkfor_integlayer(ivnm)
+  logical function chm_checkfor_integlayer(varno)
 !
 ! Author  : Y. Rochon, ARQI/AQRD, Feb 2015
 !
@@ -1445,11 +1487,11 @@ contains
 ! ---------------------------------------------------------------------------------------
   
   implicit none
-  integer, intent(in) :: ivnm
+  integer, intent(in) :: varno
  
-  if (ivnm.eq.15198.or.ivnm.eq.15001.or.ivnm.eq.15005.or.ivnm.eq.15045.or. &
-      ivnm.eq.15020.or.ivnm.eq.15021.or.ivnm.eq.15200.or. &
-      ivnm.eq.15009.or.ivnm.eq.15012) then
+  if (varno.eq.15198.or.varno.eq.15001.or.varno.eq.15005.or.varno.eq.15045.or. &
+      varno.eq.15020.or.varno.eq.15021.or.varno.eq.15200.or. &
+      varno.eq.15009.or.varno.eq.15012) then
       
       chm_checkfor_integlayer=.true.     
   else
@@ -1460,7 +1502,7 @@ contains
    
 !-------------------------------------------------------------------------------------------
 
-  subroutine chm_convert(ntrlev,rvalinc,rval,rtt,rpp,ivnm,kmode)
+  subroutine chm_convert(chm_obsoper,ntrlev,rvalinc,rval,rtt,rpp,varno,kmode)
 !
 ! Author  : Y. Rochon and Y. Yang, June 2005 to June 2011
 !           - Pre-EnVar version
@@ -1484,7 +1526,7 @@ contains
 !
 !   Input
 !
-!     ivnm      BUFR descriptor element for obs units.
+!     varno     BUFR descriptor element for obs units.
 !     ntrlev    Dimension of rvalinc,rval,rtt,rpp
 !     rvalinc   Increment field or trial field. 
 !     rval      Trial field value. 
@@ -1537,8 +1579,9 @@ contains
   use MathPhysConstants_mod
   
   implicit none
-  integer, intent(in) :: ntrlev,kmode,ivnm
+  integer, intent(in) :: ntrlev,kmode,varno
   real(8), intent(in) :: rtt(ntrlev),rpp(ntrlev),rvalinc(ntrlev)
+  type(struct_chm_obsoperators), intent(inout) :: chm_obsoper
   real(8), intent(inout)  :: rval(ntrlev)
 
 ! Declaration of local variables
@@ -1550,7 +1593,7 @@ contains
 ! assuming model variable is in vmr.
 
   zcoef=1.0
-  select case (ivnm)
+  select case (varno)
      case(15198,15001,15005,15045) 
 !
 !        For conversion of vmr*dP integral to DU
@@ -1624,12 +1667,12 @@ contains
 !        Code to be revised when actually applied for the first time
 !        according to model field units.
 !
-         write(*,*) 'CHM_CONVERT: Obs conversion not yet defined.',ivnm
+         write(*,*) 'CHM_CONVERT: Obs conversion not yet defined.',varno
          call abort3d('CHM_CONVERT')
 !
      case default 
 !
-         write(*,*) 'CHM_CONVERT: Unknown obs units ',ivnm
+         write(*,*) 'CHM_CONVERT: Unknown obs units ',varno
          call abort3d('CHM_CONVERT')
          
   end select
@@ -1638,22 +1681,21 @@ contains
 
 !---------------------------------------------------------------------------------------
 
-  subroutine chm_layer_integ_operator(n_modlvl,rvalinc,rval,rtt,pressmodlvl, &
-                kmode,ivnm,icount,nobslev,iobslev,vlayertop,vlayerbot, &
-                iconstituent_id,success,rmhx)
+  subroutine chm_layer_integ_operator(chm_obsoper,n_modlvl,rvalinc,rval,rtt,pressmodlvl, &
+                kmode,varno,nobslev,iconstituent_id,success)
 !
 ! Author  : Y. Rochon, ARQI/AQRD, Feb 2015 (not completed - remains to be generalized)
 !
 ! Revision: 
-!           Ping Du, Mar 2015
-!           - Finalization of Ht*grad contribution (case(3))
+!           M. Sitwell, ARQI/AQRD, Mar 2015
+!           - Modified to calculate whole profile within a single call
 !
 ! Purpose:  Perform layer integration and calculations according kmode.
 !
 ! Arguments:
 !
 !  Input (to be completed)  
-!           iobslev           -- Index level in obs profile
+!         
 !
 !  Output (to be completed)
 !  
@@ -1661,68 +1703,44 @@ contains
 
   implicit none
 
-  integer, intent(in) :: n_modlvl,icount,nobslev,kmode,iobslev,ivnm
+  integer, intent(in) :: n_modlvl,nobslev,kmode,varno
   integer, intent(in) :: iconstituent_id
   real(8), intent(in) :: rtt(n_modlvl),pressmodlvl(n_modlvl)
-  real(8), intent(inout) :: rval(n_modlvl),rvalinc(n_modlvl),rmhx
-  real(8), intent(inout) :: vlayerbot,vlayertop
-  logical, intent(inout) :: success
+  real(8), intent(inout) :: rval(n_modlvl),rvalinc(n_modlvl)
+  logical, intent(inout) :: success(nobslev)
+  type(struct_chm_obsoperators), intent(inout) :: chm_obsoper
 
-  integer :: ij
-  real(8) :: zwork(n_modlvl)
+  integer :: ij,iobslev
 
 ! Conduct initial setup for vertical integration components
 
-  if (icount.eq.1) call chm_vertintg_setup(pressmodlvl,n_modlvl,nobslev)
+  call chm_vertintg_setup(chm_obsoper,pressmodlvl,n_modlvl)
 
-! Ensure that layer is within model vertical range.
+! Ensure that each layer is within model vertical range.
   
-  success=.true.
-  if (vlayerbot.lt.pressmodlvl(1)*1.01.or.vlayertop.gt.pressmodlvl(n_modlvl)*0.99) then
-     success=.false.
-     write(*,*) 'chm_layer_integ_operator: WARNING. Layer top/bot value problem.',vlayertop, vlayerbot
-     return
-  end if
-  if (vlayerbot.gt.pressmodlvl(n_modlvl)*0.999) vlayerbot=pressmodlvl(n_modlvl)*0.999
-  if (vlayertop.lt.pressmodlvl(1)*1.001) vlayertop=pressmodlvl(1)*1.001
+  do iobslev=1,nobslev
+     
+     if ( chm_obsoper%vlayerbottom(iobslev).lt.pressmodlvl(1)*1.01 .or. &  
+          chm_obsoper%vlayertop(iobslev).gt.pressmodlvl(n_modlvl)*0.99) then
+        success(iobslev)=.false.
+        write(*,*) 'chm_layer_integ_operator: WARNING. Layer top/bot value problem.',chm_obsoper%vlayertop(iobslev), chm_obsoper%vlayerbottom(iobslev)
+        return
+     end if
+     if (chm_obsoper%vlayerbottom(iobslev).gt.pressmodlvl(n_modlvl)*0.999) chm_obsoper%vlayerbottom(iobslev)=pressmodlvl(n_modlvl)*0.999
+     if (chm_obsoper%vlayertop(iobslev).lt.pressmodlvl(1)*1.001) chm_obsoper%vlayertop(iobslev)=pressmodlvl(1)*1.001
+
+  end do
        
-! Calculate vertical integration components for specified obs layer.
 
-  call chm_vertintg(vlayertop,vlayerbot,n_modlvl,iobslev)
+  ! Calculate vertical integration components for specified obs layer.
 
-! Apply averaging kernel if requested
-!
-! if ... call ...
-!
-! Apply generalized innovation operator if requested
-!
-! if ... call ...
-!
-! Finalize required quantities depending on kmode
-   
-  select case(kmode)
-!
-    case(0,1,2)
-!
-!       Finalize non-linear/linear operator step
-!
-        rmhx=dot_product(chm_obsoper%zh(iobslev,:),chm_obsoper%modelvarcolumn(:))
-!
-    case(3)
-!
-!       Ht*grad contribution from adjoint of tangent linear model.
-!
-        zwork(:)= rmhx*chm_obsoper%zh(iobslev,:)
-        call chm_convert(n_modlvl,zwork,rval,rtt,pressmodlvl,ivnm,kmode)
-        rvalinc(:)=rvalinc(:) + chm_obsoper%modelvarcolumn(:)       
-!
-  end select
+  call chm_vertintg(chm_obsoper,n_modlvl,nobslev,success)
    
   end subroutine chm_layer_integ_operator
 
 !-----------------------------------------------------------------------------------------
 
-  subroutine chm_vertintg_setup(pressmod,knflev,nobslev)
+  subroutine chm_vertintg_setup(chm_obsoper,pressmod,knflev)
 !
 ! Author  : Y. Rochon (ARQI/AQRD) and Ping Du (CMDA), Feb 2015.
 !           - Based Y. Yang and S. Ren, Nov 2004 to Dec 2012
@@ -1738,7 +1756,6 @@ contains
 !
 !           This includes:
 !
-!                    - Allocation of work arrays
 !                    - Setting of model layer boundaries
 !                    - Determining integration weights associated to
 !                      second order Lagrangian interpolation.
@@ -1756,12 +1773,6 @@ contains
 !           nobslev           -- Obs profile dimension.
 !
 !  Output  
-!           chm_obsoper%zh(knflev)  -- Initial innovation model array 
-!                                      (other than conversion constants)
-!                                      Initialized to zero.
-!           chm_obsoper%zhp(knflev) -- Part of innovation operator not 
-!                                      related to resolution
-!                                      Initialized to zero.
 !           chm_obsoper%vmodpress(knflev+1) -- Model layer boundaries given that pressmod are
 !                                              taken at mid-layer values.
 !           chm_obsoper%vh(knflev,knflev)   -- Second order Lagrangian interp integration weights
@@ -1769,8 +1780,9 @@ contains
 !-----------------------------------------------------------------------------------------
       implicit none
       
-      integer, intent(in) :: knflev,nobslev
+      integer, intent(in) :: knflev
       real(8), intent(in) :: pressmod(knflev)
+      type(struct_chm_obsoperators), intent(inout) :: chm_obsoper
 !
 !*    Declaration of local variables
 !
@@ -1781,21 +1793,7 @@ contains
 !     use in setting innovation operator array.
 !
 !     N.B.: Boundaries of layers set to mid-point of model levels
-!
-      ! Allocation of work arrays
-         
-      if (allocated(chm_obsoper%vh)) deallocate(chm_obsoper%vh,chm_obsoper%zh,chm_obsoper%zhp,chm_obsoper%vmodpress)
-      allocate(chm_obsoper%vh(knflev,knflev))
-      allocate(chm_obsoper%zh(nobslev,knflev))
-      allocate(chm_obsoper%zhp(nobslev,knflev))
-      allocate(chm_obsoper%vmodpress(knflev+1))
 !      
-!     Initialize to zero  
-!
-      chm_obsoper%vh(:,:)=0.0D0
-      chm_obsoper%zh(:,:)=0.0D0
-      chm_obsoper%zhp(:,:)=0.0D0
-
 !     Calculate layer boundaries
 !
       chm_obsoper%vmodpress(1)=pressmod(1)
@@ -1848,31 +1846,30 @@ contains
       chm_obsoper%vh(knflev-1,knflev)=zr2
       chm_obsoper%vh(knflev,knflev)=zr3
 !
-      end subroutine chm_vertintg_setup 
+  end subroutine chm_vertintg_setup 
 
 !-----------------------------------------------------------------------------------------
 
-  subroutine chm_vertintg(ptop,pbtm,knflev,iobslev)
+  subroutine chm_vertintg(chm_obsoper,knflev,nobslev,success)
 !
 ! Author  : Y. Rochon, Y. Yang and S. Ren, Nov 2004 to Dec 2012
 !           - Pre-EnVar version
 ! Revision: 
-!           Ping Du and Y. Rochom, Jan-Feb 2015
-!           - Adapated for the EnVar
+!           Ping Du and Y. Rochon, Jan-Feb 2015
+!           - Adapted for the EnVar
+!           M. Sitwell, ARQI/AQRD, Mar 2015
+!           - Modified to calculate whole profile within a single call
 !
 ! Purpose:  Calculate components required for vertical 
 !           integration w.r.t. pressure to calculate partial (or total)
 !           column value of model state profile or used for adjoint calc..
 !
-!           Calculations are for the specific observation layer 'iobslev'.
 !
 ! Arguments:
 !
 !  Input   
-!           knflev            -- # of vertical levels
-!           ptop              -- obs top - level pressure (in Pascal)
-!           pbtm              -- obs bottom -level pressure (in Pascal)
-!           iobslev           -- Index level in obs profile
+!           knflev            -- # of model vertical levels
+!           nobslev           -- # of obs vertical levels
 !           chm_obsoper%vh    -- See routine chm_vertintg_setup
 !           chm_obsoper%vmodpress
 !
@@ -1885,145 +1882,161 @@ contains
 !-----------------------------------------------------------------------------------------
       implicit none
       
-      integer, intent(in) :: knflev,iobslev
-      real(8), intent(in) :: ptop, pbtm  
-       
+      integer, intent(in) :: knflev,nobslev
+      type(struct_chm_obsoperators), intent(inout) :: chm_obsoper
+      logical, intent(inout) :: success(nobslev)
+
       integer, parameter :: ivh=2  ! Order of Lagrangian interpolation.
 !
 !*    Declaration of local variables
 !
       integer   :: J,JK,ILMAX2,ILMIN2
-      integer   :: ILMIN, ILMAX
-      real(8)   :: zp, zp1, zp2, zp3, zr1, zr2, zr3
+      integer   :: ILMIN, ILMAX, iobslev
+      real(8)   :: zp, zp1, zp2, zp3, zr1, zr2, zr3, ptop, pbtm
+
+
+      do iobslev=1,nobslev
+
+         if (success(iobslev)) then
+
+            ptop = chm_obsoper%vlayertop(iobslev)
+            pbtm = chm_obsoper%vlayerbottom(iobslev)
+         
+!*          Find the range of vertical levels over which to perform the integration
+!           and set innovation operator ZH over this range.
+
+            ilmin=1
+            ilmax=knflev
+            if (ptop.le.chm_obsoper%vmodpress(1)*1.01.and.pbtm.ge.chm_obsoper%vmodpress(knflev+1)*0.99) then
 !
-!*    Find the range of vertical levels over which to perform the integration
-!     and set innovation operator ZH over this range.
+!             Total column integration part
 !
-      ilmin=1
-      ilmax=knflev
-      if (ptop.le.chm_obsoper%vmodpress(1)*1.01.and.pbtm.ge.chm_obsoper%vmodpress(knflev+1)*0.99) then
-!
-!        Total column integration part
-!
-         do jk = 1,knflev
-            do j=max(1,jk-ivh),min(knflev,jk+ivh)
-               chm_obsoper%zh(iobslev,jk)=chm_obsoper%zh(iobslev,jk)+(chm_obsoper%vmodpress(j+1)-chm_obsoper%vmodpress(j))*chm_obsoper%vh(jk,j)
-               chm_obsoper%zhp(iobslev,jk)=chm_obsoper%zhp(iobslev,jk)+chm_obsoper%vh(jk,j)
-            end do
-         end do
-!
-      else
-!
-!        Partial column integration part (special treatment at boundaries)
-!
-!        Identify analysis layer boundaries just within obs layer.
-!
-         ilmin = chm_igetmodlev(ptop, chm_obsoper%vmodpress, 'top', knflev+1)
-         ilmax = chm_igetmodlev(pbtm, chm_obsoper%vmodpress, 'btm', knflev+1)
-!
-         if (ilmin.eq.ilmax+1) then
-!
-!           Entire obs layer within one analysis layer
-!
-            j=ilmin
-            if (j.lt.3) j=3
-            if (j.gt.knflev) j=knflev
-            zp1=chm_obsoper%vmodpress(j-2)
-            zp2=chm_obsoper%vmodpress(j-1)
-            zp3=chm_obsoper%vmodpress(j)
-            zp=(ptop+pbtm)/2.0
-            zr1=(zp-zp2)*(zp-zp3)/(zp1-zp2)/(zp1-zp3)
-            zr2=(zp-zp1)*(zp-zp3)/(zp2-zp1)/(zp2-zp3)
-            zr3=(zp-zp2)*(zp-zp1)/(zp3-zp2)/(zp3-zp1)
-!
-            chm_obsoper%zh(iobslev,j-2)=(pbtm-ptop)*zr1
-            chm_obsoper%zh(iobslev,j-1)=(pbtm-ptop)*zr2
-            chm_obsoper%zh(iobslev,j)=(pbtm-ptop)*zr3
-            chm_obsoper%zhp(iobslev,j-2)=zr1
-            chm_obsoper%zhp(iobslev,j-1)=zr2
-            chm_obsoper%zhp(iobslev,j)=zr3
-            ilmin=j-2
-            ilmax=j
-!
-         else
-!
-!           Determine terms from the inner layers (excluding the lower and upper
-!           boundary layers when these layers not covering entire analyses layers)
-!
-            if (pbtm.ge.chm_obsoper%vmodpress(knflev)*0.99) then
-               ilmax2=knflev
-            else
-               ilmax2=ilmax-1
-            end if
-            if (ptop.le.chm_obsoper%vmodpress(1)*1.01) then
-               ilmin=1
-               ilmin2=ilmin
-            else
-               ilmin2=ilmin
-            end if
-            if (ilmin2.le.ilmax2) then
-               do jk = ilmin2,ilmax2
+               do jk = 1,knflev
                   do j=max(1,jk-ivh),min(knflev,jk+ivh)
                      chm_obsoper%zh(iobslev,jk)=chm_obsoper%zh(iobslev,jk)+(chm_obsoper%vmodpress(j+1)-chm_obsoper%vmodpress(j))*chm_obsoper%vh(jk,j)
                      chm_obsoper%zhp(iobslev,jk)=chm_obsoper%zhp(iobslev,jk)+chm_obsoper%vh(jk,j)
                   end do
                end do
+               
+            else
+!
+!              Partial column integration part (special treatment at boundaries)
+!
+!              Identify analysis layer boundaries just within obs layer.
+!
+               ilmin = chm_igetmodlev(ptop, chm_obsoper%vmodpress, 'top', knflev+1)
+               ilmax = chm_igetmodlev(pbtm, chm_obsoper%vmodpress, 'btm', knflev+1)
+               
+               if (ilmin.eq.ilmax+1) then
+!
+!                 Entire obs layer within one analysis layer
+!
+                  j=ilmin
+                  if (j.lt.3) j=3
+                  if (j.gt.knflev) j=knflev
+                  zp1=chm_obsoper%vmodpress(j-2)
+                  zp2=chm_obsoper%vmodpress(j-1)
+                  zp3=chm_obsoper%vmodpress(j)
+                  zp=(ptop+pbtm)/2.0
+                  zr1=(zp-zp2)*(zp-zp3)/(zp1-zp2)/(zp1-zp3)
+                  zr2=(zp-zp1)*(zp-zp3)/(zp2-zp1)/(zp2-zp3)
+                  zr3=(zp-zp2)*(zp-zp1)/(zp3-zp2)/(zp3-zp1)
+
+                  chm_obsoper%zh(iobslev,j-2)=(pbtm-ptop)*zr1
+                  chm_obsoper%zh(iobslev,j-1)=(pbtm-ptop)*zr2
+                  chm_obsoper%zh(iobslev,j)=(pbtm-ptop)*zr3
+                  chm_obsoper%zhp(iobslev,j-2)=zr1
+                  chm_obsoper%zhp(iobslev,j-1)=zr2
+                  chm_obsoper%zhp(iobslev,j)=zr3
+                  ilmin=j-2
+                  ilmax=j
+                  
+               else
+!
+!                 Determine terms from the inner layers (excluding the lower and upper
+!                 boundary layers when these layers not covering entire analyses layers)
+!
+                  if (pbtm.ge.chm_obsoper%vmodpress(knflev)*0.99) then
+                     ilmax2=knflev
+                  else
+                     ilmax2=ilmax-1
+                  end if
+                  if (ptop.le.chm_obsoper%vmodpress(1)*1.01) then
+                     ilmin=1
+                     ilmin2=ilmin
+                  else
+                     ilmin2=ilmin
+                  end if
+                  if (ilmin2.le.ilmax2) then
+                     do jk = ilmin2,ilmax2
+                        do j=max(1,jk-ivh),min(knflev,jk+ivh)
+                           chm_obsoper%zh(iobslev,jk)=chm_obsoper%zh(iobslev,jk)+(chm_obsoper%vmodpress(j+1)-chm_obsoper%vmodpress(j))*chm_obsoper%vh(jk,j)
+                           chm_obsoper%zhp(iobslev,jk)=chm_obsoper%zhp(iobslev,jk)+chm_obsoper%vh(jk,j)
+                        end do
+                     end do
+                  end if
+!
+!                 Determine terms from the lower and upper boundary layers
+!                 when these layers do not cover entire analyses layers.
+!
+                  if (pbtm.lt.chm_obsoper%vmodpress(knflev)*0.99) then
+                     
+                     j=ilmax+1
+                     if (j.gt.knflev) j=knflev
+                     if (j.lt.3) j=3
+                     zp1=chm_obsoper%vmodpress(j-2)
+                     zp2=chm_obsoper%vmodpress(j-1)
+                     zp3=chm_obsoper%vmodpress(j)
+                     zp=(chm_obsoper%vmodpress(ilmax)+pbtm)/2.0
+                     zr1=(zp-zp2)*(zp-zp3)/(zp1-zp2)/(zp1-zp3)
+                     zr2=(zp-zp1)*(zp-zp3)/(zp2-zp1)/(zp2-zp3)
+                     zr3=(zp-zp2)*(zp-zp1)/(zp3-zp2)/(zp3-zp1)
+                  
+                     chm_obsoper%zh(iobslev,j-2)=chm_obsoper%zh(iobslev,j-2)+(pbtm - chm_obsoper%vmodpress(ilmax))*zr1
+                     chm_obsoper%zh(iobslev,j-1)=chm_obsoper%zh(iobslev,j-1)+(pbtm - chm_obsoper%vmodpress(ilmax))*zr2
+                     chm_obsoper%zh(iobslev,j)=chm_obsoper%zh(iobslev,j)+(pbtm - chm_obsoper%vmodpress(ilmax))*zr3
+                     chm_obsoper%zhp(iobslev,j-2)=chm_obsoper%zhp(iobslev,j-2)+zr1
+                     chm_obsoper%zhp(iobslev,j-1)=chm_obsoper%zhp(iobslev,j-1)+zr2
+                     chm_obsoper%zhp(iobslev,j)=chm_obsoper%zhp(iobslev,j)+zr3
+                     ilmax=j
+                  
+                  end if
+                  
+                  if (ptop.gt.chm_obsoper%vmodpress(1)*1.01) then
+                     
+                     j=ilmin-1
+                     if (j.lt.1) j=1
+                     if (j.gt.knflev-2) j=knflev-2
+                     zp1= chm_obsoper%vmodpress(j)
+                     zp2= chm_obsoper%vmodpress(j+1)
+                     zp3= chm_obsoper%vmodpress(j+2)
+                     zp = (chm_obsoper%vmodpress(ilmin)+ptop)/2.0
+                     zr1=(zp-zp2)*(zp-zp3)/(zp1-zp2)/(zp1-zp3)
+                     zr2=(zp-zp1)*(zp-zp3)/(zp2-zp1)/(zp2-zp3)
+                     zr3=(zp-zp2)*(zp-zp1)/(zp3-zp2)/(zp3-zp1)
+                  
+                     chm_obsoper%zh(iobslev,j)=chm_obsoper%zh(iobslev,j)+(chm_obsoper%vmodpress(ilmin)-ptop)*zr1
+                     chm_obsoper%zh(iobslev,j+1)=chm_obsoper%zh(iobslev,j+1)+(chm_obsoper%vmodpress(ilmin)-ptop)*zr2
+                     chm_obsoper%zh(iobslev,j+2)=chm_obsoper%zh(iobslev,j+2)+(chm_obsoper%vmodpress(ilmin)-ptop)*zr3
+                     chm_obsoper%zhp(iobslev,j)=chm_obsoper%zhp(iobslev,j)+zr1
+                     chm_obsoper%zhp(iobslev,j+1)=chm_obsoper%zhp(iobslev,j+1)+zr2
+                     chm_obsoper%zhp(iobslev,j+2)=chm_obsoper%zhp(iobslev,j+2)+zr3
+                     ilmin=j
+                     if (ilmax.lt.j+2) ilmax=j+2
+                     
+                  end if
+                  if (ilmin.gt.ilmax-2) ilmin=ilmax-2
+               end if
             end if
-!
-!           Determine terms from the lower and upper boundary layers
-!           when these layers do not cover entire analyses layers.
-!
-            if (pbtm.lt.chm_obsoper%vmodpress(knflev)*0.99) then
-!
-               j=ilmax+1
-               if (j.gt.knflev) j=knflev
-               if (j.lt.3) j=3
-               zp1=chm_obsoper%vmodpress(j-2)
-               zp2=chm_obsoper%vmodpress(j-1)
-               zp3=chm_obsoper%vmodpress(j)
-               zp=(chm_obsoper%vmodpress(ilmax)+pbtm)/2.0
-               zr1=(zp-zp2)*(zp-zp3)/(zp1-zp2)/(zp1-zp3)
-               zr2=(zp-zp1)*(zp-zp3)/(zp2-zp1)/(zp2-zp3)
-               zr3=(zp-zp2)*(zp-zp1)/(zp3-zp2)/(zp3-zp1)
-!
-               chm_obsoper%zh(iobslev,j-2)=chm_obsoper%zh(iobslev,j-2)+(pbtm - chm_obsoper%vmodpress(ilmax))*zr1
-               chm_obsoper%zh(iobslev,j-1)=chm_obsoper%zh(iobslev,j-1)+(pbtm - chm_obsoper%vmodpress(ilmax))*zr2
-               chm_obsoper%zh(iobslev,j)=chm_obsoper%zh(iobslev,j)+(pbtm - chm_obsoper%vmodpress(ilmax))*zr3
-               chm_obsoper%zhp(iobslev,j-2)=chm_obsoper%zhp(iobslev,j-2)+zr1
-               chm_obsoper%zhp(iobslev,j-1)=chm_obsoper%zhp(iobslev,j-1)+zr2
-               chm_obsoper%zhp(iobslev,j)=chm_obsoper%zhp(iobslev,j)+zr3
-               ilmax=j
-!
-            end if
-!
-            if (ptop.gt.chm_obsoper%vmodpress(1)*1.01) then
-!
-               j=ilmin-1
-               if (j.lt.1) j=1
-               if (j.gt.knflev-2) j=knflev-2
-               zp1= chm_obsoper%vmodpress(j)
-               zp2= chm_obsoper%vmodpress(j+1)
-               zp3= chm_obsoper%vmodpress(j+2)
-               zp = (chm_obsoper%vmodpress(ilmin)+ptop)/2.0
-               zr1=(zp-zp2)*(zp-zp3)/(zp1-zp2)/(zp1-zp3)
-               zr2=(zp-zp1)*(zp-zp3)/(zp2-zp1)/(zp2-zp3)
-               zr3=(zp-zp2)*(zp-zp1)/(zp3-zp2)/(zp3-zp1)
-!
-               chm_obsoper%zh(iobslev,j)=chm_obsoper%zh(iobslev,j)+(chm_obsoper%vmodpress(ilmin)-ptop)*zr1
-               chm_obsoper%zh(iobslev,j+1)=chm_obsoper%zh(iobslev,j+1)+(chm_obsoper%vmodpress(ilmin)-ptop)*zr2
-               chm_obsoper%zh(iobslev,j+2)=chm_obsoper%zh(iobslev,j+2)+(chm_obsoper%vmodpress(ilmin)-ptop)*zr3
-               chm_obsoper%zhp(iobslev,j)=chm_obsoper%zhp(iobslev,j)+zr1
-               chm_obsoper%zhp(iobslev,j+1)=chm_obsoper%zhp(iobslev,j+1)+zr2
-               chm_obsoper%zhp(iobslev,j+2)=chm_obsoper%zhp(iobslev,j+2)+zr3
-               ilmin=j
-               if (ilmax.lt.j+2) ilmax=j+2
-!
-            end if
-            if (ilmin.gt.ilmax-2) ilmin=ilmax-2
+
+         else
+            chm_obsoper%zh(iobslev,:) = 0.0D0
+            chm_obsoper%zhp(iobslev,:) = 0.0D0
          end if
-      end if
-!
-      end subroutine chm_vertintg 
+
+      end do
+
+  end subroutine chm_vertintg
 
 !-----------------------------------------------------------------------------------------
 
