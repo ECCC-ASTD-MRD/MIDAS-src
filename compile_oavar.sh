@@ -122,8 +122,6 @@ else
     exit 1
 fi
 
-set -x
-
 LIBRMN=rmn
 
 COMPF_GLOBAL="-openmp ${MPIKEY}"
