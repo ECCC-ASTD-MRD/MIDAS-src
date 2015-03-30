@@ -78,14 +78,15 @@ compiledir=${PWD}
 #  Set up dependent librarys and tools. 
 #---------------------------------------------------------------
 ## for s.compile
-. ssmuse-sh -d hpcs/201402/01/base
+echo "loading hpcs/201402/02/base"
+. ssmuse-sh -d hpcs/201402/02/base
 ## for the compiler
 if [ "${BASE_ARCH}" = "AIX-powerpc7" ];then
     echo "loading compiler hpcs/ext/xlf_13.1.0.10"
     . ssmuse-sh -d hpcs/ext/xlf_13.1.0.10
 elif [ "${BASE_ARCH}" = "Linux_x86-64" ];then
-    echo "loading hpcs/201402/01/intel13sp1u2"
-    . ssmuse-sh -d hpcs/201402/01/intel13sp1u2
+    echo "loading compiler hpcs/201402/02/intel13sp1u2"
+    . ssmuse-sh -d hpcs/201402/02/intel13sp1u2
 else
     echo "This platform 'ARCH=${ARCH}' is not supported.  Only 'AIX-powerpc7' and 'Linux_x86-64' are."
     exit 1
@@ -94,16 +95,17 @@ fi
 varabs=oavar_${BASE_ARCH}${ABSTAG}
 
 ## for rmn_015, rpncomm
-echo "loading rpn/libs/15.1"
-. ssmuse-sh -d rpn/libs/15.1
+echo "loading rpn/libs/15.2"
+. ssmuse-sh -d rpn/libs/15.2
 ## for 'vgrid'
-echo "loading cmdn/vgrid/5.3.1/${COMP_ARCH}"
-. ssmuse-sh -d cmdn/vgrid/5.3.1/${COMP_ARCH}
+echo "loading cmdn/vgrid/5.3.2/${COMP_ARCH}"
+. ssmuse-sh -d cmdn/vgrid/5.3.2/${COMP_ARCH}
 ## for 'burplib'
-echo "loading cmda/base/201411/00/${COMP_ARCH}"
-. ssmuse-sh -d cmda/base/201411/00/${COMP_ARCH}
+echo "loading cmda/base/201411/01/${COMP_ARCH}"
+. ssmuse-sh -d cmda/base/201411/01/${COMP_ARCH}
 
 ## For hpcsperf needed for TMG timings
+echo "loading hpcs/exp/aspgjdm/perftools"
 . ssmuse-sh -d hpcs/exp/aspgjdm/perftools
 # For RTTOV 10v1 package... 
 echo "loading arma/rttov/10v1"
@@ -119,12 +121,31 @@ else
     echo "This platform 'BASE_ARCH=${BASE_ARCH}' is not supported.  Only 'AIX-powerpc7' and 'Linux_x86-64' are."
     exit 1
 fi
+
+set -x
+
 LIBRMN=rmn
-COMPF_NOC="-openmp ${MPIKEY}"
-if [ "${COMPILE_OAVAR_REMOVE_DEBUG_OPTIONS}" = yes ]; then
-    COMPF=${COMPF_NOC}
+
+COMPF_GLOBAL="-openmp ${MPIKEY}"
+if [ "${BASE_ARCH}" = "AIX-powerpc7" ];then 
+    if [ "${COMPILE_OAVAR_REMOVE_DEBUG_OPTIONS}" = yes ]; then
+	COMPF=${COMPF_GLOBAL}
+	COMPF_NOC=${COMPF}
+    else
+	COMPF="${COMPF_GLOBAL} -debug DEBUG -optf=-C"
+	COMPF_NOC="${COMPF_GLOBAL} -debug DEBUG"
+    fi
+elif [ "${BASE_ARCH}" = "Linux_x86-64" ];then
+    if [ "${COMPILE_OAVAR_REMOVE_DEBUG_OPTIONS}" = yes ]; then
+	COMPF="${COMPF_GLOBAL} -optf =-fp-model source"
+	COMPF_NOC=${COMPF}
+    else
+	COMPF="${COMPF_GLOBAL} -debug DEBUG -optf =-C =-fp-model source"
+	COMPF_NOC="${COMPF_GLOBAL} -debug DEBUG -optf =-fp-model source"
+    fi
 else
-    COMPF="${COMPF_NOC} -debug DEBUG -optf=-C"
+    echo "This platform 'BASE_ARCH=${BASE_ARCH}' is not supported.  Only 'AIX-powerpc7' and 'Linux_x86-64' are."
+    exit 1
 fi
 
 if [ "${mode}" == full ] ; then
