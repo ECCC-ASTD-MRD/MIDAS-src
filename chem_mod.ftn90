@@ -205,7 +205,7 @@ contains
    
 ! Read averaging kernel matrices
   
-! call chm_avgkern
+  call chm_read_avgkern
   
 ! To deallocate space if required elsewhere, one should use
 ! call chm_dealloc_avgkern
@@ -394,7 +394,6 @@ contains
 
 
     ! Find stnid with same number of vertical levels, and same BUFR element
-    ! Note: * in cinfo_stndi_chm stands for a wildcard
           
     ISTNID=0
     lfound=.false.
@@ -462,12 +461,43 @@ contains
 
 !-----------------------------------------------------------------------------------------
 !-------------------- Routines related averaging kernel matrices -------------------------
-
+  
   subroutine chm_read_avgkern
 !
-! Author   : Y. Rochon, ARQI/AQRD, Feb 2015 
-!            - Initial framework only. 
-!            - Actual reading code for averaging kernels not included as yet.
+! Author  : M. Sitwell, ARQI/AQRD, March 2015
+!
+!
+! Revision: 
+!
+! Purpose:  Read averaging kernels from ascii file and BURP file if specified in ascii file
+!
+!-----------------------------------------------------------------------------------------
+
+    implicit none
+
+    ! read the averaging kernel information from the ascii file
+    call chm_read_avgkern_ascii
+
+    ! read std. dev. from BURP file if was indicated in the ascii file
+    ! TO BE COMPLETED
+    !do i=1,chm_avgkern%n_stnid
+    !   
+    !   if (chm_avgkern%brp(i).eq.1) then
+    !      call chm_read_burp('brpch', chm_avgkern%stnids(i), chm_avgkern%bfr(i), &
+    !           chm_avgkern%n_lvl(i), burp_nrep_max, burp_std)
+    !   end if
+    !
+    !end do
+
+
+  end subroutine chm_read_avgkern
+
+!----------------------------------------------------------------------------------------
+
+  subroutine chm_read_avgkern_ascii
+!
+! Author   : Y. Rochon, M. Sitwell, ARQI/AQRD, Feb 2015 
+!            - Currently implemented for only one latitude band
 !
 ! Revisions: 
 !          
@@ -475,12 +505,10 @@ contains
 !
 !----------------------------------------------------------------------------------------
 
-  use bufr
-
   implicit none
 
   integer :: FNOM, FCLOS
-  integer :: IERR, JLEV, JELM, nulstat, ios, isize, icount
+  integer :: IERR, JLEV, JELM, nulstat, ios, isize, icount, iend
   logical :: LnewExists
   
   character (len=128) :: ligne
@@ -494,7 +522,7 @@ contains
   INQUIRE(FILE='obsinfo_chm',EXIST=LnewExists)
   IF (.not.LnewExists )then
     WRITE(*,*)   '--------------------------------------------------'
-    WRITE(*,*)   'chm_read_avgkern: COULD NOT FIND FILE obsinfo_chm!'
+    WRITE(*,*)   'chm_read_avgkern_ascii: COULD NOT FIND FILE obsinfo_chm!'
     WRITE(*,*)   '--------------------------------------------------'
     return
   ENDIF
@@ -506,12 +534,12 @@ contains
   IF ( IERR .EQ. 0 ) THEN
     open(unit=nulstat, file='obsinfo_chm', status='OLD')
   ELSE
-    CALL ABORT3D('chm_read_avgkern: COULD NOT OPEN FILE obsinfo_chm!')
+    CALL ABORT3D('chm_read_avgkern_ascii: COULD NOT OPEN FILE obsinfo_chm!')
   ENDIF
 
   ios=0
   read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
-  do while (trim(adjustl(ligne(1:13))).ne.'SECTION II:') 
+  do while (trim(adjustl(ligne(1:14))).ne.'SECTION III:') 
       read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
   end do    
   
@@ -523,7 +551,7 @@ contains
   allocate(chm_avgkern%stnids(chm_avgkern%n_stnid))
   allocate(chm_avgkern%brp(chm_avgkern%n_stnid),chm_avgkern%ibegin(chm_avgkern%n_stnid))
   allocate(chm_avgkern%bfr(chm_avgkern%n_stnid),chm_avgkern%n_lvl(chm_avgkern%n_stnid))
-!!  allocate(chm_avgkern%rak(isize)
+  allocate(chm_avgkern%rak(isize))
  
   chm_avgkern%bfr(:)=0
   chm_avgkern%brp(:)=0
@@ -533,9 +561,9 @@ contains
 ! Important: Combination of STNID, BUFR element and number of vertical levels
 !            to determine association to the observations.
 
-  icount=0
+  icount=1
   do jelm=1,chm_avgkern%n_stnid
-    chm_avgkern%ibegin(jelm)=icount+1
+    chm_avgkern%ibegin(jelm)=icount
 
     read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
 
@@ -544,10 +572,9 @@ contains
     read(nulstat,'(2X,A9)',iostat=ios,err=10,end=10) chm_avgkern%stnids(jelm) 
 
 !   Read (1) Obs BUFR element.
-!        (2) Vertical coord type (1, 2, or 3)
-!        (3) Flag indication if EOR provided from this ascii file or
+!        (2) Flag indication if avgkern provided from this ascii file or
 !            to be read from the BURP file,
-!        (4) Number of vertical levels
+!        (3) Number of vertical levels
 !
 !   Important: Combination of STNID, BUFR element and number of vertical levels
 !              to determine association to the observations.
@@ -557,41 +584,35 @@ contains
     
     if (icount+chm_avgkern%n_lvl(jelm).gt.isize) then
        write(*,'(10X,"Max array size exceeded: ",I6)') isize
-       CALL ABORT3D('chm_read_layers: READING PROBLEM.')    
+       CALL ABORT3D('chm_read_avgkern_ascii: READING PROBLEM.')    
     end if
 
     read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
     
     if (chm_avgkern%n_lvl(jelm).gt.1) then   
        do jlev=1,chm_avgkern%n_lvl(jelm)
-          icount=icount+1
-          
-          ! Read averaging kernel matrix
-          
-!!          read(nulstat,*,iostat=ios,err=10,end=10)                 &
-!!                 chm_avgkern%rak......
+
+          iend=icount+chm_avgkern%n_lvl(jelm)-1
+
+          ! Read averaging kernel matrix   
+          read(nulstat,*,iostat=ios,err=10,end=10) chm_avgkern%rak(icount:iend)
+
+          icount=iend+1
+
        end do
     end if
-
-!    if (chm_avgkern%brp(jelm).eq.1) then
-!    
-!      Read from BURP files
-!
-!      .....
-!
-!    end if
 
   end do
    
  10 if (ios.gt.0) then
        WRITE(*,*) 'File read error message number: ',ios
-       CALL ABORT3D('chm_read_avgkern: READING PROBLEM')    
+       CALL ABORT3D('chm_read_avgkern_ascii: READING PROBLEM')    
     end if
  
  11 CLOSE(UNIT=NULSTAT)
     IERR=FCLOS(NULSTAT)    
 
-  end subroutine chm_read_avgkern
+  end subroutine chm_read_avgkern_ascii
 
 !-----------------------------------------------------------------------------------------
 
@@ -616,6 +637,89 @@ contains
  
  
   end subroutine chm_dealloc_avgkern
+
+!-----------------------------------------------------------------------------------------
+
+  function chm_find_avgkern(cstnid,varno,nlev) result(ISTNID)
+!
+! Author  : M. Sitwell, March 2015
+! Revision: 
+!
+! Purpose: Finds the averaging kernel for an observation if one is specified. Returns 0 if
+!          either not found or not specified. Combination of STNID, BUFR element and number
+!          of vertical levels to determine association to the observations.
+!          
+! Inputs:
+!   - cstnid          station id
+!   - varno           BUFR descriptor element
+!   - nlev            number of levels in the observation
+!
+! Returns:
+!   - ISTNID          Index of averaging kernel in chm_avgkern if found. Zero indicates
+!                     averaging kernel not found.
+! ---------------------------------------------------------------------------------------
+    
+    implicit none
+
+    character(len=12), intent(in) :: cstnid
+    integer, intent(in) :: varno,nlev
+    integer :: ISTNID,JN
+    logical :: iset
+
+    ! Find stnid with same number of vertical levels, and same BUFR element
+          
+    ISTNID=0
+
+    DO JN=1,chm_avgkern%n_stnid
+
+       ! First compare STNID values allowing for * and blanks in 
+       ! chm_avgkern%stnids(JN) as wildcards
+       iset = stnid_equal(chm_avgkern%stnids(JN),CSTNID)
+
+       ! Check if number of levels and BUFR code are equal.
+       IF (iset) THEN
+          IF ( varno.EQ.chm_avgkern%bfr(JN) .AND. NLEV.EQ.chm_avgkern%n_lvl(JN) ) THEN
+             ISTNID=JN
+             exit
+          END IF
+       END IF
+       
+    END DO
+
+  end function chm_find_avgkern
+
+!-----------------------------------------------------------------------------------------
+
+  subroutine chm_get_avgkern(istnid,nlev,avg_kern)
+!
+! Author  : M. Sitwell, March 2015
+! Revision: 
+!
+! Purpose: Return averaging kernel for an observation.
+!
+! Inputs:
+!   - ISTNID          index of averaging kernel in chm_avgkern
+!   - nlev            number of levels in the observation
+!
+! Outputs:
+!   - avg_kern        the averaging kernel
+!---------------------------------------------------------------------------------------
+
+    implicit none
+
+    integer, intent(in)  :: istnid,nlev
+    real(8), intent(out) :: avg_kern(nlev,nlev)
+    integer :: start_index,end_index
+
+    IF ( ISTNID.gt.0 .and. ISTNID.le.chm_avgkern%n_stnid ) THEN
+       start_index = chm_avgkern%ibegin(ISTNID)
+       end_index = nlev*(start_index+nlev-1)
+       avg_kern = RESHAPE(chm_avgkern%rak(start_index:end_index),(/nlev,nlev/),ORDER =(/2,1/))
+    ELSE
+       CALL ABORT3D('chm_get_avgkern: Invalid station ID index.')    
+    END IF
+
+  end subroutine chm_get_avgkern
 
 !-----------------------------------------------------------------------------------------
 !----------- Routines relevant to error std. dev. (observation_erreurs.ftn90) ------------
@@ -1329,7 +1433,8 @@ contains
 ! Local variables
   
   real(8) :: vpressure,zwork(n_modlvl)
-  integer :: iobslev
+  integer :: iobslev,iavgkern
+  real(8), allocatable :: avg_kern(:,:)
 
 ! Allocate memory for chm_obsoper
   allocate(chm_obsoper%modelvarcolumn(n_modlvl))
@@ -1432,9 +1537,19 @@ contains
 
 
 ! Apply averaging kernel if requested
-!
-! if ... call ...
-!
+
+  iavgkern = chm_find_avgkern(cstnid,varno,nobslev)
+
+  if (iavgkern.gt.0) then
+
+     allocate(avg_kern(nobslev,nobslev))
+     call chm_get_avgkern(iavgkern,nobslev,avg_kern)
+     chm_obsoper%zh = matmul(avg_kern,chm_obsoper%zh)
+     deallocate(avg_kern)
+
+  end if
+
+
 ! Apply generalized innovation operator if requested
 !
 ! if ... call ...
