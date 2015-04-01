@@ -69,7 +69,8 @@
 !                     (and balance operators if any are eventually added)
 !                     calls BCHM_sunewsta ts (BCHM_readcorns2, BCHM_rdspstd_newfmt,
 !                                             BCHM_scalestd), 
-!                           BCHM_sucorns2 (gasparicohn, dsyev, rpn_comm_allreduce)
+!                           BCHM_sucorns2 (gasparicohn, bchm_corvert_setup, dsyev, 
+!                                          rpn_comm_allreduce)
 !    BCHM_BSqrt:      Transformations from control vector to analysis increments 
 !                     in the minimization process.
 !                     calls BCHM_cain, BCHM_spa2gd (dgemul), BCHM_copytoStatevector 
@@ -144,7 +145,6 @@ MODULE BmatrixChem
 
 ! Physical space (total) vertical correlation matrices and its inverse.
   
-!  real(8), allocatble, dimension(:,:) :: corvert,corverti
   real(8), allocatable, dimension(:,:,:) :: corvert,corverti
 
 ! Parameters of the NAMBCHM namelist
@@ -935,8 +935,6 @@ CONTAINS
     real(8) :: zwork(2*4*nkgdim)
     real(8) :: ztlen,zcorr,zr,zpres1,zpres2,eigenvalmax
     real(8),allocatable :: corns_temp(:,:,:)
-    logical :: lldebug
-    integer iulcorvert
     
     ! Standard file variables
     integer :: ini,inj,ink, inpas, inbits, idatyp, ideet
@@ -949,8 +947,6 @@ CONTAINS
     character(len=12) :: cletiket
     integer :: vfstlir,vfstecr,fstprm,fstinf
     integer :: fnom,fstouv,fstfrm,fclos
-
-    lldebug = .false.
 
     ! Apply vertical localization to correlations of 3D fields.
     ! Currently assumes no-cross correlations for variables (block diagonal matrix)
@@ -977,135 +973,8 @@ CONTAINS
 
     ! Compute total vertical correlations and its inverse (currently for each block matrix).
 
-    if(mpi_myid == 0) then
-       iulcorvert = 0
-       ierr = fnom(iulcorvert,'corvert_modular_chm.fst','RND',0)
-       ierr = fstouv(iulcorvert,'RND')
-    end if
-    
-    do jvar = 1,numvar3d
-   
-       jnum=nsposit(jvar+1)-nsposit(jvar)
-       
-       corvert(1:jnum,1:jnum,jvar) = 0.0d0
-       do jn = 0, ntrunc
-            corvert(1:jnum,1:jnum,jvar) = corvert(1:jnum,1:jnum,jvar)+ ((2*jn+1)* &
-                corns(nsposit(jvar):nsposit(jvar+1)-1,nsposit(jvar):nsposit(jvar+1)-1,jn))
-       enddo
-       eigenvec(1:jnum,1:jnum)=corvert(1:jnum,1:jnum,jvar)       
+    call bchm_corvert_setup
 
-       ! CALCULATE EIGENVALUES AND EIGENVECTORS.
-       ilwork = 4*jnum*2
-       call dsyev('V','U',jnum,eigenvec(1:jnum,1:jnum),jnum,eigenval,zwork,ilwork,info)
-       if(info.ne.0) then
-         write(*,*) 'BCHM_sucorns2: non-zero value of info =',info,' returned by dsyev for wavenumber ',jn
-         call abort3d('BCHM_SUCORNS')
-       endif
-      
-       ! Set selected number of eigenmodes to zero
-       if(numModeZero.gt.0) then
-         write(*,*) 'bchm_sucorns2: setting ',numModeZero,' eigenvalues to zero for wavenumber n=',jn
-         write(*,*) 'bchm_sucorns2: original eigenvalues=',eigenval(:)
-         do jk1 = 1, numModeZero
-           eigenval(jk1) = 0.0d0
-         enddo
-         write(*,*) 'bchm_sucorns2: modified eigenvalues=',eigenval(:)
-       endif
-
-       ! E * lambda^{-1}
-       eigenvalmax=maxval(eigenval(1:jnum))
-       do jk1 = 1, jnum
-          if (eigenval(jk1).gt.1.0d-6*eigenvalmax) then
-             result(1:jnum,jk1) = eigenvec(1:jnum,jk1)/eigenval(jk1)
-          else
-             result(1:jnum,jk1)=0.0D0
-          end if
-       enddo
-
-       ! E * lambda^{-1} * E^T
-       corverti(1:jnum,1:jnum,jvar)=0.0D0
-       do jk1 = 1, jnum
-       do jk2 = 1, jnum
-          do jk3 = 1, jnum
-             corverti(jk2,jk1,jvar) = corverti(jk2,jk1,jvar) + result(jk2,jk3)*eigenvec(jk1,jk3)
-          enddo
-       enddo
-       enddo
-
-       ! Check inverse (for output when mpi_myid is 0)
-       result(1:jnum,1:jnum)=0.0D0
-       do jk1 = 1, jnum
-       do jk2 = 1, jnum
-          do jk3 = 1, jnum
-             result(jk2,jk1) = result(jk2,jk1) + &
-                corvert(jk2,jk3,jvar)*corverti(jk3,jk1,jvar)
-          enddo
-       enddo
-       enddo
-
-       where (abs(corvert(1:jnum,1:jnum,jvar)) .lt. 1.E-3) corvert(1:jnum,1:jnum,jvar)=0.0D0
-       zr=maxval(abs(corverti(1:jnum,1:jnum,jvar)))
-       where (abs(corverti(1:jnum,1:jnum,jvar)) .lt. 1.E-5*zr) corverti(1:jnum,1:jnum,jvar)=0.0D0
-            
-       if(mpi_myid == 0) then
-          ikey = fstinf(NULBGST,ini,inj,ink,-1,'CORRNS',-1,0,-1,' ',varNameList(jvar))
-          ierr = fstprm(ikey,idateo,ideet,inpas,ini,inj,ink, inbits        &
-             ,idatyp,ip1,ip2,ip3,cltypvar,clnomvar,cletiket,clgrtyp      &
-             ,ig1,ig2,ig3,ig4,iswa,ilength,idltf,iubc,iextr1,iextr2      &
-             ,iextr3)
-
-          ini = jnum
-          inj = jnum
-          ink = 1
-          ip1 = 0
-          ip2 = ntrunc
-          ip3 = 0
-          clnomvar = varNameList(jvar)
-          cletiket = 'CORVERT'
-          idatyp = 5
-
-          ierr = vfstecr(corvert(1:jnum,1:jnum,jvar),corvert(1:jnum,1:jnum,jvar) &
-             , -inbits, iulcorvert, idateo    &
-             , ideet,inpas, ini, inj, ink, ip1, ip2, ip3, cltypvar,     &
-             clnomvar,cletiket,clgrtyp,ig1, ig2, ig3, ig4, idatyp,      &
-             .true.)
-
-          cletiket = 'CORVERTI'
-
-          ierr = vfstecr(corverti(1:jnum,1:jnum,jvar),corverti(1:jnum,1:jnum,jvar) &
-             ,  -inbits, iulcorvert, idateo    &
-             , ideet,inpas, ini, inj, ink, ip1, ip2, ip3, cltypvar,     &
-             clnomvar,cletiket,clgrtyp,ig1, ig2, ig3, ig4, idatyp,      &
-             .true.)
-
-          cletiket = 'C*C^-1'
-          
-          ierr = vfstecr(result(1:jnum,1:jnum),result(1:jnum,1:jnum) &
-             ,  -inbits, iulcorvert, idateo    &
-             , ideet,inpas, ini, inj, ink, ip1, ip2, ip3, cltypvar,     &
-             clnomvar,cletiket,clgrtyp,ig1, ig2, ig3, ig4, idatyp,      &
-             .true.)
-
-          if(lldebug) then
-             write(701,*)
-             write(701,*) varNameList(jvar)
-             write(701,*) 'Total correlation matrix'
-             write(701,*) corvert(1:jnum,1:jnum,jvar)
-             write(701,*) 'Inverse'
-             write(701,*) corverti(1:jnum,1:jnum,jvar)
-             write(701,*) 'Product'
-             write(701,*) result(1:jnum,1:jnum)
-          endif
-                     
-       endif
-
-    end do
-    
-    if(mpi_myid == 0) then
-       ierr = fstfrm(iulcorvert)
-       ierr = fclos(iulcorvert)
-    end if
-    
     ! Following assumes full matrices. It does not take advantage of any block diagonal structure.
     ! Accounting for block diagonal structures would/might improve computation time.
     
@@ -1739,6 +1608,180 @@ CONTAINS
       DEALLOCATE(ZWORK)
 
   END SUBROUTINE ZLEGDIR
+!-----------------------------------------------------------------------------------------------
+  SUBROUTINE BCHM_corvert_setup
+!
+! Purpose: Compute total vertical correlations (corvert) and its inverse (corverti; currently 
+!          for each block matrix).
+!
+! Author: Y.J. Rochon, ARQI/AQRD, Mar 2015
+!
+! Revisions:
+!
+! Comments:
+!
+! (A) Currently assumes no cross-correlations 
+!
+!-----------------------------------------------------------------------------------------------
+    implicit none
+
+    real(8) :: eigenval(nkgdim), eigenvec(nkgdim,nkgdim),result(nkgdim,nkgdim)
+
+    integer :: jn,jk1,jk2,jk3,jvar
+    integer :: ilwork,info,jnum
+    integer :: ikey
+    logical :: lldebug
+
+    real(8) :: zwork(2*4*nkgdim)
+    real(8) :: zr,eigenvalmax
+    integer iulcorvert
+    
+    ! Standard file variables
+    integer :: ini,inj,ink, inpas, inbits, idatyp, ideet
+    integer :: ip1,ip2,ip3,ig1,ig2,ig3,ig4,iswa,ilength,idltf
+    integer :: iubc,iextr1,iextr2,iextr3,ierr,ipak,ipas,ntrials
+    integer :: iliste(100),idate(100),idimax,infon,iheures,idateo
+    character(len=2)  :: cltypvar
+    character(len=1)  :: clgrtyp
+    character(len=4)  :: clnomvar
+    character(len=12) :: cletiket
+    integer :: vfstlir,vfstecr,fstprm,fstinf
+    integer :: fnom,fstouv,fstfrm,fclos
+
+    lldebug=.false.
+    
+    ! Compute total vertical correlations and its inverse (currently for each block matrix).
+
+    if(mpi_myid == 0) then
+       iulcorvert = 0
+       ierr = fnom(iulcorvert,'corvert_modular_chm.fst','RND',0)
+       ierr = fstouv(iulcorvert,'RND')
+    end if
+    
+    do jvar = 1,numvar3d
+   
+       jnum=nsposit(jvar+1)-nsposit(jvar)
+       
+       corvert(1:jnum,1:jnum,jvar) = 0.0d0
+       do jn = 0, ntrunc
+            corvert(1:jnum,1:jnum,jvar) = corvert(1:jnum,1:jnum,jvar)+ ((2*jn+1)* &
+                corns(nsposit(jvar):nsposit(jvar+1)-1,nsposit(jvar):nsposit(jvar+1)-1,jn))
+       enddo
+       eigenvec(1:jnum,1:jnum)=corvert(1:jnum,1:jnum,jvar)       
+
+       ! CALCULATE EIGENVALUES AND EIGENVECTORS.
+       ilwork = 4*jnum*2
+       call dsyev('V','U',jnum,eigenvec(1:jnum,1:jnum),jnum,eigenval,zwork,ilwork,info)
+       if(info.ne.0) then
+         write(*,*) 'BCHM_sucorns2: non-zero value of info =',info,' returned by dsyev for wavenumber ',jn
+         call abort3d('BCHM_SUCORNS')
+       endif
+      
+       ! Set selected number of eigenmodes to zero
+       if(numModeZero.gt.0) then
+         write(*,*) 'bchm_sucorns2: setting ',numModeZero,' eigenvalues to zero for wavenumber n=',jn
+         write(*,*) 'bchm_sucorns2: original eigenvalues=',eigenval(:)
+         do jk1 = 1, numModeZero
+           eigenval(jk1) = 0.0d0
+         enddo
+         write(*,*) 'bchm_sucorns2: modified eigenvalues=',eigenval(:)
+       endif
+
+       ! E * lambda^{-1}
+       eigenvalmax=maxval(eigenval(1:jnum))
+       do jk1 = 1, jnum
+          if (eigenval(jk1).gt.1.0d-6*eigenvalmax) then
+             result(1:jnum,jk1) = eigenvec(1:jnum,jk1)/eigenval(jk1)
+          else
+             result(1:jnum,jk1)=0.0D0
+          end if
+       enddo
+
+       ! E * lambda^{-1} * E^T
+       corverti(1:jnum,1:jnum,jvar)=0.0D0
+       do jk1 = 1, jnum
+       do jk2 = 1, jnum
+          do jk3 = 1, jnum
+             corverti(jk2,jk1,jvar) = corverti(jk2,jk1,jvar) + result(jk2,jk3)*eigenvec(jk1,jk3)
+          enddo
+       enddo
+       enddo
+
+       ! Check inverse (for output when mpi_myid is 0)
+       result(1:jnum,1:jnum)=0.0D0
+       do jk1 = 1, jnum
+       do jk2 = 1, jnum
+          do jk3 = 1, jnum
+             result(jk2,jk1) = result(jk2,jk1) + &
+                corvert(jk2,jk3,jvar)*corverti(jk3,jk1,jvar)
+          enddo
+       enddo
+       enddo
+
+       where (abs(corvert(1:jnum,1:jnum,jvar)) .lt. 1.E-3) corvert(1:jnum,1:jnum,jvar)=0.0D0
+       zr=maxval(abs(corverti(1:jnum,1:jnum,jvar)))
+       where (abs(corverti(1:jnum,1:jnum,jvar)) .lt. 1.E-5*zr) corverti(1:jnum,1:jnum,jvar)=0.0D0
+            
+       if(mpi_myid == 0) then
+          ikey = fstinf(NULBGST,ini,inj,ink,-1,'CORRNS',-1,0,-1,' ',varNameList(jvar))
+          ierr = fstprm(ikey,idateo,ideet,inpas,ini,inj,ink, inbits        &
+             ,idatyp,ip1,ip2,ip3,cltypvar,clnomvar,cletiket,clgrtyp      &
+             ,ig1,ig2,ig3,ig4,iswa,ilength,idltf,iubc,iextr1,iextr2      &
+             ,iextr3)
+
+          ini = jnum
+          inj = jnum
+          ink = 1
+          ip1 = 0
+          ip2 = ntrunc
+          ip3 = 0
+          clnomvar = varNameList(jvar)
+          cletiket = 'CORVERT'
+          idatyp = 5
+
+          ierr = vfstecr(corvert(1:jnum,1:jnum,jvar),corvert(1:jnum,1:jnum,jvar) &
+             , -inbits, iulcorvert, idateo    &
+             , ideet,inpas, ini, inj, ink, ip1, ip2, ip3, cltypvar,     &
+             clnomvar,cletiket,clgrtyp,ig1, ig2, ig3, ig4, idatyp,      &
+             .true.)
+
+          cletiket = 'CORVERTI'
+
+          ierr = vfstecr(corverti(1:jnum,1:jnum,jvar),corverti(1:jnum,1:jnum,jvar) &
+             ,  -inbits, iulcorvert, idateo    &
+             , ideet,inpas, ini, inj, ink, ip1, ip2, ip3, cltypvar,     &
+             clnomvar,cletiket,clgrtyp,ig1, ig2, ig3, ig4, idatyp,      &
+             .true.)
+
+          cletiket = 'C*C^-1'
+          
+          ierr = vfstecr(result(1:jnum,1:jnum),result(1:jnum,1:jnum) &
+             ,  -inbits, iulcorvert, idateo    &
+             , ideet,inpas, ini, inj, ink, ip1, ip2, ip3, cltypvar,     &
+             clnomvar,cletiket,clgrtyp,ig1, ig2, ig3, ig4, idatyp,      &
+             .true.)
+
+          if(lldebug) then
+             write(701,*)
+             write(701,*) varNameList(jvar)
+             write(701,*) 'Total correlation matrix'
+             write(701,*) corvert(1:jnum,1:jnum,jvar)
+             write(701,*) 'Inverse'
+             write(701,*) corverti(1:jnum,1:jnum,jvar)
+             write(701,*) 'Product'
+             write(701,*) result(1:jnum,1:jnum)
+          endif
+                     
+       endif
+
+    end do
+    
+    if(mpi_myid == 0) then
+       ierr = fstfrm(iulcorvert)
+       ierr = fclos(iulcorvert)
+    end if
+
+  END SUBROUTINE BCHM_corvert_setup
 !-----------------------------------------------------------------------------------------------
   Subroutine bchm_corvert_mult(varName,rmat_in,ndim1,ndim2,rmat_out,itype)
 !
