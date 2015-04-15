@@ -46,8 +46,9 @@ MODULE gridStateVector_mod
   public :: struct_gsv
 
   ! public subroutines and functions
-  public :: gsv_setup, gsv_allocate, gsv_deallocate, gsv_zero, gsv_3dto4d, gsv_3dto4dAdj, gsv_varExist, gsv_getOffsetFromVarName
-  public :: gsv_getField, gsv_getField3D, gsv_getDateStamp, gsv_getNumLev, gsv_add
+  public :: gsv_setup, gsv_allocate, gsv_deallocate, gsv_zero, gsv_3dto4d, gsv_3dto4dAdj, gsv_varExist
+  public :: gsv_getOffsetFromVarName, gsv_writeToFile
+  public :: gsv_getField, gsv_getField3D, gsv_getDateStamp, gsv_getNumLev, gsv_add, gsv_power
   public :: gsv_getVco, gsv_setVco, gsv_getHco, gsv_setHco
   public :: gsv_commMPIGlobal, gsv_commMPIGlobal3D
   public :: gsv_commLatLon, gsv_commLatLonAd
@@ -695,7 +696,9 @@ MODULE gridStateVector_mod
 
   END SUBROUTINE GSV_commMPIGlobal3D
 
-
+  !--------------------------------------------------------------------------
+  ! GSV_add
+  !--------------------------------------------------------------------------
   SUBROUTINE GSV_add(statevector_in,statevector_inout,scaleFactor)
     implicit none
     type(struct_gsv) :: statevector_in,statevector_inout
@@ -748,6 +751,58 @@ MODULE gridStateVector_mod
 
   END SUBROUTINE GSV_add
 
+  !--------------------------------------------------------------------------
+  ! GSV_power
+  !--------------------------------------------------------------------------
+  SUBROUTINE GSV_power(statevector_inout,power,scaleFactor)
+    implicit none
+    type(struct_gsv)    :: statevector_inout
+    real(8), intent(in) :: power
+    integer          :: jstep,jlon,jlev,jlat,lon1,lon2,lat1,lat2
+    real(8), optional :: scaleFactor
+
+    if(.not.statevector_inout%allocated) then
+      call abort3d('gridStateVector_inout not yet allocated! Aborting.')
+    endif
+
+    lon1=statevector_inout%myLonBeg
+    lon2=min(statevector_inout%myLonEnd+1,statevector_inout%hco%ni)
+    lat1=statevector_inout%myLatBeg
+    lat2=min(statevector_inout%myLatEnd+1,statevector_inout%hco%nj)
+
+    if(present(scaleFactor)) then
+!$OMP PARALLEL
+!$OMP DO PRIVATE (jstep,jlat,jlev,jlon)    
+      do jlat = lat1, lat2
+        do jstep = 1, statevector_inout%numStep
+          do jlev = 1, statevector_inout%nk
+            do jlon = lon1, lon2
+              statevector_inout%gd(jlon,jlev,jlat,jstep) = &
+                   scaleFactor * (statevector_inout%gd(jlon,jlev,jlat,jstep))**power
+            enddo
+          enddo
+        enddo
+      enddo
+!$OMP END DO
+!$OMP END PARALLEL
+    else
+!$OMP PARALLEL
+!$OMP DO PRIVATE (jstep,jlat,jlev,jlon)    
+      do jlat = lat1, lat2
+        do jstep = 1, statevector_inout%numStep
+          do jlev = 1, statevector_inout%nk
+            do jlon = lon1, lon2
+              statevector_inout%gd(jlon,jlev,jlat,jstep) = &
+                   (statevector_inout%gd(jlon,jlev,jlat,jstep))**power
+            enddo
+          enddo
+        enddo
+      enddo
+!$OMP END DO
+!$OMP END PARALLEL
+    endif
+
+  END SUBROUTINE GSV_power
 
   SUBROUTINE GSV_3dto4d(statevector)
     implicit none
@@ -978,5 +1033,241 @@ MODULE gridStateVector_mod
     statevector%hco => hco_ptr
 
   end subroutine gsv_setHco
+
+  !--------------------------------------------------------------------------
+  ! gsv_writeToFile
+  !--------------------------------------------------------------------------
+  subroutine gsv_writeToFile(statevector,fileName,etiket_in,scaleFactor)
+    implicit none
+
+    type(struct_gsv)          :: statevector
+    character(len=*), intent(in) :: fileName
+    character(len=*), intent(in) :: etiket_in
+    real(8), optional,intent(in) :: scaleFactor
+
+    integer :: fclos, fnom, fstouv, fstfrm
+    integer :: nulfile
+    
+    real(4), allocatable :: work2d(:,:)
+
+    real(4)   :: factor, work
+
+    integer   :: ierr, fstecr
+    integer   :: var, k, kgdim
+
+    integer :: ni, nj, nk
+    integer :: dateo, npak, ji, jj, jk, jt, nlev, jvar
+    integer :: ip1, ip2, ip3, deet, npas, datyp
+    integer :: ig1 ,ig2 ,ig3 ,ig4
+
+    character(len=1)  :: grtyp
+    character(len=4)  :: nomvar
+    character(len=2)  :: typvar
+    character(len=12) :: etiket
+
+    logical :: FlipLatitude
+
+    real(8), pointer :: field(:,:,:,:)
+
+    !
+    !- Gather the info from all processors
+    !
+    call gsv_commMPIGlobal3D(statevector)
+
+    !
+    !- Write the global StateVector
+    !
+    if (mpi_myid == 0) then
+
+       write(*,*) 'gsv_writeToFile: START of writing to file'
+
+       !- Open output field
+       nulfile = 0
+       write(*,*) 'gsv_writeToFile: file name = ',trim(fileName)
+       ierr    = fnom(nulfile,trim(fileName),'RND',0)
+       
+       if ( ierr >= 0 ) then
+          write(*,*)'gsv_writeToFile: increment file opened with unit number ',nulfile
+          ierr  =  fstouv(nulfile,'RND')
+       else
+          call abort3d('gsv_writeToFile: problem opening output file, aborting!')
+       end if
+
+       if (nulfile == 0 ) then
+          call abort3d('gsv_writeToFile: unit number for output file not valid!')
+       endif
+
+       !- Write TicTacToc
+        call WriteTicTacToc(statevector,nulfile) ! IN
+
+       !- Write the 4D Fields
+       if ( statevector % hco % grtyp == 'G' .and.  &
+            statevector % hco % ig2   ==  1   ) then
+          FlipLatitude  = .true. 
+          ig2          = 0
+       else
+          FlipLatitude  = .false.
+          ig2          =  statevector % hco % ig2
+       end if
+
+       allocate(work2d(statevector%hco%ni,statevector%hco%nj))
+       
+       do jvar = 1, vnl_numvarmax 
+ 
+         if (gsv_varExist(vnl_varNameList(jvar)) ) then
+             field => gsv_getField(statevector,vnl_varNameList(jvar))
+
+             do jt = 1, statevector%numStep
+
+                nlev = gsv_getNumLev(statevector,vnl_vartypeFromVarname(vnl_varNameList(jvar)))
+                do jk = 1, nlev
+
+                   npak   = -32
+                   dateo  = statevector%dateStampList(jt)
+                   deet   = 0
+                   npas   = 0
+                   ni     = statevector%hco%ni
+                   nj     = statevector%hco%nj
+                   nk     = 1
+                   if (nlev /= 1) then
+                      if (vnl_vartypeFromVarname(vnl_varNameList(jvar)) == 'MM') then
+                         ip1 = statevector%vco%ip1_M(jk)
+                      else
+                         ip1 = statevector%vco%ip1_T(jk)
+                      end if
+                   else
+                      ip1 = 0
+                   end if
+                   ip2    = 0
+                   ip3    = 0
+                   typvar = 'E'
+                   nomvar = trim(vnl_varNameList(jvar))
+                   etiket = trim(Etiket_in)
+                   grtyp  = statevector%hco%grtyp
+                   ig1    = statevector%hco%ig1
+                   ig2    = statevector%hco%ig2
+                   ig3    = statevector%hco%ig3
+                   ig4    = statevector%hco%ig4
+                   datyp  = 1
+
+                   if ( trim(nomvar) == 'UU' .or. trim(nomvar) == 'VV') then
+                      factor = MPC_KNOTS_PER_M_PER_S_R4 ! m/s -> knots
+                   else if ( trim(nomvar) == 'P0' ) then
+                      factor = 0.01 ! Pa -> hPa
+                   else
+                      factor = 1.0
+                   end if
+
+                   if (present(scaleFactor)) factor = factor * real(scaleFactor,4)
+
+                   !- Extract 2D field from 4D Field
+                   if ( FlipLatitude ) then
+!$OMP PARALLEL
+!$OMP DO PRIVATE (ji,jj)
+                      do ji = 1, ni
+                         do jj = 1, nj/2
+                            work2d(ji,jj     ) = factor * real(Field(ji,jk,nj-jj+1,jt),4)
+                            work2d(ji,nj-jj+1) = factor * real(Field(ji,jk,jj     ,jt),4)
+                         end do
+                      end do
+!$OMP END DO
+!$OMP END PARALLEL
+                   else
+                      work2d(:,:) = factor * real(Field(:,jk,:,jt),4)
+                   end if
+
+                   !- Writing to file
+                   ierr = fstecr(work2d, work, npak, nulfile, dateo, deet, npas, ni, nj, &
+                                 nk, ip1, ip2, ip3, typvar, nomvar, etiket, grtyp,      &
+                                 ig1, ig2, ig3, ig4, datyp, .true.)
+
+                enddo
+             enddo
+          end if
+       enddo
+
+       deallocate(work2d)
+       
+       ierr = fstfrm(nulfile)
+       ierr = fclos(nulfile)        
+       
+       write(*,*) 'gsv_writeToFile: END of writing to file'
+
+    end if
+
+  end subroutine gsv_writeToFile
+
+  !--------------------------------------------------------------------------
+  ! WriteTicTacToc
+  !--------------------------------------------------------------------------
+  subroutine WriteTicTacToc(statevector,iun)
+    use vGrid_Descriptors , only: vgrid_descriptor, vgd_write, VGD_OK
+    use MathPhysConstants_mod, only : MPC_DEGREES_PER_RADIAN_R8
+    implicit none
+
+    type(struct_gsv)    :: statevector
+    integer, intent(in) :: iun
+
+    integer :: ier, vfstecr
+
+    real(8) :: work
+
+    integer :: dateo,npak, status
+    integer :: ip1,ip2,ip3,deet,npas,datyp,ig1,ig2,ig3,ig4
+    integer :: ig1_tictac,ig2_tictac,ig3_tictac,ig4_tictac
+
+    character(len=1)  :: grtyp
+    character(len=2)  :: typvar
+    character(len=12) :: etiket
+
+    !
+    !- 1.  Writing Tic-Tac
+    !
+    if ( statevector % hco % grtyp == 'Z' ) then
+       npak     = -32
+       deet     =  0
+       ip1      =  statevector%hco%ig1
+       ip2      =  statevector%hco%ig2
+       ip3      =  0
+       npas     =  0
+       datyp    =  1
+       grtyp    = 'E'
+       typvar   = 'X'
+       etiket   = 'TICTICTACTAC'
+       dateo =  0
+
+       call cxgaig ( grtyp,                                          & ! IN
+                     ig1_tictac, ig2_tictac, ig3_tictac, ig4_tictac, & ! OUT
+                     real(statevector%hco%xlat1), real(statevector%hco%xlon1),   & ! IN
+                     real(statevector%hco%xlat2), real(statevector%hco%xlon2)  )   ! IN
+
+       ig1      =  ig1_tictac
+       ig2      =  ig2_tictac
+       ig3      =  ig3_tictac
+       ig4      =  ig4_tictac
+
+       ier = vfstecr(statevector%hco%lon*MPC_DEGREES_PER_RADIAN_R8, work, npak, &
+                     iun, dateo, deet, npas, statevector%hco%ni, 1, 1, ip1,    &
+                     ip2, ip3, typvar, '>>', etiket, grtyp, ig1,          &
+                     ig2, ig3, ig4, datyp, .true.)
+
+       ier = vfstecr(statevector%hco%lat*MPC_DEGREES_PER_RADIAN_R8, work, npak, &
+                     iun, dateo, deet, npas, 1, statevector%hco%nj, 1, ip1,    &
+                     ip2, ip3, typvar, '^^', etiket, grtyp, ig1,          &
+                     ig2, ig3, ig4, datyp, .true.)
+    end if
+
+    !
+    !- Writing Toc-Toc
+    !
+    status = vgd_write(statevector%vco%vgrid,iun,'fst')
+
+    if ( status /= VGD_OK ) then
+      write(*,*)
+      write(*,*) 'WriteTicTacToc: ERROR with vgd_write '
+      stop
+    end if
+
+  end subroutine WriteTicTacToc
 
 END MODULE gridStateVector_mod

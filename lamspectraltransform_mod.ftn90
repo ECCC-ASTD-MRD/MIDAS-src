@@ -47,7 +47,9 @@ module LamSpectralTransform_mod
      integer              :: id              ! Transform ID number
      integer              :: nla             ! First dimension of VAR spectral array
      integer              :: nphase          ! Second dimension of VAR spectral array
-     integer, allocatable :: k(:)            ! Total Wavenumber associated with each
+     real(8), allocatable :: k_r8(:)         ! (real) Total Wavenumber associated with each
+                                             !  nla spectral coefficient
+     integer, allocatable :: k(:)            ! Total Wavenumber bin associated with each
                                              !  nla spectral coefficient
      integer, allocatable :: m(:)            ! Wavenumber in x associated with each
                                              !  nla spectral coefficient
@@ -126,6 +128,8 @@ contains
     type(struct_lst), intent(out)   :: lst_out
                                      ! Parameters available to the outside world
 
+    real(8), allocatable            :: Kr8fromMN(:,:)
+
     integer, allocatable            :: KfromMN(:,:)
     integer, allocatable            :: KfromMNglb(:,:)
     integer, allocatable            :: my_KfromMNglb(:,:)
@@ -199,17 +203,33 @@ contains
     lst(id)%mmax = lst(id)%ni/2
     lst(id)%nmax = lst(id)%nj/2
 
+    write(*,'(A,f4.1)') ' lst_Setup: Your grid spacing (in km) = ', RA*dlon_in/1000.0
+    write(*,*) '           Max wavenumbers in x-axis = ', lst(id)%mmax            
+    write(*,*) '           Max wavenumbers in y-axis = ', lst(id)%nmax
     if      ( lst(id)%ktrunc > nint(sqrt(real(lst(id)%mmax)**2+real(lst(id)%nmax)**2)) ) then
-      write(6,*)
-      write(6,*) 'lst_Setup: Warning: Truncation is larger than sqrt(mmax^2+nmax^2)'
-      write(6,*) '           NO TRUNCATION will be applied'
+      write(*,*)
+      write(*,*) 'lst_Setup: Warning: Truncation is larger than sqrt(mmax^2+nmax^2)'
+      write(*,*) '           NO TRUNCATION will be applied'
     else if ( lst(id)%ktrunc > min(lst(id)%mmax,lst(id)%nmax) ) then
-      write(6,*)
-      write(6,*) 'lst_Setup: Warning: Truncation is larger than min(mmax,nmax)'
-      write(6,*) '           TRUNCATION will be applied only above mmax and/or nmax'
+      write(*,*)
+      if ( lst(id)%ktrunc > lst(id)%mmax ) then
+         write(*,*) 'lst_Setup: Warning: Truncation is larger than mmax only'
+         write(*,*) '           TRUNCATION will be applied only above nmax'
+         write(*,'(A,f4.1)') '          i.e., for wavelenght (in km) in y-axis smaller than ',&
+                     (lst(id)%nj*RA*dlon_in/1000.0)/lst(id)%ktrunc
+      else
+         write(*,*) 'lst_Setup: Warning: Truncation is larger than nmax only'
+         write(*,*) '           TRUNCATION will be applied only above mmax'
+         write(*,'(A,f4.1)') '          i.e., for wavelenght (in km) in x-axis smaller than ',&
+                     (lst(id)%ni*RA*dlon_in/1000.0)/lst(id)%ktrunc
+      end if
     else
-      write(6,*)
-      write(6,*) 'lst_Setup: TRUNCATION will be applied above k = ',lst(id)%ktrunc
+      write(*,*)
+      write(*,*) 'lst_Setup: TRUNCATION will be applied above k = ',lst(id)%ktrunc
+      write(*,'(A,f4.1)') '          i.e., for wavelenght (in km) in x-axis smaller than ',&
+                     (lst(id)%ni*RA*dlon_in/1000.0)/lst(id)%ktrunc
+      write(*,'(A,f4.1)') '          i.e., for wavelenght (in km) in y-axis smaller than ',&
+                     (lst(id)%nj*RA*dlon_in/1000.0)/lst(id)%ktrunc
     end if
 
     !- 1.4 MPI Strategy
@@ -423,9 +443,11 @@ contains
     !- 1.5 Compute the Total Wavenumber associated with weach m,n pairs and
     !      the number of spectral element in the VAR array (nla) 
     !      FOR THE LOCAL PROCESSOR
+    allocate( Kr8fromMN(0:lst(id)%mmax,0:lst(id)%nmax) )
+    Kr8FromMN(:,:) = -1.d0
+
     allocate( KfromMN(0:lst(id)%mmax,0:lst(id)%nmax) )
     KFromMN(:,:) = -1
-    ! bhe should be ==> KFromMN(:,:) = 0 ????
 
     ! We follow here the method described in Denis et al., MWR, 2002
 !    kmax = min(mmax,nmax)
@@ -446,6 +468,7 @@ contains
         if ( k <= lst(id)%ktrunc ) then
           ila = ila +1
           KFromMN(m,n) = k
+          Kr8FromMN(m,n) = r
         end if
       end do
     end do
@@ -468,6 +491,7 @@ contains
     !      FOR THE LOCAL PROCESSOR
     allocate( lst(id)%nla_Index(0:lst(id)%mmax,0:lst(id)%nmax) )
 
+    allocate( lst_out%k_r8(1:lst_out%nla) )
     allocate( lst_out%k(1:lst_out%nla) )
     allocate( lst_out%m(1:lst_out%nla) )
     allocate( lst_out%n(1:lst_out%nla) )
@@ -497,6 +521,7 @@ contains
           ! Outgoing (public) variables
           lst_out%nePerK(k) = lst_out%nePerK(k) + 1
           lst_out%ilaFromEK(lst_out%nePerK(k),k) = ila
+          lst_out%k_r8(ila) = Kr8fromMN(m,n)
           lst_out%k(ila) = k
           lst_out%m(ila) = m
           lst_out%n(ila) = n
@@ -518,6 +543,7 @@ contains
 
     lst_out%nlaGlobal = ilaglb ! Number of spectral element per phase in the VAR mpi global array
 
+    deallocate( Kr8fromMN )
     deallocate( KfromMN )
     deallocate( KfromMNglb )
 
