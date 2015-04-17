@@ -588,7 +588,8 @@ module observation_erreurs_mod
   !           - Added consideration of 'CH' family
   !           - Removal of 'OZ' family
   !           - Added availability of CSTNID, obs_err_stddev
-  !          
+  !           M. Sitwell, ARQI/AQRD, Apr 2015 
+  !           - Added IDATE and ITIME
   !
   ! Purpose: read observation errors (modification of former readcovo subroutine).
   !
@@ -600,7 +601,7 @@ module observation_erreurs_mod
 
   integer :: JN, JI, INDEX_BODY, INDEX_HEADER, ITYP, IFLG, IASS, IDATA, IDATEND, IDBURP
   integer :: ISAT, ICHN, IPLATF, INSTR, IPLATFORM, INSTRUM
-  integer :: ILEV,ISTNID,JINT,NLEV
+  integer :: ILEV,ISTNID,JINT,NLEV,IDATE,ITIME
   integer :: ielem,icodtyp
   real(8) :: ZLAT, ZLON, ZLEV, ZVAL, ZSIG, zwb, zwt, obs_err_stddev
   logical :: IFIRST
@@ -632,6 +633,8 @@ module observation_erreurs_mod
      IPLATF  = obs_headElem_i(lobsSpaceData,OBS_SAT,INDEX_HEADER)
      INSTR   = obs_headElem_i(lobsSpaceData,OBS_INS,INDEX_HEADER)
      CSTNID  = obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER)
+     IDATE  = obs_headElem_i(lobsSpaceData,OBS_DAT,INDEX_HEADER) 
+     ITIME  = obs_headElem_i(lobsSpaceData,OBS_ETM,INDEX_HEADER)
 
      NLEV = IDATEND-IDATA+1
 
@@ -901,12 +904,13 @@ module observation_erreurs_mod
                  end do
 
               END IF
+              
+              ZLEV   = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
 
-              ZLEV  = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
-              obs_err_stddev = chm_get_obs_err_stddev(CSTNID,NLEV,ITYP,ZLAT,ZVAL,ZLEV,IFIRST)
+              obs_err_stddev = chm_get_obs_err_stddev(CSTNID,NLEV,ITYP,ZLAT,ZLON,IDATE,ITIME,ZVAL,ZLEV,IFIRST)
               call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, obs_err_stddev)
-             
-          END IF
+              
+           END IF
           
         ELSE
 
@@ -938,7 +942,7 @@ module observation_erreurs_mod
 
         ENDIF
 
-      ENDIF ! end of IASS .EQ. 1
+     ENDIF ! end of IASS .EQ. 1
 
     END DO ! end of INDEX_BODY loop 
 

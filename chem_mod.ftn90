@@ -94,7 +94,7 @@ module chem_mod
      !  lat                    Latitudes (degrees; ordered in increasing size)
      !  std1                   See std_type for usage
      !  std2                   See std_type for usage
-     !  std3                   See std_type for usage     
+     !  std3                   See std_type for usage  
 
      integer ::  n_stnid
      character(len=12), allocatable :: stnids(:)
@@ -168,9 +168,35 @@ module chem_mod
 
   end type struct_chm_obsoperators
 
+  type :: struct_chm_burp
+
+     !  Structure storing information retrieved from BURP files
+     !  for individual reports.
+     !     
+     !  Variable               Description
+     !  --------               -----------
+     !  data                   BURP file data indexed by (irep,ilev)
+     !  ilev                   current level position
+     !  irep                   current report position
+     !  date                   YYYYMM
+     !  time                   HHMM
+     !  lat,lon                lat,lon in radians
+
+     real(8), pointer :: data(:,:), lat(:), lon(:)
+     integer, pointer :: date(:),time(:)
+     integer :: nlev,nrep,ilev,irep
+  
+  end type struct_chm_burp
+
   type(struct_chm_info) :: chm_layers
   type(struct_chm_info) :: chm_avgkern
   type(struct_chm_std)  :: chm_std
+
+  ! Array of pointers to hold std's read from BURP file
+  ! Note: Ideally, this should be an element in the
+  ! 'struct_chm_std' derived type, but currently this
+  ! results in an internal compiler error.
+  type(struct_chm_burp), allocatable :: chm_burp_std(:)
 
 contains
 
@@ -466,7 +492,6 @@ contains
 !
 ! Author  : M. Sitwell, ARQI/AQRD, March 2015
 !
-!
 ! Revision: 
 !
 ! Purpose:  Read averaging kernels from ascii file and BURP file if specified in ascii file
@@ -484,11 +509,10 @@ contains
     !   
     !   if (chm_avgkern%brp(i).eq.1) then
     !      call chm_read_burp('brpch', chm_avgkern%stnids(i), chm_avgkern%bfr(i), &
-    !           chm_avgkern%n_lvl(i), burp_nrep_max, burp_std)
+    !           chm_avgkern%n_lvl(i), burp_nrep_max, chm_burp_std)
     !   end if
     !
     !end do
-
 
   end subroutine chm_read_avgkern
 
@@ -634,8 +658,7 @@ contains
       deallocate(chm_avgkern%bfr,chm_avgkern%brp,chm_avgkern%n_lat)
       deallocate(chm_avgkern%rak,chm_avgkern%lat)
   end if
- 
- 
+  
   end subroutine chm_dealloc_avgkern
 
 !-----------------------------------------------------------------------------------------
@@ -726,7 +749,43 @@ contains
 
   subroutine chm_read_obs_err_stddev
 !
-!  s/r chm_read_obs_err_stddev - READ OBSERVATION ERROR OF CONSTITUENT DATA 
+! Author  : M. Sitwell, ARQI/AQRD, March 2015
+!
+!
+! Revision: 
+!
+! Purpose:  Read observation errors from ascii file and BURP file if specified in ascii file
+!
+!-----------------------------------------------------------------------------------------
+
+    implicit none
+
+    integer :: istnid
+
+    ! read the error std. dev. information from the ascii file
+    call chm_read_obs_err_stddev_ascii
+
+    ! set size of BURP file std array
+    allocate(chm_burp_std(chm_std%n_stnid))
+
+    ! read from BURP file
+    do istnid=1,chm_std%n_stnid
+       if (chm_std%brp(istnid).eq.1) then
+          
+          ! retrieve data from stats blocks (with bkstp=14)
+          chm_burp_std(istnid) = chm_read_burp('brpch', chm_std%stnids(istnid), &
+               chm_std%bfr(istnid), chm_std%n_lvl(istnid), 14)
+          
+       end if
+    end do
+
+  end subroutine chm_read_obs_err_stddev
+
+  !----------------------------------------------------------------------------------------
+
+  subroutine chm_read_obs_err_stddev_ascii
+!
+!  s/r chm_read_obs_err_stddev - READ OBSERVATION ERROR OF CONSTITUENT DATA FROM ASCII FILE
 !
 !  Author   : Y. Rochon, Nov 2014 
 !             (initial part follows the format of oer_read_obs_erreurs_conv)
@@ -772,7 +831,7 @@ contains
   IF ( IERR .EQ. 0 ) THEN
     open(unit=nulstat, file='obsinfo_chm', status='OLD')
   ELSE
-    CALL ABORT3D('chm_read_obs_err_stddev: COULD NOT OPEN FILE obsinfo_chm!')
+    CALL ABORT3D('chm_read_obs_err_stddev_ascii: COULD NOT OPEN FILE obsinfo_chm!')
   ENDIF
 
 ! Read error standard deviations for constituents if available.
@@ -835,7 +894,7 @@ contains
     
     if (icount+chm_std%n_lvl(jelm)*chm_std%n_lat(jelm).gt.isize) then
        write(*,'(10X,"Max array size exceeded: ",I6)') isize
-       CALL ABORT3D('chm_read_obs_err_stddev: PROBLEM READING OBSERR STD DEV.')    
+       CALL ABORT3D('chm_read_obs_err_stddev_ascii: PROBLEM READING OBSERR STD DEV.')    
     end if
 
     ! disregard line of dashes
@@ -902,17 +961,17 @@ contains
    
  10 if (ios.gt.0) then
        WRITE(*,*) 'File read error message number: ',ios
-       CALL ABORT3D('chm_read_obs_err_stddev: PROBLEM READING OBSERR STD DEV.')    
+       CALL ABORT3D('chm_read_obs_err_stddev_ascii: PROBLEM READING OBSERR STD DEV.')    
     end if
  
  11 CLOSE(UNIT=NULSTAT)
     IERR=FCLOS(NULSTAT)    
 
-  end subroutine chm_read_obs_err_stddev
+  end subroutine chm_read_obs_err_stddev_ascii
 
 !-----------------------------------------------------------------------------------------
 
-  subroutine chm_obs_err_stddev_index(CSTNID,NLEV,ITYP,ZLAT,ISTNID,JINT)
+  subroutine chm_obs_err_stddev_index(CSTNID,NLEV,VARNO,ZLAT,ISTNID,JINT)
 !
 !  s/r chm_set_obs_err_stddev_index - Returns the station ID and latitude 
 !                                     indices corresponding to a measurement
@@ -923,18 +982,15 @@ contains
 !  Revisions: 
 !
 !----------------------------------------------------------------------------------------
-
-    use bufr
-    
+   
     implicit none
 
     character(len=*), intent(in) :: CSTNID
-    integer, intent(in)           :: NLEV,ITYP
+    integer, intent(in)           :: NLEV,VARNO
     real(8), intent(in)           :: ZLAT
     integer, intent(out)          :: ISTNID,JINT
     integer                       :: JN,ilen1,ilen2,ji,ibegin
     logical                       :: iset
-
 
  ! Important: Combination of STNID, BUFR element and number of vertical levels
  !            to determine association to the observations.
@@ -951,7 +1007,7 @@ contains
                    
        IF (iset) THEN
           IF (NLEV .EQ. chm_std%n_lvl(JN) .AND. &
-               ITYP .EQ. chm_std%bfr(JN) ) THEN
+               VARNO .EQ. chm_std%bfr(JN) ) THEN
              ISTNID=JN
              exit
           END IF
@@ -963,15 +1019,6 @@ contains
        WRITE(*,'(1X,"Error std. dev. for STNID= ",A10," not found. Set to 5%.")') &
             CSTNID
     ELSE
-       ! IF (chm_std%brp(ISTNID).NE.0) THEN
-       
-       !   Read initial error standard deviations from obs BURP file.
-       !   Dimension must be equivalent to NLEV
-       ! ...
-       
-       ! sigma(:) = ...
-       
-       ! END IF
 
        IF (chm_std%n_lat(ISTNID) .GT. 1) THEN
 
@@ -994,7 +1041,7 @@ contains
 
 !----------------------------------------------------------------------------------------
 
-  function chm_get_obs_err_stddev(CSTNID,NLEV,ITYP,ZLAT,ZVAL,ZLEV,IFIRST) result(obs_err_stddev) 
+  function chm_get_obs_err_stddev(CSTNID,NLEV,VARNO,ZLAT,ZLON,IDATE,ITIME,ZVAL,ZLEV,IFIRST) result(obs_err_stddev) 
 !
 !  s/r chm_set_obs_err_stddev - Returns the observational error std for a CH family measurement
 !
@@ -1006,23 +1053,21 @@ contains
 !----------------------------------------------------------------------------------------
 
     implicit none
-    
+   
     character(len=*), intent(in) :: CSTNID
-    real(8), intent(in) :: ZVAL,ZLEV,ZLAT
-    integer, intent(in) :: NLEV,ITYP
+    real(8), intent(in) :: ZVAL,ZLEV,ZLAT,ZLON
+    integer, intent(in) :: NLEV,VARNO,IDATE,ITIME
     logical, intent(in)  :: IFIRST
 
     real(8)  :: obs_err_stddev 
        
-    real(8)  :: wgt,zwb
+    real(8)  :: wgt,zwb,sigma
     integer  :: ibegin,ILEV,JN
     integer, save  :: ISTNID,JINT
 
-
     ! If this call is for the first level for this measurement, get
     ! the station ID and latitude indices corresponding to this measurement
-    if (ifirst) call chm_obs_err_stddev_index(CSTNID,NLEV,ITYP,ZLAT,ISTNID,JINT)
-
+    if (ifirst) call chm_obs_err_stddev_index(CSTNID,NLEV,VARNO,ZLAT,ISTNID,JINT)
 
     ! Identify level if needed
                    
@@ -1088,20 +1133,21 @@ contains
 
        ELSE
           
-!                  Adjust error standard deviations read from BURP file if requested.
-!                     
-!          IF (chm_std%std_type(ISTNID).EQ. 0) THEN
-!             obs_err_stddev = sigma(INDEX_BODY-IDATA+1)
-!          ELSE IF (chm_std%std_type(ISTNID).EQ. 1) THEN
-!             obs_err_stddev = max(chm_std%std2(ISTNID),wgt*sigma(INDEX_BODY-IDATA+1))
-!          ELSE 
-!             IF (INDEX_BODY.EQ.IDATA)  &
-!                  WRITE(*,'(1X,"EOR setup type ",I3," for STNID ",A10," is not recognized.")')     &
-!                  chm_std%std_type(ISTNID) , CSTNID
-!          END IF
-!       END IF
-              
+          ! Adjust error standard deviations read from BURP file if requested.
+
+          sigma = chm_get_burp_element(chm_burp_std(istnid),zlat,zlon,idate,itime)
+          
+          IF (chm_std%std_type(ISTNID).EQ. 0) THEN
+             obs_err_stddev = sigma
+          ELSE IF (chm_std%std_type(ISTNID).EQ. 1) THEN
+             obs_err_stddev = max(chm_std%std2(ISTNID),wgt*sigma)
+          ELSE
+             WRITE(*,'(1X,"EOR setup type ",I3," for STNID ",A10," is not recognized.")')     &
+                  chm_std%std_type(ISTNID) , CSTNID
+             call abort3d('chm_get_obs_err_stddev:')
+          END IF
        END IF
+              
     END IF
 
   end function chm_get_obs_err_stddev
@@ -1117,15 +1163,280 @@ contains
 !
 !---------------------------------------------------------------------------------------
   
-  if (chm_std%n_stnid.gt.0) then
-      deallocate(chm_std%stnids)
-      deallocate(chm_std%n_lvl,chm_std%std_type,chm_std%ibegin)
-      deallocate(chm_std%bfr,chm_std%brp,chm_std%n_lat)
-      deallocate(chm_std%std1,chm_std%std2,chm_std%std3)
-      deallocate(chm_std%levels,chm_std%lat)
-  end if
-  
+    implicit none
+
+    integer :: istnid
+
+    if (allocated(chm_std%stnids))   deallocate(chm_std%stnids)
+    if (allocated(chm_std%n_lvl))    deallocate(chm_std%n_lvl)
+    if (allocated(chm_std%std_type)) deallocate(chm_std%std_type)
+    if (allocated(chm_std%ibegin))   deallocate(chm_std%ibegin)
+    if (allocated(chm_std%bfr))      deallocate(chm_std%bfr)
+    if (allocated(chm_std%brp))      deallocate(chm_std%brp)
+    if (allocated(chm_std%n_lat))    deallocate(chm_std%n_lat)
+    if (allocated(chm_std%std1))     deallocate(chm_std%std1)
+    if (allocated(chm_std%std2))     deallocate(chm_std%std2)
+    if (allocated(chm_std%std3))     deallocate(chm_std%std3)
+    if (allocated(chm_std%levels))   deallocate(chm_std%levels)
+    if (allocated(chm_std%lat))      deallocate(chm_std%lat)
+
+    if (allocated(chm_burp_std)) then
+
+       do istnid=1,chm_std%n_stnid
+          call dealloc_burp(chm_burp_std(istnid))
+       end do
+
+       deallocate(chm_burp_std)
+          
+    end if
+
   end subroutine chm_dealloc_obs_err_stddev
+
+
+!-----------------------------------------------------------------------------------------
+!------------------- BURP functions and routines -----------------------------------------
+
+  function chm_read_burp(filename,stnid,varno,nlev,bkstp) result(burp_out)
+!
+! Author  : M. Sitwell, ARQI/AQRD, March 2015
+!
+!
+! Revision: 
+!
+! Purpose:  Retrieve information from BURP file for CH family observations
+!
+! Arguments:
+!
+!  Input
+!           filename      BURP file name
+!           stnid         station ID of observation
+!           varno         BUFR code
+!           nlev          number of levels in the observation
+!           bkstp         bkstp number of requested block
+!
+!  Output 
+!           burp_out      struct_chm_burp object
+!
+!-----------------------------------------------------------------------------------------
+    
+    use burp_module
+    use MathPhysConstants_mod
+
+    implicit none
+
+    character(len=*), intent(in) :: filename
+    character(len=9), intent(in) :: stnid
+    integer, intent(in)          :: varno,nlev,bkstp
+    type(struct_chm_burp) :: burp_out
+    character(len=9)      :: rep_stnid
+    type(burp_file)       :: brp
+    type(burp_rpt)        :: rep
+    type(burp_block)      :: blk
+    integer               :: error,ref_rpt,nrep,ref_blk,i
+    integer               :: ref_bkstp,nval,ivar,iexp,ilev,icount
+    integer               :: date,time,ilat,ilon
+    real(8)               :: val,exponent
+      
+    ! initialize burp file, report, and block
+    Call BURP_Init(brp, iostat=error)
+    Call BURP_Init(rep, iostat=error)
+    Call BURP_Init(blk, iostat=error)
+
+    ! open the burp file
+    Call BURP_New(brp, FILENAME=filename, MODE=FILE_ACC_READ, IOSTAT=error)
+    
+    if (error.ne.0) CALL ABORT3D('chm_read_burp: Could not open BURP file: ' // filename)
+
+    ! get number of reports in file
+    Call BURP_Get_Property(brp, NRPTS=nrep)
+
+    ! allocate memory
+    call alloc_burp(burp_out,nrep,nlev)
+    
+    icount = 0  ! counter of reports with same stnid and number of levels as input 
+    ref_rpt = 0
+    
+    ! loop through reports    
+    REPORTS: do
+
+       ref_rpt = BURP_Find_Report(brp, REPORT=rep, SEARCH_FROM=ref_rpt, IOSTAT=error)
+
+       if (ref_rpt<0) exit REPORTS
+       
+       call BURP_Get_Property(rep, STNID=rep_stnid, DATE=date, TEMPS=time, LATI=ilat, LONG=ilon) 
+
+       if (.not. stnid_equal(stnid,rep_stnid)) cycle REPORTS
+
+       ! loop through blocks
+       ref_blk = 0
+       BLOCKS: do
+          
+          ref_blk = BURP_Find_Block(rep, BLOCK=blk, SEARCH_FROM=ref_blk, IOSTAT=error)          
+          if (ref_blk<0) exit BLOCKS
+          
+          call BURP_Get_Property(blk, NVAL=nval, BKSTP=ref_bkstp, IOSTAT=error)
+          
+          if (bkstp.eq.ref_bkstp) then
+             if (nval.eq.nlev) then
+                
+                ! required block found, retrieve data and store in burp_out
+
+                icount=icount+1
+
+                ivar = BURP_Find_Element(blk, ELEMENT=varno, IOSTAT=error)
+                iexp = BURP_Find_Element(blk, ELEMENT=8090, IOSTAT=error)
+                
+                do ilev=1,nval
+                   val      = BURP_Get_Rval(blk, NELE_IND=ivar, NVAL_IND=ilev, NT_IND=1, IOSTAT=error)
+                   exponent = BURP_Get_Rval(blk, NELE_IND=iexp, NVAL_IND=ilev, NT_IND=1, IOSTAT=error)
+                   burp_out%data(icount,ilev) = val * 10**exponent
+                end do
+                
+                burp_out%date(icount) = date
+                burp_out%time(icount) = time
+
+                burp_out%lon(icount) = .01*ilon
+                if (burp_out%lon(icount).lt.0.) burp_out%lon(icount) = 360. + burp_out%lon(icount)
+                burp_out%lat(icount) = ilat*.01 -90.
+                burp_out%lon(icount) = burp_out%lon(icount)*MPC_RADIANS_PER_DEGREE_R8
+                burp_out%lat(icount) = burp_out%lat(icount)*MPC_RADIANS_PER_DEGREE_R8
+                
+             end if
+             exit BLOCKS
+          end if
+
+       end do BLOCKS
+      
+    end do REPORTS
+
+    ! resize first dimension of output from length
+    ! of nrep to icount
+    call resize_1d_real(burp_out%lat,icount)
+    call resize_1d_real(burp_out%lon,icount)
+    call resize_1d_int(burp_out%date,icount)
+    call resize_1d_int(burp_out%time,icount)
+    call resize_2d_real(burp_out%data,icount,nlev)
+
+    burp_out%nrep = icount
+    burp_out%nlev = nlev
+
+    ! The following are counters used to keep tract of position 
+    ! in burp_out%data array when extracting values via
+    ! chm_get_burp_element. The values are initialized to one,
+    ! pointing to the very first element.
+    burp_out%irep = 1
+    burp_out%ilev = 1
+    
+    ! deallocate
+    Call BURP_Free(brp,iostat=error)
+    Call BURP_Free(rep,iostat=error)
+    Call BURP_Free(blk,iostat=error)
+    
+  end function chm_read_burp
+
+!-------------------------------------------------------------------------------------------
+
+  subroutine alloc_burp(burp,nrep,nlev)
+!
+! Author  : M. Sitwell  April 2014
+! Revision: 
+!
+! Purpose: Allocates memory for structure struct_chm_burp to hold BURP file information
+!
+!---------------------------------------------------------------------------------------
+
+    implicit none
+
+    type(struct_chm_burp), intent(inout) :: burp
+    integer, intent(in) :: nrep,nlev
+    
+    allocate(burp%data(nrep,nlev))
+    allocate(burp%lat(nrep),burp%lon(nrep))
+    allocate(burp%date(nrep),burp%time(nrep))
+
+  end subroutine alloc_burp
+
+!-------------------------------------------------------------------------------------------
+
+  subroutine dealloc_burp(burp)
+!
+! Author  : M. Sitwell  April 2014
+! Revision: 
+!
+! Purpose: Deallocates memory for structure struct_chm_burp
+!
+!---------------------------------------------------------------------------------------
+
+    implicit none
+
+    type(struct_chm_burp), intent(inout) :: burp
+    
+    if (associated(burp%data)) deallocate(burp%data)
+    if (associated(burp%lat))  deallocate(burp%lat)
+    if (associated(burp%lon))  deallocate(burp%lon)
+    if (associated(burp%date)) deallocate(burp%date)
+    if (associated(burp%time)) deallocate(burp%time)
+
+  end subroutine dealloc_burp
+
+!-------------------------------------------------------------------------------------------
+
+  function chm_get_burp_element(burp,zlat,zlon,idate,itime) result(element)
+! 
+!   Purpose: Returns element of array from burp%data. The returned element is the one
+!            that matches the lon,lat,date, and time from the argument list to that stored
+!            in the burp structure.
+!
+!!   Author: M. Sitwell, ARQI/AQRD, April 2015
+!    
+!   Revisions:
+!
+!  Input 
+!           burp          struct_chm_burp instance
+!           zlat          latitude
+!           zlon          longitude
+!           idate         date YYYYMM
+!           itime         time HHMM
+!
+!  Output
+!           element       retrieved element from burp%data
+!-------------------------------------------------------------------------------------------
+
+    type(struct_chm_burp), intent(inout) :: burp
+    real(8), intent(in) :: zlat,zlon
+    integer, intent(in) :: idate,itime
+    real(8) :: element
+    integer :: i
+
+    i=0
+    
+    ! search for required irep if current position doesn't match lat,lon,date,time
+    do while (.not. equal_real(burp%lon(burp%irep),zlon) .or. .not. equal_real(burp%lat(burp%irep),zlat) .or. &
+              idate.ne.burp%date(burp%irep) .or. itime.ne.burp%time(burp%irep) )
+       burp%irep=burp%irep+1
+       if (burp%irep.gt.burp%nrep) burp%irep=1
+       burp%ilev=1
+       if (i.gt.burp%nrep) CALL ABORT3D('chm_get_burp_element: BURP file data could not be retrieved.')
+       i=i+1
+    end do
+    
+    ! get element from data array at current position
+    element = burp%data(burp%irep,burp%ilev)
+    
+    ! increment position in data array
+    if (burp%irep.eq.burp%nrep .and. burp%ilev.eq.burp%nlev) then
+       burp%irep = 1
+       burp%ilev = 1
+    else
+       burp%ilev=burp%ilev+1
+       
+       if (burp%ilev.gt.burp%nlev) then
+          burp%ilev=1
+          burp%irep=burp%irep+1
+       end if
+    end if
+
+  end function chm_get_burp_element
 
 !-----------------------------------------------------------------------------------------
 !------------------- Miscellaneous utilities functions and routines ----------------------
@@ -1334,6 +1645,110 @@ contains
   end subroutine chm_get_Id
 
 !-------------------------------------------------------------------------------------------
+
+  subroutine resize_1d_real(arr,dim1)
+!
+! Author  : M. Sitwell  April 2014
+! Revision: 
+!
+! Purpose: Resize 1D array
+!
+!---------------------------------------------------------------------------------------
+    implicit none
+
+    real(8), pointer, intent(inout) :: arr(:)
+    integer, intent(in) :: dim1
+    real(8), pointer :: tmp(:)
+
+    allocate(tmp(dim1))
+
+    tmp = arr(1:dim1)
+    
+    deallocate(arr)
+
+    arr => tmp
+    
+    nullify(tmp)
+
+  end subroutine resize_1d_real
+!-------------------------------------------------------------------------------------------
+
+  subroutine resize_1d_int(arr,dim1)
+!
+! Author  : M. Sitwell  April 2014
+! Revision: 
+!
+! Purpose: Resize 1D array
+!
+!---------------------------------------------------------------------------------------
+     
+    implicit none
+
+    integer, pointer, intent(inout) :: arr(:)
+    integer, intent(in) :: dim1
+    integer, pointer :: tmp(:)
+
+    allocate(tmp(dim1))
+
+    tmp = arr(1:dim1)
+    
+    deallocate(arr)
+
+    arr => tmp
+    
+    nullify(tmp)
+
+  end subroutine resize_1d_int
+
+!-------------------------------------------------------------------------------------------
+  
+  subroutine resize_2d_real(arr,dim1,dim2)
+!
+! Author  : M. Sitwell  April 2014
+! Revision: 
+!
+! Purpose: Resize 2D array
+!
+!---------------------------------------------------------------------------------------
+
+    implicit none
+
+    real(8), pointer, intent(inout) :: arr(:,:)
+    integer, intent(in) :: dim1,dim2
+    real(8), pointer :: tmp(:,:)
+
+    allocate(tmp(dim1,dim2))
+
+    tmp = arr(1:dim1,1:dim2)
+    
+    deallocate(arr)
+
+    arr => tmp
+    
+    nullify(tmp)
+
+  end subroutine resize_2d_real
+
+!-------------------------------------------------------------------------------------------
+  
+  logical function equal_real(r1,r2)
+!
+! Author  : M. Sitwell  April 2014
+! Revision: 
+!
+! Purpose: Check if two reals are equal (up to a small difference of 1E-5) 
+!
+!---------------------------------------------------------------------------------------
+
+    implicit none
+
+    real(8), intent(in) :: r1,r2
+    
+    equal_real = abs(r1-r2) .le. 1E-5
+    
+  end function equal_real
+
+!-------------------------------------------------------------------------------------------
 !--------------------------- Routines for observation operators ----------------------------
 
   subroutine chm_obsoperators(n_modlvl,rvalinc,rval,rtt,pressmodlvl,rgz,kmode,varName, &
@@ -1381,7 +1796,8 @@ contains
 !               1 for tangent linear model applied for error std.dev. conversion
 !               2 for tangent linear model
 !               3 for adjoint model 
-!   
+!     robslev   pressure value of observation (OBS_PPP)
+!
 !   Inout (to be completed)
 !
 !     rmhx      H(x) element value when kmode=0 (out).
@@ -1480,6 +1896,7 @@ contains
 ! Identify observation operator based on observation units and presence or
 ! not of layer boundaries
 
+
   if (chm_checkfor_integlayer(varno)) then
      if (.not.chm_obsoper%layer_identified) then
         write(*,*)   '----------------------------------------------------------'
@@ -1514,11 +1931,11 @@ contains
    
 !  select case(chm_obsoper%modelIndex)
 !
-!     case(1)
+!  case(1)
 
 !        Vertical interpolation operator
 
-!         call chm_vert_interp_operator  ! see 3dvar_chem routine ch_vprof
+!     call chm_vert_interp_operator(chm_obsoper,n_modlvl,pressmodlvl,nobslev,robslev,success)
 
 !     case(2)
 
@@ -1526,13 +1943,12 @@ contains
 
 !         call chm_layer_avg_operator  ! see 3dvar_chem routine ch_vavg
 
-!     case(3)
+!  case(3)
 
 !        Layer integration operator
 
-  call chm_layer_integ_operator(chm_obsoper,n_modlvl,rvalinc,rval,rtt,pressmodlvl, &
-       kmode,varno,nobslev,iconstituent_id,success)
-
+     call chm_layer_integ_operator(chm_obsoper,n_modlvl,pressmodlvl,nobslev,success)
+     
 !  end select
 
 
@@ -1796,8 +2212,7 @@ contains
 
 !---------------------------------------------------------------------------------------
 
-  subroutine chm_layer_integ_operator(chm_obsoper,n_modlvl,rvalinc,rval,rtt,pressmodlvl, &
-                kmode,varno,nobslev,iconstituent_id,success)
+  subroutine chm_layer_integ_operator(chm_obsoper,n_modlvl,pressmodlvl,nobslev,success)
 !
 ! Author  : Y. Rochon, ARQI/AQRD, Feb 2015 (not completed - remains to be generalized)
 !
@@ -1805,23 +2220,27 @@ contains
 !           M. Sitwell, ARQI/AQRD, Mar 2015
 !           - Modified to calculate whole profile within a single call
 !
-! Purpose:  Perform layer integration and calculations according kmode.
+! Purpose:  Perform layer integration and calculations.
 !
 ! Arguments:
 !
-!  Input (to be completed)  
-!         
+!  Input 
 !
-!  Output (to be completed)
-!  
+!     n_modlvl     number of model levels
+!     pressmodlvl  pressure on model levels
+!     nobslev      number of observations
+!
+!  InOut
+!
+!     chm_obsoper  observation operator object
+!     success      success of integration
+!
 !-----------------------------------------------------------------------------------------
 
   implicit none
 
-  integer, intent(in) :: n_modlvl,nobslev,kmode,varno
-  integer, intent(in) :: iconstituent_id
-  real(8), intent(in) :: rtt(n_modlvl),pressmodlvl(n_modlvl)
-  real(8), intent(inout) :: rval(n_modlvl),rvalinc(n_modlvl)
+  integer, intent(in) :: n_modlvl,nobslev
+  real(8), intent(in) :: pressmodlvl(n_modlvl)
   logical, intent(inout) :: success(nobslev)
   type(struct_chm_obsoperators), intent(inout) :: chm_obsoper
 
@@ -1852,6 +2271,7 @@ contains
   call chm_vertintg(chm_obsoper,n_modlvl,nobslev,success)
    
   end subroutine chm_layer_integ_operator
+
 
 !-----------------------------------------------------------------------------------------
 
@@ -1960,8 +2380,8 @@ contains
       chm_obsoper%vh(knflev-2,knflev)=zr1
       chm_obsoper%vh(knflev-1,knflev)=zr2
       chm_obsoper%vh(knflev,knflev)=zr3
-!
-  end subroutine chm_vertintg_setup 
+      
+    end subroutine chm_vertintg_setup
 
 !-----------------------------------------------------------------------------------------
 
@@ -2227,5 +2647,6 @@ contains
 !     
   end function chm_igetmodlev 
 !-----------------------------------------------------------------------------------------
+
 
 end module chem_mod
