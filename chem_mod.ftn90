@@ -1287,9 +1287,18 @@ contains
                 iexp = BURP_Find_Element(blk, ELEMENT=8090, IOSTAT=error)
                 
                 do ilev=1,nval
-                   val      = BURP_Get_Rval(blk, NELE_IND=ivar, NVAL_IND=ilev, NT_IND=1, IOSTAT=error)
-                   exponent = BURP_Get_Rval(blk, NELE_IND=iexp, NVAL_IND=ilev, NT_IND=1, IOSTAT=error)
-                   burp_out%data(icount,ilev) = val * 10**exponent
+                   
+                   val = BURP_Get_Rval(blk, NELE_IND=ivar, NVAL_IND=ilev, NT_IND=1, IOSTAT=error)
+                
+                   if (iexp.lt.0) then
+                      ! no exponent found in block
+                      burp_out%data(icount,ilev) = val
+                   else
+                      ! apply exponent
+                      exponent = BURP_Get_Rval(blk, NELE_IND=iexp, NVAL_IND=ilev, NT_IND=1, IOSTAT=error)
+                      burp_out%data(icount,ilev) = val * 10**exponent
+                   end if
+
                 end do
                 
                 burp_out%date(icount) = date
