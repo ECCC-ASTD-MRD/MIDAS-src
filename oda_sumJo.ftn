@@ -30,6 +30,8 @@
       use mpivar_mod
       use obsSpaceData_mod
       use tovs_nl_mod
+      Use rttov_const, Only : nplatforms, ninst,inst_name, platform_name
+
       implicit none
       real*8 pjo ! Total observation cost function
 
@@ -130,7 +132,8 @@
         write(*,'(1x,a)') 'For TOVS decomposition by sensor:'
         write(*,'(1x,a)') '#  plt sat ins    Jo'
         do isens=1,NSENSORS
-           write(*,'(4(i3,1x),f25.17)') isens,PLATFORM(isens),SATELLITE(isens),INSTRUMENT(isens),dljotov_sensors(isens)
+           write(*,'(i2,1x,a,1x,a,1x,i2,1x,f25.17)') isens,inst_name(INSTRUMENT(isens)), &
+     &           platform_name(PLATFORM(isens)),SATELLITE(isens),dljotov_sensors(isens)
         enddo
         write(*,*) ' '
 

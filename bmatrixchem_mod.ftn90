@@ -183,7 +183,7 @@ CONTAINS
     
     NAMELIST /NAMBCHM/ntrunc,rpor,rvloc,scaleFactor,numModeZero
 
-    call tmg_start(15,'BCHM_SETUP')
+    call tmg_start(90,'BCHM_SETUP')
 
     numvar3d=0
     numvar2d=0
@@ -239,7 +239,7 @@ CONTAINS
            write(*,*) 'No chemical assimilation to be performed.'
            write(*,*) 'END OF BCHM_SETUP'
        end if
-       call tmg_stop(15)
+       call tmg_stop(90)
        return
     else if (mpi_myid.eq.0) then
        if (numvar3d.gt.0) &
@@ -335,7 +335,7 @@ CONTAINS
     
     initialized = .true.
 
-    call tmg_stop(15)
+    call tmg_stop(90)
 
   END SUBROUTINE BCHM_setup
 !-----------------------------------------------------------------------------------------------
@@ -1071,7 +1071,7 @@ CONTAINS
     real(8), target  :: gd(myLonBeg:myLonEnd,nkgdim,myLatBeg:myLatEnd)
     real(8) :: dla2, dl1sa2, zpsb(myLonBeg:myLonEnd,myLatBeg:myLatEnd)
 
-    call tmg_start(53,'BCHM_SPA2GD1')
+    call tmg_start(82,'BCHM_SPA2GD1')
 
     ! maybe not needed:
     sp(:,:,:) = 0.0d0
@@ -1131,7 +1131,7 @@ CONTAINS
 !$OMP END PARALLEL DO
     deallocate(zsp)
     deallocate(zsp2)
-    call tmg_stop(53)
+    call tmg_stop(82)
 
 
 !$OMP PARALLEL DO PRIVATE(JLAT,JLEV,JLON)
@@ -1144,13 +1144,13 @@ CONTAINS
     enddo
 !$OMP END PARALLEL DO
 
-    call tmg_start(55,'BCHM_SPEREE')
+    call tmg_start(84,'BCHM_SPEREE')
     call gst_setID(gstID)
     call gst_speree4(sp,gd)
     call gst_setID(gstID2)
-    call tmg_stop(55)
+    call tmg_stop(84)
 
-    call tmg_start(54,'BCHM_SPA2GD2')
+    call tmg_start(85,'BCHM_SPA2GD2')
 
 !$OMP PARALLEL DO PRIVATE(jlat,jlev,jlon)
     do jlat = myLatBeg, myLatEnd
@@ -1162,7 +1162,7 @@ CONTAINS
       enddo
     enddo  ! jlat
 !$OMP END PARALLEL DO
-    call tmg_stop(54)
+    call tmg_stop(85)
 
 !$OMP PARALLEL DO PRIVATE(JLAT,JLEV,JLON)
     do jlat = myLatBeg, myLatEnd
@@ -1203,7 +1203,7 @@ CONTAINS
     enddo
 !$OMP END PARALLEL DO
 
-   call tmg_start(54,'BCHM_SPA2GD2')
+   call tmg_start(85,'BCHM_SPA2GD2')
 
 !$OMP PARALLEL DO PRIVATE(jlat,jlev,jlon)
     do jlat = myLatBeg, myLatEnd
@@ -1216,14 +1216,14 @@ CONTAINS
 
     enddo
 !$OMP END PARALLEL DO
-    call tmg_stop(54)
+    call tmg_stop(85)
 
-    call tmg_start(56,'BCHM_REESPE')
+    call tmg_start(86,'BCHM_REESPE')
     call gst_setID(gstID)
     call gst_reespe4(sp,gd)
-    call tmg_stop(56)
+    call tmg_stop(86)
 
-    call tmg_start(53,'BCHM_SPA2GD1')
+    call tmg_start(82,'BCHM_SPA2GD1')
 
     hiControlVector_out(:,:,:) = 0.0d0
     sq2 = sqrt(2.0d0)
@@ -1279,7 +1279,7 @@ CONTAINS
 !$OMP END PARALLEL DO
     deallocate(zsp)
     deallocate(zsp2)
-    call tmg_stop(53)
+    call tmg_stop(82)
 
   END SUBROUTINE BCHM_SPA2GDAD
 !----------------------------------------------------------------------------------------------- 
@@ -1411,10 +1411,10 @@ CONTAINS
     cv_maxmpilocal(:) = 0.0d0
     cv_maxmpilocal(1:cvDim_mpilocal) = cv_mpilocal(1:cvDim_mpilocal)
 
-    call tmg_start(59,'BCHM_COMM')
+    call tmg_start(87,'BCHM_COMM')
     call rpn_comm_gather(cv_maxmpilocal,    cvDim_maxmpilocal, "mpi_double_precision",  &
                          cv_allmaxmpilocal, cvDim_maxmpilocal, "mpi_double_precision", 0, "GRID", ierr )
-    call tmg_stop(59)
+    call tmg_stop(87)
 
     deallocate(cv_maxmpilocal)
 

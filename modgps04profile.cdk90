@@ -12,7 +12,8 @@
 !        geoid    :: Local geoid undulation (m)
 !        RadN     :: Normal radius of curvature (m)
 !        RadM     :: Meridional radius of curvature (m)
-!        pst      :: List of pressures
+!        P0       :: Surface pressure
+!        pst      :: List of pressures (analyzed thermo levels)
 !        tst      :: List of temperatures          |
 !        qst      :: List of (log) specific hum    | Control vars
 !        rst      :: List of refractivities
@@ -22,7 +23,14 @@
 !        ast      :: List of tangent impact parameters
 !        bst      :: List of tangent bending angles
 !
-! Josep M. Aparicio, 2003-2013.
+! Note: The lowest analyzed pressure level is not necessarily identical to P0.
+!       It is assumed that it is at least sufficiently close to estimate the
+!       distance between these two surfaces with one single integration layer,
+!       which is added to rMT to initiate the hydrostatic equation at the surface.
+!       If P0 and the lowest level are identical, the thickness of this layer is
+!       zero. If not zero, most likely this layer will be 2-50m thick.
+!
+! Josep M. Aparicio, 2003-2014.
 ! ARMA/ASTD
 ! Environment Canada
 !
@@ -31,7 +39,7 @@ module modgps04profile
   use modgps00base      , only : i4,dp,ngpssize,ngpsxlow
   use modgps01ctphys    , only : p_R, p_Rd, p_md, p_mw, p_wa, p_wb, p_TC, p_knot
   use modgps02wgs84const, only : WGS_a, WGS_OmegaPrime
-  use modgps02wgs84grav , only : gpsgravityalt, gpsRadii
+  use modgps02wgs84grav , only : gpsgravitysrf, gpsgravityalt, gpsRadii
   use modgps03diff
 
   implicit none
@@ -46,6 +54,8 @@ module modgps04profile
      real(dp)                                        :: geoid
      real(dp)                                        :: RadN
      real(dp)                                        :: RadM
+
+     type(gpsdiff)                                   :: P0
 
      type(gpsdiff)    , dimension(ngpssize)          :: pst
      type(gpsdiff)    , dimension(ngpssize)          :: tst
@@ -62,7 +72,7 @@ module modgps04profile
 contains
 
   subroutine gpsstruct1sw(ngpslev,rLat,rLon,rAzm,rMT,Rad,geoid,    &
-       rPP,rDP,rTT,rLQ,rUU,rVV,prf)
+       rP0,rPP,rDP,rTT,rLQ,rUU,rVV,prf)
     integer(i4)     , intent(in)  :: ngpslev
     real(dp)        , intent(in)  :: rLat
     real(dp)        , intent(in)  :: rLon
@@ -70,6 +80,7 @@ contains
     real(dp)        , intent(in)  :: rMT
     real(dp)        , intent(in)  :: Rad
     real(dp)        , intent(in)  :: geoid
+    real(dp)        , intent(in)  :: rP0
     real(dp)        , intent(in)  :: rPP (ngpssize)
     real(dp)        , intent(in)  :: rDP (ngpssize)
     real(dp)        , intent(in)  :: rTT (ngpssize)
@@ -103,6 +114,9 @@ contains
     !
     ! Fill pressure placeholders:
     !
+    prf%P0%Var               = 0.01_dp*rP0
+    prf%P0%DVar              = 0._dp
+    prf%P0%DVar(2*ngpslev+1) = 0.01_dp
     do i=1,ngpslev
        prf%pst(i)%Var               = 0.01_dp*rPP(i)
        prf%pst(i)%DVar              = 0._dp
@@ -168,9 +182,12 @@ contains
        tv(i) = (1._dp+delta*q) * t * cmp(i)
     enddo
 
-    prf%gst(ngpslev) = rMT
     sLat=sin(rLat)
     cLat=cos(rLat)
+    dx  = xi(ngpslev)-log(prf%P0)
+    Rgh = gpsgravitysrf(sLat)
+    z   = (-p_Rd/Rgh) * tv(ngpslev) * dx
+    prf%gst(ngpslev) = rMT + z
     do i=ngpslev-1,1,-1
        dx = xi(i)-xi(i+1)
        tvm = 0.5_dp*(tv(i)+tv(i+1))
@@ -178,8 +195,8 @@ contains
        ! Gravity acceleration (includes 2nd-order Eotvos effect)
        !
        h0  = prf%gst(i+1)%Var
-       Eot = 2*WGS_OmegaPrime*cLat*p_knot*rUU(i+1)
-       Eot2= ((p_knot*rUU(i+1))**2+(p_knot*rVV(i+1))**2)/WGS_a
+       Eot = 2*WGS_OmegaPrime*cLat*p_knot*rUU(i)
+       Eot2= ((p_knot*rUU(i))**2+(p_knot*rVV(i))**2)/WGS_a
        Rgh = gpsgravityalt(sLat, h0)-Eot-Eot2
        dh  = (-p_Rd/Rgh) * tvm%Var * dx%Var
        Rgh = gpsgravityalt(sLat, h0+0.5_dp*dh)-Eot-Eot2

@@ -38,15 +38,19 @@
 
       integer :: jstep,jobs,jfamily,jdata,iobs,idatabeg,idatend,nsize,ierr
       integer, allocatable, dimension(:,:) :: idataass,inumheader
+      integer, allocatable, dimension(:,:) :: my_idataass,my_inumheader
       integer, parameter :: nfamily=10
+
       character*2 :: familylist(nfamily)
       character*256 :: formatspec,formatspec2
       real*8 :: stepObsIndex
 
       allocate(idataass(nfamily,nStepObs+1))
-      idataass(:,:) = 0
+      allocate(my_idataass(nfamily,nStepObs+1))
+      my_idataass(:,:) = 0
       allocate(inumheader(nfamily,nStepObs+1))
-      inumheader(:,:) = 0
+      allocate(my_inumheader(nfamily,nStepObs+1))
+      my_inumheader(:,:) = 0
 
       familylist(1)='UA'
       familylist(2)='AI'
@@ -69,13 +73,13 @@
           idatend = obs_headElem_i(lobsSpaceData,OBS_NLV,jobs) + idatabeg - 1          
           do jfamily = 1, nfamily
             if(obs_getfamily(lobsSpaceData,jobs).eq.familylist(jfamily)) then
-              inumheader(jfamily,jstep)=inumheader(jfamily,jstep)+1
-              inumheader(jfamily,nStepObs+1)=inumheader(jfamily,nStepObs+1)+1
+              my_inumheader(jfamily,jstep)=my_inumheader(jfamily,jstep)+1
+              my_inumheader(jfamily,nStepObs+1)=my_inumheader(jfamily,nStepObs+1)+1
               do jdata = idatabeg, idatend
                 if ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,jdata) .eq. 1) then
-                  idataass(jfamily,jstep) = idataass(jfamily,jstep) + 1
-                  idataass(jfamily,nStepObs+1) = 
-     &               idataass(jfamily,nStepObs+1) + 1
+                  my_idataass(jfamily,jstep) = my_idataass(jfamily,jstep) + 1
+                  my_idataass(jfamily,nStepObs+1) = 
+     &               my_idataass(jfamily,nStepObs+1) + 1
                 endif
               enddo
             endif
@@ -102,27 +106,28 @@
       write(*,*)'Distribution of number of headers over stepobs ON LOCAL PROCESSOR'
       write(*,trim(formatspec2))'Bin#',(jstep,jstep=1,nStepObs),'Total'
       do jfamily = 1, nfamily
-        write(*,trim(formatspec)) familylist(jfamily),(inumheader(jfamily,jstep)
+        write(*,trim(formatspec)) familylist(jfamily),(my_inumheader(jfamily,jstep)
      &           ,jstep=1,nStepObs+1)
       enddo
-      write(*,trim(formatspec)) 'ALL',(sum(inumheader(:,jstep)),jstep=1,nStepObs+1)
+      write(*,trim(formatspec)) 'ALL',(sum(my_inumheader(:,jstep)),jstep=1,nStepObs+1)
       write(*,*)'----------------------------------------------------------------'
       write(*,*)'Distribution of assimilated data over stepobs ON LOCAL PROCESSOR'
       write(*,trim(formatspec2))'Bin#',(jstep,jstep=1,nStepObs),'Total'
       do jfamily = 1, nfamily
-        write(*,trim(formatspec)) familylist(jfamily),(idataass(jfamily,jstep)
+        write(*,trim(formatspec)) familylist(jfamily),(my_idataass(jfamily,jstep)
      &           ,jstep=1,nStepObs+1)
       enddo
-      write(*,trim(formatspec)) 'ALL',(sum(idataass(:,jstep)),jstep=1,nStepObs+1)
+      write(*,trim(formatspec)) 'ALL',(sum(my_idataass(:,jstep)),jstep=1,nStepObs+1)
       write(*,*)'----------------------------------------------------------------'
 
       nsize=size(inumheader)
-      call rpn_comm_allreduce(inumheader,inumheader,nsize,
+      call rpn_comm_allreduce(my_inumheader,inumheader,nsize,
      &     "mpi_integer","mpi_sum","GRID",ierr)
+      deallocate(my_inumheader) 
       nsize=size(idataass)
-      call rpn_comm_allreduce(idataass,idataass,nsize,
+      call rpn_comm_allreduce(my_idataass,idataass,nsize,
      &     "mpi_integer","mpi_sum","GRID",ierr)
-
+      deallocate(my_idataass) 
       if(mpi_myid.eq.0) then
         write(*,*)'----------------------------------------------------------------'
         write(*,*)'Distribution of number of headers over stepobs ON ALL PROCESSORS'

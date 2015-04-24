@@ -17,10 +17,14 @@ module topLevelControl_mod
   ! public variables
   public :: top_crevision
   ! public procedures
-  public :: top_setup,top_AnalysisMode,top_BgckMode,top_OmpMode
+  public :: top_setup, top_AnalysisMode, top_BgckIrMode, top_BgckConvMode, top_OmpMode
+  public :: top_BurpSplit, top_BurpSplitMode
 
   character(len=len('XXXXX')),parameter :: top_crevision='XXXXX'
   integer :: top_nconf
+
+  character(len=256) :: burp_split_mode
+  logical :: burp_split_L
 
   contains
 
@@ -29,6 +33,8 @@ module topLevelControl_mod
       integer :: nconf
       NAMELIST /NAMCT0/NCONF
       integer nulnam,ierr,fnom,fclos 
+
+      integer :: length_burp_split, status
 
       ! Set the default values
       nconf  = 141
@@ -43,6 +49,44 @@ module topLevelControl_mod
       ierr=fclos(nulnam)
 
       top_nconf = nconf
+
+      !
+      !- Determine if the observation files are already split by subdomain
+      !
+      status = 0
+      call get_environment_variable('ARMA_BURP_SPLIT',burp_split_mode,length_burp_split,status,.true.)
+
+      if (status.gt.1) then
+        write(*,*) 'top_setup: Problem when getting the environment variable ARMA_BURP_SPLIT'
+      end if
+      if (status.eq.1) then
+        write(*,*) 'top_setup: The environment variable ARMA_BURP_SPLIT has not been detected!'
+	write(*,*) '           The observation files are NOT splitted'
+	burp_split_L = .false.  
+	burp_split_mode = 'DEFAULT'
+      else
+        write(*,*)
+        write(*,*) 'top_setup: The environment variable ARMA_BURP_SPLIT has correctly been detected'
+	select case ( trim(burp_split_mode) )
+	case ('yes')
+	   write(*,*) 'top_setup: The observation files are ARE splitted. Assuming the DEFAULT mode strategy'
+	   burp_split_L = .true.
+	   burp_split_mode = 'DEFAULT'
+        case ('no')
+	   write(*,*) 'top_setup: The observation files are NOT splitted'
+	   burp_split_L = .false.
+	   burp_split_mode = 'DEFAULT'
+        case ('ROUNDROBIN')
+	   write(*,*) 'top_setup: The observation files	ARE splitted using the ROUNDROBIN strategy'
+	   burp_split_L = .true.
+	case ('LATLONTILES')
+	   write(*,*) 'top_setup: The observation files	ARE splitted by LAT-LON tiles'
+	   burp_split_L = .true.
+        case default
+           write(*,*) 'top_setup: Unknown burp_split_mode ', trim(burp_split_mode)
+           call abort3d('top_setup')
+        end select
+      end if
 
     end subroutine top_setup
 
@@ -62,12 +106,36 @@ module topLevelControl_mod
         
     end function top_OmpMode
 
-    function top_BgckMode() result(bgckMode)
+    function top_BgckIrMode() result(bgckMode)
+      implicit none
+      logical :: bgckMode
+
+      bgckMode= (top_nconf.eq.111)
+        
+    end function top_BgckIrMode
+
+    function top_BgckConvMode() result(bgckMode)
       implicit none
       logical :: bgckMode
 
       bgckMode= (top_nconf.eq.101)
         
-    end function top_BgckMode
+    end function top_BgckConvMode
+
+    function top_BurpSplitMode() result(BurpSplitMode)
+      implicit none
+      character(len=48) :: BurpSplitMode
+
+      BurpSplitMode = trim(burp_split_mode)
+        
+    end function top_BurpSplitMode
+
+    function top_BurpSplit() result(BurpSplit)
+      implicit none
+      logical :: BurpSplit
+
+      BurpSplit = burp_split_L
+        
+    end function top_BurpSplit
 
 end module topLevelControl_mod

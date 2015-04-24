@@ -191,7 +191,7 @@ c     S            IPLATFORM(JL)
 C
  510     CONTINUE
          IINSTRUMENT(JL) = -1    
-         DO I = 1, JPNSATMAX
+         DO I = 1, MXINSTR
             IPOS1=LEN_TRIM(CINSTRUMENT(I))
             IPOS2 = INDEX(CINSTR,CINSTRUMENT(I)(1:IPOS1))
             IF ( IPOS2 .NE. 0 ) THEN
@@ -267,7 +267,7 @@ C
 C
 C**   Utilization flag for AIRS,IASI and CrIS channels (bgck mode only)
 C
-      IF ( top_BgckMode() ) THEN
+      IF ( top_BgckIrMode() ) THEN
          DO JM= 1, INUMSAT
             IF ( IPLATFORM(JM) .EQ. 9 .AND. 
      &           IINSTRUMENT(JM) .EQ. 11 ) THEN

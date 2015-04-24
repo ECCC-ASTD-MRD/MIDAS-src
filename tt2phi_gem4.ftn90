@@ -1,3 +1,19 @@
+!--------------------------------------- LICENCE BEGIN -----------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+
 SUBROUTINE tt2phi_gem4(columnghr)
   !
   !**s/r tt2phi_gem4 - Temperature to geopotential transformation on GEM4 staggered levels
@@ -17,70 +33,129 @@ SUBROUTINE tt2phi_gem4(columnghr)
 
   type(struct_columnData) :: columnghr
 
-  integer :: columnIndex,lev_M,lev_T,nlev_M,nlev_T
+  integer :: columnIndex,lev_M,lev_T,nlev_M,nlev_T,status,Vcode
   real(8) :: hu,tt,ratioP
   real(8), allocatable :: tv(:)
   real(8), pointer     :: gz_T(:),gz_M(:)
+  type(struct_vco), pointer :: vco_ghr
+
+  vco_ghr => col_getVco(columnghr)
+  status = vgd_get(vco_ghr%vgrid,key='ig_1 - vertical coord code',value=Vcode)
 
   nlev_T = col_getNumLev(columnghr,'TH')
   nlev_M = col_getNumLev(columnghr,'MM')
-  !write(*,*) 'tt2phi_gem4: nlev_T,nlev_M=',nlev_T,nlev_M
-  if(nlev_T .ne. nlev_M+1) call abort3d('tt2phi_gem4: nlev_T is not equal to nlev_M+1!')
+  if(Vcode .eq. 5002 .and. nlev_T .ne. nlev_M+1) call abort3d('tt2phi_gem4: nlev_T is not equal to nlev_M+1!')
+  if(Vcode .eq. 5004 .and. nlev_T .ne. nlev_M)   call abort3d('tt2phi_gem4: nlev_T is not equal to nlev_M!')
 
   allocate(tv(nlev_T))
 
-  ! loop over all columns
-  do columnIndex = 1, col_getNumCol(columnghr)
+  if(Vcode .eq. 5002) then
 
-    gz_M => col_getColumn(columnghr,columnIndex,'GZ','MM')
-    gz_T => col_getColumn(columnghr,columnIndex,'GZ','TH')
+    ! loop over all columns
+    do columnIndex = 1, col_getNumCol(columnghr)
 
-    ! set the surface height
-    gz_M(nlev_M) = col_getMountain(columnghr,columnIndex)
-    gz_T(nlev_T) = col_getMountain(columnghr,columnIndex)
+      gz_M => col_getColumn(columnghr,columnIndex,'GZ','MM')
+      gz_T => col_getColumn(columnghr,columnIndex,'GZ','TH')
 
-    ! initialize the rest to zero
-    gz_M(1:(nlev_M-1)) = 0.0d0
-    gz_T(1:(nlev_T-1)) = 0.0d0
+      ! set the surface height
+      gz_M(nlev_M) = col_getMountain(columnghr,columnIndex)
+      gz_T(nlev_T) = col_getMountain(columnghr,columnIndex)
 
-    ! compute virtual temperature on thermo levels
-    do lev_T = 1, nlev_T
-      hu = exp(col_getElem(columnghr,lev_T,columnIndex,'HU'))
-      tt = col_getElem(columnghr,lev_T,columnIndex,'TT')
-      tv(lev_T) = fotvt8(tt,hu)
-    enddo
+      ! initialize the rest to zero
+      gz_M(1:(nlev_M-1)) = 0.0d0
+      gz_T(1:(nlev_T-1)) = 0.0d0
+
+      ! compute virtual temperature on thermo levels
+      do lev_T = 1, nlev_T
+        hu = exp(col_getElem(columnghr,lev_T,columnIndex,'HU'))
+        tt = col_getElem(columnghr,lev_T,columnIndex,'TT')
+        tv(lev_T) = fotvt8(tt,hu)
+      enddo
     
-    ! compute GZ on momentum levels
-    do lev_M = (nlev_M-1), 1, -1
-      lev_T = lev_M+1 ! thermo level just below momentum level being computed
-      if(col_getPressure(columnghr,lev_M,columnIndex,'MM').eq.0.0d0) then
-        write(*,*) 'tt2phi_gem4: pressure is zero, lev_m, columnIndex=',lev_m, columnIndex
-        call abort3d('tt2phi_gem4')
-      endif
-      ratioP = col_getPressure(columnghr,lev_M+1,columnIndex,'MM') / col_getPressure(columnghr,lev_M,columnIndex,'MM')
-      gz_M(lev_M) = gz_M(lev_M+1) + MPC_RGAS_DRY_AIR_R8*tv(lev_T)*log(ratioP)
+      ! compute GZ on momentum levels
+      do lev_M = (nlev_M-1), 1, -1
+        lev_T = lev_M+1 ! thermo level just below momentum level being computed
+        if(col_getPressure(columnghr,lev_M,columnIndex,'MM').eq.0.0d0) then
+          write(*,*) 'tt2phi_gem4: pressure is zero, lev_m, columnIndex=',lev_m, columnIndex
+          call abort3d('tt2phi_gem4')
+        endif
+        ratioP = col_getPressure(columnghr,lev_M+1,columnIndex,'MM') / col_getPressure(columnghr,lev_M,columnIndex,'MM')
+        gz_M(lev_M) = gz_M(lev_M+1) + MPC_RGAS_DRY_AIR_R8*tv(lev_T)*log(ratioP)
+      enddo
+
+      ! compute GZ on top thermo level (from top momentum level)
+      ratioP = col_getPressure(columnghr,1,columnIndex,'MM') / col_getPressure(columnghr,1,columnIndex,'TH')
+      gz_T(1) = gz_M(1) + MPC_RGAS_DRY_AIR_R8*tv(1)*log(ratioP)
+
+      ! compute GZ on remaining thermo levels by simple averaging
+      do lev_T = 2, (nlev_T-1)
+        lev_M = lev_T ! momentum level just below thermo level being computed
+        gz_T(lev_T) = 0.5d0*( gz_M(lev_M-1) + gz_M(lev_M) )
+      enddo
+
+      !if(columnIndex.eq.1) then
+      !  do lev_M = 1, nlev_M
+      !    write(*,*) 'tt2phi_gem4: pres_M,gz_M=',lev_M,col_getPressure(columnghr,lev_M,columnIndex,'MM'),gz_M(lev_M)
+      !  enddo
+      !  do lev_T = 1, nlev_T
+      !    write(*,*) 'tt2phi_gem4: pres_T,gz_T=',lev_T,col_getPressure(columnghr,lev_T,columnIndex,'TH'),gz_T(lev_T)
+      !  enddo
+      !endif
+
     enddo
 
-    ! compute GZ on top thermo level (from top momentum level)
-    ratioP = col_getPressure(columnghr,1,columnIndex,'MM') / col_getPressure(columnghr,1,columnIndex,'TH')
-    gz_T(1) = gz_M(1) + MPC_RGAS_DRY_AIR_R8*tv(1)*log(ratioP)
+  elseif(Vcode .eq. 5004) then
 
-    ! compute GZ on remaining thermo levels by simple averaging
-    do lev_T = 2, (nlev_T-1)
-      lev_M = lev_T ! momentum level just below thermo level being computed
-      gz_T(lev_T) = 0.5d0*( gz_M(lev_M-1) + gz_M(lev_M) )
+    ! loop over all columns
+    do columnIndex = 1, col_getNumCol(columnghr)
+
+      gz_M => col_getColumn(columnghr,columnIndex,'GZ','MM')
+      gz_T => col_getColumn(columnghr,columnIndex,'GZ','TH')
+
+      ! set the surface height
+      gz_M(nlev_M) = col_getMountain(columnghr,columnIndex)
+      gz_T(nlev_T) = col_getMountain(columnghr,columnIndex)
+
+      ! initialize the rest to zero
+      gz_M(1:(nlev_M-1)) = 0.0d0
+      gz_T(1:(nlev_T-1)) = 0.0d0
+
+      ! compute virtual temperature on thermo levels
+      do lev_T = 1, nlev_T
+        hu = exp(col_getElem(columnghr,lev_T,columnIndex,'HU'))
+        tt = col_getElem(columnghr,lev_T,columnIndex,'TT')
+        tv(lev_T) = fotvt8(tt,hu)
+      enddo
+    
+      ! compute GZ on momentum levels
+      do lev_M = (nlev_M-1), 1, -1
+        lev_T = lev_M ! thermo level just below momentum level being computed
+        if(col_getPressure(columnghr,lev_M,columnIndex,'MM').eq.0.0d0) then
+          write(*,*) 'tt2phi_gem4: pressure is zero, lev_m, columnIndex=',lev_m, columnIndex
+          call abort3d('tt2phi_gem4')
+        endif
+        ratioP = col_getPressure(columnghr,lev_M+1,columnIndex,'MM') / col_getPressure(columnghr,lev_M,columnIndex,'MM')
+        gz_M(lev_M) = gz_M(lev_M+1) + MPC_RGAS_DRY_AIR_R8*tv(lev_T)*log(ratioP)
+      enddo
+
+      ! compute GZ on thermo levels by simple averaging
+      do lev_T = 1, (nlev_T-1)
+        lev_M = lev_T+1 ! momentum level just below thermo level being computed
+        gz_T(lev_T) = 0.5d0*( gz_M(lev_M-1) + gz_M(lev_M) )
+      enddo
+
+      !if(columnIndex.eq.1) then
+      !  do lev_M = 1, nlev_M
+      !    write(*,*) 'tt2phi_gem4: pres_M,gz_M=',lev_M,col_getPressure(columnghr,lev_M,columnIndex,'MM'),gz_M(lev_M)
+      !  enddo
+      !  do lev_T = 1, nlev_T
+      !    write(*,*) 'tt2phi_gem4: pres_T,gz_T=',lev_T,col_getPressure(columnghr,lev_T,columnIndex,'TH'),gz_T(lev_T)
+      !  enddo
+      !endif
+
     enddo
 
-    !if(columnIndex.eq.1) then
-    !  do lev_M = 1, nlev_M
-    !    write(*,*) 'tt2phi_gem4: pres_M,gz_M=',lev_M,col_getPressure(columnghr,lev_M,columnIndex,'MM'),gz_M(lev_M)
-    !  enddo
-    !  do lev_T = 1, nlev_T
-    !    write(*,*) 'tt2phi_gem4: pres_T,gz_T=',lev_T,col_getPressure(columnghr,lev_T,columnIndex,'TH'),gz_T(lev_T)
-    !  enddo
-    !endif
-
-  enddo
+  endif
 
   deallocate(tv)
 

@@ -181,7 +181,7 @@
 !C     
 !C     *          GPS profile structure:
 !C
-                  call gpsstruct1sw(ngpslev,zLat,zLon,zAzm,zMT,Rad,geo,zPP,zDP,zTT,zHU,zUU,zVV,prf)
+                  call gpsstruct1sw(ngpslev,zLat,zLon,zAzm,zMT,Rad,geo,zP0,zPP,zDP,zTT,zHU,zUU,zVV,prf)
 !C
 !C     *          Prepare the vector of all the observations:
 !C

@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode)
+subroutine tovs_fill_profiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode)
 !
 !**s/r tovs_fill_profiles  - interpolation of obs. space to rttov space
 !                      (adapted from part of code of dobstovs)
@@ -48,7 +48,7 @@ subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMod
   use EarthConstants_mod
   use MathPhysConstants_mod
   use tovs_nl_mod
-  use MULTIIRBGCHECK
+  use multi_ir_bgck_mod
   use ozoneclim
   use obsSpaceData_mod
   use columnData_mod 
@@ -66,12 +66,12 @@ subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMod
         zenmax
 
   implicit none
-
   type(struct_obs) :: lobsSpaceData
-  type(struct_columnData) :: lcolumnghr
+  type(struct_columnData) :: columnghr
   integer :: datestamp
   real*8  :: LIMLVHU
   logical :: bgckMode
+  logical :: diagTtop,TopAt10hPa
 
   integer, allocatable :: ksurf     (:) 
   integer, allocatable :: iptobs    (:) 
@@ -91,8 +91,9 @@ subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMod
   integer :: j, i, krtid, jf, iobs, jj
   integer :: knpf, jo
   integer :: jk, jn, jl
-  integer :: ilansea,ilowlvl_M,ilowlvl_T, ig
-  integer :: knlev
+  integer :: ilansea,ilowlvl_M,ilowlvl_T,ig,nlv_M,nlv_T
+  integer :: status, Vcode
+  type(struct_vco), pointer :: vco
 
   real*8, allocatable :: to    (:,:)
   real*8, allocatable :: lqo   (:,:)
@@ -117,29 +118,37 @@ subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMod
 
   if(NOBTOV.eq.0) return    ! exit if there are no tovs data
 
-  knlev    = col_getNumLev(lcolumnghr,'TH')
 !
 !     1.    Set index for model's lowest level and model top
 !     .     ------------------------------------------------
                  
-  100   continue
+  nlv_M = col_getNumLev(columnghr,'MM')
+  nlv_T = col_getNumLev(columnghr,'TH')
 
-  if (  col_getPressure(lcolumnghr,1,1,'TH') .lt. col_getPressure(lcolumnghr,knlev,1,'TH') ) then
-     ilowlvl_M = col_getNumLev(lcolumnghr,'MM')
-     ilowlvl_T = col_getNumLev(lcolumnghr,'TH')
+  if (  col_getPressure(columnghr,1,1,'TH') .lt. col_getPressure(columnghr,nlv_T,1,'TH') ) then
+     ilowlvl_M = nlv_M
+     ilowlvl_T = nlv_T
   else
      ilowlvl_M = 1
      ilowlvl_T = 1
   endif
 
+  vco => col_getVco(columnghr)
+  status = vgd_get(vco%vgrid,key='ig_1 - vertical coord code',value=Vcode)
+  diagTtop = (Vcode.eq.5002)
+  write(*,*) 'tovs_fill_profiles: diagTtop=',diagTtop 
+
   nlevels=coefs(1) %coef% nlevels
   allocate ( xpres (nlevels) )
   xpres(1:nlevels) = coefs(1)% coef % ref_prfl_p(1:nlevels)
-! find model level top, within 0.000001 mbs.
 
-  zptop    = col_getPressure(lcolumnghr,1,1,'TH')
+  ! find model level top, within 0.000001 mbs.
+  zptop    = col_getPressure(columnghr,1,1,'TH')
   zptopmbs = zptop/100.d0
   zptopmbs = zptopmbs - 0.000001d0
+  write(*,*) 'tovs_fill_profiles: zptopmbs=',zptopmbs
+
+  TopAt10hPa = ( abs( zptopmbs - 10.0d0 ) <= .1d0 )
 
   jpmotop = 1
   do jl = 2, nlevels
@@ -149,7 +158,7 @@ subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMod
         exit
      endif
   enddo
-  
+  write(*,*) 'tovs_fill_profiles: jpmotop=',jpmotop
   jpmolev = (nlevels-jpmotop+1)
  
 
@@ -176,10 +185,10 @@ subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMod
   allocate (toext     (nlevels  ,jppf*nthreads),stat= alloc_status(14))
   allocate (qoext     (nlevels  ,jppf*nthreads),stat= alloc_status(15))
   allocate (zhoext    (nlevels  ,jppf*nthreads),stat= alloc_status(16))
-  allocate (zvlev     (knlev,jppf*nthreads),stat= alloc_status(17))
-  allocate (zt        (knlev,jppf*nthreads),stat= alloc_status(18))
-  allocate (zlq       (knlev,jppf*nthreads),stat= alloc_status(19))
-  allocate (zht       (knlev,jppf*nthreads),stat= alloc_status(20))
+  allocate (zvlev     (nlv_T,jppf*nthreads),stat= alloc_status(17))
+  allocate (zt        (nlv_T,jppf*nthreads),stat= alloc_status(18))
+  allocate (zlq       (nlv_T,jppf*nthreads),stat= alloc_status(19))
+  allocate (zht       (nlv_T,jppf*nthreads),stat= alloc_status(20))
 
   if( any(alloc_status /= 0) ) then
      write(*,*) ' tovs_fill_profiles : memory allocation error'
@@ -226,19 +235,23 @@ subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMod
         zlat(knpf) = obs_headElem_r(lobsSpaceData,OBS_LAT,jo) *MPC_DEGREES_PER_RADIAN_R8
         zlon(knpf) = obs_headElem_r(lobsSpaceData,OBS_LON,jo) *MPC_DEGREES_PER_RADIAN_R8
 
-        do jl = 1, knlev
-           zt   (jl,knpf) = col_getElem(lcolumnghr,jl,jo,'TT')
-           zlq  (jl,knpf) = col_getElem(lcolumnghr,jl,jo,'HU')
-           zvlev(jl,knpf) = col_getPressure(lcolumnghr,jl,jo,'TH') * MPC_MBAR_PER_PA_R8
-           zht  (jl,knpf) = col_getHeight(lcolumnghr,jl,jo,'TH') / rg
+        do jl = 1, nlv_T
+           zt   (jl,knpf) = col_getElem(columnghr,jl,jo,'TT')
+           zlq  (jl,knpf) = col_getElem(columnghr,jl,jo,'HU')
+           zvlev(jl,knpf) = col_getPressure(columnghr,jl,jo,'TH') * MPC_MBAR_PER_PA_R8
+           zht  (jl,knpf) = col_getHeight(columnghr,jl,jo,'TH') / rg
         enddo
+
+        if (diagTtop) then
 !!! Fix temporaire (?) pour eviter probleme au toit avec GEM 4: on ne veut pas utiliser
 !!! le premier niveau de GEM qui est disgnostique (extrapole a partir des deux niveaux plus bas)
-!!! (grosse varibilite temperature au dernier niveau thermo due a l'extrapolation utilisee)
-
-        zt   (1,knpf) =  zt   (2,knpf) - 8.0d0 ! base sur derniere couche environ 4km, lapse rate 2K/km
-        zlq  (1,knpf) =  zlq  (2,knpf)         ! extrapolation valeur constante pour H2O peu important a cette hauteur
+!!! (grosse varibilite de la temperature au dernier niveau thermo due a l'extrapolation utilisee)
+           zt   (1,knpf) =  zt   (2,knpf) + mesosphere_lapse_rate *  &
+                            log( col_getPressure(columnghr,1,jo,'TH') /  &
+                                 col_getPressure(columnghr,2,jo,'TH') )
+           zlq  (1,knpf) =  zlq  (2,knpf)         ! extrapolation valeur constante pour H2O peu important a cette hauteur
 !!!!
+        ENDIF
 
         iptobs   (knpf) = iobs
         iptobscma(knpf) = jo
@@ -261,11 +274,11 @@ subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMod
         do jn=1,knpf,istride
            ilen = min (knpf-jn+1,istride)
            if ( ilen .gt. 0) then
-              call intavg (zvlev(:,jn:jn+ilen-1),zt(:,jn:jn+ilen-1),knlev,knlev,ilen, &
+              call intavg (zvlev(:,jn:jn+ilen-1),zt(:,jn:jn+ilen-1),nlv_T,nlv_T,ilen, &
                    jpmolev,xpres(jpmotop:nlevels),to(:,jn:jn+ilen-1))
-              call intavg (zvlev(:,jn:jn+ilen-1),zlq(:,jn:jn+ilen-1),knlev,knlev,ilen, &
+              call intavg (zvlev(:,jn:jn+ilen-1),zlq(:,jn:jn+ilen-1),nlv_T,nlv_T,ilen, &
                    jpmolev,xpres(jpmotop:nlevels),lqo(:,jn:jn+ilen-1))
-              call lintv2 (zvlev(:,jn:jn+ilen-1),zht(:,jn:jn+ilen-1),knlev,knlev,ilen, &
+              call lintv2 (zvlev(:,jn:jn+ilen-1),zht(:,jn:jn+ilen-1),nlv_T,nlv_T,ilen, &
                    jpmolev,xpres(jpmotop:nlevels),zho(:,jn:jn+ilen-1))
            endif
         enddo
@@ -275,26 +288,22 @@ subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMod
 !     .  2.2  Extrapolation of temperature profile above model top
 !     .       ----------------------------------------------------
         toext(:,:) = 0.0d0
-        if ( abs( zptopmbs - 10.0d0 ) > .1d0 ) then ! si le toit n'est pas a 10. hPa 
-!constant value extrapolation for now modified with a bias....
+        if ( .not. TopAt10hPa) then ! si le toit n'est pas a 10. hPa 
            do jn=1,knpf
-              toext(nlevels-jpmolev+1:nlevels,jn) = to(1:jpmolev,jn)
-              if (nlevels==51) then 
-! si coefficients sur 51 niveaux 2 niveaux au dessus de 0.1 hPa
-                 toext(1,jn)         = to(1,jn) - 33.77d0 
-                 toext(2,jn)         = to(1,jn) - 22.33d0
-              else
-! si coefficients sur 44 niveaux 1 niveau au dessus de 0.1 hPa
-                 toext(1,jn)         = to(1,jn) - 33.77d0
-              endif
+              toext(jpmotop:nlevels,jn) = to(1:jpmolev,jn)
+              ! New approach based on a specified lapse rate
+              do jl=1,jpmotop-1
+                 toext(jl,jn) = toext(jpmotop,jn)  + &
+                      ( log(xpres(jl)/xpres(jpmotop)) * mesosphere_lapse_rate )
+              enddo
            enddo
         else
-        ! vieux code pour extrapolation du profil de temperature
+        ! old code for temperature profile extrapolation (only apropriate if model top at 10 hPa)
            call extrap (to,toext,jpmolev,nlevels,knpf)
         endif
+
 !     .  2.3  Extrapolation of height profile above model top
 !     .       -----------------------------------------------
-
         zhoext(:,:) = 0.0d0
         call htextrap (zhoext,zho,xpres(1:nlevels),nlevels,jpmolev,jpmotop,knpf)
 
@@ -310,9 +319,9 @@ subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMod
            enddo
         enddo
 
-        if ( abs( zptopmbs - 10.0d0 ) > .1d0 ) then ! si le toit n'est pas a 10. hPa
-           qoext(1:jpmotop,1:knpf) = MPC_MINIMUM_HU_R8
-        else
+        if ( .not. TopAt10hPa ) then ! if model top not at 10. hPa
+           qoext(1:jpmotop,1:knpf) = MPC_MINIMUM_HU_R8 ! to replace with LIMLVHU ?
+        else                    
            if ( ldbgtov ) then
               do jn = 1, knpf
                  write(*,*)'qoext*1000 avant exthum4    = '
@@ -341,8 +350,7 @@ subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMod
         DO J=1,knpf
            PP(1:nlevels,J)=xpres(1:nlevels)
         ENDDO
-        call ozo_get_profile (ozo,toto3obs,zlat,  &
-             pp,nlevels,knpf,datestamp)
+        call ozo_get_profile (ozo,toto3obs,zlat,pp,nlevels,knpf,datestamp)
         deallocate( PP )
   
         deallocate ( toto3obs )
@@ -376,16 +384,16 @@ subroutine tovs_fill_profiles(lcolumnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMod
 
            profiles(jj) % skin % surftype = ksurf(j)
            profiles(jj) % skin % watertype= 1 !utilise pour calcul rayonnement solaire reflechi seulement
-           profiles(jj) % skin % t        = col_getElem(lcolumnghr,1,iptobscma(j),'TG')
+           profiles(jj) % skin % t        = col_getElem(columnghr,1,iptobscma(j),'TG')
            profiles(jj) % skin % salinity = 35.d0 ! for FASTEM-4 only to revise (practical salinity units)
            profiles(jj) % skin % fastem(:)= 0.0d0
 !
-           profiles(jj) % s2m % t         = col_getElem(lcolumnghr,ilowlvl_T,iptobscma(j),'TT')
-!!!        profiles(jj) % s2m % q         = exp(col_getElem(lcolumnghr,ilowlvl_T,iptobscma(j),'HU')) * q_mixratio_to_ppmv
+           profiles(jj) % s2m % t         = col_getElem(columnghr,ilowlvl_T,iptobscma(j),'TT')
+!!!        profiles(jj) % s2m % q         = exp(col_getElem(columnghr,ilowlvl_T,iptobscma(j),'HU')) * q_mixratio_to_ppmv
            profiles(jj) % s2m % q         = 0.3D6  !! new a value between 0 and 0.6d6 so that RTTOV will not complain
-           profiles(jj) % s2m % p         = col_getElem(lcolumnghr,1      ,iptobscma(j),'P0')*MPC_MBAR_PER_PA_R8
-           profiles(jj) % s2m % u         = col_getElem(lcolumnghr,ilowlvl_M,iptobscma(j),'UU')
-           profiles(jj) % s2m % v         = col_getElem(lcolumnghr,ilowlvl_M,iptobscma(j),'VV')
+           profiles(jj) % s2m % p         = col_getElem(columnghr,1      ,iptobscma(j),'P0')*MPC_MBAR_PER_PA_R8
+           profiles(jj) % s2m % u         = col_getElem(columnghr,ilowlvl_M,iptobscma(j),'UU')
+           profiles(jj) % s2m % v         = col_getElem(columnghr,ilowlvl_M,iptobscma(j),'VV')
            profiles(jj) % s2m % o         = 0.0d0 !surface ozone never used
            profiles(jj) % s2m % wfetc     = 100000.0d0 ! Wind fetch (in meter for rttov10 ?) used to calculate reflection of solar radiation by sea surface
 !

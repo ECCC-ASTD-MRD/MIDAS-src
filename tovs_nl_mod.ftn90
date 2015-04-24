@@ -1,3 +1,19 @@
+!--------------------------------------- LICENCE BEGIN -----------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+
 Module tovs_nl_mod
   use mpi_mod
   Use rttov_types, only : &
@@ -7,6 +23,9 @@ Module tovs_nl_mod
      radiance_type       ,&
      transmission_Type   ,&
      rttov_chanprof
+
+  use codtyp_mod
+
   implicit none
   save
   private
@@ -15,7 +34,7 @@ Module tovs_nl_mod
   public :: radiance_type,profile_type,rttov_chanprof,rttov_coefs,transmission_Type,rttov_options
 
   ! public variables (parameters)
-  public :: jppf, jpchmax, jpchus, jpnsatmax, jplev, MXPLATFORM
+  public :: jppf, jpchmax, jpchus, jpnsatmax, jplev, MXPLATFORM, MXINSTR, mesosphere_lapse_rate
   ! public variables (non-parameters)
   public :: nchan, ichan, lsensor, lobsno, ltovsno, JPMOTOP, JPMOLEV, nobtov
   public :: l_really_present,list_sensors
@@ -26,15 +45,22 @@ Module tovs_nl_mod
   public :: radiance_d
 
   ! public procedures
-  public :: TOVS_NL_SETUPALLO,TOVS_SETUP, tvs_Is_idburp_tovs, tvs_Is_idburp_airs, tvs_Is_idburp_iasi, tvs_Is_idburp_cris
+  public :: TOVS_NL_SETUPALLO,TOVS_SETUP, tvs_Is_idburp_tovs, tvs_Is_idburp_inst
 
 
   ! Module parameters
   Integer, PARAMETER :: jppf      = 40      ! Max no. profiles per RTTOV call
   Integer, PARAMETER :: jpchmax   = 8461     ! Max. no. of channels
-  Integer, PARAMETER :: jpchus    = 616      ! Max. no. of channels computed/call
-  Integer, PARAMETER :: jpnsatmax = 30       ! Max no sensors to be used
+  Integer, PARAMETER :: jpchus    = 1305     ! Max. no. of channels computed/call
+  Integer, PARAMETER :: jpnsatmax = 40       ! Max no sensors to be used
   Integer, PARAMETER :: jplev     = 51       ! No. of pressure levels including "rttov top" at 0.005 hPa for rttov-10
+!**********************************************************
+! S. Heilliette this parameter was computed from the mean lapse rate between 50 km and 85 km
+! of the US standard atmosphere from data contained in "AFGL Atmospheric Constituent Profiles (0-120km)"
+! AFGL 1986, G.P. ANDERSON, J.H. CHETWYND, S.A. CLOUGH, E. P. SHETTLE and F.X. KNEIZYS
+  real*8, PARAMETER :: mesosphere_lapse_rate=16.2_8
+! unit is K/log(P), a positive value corresponds to decrease of temperature with height
+!**********************************************************
 
   ! Module variables
   Integer, allocatable :: nchan(:)              ! number of channels per instrument
@@ -66,10 +92,11 @@ Module tovs_nl_mod
 
   ! Variable from sensors.ftn
   INTEGER, parameter :: MXPLATFORM = 17
+  INTEGER, parameter :: MXINSTR = 30
   CHARACTER*15 CPLATFORM  (MXPLATFORM  )
-  CHARACTER*15 CINSTRUMENT(JPNSATMAX)
+  CHARACTER*15 CINSTRUMENT(MXINSTR)
   INTEGER NOPLATFORM(MXPLATFORM)
-  INTEGER NOINSTRUMENT(JPNSATMAX)
+  INTEGER NOINSTRUMENT(MXINSTR)
 
 !                         Tables for Platforms and Satellites
 !                         -----------------------------------
@@ -584,7 +611,7 @@ END SUBROUTINE TOVS_NL_SETUPALLO
 
       CHARACTER*15 TEMPOCSATID
 
-      INTEGER IOFFSET1B   (JPNSATMAX)
+      INTEGER IOFFSET1B   (MXINSTR)
 
       DATA IOFFSET1B    /           0,           20,            24,  &
                                    27,           42,             0,  &
@@ -659,7 +686,7 @@ END SUBROUTINE TOVS_NL_SETUPALLO
 
       DO J = 1, NSENSORS
         KINDEX = 0
-        DO K = 1, JPNSATMAX
+        DO K = 1, MXINSTR
            IPOS1=LEN_TRIM(CINSTRUMENT(K))
            IPOS2 = INDEX(CINSTRUMENTID(J),CINSTRUMENT(K)(1:IPOS1))
            IF ( IPOS2 .EQ. 1 ) THEN
@@ -702,46 +729,36 @@ END SUBROUTINE TOVS_NL_SETUPALLO
     implicit none
     integer ,intent(in) :: idatyp
 
-    tvs_Is_idburp_tovs=( IDATYP .EQ. 164 .OR. &
-         IDATYP .EQ. 168 .OR. &
-         IDATYP .EQ. 180 .OR. &
-         IDATYP .EQ. 181 .OR. &
-         IDATYP .EQ. 182 .OR. &
-         IDATYP .EQ. 183 .OR. &
-         IDATYP .EQ. 185 .OR. &
-         IDATYP .EQ. 186 .OR. &
-         IDATYP .EQ. 192 .OR. &
-         IDATYP .EQ. 193 )
+    tvs_Is_idburp_tovs=( IDATYP .EQ. CODTYP_AMSUA.OR. &
+         IDATYP .EQ. CODTYP_SSMI .OR. &
+         IDATYP .EQ. CODTYP_GOES .OR. &
+         IDATYP .EQ. CODTYP_AMSUB .OR. &
+         IDATYP .EQ. CODTYP_MHS .OR. &
+         IDATYP .EQ. CODTYP_AIRS .OR. &
+         IDATYP .EQ. CODTYP_RADIANCECLEAR .OR. &
+         IDATYP .EQ. CODTYP_IASI .OR. &
+         IDATYP .EQ. CODTYP_ATMS .OR. &
+         IDATYP .EQ. CODTYP_CRIS )
 
   end function tvs_Is_idburp_tovs
 
-
-  logical function tvs_Is_idburp_iasi(idburp)
+ logical function tvs_Is_idburp_inst(idburp,cinst)
     implicit none
     integer ,intent(in) :: idburp
+    character (len=*) ,intent(in) :: cinst
 
-    tvs_Is_idburp_iasi = ( idburp == 186 )
+    select case(trim(cinst))
+    case("IASI","iasi")
+       tvs_Is_idburp_inst = ( idburp == CODTYP_IASI )
+    case("AIRS","airs")
+       tvs_Is_idburp_inst = ( idburp == CODTYP_AIRS )
+    case("CRIS","cris")
+       tvs_Is_idburp_inst = ( idburp == CODTYP_CRIS )
+    case default
+       CALL ABORT3D('tvs_Is_idburp_inst: unknown instrument: '//trim(cinst))
+    end select
 
-  end function tvs_Is_idburp_iasi
-
-
-  logical function tvs_Is_idburp_airs(idburp)
-    implicit none
-    integer ,intent(in) :: idburp
-
-    tvs_Is_idburp_airs = ( idburp == 183 )
-
-  end function tvs_Is_idburp_airs
-
-
-  logical function tvs_Is_idburp_cris(idburp)
-    implicit none
-    integer ,intent(in) :: idburp
-
-    tvs_Is_idburp_cris = ( idburp == 193 )
-
-  end function tvs_Is_idburp_cris
-
+  end function tvs_Is_idburp_inst
 
 End Module tovs_nl_mod
 

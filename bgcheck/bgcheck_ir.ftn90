@@ -1,0 +1,112 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+!
+SUBROUTINE BGCHECK_IR(columng,columnhr,obsSpaceData)
+!
+!**s/r BGCHECK  - BACKGROUND CHECK
+!
+!
+!Author  : P. Koclas *CMC/CMDA  Nov 1998
+!Revision:
+!
+!    -------------------
+!*    Purpose: DO  a background check on all hyperspectral infrared observations
+!
+  use obsSpaceData_mod
+  use columnData_mod
+  use tovs_nl_mod
+  use multi_ir_bgck_mod
+  IMPLICIT NONE
+
+  type(struct_obs) :: obsSpaceData
+  type(struct_columnData) :: columng,columnhr
+  INTEGER J
+  INTEGER :: NOBAIRS,NOBIASI,NOBCRIS
+  INTEGER :: index_header,idatyp,krtid
+!
+  call tmg_start(2,'BGCHECK_IR')
+  WRITE(*,FMT=9000)
+ 9000 FORMAT(//,3(" ****************"),/," BEGIN IR BACKGROUND CHECK",/,3(" ****************"),/)
+!
+!     Preliminary initializations
+!     ---------------------------
+!
+
+  NOBTOV=0
+  NOBAIRS=0
+  NOBIASI=0
+  NOBCRIS=0
+
+  ! loop over all header indices of the 'TO' family
+  ! Set the header list (and start at the beginning of the list)
+  call obs_set_current_header_list(obsSpaceData,'TO')
+  HEADER: do
+     index_header = obs_getHeaderIndex(obsSpaceData)
+     if (index_header < 0) exit HEADER
+
+     IDATYP = obs_headElem_i(obsSpaceData,OBS_ITY,index_header)
+
+     IF ( .not.  tvs_Is_idburp_tovs(IDATYP) ) cycle HEADER   ! Proceed to the next header_index
+
+     NOBTOV = NOBTOV + 1
+     IF ( tvs_Is_idburp_inst(IDATYP,"AIRS") ) NOBAIRS = NOBAIRS + 1
+     IF ( tvs_Is_idburp_inst(IDATYP,"IASI") ) NOBIASI = NOBIASI + 1
+     IF ( tvs_Is_idburp_inst(IDATYP,"CRIS") ) NOBCRIS = NOBCRIS + 1
+     
+  enddo HEADER
+
+  IF (NOBTOV==NOBAIRS .AND.  NOBAIRS>0) THEN
+     call HIRQC ( columnhr,obsSpaceData,"AIRS" )
+  ENDIF
+
+  IF (NOBTOV==NOBIASI .AND.  NOBIASI>0) THEN
+
+     do krtid=1,nsensors
+        
+        if (PLATFORM(krtid) == 10 .AND. &
+             INSTRUMENT(krtid) == 16 ) THEN
+           call HIRQC ( columnhr,obsSpaceData,"IASI",krtid)
+        endif
+     end do
+     
+  ENDIF
+
+  IF (NOBTOV==NOBCRIS .AND.  NOBCRIS>0) THEN  
+     call HIRQC ( columnhr,obsSpaceData,"CRIS" )
+  ENDIF
+
+!
+!     Write out contents of obsSpaceData into BURP files
+!
+  CALL UPDATE_BURPFILES(obsSpaceData)
+      ! add cloud parameter data to burp files (AIRS,IASI&CrIS)
+  CALL ADD_CLOUDPRMS(obsSpaceData)
+  DO j =1,1
+     call obs_prnthdr(obsSpaceData,j)
+     call obs_prntbdy(obsSpaceData,j)
+  END DO
+
+      ! deallocate obsSpaceData
+  call obs_finalize(obsSpaceData)
+
+  call tmg_stop(2)
+
+END SUBROUTINE BGCHECK_IR
+
+
+
+
+

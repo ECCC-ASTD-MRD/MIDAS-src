@@ -105,7 +105,7 @@
 !
 !        TOVS - RADIANCE
 !-------------------------------
-      call oonl_tovs(columnhr,obsSpaceData,tim_getDatestamp(),filt_rlimlvhu,top_BgckMode(),ZJOTOV)
+      call oonl_tovs(columnhr,obsSpaceData,tim_getDatestamp(),filt_rlimlvhu,top_BgckIrMode(),ZJOTOV)
 !
 !        PROFILER
 !------------------------------

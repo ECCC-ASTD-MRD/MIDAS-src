@@ -56,6 +56,8 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
 
   integer :: get_max_rss
 
+  character(len=12) :: etiket
+
   write(*,*) ''
   write(*,*) '-------------------------------'
   write(*,*) '--Starting subroutine preproc--'
@@ -78,9 +80,9 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   if(mpi_myid.eq.0) write(*,*)''
   if(mpi_myid.eq.0) write(*,*)' preproc: Set vcoord parameters for trial grid'
   if(numAnalyses.eq.1) then
-    call vco_SetupFromFile(vco_trl,'./trlm_01',.false.)
+    call vco_SetupFromFile(vco_trl,'./trlm_01',.false.,' ')
   else
-    call vco_SetupFromFile(vco_trl,'./trlm_01_0000',.false.)
+    call vco_SetupFromFile(vco_trl,'./trlm_01_0000',.false.,' ')
   endif
   call col_setVco(lcolumnhr,vco_trl)
   
@@ -120,7 +122,12 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   !     
   !- Initialisation of the analysis grid vertical coordinate from !! in Bnmc file
   !
-  call vco_SetupFromFile(vco_anl,'./bgcov',.true.)
+  if ( hco_anl % global ) then
+     etiket = 'BGCK_STDDEV'
+  else
+     etiket = 'STDDEV'
+  end if
+  call vco_SetupFromFile(vco_anl,'./bgcov',.true.,etiket)
   call col_setVco(lcolumng,vco_anl)
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 

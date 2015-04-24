@@ -24,24 +24,27 @@ program cnt0
   use obsSpaceDiag_mod
   use writeIncrement_mod
   use controlVector_mod
-  use bmatrix_mod
   use filterObs_mod  
 
   implicit none
   integer :: istamp,exdb,exfin
   character(len=9) :: clmsg
   integer :: ierr,numAnalyses,indexAnalysis_loop,indexAnalysis,getNumAnalyses
-  logical :: isControlAnalysis
+  logical :: isControlAnalysis, isLastAnalysis
   type(struct_obs),target :: obsSpaceData, obsSpaceData_out
   type(struct_columnData),target :: columng,columnhr
+  type(struct_vco),pointer :: vco_anl => NULL()
+  type(struct_vco),pointer :: vco_trl => NULL()
+
+  character(len=48) :: obsMpiStrategy
 
   istamp = exdb('3DVAR','DEBUT','NON')
 
   write(*,'(/,' //                                            &
             '3(" *****************"),/,' //                   &
             '14x,"-- START OF MAIN PROGRAM CNT0: --",/,' //   &
-            '14x,"-- 3D VARIATIONAL ASSIMILATION --",/, ' //  &
-            '14x,"-- VARGLB Revision number ",a," --",/,' //  &
+            '14x,"-- VARIATIONAL ASSIMILATION    --",/, ' //  &
+            '14x,"-- VAR Revision number   ",a," --",/,' //  &
             '3(" *****************"))') top_crevision
 
   ! MPI initilization
@@ -59,18 +62,25 @@ program cnt0
 
   ! 2. Decide on configuration of job
 
-  ! ---BGCHECK (AIRS, IASI + conventional obs)--- !
-  if(top_BgckMode()) then
-    if(mpi_myid == 0) write(*,*) 'CNT0: BGCHECK MODE'
+  ! ---BGCHECK (conventional obs)--- !
+  if(top_BgckConvMode()) then
+    if(mpi_myid == 0) write(*,*) 'CNT0: CONVENTIONNAL BGCHECK MODE'
 
     numAnalyses = 1
     indexAnalysis = 0
 
     ! Do initial set up
     call tmg_start(1,'PREMIN')
+
+    if ( trim(top_BurpSplitMode()) == 'DEFAULT' ) then
+       obsMpiStrategy = 'ROUNDROBIN' ! default mode
+    else
+       obsMpiStrategy = trim(top_BurpSplitMode())
+    end if
+
     call preproc(columng,columnhr,obsSpaceData,  &
-                 "ALL",        & ! obsColumnMode   
-                 "ROUNDROBIN", & ! obsMpiStrategy
+                 "ALL",                & ! obsColumnMode   
+                 trim(obsMpiStrategy), &
                  numAnalyses)
 
     ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
@@ -81,7 +91,39 @@ program cnt0
     call tmg_stop(1)
 
     ! Do the background check and output the observation data files
-    call bgcheck(columng,columnhr,obsSpaceData)
+    call bgcheck_conv(columng,columnhr,obsSpaceData)
+
+ ! ---BGCHECK (AIRS, IASI, CrIS)--- !
+  elseif(top_BgckIrMode()) then
+     if(mpi_myid == 0) write(*,*) 'CNT0: HYPERSPECTRAL IR BGCHECK MODE'
+
+    numAnalyses = 1
+    indexAnalysis = 0
+
+    ! Do initial set up
+    call tmg_start(1,'PREMIN')
+
+    if ( trim(top_BurpSplitMode()) == 'DEFAULT' ) then
+       obsMpiStrategy = 'ROUNDROBIN' ! default mode
+    else
+       obsMpiStrategy = trim(top_BurpSplitMode())
+    end if
+
+    call preproc(columng,columnhr,obsSpaceData,  &
+                 "ALL",        & ! obsColumnMode   
+                 trim(obsMpiStrategy), & ! obsMpiStrategy
+                 numAnalyses)
+
+    ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
+    call sugomobs(columng,columnhr,obsSpaceData,indexAnalysis)
+
+    ! Compute observation innovations and prepare obsSpaceData for minimization
+    call suinnov(columng,columnhr,obsSpaceData)
+    call tmg_stop(1)
+
+    ! Do the background check and output the observation data files
+    call bgcheck_ir(columng,columnhr,obsSpaceData)
+
 
   ! ---COMPUTE O-P (for AMSU, GEORAD et SSMIS)--- !
   elseif(top_OmpMode()) then
@@ -92,9 +134,16 @@ program cnt0
 
     ! Do initial set up
     call tmg_start(1,'PREMIN')
+
+    if ( trim(top_BurpSplitMode()) == 'DEFAULT' ) then
+       obsMpiStrategy = 'ROUNDROBIN' ! default mode
+    else
+       obsMpiStrategy = trim(top_BurpSplitMode())
+    end if
+
     call preproc(columng,columnhr,obsSpaceData,  &
                  "VAR",        & ! obsColumnMode
-                 "ROUNDROBIN", & ! obsMpiStrategy
+                 trim(obsMpiStrategy), & ! obsMpiStrategy
                  numAnalyses)
 
     ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
@@ -116,9 +165,16 @@ program cnt0
 
     ! Do initial set up
     call tmg_start(1,'PREMIN')
+
+    if ( trim(top_BurpSplitMode()) == 'DEFAULT' ) then
+       obsMpiStrategy = 'LATLONTILES' ! default mode
+    else
+       obsMpiStrategy = trim(top_BurpSplitMode())
+    end if
+
     call preproc(columng,columnhr,obsSpaceData,  &
                  "VAR",          &  ! obsColumnMode
-                 "LATLONTILES",  &  ! obsMpiStrategy
+                 trim(obsMpiStrategy),  &  ! obsMpiStrategy
                  numAnalyses)
     call tmg_stop(1)
 
@@ -129,6 +185,7 @@ program cnt0
       write(*,*) '============================='
 
       isControlAnalysis = (indexAnalysis_loop.eq.1)
+      isLastAnalysis    = (indexAnalysis_loop.eq.numAnalyses)
       if(numAnalyses.eq.1) then
         indexAnalysis = 0
       else
@@ -150,7 +207,9 @@ program cnt0
       call minimize(columng,obsSpaceData,isControlAnalysis)
 
       ! Calculate and write out the resulting analysis increment
-      call calcWriteIncrement(columng,columnhr,indexAnalysis)
+      vco_anl => col_getVco(columng)
+      vco_trl => col_getVco(columnhr)
+      call calcWriteIncrement(vco_anl,vco_trl,indexAnalysis,isLastAnalysis)
 
       ! Set the QC flags to be consistent with VAR-QC if control analysis
       if(isControlAnalysis) then
@@ -160,8 +219,8 @@ program cnt0
       ! Make copy of obsSpaceData for control analysis
       if(isControlAnalysis) then
         call tmg_start(19,'COPY_OBS')
-        call obs_initialize(obsSpaceData_out,obs_numHeader(obsSpaceData),  &
-                            obs_numBody(obsSpaceData),mpi_local=.true.)
+        call obs_initialize(obsSpaceData_out,obs_numHeader_max(obsSpaceData),  &
+                            obs_numBody_max(obsSpaceData),mpi_local=.true.)
         call obs_copy(obsSpaceData,obsSpaceData_out)
         call tmg_stop(19)
       endif
@@ -176,9 +235,6 @@ program cnt0
 
     ! Compute obs-space diagnostics (only does computation if NAMOSD present in flnml)
     call osd_calcInflation(obsSpaceData_out,columng)
-
-    ! Deallocate B matrices
-    call bmat_finalize(cvm_vazx)
 
     ! Now write out the observation data files
     call update_burpfiles(obsSpaceData_out)

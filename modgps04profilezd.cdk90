@@ -10,7 +10,8 @@
 !       rLat      = latitude, [rad]
 !       rLon      = longitude, [rad]
 !       rMT       = model surface elevation (ASL), [m]
-!       pst       = pressure profile, [Pa]
+!       pst       = pressure profile (analyzed thermo levels), [Pa]
+!       P0        = Surface pressure, [Pa]
 !       tst       = temperature (TT) profile, [K]
 !       qst       = humidity (HU) profile, [kg/kg]
 !       rst       = dZTD/dp profile
@@ -21,6 +22,11 @@
 !    Subroutine gpsstructztd:   fills model profiles of type gpsprofilezd (for ZTD operator)
 !
 !    Subroutine gpsdpress:      computes dP/dP0 for non-staggered HYBRID or ETA vertical grids
+!                               (obsolete)
+!
+! Note: The lowest analyzed pressure level is not necessarily identical to P0. In more recent 
+!       versions of GEM, the pressure at the lowest model thermodynamic level is the pressure
+!       at 2 m height, which is less than P0.
 !
 !
 ! Stephen Macpherson, 2012.
@@ -30,6 +36,9 @@
 ! Revisions:
 !        S. Macpherson 26 June 2013
 !           -- use modgps01ctphys
+!        S. Macpherson 18 Nov 2014
+!           -- modifications to handle case where pressure at the lowest model thermodynamic
+!              level is 2m pressure, which is lower than surface pressure P0.
 !
 
 module modgps04profilezd
@@ -37,7 +46,7 @@ module modgps04profilezd
   use modgps01ctphys
 !  use modgps02wgs84const,only : WGS_a, WGS_OmegaPrime
 !  use modgps02wgs84grav ,only : gpsgravityalt, gpsRadii
-  use modgps02wgs84grav ,only : gpsgravityalt
+  use modgps02wgs84grav ,only : gpsgravityalt,gpsgravitysrf
   use modgps03diff
   
   implicit none
@@ -48,6 +57,8 @@ module modgps04profilezd
      real(dp)                                        :: rLon
      real(dp)                                        :: rMT
 
+     type(gpsdiff)                                   :: P0
+     
      type(gpsdiff)    , dimension(ngpssize)          :: pst
      type(gpsdiff)    , dimension(ngpssize)          :: tst
      type(gpsdiff)    , dimension(ngpssize)          :: qst
@@ -59,14 +70,15 @@ module modgps04profilezd
 
 contains
 
-  subroutine gpsstructztd(ngpslev,rLat,rLon,rMT,rPP,rDP,rTT,rLQ,lbevis,refopt,prf)
+  subroutine gpsstructztd(ngpslev,rLat,rLon,rMT,rP0,rPP,rDP,rTT,rLQ,lbevis,refopt,prf)
 !
 ! This subroutine fills GPS profiles of type gpsprofilezd (for ZTD operator)
 !
     integer(i4)       , intent(in)  :: ngpslev          ! number of profile levels
     real(dp)          , intent(in)  :: rLat             ! radians
     real(dp)          , intent(in)  :: rLon             ! radians
-    real(dp)          , intent(in)  :: rMT              ! height (ASL) of surface level (m)
+    real(dp)          , intent(in)  :: rMT              ! height (ASL) of model surface (m)
+    real(dp)          , intent(in)  :: rP0              ! surface pressure (Pa)
     real(dp)          , intent(in)  :: rPP (ngpssize)   ! pressure P at each level (Pa)
     real(dp)          , intent(in)  :: rDP (ngpssize)   ! dP/dP0 at each level (Pa/Pa)
     real(dp)          , intent(in)  :: rTT (ngpssize)   ! temperature T at each level (C)
@@ -127,6 +139,9 @@ contains
     !
     ! Fill pressure (P) placeholders (Pa):
     !
+    prf%P0%Var               = rP0
+    prf%P0%DVar              = 0._dp
+    prf%P0%DVar(2*ngpslev+1) = 1._dp
     do i = 1, ngpslev
        prf%pst(i)%Var               = rPP(i)
        prf%pst(i)%DVar              = 0._dp
@@ -223,9 +238,12 @@ contains
        tv(i) = (1._dp+delta*q) * t
     enddo
     
-    ! Geometric height (m) profile from surface to top  --> prf%gst
-    prf%gst(ngpslev) = rMT
+    ! Geometric height (m) profile from lowest model level to top  --> prf%gst
     sLat = sin(rLat)
+    dx  = xi(ngpslev)-log(prf%P0)
+    Rgh = gpsgravitysrf(sLat)
+    z   = (-p_Rd/Rgh) * tv(ngpslev) * dx
+    prf%gst(ngpslev) = rMT + z
     do i = ngpslev-1, 1, -1
        dx = xi(i)-xi(i+1)
        tvm = 0.5_dp*(tv(i)+tv(i+1))
@@ -256,7 +274,7 @@ contains
        prf%rst(i) = 1.e-6_dp * na * (p_Rd*tv(i))/gpsgravityalt(sLat, prf%gst(i)%Var)
     enddo
 
-    ! ZTD (m) profile from model top down to surface --> prf%ztd
+    ! ZTD (m) profile from model top down to lowest model level --> prf%ztd
     prf%ztd(1) = 1.e-6_dp * ((k1*p_Rd*ptop)/(gpsgravityalt(sLat, prf%gst(1)%Var)))
     do i = 2, ngpslev
       !

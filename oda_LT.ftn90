@@ -196,8 +196,8 @@ CONTAINS
             if( ypos > real(myLatEndP1          ,8) ) ypos = real(myLatEndP1          ,8)
 
             ! abort if obs is to the left or right of the analysis domain
-            if( xpos < real(statevector%myLonBeg,8) .or. &
-                xpos > real(myLonEndP1          ,8) ) call abort3d('oda_LT')
+            if( xpos < real(statevector%myLonBeg,8) ) xpos = real(statevector%myLonBeg,8)
+            if( xpos > real(myLonEndP1          ,8) ) xpos = real(myLonEndP1          ,8)
           end if
 
           !- 2.2 Find the lower-left grid point next to the observation

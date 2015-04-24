@@ -1,3 +1,20 @@
+!--------------------------------------- LICENCE BEGIN -----------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+
+
 #include "maincompileswitch.inc"
 #include "compileswitches.inc"
 module  burp_read
@@ -47,6 +64,10 @@ CONTAINS
     !       REVISION:
     !                 S. MACPHERSON (ARMA) Oct 2013
     !                  -- add 'GP' family (ground-based GPS) as type "SFC"
+    !                 P. KOCLAS (CMDA/SMC)) Aug 2014
+    !                  -- Fix for the Burp 24 bit header markers of the UA4D
+    !                 P. KOCLAS (CMDA/SMC)) Oct 2014
+    !                  -- CHANGE ADDSIZE FOR SW ( GROUPED SATWINDS)
     !                 Ping Du (CMDA), Nov/Dec 2014
     !                  -- Added CASE('CH') option with intitial settings.
     !                  -- Added use of FAMILYTYPE2 and the 'namburp_ch' and 
@@ -192,7 +213,9 @@ CONTAINS
         NELE=NELEMS
         WINDS=.TRUE.
         vcord_type(2)=-1
-        ADDSIZE=5000
+!       ADDSIZE=5000
+!       ' AMVS-> ADDSIZE 600000 oct 2014 pik'
+        ADDSIZE=600000
       CASE('SF','GP')
         BURP_TYP='uni'
         vcord_type(1)=0
@@ -414,6 +437,10 @@ CONTAINS
       ENDIF
 
       if (ref_rpt < 0) Exit
+      if (count .eq. nb_rpts) then
+        write(*,*) 'UPDATE_BURP: ERROR: count = nb_rpts:',count,nb_rpts
+        exit
+      endif
       count = count + 1
       address(count) = ref_rpt
     end do
@@ -1046,7 +1073,8 @@ CONTAINS
 
             IF (HIRES .and. KOBSN .gt. 0 .and. .not. regrup ) THEN
               STATUS=obs_headElem_i(obsdat,OBS_ST1,OBS_START)
-              STATUS=IBSET(STATUS,BIT_STATUS)
+!pik 8-2014   STATUS=IBSET(STATUS,BIT_STATUS)
+              STATUS_HIRES=IBSET(STATUS_HIRES,BIT_STATUS)
               Call BURP_Set_Property(CP_RPT ,FLGS =STATUS_HIRES)
             ENDIF
             IF (HIRES )OBS_START=OBSN
@@ -1226,6 +1254,9 @@ CONTAINS
     !       REVISION:
     !                 S. MACPHERSON (ARMA) Oct 2013
     !                  -- add 'GP' family (ground-based GPS)
+    !                 P. KOCLAS (CMDA) Oct 2014
+    !                  -- Changed VCOORD Dimensions 
+    !                  -- add VCORD array  to allow grouped SW or AI
     !                 Ping Du (CMDA) Nov/Dec 2014 
     !                  -- Added initial CASE('CH') section with addition of 'namburp_chm_sfc'
     !                     and 'namburp_chm' namelists
@@ -1283,7 +1314,8 @@ CONTAINS
     INTEGER, ALLOCATABLE   :: QCFLAG  (:,:,:),  QCFLAG_SFC(:,:,:)
     INTEGER, ALLOCATABLE   :: QCFLAGS (:,:),   QCFLAGS_SFC(:,:)
 
-    REAL   , ALLOCATABLE   :: VCOORD  (:),  VCOORD_SFC(:)
+    REAL   , ALLOCATABLE   :: VCOORD  (:,:),  VCOORD_SFC(:)
+    REAL   , ALLOCATABLE   :: VCORD   (:)
 
     INTEGER, ALLOCATABLE   :: LAT(:),LON(:),HHMM(:),DATE(:),GLBFLAG(:)
     REAL   , ALLOCATABLE   :: HLAT(:,:),  HLON(:,:),  HTIME(:,:)
@@ -1452,6 +1484,8 @@ CONTAINS
     write(*,*) ' NELE_SFC LISTE_ELE_SFC =',NELE_SFC,LISTE_ELE_SFC(1:NELE_SFC)
     write(*,*) ' BNBITSON BNBITSOFF     =',BNBITSON,BNBITSOFF
 
+    btyp_offset_uni=-999
+    btyp_offset=-999
     if (trim(BURP_TYP) .eq. 'uni') then
       btyp_offset=256
     else
@@ -1543,6 +1577,12 @@ CONTAINS
       ENDIF
 
       if (ref_rpt < 0) Exit
+
+      if (count .eq. nb_rpts) then
+        write(*,*) 'READBURP: ERROR: count = nb_rpts:',count,nb_rpts
+        exit
+      endif
+
       count = count + 1
       address(count) = ref_rpt
     end do
@@ -1682,12 +1722,14 @@ CONTAINS
             flag_passage3 = 1
 
             NVAL=NVALE ;  NT=NTE
-            ALLOCATE(obsvalue(NELE,nvale,nte),VCOORD(nvale))
+            ALLOCATE(obsvalue(NELE,nvale,nte),VCOORD(nvale,nte))
             ALLOCATE(  OBSERV(NELE,nvale)    )
+            ALLOCATE(   VCORD(nvale)    )
                            
-            obsvalue(:,:,:)  = PPMIS
-            OBSERV(:,:)     = PPMIS
-            VCOORD  (:)      = 0.
+            obsvalue(:,:,:) = PPMIS
+            OBSERV  (:,:)   = PPMIS
+            VCOORD  (:,:)   = 0.
+            VCORD   (:)     = 0.
 
             k=0
             IND_VCOORD=-1
@@ -1748,7 +1790,7 @@ CONTAINS
                   ENDIF
 
                   if (IND_VCOORD <= 0) cycle
-                    VCOORD(j) =  BURP_Get_Rval(Block_in, &
+                    VCOORD(j,k) =  BURP_Get_Rval(Block_in, &
                               &   NELE_IND = IND_VCOORD, &
                               &   NVAL_IND = j, &
                               &   NT_IND   = k)
@@ -2006,8 +2048,8 @@ CONTAINS
 
                 time2=time_sonde/10000
 
-                VCOORD(1)=VCOORD(jj)
-                NDATA= WRITE_BODY(obsdat,familytype,RELEV,VCOORD,vcoord_type,OBSERV,qcflags,NELE,1,LISTE_ELE,SURF_EMIS)
+                VCORD(1)=VCOORD(jj,k)
+                NDATA= WRITE_BODY(obsdat,familytype,RELEV,VCORD,vcoord_type,OBSERV,qcflags,NELE,1,LISTE_ELE,SURF_EMIS)
 
                 IF (NDATA .gt. 0) THEN
                   call WRITE_HEADER(obsdat,STNID,XLAT,XLON,date2,time2,idtyp,STATUS,RELEV,FILENUMB)
@@ -2071,8 +2113,9 @@ CONTAINS
           
             IF ( allocated(obsvalue) ) THEN
               OBSERV(1:NELE,1:NVAL)    =obsvalue(1:NELE,1:NVAL,k)
-              QCFLAGS(1:NELE,1:NVAL)   =qcflag   (1:NELE,1:NVAL,k)
-              NDATA= WRITE_BODY(obsdat,familytype,RELEV,VCOORD,vcoord_type,OBSERV,qcflags,NELE,NVAL,LISTE_ELE,SURF_EMIS) 
+              QCFLAGS(1:NELE,1:NVAL)   =qcflag  (1:NELE,1:NVAL,k)
+              VCORD(1:NVAL)            =VCOORD  (1:NVAL,k)
+              NDATA= WRITE_BODY(obsdat,familytype,RELEV,VCORD,vcoord_type,OBSERV,qcflags,NELE,NVAL,LISTE_ELE,SURF_EMIS)
 
               IF (NDATA .gt. 0) THEN
 
@@ -2149,7 +2192,7 @@ CONTAINS
 
         !---------UPPER AIR---------------------------
         if ( allocated(obsvalue) ) then
-          DEALLOCATE ( obsvalue,VCOORD,observ)
+          DEALLOCATE ( obsvalue,VCOORD,VCORD,observ)
         end if
         if ( allocated(qcflag) ) then
           DEALLOCATE (qcflag,qcflags)
@@ -2306,7 +2349,7 @@ CONTAINS
 
 
     INTEGER     ::   IFLAG,LN,BITSflagoff,BITSflagon
-    REAL(OBS_REAL) :: MISG,OBSV,ELEV,ELEV_R,REMIS
+    REAL(OBS_REAL) :: MISG,OBSV,ELEV,ELEV_R,REMIS,emmissivite
     INTEGER     ::   VCO
     INTEGER     ::   NONELEV
     REAL        ::   ZEMFACT
@@ -2405,7 +2448,12 @@ CONTAINS
           if ( REMIS .ne. PPMIS .and. FAMTYP .eq. 'TO') THEN
             call obs_bodySet_r(obsdat,OBS_SEM,count,REMIS)
           else
-            call obs_bodySet_r(obsdat,OBS_SEM,count,MISG)
+            if ( FAMTYP .eq. 'TO') then
+                emmissivite=0.95
+                call obs_bodySet_r(obsdat,OBS_SEM,count,emmissivite)
+             else
+                call obs_bodySet_r(obsdat,OBS_SEM,count,MISG)
+             endif
           endif
           !call obs_set_i(obsdat,'OBS',count,NOBS)
 

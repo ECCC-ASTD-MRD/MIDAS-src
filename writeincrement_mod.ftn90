@@ -1,13 +1,28 @@
+!--------------------------------------- LICENCE BEGIN -----------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+
 module writeIncrement_mod
   use MathPhysConstants_mod
   use EarthConstants_mod
   use varNameList_mod
   use controlVector_mod
-  use columnData_mod
-  use minimization_mod
   use bmatrix_mod
   use mpivar_mod
   use gridStateVector_mod
+  use verticalCoord_mod
   use HorizontalCoord_mod
   use timeCoord_mod
   use physicsFunctions_mod
@@ -21,6 +36,8 @@ module writeIncrement_mod
   logical :: initialized = .false. 
 
   character(len=12) :: cetikinc_orig
+  logical :: basic_tt = .false.
+  logical :: basic_hu = .false.
 
   ! namelist variables
   character(len=4)  :: cppcvar(20)
@@ -96,18 +113,28 @@ module writeIncrement_mod
         if(cppcvar(jvar).eq.'GZ') then
           igz = jvar
           lgzout = .true.
+          basic_tt = .true.
+          basic_hu = .true.
         endif
         if(cppcvar(jvar).eq.'HU') then
           ihu = jvar
+          basic_hu = .true.
         endif
         if(cppcvar(jvar).eq.'VT') then
           ivt = jvar
           lvtout = .true.
+          basic_hu = .true.
         endif
         if(cppcvar(jvar).eq.'LQ') then
           ilq = jvar
         endif
+        if(cppcvar(jvar).eq.'ES') then
+          basic_hu = .true.
+        endif
       enddo
+
+      if(basic_tt.and.mpi_myid.eq.0) write(*,*) 'SUPOST: TT trial field will be read'
+      if(basic_hu.and.mpi_myid.eq.0) write(*,*) 'SUPOST: HU trial field will be read'
 
       if((lgzout.or.lvtout).and.ihu.eq.0) then
         ! Make sure that HU is part of the list
@@ -147,17 +174,17 @@ module writeIncrement_mod
     END SUBROUTINE SUPOST
 
 
-    subroutine calcWriteIncrement(lcolumng,lcolumnhr,indexAnalysis)
+    subroutine calcWriteIncrement(vco_anl,vco_trl,indexAnalysis,isLastAnalysis)
       !
       !  s/r calcWriteIncrement - calculate and write analysis increment after minimization
       !
       implicit none
 
-      type(struct_columnData),target :: lcolumng,lcolumnhr
+      type(struct_vco), pointer :: vco_anl, vco_trl
       integer :: indexAnalysis
+      logical :: isLastAnalysis
 
       type(struct_hco),      pointer :: hco_anl
-      type(struct_vco), pointer :: vco_anl
       type(struct_gsv) :: statevector,statevectorg,statevectorp
       integer :: jlev, jj, ji, jstep, jvar, perturbLoop, numPerturbLoop, nlev_T, nlev_M, iseed
       integer :: ierr, fnom, fstouv, fstfrm, fclos
@@ -170,19 +197,22 @@ module writeIncrement_mod
       real(8), allocatable :: zhu(:,:,:)
       real(8), allocatable :: cv_pert_mpilocal(:), cv_pert_mpiglobal(:)
       real(8), allocatable :: scaleFactorBhi(:)
-      real(8), pointer :: cv_pert_bhi_mpilocal(:), field(:,:,:,:)
+      real(8), pointer :: cv_pert_bens_mpilocal(:), field(:,:,:,:)
       real(8), pointer :: lq_inc_ptr(:,:,:,:), hu_trl_ptr(:,:,:,:)
       character(len=4) :: flnum, flnum2
       character(len=1) :: flnum3
       character(len=128) :: incFileName
       integer :: get_max_rss
-      logical :: globalGSVpresent
+      logical :: globalGSVpresent, onlyDeterministic
 
       write(*,*) '-------------------------------'
       write(*,*) '--Starting subroutine calcWriteIncrement--'
       write(*,*) '-------------------------------'
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+      call rpn_comm_barrier("GRID",ierr)
       call tmg_start(3,'WRITEINCR')
+
+      onlyDeterministic = (indexAnalysis.eq.0)
       !
       ! Read namelist and do some setup
       !
@@ -209,7 +239,6 @@ module writeIncrement_mod
       !
       ! Setup statevector for storing the analysis increment
       !
-      vco_anl => col_getVco(lcolumng)
       hco_anl => hco_Get('Analysis')
       call gsv_setVco(statevector,vco_anl)
       call gsv_setHco(statevector,hco_anl)
@@ -225,7 +254,8 @@ module writeIncrement_mod
       ! Prepare background fields (only P0, TT, HU) at each analysis time needed for computing
       ! diagnostic fields and make mpiglobal (result only on myid=increment_time_step-1)
       !
-      call tmg_start(92,'POST_DIAG')
+      call rpn_comm_barrier("GRID",ierr)
+      call tmg_start(95,'POST_SUBASIC')
       write(*,*)' calcWriteIncrement: Read in background variables to enable calculation of diagnostic variables'
 
       call gsv_setVco(statevectorg,vco_anl)
@@ -239,13 +269,13 @@ module writeIncrement_mod
       enddo
       if(write4dInc) then
         ! read in the background fields at all increment timesteps
-        call subasic_gd(statevectorg,lcolumnhr,tim_nstepobsinc,datestamplist,indexAnalysis)
+        call subasic_gd(statevectorg,vco_trl,tim_nstepobsinc,datestamplist,indexAnalysis)
       else
         ! only read in the background fields at the "analysis" timestep (usually the middle)
-        call subasic_gd(statevectorg,lcolumnhr,1,datestamplist(statevector%anltime),indexAnalysis)
+        call subasic_gd(statevectorg,vco_trl,1,datestamplist(statevector%anltime),indexAnalysis)
       endif
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-      call tmg_stop(92)
+      call tmg_stop(95)
 
       !
       ! Compute the analysis increment and make mpiglobal (result only on myid=increment_time_step-1)
@@ -253,6 +283,10 @@ module writeIncrement_mod
       call tmg_start(91,'POST_COMPUTEDX')
 
       call bmat_sqrtB(cvm_vazx,cvm_nvadim,statevector)
+      if(onlyDeterministic) then
+        ! Deallocate B matrices
+        call bmat_finalize(cvm_vazx)
+      endif
 
       if(write4dInc) then
         ! mpiglobal result for 4D increment only on myid=(increment_time_step -1)
@@ -290,10 +324,10 @@ module writeIncrement_mod
       !
       ! If ens-EnVar, loop over additional types of perturbations to analysis increment
       !
-      if(indexAnalysis.gt.0) then
-        numPerturbLoop = 2
-      else
+      if(onlyDeterministic) then
         numPerturbLoop = 0
+      else
+        numPerturbLoop = 2
       endif
       do perturbLoop = 0, numPerturbLoop
 
@@ -325,8 +359,8 @@ module writeIncrement_mod
 
           if(pertBhiOnly) then
             ! set Bensemble component of control vector to zero
-            cv_pert_bhi_mpilocal => cvm_getSubVector(cv_pert_mpilocal,2)
-            cv_pert_bhi_mpilocal(:) = 0.0d0
+            cv_pert_bens_mpilocal => cvm_getSubVector(cv_pert_mpilocal,2)
+            cv_pert_bens_mpilocal(:) = 0.0d0
           endif
 
           call bmat_sqrtB(cv_pert_mpilocal,cvm_nvadim,statevectorp)
@@ -406,10 +440,10 @@ module writeIncrement_mod
         !
         ! Compute diagnostic variables and write entire increment to file
         !
+        call tmg_start(92,'POST_DIAG')
         if(globalGSVpresent) then
-          call tmg_start(92,'POST_DIAG')
           !
-          ! Compute HU increment from LQ increment
+          ! Compute HU increment from LQ increment (always)
           !
           hu_trl_ptr => gsv_getField(statevectorg,'HU')  ! this is HU_b
           lq_inc_ptr => gsv_getField(statevector ,'HU')  ! this is delta LQ
@@ -429,27 +463,43 @@ module writeIncrement_mod
           enddo
 !$OMP END PARALLEL DO
           !
-          ! Compute ES increment
+          ! Compute ES increment (if requested)
           !
-          call lq2esgd(zes,statevector,statevectorg)
+          do jvar = 1,nppcvar
+            if(cppcvar(jvar).eq.'ES') call lq2esgd(zes,statevector,statevectorg)
+          enddo          
           !
-          ! Compute GZ increment
+          ! Compute VT increment (if VT or GZ requested)
           !
-          call lt2tvgd(ztv,statevector,statevectorg)
-          status = vgd_get(statevectorg%vco%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
-          if(Vcode_anl.eq.5001) then 
-            call ltt2phigd(zgz_T,ztv,statevectorg)
-          else
-            call ltt2phigd_gem4(zgz_M,zgz_T,ztv,statevector,statevectorg)
-          endif
+          VARLOOP: do jvar = 1,nppcvar
+            if(cppcvar(jvar).eq.'VT'.or.cppcvar(jvar).eq.'GZ') then
+              call lt2tvgd(ztv,statevector,statevectorg)
+              exit VARLOOP
+            endif
+          enddo VARLOOP
+          !
+          ! Compute GZ increment (if requested)
+          !
+          do jvar = 1,nppcvar
+            if(cppcvar(jvar).eq.'GZ') then
+              status = vgd_get(statevectorg%vco%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
+              if(Vcode_anl.eq.5001) then 
+                call ltt2phigd(zgz_T,ztv,statevectorg)
+              else
+                call ltt2phigd_gem4(zgz_M,zgz_T,ztv,statevector,statevectorg)
+              endif
+            endif
+          enddo
           write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-          call tmg_stop(92)
+        endif
+        call tmg_stop(92)
 
+        if(globalGSVpresent) then
           !
           ! Now, write out the increment, including diagostic variables
           !
           incFileName = './rebm'
-          if(indexAnalysis.gt.0) then
+          if(.not.onlyDeterministic) then
             write(flnum3,'(I1.1)') perturbLoop
             incFileName = trim(incFileName) // trim(flnum3)
           endif
@@ -464,7 +514,7 @@ module writeIncrement_mod
             write(*,*) 'calcWriteIncrement: flnum=###',trim(flnum),'###'
             incFileName = trim(incFileName) // '_' // trim(flnum) // 'm'
           endif
-          if(indexAnalysis.gt.0) then
+          if(.not.onlyDeterministic) then
             write(flnum2,'(I4.4)') (indexAnalysis-1)
             incFileName = trim(incFileName) // '_' // trim(flnum2)
           endif
@@ -488,13 +538,18 @@ module writeIncrement_mod
       call gsv_deallocate(statevectorg)
       call gsv_deallocate(statevector)
 
+      if(.not.onlyDeterministic.and.isLastAnalysis) then
+        ! Deallocate B matrices (deallocated earlier if onlyDeterministic)
+        call bmat_finalize(cvm_vazx)
+      endif
+
       call tmg_stop (3)
       write(*,*) 'LEAVING calcWriteIncrement'
 
     END SUBROUTINE calcWriteIncrement
 
 
-    SUBROUTINE writeIncrement(incFileName,statevector,zes,ztv,zgz_T,zhu,datestamp)
+    SUBROUTINE writeIncrement(incFileName,statevector,zes,ztv,zgz_T,zhu,datestamp,val_ip3)
       !
       !**s/r writeIncrement  - Transfer of the contents of statevector into an RPN
       !                        standard file
@@ -504,6 +559,7 @@ module writeIncrement_mod
       type(struct_gsv) :: statevector
       real(8) :: zes(:,:,:),ztv(:,:,:),zgz_T(:,:,:),zhu(:,:,:)
       integer :: datestamp
+      integer, optional :: val_ip3
 
       integer write_encode_hyb,fnom,fstouv,fstfrm,fclos,vfstecr
       integer jvar,jlev,ierr,numlev,nulfile
@@ -539,7 +595,9 @@ module writeIncrement_mod
         return
       endif
 
-      WRITE(*,FMT='(/,4X,''Transfer of the gridpoint model state on file at iteration No.'',I3)') min_niter
+      if(present(val_ip3)) then
+        WRITE(*,FMT='(/,4X,''Transfer of the gridpoint model state on file at iteration No.'',I3)') val_ip3
+      endif
       !
       ! Setup packing for each variable
       !
@@ -588,7 +646,11 @@ module writeIncrement_mod
       !
       ndeet=0
       NIP2       =  0
-      NIP3       =  min_niter
+      if(present(val_ip3)) then
+        NIP3     = val_ip3
+      else
+        NIP3     =  0
+      endif
       NPAS       =  0
       NIDATYP    =  1
       CGRTYP     = statevector % hco % grtyp
@@ -612,13 +674,13 @@ module writeIncrement_mod
       if(Vcode_anl.eq.5001) then 
 
         write(*,*) 'Writing variable HY in analysis-increment file'
-        zptop_r4 = statevector%vco%dpt_M*MPC_MBAR_PER_PA_R8
-        zpref_r4 = statevector%vco%dprf_M*MPC_MBAR_PER_PA_R8
+        zptop_r4 = statevector%vco%dptop*MPC_MBAR_PER_PA_R8
+        zpref_r4 = statevector%vco%dprf*MPC_MBAR_PER_PA_R8
         zrcoef_r4 = statevector%vco%drcf1
         ierr    = write_encode_hyb(nulfile,'HY',nip2,nip3,cletiket,  &
                                    datestamp,zptop_r4,zpref_r4,zrcoef_r4)
 
-      elseif(Vcode_anl.eq.5002) then
+      elseif(Vcode_anl.eq.5002 .or. Vcode_anl.eq.5004) then
 
         write(*,*) 'Writing Vgrid descriptor record in analysis-increment file'
         status = vgd_write(statevector%vco%vgrid,nulfile,'fst')
@@ -635,8 +697,8 @@ module writeIncrement_mod
       write(*,*)'************************************** '
       write(*,*) ' The hybride coordinate parameters from increment', &
                  ' analysis  grid are:'
-      write(*,*) ' PTOP = ',statevector%vco%dpt_M*MPC_MBAR_PER_PA_R8,' MB'
-      write(*,*) ' PREF = ',statevector%vco%dprf_M*MPC_MBAR_PER_PA_R8,' MB'
+      write(*,*) ' PTOP = ',statevector%vco%dptop*MPC_MBAR_PER_PA_R8,' MB'
+      write(*,*) ' PREF = ',statevector%vco%dprf*MPC_MBAR_PER_PA_R8,' MB'
       write(*,*) ' RCOEF= ',statevector%vco%drcf1
       write(*,*)'************************************** '
       write(*,*)' '
@@ -804,7 +866,7 @@ module writeIncrement_mod
       type(struct_gsv) :: statevector,statevectorg
 
       integer :: jlat,jlon,lev_M,lev_T,nlev_M,nlev_T
-      integer :: status
+      integer :: status,Vcode_anl
       real(8) :: hu,tt,ratioP1
       real(8), allocatable :: tv(:),ratioP(:)
       real(8), allocatable :: delLnP_M(:),delLnP_T(:)
@@ -812,13 +874,18 @@ module writeIncrement_mod
       real(8), pointer :: dP_dPsfc_M(:,:,:),dP_dPsfc_T(:,:,:)
       real(8), pointer :: Pres_M(:,:,:),Pres_T(:,:,:)
       real(8), pointer :: hu_ptr(:,:,:,:),tt_ptr(:,:,:,:),delPsfc(:,:,:,:)
+      type(struct_vco), pointer :: vco_anl
 
       write(*,FMT='(/,4X,"Starting LTT2PHIGD_GEM4",//)')
+
+      vco_anl => gsv_getVco(statevectorg)
+      status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
 
       nlev_T = gsv_getNumLev(statevectorg,'TH')
       nlev_M = gsv_getNumLev(statevectorg,'MM')
 
-      if(nlev_T .ne. nlev_M+1) call abort3d('ltt2phi_gem4: nlev_T is not equal to nlev_M+1!')
+      if(Vcode_anl .eq. 5002 .and. nlev_T .ne. nlev_M+1) call abort3d('ltt2phigd_gem4: nlev_T is not equal to nlev_M+1!')
+      if(Vcode_anl .eq. 5004 .and. nlev_T .ne. nlev_M) call abort3d('ltt2phigd_gem4: nlev_T is not equal to nlev_M!')
 
       delPsfc => gsv_getField(statevector ,'P0')
 
@@ -841,63 +908,120 @@ module writeIncrement_mod
       hu_ptr => gsv_getField(statevectorg,'HU')
       tt_ptr => gsv_getField(statevectorg,'TT')
 
-      ! loop over all horizontal gridpoints
-      do jlat = 1, statevectorg%nj
-        do jlon = 1, statevectorg%ni
+      if(Vcode_anl .eq. 5002) then
+
+        ! loop over all horizontal gridpoints
+        do jlat = 1, statevectorg%nj
+          do jlon = 1, statevectorg%ni
  
-          ! initialize GZ increment to zero
-          delGz_M(jlon,:,jlat) = 0.0d0
-          delGz_T(jlon,:,jlat) = 0.0d0
+            ! initialize GZ increment to zero
+            delGz_M(jlon,:,jlat) = 0.0d0
+            delGz_T(jlon,:,jlat) = 0.0d0
 
-          ! compute lnP increment on momentum and thermo levels
-          do lev_M = 1, nlev_M
-            delLnP_M(lev_M) = dP_dPsfc_M(jlon,jlat,lev_M)*delPsfc(jlon,1,jlat,1)/  &
-                              Pres_M(jlon,jlat,lev_M)
-          enddo
-          do lev_T = 1, nlev_T
-            delLnP_T(lev_T) = dP_dPsfc_T(jlon,jlat,lev_T)*delPsfc(jlon,1,jlat,1)/  &
-                              Pres_T(jlon,jlat,lev_T)
-          enddo
+            ! compute lnP increment on momentum and thermo levels
+            do lev_M = 1, nlev_M
+              delLnP_M(lev_M) = dP_dPsfc_M(jlon,jlat,lev_M)*delPsfc(jlon,1,jlat,1)/  &
+                                Pres_M(jlon,jlat,lev_M)
+            enddo
+            do lev_T = 1, nlev_T
+              delLnP_T(lev_T) = dP_dPsfc_T(jlon,jlat,lev_T)*delPsfc(jlon,1,jlat,1)/  &
+                                Pres_T(jlon,jlat,lev_T)
+            enddo
 
-          ! compute background virtual temperature
-          do lev_T = 1, nlev_T
-            hu = hu_ptr(jlon,lev_T,jlat,1)
-            tt = tt_ptr(jlon,lev_T,jlat,1)
-            tv(lev_T) = fotvt8(tt,hu)
-          enddo
+            ! compute background virtual temperature
+            do lev_T = 1, nlev_T
+              hu = hu_ptr(jlon,lev_T,jlat,1)
+              tt = tt_ptr(jlon,lev_T,jlat,1)
+              tv(lev_T) = fotvt8(tt,hu)
+            enddo
     
-          ! compute natural log of momenutum level pressure ratios for each layer
-          do lev_M = 1,(nlev_M-1)
-            lev_T = lev_M+1 ! thermo level just below momentum level
-            ratioP(lev_T) = log( Pres_M(jlon,jlat,lev_M+1) /  &
-                                 Pres_M(jlon,jlat,lev_M  ) )
+            ! compute natural log of momenutum level pressure ratios for each layer
+            do lev_M = 1,(nlev_M-1)
+              lev_T = lev_M+1 ! thermo level just below momentum level
+              ratioP(lev_T) = log( Pres_M(jlon,jlat,lev_M+1) /  &
+                                   Pres_M(jlon,jlat,lev_M  ) )
+            enddo
+
+            ! compute GZ increment on momentum levels
+            do lev_M = (nlev_M-1), 1, -1
+              lev_T = lev_M+1 ! thermo level just below momentum level being computed
+              delGz_M(jlon,lev_M,jlat) = delGz_M(jlon,lev_M+1,jlat) +   &
+                               MPC_RGAS_DRY_AIR_R8*( ratioP(lev_T)*delTv(jlon,lev_T,jlat) +  & 
+                                                     tv(lev_T)*(delLnP_M(lev_M+1) -  &
+                                                     delLnP_M(lev_M)) )
+            enddo
+
+            ! compute GZ increment for top thermo level (from top momentum level)
+            ratioP1 = log( Pres_M(jlon,jlat,1) /  &
+                           Pres_T(jlon,jlat,1) )
+            delGz_T(jlon,1,jlat) = delGz_M(jlon,1,jlat) +  &
+                         MPC_RGAS_DRY_AIR_R8*( ratioP1*delTv(jlon,1,jlat) +  &
+                                               tv(1)*(delLnP_M(1) - delLnP_T(1)) )
+
+            ! compute GZ increment on remaining thermo levels by simple averaging
+            do lev_T = 2, (nlev_T-1)
+              lev_M = lev_T ! momentum level just below thermo level being computed
+              delGz_T(jlon,lev_T,jlat) = 0.5d0*( delGz_M(jlon,lev_M-1,jlat) +  &
+                                                 delGz_M(jlon,lev_M,jlat) )
+            enddo
+
           enddo
-
-          ! compute GZ increment on momentum levels
-          do lev_M = (nlev_M-1), 1, -1
-            lev_T = lev_M+1 ! thermo level just below momentum level being computed
-            delGz_M(jlon,lev_M,jlat) = delGz_M(jlon,lev_M+1,jlat) +   &
-                             MPC_RGAS_DRY_AIR_R8*( ratioP(lev_T)*delTv(jlon,lev_T,jlat) +  & 
-                                                   tv(lev_T)*(delLnP_M(lev_M+1) -  &
-                                                   delLnP_M(lev_M)) )
-          enddo
-
-          ! compute GZ increment for top thermo level (from top momentum level)
-          ratioP1 = log( Pres_M(jlon,jlat,1) /  &
-                         Pres_T(jlon,jlat,1) )
-          delGz_T(jlon,1,jlat) = delGz_M(jlon,1,jlat) +  &
-                       MPC_RGAS_DRY_AIR_R8*( ratioP1*delTv(jlon,1,jlat) +  &
-                                             tv(1)*(delLnP_M(1) - delLnP_T(1)) )
-
-          ! compute GZ increment on remaining thermo levels by simple averaging
-          do lev_T = 2, (nlev_T-1)
-            lev_M = lev_T ! momentum level just below thermo level being computed
-            delGz_T(jlon,lev_T,jlat) = 0.5d0*( delGz_M(jlon,lev_M-1,jlat) +  &
-                                               delGz_M(jlon,lev_M,jlat) )
-          enddo
-
         enddo
-      enddo
+
+      elseif(Vcode_anl .eq. 5004) then
+
+        ! loop over all horizontal gridpoints
+        do jlat = 1, statevectorg%nj
+          do jlon = 1, statevectorg%ni
+ 
+            ! initialize GZ increment to zero
+            delGz_M(jlon,:,jlat) = 0.0d0
+            delGz_T(jlon,:,jlat) = 0.0d0
+
+            ! compute lnP increment on momentum and thermo levels
+            do lev_M = 1, nlev_M
+              delLnP_M(lev_M) = dP_dPsfc_M(jlon,jlat,lev_M)*delPsfc(jlon,1,jlat,1)/  &
+                                Pres_M(jlon,jlat,lev_M)
+            enddo
+            do lev_T = 1, nlev_T
+              delLnP_T(lev_T) = dP_dPsfc_T(jlon,jlat,lev_T)*delPsfc(jlon,1,jlat,1)/  &
+                                Pres_T(jlon,jlat,lev_T)
+            enddo
+
+            ! compute background virtual temperature
+            do lev_T = 1, nlev_T
+              hu = hu_ptr(jlon,lev_T,jlat,1)
+              tt = tt_ptr(jlon,lev_T,jlat,1)
+              tv(lev_T) = fotvt8(tt,hu)
+            enddo
+    
+            ! compute natural log of momenutum level pressure ratios for each layer
+            do lev_M = 1,(nlev_M-1)
+              lev_T = lev_M ! thermo level just below momentum level
+              ratioP(lev_T) = log( Pres_M(jlon,jlat,lev_M+1) /  &
+                                   Pres_M(jlon,jlat,lev_M  ) )
+            enddo
+
+            ! compute GZ increment on momentum levels
+            do lev_M = (nlev_M-1), 1, -1
+              lev_T = lev_M ! thermo level just below momentum level being computed
+              delGz_M(jlon,lev_M,jlat) = delGz_M(jlon,lev_M+1,jlat) +   &
+                               MPC_RGAS_DRY_AIR_R8*( ratioP(lev_T)*delTv(jlon,lev_T,jlat) +  & 
+                                                     tv(lev_T)*(delLnP_M(lev_M+1) -  &
+                                                     delLnP_M(lev_M)) )
+            enddo
+
+            ! compute GZ increment on remaining thermo levels by simple averaging
+            do lev_T = 1, (nlev_T-1)
+              lev_M = lev_T+1 ! momentum level just below thermo level being computed
+              delGz_T(jlon,lev_T,jlat) = 0.5d0*( delGz_M(jlon,lev_M-1,jlat) +  &
+                                                 delGz_M(jlon,lev_M,jlat) )
+            enddo
+
+          enddo
+        enddo
+
+      endif
 
       deallocate(tv)
       deallocate(ratioP)
@@ -1184,5 +1308,426 @@ module writeIncrement_mod
 
     END subroutine gdout2
 
+
+    subroutine subasic_gd(statevectorg,vco_trl,numStep,datestamplist,indexAnalysis)
+      !
+      !**s/r subasic_gd - Get some background fields on analysis grid.
+      !                   These fields are needed for:
+      !                   Postprocessing diagnostic analysis increments on the analysis grid
+      !                   using TL observation operators.
+      !                   IMPORTANT: when numStep>1, each 3D background state is
+      !                   stored in statevectorg only when myid = timestep-1, i.e. 
+      !                   one 3D state per processor
+      !
+      IMPLICIT NONE
+      INTEGER INI,INJ,INK,IG1,IG2,IG3,IG4,IERR,numStep
+      integer :: indexAnalysis
+      INTEGER :: datestamplist(numStep)
+      CHARACTER(len=2) :: CLTYPVAR
+      CHARACTER(len=1) :: CLGRTYP
+      CHARACTER(len=4) :: CLNOMVAR
+      CHARACTER(len=12) :: CLETIKET
+      INTEGER FNOM,FSTFRM,FCLOS,FSTOUV,FSTINF
+
+      type(struct_gsv) :: statevectorg
+      type(struct_vco), pointer :: vco_trl
+
+      type(struct_vco), pointer :: vco_anl
+      type(struct_hco), pointer :: hco_anl
+
+      logical ltrial 
+      integer datestamp,jfile,jstep
+      integer anl_gid,ezqkdef,ezgprm
+      REAL*8, allocatable :: zttg(:,:,:), zqqg(:,:,:), zpsg(:,:)
+      real*8, pointer :: ps_ptr(:,:,:,:),tt_ptr(:,:,:,:),hu_ptr(:,:,:,:)
+      integer ntrials, nlev_T
+      integer :: nultrl(tim_nstepobs)  
+      CHARACTER(len=2)   :: flnum 
+      CHARACTER(len=4)   :: flnum2
+      CHARACTER(len=128) :: trialfile 
+
+      WRITE(*,FMT='(/,4X,"Starting SUBASIC_GD",//)')
+
+      vco_anl => gsv_getVco(statevectorg)
+
+      nlev_T = gsv_getNumLev(statevectorg,'TH')
+      allocate(zpsg(statevectorg%ni,statevectorg%nj))
+      allocate(zttg(statevectorg%ni,statevectorg%nj,nlev_T))
+      allocate(zqqg(statevectorg%ni,statevectorg%nj,nlev_T))
+      !
+      ! Open all of the Trial fields
+      !
+      call tmg_start(96,'POST_READBASIC')
+      nultrl(:)=0
+      ntrials=0 
+      do 
+        write(flnum,'(I2.2)') ntrials+1
+        trialfile='./trlm_' // trim(flnum)
+        if(indexAnalysis.gt.0) then
+          write(flnum2,'(I4.4)') (indexAnalysis-1)
+          trialfile = trim(trialfile) // '_' // trim(flnum2)
+        endif
+        inquire(file=trim(trialfile),exist=ltrial)
+        if(ltrial) then
+          ntrials=ntrials+1
+          ierr=fnom(nultrl(ntrials),trim(trialfile),'RND+OLD+R/O',0)
+          write(*,*) 'ITRIAL - File :', trim(trialfile)
+          write(*,*) ' opened as unit file ',nultrl(ntrials)
+          ierr =  fstouv(nultrl(ntrials),'RND+OLD')
+        else if ( (.not. ltrial) .and. ntrials >0 ) then
+          exit  
+        else if ( (.not. ltrial) .and. ntrials == 0 ) then
+          CALL ABORT3D('SUBASIC_GD:NO TRIAL FILE')
+        endif 
+      enddo 
+      if(ntrials.ne.tim_nstepobs) then
+        write(*,*) 'ntrials, tim_nstepobs = ',ntrials, tim_nstepobs
+        call abort3d('subasic_gd: ntrials <> tim_nstepobs')
+      endif
+      call tmg_stop(96)
+      !
+      ! Define horizontal analysis grid
+      !
+      hco_anl => hco_Get('Analysis')
+      if ( trim(hco_anl % grtyp) == 'G' .and. hco_anl % ig2 == 1 ) then
+        ! Revert latitudes since ezsint does not handle properly this grid type
+        write(*,*) 'subasic_gd: WARNING due to bug in ezsint, changing Gaussian grid to ig2=0!!!' 
+        ierr = ezgprm(hco_anl % EZscintID,clgrtyp,ini,inj,ig1,ig2,ig3,ig4)
+        ig2=0
+        anl_gid = ezqkdef(ini,inj,clgrtyp,ig1,ig2,ig3,ig4,0)
+      else 
+        anl_gid = hco_anl % EZscintID
+      end if
+
+      !
+      ! Read trial fields and interpolate them (horizontal & vertical) to analysis grid
+      !
+      CLETIKET = ' '
+      CLTYPVAR = 'P'
+
+      do jstep=1,numStep
+
+        datestamp=datestamplist(jstep)
+        !
+        ! Surface-pressure
+        !
+        write(*,*)'subasic_gd: reading P0'
+        CLNOMVAR = 'P0'
+
+        write(*,*) 'subasic_gd: datestamp = ',datestamp
+
+        ! read the background P0, interpolate to analysis grid and put result on proc jstep-1
+        ! NOTE: all processors participate in reading the file
+        call vhfstfld(zpsg,statevectorg%ni,statevectorg%nj,anl_gid, &
+             1,clnomvar,datestamp,nultrl,ntrials,jstep,vco_anl,vco_trl)
+
+        ! copy interpolated P0 to statevectorg
+        call tmg_start(96,'POST_READBASIC')
+        if(mpi_myid.eq.(jstep-1)) then
+          ps_ptr => gsv_getField(statevectorg,'P0')
+          CALL INITGDG2(ps_ptr(:,:,:,1),zpsg,statevectorg%ni,statevectorg%nj,1,CLNOMVAR)
+        endif
+        call tmg_stop(96)
+
+        if(basic_tt) then
+          !
+          ! Temperature
+          !
+          write(*,*)'subasic_gd: reading TT'
+          CLNOMVAR = 'TT'
+
+          ! read the background TT, interpolate to analysis grid and put result on proc jstep-1
+          ! NOTE: all processors participate in reading the file
+          call vhfstfld(zttg,statevectorg%ni,statevectorg%nj,anl_gid,  &
+               nlev_T,clnomvar,datestamp,nultrl,ntrials,jstep,vco_anl,vco_trl)
+
+          ! copy interpolated TT to statevectorg
+          call tmg_start(96,'POST_READBASIC')
+          if(mpi_myid.eq.(jstep-1)) then
+            tt_ptr => gsv_getField(statevectorg,'TT')
+            CALL INITGDG2(tt_ptr(:,:,:,1),zttg,statevectorg%ni,statevectorg%nj,nlev_T,CLNOMVAR)
+          endif
+          call tmg_stop(96)
+        endif
+
+        if(basic_hu) then
+          !
+          ! Specific-Humidity
+          !
+          write(*,*)'subasic_gd: reading HU'
+          CLNOMVAR = 'HU'
+
+          ! read the background HU, interpolate to analysis grid and put result on proc jstep-1
+          ! NOTE: all processors participate in reading the file
+          call vhfstfld(zqqg,statevectorg%ni,statevectorg%nj,anl_gid, &
+               nlev_T,clnomvar,datestamp,nultrl,ntrials,jstep,vco_anl,vco_trl)
+
+          ! copy interpolated HU to statevectorg
+          call tmg_start(96,'POST_READBASIC')
+          if(mpi_myid.eq.(jstep-1)) then
+            hu_ptr => gsv_getField(statevectorg,'HU')
+            CALL INITGDG2(hu_ptr(:,:,:,1),zqqg,statevectorg%ni,statevectorg%nj,nlev_T,CLNOMVAR)
+          endif
+          call tmg_stop(96)
+        endif
+
+      enddo ! jstep
+      !
+      ! Close the Trials files
+      !
+      call tmg_start(96,'POST_READBASIC')
+      do jfile=1,ntrials
+        ierr=fstfrm(nultrl(jfile))  
+        ierr=fclos(nultrl(jfile))  
+      enddo
+      write(*,*) 'Trial files have been closed'
+      call tmg_stop(96)
+
+      deallocate(zpsg)
+      deallocate(zttg)
+      deallocate(zqqg)
+
+    end subroutine subasic_gd
+
+
+    subroutine vhfstfld(pvar,ini_anl,inj_anl,ktrggid,nlev_anl,varName,kstampv,kulfst,ktrials,kstep,vco_anl,vco_trl)
+      !
+      !**s/r vhfstfld  - Interpolate background fields on analysis grid.
+      !                  These fields are need for posprocessing diagnostic
+      !                  analysis increments on the analysis grid using
+      !                  TL observation operators.
+      !
+      !Author  : S. Pellerin *ARMA/SMC May 2000
+      !
+      !Arguments
+      !    Output:
+      !      pvar(ini_anl,inj_anl,nlev_anl) : Interpolated Output variable 
+      !    Input:
+      !      ini_anl,inj_anl: dimensions of horizontal analysis grid
+      !      ktrggid        : grid id of output variable
+      !      nlev_anl       : Number of level of targetted variable
+      !      varName        : Variable nomvar 
+      !      kstampv        : Valid CMC date-time stamp values for reserch in
+      !                       fst source file
+      !      kulfst         : Unit of pre-opened standard file containing src fields
+      !      ktrials        :  number of trial files.
+      IMPLICIT NONE
+
+      type(struct_vco), pointer :: vco_anl, vco_trl
+      type(struct_hco), pointer :: hco_anl
+      integer :: ktrials,kstep
+      integer :: kulfst(ktrials)
+      integer :: INI_ANL,INJ_ANL,nlev_anl,ktrggid,kstampv
+      integer :: INI,INJ,INK,IG1,IG2,IG3,IG4,fstinf
+      integer :: inlev,nlev_trl
+      real*8 :: pvar(ini_anl,inj_anl,nlev_anl)
+      character(len=*) :: varName
+
+      integer, parameter :: kmaxlev=200
+      integer :: jlev,jlat,jlon
+      integer :: iip1s(kmaxlev),iip1,iip2,iip3,itrlgid
+      integer :: ikey,ezgprm,vfstluk,fstluk,ezsetopt,ezsint
+      integer :: ezdefset,iset
+      integer :: ikind(kmaxlev),imode,ip1style,ip1kind
+      integer :: koutmpg
+      real*8 ::  ztemp
+      real*8, allocatable :: zhighvar(:,:)
+      real*8, allocatable :: zlowvar(:,:,:)
+      real*8, allocatable :: zpstrl(:,:),zps(:,:)
+      real*8, pointer :: zprestrl(:,:,:),zpresanl(:,:,:)
+      character(len=1) :: clstring
+      integer :: status,tag,pe_send,pe_recv,nsize,ierr
+      character(len=2) :: CLTYPVAR
+      character(len=1) :: CLGRTYP
+      character(len=12) :: CLETIKET
+      integer :: nsizes(0:(mpi_nprocs-1)), displs(0:(mpi_nprocs-1))
+
+      WRITE(*,FMT='(/,4X,"Starting VHFSTFLD",//)')
+
+      ierr = ezsetopt('INTERP_DEGREE','LINEAR')
+      !
+      ! get field parameters from trial field
+      !
+      ! Special case for GZ which is present at both thermo and momentum
+      ! levels trial field file. 
+      ! We will process GZ on momentum levels only.
+      ! We will therefore get the parameters for UU which is present
+      ! on momentum levels.
+
+      if (varName .eq. 'GZ') then
+        call abort3d('vhfstfld (subasic_gd): use of GZ background state not supported!')
+      else
+        call getfldprm2(IIP1S,IIP2,IIP3,INLEV,CLETIKET,CLTYPVAR  &
+             ,ITRLGID,varName,kstampv,kmaxlev,kulfst  &
+             ,ip1style,ip1kind,ktrials,koutmpg)
+      endif
+
+      if(nlev_anl.eq.1) then
+        nlev_trl = 1
+      else
+        nlev_trl = vco_getNumLev(vco_trl,'TH')
+      endif
+
+      if(inlev.lt.nlev_trl) then
+        write(*,*) 'number of levels found in trial file = ',inlev
+        write(*,*) 'number of levels expected (from vco) = ',nlev_trl
+        call abort3d('vhfstfld: not enough levels found in trial file')
+      endif
+
+      iset = ezdefset(ktrggid,itrlgid)
+
+      ierr = ezgprm(itrlgid,clgrtyp,ini,inj,ig1,ig2,ig3,ig4)
+      allocate(zhighvar(ini,inj))
+      allocate(zlowvar(ini_anl,inj_anl,nlev_trl))
+
+      write(*,*)'vhfstfld: reading ',varName
+
+      call rpn_comm_barrier("GRID",ierr)
+      call tmg_start(96,'POST_READBASIC')
+      do jlev = (1+mpi_myid), nlev_trl, mpi_nprocs
+        if(trim(varName).eq.'P0') then
+          iip1 = IIP1S(1)
+        else
+          iip1 = vco_trl%ip1_T(jlev)
+        endif
+
+        ! Read the high-res trial field
+        ikey = fstinf(koutmpg, INI, INJ, INK, kstampv, cletiket, iip1, iip2, iip3,cltypvar,varName)
+
+        if (ikey.lt.0) then
+          write(*,*) 'Problems finding variable ',varName,' at level ',iip1,' in trial file'
+          call abort3d('VHFSTFLD')
+        endif
+
+        ikey = vfstluk(zhighvar,ikey,INI,INJ,INK)
+        !
+        ! Do horizontal interpolation
+        !
+        if(trim(varName).ne.'UV') then
+          call vezsint(zlowvar(:,:,jlev),zhighvar,ini_anl,inj_anl,1,ini,inj,1)
+
+          ! WARNING: WORK-AROUND FOR EZSINT, FLIPPING THE GAUSSIAN GRID BACK TO IG2=1 
+          hco_anl => hco_Get('Analysis')
+          if ( trim(hco_anl % grtyp) == 'G' .and. hco_anl % ig2 == 1 ) then
+            do jlat = 1, inj_anl/2
+              do jlon = 1, ini_anl
+                ztemp = zlowvar(jlon,jlat,jlev)
+                zlowvar(jlon,jlat,jlev) = zlowvar(jlon,inj_anl-jlat+1,jlev)
+                zlowvar(jlon,inj_anl-jlat+1,jlev) = ztemp
+              enddo
+            enddo
+          endif
+        else
+          call abort3d('vhfstfld: vector interpolation no longer supported')
+        endif
+
+      enddo !jlev
+      call tmg_stop(96)
+      !
+      ! Send all vertical levels to myid = kstep-1
+      !
+      call rpn_comm_barrier("GRID",ierr)
+      call tmg_start(94,'POST_COMM1')
+
+      do jlev = 1,nlev_trl
+        pe_send = mod(jlev-1,mpi_nprocs)
+        pe_recv = kstep-1
+        tag = pe_send+1
+        nsize=ini_anl*inj_anl
+
+        if(pe_send.ne.pe_recv) then
+          if(mpi_myid.eq.pe_send) then
+            call rpn_comm_send(zlowvar(:,:,jlev),nsize,"mpi_double_precision",pe_recv,tag,"GRID",ierr)
+          elseif(mpi_myid.eq.pe_recv) then
+            call rpn_comm_recv(zlowvar(:,:,jlev),nsize,"mpi_double_precision",pe_send,tag,"GRID",status,ierr)
+          endif
+        endif !pe_send <> pe_recv (i.e. kstep-1)
+
+      enddo !jlev
+
+      call tmg_stop(94)
+
+      deallocate(zhighvar)
+
+      call tmg_start(97,'POST_VINTERP')
+      ! From now on, only the processor with the data does work
+      if(mpi_myid.eq.kstep-1) then
+        !
+        ! Do vertical interpolation:
+        !
+        if (nlev_anl.gt.1) then
+
+          write(*,*) 'vhfstfld: Reading P0 trial field for vertical interpolation'
+
+          call getfldprm(IIP1,IIP2,IIP3,INLEV,CLETIKET,CLTYPVAR,  &
+                         ITRLGID,'P0',kstampv,kmaxlev,koutmpg,  &
+                         ip1style,ip1kind)
+
+          ikey = FSTINF(koutmpg, INI, INJ, INK, kstampv, cletiket,  &
+                        iip1, iip2, iip3,cltypvar,'P0')
+
+          if(ikey.lt.0) then
+            write(*,*) ' ******* ERROR ******* '
+            write(*,*) 'No P0 found in ',koutmpg
+            call abort3d('VHFSTFLD')
+          endif
+
+          allocate(zpstrl(ini,inj))
+
+          ikey = VFSTLUK(zpstrl, ikey, INI, INJ, INK)
+
+          zpstrl(:,:)=zpstrl(:,:)*MPC_PA_PER_MBAR_R8
+
+          allocate(zps(ini_anl,inj_anl))
+          !
+          ! Interpolation of high res. P0 to low res. variable grid
+          !
+          call vezsint(zps,zpstrl,ini_anl,inj_anl,1,ini,inj,1)
+
+          status=vgd_levels(vco_anl%vgrid,ip1_list=vco_anl%ip1_T,  &
+                            levels=zpresanl,sfc_field=zps,in_log=.false.)
+
+          if(status.ne.VGD_OK)then
+            call abort3d('ERROR with vgd_levels for anl levels')
+          endif
+
+          if (trim(varName) .eq. 'GZ') then
+            call abort3d('vhfstfld (subasic_gd): use of GZ background state not supported!')
+          else
+            status=vgd_levels(vco_trl%vgrid,ip1_list=vco_trl%ip1_T,  &
+                              levels=zprestrl,sfc_field=zps,in_log=.false.)
+          endif
+
+          if(status.ne.VGD_OK)then
+             call abort3d('ERROR with vgd_levels for trl levels')
+          endif
+
+          call vintgd(pvar,zpresanl,nlev_anl,zlowvar,zprestrl,nlev_trl,ini_anl,inj_anl)
+
+          deallocate(zpresanl)
+          deallocate(zps)
+          deallocate(zprestrl)
+
+        else
+
+          jlev=1
+          do jlat = 1, inj_anl
+            do jlon = 1, ini_anl
+              pvar(jlon,jlat,jlev) = zlowvar(jlon,jlat,jlev)
+            enddo
+          enddo
+
+        endif
+        !
+        ! End of vertical interpolation
+        !
+      endif
+      call tmg_stop(97)
+
+      deallocate(zlowvar)
+
+      write(*,*) 'END of VHFSTFLD'
+
+    end subroutine VHFSTFLD
 
 end module writeIncrement_mod
