@@ -97,7 +97,7 @@
      1       /'WND',    'WND',    'HGT',    'TMP',    'DPD',   'STNP'/
       DATA CLITM(7), CLITM(8), CLITM(9), CLITM(10), CLITM(11), CLITM(12)
      1      /'MSLP',   'TSFC',   'SDPD',   'SWND',   'SWND',   'BTMP'/
-      DATA CLITM(13),CLITM(14) /'ZTD', 'CHFM'/
+      DATA CLITM(13),CLITM(14) /'ZTD', 'CHM'/
       DATA   CLOBTP(12),   CLOBTP(13),    CLOBTP(14),    CLOBTP(15)
      1    /     'SYNOP',       'SHIP', 'SYNOP MOBIL',       'METAR'/
       DATA   CLOBTP(16),   CLOBTP(18),    CLOBTP(20),    CLOBTP(32)

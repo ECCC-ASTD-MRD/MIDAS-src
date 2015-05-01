@@ -164,6 +164,8 @@ module varNameList_mod
                  varname='HCHO'
               case(BUFR_NECH_SO2)
                  varname='SO2'
+              case(BUFR_NECH_NH3)
+                 varname='NH3'
               case default
                  write(*,*) 'vnl_varnameFromVarnum: Unknown variable number! ',varNumber, varNumber_chm
                  call abort3d('aborting in vnl_varnameFromVarnum')

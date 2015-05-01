@@ -60,4 +60,5 @@ module bufr
  integer, parameter :: BUFR_NECH_N2O   =6   
  integer, parameter :: BUFR_NECH_HCHO  =7
  integer, parameter :: BUFR_NECH_SO2   =8  
+ integer, parameter :: BUFR_NECH_NH3   =9  
 end module bufr

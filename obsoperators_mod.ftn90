@@ -1230,8 +1230,8 @@ module obsOperators_mod
       ihhmm     = obs_headElem_i(obsSpaceData,OBS_ETM,headerIndex)
       isunza    = obs_headElem_i(obsSpaceData,OBS_SUN,headerIndex)
       iconstituent_id = obs_headElem_i(obsSpaceData,OBS_CHM,headerIndex)
-      zlat = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex) * MPC_DEGREES_PER_RADIAN_R8
-      zlon = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex) * MPC_DEGREES_PER_RADIAN_R8
+      zlat = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex)
+      zlon = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex)
 
       ! Body info that we only need for first point in the profile
       bodyIndex = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)     

@@ -1113,8 +1113,8 @@ end subroutine oda_Hto
       ihhmm     = obs_headElem_i(lobsSpaceData,OBS_ETM,headerIndex)
       isunza    = obs_headElem_i(lobsSpaceData,OBS_SUN,headerIndex)
       iconstituent_id = obs_headElem_i(lobsSpaceData,OBS_CHM,headerIndex)
-      zlat = obs_headElem_r(lobsSpaceData,OBS_LAT,headerIndex) * MPC_DEGREES_PER_RADIAN_R8
-      zlon = obs_headElem_r(lobsSpaceData,OBS_LON,headerIndex) * MPC_DEGREES_PER_RADIAN_R8
+      zlat = obs_headElem_r(lobsSpaceData,OBS_LAT,headerIndex) 
+      zlon = obs_headElem_r(lobsSpaceData,OBS_LON,headerIndex) 
 
       ! Body info that we only need for first point in the profile
       bodyIndex = obs_headElem_i(lobsSpaceData,OBS_RLN,headerIndex)     

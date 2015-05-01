@@ -157,14 +157,14 @@ module chem_mod
      !  vmodpress              Model layer boundaries taken as middle between model level
      !  vlayertop              Layer top (final work values in Pa)
      !  vlayerbottom           Layer bottom (final work values in Pa)
-     !  vh                     Second order Lagrangian interp integration weights
+     !  vweights               Second order Lagrangian interp integration weights
      !  zh                     Initial innovation model array (other than conversion constants)
      !  zhp                    Part of innovation operator not related to resolution.
      
      integer :: modelIndex
      logical :: layer_identified
      real(8), allocatable :: vlayertop(:),vlayerbottom(:),vmodpress(:)      
-     real(8), allocatable :: modelvarcolumn(:),zh(:,:),zhp(:,:),vh(:,:)
+     real(8), allocatable :: modelvarcolumn(:),zh(:,:),zhp(:,:),vweights(:,:)
 
   end type struct_chm_obsoperators
 
@@ -192,11 +192,17 @@ module chem_mod
   type(struct_chm_info) :: chm_avgkern
   type(struct_chm_std)  :: chm_std
 
-  ! Array of pointers to hold std's read from BURP file
-  ! Note: Ideally, this should be an element in the
-  ! 'struct_chm_std' derived type, but currently this
-  ! results in an internal compiler error.
+! Array of pointers to hold std's read from BURP file
+! Note: Ideally, this should be an element in the
+! 'struct_chm_std' derived type, but currently this
+! results in an internal compiler error.
+
   type(struct_chm_burp), allocatable :: chm_burp_std(:)
+  
+! Miscellaneous flags and constants read/set from chm_read_misc
+
+  integer  :: chm_ngenoper
+  real(8)  :: chm_amu(0:100)
 
 contains
 
@@ -217,17 +223,17 @@ contains
   implicit none
   
   write(*,*) 'Begin chm_setup'
-     
-!------------------------ Top and bottom layer boundaries ------------------------
-  
+
+! Read miscellaneous flags and constants 
+    
+  call chm_read_misc
+      
 ! Read top and bottom layer boundaries of partial (or total) column meausurements
   
   call chm_read_layers
       
 ! To deallocate space if required elsewhere, one should use
 ! call chm_dealloc_layers
-
-!--------------------------- Averaging kernel matrices ------------------------
    
 ! Read averaging kernel matrices
   
@@ -239,6 +245,104 @@ contains
   write(*,*) 'Completed chm_setup'
   
   end subroutine chm_setup
+
+!------------------------------------------------------------------------------------
+
+  subroutine chm_read_misc
+!
+! Author   : Y. Rochon, ARQI/AQRD, Apr 2015 
+!
+! Revisions: 
+!         
+! Purpose: Read and store miscellaneous flags and constants.
+!
+! Comments:
+!
+!----------------------------------------------------------------------------------------  
+  implicit none
+
+  integer :: FNOM, FCLOS
+  integer :: IERR, JELM, nulstat, ios, isize, nulnam
+  logical :: LnewExists
+  
+  character(len=128) :: ligne  
+  character(len=10)  :: rparm,parm,namfile
+  real(8)            :: val 
+  integer            :: index
+
+  EXTERNAL FNOM,FCLOS
+
+  namelist /NAMCHEM/chm_ngenoper
+  
+! Initialization
+
+  chm_ngenoper=0    
+  chm_amu(:)=-1.0
+
+! Read from namelist file (not implemented)
+! Should read chm_ngenoper from namelist instead of 'obsinfo_chm' 
+
+!  namfile=trim("flnml")
+!  nulnam=0
+!  ier=FNOM(nulnam,namfile,'R/O',0)
+
+!  read(nulnam,NML=NAMCHEM)
+
+!  ier=FCLOS(nulnam)
+
+! Read from 'obsinfo_chm' file
+
+  INQUIRE(FILE='obsinfo_chm',EXIST=LnewExists)
+  IF (.not.LnewExists )then
+    WRITE(*,*)   '-------------------------------------------------'
+    WRITE(*,*)   'chm_read_misc: COULD NOT FIND FILE obsinfo_chm!'
+    WRITE(*,*)   '-------------------------------------------------'
+    return
+  ENDIF
+!
+! Check for available layer info.
+!
+  NULSTAT=0
+  IERR=FNOM(NULSTAT,'obsinfo_chm','SEQ',0)
+  IF ( IERR .EQ. 0 ) THEN
+    open(unit=nulstat, file='obsinfo_chm', status='OLD')
+  ELSE
+    CALL ABORT3D('chm_read_misc: COULD NOT OPEN FILE obsinfo_chm!')
+  ENDIF
+
+  ios=0
+  read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
+  do while (trim(adjustl(ligne(1:6))).ne.'MISC') 
+      read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
+  end do    
+  
+! Read number of elements in section
+   
+  read(nulstat,*,iostat=ios,err=10,end=10) isize
+  read(nulstat,*,iostat=ios,err=10,end=10) 
+
+! Read elements
+
+  do jelm=1,isize
+      read(nulstat,*,iostat=ios,err=10,end=10) rparm,val
+      parm=trim(adjustl(rparm))
+      if (parm(1:4).eq.'amu_') then
+         read(parm(5:8),'(I4)') index
+         chm_amu(index)=val
+      else if (parm(1:8).eq.'ngenoper') then
+         chm_ngenoper=int(val+0.1)
+      end if
+  end do
+   
+ 10 if (ios.gt.0) then
+       WRITE(*,*) 'File read error message number: ',ios
+       CALL ABORT3D('chm_read_misc: READING PROBLEM')    
+    end if
+ 
+ 11 CLOSE(UNIT=NULSTAT)
+    IERR=FCLOS(NULSTAT)    
+
+  end subroutine chm_read_misc
 
 !-----------------------------------------------------------------------------------------
 !--------------------- Routines related to layer top & bottom levels----------------------
@@ -380,7 +484,6 @@ contains
     IERR=FCLOS(NULSTAT)    
 
   end subroutine chm_read_layers
-
 
 !-----------------------------------------------------------------------------------------
 
@@ -781,15 +884,13 @@ contains
 
   end subroutine chm_read_obs_err_stddev
 
-  !----------------------------------------------------------------------------------------
+!----------------------------------------------------------------------------------------
 
   subroutine chm_read_obs_err_stddev_ascii
 !
-!  s/r chm_read_obs_err_stddev - READ OBSERVATION ERROR OF CONSTITUENT DATA FROM ASCII FILE
-!
-!  Author   : Y. Rochon, Nov 2014 
+! Author   : Y. Rochon, Nov 2014 
 !             (initial part follows the format of oer_read_obs_erreurs_conv)
-!  Revisions: 
+! Revisions: 
 !             M. Sitwell, Fdeb 2015
 !             - Content formed as a separate routine called in oer_read_obs_erreurs_chm.
 !          
@@ -997,7 +1098,7 @@ contains
 
  !            Find stnid with same number of vertical levels and same BUFR element.
  !            Note: * in cstd_stndi_chm stands for a wildcard
-                
+     
     ISTNID=0
     DO JN=1,chm_std%n_stnid
 
@@ -1062,7 +1163,7 @@ contains
     real(8)  :: obs_err_stddev 
        
     real(8)  :: wgt,zwb,sigma
-    integer  :: ibegin,ILEV,JN
+    integer  :: ibegin,ILEV,JN    
     integer, save  :: ISTNID,JINT
 
     ! If this call is for the first level for this measurement, get
@@ -1167,6 +1268,15 @@ contains
 
     integer :: istnid
 
+    if (chm_std%n_stnid.eq.0) return
+    
+    if (allocated(chm_burp_std)) then
+       do istnid=1,chm_std%n_stnid
+          if (chm_std%brp(istnid).eq.1) call dealloc_burp(chm_burp_std(istnid))
+       end do
+       deallocate(chm_burp_std)       
+    end if
+
     if (allocated(chm_std%stnids))   deallocate(chm_std%stnids)
     if (allocated(chm_std%n_lvl))    deallocate(chm_std%n_lvl)
     if (allocated(chm_std%std_type)) deallocate(chm_std%std_type)
@@ -1180,18 +1290,7 @@ contains
     if (allocated(chm_std%levels))   deallocate(chm_std%levels)
     if (allocated(chm_std%lat))      deallocate(chm_std%lat)
 
-    if (allocated(chm_burp_std)) then
-
-       do istnid=1,chm_std%n_stnid
-          call dealloc_burp(chm_burp_std(istnid))
-       end do
-
-       deallocate(chm_burp_std)
-          
-    end if
-
   end subroutine chm_dealloc_obs_err_stddev
-
 
 !-----------------------------------------------------------------------------------------
 !------------------- BURP functions and routines -----------------------------------------
@@ -1234,7 +1333,7 @@ contains
     type(burp_block)      :: blk
     integer               :: error,ref_rpt,nrep,ref_blk,i
     integer               :: ref_bkstp,nval,ivar,iexp,ilev,icount
-    integer               :: date,time,ilat,ilon
+    integer               :: idate,itime,ilat,ilon
     real(8)               :: val,exponent
       
     ! initialize burp file, report, and block
@@ -1263,7 +1362,7 @@ contains
 
        if (ref_rpt<0) exit REPORTS
        
-       call BURP_Get_Property(rep, STNID=rep_stnid, DATE=date, TEMPS=time, LATI=ilat, LONG=ilon) 
+       call BURP_Get_Property(rep, STNID=rep_stnid, DATE=idate, TEMPS=itime, LATI=ilat, LONG=ilon) 
 
        if (.not. stnid_equal(stnid,rep_stnid)) cycle REPORTS
 
@@ -1286,23 +1385,26 @@ contains
                 ivar = BURP_Find_Element(blk, ELEMENT=varno, IOSTAT=error)
                 iexp = BURP_Find_Element(blk, ELEMENT=8090, IOSTAT=error)
                 
-                do ilev=1,nval
+                if (iexp.lt.0) then
+               
+                   ! No exponent found in block
                    
-                   val = BURP_Get_Rval(blk, NELE_IND=ivar, NVAL_IND=ilev, NT_IND=1, IOSTAT=error)
-                
-                   if (iexp.lt.0) then
-                      ! no exponent found in block
-                      burp_out%data(icount,ilev) = val
-                   else
-                      ! apply exponent
+                   do ilev=1,nval                   
+                      burp_out%data(icount,ilev) = BURP_Get_Rval(blk, NELE_IND=ivar, NVAL_IND=ilev, NT_IND=1, IOSTAT=error)                
+                   end do
+                   
+                else
+                      ! Apply exponent
+                      
+                   do ilev=1,nval                   
+                      val = BURP_Get_Rval(blk, NELE_IND=ivar, NVAL_IND=ilev, NT_IND=1, IOSTAT=error)                
                       exponent = BURP_Get_Rval(blk, NELE_IND=iexp, NVAL_IND=ilev, NT_IND=1, IOSTAT=error)
                       burp_out%data(icount,ilev) = val * 10**exponent
-                   end if
-
-                end do
+                   end do
+                end if
                 
-                burp_out%date(icount) = date
-                burp_out%time(icount) = time
+                burp_out%date(icount) = idate
+                burp_out%time(icount) = itime
 
                 burp_out%lon(icount) = .01*ilon
                 if (burp_out%lon(icount).lt.0.) burp_out%lon(icount) = 360. + burp_out%lon(icount)
@@ -1393,7 +1495,7 @@ contains
   function chm_get_burp_element(burp,zlat,zlon,idate,itime) result(element)
 ! 
 !   Purpose: Returns element of array from burp%data. The returned element is the one
-!            that matches the lon,lat,date, and time from the argument list to that stored
+!            that matches the lon, lat, date, and time from the argument list to that stored
 !            in the burp structure.
 !
 !!   Author: M. Sitwell, ARQI/AQRD, April 2015
@@ -1819,7 +1921,7 @@ contains
 !               Adjoint product when kmode=3 (out).
 !
 !     rval      Scaled or transformed analysis field on increment/analysis grid
-!               (only when kmode=2; used as work array only)
+!               (only when kmode>=2; needed only by chm_genoper at the moment)
 !
 !     success   Indicates if the observation was successfully assimilated
 !
@@ -1865,14 +1967,14 @@ contains
   allocate(chm_obsoper%modelvarcolumn(n_modlvl))
   allocate(chm_obsoper%vlayertop(nobslev))
   allocate(chm_obsoper%vlayerbottom(nobslev))
-  allocate(chm_obsoper%vh(n_modlvl,n_modlvl))
+  allocate(chm_obsoper%vweights(n_modlvl,n_modlvl))
   allocate(chm_obsoper%zh(nobslev,n_modlvl))
   allocate(chm_obsoper%zhp(nobslev,n_modlvl))
   allocate(chm_obsoper%vmodpress(n_modlvl+1))
 
 ! Initialize to zero 
   chm_obsoper%modelvarcolumn(:)=0.0     
-  chm_obsoper%vh(:,:)=0.0D0
+  chm_obsoper%vweights(:,:)=0.0D0
   chm_obsoper%zh(:,:)=0.0D0
   chm_obsoper%zhp(:,:)=0.0D0
 
@@ -1889,7 +1991,7 @@ contains
   if (kmode.eq.3) then
      rvalinc(:)=0.0
   else
-     call chm_convert(chm_obsoper,n_modlvl,rvalinc,rval,rtt,pressmodlvl,varno,kmode)
+     call chm_convert_units(chm_obsoper,n_modlvl,rvalinc,rval,rtt,pressmodlvl,varno,iconstituent_id,kmode)
   end if
        
 ! Determine if layer boundaries are assigned to this data source.
@@ -1904,7 +2006,6 @@ contains
             
 ! Identify observation operator based on observation units and presence or
 ! not of layer boundaries
-
 
   if (chm_checkfor_integlayer(varno)) then
      if (.not.chm_obsoper%layer_identified) then
@@ -1940,11 +2041,11 @@ contains
    
 !  select case(chm_obsoper%modelIndex)
 !
-!  case(1)
+!     case(1)
 
 !        Vertical interpolation operator
 
-!     call chm_vert_interp_operator(chm_obsoper,n_modlvl,pressmodlvl,nobslev,robslev,success)
+!         call chm_vert_interp_operator  ! see 3dvar_chem routine ch_vprof
 
 !     case(2)
 
@@ -1952,12 +2053,12 @@ contains
 
 !         call chm_layer_avg_operator  ! see 3dvar_chem routine ch_vavg
 
-!  case(3)
+!     case(3)
 
 !        Layer integration operator
 
-     call chm_layer_integ_operator(chm_obsoper,n_modlvl,pressmodlvl,nobslev,success)
-     
+  call chm_layer_integ_operator(chm_obsoper,n_modlvl,pressmodlvl,nobslev,success)
+
 !  end select
 
 
@@ -1967,17 +2068,18 @@ contains
 
   if (iavgkern.gt.0) then
 
-     allocate(avg_kern(nobslev,nobslev))
-     call chm_get_avgkern(iavgkern,nobslev,avg_kern)
-     chm_obsoper%zh = matmul(avg_kern,chm_obsoper%zh)
-     deallocate(avg_kern)
+      allocate(avg_kern(nobslev,nobslev))
+      call chm_get_avgkern(iavgkern,nobslev,avg_kern)
+      chm_obsoper%zh = matmul(avg_kern,chm_obsoper%zh)
+      deallocate(avg_kern)
 
   end if
 
-
 ! Apply generalized innovation operator if requested
-!
-! if ... call ...
+
+  if (kmode.ge.2.and.chm_ngenoper.eq.1.and. &
+      (chm_obsoper%modelIndex.eq.2.or.chm_obsoper%modelIndex.eq.3)) &      
+      call chm_genoper(chm_obsoper,rval,rlat,rlon,n_modlvl,nobslev,kmode,varName,success)
 
 ! Finalize required quantities depending on kmode
    
@@ -1987,30 +2089,31 @@ contains
 !
 !    Finalize non-linear/linear operator step
 !
-     do iobslev=1,nobslev
+      do iobslev=1,nobslev
         if (success(iobslev)) then
            rmhx(iobslev)=dot_product(chm_obsoper%zh(iobslev,:),chm_obsoper%modelvarcolumn(:))
         end if
      end do
-     
+      
   case(3)
 !
 !    Ht*grad contribution from adjoint of tangent linear model.
 !
-     do iobslev=1,nobslev
+      rvalinc(:)=0.0
+      do iobslev=1,nobslev
         if (success(iobslev)) then
            zwork(:)= rmhx(iobslev)*chm_obsoper%zh(iobslev,:)
-           call chm_convert(chm_obsoper,n_modlvl,zwork,rval,rtt,pressmodlvl,varno,kmode)
+           call chm_convert_units(chm_obsoper,n_modlvl,zwork,rval,rtt,pressmodlvl,varno,iconstituent_id,4)
            rvalinc(:)=rvalinc(:) + chm_obsoper%modelvarcolumn(:)
         end if
-     end do
-     
+      end do
+      
   end select
 
   ! deallocate chm_obsoper arrays
   deallocate(chm_obsoper%modelvarcolumn)
   deallocate(chm_obsoper%vlayertop,chm_obsoper%vlayerbottom)
-  deallocate(chm_obsoper%vh,chm_obsoper%zh,chm_obsoper%zhp,chm_obsoper%vmodpress)
+  deallocate(chm_obsoper%vweights,chm_obsoper%zh,chm_obsoper%zhp,chm_obsoper%vmodpress)
 
   end subroutine chm_obsoperators
 
@@ -2042,7 +2145,7 @@ contains
    
 !-------------------------------------------------------------------------------------------
 
-  subroutine chm_convert(chm_obsoper,ntrlev,rvalinc,rval,rtt,rpp,varno,kmode)
+  subroutine chm_convert_units(chm_obsoper,ntrlev,rvalinc,rval,rtt,rpp,varno,iconstituent_id,kmode)
 !
 ! Author  : Y. Rochon and Y. Yang, June 2005 to June 2011
 !           - Pre-EnVar version
@@ -2054,51 +2157,68 @@ contains
 !
 ! Purpose: Set unit conversion factor and model variable transformations 
 !          for consistency of Hx units with obs units.  
+!
+!          For H2O, there are preliminary conversions related to transforming
+!          ln(q) to vmr and/or its TLM equivalent.
 ! 
 ! Further changes required for generalization 
 !
-! 1) Need to allow input of PTRMOLWT molecular mass according to constituent.
-! 2) Generalize for use in both non-linear and linear models.
-! 3) Ultimately have new version that is called outside the minimization section.
-! 4) Adapt to model variable units other than vmr.
+! 1) May ultimately have two versions, with one called outside the minimization section. 
+! 2) Adapt to model variable units other than vmr.
 !
 ! Arguments:
 !
 !   Input
 !
 !     varno     BUFR descriptor element for obs units.
+!     iconstituent_id  BUFR constituent ID.
 !     ntrlev    Dimension of rvalinc,rval,rtt,rpp
 !     rvalinc   Increment field or trial field. 
 !     rval      Trial field value. 
 !     rtt       Temperature array (Kelvin)
 !     rpp       Pressure array (Pascal; kg/(m s^2))
-!     kmode     0 for non-linear model in assimilation
-!               1 for tangent linear model applied for error std.dev. conversion
-!               2 for tangent linear model
-!               3 for adjoint model 
-!   
-!     PTRMOLWT: Molecular mass of constituent (g/mol).  - Use 'iconstituent_id' (see above and BUFR_NECHM_* in bufr_mod.ftn90) to identify weight 
+!
+!     kmode     This flag has two uses.
+!
+!               1: For H2O, it directs conversions related to 'ln(q) to vmr'
+!                   0 for rvalinc=rval = model column
+!                   1 for rvalinc=sigma and rval = model column
+!                   2 for rvalinc=dx and rval = model column
+!                   3 applied same as 2 for the ln(q) conversion to vmr
+!                   4 Same as 2 and or but the conversion to rval has already been done.
+!               
+!               2: For linear unit conversion:
+!                  Conversion applied when kmode=2,3, this depending on the BUFR element.
+!                  This conversion for rval only needed for chm_genoper
+!                  and when the variation in vertical must account for
+!                  unit changes involving pressure and or temperature.
+!                  Only the relative variation in the vertical matters as opposed
+!                  to the absolute values and so the conversion is not applied for
+!                  all BUFR elements.
 !
 !   Output
 !
 !     chm_obsoper%modelvarcolumn:  Scaled or transformed increment or trial field profile.
 !
 !     rval      Scaled or transformed analysis field on increment/analysis grid
-!               (only when kmode=2)
+!               (only when kmode=2,3 and for some BUFR elements)
 !
+!  Other
+!
+!     chm_amu(iconstituent_id)  Molecular mass of constituent (g/mol). 
 !
 ! Comments:
 !
 !     A. Standard model/analysis species field provided as volumetric mixing 
-!        ratio (vmr). Conversion to vmr is applied when this is not the case. 
+!        ratio (vmr). Conversion to vmr is to applied when this is not the case. 
 !        As this is hardcoded, any changes in analysis variable must
 !        be reflected by correspondingly modifying this module.
 !
-!     B. Unit conversion factor is calculated in chm_convert
+!     B. Unit conversion factor is calculated in chm_convert_units
 !        from the following factors:
 !          (1) physical constants
 !          (2) parameters related to a particular species such as molecular
-!              mass previously read from BURP obs file and stored in obsSpaceData
+!              mass
 !          (3) variables such as T and P from background field at each
 !              iteration
 !
@@ -2119,22 +2239,113 @@ contains
   use MathPhysConstants_mod
   
   implicit none
-  integer, intent(in) :: ntrlev,kmode,varno
-  real(8), intent(in) :: rtt(ntrlev),rpp(ntrlev),rvalinc(ntrlev)
+  integer, intent(in) :: ntrlev,kmode,varno,iconstituent_id
+  real(8), intent(in) :: rtt(ntrlev),rpp(ntrlev)
   type(struct_chm_obsoperators), intent(inout) :: chm_obsoper
-  real(8), intent(inout)  :: rval(ntrlev)
+  real(8), intent(inout)  :: rval(ntrlev),rvalinc(ntrlev)
 
 ! Declaration of local variables
-  real(8)     :: conv, zcoef
+  integer :: jk
+  real(8) :: conv, zcoef
   real(8), parameter :: rho_stp=1.293  !kg/m^3
-!  PTRMOLWT =      !Molecular mass of constituent (g/mol) 
-
+  real(8), save :: zval1(100),zval2(100)
+!
+  if (iconstituent_id.eq.1) then
+!
+!     Since the data is for H2O (iconstituent_id=1), then a conversion from the 
+!     incremental variable LQ (ln q) must be performed. 
+!     Then a variable transformation to vmr is performed.
+!
+!     First apply exponential or its TLM equivalent to get specific humidity q
+!
+      if (kmode.ge.2) then  ! TLM of exponential
+!
+!         dx = x dlnx, with lnx = rval, dlnx=rvalinc
+!         Note: x=rval when kmode>3
+!
+          if (kmode.le.3) then
+             rval(:)=exp(rval(:))
+             zval1(:)=rval(:)
+             rvalinc(:) = zval1(:)*rvalinc(:)
+          else
+!
+!            zval1 should be the same as previously transformed in an earlier 
+!            call with kmode=3 (see above the 'else').
+!
+             rvalinc(:) = zval1(:)*rvalinc(:)
+          end if
+      else
+          if (kmode.eq.0) then  
+!
+!            Converts LQ to HU or ln(x) to x
+!
+             rvalinc(:)=exp(rvalinc(:))
+          else
+!
+!            Converts dLQ to dHU or dln(x) to dx 
+!
+!x           dx = x dlnx, with lnx = rval, dlnx=rvalinc
+!            dx = x dlnx, with x = rval, dlnx=rvalinc
+!                 
+!x            rval(:)=exp(rval(:)) 
+             rvalinc(:)= rval(:)*rvalinc(:)
+          end if
+      end if
+!
+!     Convert specific humidity to mass mixing ratio (or mass mixing ratio increment)
+!
+      if (kmode.ge.2) then
+         if (kmode.le.3) THEN
+!
+!           Apply tangent linear of r=q/(1-q):
+!
+!           dr = dq/(1-q)^2
+!
+            do jk=1,ntrlev
+               conv=rval(jk)
+               if (conv.gt.0.8) then
+                  write(*,*) 'CHM_CONVERT_UNITS: WARNING - Q exceeds 0.8 at',conv
+                  conv=0.8
+               else if (conv.lt.-1.D-5) then
+                  write(*,*) 'CHM_CONVERT_UNITS: WARNING - Q less than -1E-5 at ',conv
+                  conv=-1.D-5
+               end if
+               rvalinc(jk)=rvalinc(jk)/(1.0-conv)**2
+               zval2(jk)=rval(jk)
+               rval(jk) = rval(jk)/(1.0-conv)
+            end do
+         else
+!
+!            rval (zval2) should be the same as previously transformed in an earlier 
+!            call with kmode=3 (see above the 'else').
+!            
+             rvalinc(:)=rvalinc(:)/(1.0-zval2(:))**2
+         end if
+      else
+         do jk=1,ntrlev
+            conv=rval(jk)   
+            if (conv.gt.0.8) then
+               write(*,*) 'CHM_CONVERT_UNITS: WARNING - Q exceeds 0.8 at',conv
+               conv=0.8
+            else if (conv.lt.-1.D-5) then
+               write(*,*) 'CHM_CONVERT_UNITS: WARNING - Q less than -1E-5 at ',conv
+               conv=-1.D-5
+            end if
+            rvalinc(jk)=rvalinc(jk)/(1.0-conv)**2
+         end do
+      end if
+!
+!     Mass mixing ratio to volume mixing ratio conversion
+!
+      rvalinc(:)=rvalinc(:)*MPC_MOLAR_MASS_DRY_AIR_R8/chm_amu(iconstituent_id)
+  end if
+!
 ! Identify unit conversion factor and variable conversion
 ! assuming model variable is in vmr.
 
   zcoef=1.0
   select case (varno)
-     case(15198,15001,15005,15045) 
+      case(15198,15001,15005,15045) 
 !
 !        For conversion of vmr*dP integral to DU
 !
@@ -2142,7 +2353,7 @@ contains
          zcoef = zcoef/RG/rho_stp*conv
          chm_obsoper%modelvarcolumn(:)=rvalinc(:)*zcoef
 !
-     case(15009,15012)
+      case(15009,15012)
 !
 !        For conversion of vmr*dP integral to molecules/m^2
 !
@@ -2152,32 +2363,32 @@ contains
          zcoef = zcoef*MPC_AVOGADRO_R8*conv/MPC_MOLAR_MASS_DRY_AIR_R8/RG
          chm_obsoper%modelvarcolumn(:)=rvalinc(:)*zcoef
 !
-     case(15020,15021,15200) 
+      case(15020,15021,15200) 
 !
 !        For conversion of vmr*dP integral to kg/m^2
 !
-!         zcoef = zcoef*PTRMOLWT/MPC_MOLAR_MASS_DRY_AIR_R8/RG
-!         chm_obsoper%modelvarcolumn(:)=rvalinc(:)*zcoef
+         zcoef = zcoef*chm_amu(iconstituent_id)/MPC_MOLAR_MASS_DRY_AIR_R8/RG
+         chm_obsoper%modelvarcolumn(:)=rvalinc(:)*zcoef
 !
-     case(15023,15027,15194,15195,15223) 
+      case(15023,15027,15194,15195,15223) 
 !
 !        For conversion from vmr to kg/m^3
 !     
-!        zcoef = zcoef*PTRMOLWT/MPC_RGAS_IDEAL_R8
+         zcoef = zcoef*chm_amu(iconstituent_id)/MPC_RGAS_IDEAL_R8
 !
 !        Apply temperature and pressure at observation level.
 !
-!         chm_obsoper%modelvarcolumn(:) = rvalinc(:)*rpp(:)/rtt(:)*zcoef
-!         if (kmode.eq.2) rval(:)=rval(:)*rpp(:)*zcoef
+         chm_obsoper%modelvarcolumn(:) = rvalinc(:)*rpp(:)/rtt(:)*zcoef
+         if (kmode.eq.2.or.kmode.eq.3) rval(:)=rval(:)*rpp(:)/rtt(:)*zcoef
 !
-     case(15199,15003,15010) 
+      case(15199,15003,15010) 
 !     
 !        For conversion from vmr to partial pressure (PA)
 !
          chm_obsoper%modelvarcolumn(:) = rvalinc(:)*rpp(:)*zcoef
-         if (kmode.eq.2) rval(:)=rval(:)*rpp(:)*zcoef
+         if (kmode.eq.2.or.kmode.eq.3) rval(:)=rval(:)*rpp(:)*zcoef
 !
-     case(15230,15022) 
+      case(15230,15022) 
 !
 !        For conversion from vmr to molecules/m^3
 !        RDCJ: Dry air constant. 8.341 J/mole/K  (J=kg m^2/s^2)
@@ -2187,9 +2398,9 @@ contains
 !        Apply temperature and pressure at observation level.
 !
          chm_obsoper%modelvarcolumn(:) = rvalinc(:)*rpp(:)/rtt(:)*zcoef
-         if (kmode.eq.2) rval(:)=rval(:)*rpp(:)/rtt(:)*zcoef
+         if (kmode.eq.2.or.kmode.eq.3) rval(:)=rval(:)*rpp(:)/rtt(:)*zcoef
 !
-     case(15026,15008,15197,15208) 
+      case(15026,15008,15197,15208) 
 !
 !        Observation in molecules/molecules by volume (vmr).
 !        No conversion needed.
@@ -2197,27 +2408,27 @@ contains
          zcoef = zcoef*1.0D0
          chm_obsoper%modelvarcolumn(:) = rvalinc(:)*zcoef
 !
-     case(15024,15196,12001,15055,15062)
+      case(15024,15196,12001,15055,15062)
 !
 !        Do nothing
          chm_obsoper%modelvarcolumn(:) = rvalinc(:)
 !
-     case(15192,15011) 
+      case(15192,15011) 
 !
 !        Code to be revised when actually applied for the first time
 !        according to model field units.
 !
-         write(*,*) 'CHM_CONVERT: Obs conversion not yet defined.',varno
-         call abort3d('CHM_CONVERT')
+         write(*,*) 'CHM_CONVERT_UNITS: Obs conversion not yet defined.',varno
+         call abort3d('CHM_CONVERT_UNITS')
 !
-     case default 
+      case default 
 !
-         write(*,*) 'CHM_CONVERT: Unknown obs units ',varno
-         call abort3d('CHM_CONVERT')
+         write(*,*) 'CHM_CONVERT_UNITS: Unknown obs units ',varno
+         call abort3d('CHM_CONVERT_UNITS')
          
   end select
 
-  end subroutine chm_convert
+  end subroutine chm_convert_units
 
 !---------------------------------------------------------------------------------------
 
@@ -2263,36 +2474,31 @@ contains
   
   do iobslev=1,nobslev
      
-     if ( chm_obsoper%vlayerbottom(iobslev).lt.pressmodlvl(1)*1.01 .or. &  
-          chm_obsoper%vlayertop(iobslev).gt.pressmodlvl(n_modlvl)*0.99) then
-        success(iobslev)=.false.
-        write(*,*) 'chm_layer_integ_operator: WARNING. Layer top/bot value problem.',chm_obsoper%vlayertop(iobslev), chm_obsoper%vlayerbottom(iobslev)
-        return
-     end if
-     if (chm_obsoper%vlayerbottom(iobslev).gt.pressmodlvl(n_modlvl)*0.999) chm_obsoper%vlayerbottom(iobslev)=pressmodlvl(n_modlvl)*0.999
-     if (chm_obsoper%vlayertop(iobslev).lt.pressmodlvl(1)*1.001) chm_obsoper%vlayertop(iobslev)=pressmodlvl(1)*1.001
+      if ( chm_obsoper%vlayerbottom(iobslev).lt.pressmodlvl(1)*1.01 .or. &  
+           chm_obsoper%vlayertop(iobslev).gt.pressmodlvl(n_modlvl)*0.99) then
+         success(iobslev)=.false.
+         write(*,*) 'chm_layer_integ_operator: WARNING. Layer top/bot value problem.',chm_obsoper%vlayertop(iobslev), chm_obsoper%vlayerbottom(iobslev)
+         return
+      end if
+      if (chm_obsoper%vlayerbottom(iobslev).gt.pressmodlvl(n_modlvl)*0.999) chm_obsoper%vlayerbottom(iobslev)=pressmodlvl(n_modlvl)*0.999
+      if (chm_obsoper%vlayertop(iobslev).lt.pressmodlvl(1)*1.001) chm_obsoper%vlayertop(iobslev)=pressmodlvl(1)*1.001
 
   end do
        
-
   ! Calculate vertical integration components for specified obs layer.
 
   call chm_vertintg(chm_obsoper,n_modlvl,nobslev,success)
    
   end subroutine chm_layer_integ_operator
 
-
 !-----------------------------------------------------------------------------------------
 
-  subroutine chm_vertintg_setup(chm_obsoper,pressmod,knflev)
+  subroutine chm_vertintg_setup(chm_obsoper,pressmod,n_modlvl)
 !
-! Author  : Y. Rochon (ARQI/AQRD) and Ping Du (CMDA), Feb 2015.
+! Author  : Y. Rochon, (ARQI/AQRD), Ping Du (CMDA), and M. Sitwell (ARQI/AQRD) Feb 2015.
 !           - Based Y. Yang and S. Ren, Nov 2004 to Dec 2012
 !           - Pre-EnVar version
 ! Revision: 
-!           M. Sitwell (ARQI/AQRD), Mar 2015.
-!           - Use of nobslev in space allocation.
-!           
 !
 ! Purpose:  Preliminary calcs for producing components required for vertical 
 !           integration w.r.t. pressure to calculate partial (or total)
@@ -2312,20 +2518,19 @@ contains
 ! Arguments:
 !
 !  Input   
-!           knflev            -- # of vertical levels
+!           n_modlvl          -- # of vertical levels
 !           pressmod          -- pressures at model levels
-!           nobslev           -- Obs profile dimension.
 !
 !  Output  
-!           chm_obsoper%vmodpress(knflev+1) -- Model layer boundaries given that pressmod are
-!                                              taken at mid-layer values.
-!           chm_obsoper%vh(knflev,knflev)   -- Second order Lagrangian interp integration weights
+!           chm_obsoper%vmodpress(n_modlvl+1) -- Model layer boundaries given that pressmod are
+!                                                taken at mid-layer values.
+!           chm_obsoper%vweights(n_modlvl,n_modlvl)   -- Second order Lagrangian interp integration weights
 !
 !-----------------------------------------------------------------------------------------
       implicit none
       
-      integer, intent(in) :: knflev
-      real(8), intent(in) :: pressmod(knflev)
+      integer, intent(in) :: n_modlvl
+      real(8), intent(in) :: pressmod(n_modlvl)
       type(struct_chm_obsoperators), intent(inout) :: chm_obsoper
 !
 !*    Declaration of local variables
@@ -2341,12 +2546,12 @@ contains
 !     Calculate layer boundaries
 !
       chm_obsoper%vmodpress(1)=pressmod(1)
-      chm_obsoper%vmodpress(knflev+1)= pressmod(knflev)
+      chm_obsoper%vmodpress(n_modlvl+1)= pressmod(n_modlvl)
 !
-      DO JK = 2, KNFLEV
+      DO JK = 2, n_modlvl
          chm_obsoper%vmodpress(jk)=sqrt(pressmod(jk-1)*pressmod(jk))
       END DO
-         
+!
 !     Interpolation to mid-layer level in P using
 !     second degree Lagrangian interpolator.
 !     N.B.: Integration is w.r.t. P
@@ -2360,11 +2565,11 @@ contains
       zr1=(zp-zp2)*(zp-zp3)/(zp1-zp2)/(zp1-zp3)
       zr2=(zp-zp1)*(zp-zp3)/(zp2-zp1)/(zp2-zp3)
       zr3=(zp-zp2)*(zp-zp1)/(zp3-zp2)/(zp3-zp1)
-      chm_obsoper%vh(1,1)=zr1
-      chm_obsoper%vh(2,1)=zr2
-      chm_obsoper%vh(3,1)=zr3
+      chm_obsoper%vweights(1,1)=zr1
+      chm_obsoper%vweights(2,1)=zr2
+      chm_obsoper%vweights(3,1)=zr3
 !
-      DO JK=2,knflev-1
+      DO JK=2,n_modlvl-1
          zp1=pressmod(jk-1)
          zp2=pressmod(jk)
          zp3=pressmod(jk+1)
@@ -2372,29 +2577,29 @@ contains
          zr1=(zp-zp2)*(zp-zp3)/(zp1-zp2)/(zp1-zp3)
          zr2=(zp-zp1)*(zp-zp3)/(zp2-zp1)/(zp2-zp3)
          zr3=(zp-zp2)*(zp-zp1)/(zp3-zp2)/(zp3-zp1)
-         chm_obsoper%vh(jk-1,jk)=zr1
-         chm_obsoper%vh(jk,jk)=zr2
-         chm_obsoper%vh(jk+1,jk)=zr3
+         chm_obsoper%vweights(jk-1,jk)=zr1
+         chm_obsoper%vweights(jk,jk)=zr2
+         chm_obsoper%vweights(jk+1,jk)=zr3
       ENDDO
 !
-!     Calculating  for jk=knflev
+!     Calculating  for jk=n_modlvl
 !
-      zp1= pressmod(knflev-2)
-      zp2= pressmod(knflev-1)
-      zp3= pressmod(knflev)
-      zp = (chm_obsoper%vmodpress(knflev+1)+chm_obsoper%vmodpress(knflev))/2.0
+      zp1= pressmod(n_modlvl-2)
+      zp2= pressmod(n_modlvl-1)
+      zp3= pressmod(n_modlvl)
+      zp = (chm_obsoper%vmodpress(n_modlvl+1)+chm_obsoper%vmodpress(n_modlvl))/2.0
       zr1=(zp-zp2)*(zp-zp3)/(zp1-zp2)/(zp1-zp3)
       zr2=(zp-zp1)*(zp-zp3)/(zp2-zp1)/(zp2-zp3)
       zr3=(zp-zp2)*(zp-zp1)/(zp3-zp2)/(zp3-zp1)
-      chm_obsoper%vh(knflev-2,knflev)=zr1
-      chm_obsoper%vh(knflev-1,knflev)=zr2
-      chm_obsoper%vh(knflev,knflev)=zr3
-      
-    end subroutine chm_vertintg_setup
+      chm_obsoper%vweights(n_modlvl-2,n_modlvl)=zr1
+      chm_obsoper%vweights(n_modlvl-1,n_modlvl)=zr2
+      chm_obsoper%vweights(n_modlvl,n_modlvl)=zr3
+!
+  end subroutine chm_vertintg_setup 
 
 !-----------------------------------------------------------------------------------------
 
-  subroutine chm_vertintg(chm_obsoper,knflev,nobslev,success)
+  subroutine chm_vertintg(chm_obsoper,n_modlvl,nobslev,success)
 !
 ! Author  : Y. Rochon, Y. Yang and S. Ren, Nov 2004 to Dec 2012
 !           - Pre-EnVar version
@@ -2412,25 +2617,26 @@ contains
 ! Arguments:
 !
 !  Input   
-!           knflev            -- # of model vertical levels
-!           nobslev           -- # of obs vertical levels
-!           chm_obsoper%vh    -- See routine chm_vertintg_setup
+!           n_modlvl              -- # of model vertical levels
+!           nobslev               -- # of obs vertical levels
+!           chm_obsoper%vweights  -- See routine chm_vertintg_setup
 !           chm_obsoper%vmodpress
+!           success               -- Logical indicating if calc are to be performed.
 !
 !  Output  
-!           chm_obsoper%zh(knflev)  -- Initial innovation model array 
-!                                      (other than conversion constants)
-!           chm_obsoper%zhp(knflev) -- Part of innovation operator not 
-!                                      related to resolution
+!           chm_obsoper%zh(n_modlvl)  -- Initial innovation model array 
+!                                        (other than conversion constants)
+!           chm_obsoper%zhp(n_modlvl) -- Part of innovation operator not 
+!                                        related to resolution
 !
 !-----------------------------------------------------------------------------------------
       implicit none
       
-      integer, intent(in) :: knflev,nobslev
+      integer, intent(in) :: n_modlvl,nobslev
       type(struct_chm_obsoperators), intent(inout) :: chm_obsoper
-      logical, intent(inout) :: success(nobslev)
+      logical, intent(in) :: success(nobslev)
 
-      integer, parameter :: ivh=2  ! Order of Lagrangian interpolation.
+      integer, parameter :: ivweights=2  ! Order of Lagrangian interpolation.
 !
 !*    Declaration of local variables
 !
@@ -2450,15 +2656,16 @@ contains
 !           and set innovation operator ZH over this range.
 
             ilmin=1
-            ilmax=knflev
-            if (ptop.le.chm_obsoper%vmodpress(1)*1.01.and.pbtm.ge.chm_obsoper%vmodpress(knflev+1)*0.99) then
+            ilmax=n_modlvl
+            if (ptop.le.chm_obsoper%vmodpress(1)*1.01.and.pbtm.ge.chm_obsoper%vmodpress(n_modlvl+1)*0.99) then
 !
 !             Total column integration part
 !
-               do jk = 1,knflev
-                  do j=max(1,jk-ivh),min(knflev,jk+ivh)
-                     chm_obsoper%zh(iobslev,jk)=chm_obsoper%zh(iobslev,jk)+(chm_obsoper%vmodpress(j+1)-chm_obsoper%vmodpress(j))*chm_obsoper%vh(jk,j)
-                     chm_obsoper%zhp(iobslev,jk)=chm_obsoper%zhp(iobslev,jk)+chm_obsoper%vh(jk,j)
+               do jk = 1,n_modlvl
+                  do j=max(1,jk-ivweights),min(n_modlvl,jk+ivweights)
+                     chm_obsoper%zh(iobslev,jk)=chm_obsoper%zh(iobslev,jk)+(chm_obsoper%vmodpress(j+1) &
+                         -chm_obsoper%vmodpress(j))*chm_obsoper%vweights(jk,j)
+                     chm_obsoper%zhp(iobslev,jk)=chm_obsoper%zhp(iobslev,jk)+chm_obsoper%vweights(jk,j)
                   end do
                end do
                
@@ -2468,8 +2675,8 @@ contains
 !
 !              Identify analysis layer boundaries just within obs layer.
 !
-               ilmin = chm_igetmodlev(ptop, chm_obsoper%vmodpress, 'top', knflev+1)
-               ilmax = chm_igetmodlev(pbtm, chm_obsoper%vmodpress, 'btm', knflev+1)
+               ilmin = chm_igetmodlev(ptop, chm_obsoper%vmodpress, 'top', n_modlvl+1)
+               ilmax = chm_igetmodlev(pbtm, chm_obsoper%vmodpress, 'btm', n_modlvl+1)
                
                if (ilmin.eq.ilmax+1) then
 !
@@ -2477,7 +2684,7 @@ contains
 !
                   j=ilmin
                   if (j.lt.3) j=3
-                  if (j.gt.knflev) j=knflev
+                  if (j.gt.n_modlvl) j=n_modlvl
                   zp1=chm_obsoper%vmodpress(j-2)
                   zp2=chm_obsoper%vmodpress(j-1)
                   zp3=chm_obsoper%vmodpress(j)
@@ -2500,8 +2707,8 @@ contains
 !                 Determine terms from the inner layers (excluding the lower and upper
 !                 boundary layers when these layers not covering entire analyses layers)
 !
-                  if (pbtm.ge.chm_obsoper%vmodpress(knflev)*0.99) then
-                     ilmax2=knflev
+                  if (pbtm.ge.chm_obsoper%vmodpress(n_modlvl)*0.99) then
+                     ilmax2=n_modlvl
                   else
                      ilmax2=ilmax-1
                   end if
@@ -2513,9 +2720,10 @@ contains
                   end if
                   if (ilmin2.le.ilmax2) then
                      do jk = ilmin2,ilmax2
-                        do j=max(1,jk-ivh),min(knflev,jk+ivh)
-                           chm_obsoper%zh(iobslev,jk)=chm_obsoper%zh(iobslev,jk)+(chm_obsoper%vmodpress(j+1)-chm_obsoper%vmodpress(j))*chm_obsoper%vh(jk,j)
-                           chm_obsoper%zhp(iobslev,jk)=chm_obsoper%zhp(iobslev,jk)+chm_obsoper%vh(jk,j)
+                        do j=max(1,jk-ivweights),min(n_modlvl,jk+ivweights)
+                           chm_obsoper%zh(iobslev,jk)=chm_obsoper%zh(iobslev,jk)+(chm_obsoper%vmodpress(j+1) &
+                               -chm_obsoper%vmodpress(j))*chm_obsoper%vweights(jk,j)
+                           chm_obsoper%zhp(iobslev,jk)=chm_obsoper%zhp(iobslev,jk)+chm_obsoper%vweights(jk,j)
                         end do
                      end do
                   end if
@@ -2523,10 +2731,10 @@ contains
 !                 Determine terms from the lower and upper boundary layers
 !                 when these layers do not cover entire analyses layers.
 !
-                  if (pbtm.lt.chm_obsoper%vmodpress(knflev)*0.99) then
+                  if (pbtm.lt.chm_obsoper%vmodpress(n_modlvl)*0.99) then
                      
                      j=ilmax+1
-                     if (j.gt.knflev) j=knflev
+                     if (j.gt.n_modlvl) j=n_modlvl
                      if (j.lt.3) j=3
                      zp1=chm_obsoper%vmodpress(j-2)
                      zp2=chm_obsoper%vmodpress(j-1)
@@ -2550,7 +2758,7 @@ contains
                      
                      j=ilmin-1
                      if (j.lt.1) j=1
-                     if (j.gt.knflev-2) j=knflev-2
+                     if (j.gt.n_modlvl-2) j=n_modlvl-2
                      zp1= chm_obsoper%vmodpress(j)
                      zp2= chm_obsoper%vmodpress(j+1)
                      zp3= chm_obsoper%vmodpress(j+2)
@@ -2657,5 +2865,267 @@ contains
   end function chm_igetmodlev 
 !-----------------------------------------------------------------------------------------
 
+  subroutine chm_genoper(chm_obsoper,rval,rlat,rlon,n_modlvl,nobslev,kmode,varName,success)
+!
+! Author  : Y. Rochon, April 2015
+!           - From pre-EnVar version of Nov 2004.
+!
+! Revision: 
+!
+! Purpose:  Set generalized innovation operator for integral or layer avg obs.
+!           Relevant only for 3D incremental fields.
+!           This version is intended to vertically distribute the obs increments 
+!           proportionally to the background state. See commments section for 
+!           details.
+!
+! Arguments:
+!
+!  Input   
+!           n_modlvl          -- # of model vertical levels
+!           nobslev           -- # of obs vertical levels
+!           chm_obsoper%zh, zhp   -- See routine chm_vertintg_setup
+!           varName           -- Variable name
+!           kmode             -- Index specifying if content to be applied,
+!                                i.e. if kmode >1.
+!           rval              -- State profile at obs location.
+!           rlat              -- Obs latitude.
+!           rlon              -- Obs longitude.
+!           success           -- Logical indicating if calc are to be performed.
+!
+!  Output  
+!           chm_obsoper%zh(n_modlvl)  -- a*w: Final innovation model array 
+!                                        (other than conversion constants)
+!           chm_obsoper%zhp(n_modlvl) -- w (see comments section)
+!
+! Comments:
+!
+!     (1) This routine prepares an alternative innovation operator g, called
+!     the generalized innovation operator, to take the place of the
+!     innovation (TLM) operator h (row of zh). The operator g is
+!     specified as:
+!
+!            g = a*w
+!
+!     where the modified innovation operator 'w' can be set as:
+!
+!            w= P[ (h'x)^T *  B^{-1} ]
+!
+!     with  h' is the part of h which excludes resolution dependence
+!              (only/mostly contains the physics part of h; zhp),
+!           x is the state profile rval
+!           P is a window cutoff operator (sets small values to zero), and
+!           B is the original/initial total covariance matrix (in 2D)
+!         
+!
+!     and 'a' is a proportionality constant ensuring that the innovation
+!             increment remains unchanged for the 1D case in the absence
+!             of other obs., i.e.,
+!
+!                 a^2 = (h*B*h^T)(w*B*w^T)^{-1},
+!
+!     Application of the state profile x (rval) is to make the
+!     increment profile be more proportional to the state profile.
+!
+!     While dx is provided to the obs operator, the minimization is done for
+!     dx/sigma where sigma is the background error std. dev. in B and so C (correlation matrix)
+!     is used instead of B in the minimization. Moreover, the transformation from dx/sigma to dx is done
+!     outside the forward model operators (at the spectral to physical space transformation step). 
+!     For this reason, the expression for w should technically be replaced by
+!
+!            w= P[ (h'x/sigma^2)^T *  C^{-1} ]
+!
+!     still with
+!
+!            a^2 = (h*B*h^T)(w*B*w^T)^{-1}
+!
+!     
+!     The presence of C^{-1} does/can give difficulty to the iterative variational 
+!     minimization. As approximation, one can use
+!
+!            w= P[ (h'x/sigma^2)^T ]
+!
+!     (2) The matrices B and B^{-1} are the total error covariance matrix (in physical space)
+!     and its inverse with the related error correlation matrices 'corvert' and 'corverti' 
+!     provided from 'bmatrixchem_mod.ftn90'.
+!
+!-----------------------------------------------------------------------------------------
+      implicit none
+      
+      character(len=*), intent(in) :: varName
+      integer, intent(in) :: n_modlvl,nobslev,kmode
+      type(struct_chm_obsoperators), intent(inout) :: chm_obsoper
+      logical, intent(in) :: success(nobslev)
+      real(8), intent(in) :: rlat,rval(n_modlvl),rlon
+!
+!     Declaration of local variables
+!
+      real(8), parameter :: pwin=0.01
+      integer  :: iobslev
+      logical  :: lstart,lrgsig
+      real(8)  :: zwbw(1),zhbh(1),za,work(n_modlvl)
+      real(8)  :: zmin,rsig(n_modlvl,2)
+   
+      if (kmode.le.1) return
+
+      lstart=.true. 
+      lrgsig=.true. 
+      do iobslev=1,nobslev
+           
+         if (.not.success(iobslev)) cycle   
+!          
+!        First determine background error std. dev. and determine/estimate h*B*h^T. 
+!        Done first to acquire 'rsig' at the same time!
+!
+         call chm_corvert_mult(varName,chm_obsoper%zh(iobslev,1:n_modlvl),zhbh,1, &
+                               n_modlvl,1,lrgsig,rlat,lstart,rsig,3)
+         lstart=.false.         
+!
+!        Begin preparation of the new innovation operator w (=new zhp)
+!
+         work(1:n_modlvl)=chm_obsoper%zhp(iobslev,1:n_modlvl)*rval(1:n_modlvl)/rsig(1:n_modlvl,1) 
+!
+!        Apply cutoff (apply to zhp*rval/rsig in this case instead of the resultant zh)
+!
+         zmin=pwin*maxval(abs(work(1:n_modlvl)))
+         where (abs(work(1:n_modlvl)).lt.zmin) work(1:n_modlvl)=0.0D0        
+! 
+         work(1:n_modlvl)=work(1:n_modlvl)/rsig(1:n_modlvl,1)
+!
+!        Note: Application of C^{-1} could be commented out and replaced by the 
+!        assigment of 'work' to 'chm_obsoper%zhp'
+!  
+         call chm_corvert_mult(varName,work(1:n_modlvl),chm_obsoper%zhp(iobslev,1:n_modlvl),1, &
+                           n_modlvl,n_modlvl,.false.,rlat,lstart,rsig,-1)
+!
+!         chm_obsoper%zhp(iobslev,1:n_modlvl)=work(1:n_modlvl)
+!
+!        Determine proportionality factor 'a' = (h*B*h^T)(w*B*w^T)^{-1}
+!
+!        Determine/estimate w*B*w^T 
+!
+         call chm_corvert_mult(varName,chm_obsoper%zhp(iobslev,1:n_modlvl),zwbw,1, &
+                               n_modlvl,1,lrgsig,rlat,lstart,rsig,3)
+!
+!        Set 'a'
+!
+         za=sqrt(zhbh(1)/zwbw(1))
+!         if (abs(rlat*180./3.1415-78.).lt.2.0.and.abs(rlon*180./3.1415-185.).lt.2.0) then
+!             write(6,*) 'ZA  ',rlat*180.0/3.1415,rlon*180.0/3.1415,za,zhbh(1),zwbw(1)
+!             write(6,*) 'rval',rval(1:n_modlvl)
+!             write(6,*) 'rval',rsig(1:n_modlvl,1)
+!             write(6,*) 'ZH  ',chm_obsoper%zh(iobslev,1:n_modlvl)
+!             write(6,*) 'ZHP ',chm_obsoper%zhp(iobslev,1:n_modlvl)*za
+!         end if
+!
+!        Set final innovation operator
+!
+         chm_obsoper%zh(iobslev,1:n_modlvl)=chm_obsoper%zhp(iobslev,1:n_modlvl)*za
+!
+      end do
+  
+  end subroutine chm_genoper
+!-----------------------------------------------------------------------------------------
+  subroutine chm_corvert_mult(varName,rmat_in,rmat_out,ndim1,ndim2,ndim3,lrgsig,rlat,lstart,rsig,itype)
+!
+! Author  : Y. Rochon, April 2015
+!
+! Revision: 
+!
+! Purpose: Multiplication with covariance matrix(ces) C=corvert (itype>0) or their 
+!          inverse CI=corverti (itype<0).
+!
+!          Given A=rmat_in (=input)
+!
+!          itype       Output
+!          -----       ------
+!            1          A*C
+!            2          C*A
+!            3          A*C*A^T
+!           -1          A*CI
+!           -2          CI*A
+!           -3          A*CI*A^T
+!
+! Arguments:
+!
+!  Input
+!
+!           varName              -- Variable name
+!           rmat_in(ndim1,ndim2) -- Input matrix/vector A (see comments sections)
+!           ndim1,ndim2          -- Matrix dimensions
+!                                   ndim1 to be 1 one 1D input vectors
+!           ndim3                -- Expected output dimension.
+!                                   =ndim1 for itype= +/-3
+!                                   =ndim2 otherwise
+!           lrgsig               -- Index to indicate if rgsig to be included as part of C or CI below.
+!           rlat                 -- Input latitude (degrees).
+!           itype                -- Type of operator (see above). 
+!           lstart               -- Logical indicating if local initiliation if std. dev. required 
+!                                   for given obs location. 
+!           rsig(ndim2,2)        -- Background error std. dev. at obs locations (when lstart.ne.true)    
+!
+!  Output:
+!
+!           rmat_out(ndim1,ndim2) -- Output matrix/vector (see comments sections)
+!           rsig(ndim2,2)        -- Background error std. dev. at obs locations (set when lstart.eq.true)    
+!
+! Comments:
+!
+! (A) If rmat_in is a 1-D vector, then 
+!     
+!     for cases +/- 2, one should have set ndim2=1 and ndim1=vector-length.
+!     for cases +/- 1,3, one should have set ndim1=1 and ndim2=vector-length.
+!
+! (B) Revisions required whem LAM and ensembles cases become available.
+!
+!-----------------------------------------------------------------------------------------
+      use bmatrixchem
+ 
+      implicit none
+      character(len=*), intent(in) :: varName
+      logical, intent(in)    :: lstart,lrgsig
+      integer, intent(in)    :: ndim1,ndim2,ndim3,itype
+      real(8), intent(in)    :: rmat_in(ndim1,ndim2),rlat
+      real(8), intent(out)   :: rmat_out(ndim1,ndim3)
+      real(8), intent(inout) :: rsig(ndim2,2)
+   
+      integer :: nsize
+      
+      rmat_out(:,:)=0.0D0
+  
+!     Set background error std. dev. if needed.
+
+      if (lstart) then
+!
+!        Get background error standard deviations
+!        Applicability tests within b*chm_getsigma.
+!
+         call bchm_getsigma(varName,ndim2,rlat,rsig(:,1),nsize)   
+!         call blamchm_getsigma(varName,ndim2,rlat,rsig(:,1),nsize)      
+         if (nsize.ne.ndim2) then
+             write(6,*) 'NSIZE, NDIM2: ',nsize,ndim2
+             call abort3d('CHM_corvert_mult: Inconsistent size')
+         end if
+
+!         call benschm_getsigma(varName,ndim2,rlat,rsig(:,2),nsize)      
+!         if (nsize.eq.ndim2) then
+!             write(6,*) 'NSIZE, NDIM2: ',nsize,ndim2
+!             call abort3d('CHM_corvert_mult: Inconsistent size')
+!         end if
+
+      end if
+  
+!     Apply operation related to static background error covariance/correlation matrix.
+!     Applicability tests within b*chm_corvert_mult.
+
+      call bchm_corvert_mult(varName,rmat_in,rmat_out,ndim1,ndim2,ndim3,lrgsig,rsig(:,1),itype)
+!      call blamchm_corvert_mult(varName,rmat_in,ndim1,ndim2,rmat_out,lrgsig,rsig(:,1),itype)
+
+!     Apply operation related to ensemble-based background error covariance/correlation matrix.
+!     Applicability test within benschm_corvert_mult.
+
+!      call benschm_corvert_mult(varName,rmat_in,rmat_out,ndim1,ndim2,ndim3,lrgsig,rsig(:,2),itype)
+
+  end subroutine chm_corvert_mult
+!-----------------------------------------------------------------------------------------
 
 end module chem_mod
