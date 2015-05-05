@@ -1799,7 +1799,8 @@ CONTAINS
 
   END SUBROUTINE BCHM_corvert_setup
 !-----------------------------------------------------------------------------------------------
-  Subroutine bchm_corvert_mult(varName,rmat_in,rmat_out,ndim1,ndim2,ndim3,lrgsig,rsig,itype)
+  Subroutine bchm_corvert_mult(varName,rmat_in,rmat_out,lvl_top,lvl_bot,ndim1,ndim2,ndim3, &
+                               lrgsig,itype,rsig)
 !
 ! Purpose: Multiplication with local matrix C=corvert (itype>0) or CI=corverti (itype<0).
 !
@@ -1824,6 +1825,8 @@ CONTAINS
 !
 !           varName              -- Variable name
 !           rmat_in(ndim1,ndim2) -- Input matrix/vector A (see comments sections)
+!           lvl_top(ndim1)       -- Top level of non-zero values in rmat_in
+!           lvl_bot(ndim1)       -- Bottom level of non-zero values in rmat_in
 !           ndim1,ndim2          -- Matrix dimensions
 !                                   ndim1 to be 1 one 1D input vectors
 !           ndim3                -- Expected output dimension.
@@ -1831,6 +1834,7 @@ CONTAINS
 !                                   =ndim2 otherwise
 !           lrgsig               -- Logical indicating if rsig to be included as part of C or CI below.
 !           rsig                 -- Input error standard deviations.
+!                                   Required when lrgsig=.true.
 !           itype                -- Type of operator (see above).        
 !
 !  Output:
@@ -1853,15 +1857,19 @@ CONTAINS
     implicit none
     character(len=*), intent(in) :: varName
     integer, intent(in) :: ndim1,ndim2,ndim3,itype
+    integer, intent(in) :: lvl_top(ndim1),lvl_bot(ndim1)
     logical, intent(in) :: lrgsig
-    real(8), intent(in) :: rmat_in(ndim1,ndim2),rsig(ndim2)
+    real(8), intent(in) :: rmat_in(ndim1,ndim2)
     real(8), intent(inout) :: rmat_out(ndim1,ndim3)
+    real(8), intent(in), optional :: rsig(ndim2)
    
     integer :: jvar,jk1,jk2,jk3,nsize
     real(8) :: rmat_work(ndim2,ndim2)
 
     if (.not.initialized) return
-     
+ 
+    if (.not.present(rsig).and.lrgsig) call abort3d('BCHM_corvert_mult: Missing rsig')  
+
 !   Determine location and size in corvert/corverti
     
     do jvar=1,numvar3d+numvar2d
@@ -1883,7 +1891,7 @@ CONTAINS
        if (lrgsig) then
           do jk1=1,nsize
           do jk2=1,ndim1
-             do jk3=1,ndim2
+             do jk3=lvl_top(jk2),lvl_bot(jk2)     ! Instead of do jk3=1,ndim2
                 rmat_work(jk1,jk2)=rmat_work(jk1,jk2)+corvert(jk1,jk3,jvar)*rsig(jk3)*rsig(jk1)*rmat_in(jk2,jk3)
              end do
           end do
@@ -1891,7 +1899,7 @@ CONTAINS
        else
           do jk1=1,nsize
           do jk2=1,ndim1
-             do jk3=1,ndim2
+             do jk3=lvl_top(jk2),lvl_bot(jk2)   ! Instead of do jk3=1,ndim2
                 rmat_work(jk1,jk2)=rmat_work(jk1,jk2)+corvert(jk1,jk3,jvar)*rmat_in(jk2,jk3)
              end do
           end do
@@ -1899,7 +1907,7 @@ CONTAINS
        end if
        do jk1=1,ndim1
        do jk2=1,ndim1
-          do jk3=1,nsize
+          do jk3=lvl_top(jk1),lvl_bot(jk1)     ! Instead of do jk3=1,nsize
              rmat_out(jk1,jk2)=rmat_out(jk1,jk2)+rmat_in(jk1,jk3)*rmat_work(jk3,jk2)
           end do
        end do
@@ -1913,7 +1921,7 @@ CONTAINS
        if (lrgsig) then
           do jk1=1,nsize
           do jk2=1,ndim1
-             do jk3=1,ndim2
+             do jk3=lvl_top(jk2),lvl_bot(jk2)     ! Instead of do jk3=1,ndim2
                 rmat_work(jk1,jk2)=rmat_work(jk1,jk2)+corverti(jk1,jk3,jvar)*rmat_in(jk2,jk3)/(rsig(jk3)*rsig(jk1))
              end do
           end do
@@ -1921,7 +1929,7 @@ CONTAINS
        else
           do jk1=1,nsize
           do jk2=1,ndim1
-             do jk3=1,ndim2
+             do jk3=lvl_top(jk2),lvl_bot(jk2)     ! Instead of do jk3=1,ndim2
                 rmat_work(jk1,jk2)=rmat_work(jk1,jk2)+corverti(jk1,jk3,jvar)*rmat_in(jk2,jk3)
              end do
           end do
@@ -1930,7 +1938,7 @@ CONTAINS
        
        do jk1=1,ndim1
        do jk2=1,ndim1
-          do jk3=1,nsize
+          do jk3=lvl_top(jk1),lvl_bot(jk1)     ! Instead of do jk3=1,nsize
              rmat_out(jk1,jk2)=rmat_out(jk1,jk2)+rmat_in(jk1,jk3)*rmat_work(jk3,jk2)
           end do
        end do
@@ -1943,16 +1951,16 @@ CONTAINS
        if (ndim3.ne.ndim2.or.ndim1.ne.nsize) call abort3d('BCHM_corvert_mult: Size does not match - itype=2')
        if (lrgsig) then
           do jk1=1,nsize
-          do jk2=1,ndim2
-             do jk3=1,nsize
+          do jk3=1,nsize
+             do jk2=lvl_top(jk3),lvl_bot(jk3)     ! Instead of do jk2=1,ndim2
                 rmat_out(jk1,jk2)=rmat_out(jk1,jk2)+corvert(jk1,jk3,jvar)*rsig(jk3)*rsig(jk1)*rmat_in(jk3,jk2)
              end do
           end do
           end do
        else
           do jk1=1,nsize
-          do jk2=1,ndim2
-             do jk3=1,nsize
+          do jk3=1,nsize
+             do jk2=lvl_top(jk3),lvl_bot(jk3)     ! Instead of do jk2=1,ndim2
                 rmat_out(jk1,jk2)=rmat_out(jk1,jk2)+corvert(jk1,jk3,jvar)*rmat_in(jk3,jk2)
              end do
           end do
@@ -1966,16 +1974,16 @@ CONTAINS
        if (ndim3.ne.ndim2.or.ndim1.ne.nsize) call abort3d('BCHM_corvert_mult: Size does match - itype=-2')
        if (lrgsig) then
           do jk1=1,nsize
-          do jk2=1,ndim2
-             do jk3=1,nsize
+          do jk3=1,nsize
+             do jk2=lvl_top(jk3),lvl_bot(jk3)     ! Instead of do jk2=1,ndim2
                 rmat_out(jk1,jk2)=rmat_out(jk1,jk2)+corverti(jk1,jk3,jvar)*rmat_in(jk3,jk2)/(rsig(jk3)*rsig(jk1))
              end do
           end do
           end do
        else
           do jk1=1,nsize
-          do jk2=1,ndim2
-             do jk3=1,nsize
+          do jk3=1,nsize
+             do jk2=lvl_top(jk3),lvl_bot(jk3)     ! Instead of do jk2=1,ndim2
                 rmat_out(jk1,jk2)=rmat_out(jk1,jk2)+corverti(jk1,jk3,jvar)*rmat_in(jk3,jk2)
              end do
           end do
@@ -1990,7 +1998,7 @@ CONTAINS
        if (lrgsig) then
           do jk1=1,ndim1
           do jk2=1,nsize
-             do jk3=1,nsize
+             do jk3=lvl_top(jk1),lvl_bot(jk1)     ! Instead of do jk3=1,nsize
                 rmat_out(jk1,jk2)=rmat_out(jk1,jk2)+rmat_in(jk1,jk3)*corvert(jk3,jk2,jvar)*rsig(jk3)*rsig(jk2)
              end do
           end do
@@ -1998,8 +2006,8 @@ CONTAINS
        else
           do jk1=1,ndim1
           do jk2=1,nsize
-             do jk3=1,nsize
-                rmat_out(jk1,jk2)=rmat_out(jk1,jk2)+rmat_in(jk1,jk3)*corvert(jk3,jk2,jvar)
+             do jk3=lvl_top(jk1),lvl_bot(jk1)     ! Instead of do jk3=1,nsize
+                 rmat_out(jk1,jk2)=rmat_out(jk1,jk2)+rmat_in(jk1,jk3)*corvert(jk3,jk2,jvar)
              end do
           end do
           end do
@@ -2013,7 +2021,7 @@ CONTAINS
        if (lrgsig) then
           do jk1=1,ndim1
           do jk2=1,nsize
-             do jk3=1,nsize
+             do jk3=lvl_top(jk1),lvl_bot(jk1)     ! Instead of do jk3=1,nsize
                 rmat_out(jk1,jk2)=rmat_out(jk1,jk2)+rmat_in(jk1,jk3)*corverti(jk3,jk2,jvar)/(rsig(jk3)*rsig(jk2))
              end do
           end do
@@ -2021,7 +2029,7 @@ CONTAINS
        else
           do jk1=1,ndim1
           do jk2=1,nsize
-             do jk3=1,nsize
+             do jk3=lvl_top(jk1),lvl_bot(jk1)     ! Instead of do jk3=1,nsize
                 rmat_out(jk1,jk2)=rmat_out(jk1,jk2)+rmat_in(jk1,jk3)*corverti(jk3,jk2,jvar)
              end do
           end do

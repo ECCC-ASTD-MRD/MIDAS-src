@@ -160,11 +160,14 @@ module chem_mod
      !  vweights               Second order Lagrangian interp integration weights
      !  zh                     Initial innovation model array (other than conversion constants)
      !  zhp                    Part of innovation operator not related to resolution.
+     !  lvl_top                Top level of non-zero values in zh
+     !  lvl_bot                Bottom level of non-zero values in zh
      
      integer :: modelIndex
      logical :: layer_identified
      real(8), allocatable :: vlayertop(:),vlayerbottom(:),vmodpress(:)      
      real(8), allocatable :: modelvarcolumn(:),zh(:,:),zhp(:,:),vweights(:,:)
+     integer, allocatable :: lvl_top(:),lvl_bot(:)
 
   end type struct_chm_obsoperators
 
@@ -1971,20 +1974,24 @@ contains
   allocate(chm_obsoper%zh(nobslev,n_modlvl))
   allocate(chm_obsoper%zhp(nobslev,n_modlvl))
   allocate(chm_obsoper%vmodpress(n_modlvl+1))
+  allocate(chm_obsoper%lvl_top(nobslev))
+  allocate(chm_obsoper%lvl_bot(nobslev))
 
 ! Initialize to zero 
   chm_obsoper%modelvarcolumn(:)=0.0     
   chm_obsoper%vweights(:,:)=0.0D0
   chm_obsoper%zh(:,:)=0.0D0
   chm_obsoper%zhp(:,:)=0.0D0
-
+  chm_obsoper%lvl_top(:)=1
+  chm_obsoper%lvl_bot(:)=1
+  
 ! Initialize success of calculation
   do iobslev=1,nobslev
-     if (ixtr(iobslev).ne.0.or.iass(iobslev).ne.1) then
+      if (ixtr(iobslev).ne.0.or.iass(iobslev).ne.1) then
         success(iobslev)=.false.
-     else
+      else
         success(iobslev)=.true.
-     end if
+      end if
   end do
 
 ! Apply unit conversion (apply later - near end of chm_*_operator routines - when kmode=3)
@@ -2008,20 +2015,20 @@ contains
 ! not of layer boundaries
 
   if (chm_checkfor_integlayer(varno)) then
-     if (.not.chm_obsoper%layer_identified) then
+      if (.not.chm_obsoper%layer_identified) then
         write(*,*)   '----------------------------------------------------------'
         write(*,*)   'STNID, BUFR_index, nobslev: ',cstnid,' ',varno,nobslev
         call abort3d('chm_obsoperators: Required layer boundaries not available!')
-     else
+      else
         ! Vertical integration operator
         chm_obsoper%modelIndex=3
-     end if
+      end if
   else if (chm_obsoper%layer_identified) then
-     ! Layer averaging operator
-     chm_obsoper%modelIndex=2
+      ! Layer averaging operator
+      chm_obsoper%modelIndex=2
   else
-     ! Vertical interpolation operator
-     chm_obsoper%modelIndex=1
+      ! Vertical interpolation operator
+      chm_obsoper%modelIndex=1
   end if
   
 
@@ -2085,26 +2092,35 @@ contains
    
   select case(kmode)
 
-  case(0,1,2)
+  case(0,2)
 !
-!    Finalize non-linear/linear operator step
+!     Finalize non-linear/linear operator step
 !
       do iobslev=1,nobslev
         if (success(iobslev)) then
-           rmhx(iobslev)=dot_product(chm_obsoper%zh(iobslev,:),chm_obsoper%modelvarcolumn(:))
+           rmhx(iobslev)=dot_product(chm_obsoper%zh(iobslev,chm_obsoper%lvl_top(iobslev):chm_obsoper%lvl_bot(iobslev)), &
+                                 chm_obsoper%modelvarcolumn(chm_obsoper%lvl_top(iobslev):chm_obsoper%lvl_bot(iobslev)))
         end if
-     end do
+      end do
       
+!  case(1)
+!      
   case(3)
 !
-!    Ht*grad contribution from adjoint of tangent linear model.
+!     Ht*grad contribution from adjoint of tangent linear model.
 !
       rvalinc(:)=0.0
       do iobslev=1,nobslev
         if (success(iobslev)) then
-           zwork(:)= rmhx(iobslev)*chm_obsoper%zh(iobslev,:)
+           zwork(:)=0.0D0
+           zwork(chm_obsoper%lvl_top(iobslev):chm_obsoper%lvl_bot(iobslev))= &
+                rmhx(iobslev)*chm_obsoper%zh(iobslev,chm_obsoper%lvl_top(iobslev):chm_obsoper%lvl_bot(iobslev))
+                
            call chm_convert_units(chm_obsoper,n_modlvl,zwork,rval,rtt,pressmodlvl,varno,iconstituent_id,4)
-           rvalinc(:)=rvalinc(:) + chm_obsoper%modelvarcolumn(:)
+           
+           rvalinc(chm_obsoper%lvl_top(iobslev):chm_obsoper%lvl_bot(iobslev))= &
+                rvalinc(chm_obsoper%lvl_top(iobslev):chm_obsoper%lvl_bot(iobslev)) + &
+                chm_obsoper%modelvarcolumn(chm_obsoper%lvl_top(iobslev):chm_obsoper%lvl_bot(iobslev))
         end if
       end do
       
@@ -2114,6 +2130,7 @@ contains
   deallocate(chm_obsoper%modelvarcolumn)
   deallocate(chm_obsoper%vlayertop,chm_obsoper%vlayerbottom)
   deallocate(chm_obsoper%vweights,chm_obsoper%zh,chm_obsoper%zhp,chm_obsoper%vmodpress)
+  deallocate(chm_obsoper%lvl_top,chm_obsoper%lvl_bot)
 
   end subroutine chm_obsoperators
 
@@ -2265,14 +2282,14 @@ contains
 !
           if (kmode.le.3) then
              rval(:)=exp(rval(:))
-             zval1(:)=rval(:)
-             rvalinc(:) = zval1(:)*rvalinc(:)
+             zval1(1:ntrlev)=rval(:)
+             if (kmode.ne.3) rvalinc(:) = zval1(1:ntrlev)*rvalinc(:)
           else
 !
 !            zval1 should be the same as previously transformed in an earlier 
 !            call with kmode=3 (see above the 'else').
 !
-             rvalinc(:) = zval1(:)*rvalinc(:)
+             rvalinc(:) = zval1(1:ntrlev)*rvalinc(:)
           end if
       else
           if (kmode.eq.0) then  
@@ -2310,7 +2327,7 @@ contains
                   write(*,*) 'CHM_CONVERT_UNITS: WARNING - Q less than -1E-5 at ',conv
                   conv=-1.D-5
                end if
-               rvalinc(jk)=rvalinc(jk)/(1.0-conv)**2
+               if (kmode.ne.3) rvalinc(jk)=rvalinc(jk)/(1.0-conv)**2
                zval2(jk)=rval(jk)
                rval(jk) = rval(jk)/(1.0-conv)
             end do
@@ -2319,7 +2336,7 @@ contains
 !            rval (zval2) should be the same as previously transformed in an earlier 
 !            call with kmode=3 (see above the 'else').
 !            
-             rvalinc(:)=rvalinc(:)/(1.0-zval2(:))**2
+             rvalinc(:)=rvalinc(:)/(1.0-zval2(1:ntrlev))**2
          end if
       else
          do jk=1,ntrlev
@@ -2337,12 +2354,51 @@ contains
 !
 !     Mass mixing ratio to volume mixing ratio conversion
 !
-      rvalinc(:)=rvalinc(:)*MPC_MOLAR_MASS_DRY_AIR_R8/chm_amu(iconstituent_id)
+      if (kmode.ne.3) rvalinc(:)=rvalinc(:)*MPC_MOLAR_MASS_DRY_AIR_R8/chm_amu(iconstituent_id)
   end if
 !
 ! Identify unit conversion factor and variable conversion
 ! assuming model variable is in vmr.
 
+  if (kmode.eq.3) then
+!
+!     Apply conversion only to rval (if needed)
+!
+      zcoef=1.0
+      select case (varno)
+      case(15023,15027,15194,15195,15223) 
+!
+!        For conversion from vmr to kg/m^3
+!     
+         zcoef = zcoef*chm_amu(iconstituent_id)/MPC_RGAS_IDEAL_R8
+!
+!        Apply temperature and pressure at observation level.
+!
+         rval(:)=rval(:)*rpp(:)/rtt(:)*zcoef
+!
+      case(15199,15003,15010) 
+!     
+!        For conversion from vmr to partial pressure (PA)
+!
+         rval(:)=rval(:)*rpp(:)*zcoef
+!
+      case(15230,15022) 
+!
+!        For conversion from vmr to molecules/m^3
+!        RDCJ: Dry air constant. 8.341 J/mole/K  (J=kg m^2/s^2)
+!
+         zcoef = zcoef*MPC_AVOGADRO_R8/MPC_RGAS_IDEAL_R8
+!
+!        Apply temperature and pressure at observation level.
+!
+         rval(:)=rval(:)*rpp(:)/rtt(:)*zcoef
+!         
+      end select
+      return
+  end if
+!  
+! Apply conversion to incrrement-related profile (and rval if needed)
+!
   zcoef=1.0
   select case (varno)
       case(15198,15001,15005,15045) 
@@ -2781,9 +2837,15 @@ contains
                end if
             end if
 
+            chm_obsoper%lvl_top(iobslev)=ilmin
+            chm_obsoper%lvl_bot(iobslev)=ilmax
+            
          else
             chm_obsoper%zh(iobslev,:) = 0.0D0
             chm_obsoper%zhp(iobslev,:) = 0.0D0
+            
+            chm_obsoper%lvl_top(iobslev)=1
+            chm_obsoper%lvl_bot(iobslev)=1
          end if
 
       end do
@@ -2976,8 +3038,9 @@ contains
 !        First determine background error std. dev. and determine/estimate h*B*h^T. 
 !        Done first to acquire 'rsig' at the same time!
 !
-         call chm_corvert_mult(varName,chm_obsoper%zh(iobslev,1:n_modlvl),zhbh,1, &
-                               n_modlvl,1,lrgsig,rlat,lstart,rsig,3)
+         call chm_corvert_mult(varName,chm_obsoper%zh(iobslev,1:n_modlvl),zhbh, &
+                  chm_obsoper%lvl_top(iobslev),chm_obsoper%lvl_bot(iobslev),1,n_modlvl,1, &
+                  lrgsig,rlat,lstart,3,rsig)
          lstart=.false.         
 !
 !        Begin preparation of the new innovation operator w (=new zhp)
@@ -2994,8 +3057,9 @@ contains
 !        Note: Application of C^{-1} could be commented out and replaced by the 
 !        assigment of 'work' to 'chm_obsoper%zhp'
 !  
-         call chm_corvert_mult(varName,work(1:n_modlvl),chm_obsoper%zhp(iobslev,1:n_modlvl),1, &
-                           n_modlvl,n_modlvl,.false.,rlat,lstart,rsig,-1)
+         call chm_corvert_mult(varName,work(1:n_modlvl),chm_obsoper%zhp(iobslev,1:n_modlvl), &
+                  chm_obsoper%lvl_top(iobslev),chm_obsoper%lvl_bot(iobslev),1,n_modlvl,n_modlvl, &
+                  .false.,rlat,lstart,-1,rsig)
 !
 !         chm_obsoper%zhp(iobslev,1:n_modlvl)=work(1:n_modlvl)
 !
@@ -3003,8 +3067,9 @@ contains
 !
 !        Determine/estimate w*B*w^T 
 !
-         call chm_corvert_mult(varName,chm_obsoper%zhp(iobslev,1:n_modlvl),zwbw,1, &
-                               n_modlvl,1,lrgsig,rlat,lstart,rsig,3)
+         call chm_corvert_mult(varName,chm_obsoper%zhp(iobslev,1:n_modlvl),zwbw, &
+                   chm_obsoper%lvl_top(iobslev),chm_obsoper%lvl_bot(iobslev),1,n_modlvl,1, &
+                   lrgsig,rlat,lstart,3,rsig)
 !
 !        Set 'a'
 !
@@ -3025,7 +3090,8 @@ contains
   
   end subroutine chm_genoper
 !-----------------------------------------------------------------------------------------
-  subroutine chm_corvert_mult(varName,rmat_in,rmat_out,ndim1,ndim2,ndim3,lrgsig,rlat,lstart,rsig,itype)
+  subroutine chm_corvert_mult(varName,rmat_in,rmat_out,lvl_top,lvl_bot,ndim1,ndim2,ndim3, &
+                              lrgsig,rlat,lstart,itype,rsig)
 !
 ! Author  : Y. Rochon, April 2015
 !
@@ -3051,22 +3117,26 @@ contains
 !
 !           varName              -- Variable name
 !           rmat_in(ndim1,ndim2) -- Input matrix/vector A (see comments sections)
+!           lvl_top(ndim1)       -- Top level of non-zero values in rmat_in
+!           lvl_bot(ndim1)       -- Bottom level of non-zero values in rmat_in
 !           ndim1,ndim2          -- Matrix dimensions
 !                                   ndim1 to be 1 one 1D input vectors
 !           ndim3                -- Expected output dimension.
 !                                   =ndim1 for itype= +/-3
 !                                   =ndim2 otherwise
 !           lrgsig               -- Index to indicate if rgsig to be included as part of C or CI below.
-!           rlat                 -- Input latitude (degrees).
+!           rlat                 -- Input latitude (radians).
 !           itype                -- Type of operator (see above). 
 !           lstart               -- Logical indicating if local initiliation if std. dev. required 
 !                                   for given obs location. 
-!           rsig(ndim2,2)        -- Background error std. dev. at obs locations (when lstart.ne.true)    
+!           rsig(ndim2,2)        -- Background error std. dev. at obs locations.
+!                                   Must be provided when lstart=.false. and lrgsig=.true.    
 !
 !  Output:
 !
 !           rmat_out(ndim1,ndim2) -- Output matrix/vector (see comments sections)
-!           rsig(ndim2,2)        -- Background error std. dev. at obs locations (set when lstart.eq.true)    
+!           rsig(ndim2,2)         -- Background error std. dev. at obs locations 
+!                                    Set/provided when lstart.eq.true.   
 !
 ! Comments:
 !
@@ -3084,12 +3154,15 @@ contains
       character(len=*), intent(in) :: varName
       logical, intent(in)    :: lstart,lrgsig
       integer, intent(in)    :: ndim1,ndim2,ndim3,itype
+      integer, intent(in) :: lvl_top(ndim1),lvl_bot(ndim1)
       real(8), intent(in)    :: rmat_in(ndim1,ndim2),rlat
       real(8), intent(out)   :: rmat_out(ndim1,ndim3)
-      real(8), intent(inout) :: rsig(ndim2,2)
+      real(8), intent(inout), optional :: rsig(ndim2,2)
    
       integer :: nsize
+      real(8) :: rsig_local(ndim2,2)
       
+      rsig_local(:,:)=0.0D0
       rmat_out(:,:)=0.0D0
   
 !     Set background error std. dev. if needed.
@@ -3099,31 +3172,39 @@ contains
 !        Get background error standard deviations
 !        Applicability tests within b*chm_getsigma.
 !
-         call bchm_getsigma(varName,ndim2,rlat,rsig(:,1),nsize)   
-!         call blamchm_getsigma(varName,ndim2,rlat,rsig(:,1),nsize)      
+         call bchm_getsigma(varName,ndim2,rlat,rsig_local(:,1),nsize)   
+!         call blamchm_getsigma(varName,ndim2,rlat,rsig_local(:,1),nsize)      
          if (nsize.ne.ndim2) then
              write(6,*) 'NSIZE, NDIM2: ',nsize,ndim2
              call abort3d('CHM_corvert_mult: Inconsistent size')
          end if
 
-!         call benschm_getsigma(varName,ndim2,rlat,rsig(:,2),nsize)      
+!         call benschm_getsigma(varName,ndim2,rlat,rsig_local(:,2),nsize)      
 !         if (nsize.eq.ndim2) then
 !             write(6,*) 'NSIZE, NDIM2: ',nsize,ndim2
 !             call abort3d('CHM_corvert_mult: Inconsistent size')
 !         end if
 
+          if (present(rsig)) rsig(:,:)=rsig_local(:,:)
+      else     
+          if (.not.present(rsig).and.lrgsig) &
+              call abort3d('CHM_corvert_mult: Missing rsig')
+          rsig_local(:,:)=rsig(:,:)
       end if
-  
+      
 !     Apply operation related to static background error covariance/correlation matrix.
 !     Applicability tests within b*chm_corvert_mult.
 
-      call bchm_corvert_mult(varName,rmat_in,rmat_out,ndim1,ndim2,ndim3,lrgsig,rsig(:,1),itype)
-!      call blamchm_corvert_mult(varName,rmat_in,ndim1,ndim2,rmat_out,lrgsig,rsig(:,1),itype)
+      call bchm_corvert_mult(varName,rmat_in,rmat_out,lvl_top,lvl_bot,ndim1,ndim2,ndim3, &
+                             lrgsig,itype,rsig_local(:,1))
+!      call blamchm_corvert_mult(varName,rmat_in,rmat_out,lvl_top,lvl_bot,ndim1,ndim2,ndim3, &
+!                             lrgsig,itype,rsig_local(:,1))
 
 !     Apply operation related to ensemble-based background error covariance/correlation matrix.
 !     Applicability test within benschm_corvert_mult.
 
-!      call benschm_corvert_mult(varName,rmat_in,rmat_out,ndim1,ndim2,ndim3,lrgsig,rsig(:,2),itype)
+!      call benschm_corvert_mult(varName,rmat_in,rmat_out,lvl_top,lvl_bot,ndim1,ndim2,ndim3, &
+!                                lrgsig,itype,rsig_local(:,2))
 
   end subroutine chm_corvert_mult
 !-----------------------------------------------------------------------------------------
