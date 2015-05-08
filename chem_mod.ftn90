@@ -1890,29 +1890,44 @@ contains
 !
 ! Further changes required for generalization 
 !
-! 0) Use more descriptive variables for most I/O arguments.
 ! 1) Add point and layer average operators.
-! 2) Add GENOPER option
-! 3) Add use of avg kernels
+! 2) Add use of avg kernels
 ! 4) Add consideration of other kmode cases.
 !
 ! Arguments:
 !
-!   Input (to be completed)
+!   Input
 !
+!     n_modlvl  Number of model (or increment field) vertical levels
 !     varno     BUFR descriptor element for obs units.
 !     rval      Trial field column 
 !     rtt       Temperature array (Kelvin)
-!     rpp       Pressure array (Pascal; kg/(m s^2))
+!     pressmodlvl  Pressure array (Pascal; kg/(m s^2))
 !     rgz       Geopotential altitudes (for conversion of obs altitudes to pressure when needed)
 !          
-!     kmode     0 for non-linear model in assimilation
+!     kmode     0 for non-linear/linear model in assimilation
+!                 Actually, all models included are currently linear
 !               1 for tangent linear model applied for error std.dev. conversion
 !               2 for tangent linear model
 !               3 for adjoint model 
+!     varName   Variable/obs nomvar
+!     cstnid    Obs STNID
+!     idate     YYYYMMDD (date of obs)
+!     ihhmm     HHMM (time of obs)
+!     ivco      Index of vertical coord type for obs
+!               1 - Altitudes (m)
+!               2 - Pressure (Pa)
+!               3 - Channel index
+!               4 - not provided with obs (normally for total column values)
+!     nobslev   Size of obs profile
 !     robslev   pressure value of observation (OBS_PPP)
+!     ixtr      Flag
+!     iass      Flag indicating if obs is to be assimilated
+!     rlat      Latitude of obs profile (radians)
+!     rlon      Longitue of obs profile (radians)
+!     iconstituent_id BUFR code element of Table 08046 identifyin the constituent.
 !
-!   Inout (to be completed)
+!   Inout
 !
 !     rmhx      H(x) element value when kmode=0 (out).
 !               Hsigma Converted error std. dev. estimate  when kmode=1 (out).
@@ -1930,7 +1945,7 @@ contains
 !
 ! Comments:
 !
-!     A. Does not account for potential future applications of obs 
+!     A. Does not yet account for potential future applications of obs 
 !        vertical correlation matrices.
 !        
 !-------------------------------------------------------------------------------------------
@@ -2970,13 +2985,13 @@ contains
 !
 !     where the modified innovation operator 'w' can be set as:
 !
-!            w= P[ (h'x)^T *  B^{-1} ]
+!            w= P[ (h'x)^T ] *  B^{-1}
 !
 !     with  h' is the part of h which excludes resolution dependence
 !              (only/mostly contains the physics part of h; zhp),
 !           x is the state profile rval
 !           P is a window cutoff operator (sets small values to zero), and
-!           B is the original/initial total covariance matrix (in 2D)
+!           B is the original/initial total "vertical" covariance matrix (in 2D)
 !         
 !
 !     and 'a' is a proportionality constant ensuring that the innovation
@@ -2988,23 +3003,36 @@ contains
 !     Application of the state profile x (rval) is to make the
 !     increment profile be more proportional to the state profile.
 !
+!     The presence of B^{-1} is to negate the weight re-distribution from the later 
+!     application of B in grad(Jo).
+!
 !     While dx is provided to the obs operator, the minimization is done for
 !     dx/sigma where sigma is the background error std. dev. in B and so C (correlation matrix)
-!     is used instead of B in the minimization. Moreover, the transformation from dx/sigma to dx is done
-!     outside the forward model operators (at the spectral to physical space transformation step). 
-!     For this reason, the expression for w should technically be replaced by
+!     is used instead of B in the minimization. Moreover, the transformation from dx/sigma 
+!     to dx is done outside the forward model operators (at the spectral to physical space 
+!     transformation step). For this reason, the expression for w should technically be replaced by
 !
-!            w= P[ (h'x/sigma^2)^T *  C^{-1} ]
+!            w= P[ (h'x/sigma^2)^T ] *  C^{-1} 
 !
 !     still with
 !
 !            a^2 = (h*B*h^T)(w*B*w^T)^{-1}
-!
-!     
+! 
 !     The presence of C^{-1} does/can give difficulty to the iterative variational 
-!     minimization. As approximation, one can use
+!     minimization. It can result in oscillations in the increment profile depending on
+!     where the iterations are stopped. Moreover, if the spectral space C matrix is for 
+!     non-seperable vertical and horizontal correlations, there will be oscillations 
+!     do to inconstencies between the total inverse vertical correlation C^{-1} in physical space 
+!     and the inverse vertical correlation matrix for each spectral wavenumber.
+!
+!     As alternatives, one can completely omit the role of  C^{-1} from w, i.e.
 !
 !            w= P[ (h'x/sigma^2)^T ]
+!
+!      or use the following substitute to approximate the role of C^{-1} in negating
+!      the weight re-distribution from later application of C in grad(Jo), i.e.
+!
+!            w(i)= P[ (h'x/sigma^2)^T ]_i / sum(C(:,i))
 !
 !     (2) The matrices B and B^{-1} are the total error covariance matrix (in physical space)
 !     and its inverse with the related error correlation matrices 'corvert' and 'corverti' 
@@ -3054,13 +3082,21 @@ contains
 ! 
          work(1:n_modlvl)=work(1:n_modlvl)/rsig(1:n_modlvl,1)
 !
-!        Note: Application of C^{-1} could be commented out and replaced by the 
-!        assigment of 'work' to 'chm_obsoper%zhp'
+!        Application of C^{-1} or substitute (for negating the later application of C in 
+!        finalizing grad(Jo). Option 2 is favoured.
 !  
+!        Option 1: Application of C^{-1}
+!         call chm_corvert_mult(varName,work(1:n_modlvl),chm_obsoper%zhp(iobslev,1:n_modlvl), &
+!                  chm_obsoper%lvl_top(iobslev),chm_obsoper%lvl_bot(iobslev),1,n_modlvl,n_modlvl, &
+!                  .false.,rlat,lstart,-1)
+!
+!        Option 2: Application of 1/sum(C(:,j)) to approximately negate the weight re-distribution from C
+!                  in the calc of grad(Jo).
          call chm_corvert_mult(varName,work(1:n_modlvl),chm_obsoper%zhp(iobslev,1:n_modlvl), &
                   chm_obsoper%lvl_top(iobslev),chm_obsoper%lvl_bot(iobslev),1,n_modlvl,n_modlvl, &
-                  .false.,rlat,lstart,-1,rsig)
+                  .false.,rlat,lstart,0)
 !
+!        Option 3: Just skip over consideration attempt at negating the weight re-distribution from C.
 !         chm_obsoper%zhp(iobslev,1:n_modlvl)=work(1:n_modlvl)
 !
 !        Determine proportionality factor 'a' = (h*B*h^T)(w*B*w^T)^{-1}
@@ -3071,7 +3107,7 @@ contains
                    chm_obsoper%lvl_top(iobslev),chm_obsoper%lvl_bot(iobslev),1,n_modlvl,1, &
                    lrgsig,rlat,lstart,3,rsig)
 !
-!        Set 'a'
+!        Set proportionality factor 'a'
 !
          za=sqrt(zhbh(1)/zwbw(1))
 !         if (abs(rlat*180./3.1415-78.).lt.2.0.and.abs(rlon*180./3.1415-185.).lt.2.0) then
@@ -3104,6 +3140,7 @@ contains
 !
 !          itype       Output
 !          -----       ------
+!            0          D(i,j)=A(i,j)/sum(C(1:n,i))
 !            1          A*C
 !            2          C*A
 !            3          A*C*A^T
