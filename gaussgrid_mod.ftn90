@@ -73,10 +73,9 @@ MODULE GAUSSGRID_MOD
     !
     if ( trim(hco_in % grtyp) /= 'G' ) then
       write(*,*)
-      write(*,*) 'gaus_SetupFromHCO: The global analysis grid structure is not from'
-      write(*,*) '                   a gaussian grid! ABORT'
+      write(*,*) 'gaus_SetupFromHCO: WARNING!!! The grid type of the global analysis grid'
+      write(*,*) '                   is not gaussian (G). Are you sure your grid is gaussian?'
       write(*,*) 'hco_in % grtyp = ', trim(hco_in % grtyp)
-      stop
     end if
 
     if ( (hco_in % lat(2) - hco_in % lat(1)) > 0.0d0 ) then

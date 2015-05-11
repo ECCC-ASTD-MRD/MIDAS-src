@@ -21,24 +21,176 @@ module calcbmatrix_glb_mod
   use gaussGrid_mod
   use HorizontalCoord_mod
   use varNameList_mod
+  use EarthConstants_mod, only: RA
   implicit none
   save
   private
 
   ! Public Subroutines
-  public :: calcb_glb_setup, calcb_glb_computeStats, calcb_glb_diag_verticalcov
-
+  public :: calcb_glb_setup, calcb_glb_computeStats, calcb_glb_diag_stddev
+  public :: calcb_glb_diag_hvcorrel, calcb_glb_diag_powerspec
 
   integer :: nens,ntrunc,ni,nj,nLevEns_M,nLevEns_T,nLevPtoT,nkgdimEns,varLevOffset(6),nla
   character(len=256), allocatable :: cflensin(:)
   integer :: gstID
   integer, allocatable :: nip1_M(:),nip1_T(:)
-  real*8             :: ra = 6371229.D0
+  real(8), pointer :: pressureProfile_M(:), pressureProfile_T(:)
+  integer,external    :: get_max_rss
+
+  integer,parameter  :: nvar3d=4,nvar2d=1
+  character*4 :: nomvar3d(nvar3d,3),nomvar2d(nvar2d,3)
+  integer, parameter :: modelSpace   = 1
+  integer, parameter :: cvSpace      = 2
+  integer, parameter :: cvUnbalSpace = 3
+
+  real(8) :: gridSpacingInKm
+
+  ! For wave band decomposition
+  integer, parameter  :: maxNumLocalLength = 20
+  integer             :: waveBandPeaks(maxNumLocalLength)
+  integer             :: nWaveBand
 
   logical :: initialized = .false.
 
   contains
 
+!--------------------------------------------------------------------------
+! CALCB_GLB_SETUP
+!--------------------------------------------------------------------------
+  subroutine calcb_glb_setup( nens_in, cflens_in, hco_in, vco_in)
+    implicit none
+
+    integer, intent(in)            :: nens_in
+    character(len=*), intent(in)   :: cflens_in(nens_in)
+    type(struct_vco), intent(in)   :: vco_in
+    type(struct_hco), intent(in)   :: hco_in
+
+    integer :: nulnam,ierr,mpiMode,status, waveBandIndex
+    integer :: fclos,fnom,fstouv,fstfrm
+
+    real(8) :: zps
+
+    NAMELIST /NAMCALCB_GLB/ntrunc,waveBandPeaks
+
+    write(*,*)
+    write(*,*) 'calcb_glb_setup: Starting...'
+
+    nens=nens_in
+    allocate(cflensin(nens))
+    cflensin(:)=cflens_in(:)
+    call mpc_printConstants(6)
+    call gaus_SetupFromHCO(hco_in) ! IN
+
+    ! parameters from namelist (date in filename should come directly from sequencer?)
+    ntrunc=108
+    waveBandPeaks(:) = -1.0d0
+
+    nulnam=0
+    ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+    read(nulnam,nml=namcalcb_glb)
+    write(*,nml=namcalcb_glb)
+    ierr=fclos(nulnam)
+
+    !- Setup horizontal grid
+    ni=hco_in%ni
+    nj=hco_in%nj
+    gridSpacingInKm = ra * hco_in%dlon / 1000.d0
+    
+    write(*,*) 'Grid Spacing in Km = ', gridSpacingInKm
+
+    !- Setup vertical levels
+    nLevEns_M=vco_in%nlev_M
+    nLevEns_T=vco_in%nlev_T
+    nLevPtot=nLevEns_M-1 ! ignore streamfunction at hyb=1, since highly correlated with next level
+    varLevOffset(1) = 0
+    varLevOffset(2) = 1*nLevEns_M
+    varLevOffset(3) = 2*nLevEns_M
+    varLevOffset(4) = 2*nLevEns_M+1*nLevEns_T
+    varLevOffset(5) = 2*nLevEns_M+2*nLevEns_T
+    nkgdimEns=nLevEns_M*2+nLevEns_T*2+1 ! NO TG !!!
+    nla=(ntrunc+1)*(ntrunc+2)/2
+    
+    !- Setup the global spectral transform
+    mpiMode=2
+    gstID = gst_setup(ni,nj,ntrunc,mpiMode)
+
+    !- Setup ip1s
+    allocate(nip1_M(nLevEns_M))
+    nip1_M(:)=vco_in%ip1_M(:)
+    allocate(nip1_T(nLevEns_T))
+    nip1_T(:)=vco_in%ip1_T(:)
+
+    !- Estimate the pressure profile for each vertical grid    
+    zps = 101000.D0
+    status = vgd_levels( vco_in%vgrid, ip1_list=vco_in%ip1_M, levels=pressureProfile_M, &
+                         sfc_field=zps, in_log=.false.)
+
+    status = vgd_levels( vco_in%vgrid, ip1_list=vco_in%ip1_T, levels=pressureProfile_T, &
+                         sfc_field=zps, in_log=.false.)
+
+    !
+    !- Setup variable names
+    !
+    nomvar3d(1,modelSpace)='UU'
+    nomvar3d(2,modelSpace)='VV'
+    nomvar3d(3,modelSpace)='TT'
+    nomvar3d(4,modelSpace)='LQ'
+    nomvar2d(1,modelSpace)='P0'
+    
+    nomvar3d(1,cvSpace)='PP'
+    nomvar3d(2,cvSpace)='CC'
+    nomvar3d(3,cvSpace)='TT'
+    nomvar3d(4,cvSpace)='LQ'
+    nomvar2d(1,cvSpace)='P0'
+    
+    nomvar3d(1,cvUnbalSpace)='PP'
+    nomvar3d(2,cvUnbalSpace)='UC'
+    nomvar3d(3,cvUnbalSpace)='UT'
+    nomvar3d(4,cvUnbalSpace)='LQ'
+    nomvar2d(1,cvUnbalSpace)='UP'
+
+    !
+    !- Wave band decomposition option (available in )
+    !
+    nWaveBand = count(waveBandPeaks .ge. 0)
+    if ( nWaveBand < 1 ) then
+       nWaveBand = 1
+    else if (nWaveBand == 1) then
+       write(*,*) 'You have specified only ONE waveBandPeaks'
+       stop
+    else
+       write(*,*)
+       write(*,*) 'WaveBand decomposition is ACTIVATED'
+    end if
+    
+    ! Make sure that the wavenumbers are in the correct (decreasing) order
+    do waveBandIndex = 1, nWaveBand-1
+       if ( waveBandPeaks(waveBandIndex)-waveBandPeaks(waveBandIndex+1) <= 0 ) then
+          write(*,*) 'calcb_glb_setup: waveBandPeaks are not in decreasing wavenumber order'
+          stop
+       end if
+    end do
+
+    ! Make sure the truncation is compatible with the waveBandPeaks
+    if ( ntrunc < nj-1 ) then
+       write(*,*) 'calcb_glb_setup: The truncation is not compatible with wave band decomposition'
+       write(*,*) '                 ntrunc should = ', nj-1
+       stop
+    end if
+
+    !
+    !- Ending
+    !
+    initialized = .true.
+
+    write(*,*)
+    write(*,*) 'calcb_glb_setup: Done!'
+
+  end subroutine calcb_glb_setup
+
+!--------------------------------------------------------------------------
+! CALCB_GLB_COMPUTESTATS
+!--------------------------------------------------------------------------
   subroutine calcb_glb_computeStats
     implicit none
     integer :: ierr
@@ -116,6 +268,7 @@ module calcbmatrix_glb_mod
     endif
 
     call readEnsemble(ensPerturbations)
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     call removeMean(ensPerturbations)
 
@@ -191,13 +344,106 @@ module calcbmatrix_glb_mod
 
   end subroutine calcb_glb_computeStats
 
+!--------------------------------------------------------------------------
+! CALCB_GLB_DIAG_HVCORREL
+!--------------------------------------------------------------------------
+  subroutine calcb_glb_diag_hvCorrel
+    implicit none
 
-  subroutine calcb_glb_diag_verticalcov
+    ! NOTE: The diagnostic computed here are in model variable space 
+    !       (no variable transform!!!)
+
+    integer :: ierr,  waveBandIndex
+
+    real*4,pointer     :: ensPerturbations(:,:,:,:)
+    real*8,allocatable :: stddev3d(:,:,:)
+    real*8,allocatable :: corns(:,:,:),rstddev(:,:)
+
+    write(*,*)
+    write(*,*) 'calcb_glb_diag_hvCorrel'
+    write(*,*)
+    
+    allocate(ensPerturbations(ni,nkgdimEns,nj,nens))
+    allocate(stddev3d(ni,nkgdimEns,nj))
+    allocate(corns(nkgdimEns,nkgdimEns,0:ntrunc))
+    allocate(rstddev(nkgdimEns,0:ntrunc))
+   
+    do waveBandIndex = 1, nWaveBand
+
+       if ( nWaveBand /= 1 ) then
+          write(*,*)
+          write(*,*) ' ********* Processing WaveBand #',waveBandIndex
+          write(*,*)
+       end if
+
+       call readEnsemble(ensPerturbations,windImages=.false.) ! OUT
+       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+       call removeMean(ensPerturbations) ! INOUT
+       
+       call spectralFilter(ensPerturbations,nkgdimens,waveBandIndex=waveBandIndex) ! INOUT, IN, IN
+
+       call calcStddev3d(ensPerturbations,stddev3d,nkgdimens) ! IN, OUT, IN
+
+       call normalize3d(ensPerturbations,stddev3d) ! INOUT, IN
+       
+       call removeGlobalMean(ensPerturbations) ! INOUT
+    
+       call calcCorrelations(ensPerturbations, & ! IN
+                             corns,            & ! OUT (vertical correlation in spectral space)
+                             rstddev)            ! OUT ( sqrt(normalized power spectrum) )
+
+       call writeStats(corns,rstddev,waveBandIndex=waveBandIndex) ! IN
+
+       call calcHorizScale(rstddev,modelSpace,waveBandIndex=waveBandIndex) ! IN
+
+       call horizCorrelFunction(rstddev,waveBandIndex=waveBandIndex) ! IN
+
+    end do
+
+  end subroutine calcb_glb_diag_hvCorrel
+
+!--------------------------------------------------------------------------
+! CALCB_GLB_DIAG_POWERSPEC
+!--------------------------------------------------------------------------
+  subroutine calcb_glb_diag_powerspec
+    implicit none
+
+    ! NOTE: The diagnostic computed here are in model variable space 
+    !       (no variable transform!!!)
+
+    integer :: ierr,  waveBandIndex
+
+    real*4,pointer     :: ensPerturbations(:,:,:,:)
+    real*8,allocatable :: powerSpec(:,:)
+
+    write(*,*)
+    write(*,*) 'calcb_glb_diag_powerspec'
+    write(*,*)
+    
+    allocate(ensPerturbations(ni,nkgdimEns,nj,nens))
+    allocate(powerspec(nkgdimEns,0:ntrunc))
+
+    call readEnsemble(ensPerturbations,windImages=.false.) ! OUT, IN
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+    call removeMean(ensPerturbations) ! INOUT
+
+    call calcPowerSpec(ensPerturbations, & ! IN
+                       powerSpec)          ! OUT
+
+    call writePowerSpec(powerSpec) ! IN
+
+  end subroutine calcb_glb_diag_powerspec
+
+!--------------------------------------------------------------------------
+! CALCB_GLB_DIAG_STDDEV
+!--------------------------------------------------------------------------
+  subroutine calcb_glb_diag_stddev
     implicit none
     integer :: ierr
     real*4,pointer  :: ensPerturbations(:,:,:,:)
     real*8,allocatable :: stddev3d(:,:,:),stddevZonAvg(:,:)
-    real*8,allocatable :: verticalcov(:,:,:)
 
     allocate(ensPerturbations(ni,nkgdimEns,nj,nens),stat=ierr)
     if(ierr.ne.0) then
@@ -214,11 +460,6 @@ module calcbmatrix_glb_mod
       write(*,*) 'Problem allocating memory!',ierr
       call flush(6)
     endif
-    allocate(verticalcov(ni,nkgdimEns,nj),stat=ierr)
-    if(ierr.ne.0) then
-      write(*,*) 'Problem allocating memory!',ierr
-      call flush(6)
-    endif
 
     call readEnsemble(ensPerturbations)
 
@@ -230,10 +471,6 @@ module calcbmatrix_glb_mod
 
     call calcZonAvg(stddevZonAvg,stddev3d,nkgdimens)
 
-!    call calcVerticalCov(ensPerturbations,verticalCov)
-
-!    call writeVerticalCov(verticalCov)
-
     call writeStddev(stddevZonAvg,stddevZonAvg,stddev3d,stddev3d)
 
     write(200,*) stddevZonAvg(1:nlevEns_M,:)
@@ -242,9 +479,11 @@ module calcbmatrix_glb_mod
     write(203,*) stddevZonAvg((1+2*nlevEns_M+1*nlevEns_T):(2*nlevEns_M+2*nlevEns_T),:)
     write(204,*) stddevZonAvg((1+2*nlevEns_M+2*nlevEns_T),:)/1.0d2
 
-  end subroutine calcb_glb_diag_verticalcov
+  end subroutine calcb_glb_diag_stddev
 
-
+!--------------------------------------------------------------------------
+! WRITESPSTATS
+!--------------------------------------------------------------------------
   subroutine writeSpStats(ptot,theta)
     implicit none
     real*8 :: PtoT(:,:,:),theta(:,:)
@@ -330,66 +569,9 @@ module calcbmatrix_glb_mod
 
   end subroutine writeSpStats
 
-  subroutine calcb_glb_setup( nens_in, cflens_in, hco_in, vco_in)
-    implicit none
-
-    integer, intent(in)            :: nens_in
-    character(len=*), intent(in)   :: cflens_in(nens_in)
-    type(struct_vco), intent(in)   :: vco_in
-    type(struct_hco), intent(in)   :: hco_in
-
-    integer :: nulnam,ierr,mpiMode
-    integer :: fclos,fnom,fstouv,fstfrm
-
-    NAMELIST /NAMCALCB_GLB/ntrunc
-
-    write(*,*)
-    write(*,*) 'calcb_glb_setup: Starting...'
-
-    nens=nens_in
-    allocate(cflensin(nens))
-    cflensin(:)=cflens_in(:)
-    call mpc_printConstants(6)
-    call gaus_SetupFromHCO(hco_in) ! IN
-
-    ! parameters from namelist (date in filename should come directly from sequencer?)
-    ntrunc=108
-
-    nulnam=0
-    ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-    read(nulnam,nml=namcalcb_glb)
-    write(*,nml=namcalcb_glb)
-    ierr=fclos(nulnam)
-
-    ni=hco_in%ni
-    nj=hco_in%nj
-    nLevEns_M=vco_in%nlev_M
-    nLevEns_T=vco_in%nlev_T
-    nLevPtot=nLevEns_M-1 ! ignore streamfunction at hyb=1, since highly correlated with next level
-    varLevOffset(1) = 0
-    varLevOffset(2) = 1*nLevEns_M
-    varLevOffset(3) = 2*nLevEns_M
-    varLevOffset(4) = 2*nLevEns_M+1*nLevEns_T
-    varLevOffset(5) = 2*nLevEns_M+2*nLevEns_T
-    nkgdimEns=nLevEns_M*2+nLevEns_T*2+1 ! NO TG !!!
-    nla=(ntrunc+1)*(ntrunc+2)/2
-    
-    mpiMode=2
-    gstID = gst_setup(ni,nj,ntrunc,mpiMode)
-
-    allocate(nip1_M(nLevEns_M))
-    nip1_M(:)=vco_in%ip1_M(:)
-    allocate(nip1_T(nLevEns_T))
-    nip1_T(:)=vco_in%ip1_T(:)
-
-    initialized = .true.
-
-    write(*,*)
-    write(*,*) 'calcb_glb_setup: Done!'
-
-  end subroutine calcb_glb_setup
-
-
+!--------------------------------------------------------------------------
+! REMOVEBALANCEDCHI
+!--------------------------------------------------------------------------
   subroutine removeBalancedChi(ensPerturbations,theta)
     implicit none
     real*4,pointer :: ensPerturbations(:,:,:,:)
@@ -416,7 +598,9 @@ module calcbmatrix_glb_mod
 
   end subroutine removeBalancedChi
 
-
+!--------------------------------------------------------------------------
+! REMOVEBALANCEDT_PS
+!--------------------------------------------------------------------------
   subroutine removeBalancedT_Ps(ensPerturbations,ensBalPerturbations,PtoT)
     implicit none
     real*4,pointer :: ensPerturbations(:,:,:,:)
@@ -468,7 +652,9 @@ module calcbmatrix_glb_mod
 
   end subroutine removeBalancedT_Ps
 
-
+!--------------------------------------------------------------------------
+! CALCCORRELATIONS
+!--------------------------------------------------------------------------
   subroutine calcCorrelations(ensPerturbations,corns,rstddev)
     implicit none
     real*4,pointer :: ensPerturbations(:,:,:,:)
@@ -554,19 +740,91 @@ module calcbmatrix_glb_mod
 
   end subroutine calcCorrelations
 
-
-  subroutine writeStats(corns,rstddev,ptot,theta)
+!--------------------------------------------------------------------------
+! CALCPOWERSPEC
+!--------------------------------------------------------------------------
+  subroutine calcPowerSpec(ensPerturbations,powerSpec)
     implicit none
+    real*4,pointer, intent(in)  :: ensPerturbations(:,:,:,:)
+    real*8,         intent(out) :: powerSpec(nkgdimEns,0:ntrunc)
+
+    real*8  :: spectralState(nla,2,nkgdimEns),gridState(ni,nkgdimEns,nj)
+    real*8  :: dfact,dfact2,dsummed
+
+    integer :: jens,ila,jn,jm,jk
+
+    powerSpec(:,:)=0.0d0
+
+    do jens = 1, nens
+
+      write(*,*) 'calcPowerSpec: processing member ',jens
+      call flush(6)
+
+      gridState(:,:,:)=ensPerturbations(:,:,:,jens)
+      call gst_reespe(spectralState,gridState,nkgdimEns,nkgdimEns)
+
+!$OMP PARALLEL
+!$OMP DO PRIVATE (jn,jm,dfact,ila,jk)
+      do jn = 0, ntrunc
+        do jm = 0, jn
+          dfact = 2.0d0
+          if (jm.eq.0) dfact = 1.0d0
+          ila = gst_getNind(jm) + jn - jm
+          do jk = 1, nkgdimEns
+              powerSpec(jk,jn) = powerSpec(jk,jn) +     &
+                 dfact*( spectralState(ila,1,jk)**2 + spectralState(ila,2,jk)**2 )
+          enddo
+        enddo
+      enddo
+!$OMP END DO
+!$OMP END PARALLEL
+
+    enddo
+
+    dfact2 = 1.0d0/sqrt(dble(nens-1))
+    do jn = 0, ntrunc
+      dfact = 1.0d0/sqrt(2.0d0*dble(jn) + 1.0d0)
+      do jk = 1, nkgdimEns
+        powerSpec(jk,jn) = powerSpec(jk,jn)*dfact2*dfact
+      enddo
+    enddo
+
+    write(*,*) 'finished computing power spectrum...'
+    call flush(6)
+
+  end subroutine calcPowerSpec
+
+!--------------------------------------------------------------------------
+! WRITESTATS
+!--------------------------------------------------------------------------
+  subroutine writeStats(corns,rstddev,ptot,theta,waveBandIndex)
+    implicit none
+
     real*8 :: corns(nkgdimEns,nkgdimEns,0:ntrunc),rstddev(nkgdimEns,0:ntrunc)
-    real*8 :: PtoT(:,:,:),theta(:,:)
+    real*8, optional :: PtoT(:,:,:),theta(:,:)
+    integer, optional :: waveBandIndex
+
     integer jn,ierr,ipak,jk,jl
     real*8 prcor(nkgdimEns,nkgdimEns)
     integer vfstecr,fstouv,fnom,fstfrm,fclos
     integer ip1,ip2,ip3,idatyp,idateo
     integer :: nulstats
 
+    character(len=128) :: outfilename
+    character(len=2) :: wbnum
+
     nulstats=0
-    ierr =  fnom  (nulstats,'./glbcov.fst','RND',0)
+    if ( nWaveBand == 1 ) then
+       outfilename='./bgcov.fst'
+    else
+       if (.not. present(waveBandIndex)) then
+          write(*,*) 'writeStats: No waveBandIndex was supplied!!!'
+          stop
+       end if
+       write(wbnum,'(I2.2)') waveBandIndex
+       outfilename='./bgcov_'//trim(wbnum)//'.fst'
+    end if
+    ierr =  fnom  (nulstats,trim(outfilename),'RND',0)
     ierr =  fstouv(nulstats,'RND')
 
     ipak = -32
@@ -576,11 +834,14 @@ module calcbmatrix_glb_mod
     ip3 = nens
     idateo = 0
 
-    ierr = vfstecr(ptot(1,1,1),ptot(1,1,1),ipak,nulstats,idateo,0,0,nlevEns_T+1,nlevEns_M,nj,  &
-                   ip1,ip2,ip3,'X','ZZ','P_to_T  ','X',0,0,0,0,idatyp,.true.)
-
-    ierr = vfstecr(theta(1,1),theta(1,1),ipak,nulstats,idateo,0,0,nlevEns_M,nj,1,   &
-                   ip1,ip2,ip3,'X','ZZ','THETA   ','X',0,0,0,0,idatyp,.true.)
+    if (present(ptot)) then
+       ierr = vfstecr(ptot(1,1,1),ptot(1,1,1),ipak,nulstats,idateo,0,0,nlevEns_T+1,nlevEns_M,nj,  &
+                      ip1,ip2,ip3,'X','ZZ','P_to_T  ','X',0,0,0,0,idatyp,.true.)
+    end if
+    if (present(theta)) then
+       ierr = vfstecr(theta(1,1),theta(1,1),ipak,nulstats,idateo,0,0,nlevEns_M,nj,1,   &
+                      ip1,ip2,ip3,'X','ZZ','THETA   ','X',0,0,0,0,idatyp,.true.)
+    end if
 
     do jn = 0, ntrunc
       ip2 = jn
@@ -624,7 +885,9 @@ module calcbmatrix_glb_mod
 
   end subroutine writeStats
 
-
+!--------------------------------------------------------------------------
+! WRITESTDDEV
+!--------------------------------------------------------------------------
   subroutine writeStddev(stddevZonAvg,stddevZonAvgUnbal,stddev3d,stddev3dUnbal)
     implicit none
     real*8 :: stddevZonAvg(:,:),stddevZonAvgUnbal(:,:),stddev3d(:,:,:),stddev3dUnbal(:,:,:)
@@ -633,19 +896,6 @@ module calcbmatrix_glb_mod
     integer vfstecr,fstouv,fnom,fstfrm,fclos
     integer ip1,ip2,ip3,idatyp,idateo,ipak,nip1_l(max(nLevEns_M,nLevens_T))
     integer :: nulstats
-    integer,parameter :: nvar3d=4,nvar2d=1
-    character*4 :: nomvar3d(nvar3d),nomvar3dUnbal(nvar3d),nomvar2d(nvar2d),nomvar2dUnbal(nvar2d)
-
-    nomvar3d(1)='PP'
-    nomvar3d(2)='CC'
-    nomvar3d(3)='TT'
-    nomvar3d(4)='LQ'
-    nomvar3dUnbal(1)='PP'
-    nomvar3dUnbal(2)='UC'
-    nomvar3dUnbal(3)='UT'
-    nomvar3dUnbal(4)='LQ'
-    nomvar2d(1)='P0'
-    nomvar2dUnbal(1)='UP'
 
     nulstats=0
     ierr =  fnom  (nulstats,'./stddev.fst','RND',0)
@@ -660,7 +910,7 @@ module calcbmatrix_glb_mod
 
     ! do 3d variables
     do jvar=1,nvar3d
-      if(vnl_varTypeFromVarName(nomvar3d(jvar)).eq.'MM') then
+      if(vnl_varTypeFromVarName(nomvar3d(jvar,cvSpace)).eq.'MM') then
         nLevEns = nLevEns_M
         nip1_l(1:nLevEns_M)=nip1_M(1:nLevEns_M)
       else
@@ -676,7 +926,7 @@ module calcbmatrix_glb_mod
           enddo
         enddo
         ierr = vfstecr(zbuf,zbuf,ipak,nulstats,idateo,0,0,ni,nj,1,nip1_l(jlev),ip2,ip3,   &
-                       'E',nomvar3d(jvar),'STDDEV3D','G',0,0,0,0,idatyp,.true.)
+                       'E',nomvar3d(jvar,cvSpace),'STDDEV3D','G',0,0,0,0,idatyp,.true.)
       enddo
 
       do jlev=1,nlevEns
@@ -685,9 +935,9 @@ module calcbmatrix_glb_mod
         enddo
       enddo
       ierr = vfstecr(zbufyz(:,1:nLevEns),zbufyz(:,1:nLevEns),ipak,nulstats,idateo,0,0,1,nj,nlevEns,ip1,ip2,ip3,   &
-                     'E',nomvar3d(jvar),'STDDEV  ','X',0,0,0,0,idatyp,.true.)
+                     'E',nomvar3d(jvar,cvSpace),'STDDEV  ','X',0,0,0,0,idatyp,.true.)
 
-      if(nomvar3d(jvar).ne.nomvar3dUnbal(jvar)) then
+      if(nomvar3d(jvar,cvSpace).ne.nomvar3d(jvar,cvUnbalSpace)) then
         dfact=1.0d0
 
         do jlev=1,nlevEns
@@ -697,7 +947,7 @@ module calcbmatrix_glb_mod
             enddo 
           enddo
           ierr = vfstecr(zbuf,zbuf,ipak,nulstats,idateo,0,0,ni,nj,1,nip1_l(jlev),ip2,ip3,   &
-                         'E',nomvar3dUnbal(jvar),'STDDEV3D','G',0,0,0,0,idatyp,.true.)
+                         'E',nomvar3d(jvar,cvUnbalSpace),'STDDEV3D','G',0,0,0,0,idatyp,.true.)
         enddo
 
         do jlev=1,nlevEns
@@ -706,14 +956,14 @@ module calcbmatrix_glb_mod
           enddo
         enddo
         ierr = vfstecr(zbufyz(:,1:nLevEns),zbufyz(:,1:nLevEns),ipak,nulstats,idateo,0,0,1,nj,nlevEns,ip1,ip2,ip3,   &
-                       'E',nomvar3dUnbal(jvar),'STDDEV  ','X',0,0,0,0,idatyp,.true.)
+                       'E',nomvar3d(jvar,cvUnbalSpace),'STDDEV  ','X',0,0,0,0,idatyp,.true.)
       endif
 
     enddo
 
     ! now do 2D variables
     do jvar=1,nvar2d
-      if(nomvar2d(jvar).eq.'P0') then
+      if(nomvar2d(jvar,cvSpace).eq.'P0') then
         dfact=1.0d0/1.0d2
       else
         dfact=1.0d0
@@ -725,16 +975,16 @@ module calcbmatrix_glb_mod
         enddo
       enddo
       ierr = vfstecr(zbuf,zbuf,ipak,nulstats,idateo,0,0,ni,nj,1,0,ip2,ip3,   &
-                     'E',nomvar2d(jvar),'STDDEV3D','G',0,0,0,0,idatyp,.true.)
+                     'E',nomvar2d(jvar,cvSpace),'STDDEV3D','G',0,0,0,0,idatyp,.true.)
 
       do jlat=1,nj
         zbufy(jlat)=dfact*stddevZonAvg(varLevOffset(nvar3d+1)+jvar,nj-jlat+1)
       enddo
       ierr = vfstecr(zbufy,zbufy,ipak,nulstats,idateo,0,0,1,nj,1,ip1,ip2,ip3,   &
-                     'E',nomvar2d(jvar),'STDDEV  ','X',0,0,0,0,idatyp,.true.)
+                     'E',nomvar2d(jvar,cvSpace),'STDDEV  ','X',0,0,0,0,idatyp,.true.)
 
-      if(nomvar2d(jvar).ne.nomvar2dUnbal(jvar)) then
-        if(nomvar2dUnbal(jvar).eq.'UP') then
+      if(nomvar2d(jvar,cvSpace).ne.nomvar2d(jvar,cvUnbalSpace)) then
+        if(nomvar2d(jvar,cvUnbalSpace).eq.'UP') then
           dfact=1.0d0/1.0d2
         else
           dfact=1.0d0
@@ -746,13 +996,13 @@ module calcbmatrix_glb_mod
           enddo 
         enddo
         ierr = vfstecr(zbuf,zbuf,ipak,nulstats,idateo,0,0,ni,nj,1,0,ip2,ip3,   &
-                       'E',nomvar2dUnbal(jvar),'STDDEV3D','G',0,0,0,0,idatyp,.true.)
+                       'E',nomvar2d(jvar,cvUnbalSpace),'STDDEV3D','G',0,0,0,0,idatyp,.true.)
 
         do jlat=1,nj
           zbufy(jlat)=dfact*stddevZonAvgUnbal(varLevOffset(nvar3d+1)+jvar,nj-jlat+1)
         enddo
         ierr = vfstecr(zbufyz,zbufyz,ipak,nulstats,idateo,0,0,1,nj,1,ip1,ip2,ip3,   &
-                       'E',nomvar2dUnbal(jvar),'STDDEV  ','X',0,0,0,0,idatyp,.true.)
+                       'E',nomvar2d(jvar,cvUnbalSpace),'STDDEV  ','X',0,0,0,0,idatyp,.true.)
       endif
 
     enddo
@@ -765,7 +1015,9 @@ module calcbmatrix_glb_mod
 
   end subroutine writeStddev
 
-
+!--------------------------------------------------------------------------
+! WRITESTDDEVBAL
+!--------------------------------------------------------------------------
   subroutine writeStddevBal(stddevZonAvgBal,stddev3dBal)
     implicit none
     real*8 :: stddevZonAvgBal(:,:),stddev3dBal(:,:,:)
@@ -845,27 +1097,82 @@ module calcbmatrix_glb_mod
 
   end subroutine writeStddevBal
 
-
-  subroutine spectralFilter(ensPerturbations,nlev)
+!--------------------------------------------------------------------------
+! SPECTRALFILTER
+!--------------------------------------------------------------------------
+  subroutine spectralFilter(ensPerturbations,nlev,waveBandIndex)
     implicit none
     real*4,pointer :: ensPerturbations(:,:,:,:)
+    integer, intent(in) :: nlev
+    integer, optional, intent(in) :: waveBandIndex
+
     real*8  :: spectralState(nla,2,nlev)
     real*8  :: member(ni,nlev,nj)
-    integer :: jens,nlev
+    integer :: jens, jk, jn, jm, ila
+
+    real(8), allocatable :: ResponseFunction(:)
+    real(8) :: waveLength
+
+    character(len=128) :: outfilename
+    character(len=2) :: wbnum
+
+    if ( nWaveBand /= 1 ) then
+       write(*,*) 'Bandpass filtering step'
+       if (.not. present(waveBandIndex)) then
+          write(*,*) 'Error: No waveBandIndex was supplied!!!'
+          stop
+       end if
+       allocate(ResponseFunction(0:ntrunc))
+       write(wbnum,'(I2.2)') waveBandIndex
+       outfilename = "./ResponseFunction_"//wbnum//".txt"
+       open (unit=99,file=outfilename,action="write",status="new")
+       do jn = 0, ntrunc
+          ResponseFunction(jn) = SpectralFilterResponseFunction(dble(jn),waveBandIndex)
+          if ( jn /= 0) then
+             waveLength=4.d0*asin(1.d0)*ra/dble(jn)
+          else
+             waveLength=0.d0
+          end if
+          write(* ,'(I4,2X,F7.1,2X,F5.3)') jn, waveLength/1000.d0, ResponseFunction(jn)
+          write(99,'(I4,2X,F7.1,2X,F5.3)') jn, waveLength/1000.d0, ResponseFunction(jn)
+       end do
+       close(unit=99)
+    end if
 
     do jens=1,nens
       member(:,:,:)=dble(ensPerturbations(:,:,:,jens))     
       call gst_reespe(spectralState,member,nlev,nlev)
+      if ( nWaveBand /= 1 ) then
+!$OMP PARALLEL
+!$OMP DO PRIVATE (jk,jn,jm,ila)
+         do jk = 1, nlev
+            do jn = 0, ntrunc
+               do jm = 0, jn
+                  ila = gst_getnind(jm,gstID)+jn-jm
+                  spectralState(ila,1,jk) = spectralState(ila,1,jk) * ResponseFunction(jn)
+                  spectralState(ila,2,jk) = spectralState(ila,2,jk) * ResponseFunction(jn)
+               end do
+            end do
+         end do
+!$OMP END DO
+!$OMP END PARALLEL
+      end if
       call gst_speree(spectralState,member,nlev,nlev)
       ensPerturbations(:,:,:,jens)=sngl(member(:,:,:))
     enddo
+
+    if ( nWaveBand /= 1 ) then
+       deallocate(ResponseFunction)
+    end if
 
     write(*,*) 'finished applying spectral filter...'
     call flush(6)
 
   end subroutine spectralFilter
 
-
+!--------------------------------------------------------------------------
+! CALCTHETA
+!--------------------------------------------------------------------------
   subroutine calcTheta(ensPerturbations,theta)
     implicit none
     real*4,pointer :: ensPerturbations(:,:,:,:)
@@ -905,7 +1212,9 @@ module calcbmatrix_glb_mod
 
   end subroutine calcTheta
 
-
+!--------------------------------------------------------------------------
+! CALCPTOT
+!--------------------------------------------------------------------------
   subroutine calcPtoT(ensPerturbations,PtoT)
     implicit none
     real*4,pointer :: ensPerturbations(:,:,:,:)
@@ -1075,7 +1384,9 @@ module calcbmatrix_glb_mod
 
   end subroutine calcPtoT
 
-
+!--------------------------------------------------------------------------
+! REMOVEGLOBALMEAN
+!--------------------------------------------------------------------------
   subroutine removeGlobalMean(ensPerturbations)
     implicit none
     integer :: jlon,jlat,jlev,jens
@@ -1108,7 +1419,9 @@ module calcbmatrix_glb_mod
 
   end subroutine removeGlobalMean
 
-
+!--------------------------------------------------------------------------
+! CALCZONAVG
+!--------------------------------------------------------------------------
   subroutine calcZonAvg(fieldsZonAvg,fields3D,nlev)
     implicit none
 
@@ -1134,7 +1447,9 @@ module calcbmatrix_glb_mod
 
   end subroutine calcZonAvg
 
-
+!--------------------------------------------------------------------------
+! CALCSTDDEV3D
+!--------------------------------------------------------------------------
   subroutine calcStddev3d(ensPerturbations,stddev3d,nlev)
     implicit none
 
@@ -1172,7 +1487,9 @@ module calcbmatrix_glb_mod
   
   end subroutine calcStddev3d
 
-
+!--------------------------------------------------------------------------
+! CALCBALANCEDP
+!--------------------------------------------------------------------------
   subroutine calcBalancedP(sppsi,spgz)
     implicit none
 
@@ -1260,7 +1577,9 @@ module calcbmatrix_glb_mod
 
   end subroutine calcBalancedP
 
-
+!--------------------------------------------------------------------------
+! NORMALIZED3D
+!--------------------------------------------------------------------------
   subroutine normalize3d(ensPerturbations,stddev3d)
     implicit none
 
@@ -1292,7 +1611,9 @@ module calcbmatrix_glb_mod
   
   end subroutine normalize3d
 
-
+!--------------------------------------------------------------------------
+! MULTIPLY3D
+!--------------------------------------------------------------------------
   subroutine multiply3d(ensPerturbations,stddev3d,nlev)
     implicit none
 
@@ -1319,9 +1640,13 @@ module calcbmatrix_glb_mod
   
   end subroutine multiply3d
 
-
-  subroutine readEnsemble(ensPerturbations)
+!--------------------------------------------------------------------------
+! READENSEMBLE
+!--------------------------------------------------------------------------
+  subroutine readEnsemble(ensPerturbations,windImages)
     implicit none
+
+    logical, optional, intent(in) :: windImages
 
     integer :: stamp_in
     real*8 :: gd2d(ni,nj)
@@ -1331,6 +1656,8 @@ module calcbmatrix_glb_mod
     integer :: jlon,jlat,jlev,jens
     integer :: nulens
     integer :: ngposituu,ngpositvv,ngposittt,ngpositq,ngpositps,ngposittg
+
+    logical :: convertToWindImages
 
     ! standard file variables
     integer ini,inj,ink,ip1,ip2,ip3,ierr,idateo,ikey
@@ -1354,9 +1681,19 @@ module calcbmatrix_glb_mod
     rmbtpa = 1.0d2
     r1sa=1.d0/6371229.d0
 
+    if ( present(windImages)) then
+       convertToWindImages = windImages
+    else
+       convertToWindImages = .true. ! default value
+    end if
+
+    if ( convertToWindImages ) then
+       write(*,*) 'WIND components will be converted to WIND IMAGES'
+    end if
+
     ! read in raw ensemble (UU,VV,TT,P0,LQ (convert HU to LQ) - covariances)
-!    ip2 = 6
-    ip2 = -1
+    ip2 = 6
+!    ip2 = -1
     ip3=-1
     idateo = -1
     cltypvar = ' '
@@ -1364,6 +1701,7 @@ module calcbmatrix_glb_mod
 
     do jens=1,nens
         write(*,*) 'Reading ensemble member:',trim(cflensin(jens))
+        write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
         call flush(6)
 
         nulens=0
@@ -1439,7 +1777,11 @@ module calcbmatrix_glb_mod
               call qqexit(1)
             endif
             do jlat=1,nj
-              conima=r1sa*gst_getRSQM2(jlat,gstID)
+              if ( convertToWindImages ) then
+                 conima=r1sa*gst_getRSQM2(jlat,gstID)
+              else
+                 conima=1.d0
+              end if
               do jlon=1,ni
                 ensPerturbations(jlon,jlev-1+ngposituu,jlat,jens)= gd2d(jlon,nj+1-jlat)*rmsknt*conima
               enddo
@@ -1456,7 +1798,11 @@ module calcbmatrix_glb_mod
               call qqexit(1)
             endif
             do jlat=1,nj
-              conima=r1sa*gst_getRSQM2(jlat,gstID)
+              if ( convertToWindImages ) then
+                 conima=r1sa*gst_getRSQM2(jlat,gstID)
+              else
+                 conima=1.d0
+              end if
               do jlon=1,ni
                 ensPerturbations(jlon,jlev-1+ngpositvv,jlat,jens)= gd2d(jlon,nj+1-jlat)*rmsknt*conima
               enddo
@@ -1491,7 +1837,9 @@ module calcbmatrix_glb_mod
 
   end subroutine readensemble
 
-
+!--------------------------------------------------------------------------
+! UV_TO_PSICHI
+!--------------------------------------------------------------------------
   subroutine uv_to_psichi(ensPerturbations)
     implicit none
 
@@ -1524,7 +1872,9 @@ module calcbmatrix_glb_mod
     
   end subroutine uv_to_psichi
 
-
+!--------------------------------------------------------------------------
+! REMOVEMEAN
+!--------------------------------------------------------------------------
   subroutine removeMean(ensPerturbations)
     implicit none
 
@@ -1567,7 +1917,9 @@ module calcbmatrix_glb_mod
 
   end subroutine removeMean
 
-
+!--------------------------------------------------------------------------
+! ZLEGPOL
+!--------------------------------------------------------------------------
   SUBROUTINE ZLEGPOL(PLEG,DDMU,KNJ,KTRUNC)
 !     o   PLEG(0:KTRUNC,KNJ): Legendre functions evaluated at the KNJ Gaussian
 !     .                         latitudes
@@ -1606,7 +1958,9 @@ module calcbmatrix_glb_mod
 
   END subroutine zlegpol
 
-
+!--------------------------------------------------------------------------
+! ZLEGDIR
+!--------------------------------------------------------------------------
   SUBROUTINE ZLEGDIR(PF,PN,PLEG,DDWT,KTRUNC,KNJ,KLEV)
 !     i   PF(KNJ,KLEV)   : field in physical space
 !     o   PN(0:KTRUNC, KLEV ): spectral coefficients
@@ -1638,7 +1992,9 @@ module calcbmatrix_glb_mod
       RETURN
   END subroutine zlegdir
 
-
+!--------------------------------------------------------------------------
+! ZLEGINV
+!--------------------------------------------------------------------------
   SUBROUTINE ZLEGINV(PF,PN,PLEG,DDWT,KTRUNC,KNJ,KLEV)
 !     o   PF(KNJ,KLEV)  : field in physical space
 !     i   PN(0:KTRUNC, KLEV): spectral coefficients
@@ -1671,5 +2027,485 @@ module calcbmatrix_glb_mod
 
       RETURN
   END subroutine zleginv
+
+!--------------------------------------------------------------------------
+! HORIZCORRELFUNCTION
+!--------------------------------------------------------------------------
+  subroutine horizCorrelFunction(rstddev,waveBandIndex)
+    implicit none
+
+    real*8,intent(in) :: rstddev(nkgdimEns,0:ntrunc)
+    integer,optional, intent(in) :: waveBandIndex
+
+    real*8  :: spectralState(nla,2,nkgdimEns)
+    real*8  :: gridState(ni,nkgdimEns,nj)
+    real(8) :: rwtinv
+
+    integer :: ji, jj, jk, jn, jm, ila, iref, jref, variableType
+    integer :: nLevEns, nLevStart, nLevEnd, jvar, iStart, iEnd
+
+    character(len=128) :: outfilename
+    character(len=2) :: wbnum
+
+    write(*,*)
+    write(*,*) 'Computing horizontal correlation functions'
+
+    !
+    !- 1.  Spectral transform of a delta function (at the center of the domain)
+    !
+
+    !- 1.1 Create the delta function
+    iref = ni/2
+    jref = nj/2
+
+    GridState(:,:,:)       = 0.d0
+    GridState(iref,:,jref) = 1.d0
+
+    !- 1.2 Adjoint of the identity (change of norm)
+    GridState(iref,:,jref) = GridState(iref,:,jref) * real(ni,8) / gaus_RWT(jref)
+
+    !- 1.3 Move to spectral space
+    call gst_reespe(spectralState,                & ! OUT
+                    GridState,nkgdimEns,nkgdimEns)  ! IN
+
+    !
+    !- 2.  Apply the horizontal correlation function
+    !
+!$OMP PARALLEL
+!$OMP DO PRIVATE (jk,jn,jm,ila)
+    do jk = 1, nkgdimEns
+       do jn = 0, ntrunc
+          do jm = 0, jn
+             ila = gst_getNind(jm) + jn - jm
+             if (jm.eq.0) then
+                spectralState(ila,1,jk) = spectralState(ila,1,jk) * rstddev(jk,jn)**2 * 2.0d0
+                spectralState(ila,2,jk) = 0.d0
+             else
+                spectralState(ila,1,jk) = spectralState(ila,1,jk) * rstddev(jk,jn)**2 * 2.0d0
+                spectralState(ila,2,jk) = spectralState(ila,2,jk) * rstddev(jk,jn)**2 * 2.0d0
+             endif
+          end do
+       end do
+    end do
+!$OMP END DO
+!$OMP END PARALLEL
+
+    !
+    !- 3.  Move back to grid point space
+    !
+    call gst_speree(spectralState,     & ! IN
+                    GridState,         & ! OUT
+                    nkgdimEns,nkgdimEns) ! IN
+
+    !
+    !- 4.  Write to file
+    !
+    if ( nWaveBand /= 1 ) then
+       if (.not. present(waveBandIndex)) then
+          write(*,*) 'horizCorrelFunction: No waveBandIndex was supplied!!!'
+          stop
+       end if
+       write(wbnum,'(I2.2)') waveBandIndex
+    end if
+
+    !- 4.1 2D correlation function in fst format
+    if ( nWaveBand == 1 ) then
+       outfilename = "./horizCorrel.fst"
+    else
+       outfilename = "./horizCorrel_"//wbnum//".fst"
+    end if
+    call write3d(GridState,modelSpace,outfilename,'HORIZCORFUNC')
+
+    !- 4.2 1D correlation function in txt format (for plotting purposes)
+    variableType = modelSpace
+    iStart=iref
+    iEnd=3*ni/4 ! About 10 000 km away from the center of the domain
+
+    do jvar = 1, nvar3d
+       if ( nWaveBand == 1 ) then
+          outfilename = "./horizCorrel_"//trim(nomvar3d(jvar,variableType))//".txt"
+       else
+          outfilename = "./horizCorrel_"//trim(nomvar3d(jvar,variableType))//"_"//wbnum//".txt"
+       end if
+       open (unit=99,file=outfilename,action="write",status="new")
+
+       if(vnl_varTypeFromVarName(nomvar3d(jvar,variableType)).eq.'MM') then
+          nLevEns = nLevEns_M
+       else
+          nLevEns = nLevEns_T
+       endif
+       nLevStart = varLevOffset(jvar)+ 1 
+       nLevEnd   = varLevOffset(jvar)+ nLevEns
+
+       do ji=iStart,iEnd
+          do jk = nLevStart,nLevEnd
+             if ( jk == nLevStart  ) then
+                write(99,'(I7,2X,F7.1,2X,F6.4,$)')  ji-iStart, (ji-iStart)*gridSpacingInKm, GridState(ji,jk,jref)
+             else if ( jk == nLevEnd ) then 
+                write(99,'(2X,F6.4)')  GridState(ji,jk,jref) ! Saut de ligne
+             else
+                write(99,'(2X,F6.4,$)')  GridState(ji,jk,jref)
+             end if
+          end do
+       end do
+       close(unit=99)
+    end do
+
+    do jvar = 1, nvar2d
+       if ( nWaveBand == 1 ) then
+          outfilename = "./horizCorrel_"//trim(nomvar2d(jvar,variableType))//".txt"
+       else
+          outfilename = "./horizCorrel_"//trim(nomvar2d(jvar,variableType))//"_"//wbnum//".txt"
+       end if
+       open (unit=99,file=outfilename,action="write",status="new")
+       do ji=iStart,iEnd
+          write(99,'(I7,2X,F7.1,2X,F6.4)')  ji-iStart, (ji-iStart)*gridSpacingInKm, GridState(ji,varLevOffset(nvar3d+1)+jvar,jref)
+       end do
+       close(unit=99)
+    end do
+
+  end subroutine horizCorrelFunction
+
+!--------------------------------------------------------------------------
+! WRITE3D
+!--------------------------------------------------------------------------
+  subroutine write3d(gridpoint3d,variableType,filename,etiket_in)
+    implicit none
+
+    real*8, intent(in) :: gridpoint3d(:,:,:)
+    integer, intent(in) :: variableType
+    character(len=*), intent(in) :: filename,etiket_in
+    
+    real*8 :: dfact,zbuf(ni,nj)
+    integer jlat,jlon,jlev,ierr,jvar,nLevEns
+    integer vfstecr,fstouv,fnom,fstfrm,fclos
+    integer ip1,ip2,ip3,idatyp,idateo,ipak,nip1_l(max(nLevEns_M,nLevens_T))
+    integer :: nulstats
+    character(len=12) :: etiket
+
+    etiket=trim(etiket_in)
+
+    nulstats=0
+    ierr =  fnom  (nulstats,filename,'RND',0)
+    ierr =  fstouv(nulstats,'RND')
+
+    ipak = -32
+    idatyp = 5
+    ip1 = 0
+    ip2 = 0
+    ip3 = nens
+    idateo = 0
+
+    ! do 3d variables
+    do jvar = 1, nvar3d
+
+      if(vnl_varTypeFromVarName(nomvar3d(jvar,variableType)).eq.'MM') then
+        nLevEns = nLevEns_M
+        nip1_l(1:nLevEns_M)=nip1_M(1:nLevEns_M)
+      else
+        nLevEns = nLevEns_T
+        nip1_l(1:nLevEns_T)=nip1_T(1:nLevEns_T)
+      endif
+      dfact=1.0d0
+
+      do jlev=1,nlevEns
+        do jlat=1,nj
+          do jlon=1,ni
+            zbuf(jlon,jlat)=dfact*gridpoint3d(jlon,varLevOffset(jvar)+jlev,nj+1-jlat)
+          enddo
+        enddo
+        ierr = vfstecr(zbuf,zbuf,ipak,nulstats,idateo,0,0,ni,nj,1,nip1_l(jlev),ip2,ip3,   &
+                       'E',nomvar3d(jvar,variableType),etiket,'G',0,0,0,0,idatyp,.true.)
+      enddo
+
+    enddo
+
+    ! now do 2D variables
+    do jvar = 1, nvar2d
+      !if(nomvar2d(jvar,variableType).eq.'P0') then
+      !  dfact=1.0d0/1.0d2
+      !else
+        dfact=1.0d0
+      !endif
+
+      do jlat=1,nj
+        do jlon=1,ni
+          zbuf(jlon,jlat)=dfact*gridpoint3d(jlon,varLevOffset(nvar3d+1)+jvar,nj+1-jlat)
+        enddo
+      enddo
+      ierr = vfstecr(zbuf,zbuf,ipak,nulstats,idateo,0,0,ni,nj,1,0,ip2,ip3,   &
+                     'E',nomvar2d(jvar,variableType),etiket,'G',0,0,0,0,idatyp,.true.)
+
+    enddo
+
+    ierr =  fstfrm(nulstats)
+    ierr =  fclos (nulstats)
+
+    write(*,*) 'finished writing 3d array...'
+    call flush(6)
+
+  end subroutine write3d
+
+!--------------------------------------------------------------------------
+! CALCHORIZSCALE
+!--------------------------------------------------------------------------
+  subroutine CalcHorizScale(rstddev,variableType,waveBandIndex)
+    implicit none
+    
+    ! Based on subroutine corrlength.ftn in the "old" var code
+    real(8),intent(in) :: rstddev(nkgdimEns,0:ntrunc)
+    integer,intent(in) :: variableType
+    integer,optional, intent(in) :: waveBandIndex
+
+    real(8) :: HorizScale(nkgdimEns)
+    real(8), pointer :: PressureProfile(:)
+
+    integer :: jk, jn, nLevEns, jvar
+    real(8) :: rjn, fact, temp, a, b
+
+    character(len=128) :: outfilename
+    character(len=2) :: wbnum
+
+    write(*,*)
+    write(*,*) 'Computing horizontal correlation lengthscales'
+
+    !
+    !- 1.  Compute the horizontal correlation lengthscales
+    !
+    do jk = 1, nkgdimEns
+       a = 0.d0
+       b = 0.d0   
+       do jn = 0, ntrunc
+          rjn = dble(jn)
+          fact = (2.0d0*rjn + 1.0d0)/2.0d0
+          temp  = (rstddev(jk,jn)**2) * fact
+          a = a + temp
+          if (jn /= 0) then
+             b = b - temp*rjn*(rjn+1.d0)
+          end if
+       end do
+       if ( a > 0.d0 .and. b /= 0.d0 ) then
+          HorizScale(jk) = ra * sqrt(-2.0d0*a/b)
+       else
+          HorizScale(jk) = 0.d0
+       end if
+    end do
+
+    !
+    !- 2. Write the results
+    !
+    if ( nWaveBand /= 1 ) then
+       if (.not. present(waveBandIndex)) then
+          write(*,*) 'CalcHorizScale: No waveBandIndex was supplied!!!'
+          stop
+       end if
+       write(wbnum,'(I2.2)') waveBandIndex
+    end if
+
+    do jvar = 1, nvar3d
+       write(*,*)
+       write(*,*) nomvar3d(jvar,variableType)
+
+       if ( nWaveBand == 1 ) then
+          outfilename = "./horizScale_"//trim(nomvar3d(jvar,variableType))//".txt"
+       else
+          outfilename = "./horizScale_"//trim(nomvar3d(jvar,variableType))//"_"//wbnum//".txt"
+       end if
+       open (unit=99,file=outfilename,action="write",status="new")
+
+       if(vnl_varTypeFromVarName(nomvar3d(jvar,variableType)).eq.'MM') then
+          nLevEns = nLevEns_M
+          PressureProfile => pressureProfile_M
+       else
+          nLevEns = nLevEns_T
+          PressureProfile => pressureProfile_T
+       endif
+       do jk=1,nlevEns
+          write(* ,'(I3,2X,F6.1,2X,F6.1)')  jk, PressureProfile(jk)/100.d0, HorizScale(varLevOffset(jvar)+jk)/1000.d0
+          write(99,'(I3,2X,F6.1,2X,F6.1)')  jk, PressureProfile(jk)/100.d0, HorizScale(varLevOffset(jvar)+jk)/1000.d0
+       end do
+
+       close(unit=99)
+    end do
+
+    do jvar = 1, nvar2d
+       write(*,*)
+       write(*,*) nomvar2d(jvar,variableType)
+       
+       if ( nWaveBand == 1 ) then
+          outfilename = "./horizScale_"//trim(nomvar2d(jvar,variableType))//".txt"
+       else
+          outfilename = "./horizScale_"//trim(nomvar2d(jvar,variableType))//"_"//wbnum//".txt"
+       end if
+       open (unit=99,file=outfilename,action="write",status="new")
+
+       write(* ,'(I3,2X,F6.1,2X,F6.1)') 1, 1010.0, HorizScale(varLevOffset(nvar3d+1)+jvar)/1000.d0
+       write(99,'(I3,2X,F6.1,2X,F6.1)') 1, 1010.0, HorizScale(varLevOffset(nvar3d+1)+jvar)/1000.d0
+
+       close(unit=99)
+    end do
+
+  end subroutine CalcHorizScale
+
+!--------------------------------------------------------------------------
+! WRITEPOWERSPEC
+!--------------------------------------------------------------------------
+  subroutine writePowerSpec(powerSpec)
+    implicit none
+
+    real*8,intent(in) :: powerSpec(nkgdimEns,0:ntrunc)
+
+    integer :: jk, variableType, nLevEns, nLevStart, nLevEnd, jvar, jn
+
+    real(8) :: waveLength 
+
+    character(len=128) :: outfilename
+
+    !- Write to txt files
+
+    variableType = modelSpace
+
+    do jvar = 1, nvar3d
+
+       outfilename = "./PowerSpec_"//trim(nomvar3d(jvar,variableType))//".txt"
+       open (unit=99,file=outfilename,action="write",status="new")
+
+       if(vnl_varTypeFromVarName(nomvar3d(jvar,variableType)).eq.'MM') then
+          nLevEns = nLevEns_M
+       else
+          nLevEns = nLevEns_T
+       endif
+       nLevStart = varLevOffset(jvar)+ 1 
+       nLevEnd   = varLevOffset(jvar)+ nLevEns
+
+       do jn = 0, ntrunc
+          if ( jn /= 0) then
+             waveLength=4.d0*asin(1.d0)*ra/dble(jn)
+          else
+             waveLength=0.d0
+          end if
+          do jk = nLevStart,nLevEnd
+             if ( jk == nLevStart  ) then
+                write(99,'(I4,2X,F7.1,2X,e10.3,$)')  jn, waveLength/1000.d0, sngl(powerSpec(jk,jn))
+             else if ( jk == nLevEnd ) then 
+                write(99,'(2X,e10.3)')  sngl(powerSpec(jk,jn)) ! Saut de ligne
+             else
+                write(99,'(2X,e10.3,$)')  sngl(powerSpec(jk,jn))
+             end if
+          end do
+       end do
+       close(unit=99)
+    end do
+
+    do jvar = 1, nvar2d
+
+       outfilename = "./PowerSpec_"//trim(nomvar2d(jvar,variableType))//".txt"
+       open (unit=99,file=outfilename,action="write",status="new")
+       do jn = 0, ntrunc
+          if ( jn /= 0) then
+             waveLength=4.d0*asin(1.d0)*ra/dble(jn)
+          else
+             waveLength=0.d0
+          end if
+          write(99,'(I4,2X,F7.1,2X,e10.3)')  jn, waveLength/1000.d0, sngl(powerSpec(jk,jn))
+       end do
+       close(unit=99)
+    end do
+
+  end subroutine writePowerSpec
+
+!--------------------------------------------------------------------------
+! SpectralFilterResponseFunction
+!--------------------------------------------------------------------------
+  function SpectralFilterResponseFunction(totalWaveNumber, waveBandIndex ) result(ResponseFunction) 
+    implicit none
+
+    real(8) :: totalWaveNumber, ResponseFunction 
+    integer :: waveBandIndex
+
+    real(8) :: linearResponse, lowerLimit, center, upperLimit
+    real(8), parameter :: pi = 2.d0*asin(1.d0)
+
+    if (waveBandIndex == nWaveBand ) then
+       ! This wave band contains the largest scales.
+       !
+       ! The response function is 1 total wave number <= waveBandPeaks(nWaveBand)
+       ! and decreases to 0 at waveBandPeaks(nWaveBand-1)
+       !
+       !                    response=1 |---
+       !                               |   \
+       !                               |    \
+       !                    response=0 |------------
+       !       waveBandPeaks(nWaveBand) <-|  |-> waveBandPeaks(nWaveBand-1)
+       !
+       lowerlimit = real(waveBandPeaks(waveBandIndex  ),8)
+       upperlimit = real(waveBandPeaks(waveBandIndex-1),8)
+
+       if ( totalWaveNumber < lowerlimit ) then
+          ResponseFunction = 1.d0
+       else if ( totalWaveNumber <= upperlimit ) then
+          linearResponse = (upperlimit-totalWaveNumber) / (upperlimit-lowerlimit)
+          ResponseFunction = sin( (pi/2.d0) * linearResponse)**2
+       else
+          ResponseFunction = 0.d0
+       end if
+
+    else if ( waveBandIndex /= 1 ) then
+       ! This wave band contains intermediate scales (i.e., not the largest or the smallest).
+       !
+       ! The response function is 1 (only) for the total wave number = waveBandPeaks(waveBandIndex)
+       ! and decreases to 0 at both waveBandPeaks(waveBandIndex+1) and waveBandPeaks(waveBandIndex-1)
+       !
+       !                    response=1 |      -
+       !                               |     / \
+       !                               |    /   \
+       !                    response=0 |------------
+       !  waveBandPeaks(waveBandIndex+1) <-|     |-> waveBandPeaks(waveBandIndex-1)
+       !                                      |-> waveBandPeaks(waveBandIndex)
+       !
+       center     = real(waveBandPeaks(waveBandIndex  ),8)
+       upperlimit = real(waveBandPeaks(waveBandIndex-1),8)
+       lowerlimit = real(waveBandPeaks(waveBandIndex+1),8)
+
+       if (      totalWaveNumber >  lowerlimit .and. &
+                 totalWaveNumber <= center     ) then
+          linearResponse = (totalWaveNumber-lowerlimit) / (center-lowerlimit)
+          ResponseFunction = sin( (pi/2.d0) * linearResponse)**2
+       else if ( totalWaveNumber >  center      .and. &
+                 totalWaveNumber <  upperlimit  ) then
+          linearResponse = (upperlimit-totalWaveNumber) / (upperlimit-center)
+          ResponseFunction = sin( (pi/2.d0) * linearResponse)**2
+       else
+          ResponseFunction = 0.d0
+       end if
+
+    else
+       !
+       ! This wave band contains the smallest scales.
+       !
+       ! The response function is 1 total wave number >= waveBandPeaks(nWaveBand)
+       ! and decreases to 0 at waveBandPeaks(nWaveBand-1)
+       !
+       !                    response=1 |    ---
+       !                               |   /
+       !                               |  / 
+       !                    response=0 |------------
+       !waveBandPeaks(waveBandIndex+1) <-|  |-> waveBandPeaks(1)
+       !
+       upperlimit = real(waveBandPeaks(waveBandIndex  ),8)
+       lowerlimit = real(waveBandPeaks(waveBandIndex+1),8)
+
+       if      ( totalWaveNumber > upperlimit ) then
+          ResponseFunction = 1.d0
+       else if ( totalWaveNumber > lowerlimit ) then
+          linearResponse = (totalWaveNumber-lowerlimit) / (upperlimit-lowerlimit)
+          ResponseFunction = sin( (pi/2.d0) * linearResponse)**2
+       else
+          ResponseFunction = 0.d0
+       end if
+
+    end if
+
+  end function SpectralFilterResponseFunction
 
 end module calcbmatrix_glb_mod
