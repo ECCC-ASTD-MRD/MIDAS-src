@@ -549,16 +549,18 @@ contains
        
     END DO
 
-    IF ( ISTNID.EQ.0 .AND. chm_checkfor_integlayer(varno) ) THEN
-       ! If integrated layer information not found
-       if (nlev.eq.1) then
+    IF (ISTNID.EQ.0) THEN
+       ! If integrated layer information not found, if a total column measurement
+       ! set to defaults, else do nothing
+
+       if (chm_checkfor_integlayer(varno) .and. nlev.eq.1) then          
           lfound=.true.
           layertop(1) = default_top
           layerbottom(1) = default_bottom
-       else
-          CALL ABORT3D ('chm_get_layer_boundaries: Top and bottom of layers not found for STNID= ', CSTNID)
        end if
+
     ELSE
+       ! layer information has been found in ascii file
        lfound=.true.
        start_index = chm_layers%ibegin(ISTNID)
        layertop(:) = chm_layers%vlayertop(start_index:start_index+nlev-1)
@@ -878,9 +880,9 @@ contains
     do istnid=1,chm_std%n_stnid
        if (chm_std%brp(istnid).eq.1) then
           
-          ! retrieve data from stats blocks (with bkstp=14)
+          ! retrieve data from stats blocks (with bkstp=14 and block_type='DATA')
           chm_burp_std(istnid) = chm_read_burp('brpch', chm_std%stnids(istnid), &
-               chm_std%bfr(istnid), chm_std%n_lvl(istnid), 14)
+               chm_std%bfr(istnid), chm_std%n_lvl(istnid), 14, 'DATA')
           
        end if
     end do
@@ -1298,7 +1300,7 @@ contains
 !-----------------------------------------------------------------------------------------
 !------------------- BURP functions and routines -----------------------------------------
 
-  function chm_read_burp(filename,stnid,varno,nlev,bkstp) result(burp_out)
+  function chm_read_burp(filename,stnid,varno,nlev,bkstp,block_type) result(burp_out)
 !
 ! Author  : M. Sitwell, ARQI/AQRD, March 2015
 !
@@ -1315,6 +1317,9 @@ contains
 !           varno         BUFR code
 !           nlev          number of levels in the observation
 !           bkstp         bkstp number of requested block
+!           block_type    block type indicated by the two rightmost bits
+!                         of bknat. Valid values are 'DATA', 'INFO', '3-D',
+!                         and 'MRQR'.
 !
 !  Output 
 !           burp_out      struct_chm_burp object
@@ -1328,6 +1333,7 @@ contains
 
     character(len=*), intent(in) :: filename
     character(len=9), intent(in) :: stnid
+    character(len=4), intent(in) :: block_type
     integer, intent(in)          :: varno,nlev,bkstp
     type(struct_chm_burp) :: burp_out
     character(len=9)      :: rep_stnid
@@ -1378,7 +1384,7 @@ contains
           
           call BURP_Get_Property(blk, NVAL=nval, BKSTP=ref_bkstp, IOSTAT=error)
           
-          if (bkstp.eq.ref_bkstp) then
+          if (IS_Burp_Btyp(trim(block_type),BLOCK=blk) .and. bkstp.eq.ref_bkstp) then
              if (nval.eq.nlev) then
                 
                 ! required block found, retrieve data and store in burp_out
@@ -1878,6 +1884,8 @@ contains
 !           - Finalization of Ht*grad contribution (case(3))
 !           M. Sitwell, ARQI/AQRD, Mar 2015
 !           - Modified to calculate whole profile within a single call
+!           M. Sitwell, ARQI/AQRD, May 2015
+!           - Added vertical interpolation operator
 !
 ! Purpose: Apply obs operator for indicated obs data. 
 !
@@ -1921,8 +1929,8 @@ contains
 !               4 - not provided with obs (normally for total column values)
 !     nobslev   Size of obs profile
 !     robslev   pressure value of observation (OBS_PPP)
-!     ixtr      Flag
-!     iass      Flag indicating if obs is to be assimilated
+!     ixtr      Flag indicating if obs within the model vertical coord range (.ne.0 for no) 
+!     iass      Flag indicating if obs is to be assimilated (.ne.1 for no)
 !     rlat      Latitude of obs profile (radians)
 !     rlon      Longitue of obs profile (radians)
 !     iconstituent_id BUFR code element of Table 08046 identifyin the constituent.
@@ -1977,7 +1985,7 @@ contains
 
 ! Local variables
   
-  real(8) :: vpressure,zwork(n_modlvl)
+  real(8) :: press_obs(nobslev),zwork(n_modlvl)
   integer :: iobslev,iavgkern
   real(8), allocatable :: avg_kern(:,:)
 
@@ -1998,7 +2006,7 @@ contains
   chm_obsoper%zh(:,:)=0.0D0
   chm_obsoper%zhp(:,:)=0.0D0
   chm_obsoper%lvl_top(:)=1
-  chm_obsoper%lvl_bot(:)=1
+  chm_obsoper%lvl_bot(:)=n_modlvl
   
 ! Initialize success of calculation
   do iobslev=1,nobslev
@@ -2052,36 +2060,35 @@ contains
 
 !   if (ivco.ne.2) then 
 !      call chm_convert2pressure(ivco,robslev,chm_obsoper%layer_identified,chm_obsoper%vlayertop(iobslev), &
-!                            chm_obsoper&vlayerbottom(iobslev),vpressure, &
+!                            chm_obsoper&vlayerbottom(iobslev),press_obs, &
 !                            vlayertop,vlayerbot...)  ! see 3dvar_chem routine ch_vobs_to_p.
 !
 !   else
-!      if (chm_obsoper%modelIndex.ne.2.and.chm_obsoper%modelIndex.ne.3) tvpressure=robslev 
+      if (chm_obsoper%modelIndex.ne.2.and.chm_obsoper%modelIndex.ne.3) press_obs=robslev 
 !   end if
 
 ! Apply appropriate core observation operator
    
-!  select case(chm_obsoper%modelIndex)
-!
-!     case(1)
+  select case(chm_obsoper%modelIndex)
+  case(1)
 
-!        Vertical interpolation operator
+!    Vertical interpolation operator
 
-!         call chm_vert_interp_operator  ! see 3dvar_chem routine ch_vprof
+     call chm_vert_interp_operator(chm_obsoper,n_modlvl,pressmodlvl,nobslev,press_obs,success)
 
-!     case(2)
+!  case(2)
 
-!        Layer averaging operator
+!    Layer averaging operator
 
-!         call chm_layer_avg_operator  ! see 3dvar_chem routine ch_vavg
+!     call chm_layer_avg_operator  ! see 3dvar_chem routine ch_vavg
 
-!     case(3)
+   case(3)
 
-!        Layer integration operator
+!    Layer integration operator
 
-  call chm_layer_integ_operator(chm_obsoper,n_modlvl,pressmodlvl,nobslev,success)
+     call chm_layer_integ_operator(chm_obsoper,n_modlvl,pressmodlvl,nobslev,success)
 
-!  end select
+  end select
 
 
 ! Apply averaging kernel if requested
@@ -2866,6 +2873,87 @@ contains
       end do
 
   end subroutine chm_vertintg
+
+!-----------------------------------------------------------------------------------------
+
+  subroutine chm_vert_interp_operator(chm_obsoper,nmodlev,pres_mod,nobslev,pres_obs,success)
+!
+! Author  : M. Sitwell, ARQI/AQRD, March 2015
+!           - Based on ch_vprof from 3DVAR-CHEM by Y. Rochon July 2005
+!
+! Revision:
+!
+! Purpose:  Interpolation to point in profile. Uses piecewise linear vertical
+!           interpolation in log(Pressure).
+!
+! Arguments:
+!
+!  Input
+!
+!       pres_mod        pressure on model levels, assumed to be in ascending order
+!       pres_obs        pressure on observation levels
+!       nmodlev         number of models levels
+!       nobslev         number of observation levels
+!
+!  Output
+!
+!       chm_obsoper%zh  interpolation coefficients
+!       success         success of interpolation
+!
+! Comments:  Current implementation searches for index of nearest model level. This step
+!            is redundant since this information is already save in obsSpaceData in OBS_LYR.
+!            This step is repeated so that the routines in chem_mod are more independent
+!            of the rest of the EnVar code. If it is desired to skip this redundant step,
+!            the content of the OBS_LYR column could be passed to chm_obsoperators and
+!            subsequentially to this subroutine.
+!
+!-----------------------------------------------------------------------------------------
+
+    implicit none
+
+    integer, intent(in) :: nmodlev, nobslev
+    real(8), intent(in) :: pres_mod(nmodlev), pres_obs(nobslev)
+    type(struct_chm_obsoperators), intent(inout) :: chm_obsoper
+    logical, intent(inout) :: success(nobslev)
+    integer :: iobslev,jmodlev
+
+    do iobslev=1,nobslev
+
+       ! check if obs is above or below model boundaries
+       if ( pres_obs(iobslev).lt.pres_mod(1) .or. &
+            pres_obs(iobslev).gt.pres_mod(nmodlev) ) then
+          success(iobslev)=.false.
+       end if
+
+       if (success(iobslev)) then
+
+          ! Find model layers directly above and below obs.
+          ! After exit of loop, the obs will be between model
+          ! levels jmodlev and jmodlev+1.
+          do jmodlev=1,nmodlev-1
+             if ( pres_obs(iobslev).ge.pres_mod(jmodlev) .and. &
+                  pres_obs(iobslev).lt.pres_mod(jmodlev+1) ) then
+                exit
+             end if
+          end do
+
+          ! Set interpolation weights
+          chm_obsoper%zh(iobslev,jmodlev+1) = LOG(pres_obs(iobslev)/pres_mod(jmodlev)) &
+                                            / LOG(pres_mod(jmodlev+1)/pres_mod(jmodlev))
+          chm_obsoper%zh(iobslev,jmodlev) = 1.0D0 - chm_obsoper%zh(iobslev,jmodlev+1)
+
+          ! set range of nonzero elements for model vertical levels
+          chm_obsoper%lvl_top(iobslev) = jmodlev
+          chm_obsoper%lvl_bot(iobslev) = jmodlev+1
+
+       else
+          chm_obsoper%lvl_top(iobslev) = 1
+          chm_obsoper%lvl_bot(iobslev) = 1
+       end if
+
+    end do
+
+  end subroutine chm_vert_interp_operator
 
 !-----------------------------------------------------------------------------------------
 
