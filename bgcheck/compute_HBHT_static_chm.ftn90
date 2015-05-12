@@ -1,0 +1,224 @@
+SUBROUTINE COMPUTE_HBHT_STATIC_CHM(lcolumng,lobsSpaceData,active)
+!
+! Author  : M. Sitwell, May 2015
+!
+! Purpose: To compute the background error standard deviations in
+!          observation space, sqrt(diag(H*B_static*H^T)).
+!
+!
+! Arguments:
+!
+!  Input
+!
+!           lcolumng             column at observation location
+!
+!  Inout:
+!
+!           lobsSpaceData        observation space data, output saved in OBS_HPHT column
+!
+!  Output:
+!           active               flag to indicate if chemical consituents are to be used
+!
+! Revision:
+!
+!-----------------------------------------------------------------------------------------
+
+  use mpivar_mod
+  use codtyp_mod
+  use obsSpaceData_mod
+  use columnData_mod
+  use verticalCoord_mod
+  use HorizontalCoord_mod
+  use bmatrixchem
+  use chem_mod
+
+  implicit none
+  
+  type(struct_hco), pointer :: hco_anl
+  type(struct_vco), pointer :: vco_anl
+  type(struct_obs)        :: lobsSpaceData
+  type(struct_columnData) :: lcolumng
+  logical                 :: active
+      
+  integer :: cvdim,jl
+ 
+ ! Obs space local variables
+    
+  character(len=4)  :: varName
+  character(len=12) :: cstnid
+  integer :: headerIndex,bodyIndex,bodyIndexCount
+  integer :: ivnm, ivco, kmode, varno 
+  integer :: icodtyp, iobslev, nobslev
+  integer :: isunza,idate,ihhmm
+  integer :: iconstituent_id
+  real(8) :: zlat,zlon
+
+  integer, allocatable :: ixtr(:), iass(:)
+  real(8), allocatable :: zobslev(:)
+  logical, allocatable :: success(:)
+
+  ! Local variables: model space profile data
+
+  character(len=2)   :: varType
+  real(8), allocatable :: zppb(:),zvalb(:),zttb(:),zvalbc(:),FGE(:)
+  real(8), pointer :: col_ptr_gzb(:)
+  integer :: nflev
+
+  
+  ! Initializations
+    
+  varType = 'TH'
+  nflev = col_getNumLev(lcolumng,varType)
+
+  allocate(zvalb(nflev))
+  allocate(zttb(nflev))
+  allocate(zppb(nflev))
+  allocate(zvalbc(nflev))
+      
+  kmode = 1  ! 1 for background check to compute HBH^T
+  
+  !- Get the appropriate Horizontal and Vertical Coordinate
+  hco_anl => hco_Get('Analysis')
+  vco_anl => col_getVco(lcolumng)
+  
+  call bchm_setup( hco_anl,vco_anl, &  ! IN
+                   cvdim, &            ! OUT
+                  'BackgroundCheck' )  ! IN
+
+  active = bchm_is_initialized()
+  
+  if (active) then
+     write(*,*)
+     write(*,*) 'Computing H*B*H^T using B_static_chm - Start'
+  else
+     if ( mpi_myid == 0 ) write(*,*) 'compute_HBHT_static_chm: option NOT ACTIVATED'
+     return
+  end if
+      
+             
+                 
+  ! Loop over all report header of the 'CH' family:
+    
+  call obs_set_current_header_list(lobsSpaceData,'CH')
+  HEADER: do
+     headerIndex = obs_getHeaderIndex(lobsSpaceData)
+     if (headerIndex < 0) exit HEADER
+     
+     icodtyp  = obs_headElem_i(lobsSpaceData,OBS_ITY,headerIndex)
+     
+     if (icodtyp.ne.codtyp_chemremote.and.icodtyp.ne.codtyp_cheminsitu) cycle HEADER
+         
+     ! Get obs space info that are part of the profile header
+     cstnid    = obs_elem_c(lobsSpaceData,'STID',headerIndex)
+     nobslev   = obs_headElem_i(lobsSpaceData,OBS_NLV,headerIndex)
+     idate     = obs_headElem_i(lobsSpaceData,OBS_DAT,headerIndex)
+     ihhmm     = obs_headElem_i(lobsSpaceData,OBS_ETM,headerIndex)
+     isunza    = obs_headElem_i(lobsSpaceData,OBS_SUN,headerIndex)
+     iconstituent_id = obs_headElem_i(lobsSpaceData,OBS_CHM,headerIndex)
+     zlat = obs_headElem_r(lobsSpaceData,OBS_LAT,headerIndex)
+     zlon = obs_headElem_r(lobsSpaceData,OBS_LON,headerIndex)
+         
+     ! Body info that we only need for first point in the profile
+     bodyIndex = obs_headElem_i(lobsSpaceData,OBS_RLN,headerIndex)     
+     ivco      = obs_bodyElem_i(lobsSpaceData,OBS_VCO,bodyIndex)
+     varno     = obs_bodyElem_i(lobsSpaceData,OBS_VNM,bodyIndex)
+     varName = vnl_varnameFromVarnum(obs_bodyElem_i(lobsSpaceData,OBS_VNM,bodyIndex), iconstituent_id)
+         
+
+     ! Identify max number of profile points in the profile (exclude 8090 elements)
+     do jl=0,obs_headElem_i(lobsSpaceData,OBS_NLV,headerIndex)-1
+        if (obs_bodyElem_i(lobsSpaceData,OBS_VNM,bodyIndex+jl).eq.8090) nobslev = nobslev-1
+     end do
+            
+     ! Allocate memory for profile data
+     allocate(ixtr(nobslev), iass(nobslev))
+     allocate(zobslev(nobslev), FGE(nobslev))
+     allocate(success(nobslev))
+         
+     ! Get trial/background column data at observation location
+     do jl = 1, nflev
+        zppb(jl) = col_getPressure(lcolumng,jl,headerIndex, varType)
+        zvalb(jl) = col_getElem(lcolumng,jl,headerIndex,varName)
+        zttb(jl) = col_getElem(lcolumng,jl,headerIndex,'TT')
+     enddo
+     col_ptr_gzb => col_getColumn(lcolumng,headerIndex,'GZ','TH')
+    
+     zvalbc(1:nflev)=1.0
+
+     ! Loop over all body indices (profile elements) for this report      
+      
+     iobslev=0
+     call obs_set_current_body_list(lobsSpaceData,headerIndex)
+     BODY1: do
+        bodyIndex = obs_getBodyIndex(lobsSpaceData)
+        if (bodyIndex < 0) exit BODY1
+        
+        ! Get position in profile and skip over 08090 elements
+            
+        ivnm = obs_bodyElem_i(lobsSpaceData,OBS_VNM,bodyIndex)                
+        if (ivnm.ne.08090) then
+           iobslev=iobslev+1
+           varno=ivnm   ! varno/ivnm is expected to be the same for all profile points with ivnm.ne.8090
+        else
+           cycle BODY1
+        end if
+        
+        ixtr(iobslev) = obs_bodyElem_i(lobsSpaceData,OBS_XTR,bodyIndex)
+        iass(iobslev) = obs_bodyElem_i(lobsSpaceData,OBS_ASS,bodyIndex)
+
+        ! Get vertical coordinate data. Valid for point data values in profiles.
+        ! For layer data values, vertical coordinate data will instead be assigned within chm_obsoperators.
+        
+        zobslev(iobslev) = obs_bodyElem_r(lobsSpaceData,OBS_PPP,bodyIndex)
+
+     enddo BODY1
+
+     ! Get sqrt(diag(H*B*H^T)) with B_static for the profile
+         
+     call chm_obsoperators(nflev,zvalbc,zvalb,zttb,zppb,col_ptr_gzb,kmode,varName,&
+          varno,cstnid,idate,ihhmm,ivco,nobslev, &
+          zobslev,ixtr,iass,zlat,zlon,iconstituent_id,success,FGE)
+
+
+     ! Put results in obsSpaceData
+
+     iobslev=0
+     call obs_set_current_body_list(lobsSpaceData,headerIndex)
+     BODY2: do
+        bodyIndex = obs_getBodyIndex(lobsSpaceData)
+        if (bodyIndex < 0) exit BODY2
+   
+        ! Get position in profile and skip over 08090 elements
+        ivnm = obs_bodyElem_i(lobsSpaceData,OBS_VNM,bodyIndex)                
+        if (ivnm.ne.08090) then
+           iobslev=iobslev+1
+        else
+           cycle BODY2
+        end if
+
+        ! Check for success in calculations
+        ! Store FGE = sqrt(diag(H*B*H^T))
+        if (success(iobslev)) then
+           call obs_bodySet_r(lobsSpaceData,OBS_HPHT,bodyIndex,FGE(iobslev))
+        else
+           call obs_bodySet_i(lobsSpaceData,OBS_ASS,bodyIndex,0)
+           call obs_bodySet_r(lobsSpaceData,OBS_HPHT,bodyIndex,0.0D0)
+        end if
+        
+     enddo BODY2
+
+     ! Deallocate profile data
+     deallocate(ixtr,iass)
+     deallocate(zobslev,FGE)
+     deallocate(success)
+
+  enddo HEADER
+
+  deallocate(zvalbc,zvalb,zttb,zppb)  
+   
+
+  write(*,*)
+  write(*,*) 'Computing H*B*H^T using B_static_chm - End'
+  
+  RETURN
+END SUBROUTINE COMPUTE_HBHT_STATIC_CHM

@@ -1892,15 +1892,15 @@ contains
 !          Usable as
 !
 !                 - general (potentially non-linear) simulation operator (kmode=0)
-!                 - tangent linear operator for error std. dev. conversion (kmode=1)
+!                 - determination of sqrt(diag(H*B*H^T)) (kmode=1)
 !                 - tangent linear operator (kmode=2)
-!                 - Linear adjoint operator (kmode=3)
+!                 - linear adjoint operator (kmode=3)
 !
 ! Further changes required for generalization 
 !
-! 1) Add point and layer average operators.
-! 2) Add use of avg kernels
-! 4) Add consideration of other kmode cases.
+! 1) Add layer average operators.
+! 2) Complete testing for use of avg kernels
+! 3) Add option to include use of obs error correlation matrix for kmode=2,3
 !
 ! Arguments:
 !
@@ -1915,7 +1915,7 @@ contains
 !          
 !     kmode     0 for non-linear/linear model in assimilation
 !                 Actually, all models included are currently linear
-!               1 for tangent linear model applied for error std.dev. conversion
+!               1 for determination of sqrt(diag(H*B*H^T))
 !               2 for tangent linear model
 !               3 for adjoint model 
 !     varName   Variable/obs nomvar
@@ -1938,11 +1938,12 @@ contains
 !   Inout
 !
 !     rmhx      H(x) element value when kmode=0 (out).
-!               Hsigma Converted error std. dev. estimate  when kmode=1 (out).
+!               sqrt(diag(H*B*H^T)) when kmode=1 (out).
 !               Hx increment element value when kmode=2 (out).
 !               R**-1 (Hdx-d) when kmode=3 (in).
 !
 !     rvalinc   Increment, trial field, or sigma column when kmode<3 (in).
+!               Not needed/used as input when kmode=1.
 !               Expected to be equal to rval when kmode=0
 !               Adjoint product when kmode=3 (out).
 !
@@ -1957,6 +1958,7 @@ contains
 !        vertical correlation matrices.
 !        
 !-------------------------------------------------------------------------------------------
+
   implicit none
 
 ! Declarations
@@ -1985,9 +1987,9 @@ contains
 
 ! Local variables
   
-  real(8) :: press_obs(nobslev),zwork(n_modlvl)
+  real(8) :: press_obs(nobslev),zwork(n_modlvl),unit_conversion(n_modlvl)
   integer :: iobslev,iavgkern
-  real(8), allocatable :: avg_kern(:,:)
+  real(8), allocatable :: avg_kern(:,:),HBHT(:,:)
 
 ! Allocate memory for chm_obsoper
   allocate(chm_obsoper%modelvarcolumn(n_modlvl))
@@ -2009,20 +2011,24 @@ contains
   chm_obsoper%lvl_bot(:)=n_modlvl
   
 ! Initialize success of calculation
-  do iobslev=1,nobslev
-      if (ixtr(iobslev).ne.0.or.iass(iobslev).ne.1) then
-        success(iobslev)=.false.
-      else
-        success(iobslev)=.true.
-      end if
-  end do
+  success = ixtr.eq.0 .and. iass.eq.1
 
-! Apply unit conversion (apply later - near end of chm_*_operator routines - when kmode=3)
-  if (kmode.eq.3) then
+
+! Apply unit conversion
+  select case(kmode)
+  case(3)
+     ! Apply unit conversion later - near end of chm_*_operator routines
      rvalinc(:)=0.0
-  else
+  case(0,2)
+     ! Convert the field in model space 
      call chm_convert_units(chm_obsoper,n_modlvl,rvalinc,rval,rtt,pressmodlvl,varno,iconstituent_id,kmode)
-  end if
+  case(1)
+     ! Save the conversion factor in <unit_conversion>
+     unit_conversion(:) = 1.0
+     call chm_convert_units(chm_obsoper,n_modlvl,unit_conversion,rval,rtt,pressmodlvl,varno,iconstituent_id,kmode)
+     unit_conversion = chm_obsoper%modelvarcolumn
+  end select
+
        
 ! Determine if layer boundaries are assigned to this data source.
 ! If so, obtain them for use in this routine. 
@@ -2075,7 +2081,7 @@ contains
 !    Vertical interpolation operator
 
      call chm_vert_interp_operator(chm_obsoper,n_modlvl,pressmodlvl,nobslev,press_obs,success)
-
+     
 !  case(2)
 
 !    Layer averaging operator
@@ -2124,9 +2130,27 @@ contains
                                  chm_obsoper%modelvarcolumn(chm_obsoper%lvl_top(iobslev):chm_obsoper%lvl_bot(iobslev)))
         end if
       end do
-      
-!  case(1)
-!      
+
+  case(1)
+!
+!    Compute sqrt(diag(H*B*H^T))
+!
+     allocate(HBHT(nobslev,nobslev)) 
+     
+     ! Apply unit conversion to observation operator
+     do iobslev=1,nobslev
+        chm_obsoper%zh(iobslev,:) = unit_conversion * chm_obsoper%zh(iobslev,:)
+     end do
+
+     call chm_corvert_mult(varName,chm_obsoper%zh,HBHT,chm_obsoper%lvl_top,chm_obsoper%lvl_bot, & 
+          nobslev,n_modlvl,nobslev,.TRUE.,rlat,.TRUE.,3)
+
+     rmhx = (/ (sqrt(HBHT(iobslev,iobslev)), iobslev=1, nobslev) /)
+
+     where(.not.success) rmhx = 0.0
+
+     deallocate(HBHT)
+    
   case(3)
 !
 !     Ht*grad contribution from adjoint of tangent linear model.
@@ -2702,14 +2726,14 @@ contains
 !           success               -- Logical indicating if calc are to be performed.
 !
 !  Output  
-!           chm_obsoper%zh(n_modlvl)  -- Initial innovation model array 
-!                                        (other than conversion constants)
-!           chm_obsoper%zhp(n_modlvl) -- Part of innovation operator not 
-!                                        related to resolution
+!           chm_obsoper%zh(nobslev,n_modlvl)  -- Initial innovation model array 
+!                                                (other than conversion constants)
+!           chm_obsoper%zhp(nobslev,n_modlvl) -- Part of innovation operator not 
+!                                                related to resolution
 !
 !-----------------------------------------------------------------------------------------
       implicit none
-      
+
       integer, intent(in) :: n_modlvl,nobslev
       type(struct_chm_obsoperators), intent(inout) :: chm_obsoper
       logical, intent(in) :: success(nobslev)
@@ -3154,9 +3178,11 @@ contains
 !        First determine background error std. dev. and determine/estimate h*B*h^T. 
 !        Done first to acquire 'rsig' at the same time!
 !
+
          call chm_corvert_mult(varName,chm_obsoper%zh(iobslev,1:n_modlvl),zhbh, &
                   chm_obsoper%lvl_top(iobslev),chm_obsoper%lvl_bot(iobslev),1,n_modlvl,1, &
                   lrgsig,rlat,lstart,3,rsig)
+
          lstart=.false.         
 !
 !        Begin preparation of the new innovation operator w (=new zhp)
@@ -3180,6 +3206,7 @@ contains
 !
 !        Option 2: Application of 1/sum(C(:,j)) to approximately negate the weight re-distribution from C
 !                  in the calc of grad(Jo).
+
          call chm_corvert_mult(varName,work(1:n_modlvl),chm_obsoper%zhp(iobslev,1:n_modlvl), &
                   chm_obsoper%lvl_top(iobslev),chm_obsoper%lvl_bot(iobslev),1,n_modlvl,n_modlvl, &
                   .false.,rlat,lstart,0)
@@ -3191,6 +3218,7 @@ contains
 !
 !        Determine/estimate w*B*w^T 
 !
+
          call chm_corvert_mult(varName,chm_obsoper%zhp(iobslev,1:n_modlvl),zwbw, &
                    chm_obsoper%lvl_top(iobslev),chm_obsoper%lvl_bot(iobslev),1,n_modlvl,1, &
                    lrgsig,rlat,lstart,3,rsig)
@@ -3214,6 +3242,7 @@ contains
   
   end subroutine chm_genoper
 !-----------------------------------------------------------------------------------------
+
   subroutine chm_corvert_mult(varName,rmat_in,rmat_out,lvl_top,lvl_bot,ndim1,ndim2,ndim3, &
                               lrgsig,rlat,lstart,itype,rsig)
 !

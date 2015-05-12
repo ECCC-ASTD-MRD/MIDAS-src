@@ -1,4 +1,11 @@
 subroutine compute_HBHT(columng,columnhr,obsSpaceData)
+!
+! Revision:   M. Sitwell (ARQI/AQRD)  May 2015
+!               - Added call to compute_HBHT_static_chm for computation
+!                 with B_chm for chemical constituents
+!
+!-----------------------------------------------------------------------------------------
+
   use mpivar_mod
   use obsSpaceData_mod
   use columnData_mod
@@ -15,6 +22,7 @@ subroutine compute_HBHT(columng,columnhr,obsSpaceData)
 
   logical :: static   = .false.
   logical :: ensemble = .false.
+  logical :: static_chm = .false.
 
   integer :: index_body
   integer :: fnom, fclos, ierr, nulnam
@@ -40,6 +48,17 @@ subroutine compute_HBHT(columng,columnhr,obsSpaceData)
                               obsSpaceData, & ! INOUT (HBensHT std. dev. outputted in OBS_WORK)
                               ensemble )      ! OUT   (Active if TRUE)
 
+  !- 1.3 HBHT from the B_static matrix for chemistry
+  call compute_HBHT_static_chm( columng,      & ! IN
+                                obsSpaceData, & ! INOUT ( sqrt(diag(H*B*H^T)) with B_static_chm outputted in OBS_HPHT )
+                                static_chm )    ! OUT   (Active if TRUE)
+  
+  !- 1.4 HBHT from the B_ensemble matrix for chemistry
+  !call compute_HBHT_ensemble_chm( columng,      & ! IN
+  !                              obsSpaceData, &   ! INOUT ( sqrt(diag(H*B*H^T)) with B_ensemble_chm outputted in OBS_WORK )
+  !                              ensemble_chm )    ! OUT   (Active if TRUE)
+
+
   !
   !- 2. Select/Blend HBHT
   !
@@ -53,6 +72,7 @@ subroutine compute_HBHT(columng,columnhr,obsSpaceData)
      write(*,*) 'compute_HBHT: Using B_ensemble ONLY'
      ! Transfer HBensHT std. dev. values in OBS_WORK to OBS_HPHT
      do index_body = 1, obs_numBody(obsSpaceData)
+        if (obs_getFamily(obsSpaceData,obs_bodyElem_i(obsSpaceData,OBS_HIND,INDEX_BODY)).eq.'CH') cycle  ! skip over chem observations
         HBHT_ensemble = obs_bodyElem_r(obsSpaceData,OBS_WORK,index_body)
         call obs_bodySet_r(obsSpaceData,OBS_HPHT,index_body, HBHT_ensemble)
      end do
@@ -70,6 +90,7 @@ subroutine compute_HBHT(columng,columnhr,obsSpaceData)
      write(*,*) 'compute_HBHT: Using hybrid approach (blend of B_static and B_ensemble) in mode = ', trim(hybrid_mode)
 
      do index_body = 1, obs_numBody(obsSpaceData)
+        if (obs_getFamily(obsSpaceData,obs_bodyElem_i(obsSpaceData,OBS_HIND,INDEX_BODY)).eq.'CH') cycle  ! skip over chem observations
         HBHT_static   = obs_bodyElem_r(obsSpaceData,OBS_HPHT,index_body)
         HBHT_ensemble = obs_bodyElem_r(obsSpaceData,OBS_WORK,index_body)
         select case ( trim(hybrid_mode) )

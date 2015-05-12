@@ -20,7 +20,9 @@ SUBROUTINE BGCHECK_CONV(columng,columnhr,obsSpaceData)
 !
 !
 !Author  : P. Koclas *CMC/CMDA  Nov 1998
-!Revision:
+!
+!Revision:  M. Sitwell (ARQI/AQRD)
+!           - Added call to BGCDATA for chemical constituents
 !
 !    -------------------
 !*    Purpose: DO  a background check on all conventionnal observations
@@ -65,6 +67,7 @@ SUBROUTINE BGCHECK_CONV(columng,columnhr,obsSpaceData)
   CALL BGCDATA(ZJO,'PR',obsSpaceData)
   CALL BGCGPSRO(columnhr,obsSpaceData)
   CALL BGCDATA(ZJO,'GP',obsSpaceData)
+  CALL BGCDATA(ZJO,'CH',obsSpaceData)
 
 !
 !     Write out contents of obsSpaceData into BURP files
