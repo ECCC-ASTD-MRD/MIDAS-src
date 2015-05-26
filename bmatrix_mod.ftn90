@@ -162,7 +162,7 @@ contains
 
     if ( associated(cvBen) ) call ben_bsqrt(cvBen, statevector_temp)
     call tmg_stop(60)
-      
+
     !- 2.4 Add the two contributions together, result in statevector
     call gsv_add(statevector_temp,statevector)
 
@@ -340,6 +340,8 @@ contains
          call lbhi_expandToMPIGlobal(cvBhi_mpilocal,cvBhi_mpiglobal,cvDim_Bhi_mpiglobal)
       end if
     endif
+
+    cvDim_Ben_mpiglobal = 0
 
     cvBen_mpilocal =>cvm_getSubVector(cv_mpilocal,2)
     cvBen_mpiglobal=>cvm_getSubVector_mpiglobal(cv_mpiglobal,2)

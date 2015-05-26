@@ -23,7 +23,7 @@
 *     September 30, 1994
 *
 *     .. Scalar Arguments ..
-      CHARACTER          JOBZ, UPLO
+      CHARACTER(LEN=*)   JOBZ, UPLO
       INTEGER            INFO, LDA, LWORK, N
 *     ..
 *     .. Array Arguments ..
@@ -640,7 +640,7 @@
 *     October 31, 1992
 *
 *     .. Scalar Arguments ..
-      CHARACTER          NORM, UPLO
+      CHARACTER(LEN=*)   NORM, UPLO
       INTEGER            LDA, N
 *     ..
 *     .. Array Arguments ..
@@ -2339,7 +2339,7 @@
 *     October 31, 1992
 *
 *     .. Scalar Arguments ..
-      CHARACTER          UPLO
+      CHARACTER(LEN=*)   UPLO
       INTEGER            LDA, M, N
       DOUBLE PRECISION   ALPHA, BETA
 *     ..
@@ -3112,7 +3112,7 @@
 *     October 31, 1992
 *
 *     .. Scalar Arguments ..
-      CHARACTER          UPLO
+      CHARACTER(LEN=*)   UPLO
       INTEGER            LDA, LDW, N, NB
 *     ..
 *     .. Array Arguments ..
@@ -4042,7 +4042,7 @@
 *     September 30, 1994
 *
 *     .. Scalar Arguments ..
-      CHARACTER          UPLO
+      CHARACTER(LEN=*)   UPLO
       INTEGER            INFO, LDA, LWORK, N
 *     ..
 *     .. Array Arguments ..
@@ -5087,7 +5087,7 @@
 *     October 31, 1992
 *
 *     .. Scalar Arguments ..
-      CHARACTER          UPLO
+      CHARACTER(LEN=*)   UPLO
       INTEGER            INFO, LDA, N
 *     ..
 *     .. Array Arguments ..
@@ -5336,7 +5336,7 @@
 *     September 30, 1994
 *
 *     .. Scalar Arguments ..
-      CHARACTER          UPLO
+      CHARACTER(LEN=*)   UPLO
       INTEGER            INFO, LDA, LWORK, N
 *     ..
 *     .. Array Arguments ..
@@ -6978,7 +6978,7 @@
 *     September 30, 1994
 *
 *     .. Scalar Arguments ..
-      CHARACTER          CA, CB
+      CHARACTER(LEN=*)    CA, CB
 *     ..
 *
 *  Purpose

@@ -2249,6 +2249,8 @@ CONTAINS
     MISG=PPMIS
     ZEMFACT=0.01
 
+    REMIS = MISG
+
     BITSflagoff=0
     DO J = 1, Bnbitsoff
       BITSflagoff = IBSET ( BITSflagoff, 13-BBITOFF(J) )
@@ -2476,6 +2478,7 @@ CONTAINS
     SOLAR_ZENITH = 0
     RTANGENT_RADIUS=PPMIS
     RGEOID=PPMIS
+    TERRAIN_TYPE=99
     !CLOUD_COVER = 0
 
     !if ( allocated(rinfo) ) then

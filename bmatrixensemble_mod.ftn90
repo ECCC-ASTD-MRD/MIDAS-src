@@ -2099,11 +2099,16 @@ CONTAINS
        call rpn_comm_allreduce(cvDim_mpilocal,cvDim_maxmpilocal,1,"mpi_integer","mpi_max","GRID",ierr)
 
        allocate(cv_maxmpilocal(cvDim_maxmpilocal))
-       if(mpi_myid.eq.0) allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mpi_nprocs))
 
        cv_maxmpilocal(:) = 0.0d0
        cv_maxmpilocal(1:cvDim_mpilocal) = cv_mpilocal(1:cvDim_mpilocal)
 
+       nullify(cv_allmaxmpilocal)
+       if(mpi_myid.eq.0) then
+          allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mpi_nprocs))
+       else
+          allocate(cv_allmaxmpilocal(1,1))
+       end if
        call rpn_comm_gather(cv_maxmpilocal,    cvDim_maxmpilocal, "mpi_double_precision",  &
                             cv_allmaxmpilocal, cvDim_maxmpilocal, "mpi_double_precision", 0, "GRID", ierr )
 
@@ -2183,7 +2188,7 @@ CONTAINS
       deallocate(allmBeg)
       deallocate(allmEnd)
       deallocate(allmSkip)
-      if(mpi_myid.eq.0) deallocate(cv_allmaxmpilocal)
+      deallocate(cv_allmaxmpilocal)
 
     else
 

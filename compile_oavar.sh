@@ -136,8 +136,8 @@ elif [ "${BASE_ARCH}" = "Linux_x86-64" ];then
 	COMPF="${COMPF_GLOBAL} -optf =-fp-model source"
 	COMPF_NOC=${COMPF}
     else
-	COMPF="${COMPF_GLOBAL} -debug DEBUG -optf =-C =-fp-model source"
-	COMPF_NOC="${COMPF_GLOBAL} -debug DEBUG -optf =-fp-model source"
+	COMPF="${COMPF_GLOBAL} -debug DEBUG -optf =-C =-fp-model =source =-check =noarg_temp_created"
+	COMPF_NOC="${COMPF_GLOBAL} -debug DEBUG -optf =-fp-model =source =-check =noarg_temp_created"
     fi
 else
     echo "This platform 'BASE_ARCH=${BASE_ARCH}' is not supported.  Only 'AIX-powerpc7' and 'Linux_x86-64' are."
