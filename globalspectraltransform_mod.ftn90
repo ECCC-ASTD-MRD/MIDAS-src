@@ -1589,7 +1589,7 @@ CONTAINS
     ! Inverse Legendre transform
 
 !$OMP PARALLEL DO PRIVATE(DLALP,DLDALP,DLSP,ZFMS,ZFMA, &
-!$OMP INM,ILA,JM,JN,JK,JJ,JJ2,ZJM,ILONR,ILONI)
+!$OMP INM,ILA,JM,JN,JK,JK2,JJ,JJ2,ZJM,ILONR,ILONI)
     do jm = gst(gstID)%mymBeg, gst(gstID)%mymEnd, gst(gstID)%mymSkip
 
           ! 2.1 Copy global spectral state into local spectral state
