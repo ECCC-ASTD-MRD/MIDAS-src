@@ -1930,6 +1930,8 @@ contains
 !     nobslev   Size of obs profile
 !     robslev   pressure value of observation (OBS_PPP)
 !     ixtr      Flag indicating if obs within the model vertical coord range (.ne.0 for no) 
+!               Can be modified internally - hence intent(inout) - even though
+!               these changes will not be needed outside this routine.
 !     iass      Flag indicating if obs is to be assimilated (.ne.1 for no)
 !     rlat      Latitude of obs profile (radians)
 !     rlon      Longitue of obs profile (radians)
@@ -1970,7 +1972,8 @@ contains
   integer, intent(in) :: varno, ivco, kmode 
   integer, intent(in) :: nobslev
   integer, intent(in) :: idate,ihhmm
-  integer, intent(in) :: iconstituent_id,ixtr(nobslev),iass(nobslev)
+  integer, intent(in) :: iconstituent_id,iass(nobslev)
+  integer, intent(inout) :: ixtr(nobslev)
   real(8), intent(in) :: robslev(nobslev),rlat,rlon
   logical, intent(out) :: success(nobslev)
 
@@ -2028,13 +2031,12 @@ contains
      call chm_convert_units(chm_obsoper,n_modlvl,unit_conversion,rval,rtt,pressmodlvl,varno,iconstituent_id,kmode)
      unit_conversion = chm_obsoper%modelvarcolumn
   end select
-
        
 ! Determine if layer boundaries are assigned to this data source.
 ! If so, obtain them for use in this routine. 
-! Provides chm_obsoper%layer_identified,
-!          chm_obsoper%vlayertop(nobslev), 
-!          chm_obsoper%vlayerbottom(nobslev) 
+! Routine provides chm_obsoper%layer_identified,
+!                  chm_obsoper%vlayertop(nobslev), 
+!                  chm_obsoper%vlayerbottom(nobslev) 
  
   call chm_get_layer_boundaries(cstnid,varno,ivco,nobslev,pressmodlvl(1), &
        pressmodlvl(n_modlvl),chm_obsoper%layer_identified,chm_obsoper%vlayertop, &
@@ -2046,7 +2048,7 @@ contains
   if (chm_checkfor_integlayer(varno)) then
       if (.not.chm_obsoper%layer_identified) then
         write(*,*)   '----------------------------------------------------------'
-        write(*,*)   'STNID, BUFR_index, nobslev: ',cstnid,' ',varno,nobslev
+        write(*,*)   'STNID, BUFR index, nobslev: ',cstnid,' ',varno,nobslev
         call abort3d('chm_obsoperators: Required layer boundaries not available!')
       else
         ! Vertical integration operator
@@ -2073,6 +2075,10 @@ contains
       if (chm_obsoper%modelIndex.ne.2.and.chm_obsoper%modelIndex.ne.3) press_obs=robslev 
 !   end if
 
+! Determine if averaging kernel is to be applied
+
+  iavgkern = chm_find_avgkern(cstnid,varno,nobslev)
+
 ! Apply appropriate core observation operator
    
   select case(chm_obsoper%modelIndex)
@@ -2080,7 +2086,7 @@ contains
 
 !    Vertical interpolation operator
 
-     call chm_vert_interp_operator(chm_obsoper,n_modlvl,pressmodlvl,nobslev,press_obs,success)
+     call chm_vert_interp_operator(chm_obsoper,n_modlvl,pressmodlvl,nobslev,press_obs,iavgkern,ixtr,success)
      
 !  case(2)
 
@@ -2092,14 +2098,11 @@ contains
 
 !    Layer integration operator
 
-     call chm_layer_integ_operator(chm_obsoper,n_modlvl,pressmodlvl,nobslev,success)
+     call chm_layer_integ_operator(chm_obsoper,n_modlvl,pressmodlvl,nobslev,iavgkern,ixtr,success)
 
   end select
 
-
 ! Apply averaging kernel if requested
-
-  iavgkern = chm_find_avgkern(cstnid,varno,nobslev)
 
   if (iavgkern.gt.0) then
 
@@ -2534,13 +2537,15 @@ contains
 
 !---------------------------------------------------------------------------------------
 
-  subroutine chm_layer_integ_operator(chm_obsoper,n_modlvl,pressmodlvl,nobslev,success)
+  subroutine chm_layer_integ_operator(chm_obsoper,n_modlvl,pressmodlvl,nobslev,iavgkern,ixtr,success)
 !
-! Author  : Y. Rochon, ARQI/AQRD, Feb 2015 (not completed - remains to be generalized)
+! Author  : Y. Rochon, ARQI/AQRD, Feb 2015
 !
 ! Revision: 
 !           M. Sitwell, ARQI/AQRD, Mar 2015
 !           - Modified to calculate whole profile within a single call
+!           Y. Rochon ARQOI/AQRD, May 2015
+!           - Added input of ixtr and iavgkern
 !
 ! Purpose:  Perform layer integration and calculations.
 !
@@ -2551,17 +2556,25 @@ contains
 !     n_modlvl     number of model levels
 !     pressmodlvl  pressure on model levels
 !     nobslev      number of observations
+!     ixtr         Flag indicating if obs outside model vertical range
+!                  0 for no.
+!     iavgkern     Flag indicating if average kernels are to be applied 
+!                  afterwards using the output of this routine.
+!                  0 for no. If not 0, then products for all obs elements
+!                  are needed instead of only those for valid obs elements.
 !
 !  InOut
 !
 !     chm_obsoper  observation operator object
 !     success      success of integration
+!     ixtr         Modified ixtr as needed.
 !
 !-----------------------------------------------------------------------------------------
 
   implicit none
 
-  integer, intent(in) :: n_modlvl,nobslev
+  integer, intent(in) :: n_modlvl,nobslev,iavgkern
+  integer, intent(inout) :: ixtr(nobslev)
   real(8), intent(in) :: pressmodlvl(n_modlvl)
   logical, intent(inout) :: success(nobslev)
   type(struct_chm_obsoperators), intent(inout) :: chm_obsoper
@@ -2576,11 +2589,21 @@ contains
   
   do iobslev=1,nobslev
      
-      if ( chm_obsoper%vlayerbottom(iobslev).lt.pressmodlvl(1)*1.01 .or. &  
+      if (chm_obsoper%vlayerbottom(iobslev).lt.chm_obsoper%vlayertop(iobslev)) then
+         success(1:nobslev)=.false.
+         write(*,*) 'chm_layer_integ_operator: WARNING. Layer top/bot value problem.',chm_obsoper%vlayertop(iobslev), chm_obsoper%vlayerbottom(iobslev)
+         write(*,*) 'chm_layer_integ_operator: Entire profile skipped over.'
+         return
+      else if (chm_obsoper%vlayerbottom(iobslev).lt.pressmodlvl(1)*1.01 .or. &  
            chm_obsoper%vlayertop(iobslev).gt.pressmodlvl(n_modlvl)*0.99) then
          success(iobslev)=.false.
+         if (chm_obsoper%vlayerbottom(iobslev).lt.pressmodlvl(1)*1.01) then
+            ixtr(iobslev)=1
+         else
+            ixtr(iobslev)=2
+         end if 
          write(*,*) 'chm_layer_integ_operator: WARNING. Layer top/bot value problem.',chm_obsoper%vlayertop(iobslev), chm_obsoper%vlayerbottom(iobslev)
-         return
+         cycle
       end if
       if (chm_obsoper%vlayerbottom(iobslev).gt.pressmodlvl(n_modlvl)*0.999) chm_obsoper%vlayerbottom(iobslev)=pressmodlvl(n_modlvl)*0.999
       if (chm_obsoper%vlayertop(iobslev).lt.pressmodlvl(1)*1.001) chm_obsoper%vlayertop(iobslev)=pressmodlvl(1)*1.001
@@ -2589,7 +2612,7 @@ contains
        
   ! Calculate vertical integration components for specified obs layer.
 
-  call chm_vertintg(chm_obsoper,n_modlvl,nobslev,success)
+  call chm_vertintg(chm_obsoper,n_modlvl,nobslev,iavgkern,ixtr,success)
    
   end subroutine chm_layer_integ_operator
 
@@ -2701,7 +2724,7 @@ contains
 
 !-----------------------------------------------------------------------------------------
 
-  subroutine chm_vertintg(chm_obsoper,n_modlvl,nobslev,success)
+  subroutine chm_vertintg(chm_obsoper,n_modlvl,nobslev,iavgkern,ixtr,success)
 !
 ! Author  : Y. Rochon, Y. Yang and S. Ren, Nov 2004 to Dec 2012
 !           - Pre-EnVar version
@@ -2710,11 +2733,12 @@ contains
 !           - Adapted for the EnVar
 !           M. Sitwell, ARQI/AQRD, Mar 2015
 !           - Modified to calculate whole profile within a single call
+!           Y. Rochon ARQOI/AQRD, May 2015
+!           - Added input and use of ixtr and iavgkern
 !
 ! Purpose:  Calculate components required for vertical 
 !           integration w.r.t. pressure to calculate partial (or total)
 !           column value of model state profile or used for adjoint calc..
-!
 !
 ! Arguments:
 !
@@ -2724,6 +2748,12 @@ contains
 !           chm_obsoper%vweights  -- See routine chm_vertintg_setup
 !           chm_obsoper%vmodpress
 !           success               -- Logical indicating if calc are to be performed.
+!           ixtr                  -- Flag indicating if obs outside model vertical range
+!                                    0 for no.
+!           iavgkern              -- Flag indicating if average kernels are to be applied 
+!                                    afterwards using the output of this routine.
+!                                    0 for no. If not 0, then products for all obs elements
+!                                    are needed instead of only those for valid obs elements.
 !
 !  Output  
 !           chm_obsoper%zh(nobslev,n_modlvl)  -- Initial innovation model array 
@@ -2734,7 +2764,7 @@ contains
 !-----------------------------------------------------------------------------------------
       implicit none
 
-      integer, intent(in) :: n_modlvl,nobslev
+      integer, intent(in) :: n_modlvl,nobslev,iavgkern,ixtr(nobslev)
       type(struct_chm_obsoperators), intent(inout) :: chm_obsoper
       logical, intent(in) :: success(nobslev)
 
@@ -2749,7 +2779,7 @@ contains
 
       do iobslev=1,nobslev
 
-         if (success(iobslev)) then
+         if (success(iobslev).or.(ixtr(iobslev).eq.0.and.iavgkern.ne.0)) then
 
             ptop = chm_obsoper%vlayertop(iobslev)
             pbtm = chm_obsoper%vlayerbottom(iobslev)
@@ -2900,12 +2930,14 @@ contains
 
 !-----------------------------------------------------------------------------------------
 
-  subroutine chm_vert_interp_operator(chm_obsoper,nmodlev,pres_mod,nobslev,pres_obs,success)
+  subroutine chm_vert_interp_operator(chm_obsoper,nmodlev,pres_mod,nobslev,pres_obs,iavgkern,ixtr,success)
 !
 ! Author  : M. Sitwell, ARQI/AQRD, March 2015
 !           - Based on ch_vprof from 3DVAR-CHEM by Y. Rochon July 2005
 !
 ! Revision:
+!           Y.J. Rochon, ARQI/AQRD, May 2015
+!           - Added input and use of ixtr and iavgkern
 !
 ! Purpose:  Interpolation to point in profile. Uses piecewise linear vertical
 !           interpolation in log(Pressure).
@@ -2918,11 +2950,18 @@ contains
 !       pres_obs        pressure on observation levels
 !       nmodlev         number of models levels
 !       nobslev         number of observation levels
+!       ixtr            Flag indicating if obs outside model vertical range
+!                       0 for no.
+!       iavgkern        Flag indicating if average kernels are to be applied 
+!                       afterwards using the output of this routine.
+!                       0 for no. If not 0, then products for all obs elements
+!                       are needed instead of only those for valid obs elements.
 !
 !  Output
 !
 !       chm_obsoper%zh  interpolation coefficients
 !       success         success of interpolation
+!       ixtr            Modified ixtr as needed.
 !
 ! Comments:  Current implementation searches for index of nearest model level. This step
 !            is redundant since this information is already save in obsSpaceData in OBS_LYR.
@@ -2935,7 +2974,8 @@ contains
 
     implicit none
 
-    integer, intent(in) :: nmodlev, nobslev
+    integer, intent(in) :: nmodlev, nobslev, iavgkern
+    integer, intent(inout) :: ixtr(nobslev)
     real(8), intent(in) :: pres_mod(nmodlev), pres_obs(nobslev)
     type(struct_chm_obsoperators), intent(inout) :: chm_obsoper
     logical, intent(inout) :: success(nobslev)
@@ -2947,9 +2987,14 @@ contains
        if ( pres_obs(iobslev).lt.pres_mod(1) .or. &
             pres_obs(iobslev).gt.pres_mod(nmodlev) ) then
           success(iobslev)=.false.
+          if (pres_obs(iobslev).lt.pres_mod(1)) then
+              ixtr(iobslev)=1
+          else
+              ixtr(iobslev)=2
+          end if 
        end if
 
-       if (success(iobslev)) then
+       if (success(iobslev).or.(ixtr(iobslev).eq.0.and.iavgkern.ne.0)) then
 
           ! Find model layers directly above and below obs.
           ! After exit of loop, the obs will be between model
@@ -3097,7 +3142,7 @@ contains
 !
 !     where the modified innovation operator 'w' can be set as:
 !
-!            w= P[ (h'x)^T ] *  B^{-1}
+!            w= P[ (h'x)^T ] *  B^{-1}     
 !
 !     with  h' is the part of h which excludes resolution dependence
 !              (only/mostly contains the physics part of h; zhp),
@@ -3123,8 +3168,8 @@ contains
 !     is used instead of B in the minimization. Moreover, the transformation from dx/sigma 
 !     to dx is done outside the forward model operators (at the spectral to physical space 
 !     transformation step). For this reason, the expression for w should technically be replaced by
-!
-!            w= P[ (h'x/sigma^2)^T ] *  C^{-1} 
+! 
+!            w= P[ (h'x/sigma^2)^T ] *  C^{-1}             (Option 1 below)
 !
 !     still with
 !
@@ -3134,17 +3179,17 @@ contains
 !     minimization. It can result in oscillations in the increment profile depending on
 !     where the iterations are stopped. Moreover, if the spectral space C matrix is for 
 !     non-seperable vertical and horizontal correlations, there will be oscillations 
-!     do to inconstencies between the total inverse vertical correlation C^{-1} in physical space 
+!     due to inconstencies between the total inverse vertical correlation C^{-1} in physical space 
 !     and the inverse vertical correlation matrix for each spectral wavenumber.
 !
 !     As alternatives, one can completely omit the role of  C^{-1} from w, i.e.
 !
-!            w= P[ (h'x/sigma^2)^T ]
+!            w= P[ (h'x/sigma^2)^T ]                        (Option 3)
 !
-!      or use the following substitute to approximate the role of C^{-1} in negating
-!      the weight re-distribution from later application of C in grad(Jo), i.e.
+!      or use the following substitute to approximate the role of C^{-1} in approximatily
+!      negating the weight re-distribution from later application of C in grad(Jo), i.e.
 !
-!            w(i)= P[ (h'x/sigma^2)^T ]_i / sum(C(:,i))
+!            w(i)= P[ (h'x/sigma^2)^T ]_i / sum(C(:,i))     (Option 2 - preferred)
 !
 !     (2) The matrices B and B^{-1} are the total error covariance matrix (in physical space)
 !     and its inverse with the related error correlation matrices 'corvert' and 'corverti' 
@@ -3178,7 +3223,6 @@ contains
 !        First determine background error std. dev. and determine/estimate h*B*h^T. 
 !        Done first to acquire 'rsig' at the same time!
 !
-
          call chm_corvert_mult(varName,chm_obsoper%zh(iobslev,1:n_modlvl),zhbh, &
                   chm_obsoper%lvl_top(iobslev),chm_obsoper%lvl_bot(iobslev),1,n_modlvl,1, &
                   lrgsig,rlat,lstart,3,rsig)
@@ -3187,17 +3231,34 @@ contains
 !
 !        Begin preparation of the new innovation operator w (=new zhp)
 !
-         work(1:n_modlvl)=chm_obsoper%zhp(iobslev,1:n_modlvl)*rval(1:n_modlvl)/rsig(1:n_modlvl,1) 
+         if (nobslev.eq.1.and.chm_obsoper%lvl_top(iobslev).eq.1.and. &
+            chm_obsoper%lvl_bot(iobslev).eq.n_modlvl) then
+            
+!           Treat as total column obs. Here, zhp would be approx. equal
+!           to 1 except for the near-end points of the model vertical domain,
+!           the latter due to the discretized domain. Not using zhp avoids this
+!           discretization issue from weakly affecting results at the boundaries.
 !
-!        Apply cutoff (apply to zhp*rval/rsig in this case instead of the resultant zh)
-!
+            work(1:n_modlvl)=rval(1:n_modlvl)/rsig(1:n_modlvl,1) 
+         else 
+
+!           Account for localized obs function (e.g. partial columns, Jacobians. For Jacobians,
+!           zhp must also be independent of the model layer thicknesses.)
+            work(1:n_modlvl)=chm_obsoper%zhp(iobslev,1:n_modlvl)*rval(1:n_modlvl)/rsig(1:n_modlvl,1) 
+         end if
+
+!        Apply cutoff (apply to zhp*rval/rsig instead of the resultant zh)
+!        Resultant outside cutoff region should be zhp*rval/rsig/rsig.
+ 
          zmin=pwin*maxval(abs(work(1:n_modlvl)))
-         where (abs(work(1:n_modlvl)).lt.zmin) work(1:n_modlvl)=0.0D0        
-! 
-         work(1:n_modlvl)=work(1:n_modlvl)/rsig(1:n_modlvl,1)
+         where (abs(work(1:n_modlvl)).lt.zmin) 
+             work(1:n_modlvl)=0.0D0 
+         elsewhere        
+             work(1:n_modlvl)=work(1:n_modlvl)/rsig(1:n_modlvl,1)
+         endwhere
 !
-!        Application of C^{-1} or substitute (for negating the later application of C in 
-!        finalizing grad(Jo). Option 2 is favoured.
+!        Application of C^{-1} or substitute (for negating the weight impact of the
+!        later application of C in finalizing grad(Jo). Option 2 is favoured.
 !  
 !        Option 1: Application of C^{-1}
 !         call chm_corvert_mult(varName,work(1:n_modlvl),chm_obsoper%zhp(iobslev,1:n_modlvl), &
@@ -3218,7 +3279,6 @@ contains
 !
 !        Determine/estimate w*B*w^T 
 !
-
          call chm_corvert_mult(varName,chm_obsoper%zhp(iobslev,1:n_modlvl),zwbw, &
                    chm_obsoper%lvl_top(iobslev),chm_obsoper%lvl_bot(iobslev),1,n_modlvl,1, &
                    lrgsig,rlat,lstart,3,rsig)
