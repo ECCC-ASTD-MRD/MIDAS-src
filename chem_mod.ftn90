@@ -1886,6 +1886,9 @@ contains
 !           - Modified to calculate whole profile within a single call
 !           M. Sitwell, ARQI/AQRD, May 2015
 !           - Added vertical interpolation operator
+!           M. Sitwell, ARQI/AQRD, June 2015
+!           - Changed calculation of HBH^T to forgo calculating off-diagonal elements
+!             of the final product
 !
 ! Purpose: Apply obs operator for indicated obs data. 
 !
@@ -1992,7 +1995,8 @@ contains
   
   real(8) :: press_obs(nobslev),zwork(n_modlvl),unit_conversion(n_modlvl)
   integer :: iobslev,iavgkern
-  real(8), allocatable :: avg_kern(:,:),HBHT(:,:)
+  real(8), allocatable :: avg_kern(:,:)
+  logical :: apply_genoper
 
 ! Allocate memory for chm_obsoper
   allocate(chm_obsoper%modelvarcolumn(n_modlvl))
@@ -2060,8 +2064,12 @@ contains
   else
       ! Vertical interpolation operator
       chm_obsoper%modelIndex=1
-  end if
-  
+  end if  
+
+! Indicates if the generalized innovation operator is to be applied.
+
+  apply_genoper = kmode.ge.2 .and. chm_ngenoper.eq.1 .and. &
+       (chm_obsoper%modelIndex.eq.2 .or. chm_obsoper%modelIndex.eq.3)
 
 ! Convert observation vertical coordinate value(s) to pressure if needed 
 ! and provide values to this routine.
@@ -2107,17 +2115,18 @@ contains
   if (iavgkern.gt.0) then
 
       allocate(avg_kern(nobslev,nobslev))
+
       call chm_get_avgkern(iavgkern,nobslev,avg_kern)
       chm_obsoper%zh = matmul(avg_kern,chm_obsoper%zh)
+      if (apply_genoper) chm_obsoper%zhp = matmul(avg_kern,chm_obsoper%zhp)
+
       deallocate(avg_kern)
 
   end if
 
 ! Apply generalized innovation operator if requested
 
-  if (kmode.ge.2.and.chm_ngenoper.eq.1.and. &
-      (chm_obsoper%modelIndex.eq.2.or.chm_obsoper%modelIndex.eq.3)) &      
-      call chm_genoper(chm_obsoper,rval,rlat,rlon,n_modlvl,nobslev,kmode,varName,success)
+  if (apply_genoper) call chm_genoper(chm_obsoper,rval,rlat,rlon,n_modlvl,nobslev,kmode,varName,success)
 
 ! Finalize required quantities depending on kmode
    
@@ -2138,22 +2147,22 @@ contains
 !
 !    Compute sqrt(diag(H*B*H^T))
 !
-     allocate(HBHT(nobslev,nobslev)) 
      
      ! Apply unit conversion to observation operator
      do iobslev=1,nobslev
         chm_obsoper%zh(iobslev,:) = unit_conversion * chm_obsoper%zh(iobslev,:)
      end do
 
-     call chm_corvert_mult(varName,chm_obsoper%zh,HBHT,chm_obsoper%lvl_top,chm_obsoper%lvl_bot, & 
-          nobslev,n_modlvl,nobslev,.TRUE.,rlat,.TRUE.,3)
-
-     rmhx = (/ (sqrt(HBHT(iobslev,iobslev)), iobslev=1, nobslev) /)
-
-     where(.not.success) rmhx = 0.0
-
-     deallocate(HBHT)
-    
+     do iobslev=1,nobslev
+        if (success(iobslev)) then
+           call chm_corvert_mult(varName,chm_obsoper%zh(iobslev,:),rmhx(iobslev),chm_obsoper%lvl_top(iobslev), & 
+                chm_obsoper%lvl_bot(iobslev),1,n_modlvl,1,.TRUE.,rlat,.TRUE.,3) ! get h*B*h^T
+           rmhx(iobslev) = sqrt(rmhx(iobslev))  ! save as sqrt(h*B*h^T)
+        else
+           rmhx(iobslev) = 0.0
+        end if
+     end do
+     
   case(3)
 !
 !     Ht*grad contribution from adjoint of tangent linear model.
@@ -2175,7 +2184,8 @@ contains
       
   end select
 
-  ! deallocate chm_obsoper arrays
+! Deallocate chm_obsoper arrays
+
   deallocate(chm_obsoper%modelvarcolumn)
   deallocate(chm_obsoper%vlayertop,chm_obsoper%vlayerbottom)
   deallocate(chm_obsoper%vweights,chm_obsoper%zh,chm_obsoper%zhp,chm_obsoper%vmodpress)
@@ -3368,7 +3378,7 @@ contains
       character(len=*), intent(in) :: varName
       logical, intent(in)    :: lstart,lrgsig
       integer, intent(in)    :: ndim1,ndim2,ndim3,itype
-      integer, intent(in) :: lvl_top(ndim1),lvl_bot(ndim1)
+      integer, intent(in)    :: lvl_top(ndim1),lvl_bot(ndim1)
       real(8), intent(in)    :: rmat_in(ndim1,ndim2),rlat
       real(8), intent(out)   :: rmat_out(ndim1,ndim3)
       real(8), intent(inout), optional :: rsig(ndim2,2)
