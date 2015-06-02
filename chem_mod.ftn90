@@ -178,16 +178,20 @@ module chem_mod
      !     
      !  Variable               Description
      !  --------               -----------
-     !  data                   BURP file data indexed by (irep,ilev)
+     !  ndim                   number of dimension of the BURP data
+     !                         per report (i.e. ndim=1 for std and
+     !                         ndim=2 for averaging kernels)
+     !  data1d                 BURP file data indexed by (irep,ilev)
+     !  data2d                 BURP file data indexed by (irep,ilev,ilev)
      !  ilev                   current level position
      !  irep                   current report position
      !  date                   YYYYMM
      !  time                   HHMM
      !  lat,lon                lat,lon in radians
 
-     real(8), pointer :: data(:,:), lat(:), lon(:)
+     real(8), pointer :: data1d(:,:),data2d(:,:,:), lat(:), lon(:)
      integer, pointer :: date(:),time(:)
-     integer :: nlev,nrep,ilev,irep
+     integer :: ndim,nlev,nrep,ilev,irep
   
   end type struct_chm_burp
 
@@ -195,12 +199,13 @@ module chem_mod
   type(struct_chm_info) :: chm_avgkern
   type(struct_chm_std)  :: chm_std
 
-! Array of pointers to hold std's read from BURP file
-! Note: Ideally, this should be an element in the
-! 'struct_chm_std' derived type, but currently this
-! results in an internal compiler error.
+! Array of pointers to hold std's/averaging kernels read from BURP file.
+! Note: Ideally, these should be an element in the 'struct_chm_std' /
+! 'struct_chm_info' derived types, but currently this results
+! in an internal compiler error.
 
-  type(struct_chm_burp), allocatable :: chm_burp_std(:)
+  type(struct_chm_burp), allocatable :: chm_burp_std(:),chm_burp_avgkern(:)
+
   
 ! Miscellaneous flags and constants read/set from chm_read_misc
 
@@ -577,19 +582,15 @@ contains
 ! Author  : Y. Rochon, Dec 2014
 ! Revision: 
 !
-! Purpose: Deallocate temporary storage space.
+! Purpose: Deallocate temporary storage space used for layer info
 !
 ! ---------------------------------------------------------------------------------------
-  
-!
-! Deallocate temporary space used for the CH family
-!
-  if (chm_layers%n_stnid.gt.0) then
-      deallocate(chm_layers%stnids)
-      deallocate(chm_layers%n_lvl,chm_layers%ibegin)
-      deallocate(chm_layers%bfr,chm_layers%brp,chm_layers%vco)
-      deallocate(chm_layers%vlayertop,chm_layers%vlayerbottom)
-  end if
+
+    implicit none
+
+    if (chm_layers%n_stnid.eq.0) return
+
+    call chm_dealloc_info(chm_layers)
  
   end subroutine chm_dealloc_layers
 
@@ -608,19 +609,24 @@ contains
 
     implicit none
 
+    integer :: istnid
+
     ! read the averaging kernel information from the ascii file
     call chm_read_avgkern_ascii
 
-    ! read std. dev. from BURP file if was indicated in the ascii file
-    ! TO BE COMPLETED
-    !do i=1,chm_avgkern%n_stnid
-    !   
-    !   if (chm_avgkern%brp(i).eq.1) then
-    !      call chm_read_burp('brpch', chm_avgkern%stnids(i), chm_avgkern%bfr(i), &
-    !           chm_avgkern%n_lvl(i), burp_nrep_max, chm_burp_std)
-    !   end if
-    !
-    !end do
+    ! set size of BURP file array
+    allocate(chm_burp_avgkern(chm_avgkern%n_stnid))
+
+    ! read from BURP file
+    do istnid=1,chm_avgkern%n_stnid
+       if (chm_avgkern%brp(istnid).eq.1) then
+          
+          ! retrieve data from stats blocks (with bkstp=14 and block_type='DATA')
+          chm_burp_avgkern(istnid) = chm_read_burp('brpch', chm_avgkern%stnids(istnid), &
+               15044, chm_avgkern%n_lvl(istnid), 2, 14, 'DATA')
+          
+       end if
+    end do
 
   end subroutine chm_read_avgkern
 
@@ -694,7 +700,7 @@ contains
 !            to determine association to the observations.
 
   icount=1
-  do jelm=1,chm_avgkern%n_stnid
+  STNIDLOOP: do jelm=1,chm_avgkern%n_stnid
     chm_avgkern%ibegin(jelm)=icount
 
     read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
@@ -720,6 +726,9 @@ contains
     end if
 
     read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
+
+    ! disregard data section if values to be specified in BUFR file
+    if (chm_avgkern%brp(jelm).eq.1) cycle STNIDLOOP
     
     if (chm_avgkern%n_lvl(jelm).gt.1) then   
        do jlev=1,chm_avgkern%n_lvl(jelm)
@@ -734,7 +743,7 @@ contains
        end do
     end if
 
-  end do
+ end do STNIDLOOP
    
  10 if (ios.gt.0) then
        WRITE(*,*) 'File read error message number: ',ios
@@ -753,19 +762,24 @@ contains
 ! Author  : Y. Rochon, Dec 2014
 ! Revision: 
 !
-! Purpose: Deallocate temporary storage space.
+! Purpose: Deallocate temporary storage space used for averaging kernels
 !
 !---------------------------------------------------------------------------------------
-  
-!
-! Deallocate temporary space used for the CH family
-!
-  if (chm_avgkern%n_stnid.gt.0) then
-      deallocate(chm_avgkern%stnids)
-      deallocate(chm_avgkern%ibegin)
-      deallocate(chm_avgkern%bfr,chm_avgkern%brp,chm_avgkern%n_lat)
-      deallocate(chm_avgkern%rak,chm_avgkern%lat)
-  end if
+
+    implicit none
+
+    integer :: istnid
+
+    if (chm_avgkern%n_stnid.eq.0) return
+
+    if (allocated(chm_burp_avgkern)) then
+       do istnid=1,chm_avgkern%n_stnid
+          if (chm_avgkern%brp(istnid).eq.1) call dealloc_burp(chm_burp_avgkern(istnid))
+       end do
+       deallocate(chm_burp_avgkern)
+    end if
+
+    call chm_dealloc_info(chm_avgkern)
   
   end subroutine chm_dealloc_avgkern
 
@@ -821,7 +835,7 @@ contains
 
 !-----------------------------------------------------------------------------------------
 
-  subroutine chm_get_avgkern(istnid,nlev,avg_kern)
+  subroutine chm_get_avgkern(istnid,nlev,zlat,zlon,idate,itime,avg_kern)
 !
 ! Author  : M. Sitwell, March 2015
 ! Revision: 
@@ -829,8 +843,10 @@ contains
 ! Purpose: Return averaging kernel for an observation.
 !
 ! Inputs:
-!   - ISTNID          index of averaging kernel in chm_avgkern
-!   - nlev            number of levels in the observation
+!   - istnid          index of averaging kernel in chm_avgkern
+!   - nlev            number of observation levels
+!   - idate           YYYYMMDD
+!   - itime           HHMM
 !
 ! Outputs:
 !   - avg_kern        the averaging kernel
@@ -838,17 +854,26 @@ contains
 
     implicit none
 
-    integer, intent(in)  :: istnid,nlev
+    integer, intent(in)  :: istnid,nlev,idate,itime
+    real(8), intent(in)  :: zlat,zlon
     real(8), intent(out) :: avg_kern(nlev,nlev)
     integer :: start_index,end_index
 
-    IF ( ISTNID.gt.0 .and. ISTNID.le.chm_avgkern%n_stnid ) THEN
-       start_index = chm_avgkern%ibegin(ISTNID)
-       end_index = nlev*(start_index+nlev-1)
-       avg_kern = RESHAPE(chm_avgkern%rak(start_index:end_index),(/nlev,nlev/),ORDER =(/2,1/))
-    ELSE
-       CALL ABORT3D('chm_get_avgkern: Invalid station ID index.')    
-    END IF
+    if (istnid.gt.0 .and. istnid.le.chm_avgkern%n_stnid) then
+       
+       if (chm_avgkern%brp(istnid).eq.0) then
+          ! get averaging kernel from ascii file
+          start_index = chm_avgkern%ibegin(ISTNID)
+          end_index = nlev*(start_index+nlev-1)
+          avg_kern = RESHAPE(chm_avgkern%rak(start_index:end_index),(/nlev,nlev/),ORDER =(/2,1/))
+       else
+          ! get averaging kernel from BURP file
+          avg_kern = chm_get_burp_array2d(chm_burp_avgkern(istnid),zlat,zlon,idate,itime,nlev)
+       end if
+
+    else
+       call abort3d("chm_get_avgkern: Invalid station ID index.")
+    end if
 
   end subroutine chm_get_avgkern
 
@@ -882,7 +907,7 @@ contains
           
           ! retrieve data from stats blocks (with bkstp=14 and block_type='DATA')
           chm_burp_std(istnid) = chm_read_burp('brpch', chm_std%stnids(istnid), &
-               chm_std%bfr(istnid), chm_std%n_lvl(istnid), 14, 'DATA')
+               chm_std%bfr(istnid), chm_std%n_lvl(istnid), 1, 14, 'DATA')
           
        end if
     end do
@@ -972,7 +997,7 @@ contains
 !            to determine association to the observations.
 
   icount=0
-  do jelm=1,chm_std%n_stnid
+  STNIDLOOP: do jelm=1,chm_std%n_stnid
     chm_std%ibegin(jelm)=icount+1
 
     ! disregard line of dashes
@@ -1006,6 +1031,9 @@ contains
     ! disregard line of dashes
     read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
     
+    ! disregard data section if set to be specified by BUFR values only
+    if (chm_std%brp(jelm).eq.1.and.chm_std%std_type(jelm).eq.0) cycle STNIDLOOP 
+       
     if (chm_std%n_lvl(jelm).eq.1.and.chm_std%n_lat(jelm).eq.1) then
     
 !      Read one value only (independent of level and latitude)
@@ -1063,7 +1091,7 @@ contains
        end do
        icount=icount+chm_std%n_lat(jelm)*chm_std%n_lvl(jelm)
     end if
-  end do
+ end do STNIDLOOP
    
  10 if (ios.gt.0) then
        WRITE(*,*) 'File read error message number: ',ios
@@ -1300,14 +1328,17 @@ contains
 !-----------------------------------------------------------------------------------------
 !------------------- BURP functions and routines -----------------------------------------
 
-  function chm_read_burp(filename,stnid,varno,nlev,bkstp,block_type) result(burp_out)
+  function chm_read_burp(filename,stnid,varno,nlev,ndim,bkstp,block_type) result(burp_out)
 !
 ! Author  : M. Sitwell, ARQI/AQRD, March 2015
 !
+! Purpose:  Retrieve information from BURP file for CH family observations. Can retrieve
+!           either 1D or 2D data from a report.
+!           Note: Exponent BUFR data (i.e. data with BUFR number 8090) will only be applied
+!                 to 1D data.
 !
-! Revision: 
-!
-! Purpose:  Retrieve information from BURP file for CH family observations
+! Revision:  M. Sitwell, ARQI/AQRD, May 2015
+!            - Modified to read both 1D and 2D data from a report
 !
 ! Arguments:
 !
@@ -1316,6 +1347,9 @@ contains
 !           stnid         station ID of observation
 !           varno         BUFR code
 !           nlev          number of levels in the observation
+!           ndim          number of dimensions for the retrieved data in
+!                         each report (i.e. ndim=1 for std, ndim=2 for
+!                         averagine kernels) 
 !           bkstp         bkstp number of requested block
 !           block_type    block type indicated by the two rightmost bits
 !                         of bknat. Valid values are 'DATA', 'INFO', '3-D',
@@ -1334,15 +1368,15 @@ contains
     character(len=*), intent(in) :: filename
     character(len=9), intent(in) :: stnid
     character(len=4), intent(in) :: block_type
-    integer, intent(in)          :: varno,nlev,bkstp
+    integer, intent(in)          :: ndim,varno,nlev,bkstp
     type(struct_chm_burp) :: burp_out
     character(len=9)      :: rep_stnid
     type(burp_file)       :: brp
     type(burp_rpt)        :: rep
     type(burp_block)      :: blk
-    integer               :: error,ref_rpt,nrep,ref_blk,i
+    integer               :: error,ref_rpt,nrep,ref_blk
     integer               :: ref_bkstp,nval,ivar,iexp,ilev,icount
-    integer               :: idate,itime,ilat,ilon
+    integer               :: idate,itime,ilat,ilon,iele,nele,icol
     real(8)               :: val,exponent
       
     ! initialize burp file, report, and block
@@ -1359,7 +1393,7 @@ contains
     Call BURP_Get_Property(brp, NRPTS=nrep)
 
     ! allocate memory
-    call alloc_burp(burp_out,nrep,nlev)
+    call alloc_burp(burp_out,nrep,nlev,ndim)
     
     icount = 0  ! counter of reports with same stnid and number of levels as input 
     ref_rpt = 0
@@ -1382,7 +1416,7 @@ contains
           ref_blk = BURP_Find_Block(rep, BLOCK=blk, SEARCH_FROM=ref_blk, IOSTAT=error)          
           if (ref_blk<0) exit BLOCKS
           
-          call BURP_Get_Property(blk, NVAL=nval, BKSTP=ref_bkstp, IOSTAT=error)
+          call BURP_Get_Property(blk, NELE=nele, NVAL=nval, BKSTP=ref_bkstp, IOSTAT=error)
           
           if (IS_Burp_Btyp(trim(block_type),BLOCK=blk) .and. bkstp.eq.ref_bkstp) then
              if (nval.eq.nlev) then
@@ -1391,27 +1425,6 @@ contains
 
                 icount=icount+1
 
-                ivar = BURP_Find_Element(blk, ELEMENT=varno, IOSTAT=error)
-                iexp = BURP_Find_Element(blk, ELEMENT=8090, IOSTAT=error)
-                
-                if (iexp.lt.0) then
-               
-                   ! No exponent found in block
-                   
-                   do ilev=1,nval                   
-                      burp_out%data(icount,ilev) = BURP_Get_Rval(blk, NELE_IND=ivar, NVAL_IND=ilev, NT_IND=1, IOSTAT=error)                
-                   end do
-                   
-                else
-                      ! Apply exponent
-                      
-                   do ilev=1,nval                   
-                      val = BURP_Get_Rval(blk, NELE_IND=ivar, NVAL_IND=ilev, NT_IND=1, IOSTAT=error)                
-                      exponent = BURP_Get_Rval(blk, NELE_IND=iexp, NVAL_IND=ilev, NT_IND=1, IOSTAT=error)
-                      burp_out%data(icount,ilev) = val * 10**exponent
-                   end do
-                end if
-                
                 burp_out%date(icount) = idate
                 burp_out%time(icount) = itime
 
@@ -1420,7 +1433,43 @@ contains
                 burp_out%lat(icount) = ilat*.01 -90.
                 burp_out%lon(icount) = burp_out%lon(icount)*MPC_RADIANS_PER_DEGREE_R8
                 burp_out%lat(icount) = burp_out%lat(icount)*MPC_RADIANS_PER_DEGREE_R8
+
+                if (ndim.eq.1) then
+                   ! retrieve 1D data
+
+                   ivar = BURP_Find_Element(blk, ELEMENT=varno, IOSTAT=error)
+                   iexp = BURP_Find_Element(blk, ELEMENT=8090, IOSTAT=error)
                 
+                   if (iexp.lt.0) then
+                      ! No exponent found in block
+                      do ilev=1,nval                   
+                         burp_out%data1d(icount,ilev) = BURP_Get_Rval(blk, NELE_IND=ivar, NVAL_IND=ilev, NT_IND=1, IOSTAT=error)                
+                      end do
+                   else
+                      ! Apply exponent
+                      do ilev=1,nval                   
+                         val = BURP_Get_Rval(blk, NELE_IND=ivar, NVAL_IND=ilev, NT_IND=1, IOSTAT=error)                
+                         exponent = BURP_Get_Rval(blk, NELE_IND=iexp, NVAL_IND=ilev, NT_IND=1, IOSTAT=error)
+                         burp_out%data1d(icount,ilev) = val * 10**exponent
+                      end do
+                   end if
+                   
+                else if (ndim.eq.2) then
+                   ! retrieve 2D data
+
+                   icol = 0
+                   do iele=1,nele
+                      ivar = BURP_Get_Element(blk, INDEX=iele, IOSTAT=error)
+                      if (ivar.eq.varno) then
+                         icol = icol+1
+                         do ilev=1,nval                  
+                            burp_out%data2d(icount,ilev,icol) = BURP_Get_Rval(blk, NELE_IND=iele, NVAL_IND=ilev, NT_IND=1, IOSTAT=error)
+                         end do
+                      end if
+                   end do
+
+                end if
+
              end if
              exit BLOCKS
           end if
@@ -1435,7 +1484,11 @@ contains
     call resize_1d_real(burp_out%lon,icount)
     call resize_1d_int(burp_out%date,icount)
     call resize_1d_int(burp_out%time,icount)
-    call resize_2d_real(burp_out%data,icount,nlev)
+    if (ndim.eq.1) then
+       call resize_2d_real(burp_out%data1d,icount,nlev)
+    else if (ndim.eq.2) then
+       call resize_3d_real(burp_out%data2d,icount,nlev,nlev)
+    end if
 
     burp_out%nrep = icount
     burp_out%nlev = nlev
@@ -1456,9 +1509,9 @@ contains
 
 !-------------------------------------------------------------------------------------------
 
-  subroutine alloc_burp(burp,nrep,nlev)
+  subroutine alloc_burp(burp,nrep,nlev,ndim)
 !
-! Author  : M. Sitwell  April 2014
+! Author  : M. Sitwell  April 2015
 ! Revision: 
 !
 ! Purpose: Allocates memory for structure struct_chm_burp to hold BURP file information
@@ -1468,9 +1521,20 @@ contains
     implicit none
 
     type(struct_chm_burp), intent(inout) :: burp
-    integer, intent(in) :: nrep,nlev
+    integer, intent(in) :: ndim,nrep,nlev
     
-    allocate(burp%data(nrep,nlev))
+    if (ndim.eq.1.or.ndim.eq.2) then
+       burp%ndim = ndim
+    else
+       call abort3d("alloc_burp: Invalid BURP data structure dimension.")
+    end if
+
+    if (ndim.eq.1) then
+       allocate(burp%data1d(nrep,nlev))
+    else if (ndim.eq.2) then
+       allocate(burp%data2d(nrep,nlev,nlev))
+    end if
+
     allocate(burp%lat(nrep),burp%lon(nrep))
     allocate(burp%date(nrep),burp%time(nrep))
 
@@ -1480,7 +1544,7 @@ contains
 
   subroutine dealloc_burp(burp)
 !
-! Author  : M. Sitwell  April 2014
+! Author  : M. Sitwell  April 2015
 ! Revision: 
 !
 ! Purpose: Deallocates memory for structure struct_chm_burp
@@ -1491,11 +1555,12 @@ contains
 
     type(struct_chm_burp), intent(inout) :: burp
     
-    if (associated(burp%data)) deallocate(burp%data)
-    if (associated(burp%lat))  deallocate(burp%lat)
-    if (associated(burp%lon))  deallocate(burp%lon)
-    if (associated(burp%date)) deallocate(burp%date)
-    if (associated(burp%time)) deallocate(burp%time)
+    if (associated(burp%data1d)) deallocate(burp%data1d)
+    if (associated(burp%data2d)) deallocate(burp%data2d)
+    if (associated(burp%lat))    deallocate(burp%lat)
+    if (associated(burp%lon))    deallocate(burp%lon)
+    if (associated(burp%date))   deallocate(burp%date)
+    if (associated(burp%time))   deallocate(burp%time)
 
   end subroutine dealloc_burp
 
@@ -1507,7 +1572,7 @@ contains
 !            that matches the lon, lat, date, and time from the argument list to that stored
 !            in the burp structure.
 !
-!!   Author: M. Sitwell, ARQI/AQRD, April 2015
+!   Author: M. Sitwell, ARQI/AQRD, April 2015
 !    
 !   Revisions:
 !
@@ -1526,22 +1591,12 @@ contains
     real(8), intent(in) :: zlat,zlon
     integer, intent(in) :: idate,itime
     real(8) :: element
-    integer :: i
-
-    i=0
     
-    ! search for required irep if current position doesn't match lat,lon,date,time
-    do while (.not. equal_real(burp%lon(burp%irep),zlon) .or. .not. equal_real(burp%lat(burp%irep),zlat) .or. &
-              idate.ne.burp%date(burp%irep) .or. itime.ne.burp%time(burp%irep) )
-       burp%irep=burp%irep+1
-       if (burp%irep.gt.burp%nrep) burp%irep=1
-       burp%ilev=1
-       if (i.gt.burp%nrep) CALL ABORT3D('chm_get_burp_element: BURP file data could not be retrieved.')
-       i=i+1
-    end do
+    ! find burp%irep,burp%ilev for current observation
+    call chm_set_burp_position(burp,zlat,zlon,idate,itime)
     
     ! get element from data array at current position
-    element = burp%data(burp%irep,burp%ilev)
+    element = burp%data1d(burp%irep,burp%ilev)
     
     ! increment position in data array
     if (burp%irep.eq.burp%nrep .and. burp%ilev.eq.burp%nlev) then
@@ -1557,6 +1612,88 @@ contains
     end if
 
   end function chm_get_burp_element
+
+!-------------------------------------------------------------------------------------------
+
+  function chm_get_burp_array2d(burp,zlat,zlon,idate,itime,nlev) result(array)
+! 
+!   Purpose: Returns element of array from burp%data. The returned element is the one
+!            that matches the lon, lat, date, and time from the argument list to that stored
+!            in the burp structure.
+!
+!   Author: M. Sitwell, ARQI/AQRD, April 2015
+!    
+!   Revisions:
+!
+!  Input 
+!           burp          struct_chm_burp instance
+!           zlat          latitude
+!           zlon          longitude
+!           idate         date YYYYMM
+!           itime         time HHMM
+!
+!  Output
+!           element       retrieved element from burp%data
+!-------------------------------------------------------------------------------------------
+
+    type(struct_chm_burp), intent(inout) :: burp
+    real(8), intent(in) :: zlat,zlon
+    integer, intent(in) :: idate,itime,nlev
+    real(8) :: array(nlev,nlev)
+    
+    ! find burp%irep,burp%ilev for current observation
+    call chm_set_burp_position(burp,zlat,zlon,idate,itime)
+    
+    ! get element from data array at current position
+    array = burp%data2d(burp%irep,:,:)
+    
+    ! increment position in data array
+    if (burp%irep.eq.burp%nrep) then
+       burp%irep = 1
+    else
+       burp%irep=burp%irep+1
+    end if
+
+  end function chm_get_burp_array2d
+
+!-------------------------------------------------------------------------------------------
+
+  subroutine chm_set_burp_position(burp,zlat,zlon,idate,itime)
+! 
+!   Purpose: Sets the position variables in struct_chm_burp (burp%irep, burp%ilev)
+!            to reference the BURP record that matches the input parameters. 
+!
+!   Author: M. Sitwell, ARQI/AQRD, April 2015
+!    
+!  Input 
+!           burp          struct_chm_burp instance
+!           zlat          latitude
+!           zlon          longitude
+!           idate         date YYYYMM
+!           itime         time HHMM
+!
+!  Output
+!           element       retrieved element from burp%data
+!-------------------------------------------------------------------------------------------
+
+    type(struct_chm_burp), intent(inout) :: burp
+    real(8), intent(in) :: zlat,zlon
+    integer, intent(in) :: idate,itime
+    integer :: i
+
+    i=0
+    
+    ! search for required irep if current position doesn't match lat,lon,date,time
+    do while (.not. equal_real(burp%lon(burp%irep),zlon) .or. .not. equal_real(burp%lat(burp%irep),zlat) .or. &
+              idate.ne.burp%date(burp%irep) .or. itime.ne.burp%time(burp%irep) )
+       burp%irep=burp%irep+1
+       if (burp%irep.gt.burp%nrep) burp%irep=1
+       burp%ilev=1
+       if (i.gt.burp%nrep) CALL ABORT3D('chm_set_burp_position: BURP file data could not be retrieved.')
+       i=i+1
+    end do
+
+  end subroutine chm_set_burp_position
 
 !-----------------------------------------------------------------------------------------
 !------------------- Miscellaneous utilities functions and routines ----------------------
@@ -1768,7 +1905,7 @@ contains
 
   subroutine resize_1d_real(arr,dim1)
 !
-! Author  : M. Sitwell  April 2014
+! Author  : M. Sitwell  April 2015
 ! Revision: 
 !
 ! Purpose: Resize 1D array
@@ -1795,7 +1932,7 @@ contains
 
   subroutine resize_1d_int(arr,dim1)
 !
-! Author  : M. Sitwell  April 2014
+! Author  : M. Sitwell  April 2015
 ! Revision: 
 !
 ! Purpose: Resize 1D array
@@ -1824,7 +1961,7 @@ contains
   
   subroutine resize_2d_real(arr,dim1,dim2)
 !
-! Author  : M. Sitwell  April 2014
+! Author  : M. Sitwell  April 2015
 ! Revision: 
 !
 ! Purpose: Resize 2D array
@@ -1851,9 +1988,38 @@ contains
 
 !-------------------------------------------------------------------------------------------
   
+  subroutine resize_3d_real(arr,dim1,dim2,dim3)
+!
+! Author  : M. Sitwell  May 2015
+! Revision: 
+!
+! Purpose: Resize 3D array
+!
+!---------------------------------------------------------------------------------------
+
+    implicit none
+
+    real(8), pointer, intent(inout) :: arr(:,:,:)
+    integer, intent(in) :: dim1,dim2,dim3
+    real(8), pointer :: tmp(:,:,:)
+
+    allocate(tmp(dim1,dim2,dim3))
+
+    tmp = arr(1:dim1,1:dim2,1:dim3)
+    
+    deallocate(arr)
+
+    arr => tmp
+    
+    nullify(tmp)
+
+  end subroutine resize_3d_real
+
+!-------------------------------------------------------------------------------------------
+  
   logical function equal_real(r1,r2)
 !
-! Author  : M. Sitwell  April 2014
+! Author  : M. Sitwell  April 2015
 ! Revision: 
 !
 ! Purpose: Check if two reals are equal (up to a small difference of 1E-5) 
@@ -1867,6 +2033,34 @@ contains
     equal_real = abs(r1-r2) .le. 1E-5
     
   end function equal_real
+
+!---------------------------------------------------------------------------------------
+  
+  subroutine chm_dealloc_info(info)
+!
+! Author  : M. Sitwell  May 2015
+!
+! Purpose: Deallocates struct_chm_info instance
+!
+!---------------------------------------------------------------------------------------
+    
+    implicit none
+
+    type(struct_chm_info), intent(inout) :: info
+
+    if (allocated(info%stnids))       deallocate(info%stnids)
+    if (allocated(info%bfr))          deallocate(info%bfr)
+    if (allocated(info%brp))          deallocate(info%brp)
+    if (allocated(info%vco))          deallocate(info%vco)
+    if (allocated(info%n_lat))        deallocate(info%n_lat)
+    if (allocated(info%ibegin))       deallocate(info%ibegin)
+    if (allocated(info%n_lvl))        deallocate(info%n_lvl)
+    if (allocated(info%rak))          deallocate(info%rak)
+    if (allocated(info%vlayertop))    deallocate(info%vlayertop)
+    if (allocated(info%vlayerbottom)) deallocate(info%vlayerbottom)
+    if (allocated(info%lat))          deallocate(info%lat)
+
+  end subroutine chm_dealloc_info
 
 !-------------------------------------------------------------------------------------------
 !--------------------------- Routines for observation operators ----------------------------
@@ -1993,10 +2187,10 @@ contains
 
 ! Local variables
   
-  real(8) :: press_obs(nobslev),zwork(n_modlvl),unit_conversion(n_modlvl)
+  real(8) :: press_obs(nobslev),zwork(n_modlvl),unit_conversion(n_modlvl),rsig(n_modlvl,2)
   integer :: iobslev,iavgkern
   real(8), allocatable :: avg_kern(:,:)
-  logical :: apply_genoper
+  logical :: apply_genoper,lget_rsig
 
 ! Allocate memory for chm_obsoper
   allocate(chm_obsoper%modelvarcolumn(n_modlvl))
@@ -2066,11 +2260,13 @@ contains
       chm_obsoper%modelIndex=1
   end if  
 
+
 ! Indicates if the generalized innovation operator is to be applied.
 
   apply_genoper = kmode.ge.2 .and. chm_ngenoper.eq.1 .and. &
        (chm_obsoper%modelIndex.eq.2 .or. chm_obsoper%modelIndex.eq.3)
 
+  
 ! Convert observation vertical coordinate value(s) to pressure if needed 
 ! and provide values to this routine.
 
@@ -2114,13 +2310,13 @@ contains
 
   if (iavgkern.gt.0) then
 
-      allocate(avg_kern(nobslev,nobslev))
+     allocate(avg_kern(nobslev,nobslev))
+     
+     call chm_get_avgkern(iavgkern,nobslev,rlat,rlon,idate,ihhmm,avg_kern)
+     chm_obsoper%zh = matmul(avg_kern,chm_obsoper%zh)
+     if (apply_genoper) chm_obsoper%zhp = matmul(avg_kern,chm_obsoper%zhp)
 
-      call chm_get_avgkern(iavgkern,nobslev,avg_kern)
-      chm_obsoper%zh = matmul(avg_kern,chm_obsoper%zh)
-      if (apply_genoper) chm_obsoper%zhp = matmul(avg_kern,chm_obsoper%zhp)
-
-      deallocate(avg_kern)
+     deallocate(avg_kern)
 
   end if
 
@@ -2153,10 +2349,12 @@ contains
         chm_obsoper%zh(iobslev,:) = unit_conversion * chm_obsoper%zh(iobslev,:)
      end do
 
+     lget_rsig=.TRUE.
      do iobslev=1,nobslev
         if (success(iobslev)) then
            call chm_corvert_mult(varName,chm_obsoper%zh(iobslev,:),rmhx(iobslev),chm_obsoper%lvl_top(iobslev), & 
-                chm_obsoper%lvl_bot(iobslev),1,n_modlvl,1,.TRUE.,rlat,.TRUE.,3) ! get h*B*h^T
+                chm_obsoper%lvl_bot(iobslev),1,n_modlvl,1,.TRUE.,rlat,lget_rsig,3,rsig) ! get h*B*h^T
+           lget_rsig=.FALSE.
            rmhx(iobslev) = sqrt(rmhx(iobslev))  ! save as sqrt(h*B*h^T)
         else
            rmhx(iobslev) = 0.0
