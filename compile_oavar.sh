@@ -106,8 +106,8 @@ echo "loading cmda/base/201411/01/${COMP_ARCH}"
 echo "loading hpcs/exp/aspgjdm/perftools"
 . ssmuse-sh -d hpcs/exp/aspgjdm/perftools
 # For RTTOV 10v1 package... 
-echo "loading arma/rttov/10v1"
-. ssmuse-sh -d arma/rttov/10v1
+echo "loading arma/rttov/10v2"
+. ssmuse-sh -d arma/rttov/10v2
 #-----------------------------------------------------------------------------
 
 LIBAPPL="rttov10.2.0_coef_io rttov10.2.0_main rttov10.2.0_other burp_module descrip $MPILIB"
@@ -128,16 +128,17 @@ if [ "${BASE_ARCH}" = "AIX-powerpc7" ];then
 	COMPF=${COMPF_GLOBAL}
 	COMPF_NOC=${COMPF}
     else
-	COMPF="${COMPF_GLOBAL} -debug DEBUG -optf=-C"
 	COMPF_NOC="${COMPF_GLOBAL} -debug DEBUG"
+	COMPF="${COMPF_GLOBAL} -optf =-C"
     fi
 elif [ "${BASE_ARCH}" = "Linux_x86-64" ];then
+    OPTF="=-mkl =-fp-model =source =-check =noarg_temp_created"
     if [ "${COMPILE_OAVAR_REMOVE_DEBUG_OPTIONS}" = yes ]; then
-	COMPF="${COMPF_GLOBAL} -optf =-fp-model source"
+	COMPF="${COMPF_GLOBAL} -optf ${OPTF}"
 	COMPF_NOC=${COMPF}
     else
-	COMPF="${COMPF_GLOBAL} -debug DEBUG -optf =-C =-fp-model =source =-check =noarg_temp_created"
-	COMPF_NOC="${COMPF_GLOBAL} -debug DEBUG -optf =-fp-model =source =-check =noarg_temp_created"
+	COMPF_NOC="${COMPF_GLOBAL} -debug DEBUG -optf ${OPTF}"
+	COMPF="${COMPF_NOC} =-C"
     fi
 else
     echo "This platform 'BASE_ARCH=${BASE_ARCH}' is not supported.  Only 'AIX-powerpc7' and 'Linux_x86-64' are."
