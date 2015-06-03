@@ -170,7 +170,8 @@
       write(*,'(a15,f23.16)') 'JOPROF   = ',ZJOPROF
       write(*,'(a15,f23.16)') 'JOGPSRO  = ',ZJOGPSRO
       write(*,'(a15,f23.16)') 'JOGPSGB  = ',ZJOGPSGB
-      write(*,'(a15,f23.16)') 'Total Jo = ',ZJO
+      write(*,'(a15,f30.16)') 'Total Jo = ',ZJO
+
 !
 !     Find interpolation layer in model profiles 
 !

@@ -717,6 +717,8 @@ module obsOperators_mod
       analysisMode = .true.
     endif
 
+    zpomps = 0.0d0
+
     ! Ensure Jacobian-related arrays are not allocated to force them to be recalculated in oda_H
     if(allocated(vGPSZTD_Jacobian)) deallocate(vGPSZTD_Jacobian)
     if(allocated(vGPSZTD_lJac)) deallocate(vGPSZTD_lJac)
@@ -904,7 +906,7 @@ module obsOperators_mod
           !
           if ( icountp .le. nobs2p ) then
             write(*,  &
-                  '(A12,A9,3(1x,f7.2),1x,f8.2,4(1x,f7.5),2(1x,f8.4),2x,f5.2,1x,f9.2,1x,f10.5)')  &
+                  '(A12,A9,3(1x,f7.2),1x,f8.2,4(1x,f8.5),2(1x,f8.4),2x,f5.2,1x,f9.2,1x,f10.5)')  &
                   'OONL_GPSGB: ',cstnid,zlat,zlon,zlev,zdz,zobs,zoer/yzderrwgt,zhx,-zinc*zoer,  &
                   zpomps/100.d0,zpomp/100.d0,zpwmod,jobs,zinc/zoer
           endif
