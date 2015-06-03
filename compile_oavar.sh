@@ -129,7 +129,7 @@ if [ "${BASE_ARCH}" = "AIX-powerpc7" ];then
 	COMPF_NOC=${COMPF}
     else
 	COMPF_NOC="${COMPF_GLOBAL} -debug DEBUG"
-	COMPF="${COMPF_GLOBAL} -optf =-C"
+	COMPF="${COMPF_NOC} -optf =-C"
     fi
 elif [ "${BASE_ARCH}" = "Linux_x86-64" ];then
     OPTF="=-mkl =-fp-model =source =-check =noarg_temp_created"
