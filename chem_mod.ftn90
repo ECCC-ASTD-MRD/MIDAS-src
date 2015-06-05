@@ -2063,6 +2063,104 @@ contains
   end subroutine chm_dealloc_info
 
 !-------------------------------------------------------------------------------------------
+
+  function chm_convert_z_to_pressure(altitude,rgz_mod,press_mod,nlev,nlev_mod,lat,success) result(press)
+!
+! Author   : M. Sitwell, May 2015
+!          
+! Purpose: Converts an array of geopotential heights to pressures. Uses linear interpolation
+!          in log(p).
+!
+! Arguments:
+!
+!   Input
+!     altitude      altitudes to convert to pressures (m)
+!     rgz_mod       geopotential heights on model levels (m), assumed to be in decending order
+!     press_mod     pressure on model levels, assumed to be in ascending order
+!     nlev          length of altitude array
+!     nlev_mod      number of model levels
+!     lat           latitude (rad)
+!
+!   Output
+!     press         rz converted to pressures
+!
+!----------------------------------------------------------------------------------------
+
+    implicit none
+
+    real(8), intent(in) :: altitude(nlev),rgz_mod(nlev_mod),press_mod(nlev_mod),lat
+    integer, intent(in) :: nlev,nlev_mod
+    logical, intent(inout) :: success(nlev)
+    real(8) :: press(nlev),rgz(nlev)
+    integer :: ilev,ilev_mod
+
+    ! Convert altitudes to geopotential heights
+    rgz = chm_convert_z_to_gz(altitude,lat,nlev)
+
+    do ilev=1,nlev
+
+       ! Check if height is above or below model boundaries
+       if ( rgz(ilev).gt.rgz_mod(1) .or. rgz(ilev).lt.rgz_mod(nlev_mod) ) then
+          success(ilev)=.false.
+       end if
+
+       if (success(ilev)) then
+
+          ! Find model layers directly above and below rgz(ilev).
+          ! After exit of loop we will have 
+          ! rgz_mod(ilev_mod) >= rgz(ilev) > rgz_mod(ilev_mod+1)
+          do ilev_mod=1,nlev_mod-1
+             if ( rgz(ilev).le.rgz_mod(ilev_mod) .and. &
+                  rgz(ilev).gt.rgz_mod(ilev_mod+1) ) exit
+          end do
+          
+          ! Linear interpolation in gz,log(p)
+          press(ilev) = press_mod(ilev_mod+1) * (press_mod(ilev_mod)/press_mod(ilev_mod+1))**( &
+               (rgz(ilev)-rgz_mod(ilev_mod+1))/(rgz_mod(ilev_mod)-rgz_mod(ilev_mod+1)) )
+
+       else
+          press(ilev) = 0.0
+       end if
+
+    end do
+
+  end function chm_convert_z_to_pressure
+
+!----------------------------------------------------------------------------------------
+
+  function chm_convert_z_to_gz(altitude,lat,nlev) result(rgz)
+!
+! Author   : M. Sitwell, June 2015
+!          
+! Purpose: Converts altitudes to geopotential heights. Uses the Helmert formula to
+!          parameterize the latitude dependence (see J.A. Dutton 1976). At an altitude
+!          of 50 km, the altitude and geopotential height differ by around 0.2-0.5 km,
+!          depending on the latitude.
+!
+! Arguments:
+!
+!   Input
+!     altitude      altitudes (m)
+!     lat           latitude (rad)
+!
+!   Output
+!     rgz           geopotential heights (m)
+!
+!----------------------------------------------------------------------------------------
+  
+    use earthconstants_mod
+    
+    implicit none
+
+    real(8), intent(in) :: altitude(nlev),lat
+    integer, intent(in) :: nlev
+    real(8) :: rgz(nlev)
+
+    rgz = (RG/9.8) * (1.-2.64D-03*cos(2.*lat)+5.9D-6*cos(2.*lat)**2) * RA*altitude/(RA+altitude)
+
+  end function chm_convert_z_to_gz
+
+
 !--------------------------- Routines for observation operators ----------------------------
 
   subroutine chm_obsoperators(n_modlvl,rvalinc,rval,rtt,pressmodlvl,rgz,kmode,varName, &
@@ -2108,7 +2206,7 @@ contains
 !     rval      Trial field column 
 !     rtt       Temperature array (Kelvin)
 !     pressmodlvl  Pressure array (Pascal; kg/(m s^2))
-!     rgz       Geopotential altitudes (for conversion of obs altitudes to pressure when needed)
+!     rgz       Geopotential (m^2/s^2, for conversion of obs altitudes to pressure when needed)
 !          
 !     kmode     0 for non-linear/linear model in assimilation
 !                 Actually, all models included are currently linear
@@ -2157,6 +2255,8 @@ contains
 !        vertical correlation matrices.
 !        
 !-------------------------------------------------------------------------------------------
+
+  use earthconstants_mod
 
   implicit none
 
@@ -2266,18 +2366,29 @@ contains
   apply_genoper = kmode.ge.2 .and. chm_ngenoper.eq.1 .and. &
        (chm_obsoper%modelIndex.eq.2 .or. chm_obsoper%modelIndex.eq.3)
 
-  
-! Convert observation vertical coordinate value(s) to pressure if needed 
-! and provide values to this routine.
 
-!   if (ivco.ne.2) then 
-!      call chm_convert2pressure(ivco,robslev,chm_obsoper%layer_identified,chm_obsoper%vlayertop(iobslev), &
-!                            chm_obsoper&vlayerbottom(iobslev),press_obs, &
-!                            vlayertop,vlayerbot...)  ! see 3dvar_chem routine ch_vobs_to_p.
-!
-!   else
-      if (chm_obsoper%modelIndex.ne.2.and.chm_obsoper%modelIndex.ne.3) press_obs=robslev 
-!   end if
+! Convert observation vertical coordinate value(s) to pressure if needed
+
+  select case(ivco)
+  case(1)
+     ! Convert altitude to pressure
+     ! Note: factor of RG in 'rgz/RG' is to convert geopotential to geopotential height
+     select case(chm_obsoper%modelIndex)
+     case(1)
+        press_obs = chm_convert_z_to_pressure(robslev,rgz/RG,pressmodlvl,nobslev,n_modlvl,rlat,success)
+     case(2,3)
+        chm_obsoper%vlayertop = chm_convert_z_to_pressure(chm_obsoper%vlayertop,rgz/RG,pressmodlvl,nobslev,n_modlvl,rlat,success)
+        chm_obsoper%vlayerbottom = chm_convert_z_to_pressure(chm_obsoper%vlayerbottom,rgz/RG,pressmodlvl,nobslev,n_modlvl,rlat,success)
+     end select
+  case(2)
+     ! Pressure, no conversion needed
+     if (chm_obsoper%modelIndex.eq.1) press_obs=robslev 
+  case(4)
+     ! No actions taken
+  case default
+     write(*,*) "chm_obsoperators: ivco = ",ivco
+     call abort3d("chm_obsoperators: vertical coordinate type (ivco) not available for this operator.")
+  end select
 
 ! Determine if averaging kernel is to be applied
 
@@ -2360,7 +2471,7 @@ contains
            rmhx(iobslev) = 0.0
         end if
      end do
-     
+
   case(3)
 !
 !     Ht*grad contribution from adjoint of tangent linear model.

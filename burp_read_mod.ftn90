@@ -293,7 +293,7 @@ CONTAINS
         ADDSIZE=600000
       CASE('CH')
         BURP_TYP='multi'   ! Both 'multi' and 'uni' are possible for this family.
-        vcord_type(1:7) = (/7004,7204,7006,7007,7009,2150,0/)  ! 0 must be at end.
+        vcord_type(1:6) = (/7004,7204,7006,7007,2150,0/)  ! 0 must be at end.
 
         LISTE_ELE_SFC = (/15008,15011,15012,15020,15024,15026,15027,15028, &
                           15029,15198,15199,15230,08090,-1,-1/)
@@ -1481,7 +1481,7 @@ CONTAINS
      CASE('CH')
 
         BURP_TYP='multi'  ! Both 'multi' and 'uni' are possible for this family.
-        vcord_type(1:7) = (/7004,7204,7006,7007,7009,2150,0/) ! 0 must be at end.
+        vcord_type(1:6) = (/7004,7204,7006,7007,2150,0/) ! 0 must be at end.
         NELE_INFO=17
 
         UNI_FAMILYTYPE = 'CH'
@@ -2343,9 +2343,10 @@ CONTAINS
     !       REVISION:
     !                 Ping Du (CMDA), Nov 2014
     !                  -- Added  CASE ('CH') with VCO=4 
-    !                 Y.J. Rochon (ARQI) and M. Sitwell (ARQI), Dec 2014, Feb 2015
+    !                 Y.J. Rochon (ARQI) and M. Sitwell (ARQI), Dec 2014, Feb 2015, June 2015
     !                  -- Added VCOORD_TYPE as input argument and applied in function.
     !                  -- Added new VCO cases for the CH family.
+    !                  -- Added abort statement if constituent vertical coordinate not recognized.
     !
     !****************************************************************************
 
@@ -2431,7 +2432,11 @@ CONTAINS
            VCO=3
         ELSE 
            ! Vertical coordinate not provided or not recognized.
-           VCO=4  
+           IF (NVAL.LE.2) THEN
+              VCO=4  ! Assumes this is a total column measurement 
+           ELSE
+              CALL ABORT3D('write_body: Invalid BURP vertical coordinate type.')
+           END IF
         END IF
     END SELECT
 
