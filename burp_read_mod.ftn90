@@ -66,6 +66,8 @@ CONTAINS
     !                  -- Fix for the Burp 24 bit header markers of the UA4D
     !                 P. KOCLAS (CMDA/SMC)) Oct 2014
     !                  -- CHANGE ADDSIZE FOR SW ( GROUPED SATWINDS)
+    !                 P. KOCLAS (CMDA/SMC)) May 2015
+    !                  -- CHANGES  for GROUPED scatterometres or surface obs
     !
     !       OBJECT: UPDATE CMC BURP FILE 
     !
@@ -475,7 +477,6 @@ CONTAINS
         Call BURP_Copy_Header(TO=Cp_rpt,FROM=Rpt_in)
         Call BURP_Init_Report_Write(File_in,Cp_Rpt, IOSTAT=error)
 
-
         ! FIRST LOOP ON BLOCKS
 
         ref_blk = 0
@@ -563,6 +564,7 @@ CONTAINS
 
           !if ( btyp10 - btyp10obs_uni == 0 .and. bfam == 0 ) then
           if ( bl .eq. 2 ) then
+            OBSN=OBS_START
 
             NDATA_SF=0
             new_bktyp=bktyp
@@ -573,7 +575,6 @@ CONTAINS
             endif
 
             il_index=1
-            KOBSN=0
             IND_eleu  = BURP_Find_Element(Block_in, ELEMENT=11215, IOSTAT=error)
             IND_elef  = BURP_Find_Element(Block_in, ELEMENT=11011, IOSTAT=error)
             !Call BURP_Delete_BLOCK(Rpt_in,BLOCK=Block_in)
@@ -632,89 +633,102 @@ CONTAINS
               nbele=nbele +2
             endif
 
+!=========================================
+            REGRUP_SFC: do k=1,nte
+!=========================================
+               KOBSN=0
 
-            elems_sfc: do IL = 1, NBELE  
+!-------------------------------------------
+               elems_sfc: do IL = 1, NBELE  
+!-------------------------------------------
 
-              iele=-1
-              iele=BURP_Get_Element(BLOCK_OBS_SFC_CP,INDEX =il,IOSTAT= error) 
+                 iele=-1
+                 iele=BURP_Get_Element(BLOCK_OBS_SFC_CP,INDEX =il,IOSTAT= error) 
 
-              IND_ELE_MAR= BURP_Find_Element(Block_MAR_SFC_CP, ELEMENT=iele+200000, IOSTAT=error)
-              if (IND_ele_mar .le. 0 ) cycle
+                 IND_ELE_MAR= BURP_Find_Element(Block_MAR_SFC_CP, ELEMENT=iele+200000, IOSTAT=error)
+                 if (IND_ele_mar .le. 0 ) cycle
 
-              IND_ele  = BURP_Find_Element(BLOCK_OBS_SFC_CP, ELEMENT=iele, IOSTAT=error)
+                 IND_ele  = BURP_Find_Element(BLOCK_OBS_SFC_CP, ELEMENT=iele, IOSTAT=error)
 
-              if( OMA_SFC_EXIST .eqv.  .true.   ) then
-                if (iele .ne. ILEMU .and. iele .ne. ILEMV) then
-                  il_index=il_index +1
-                  call BURP_Set_Element (BLOCK_OMA_SFC,NELE_IND= il_index,ElEMENT=iele,IOSTAT=error)
-                  Call BURP_Set_Element (BLOCK_OMP_SFC,NELE_IND= il_index,ElEMENT=iele,IOSTAT=error)
-                  Call BURP_Set_Element (BLOCK_OER_SFC,NELE_IND= il_index,ElEMENT=iele,IOSTAT=error)
-                  Call BURP_Set_Element (BLOCK_FGE_SFC,NELE_IND= il_index,ElEMENT=iele,IOSTAT=error)
-                endif
-              endif
-              k=1
-              is_in_list=-1
-              is_in_list=FIND_INDEX(LISTE_ELE_SFC,iele)
-              if (is_in_list .lt. 0   .and. iele  .ne. ILEMU .and. iele .ne. ILEMV) cycle ELEMS_SFC
-!pikk         do k=1,nte
-              IND_ele_stat  = BURP_Find_Element(BLOCK_OMA_SFC, ELEMENT=iele, IOSTAT=error)
-              Call BURP_Set_Rval(Block_OMA_SFC, NELE_IND =IND_ELE_stat ,NVAL_IND =1 , NT_IND  = k , RVAL = PPMIS)
-              Call BURP_Set_Rval(Block_OMP_SFC, NELE_IND =IND_ELE_stat ,NVAL_IND =1 , NT_IND  = k , RVAL = PPMIS)
-              Call BURP_Set_Rval(Block_OER_SFC, NELE_IND =IND_ELE_stat ,NVAL_IND =1 , NT_IND  = k , RVAL = PPMIS)
-              Call BURP_Set_Rval(Block_FGE_SFC, NELE_IND =IND_ELE_stat ,NVAL_IND =1 , NT_IND  = k , RVAL = PPMIS) 
+                 if( OMA_SFC_EXIST .eqv.  .true.   ) then
+                   if (iele .ne. ILEMU .and. iele .ne. ILEMV) then
+                     il_index=il_index +1
+                     call BURP_Set_Element (BLOCK_OMA_SFC,NELE_IND= il_index,ElEMENT=iele,IOSTAT=error)
+                     Call BURP_Set_Element (BLOCK_OMP_SFC,NELE_IND= il_index,ElEMENT=iele,IOSTAT=error)
+                     Call BURP_Set_Element (BLOCK_OER_SFC,NELE_IND= il_index,ElEMENT=iele,IOSTAT=error)
+                     Call BURP_Set_Element (BLOCK_FGE_SFC,NELE_IND= il_index,ElEMENT=iele,IOSTAT=error)
+                   endif
+                 endif
+                 is_in_list=-1
+                 is_in_list=FIND_INDEX(LISTE_ELE_SFC,iele)
+                 if (is_in_list .lt. 0   .and. iele  .ne. ILEMU .and. iele .ne. ILEMV) cycle ELEMS_SFC
+                    IND_ele_stat  = BURP_Find_Element(BLOCK_OMA_SFC, ELEMENT=iele, IOSTAT=error)
+                    Call BURP_Set_Rval(Block_OMA_SFC, NELE_IND =IND_ELE_stat ,NVAL_IND =1 , NT_IND  = k , RVAL = PPMIS)
+                    Call BURP_Set_Rval(Block_OMP_SFC, NELE_IND =IND_ELE_stat ,NVAL_IND =1 , NT_IND  = k , RVAL = PPMIS)
+                    Call BURP_Set_Rval(Block_OER_SFC, NELE_IND =IND_ELE_stat ,NVAL_IND =1 , NT_IND  = k , RVAL = PPMIS)
+                    Call BURP_Set_Rval(Block_FGE_SFC, NELE_IND =IND_ELE_stat ,NVAL_IND =1 , NT_IND  = k , RVAL = PPMIS) 
 
-              IFLAG =  BURP_Get_Tblval(Block_MAR_SFC_CP,NELE_IND = IND_ele_mar,NVAL_IND = 1, NT_IND = k)
-              OBSVA =  BURP_Get_Rval  (Block_OBS_SFC_CP,NELE_IND = IND_ele    ,NVAL_IND = 1, NT_IND = k)
-              if (OBSVA .eq. PPMIS .and. iele .ne. ILEMU  .and. iele .ne. ILEMV ) cycle
-              if(iand(iflag,BITSflagoff) .ne.0) cycle
+                    IFLAG =  BURP_Get_Tblval(Block_MAR_SFC_CP,NELE_IND = IND_ele_mar,NVAL_IND = 1, NT_IND = k)
+                    OBSVA =  BURP_Get_Rval  (Block_OBS_SFC_CP,NELE_IND = IND_ele    ,NVAL_IND = 1, NT_IND = k)
+                    if (OBSVA .eq. PPMIS .and. iele .ne. ILEMU  .and. iele .ne. ILEMV ) cycle
+                    if(iand(IFLAG,BITSflagoff) .ne.0) cycle
 
-              if (OBS_START .gt. obs_numHeader(obsdat) ) write(*,*)  ' debordement  surface OBS_START=',OBS_START
-              if (OBS_START .gt. obs_numHeader(obsdat))  cycle
+                    if (OBSN .gt. obs_numHeader(obsdat) ) write(*,*)  ' debordement  surface OBS_START=',OBS_START
+                    if (OBSN .gt. obs_numHeader(obsdat))  cycle
 
-              IRLN=obs_headElem_i(obsdat,OBS_RLN,OBS_START )
-              INLV=obs_headElem_i(obsdat,OBS_NLV,OBS_START )
+                    IRLN=obs_headElem_i(obsdat,OBS_RLN,OBSN )
+                    INLV=obs_headElem_i(obsdat,OBS_NLV,OBSN )
 
-              IND_ELE_stat  = BURP_Find_Element(BLOCK_OMA_SFC, ELEMENT=iele, IOSTAT=error)
-              STID=obs_elem_c(obsdat,'STID',obs_start)
-              if ( STID .ne. stnid ) cycle
+                    IND_ELE_stat  = BURP_Find_Element(BLOCK_OMA_SFC, ELEMENT=iele, IOSTAT=error)
+                    STID=obs_elem_c(obsdat,'STID',obs_start)
+                    if ( STID .ne. stnid ) cycle
 
-              OBSDATA: do LK=IRLN,IRLN+INLV-1
+                    OBSDATA: do LK=IRLN,IRLN+INLV-1
 
-                VNM=obs_bodyElem_i(obsdat,OBS_VNM ,LK)
-                ASSIM=obs_bodyElem_i(obsdat,OBS_ASS,LK)
-                if(  VNM .eq. iele ) then 
-                  OBS=obs_bodyElem_r(obsdat,OBS_VAR,LK)
-                  OMA=obs_bodyElem_r(obsdat,OBS_OMA ,LK)
-                  OMP=obs_bodyElem_r(obsdat,OBS_OMP ,LK)
-                  OER=obs_bodyElem_r(obsdat,OBS_OER ,LK)
-                  FGE=obs_bodyElem_r(obsdat,OBS_HPHT,LK)
-                  FLG=obs_bodyElem_i(obsdat,OBS_FLG ,LK)
-                  KOBSN= KOBSN + 1
-                  SUM=SUM +1
-                  Call BURP_Set_Rval( Block_OER_SFC, NELE_IND =IND_ele_stat ,NVAL_IND =1,NT_IND = k , RVAL = OER   ) 
-                  Call BURP_Set_Rval( Block_FGE_SFC, NELE_IND =IND_ele_stat ,NVAL_IND =1,NT_IND = k , RVAL = FGE  ) 
+                      VNM=obs_bodyElem_i(obsdat,OBS_VNM ,LK)
+                      if(  VNM .eq. iele ) then 
+                        OBS=obs_bodyElem_r(obsdat,OBS_VAR,LK)
+                        OMA=obs_bodyElem_r(obsdat,OBS_OMA ,LK)
+                        OMP=obs_bodyElem_r(obsdat,OBS_OMP ,LK)
+                        OER=obs_bodyElem_r(obsdat,OBS_OER ,LK)
+                        FGE=obs_bodyElem_r(obsdat,OBS_HPHT,LK)
+                        FLG=obs_bodyElem_i(obsdat,OBS_FLG ,LK)
+                        KOBSN= KOBSN + 1
+                        SUM=SUM +1
+                        Call BURP_Set_Rval( Block_OER_SFC, NELE_IND =IND_ele_stat ,NVAL_IND =1,NT_IND = k , RVAL = OER   ) 
+                        Call BURP_Set_Rval( Block_FGE_SFC, NELE_IND =IND_ele_stat ,NVAL_IND =1,NT_IND = k , RVAL = FGE  ) 
 
-                  IND_ELE_stat  = BURP_Find_Element(BLOCK_OMA_SFC, ELEMENT=iele, IOSTAT=error)
-                  Call BURP_Set_Rval( Block_OMA_SFC, NELE_IND =IND_ele_stat ,NVAL_IND =1,NT_IND = k , RVAL = OMA)
+                        IND_ELE_stat  = BURP_Find_Element(BLOCK_OMA_SFC, ELEMENT=iele, IOSTAT=error)
+                        Call BURP_Set_Rval( Block_OMA_SFC, NELE_IND =IND_ele_stat ,NVAL_IND =1,NT_IND = k , RVAL = OMA)
 
-                  IND_ELE_stat  = BURP_Find_Element(BLOCK_OMP_SFC, ELEMENT=iele, IOSTAT=error)
-                  Call BURP_Set_Rval( Block_OMP_SFC, NELE_IND =IND_ele_stat ,NVAL_IND =1,NT_IND = k , RVAL = OMP)
+                        IND_ELE_stat  = BURP_Find_Element(BLOCK_OMP_SFC, ELEMENT=iele, IOSTAT=error)
+                        Call BURP_Set_Rval( Block_OMP_SFC, NELE_IND =IND_ele_stat ,NVAL_IND =1,NT_IND = k , RVAL = OMP)
+   
+                        Call BURP_Set_tblval(Block_MAR_SFC_CP,NELE_IND =IND_ele_mar,NVAL_IND =1,NT_IND = k ,TBLVAL= FLG) 
+   
+                        OBS=obs_bodyElem_r(obsdat,OBS_VAR,LK)
+                        IND_ele  = BURP_Find_Element(BLOCK_OBS_SFC_CP, ELEMENT=iele, IOSTAT=error)
+                        Call BURP_Set_Rval(Block_OBS_SFC_CP,NELE_IND =IND_ele,NVAL_IND =1,NT_IND = k,RVAL = OBS ) 
 
-                  Call BURP_Set_tblval(Block_MAR_SFC_CP,NELE_IND =IND_ele_mar,NVAL_IND =1,NT_IND = k ,TBLVAL= FLG) 
+                        exit
+                      endif
 
-                  OBS=obs_bodyElem_r(obsdat,OBS_VAR,LK)
-                  IND_ele  = BURP_Find_Element(BLOCK_OBS_SFC_CP, ELEMENT=iele, IOSTAT=error)
-                  Call BURP_Set_Rval(Block_OBS_SFC_CP,NELE_IND =IND_ele,NVAL_IND =1,NT_IND = k,RVAL = OBS ) 
+                    end do  OBSDATA
+!-------------------------------------------
+               end do  elems_sfc
+!-------------------------------------------
 
-                  exit
-                endif
-
-              end do  OBSDATA
-
-!pikk         end do
-
-            end do  elems_sfc
-
+            if ( REGRUP .and. KOBSN .gt. 0   )  then
+                STATUS=obs_headElem_i(obsdat,OBS_ST1,OBS_START )
+                STATUS=IBSET(STATUS,BIT_STATUS)
+                ind055200 = BURP_Find_Element(Block_FLG_CP, ELEMENT=055200, IOSTAT=error)
+                Call BURP_Set_tblval( Block_FLG_CP, NELE_IND =ind055200,NVAL_IND =1,NT_IND = k ,TBLVAL = STATUS ) 
+                OBSN=OBSN +1
+                OBS_START=OBS_START +1
+            endif
+!==============================================
+            end do  REGRUP_SFC
+!=============================================
 
             do item=1,BN_ITEMS
 
@@ -752,7 +766,7 @@ CONTAINS
                                    ENCODE_BLOCK = .TRUE., CONVERT_BLOCK = .TRUE., IOSTAT= error) 
             Call BURP_Write_Block( CP_RPT, BLOCK_MAR_SFC_CP,&
                                    ENCODE_BLOCK = .TRUE., CONVERT_BLOCK = .FALSE., IOSTAT= error) 
-            IF ( KOBSN .gt. 0 ) THEN
+            IF ( KOBSN .gt. 0 .and. .not. REGRUP ) THEN
               STATUS=obs_headElem_i(obsdat,OBS_ST1,OBS_START)
               STATUS=IBSET(STATUS,BIT_STATUS)
               Call BURP_Set_Property(CP_RPT ,FLGS =STATUS)
@@ -760,7 +774,7 @@ CONTAINS
 
             SAVE_OBS=OBS_START
             NDATA_SF=KOBSN
-            if (BLOCK_LIST(4) .eq. -1 .and.  KOBSN .gt. 0 ) THEN
+            if (BLOCK_LIST(4) .eq. -1 .and.  KOBSN .gt. 0 .and. .not. regrup ) THEN
               SAVE_OBS=SAVE_OBS+1
               OBS_START=OBS_START+1
             endif
@@ -770,7 +784,6 @@ CONTAINS
 
           !if ( btyp10 - btyp10obs == 0 .and. bfam == 0 ) then
           if ( bl .eq. 4 ) then
-
             ILEMU=11003
             ILEMV=11004
             new_bktyp=bktyp
@@ -780,7 +793,6 @@ CONTAINS
               Call BURP_Set_Property(BLOCK_MAR_MUL_CP ,BKTYP =new_bktyp)
             endif
             OBSN=OBS_START
-            !if( idtyp .eq. 168) print *, ' bobossmi donnees OBS_START save obs=',OBS_START,SAVE_OBS
             NVAL=NVALE ;  NT=NTE
 
             il_index=1
@@ -951,7 +963,6 @@ CONTAINS
 
                   IFLAG =  BURP_Get_Tblval(Block_MAR_MUL_CP,NELE_IND = IND_ELE_MAR,NVAL_IND = J, NT_IND = k)
                   OBSVA =  BURP_Get_Rval  (Block_OBS_MUL_CP,NELE_IND = IND_ele    ,NVAL_IND = J, NT_IND = k)
-                  !if( idtyp .eq. 168) print * ,' bobossmi avant obsva iflag iele stnid =', IND_ele,j,k,iele,stnid,obsva,iflag,BITSflagoff,iand(iflag,BITSflagoff)
                   if(iand(iflag,BITSflagoff) .ne.0) CYCLE ELEMS     
 
                   OBSVA =  BURP_Get_Rval  (Block_OBS_MUL_CP,NELE_IND = IND_ele    ,NVAL_IND = J, NT_IND = k)
