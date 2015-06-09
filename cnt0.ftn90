@@ -236,6 +236,11 @@ program cnt0
     ! Compute obs-space diagnostics (only does computation if NAMOSD present in flnml)
     call osd_calcInflation(obsSpaceData_out,columng)
 
+    if (mpi_myid == 0) then
+       clmsg = 'REBM_DONE'
+       call wrstatus(clmsg)
+    end if
+
     ! Now write out the observation data files
     call update_burpfiles(obsSpaceData_out)
 
