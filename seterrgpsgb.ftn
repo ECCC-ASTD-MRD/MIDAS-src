@@ -14,13 +14,17 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE SETERRGPSGB(lobsSpaceData,ldata)
+      SUBROUTINE SETERRGPSGB(columnhr,lobsSpaceData,ldata)
 *
 *s/r SETERRGPSGB - SET OBSERVATION ERROR COVARIANCES FOR GB-GPS ZTD DATA
 *
 *Author  : S. Macpherson  March 2013
-*Revision: 
-*
+*Revisions: 
+*     S. Macpherson  May 2015
+*         - If Psfc obs is missing, use BACKGROUND STATE Psfc,Tsfc,dz to estimate Psfc obs.
+*           Added updated ZTD error vs ZWD regression coeffs based on summer 2014
+*           O-P and O-A stats and Desroziers-type error estimates (NOAA and E-GVAP network data).
+*           **The updated coeffs are NOT applied in this version**
 *
 **    Purpose:
 *             - initialize observation error standard deviations for GB-GPS ZTD data
@@ -33,22 +37,25 @@
       use obsSpaceData_mod
       use bufr
       use modgpsztd_mod
+      use columnData_mod
       IMPLICIT NONE
 C
 C NOTE: YZDERRWGT IN modgpsztd_mod (FROM NML FILE) IS USED FOR ERROR WEIGHTING
 C       OF TIME SERIES (FGAT) GPS ZTD OBSERVATIONS TO ACCOUNT FOR TEMPORAL ERROR
 C       CORRELATIONS.
 C
-      type(struct_obs) :: lobsSpaceData
-      logical          :: ldata
+      type(struct_columnData) :: columnhr
+      type(struct_obs)        :: lobsSpaceData
+      logical                 :: ldata
 
-      INTEGER INDEX_BODY, INDEX_HEADER, ITYP, IASS, IZTDJ, NBRPDATE, ICOUNT
-      integer ielem, imonth
+      INTEGER INDEX_BODY, INDEX_HEADER, ITYP, IASS, IZTDJ, NBRPDATE, ICOUNT, ICOUNT2
+      integer ielem, imonth, nlev_T
 
-      LOGICAL LLCZTDE, LLFER, LLFZTDE, LLZTD, LLRZTDE, ASSIM, ERRSET, DEBUG
+      LOGICAL LLCZTDE, LLFER, LLFZTDE, LLZTD, LLRZTDE, ASSIM, ERRSET, DEBUG, LESTP
 
 C
       REAL*8  ZTDERR, ZZTD, ZMINZDE, ZPSFC, ZHD, ZWD, ZTDOER, ZLEV, ZVAL
+      REAL*8  ZBTSFC, ZBPSFC, ZBZSFC, ZDZ
      
 C
 C     ZZDERMIN = MIN ZTD OER VALUE (M), ZZFERREJ = MAX FERR VALUE (M) FOR REJECTION
@@ -66,13 +73,9 @@ C
 C
 C     FOR ESTIMATION OF PSFC (IF MISSING)
 C       ZGAMMA = (NEG. OF) TEMPERATURE LAPSE RATE (K/M)
-C       ZPSMSL = STANDARD ATMOSPHERE MEAN SEA LEVEL PRESSURE (Pa)
-C       ZTSFC  = REFERENCE SURFACE TEMPERATURE (K)
 C
-      REAL*8 ZGAMMA, ZPSMSL, ZTSFC
+      REAL*8 ZGAMMA
       DATA ZGAMMA /0.0065D0/
-      DATA ZPSMSL /101300.0D0/
-      DATA ZTSFC  /280.0D0/
 C
 C     MONTHLY LINEAR REGRESSION EQUATION CONSTANTS AND COEFF FOR ZTD ERROR (SD(O-P))
 c     - Gives ZTDerror (mm) [SD(O-P)] as function of ZWD (m).
@@ -84,6 +87,11 @@ c
       DATA  ZRCOEFF / 102.4D0, 96.5D0, 110.3D0, 101.2D0, 83.9D0,
      &                 73.5D0, 54.3D0, 64.0D0, 62.4D0, 98.0D0,
      &                 99.4D0, 101.5D0 /
+c
+c     Updated values based on summer 2014 period and NOAA + E-GVAP GPS networks O-P/O-A stats
+c     (Estimated error = SQRT(Std(O-P)*Std(O-A)) for range bin of observed ZWD)
+c      DATA  ZRCONST / 12*6.16D0 /
+c      DATA  ZRCOEFF / 12*30.7D0 /
 C
 C
       WRITE(*,*) 'ENTER SETERRGPSGB'
@@ -101,8 +109,11 @@ C
          LLRZTDE = .TRUE.
       ENDIF
       
+      nlev_T = col_getNumLev(columnhr,'TH')
+      
       ldata = .false.
-      ICOUNT = 0
+      ICOUNT  = 0
+      ICOUNT2 = 0
 C
 C     Loop over all header indices of the 'GP' family:
 C
@@ -117,15 +128,22 @@ C
          ERRSET    = .FALSE.
          ZZTD      = -1.0D0
          ZPSFC     = -1.0D0
+         LESTP     = .FALSE.
 c      Get the month
          imonth = INT(nbrpdate/100.0)
          imonth = MOD(imonth,100)
          if ( imonth .lt. 1 .or. imonth .gt. 12 ) then
            CALL ABORT3D('SETERRGPSGB: imonth is out of range!')
          endif
+
+c   Get Psfc (Pa), Tsfc (K) and model surface height (m) from background profile
+
+         ZBPSFC = col_getElem(columnhr,1,index_header,'P0')
+         ZBTSFC = col_getElem(columnhr,nlev_T,index_header,'TT')
+         ZBZSFC = col_getHeight(columnhr,nlev_T,index_header,'TH')/RG
 c
 C    Loop over all body indices of current report; Set the ZTD error if
-C    constant value specified (LLCZTDE=true).
+C    constant value specified (LLCZTDE=true). Get GPS height and Psfc obs (if any).
 c
          call obs_set_current_body_list(lobsSpaceData, INDEX_HEADER)
          BODY: DO 
@@ -164,15 +182,17 @@ c      Replace formal ZTD error with real error for all ZTD to be assimilated
              ldata = .true.
              ICOUNT = ICOUNT + 1
              IF ( .NOT. ERRSET ) THEN
-c             If Psfc is missing, estimate the pressure based on station height using
-c             hydrostatic approx. and assumed MSL pressure ZPSMSL and temperature ZTSFC
+c             If Psfc obs is missing, estimate the pressure from background state
                 IF ( ZPSFC .LT. 0.0D0 ) THEN
-                  ZPSFC  = ZPSMSL *
-     &                (1.0D0-(ZGAMMA/ZTSFC)*ZLEV)**(RG/(MPC_RGAS_DRY_AIR_R8*ZGAMMA))
+                  LESTP = .TRUE.
+                  ZDZ = ZLEV - ZBZSFC
+                  ZPSFC  = ZBPSFC *
+     &                (1.0D0-(ZGAMMA/ZBTSFC)*ZDZ)**(RG/(MPC_RGAS_DRY_AIR_R8*ZGAMMA))
+                  ICOUNT2 = ICOUNT2 + 1
                 ENDIF
 c               Compute the hydrostatic delay ZHD (m) from Psfc (Pa)
                 ZHD = 2.2766D-05 * ZPSFC
-c               Compute the wet delay (m) from ZTD and ZHD
+c               Compute the wet delay (m) from ZTD and ZHD. Avoid negative ZWD.
                 IF ( ZHD .GT. ZZTD ) THEN
                   ZWD = 0.0D0
                 ELSE
@@ -206,26 +226,16 @@ C  Ensure that error is not less than formal error ZTDERR
              ENDIF
 C  *** APPLY TIME-SERIES WEIGHTING FACTOR TO OBSERVATION ERROR (YZDERRWGT=1 FOR 3D THINNING)
              call obs_bodySet_r(lobsSpaceData,OBS_OER,IZTDJ, ZTDOER*YZDERRWGT)
+             IF (DEBUG .AND. (ICOUNT2 .LE. 50) .AND. LESTP) THEN
+               WRITE(*,*) 'TAG    SITE    ZTD    ERROR    ELEV    PSFC    ZWD'
+               WRITE(*,*) 'ERRDEBUG ', obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER),
+     &         ZZTD*1000.D0, ZTDOER*YZDERRWGT*1000.D0, ZLEV, ZPSFC/100.D0, ZWD*1000.D0
+             ENDIF
            ELSE
                CALL ABORT3D('SETERRGPSGB: ERROR:NEGATIVE ZTD VALUE!')
            ENDIF
-         ENDIF
-         
-         IF (DEBUG .AND. ICOUNT .LE. 50) THEN
-            WRITE(*,*) 'TAG  SITE  ITYP  IASS  VAR  OER'
-            call obs_set_current_body_list(lobsSpaceData, INDEX_HEADER)
-            BODY2: DO 
-              index_body = obs_getBodyIndex(lobsSpaceData)
-              if (index_body < 0) exit BODY2
-              ITYP   = obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
-              IASS   = obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY)
-              ZVAL   = obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY)
-              ZTDERR = obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)
-              WRITE(*,*) 'ERRDEBUG ', obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER),
-     &          ITYP, IASS, ZVAL, ZTDERR     
-            ENDDO BODY2
-         ENDIF
-         
+         ENDIF       
+
 c
       ENDDO HEADER
 

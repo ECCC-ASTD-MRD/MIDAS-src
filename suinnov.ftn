@@ -33,6 +33,9 @@
 !         - DOBGPSGB is now ready for GEM-4 staggered grid
 !         - added CALL SETERRGPSGB(obsSpaceData,lgpdata) to set ZTD errors
 !         - NEW: >>if (lgpdata)<< CALL DOBSGPSGB
+!     S. Macpherson -ARMA/MRD  Feb 2015
+!         - Pass columnhr to s/r SETERRGPSGB to give routine access to background 
+!           Psfc, Tsfc at ZTD observation locations
 !
       use mpi_mod
       use topLevelControl_mod
@@ -118,7 +121,7 @@
 !-------------------------------
 !
       ZJOGPSGB=0.0D0
-      CALL SETERRGPSGB(obsSpaceData,lgpdata)
+      CALL SETERRGPSGB(columnhr,obsSpaceData,lgpdata)
       if (lgpdata) call oonl_gpsgb(columnhr,obsSpaceData,ZJOGPSGB,top_AnalysisMode())
 
       call tmg_stop(48)
