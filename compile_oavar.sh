@@ -163,9 +163,6 @@ if [ "${mode}" == full ] ; then
   echo "STARTING COMPILATION AT:" 
   date
 
-  # Remove enkf_pturb.ftn main program from compilation directory
-  rm -f enkf_pturb.ftn
-
   # Compile the subroutines...
   echo "compiling low-level independent modules"
   echo "If aborting, check in ${PWD}/listing1"
@@ -205,7 +202,8 @@ if [ "${mode}" == full ] ; then
 
   echo "compiling most of the new modules"
   echo "If aborting, check in ${PWD}/listing3"
-  SRC1="controlvector_mod.ftn90 rmatrix_mod.ftn90 hir_chans_mod.ftn90 tovs_nl_mod.ftn90 tovs_lin_mod.ftn90 varnamelist_mod.ftn90 columndata_mod.ftn90 multi_ir_bgck_mod.ftn90"
+  SRC1="controlvector_mod.ftn90 rmatrix_mod.ftn90 hir_chans_mod.ftn90 tovs_nl_mod.ftn90"
+  SRC1="$SRC1 tovs_lin_mod.ftn90 varnamelist_mod.ftn90 columndata_mod.ftn90 multi_ir_bgck_mod.ftn90"
   SRC1="$SRC1 emissivities_mod.ftn90 fft_mod.ftn90 globalspectraltransform_mod.ftn90"
   SRC1="$SRC1 lamspectraltransform_mod.ftn90  gridstatevector_mod.ftn90"
   SRC1="$SRC1 bmatrixensemble_mod.ftn90 bmatrixhi_mod.ftn90 lambmatrixhi_mod.ftn90"

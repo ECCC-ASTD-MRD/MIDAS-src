@@ -22,7 +22,8 @@ module mpi_mod
   ! public variables
   public :: mpi_myid,mpi_nprocs,mpi_myidx,mpi_myidy,mpi_npex,mpi_npey
   ! public procedures
-  public :: mpi_initialize,mpi_getptopo,mpi_allreduce_sumreal8scalar
+  public :: mpi_initialize,mpi_getptopo
+  public :: mpi_allreduce_sumreal8scalar
 
   integer :: mpi_myid   = 0
   integer :: mpi_nprocs = 0

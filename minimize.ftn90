@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-subroutine minimize(lcolumng,lobsSpaceData,isControlAnalysis)
+subroutine minimize(columng,obsSpaceData,isControlAnalysis)
   use minimization_mod
   use obsSpaceData_mod
   use columnData_mod
@@ -29,8 +29,8 @@ subroutine minimize(lcolumng,lobsSpaceData,isControlAnalysis)
   !Author  : S. Pellerin *ARMA/MSC  Sept, 2005
   !                                    in 1-Obs case.
   !Local declarations
-  type(struct_obs) :: lobsSpaceData
-  type(struct_columnData) :: lcolumn,lcolumng
+  type(struct_obs) :: obsSpaceData
+  type(struct_columnData) :: column,columng
   logical :: isControlAnalysis
   integer :: indic,ierr
 
@@ -39,27 +39,27 @@ subroutine minimize(lcolumng,lobsSpaceData,isControlAnalysis)
   write(*,*) '--------------------------------'
   call tmg_start(2,'MIN')
 
-  call col_setVco(lcolumn,col_getVco(lcolumng))
-  call col_allocate(lcolumn,col_getNumCol(lcolumng),mpi_local=.true.)
-  call col_copyLatLon(lcolumng,lcolumn)
+  call col_setVco(column,col_getVco(columng))
+  call col_allocate(column,col_getNumCol(columng),mpi_local=.true.)
+  call col_copyLatLon(columng,column)
 
   write(*,*) 'PRDATABIN: For 4D increment'
-  call prdatabin(lobsSpaceData,tim_nstepobsinc)
-  call tim_sutimeinterp(lobsSpaceData)
+  call prdatabin(obsSpaceData,tim_nstepobsinc)
+  call tim_sutimeinterp(obsSpaceData)
 
-  call min_minvar(lcolumn,lcolumng,lobsSpaceData,isControlAnalysis)
+  call min_minvar(column,columng,obsSpaceData,isControlAnalysis)
 
   DO INDIC =1,1
-     if(obs_numHeader(lobsSpaceData).ge.indic) then 
-        CALL obs_prnthdr(lobsSpaceData,indic)
-        CALL obs_prntbdy(lobsSpaceData,indic)
+     if(obs_numHeader(obsSpaceData).ge.indic) then 
+        CALL obs_prnthdr(obsSpaceData,indic)
+        CALL obs_prntbdy(obsSpaceData,indic)
      endif
   END DO
 
-  call col_deallocate(lcolumn)
+  call col_deallocate(column)
   call tmg_stop(2)
 
-! Memory deallocations for non diagonal R matrices for radiances
+  ! Memory deallocations for non diagonal R matrices for radiances
   call rmat_cleanup()
 
 end subroutine minimize

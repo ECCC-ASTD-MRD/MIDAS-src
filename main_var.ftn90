@@ -14,8 +14,8 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-program cnt0
-  ! pgm CNT0  - Program controlling the job at its highest level
+program main_var
+  ! pgm main_var - Program controlling the job at its highest level (formerly cnt0.ftn90)
 
   use topLevelControl_mod
   use mpivar_mod
@@ -42,8 +42,8 @@ program cnt0
 
   write(*,'(/,' //                                            &
             '3(" *****************"),/,' //                   &
-            '14x,"-- START OF MAIN PROGRAM CNT0: --",/,' //   &
-            '14x,"-- VARIATIONAL ASSIMILATION    --",/, ' //  &
+            '14x,"-- START OF MAIN PROGRAM MAIN_VAR: --",/,' //   &
+            '14x,"-- VARIATIONAL ASSIMILATION          --",/, ' //  &
             '14x,"-- VAR Revision number   ",a," --",/,' //  &
             '3(" *****************"))') top_crevision
 
@@ -64,7 +64,7 @@ program cnt0
 
   ! ---BGCHECK (conventional obs)--- !
   if(top_BgckConvMode()) then
-    if(mpi_myid == 0) write(*,*) 'CNT0: CONVENTIONNAL BGCHECK MODE'
+    if(mpi_myid == 0) write(*,*) 'MAIN_VAR: CONVENTIONNAL BGCHECK MODE'
 
     numAnalyses = 1
     indexAnalysis = 0
@@ -95,7 +95,7 @@ program cnt0
 
  ! ---BGCHECK (AIRS, IASI, CrIS)--- !
   elseif(top_BgckIrMode()) then
-     if(mpi_myid == 0) write(*,*) 'CNT0: HYPERSPECTRAL IR BGCHECK MODE'
+     if(mpi_myid == 0) write(*,*) 'MAIN_VAR: HYPERSPECTRAL IR BGCHECK MODE'
 
     numAnalyses = 1
     indexAnalysis = 0
@@ -127,7 +127,7 @@ program cnt0
 
   ! ---COMPUTE O-P (for AMSU, GEORAD et SSMIS)--- !
   elseif(top_OmpMode()) then
-    write(*,*) 'CNT0: RESIDUAL MODE (i.e. O-P)'
+    write(*,*) 'MAIN_VAR: RESIDUAL MODE (i.e. O-P)'
 
     numAnalyses = 1
     indexAnalysis = 0
@@ -158,7 +158,7 @@ program cnt0
 
   ! ---ANALYSIS MODE--- !
   elseif(top_AnalysisMode()) then
-    write(*,*) 'CNT0: ANALYSIS MODE'
+    write(*,*) 'MAIN_VAR: ANALYSIS MODE'
 
     ! Determine the number of analyses to perform
     numAnalyses = getNumAnalyses()
@@ -201,7 +201,7 @@ program cnt0
       call tmg_stop(1)
 
       ! Add random unbiased perturbations to the OMP values
-      if(.not.isControlAnalysis) call perturbObs(obsSpaceData,numAnalyses,indexAnalysis)
+      if(.not.isControlAnalysis) call perturbObs(obsSpaceData,numAnalyses,indexAnalysis,OBS_OMP,OBS_OMP)
 
       ! Do minimization of cost function
       call minimize(columng,obsSpaceData,isControlAnalysis)
@@ -249,7 +249,7 @@ program cnt0
 
   else
 
-    write(*,*) ' CNT0: ERROR, UNKNOWN NCONF SPECIFIED'
+    write(*,*) ' MAIN_VAR: ERROR, UNKNOWN NCONF SPECIFIED'
 
   endif
 
@@ -266,4 +266,4 @@ program cnt0
 
   call rpn_comm_finalize(ierr) 
 
-end program cnt0
+end program main_var

@@ -24,7 +24,7 @@ module verticalCoord_mod
   ! public derived type
   public :: struct_vco
   ! public procedures
-  public :: vco_SetupFromFile, vco_getNumLev
+  public :: vco_SetupFromFile, vco_getNumLev, vco_equal
   ! public entities accessed through inheritance
   public :: vgd_get,vgd_levels,vgd_ok,vgd_dpidpis,vgd_write
 
@@ -89,13 +89,14 @@ module verticalCoord_mod
   end subroutine vco_allocate
 
 
-  subroutine vco_SetupFromFile(vco,templatefile,lprecision,etiket)
+  subroutine vco_SetupFromFile(vco,templatefile,lprecision,etiket,beSilent)
     !  s/r vco_SetupFromFile - Initialize structure for a standard file using vgrid_descriptors library.
     implicit none
     type(struct_vco),pointer :: vco
     character(len=*) :: templatefile
     logical :: lprecision
     character(len=*) :: etiket
+    logical, optional :: beSilent
 
     integer :: Vcode,kind,jlev,jlev2,stat,sigdigits,nultemplate,ierr,ikey
     integer :: fnom,fstouv,fstfrm,fclos,fstinf,fstprm
@@ -111,13 +112,25 @@ module verticalCoord_mod
     integer :: ni,nj,nk
     character(len=4) :: nomvar_T, nomvar_M
 
-    if(mpi_myid.eq.0) write(*,*) 'vco_SetupFromFile: TEMPLATEFILE=', templatefile
+    if(present(beSilent)) then
+      if( .not.beSilent ) then
+        write(*,*) 'vco_SetupFromFile: WARNING: you specified "beSilent=.false."'
+        write(*,*) '                   but this s/r only checks the presence of beSilent'
+        write(*,*) '                   and not its value, so it will be silent!'
+      endif
+    endif
+
+    if(mpi_myid.eq.0 .and. .not.present(beSilent)) then
+      write(*,*) 'vco_SetupFromFile: TEMPLATEFILE=', templatefile
+    endif
     inquire(file=templatefile,exist=isExist_L)
     if( isExist_L )then
       nultemplate=0
       ierr=fnom(nultemplate,templatefile,'RND+OLD+R/O',0)
       if( ierr .eq. 0 ) then
-        if(mpi_myid.eq.0) write(*,*) ' opened as unit file ',nultemplate
+        if(mpi_myid.eq.0 .and. .not.present(beSilent)) then
+          write(*,*) ' opened as unit file ',nultemplate
+        endif
         ierr =  fstouv(nultemplate,'RND+OLD')
       else
         call abort3d('vco_SetupFromFile: CANNOT OPEN TEMPLATE FILE!')
@@ -137,7 +150,7 @@ module verticalCoord_mod
     endif
 
     ! Print out vertical structure 
-    if(mpi_myid.eq.0) then
+    if(mpi_myid.eq.0 .and. .not.present(beSilent)) then
       stat = vgd_print(vco%vgrid)
       if(stat.ne.VGD_OK)then
         call abort3d('ERROR with vgd_print')
@@ -191,7 +204,9 @@ module verticalCoord_mod
       if(ikey.gt.0) vco%nlev_T = vco%nlev_T + 1
     enddo
     if(vco%nlev_T.eq.0) then
-      if(mpi_myid.eq.0) write(*,*) 'vco: TT not found looking for UT to get nlev_T'
+      if(mpi_myid.eq.0 .and. .not.present(beSilent)) then 
+        write(*,*) 'vco: TT not found looking for UT to get nlev_T'
+      endif
       nomvar_T = 'UT  '
       do jlev = 1, vgd_nlev_T
         ikey = fstinf(nultemplate, ni, nj, nk, -1 ,etiket, vgd_ip1_T(jlev), -1, -1, ' ', nomvar_T)
@@ -212,7 +227,9 @@ module verticalCoord_mod
       if(ikey.gt.0) vco%nlev_M = vco%nlev_M + 1
     enddo
     if(vco%nlev_M.eq.0) then
-      if(mpi_myid.eq.0) write(*,*) 'vco: UU not found looking for PP to get nlev_M'
+      if(mpi_myid.eq.0 .and. .not.present(beSilent)) then
+        write(*,*) 'vco: UU not found looking for PP to get nlev_M'
+      endif
       nomvar_M = 'PP  '
       do jlev = 1, vgd_nlev_M
         ikey = fstinf(nultemplate, ni, nj, nk, -1 ,etiket, vgd_ip1_M(jlev), -1, -1, ' ', nomvar_M)
@@ -226,7 +243,9 @@ module verticalCoord_mod
       call abort3d('vco_setupfromfile: Could not find a valid momentum variable in the template file!')
     endif
 
-    if(mpi_myid.eq.0) write(*,*) 'vco: nlev_M, nlev_T=',vco%nlev_M,vco%nlev_T
+    if(mpi_myid.eq.0 .and. .not.present(beSilent)) then
+      write(*,*) 'vco: nlev_M, nlev_T=',vco%nlev_M,vco%nlev_T
+    endif
     
     call vco_allocate(vco)
 
@@ -246,7 +265,9 @@ module verticalCoord_mod
         vco%da_M(jlev2)  = vgd_da_M(jlev)
         vco%db_M(jlev2)  = vgd_db_M(jlev)        
       else
-        if(mpi_myid.eq.0) write(*,*) 'vco: did not find a momentum level in the template file, ip1 =',vgd_ip1_M(jlev)
+        if(mpi_myid.eq.0 .and. .not.present(beSilent)) then
+          write(*,*) 'vco: did not find a momentum level in the template file, ip1 =',vgd_ip1_M(jlev)
+        endif
       endif
     enddo
 
@@ -266,7 +287,9 @@ module verticalCoord_mod
         vco%da_T(jlev2)  = vgd_da_T(jlev)
         vco%db_T(jlev2)  = vgd_db_T(jlev)        
       else
-        if(mpi_myid.eq.0) write(*,*) 'vco: did not find a thermo level in the template file, ip1 =',vgd_ip1_T(jlev)
+        if(mpi_myid.eq.0 .and. .not.present(beSilent)) then
+          write(*,*) 'vco: did not find a thermo level in the template file, ip1 =',vgd_ip1_T(jlev)
+        endif
       endif
     enddo
 
@@ -297,16 +320,13 @@ module verticalCoord_mod
     if(Vcode.eq.5001) then
       stat = vgd_get(vco%vgrid,key='ptop - pressure at top level (m)',value=dl_ptop)
       stat = stat + VGD_OK
-      if(mpi_myid.eq.0) write(*,*) 'vco: vgd_get ptop vgd_ok= ',VGD_OK
     endif
     !
     stat = vgd_get(vco%vgrid,key='pref - reference pressure (m)',value=dl_pref)
     stat = stat + VGD_OK
-    if(mpi_myid.eq.0) write(*,*) 'vco: vgd_get pref vgd_ok= ',VGD_OK
     !
     stat = vgd_get(vco%vgrid,key='rc_1 - coefficient value for rectification (m)',value=dl_rcf1)
     stat = stat + VGD_OK
-    if(mpi_myid.eq.0) write(*,*) 'vco: vgd_get rc_1 vgd_ok= ',VGD_OK
     !
     if(stat.ne.0) then
       call abort3d('vco: problem with vgd_get')
@@ -338,8 +358,10 @@ module verticalCoord_mod
     do jlev = 1, vco%nlev_M
       call convip(vco%ip1_M(jlev),hyb_r4,kind,-1,blk_s,.false.)
       vco%dhyb_M(jlev) = hyb_r4
-      if(mpi_myid.eq.0) write(*,*) 'vco: jlev,nk,ip1,hyb(moment)= ' & 
-            ,jlev,vco%nlev_M,vco%ip1_M(jlev),vco%dhyb_M(jlev)
+      if(mpi_myid.eq.0 .and. .not.present(beSilent)) then
+        write(*,*) 'vco: jlev,nk,ip1,hyb(moment)= ',   & 
+             jlev,vco%nlev_M,vco%ip1_M(jlev),vco%dhyb_M(jlev)
+      endif
       if((vco%drcf1-1.0d0) .lt. epsilon(vco%drcf1)) then
         zterm = 1.0d0
       else
@@ -357,8 +379,10 @@ module verticalCoord_mod
     do jlev = 1,vco%nlev_T
       call convip( vco%ip1_T(jlev),hyb_r4,kind,-1,blk_s,.false.)
       vco%dhyb_T(jlev) = hyb_r4
-      if(mpi_myid.eq.0) write(*,*) 'vco: jlev,nk,ip1,hyb(thermo)= ' &
-            ,jlev,vco%nlev_T,vco%ip1_T(jlev),vco%dhyb_T(jlev)
+      if(mpi_myid.eq.0 .and. .not.present(beSilent)) then
+        write(*,*) 'vco: jlev,nk,ip1,hyb(thermo)= ',  &
+             jlev,vco%nlev_T,vco%ip1_T(jlev),vco%dhyb_T(jlev)
+      endif
       if((vco%drcf1-1.0d0) .lt. epsilon(vco%drcf1)) then
         zterm = 1.0d0
       else
@@ -385,11 +409,9 @@ module verticalCoord_mod
 
   function vco_getNumLev(vco,varType) result(nlev)
     implicit none
-    type(struct_vco), intent(inout) :: vco
-    character(len=*), intent(in)    :: varType
-    integer                         :: nlev
-    integer                         :: stat
-    integer, pointer                :: ip_ptr(:)
+    type(struct_vco), pointer    :: vco
+    character(len=*), intent(in) :: varType
+    integer                      :: nlev
 
     if(varType.eq.'MM') then
       nlev = vco%nlev_M
@@ -404,4 +426,16 @@ module verticalCoord_mod
   end function vco_getNumLev
 
 
+  function vco_equal(vco1,vco2) result(equal)
+    implicit none
+    type(struct_vco), pointer :: vco1, vco2
+    logical                   :: equal
+
+    equal = .true.
+    equal = equal .and. (vco1%vgrid == vco2%vgrid)
+
+  end function vco_equal
+
+
 end module VerticalCoord_mod
+

@@ -1,7 +1,6 @@
 #!/bin/ksh
 
 mode=$1
-#nompi=$2
 
 if [ "$mode" == "" ] ; then
   echo " "
@@ -32,19 +31,11 @@ else
   echo
 fi
 
-#if [ "$nompi" = "NOMPI" -o "$nompi" = "nompi" ] ; then
-#  echo " !!! Compiling for a NON-MPI executable !!! "
-#  echo ""
-#  MPILIB="rpn_commstubs_40007 rpn_comm_40007"
-#  MPIKEY=""
-#  ABSTAG="_NOMPI"
-#else
-  echo " !!! Compiling for an MPI executable !!!"
-  echo ""
-  MPILIB="rpn_comm_40511"
-  MPIKEY="-mpi"
-  ABSTAG=""
-#fi
+echo " !!! Compiling for an MPI executable !!!"
+echo ""
+MPILIB="rpn_comm_40511"
+MPIKEY="-mpi"
+ABSTAG=""
 
 enkfpturbdir=$PWD
 trunkdir=$PWD/../
@@ -58,6 +49,7 @@ echo "-----------------------"
 echo "Revision number='$revnum' '$revpath'"
 echo "-----------------------"
 echo " "
+rm -f ${trunkdir}/toplevelcontrol_mod.ftn90
 cat ${trunkdir}/toplevelcontrol_mod.ftn90_template |sed "s!XXXXX!${revnum} ${revpath}!g" > toplevelcontrol_mod.ftn90
 
 # Load the appropriate librairies
@@ -133,7 +125,7 @@ if [ $mode == full ] ; then
   echo "compiling remaining ftn ftn90..."
   filelist="abort.ftn utils_3dvar.ftn getstamplist.ftn90 matsqrt.ftn getfldprm.ftn getfldprm2.ftn"
   filelist="$filelist getstepobsindex.ftn90 matapat.ftn vintgd.ftn90 initgdg2.ftn90 gasdev.ftn"
-  filelist="$filelist enkf_pturb.ftn90"
+  filelist="$filelist main_enkf_pturb.ftn90"
   s.compile $COMPF -src $filelist > listing7 2>&1
   grep fail listing7
   if [ $? = "0" ] ; then exit ; fi

@@ -100,7 +100,7 @@ subroutine oda_get_radiance_ad(lobsSpaceData)
 9202              format(' tovs_calc_jo_ad: error with channel number')
                   call abort3d('tovs_calc_jo_ad  ')
                endif
-               zres = -obs_bodyElem_r(lobsSpaceData,OBS_WORK,index_body)
+               zres = obs_bodyElem_r(lobsSpaceData,OBS_WORK,index_body)
                radiance_ad (indxtovs) % bt(indxchn) = zres
             endif
          enddo BODY

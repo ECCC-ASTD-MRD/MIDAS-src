@@ -9,15 +9,17 @@
 # User-defined options
 #
 flnml="namelist_p7.nml"
-machine="spica"
-gest="/users/dor/arma/bue/power7/3dvar_modular/enkf_pturb_stag/"
+machine="hadar"
+gest="/users/dor/arma/bue/power7/3dvar_modular/enkf_pturb_stag_Bhyb_enkflvls/"
 anlgrid="/users/dor/arma/gr3/data_cnfs/prototype_grid/analysisgrid_glb_800x400"
-cov="spica:/users/dor/arma/bue/power7/3dvar_modular/testnmc/glbstrato01_nmc_spstddev_80n_stag_t108_taper_uvt_fix_theta_with_toctoc_reformat.fst"
+#cov="spica:/home/dormrb02/ibmenv/armnlib/modeles/ANAL/stats/auto/__GEM25km_NMC_T399_stag5002_BgckStddev3d_800x400__/01"
+#cov="datasvr:/users/dor/arma/bue/cnfs/test_enkf_ptb/glbcov01_stag5002"
+cov="datasvr:/users/dor/arma/bue/cnfs/test_enkf_ptb/enkf_analysis_zap"
 abs="/users/dor/arma/bue/home01/3dvar_latest/compiledir_enkf_pturb/enkf_pturb_p7.abs"
-npex=2
-npey=8
+npex=8
+npey=2
 openmp=2
-maxcputime=180
+maxcputime=300
 
 #
 # Don't modify below ...
@@ -46,11 +48,13 @@ ssh $machine ls -l $gest
 
 cat << EOF > go_enkf_pturb.sh
  echo "!!STARTING SCRIPT!!"
+. ssmuse-sh -d rpn/utils/15.1
  cd $gest
  export TMG_ON=YES
  export MP_STDOUTMODE=unordered
- r.mpirun2 -pgm ./enkf_pturb.abs
+ r.run_in_parallel -pgm ./enkf_pturb.abs -npex ${npex} -npey ${npey}
 EOF
+
 
 cat << EOF > ptopo_nml
  &ptopo
@@ -60,4 +64,4 @@ cat << EOF > ptopo_nml
 EOF
 scp ptopo_nml ${machine}:${gest}
 
-ord_soumet go_enkf_pturb.sh -mach $machine -mpi -t $maxcputime -cm 1632M -q preemptable -cpus ${npex}x${npey}x${openmp} -listing ${gest} -jn enkf_pturb
+ord_soumet go_enkf_pturb.sh -mach $machine -mpi -t $maxcputime -cm 1632M -cpus ${npex}x${npey}x${openmp} -listing ${gest} -jn enkf_pturb
