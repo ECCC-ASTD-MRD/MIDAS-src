@@ -34,8 +34,7 @@ else
   echo
 fi
 
-if [ "$nompi" = "NOMPI" -o "$nompi" = "nompi" ] 
-then
+if [ "$nompi" = "NOMPI" -o "$nompi" = "nompi" ] ; then
   echo "!!Compiling for a NON-MPI executable!!"
   MPILIBDIR=""
   MPILIB="rpn_commstubs rpn_comm"
@@ -43,8 +42,17 @@ then
   ABSTAG="_nompi"
 else
   echo "!!Compiling for an MPI executable!!"
-  MPILIBDIR="-libpath /users/dor/arma/gr3/userlibs/AIX-powerpc7/xlf13" # JFC : Mesure temporaire pour avoir acces a
-  MPILIB="rpn_comm_adj_halo8"                                          #       la S-R RPN_COMM_adj_halo8 de M. Valin
+  # JFC : Mesure temporaire pour avoir acces a la S-R RPN_COMM_adj_halo8 de M. Valin
+  if [ "${BASE_ARCH}" = "AIX-powerpc7" ] ; then
+      MPILIBDIR="-libpath /users/dor/arma/anl/userlibs/${BASE_ARCH}/xlf13"
+  elif [ "${BASE_ARCH}" = "Linux_x86-64" ] ; then
+      MPILIBDIR="-libpath /users/dor/arma/anl/userlibs/${BASE_ARCH}/intel13sp1u2"
+  else
+    echo "This platform 'ARCH=${ARCH}' is not supported.  Only 'AIX-powerpc7' and 'Linux_x86-64' are."
+    exit 1
+  fi
+  MPILIB="_anl_rpn_comm_4051103"
+  # JFC : Mesure temporaire FIN
   MPIKEY="-mpi"
   ABSTAG=""
 fi

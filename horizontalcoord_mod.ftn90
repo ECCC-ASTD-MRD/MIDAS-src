@@ -418,8 +418,7 @@ module HorizontalCoord_mod
     real(8) :: dx, next_lon
 
     dx       = lon(2) - lon(1)
-    next_lon = lon(ni) + 1.1d0 * dx
-    if ( next_lon >= 360.d0 ) next_lon = next_lon - 360.d0
+    next_lon = lon(ni) + 1.5d0 * dx
 
     write(*,*)
     write(*,*) 'dx       = ',dx
@@ -427,7 +426,7 @@ module HorizontalCoord_mod
     write(*,*) 'next_lon = ',next_lon
     write(*,*) 'lon(1)   = ',lon(1)
 
-    if ( next_lon > lon(1) ) then
+    if ( next_lon - lon(1) > 360.0d0 ) then
 
       global = .true.
       if ( lon(1) == lon(ni) ) then
