@@ -93,6 +93,7 @@ subroutine tovs_fill_profiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode
   integer :: jk, jn, jl
   integer :: ilansea,ilowlvl_M,ilowlvl_T,ig,nlv_M,nlv_T
   integer :: status, Vcode
+  integer :: ier,day,month,year,ijour,itime
   type(struct_vco), pointer :: vco
 
   real*8, allocatable :: to    (:,:)
@@ -113,6 +114,7 @@ subroutine tovs_fill_profiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode
   external intavg
   external lintv2
   external exthum4
+  integer ,external :: newdate
 
   write(*,*) "Entering tovs_fill_profiles subroutine"
 
@@ -160,7 +162,17 @@ subroutine tovs_fill_profiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode
   enddo
   write(*,*) 'tovs_fill_profiles: jpmotop=',jpmotop
   jpmolev = (nlevels-jpmotop+1)
- 
+
+
+  ier = newdate(datestamp,ijour,itime,-3)
+  if (ier<0) then
+     Write(*,*) "Invalid datestamp ",datestamp,ijour,itime,ier
+     call abort3d('tovs_fill_profiles')
+  endif
+  year= ijour / 10000
+  MONTH = MOD(ijour/100,100)
+  DAY = MOD(ijour,100)
+
 
 !     1.1   Number of threads and memory allocation
 !     .     ---------------------------------------
@@ -374,7 +386,10 @@ subroutine tovs_fill_profiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode
               write(*,*) "replaced by 0.0 !!!"
               profiles(jj) % zenangle=0.d0
            endif
-!**********************************************************            
+!**********************************************************  
+           profiles(jj) % date(1)         = year
+           profiles(jj) % date(2)         = month
+           profiles(jj) % date(3)         = day
            profiles(jj) % azangle         = (isatazim(j))/100.0d0
            profiles(jj) % sunzenangle     = (isunza(j)-9000)/100.0d0
            profiles(jj) % sunazangle      = 0.d0 ! necessaire pour radiation solaire a changer plus tard

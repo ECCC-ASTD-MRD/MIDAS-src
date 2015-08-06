@@ -118,9 +118,10 @@ echo "loading hpcs/exp/aspgjdm/perftools"
 # For RTTOV 10v1 package... 
 echo "loading arma/rttov/10v2"
 . ssmuse-sh -d arma/rttov/10v2
+. s.ssmuse.dot netcdf
 #-----------------------------------------------------------------------------
 
-LIBAPPL="rttov10.2.0_coef_io rttov10.2.0_main rttov10.2.0_other burp_module descrip $MPILIB"
+LIBAPPL="netcdf rttov10.2.0_coef_io rttov10.2.0_main rttov10.2.0_emis_atlas rttov10.2.0_other burp_module descrip $MPILIB"
 if [ "${BASE_ARCH}" = "AIX-powerpc7" ];then
     LIBSYS="hpcsperf lapack-3.4.0 essl mass"
 elif [ "${BASE_ARCH}" = "Linux_x86-64" ];then

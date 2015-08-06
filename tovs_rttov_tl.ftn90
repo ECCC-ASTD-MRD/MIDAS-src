@@ -43,7 +43,9 @@ subroutine tovs_rttov_tl(lobsSpaceData)
   use tovs_lin_mod
   use obsSpaceData_mod
   use columnData_mod
-  Use rttov_const, only : sensor_id_mw,gas_id_watervapour
+  Use rttov_const, only : sensor_id_mw,gas_id_watervapour,surftype_land, &
+       surftype_seaice,inst_id_airs,inst_id_iasi,inst_id_cris,inst_id_mviri, &
+       inst_id_seviri,inst_id_goesim,inst_id_gmsim
   implicit none
 !implicits
 #include "rttov_tl2.interface"
@@ -105,7 +107,7 @@ subroutine tovs_rttov_tl(lobsSpaceData)
   integer :: omp_get_thread_num, ithread,asw
 
          
-  if(NOBTOV.eq.0) return                                           ! exit if there are not tovs data
+  if(NOBTOV==0) return                                           ! exit if there are not tovs data
 
 !     1.  Get number of threads available and allocate memory for some variables
 !     .   ---------------------------------------------------------------------- 
@@ -151,7 +153,7 @@ subroutine tovs_rttov_tl(lobsSpaceData)
 
 !    Currently processed sensor?
 
-      if ( lsensor(iobs) .eq. krtid ) then
+      if ( lsensor(iobs) == krtid ) then
          knpf = knpf + 1
          iptobs(knpf) = iobs
       endif
@@ -205,9 +207,9 @@ subroutine tovs_rttov_tl(lobsSpaceData)
       allocate ( cloudemissivity_th (nchannels_max,nthreads) ,stat=alloc_status(10))
       allocate ( cloudemissivity_tl_th(nchannels_max,nthreads),stat=alloc_status(11))
 
-!     get AIRS & IASI ir emissivities
+!     get AIRS, IASI & CrIS ir emissivities
       
-      if (instrum.eq.11 .or. instrum.eq.16 .or. instrum.eq.27) then
+      if (instrum==inst_id_airs .or. instrum==inst_id_iasi .or. instrum==inst_id_cris) then
         surfem1(:) = 0.98d0
         do jn = 1, knpf
           iobs1 = iptobs(jn)
@@ -215,7 +217,7 @@ subroutine tovs_rttov_tl(lobsSpaceData)
           idata    = obs_headElem_i(lobsSpaceData,OBS_RLN,jo)
           idatend  = obs_headElem_i(lobsSpaceData,OBS_NLV,jo) + idata - 1
           do jdata = idata, idatend
-            if(obs_bodyElem_i(lobsSpaceData,OBS_ASS,jdata).eq.1) then
+            if(obs_bodyElem_i(lobsSpaceData,OBS_ASS,jdata)==1) then
               ichn = nint(obs_bodyElem_r(lobsSpaceData,OBS_PPP,jdata))
               ichn = max(0,min(ichn,jpchmax+1))
               do nrank = 1, nchan(krtid)
@@ -292,21 +294,21 @@ subroutine tovs_rttov_tl(lobsSpaceData)
        do  j = 1 , knpf_th(ith)
           joff=len_nchannels*(j-1)
           isurface = profiles(iptobs_th(j,ith)) % skin % surftype 
-          if     (sensor_type .eq. sensor_id_mw ) then
-             if ( isurface .eq. 0 .or. &
-                  isurface .eq. 2      ) then
+          if     (sensor_type == sensor_id_mw ) then
+             if ( isurface == surftype_land .or. &
+                  isurface == surftype_seaice     ) then
                 calcemis_th(joff+1:joff+len_nchannels   ,ith) = .false.
                 surfem1_th (joff+1:joff+len_nchannels   ,ith) = 0.75d0
              else
                 calcemis_th(joff+1:joff+len_nchannels   ,ith) = .true.
                 surfem1_th (joff+1:joff+len_nchannels   ,ith) = 0.d0
              endif
-          elseif ((instrum .eq. 11) .or. (instrum .eq. 16) .or. (instrum .eq. 27)) then
+          elseif ((instrum == inst_id_airs) .or. (instrum == inst_id_iasi) .or. (instrum == inst_id_cris)) then
              calcemis_th(joff+1:joff+len_nchannels   ,ith) = .false. 
              surfem1_th (joff+1:joff+len_nchannels,ith) =         &
                   surfem1(joff+1+ioffset:joff+len_nchannels+ioffset)
-          elseif ((instrum .eq. 20) .or. (instrum .eq. 21) .or. &
-               (instrum .eq. 22) .or. (instrum .eq. 24) ) then
+          elseif ( (instrum==inst_id_mviri) .or. (instrum==inst_id_seviri) .or. &
+               (instrum==inst_id_goesim) .or. (instrum ==inst_id_gmsim) ) then
              calcemis_th(joff+1:joff+len_nchannels   ,ith) = .true.
              surfem1_th (joff+1:joff+len_nchannels,ith) = 0.d0
           else

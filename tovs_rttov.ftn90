@@ -38,11 +38,14 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
 !
   use MathPhysConstants_mod
   use tovs_nl_mod
+  use mod_iratlas
   use multi_ir_bgck_mod
   use obsSpaceData_mod
   use columnData_mod
   use emissivities
-  Use rttov_const, only : sensor_id_mw, jpim,gas_id_watervapour
+  Use rttov_const, only : sensor_id_mw,gas_id_watervapour,surftype_land, &
+       surftype_seaice,inst_id_airs,inst_id_iasi,inst_id_cris,inst_id_mviri, &
+       inst_id_seviri,inst_id_goesim,inst_id_gmsim
   implicit none
 !implicits
 #include "rttov_direct2.interface"
@@ -50,6 +53,8 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
 #include "rttov_alloc_rad.interface"
 #include "rttov_alloc_transmission.interface"
 #include "rttov_print_profile.interface"
+#include "rttov_get_emis.interface"
+#include "rttov_atlas_setup.interface"
 
   type(struct_obs) :: lobsSpaceData
   type(struct_columnData) :: lcolumnhr
@@ -67,7 +72,7 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
   integer :: rttov_err_stat
   integer :: omp_get_num_threads
   integer :: nthreads, max_nthreads
-  integer :: j, i, krtid, io, jf, iobs, iobs1
+  integer :: j, i, k, krtid, io, jf, iobs, iobs1
   integer :: ibegin, ibeginob, ilast, ilastob, jj, jch
   integer :: ival, iplatform, isat, knpf
   integer :: jo, jdata, idata, idatend, idatyp
@@ -98,11 +103,15 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
   integer              :: asw,imonth,ig
   logical, allocatable :: calcemis_th  (:,:)
   real*8, allocatable  :: surfem1 (:)
+  real*8, allocatable  :: surfem2_th (:,:), emissivity_std_th(:,:)
+  integer, allocatable :: emissivity_flg_th(:,:)
+
   external abort3d
   
   write(*,*) "Entering tovs_rttov subroutine"
+  write(*,*) "luse_uwiremis=",luse_uwiremis
 
-  if(NOBTOV.eq.0) return                  ! exit if there are not tovs data
+  if(NOBTOV==0) return                  ! exit if there are not tovs data
 
 !     1.  Get number of threads available and allocate memory for some variables
 !     .   ---------------------------------------------------------------------- 
@@ -155,7 +164,7 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
 
 !    Currently processed sensor?
 
-      if ( lsensor(iobs) .eq. krtid ) then
+      if ( lsensor(iobs) == krtid ) then
          knpf = knpf + 1
          iptobs(knpf) = iobs
       endif
@@ -202,10 +211,15 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
       allocate ( calcemis_th     (nchannels_max,nthreads)    ,stat=alloc_status(6))
       allocate ( surfem1         (nchannels_max)             ,stat=alloc_status(7))
       allocate ( cloudemissivity_th (nchannels_max,nthreads) ,stat=alloc_status(8))
+      if (luse_uwiremis) then
+         allocate ( emissivity_std_th(nchannels_max,nthreads) ,stat=alloc_status(9) )
+         allocate ( emissivity_flg_th(nchannels_max,nthreads) ,stat=alloc_status(10) )
+         allocate ( surfem2_th(nchannels_max,nthreads)        ,stat=alloc_status(11) )
+      endif
 
 !     get AIRS, IASI & CrIS IR emissivities
 
-      if (instrum.eq.11 .or. instrum.eq.16 .or. instrum.eq.27) then
+      if (instrum==inst_id_airs .or. instrum==inst_id_iasi .or. instrum==inst_id_cris) then
         surfem1(:) = 0.
         if ( bgckMode ) then
           call EMIS_GET_IR_EMISSIVITY (SURFEM1,nchan(krtid),krtid,knpf,nchannels_max,iptobs)
@@ -217,7 +231,7 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
             idata    = obs_headElem_i(lobsSpaceData,OBS_RLN,jo)
             idatend  = obs_headElem_i(lobsSpaceData,OBS_NLV,jo) + idata - 1
             do jdata = idata, idatend
-              if(obs_bodyElem_i(lobsSpaceData,OBS_ASS,jdata).eq.1) then
+              if(obs_bodyElem_i(lobsSpaceData,OBS_ASS,jdata)==1) then
                 ichn = nint(obs_bodyElem_r(lobsSpaceData,OBS_PPP,jdata))
                 ichn = max(0,min(ichn,jpchmax+1))
                 do nrank = 1, nchan(krtid)
@@ -244,10 +258,10 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
       knpf_tot = 0
       do ith = 1, nthreads
 
-       ichn = 0_jpim
+       ichn = 0
        Do j = 1 , knpf_th(ith)
           DO  jch = 1,ncan(j)
-             ichn = ichn +1_jpim
+             ichn = ichn +1
              chanprof_th(ichn,ith)%prof=j
              chanprof_th(ichn,ith)%chan=jch
           End Do
@@ -272,39 +286,6 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
           call abort3d('tovs_rttov        ')
        ENDIF
          
-       knpf_tot = knpf_tot + knpf_th(ith)
-       surfem1_th (:,ith) = 0.d0
-       
-       len_nchannels = nchannels_th(ith)/knpf_th(ith)
-       ioffset=len_nchannels*(knpf_tot-knpf_th(ith))
-       do  j = 1 , knpf_th(ith)  
-          joff=len_nchannels*(j-1)
-          isurface = profiles(iptobs_th(j,ith)) % skin % surftype 
-          if     (sensor_type .eq. sensor_id_mw ) then
-             if ( isurface .eq. 0 .or. &
-                  isurface .eq. 2      ) then
-                calcemis_th(joff+1:joff+len_nchannels   ,ith) = .false.
-                surfem1_th (joff+1:joff+len_nchannels   ,ith) = 0.75d0
-             else
-                calcemis_th(joff+1:joff+len_nchannels   ,ith) = .true.
-                surfem1_th (joff+1:joff+len_nchannels   ,ith) = 0.d0
-             endif
-          elseif ((instrum .eq. 11) .or. (instrum .eq. 16).or. (instrum .eq. 27)) then
-             calcemis_th(joff+1:joff+len_nchannels   ,ith) = .false. 
-             surfem1_th (joff+1:joff+len_nchannels,ith) =         &
-                  surfem1(joff+1+ioffset:joff+len_nchannels+ioffset)
-          elseif ((instrum .eq. 20) .or. (instrum .eq. 21) .or. &
-               (instrum .eq. 22) .or. (instrum .eq. 24) ) then
-             calcemis_th(joff+1:joff+len_nchannels   ,ith) = .true.
-             surfem1_th (joff+1:joff+len_nchannels,ith) = 0.d0
-          else
-             call abort3d('tovs_rttov. invalid sensor type')
-          endif
-       enddo
-       
-       emissivity_th(:,ith) = surfem1_th(:,ith)
-       cloudemissivity_th(:,ith) = 0.d0
-
     end do
 
     do ith = 1, nthreads
@@ -393,6 +374,95 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
           enddo
           if (ldbgtov) call rttov_print_profile( profiles(iptobs_th(j,ith)) )
        end do
+
+       knpf_tot = knpf_tot + knpf_th(ith)
+
+       surfem1_th (:,ith) = 0.d0
+       
+       len_nchannels = nchannels_th(ith)/knpf_th(ith)
+       ioffset=len_nchannels*(knpf_tot-knpf_th(ith))
+       do  j = 1 , knpf_th(ith)  
+          joff=len_nchannels*(j-1)
+          isurface = profiles(iptobs_th(j,ith)) % skin % surftype 
+          if     (sensor_type == sensor_id_mw ) then
+             if ( isurface == surftype_land .or. &
+                  isurface == surftype_seaice     ) then
+                calcemis_th(joff+1:joff+len_nchannels   ,ith) = .false.
+                surfem1_th (joff+1:joff+len_nchannels   ,ith) = 0.75d0
+             else
+                calcemis_th(joff+1:joff+len_nchannels   ,ith) = .true.
+                surfem1_th (joff+1:joff+len_nchannels   ,ith) = 0.d0
+             endif
+          elseif ((instrum == inst_id_airs) .or. (instrum == inst_id_iasi ).or. (instrum == inst_id_cris)) then
+             calcemis_th(joff+1:joff+len_nchannels   ,ith) = .false. 
+             surfem1_th (joff+1:joff+len_nchannels,ith) =         &
+                  surfem1(joff+1+ioffset:joff+len_nchannels+ioffset)
+          elseif ((instrum == inst_id_mviri) .or. (instrum == inst_id_seviri) .or. &
+               (instrum == inst_id_goesim) .or. (instrum == inst_id_gmsim) ) then
+             calcemis_th(joff+1:joff+len_nchannels   ,ith) = .true.
+             surfem1_th (joff+1:joff+len_nchannels,ith) = 0.d0
+          else
+             call abort3d('tovs_rttov. invalid sensor type')
+          endif
+       enddo
+       if (luse_uwiremis .and. (instrum==inst_id_airs .or. instrum==inst_id_iasi .or. instrum==inst_id_cris) .and. bgckMode) then
+
+          if (first) then
+             call rttov_atlas_setup( rttov_err_stat,      &! out
+                  imonth=profilesdata_th(1,ith)%date(2) , &! in
+                  coef=  coefs(krtid)%coef   )             ! in
+             if (rttov_err_stat/=0) THEN
+                Write(*,*) "Error in rttov_atlas_setup ",rttov_err_stat
+                call abort3d('tovs_rttov')
+             ENDIF
+             first=.false.
+          endif
+
+          call rttov_get_emis( rttov_err_stat                     , &   ! out
+               chanprof_th(1:nchannels_th(ith),ith)               , &   ! in
+               profilesdata_th(1:knpf_th(ith),ith)                , &   ! in
+               coefs(krtid)%coef                                  , &   ! in
+               emissivity=surfem2_th(1:nchannels_th(ith),ith)     , &   ! out
+               emis_std=emissivity_std_th(1:nchannels_th(ith),ith), &   ! out, optional (not CNRM atlas)
+               emis_flag=emissivity_flg_th(1:nchannels_th(ith),ith)  )  ! out, optional (IR atlas only)
+
+          if (rttov_err_stat/=0) THEN
+             Write(*,*) "Error in rttov_get_emis ",rttov_err_stat
+             call abort3d('tovs_rttov')
+          ENDIF
+
+          do j=1,knpf_th(ith) !loop on profiles
+             do k=1,nchannels_th(ith) !loop on channels
+                if (chanprof_th(k,ith)%prof==j) then
+                   ! surftype: 0 land, 1 sea, 2 sea-ice
+                   ! this logic is primitive and could be improved for example using
+                   ! additional criteria based on emissivity_std_th and emissivity_flg_th
+                   !Definition of emis_flag:
+                   ! emis_flag:Flag_0 = "0 = sea, no MOD11 data" ;
+                   ! emis_flag:Flag_1 = "1 = land where BF method was applied" ;
+                   ! emis_flag:Flag_2 = "2 = land where data was filled with average (original UWiremis bfemis_flag=2 or 3 or 4" ;
+                   ! emis_flag:Flag_3 = "3 = contains inland water or coastline by the sea/land mask where the BF method was used" ;
+                   ! emis_flag:Flag_4 = "4 = contains inland water or coastline by the sea/land mask where data was filled with average original UWiremis bfemis_flag=2 or 3 or 4" ;
+                   ! emis_flag:Flag_5 = "5 = contains coastline by land fraction where the BF method was used" ;
+                   ! emis_flag:Flag_6 = "6 = contains coastline by land fraction where data was filled with average (original UWiremis bfemis_flag=2 or 3 or 4" ;
+                   ! other information that could be useful for quality control can be found in the in the profile_qc structure
+                   ! Now we have the "traditionnal" emissivity in surfem1_th(:,ith)
+                   ! and University of Wisconsin emissivity in surfem2_th(:,ith)
+                   if (profilesdata_th(j,ith)% skin % surftype == 0 .and. &
+                        surfem2_th(k,ith)>0.5 ) then
+                      emissivity_th(k,ith) = surfem2_th(k,ith)
+                   else
+                      emissivity_th(k,ith) = surfem1_th(k,ith)
+                   endif
+                endif
+             enddo
+          enddo
+
+       else
+          emissivity_th(:,ith) = surfem1_th(:,ith)
+       endif
+       cloudemissivity_th(:,ith) = 0.d0
+
     enddo
 
 !     .  2.3  Compute radiance with rttov direct
@@ -456,8 +526,6 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
          enddo
       enddo
 
-
-            
 !     de-allocate memory
       
       do ith = 1, nthreads
@@ -495,6 +563,11 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
       deallocate ( calcemis_th       ,stat=alloc_status(9))
       deallocate ( surfem1           ,stat=alloc_status(10))
       deallocate ( cloudemissivity_th,stat=alloc_status(11) )
+      if (luse_uwiremis) then
+         deallocate ( emissivity_std_th  ,stat=alloc_status(12) )
+         deallocate ( emissivity_flg_th  ,stat=alloc_status(13) )
+         deallocate ( surfem2_th         ,stat=alloc_status(14) )
+      endif
 
       if( any(alloc_status /= 0) ) then
          write(*,*) ' tovs_rttov: alloc_status = ', alloc_status(:)
