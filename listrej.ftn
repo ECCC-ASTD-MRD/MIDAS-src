@@ -346,7 +346,8 @@
      3                ISPDA,ZPOST,obs_headElem_i(lobsSpaceData,OBS_ONM,INDEX_HEADER)
  620                 FORMAT(A9,1X,i3,1x,A16,F5.1,2X,F5.1,2X,I4,A2,2X,
      1                'WND',3X,I3,'/',I3,3X,I3,'/',I3,3X,I3,
-     2                '/',I3,2X,F6.4,1X,I5)
+     2                '/',I3,2X,F7.4,1X,I8)
+
                    ENDIF
                  ENDIF
                ELSE
@@ -435,7 +436,7 @@
      1              CLOBTP(IDBURP),ZLAT,ZLON,ILEV,CLUNITS,CLDESC,
      2              ZVAR,ZFCST,ZANA,ZPOST,obs_headElem_i(lobsSpaceData,OBS_ONM,INDEX_HEADER)
  630               FORMAT(A9,1X,I3,1X,A16,F5.1,2X,F5.1,2X,I4,A2,2X,
-     2                A4,2X,F7.1,3X,F7.1,3X,F7.1,2X,F6.4,1X,I5,1X)
+     2                A4,2X,F7.1,3X,F7.1,3X,F7.1,2X,F7.4,1X,I8,1X)
                  ENDIF
                ENDIF
              ENDIF

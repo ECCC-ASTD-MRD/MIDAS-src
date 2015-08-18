@@ -384,6 +384,7 @@ CONTAINS
     address(:) = 0
     count      = 0
     ref_rpt    = 0
+    bit_alt    = 0
 
     do
       ref_rpt = BURP_Find_Report(File_in, &
@@ -1474,6 +1475,7 @@ CONTAINS
     address(:) = 0
     count = 0
     ref_rpt = 0
+    bit_alt = 0
 
     do
       ref_rpt = BURP_Find_Report(File_in, &
