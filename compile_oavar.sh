@@ -115,10 +115,13 @@ echo "loading cmda/base/201411/01/${COMP_ARCH}"
 ## For hpcsperf needed for TMG timings
 echo "loading hpcs/exp/aspgjdm/perftools"
 . ssmuse-sh -d hpcs/exp/aspgjdm/perftools
-# For RTTOV 10v1 package... 
+# For RTTOV package... 
 echo "loading arma/rttov/10v2"
 . ssmuse-sh -d arma/rttov/10v2
+# For NetCDF package
+echo "loading netcdf"
 . s.ssmuse.dot netcdf
+
 #-----------------------------------------------------------------------------
 
 LIBAPPL="netcdf rttov10.2.0_coef_io rttov10.2.0_main rttov10.2.0_emis_atlas rttov10.2.0_other burp_module descrip $MPILIB"
