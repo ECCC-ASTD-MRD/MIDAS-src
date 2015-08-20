@@ -37,7 +37,14 @@ module chem_mod
 !         See 'preproc.ftn90' and 'chm_obsoperators'. 
 !
 !       - Public routines: "chm_adj_model_bndry,chm_get_stringId,chm_get_ID": Routines for use 
-!         in filtering out obs based on model vertical boundaries. See 'filterobs_mod.ftn90'. 
+!         in filtering out obs based on model vertical boundaries. See 'filterobs_mod.ftn90'.
+!
+!       - Public routine chm_lcheck_skipassim: Identify if data is to be assimilated or only used
+!         for independent verifications.
+!
+!       - Public routine chm_comboIDlist: Provide list of fixed or accumulated stnid, 
+!         (stnid,varno) or (stnid,varno,multi/uni-level) combinations. For use in
+!         in obsspacediag_mod.ftn90.
 !
 ! COMMENT:
 !
@@ -50,6 +57,10 @@ module chem_mod
 !           M. Sitwell, ARQI/AQRD, Feb 2015
 !           - Created struct_chm_info and struct_chm_std structures for storing
 !             information read from ascii/burp file and removal of earlier structure.
+!           M. Sitwell and Y. Rochon, ARQI/AQRD, Aug 2015
+!           - Created struct_config (M. Sitwell) following specification of related
+!             variables (Y. Rochon) for reading in routine chm_read_misc.
+!           
 !
 !----------------------------------------------------------------------------------
    
@@ -60,9 +71,10 @@ module chem_mod
 ! -----------------
 
   public :: chm_setup,chm_dealloc_obs_err_stddev,chm_read_obs_err_stddev, &
-            chm_get_obs_err_stddev
-  public :: chm_obsoperators,chm_adj_model_bndry,chm_get_stringID,chm_get_ID
-
+            chm_get_obs_err_stddev,chm_obsspace_diagnostic,chm_convert_z_to_pressure
+  public :: chm_obsoperators,chm_adj_model_bndry,chm_get_stringID,chm_get_ID,stnid_equal
+  public :: chm_lcheck_skipassim,chm_comboIDlist
+  
   type :: struct_chm_std
      !
      ! Structure for holding observation std information
@@ -195,9 +207,58 @@ module chem_mod
   
   end type struct_chm_burp
 
+  integer, parameter :: chm_cfg_size=100
+
+  type :: struct_config
+     
+     !  Structure to store general config information.
+     !     
+     !  Variable               Description
+     !  --------               -----------
+     !  generalized_operator   Logical indicating if the generalized innovation operator is to
+     !                         be applied in routine chm_obsoperators
+     !
+     !  assim_num              Number combinations (stnid, bufr element, multi/uni-level) 
+     !                         identified for assimilation. All others will not
+     !                         be assimilated. OmP and OmA diagnostics and output
+     !                         will still be produced for non-assimilated datasets.
+     !                         (see routines chm_lcheck_skipassim, oonl_chm in obsoperators_mod.ftn90)
+     !
+     !                           <0:  all are to be assimilated
+     !                            0:  none are to be assimilated
+     !                           >0:  sets of (stnid,bufr,multi/uni-levels) to be assimilated
+     !
+     !  assim_varno            Bufr elements of obs sets for assimilation. A value of
+     !                         0 implies that all are to be used.
+     !
+     !  assim_stnid            Stnids of obs sets for assimilation. '*' denote wild cards
+     !       
+     !  assim_nlev             0:  multi-level and uni-level
+     !                         1:  uni_level
+     !                         >1: multi-level 
+     !
+     !  diagn_pressmin         Bottom of top layer for diagnostics (in Pa).
+     !
+     !  diagn_save             Logical indicating gridded diagnostics are to be saved
+     !                         in an ascii file in addition to overall diagnostics. 
+     !                         (see routine chm_obsspace_diagnostic)
+     !
+     !  amu                    Molecular mass of constituents in g/moles (needed for unit conversions)
+     !
+
+     logical :: generalized_operator,diagn_save
+     integer :: assim_num
+     integer :: assim_varno(chm_cfg_size),assim_nlev(chm_cfg_size)
+     character(len=9) :: assim_stnid(chm_cfg_size)
+     real(8) :: diagn_pressmin
+     real(8) :: amu(0:chm_cfg_size)
+
+  end type struct_config
+
   type(struct_chm_info) :: chm_layers
   type(struct_chm_info) :: chm_avgkern
   type(struct_chm_std)  :: chm_std
+  type(struct_config)   :: chm_config
 
 ! Array of pointers to hold std's/averaging kernels read from BURP file.
 ! Note: Ideally, these should be an element in the 'struct_chm_std' /
@@ -206,11 +267,6 @@ module chem_mod
 
   type(struct_chm_burp), allocatable :: chm_burp_std(:),chm_burp_avgkern(:)
 
-  
-! Miscellaneous flags and constants read/set from chm_read_misc
-
-  integer  :: chm_ngenoper
-  real(8)  :: chm_amu(0:100)
 
 contains
 
@@ -258,45 +314,126 @@ contains
 
   subroutine chm_read_misc
 !
-! Author   : Y. Rochon, ARQI/AQRD, Apr 2015 
+! Author   : Y. Rochon, ARQI/AQRD, Apr,July 2015 
 !
 ! Revisions: 
+!            M. Sitwell, ARQI/AQRD, Aug 2015
+!            - Incorporated input fields in chm_config
 !         
 ! Purpose: Read and store miscellaneous flags and constants.
 !
-! Comments:
+! Output:
+!
+!   Read from obsinfo_chm
+!
+!        chm_config%amu      Molecular mass  of constituents in g/moles (needed for unit conversions)
+!
+!   Read from NAMCHEM namelist
+!
+!        genoper             If generalized observation operator should be used
+!        diagn_num           Prescribed (starting) number of (stnid, bufr, nlev) for the diagnostics calc
+!        diagn_stnid         Prescribed (starting) list of stnid (with *s as needed) for the diagnostics calc
+!                            with '*' denoting wild cards
+!        diagn_varno         Prescribed (starting) list of bufr elments for the diagnostics calc
+!        diagn_unilev        Prescribed (starting) list of logicals indicating uni-level obs for the diagnostics calc
+!        diagn_pressmin      Bottom of top layer for diagnostics (in Pa).
+!        diagn_save          Logical indicating gridded diagnostics are to be saved
+!                            in an ascii file in addition to overall diagnostics. 
+!        diagn_nset          Integer indicating grouping of diagnostics with
+!                            1: group by stnid
+!                            2: group by (stnid,bufr)
+!                            3: group by (stnid,bufr,nlev)
+!        diagn_all           Logical indicating if all combinations specified by diagn_nset are to be
+!                            used in diagnostics or only those specified by the diagn_* arrays
+!        assim_num           Number combinations (stnid, bufr element, multi/uni-level) 
+!                            identified for assimilation. All others will not
+!                            be assimilated. OmP and OmA diagnostics and output
+!                            will still be produced for non-assimilated datasets.
+!                         
+!                            <0:  all are to be assimilated
+!                             0:  none are to be assimilated
+!                            >0:  sets of (stnid,bufr,multi/uni-levels) to be assimilated
+!
+!        assim_varno         Bufr elements of obs sets for assimilation. A value of
+!                            0 implies that all are to be used.
+!        assim_stnid         Stnids of obs sets for assimilation. '*' denote wild cards
+!        assim_nlev           0:  multi-level and uni-level
+!                             1:  uni_level
+!                            >1: multi-level 
 !
 !----------------------------------------------------------------------------------------  
   implicit none
 
   integer :: FNOM, FCLOS
-  integer :: IERR, JELM, nulstat, ios, isize, nulnam
-  logical :: LnewExists
+  integer :: IERR, JELM, nulstat, ios, isize, nulnam, i
+  logical :: LnewExists,genoper
   
   character(len=128) :: ligne  
   character(len=10)  :: rparm,parm,namfile
   real(8)            :: val 
   integer            :: index
 
+  integer :: assim_num,diagn_num,diagn_nset
+  integer :: assim_varno(chm_cfg_size),assim_nlev(chm_cfg_size)
+  integer :: diagn_varno(chm_cfg_size)
+  character(len=9) :: assim_stnid(chm_cfg_size),diagn_stnid(chm_cfg_size)
+  logical :: diagn_save,diagn_all,diagn_unilev(chm_cfg_size)
+  real(8) :: diagn_pressmin
+
   EXTERNAL FNOM,FCLOS
 
-  namelist /NAMCHEM/chm_ngenoper
+  namelist /namchem/ genoper, &
+                     assim_num,assim_stnid,assim_varno,assim_nlev, &
+                     diagn_num,diagn_stnid,diagn_varno,diagn_unilev, &
+                     diagn_save,diagn_all,diagn_nset,diagn_pressmin
   
-! Initialization
+  ! Default NAMCHEM values
+  
+  genoper=.true.
 
-  chm_ngenoper=0    
-  chm_amu(:)=-1.0
+  assim_num=-1  
+  assim_stnid(:)='*********'
+  assim_varno(:)=0
+  assim_nlev(:)=0
+ 
+  diagn_save=.false.
+  diagn_all=.true. 
+  diagn_pressmin=10.  !  0.1 hPa
+  diagn_nset=2
+  diagn_num=0
+  diagn_stnid(:)='*********'
+  diagn_varno(:)=0
+  diagn_unilev(:)=.false.
 
-! Read from namelist file (not implemented)
-! Should read chm_ngenoper from namelist instead of 'obsinfo_chm' 
+  ! Read from namelist file NAMCHEM
 
-!  namfile=trim("flnml")
-!  nulnam=0
-!  ier=FNOM(nulnam,namfile,'R/O',0)
+  namfile=trim("flnml")
+  nulnam=0
+  ierr=FNOM(nulnam,namfile,'R/O',0)
 
-!  read(nulnam,NML=NAMCHEM)
+  read(nulnam,nml=namchem,iostat=ios)
+  if (ios.ne.0) write(6,*) 'chm_read_misc: error in reading NAMCHEM namelist. iostat = ',ios
+       
+  ierr=FCLOS(nulnam)      
+  
+  ! Set config values
 
-!  ier=FCLOS(nulnam)
+  chm_config%generalized_operator = genoper
+  chm_config%assim_num = assim_num
+  chm_config%assim_varno = assim_varno
+  chm_config%assim_stnid = assim_stnid
+  chm_config%assim_nlev = assim_nlev 
+  chm_config%diagn_pressmin = diagn_pressmin
+  chm_config%diagn_save = diagn_save
+  
+  chm_config%amu(:) = -1.0
+
+  ! Initialize chm_comboIDlist and add (stnid,varno) pairs from the namelist
+
+  call chm_comboIdlist(initialize=.true., nset=diagn_nset, all_combos=diagn_all)
+  do jelm=1,diagn_num
+     call chm_comboIdlist(stnid_add=diagn_stnid(jelm), varno_add=diagn_varno(jelm), unilev_add=diagn_unilev(jelm))
+  end do
 
 ! Read from 'obsinfo_chm' file
 
@@ -336,9 +473,7 @@ contains
       parm=trim(adjustl(rparm))
       if (parm(1:4).eq.'amu_') then
          read(parm(5:8),'(I4)') index
-         chm_amu(index)=val
-      else if (parm(1:8).eq.'ngenoper') then
-         chm_ngenoper=int(val+0.1)
+         chm_config%amu(index)=val
       end if
   end do
    
@@ -1130,7 +1265,7 @@ contains
  !            to determine association to the observations.
 
  !            Find stnid with same number of vertical levels and same BUFR element.
- !            Note: * in cstd_stndi_chm stands for a wildcard
+ !            Note: * in cstd_stnid_chm stands for a wildcard
      
     ISTNID=0
     DO JN=1,chm_std%n_stnid
@@ -1704,9 +1839,22 @@ contains
 ! Revision: 
 !           M. Sitwell, Feb 2015
 !           - Code set as a function.
+!           Y. Rochon, July 2015
+!           - Accounted for ilen1>ilen2 with the additional characters being *
+!           M. Sitwell, Aug 2015
+!           - Made function symmetric so that * is treated as a wildcard
+!             for both arguments
 !
-! Purpose: Compares STNID values allowing for * and blanks in id1 as wildcards
+! Purpose: Compares STNID values allowing for * as wildcards and trailing blanks 
 !
+! Input
+!          id1         reference stnid
+!          id2         stnid being verified
+!
+! Output
+!
+!          same        logical indicating if id1 and id2 match
+!     
 !-----------------------------------------------------------------------------------------    
 
     implicit none
@@ -1715,19 +1863,33 @@ contains
     CHARACTER(len=*), intent(in) :: id1,id2
     integer :: ilen1,ilen2,ji
 
-    same=.false.
+    same=.true.
     ilen1=len_trim(id1)
-    ilen2=len_trim(id2)            
-    IF (ilen1.le.ilen2) THEN          
-       same = .TRUE.
-       DO ji=1,ilen1
-          IF ( id1(ji:ji).ne.'*' .AND. id2(ji:ji).ne.id1(ji:ji) ) THEN
-             same = .FALSE.
-             exit
-          END IF
-       END DO
-    END IF
+    ilen2=len_trim(id2)  
+              
+    do ji=1,min(ilen1,ilen2)
+       if ( id1(ji:ji).ne.'*' .and. id2(ji:ji).ne.'*' .and. id2(ji:ji).ne.id1(ji:ji) ) then
+          same = .false.
+          exit
+       end if
+    end do
     
+    if (same.and.ilen1.gt.ilen2) then
+       do ji=ilen2+1,ilen1
+          if (id1(ji:ji).ne.'*') then
+              same=.false.
+              exit
+          end if
+       end do
+    else if (same.and.ilen2.gt.ilen1) then
+       do ji=ilen1+1,ilen2
+          if (id2(ji:ji).ne.'*') then
+              same=.false.
+              exit
+          end if
+       end do
+    end if
+        
   end function stnid_equal
  
            
@@ -1782,6 +1944,8 @@ contains
 !   Author: Y.J. Rochon, ARQI/AQRD, Feb 2015
 !    
 !   Revisions:
+!            Y.J. Rochon, ARQI/AQRD, July 2015
+!            - Account for wildcards (use if stnid_equal) when present.         
 !
 !   Input:
 !
@@ -1818,7 +1982,7 @@ contains
        if (nobslev.eq.1) then 
           cstring=trim(cstringin)//'U'
           do i=1,NListSize
-             if (cstring.eq.trim(CList(i))) then
+             if (trim(cstring).eq.trim(CList(i))) then
                  elemId=i
                  exit
              end if
@@ -1826,9 +1990,18 @@ contains
        else 
           cstring=trim(cstringin)       
           do i=1,NListSize
-             if (cstring.eq.trim(CList(i))) then
+             if (trim(cstring).eq.trim(CList(i))) then
                  elemId=i
                  exit
+             end if
+          end do
+       end if
+       
+       if (elemId.eq.0) then
+          do i=1,NListSize
+             if (stnid_equal(trim(CList(i)),trim(cstring))) then
+                elemId=i
+                exit
              end if
           end do
        end if
@@ -1855,8 +2028,6 @@ contains
 !            Called by filt_topoChm in filterobs_mod.ftn90
 !
 !   Author: Y.J. Rochon, ARQI/AQRD, Feb 2015
-!    
-!   Revisions:
 !
 !   Input:
 !
@@ -1900,6 +2071,309 @@ contains
     end if
     
   end subroutine chm_get_Id
+
+!-------------------------------------------------------------------------------------------
+
+  subroutine chm_comboIdlist(stnid_add,varno_add,unilev_add,stnid_list,varno_list,unilev_list, &
+                             num_elements,initialize,nset,gather_mpi,all_combos)
+! 
+!   Purpose: Provide list of fixed or accumulated stnid, (stnid,varno) or 
+!            (stnid,varno,multi/uni-level) combinations to be used in searches.
+!
+!            Can be used for both single processor and  MPI mode, where 'gather_mpi' must be set
+!            to .true. at some point for use with MPI.
+!
+!            Called from osd_chem_diagnmostics in file obspacediag_mod.ftn90.
+!
+!   Author: Y.J. Rochon, ARQI/AQRD, Aug 2015
+!    
+!   Revisions: M. Sitwell, ARQI/AQRD, Aug 2015
+!              - Moved module variables required for this subroutine to local saved variables
+!              - Merged MPI and non-MPI routines (although rpn_comm_* routines must be available 
+!                at compilation even if not run in MPI mode)
+!
+!   Input:
+!
+!       stnid_add      stnid to add to stnid_list if part of unique set
+!       varno_add      varno to add to varno_list if part of unique set
+!       unilev_add     unilev logical to add to unilev_list if part of unique set
+!       initialize     Initialize internal arrays and counters
+!       gather_mpi     Gather all local MPI process and recompile unique lists
+!
+!   Inout:
+!
+!       nset           Integer indicating grouping of diagnostics. Input variable
+!                      if initialize=.true., output variable otherwise.
+!                      Values indicate
+!                       1: group by stnid
+!                       2: group by (stnid,bufr)
+!                       3: group by (stnid,bufr,multi/uni-level)
+!
+!       all combos     Indicates if all combinations specified by nset are to
+!                      be use, or only those specified in the namelist NAMCHEM
+!                      Input variable if initialize=.true., output variable
+!                      otherwise.
+!
+!   Output:
+!
+!       stnid_list     List of unique stnids
+!       varno_list     List of unique varno
+!       unilev_list    List of unique uni/multi-level identifications
+!       num_elements   Number of unique elements in *_list arrrays
+!
+!-------------------------------------------------------------------------------------------
+ 
+    implicit none
+    
+    integer, parameter :: nmax=100,stnid_len=9
+
+    logical, intent(in), optional :: initialize,gather_mpi,unilev_add
+    integer, intent(in), optional :: varno_add
+    character(len=stnid_len), intent(in), optional :: stnid_add
+
+    integer, intent(inout), optional :: nset
+    logical, intent(inout), optional :: all_combos
+
+    integer, intent(out), optional :: varno_list(nmax),num_elements
+    character(len=stnid_len), intent(out), optional :: stnid_list(nmax)
+    logical, intent(out), optional :: unilev_list(nmax)
+
+    ! local arrays of unique values
+    integer, save :: varno_unique(nmax)
+    character(len=stnid_len), save :: stnid_unique(nmax)
+    logical, save :: unilev_unique(nmax)
+    
+    ! global arrays of unique values
+    integer, allocatable :: num_unique_all(:),varno_unique_all(:,:)
+    character(len=stnid_len),allocatable :: stnid_unique_all(:,:)
+    logical, allocatable :: unilev_unique_all(:,:)
+
+    integer, save :: num_unique ! running count of number of unique elements
+    integer, save :: iset=2
+    logical, save :: lall_combos=.true.
+
+    logical :: same,init
+    integer :: i,j,nproc,iproc,ierr
+
+    init=.false.
+    if (present(initialize)) init = initialize
+
+    
+    ! Initialize internal arrays and counters
+    if (init) then
+       stnid_unique(:) = ''
+       varno_unique(:) = 0
+       unilev_unique(:) = .false.
+       num_unique = 0
+       if (present(nset)) iset = nset
+       if (present(all_combos)) lall_combos = all_combos
+    end if      
+
+
+    ! Add new elements to internal arrays if not there already
+    if (present(stnid_add)) then
+      
+       if (iset.ge.2 .and. (.not. present(varno_add))) call abort3d('chm_comboIdlist: varno_add must be present to add element for nset>=2.')
+       if (iset.ge.3 .and. (.not. present(unilev_add))) call abort3d('chm_comboIdlist: unilev_add must be present to add element for nset>=3.')
+
+       same = .false.
+
+       do i=1,num_unique
+          same = stnid_equal(stnid_add,stnid_unique(i))
+          if (iset.ge.2) same = same .and. varno_add.eq.varno_unique(i)
+          if (iset.ge.3) same = same .and. unilev_add.eqv.unilev_unique(i)
+          if (same) exit
+       end do
+
+       if (.not.same) then
+          num_unique=num_unique+1
+          if (num_unique.gt.nmax) call abort3d("chm_comboIDlist: Max allowed dimension exceeded.")
+          stnid_unique(num_unique) = stnid_add
+          if (iset.ge.2) varno_unique(num_unique) = varno_add
+          if (iset.ge.3) unilev_unique(num_unique) = unilev_add
+       end if
+    end if
+        
+
+    ! Gather unique arrays from each local mpi process and compile global unique arrays
+    if (present(gather_mpi)) then
+       if (gather_mpi) then
+
+          call rpn_comm_size("GRID",nproc,ierr)
+
+          allocate(num_unique_all(nproc))
+          allocate(stnid_unique_all(nmax,nproc))
+          if (iset.ge.2) allocate(varno_unique_all(nmax,nproc))
+          if (iset.ge.3) allocate(unilev_unique_all(nmax,nproc))
+          
+          num_unique_all(:) = 0
+          stnid_unique_all(:,:) = ''
+          if (iset.ge.2) varno_unique_all(:,:) = 0
+          if (iset.ge.3) unilev_unique_all(:,:) = .false.
+          
+          call rpn_comm_barrier("GRID",ierr)
+
+          call rpn_comm_allgather(num_unique,1,"MPI_INTEGER",num_unique_all,1,"MPI_INTEGER","GRID",ierr)
+          call allgather_string(stnid_unique,stnid_unique_all,nmax,stnid_len,nproc,"GRID",ierr)
+          if (iset.ge.2) call rpn_comm_allgather(varno_unique,nmax,"MPI_INTEGER",varno_unique_all,nmax,"MPI_INTEGER","GRID",ierr)
+          if (iset.ge.3) call rpn_comm_allgather(unilev_unique,nmax,"MPI_LOGICAL",unilev_unique_all,nmax,"MPI_LOGICAL","GRID",ierr)
+          
+          stnid_unique(:) = ''
+          if (iset.ge.2) varno_unique(:) = 0
+          if (iset.ge.3) unilev_unique(:) = .false.
+          num_unique = 0
+          
+          ! Amalgamate unique lists
+          do iproc=1,nproc
+             do j=1,num_unique_all(iproc)
+
+                same = .false.
+
+                do i=1,num_unique
+                   same = stnid_equal(stnid_unique_all(j,iproc),stnid_unique(i))
+                   if (iset.ge.2) same = same .and. varno_unique_all(j,iproc).eq.varno_unique(i)
+                   if (iset.ge.3) same = same .and. unilev_unique_all(j,iproc).eqv.unilev_unique(i)
+                   if (same) exit
+                end do
+              
+                if (.not.same) then
+                   num_unique=num_unique+1
+                   if (num_unique.gt.nmax) call abort3d("chm_comboIDlist: Max allowed dimension exceeded.")
+                   stnid_unique(num_unique) = stnid_unique_all(j,iproc)
+                   if (iset.ge.2) varno_unique(num_unique) = varno_unique_all(j,iproc)
+                   if (iset.ge.3) unilev_unique(num_unique) = unilev_unique_all(j,iproc)
+                end if
+             end do
+          end do
+
+          deallocate(num_unique_all,stnid_unique_all)
+          if (allocated(varno_unique_all)) deallocate(varno_unique_all)
+          if (allocated(unilev_unique_all)) deallocate(unilev_unique_all)
+
+       end if
+    end if
+
+
+    ! Return internal arrays (and other info) if requested
+    if (present(varno_list)) varno_list = varno_unique
+    if (present(stnid_list)) stnid_list = stnid_unique
+    if (present(unilev_list)) unilev_list = unilev_unique
+    if (present(num_elements)) num_elements = num_unique
+    if (.not. init) then
+       if (present(nset)) nset = iset
+       if (present(all_combos)) all_combos = lall_combos
+    end if
+    
+  end subroutine chm_comboIdlist
+
+!-------------------------------------------------------------------------------------------
+
+  subroutine allgather_string(str_list,str_list_all,nlist,nchar,nproc,comm,ierr)
+! 
+!   Purpose: Performs the MPI 'allgather' routine for an array of strings
+!
+!   Author:  Y. Rochom, ARQI/AQRD, July 2015
+!
+!   Revisions:  M. Sitwell, ARQI/AQRD, Aug 2015
+!               - Code set as a subroutine
+!-------------------------------------------------------------------------------------------
+
+    implicit none
+
+    character(len=nchar), intent(in) :: str_list(nlist)
+    character(len=*), intent(in) :: comm
+    integer, intent(in) :: nlist,nchar,nproc
+    character(len=nchar), intent(out) :: str_list_all(nlist,nproc)
+    integer, intent(out) :: ierr
+
+    integer :: num_list(nlist*nchar),num_list_all(nlist*nchar,nproc)
+    integer :: ilist,ichar,iproc
+              
+    ! Convert strings to integer sequences
+
+    do ilist=1,nlist
+       do ichar=1,nchar
+          num_list((ilist-1)*nchar+ichar) = iachar(str_list(ilist)(ichar:ichar))
+       end do
+    end do
+
+    ! Perform allgather with converted integer sequences
+
+    call rpn_comm_allgather(num_list,nlist*nchar,"MPI_INTEGER",num_list_all,nlist*nchar,"MPI_INTEGER",comm,ierr)
+       
+    ! Convert integer sequences to stnid character strings
+          
+    do iproc=1,nproc
+       do ilist=1,nlist
+          do ichar=1,nchar
+             str_list_all(ilist,iproc)(ichar:ichar) = achar(num_list_all((ilist-1)*nchar+ichar,iproc))
+          end do
+       end do
+    end do
+
+  end subroutine allgather_string
+
+!-------------------------------------------------------------------------------------------
+
+  logical function chm_lcheck_skipassim(cstnid,varno,nobslev,iass)
+
+! 
+!   Purpose: Identify whether or not the obs set identified by 
+!            the combination of (cstnidin, bufrin,nlevs) will be
+!            be assimilated or used for independent verifications.
+!
+!
+!   Author: Y.J. Rochon, ARQI/AQRD, July 2015
+!    
+!   Revisions:
+!
+!   Input:
+!
+!       cstnid           Input station id
+!       varno            Obs BUFR number
+!       nobslev          Number of levels
+!       iass             Initial flag indicating if assimilatation status
+!
+!                          0: cannot (will not) be assimilated.
+!                          1: can be assimilated
+!
+!   Output:
+!
+!       chm_lcheck_skipassim   Indicating if assimilation to be skipped but data
+!                              is to be used for independent verifications after 
+!                              assimilation/minimization.
+!
+!-------------------------------------------------------------------------------------------
+ 
+    implicit none
+
+    integer, intent(in) :: varno, nobslev, iass
+    character(len=*), intent(in) :: cstnid
+  
+    integer :: i,elemId
+    
+    chm_lcheck_skipassim=.false.
+    if (iass.ne.1.or.chm_config%assim_num.eq.-1) return
+    
+    if (chm_config%assim_num.eq.0) then
+       chm_lcheck_skipassim=.true.  ! will not be assimilated
+    else if (chm_config%assim_num.gt.0) then
+       elemId=0   
+       do i=1,chm_config%assim_num
+          if (stnid_equal(trim(chm_config%assim_stnid(i)),trim(cstnid))) then
+             if (chm_config%assim_varno(i).eq.0.or.chm_config%assim_varno(i).eq.varno) then
+                if (chm_config%assim_nlev(i).eq.0.or.(nobslev.eq.1.and.chm_config%assim_nlev(i).eq.1).or. &
+                   (nobslev.gt.1.and.chm_config%assim_nlev(i).gt.1)) then
+                    elemId=i
+                    exit
+                end if
+             end if
+          end if
+       end do
+       if (elemId.eq.0) chm_lcheck_skipassim=.true.   ! will not be assimilated
+    end if
+       
+  end function chm_lcheck_skipassim
 
 !-------------------------------------------------------------------------------------------
 
@@ -2133,9 +2607,10 @@ contains
 ! Author   : M. Sitwell, June 2015
 !          
 ! Purpose: Converts altitudes to geopotential heights. Uses the Helmert formula to
-!          parameterize the latitude dependence (see J.A. Dutton 1976). At an altitude
-!          of 50 km, the altitude and geopotential height differ by around 0.2-0.5 km,
-!          depending on the latitude.
+!          parameterize the latitude dependence and uses analytical result of the
+!          integral of \int g(z)dz for the altitude dependence (see J.A. Dutton 1976,
+!          p.65). At an altitude of 50 km, the altitude and geopotential height
+!          differ by around 0.2-0.5 km, depending on the latitude.
 !
 ! Arguments:
 !
@@ -2160,6 +2635,405 @@ contains
 
   end function chm_convert_z_to_gz
 
+!----------------------------------------------------------------------------------------
+
+  subroutine chm_obsspace_diagnostic(lat,lon,pressure,OmP,OmA,obs,Jo,sigma_obs,success,deltaPressure,nlev_obs, &
+                                     initialize,print_stats,print_summary,unilevel,label,filename)
+!
+! Author   : M. Sitwell, ARQI/AQRD June 2015
+!          
+! Purpose: Computes and prints observation space diagnostics. The data for a full profile is added to the
+!          statistics in a single call.
+!
+!          If <initialize>==.TRUE. then the input parameters lat,lon,vert refer to the bin size for that
+!          variable and the input parameters OmP,OmA,obs,Jo are not used.
+!
+! Revisions: 
+!           Y. Rochon ARQI/AQRD July 2015
+!           - Further generalizations.
+!          
+! Arguments:
+!
+!   Input
+!     lat            latitude in degrees
+!     lon            longitutde in degrees
+!     pressure       pressures of the profile (Pa)
+!     OmP            obs - background
+!     OmA            obs - analysis
+!     obs            observations
+!     Jo             cost function
+!     sigma_obs      observation error standard deviation
+!     success        determines which points in the profile should be added to the statistics
+!     deltaPressure  used to determine ln(P) bin size (deltaPressure in Pascal)
+!     nlev_obs       number of observations in the profile
+!     initialize     initialize the statistics arrays
+!     print_stats    output statistics and deallocate statistics arrays
+!     print_summary  output summary of CH family statistics 
+!     unilevel       if the observation does not have a defined height coordinate
+!     label          label to print when print_stats is called
+!     filename       file name for lat/lon dependent statistics
+!
+!----------------------------------------------------------------------------------------
+    
+    use mpi_mod, only: mpi_myid
+
+    implicit none
+
+    real(8), intent(in) :: lat,lon
+    real(8), intent(in), optional :: deltaPressure,pressure(:),OmP(:),OmA(:),obs(:),Jo(:),sigma_obs(:)
+    logical, intent(in), optional :: initialize,print_stats,print_summary,unilevel,success(:)
+    integer, intent(in), optional :: nlev_obs
+    character(len=256), intent(in), optional :: label,filename
+
+    ! MPI local arrays
+    ! Real arrays indexed by (lat,lon,lev,stat), where stat=1 for RMS and stat=2 for mean for all except Jo_stats.
+    ! For Jo_stats, stat=1 is Jo for x=x_analysis and stat=2 is Jo for x=x_background
+    real(8), allocatable, save :: OmP_stats(:,:,:,:), OmA_stats(:,:,:,:), obs_stats(:,:,:,:), Jo_stats(:,:,:,:)
+    integer, allocatable, save :: counts(:,:,:)
+    
+    ! MPI global arrays
+    real(8), allocatable :: OmP_global(:,:,:,:), OmA_global(:,:,:,:), obs_global(:,:,:,:), Jo_global(:,:,:,:)
+    integer, allocatable :: counts_global(:,:,:)
+
+    logical, save :: allow_print_summary=.false.
+    integer, save :: nlev,nlat,nlon,nbin
+    real(8), save :: deltaLat,deltaLon,deltaLogPressure
+
+    real(8) :: Jo_a,Jo_b
+    real(8), save :: Jo_a_total=0.0d0, Jo_b_total=0.0d0
+    integer, save :: Jo_count_total=0
+
+    integer, parameter :: nstat=2
+    integer :: ilev,ilat,ilon,ierr,unit,ilev_obs,icount
+    integer, allocatable :: ncounts(:)
+    real(8), allocatable :: press_bins(:)
+    logical :: fileout_exist
+   
+    ! Intialize arrays
+    if (present(initialize)) then
+       if (initialize) then
+
+          deltaLat = lat
+          deltaLon = lon
+          if (present(deltaPressure)) then
+             deltaLogPressure=deltaPressure/1.0d5 ! set constant delta ln(P) bin
+          else
+             call abort3d("chm_obsspace_diagnostic: deltaPressure not defined in intialization call.")
+          end if
+
+          nlat = floor(180.0d0/deltaLat)
+          nlon = floor(360.0d0/deltaLon)
+
+          ! Add a last unequal size bin if remainder is larger than one degree
+          if (180.0d0-nlat*deltaLat.gt.1.) nlat=nlat+1
+          if (360.0d0-nlon*deltaLon.gt.1.) nlon=nlon+1
+
+          ! Set number of levels for a pressure coordinate in hPa to cover the range
+          ! of 0.01*chm_config%diagn_pressmin (in hPa) to 1000 hPa for layers 2 to nlev-1. 
+          ! Layer 1 covers all pressure levels <= 0.01*chm_config%diagn_pressmin hPa = top of layer 2,
+          ! The bottom of layer nlev-1 is provided by press_bins(nlev).
+          nlev = 2 + nint(log(1.0d5/chm_config%diagn_pressmin)/deltaLogPressure) ! last index is for unilevel observations
+          nbin = nlev*nlat*nlon
+
+          if (.not. allocated(OmP_stats)) allocate(OmP_stats(nlat,nlon,nlev,nstat))
+          if (.not. allocated(OmA_stats)) allocate(OmA_stats(nlat,nlon,nlev,nstat))
+          if (.not. allocated(obs_stats)) allocate(obs_stats(nlat,nlon,nlev,nstat))
+          if (.not. allocated(Jo_stats))  allocate(Jo_stats(nlat,nlon,nlev,nstat))
+          if (.not. allocated(counts))    allocate(counts(nlat,nlon,nlev))
+
+          OmP_stats(:,:,:,:) = 0.0d0
+          OmA_stats(:,:,:,:) = 0.0d0
+          obs_stats(:,:,:,:) = 0.0d0
+          Jo_stats(:,:,:,:)  = 0.0d0
+          counts(:,:,:)  = 0
+
+          return
+       end if
+    end if
+
+    ! Accumulate the diagnostic statistics from all processors, print out when mpi_myid=0, and then deallocate the arrays
+    if (present(print_stats)) then
+       if (print_stats) then
+
+          ! Allocate memory for mpi global arrays
+          if (.not. allocated(OmP_global)) allocate(OmP_global(nlat,nlon,nlev,nstat))
+          if (.not. allocated(OmA_global)) allocate(OmA_global(nlat,nlon,nlev,nstat))
+          if (.not. allocated(obs_global)) allocate(obs_global(nlat,nlon,nlev,nstat))
+          if (.not. allocated(Jo_global))  allocate(Jo_global(nlat,nlon,nlev,nstat))
+          if (.not. allocated(counts_global))  allocate(counts_global(nlat,nlon,nlev))
+          
+          ! Reduce from all mpi processes
+          call rpn_comm_allreduce(OmP_stats,OmP_global,nbin*nstat,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
+          call rpn_comm_allreduce(OmA_stats,OmA_global,nbin*nstat,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
+          call rpn_comm_allreduce(obs_stats,obs_global,nbin*nstat,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
+          call rpn_comm_allreduce(Jo_stats,Jo_global,nbin*nstat,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
+          call rpn_comm_allreduce(counts,counts_global,nbin,"MPI_INTEGER","MPI_SUM","GRID",ierr)
+               
+          if (any(counts_global.gt.0) .and. mpi_myid.eq.0) then
+
+             ! Print globally averaged output to listing file or to output file 'filename'.
+
+             ! Open and append to output file if requested
+
+             if (present(filename)) then
+                unit = 10
+                inquire(file=filename, exist=fileout_exist)
+                if (fileout_exist) then
+                   open(unit, file=filename, status="old", position="append", action="write")
+                else
+                   open(unit, file=filename, status="new", action="write")
+                end if 
+             else
+                unit=6             
+             end if  
+
+             if (present(label)) then
+                write(unit,*)
+                write(unit,*) trim(label)
+             end if
+                       
+             allocate(ncounts(nlev), press_bins(nlev+1))
+
+             ! total counts for each level 
+             ncounts = sum(sum(counts_global,dim=1),dim=1)
+             Jo_count_total = Jo_count_total + sum(ncounts)
+
+             Jo_a = sum(Jo_global(:,:,1:nlev,1))
+             Jo_b = sum(Jo_global(:,:,1:nlev,2))
+             Jo_a_total = Jo_a_total + Jo_a
+             Jo_b_total = Jo_b_total + Jo_b
+             
+             ! Set permission for allowing summary output (Jo_*_total) via print_summary.
+             
+             allow_print_summary=.true.
+
+             ! Pressure boundaries for each bin starting from a top layer with lower boundary of 0.01*config%diagn_pressmin (i=2) in hPa 
+             ! and extending to the surface.
+
+             press_bins(2:nlev-1) = (/ (0.01*chm_config%diagn_pressmin*exp((ilev-2)*deltaLogPressure), ilev=2,nlev-1) /)
+             press_bins(1) = 0.0d0
+             press_bins(nlev) = 1200.0d0 ! set to pressure larger than the largest expected surface pressure.
+             press_bins(nlev+1) = 0.0d0  ! set to zero for unilevel
+
+             ! Multi-level data
+             
+             icount=sum(ncounts(1:nlev-1))
+             
+             if (icount.gt.0) then
+            
+                write(unit,*)
+                write(unit,*) " Multi-level data:"
+                write(unit,*) " Cost function for this BUFR number/station ID:   Jo(x_analysis) = ",Jo_a," ,   2*Jo(x_analysis)/N = ",2.*Jo_a/icount,' with N = ',icount
+                write(unit,*) "                                                  Jo(x_backgrnd) = ",Jo_b," ,   2*Jo(x_backgrnd)/N = ",2.*Jo_b/icount
+
+                call chm_print_diagnostics(unit, 1, nlev-1, ncounts, press_bins, & 
+                     sum(sum(obs_global(:,:,1:nlev-1,1),dim=1),dim=1), sum(sum(obs_global(:,:,1:nlev-1,2),dim=1),dim=1), &
+                     sum(sum(OmP_global(:,:,1:nlev-1,1),dim=1),dim=1), sum(sum(OmP_global(:,:,1:nlev-1,2),dim=1),dim=1), &
+                     sum(sum(OmA_global(:,:,1:nlev-1,1),dim=1),dim=1), sum(sum(OmA_global(:,:,1:nlev-1,2),dim=1),dim=1), &
+                     sum(sum(Jo_global(:,:,1:nlev-1,1),dim=1),dim=1), sum(sum(Jo_global(:,:,1:nlev-1,2),dim=1),dim=1) )
+  
+             end if 
+             
+             ! Uni-level data
+             
+             if (ncounts(nlev).gt.0) then
+             
+                write(unit,*)
+                write(unit,*) " Uni-level data:"
+                write(unit,*) " Cost function for this BUFR number/station ID:   Jo(x_analysis) = ",Jo_a," ,   2*Jo(x_analysis)/N = ",2.*Jo_a/ncounts(nlev),' with N = ',ncounts(nlev)
+                write(unit,*) "                                                  Jo(x_backgrnd) = ",Jo_b," ,   2*Jo(x_backgrnd)/N = ",2.*Jo_b/ncounts(nlev)
+
+                call chm_print_diagnostics(unit, nlev, nlev, ncounts, press_bins, & 
+                     sum(sum(obs_global(:,:,:,1),dim=1),dim=1), sum(sum(obs_global(:,:,:,2),dim=1),dim=1), &
+                     sum(sum(OmP_global(:,:,:,1),dim=1),dim=1), sum(sum(OmP_global(:,:,:,2),dim=1),dim=1), &
+                     sum(sum(OmA_global(:,:,:,1),dim=1),dim=1), sum(sum(OmA_global(:,:,:,2),dim=1),dim=1), &
+                     sum(sum(Jo_global(:,:,:,1),dim=1),dim=1), sum(sum(Jo_global(:,:,:,2),dim=1),dim=1) )
+
+             end if
+                          
+             deallocate(ncounts)
+             
+             ! Output lat,lon dependent averages to file if filename is provided
+             if (present(filename).and.chm_config%diagn_save.and.(nlat.gt.1.or.nlon.gt.1)) then
+
+                write(unit,*)
+                write(unit,*) " Lat-long gridded statistics: "
+                write(unit,'(2X,3(A,I4))') "nlat = ",nlat," , nlon = ",nlon," , nlev = ",nlev
+                write(unit,*)
+
+                do ilat=1,nlat
+                   do ilon=1,nlon
+                      write(unit,'(2X,2(A,I6),3X,2(F8.1,A,F8.1))') "ilat = ",ilat," , ilon = ",ilon, &
+                           (ilat-1.)*deltaLat-90.," < lat < ",ilat*deltaLat-90., &
+                           (ilon-1.)*deltaLon," < lon < ",ilon*deltaLon
+                      if (sum(counts_global(ilat,ilon,1:nlev-1)).gt.0) then
+                         write(unit,*)
+                         write(unit,*) " Multi-level data:"
+                         call chm_print_diagnostics(unit, 1,nlev-1, counts_global(ilat,ilon,1:nlev-1), press_bins, &
+                              obs_global(ilat,ilon,1:nlev-1,1), obs_global(ilat,ilon,1:nlev-1,2), &
+                              OmP_global(ilat,ilon,1:nlev-1,1), OmP_global(ilat,ilon,1:nlev-1,2), &
+                              OmA_global(ilat,ilon,1:nlev-1,1), OmA_global(ilat,ilon,1:nlev-1,2), &
+                              Jo_global(ilat,ilon,1:nlev-1,1), Jo_global(ilat,ilon,1:nlev-1,2) )
+                      else if (sum(counts_global(:,:,1:nlev-1)).gt.0) then
+                         write(unit,*)
+                         write(unit,*) " No multi-level data."
+                         write(unit,*)
+                      end if                                                  
+                      if (counts_global(ilat,ilon,nlev).gt.0) then
+                         write(unit,*)
+                         write(unit,*) " Uni-level data:"
+                         call chm_print_diagnostics(unit, nlev,nlev, counts_global(ilat,ilon,:), press_bins, &
+                              obs_global(ilat,ilon,:,1), obs_global(ilat,ilon,:,2), &
+                              OmP_global(ilat,ilon,:,1), OmP_global(ilat,ilon,:,2), &
+                              OmA_global(ilat,ilon,:,1), OmA_global(ilat,ilon,:,2), &
+                              Jo_global(ilat,ilon,:,1), Jo_global(ilat,ilon,:,2) )
+                      else if (sum(counts_global(:,:,nlev)).gt.0) then
+                         write(unit,*)
+                         write(unit,*) " No uni-level data."
+                         write(unit,*)
+                      end if                                                  
+                   end do
+                end do
+                
+             end if
+
+             if (present(filename)) close(unit)     
+             
+             deallocate(press_bins)
+
+             call flush(6)
+             
+          end if
+
+          ! Deallocate arrays
+          deallocate(OmP_stats,OmA_stats,obs_stats,Jo_stats,counts)
+          deallocate(OmP_global,OmA_global,obs_global,Jo_global,counts_global)
+
+          return
+       end if
+    end if
+
+    if (present(print_summary)) then             
+        if (allow_print_summary.and.mpi_myid.eq.0.and.print_summary) then        
+            if (present(filename)) then
+               unit = 10
+               inquire(file=filename, exist=fileout_exist)
+               if (fileout_exist) then
+                  open(unit, file=filename, status="old", position="append", action="write")
+               else
+                  open(unit, file=filename, status="new", action="write")
+               end if              
+            else
+               unit=6
+            end if
+            
+            write(unit,*)
+            write(unit,*) " Total cost function for CH observations:   Jo(x_analysis) = ",Jo_a_total," ,   2*Jo(x_analysis)/N = ",2.*Jo_a_total/Jo_count_total,' with N = ',Jo_count_total
+            write(unit,*) "                                            Jo(x_backgrnd) = ",Jo_b_total," ,   2*Jo(x_backgrnd)/N = ",2.*Jo_b_total/Jo_count_total
+            write(unit,*)
+            
+            if (present(filename)) close(unit)     
+        end if
+        if (print_summary) return
+    end if
+
+    ! Add observation stats to the arrays
+    ! Put in first/list bin if lat,lon,level lower/higher than diagnostic range
+    
+    ilat = max(min(1 + floor((90.0d0+lat)/deltaLat), nlat), 1)
+    ilon = max(min(1 + floor(lon/deltaLon), nlon), 1)
+
+    if (present(nlev_obs)) then
+
+       LEVELS: do ilev_obs=1,nlev_obs
+
+          if (present(success)) then
+             if (.not. success(ilev_obs)) cycle LEVELS
+          end if
+          
+          ilev = max(min(2 + floor(log(pressure(ilev_obs)/chm_config%diagn_pressmin)/deltaLogPressure), nlev-1), 1)
+          
+          if (present(unilevel)) then
+             if (unilevel) ilev = nlev ! put unilevel data in last level index
+          end if
+          
+          counts(ilat,ilon,ilev)  = counts(ilat,ilon,ilev) + 1
+
+          if (present(OmP)) then
+             OmP_stats(ilat,ilon,ilev,1) = OmP_stats(ilat,ilon,ilev,1) + OmP(ilev_obs)**2
+             OmP_stats(ilat,ilon,ilev,2) = OmP_stats(ilat,ilon,ilev,2) + OmP(ilev_obs)
+          end if
+          if (present(OmA)) then
+             OmA_stats(ilat,ilon,ilev,1) = OmA_stats(ilat,ilon,ilev,1) + OmA(ilev_obs)**2
+             OmA_stats(ilat,ilon,ilev,2) = OmA_stats(ilat,ilon,ilev,2) + OmA(ilev_obs)
+          end if
+          if (present(obs)) then
+             obs_stats(ilat,ilon,ilev,1) = obs_stats(ilat,ilon,ilev,1) + obs(ilev_obs)**2
+             obs_stats(ilat,ilon,ilev,2) = obs_stats(ilat,ilon,ilev,2) + obs(ilev_obs)
+          end if
+          if (present(Jo)) then
+             Jo_stats(ilat,ilon,ilev,1)  = Jo_stats(ilat,ilon,ilev,1)  + Jo(ilev_obs)
+             Jo_stats(ilat,ilon,ilev,2)  = Jo_stats(ilat,ilon,ilev,2)  + 0.5 * OmP(ilev_obs)**2 / sigma_obs(ilev_obs)**2
+          end if
+
+       end do LEVELS
+    else
+       call abort3d("chm_obsspace_diagnostic: nlev_obs not specified")
+    end if
+
+  end subroutine chm_obsspace_diagnostic
+
+!----------------------------------------------------------------------------------------
+
+  subroutine chm_print_diagnostics(unit,nstart,nlev,counts,pressure,obs_square,obs_mean,OmP_rms,OmP_mean,OmA_rms,OmA_mean,jo_a,jo_b)
+!
+! Author   : M. Sitwell, June 2015
+!          
+! Purpose: Prints observation space diagnostics for a set of levels
+!
+! Arguments:
+!
+!   Input
+!     unit           unit number for output
+!     nstart         first level to save
+!     nlev           number of level bins for the statistics
+!     counts         counts per bin
+!     pressure       pressure level boundaries of the bins
+!
+!----------------------------------------------------------------------------------------
+
+    implicit none
+
+    integer, intent(in) :: unit,nlev,nstart,counts(nlev)
+    real(8), intent(in) :: pressure(nlev+1),obs_square(nlev),obs_mean(nlev),OmP_rms(nlev),OmP_mean(nlev), &
+                           OmA_rms(nlev),OmA_mean(nlev),jo_a(nlev),jo_b(nlev)
+
+    integer :: ilev
+
+    write(unit,*)
+                   
+    write(unit,*) " Layer #    Pressure (hPa)       Counts  obs (mean)   obs (std)   rms(O-P)/<O>  <O-P>/<O>   rms(O-A)/<O>  <O-A>/<O>", &
+                                                                      "    Jo(O-A)     2*Jo(O-A)/N   Jo(O-P)     2*Jo(O-P)/N"
+    do ilev=nstart,nlev
+       if (counts(ilev).le.0) cycle
+       if (nstart.lt.nlev) then
+          write(unit,11) ilev,pressure(ilev),pressure(ilev+1),counts(ilev),obs_mean(ilev)/counts(ilev), &
+               sqrt(max(0.0D0,(obs_square(ilev)-obs_mean(ilev)*obs_mean(ilev)/counts(ilev))/counts(ilev))),sqrt(counts(ilev)*OmP_rms(ilev))/obs_mean(ilev), &
+               OmP_mean(ilev)/obs_mean(ilev),sqrt(counts(ilev)*OmA_rms(ilev))/obs_mean(ilev),OmA_mean(ilev)/obs_mean(ilev),jo_a(ilev),2.*jo_a(ilev)/counts(ilev), &
+               jo_b(ilev),2.*jo_b(ilev)/counts(ilev)
+       else
+          write(unit,11) 0,0.0d0,0.0d0,counts(ilev),obs_mean(ilev)/counts(ilev), &
+               sqrt(max(0.0D0,(obs_square(ilev)-obs_mean(ilev)*obs_mean(ilev)/counts(ilev))/counts(ilev))),sqrt(counts(ilev)*OmP_rms(ilev))/obs_mean(ilev), &
+               OmP_mean(ilev)/obs_mean(ilev),sqrt(counts(ilev)*OmA_rms(ilev))/obs_mean(ilev),OmA_mean(ilev)/obs_mean(ilev),jo_a(ilev),2.*jo_a(ilev)/counts(ilev), &
+               jo_b(ilev),2.*jo_b(ilev)/counts(ilev)
+       end if
+    end do
+    
+    write(unit,*)
+
+11  FORMAT(2X, I4, 2(F11.3), 2X, I9, 10(2X, ES11.4))
+    
+  end subroutine chm_print_diagnostics
 
 !--------------------------- Routines for observation operators ----------------------------
 
@@ -2182,7 +3056,7 @@ contains
 !           - Changed calculation of HBH^T to forgo calculating off-diagonal elements
 !             of the final product
 !
-! Purpose: Apply obs operator for indicated obs data. 
+! Purpose: Apply obs operator for indicated obs data and condition.
 !
 !          Usable as
 !
@@ -2191,11 +3065,15 @@ contains
 !                 - tangent linear operator (kmode=2)
 !                 - linear adjoint operator (kmode=3)
 !
-! Further changes required for generalization 
+! Further changes required for generalization:
 !
 ! 1) Add layer average operators.
-! 2) Complete testing for use of avg kernels
-! 3) Add option to include use of obs error correlation matrix for kmode=2,3
+! 2) Add AOD operators (summation over model layers).
+! 3) Add option to include use of obs error correlation matrix for kmode=2,3 
+!    (This may/will need to be done in oda_Hchm and odaHTchm where the division 
+!     by sigma_obs is applied. A new chem_mod routine will be needed for this
+!     operation - and others for reading the correlation matrices similarly to the
+!     averaging kernels.)
 !
 ! Arguments:
 !
@@ -2363,9 +3241,8 @@ contains
 
 ! Indicates if the generalized innovation operator is to be applied.
 
-  apply_genoper = kmode.ge.2 .and. chm_ngenoper.eq.1 .and. &
+  apply_genoper = kmode.ge.2 .and. chm_config%generalized_operator .and. &
        (chm_obsoper%modelIndex.eq.2 .or. chm_obsoper%modelIndex.eq.3)
-
 
 ! Convert observation vertical coordinate value(s) to pressure if needed
 
@@ -2510,7 +3387,7 @@ contains
 !
 ! Revision: 
 !
-! Purpose: Idenitfy if of obs is a vertically integrated consitutent measurement,
+! Purpose: Idenitfy if obs is a vertically integrated constituent measurement.
 !
 ! ---------------------------------------------------------------------------------------
   
@@ -2590,7 +3467,7 @@ contains
 !
 !  Other
 !
-!     chm_amu(iconstituent_id)  Molecular mass of constituent (g/mol). 
+!     chm_config%amu(iconstituent_id)  Molecular mass of constituent (g/mol). 
 !
 ! Comments:
 !
@@ -2722,7 +3599,7 @@ contains
 !
 !     Mass mixing ratio to volume mixing ratio conversion
 !
-      if (kmode.ne.3) rvalinc(:)=rvalinc(:)*MPC_MOLAR_MASS_DRY_AIR_R8/chm_amu(iconstituent_id)
+      if (kmode.ne.3) rvalinc(:)=rvalinc(:)*MPC_MOLAR_MASS_DRY_AIR_R8/chm_config%amu(iconstituent_id)
   end if
 !
 ! Identify unit conversion factor and variable conversion
@@ -2738,7 +3615,7 @@ contains
 !
 !        For conversion from vmr to kg/m^3
 !     
-         zcoef = zcoef*chm_amu(iconstituent_id)/MPC_RGAS_IDEAL_R8
+         zcoef = zcoef*chm_config%amu(iconstituent_id)/MPC_RGAS_IDEAL_R8
 !
 !        Apply temperature and pressure at observation level.
 !
@@ -2791,14 +3668,14 @@ contains
 !
 !        For conversion of vmr*dP integral to kg/m^2
 !
-         zcoef = zcoef*chm_amu(iconstituent_id)/MPC_MOLAR_MASS_DRY_AIR_R8/RG
+         zcoef = zcoef*chm_config%amu(iconstituent_id)/MPC_MOLAR_MASS_DRY_AIR_R8/RG
          chm_obsoper%modelvarcolumn(:)=rvalinc(:)*zcoef
 !
       case(15023,15027,15194,15195,15223) 
 !
 !        For conversion from vmr to kg/m^3
 !     
-         zcoef = zcoef*chm_amu(iconstituent_id)/MPC_RGAS_IDEAL_R8
+         zcoef = zcoef*chm_config%amu(iconstituent_id)/MPC_RGAS_IDEAL_R8
 !
 !        Apply temperature and pressure at observation level.
 !
@@ -3513,6 +4390,12 @@ contains
 !     (2) The matrices B and B^{-1} are the total error covariance matrix (in physical space)
 !     and its inverse with the related error correlation matrices 'corvert' and 'corverti' 
 !     provided from 'bmatrixchem_mod.ftn90'.
+!
+!     (3) In the presence of both (a) neighbouring measurements and (b) horizontal background error 
+!     correlation lengths that vary in vertical, the increments will also be subject to the
+!     the latter, displaying larger increments in vertical regions with larger horizontal
+!     error correlation lengths - this distorting the vertical increment distribution stemming
+!     from chm_genoper alone.
 !
 !-----------------------------------------------------------------------------------------
       implicit none

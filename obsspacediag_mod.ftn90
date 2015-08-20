@@ -15,6 +15,13 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 module obsSpaceDiag_mod
+!
+! Revisions: M. Sitwell, ARQI (July 2015)
+!            - Addition of 'use chem_mod' for constituents output.
+!            - Addition of lrandom logical (see osd_setup)
+!
+!-------------------------------------------------------------------------------------------
+
   use topLevelControl_mod
   use mpivar_mod
   use bufr
@@ -28,6 +35,9 @@ module obsSpaceDiag_mod
   use columnData_mod
   use gridStateVector_mod
   use bMatrix_mod
+  use chem_mod
+  use bmatrixchem
+  use burpfiles_mod
   implicit none
   save
   private
@@ -42,10 +52,38 @@ module obsSpaceDiag_mod
   integer :: numElement
   integer :: elementList(20) 
   integer :: nrandseed
+  logical :: lrandom  
 
 contains
 
+!-------------------------------------------------------------------------------------------
   subroutine osd_calcInflation(obsSpaceData,columng)
+!
+! Author:  
+!          
+! Purpose:  Calculates observation-space diagnostics
+!
+! Revisions: M. Sitwell, ARQI (July 2015)
+!            - Changed ordering of Bhi and Bens perturbation ordering for consistency with
+!              the comments.
+!            - Accounts for the association of cvBhi and cvBen in the dermination of random
+!              perturbations and related calculation and output of diagnostics.
+!            - Changed to sum locally over my_*Std arrays to fix bug when rpn_comm_allreduce
+!              is called.
+!            - Added call to the routine osd_chem_diagnostics for the CH family for calculation
+!              and writing of additional diagsnotics. 
+!            Y. Rochon, ARQI (July 2015)
+!            - Added the possibility of perturbation-based diagnostics for constituents (cvBChm
+!              and cvBChmEns) 
+!            - Changed scaleFactor* array names
+!            - Adjusted MaxLat and MaxLon settings
+!            - Added HH to dateprnt
+!            - Added use of logicals lpert_static and lpert_ens.
+!            - N.B.: Line commented out with !! regarding use of bChmEns_getScaleFactor is to be 
+!              uncommented once the routine is implemented.
+!       
+!-------------------------------------------------------------------------------------------
+
     implicit none
     type(struct_obs) :: obsSpaceData
     type(struct_columnData) :: columng
@@ -59,44 +97,51 @@ contains
     integer :: maxLat,maxLon,maxVertical
     real*8, allocatable  :: innovStd(:,:,:),bmatHiStd(:,:,:),bmatEnStd(:,:,:)
     integer, allocatable :: counts(:,:,:)
-!
+
     real*8, allocatable  :: my_innovStd(:,:,:),my_bmatHiStd(:,:,:),my_bmatEnStd(:,:,:)
     integer, allocatable :: my_counts(:,:,:)
     
     integer :: ierr,nulinnov,nulBmatHi,nulBmatEn,nulcount,fnom,fclos,ivco,iseed,jj,jlev,jvar
     integer :: dateprnt,timeprnt,newdate
     real*8 :: zdum,gasdev
-    real*8,pointer :: cvBhi(:), cvBen(:), field(:,:,:,:)
+    real*8,pointer :: cvBhi(:), cvBen(:), cvBchm(:), cvBChmEns(:), field(:,:,:,:)
+    logical :: lpert_static, lpert_ens
+    integer :: ivar_count
     real*8,allocatable :: HxBhi(:), HxBen(:)
-    real*8,allocatable :: scaleFactorBhi(:),scaleFactorBen(:)
+    real*8,allocatable :: scaleFactor(:),scaleFactorChm(:,:)
     character(len=128) :: innovFileName,bmatHiFileName,bmatEnFileName,countFileName
     character(len=6)   :: elementStr
-    character(len=8)   :: dateStr
-
+    character(len=10)   :: dateStr
+    
     write(*,*) 'osd_calcInflation: Starting'
 
     call osd_setup(nmlExists)
-    if(.not.nmlExists) return
-
     ierr = newdate(tim_getDatestamp(),dateprnt,timeprnt,-3)
-    if(nrandseed.eq.999) nrandseed=100*dateprnt + int(timeprnt/100.0) ! if seed not set by namelist, use valid date/time
+    dateprnt=dateprnt*100+timeprnt/1000000
+    
+!   Perform diagnostics based on OmP and OmA only (without random perturbations)
+ 
+!   Diagnostics for chemical constituents 
+    
+    if (any(burp_cfamtyp.eq.'CH')) call osd_chem_diagnostics(obsSpaceData,columng,dateprnt)
+
+    if ((.not.lrandom) .or. (.not.nmlExists)) return
+
+!   Perform diagnostics from random perturbations
+
+    !if(nrandseed.eq.999) nrandseed=100*dateprnt + int(timeprnt/100.0) ! if seed not set by namelist, use valid date/time
+    if(nrandseed.eq.999) nrandseed=dateprnt ! if seed not set by namelist, use valid date/time
     write(*,*) 'osd_calcInflation: random seed set to ',nrandseed
 
-    maxLat = 1 + nint(180.0d0/deltaLat)
-    maxLon = 1 + nint(360.0d0/deltaLon)
+    maxLat = nint(180.0d0/deltaLat)
+    maxLon = nint(360.0d0/deltaLon)
     maxVertical = max(1+nint(110000.0d0/deltaPressure),1+nint(80000.0d0/deltaHeight),200)
 
     write(*,*) 'osd_calcInflation: Compute random realization of background error'
 
-    ! allocate vectors to store Hx for 2 B matrices
+    ! allocate vectors to store Hx for the static and ensemble-based covariance matrices
     allocate(HxBhi(obs_numbody(obsSpaceData)))
     allocate(HxBen(obs_numbody(obsSpaceData)))
-
-    ! initialize vectors of scaleFactors
-    allocate(scaleFactorBhi(col_getNumLev(columng,'MM')))
-    allocate(scaleFactorBen(col_getNumLev(columng,'MM')))
-    call bhi_getScaleFactor(scaleFactorBhi)
-    call ben_getScaleFactor(scaleFactorBen)
 
     ! initialize columnData object for increment
     call col_setVco(column,col_getVco(columng))
@@ -109,79 +154,148 @@ contains
     call gsv_setHco(statevector,hco_anl)
     call gsv_allocate(statevector,tim_nstepobsinc,mpi_local=.true.)
 
-    ! COMPUTE BMATRIX PERTURBATION FOR Bhi
+    ! COMPUTE BMATRIX PERTURBATION FOR THE STATIC COVARIANCES CASE; from Bhi and or BChm 
 
-    ! compute random control vector
+    if (.not. all(familyList(1:numFamily).eq.'CH')) cvBhi => cvm_getSubVector(cvm_vazx,1)
+    if (any(familyList(1:numFamily).eq.'CH')) cvBChm => cvm_getSubVector(cvm_vazx,3)
+    
+    HxBhi(:) = 0.0d0
+    
     iseed = abs(nrandseed)
     zdum = gasdev(-iseed)
-    do jj = 1,cvm_nvadim
-      cvm_vazx(jj)=gasdev(1)
-    enddo
 
-    ! set Ben contribution to zero
-    cvBen => cvm_getSubVector(cvm_vazx,2)
-    cvBen(:) = 0.0d0
+    if (associated(cvBhi).or.associated(cvBChm)) then
+       
+       ! compute random control vector
+       cvm_vazx(:) = 0.0d0
 
-    ! multiply vector by B^1/2
-    call bmat_sqrtB(cvm_vazx,cvm_nvadim,statevector)
-    ! undo the scaleFactor (THIS IS NOT CORRECT FOR 2D VARIABLES!!!) 
-    do jvar=1,vnl_numvarmax 
-      if(gsv_varExist(vnl_varNameList(jvar))) then
-        field => gsv_getField(statevector,vnl_varNameList(jvar))
-        do jlev = 1, gsv_getNumLev(statevector,vnl_vartypeFromVarname(vnl_varNameList(jvar)))   
-          if(scaleFactorBhi(jlev).gt.0.0d0) then
-            field(:,jlev,:,:)=field(:,jlev,:,:)/scaleFactorBhi(jlev)
+       if (associated(cvBhi)) then
+          do jj = 1,size(cvBhi)
+             cvBhi(jj)=gasdev(1)
+          enddo
+
+          ! initialize vector of scaleFactors
+          allocate(scaleFactor(col_getNumLev(columng,'MM')))
+          call bhi_getScaleFactor(scaleFactor)
+       end if
+
+       if (associated(cvBChm)) then
+          do jj = 1,size(cvBChm)
+             cvBChm(jj)=gasdev(1)
+          enddo
+
+          ! initialize vector of scaleFactors
+          allocate(scaleFactorChm(col_getNumLev(columng,'MM'),100))
+          call bChm_getScaleFactor(scaleFactorChm)
+       end if
+        
+       ! multiply vector by B^1/2
+       call bmat_sqrtB(cvm_vazx,cvm_nvadim,statevector)
+
+       ! undo the scaleFactor (THIS IS NOT CORRECT FOR 2D VARIABLES!!! (P0 and TG) ) 
+
+       ivar_count=0
+       do jvar=1,vnl_numvarmax 
+          if(gsv_varExist(vnl_varNameList(jvar))) then
+             field => gsv_getField(statevector,vnl_varNameList(jvar))
+             select case (vnl_varNameList(jvar))
+             case ('UU','VV','TT','HU','P0','TG')
+                do jlev = 1, gsv_getNumLev(statevector,vnl_vartypeFromVarname(vnl_varNameList(jvar)))   
+                   if(scaleFactor(jlev).gt.0.0d0) field(:,jlev,:,:)=field(:,jlev,:,:)/scaleFactor(jlev)
+                enddo
+             case default
+                ivar_count=ivar_count+1
+                do jlev = 1, gsv_getNumLev(statevector,vnl_vartypeFromVarname(vnl_varNameList(jvar)))   
+                   if(scaleFactorChm(jlev,ivar_count).gt.0.0d0) field(:,jlev,:,:)=field(:,jlev,:,:) &
+                         /scaleFactorChm(jlev,ivar_count)
+                end do
+             end select
           endif
-        enddo
-      endif
-    enddo
-    ! multiply by H
-    call oda_L(statevector,column,columng,obsSpaceData)  ! put in column H_horiz dx
-    call oda_H(column,columng,obsSpaceData)  ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
-    do bodyIndex=1,obs_numBody(obsSpaceData)
-      HxBhi(bodyIndex) = obs_bodyElem_r(obsSpaceData,OBS_WORK,bodyIndex)
-    enddo
+       enddo
+       
+       if (associated(cvBhi)) deallocate(scaleFactor)
+       if (associated(cvBChm)) deallocate(scaleFactorChm)
+       
+       ! multiply by H
+       call oda_L(statevector,column,columng,obsSpaceData)  ! put in column H_horiz dx
+       call oda_H(column,columng,obsSpaceData)  ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
+       do bodyIndex=1,obs_numBody(obsSpaceData)
+          HxBhi(bodyIndex) = obs_bodyElem_r(obsSpaceData,OBS_WORK,bodyIndex)
+       enddo
+    end if
+   
+    ! COMPUTE BMATRIX PERTURBATION FOR THE ENSEMBLE COVARIANCES CASE; from Ben and or BChmEns
 
-    ! COMPUTE BMATRIX PERTURBATION FOR Bensemble
+    if (.not. all(familyList(1:numFamily).ne.'CH')) cvBen     => cvm_getSubVector(cvm_vazx,2)
+    if (any(familyList(1:numFamily).eq.'CH')) cvBChmEns => cvm_getSubVector(cvm_vazx,4)
+   
+    HxBen(:) = 0.0d0
 
-    ! compute random control vector
-    iseed = abs(nrandseed)
-    zdum = gasdev(-iseed)
-    do jj = 1,cvm_nvadim
-      cvm_vazx(jj)=gasdev(1)
-    enddo
+    if (associated(cvBen).or.associated(cvBChmEns)) then
 
-    ! set Bhi contribution to zero
-    cvBhi => cvm_getSubVector(cvm_vazx,1)
-    cvBhi(:) = 0.0d0
+       ! compute random control vector
+       cvm_vazx(:) = 0.0d0
 
-    ! multiply vector by B^1/2
-    call bmat_sqrtB(cvm_vazx,cvm_nvadim,statevector)
-    ! undo the scaleFactor
-    do jvar=1,vnl_numvarmax 
-      if(gsv_varExist(vnl_varNameList(jvar))) then
-        field => gsv_getField(statevector,vnl_varNameList(jvar))
-        do jlev = 1, gsv_getNumLev(statevector,vnl_vartypeFromVarname(vnl_varNameList(jvar)))   
-          if(scaleFactorBen(jlev).gt.0.0d0) then
-            field(:,jlev,:,:)=field(:,jlev,:,:)/scaleFactorBen(jlev)
+       if (associated(cvBen)) then
+          do jj = 1,size(cvBen)
+             cvBhi(jj)=gasdev(1)
+          enddo
+
+          ! initialize vector of scaleFactors
+          allocate(scaleFactor(col_getNumLev(columng,'MM')))
+          call ben_getScaleFactor(scaleFactor)
+       end if
+
+       if (associated(cvBChmEns)) then
+          do jj = 1,size(cvBChmEns)
+             cvBChmEns(jj)=gasdev(1)
+          enddo
+
+          ! initialize vector of scaleFactors
+          allocate(scaleFactorChm(col_getNumLev(columng,'MM'),100))
+          scaleFactorChm(:,:)=1.0
+!!          call bChmEns_getScaleFactor(scaleFactorChm)
+       end if
+
+       ! multiply vector by B^1/2
+       call bmat_sqrtB(cvm_vazx,cvm_nvadim,statevector)
+
+       ! undo the scaleFactor
+       
+       ivar_count=0
+       do jvar=1,vnl_numvarmax 
+          if(gsv_varExist(vnl_varNameList(jvar))) then
+             field => gsv_getField(statevector,vnl_varNameList(jvar))
+
+             select case (vnl_varNameList(jvar))
+             case ('UU','VV','TT','HU','P0','TG')
+                do jlev = 1, gsv_getNumLev(statevector,vnl_vartypeFromVarname(vnl_varNameList(jvar)))   
+                   if(scaleFactor(jlev).gt.0.0d0) field(:,jlev,:,:)=field(:,jlev,:,:)/scaleFactor(jlev)
+                enddo
+             case default
+                ivar_count=ivar_count+1
+                do jlev = 1, gsv_getNumLev(statevector,vnl_vartypeFromVarname(vnl_varNameList(jvar)))   
+                   if(scaleFactorChm(jlev,ivar_count).gt.0.0d0) field(:,jlev,:,:)=field(:,jlev,:,:) &
+                         /scaleFactorChm(jlev,ivar_count)
+                end do
+             end select
           endif
-        enddo
-      endif
-    enddo
-    ! multiply vector by H
-    call oda_L(statevector,column,columng,obsSpaceData)  ! put in column H_horiz dx
-    call oda_H(column,columng,obsSpaceData)  ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
-    do bodyIndex=1,obs_numBody(obsSpaceData)
-      HxBen(bodyIndex) = obs_bodyElem_r(obsSpaceData,OBS_WORK,bodyIndex)
-    enddo
+       enddo
+       
+       if (associated(cvBen)) deallocate(scaleFactor)
+       if (associated(cvBChmEns)) deallocate(scaleFactorChm)
+       
+       ! multiply vector by H
+       call oda_L(statevector,column,columng,obsSpaceData)  ! put in column H_horiz dx
+       call oda_H(column,columng,obsSpaceData)  ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
+       do bodyIndex=1,obs_numBody(obsSpaceData)
+          HxBen(bodyIndex) = obs_bodyElem_r(obsSpaceData,OBS_WORK,bodyIndex)
+       enddo
+    end if
 
     call col_deallocate(column)
     call gsv_deallocate(statevector)
-
-    write(*,*) 'osd_calcInflation: Compute innovation and B-matrix variances'
-    flush(6)  ! debug... bhe  
-
-
+       
     allocate(my_innovStd(maxLat,maxLon,maxVertical))
     allocate(my_bmatHiStd(maxLat,maxLon,maxVertical))
     allocate(my_bmatEnStd(maxLat,maxLon,maxVertical))
@@ -193,7 +307,22 @@ contains
     allocate(counts(maxLat,maxLon,maxVertical))
 
     FAMILY: do familyIndex = 1, numFamily
-      ELEMENT: do elementIndex = 1, numElement
+
+      ELEMENT: do elementIndex = 1, numElement  
+
+        ! Initialize logicals for calc of perturbation diagnostics.
+
+        lpert_static=.false.
+        lpert_ens=.false.
+        
+        if (familyList(familyIndex).ne.'CH') then
+           if (associated(cvBhi)) lpert_static=.true.
+           if (associated(cvBen)) lpert_ens=.true.
+        else        
+           if (associated(cvBChm)) lpert_static=.true.
+           if (associated(cvBChmEns)) lpert_ens=.true.
+        end if
+      
         ivco = -999
         my_innovStd(:,:,:) = 0.0d0
         my_bmatHiStd(:,:,:) = 0.0d0
@@ -209,22 +338,24 @@ contains
              obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex).eq.1) then
 
             call osd_getIndices(obsSpaceData,bodyIndex,latIndex,lonIndex,verticalIndex)
+            
             if(verticalIndex.eq.-1) then
-              !skip this obs for whatever reason
-              cycle BODY
-            elseif(latIndex.gt.maxLat .or. lonIndex.gt.maxLon .or. verticalIndex.gt.maxVertical) then
-              write(*,*) 'osd_calcInflation: index too big: lat,lon,vertical=',latIndex,lonIndex,verticalIndex
-              call abort3d('osd_calcInflation')
+               ! skip this obs for whatever reason
+               cycle BODY
+            else if(latIndex.gt.maxLat .or. lonIndex.gt.maxLon .or. verticalIndex.gt.maxVertical) then
+               write(*,*) 'osd_calcInflation: index too big: lat,lon,vertical=',latIndex,lonIndex,verticalIndex, &
+                          ' lat_max,lon_max,vertical_max=',maxlat,maxlon,maxvertical
+               call abort3d('osd_calcInflation')
             endif
 
             ivco = obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex)
-            counts(latIndex,lonIndex,verticalIndex) = counts(latIndex,lonIndex,verticalIndex) + 1
-            innovStd(latIndex,lonIndex,verticalIndex) = innovStd(latIndex,lonIndex,verticalIndex) +     &
+            my_counts(latIndex,lonIndex,verticalIndex) = my_counts(latIndex,lonIndex,verticalIndex) + 1
+            my_innovStd(latIndex,lonIndex,verticalIndex) = my_innovStd(latIndex,lonIndex,verticalIndex) +     &
                                                         obs_bodyElem_r(obsSpaceData,OBS_OMP,bodyIndex)* &
                                                         obs_bodyElem_r(obsSpaceData,OBS_OMP,bodyIndex)
-            bmatHiStd(latIndex,lonIndex,verticalIndex)  = bmatHiStd(latIndex,lonIndex,verticalIndex) +     &
+            if (lpert_static) my_bmatHiStd(latIndex,lonIndex,verticalIndex)  = my_bmatHiStd(latIndex,lonIndex,verticalIndex) +     &
                                                           HxBhi(bodyIndex)*HxBhi(bodyIndex)
-            bmatEnStd(latIndex,lonIndex,verticalIndex)  = bmatEnStd(latIndex,lonIndex,verticalIndex) +     &
+            if (lpert_ens) my_bmatEnStd(latIndex,lonIndex,verticalIndex)  = my_bmatEnStd(latIndex,lonIndex,verticalIndex) +     &
                                                           HxBen(bodyIndex)*HxBen(bodyIndex)
 
             headerIndex = obs_bodyElem_i(obsSpaceData,OBS_HIND,bodyIndex)
@@ -236,31 +367,25 @@ contains
 
         call rpn_comm_allreduce(my_counts,counts,maxLat*maxLon*maxVertical,"MPI_INTEGER","MPI_SUM","GRID",ierr)
         call rpn_comm_allreduce(my_innovStd,innovStd,maxLat*maxLon*maxVertical,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
-        call rpn_comm_allreduce(my_bmatHiStd,bmatHiStd,maxLat*maxLon*maxVertical,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
-        call rpn_comm_allreduce(my_bmatEnStd,bmatEnStd,maxLat*maxLon*maxVertical,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
+        if (lpert_static) call rpn_comm_allreduce(my_bmatHiStd,bmatHiStd,maxLat*maxLon*maxVertical,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
+        if (lpert_ens) call rpn_comm_allreduce(my_bmatEnStd,bmatEnStd,maxLat*maxLon*maxVertical,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
 
-        do verticalIndex = 1,maxVertical
-          do lonIndex = 1,maxLon
-            do latIndex = 1,maxLat
-              if(counts(latIndex,lonIndex,verticalIndex).gt.0) then
-                innovStd(latIndex,lonIndex,verticalIndex) =   &
-                  sqrt(innovStd(latIndex,lonIndex,verticalIndex)/counts(latIndex,lonIndex,verticalIndex))
-                bmatHiStd(latIndex,lonIndex,verticalIndex) =   &
-                  sqrt(bmatHiStd(latIndex,lonIndex,verticalIndex)/counts(latIndex,lonIndex,verticalIndex))
-                bmatEnStd(latIndex,lonIndex,verticalIndex) =   &
-                  sqrt(bmatEnStd(latIndex,lonIndex,verticalIndex)/counts(latIndex,lonIndex,verticalIndex))
-              endif
-            enddo
-          enddo
-        enddo
+        where (counts.gt.0) innovStd = sqrt(innovStd/counts)
+        if (lpert_static) then
+           where (counts.gt.0) bmatHiStd = sqrt(bmatHiStd/counts)
+        end if
+        if (lpert_ens) then
+           where (counts.gt.0) bmatEnStd = sqrt(bmatEnStd/counts)
+        end if 
 
         if(mpi_myid.eq.0 .and. sum(counts(:,:,:)).gt.0) then
+
          ! determine file names
-          write(dateStr,'(i8.8)') dateprnt
+          write(dateStr,'(i10.10)') dateprnt
           write(elementStr,'(i6.6)') elementList(elementIndex)
           innovFileName = 'innov' // dateStr // '_'  // trim(familyList(familyIndex)) // '_' // trim(elementStr) // '.dat'
-          bmatHiFileName =  'bmathi'  // dateStr // '_'  // trim(familyList(familyIndex)) // '_' // trim(elementStr) // '.dat'
-          bmatEnFileName =  'bmaten'  // dateStr // '_'  // trim(familyList(familyIndex)) // '_' // trim(elementStr) // '.dat'
+          if (lpert_static) bmatHiFileName =  'bmathi'  // dateStr // '_'  // trim(familyList(familyIndex)) // '_' // trim(elementStr) // '.dat'
+          if (lpert_ens) bmatEnFileName =  'bmaten'  // dateStr // '_'  // trim(familyList(familyIndex)) // '_' // trim(elementStr) // '.dat'
           countFileName = 'count' // dateStr // '_'  // trim(familyList(familyIndex)) // '_' // trim(elementStr) // '.dat'
 
           ! open files
@@ -269,76 +394,110 @@ contains
           nulBmatEn =0
           nulcount=0
           ierr = fnom(nulinnov,innovFileName,'FMT+R/W',0)
-          ierr = fnom(nulBmatHi ,bmatHiFileName ,'FMT+R/W',0)
-          ierr = fnom(nulBmatEn ,bmatEnFileName ,'FMT+R/W',0)
+          if (lpert_static) ierr = fnom(nulBmatHi ,bmatHiFileName ,'FMT+R/W',0)
+          if (lpert_ens) ierr = fnom(nulBmatEn ,bmatEnFileName ,'FMT+R/W',0)
           ierr = fnom(nulcount,countFileName,'FMT+R/W',0)
 
           ! write data for this family/element
           write(nulinnov,*) '***maxLon,maxLat,deltaLon,deltaLat,deltaPressure,deltaHeight='
           write(nulinnov,*) maxLon,maxLat,deltaLon,deltaLat,deltaPressure,deltaHeight
-          write(nulBmatHi,*)  '***maxLon,maxLat,deltaLon,deltaLat,deltaPressure,deltaHeight='
-          write(nulBmatHi,*)  maxLon,maxLat,deltaLon,deltaLat,deltaPressure,deltaHeight
-          write(nulBmatEn,*)  '***maxLon,maxLat,deltaLon,deltaLat,deltaPressure,deltaHeight='
-          write(nulBmatEn,*)  maxLon,maxLat,deltaLon,deltaLat,deltaPressure,deltaHeight
+          
+          if (lpert_static) then 
+             write(nulBmatHi,*)  '***maxLon,maxLat,deltaLon,deltaLat,deltaPressure,deltaHeight='
+             write(nulBmatHi,*)  maxLon,maxLat,deltaLon,deltaLat,deltaPressure,deltaHeight
+          end if
+          if (lpert_ens) then 
+             write(nulBmatEn,*)  '***maxLon,maxLat,deltaLon,deltaLat,deltaPressure,deltaHeight='
+             write(nulBmatEn,*)  maxLon,maxLat,deltaLon,deltaLat,deltaPressure,deltaHeight
+          end if
+          
           write(nulcount,*) '***maxLon,maxLat,deltaLon,deltaLat,deltaPressure,deltaHeight='
           write(nulcount,*) maxLon,maxLat,deltaLon,deltaLat,deltaPressure,deltaHeight
           do verticalIndex = 1,maxVertical
             if(sum(counts(:,:,verticalIndex)).gt.0) then
               write(nulinnov,*) '***verticalIndex,vco='
               write(nulinnov,*) verticalIndex,ivco
-              write(nulBmatHi,*)  '***verticalIndex,vco='
-              write(nulBmatHi,*)  verticalIndex,ivco
-              write(nulBmatEn,*)  '***verticalIndex,vco='
-              write(nulBmatEn,*)  verticalIndex,ivco
+              
+              if (lpert_static) then 
+                 write(nulBmatHi,*)  '***verticalIndex,vco='
+                 write(nulBmatHi,*)  verticalIndex,ivco
+              end if
+              if (lpert_ens) then 
+                 write(nulBmatEn,*)  '***verticalIndex,vco='
+                 write(nulBmatEn,*)  verticalIndex,ivco
+              end if
+              
               write(nulcount,*) '***verticalIndex,vco='
               write(nulcount,*) verticalIndex,ivco
               do latIndex = 1,maxLat
                 write(nulinnov,*) innovStd(latIndex,:,verticalIndex)
-                write(nulBmatHi ,*) bmatHiStd(latIndex,:,verticalIndex)
-                write(nulBmatEn ,*) bmatEnStd(latIndex,:,verticalIndex)
                 write(nulcount,*) counts(latIndex,:,verticalIndex)
               enddo
+ 
+              if (lpert_static) then 
+                 do latIndex = 1,maxLat
+                   write(nulBmatHi ,*) bmatHiStd(latIndex,:,verticalIndex)
+                 enddo
+              end if
+              if (lpert_ens) then 
+                 do latIndex = 1,maxLat
+                    write(nulBmatEn ,*) bmatEnStd(latIndex,:,verticalIndex)
+                 enddo
+              end if
+
             endif
           enddo
 
           ! close files
           ierr = fclos(nulinnov)
-          ierr = fclos(nulBmatHi)
-          ierr = fclos(nulBmatEn)
+          if (lpert_static) ierr = fclos(nulBmatHi)
+          if (lpert_ens) ierr = fclos(nulBmatEn)
           ierr = fclos(nulcount)
         endif
 
       enddo ELEMENT
     enddo FAMILY
 
-     deallocate(my_counts) 
-     deallocate(my_innovStd)  
-     deallocate(my_bmatHiStd)  
-     deallocate(my_bmatEnStd)  
+    deallocate(my_counts) 
+    deallocate(my_innovStd)  
+    deallocate(my_bmatHiStd)  
+    deallocate(my_bmatEnStd)  
 
     deallocate(innovStd)
     deallocate(bmatHiStd)
     deallocate(bmatEnStd)
     deallocate(counts)
+    
     deallocate(HxBhi)
     deallocate(HxBen)
 
     write(*,*) 'osd_calcInflation: Finished'
-    flush(6)  
+    flush(6) 
 
   end subroutine osd_calcInflation
 
-
+!------------------------------------------------------------------------------------
   subroutine osd_getIndices(obsSpaceData,bodyIndex,latIndex,lonIndex,verticalIndex)
+!
+!   Revisions:
+!             Y.J. Rochon, ARQI/AQRD, Aug 2015
+!             - Account for vco=4 (total column measurements)
+!             - Adjusted latIndex and lonIndex settings
+!
+!------------------------------------------------------------------------------------
     implicit none
     type(struct_obs) :: obsSpaceData
     integer :: bodyIndex,headerIndex,latIndex,lonIndex,verticalIndex
+    real(8), parameter :: epsilon=0.001
 
     ! codtypes for tovs: 164(AMSUA) 168 180 181 182 183 185 186 192 193
 
+    ! epsilon is added below to handle case where lon/dlon~1 or lat/dlat~1
     headerIndex = obs_bodyElem_i(obsSpaceData,OBS_HIND,bodyIndex)
-    latIndex = 1 + nint( (90.0d0 + obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex)*MPC_DEGREES_PER_RADIAN_R8)/deltaLat)
-    lonIndex = 1 + nint(obs_headElem_r(obsSpaceData,OBS_LON,headerIndex)*MPC_DEGREES_PER_RADIAN_R8/deltaLon)
+    latIndex = 1 + floor((90.0d0 + obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex)*MPC_DEGREES_PER_RADIAN_R8)/deltaLat - epsilon)
+    if (latIndex.eq.0) latIndex=1
+    lonIndex = 1 + floor(obs_headElem_r(obsSpaceData,OBS_LON,headerIndex)*MPC_DEGREES_PER_RADIAN_R8/deltaLon - epsilon)
+    if (lonIndex.eq.0) lonIndex=1
 
     select case(obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex))
       case(1)
@@ -357,6 +516,9 @@ contains
           ! ignore other types of TOVS for now
           verticalIndex = -1
         endif
+      case(4)
+         ! Integrated column value - assign to first level
+         verticalIndex = 1
       case default
         ! unknown vertical coordinate
         write(*,*) 'osd_getIndices: Unknown VCO! ',obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex)
@@ -365,16 +527,24 @@ contains
  
   end subroutine osd_getIndices
 
-
-  subroutine osd_setup(nmlExists)
+!-------------------------------------------------------------------------------------------
+  subroutine osd_setup(nmlExists) 
+!
+! Revisions: M. Sitwell, ARQI (July 2015)
+!            - Added lrandom with initialization to .false.
+!
+!-------------------------------------------------------------------------------------------
+ 
     implicit none
     logical :: nmlExists
 
     integer :: nulnam,ierr,fnom,fclos
-    namelist /namosd/nrandseed,deltaLat,deltaLon,deltaPressure,deltaHeight,numFamily,familyList,numElement,elementList
+    namelist /namosd/nrandseed,deltaLat,deltaLon,deltaPressure,deltaHeight, &
+        numFamily,familyList,numElement,elementList,lrandom
 
     ! set default values for namelist variables
     nrandseed = 999
+    lrandom=.true.
     deltaLat = 10.0d0
     deltaLon = 10.0d0
     deltaPressure = 10000.0d0
@@ -408,7 +578,7 @@ contains
     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=namosd,iostat=ierr)
     if(ierr.ne.0) then
-      write(*,*) 'osd_setup: No valid namelist NAMOSD found, skipping diagnostics'
+      write(*,*) 'osd_setup: No valid namelist NAMOSD found, skipping some diagnostics'
       nmlExists = .false.
       ierr = fclos(nulnam)
       return
@@ -419,5 +589,235 @@ contains
     ierr = fclos(nulnam)
 
   end subroutine osd_setup
+
+!-------------------------------------------------------------------------------------------
+  subroutine osd_chem_diagnostics(obsSpaceData,columng,date)
+!
+! Author:   M. Sitwell, ARQI/AQRD, June 2015
+!
+! Revisions:
+!            Y. Rochon, ARQI/AQRD, July 2015
+!            - Additional generalizations
+!          
+! Purpose:  Calculates and prints observation-space diagnostics for chemical constituents
+!
+!-------------------------------------------------------------------------------------------
+
+    use earthconstants_mod
+
+    implicit none
+
+    type(struct_obs) :: obsSpaceData
+    type(struct_columnData) :: columng
+    integer :: date
+
+    integer :: headerIndex,bodyIndex,istnid,vco,nlev_obs,ilev_obs,nlev_mod,ilev_mod
+
+    integer, parameter :: nmax=100
+    integer :: varno,varno_elemID(nmax)
+    integer :: elemID,i,num_elemID,nset
+    character(len=9) :: stnid_elemID(nmax)
+    logical :: unilev_elemID(nmax)
+    character(len=256) :: label,filename
+    real(8) :: lat,lon
+    logical :: unilevel,print_summary,add_obs,all_combos
+    real(8), allocatable :: zobslev(:), lev(:), omp(:), oma(:), obs(:), jo(:), pres_mod(:), sigma_obs(:)
+    logical, allocatable :: success(:)
+    real(8), pointer :: gz_mod(:)
+
+    filename = 'obsspace_diag_CH_' ! Date added to name by transfer script.
+    
+    call chm_comboIdlist(all_combos=all_combos)
+    
+    if (all_combos) then
+    
+       ! Loop over obs to find all (stnid,varno) pairs to form a common sequence of search pairs
+       ! over all processors. The prescribed starting stnid selections can have wild card 
+       ! characters (via *, see routine chm_comboIdlist).
+
+       call obs_set_current_header_list(obsSpaceData,'CH')
+       HEADER1: do
+          headerIndex = obs_getHeaderIndex(obsSpaceData)
+          if (headerIndex < 0) exit HEADER1
+         
+          ! Body info that we only need for first point in the profile
+          bodyIndex = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)     
+          vco = obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex)
+
+          if (vco.ne.1 .and. vco.ne.2 .and. vco.ne.4) then
+             ! Vertical coordinate not handled
+             write(*,*) 'osd_chem_diagnostics: Currently unaccounted VCO = ',vco
+             cycle HEADER1
+          end if
+          
+          ! Identify varno and nlev_obs (exclude 8090 elements)
+          nlev_obs = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex)
+          call obs_set_current_body_list(obsSpaceData,headerIndex)
+          do
+             bodyIndex = obs_getBodyIndex(obsSpaceData)
+             if (bodyIndex < 0) exit
+             if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex).eq.8090) then
+                nlev_obs = nlev_obs-1
+             else
+                varno=obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
+             end if
+          end do
+
+          ! Adds to running list of unique pairs if unique
+          call chm_comboIdlist(stnid_add=obs_elem_c(obsSpaceData,'STID',headerIndex), varno_add=varno, unilev_add=(nlev_obs.eq.1.and.vco.eq.4))
+                       
+       end do HEADER1
+       
+       ! Get a common sequence of search pairs over all processors. 
+       
+       call chm_comboIdlist(gather_mpi=.true.)
+       
+    end if
+    
+    ! Get list of unique pairs
+    call chm_comboIdlist(stnid_list=stnid_elemID, varno_list=varno_elemID, unilev_list=unilev_elemID, num_elements=num_elemID, nset=nset)
+    
+    if (num_elemID.eq.0) return
+
+    if (mpi_myid.eq.0) then
+       write(*,*)
+       write(*,*) "osd_chem_diagnostics: Observation-space diagnostics for chemical constituents"
+       write(*,*)
+    end if
+    
+    ! Loop over all pairs in *_elemID lists
+    
+    call flush(6)
+    do elemID=1,num_elemID
+       
+       ! Initialize the diagnostic arrays
+       call chm_obsspace_diagnostic(deltaLat, deltaLon, initialize=.TRUE., deltaPressure=deltaPressure)
+       
+       call obs_set_current_header_list(obsSpaceData,'CH')
+       HEADER: do
+          headerIndex = obs_getHeaderIndex(obsSpaceData)
+          if (headerIndex < 0) exit HEADER
+  
+          ! Body info that we only need for first point in the profile
+          bodyIndex = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)     
+          vco = obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex)
+
+          if (vco.ne.1 .and. vco.ne.2 .and. vco.ne.4) then
+             ! Vertical coordinate not handled
+             write(*,*) 'osd_chem_diagnostics: Currently unaccounted VCO = ',vco
+             cycle HEADER
+          end if
+
+          varno = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
+          nlev_obs = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex)
+          
+          ! Identify max number of profile points in the profile (exclude 8090 elements)
+          call obs_set_current_body_list(obsSpaceData,headerIndex)
+          do
+             bodyIndex = obs_getBodyIndex(obsSpaceData)
+             if (bodyIndex < 0) exit
+             if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex).eq.8090) then
+                nlev_obs = nlev_obs-1
+             else
+                varno=obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
+             end if
+          end do
+
+          ! Determine if this observation should be added to this group (as specified by nset)
+          add_obs = stnid_equal(stnid_elemID(elemID),obs_elem_c(obsSpaceData,'STID',headerIndex))
+          if (nset.ge.2) add_obs = add_obs .and. varno.eq.varno_elemID(elemID)
+          if (nset.ge.3) add_obs = add_obs .and. (nlev_obs.eq.1.and.vco.eq.4).eqv.unilev_elemID(elemID)
+
+          if (add_obs) then
+             
+             ! Accumulate for this combo
+          
+             lat = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex)*MPC_DEGREES_PER_RADIAN_R8
+             lon = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex)*MPC_DEGREES_PER_RADIAN_R8
+              
+             allocate(lev(nlev_obs), omp(nlev_obs), oma(nlev_obs), obs(nlev_obs), jo(nlev_obs), sigma_obs(nlev_obs), success(nlev_obs))
+
+             lev(:) = 0.0d0
+             omp(:) = 0.0d0
+             oma(:) = 0.0d0
+             obs(:) = 0.0d0
+             jo(:)  = 0.0d0
+             sigma_obs(:)  = 0.0d0
+             success(:) = .false.
+             ilev_obs = 0
+          
+             call obs_set_current_body_list(obsSpaceData,headerIndex)
+             BODY: do
+
+                bodyIndex = obs_getBodyIndex(obsSpaceData)
+                if (bodyIndex < 0) exit BODY
+               
+                if ( obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex).ne.varno .or. &
+                     obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex).ne.1) cycle BODY
+
+                ilev_obs = ilev_obs+1
+ 
+                lev(ilev_obs) = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
+                omp(ilev_obs) = obs_bodyElem_r(obsSpaceData,OBS_OMP,bodyIndex)
+                oma(ilev_obs) = obs_bodyElem_r(obsSpaceData,OBS_OMA,bodyIndex)
+                obs(ilev_obs) = obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)
+                jo(ilev_obs)  = obs_bodyElem_r(obsSpaceData,OBS_JOBS,bodyIndex)
+                sigma_obs(ilev_obs) = obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
+                success(ilev_obs) = .true.
+                    
+             end do BODY
+
+             if (ilev_obs.gt.0) then
+            
+                ! Convert to pressure if needed and identify unilevel observations
+                unilevel = .false.
+                select case(vco)
+                case(1)
+                   ! Height coordinate
+               
+                   nlev_mod = col_getNumLev(columng,'TH')  ! number of model levels     
+                   gz_mod => col_getColumn(columng,headerIndex,'GZ','TH') ! geopotential
+                
+                   allocate(pres_mod(nlev_mod))
+               
+                   do ilev_mod=1,nlev_mod
+                      pres_mod(ilev_mod) = col_getPressure(columng,ilev_mod,headerIndex,'TH') ! model pressure
+                   end do
+               
+                   ! Convert altidudes to pressure, note that gz_mod/RG converts geopotential to geopotential height
+                   lev = chm_convert_z_to_pressure(lev,gz_mod/RG,pres_mod,nlev_obs,nlev_mod,lat/MPC_DEGREES_PER_RADIAN_R8,success)
+               
+                   deallocate(pres_mod)
+                   
+                case(4)
+                   ! Uni-level observations
+                   unilevel = .true.
+                end select
+         
+                ! Add observation to diagnostic arrays
+                call chm_obsspace_diagnostic(lat, lon, pressure=lev, omp=omp, oma=oma, obs=obs, jo=jo, sigma_obs=sigma_obs, &
+                                             success=success, nlev_obs=nlev_obs, unilevel=unilevel)
+                                        
+             end if
+        
+             deallocate(lev,omp,oma,obs,jo,sigma_obs,success)
+       
+          end if
+
+       end do HEADER
+       
+       ! Prepare output identification (to be used for mpi_mpid=0)          
+       write(label,*) ">>> Statistics for BUFR # ",varno_elemID(elemID),"and STNID ",stnid_elemID(elemID)
+              
+       ! Sum over different processors, output (when mpi_myid.eq.0), and deallocate diagnostic arrays
+       call chm_obsspace_diagnostic(0.0d0, 0.0d0, print_stats=.TRUE., label=label, filename=filename)
+    
+       call flush(6)
+    end do
+    
+    ! Output diagnostics summary (over all CH observations)
+    call chm_obsspace_diagnostic(0.0d0, 0.0d0, print_summary=.TRUE., filename=filename)
+    
+  end subroutine osd_chem_diagnostics
 
 end module obsSpaceDiag_mod

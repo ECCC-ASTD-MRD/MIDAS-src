@@ -162,6 +162,7 @@ MODULE BmatrixChem
   real(8)             :: rvloc(100)
   integer,parameter   :: maxNumLevels=200
   real(8)             :: scaleFactor(maxNumLevels,100)
+  real(8)             :: scaleFactor_sigma(maxNumLevels,100)
   integer             :: numModeZero  ! number of eigenmodes to set to zero
 
 ! Number of incremental variables/fields
@@ -299,11 +300,12 @@ CONTAINS
     if(mpi_myid.eq.0) write(*,nml=NAMBCHM)
     ierr = fclos(nulnam)
 
-    ! Assumes the input 'scalefactor' is a scaling factor of the error std.
-    ! dev. and not the variances (contrary to what is in bhimatrix_mod.ftn90.)
+    ! Assumes the input 'scalefactor' is a scaling factor of the variances.
     
     where (scaleFactor(1:max(nLev_M,nLev_T),1:numvar3d+numvar2d).lt.0.0) &
-           scaleFactor(1:max(nLev_M,nLev_T),1:numvar3d+numvar2d)=0.0d0
+           scaleFactor(1:max(nLev_M,nLev_T),1:numvar3d+numvar2d)=1.0d0
+    scaleFactor_sigma(1:max(nLev_M,nLev_T),1:numvar3d+numvar2d)=   &
+       sqrt(scaleFactor(1:max(nLev_M,nLev_T),1:numvar3d+numvar2d))
 
     nla_mpiglobal = (ntrunc+1)*(ntrunc+2)/2
     ni_l = hco_in%ni
@@ -439,10 +441,10 @@ CONTAINS
 !       do jlon = 1, ni_l
        do jlat = 1, nj_l
            rgsig(jlat,nsposit(jvar):nsposit(jvar+1)-1) = &
-               scaleFactor(nsposit(jvar):nsposit(jvar+1)-1,jvar)* &
+               scaleFactor_sigma(nsposit(jvar):nsposit(jvar+1)-1,jvar)* &
                rgsig(jlat,nsposit(jvar):nsposit(jvar+1)-1)
 !           rgsig(jlon,jlat,nsposit(jvar):nsposit(jvar+1)-1) = &
-!               scaleFactor(nsposit(jvar):nsposit(jvar+1)-1,jvar)*
+!               scaleFactor_sigma(nsposit(jvar):nsposit(jvar+1)-1,jvar)*
 !               rgsig(jlon,jlat,nsposit(jvar):nsposit(jvar+1)-1)
        enddo
 !       enddo
