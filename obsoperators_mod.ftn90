@@ -1203,12 +1203,13 @@ module obsOperators_mod
     allocate(zvalb(nflev))
     allocate(zttb(nflev))
     allocate(zppb(nflev))
-    allocate(zvalbc(nflev)) ! Must be a copy of zval when kmode=0,1. 
-                           ! Required for generality in usage of chm_obsoperators
-                           ! also for tangent linear and adjoint cases.
+    allocate(zvalbc(nflev)) ! Must be a copy of zval when kmode=0. 
+                            ! Required for generality in usage of chm_obsoperators
+                            ! also for tangent linear and adjoint cases.
+                            ! Not needed/used for kmode=1.
 
-    kmode = 0 ! 0 for general (non-linear) simulation operator
-              ! 1 for tangent linear operator applied to error std. dev. 
+    kmode = 0 ! 0 for general (non-linear and linear) simulation operator
+              ! 1 for determination of sqrt(diag(H*B*H^T))
               ! 2 for tangent linear operator
               ! 3 for adjoint of tangent linear operator
                  
@@ -1322,10 +1323,17 @@ module obsOperators_mod
         call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex,zomp)
 
         ! Add to Jo contribution (factor of 0.5 to be applied outside report loop)
-        
-        zinc = zomp/obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
-        jobs = jobs + zinc*zinc
-        
+       
+        if (.not.chm_lcheck_skipassim(cstnid,varno,nobslev,iass(iobslev))) then 
+            zinc = zomp/obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
+            jobs = jobs + zinc*zinc
+        else
+            ! Set flag to be recognized at postmin diagnostics calc in
+            ! routine chm_obsspace_diagnostic - see also obsspacediagn_mod.ftn90)
+            
+            call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,3)                                   
+        end if
+            
       enddo BODY2
 
       ! Deallocate profile data

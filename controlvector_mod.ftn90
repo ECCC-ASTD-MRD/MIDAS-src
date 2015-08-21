@@ -29,6 +29,10 @@
 !       Ping Du, June-Sept 2014
 !       - Introduced optional consideration of arrays/variables for
 !         constituents. See variables *Bchm*.
+!       Y.J. Rochon, May 2015
+!       - Addition of *BchmEns* for constituent ensembles.
+!       M. Sitwell Aug 2015
+!       - Added cvm_numSubvector
 !
 !--------------------------------------------------------------------------
 MODULE ControlVector_mod
@@ -53,33 +57,40 @@ MODULE ControlVector_mod
 
   ! Addition for constituents
   integer             :: cvm_dimBchm
+  integer             :: cvm_dimBchmEns
   integer             :: cvm_dimBchm_mpiglobal
+  integer             :: cvm_dimBchmEns_mpiglobal
 
+  integer, parameter  :: cvm_numSubvector=4 ! total number of possible valid subvectors
 
   real*8, allocatable,target :: cvm_vazx(:)
 
 CONTAINS
 
-  SUBROUTINE CVM_setup(DIMBHI_IN,DIMBEN_IN, DIMBCHM_IN)
+  SUBROUTINE CVM_setup(DIMBHI_IN,DIMBEN_IN, DIMBCHM_IN, DIMBCHMENS_IN)
     implicit none
 
-    integer           :: dimBHI_in,dimBEN_in, dimBCHM_in
+    integer           :: dimBHI_in,dimBEN_in, dimBCHM_in, dimBChmEns_in
     integer           :: ierr
 
     cvm_dimbhi = dimbhi_in
     cvm_dimben = dimben_in
     cvm_dimbchm = dimbchm_in 
+    cvm_dimbchmEns = dimbchmEns_in 
 
     call rpn_comm_allreduce(cvm_dimbhi,cvm_dimbhi_mpiglobal,1,"MPI_INTEGER","MPI_SUM","GRID",ierr)
     call rpn_comm_allreduce(cvm_dimben,cvm_dimben_mpiglobal,1,"MPI_INTEGER","MPI_SUM","GRID",ierr)
     call rpn_comm_allreduce(cvm_dimbchm,cvm_dimbchm_mpiglobal,1,"MPI_INTEGER","MPI_SUM","GRID",ierr)
+    call rpn_comm_allreduce(cvm_dimbchmEns,cvm_dimbchmEns_mpiglobal,1,"MPI_INTEGER","MPI_SUM","GRID",ierr)
 
-    cvm_nvadim = cvm_dimben + cvm_dimbhi + cvm_dimbchm
-    cvm_nvadim_mpiglobal = cvm_dimben_mpiglobal + cvm_dimbhi_mpiglobal + cvm_dimbchm_mpiglobal
+    cvm_nvadim = cvm_dimben + cvm_dimbhi + cvm_dimbchm + cvm_dimbchmEns
+    cvm_nvadim_mpiglobal = cvm_dimben_mpiglobal + cvm_dimbhi_mpiglobal + cvm_dimbchm_mpiglobal &
+                                                                     +  cvm_dimbchmEns_mpiglobal
 
-    write(*,*) 'cvm_setup: subvector dimensions            =',cvm_dimbhi,cvm_dimben, cvm_dimbchm, cvm_nvadim
+    write(*,*) 'cvm_setup: subvector dimensions            =',cvm_dimbhi,cvm_dimben, cvm_dimbchm,  &
+                                                              cvm_dimbchmEns, cvm_nvadim
     write(*,*) 'cvm_setup: subvector dimensions (mpiglobal)=',cvm_dimbhi_mpiglobal,cvm_dimben_mpiglobal,       & 
-                                               cvm_dimbchm_mpiglobal,cvm_nvadim_mpiglobal
+                          cvm_dimbchm_mpiglobal, cvm_dimbchmEns_mpiglobal,cvm_nvadim_mpiglobal
 
     allocate(cvm_vazx(cvm_nvadim),stat=ierr)
     if(ierr.ne.0) then
@@ -97,9 +108,9 @@ CONTAINS
     implicit none
 
     real*8, pointer :: subVector(:)
-    real*8,target   :: controlVector(:)
+    real*8, target  :: controlVector(:)
     integer         :: subVectorIndex
-    logical, save   :: firstCall=.true.
+    logical, save   :: firstCall(cvm_numSubvector+1)=.true. ! add extra element for all subVectorIndex>cvm_numSubvector
 
     nullify(subVector)
 
@@ -110,11 +121,14 @@ CONTAINS
     elseif(subVectorIndex.eq.3 .and. cvm_dimbchm.gt.0) then
       ! Addition for constituents
       subVector => controlVector((cvm_dimbhi+cvm_dimben+1):(cvm_dimbhi+cvm_dimben+cvm_dimbchm))
+    elseif(subVectorIndex.eq.4 .and. cvm_dimbchmEns.gt.0) then
+      ! Addition for constituents
+      subVector => controlVector((cvm_dimbhi+cvm_dimben+cvm_dimbchm+1):(cvm_dimbhi+cvm_dimben+cvm_dimbchm+cvm_dimbchmEns))
     else
-      if(firstCall) then
-        write(*,*) 'CVM_getSubVector: subVectorIndex ',subVectorIndex,' is not available'
-        firstCall=.false.
-      endif
+       if(firstCall(min(subVectorIndex,cvm_numSubvector+1))) then
+          write(*,*) 'CVM_getSubVector: subVectorIndex ',subVectorIndex,' is not available'
+          firstCall(min(subVectorIndex,cvm_numSubvector+1))=.false.
+       endif
     endif
 
   END FUNCTION CVM_getSubVector
@@ -125,7 +139,7 @@ CONTAINS
     real*8, pointer :: subVector(:)
     real*8,target   :: controlVector(:)
     integer         :: subVectorIndex
-    logical, save   :: firstCall=.true.
+    logical, save   :: firstCall(cvm_numSubvector+1)=.true. ! add extra element for all subVectorIndex>cvm_numSubvector
 
     nullify(subVector)
 
@@ -136,10 +150,13 @@ CONTAINS
     elseif(subVectorIndex.eq.3 .and. cvm_dimbchm_mpiglobal.gt.0) then
       ! Addition for constituents
       subVector => controlVector((cvm_dimbhi_mpiglobal+cvm_dimben_mpiglobal+1):(cvm_dimbhi_mpiglobal+cvm_dimben_mpiglobal+cvm_dimbchm_mpiglobal))
+    elseif(subVectorIndex.eq.4 .and. cvm_dimbchmEns_mpiglobal.gt.0) then
+      ! Addition for constituents
+      subVector => controlVector((cvm_dimbhi_mpiglobal+cvm_dimben_mpiglobal+cvm_dimbchm_mpiglobal+1):(cvm_dimbhi_mpiglobal+cvm_dimben_mpiglobal+cvm_dimbchm_mpiglobal+cvm_dimbchmEns_mpiglobal))
     else
-      if(firstCall) then
+      if(firstCall(min(subVectorIndex,cvm_numSubvector+1))) then
         write(*,*) 'CVM_getSubVector_mpiglobal: subVectorIndex ',subVectorIndex,' is not available'
-        firstCall=.false.
+        firstCall(min(subVectorIndex,cvm_numSubvector+1))=.false.
       endif
     endif
 
