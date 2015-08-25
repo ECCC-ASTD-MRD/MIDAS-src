@@ -1,0 +1,20 @@
+ &NAMDIAG
+   DIAGDATE = 2014101706
+   NUMPERTURBATIONS = 4
+/
+ &NAMBHI
+   NTRUNC  = 270
+/
+ &NAMBEN
+/
+ &NAMSTATE
+   CGNEED(1)   ='UU'
+   CGNEED(2)   ='VV'
+   CGNEED(3)   ='TT'
+   CGNEED(4)   ='HU'
+   CGNEED(5)   ='P0'
+/
+ &NAMTIME
+  DSTEPOBS = 6.0d0
+  DSTEPOBSINC = 6.0d0
+/

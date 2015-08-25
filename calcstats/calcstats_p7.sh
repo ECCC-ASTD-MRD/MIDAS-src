@@ -8,16 +8,16 @@
 #
 # User-defined options
 #
-flnml="namelist_lam_p7.nml"
-machine="spica"
-gest="/users/dor/arma/gr3/data_gpfs/var/bifourrier_tests/new_var/bnmc_step/lam_r470m/atelier"
-ensdir="/users/dor/arma/gr3/data_gpfs/var/bifourrier_tests/new_var/bnmc_step/training_data/maritimes_L58"
-abs="/users/dor/arma/gr3/home1/var/trunk_r470m/compiledir_calcstats/calcstats_p7.abs_NOMPI"
+flnml="namelist_glb_p7.nml"
+machine="hadar"
+gest="/users/dor/arma/gr3/data_gpfs/var/gonzalo/calcstats_hvcorrel/atelier"
+ensdir="/users/dor/arma/gr3/data_gpfs/var/gonzalo/ensemble/interpEnsTrials/gaussian_grid"
+abs="/users/dor/arma/gr3/home1/var/trunk_572m/compiledir_calcstats/calcstats_p7.abs"
 npex=1
 npey=1
 openmp=32
-maxcputime=1200
-memory=1632M #3264M
+maxcputime=500
+memory=3264M
 
 #
 # Don't modify below ...
@@ -42,7 +42,7 @@ scp $abs ${machine}:${gest}/calcb.abs
 ssh $machine ln -s ${ensdir} ${gest}/ensemble
 ssh $machine ls -l $gest
 
-cat << EOF > go_calcstats.sh
+cat << EOF > $TMPDIR/go_calcstats.sh
  echo "!!STARTING SCRIPT!!"
  ulimit -a
  cd $gest
@@ -50,12 +50,12 @@ cat << EOF > go_calcstats.sh
  ./calcb.abs
 EOF
 
-cat << EOF > ptopo_nml
+cat << EOF > $TMPDIR/ptopo_nml
  &ptopo
   npex=$npex
   npey=$npey
 /
 EOF
-scp ptopo_nml ${machine}:${gest}
+scp $TMPDIR/ptopo_nml ${machine}:${gest}
 
-ord_soumet go_calcstats.sh -mach $machine -t $maxcputime -cpus ${npex}x${npey}x${openmp} -cm ${memory} -listing ${gest} -jn calcb
+ord_soumet $TMPDIR/go_calcstats.sh -mach $machine -t $maxcputime -cpus ${npex}x${npey}x${openmp} -cm ${memory} -listing ${gest} -jn calcstats

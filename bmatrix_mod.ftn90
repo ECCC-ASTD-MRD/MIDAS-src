@@ -46,7 +46,7 @@ MODULE BMatrix_mod
   public :: bmat_setup, bmat_finalize, bmat_sqrtB, bmat_sqrtBT
   public :: bmat_reduceToMPILocal, bmat_expandToMPIGlobal
   ! public procedures through inheritance
-  public :: bhi_getScaleFactor,ben_getScaleFactor
+  public :: bhi_getScaleFactor,ben_getScaleFactor,ben_getnEns,ben_getPerturbation
   public :: bchm_getScaleFactor
 !  public :: bchmens_getScaleFactor
 
@@ -262,6 +262,7 @@ contains
 
 !    if ( associated(cvBChmEns) ) call bChmEns_bsqrt(cvBChmEns, statevector_temp)
     call tmg_stop(67)
+
 
     !- 2.4 Add the two contributions together, result in statevector
     call gsv_add(statevector_temp,statevector)
@@ -548,6 +549,8 @@ contains
          call lbhi_expandToMPIGlobal(cvBhi_mpilocal,cvBhi_mpiglobal,cvDim_Bhi_mpiglobal)
       end if
     endif
+
+    cvDim_Ben_mpiglobal = 0
 
     cvBen_mpilocal =>cvm_getSubVector(cv_mpilocal,2)
     cvBen_mpiglobal=>cvm_getSubVector_mpiglobal(cv_mpiglobal,2)

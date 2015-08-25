@@ -930,17 +930,21 @@ CONTAINS
 !--------------------------------------------------------------------------
 ! ben_getPerturbation
 !--------------------------------------------------------------------------
-  SUBROUTINE ben_getPerturbation(statevector, memberIndexWanted, &
-                                 upwardExtrapolationMethod, waveBandIndexWanted)
+  SUBROUTINE ben_getPerturbation(statevector, memberIndexWanted,  &
+                                 upwardExtrapolationMethod, waveBandIndexWanted, &
+                                 undoNormalization)
     implicit none
 
     type(struct_gsv) :: statevector
     integer,          intent(in) :: memberIndexWanted
     character(len=*), intent(in) :: upwardExtrapolationMethod
     integer, optional, intent(in):: waveBandIndexWanted
+    logical, optional :: undoNormalization
 
     real(8), pointer :: field(:,:,:,:)
 
+    real(8) :: dnens2
+    logical :: undoNormalization2
     integer :: waveBandIndex
     integer :: jj,jvar,ilev1,ilev2,topLevOffset,jt,jk,jkInc,ji
 
@@ -953,6 +957,13 @@ CONTAINS
     else
        waveBandIndex = 1
     end if
+
+    ! set default value for optional argument undoNormalization
+    if ( present(undoNormalization) ) then
+      undoNormalization2 = undoNormalization
+    else
+      undoNormalization2 = .false.
+    endif
 
 !$OMP PARALLEL
 !$OMP DO PRIVATE(jj,jvar,field,ilev1,ilev2,topLevOffset,jt,jk,jkInc,ji)
@@ -992,17 +1003,69 @@ CONTAINS
             ! Select the corresponding ensemble perturbations
             do jk = ilev1, ilev2
               jkInc = jk-ilev1 + topLevOffset
+
+              ! undo the normalization (optional)
+              if(undoNormalization2) then
+                if(scaleFactor(verticalLevelEns(jk)).gt.0.0d0) then
+                  dnens2 = sqrt(1.0d0*dble(nEns-1))/scaleFactor(verticalLevelEns(jk))
+                else
+                  if(jj.eq.myLatBeg.and.jt.eq.1) then 
+                    write(*,*) 'scalefactor not positive, cannot undo normalization!'
+                    write(*,*) vnl_varNameList(jvar),scaleFactor(verticalLevelEns(jk)),verticalLevelEns(jk)
+                  endif
+                  dnens2 = 0.0d0
+                endif
+                if(vnl_varNameList(jvar).eq.'HU  ') then
+                  if(scaleFactorLQ(verticalLevelEns(jk)).gt.0.0d0) then
+                    dnens2 = dnens2/scaleFactorLQ(verticalLevelEns(jk))
+                  else
+                    if(jj.eq.myLatBeg.and.jt.eq.1) then
+                      write(*,*) 'LQ scalefactor not positive, cannot undo normalization!'
+                      write(*,*) vnl_varNameList(jvar),scaleFactorLQ(verticalLevelEns(jk)),verticalLevelEns(jk)
+                    endif
+                  endif
+                endif
+              else
+                dnens2 = 1.0d0
+              endif
+
               do ji = myLonBeg, myLonEnd
-                field(ji,jkInc,jj,jt) = dble(ensPerturbations(waveBandIndex,memberIndexWanted)%member_r4(ji,jj,jk,jt))
+                field(ji,jkInc,jj,jt) = dnens2*dble(ensPerturbations(waveBandIndex,memberIndexWanted)%member_r4(ji,jj,jk,jt))
               enddo
             enddo
 
             if ( topLevOffset > 1 ) then
               ! Fill the gap between the ensemble lid and the analysis lid
+
+              ! undo the normalization (optional)
+              if(undoNormalization2) then
+                if(scaleFactor(1).gt.0.0d0) then
+                  dnens2 = sqrt(1.0d0*dble(nEns-1))/scaleFactor(1)
+                else
+                  if(jj.eq.myLatBeg.and.jt.eq.1) then
+                    write(*,*) 'scalefactor(top) not positive, cannot undo normalization!'
+                    write(*,*) vnl_varNameList(jvar),scaleFactor(1)
+                  endif
+                  dnens2 = 0.0d0
+                endif
+                if(vnl_varNameList(jvar).eq.'HU  ') then
+                  if(scaleFactorLQ(1).gt.0.0d0) then
+                    dnens2 = dnens2/scaleFactorLQ(1)
+                  else
+                    if(jj.eq.myLatBeg.and.jt.eq.1) then
+                      write(*,*) 'LQ scalefactor(top) not positive, cannot undo normalization!'
+                      write(*,*) vnl_varNameList(jvar),scaleFactorLQ(1)
+                    endif
+                  endif
+                endif
+              else
+                dnens2 = 1.0d0
+              endif
+
               do jkInc = 1, topLevOffset-1
                 ! using a constant value (the value at the ensemble lid: k = ilev1)
                 do ji = myLonBeg, myLonEnd
-                  field(ji,jkInc,jj,jt) = dble(ensPerturbations(waveBandIndex,memberIndexWanted)%member_r4(ji,jj,ilev1,jt))
+                  field(ji,jkInc,jj,jt) = dnens2*dble(ensPerturbations(waveBandIndex,memberIndexWanted)%member_r4(ji,jj,ilev1,jt))
                 end do
               end do
             end if
@@ -2182,11 +2245,16 @@ CONTAINS
        call rpn_comm_allreduce(cvDim_mpilocal,cvDim_maxmpilocal,1,"mpi_integer","mpi_max","GRID",ierr)
 
        allocate(cv_maxmpilocal(cvDim_maxmpilocal))
-       if(mpi_myid.eq.0) allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mpi_nprocs))
 
        cv_maxmpilocal(:) = 0.0d0
        cv_maxmpilocal(1:cvDim_mpilocal) = cv_mpilocal(1:cvDim_mpilocal)
 
+       nullify(cv_allmaxmpilocal)
+       if(mpi_myid.eq.0) then
+          allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mpi_nprocs))
+       else
+          allocate(cv_allmaxmpilocal(1,1))
+       end if
        call rpn_comm_gather(cv_maxmpilocal,    cvDim_maxmpilocal, "mpi_double_precision",  &
                             cv_allmaxmpilocal, cvDim_maxmpilocal, "mpi_double_precision", 0, "GRID", ierr )
 
@@ -2266,7 +2334,7 @@ CONTAINS
       deallocate(allmBeg)
       deallocate(allmEnd)
       deallocate(allmSkip)
-      if(mpi_myid.eq.0) deallocate(cv_allmaxmpilocal)
+      deallocate(cv_allmaxmpilocal)
 
     else
 

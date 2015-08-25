@@ -175,7 +175,7 @@ CONTAINS
       real*8 :: zeps0_000,zdf1_000
       integer :: iterdone_000,isimdone_000
       character(len=128) :: clfname
- 
+
       min_nsim=0 
 
       if(mpi_myid.eq.0) then
@@ -467,7 +467,6 @@ CONTAINS
     !          (Based on previous versions of evaljo.ftn, evaljg.ftn and evaljgns.ftn).
     !
     ! Local declaration
-    integer :: ierr,jj
     real*8, dimension(na_dim) :: dl_v
     real*8 :: dl_Jb, dl_Jo
     type(struct_gsv) :: statevector
@@ -518,14 +517,14 @@ CONTAINS
        call oda_H(lcolumn,lcolumng,lobsSpaceData)  ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
        call tmg_stop(40)
 
-       call oda_res(lobsSpaceData)  ! Calculate OBS_OMA from OBS_WORK : Hdx-d
+       call oda_res(lobsSpaceData)  ! Calculate OBS_OMA from OBS_WORK : d-Hdx
      
-       call oda_sqrtRm1(lobsSpaceData,OBS_WORK,OBS_OMA)  ! Save as OBS_WORK : R**-1/2 (Hdx-d)
+       call oda_sqrtRm1(lobsSpaceData,OBS_WORK,OBS_OMA)  ! Save as OBS_WORK : R**-1/2 (d-Hdx)
      
-       call oda_Jo(lobsSpaceData)  ! Store J-obs in OBS_JOBS : 1/2 * R**-1 (Hdx-d)**2
+       call oda_Jo(lobsSpaceData)  ! Store J-obs in OBS_JOBS : 1/2 * R**-1 (d-Hdx)**2
      
        IF (LVARQC) THEN          
-          call oda_qcv(lobsSpaceData)  ! Store modified J-obs in OBS_JOBS : -ln((gamma-exp(J))/(gamma+1)) 
+          call oda_qcv(lobsSpaceData)  ! Store modified J_obs in OBS_JOBS : -ln((gamma-exp(J))/(gamma+1)) 
        endif
 
        dl_Jo = 0.d0
@@ -539,20 +538,22 @@ CONTAINS
           IF(mpi_myid == 0) write(*,FMT='(6X,"SIMVAR:  Jb = ",G23.16,6X,"JO = ",G23.16,6X,"Jt = ",G23.16)') dl_Jb,dl_Jo,da_J
        endif
 
-       call oda_sqrtRm1(lobsSpaceData,OBS_WORK,OBS_WORK)  ! Modify OBS_WORK : R**-1 (Hdx-d)
+       call oda_sqrtRm1(lobsSpaceData,OBS_WORK,OBS_WORK)  ! Modify OBS_WORK : R**-1 (d-Hdx)
 
        IF (LVARQC) THEN
           call oda_qcvad(lobsSpaceData)
        endif
 
+       call oda_resT(lobsSpaceData)  ! Calculate adjoint of d-Hdx (mult OBS_WORK by -1)
+
        call col_zero(lcolumn)
 
        call tmg_start(41,'OBS_AD')
-       call oda_HT(lcolumn,lcolumng,lobsSpaceData)   ! Put in column : H_vert**T R**-1 (Hdx-d)
+       call oda_HT(lcolumn,lcolumng,lobsSpaceData)   ! Put in column : -H_vert**T R**-1 (d-Hdx)
        call tmg_stop(41)
 
        call tmg_start(31,'OBS_INTERPAD')
-       call oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)  ! Put in statevector H_horiz**T H_vert**T R**-1 (Hdx-d)
+       call oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)  ! Put in statevector -H_horiz**T H_vert**T R**-1 (d-Hdx)
        call tmg_stop(31)
 
        da_gradJ(:) = 0.d0

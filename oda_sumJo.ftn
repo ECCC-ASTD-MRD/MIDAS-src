@@ -90,7 +90,7 @@
       enddo
 
       do itvs =1,NOBTOV
-         index_header=ltovsno(itvs)
+         index_header=lobsno(itvs)
          if (index_header > 0 ) then
             IDATA   = obs_headElem_i(lobsSpaceData,OBS_RLN,INDEX_HEADER)
             IDATEND = obs_headElem_i(lobsSpaceData,OBS_NLV,INDEX_HEADER) + IDATA - 1

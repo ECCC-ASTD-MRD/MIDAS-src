@@ -85,33 +85,51 @@ program calcbmatrix_main
   !
   !- 2. Select and launch the appropriate mode
   !
+
+  !- 2.1 Module initialization
   if (hco_ens % global) then
-    !- 2.1 Global mode...
-    call calcb_glb_setup( nens, cflensin, hco_ens, vco_ens) ! IN
-
-    select case(trim(cmode))
-    case ('BHI')
-      call calcb_glb_computeStats
-    case ('VERTICALCOV')
-      call calcb_glb_diag_verticalcov
-    case default
-      write(*,*)
-      write(*,*) 'Unknown value of CMODE in global mode: ',cmode
-      stop
-    end select
-
+     call calcb_glb_setup( nens, cflensin, hco_ens, vco_ens) ! IN
   else
-    !- 2.2 LAM mode...
-    call calcb_lam_setup( nens, cflensin, hco_ens, vco_ens) ! IN
-    select case(trim(cmode))
-    case ('BHI')
-      call calcb_lam_computeStats
-    case default
-      write(*,*)
-      write(*,*) 'Unknown value of CMODE in lam mode: ',cmode
-      stop
-    end select
+     call calcb_lam_setup( nens, cflensin, hco_ens, vco_ens) ! IN
   end if
+
+  !- 2.2 Mode selection
+  select case(trim(cmode))
+  case ('BHI')
+     if (hco_ens % global) then
+        call calcb_glb_computeStats
+     else
+        call calcb_lam_computeStats
+     end if
+  case ('HVCORREL')
+     if (hco_ens % global) then
+        call calcb_glb_diag_hvcorrel
+     else
+        write(*,*)
+        write(*,*) 'HVCORREL mode is not availbale in LAM mode'
+        stop
+     end if
+  case ('STDDEV')
+     if (hco_ens % global) then
+        call calcb_glb_diag_stddev
+     else
+        write(*,*)
+        write(*,*) 'STDDEV mode is not availbale in LAM mode'
+        stop
+     end if
+  case ('POWERSPEC')
+     if (hco_ens % global) then
+        call calcb_glb_diag_powerspec
+     else
+        write(*,*)
+        write(*,*) 'POWERSPEC mode is not availbale in LAM mode'
+        stop
+     end if
+  case default
+     write(*,*)
+     write(*,*) 'Unknown value of CMODE in global mode: ',cmode
+     stop
+  end select
 
   !
   !- 3.  Ending...

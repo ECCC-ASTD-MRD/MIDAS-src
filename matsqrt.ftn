@@ -38,23 +38,36 @@
 * Local variables
 *
       INTEGER JI, J, INFO, IER, IWORK
-      REAL*8 ZWORK(4*KN), ZRESULT(KN,KN), ZEIGENV2(KN,KN),
-     +       ZEIGEN(KN,KN), ZEIGENV(KN)
-*
-      IWORK=4*KN
-*
+      REAL*8 size_zwork
+      REAL*8, allocatable :: ZWORK(:), ZRESULT(:,:), ZEIGENV2(:,:), ZEIGEN(:,:), ZEIGENV(:)
+
       WRITE(*,*)' MATSQRT-Sqrt matrix of a symmetric matrix'
       WRITE(*,*)' zsign= ',zsign
       WRITE(*,*)'  -----------------------------------------------'
 *
 *     1. Computation of eigenvalues and eigenvectors
 *
+      allocate(ZRESULT(KN,KN))
+      allocate(ZEIGEN(KN,KN))
+      allocate(ZEIGENV2(KN,KN))
+      allocate(ZEIGENV(KN))
+      
       DO JI=1,KN
          DO J=1,KN
             ZEIGEN(JI,J)=PA(JI,J)
          END DO
       END DO
+
+      !! query the size of the 'zwork' vector by calling 'DSYEV' with 'iwork=-1'
+      iwork=-1
+      info = -1
+      CALL DSYEV('V','U',KN, ZEIGEN,KN, ZEIGENV,size_ZWORK, IWORK, INFO )
+
+      iwork=int(size_zwork)
+      allocate(zwork(iwork))
+      !! compute the eigenvalues
       CALL DSYEV('V','U',KN, ZEIGEN,KN, ZEIGENV,ZWORK, IWORK, INFO )
+      deallocate(zwork)
 *
       WRITE(*,'(1x,"ORIGINAL EIGEN VALUES: ")') 
       WRITE(*,'(1x,10f7.3)') (ZEIGENV(JI),JI=1,KN) 
@@ -83,6 +96,8 @@
 *
 *     4. Deallocate local arrays
 *
+      deallocate(ZRESULT,ZEIGEN,ZEIGENV2,ZEIGENV)
+
       WRITE(*,*)'MATSQRT-----------Done--------------- '
       WRITE(*,*)' '
 

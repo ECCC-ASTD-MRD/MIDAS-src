@@ -40,8 +40,7 @@ else
   echo
 fi
 
-if [ "$nompi" = "NOMPI" -o "$nompi" = "nompi" ] 
-then
+if [ "$nompi" = "NOMPI" -o "$nompi" = "nompi" ] ; then
   echo "!!Compiling for a NON-MPI executable!!"
   MPILIBDIR=""
   MPILIB="rpn_commstubs rpn_comm"
@@ -49,8 +48,17 @@ then
   ABSTAG="_nompi"
 else
   echo "!!Compiling for an MPI executable!!"
-  MPILIBDIR="-libpath /users/dor/arma/gr3/userlibs/AIX-powerpc7/xlf13" # JFC : Mesure temporaire pour avoir acces a
-  MPILIB="rpn_comm_adj_halo8"                                          #       la S-R RPN_COMM_adj_halo8 de M. Valin
+  # JFC : Mesure temporaire pour avoir acces a la S-R RPN_COMM_adj_halo8 de M. Valin
+  if [ "${BASE_ARCH}" = "AIX-powerpc7" ] ; then
+      MPILIBDIR="-libpath /users/dor/arma/anl/userlibs/${BASE_ARCH}/xlf13"
+  elif [ "${BASE_ARCH}" = "Linux_x86-64" ] ; then
+      MPILIBDIR="-libpath /users/dor/arma/anl/userlibs/${BASE_ARCH}/intel13sp1u2"
+  else
+    echo "This platform 'ARCH=${ARCH}' is not supported.  Only 'AIX-powerpc7' and 'Linux_x86-64' are."
+    exit 1
+  fi
+  MPILIB="_anl_rpn_comm_4051103"
+  # JFC : Mesure temporaire FIN
   MPIKEY="-mpi"
   ABSTAG=""
 fi
@@ -113,12 +121,16 @@ echo "loading cmda/base/201411/01/${COMP_ARCH}"
 ## For hpcsperf needed for TMG timings
 echo "loading hpcs/exp/aspgjdm/perftools"
 . ssmuse-sh -d hpcs/exp/aspgjdm/perftools
-# For RTTOV 10v1 package... 
-echo "loading arma/rttov/10v1"
-. ssmuse-sh -d arma/rttov/10v1
+# For RTTOV package... 
+echo "loading arma/rttov/10v2"
+. ssmuse-sh -d arma/rttov/10v2
+# For NetCDF package
+echo "loading netcdf"
+. s.ssmuse.dot netcdf
+
 #-----------------------------------------------------------------------------
 
-LIBAPPL="rttov10.2.0_coef_io rttov10.2.0_main rttov10.2.0_other burp_module descrip $MPILIB"
+LIBAPPL="netcdf rttov10.2.0_coef_io rttov10.2.0_main rttov10.2.0_emis_atlas rttov10.2.0_other burp_module descrip $MPILIB"
 if [ "${BASE_ARCH}" = "AIX-powerpc7" ];then
     LIBSYS="hpcsperf lapack-3.4.0 essl mass"
 elif [ "${BASE_ARCH}" = "Linux_x86-64" ];then
@@ -136,16 +148,17 @@ if [ "${BASE_ARCH}" = "AIX-powerpc7" ];then
 	COMPF=${COMPF_GLOBAL}
 	COMPF_NOC=${COMPF}
     else
-	COMPF="${COMPF_GLOBAL} -debug DEBUG -optf=-C"
 	COMPF_NOC="${COMPF_GLOBAL} -debug DEBUG"
+	COMPF="${COMPF_NOC} -optf =-C"
     fi
 elif [ "${BASE_ARCH}" = "Linux_x86-64" ];then
+    OPTF="=-mkl =-fp-model =source =-check =noarg_temp_created"
     if [ "${COMPILE_OAVAR_REMOVE_DEBUG_OPTIONS}" = yes ]; then
-	COMPF="${COMPF_GLOBAL} -optf =-fp-model source"
+	COMPF="${COMPF_GLOBAL} -optf ${OPTF}"
 	COMPF_NOC=${COMPF}
     else
-	COMPF="${COMPF_GLOBAL} -debug DEBUG -optf =-C =-fp-model source"
-	COMPF_NOC="${COMPF_GLOBAL} -debug DEBUG -optf =-fp-model source"
+	COMPF_NOC="${COMPF_GLOBAL} -debug DEBUG -optf ${OPTF}"
+	COMPF="${COMPF_NOC} =-C"
     fi
 else
     echo "This platform 'BASE_ARCH=${BASE_ARCH}' is not supported.  Only 'AIX-powerpc7' and 'Linux_x86-64' are."
@@ -170,9 +183,6 @@ if [ "${mode}" == full ] ; then
   
   echo "STARTING COMPILATION AT:" 
   date
-
-  # Remove enkf_pturb.ftn main program from compilation directory
-  rm -f enkf_pturb.ftn
 
   # Compile the subroutines...
   echo "compiling low-level independent modules"
@@ -213,7 +223,8 @@ if [ "${mode}" == full ] ; then
 
   echo "compiling most of the new modules"
   echo "If aborting, check in ${PWD}/listing3"
-  SRC1="controlvector_mod.ftn90 rmatrix_mod.ftn90 hir_chans_mod.ftn90 tovs_nl_mod.ftn90 tovs_lin_mod.ftn90 varnamelist_mod.ftn90 columndata_mod.ftn90 multi_ir_bgck_mod.ftn90"
+  SRC1="controlvector_mod.ftn90 rmatrix_mod.ftn90 hir_chans_mod.ftn90 tovs_nl_mod.ftn90"
+  SRC1="$SRC1 tovs_lin_mod.ftn90 varnamelist_mod.ftn90 columndata_mod.ftn90 multi_ir_bgck_mod.ftn90"
   SRC1="$SRC1 emissivities_mod.ftn90 fft_mod.ftn90 globalspectraltransform_mod.ftn90"
   SRC1="$SRC1 lamspectraltransform_mod.ftn90  gridstatevector_mod.ftn90"
   SRC1="$SRC1 bmatrixensemble_mod.ftn90 bmatrixhi_mod.ftn90 lambmatrixhi_mod.ftn90"

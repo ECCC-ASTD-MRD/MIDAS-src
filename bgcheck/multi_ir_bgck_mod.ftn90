@@ -1679,6 +1679,13 @@ SUBROUTINE CO2_SLICING ( PTOP,NTOP,FCLOUD,    &
 
 !**       special cases of no determination
 
+        IF ( J < 1) THEN
+           PTOP(JCH)   = -1._8
+           NTOP(JCH)   = -1
+           FCLOUD(JCH) = -1._8
+           CYCLE channels
+        END IF
+
         IF ( J <= LEV_START .OR. DRAP(JCH,J) > 9000._8 ) THEN
 !           IF ( ITER == 1) THEN
            PTOP(JCH)   = -1._8

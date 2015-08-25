@@ -35,6 +35,9 @@
 !         - NEW: >>if (lgpdata)<< CALL DOBSGPSGB
 !     Ping Du CMDA/MSC, Dec 2014
 !         - Added ZJOCHM and call to oonl_chm
+!     S. Macpherson -ARMA/MRD  Feb 2015
+!         - Pass columnhr to s/r SETERRGPSGB to give routine access to background 
+!           Psfc, Tsfc at ZTD observation locations
 !
       use mpi_mod
       use topLevelControl_mod
@@ -127,7 +130,7 @@
 !-------------------------------
 !
       ZJOGPSGB=0.0D0
-      CALL SETERRGPSGB(obsSpaceData,lgpdata)
+      CALL SETERRGPSGB(columnhr,obsSpaceData,lgpdata)
       if (lgpdata) call oonl_gpsgb(columnhr,obsSpaceData,ZJOGPSGB,top_AnalysisMode())
 
       call tmg_stop(48)
@@ -182,7 +185,8 @@
       write(*,'(a15,f23.16)') 'JOGPSRO  = ',ZJOGPSRO
       write(*,'(a15,f23.16)') 'JOGPSGB  = ',ZJOGPSGB
       write(*,'(a15,f23.16)') 'JOCHM    = ',ZJOCHM  
-      write(*,'(a15,f23.16)') 'Total Jo = ',ZJO
+      write(*,'(a15,f30.16)') 'Total Jo = ',ZJO
+
 !
 !     Find interpolation layer in model profiles 
 !

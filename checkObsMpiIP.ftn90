@@ -24,7 +24,6 @@ subroutine checkObsMpiIP(lobsSpaceData,burp_split_L)
   use MathPhysConstants_mod
   use obsSpaceData_mod
   use HorizontalCoord_mod
-  use MathPhysConstants_mod, only: MPC_DEGREES_PER_RADIAN_R4
   use mpivar_mod !! for variable 'mpi_myid'
   implicit none
 

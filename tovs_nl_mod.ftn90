@@ -37,7 +37,7 @@ Module tovs_nl_mod
   public :: jppf, jpchmax, jpchus, jpnsatmax, jplev, MXPLATFORM, MXINSTR, mesosphere_lapse_rate
   ! public variables (non-parameters)
   public :: nchan, ichan, lsensor, lobsno, ltovsno, JPMOTOP, JPMOLEV, nobtov
-  public :: l_really_present,list_sensors
+  public :: l_really_present,list_sensors,luse_uwiremis
   public :: NSENSORS, PLATFORM, SATELLITE, INSTRUMENT, CHANOFFSET
   public :: LDBGTOV, LNLVTOV, CSATID, CINSTRUMENTID, CRTMODL
   public :: CPLATFORM, CINSTRUMENT, NOPLATFORM, NOINSTRUMENT
@@ -49,7 +49,7 @@ Module tovs_nl_mod
 
 
   ! Module parameters
-  Integer, PARAMETER :: jppf      = 40      ! Max no. profiles per RTTOV call
+  Integer, PARAMETER :: jppf      = 40       ! Max no. profiles per RTTOV call
   Integer, PARAMETER :: jpchmax   = 8461     ! Max. no. of channels
   Integer, PARAMETER :: jpchus    = 1305     ! Max. no. of channels computed/call
   Integer, PARAMETER :: jpnsatmax = 40       ! Max no sensors to be used
@@ -86,7 +86,7 @@ Module tovs_nl_mod
   INTEGER NSENSORS
   INTEGER PLATFORM(JPNSATMAX), SATELLITE(JPNSATMAX)
   INTEGER INSTRUMENT(JPNSATMAX), CHANOFFSET(JPNSATMAX)
-  LOGICAL LDBGTOV, LNLVTOV
+  LOGICAL LDBGTOV, LNLVTOV, luse_uwiremis
   CHARACTER*15 CSATID(JPNSATMAX), CINSTRUMENTID(JPNSATMAX)
   CHARACTER*8 CRTMODL
 
@@ -503,7 +503,7 @@ END SUBROUTINE TOVS_NL_SETUPALLO
 
   NAMELIST /NAMTOV/NSENSORS, CSATID, CINSTRUMENTID
   NAMELIST /NAMTOV/LDBGTOV 
-  NAMELIST /NAMTOV/LNLVTOV, CRTMODL
+  NAMELIST /NAMTOV/LNLVTOV,luse_uwiremis, CRTMODL
 
  
   !     .  1.1 Default values
@@ -517,6 +517,7 @@ END SUBROUTINE TOVS_NL_SETUPALLO
   LDBGTOV   = .FALSE.
   LNLVTOV   = .FALSE.
   CRTMODL   = 'RTTOV'
+  luse_uwiremis=.false.
 
   !     .   1.2 Read the NAMELIST NAMTOV to modify them
   !     .       ---------------------------------------
@@ -556,7 +557,7 @@ END SUBROUTINE TOVS_NL_SETUPALLO
   !     .   1.4 Print the content of this NAMELIST
   !     .       ----------------------------------
 
-  if(mpi_myid.eq.0) WRITE(*,FMT=9140) LDBGTOV, LNLVTOV, CRTMODL
+  if(mpi_myid.eq.0) WRITE(*,FMT=9140) LDBGTOV, LNLVTOV, luse_uwiremis,CRTMODL
   if(mpi_myid.eq.0) WRITE(*,FMT=9143) NSENSORS
   if(mpi_myid.eq.0) WRITE(*,FMT=9145) (CSATID(JK), JK=1,NSENSORS)
   if(mpi_myid.eq.0) WRITE(*,FMT=9146) (CINSTRUMENTID(JK), JK=1,NSENSORS)
@@ -566,8 +567,9 @@ END SUBROUTINE TOVS_NL_SETUPALLO
             ,' (read in NAMTOV)'                           &
             ,/,3X,'  ----------------------------------'   &
             ,'------------------'                          &
-            ,/,6X,'TOVS debug              : ',2X,L1       &
-            ,/,6X,'Non-linear processing   : ',2X,L1       &
+            ,/,6X,'TOVS debug                           : ',2X,L1       &
+            ,/,6X,'Non-linear processing                : ',2X,L1       &
+            ,/,6X,'Use of UW IR land emissivity atlases : ',2X,L1       &
             ,/,6X,'Radiative transfer model: ',2X,A)
   9143 FORMAT(/,6X,"Number of sensors       : ",I3)
   9145 FORMAT(  6X,"Satellite id's          : ",10A10)

@@ -47,8 +47,9 @@ MODULE gridStateVector_mod
 
   ! public subroutines and functions
   public :: gsv_setup, gsv_allocate, gsv_deallocate, gsv_zero, gsv_3dto4d, gsv_3dto4dAdj, gsv_varExist
-  public :: gsv_getOffsetFromVarName, gsv_writeToFile
-  public :: gsv_getField, gsv_getField3D, gsv_getDateStamp, gsv_getNumLev, gsv_add, gsv_power
+  public :: gsv_getOffsetFromVarName, gsv_writeToFile, gsv_writeToFileMpi, gsv_readFromFile
+  public :: gsv_getField, gsv_getField3D, gsv_getDateStamp, gsv_getNumLev
+  public :: gsv_add, gsv_power, gsv_scale, gsv_copy
   public :: gsv_getVco, gsv_setVco, gsv_getHco, gsv_setHco
   public :: gsv_commMPIGlobal, gsv_commMPIGlobal3D
   public :: gsv_commLatLon, gsv_commLatLonAd
@@ -752,6 +753,65 @@ MODULE gridStateVector_mod
   END SUBROUTINE GSV_add
 
   !--------------------------------------------------------------------------
+  ! GSV_copy
+  !--------------------------------------------------------------------------
+  SUBROUTINE GSV_copy(statevector_in,statevector_out,indexStep_in)
+    implicit none
+    type(struct_gsv)  :: statevector_in,statevector_out
+    integer, optional :: indexStep_in
+    integer           :: jstep,jlon,jlev,jlat,lon1,lon2,lat1,lat2
+
+    if(.not.statevector_in%allocated) then
+      call abort3d('gridStateVector_in not yet allocated! Aborting.')
+    endif
+    if(.not.statevector_out%allocated) then
+      call abort3d('gridStateVector_out not yet allocated! Aborting.')
+    endif
+
+    lon1=statevector_in%myLonBeg
+    lon2=min(statevector_in%myLonEnd+1,statevector_out%hco%ni)
+    lat1=statevector_in%myLatBeg
+    lat2=min(statevector_in%myLatEnd+1,statevector_out%hco%nj)
+
+    ! NOTE: The step index should only be specified when copying 4D into 3D
+    if(present(indexStep_in)) then
+
+      ! adjust the datestamp to be consistent with the date of the specified step index
+      statevector_out%dateStampList(1) = statevector_in%dateStampList(indexStep_in)
+
+!$OMP PARALLEL
+!$OMP DO PRIVATE (jlat,jlev,jlon)    
+      do jlat = lat1, lat2
+        do jlev = 1, statevector_out%nk
+          do jlon = lon1, lon2
+            statevector_out%gd(jlon,jlev,jlat,1)= statevector_in%gd(jlon,jlev,jlat,indexStep_in)
+          enddo
+        enddo
+      enddo
+!$OMP END DO
+!$OMP END PARALLEL
+
+    else
+
+!$OMP PARALLEL
+!$OMP DO PRIVATE (jstep,jlat,jlev,jlon)    
+      do jlat = lat1, lat2
+        do jstep = 1, statevector_out%numStep
+          do jlev = 1, statevector_out%nk
+            do jlon = lon1, lon2
+              statevector_out%gd(jlon,jlev,jlat,jstep)= statevector_in%gd(jlon,jlev,jlat,jstep)
+            enddo
+          enddo
+        enddo
+      enddo
+!$OMP END DO
+!$OMP END PARALLEL
+
+    endif
+
+  END SUBROUTINE GSV_copy
+
+  !--------------------------------------------------------------------------
   ! GSV_power
   !--------------------------------------------------------------------------
   SUBROUTINE GSV_power(statevector_inout,power,scaleFactor)
@@ -803,6 +863,42 @@ MODULE gridStateVector_mod
     endif
 
   END SUBROUTINE GSV_power
+
+  !--------------------------------------------------------------------------
+  ! GSV_scale
+  !--------------------------------------------------------------------------
+  SUBROUTINE GSV_scale(statevector_inout,scaleFactor)
+    implicit none
+    type(struct_gsv) :: statevector_inout
+    integer          :: jstep,jlon,jlev,jlat,lon1,lon2,lat1,lat2
+    real(8)          :: scaleFactor
+
+    if(.not.statevector_inout%allocated) then
+      call abort3d('gsv_Scale: gridStateVector_inout not yet allocated! Aborting.')
+    endif
+
+    lon1=statevector_inout%myLonBeg
+    lon2=min(statevector_inout%myLonEnd+1,statevector_inout%hco%ni)
+    lat1=statevector_inout%myLatBeg
+    lat2=min(statevector_inout%myLatEnd+1,statevector_inout%hco%nj)
+
+!$OMP PARALLEL
+!$OMP DO PRIVATE (jstep,jlat,jlev,jlon)    
+    do jlat = lat1, lat2
+      do jstep = 1, statevector_inout%numStep
+        do jlev = 1, statevector_inout%nk
+          do jlon = lon1, lon2
+            statevector_inout%gd(jlon,jlev,jlat,jstep) = &
+                 scaleFactor * statevector_inout%gd(jlon,jlev,jlat,jstep)
+          enddo
+        enddo
+      enddo
+    enddo
+!$OMP END DO
+!$OMP END PARALLEL
+
+  END SUBROUTINE GSV_scale
+
 
   SUBROUTINE GSV_3dto4d(statevector)
     implicit none
@@ -1035,44 +1131,494 @@ MODULE gridStateVector_mod
   end subroutine gsv_setHco
 
   !--------------------------------------------------------------------------
-  ! gsv_writeToFile
+  ! gsv_readFromFile
   !--------------------------------------------------------------------------
-  subroutine gsv_writeToFile(statevector,fileName,etiket_in,scaleFactor)
+  subroutine gsv_readFromFile(statevector,fileName,etiket_in,typvar_in,gridName,indexStep_in)
+    implicit none
+    ! Note this routine currently only works correctly for reading FULL FIELDS,
+    ! not increments or perturbations... because of the HU -> LQ conversion
+
+    ! arguments
+    type(struct_gsv)              :: statevector
+    character(len=*), intent(in)  :: fileName
+    character(len=*), intent(in)  :: etiket_in
+    character(len=*), intent(in)  :: typvar_in
+    character(len=*), intent(in)  :: gridName
+    integer, optional             :: indexStep_in
+
+    ! locals
+    integer :: fnom, fstouv, fclos, fstfrm, fstlir
+    integer :: ezdefset, ezsint, ezuvint, ezqkdef, ezgprm
+    integer :: nulfile
+    real(4), allocatable :: field2d_file_r4(:,:),   field2d_interp_r4(:,:)
+    real(4), allocatable :: field2dVV_file_r4(:,:), field2dVV_interp_r4(:,:)
+    real(4), allocatable :: gd_send_r4(:,:,:), gd_recv_r4(:,:,:)
+    real(8), pointer     :: field3d_tile(:,:,:), field3dVV_tile(:,:,:), psfc_tile(:,:) => null()
+    real(4) :: factor_r4, temp_r4
+    integer :: ierr, ni, nj, nk, batchnum, youridx, youridy, yourid, nsize
+    integer :: jlon, jlev, jlat, nlev, jvar, jlev2, ip1, indexStep, target_gid
+    integer :: readLevPE(500)
+    integer :: ini,inj,ig1,ig2,ig3,ig4
+    character(len=4)  :: varName
+    character(len=2)  :: varType
+    character(len=1)  :: clgrtyp
+    logical :: FlipLatitude, doHorizInterp, doVertInterp
+    real(8), pointer :: field(:,:,:,:)
+    type(struct_vco), pointer :: vco_file => null()
+    type(struct_hco), pointer :: hco_file => null()
+
+    write(*,*) 'gsv_readFromFile: START'
+    call tmg_start(7,'READFROMFILE')
+
+    if (present(indexStep_in)) then
+      indexStep = indexStep_in
+    else
+      indexStep = statevector%anltime
+    endif
+
+    ! set up vertical and horizontal coordinate for input file
+    call vco_SetupFromFile(vco_file,trim(fileName),.false.,' ',beSilent=.true.)
+    if(associated(hco_Get(gridName))) then
+      write(*,*) 'gsv_readFromFile: horiz grid already defined with name: ', gridName
+      hco_file => hco_Get(gridName)
+    else
+      write(*,*) 'gsv_readFromFile: horiz grid will be defined with name: ', gridName
+      call hco_SetupFromFile( trim(fileName), ' ', gridName)
+      hco_file => hco_Get(gridName)
+    endif
+
+    ! test if horizontal and/or vertical interpolation needed for statevector grid
+    doVertInterp = .not.vco_equal(vco_file,statevector%vco)
+    doHorizInterp = .not.hco_equal(hco_file,statevector%hco)
+    write(*,*) 'gsv_readFromFile: doVertInterp = ', doVertInterp, ', doHorizInterp = ', doHorizInterp
+
+    ! possibly adjust target grid definition
+    if ( trim(statevector % hco % grtyp) == 'G' .and. statevector % hco % ig2 == 1 ) then
+      ! reverse latitudes since ezsint does not handle properly this grid type
+      write(*,*) 'gsv_readFromFile: WARNING due to bug in ezsint, changing Gaussian grid to ig2=0!!!' 
+      FlipLatitude  = .true. 
+      ierr = ezgprm(statevector % hco % EZscintID,clgrtyp,ini,inj,ig1,ig2,ig3,ig4)
+      ig2=0
+      target_gid = ezqkdef(ini,inj,clgrtyp,ig1,ig2,ig3,ig4,0)
+    else 
+      FlipLatitude  = .false.
+      target_gid = statevector % hco % EZscintID
+    end if
+
+    !- Open input field
+    nulfile = 0
+    write(*,*) 'gsv_readFromFile: file name = ',trim(fileName)
+    ierr    = fnom(nulfile,trim(fileName),'RND+OLD+R/O',0)
+       
+    if ( ierr >= 0 ) then
+       write(*,*)'gsv_readFromFile: file opened with unit number ',nulfile
+       ierr  =  fstouv(nulfile,'RND+OLD')
+    else
+       call abort3d('gsv_readFromFile: problem opening input file, aborting!')
+    end if
+
+    if (nulfile == 0 ) then
+       call abort3d('gsv_readFromFile: unit number for input file not valid!')
+    endif
+
+    allocate(field2d_file_r4(hco_file%ni,hco_file%nj))
+    allocate(field2dVV_file_r4(hco_file%ni,hco_file%nj))
+    allocate(field2d_interp_r4(statevector%hco%ni,statevector%hco%nj))
+    allocate(field2dVV_interp_r4(statevector%hco%ni,statevector%hco%nj))
+    allocate(gd_send_r4(statevector%lonPerPE,statevector%latPerPE,mpi_nprocs))
+    allocate(gd_recv_r4(statevector%lonPerPE,statevector%latPerPE,mpi_nprocs))
+    field2d_interp_r4(:,:) = 0.0d0
+    field2dVV_interp_r4(:,:) = 0.0d0
+
+    VARNAME_LOOP: do jvar = 0, vnl_numvarmax 
+ 
+      ! make sure that P0 is read first (needed for vertical interp)
+      if(jvar .eq. 0) then
+        varName = 'P0'
+      elseif(trim(vnl_varNameList(jvar)) .eq. 'P0') then
+        cycle VARNAME_LOOP
+      else
+        varName = trim(vnl_varNameList(jvar))
+      endif
+
+      ! have to do UU and VV together when varName is UU
+      if(trim(varName).eq.'VV') cycle VARNAME_LOOP
+
+      if (gsv_varExist(varName)) then
+
+        varType = vnl_vartypeFromVarname(varName)
+        nlev = vco_getNumLev(vco_file,varType)
+        if ( trim(varName) == 'UU' .or. trim(varName) == 'VV') then
+          factor_r4 = MPC_M_PER_S_PER_KNOT_R4 ! knots -> m/s
+        else if ( trim(varName) == 'P0' ) then
+          factor_r4 = 100.0 ! hPa -> Pa
+        else
+          factor_r4 = 1.0 ! no conversion
+        end if
+
+        ! for each level determine which processor should do the reading
+        do jlev = 1, nlev
+          readLevPE(jlev) = mod(jlev-1,mpi_nprocs)
+        enddo
+
+        call rpn_comm_barrier("GRID",ierr)
+
+        allocate(field3d_tile(statevector%myLonBeg:statevector%myLonEnd,nlev, &
+                              statevector%myLatBeg:statevector%myLatEnd))
+        if(trim(varName).eq.'UU') then
+          allocate(field3dVV_tile(statevector%myLonBeg:statevector%myLonEnd,nlev, &
+                                  statevector%myLatBeg:statevector%myLatEnd))
+        endif
+
+        ! read all levels for one variable while interpolating and 
+        ! distributing onto horizontal tiles as we go
+        do jlev = 1, nlev
+            
+          if(mpi_myid.eq.readLevPE(jlev)) then
+
+            if(varType.eq.'MM') then
+              ip1 = statevector%vco%ip1_M(jlev)
+            elseif(varType.eq.'TH') then
+              ip1 = statevector%vco%ip1_T(jlev)
+            elseif(varType.eq.'SF') then
+              ip1 = -1
+            else
+              call abort3d('gsv_readFromFile: unknown varType')
+            endif
+
+            ierr=fstlir(field2d_file_r4(:,:),nulfile,ni,nj,nk,  &
+                        statevector%datestamplist(indexStep),etiket_in,ip1,-1,-1,  &
+                        typvar_in,varName)
+
+            if(trim(varName).eq.'UU') then
+              ierr=fstlir(field2dVV_file_r4(:,:),nulfile,ni,nj,nk,  &
+                          statevector%datestamplist(indexStep),etiket_in,ip1,-1,-1,  &
+                          typvar_in,'VV')
+            endif            
+
+            if(ierr.lt.0)then
+              write(*,*) varName,ip1,statevector%datestamplist(indexStep)
+              call abort3d('gsv_readFromFile: Problem with background file')
+            end if
+
+            if(doHorizInterp) then
+              ! horizontal interpolation
+              ierr = ezdefset(target_gid, hco_file%EZscintID)
+              if(trim(varName).eq.'UU') then
+                ! interpolate both wind components
+                ierr = ezuvint(field2d_interp_r4, field2dVV_interp_r4,   &
+                               field2d_file_r4, field2dVV_file_r4) 
+              else
+                ! interpolate scalar variable
+                ierr = ezsint (field2d_interp_r4, field2d_file_r4)
+              endif
+            else
+              field2d_interp_r4(:,:) = field2d_file_r4(:,:)
+              if(trim(varName).eq.'UU') then
+                field2dVV_interp_r4(:,:) = field2dVV_file_r4(:,:)
+              endif
+            endif
+
+            ! Flip and scale
+            if ( FlipLatitude .and. doHorizInterp ) then
+!$OMP PARALLEL DO PRIVATE (jlon,jlat,temp_r4)
+              do jlon = 1, statevector%hco%ni
+                do jlat = 1, statevector%hco%nj/2
+                  temp_r4 = field2d_interp_r4(jlon,jlat)
+                  field2d_interp_r4(jlon,jlat                     ) = factor_r4 * field2d_interp_r4(jlon,statevector%hco%nj-jlat+1)
+                  field2d_interp_r4(jlon,statevector%hco%nj-jlat+1) = factor_r4 * temp_r4
+                end do
+              end do
+!$OMP END PARALLEL DO
+              if(trim(varName).eq.'UU') then
+!$OMP PARALLEL DO PRIVATE (jlon,jlat,temp_r4)
+                do jlon = 1, statevector%hco%ni
+                  do jlat = 1, statevector%hco%nj/2
+                    temp_r4 = field2dVV_interp_r4(jlon,jlat)
+                    field2dVV_interp_r4(jlon,jlat                     ) = factor_r4 * field2dVV_interp_r4(jlon,statevector%hco%nj-jlat+1)
+                    field2dVV_interp_r4(jlon,statevector%hco%nj-jlat+1) = factor_r4 * temp_r4
+                  end do
+                end do
+!$OMP END PARALLEL DO
+              endif
+            else
+              field2d_interp_r4(:,:) = factor_r4 * field2d_interp_r4(:,:)
+              if(trim(varName).eq.'UU') then
+                field2dVV_interp_r4(:,:) = factor_r4 * field2dVV_interp_r4(:,:)
+              endif
+            end if
+
+          endif ! if readLevel
+
+          ! do mpi communication
+          if(readLevPE(jlev).eq.(mpi_nprocs-1) .or. jlev.eq.nlev) then
+            batchnum = ceiling(dble(jlev)/dble(mpi_nprocs))
+
+!$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
+            do youridy = 0, (mpi_npey-1)
+              do youridx = 0, (mpi_npex-1)
+                yourid = youridx + youridy*mpi_npex
+                gd_send_r4(:,:,yourid+1) =  &
+                  field2d_interp_r4(statevector%allLonBeg(youridx+1):statevector%allLonEnd(youridx+1),  &
+                                    statevector%allLatBeg(youridy+1):statevector%allLatEnd(youridy+1))
+              enddo
+            enddo
+!$OMP END PARALLEL DO
+
+            nsize = statevector%lonPerPE*statevector%latPerPE
+            if(mpi_nprocs.gt.1) then
+              call rpn_comm_alltoall(gd_send_r4,nsize,"mpi_real4",  &
+                                     gd_recv_r4,nsize,"mpi_real4","GRID",ierr)
+            else
+              gd_recv_r4(:,:,1) = gd_send_r4(:,:,1)
+            endif
+
+!$OMP PARALLEL DO PRIVATE(jlev2,yourid)
+            do jlev2 = 1+(batchnum-1)*mpi_nprocs, jlev
+              yourid = readLevPE(jlev2)
+              field3d_tile(statevector%myLonBeg:statevector%myLonEnd,jlev2, &
+                           statevector%myLatBeg:statevector%myLatEnd) =   &
+                    real(gd_recv_r4(:,:,yourid+1),8)
+            enddo
+!$OMP END PARALLEL DO
+
+            if(trim(varName).eq.'UU') then
+
+!$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
+              do youridy = 0, (mpi_npey-1)
+                do youridx = 0, (mpi_npex-1)
+                  yourid = youridx + youridy*mpi_npex
+                  gd_send_r4(:,:,yourid+1) =  &
+                    field2dVV_interp_r4(statevector%allLonBeg(youridx+1):statevector%allLonEnd(youridx+1),  &
+                                        statevector%allLatBeg(youridy+1):statevector%allLatEnd(youridy+1))
+                enddo
+              enddo
+!$OMP END PARALLEL DO
+
+              nsize = statevector%lonPerPE*statevector%latPerPE
+              if(mpi_nprocs.gt.1) then
+                call rpn_comm_alltoall(gd_send_r4,nsize,"mpi_real4",  &
+                                       gd_recv_r4,nsize,"mpi_real4","GRID",ierr)
+              else
+                gd_recv_r4(:,:,1) = gd_send_r4(:,:,1)
+              endif
+
+!$OMP PARALLEL DO PRIVATE(jlev2,yourid)
+              do jlev2 = 1+(batchnum-1)*mpi_nprocs, jlev
+                yourid = readLevPE(jlev2)
+                field3dVV_tile(statevector%myLonBeg:statevector%myLonEnd,jlev2, &
+                               statevector%myLatBeg:statevector%myLatEnd) =   &
+                      real(gd_recv_r4(:,:,yourid+1),8)
+              enddo
+!$OMP END PARALLEL DO
+            endif ! if UU
+
+          endif ! do communication
+
+        enddo ! jlev (now all levels read and distributed onto tiles)
+
+        if (trim(varName).eq.'P0') then
+          allocate(psfc_tile(statevector%myLonBeg:statevector%myLonEnd, &
+                              statevector%myLatBeg:statevector%myLatEnd))
+          psfc_tile(:,:) = field3d_tile(:,1,:)
+        endif
+
+        ! Now do vertical interpolation and put result in statevector
+        if (nlev.gt.1) then
+          ! 3D fields
+          if (doVertInterp) then
+            if(associated(psfc_tile)) then
+              call gsv_vint(vco_file,field3d_tile,psfc_tile,statevector,varName,indexStep)
+              if(trim(varName).eq.'UU') then
+                call gsv_vint(vco_file,field3dVV_tile,psfc_tile,statevector,'VV',indexStep)
+                deallocate(field3dVV_tile)
+              endif
+            else
+              call abort3d('gsv_readFromFile: surface pressure not yet read, cannot call gsv_vint')
+            endif
+          else
+            field => gsv_getField(statevector,varName)
+            field(statevector%myLonBeg:statevector%myLonEnd,1:nlev, &
+                  statevector%myLatBeg:statevector%myLatEnd,indexStep) =  &
+                                            field3d_tile(:,1:nlev,:)
+
+          endif
+        else
+          ! 2D fields
+          field => gsv_getField(statevector,varName)
+          field(statevector%myLonBeg:statevector%myLonEnd,1, &
+                statevector%myLatBeg:statevector%myLatEnd,indexStep) =  &
+                                          field3d_tile(:,1,:)
+        endif
+        deallocate(field3d_tile)
+
+        ! convert humidity into LQ
+        if(trim(varName) == 'HU') then
+          field => gsv_getField(statevector,varName)
+!$OMP PARALLEL DO PRIVATE (jlat,jlev,jlon)
+          do jlat = statevector%myLatBeg, statevector%myLatEnd
+            do jlev = 1, nlev
+              do jlon = statevector%myLonBeg, statevector%myLonEnd
+                field(jlon,jlev,jlat,indexStep) = log(max(field(jlon,jlev,jlat,indexStep),MPC_MINIMUM_HU_R8))
+              end do
+            end do
+          end do
+!$OMP END PARALLEL DO
+        endif
+
+      endif ! if varExist
+
+    enddo VARNAME_LOOP ! jvar
+
+    deallocate(field2d_file_r4)
+    deallocate(field2dVV_file_r4)
+    deallocate(field2d_interp_r4)
+    deallocate(field2dVV_interp_r4)
+
+    ierr = fstfrm(nulfile)
+    ierr = fclos(nulfile)        
+
+    call tmg_stop(7)
+    write(*,*) 'gsv_readFromFile: END'
+
+  end subroutine gsv_readFromFile
+
+
+  subroutine gsv_vint(vco_in,field_in,psfc_in,statevector_out,varName,indexStep)
+    ! s/r gsv_vint  - Vertical interpolation of pressure defined fields
     implicit none
 
-    type(struct_gsv)          :: statevector
+    ! arguments
+    type(struct_vco), pointer :: vco_in
+    real(8), pointer :: field_in(:,:,:), psfc_in(:,:)
+    type(struct_gsv) :: statevector_out
+    character(len=*) :: varName
+    integer :: indexStep
+
+    ! locals
+    integer :: nlev_out, nlev_in, jlev_out, jlev_in, jlat, jlon, status, jlat2, jlon2
+    real(8) :: zwb, zwt
+    real(8), pointer  :: pres_out(:,:,:), pres_in(:,:,:), field_out(:,:,:,:)
+
+    ! define pressures on input and output levels
+    ! NOTE: order of arguments for pres_in/out is (lon,lat,lev)
+    if(vnl_vartypeFromVarname(varName).eq.'TH') then
+      status=vgd_levels(vco_in%vgrid,           &
+                        ip1_list=vco_in%ip1_T,  &
+                        levels=pres_in,         &
+                        sfc_field=psfc_in,      &
+                        in_log=.false.)
+      status=vgd_levels(statevector_out%vco%vgrid,           &
+                        ip1_list=statevector_out%vco%ip1_T,  &
+                        levels=pres_out,                     &
+                        sfc_field=psfc_in,                   &
+                        in_log=.false.)
+    else
+      status=vgd_levels(vco_in%vgrid,           &
+                        ip1_list=vco_in%ip1_M,  &
+                        levels=pres_in,         &
+                        sfc_field=psfc_in,      &
+                        in_log=.false.)
+      status=vgd_levels(statevector_out%vco%vgrid,           &
+                        ip1_list=statevector_out%vco%ip1_M,  &
+                        levels=pres_out,                     &
+                        sfc_field=psfc_in,                   &
+                        in_log=.false.)
+    endif
+
+    !write(*,*) 'gsv_vint: lbound(pres_in)=',lbound(pres_in)
+    !write(*,*) 'gsv_vint: lbound(pres_out)=',lbound(pres_out)
+    !write(*,*) 'gsv_vint: lbound(field_in)=',lbound(field_in)
+
+    ! do the vertical interpolation
+    field_out => gsv_getField(statevector_out,varName)
+    nlev_out = vco_getNumLev(statevector_out%vco, vnl_vartypeFromVarname(varName))
+    nlev_in  = vco_getNumLev(vco_in,              vnl_vartypeFromVarname(varName))
+    do jlat = statevector_out%myLatBeg, statevector_out%myLatEnd
+      jlat2 = jlat - statevector_out%myLatBeg + 1
+      do jlon = statevector_out%myLonBeg, statevector_out%myLonEnd
+        jlon2 = jlon - statevector_out%myLonBeg + 1
+        jlev_in = 1
+        do jlev_out = 1, nlev_out
+          jlev_in = jlev_in + 1
+          do while(pres_out(jlon2,jlat2,jlev_out).gt.pres_in(jlon2,jlat2,jlev_in)  &
+                   .and.jlev_in.lt.nlev_in)
+            jlev_in = jlev_in + 1
+          enddo
+          jlev_in = jlev_in - 1
+          zwb = log(pres_out(jlon2,jlat2,jlev_out)/pres_in(jlon2,jlat2,jlev_in))  &
+               /log(pres_in(jlon2,jlat2,jlev_in+1)/pres_in(jlon2,jlat2,jlev_in))
+          zwt = 1.d0 - zwb
+          field_out(jlon,jlev_out,jlat,indexStep) =   &
+                             zwb*field_in(jlon,jlev_in+1,jlat) &
+                           + zwt*field_in(jlon,jlev_in,  jlat)
+        enddo
+      enddo
+    enddo
+
+    deallocate(pres_out)
+    deallocate(pres_in)
+
+  end subroutine gsv_vint
+
+
+  !--------------------------------------------------------------------------
+  ! gsv_writeToFile
+  !--------------------------------------------------------------------------
+  subroutine gsv_writeToFile(statevector,fileName,etiket_in,scaleFactor,ip3_in)
+    implicit none
+
+    type(struct_gsv), target    :: statevector
     character(len=*), intent(in) :: fileName
     character(len=*), intent(in) :: etiket_in
     real(8), optional,intent(in) :: scaleFactor
+    integer, optional            :: ip3_in
+
+    type(struct_gsv), target   :: statevector_temp
+    type(struct_gsv), pointer :: statevector_write
 
     integer :: fclos, fnom, fstouv, fstfrm
     integer :: nulfile
-    
     real(4), allocatable :: work2d(:,:)
-
     real(4)   :: factor, work
-
     integer   :: ierr, fstecr
     integer   :: var, k, kgdim
-
     integer :: ni, nj, nk
     integer :: dateo, npak, ji, jj, jk, jt, nlev, jvar
     integer :: ip1, ip2, ip3, deet, npas, datyp
     integer :: ig1 ,ig2 ,ig3 ,ig4
-
     character(len=1)  :: grtyp
     character(len=4)  :: nomvar
     character(len=2)  :: typvar
     character(len=12) :: etiket
-
     logical :: FlipLatitude
-
     real(8), pointer :: field(:,:,:,:)
 
+    write(*,*) 'gsv_writeToFile: START'
+
+    if(present(ip3_in)) then
+      ip3 = ip3_in
+    else
+      ip3 = 0
+    endif
+
     !
-    !- Gather the info from all processors
+    !- If statevector is mpi_local, then gather info from all processors
     !
-    call gsv_commMPIGlobal3D(statevector)
+    if(statevector%mpi_local) then
+       call gsv_setVco(statevector_temp,statevector%vco)
+       call gsv_setHco(statevector_temp,statevector%hco)
+       call gsv_allocate(statevector_temp,  &
+                       statevector%numStep,   &
+                       datestamp=statevector%dateStamp3d,  &
+                       mpi_local=statevector%mpi_local)
+       call gsv_copy(statevector,statevector_temp)
+       call gsv_commMPIGlobal3D(statevector_temp)
+       statevector_write => statevector_temp
+    else
+       ! Already global, nothing to do
+       statevector_write => statevector
+    endif
 
     !
     !- Write the global StateVector
@@ -1080,7 +1626,7 @@ MODULE gridStateVector_mod
     if (mpi_myid == 0) then
 
        write(*,*) 'gsv_writeToFile: START of writing to file'
-
+       
        !- Open output field
        nulfile = 0
        write(*,*) 'gsv_writeToFile: file name = ',trim(fileName)
@@ -1098,57 +1644,58 @@ MODULE gridStateVector_mod
        endif
 
        !- Write TicTacToc
-        call WriteTicTacToc(statevector,nulfile) ! IN
+       call WriteTicTacToc(statevector_write,nulfile) ! IN
 
        !- Write the 4D Fields
-       if ( statevector % hco % grtyp == 'G' .and.  &
-            statevector % hco % ig2   ==  1   ) then
+       if ( statevector_write % hco % grtyp == 'G' .and.  &
+            statevector_write % hco % ig2   ==  1   ) then
           FlipLatitude  = .true. 
           ig2          = 0
        else
           FlipLatitude  = .false.
-          ig2          =  statevector % hco % ig2
+          ig2          =  statevector_write % hco % ig2
        end if
 
-       allocate(work2d(statevector%hco%ni,statevector%hco%nj))
+       allocate(work2d(statevector_write%hco%ni,statevector_write%hco%nj))
        
        do jvar = 1, vnl_numvarmax 
  
          if (gsv_varExist(vnl_varNameList(jvar)) ) then
-             field => gsv_getField(statevector,vnl_varNameList(jvar))
+             field => gsv_getField(statevector_write,vnl_varNameList(jvar))
 
-             do jt = 1, statevector%numStep
+             do jt = 1, statevector_write%numStep
 
-                nlev = gsv_getNumLev(statevector,vnl_vartypeFromVarname(vnl_varNameList(jvar)))
+                nlev = gsv_getNumLev(statevector_write,vnl_vartypeFromVarname(vnl_varNameList(jvar)))
                 do jk = 1, nlev
 
                    npak   = -32
-                   dateo  = statevector%dateStampList(jt)
+                   dateo  = statevector_write%dateStampList(jt)
                    deet   = 0
                    npas   = 0
-                   ni     = statevector%hco%ni
-                   nj     = statevector%hco%nj
+                   ni     = statevector_write%hco%ni
+                   nj     = statevector_write%hco%nj
                    nk     = 1
                    if (nlev /= 1) then
                       if (vnl_vartypeFromVarname(vnl_varNameList(jvar)) == 'MM') then
-                         ip1 = statevector%vco%ip1_M(jk)
+                         ip1 = statevector_write%vco%ip1_M(jk)
                       else
-                         ip1 = statevector%vco%ip1_T(jk)
+                         ip1 = statevector_write%vco%ip1_T(jk)
                       end if
                    else
                       ip1 = 0
                    end if
                    ip2    = 0
-                   ip3    = 0
                    typvar = 'E'
                    nomvar = trim(vnl_varNameList(jvar))
                    etiket = trim(Etiket_in)
-                   grtyp  = statevector%hco%grtyp
-                   ig1    = statevector%hco%ig1
-                   ig2    = statevector%hco%ig2
-                   ig3    = statevector%hco%ig3
-                   ig4    = statevector%hco%ig4
+                   grtyp  = statevector_write%hco%grtyp
+                   ig1    = statevector_write%hco%ig1
+                   ig3    = statevector_write%hco%ig3
+                   ig4    = statevector_write%hco%ig4
                    datyp  = 1
+
+                   ! TEMPORARY: if variable name is HU, write with name LQ
+                   if(trim(nomvar) == 'HU') nomvar = 'LQ'
 
                    if ( trim(nomvar) == 'UU' .or. trim(nomvar) == 'VV') then
                       factor = MPC_KNOTS_PER_M_PER_S_R4 ! m/s -> knots
@@ -1195,7 +1742,263 @@ MODULE gridStateVector_mod
 
     end if
 
+    if(statevector%mpi_local) then
+       call gsv_deallocate(statevector_temp)
+    endif
+
+    write(*,*) 'gsv_writeToFile: END'
+
   end subroutine gsv_writeToFile
+
+  !--------------------------------------------------------------------------
+  ! gsv_writeToFileMpi
+  !--------------------------------------------------------------------------
+  subroutine gsv_writeToFileMpi(statevector,fileName,etiket_in,scaleFactor,ip3_in,indexStep_in,statevector_ref)
+    implicit none
+
+    ! arguments
+    type(struct_gsv)             :: statevector
+    character(len=*), intent(in) :: fileName
+    character(len=*), intent(in) :: etiket_in
+    real(8), optional,intent(in) :: scaleFactor
+    integer, optional            :: ip3_in, indexStep_in
+    type(struct_gsv), optional   :: statevector_ref
+
+    ! locals
+    integer :: fclos, fnom, fstouv, fstfrm
+    integer :: nulfile, indexStep
+    real(4), allocatable :: work2d(:,:), gd_send_r4(:,:,:), gd_recv_r4(:,:,:)
+    real(4)   :: factor, work
+    integer   :: ierr, fstecr
+    integer   :: var, k, kgdim
+    integer :: ni, nj, nk
+    integer :: dateo, npak, ji, jj, jlev, jlev_last, nlev, jvar
+    integer :: ip1, ip2, ip3, deet, npas, datyp
+    integer :: ig1 ,ig2 ,ig3 ,ig4
+    integer :: batchnum, jlev2, yourid, nsize, youridy, youridx
+    integer :: writeLevPE(500)
+    character(len=1)  :: grtyp
+    character(len=4)  :: nomvar
+    character(len=2)  :: typvar
+    character(len=12) :: etiket
+    character(len=3)  :: charprocid
+    character(len=128) :: fileName_full
+    logical :: FlipLatitude,iDoWriting
+    real(8), pointer :: field(:,:,:,:),field_ref(:,:,:,:)
+    real(8), allocatable :: work3d(:,:,:)
+
+    write(*,*) 'gsv_writeToFileMpi: START'
+
+    if(.not.statevector%mpi_local) then
+      call abort3d('gsv_writeToFileMpi: cannot use this subroutine for mpiglobal data!')
+    endif
+
+    call tmg_start(5,'WRITETOFILE')
+
+    if(present(ip3_in)) then
+      ip3 = ip3_in
+    else
+      ip3 = 0
+    endif
+
+    ! if step index not specified, choose anltime (usually center of window)
+    if(present(indexStep_in)) then
+      indexStep = indexStep_in
+    else
+      indexStep = statevector%anltime
+    endif
+
+    ! initialization of parameters for writing to file
+    npak   = -32
+    dateo  = statevector%dateStampList(indexStep)
+    deet   = 0
+    npas   = 0
+    ni     = statevector%hco%ni
+    nj     = statevector%hco%nj
+    nk     = 1
+    ip2    = 0
+    typvar = 'R'
+    etiket = trim(Etiket_in)
+    grtyp  = statevector%hco%grtyp
+    ig1    = statevector%hco%ig1
+    if ( statevector % hco % grtyp == 'G' .and.  &
+         statevector % hco % ig2   ==  1   ) then
+       FlipLatitude  = .true. 
+       ig2          = 0
+    else
+      FlipLatitude  = .false.
+      ig2          =  statevector%hco%ig2
+    end if
+    ig3    = statevector%hco%ig3
+    ig4    = statevector%hco%ig4
+    datyp  = 1
+
+    nlev = max(gsv_getNumLev(statevector,'MM'),gsv_getNumLev(statevector,'TH'))
+    ! for each level determine which processor should do the reading
+    do jlev = 1, nlev
+      writeLevPE(jlev) = mod(jlev-1,mpi_nprocs)
+    enddo
+    iDoWriting = (mpi_myid+1).le.nlev
+
+    !
+    !- Write the global StateVector
+    !
+    if (iDoWriting) then
+
+      write(*,*) 'gsv_writeToFileMpi: START of writing to file'
+
+      !- Open output field
+      nulfile = 0
+      write(charProcId,'(i3.3)') mpi_myid
+      fileName_full = trim(fileName)//'_proc'//charProcId
+      write(*,*) 'gsv_writeToFileMpi: file name = ',trim(fileName_full)
+      ierr = fnom(nulfile,trim(fileName_full),'RND',0)
+       
+      if ( ierr >= 0 ) then
+        write(*,*)'gsv_writeToFileMpi: increment file opened with unit number ',nulfile
+        ierr  =  fstouv(nulfile,'RND')
+      else
+        call abort3d('gsv_writeToFileMpi: problem opening output file, aborting!')
+      end if
+
+      if (nulfile == 0 ) then
+        call abort3d('gsv_writeToFileMpi: unit number for output file not valid!')
+      endif
+
+      !- Write TicTacToc
+      if(mpi_myid.eq.0) call WriteTicTacToc(statevector,nulfile) ! IN
+
+    endif
+
+    allocate(work2d(statevector%hco%ni,statevector%hco%nj))
+    allocate(gd_send_r4(statevector%lonPerPE,statevector%latPerPE,mpi_nprocs))
+    allocate(gd_recv_r4(statevector%lonPerPE,statevector%latPerPE,mpi_nprocs))
+
+    do jvar = 1, vnl_numvarmax 
+ 
+      if (gsv_varExist(vnl_varNameList(jvar)) ) then
+        field => gsv_getField(statevector,vnl_varNameList(jvar))
+
+        nlev = gsv_getNumLev(statevector,vnl_vartypeFromVarname(vnl_varNameList(jvar)))
+
+        allocate(work3d(statevector%myLonBeg:statevector%myLonEnd,nlev, &
+                        statevector%myLatBeg:statevector%myLatEnd))
+        work3d(:,:,:) = field(statevector%myLonBeg:statevector%myLonEnd,1:nlev, &
+                              statevector%myLatBeg:statevector%myLatEnd,indexStep)
+
+        ! convert LQ to HU if statevector_ref is present
+        if(trim(vnl_varNameList(jvar)) == 'HU' .and. present(statevector_ref)) then
+          field_ref => gsv_getField(statevector_ref,vnl_varNameList(jvar))
+          work3d(:,:,:) = work3d(:,:,:)*  &
+              exp(field_ref(statevector%myLonBeg:statevector%myLonEnd,1:nlev, &
+                            statevector%myLatBeg:statevector%myLatEnd,indexStep))
+        endif
+
+        do batchnum = 1, ceiling(dble(nlev)/dble(mpi_nprocs))
+
+          jlev      = (batchnum-1)*mpi_nprocs + mpi_myid + 1
+          jlev_last = min(nlev,batchnum*mpi_nprocs)
+
+!$OMP PARALLEL DO PRIVATE(jlev2,yourid)
+          do jlev2 = 1+(batchnum-1)*mpi_nprocs, jlev_last
+            yourid = writeLevPE(jlev2)
+            gd_send_r4(:,:,yourid+1) =  &
+                real(work3d(statevector%myLonBeg:statevector%myLonEnd,jlev2, &
+                            statevector%myLatBeg:statevector%myLatEnd),4)
+          enddo
+!$OMP END PARALLEL DO
+
+          nsize = statevector%lonPerPE*statevector%latPerPE
+          if(mpi_nprocs.gt.1) then
+            call rpn_comm_alltoall(gd_send_r4,nsize,"mpi_real4",  &
+                                   gd_recv_r4,nsize,"mpi_real4","GRID",ierr)
+          else
+            gd_recv_r4(:,:,1) = gd_send_r4(:,:,1)
+          endif
+
+!$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
+          do youridy = 0, (mpi_npey-1)
+            do youridx = 0, (mpi_npex-1)
+              yourid = youridx + youridy*mpi_npex
+                work2d(statevector%allLonBeg(youridx+1):statevector%allLonEnd(youridx+1),  &
+                       statevector%allLatBeg(youridy+1):statevector%allLatEnd(youridy+1)) = &
+                  gd_recv_r4(:,:,yourid+1)
+            enddo
+          enddo
+!$OMP END PARALLEL DO
+
+          ! now do writing
+          if (iDoWriting.and.jlev.le.nlev) then
+
+            if (nlev /= 1) then
+              if (vnl_vartypeFromVarname(vnl_varNameList(jvar)) == 'MM') then
+                ip1 = statevector%vco%ip1_M(jlev)
+              else
+                ip1 = statevector%vco%ip1_T(jlev)
+              end if
+            else
+              ip1 = 0
+            end if
+            nomvar = trim(vnl_varNameList(jvar))
+
+            ! if variable name is HU, write with name LQ (unless a reference state was supplied)
+            if(trim(nomvar) == 'HU' .and. .not.present(statevector_ref)) nomvar = 'LQ'
+
+            if ( trim(nomvar) == 'UU' .or. trim(nomvar) == 'VV') then
+              factor = MPC_KNOTS_PER_M_PER_S_R4 ! m/s -> knots
+            else if ( trim(nomvar) == 'P0' ) then
+              factor = 0.01 ! Pa -> hPa
+            else
+              factor = 1.0
+            end if
+
+            if (present(scaleFactor)) factor = factor * real(scaleFactor,4)
+
+            !- Scale and flip in latitude, if necessary
+            if ( FlipLatitude ) then
+!$OMP PARALLEL
+!$OMP DO PRIVATE (ji,jj)
+              do ji = 1, ni
+                do jj = 1, nj/2
+                  work               = work2d(ji,jj)
+                  work2d(ji,jj     ) = factor * work2d(ji,nj-jj+1)
+                  work2d(ji,nj-jj+1) = factor * work
+                end do
+              end do
+!$OMP END DO
+!$OMP END PARALLEL
+            else
+              work2d(:,:) = factor * work2d(:,:)
+            end if
+
+            !- Writing to file
+            ierr = fstecr(work2d, work, npak, nulfile, dateo, deet, npas, ni, nj, &
+                          nk, ip1, ip2, ip3, typvar, nomvar, etiket, grtyp,      &
+                          ig1, ig2, ig3, ig4, datyp, .true.)
+
+          endif ! iDoWriting
+
+        enddo ! batchnum
+
+        deallocate(work3d)
+
+      end if ! varExist
+
+    enddo ! jvar
+
+    deallocate(work2d)
+    deallocate(gd_send_r4)
+    deallocate(gd_recv_r4)
+
+    if(iDoWriting) then
+      ierr = fstfrm(nulfile)
+      ierr = fclos(nulfile)        
+    endif
+       
+    call tmg_stop(5)
+    write(*,*) 'gsv_writeToFileMpi: END'
+
+  end subroutine gsv_writeToFileMpi
 
   !--------------------------------------------------------------------------
   ! WriteTicTacToc

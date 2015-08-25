@@ -40,7 +40,7 @@ module HorizontalCoord_mod
   public :: struct_hco
 
   ! Public Subroutines
-  public :: hco_SetupFromFile, hco_Get
+  public :: hco_SetupFromFile, hco_Get, hco_equal
 
 
   type :: struct_hco
@@ -418,7 +418,7 @@ module HorizontalCoord_mod
     real(8) :: dx, next_lon
 
     dx       = lon(2) - lon(1)
-    next_lon = lon(ni) + dx
+    next_lon = lon(ni) + 1.5d0 * dx
 
     write(*,*)
     write(*,*) 'dx       = ',dx
@@ -426,8 +426,7 @@ module HorizontalCoord_mod
     write(*,*) 'next_lon = ',next_lon
     write(*,*) 'lon(1)   = ',lon(1)
 
-    if ( abs(next_lon - 360.0d0 - lon(1)) < dx/2.0d0 .or. &
-         lon(1) == lon(ni) ) then
+    if ( next_lon - lon(1) > 360.0d0 ) then
 
       global = .true.
       if ( lon(1) == lon(ni) ) then
@@ -447,5 +446,58 @@ module HorizontalCoord_mod
     end if
 
   end subroutine global_or_lam
+
+  function hco_equal(hco1, hco2) result(equal)
+    implicit none
+    type(struct_hco), pointer :: hco1, hco2
+    logical                   :: equal
+
+    equal = .true.
+    equal = equal .and. (hco1%ni == hco2%ni)
+    equal = equal .and. (hco1%nj == hco2%nj)
+    if (.not. equal) then
+      write(*,*) 'hco_equal: dimensions not equal'
+      return
+    endif
+
+    equal = equal .and. (hco1%grtyp   ==    hco2%grtyp)
+    if (.not. equal) then
+      write(*,*) 'hco_equal: grid type not equal'
+      return
+    endif
+
+    equal = equal .and. (hco1%dlat == hco2%dlat)
+    equal = equal .and. (hco1%dlon == hco2%dlon)
+    if (.not. equal) then
+      write(*,*) 'hco_equal: grid spacing not equal'
+      return
+    endif
+
+    if(hco1%grtyp .eq. 'G') then
+      equal = equal .and. (hco1%ig2 == hco2%ig2)
+      if (.not. equal) then
+        write(*,*) 'hco_equal: Gaussian grid ig2 not equal'
+        return
+      endif
+    endif    
+
+    equal = equal .and. (hco1%rotated .eqv. hco2%rotated)
+    equal = equal .and. (hco1%xlat1   ==    hco2%xlat1)
+    equal = equal .and. (hco1%xlon1   ==    hco2%xlon1)
+    equal = equal .and. (hco1%xlat2   ==    hco2%xlat2)
+    equal = equal .and. (hco1%xlon2   ==    hco2%xlon2)
+    if (.not. equal) then
+      write(*,*) 'hco_equal: rotation not equal'
+      return
+    endif
+
+    equal = equal .and. all(hco1%lat(:) == hco2%lat(:))
+    equal = equal .and. all(hco1%lon(:) == hco2%lon(:))
+    if (.not. equal) then
+      write(*,*) 'hco_equal: lat/lon not equal'
+      return
+    endif
+
+  end function hco_equal
 
 end module HorizontalCoord_mod

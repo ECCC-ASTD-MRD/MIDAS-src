@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 
-subroutine perturbObs(obsSpaceData,numAnalyses,indexAnalysis)
+subroutine perturbObs(obsSpaceData,numAnalyses,indexAnalysis,obs_column_index_src,obs_column_index_dest)
   !
   !Purpose:
   ! Perturb the innovation vector to simulate effect of observation uncertainty
@@ -29,17 +29,15 @@ subroutine perturbObs(obsSpaceData,numAnalyses,indexAnalysis)
 
   type(struct_obs) :: obsSpaceData
   integer :: numAnalyses,indexAnalysis,numPerturbations
-  integer :: nrandseed,iseed,indexMember,indexBody,indexFamily
+  integer :: obs_column_index_src,obs_column_index_dest
+
+  integer :: nrandseed,iseed,indexMember,indexBody,indexFamily,iass
   integer, parameter :: numFamily=9
   real*8  :: zdum,zmean,gasdev,originalOmp
   real*8  :: scaleFactor(numFamily)
   character(len=2) :: familyList(numFamily)
   real*8, save, pointer :: obsPerturbations(:,:) => NULL()
   logical, save :: firstTime = .true.
-
-  write(*,*) '----------------------------------'
-  write(*,*) '--Starting subroutine perturbObs--'
-  write(*,*) '----------------------------------'
 
   familyList(1)='UA' ; scaleFactor(1)=1.00d0
   familyList(2)='AI' ; scaleFactor(2)=1.00d0
@@ -69,7 +67,7 @@ subroutine perturbObs(obsSpaceData,numAnalyses,indexAnalysis)
     ! compute random perturbations
     do indexMember = 1,numPerturbations
       do indexBody = 1,obs_numBody(obsSpaceData)      
-        obsPerturbations(indexBody,indexMember)=gasdev(1)*obs_bodyElem_r(obsSpaceData,obs_oer,indexBody)
+        obsPerturbations(indexBody,indexMember)=gasdev(1)*obs_bodyElem_r(obsSpaceData,OBS_OER,indexBody)
       enddo
     enddo
 
@@ -103,8 +101,11 @@ subroutine perturbObs(obsSpaceData,numAnalyses,indexAnalysis)
   ! apply perturbation for current analysis
   write(*,*) 'perturbObs: applying perturbation for member: ',indexAnalysis
   do indexBody = 1,obs_numBody(obsSpaceData)      
-    originalOmp = obs_bodyElem_r(obsSpaceData,obs_omp,indexBody)
-    call obs_bodySet_r(obsSpaceData,obs_omp,indexBody,originalOmp+obsPerturbations(indexBody,indexAnalysis))
+    iass = obs_bodyElem_i(obsSpaceData,OBS_ASS,indexBody)
+    if(iass.eq.1 .or. iass.eq.-1) then
+      originalOmp = obs_bodyElem_r(obsSpaceData,obs_column_index_src,indexBody)
+      call obs_bodySet_r(obsSpaceData,obs_column_index_dest,indexBody,originalOmp+obsPerturbations(indexBody,indexAnalysis))
+    endif
   enddo
 
 end subroutine perturbObs

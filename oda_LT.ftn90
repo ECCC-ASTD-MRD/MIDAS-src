@@ -82,7 +82,7 @@ subroutine oda_LT(statevector,column,columng,lobsSpaceData)
   !- 1.  Interpolation to obs location
   !
   if ( mpi_myid == 0 ) THEN
-     write(*,*) ' ODA_LT - Adjoint of horizontal interpolation GD --> MVO'
+     write(*,*) 'ODA_LT - Adjoint of horizontal interpolation GD --> MVO'
   endif
   
   !- 1.2a Horizontal interpolation of 3D fields

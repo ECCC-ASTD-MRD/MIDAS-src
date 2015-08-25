@@ -1,7 +1,6 @@
 #!/bin/ksh
 
 mode=$1
-#nompi=$2
 
 if [ "$mode" == "" ] ; then
   echo " "
@@ -32,45 +31,49 @@ else
   echo
 fi
 
-#if [ "$nompi" = "NOMPI" -o "$nompi" = "nompi" ] ; then
-#  echo " !!! Compiling for a NON-MPI executable !!! "
-#  echo ""
-#  MPILIB="rpn_commstubs_40511 rpn_comm_40511"
-#  MPIKEY=""
-#  ABSTAG="_NOMPI"
-#else
-  echo " !!! Compiling for an MPI executable !!!"
-  echo ""
-  MPILIB="rpn_comm_40511"
-  MPIKEY="-mpi"
-  ABSTAG=""
-#fi
+echo " Compiling for an MPI executable (even if calcstats in not MPI capable)"
+echo ""
+MPILIBDIR="-libpath /users/dor/arma/gr3/userlibs/AIX-powerpc7/xlf13" # JFC : Mesure temporaire pour avoir acces a
+MPILIB="rpn_comm_adj_halo8"                                          #       la S-R RPN_COMM_adj_halo8 de M. Valin
+MPIKEY="-mpi"
+ABSTAG=""
 
 calcstatsdir=$PWD
 trunkdir=$PWD/../
 
-# Load the appropriate librairies
-. ssmuse-sh -d hpcs/13b/04/base
+## for s.compile
+echo "loading hpcs/201402/02/base"
+. ssmuse-sh -d hpcs/201402/02/base
+
 ## for the compiler
+echo "loading compiler hpcs/ext/xlf_13.1.0.10"
 . ssmuse-sh -d hpcs/ext/xlf_13.1.0.10
-## for rmn_014, lapack_3.4.0, rpncomm
-. ssmuse-sh -d rpn/libs/15.0
-. s.ssmuse.dot ENV/d/x/modelutils/modelutils_1.1.0-a8
-. ssmuse-sh -d /ssm/net/cmdn/vgrid/5.3.0-a2/xlf13
-. s.ssmuse.dot cmda
+
+## for rmn, lapack_3.4.0, rpncomm
+echo "loading rpn/libs/15.2"
+. ssmuse-sh -d rpn/libs/15.2
+
+## for 'vgrid'
+echo "loading cmdn/vgrid/5.3.2/${COMP_ARCH}"
+. ssmuse-sh -d cmdn/vgrid/5.3.2/${COMP_ARCH}
+
+## for 'burplib'
+echo "loading cmda/base/201411/01/${COMP_ARCH}"
+. ssmuse-sh -d cmda/base/201411/01/${COMP_ARCH}
+
+## For RTTOV 10v1 package... 
+echo "loading arma/rttov/10v1"
 . ssmuse-sh -d arma/rttov/10v1
 
 ## For hpcsperf needed for TMG timings
 . ssmuse-sh -d hpcs/exp/aspgjdm/perftools
 
 VAR3D_VERSION="11.2.1"
-LIBAPPL="rttov10.2.0_coef_io rttov10.2.0_main rttov10.2.0_other burp_module modelutils_base descrip $MPILIB"
+LIBAPPL="rttov10.2.0_coef_io rttov10.2.0_main rttov10.2.0_other burp_module descrip $MPILIB"
 
 LIBSYS="essl mass"
-LIBRMN="rmn_015"
+LIBRMN="rmn"
 LIBEXTRA="hpcsperf lapack-3.4.0"
-MODBURP="BURP1.3"
-DEFINE="-DNEC=nec -DIBM=ibm"
 COMPF_NOC="-openmp $MPIKEY -O"
 #COMPF="$COMPF_NOC"
 COMPF="$COMPF_NOC -debug DEBUG -optf=-C "
@@ -140,7 +143,7 @@ if [ $mode == full ] ; then
   if [ $? = "0" ] ; then exit ; fi
 
   echo "building the executable..."
-  s.compile $COMPF -libappl $LIBAPPL $LIBEXTRA -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o calcstats_p7.abs$ABSTAG > listing5 2>&1
+  s.compile $COMPF ${MPILIBDIR} -libappl $LIBAPPL $LIBEXTRA -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o calcstats_p7.abs$ABSTAG > listing5 2>&1
 
   grep -i ERROR listing?
   if [ $? = "0" ] ; then exit; echo "ERROR found: STOP" ; fi
@@ -157,7 +160,7 @@ elif [ $mode == abs ] ; then
   echo
   echo "building the executable..."
   echo
-  s.compile $COMPF -libappl $LIBAPPL $LIBEXTRA -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o calcstats_p7.abs$ABSTAG
+  s.compile $COMPF ${MPILIBDIR} -libappl $LIBAPPL $LIBEXTRA -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o calcstats_p7.abs$ABSTAG
 
 else
 
