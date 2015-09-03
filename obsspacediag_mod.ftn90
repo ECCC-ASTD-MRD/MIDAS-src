@@ -604,6 +604,7 @@ contains
 !-------------------------------------------------------------------------------------------
 
     use earthconstants_mod
+    use chem_interface_mod
 
     implicit none
 
@@ -620,62 +621,15 @@ contains
     logical :: unilev_elemID(nmax)
     character(len=256) :: label,filename
     real(8) :: lat,lon
-    logical :: unilevel,print_summary,add_obs,all_combos
+    logical :: unilevel,print_summary,add_obs
     real(8), allocatable :: zobslev(:), lev(:), omp(:), oma(:), obs(:), jo(:), pres_mod(:), sigma_obs(:)
     logical, allocatable :: success(:)
     real(8), pointer :: gz_mod(:)
 
     filename = 'obsspace_diag_CH_' ! Date added to name by transfer script.
     
-    call chm_comboIdlist(all_combos=all_combos)
-    
-    if (all_combos) then
-    
-       ! Loop over obs to find all (stnid,varno) pairs to form a common sequence of search pairs
-       ! over all processors. The prescribed starting stnid selections can have wild card 
-       ! characters (via *, see routine chm_comboIdlist).
-
-       call obs_set_current_header_list(obsSpaceData,'CH')
-       HEADER1: do
-          headerIndex = obs_getHeaderIndex(obsSpaceData)
-          if (headerIndex < 0) exit HEADER1
-         
-          ! Body info that we only need for first point in the profile
-          bodyIndex = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)     
-          vco = obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex)
-
-          if (vco.ne.1 .and. vco.ne.2 .and. vco.ne.4) then
-             ! Vertical coordinate not handled
-             write(*,*) 'osd_chem_diagnostics: Currently unaccounted VCO = ',vco
-             cycle HEADER1
-          end if
-          
-          ! Identify varno and nlev_obs (exclude 8090 elements)
-          nlev_obs = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex)
-          call obs_set_current_body_list(obsSpaceData,headerIndex)
-          do
-             bodyIndex = obs_getBodyIndex(obsSpaceData)
-             if (bodyIndex < 0) exit
-             if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex).eq.8090) then
-                nlev_obs = nlev_obs-1
-             else
-                varno=obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
-             end if
-          end do
-
-          ! Adds to running list of unique pairs if unique
-          call chm_comboIdlist(stnid_add=obs_elem_c(obsSpaceData,'STID',headerIndex), varno_add=varno, unilev_add=(nlev_obs.eq.1.and.vco.eq.4))
-                       
-       end do HEADER1
-       
-       ! Get a common sequence of search pairs over all processors. 
-       
-       call chm_comboIdlist(gather_mpi=.true.)
-       
-    end if
-    
-    ! Get list of unique pairs
-    call chm_comboIdlist(stnid_list=stnid_elemID, varno_list=varno_elemID, unilev_list=unilev_elemID, num_elements=num_elemID, nset=nset)
+    ! get combination lists to group diagnostics by
+    call chm_get_comboIdlist(obsSpaceData,stnid_elemID,varno_elemID,unilev_elemID,num_elemID,nset)
     
     if (num_elemID.eq.0) return
 
@@ -684,7 +638,8 @@ contains
        write(*,*) "osd_chem_diagnostics: Observation-space diagnostics for chemical constituents"
        write(*,*)
     end if
-    
+
+
     ! Loop over all pairs in *_elemID lists
     
     call flush(6)

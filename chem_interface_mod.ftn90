@@ -1,0 +1,435 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+
+#include "maincompileswitch.inc"
+#include "compileswitches.inc"
+
+module chem_interface_mod
+!
+! Module managers: Mike Sitwell and Yves Rochon (ARQI/AQRD)
+!
+! PURPOSE:
+!    Provides an interface to chem_mod so that functions and subroutines in chem_mod are
+!    kept independent of structures outside of chem_mod (e.g. struct_obs,struct_columnData,etc...)
+!
+!-----------------------------------------------------------------------------------
+  implicit none
+  private
+
+! public procedures
+! -----------------
+
+  public :: chm_obseravation_operators,chm_get_comboIdlist
+
+
+contains
+  
+!-----------------------------------------------------------------------------------
+  subroutine chm_observation_operators(column_bkgrnd,obsSpaceData,kmode,column_inc,jobs)
+! 
+! Author: Mike Sitwell,  ARQI/AQRD Aug 2015
+!         - Amalgamatated into a single unit from the original content of subroutines oonl_chm, 
+!           oda_H, oda_HTchm, and compute_HBHT_static_chm produced from earlier developments 
+!           by Ping Du, CMDA/MSC (Jan/Feb 2015), Y. Rochon and M. Sitwell (ARQI/AQRD)
+!
+! Revision:
+!
+! Purpose: Apply the observation operators for chemical constituents. Mode of operator
+!          set by kmode.
+!
+! Input
+!
+!   kmode           Mode of observation operator, with values
+!                     0 for general (non-linear and linear) simulation operator
+!                     1 for determination of sqrt(diag(H*B*H^T))
+!                     2 for tangent linear operator
+!                     3 for adjoint of tangent linear operator
+!
+!   column_bkgrnd   Column of x_background interpolated to observation location. Can
+!                   have the same vertical levels as the trail field (columnhr) or
+!                   as the increment field (columng)
+!
+!   obsSpaceData    Observation space data
+!
+! Output
+!
+!   For kmode values of 0) OmP and total Jo(x_background) for CH. 
+!                          OmP saved in OBS_OMP of obsSpaceData
+!                       1) background error standard deviations in
+!                          observation space, sqrt(diag(H*B_static*H^T)).
+!                          Saved in OBS_HPHT of obsSpaceData
+!                       2) Hdx saved in OBS_WORK of obsSpaceData
+!                       3) H^T * R^-1 (OmP-Hdx) in column_inc
+!
+!   jobs            Optional output of total Jo(x_background) for chemical constituents. 
+!                   Required for kmode=0 and not provided otherwise.
+!
+! Inout
+!
+!   column_inc      Optional argument for input/output of column of increment (column).
+!                   For kmode=2, used as input for increment H_horiz dx interpolated
+!                   to observation location. For kmode=3, used as output for
+!                   H^T * R^-1 (OmP-Hdx). Required for kmode=2,3.
+!
+!-----------------------------------------------------------------------------------
+
+    use chem_mod
+    use codtyp_mod
+    use obsSpaceData_mod
+    use columnData_mod
+
+    implicit none
+    
+    ! Subroutine arguments
+
+    type(struct_columnData), intent(inout) :: column_bkgrnd
+    type(struct_columnData), intent(inout), optional :: column_inc
+    type(struct_obs), intent(inout) :: obsSpaceData
+    integer, intent(in) :: kmode
+    real(8), intent(out), optional :: jobs
+
+    ! Local variables
+    
+    real(8) :: zomp,zinc
+    integer :: jl
+
+    ! Obs space local variables
+
+    character(len=4)  :: varName
+    character(len=12) :: cstnid
+    integer :: headerIndex,bodyIndex,bodyIndexCount
+    integer :: ivnm, ivco, varno
+    integer :: icodtyp, iobslev, nobslev
+    integer :: isunza,idate,ihhmm
+    integer :: iconstituent_id
+    real(8) :: zlat,zlon
+
+    integer, allocatable :: ixtr(:), iass(:)
+    real(8), allocatable :: zobslev(:)
+    logical, allocatable :: success(:)
+
+    ! Local variables: model space profile data
+
+    character(len=2)   :: varType
+    real(8), allocatable :: zppb(:),zvalb(:),zttb(:),zvalinc(:),zhx(:)
+    real(8), pointer :: col_ptr_gzb(:),col(:)
+    integer :: nlev_bkgrnd, nlev_inc   
+    
+    if ((kmode.eq.2.or.kmode.eq.3) .and. (.not.present(column_inc))) then
+       write(*,*) "chm_observation_operators: column_inc must be specified for kmode = ",kmode
+       call abort3d("chm_observation_operators")
+    end if
+
+    ! Initializations
+    
+    if (present(jobs)) jobs = 0.d0
+
+    varType = 'TH'
+
+    nlev_bkgrnd = col_getNumLev(column_bkgrnd,varType)
+    if (kmode.eq.2) nlev_inc = col_getNumLev(column_inc,varType)
+
+    allocate(zvalb(nlev_bkgrnd))
+    allocate(zttb(nlev_bkgrnd))
+    allocate(zppb(nlev_bkgrnd))
+    
+    if (kmode.eq.2) then
+       allocate(zvalinc(nlev_inc))
+    else
+       allocate(zvalinc(nlev_bkgrnd))
+    end if
+
+    ! Loop over all header indices of the 'CH' family:
+    
+    call obs_set_current_header_list(obsSpaceData,'CH')
+    HEADER: do
+      headerIndex = obs_getHeaderIndex(obsSpaceData)
+      if (headerIndex < 0) exit HEADER
+
+      icodtyp  = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
+
+      if (icodtyp.ne.codtyp_chemremote.and.icodtyp.ne.codtyp_cheminsitu) cycle HEADER
+
+      ! Get obs space info that are part of the profile header
+      cstnid    = obs_elem_c(obsSpaceData,'STID',headerIndex)
+      nobslev   = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex)
+      idate     = obs_headElem_i(obsSpaceData,OBS_DAT,headerIndex)
+      ihhmm     = obs_headElem_i(obsSpaceData,OBS_ETM,headerIndex)
+      isunza    = obs_headElem_i(obsSpaceData,OBS_SUN,headerIndex)
+      iconstituent_id = obs_headElem_i(obsSpaceData,OBS_CHM,headerIndex)
+      zlat = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex) 
+      zlon = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex) 
+
+      ! Body info that we only need for first point in the profile
+      bodyIndex = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)     
+      ivco      = obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex)
+      varno     = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
+      varName = vnl_varnameFromVarnum(obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex), iconstituent_id)
+
+      ! Identify max number of profile points in the profile (exclude 8090 elements)
+      do jl=0,obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex)-1
+          if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex+jl).eq.8090) nobslev = nobslev-1
+      end do
+
+      ! Allocate memory for profile data
+      allocate(ixtr(nobslev), iass(nobslev))
+      allocate(zobslev(nobslev), zhx(nobslev))
+      allocate(success(nobslev))
+
+      ! Get trial/background column data at observation location
+      do jl = 1, nlev_bkgrnd
+         zppb(jl) = col_getPressure(column_bkgrnd,jl,headerIndex, varType)
+         zvalb(jl) = col_getElem(column_bkgrnd,jl,headerIndex,varName)
+         zttb(jl) = col_getElem(column_bkgrnd,jl,headerIndex,'TT')
+      enddo
+      col_ptr_gzb => col_getColumn(column_bkgrnd,headerIndex,'GZ','TH')
+      
+      ! Initialize zvalinc, dependent on kmode.
+      ! zvalinc represents for kmode 0) the horizontally interpolated background H_horiz(x_b)
+      !                              1) not used
+      !                              2) the analysis increment H_horiz dx
+      !                              3) the result of applying the adjoint of H_vert 
+      select case(kmode)
+      case(0)
+         zvalinc(1:nlev_bkgrnd) = zvalb(1:nlev_bkgrnd)
+      case(2)
+         do jl = 1, nlev_inc
+            zvalinc(jl) = col_getElem(column_inc,JL,headerIndex,varName)
+         end do
+      case(1,3)
+         zvalinc(:) = 0.0
+      end select
+               
+      ! Loop over all body indices (profile elements) for this report
+      
+      iobslev=0
+      call obs_set_current_body_list(obsSpaceData,headerIndex)
+      BODY1: do
+        bodyIndex = obs_getBodyIndex(obsSpaceData)
+        if (bodyIndex < 0) exit BODY1
+
+        ! Get position in profile and skip over 08090 elements
+
+        ivnm = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
+        if (ivnm.ne.08090) then
+           iobslev=iobslev+1
+           varno=ivnm   ! varno/ivnm is expected to be the same for all profile points with ivnm.ne.8090
+        else
+           cycle BODY1
+        end if
+
+        ixtr(iobslev) = obs_bodyElem_i (obsSpaceData,OBS_XTR,bodyIndex)
+        iass(iobslev) = obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex)
+
+        ! Get vertical coordinate data. Valid for point data values in profiles.
+        ! For layer data values, vertical coordinate data will instead be assigned within chm_obsoperators.
+
+        zobslev(iobslev) = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
+
+        ! Get normalized increment
+        if (kmode.eq.3) zhx(iobslev) = obs_bodyElem_r(obsSpaceData,OBS_WORK,bodyIndex)
+
+      enddo BODY1
+        
+      ! Apply observation operator. For kmode=1, zhx = sqrt(diag(H*B*H^T)).
+
+      call chm_obsoperators(nlev_bkgrnd,zvalinc,zvalb,zttb,zppb,col_ptr_gzb,kmode,varName,&
+           varno,cstnid,idate,ihhmm,ivco,nobslev,zobslev,ixtr,iass,zlat,zlon, &
+           iconstituent_id,success,zhx)
+               
+      ! Output results
+      
+      if (kmode.eq.3) then
+         ! Store H^T * R^-1 (OmP-Hdx) in column_inc
+         
+         col => col_getColumn(column_inc,headerIndex,varName)
+         col(1:nlev_bkgrnd) = zvalinc(1:nlev_bkgrnd)
+
+      else
+         ! Store results in obsSpaceData
+
+         iobslev=0
+         call obs_set_current_body_list(obsSpaceData,headerIndex)
+         BODY2: do
+            bodyIndex = obs_getBodyIndex(obsSpaceData)
+            if (bodyIndex < 0) exit BODY2
+            
+            ! Get position in profile and skip over 08090 elements
+            ivnm = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)                
+            if (ivnm.ne.08090) then
+               iobslev=iobslev+1
+            else
+               cycle BODY2
+            end if
+
+            ! Check for success in calculations
+            if (.not.success(iobslev)) then
+               call obs_bodySet_i(obsSpaceData,OBS_XTR,bodyIndex,1)
+               call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
+               if (kmode.eq.1) call obs_bodySet_r(obsSpaceData,OBS_HPHT,bodyIndex,0.0D0)
+               cycle BODY2
+            end if
+        
+            ! Store result in appropriate location in obsSpaceData            
+            select case(kmode)
+            case(0)
+            
+               ! Store OmP in OBS_OMP and add to Jo(x_background) of CH.   
+                            
+               zomp = obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex) - zhx(iobslev)
+               call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex,zomp)
+               
+               if (.not.chm_lcheck_skipassim(cstnid,varno,nobslev,iass(iobslev))) then
+                  ! Add to Jo contribution (factor of 0.5 to be applied outside report loop)
+                  zinc = zomp/obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
+                  if (present(jobs)) jobs = jobs + zinc*zinc
+               else
+                  ! Set flag to be recognized at postmin diagnostics calc in
+                  ! routine chm_obsspace_diagnostic - see also obsspacediagn_mod.ftn90)
+                  call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,3)
+               end if
+
+            case(1)
+            
+               ! Background error standard deviations in
+               ! observation space, sqrt(diag(H*B_static*H^T)), 
+               ! saved in OBS_HPHT of obsSpaceData
+
+               call obs_bodySet_r(obsSpaceData,OBS_HPHT,bodyIndex,zhx(iobslev))
+            case(2)
+            
+               !   Store Hdx in OBS_WORK of obsSpaceData
+               
+               call obs_bodySet_r(obsSpaceData,OBS_WORK,bodyIndex,zhx(iobslev))
+            end select
+
+         enddo BODY2
+
+      end if
+
+      ! Deallocate profile data
+      deallocate(ixtr,iass)
+      deallocate(zobslev,zhx)
+      deallocate(success)
+      
+    enddo HEADER
+
+    deallocate(zvalb,zttb,zppb,zvalinc)
+
+    if (present(jobs)) jobs=0.5d0*jobs
+
+  end subroutine chm_observation_operators
+  
+!-----------------------------------------------------------------------------------
+
+  subroutine chm_get_comboIdlist(obsSpaceData,stnid_list,varno_list,unilev_list,num_elements,nset)
+! 
+! Author: M. Sitwell (ARQI/AQRD), Sept 2015
+!         - Made as a separate subroutine from earlier code by
+!           Y. Rochon and M. Sitwell 
+!
+! Revisions:
+!
+! Purpose: Uses the subroutine chm_comboIdlist in chem_mod to compile a unique list of stnid,  
+!          (stnid,varno) or (stnid,varno,multi/uni-level) combinations to be used in searches.
+!
+! Input
+!
+!   obsSpaceData    Observation space data
+!
+! Output
+!
+!   stnid_list       List of unique stnids
+!   varno_list       List of unique varno
+!   unilev_list      List of unique uni/multi-level identifications
+!   num_elements     Number of unique elements in *_list arrrays
+!   nset             Integer indicating grouping, with values indicating
+!                      1: group by stnid
+!                      2: group by (stnid,bufr)
+!                      3: group by (stnid,bufr,multi/uni-level)
+!
+!-----------------------------------------------------------------------------------
+
+    use chem_mod
+    use obsSpaceData_mod
+
+    implicit none
+
+    type(struct_obs), intent(inout) :: obsSpaceData
+
+    integer, parameter :: nmax=100
+    integer, intent(out) :: num_elements,nset,varno_list(nmax)
+    character(len=9), intent(out) :: stnid_list(nmax)
+    logical, intent(out) :: unilev_list(nmax)
+
+    integer :: headerIndex,bodyIndex,vco,nlev_obs,varno
+    logical :: all_combos
+
+
+    call chm_comboIdlist(all_combos=all_combos)
+    
+    if (all_combos) then
+    
+       ! Loop over obs to find all (stnid,varno) pairs to form a common sequence of search pairs
+       ! over all processors. The prescribed starting stnid selections can have wild card 
+       ! characters (via *, see routine chm_comboIdlist).
+
+       call obs_set_current_header_list(obsSpaceData,'CH')
+       HEADER: do
+          headerIndex = obs_getHeaderIndex(obsSpaceData)
+          if (headerIndex < 0) exit HEADER
+         
+          ! Body info that we only need for first point in the profile
+          bodyIndex = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)     
+          vco = obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex)
+
+          if (vco.ne.1 .and. vco.ne.2 .and. vco.ne.4) then
+             ! Vertical coordinate not handled
+             write(*,*) 'chm_get_comboIdlist: Currently unaccounted VCO = ',vco
+             cycle HEADER
+          end if
+          
+          ! Identify varno and nlev_obs (exclude 8090 elements)
+          nlev_obs = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex)
+          call obs_set_current_body_list(obsSpaceData,headerIndex)
+          do
+             bodyIndex = obs_getBodyIndex(obsSpaceData)
+             if (bodyIndex < 0) exit
+             if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex).eq.8090) then
+                nlev_obs = nlev_obs-1
+             else
+                varno=obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
+             end if
+          end do
+
+          ! Adds to running list of unique pairs if unique
+          call chm_comboIdlist(stnid_add=obs_elem_c(obsSpaceData,'STID',headerIndex), varno_add=varno, unilev_add=(nlev_obs.eq.1.and.vco.eq.4))
+                       
+       end do HEADER
+       
+       ! Get a common sequence of search pairs over all processors. 
+       
+       call chm_comboIdlist(gather_mpi=.true.)
+       
+    end if
+    
+    ! Get list of unique pairs
+    call chm_comboIdlist(stnid_list=stnid_list, varno_list=varno_list, unilev_list=unilev_list, num_elements=num_elements, nset=nset)
+
+  end subroutine chm_get_comboIdlist
+
+
+end module chem_interface_mod

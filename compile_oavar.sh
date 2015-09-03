@@ -229,7 +229,7 @@ if [ "${mode}" == full ] ; then
   SRC1="$SRC1 lamspectraltransform_mod.ftn90  gridstatevector_mod.ftn90"
   SRC1="$SRC1 bmatrixensemble_mod.ftn90 bmatrixhi_mod.ftn90 lambmatrixhi_mod.ftn90"
   SRC1="$SRC1 bmatrixchem_mod.ftn90 bmatrix_mod.ftn90 minimization_mod.ftn90"
-  SRC1="$SRC1 chem_mod.ftn90"
+  SRC1="$SRC1 chem_mod.ftn90 chem_interface_mod.ftn90"
   SRC1="$SRC1 ozoneclim_mod.ftn90 tovs_extrap_mod.ftn90"
   SRC1="$SRC1 burpfiles_mod.ftn90 obsspacediag_mod.ftn90 observation_erreurs_mod.ftn90"
 

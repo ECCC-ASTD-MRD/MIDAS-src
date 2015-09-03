@@ -19,6 +19,8 @@
 
 module chem_mod
 !
+! Module managers: Mike Sitwell and Yves Rochon (ARQI/AQRD)
+!
 ! PURPOSE:
 !    Repository of obs space structures, arrays, and routines specific to the 
 !    CH chemical constituents family and constituent observations.
@@ -412,8 +414,11 @@ contains
   ierr=FNOM(nulnam,namfile,'R/O',0)
 
   read(nulnam,nml=namchem,iostat=ios)
-  if (ios.ne.0) write(6,*) 'chm_read_misc: error in reading NAMCHEM namelist. iostat = ',ios
-       
+  if (ios.lt.-4.or.ios.gt.0) then 
+     write(6,*) 'chm_read_misc: error in reading NAMCHEM namelist. iostat = ',ios
+     call abort3d('chm_read_misc')
+  end if
+  
   ierr=FCLOS(nulnam)      
   
   ! Set config values
