@@ -32,7 +32,7 @@ module chem_interface_mod
 ! public procedures
 ! -----------------
 
-  public :: chm_obseravation_operators,chm_get_comboIdlist
+  public :: chm_observation_operators,chm_get_comboIdlist,chm_calc_OmA_nonassim
 
 
 contains
@@ -231,7 +231,7 @@ contains
            cycle BODY1
         end if
 
-        ixtr(iobslev) = obs_bodyElem_i (obsSpaceData,OBS_XTR,bodyIndex)
+        ixtr(iobslev) = obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex)
         iass(iobslev) = obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex)
 
         ! Get vertical coordinate data. Valid for point data values in profiles.
@@ -277,8 +277,10 @@ contains
 
             ! Check for success in calculations
             if (.not.success(iobslev)) then
-               call obs_bodySet_i(obsSpaceData,OBS_XTR,bodyIndex,1)
-               call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
+               if (iass(iobslev).ne.3.or.kmode.lt.2) then
+                  call obs_bodySet_i(obsSpaceData,OBS_XTR,bodyIndex,1)
+                  call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
+               end if
                if (kmode.eq.1) call obs_bodySet_r(obsSpaceData,OBS_HPHT,bodyIndex,0.0D0)
                cycle BODY2
             end if
@@ -298,7 +300,7 @@ contains
                   if (present(jobs)) jobs = jobs + zinc*zinc
                else
                   ! Set flag to be recognized at postmin diagnostics calc in
-                  ! routine chm_obsspace_diagnostic - see also obsspacediagn_mod.ftn90)
+                  ! routine chm_calc_OmA_nonassim
                   call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,3)
                end if
 
@@ -431,5 +433,371 @@ contains
 
   end subroutine chm_get_comboIdlist
 
+!-----------------------------------------------------------------------------------
+
+  subroutine chm_calc_OmA_nonassim(columng,obsSpaceData)
+!
+! Author: M. Sitwell Sept 2015
+!
+! Revisions:
+!
+! Purpose: Calculates the OmA for non-assimilated as identified by chm_lcheck_skipassim.
+!          The non-assimilated observations where the OmA is to be calculated is
+!          identified by an OBS_ASS value of 3, which is set in the subroutine
+!          chm_observation_operators.
+!
+! InOut
+!
+!   columng          Background field interpolated to observation locations 
+!   obsSpaceData     Observation space data
+!
+!-----------------------------------------------------------------------------------
+
+    use obsSpaceData_mod
+    use controlVector_mod
+    use columnData_mod
+    use gridStateVector_mod
+
+    implicit none
+
+    type(struct_columnData), intent(inout) :: columng
+    type(struct_obs), intent(inout) :: obsSpaceData
+
+    type(struct_gsv) :: statevector
+    type(struct_columnData) :: column
+    integer :: bodyIndex,iass,headerIndex,ierr
+    logical :: calc_OmA,calc_OmA_global
+
+    calc_OmA = .false.
+    
+    ! Temporarily switch OBS_ASS values of 1 with 4 and 3 with 1
+    call obs_set_current_body_list(obsSpaceData,'CH')
+    BODY1: DO
+       bodyIndex = obs_getBodyIndex(obsSpaceData)
+       if (bodyIndex < 0) exit BODY1
+       iass = obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex)
+       if (iass.eq.1) then
+          call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,4)
+       else if (iass.eq.3) then
+          call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,1)
+          calc_OmA = .true.
+       end if
+    end DO BODY1
+    
+    call rpn_comm_allreduce(calc_OmA,calc_OmA_global,1,"MPI_LOGICAL","MPI_LOR","GRID",ierr)
+
+    if (calc_OmA_global) then
+       
+       ! Initialize columnData object for increment
+       call col_setVco(column,col_getVco(columng))
+       call col_allocate(column,col_getNumCol(columng),mpi_local=.true.)
+       call col_copyLatLon(columng,column)
+       
+       ! Get the increment from the control vector
+       call chm_get_increment(columng,statevector)
+      
+       ! Put H_horiz dx in column 
+       call chm_horizontal_interp(statevector,column,columng,obsSpaceData) 
+       
+       ! Call tangent linear operator (kmode=2) and save Hdx in OBS_WORK
+       call chm_observation_operators(columng,obsSpaceData,kmode=2,column_inc=column) 
+       
+       ! Calculate OBS_OMA from OBS_WORK (from oda_res)
+       call obs_set_current_body_list(obsSpaceData,'CH')
+       BODY2: DO
+          bodyIndex = obs_getBodyIndex(obsSpaceData)
+          if (bodyIndex < 0) exit BODY2
+          if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex).eq.1) then
+             call  obs_bodySet_r(obsSpaceData,OBS_OMA,bodyIndex, &
+                  obs_bodyElem_r(obsSpaceData,OBS_OMP,bodyIndex) &
+                 -obs_bodyElem_r(obsSpaceData,OBS_WORK,bodyIndex) )
+          endif
+       enddo BODY2
+
+    end if
+       
+    ! Switch OBS_ASS values back from 4 to 1 and 1 to 0
+    call obs_set_current_body_list(obsSpaceData,'CH')
+    BODY3: DO
+       bodyIndex = obs_getBodyIndex(obsSpaceData)
+       if (bodyIndex < 0) exit BODY3
+       iass = obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex)
+       if (iass.eq.4) then
+          call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,1)
+       else if (iass.eq.1) then
+          call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
+       end if
+    end DO BODY3
+
+  end subroutine chm_calc_OmA_nonassim
+
+!-----------------------------------------------------------------------------------
+
+  subroutine chm_get_increment(columng,statevector)
+!
+! Author: M. Sitwell Sept 2015
+!
+! Purpose: Returns the analysis increment from the control vector via B^(1/2). The
+!          call to apply B^1/2 is taken from the subroutine bmat_sqrtB.
+!
+! Input
+!
+!   columng          background field at observation locations (with same vertical
+!                    levels as the increment)
+!
+! Output
+!
+!   statevector      the analysis increment
+!
+! Comment:
+!
+! 1) Ensemble-based part commented out until bmatrixChemEns_mod.ftn is developed.
+!
+!-----------------------------------------------------------------------------------
+
+    use controlVector_mod
+    use gridStateVector_mod
+    use verticalCoord_mod
+    use HorizontalCoord_mod
+    use columnData_mod
+    use timeCoord_mod
+    use bMatrixChem
+
+    implicit none
+
+    type(struct_columnData), intent(inout) :: columng
+    type(struct_gsv), intent(inout) :: statevector
+    type(struct_gsv)  :: statevector_temp
+
+    type(struct_hco), pointer :: hco_anl
+    type(struct_vco), pointer :: vco_anl
+    real(8), pointer :: cvBchm(:),cvbChmEns(:)
+
+    ! Static covariance matrix component
+
+    ! Initialize the statevector
+    
+    hco_anl => hco_Get('Analysis')
+    vco_anl => col_getVco(columng)
+
+    call gsv_setVco(statevector,vco_anl)
+    call gsv_setHco(statevector,hco_anl)
+    call gsv_allocate(statevector,tim_nstepobsinc,mpi_local=.true.)
+    call gsv_zero(statevector) 
+    
+    ! Apply B^(1/2) to control vector
+        
+    cvBchm => cvm_getSubVector(cvm_vazx,3)
+    if ( associated(cvBchm) ) then
+      if ( statevector % hco % global ) then
+        ! Global mode
+        call bchm_bsqrt( cvBchm,      & ! IN
+                        statevector )   ! OUT
+      else
+        ! LAM mode
+        !call lbhi_bSqrt( cvBchm,      & ! IN
+        !                 statevector )  ! OUT
+      end if
+      
+      ! Copy 3D increment to other timesteps to create 4D increment
+      call gsv_3dto4d(statevector)
+    end if
+    
+    !Ensemble-based covariance matrix component
+    
+    !cvBChmEns => cvm_getSubVector(cvm_vazx,4)
+    !if ( associated(cvBChmEns) ) then
+
+    !!  Initialize the statevector_temp
+
+    !   call gsv_setVco(statevector_temp,vco_anl)
+    !   call gsv_setHco(statevector_temp,hco_anl)
+    !   call gsv_allocate(statevector_temp,tim_nstepobsinc,mpi_local=.true.)
+    !   call gsv_zero(statevector_temp) 
+    !
+    !   call bChmEns_bsqrt(cvBChmEns, statevector_temp)
+    !
+    !!  Add the two contributions together, result in statevector
+    !   call gsv_add(statevector_temp,statevector)
+    !
+    !   call gsv_deallocate(statevector_temp)
+    !end if
+
+  end subroutine chm_get_increment
+
+!-----------------------------------------------------------------------------------
+
+  subroutine chm_horizontal_interp(statevector,column,columng,lobsSpaceData)
+!
+! Author: M. Sitwell Sept 2015
+!
+! Purpose: Performs horizontal interpolation of background field to observation
+!          locations. Code adapted from subroutine oda_L
+!
+! Input
+!
+!   statevector      the analysis increment
+!   lobsSpaceData    observation space data
+!
+! Output
+!
+!   column           increment at observation locations
+!   columng          background field at observation locations (with same vertical
+!                    levels as the increment)
+!
+!-----------------------------------------------------------------------------------
+
+    use MathPhysConstants_mod
+    use mpivar_mod 
+    use gridstatevector_mod
+    use obsSpaceData_mod
+    use columnData_mod
+    use timeCoord_mod
+    use varNameList_mod
+
+    implicit none
+
+    type(struct_columnData) :: column, columng
+    type(struct_obs)        :: lobsSpaceData
+    type(struct_gsv)        :: statevector
+    
+    integer :: nl_ilev, ierr, myLonEndP1, myLatEndP1, status, Vcode_anl
+
+    ! Additional variables for section 1.2  
+    character(len=2) :: varType
+    character(len=4) :: varName
+    integer :: jvar
+
+    myLonEndP1 = statevector%myLonEnd + 1
+    myLatEndP1 = min(statevector%myLatEnd + 1, statevector%nj)
+
+    !- 1.1 Communicate extra latitude needed for interpolation  
+    call rpn_comm_barrier("GRID",ierr)
+    if (mpi_nprocs /= 1) call gsv_commLatLon(statevector)
+
+    !- 1.2 Horizontal interpolation of field
+
+!$OMP PARALLEL
+!$OMP DO PRIVATE(jvar,varName,varType,nl_ilev) 
+
+    do jvar = 1, vnl_numvarmax
+      if(gsv_varExist(vnl_varNameList(jvar))) then
+         if (.not.any(vnl_varNameList(jvar).eq.vnl_varNameListChm)) cycle
+         varName = trim(vnl_varNameList(jvar))
+         varType = vnl_vartypeFromVarname(varName)
+         nl_ilev = col_getNumLev(column,varType)
+         call gd2mvo(varName,nl_ilev)
+      end if
+    end do
+  
+!$OMP END DO
+!$OMP END PARALLEL
+ 
+    contains
+
+    ! The following is a local copy of routine 'gd2mvo' found in file 'oda_L.ftn90'.
+      
+    subroutine gd2mvo(varName,klev)
+      
+      implicit none
+    
+      character(len=*), intent(in) :: varName
+      integer,          intent(in) :: klev
+      
+      INTEGER :: JLEV, JLAT, JLON, headerIndex, JSTEP
+      INTEGER :: ILON, ILAT, ILO
+    
+      REAL(8) :: DLMEAN, DLMEAS, DLDLON
+      REAL(8) :: DLDX, DLDY, DLDX_new, DLDY_new,DLW1, DLW2, DLW3, DLW4
+      real(8) :: xpos, ypos, lat, lon, latrot, lonrot
+    
+      real(8), pointer :: column_ptr(:,:)
+      real(8), pointer :: field_ptr(:,:,:,:)
+
+      field_ptr  => gsv_getField(statevector,varName)
+
+      if (col_getNumCol(column) > 0) then
+         column_ptr => col_getAllColumns(column,varName)
+         column_ptr(:,:) = 0.0d0
+      end if
+
+      ! Note: We assume here the all the obs between the poles and the last grid points
+      !       (i.e. outside the grid) have been moved within the grid by sugomobs
+
+      do jstep = 1, statevector%numStep
+         !
+         !- LOOP OVER ALL THE OBSERVATIONS
+         !
+         DO headerIndex = 1, col_getNumCol(column)
+
+            if ( tim_getTimeInterpWeight(headerIndex,jstep) > 0.0d0 .and. &
+                 .not. btest(obs_headElem_i(lobsSpaceData,OBS_ST1,headerIndex),5) ) then
+
+               !- 2.1 Find the obs position within the analysis grid
+               call col_getLatLon( column, headerIndex,                 & ! IN
+                                   Lat, Lon, ypos, xpos, LatRot, LonRot ) ! OUT
+
+               !- Make sure we are within bounds
+               if ( ypos < real(statevector%myLatBeg,8) .or. &
+                    ypos > real(myLatEndP1          ,8) .or. &
+                    xpos < real(statevector%myLonBeg,8) .or. &
+                    xpos > real(myLonEndP1          ,8) ) then
+                  write(*,*) 'gd2mvo: Obs outside local domain for headerIndex = ', headerIndex
+                  write(*,*) '        obs lat, lon position               = ', Lat*MPC_DEGREES_PER_RADIAN_R8, Lon*MPC_DEGREES_PER_RADIAN_R8
+                  write(*,*) '        obs x, y     position               = ', xpos, ypos
+                  write(*,*) '        domain x_start, x_end, y_start, y_end bounds = ',  &
+                       statevector%myLonBeg, myLonEndP1, statevector%myLatBeg, myLatEndP1
+
+                  ! if obs above or below latitude band, move it to the edge of this latitude band
+                  if( ypos < real(statevector%myLatBeg,8) ) ypos = real(statevector%myLatBeg,8)
+                  if( ypos > real(myLatEndP1          ,8) ) ypos = real(myLatEndP1          ,8)
+
+                  ! if obs left or right longitude band, move it to the edge of this longitude band
+                  if( xpos < real(statevector%myLonBeg,8) ) xpos = real(statevector%myLonBeg,8)
+                  if( xpos > real(myLonEndP1          ,8) ) xpos = real(myLonEndP1          ,8)
+                  write(*,*) ' new   obs x, y     position               = ', xpos, ypos
+               end if
+
+               !- 2.2 Find the lower-left grid point next to the observation
+               if ( xpos /= real(myLonEndP1,8) ) then
+                  ILON = floor(xpos)
+               else
+                  ILON = floor(xpos) - 1
+               end if
+
+               if ( ypos /= real(myLatEndP1,8) ) then
+                  ILAT = floor(ypos)
+               else
+                  ILAT = floor(ypos) - 1
+               end if
+
+               !- 2.3 Compute the 4 weights of the bilinear interpolation
+               DLDX = xpos - real(ILON,8)
+               DLDY = ypos - real(ILAT,8)
+
+               DLW1 = (1.d0-DLDX) * (1.d0-DLDY)
+               DLW2 =       DLDX  * (1.d0-DLDY)
+               DLW3 = (1.d0-DLDX) *       DLDY
+               DLW4 =       DLDX  *       DLDY
+
+               !- 2.4 Interpolate the model state to the obs point
+               DO JLEV = 1, KLEV
+                  column_ptr(JLEV,headerIndex) = column_ptr(JLEV,headerIndex)  +  &
+                                    tim_getTimeInterpWeight(headerIndex,jstep) *  &
+                                     ( DLW1 * field_ptr(ILON  ,JLEV,ILAT  ,JSTEP) &
+                                     + DLW2 * field_ptr(ILON+1,JLEV,ILAT  ,JSTEP) &
+                                     + DLW3 * field_ptr(ILON  ,JLEV,ILAT+1,JSTEP) &
+                                     + DLW4 * field_ptr(ILON+1,JLEV,ILAT+1,JSTEP) )
+               END DO
+
+            end if
+
+         END DO ! Obs
+
+      END DO ! JSTEP
+
+    end subroutine gd2mvo
+    
+  end subroutine chm_horizontal_interp
 
 end module chem_interface_mod

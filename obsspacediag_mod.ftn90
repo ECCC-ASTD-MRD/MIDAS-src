@@ -38,6 +38,7 @@ module obsSpaceDiag_mod
   use chem_mod
   use bmatrixchem
   use burpfiles_mod
+  use varNameList_mod
   implicit none
   save
   private
@@ -198,18 +199,18 @@ contains
        do jvar=1,vnl_numvarmax 
           if(gsv_varExist(vnl_varNameList(jvar))) then
              field => gsv_getField(statevector,vnl_varNameList(jvar))
-             select case (vnl_varNameList(jvar))
-             case ('UU','VV','TT','HU','P0','TG')
+
+             if (.not.any(vnl_varNameList(jvar).eq.vnl_varNameListChm)) then
                 do jlev = 1, gsv_getNumLev(statevector,vnl_vartypeFromVarname(vnl_varNameList(jvar)))   
                    if(scaleFactor(jlev).gt.0.0d0) field(:,jlev,:,:)=field(:,jlev,:,:)/scaleFactor(jlev)
                 enddo
-             case default
+             else
                 ivar_count=ivar_count+1
                 do jlev = 1, gsv_getNumLev(statevector,vnl_vartypeFromVarname(vnl_varNameList(jvar)))   
                    if(scaleFactorChm(jlev,ivar_count).gt.0.0d0) field(:,jlev,:,:)=field(:,jlev,:,:) &
                          /scaleFactorChm(jlev,ivar_count)
                 end do
-             end select
+             end if
           endif
        enddo
        
@@ -267,18 +268,17 @@ contains
           if(gsv_varExist(vnl_varNameList(jvar))) then
              field => gsv_getField(statevector,vnl_varNameList(jvar))
 
-             select case (vnl_varNameList(jvar))
-             case ('UU','VV','TT','HU','P0','TG')
+             if (.not.any(vnl_varNameList(jvar).eq.vnl_varNameListChm)) then
                 do jlev = 1, gsv_getNumLev(statevector,vnl_vartypeFromVarname(vnl_varNameList(jvar)))   
                    if(scaleFactor(jlev).gt.0.0d0) field(:,jlev,:,:)=field(:,jlev,:,:)/scaleFactor(jlev)
                 enddo
-             case default
+             else
                 ivar_count=ivar_count+1
                 do jlev = 1, gsv_getNumLev(statevector,vnl_vartypeFromVarname(vnl_varNameList(jvar)))   
                    if(scaleFactorChm(jlev,ivar_count).gt.0.0d0) field(:,jlev,:,:)=field(:,jlev,:,:) &
                          /scaleFactorChm(jlev,ivar_count)
                 end do
-             end select
+             end if
           endif
        enddo
        
@@ -628,7 +628,7 @@ contains
 
     filename = 'obsspace_diag_CH_' ! Date added to name by transfer script.
     
-    ! get combination lists to group diagnostics by
+    ! Get combination lists to group diagnostics by
     call chm_get_comboIdlist(obsSpaceData,stnid_elemID,varno_elemID,unilev_elemID,num_elemID,nset)
     
     if (num_elemID.eq.0) return
@@ -639,6 +639,8 @@ contains
        write(*,*)
     end if
 
+    ! Calculate OmA for non-assimilated data (saved in OBS_OMA in obsSpaceData)
+    call chm_calc_OmA_nonassim(columng,obsSpaceData)
 
     ! Loop over all pairs in *_elemID lists
     
@@ -707,19 +709,22 @@ contains
                 bodyIndex = obs_getBodyIndex(obsSpaceData)
                 if (bodyIndex < 0) exit BODY
                
-                if ( obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex).ne.varno .or. &
-                     obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex).ne.1) cycle BODY
+                if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex).ne.varno) cycle BODY
 
-                ilev_obs = ilev_obs+1
+                if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex).eq.1) then 
+
+                   ilev_obs = ilev_obs+1
  
-                lev(ilev_obs) = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
-                omp(ilev_obs) = obs_bodyElem_r(obsSpaceData,OBS_OMP,bodyIndex)
-                oma(ilev_obs) = obs_bodyElem_r(obsSpaceData,OBS_OMA,bodyIndex)
-                obs(ilev_obs) = obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)
-                jo(ilev_obs)  = obs_bodyElem_r(obsSpaceData,OBS_JOBS,bodyIndex)
-                sigma_obs(ilev_obs) = obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
-                success(ilev_obs) = .true.
-                    
+                   lev(ilev_obs) = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
+                   omp(ilev_obs) = obs_bodyElem_r(obsSpaceData,OBS_OMP,bodyIndex)
+                   oma(ilev_obs) = obs_bodyElem_r(obsSpaceData,OBS_OMA,bodyIndex)
+                   obs(ilev_obs) = obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)
+                   jo(ilev_obs)  = obs_bodyElem_r(obsSpaceData,OBS_JOBS,bodyIndex)
+                   sigma_obs(ilev_obs) = obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
+                   success(ilev_obs) = .true.
+
+                end if
+
              end do BODY
 
              if (ilev_obs.gt.0) then

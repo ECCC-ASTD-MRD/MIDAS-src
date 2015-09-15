@@ -16,6 +16,11 @@
 !
 program main_var
   ! pgm main_var - Program controlling the job at its highest level (formerly cnt0.ftn90)
+  !    
+  ! Revisions:  M. Sitwell (ARQI/AQRD) Sept 2015
+  !             - Calls to bmat_finalize moved from writeincrement_mod to main_var
+  !               to enable B matrix to be used in obsspacediag_mod.
+  ! 
 
   use topLevelControl_mod
   use mpivar_mod
@@ -25,6 +30,7 @@ program main_var
   use writeIncrement_mod
   use controlVector_mod
   use filterObs_mod  
+  use bmatrix_mod
 
   implicit none
   integer :: istamp,exdb,exfin
@@ -233,8 +239,11 @@ program main_var
     ! Deallocate original obsSpaceData
     call obs_finalize(obsSpaceData)
 
-    ! Compute obs-space diagnostics (only does computation if NAMOSD present in flnml)
+    ! Compute obs-space diagnostics (diagnostic computations controlled by NAMOSD namelist in flnml)
     call osd_calcInflation(obsSpaceData_out,columng)
+
+    ! Deallocate bmatrix related arrays
+    call bmat_finalize(cvm_vazx)
 
     if (mpi_myid == 0) then
        clmsg = 'REBM_DONE'

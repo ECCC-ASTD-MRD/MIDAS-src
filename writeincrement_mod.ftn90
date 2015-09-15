@@ -52,6 +52,12 @@ module writeIncrement_mod
       !
       !**s/r SUPOST  - initialize the post-processing of the model state
       !
+      ! Revisions:  M. Sitwell (ARQI/AQRD) Sept 2015
+      !             - Calls to bmat_finalize commented out so that B matrix
+      !               is available for use in post min diagnostics done in
+      !               obsspacediag_mod. bmat_finalize now called in
+      !               main_var.
+      !
       implicit none
       integer :: ierr, jvar, ihu, itt, ivt, imin, igz, ip0, ilq
       integer :: nulnam, fnom, fclos
@@ -283,10 +289,10 @@ module writeIncrement_mod
       call tmg_start(91,'POST_COMPUTEDX')
 
       call bmat_sqrtB(cvm_vazx,cvm_nvadim,statevector)
-      if(onlyDeterministic) then
+      !if(onlyDeterministic) then
         ! Deallocate B matrices
-        call bmat_finalize(cvm_vazx)
-      endif
+      !  call bmat_finalize(cvm_vazx)
+      !endif
 
       if(write4dInc) then
         ! mpiglobal result for 4D increment only on myid=(increment_time_step -1)
@@ -538,10 +544,10 @@ module writeIncrement_mod
       call gsv_deallocate(statevectorg)
       call gsv_deallocate(statevector)
 
-      if(.not.onlyDeterministic.and.isLastAnalysis) then
+      !if(.not.onlyDeterministic.and.isLastAnalysis) then
         ! Deallocate B matrices (deallocated earlier if onlyDeterministic)
-        call bmat_finalize(cvm_vazx)
-      endif
+      !  call bmat_finalize(cvm_vazx)
+      !endif
 
       call tmg_stop (3)
       write(*,*) 'LEAVING calcWriteIncrement'
