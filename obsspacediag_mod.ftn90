@@ -641,7 +641,7 @@ contains
 
     ! Calculate OmA for non-assimilated data (saved in OBS_OMA in obsSpaceData)
     call chm_calc_OmA_nonassim(columng,obsSpaceData)
-
+    
     ! Loop over all pairs in *_elemID lists
     
     call flush(6)
@@ -708,10 +708,10 @@ contains
 
                 bodyIndex = obs_getBodyIndex(obsSpaceData)
                 if (bodyIndex < 0) exit BODY
-               
+                
                 if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex).ne.varno) cycle BODY
 
-                if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex).eq.1) then 
+                if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex).eq.1) then
 
                    ilev_obs = ilev_obs+1
  
@@ -726,7 +726,7 @@ contains
                 end if
 
              end do BODY
-
+            
              if (ilev_obs.gt.0) then
             
                 ! Convert to pressure if needed and identify unilevel observations
@@ -753,7 +753,7 @@ contains
                    ! Uni-level observations
                    unilevel = .true.
                 end select
-         
+                
                 ! Add observation to diagnostic arrays
                 call chm_obsspace_diagnostic(lat, lon, pressure=lev, omp=omp, oma=oma, obs=obs, jo=jo, sigma_obs=sigma_obs, &
                                              success=success, nlev_obs=nlev_obs, unilevel=unilevel)
@@ -768,7 +768,7 @@ contains
        
        ! Prepare output identification (to be used for mpi_mpid=0)          
        write(label,*) ">>> Statistics for BUFR # ",varno_elemID(elemID),"and STNID ",stnid_elemID(elemID)
-              
+       
        ! Sum over different processors, output (when mpi_myid.eq.0), and deallocate diagnostic arrays
        call chm_obsspace_diagnostic(0.0d0, 0.0d0, print_stats=.TRUE., label=label, filename=filename)
     

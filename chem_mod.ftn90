@@ -75,11 +75,12 @@ module chem_mod
   public :: chm_setup,chm_dealloc_obs_err_stddev,chm_read_obs_err_stddev, &
             chm_get_obs_err_stddev,chm_obsspace_diagnostic,chm_convert_z_to_pressure
   public :: chm_obsoperators,chm_adj_model_bndry,chm_get_stringID,chm_get_ID,stnid_equal
-  public :: chm_lcheck_skipassim,chm_comboIDlist
+  public :: chm_lcheck_skipassim,chm_comboIDlist,chm_warnings_filename
   
   type :: struct_chm_std
      !
-     ! Structure for holding observation std information
+     ! Structure containing information retrieved from file obsinfo_chm for holding 
+     ! observation std dev information
      !
      !  Variable               Description
      !  --------               -----------
@@ -120,7 +121,7 @@ module chem_mod
   end type struct_chm_std
   
   type :: struct_chm_info
-     !  Information arrays retrieved from obsinfo_chm regarding vertical levels 
+     !  Information arrays retrieved from file obsinfo_chm regarding vertical levels 
      !  or averaging kernels
      !
      !  Variable               Description
@@ -246,6 +247,8 @@ module chem_mod
      !                         (see routine chm_obsspace_diagnostic)
      !
      !  amu                    Molecular mass of constituents in g/moles (needed for unit conversions)
+     !                         Array index refers to BUFR code element of Table 08046 (iconstituent_id)
+     !                         identifying the constituent.
      !
 
      logical :: generalized_operator,diagn_save
@@ -268,6 +271,10 @@ module chem_mod
 ! in an internal compiler error.
 
   type(struct_chm_burp), allocatable :: chm_burp_std(:),chm_burp_avgkern(:)
+
+  ! File containing various warnings related to chemical constituents that
+  ! are not included in the listing file.
+  character(len=14), parameter :: chm_warnings_filename='chem_warnings_'
 
 
 contains
@@ -635,7 +642,8 @@ contains
 
 !-----------------------------------------------------------------------------------------
 
-  subroutine chm_get_layer_boundaries(cstnid,varno,ivco,nlev,default_top,default_bottom,lfound,layertop,layerbottom)
+  subroutine chm_get_layer_boundaries(cstnid,varno,ivco,nlev,default_top,default_bottom, &
+                                      lfound,layertop,layerbottom)
 !
 ! Author  : M. Sitwell, Y. Rochon, Feb 2015
 ! Revision: 
@@ -2759,27 +2767,27 @@ contains
     ! Accumulate the diagnostic statistics from all processors, print out when mpi_myid=0, and then deallocate the arrays
     if (present(print_stats)) then
        if (print_stats) then
-
+          
           ! Allocate memory for mpi global arrays
           if (.not. allocated(OmP_global)) allocate(OmP_global(nlat,nlon,nlev,nstat))
           if (.not. allocated(OmA_global)) allocate(OmA_global(nlat,nlon,nlev,nstat))
           if (.not. allocated(obs_global)) allocate(obs_global(nlat,nlon,nlev,nstat))
           if (.not. allocated(Jo_global))  allocate(Jo_global(nlat,nlon,nlev,nstat))
           if (.not. allocated(counts_global))  allocate(counts_global(nlat,nlon,nlev))
-          
+         
           ! Reduce from all mpi processes
           call rpn_comm_allreduce(OmP_stats,OmP_global,nbin*nstat,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
           call rpn_comm_allreduce(OmA_stats,OmA_global,nbin*nstat,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
           call rpn_comm_allreduce(obs_stats,obs_global,nbin*nstat,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
           call rpn_comm_allreduce(Jo_stats,Jo_global,nbin*nstat,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
           call rpn_comm_allreduce(counts,counts_global,nbin,"MPI_INTEGER","MPI_SUM","GRID",ierr)
-               
-          if (any(counts_global.gt.0) .and. mpi_myid.eq.0) then
-
+          
+          if (mpi_myid.eq.0) then
+             
              ! Print globally averaged output to listing file or to output file 'filename'.
-
+             
              ! Open and append to output file if requested
-
+             
              if (present(filename)) then
                 unit = 10
                 inquire(file=filename, exist=fileout_exist)
@@ -2787,124 +2795,132 @@ contains
                    open(unit, file=filename, status="old", position="append", action="write")
                 else
                    open(unit, file=filename, status="new", action="write")
-                end if 
+                end if
              else
                 unit=6             
-             end if  
-
+             end if
+             
              if (present(label)) then
                 write(unit,*)
                 write(unit,*) trim(label)
              end if
-                       
-             allocate(ncounts(nlev), press_bins(nlev+1))
+                      
+             if (any(counts_global.gt.0)) then
 
-             ! total counts for each level 
-             ncounts = sum(sum(counts_global,dim=1),dim=1)
-             Jo_count_total = Jo_count_total + sum(ncounts)
+                allocate(ncounts(nlev), press_bins(nlev+1))
 
-             Jo_a = sum(Jo_global(:,:,1:nlev,1))
-             Jo_b = sum(Jo_global(:,:,1:nlev,2))
-             Jo_a_total = Jo_a_total + Jo_a
-             Jo_b_total = Jo_b_total + Jo_b
+                ! total counts for each level 
+                ncounts = sum(sum(counts_global,dim=1),dim=1)
+                Jo_count_total = Jo_count_total + sum(ncounts)
              
-             ! Set permission for allowing summary output (Jo_*_total) via print_summary.
+                Jo_a = sum(Jo_global(:,:,1:nlev,1))
+                Jo_b = sum(Jo_global(:,:,1:nlev,2))
+                Jo_a_total = Jo_a_total + Jo_a
+                Jo_b_total = Jo_b_total + Jo_b
              
-             allow_print_summary=.true.
-
-             ! Pressure boundaries for each bin starting from a top layer with lower boundary of 0.01*config%diagn_pressmin (i=2) in hPa 
-             ! and extending to the surface.
-
-             press_bins(2:nlev-1) = (/ (0.01*chm_config%diagn_pressmin*exp((ilev-2)*deltaLogPressure), ilev=2,nlev-1) /)
-             press_bins(1) = 0.0d0
-             press_bins(nlev) = 1200.0d0 ! set to pressure larger than the largest expected surface pressure.
-             press_bins(nlev+1) = 0.0d0  ! set to zero for unilevel
-
-             ! Multi-level data
-             
-             icount=sum(ncounts(1:nlev-1))
-             
-             if (icount.gt.0) then
-            
-                write(unit,*)
-                write(unit,*) " Multi-level data:"
-                write(unit,*) " Cost function for this BUFR number/station ID:   Jo(x_analysis) = ",Jo_a," ,   2*Jo(x_analysis)/N = ",2.*Jo_a/icount,' with N = ',icount
-                write(unit,*) "                                                  Jo(x_backgrnd) = ",Jo_b," ,   2*Jo(x_backgrnd)/N = ",2.*Jo_b/icount
-
-                call chm_print_diagnostics(unit, 1, nlev-1, ncounts, press_bins, & 
-                     sum(sum(obs_global(:,:,1:nlev-1,1),dim=1),dim=1), sum(sum(obs_global(:,:,1:nlev-1,2),dim=1),dim=1), &
-                     sum(sum(OmP_global(:,:,1:nlev-1,1),dim=1),dim=1), sum(sum(OmP_global(:,:,1:nlev-1,2),dim=1),dim=1), &
-                     sum(sum(OmA_global(:,:,1:nlev-1,1),dim=1),dim=1), sum(sum(OmA_global(:,:,1:nlev-1,2),dim=1),dim=1), &
-                     sum(sum(Jo_global(:,:,1:nlev-1,1),dim=1),dim=1), sum(sum(Jo_global(:,:,1:nlev-1,2),dim=1),dim=1) )
-  
-             end if 
-             
-             ! Uni-level data
-             
-             if (ncounts(nlev).gt.0) then
-             
-                write(unit,*)
-                write(unit,*) " Uni-level data:"
-                write(unit,*) " Cost function for this BUFR number/station ID:   Jo(x_analysis) = ",Jo_a," ,   2*Jo(x_analysis)/N = ",2.*Jo_a/ncounts(nlev),' with N = ',ncounts(nlev)
-                write(unit,*) "                                                  Jo(x_backgrnd) = ",Jo_b," ,   2*Jo(x_backgrnd)/N = ",2.*Jo_b/ncounts(nlev)
-
-                call chm_print_diagnostics(unit, nlev, nlev, ncounts, press_bins, & 
-                     sum(sum(obs_global(:,:,:,1),dim=1),dim=1), sum(sum(obs_global(:,:,:,2),dim=1),dim=1), &
-                     sum(sum(OmP_global(:,:,:,1),dim=1),dim=1), sum(sum(OmP_global(:,:,:,2),dim=1),dim=1), &
-                     sum(sum(OmA_global(:,:,:,1),dim=1),dim=1), sum(sum(OmA_global(:,:,:,2),dim=1),dim=1), &
-                     sum(sum(Jo_global(:,:,:,1),dim=1),dim=1), sum(sum(Jo_global(:,:,:,2),dim=1),dim=1) )
-
-             end if
-                          
-             deallocate(ncounts)
-             
-             ! Output lat,lon dependent averages to file if filename is provided
-             if (present(filename).and.chm_config%diagn_save.and.(nlat.gt.1.or.nlon.gt.1)) then
-
-                write(unit,*)
-                write(unit,*) " Lat-long gridded statistics: "
-                write(unit,'(2X,3(A,I4))') "nlat = ",nlat," , nlon = ",nlon," , nlev = ",nlev
-                write(unit,*)
-
-                do ilat=1,nlat
-                   do ilon=1,nlon
-                      write(unit,'(2X,2(A,I6),3X,2(F8.1,A,F8.1))') "ilat = ",ilat," , ilon = ",ilon, &
-                           (ilat-1.)*deltaLat-90.," < lat < ",ilat*deltaLat-90., &
-                           (ilon-1.)*deltaLon," < lon < ",ilon*deltaLon
-                      if (sum(counts_global(ilat,ilon,1:nlev-1)).gt.0) then
-                         write(unit,*)
-                         write(unit,*) " Multi-level data:"
-                         call chm_print_diagnostics(unit, 1,nlev-1, counts_global(ilat,ilon,1:nlev-1), press_bins, &
-                              obs_global(ilat,ilon,1:nlev-1,1), obs_global(ilat,ilon,1:nlev-1,2), &
-                              OmP_global(ilat,ilon,1:nlev-1,1), OmP_global(ilat,ilon,1:nlev-1,2), &
-                              OmA_global(ilat,ilon,1:nlev-1,1), OmA_global(ilat,ilon,1:nlev-1,2), &
-                              Jo_global(ilat,ilon,1:nlev-1,1), Jo_global(ilat,ilon,1:nlev-1,2) )
-                      else if (sum(counts_global(:,:,1:nlev-1)).gt.0) then
-                         write(unit,*)
-                         write(unit,*) " No multi-level data."
-                         write(unit,*)
-                      end if                                                  
-                      if (counts_global(ilat,ilon,nlev).gt.0) then
-                         write(unit,*)
-                         write(unit,*) " Uni-level data:"
-                         call chm_print_diagnostics(unit, nlev,nlev, counts_global(ilat,ilon,:), press_bins, &
-                              obs_global(ilat,ilon,:,1), obs_global(ilat,ilon,:,2), &
-                              OmP_global(ilat,ilon,:,1), OmP_global(ilat,ilon,:,2), &
-                              OmA_global(ilat,ilon,:,1), OmA_global(ilat,ilon,:,2), &
-                              Jo_global(ilat,ilon,:,1), Jo_global(ilat,ilon,:,2) )
-                      else if (sum(counts_global(:,:,nlev)).gt.0) then
-                         write(unit,*)
-                         write(unit,*) " No uni-level data."
-                         write(unit,*)
-                      end if                                                  
-                   end do
-                end do
+                ! Set permission for allowing summary output (Jo_*_total) via print_summary.
+          
+                allow_print_summary=.true.
                 
+                ! Pressure boundaries for each bin starting from a top layer with lower boundary of 0.01*config%diagn_pressmin (i=2) in hPa 
+                ! and extending to the surface.
+                
+                press_bins(2:nlev-1) = (/ (0.01*chm_config%diagn_pressmin*exp((ilev-2)*deltaLogPressure), ilev=2,nlev-1) /)
+                press_bins(1) = 0.0d0
+                press_bins(nlev) = 1200.0d0 ! set to pressure larger than the largest expected surface pressure.
+                press_bins(nlev+1) = 0.0d0  ! set to zero for unilevel
+             
+                ! Multi-level data
+             
+                icount=sum(ncounts(1:nlev-1))
+             
+                if (icount.gt.0) then
+            
+                   write(unit,*)
+                   write(unit,*) " Multi-level data:"
+                   write(unit,*) " Cost function for this BUFR number/station ID:   Jo(x_analysis) = ",Jo_a," ,   2*Jo(x_analysis)/N = ",2.*Jo_a/icount,' with N = ',icount
+                   write(unit,*) "                                                  Jo(x_backgrnd) = ",Jo_b," ,   2*Jo(x_backgrnd)/N = ",2.*Jo_b/icount
+
+                   call chm_print_diagnostics(unit, 1, nlev-1, ncounts, press_bins, & 
+                        sum(sum(obs_global(:,:,1:nlev-1,1),dim=1),dim=1), sum(sum(obs_global(:,:,1:nlev-1,2),dim=1),dim=1), &
+                        sum(sum(OmP_global(:,:,1:nlev-1,1),dim=1),dim=1), sum(sum(OmP_global(:,:,1:nlev-1,2),dim=1),dim=1), &
+                        sum(sum(OmA_global(:,:,1:nlev-1,1),dim=1),dim=1), sum(sum(OmA_global(:,:,1:nlev-1,2),dim=1),dim=1), &
+                        sum(sum(Jo_global(:,:,1:nlev-1,1),dim=1),dim=1), sum(sum(Jo_global(:,:,1:nlev-1,2),dim=1),dim=1) )
+  
+                end if
+             
+                ! Uni-level data
+             
+                if (ncounts(nlev).gt.0) then
+             
+                   write(unit,*)
+                   write(unit,*) " Uni-level data:"
+                   write(unit,*) " Cost function for this BUFR number/station ID:   Jo(x_analysis) = ",Jo_a," ,   2*Jo(x_analysis)/N = ",2.*Jo_a/ncounts(nlev),' with N = ',ncounts(nlev)
+                   write(unit,*) "                                                  Jo(x_backgrnd) = ",Jo_b," ,   2*Jo(x_backgrnd)/N = ",2.*Jo_b/ncounts(nlev)
+
+                   call chm_print_diagnostics(unit, nlev, nlev, ncounts, press_bins, & 
+                        sum(sum(obs_global(:,:,:,1),dim=1),dim=1), sum(sum(obs_global(:,:,:,2),dim=1),dim=1), &
+                        sum(sum(OmP_global(:,:,:,1),dim=1),dim=1), sum(sum(OmP_global(:,:,:,2),dim=1),dim=1), &
+                        sum(sum(OmA_global(:,:,:,1),dim=1),dim=1), sum(sum(OmA_global(:,:,:,2),dim=1),dim=1), &
+                        sum(sum(Jo_global(:,:,:,1),dim=1),dim=1), sum(sum(Jo_global(:,:,:,2),dim=1),dim=1) )
+
+                end if
+                          
+                deallocate(ncounts)
+             
+                ! Output lat,lon dependent averages to file if filename is provided
+                if (present(filename).and.chm_config%diagn_save.and.(nlat.gt.1.or.nlon.gt.1)) then
+
+                   write(unit,*)
+                   write(unit,*) " Lat-long gridded statistics: "
+                   write(unit,'(2X,3(A,I4))') "nlat = ",nlat," , nlon = ",nlon," , nlev = ",nlev
+                   write(unit,*)
+
+                   do ilat=1,nlat
+                      do ilon=1,nlon
+                         write(unit,'(2X,2(A,I6),3X,2(F8.1,A,F8.1))') "ilat = ",ilat," , ilon = ",ilon, &
+                              (ilat-1.)*deltaLat-90.," < lat < ",ilat*deltaLat-90., &
+                              (ilon-1.)*deltaLon," < lon < ",ilon*deltaLon
+                         if (sum(counts_global(ilat,ilon,1:nlev-1)).gt.0) then
+                            write(unit,*)
+                            write(unit,*) " Multi-level data:"
+                            call chm_print_diagnostics(unit, 1,nlev-1, counts_global(ilat,ilon,1:nlev-1), press_bins, &
+                                 obs_global(ilat,ilon,1:nlev-1,1), obs_global(ilat,ilon,1:nlev-1,2), &
+                                 OmP_global(ilat,ilon,1:nlev-1,1), OmP_global(ilat,ilon,1:nlev-1,2), &
+                                 OmA_global(ilat,ilon,1:nlev-1,1), OmA_global(ilat,ilon,1:nlev-1,2), &
+                                 Jo_global(ilat,ilon,1:nlev-1,1), Jo_global(ilat,ilon,1:nlev-1,2) )
+                         else if (sum(counts_global(:,:,1:nlev-1)).gt.0) then
+                            write(unit,*)
+                            write(unit,*) " No multi-level data."
+                            write(unit,*)
+                         end if
+                         if (counts_global(ilat,ilon,nlev).gt.0) then
+                            write(unit,*)
+                            write(unit,*) " Uni-level data:"
+                            call chm_print_diagnostics(unit, nlev,nlev, counts_global(ilat,ilon,:), press_bins, &
+                                 obs_global(ilat,ilon,:,1), obs_global(ilat,ilon,:,2), &
+                                 OmP_global(ilat,ilon,:,1), OmP_global(ilat,ilon,:,2), &
+                                 OmA_global(ilat,ilon,:,1), OmA_global(ilat,ilon,:,2), &
+                                 Jo_global(ilat,ilon,:,1), Jo_global(ilat,ilon,:,2) )
+                         else if (sum(counts_global(:,:,nlev)).gt.0) then
+                            write(unit,*)
+                            write(unit,*) " No uni-level data."
+                            write(unit,*)
+                         end if
+                      end do
+                   end do
+                
+                end if
+
+                deallocate(press_bins)
+
+             else
+                write(unit,*)
+                write(unit,*) "No data found for this combination."
+                write(unit,*)
              end if
 
              if (present(filename)) close(unit)     
-             
-             deallocate(press_bins)
 
              call flush(6)
              
@@ -2932,6 +2948,8 @@ contains
                unit=6
             end if
             
+            write(unit,*)
+            write(unit,*) "------------------------------------------------------------------------------------------------------------------------------------------------"
             write(unit,*)
             write(unit,*) " Total cost function for CH observations:   Jo(x_analysis) = ",Jo_a_total," ,   2*Jo(x_analysis)/N = ",2.*Jo_a_total/Jo_count_total,' with N = ',Jo_count_total
             write(unit,*) "                                            Jo(x_backgrnd) = ",Jo_b_total," ,   2*Jo(x_backgrnd)/N = ",2.*Jo_b_total/Jo_count_total
@@ -3113,7 +3131,7 @@ contains
 !     iass      Flag indicating if obs is to be assimilated (.ne.1 for no)
 !     rlat      Latitude of obs profile (radians)
 !     rlon      Longitue of obs profile (radians)
-!     iconstituent_id BUFR code element of Table 08046 identifyin the constituent.
+!     iconstituent_id BUFR code element of Table 08046 identifying the constituent.
 !
 !   Inout
 !
@@ -3822,8 +3840,8 @@ contains
   subroutine chm_vertintg_setup(chm_obsoper,pressmod,n_modlvl)
 !
 ! Author  : Y. Rochon, (ARQI/AQRD), Ping Du (CMDA), and M. Sitwell (ARQI/AQRD) Feb 2015.
-!           - Based Y. Yang and S. Ren, Nov 2004 to Dec 2012
-!           - Pre-EnVar version
+!           - Based on Pre-Envar version by Y. Rochon, Y. Yang and S. Ren, Nov 2004 to Dec 2012
+!
 ! Revision: 
 !
 ! Purpose:  Preliminary calcs for producing components required for vertical 

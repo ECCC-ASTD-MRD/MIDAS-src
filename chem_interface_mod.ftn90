@@ -33,7 +33,7 @@ module chem_interface_mod
 ! -----------------
 
   public :: chm_observation_operators,chm_get_comboIdlist,chm_calc_OmA_nonassim
-
+  public :: chm_check_negative_analysis,chm_assim
 
 contains
   
@@ -277,7 +277,7 @@ contains
 
             ! Check for success in calculations
             if (.not.success(iobslev)) then
-               if (iass(iobslev).ne.3.or.kmode.lt.2) then
+               if ((iass(iobslev).ne.3.and.iass(iobslev).ne.4).or.kmode.lt.2) then
                   call obs_bodySet_i(obsSpaceData,OBS_XTR,bodyIndex,1)
                   call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
                end if
@@ -332,7 +332,7 @@ contains
     deallocate(zvalb,zttb,zppb,zvalinc)
 
     if (present(jobs)) jobs=0.5d0*jobs
-
+    
   end subroutine chm_observation_operators
   
 !-----------------------------------------------------------------------------------
@@ -799,5 +799,143 @@ contains
     end subroutine gd2mvo
     
   end subroutine chm_horizontal_interp
+
+!-----------------------------------------------------------------------------------
+
+  subroutine chm_check_negative_analysis(increment,background,low_cutoff)
+!
+! Author: M. Sitwell Sept 2015
+!
+! Purpose: Checks for negative analysis values and if any negative values found will
+!          modify the increment so that the analysis  is reset to low_cutoff*background
+!          at these points. This check is done with fields of the same resolution as
+!          the increment.
+!
+! InOut
+!
+!   increment        statevector for the increment
+!   background       statevector for the background (with same resolution as the increment)
+!
+!-----------------------------------------------------------------------------------
+
+    use gridStateVector_mod
+    use varNameList_mod
+    use chem_mod
+
+    implicit none
+    
+    type(struct_gsv), intent(inout) :: increment,background
+    real(8), intent(in) :: low_cutoff
+
+    real(8), pointer :: inc_ptr(:,:,:,:),bkgrnd_ptr(:,:,:,:)
+    logical, allocatable :: toolow(:,:,:,:)
+
+    integer :: jvar,nlow,i1,i2,i3,i4
+    character(len=4)  :: varName
+    logical :: file_exists
+
+    integer, parameter :: unit=10
+
+    ! Open output file
+    inquire(file=chm_warnings_filename, exist=file_exists)
+    if (file_exists) then
+       open(unit, file=chm_warnings_filename, status="old", position="append", action="write")
+    else
+       open(unit, file=chm_warnings_filename, status="new", action="write")
+    end if
+
+    do jvar = 1, vnl_numvarmax
+      if (gsv_varExist(vnl_varNameList(jvar))) then
+         if (any(vnl_varNameList(jvar).eq.vnl_varNameListChm)) then
+
+            varName = trim(vnl_varNameList(jvar))
+            inc_ptr => gsv_getField(increment,varName)
+            bkgrnd_ptr => gsv_getField(background,varName)
+
+            allocate(toolow(size(inc_ptr,1),size(inc_ptr,2),size(inc_ptr,3),size(inc_ptr,4)))
+
+            ! Check if both background and analysis are negative. If so set the increment to force an analysis of zero at these locations
+            toolow = bkgrnd_ptr.lt.0.0 .and. bkgrnd_ptr+inc_ptr.lt.0.0
+            nlow = count(toolow)
+
+            if (nlow.gt.0) then
+               write(unit,'(A,I7,A,A,A)') "chm_check_negative_analysis: ",nlow," negative background and analysis values were found for field ",trim(varName),"."
+               write(unit,'(A)') "Modifying the increment so the analysis is instead equal to zero at these locations."       
+               write(unit,'(A)') "JLON JLEV JLAT TSTEP   Background   Init. incr."
+               do i1=1,size(inc_ptr,1)
+               do i2=1,size(inc_ptr,2)
+               do i3=1,size(inc_ptr,3)
+               do i4=1,size(inc_ptr,4)
+                  if (toolow(i1,i2,i3,i4)) write(unit,'(4(I4,1X),2G12.2)') i1,i2,i3,i4,bkgrnd_ptr(i1,i2,i3,i4),inc_ptr(i1,i2,i3,i4)
+               end do
+               end do
+               end do
+               end do
+               where (toolow) inc_ptr = -bkgrnd_ptr
+               write(unit,*)
+            end if
+            
+            ! Check if the analysis is below the trial field cutoff. If so set analysis to this cut-off value at these locations
+            toolow = bkgrnd_ptr+inc_ptr.lt.low_cutoff*bkgrnd_ptr .and. bkgrnd_ptr.ge.0.0
+            nlow = count(toolow)
+            
+            if (nlow.gt.0) then
+               write(unit,'(A,I7,A,F4.1,A,A,A)') "chm_check_negative_analysis: ",nlow," analysis values were found below the cut-off of ",100.*low_cutoff, &
+                    "% of the trial field for field ",trim(varName),"."
+               write(unit,'(A)') "Modifying the increment so the analysis is instead equal to the cut-off value at these locations."
+               write(unit,'(A)') "JLON JLEV JLAT TSTEP   Background  Init.-incr.  New-incr."
+               do i1=1,size(inc_ptr,1)
+               do i2=1,size(inc_ptr,2)
+               do i3=1,size(inc_ptr,3)
+               do i4=1,size(inc_ptr,4)
+                  if (toolow(i1,i2,i3,i4)) write(unit,'(4(I4,1X),3G12.2)') i1,i2,i3,i4,bkgrnd_ptr(i1,i2,i3,i4), &
+                                           inc_ptr(i1,i2,i3,i4),(low_cutoff-1.0)*bkgrnd_ptr(i1,i2,i3,i4)
+               end do
+               end do
+               end do
+               end do
+               where (toolow) inc_ptr = (low_cutoff-1.0)*bkgrnd_ptr
+            end if
+
+            deallocate(toolow)
+
+         end if
+      end if
+    end do
+    
+    close(unit)
+
+  end subroutine chm_check_negative_analysis
+
+!-----------------------------------------------------------------------------------
+
+  logical function chm_assim()
+!
+! Author: M. Sitwell Sept 2015
+!
+! Purpose: Checks if any of the variables to be assimilated (i.e. specified in the
+!          namelist NAMSTATE) are part of the CH family.
+!
+!-----------------------------------------------------------------------------------
+
+    use gridStateVector_mod
+    use varNameList_mod
+
+    implicit none
+
+    integer :: jvar
+
+    chm_assim = .false.
+
+    VARLIST: do jvar = 1, vnl_numvarmax
+       if (gsv_varExist(vnl_varNameList(jvar))) then
+          if (any(vnl_varNameList(jvar).eq.vnl_varNameListChm)) then
+             chm_assim = .true.
+             exit VARLIST 
+          end if
+       end if
+    end do
+
+  end function chm_assim
 
 end module chem_interface_mod

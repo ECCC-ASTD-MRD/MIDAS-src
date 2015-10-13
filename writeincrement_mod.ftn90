@@ -26,6 +26,7 @@ module writeIncrement_mod
   use HorizontalCoord_mod
   use timeCoord_mod
   use physicsFunctions_mod
+  use chem_interface_mod
   implicit none
   save
   private
@@ -498,6 +499,10 @@ module writeIncrement_mod
           enddo
           write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
         endif
+
+        ! Ensure that chemical consituent concentrations are non-negative in the analysis
+        if (globalGSVpresent .and. chm_assim()) call chm_check_negative_analysis(statevector,statevectorg,0.2d0)
+
         call tmg_stop(92)
 
         if(globalGSVpresent) then
@@ -1344,9 +1349,9 @@ module writeIncrement_mod
       logical ltrial 
       integer datestamp,jfile,jstep
       integer anl_gid,ezqkdef,ezgprm
-      REAL*8, allocatable :: zttg(:,:,:), zqqg(:,:,:), zpsg(:,:)
-      real*8, pointer :: ps_ptr(:,:,:,:),tt_ptr(:,:,:,:),hu_ptr(:,:,:,:)
-      integer ntrials, nlev_T
+      REAL*8, allocatable :: zttg(:,:,:), zqqg(:,:,:), zpsg(:,:),zch(:,:,:)
+      real*8, pointer :: ps_ptr(:,:,:,:),tt_ptr(:,:,:,:),hu_ptr(:,:,:,:),ch_ptr(:,:,:,:)
+      integer ntrials, nlev_T,jvar
       integer :: nultrl(tim_nstepobs)  
       CHARACTER(len=2)   :: flnum 
       CHARACTER(len=4)   :: flnum2
@@ -1476,6 +1481,35 @@ module writeIncrement_mod
           endif
           call tmg_stop(96)
         endif
+
+
+        do jvar = 1, vnl_numvarmax
+           if (gsv_varExist(vnl_varNameList(jvar))) then
+              if (any(vnl_varNameList(jvar).eq.vnl_varNameListChm)) then
+                 !
+                 ! Chemical constituents
+                 !
+                 write(*,*)'subasic_gd: reading ',trim(vnl_varNameList(jvar))
+                 CLNOMVAR = vnl_varNameList(jvar)
+
+                 allocate(zch(statevectorg%ni,statevectorg%nj,nlev_T))
+
+                 ! read the background CH field, interpolate to analysis grid and put result on proc jstep-1
+                 ! NOTE: all processors participate in reading the file
+                 call vhfstfld(zch,statevectorg%ni,statevectorg%nj,anl_gid, &
+                      nlev_T,clnomvar,datestamp,nultrl,ntrials,jstep,vco_anl,vco_trl)
+
+                 ! copy interpolated CH to statevectorg
+                 if(mpi_myid.eq.(jstep-1)) then
+                    ch_ptr => gsv_getField(statevectorg,CLNOMVAR)
+                    CALL INITGDG2(ch_ptr(:,:,:,1),zch,statevectorg%ni,statevectorg%nj,nlev_T,CLNOMVAR)
+                 endif
+                 
+                 deallocate(zch)
+
+              end if
+           end if
+        end do
 
       enddo ! jstep
       !
