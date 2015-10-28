@@ -77,6 +77,11 @@ module chem_mod
   public :: chm_obsoperators,chm_adj_model_bndry,chm_get_stringID,chm_get_ID,stnid_equal
   public :: chm_lcheck_skipassim,chm_comboIDlist,chm_warnings_filename
   
+! module constants
+! -----------------
+  integer, parameter :: chm_cfg_size=100           ! max size of config arrays
+  integer, parameter :: chm_constituents_size=30   ! max size of constituents arrays
+
   type :: struct_chm_std
      !
      ! Structure containing information retrieved from file obsinfo_chm for holding 
@@ -204,13 +209,11 @@ module chem_mod
      !  time                   HHMM
      !  lat,lon                lat,lon in radians
 
-     real(8), pointer :: data1d(:,:),data2d(:,:,:), lat(:), lon(:)
+     real(8), pointer :: data1d(:,:),data2d(:,:,:),lat(:),lon(:)
      integer, pointer :: date(:),time(:)
      integer :: ndim,nlev,nrep,ilev,irep
   
   end type struct_chm_burp
-
-  integer, parameter :: chm_cfg_size=100
 
   type :: struct_config
      
@@ -250,13 +253,31 @@ module chem_mod
      !                         Array index refers to BUFR code element of Table 08046 (iconstituent_id)
      !                         identifying the constituent.
      !
-
+     !  tropo_mode             Relevant for total column measurements only.
+     !                         Integer indicating if special treatment is to be given to the troposphere
+     !                         when assimilating total column measurements. Values indicate
+     !                           0:  No special treatment given (default)
+     !                           1:  Values of the adjoint model above 'tropo_column_top' set to zero.
+     !                               If specified, generalized innovation operator only applied below
+     !                               'tropo_column_top' in the tangent linear model.
+     !                           2:  Values of tangent linear model and adjoint model above 'tropo_column_top'
+     !                               set to zero
+     !                         Array index refers to BUFR code element of Table 08046 (iconstituent_id)
+     !                         identifying the constituent.
+     !
+     !  tropo_column_top       Relevant for total column measurements only.
+     !                         Forced pressure level (Pa) of top of increment profile for total column measurements
+     !                         Applied in the adjoint model. No impact when value is at or above the model top.
+     !                         Array index refers to BUFR code element of Table 08046 (iconstituent_id)
+     !                         identifying the constituent.
+     !
+     
      logical :: generalized_operator,diagn_save
-     integer :: assim_num
+     integer :: assim_num,tropo_mode(0:chm_constituents_size)
      integer :: assim_varno(chm_cfg_size),assim_nlev(chm_cfg_size)
      character(len=9) :: assim_stnid(chm_cfg_size)
      real(8) :: diagn_pressmin
-     real(8) :: amu(0:chm_cfg_size)
+     real(8) :: amu(0:chm_constituents_size),tropo_column_top(0:chm_constituents_size)
 
   end type struct_config
 
@@ -323,19 +344,20 @@ contains
 
   subroutine chm_read_misc
 !
-! Author   : Y. Rochon, ARQI/AQRD, Apr,July 2015 
+! Author   : Y. Rochon, ARQI/AQRD, Apr 2015 
+!
+! Purpose: Read and store miscellaneous flags and constants.
 !
 ! Revisions: 
 !            M. Sitwell, ARQI/AQRD, Aug 2015
 !            - Incorporated input fields in chm_config
-!         
-! Purpose: Read and store miscellaneous flags and constants.
+!            Y. Rochon, ARQI/AQRD, Sept 2015
+!            - Added reading of variables related to options for attributing only 
+!              tropospheric portion of the increment to total column observations
+!            M. Sitwell, ARQI/AQRD, Oct 2015
+!            - Moved amu from obsinfo_chm to namelist namchem    
 !
 ! Output:
-!
-!   Read from obsinfo_chm
-!
-!        chm_config%amu      Molecular mass  of constituents in g/moles (needed for unit conversions)
 !
 !   Read from NAMCHEM namelist
 !
@@ -369,32 +391,49 @@ contains
 !        assim_nlev           0:  multi-level and uni-level
 !                             1:  uni_level
 !                            >1: multi-level 
+!        tropo_mode          Relevant for total column measurements only.
+!                            Integer indicating if special treatment is to be given to the troposphere
+!                            when assimilating total column measurements. Values indicate
+!                              0:  No special treatment given (default)
+!                              1:  Values of the adjoint model above 'tropo_column_top' set to zero
+!                              2:  Values of linear tangent model and adjoint model above 'tropo_column_top'
+!                                  set to zero
+!                            Array index refers to BUFR code element of Table 08046 (iconstituent_id)
+!                            identifying the constituent.
+!        tropo_column_top    Relevant for total column measurements only.
+!                            Forced pressure level (Pa) of top of increment profile for total column measurements
+!                            Applied in the adjoint model. No impact when value is at or above the model top.
+!                            Array index refers to BUFR code element of Table 08046 (iconstituent_id)
+!                            identifying the constituent.
+!        amu                 Molecular mass  of constituents in g/moles (needed for unit conversions)
+!                            Array index refers to BUFR code element of Table 08046 (iconstituent_id)
+!                            identifying the constituent.
 !
 !----------------------------------------------------------------------------------------  
   implicit none
 
   integer :: FNOM, FCLOS
   integer :: IERR, JELM, nulstat, ios, isize, nulnam, i
-  logical :: LnewExists,genoper
+  logical :: genoper
   
   character(len=128) :: ligne  
-  character(len=10)  :: rparm,parm,namfile
-  real(8)            :: val 
-  integer            :: index
+  character(len=10)  :: namfile 
 
   integer :: assim_num,diagn_num,diagn_nset
   integer :: assim_varno(chm_cfg_size),assim_nlev(chm_cfg_size)
-  integer :: diagn_varno(chm_cfg_size)
+  integer :: diagn_varno(chm_cfg_size),tropo_mode(0:chm_constituents_size)
   character(len=9) :: assim_stnid(chm_cfg_size),diagn_stnid(chm_cfg_size)
   logical :: diagn_save,diagn_all,diagn_unilev(chm_cfg_size)
-  real(8) :: diagn_pressmin
+  real(8) :: diagn_pressmin,tropo_column_top(0:chm_constituents_size)
+  real(8) :: amu(0:chm_constituents_size)
 
   EXTERNAL FNOM,FCLOS
 
   namelist /namchem/ genoper, &
                      assim_num,assim_stnid,assim_varno,assim_nlev, &
                      diagn_num,diagn_stnid,diagn_varno,diagn_unilev, &
-                     diagn_save,diagn_all,diagn_nset,diagn_pressmin
+                     diagn_save,diagn_all,diagn_nset,diagn_pressmin, &
+                     tropo_mode,tropo_column_top,amu
   
   ! Default NAMCHEM values
   
@@ -413,6 +452,21 @@ contains
   diagn_stnid(:)='*********'
   diagn_varno(:)=0
   diagn_unilev(:)=.false.
+
+  tropo_mode(:) = 0
+  tropo_column_top(:) = 0.0
+
+  amu(:) = -1.0
+  amu(0) = 48.0    ! Molecular mass in g/mole for O3
+  amu(1) = 18.02   ! H2O
+  amu(2) = 16.04   ! CH4
+  amu(3) = 44.01   ! CO2
+  amu(4) = 28.01   ! CO
+  amu(5) = 46.01   ! NO2
+  amu(6) = 44.01   ! N2O
+  amu(7) = 30.03   ! HCHO=Formaldehyde
+  amu(8) = 64.06   ! SO2
+  amu(9) = 17.03   ! NH3
 
   ! Read from namelist file NAMCHEM
 
@@ -437,8 +491,9 @@ contains
   chm_config%assim_nlev = assim_nlev 
   chm_config%diagn_pressmin = diagn_pressmin
   chm_config%diagn_save = diagn_save
-  
-  chm_config%amu(:) = -1.0
+  chm_config%tropo_mode = tropo_mode
+  chm_config%tropo_column_top = tropo_column_top
+  chm_config%amu = amu
 
   ! Initialize chm_comboIDlist and add (stnid,varno) pairs from the namelist
 
@@ -446,56 +501,6 @@ contains
   do jelm=1,diagn_num
      call chm_comboIdlist(stnid_add=diagn_stnid(jelm), varno_add=diagn_varno(jelm), unilev_add=diagn_unilev(jelm))
   end do
-
-! Read from 'obsinfo_chm' file
-
-  INQUIRE(FILE='obsinfo_chm',EXIST=LnewExists)
-  IF (.not.LnewExists )then
-    WRITE(*,*)   '-------------------------------------------------'
-    WRITE(*,*)   'chm_read_misc: COULD NOT FIND FILE obsinfo_chm!'
-    WRITE(*,*)   '-------------------------------------------------'
-    return
-  ENDIF
-!
-! Check for available layer info.
-!
-  NULSTAT=0
-  IERR=FNOM(NULSTAT,'obsinfo_chm','SEQ',0)
-  IF ( IERR .EQ. 0 ) THEN
-    open(unit=nulstat, file='obsinfo_chm', status='OLD')
-  ELSE
-    CALL ABORT3D('chm_read_misc: COULD NOT OPEN FILE obsinfo_chm!')
-  ENDIF
-
-  ios=0
-  read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
-  do while (trim(adjustl(ligne(1:6))).ne.'MISC') 
-      read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
-  end do    
-  
-! Read number of elements in section
-   
-  read(nulstat,*,iostat=ios,err=10,end=10) isize
-  read(nulstat,*,iostat=ios,err=10,end=10) 
-
-! Read elements
-
-  do jelm=1,isize
-      read(nulstat,*,iostat=ios,err=10,end=10) rparm,val
-      parm=trim(adjustl(rparm))
-      if (parm(1:4).eq.'amu_') then
-         read(parm(5:8),'(I4)') index
-         chm_config%amu(index)=val
-      end if
-  end do
-   
- 10 if (ios.gt.0) then
-       WRITE(*,*) 'File read error message number: ',ios
-       CALL ABORT3D('chm_read_misc: READING PROBLEM')    
-    end if
- 
- 11 CLOSE(UNIT=NULSTAT)
-    IERR=FCLOS(NULSTAT)    
 
   end subroutine chm_read_misc
 
@@ -1905,7 +1910,25 @@ contains
         
   end function stnid_equal
  
-           
+!-------------------------------------------------------------------------------------------
+
+  character(len=20) function int2str(i)
+!
+! Author  : M. Sitwell Oct 2015
+!
+! Purpose: Function for integer to string conversion. Helpful when calling subroutine abort3d.
+!
+!-------------------------------------------------------------------------------------------
+
+    implicit none
+
+    integer, intent(in) :: i
+    
+    write(int2str,*) i
+    int2str = adjustl(int2str)
+    
+  end function int2str
+  
 !-------------------------------------------------------------------------------------------
 
   subroutine chm_adj_model_bndry(zModAlt,zStnAlt,ztop,zbot,ptop,pbot)
@@ -3313,7 +3336,8 @@ contains
 
 !    Layer integration operator
 
-     call chm_layer_integ_operator(chm_obsoper,n_modlvl,pressmodlvl,nobslev,iavgkern,ixtr,success)
+     call chm_layer_integ_operator(chm_obsoper,n_modlvl,pressmodlvl,nobslev,iavgkern, &
+                                   ixtr,success,iconstituent_id,kmode,apply_genoper,rval,rlat,rlon,varName)
 
   end select
 
@@ -3535,6 +3559,8 @@ contains
   real(8), parameter :: rho_stp=1.293  !kg/m^3
   real(8), save :: zval1(100),zval2(100)
 !
+  if (iconstituent_id.lt.0) return
+  
   if (iconstituent_id.eq.1) then
 !
 !     Since the data is for H2O (iconstituent_id=1), then a conversion from the 
@@ -3756,7 +3782,8 @@ contains
 
 !---------------------------------------------------------------------------------------
 
-  subroutine chm_layer_integ_operator(chm_obsoper,n_modlvl,pressmodlvl,nobslev,iavgkern,ixtr,success)
+  subroutine chm_layer_integ_operator(chm_obsoper,n_modlvl,pressmodlvl,nobslev,iavgkern, &
+                                      ixtr,success,iconstituent_id,kmode,apply_genoper,rval,rlat,rlon,varName)
 !
 ! Author  : Y. Rochon, ARQI/AQRD, Feb 2015
 !
@@ -3765,6 +3792,9 @@ contains
 !           - Modified to calculate whole profile within a single call
 !           Y. Rochon ARQOI/AQRD, May 2015
 !           - Added input of ixtr and iavgkern
+!           Y. Rochon ARQOI/AQRD, Sept 2015
+!           - Added iconstituent_id, kmode, ... to varName and related option of producing
+!             tropo increments from total column data.
 !
 ! Purpose:  Perform layer integration and calculations.
 !
@@ -3781,24 +3811,40 @@ contains
 !                  afterwards using the output of this routine.
 !                  0 for no. If not 0, then products for all obs elements
 !                  are needed instead of only those for valid obs elements.
+!     kmode        Observation model stage used to allow option of
+!                  tropo increment determination from total column data when
+!                  chm_config%tropo_column_top > chm_obsoper%vlayertop for
+!                  nobslev=1. For kmode=3, calc only for region between
+!                  chm_config%tropo_column_top and surface. For kmode=2, split
+!                  calc for model top to chm_config%tropo_column_top and 
+!                  chm_config%tropo_column_top and surface.
+!     iconstituent_id  BUFR constituent ID.
+!     rval        Trial field column 
+!     varName     Variable/obs nomvar
+!     rlat        Latitude of obs profile (radians)
+!     rlon        Longitue of obs profile (radians)
 !
 !  InOut
 !
 !     chm_obsoper  observation operator object
 !     success      success of integration
 !     ixtr         Modified ixtr as needed.
+!     apply_genoper 
+!                  Logical indicating if chm_genoper applied.
 !
 !-----------------------------------------------------------------------------------------
 
   implicit none
 
-  integer, intent(in) :: n_modlvl,nobslev,iavgkern
+  integer, intent(in) :: n_modlvl,nobslev,iavgkern,kmode,iconstituent_id
   integer, intent(inout) :: ixtr(nobslev)
-  real(8), intent(in) :: pressmodlvl(n_modlvl)
-  logical, intent(inout) :: success(nobslev)
+  real(8), intent(in) :: pressmodlvl(n_modlvl),rval(n_modlvl),rlat,rlon
+  character(len=*), intent(in) :: varName
+  logical, intent(inout) :: success(nobslev),apply_genoper
   type(struct_chm_obsoperators), intent(inout) :: chm_obsoper
 
   integer :: ij,iobslev
+  real(8) :: vlayertop_ref,vlayerbottom_ref,lvl_bot_ref
 
 ! Conduct initial setup for vertical integration components
 
@@ -3826,13 +3872,81 @@ contains
       end if
       if (chm_obsoper%vlayerbottom(iobslev).gt.pressmodlvl(n_modlvl)*0.999) chm_obsoper%vlayerbottom(iobslev)=pressmodlvl(n_modlvl)*0.999
       if (chm_obsoper%vlayertop(iobslev).lt.pressmodlvl(1)*1.001) chm_obsoper%vlayertop(iobslev)=pressmodlvl(1)*1.001
-
+      
   end do
-       
-  ! Calculate vertical integration components for specified obs layer.
+
+
+  ! Check for special treatment if chm_config%tropo_mode>=1, kmode=2,3, and nobslev=1 for
+  ! column observations that extend to the surface.
+   
+  if (nobslev.eq.1.and.kmode.ge.2.and.chm_obsoper%vlayerbottom(1).gt.pressmodlvl(n_modlvl)*0.99.and. &
+      iconstituent_id.ge.0) then
+
+     if (iconstituent_id.gt.chm_constituents_size) &
+          call abort3d("chm_layer_integ_operator: Invalid constituent ID with value " // trim(int2str(iconstituent_id)))
+     
+     vlayerbottom_ref=chm_obsoper%vlayerbottom(1)
+     
+     if ( chm_config%tropo_mode(iconstituent_id).ge.1 .and. &
+          chm_config%tropo_column_top(iconstituent_id).gt.chm_obsoper%vlayertop(1) ) then
+
+        if (iavgkern.ne.0) &
+             call abort3d("chm_layer_integ_operator: Use of averaging kernels not possible with reduced range of increment profile.")
+        
+        if (kmode.eq.2.and.chm_config%tropo_mode(iconstituent_id).eq.1) then
+           
+           ! When kmode=2, split calc in two. This is done due to difference in 
+           ! calc at the interface region when producing zh and zhp. The tangent linear
+           ! model in the lower region for kmode=2 must be consistent with 
+           ! that associated to kmode=3.
+           
+           ! Start with bottom region in order to use correct zhp with chm_genoper
+           ! when use of this operator is requested.
+           
+           vlayertop_ref=chm_obsoper%vlayertop(1)
+
+           chm_obsoper%vlayertop(1) = chm_config%tropo_column_top(iconstituent_id)
+           
+           call chm_vertintg(chm_obsoper,n_modlvl,nobslev,iavgkern,ixtr,success)
+           
+           ! Apply generalized innovation operator if requested
+           
+           if (apply_genoper) call chm_genoper(chm_obsoper,rval,rlat,rlon,n_modlvl,nobslev,kmode,varName,success)
+           
+           apply_genoper=.false.
+           
+           lvl_bot_ref=chm_obsoper%lvl_bot(1)
+            
+           ! Reset top and bottom values for integration of the remaining region.
+           ! The second integration provides the change in upper level contributions to the
+           ! total column from the assimilation of other observations.
+           
+           chm_obsoper%vlayertop(1)=vlayertop_ref
+           chm_obsoper%vlayerbottom(1)=chm_config%tropo_column_top(iconstituent_id)
+        else
+           ! Reset top new value. Restricts adjoint/tangent linear calcs to this reduced region.            
+           chm_obsoper%vlayertop(1)=chm_config%tropo_column_top(iconstituent_id)
+        end if
+      
+     end if
+  end if
+  
+   ! Calculate vertical integration components for specified obs layer.
 
   call chm_vertintg(chm_obsoper,n_modlvl,nobslev,iavgkern,ixtr,success)
    
+  ! If chm_config%tropo_mode=1, reset original vertical range for the tangent
+  ! linear operator 
+  if (nobslev.eq.1.and.kmode.eq.2.and.iconstituent_id.ge.0) then
+      if (chm_config%tropo_mode(iconstituent_id).eq.1.and.  &
+         chm_config%tropo_column_top(iconstituent_id).gt.chm_obsoper%vlayertop(1).and. &
+         vlayerbottom_ref.gt.pressmodlvl(n_modlvl)*0.99) then    
+          
+         chm_obsoper%vlayerbottom(1)=vlayerbottom_ref
+         chm_obsoper%lvl_bot(1)=lvl_bot_ref
+      end if
+  end if
+  
   end subroutine chm_layer_integ_operator
 
 !-----------------------------------------------------------------------------------------
