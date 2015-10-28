@@ -240,7 +240,7 @@ CONTAINS
     do jvar = 1, vnl_numvarmax3D    
        if(gsv_varExist(vnl_varNameList3D(jvar))) then
 
-          if (any(vnl_varNameList3D(jvar).eq.vnl_varNameListChm)) then
+          if (vnl_varKindFromVarname(vnl_varNameList(jvar)).eq.'CH') then
              numvar3d = numvar3d + 1
              nsposit(numvar3d+1)=nsposit(numvar3d)+nLev_T
              varNameList(numvar3d)=vnl_varNameList3D(jvar)
@@ -254,7 +254,7 @@ CONTAINS
     do jvar=1,vnl_numvarmax2D
        if(gsv_varExist(vnl_varNameList2D(jvar))) then
 
-          if (any(vnl_varNameList2D(jvar).eq.vnl_varNameListChm)) then
+          if (vnl_varKindFromVarname(vnl_varNameList(jvar)).eq.'CH') then
              numvar2d = numvar2d + 1
              nsposit(numvar3d+numvar2d+1)=nsposit(numvar3d+numvar2d)+1
              varNameList(numvar2d)=vnl_varNameList2D(jvar)

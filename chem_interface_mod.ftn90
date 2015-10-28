@@ -682,7 +682,7 @@ contains
 
     do jvar = 1, vnl_numvarmax
       if(gsv_varExist(vnl_varNameList(jvar))) then
-         if (.not.any(vnl_varNameList(jvar).eq.vnl_varNameListChm)) cycle
+         if (vnl_varKindFromVarname(vnl_varNameList(jvar)).ne.'CH') cycle
          varName = trim(vnl_varNameList(jvar))
          varType = vnl_vartypeFromVarname(varName)
          nl_ilev = col_getNumLev(column,varType)
@@ -846,7 +846,7 @@ contains
 
     do jvar = 1, vnl_numvarmax
       if (gsv_varExist(vnl_varNameList(jvar))) then
-         if (any(vnl_varNameList(jvar).eq.vnl_varNameListChm)) then
+         if (vnl_varKindFromVarname(vnl_varNameList(jvar)).eq.'CH') then
 
             varName = trim(vnl_varNameList(jvar))
             inc_ptr => gsv_getField(increment,varName)
@@ -929,7 +929,7 @@ contains
 
     VARLIST: do jvar = 1, vnl_numvarmax
        if (gsv_varExist(vnl_varNameList(jvar))) then
-          if (any(vnl_varNameList(jvar).eq.vnl_varNameListChm)) then
+          if (vnl_varKindFromVarname(vnl_varNameList(jvar)).eq.'CH') then
              chm_assim = .true.
              exit VARLIST 
           end if

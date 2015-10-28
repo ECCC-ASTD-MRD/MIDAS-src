@@ -1485,7 +1485,7 @@ module writeIncrement_mod
 
         do jvar = 1, vnl_numvarmax
            if (gsv_varExist(vnl_varNameList(jvar))) then
-              if (any(vnl_varNameList(jvar).eq.vnl_varNameListChm)) then
+              if (vnl_varKindFromVarname(vnl_varNameList(jvar)).eq.'CH') then
                  !
                  ! Chemical constituents
                  !

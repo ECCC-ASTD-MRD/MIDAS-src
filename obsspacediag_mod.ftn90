@@ -232,11 +232,11 @@ contains
           if(gsv_varExist(vnl_varNameList(jvar))) then
              field => gsv_getField(statevector,vnl_varNameList(jvar))
 
-             if (.not.any(vnl_varNameList(jvar).eq.vnl_varNameListChm)) then
+             if (vnl_varKindFromVarname(vnl_varNameList(jvar)).eq.'MT') then
                 do jlev = 1, gsv_getNumLev(statevector,vnl_vartypeFromVarname(vnl_varNameList(jvar)))   
                    if(scaleFactor(jlev).gt.0.0d0) field(:,jlev,:,:)=field(:,jlev,:,:)/scaleFactor(jlev)
                 enddo
-             else
+             else if (vnl_varKindFromVarname(vnl_varNameList(jvar)).eq.'CH') then
                 ivar_count=ivar_count+1
                 do jlev = 1, gsv_getNumLev(statevector,vnl_vartypeFromVarname(vnl_varNameList(jvar)))   
                    if(scaleFactorChm(jlev,ivar_count).gt.0.0d0) field(:,jlev,:,:)=field(:,jlev,:,:) &
@@ -300,11 +300,11 @@ contains
           if(gsv_varExist(vnl_varNameList(jvar))) then
              field => gsv_getField(statevector,vnl_varNameList(jvar))
 
-             if (.not.any(vnl_varNameList(jvar).eq.vnl_varNameListChm)) then
+             if (vnl_varKindFromVarname(vnl_varNameList(jvar)).eq.'MT') then
                 do jlev = 1, gsv_getNumLev(statevector,vnl_vartypeFromVarname(vnl_varNameList(jvar)))   
                    if(scaleFactor(jlev).gt.0.0d0) field(:,jlev,:,:)=field(:,jlev,:,:)/scaleFactor(jlev)
                 enddo
-             else
+             else if (vnl_varKindFromVarname(vnl_varNameList(jvar)).eq.'CH') then
                 ivar_count=ivar_count+1
                 do jlev = 1, gsv_getNumLev(statevector,vnl_vartypeFromVarname(vnl_varNameList(jvar)))   
                    if(scaleFactorChm(jlev,ivar_count).gt.0.0d0) field(:,jlev,:,:)=field(:,jlev,:,:) &
