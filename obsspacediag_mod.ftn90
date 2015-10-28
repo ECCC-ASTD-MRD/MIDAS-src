@@ -16,9 +16,13 @@
 
 module obsSpaceDiag_mod
 !
+! Author: Mark Buehner, ARMA.
+!
 ! Revisions: M. Sitwell, ARQI (July 2015)
 !            - Addition of 'use chem_mod' for constituents output.
 !            - Addition of lrandom logical (see osd_setup)
+!            Y. Rochon, ARQI (Oct 2015)
+!            - Addition of public procedure 'osd_ObsSpaceDiag'
 !
 !-------------------------------------------------------------------------------------------
 
@@ -44,7 +48,7 @@ module obsSpaceDiag_mod
   private
   
   ! public procedures
-  public :: osd_calcInflation
+  public :: osd_ObsSpaceDiag
 
   ! namelist variables
   real*8 :: deltaLat,deltaLon,deltaPressure,deltaHeight
@@ -58,11 +62,52 @@ module obsSpaceDiag_mod
 contains
 
 !-------------------------------------------------------------------------------------------
-  subroutine osd_calcInflation(obsSpaceData,columng)
+  subroutine osd_ObsSpaceDiag(obsSpaceData,columng)
 !
-! Author:  
+! Author:  Y. Rochon, ARQI (Oct 2015)
+!           
+! Purpose:  Calls routines to calculate observation-space diagnostics
+!
+! Revisions: 
+!       
+!-------------------------------------------------------------------------------------------
+
+    implicit none
+    type(struct_obs) :: obsSpaceData
+    type(struct_columnData) :: columng
+
+    logical :: nmlExists    
+    integer :: ierr
+    integer :: dateprnt,timeprnt,newdate
+    
+!    write(*,*) 'osd_ObsSpaceDiag: Starting'
+
+    call osd_setup(nmlExists)
+    ierr = newdate(tim_getDatestamp(),dateprnt,timeprnt,-3)
+    dateprnt=dateprnt*100+timeprnt/1000000
+    
+!   Perform diagnostics based on OmP and OmA
+ 
+!   Diagnostics for chemical constituents 
+    
+    if (any(burp_cfamtyp.eq.'CH')) call osd_chem_diagnostics(obsSpaceData,columng,dateprnt)
+
+    if ((.not.lrandom) .or. (.not.nmlExists)) return
+
+!   Perform diagnostics from random perturbations
+    
+    call osd_calcInflation(obsSpaceData,columng,dateprnt)
+
+!    write(*,*) 'osd_obsspace_diag: Completed'
+
+  end subroutine osd_ObsSpaceDiag
+  
+!-------------------------------------------------------------------------------------------
+  subroutine osd_calcInflation(obsSpaceData,columng,dateprnt)
+!
+! Author:  Mark Buehner
 !          
-! Purpose:  Calculates observation-space diagnostics
+! Purpose:  Calculates observation-space diagnostics from random perturbations
 !
 ! Revisions: M. Sitwell, ARQI (July 2015)
 !            - Changed ordering of Bhi and Bens perturbation ordering for consistency with
@@ -82,6 +127,8 @@ contains
 !            - Added use of logicals lpert_static and lpert_ens.
 !            - N.B.: Line commented out with !! regarding use of bChmEns_getScaleFactor is to be 
 !              uncommented once the routine is implemented.
+!            Y. Rochon, ARQI (Oct 2015)
+!            - Some of the above indicated additions moved to routine osd_obspsace_diag.
 !       
 !-------------------------------------------------------------------------------------------
 
@@ -93,7 +140,8 @@ contains
     type(struct_columnData) :: column
     type(struct_hco), pointer :: hco_anl
 
-    logical :: nmlExists
+    integer :: dateprnt
+        
     integer :: familyIndex,elementIndex,bodyIndex,headerIndex,latIndex,lonIndex,verticalIndex
     integer :: maxLat,maxLon,maxVertical
     real*8, allocatable  :: innovStd(:,:,:),bmatHiStd(:,:,:),bmatEnStd(:,:,:)
@@ -103,7 +151,6 @@ contains
     integer, allocatable :: my_counts(:,:,:)
     
     integer :: ierr,nulinnov,nulBmatHi,nulBmatEn,nulcount,fnom,fclos,ivco,iseed,jj,jlev,jvar
-    integer :: dateprnt,timeprnt,newdate
     real*8 :: zdum,gasdev
     real*8,pointer :: cvBhi(:), cvBen(:), cvBchm(:), cvBChmEns(:), field(:,:,:,:)
     logical :: lpert_static, lpert_ens
@@ -116,21 +163,6 @@ contains
     
     write(*,*) 'osd_calcInflation: Starting'
 
-    call osd_setup(nmlExists)
-    ierr = newdate(tim_getDatestamp(),dateprnt,timeprnt,-3)
-    dateprnt=dateprnt*100+timeprnt/1000000
-    
-!   Perform diagnostics based on OmP and OmA only (without random perturbations)
- 
-!   Diagnostics for chemical constituents 
-    
-    if (any(burp_cfamtyp.eq.'CH')) call osd_chem_diagnostics(obsSpaceData,columng,dateprnt)
-
-    if ((.not.lrandom) .or. (.not.nmlExists)) return
-
-!   Perform diagnostics from random perturbations
-
-    !if(nrandseed.eq.999) nrandseed=100*dateprnt + int(timeprnt/100.0) ! if seed not set by namelist, use valid date/time
     if(nrandseed.eq.999) nrandseed=dateprnt ! if seed not set by namelist, use valid date/time
     write(*,*) 'osd_calcInflation: random seed set to ',nrandseed
 

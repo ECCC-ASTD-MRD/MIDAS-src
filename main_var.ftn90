@@ -240,7 +240,7 @@ program main_var
     call obs_finalize(obsSpaceData)
 
     ! Compute obs-space diagnostics (diagnostic computations controlled by NAMOSD namelist in flnml)
-    call osd_calcInflation(obsSpaceData_out,columng)
+    call osd_ObsSpaceDiag(obsSpaceData_out,columng)
 
     ! Deallocate bmatrix related arrays
     call bmat_finalize(cvm_vazx)
