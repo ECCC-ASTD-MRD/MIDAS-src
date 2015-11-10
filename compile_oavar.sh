@@ -116,8 +116,8 @@ echo "loading cmda/base/201411/01/${COMP_ARCH}"
 echo "loading hpcs/exp/aspgjdm/perftools"
 . ssmuse-sh -d hpcs/exp/aspgjdm/perftools
 # For RTTOV package... 
-echo "loading arma/rttov/10v2"
-. ssmuse-sh -d arma/rttov/10v2
+echo "loading arma/rttov/10v4"
+. ssmuse-sh -d arma/rttov/10v4
 # For NetCDF package
 echo "loading netcdf"
 . s.ssmuse.dot netcdf

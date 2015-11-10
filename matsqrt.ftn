@@ -86,6 +86,10 @@
       WRITE(*,'(1x,"SQRT OF ORIGINAL EIGEN VALUES: ")') 
       WRITE(*,'(1x,10f7.3)') (ZEIGENV2(JI,JI),JI=1,KN) 
 *
+      IF (ZSIGN < 0.) THEN
+         Write(*,'(A,1x,e14.6)') "Condition number:",
+     +        maxval(ZEIGENV)/minval(ZEIGENV)
+      ENDIF
       CALL DGEMM('N','N',KN,KN,KN,1.0d0,ZEIGEN,KN,ZEIGENV2,KN,
      +           0.0D0 ,ZRESULT,KN)
 
