@@ -306,7 +306,7 @@ subroutine tovs_rttov_tl(lobsSpaceData)
              surfem1_th (joff+1:joff+len_nchannels,ith) =         &
                   surfem1(joff+1+ioffset:joff+len_nchannels+ioffset)
           elseif ((instrum .eq. 20) .or. (instrum .eq. 21) .or. &
-               (instrum .eq. 22) .or. (instrum .eq. 24) ) then
+               (instrum .eq. 22) .or. (instrum .eq. 24) .or. (instrum .eq. 56)) then
              calcemis_th(joff+1:joff+len_nchannels   ,ith) = .true.
              surfem1_th (joff+1:joff+len_nchannels,ith) = 0.d0
           else
