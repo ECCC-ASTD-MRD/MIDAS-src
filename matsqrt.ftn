@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-      SUBROUTINE MATSQRT(PA,KN,ZSIGN)
+      SUBROUTINE MATSQRT(PA,KN,ZSIGN,print_information)
 #if defined (DOC) 
 *
 ***s/r MATSQRT     - Calculate square root of an error covariance
@@ -40,10 +40,20 @@
       INTEGER JI, J, INFO, IER, IWORK
       REAL*8 size_zwork
       REAL*8, allocatable :: ZWORK(:), ZRESULT(:,:), ZEIGENV2(:,:), ZEIGEN(:,:), ZEIGENV(:)
+      LOGICAL, intent(in), optional :: print_information
+      LOGICAL :: print_information_local
 
-      WRITE(*,*)' MATSQRT-Sqrt matrix of a symmetric matrix'
-      WRITE(*,*)' zsign= ',zsign
-      WRITE(*,*)'  -----------------------------------------------'
+      if (present(print_information)) then
+         print_information_local=print_information
+      else
+         print_information_local=.false.
+      end if
+
+      if (print_information_local) then
+         WRITE(*,*)' MATSQRT-Sqrt matrix of a symmetric matrix'
+         WRITE(*,*)' zsign= ',zsign
+         WRITE(*,*)'  -----------------------------------------------'
+      end if
 *
 *     1. Computation of eigenvalues and eigenvectors
 *
@@ -69,8 +79,10 @@
       CALL DSYEV('V','U',KN, ZEIGEN,KN, ZEIGENV,ZWORK, IWORK, INFO )
       deallocate(zwork)
 *
-      WRITE(*,'(1x,"ORIGINAL EIGEN VALUES: ")') 
-      WRITE(*,'(1x,10f7.3)') (ZEIGENV(JI),JI=1,KN) 
+      if (print_information_local) then
+         WRITE(*,'(1x,"ORIGINAL EIGEN VALUES: ")')
+         WRITE(*,'(1x,10f7.3)') (ZEIGENV(JI),JI=1,KN)
+      end if
 *
 *     2.  Take SQRT of eigenvalues
 *
@@ -83,8 +95,10 @@
         ZEIGENV2(JI,JI)= ZEIGENV(JI)**(0.5d0*ZSIGN)
       END DO
 *
-      WRITE(*,'(1x,"SQRT OF ORIGINAL EIGEN VALUES: ")') 
-      WRITE(*,'(1x,10f7.3)') (ZEIGENV2(JI,JI),JI=1,KN) 
+      if (print_information_local) then
+         WRITE(*,'(1x,"SQRT OF ORIGINAL EIGEN VALUES: ")')
+         WRITE(*,'(1x,10f7.3)') (ZEIGENV2(JI,JI),JI=1,KN)
+      end if
 *
       IF (ZSIGN < 0.) THEN
          Write(*,'(A,1x,e14.6)') "Condition number:",
@@ -102,8 +116,10 @@
 *
       deallocate(ZRESULT,ZEIGEN,ZEIGENV2,ZEIGENV)
 
-      WRITE(*,*)'MATSQRT-----------Done--------------- '
-      WRITE(*,*)' '
+      if (print_information_local) then
+         WRITE(*,*)'MATSQRT-----------Done--------------- '
+         WRITE(*,*)' '
+      end if
 
       RETURN
       END
