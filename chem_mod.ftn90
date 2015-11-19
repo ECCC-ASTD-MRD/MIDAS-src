@@ -38,7 +38,7 @@ module chem_mod
 !         of observation layer top and bottom levels (and averaging kernel matrices - tbc). 
 !         See 'preproc.ftn90' and 'chm_obsoperators'. 
 !
-!       - Public routines: "chm_adj_model_bndry,chm_get_stringId,chm_get_ID": Routines for use 
+!       - Public routines: "chm_get_stringId,chm_get_ID": Routines for use 
 !         in filtering out obs based on model vertical boundaries. See 'filterobs_mod.ftn90'.
 !
 !       - Public routine chm_lcheck_skipassim: Identify if data is to be assimilated or only used
@@ -74,7 +74,7 @@ module chem_mod
 
   public :: chm_setup,chm_dealloc_obs_err_stddev,chm_read_obs_err_stddev, &
             chm_get_obs_err_stddev,chm_obsspace_diagnostic,chm_convert_z_to_pressure
-  public :: chm_obsoperators,chm_adj_model_bndry,chm_get_stringID,chm_get_ID,stnid_equal
+  public :: chm_obsoperators,chm_get_stringID,chm_get_ID,stnid_equal
   public :: chm_lcheck_skipassim,chm_comboIDlist,chm_warnings_filename
   
 ! module constants
@@ -1928,47 +1928,9 @@ contains
     int2str = adjustl(int2str)
     
   end function int2str
-  
-!-------------------------------------------------------------------------------------------
-
-  subroutine chm_adj_model_bndry(zModAlt,zStnAlt,ztop,zbot,ptop,pbot)
-!
-! Author  : Y. Rochon  Feb 2015
-! Revision: 
-!
-! Purpose: Set allowed top and bottom boundaries based on model 
-!          for vertical range.
-!
-!          Called from filt_topoChm in flterobs_mod.ftn90.
-!
-!-----------------------------------------------------------------------------------------    
-
-  implicit none
-
-  real(8), intent(in)    :: zModAlt,zStnAlt
-  real(8), intent(inout) :: ztop,zbot
-  real(8), intent(inout) :: ptop,pbot
-  
-  real(8), parameter :: zinc=400.0   ! 400 m allowance beyond input (same as weather variables)
-  real(8), parameter :: pinc=5000.0  ! 50 hPa allowance at sfc beyond input.
-  
-  ! Set geopotential height boundaries.
-      
-  if (zStnAlt .gt. zModAlt) then
-      zbot = zStnAlt - zinc
-  else
-      zbot = zModAlt - zinc
-  endif
-  ztop=ztop + zinc
-  
-  ! Set pressure boundaries.
-      
-  ptop = ptop*(1.0-pinc/pbot)
-  pbot = pbot + pinc
-    
-  end subroutine chm_adj_model_bndry
             
 !-------------------------------------------------------------------------------------------
+
   subroutine chm_get_stringId(cstringin,nobslev,CList,NListSize,Nmax,elemId)
 
 ! 
@@ -3101,6 +3063,9 @@ contains
 !           M. Sitwell, ARQI/AQRD, June 2015
 !           - Changed calculation of HBH^T to forgo calculating off-diagonal elements
 !             of the final product
+!           M. Sitwell, ARQI/AQRD, Nov 2015
+!           - Changed success to InOut to move initialization of success to the
+!             subroutine chm_observation_operators
 !
 ! Purpose: Apply obs operator for indicated obs data and condition.
 !
@@ -3195,8 +3160,9 @@ contains
   integer, intent(in) :: idate,ihhmm
   integer, intent(in) :: iconstituent_id,iass(nobslev)
   integer, intent(inout) :: ixtr(nobslev)
-  real(8), intent(in) :: robslev(nobslev),rlat,rlon
-  logical, intent(out) :: success(nobslev)
+  real(8), intent(in)  :: robslev(nobslev),rlat,rlon
+  logical, intent(in)  :: process_obs(nobslev)
+  logical, intent(inout) :: success(nobslev)
 
 ! I/O arguments: model space profile data and others
     
@@ -3234,10 +3200,6 @@ contains
   chm_obsoper%zhp(:,:)=0.0D0
   chm_obsoper%lvl_top(:)=1
   chm_obsoper%lvl_bot(:)=n_modlvl
-  
-! Initialize success of calculation
-  success = ixtr.eq.0 .and. iass.eq.1
-
 
 ! Apply unit conversion
   select case(kmode)

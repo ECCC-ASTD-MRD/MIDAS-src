@@ -934,7 +934,10 @@ contains
     !          - Based on the subroutines filt_topo* in filterobs_mod.ftn90.
     !            Adapted to chemical constituent data.
     !
-    ! Revisions:  
+    ! Revisions:  M. Sitwell Nov 2015
+    !             - Removed call to subroutine chm_adj_model_bndry for consistency
+    !               in the flagging of obs above/below the model done in vobslyrs
+    !               (routine also removed in chem_mod.ftn90)
     !
     ! Purpose: Rejects elements which are too far below the model surface
     !          or above the model top.
@@ -990,8 +993,6 @@ contains
       zP0 = col_getElem(columnhr,1,headerIndex,'P0') 
       zPtop = col_getPressure(columnhr,1,headerIndex,'MM')
 
-      ! Adjust allowed range      
-      call chm_adj_model_bndry(zModAlt,zStnAlt,zpt,zpb,zPtop,zP0)
             
       ! Identify max number of profile points in the profile (exclude 8090 elements)
       
@@ -1051,6 +1052,7 @@ contains
            ! Check as a function of pressure.
 
            zlev = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
+
            if ( zlev.gt.zP0 .or. zlev.lt.zPtop) then
                call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
                call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &

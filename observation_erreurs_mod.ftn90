@@ -20,6 +20,7 @@ module observation_erreurs_mod
   use obsSpaceData_mod
   use tovs_nl_mod
   use chem_mod
+  use chem_interface_mod
   use codtyp_mod
   use bufr
   implicit none
@@ -88,7 +89,7 @@ module observation_erreurs_mod
   !
   ! Deallocate temporary storage
   !
-  call chm_dealloc_obs_err_stddev
+  if (chm_assim()) call chm_dealloc_obs_err_stddev
 
   end subroutine oer_set_obs_erreurs
 
@@ -571,7 +572,7 @@ module observation_erreurs_mod
 
   implicit none
 
-  call chm_read_obs_err_stddev
+  if (chm_assim()) call chm_read_obs_err_stddev
 
   end subroutine oer_read_obs_erreurs_chm
 

@@ -1,10 +1,10 @@
 #!/bin/ksh
 
 # Revisions:
-#            Ping Du, and Mike Sitwell and Y.J. Rochon (as of Dec 2014)
+#            Mike Sitwell, Y.J. Rochon, and Ping Du (as of Dec 2014)
 #            - The following are changes/additions for chemical constituents.
 #            - Added compilation of bmatrixchem_mod.ftn90
-#            - Addition of chem_mod.ftn90
+#            - Addition of chem_mod.ftn90 and chem_interface_mod.ftn90
 
 set -e
 

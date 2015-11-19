@@ -39,16 +39,17 @@ contains
   
 !-----------------------------------------------------------------------------------
   subroutine chm_observation_operators(column_bkgrnd,obsSpaceData,kmode,column_inc,jobs)
+!
+! Purpose: Apply the observation operators for chemical constituents. Mode of operator
+!          set by kmode.
 ! 
 ! Author: Mike Sitwell,  ARQI/AQRD Aug 2015
 !         - Amalgamatated into a single unit from the original content of subroutines oonl_chm, 
 !           oda_H, oda_HTchm, and compute_HBHT_static_chm produced from earlier developments 
 !           by Ping Du, CMDA/MSC (Jan/Feb 2015), Y. Rochon and M. Sitwell (ARQI/AQRD)
 !
-! Revision:
-!
-! Purpose: Apply the observation operators for chemical constituents. Mode of operator
-!          set by kmode.
+! Revision: M. Sitwell, ARQI/AQRD Nov 2015
+!           - Modified the flagging of observations after chm_obsoperators is called
 !
 ! Input
 !
@@ -119,14 +120,14 @@ contains
 
     integer, allocatable :: ixtr(:), iass(:)
     real(8), allocatable :: zobslev(:)
-    logical, allocatable :: success(:)
+    logical, allocatable :: success(:),process_obs(:)
 
     ! Local variables: model space profile data
 
     character(len=2)   :: varType
     real(8), allocatable :: zppb(:),zvalb(:),zttb(:),zvalinc(:),zhx(:)
     real(8), pointer :: col_ptr_gzb(:),col(:)
-    integer :: nlev_bkgrnd, nlev_inc   
+    integer :: nlev_bkgrnd, nlev_inc
     
     if ((kmode.eq.2.or.kmode.eq.3) .and. (.not.present(column_inc))) then
        write(*,*) "chm_observation_operators: column_inc must be specified for kmode = ",kmode
@@ -187,7 +188,7 @@ contains
       ! Allocate memory for profile data
       allocate(ixtr(nobslev), iass(nobslev))
       allocate(zobslev(nobslev), zhx(nobslev))
-      allocate(success(nobslev))
+      allocate(success(nobslev),process_obs(nobslev))
 
       ! Get trial/background column data at observation location
       do jl = 1, nlev_bkgrnd
@@ -233,6 +234,8 @@ contains
 
         ixtr(iobslev) = obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex)
         iass(iobslev) = obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex)
+        process_obs(iobslev) = ixtr(iobslev).eq.0 .and. iass(iobslev).eq.1  ! indicates if this obs should be processed by chm_obsoperators
+        success(iobslev) = process_obs(iobslev)
 
         ! Get vertical coordinate data. Valid for point data values in profiles.
         ! For layer data values, vertical coordinate data will instead be assigned within chm_obsoperators.
@@ -244,12 +247,15 @@ contains
 
       enddo BODY1
         
+
       ! Apply observation operator. For kmode=1, zhx = sqrt(diag(H*B*H^T)).
 
       call chm_obsoperators(nlev_bkgrnd,zvalinc,zvalb,zttb,zppb,col_ptr_gzb,kmode,varName,&
            varno,cstnid,idate,ihhmm,ivco,nobslev,zobslev,ixtr,iass,zlat,zlon, &
            iconstituent_id,success,zhx)
-               
+ 
+
+
       ! Output results
       
       if (kmode.eq.3) then
@@ -278,13 +284,17 @@ contains
             ! Check for success in calculations
             if (.not.success(iobslev)) then
                if ((iass(iobslev).ne.3.and.iass(iobslev).ne.4).or.kmode.lt.2) then
-                  call obs_bodySet_i(obsSpaceData,OBS_XTR,bodyIndex,1)
                   call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
+                  call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex,0.0D0)
+                  call obs_bodySet_r(obsSpaceData,OBS_OMA,bodyIndex,0.0D0)
+                  if (process_obs(iobslev)) &
+                       call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex, ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),17) )
                end if
                if (kmode.eq.1) call obs_bodySet_r(obsSpaceData,OBS_HPHT,bodyIndex,0.0D0)
                cycle BODY2
             end if
         
+
             ! Store result in appropriate location in obsSpaceData            
             select case(kmode)
             case(0)
@@ -325,7 +335,7 @@ contains
       ! Deallocate profile data
       deallocate(ixtr,iass)
       deallocate(zobslev,zhx)
-      deallocate(success)
+      deallocate(process_obs,success)
       
     enddo HEADER
 
