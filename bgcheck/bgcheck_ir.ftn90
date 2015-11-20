@@ -68,23 +68,20 @@ SUBROUTINE BGCHECK_IR(columng,columnhr,obsSpaceData)
      
   enddo HEADER
 
-  IF (NOBTOV==NOBAIRS .AND.  NOBAIRS>0) THEN
+  IF (NOBAIRS > 0) THEN
      call HIRQC ( columnhr,obsSpaceData,"AIRS" )
   ENDIF
 
-  IF (NOBTOV==NOBIASI .AND.  NOBIASI>0) THEN
-
+  IF (NOBIASI > 0) THEN
      do krtid=1,nsensors
-        
         if (PLATFORM(krtid) == 10 .AND. &
              INSTRUMENT(krtid) == 16 ) THEN
            call HIRQC ( columnhr,obsSpaceData,"IASI",krtid)
         endif
-     end do
-     
+     end do    
   ENDIF
 
-  IF (NOBTOV==NOBCRIS .AND.  NOBCRIS>0) THEN  
+  IF (NOBCRIS > 0) THEN  
      call HIRQC ( columnhr,obsSpaceData,"CRIS" )
   ENDIF
 

@@ -209,35 +209,9 @@ contains
     Integer :: alloc_status(2)
 
     INTEGER :: KRTID
-    INTEGER ::  JO, IDATYP,NCMAX
+    INTEGER ::  JO,NCMAX
     INTEGER ::  ISENS, NC, NL
     INTEGER ::  ICHN
-    INTEGER ::  NOBIASI
-    integer ::  index_header
-
-!     1. Determine the number of IASI profiles to be assimilated.
-!     .  ---------------------------------------------------
- 
-    NOBIASI = 0
-
-  ! loop over all header indices of the 'TO' family
-  ! Set the header list
-  ! (& start at the beginning of the list)
-    call obs_set_current_header_list(lobsSpaceData,'TO')
-    HEADER: do
-       index_header = obs_getHeaderIndex(lobsSpaceData)
-       if (index_header < 0) exit HEADER
-
-       IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,index_header)
-     
-       IF ( .not.  tvs_Is_idburp_tovs(IDATYP) ) cycle HEADER   ! Proceed to the next header_index
-
-       IF ( tvs_Is_idburp_inst(IDATYP,"IASI") ) NOBIASI = NOBIASI + 1
-
-    ENDDO HEADER
-
-    write(*,*) ' BGCK_IR_SETUP: nobiasi = ', nobiasi
-!-----------------------------------------------------------------------
 
 !     2. Memory allocation for background check related variables
 !     .  -----------------------------------------------------
@@ -321,7 +295,7 @@ contains
        IF ( PLATFORM(KRTID) == 10 .AND. &
             INSTRUMENT(KRTID) == 16 ) THEN
 
-          allocate ( avhrr_bgck(NOBIASI), stat= alloc_status(1))
+          allocate ( avhrr_bgck(NOBTOV), stat= alloc_status(1))
 
           If( alloc_status(1)/=0 ) then
              WRITE(*,FMT=9201)
