@@ -32,7 +32,7 @@ program calcbmatrix_main
 
   integer           :: ens, nens
   integer           :: nulnam, ierr, fnom, fclos
-  character(len=20) :: cmode
+  character(len=60) :: cmode
 
   NAMELIST /NAMCONF/cmode
   NAMELIST /NAMENS/nens,ensfilebasename
@@ -101,34 +101,34 @@ program calcbmatrix_main
      else
         call calcb_lam_computeStats
      end if
-  case ('HVCORREL')
+  case ('TOOLBOX')
      if (hco_ens % global) then
-        call calcb_glb_diag_hvcorrel
+        call calcb_glb_toolbox
      else
         write(*,*)
-        write(*,*) 'HVCORREL mode is not availbale in LAM mode'
-        stop
+        write(*,*) 'TOOLBOX mode is not availbale in LAM mode'
+        call abort3d('calcbmatrix_main')
      end if
   case ('STDDEV')
      if (hco_ens % global) then
-        call calcb_glb_diag_stddev
+        call calcb_glb_stddev
      else
         write(*,*)
         write(*,*) 'STDDEV mode is not availbale in LAM mode'
-        stop
+        call abort3d('calcbmatrix_main')
      end if
   case ('POWERSPEC')
      if (hco_ens % global) then
-        call calcb_glb_diag_powerspec
+        call calcb_glb_powerspec
      else
         write(*,*)
         write(*,*) 'POWERSPEC mode is not availbale in LAM mode'
-        stop
+        call abort3d('calcbmatrix_main')
      end if
   case default
      write(*,*)
      write(*,*) 'Unknown value of CMODE in global mode: ',cmode
-     stop
+     call abort3d('calcbmatrix_main')
   end select
 
   !

@@ -27,8 +27,10 @@ module calcbmatrix_glb_mod
   private
 
   ! Public Subroutines
-  public :: calcb_glb_setup, calcb_glb_computeStats, calcb_glb_diag_stddev
-  public :: calcb_glb_diag_hvcorrel, calcb_glb_diag_powerspec
+  public :: calcb_glb_setup, calcb_glb_computeStats, calcb_glb_stddev
+  public :: calcb_glb_toolbox, calcb_glb_powerspec
+
+  type(struct_hco), pointer :: hco_ens ! Ensemble horizontal grid parameters
 
   integer :: nens,ntrunc,ni,nj,nLevEns_M,nLevEns_T,nLevPtoT,nkgdimEns,varLevOffset(6),nla
   character(len=256), allocatable :: cflensin(:)
@@ -42,6 +44,7 @@ module calcbmatrix_glb_mod
   integer, parameter :: modelSpace   = 1
   integer, parameter :: cvSpace      = 2
   integer, parameter :: cvUnbalSpace = 3
+  integer :: variableType
 
   real(8) :: gridSpacingInKm
 
@@ -61,9 +64,11 @@ module calcbmatrix_glb_mod
     implicit none
 
     integer, intent(in)            :: nens_in
+
     character(len=*), intent(in)   :: cflens_in(nens_in)
-    type(struct_vco), intent(in)   :: vco_in
-    type(struct_hco), intent(in)   :: hco_in
+
+    type(struct_vco), pointer, intent(in)   :: vco_in
+    type(struct_hco), pointer, intent(in)   :: hco_in
 
     integer :: nulnam,ierr,mpiMode,status, waveBandIndex
     integer :: fclos,fnom,fstouv,fstfrm
@@ -72,8 +77,8 @@ module calcbmatrix_glb_mod
 
     NAMELIST /NAMCALCB_GLB/ntrunc,waveBandPeaks
 
-    write(*,*)
-    write(*,*) 'calcb_glb_setup: Starting...'
+    write(6,*)
+    write(6,*) 'calcb_glb_setup: Starting...'
 
     nens=nens_in
     allocate(cflensin(nens))
@@ -92,11 +97,12 @@ module calcbmatrix_glb_mod
     ierr=fclos(nulnam)
 
     !- Setup horizontal grid
+    hco_ens => hco_in
     ni=hco_in%ni
     nj=hco_in%nj
     gridSpacingInKm = ra * hco_in%dlon / 1000.d0
     
-    write(*,*) 'Grid Spacing in Km = ', gridSpacingInKm
+    write(6,*) 'Grid Spacing in Km = ', gridSpacingInKm
 
     !- Setup vertical levels
     nLevEns_M=vco_in%nlev_M
@@ -156,26 +162,26 @@ module calcbmatrix_glb_mod
     if ( nWaveBand < 1 ) then
        nWaveBand = 1
     else if (nWaveBand == 1) then
-       write(*,*) 'You have specified only ONE waveBandPeaks'
-       stop
+       write(6,*) 'You have specified only ONE waveBandPeaks'
+       call abort3d('calbmatrix_glb')
     else
-       write(*,*)
-       write(*,*) 'WaveBand decomposition is ACTIVATED'
+       write(6,*)
+       write(6,*) 'WaveBand decomposition is ACTIVATED'
     end if
     
     ! Make sure that the wavenumbers are in the correct (decreasing) order
     do waveBandIndex = 1, nWaveBand-1
        if ( waveBandPeaks(waveBandIndex)-waveBandPeaks(waveBandIndex+1) <= 0 ) then
-          write(*,*) 'calcb_glb_setup: waveBandPeaks are not in decreasing wavenumber order'
-          stop
+          write(6,*) 'calcb_glb_setup: waveBandPeaks are not in decreasing wavenumber order'
+          call abort3d('calbmatrix_glb')
        end if
     end do
 
     ! Make sure the truncation is compatible with the waveBandPeaks
     if ( ntrunc < nj-1 ) then
-       write(*,*) 'calcb_glb_setup: The truncation is not compatible with wave band decomposition'
-       write(*,*) '                 ntrunc should = ', nj-1
-       stop
+       write(6,*) 'calcb_glb_setup: The truncation is not compatible with wave band decomposition'
+       write(6,*) '                 ntrunc should = ', nj-1
+       call abort3d('calbmatrix_glb')
     end if
 
     !
@@ -183,8 +189,8 @@ module calcbmatrix_glb_mod
     !
     initialized = .true.
 
-    write(*,*)
-    write(*,*) 'calcb_glb_setup: Done!'
+    write(6,*)
+    write(6,*) 'calcb_glb_setup: Done!'
 
   end subroutine calcb_glb_setup
 
@@ -203,72 +209,72 @@ module calcbmatrix_glb_mod
 
     allocate(ensPerturbations(ni,nkgdimEns,nj,nens),stat=ierr)
     if(ierr.ne.0) then
-      write(*,*) 'Problem allocating memory!',ierr
+      write(6,*) 'Problem allocating memory!',ierr
       call flush(6)
     endif
     allocate(ensBalPerturbations(ni,nLevEns_T+1,nj,nens),stat=ierr)
     if(ierr.ne.0) then
-      write(*,*) 'Problem allocating memory!',ierr
+      write(6,*) 'Problem allocating memory!',ierr
       call flush(6)
     endif
     allocate(theta1(nlevEns_M,nj),stat=ierr)
     if(ierr.ne.0) then
-      write(*,*) 'Problem allocating memory!',ierr
+      write(6,*) 'Problem allocating memory!',ierr
       call flush(6)
     endif
     allocate(stddev3d(ni,nkgdimEns,nj),stat=ierr)
     if(ierr.ne.0) then
-      write(*,*) 'Problem allocating memory!',ierr
+      write(6,*) 'Problem allocating memory!',ierr
       call flush(6)
     endif
     allocate(stddevZonAvg(nkgdimEns,nj),stat=ierr)
     if(ierr.ne.0) then
-      write(*,*) 'Problem allocating memory!',ierr
+      write(6,*) 'Problem allocating memory!',ierr
       call flush(6)
     endif
     allocate(PtoT(nlevEns_T+1,nlevEns_M,nj),stat=ierr)
     if(ierr.ne.0) then
-      write(*,*) 'Problem allocating memory!',ierr
+      write(6,*) 'Problem allocating memory!',ierr
       call flush(6)
     endif
     allocate(theta2(nlevEns_M,nj),stat=ierr)
     if(ierr.ne.0) then
-      write(*,*) 'Problem allocating memory!',ierr
+      write(6,*) 'Problem allocating memory!',ierr
       call flush(6)
     endif
     allocate(stddev3dBal(ni,nLevEns_T+1,nj),stat=ierr)
     if(ierr.ne.0) then
-      write(*,*) 'Problem allocating memory!',ierr
+      write(6,*) 'Problem allocating memory!',ierr
       call flush(6)
     endif
     allocate(stddev3dUnbal(ni,nkgdimEns,nj),stat=ierr)
     if(ierr.ne.0) then
-      write(*,*) 'Problem allocating memory!',ierr
+      write(6,*) 'Problem allocating memory!',ierr
       call flush(6)
     endif
     allocate(stddevZonAvgBal(nLevEns_T+1,nj),stat=ierr)
     if(ierr.ne.0) then
-      write(*,*) 'Problem allocating memory!',ierr
+      write(6,*) 'Problem allocating memory!',ierr
       call flush(6)
     endif
     allocate(stddevZonAvgUnbal(nkgdimEns,nj),stat=ierr)
     if(ierr.ne.0) then
-      write(*,*) 'Problem allocating memory!',ierr
+      write(6,*) 'Problem allocating memory!',ierr
       call flush(6)
     endif
     allocate(corns(nkgdimEns,nkgdimEns,0:ntrunc),stat=ierr)
     if(ierr.ne.0) then
-      write(*,*) 'Problem allocating memory!',ierr
+      write(6,*) 'Problem allocating memory!',ierr
       call flush(6)
     endif
     allocate(rstddev(nkgdimEns,0:ntrunc),stat=ierr)
     if(ierr.ne.0) then
-      write(*,*) 'Problem allocating memory!',ierr
+      write(6,*) 'Problem allocating memory!',ierr
       call flush(6)
     endif
 
     call readEnsemble(ensPerturbations)
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    write(6,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     call removeMean(ensPerturbations)
 
@@ -345,68 +351,121 @@ module calcbmatrix_glb_mod
   end subroutine calcb_glb_computeStats
 
 !--------------------------------------------------------------------------
-! CALCB_GLB_DIAG_HVCORREL
+! CALCB_GLB_TOOLBOOX
 !--------------------------------------------------------------------------
-  subroutine calcb_glb_diag_hvCorrel
+  subroutine calcb_glb_toolbox
     implicit none
 
     ! NOTE: The diagnostic computed here are in model variable space 
     !       (no variable transform!!!)
 
-    integer :: ierr,  waveBandIndex
+    integer :: waveBandIndex
+    integer :: nulnam, ierr, fclos, fnom
 
-    real*4,pointer     :: ensPerturbations(:,:,:,:)
-    real*8,allocatable :: stddev3d(:,:,:)
-    real*8,allocatable :: corns(:,:,:),rstddev(:,:)
+    real(4),pointer     :: ensPerturbations(:,:,:,:)
+    real(8),allocatable :: stddev3d(:,:,:)
+    real(8),allocatable :: corns(:,:,:), rstddev(:,:)
 
-    write(*,*)
-    write(*,*) 'calcb_glb_diag_hvCorrel'
-    write(*,*)
-    
+    character(len=60) :: tool
+
+    NAMELIST /NAMTOOLBOX/tool
+
+    write(6,*)
+    write(6,*) 'calcb_glb_toolbox'
+    write(6,*)
+
+    variableType = modelSpace
+
+    !
+    !- Tool selection
+    !
+    nulnam = 0
+    ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+    read(nulnam,nml=NAMTOOLBOX)
+    write(*,nml=NAMTOOLBOX)
+    ierr = fclos(nulnam)
+
+    select case(trim(tool))
+    case ('HVCORREL_HI')
+       write(6,*)
+       write(6,*) 'Computing Homogeneous and Isotropic Correlation'
+    case ('HVCORREL_LOCAL')
+       write(6,*)
+       write(6,*) 'Computing Local Correlation'
+    case ('LOCALIZATIONRADII')
+       write(6,*)
+       write(6,*) 'Estimating the optimal covariance localization radii'
+    case default
+       write(6,*)
+       write(6,*) 'Unknown TOOL in calcb_glb_toolbox : ', trim(tool)
+       call abort3d('calbmatrix_glb')
+    end select
+
+    !
+    !- Horizontal and vertical correlation diagnostics
+    !
     allocate(ensPerturbations(ni,nkgdimEns,nj,nens))
     allocate(stddev3d(ni,nkgdimEns,nj))
-    allocate(corns(nkgdimEns,nkgdimEns,0:ntrunc))
-    allocate(rstddev(nkgdimEns,0:ntrunc))
-   
+    if (trim(tool) == 'HVCORREL_HI') then
+       allocate(corns(nkgdimEns,nkgdimEns,0:ntrunc))
+       allocate(rstddev(nkgdimEns,0:ntrunc))
+    end if
+
     do waveBandIndex = 1, nWaveBand
 
        if ( nWaveBand /= 1 ) then
-          write(*,*)
-          write(*,*) ' ********* Processing WaveBand #',waveBandIndex
-          write(*,*)
+          write(6,*)
+          write(6,*) ' ********* Processing WaveBand #',waveBandIndex
+          write(6,*)
        end if
 
        call readEnsemble(ensPerturbations,windImages=.false.) ! OUT
-       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+       write(6,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
        call removeMean(ensPerturbations) ! INOUT
        
+       if (trim(tool) /= 'HVCORREL_HI') then
+          call removeGlobalMean(ensPerturbations) ! INOUT
+       end if
+
        call spectralFilter(ensPerturbations,nkgdimens,waveBandIndex=waveBandIndex) ! INOUT, IN, IN
 
        call calcStddev3d(ensPerturbations,stddev3d,nkgdimens) ! IN, OUT, IN
 
-       call normalize3d(ensPerturbations,stddev3d) ! INOUT, IN
-       
-       call removeGlobalMean(ensPerturbations) ! INOUT
-    
-       call calcCorrelations(ensPerturbations, & ! IN
-                             corns,            & ! OUT (vertical correlation in spectral space)
-                             rstddev)            ! OUT ( sqrt(normalized power spectrum) )
+       if (trim(tool) == 'HVCORREL_HI') then
+          call normalize3d(ensPerturbations,stddev3d) ! INOUT, IN
 
-       call writeStats(corns,rstddev,waveBandIndex=waveBandIndex) ! IN
+          call removeGlobalMean(ensPerturbations) ! INOUT
 
-       call calcHorizScale(rstddev,modelSpace,waveBandIndex=waveBandIndex) ! IN
+          call calcCorrelations(ensPerturbations, & ! IN
+                                corns,            & ! OUT (vertical correlation in spectral space)
+                                rstddev)            ! OUT ( sqrt(normalized power spectrum) )
 
-       call horizCorrelFunction(rstddev,waveBandIndex=waveBandIndex) ! IN
+          call writeStats(corns,rstddev,waveBandIndex=waveBandIndex) ! IN
+
+          call calcHorizScale(rstddev,waveBandIndex=waveBandIndex) ! IN
+
+          call horizCorrelFunction(rstddev,waveBandIndex=waveBandIndex) ! IN
+       else if (trim(tool) == 'HVCORREL_LOCAL') then
+          call normalize3d(ensPerturbations,stddev3d) ! INOUT, IN
+          call calcLocalCorrelations(ensPerturbations, waveBandIndex=waveBandIndex) ! IN
+       else
+          call calcLocalizationRadii(ensPerturbations, stddev3d, waveBandIndex=waveBandIndex) ! IN
+       end if
 
     end do
 
-  end subroutine calcb_glb_diag_hvCorrel
+    !
+    !- Write the estimated pressure profiles
+    !
+    call writePressureProfiles
+
+  end subroutine calcb_glb_toolbox
 
 !--------------------------------------------------------------------------
-! CALCB_GLB_DIAG_POWERSPEC
+! CALCB_GLB_POWERSPEC
 !--------------------------------------------------------------------------
-  subroutine calcb_glb_diag_powerspec
+  subroutine calcb_glb_powerspec
     implicit none
 
     ! NOTE: The diagnostic computed here are in model variable space 
@@ -417,15 +476,15 @@ module calcbmatrix_glb_mod
     real*4,pointer     :: ensPerturbations(:,:,:,:)
     real*8,allocatable :: powerSpec(:,:)
 
-    write(*,*)
-    write(*,*) 'calcb_glb_diag_powerspec'
-    write(*,*)
+    write(6,*)
+    write(6,*) 'calcb_glb_powerspec'
+    write(6,*)
     
     allocate(ensPerturbations(ni,nkgdimEns,nj,nens))
     allocate(powerspec(nkgdimEns,0:ntrunc))
 
     call readEnsemble(ensPerturbations,windImages=.false.) ! OUT, IN
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    write(6,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     call removeMean(ensPerturbations) ! INOUT
 
@@ -434,12 +493,12 @@ module calcbmatrix_glb_mod
 
     call writePowerSpec(powerSpec) ! IN
 
-  end subroutine calcb_glb_diag_powerspec
+  end subroutine calcb_glb_powerspec
 
 !--------------------------------------------------------------------------
-! CALCB_GLB_DIAG_STDDEV
+! CALCB_GLB_STDDEV
 !--------------------------------------------------------------------------
-  subroutine calcb_glb_diag_stddev
+  subroutine calcb_glb_stddev
     implicit none
     integer :: ierr
     real*4,pointer  :: ensPerturbations(:,:,:,:)
@@ -447,17 +506,17 @@ module calcbmatrix_glb_mod
 
     allocate(ensPerturbations(ni,nkgdimEns,nj,nens),stat=ierr)
     if(ierr.ne.0) then
-      write(*,*) 'Problem allocating memory!',ierr
+      write(6,*) 'Problem allocating memory!',ierr
       call flush(6)
     endif
     allocate(stddev3d(ni,nkgdimEns,nj),stat=ierr)
     if(ierr.ne.0) then
-      write(*,*) 'Problem allocating memory!',ierr
+      write(6,*) 'Problem allocating memory!',ierr
       call flush(6)
     endif
     allocate(stddevZonAvg(nkgdimEns,nj),stat=ierr)
     if(ierr.ne.0) then
-      write(*,*) 'Problem allocating memory!',ierr
+      write(6,*) 'Problem allocating memory!',ierr
       call flush(6)
     endif
 
@@ -479,7 +538,7 @@ module calcbmatrix_glb_mod
     write(203,*) stddevZonAvg((1+2*nlevEns_M+1*nlevEns_T):(2*nlevEns_M+2*nlevEns_T),:)
     write(204,*) stddevZonAvg((1+2*nlevEns_M+2*nlevEns_T),:)/1.0d2
 
-  end subroutine calcb_glb_diag_stddev
+  end subroutine calcb_glb_stddev
 
 !--------------------------------------------------------------------------
 ! WRITESPSTATS
@@ -564,7 +623,7 @@ module calcbmatrix_glb_mod
     ierr =  fstfrm(nulstats)
     ierr =  fclos (nulstats)
 
-    write(*,*) 'finished writing statistics...'
+    write(6,*) 'finished writing statistics...'
     call flush(6)
 
   end subroutine writeSpStats
@@ -593,7 +652,7 @@ module calcbmatrix_glb_mod
 
     enddo
 
-    write(*,*) 'finished removing balanced chi...'
+    write(6,*) 'finished removing balanced chi...'
     call flush(6)
 
   end subroutine removeBalancedChi
@@ -647,7 +706,7 @@ module calcbmatrix_glb_mod
 
     enddo
 
-    write(*,*) 'finished removing balanced T and Ps...'
+    write(6,*) 'finished removing balanced T and Ps...'
     call flush(6)
 
   end subroutine removeBalancedT_Ps
@@ -667,7 +726,7 @@ module calcbmatrix_glb_mod
     corns(:,:,:)=0.0d0
     do jens=1,nens
 
-      write(*,*) 'calcCorrelations: processing member ',jens
+      write(6,*) 'calcCorrelations: processing member ',jens
       call flush(6)
 
       gridState(:,:,:)=ensPerturbations(:,:,:,jens)
@@ -735,7 +794,7 @@ module calcbmatrix_glb_mod
       enddo
     enddo
 
-    write(*,*) 'finished computing correlations...'
+    write(6,*) 'finished computing correlations...'
     call flush(6)
 
   end subroutine calcCorrelations
@@ -757,7 +816,7 @@ module calcbmatrix_glb_mod
 
     do jens = 1, nens
 
-      write(*,*) 'calcPowerSpec: processing member ',jens
+      write(6,*) 'calcPowerSpec: processing member ',jens
       call flush(6)
 
       gridState(:,:,:)=ensPerturbations(:,:,:,jens)
@@ -789,7 +848,7 @@ module calcbmatrix_glb_mod
       enddo
     enddo
 
-    write(*,*) 'finished computing power spectrum...'
+    write(6,*) 'finished computing power spectrum...'
     call flush(6)
 
   end subroutine calcPowerSpec
@@ -804,11 +863,14 @@ module calcbmatrix_glb_mod
     real*8, optional :: PtoT(:,:,:),theta(:,:)
     integer, optional :: waveBandIndex
 
-    integer jn,ierr,ipak,jk,jl
     real*8 prcor(nkgdimEns,nkgdimEns)
-    integer vfstecr,fstouv,fnom,fstfrm,fclos
-    integer ip1,ip2,ip3,idatyp,idateo
+
+    integer :: jn,ierr,ipak,jk,jl
+    integer :: vfstecr,fstouv,fnom,fstfrm,fclos
+    integer :: ip1,ip2,ip3,idatyp,idateo
     integer :: nulstats
+    integer :: jvar1, jvar2
+    integer :: nLevEns1, nLevEns2, nlevstart1, nlevend1, nlevstart2, nlevend2
 
     character(len=128) :: outfilename
     character(len=2) :: wbnum
@@ -818,8 +880,8 @@ module calcbmatrix_glb_mod
        outfilename='./bgcov.fst'
     else
        if (.not. present(waveBandIndex)) then
-          write(*,*) 'writeStats: No waveBandIndex was supplied!!!'
-          stop
+          write(6,*) 'writeStats: No waveBandIndex was supplied!!!'
+          call abort3d('calbmatrix_glb')
        end if
        write(wbnum,'(I2.2)') waveBandIndex
        outfilename='./bgcov_'//trim(wbnum)//'.fst'
@@ -855,6 +917,8 @@ module calcbmatrix_glb_mod
                      ip1,ip2,ip3,'X','SS','RSTDDEV ','X',0,0,0,0,idatyp,.true.)
     enddo
 
+    
+    ! Computing the total vertical correlation matrix
     do jk = 1, nkgdimEns
       do jl = 1, nkgdimEns
         prcor(jk,jl) = 0
@@ -880,10 +944,81 @@ module calcbmatrix_glb_mod
     ierr =  fstfrm(nulstats)
     ierr =  fclos (nulstats)
 
-    write(*,*) 'finished writing statistics...'
+    !- For plotting purposes...
+    do jvar1 = 1, nvar3d
+       do jvar2 = jvar1, nvar3d
+
+          if ( nWaveBand == 1 ) then
+             outfilename = "./vertCorrel_"//trim(nomvar3d(jvar1,variableType))//"_"//trim(nomvar3d(jvar2,variableType))//".txt"
+          else
+             outfilename = "./vertCorrel_"//trim(nomvar3d(jvar1,variableType))//"_"//trim(nomvar3d(jvar2,variableType))//"_"//wbnum//".txt"
+          end if
+          open (unit=99,file=outfilename,action="write",status="new")
+
+          if (vnl_varTypeFromVarName(nomvar3d(jvar1,variableType)).eq.'MM') then
+             nLevEns1 = nLevEns_M
+          else
+             nLevEns1 = nLevEns_T
+          endif
+          nLevStart1 = varLevOffset(jvar1)+ 1 
+          nLevEnd1   = varLevOffset(jvar1)+ nLevEns1
+
+          if (vnl_varTypeFromVarName(nomvar3d(jvar2,variableType)).eq.'MM') then
+             nLevEns2 = nLevEns_M
+          else
+             nLevEns2 = nLevEns_T
+          endif
+          nLevStart2 = varLevOffset(jvar2)+ 1 
+          nLevEnd2   = varLevOffset(jvar2)+ nLevEns2
+
+          do jk = nLevStart1, nLevEnd1
+             do jl = nLevStart2, nLevEnd2
+                if ( jl == nLevEnd2 ) then 
+                   write(99,'(2X,F6.4)')    prcor(jk,jl) ! Saut de ligne
+                else
+                   write(99,'(2X,F6.4,$)')  prcor(jk,jl)
+                end if
+             end do
+          end do
+
+          close(unit=99)
+          
+       end do
+    end do
+
+    write(6,*) 'finished writing statistics...'
     call flush(6)
 
   end subroutine writeStats
+
+!--------------------------------------------------------------------------
+! WRITEPRESSUREPROFILES
+!--------------------------------------------------------------------------
+  subroutine writePressureProfiles
+    implicit none
+
+    character(len=128) :: outfilename
+
+    integer :: jk
+
+    outfilename = "./pressureProfile_M.txt"
+    open (unit=99,file=outfilename,action="write",status="new")
+    do jk = 1, nLevEns_M
+       write(99,'(I3,2X,F6.1)') jk, pressureProfile_M(jk)/100.d0
+    end do
+    close(unit=99)
+       
+    outfilename = "./pressureProfile_T.txt"
+    open (unit=99,file=outfilename,action="write",status="new")
+    do jk = 1, nLevEns_T
+       write(99,'(I3,2X,F6.1)') jk, pressureProfile_T(jk)/100.d0
+    end do
+    close(unit=99)
+
+    write(6,*) 'finished writing pressure profiles...'
+    call flush(6)
+
+  end subroutine writePressureProfiles
 
 !--------------------------------------------------------------------------
 ! WRITESTDDEV
@@ -1010,7 +1145,7 @@ module calcbmatrix_glb_mod
     ierr =  fstfrm(nulstats)
     ierr =  fclos (nulstats)
 
-    write(*,*) 'finished writing stddev...'
+    write(6,*) 'finished writing stddev...'
     call flush(6)
 
   end subroutine writeStddev
@@ -1092,7 +1227,7 @@ module calcbmatrix_glb_mod
     ierr =  fstfrm(nulstats)
     ierr =  fclos (nulstats)
 
-    write(*,*) 'finished writing stddev...'
+    write(6,*) 'finished writing stddev...'
     call flush(6)
 
   end subroutine writeStddevBal
@@ -1111,23 +1246,23 @@ module calcbmatrix_glb_mod
     integer :: jens, jk, jn, jm, ila
 
     real(8), allocatable :: ResponseFunction(:)
-    real(8) :: waveLength
+    real(8) :: waveLength, FilterResponseFunction
 
     character(len=128) :: outfilename
     character(len=2) :: wbnum
 
     if ( nWaveBand /= 1 ) then
-       write(*,*) 'Bandpass filtering step'
+       write(6,*) 'Bandpass filtering step'
        if (.not. present(waveBandIndex)) then
-          write(*,*) 'Error: No waveBandIndex was supplied!!!'
-          stop
+          write(6,*) 'Error: No waveBandIndex was supplied!!!'
+          call abort3d('calbmatrix_glb')
        end if
        allocate(ResponseFunction(0:ntrunc))
        write(wbnum,'(I2.2)') waveBandIndex
        outfilename = "./ResponseFunction_"//wbnum//".txt"
        open (unit=99,file=outfilename,action="write",status="new")
        do jn = 0, ntrunc
-          ResponseFunction(jn) = SpectralFilterResponseFunction(dble(jn),waveBandIndex)
+          ResponseFunction(jn) = FilterResponseFunction(dble(jn),waveBandIndex, waveBandPeaks, nWaveBand)
           if ( jn /= 0) then
              waveLength=4.d0*asin(1.d0)*ra/dble(jn)
           else
@@ -1165,7 +1300,7 @@ module calcbmatrix_glb_mod
        deallocate(ResponseFunction)
     end if
 
-    write(*,*) 'finished applying spectral filter...'
+    write(6,*) 'finished applying spectral filter...'
     call flush(6)
 
   end subroutine spectralFilter
@@ -1207,7 +1342,7 @@ module calcbmatrix_glb_mod
       enddo
     enddo
 
-    write(*,*) 'finished computing theta...'
+    write(6,*) 'finished computing theta...'
     call flush(6)
 
   end subroutine calcTheta
@@ -1262,7 +1397,7 @@ module calcbmatrix_glb_mod
 
     do jens = 1,nens
 
-      write(*,*) 'calcPtoT: processing member ',jens
+      write(6,*) 'calcPtoT: processing member ',jens
       call flush(6)
 
       psi(:,:,:)=ensPerturbations(:,1:nlevEns_M,:,jens)
@@ -1337,8 +1472,8 @@ module calcbmatrix_glb_mod
     IWORK=4*NLEVPTOT
     CALL DSYEV('V','U',NLEVPTOT,ZEIGEN,NLEVPTOT,ZEIGENV,ZEIGWRK,IWORK,INFO)
 
-    write(*,*) 'calcPtot: info=',info
-    write(*,*) 'calcPtot: eigen values=',zeigenv(:)
+    write(6,*) 'calcPtot: info=',info
+    write(6,*) 'calcPtot: eigen values=',zeigenv(:)
 
     do JK1=1,NLEVPTOT
       if (ZEIGENV(JK1).gt.0.0d0) then
@@ -1357,9 +1492,9 @@ module calcbmatrix_glb_mod
       ENDDO
     ENDDO
 
-!    write(*,*) 'zm1=',zm1(:,:,1)
-!    write(*,*) 'zm2=',zm2(:,:,1)
-!    write(*,*) 'zm2inv=',zm2inv(:,:,1)
+!    write(6,*) 'zm1=',zm1(:,:,1)
+!    write(6,*) 'zm2=',zm2(:,:,1)
+!    write(6,*) 'zm2inv=',zm2inv(:,:,1)
 
 ! Calculate A = ZM1*inv(ZM2)
 !
@@ -1379,7 +1514,7 @@ module calcbmatrix_glb_mod
       ENDDO
     ENDDO
 
-    write(*,*) 'finished computing PtoT...'
+    write(6,*) 'finished computing PtoT...'
     call flush(6)
 
   end subroutine calcPtoT
@@ -1414,7 +1549,7 @@ module calcbmatrix_glb_mod
 !$OMP END DO
 !$OMP END PARALLEL
 
-    write(*,*) 'finished removing global mean...'
+    write(6,*) 'finished removing global mean...'
     call flush(6)
 
   end subroutine removeGlobalMean
@@ -1442,7 +1577,7 @@ module calcbmatrix_glb_mod
 !$OMP END DO
 !$OMP END PARALLEL
 
-    write(*,*) 'finished computing the zonal average...'
+    write(6,*) 'finished computing the zonal average...'
     call flush(6)
 
   end subroutine calcZonAvg
@@ -1456,6 +1591,10 @@ module calcbmatrix_glb_mod
     integer :: jlon,jlat,jlev,jens,nlev
     real*8  :: dnens,stddev3d(:,:,:)
     real*4  :: ensPerturbations(:,:,:,:)
+
+    write(6,*) 'started computing the stddev...'
+    write(6,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call flush(6)
 
     stddev3d(:,:,:)=0.0d0
     dnens=1.0d0/dble(nens-1)
@@ -1482,7 +1621,7 @@ module calcbmatrix_glb_mod
 !$OMP END DO
 !$OMP END PARALLEL
 
-    write(*,*) 'finished computing the stddev...'
+    write(6,*) 'finished computing the stddev...'
     call flush(6)
   
   end subroutine calcStddev3d
@@ -1606,7 +1745,7 @@ module calcbmatrix_glb_mod
 !$OMP END DO
 !$OMP END PARALLEL
 
-    write(*,*) 'finished normalizing by stddev3D...'
+    write(6,*) 'finished normalizing by stddev3D...'
     call flush(6)
   
   end subroutine normalize3d
@@ -1635,7 +1774,7 @@ module calcbmatrix_glb_mod
 !$OMP END DO
 !$OMP END PARALLEL
 
-    write(*,*) 'finished multiplying by stddev3D...'
+    write(6,*) 'finished multiplying by stddev3D...'
     call flush(6)
   
   end subroutine multiply3d
@@ -1643,7 +1782,7 @@ module calcbmatrix_glb_mod
 !--------------------------------------------------------------------------
 ! READENSEMBLE
 !--------------------------------------------------------------------------
-  subroutine readEnsemble(ensPerturbations,windImages)
+  subroutine readEnsemble1(ensPerturbations,windImages)
     implicit none
 
     logical, optional, intent(in) :: windImages
@@ -1688,7 +1827,7 @@ module calcbmatrix_glb_mod
     end if
 
     if ( convertToWindImages ) then
-       write(*,*) 'WIND components will be converted to WIND IMAGES'
+       write(6,*) 'WIND components will be converted to WIND IMAGES'
     end if
 
     ! read in raw ensemble (UU,VV,TT,P0,LQ (convert HU to LQ) - covariances)
@@ -1700,20 +1839,20 @@ module calcbmatrix_glb_mod
     cletiket = ' '
 
     do jens=1,nens
-        write(*,*) 'Reading ensemble member:',trim(cflensin(jens))
-        write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+        write(6,*) 'Reading ensemble member:',trim(cflensin(jens))
+        write(6,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
         call flush(6)
 
         nulens=0
         ierr = fnom(nulens,cflensin(jens),'RND+OLD+R/O',0)
         ierr = fstouv(nulens,'RND+OLD')
-        write(*,*) 'reading member:',jens
+        write(6,*) 'reading member:',jens
         call flush(6)
 
           clnomvar = 'P0' 
           ikey = vfstlir(gd2d,nulens,ini,inj,ink,idateo,cletiket,-1,ip2,ip3,cltypvar,clnomvar)
           if(ikey.lt.0) then
-            write(*,*) 'SUENS: Problem with P0 ENS'
+            write(6,*) 'SUENS: Problem with P0 ENS'
             call flush(6)
             call qqexit(1)
           endif
@@ -1727,8 +1866,8 @@ module calcbmatrix_glb_mod
             clnomvar = 'TT'
             ikey = vfstlir(gd2d,nulens,ini,inj,ink,idateo,cletiket,nip1_T(jlev),ip2,ip3,cltypvar,clnomvar)
             if(ikey.lt.0) then
-              write(*,*) idateo,cletiket,nip1_T(jlev),ip2,ip3,cltypvar,clnomvar
-              write(*,*) 'SUENS: Problem with TT ENS'
+              write(6,*) idateo,cletiket,nip1_T(jlev),ip2,ip3,cltypvar,clnomvar
+              write(6,*) 'SUENS: Problem with TT ENS'
               call flush(6)
               call qqexit(1)
             endif
@@ -1747,8 +1886,8 @@ module calcbmatrix_glb_mod
               clnomvar = 'LQ' 
               ikey = vfstlir(gd2d,nulens,ini,inj,ink,idateo,cletiket,nip1_T(jlev),ip2,ip3,cltypvar,clnomvar)
               if(ikey.lt.0) then
-                write(*,*) idateo,cletiket,nip1_T(jlev),ip2,ip3,cltypvar,clnomvar
-                write(*,*) 'SUENS: Problem with HU and LQ ENS'
+                write(6,*) idateo,cletiket,nip1_T(jlev),ip2,ip3,cltypvar,clnomvar
+                write(6,*) 'SUENS: Problem with HU and LQ ENS'
                 call flush(6)
                 call qqexit(1)
               else
@@ -1771,8 +1910,8 @@ module calcbmatrix_glb_mod
             clnomvar = 'UU' 
             ikey = vfstlir(gd2d,nulens,ini,inj,ink,idateo,cletiket,nip1_M(jlev),ip2,ip3,cltypvar,clnomvar)
             if(ikey.lt.0) then
-              write(*,*) idateo,cletiket,nip1_M(jlev),ip2,ip3,cltypvar,clnomvar
-              write(*,*) 'SUENS: Problem with UU ENS'
+              write(6,*) idateo,cletiket,nip1_M(jlev),ip2,ip3,cltypvar,clnomvar
+              write(6,*) 'SUENS: Problem with UU ENS'
               call flush(6)
               call qqexit(1)
             endif
@@ -1792,8 +1931,8 @@ module calcbmatrix_glb_mod
             clnomvar = 'VV' 
             ikey = vfstlir(gd2d,nulens,ini,inj,ink,idateo,cletiket,nip1_M(jlev),ip2,ip3,cltypvar,clnomvar)
             if(ikey.lt.0) then
-              write(*,*) idateo,cletiket,nip1_M(jlev),ip2,ip3,cltypvar,clnomvar
-              write(*,*) 'SUENS: Problem with VV ENS'
+              write(6,*) idateo,cletiket,nip1_M(jlev),ip2,ip3,cltypvar,clnomvar
+              write(6,*) 'SUENS: Problem with VV ENS'
               call flush(6)
               call qqexit(1)
             endif
@@ -1812,8 +1951,8 @@ module calcbmatrix_glb_mod
 !          clnomvar = 'TG' 
 !          ikey = vfstlir(gd2d,nulens,ini,inj,ink,idateo,cletiket,-1,ip2,ip3,cltypvar,clnomvar)
 !          if(ikey.lt.0)  then
-!            write(*,*) idateo,cletiket,ip2,ip3,cltypvar,clnomvar
-!            write(*,*) 'SUENS: Problem with TG ENS'
+!            write(6,*) idateo,cletiket,ip2,ip3,cltypvar,clnomvar
+!            write(6,*) 'SUENS: Problem with TG ENS'
 !            call flush(6)
 !            call qqexit(1)
 !          else
@@ -1827,15 +1966,241 @@ module calcbmatrix_glb_mod
         ierr =  fstfrm(nulens)
         ierr =  fclos (nulens)
 
-        write(*,*) 'done reading member ',jens
+        write(6,*) 'done reading member ',jens
         call flush(6)
 
     enddo
 
-    write(*,*) 'finished reading ensemble members...'
+    write(6,*) 'finished reading ensemble members...'
     call flush(6)
 
-  end subroutine readensemble
+  end subroutine readEnsemble1
+
+!--------------------------------------------------------------------------
+! READENSEMBLE
+!--------------------------------------------------------------------------
+  subroutine readEnsemble(ensPerturbations,windImages)
+    implicit none
+
+    logical, optional, intent(in) :: windImages
+
+    real*4 :: ensPerturbations(:,:,:,:)
+
+    integer :: jens, fclos, fnom, fstfrm, fstouv, ierr
+    integer :: nulens(nens)
+
+    nulens(:)=0
+    do jens = 1, nens
+       ierr = fnom(nulens(jens),cflensin(jens),'RND+OLD+R/O',0)
+       ierr = fstouv(nulens(jens),'RND+OLD')
+    end do
+
+    write(6,*) 'Before reading the ensemble:'
+    write(6,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call flush(6)
+
+!$OMP PARALLEL
+!$OMP DO PRIVATE (jens)
+    do jens = 1, nens
+        write(6,*) 'Reading ensemble member:',trim(cflensin(jens))
+        call flush(6)
+        call readEnsembleMember(ensPerturbations,nulens,jens,windImages)
+        write(6,*) 'done reading member ',jens
+        call flush(6)
+    end do
+!$OMP END DO
+!$OMP END PARALLEL
+
+    write(6,*) 'After reading the ensemble:'
+    write(6,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call flush(6)
+
+    do jens = 1, nens
+       ierr =  fstfrm(nulens(jens))
+       ierr =  fclos (nulens(jens))
+    end do
+
+    write(6,*) 'finished reading ensemble members...'
+    call flush(6)
+
+  end subroutine readEnsemble
+
+!--------------------------------------------------------------------------
+! READENSEMBLEMEMBER
+!--------------------------------------------------------------------------
+  subroutine readEnsembleMember(ensPerturbations,nulens,jens,windImages)
+    implicit none
+
+    real*4 :: ensPerturbations(:,:,:,:)
+    integer, intent(in) :: jens
+    integer, intent(in) :: nulens(nens)
+    logical, optional, intent(in) :: windImages
+    
+    
+    integer :: stamp_in
+    real*4 :: gd2d(ni,nj)
+    real*8 :: rmsknt,rmbtpa,r1sa,conima
+    real*8 :: rhumin = 2.5d-6
+    integer :: jlon,jlat,jlev
+    integer :: fstlir
+    integer :: ngposituu,ngpositvv,ngposittt,ngpositq,ngpositps,ngposittg
+
+    logical :: convertToWindImages
+
+    ! standard file variables
+    integer ini,inj,ink,ip1,ip2,ip3,ierr,idateo,ikey
+    character(len=2)   :: cltypvar
+    character(len=1)   :: clgrtyp
+    character(len=4)   :: clnomvar
+    character(len=12)  :: cletiket
+
+    ! this should come from state vector object
+    ngposituu=1
+    ngpositvv=1+1*nLevEns_M
+    ngposittt=1+2*nLevEns_M
+    ngpositq =1+2*nLevEns_M+1*nLevEns_T
+    ngpositps=1+2*nLevEns_M+2*nLevEns_T
+    ngposittg=2+2*nLevEns_M+2*nLevEns_T
+
+    ! some physical constants
+    rmsknt = 1.d0/1.94246d0
+    rmbtpa = 1.0d2
+    r1sa=1.d0/6371229.d0
+
+    if ( present(windImages)) then
+       convertToWindImages = windImages
+    else
+       convertToWindImages = .true. ! default value
+    end if
+
+    if ( convertToWindImages ) then
+       write(6,*) 'WIND components will be converted to WIND IMAGES'
+    end if
+
+    ! read in raw ensemble (UU,VV,TT,P0,LQ (convert HU to LQ) - covariances)
+    ip2 = 6
+!    ip2 = -1
+    ip3=-1
+    idateo = -1
+    cltypvar = ' '
+    cletiket = ' '
+
+    clnomvar = 'P0' 
+    ikey=fstlir(gd2d,nulens(jens),ini,inj,ink,idateo,cletiket,-1,ip2,ip3, cltypvar,clnomvar)
+    if(ikey.lt.0) then
+       write(6,*) 'SUENS: Problem with P0 ENS'
+       call flush(6)
+       call qqexit(1)
+    endif
+    do jlat=1,nj
+       do jlon=1,ni
+          ensPerturbations(jlon,ngpositps,jlat,jens)= gd2d(jlon,nj+1-jlat)*rmbtpa
+       enddo
+    enddo
+    
+    do jlev=1,nLevEns_T
+       clnomvar = 'TT'
+       ikey=fstlir(gd2d,nulens(jens),ini,inj,ink,idateo,cletiket,nip1_T(jlev),ip2,ip3,cltypvar,clnomvar)
+       if(ikey.lt.0) then
+          write(6,*) idateo,cletiket,nip1_T(jlev),ip2,ip3,cltypvar,clnomvar
+          write(6,*) 'SUENS: Problem with TT ENS'
+          call flush(6)
+          call qqexit(1)
+       endif
+       call flush(6)
+       do jlat=1,nj
+          do jlon=1,ni
+             ensPerturbations(jlon,jlev-1+ngposittt,jlat,jens)= gd2d(jlon,nj+1-jlat)
+          enddo
+       enddo
+    enddo
+    
+    do jlev=1,nLevEns_T
+       clnomvar = 'HU' 
+       ikey=fstlir(gd2d,nulens(jens),ini,inj,ink,idateo,cletiket,nip1_T(jlev),ip2,ip3,cltypvar,clnomvar)
+       if(ikey.lt.0) then
+          clnomvar = 'LQ' 
+          ikey=fstlir(gd2d,nulens(jens),ini,inj,ink,idateo,cletiket,nip1_T(jlev),ip2,ip3,cltypvar,clnomvar)
+          if(ikey.lt.0) then
+             write(6,*) idateo,cletiket,nip1_T(jlev),ip2,ip3,cltypvar,clnomvar
+             write(6,*) 'SUENS: Problem with HU and LQ ENS'
+             call flush(6)
+             call qqexit(1)
+          else
+             do jlat=1,nj
+                do jlon=1,ni
+                   ensPerturbations(jlon,jlev-1+ngpositq,jlat,jens)= gd2d(jlon,nj+1-jlat)
+                enddo
+             enddo
+          endif
+       else
+          do jlat=1,nj
+             do jlon=1,ni
+                ensPerturbations(jlon,jlev-1+ngpositq,jlat,jens)= log(max(gd2d(jlon,nj+1-jlat),real(rhumin,4)))
+             enddo
+          enddo
+       endif
+    enddo
+    
+    do jlev=1,nLevEns_M
+       clnomvar = 'UU' 
+       ikey=fstlir(gd2d,nulens(jens),ini,inj,ink,idateo,cletiket,nip1_M(jlev),ip2,ip3,cltypvar,clnomvar)
+       if(ikey.lt.0) then
+          write(6,*) idateo,cletiket,nip1_M(jlev),ip2,ip3,cltypvar,clnomvar
+          write(6,*) 'SUENS: Problem with UU ENS'
+          call flush(6)
+          call qqexit(1)
+       endif
+       do jlat=1,nj
+          if ( convertToWindImages ) then
+             conima=r1sa*gst_getRSQM2(jlat,gstID)
+          else
+             conima=1.d0
+          end if
+          do jlon=1,ni
+             ensPerturbations(jlon,jlev-1+ngposituu,jlat,jens)= gd2d(jlon,nj+1-jlat)*rmsknt*conima
+          enddo
+       enddo
+    enddo
+    
+    do jlev=1,nLevEns_M
+       clnomvar = 'VV' 
+       ikey=fstlir(gd2d,nulens(jens),ini,inj,ink,idateo,cletiket,nip1_M(jlev),ip2,ip3,cltypvar,clnomvar)
+       if(ikey.lt.0) then
+          write(6,*) idateo,cletiket,nip1_M(jlev),ip2,ip3,cltypvar,clnomvar
+          write(6,*) 'SUENS: Problem with VV ENS'
+          call flush(6)
+          call qqexit(1)
+       endif
+       do jlat=1,nj
+          if ( convertToWindImages ) then
+             conima=r1sa*gst_getRSQM2(jlat,gstID)
+          else
+             conima=1.d0
+          end if
+          do jlon=1,ni
+             ensPerturbations(jlon,jlev-1+ngpositvv,jlat,jens)= gd2d(jlon,nj+1-jlat)*rmsknt*conima
+          enddo
+       enddo
+    enddo
+
+!          clnomvar = 'TG' 
+!          ikey = vfstlir(gd2d,nulens,ini,inj,ink,idateo,cletiket,-1,ip2,ip3,cltypvar,clnomvar)
+!          if(ikey.lt.0)  then
+!            write(6,*) idateo,cletiket,ip2,ip3,cltypvar,clnomvar
+!            write(6,*) 'SUENS: Problem with TG ENS'
+!            call flush(6)
+!            call qqexit(1)
+!          else
+!            do jlat=1,nj
+!              do jlon=1,ni
+!                ensPerturbations(jlon,ngposittg,jlat,jens)= gd2d(jlon,nj+1-jlat)
+!              enddo
+!            enddo
+!          endif
+
+    
+  end subroutine readEnsembleMember
 
 !--------------------------------------------------------------------------
 ! UV_TO_PSICHI
@@ -1867,7 +2232,7 @@ module calcbmatrix_glb_mod
       ensPerturbations(:,:,:,jens)=sngl(member(:,:,:))
     enddo
 
-    write(*,*) 'finished doing u/v -> psi/chi and spectral filter...'
+    write(6,*) 'finished doing u/v -> psi/chi and spectral filter...'
     call flush(6)
     
   end subroutine uv_to_psichi
@@ -1912,7 +2277,7 @@ module calcbmatrix_glb_mod
 !$OMP END DO
 !$OMP END PARALLEL
 
-    write(*,*) 'finished removing the ensemble mean...'
+    write(6,*) 'finished removing the ensemble mean...'
     call flush(6)
 
   end subroutine removeMean
@@ -2041,14 +2406,14 @@ module calcbmatrix_glb_mod
     real*8  :: gridState(ni,nkgdimEns,nj)
     real(8) :: rwtinv
 
-    integer :: ji, jj, jk, jn, jm, ila, iref, jref, variableType
+    integer :: ji, jj, jk, jn, jm, ila, iref, jref
     integer :: nLevEns, nLevStart, nLevEnd, jvar, iStart, iEnd
 
     character(len=128) :: outfilename
     character(len=2) :: wbnum
 
-    write(*,*)
-    write(*,*) 'Computing horizontal correlation functions'
+    write(6,*)
+    write(6,*) 'Computing horizontal correlation functions'
 
     !
     !- 1.  Spectral transform of a delta function (at the center of the domain)
@@ -2102,8 +2467,8 @@ module calcbmatrix_glb_mod
     !
     if ( nWaveBand /= 1 ) then
        if (.not. present(waveBandIndex)) then
-          write(*,*) 'horizCorrelFunction: No waveBandIndex was supplied!!!'
-          stop
+          write(6,*) 'horizCorrelFunction: No waveBandIndex was supplied!!!'
+          call abort3d('calbmatrix_glb')
        end if
        write(wbnum,'(I2.2)') waveBandIndex
     end if
@@ -2114,10 +2479,9 @@ module calcbmatrix_glb_mod
     else
        outfilename = "./horizCorrel_"//wbnum//".fst"
     end if
-    call write3d(GridState,modelSpace,outfilename,'HORIZCORFUNC')
+    call write3d(GridState,outfilename,'HORIZCORFUNC')
 
     !- 4.2 1D correlation function in txt format (for plotting purposes)
-    variableType = modelSpace
     iStart=iref
     iEnd=3*ni/4 ! About 10 000 km away from the center of the domain
 
@@ -2169,11 +2533,10 @@ module calcbmatrix_glb_mod
 !--------------------------------------------------------------------------
 ! WRITE3D
 !--------------------------------------------------------------------------
-  subroutine write3d(gridpoint3d,variableType,filename,etiket_in)
+  subroutine write3d(gridpoint3d,filename,etiket_in)
     implicit none
 
     real*8, intent(in) :: gridpoint3d(:,:,:)
-    integer, intent(in) :: variableType
     character(len=*), intent(in) :: filename,etiket_in
     
     real*8 :: dfact,zbuf(ni,nj)
@@ -2241,7 +2604,7 @@ module calcbmatrix_glb_mod
     ierr =  fstfrm(nulstats)
     ierr =  fclos (nulstats)
 
-    write(*,*) 'finished writing 3d array...'
+    write(6,*) 'finished writing 3d array...'
     call flush(6)
 
   end subroutine write3d
@@ -2249,12 +2612,11 @@ module calcbmatrix_glb_mod
 !--------------------------------------------------------------------------
 ! CALCHORIZSCALE
 !--------------------------------------------------------------------------
-  subroutine CalcHorizScale(rstddev,variableType,waveBandIndex)
+  subroutine CalcHorizScale(rstddev,waveBandIndex)
     implicit none
     
     ! Based on subroutine corrlength.ftn in the "old" var code
     real(8),intent(in) :: rstddev(nkgdimEns,0:ntrunc)
-    integer,intent(in) :: variableType
     integer,optional, intent(in) :: waveBandIndex
 
     real(8) :: HorizScale(nkgdimEns)
@@ -2266,8 +2628,8 @@ module calcbmatrix_glb_mod
     character(len=128) :: outfilename
     character(len=2) :: wbnum
 
-    write(*,*)
-    write(*,*) 'Computing horizontal correlation lengthscales'
+    write(6,*)
+    write(6,*) 'Computing horizontal correlation lengthscales'
 
     !
     !- 1.  Compute the horizontal correlation lengthscales
@@ -2296,15 +2658,15 @@ module calcbmatrix_glb_mod
     !
     if ( nWaveBand /= 1 ) then
        if (.not. present(waveBandIndex)) then
-          write(*,*) 'CalcHorizScale: No waveBandIndex was supplied!!!'
-          stop
+          write(6,*) 'CalcHorizScale: No waveBandIndex was supplied!!!'
+          call abort3d('calbmatrix_glb')
        end if
        write(wbnum,'(I2.2)') waveBandIndex
     end if
 
     do jvar = 1, nvar3d
-       write(*,*)
-       write(*,*) nomvar3d(jvar,variableType)
+       write(6,*)
+       write(6,*) nomvar3d(jvar,variableType)
 
        if ( nWaveBand == 1 ) then
           outfilename = "./horizScale_"//trim(nomvar3d(jvar,variableType))//".txt"
@@ -2329,8 +2691,8 @@ module calcbmatrix_glb_mod
     end do
 
     do jvar = 1, nvar2d
-       write(*,*)
-       write(*,*) nomvar2d(jvar,variableType)
+       write(6,*)
+       write(6,*) nomvar2d(jvar,variableType)
        
        if ( nWaveBand == 1 ) then
           outfilename = "./horizScale_"//trim(nomvar2d(jvar,variableType))//".txt"
@@ -2355,16 +2717,13 @@ module calcbmatrix_glb_mod
 
     real*8,intent(in) :: powerSpec(nkgdimEns,0:ntrunc)
 
-    integer :: jk, variableType, nLevEns, nLevStart, nLevEnd, jvar, jn
+    integer :: jk, nLevEns, nLevStart, nLevEnd, jvar, jn
 
     real(8) :: waveLength 
 
     character(len=128) :: outfilename
 
     !- Write to txt files
-
-    variableType = modelSpace
-
     do jvar = 1, nvar3d
 
        outfilename = "./PowerSpec_"//trim(nomvar3d(jvar,variableType))//".txt"
@@ -2407,105 +2766,1318 @@ module calcbmatrix_glb_mod
           else
              waveLength=0.d0
           end if
-          write(99,'(I4,2X,F7.1,2X,e10.3)')  jn, waveLength/1000.d0, sngl(powerSpec(jk,jn))
+          write(99,'(I4,2X,F7.1,2X,e10.3)')  jn, waveLength/1000.d0, sngl(powerSpec(varLevOffset(nvar3d+1)+jvar,jn))
        end do
        close(unit=99)
     end do
 
   end subroutine writePowerSpec
 
-!--------------------------------------------------------------------------
-! SpectralFilterResponseFunction
-!--------------------------------------------------------------------------
-  function SpectralFilterResponseFunction(totalWaveNumber, waveBandIndex ) result(ResponseFunction) 
+  !--------------------------------------------------------------------------
+  ! CALCLOCALCORRELATIONS
+  !--------------------------------------------------------------------------
+  subroutine calcLocalCorrelations(ensPerturbations,waveBandIndex)
     implicit none
 
-    real(8) :: totalWaveNumber, ResponseFunction 
-    integer :: waveBandIndex
+    real(4), intent(in) :: ensPerturbations(:,:,:,:)
+    integer,optional, intent(in) :: waveBandIndex
 
-    real(8) :: linearResponse, lowerLimit, center, upperLimit
-    real(8), parameter :: pi = 2.d0*asin(1.d0)
+    real(8), allocatable :: localHorizCorrel(:,:,:)
 
-    if (waveBandIndex == nWaveBand ) then
-       ! This wave band contains the largest scales.
-       !
-       ! The response function is 1 total wave number <= waveBandPeaks(nWaveBand)
-       ! and decreases to 0 at waveBandPeaks(nWaveBand-1)
-       !
-       !                    response=1 |---
-       !                               |   \
-       !                               |    \
-       !                    response=0 |------------
-       !       waveBandPeaks(nWaveBand) <-|  |-> waveBandPeaks(nWaveBand-1)
-       !
-       lowerlimit = real(waveBandPeaks(waveBandIndex  ),8)
-       upperlimit = real(waveBandPeaks(waveBandIndex-1),8)
+    real(8) :: dnens
 
-       if ( totalWaveNumber < lowerlimit ) then
-          ResponseFunction = 1.d0
-       else if ( totalWaveNumber <= upperlimit ) then
-          linearResponse = (upperlimit-totalWaveNumber) / (upperlimit-lowerlimit)
-          ResponseFunction = sin( (pi/2.d0) * linearResponse)**2
-       else
-          ResponseFunction = 0.d0
+    integer :: i, j, k, ens
+    integer :: blocklength, blockpadding, nirefpoint, njrefpoint
+    integer :: iref_id, jref_id, iref, jref
+    integer :: imin, imax, jmin, jmax
+
+    integer :: nulnam, ierr, fclos, fnom
+    
+    character(len=128) :: outfilename
+    character(len=2)   :: wbnum
+
+    NAMELIST /NAMHVCORREL_LOCAL/blocklength, blockpadding
+
+    !
+    ! To compute the local horizontal correlation for some 'reference' grid point
+    ! ... we assume that the ensemble grid point mean was removed and that
+    !     the ensemble values were divided by the grid point std dev.
+    !
+
+    blocklength = 100 ! Horizontal correlation will be compute blocklength x blocklength gridpoint
+                      ! around each reference point
+    blockpadding = 4  ! Number of grid point padding between blocks (to set correlation to 0 between each block)
+
+    nulnam = 0
+    ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+    read(nulnam,nml=NAMHVCORREL_LOCAL)
+    write(*,nml=NAMHVCORREL_LOCAL)
+    ierr = fclos(nulnam)
+
+    nirefpoint = ni/blocklength ! Number of reference grid point in x
+    njrefpoint = nj/blocklength ! Number of reference grid point in y
+
+    allocate(localHorizCorrel(ni,nkgdimEns,nj))
+
+    localHorizCorrel(:,:,:)=0.0d0
+
+    dnens = 1.0d0/dble(nens-1)
+
+!$OMP PARALLEL
+!$OMP DO PRIVATE (k,jref_id,iref_id,iref,jref,jmin,jmax,imin,imax,j,i,ens)
+    do k = 1, nkgdimEns
+
+       do ens = 1, nens
+          do jref_id = 1, njrefpoint
+             do iref_id = 1, nirefpoint
+                iref = (2*iref_id-1)*blocklength/2
+                jref = (2*jref_id-1)*blocklength/2
+                jmin = max(jref-(blocklength-blockpadding)/2,1)
+                jmax = min(jref+(blocklength-blockpadding)/2,nj)
+                imin = max(iref-(blocklength-blockpadding)/2,1)
+                imax = min(iref+(blocklength-blockpadding)/2,ni)
+                do j = jmin, jmax
+                   do i = imin, imax
+                      localHorizCorrel(i,k,j)=localHorizCorrel(i,k,j) + &
+                           ensPerturbations(i,k,j,ens) * ensPerturbations(iref,k,jref,ens)
+                   end do
+                end do
+             end do
+          end do
+       end do
+
+       do j = 1, nj
+          do i = 1, ni
+             localHorizCorrel(i,k,j) = localHorizCorrel(i,k,j)*dnens
+          end do
+       end do
+
+    end do
+!$OMP END DO
+!$OMP END PARALLEL
+
+    write(6,*) 'finished computing the local horizontal correlations...'
+    call flush(6)
+
+    !
+    !- 4.  Write to file
+    !
+    if ( nWaveBand /= 1 ) then
+       if (.not. present(waveBandIndex)) then
+          write(6,*) 'calcLocalCorrelations: No waveBandIndex was supplied!!!'
+          call abort3d('calbmatrix_glb')
        end if
-
-    else if ( waveBandIndex /= 1 ) then
-       ! This wave band contains intermediate scales (i.e., not the largest or the smallest).
-       !
-       ! The response function is 1 (only) for the total wave number = waveBandPeaks(waveBandIndex)
-       ! and decreases to 0 at both waveBandPeaks(waveBandIndex+1) and waveBandPeaks(waveBandIndex-1)
-       !
-       !                    response=1 |      -
-       !                               |     / \
-       !                               |    /   \
-       !                    response=0 |------------
-       !  waveBandPeaks(waveBandIndex+1) <-|     |-> waveBandPeaks(waveBandIndex-1)
-       !                                      |-> waveBandPeaks(waveBandIndex)
-       !
-       center     = real(waveBandPeaks(waveBandIndex  ),8)
-       upperlimit = real(waveBandPeaks(waveBandIndex-1),8)
-       lowerlimit = real(waveBandPeaks(waveBandIndex+1),8)
-
-       if (      totalWaveNumber >  lowerlimit .and. &
-                 totalWaveNumber <= center     ) then
-          linearResponse = (totalWaveNumber-lowerlimit) / (center-lowerlimit)
-          ResponseFunction = sin( (pi/2.d0) * linearResponse)**2
-       else if ( totalWaveNumber >  center      .and. &
-                 totalWaveNumber <  upperlimit  ) then
-          linearResponse = (upperlimit-totalWaveNumber) / (upperlimit-center)
-          ResponseFunction = sin( (pi/2.d0) * linearResponse)**2
-       else
-          ResponseFunction = 0.d0
-       end if
-
-    else
-       !
-       ! This wave band contains the smallest scales.
-       !
-       ! The response function is 1 total wave number >= waveBandPeaks(nWaveBand)
-       ! and decreases to 0 at waveBandPeaks(nWaveBand-1)
-       !
-       !                    response=1 |    ---
-       !                               |   /
-       !                               |  / 
-       !                    response=0 |------------
-       !waveBandPeaks(waveBandIndex+1) <-|  |-> waveBandPeaks(1)
-       !
-       upperlimit = real(waveBandPeaks(waveBandIndex  ),8)
-       lowerlimit = real(waveBandPeaks(waveBandIndex+1),8)
-
-       if      ( totalWaveNumber > upperlimit ) then
-          ResponseFunction = 1.d0
-       else if ( totalWaveNumber > lowerlimit ) then
-          linearResponse = (totalWaveNumber-lowerlimit) / (upperlimit-lowerlimit)
-          ResponseFunction = sin( (pi/2.d0) * linearResponse)**2
-       else
-          ResponseFunction = 0.d0
-       end if
-
+       write(wbnum,'(I2.2)') waveBandIndex
     end if
 
-  end function SpectralFilterResponseFunction
+    !- 4.1 2D correlation function in fst format
+    if ( nWaveBand == 1 ) then
+       outfilename = "./horizCorrelLocal.fst"
+    else
+       outfilename = "./horizCorrelLocal_"//wbnum//".fst"
+    end if
+    call write3d(localHorizCorrel,outfilename,'HCORREL_LOC')
+
+    localHorizCorrel(:,:,:) = localHorizCorrel(:,:,:)**2
+    call write3d(localHorizCorrel,outfilename,'HCORREL2_LOC')
+
+    deallocate(localHorizCorrel)
+
+  end subroutine calcLocalCorrelations
+
+  !--------------------------------------------------------------------------
+  ! CALCHORIZLOCALIZATIONRADII
+  !--------------------------------------------------------------------------
+  subroutine calcLocalizationRadii(ensPerturbations,ensStdDev,waveBandIndex)
+    implicit none
+
+    real(4), intent(in) :: ensPerturbations(:,:,:,:)
+    real(8), intent(in) :: ensStdDev(:,:,:)
+    integer,optional, intent(in) :: waveBandIndex
+
+    integer :: nulnam, ierr, fclos, fnom, strideForHLoc,strideForVloc
+    
+    logical :: hLoc, vLoc
+
+    NAMELIST /NAMLOCALIZATIONRADII/strideForHLoc,strideForVloc,hLoc,vLoc
+
+    !
+    !- 1.  Setup
+    !
+
+    ! Parameters from namelist
+    hLoc          = .true.
+    vLoc          = .true.
+    strideForHLoc = 100 ! Horizontal correlations will be computed every "stride" gridpoint in x and y
+    strideForVLoc = 50  ! Vertical   correlations will be computed every "stride" gridpoint in x and y
+
+    nulnam = 0
+    ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+    read(nulnam,nml=NAMLOCALIZATIONRADII)
+    write(*,nml=NAMLOCALIZATIONRADII)
+    ierr = fclos(nulnam)
+
+    !
+    !- 2. Estimate the horionzontal and vertical localization radii
+    !
+    if ( hLoc ) then
+       call calcHorizLocalizationRadii(ensPerturbations, ensStdDev, strideForHLoc, waveBandIndex=waveBandIndex) ! IN
+    end if
+    if ( vLoc ) then
+       call calcVertLocalizationRadii(ensPerturbations, ensStdDev, strideForVloc, waveBandIndex=waveBandIndex) ! IN
+    end if
+
+  end subroutine calcLocalizationRadii
+
+  !--------------------------------------------------------------------------
+  ! CALCHORIZLOCALIZATIONRADII
+  !--------------------------------------------------------------------------
+  subroutine calcHorizLocalizationRadii(ensPerturbations,ensStdDev,stride,waveBandIndex)
+    use localizationFunction_mod
+    implicit none
+
+    real(4), intent(in) :: ensPerturbations(:,:,:,:)
+    real(8), intent(in) :: ensStdDev(:,:,:)
+    integer, intent(in) :: stride
+    integer,optional, intent(in) :: waveBandIndex
+
+    real*4, allocatable :: ensPert_local(:,:,:)
+
+    real(8), allocatable :: meanCorrel(:,:)
+    real(8), allocatable :: meanCorrelSquare(:,:)
+    real(8), allocatable :: meanVarianceProduct(:,:)
+    real(8), allocatable :: meanCovarianceSquare(:,:)
+    real(8), allocatable :: meanFourthMoment(:,:)
+
+    real(8), allocatable :: localizationFunctions(:,:,:) ! Eq. 19-21 in MMMB 2015 Part 2
+
+    real(8), allocatable :: localizationRadii(:,:)
+
+    real(8), allocatable :: distanceBinThresholds(:) ! Maximum distance for each distance-bin
+    real(8), allocatable :: distanceBinMean(:)       ! Mean distance for each distance-bin
+    real(8), allocatable :: distanceBinWeight(:)     ! Weight given to each bin in the curve fitting step
+
+    real(8), allocatable :: gridPointWeight(:,:,:)   ! Weight given to grid point in the statistic computation
+
+    real(8), allocatable :: sumWeight(:,:)    ! Sample size for each distance-bin
+    
+    real(8), pointer :: PressureProfile(:)
+
+    real(8) :: dnens, correlation, covariance, fourthMoment, distance, maxDistance, weight
+    real(8) :: t1, t2, t3, rmse
+
+    integer :: i, j, k, f, ens, bin, numbins, numFunctions
+    integer :: nirefpoint, njrefpoint
+    integer :: iref_id, jref_id, iref, jref
+    integer :: nLevEns, nLevStart, nLevEnd, jvar
+
+    character(len=128) :: outfilename
+    character(len=2)   :: wbnum
+
+    !
+    !- 1.  Setup
+    !
+
+    numFunctions = 3
+    
+    nirefpoint = ni/stride ! Number of reference grid point in x
+    njrefpoint = nj/stride ! Number of reference grid point in y
+
+    numBins=ni/4 !2
+
+    allocate(localizationFunctions(numFunctions,numBins,nkgdimEns))
+
+    allocate(meanCorrelSquare(numBins,nkgdimEns))
+    allocate(meanCorrel(numBins,nkgdimEns))
+    allocate(meanVarianceProduct(numBins,nkgdimEns))
+    allocate(meanCovarianceSquare(numBins,nkgdimEns))
+    allocate(meanFourthMoment(numBins,nkgdimEns))
+    allocate(sumWeight(numBins,nkgdimEns))
+
+    allocate(gridPointWeight(ni,nkgdimEns,nj))
+
+    allocate(distanceBinThresholds(numBins))
+
+    ! Assign the (upper) threshold to each separation-distance-bin
+    write(6,*)
+    write(6,*) 'Separation distance bin'
+    do bin = 1, numbins
+       distanceBinThresholds(bin) = calcDistance(hco_ens%lat(nj/2),hco_ens%lon(1),hco_ens%lat(nj/2),hco_ens%lon(bin))
+       write(6,*) bin, hco_ens%lat(nj/2),hco_ens%lon(1),hco_ens%lat(nj/2),hco_ens%lon(bin), distanceBinThresholds(bin)/1000.d0
+    end do
+
+    maxDistance=distanceBinThresholds(numBins)
+
+    dnens = 1.0d0/dble(nens-1)
+
+    ! Grid point Weight
+    write(6,*)
+    write(6,*) 'Grid point Weight'
+    do j = 1, nj
+       gridPointWeight(:,:,j) = cos(hco_ens%lat(j))
+       write(6,*) j, hco_ens%lat(j), cos(hco_ens%lat(j))
+    end do
+
+    !
+    !- 2.  Estimation of localization functions
+    !
+
+    !- 2.1  Computation of various statistics for different separation distances
+    meanCorrelSquare(:,:)     = 0.d0
+    meanCorrel(:,:)           = 0.d0
+    meanCovarianceSquare(:,:) = 0.d0
+    meanVarianceProduct(:,:)  = 0.d0
+    meanFourthMoment(:,:)     = 0.d0
+    sumWeight(:,:) = 0.d0
+
+    allocate(ensPert_local(nens,ni,nj))
+
+!$OMP PARALLEL
+!$OMP DO PRIVATE (k,iref,jref,j,i,ens,correlation,covariance,fourthMoment,distance,bin,weight,ensPert_local)
+    do k = 1, nkgdimEns
+       write(6,*) 'Computing distance-bin statistics for ensemble level: ', k
+       call flush(6)
+
+       !- Select data needed to speed up the process (ensemble member index must come first in ensPert_Local 
+       !  because ensemble member is the last loop index below)
+       do ens = 1, nens
+          do j = 1, nj
+             do i = 1, ni
+                ensPert_local(ens,i,j) = ensPerturbations(i,k,j,ens)
+             end do
+          end do
+       end do
+       
+       do jref = nint(stride/2.0), nj, stride     ! Pick every stride point to save cost.
+          do iref = nint(stride/2.0), ni, stride  ! Pick every stride point to save cost.
+
+             if (k == 1) then
+                write(6,*) 'grid point info', iref, jref
+                call flush(6)
+             end if
+
+             do j = 1, nj
+                do i = 1, ni
+                   distance=calcDistance(hco_ens%lat(jref),hco_ens%lon(iref),hco_ens%lat(j),hco_ens%lon(i))
+                   if (distance <= maxDistance .and. gridPointWeight(i,k,j) > 0.d0) then
+                      covariance = 0.d0
+                      fourthMoment = 0.d0
+                      do ens = 1, nens
+                          covariance = covariance + &
+                               ensPert_local(ens,i,j) * ensPert_local(ens,iref,jref)
+                          fourthMoment = fourthMoment + &
+                               (ensPert_local(ens,i,j) * ensPert_local(ens,iref,jref))**2
+                      end do
+                      covariance   = covariance * dnens
+                      fourthMoment = fourthMoment / real(nens,8)
+                      correlation  = covariance / (ensStdDev(i,k,j)*ensStdDev(iref,k,jref))
+
+                      bin=findBinIndex(distance,distanceBinThresholds,numBins)
+                      
+                      weight = sqrt(gridPointWeight(iref,k,jref)) * sqrt(gridPointWeight(i,k,j))
+
+                      sumWeight(bin,k) = sumWeight(bin,k) + weight
+
+                      meanCorrel(bin,k)           = meanCorrel(bin,k)           + correlation    * weight
+                      meanCorrelSquare(bin,k)     = meanCorrelSquare(bin,k)     + correlation**2 * weight
+                      meanCovarianceSquare(bin,k) = meanCovarianceSquare(bin,k) + covariance**2  * weight
+                      meanVarianceProduct(bin,k)  = meanVarianceProduct(bin,k)  + ensStdDev(i,k,j)**2 * ensStdDev(iref,k,jref)**2 * weight
+                      meanFourthMoment(bin,k)     = meanFourthMoment(bin,k)     + fourthMoment   * weight
+                  end if
+                end do
+             end do
+
+             ! From now on, omit the current reference point
+             gridPointWeight(iref,k,jref) = 0.d0
+
+          end do ! iref
+       end do    ! jref
+
+    end do ! nkgdimEns
+!$OMP END DO
+!$OMP END PARALLEL
+
+    deallocate(ensPert_local)
+    
+
+    !- 2.2  Computation of the localization functions
+    t1=dble((nens-1)**2)/dble(nens*(nens-3))
+    t2=dble(nens)/dble((nens-2)*(nens-3))
+    t3=dble(nens-1)/dble(nens*(nens-2)*(nens-3))
+!$OMP PARALLEL
+!$OMP DO PRIVATE (k,bin)
+    do k = 1, nkgdimEns
+       do bin = 1, numbins
+
+          meanCorrel(bin,k)           = meanCorrel(bin,k)           / sumWeight(bin,k)
+          meanCorrelSquare(bin,k)     = meanCorrelSquare(bin,k)     / sumWeight(bin,k)
+          meanCovarianceSquare(bin,k) = meanCovarianceSquare(bin,k) / sumWeight(bin,k)
+          meanVarianceProduct(bin,k)  = meanVarianceProduct(bin,k)  / sumWeight(bin,k)
+          meanFourthMoment(bin,k)     = meanFourthMoment(bin,k)     / sumWeight(bin,k)
+
+          if ( meanCovarianceSquare(bin,k) /= 0.d0 ) then
+             ! Form 1: General formulation (Eq. 19 in MMMB 2015 Part 2)
+             localizationFunctions(1,bin,k) = t1 - t2*meanFourthMoment(bin,k)/meanCovarianceSquare(bin,k) + &
+                  t3*meanVarianceProduct(bin,k)/meanCovarianceSquare(bin,k)
+             ! Form 2: Gaussian sample distribution (Eq. 20 in MMMB 2015 Part 2)
+             localizationFunctions(2,bin,k) = dble(nens-1)/dble((nens+1)*(nens-2)) * &
+                  (dble(nens-1)-meanVarianceProduct(bin,k)/meanCovarianceSquare(bin,k))
+          else
+             write(6,*) ' !!! Warning !!! meanCovarianceSquare = 0 in bin, level = ', bin, k
+             localizationFunctions(1,bin,k) = 0.d0
+             localizationFunctions(2,bin,k) = 0.d0
+          end if
+          ! Form 3: Gaussian sample distribution and correlation-based formulation (Eq. 21 in MMMB 2015 Part 2)
+          if ( meanCorrelSquare(bin,k) /= 0.d0 ) then
+             localizationFunctions(3,bin,k) = dble(nens-1)/dble((nens+1)*(nens-2)) * &
+                  (dble(nens-1)-1.d0/meanCorrelSquare(bin,k))
+          else
+             write(6,*) ' !!! Warning !!! meanCorrelSquare = 0 in bin, level = ', bin, k
+             localizationFunctions(3,bin,k) = 0.d0
+          end if
+       end do
+    end do
+!$OMP END DO
+!$OMP END PARALLEL
+
+    !
+    !- 3.  Estimation of localization radii (curve fitting)
+    !
+    allocate(localizationRadii(numFunctions,nkgdimEns))
+    allocate(distanceBinMean(numBins))
+    allocate(distanceBinWeight(numBins))
+
+    call loc_setup('FifthOrder') ! IN
+
+    localizationRadii(:,:) = 2000.d0*1000.d0 ! First Guess (meter)
+    distanceBinWeight(:)   = 1.d0            ! Even weight
+    do bin = 1, numBins
+       if (bin == 1) then
+          distanceBinMean(bin) = distanceBinThresholds(bin) ! = 0 m
+       else
+          distanceBinMean(bin) = 0.5d0*(distanceBinThresholds(bin)+distanceBinThresholds(bin-1))
+       end if
+    end do
+
+    do f = 1, numFunctions
+       write(6,*)
+       write(6,*) 'Localization Function : ', f
+!$OMP PARALLEL
+!$OMP DO PRIVATE (k,rmse)
+       do k =  1, nkgdimEns
+          write(6,*) '         ----- EnsLev : ', k
+          call loc_lengthscale( localizationRadii(f,k),       & ! INOUT
+                                rmse,                         & ! OUT
+                                localizationFunctions(f,:,k), & ! IN
+                                distanceBinMean,              & ! IN
+                                distanceBinWeight,            & ! IN
+                                numbins )                       ! IN
+          !write(6,*) 'localizationRadii = ', localizationRadii(f,k), rmse
+       end do
+!$OMP END DO
+!$OMP END PARALLEL
+    end do
+
+    !
+    !- 4.  Write to file
+    !
+    if ( nWaveBand /= 1 ) then
+       if (.not. present(waveBandIndex)) then
+          write(6,*) 'calcLocalizationRadii: No waveBandIndex was supplied!!!'
+          call abort3d('calbmatrix_glb')
+       end if
+       write(wbnum,'(I2.2)') waveBandIndex
+    end if
+
+    !- 4.1 Localization functions in txt format (for plotting purposes)
+    do jvar = 1, nvar3d
+       if ( nWaveBand == 1 ) then
+          outfilename = "./horizLocalizationFunctions_"//trim(nomvar3d(jvar,variableType))//".txt"
+       else
+          outfilename = "./horizLocalizationFunctions_"//trim(nomvar3d(jvar,variableType))//"_"//wbnum//".txt"
+       end if
+       open (unit=99,file=outfilename,action="write",status="new")
+
+       if(vnl_varTypeFromVarName(nomvar3d(jvar,variableType)).eq.'MM') then
+          nLevEns = nLevEns_M
+       else
+          nLevEns = nLevEns_T
+       endif
+       do k=1,nlevEns
+          do bin = 1, numbins
+             write(99,'(I3,2X,I3,2X,F7.1,2X,I7,2X,F6.4,2X,F6.4,2X,F6.4,2X,F6.4,2X,F6.4,2X,E10.3,2X,E10.3,2X,E10.3)') k, bin, &
+                  distanceBinThresholds(bin)/1000.d0, nint(sumWeight(bin,varLevOffset(jvar)+k)), &
+                  meanCorrel(bin,varLevOffset(jvar)+k), &
+                  localizationFunctions(3,bin,varLevOffset(jvar)+k), &
+                  localizationFunctions(2,bin,varLevOffset(jvar)+k), &
+                  localizationFunctions(1,bin,varLevOffset(jvar)+k), &
+                  meanCorrelSquare(bin,varLevOffset(jvar)+k), &
+                  meanCovarianceSquare(bin,varLevOffset(jvar)+k), &
+                  meanVarianceProduct(bin,varLevOffset(jvar)+k), &
+                  meanFourthMoment(bin,varLevOffset(jvar)+k)
+          end do
+       end do
+       close(unit=99)
+    end do
+
+    do jvar = 1, nvar2d
+       k = varLevOffset(nvar3d+1)+jvar
+       if ( nWaveBand == 1 ) then
+          outfilename = "./horizLocalizationFunctions_"//trim(nomvar2d(jvar,variableType))//".txt"
+       else
+          outfilename = "./horizLocalizationFunctions_"//trim(nomvar2d(jvar,variableType))//"_"//wbnum//".txt"
+       end if
+       open (unit=99,file=outfilename,action="write",status="new")
+       do bin = 1, numbins
+          write(99,'(I3,2X,I3,2X,F7.1,2X,I7,2X,F6.4,2X,F6.4,2X,F6.4,2X,F6.4,2X,F6.4,2X,E10.3,2X,E10.3,2X,E10.3)') 1, bin, &
+               distanceBinThresholds(bin)/1000.d0, nint(sumWeight(bin,k)), &
+               meanCorrel(bin,k), &
+               localizationFunctions(3, bin,k), &
+               localizationFunctions(2, bin,k), &
+               localizationFunctions(1, bin,k), &
+               meanCorrelSquare(bin,k), &
+               meanCovarianceSquare(bin,k), &
+               meanVarianceProduct(bin,k), &
+               meanFourthMoment(bin,k)
+       end do
+       close(unit=99)
+    end do
+
+    !- 4.2 Localization radii in txt format (for plotting purposes)
+    do jvar = 1, nvar3d
+       if ( nWaveBand == 1 ) then
+          outfilename = "./horizLocalizationRadii_"//trim(nomvar3d(jvar,variableType))//".txt"
+       else
+          outfilename = "./horizLocalizationRadii_"//trim(nomvar3d(jvar,variableType))//"_"//wbnum//".txt"
+       end if
+       open (unit=99,file=outfilename,action="write",status="new")
+
+       if(vnl_varTypeFromVarName(nomvar3d(jvar,variableType)).eq.'MM') then
+          nLevEns = nLevEns_M
+          PressureProfile => pressureProfile_M
+       else
+          nLevEns = nLevEns_T
+          PressureProfile => pressureProfile_T
+       endif
+       do k=1,nlevEns
+          write(99,'(I3,2X,F6.1,2X,F7.1,2X,F7.1,2X,F7.1)') k, PressureProfile(k)/100.d0, &
+               localizationRadii(3,varLevOffset(jvar)+k)/1000.d0, &
+               localizationRadii(2,varLevOffset(jvar)+k)/1000.d0, &
+               localizationRadii(1,varLevOffset(jvar)+k)/1000.d0
+       end do
+       close(unit=99)
+    end do
+
+    do jvar = 1, nvar2d
+       k = varLevOffset(nvar3d+1)+jvar
+       if ( nWaveBand == 1 ) then
+          outfilename = "./horizLocalizationRadii_"//trim(nomvar2d(jvar,variableType))//".txt"
+       else
+          outfilename = "./horizLocalizationRadii_"//trim(nomvar2d(jvar,variableType))//"_"//wbnum//".txt"
+       end if
+       open (unit=99,file=outfilename,action="write",status="new")
+       write(99,'(I3,2X,F6.1,2X,F7.1,2X,F7.1,2X,F7.1)') 1, 1010.0, &
+               localizationRadii(3,k)/1000.d0, localizationRadii(2,k)/1000.d0, localizationRadii(1,k)/1000.d0
+       close(unit=99)
+    end do
+
+    deallocate(meanCorrelSquare)
+    deallocate(meanCorrel)
+    deallocate(meanCovarianceSquare)
+    deallocate(meanVarianceProduct)
+    deallocate(meanFourthMoment)
+    deallocate(distanceBinThresholds)
+    deallocate(sumWeight)
+    deallocate(localizationFunctions)
+    deallocate(localizationRadii)
+    deallocate(distanceBinMean)
+    deallocate(distanceBinWeight)
+    deallocate(gridPointWeight)
+
+    write(6,*) 'finished estimating the horizontal localization radii...'
+    call flush(6)
+
+  end subroutine calcHorizLocalizationRadii
+
+!!$  !--------------------------------------------------------------------------
+!!$  ! CALCLOCALIZATIONRADII2
+!!$  !--------------------------------------------------------------------------
+!!$  subroutine calcHorizLocalizationRadii2(ensPerturbations,ensStdDev,stride,waveBandIndex)
+!!$    use localizationFunction_mod
+!!$    implicit none
+!!$
+!!$    real(4), intent(in) :: ensPerturbations(:,:,:,:)
+!!$    real(8), intent(in) :: ensStdDev(:,:,:)
+!!$    integer, intent(in) :: stride
+!!$    integer,optional, intent(in) :: waveBandIndex
+!!$
+!!$    real*4, allocatable :: ensPert_local(:,:,:)
+!!$
+!!$    real(8), allocatable :: meanCorrel(:,:)
+!!$    real(8), allocatable :: meanCorrelSquare(:,:)
+!!$    real(8), allocatable :: meanVarianceProduct(:,:)
+!!$    real(8), allocatable :: meanCovarianceSquare(:,:)
+!!$    real(8), allocatable :: meanFourthMoment(:,:)
+!!$
+!!$    real(8), allocatable :: localizationFunctions(:,:,:) ! Eq. 19-21 in MMMB 2015 Part 2
+!!$
+!!$    real(8), allocatable :: localizationRadii(:,:)
+!!$
+!!$    real(8), allocatable :: distanceBinThresholds(:) ! Maximum distance for each distance-bin
+!!$    real(8), allocatable :: distanceBinMean(:)       ! Mean distance for each distance-bin
+!!$    real(8), allocatable :: distanceBinWeight(:)     ! Weight given to each bin in the curve fitting step
+!!$
+!!$    real(8), allocatable :: gridPointWeight(:,:,:)   ! Weight given to grid point in the statistic computation
+!!$
+!!$    real(8), allocatable :: sumWeight(:,:)    ! Sample size for each distance-bin
+!!$    
+!!$    real(8), pointer :: PressureProfile(:)
+!!$
+!!$    real(8), allocatable :: covariance(:,:), fourthMoment(:,:)
+!!$
+!!$    integer, allocatable :: binVector(:,:)
+!!$
+!!$    real(8) :: dnens, correlation, distance, maxDistance, weight
+!!$    real(8) :: t1, t2, t3, rmse
+!!$
+!!$    integer :: i, j, k, f, ens, bin, numbins, numFunctions
+!!$    integer :: nirefpoint, njrefpoint
+!!$    integer :: iref_id, jref_id, iref, jref
+!!$    integer :: nLevEns, nLevStart, nLevEnd, jvar
+!!$
+!!$    character(len=128) :: outfilename
+!!$    character(len=2)   :: wbnum
+!!$
+!!$    !
+!!$    !- 1.  Setup
+!!$    !
+!!$    numFunctions = 3
+!!$    
+!!$    nirefpoint = ni/stride ! Number of reference grid point in x
+!!$    njrefpoint = nj/stride ! Number of reference grid point in y
+!!$
+!!$    numBins=ni/4 !2
+!!$
+!!$    allocate(localizationFunctions(numFunctions,numBins,nkgdimEns))
+!!$
+!!$    allocate(meanCorrelSquare(numBins,nkgdimEns))
+!!$    allocate(meanCorrel(numBins,nkgdimEns))
+!!$    allocate(meanVarianceProduct(numBins,nkgdimEns))
+!!$    allocate(meanCovarianceSquare(numBins,nkgdimEns))
+!!$    allocate(meanFourthMoment(numBins,nkgdimEns))
+!!$    allocate(sumWeight(numBins,nkgdimEns))
+!!$
+!!$    allocate(gridPointWeight(ni,nkgdimEns,nj))
+!!$
+!!$    allocate(distanceBinThresholds(numBins))
+!!$
+!!$    
+!!$    ! Assign the (upper) threshold to each separation-distance-bin
+!!$    write(6,*)
+!!$    write(6,*) 'Separation distance bin'
+!!$    do bin = 1, numbins
+!!$       distanceBinThresholds(bin) = calcDistance(hco_ens%lat(nj/2),hco_ens%lon(1),hco_ens%lat(nj/2),hco_ens%lon(bin))
+!!$       write(6,*) bin, hco_ens%lat(nj/2),hco_ens%lon(1),hco_ens%lat(nj/2),hco_ens%lon(bin), distanceBinThresholds(bin)/1000.d0
+!!$    end do
+!!$
+!!$    maxDistance=distanceBinThresholds(numBins)
+!!$
+!!$    dnens = 1.0d0/dble(nens-1)
+!!$
+!!$    ! Grid point Weight
+!!$    write(6,*)
+!!$    write(6,*) 'Grid point Weight'
+!!$    do j = 1, nj
+!!$       gridPointWeight(:,:,j) = cos(hco_ens%lat(j))
+!!$       write(6,*) j, hco_ens%lat(j), cos(hco_ens%lat(j))
+!!$    end do
+!!$
+!!$    !
+!!$    !- 2.  Estimation of localization functions
+!!$    !
+!!$
+!!$    !- 2.1  Computation of various statistics for different separation distances
+!!$    allocate(covariance(ni,nj))
+!!$    allocate(fourthMoment(ni,nj))
+!!$    allocate(binVector(ni,nj))
+!!$
+!!$    meanCorrelSquare(:,:)     = 0.d0
+!!$    meanCorrel(:,:)           = 0.d0
+!!$    meanCovarianceSquare(:,:) = 0.d0
+!!$    meanVarianceProduct(:,:)  = 0.d0
+!!$    meanFourthMoment(:,:)     = 0.d0
+!!$    sumWeight(:,:) = 0.d0
+!!$
+!!$!$OMP PARALLEL
+!!$!$OMP DO PRIVATE (k,iref,jref,j,i,ens,correlation,covariance,fourthMoment,distance,bin,weight,binVector)
+!!$    do k = 1, nkgdimEns
+!!$       write(6,*) 'Computing distance-bin statistics for ensemble level: ', k
+!!$       call flush(6)
+!!$
+!!$       do jref = nint(stride/2.0), nj, stride     ! Pick every stride point to save cost.
+!!$          do iref = nint(stride/2.0), ni, stride  ! Pick every stride point to save cost.
+!!$
+!!$             if (k == 1) then
+!!$                write(6,*) 'grid point info', iref, jref
+!!$                call flush(6)
+!!$             end if
+!!$
+!!$             covariance(:,:) = 0.d0
+!!$             fourthMoment(:,:) = 0.d0
+!!$             binVector(:,:) = -1
+!!$             do ens = 1, nens
+!!$                do j = 1, nj
+!!$                   do i = 1, ni
+!!$                      if (ens == 1) then
+!!$                         distance=calcDistance(hco_ens%lat(jref),hco_ens%lon(iref),hco_ens%lat(j),hco_ens%lon(i))
+!!$                         if (distance <= maxDistance .and. gridPointWeight(i,k,j) > 0.d0) then
+!!$                            binVector(i,j)=findBinIndex(distance,distanceBinThresholds,numBins)                            
+!!$                         end if
+!!$                      end if
+!!$
+!!$                      if ( binVector(i,j) > 0 ) then
+!!$                         covariance(i,j) = covariance(i,j) + &
+!!$                               ensPerturbations(i,k,j,ens) * ensPerturbations(iref,k,jref,ens)
+!!$                         fourthMoment(i,j) = fourthMoment(i,j) + &
+!!$                               (ensPerturbations(i,k,j,ens) * ensPerturbations(iref,k,jref,ens))**2
+!!$                     end if
+!!$                   end do
+!!$                end do
+!!$             end do
+!!$
+!!$             do j = 1, nj
+!!$                do i = 1, ni
+!!$                   if ( binVector(i,j) > 0 ) then
+!!$                      covariance(i,j) = covariance(i,j) * dnens
+!!$                      fourthMoment(i,j) = fourthMoment(i,j) / real(nens,8)
+!!$                      correlation  = covariance(i,j) / (ensStdDev(i,k,j)*ensStdDev(iref,k,jref))
+!!$
+!!$                      bin=binVector(i,j)
+!!$                      
+!!$                      weight = sqrt(gridPointWeight(iref,k,jref)) * sqrt(gridPointWeight(i,k,j))
+!!$                
+!!$                      sumWeight(bin,k) = sumWeight(bin,k) + weight
+!!$
+!!$                      meanCorrel(bin,k)           = meanCorrel(bin,k)           + correlation    * weight
+!!$                      meanCorrelSquare(bin,k)     = meanCorrelSquare(bin,k)     + correlation**2 * weight
+!!$                      meanCovarianceSquare(bin,k) = meanCovarianceSquare(bin,k) + covariance(i,j)**2  * weight
+!!$                      meanVarianceProduct(bin,k)  = meanVarianceProduct(bin,k)  + ensStdDev(i,k,j)**2 * ensStdDev(iref,k,jref)**2 * weight
+!!$                      meanFourthMoment(bin,k)     = meanFourthMoment(bin,k)     + fourthMoment(i,j) * weight
+!!$                   end if
+!!$                end do
+!!$             end do
+!!$
+!!$             ! From now on, omit the current reference point
+!!$             gridPointWeight(iref,k,jref) = 0.d0
+!!$
+!!$          end do ! iref
+!!$       end do    ! jref
+!!$
+!!$    end do ! nkgdimEns
+!!$!$OMP END DO
+!!$!$OMP END PARALLEL
+!!$
+!!$    deallocate(covariance)
+!!$    deallocate(fourthMoment)
+!!$    deallocate(binVector)
+!!$
+!!$    !- 2.2  Computation of the localization functions
+!!$    t1=dble((nens-1)**2)/dble(nens*(nens-3))
+!!$    t2=dble(nens)/dble((nens-2)*(nens-3))
+!!$    t3=dble(nens-1)/dble(nens*(nens-2)*(nens-3))
+!!$!$OMP PARALLEL
+!!$!$OMP DO PRIVATE (k,bin)
+!!$    do k = 1, nkgdimEns
+!!$       do bin = 1, numbins
+!!$
+!!$          meanCorrel(bin,k)           = meanCorrel(bin,k)           / sumWeight(bin,k)
+!!$          meanCorrelSquare(bin,k)     = meanCorrelSquare(bin,k)     / sumWeight(bin,k)
+!!$          meanCovarianceSquare(bin,k) = meanCovarianceSquare(bin,k) / sumWeight(bin,k)
+!!$          meanVarianceProduct(bin,k)  = meanVarianceProduct(bin,k)  / sumWeight(bin,k)
+!!$          meanFourthMoment(bin,k)     = meanFourthMoment(bin,k)     / sumWeight(bin,k)
+!!$
+!!$          if ( meanCovarianceSquare(bin,k) /= 0.d0 ) then
+!!$             ! Form 1: General formulation (Eq. 19 in MMMB 2015 Part 2)
+!!$             localizationFunctions(1,bin,k) = t1 - t2*meanFourthMoment(bin,k)/meanCovarianceSquare(bin,k) + &
+!!$                  t3*meanVarianceProduct(bin,k)/meanCovarianceSquare(bin,k)
+!!$             ! Form 2: Gaussian sample distribution (Eq. 20 in MMMB 2015 Part 2)
+!!$             localizationFunctions(2,bin,k) = real(nens-1,8)/real((nens+1)*(nens-2),8) * &
+!!$                  (real(nens-1,8)-meanVarianceProduct(bin,k)/meanCovarianceSquare(bin,k))
+!!$          else
+!!$             write(6,*) ' !!! Warning !!! meanCovarianceSquare = 0 in bin, level = ', bin, k
+!!$             localizationFunctions(1,bin,k) = 0.d0
+!!$             localizationFunctions(2,bin,k) = 0.d0
+!!$          end if
+!!$          ! Form 3: Gaussian sample distribution and correlation-based formulation (Eq. 21 in MMMB 2015 Part 2)
+!!$          if ( meanCorrelSquare(bin,k) /= 0.d0 ) then
+!!$             localizationFunctions(3,bin,k) = real(nens-1,8)/real((nens+1)*(nens-2),8) * &
+!!$                  (real(nens-1,8)-1.d0/meanCorrelSquare(bin,k))
+!!$          else
+!!$             write(6,*) ' !!! Warning !!! meanCorrelSquare = 0 in bin, level = ', bin, k
+!!$             localizationFunctions(3,bin,k) = 0.d0
+!!$          end if
+!!$       end do
+!!$    end do
+!!$!$OMP END DO
+!!$!$OMP END PARALLEL
+!!$
+!!$    !
+!!$    !- 3.  Estimation of localization radii (curve fitting)
+!!$    !
+!!$    allocate(localizationRadii(numFunctions,nkgdimEns))
+!!$    allocate(distanceBinMean(numBins))
+!!$    allocate(distanceBinWeight(numBins))
+!!$
+!!$    call loc_setup('FifthOrder') ! IN
+!!$
+!!$    localizationRadii(:,:) = 2000.d0*1000.d0 ! First Guess (meter)
+!!$    distanceBinWeight(:)   = 1.d0            ! Even weight
+!!$    do bin = 1, numBins
+!!$       if (bin == 1) then
+!!$          distanceBinMean(bin) = distanceBinThresholds(bin) ! = 0 m
+!!$       else
+!!$          distanceBinMean(bin) = 0.5d0*(distanceBinThresholds(bin)+distanceBinThresholds(bin-1))
+!!$       end if
+!!$    end do
+!!$
+!!$    do f = 1, numFunctions
+!!$       write(6,*)
+!!$       write(6,*) 'Localization Function : ', f
+!!$!$OMP PARALLEL
+!!$!$OMP DO PRIVATE (k,rmse)
+!!$       do k =  1, nkgdimEns
+!!$          write(6,*) '         ----- EnsLev : ', k
+!!$          call loc_lengthscale( localizationRadii(f,k),       & ! INOUT
+!!$                                rmse,                         & ! OUT
+!!$                                localizationFunctions(f,:,k), & ! IN
+!!$                                distanceBinMean,              & ! IN
+!!$                                distanceBinWeight,            & ! IN
+!!$                                numbins )                       ! IN
+!!$          !write(6,*) 'localizationRadii = ', localizationRadii(f,k), rmse
+!!$       end do
+!!$!$OMP END DO
+!!$!$OMP END PARALLEL
+!!$    end do
+!!$
+!!$    !
+!!$    !- 4.  Write to file
+!!$    !
+!!$    if ( nWaveBand /= 1 ) then
+!!$       if (.not. present(waveBandIndex)) then
+!!$          write(6,*) 'calcLocalizationRadii: No waveBandIndex was supplied!!!'
+!!$          call abort3d('calbmatrix_glb')
+!!$       end if
+!!$       write(wbnum,'(I2.2)') waveBandIndex
+!!$    end if
+!!$
+!!$    !- 4.1 Localization functions in txt format (for plotting purposes)
+!!$    do jvar = 1, nvar3d
+!!$       if ( nWaveBand == 1 ) then
+!!$          outfilename = "./horizLocalizationFunctions_"//trim(nomvar3d(jvar,variableType))//".txt"
+!!$       else
+!!$          outfilename = "./horizLocalizationFunctions_"//trim(nomvar3d(jvar,variableType))//"_"//wbnum//".txt"
+!!$       end if
+!!$       open (unit=99,file=outfilename,action="write",status="new")
+!!$
+!!$       if(vnl_varTypeFromVarName(nomvar3d(jvar,variableType)).eq.'MM') then
+!!$          nLevEns = nLevEns_M
+!!$       else
+!!$          nLevEns = nLevEns_T
+!!$       endif
+!!$       do k=1,nlevEns
+!!$          do bin = 1, numbins
+!!$             write(99,'(I3,2X,I3,2X,F7.1,2X,I7,2X,F6.4,2X,F6.4,2X,F6.4,2X,F6.4)') k, bin, &
+!!$                  distanceBinThresholds(bin)/1000.d0, nint(sumWeight(bin,varLevOffset(jvar)+k)), &
+!!$                  meanCorrel(bin,varLevOffset(jvar)+k), &
+!!$                  localizationFunctions(3,bin,varLevOffset(jvar)+k), &
+!!$                  localizationFunctions(2,bin,varLevOffset(jvar)+k), &
+!!$                  localizationFunctions(1,bin,varLevOffset(jvar)+k)
+!!$          end do
+!!$       end do
+!!$       close(unit=99)
+!!$    end do
+!!$
+!!$    do jvar = 1, nvar2d
+!!$       k = varLevOffset(nvar3d+1)+jvar
+!!$       if ( nWaveBand == 1 ) then
+!!$          outfilename = "./horizLocalizationFunctions_"//trim(nomvar2d(jvar,variableType))//".txt"
+!!$       else
+!!$          outfilename = "./horizLocalizationFunctions_"//trim(nomvar2d(jvar,variableType))//"_"//wbnum//".txt"
+!!$       end if
+!!$       open (unit=99,file=outfilename,action="write",status="new")
+!!$       do bin = 1, numbins
+!!$          write(99,'(I3,2X,I3,2X,F7.1,2X,I7,2X,F6.4,2X,F6.4,2X,F6.4,2X,F6.4)') 1, bin, &
+!!$               distanceBinThresholds(bin)/1000.d0, nint(sumWeight(bin,k)), &
+!!$               meanCorrel(bin,k), &
+!!$               localizationFunctions(3, bin,k), &
+!!$               localizationFunctions(2, bin,k), &
+!!$               localizationFunctions(1, bin,k)
+!!$       end do
+!!$       close(unit=99)
+!!$    end do
+!!$
+!!$    !- 4.2 Localization radii in txt format (for plotting purposes)
+!!$    do jvar = 1, nvar3d
+!!$       if ( nWaveBand == 1 ) then
+!!$          outfilename = "./horizLocalizationRadii_"//trim(nomvar3d(jvar,variableType))//".txt"
+!!$       else
+!!$          outfilename = "./horizLocalizationRadii_"//trim(nomvar3d(jvar,variableType))//"_"//wbnum//".txt"
+!!$       end if
+!!$       open (unit=99,file=outfilename,action="write",status="new")
+!!$
+!!$       if(vnl_varTypeFromVarName(nomvar3d(jvar,variableType)).eq.'MM') then
+!!$          nLevEns = nLevEns_M
+!!$          PressureProfile => pressureProfile_M
+!!$       else
+!!$          nLevEns = nLevEns_T
+!!$          PressureProfile => pressureProfile_T
+!!$       endif
+!!$       do k=1,nlevEns
+!!$          write(99,'(I3,2X,F6.1,2X,F7.1,2X,F7.1,2X,F7.1)') k, PressureProfile(k)/100.d0, &
+!!$               localizationRadii(3,varLevOffset(jvar)+k)/1000.d0, &
+!!$               localizationRadii(2,varLevOffset(jvar)+k)/1000.d0, &
+!!$               localizationRadii(1,varLevOffset(jvar)+k)/1000.d0
+!!$       end do
+!!$       close(unit=99)
+!!$    end do
+!!$
+!!$    do jvar = 1, nvar2d
+!!$       k = varLevOffset(nvar3d+1)+jvar
+!!$       if ( nWaveBand == 1 ) then
+!!$          outfilename = "./horizLocalizationRadii_"//trim(nomvar2d(jvar,variableType))//".txt"
+!!$       else
+!!$          outfilename = "./horizLocalizationRadii_"//trim(nomvar2d(jvar,variableType))//"_"//wbnum//".txt"
+!!$       end if
+!!$       open (unit=99,file=outfilename,action="write",status="new")
+!!$       write(99,'(I3,2X,F6.1,2X,F7.1,2X,F7.1,2X,F7.1)') 1, 1010.0, &
+!!$               localizationRadii(3,k)/1000.d0, localizationRadii(2,k)/1000.d0, localizationRadii(1,k)/1000.d0
+!!$       close(unit=99)
+!!$    end do
+!!$
+!!$    deallocate(meanCorrelSquare)
+!!$    deallocate(meanCorrel)
+!!$    deallocate(meanCovarianceSquare)
+!!$    deallocate(meanVarianceProduct)
+!!$    deallocate(meanFourthMoment)
+!!$    deallocate(distanceBinThresholds)
+!!$    deallocate(sumWeight)
+!!$    deallocate(localizationFunctions)
+!!$    deallocate(localizationRadii)
+!!$    deallocate(distanceBinMean)
+!!$    deallocate(distanceBinWeight)
+!!$    deallocate(gridPointWeight)
+!!$
+!!$    write(6,*) 'finished estimating the horizontal localization radii...'
+!!$    call flush(6)
+!!$
+!!$  end subroutine calcHorizLocalizationRadii2
+
+  !--------------------------------------------------------------------------
+  ! FINDBININDEX
+  !--------------------------------------------------------------------------
+  function findBinIndex(distance,distanceBinThresholds,numBins) result(binIndex)
+      implicit none
+
+      integer :: numBins, binIndex
+      real(8) :: distance
+      real(8) :: distanceBinThresholds(numBins)
+
+      integer :: bin
+
+      binIndex = -1
+      do bin = 1, numbins
+         if ( distance <= distanceBinThresholds(bin) ) then
+            binIndex = bin
+            exit
+         end if
+      end do
+
+      if (binIndex == -1) then
+         write(6,*) 'findBinIndex: No match found! ABORTING'
+         call abort3d('findBinIndex')
+      end if
+
+    end function findBinIndex
+
+  !--------------------------------------------------------------------------
+  ! DISTANCE
+  !--------------------------------------------------------------------------
+  function calcDistance(lat2, lon2, lat1, lon1) result(distanceInM)
+      implicit none
+
+      ! Compute the distance between two point on earth: (lat1,lon1) and (lat2,lon2)
+      !     Calcul utilisant la Formule d'Haversine
+      !     Reference: R.W. Sinnott,'Virtues of Haversine',Sky and Telescope,
+      !     vol.68, no.2, 1984, p.159)
+
+      real(8) :: lat1, lon1, lat2, lon2
+      real(8) :: dlat, dlon, a, c
+
+      real(8) :: distanceInM
+
+      dlon = lon2 - lon1
+      dlat = lat2 - lat1
+
+      a = (sin(dlat/2.d0))**2 + cos(lat1)*cos(lat2)*(sin(dlon/2.d0))**2
+      c = 2.d0 * atan2(sqrt(a),sqrt(1.d0-a))
+      distanceInM = RA * c
+
+    end function calcDistance
+
+ !--------------------------------------------------------------------------
+  ! CALCVERTLOCALIZATIONRADII
+  !--------------------------------------------------------------------------
+  subroutine calcVertLocalizationRadii(ensPerturbations,ensStdDev,stride,waveBandIndex)
+    use localizationFunction_mod
+    implicit none
+
+    real(4), intent(in) :: ensPerturbations(:,:,:,:)
+    real(8), intent(in) :: ensStdDev(:,:,:)
+    integer, intent(in) :: stride
+    integer,optional, intent(in) :: waveBandIndex
+
+    real*4, allocatable :: ensPert_local(:,:)
+
+    real(8), allocatable :: meanCorrel(:,:)
+    real(8), allocatable :: meanCorrelSquare(:,:)
+    real(8), allocatable :: meanVarianceProduct(:,:)
+    real(8), allocatable :: meanCovarianceSquare(:,:)
+    real(8), allocatable :: meanFourthMoment(:,:)
+
+    real(8), allocatable :: localizationFunctions(:,:,:) ! Eq. 19-21 in MMMB 2015 Part 2
+
+    real(8), allocatable :: localizationRadii(:,:)
+
+    real(8), allocatable, target :: distanceBinInLnP_T(:,:) ! Distance between each pair of thermo vertical levels in ln(Pressure)
+    real(8), allocatable, target :: distanceBinInLnP_M(:,:) ! Distance between each pair of momentum vertical levels in ln(Pressure)
+    real(8), allocatable :: distanceBinWeight(:)    ! Weight given to each bin in the curve fitting step
+
+    real(8), allocatable :: gridPointWeight(:,:)   ! Weight given to grid point in the statistic computation
+
+    real(8), allocatable :: sumWeight(:,:)    ! Sample size for each distance-bin
+    
+    real(8), pointer :: PressureProfile(:)
+    real(8), pointer :: distanceBinInLnP(:,:)
+
+    real(8) :: dnens, correlation, covariance, fourthMoment, distance, maxDistance, weight
+    real(8) :: t1, t2, t3, rmse
+
+    integer :: k, k2, kens, f, ens, bin, numbins, numFunctions
+    integer :: nirefpoint, njrefpoint
+    integer :: iref, jref
+    integer :: nLevEns, nLevStart, nLevEnd, jvar
+
+    character(len=128) :: outfilename
+    character(len=2)   :: wbnum
+
+    !
+    !- 1.  Setup
+    !
+
+    numFunctions = 3
+    
+    nirefpoint = ni/stride ! Number of reference grid point in x
+    njrefpoint = nj/stride ! Number of reference grid point in y
+
+    numBins=max(nLevEns_M,nLevEns_T) !ni/4 !2
+
+    allocate(localizationFunctions(numFunctions,numBins,nkgdimEns))
+
+    allocate(meanCorrelSquare(numBins,nkgdimEns))
+    allocate(meanCorrel(numBins,nkgdimEns))
+    allocate(meanVarianceProduct(numBins,nkgdimEns))
+    allocate(meanCovarianceSquare(numBins,nkgdimEns))
+    allocate(meanFourthMoment(numBins,nkgdimEns))
+    allocate(sumWeight(numBins,nkgdimEns))
+
+    allocate(gridPointWeight(ni,nj))
+
+    allocate(distanceBinInLnP_M(nLevEns_M,nLevEns_M))
+    allocate(distanceBinInLnP_T(nLevEns_T,nLevEns_T))
+
+    ! Compute the separation-distance in ln(p) between vertical levels
+    !write(6,*)
+    !write(6,*) 'Separation distance bin'
+    do k = 1, nLevEns_M
+       do k2 = 1, nLevEns_M
+          distanceBinInLnP_M(k,k2) = abs(log(pressureProfile_M(k))-log(pressureProfile_M(k2)))
+       end do
+    end do
+    do k = 1, nLevEns_T
+       do k2 = 1, nLevEns_T
+          distanceBinInLnP_T(k,k2) = abs(log(pressureProfile_T(k))-log(pressureProfile_T(k2)))
+       end do
+    end do
+
+    dnens = 1.0d0/dble(nens-1)
+
+    ! Grid point Weight
+    write(6,*)
+    write(6,*) 'Grid point Weight'
+    do jref = 1, nj
+       gridPointWeight(:,jref) = cos(hco_ens%lat(jref))
+       write(6,*) jref, hco_ens%lat(jref), cos(hco_ens%lat(jref))
+    end do
+
+    !
+    !- 2.  Estimation of localization functions
+    !
+
+    !- 2.1  Computation of various statistics for different separation distances
+    meanCorrelSquare(:,:)     = 0.d0
+    meanCorrel(:,:)           = 0.d0
+    meanCovarianceSquare(:,:) = 0.d0
+    meanVarianceProduct(:,:)  = 0.d0
+    meanFourthMoment(:,:)     = 0.d0
+    sumWeight(:,:) = 0.d0
+
+    allocate(ensPert_local(nens,nkgdimEns))
+
+    do jref = nint(stride/2.0), nj, stride     ! Pick every stride point to save cost.
+       do iref = nint(stride/2.0), ni, stride  ! Pick every stride point to save cost.
+
+          !- Select data needed to speed up the process (ensemble member index must come first in ensPert_Local 
+          !  because ensemble member is the last loop index below)
+          do ens = 1, nens
+             do k = 1, nkgdimEns
+                ensPert_local(ens,k) = ensPerturbations(iref,k,jref,ens)
+             end do
+          end do
+
+          ! Loop on all 3D variables
+          do jvar = 1, nvar3d
+
+             if (vnl_varTypeFromVarName(nomvar3d(jvar,variableType)).eq.'MM') then
+                nLevEns = nLevEns_M
+             else
+                nLevEns = nLevEns_T
+             endif
+             nLevStart = varLevOffset(jvar)+ 1
+             nLevEnd   = varLevOffset(jvar)+ nLevEns
+
+!$OMP PARALLEL
+!$OMP DO PRIVATE (k,k2,ens,correlation,covariance,fourthMoment,bin,weight)
+             do k = nLevStart, nLevEnd
+                do k2 = nLevStart, nLevEnd
+
+                   covariance = 0.d0
+                   fourthMoment = 0.d0
+                   do ens = 1, nens
+                      covariance = covariance + &
+                           ensPert_local(ens,k2) * ensPert_local(ens,k)
+                      fourthMoment = fourthMoment + &
+                           (ensPert_local(ens,k2) * ensPert_local(ens,k))**2
+                   end do
+                   covariance   = covariance * dnens
+                   fourthMoment = fourthMoment / real(nens,8)
+                   correlation  = covariance / (ensStdDev(iref,k2,jref)*ensStdDev(iref,k,jref))
+                   
+                   bin=k2-nLevStart+1
+
+                   weight = gridPointWeight(iref,jref)
+
+                   sumWeight(bin,k) = sumWeight(bin,k) + weight
+                   
+                   meanCorrel(bin,k)           = meanCorrel(bin,k)           + correlation    * weight
+                   meanCorrelSquare(bin,k)     = meanCorrelSquare(bin,k)     + correlation**2 * weight
+                   meanCovarianceSquare(bin,k) = meanCovarianceSquare(bin,k) + covariance**2  * weight
+                   meanVarianceProduct(bin,k)  = meanVarianceProduct(bin,k)  + ensStdDev(iref,k2,jref)**2 * ensStdDev(iref,k,jref)**2 * weight
+                   meanFourthMoment(bin,k)     = meanFourthMoment(bin,k)     + fourthMoment   * weight
+                end do
+             end do
+!$OMP END DO
+!$OMP END PARALLEL
+          end do ! var3D
+
+       end do ! iref
+    end do    ! jref
+
+    deallocate(ensPert_local)
+    
+
+    !- 2.2  Computation of the localization functions
+    t1=dble((nens-1)**2)/dble(nens*(nens-3))
+    t2=dble(nens)/dble((nens-2)*(nens-3))
+    t3=dble(nens-1)/dble(nens*(nens-2)*(nens-3))
+
+    do jvar = 1, nvar3d
+       if (vnl_varTypeFromVarName(nomvar3d(jvar,variableType)).eq.'MM') then
+          nLevEns = nLevEns_M
+       else
+          nLevEns = nLevEns_T
+       endif
+       nLevStart = varLevOffset(jvar)+ 1
+       nLevEnd   = varLevOffset(jvar)+ nLevEns
+!$OMP PARALLEL
+!$OMP DO PRIVATE (k,bin)       
+       do k = nLevStart, nLevEnd
+          do bin = 1, nLevEns
+             meanCorrel(bin,k)           = meanCorrel(bin,k)           / sumWeight(bin,k)
+             meanCorrelSquare(bin,k)     = meanCorrelSquare(bin,k)     / sumWeight(bin,k)
+             meanCovarianceSquare(bin,k) = meanCovarianceSquare(bin,k) / sumWeight(bin,k)
+             meanVarianceProduct(bin,k)  = meanVarianceProduct(bin,k)  / sumWeight(bin,k)
+             meanFourthMoment(bin,k)     = meanFourthMoment(bin,k)     / sumWeight(bin,k)
+
+             if ( meanCovarianceSquare(bin,k) /= 0.d0 ) then
+                ! Form 1: General formulation (Eq. 19 in MMMB 2015 Part 2)
+                localizationFunctions(1,bin,k) = t1 - t2*meanFourthMoment(bin,k)/meanCovarianceSquare(bin,k) + &
+                     t3*meanVarianceProduct(bin,k)/meanCovarianceSquare(bin,k)
+                ! Form 2: Gaussian sample distribution (Eq. 20 in MMMB 2015 Part 2)
+                localizationFunctions(2,bin,k) = dble(nens-1)/dble((nens+1)*(nens-2)) * &
+                     (dble(nens-1)-meanVarianceProduct(bin,k)/meanCovarianceSquare(bin,k))
+             else
+                write(6,*) ' !!! Warning !!! meanCovarianceSquare = 0 in bin, level = ', bin, k
+                localizationFunctions(1,bin,k) = 0.d0
+                localizationFunctions(2,bin,k) = 0.d0
+             end if
+             ! Form 3: Gaussian sample distribution and correlation-based formulation (Eq. 21 in MMMB 2015 Part 2)
+             if ( meanCorrelSquare(bin,k) /= 0.d0 ) then
+                localizationFunctions(3,bin,k) = dble(nens-1)/dble((nens+1)*(nens-2)) * &
+                     (dble(nens-1)-1.d0/meanCorrelSquare(bin,k))
+             else
+                write(6,*) ' !!! Warning !!! meanCorrelSquare = 0 in bin, level = ', bin, k
+                localizationFunctions(3,bin,k) = 0.d0
+             end if
+          end do
+       end do
+!$OMP END DO
+!$OMP END PARALLEL
+    end do
+
+    !
+    !- 3.  Estimation of localization radii (curve fitting)
+    !
+    allocate(localizationRadii(numFunctions,nkgdimEns))
+    allocate(distanceBinWeight(numBins))
+
+    call loc_setup('FifthOrder') ! IN
+
+    localizationRadii(:,:) = 2.d0 ! First Guess (in ln(p) distance)
+    distanceBinWeight(:)   = 1.d0 ! Even weight
+
+    do jvar = 1, nvar3d
+       if (vnl_varTypeFromVarName(nomvar3d(jvar,variableType)).eq.'MM') then
+          nLevEns = nLevEns_M
+          distanceBinInLnP => distanceBinInLnP_M
+       else
+          nLevEns = nLevEns_T
+          distanceBinInLnP => distanceBinInLnP_T
+       endif
+       nLevStart = varLevOffset(jvar)+ 1
+       nLevEnd   = varLevOffset(jvar)+ nLevEns
+
+       write(6,*)
+       write(6,*) nomvar3d(jvar,variableType)
+
+       do f = 1, numFunctions
+
+          write(6,*)
+          write(6,*) 'Localization Function : ', f
+!!$OMP PARALLEL
+!!$OMP DO PRIVATE (k,kens,rmse)
+          do k =  nLevStart, nLevEnd
+             kens = k-nLevStart+1
+             write(6,*) '         ----- EnsLev : ', k
+             call loc_lengthscale( localizationRadii(f,k),       & ! INOUT
+                                   rmse,                         & ! OUT
+                                   localizationFunctions(f,1:nLevEns,k), & ! IN
+                                   distanceBinInLnP(kens,:),        & ! IN
+                                   distanceBinWeight(1:nLevEns), & ! IN
+                                   nLevEns )                       ! IN
+          end do
+!!$OMP END DO
+!!$OMP END PARALLEL
+       end do
+    end do
+
+    !
+    !- 4.  Write to file
+    !
+    if ( nWaveBand /= 1 ) then
+       if (.not. present(waveBandIndex)) then
+          write(6,*) 'calcLocalizationRadii: No waveBandIndex was supplied!!!'
+          call abort3d('calbmatrix_glb')
+       end if
+       write(wbnum,'(I2.2)') waveBandIndex
+    end if
+
+    !- 4.1 Localization functions in txt format (for plotting purposes)
+    do jvar = 1, nvar3d
+       if ( nWaveBand == 1 ) then
+          outfilename = "./vertLocalizationFunctions_"//trim(nomvar3d(jvar,variableType))//".txt"
+       else
+          outfilename = "./vertLocalizationFunctions_"//trim(nomvar3d(jvar,variableType))//"_"//wbnum//".txt"
+       end if
+       open (unit=99,file=outfilename,action="write",status="new")
+
+       if(vnl_varTypeFromVarName(nomvar3d(jvar,variableType)).eq.'MM') then
+          nLevEns = nLevEns_M
+          PressureProfile => pressureProfile_M
+          distanceBinInLnP => distanceBinInLnP_M 
+       else
+          nLevEns = nLevEns_T
+          PressureProfile => pressureProfile_T
+          distanceBinInLnP => distanceBinInLnP_T
+       endif
+
+       do k=1,nlevEns
+          do bin = 1, nlevEns
+             write(99,'(I3,2X,I3,2X,F6.1,2X,F7.3,2X,I7,2X,F6.4,2X,F6.4,2X,F6.4,2X,F6.4,2X,F6.4,2X,E10.3,2X,E10.3,2X,E10.3)') k, bin, &
+                  PressureProfile(bin)/100.d0, distanceBinInLnP(k,bin), nint(sumWeight(bin,varLevOffset(jvar)+k)), &
+                  meanCorrel(bin,varLevOffset(jvar)+k), &
+                  localizationFunctions(3,bin,varLevOffset(jvar)+k), &
+                  localizationFunctions(2,bin,varLevOffset(jvar)+k), &
+                  localizationFunctions(1,bin,varLevOffset(jvar)+k), &
+                  meanCorrelSquare(bin,varLevOffset(jvar)+k), &
+                  meanCovarianceSquare(bin,varLevOffset(jvar)+k), &
+                  meanVarianceProduct(bin,varLevOffset(jvar)+k), &
+                  meanFourthMoment(bin,varLevOffset(jvar)+k)
+          end do
+       end do
+       close(unit=99)
+    end do
+
+    !- 4.2 Localization radii in txt format (for plotting purposes)
+    do jvar = 1, nvar3d
+       if ( nWaveBand == 1 ) then
+          outfilename = "./vertLocalizationRadii_"//trim(nomvar3d(jvar,variableType))//".txt"
+       else
+          outfilename = "./vertLocalizationRadii_"//trim(nomvar3d(jvar,variableType))//"_"//wbnum//".txt"
+       end if
+       open (unit=99,file=outfilename,action="write",status="new")
+
+       if(vnl_varTypeFromVarName(nomvar3d(jvar,variableType)).eq.'MM') then
+          nLevEns = nLevEns_M
+          PressureProfile => pressureProfile_M
+       else
+          nLevEns = nLevEns_T
+          PressureProfile => pressureProfile_T
+       endif
+       do k=1,nlevEns
+          write(99,'(I3,2X,F6.1,2X,F7.2,2X,F7.2,2X,F7.2)') k, PressureProfile(k)/100.d0, &
+               localizationRadii(3,varLevOffset(jvar)+k), &
+               localizationRadii(2,varLevOffset(jvar)+k), &
+               localizationRadii(1,varLevOffset(jvar)+k)
+       end do
+       close(unit=99)
+    end do
+
+    deallocate(meanCorrelSquare)
+    deallocate(meanCorrel)
+    deallocate(meanCovarianceSquare)
+    deallocate(meanVarianceProduct)
+    deallocate(meanFourthMoment)
+    deallocate(distanceBinInLnP_M)
+    deallocate(distanceBinInLnP_T)
+    deallocate(sumWeight)
+    deallocate(localizationFunctions)
+    deallocate(localizationRadii)
+    deallocate(distanceBinWeight)
+    deallocate(gridPointWeight)
+
+    write(6,*) 'finished estimating the vertical localization radii...'
+    call flush(6)
+
+  end subroutine calcVertLocalizationRadii
 
 end module calcbmatrix_glb_mod

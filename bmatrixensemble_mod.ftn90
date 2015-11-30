@@ -44,6 +44,7 @@ MODULE BmatrixEnsemble
   use lamSpectralTransform_mod
   use horizontalCoord_mod
   use verticalCoord_mod
+  use localizationFunction_mod
   use mathPhysConstants_mod
   use earthConstants_mod
   implicit none
@@ -401,7 +402,7 @@ CONTAINS
 
     !- 2.7 Localization
     if ( trim(ben_mode) == 'Analysis' ) then
-
+      call loc_setup('FifthOrder') ! IN
       if (trim(LocalizationType) == 'LevelDependent') then
          if(mpi_myid.eq.0) write(*,*)
          if(mpi_myid.eq.0) write(*,*) 'bmatrixEnsemble: Level-Dependent (Standard) localization will be used'
@@ -420,7 +421,7 @@ CONTAINS
          !      wavenumber #2 = where the response function for wave band 2 reaches 1
          !      wavenumber #3 = where the response function for wave band 3 (low res) reaches 1 
          !                      and stays at 1 for lower wavenumbers
-         ! See SpectralFilterResponseFunction for further info...
+         ! See FilterResponseFunction for further info...
 
          ! Make sure that the wavenumbers are in the correct (decreasing) order
          do waveBandIndex = 1, nWaveBand-1
@@ -1390,7 +1391,7 @@ CONTAINS
 
     real(8) :: ResponseFunction(nla_mpiglobal,2:nWaveBand)
     real(8) :: bandSum
-    real(8) :: totwvnb_r8
+    real(8) :: totwvnb_r8, FilterResponseFunction
 
     real(8) :: ensPertSP        (nla_mpiglobal,nphase,myMemBeg:myMemEnd)
     real(8) :: ensPertSPfiltered(nla_mpiglobal,nphase,myMemBeg:myMemEnd)
@@ -1436,7 +1437,7 @@ CONTAINS
           else
              totwvnb_r8 = lst_ben%k_r8(ila)
           endif
-          ResponseFunction(ila,waveBandIndex) = SpectralFilterResponseFunction(totwvnb_r8,waveBandIndex)
+          ResponseFunction(ila,waveBandIndex) = FilterResponseFunction(totwvnb_r8,waveBandIndex, waveBandPeaks, nWaveBand)
        end do
     end do
 
@@ -1571,102 +1572,6 @@ CONTAINS
   END SUBROUTINE EnsembleScaleDecomposition
 
 !--------------------------------------------------------------------------
-! SpectralFilterResponseFunction
-!--------------------------------------------------------------------------
-  function SpectralFilterResponseFunction(totalWaveNumber, waveBandIndex ) result(ResponseFunction) 
-    implicit none
-
-    real(8) :: totalWaveNumber, ResponseFunction 
-    integer :: waveBandIndex
-
-    real(8) :: linearResponse, lowerLimit, center, upperLimit
-    real(8), parameter :: pi = 2.d0*asin(1.d0)
-
-    if (waveBandIndex == nWaveBand ) then
-       ! This wave band contains the largest scales.
-       !
-       ! The response function is 1 total wave number <= waveBandPeaks(nWaveBand)
-       ! and decreases to 0 at waveBandPeaks(nWaveBand-1)
-       !
-       !                    response=1 |---
-       !                               |   \
-       !                               |    \
-       !                    response=0 |------------
-       !       waveBandPeaks(nWaveBand) <-|  |-> waveBandPeaks(nWaveBand-1)
-       !
-       lowerlimit = real(waveBandPeaks(waveBandIndex  ),8)
-       upperlimit = real(waveBandPeaks(waveBandIndex-1),8)
-
-       if ( totalWaveNumber < lowerlimit ) then
-          ResponseFunction = 1.d0
-       else if ( totalWaveNumber <= upperlimit ) then
-          linearResponse = (upperlimit-totalWaveNumber) / (upperlimit-lowerlimit)
-          ResponseFunction = sin( (pi/2.d0) * linearResponse)**2
-       else
-          ResponseFunction = 0.d0
-       end if
-
-    else if ( waveBandIndex /= 1 ) then
-       ! This wave band contains intermediate scales (i.e., not the largest or the smallest).
-       !
-       ! The response function is 1 (only) for the total wave number = waveBandPeaks(waveBandIndex)
-       ! and decreases to 0 at both waveBandPeaks(waveBandIndex+1) and waveBandPeaks(waveBandIndex-1)
-       !
-       !                    response=1 |      -
-       !                               |     / \
-       !                               |    /   \
-       !                    response=0 |------------
-       !  waveBandPeaks(waveBandIndex+1) <-|     |-> waveBandPeaks(waveBandIndex-1)
-       !                                      |-> waveBandPeaks(waveBandIndex)
-       !
-       center     = real(waveBandPeaks(waveBandIndex  ),8)
-       upperlimit = real(waveBandPeaks(waveBandIndex-1),8)
-       lowerlimit = real(waveBandPeaks(waveBandIndex+1),8)
-
-       if (      totalWaveNumber >  lowerlimit .and. &
-                 totalWaveNumber <= center     ) then
-          linearResponse = (totalWaveNumber-lowerlimit) / (center-lowerlimit)
-          ResponseFunction = sin( (pi/2.d0) * linearResponse)**2
-       else if ( totalWaveNumber >  center      .and. &
-                 totalWaveNumber <  upperlimit  ) then
-          linearResponse = (upperlimit-totalWaveNumber) / (upperlimit-center)
-          ResponseFunction = sin( (pi/2.d0) * linearResponse)**2
-       else
-          ResponseFunction = 0.d0
-       end if
-
-    else
-       !
-       !- >>>>>>> Actually NOT USED BY EnsembleScaleDecomposition <<<<<<
-       !
-       ! This wave band contains the smallest scales.
-       !
-       ! The response function is 1 total wave number >= waveBandPeaks(nWaveBand)
-       ! and decreases to 0 at waveBandPeaks(nWaveBand-1)
-       !
-       !                    response=1 |    ---
-       !                               |   /
-       !                               |  / 
-       !                    response=0 |------------
-       !waveBandPeaks(waveBandIndex+1) <-|  |-> waveBandPeaks(1)
-       !
-       upperlimit = real(waveBandPeaks(waveBandIndex  ),8)
-       lowerlimit = real(waveBandPeaks(waveBandIndex+1),8)
-
-       if      ( totalWaveNumber > upperlimit ) then
-          ResponseFunction = 1.d0
-       else if ( totalWaveNumber > lowerlimit ) then
-          linearResponse = (totalWaveNumber-lowerlimit) / (upperlimit-lowerlimit)
-          ResponseFunction = sin( (pi/2.d0) * linearResponse)**2
-       else
-          ResponseFunction = 0.d0
-       end if
-
-    end if
-
-  end function SpectralFilterResponseFunction
-
-!--------------------------------------------------------------------------
 ! setupLocalization
 !--------------------------------------------------------------------------
   SUBROUTINE setupLocalization(hLocalize,vLocalize,pressureProfile)
@@ -1731,21 +1636,12 @@ CONTAINS
        !- 1.3.  Compute VERTICAL localization correlation matrix
     
        !  1.3.1 Calculate 5'th order function
-       ZLC = vLocalize(waveBandIndex)/2.0d0
+       ZLC = vLocalize(waveBandIndex)
        do jk1 = 1, nLevEns_M
           do jk2 = 1, nLevEns_M
              ZR = abs(log(pressureProfile(jk2)) - log(pressureProfile(jk1)))
-             if(ZR.le.ZLC) then
-                zcorr = -0.250d0*(ZR/ZLC)**5 + 0.5d0*(ZR/ZLC)**4 + 0.625d0*(ZR/ZLC)**3   &
-                     -(5.0d0/3.0d0)*(ZR/ZLC)**2 + 1.0d0
-             elseif(ZR.le.(2.0d0*ZLC)) then
-                zcorr = (1.0d0/12.0d0)*(ZR/ZLC)**5             -0.5d0*(ZR/ZLC)**4  &
-                     + 0.625d0*(ZR/ZLC)**3     +(5.0d0/3.0d0)*(ZR/ZLC)**2  &
-                     - 5.0d0*(ZR/ZLC) +4.0d0 -(2.0d0/3.0d0)*(ZLC/ZR) 
-             else
-                zcorr = 0.0d0
-             endif
-             if(zcorr.lt.0.0d0) zcorr = 0.0d0
+             zcorr = loc_response(zr,zlc)
+             !if(zcorr.lt.0.0d0) zcorr = 0.0d0
              ensLocal(waveBandIndex)%Vert(jk1,jk2) = zcorr
           enddo
        enddo
@@ -1761,35 +1657,6 @@ CONTAINS
     if (mpi_myid.eq.0) write(*,*) 'done setting up localization function'
 
   END SUBROUTINE setupLocalization
-
-!--------------------------------------------------------------------------
-! FifthOrderCorrelFunction
-!--------------------------------------------------------------------------
-  function FifthOrderCorrelFunction(distance,halflength) result(correlation)
-    implicit none
-
-    real(8) :: distance, halflength
-    real(8) :: correlation
-
-    if ( distance <= halflength ) then
-       correlation =        -0.250d0*(distance/halflength)**5  &
-                     +         0.5d0*(distance/halflength)**4  &
-                     +       0.625d0*(distance/halflength)**3  &
-                     - (5.0d0/3.0d0)*(distance/halflength)**2  &
-                     + 1.0d0
-    else if ( distance <= (2.0d0*halflength) ) then
-       correlation =  (1.0d0/12.0d0)*(distance/halflength)**5  &
-                     -         0.5d0*(distance/halflength)**4  &
-                     +       0.625d0*(distance/halflength)**3  &
-                     + (5.0d0/3.0d0)*(distance/halflength)**2  &
-                     -         5.0d0*(distance/halflength)     &
-                     + 4.0d0                                 &
-                     - (2.0d0/3.0d0)*(halflength/distance) 
-    else
-       correlation = 0.d0
-    endif
-
-  end function FifthOrderCorrelFunction
 
 !--------------------------------------------------------------------------
 ! setupGlobalHLoc
@@ -1821,10 +1688,10 @@ CONTAINS
       do jk = 1, nLevEns_M
 
         ! Calculate 5th Order Correlation Functions in Physical Space
-        zlc = 1000.0d0*local_length(jk)/2.0d0
+        zlc = 1000.0d0*local_length(jk)
         do jlat = myLatBeg, myLatEnd
           zr = ra * acos(gst_getrmu(jlat,gstID))
-          zcorr = FifthOrderCorrelFunction(zr,zlc)
+          zcorr = loc_response(zr,zlc)
           do jlon = myLonBeg, myLonEnd
             zgd_gst(jlon,1,jlat) = zcorr
           enddo
@@ -2078,7 +1945,7 @@ CONTAINS
        do i = 1, ni
           distance = distance_ref * sqrt( real((i-iref)**2 + (j-jref)**2,8) )
           do k = 1, nk
-             gridpoint(i,j,k) = gridpoint(i,j,k) + FifthOrderCorrelFunction(distance,1000.d0*CorrelLength(k)/2.d0) 
+             gridpoint(i,j,k) = gridpoint(i,j,k) + loc_response(distance,1000.d0*CorrelLength(k)) 
           enddo
        enddo
     enddo
@@ -2090,7 +1957,7 @@ CONTAINS
        do i = 1, ni
           distance = distance_ref * sqrt( real((i-iref)**2 + (j-jref)**2,8) )
           do k = 1, nk
-             gridpoint(i,j,k) = gridpoint(i,j,k) + FifthOrderCorrelFunction(distance,1000.d0*CorrelLength(k)/2.d0) 
+             gridpoint(i,j,k) = gridpoint(i,j,k) + loc_response(distance,1000.d0*CorrelLength(k)) 
           enddo
        enddo
     enddo
@@ -2102,7 +1969,7 @@ CONTAINS
        do i = 1, ni
           distance = distance_ref * sqrt( real((i-iref)**2 + (j-jref)**2,8) )
           do k = 1, nk
-             gridpoint(i,j,k) = gridpoint(i,j,k) + FifthOrderCorrelFunction(distance,1000.d0*CorrelLength(k)/2.d0) 
+             gridpoint(i,j,k) = gridpoint(i,j,k) + loc_response(distance,1000.d0*CorrelLength(k)) 
           enddo
        enddo
     enddo
@@ -2114,7 +1981,7 @@ CONTAINS
        do i = 1, ni
           distance = distance_ref * sqrt( real((i-iref)**2 + (j-jref)**2,8) )
           do k = 1, nk
-             gridpoint(i,j,k) = gridpoint(i,j,k) + FifthOrderCorrelFunction(distance,1000.d0*CorrelLength(k)/2.d0) 
+             gridpoint(i,j,k) = gridpoint(i,j,k) + loc_response(distance,1000.d0*CorrelLength(k)) 
           enddo
        enddo
     enddo
