@@ -31,10 +31,15 @@ else
   echo
 fi
 
+if [ "${BASE_ARCH}" != "AIX-powerpc7" ] ; then
+    echo "Error: This code must be compiled on the IBM machine..."
+    exit 1
+fi
+
 echo " Compiling for an MPI executable (even if calcstats in not MPI capable)"
 echo ""
-MPILIBDIR="-libpath /users/dor/arma/gr3/userlibs/AIX-powerpc7/xlf13" # JFC : Mesure temporaire pour avoir acces a
-MPILIB="rpn_comm_adj_halo8"                                          #       la S-R RPN_COMM_adj_halo8 de M. Valin
+MPILIBDIR="-libpath /users/dor/arma/anl/userlibs/${BASE_ARCH}/xlf13" # JFC : Mesure temporaire pour avoir acces a
+MPILIB="_anl_rpn_comm_4051103"                                       #       la S-R RPN_COMM_adj_halo8 de M. Valin
 MPIKEY="-mpi"
 ABSTAG=""
 
@@ -94,8 +99,8 @@ if [ $mode == full ] ; then
   trunkfiles="mpi_mod.ftn90 mpivar_mod.ftn90 abort.ftn physicsfunctions_mod.ftn90 controlvector_mod.ftn90 \
             gaussgrid_mod.ftn90 fft_mod.ftn90 globalspectraltransform_mod.ftn90 lamanalysisgrid_mod.ftn90 \
             gridstatevector_mod.ftn90 maincompileswitch.inc varnamelist_mod.ftn90 \
-            utils_3dvar.ftn lamspectraltransform_mod.ftn90 \
-            verticalcoord_mod.ftn90 horizontalcoord_mod.ftn90 dsyev2.ftn"
+            utils_3dvar.ftn lamspectraltransform_mod.ftn90 localizationfunction_mod.ftn90 \
+            verticalcoord_mod.ftn90 horizontalcoord_mod.ftn90 dsyev2.ftn filterresponsefunction.ftn90"
 
   cd ${trunkdir}
   cp -f calcstats/*.ftn90 ${compiledir}
@@ -112,7 +117,7 @@ if [ $mode == full ] ; then
   # Compile the subroutines...
   echo "compiling low-level independent modules"
   SRC0="mathphysconstants_mod.ftn90 earthconstants_mod.ftn90 mpi_mod.ftn90 mpivar_mod.ftn90"
-  SRC0="$SRC0 bufr_mod.ftn90 physicsfunctions_mod.ftn90 horizontalcoord_mod.ftn90"
+  SRC0="$SRC0 bufr_mod.ftn90 physicsfunctions_mod.ftn90 horizontalcoord_mod.ftn90 localizationfunction_mod.ftn90"
   s.compile $COMPF -src $SRC0 > listing0a 2>&1
   grep fail listing0a
   if [ $? = "0" ] ; then exit ; fi

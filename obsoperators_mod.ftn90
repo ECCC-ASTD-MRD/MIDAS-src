@@ -936,9 +936,13 @@ module obsOperators_mod
        do jl = 1, icountp
           std = std + (ztdomp(jl)-bias)**2
        enddo
-       std = sqrt(std/(real(icountp,8)-1.d0))
        write(*, *) '     MEAN O-P (BIAS) [mm] = ', bias*1000.d0
-       write(*, *) '     STD  O-P        [mm] = ', std*1000.d0
+       if (icountp.gt.1) then
+          std = sqrt(std/(real(icountp,8)-1.d0))
+          write(*, *) '     STD  O-P        [mm] = ', std*1000.d0
+       else
+          write(*, *) '     STD  O-P        Uncomputable since number of GPS ZTD observations is 1'
+       end if
        write(*, *) ' '
     endif
 

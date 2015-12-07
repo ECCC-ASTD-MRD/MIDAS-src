@@ -141,20 +141,20 @@
 !=======================================================================
 
       write(*,*) 'Cost function values for this MPI task:'
-      write(*,'(a15,f23.16)') 'JORAOB   = ',ZJORAOB
-      write(*,'(a15,f23.16)') 'JOAIREP  = ',ZJOAIREP
-      write(*,'(a15,f23.16)') 'JOSURFC  = ',ZJOSURFC
-      write(*,'(a15,f23.16)') 'JOSFCSF  = ',ZJOSFCSF
-      write(*,'(a15,f23.16)') 'JOSFCUA  = ',ZJOSFCUA
-      write(*,'(a15,f23.16)') 'JOSFCSC  = ',ZJOSFCSC
-      write(*,'(a15,f23.16)') 'JOSFCGP  = ',ZJOSFCGP
-      write(*,'(a15,f23.16)') 'JOTOV    = ',ZJOTOV
-      write(*,'(a15,f23.16)') 'JOSATWIND= ',ZJOSATWIND
-      write(*,'(a15,f23.16)') 'JOPROF   = ',ZJOPROF
-      write(*,'(a15,f23.16)') 'JOGPSRO  = ',ZJOGPSRO
-      write(*,'(a15,f23.16)') 'JOGPSGB  = ',ZJOGPSGB
-      write(*,'(a15,f23.16)') 'JOCHM    = ',ZJOCHM  
-      write(*,'(a15,f23.16)') 'Total Jo = ',ZJO
+      write(*,'(a15,f30.16)') 'JORAOB   = ',ZJORAOB
+      write(*,'(a15,f30.16)') 'JOAIREP  = ',ZJOAIREP
+      write(*,'(a15,f30.16)') 'JOSURFC  = ',ZJOSURFC
+      write(*,'(a15,f30.16)') 'JOSFCSF  = ',ZJOSFCSF
+      write(*,'(a15,f30.16)') 'JOSFCUA  = ',ZJOSFCUA
+      write(*,'(a15,f30.16)') 'JOSFCSC  = ',ZJOSFCSC
+      write(*,'(a15,f30.16)') 'JOSFCGP  = ',ZJOSFCGP
+      write(*,'(a15,f30.16)') 'JOTOV    = ',ZJOTOV
+      write(*,'(a15,f30.16)') 'JOSATWIND= ',ZJOSATWIND
+      write(*,'(a15,f30.16)') 'JOPROF   = ',ZJOPROF
+      write(*,'(a15,f30.16)') 'JOGPSRO  = ',ZJOGPSRO
+      write(*,'(a15,f30.16)') 'JOGPSGB  = ',ZJOGPSGB
+      write(*,'(a15,f30.16)') 'JOCHM    = ',ZJOCHM  
+      write(*,'(a15,f30.16)') 'Total Jo = ',ZJO
 
       call mpi_allreduce_sumreal8scalar(ZJORAOB,"GRID")
       call mpi_allreduce_sumreal8scalar(ZJOAIREP,"GRID")
@@ -172,19 +172,19 @@
       call mpi_allreduce_sumreal8scalar(ZJO,"GRID")
 
       write(*,*) 'Cost function values summed for all MPI tasks:'
-      write(*,'(a15,f23.16)') 'JORAOB   = ',ZJORAOB
-      write(*,'(a15,f23.16)') 'JOAIREP  = ',ZJOAIREP
-      write(*,'(a15,f23.16)') 'JOSURFC  = ',ZJOSURFC
-      write(*,'(a15,f23.16)') 'JOSFCSF  = ',ZJOSFCSF
-      write(*,'(a15,f23.16)') 'JOSFCUA  = ',ZJOSFCUA
-      write(*,'(a15,f23.16)') 'JOSFCSC  = ',ZJOSFCSC
-      write(*,'(a15,f23.16)') 'JOSFCGP  = ',ZJOSFCGP
-      write(*,'(a15,f23.16)') 'JOTOV    = ',ZJOTOV
-      write(*,'(a15,f23.16)') 'JOSATWIND= ',ZJOSATWIND
-      write(*,'(a15,f23.16)') 'JOPROF   = ',ZJOPROF
-      write(*,'(a15,f23.16)') 'JOGPSRO  = ',ZJOGPSRO
-      write(*,'(a15,f23.16)') 'JOGPSGB  = ',ZJOGPSGB
-      write(*,'(a15,f23.16)') 'JOCHM    = ',ZJOCHM  
+      write(*,'(a15,f30.16)') 'JORAOB   = ',ZJORAOB
+      write(*,'(a15,f30.16)') 'JOAIREP  = ',ZJOAIREP
+      write(*,'(a15,f30.16)') 'JOSURFC  = ',ZJOSURFC
+      write(*,'(a15,f30.16)') 'JOSFCSF  = ',ZJOSFCSF
+      write(*,'(a15,f30.16)') 'JOSFCUA  = ',ZJOSFCUA
+      write(*,'(a15,f30.16)') 'JOSFCSC  = ',ZJOSFCSC
+      write(*,'(a15,f30.16)') 'JOSFCGP  = ',ZJOSFCGP
+      write(*,'(a15,f30.16)') 'JOTOV    = ',ZJOTOV
+      write(*,'(a15,f30.16)') 'JOSATWIND= ',ZJOSATWIND
+      write(*,'(a15,f30.16)') 'JOPROF   = ',ZJOPROF
+      write(*,'(a15,f30.16)') 'JOGPSRO  = ',ZJOGPSRO
+      write(*,'(a15,f30.16)') 'JOGPSGB  = ',ZJOGPSGB
+      write(*,'(a15,f30.16)') 'JOCHM    = ',ZJOCHM  
       write(*,'(a15,f30.16)') 'Total Jo = ',ZJO
 
 !

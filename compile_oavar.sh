@@ -122,8 +122,8 @@ echo "loading cmda/base/201411/01/${COMP_ARCH}"
 echo "loading hpcs/exp/aspgjdm/perftools"
 . ssmuse-sh -d hpcs/exp/aspgjdm/perftools
 # For RTTOV package... 
-echo "loading arma/rttov/10v2"
-. ssmuse-sh -d arma/rttov/10v2
+echo "loading arma/rttov/10v4"
+. ssmuse-sh -d arma/rttov/10v4
 # For NetCDF package
 echo "loading netcdf"
 . s.ssmuse.dot netcdf
@@ -187,7 +187,7 @@ if [ "${mode}" == full ] ; then
   # Compile the subroutines...
   echo "compiling low-level independent modules"
   echo "If aborting, check in ${PWD}/listing1"
-  SRC0="toplevelcontrol_mod.ftn90"
+  SRC0="toplevelcontrol_mod.ftn90 localizationfunction_mod.ftn90"
   SRC0="$SRC0 mathphysconstants_mod.ftn90 earthconstants_mod.ftn90 mpi_mod.ftn90 mpivar_mod.ftn90 bufr_mod.ftn90 codtyp_mod.ftn90"
   SRC0="$SRC0 physicsfunctions_mod.ftn90 obsspacedata_mod.ftn90 horizontalcoord_mod.ftn90 timecoord_mod.ftn90 verticalcoord_mod.ftn90"
   s.compile $COMPF -O ${FOPTMIZ} -src $SRC0 > listing1 2>&1
