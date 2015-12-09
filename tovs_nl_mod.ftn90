@@ -23,8 +23,16 @@ Module tovs_nl_mod
      radiance_type       ,&
      transmission_Type   ,&
      rttov_chanprof
-
+  Use rttov_const, only : &
+       platform_name     ,&
+       nplatforms        ,&
+       inst_name         ,&
+       ninst             ,&
+       inst_id_goesim    ,&
+       inst_id_gmsim     ,&
+       platform_id_jpss
   use codtyp_mod
+  use mpi
 
   implicit none
   save
@@ -34,20 +42,20 @@ Module tovs_nl_mod
   public :: radiance_type,profile_type,rttov_chanprof,rttov_coefs,transmission_Type,rttov_options
 
   ! public variables (parameters)
-  public :: jppf, jpchmax, jpchus, jpnsatmax, jplev, MXPLATFORM, MXINSTR, mesosphere_lapse_rate
+  public :: jppf, jpchmax, jpchus, jpnsatmax, jplev, mesosphere_lapse_rate
   ! public variables (non-parameters)
   public :: nchan, ichan, lsensor, lobsno, ltovsno, JPMOTOP, JPMOLEV, nobtov
   public :: l_really_present,list_sensors,luse_uwiremis
   public :: NSENSORS, PLATFORM, SATELLITE, INSTRUMENT, CHANOFFSET
   public :: LDBGTOV, LNLVTOV, CSATID, CINSTRUMENTID, CRTMODL
-  public :: CPLATFORM, CINSTRUMENT, NOPLATFORM, NOINSTRUMENT
+  public :: platform_name, inst_name
   public :: coefs, opts, profilesdata, profiles
   public :: radiance_d
 
   ! public procedures
   public :: TOVS_NL_SETUPALLO,TOVS_SETUP, tvs_Is_idburp_tovs, tvs_Is_idburp_inst
-
-
+  public :: tvs_get_inst_id, tvs_get_platform_id
+  public ::  tvs_Is_Instrum_Geostationary,  tvs_Is_Instrum_HyperSpectral
   ! Module parameters
   Integer, PARAMETER :: jppf      = 40       ! Max no. profiles per RTTOV call
   Integer, PARAMETER :: jpchmax   = 8461     ! Max. no. of channels
@@ -77,7 +85,7 @@ Module tovs_nl_mod
 !     PLATFORM(MXPLATFORM)  : platform ID's (e.g., 1=NOAA; 2=DMSP; ...)
 !     SATELLITE(JPNSATMAX)  : satellite ID's (e.g., 1 to 16 for NOAA; ...)
 !     INSTRUMENT(JPNSATMAX) : instrument ID's (e.g., 3=AMSU-A; 4=AMSU-B; 6=SSMI; ...)
-!     CHANOFFSET(JPNSATMAX) : BURP to RTTOV-7 channel mapping offset
+!     CHANOFFSET(JPNSATMAX) : BURP to RTTOV channel mapping offset
 !     LDBGTOV            : logical key controlling statements to be
 !     .                    executed while debugging TOVS only
 !     CRTMODL            : TOVS radiation model used:
@@ -90,52 +98,7 @@ Module tovs_nl_mod
   CHARACTER*15 CSATID(JPNSATMAX), CINSTRUMENTID(JPNSATMAX)
   CHARACTER*8 CRTMODL
 
-  ! Variable from sensors.ftn
-  INTEGER, parameter :: MXPLATFORM = 17
-  INTEGER, parameter :: MXINSTR = 30
-  CHARACTER*15 CPLATFORM  (MXPLATFORM  )
-  CHARACTER*15 CINSTRUMENT(MXINSTR)
-  INTEGER NOPLATFORM(MXPLATFORM)
-  INTEGER NOINSTRUMENT(MXINSTR)
-
-!                         Tables for Platforms and Satellites
-!                         -----------------------------------
-
-      DATA CPLATFORM  / 'NOAA',    'DMSP',   'METEOSAT',    'GOES', &
-                        'GMS',     'FY2',       'TRMM',     'ERS',  &
-                        'EOS',  'METOP-',    'ENVISAT',     'MSG',  &
-                        'FY1',   'ADEOS',      'MTSAT','CORIOLIS',  &
-                        'NPP' /
-
-      DATA NOPLATFORM /      1,         2,            3,        4,  &
-                             5,         6,            7,        8,  &
-                             9,        10,           11,       12,  &
-                            13,        14,           15,       16,  &
-                            17 /
-
-      DATA CINSTRUMENT  /      'HIRS',        'MSU',         'SSU',  &
-                              'AMSUA',      'AMSUB',       'AVHRR',  &
-                               'SSMI',      'VTPR1',       'VTPR2',  &
-                                'TMI',      'SSMIS',        'AIRS',  &
-                                'HSB',      'MODIS',        'ATSR',  &
-                                'MHS',       'IASI',        'AMSR',  &
-                              'MVIRI',     'SEVIRI',  'GOESIMAGER',  &
-                        'GOESSOUNDER',   'GMSMTSAT',    'FY2VISSR',  &
-                           'FY1MVISR',       'CRIS',       'CMISS',  &
-                              'VIIRS',    'WINDSAT',        'ATMS' /
-
-      DATA NOINSTRUMENT /           0,            1,             2,  &
-                                    3,            4,             5,  &
-                                    6,            7,             8,  &
-                                    9,           10,            11,  &
-                                   12,           13,            14,  &
-                                   15,           16,            17,  &
-                                   20,           21,            22,  &
-                                   23,           24,            25,  &
-                                   26,           27,            28,  &
-                                   29,           30,            19 /
-
-  ! Dervied types
+  ! Derived types
 
   type( rttov_coefs ) ,     allocatable :: coefs(:)          ! coefficients
   type( rttov_options ),    allocatable :: opts(:)           ! options
@@ -143,7 +106,6 @@ Module tovs_nl_mod
   type( profile_Type ),     allocatable :: profiles(:)       ! profiles, all profiles
   type(radiance_Type) ,     allocatable :: radiance_d(:)     ! radiances organized by profile
  
-
 contains
 
 
@@ -210,8 +172,6 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
   INTEGER ::  ERRORSTATUS,ASW
   integer ::  index_header, index_body
 
-  CHARACTER(len=2) :: SENSORTYPE
-
 !     1. Determine the number of radiances to be assimilated.
 !        Construct a list of channels for each sensor.
 !        Construct a list of sensor number for each profile
@@ -252,16 +212,16 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
      NOBTOV = NOBTOV + 1
      
 !    Construct list of channels for each sensor:
-!          map burp satellite info to RTTOV-7 platform and satellite.
+!          map burp satellite info to RTTOV platform and satellite.
      IVAL = obs_headElem_i(lobsSpaceData,OBS_SAT,index_header)
      CALL MAP_SAT(IVAL,IPLATFORM,ISAT)
      if (IPLATFORM==-1) then
         Write(*,*) "Unknown OBS_SAT !",IVAL
         CALL ABORT3D('TOVS_NL_SETUPALLO')
      endif
-!    map burp instrument info to RTTOV-7 instrument.
+!    map burp instrument info to RTTOV instrument.
      IVAL = obs_headElem_i(lobsSpaceData,OBS_INS,index_header)
-     CALL MAP_INSTRUM(IVAL,INSTRUM,SENSORTYPE)
+     CALL MAP_INSTRUM(IVAL,INSTRUM)
      if (INSTRUM==-1) then
         Write(*,*) "Unknown OBS_INS !",IVAL
         CALL ABORT3D('TOVS_NL_SETUPALLO')
@@ -387,7 +347,7 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
              & ICHAN(1:nchan(JK),JK)         ) !in (opt) 
         if ( setup_errorstatus/=0 ) then
            Write(*,*) "Error during RTTOV setup !",JK,LIST_SENSORS(1:3,JK)
-           CALL ABORT3D('TOVS_SETUPALLO           ')
+           CALL ABORT3D('TOVS_SETUPALLO')
         endif
 
         opts(JK)%co2_data = ( coefs(jk)%coef%nco2 > 0 )
@@ -417,13 +377,12 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
            WRITE(*,FMT=9311)
   9311     FORMAT(' TOVS_SETUPALLO: Number of levels not', &
                   ' identical in all coef files')
-           CALL ABORT3D('TOVS_SETUPALLO           ')
+           CALL ABORT3D('TOVS_SETUPALLO')
         endif
      enddo
 
 
   ENDIF
-
 
 !-----------------------------------------------------------------------
 
@@ -483,13 +442,10 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
      End If
   end do
 
-
-
-
 END SUBROUTINE TOVS_NL_SETUPALLO
 
 
-  SUBROUTINE TOVS_SETUP
+SUBROUTINE TOVS_SETUP
   !
   !  s/r TOVS_SETUP : Initialisation of the TOVS processing and radiative
   !     .        transfer model.
@@ -499,8 +455,8 @@ END SUBROUTINE TOVS_NL_SETUPALLO
   !
   IMPLICIT NONE
 
-  INTEGER  JK, IERR, nulnam, fclos, fnom
-
+  INTEGER  JK, IERR, nulnam
+  integer ,external :: fclos, fnom
   NAMELIST /NAMTOV/NSENSORS, CSATID, CINSTRUMENTID
   NAMELIST /NAMTOV/LDBGTOV 
   NAMELIST /NAMTOV/LNLVTOV,luse_uwiremis, CRTMODL
@@ -535,14 +491,14 @@ END SUBROUTINE TOVS_NL_SETUPALLO
   IF ( CRTMODL .NE. 'RTTOV' ) THEN
      WRITE(*,FMT=9131)
   9131    FORMAT(' TOVS_SETUP: Invalid radiation model name')
-     CALL ABORT3D('TOVS_SETUP           ')
+     CALL ABORT3D('TOVS_SETUP')
   ENDIF
 
   IF ( NSENSORS .GT. JPNSATMAX ) THEN
      WRITE(*,FMT=9132)
   9132    FORMAT(' TOVS_SETUP: Number of sensors (NSENSORS)', &
             ' is greater than maximum allowed (JPNSATMAX)')
-     CALL ABORT3D('TOVS_SETUP           ')
+     CALL ABORT3D('TOVS_SETUP')
   ENDIF
 
   IF ( NSENSORS .LE. 0 ) THEN
@@ -584,14 +540,12 @@ END SUBROUTINE TOVS_NL_SETUPALLO
 
   CALL SENSORS
 
-  END SUBROUTINE TOVS_SETUP
+END SUBROUTINE TOVS_SETUP
 
-
-
-  SUBROUTINE SENSORS
+SUBROUTINE SENSORS
   !*
   !***s/r SENSORS : Initialisation of the RTTOV-10 platform, satellite
-  !*                and instrument ID's. Also set burp to RTTOV-7 channel
+  !*                and instrument ID's. Also set burp to RTTOV channel
   !*                mapping offset.
   !*    -------------------
   !**    Purpose: to verify and transfom the sensor information contained in the
@@ -602,39 +556,57 @@ END SUBROUTINE TOVS_NL_SETUPALLO
   !*     i : NSENSORS      : number of sensors
   !*     i : CSATID        : satellite ID (e.g. 'NOAA15')
   !*     i : CINSTRUMENTID : instrument ID (e.g. 'AMSUA')
-  !*     o : PLATFORM      : RTTOV-7 platform ID numbers (e.g. 1 for  NOAA)
-  !*     o : SATELLITE     : RTTOV-7 satellite ID numbers (e.g. 15)
-  !*     o : INSTRUMENT    : RTTOV-7 instrument ID numbers (e.g. 3 for AMSUA)
-  !*     o : CHANOFFSET    : BURP to RTTOV-7 channel mapping offset
-      IMPLICIT NONE
+  !*     o : PLATFORM      : RTTOV platform ID numbers (e.g. 1 for  NOAA)
+  !*     o : SATELLITE     : RTTOV satellite ID numbers (e.g. 15)
+  !*     o : INSTRUMENT    : RTTOV instrument ID numbers (e.g. 3 for AMSUA)
+  !*     o : CHANOFFSET    : BURP to RTTOV channel mapping offset
+  IMPLICIT NONE
 
-      INTEGER J, K, IPOS1, IPOS2
-      INTEGER NUMEROSAT, IERR, KINDEX
+  INTEGER J, K, IPOS1, IPOS2
+  INTEGER NUMEROSAT, IERR, KINDEX, nulnam
+  CHARACTER(len=15) :: TEMPOCSATID
+  LOGICAL, SAVE :: LFIRST=.true.
+  INTEGER, SAVE :: IOFFSET1B(0:ninst-1)
+  CHARACTER(len=8) :: LISTINSTRUM(0:ninst-1)
+  CHARACTER(len=15) :: tempo_inst
+  INTEGER:: LISTOFFSET(0:ninst-1)
+  NAMELIST /NAMCHANOFFSET/ LISTOFFSET, LISTINSTRUM
+  integer ,external :: fnom, fclos
 
-      CHARACTER*15 TEMPOCSATID
-
-      INTEGER IOFFSET1B   (MXINSTR)
-
-      DATA IOFFSET1B    /           0,           20,            24,  &
-                                   27,           42,             0,  &
-                                    0,            0,             0,  &
-                                    0,            0,             0,  &
-                                    0,            0,             0,  &
-                                   42,            0,             0,  &
-                                    0,            3,            18,  &
-                                    0,            0,             0,  &
-                                    0,            0,             0,  &
-                                    0,            0,             0 /
 !
 !*    .  1.0 Go through sensors and set RTTOV-10 variables
 !     .      --------------------------------------------
 
-      DO J=1, NSENSORS
-         PLATFORM  (J) = -1
-         SATELLITE (J) = -1
-         INSTRUMENT(J) = -1
-         CHANOFFSET(J) = -1
-      ENDDO
+  DO J=1, NSENSORS
+     PLATFORM  (J) = -1
+     SATELLITE (J) = -1
+     INSTRUMENT(J) = -1
+     CHANOFFSET(J) = -1
+  ENDDO
+
+  IF (LFIRST) then
+     ! read the namelist
+     NULNAM=0
+     IERR=FNOM(NULNAM,'./flnml','FTN+SEQ+R/O',0)
+     IF (IERR/=0) then
+        write(*,*) "Error while opening namelist file !"
+        call abort3d("sensors")
+     ENDIF
+     LISTOFFSET(:) = 0
+     LISTINSTRUM(:) = "XXXXXXXX"
+     READ(NULNAM,NAMCHANOFFSET,iostat=ierr)
+     IF (IERR/=0) then
+        write(*,*) "Error while reading namelist file !"
+        call abort3d("sensors")
+     ENDIF
+     do j=0, ninst-1
+        if ( LISTINSTRUM(j) /= "XXXXXXXX" ) then
+         IOFFSET1B( tvs_get_inst_id( LISTINSTRUM(j) ) )  = LISTOFFSET(j)
+        endif
+     enddo
+     ierr=FCLOS(NULNAM)
+     LFIRST = .false.
+  ENDIF
 
 !*    .  1.1 Set platforms and satellites
 !     .      ----------------------------
@@ -643,42 +615,51 @@ END SUBROUTINE TOVS_NL_SETUPALLO
 !**       For consistency with the RTTOV-10 nomenclature, rename:
 !**       TERRA  to  EOS1
 !**       AQUA   to  EOS2
-
-      DO J = 1, NSENSORS
-        IF    ( CSATID(J) .EQ. 'TERRA' ) THEN
-           TEMPOCSATID = 'EOS1'
-        ELSEIF ( CSATID(J) .EQ. 'AQUA'  ) THEN
-           TEMPOCSATID = 'EOS2'
-        ELSEIF ( CSATID(J) .EQ. 'NPP'  ) THEN
-           TEMPOCSATID = 'NPP0'
-        ELSE
-           TEMPOCSATID = CSATID(J)
+!**       NPP    to  NPP0
+  DO J = 1, NSENSORS
+     IF    ( CSATID(J) .EQ. 'TERRA' ) THEN
+        TEMPOCSATID = 'eos1'
+     ELSEIF ( CSATID(J) .EQ. 'AQUA'  ) THEN
+        TEMPOCSATID = 'eos2'
+     ELSEIF ( CSATID(J) .EQ. 'NPP'  ) THEN
+        TEMPOCSATID = 'jpss0'
+     ELSEIF ( CSATID(J) .EQ. 'JPSS'  ) THEN
+        TEMPOCSATID = 'jpss0'
+     ELSE
+        call up2low(CSATID(J),TEMPOCSATID)
+        IPOS1 = INDEX(TEMPOCSATID,"-")
+        if (ipos1 > 0 .and. ipos1<len(TEMPOCSATID)) then
+           do k=ipos1,len(TEMPOCSATID)-1
+              TEMPOCSATID(k:k)=TEMPOCSATID(k+1:k+1)
+           enddo
+           k = len(TEMPOCSATID)
+           TEMPOCSATID(k:k)=" "
+        endif
+     ENDIF
+     DO K = 1, nplatforms
+        IPOS1 = LEN_TRIM(platform_name(K))
+        IPOS2 = INDEX(TEMPOCSATID,platform_name(K)(1:IPOS1))
+        IF ( IPOS2 .EQ. 1 ) THEN
+           PLATFORM(J) = K
+           KINDEX = K
         ENDIF
-        KINDEX = 0
-        DO K = 1, MXPLATFORM
-           IPOS1=LEN_TRIM(CPLATFORM(K))
-           IPOS2 = INDEX(TEMPOCSATID,CPLATFORM(K)(1:IPOS1))
-           IF ( IPOS2 .EQ. 1 ) THEN
-             PLATFORM(J) = NOPLATFORM(K)
-             KINDEX = K
-           ENDIF
-        ENDDO
-        IF ( PLATFORM(J) .LT. 0 ) THEN
+     ENDDO
+     IF ( PLATFORM(J) .LT. 0 ) THEN
+        WRITE(*,FMT=9132) TEMPOCSATID
+9132    FORMAT(' SENSORS: Satellite ',A,' not supported.')
+        CALL ABORT3D('SENSORS')
+     ELSE
+        IPOS1 = LEN_TRIM(platform_name(KINDEX))
+        IPOS2 = LEN_TRIM(TEMPOCSATID)
+        READ(TEMPOCSATID(IPOS1+1:IPOS2),*,IOSTAT=IERR) NUMEROSAT
+        IF ( IERR .NE. 0) THEN
            WRITE(*,FMT=9132) TEMPOCSATID
- 9132      FORMAT(' SENSORS: Satellite ',A,' not supported.')
-           CALL ABORT3D('SENSORS          ')
+           CALL ABORT3D('SENSORS')
         ELSE
-           IPOS1=LEN_TRIM(CPLATFORM(KINDEX))
-           IPOS2=LEN_TRIM(TEMPOCSATID)
-           READ(TEMPOCSATID(IPOS1+1:IPOS2),*,IOSTAT=IERR) NUMEROSAT
-           IF ( IERR .NE. 0) THEN
-             WRITE(*,FMT=9132) TEMPOCSATID
-             CALL ABORT3D('SENSORS          ')
-           ELSE
-             SATELLITE(J) = NUMEROSAT
-           ENDIF
+           SATELLITE(J) = NUMEROSAT
         ENDIF
-      ENDDO
+     ENDIF
+  ENDDO
 
 !*    .  1.2 Set instruments,
 !     .      also set channel offset, which is in fact a channel mapping between
@@ -686,33 +667,36 @@ END SUBROUTINE TOVS_NL_SETUPALLO
 !     .      RTTOV-10.
 !     .      --------------------------------------------------------------------
 
-      DO J = 1, NSENSORS
-        KINDEX = 0
-        DO K = 1, MXINSTR
-           IPOS1=LEN_TRIM(CINSTRUMENT(K))
-           IPOS2 = INDEX(CINSTRUMENTID(J),CINSTRUMENT(K)(1:IPOS1))
-           IF ( IPOS2 .EQ. 1 ) THEN
-             KINDEX = K
-             INSTRUMENT(J) = NOINSTRUMENT(KINDEX)
-             CHANOFFSET(J) = IOFFSET1B(KINDEX)
+  DO J = 1, NSENSORS
+     if ( CSATID(J)(1:4) == "GOES") then !cas particulier
+        INSTRUMENT(J) = inst_id_goesim
+     else if ( CSATID(J)(1:5) == "MTSAT") then !autre cas particulier
+        INSTRUMENT(J) = inst_id_gmsim
+     else 
+        call up2low(CINSTRUMENTID(J),tempo_inst)
+        DO K = 0, ninst -1 
+           IF ( trim(tempo_inst) == trim(inst_name(K))) THEN
+              INSTRUMENT(J) = K
            ENDIF
         ENDDO
-        IF ( INSTRUMENT(J) .LT. 0 ) THEN
-           WRITE(*,FMT=9133) CINSTRUMENTID(J)
+     endif
+     IF ( INSTRUMENT(J) .LT. 0 ) THEN
+        WRITE(*,FMT=9133) CINSTRUMENTID(J)
  9133      FORMAT(' SENSORS: INSTRUMENT ',A,' not supported.')
-           CALL ABORT3D('SENSORS          ')
-        ENDIF
-      ENDDO
+        CALL ABORT3D('SENSORS')
+     ENDIF
+     CHANOFFSET(J) = IOFFSET1B(INSTRUMENT(J))
+  ENDDO
 
 !C*    .   1.3 Print the RTTOV-10 related variables
 !C     .       -----------------------------------
 
-      if(mpi_myid.eq.0) WRITE(*,FMT=9140)
-      if(mpi_myid.eq.0) WRITE(*,FMT=9143) NSENSORS
-      if(mpi_myid.eq.0) WRITE(*,FMT=9145) (PLATFORM(J), J=1,NSENSORS)
-      if(mpi_myid.eq.0) WRITE(*,FMT=9146) (SATELLITE(J), J=1,NSENSORS)
-      if(mpi_myid.eq.0) WRITE(*,FMT=9147) (INSTRUMENT(J), J=1,NSENSORS)
-      if(mpi_myid.eq.0) WRITE(*,FMT=9148) (CHANOFFSET(J), J=1,NSENSORS)
+  if(mpi_myid.eq.0) WRITE(*,FMT=9140)
+  if(mpi_myid.eq.0) WRITE(*,FMT=9143) NSENSORS
+  if(mpi_myid.eq.0) WRITE(*,FMT=9145) (PLATFORM(J), J=1,NSENSORS)
+  if(mpi_myid.eq.0) WRITE(*,FMT=9146) (SATELLITE(J), J=1,NSENSORS)
+  if(mpi_myid.eq.0) WRITE(*,FMT=9147) (INSTRUMENT(J), J=1,NSENSORS)
+  if(mpi_myid.eq.0) WRITE(*,FMT=9148) (CHANOFFSET(J), J=1,NSENSORS)
 
 
  9140 FORMAT(/,3X,'- SENSORS. Variables prepared for RTTOV-10:'  &
@@ -724,43 +708,236 @@ END SUBROUTINE TOVS_NL_SETUPALLO
  9147 FORMAT(  6X,"Instrument numbers      : ",10I3)
  9148 FORMAT(  6X,"Channel mapping offset  : ",10I3)
 
-  END subroutine sensors
+END subroutine sensors
 
+logical function tvs_Is_idburp_tovs(idatyp)
+  implicit none
+  integer ,intent(in) :: idatyp
+!*********************************************
+  logical ,save :: lfirst=.true.
+  integer,save :: ninst_tovs
+  integer :: nulnam, ierr, i 
+  integer,external :: fnom, fclos
+  integer, save :: list_inst(ninst)
+  character (len=22) :: inst_names(ninst)
+  namelist /namtovsinst/ inst_names
+  if (lfirst) then
+     nulnam = 0
+     ninst_tovs = 0
+     list_inst(:) = -1
+     inst_names="XXXXXX"
+     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+     read(nulnam,nml=namtovsinst, iostat=ierr)
+     if (ierr.ne.0) call abort3d('tvs_Is_idburp_tovs: Error reading namelist')
+     if (mpi_myid.eq.0) write(*,nml=namtovsinst)
+     ierr = fclos(nulnam)
+     do i=1, ninst
+        if (inst_names(i) == "XXXXXX" ) then
+            ninst_tovs= i - 1
+           exit
+        else
+           list_inst(i) = codtyp_get_codtyp( inst_names(i) )
+           if (list_inst(i) < 0) then
+              Write(*,*) inst_names(i)
+              call abort3d('tvs_Is_idburp_tovs: unknown instrument in namtovsinst namelist')
+           endif
+        endif
+     enddo
+     if ( ninst_tovs == 0 ) call abort3d('tvs_Is_idburp_tovs: Empty namtovsinst namelist')
+     lfirst = .false.
+  endif
 
-  logical function tvs_Is_idburp_tovs(idatyp)
-    implicit none
-    integer ,intent(in) :: idatyp
+  tvs_Is_idburp_tovs = .false.
 
-    tvs_Is_idburp_tovs=( IDATYP .EQ. CODTYP_AMSUA.OR. &
-         IDATYP .EQ. CODTYP_SSMI .OR. &
-         IDATYP .EQ. CODTYP_GOES .OR. &
-         IDATYP .EQ. CODTYP_AMSUB .OR. &
-         IDATYP .EQ. CODTYP_MHS .OR. &
-         IDATYP .EQ. CODTYP_AIRS .OR. &
-         IDATYP .EQ. CODTYP_RADIANCECLEAR .OR. &
-         IDATYP .EQ. CODTYP_IASI .OR. &
-         IDATYP .EQ. CODTYP_ATMS .OR. &
-         IDATYP .EQ. CODTYP_CRIS )
+  do i=1, ninst_tovs
+     if (idatyp == list_inst(i) ) then
+        tvs_Is_idburp_tovs = .true.
+        exit
+     endif
+  enddo
 
-  end function tvs_Is_idburp_tovs
+end function tvs_Is_idburp_tovs
 
- logical function tvs_Is_idburp_inst(idburp,cinst)
-    implicit none
-    integer ,intent(in) :: idburp
-    character (len=*) ,intent(in) :: cinst
+logical function tvs_Is_idburp_inst(idburp,cinst)
+  implicit none
+  integer ,intent(in) :: idburp
+  character (len=*) ,intent(in) :: cinst
 
-    select case(trim(cinst))
-    case("IASI","iasi")
-       tvs_Is_idburp_inst = ( idburp == CODTYP_IASI )
-    case("AIRS","airs")
-       tvs_Is_idburp_inst = ( idburp == CODTYP_AIRS )
-    case("CRIS","cris")
-       tvs_Is_idburp_inst = ( idburp == CODTYP_CRIS )
-    case default
-       CALL ABORT3D('tvs_Is_idburp_inst: unknown instrument: '//trim(cinst))
-    end select
+  tvs_Is_idburp_inst = ( idburp == codtyp_get_codtyp(cinst) )
 
-  end function tvs_Is_idburp_inst
+end function tvs_Is_idburp_inst
+
+integer function tvs_get_platform_id(name)
+!******************************************
+! S. Heilliette November 2015
+! return RTTOV platform id (>0) from
+! platform name.
+! -1 if not found
+!******************************************
+  implicit none
+  character(len=*),intent(in) :: name
+!************************************
+  integer :: i, ipos1, ipos2
+  character(len=64) :: tempo_name
+!*************************************
+
+  tvs_get_platform_id = -1
+  ipos1 = LEN_TRIM(name)
+  call up2low(name(1:ipos1),tempo_name(1:ipos1))
+
+  if ( INDEX(tempo_name(1:ipos1),"npp") /=0 ) then
+     tvs_get_platform_id = platform_id_jpss
+  else
+     do i = 1, nplatforms
+        ipos2 = INDEX(tempo_name(1:ipos1),trim(platform_name(i)))
+        if ( ipos2 == 1) then
+           tvs_get_platform_id = i
+           exit
+        endif
+     enddo
+  endif
+
+end function tvs_get_platform_id
+
+integer function tvs_get_inst_id(name)
+!******************************************
+! S. Heilliette November 2015
+! return RTTOV instrument id from
+! intrument name. 0 is a valid answer.
+! -1 if not found
+!******************************************
+  implicit none
+  character(len=*),intent(in) :: name
+!************************************
+  integer :: i, ipos1
+  character(len=64) :: tempo_name
+!***********************************
+  tvs_get_inst_id = -1
+  ipos1 = LEN_TRIM(name)
+  call up2low(name(1:ipos1),tempo_name(1:ipos1))
+  if ( trim(tempo_name(1:ipos1)) == "goesim" ) then
+     tvs_get_inst_id = inst_id_goesim
+  elseif ( trim(tempo_name(1:ipos1)) == "gmsim" ) then
+     tvs_get_inst_id = inst_id_gmsim
+  else
+     do i = 0, ninst-1
+        if (trim(inst_name(i)) == tempo_name(1:ipos1) ) then
+           tvs_get_inst_id = i
+           exit
+        endif
+     enddo
+  endif
+end function tvs_get_inst_id
+
+logical function tvs_Is_Instrum_Hyperspectral(instrum)
+!******************************************
+! S. Heilliette November 2015
+! given an RTTOV instrument code
+! return if it is an hyperspectral one
+! information from namelist NAMHYPER
+!******************************************
+  implicit none
+  integer,intent(in) :: instrum
+!******************************************
+  integer ,parameter :: maxsize = 100
+  integer :: nulnam, ierr, i 
+  integer ,save :: list_inst(maxsize), ninst_hir
+  logical, save :: lfirst = .true.
+  integer ,external :: fclos, fnom
+  character (len=6) :: name_inst(maxsize)
+  NAMELIST /NAMHYPER/ name_inst
+
+  if (lfirst) then
+     nulnam = 0
+     ninst_hir = 0
+     name_inst(:) = "XXXXXX"
+     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+     read(nulnam,nml=namhyper, iostat=ierr)
+     if (ierr.ne.0) call abort3d('tvs_Is_Instrum_Hyperspectral: Error reading namelist')
+     if (mpi_myid.eq.0) write(*,nml=namhyper)
+     ierr = fclos(nulnam)
+     list_inst(:) = -1
+     do i=1, maxsize
+        list_inst(i) = tvs_get_inst_id( name_inst(i) )
+        if (name_inst(i) /= "XXXXXX") then
+           if (list_inst(i) == -1) then
+              Write(*,*) i,name_inst(i)
+              call abort3d('tvs_Is_Instrum_Hyperspectral: Unknown instrument name')
+           endif
+        else
+           ninst_hir = i -1
+           exit
+        endif
+     enddo
+     lfirst = .false.
+     if (ninst_hir == 0) then
+        Write(*,*) "tvs_Is_Instrum_Hyperspectral: Warning : empty namhyper namelist !"
+     endif
+  endif
+  tvs_Is_Instrum_Hyperspectral = .false.
+  do i=1, ninst_hir
+     if ( instrum == list_inst(i)) then
+        tvs_Is_Instrum_Hyperspectral =.true.
+        exit
+     endif
+  enddo
+
+end function tvs_Is_Instrum_Hyperspectral
+
+logical function tvs_Is_Instrum_Geostationary(instrum)
+!******************************************
+! S. Heilliette November 2015
+! given an RTTOV instrument code
+! return if it is a Geostationnary Imager
+! information from namelist NAMGEO
+!******************************************
+  implicit none
+  integer,intent(in) :: instrum
+!******************************************
+  integer ,parameter :: maxsize = 100
+  integer :: nulnam, ierr, i 
+  integer ,save :: list_inst(maxsize), ninst_geo
+  logical, save :: lfirst = .true.
+  character (len=6) :: name_inst(maxsize)
+  integer ,external :: fnom, fclos
+
+  NAMELIST /NAMGEO/ name_inst
+  if (lfirst) then
+     nulnam = 0
+     ninst_geo = 0
+     name_inst(:) = "XXXXXX"
+     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+     read(nulnam,nml=namgeo, iostat=ierr)
+     if (ierr.ne.0) call abort3d('tvs_Is_Instrum_Geostationary: Error reading namelist')
+     if (mpi_myid.eq.0) write(*,nml=namgeo)
+     ierr = fclos(nulnam)
+     list_inst(:) = -1
+     do i=1, maxsize
+        list_inst(i) = tvs_get_inst_id( name_inst(i) )
+        if (name_inst(i) /= "XXXXXX") then
+           if (list_inst(i) == -1) then
+              Write(*,*) i,name_inst(i)
+              call abort3d('tvs_Is_Instrum_Geostationary: Unknown instrument name')
+           endif
+        else
+           ninst_geo = i -1
+           exit
+        endif
+     enddo
+     lfirst = .false.
+     if (ninst_geo == 0) then
+        Write(*,*) "tvs_Is_Instrum_Geostationary: Warning : empty namgeo namelist !"
+     endif
+  endif
+  tvs_Is_Instrum_Geostationary = .false.
+  do i=1, ninst_geo
+     if ( instrum == list_inst(i)) then
+        tvs_Is_Instrum_Geostationary =.true.
+        exit
+     endif
+  enddo
+
+end function tvs_Is_Instrum_Geostationary
 
 End Module tovs_nl_mod
 

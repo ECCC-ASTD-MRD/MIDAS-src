@@ -60,13 +60,13 @@
       use columnData_mod
       use bufr
       use minimization_mod
+      use codtyp_mod
       IMPLICIT NONE
 *
       type(struct_obs) :: lobsSpaceData
       INTEGER, parameter :: numFamily = 9
       CHARACTER(len=2), parameter :: listFamily(numFamily) = (/'UA','AI','SF','SW','PR','RO','GP','SC','TO'/)
-      INTEGER, parameter :: MAXNUMTYPE=254,NUMITEM=13
-      CHARACTER *16 CLOBTP(MAXNUMTYPE)
+      INTEGER, parameter :: NUMITEM=13
       INTEGER ICOUNT(NUMITEM,numFamily)
 *
 *
@@ -90,58 +90,6 @@
       DATA CLITM(7), CLITM(8), CLITM(9), CLITM(10), CLITM(11), CLITM(12)
      1      /'MSLP',   'TSFC',   'SDPD',   'SWND',   'SWND',   'BTMP'/
       DATA CLITM(13) /'ZTD'/
-      DATA   CLOBTP(12),   CLOBTP(13),    CLOBTP(14),    CLOBTP(15)
-     1    /     'SYNOP',       'SHIP', 'SYNOP MOBIL',       'METAR'/
-      DATA   CLOBTP(16),   CLOBTP(18),    CLOBTP(20),    CLOBTP(32)
-     1    /     'SPECI',    'DRIFTER',       'RADOB',       'PILOT'/
-      DATA   CLOBTP(33),   CLOBTP(34),    CLOBTP(35),    CLOBTP(36)
-     1   / 'PILOT SHIP','PILOT MOBIL',        'TEMP',   'TEMP SHIP'/
-      DATA   CLOBTP(37),   CLOBTP(38),    CLOBTP(39),    CLOBTP(40)
-     1   /  'TEMP DROP', 'TEMP MOBIL',       'ROCOB',  'ROCOB SHIP'/
-      DATA   CLOBTP(42),   CLOBTP(54),    CLOBTP(61),    CLOBTP(62)
-     1    /     'AMDAR',      'ROFOR',       'MAFOR',     'TRACKOB'/
-      DATA   CLOBTP(63),   CLOBTP(64),    CLOBTP(65),    CLOBTP(67)
-     1    /     'BATHY',      'TESAC',      'WAVEOB',       'HYDRA'/
-      DATA       CLOBTP(68),        CLOBTP(71),       CLOBTP(72)
-     1    /         'HYFOR',          'CLIMAT',     'CLIMAT SHIP'/
-      DATA       CLOBTP(73),        CLOBTP(75),       CLOBTP(76)
-     1    /   'NACLI/CLINP',    'CLIMATE TEMP','CLIMATE TEMP SHP'/
-      DATA       CLOBTP(85),        CLOBTP(86),       CLOBTP(87)
-     1    /         'SAREP',           'SATEM',          'SARAD'/
-      DATA       CLOBTP(88),       CLOBTP(128),      CLOBTP(129)
-     1   /          'SATOB',           'AIREP',          'PIREP'/
-      DATA      CLOBTP(130),       CLOBTP(131),      CLOBTP(132)
-     1    /      'PROFILER',     'SUPER SYNOP',    'SUPER AIREP'/
-      DATA      CLOBTP(135),       CLOBTP(136),      CLOBTP(137)
-     1    /    'TEMP+PILOT',      'TEMP+SYNOP',    'PILOT+SYNOP'/
-      DATA      CLOBTP(138),       CLOBTP(139),      CLOBTP(140)
-     1  /'TEMP+PILOT+SYNOP', 'TEMP SHIP+PILOT', 'TEMP SHIP+SHIP'/
-      DATA      CLOBTP(141),       CLOBTP(142),      CLOBTP(143)
-     1   /'PILOT SHIP+SHIP','TEMPSHP+PILOT+SH',           'SAWR'/
-      DATA      CLOBTP(144),       CLOBTP(145),      CLOBTP(146)
-     1    /'AUTOMATIC SAWR',    'SYNOP PATROL','AUTOMATIC SYNOP'/
-      DATA      CLOBTP(147),       CLOBTP(148),       CLOBTP(149)
-     1    /'AUTOMATIC SHIP',    'SAWR SPECIAL','AUTOSAWR SPECIAL'/
-      DATA      CLOBTP(150),       CLOBTP(151),       CLOBTP(152)
-     1    /'ANAL BOGUS SFC',  'ANAL BOGUS ALT','REPAIR BOGUS SFC'/
-      DATA      CLOBTP(153),       CLOBTP(157),       CLOBTP(158)
-     1  /'REPAIR BOGUS ALT',           'ACARS',          'HUMSAT'/
-      DATA      CLOBTP(159),       CLOBTP(160),       CLOBTP(161)
-     1  /'TEMP MOBIL+PILOT','TEMP MOBIL+SYNOP','PILOT MOBIL+SYNP'/
-      DATA      CLOBTP(162),       CLOBTP(163),       CLOBTP(164)
-     1  /'TEMP MOBIL+PI+SY',           'RADAR',     'TOVS AMSU-A'/
-      DATA      CLOBTP(167),       CLOBTP(168),       CLOBTP(169)
-     1  /           'ERS-1',           'SSM/I',          'GPSMET'/
-      DATA      CLOBTP(170),       CLOBTP(177),       CLOBTP(180)
-     1  /           'OZONE',             'ADS',            'GOES'/
-      DATA      CLOBTP(181),       CLOBTP(182),       CLOBTP(183)
-     1  /     'TOVS AMSU-B',        'TOVS MHS',            'AIRS'/
-      DATA      CLOBTP(185),       CLOBTP(186),       CLOBTP(188)
-     1  /          'GEORAD',            'IASI',           'SATOB'/
-      DATA      CLOBTP(189),       CLOBTP(192),       CLOBTP(193)   
-     1  /          'GB-GPS',       'TOVS ATMS',            'CRIS'/
-      DATA      CLOBTP(254)  
-     1  /   'SCATTEROMETER'/
 *
       IF(.NOT.min_lvarqc) RETURN
 
@@ -341,9 +289,11 @@
                        ICOUNT(10,JFAM) = ICOUNT(10,JFAM) + 1
                      ENDIF
                      WRITE(*,620)
-     1                obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER),IDBURP,CLOBTP(IDBURP),ZLAT,ZLON,
-     2                ILEV,CLUNITS,IDIRO,ISPDO,IDIRF,ISPDF,IDIRA,
-     3                ISPDA,ZPOST,obs_headElem_i(lobsSpaceData,OBS_ONM,INDEX_HEADER)
+     1                obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER),
+     2                IDBURP,codtyp_get_name(IDBURP),ZLAT,ZLON,
+     3                ILEV,CLUNITS,IDIRO,ISPDO,IDIRF,ISPDF,IDIRA,
+     4                ISPDA,ZPOST,obs_headElem_i(lobsSpaceData,OBS_ONM,
+     5                INDEX_HEADER)
  620                 FORMAT(A9,1X,i3,1x,A16,F5.1,2X,F5.1,2X,I4,A2,2X,
      1                'WND',3X,I3,'/',I3,3X,I3,'/',I3,3X,I3,
      2                '/',I3,2X,F7.4,1X,I8)
@@ -433,7 +383,7 @@
                    call obs_bodySet_i(lobsSpaceData,OBS_FLG,INDEX_BODY,
      1             IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY),17))
                    WRITE(*,630) obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER),IDBURP,
-     1              CLOBTP(IDBURP),ZLAT,ZLON,ILEV,CLUNITS,CLDESC,
+     1              codtyp_get_name(IDBURP),ZLAT,ZLON,ILEV,CLUNITS,CLDESC,
      2              ZVAR,ZFCST,ZANA,ZPOST,obs_headElem_i(lobsSpaceData,OBS_ONM,INDEX_HEADER)
  630               FORMAT(A9,1X,I3,1X,A16,F5.1,2X,F5.1,2X,I4,A2,2X,
      2                A4,2X,F7.1,3X,F7.1,3X,F7.1,2X,F7.4,1X,I8,1X)

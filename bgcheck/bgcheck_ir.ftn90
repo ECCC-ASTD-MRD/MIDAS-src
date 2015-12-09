@@ -34,7 +34,7 @@ SUBROUTINE BGCHECK_IR(columng,columnhr,obsSpaceData)
   type(struct_obs) :: obsSpaceData
   type(struct_columnData) :: columng,columnhr
   INTEGER J
-  INTEGER :: NOBAIRS,NOBIASI,NOBCRIS
+  INTEGER,allocatable :: NOBIR(:)
   INTEGER :: index_header,idatyp,krtid
 !
   call tmg_start(2,'BGCHECK_IR')
@@ -46,9 +46,10 @@ SUBROUTINE BGCHECK_IR(columng,columnhr,obsSpaceData)
 !
 
   NOBTOV=0
-  NOBAIRS=0
-  NOBIASI=0
-  NOBCRIS=0
+  call multi_ir_init()
+  allocate (NOBIR(ninst))
+  NOBIR = 0
+  
 
   ! loop over all header indices of the 'TO' family
   ! Set the header list (and start at the beginning of the list)
@@ -62,37 +63,30 @@ SUBROUTINE BGCHECK_IR(columng,columnhr,obsSpaceData)
      IF ( .not.  tvs_Is_idburp_tovs(IDATYP) ) cycle HEADER   ! Proceed to the next header_index
 
      NOBTOV = NOBTOV + 1
-     IF ( tvs_Is_idburp_inst(IDATYP,"AIRS") ) NOBAIRS = NOBAIRS + 1
-     IF ( tvs_Is_idburp_inst(IDATYP,"IASI") ) NOBIASI = NOBIASI + 1
-     IF ( tvs_Is_idburp_inst(IDATYP,"CRIS") ) NOBCRIS = NOBCRIS + 1
+     do j=1, ninst
+        IF ( tvs_Is_idburp_inst(IDATYP,INST(J)) ) then
+           NOBIR(J) = NOBIR(J) + 1
+           exit
+        end if
+     enddo
      
   enddo HEADER
-
-  IF (NOBTOV==NOBAIRS .AND.  NOBAIRS>0) THEN
-     call HIRQC ( columnhr,obsSpaceData,"AIRS" )
-  ENDIF
-
-  IF (NOBTOV==NOBIASI .AND.  NOBIASI>0) THEN
-
-     do krtid=1,nsensors
-        
-        if (PLATFORM(krtid) == 10 .AND. &
-             INSTRUMENT(krtid) == 16 ) THEN
-           call HIRQC ( columnhr,obsSpaceData,"IASI",krtid)
-        endif
-     end do
-     
-  ENDIF
-
-  IF (NOBTOV==NOBCRIS .AND.  NOBCRIS>0) THEN  
-     call HIRQC ( columnhr,obsSpaceData,"CRIS" )
-  ENDIF
-
+  
+  do j=1, ninst
+     IF (NOBIR(j) > 0) THEN
+        do krtid=1,nsensors
+           if (INSTRUMENT(krtid) ==  tvs_get_inst_id(inst(j)) ) THEN
+              call HIRQC (columnhr, obsSpaceData, INST(J), krtid)
+           endif
+        ENDDO
+     endif
+  enddo
+  deallocate (NOBIR)
 !
 !     Write out contents of obsSpaceData into BURP files
 !
   CALL UPDATE_BURPFILES(obsSpaceData)
-      ! add cloud parameter data to burp files (AIRS,IASI&CrIS)
+      ! add cloud parameter data to burp files (AIRS,IASI,CrIS,...)
   CALL ADD_CLOUDPRMS(obsSpaceData)
   DO j =1,1
      call obs_prnthdr(obsSpaceData,j)

@@ -47,7 +47,6 @@ SUBROUTINE hir_cldprm_to_brp(lobsspacedata,brp_file)
   use burp_module
   use tovs_nl_mod
   use obsSpaceData_mod
-
   IMPLICIT NONE
 !implicits
   CHARACTER(LEN=128),intent(in)     :: BRP_FILE
@@ -74,6 +73,7 @@ SUBROUTINE hir_cldprm_to_brp(lobsspacedata,brp_file)
   INTEGER                :: IDATA2,IDATA3,IDATA,IDATEND
   INTEGER                :: FLAG_PASSAGE1,FLAG_PASSAGE2,FLAG_PASSAGE3
   INTEGER                :: FLAG_PASSAGE4,FLAG_PASSAGE5
+  INTEGER                :: IDATYP
   REAL                   :: VAL_OPTION_R4
 
 
@@ -90,9 +90,6 @@ SUBROUTINE hir_cldprm_to_brp(lobsspacedata,brp_file)
   flag_passage3 = 0
   flag_passage4 = 0
   flag_passage5 = 0
-
-  idata2 = 1
-  idata3 = 1
 
   opt_missing = 'MISSING'
   val_option_r4  = -7777.77
@@ -168,8 +165,27 @@ SUBROUTINE hir_cldprm_to_brp(lobsspacedata,brp_file)
         Call BURP_Get_Report(File_in, &
              REPORT    = Rpt_in, &
              REF       = address(kk), &
-             IOSTAT    = error) 
-
+             IOSTAT    = error)
+        
+        if (kk == 1) then
+           Call BURP_Get_Property(Rpt_in, IDTYP = IDATYP)
+           Write(*,*) "hir_cldprm_to_brp idatyp ", IDATYP
+           idata2 = -1
+           call obs_set_current_header_list(lobsSpaceData,'TO')
+           HEADER: do
+              i = obs_getHeaderIndex(lobsSpaceData)
+              if (i < 0) exit HEADER  
+              if  ( obs_headElem_i(lobsSpaceData,OBS_ITY,i) == idatyp) then
+                 idata2 = i
+                 exit HEADER
+              endif
+           enddo HEADER
+           if (idata2 == -1) then
+              Write(*,*) "datyp ",idatyp," not found in input file !"
+              call abort3d("hir_cldprm_to_brp")
+           endif
+           idata3 = idata2
+        endif
 
 ! FIRST LOOP ON BLOCKS
 ! --------------------

@@ -89,12 +89,13 @@
 !     o : IPLATFORM     : RTTOV-7 platform ID numbers (e.g. 1 for  NOAA)
 !     o : ISAT          : RTTOV-7 satellite ID numbers (e.g. 15)
 !
+      use tovs_nl_mod, only: tvs_get_platform_id
       IMPLICIT NONE
 
       INTEGER J,ISATBURP,IPLATFORM,ISAT
       INTEGER IER,NULNAM
       LOGICAL ,SAVE :: LFIRST=.TRUE.
-      INTEGER ,EXTERNAL :: FNOM,FCLOS
+      INTEGER ,EXTERNAL :: FNOM, FCLOS
 
       integer, parameter :: mxsatburp = 100
       INTEGER,SAVE :: NUMSATBURP
@@ -102,7 +103,7 @@
       ! Table of BURP satellite identifier element #001007
       INTEGER,SAVE :: LISTBURP(mxsatburp)
       ! Table of RTTOV-7 platform identifier
-      INTEGER,SAVE :: LISTPLAT(mxsatburp)
+      CHARACTER(len=8),SAVE :: LISTPLAT(mxsatburp)
       ! Table of RTTOV-7 satellite identifier
       INTEGER,SAVE :: LISTSAT (mxsatburp)
 
@@ -115,7 +116,7 @@
          ! set the default values
          LISTBURP(:) = -1
          LISTSAT(:) = -1
-         LISTPLAT(:) = -1
+         LISTPLAT(:) = "XXXXXXXX"
 
          ! read the namelist
          NULNAM=0
@@ -156,13 +157,12 @@
       ISAT      = -1
       DO J=1, NUMSATBURP
          IF ( ISATBURP .EQ. LISTBURP(J) ) THEN
-             IPLATFORM = LISTPLAT(J)
-             ISAT      = LISTSAT (J)
-             RETURN
+            IPLATFORM = tvs_get_platform_id( LISTPLAT(J) )
+            ISAT      = LISTSAT (J)
+            EXIT
          ENDIF
       ENDDO
 
-      RETURN
       END SUBROUTINE MAP_SAT
 
 

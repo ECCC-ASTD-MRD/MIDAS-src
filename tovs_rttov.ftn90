@@ -44,8 +44,7 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
   use columnData_mod
   use emissivities
   Use rttov_const, only : sensor_id_mw,gas_id_watervapour,surftype_land, &
-       surftype_seaice,inst_id_airs,inst_id_iasi,inst_id_cris,inst_id_mviri, &
-       inst_id_seviri,inst_id_goesim,inst_id_gmsim
+       surftype_seaice
   implicit none
 !implicits
 #include "rttov_direct2.interface"
@@ -217,9 +216,9 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
          allocate ( surfem2_th(nchannels_max,nthreads)        ,stat=alloc_status(11) )
       endif
 
-!     get AIRS, IASI & CrIS IR emissivities
+!     get Hyperspectral IR emissivities
 
-      if (instrum==inst_id_airs .or. instrum==inst_id_iasi .or. instrum==inst_id_cris) then
+      if ( tvs_Is_Instrum_Hyperspectral(instrum) ) then
         surfem1(:) = 0.
         if ( bgckMode ) then
           call EMIS_GET_IR_EMISSIVITY (SURFEM1,nchan(krtid),krtid,knpf,nchannels_max,iptobs)
@@ -393,19 +392,18 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
                 calcemis_th(joff+1:joff+len_nchannels   ,ith) = .true.
                 surfem1_th (joff+1:joff+len_nchannels   ,ith) = 0.d0
              endif
-          elseif ((instrum == inst_id_airs) .or. (instrum == inst_id_iasi ).or. (instrum == inst_id_cris)) then
+          elseif ( tvs_Is_Instrum_Hyperspectral(instrum) ) then
              calcemis_th(joff+1:joff+len_nchannels   ,ith) = .false. 
              surfem1_th (joff+1:joff+len_nchannels,ith) =         &
                   surfem1(joff+1+ioffset:joff+len_nchannels+ioffset)
-          elseif ((instrum == inst_id_mviri) .or. (instrum == inst_id_seviri) .or. &
-               (instrum == inst_id_goesim) .or. (instrum == inst_id_gmsim) ) then
+          elseif ( tvs_Is_Instrum_Geostationary(instrum) ) then
              calcemis_th(joff+1:joff+len_nchannels   ,ith) = .true.
              surfem1_th (joff+1:joff+len_nchannels,ith) = 0.d0
           else
              call abort3d('tovs_rttov. invalid sensor type')
           endif
        enddo
-       if (luse_uwiremis .and. (instrum==inst_id_airs .or. instrum==inst_id_iasi .or. instrum==inst_id_cris) .and. bgckMode) then
+       if (luse_uwiremis .and. tvs_Is_Instrum_Hyperspectral(instrum) .and. bgckMode) then
 
           if (first) then
              call rttov_atlas_setup( rttov_err_stat,      &! out

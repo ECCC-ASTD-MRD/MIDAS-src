@@ -226,29 +226,14 @@ module observation_erreurs_mod
        READ (ILUTOV,*)
      ENDDO
 
-     IPLATFORM(JL) = -1    
-     DO I = 1, MXPLATFORM
-      IPOS1=LEN_TRIM(CPLATFORM(I))
-      IPOS2 = INDEX(CPLATF,CPLATFORM(I)(1:IPOS1))
-      IF ( IPOS2 .NE. 0 ) THEN
-         IPLATFORM(JL) = NOPLATFORM(I)
-         EXIT
-      ENDIF
-     ENDDO
+     IPLATFORM(JL) =  tvs_get_platform_id(CPLATF)
 
      IF ( IPLATFORM(JL) .EQ. -1 ) THEN
       WRITE ( *, '(" oer_read_obs_erreurs_tovs: Unknown platform!"/)' )
       CALL ABORT3D ('oer_read_obs_erreurs_tovs')
      ENDIF
 
-     IINSTRUMENT(JL) = -1    
-     DO I = 1, MXINSTR
-      IPOS1=LEN_TRIM(CINSTRUMENT(I))
-      IPOS2 = INDEX(CINSTR,CINSTRUMENT(I)(1:IPOS1))
-      IF ( IPOS2 .NE. 0 ) THEN
-       IINSTRUMENT(JL) = NOINSTRUMENT(I)
-      ENDIF
-     ENDDO
+     IINSTRUMENT(JL) = tvs_get_inst_id(CINSTR)
 
      IF ( IINSTRUMENT(JL) .EQ. -1 ) THEN
        WRITE ( *, '(" oer_read_obs_erreurs_tovs: Unknown instrument!"/)' )
@@ -567,7 +552,7 @@ write(*, '(A)') ' '
   integer :: ielem,icodtyp
   real(8) :: ZLAT, ZLON, ZLEV, ZVAL, zwb, zwt
 
-  CHARACTER(len=2) :: SENSORTYPE,CFAM
+  CHARACTER(len=2) :: CFAM
 
   !
   !     ========================================================================== 
@@ -614,7 +599,7 @@ write(*, '(A)') ' '
 
             ICHN = NINT(obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY))
             CALL MAP_SAT(IPLATF,IPLATFORM,ISAT)
-            CALL MAP_INSTRUM(INSTR,INSTRUM,SENSORTYPE)
+            CALL MAP_INSTRUM(INSTR,INSTRUM)
 
              DO JN = 1, NSENSORS
                 IF ( IPLATFORM .EQ.   PLATFORM(JN) .AND. &
