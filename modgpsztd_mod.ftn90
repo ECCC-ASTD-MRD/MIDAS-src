@@ -14,6 +14,12 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
+!Author  : Stephen Macpherson *ARMA/MRD August 2008
+!Revsions:
+!     Stephen Macpherson  12 July 2015
+!       -- increase max_gps_data to handle reduced GB-GPS data thinning (dt, dx) experiments
+!          (max_num_headers for MPI jobs = 15,641 for a single job when dt= 15 min and dx = 10 km) 
+!
 module modgpsztd_mod
   use mpi_mod
   implicit none
@@ -27,8 +33,8 @@ module modgpsztd_mod
   ! public procedures
   public :: sugpsgb,i_from_index
 
-  integer, parameter      ::  max_gps_sites = 1000
-  integer, parameter      ::  max_gps_data  = max_gps_sites*12
+  integer, parameter      ::  max_gps_sites = 1200
+  integer, parameter      ::  max_gps_data  = max_gps_sites*24     ! (max_gps_sites) * (max_num_obs in 6h)
 
   integer                 :: numGPSZTD                ! number of ZTD data to be assimilated
   integer , allocatable   :: vGPSZTD_Index (:)        ! INDEX_HEADER in CMA (ObsSpace) for each ZTD observation
@@ -61,6 +67,7 @@ module modgpsztd_mod
 !     L1OBS       Flag to select a single ZTD observation using criteria in
 !                 subroutine DOBSGPSGB
 !     LTESTOP     Flag to test ZTD observation operator (Omp and Bgck modes only)
+!                 Runs subroutine SETFGEGPS to do the test.
 !     IZTDOP      1 = normal mode: use stored ZTD profiles to get ZTDmod
 !                 2 = Vedel & Huang ZTD formulation: ZTDmod = ZHD(Pobs) + ZWD
 !

@@ -8,6 +8,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
       use verticalCoord_mod
       use HorizontalCoord_mod
       use bmatrixhi
+      use modgpsztd_mod
       IMPLICIT NONE
 
       type(struct_hco), pointer        :: hco_anl
@@ -424,10 +425,10 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
 
       CALL BILIN(lcolumn,statevector,lobsSpaceData)
 !C
-!C    SET THE FIRST-GUESS ERRORS FOR GB-GPS ZTD DATA
-!C    ------------------------------------------------
+!C    OPTIONAL TEST OF THE GB-GPS ZTD OPERATOR JACOBIAN
+!C    -------------------------------------------------
 !C
-      CALL SETFGEGPS(lcolumn,lcolumng,lobsSpaceData)
+      if (LTESTOP) CALL SETFGEGPS(lcolumn,lcolumng,lobsSpaceData)
 
       deallocate(scaleFactor)
       call col_deallocate(lcolumn)
