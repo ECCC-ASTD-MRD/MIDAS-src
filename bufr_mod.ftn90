@@ -33,7 +33,6 @@ module bufr
  integer, parameter :: BUFR_NEPP=07004
  integer, parameter :: BUFR_NEPS=10004
  integer, parameter :: BUFR_NEPN=10051
- integer, parameter :: BUFR_NEOZ=15001
  integer, parameter :: BUFR_NBT1=12062
  integer, parameter :: BUFR_NBT2=12063
  integer, parameter :: BUFR_NBT3=12163
