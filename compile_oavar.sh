@@ -99,8 +99,8 @@ echo "loading rpn/libs/15.2"
 echo "loading cmdn/vgrid/5.3.2/${COMP_ARCH}"
 . ssmuse-sh -d cmdn/vgrid/5.3.2/${COMP_ARCH}
 ## for 'burplib'
-echo "loading cmda/base/201411/01/${COMP_ARCH}"
-. ssmuse-sh -d cmda/base/201411/01/${COMP_ARCH}
+echo "loading cmda/libs/15.2/${COMP_ARCH}"
+. ssmuse-sh -d cmda/libs/15.2/${COMP_ARCH}
 
 ## For hpcsperf needed for TMG timings
 echo "loading hpcs/exp/aspgjdm/perftools"
