@@ -106,8 +106,8 @@ varabs=oavar_${BASE_ARCH}${ABSTAG}
 echo "loading rpn/libs/15.2"
 . ssmuse-sh -d rpn/libs/15.2
 ## for 'vgrid'
-echo "loading cmdn/vgrid/5.3.2/${COMP_ARCH}"
-. ssmuse-sh -d cmdn/vgrid/5.3.2/${COMP_ARCH}
+echo "loading cmdn/vgrid/5.4.0/${COMP_ARCH}"
+. ssmuse-sh -d cmdn/vgrid/5.4.0/${COMP_ARCH}
 ## for 'burplib'
 echo "loading cmda/libs/15.2/${COMP_ARCH}"
 . ssmuse-sh -d cmda/libs/15.2/${COMP_ARCH}
@@ -116,8 +116,8 @@ echo "loading cmda/libs/15.2/${COMP_ARCH}"
 echo "loading hpcs/exp/aspgjdm/perftools"
 . ssmuse-sh -d hpcs/exp/aspgjdm/perftools
 # For RTTOV package... 
-echo "loading arma/rttov/10v4"
-. ssmuse-sh -d arma/rttov/10v4
+echo "loading arma/rttov/10v4.1"
+. ssmuse-sh -d arma/rttov/10v4.1
 # For NetCDF package
 echo "loading netcdf"
 . s.ssmuse.dot netcdf
