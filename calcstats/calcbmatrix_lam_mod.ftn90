@@ -41,6 +41,7 @@ module calcbmatrix_lam_mod
 
   ! Public Subroutines
   public :: calcb_lam_setup, calcb_lam_computeStats
+  public :: calcb_lam_toolbox
 
   type(struct_hco), pointer :: hco_ens ! Ensemble horizontal grid parameters
   type(struct_hco), pointer :: hco_bhi ! B matrix horizontal grid parameters
@@ -48,6 +49,8 @@ module calcbmatrix_lam_mod
   type(struct_lst)          :: lst_bhi ! Spectral transform Parameters
 
   character(len=256), allocatable :: cflensin(:)
+
+  integer,external    :: get_max_rss
 
   integer, parameter :: cv_model = 1
   integer, parameter :: cv_bhi   = 2
@@ -69,9 +72,10 @@ module calcbmatrix_lam_mod
   integer :: nkgdim
 
   logical :: initialized = .false.
-  logical :: NormByStdDev, SetTGtoZero
-
+  logical :: NormByStdDev, SetTGtoZero, writeEnsPert, Remove2dMean
+ 
   character(len=12) :: WindTransform
+  character(len=12) :: SpectralWeights
 
   real(8), pointer :: pressureProfile(:)
 
@@ -100,11 +104,13 @@ module calcbmatrix_lam_mod
 
     logical :: mask(nMaxControlVar)
 
-    NAMELIST /NAMCALCB_LAM/ntrunc,grd_ext_x,grd_ext_y,NormByStdDev,SetTGtoZero
+    NAMELIST /NAMCALCB_LAM/ntrunc,grd_ext_x,grd_ext_y,NormByStdDev,SetTGtoZero,&
+         writeEnsPert,SpectralWeights
     NAMELIST /NAMSTATE/CGNEED
 
     write(*,*)
     write(*,*) 'calcb_lam_setup: Starting...'
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     !
     !- 1. Initialized the info on the ensemble
@@ -125,6 +131,8 @@ module calcbmatrix_lam_mod
     grd_ext_y     = 10       ! Default value
     NormByStdDev  = .true.   ! Default value
     SetTGtoZero   = .false.  ! Default value
+    writeEnsPert  = .false.  ! Default value
+    SpectralWeights = 'lst'  ! Default value
 
     WindTransform = 'PsiChi' ! Hardwired
 
@@ -137,6 +145,19 @@ module calcbmatrix_lam_mod
 
     write(*,*)
     write(*,*) 'Truncation = ', ntrunc
+
+    select case(trim(SpectralWeights))
+    case ('lst')
+       write(*,*)
+       write(*,*) 'Using spectral weights from the lamSpectralTransform module'
+    case ('legacy')
+       write(*,*)
+       write(*,*) 'Using spectral weights from the OLD VAR code in LAM mode'
+    case default
+       write(*,*)
+       write(*,*) 'Unknown spectral weights TYPE : ', trim(SpectralWeights)
+       call abort3d('calcb_lam_setup')
+    end select
 
     !
     !- 3. Initialized the extended (bi-periodic) grid
@@ -153,10 +174,10 @@ module calcbmatrix_lam_mod
     call lag_SetupFromHCO( 'BHI', 'Ensemble' ) ! IN
 
     !- 3.4 Setup the LAM spectral transform
-    call lst_Setup( lst_bhi,                    & ! OUT
+    call lst_Setup( lst_bhi,                & ! OUT
                     hco_bhi%ni, hco_bhi%nj, & ! IN
-                    hco_bhi%dlon, ntrunc,     & ! IN
-                    'NoMpi' )                     ! IN
+                    hco_bhi%dlon, ntrunc,   & ! IN
+                    'NoMpi' )                 ! IN
 
     !
     !- 4.  Setup the control variables (model space and B_hi space)
@@ -259,6 +280,7 @@ module calcbmatrix_lam_mod
     initialized = .true.
 
     write(*,*)
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     write(*,*) 'calcb_lam_setup: Done!'
 
   end subroutine calcb_lam_setup
@@ -273,7 +295,7 @@ module calcbmatrix_lam_mod
 
     integer :: NumBins2d, NumBins2dGridPoint
 
-    real(4),pointer     :: ensPerturbations(:,:,:,:)
+    real(4),allocatable :: ensPerturbations(:,:,:,:)
 
     real(8),allocatable :: ensMean3d(:,:,:)
     real(8),allocatable :: StdDev3d(:,:,:)
@@ -288,65 +310,70 @@ module calcbmatrix_lam_mod
     integer,allocatable :: Bin2d(:,:)
     integer,allocatable :: Bin2dGridPoint(:,:)
 
+    write(*,*)
+    write(*,*) 'calcb_lam_computeStats: Starting...'
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
     allocate(ensPerturbations(hco_bhi%ni,hco_bhi%nj,nkgdim,nens),stat=ier)
     if(ier /= 0) then
       write(*,*) 'Problem allocating ensPerturbations memory!',ier
-      call flush(6)
+      write(*,*)  hco_bhi%ni,hco_bhi%nj,nkgdim,nens
+      call abort3d('calcb_lam_computeStats') 
     endif
     allocate(ensMean3d(hco_bhi%ni,hco_bhi%nj,nkgdim),stat=ier)
     if (ier /= 0) then
       write(*,*) 'Problem allocating ensMean3d memory!',ier
-      call flush(6)
+      call abort3d('calcb_lam_computeStats')
     end if
     allocate(Bin2d(hco_bhi%ni,hco_bhi%nj),stat=ier)
     if (ier /= 0) then
       write(*,*) 'Problem allocating Bin2d memory!',ier
-      call flush(6)
+      call abort3d('calcb_lam_computeStats')
     end if
     allocate(Bin2dGridPoint(hco_bhi%ni,hco_bhi%nj),stat=ier)
     if (ier /= 0) then
       write(*,*) 'Problem allocating Bin2d memory!',ier
-      call flush(6)
+      call abort3d('calcb_lam_computeStats')
     end if
     allocate(StdDev3d(hco_bhi%ni,hco_bhi%nj,nkgdim),stat=ier)
     if (ier /= 0) then
       write(*,*) 'Problem allocating StdDev3d memory!',ier
-      call flush(6)
+      call abort3d('calcb_lam_computeStats')
     end if
     allocate(StdDev3dGridPoint(hco_bhi%ni,hco_bhi%nj,nkgdim),stat=ier)
     if (ier /= 0) then
       write(*,*) 'Problem allocating StdDev3dGridPoint memory!',ier
-      call flush(6)
+      call abort3d('calcb_lam_computeStats')
     end if
     allocate(SpVertCorrel(nkgdim,nkgdim,0:ntrunc),stat=ier)
     if(ier.ne.0) then
       write(*,*) 'Problem allocating SpVertCorrel memory!',ier
-      call flush(6)
+      call abort3d('calcb_lam_computeStats')
     endif
     allocate(TotVertCorrel(nkgdim,nkgdim),stat=ier)
     if(ier.ne.0) then
       write(*,*) 'Problem allocating TotVertCorrel memory!',ier
-      call flush(6)
+      call abort3d('calcb_lam_computeStats')
     endif
     allocate(PowerSpectrum(nkgdim,0:ntrunc),stat=ier)
     if(ier.ne.0) then
       write(*,*) 'Problem allocating PowerSpectrum memory!',ier
-      call flush(6)
+      call abort3d('calcb_lam_computeStats')
     endif
     allocate(NormB(nkgdim,nkgdim,0:ntrunc),stat=ier)
     if(ier.ne.0) then
       write(*,*) 'Problem allocating Bsqrt memory!',ier
-      call flush(6)
+      call abort3d('calcb_lam_computeStats')
     endif
     allocate(NormBsqrt(nkgdim,nkgdim,0:ntrunc),stat=ier)
     if(ier.ne.0) then
       write(*,*) 'Problem allocating Bsqrt memory!',ier
-      call flush(6)
+      call abort3d('calcb_lam_computeStats')
     endif
     allocate(HorizScale(nkgdim),stat=ier)
     if(ier.ne.0) then
       write(*,*) 'Problem allocating HorizScale memory!',ier
-      call flush(6)
+      call abort3d('calcb_lam_computeStats')
     endif
 
     ensPerturbations(:,:,:,:) = 0.d0
@@ -361,14 +388,14 @@ module calcbmatrix_lam_mod
     !
     call BiPeriodization(ensPerturbations) ! INOUT
 
-!    call WriteEnsemble   (ensPerturbations, './EnsWrite_A', cv_model ) ! IN
+    if (writeEnsPert) call WriteEnsemble(ensPerturbations, './EnsPert_cv_model', cv_model ) ! IN
 
     !
     !- 3.  Transform u-wind and v-wind to control variables 
     !
     call UVToCtrlVar(ensPerturbations) ! INOUT
 
-!    call WriteEnsemble   (ensPerturbations, './EnsWrite_B', cv_bhi ) ! IN
+    if (writeEnsPert) call WriteEnsemble(ensPerturbations, './EnsPert_cv_bhi', cv_bhi ) ! IN
 
     !
     !- 4.  Remove the ensemble mean
@@ -417,8 +444,8 @@ module calcbmatrix_lam_mod
                         NormB)        ! IN
 
     !- 6.3 Calculate the total vertical correlation matrix
-    call CalcTotVertCorrel(TotVertCorrel, & ! OUT
-                           NormB)           ! IN
+    call CalcTotVertCorrel(TotVertCorrel,             & ! OUT
+                           SpVertCorrel, PowerSpectrum) ! IN
 
     !- 6.4 Set cross-correlations
     call SetSpVertCorrel(NormB) ! INOUT
@@ -438,9 +465,6 @@ module calcbmatrix_lam_mod
     call WriteDiagStats(NormB, SpVertCorrel, TotVertCorrel, EnsMean3d, & ! 
                         StdDev3dGridPoint, PowerSpectrum, HorizScale)    ! IN
 
-    !- 7.3. Statistics for Background Check
-    ! Not coded yet
-
     deallocate(Bin2d)
     deallocate(Bin2dGridPoint)
     deallocate(ensPerturbations)
@@ -454,7 +478,177 @@ module calcbmatrix_lam_mod
     deallocate(NormBsqrt)
     deallocate(HorizScale)
 
+    write(*,*)
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    write(*,*) 'calcb_lam_computeStats: Done!'
+
   end subroutine calcb_lam_computeStats
+
+!--------------------------------------------------------------------------
+! CALCB_LAM_TOOLBOOX
+!--------------------------------------------------------------------------
+  subroutine calcb_lam_toolbox
+    implicit none
+
+    integer :: nulnam, ier, fstouv, fnom, fstfrm, fclos
+    integer :: iunstats
+
+    integer :: NumBins2d
+
+    real(4),allocatable :: ensPerturbations(:,:,:,:)
+
+    real(8),allocatable :: ensMean3d(:,:,:)
+    real(8),allocatable :: StdDev3dGridPoint(:,:,:)
+    real(8),allocatable :: VertCorrel(:,:,:)
+
+    integer,allocatable :: Bin2d(:,:)
+
+    character(len=60) :: tool
+
+    NAMELIST /NAMTOOLBOX/tool
+
+    write(*,*)
+    write(*,*) 'calcb_lam_toolbox: Starting...'
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+    !
+    !- Tool selection
+    !
+    nulnam = 0
+    ier = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+    read(nulnam,nml=NAMTOOLBOX)
+    write(*,nml=NAMTOOLBOX)
+    ier = fclos(nulnam)
+
+    select case(trim(tool))
+    case ('VERTCORREL_GRIDPOINT')
+       write(*,*)
+       write(*,*) 'Computing vertical correlation in grid point space'
+    case default
+       write(*,*)
+       write(*,*) 'Unknown TOOL in calcb_lam_toolbox : ', trim(tool)
+       call abort3d('calbmatrix_lam')
+    end select
+
+    !
+    !- Horizontal and vertical correlation diagnostics
+    !
+    allocate(ensPerturbations(hco_bhi%ni,hco_bhi%nj,nkgdim,nens),stat=ier)
+    if(ier /= 0) then
+      write(*,*) 'Problem allocating ensPerturbations memory!',ier
+      write(*,*)  hco_bhi%ni,hco_bhi%nj,nkgdim,nens
+      call abort3d('calcb_lam_computeStats') 
+    endif
+    allocate(ensMean3d(hco_bhi%ni,hco_bhi%nj,nkgdim),stat=ier)
+    if (ier /= 0) then
+      write(*,*) 'Problem allocating ensMean3d memory!',ier
+      call abort3d('calcb_lam_computeStats')
+    end if
+    allocate(StdDev3dGridPoint(hco_bhi%ni,hco_bhi%nj,nkgdim),stat=ier)
+    if (ier /= 0) then
+      write(*,*) 'Problem allocating StdDev3dGridPoint memory!',ier
+      call abort3d('calcb_lam_computeStats')
+    end if
+    allocate(Bin2d(hco_bhi%ni,hco_bhi%nj),stat=ier)
+    if (ier /= 0) then
+      write(*,*) 'Problem allocating Bin2d memory!',ier
+      call abort3d('calcb_lam_computeStats')
+    end if
+
+    ensPerturbations(:,:,:,:) = 0.d0
+    
+    !
+    !- 1.  Read forecast error estimates (all variables, levels, ens. members)
+    !
+    call ReadEnsemble(ensPerturbations) ! INOUT
+
+    !
+    !- 2.  Create periodic fields in X and Y directions
+    !
+    call BiPeriodization(ensPerturbations) ! INOUT
+
+    !
+    !- 3.  Transform u-wind and v-wind to control variables 
+    !
+    call UVToCtrlVar(ensPerturbations) ! INOUT
+
+    !
+    !- 4.  Remove the ensemble mean
+    !
+    call RemoveMean(ensPerturbations, & ! INOUT
+                    ensMean3d)          ! OUT
+
+    !
+    !- 5.  Calculate the Standard Deviations in grid point space
+    !
+    
+    !- 5.1 Non-binned Std. Dev. to be used for normalization
+    call CreateBins(Bin2d, NumBins2d, & ! OUT
+                    'GridPoint')        ! IN
+
+    call CalcStdDev3d(ensPerturbations,   & ! INOUT
+                      StdDev3dGridPoint,  & ! OUT
+                      Bin2d, NumBins2d)     ! IN
+
+    !- 5.2 Normalization
+    call Normalize3d(ensPerturbations, & ! INOUT
+                     StdDev3dGridPoint)  ! IN
+
+
+    !
+    !- 6.  Remove the (2D) domain mean
+    !
+    call removeDomainMean(ensPerturbations) ! INOUT
+    
+    !
+    !- 7.  Calculate the vertical correlations
+    !
+    iunstats = 0
+    ier    = fnom(iunstats,'./vertCorrel.fst','RND',0)
+    ier    = fstouv(iunstats,'RND')
+
+    !- 7.1 Stats from the whole horizontal domain
+    call CreateBins(Bin2d, NumBins2d, & ! OUT
+                    'FullDomain')        ! IN
+
+    allocate(VertCorrel(nkgdim,nkgdim,NumBins2d))
+
+    call calcVertCorrel(VertCorrel,       &  ! OUT
+                        ensPerturbations, &  ! IN
+                        Bin2d, NumBins2d)    ! IN
+
+    call WriteTotVertCorrel(VertCorrel(:,:,1),iunstats,'ZT','GPVCOR_FULL') ! IN
+
+    deallocate(VertCorrel)
+
+    !- 7.2 Stats from the core and the extension zone
+    call CreateBins(Bin2d, NumBins2d, & ! OUT
+                    'CoreExt')          ! IN
+
+    allocate(VertCorrel(nkgdim,nkgdim,NumBins2d))
+
+    call calcVertCorrel(VertCorrel,       &  ! OUT
+                        ensPerturbations, &  ! IN
+                        Bin2d, NumBins2d)    ! IN
+
+    call WriteTotVertCorrel(VertCorrel(:,:,1),iunstats,'ZT','GPVCOR_CORE') ! IN
+    call WriteTotVertCorrel(VertCorrel(:,:,2),iunstats,'ZT','GPVCOR_EXTN') ! IN
+
+    deallocate(VertCorrel)
+
+    ier =  fstfrm(iunstats)
+    ier =  fclos (iunstats)
+
+    deallocate(Bin2d)
+    deallocate(ensPerturbations)
+    deallocate(StdDev3dGridPoint)
+    deallocate(ensMean3d)
+
+    write(*,*)
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    write(*,*) 'calcb_lam_toolbox: Done!'
+
+  end subroutine calcb_lam_toolbox
 
 !--------------------------------------------------------------------------
 ! CreateLamTemplateGrids
@@ -766,6 +960,9 @@ module calcbmatrix_lam_mod
     character(len=1 )           :: typvar
     character(len=12)           :: etiket
 
+    write(*,*)
+    write(*,*) 'ReadEnsemble: Starting...'
+
     allocate(work2d(hco_ens%ni, hco_ens%nj))
 
     !- Loop over the Ensemble members
@@ -773,6 +970,7 @@ module calcbmatrix_lam_mod
 
       write(*,*)
       write(*,*) 'Reading ensemble member: ', ens, trim(cflensin(ens))
+      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
       iunens = 0
       ier    = fnom(iunens,cflensin(ens),'RND+OLD+R/O',0)
@@ -844,6 +1042,9 @@ module calcbmatrix_lam_mod
 
     deallocate(work2d)
 
+    write(*,*)
+    write(*,*) 'ReadEnsemble: Done!'
+
   end subroutine ReadEnsemble
 
 !--------------------------------------------------------------------------
@@ -860,6 +1061,10 @@ module calcbmatrix_lam_mod
     real(8), allocatable :: CtrlVar2_3d(:,:,:)
 
     integer :: nlev, ens, kStart_u, kStart_v, kEnd_u, kEnd_v
+
+    write(*,*)
+    write(*,*) 'UVToCtrlVar: Starting...'
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     !- Error traps
     if ( ControlVariable(1)%nlev /= ControlVariable(2)%nlev ) then
@@ -918,6 +1123,10 @@ module calcbmatrix_lam_mod
     deallocate(CtrlVar1_3d)
     deallocate(CtrlVar2_3d)
 
+    write(*,*)
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    write(*,*) 'UVToCtrlVar: Done!'
+
   end subroutine UVToCtrlVar
 
 !--------------------------------------------------------------------------
@@ -938,6 +1147,7 @@ module calcbmatrix_lam_mod
                         DivChi,         & ! INOUT
                         'Inverse', nk )   ! IN
 
+
   end subroutine VortDivToPsiChi
 
 !--------------------------------------------------------------------------
@@ -951,6 +1161,10 @@ module calcbmatrix_lam_mod
 
     real(8) :: inens
     integer :: i,j,kgdim,ens
+
+    write(*,*)
+    write(*,*) 'RemoveMean: Starting...'
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     inens=1.0d0/real(nens,8)
 
@@ -991,9 +1205,54 @@ module calcbmatrix_lam_mod
 !$OMP END PARALLEL
 
     write(*,*)
-    write(*,*) 'finished removing the ensemble mean...'
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    write(*,*) 'RemoveMean: Done!'
 
   end subroutine removeMean
+
+!--------------------------------------------------------------------------
+! REMOVEDOMAINMEAN
+!--------------------------------------------------------------------------
+  subroutine removeDomainMean(ensPerturbations)
+    implicit none
+
+    real(4), intent(inout)  :: ensPerturbations(hco_bhi%ni,hco_bhi%nj,nkgdim,nens)
+
+    real(8) :: domainMean, iSize
+
+    integer :: i,j,kgdim,ens
+
+    write(*,*) 'RemoveDomainMean: Starting...'
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+    iSize= 1.d0/(dble(hco_bhi%ni)*dble(hco_bhi%nj))
+
+!$OMP PARALLEL
+!$OMP DO PRIVATE (kgdim,ens,j,i,domainMean)
+    do ens = 1,nens
+      do kgdim = 1,nkgdim
+        domainMean=0.0d0
+        do j = 1,hco_bhi%nj
+          do i = 1,hco_bhi%ni
+            domainMean = domainMean + real(ensPerturbations(i,j,kgdim,ens),8)
+          end do
+        end do
+        domainMean = domainMean * iSize
+        do j = 1,hco_bhi%nj
+          do i = 1,hco_bhi%ni
+            ensPerturbations(i,j,kgdim,ens) = ensPerturbations(i,j,kgdim,ens) - real(domainMean,4)
+          end do
+        end do
+      end do
+    end do
+!$OMP END DO
+!$OMP END PARALLEL
+
+    write(*,*)
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    write(*,*) 'RemoveDomainMean: Done!'
+
+  end subroutine removeDomainMean
 
 !--------------------------------------------------------------------------
 ! CalcStdDev3d
@@ -1011,6 +1270,10 @@ module calcbmatrix_lam_mod
 
     real(8) :: inens
     integer :: i,j,kgdim,ens,b
+
+    write(*,*)
+    write(*,*) 'CalcStdDev3d: Starting...'
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
 !$OMP PARALLEL
 !$OMP DO PRIVATE (kgdim,BinCount,StdDevBin,b,ens,j,i)
@@ -1045,7 +1308,8 @@ module calcbmatrix_lam_mod
 !$OMP END PARALLEL
 
     write(*,*)
-    write(*,*) 'finished computing Standard Deviations...'
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    write(*,*) 'CalcStdDev3d: Done!'
 
   end subroutine CalcStdDev3d
 
@@ -1061,6 +1325,10 @@ module calcbmatrix_lam_mod
     integer :: ens, kgdim, j, i
 
     real(4) :: fact
+
+    write(*,*)
+    write(*,*) 'normalize3d: Starting...'
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
 !$OMP PARALLEL
 !$OMP DO PRIVATE (ens, kgdim, j, i)
@@ -1083,7 +1351,8 @@ module calcbmatrix_lam_mod
 !$OMP END PARALLEL
 
     write(*,*)
-    write(*,*) 'finished normalizing by stddev3D...'
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    write(*,*) 'normalize3d: Done!'
   
   end subroutine normalize3d
 
@@ -1104,11 +1373,15 @@ module calcbmatrix_lam_mod
     real(8), allocatable    :: GridState(:,:,:)
     real(8), allocatable    :: SumWeight(:)
 
-    real(8)           :: fact, sum
+    real(8)           :: weight, sum
 
     integer           :: i, j, k1, k2, ens, b, e, ila, p, k, totwvnb
 
     character(len=24) :: kind
+
+    write(*,*)
+    write(*,*) 'CalcSpectralStats: Starting...'
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     SpVertCorrel(:,:,:) = 0.d0
 
@@ -1135,16 +1408,21 @@ module calcbmatrix_lam_mod
 
       !- 1.3 Compute the covariances
 !$OMP PARALLEL
-!$OMP DO PRIVATE (totwvnb,fact,e,ila,p,k2,k1)
+!$OMP DO PRIVATE (totwvnb,weight,e,ila,p,k2,k1)
       do totwvnb = 0, ntrunc
         do e = 1, lst_bhi%nePerK(totwvnb)
           ila = lst_bhi%ilaFromEK(e,totwvnb)
           do p = 1, lst_bhi%nphase
-            SumWeight(totwvnb) = SumWeight(totwvnb) + lst_bhi%Weight(ila)
+            if (trim(SpectralWeights) == 'lst') then
+               weight = lst_bhi%Weight(ila)
+               SumWeight(totwvnb) = SumWeight(totwvnb) + weight
+            else
+               weight = 2.0d0
+            end if
             do k2 = 1, nkgdim
               do k1 = 1, nkgdim
                 SpVertCorrel(k1,k2,totwvnb) = SpVertCorrel(k1,k2,totwvnb) &
-                    + lst_bhi%Weight(ila) * (SpectralStateVar(ila,p,k1) * SpectralStateVar(ila,p,k2))
+                    + weight * (SpectralStateVar(ila,p,k1) * SpectralStateVar(ila,p,k2))
               end do
             end do
           end do
@@ -1157,11 +1435,21 @@ module calcbmatrix_lam_mod
 
     !- 1.4 Compute the weighted COVARIANCES for each total wavenumber
     do totwvnb = 0, ntrunc
-      if ( SumWeight(totwvnb) /= 0.d0 ) then 
-        SpVertCorrel(:,:,totwvnb) = SpVertCorrel(:,:,totwvnb) / SumWeight(totwvnb)
-      else
-        SpVertCorrel(:,:,totwvnb) = 0.d0
+      if (trim(SpectralWeights) == 'legacy') then
+         if (totwvnb /= 0 ) then
+            SumWeight(totwvnb) = 2.d0 * real(lst_bhi % nphase * lst_bhi % nePerK(totwvnb),8) - 2.d0
+         else
+            SumWeight(totwvnb) = 1.d0
+         end if
+         SumWeight(totwvnb) = SumWeight(totwvnb)*nens
       end if
+
+      if ( SumWeight(totwvnb) /= 0.d0 ) then 
+         SpVertCorrel(:,:,totwvnb) = SpVertCorrel(:,:,totwvnb) / SumWeight(totwvnb)
+      else
+         SpVertCorrel(:,:,totwvnb) = 0.d0
+      end if
+
     end do
 
     deallocate(SumWeight)
@@ -1292,7 +1580,8 @@ module calcbmatrix_lam_mod
     deallocate(NormPowerSpectrum)
 
     write(*,*)
-    write(*,*) 'Calculating spectral covariance stats. Done!'
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    write(*,*) 'CalcSpectralStats: Done!'
 
   end subroutine CalcSpectralStats
 
@@ -1313,7 +1602,7 @@ module calcbmatrix_lam_mod
     integer :: totwvnb, k, var
 
     write(*,*)
-    write(*,*) 'Calculating horizontal correlation length scale'
+    write(*,*) 'CalcHorizScale: Starting...'
 
     !
     !- Computing distance-related variables
@@ -1353,56 +1642,43 @@ module calcbmatrix_lam_mod
     end do
 
     write(*,*)
-    write(*,*) 'Calculating horizontal correlation length scale. Done!'
+    write(*,*) 'CalcHorizScale: Done!'
 
   end subroutine CalcHorizScale
 
 !--------------------------------------------------------------------------
 ! CalcTotVertCorrel
 !--------------------------------------------------------------------------
-  subroutine CalcTotVertCorrel(TotVertCorrel, NormB)
+  subroutine CalcTotVertCorrel(TotVertCorrel, SpVertCorrel, PowerSpectrum)
     implicit none
 
     real(8), intent(out)    :: TotVertCorrel(nkgdim,nkgdim)
-    real(8), intent(in)     :: NormB(nkgdim,nkgdim,0:ntrunc)
+    real(8), intent(in)     :: SpVertCorrel(nkgdim,nkgdim,0:ntrunc)
+    real(8), intent(in)     :: PowerSpectrum(nkgdim,0:ntrunc)
 
     real(8), allocatable    :: TotVertCov(:,:)
-    real(8), allocatable    :: SumWeight(:)
 
-    real(8)           :: fact
+    integer           :: k1, k2, totwvnb
 
-    integer           :: k1, k2, totwvnb, e, p, ila
+    write(*,*)
+    write(*,*) 'CalcTotVertCorrel: Starting...'
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     !
     !- 1.  Calculate the total Normalized Covariance Matrix
     !
     allocate(TotVertCov(nkgdim,nkgdim))
-    allocate(SumWeight(0:ntrunc))
     TotVertCov(:,:) = 0.d0
-    SumWeight(:) = 0.d0
 
-    !- 1.1 Compute Weights
-    do totwvnb = 0, ntrunc
-      do e = 1, lst_bhi%nePerK(totwvnb)
-        ila = lst_bhi%ilaFromEK(e,totwvnb)
-        do p = 1, lst_bhi%nphase
-          SumWeight(totwvnb) = SumWeight(totwvnb) + lst_bhi%Weight(ila)
-        end do
-      end do
-    end do
-
-    !- 1.2 Compute Weighted Total Covariance matrix 
     do k2 = 1, nkgdim
       do k1 = 1, nkgdim
         do totwvnb = 0, ntrunc
           TotVertCov(k1,k2) = TotVertCov(k1,k2) + &
-                              SumWeight(totwvnb) * real(totwvnb,8) * NormB(k1,k2,totwvnb) *    &
-                              NormB(k1,k1,totwvnb) * NormB(k2,k2,totwvnb)
+                              real(totwvnb,8) * SpVertCorrel(k1,k2,totwvnb) *    &
+                              sqrt(PowerSpectrum(k1,totwvnb) * PowerSpectrum(k2,totwvnb))
         end do
       end do
     end do
-
-    deallocate(SumWeight)
 
     !
     !- 2.  Transform into correlations
@@ -1420,6 +1696,10 @@ module calcbmatrix_lam_mod
     end do
 
     deallocate(TotVertCov)
+
+    write(*,*)
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    write(*,*) 'CalcTotVertCorrel: Done!'
 
   end subroutine CalcTotVertCorrel
 
@@ -1441,6 +1721,10 @@ module calcbmatrix_lam_mod
     real(8), allocatable :: EigenVectors(:,:)
 
     integer :: sizework, info, totwvnb, k, k1, k2 
+
+    write(*,*)
+    write(*,*) 'CalcBsqrt: Starting...'
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     sizework = 64 * nkgdim
     allocate(work(sizework))
@@ -1488,6 +1772,10 @@ module calcbmatrix_lam_mod
     deallocate(EigenValues)
     deallocate(work)
 
+    write(*,*)
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    write(*,*) 'CalcBsqrt: Done!'
+
   end subroutine CalcBsqrt
 
 !--------------------------------------------------------------------------
@@ -1503,7 +1791,7 @@ module calcbmatrix_lam_mod
     integer :: totwvnb, var1, var2, k1, k2 
 
     write(*,*)
-    write(*,*) 'Setting Vertical Correlations'
+    write(*,*) 'SetSpVertCorrel: Starting...'
 
     !
     !-  Determine which bloc of the correlation matrix to keep/discard
@@ -1561,7 +1849,7 @@ module calcbmatrix_lam_mod
     deallocate(KeepOrDiscard)
 
     write(*,*)
-    write(*,*) 'Setting Vertical Correlations. Done!'
+    write(*,*) 'SetSpVertCorrel: Done!'
 
   end subroutine SetSpVertCorrel
 
@@ -1603,12 +1891,27 @@ module calcbmatrix_lam_mod
         bin2d(:,j) = BinCat
       end do
 
-    case ('HorizontalMean')
+    case ('HorizontalMean','FullDomain')
       write(*,*)
       write(*,*) ' BIN_TYPE : Average over all horizontal points'
 
       NumBins2d   = 1
       bin2d(:, :) = 1
+
+    case ('CoreExt')
+      write(*,*)
+      write(*,*) ' BIN_TYPE : Partition between CORE and EXTENSION zone'
+
+      NumBins2d = 2
+      do j = 1, hco_bhi%nj
+        do i = 1, hco_bhi%ni
+           if ( i <= hco_ens%ni .and. j <= hco_ens%nj ) then
+              bin2d(i,j) = 1 ! Core
+           else
+              bin2d(i,j) = 2 ! Extension
+           end if
+        end do
+      end do
 
     case default
       write(*,*)
@@ -1630,6 +1933,10 @@ module calcbmatrix_lam_mod
 
     integer :: kgdim, ens
 
+    write(*,*)
+    write(*,*) 'BiPeriodization: Starting...'
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
     allocate(work3d(hco_bhi%ni, hco_bhi%nj, nkgdim))
 
     !- Loop over all variables / levels / ensemble members
@@ -1646,7 +1953,72 @@ module calcbmatrix_lam_mod
 
     deallocate(work3d)
 
+    write(*,*)
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    write(*,*) 'BiPeriodization: Done!'
+
   end subroutine BiPeriodization
+
+!--------------------------------------------------------------------------
+! CalcVertCorrel
+!--------------------------------------------------------------------------
+  subroutine CalcVertCorrel(VertCorrel,ensPerturbations,Bin2d,NumBins2d)
+    implicit none
+
+    real(4), intent(in)     :: ensPerturbations(hco_bhi%ni,hco_bhi%nj,nkgdim,nens)
+    real(8), intent(out)    :: VertCorrel(nkgdim,nkgdim,NumBins2d)
+    integer, intent(in)     :: Bin2d(hco_bhi%ni,hco_bhi%nj)
+    integer, intent(in)     :: NumBins2d
+
+    integer :: BinCount (NumBins2d)
+    integer :: i, j, k1, k2, ens, b
+
+    write(*,*)
+    write(*,*) 'CalcVertCorrel: Starting...'
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+    VertCorrel(:,:,:) = 0.d0
+    BinCount (:) = 0
+
+    !
+    !- Calculate the Vertical Correlation in GridPoint Space
+    !
+    
+    ! ... we assume that the ensemble grid point mean was removed and that
+    !     the ensemble values were divided by the grid point std dev.
+
+    do ens = 1, nens
+
+       do j = 1, hco_bhi%nj
+          do i = 1, hco_bhi%ni
+
+             b = Bin2d(i,j)
+             if (ens == 1) BinCount(b) = BinCount(b) + 1
+
+!$OMP PARALLEL
+!$OMP DO PRIVATE (k1,k2)
+             do k2 = 1, nkgdim
+                do k1 = 1, nkgdim
+                   VertCorrel(k1,k2,b) = VertCorrel(k1,k2,b) &
+                        + real(ensPerturbations(i,j,k1,ens),8)*real(ensPerturbations(i,j,k2,ens),8)
+                end do
+             end do
+!$OMP END DO
+!$OMP END PARALLEL
+
+          end do
+       end do
+
+    end do ! Loop in Ensemble
+
+    do b = 1, NumBins2d
+       VertCorrel(:,:,b) = VertCorrel(:,:,b) / real((nens-1)*BinCount(b),8)
+    end do
+
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    write(*,*) 'CalcVertCorrel: Done!'
+
+  end subroutine CalcVertCorrel
 
 !--------------------------------------------------------------------------
 ! WriteVarStats
@@ -1839,7 +2211,7 @@ module calcbmatrix_lam_mod
   end subroutine WriteSpVertCorrel
 
 !--------------------------------------------------------------------------
-! WriteSpVertCorrel
+! WriteTotVertCorrel
 !--------------------------------------------------------------------------
   subroutine WriteTotVertCorrel(TotVertCorrel,iun,nomvar_in,etiket_in)
     implicit none
@@ -1949,6 +2321,9 @@ module calcbmatrix_lam_mod
       iunens = 0
       ier    = fnom(iunens,trim(OutputFileName),'RND',0)
       ier    = fstouv(iunens,'RND')
+
+      !- Add Tic-Tac and Toc-Toc
+      call WriteTicTacToc(iunens)
 
       !- Loop over Control Variables
       do var = 1, nControlVariable

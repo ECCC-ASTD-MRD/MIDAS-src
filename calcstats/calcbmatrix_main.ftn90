@@ -105,9 +105,7 @@ program calcbmatrix_main
      if (hco_ens % global) then
         call calcb_glb_toolbox
      else
-        write(*,*)
-        write(*,*) 'TOOLBOX mode is not availbale in LAM mode'
-        call abort3d('calcbmatrix_main')
+        call calcb_lam_toolbox
      end if
   case ('STDDEV')
      if (hco_ens % global) then
