@@ -133,7 +133,7 @@ contains
     integer, allocatable            :: KfromMN(:,:)
     integer, allocatable            :: KfromMNglb(:,:)
     integer, allocatable            :: my_KfromMNglb(:,:)
-    integer                         :: kmax, id
+    integer                         :: kref, mref, nref, id
     integer                         :: m, n, k, ila, nfact
     integer                         :: ier, ilaglb, i, j, p
     real(8)                         :: a, b, r
@@ -141,6 +141,21 @@ contains
     real(8)                         :: NormFactor1, NormFactor2, NormFactor3
     real(8)                         :: NormFactorAd1, NormFactorAd2, NormFactorAd3
     real(8)                         :: factor, factorAd
+    integer                         :: nulnam, ierr, fnom, fclos
+    character(len=60)               :: kreftype
+
+    NAMELIST /NAMSPECTRAL/kreftype
+
+    !
+    !- 0. Read namelist
+    !
+    kreftype = 'MAX' ! default value
+
+    nulnam = 0
+    ierr   = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+    read (nulnam,nml=NAMSPECTRAL)
+    write(*     ,nml=NAMSPECTRAL)
+    ierr=fclos(nulnam)
 
     !
     !- 1.  Set variables needed by the LAM Spectral Transform in VAR
@@ -169,7 +184,7 @@ contains
     ! X X X X X X X O O
     ! X X X X X X X O O
 
-    if (mod(lst(id)%ni,2) /= 0 .and. mod(lst(id)%nj,2) /= 0) then
+    if (mod(lst(id)%ni,2) /= 0 .or. mod(lst(id)%nj,2) /= 0) then
        write(6,*) ' The regular Sin & Cos Transform requires that', &
                   ' dimensions be EVEN. Fields MUST be periodic' , &
                   ' but the last colum and row MUST NOT BE a '   , &
@@ -337,7 +352,7 @@ contains
     ! Set M index
     allocate(lst(id)%mymIndex(lst(id)%mymBeg:lst(id)%mymEnd))
     lst(id)%mymIndex(:)=0
-    write(*,*)
+    !write(*,*)
     do m = lst(id)%mymBeg, lst(id)%mymEnd, lst(id)%mymSkip
       if (m == lst(id)%mymBeg ) then
         lst(id)%mymIndex(m) = 1
@@ -350,7 +365,7 @@ contains
     ! Set N index
     allocate(lst(id)%mynIndex(lst(id)%mynBeg:lst(id)%mynEnd))
     lst(id)%mynIndex(:)=0
-    write(*,*)
+    !write(*,*)
     do n = lst(id)%mynBeg, lst(id)%mynEnd, lst(id)%mynSkip
       if (n == lst(id)%mynBeg ) then
         lst(id)%mynIndex(n) = 1
@@ -449,27 +464,43 @@ contains
     allocate( KfromMN(0:lst(id)%mmax,0:lst(id)%nmax) )
     KFromMN(:,:) = -1
 
-    ! We follow here the method described in Denis et al., MWR, 2002
-!    kmax = min(mmax,nmax)
-    kmax=max(lst(id)%ni-1,lst(id)%nj-1)
+    ! Denis et al., MWR, 2002
+    !mref = lst(id)%mmax
+    !nref = lst(id)%nmax
+
+    ! old var code (L. Fillion)
+    mref = lst(id)%ni-1
+    nref = lst(id)%nj-1
+
+    select case(trim(kreftype))
+    case ('MAX','max')
+       ! old var code (L. Fillion)
+       write(*,*)
+       write(*,*) 'lst_Setup: Using legacy (old var code) total wavenumber normalization'
+       kref = max(mref,nref)
+    case ('MIN','min')
+       ! Denis et al., MWR, 2002
+       write(*,*)
+       write(*,*) 'lst_Setup: Using Denis et al. total wavenumber normalization'
+       kref = min(mref,nref)
+    case default
+       write(*,*)
+       write(*,*) 'Unknown KREFTYPE in lst_setup : ', trim(kreftype)
+       call abort3d('lst_setup')
+    end select
 
     ila = 0
     do n = lst(id)%mynBeg, lst(id)%mynEnd, lst(id)%mynSkip
       do m = lst(id)%mymBeg, lst(id)%mymEnd, lst(id)%mymSkip
-!        a = real(m*kmax,8)/real(mmax,8)
-!        b = real(n*kmax,8)/real(nmax,8)
-         a = real(m,8)/real(lst(id)%ni-1,8)
-         b = real(n,8)/real(lst(id)%nj-1,8)
-!         r = sqrt( (a**2) + (b**2) )   ! Ellipse Shape if nmax /= mmax
-!        k = ceiling(r)
-         r = kmax * sqrt( (a**2) + (b**2) )
-         k = nint(r)
-
-        if ( k <= lst(id)%ktrunc ) then
-          ila = ila +1
-          KFromMN(m,n) = k
-          Kr8FromMN(m,n) = r
-        end if
+         a = real(m,8)/real(mref,8)
+         b = real(n,8)/real(nref,8)
+         r = real(kref,8) * sqrt( (a**2) + (b**2) ) ! Ellipse Shape if nref /= mref
+         k = nint(r) ! or ceiling(r) as in Denis et al. ?
+         if ( k <= lst(id)%ktrunc ) then
+            ila = ila +1
+            KFromMN(m,n) = k
+            Kr8FromMN(m,n) = r
+         end if
       end do
     end do
 

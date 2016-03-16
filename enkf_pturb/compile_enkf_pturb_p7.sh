@@ -33,7 +33,17 @@ fi
 
 echo " !!! Compiling for an MPI executable !!!"
 echo ""
-MPILIB="rpn_comm_40511"
+# JFC : Mesure temporaire pour avoir acces a la S-R RPN_COMM_adj_halo8 de M. Valin
+if [ "${BASE_ARCH}" = "AIX-powerpc7" ] ; then
+    MPILIBDIR="-libpath /users/dor/arma/anl/userlibs/${BASE_ARCH}/xlf13"
+elif [ "${BASE_ARCH}" = "Linux_x86-64" ] ; then
+    MPILIBDIR="-libpath /users/dor/arma/anl/userlibs/${BASE_ARCH}/intel13sp1u2"
+else
+    echo "This platform 'ARCH=${ARCH}' is not supported.  Only 'AIX-powerpc7' and 'Linux_x86-64' are."
+    exit 1
+fi
+MPILIB="_anl_rpn_comm_4051103"
+# JFC : Mesure temporaire FIN
 MPIKEY="-mpi"
 ABSTAG=""
 
@@ -52,29 +62,40 @@ echo " "
 rm -f ${trunkdir}/toplevelcontrol_mod.ftn90
 cat ${trunkdir}/toplevelcontrol_mod.ftn90_template |sed "s!XXXXX!${revnum} ${revpath}!g" > toplevelcontrol_mod.ftn90
 
-# Load the appropriate librairies
-. ssmuse-sh -d hpcs/13b/04/base
-## for the compiler
+## for s.compile
+echo "loading hpcs/201402/02/base"
+. ssmuse-sh -d hpcs/201402/02/base
+echo "loading compiler hpcs/ext/xlf_13.1.0.10"
 . ssmuse-sh -d hpcs/ext/xlf_13.1.0.10
-## for rmn_014, lapack_3.4.0, rpncomm
-. ssmuse-sh -d rpn/libs/15.0
-. s.ssmuse.dot ENV/d/x/modelutils/modelutils_1.1.0-a8
-. ssmuse-sh -d /ssm/net/cmdn/vgrid/5.3.0-a2/xlf13
-. s.ssmuse.dot cmda
-. ssmuse-sh -d arma/rttov/10v1
+
+## for rmn_015, rpncomm
+echo "loading rpn/libs/15.2"
+. ssmuse-sh -d rpn/libs/15.2
+## for 'vgrid'
+echo "loading cmdn/vgrid/5.4.0/${COMP_ARCH}"
+. ssmuse-sh -d cmdn/vgrid/5.4.0/${COMP_ARCH}
+## for 'burplib'
+echo "loading cmda/libs/15.2/${COMP_ARCH}"
+. ssmuse-sh -d cmda/libs/15.2/${COMP_ARCH}
+
+## For hpcsperf needed for TMG timings
+echo "loading hpcs/exp/aspgjdm/perftools"
+. ssmuse-sh -d hpcs/exp/aspgjdm/perftools
+# For RTTOV package... 
+echo "loading arma/rttov/10v4.1"
+. ssmuse-sh -d arma/rttov/10v4.1
+# For NetCDF package
+echo "loading netcdf"
+. s.ssmuse.dot netcdf
 
 ## For hpcsperf needed for TMG timings
 . ssmuse-sh -d hpcs/exp/aspgjdm/perftools
 
-VAR3D_VERSION="11.2.1"
-LIBAPPL="rttov10.2.0_coef_io rttov10.2.0_main rttov10.2.0_other burp_module modelutils_base descrip $MPILIB "
+LIBAPPL="netcdf rttov10.2.0_coef_io rttov10.2.0_main rttov10.2.0_emis_atlas rttov10.2.0_other burp_module descrip $MPILIB"
+#LIBAPPL="rttov10.2.0_coef_io rttov10.2.0_main rttov10.2.0_other burp_module modelutils_base descrip $MPILIB "
 
-
-LIBSYS="essl mass"
-LIBRMN="rmn_015"
-LIBEXTRA="hpcsperf lapack-3.4.0"
-MODBURP="BURP1.3"
-DEFINE="-DNEC=nec -DIBM=ibm"
+LIBSYS="hpcsperf lapack-3.4.0 essl mass"
+LIBRMN="rmn"
 COMPF_NOC="-openmp $MPIKEY -O"
 #COMPF="$COMPF_NOC"
 COMPF="$COMPF_NOC -debug DEBUG -optf=-C "
@@ -101,7 +122,7 @@ if [ $mode == full ] ; then
   echo "compiling low-level independent modules"
   SRC0="toplevelcontrol_mod.ftn90"
   SRC0="$SRC0 mathphysconstants_mod.ftn90 earthconstants_mod.ftn90 mpi_mod.ftn90 mpivar_mod.ftn90 bufr_mod.ftn90 codtyp_mod.ftn90"
-  SRC0="$SRC0 physicsfunctions_mod.ftn90 obsspacedata_mod.ftn90 horizontalcoord_mod.ftn90 timecoord_mod.ftn90 verticalcoord_mod.ftn90 dsyev2.ftn"
+  SRC0="$SRC0 physicsfunctions_mod.ftn90 obsspacedata_mod.ftn90 localizationfunction_mod.ftn90 horizontalcoord_mod.ftn90 timecoord_mod.ftn90 verticalcoord_mod.ftn90 dsyev2.ftn"
   s.compile $COMPF -src $SRC0 > listing1 2>&1
   grep fail listing1
   if [ $? = "0" ] ; then exit ; fi
@@ -125,13 +146,13 @@ if [ $mode == full ] ; then
   echo "compiling remaining ftn ftn90..."
   filelist="abort.ftn utils_3dvar.ftn getstamplist.ftn90 matsqrt.ftn getfldprm.ftn getfldprm2.ftn"
   filelist="$filelist getstepobsindex.ftn90 matapat.ftn vintgd.ftn90 initgdg2.ftn90 gasdev.ftn"
-  filelist="$filelist main_enkf_pturb.ftn90"
+  filelist="$filelist filterresponsefunction.ftn90 main_enkf_pturb.ftn90"
   s.compile $COMPF -src $filelist > listing7 2>&1
   grep fail listing7
   if [ $? = "0" ] ; then exit ; fi
 
   echo "building the executable..."
-  s.compile $COMPF -libappl $LIBAPPL $LIBEXTRA -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o enkf_pturb_p7.abs$ABSTAG > listing8 2>&1
+  s.compile $COMPF ${MPILIBDIR} -libappl $LIBAPPL $LIBEXTRA -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o enkf_pturb_p7.abs$ABSTAG > listing8 2>&1
 
   grep -i ERROR listing?
   if [ $? = "0" ] ; then echo "ERROR found: STOP" ; exit ; fi
@@ -148,7 +169,7 @@ elif [ $mode == abs ] ; then
   echo
   echo "building the executable..."
   echo
-  s.compile $COMPF -libappl $LIBAPPL $LIBEXTRA -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o enkf_pturb_p7.abs$ABSTAG
+  s.compile $COMPF ${MPILIBDIR} -libappl $LIBAPPL $LIBEXTRA -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o enkf_pturb_p7.abs$ABSTAG
 
 else
 

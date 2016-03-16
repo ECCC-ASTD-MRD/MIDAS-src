@@ -28,6 +28,7 @@
 !    loc_gradient
 !    loc_lengthscale (public)
 !    loc_curvefit
+!    loc_createBiPerFunction (public)
 !
 ! Dependencies:
 !    none
@@ -38,7 +39,7 @@ MODULE localizationFunction_mod
   private
 
   ! public procedures
-  public :: loc_Setup, loc_Response, loc_lengthscale
+  public :: loc_Setup, loc_Response, loc_lengthscale, loc_createBiPerFunction
 
   logical             :: initialized = .false.
 
@@ -184,6 +185,80 @@ CONTAINS
     gradient = gradient / 2.d0
 
   end function loc_FifthOrderFunctionGradient
+
+!--------------------------------------------------------------------------
+! loc_CreateBiPerFunction
+!--------------------------------------------------------------------------
+  SUBROUTINE  loc_CreateBiPerFunction(gridpoint,CorrelLength,dlon,ni,nj,nk)
+    use earthConstants_mod, only: RA
+    implicit none
+
+    integer, intent(in)  :: ni,nj,nk
+    real(8), intent(in)  :: dlon             ! in radian
+    real(8), intent(in)  :: CorrelLength(nk) ! in km
+
+    real(8), intent(out) :: gridpoint(ni,nj,nk)
+
+    integer          :: i, j, k, iref, jref
+    real(8)          :: distance, distance_ref
+
+    gridpoint(:,:,:) = 0.d0
+
+    distance_ref = dlon * RA
+
+    !
+    !- Create a bi-periodic correlation function by centering the function in each 4 corners
+    !
+
+    !- Lower-Left Corner (reference corner)
+    iref = 1
+    jref = 1
+    do j = 1, nj
+       do i = 1, ni
+          distance = distance_ref * sqrt( real((i-iref)**2 + (j-jref)**2,8) )
+          do k = 1, nk
+             gridpoint(i,j,k) = gridpoint(i,j,k) + loc_response(distance,1000.d0*CorrelLength(k)) 
+          enddo
+       enddo
+    enddo
+
+    !- Upper-Left Corner
+    iref = 1
+    jref = nj+1 ! the lam spectral transform is periodic at nj+1
+    do j = 1, nj
+       do i = 1, ni
+          distance = distance_ref * sqrt( real((i-iref)**2 + (j-jref)**2,8) )
+          do k = 1, nk
+             gridpoint(i,j,k) = gridpoint(i,j,k) + loc_response(distance,1000.d0*CorrelLength(k)) 
+          enddo
+       enddo
+    enddo
+
+    !- Lower-Right Corner
+    iref = ni+1 ! the lam spectral transform is periodic at ni+1
+    jref = 1
+    do j = 1, nj
+       do i = 1, ni
+          distance = distance_ref * sqrt( real((i-iref)**2 + (j-jref)**2,8) )
+          do k = 1, nk
+             gridpoint(i,j,k) = gridpoint(i,j,k) + loc_response(distance,1000.d0*CorrelLength(k)) 
+          enddo
+       enddo
+    enddo
+
+    !- Upper-Right Corner
+    iref = ni+1 ! the lam spectral transform is periodic at ni+1
+    jref = nj+1 ! the lam spectral transform is periodic at nj+1
+    do j = 1, nj
+       do i = 1, ni
+          distance = distance_ref * sqrt( real((i-iref)**2 + (j-jref)**2,8) )
+          do k = 1, nk
+             gridpoint(i,j,k) = gridpoint(i,j,k) + loc_response(distance,1000.d0*CorrelLength(k)) 
+          enddo
+       enddo
+    enddo
+
+  END SUBROUTINE Loc_CreateBiPerFunction
 
   !--------------------------------------------------------------------------
   ! LOC_LENGTHSCALE
