@@ -92,9 +92,19 @@ echo "loading hpcs/201402/02/base"
 if [ "${BASE_ARCH}" = "AIX-powerpc7" ];then
     echo "loading compiler hpcs/ext/xlf_13.1.0.10"
     . ssmuse-sh -d hpcs/ext/xlf_13.1.0.10
+    # NetCDF for the IBM:
+    echo "loading netcdf"
+    export EC_LD_LIBRARY_PATH="/ssm/net/rpn/mfv/netcdf4/lib ${EC_LD_LIBRARY_PATH}"
+    export EC_INCLUDE_PATH="/ssm/net/rpn/mfv/netcdf4/include ${EC_INCLUDE_PATH}"
+    CDF_LIBS="netcdf netcdff hdf5 hdf5_hl sz z"
 elif [ "${BASE_ARCH}" = "Linux_x86-64" ];then
     echo "loading compiler hpcs/201402/02/intel13sp1u2"
+    echo "(this includes the netcdf library)"
     . ssmuse-sh -d hpcs/201402/02/intel13sp1u2
+    . s.ssmuse.dot dot
+    echo "EC_LD_LIBRARY_PATH=${EC_LD_LIBRARY_PATH}"
+    echo "EC_INCLUDE_PATH=${EC_INCLUDE_PATH}"
+    CDF_LIBS=netcdff
 else
     echo "This platform 'ARCH=${ARCH}' is not supported.  Only 'AIX-powerpc7' and 'Linux_x86-64' are."
     exit 1
@@ -106,25 +116,22 @@ varabs=oavar_${BASE_ARCH}${ABSTAG}
 echo "loading rpn/libs/15.2"
 . ssmuse-sh -d rpn/libs/15.2
 ## for 'vgrid'
-echo "loading cmdn/vgrid/5.4.0/${COMP_ARCH}"
-. ssmuse-sh -d cmdn/vgrid/5.4.0/${COMP_ARCH}
+echo "loading cmdn/vgrid/5.3.2/${COMP_ARCH}"
+. ssmuse-sh -d cmdn/vgrid/5.3.2/${COMP_ARCH}
 ## for 'burplib'
-echo "loading cmda/libs/15.2/${COMP_ARCH}"
-. ssmuse-sh -d cmda/libs/15.2/${COMP_ARCH}
+echo "loading cmda/base/201411/01/${COMP_ARCH}"
+. ssmuse-sh -d cmda/base/201411/01/${COMP_ARCH}
 
 ## For hpcsperf needed for TMG timings
 echo "loading hpcs/exp/aspgjdm/perftools"
 . ssmuse-sh -d hpcs/exp/aspgjdm/perftools
 # For RTTOV package... 
-echo "loading arma/rttov/10v4.1"
-. ssmuse-sh -d arma/rttov/10v4.1
-# For NetCDF package
-echo "loading netcdf"
-. s.ssmuse.dot netcdf
+echo "loading arma/rttov/10v4"
+. ssmuse-sh -d arma/rttov/10v4
 
 #-----------------------------------------------------------------------------
 
-LIBAPPL="netcdf rttov10.2.0_coef_io rttov10.2.0_main rttov10.2.0_emis_atlas rttov10.2.0_other burp_module descrip $MPILIB"
+LIBAPPL="${CDF_LIBS} rttov10.2.0_coef_io rttov10.2.0_main rttov10.2.0_emis_atlas rttov10.2.0_other burp_module descrip $MPILIB"
 if [ "${BASE_ARCH}" = "AIX-powerpc7" ];then
     LIBSYS="hpcsperf lapack-3.4.0 essl mass"
 elif [ "${BASE_ARCH}" = "Linux_x86-64" ];then
