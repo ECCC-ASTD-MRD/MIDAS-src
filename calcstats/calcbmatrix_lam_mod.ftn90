@@ -64,6 +64,8 @@ module calcbmatrix_lam_mod
     integer, allocatable  :: ip1(:)
   end type calcb_cv
 
+  character(len=4)      :: momentumControlVar(2)
+
   integer,parameter      :: nMaxControlVar = 10
   type(calcb_cv)         :: ControlVariable(nMaxControlVar)
 
@@ -215,24 +217,36 @@ module calcbmatrix_lam_mod
        ControlVariable(var)%nomvar(cv_model)  = trim(cgneed(var))
        if ( ControlVariable(var)%nomvar(cv_model) == 'UU' ) then
           if ( trim(WindTransform) == 'PsiChi') then
-             ControlVariable(var)%nomvar(cv_bhi)    = 'PP'
+             write(*,*)
+             write(*,*) '--- Momentum Control Variables = Psi-Chi ---'
+             momentumControlVar(1) = 'PP'
           else if ( trim(WindTransform) == 'VortDiv') then
-             ControlVariable(var)%nomvar(cv_bhi)    = 'QR'
+             write(*,*)
+             write(*,*) '--- Momentum Control Variables = Vort-Div ---'
+             momentumControlVar(1) = 'QR'
+          else if ( trim(WindTransform) == 'UV') then
+             write(*,*)
+             write(*,*) '--- Momentum Control Variables = U-V ---'
+             momentumControlVar(1) = 'UU'
           else
              write(*,*)
-             write(*,*) 'Only PsiChi and VortDiv Wind Trasnform is available'
+             write(*,*) 'Wind Transform not available ', trim((WindTransform))
              call abort3d('calcb_lam_setup')
           end if
+          ControlVariable(var)%nomvar(cv_bhi) = trim(momentumControlVar(1))
        else if ( ControlVariable(var)%nomvar(cv_model) == 'VV' ) then
           if ( trim(WindTransform) == 'PsiChi') then
-             ControlVariable(var)%nomvar(cv_bhi)    = 'CC'
+             momentumControlVar(2) = 'CC'
           else if ( trim(WindTransform) == 'VortDiv') then
-             ControlVariable(var)%nomvar(cv_bhi)    = 'DD'
+             momentumControlVar(2) = 'DD'
+          else if ( trim(WindTransform) == 'UV') then
+             momentumControlVar(2) = 'VV'
           else
              write(*,*)
-             write(*,*) 'Only PsiChi and VortDiv Wind Trasnform is available'
+             write(*,*) 'Wind Transform not available ', trim((WindTransform))
              call abort3d('calcb_lam_setup')
           end if
+          ControlVariable(var)%nomvar(cv_bhi) = momentumControlVar(2)
        else
           ControlVariable(var)%nomvar(cv_bhi)    = ControlVariable(var)%nomvar(cv_model)
        end if
@@ -1169,6 +1183,12 @@ module calcbmatrix_lam_mod
       call abort3d('UVToCtrlVar')
     end if
 
+    if (trim(WindTransform) == 'UV') then
+       write(*,*)
+       write(*,*) 'WindTransform = UV. Nothing to do!'
+       return
+    end if
+
     !- Allocation
     nlev = ControlVariable(1)%nlev
     allocate(uwind_3d   (hco_bhi%ni, hco_bhi%nj, nlev))
@@ -1186,8 +1206,8 @@ module calcbmatrix_lam_mod
       kEnd_v   = ControlVariable(2)%kDimEnd
 
       !- Extract from EnsPerturbations
-      uwind_3d = real(ensPerturbations(:,:,kStart_u:kEnd_u,ens),8)
-      vwind_3d = real(ensPerturbations(:,:,kStart_v:kEnd_v,ens),8)
+      uwind_3d(:,:,:) = real(ensPerturbations(:,:,kStart_u:kEnd_u,ens),8)
+      vwind_3d(:,:,:) = real(ensPerturbations(:,:,kStart_v:kEnd_v,ens),8)
 
       !- U-wind,V-wind -> Vorticity,Divergence
       call lag_UVToVortDiv(CtrlVar1_3d, CtrlVar2_3d, & ! OUT
@@ -1942,20 +1962,18 @@ module calcbmatrix_lam_mod
       do var1 = 1, var2
          if (var1 == var2) then
            KeepOrDiscard(var1,var2) = 1.d0 ! Keep Auto-Correlations
-         elseif( (ControlVariable(var2)%nomvar(cv_bhi) == 'CC' .and. & ! PP-CC
-                  ControlVariable(var1)%nomvar(cv_bhi) == 'PP') .or. &
-                 (ControlVariable(var2)%nomvar(cv_bhi) == 'DD' .and. & ! DD-QR
-                  ControlVariable(var1)%nomvar(cv_bhi) == 'QR') .or. &
-                 (ControlVariable(var2)%nomvar(cv_bhi) == 'TT' .and. & ! TT-PP
-                  ControlVariable(var1)%nomvar(cv_bhi) == 'PP') .or. &
-                 (ControlVariable(var2)%nomvar(cv_bhi) == 'TT' .and. & ! TT-QR
-                  ControlVariable(var1)%nomvar(cv_bhi) == 'QR') .or. &
-                 (ControlVariable(var2)%nomvar(cv_bhi) == 'P0' .and. & ! P0-PP
-                  ControlVariable(var1)%nomvar(cv_bhi) == 'PP') .or. &
-                 (ControlVariable(var2)%nomvar(cv_bhi) == 'P0' .and. & ! P0-QR
-                  ControlVariable(var1)%nomvar(cv_bhi) == 'QR') .or. &
-                 (ControlVariable(var2)%nomvar(cv_bhi) == 'P0' .and. & ! P0-TT
-                  ControlVariable(var1)%nomvar(cv_bhi) == 'TT') ) then
+         elseif( (ControlVariable(var2)%nomvar(cv_bhi) == momentumControlVar(2) .and. & ! e.g. PP-CC
+                  ControlVariable(var1)%nomvar(cv_bhi) == momentumControlVar(1)) .or. &
+                 (ControlVariable(var2)%nomvar(cv_bhi) == 'TT'                  .and. & ! TT-(PP, QR or UU)
+                  ControlVariable(var1)%nomvar(cv_bhi) == momentumControlVar(1)) .or. &
+                 (ControlVariable(var2)%nomvar(cv_bhi) == 'P0'                  .and. & ! P0-(PP, QR or UU)
+                  ControlVariable(var1)%nomvar(cv_bhi) == momentumControlVar(1)) .or. &
+                 (ControlVariable(var2)%nomvar(cv_bhi) == 'P0'                  .and. & ! P0-TT
+                  ControlVariable(var1)%nomvar(cv_bhi) == 'TT')                  .or. &
+                 (ControlVariable(var2)%nomvar(cv_bhi) == 'TT'                  .and. & ! TT-VV
+                  ControlVariable(var1)%nomvar(cv_bhi) == 'VV')                  .or. &
+                 (ControlVariable(var2)%nomvar(cv_bhi) == 'P0'                  .and. & ! P0-VV
+                  ControlVariable(var1)%nomvar(cv_bhi) == 'VV') ) then
            KeepOrDiscard(var1,var2) = 1.d0 ! Keep these Cross-Correlations
          else
            KeepOrDiscard(var1,var2) = 0.d0 ! Discard these Cross-Correlation

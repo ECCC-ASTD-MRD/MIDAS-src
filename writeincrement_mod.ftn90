@@ -26,6 +26,7 @@ module writeIncrement_mod
   use HorizontalCoord_mod
   use timeCoord_mod
   use physicsFunctions_mod
+  use variableTransforms_mod
   implicit none
   save
   private
@@ -288,6 +289,21 @@ module writeIncrement_mod
         call bmat_finalize(cvm_vazx)
       endif
 
+      ! Compute new diagnotics based on NAMSTATE
+      call vtr_setup(statevector) ! IN
+      if ( gsv_varExist('QR') .and. gsv_varExist('DD') ) then
+         write(*,*)
+         write(*,*) 'User is asking for Vort-Div analysis increment'
+         call vtr_transform( statevector,  & ! INOUT
+              'UVtoVortDiv' ) ! IN
+         if ( gsv_varExist('PP') .and. gsv_varExist('CC') ) then
+            write(*,*)
+            write(*,*) 'User is asking for Psi-Chi analysis increment'
+            call vtr_transform( statevector, & ! INOUT
+                 'VortDivToPsiChi' ) ! IN
+         end if
+      end if
+
       if(write4dInc) then
         ! mpiglobal result for 4D increment only on myid=(increment_time_step -1)
         call gsv_commMPIGlobal(statevector)
@@ -491,7 +507,7 @@ module writeIncrement_mod
             endif
           enddo
           write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-        endif
+       endif
         call tmg_stop(92)
 
         if(globalGSVpresent) then
