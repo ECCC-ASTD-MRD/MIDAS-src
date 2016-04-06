@@ -69,17 +69,17 @@ module observation_erreurs_mod
   !
   ! Read in the observation error stddev for radiance data
   !
-  call oer_read_obs_erreurs_tovs
+  call oer_read_obs_erreurs_tovs(lobsSpaceData)
 
   !
   ! Read in the observation error stddev for conventional data
   !
-  call oer_read_obs_erreurs_conv
+  call oer_read_obs_erreurs_conv(lobsSpaceData)
 
   !
   ! Read in the observation error stddev for constituent data
   !
-  call oer_read_obs_erreurs_chm
+  call oer_read_obs_erreurs_chm(lobsSpaceData)
   
   !
   ! Set obs error information in obsSpaceData object
@@ -89,14 +89,14 @@ module observation_erreurs_mod
   !
   ! Deallocate temporary storage
   !
-  if (chm_assim()) call chm_dealloc_obs_err_stddev
-
+  if (obs_famExist(lobsSpaceData,'CH')) call chm_dealloc_obs_err_stddev
+  
   end subroutine oer_set_obs_erreurs
 
 !-----------------------------------------------------------------------------------------
 !-----------------------------------------------------------------------------------------
 
-  subroutine oer_read_obs_erreurs_tovs
+  subroutine oer_read_obs_erreurs_tovs(lobsSpaceData)
   !
   ! s/r oer_read_obs_erreurs_tovs
   ! - Read the observation erreur statistics and utilization flag for TOVS processing.
@@ -145,6 +145,8 @@ module observation_erreurs_mod
   use rmatrix_mod
   implicit none
 
+  type(struct_obs) :: lobsSpaceData
+
   integer,external  :: FNOM, FCLOS, ISRCHEQ
   integer  :: IER, ILUTOV, JI, JJ, JK, JL, JM, I, IPOS1, IPOS2, INUMSAT, ISAT, IPLF
   integer, dimension(JPNSATMAX)         :: IPLATFORM, ISATID, IINSTRUMENT, NUMCHN, NUMCHNIN
@@ -155,6 +157,11 @@ module observation_erreurs_mod
   real(8), dimension(JPCHMAX,2,JPNSATMAX) :: TOVERRIN
 
   character (len=132) :: CLDUM,CPLATF,CINSTR
+
+  if (.not. obs_famExist(lobsSpaceData,'TO')) then
+     write(*,*) "oer_read_obs_erreurs_tovs: No brightness temperature observations found. Routine skipped."
+     return
+  end if
 
   WRITE(*,'(//,10x,"-oer_read_obs_erreurs_tovs: reading observation error statistics required for TOVS processing")')
 
@@ -464,7 +471,7 @@ module observation_erreurs_mod
 !-----------------------------------------------------------------------------------------
 !-----------------------------------------------------------------------------------------
 
-  subroutine oer_read_obs_erreurs_conv
+  subroutine oer_read_obs_erreurs_conv(lobsSpaceData)
   !
   ! s/r oer_read_obs_erreurs_conv -READ OBSERVATION ERROR OF CONVENTIONAL DATA 
   !
@@ -476,6 +483,8 @@ module observation_erreurs_mod
 
   implicit none
 
+  type(struct_obs) :: lobsSpaceData
+
   integer :: FNOM, FCLOS
   integer :: IERR, JLEV, JELM, icodtyp, nulstat, ios, isize, icount
   logical :: LnewExists
@@ -483,6 +492,13 @@ module observation_erreurs_mod
   character (len=128) :: ligne
 
   EXTERNAL FNOM,FCLOS
+
+  if (.not. (obs_famExist(lobsSpaceData,'UA').or.obs_famExist(lobsSpaceData,'AI').or.obs_famExist(lobsSpaceData,'SW').or. &
+             obs_famExist(lobsSpaceData,'SF').or.obs_famExist(lobsSpaceData,'SC').or.obs_famExist(lobsSpaceData,'PR')) ) then
+     write(*,*) "oer_read_obs_erreurs_conv: No conventional observations found. Routine skipped."
+     return
+  end if
+
 !
 !     CHECK THE EXISTENCE OF THE NEW FILE WITH STATISTICS
 !     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -558,7 +574,7 @@ module observation_erreurs_mod
 
 !-----------------------------------------------------------------------------------------
 
-  subroutine oer_read_obs_erreurs_chm
+  subroutine oer_read_obs_erreurs_chm(lobsSpaceData)
 !
 ! s/r oer_read_obs_erreurs_chm - READ OBSERVATION ERROR OF CONSTITUENT DATA 
 !
@@ -572,7 +588,14 @@ module observation_erreurs_mod
 
   implicit none
 
-  if (chm_assim()) call chm_read_obs_err_stddev
+  type(struct_obs) :: lobsSpaceData
+
+  if (.not. obs_famExist(lobsSpaceData,'CH')) then
+     write(*,*) "oer_read_obs_erreurs_chm: No chemical constituent observations found. Routine skipped."
+     return
+  end if
+
+  call chm_read_obs_err_stddev
 
   end subroutine oer_read_obs_erreurs_chm
 

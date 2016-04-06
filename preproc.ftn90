@@ -20,9 +20,9 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   !**s/r preproc  - Control of the preprocessing of the 3D variational assimilation
   !
   ! Revisions:
-  !           Y.J. Rochon, Dec. 2014
-  !           - Addition of call to chm_setup for inclusion of constituent data 
-  !             info not included in obsSpaceData_mod.
+  !           Y.J. Rochon, Jan 2016
+  !           - Addition of test on availability of input trial fields according
+  !             to related observation families.
   !
   use topLevelControl_mod
   use mpivar_mod
@@ -31,7 +31,6 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   use timeCoord_mod
   use WindRotation_mod
   use obsSpaceData_mod
-  use chem_mod
   use controlVector_mod
   use gridStateVector_mod
   use minimization_mod
@@ -137,10 +136,27 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   call suobs(lobsSpaceData,obsColumnMode,obsMpiStrategy)
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
+  ! 
+  !- Test availability of all "minimum" required model weather fields given 
+  !  presented observation families. 'P0' must always be present
+  !  and an abort would have occured prior to this point if it was not present.
+  !  Requirements beyond the minimum set to be tested where needed.
   !
-  !- Setup additional constituent obs related info not found in lobsSpaceData
-  !
-  call chm_setup
+  if ( obs_famExist(lobsSpaceData,'UA').or.obs_famExist(lobsSpaceData,'AI').or.obs_famExist(lobsSpaceData,'SW').or. &
+       obs_famExist(lobsSpaceData,'SF').or.obs_famExist(lobsSpaceData,'RO').or.obs_famExist(lobsSpaceData,'SC').or. &
+       obs_famExist(lobsSpaceData,'GP').or.obs_famExist(lobsSpaceData,'PR') ) then
+     ! Not all following fields required for some of the above families.
+     if (.not.(gsv_varExist('TT').and.gsv_varExist('UU').and.gsv_varExist('VV') &
+          .and.gsv_varExist('HU').and.gsv_varExist('P0').and.gsv_varExist('TG')) ) then      
+        call abort3d(' preproc: One or more missing weather field in NAMSTATE') 
+     end if
+  else if (obs_famExist(lobsSpaceData,'TO') .and. .not.gsv_varExist('TT')) then
+     ! Minimum requirement for 'TO' in the absence of assimilation of other weather-related families.
+     ! This minimum requirement is for when only constituent (non-H2O) increments are to be produced 
+     ! when TO obs are provided.
+     call abort3d(' preproc: TT missing in NAMSTATE') 
+  end if
+  
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   !
@@ -148,7 +164,8 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   !
   call col_setup
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-  
+
+  !
   !
   !- Memory allocation for background column data
   !

@@ -363,6 +363,8 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
       implicit none
       integer :: datestamp
 
+      if (.not.obs_famExist(lobsSpaceData,'TO',local_mpi=.true.)) return
+
   !     1.   Prepare atmospheric profiles for all tovs observation points for use in rttov
   !     .    -----------------------------------------------------------------------------
   !
@@ -433,6 +435,7 @@ end subroutine oda_Hto
       TYPE(GPSPROFILE)           :: PRF
       REAL*8       , ALLOCATABLE :: H   (:),AZMV(:)
       TYPE(GPSDIFF), ALLOCATABLE :: RSTV(:),RSTVP(:),RSTVM(:)
+
 !C      WRITE(*,*)'ENTER oda_Hro'
 !C
 !C     * 1.  Initializations
@@ -1050,6 +1053,8 @@ end subroutine oda_Hto
 
     implicit none
     
+    if (.not.obs_famExist(lobsSpaceData,'CH',local_mpi=.true.)) return
+
     call chm_observation_operators(lcolumng,lobsSpaceData,kmode=2,column_inc=lcolumn) ! kmode=2 for tangent linear operator
 
   end subroutine oda_Hchm

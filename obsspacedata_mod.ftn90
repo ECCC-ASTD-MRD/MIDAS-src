@@ -1341,6 +1341,7 @@ module ObsSpaceData_mod
    public obs_set_current_body_list   ! set a body list for a family as current
    public obs_set_current_header_list ! set a header list for a family as current
    public obs_setFamily  ! set the family of a datum
+   public obs_famExist   ! checks if a family is present in the observation set
    public obs_status     ! returns the values of the object's status variables
    public obs_write      ! write the observation data to binary files
                          ! (calls obs_write_hdr, obs_write_bdy, obs_write_hx
@@ -6603,5 +6604,72 @@ contains
       return
 
    end subroutine obs_write_hx
+
+
+   function obs_famExist(obsdat,family,local_mpi)
+     !
+     ! object - Check if any observations of a particular family are present
+     !          in obsdat. Returned result will be the MPI local value if
+     !          the optional argument local_mpi is set to .true., will be
+     !          the MPI global value otherwise.
+     !
+     ! author - M. Sitwell (AQRD/ARQI) Jan 2016 
+     !
+     ! arguments
+     !    input
+     !        obsdat    : ObsSpaceData structure
+     !        family    : Obs family
+     !        local_mpi : return MPI local result; optional, default is .false.
+     !
+     !    output 
+     !        obs_famExist : Logical indicating if 'family' is part of the list
+     !
+     implicit none 
+
+     logical :: obs_famExist
+     type(struct_obs), intent(in)  :: obsdat
+     character(len=2), intent(in)  :: family
+     logical, intent(in), optional :: local_mpi
+     
+     integer :: index_header,ierr
+     logical :: famExist,local
+
+     if (present(local_mpi)) then
+        local = local_mpi
+     else
+        local = .false.
+     end if
+     
+     if (local) then
+        call tmg_start(101,'FAMEXISTL')
+     else
+        call tmg_start(102,'FAMEXISTG')
+     end if
+
+     famExist = .false.
+
+     ! check if family exists in local MPI process
+     do index_header = 1,obs_numheader(obsdat)
+        if (obs_getFamily(obsdat,index_header).eq.family) then
+           famExist = .true.
+           exit
+        end if
+     end do
+
+     if (local) then
+        ! return MPI local value
+        obs_famExist = famExist
+     else
+        ! return MPI global value
+        call rpn_comm_allreduce(famExist,obs_famExist,1,"MPI_LOGICAL","MPI_LOR","GRID",ierr)
+     end if
+
+     if (local) then
+        call tmg_stop(101)
+     else
+        call tmg_stop(102)
+     end if
+
+   end function obs_famExist
 
 end module ObsSpaceData_mod

@@ -376,6 +376,8 @@ subroutine oda_HTto
 !
       implicit none
 
+      if (.not.obs_famExist(lobsSpaceData,'TO',local_mpi=.true.)) return
+
 !     1.   Getting the adjoint of the residuals
 !     .    ----------------------------------
 !
@@ -429,6 +431,7 @@ end subroutine oda_HTto
       LOGICAL  ASSIM, LUSE
 
       INTEGER NH, NH1
+
 !C      WRITE(*,*)'ENTER oda_HTro'
 !C
 !C     * 1.  Initializations
@@ -753,6 +756,8 @@ end subroutine oda_HTto
     use chem_interface_mod
 
     implicit none
+
+    if (.not.obs_famExist(lobsSpaceData,'CH',local_mpi=.true.)) return
 
     call chm_observation_operators(lcolumng,lobsSpaceData,kmode=3,column_inc=lcolumn) ! kmode=3 for adjoint of the tangent linear operator
     

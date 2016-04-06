@@ -450,25 +450,27 @@ module writeIncrement_mod
         call tmg_start(92,'POST_DIAG')
         if(globalGSVpresent) then
           !
-          ! Compute HU increment from LQ increment (always)
+          ! Compute HU increment from LQ increment (if requested)
           !
-          hu_trl_ptr => gsv_getField(statevectorg,'HU')  ! this is HU_b
-          lq_inc_ptr => gsv_getField(statevector ,'HU')  ! this is delta LQ
+          if (any(cppcvar.eq.'HU')) then
+             hu_trl_ptr => gsv_getField(statevectorg,'HU')  ! this is HU_b
+             lq_inc_ptr => gsv_getField(statevector ,'HU')  ! this is delta LQ
 !$OMP PARALLEL DO PRIVATE(jj,jlev,ji,hu_anl)
-          do jj = 1,statevectorg%nj
-            do jlev = 1,nlev_T
-              do ji = 1,statevectorg%ni
-                ! choose either tangent linear or nonlinear operator for LQ to HU
-                if(useTL_LQtoHU) then
-                  zhu(ji,jlev,jj) = lq_inc_ptr(ji,jlev,jj,1)*hu_trl_ptr(ji,jlev,jj,1)
-                else
-                  hu_anl = log(hu_trl_ptr(ji,jlev,jj,1)) + lq_inc_ptr(ji,jlev,jj,1)
-                  zhu(ji,jlev,jj) = EXP(hu_anl) - hu_trl_ptr(ji,jlev,jj,1)
-                endif
-              enddo
-            enddo
-          enddo
+             do jj = 1,statevectorg%nj
+                do jlev = 1,nlev_T
+                   do ji = 1,statevectorg%ni
+                      ! choose either tangent linear or nonlinear operator for LQ to HU
+                      if(useTL_LQtoHU) then
+                         zhu(ji,jlev,jj) = lq_inc_ptr(ji,jlev,jj,1)*hu_trl_ptr(ji,jlev,jj,1)
+                      else
+                         hu_anl = log(hu_trl_ptr(ji,jlev,jj,1)) + lq_inc_ptr(ji,jlev,jj,1)
+                         zhu(ji,jlev,jj) = EXP(hu_anl) - hu_trl_ptr(ji,jlev,jj,1)
+                      endif
+                   enddo
+                enddo
+             enddo
 !$OMP END PARALLEL DO
+          end if
           !
           ! Compute ES increment (if requested)
           !

@@ -962,6 +962,8 @@ contains
     integer :: countRejflg_stnid(Nmax),countRejflg(Nmax)
     integer :: countAcc(Nmax),countRej(Nmax),iConstituentList(Nmax)    
 
+    if (.not.obs_famExist(obsSpaceData,'CH')) return
+    
     ! Set counters to zero
     countAcc_stnid(:)=0
     countRej_stnid(:)=0

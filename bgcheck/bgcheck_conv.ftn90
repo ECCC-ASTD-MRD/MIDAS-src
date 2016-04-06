@@ -21,7 +21,7 @@ SUBROUTINE BGCHECK_CONV(columng,columnhr,obsSpaceData)
 !
 !Author  : P. Koclas *CMC/CMDA  Nov 1998
 !
-!Revision:  M. Sitwell (ARQI/AQRD)
+!Revision:  M. Sitwell (ARQI/AQRD) May 2015
 !           - Added call to BGCDATA for chemical constituents
 !
 !    -------------------
@@ -38,6 +38,8 @@ SUBROUTINE BGCHECK_CONV(columng,columnhr,obsSpaceData)
 
   INTEGER J,JDATA
   REAL*8 ZJO
+
+  character(len=2), dimension(10) :: bgfam = (/ 'UA', 'AI', 'HU', 'SF', 'ST', 'SW', 'SC', 'PR', 'GP', 'CH' /)
       
 !
   call tmg_start(2,'BGCHECK_CONV')
@@ -56,18 +58,12 @@ SUBROUTINE BGCHECK_CONV(columng,columnhr,obsSpaceData)
 !
 !     DO A BACKGROUND CHECK ON ALL THE OBSERVATIONS
 !     ----------------------------------------------
-!
-  CALL BGCDATA(ZJO,'UA',obsSpaceData)
-  CALL BGCDATA(ZJO,'AI',obsSpaceData)
-  CALL BGCDATA(ZJO,'HU',obsSpaceData)
-  CALL BGCDATA(ZJO,'SF',obsSpaceData)
-  CALL BGCDATA(ZJO,'ST',obsSpaceData)
-  CALL BGCDATA(ZJO,'SW',obsSpaceData)
-  CALL BGCDATA(ZJO,'SC',obsSpaceData)
-  CALL BGCDATA(ZJO,'PR',obsSpaceData)
-  CALL BGCGPSRO(columnhr,obsSpaceData)
-  CALL BGCDATA(ZJO,'GP',obsSpaceData)
-  CALL BGCDATA(ZJO,'CH',obsSpaceData)
+
+  do j=1,size(bgfam)
+     if (obs_famExist(obsSpaceData,bgfam(j))) CALL BGCDATA(ZJO,bgfam(j),obsSpaceData)
+  end do
+
+  if (obs_famExist(obsSpaceData,'RO')) CALL BGCGPSRO(columnhr,obsSpaceData)
 
 !
 !     Write out contents of obsSpaceData into BURP files

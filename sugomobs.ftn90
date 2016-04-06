@@ -651,43 +651,49 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
 
     end select 
   enddo
+  
+  if (gsv_varExist('TT').and.gsv_varExist('HU').and.gsv_varExist('P0')) then      
 
-  !
-  !- Initialisation of TLM operators
-  !
-  if(Vcode_anl .eq. 5001) then
-    ! initialize virtual temperature and GZ operators
-    call subasic_obs(columng)
-  elseif(Vcode_anl .eq. 5002 .or. Vcode_anl .eq. 5004) then
-    ! only initialize virtual temperature operator
-    call subasic_obs_gem4(columng)
-  else
-    call abort3d('sugomobs: invalid vertical coord for analysis increment grid!')
-  endif
+    !
+    !- Initialisation of TLM operators
+    !
+    if(Vcode_anl .eq. 5001) then
+       ! initialize virtual temperature and GZ operators
+       call subasic_obs(columng)
+    elseif(Vcode_anl .eq. 5002 .or. Vcode_anl .eq. 5004) then
+       ! only initialize virtual temperature operator
+       call subasic_obs_gem4(columng)
+    else
+       call abort3d('sugomobs: invalid vertical coord for analysis increment grid!')
+    endif
 
-  !
-  !- Using T, q and PS to compute GZ for columng
-  !
-  do jobs = 1, col_getNumCol(columng)
-    call col_setMountain(columng ,jobs,col_getMountain(columnhr,jobs))
-  enddo
-  if(Vcode_anl .eq. 5001) then
-    call tt2phi(columng)
-  elseif(Vcode_anl .eq. 5002 .or. Vcode_anl .eq. 5004) then
-    call tt2phi_gem4(columng)
-  else
-    call abort3d('sugomobs: invalid vertical coord for analysis increment grid!')
-  endif
+    !
+    !- Using T, q and PS to compute GZ for columng
+    !
+    do jobs = 1, col_getNumCol(columng)
+       call col_setMountain(columng ,jobs,col_getMountain(columnhr,jobs))
+    enddo
+    if(Vcode_anl .eq. 5001) then
+       call tt2phi(columng)
+    elseif(Vcode_anl .eq. 5002 .or. Vcode_anl .eq. 5004) then
+       call tt2phi_gem4(columng)
+    else
+       call abort3d('sugomobs: invalid vertical coord for analysis increment grid!')
+    endif
 
-  !
-  !- Using T, q and PS to compute GZ for columnhr
-  !
-  if(Vcode_trl .eq. 5001 ) then  ! only in non-staggered mode
-    call tt2phi(columnhr)
+    !
+    !- Using T, q and PS to compute GZ for columnhr
+    !
+    if(Vcode_trl .eq. 5001 ) then  ! only in non-staggered mode
+       call tt2phi(columnhr)
+    else
+       ! test out the staggered GZ calculation, recomputing GZ for columnhr
+       !call tt2phi_gem4(columnhr)
+    endif
+
   else
-    ! test out the staggered GZ calculation, recomputing GZ for columnhr
-    !call tt2phi_gem4(columnhr)
-  endif
+    write(*,*) 'sugomobs:  GZ TLM calcs not generated since TT, HU and P0 not all present'
+  end if
 
   !
   !- Close the files

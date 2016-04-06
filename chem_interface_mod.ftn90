@@ -125,7 +125,7 @@ contains
     ! Local variables: model space profile data
 
     character(len=2)   :: varType
-    real(8), allocatable :: zppb(:),zvalb(:),zttb(:),zvalinc(:),zhx(:)
+    real(8), allocatable :: zppb(:),zvalb(:),zttb(:),zvalinc(:),zhx(:),zgzb(:)
     real(8), pointer :: col_ptr_gzb(:),col(:)
     integer :: nlev_bkgrnd, nlev_inc
     
@@ -133,7 +133,7 @@ contains
        write(*,*) "chm_observation_operators: column_inc must be specified for kmode = ",kmode
        call abort3d("chm_observation_operators")
     end if
-
+    
     ! Initializations
     
     if (present(jobs)) jobs = 0.d0
@@ -146,6 +146,7 @@ contains
     allocate(zvalb(nlev_bkgrnd))
     allocate(zttb(nlev_bkgrnd))
     allocate(zppb(nlev_bkgrnd))
+    allocate(zgzb(nlev_bkgrnd))
     
     if (kmode.eq.2) then
        allocate(zvalinc(nlev_inc))
@@ -180,6 +181,11 @@ contains
       varno     = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
       varName = vnl_varnameFromVarnum(obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex), iconstituent_id)
 
+      if (chm_required_field('TT',varno) .and. .not.col_varExist('TT')) then
+         write(*,*) "chm_observation_operators: TT required for BUFR code ",varno 
+         call abort3d("chm_observation_operators")
+      end if
+      
       ! Identify max number of profile points in the profile (exclude 8090 elements)
       do jl=0,obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex)-1
           if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex+jl).eq.8090) nobslev = nobslev-1
@@ -194,9 +200,22 @@ contains
       do jl = 1, nlev_bkgrnd
          zppb(jl) = col_getPressure(column_bkgrnd,jl,headerIndex, varType)
          zvalb(jl) = col_getElem(column_bkgrnd,jl,headerIndex,varName)
-         zttb(jl) = col_getElem(column_bkgrnd,jl,headerIndex,'TT')
       enddo
-      col_ptr_gzb => col_getColumn(column_bkgrnd,headerIndex,'GZ','TH')
+      
+      if (col_varExist('TT')) then
+         do jl = 1, nlev_bkgrnd
+            zttb(jl) = col_getElem(column_bkgrnd,jl,headerIndex,'TT')
+         enddo
+      else
+         zttb(:) = -999.0D0
+      end if
+
+      if (ivco.eq.1) then
+         col_ptr_gzb => col_getColumn(column_bkgrnd,headerIndex,'GZ','TH')
+         zgzb(1:nlev_bkgrnd) = col_ptr_gzb(1:nlev_bkgrnd)
+      else
+         zgzb(:) = -999.0D0
+      end if   
       
       ! Initialize zvalinc, dependent on kmode.
       ! zvalinc represents for kmode 0) the horizontally interpolated background H_horiz(x_b)
@@ -250,7 +269,7 @@ contains
 
       ! Apply observation operator. For kmode=1, zhx = sqrt(diag(H*B*H^T)).
 
-      call chm_obsoperators(nlev_bkgrnd,zvalinc,zvalb,zttb,zppb,col_ptr_gzb,kmode,varName,&
+      call chm_obsoperators(nlev_bkgrnd,zvalinc,zvalb,zttb,zppb,zgzb,kmode,varName,&
            varno,cstnid,idate,ihhmm,ivco,nobslev,zobslev,ixtr,iass,zlat,zlon, &
            iconstituent_id,success,zhx)
  
@@ -339,7 +358,7 @@ contains
       
     enddo HEADER
 
-    deallocate(zvalb,zttb,zppb,zvalinc)
+    deallocate(zvalb,zttb,zppb,zvalinc,zgzb)
 
     if (present(jobs)) jobs=0.5d0*jobs
     
@@ -830,6 +849,7 @@ contains
 
     use gridStateVector_mod
     use varNameList_mod
+    use columnData_mod
     use chem_mod
 
     implicit none
@@ -855,7 +875,7 @@ contains
     end if
 
     do jvar = 1, vnl_numvarmax
-      if (gsv_varExist(vnl_varNameList(jvar))) then
+      if (gsv_varExist(vnl_varNameList(jvar))) then 
          if (vnl_varKindFromVarname(vnl_varNameList(jvar)).eq.'CH') then
 
             varName = trim(vnl_varNameList(jvar))
@@ -944,7 +964,7 @@ contains
              exit VARLIST 
           end if
        end if
-    end do
+    end do VARLIST
 
   end function chm_assim
 

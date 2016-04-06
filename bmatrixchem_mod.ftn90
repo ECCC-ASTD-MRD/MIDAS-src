@@ -105,6 +105,8 @@ MODULE BmatrixChem
   use horizontalCoord_mod
   use verticalCoord_mod
   use varNameList_mod
+  use obsSpaceData_mod
+  
   implicit none
   save
   private
@@ -132,9 +134,11 @@ MODULE BmatrixChem
   integer             :: myLonBeg,myLonEnd
   integer, pointer    :: ilaList_mpiglobal(:)
   integer, pointer    :: ilaList_mpilocal(:)
-
+  logical             :: ReadWrite_sqrt
+  
 ! String indicating if calcs for 'BackgroundCheck' or 'Analysis'
 ! Note: analysisMode above could be alternatively used.
+
   character(len=15) :: bchm_mode
   logical :: analysisMode
                             
@@ -186,13 +190,12 @@ CONTAINS
 
     integer :: jlev, mpiMode, nulnam, ierr, fnom, fclos, jm, jn, status
     integer :: latPerPE, lonPerPE
-    logical :: llfound
     real(8) :: zps
     logical :: makeEven_in = .false. ! to avoid the even number requirement in mpivar_setup_levels_npex 
   
     integer :: jvar
     
-    NAMELIST /NAMBCHM/ntrunc,rpor,rvloc,scaleFactor,numModeZero
+    NAMELIST /NAMBCHM/ntrunc,rpor,rvloc,scaleFactor,numModeZero,ReadWrite_sqrt
 
     call tmg_start(90,'BCHM_SETUP')
 
@@ -288,6 +291,7 @@ CONTAINS
     rvloc(:)=4.0D0
     scaleFactor(:,:) = 1.0d0
     numModeZero = 0
+    ReadWrite_sqrt = .false.
  
     ! Read namelist input
     
@@ -975,6 +979,7 @@ CONTAINS
     real(8) :: zwork(2*4*nkgdim)
     real(8) :: ztlen,zcorr,zr,zpres1,zpres2,eigenvalmax
     real(8),allocatable :: corns_temp(:,:,:)
+    logical lfound_sqrt
     
     ! Standard file variables
     integer :: ini,inj,ink, inpas, inbits, idatyp, ideet
@@ -1077,7 +1082,120 @@ CONTAINS
     call rpn_comm_allreduce(corns_temp,corns,nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
     deallocate(corns_temp)
 
+    if(ReadWrite_sqrt) then
+      ! if desired, read precomputed sqrt of corns which overwrites computed matrix
+      call readcorns_sqrt(lfound_sqrt)
+      if(.not.lfound_sqrt) then
+        ! if precomputed sqrt does not exist in stats, then write it out to a separate file
+        call writecorns_sqrt
+      endif
+    endif
+
   END SUBROUTINE BCHM_SUCORNS2
+
+!-----------------------------------------------------------------------------------------------
+
+  SUBROUTINE WRITECORNS_SQRT
+    implicit none
+
+    integer :: jn, nulcorns_sqrt, ierr
+
+    ! standard file variables
+    integer :: ini,inj,ink
+    integer :: ip1,ip2,ip3
+    integer :: idateo, ipak, idatyp
+    character(len=2)  :: cltypvar
+    character(len=1)  :: clgrtyp
+    character(len=4)  :: clnomvar
+    character(len=12) :: cletiket
+    integer :: fnom, fstouv, vfstecr, fstfrm, fclos
+
+    write(*,*) 'WRITECORNS_SQRT: CORNS_SQRT will be written to file corns_sqrt.fst for NTRUNC =', ntrunc
+
+    if(mpi_myid==0) then
+      nulcorns_sqrt = 0
+      ierr = fnom(nulcorns_sqrt,'corns_sqrt.fst','RND',0)
+      ierr = fstouv(nulcorns_sqrt,'RND')
+
+      ipak = -32
+      idatyp = 5
+      ip1 = 0
+      ip3 = ntrunc
+      idateo = 0
+
+      do jn = 0, ntrunc
+        ip2 = jn
+        ierr = vfstecr(corns(1,1,jn),corns(1,1,jn),ipak,nulcorns_sqrt,idateo,0,0,nkgdim2,nkgdim2,1,  &
+                       ip1,ip2,ip3,'X','ZZ','CORNS_SQRT','X',0,0,0,0,idatyp,.true.)
+      enddo
+
+      ierr = fstfrm(nulcorns_sqrt)  
+      ierr = fclos(nulcorns_sqrt)
+    endif
+
+  END SUBROUTINE WRITECORNS_SQRT
+
+!-----------------------------------------------------------------------------------------------
+
+  SUBROUTINE READCORNS_SQRT(lfound_sqrt)
+    implicit none
+    logical :: lfound_sqrt
+
+    integer :: jn, icornskey
+    integer :: jcol,jrow
+    real(8), allocatable :: zcornssrc(:,:)
+
+    ! standard file variables
+    integer :: ini,inj,ink
+    integer :: ip1,ip2,ip3
+    integer :: idateo
+    character(len=2)  :: cltypvar
+    character(len=1)  :: clgrtyp
+    character(len=4)  :: clnomvar
+    character(len=12) :: cletiket
+    integer :: vfstlir
+
+    allocate(zcornssrc(nkgdim2,nkgdim2))
+
+    do jn = 0, ntrunc
+
+      ! Looking for FST record parameters..
+
+      write(*,*) 'READCORNS_SQRT: looking for CORNS_SQRT with NTRUNC =', ntrunc
+      idateo = -1
+      cletiket = 'CORNS_SQRT'
+      ip1 = -1
+      ip2 = jn
+      ip3 = ntrunc
+      cltypvar = 'X'
+      clnomvar = 'ZZ'
+      icornskey = vfstlir(ZCORNSSRC,nulbgst,INI,INJ,INK,idateo,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+
+      if(icornskey .lt.0 ) then
+        write(*,*) 'READCORNS_SQRT: CORNS_SQRT not found in stats file, use computed sqrt'
+        lfound_sqrt = .false.
+        return
+      else
+        write(*,*) 'READCORNS_SQRT: CORNS_SQRT found in stats file, will use it instead of computed sqrt'
+        lfound_sqrt = .true.
+      endif
+
+      if (ini .ne. nkgdim2 .or. inj .ne. nkgdim2) then
+        call abort3d('READCORNS2: BG stat levels inconsitencies')
+      endif
+
+      do jcol = 1, nkgdim2
+        do jrow = 1, nkgdim2
+          corns(jrow,jcol,jn) = zcornssrc(jrow,jcol)
+        enddo
+      enddo
+
+    enddo
+
+    deallocate(zcornssrc)
+
+  END SUBROUTINE READCORNS_SQRT
+
 !-----------------------------------------------------------------------------------------------
   FUNCTION GASPARICOHN(ztlen,zr)
 

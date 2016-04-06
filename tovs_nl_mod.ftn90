@@ -216,6 +216,7 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
 !        Construct a list of channels for each sensor.
 !        Construct a list of sensor number for each profile
 !     .  ---------------------------------------------------
+  if (nsensors <= 0) return
   alloc_status(:) = 0
   allocate (nchan(nsensors),                       stat= alloc_status(1))
   allocate (ichan(jpchus,nsensors),                stat= alloc_status(2))
@@ -545,20 +546,18 @@ END SUBROUTINE TOVS_NL_SETUPALLO
      CALL ABORT3D('TOVS_SETUP           ')
   ENDIF
 
+  if(mpi_myid.eq.0) WRITE(*,FMT=9140) LDBGTOV, LNLVTOV, luse_uwiremis,CRTMODL
+  if(mpi_myid.eq.0) WRITE(*,FMT=9143) NSENSORS
+
   IF ( NSENSORS .LE. 0 ) THEN
      if(mpi_myid.eq.0) WRITE(*,FMT=9133)
-  9133    FORMAT(' TOVS_SETUP: Forcing call to rttov_setup to read in climatological', &
-            ' profiles of humidity')
-     NSENSORS  = 1
-     CSATID(1)  = 'NOAA16'
-     CINSTRUMENTID(1) = 'AMSUA'
+  9133 FORMAT(' TOVS_SETUP: Skiping RTTOV initialization')
+     return
   ENDIF
 
   !     .   1.4 Print the content of this NAMELIST
   !     .       ----------------------------------
 
-  if(mpi_myid.eq.0) WRITE(*,FMT=9140) LDBGTOV, LNLVTOV, luse_uwiremis,CRTMODL
-  if(mpi_myid.eq.0) WRITE(*,FMT=9143) NSENSORS
   if(mpi_myid.eq.0) WRITE(*,FMT=9145) (CSATID(JK), JK=1,NSENSORS)
   if(mpi_myid.eq.0) WRITE(*,FMT=9146) (CINSTRUMENTID(JK), JK=1,NSENSORS)
 

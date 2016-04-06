@@ -116,10 +116,12 @@
 !
 !        GPS - RADIO OCCULTATION
 !-------------------------------
-      CALL FILTERGPSRO(columnhr,obsSpaceData)
-      CALL SETERRGPSRO(columnhr,obsSpaceData)
-      call oonl_gpsro(columnhr,obsSpaceData,ZJOGPSRO)
-
+      ZJOGPSRO=0.0D0
+      if (obs_famExist(obsSpaceData,'RO',local_mpi=.true.)) then
+         CALL FILTERGPSRO(columnhr,obsSpaceData)
+         CALL SETERRGPSRO(columnhr,obsSpaceData)
+         call oonl_gpsro(columnhr,obsSpaceData,ZJOGPSRO) 
+      end if
 !
 !        CH - Chemical constituents
 !-------------------------------
@@ -130,9 +132,10 @@
 !-------------------------------
 !
       ZJOGPSGB=0.0D0
-      CALL SETERRGPSGB(columnhr,obsSpaceData,lgpdata)
-      if (lgpdata) call oonl_gpsgb(columnhr,obsSpaceData,ZJOGPSGB,top_AnalysisMode())
-
+      if (obs_famExist(obsSpaceData,'GP',local_mpi=.true.)) then
+         CALL SETERRGPSGB(columnhr,obsSpaceData,lgpdata)
+         if (lgpdata) call oonl_gpsgb(columnhr,obsSpaceData,ZJOGPSGB,top_AnalysisMode())
+      end if
       call tmg_stop(48)
 !
 !=======================================================================

@@ -69,7 +69,7 @@ subroutine oda_LT(statevector,column,columng,lobsSpaceData)
   vco_anl => col_getVco(columng)
   status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
   call tmg_start(37,'INTERP_ATT2PHI')
-  if( gsv_varExist('TT') ) then
+  if( gsv_varExist('TT').and.gsv_varExist('HU').and.gsv_varExist('P0') ) then
     if(Vcode_anl .eq. 5001) then
       call att2phi(column,columng)
     else

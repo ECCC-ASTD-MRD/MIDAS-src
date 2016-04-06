@@ -204,6 +204,10 @@ CONTAINS
       cvdim_out = 0
       initialized = .true.
       return
+    else
+       if (.not. (gsv_varExist('TT').and.gsv_varExist('UU').and.gsv_varExist('VV').and. &
+                  gsv_varExist('HU').and.gsv_varExist('P0').and.gsv_varExist('TG')) ) &
+            call abort3d('bmatrixHI: Some or all weather fields are missing. If it is desired to deactivate the weather assimilation, then all entries of the array SCALEFACTOR in the namelist NAMBHI should be set to zero.')
     end if
 
     do jlev = 1, max(nLev_M,nLev_T)

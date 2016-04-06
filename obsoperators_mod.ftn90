@@ -1065,6 +1065,11 @@ module obsOperators_mod
     logical :: llprint,bgckMode
     character(len=2) :: option
 
+    if (.not.obs_famExist(obsSpaceData,'TO',local_mpi=.true.)) then
+       if (present(jobs_out)) jobs_out=0.0d0
+       return
+    end if
+
     ! 0. set default values if bgckMode, option and source/dest columns not specified
     !
 
@@ -1170,6 +1175,11 @@ module obsOperators_mod
     real(8), optional :: jobs_out
     real(8) :: jobs
     
+    if (.not.obs_famExist(obsSpaceData,'CH',local_mpi=.true.)) then
+       if (present(jobs_out)) jobs_out=0.0d0
+       return
+    end if
+
     call chm_observation_operators(columnhr,obsSpaceData,kmode=0,jobs=jobs) ! kmode=0 for general operator
 
     if (present(jobs_out)) jobs_out=jobs

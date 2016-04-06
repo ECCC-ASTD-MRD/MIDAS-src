@@ -20,6 +20,10 @@ SUBROUTINE INITGDG2(POUT,PIN,KNI,KNJ,KNK,varName)
   !**s/r INITGDG2  - Transfer input grid-point trial fields (from RPN file)
   !                  to analysis grid fields.
   !
+  ! Revisions:
+  !           Y.J. Rochon, ARQI (March 2016)
+  !           - Added used of vnl_varListIndex
+  !  
   !Arguments
   !     i : PIN(KNI,KNJ,knk) : field to be transferred
   !     i : KNI, KNJ,KNK     : equivalent to NI, NJ. Used to dimension PTRANS
@@ -30,6 +34,7 @@ SUBROUTINE INITGDG2(POUT,PIN,KNI,KNJ,KNK,varName)
   !
   use MathPhysConstants_mod
   use EarthConstants_mod
+  use varNameList_mod
   IMPLICIT NONE
  
   INTEGER,          intent(in)  :: KNI, KNJ,KNK
@@ -40,22 +45,53 @@ SUBROUTINE INITGDG2(POUT,PIN,KNI,KNJ,KNK,varName)
   INTEGER JI, JJ,jlev
   REAL*8 ZCON
   !
-  IF ( trim(varName) == 'CC') THEN
-     DO JLEV = 1,KNK
+  IF (vnl_varListIndex(trim(varName)).ne.-1) THEN
+  
+     IF ( trim(varName) == 'TT') THEN
+        ZCON = MPC_K_C_DEGREE_OFFSET_R8
+        DO JLEV = 1,KNK
+        DO JJ = 1, KNJ
+           DO JI = 1, KNI
+              pout(ji,jlev,jj)=pin(JI,JJ,JLEV) +ZCON
+           END DO
+        END DO
+        END DO
+     ELSE IF ( trim(varName) == 'GZ') THEN
+        ZCON = 10.d0*RG
+        DO JLEV = 1,KNK
+        DO JJ = 1, KNJ
+           DO JI = 1, KNI
+              pout(ji,jlev,jj)=pin(JI,JJ,JLEV)*ZCON
+           END DO
+        END DO
+        END DO
+     ELSE IF ( trim(varName) == 'HU') THEN
+        DO JLEV = 1,KNK
+        DO JJ = 1, KNJ
+           DO JI = 1, KNI
+              pout(ji,jlev,jj)= max(pin(JI,JJ,JLEV),MPC_MINIMUM_HU_R8)
+           END DO
+        END DO
+        END DO
+     ELSE IF ( trim(varName) == 'P0') THEN
+        zcon = 1.d2
+        DO JLEV = 1,KNK
+        DO JJ = 1, KNJ
+           DO JI = 1, KNI
+              pout(ji,jlev,jj)=zcon*pin(JI,JJ,JLEV)
+           END DO
+        END DO
+        END DO
+     ELSE
+        DO JLEV = 1,KNK
         DO JJ = 1, KNJ
            DO JI = 1, KNI
               pout(ji,jlev,jj) = pin(JI,JJ,JLEV)
            END DO
         END DO
-     end do
-  ELSE IF ( trim(varName) == 'PP') THEN
-     DO JLEV = 1,KNK
-        DO JJ = 1, KNJ
-           DO JI = 1, KNI
-              pout(ji,jlev,jj) = pin(JI,JJ,JLEV)
-           END DO
         END DO
-     end do
+     END IF
+       
   ELSE IF ( trim(varName) == 'GP') THEN
      ZCON = 10.*RG
      DO JLEV = 1,KNK
@@ -74,81 +110,6 @@ SUBROUTINE INITGDG2(POUT,PIN,KNI,KNJ,KNK,varName)
            END DO
         END DO
      end do
-  ELSE IF ( trim(varName) == 'TT') THEN
-     ZCON = MPC_K_C_DEGREE_OFFSET_R8
-     DO JLEV = 1,KNK
-        DO JJ = 1, KNJ
-           DO JI = 1, KNI
-              pout(ji,jlev,jj)=pin(JI,JJ,JLEV) +ZCON
-           END DO
-        END DO
-     end do
-  ELSE IF ( trim(varName) == 'UT') THEN
-     DO JLEV = 1,KNK
-        DO JJ = 1, KNJ
-           DO JI = 1, KNI
-              pout(ji,jlev,jj)=pin(JI,JJ,JLEV)
-           END DO
-        END DO
-     end do
-  ELSE IF ( trim(varName) == 'VT') THEN
-     DO JLEV = 1,KNK
-        DO JJ = 1, KNJ
-           DO JI = 1, KNI
-              pout(ji,jlev,jj)=pin(JI,JJ,JLEV)
-           END DO
-        END DO
-     end do
-  ELSE IF ( trim(varName) == 'GZ') THEN
-     ZCON = 10.d0*RG
-     DO JLEV = 1,KNK
-        DO JJ = 1, KNJ
-           DO JI = 1, KNI
-              pout(ji,jlev,jj)=pin(JI,JJ,JLEV)*ZCON
-           END DO
-        END DO
-     end do
-  ELSE IF ( trim(varName) == 'ES') THEN
-     DO JLEV = 1,KNK
-        DO JJ = 1, KNJ
-           DO JI = 1, KNI
-              pout(ji,jlev,jj)=pin(JI,JJ,JLEV)
-           END DO
-        END DO
-     end do
-  ELSE IF ( trim(varName) == 'LQ') THEN
-     DO JLEV = 1,KNK
-        DO JJ = 1, KNJ
-           DO JI = 1, KNI
-              pout(ji,jlev,jj)=pin(JI,JJ,JLEV)
-           END DO
-        END DO
-     end do
-  ELSE IF ( trim(varName) == 'HU') THEN
-     DO JLEV = 1,KNK
-        DO JJ = 1, KNJ
-           DO JI = 1, KNI
-              pout(ji,jlev,jj)= max(pin(JI,JJ,JLEV),MPC_MINIMUM_HU_R8)
-           END DO
-        END DO
-     end do
-  ELSE IF ( trim(varName) == 'O3') THEN
-     DO JLEV = 1,KNK
-        DO JJ = 1, KNJ
-           DO JI = 1, KNI
-              pout(ji,jlev,jj)=pin(JI,JJ,JLEV)
-           end do
-        end do
-     end do
-  ELSE IF ( trim(varName) == 'P0') THEN
-     zcon = 1.d2
-     DO JLEV = 1,KNK
-        DO JJ = 1, KNJ
-           DO JI = 1, KNI
-              pout(ji,jlev,jj)=zcon*pin(JI,JJ,JLEV)
-           END DO
-        END DO
-     end do
   ELSE IF ( trim(varName) == 'PT') THEN
      zcon = 1.d2
      DO JLEV = 1,KNK
@@ -159,14 +120,6 @@ SUBROUTINE INITGDG2(POUT,PIN,KNI,KNJ,KNK,varName)
         END DO
      end do
   ELSE IF ( trim(varName) == 'LP') THEN
-     DO JLEV = 1,KNK
-        DO JJ = 1, KNJ
-           DO JI = 1, KNI
-              pout(ji,jlev,jj)=pin(JI,JJ,JLEV)
-           END DO
-        END DO
-     end do
-  ELSE IF ( trim(varName) == 'UP') THEN
      DO JLEV = 1,KNK
         DO JJ = 1, KNJ
            DO JI = 1, KNI

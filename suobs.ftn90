@@ -18,6 +18,15 @@
 !
 !**s/r SUOBS  - Initialisation of observation parameters and constants
 !
+! Revisions:
+!           Y. Rochon and M. Sitwell, Jan 2016
+!           - Use of obs_famExist and corresponding move of calls
+!             to sugpsro, sugpsgb and tovs_setup after the call to selectb
+!             as initialization of family list in obs_famExist must follow
+!             saving of the obs in obsSpaceData.
+!           - Addition of call to chm_setup for inclusion of constituent data 
+!             info not included in obsSpaceData_mod and reading of NAMCHEM.
+!
       use topLevelControl_mod
       use obsSpaceData_mod
       use filterObs_mod  
@@ -26,12 +35,15 @@
       use tovs_nl_mod
       use tovs_lin_mod
       use multi_ir_bgck_mod
+      use chem_mod
+
       IMPLICIT NONE
 
       type(struct_obs) :: lobsSpaceData
       character(len=*) :: obsMpiStrategy
       character(len=*) :: obsColumnMode
       integer :: get_max_rss
+      logical :: obs_init
 
       WRITE(*,FMT=9000)
  9000 FORMAT(/,1x,' SUOBS - Initialisation of observations',/,1x,3('- -----------'))
@@ -49,18 +61,7 @@
       !
       call obs_initialize(lobsSpaceData,mpi_local=top_BurpSplit() )
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-      !
-      ! Read the NAMELIST NAMGGPSRO
-      !
-      call sugpsro
-      !
-      ! Initialize GB-GPS processing (read NAMGPSGB in namelist file)
-      !
-      call sugpsgb
-      !
-      ! Initialize TOVS processing
-      !
-      call tovs_setup
+
       !
       ! Set up the list of elements to be assimilated and flags for rejection
       !
@@ -80,6 +81,27 @@
         call setObsMpiStrategy(lobsSpaceData,obsMpiStrategy)
         call obs_reduceToMpiLocal(lobsSpaceData)
       end if
+      
+      !
+      ! Read the NAMELIST NAMGGPSRO
+      ! 
+      if (obs_famExist(lobsSpaceData,'RO')) call sugpsro
+      
+      !
+      ! Initialize GB-GPS processing (read NAMGPSGB in namelist file)
+      !
+      if (obs_famExist(lobsSpaceData,'GP')) call sugpsgb
+      
+      !
+      ! Read the NAMELIST NAMTOV and initialize the sensor information.
+      !
+      if (obs_famExist(lobsSpaceData,'TO')) call tovs_setup
+
+      !
+      ! Read the NAMELIST NAMCHEM and set up additional constituent 
+      ! obs related info not found in lobsSpaceData.
+      !
+      if (obs_famExist(lobsSpaceData,'CH')) call chm_setup
 
       !
       ! Filter out data from CMA
@@ -91,12 +113,14 @@
       if ( trim(obsMpiStrategy) .eq. 'LATLONTILES' ) then
         call checkObsMpiIP(lobsSpaceData,top_BurpSplit())
       end if
-
+      
       !
-      !- Memory allocation for TOVS processing
+      ! Initialization and memory allocation for TOVS processing
       !
-      call tovs_nl_setupallo(lobsSpaceData)
-      if ( top_BgckIrMode() ) call BGCK_IR_SETUP(lobsSpaceData)
-      if ( top_AnalysisMode() ) call tovs_lin_setupallo()
+      if (obs_famExist(lobsSpaceData,'TO')) then
+         call tovs_nl_setupallo(lobsSpaceData)
+         if ( top_BgckIrMode() ) call BGCK_IR_SETUP(lobsSpaceData)
+         if ( top_AnalysisMode() ) call tovs_lin_setupallo()
+      end if
 
       END SUBROUTINE SUOBS

@@ -75,7 +75,7 @@ module chem_mod
   public :: chm_setup,chm_dealloc_obs_err_stddev,chm_read_obs_err_stddev, &
             chm_get_obs_err_stddev,chm_obsspace_diagnostic,chm_convert_z_to_pressure
   public :: chm_obsoperators,chm_get_stringID,chm_get_ID,stnid_equal
-  public :: chm_lcheck_skipassim,chm_comboIDlist,chm_warnings_filename
+  public :: chm_lcheck_skipassim,chm_comboIDlist,chm_warnings_filename,chm_required_field
   
 ! module constants
 ! -----------------
@@ -2285,13 +2285,13 @@ contains
     integer, intent(out) :: ierr
 
     integer :: num_list(nlist*nchar),num_list_all(nlist*nchar,nproc)
-    integer :: ilist,ichar,iproc
+    integer :: ilist,jchar,iproc
               
     ! Convert strings to integer sequences
 
     do ilist=1,nlist
-       do ichar=1,nchar
-          num_list((ilist-1)*nchar+ichar) = iachar(str_list(ilist)(ichar:ichar))
+       do jchar=1,nchar
+          num_list((ilist-1)*nchar+jchar) = iachar(str_list(ilist)(jchar:jchar))
        end do
     end do
 
@@ -2303,8 +2303,8 @@ contains
           
     do iproc=1,nproc
        do ilist=1,nlist
-          do ichar=1,nchar
-             str_list_all(ilist,iproc)(ichar:ichar) = achar(num_list_all((ilist-1)*nchar+ichar,iproc))
+          do jchar=1,nchar
+             str_list_all(ilist,iproc)(jchar:jchar) = achar(num_list_all((ilist-1)*nchar+jchar,iproc))
           end do
        end do
     end do
@@ -3161,7 +3161,6 @@ contains
   integer, intent(in) :: iconstituent_id,iass(nobslev)
   integer, intent(inout) :: ixtr(nobslev)
   real(8), intent(in)  :: robslev(nobslev),rlat,rlon
-  logical, intent(in)  :: process_obs(nobslev)
   logical, intent(inout) :: success(nobslev)
 
 ! I/O arguments: model space profile data and others
@@ -3741,6 +3740,48 @@ contains
   end select
 
   end subroutine chm_convert_units
+
+!---------------------------------------------------------------------------------------
+
+  function chm_required_field(varName,varno) result(needed)
+!
+! Author:  M. Sitwell Dec 2015 
+!
+! Purpose: Determines if the specifed field name is required somewhere in
+!          in the observation operators for a particular observation type 
+!
+! Revisions:
+!
+! Arguments:
+!
+!   Input
+!
+!     varName   Name of field 
+!     varno     BUFR descriptor element
+!
+!----------------------------------------------------------------------------------------
+
+    implicit none
+
+    character(len=*), intent(in) ::varName
+    integer, intent(in) :: varno
+    logical :: needed
+    
+    select case(trim(varName))
+    case('TT')
+ 
+       select case (varno)
+       case(15023,15027,15194,15195,15223,15230,15022)
+          needed = .true.
+       case default
+          needed = .false.
+       end select
+         
+    case default
+       needed = .false.
+    end select
+
+  end function chm_required_field
 
 !---------------------------------------------------------------------------------------
 

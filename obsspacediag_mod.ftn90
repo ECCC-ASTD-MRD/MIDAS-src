@@ -90,7 +90,7 @@ contains
  
 !   Diagnostics for chemical constituents 
     
-    if (any(burp_cfamtyp.eq.'CH')) call osd_chem_diagnostics(obsSpaceData,columng,dateprnt)
+    if (obs_famExist(obsSpaceData,'CH')) call osd_chem_diagnostics(obsSpaceData,columng,dateprnt)
 
     if ((.not.lrandom) .or. (.not.nmlExists)) return
 
@@ -119,14 +119,11 @@ contains
 !            - Added call to the routine osd_chem_diagnostics for the CH family for calculation
 !              and writing of additional diagsnotics. 
 !            Y. Rochon, ARQI (July 2015)
-!            - Added the possibility of perturbation-based diagnostics for constituents (cvBChm
-!              and cvBChmEns) 
+!            - Added the possibility of perturbation-based diagnostics for constituents - cvBChm
 !            - Changed scaleFactor* array names
 !            - Adjusted MaxLat and MaxLon settings
 !            - Added HH to dateprnt
 !            - Added use of logicals lpert_static and lpert_ens.
-!            - N.B.: Line commented out with !! regarding use of bChmEns_getScaleFactor is to be 
-!              uncommented once the routine is implemented.
 !            Y. Rochon, ARQI (Oct 2015)
 !            - Some of the above indicated additions moved to routine osd_obspsace_diag.
 !       
@@ -152,7 +149,7 @@ contains
     
     integer :: ierr,nulinnov,nulBmatHi,nulBmatEn,nulcount,fnom,fclos,ivco,iseed,jj,jlev,jvar
     real*8 :: zdum,gasdev
-    real*8,pointer :: cvBhi(:), cvBen(:), cvBchm(:), cvBChmEns(:), field(:,:,:,:)
+    real*8,pointer :: cvBhi(:), cvBen(:), cvBchm(:), field(:,:,:,:)
     logical :: lpert_static, lpert_ens
     integer :: ivar_count
     real*8,allocatable :: HxBhi(:), HxBen(:)
@@ -190,8 +187,8 @@ contains
     ! COMPUTE BMATRIX PERTURBATION FOR THE STATIC COVARIANCES CASE; from Bhi and or BChm 
 
     if (.not. all(familyList(1:numFamily).eq.'CH')) cvBhi => cvm_getSubVector(cvm_vazx,1)
-    if (any(familyList(1:numFamily).eq.'CH')) cvBChm => cvm_getSubVector(cvm_vazx,3)
-    
+    if (any(familyList(1:numFamily).eq.'CH').and.obs_famExist(obsSpaceData,'CH')) cvBChm => cvm_getSubVector(cvm_vazx,3)
+
     HxBhi(:) = 0.0d0
     
     iseed = abs(nrandseed)
@@ -210,6 +207,9 @@ contains
           ! initialize vector of scaleFactors
           allocate(scaleFactor(col_getNumLev(columng,'MM')))
           call bhi_getScaleFactor(scaleFactor)
+       else
+          allocate(scaleFactor(col_getNumLev(columng,'MM')))
+          scaleFactor(:)=1.0      
        end if
 
        if (associated(cvBChm)) then
@@ -220,6 +220,9 @@ contains
           ! initialize vector of scaleFactors
           allocate(scaleFactorChm(col_getNumLev(columng,'MM'),100))
           call bChm_getScaleFactor(scaleFactorChm)
+       else
+          allocate(scaleFactorChm(col_getNumLev(columng,'MM'),100))
+          scaleFactorChm(:,:)=1.0
        end if
         
        ! multiply vector by B^1/2
@@ -246,8 +249,8 @@ contains
           endif
        enddo
        
-       if (associated(cvBhi)) deallocate(scaleFactor)
-       if (associated(cvBChm)) deallocate(scaleFactorChm)
+       deallocate(scaleFactor)
+       deallocate(scaleFactorChm)
        
        ! multiply by H
        call oda_L(statevector,column,columng,obsSpaceData)  ! put in column H_horiz dx
@@ -257,38 +260,24 @@ contains
        enddo
     end if
    
-    ! COMPUTE BMATRIX PERTURBATION FOR THE ENSEMBLE COVARIANCES CASE; from Ben and or BChmEns
+    ! COMPUTE BMATRIX PERTURBATION FOR THE ENSEMBLE COVARIANCES CASE; from Ben
 
-    if (.not. all(familyList(1:numFamily).ne.'CH')) cvBen     => cvm_getSubVector(cvm_vazx,2)
-    if (any(familyList(1:numFamily).eq.'CH')) cvBChmEns => cvm_getSubVector(cvm_vazx,4)
+    cvBen     => cvm_getSubVector(cvm_vazx,2)
    
     HxBen(:) = 0.0d0
 
-    if (associated(cvBen).or.associated(cvBChmEns)) then
+    if (associated(cvBen)) then
 
        ! compute random control vector
        cvm_vazx(:) = 0.0d0
 
-       if (associated(cvBen)) then
-          do jj = 1,size(cvBen)
-             cvBhi(jj)=gasdev(1)
-          enddo
+        do jj = 1,size(cvBen)
+           cvBhi(jj)=gasdev(1)
+        enddo
 
-          ! initialize vector of scaleFactors
-          allocate(scaleFactor(col_getNumLev(columng,'MM')))
-          call ben_getScaleFactor(scaleFactor)
-       end if
-
-       if (associated(cvBChmEns)) then
-          do jj = 1,size(cvBChmEns)
-             cvBChmEns(jj)=gasdev(1)
-          enddo
-
-          ! initialize vector of scaleFactors
-          allocate(scaleFactorChm(col_getNumLev(columng,'MM'),100))
-          scaleFactorChm(:,:)=1.0
-!!          call bChmEns_getScaleFactor(scaleFactorChm)
-       end if
+        ! initialize vector of scaleFactors
+        allocate(scaleFactor(col_getNumLev(columng,'MM')))
+        call ben_getScaleFactor(scaleFactor)
 
        ! multiply vector by B^1/2
        call bmat_sqrtB(cvm_vazx,cvm_nvadim,statevector)
@@ -314,8 +303,7 @@ contains
           endif
        enddo
        
-       if (associated(cvBen)) deallocate(scaleFactor)
-       if (associated(cvBChmEns)) deallocate(scaleFactorChm)
+       deallocate(scaleFactor)
        
        ! multiply vector by H
        call oda_L(statevector,column,columng,obsSpaceData)  ! put in column H_horiz dx
@@ -349,11 +337,10 @@ contains
         
         if (familyList(familyIndex).ne.'CH') then
            if (associated(cvBhi)) lpert_static=.true.
-           if (associated(cvBen)) lpert_ens=.true.
         else        
            if (associated(cvBChm)) lpert_static=.true.
-           if (associated(cvBChmEns)) lpert_ens=.true.
         end if
+        if (associated(cvBen)) lpert_ens=.true.
       
         ivco = -999
         my_innovStd(:,:,:) = 0.0d0

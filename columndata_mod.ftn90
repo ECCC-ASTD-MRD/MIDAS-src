@@ -710,9 +710,13 @@ module columnData_mod
     real*8                                 :: value
 
     if(present(varName)) then
-      if(trim(varName).eq.'GZ') call abort3d('col_getElem: cannot call for GZ!')
-      if(trim(varName).eq.'PR') call abort3d('col_getElem: cannot call for Pressure!')
-      value = column%all(column%varOffset(vnl_varListIndex(varName))+ilev,headerIndex)
+       if(col_varExist(varName)) then
+          if(trim(varName).eq.'GZ') call abort3d('col_getElem: cannot call for GZ!')
+          if(trim(varName).eq.'PR') call abort3d('col_getElem: cannot call for Pressure!')
+          value = column%all(column%varOffset(vnl_varListIndex(varName))+ilev,headerIndex)
+       else
+          call abort3d('col_getElem: Unknown variable name! ' // varName)
+       endif
     else
       value = column%all(ilev,headerIndex)
     endif
