@@ -87,6 +87,11 @@ CONTAINS
     !                     the reports with uni-level data blocks.
     !                 P. KOCLAS (CMDA/SMC)) May 2015
     !                  -- CHANGES  for GROUPED scatterometres or surface obs
+    !                 Y.J. Rochon (ARQI), March 2016
+    !                  -- Account for pre-existing OER blocks. See LBLOCK_OER_CP
+    !                     and NBLOCK_OER_CP. These may contain additional data 
+    !                     such as averaging kernel matrices and obs error 
+    !                     correlation matrices at least for the CH family.
     !
     !       OBJECT: UPDATE CMC BURP FILE 
     !
@@ -158,9 +163,11 @@ CONTAINS
     INTEGER                :: new_bktyp,post_bit,STATUS_HIRES,BIT_STATUS,FILEN
     LOGICAL                :: REGRUP,WINDS,OMA_SFC_EXIST,OMA_ALT_EXIST
 
-    INTEGER                :: LISTE_INFO(17),LISTE_ELE(15),LISTE_ELE_SFC(15),is_in_list
+    INTEGER                :: LISTE_INFO(17),LISTE_ELE(20),LISTE_ELE_SFC(20),is_in_list
     INTEGER                :: ADDSIZE,SIZE_DATA_BK
 
+    LOGICAL                :: LBLOCK_OER_CP
+    TYPE(BURP_BLOCK)       :: BLOCK_OER_CP
 
     DATA LISTE_INFO  &
        /1007,002019,007024,007025 ,005021, 005022, 008012, 013039,020010,2048,2022,33060, &
@@ -181,18 +188,20 @@ CONTAINS
     ENFORCE_CLASSIC_SONDES=.false.
     ADDSIZE=100000
     LNMX=100000
+    LISTE_ELE_SFC(:)=-1
+    LISTE_ELE(:)=-1
     SELECT CASE(trim(FAMILYTYPE))
       CASE('UA')
         BURP_TYP='multi'
         vcord_type(1)=7004
 
-        LISTE_ELE_SFC = (/12004,11011,11012,10051,10004,12203,-1,-1,-1,-1,-1,-1,-1,-1,-1/)
+        LISTE_ELE_SFC(1:6) = (/12004,11011,11012,10051,10004,12203/)
         NELE_SFC=6
         CALL BRPACMA_NML('namburp_sfc')
         NELE_SFC=NELEMS_SFC
 
         FAMILYTYPE2= 'UA'
-        LISTE_ELE = (/12001,11001,11002,12192,10194,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1/)
+        LISTE_ELE(1:5) = (/12001,11001,11002,12192,10194/)
         NELE=5
         ENFORCE_CLASSIC_SONDES=.false.
         CALL BRPACMA_NML('namburp_conv')
@@ -203,7 +212,7 @@ CONTAINS
         BURP_TYP='uni'
         vcord_type(1)=7004
 
-        LISTE_ELE = (/12001,12192,11001,11002,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1/)
+        LISTE_ELE(1:4) = (/12001,12192,11001,11002/)
         NELE=4
         CALL BRPACMA_NML('namburp_conv')
         NELE=NELEMS
@@ -213,7 +222,7 @@ CONTAINS
         BURP_TYP='uni'
         vcord_type(1)=7004
 
-        LISTE_ELE = (/11001,11002,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1/)
+        LISTE_ELE(1:2) = (/11001,11002/)
         NELE=2
         CALL BRPACMA_NML('namburp_conv')
         NELE=NELEMS
@@ -226,7 +235,7 @@ CONTAINS
         BURP_TYP='uni'
         vcord_type(1)=0
         NELE_SFC=7
-        LISTE_ELE_SFC = (/12004,11011,11012,10051,10004,12203,15031,-1,-1,-1,-1,-1,-1,-1,-1/)
+        LISTE_ELE_SFC(1:7) = (/12004,11011,11012,10051,10004,12203,15031/)
 
         CALL BRPACMA_NML('namburp_sfc')
         NELE_SFC=NELEMS_SFC
@@ -240,7 +249,7 @@ CONTAINS
         ADDSIZE=5000
       CASE('SC')
         BURP_TYP='uni'
-        LISTE_ELE_SFC = (/11012,11011,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1/)
+        LISTE_ELE_SFC(1:2) = (/11012,11011/)
         NELE=2
         CALL BRPACMA_NML('namburp_conv')
         NELE=NELEMS
@@ -256,7 +265,7 @@ CONTAINS
         vcord_type(1)=7006
         ELEVFACT=1.
 
-        LISTE_ELE = (/11001,11002,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1/)
+        LISTE_ELE(1:2) = (/11001,11002/)
         NELE=2
 
         CALL BRPACMA_NML('namburp_conv')
@@ -268,7 +277,7 @@ CONTAINS
         vcord_type(1)=7007
         vcord_type(2)=7040
 
-        LISTE_ELE = (/15036,15037,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1/)
+        LISTE_ELE(1:2) = (/15036,15037/)
         NELE=2
 
         CALL BRPACMA_NML('namburp_conv')
@@ -283,8 +292,8 @@ CONTAINS
         BURP_TYP='multi'
         vcord_type(1)=5042
         vcord_type(2)=2150
-
-        LISTE_ELE = (/12163,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1/)
+        
+        LISTE_ELE(1:1) = (/12163/)
         NELE=1
 
         CALL BRPACMA_NML('namburp_tovs')
@@ -297,18 +306,18 @@ CONTAINS
         BURP_TYP='multi'   ! Both 'multi' and 'uni' are possible for this family.
         vcord_type(1:6) = (/7004,7204,7006,7007,2150,0/)  ! 0 must be at end.
 
-        LISTE_ELE_SFC = (/15008,15011,15012,15020,15024,15026,15027,15028, &
-                          15029,15198,15199,15230,08090,-1,-1/)
-        NELE_SFC=13
+        LISTE_ELE_SFC(1:19) = (/15008,15009,15010,15020,15021,15022,15023,15024,15026,15027,15028, &
+                                15029,15198,15199,15200,15230,13001,13002,08090/)
+        NELE_SFC=19
         CALL BRPACMA_NML('namburp_chm_sfc')
         NELE_SFC=NELEMS_SFC
         WINDS=.FALSE.
         ADDSIZE=10000
 
         FAMILYTYPE2='CH'
-        LISTE_ELE = (/15008,15020,15024,15026,15027, &
-                      15029,15198,15199,15230,08090,-1,-1,-1,-1,-1/)
-        NELE=13
+        LISTE_ELE(1:19) = (/15008,15009,15010,15020,15021,15022,15023,15024,15026,15027,15028, &
+                                15029,15198,15199,15200,15230,13001,13002,08090/)
+        NELE=19
         CALL BRPACMA_NML('namburp_chm')
         NELE=NELEMS
     END SELECT
@@ -523,6 +532,7 @@ CONTAINS
 
         ref_blk = 0
 
+        LBLOCK_OER_CP=.false.
         HIRES=.FALSE.
         REGRUP=.false.
         NDATA_SF=-1
@@ -569,6 +579,10 @@ CONTAINS
           else
             !WRITE(*, *)' POUR STATION bloc NON CONNU: ',STNID,ref_blk,bfam,familytype
           endif
+          if (bfam.eq.10.and.bkstp.eq.14) then
+              LBLOCK_OER_CP=.true.
+              BLOCK_OER_CP=BLOCK_IN
+          end if
         end do BLOCKS0
         if ( TYPE_RESUME == 'POSTALT' .or. TYPE_RESUME == 'BGCKALT') THEN
           post_bit=2
@@ -805,9 +819,15 @@ CONTAINS
                 cycle
               endif
               if ( BITEMLIST(item) .eq. 'OER') then
-                Call BURP_Reduce_Block(BLOCK_OER_SFC, NEW_NELE =il_index )
-                Call BURP_Write_Block( CP_RPT, BLOCK_OER_SFC,&
-                ENCODE_BLOCK = .TRUE., CONVERT_BLOCK = .TRUE., IOSTAT= error) 
+                if (.not.LBLOCK_OER_CP) then
+                   Call BURP_Reduce_Block(BLOCK_OER_SFC, NEW_NELE =il_index )
+                   Call BURP_Write_Block( CP_RPT, BLOCK_OER_SFC,&
+                   ENCODE_BLOCK = .TRUE., CONVERT_BLOCK = .TRUE., IOSTAT= error) 
+                else
+                   Call BURP_Set_Property(BLOCK_OER_CP ,BKTYP =new_bktyp)
+                   Call BURP_Write_Block( CP_RPT, BLOCK_OER_CP,&
+                        ENCODE_BLOCK = .FALSE., CONVERT_BLOCK = .FALSE., IOSTAT= error)                 
+                end if
                 cycle
               endif
               if ( BITEMLIST(item) .eq. 'FGE') then
@@ -1154,8 +1174,14 @@ CONTAINS
                           ENCODE_BLOCK = .TRUE., CONVERT_BLOCK = .TRUE., IOSTAT= error) 
               endif
               if ( BITEMLIST(item) .eq. 'OER') then
-                Call BURP_Write_Block( CP_RPT, BLOCK_OER,&
+                if (.not.LBLOCK_OER_CP) then
+                   Call BURP_Write_Block( CP_RPT, BLOCK_OER,&
                           ENCODE_BLOCK = .TRUE., CONVERT_BLOCK = .TRUE., IOSTAT= error) 
+                else
+                   Call BURP_Set_Property(BLOCK_OER_CP ,BKTYP =new_bktyp)
+                   Call BURP_Write_Block( CP_RPT, BLOCK_OER_CP,&
+                        ENCODE_BLOCK = .FALSE., CONVERT_BLOCK = .FALSE., IOSTAT= error) 
+                  end if
               endif
               if ( BITEMLIST(item) .eq. 'FGE') then
                 Call BURP_Write_Block( CP_RPT, BLOCK_FGE,&
@@ -1302,7 +1328,7 @@ CONTAINS
     !                  -- Added 08046 (constituent code table) in LISTE_INFO.
     !                     Corresponds to new ObsSpaceData integer-header element OBS_CHM.
     !                  -- Added 15008,15011,15012,15020,15024,15026-29,15199,
-    !                     and 15230 under LISTE_ELE for CASE('CH')
+    !                     and 15230 under LISTE_ELE for CASE('CH') - even if not used.
     !                  -- Modified 'vcord_type' to an array of dimension 10.
     !                  -- Extended 'vcord_type' from 1 to 7 elements for TR
     !                  -- Addition/use of 'vcoord_type'. Added 'vcoord_type' 
@@ -1364,7 +1390,7 @@ CONTAINS
 
     REAL(OBS_REAL), ALLOCATABLE :: RADMOY(:,:,:)
     REAL(OBS_REAL), ALLOCATABLE :: radstd(:,:,:)
-    INTEGER                :: LISTE_INFO(17),LISTE_ELE(15),LISTE_ELE_SFC(15)
+    INTEGER                :: LISTE_INFO(17),LISTE_ELE(20),LISTE_ELE_SFC(20)
 
     INTEGER                :: NBELE,NVALE,NTE
     INTEGER                :: I,J,JJ,K,KK,KL,IL,ERROR,OBSN
@@ -1405,18 +1431,20 @@ CONTAINS
     BNBITSON=0
     ENFORCE_CLASSIC_SONDES=.false.
     UNI_FAMILYTYPE = 'SF'
+    LISTE_ELE_SFC(:)=-1
+    LISTE_ELE(:)=-1
     SELECT CASE(trim(FAMILYTYPE))
       CASE('UA')
         BURP_TYP='multi'
         vcord_type(1)=7004
 
-        LISTE_ELE_SFC = (/12004,11011,11012,10051,10004,12203,-1,-1,-1,-1,-1,-1,-1,-1,-1/)
+        LISTE_ELE_SFC(1:6) = (/12004,11011,11012,10051,10004,12203/)
         NELE_SFC=6
         CALL BRPACMA_NML('namburp_sfc')
         NELE_SFC=NELEMS_SFC
 
         FAMILYTYPE2= 'UA'
-        LISTE_ELE = (/12001,11001,11002,12192,10194,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1/)
+        LISTE_ELE(1:5) = (/12001,11001,11002,12192,10194/)
         NELE=5
         ENFORCE_CLASSIC_SONDES=.false.
         CALL BRPACMA_NML('namburp_conv')
@@ -1425,7 +1453,7 @@ CONTAINS
         BURP_TYP='uni'
         vcord_type(1)=7004
 
-        LISTE_ELE = (/12001,12192,11001,11002,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1/)
+        LISTE_ELE(1:4) = (/12001,12192,11001,11002/)
         NELE=4
         CALL BRPACMA_NML('namburp_conv')
         NELE=NELEMS
@@ -1433,7 +1461,7 @@ CONTAINS
         BURP_TYP='uni'
         vcord_type(1)=7004
 
-        LISTE_ELE = (/11001,11002,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1/)
+        LISTE_ELE(1:2) = (/11001,11002/)
         NELE=2
         CALL BRPACMA_NML('namburp_conv')
         NELE=NELEMS
@@ -1441,7 +1469,7 @@ CONTAINS
         BURP_TYP='uni'
         vcord_type(1)=0
         NELE_SFC=7
-        LISTE_ELE_SFC = (/12004,11011,11012,10051,10004,12203,15031,-1,-1,-1,-1,-1,-1,-1,-1/)
+        LISTE_ELE_SFC(1:7) = (/12004,11011,11012,10051,10004,12203,15031/)
 
         CALL BRPACMA_NML('namburp_sfc')
         NELE_SFC=NELEMS_SFC
@@ -1450,7 +1478,7 @@ CONTAINS
       CASE('SC')
         vcord_type(1)=0
         BURP_TYP='uni'
-        LISTE_ELE_SFC = (/11012,11011,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1/)
+        LISTE_ELE_SFC(1:2) = (/11012,11011/)
         NELE=2
         CALL BRPACMA_NML('namburp_conv')
         NELE=NELEMS
@@ -1460,7 +1488,7 @@ CONTAINS
         BURP_TYP='multi'
         vcord_type(1)=7006
 
-        LISTE_ELE = (/11001,11002,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1/)
+        LISTE_ELE(1:2) = (/11001,11002/)
         NELE=2
 
         CALL BRPACMA_NML('namburp_conv')
@@ -1470,7 +1498,7 @@ CONTAINS
         vcord_type(1)=7007
         vcord_type(2)=7040
 
-        LISTE_ELE = (/15036,15037,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1/)
+        LISTE_ELE(1:2) = (/15036,15037/)
         NELE=2
 
         CALL BRPACMA_NML('namburp_conv')
@@ -1485,7 +1513,7 @@ CONTAINS
         vcord_type(1)=5042
         vcord_type(2)=2150
 
-        LISTE_ELE = (/12163,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1/)
+        LISTE_ELE(1:1) = (/12163/)
         NELE=1
 
         CALL BRPACMA_NML('namburp_tovs')
@@ -1499,16 +1527,16 @@ CONTAINS
         NELE_INFO=17
 
         UNI_FAMILYTYPE = 'CH'
-        LISTE_ELE_SFC = (/15008,15020,15024,15026,15027, &
-                      15029,15198,15199,15230,08090,-1,-1,-1,-1,-1/)
-        NELE_SFC=13
+        LISTE_ELE_SFC(1:19) = (/15008,15009,15010,15020,15021,15022,15023,15024,15026,15027,15028, &
+                          15029,15198,15199,15200,15230,13001,13002,08090/)
+        NELE_SFC=19
         CALL BRPACMA_NML('namburp_chm_sfc')
         NELE_SFC=NELEMS_SFC
 
         FAMILYTYPE2='CH'
-        LISTE_ELE = (/15008,15020,15024,15026,15027, &
-                      15029,15198,15199,15230,08090,-1,-1,-1,-1,-1/)
-        NELE=13
+        LISTE_ELE(1:19) = (/15008,15009,15010,15020,15021,15022,15023,15024,15026,15027,15028, &
+                          15029,15198,15199,15200,15230,13001,13002,08090/)
+        NELE=19
         CALL BRPACMA_NML('namburp_chm')
         NELE=NELEMS 
     END SELECT
@@ -1747,7 +1775,7 @@ CONTAINS
                                          & NELE_IND = IND_QCFLAG, &
                                          & NVAL_IND = 1, &
                                          & NT_IND   = k)
-                SUM = SUM +1
+                SUM = SUM +1                
               END DO
             end do
           endif
@@ -2049,7 +2077,6 @@ CONTAINS
                 HM_SFC=time2
               ENDIF
 
-!PDD          NDATA_SF= WRITE_BODY(obsdat,'SF',RELEV,vcoord_sfc ,OBSERV_sfc,qcflags_sfc,NELE_SFC,1,LISTE_ELE_SFC)
               NDATA_SF= WRITE_BODY(obsdat,UNI_FAMILYTYPE,RELEV,vcoord_sfc,vcoord_type,OBSERV_sfc,qcflags_sfc,NELE_SFC,1,LISTE_ELE_SFC)
               IF ( NDATA_SF .GT. 0) THEN
                 call WRITE_HEADER(obsdat,STNID,XLAT,XLON,YMD_DATE_SFC,HM_SFC,idtyp,STATUS,RELEV,FILENUMB)
@@ -2128,7 +2155,7 @@ CONTAINS
 
               OBSERV_SFC (1:NELE_SFC,1:1)=obsvalue_sfc(1:NELE_SFC,1:1,k)
               QCFLAGS_sfc(1:NELE_SFC,1:1)=qcflag_sfc  (1:NELE_SFC,1:1,k)
-!PDD          NDATA_SF= WRITE_BODY(obsdat,'SF',RELEV,vcoord_sfc,vcoord_type,OBSERV_sfc,qcflags_sfc,NELE_SFC,1,LISTE_ELE_SFC)
+
               NDATA_SF= WRITE_BODY(obsdat,UNI_FAMILYTYPE,RELEV,vcoord_sfc,vcoord_type,OBSERV_sfc,qcflags_sfc,NELE_SFC,1,LISTE_ELE_SFC)
               IF ( NDATA_SF .GT. 0) THEN
                 call WRITE_HEADER(obsdat,STNID,XLAT,XLON,YMD_DATE,HM,idtyp,STATUS,RELEV,FILENUMB)
@@ -2390,7 +2417,7 @@ CONTAINS
     INTEGER     ::   NONELEV
     REAL        ::   ZEMFACT
     LOGICAL     ::   L_EMISS
-
+    
     if(present(SURF_EMIS)) then
       L_EMISS=.true.
     else
@@ -2447,11 +2474,23 @@ CONTAINS
            VCO=2
         ELSE IF (VCOORD_TYPE == 2150) THEN
            VCO=3
-        ELSE 
+        ELSE            
            ! Vertical coordinate not provided or not recognized.
-           IF (NVAL.LE.2) THEN
-              VCO=4  ! Assumes this is a total column measurement 
-           ELSE
+           IF (NVAL.EQ.1) THEN
+              VCO=5 ! Initializes at surface point measurement
+              DO il = 1, NELE
+                 if ( obsvalue(il,1) .ne. PPMIS) then
+                    if (liste_ele(il).EQ.15198.OR.liste_ele(il).EQ.15009.OR. &
+                        liste_ele(il).EQ.15020.OR.liste_ele(il).EQ.15021.OR. &
+                        liste_ele(il).EQ.15024.OR.liste_ele(il).EQ.15200.OR. &
+                        liste_ele(il).EQ.15001.OR.liste_ele(il).EQ.15005) then
+                        
+                        VCO=4  ! Assumes this is total column measurement
+                        exit
+                    end if
+                 end if
+              END DO
+           ELSE   
               CALL ABORT3D('write_body: Invalid BURP vertical coordinate type.')
            END IF
         END IF

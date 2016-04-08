@@ -48,7 +48,6 @@ MODULE BMatrix_mod
   ! public procedures through inheritance
   public :: bhi_getScaleFactor,ben_getScaleFactor,ben_getnEns,ben_getPerturbation
   public :: bchm_getScaleFactor
-!  public :: bchmens_getScaleFactor
 
 
   type(struct_hco), pointer :: hco_anl
@@ -67,13 +66,8 @@ contains
     !           Ping Du, CMDA/MSC, July 2014
     !           - Additions for chemical constituents (see cvdimchm and 
     !             section 2.3)
-    !           Y.J. Rochon, ARQI/AQRD, April 2015
-    !           - Addition of ensembles consideration for constituents
-    !             (see cvdimchmEns and section 2.4)
     !
     ! Comments:
-    !
-    ! - LAM and ensemble components for constituents tbd.
     !
     IMPLICIT NONE
 
@@ -82,7 +76,7 @@ contains
 
     integer :: cvdimens, cvdimhi
     integer :: get_max_rss
-    integer :: cvdimchm,cvdimchmEns
+    integer :: cvdimchm
    
     !
     !- 1.  Get/Check the analysis grid info
@@ -98,7 +92,6 @@ contains
     cvdimens = 0
 
     cvdimchm = 0
-    cvdimChmEns = 0
 
     !- 2.1 Time-Mean Homogeneous and Isotropic...
     if ( hco_anl % global ) then
@@ -134,32 +127,18 @@ contains
       write(*,*) 'Setting up the modular GLOBAL HI-chm covariances...'
       call bchm_Setup( hco_anl, vco_anl_in, & ! IN
                       cvdimchm )              ! OUT
+
     else
-      write(*,*)
-      write(*,*) 'Setting up the modular LAM HI-chm covariances...'
-!      call lbchm_Setup( hco_anl, vco_anl_in, & ! IN
-!                       cvdimchm )              ! OUT
+      ! Done in lbhi_Setup 
     end if
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     write(*,*) 'Dimension of CH static control vector returned:',cvdimchm
 
-    !- 2.4 Flow-dependent Ensemble-Based for constituents
-!    write(*,*)
-!    write(*,*) 'Setting up the modular CH ensemble covariances...'
-!    call bChmEns_Setup( hco_anl,             & ! IN
-!                        vco_anl_in,          & ! IN
-!                        tim_nstepobsinc,     & ! IN
-!                        tim_getDatestamp(),  & ! IN
-!                        cvdimChmEns )          ! OUT
-!     
-!    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-!    write(*,*) 'Dimension of CH ENS control vector returned:',cvdimchmEns
-
     !
     !- 3.  Setup the control vector
     !
-    call cvm_Setup( cvdimhi, cvdimens, cvdimchm, cvdimChmEns ) ! IN
+    call cvm_Setup( cvdimhi, cvdimens, cvdimchm) ! IN
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     write(*,*) 'Dimension of TOTAL control vector:',cvm_nvadim
@@ -179,19 +158,14 @@ contains
     !           Ping Du, CMDA/MSC, July 2014
     !           - Additions for chemical constituents (see cvBchm and 
     !             section 2.2chm)
-    !           Y.J. Rochon ARQI/AQRD May 2015
-    !           - Additions for constituents regarding ensembles (see cvBchmEns
-    !             and section 2.3chm)
     !
     ! Comments:
-    !
-    ! - LAM and ensemble components for constituents tbd.
     !
     integer         :: na_vdim
 
     real(8)         :: da_v(na_vdim)
     real(8),pointer :: cvBhi(:), cvBen(:), field(:,:,:), field4d(:,:,:,:)
-    real(8),pointer :: cvBchm(:),cvBChmEns(:)
+    real(8),pointer :: cvBchm(:)
 
     type(struct_gsv) :: statevector, statevector_temp
 
@@ -240,9 +214,7 @@ contains
         call bchm_bsqrt( cvBchm,      & ! IN
                         statevector )   ! OUT
       else
-        !- 2.2.2 LAM mode
-!        call lbhi_bSqrt( cvBchm,      & ! IN
-!                         statevector )  ! OUT
+        ! Done in lbhi_bsqrt (cvBHi)
       end if
       !- copy 3D increment to other timesteps to create 4D increment
       call gsv_3dto4d(statevector)
@@ -255,14 +227,6 @@ contains
 
     if ( associated(cvBen) ) call ben_bsqrt(cvBen, statevector_temp)
     call tmg_stop(60)
-
-    !- 2.3chm compute 4D contribution to increment from BmatrixChemEnsemble
-    call tmg_start(67,'B_CHMENS')
-    cvBChmEns => cvm_getSubVector(da_v,4)
-
-!    if ( associated(cvBChmEns) ) call bChmEns_bsqrt(cvBChmEns, statevector_temp)
-    call tmg_stop(67)
-
 
     !- 2.4 Add the two contributions together, result in statevector
     call gsv_add(statevector_temp,statevector)
@@ -284,18 +248,13 @@ contains
     !           Ping Du, CMDA/MSC, July 2014
     !           - Additions for chemical constituents (see cvBchm and
     !             section 1.4chm)
-    !           Y.J. Rochon ARQI/AQRD May 2015
-    !           - Additions for constituents regarding ensembles (see cvBchmEns
-    !             and section 1.3chm)
     !
     ! Comments:
-    !
-    ! - LAM and ensemble components for constituents tbd.
     !
     integer :: na_vdim
     real*8 :: da_v(na_vdim)
     real*8,pointer :: cvBhi(:),cvBen(:)
-    real*8,pointer :: cvBchm(:),cvbChmEns(:)    
+    real*8,pointer :: cvBchm(:)  
     type(struct_gsv) :: statevector
 
     if ( statevector % hco % global ) then
@@ -305,14 +264,7 @@ contains
 
     !- 1.2 set gradient to zero
     da_v(:)=0.0d0
-    
-    !- 1.3chm Add contribution to gradient from BmatrixChmEnsemble
-    call tmg_start(68,'B_CHMENS_T')
-    cvBChmEns=>cvm_getSubVector(da_v,4)
-
-!    if ( associated(cvBChmEns) ) call bChmEns_bsqrtad(statevector,cvBChmEns)
-    call tmg_stop(68)
-    
+        
     !- 1.3 Add contribution to gradient from BmatrixEnsemble
     call tmg_start(61,'B_ENS_T')
     cvBen=>cvm_getSubVector(da_v,2)
@@ -412,8 +364,6 @@ contains
     ! Revision:
     !           Ping Du, CMDA/MSC, July 2014
     !           - Additions for chemical constituents (see cvBchm)
-    !           Y.J. Rochon ARQI/AQRD May 2015
-    !           - Additions for constituents regarding ensembles (see cvBchmEns)
     !
     ! Comments:
     !
@@ -425,7 +375,7 @@ contains
     !- Purpose: Releases memory used by B matrices.
     !
     real(8), pointer :: cvBhi(:), cvBen(:)
-    real(8), pointer :: cvBchm(:), cvBChmEns(:)       
+    real(8), pointer :: cvBchm(:)    
 
     cvBhi => cvm_getSubVector(da_v,1)
     if ( associated(cvBhi) ) then
@@ -444,12 +394,9 @@ contains
       if ( hco_anl % global ) then
         call bchm_finalize()
       else
-!        call lbchm_finalize
+        ! Done in lbhi_finalize
       end if
     end if
-
-    cvBChmEns => cvm_getSubVector(da_v,4)
-!    if ( associated(cvBChmEns) ) call bChmEns_finalize()
 
   END SUBROUTINE bmat_finalize
 
@@ -461,8 +408,6 @@ contains
     ! Revision:
     !           Ping Du, CMDA/MSC, Dec 2014
     !           - Additions for chemical constituents (see cv*Bchm*)
-    !           Y.J. Rochon ARQI/AQRD May 2015
-    !           - Additions for constituents regarding ensembles (see cv*BchmEns*)
     !
     ! Comments:
     !
@@ -473,11 +418,10 @@ contains
     real*8  :: cv_mpiglobal(:)
     integer :: cvDim_mpilocal_out
 
-    integer :: cvDim_Bhi_mpilocal,cvDim_Ben_mpilocal,cvDim_Bchm_mpilocal,cvDim_BChmEns_mpilocal
+    integer :: cvDim_Bhi_mpilocal,cvDim_Ben_mpilocal,cvDim_Bchm_mpilocal
     real*8,pointer :: cvBhi_mpilocal(:),cvBen_mpilocal(:)
     real*8,pointer :: cvBhi_mpiglobal(:),cvBen_mpiglobal(:)
     real*8,pointer :: cvBchm_mpiglobal(:),cvBchm_mpilocal(:)
-    real*8,pointer :: cvBchmEns_mpiglobal(:),cvBchmEns_mpilocal(:)
 
     cvBhi_mpilocal =>cvm_getSubVector(cv_mpilocal,1)
     cvBhi_mpiglobal=>cvm_getSubVector_mpiglobal(cv_mpiglobal,1)
@@ -501,18 +445,13 @@ contains
       if ( hco_anl % global ) then 
          call bchm_reduceToMPILocal(cvBchm_mpilocal,cvBchm_mpiglobal,cvDim_Bchm_mpilocal)
       else
-!         call lbChm_reduceToMPILocal(cvBChm_mpilocal,cvBChm_mpiglobal,cvDim_BChm_mpilocal)
+!         Done in lbhi_reducetoMPILocal
       end if
     end if
 
-    cvBChmEns_mpilocal =>cvm_getSubVector(cv_mpilocal,4)
-    cvBChmEns_mpiglobal=>cvm_getSubVector_mpiglobal(cv_mpiglobal,4)
-!    if(associated(cvBChmEns_mpilocal)) then
-!       call bChmEns_reduceToMPILocal(cvBChmEns_mpilocal,cvBChmEns_mpiglobal,cvDim_BChmEns_mpilocal)
-!    end if
 
     cvDim_mpilocal_out = cvDim_Bhi_mpilocal + cvDim_Ben_mpilocal + &
-                        cvDim_Bchm_mpilocal + cvDim_BChmEns_mpilocal
+                         cvDim_Bchm_mpilocal
 
   END SUBROUTINE BMAT_reduceToMPILocal
 
@@ -524,8 +463,6 @@ contains
     ! Revision:
     !           Ping Du, CMDA/MSC, July 2014
     !           - Additions for chemical constituents (see cvBchm*)
-    !           Y.J. Rochon ARQI/AQRD May 2015
-    !           - Additions for constituents regarding ensembles (see cvBchmEns*)
     !
     ! Comments:
     !
@@ -536,9 +473,9 @@ contains
     real*8  :: cv_mpiglobal(:)
     integer :: cvDim_mpiglobal_out
 
-    integer :: cvDim_Bhi_mpiglobal,cvDim_Ben_mpiglobal,cvDim_Bchm_mpiglobal,cvDim_BChmEns_mpiglobal
-    real*8,pointer :: cvBhi_mpilocal(:),cvBen_mpilocal(:), cvBchm_mpilocal(:),cvBChmEns_mpilocal(:)
-    real*8,pointer :: cvBhi_mpiglobal(:),cvBen_mpiglobal(:),cvBchm_mpiglobal(:),cvBChmEns_mpiglobal(:)
+    integer :: cvDim_Bhi_mpiglobal,cvDim_Ben_mpiglobal,cvDim_Bchm_mpiglobal
+    real*8,pointer :: cvBhi_mpilocal(:),cvBen_mpilocal(:), cvBchm_mpilocal(:)
+    real*8,pointer :: cvBhi_mpiglobal(:),cvBen_mpiglobal(:),cvBchm_mpiglobal(:)
 
     cvBhi_mpilocal =>cvm_getSubVector(cv_mpilocal,1)
     cvBhi_mpiglobal=>cvm_getSubVector_mpiglobal(cv_mpiglobal,1)
@@ -564,18 +501,9 @@ contains
       if ( hco_anl % global ) then
          call bchm_expandToMPIGlobal(cvBchm_mpilocal,cvBchm_mpiglobal,cvDim_Bchm_mpiglobal)
       else
-!         call lbchm_expandToMPIGlobal(cvBchm_mpilocal,cvBChm_mpiglobal,cvDim_BChm_mpiglobal)
+!         Done in lbhi_expandToMPIGlobal
       end if
     endif
-
-    cvBChmEns_mpilocal =>cvm_getSubVector(cv_mpilocal,4)
-    cvBChmEns_mpiglobal=>cvm_getSubVector_mpiglobal(cv_mpiglobal,4)
-!    if(associated(cvBChmEns_mpilocal)) then
-!       call bChmEns_expandToMPIGlobal(cvBChmEns_mpilocal,cvBChmEns_mpiglobal,cvDim_BChmEns_mpiglobal)
-!    endif
-
-    cvDim_mpiglobal_out = cvDim_Bhi_mpiglobal + cvDim_Ben_mpiglobal + &
-                          cvDim_Bchm_mpiglobal + cvDim_BChmEns_mpiglobal
 
   end SUBROUTINE BMAT_expandToMPIGlobal
 

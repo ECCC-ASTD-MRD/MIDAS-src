@@ -151,7 +151,7 @@ contains
     real*8 :: zdum,gasdev
     real*8,pointer :: cvBhi(:), cvBen(:), cvBchm(:), field(:,:,:,:)
     logical :: lpert_static, lpert_ens
-    integer :: ivar_count
+    integer :: ivar_count, nlev_max
     real*8,allocatable :: HxBhi(:), HxBen(:)
     real*8,allocatable :: scaleFactor(:),scaleFactorChm(:,:)
     character(len=128) :: innovFileName,bmatHiFileName,bmatEnFileName,countFileName
@@ -190,6 +190,7 @@ contains
     if (any(familyList(1:numFamily).eq.'CH').and.obs_famExist(obsSpaceData,'CH')) cvBChm => cvm_getSubVector(cvm_vazx,3)
 
     HxBhi(:) = 0.0d0
+    nlev_max=max(col_getNumLev(columng,'MM'),col_getNumLev(columng,'TH'))
     
     iseed = abs(nrandseed)
     zdum = gasdev(-iseed)
@@ -205,10 +206,10 @@ contains
           enddo
 
           ! initialize vector of scaleFactors
-          allocate(scaleFactor(col_getNumLev(columng,'MM')))
+          allocate(scaleFactor(nlev_max))
           call bhi_getScaleFactor(scaleFactor)
        else
-          allocate(scaleFactor(col_getNumLev(columng,'MM')))
+          allocate(scaleFactor(nlev_max))
           scaleFactor(:)=1.0      
        end if
 
@@ -218,13 +219,13 @@ contains
           enddo
 
           ! initialize vector of scaleFactors
-          allocate(scaleFactorChm(col_getNumLev(columng,'MM'),100))
+          allocate(scaleFactorChm(nlev_max,100))
           call bChm_getScaleFactor(scaleFactorChm)
        else
-          allocate(scaleFactorChm(col_getNumLev(columng,'MM'),100))
+          allocate(scaleFactorChm(nlev_max,100))
           scaleFactorChm(:,:)=1.0
        end if
-        
+ 
        ! multiply vector by B^1/2
        call bmat_sqrtB(cvm_vazx,cvm_nvadim,statevector)
 
@@ -276,7 +277,7 @@ contains
         enddo
 
         ! initialize vector of scaleFactors
-        allocate(scaleFactor(col_getNumLev(columng,'MM')))
+        allocate(scaleFactor(nlev_max))
         call ben_getScaleFactor(scaleFactor)
 
        ! multiply vector by B^1/2
@@ -381,7 +382,7 @@ contains
 
           endif
         enddo BODY
-
+        
         call rpn_comm_allreduce(ivco,ivco,1,"MPI_INTEGER","MPI_MAX","GRID",ierr)
 
         call rpn_comm_allreduce(my_counts,counts,maxLat*maxLon*maxVertical,"MPI_INTEGER","MPI_SUM","GRID",ierr)
@@ -396,7 +397,7 @@ contains
         if (lpert_ens) then
            where (counts.gt.0) bmatEnStd = sqrt(bmatEnStd/counts)
         end if 
-
+        
         if(mpi_myid.eq.0 .and. sum(counts(:,:,:)).gt.0) then
 
          ! determine file names
@@ -473,8 +474,8 @@ contains
           if (lpert_ens) ierr = fclos(nulBmatEn)
           ierr = fclos(nulcount)
         endif
-
       enddo ELEMENT
+
     enddo FAMILY
 
     deallocate(my_counts) 
@@ -500,7 +501,7 @@ contains
 !
 !   Revisions:
 !             Y.J. Rochon, ARQI/AQRD, Aug 2015
-!             - Account for vco=4 (total column measurements)
+!             - Account for vco=4,5 (total column and constituent surface measurements)
 !             - Adjusted latIndex and lonIndex settings
 !
 !------------------------------------------------------------------------------------
@@ -535,8 +536,8 @@ contains
           ! ignore other types of TOVS for now
           verticalIndex = -1
         endif
-      case(4)
-         ! Integrated column value - assign to first level
+      case(4,5)
+         ! Integrated column or surface value - assign to first level
          verticalIndex = 1
       case default
         ! unknown vertical coordinate
@@ -678,7 +679,7 @@ contains
           bodyIndex = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)     
           vco = obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex)
 
-          if (vco.ne.1 .and. vco.ne.2 .and. vco.ne.4) then
+          if (vco.ne.1 .and. vco.ne.2 .and. vco.ne.4 .and. vco.ne.5) then
              ! Vertical coordinate not handled
              write(*,*) 'osd_chem_diagnostics: Currently unaccounted VCO = ',vco
              cycle HEADER

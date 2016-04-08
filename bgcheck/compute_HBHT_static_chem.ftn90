@@ -1,4 +1,4 @@
-SUBROUTINE COMPUTE_HBHT_STATIC_CHM(lcolumng,lobsSpaceData,active)
+SUBROUTINE COMPUTE_HBHT_STATIC_CHEM(lcolumng,lobsSpaceData,active)
 !
 ! Author  : M. Sitwell, May 2015
 !
@@ -56,7 +56,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC_CHM(lcolumng,lobsSpaceData,active)
      write(*,*)
      write(*,*) 'Computing H*B*H^T using B_static_chm - Start'
   else
-     if ( mpi_myid == 0 ) write(*,*) 'compute_HBHT_static_chm: option NOT ACTIVATED'
+     if ( mpi_myid == 0 ) write(*,*) 'compute_HBHT_static_chem: option NOT ACTIVATED'
      return
   end if
           
@@ -66,4 +66,4 @@ SUBROUTINE COMPUTE_HBHT_STATIC_CHM(lcolumng,lobsSpaceData,active)
   write(*,*) 'Computing H*B*H^T using B_static_chm - End'
   
   RETURN
-END SUBROUTINE COMPUTE_HBHT_STATIC_CHM
+END SUBROUTINE COMPUTE_HBHT_STATIC_CHEM
