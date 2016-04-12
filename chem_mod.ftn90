@@ -82,6 +82,34 @@ module chem_mod
   integer, parameter :: chm_cfg_size=100           ! max size of config arrays
   integer, parameter :: chm_constituents_size=30   ! max size of constituents arrays
 
+
+! module interfaces
+! -----------------
+
+  ! interface for resizing arrays
+  interface resize
+     module procedure resize_1d_real
+     module procedure resize_1d_int
+     module procedure resize_1d_str
+     module procedure resize_2d_real
+     module procedure resize_3d_real
+  end interface resize
+
+  ! interface for conversion to a left-justified string (useful for calls to abort3d)
+  interface str
+     module procedure int2str
+     module procedure float2str
+  end interface str
+
+  ! interface for generating obsdata loctime codes
+  interface obsdata_get_loctime_code
+     module procedure obsdata_get_loctime_code_i
+     module procedure obsdata_get_loctime_code_r
+  end interface obsdata_get_loctime_code
+
+! module structures
+! -----------------
+
   type :: struct_chm_std
      !
      ! Structure containing information retrieved from file obsinfo_chm for holding 
@@ -191,29 +219,30 @@ module chem_mod
 
   end type struct_chm_obsoperators
 
-  type :: struct_chm_burp
+  type :: struct_chm_obsdata
 
-     !  Structure storing information retrieved from BURP files
-     !  for individual reports.
+     !  Structure storing information associated to observations such
+     !  as BURP file reports (irep) either retrieved from BURP files 
+     !  themselves or from other sources.  
      !     
      !  Variable               Description
      !  --------               -----------
-     !  ndim                   number of dimension of the BURP data
-     !                         per report (i.e. ndim=1 for std and
-     !                         ndim=2 for averaging kernels)
-     !  data1d                 BURP file data indexed by (irep,ilev)
-     !  data2d                 BURP file data indexed by (irep,ilev,ilev)
-     !  ilev                   current level position
+     !  ndim                   number of dimensions of the data arrays
+     !                         (i.e. ndim=1 for std and ndim=2 for averaging kernels)
+     !  nrep                   number of reports or observations
+     !  dim1                   first array dimension for each  report/observation
+     !  dim2                   second array dimension for each  report/observation (only relevant for ndim=2)
+     !  data1d                 obs data of dimension (nrep,dim1)
+     !  data2d                 obs data of dimension (nrep,dim1,dim2)
      !  irep                   current report position
-     !  date                   YYYYMM
-     !  time                   HHMM
-     !  lat,lon                lat,lon in radians
-
-     real(8), pointer :: data1d(:,:),data2d(:,:,:),lat(:),lon(:)
-     integer, pointer :: date(:),time(:)
-     integer :: ndim,nlev,nrep,ilev,irep
+     !  idim1                  current position in the first dimension of the data array
+     !  code                   unique character string for identifying the report/observation                    
+     
+     real(8), pointer :: data1d(:,:),data2d(:,:,:)
+     character(len=22), pointer :: code(:)
+     integer :: ndim,nrep,dim1,dim2,irep,idim1
   
-  end type struct_chm_burp
+  end type struct_chm_obsdata
 
   type :: struct_config
      
@@ -291,7 +320,7 @@ module chem_mod
 ! 'struct_chm_info' derived types, but currently this results
 ! in an internal compiler error.
 
-  type(struct_chm_burp), allocatable :: chm_burp_std(:),chm_burp_avgkern(:)
+  type(struct_chm_obsdata), allocatable :: chm_burp_std(:),chm_burp_avgkern(:)
 
   ! File containing various warnings related to chemical constituents that
   ! are not included in the listing file.
@@ -927,7 +956,7 @@ contains
 
     if (allocated(chm_burp_avgkern)) then
        do istnid=1,chm_avgkern%n_stnid
-          if (chm_avgkern%brp(istnid).eq.1) call dealloc_burp(chm_burp_avgkern(istnid))
+          if (chm_avgkern%brp(istnid).eq.1) call obsdata_dealloc(chm_burp_avgkern(istnid))
        end do
        deallocate(chm_burp_avgkern)
     end if
@@ -1021,7 +1050,7 @@ contains
           avg_kern = RESHAPE(chm_avgkern%rak(start_index:end_index),(/nlev,nlev/),ORDER =(/2,1/))
        else
           ! get averaging kernel from BURP file
-          avg_kern = chm_get_burp_array2d(chm_burp_avgkern(istnid),zlat,zlon,idate,itime,nlev)
+          avg_kern = obsdata_get_array2d(chm_burp_avgkern(istnid), obsdata_get_loctime_code(zlon,zlat,idate,itime))
        end if
 
     else
@@ -1349,7 +1378,7 @@ contains
     real(8)  :: obs_err_stddev 
        
     real(8)  :: wgt,zwb,sigma
-    integer  :: ibegin,ILEV,JN    
+    integer  :: ibegin,ILEV,JN
     integer, save  :: ISTNID,JINT
 
     ! If this call is for the first level for this measurement, get
@@ -1422,7 +1451,7 @@ contains
           
           ! Adjust error standard deviations read from BURP file if requested.
 
-          sigma = chm_get_burp_element(chm_burp_std(istnid),zlat,zlon,idate,itime)
+          sigma = obsdata_get_element(chm_burp_std(istnid), obsdata_get_loctime_code(zlon,zlat,idate,itime))
           
           IF (chm_std%std_type(ISTNID).EQ. 0) THEN
              obs_err_stddev = sigma
@@ -1458,7 +1487,7 @@ contains
     
     if (allocated(chm_burp_std)) then
        do istnid=1,chm_std%n_stnid
-          if (chm_std%brp(istnid).eq.1) call dealloc_burp(chm_burp_std(istnid))
+          if (chm_std%brp(istnid).eq.1) call obsdata_dealloc(chm_burp_std(istnid))
        end do
        deallocate(chm_burp_std)       
     end if
@@ -1514,7 +1543,6 @@ contains
 !-----------------------------------------------------------------------------------------
     
     use burp_module
-    use MathPhysConstants_mod
 
     implicit none
 
@@ -1522,14 +1550,15 @@ contains
     character(len=9), intent(in) :: stnid
     character(len=4), intent(in) :: block_type
     integer, intent(in)          :: ndim,varno,nlev,bkstp
-    type(struct_chm_burp) :: burp_out
+    type(struct_chm_obsdata) :: burp_out
     character(len=9)      :: rep_stnid
+    character(len=22)     :: code
     type(burp_file)       :: brp
     type(burp_rpt)        :: rep
     type(burp_block)      :: blk
     integer               :: error,ref_rpt,nrep,ref_blk
     integer               :: ref_bkstp,nval,ivar,iexp,ilev,icount
-    integer               :: idate,itime,ilat,ilon,iele,nele,icol
+    integer               :: date,time,ilat,ilon,iele,nele,icol
     real(8)               :: val,exponent
       
     ! initialize burp file, report, and block
@@ -1544,10 +1573,14 @@ contains
 
     ! get number of reports in file
     Call BURP_Get_Property(brp, NRPTS=nrep)
-
-    ! allocate memory
-    call alloc_burp(burp_out,nrep,nlev,ndim)
     
+    ! allocate memory
+    if (ndim.eq.1) then
+       call obsdata_alloc(burp_out,1,nrep,dim1=nlev)
+    else
+       call obsdata_alloc(burp_out,1,nrep,dim1=nlev,dim2=nlev)
+    end if
+
     icount = 0  ! counter of reports with same stnid and number of levels as input 
     ref_rpt = 0
     
@@ -1558,9 +1591,9 @@ contains
 
        if (ref_rpt<0) exit REPORTS
        
-       call BURP_Get_Property(rep, STNID=rep_stnid, DATE=idate, TEMPS=itime, LATI=ilat, LONG=ilon) 
+       call BURP_Get_Property(rep, STNID=rep_stnid, DATE=date, TEMPS=time, LATI=ilat, LONG=ilon) 
 
-       if (.not. stnid_equal(stnid,rep_stnid)) cycle REPORTS
+       if (.not.stnid_equal(stnid,rep_stnid)) cycle REPORTS
 
        ! loop through blocks
        ref_blk = 0
@@ -1571,87 +1604,62 @@ contains
           
           call BURP_Get_Property(blk, NELE=nele, NVAL=nval, BKSTP=ref_bkstp, IOSTAT=error)
           
-          if (IS_Burp_Btyp(trim(block_type),BLOCK=blk) .and. bkstp.eq.ref_bkstp) then
-             if (nval.eq.nlev) then
+          if (.not.IS_Burp_Btyp(trim(block_type),BLOCK=blk) .or. bkstp.ne.ref_bkstp .or. nval.ne.nlev) cycle BLOCKS
+
+          ! required block found if code reaches this point, retrieve data and store in burp_out
+
+          icount=icount+1
+          burp_out%code(icount) = obsdata_get_loctime_code(ilon,ilat,date,time)  ! this code is a unique identifier for this report
+
+          if (ndim.eq.1) then
+             ! retrieve 1D data
+             
+             ivar = BURP_Find_Element(blk, ELEMENT=varno, IOSTAT=error)
+             iexp = BURP_Find_Element(blk, ELEMENT=8090, IOSTAT=error)
                 
-                ! required block found, retrieve data and store in burp_out
-
-                icount=icount+1
-
-                burp_out%date(icount) = idate
-                burp_out%time(icount) = itime
-
-                burp_out%lon(icount) = .01*ilon
-                if (burp_out%lon(icount).lt.0.) burp_out%lon(icount) = 360. + burp_out%lon(icount)
-                burp_out%lat(icount) = ilat*.01 -90.
-                burp_out%lon(icount) = burp_out%lon(icount)*MPC_RADIANS_PER_DEGREE_R8
-                burp_out%lat(icount) = burp_out%lat(icount)*MPC_RADIANS_PER_DEGREE_R8
-
-                if (ndim.eq.1) then
-                   ! retrieve 1D data
-
-                   ivar = BURP_Find_Element(blk, ELEMENT=varno, IOSTAT=error)
-                   iexp = BURP_Find_Element(blk, ELEMENT=8090, IOSTAT=error)
-                
-                   if (iexp.lt.0) then
-                      ! No exponent found in block
-                      do ilev=1,nval                   
-                         burp_out%data1d(icount,ilev) = BURP_Get_Rval(blk, NELE_IND=ivar, NVAL_IND=ilev, NT_IND=1, IOSTAT=error)                
-                      end do
-                   else
-                      ! Apply exponent
-                      do ilev=1,nval                   
-                         val = BURP_Get_Rval(blk, NELE_IND=ivar, NVAL_IND=ilev, NT_IND=1, IOSTAT=error)                
-                         exponent = BURP_Get_Rval(blk, NELE_IND=iexp, NVAL_IND=ilev, NT_IND=1, IOSTAT=error)
-                         burp_out%data1d(icount,ilev) = val * 10**exponent
-                      end do
-                   end if
-                   
-                else if (ndim.eq.2) then
-                   ! retrieve 2D data
-
-                   icol = 0
-                   do iele=1,nele
-                      ivar = BURP_Get_Element(blk, INDEX=iele, IOSTAT=error)
-                      if (ivar.eq.varno) then
-                         icol = icol+1
-                         do ilev=1,nval                  
-                            burp_out%data2d(icount,ilev,icol) = BURP_Get_Rval(blk, NELE_IND=iele, NVAL_IND=ilev, NT_IND=1, IOSTAT=error)
-                         end do
-                      end if
-                   end do
-
-                end if
-
+             if (iexp.lt.0) then
+                ! No exponent found in block
+                do ilev=1,nval                   
+                   burp_out%data1d(icount,ilev) = BURP_Get_Rval(blk, NELE_IND=ivar, NVAL_IND=ilev, NT_IND=1, IOSTAT=error)                
+                end do
+             else
+                ! Apply exponent
+                do ilev=1,nval                   
+                   val = BURP_Get_Rval(blk, NELE_IND=ivar, NVAL_IND=ilev, NT_IND=1, IOSTAT=error)                
+                   exponent = BURP_Get_Rval(blk, NELE_IND=iexp, NVAL_IND=ilev, NT_IND=1, IOSTAT=error)
+                   burp_out%data1d(icount,ilev) = val * 10**exponent
+                end do
              end if
-             exit BLOCKS
+                   
+          else if (ndim.eq.2) then
+             ! retrieve 2D data
+             
+             icol = 0
+             do iele=1,nele
+                ivar = BURP_Get_Element(blk, INDEX=iele, IOSTAT=error)
+                if (ivar.eq.varno) then
+                   icol = icol+1
+                   do ilev=1,nval                  
+                      burp_out%data2d(icount,ilev,icol) = BURP_Get_Rval(blk, NELE_IND=iele, NVAL_IND=ilev, NT_IND=1, IOSTAT=error)
+                   end do
+                end if
+             end do
+
           end if
 
+          exit BLOCKS
+
        end do BLOCKS
-      
     end do REPORTS
-
-    ! resize first dimension of output from length
-    ! of nrep to icount
-    call resize_1d_real(burp_out%lat,icount)
-    call resize_1d_real(burp_out%lon,icount)
-    call resize_1d_int(burp_out%date,icount)
-    call resize_1d_int(burp_out%time,icount)
+   
+    ! resize first dimension of data arrays from length of nrep to icount
+    call resize(burp_out%code,icount)
     if (ndim.eq.1) then
-       call resize_2d_real(burp_out%data1d,icount,nlev)
+       call resize(burp_out%data1d,icount,nlev)
     else if (ndim.eq.2) then
-       call resize_3d_real(burp_out%data2d,icount,nlev,nlev)
+       call resize(burp_out%data2d,icount,nlev,nlev)
     end if
-
     burp_out%nrep = icount
-    burp_out%nlev = nlev
-
-    ! The following are counters used to keep tract of position 
-    ! in burp_out%data array when extracting values via
-    ! chm_get_burp_element. The values are initialized to one,
-    ! pointing to the very first element.
-    burp_out%irep = 1
-    burp_out%ilev = 1
     
     ! deallocate
     Call BURP_Free(brp,iostat=error)
@@ -1660,193 +1668,331 @@ contains
     
   end function chm_read_burp
 
-!-------------------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------------------
+!------------------- OBSDATA functions and routines -----------------------------------------
 
-  subroutine alloc_burp(burp,nrep,nlev,ndim)
+  subroutine obsdata_alloc(obsdata,itype,nrep,dim1,dim2)
 !
 ! Author  : M. Sitwell  April 2015
-! Revision: 
 !
-! Purpose: Allocates memory for structure struct_chm_burp to hold BURP file information
+! Purpose: Allocates memory for structure struct_chm_obsdata to hold obs data file information.
+!          If dim2 is specified, then the data array associated with each observation/report
+!          will be 2D array. will be a 1D array if dim2 is not specified.
+!
+! Revision:
+!     Y. Rochon and M. Sitwell  April 2016
+!       - strucutre generalized for more types of observational data
+!
+! Input
+!
+!    obsdata      data structure to allocate
+!    nrep         max number of associated observations/reports for data 
+!    dim1         first dimension length of the array associated to each observation/report
+!    dim1         second dimension length of the array associated to each observation/report (optional)
+!    itype        0: association to observations via the obs index
+!                 1: association to observations via (date,time,lat,lon)
 !
 !---------------------------------------------------------------------------------------
 
     implicit none
 
-    type(struct_chm_burp), intent(inout) :: burp
-    integer, intent(in) :: ndim,nrep,nlev
+    type(struct_chm_obsdata), intent(inout) :: obsdata
+    integer, intent(in) :: itype,nrep,dim1 
+    integer, intent(in), optional :: dim2 
     
-    if (ndim.eq.1.or.ndim.eq.2) then
-       burp%ndim = ndim
+    obsdata%nrep = nrep
+    obsdata%dim1 = dim1
+    
+    if (present(dim2)) then
+       obsdata%dim2 = dim2
+       obsdata%ndim = 2
+       allocate(obsdata%data2d(nrep,dim1,dim2))
     else
-       call abort3d("alloc_burp: Invalid BURP data structure dimension.")
+       obsdata%dim2 = 0
+       obsdata%ndim = 1
+       allocate(obsdata%data1d(nrep,dim1))
     end if
 
-    if (ndim.eq.1) then
-       allocate(burp%data1d(nrep,nlev))
-    else if (ndim.eq.2) then
-       allocate(burp%data2d(nrep,nlev,nlev))
-    end if
+    ! code is a character string assigned to each observation/report to uniquely identify it
+    allocate(obsdata%code(nrep))
+    
+    ! The following are counters used to keep tract of position in the
+    ! data arrays when extracting values via obsdata_get_element.
+    ! The values are initialized to one, pointing to the very first element.
+    obsdata%irep = 1
+    obsdata%idim1 = 1
 
-    allocate(burp%lat(nrep),burp%lon(nrep))
-    allocate(burp%date(nrep),burp%time(nrep))
-
-  end subroutine alloc_burp
+  end subroutine obsdata_alloc
 
 !-------------------------------------------------------------------------------------------
 
-  subroutine dealloc_burp(burp)
+  subroutine obsdata_dealloc(obsdata)
 !
 ! Author  : M. Sitwell  April 2015
 ! Revision: 
 !
-! Purpose: Deallocates memory for structure struct_chm_burp
+! Purpose: Deallocates memory for structure struct_chm_obsdata
 !
 !---------------------------------------------------------------------------------------
 
     implicit none
 
-    type(struct_chm_burp), intent(inout) :: burp
+    type(struct_chm_obsdata), intent(inout) :: obsdata
     
-    if (associated(burp%data1d)) deallocate(burp%data1d)
-    if (associated(burp%data2d)) deallocate(burp%data2d)
-    if (associated(burp%lat))    deallocate(burp%lat)
-    if (associated(burp%lon))    deallocate(burp%lon)
-    if (associated(burp%date))   deallocate(burp%date)
-    if (associated(burp%time))   deallocate(burp%time)
+    if (associated(obsdata%data1d)) deallocate(obsdata%data1d)
+    if (associated(obsdata%data2d)) deallocate(obsdata%data2d)
+    if (associated(obsdata%code))   deallocate(obsdata%code)
 
-  end subroutine dealloc_burp
+  end subroutine obsdata_dealloc
 
 !-------------------------------------------------------------------------------------------
 
-  function chm_get_burp_element(burp,zlat,zlon,idate,itime) result(element)
+  function obsdata_get_element(obsdata,code) result(element)
 ! 
-!   Purpose: Returns element of array from burp%data. The returned element is the one
-!            that matches the lon, lat, date, and time from the argument list to that stored
-!            in the burp structure.
+!   Purpose: Returns element of array from obsdata 1D data array. The returned element is the
+!            one with the specified identifying code.
 !
 !   Author: M. Sitwell, ARQI/AQRD, April 2015
 !    
 !   Revisions:
+!           M. Sitwell, April 2016
+!             - Changed function to use unique character string
 !
 !  Input 
-!           burp          struct_chm_burp instance
-!           zlat          latitude
-!           zlon          longitude
-!           idate         date YYYYMM
-!           itime         time HHMM
+!           obsdata       struct_chm_obsdata instance
+!           code          unique identifying code
 !
 !  Output
-!           element       retrieved element from burp%data
+!           element       retrieved element from obsdata%data1d
 !-------------------------------------------------------------------------------------------
 
-    type(struct_chm_burp), intent(inout) :: burp
-    real(8), intent(in) :: zlat,zlon
-    integer, intent(in) :: idate,itime
+    type(struct_chm_obsdata), intent(inout) :: obsdata
+    character(len=22), intent(in) :: code
     real(8) :: element
     
-    ! find burp%irep,burp%ilev for current observation
-    call chm_set_burp_position(burp,zlat,zlon,idate,itime)
-    
+    ! find (obsdata%irep,obsdata%idim1) for current observation
+    call obsdata_set_index(obsdata,code)
+        
     ! get element from data array at current position
-    element = burp%data1d(burp%irep,burp%ilev)
-    
+    element = obsdata%data1d(obsdata%irep,obsdata%idim1)
+
     ! increment position in data array
-    if (burp%irep.eq.burp%nrep .and. burp%ilev.eq.burp%nlev) then
-       burp%irep = 1
-       burp%ilev = 1
+    if (obsdata%irep.eq.obsdata%nrep .and. obsdata%idim1.eq.obsdata%dim1) then
+       obsdata%irep = 1
+       obsdata%idim1 = 1
     else
-       burp%ilev=burp%ilev+1
-       
-       if (burp%ilev.gt.burp%nlev) then
-          burp%ilev=1
-          burp%irep=burp%irep+1
+
+       if (obsdata%dim1.gt.1) then
+          obsdata%idim1=obsdata%idim1+1
+          if (obsdata%idim1.gt.obsdata%dim1) then
+             obsdata%idim1=1
+             obsdata%irep=obsdata%irep+1
+          end if
+       else
+          obsdata%irep=obsdata%irep+1
        end if
+
     end if
 
-  end function chm_get_burp_element
+  end function obsdata_get_element
 
 !-------------------------------------------------------------------------------------------
 
-  function chm_get_burp_array2d(burp,zlat,zlon,idate,itime,nlev) result(array)
+  function obsdata_get_array1d(obsdata,code) result(array)
 ! 
-!   Purpose: Returns element of array from burp%data. The returned element is the one
-!            that matches the lon, lat, date, and time from the argument list to that stored
-!            in the burp structure.
+!   Purpose: Returns 1D data array from obsdata. The returned array is the one with the specified
+!            identifying code.
+!
+!   Author: Y. Rochon, ARQI/AQRD, Nov 2015
+!           - Largely a copy of obsdata_get_array2d by M. Sitwell
+!    
+!   Revisions:
+!           M. Sitwell, April 2016
+!             - Changed function to use unique character string
+!
+!  Input 
+!           obsdata       struct_chm_obsdata instance
+!           code          unique identifying code
+!
+!  Output
+!           array        retrieved array from obsdata%data1d of dimension obsdata%dim1
+!-------------------------------------------------------------------------------------------
+
+    type(struct_chm_obsdata), intent(inout) :: obsdata
+    character(len=22), intent(in) :: code
+    real(8) :: array(obsdata%dim1)
+    
+    ! find obsdata%irep for current observation
+    call obsdata_set_index(obsdata,code)
+    
+    ! get element from data array at current position
+    array = obsdata%data1d(obsdata%irep,:)
+    
+    ! increment position in data array
+    if (obsdata%irep.eq.obsdata%nrep) then
+       obsdata%irep = 1
+    else
+       obsdata%irep=obsdata%irep+1
+    end if
+
+  end function obsdata_get_array1d
+
+!-------------------------------------------------------------------------------------------
+
+  function obsdata_get_array2d(obsdata,code) result(array)
+! 
+!   Purpose: Returns 2D data array from obsdata. The returned array is the one with the specified
+!            identifying code.
 !
 !   Author: M. Sitwell, ARQI/AQRD, April 2015
 !    
 !   Revisions:
+!           M. Sitwell, April 2016
+!             - Changed function to use unique character string
 !
 !  Input 
-!           burp          struct_chm_burp instance
-!           zlat          latitude
-!           zlon          longitude
-!           idate         date YYYYMM
-!           itime         time HHMM
+!           obsdata       struct_chm_obsdata instance
+!           code          unique identifying code
 !
 !  Output
-!           element       retrieved element from burp%data
+!           array        retrieved array from obsdata%data2d of dimension (obsdata%dim1,obsdata%dim2)
 !-------------------------------------------------------------------------------------------
 
-    type(struct_chm_burp), intent(inout) :: burp
-    real(8), intent(in) :: zlat,zlon
-    integer, intent(in) :: idate,itime,nlev
-    real(8) :: array(nlev,nlev)
+    type(struct_chm_obsdata), intent(inout) :: obsdata
+    character(len=22), intent(in) :: code
+    real(8) :: array(obsdata%dim1,obsdata%dim2)
     
-    ! find burp%irep,burp%ilev for current observation
-    call chm_set_burp_position(burp,zlat,zlon,idate,itime)
+    ! find obsdata%irep for current observation
+    call obsdata_set_index(obsdata,code)
     
-    ! get element from data array at current position
-    array = burp%data2d(burp%irep,:,:)
+    ! get elements from data array at current position
+    array = obsdata%data2d(obsdata%irep,:,:)
     
     ! increment position in data array
-    if (burp%irep.eq.burp%nrep) then
-       burp%irep = 1
+    if (obsdata%irep.eq.obsdata%nrep) then
+       obsdata%irep = 1
     else
-       burp%irep=burp%irep+1
+       obsdata%irep=obsdata%irep+1
     end if
 
-  end function chm_get_burp_array2d
+  end function obsdata_get_array2d
 
 !-------------------------------------------------------------------------------------------
 
-  subroutine chm_set_burp_position(burp,zlat,zlon,idate,itime)
+  subroutine obsdata_set_index(obsdata,code)
 ! 
-!   Purpose: Sets the position variables in struct_chm_burp (burp%irep, burp%ilev)
-!            to reference the BURP record that matches the input parameters. 
+!  Purpose: Sets the position variables in struct_chm_obsdata (burp%irep, burp%idim1)
+!           to reference the record that matches the input identifying code.
 !
-!   Author: M. Sitwell, ARQI/AQRD, April 2015
-!    
+!  Author: Y. Rochon, ARQI/AQRD, Oct 2015
+!
+!  Revisions:
+!           M. Sitwell, April 2016
+!             - Changed function to use unique character string
+!
 !  Input 
-!           burp          struct_chm_burp instance
-!           zlat          latitude
-!           zlon          longitude
-!           idate         date YYYYMM
-!           itime         time HHMM
+!           obsdata       struct_chm_obsdata instance
+!           index         obs index
 !
 !  Output
-!           element       retrieved element from burp%data
+!           obsdata%irep      current index position for the observation/report
+!           obsdata%idim1     current index position that iterates through the first dimension
+!                             of the data array
+! 
 !-------------------------------------------------------------------------------------------
 
-    type(struct_chm_burp), intent(inout) :: burp
-    real(8), intent(in) :: zlat,zlon
-    integer, intent(in) :: idate,itime
+    type(struct_chm_obsdata), intent(inout) :: obsdata
+    character(len=22), intent(in) :: code
     integer :: i
-
+     
+    if (obsdata%nrep.le.0) call abort3d("obsdata_set_index: No reports available.")
     i=0
     
-    ! search for required irep if current position doesn't match lat,lon,date,time
-    do while (.not. equal_real(burp%lon(burp%irep),zlon) .or. .not. equal_real(burp%lat(burp%irep),zlat) .or. &
-              idate.ne.burp%date(burp%irep) .or. itime.ne.burp%time(burp%irep) )
-       burp%irep=burp%irep+1
-       if (burp%irep.gt.burp%nrep) burp%irep=1
-       burp%ilev=1
-       if (i.gt.burp%nrep) CALL ABORT3D('chm_set_burp_position: BURP file data could not be retrieved.')
-       i=i+1
-    end do
+    ! Search for matching identifier code
+    do while (obsdata%code(obsdata%irep).ne.code)
+       obsdata%irep=obsdata%irep+1
+       if (obsdata%irep.gt.obsdata%nrep) obsdata%irep=1
+       obsdata%idim1=1
+       if (i.gt.obsdata%nrep) call abort3d("obsdata_set_index: Obs index not found.")
+       i=i+1       
+    end do        
 
-  end subroutine chm_set_burp_position
+  end subroutine obsdata_set_index
+
+!-------------------------------------------------------------------------------------------
+
+  function obsdata_get_loctime_code_i(ilon,ilat,date,time) result(code)
+! 
+!  Purpose: Generates a unique 22 character code corresponding to lon,lat,date,time. To be
+!           used for setting the unique identifier 'code' in struct_chm_obsdata. Can be
+!           called under the interface obsdata_get_loctime_code.
+!
+!  Author: M. Sitwell, April 2016
+!    
+!  Input
+!           ilon          longitude integer
+!           ilat          latitude integer
+!           date          date in YYYYMMDD
+!           time          time in HHMM
+!
+!  Output
+!           code          unique code
+! 
+!-------------------------------------------------------------------------------------------
+    
+    implicit none
+
+    integer, intent(in) :: ilon,ilat,date,time
+    character(len=22)   :: code
+
+    if (ilon.gt.0) then
+       write(code(1:5),'(I5.5)') ilon
+    else
+       write(code(1:5),'(I5.5)') 36000 + ilon
+    end if
+    
+    write(code(6:10),'(I5.5)') ilat
+    write(code(11:18),'(I8.8)') date
+    write(code(19:22),'(I4.4)') time
+
+  end function obsdata_get_loctime_code_i
+
+!-------------------------------------------------------------------------------------------
+
+  function obsdata_get_loctime_code_r(lon,lat,date,time) result(code)
+! 
+!  Purpose: Generates a unique 22 character code corresponding to lon,lat,date,time. To be
+!           used for setting the unique identifier 'code' in struct_chm_obsdata. Can be
+!           called under the interface obsdata_get_loctime_code.
+!
+!  Author: M. Sitwell, April 2016
+!    
+!  Input
+!           lon           longitude real
+!           lat           latitude real
+!           date          date in YYYYMMDD
+!           time          time in HHMM
+!
+!  Output
+!           code          unique code
+! 
+!-------------------------------------------------------------------------------------------
+    
+    use MathPhysConstants_mod
+
+    implicit none
+
+    real(8), intent(in) :: lon,lat
+    integer, intent(in) :: date,time
+    character(len=22)   :: code
+    integer :: ilon,ilat
+
+    ilon = nint(100*(lon/MPC_RADIANS_PER_DEGREE_R8))
+    ilat = nint(100*(90. + lat/MPC_RADIANS_PER_DEGREE_R8))
+
+    code = obsdata_get_loctime_code_i(ilon,ilat,date,time)
+
+  end function obsdata_get_loctime_code_r
 
 !-----------------------------------------------------------------------------------------
 !------------------- Miscellaneous utilities functions and routines ----------------------
@@ -1928,7 +2074,27 @@ contains
     int2str = adjustl(int2str)
     
   end function int2str
-            
+  
+!-------------------------------------------------------------------------------------------
+
+  character(len=20) function float2str(x)
+!-------------------------------------------------------------------------------------------
+!
+! Author:  M. Sitwell April 2016
+!
+! Purpose: Function for integer to string conversion. Helpful when calling subroutine abort3d.
+!
+!-------------------------------------------------------------------------------------------
+
+    implicit none
+
+    real(8), intent(in) :: x
+
+    write(float2str,*) x
+    float2str = adjustl(float2str)
+
+  end function float2str
+
 !-------------------------------------------------------------------------------------------
 
   subroutine chm_get_stringId(cstringin,nobslev,CList,NListSize,Nmax,elemId)
@@ -2285,13 +2451,13 @@ contains
     integer, intent(out) :: ierr
 
     integer :: num_list(nlist*nchar),num_list_all(nlist*nchar,nproc)
-    integer :: ilist,jchar,iproc
+    integer :: ilist,ichar,iproc
               
     ! Convert strings to integer sequences
 
     do ilist=1,nlist
-       do jchar=1,nchar
-          num_list((ilist-1)*nchar+jchar) = iachar(str_list(ilist)(jchar:jchar))
+       do ichar=1,nchar
+          num_list((ilist-1)*nchar+ichar) = iachar(str_list(ilist)(ichar:ichar))
        end do
     end do
 
@@ -2303,8 +2469,8 @@ contains
           
     do iproc=1,nproc
        do ilist=1,nlist
-          do jchar=1,nchar
-             str_list_all(ilist,iproc)(jchar:jchar) = achar(num_list_all((ilist-1)*nchar+jchar,iproc))
+          do ichar=1,nchar
+             str_list_all(ilist,iproc)(ichar:ichar) = achar(num_list_all((ilist-1)*nchar+ichar,iproc))
           end do
        end do
     end do
@@ -2388,15 +2554,18 @@ contains
     real(8), pointer, intent(inout) :: arr(:)
     integer, intent(in) :: dim1
     real(8), pointer :: tmp(:)
+    integer :: dim1_in,d1
+
+    dim1_in = size(arr)
+    d1 = min(dim1_in, dim1)
 
     allocate(tmp(dim1))
+    tmp(1:d1) = arr(1:d1)
 
-    tmp = arr(1:dim1)
+    if (dim1.gt.dim1_in) tmp(d1+1:dim1) = 0.0D0
     
     deallocate(arr)
-
     arr => tmp
-    
     nullify(tmp)
 
   end subroutine resize_1d_real
@@ -2405,7 +2574,6 @@ contains
   subroutine resize_1d_int(arr,dim1)
 !
 ! Author  : M. Sitwell  April 2015
-! Revision: 
 !
 ! Purpose: Resize 1D array
 !
@@ -2416,27 +2584,64 @@ contains
     integer, pointer, intent(inout) :: arr(:)
     integer, intent(in) :: dim1
     integer, pointer :: tmp(:)
+    integer :: dim1_in,d1
+
+    dim1_in = size(arr)
+    d1 = min(dim1_in, dim1)
 
     allocate(tmp(dim1))
+    tmp(1:d1) = arr(1:d1)
 
-    tmp = arr(1:dim1)
+    if (dim1.gt.dim1_in) tmp(d1+1:dim1) = 0
     
     deallocate(arr)
-
     arr => tmp
-    
     nullify(tmp)
 
   end subroutine resize_1d_int
+
+!-------------------------------------------------------------------------------------------
+
+  subroutine resize_1d_str(arr,dim1)
+!
+! Author  : M. Sitwell  April 2016
+!
+! Purpose: Resize 1D array
+!
+!---------------------------------------------------------------------------------------
+     
+    implicit none
+
+    character(len=*), pointer, intent(inout) :: arr(:)
+    integer, intent(in) :: dim1
+    character(len=len(arr(1))), pointer :: tmp(:)
+    integer :: dim1_in,d1
+
+    dim1_in = size(arr)
+    d1 = min(dim1_in, dim1)
+
+    allocate(tmp(dim1))
+    tmp(1:d1) = arr(1:d1)
+
+    if (dim1.gt.dim1_in) tmp(d1+1:dim1) = ""
+    
+    deallocate(arr)
+    arr => tmp
+    nullify(tmp)
+
+  end subroutine resize_1d_str
 
 !-------------------------------------------------------------------------------------------
   
   subroutine resize_2d_real(arr,dim1,dim2)
 !
 ! Author  : M. Sitwell  April 2015
-! Revision: 
 !
 ! Purpose: Resize 2D array
+!
+! Revision: 
+!           Y. Rochon Feb 2016
+!           - Added option to increase array sizes
 !
 !---------------------------------------------------------------------------------------
 
@@ -2445,15 +2650,21 @@ contains
     real(8), pointer, intent(inout) :: arr(:,:)
     integer, intent(in) :: dim1,dim2
     real(8), pointer :: tmp(:,:)
+    integer :: dim1_in,dim2_in,d1,d2
+
+    dim1_in = size(arr,dim=1)
+    dim2_in = size(arr,dim=2)
+    d1 = min(dim1_in, dim1)
+    d2 = min(dim2_in, dim2)
 
     allocate(tmp(dim1,dim2))
-
-    tmp = arr(1:dim1,1:dim2)
+    tmp(1:d1,1:d2) = arr(1:d1,1:d2)
     
+    if (dim1.gt.dim1_in) tmp(d1+1:dim1,:) = 0.0D0
+    if (dim2.gt.dim2_in) tmp(:,d2+1:dim2) = 0.0D0
+      
     deallocate(arr)
-
     arr => tmp
-    
     nullify(tmp)
 
   end subroutine resize_2d_real
@@ -2474,37 +2685,27 @@ contains
     real(8), pointer, intent(inout) :: arr(:,:,:)
     integer, intent(in) :: dim1,dim2,dim3
     real(8), pointer :: tmp(:,:,:)
+    integer :: dim1_in,dim2_in,dim3_in,d1,d2,d3
+
+    dim1_in = size(arr,dim=1)
+    dim2_in = size(arr,dim=2)
+    dim3_in = size(arr,dim=3)
+    d1 = min(dim1_in, dim1)
+    d2 = min(dim2_in, dim2)
+    d3 = min(dim3_in, dim3)
 
     allocate(tmp(dim1,dim2,dim3))
+    tmp(1:d1,1:d2,1:d3) = arr(1:d1,1:d2,1:d3)
 
-    tmp = arr(1:dim1,1:dim2,1:dim3)
-    
+    if (dim1.gt.dim1_in) tmp(d1+1:dim1,:,:) = 0.0D0
+    if (dim2.gt.dim2_in) tmp(:,d2+1:dim2,:) = 0.0D0
+    if (dim3.gt.dim3_in) tmp(:,:,d3+1:dim3) = 0.0D0
+
     deallocate(arr)
-
     arr => tmp
-    
     nullify(tmp)
 
   end subroutine resize_3d_real
-
-!-------------------------------------------------------------------------------------------
-  
-  logical function equal_real(r1,r2)
-!
-! Author  : M. Sitwell  April 2015
-! Revision: 
-!
-! Purpose: Check if two reals are equal (up to a small difference of 1E-5) 
-!
-!---------------------------------------------------------------------------------------
-
-    implicit none
-
-    real(8), intent(in) :: r1,r2
-    
-    equal_real = abs(r1-r2) .le. 1E-5
-    
-  end function equal_real
 
 !---------------------------------------------------------------------------------------
   
@@ -3886,7 +4087,7 @@ contains
       iconstituent_id.ge.0) then
 
      if (iconstituent_id.gt.chm_constituents_size) &
-          call abort3d("chm_layer_integ_operator: Invalid constituent ID with value " // trim(int2str(iconstituent_id)))
+          call abort3d("chm_layer_integ_operator: Invalid constituent ID with value " // trim(str(iconstituent_id)))
      
      vlayerbottom_ref=chm_obsoper%vlayerbottom(1)
      
@@ -4445,7 +4646,7 @@ contains
 ! Purpose:  Set generalized innovation operator for integral or layer avg obs.
 !           Relevant only for 3D incremental fields.
 !           This version is intended to vertically distribute the obs increments 
-!           proportionally to the background state. See commments section for 
+!           proportionally to the background state. See comments section for 
 !           details.
 !
 ! Arguments:
