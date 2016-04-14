@@ -33,7 +33,7 @@ module chem_interface_mod
 ! -----------------
 
   public :: chm_observation_operators,chm_get_comboIdlist,chm_calc_OmA_nonassim
-  public :: chm_check_negative_analysis,chm_assim
+  public :: chm_transform_final_increments,chm_assim
 
 contains
   
@@ -427,7 +427,7 @@ contains
           bodyIndex = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)     
           vco = obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex)
 
-          if (vco.ne.1 .and. vco.ne.2 .and. vco.ne.4) then
+          if (vco.ne.1 .and. vco.ne.2 .and. vco.ne.4 .and. vco.ne.5) then
              ! Vertical coordinate not handled
              write(*,*) 'chm_get_comboIdlist: Currently unaccounted VCO = ',vco
              cycle HEADER
@@ -447,7 +447,7 @@ contains
           end do
 
           ! Adds to running list of unique pairs if unique
-          call chm_comboIdlist(stnid_add=obs_elem_c(obsSpaceData,'STID',headerIndex), varno_add=varno, unilev_add=(nlev_obs.eq.1.and.vco.eq.4))
+          call chm_comboIdlist(stnid_add=obs_elem_c(obsSpaceData,'STID',headerIndex), varno_add=varno, unilev_add=(nlev_obs.eq.1.and.vco.ge.4))
                        
        end do HEADER
        
@@ -580,7 +580,7 @@ contains
 !
 ! Comment:
 !
-! 1) Ensemble-based part commented out until bmatrixChemEns_mod.ftn is developed.
+! 1) Ensemble-based part commented out. To be completed later
 !
 !-----------------------------------------------------------------------------------
 
@@ -634,7 +634,8 @@ contains
     
     !Ensemble-based covariance matrix component
     
-    !cvBChmEns => cvm_getSubVector(cvm_vazx,4)
+    !  cvBChmEns => cvm_getSubVector(cvm_vazx,2)
+    !! OR cvBChmEns => cvm_getSubVector(cvm_vazx,4) depending on controlvector_mod.ftn90
     !if ( associated(cvBChmEns) ) then
 
     !!  Initialize the statevector_temp
@@ -644,7 +645,7 @@ contains
     !   call gsv_allocate(statevector_temp,tim_nstepobsinc,mpi_local=.true.)
     !   call gsv_zero(statevector_temp) 
     !
-    !   call bChmEns_bsqrt(cvBChmEns, statevector_temp)
+    !   call bEn_bsqrt(cvBChmEns, statevector_temp)
     !
     !!  Add the two contributions together, result in statevector
     !   call gsv_add(statevector_temp,statevector)
@@ -771,7 +772,7 @@ contains
                     ypos > real(myLatEndP1          ,8) .or. &
                     xpos < real(statevector%myLonBeg,8) .or. &
                     xpos > real(myLonEndP1          ,8) ) then
-                  write(*,*) 'gd2mvo: Obs outside local domain for headerIndex = ', headerIndex
+                  write(*,*) 'gd2mvo: Obs outside local domain for headerIndex = ', headerIndex,' ',varName
                   write(*,*) '        obs lat, lon position               = ', Lat*MPC_DEGREES_PER_RADIAN_R8, Lon*MPC_DEGREES_PER_RADIAN_R8
                   write(*,*) '        obs x, y     position               = ', xpos, ypos
                   write(*,*) '        domain x_start, x_end, y_start, y_end bounds = ',  &
@@ -831,14 +832,29 @@ contains
 
 !-----------------------------------------------------------------------------------
 
-  subroutine chm_check_negative_analysis(increment,background,low_cutoff)
+  subroutine chm_transform_final_increments(increment,background)
 !
 ! Author: M. Sitwell Sept 2015
+!         - Originally as chm_check_negative
 !
-! Purpose: Checks for negative analysis values and if any negative values found will
+! Revisions:
+!            Y. Rochon, Nov 2015
+!            - Added upper bound.
+!            - Modified from chm_check_negative to chm_transform_final_inscrements.
+!            - Use of col_varExist
+!
+! Purpose: Apply any required adjustments and/or transformations to increments
+!          prior to saving in rebm file.
+!
+!          Possible adjustments/transformations:
+!
+!          - Convert to dx when the analysis increments are in a different form (e.g. dlnx).
+!
+!          - Checks for negative analysis values and if any negative values found will
 !          modify the increment so that the analysis  is reset to low_cutoff*background
 !          at these points. This check is done with fields of the same resolution as
-!          the increment.
+!          the increment. Correspondingly impose upper limits.
+!
 !
 ! InOut
 !
@@ -855,87 +871,33 @@ contains
     implicit none
     
     type(struct_gsv), intent(inout) :: increment,background
-    real(8), intent(in) :: low_cutoff
 
     real(8), pointer :: inc_ptr(:,:,:,:),bkgrnd_ptr(:,:,:,:)
-    logical, allocatable :: toolow(:,:,:,:)
 
-    integer :: jvar,nlow,i1,i2,i3,i4
+    integer :: jvar
     character(len=4)  :: varName
-    logical :: file_exists
-
-    integer, parameter :: unit=10
-
-    ! Open output file
-    inquire(file=chm_warnings_filename, exist=file_exists)
-    if (file_exists) then
-       open(unit, file=chm_warnings_filename, status="old", position="append", action="write")
-    else
-       open(unit, file=chm_warnings_filename, status="new", action="write")
-    end if
 
     do jvar = 1, vnl_numvarmax
       if (gsv_varExist(vnl_varNameList(jvar))) then 
          if (vnl_varKindFromVarname(vnl_varNameList(jvar)).eq.'CH') then
 
-            varName = trim(vnl_varNameList(jvar))
+            varName=vnl_varNameList(jvar)
             inc_ptr => gsv_getField(increment,varName)
             bkgrnd_ptr => gsv_getField(background,varName)
 
-            allocate(toolow(size(inc_ptr,1),size(inc_ptr,2),size(inc_ptr,3),size(inc_ptr,4)))
+!           Analysis increment transformations to dx if needed.
+           
+            call chm_apply_transform(varName, bkgrnd_ptr, l_reverse=.true., mode=2, incr_ptr=inc_ptr)
 
-            ! Check if both background and analysis are negative. If so set the increment to force an analysis of zero at these locations
-            toolow = bkgrnd_ptr.lt.0.0 .and. bkgrnd_ptr+inc_ptr.lt.0.0
-            nlow = count(toolow)
-
-            if (nlow.gt.0) then
-               write(unit,'(A,I7,A,A,A)') "chm_check_negative_analysis: ",nlow," negative background and analysis values were found for field ",trim(varName),"."
-               write(unit,'(A)') "Modifying the increment so the analysis is instead equal to zero at these locations."       
-               write(unit,'(A)') "JLON JLEV JLAT TSTEP   Background   Init. incr."
-               do i1=1,size(inc_ptr,1)
-               do i2=1,size(inc_ptr,2)
-               do i3=1,size(inc_ptr,3)
-               do i4=1,size(inc_ptr,4)
-                  if (toolow(i1,i2,i3,i4)) write(unit,'(4(I4,1X),2G12.2)') i1,i2,i3,i4,bkgrnd_ptr(i1,i2,i3,i4),inc_ptr(i1,i2,i3,i4)
-               end do
-               end do
-               end do
-               end do
-               where (toolow) inc_ptr = -bkgrnd_ptr
-               write(unit,*)
-            end if
+!           Apply min and max boundaries if needed.
             
-            ! Check if the analysis is below the trial field cutoff. If so set analysis to this cut-off value at these locations
-            toolow = bkgrnd_ptr+inc_ptr.lt.low_cutoff*bkgrnd_ptr .and. bkgrnd_ptr.ge.0.0
-            nlow = count(toolow)
-            
-            if (nlow.gt.0) then
-               write(unit,'(A,I7,A,F4.1,A,A,A)') "chm_check_negative_analysis: ",nlow," analysis values were found below the cut-off of ",100.*low_cutoff, &
-                    "% of the trial field for field ",trim(varName),"."
-               write(unit,'(A)') "Modifying the increment so the analysis is instead equal to the cut-off value at these locations."
-               write(unit,'(A)') "JLON JLEV JLAT TSTEP   Background  Init.-incr.  New-incr."
-               do i1=1,size(inc_ptr,1)
-               do i2=1,size(inc_ptr,2)
-               do i3=1,size(inc_ptr,3)
-               do i4=1,size(inc_ptr,4)
-                  if (toolow(i1,i2,i3,i4)) write(unit,'(4(I4,1X),3G12.2)') i1,i2,i3,i4,bkgrnd_ptr(i1,i2,i3,i4), &
-                                           inc_ptr(i1,i2,i3,i4),(low_cutoff-1.0)*bkgrnd_ptr(i1,i2,i3,i4)
-               end do
-               end do
-               end do
-               end do
-               where (toolow) inc_ptr = (low_cutoff-1.0)*bkgrnd_ptr
-            end if
-
-            deallocate(toolow)
-
+            call chm_apply_bounds(varName,bkgrnd_ptr,inc_ptr)
+             
          end if
       end if
     end do
     
-    close(unit)
-
-  end subroutine chm_check_negative_analysis
+  end subroutine chm_transform_final_increments
 
 !-----------------------------------------------------------------------------------
 

@@ -48,6 +48,13 @@ module chem_mod
 !         (stnid,varno) or (stnid,varno,multi/uni-level) combinations. For use in
 !         in obsspacediag_mod.ftn90.
 !
+!       - Public routine "chm_convert_z_to_pressure".
+!
+!       - Public routines "chm_apply_bounds" and "chm_apply_transform" applied to analysis increment fields.
+!
+!       - Public routine "chm_varnumFromVarname" to obtain the BUFR varno corresponding to
+!         to the constituent.
+!
 ! COMMENT:
 !
 !    This module can be expanded to contain other constituent related info
@@ -75,8 +82,15 @@ module chem_mod
   public :: chm_setup,chm_dealloc_obs_err_stddev,chm_read_obs_err_stddev, &
             chm_get_obs_err_stddev,chm_obsspace_diagnostic,chm_convert_z_to_pressure
   public :: chm_obsoperators,chm_get_stringID,chm_get_ID,stnid_equal
-  public :: chm_lcheck_skipassim,chm_comboIDlist,chm_warnings_filename,chm_required_field
-  
+  public :: chm_lcheck_skipassim,chm_comboIDlist,chm_required_field
+  public :: chm_apply_bounds,chm_apply_transform
+
+
+! public variables
+! ----------------
+
+  public :: chm_constituents_size
+
 ! module constants
 ! -----------------
   integer, parameter :: chm_cfg_size=100           ! max size of config arrays
@@ -286,9 +300,11 @@ module chem_mod
      !                         Integer indicating if special treatment is to be given to the troposphere
      !                         when assimilating total column measurements. Values indicate
      !                           0:  No special treatment given (default)
-     !                           1:  Values of the adjoint model above 'tropo_column_top' set to zero.
+     !                           1:  Values of the adjoint model above 'tropo_column_top' 
+     !                               (or chm_column_upper_boundary%data1d) set to zero.
      !                               If specified, generalized innovation operator only applied below
-     !                               'tropo_column_top' in the tangent linear model.
+     !                               'tropo_column_top' (or chm_column_upper_boundary%data1d) 
+     !                               in the tangent linear model.
      !                           2:  Values of tangent linear model and adjoint model above 'tropo_column_top'
      !                               set to zero
      !                         Array index refers to BUFR code element of Table 08046 (iconstituent_id)
@@ -299,14 +315,26 @@ module chem_mod
      !                         Applied in the adjoint model. No impact when value is at or above the model top.
      !                         Array index refers to BUFR code element of Table 08046 (iconstituent_id)
      !                         identifying the constituent.
+     !             
+     !                         Instead of tropo_colummn_top, will normally use tropopause level if available 
+     !                         or PBL level instead when .
      !
+     !  low_cutoff             min value allowed for increments prior to storage in rebm expressed as a fraction
+     !                         of the background field (generally < 1)
+     !  high_cutoff            max value allowed for increments prior to storage in rebm expressed as a multiple
+     !                         of the background field (generally > 1)
+     !  transform              Index specifying form of analysis increment (and related adjoint operation)
+     !                         0: no transformation (dx given input trial field denoted as x)
+     !                         1: dlnx 
      
      logical :: generalized_operator,diagn_save
      integer :: assim_num,tropo_mode(0:chm_constituents_size)
      integer :: assim_varno(chm_cfg_size),assim_nlev(chm_cfg_size)
+     integer :: transform(0:chm_constituents_size)
      character(len=9) :: assim_stnid(chm_cfg_size)
      real(8) :: diagn_pressmin
      real(8) :: amu(0:chm_constituents_size),tropo_column_top(0:chm_constituents_size)
+     real(8) :: low_cutoff(0:chm_constituents_size),high_cutoff(0:chm_constituents_size)
 
   end type struct_config
 
@@ -437,8 +465,16 @@ contains
 !        amu                 Molecular mass  of constituents in g/moles (needed for unit conversions)
 !                            Array index refers to BUFR code element of Table 08046 (iconstituent_id)
 !                            identifying the constituent.
+!       low_cutoff           min value allowed for increments prior to storage in rebm expressed as a fraction
+!                            of the background field (generally < 1)
+!       high_cutoff          max value allowed for increments prior to storage in rebm expressed as a multiple
+!                            of the background field (generally > 1)
+!       transform            Index specifying form of analysis increment (and related adjoint operation)
+!                              0: no transformation (dx given input trial field denoted as x)
+!                              1: dlnx 
 !
-!----------------------------------------------------------------------------------------  
+!---------------------------------------------------------------------------------------- 
+ 
   implicit none
 
   integer :: FNOM, FCLOS
@@ -455,6 +491,8 @@ contains
   logical :: diagn_save,diagn_all,diagn_unilev(chm_cfg_size)
   real(8) :: diagn_pressmin,tropo_column_top(0:chm_constituents_size)
   real(8) :: amu(0:chm_constituents_size)
+  real(8) :: low_cutoff(0:chm_constituents_size),high_cutoff(0:chm_constituents_size)
+  integer :: transform(0:chm_constituents_size)
 
   EXTERNAL FNOM,FCLOS
 
@@ -462,11 +500,15 @@ contains
                      assim_num,assim_stnid,assim_varno,assim_nlev, &
                      diagn_num,diagn_stnid,diagn_varno,diagn_unilev, &
                      diagn_save,diagn_all,diagn_nset,diagn_pressmin, &
-                     tropo_mode,tropo_column_top,amu
+                     tropo_mode,tropo_column_top,amu, &
+                     low_cutoff,high_cutoff,transform
   
   ! Default NAMCHEM values
   
   genoper=.true.
+  low_cutoff(:)=0.1
+  high_cutoff(:)=10.0
+  transform(:)=0
 
   assim_num=-1  
   assim_stnid(:)='*********'
@@ -496,6 +538,9 @@ contains
   amu(7) = 30.03   ! HCHO=Formaldehyde
   amu(8) = 64.06   ! SO2
   amu(9) = 17.03   ! NH3
+  amu(11) = 30.0   ! NO
+  amu(26) = 1.0    ! PM2.5 - Not applicable
+  amu(27) = 1.0    ! PM10  - Not applicable
 
   ! Read from namelist file NAMCHEM
 
@@ -523,6 +568,9 @@ contains
   chm_config%tropo_mode = tropo_mode
   chm_config%tropo_column_top = tropo_column_top
   chm_config%amu = amu
+  chm_config%low_cutoff = low_cutoff
+  chm_config%high_cutoff = high_cutoff
+  chm_config%transform = transform
 
   ! Initialize chm_comboIDlist and add (stnid,varno) pairs from the namelist
 
@@ -690,7 +738,8 @@ contains
 ! Inputs:
 !   - cstnid          station id
 !   - varno           BUFR descriptor element
-!   - ivco            type of vertical coordinate (see burp_read_mod.ftn90 for definitions)
+!   - ivco            type of vertical coordinate (see burp_read_mod.ftn90 or
+!                     routine chm_obsoperators for definitions)
 !   - nlev            number of levels in the observation
 !   - default_top     default value for top layer for total column measurement
 !   - default_bottom  default value for bottom layer for total column measurement
@@ -724,8 +773,8 @@ contains
        iset = stnid_equal(chm_layers%stnids(JN),CSTNID)
 
        ! Check if number of levels, code, and vertical coordinate type are equal.
-       ! If number of levels is one and no vertical coordinate provided in the obs file (i.e. IVCO=4;
-       ! as for a total column measurement), then check of vertical coordinate type is disregarded.
+       ! If number of levels is one and no vertical coordinate provided for total column measurement (i.e. IVCO.eq.4),
+       ! then check of vertical coordinate type is disregarded afterwards.
        IF (iset) THEN
           IF ( varno.EQ.chm_layers%bfr(JN) .AND. NLEV.EQ.chm_layers%n_lvl(JN) .AND. &
               (IVCO.EQ.chm_layers%vco(JN).OR.IVCO.EQ.4) ) THEN
@@ -2735,6 +2784,343 @@ contains
 
   end subroutine chm_dealloc_info
 
+!-----------------------------------------------------------------------------------
+
+  subroutine chm_apply_transform(varName,bkgrnd_ptr,l_reverse,mode,incr_ptr)
+!
+! Author: Y. Rochon, Nov 2015
+!
+! Purpose: Apply transform (or its inverse) of background field or increment field.
+!          Called by chm_transform_final_increments in file chem_interface_mod.ftn90.
+!
+! Revisions:
+!        M. Sitwell, April 2016
+!          - Added input integer mode for selection of transform sub-type.
+!          - Create new sub-function log_matrix from previous code for handling
+!            negative values before taking the log. 
+!
+! Arguments:
+!
+!   In
+!
+!     varName          Field name (nomvar)
+!     l_reverse        Reverse/inverse transformation
+!     mode             selected sub-transformation type (defined for each transformation
+!                      given in chm_config%transform)
+!
+!   InOut
+!
+!     bkgrnd_ptr       pointer to statevector for the background
+!     incr_ptr         pointer to increment field
+!
+!-----------------------------------------------------------------------------------
+
+    implicit none
+    
+    character(len=*), intent(in) :: varName
+    integer, intent(in) :: mode
+    logical, intent(in) :: l_reverse
+
+    real(8), intent(inout), pointer :: bkgrnd_ptr(:,:,:,:)        
+    real(8), intent(inout), pointer, optional :: incr_ptr(:,:,:,:)   
+
+    integer :: iconstituent_id
+
+    iconstituent_id = chm_varnumFromVarname(varName)
+    if (iconstituent_id.lt.0) return
+    
+    write(*,'(A,I2,A,I2,A,A)') "chm_apply_transform: applying transform number ",chm_config%transform(iconstituent_id), &
+         " with mode = ",mode," for field ",trim(varName)
+
+    select case(chm_config%transform(iconstituent_id))
+    case(0)
+       return
+    case(1)
+    
+       ! Transform lnx to/from x or dlnx to/from dx
+       
+       if (.not.present(incr_ptr).and.(mode.eq.1.or.mode.eq.2)) &
+            call abort3d("chm_apply_transform: incr_ptr must be provided for mode = " // trim(str(mode)) )
+
+       if (.not.l_reverse) then
+
+          ! Forward transformation
+              
+          select case(mode)
+          case(0)
+             bkgrnd_ptr = log_matrix(bkgrnd_ptr)
+          case(1)
+             bkgrnd_ptr = log_matrix(bkgrnd_ptr+incr_ptr)
+          case(2)
+             incr_ptr = log_matrix(bkgrnd_ptr+incr_ptr) - log_matrix(bkgrnd_ptr)           
+          end select
+
+       else
+    
+          ! Reverse transformation          
+       
+          select case(mode)
+          case(0)
+             bkgrnd_ptr = exp(bkgrnd_ptr)
+          case(1)
+             bkgrnd_ptr = exp(bkgrnd_ptr+incr_ptr)
+          case(2)
+             incr_ptr = exp(bkgrnd_ptr+incr_ptr) - exp(bkgrnd_ptr)
+          end select 
+             
+       end if
+
+    case default
+       call abort3d("chm_apply_transform: transform selection " // trim(str(chm_config%transform(iconstituent_id))) // " not currenly defined." )
+    end select
+    
+  contains
+
+    function log_matrix(mat)
+    !
+    ! Author: Y. Rochon, Nov 2015 (made into function by M. Sitwell)
+    !
+    ! Purpose: Helper function for taking the log of a matrix that might contain negative values.
+    !          Places where negative values occur will be set as the log of the minimum positive
+    !          value along the first (longitudinal) dimension.
+    !
+    !-----------------------------------------------------------------------------------
+
+      implicit none
+
+      real(8), intent(in) :: mat(:,:,:,:)
+      real(8) :: log_matrix(size(mat,1),size(mat,2),size(mat,3),size(mat,4))
+
+      integer :: j,k,m
+      real(8) :: valmin
+
+      do m=1,size(mat,4)
+         do j=1,size(mat,3)
+            do k=1,size(mat,2)
+
+               valmin = minval(mat(:,k,j,m), mask=mat(:,k,j,m).gt.0.0)
+               if (valmin.gt.1.E30) valmin=1.E-20
+
+               where (mat(:,k,j,m).gt.0.0)
+                  log_matrix(:,k,j,m) = log(mat(:,k,j,m))
+               elsewhere
+                  log_matrix(:,k,j,m) = log(valmin)
+               end where
+               
+            end do
+         end do
+      end do
+
+    end function log_matrix
+
+  end subroutine chm_apply_transform
+
+!-----------------------------------------------------------------------------------
+ 
+  function chm_varnumFromVarName(varName) result(varNumber)
+!
+!   Author: Y.J. Rochon (ARQI), Jan. 2016
+!
+!   Revisions:
+!
+!   Purpose: Identifies varNumber from varName 
+!          
+!-----------------------------------------------------------------------------------
+
+      use bufr
+      implicit none
+      character(len=*),  intent(in) :: varName
+      integer    :: varNumber
+      
+      varNumber=0
+      select case (varName)
+      
+      ! Weather variables (assumes one specific BUFR per varname (for other possible
+      ! cases, see varnamelist_mod)
+      
+      case('UU')
+        varNumber=BUFR_NEUU
+      case('VV')
+        varNumber=BUFR_NEVV
+      case('TT')
+        varNumber=BUFR_NETT
+      case('GZ')
+        varNumber=BUFR_NEDZ
+      case('HU')
+        varNumber=BUFR_NEHU
+      case('P0')
+        varNumber=BUFR_NEPS
+      case('DW')
+        varNumber=BUFR_NEDW
+
+      ! Atmospheric constituents other that H2O
+              
+      case('O3','TO3')
+        varNumber=BUFR_NECH_O3
+      case('TCH4')
+        varNumber=BUFR_NECH_CH4
+      case('TCO2')
+        varNumber=BUFR_NECH_CO2
+      case('TCO','ECO')
+        varNumber=BUFR_NECH_CO
+      case('TNO2','ENO2')
+        varNumber=BUFR_NECH_NO2
+      case('TN2O')
+        varNumber=BUFR_NECH_N2O
+      case('TNO')
+        varNumber=BUFR_NECH_NO
+      case('HCHO','THCH','EHCH')
+        varNumber=BUFR_NECH_HCHO
+      case('SO2','TSO2','ESO2')
+        varNumber=BUFR_NECH_HCHO
+      case('NH3','TNH3','ENH3')
+        varNumber=BUFR_NECH_NH3
+      case('AF')
+        varNumber=BUFR_NECH_PM25
+      case('AC')
+        varNumber=BUFR_NECH_PM10
+        
+      case default
+         write(*,*) 'chm_varnumFromVarName: Unknown variable name! ',varName
+         call abort3d('aborting in chm_varnumFromVarName')
+      end select
+
+    end function chm_varnumFromVarname
+
+!-----------------------------------------------------------------------------------
+
+  subroutine chm_apply_bounds(varName,bkgrnd_ptr,inc_ptr)
+!
+! Author: M. Sitwell Sept 2015
+!         - Originally as chm_check_negative
+!
+! Revisions:
+!            Y. Rochon, Nov 2015
+!            - Modified to chm_apply_bounds
+!
+! Purpose: Checks for negative analysis values and if any negative values found will
+!          modify the increment so that the analysis  is reset to low_cutoff*background
+!          at these points. This check is done with fields of the same resolution as
+!          the increment. Also applies upper bound.
+!
+!          Called by chm_transform_final_increments in file chem_interface_mod.ftn90.
+!
+! In
+!
+!    varName          Field name (nomvar)
+!
+! InOut
+!
+!   inc_prt          pointer to statevector for the increment
+!   bkgrnd_prt       pointer to statevector for the background (with same resolution as the increment)
+!
+!-----------------------------------------------------------------------------------
+
+    implicit none
+    
+    character(len=*), intent(in) :: varName
+
+    real(8), intent(inout), pointer :: inc_ptr(:,:,:,:),bkgrnd_ptr(:,:,:,:)        
+    logical, allocatable :: outside(:,:,:,:)
+
+    integer :: iconstituent_id,nlow,nhigh,i1,i2,i3,i4
+    logical :: file_exists
+
+    integer, parameter :: unit=10
+    
+    iconstituent_id = chm_varnumFromVarname(varName)
+    if (iconstituent_id.lt.0) return
+
+    ! Open output file
+    inquire(file=chm_warnings_filename, exist=file_exists)
+    if (file_exists) then
+       open(unit, file=chm_warnings_filename, status="old", position="append", action="write")
+    else
+       open(unit, file=chm_warnings_filename, status="new", action="write")
+    end if
+    
+    allocate(outside(size(inc_ptr,1),size(inc_ptr,2),size(inc_ptr,3),size(inc_ptr,4)))
+
+    if (chm_config%low_cutoff(iconstituent_id).ge.0.0) then
+
+       ! Check if both background and analysis are negative. If so set the increment to force an analysis of zero at these locations
+       outside = bkgrnd_ptr.lt.0.0 .and. bkgrnd_ptr+inc_ptr.lt.0.0
+       nlow = count(outside)
+
+       if (nlow.gt.0) then
+          write(unit,'(A,I7,A,A,A)') "chm_apply_bounds: ",nlow," negative background and analysis values were found for field ",trim(varName),"."
+          write(unit,'(A)') "Modifying the increment so the analysis is instead equal to zero at these locations."       
+          write(unit,'(A)') "JLON JLEV JLAT TSTEP   Background   Init. incr."
+          do i1=1,size(inc_ptr,1)
+             do i2=1,size(inc_ptr,2)
+                do i3=1,size(inc_ptr,3)
+                   do i4=1,size(inc_ptr,4)
+                      if (outside(i1,i2,i3,i4)) write(unit,'(4(I4,1X),2G12.2)') i1,i2,i3,i4,bkgrnd_ptr(i1,i2,i3,i4),inc_ptr(i1,i2,i3,i4)
+                   end do
+                end do
+             end do
+          end do
+          where (outside) inc_ptr = -bkgrnd_ptr
+          write(unit,*)
+       end if
+            
+       ! Check if the analysis is below the trial field cutoff. If so set analysis to this cut-off value at these locations.
+       outside = bkgrnd_ptr+inc_ptr.lt.chm_config%low_cutoff(iconstituent_id)*bkgrnd_ptr .and. bkgrnd_ptr.ge.0.0
+       nlow = count(outside)
+            
+       if (nlow.gt.0) then
+          write(unit,'(A,I7,A,F4.1,A,A,A)') "chm_apply_bounds: ",nlow," analysis values were found below the cut-off of ", &
+               100*chm_config%low_cutoff(iconstituent_id), &
+               "% of the trial field for field ",trim(varName),"."
+          write(unit,'(A)') "Modifying the increment so the analysis is instead equal to the lower bound cut-off value at these locations."
+          write(unit,'(A)') "JLON JLEV JLAT TSTEP   Background  Init.-incr.  New-incr."
+          do i1=1,size(inc_ptr,1)
+             do i2=1,size(inc_ptr,2)
+                do i3=1,size(inc_ptr,3)
+                   do i4=1,size(inc_ptr,4)
+                      if (outside(i1,i2,i3,i4)) write(unit,'(4(I4,1X),3G12.2)') i1,i2,i3,i4,bkgrnd_ptr(i1,i2,i3,i4), &
+                           inc_ptr(i1,i2,i3,i4),(chm_config%low_cutoff(iconstituent_id)-1.0)*bkgrnd_ptr(i1,i2,i3,i4)
+                   end do
+                end do
+             end do
+          end do
+          where (outside) inc_ptr = (chm_config%low_cutoff(iconstituent_id)-1.0)*bkgrnd_ptr
+       end if
+
+    end if
+
+    if (chm_config%high_cutoff(iconstituent_id).ge.0.0) then
+
+       ! Check if the analysis is above the imposed upper bound. If so set analysis to this cut-off value at these locations.
+       outside = bkgrnd_ptr+inc_ptr.gt.chm_config%high_cutoff(iconstituent_id)*bkgrnd_ptr .and. bkgrnd_ptr.ge.0.0
+       nhigh = count(outside)
+            
+       if (nhigh.gt.0) then
+          write(unit,'(A,I7,A,F5.2,A,A,A)') "chm_apply_bounds: ",nhigh," analysis values were found above the cut-off of ", &
+               chm_config%high_cutoff(iconstituent_id), &
+               " times the trial field for field ",trim(varName),"."
+          write(unit,'(A)') "Modifying the increment so the analysis is instead equal to the upper bound cut-off value at these locations."
+          write(unit,'(A)') "JLON JLEV JLAT TSTEP   Background  Init.-incr.  New-incr."
+          do i1=1,size(inc_ptr,1)
+             do i2=1,size(inc_ptr,2)
+                do i3=1,size(inc_ptr,3)
+                   do i4=1,size(inc_ptr,4)
+                      if (outside(i1,i2,i3,i4)) write(unit,'(4(I4,1X),3G12.2)') i1,i2,i3,i4,bkgrnd_ptr(i1,i2,i3,i4), &
+                           inc_ptr(i1,i2,i3,i4),(chm_config%high_cutoff(iconstituent_id)-1.0)*bkgrnd_ptr(i1,i2,i3,i4)
+                   end do
+                end do
+             end do
+          end do
+          where (outside) inc_ptr = (chm_config%high_cutoff(iconstituent_id)-1.0)*bkgrnd_ptr
+       end if
+
+    end if
+
+    close(unit)
+    deallocate(outside)
+
+  end subroutine chm_apply_bounds
+      
 !-------------------------------------------------------------------------------------------
 
   function chm_convert_z_to_pressure(altitude,rgz_mod,press_mod,nlev,nlev_mod,lat,success) result(press)
