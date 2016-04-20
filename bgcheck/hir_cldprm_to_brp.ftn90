@@ -75,7 +75,7 @@ SUBROUTINE hir_cldprm_to_brp(lobsspacedata,brp_file)
   INTEGER                :: FLAG_PASSAGE4,FLAG_PASSAGE5
   INTEGER                :: IDATYP
   REAL                   :: VAL_OPTION_R4
-
+  CHARACTER(LEN=9)       :: station_id
 
   WRITE(*,*) '---------------------------------------'
   WRITE(*,*) '------- BEGIN hir_cldprm_to_brp -------'
@@ -120,10 +120,6 @@ SUBROUTINE hir_cldprm_to_brp(lobsspacedata,brp_file)
 
   Call BURP_Get_Property(File_in, NRPTS=nb_rpts)
 
-  WRITE(*,*) 
-  WRITE(*,*) 'NUMBER OF REPORTS WITH OBSERVATIONS = ',nb_rpts-1
-  WRITE(*,*) 
-
 
 ! scan input burp file to get all reports address
 ! -----------------------------------------------
@@ -140,10 +136,16 @@ SUBROUTINE hir_cldprm_to_brp(lobsspacedata,brp_file)
           IOSTAT      = error)
      if (ref_rpt < 0) Exit
 
+     Call BURP_Get_Property(Rpt_in,STNID =station_id)
+     if (station_id(1:2)==">>") cycle
+
      count = count + 1
      address(count) = ref_rpt
   end do
 
+  WRITE(*,*) 
+  WRITE(*,*) 'NUMBER OF REPORTS WITH OBSERVATIONS = ',count
+  WRITE(*,*) 
 
   if ( count > 0 ) then
 
@@ -530,32 +532,30 @@ SUBROUTINE hir_cldprm_to_brp(lobsspacedata,brp_file)
         Call BURP_Write_Report(File_in,Cp_rpt, IOSTAT=error)
      end do REPORTS
 
-  end if
+     if ( flag_passage1 == 0 ) then
+        write(*,*)
+        write(*,*) 'ERROR - descriptor block not seen ? Verify btyp'
+     end if
+     if ( flag_passage2 == 0 ) then
+        write(*,*)
+        write(*,*) 'ERROR - info block not seen ? Verify btyp'
+     end if
+     if ( flag_passage3 == 0 ) then
+        write(*,*)
+        write(*,*) 'ERROR - observation block not seen ? Verify btyp'
+     end if
+     if ( flag_passage4 == 0 ) then
+        write(*,*)
+        write(*,*) 'ERROR - flag block not seen ? Verify btyp'
+     end if
+     if ( flag_passage5 == 0 ) then
+        write(*,*)
+        write(*,*) 'ERROR - O-P block not seen ? Verify btyp'
+     end if
+
+  end if !! End of 'if ( count > 0 )'
 
   Deallocate(address)
-
-
-  if ( flag_passage1 == 0 ) then
-     write(*,*)
-     write(*,*) 'ERROR - descriptor block not seen ? Verify btyp'
-  end if
-  if ( flag_passage2 == 0 ) then
-     write(*,*)
-     write(*,*) 'ERROR - info block not seen ? Verify btyp'
-  end if
-  if ( flag_passage3 == 0 ) then
-     write(*,*)
-     write(*,*) 'ERROR - observation block not seen ? Verify btyp'
-  end if
-  if ( flag_passage4 == 0 ) then
-     write(*,*)
-     write(*,*) 'ERROR - flag block not seen ? Verify btyp'
-  end if
-  if ( flag_passage5 == 0 ) then
-     write(*,*)
-     write(*,*) 'ERROR - O-P block not seen ? Verify btyp'
-  end if
-
 
   Call BURP_Free(File_in,IOSTAT=error)
   Call BURP_Free(Rpt_in,Cp_rpt,IOSTAT=error)
