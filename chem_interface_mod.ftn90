@@ -60,7 +60,7 @@ contains
 !                     3 for adjoint of tangent linear operator
 !
 !   column_bkgrnd   Column of x_background interpolated to observation location. Can
-!                   have the same vertical levels as the trail field (columnhr) or
+!                   have the same vertical levels as the trial field (columnhr) or
 !                   as the increment field (columng)
 !
 !   obsSpaceData    Observation space data
@@ -84,6 +84,9 @@ contains
 !                   For kmode=2, used as input for increment H_horiz dx interpolated
 !                   to observation location. For kmode=3, used as output for
 !                   H^T * R^-1 (OmP-Hdx). Required for kmode=2,3.
+!
+!  Comments:
+!     - Currently can only handle the case when nlev_bkgrnd == nlev_inc
 !
 !-----------------------------------------------------------------------------------
 
@@ -109,26 +112,22 @@ contains
 
     ! Obs space local variables
 
-    character(len=4)  :: varName
-    character(len=12) :: cstnid
     integer :: headerIndex,bodyIndex,bodyIndexCount
-    integer :: ivnm, ivco, varno
-    integer :: icodtyp, iobslev, nobslev
-    integer :: isunza,idate,ihhmm
-    integer :: iconstituent_id
-    real(8) :: zlat,zlon
+    integer :: ivnm
+    integer :: icodtyp, iobslev
 
     integer, allocatable :: ixtr(:), iass(:)
-    real(8), allocatable :: zobslev(:)
     logical, allocatable :: success(:),process_obs(:)
 
     ! Local variables: model space profile data
 
-    character(len=2)   :: varType
-    real(8), allocatable :: zppb(:),zvalb(:),zttb(:),zvalinc(:),zhx(:),zgzb(:)
-    real(8), pointer :: col_ptr_gzb(:),col(:)
+    real(8), allocatable :: model_col(:),obs_col(:)
+    real(8), pointer :: col(:)
     integer :: nlev_bkgrnd, nlev_inc
+    character(len=2), parameter :: varType = 'TH'
     
+    type(struct_chm_obsoperators) :: obsoper
+
     if ((kmode.eq.2.or.kmode.eq.3) .and. (.not.present(column_inc))) then
        write(*,*) "chm_observation_operators: column_inc must be specified for kmode = ",kmode
        call abort3d("chm_observation_operators")
@@ -138,99 +137,52 @@ contains
     
     if (present(jobs)) jobs = 0.d0
 
-    varType = 'TH'
-
     nlev_bkgrnd = col_getNumLev(column_bkgrnd,varType)
-    if (kmode.eq.2) nlev_inc = col_getNumLev(column_inc,varType)
-
-    allocate(zvalb(nlev_bkgrnd))
-    allocate(zttb(nlev_bkgrnd))
-    allocate(zppb(nlev_bkgrnd))
-    allocate(zgzb(nlev_bkgrnd))
     
     if (kmode.eq.2) then
-       allocate(zvalinc(nlev_inc))
+       nlev_inc = col_getNumLev(column_inc,varType)
+       allocate(model_col(nlev_inc))
     else
-       allocate(zvalinc(nlev_bkgrnd))
+       allocate(model_col(nlev_bkgrnd))
     end if
+
+    ! Moved outside of chm_obsoper_init since this can be done outside the HEADER loop
+    allocate(obsoper%trial(nlev_bkgrnd),obsoper%pp(nlev_bkgrnd))
+    allocate(obsoper%tt(nlev_bkgrnd),obsoper%gz(nlev_bkgrnd),obsoper%vmodpress(nlev_bkgrnd+1))
+    allocate(obsoper%vweights(nlev_bkgrnd,nlev_bkgrnd))
 
     ! Loop over all header indices of the 'CH' family:
     
     call obs_set_current_header_list(obsSpaceData,'CH')
     HEADER: do
+
       headerIndex = obs_getHeaderIndex(obsSpaceData)
       if (headerIndex < 0) exit HEADER
 
       icodtyp  = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
-
       if (icodtyp.ne.codtyp_chemremote.and.icodtyp.ne.codtyp_cheminsitu) cycle HEADER
 
-      ! Get obs space info that are part of the profile header
-      cstnid    = obs_elem_c(obsSpaceData,'STID',headerIndex)
-      nobslev   = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex)
-      idate     = obs_headElem_i(obsSpaceData,OBS_DAT,headerIndex)
-      ihhmm     = obs_headElem_i(obsSpaceData,OBS_ETM,headerIndex)
-      isunza    = obs_headElem_i(obsSpaceData,OBS_SUN,headerIndex)
-      iconstituent_id = obs_headElem_i(obsSpaceData,OBS_CHM,headerIndex)
-      zlat = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex) 
-      zlon = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex) 
-
-      ! Body info that we only need for first point in the profile
-      bodyIndex = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)     
-      ivco      = obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex)
-      varno     = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
-      varName = vnl_varnameFromVarnum(obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex), iconstituent_id)
-
-      if (chm_required_field('TT',varno) .and. .not.col_varExist('TT')) then
-         write(*,*) "chm_observation_operators: TT required for BUFR code ",varno 
-         call abort3d("chm_observation_operators")
-      end if
-      
-      ! Identify max number of profile points in the profile (exclude 8090 elements)
-      do jl=0,obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex)-1
-          if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex+jl).eq.8090) nobslev = nobslev-1
-      end do
+      ! Initialize obsoper variables and allocate arrays
+      call chm_obsoper_init(obsoper,obsSpaceData,headerIndex,column_bkgrnd,nlev_bkgrnd)
 
       ! Allocate memory for profile data
-      allocate(ixtr(nobslev), iass(nobslev))
-      allocate(zobslev(nobslev), zhx(nobslev))
-      allocate(success(nobslev),process_obs(nobslev))
-
-      ! Get trial/background column data at observation location
-      do jl = 1, nlev_bkgrnd
-         zppb(jl) = col_getPressure(column_bkgrnd,jl,headerIndex, varType)
-         zvalb(jl) = col_getElem(column_bkgrnd,jl,headerIndex,varName)
-      enddo
+      allocate(ixtr(obsoper%nobslev), iass(obsoper%nobslev), obs_col(obsoper%nobslev))
+      allocate(success(obsoper%nobslev), process_obs(obsoper%nobslev))
       
-      if (col_varExist('TT')) then
-         do jl = 1, nlev_bkgrnd
-            zttb(jl) = col_getElem(column_bkgrnd,jl,headerIndex,'TT')
-         enddo
-      else
-         zttb(:) = -999.0D0
-      end if
-
-      if (ivco.eq.1) then
-         col_ptr_gzb => col_getColumn(column_bkgrnd,headerIndex,'GZ','TH')
-         zgzb(1:nlev_bkgrnd) = col_ptr_gzb(1:nlev_bkgrnd)
-      else
-         zgzb(:) = -999.0D0
-      end if   
-      
-      ! Initialize zvalinc, dependent on kmode.
-      ! zvalinc represents for kmode 0) the horizontally interpolated background H_horiz(x_b)
-      !                              1) not used
-      !                              2) the analysis increment H_horiz dx
-      !                              3) the result of applying the adjoint of H_vert 
+      ! Initialize model_col, dependent on kmode. Used for input for kmode=0,2, output for kmode=3.
+      ! model_col represents for kmode 0) the horizontally interpolated background H_horiz(x_b)
+      !                                1) not used
+      !                                2) the analysis increment H_horiz dx
+      !                                3) the result of applying the adjoint of H_vert 
       select case(kmode)
       case(0)
-         zvalinc(1:nlev_bkgrnd) = zvalb(1:nlev_bkgrnd)
+         model_col(1:nlev_bkgrnd) = obsoper%trial(1:nlev_bkgrnd)
       case(2)
          do jl = 1, nlev_inc
-            zvalinc(jl) = col_getElem(column_inc,JL,headerIndex,varName)
+            model_col(jl) = col_getElem(column_inc,JL,headerIndex,obsoper%varName)
          end do
       case(1,3)
-         zvalinc(:) = 0.0
+         model_col(:) = 0.0
       end select
                
       ! Loop over all body indices (profile elements) for this report
@@ -238,6 +190,7 @@ contains
       iobslev=0
       call obs_set_current_body_list(obsSpaceData,headerIndex)
       BODY1: do
+
         bodyIndex = obs_getBodyIndex(obsSpaceData)
         if (bodyIndex < 0) exit BODY1
 
@@ -246,7 +199,6 @@ contains
         ivnm = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
         if (ivnm.ne.08090) then
            iobslev=iobslev+1
-           varno=ivnm   ! varno/ivnm is expected to be the same for all profile points with ivnm.ne.8090
         else
            cycle BODY1
         end if
@@ -259,29 +211,34 @@ contains
         ! Get vertical coordinate data. Valid for point data values in profiles.
         ! For layer data values, vertical coordinate data will instead be assigned within chm_obsoperators.
 
-        zobslev(iobslev) = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
+        obsoper%obslev(iobslev) = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
 
         ! Get normalized increment
-        if (kmode.eq.3) zhx(iobslev) = obs_bodyElem_r(obsSpaceData,OBS_WORK,bodyIndex)
+        if (kmode.eq.3) obs_col(iobslev) = obs_bodyElem_r(obsSpaceData,OBS_WORK,bodyIndex)
 
       enddo BODY1
         
 
-      ! Apply observation operator. For kmode=1, zhx = sqrt(diag(H*B*H^T)).
+      ! Apply observation operator. model_col,obs_col are the inputs/outputs in model,observation
+      ! space, respectively. Other required inputs are in obsoper. Input/output is as follows:
+      !
+      !    kmode      model_col      obs_col
+      !    -----      ---------      -------
+      !      0           in            out
+      !      1         not used        out
+      !      2           in            out
+      !      3           out           in
 
-      call chm_obsoperators(nlev_bkgrnd,zvalinc,zvalb,zttb,zppb,zgzb,kmode,varName,&
-           varno,cstnid,idate,ihhmm,ivco,nobslev,zobslev,ixtr,iass,zlat,zlon, &
-           iconstituent_id,success,zhx)
+      call chm_obsoperators(obsoper,model_col,obs_col,kmode,ixtr,success)
  
-
 
       ! Output results
       
       if (kmode.eq.3) then
          ! Store H^T * R^-1 (OmP-Hdx) in column_inc
          
-         col => col_getColumn(column_inc,headerIndex,varName)
-         col(1:nlev_bkgrnd) = zvalinc(1:nlev_bkgrnd)
+         col => col_getColumn(column_inc,headerIndex,obsoper%varName)
+         col(1:nlev_bkgrnd) = model_col(1:nlev_bkgrnd)
 
       else
          ! Store results in obsSpaceData
@@ -313,17 +270,16 @@ contains
                cycle BODY2
             end if
         
-
             ! Store result in appropriate location in obsSpaceData            
             select case(kmode)
             case(0)
             
                ! Store OmP in OBS_OMP and add to Jo(x_background) of CH.   
                             
-               zomp = obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex) - zhx(iobslev)
+               zomp = obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex) - obs_col(iobslev)
                call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex,zomp)
                
-               if (.not.chm_lcheck_skipassim(cstnid,varno,nobslev,iass(iobslev))) then
+               if (.not.chm_lcheck_skipassim(obsoper%stnid,obsoper%varno,obsoper%nobslev,iass(iobslev))) then
                   ! Add to Jo contribution (factor of 0.5 to be applied outside report loop)
                   zinc = zomp/obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
                   if (present(jobs)) jobs = jobs + zinc*zinc
@@ -339,12 +295,12 @@ contains
                ! observation space, sqrt(diag(H*B_static*H^T)), 
                ! saved in OBS_HPHT of obsSpaceData
 
-               call obs_bodySet_r(obsSpaceData,OBS_HPHT,bodyIndex,zhx(iobslev))
+               call obs_bodySet_r(obsSpaceData,OBS_HPHT,bodyIndex,obs_col(iobslev))
             case(2)
             
                !   Store Hdx in OBS_WORK of obsSpaceData
                
-               call obs_bodySet_r(obsSpaceData,OBS_WORK,bodyIndex,zhx(iobslev))
+               call obs_bodySet_r(obsSpaceData,OBS_WORK,bodyIndex,obs_col(iobslev))
             end select
 
          enddo BODY2
@@ -352,18 +308,139 @@ contains
       end if
 
       ! Deallocate profile data
-      deallocate(ixtr,iass)
-      deallocate(zobslev,zhx)
-      deallocate(process_obs,success)
-      
+      deallocate(process_obs,success,ixtr,iass,obs_col)
+      call chm_obsoper_dealloc(obsoper)
+  
     enddo HEADER
 
-    deallocate(zvalb,zttb,zppb,zvalinc,zgzb)
+    deallocate(model_col)
+    deallocate(obsoper%trial,obsoper%pp,obsoper%tt)
+    deallocate(obsoper%gz,obsoper%vmodpress,obsoper%vweights)
 
     if (present(jobs)) jobs=0.5d0*jobs
     
   end subroutine chm_observation_operators
-  
+
+!-------------------------------------------------------------------------------------------
+
+  subroutine chm_obsoper_init(obsoper,obsSpaceData,headerIndex,column_bkgrnd,nmodlev)
+!
+! Author: M. Sitwell and Y. Rochon, April 2016
+!
+! Purpose: Initializes struct_chm_obsoperators variables and allocates arrays.
+!
+! Comments: Allocation of arrays that are only dependent on nmodlev have been moved
+!           outside this subroutine so that they are only allocated once.
+!
+! ---------------------------------------------------------------------------------------
+
+    use chem_mod
+    use obsSpaceData_mod
+    use columnData_mod
+    use earthconstants_mod
+
+    implicit none
+
+    integer, intent(in) :: headerIndex,nmodlev
+    type(struct_chm_obsoperators), intent(inout) :: obsoper
+    type(struct_obs), intent(inout) :: obsSpaceData
+    type(struct_columnData), intent(inout) :: column_bkgrnd
+
+    integer :: nobslev,bodyIndex,jl
+    real(8), pointer :: col_ptr_gzb(:)
+    character(len=2), parameter :: varType = 'TH'
+
+    ! Get obs space info that are part of the profile header
+    obsoper%stnid = obs_elem_c(obsSpaceData,'STID',headerIndex)
+    obsoper%date  = obs_headElem_i(obsSpaceData,OBS_DAT,headerIndex)
+    obsoper%hhmm  = obs_headElem_i(obsSpaceData,OBS_ETM,headerIndex)
+    obsoper%constituent_id = obs_headElem_i(obsSpaceData,OBS_CHM,headerIndex)
+    obsoper%lat = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex) 
+    obsoper%lon = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex) 
+
+    ! Body info that we only need for first point in the profile
+    bodyIndex       = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)     
+    obsoper%vco     = obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex)
+    obsoper%varno   = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
+    obsoper%varName = vnl_varnameFromVarnum(obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex), obsoper%constituent_id)
+    
+    ! Identify max number of profile points in the profile (exclude 8090 elements)
+    nobslev = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex)
+    do jl=0,obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex)-1
+       if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex+jl).eq.8090) nobslev = nobslev-1
+    end do
+
+    obsoper%nmodlev = nmodlev
+    obsoper%nobslev = nobslev
+
+    ! Allocate arrays
+
+    allocate(obsoper%obslev(nobslev))
+    allocate(obsoper%vlayertop(nobslev))
+    allocate(obsoper%vlayerbottom(nobslev))
+    allocate(obsoper%lvl_top(nobslev))
+    allocate(obsoper%lvl_bot(nobslev))
+
+    allocate(obsoper%zh(nobslev,nmodlev))
+    allocate(obsoper%zhp(nobslev,nmodlev))
+
+    obsoper%vweights(:,:)=0.0D0
+    obsoper%zh(:,:)=0.0D0
+    obsoper%zhp(:,:)=0.0D0
+    obsoper%lvl_top(:)=1
+    obsoper%lvl_bot(:)=nmodlev
+
+    if (.not.col_varExist('TT')) then
+       if (chm_required_field('TT',obsoper%varno)) then
+          write(*,*) "chm_observation_operators: TT required for BUFR code ",obsoper%varno 
+          call abort3d("chm_observation_operators")
+       end if
+    end if
+
+    ! Get background fields at observation location
+    do jl=1,nmodlev
+       obsoper%pp(jl) = col_getPressure(column_bkgrnd,jl,headerIndex,varType)
+       obsoper%trial(jl) = col_getElem(column_bkgrnd,jl,headerIndex,obsoper%varName)
+       obsoper%tt(jl) = col_getElem(column_bkgrnd,jl,headerIndex,'TT')
+    enddo
+
+    if (col_varExist('TT').and.col_varExist('HU').and.col_varExist('P0')) then     
+       ! GZ would have been generated in the call to sugomobs. 
+       ! Convert from geopotential to geopotential height.
+       col_ptr_gzb => col_getColumn(column_bkgrnd,headerIndex,'GZ','TH')
+       obsoper%gz(1:nmodlev) = col_ptr_gzb(1:nmodlev)/RG
+    else
+       obsoper%gz(:) = -1.
+    end if
+
+  end subroutine chm_obsoper_init
+
+!-------------------------------------------------------------------------------------------
+
+  subroutine chm_obsoper_dealloc(obsoper)
+!
+! Author: M. Sitwell, April 2016
+!
+! Purpose: Deallocate arrays for struct_chm_obsoperators.
+!
+! ---------------------------------------------------------------------------------------
+
+    use chem_mod
+
+    implicit none
+
+    type(struct_chm_obsoperators), intent(inout) :: obsoper
+
+    deallocate(obsoper%obslev)
+    deallocate(obsoper%vlayertop)
+    deallocate(obsoper%vlayerbottom)
+    deallocate(obsoper%zh)
+    deallocate(obsoper%zhp)
+    deallocate(obsoper%lvl_top)
+    deallocate(obsoper%lvl_bot)
+
+  end subroutine chm_obsoper_dealloc
+
 !-----------------------------------------------------------------------------------
 
   subroutine chm_get_comboIdlist(obsSpaceData,stnid_list,varno_list,unilev_list,num_elements,nset)
