@@ -1176,7 +1176,7 @@ contains
 ! Author   : Y. Rochon, Nov 2014 
 !             (initial part follows the format of oer_read_obs_erreurs_conv)
 ! Revisions: 
-!             M. Sitwell, Fdeb 2015
+!             M. Sitwell, Feb 2015
 !             - Content formed as a separate routine called in oer_read_obs_erreurs_chm.
 !          
 ! Purpose: Read and store observation error std. dev. as needed for CH family obs.
@@ -1374,29 +1374,28 @@ contains
    
     implicit none
 
-    character(len=*), intent(in) :: CSTNID
+    character(len=*), intent(in)  :: CSTNID
     integer, intent(in)           :: NLEV,VARNO
     real(8), intent(in)           :: ZLAT
     integer, intent(out)          :: ISTNID,JINT
+
     integer                       :: JN,ilen1,ilen2,ji,ibegin
-    logical                       :: iset
 
  ! Important: Combination of STNID, BUFR element and number of vertical levels
  !            to determine association to the observations.
 
  !            Find stnid with same number of vertical levels and same BUFR element.
- !            Note: * in cstd_stnid_chm stands for a wildcard
+ !            Note: * in chm_std%stnids stands for a wildcard
      
     ISTNID=0
+
     DO JN=1,chm_std%n_stnid
 
        ! First compare STNID values allowing for * and blanks in 
        ! chm_std%stnids(JN) as wildcards
-       iset = stnid_equal(chm_std%stnids(JN),CSTNID)
                    
-       IF (iset) THEN
-          IF (NLEV .EQ. chm_std%n_lvl(JN) .AND. &
-               VARNO .EQ. chm_std%bfr(JN) ) THEN
+       IF (stnid_equal(chm_std%stnids(JN),CSTNID)) THEN
+          IF (NLEV .EQ. chm_std%n_lvl(JN) .AND. VARNO .EQ. chm_std%bfr(JN) ) THEN
              ISTNID=JN
              exit
           END IF
@@ -1404,10 +1403,7 @@ contains
 
     END DO
 
-    IF (ISTNID.EQ.0) THEN
-       WRITE(*,'(1X,"Error std. dev. for STNID= ",A10," not found. Set to 5%.")') &
-            CSTNID
-    ELSE
+    IF (ISTNID.NE.0) THEN
 
        IF (chm_std%n_lat(ISTNID) .GT. 1) THEN
 
@@ -1446,25 +1442,28 @@ contains
     character(len=*), intent(in) :: CSTNID
     real(8), intent(in) :: ZVAL,ZLEV,ZLAT,ZLON
     integer, intent(in) :: NLEV,VARNO,IDATE,ITIME
-    logical, intent(in)  :: IFIRST
-
+    logical, intent(in) :: IFIRST
     real(8)  :: obs_err_stddev 
-       
-    real(8)  :: wgt,zwb,sigma
-    integer  :: ibegin,ILEV,JN
-    integer, save  :: ISTNID,JINT
+
+    real(8) :: wgt,zwb,sigma
+    integer :: ibegin,ILEV,JN
+
+    integer, save :: ISTNID,JINT
 
     ! If this call is for the first level for this measurement, get
     ! the station ID and latitude indices corresponding to this measurement
     if (ifirst) call chm_obs_err_stddev_index(CSTNID,NLEV,VARNO,ZLAT,ISTNID,JINT)
-
+    
     ! Identify level if needed
                    
     IF (ISTNID .EQ. 0) THEN
        
-       ! Set error standard deviations as 5% default value.       
+       ! Set error standard deviations as 5% default value.
+       
        obs_err_stddev = 0.05D0*ZVAL
        
+       WRITE(*,'(1X,"Error std. dev. for STNID= ",A10," not found. Set to 5%.")') CSTNID
+
     ELSE
              
        IF (chm_std%n_lvl(ISTNID) .GT. 1) THEN
@@ -1523,7 +1522,7 @@ contains
        ELSE
           
           ! Adjust error standard deviations read from BURP file if requested.
-
+          
           sigma = obsdata_get_element(chm_burp_std(istnid), obsdata_get_loctime_code(zlon,zlat,idate,itime))
           
           IF (chm_std%std_type(ISTNID).EQ. 0) THEN
@@ -1611,7 +1610,7 @@ contains
 !                         and 'MRQR'.
 !
 !  Output 
-!           burp_out      struct_chm_burp object
+!           burp_out      struct_chm_obsdata object
 !
 !-----------------------------------------------------------------------------------------
     
@@ -2058,7 +2057,7 @@ contains
     integer, intent(in) :: date,time
     character(len=22)   :: code
     integer :: ilon,ilat
-
+    
     ilon = nint(100*(lon/MPC_RADIANS_PER_DEGREE_R8))
     ilat = nint(100*(90. + lat/MPC_RADIANS_PER_DEGREE_R8))
 
