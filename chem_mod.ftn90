@@ -30,7 +30,7 @@ module chem_mod
 !       - Public routines
 !         "chm_read_obs_err_stddev,chm_get_obs_err_stddev,chm_dealloc_obs_err_stddev":
 !         Routines and strucure for setting of obs error std. dev. used in
-!        'observation_erreurs_mod.ftn90'. 
+!         'observation_erreurs_mod.ftn90'. 
 !
 !       - Public routine "chm_obsoperators": Applies observation operators. 
 !
@@ -47,6 +47,11 @@ module chem_mod
 !       - Public routine chm_comboIDlist: Provide list of fixed or accumulated stnid, 
 !         (stnid,varno) or (stnid,varno,multi/uni-level) combinations. For use in
 !         in obsspacediag_mod.ftn90.
+!
+!       - Public routine "chm_get_col_boundary": Provides column boundary pressure pressure levels
+!         at obs locations (could be set as tropopause, PBL, or static value). Relevant only for
+!         assimilation of total column measurements. Public routines "chm_add_col_boundary" and
+!         "chm_retrieve_col_boundary" provide a means of storing and retrieving this value, respectively.
 !
 !       - Public routine "chm_convert_z_to_pressure".
 !
@@ -83,8 +88,8 @@ module chem_mod
             chm_get_obs_err_stddev,chm_obsspace_diagnostic,chm_convert_z_to_pressure
   public :: chm_obsoperators,chm_get_stringID,chm_get_ID,stnid_equal
   public :: chm_lcheck_skipassim,chm_comboIDlist,chm_required_field
-  public :: chm_apply_bounds,chm_apply_transform
-
+  public :: chm_apply_bounds,chm_apply_transform,chm_get_col_boundary
+  public :: chm_add_col_boundary,chm_retrieve_col_boundary
 
 ! public variables and types
 ! --------------------------
@@ -246,10 +251,11 @@ module chem_mod
      !                         of zero indicates no averaging kernel to be applied. Non-zero value
      !                         indicates index in chm_avgkern,chm_burp_avgkern arrays.
      !  apply_genoper          Indicates if the generalized observation operator should be applied
+     !  column_bound           Boudary imporsed on a column measurement
 
      integer :: nobslev,nmodlev,modelIndex,constituent_id,vco,varno,date,hhmm,iavgkern
      logical :: layer_identified,apply_genoper
-     real(8) :: lat,lon
+     real(8) :: lat,lon,column_bound
      character(len=12) :: stnid
      character(len=4)  :: varName
      real(8), allocatable :: vlayertop(:),vlayerbottom(:),vmodpress(:),tt(:),gz(:),pp(:),trial(:)
@@ -321,29 +327,30 @@ module chem_mod
      !                         Array index refers to BUFR code element of Table 08046 (iconstituent_id)
      !                         identifying the constituent.
      !
-     !  tropo_mode             Relevant for total column measurements only.
-     !                         Integer indicating if special treatment is to be given to the troposphere
+     !  tropo_mode             Integer indicating if special treatment is to be given to the troposphere
      !                         when assimilating total column measurements. Values indicate
      !                           0:  No special treatment given (default)
-     !                           1:  Values of the adjoint model above 'tropo_column_top' 
-     !                               (or chm_column_upper_boundary%data1d) set to zero.
+     !                           1:  Values of the adjoint model above obsoper%column_bound set to zero.
      !                               If specified, generalized innovation operator only applied below
-     !                               'tropo_column_top' (or chm_column_upper_boundary%data1d) 
-     !                               in the tangent linear model.
-     !                           2:  Values of tangent linear model and adjoint model above 'tropo_column_top'
-     !                               set to zero
+     !                               obsoper%column_bound in the tangent linear model.
+     !                           2:  Values of tangent linear model and adjoint model above 
+     !                               obsoper%column_bound set to zero.
      !                         Array index refers to BUFR code element of Table 08046 (iconstituent_id)
-     !                         identifying the constituent.
+     !                         identifying the constituent. Relevant for total column measurements only.
      !
-     !  tropo_column_top       Relevant for total column measurements only.
-     !                         Forced pressure level (Pa) of top of increment profile for total column measurements
-     !                         Applied in the adjoint model. No impact when value is at or above the model top.
-     !                         Array index refers to BUFR code element of Table 08046 (iconstituent_id)
-     !                         identifying the constituent.
-     !             
-     !                         Instead of tropo_colummn_top, will normally use tropopause level if available 
-     !                         or PBL level instead when .
+     !  tropo_bound            Integer indicating which column top value to use if tropo_mode is non-zero.
+     !                           0: Use fixed value of tropo_column_top
+     !                           1: Use model determination of tropopause
+     !                           2: Use model determination of PBL
+     !                         Options 1 and 2 will default to the value set in tropo_column_top if the model
+     !                         derived column top could not be determined. Relevant for total column measurements only.
      !
+     !  tropo_column_top       Default value to use for the column boundary (in Pa). Array index refers to BUFR code
+     !                         element of Table 08046 (iconstituent_id) identifying the constituent. 
+     !                         Relevant for total column measurements only.
+     !
+     !  obsdata_maxsize        Maximum size for struct_chm_obsdata arrays if not specified by other means
+     !                         
      !  low_cutoff             min value allowed for increments prior to storage in rebm expressed as a fraction
      !                         of the background field (generally < 1)
      !  high_cutoff            max value allowed for increments prior to storage in rebm expressed as a multiple
@@ -353,9 +360,10 @@ module chem_mod
      !                         1: dlnx 
      
      logical :: generalized_operator,diagn_save
-     integer :: assim_num,tropo_mode(0:chm_constituents_size)
+     integer :: assim_num,tropo_mode(0:chm_constituents_size),tropo_bound(0:chm_constituents_size)
      integer :: assim_varno(chm_cfg_size),assim_nlev(chm_cfg_size)
      integer :: transform(0:chm_constituents_size)
+     integer :: obsdata_maxsize
      character(len=9) :: assim_stnid(chm_cfg_size)
      real(8) :: diagn_pressmin
      real(8) :: amu(0:chm_constituents_size),tropo_column_top(0:chm_constituents_size)
@@ -374,6 +382,10 @@ module chem_mod
 ! in an internal compiler error.
 
   type(struct_chm_obsdata), allocatable :: chm_burp_std(:),chm_burp_avgkern(:)
+
+! Arrays for integration upper boundary of retrieved total column measurements 
+
+  type(struct_chm_obsdata) :: chm_column_boundary
 
   ! File containing various warnings related to chemical constituents that
   ! are not included in the listing file.
@@ -444,20 +456,29 @@ contains
 !   Read from NAMCHEM namelist
 !
 !        genoper             If generalized observation operator should be used
+!
 !        diagn_num           Prescribed (starting) number of (stnid, bufr, nlev) for the diagnostics calc
+!
 !        diagn_stnid         Prescribed (starting) list of stnid (with *s as needed) for the diagnostics calc
 !                            with '*' denoting wild cards
+!
 !        diagn_varno         Prescribed (starting) list of bufr elments for the diagnostics calc
+!
 !        diagn_unilev        Prescribed (starting) list of logicals indicating uni-level obs for the diagnostics calc
+!
 !        diagn_pressmin      Bottom of top layer for diagnostics (in Pa).
+!
 !        diagn_save          Logical indicating gridded diagnostics are to be saved
 !                            in an ascii file in addition to overall diagnostics. 
+!
 !        diagn_nset          Integer indicating grouping of diagnostics with
 !                            1: group by stnid
 !                            2: group by (stnid,bufr)
 !                            3: group by (stnid,bufr,nlev)
+!
 !        diagn_all           Logical indicating if all combinations specified by diagn_nset are to be
 !                            used in diagnostics or only those specified by the diagn_* arrays
+!
 !        assim_num           Number combinations (stnid, bufr element, multi/uni-level) 
 !                            identified for assimilation. All others will not
 !                            be assimilated. OmP and OmA diagnostics and output
@@ -469,31 +490,45 @@ contains
 !
 !        assim_varno         Bufr elements of obs sets for assimilation. A value of
 !                            0 implies that all are to be used.
+!
 !        assim_stnid         Stnids of obs sets for assimilation. '*' denote wild cards
+!
 !        assim_nlev           0:  multi-level and uni-level
 !                             1:  uni_level
 !                            >1: multi-level 
-!        tropo_mode          Relevant for total column measurements only.
-!                            Integer indicating if special treatment is to be given to the troposphere
+!
+!        tropo_mode          Integer indicating if special treatment is to be given to the troposphere
 !                            when assimilating total column measurements. Values indicate
-!                              0:  No special treatment given (default)
-!                              1:  Values of the adjoint model above 'tropo_column_top' set to zero
-!                              2:  Values of linear tangent model and adjoint model above 'tropo_column_top'
-!                                  set to zero
+!                             0:  No special treatment given (default)
+!                             1:  Values of the adjoint model above obsoper%column_bound set to zero.
+!                                 If specified, generalized innovation operator only applied below
+!                                 obsoper%column_bound in the tangent linear model.
+!                             2:  Values of tangent linear model and adjoint model above
+!                                 obsoper%column_bound set to zero.
 !                            Array index refers to BUFR code element of Table 08046 (iconstituent_id)
-!                            identifying the constituent.
-!        tropo_column_top    Relevant for total column measurements only.
-!                            Forced pressure level (Pa) of top of increment profile for total column measurements
-!                            Applied in the adjoint model. No impact when value is at or above the model top.
-!                            Array index refers to BUFR code element of Table 08046 (iconstituent_id)
-!                            identifying the constituent.
+!                            identifying the constituent. Relevant for total column measurements only.
+!
+!        tropo_bound         Integer indicating which column top value to use if tropo_mode is non-zero.
+!                              0: Use fixed value of tropo_column_top
+!                              1: Use model determination of tropopause
+!                              2: Use model determination of PBL
+!                            Options 1 and 2 will default to the value set in tropo_column_top if the model
+!                            derived column top could not be determined. Relevant for total column measurements only.
+!
+!        tropo_column_top    Default value to use for the column boundary (in Pa). Array index refers to BUFR code
+!                            element of Table 08046 (iconstituent_id) identifying the constituent.
+!                            Relevant for total column measurements only.
+!
 !        amu                 Molecular mass  of constituents in g/moles (needed for unit conversions)
 !                            Array index refers to BUFR code element of Table 08046 (iconstituent_id)
 !                            identifying the constituent.
+!
 !       low_cutoff           min value allowed for increments prior to storage in rebm expressed as a fraction
 !                            of the background field (generally < 1)
+!
 !       high_cutoff          max value allowed for increments prior to storage in rebm expressed as a multiple
 !                            of the background field (generally > 1)
+!
 !       transform            Index specifying form of analysis increment (and related adjoint operation)
 !                              0: no transformation (dx given input trial field denoted as x)
 !                              1: dlnx 
@@ -511,13 +546,13 @@ contains
 
   integer :: assim_num,diagn_num,diagn_nset
   integer :: assim_varno(chm_cfg_size),assim_nlev(chm_cfg_size)
-  integer :: diagn_varno(chm_cfg_size),tropo_mode(0:chm_constituents_size)
+  integer :: diagn_varno(chm_cfg_size),tropo_mode(0:chm_constituents_size),tropo_bound(0:chm_constituents_size)
   character(len=9) :: assim_stnid(chm_cfg_size),diagn_stnid(chm_cfg_size)
   logical :: diagn_save,diagn_all,diagn_unilev(chm_cfg_size)
   real(8) :: diagn_pressmin,tropo_column_top(0:chm_constituents_size)
   real(8) :: amu(0:chm_constituents_size)
   real(8) :: low_cutoff(0:chm_constituents_size),high_cutoff(0:chm_constituents_size)
-  integer :: transform(0:chm_constituents_size)
+  integer :: transform(0:chm_constituents_size),obsdata_maxsize
 
   EXTERNAL FNOM,FCLOS
 
@@ -525,8 +560,8 @@ contains
                      assim_num,assim_stnid,assim_varno,assim_nlev, &
                      diagn_num,diagn_stnid,diagn_varno,diagn_unilev, &
                      diagn_save,diagn_all,diagn_nset,diagn_pressmin, &
-                     tropo_mode,tropo_column_top,amu, &
-                     low_cutoff,high_cutoff,transform
+                     tropo_mode,tropo_bound,tropo_column_top,amu, &
+                     low_cutoff,high_cutoff,transform,obsdata_maxsize
   
   ! Default NAMCHEM values
   
@@ -550,7 +585,10 @@ contains
   diagn_unilev(:)=.false.
 
   tropo_mode(:) = 0
+  tropo_bound(:) = 0
   tropo_column_top(:) = 0.0
+
+  obsdata_maxsize = 90000
 
   amu(:) = -1.0
   amu(0) = 48.0    ! Molecular mass in g/mole for O3
@@ -590,11 +628,13 @@ contains
   chm_config%diagn_pressmin = diagn_pressmin
   chm_config%diagn_save = diagn_save
   chm_config%tropo_mode = tropo_mode
+  chm_config%tropo_bound = tropo_bound
   chm_config%tropo_column_top = tropo_column_top
   chm_config%amu = amu
   chm_config%low_cutoff = low_cutoff
   chm_config%high_cutoff = high_cutoff
   chm_config%transform = transform
+  chm_config%obsdata_maxsize = obsdata_maxsize
 
   ! Initialize chm_comboIDlist and add (stnid,varno) pairs from the namelist
 
@@ -828,7 +868,6 @@ contains
     END IF
 
   end subroutine chm_get_layer_boundaries
-
 
 !-----------------------------------------------------------------------------------------
 
@@ -3652,6 +3691,518 @@ contains
     
   end subroutine chm_print_diagnostics
 
+!----------------------------------------------------------------------------------------
+
+  function chm_get_col_boundary(iconstituent_id,n_modlvl,pressmodlvl,tt,gz,hu,uu,vv) result(bound_press)
+!
+! Author   : Y. Rochon, ARQI/AQRD Oct 2015
+!
+! Purpose: Determine and store the boundary (e.g. tropopause or PBL) pressure levels if needed by
+!          the observation operators.
+!
+! Revisions: 
+!          
+! Arguments:
+!
+!   Input
+!
+!      iconstituent_id   BUFR code element of Table 08046 identifying the constituent.
+!      n_modlvl     Number of model levels for variables other than uu and vv
+!      pressmodlvl  Model pressure array
+!      tt           Model temperature (Kelvin)
+!      gz           Model geopotential height (meters)
+!      hu           Specific humidity 
+!      uu           Model zonal wind component (m/s)
+!      vv           Model meridional wind component (m/s)
+!
+!   Output
+!
+!      bound_press  Pressure level of boundary to be imposed
+!
+!   Comments
+!
+!----------------------------------------------------------------------------------------
+
+    implicit none
+
+    integer, intent(in) :: n_modlvl,iconstituent_id
+    real(8), intent(in) :: pressmodlvl(n_modlvl),tt(n_modlvl),gz(n_modlvl)
+    real(8), optional, intent(in) :: uu(:),vv(:),hu(n_modlvl)
+   
+    real(8) :: bound_press
+        
+    bound_press = -1.
+
+    if (chm_config%tropo_mode(iconstituent_id).eq.0) return
+
+    if (chm_config%tropo_bound(iconstituent_id).gt.0) then
+       if (.not.all(tt.lt.0.) .and. .not.all(gz.lt.0.) ) then
+
+          select case(chm_config%tropo_bound(iconstituent_id))
+          case(1)
+    
+             ! Get tropopause pressure level
+          
+             if (present(hu)) then
+                bound_press = chm_get_tropopause(n_modlvl,pressmodlvl,tt,gz,hu=hu)
+             else
+                bound_press = chm_get_tropopause(n_modlvl,pressmodlvl,tt,gz)
+             end if
+    
+          case(2)
+ 
+             ! Get PBL pressure level
+          
+             if (present(hu).and.present(uu).and.present(vv)) then
+                bound_press = chm_get_pbl(n_modlvl,pressmodlvl,tt,gz,hu=hu,uu=uu,vv=vv) 
+             else if (present(hu)) then
+                bound_press = chm_get_pbl(n_modlvl,pressmodlvl,tt,gz,hu=hu)
+             else if (present(uu).and.present(vv)) then
+                bound_press = chm_get_pbl(n_modlvl,pressmodlvl,tt,gz,uu=uu,vv=vv) 
+             end if
+
+          case default
+             call abort3d("chm_get_col_boundary: Unrecognized value for chm_config%tropo_bound of " // trim(str(chm_config%tropo_bound(iconstituent_id))) )
+          end select
+
+       end if
+    end if
+
+    ! Use tropo_column_top value if tropo_bound=0 or model derived boundary was unsuccessful
+    if (bound_press.lt.0.0) &
+         bound_press = chm_config%tropo_column_top(iconstituent_id)
+      
+  end function chm_get_col_boundary
+
+!----------------------------------------------------------------------------------------
+
+  function chm_get_tropopause(n_modlvl,pressmodlvl,tt,gz,hu) result(tropo_press)
+!
+! Author   : Y. Rochon, ARQI/AQRD Oct 2015
+!            - Following consultation with Irena Paunova for water vapour based approach
+!                                     with Sylive Gravel (and wikipedia) for temperature based approach
+!          
+! Purpose: Determines pressure level of tropopause. 
+!          Final tropopause is taken as max pressure (lowest altitude) from the
+!          water vapour and temperature based tropopauses.
+!
+! Revisions: 
+!          
+! Arguments:
+!
+!   Input
+!
+!      n_modlvl     Number of model levels
+!      pressmodlvl  Model pressure array (Pa)
+!      hu           Model specific humidity 
+!      tt           Model temperature (Kelvin)
+!      gz           Model geopotential height (m)
+!
+!   Output
+!
+!     tropo_press   Tropopause level in Pa
+!             
+!----------------------------------------------------------------------------------------
+
+    implicit none
+
+    integer, intent(in) :: n_modlvl
+    real(8), intent(in) :: pressmodlvl(n_modlvl),tt(n_modlvl),gz(n_modlvl)
+    real(8), intent(in), optional :: hu(n_modlvl)
+
+    real(8) :: tropo_press
+  
+    integer :: itop,i,k,ilaps
+    real(8) :: hu_ppmv1,hu_ppmv2,hu_ppmv3,xlaps,tropo_press_hu
+
+    real(8), parameter :: press_min=6000.         ! Min tropoause pressure 60 hPa.; equivalent to ~ 20km
+    real(8), parameter :: gz_min=6000.0           ! Min tropopause level in meters.
+    real(8), parameter :: ppmv_threshold=10.0     
+    real(8), parameter :: tgrad_threshold=0.002   ! degrees/m (2 degrees/km)
+    real(8), parameter :: consth=0.160754938e+07  ! conversion from mass mixing ratio to ppmv;  1.0e+06 / (18.015/28.96)
+
+    tropo_press=-1.0
+    if (all(gz.lt.0.0))  call abort3d('chm_get_tropopause: Missing GZ for determining tropopause pressure')
+
+!   Initialize tropopause pressure level using temperature gradient.
+!   Thermal tropopause is defined as the lowest level (above gz_min) at which (1) the lapse rate decreases
+!   to <= 2 C/km and (2) the average lapse rate between this level and all higher levels within 2 km are <= 2 C/km. 
+!   Ref: International Meteorological Vocabulary (2nd ed.). Geneva: Secretariat of the World Meteorological
+!        Organization. 1992. p. 636. ISBN 92-63-02182-1.
+!   The second requirement, based on hu, may give levels that are to high (pressure too low) in the winter hemisphere.
+
+    do itop=3,n_modlvl
+       if (pressmodlvl(itop).ge.press_min) exit
+    end do
+    itop=itop-1
+       
+    do i=n_modlvl,itop+1,-1
+       if (gz(i)-gz(n_modlvl).lt.gz_min) cycle
+       xlaps=-(tt(i)-tt(i-1))/(gz(i)-gz(i-1))
+       if (xlaps.le.tgrad_threshold) then
+          ilaps=1
+          do k=i-1,itop,-1
+             if (gz(k)-gz(i).gt.2000.0) exit
+             xlaps=xlaps-(tt(k)-tt(k-1))/(gz(k)-gz(k-1))
+             ilaps=ilaps+1
+          end do
+          if (xlaps/ilaps.le.tgrad_threshold) exit
+       end if
+    enddo
+    tropo_press=pressmodlvl(i)
+    
+!   Improve on tropopause pressure levels using specific humidity if available,
+
+    if (present(hu)) then
+    
+!      Use water vapour
+      
+       hu_ppmv1=0.0
+       do i=itop,n_modlvl
+
+!         Convert specific humidity to ppmv mixing ratio.
+!         First apply r=q/(1-q) to convert to mass mixing ratio.
+!
+          if (hu(i).le.0.8.and.hu(i).ge.0) then
+               hu_ppmv2 = consth*hu(i)/(1.0-hu(i))
+          else if (hu(i).gt.0.8) then
+               hu_ppmv2 = consth*0.8/(1.0-0.8)
+          else if (hu(i).lt.0.0) then
+               hu_ppmv2 = 0.0
+          end if
+
+!         Check if transition point reached.
+!         Added requirement that levels below also satisfy this condition.
+
+          if (hu_ppmv2.ge.ppmv_threshold) then
+             ilaps=1
+             do k=i+1,n_modlvl
+                if (gz(i)-gz(k).gt.5000.0) exit
+                if (hu(k).le.0.8.and.hu(k).ge.0) then
+                   hu_ppmv3 = consth*hu(k)/(1.0-hu(k))
+                else if (hu(k).gt.0.8) then
+                   hu_ppmv3 = consth*0.8/(1.0-0.8)
+                else
+                   hu_ppmv3=0.0
+                end if
+                if (hu_ppmv3.lt.ppmv_threshold) ilaps=0
+             end do
+             if (ilaps.eq.1) exit
+          end if
+          hu_ppmv1=hu_ppmv2
+       end do
+       
+       if (hu_ppmv2.ge.ppmv_threshold.and.ilaps.eq.1) then
+       
+!            Interpolate between levels
+      
+             if (abs(hu_ppmv2-hu_ppmv1).lt.0.1) hu_ppmv1=hu_ppmv2-0.1
+!             tropo_press_hu=(log(pressmodlvl(i))*(ppmv_threshold-hu_ppmv1)+ &
+!                    log(pressmodlvl(i-1))*(hu_ppmv2-ppmv_threshold)) &
+!                   /(hu_ppmv2-hu_ppmv1)
+!             tropo_press_hu=exp(tropo_press_hu)
+             tropo_press_hu=pressmodlvl(i)
+             
+             tropo_press=min(tropo_press,tropo_press_hu)
+       else
+          write(*,*) 'chm_get_tropopause: Level and specific humidity: ',itop,hu_ppmv2
+          call abort3d('chm_get_tropopause: Specific humidity too small.')
+       end if
+                             
+    end if
+    
+  end function chm_get_tropopause
+
+!----------------------------------------------------------------------------------------
+
+  function chm_get_pbl(n_modlvl,pressmodlvl,tt,gz,hu,uu,vv) result(pbl_press)
+!
+! Author   : Y. Rochon, ARQI/AQRD Oct 2015
+!            - Following consultation with Amir Aliabadi, Shuzhan Ren and Saroja Polavarapu.
+!            - RiB case based on original routine 'mixing_properties' by Chris Golaz (GFDL) 
+!              and Sungsu Park(NCAR) provided by Shuzhan Ren.
+!
+! Purpose: Determines pressure level of planetary boundary layer using 
+!          a first threshold of 0.5 for the bulk Richadson number (after Mahrt, 1981; 
+!          requires availability of uu and vv). Threshold reduced to largest value
+!          between 0.25 and 0.5 if first not satisfied. 
+!
+!          If not found with this approach, applies a variant of the Heffter approach 
+!          described in Aliabadi et al (2016), with some local variation.
+!
+! References:
+!
+!  Aliabadi A.A., R.M. Staebler, J. de Grandpre, A. Zadra, and P.A.
+!       Vaillancourt, 2016: Comparison of Estimated Atmospheric
+!       Boundary Layer Mixing Height in teh Arctic and Southern Great
+!       Plains under Statisticallt Stable Conditions: Experimental
+!       and Numerical Aspects, Submitted to Atmosphere-Ocean (2015).
+!  Mahrt, L. 1981: Modelling depth of the stable boundary-layer,
+!       Bound-Lay. Meteorol., 21, 3-19
+!  Heffter, J.L.,1980: Transport layer depth calculations, Second Joint Conference on Applications
+!       of Air Pollution Meteorology, New Orleans, LA, 24-27 March 1980. American Meteorological
+!       Society, Boston, MA.
+!       
+! Revisions: 
+!          
+! Arguments:
+!
+!   Input
+!
+!      n_modlvl     Number of model levels for variables other than uu and vv
+!      pressmodlvl  Model pressure array (Pa)
+!      tt           Model temperature (Kelvin)
+!      gz           Model geopotential height (meters)
+!      hu           Specific humidity
+!      uu           Model zonal wind component (m/s)
+!      vv           Model meridional wind component (m/s)
+!
+!   Output
+!
+!     pbl_press     PBL level in Pa
+! 
+!   Comments
+!
+!   A) Currently assumes (uu,vv) midlayer levels approximately at tt, gz, and hu levels
+!      when size(uu).ne.n_modlvl.
+!
+!----------------------------------------------------------------------------------------
+
+    use earthconstants_mod
+
+    implicit none
+
+    integer, intent(in) :: n_modlvl
+    real(8), intent(in) :: pressmodlvl(n_modlvl),tt(n_modlvl),gz(n_modlvl)
+    real(8), optional :: uu(:),vv(:),hu(n_modlvl)
+   
+    real(8) :: pbl_press
+  
+    integer :: itop,i,id,igradmax,inv,iRiBmax
+    real(8) :: RiB1,RiB2,RiBmax,zs,thetavs,thetavh(n_modlvl),us,vs,uv,hus,huh,gradmax,grad
+    real(8), parameter :: kappa = 287.04/1004.67  ! R/Cp
+    real(8), parameter :: RiB_threshold=0.5, reduced=0.5 
+
+!   Imposed min presssure of PBL height of 200 hPa (extreme; PBL height should normally be under 3km)
+    real(8), parameter :: press_min=20000.  
+
+    real(8) :: huw(n_modlvl)
+
+    pbl_press=-1.0
+    
+!   Set values for lowest prognostic level 
+
+    i = n_modlvl   
+    
+    if (all(gz.lt.0.0))  call abort3d('chm_get_pbl: Missing GZ for determining PBL pressure')
+
+!   Convert hu to mass mixing ratio
+
+    if (present(hu)) then
+       huw(:)=hu(:)
+    else
+       huw(:)=0.0
+    end if
+    
+    if (huw(i).le.0.8.and.huw(i).ge.0) then
+        hus = huw(i)/(1.0-huw(i))
+    else if (huw(i).gt.0.8) then
+        hus = 0.8/(1.0-0.8)
+    else if (huw(i).lt.0.0) then
+        hus = 0.0
+    end if
+    zs = gz(i)*0.001
+    
+!   Potential virtual temperature at lowest prognostic level
+
+    thetavs = tt(i)*(1.D5/pressmodlvl(i))**kappa* (1.0 + 0.61*hus )
+    thetavh(n_modlvl)=thetavs
+
+!   Set max vertical level
+
+    do itop=2,n_modlvl-1
+       if (pressmodlvl(itop).ge.press_min) exit
+    end do
+
+    RiB1=0.0
+    RiB2=0.0
+    RiBmax=0.0
+    iRiBmax=0
+    if (present(uu).and.present(vv)) then
+       id=n_modlvl-size(uu)
+       if (id.gt.1.or.id.lt.0) then
+          call abort3d('chm_get_pbl: Unexpected number of UV levels, n_modlvl = ' // trim(str(n_modlvl)) // ' , size(uu) = ' // trim(str(size(uu))) )    
+       end if
+       us = uu(size(uu))
+       vs = vv(size(vv))
+!      us,vs set to 0.0
+!      us=0.0
+!      vs=0.0
+
+!      Calc RiB from near-surface to level attaining RiB_threshold
+
+       do i=n_modlvl-1,itop,-1
+  
+           if (huw(i).le.0.8.and.huw(i).ge.0) then
+               huh = huw(i)/(1.0-huw(i))
+           else if (huw(i).gt.0.8) then
+               huh = 0.8/(1.0-0.8)
+           else if (huw(i).lt.0.0) then
+               huh = 0.0
+           end if
+           thetavh(i) = tt(i)*(1.D5/pressmodlvl(i))**kappa* ( 1.0 + 0.61*huh )
+
+           if (id.eq.0) then
+               uv = max( (uu(i)-us)**2 + (vv(i)-vs)**2, 1.D-8 ) 
+           else
+!             Take layer midpoint values
+              uv = max( ((uu(i)+uu(i-1))/2.0-us)**2 + ((vv(i)+vv(i-1))/2.0-vs)**2, 1.D-8 ) 
+           end if
+         
+           RiB2 = grav * (thetavh(i)-thetavs) * (gz(i)*0.001-zs) / (thetavs*uv)
+           if (RiBmax.lt.RiB2.and.RiB2.ge.reduced*RiB_threshold) then
+              RiBmax=RiB2
+              iRiBmax=i
+           end if
+           if (RiB2.ge.RiB_threshold) exit
+           RiB1=RiB2
+       end do
+    else
+
+!      Calc only theta
+      
+       do i=n_modlvl-1,itop,-1
+  
+           if (huw(i).le.0.8.and.huw(i).ge.0) then
+               huh = huw(i)/(1.0-huw(i))
+           else if (huw(i).gt.0.8) then
+               huh = 0.8/(1.0-0.8)
+           else if (huw(i).lt.0.0) then
+               huh = 0.0
+           end if
+           thetavh(i) = tt(i)*(1.D5/pressmodlvl(i))**kappa* ( 1.0 + 0.61*huh )
+       end do
+    end if   
+    
+    if (RiB2.ge.RiB_threshold) then    
+   
+ !     Interpolate between levels
+
+       pbl_press=(log(pressmodlvl(i))*(RiB_threshold-RiB1)+ &
+               log(pressmodlvl(i+1))*(RiB2-RiB_threshold)) &
+               /(RiB2-RiB1)
+       pbl_press=exp(pbl_press)
+    else if (RiBmax.ge.reduced*RiB_threshold) then
+!      Apply to level with largest RiB between reduced*RiB_threshold and RiB_threshold
+       pbl_press=pressmodlvl(iRiBmax)
+    else
+    
+!      Estimate PBL level using the Heffter conditions:
+!      First find lowest inversion layer where dtheta>2K.
+!      If found, assign mid of layer as PBL level. 
+!      Otherwise, assign PBL level as that with largest
+!      theta gradient.
+       
+       i=n_modlvl-1
+       do while (i.gt.itop) 
+          !if (thetavh(i)-thetavh(i+1).gt.0.0) then
+          if ((thetavh(i)-thetavh(i+1))/(gz(i)-gz(i+1)).ge.0.005) then
+             ! Near bottom of inversion layer found
+             inv=i+1
+             i=i-1
+             !do while (thetavh(i)-thetavh(i+1).gt.0.0.and.i.gt.itop) 
+             do while ((thetavh(i)-thetavh(i+1))/(gz(i)-gz(i+1)).ge.0.005.and.i.gt.itop) 
+                 i=i-1
+             end do
+             if ((thetavh(i+1)-thetavh(inv)).gt.2.0)  then
+                ! Apply  midlayer as PBL
+                pbl_press=sqrt(pressmodlvl(i+1)*pressmodlvl(inv))
+                exit
+             end if 
+          else
+             i=i-1
+          end if
+       end do
+       if (pbl_press.le.0.0) then
+          gradmax=-1.D30
+          igradmax=n_modlvl-1
+          do i=n_modlvl-1,itop,-1
+             grad=(thetavh(i)-thetavh(i+1))/(gz(i)-gz(i+1))
+             if (gradmax.lt.grad) then
+                gradmax=(thetavh(i)-thetavh(i+1))/(gz(i)-gz(i+1))
+                igradmax=i
+                if (grad.ge.0.005) then ! Check next layer as well
+                   if ((thetavh(i-1)-thetavh(i))/(gz(i-1)-gz(i)).ge.0.005) exit
+                end if
+            end if
+          end do          
+          pbl_press=pressmodlvl(igradmax)
+          ! write(*,*) 'chm_get_pbl: Warning2 - Max allowed altitude reached for. ',pbl_press,igradmax,gradmax,RiB2,iRiBmax,RiBmax
+       !else
+       !   write(*,*) 'chm_get_pbl: Warning1 - Max allowed altitude reached for. ',pbl_press,i,RiB2,iRiBmax,RiBmax     
+       end if
+    end if
+
+  end function chm_get_pbl
+
+!----------------------------------------------------------------------------------------
+
+  subroutine chm_add_col_boundary(headerIndex,bound_press)
+!
+! Author: M. Sitwell, ARQI/AQRD, April 2016
+!
+! Purpose: Adds column boundary data to chm_column_boundary which can be retreived later
+!          using a header index.
+!
+!----------------------------------------------------------------------------------------
+
+    implicit none
+
+    integer, intent(in) :: headerIndex
+    real(8), intent(in) :: bound_press
+
+    if (.not.associated(chm_column_boundary%data1d)) then
+       call obsdata_alloc(chm_column_boundary, chm_config%obsdata_maxsize, dim1=1)
+       chm_column_boundary%nrep = 0
+    end if
+
+    ! In this case nrep will count the number of filled reps in the data arrays
+    chm_column_boundary%nrep = chm_column_boundary%nrep+1 
+
+    if (chm_column_boundary%nrep.gt.chm_config%obsdata_maxsize) &
+         call abort3d('chm_add_col_boundary: Reach max size of array ' // trim(str(chm_config%obsdata_maxsize)) )
+    
+    ! Use the header number as the unique code for this obs data
+    write(chm_column_boundary%code(chm_column_boundary%nrep),'(I22)') headerIndex
+
+    chm_column_boundary%data1d(chm_column_boundary%nrep,1) = bound_press
+
+  end subroutine chm_add_col_boundary
+
+!----------------------------------------------------------------------------------------
+
+  function chm_retrieve_col_boundary(headerIndex) result(bound_press)
+!
+! Author: M. Sitwell, ARQI/AQRD, April 2016
+!
+! Purpose: Retrieves previously saved column boundary data in chm_column_boundary from
+!          the header index.
+!
+!----------------------------------------------------------------------------------------
+
+    implicit none
+
+    integer, intent(in) :: headerIndex
+    real(8) :: bound_press
+    character(len=22) :: code
+
+    write(code,'(I22)') headerIndex
+    
+    bound_press = obsdata_get_element(chm_column_boundary,code)
+
+  end function chm_retrieve_col_boundary
+
+!-------------------------------------------------------------------------------------------
 !--------------------------- Routines for observation operators ----------------------------
 
   subroutine chm_obsoperators(obsoper,model_col,obs_col,kmode,ixtr,success)
@@ -4346,11 +4897,11 @@ contains
 !                  0 for no.
 !     kmode        Observation model stage used to allow option of
 !                  tropo increment determination from total column data when
-!                  chm_config%tropo_column_top > obsoper%vlayertop for
+!                  obsoper%column_bound > obsoper%vlayertop for
 !                  nobslev=1. For kmode=3, calc only for region between
-!                  chm_config%tropo_column_top and surface. For kmode=2, split
-!                  calc for model top to chm_config%tropo_column_top and 
-!                  chm_config%tropo_column_top and surface.
+!                  obsoper%column_bound and surface. For kmode=2, split
+!                  calc for model top to obsoper%column_bound and 
+!                  obsoper%column_bound and surface.
 !     iconstituent_id  BUFR constituent ID.
 !
 !  InOut
@@ -4412,8 +4963,7 @@ contains
      
      vlayerbottom_ref=obsoper%vlayerbottom(1)
      
-     if ( chm_config%tropo_mode(obsoper%constituent_id).ge.1 .and. &
-          chm_config%tropo_column_top(obsoper%constituent_id).gt.obsoper%vlayertop(1) ) then
+     if ( chm_config%tropo_mode(obsoper%constituent_id).ge.1 .and. obsoper%column_bound.gt.obsoper%vlayertop(1) ) then
 
         if (obsoper%iavgkern.ne.0) &
              call abort3d("chm_layer_integ_operator: Use of averaging kernels not possible with reduced range of increment profile.")
@@ -4430,7 +4980,7 @@ contains
            
            vlayertop_ref=obsoper%vlayertop(1)
 
-           obsoper%vlayertop(1) = chm_config%tropo_column_top(obsoper%constituent_id)
+           obsoper%vlayertop(1) = obsoper%column_bound
            
            call chm_vertintg(obsoper,ixtr,success)
            
@@ -4447,10 +4997,10 @@ contains
            ! total column from the assimilation of other observations.
            
            obsoper%vlayertop(1)=vlayertop_ref
-           obsoper%vlayerbottom(1)=chm_config%tropo_column_top(obsoper%constituent_id)
+           obsoper%vlayerbottom(1)=obsoper%column_bound
         else
            ! Reset top new value. Restricts adjoint/tangent linear calcs to this reduced region.            
-           obsoper%vlayertop(1)=chm_config%tropo_column_top(obsoper%constituent_id)
+           obsoper%vlayertop(1)=obsoper%column_bound
         end if
       
      end if
@@ -4464,7 +5014,7 @@ contains
   ! linear operator 
   if (obsoper%nobslev.eq.1.and.kmode.eq.2.and.obsoper%constituent_id.ge.0) then
       if (chm_config%tropo_mode(obsoper%constituent_id).eq.1.and.  &
-         chm_config%tropo_column_top(obsoper%constituent_id).gt.obsoper%vlayertop(1).and. &
+         obsoper%column_bound.gt.obsoper%vlayertop(1).and. &
          vlayerbottom_ref.gt.obsoper%pp(obsoper%nmodlev)*0.99) then    
           
          obsoper%vlayerbottom(1)=vlayerbottom_ref

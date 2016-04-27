@@ -48,8 +48,12 @@ contains
 !           oda_H, oda_HTchm, and compute_HBHT_static_chm produced from earlier developments 
 !           by Ping Du, CMDA/MSC (Jan/Feb 2015), Y. Rochon and M. Sitwell (ARQI/AQRD)
 !
-! Revision: M. Sitwell, ARQI/AQRD Nov 2015
-!           - Modified the flagging of observations after chm_obsoperators is called
+! Revision: 
+!          M. Sitwell, ARQI/AQRD Nov 2015
+!          - Modified the flagging of observations after chm_obsoperators is called
+!          M. Sitwell, ARQI/AQRD April 2016
+!          - Moved most of the input to chm_obsoperators into obsoper
+!
 !
 ! Input
 !
@@ -163,7 +167,7 @@ contains
       if (icodtyp.ne.codtyp_chemremote.and.icodtyp.ne.codtyp_cheminsitu) cycle HEADER
 
       ! Initialize obsoper variables and allocate arrays
-      call chm_obsoper_init(obsoper,obsSpaceData,headerIndex,column_bkgrnd,nlev_bkgrnd)
+      call chm_obsoper_init(obsoper,obsSpaceData,headerIndex,column_bkgrnd,nlev_bkgrnd,kmode)
 
       ! Allocate memory for profile data
       allocate(ixtr(obsoper%nobslev), iass(obsoper%nobslev), obs_col(obsoper%nobslev))
@@ -323,7 +327,7 @@ contains
 
 !-------------------------------------------------------------------------------------------
 
-  subroutine chm_obsoper_init(obsoper,obsSpaceData,headerIndex,column_bkgrnd,nmodlev)
+  subroutine chm_obsoper_init(obsoper,obsSpaceData,headerIndex,column_bkgrnd,nmodlev,kmode)
 !
 ! Author: M. Sitwell and Y. Rochon, April 2016
 !
@@ -341,13 +345,14 @@ contains
 
     implicit none
 
-    integer, intent(in) :: headerIndex,nmodlev
+    integer, intent(in) :: headerIndex,nmodlev,kmode
     type(struct_chm_obsoperators), intent(inout) :: obsoper
     type(struct_obs), intent(inout) :: obsSpaceData
     type(struct_columnData), intent(inout) :: column_bkgrnd
 
-    integer :: nobslev,bodyIndex,jl
+    integer :: nobslev,bodyIndex,jl,nmodlev_uv
     real(8), pointer :: col_ptr_gzb(:)
+    real(8), allocatable :: hu(:),uu(:),vv(:)
     character(len=2), parameter :: varType = 'TH'
 
     ! Get obs space info that are part of the profile header
@@ -413,6 +418,45 @@ contains
        obsoper%gz(:) = -1.
     end if
 
+    ! Get column boundary if applicable
+    if (obsoper%vco.eq.4.and.nobslev.eq.1) then
+       if (kmode.eq.0) then
+          
+          if (col_varExist('HU')) then
+
+             allocate(hu(nmodlev))
+             do jl=1,nmodlev
+                hu(jl) = exp(col_getElem(column_bkgrnd,jl,headerIndex,'HU')) ! Convert from LQ to Q (lnq to q)
+             enddo
+
+             if (col_varExist('UU').and.col_varExist('VV')) then
+                nmodlev_uv=col_getNumLev(column_bkgrnd,'MM')
+                allocate(uu(nmodlev_uv),vv(nmodlev_uv))
+                do jl=1,nmodlev_uv
+                   uu(jl) = col_getElem(column_bkgrnd,jl,headerIndex,'UU')
+                   vv(jl) = col_getElem(column_bkgrnd,jl,headerIndex,'VV')
+                enddo
+                obsoper%column_bound = chm_get_col_boundary(obsoper%constituent_id,nmodlev,obsoper%pp,obsoper%tt,obsoper%gz,hu=hu,uu=uu,vv=vv)
+                deallocate(uu,vv)
+             else 
+                obsoper%column_bound = chm_get_col_boundary(obsoper%constituent_id,nmodlev,obsoper%pp,obsoper%tt,obsoper%gz,hu=hu)   
+             end if
+
+             deallocate(hu)
+
+          else
+              obsoper%column_bound = chm_get_col_boundary(obsoper%constituent_id,nmodlev,obsoper%pp,obsoper%tt,obsoper%gz)
+          end if
+
+          call chm_add_col_boundary(headerIndex,obsoper%column_bound)  ! save boundary for kmode>0 calls using headerIndex
+
+       else
+          obsoper%column_bound = chm_retrieve_col_boundary(headerIndex)
+       end if
+    else
+       obsoper%column_bound = -1.
+    end if
+
   end subroutine chm_obsoper_init
 
 !-------------------------------------------------------------------------------------------
@@ -422,6 +466,9 @@ contains
 ! Author: M. Sitwell, April 2016
 !
 ! Purpose: Deallocate arrays for struct_chm_obsoperators.
+!
+! Comments: Deallocation of arrays that are only dependent on nmodlev have been moved
+!           outside this subroutine so that they are only deallocated once.
 !
 ! ---------------------------------------------------------------------------------------
 
