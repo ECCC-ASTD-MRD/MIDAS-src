@@ -486,7 +486,11 @@ contains
 ! ** find number of channels and RTTOV levels
 
     NCHN = coefs(id)%coef%fmv_chn
-  
+    if (NCHN/=hir_get_nchan_selected(CINST)) then
+       write(*,*) "HIRQC: Skipping ... Invalid NCHN: ",NCHN,hir_get_nchan_selected(CINST),CINST
+       return
+    endif
+
     NLEV = coefs(id)%coef%nlevels 
     allocate (xpres(NLEV))
     xpres(1:NLEV)=coefs(id)% coef% ref_prfl_p(1:NLEV)
