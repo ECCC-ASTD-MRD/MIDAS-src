@@ -278,9 +278,9 @@ module rmatrix_mod
         enddo
       enddo
       ! Calculation of R**-1/2
-      call tmg_start(98,'RMAT_MATSQRT')
+      call tmg_start(95,'RMAT_MATSQRT')
       call matsqrt(Rsub,nsubset,-1.d0,.false.)
-      call tmg_stop(98)
+      call tmg_stop(95)
       allocate(R_tovs(indexTovs)%Rmat(nsubset,nsubset))
       do j=1,nsubset
         do i=1,nsubset
@@ -289,13 +289,13 @@ module rmatrix_mod
       enddo
     endif
 
-    call tmg_start(99,'RMAT_MATMUL')
+    call tmg_start(96,'RMAT_MATMUL')
     alpha=1.d0
     beta=0.d0
     y=0.d0
     ! Optimized symetric matrix vector product from Lapack
     call dsymv("L", nsubset, alpha, R_tovs(indexTovs)%Rmat, nsubset,x, 1, beta, y, 1)
-    call tmg_stop(99)
+    call tmg_stop(96)
 
   end subroutine rmat_sqrtRm1
 

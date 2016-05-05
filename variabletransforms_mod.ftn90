@@ -50,8 +50,9 @@ CONTAINS
 
     type(struct_gsv) :: statevector
     
-    write(*,*)
-    write(*,*) 'vtr_setup: Starting...'
+    if (initialized) return
+
+    write(*,*) 'vtr_setup: starting'
 
     myLonBeg = statevector%myLonBeg
     myLonEnd = statevector%myLonEnd
@@ -60,8 +61,7 @@ CONTAINS
 
     initialized  = .true.
 
-    write(*,*)
-    write(*,*) 'vtr_setup: Done!'
+    write(*,*) 'vtr_setup: done'
 
   end subroutine vtr_setup
 

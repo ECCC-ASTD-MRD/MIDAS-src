@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE SUOBS(lobsSpaceData,obsColumnMode,obsMpiStrategy)
+      SUBROUTINE SUOBS(obsSpaceData,obsColumnMode,obsMpiStrategy)
 !
 !**s/r SUOBS  - Initialisation of observation parameters and constants
 !
@@ -28,16 +28,13 @@
       use multi_ir_bgck_mod
       IMPLICIT NONE
 
-      type(struct_obs) :: lobsSpaceData
+      type(struct_obs) :: obsSpaceData
       character(len=*) :: obsMpiStrategy
       character(len=*) :: obsColumnMode
       integer :: get_max_rss
 
       WRITE(*,FMT=9000)
  9000 FORMAT(/,1x,' SUOBS - Initialisation of observations',/,1x,3('- -----------'))
-
-      write(*,*)
-      write(*,*) 'SUOBS - Using obsMpiStrategy = ', trim(obsMpiStrategy)
 
       !
       ! Specify the active observation-array columns
@@ -47,7 +44,7 @@
       !
       ! Allocate memory for observation arrays
       !
-      call obs_initialize(lobsSpaceData,mpi_local=top_BurpSplit() )
+      call obs_initialize(obsSpaceData,mpi_local=top_BurpSplit() )
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
       !
       ! Read the NAMELIST NAMGGPSRO
@@ -69,34 +66,44 @@
       call tmg_start(11,'READ_BURP')
                                   !Select calls  BRPCMA
                                   ! 1. Positioning of data records within ObsSpaceData
-      CALL SELECTB(lobsSpaceData) ! 2. Fill ObsSpaceData  with observation records
+      CALL SELECTB(obsSpaceData)  ! 2. Fill ObsSpaceData  with observation records
                                   ! 3. Incrementation of obsSpaceData%numheader and obsSpaceData%numbody based on data selected
       call tmg_stop(11)
-
-      !
-      ! Check env variable ARMA_BURP_SPLIT to know if burp files already split by subdomains
-      !
-      if ( .not. top_BurpSplit() ) then !! global observations files so have to localize them for each MPI process
-        call setObsMpiStrategy(lobsSpaceData,obsMpiStrategy)
-        call obs_reduceToMpiLocal(lobsSpaceData)
-      end if
 
       !
       ! Filter out data from CMA
       !
       call tmg_start(14,'SUPREP')
-      call filt_suprep(lobsSpaceData)
+      call filt_sethind(obsSpaceData)
+      call filt_suprep(obsSpaceData)
       call tmg_stop(14)
 
-      if ( trim(obsMpiStrategy) .eq. 'LATLONTILES' ) then
-        call checkObsMpiIP(lobsSpaceData,top_BurpSplit())
+      !
+      ! set OBS_IPC and OBS_IPT columns according to the chosen strategy
+      !
+      write(*,*)
+      write(*,*) 'SUOBS - Using obsMpiStrategy = ', trim(obsMpiStrategy)
+      call setObsMpiStrategy(obsSpaceData,obsMpiStrategy)
+
+      !
+      ! Check env variable ARMA_BURP_SPLIT to know if burp files already split
+      !
+      if ( top_BurpSplit() ) then 
+        ! local observations files, so just do reallocation to reduce memory used
+        call obs_squeeze(obsSpaceData)
+        call obs_MpiRedistribute(obsSpaceData,OBS_IPC)
+        write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+      else
+        ! global observations files so have to localize them for each MPI process
+        ! NOTE: not currently supported, but may be useful for future versions
+        call obs_reduceToMpiLocal(obsSpaceData)
       end if
 
       !
       !- Memory allocation for TOVS processing
       !
-      call tovs_nl_setupallo(lobsSpaceData)
-      if ( top_BgckIrMode() ) call BGCK_IR_SETUP(lobsSpaceData)
+      call tovs_nl_setupallo(obsSpaceData)
+      if ( top_BgckIrMode() ) call BGCK_IR_SETUP(obsSpaceData)
       if ( top_AnalysisMode() ) call tovs_lin_setupallo()
 
       END SUBROUTINE SUOBS

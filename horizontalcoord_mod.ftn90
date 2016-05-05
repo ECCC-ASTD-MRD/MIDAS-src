@@ -66,7 +66,7 @@ module HorizontalCoord_mod
      real(8)              :: xlon2
   end type struct_hco
 
-  integer, parameter :: nMaxGrid = 2
+  integer, parameter :: nMaxGrid = 10
   type(struct_hco), target :: hco(nMaxGrid)
 
   integer :: nGrid = 0
@@ -366,7 +366,11 @@ module HorizontalCoord_mod
 
     call hco_GetGridIndex(gridid, gridname)
 
-    hco_ptr => hco(gridid)
+    if(gridid.lt.0) then
+      hco_ptr => null()
+    else 
+      hco_ptr => hco(gridid)
+    endif
 
   end function hco_Get
 
@@ -383,8 +387,8 @@ module HorizontalCoord_mod
 
     if ( nGrid == 0 ) then
       write(*,*)
-      write(*,*) 'hco_GetGridIndex: HorizontalGrid module not initialized'
-      stop
+      write(*,*) 'hco_GetGridIndex: no grids defined yet, returning -1'
+      gridindex = -1
     endif
 
     gridid = -1
@@ -399,8 +403,8 @@ module HorizontalCoord_mod
       gridindex = gridid
     else
       write(*,*)
-      write(*,*) 'hco_GetGridIndex: Unknown Grid ', trim(gridname)
-      stop
+      write(*,*) 'hco_GetGridIndex: Unknown Grid ', trim(gridname), ' returning -1'
+      gridindex = -1
     end if
 
   end subroutine hco_GetGridIndex

@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-subroutine minimize(columng,obsSpaceData,isControlAnalysis)
+subroutine minimize(columng,obsSpaceData)
   use minimization_mod
   use obsSpaceData_mod
   use columnData_mod
@@ -31,13 +31,13 @@ subroutine minimize(columng,obsSpaceData,isControlAnalysis)
   !Local declarations
   type(struct_obs) :: obsSpaceData
   type(struct_columnData) :: column,columng
-  logical :: isControlAnalysis
-  integer :: indic,ierr
+  integer :: get_max_rss
 
   write(*,*) '--------------------------------'
   write(*,*) '--Starting subroutine minimize--'
   write(*,*) '--------------------------------'
-  call tmg_start(2,'MIN')
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+  call tmg_start(3,'MIN')
 
   call col_setVco(column,col_getVco(columng))
   call col_allocate(column,col_getNumCol(columng),mpi_local=.true.)
@@ -47,19 +47,14 @@ subroutine minimize(columng,obsSpaceData,isControlAnalysis)
   call prdatabin(obsSpaceData,tim_nstepobsinc)
   call tim_sutimeinterp(obsSpaceData)
 
-  call min_minvar(column,columng,obsSpaceData,isControlAnalysis)
-
-  DO INDIC =1,1
-     if(obs_numHeader(obsSpaceData).ge.indic) then 
-        CALL obs_prnthdr(obsSpaceData,indic)
-        CALL obs_prntbdy(obsSpaceData,indic)
-     endif
-  END DO
+  call min_minvar(column,columng,obsSpaceData)
 
   call col_deallocate(column)
-  call tmg_stop(2)
+  call tmg_stop(3)
 
   ! Memory deallocations for non diagonal R matrices for radiances
   call rmat_cleanup()
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+  write(*,*) '--Done subroutine minimize--'
 
 end subroutine minimize

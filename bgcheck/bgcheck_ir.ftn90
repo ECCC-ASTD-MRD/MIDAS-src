@@ -39,7 +39,7 @@ SUBROUTINE BGCHECK_IR(columng,columnhr,obsSpaceData)
   INTEGER,allocatable :: NOBIR(:)
   INTEGER :: index_header,idatyp,krtid
 !
-  call tmg_start(2,'BGCHECK_IR')
+  call tmg_start(3,'BGCHECK_IR')
   WRITE(*,FMT=9000)
  9000 FORMAT(//,3(" ****************"),/," BEGIN IR BACKGROUND CHECK",/,3(" ****************"),/)
 !
@@ -90,19 +90,15 @@ SUBROUTINE BGCHECK_IR(columng,columnhr,obsSpaceData)
   CALL UPDATE_BURPFILES(obsSpaceData)
       ! add cloud parameter data to burp files (AIRS,IASI,CrIS,...)
   CALL ADD_CLOUDPRMS(obsSpaceData)
-  if ( .not. top_BurpSplit() ) then 
-     if (mpi_myid == 0) then
-        DO j =1,1
-           call obs_prnthdr(obsSpaceData,j)
-           call obs_prntbdy(obsSpaceData,j)
-        END DO
-     end if
-  end if
+  DO j =1, min(1,obs_numHeader(obsSpaceData))
+     call obs_prnthdr(obsSpaceData,j)
+     call obs_prntbdy(obsSpaceData,j)
+  END DO
 
  ! deallocate obsSpaceData
   call obs_finalize(obsSpaceData)
 
-  call tmg_stop(2)
+  call tmg_stop(3)
 
 END SUBROUTINE BGCHECK_IR
 

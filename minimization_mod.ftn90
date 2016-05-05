@@ -36,7 +36,8 @@ MODULE minimization_mod
   use HorizontalCoord_mod
   use gridStateVector_mod
   use bmatrix_mod
-  use tovs_nl_mod
+  use stateToColumn_mod
+  use variableTransforms_mod
   implicit none
   save
   private
@@ -47,13 +48,15 @@ MODULE minimization_mod
   public              :: min_Setup, min_minvar
 
   type struct_dataptr
-    type(struct_obs),pointer        :: lobsSpaceData
-    type(struct_columnData),pointer :: lcolumn
-    type(struct_columnData),pointer :: lcolumng
+    type(struct_obs),pointer        :: obsSpaceData
+    type(struct_columnData),pointer :: column
+    type(struct_columnData),pointer :: columng
   end type struct_dataptr
 
   logical             :: initialized = .false.
   real*8, pointer     :: dg_vbar(:)
+
+  integer             :: envar_loop   ! environment variable
 
   integer             :: nmtra,nwork,min_nsim
   integer             :: nvadim_mpilocal ! for mpi
@@ -63,20 +66,31 @@ MODULE minimization_mod
   logical             :: preconFileExists
   character(len=20)   :: preconFileName    = './preconin'  
   character(len=20)   :: preconFileNameOut = './pm1q'  
+  character(len=20)   :: preconFileNameOut_pert = './pm1q_pert'  
   integer             :: n1gc = 3
 
   ! namelist variables
-  INTEGER NVAMAJ,NITERMAX,NSIMMAX,NCYCLEHESSMODE,NITERMAX_PERT
+  INTEGER NVAMAJ,NITERMAX,NSIMMAX
   LOGICAL lxbar,lwrthess,lgrtest,lvazx
   REAL*8 REPSG,rdf1fac
-  LOGICAL min_lvarqc,lvarqc
+  LOGICAL min_lvarqc,lvarqc,pertBhiOnly
   integer :: nwoqcv
+  integer :: numIterMax_pert, numAnalyses, ntrunc_pert
+  character(len=256) :: ensPathName
+  real(8) :: e1_scaleFactor, e2_scaleFactor
+  integer,parameter   :: maxNumLevels=200
+  real(8) :: pertScaleFactor_UV(maxNumLevels)
+  character(len=12) :: cetikinc
 
-  NAMELIST /NAMMIN/NVAMAJ,NITERMAX,NSIMMAX,NCYCLEHESSMODE,NITERMAX_PERT
+  NAMELIST /NAMMIN/NVAMAJ,NITERMAX,NSIMMAX
   NAMELIST /NAMMIN/LGRTEST
   NAMELIST /NAMMIN/lxbar,lwrthess,lvazx
   NAMELIST /NAMMIN/REPSG,rdf1fac
   NAMELIST /NAMMIN/LVARQC,NWOQCV
+  NAMELIST /NAMMIN/numIterMax_pert,numAnalyses,ensPathName
+  NAMELIST /NAMMIN/e1_scaleFactor,e2_scaleFactor,pertBhiOnly
+  NAMELIST /NAMMIN/pertScaleFactor_UV,ntrunc_pert
+  NAMELIST /NAMMIN/cetikinc
 
 CONTAINS
 
@@ -86,6 +100,8 @@ CONTAINS
 
     integer :: ierr,nulnam
     integer :: fnom,fclos
+    character(len=32) :: envVariable
+    integer :: length_envVariableburp, status
 
     if(nvadim_mpilocal_in.ne.cvm_nvadim) then
       write(*,*) 'nvadim_mpilocal,cvm_nvadim=',nvadim_mpilocal,cvm_nvadim
@@ -96,18 +112,25 @@ CONTAINS
 
     ! set default values for namelist variables
     nvamaj = 6
-    nitermax = 400
-    nitermax_pert = -1
+    nitermax = 0
     rdf1fac  = 0.25d0
     nsimmax  = 500
     lgrtest  = .false.
     lwrthess = .true.
     lxbar    = .false.
     lvazx    = .false.
-    repsg    = 1d-5
+    repsg    = 1.0d-5
     lvarqc   = .false.
     nwoqcv   = 5
-    ncyclehessmode = 0
+    numIterMax_pert = 0
+    numAnalyses = 20
+    ensPathName = './ensemble'
+    e1_scaleFactor = 0.66d0
+    e2_scaleFactor = 0.33d0
+    pertBhiOnly = .true.
+    pertScaleFactor_UV(:) = 1.0d0
+    ntrunc_pert = 0
+    cetikinc = 'UNDEFINED***'
 
     ! read in the namelist NAMMIN
     nulnam=0
@@ -116,9 +139,6 @@ CONTAINS
     if(ierr.ne.0) call abort3d('min_setup: Error reading namelist')
     write(*,nml=nammin)
     ierr=fclos(nulnam)
-
-    ! if nitermax_pert not specified, make it equal to value for control analysis
-    if(nitermax_pert.le.0) nitermax_pert = nitermax
 
     min_lvarqc=lvarqc
 
@@ -132,21 +152,34 @@ CONTAINS
 
     if(LVARQC .and. mpi_myid.eq.0) write(*,*) 'VARIATIONAL QUALITY CONTROL ACTIVATED.'
 
+    ! Retrieve environment variables related to doing an ensemble of perturbed analyses
+    status = 0
+    call get_environment_variable('envar_loop',envVariable,length_envVariableburp,status,.true.)
+    if (status.gt.1) then
+      write(*,*) 'min_analysisPert: Problem when getting the environment variable envar_loop'
+      envar_loop = 1
+    elseif (status.eq.1) then
+      envar_loop = 1
+    else
+      write(*,*) 'min_analysisPert: The environment variable envar_loop has been detected: ',envVariable
+      read(envVariable,'(i8)') envar_loop
+      write(*,*) 'envar_loop = ',envar_loop
+    endif
+
     initialized=.true.
 
   END SUBROUTINE min_setup
 
 
-  SUBROUTINE min_minvar(lcolumn,lcolumng,lobsSpaceData,isControlAnalysis)
+  SUBROUTINE min_minvar(column,columng,obsSpaceData)
     !
     ! Purpose:
     ! 3D/En VAR minimization
     !
       IMPLICIT NONE
 
-      type(struct_columnData),target :: lcolumn,lcolumng
-      type(struct_obs),target :: lobsSpaceData
-      logical :: isControlAnalysis
+      type(struct_columnData),target :: column,columng
+      type(struct_obs),target :: obsSpaceData
       type(struct_dataptr) :: dataptr 
       integer,allocatable  :: dataptr_int(:) ! obs array used to transmit pointer
       integer              :: nulout = 6
@@ -184,26 +217,12 @@ CONTAINS
         impres=0
       endif
 
-      ! change name of precon file to read if not control analysis and ncyclehessmode > 0 and hessian was written
-      if(.not.isControlAnalysis .and. nCycleHessMode.gt.0 .and. lwrthess) then
-        preconFileName = preconFileNameOut
-        if(mpi_myid.eq.0) write(*,*) 'min_minvar: setting the precon file name to be read to: ',preconFileName
-      endif
-
       ! Check for preconditioning file
       inquire(file=preconFileName,exist=preconFileExists)
       if(preconFileExists) then
         if(mpi_myid.eq.0) write(*,*) 'PRECONDITIONING FILE FOUND:',preconFileName
       else
         if(mpi_myid.eq.0) write(*,*) 'NO PRECONDITIONING FILE FOUND:',preconFileName
-      endif
-
-      ! deactivate VARQC if this is not a control analysis
-      if(.not.isControlAnalysis) then
-        if(mpi_myid.eq.0) write(*,*) 'min_minvar: Variational QC de-activated for ensemble analyses!'
-        if(mpi_myid.eq.0) write(*,*) ' '
-        lvarqc = .false.
-        min_lvarqc=lvarqc
       endif
 
       ! allocate control vector related arrays (these are all mpilocal)
@@ -234,9 +253,9 @@ CONTAINS
       endif
 
       ! recast pointer to obsSpaceData as an integer array, so it can be passed through n1qn3 to simvar
-      dataptr%lobsSpaceData => lobsSpaceData
-      dataptr%lcolumn       => lcolumn
-      dataptr%lcolumng      => lcolumng
+      dataptr%obsSpaceData => obsSpaceData
+      dataptr%column       => column
+      dataptr%columng      => columng
       dataptr_int_size = size(transfer(dataptr,dataptr_int))
       allocate(dataptr_int(dataptr_int_size),stat=ierr)
       if(ierr.ne.0) then
@@ -300,18 +319,14 @@ CONTAINS
 
       iterdone = 0
       isimdone = 0
-      if(isControlAnalysis) then
-        itermax = nitermax
-      else
-        itermax = nitermax_pert
-      endif
+      itermax = nitermax
       itermaxtodo = itermax
       isimmax = nsimmax
 
       if (nwoqcv > 0) lvarqc = .false.
 
       ! do the gradient test for the starting point of minimization
-      if(lgrtest .and. isControlAnalysis) then
+      if(lgrtest) then
         call grtest2(simvar,nvadim_mpilocal,vazx,ngrange,dataptr_int)
       endif
 
@@ -346,56 +361,57 @@ CONTAINS
              /,10X,'IMPRES =',I3,2X,'NITER = ',I3,2X,'NSIM = ',I3)
 
       ! Begin the minimization
+      if(nitermax.gt.0) then
 
-      ! First do iterations without var-QC
-      if (lvarqc .and. nwoqcv > 0 .and. iterdone < nwoqcv) then
-        iitnovqc = min(nwoqcv - iterdone,itermax)
-        isimnovqc = isimmax
-        lvarqc = .false.
+        ! First do iterations without var-QC
+        if (lvarqc .and. nwoqcv > 0 .and. iterdone < nwoqcv) then
+          iitnovqc = min(nwoqcv - iterdone,itermax)
+          isimnovqc = isimmax
+          lvarqc = .false.
+          call tmg_start(70,'QN')
+          call n1qn3(simvar, dscalqn, dcanonb, dcanab, nvadim_mpilocal, vazx,  &
+              zjsp,vazg, zxmin, zdf1, zeps1, impres, nulout, imode,       &
+              iitnovqc, isimnovqc ,iztrl, vatra, nmtra, dataptr_int(1),   &
+              zzsunused, dlds)
+          call tmg_stop(70)
+          call fool_optimizer(obsSpaceData)
+
+          isimnovqc = isimnovqc - 1
+          itermaxtodo = itermaxtodo - iitnovqc + 1
+          isimmax = isimmax - isimnovqc + 1
+
+          itertot = itertot + iitnovqc
+          isimtot = isimtot + isimnovqc
+
+          zeps1 = zeps0/zeps1
+          zeps0 = zeps1
+          lvarqc = .true.
+
+          if (imode == 4 .and. itertot < itermax) then
+            imode = 2
+            INDIC = 2
+            call simvar(indic,nvadim_mpilocal,vazx,zjsp,vazg,dataptr_int(1))
+          else
+            call abort3d(" MINIMIZATION_MOD: n1qn3 mode ne 4")
+          endif
+        endif
+
+        ! Now do main minimization with var-QC
         call tmg_start(70,'QN')
         call n1qn3(simvar, dscalqn, dcanonb, dcanab, nvadim_mpilocal, vazx,  &
-            zjsp,vazg, zxmin, zdf1, zeps1, impres, nulout, imode,       &
-            iitnovqc, isimnovqc ,iztrl, vatra, nmtra, dataptr_int(1),   &
-            zzsunused, dlds)
+            zjsp,vazg, zxmin, zdf1, zeps1, impres, nulout, imode,   &
+            itermaxtodo,isimmax, iztrl, vatra, nmtra, dataptr_int(1), zzsunused,   &
+            dlds)
         call tmg_stop(70)
-        call fool_optimizer(lobsSpaceData)
+        call fool_optimizer(obsSpaceData)
 
-        isimnovqc = isimnovqc - 1
-        itermaxtodo = itermaxtodo - iitnovqc + 1
-        isimmax = isimmax - isimnovqc + 1
-
-        itertot = itertot + iitnovqc
-        isimtot = isimtot + isimnovqc
+        itertot = itertot + itermaxtodo
+        isimtot = isimtot + isimmax
 
         zeps1 = zeps0/zeps1
-        zeps0 = zeps1
-        lvarqc = .true.
 
-        if (imode == 4 .and. itertot < itermax) then
-          imode = 2
-          INDIC = 2
-          call simvar(indic,nvadim_mpilocal,vazx,zjsp,vazg,dataptr_int(1))
-        else
-          call abort3d(" MINIMIZATION_MOD: n1qn3 mode ne 4")
-        endif
-      endif
-
-      ! Now do main minimization with var-QC
-      call tmg_start(70,'QN')
-      call n1qn3(simvar, dscalqn, dcanonb, dcanab, nvadim_mpilocal, vazx,  &
-          zjsp,vazg, zxmin, zdf1, zeps1, impres, nulout, imode,   &
-          itermaxtodo,isimmax, iztrl, vatra, nmtra, dataptr_int(1), zzsunused,   &
-          dlds)
-      call tmg_stop(70)
-      call fool_optimizer(lobsSpaceData)
-
-      itertot = itertot + itermaxtodo
-      isimtot = isimtot + isimmax
-
-      zeps1 = zeps0/zeps1
-
-      WRITE(*,FMT=9500) imode,iterdone,itertot-iterdone,itertot,isimdone,isimtot-isimdone,isimtot
- 9500 FORMAT(//,20X,20('*'),2X    &
+        WRITE(*,FMT=9500) imode,iterdone,itertot-iterdone,itertot,isimdone,isimtot-isimdone,isimtot
+ 9500   FORMAT(//,20X,20('*'),2X    &
         ,/,20X,'              Minimization ended with MODE:',I4  &
         ,/,20X,' Number of iterations done in previous job:',I4  &
         ,/,20X,'          Number of iterations in this job:',I4  &
@@ -404,32 +420,60 @@ CONTAINS
         ,/,20X,'         Number of simulations in this job:',I4  &
         ,/,20X,'               Total number of simulations:',I4)
 
-      min_niter = itertot
+        min_niter = itertot
 
-      ! Test the gradient at the final point
-      if ((lgrtest .and. isControlAnalysis)) then
-        WRITE(*,FMT=9400)
- 9400   FORMAT(//,12X,40('**'),/,12X,'TESTING THE GRADIENT AT THE FINAL POINT',/,40('**'))
-        call grtest2(simvar,nvadim_mpilocal,vazx,ngrange,dataptr_int)
-      end if
+        ! Test the gradient at the final point
+        if (lgrtest) then
+          WRITE(*,FMT=9400)
+ 9400     FORMAT(//,12X,40('**'),/,12X,'TESTING THE GRADIENT AT THE FINAL POINT',/,40('**'))
+          call grtest2(simvar,nvadim_mpilocal,vazx,ngrange,dataptr_int)
+        end if
 
-      do jdata = 1, nvadim_mpilocal
-        dg_vbar(jdata) = vazx(jdata) + dg_vbar(jdata)
-      enddo
+        do jdata = 1, nvadim_mpilocal
+          dg_vbar(jdata) = vazx(jdata) + dg_vbar(jdata)
+        enddo
 
-      ! Write out the Hessian to file (only control member writes when nCycleHessMode is not 1)
-      if(lwrthess .and. (isControlAnalysis .or. nCycleHessMode.eq.1) ) then
-        if(mpi_myid.eq.0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-        call rw_vatra (preconFileNameOut,1,  &
-          min_nsim,tim_getDatestamp(),zeps1,zdf1,itertot,isimtot,  &
-          iztrl,vatra,dg_vbar,vazx,.true.,llvazx,n1gc,imode)
-        if(mpi_myid.eq.0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+        ! Write out the Hessian to file
+        if(lwrthess) then
+          if(mpi_myid.eq.0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+          call rw_vatra (preconFileNameOut,1,  &
+            min_nsim,tim_getDatestamp(),zeps1,zdf1,itertot,isimtot,  &
+            iztrl,vatra,dg_vbar,vazx,.true.,llvazx,n1gc,imode)
+          if(mpi_myid.eq.0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+        endif
+
+        ! Put final control vector into control vector module for use elsewhere
+        call tmg_start(89,'MIN_COMM')
+        cvm_vazx(:) = vazx(1:nvadim_mpilocal)      
+        call tmg_stop(89)
+
+        ! Print some contents of obsSpaceData to the listing
+        do jdata = 1, min(1,obs_numHeader(obsSpaceData))
+          call obs_prnthdr(obsSpaceData,jdata)
+          call obs_prntbdy(obsSpaceData,jdata)
+        end do
+
+        ! output the analysis increment
+        call tmg_start(6,'MIN_WRITEINCR')
+        call min_writeIncrement(cvm_vazx,columng)
+        call tmg_stop(6)
+
+      else
+
+        ! no analysis performed for ensemble mean, ensure mean increment is zero
+        cvm_vazx(:) = 0.0d0
+        min_niter = 0
+
+      endif ! if nitermax .gt. 0
+
+
+      ! If requested, compute analysis increment for ensemble perturbations
+      if(numIterMax_pert.gt.0) then
+        dg_vbar(:) = 0.0d0
+        call tmg_start(4,'MINPERT')
+        call min_analysisPert(vatra,iztrl,dataptr_int,zdf1,column,columng,obsSpaceData)
+        call tmg_stop(4)
       endif
-
-      ! Put final control vector into control vector module for use elsewhere
-      call tmg_start(89,'MIN_COMM')
-      cvm_vazx(:)=vazx(1:nvadim_mpilocal)      
-      call tmg_stop(89)
 
       ! deallocate the control vector related arrays
       deallocate(vazx)
@@ -440,6 +484,510 @@ CONTAINS
       deallocate(dataptr_int)
 
   END SUBROUTINE min_minvar
+
+  
+  subroutine min_writeIncrement(incr_cv,columng)
+    implicit none
+
+    ! arguments
+    real(8)                        :: incr_cv(:)
+    type(struct_columnData),target :: columng
+    ! locals
+    integer              :: fnom, fstouv, fclos, fstfrm, fstinf
+    integer, parameter   :: maxNumFiles = 1000
+    integer              :: ierr, ikey, indexStep, indexTrial, numTrials, nulTrials(maxNumFiles)
+    integer              :: ni_file, nj_file, nk_file, dateStamp
+    real(8)              :: deltaHours
+    character(len=4)     :: coffset
+    character(len=2)     :: flnum
+    character(len=30)    :: fileName
+    logical              :: fileExists
+    type(struct_gsv)     :: statevector_trial, statevector_incr
+    type(struct_hco), pointer :: hco_anl
+
+    if(mpi_myid.eq.0) write(*,*) 'min_writeIncrement: STARTING'
+
+    ! initialize statevector_trial and statevector_incr
+    hco_anl => hco_get('Analysis')
+
+    call gsv_setVco(statevector_trial,col_getVco(columng))
+    call gsv_setHco(statevector_trial,hco_anl)
+    call gsv_allocate(statevector_trial,tim_nstepobsinc,datestamp=tim_getDatestamp(),mpi_local=.true.)
+
+    call gsv_setVco(statevector_incr,col_getVco(columng))
+    call gsv_setHco(statevector_incr,hco_anl)
+    call gsv_allocate(statevector_incr,tim_nstepobsinc,datestamp=tim_getDatestamp(),mpi_local=.true.)
+
+    ! compute increment from control vector (multiply by B^1/2)
+    call bmat_sqrtB(incr_cv, nvadim_mpilocal, statevector_incr)
+
+    ! open all available trial files
+    nulTrials(:) = 0
+    numTrials = 0
+    do 
+      write(flnum,'(I2.2)') numTrials+1
+      fileName = './trlm_' // trim(flnum)
+      inquire(file=trim(fileName),exist=fileExists)
+      if(fileExists) then
+        numTrials = numTrials + 1
+        ierr = fnom(nulTrials(numTrials),trim(fileName),'RND+OLD+R/O',0)
+        if(mpi_myid.eq.0) write(*,*) 'Trial file: ', trim(fileName), ' opened as unit file: ',nulTrials(numTrials)
+        ierr =  fstouv(nulTrials(numTrials),'RND+OLD')
+      elseif ( (.not. fileExists) .and. numTrials > 0 ) then
+        exit  
+      elseif ( (.not. fileExists) .and. numTrials == 0 ) then
+        call abort3d('min_writeIncrement: No trial files found')
+      endif 
+    enddo 
+    if(numTrials.ne.tim_nstepobs) then
+      write(*,*) 'numTrials, tim_nstepobs = ',numTrials, tim_nstepobs
+      call abort3d('min_writeIncrement: numTrials <> tim_nstepobs')
+    endif
+
+    ! loop over times for which increment is computed
+    do indexStep = 1, tim_nstepobsinc
+      dateStamp = gsv_getDateStamp(statevector_incr,indexStep)
+      if(mpi_myid.eq.0) write(*,*) 'min_writeIncrement: writing increment for time step: ',indexStep, dateStamp
+
+      ! identify which trial file corresponds with current datestamp
+      fileName = 'NOTFOUND'
+      do indexTrial = 1, numTrials
+        ikey = fstinf(nulTrials(indexTrial), ni_file, nj_file, nk_file,  &
+                      dateStamp, ' ', -1, -1, -1, ' ', 'P0')
+        if(ikey.gt.0) then
+          write(flnum,'(I2.2)') indexTrial
+          fileName = './trlm_' // trim(flnum)
+          ierr = fstfrm(nulTrials(indexTrial))
+          ierr = fclos(nulTrials(indexTrial))
+          exit
+        endif
+      enddo
+      if(trim(fileName).eq.'NOTFOUND') then 
+        write(*,*) 'indexStep, dateStamp = ', indexStep, dateStamp
+        call abort3d('min_writeIncrement: trial file not found for this increment timestep')
+      endif
+
+      ! read the trial file for this timestep
+      call gsv_readFromFile(statevector_trial, fileName, ' ', 'P', 'TRIAL', indexStep)
+
+      ! Compute new diagnotics based on NAMSTATE
+      call vtr_setup(statevector_incr) ! IN
+      if ( gsv_varExist('QR') .and. gsv_varExist('DD') ) then
+        write(*,*)
+        write(*,*) 'User is asking for Vort-Div analysis increment'
+        call vtr_transform( statevector_incr,  & ! INOUT
+                            'UVtoVortDiv' )      ! IN
+        if ( gsv_varExist('PP') .and. gsv_varExist('CC') ) then
+          write(*,*)
+          write(*,*) 'User is asking for Psi-Chi analysis increment'
+          call vtr_transform( statevector_incr, & ! INOUT
+                              'VortDivToPsiChi' ) ! IN
+        end if
+      end if
+
+      ! write the increment file for this time step
+      call difdatr(dateStamp,tim_getDatestamp(),deltaHours)
+      if(nint(deltaHours*60.0d0).lt.0) then
+        write(coffset,'(I4.3)') nint(deltaHours*60.0d0)
+      else
+        write(coffset,'(I3.3)') nint(deltaHours*60.0d0)
+      endif
+      fileName = './rebm_' // trim(coffset) // 'm'
+      call gsv_writeToFileMpi(statevector_incr, fileName, cetikinc, 1.0d0, 0, indexStep, statevector_trial)
+
+      ! write out interpolated trial file for verification purposes
+      fileName = './trlm_interp_' // trim(coffset) // 'm' 
+      call gsv_writeToFileMpi(statevector_trial, fileName, 'TRLM_INTRP', 1.0d0, 0, indexStep)
+
+    enddo
+
+    call gsv_deallocate(statevector_trial)
+    call gsv_deallocate(statevector_incr)
+
+  end subroutine min_writeIncrement
+
+
+  subroutine min_analysisPert(vatra,iztrl,dataptr_int,zdf1,column,columng,obsSpaceData)
+    implicit none
+    ! Purpose: use N1QN3 minimization to perform analysis step on 
+    !          ensemble perturbations
+    !
+    ! arguments
+    real(8)                        :: vatra(:)
+    type(struct_columnData),target :: column,columng
+    type(struct_obs),target        :: obsSpaceData
+    ! locals
+    type(struct_gsv) :: statevector_ens(numAnalyses)
+    type(struct_gsv) :: statevector_mean, statevector_incr, statevector_incr_perturbed, statevector_randpert
+    type(struct_hco), pointer :: hco_anl
+    real(8), allocatable :: incr_cv(:)
+    real(8)           :: scalefactor
+    integer :: indexAnalysis,indexStep,cvdim_mpilocal
+    character(len=80) :: fileName
+    character(len=4)  :: censnumber
+    character(len=8)   :: datestr_last
+    character(len=2)   :: hourstr_last
+    character(len=2)   :: trialTimeIndex_str
+    integer :: stamp_last, ndate, ntime, ierr, newdate
+    real(8),allocatable :: vazg(:)
+    real(8) :: zjsp, zxmin, zdf1, zeps1
+    real(8) :: dlds(1)
+    real :: zzsunused(1)
+    integer :: iztrl(:), dataptr_int(:)
+    integer :: nulout, impres, imode, itertot, simtot, indic
+    logical :: llvazx = .false.
+
+    ! check if user wants to compute any perturbed analyses
+    if(numAnalyses.le.0) then
+      write(*,*) 'min_analysisPert: numAnalyses not positive, do nothing'
+      return
+    endif
+
+    ! initialization
+    hco_anl => hco_get('Analysis')
+
+    call gsv_setVco(statevector_mean,col_getVco(columng))
+    call gsv_setHco(statevector_mean,hco_anl)
+    call gsv_allocate(statevector_mean,tim_nstepobsinc,datestamp=tim_getDatestamp(),mpi_local=.true.)
+
+    call gsv_setVco(statevector_incr,col_getVco(columng))
+    call gsv_setHco(statevector_incr,hco_anl)
+    call gsv_allocate(statevector_incr,tim_nstepobsinc,datestamp=tim_getDatestamp(),mpi_local=.true.)
+
+    call gsv_setVco(statevector_incr_perturbed,col_getVco(columng))
+    call gsv_setHco(statevector_incr_perturbed,hco_anl)
+    call gsv_allocate(statevector_incr_perturbed,tim_nstepobsinc,datestamp=tim_getDatestamp(),mpi_local=.true.)
+
+    call gsv_setVco(statevector_randpert,col_getVco(columng))
+    call gsv_setHco(statevector_randpert,hco_anl)
+    call gsv_allocate(statevector_randpert,tim_nstepobsinc,datestamp=tim_getDatestamp(),mpi_local=.true.)
+
+    ! allocate local arrays
+    allocate(incr_cv(nvadim_mpilocal))
+    allocate(vazg(nvadim_mpilocal))
+    vazg(:)=0.0d0
+
+    ! figure out date strings for origin time of trials
+    call incdatr(stamp_last,tim_getDatestamp(),-6.0d0)
+    ierr = newdate(stamp_last,ndate,ntime,-3)
+    write(datestr_last,'(i8.8)') ndate
+    write(hourstr_last,'(i2.2)') ntime/1000000
+
+    ! get all background ensemble members
+    do indexAnalysis = 1, numAnalyses
+      if(mpi_myid.eq.0) write(*,*) ' '
+      if(mpi_myid.eq.0) write(*,*) 'min_analysisPert: reading member #', indexAnalysis
+      if(mpi_myid.eq.0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+      call gsv_setVco(statevector_ens(indexAnalysis),col_getVco(columng))
+      hco_anl => hco_get('Analysis')
+      call gsv_setHco(statevector_ens(indexAnalysis),hco_anl)
+      call gsv_allocate(statevector_ens(indexAnalysis),tim_nstepobsinc,datestamp=tim_getDatestamp(),mpi_local=.true.)
+
+      write(censnumber,'(i4.4)') indexAnalysis + (envar_loop-1)*numAnalyses
+      fileName = trim(ensPathName) // '/' // datestr_last // hourstr_last // '_006_' // trim(censnumber)
+      if(mpi_myid.eq.0) write(*,*) 'Reading from file: ', fileName
+      do indexStep = 1, statevector_ens(indexAnalysis)%numStep
+        call gsv_readFromFile(statevector_ens(indexAnalysis),fileName,' ','P','ENSMEMBER',indexStep_in=indexStep)
+      enddo
+
+    enddo
+
+    ! read the background ensemble mean
+    ! NOTE: assume it is supplied to VAR task as the trial file
+    if(mpi_myid.eq.0) write(*,*) 'min_analysisPert: reading ensemble mean'
+    do indexStep = 1, statevector_mean%numStep
+      write(trialTimeIndex_str,'(i2.2)') indexStep
+      fileName = './trlm_' // trim(trialTimeIndex_str)
+      call gsv_readFromFile(statevector_mean,fileName,' ','P','ENSMEMBER',indexStep_in=indexStep)
+    enddo
+
+    ! remove mean
+    do indexAnalysis = 1, numAnalyses
+      scaleFactor = -1.0d0
+      call gsv_add(statevector_mean,statevector_ens(indexAnalysis),scaleFactor)
+    enddo
+    
+    ! do perturbation minimizations
+    lvarqc = .false.
+    do indexAnalysis = 1, numAnalyses
+
+      ! write out the original background ensemble perturbation
+      call writeToFile4D(statevector_ens(indexAnalysis),'./bgpert','BGPERT',indexAnalysis,statevector_mean)
+
+      ! multiply by -1 (-xb')
+      call gsv_scale(statevector_ens(indexAnalysis),-1.0d0)
+
+      ! compute -H*xb', put in OBS_WORK
+      call s2c_tl(statevector_ens(indexAnalysis),column,columng,obsSpaceData)  ! put in column H_horiz
+      call oda_H(column,columng,obsSpaceData)
+
+      ! undo the multiply by -1 (-xb')
+      call gsv_scale(statevector_ens(indexAnalysis),-1.0d0)
+
+      ! obs perturbation added to OBS_WORK and copy into OBS_OMP
+      call perturbObs(obsSpaceData,numAnalyses,indexAnalysis,envar_loop,OBS_WORK,OBS_OMP)
+
+      ! compute initial gradient
+      incr_cv(:) = 0.0d0
+      indic = 2
+      call simvar(indic, nvadim_mpilocal, incr_cv, zjsp, vazg, dataptr_int)
+
+      ! Initialization for call to N1QN3
+      itertot = numIterMax_pert
+      simtot = 2*itertot
+      if(indexAnalysis.eq.1) then
+        if(preconFileExists) then
+          ! warm start with Hessian from file
+          imode = 2
+        else
+          ! cold start and initially double number of iterations
+          imode = 0
+          vatra(:) = 0.0d0
+          itertot = 2*itertot
+          simtot = 2*itertot
+        endif
+      else
+        ! warm start with Hessian from previous member
+        imode=2
+      endif
+      zeps1 = 1.0d-5
+      zxmin = epsilon(zxmin)
+      nulout = 6
+      if(mpi_myid.eq.0) then
+        impres=5
+      else 
+        impres=0
+      endif
+      ! call N1QN3 minimization for perturbation
+      call tmg_start(70,'QN')
+      call n1qn3(simvar, dscalqn, dcanonb, dcanab, nvadim_mpilocal, incr_cv,  &
+          zjsp, vazg, zxmin, zdf1, zeps1, impres, nulout, imode,       &
+          itertot, simtot ,iztrl, vatra, nmtra, dataptr_int(1),   &
+          zzsunused, dlds)
+      call tmg_stop(70)
+      call fool_optimizer(obsSpaceData)
+
+      ! multiply by B^1/2
+      call bmat_sqrtB(incr_cv,nvadim_mpilocal,statevector_incr)
+
+      ! write perturbation analysis increment to file before adding random model-error
+      !call writeToFile4D(statevector_incr,'./pert_inc0','PERT_INC0',indexAnalysis,statevector_mean)
+
+      ! compute random model-error
+      call calcRandomPert(statevector_randpert,numAnalyses,indexAnalysis)
+
+      ! add E1 random model-error to increment and write to file
+      call gsv_copy(statevector_randpert,statevector_incr_perturbed)
+      call gsv_scale(statevector_incr_perturbed,e1_scaleFactor)
+      call gsv_add(statevector_incr,statevector_incr_perturbed)
+      call writeToFile4D(statevector_incr_perturbed,'./pert_inc1','PERT_INC1',indexAnalysis,statevector_mean)
+
+      ! add E2 random model-error to increment and write to file
+      call gsv_copy(statevector_randpert,statevector_incr_perturbed)
+      call gsv_scale(statevector_incr_perturbed,e2_scaleFactor)
+      call gsv_add(statevector_incr,statevector_incr_perturbed)
+      call writeToFile4D(statevector_incr_perturbed,'./pert_inc2','PERT_INC2',indexAnalysis,statevector_mean)
+
+      ! deallocate statevector_ens(indexAnalysis), no longer needed
+      call gsv_deallocate(statevector_ens(indexAnalysis))
+
+    enddo
+
+    ! Write out the final Hessian to file
+    if(lwrthess) then
+      call rw_vatra (preconFileNameOut_pert,1,  &
+        min_nsim,tim_getDatestamp(),zeps1,zdf1,itertot,simtot,  &
+        iztrl,vatra,dg_vbar,incr_cv,.true.,llvazx,n1gc,imode)
+    endif
+
+    ! deallocate all local arrays
+    deallocate(incr_cv)
+    deallocate(vazg)
+    call gsv_deallocate(statevector_incr)
+    call gsv_deallocate(statevector_incr_perturbed)
+    call gsv_deallocate(statevector_randpert)
+    call gsv_deallocate(statevector_mean)
+
+  end subroutine min_analysisPert
+
+
+  subroutine writeToFile4D(statevector,fileName,cetiket,indexAnalysis,statevector_ref)
+    implicit none
+    ! arguments
+    type(struct_gsv)   :: statevector, statevector_ref
+    character(len=*)   :: fileName
+    character(len=*)   :: cetiket
+    integer            :: indexAnalysis
+    ! locals
+    character(len=100) :: fileNameFull
+    integer            :: indexStep
+
+    do indexStep = 1, statevector%numStep
+      fileNameFull = trim(fileName) // trim(fileNameExt(statevector,indexStep,indexAnalysis))
+      call gsv_writeToFileMpi(statevector,fileNameFull,cetiket,1.0d0, &
+                              ip3_in=0,  &
+                              indexStep_in=indexStep,  &
+                              statevector_ref=statevector_ref)
+    enddo
+
+  end subroutine writeToFile4D
+
+
+  function fileNameExt(statevector,indexStep,indexAnalysis) result(fileNameExtStr)
+    implicit none
+    ! arguments
+    type(struct_gsv)  :: statevector
+    integer           :: indexStep, indexAnalysis
+    character(len=20) :: fileNameExtStr
+    ! locals
+    real(8) :: deltaHours
+    character(len=4) :: coffset, cmember
+
+    call difdatr(gsv_getDateStamp(statevector,indexStep),tim_getDatestamp(),deltaHours)
+    if(nint(deltaHours*60.0d0).lt.0) then
+      write(coffset,'(I4.3)') nint(deltaHours*60.0d0)
+    else
+      write(coffset,'(I3.3)') nint(deltaHours*60.0d0)
+    endif
+
+    write(cmember,'(I4.4)') indexAnalysis + (envar_loop-1)*numAnalyses
+
+    fileNameExtStr = '_' // trim(coffset) // 'm' // '_' // trim(cmember)
+
+  end function fileNameExt
+
+
+  subroutine calcRandomPert(statevector_randpert,numAnalyses,indexAnalysis)
+    implicit none
+    type(struct_gsv) :: statevector_randpert
+    integer :: numAnalyses, indexAnalysis
+
+    integer :: iseed,jj,nlev_T,nlev_M,jvar,jlev,indexAnalysis2
+    real(8) :: gasdev,zdum
+    real(8), allocatable :: cv_pert_mpiglobal(:), cv_pert_mpilocal(:)
+    real(8), pointer :: cv_pert_bens_mpilocal(:), cv_pert_bhi_mpilocal(:), field(:,:,:,:)
+    real(8), allocatable :: scaleFactorBhi(:), stddev_orig(:), stddev_trunc(:)
+    integer, allocatable :: countTrunc(:)
+    logical, save :: firstTime = .true.
+    real(8), allocatable, save :: scaleFactorTrunc(:)
+    real(8), allocatable, save :: cv_pert_mean_mpilocal(:)
+    integer :: lon1, lon2, lat1, lat2
+
+    allocate(cv_pert_mpiglobal(cvm_nvadim_mpiglobal))
+    allocate(cv_pert_mpilocal(cvm_nvadim))
+
+    if(firstTime) then
+      firstTime = .false.
+      ! compute mean perturbation for this batch
+      cv_pert_mpiglobal(:) = 0.0d0
+      do indexAnalysis2 = 1, numAnalyses
+        iseed = abs(tim_getDatestamp()) + indexAnalysis2 + (envar_loop-1)*numAnalyses
+        zdum = gasdev(-iseed)
+        do jj = 1, cvm_nvadim_mpiglobal
+          cv_pert_mpiglobal(jj) = cv_pert_mpiglobal(jj) + gasdev(1)
+        enddo
+      enddo
+      cv_pert_mpiglobal(:) = cv_pert_mpiglobal(:)/real(numAnalyses,8)
+
+      allocate(cv_pert_mean_mpilocal(cvm_nvadim))
+      call bmat_reduceToMPILocal(cv_pert_mean_mpilocal,   & ! OUT
+                                 cv_pert_mpiglobal,  & ! IN
+                                 jj )         ! OUT
+
+    endif ! firstTime
+
+    ! compute perturbation and make mpilocal
+    iseed = abs(tim_getDatestamp()) + indexAnalysis + (envar_loop-1)*numAnalyses
+    write(*,*) 'min_calcRandomPert: indexAnalysis, iseed=', indexAnalysis, iseed
+    zdum = gasdev(-iseed)
+    do jj = 1, cvm_nvadim_mpiglobal
+      cv_pert_mpiglobal(jj) = gasdev(1)
+    enddo
+
+    call bmat_reduceToMPILocal(cv_pert_mpilocal,   & ! OUT
+                               cv_pert_mpiglobal,  & ! IN
+                               jj )         ! OUT
+    deallocate(cv_pert_mpiglobal)
+
+    ! remove the ensemble mean
+    cv_pert_mpilocal(:) = cv_pert_mpilocal(:) - cv_pert_mean_mpilocal(:)
+
+    if(pertBhiOnly) then
+      ! set Bensemble component of control vector to zero
+      cv_pert_bens_mpilocal => cvm_getSubVector(cv_pert_mpilocal,2)
+      if(associated(cv_pert_bens_mpilocal)) cv_pert_bens_mpilocal(:) = 0.0d0
+    endif
+
+    ! do spectral truncation of control vector
+    if(ntrunc_pert.gt.0) then
+      cv_pert_bhi_mpilocal => cvm_getSubVector(cv_pert_mpilocal,1)
+      call bhi_truncateCV(cv_pert_bhi_mpilocal,ntrunc_pert)
+    endif
+
+    call bmat_sqrtB(cv_pert_mpilocal,cvm_nvadim,statevector_randpert)
+
+    if(ntrunc_pert.gt.0) then
+    !  call gsv_scaleVertical(statevector_randpert,scaleFactorTrunc)
+      write(*,*) 'WARNING: No scaleFactor applied to truncated perturbation!!!'
+    endif
+
+    deallocate(cv_pert_mpilocal)
+
+    lon1=statevector_randpert%myLonBeg
+    lon2=statevector_randpert%myLonEnd
+    lat1=statevector_randpert%myLatBeg
+    lat2=statevector_randpert%myLatEnd
+
+    ! undo the Bhi scaleFactor
+    if(pertBhiOnly) then
+      nlev_T = gsv_getNumLev(statevector_randpert,'TH')
+      nlev_M = gsv_getNumLev(statevector_randpert,'MM')
+      allocate(scaleFactorBhi(max(nLev_M,nLev_T)))
+      call bhi_getScaleFactor(scaleFactorBhi)
+      ! for 3D variables
+      do jvar=1,vnl_numvarmax3D 
+        if(gsv_varExist(vnl_varNameList3D(jvar))) then
+          write(*,*) 'min_calcRandomPert: undo Bhi scaleFactor varname= ',vnl_varNameList3D(jvar)
+          field => gsv_getField(statevector_randpert,vnl_varNameList3D(jvar))
+          do jlev = 1, gsv_getNumLev(statevector_randpert,vnl_vartypeFromVarname(vnl_varNameList3D(jvar)))   
+            if(scaleFactorBhi(jlev).gt.0.0d0) then
+              field(lon1:lon2,jlev,lat1:lat2,:)=field(lon1:lon2,jlev,lat1:lat2,:)/scaleFactorBhi(jlev)
+            endif
+          enddo
+        endif
+      enddo
+      ! for 2D variables
+      do jvar=1,vnl_numvarmax2D 
+        if(gsv_varExist(vnl_varNameList2D(jvar))) then
+          field => gsv_getField(statevector_randpert,vnl_varNameList2D(jvar))
+          jlev = max(nLev_M,nLev_T)
+          if(scaleFactorBhi(jlev).gt.0.0d0) then
+            field(lon1:lon2,1,lat1:lat2,:)=field(lon1:lon2,1,lat1:lat2,:)/scaleFactorBhi(jlev)
+          endif
+        endif
+      enddo
+      deallocate(scaleFactorBhi)
+    endif
+
+    ! apply additional scaling of random perturbation (initially only for UU, VV)
+    nlev_T = gsv_getNumLev(statevector_randpert,'TH')
+    nlev_M = gsv_getNumLev(statevector_randpert,'MM')
+    ! for 3D variables
+    do jvar=1,vnl_numvarmax3D 
+      if(gsv_varExist(vnl_varNameList3D(jvar)).and.  &
+            (trim(vnl_varNameList3D(jvar)).eq.'UU' .or.  &
+             trim(vnl_varNameList3D(jvar)).eq.'VV') ) then
+        write(*,*) 'min_calcRandomPert: pertScaleFactor_UV varname= ',vnl_varNameList3D(jvar)
+        field => gsv_getField(statevector_randpert,vnl_varNameList3D(jvar))
+        do jlev = 1, gsv_getNumLev(statevector_randpert,vnl_vartypeFromVarname(vnl_varNameList3D(jvar)))   
+          write(*,*) 'min_calcRandomPert: pertScaleFactor_UV= ',jlev,pertScaleFactor_UV(jlev)
+          field(lon1:lon2,jlev,lat1:lat2,:)=field(lon1:lon2,jlev,lat1:lat2,:)*pertScaleFactor_UV(jlev)
+        enddo
+      endif
+    enddo
+
+  end subroutine calcRandomPert
 
 
   SUBROUTINE simvar(na_indic,na_dim,da_v,da_J,da_gradJ,dataptr_int)
@@ -471,15 +1019,15 @@ CONTAINS
     real*8 :: dl_Jb, dl_Jo
     type(struct_gsv) :: statevector
     type(struct_dataptr) :: dataptr
-    type(struct_obs),pointer :: lobsSpaceData
-    type(struct_columnData),pointer :: lcolumn,lcolumng
+    type(struct_obs),pointer :: obsSpaceData
+    type(struct_columnData),pointer :: column,columng
     type(struct_hco), pointer :: hco_anl
 
     ! Convert the integer array dataptr_int back into a pointer to the obsSpaceData
     dataptr=transfer(dataptr_int(1:dataptr_int_size),dataptr)
-    lobsSpaceData => dataptr%lobsSpaceData
-    lcolumn       => dataptr%lcolumn
-    lcolumng      => dataptr%lcolumng
+    obsSpaceData => dataptr%obsSpaceData
+    column       => dataptr%column
+    columng      => dataptr%columng
 
     if (na_indic .eq. 1 .or. na_indic .eq. 4) call tmg_stop(70)
 
@@ -502,7 +1050,7 @@ CONTAINS
        call mpi_allreduce_sumreal8scalar(dl_Jb,"GRID")
        call tmg_stop(89)
 
-       call gsv_setVco(statevector,col_getVco(lcolumng))
+       call gsv_setVco(statevector,col_getVco(columng))
        hco_anl => hco_get('Analysis')
        call gsv_setHco(statevector,hco_anl)
        call gsv_allocate(statevector,tim_nstepobsinc,mpi_local=.true.)
@@ -510,25 +1058,25 @@ CONTAINS
        call bmat_sqrtB(da_v,nvadim_mpilocal,statevector)
 
        call tmg_start(30,'OBS_INTERP')
-       call oda_L(statevector,lcolumn,lcolumng,lobsSpaceData)  ! put in column H_horiz dx
+       call s2c_tl(statevector,column,columng,obsSpaceData)  ! put in column H_horiz dx
        call tmg_stop(30)
 
        call tmg_start(40,'OBS_TL')
-       call oda_H(lcolumn,lcolumng,lobsSpaceData)  ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
+       call oda_H(column,columng,obsSpaceData)  ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
        call tmg_stop(40)
 
-       call oda_res(lobsSpaceData)  ! Calculate OBS_OMA from OBS_WORK : d-Hdx
+       call oda_res(obsSpaceData)  ! Calculate OBS_OMA from OBS_WORK : d-Hdx
      
-       call oda_sqrtRm1(lobsSpaceData,OBS_WORK,OBS_OMA)  ! Save as OBS_WORK : R**-1/2 (d-Hdx)
+       call oda_sqrtRm1(obsSpaceData,OBS_WORK,OBS_OMA)  ! Save as OBS_WORK : R**-1/2 (d-Hdx)
      
-       call oda_Jo(lobsSpaceData)  ! Store J-obs in OBS_JOBS : 1/2 * R**-1 (d-Hdx)**2
+       call oda_Jo(obsSpaceData)  ! Store J-obs in OBS_JOBS : 1/2 * R**-1 (d-Hdx)**2
      
        IF (LVARQC) THEN          
-          call oda_qcv(lobsSpaceData)  ! Store modified J_obs in OBS_JOBS : -ln((gamma-exp(J))/(gamma+1)) 
+          call oda_qcv(obsSpaceData)  ! Store modified J_obs in OBS_JOBS : -ln((gamma-exp(J))/(gamma+1)) 
        endif
 
        dl_Jo = 0.d0
-       call oda_sumJo(lobsSpaceData,dl_Jo)
+       call oda_sumJo(obsSpaceData,dl_Jo)
        da_J = dl_Jb + dl_Jo
        if (na_indic .eq. 3) then
           da_J = dl_Jo
@@ -538,22 +1086,22 @@ CONTAINS
           IF(mpi_myid == 0) write(*,FMT='(6X,"SIMVAR:  Jb = ",G23.16,6X,"JO = ",G23.16,6X,"Jt = ",G23.16)') dl_Jb,dl_Jo,da_J
        endif
 
-       call oda_sqrtRm1(lobsSpaceData,OBS_WORK,OBS_WORK)  ! Modify OBS_WORK : R**-1 (d-Hdx)
+       call oda_sqrtRm1(obsSpaceData,OBS_WORK,OBS_WORK)  ! Modify OBS_WORK : R**-1 (d-Hdx)
 
        IF (LVARQC) THEN
-          call oda_qcvad(lobsSpaceData)
+          call oda_qcvad(obsSpaceData)
        endif
 
-       call oda_resT(lobsSpaceData)  ! Calculate adjoint of d-Hdx (mult OBS_WORK by -1)
+       call oda_resT(obsSpaceData)  ! Calculate adjoint of d-Hdx (mult OBS_WORK by -1)
 
-       call col_zero(lcolumn)
+       call col_zero(column)
 
        call tmg_start(41,'OBS_AD')
-       call oda_HT(lcolumn,lcolumng,lobsSpaceData)   ! Put in column : -H_vert**T R**-1 (d-Hdx)
+       call oda_HT(column,columng,obsSpaceData)   ! Put in column : -H_vert**T R**-1 (d-Hdx)
        call tmg_stop(41)
 
        call tmg_start(31,'OBS_INTERPAD')
-       call oda_LT(statevector,lcolumn,lcolumng,lobsSpaceData)  ! Put in statevector -H_horiz**T H_vert**T R**-1 (d-Hdx)
+       call s2c_ad(statevector,column,columng,obsSpaceData)  ! Put in statevector -H_horiz**T H_vert**T R**-1 (d-Hdx)
        call tmg_stop(31)
 
        da_gradJ(:) = 0.d0
@@ -754,9 +1302,9 @@ CONTAINS
 
     call tmg_start(88,'MIN_RWHESS')
     if(status.eq.0) then
-      if(mpi_myid.eq.0) write(*,*) 'Read  VATRA in RW_VATRA'
+      if(mpi_myid.eq.0) write(*,*) 'Read  VATRA in RW_VATRA from file ', cfname
     elseif(status.eq.1) then
-      if(mpi_myid.eq.0) write(*,*) 'Write VATRA in RW_VATRA'
+      if(mpi_myid.eq.0) write(*,*) 'Write VATRA in RW_VATRA to file ', cfname
     else
       call abort3d(" RW_VATRA: status not valid ")
     endif

@@ -77,6 +77,7 @@ subroutine tovs_fill_profiles_ad(column,columng)
   real*8 :: zptop, zptopmbs
 
   real*8, pointer :: uu_column(:),vv_column(:),tt_column(:),hu_column(:),ps_column(:),tg_column(:)
+  real(8), pointer :: TTb(:), HUb(:), Pres(:)
 
   external intavgad
   external aexthum4
@@ -176,10 +177,14 @@ subroutine tovs_fill_profiles_ad(column,columng)
 
         knpf = knpf + 1
 
+        call tmg_start(69,'fillin_ad')
+        TTb => col_getColumn(columng,jo,'TT')
+        HUb => col_getColumn(columng,jo,'HU')
+        Pres => col_getColumn(columng,jo,'PR','TH')
         do jl = 1, nlv_T
-           zt   (jl,knpf) = col_getElem(columng,jl,jo,'TT')
-           zlq  (jl,knpf) = col_getElem(columng,jl,jo,'HU')
-           zvlev(jl,knpf) = col_getPressure(columng,jl,jo,'TH') *MPC_MBAR_PER_PA_R8
+           zt   (jl,knpf) = TTb(jl)
+           zlq  (jl,knpf) = HUb(jl)
+           zvlev(jl,knpf) = Pres(jl) *MPC_MBAR_PER_PA_R8
            dPdPs(jl,knpf) = col_getPressureDeriv(columng,jl,jo,'TH')
         enddo
 
@@ -192,6 +197,7 @@ subroutine tovs_fill_profiles_ad(column,columng)
                                  col_getPressure(columng,2,jo,'TH') )
            zlq  (1,knpf) =  zlq  (2,knpf)
         endif
+        call tmg_stop(69)
 
         iptobs   (knpf) = iobs
         iptobscma(knpf) = jo
@@ -200,6 +206,7 @@ subroutine tovs_fill_profiles_ad(column,columng)
 
 !     .  2.4  Adjoint of filling profiles_ad structure
 !     .       ----------------------------------------
+        call tmg_start(69,'fillin_ad')
         do j = 1, knpf
            qoext(:,j) =  profiles(iptobs(j)) % q(:) / q_mixratio_to_ppmv
         enddo
@@ -223,6 +230,7 @@ subroutine tovs_fill_profiles_ad(column,columng)
            uu_column(ilowlvl_M) = profiles_ad(iptobs(j)) % s2m % u
            vv_column(ilowlvl_M) = profiles_ad(iptobs(j)) % s2m % v
         end do
+        call tmg_stop(69)
 
 !     .  2.3  Adjoint of extrapolation of humidity profile (kg/kg)
 !             above rlimlvhu (normally 300mbs or 70mbs)
@@ -278,6 +286,7 @@ subroutine tovs_fill_profiles_ad(column,columng)
         else
            istride = max(1,(knpf/nthreads)+1)
         endif
+        call tmg_start(75,'intavgad')
 !$omp parallel
 !$omp do private(jn,ilen)
         do jn=1,knpf,istride
@@ -295,6 +304,7 @@ subroutine tovs_fill_profiles_ad(column,columng)
         enddo
 !$omp end do
 !$omp end parallel
+        call tmg_stop(75)
  
         ! Fix pour eviter probleme au toit avec GEM 4
         ! (grosse varibilite temperature au dernier niveau thermo due 

@@ -477,6 +477,7 @@ subroutine tovs_rttov_tl(lobsSpaceData)
     errorstatus_th(:)   = 0
     emissivity_tl_th(:,:) = 0.0d0
     cloudemissivity_tl_th(:,:) = 0.0d0
+    call tmg_start(87,'rttov_tl')
 !$omp parallel
 !$omp do private(ith)
 
@@ -511,6 +512,7 @@ subroutine tovs_rttov_tl(lobsSpaceData)
     enddo
 !$omp end do 
 !$omp end parallel
+    call tmg_stop(87)
 
 !     .  2.4  Store hx in the structure radiance_tl
 !     .       ------------------------------------

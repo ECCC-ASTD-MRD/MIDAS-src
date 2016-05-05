@@ -49,7 +49,7 @@ MODULE BmatrixHI
 
   ! public procedures
   public :: bhi_Setup,bhi_BSqrt,bhi_BSqrtAd,bhi_Finalize,bhi_expandToMPIglobal,bhi_reduceToMPIlocal
-  public :: bhi_getScaleFactor
+  public :: bhi_getScaleFactor,bhi_truncateCV
 
 
   logical             :: initialized = .false.
@@ -1482,8 +1482,8 @@ CONTAINS
 !         COEFFICIENTS OF THE CORRELATION FUNCTION AND FUNCTION TO BE
 !         SELF-CONVOLVED
     do jn = 0, ntrunc
-      dlfact = ((2.0d0*jn+1)/2.0d0)**0.25d0
-      dlfact2 = ((2.0d0*JN +1.0d0)/2.0d0)**(0.25d0)
+      dlfact = ((2.0d0*jn +1.0d0)/2.0d0)**(0.25d0)
+      dlfact2= ((2.0d0*jn +1.0d0)/2.0d0)**(0.25d0)
       do jk = 1, nkgdim
         zsp(jn,jk) = rstddev(jk,jn)*dlfact*dlfact2
       enddo
@@ -1525,7 +1525,7 @@ CONTAINS
     ! Convert back to correlations
     do jk = 1, nkgdim
       do jn = 0, ntrunc
-         zsp(jn,jk) = zsp(jn,jk)*(2.0d0/(2.0d0*jn+1.0))**(0.25d0)
+         zsp(jn,jk) = zsp(jn,jk)*(2.0d0/(2.0d0*jn+1.0d0))**(0.25d0)
       enddo
     enddo
 
@@ -1885,7 +1885,8 @@ CONTAINS
     integer, parameter  :: inbrvar2d=2
     integer :: jvar,jn,inix,injx,inkx,ntrunc_file
     integer :: ikey,jlevo,jlat
-    real(8) :: zsp(0:ntrunc,max(nlev_M,nlev_T)),zspbuf(0:ntrunc),zwork
+    real(8) :: zsp(0:ntrunc,max(nlev_M,nlev_T)),zwork
+    real(8), allocatable :: zspbuf(:)
     real(8) :: zleg(0:ntrunc,nj_l),zgr(nj_l,max(nlev_M,nlev_T)),zgsig(1,nj_l,max(nlev_M,nlev_T)),zstddev(nkgdim2,nj_l)
     character(len=4) :: varName3d(inbrvar3d),varName2d(inbrvar2d)
 
@@ -1948,8 +1949,7 @@ CONTAINS
         ikey = fstinf(nulbgst,inix,ntrunc_file,inkx,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
         ntrunc_file = ntrunc_file-1
 
-        if(ntrunc_file.gt.ntrunc) call abort3d('RDSPSTD_NEWFMT: ntrunc in file > ntrunc for analysis!')
-
+        allocate(zspbuf(0:ntrunc_file))
         if(ikey .ge.0 ) then
           ikey = vfstlir(zspbuf(0:ntrunc_file),nulbgst,ini,inj,ink,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
         else
@@ -1958,9 +1958,11 @@ CONTAINS
         endif
 
         zsp(:,jlevo) = 0.0d0
-        do jn = 0, ntrunc_file
+        do jn = 0, min(ntrunc,ntrunc_file)
           zsp(jn,jlevo) = zspbuf(jn)
         enddo
+        deallocate(zspbuf)
+
       enddo
 
       call zleginv2(zgr(:,1:nlev_MT),zsp(:,1:nlev_MT),zleg,ntrunc,nj_l,nlev_MT,nj_l,nlev_MT,ntrunc)
@@ -2006,6 +2008,8 @@ CONTAINS
       ikey = fstinf(nulbgst,inix,ntrunc_file,inkx,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
       ntrunc_file = ntrunc_file-1
 
+      allocate(zspbuf(0:ntrunc_file))
+
       if(ikey .ge.0 ) then
         ikey = vfstlir(zspbuf(0:ntrunc_file),nulbgst,ini,inj,ink,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
       else
@@ -2014,9 +2018,10 @@ CONTAINS
       endif
 
       zsp(:,1) = 0.0d0
-      do jn = 0, ntrunc_file
+      do jn = 0, min(ntrunc,ntrunc_file)
         zsp(jn,1) = zspbuf(jn)
       enddo
+      deallocate(zspbuf)
 
       call zleginv2(zgr(:,1:nlev_MT),zsp(:,1:nlev_MT),zleg,ntrunc,nj_l,1,nj_l,nlev_MT,ntrunc)
 
@@ -2265,6 +2270,50 @@ CONTAINS
     enddo
 
   END SUBROUTINE BHI_RDSPPTOT
+
+
+  SUBROUTINE BHI_truncateCV(controlVector_inout,ntruncCut)
+    implicit none
+    ! set to zero all coefficients with total wavenumber > ntruncCut
+
+    real(8), pointer :: controlVector_inout(:)
+    integer          :: ntruncCut
+    integer          :: jn, jm, ila_mpiglobal, ila_mpilocal, jlev, jdim
+
+    if(.not. initialized) then
+      if(mpi_myid.eq.0) write(*,*) 'bhi_truncateCV: bMatrixHI not initialized'
+      return
+    endif
+
+    if(ntruncCut.gt.ntrunc) then
+      write(*,*) ntruncCut, ntrunc
+      call abort3d('bhi_truncateCV: ntruncCut is greater than ntrunc!')
+    endif
+
+    jdim = 0
+    do jlev = 1, nkgdimSqrt
+      do jm = mymBeg, mymEnd, mymSkip
+        do jn = mynBeg, mynEnd, mynSkip
+          if(jm.le.jn) then
+            ila_mpiglobal = gst_getNIND(jm,gstID) + jn - jm
+            ila_mpilocal  = ilaList_mpilocal(ila_mpiglobal)
+            if(jm.eq.0) then
+              ! only real component for jm=0
+              jdim = jdim + 1
+              if(jn.gt.ntruncCut) controlVector_inout(jdim) = 0.0d0
+            else
+              ! both real and imaginary components for jm>0
+              jdim = jdim + 1
+              if(jn.gt.ntruncCut) controlVector_inout(jdim) = 0.0d0
+              jdim = jdim + 1
+              if(jn.gt.ntruncCut) controlVector_inout(jdim) = 0.0d0
+            endif
+          endif
+        enddo
+      enddo
+    enddo
+
+  END SUBROUTINE BHI_truncateCV
 
 
   SUBROUTINE BHI_bSqrt(controlVector_in,statevector)
@@ -2952,6 +3001,7 @@ CONTAINS
 !$OMP PARALLEL DO PRIVATE(jlat,zcoriolis,jlev,jlon,zp)
     do jlat = myLatBeg, myLatEnd
       zcoriolis = 2.d0*romega*gst_getRMU(jlat,gstID)
+      tb0(:,:,jlat) = 0.0d0
       do jlev = 1, nlev_T
         do jlon = myLonBeg, myLonEnd
           tb0(jlon,jlev,jlat) = gd(jlon,nspositTT+jlev-1,jlat)
