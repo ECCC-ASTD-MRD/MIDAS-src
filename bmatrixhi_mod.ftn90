@@ -2952,6 +2952,7 @@ CONTAINS
 !$OMP PARALLEL DO PRIVATE(jlat,zcoriolis,jlev,jlon,zp)
     do jlat = myLatBeg, myLatEnd
       zcoriolis = 2.d0*romega*gst_getRMU(jlat,gstID)
+      tb0(:,:,jlat) = 0.0d0
       do jlev = 1, nlev_T
         do jlon = myLonBeg, myLonEnd
           tb0(jlon,jlev,jlat) = gd(jlon,nspositTT+jlev-1,jlat)
