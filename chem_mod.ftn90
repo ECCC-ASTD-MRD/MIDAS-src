@@ -252,14 +252,16 @@ module chem_mod
      !                         indicates index in chm_avgkern,chm_burp_avgkern arrays.
      !  apply_genoper          Indicates if the generalized observation operator should be applied
      !  column_bound           Boudary imporsed on a column measurement
+     !  dtransform             Derivative for any transform that needs to be applied to a profile
 
      integer :: nobslev,nmodlev,modelIndex,constituent_id,vco,varno,date,hhmm,iavgkern
      logical :: layer_identified,apply_genoper
      real(8) :: lat,lon,column_bound
      character(len=12) :: stnid
      character(len=4)  :: varName
-     real(8), allocatable :: vlayertop(:),vlayerbottom(:),vmodpress(:),tt(:),gz(:),pp(:),trial(:)
-     real(8), allocatable :: zh(:,:),zhp(:,:),vweights(:,:),obslev(:)
+     real(8), allocatable :: vlayertop(:),vlayerbottom(:),vmodpress(:),tt(:),gz(:),pp(:)
+     real(8), allocatable :: zh(:,:),zhp(:,:),vweights(:,:),obslev(:),dtransform(:)
+     real(8), pointer     :: trial(:)
      integer, allocatable :: lvl_top(:),lvl_bot(:)
 
   end type struct_chm_obsoperators
@@ -4280,8 +4282,10 @@ contains
 !
 ! Comments:
 !
-!     A. Does not yet account for potential future applications of obs 
-!        vertical correlation matrices.
+!     - When kmode=0, call from chm_observation_operators passes model_col as a pointer to
+!       obsoper%trial.
+!     - Does not yet account for potential future applications of obs 
+!       vertical correlation matrices.
 !        
 !-------------------------------------------------------------------------------------------
 
@@ -4310,18 +4314,6 @@ contains
   real(8), allocatable :: avg_kern(:,:)
   logical :: lget_rsig
 
-
-! Apply unit conversion (apply unit conversion later for kmode=3)
-
-  select case(kmode)
-  case(0,2)
-     ! Convert the field in model space 
-     call chm_convert_units(obsoper,model_col,kmode)
-  case(1)
-     ! Save the conversion factor in <unit_conversion>
-     unit_conversion(:) = 1.0
-     call chm_convert_units(obsoper,unit_conversion,kmode)
-  end select
        
 ! Determine if layer boundaries are assigned to this data source.
 ! If so, obtain them for use in this routine. 
@@ -4357,6 +4349,31 @@ contains
 
   obsoper%apply_genoper = kmode.ge.2 .and. chm_config%generalized_operator .and. &
        (obsoper%modelIndex.eq.2 .or. obsoper%modelIndex.eq.3)
+
+! Apply unit conversion and any necessary (nonlinear) transformations (apply unit conversion later for kmode=3)
+
+  call chm_transform_profile(obsoper, compute_dtransform=kmode.ne.0) ! transformations on obsoper%trial
+
+  select case(kmode)
+  case(0)
+     ! Perform transformation and unit conversion on obsoper%trial.
+     ! Note that model_col => obsoper%trial for kmode=0.
+     call chm_convert_units(obsoper,obsoper%trial)
+  case(1)
+     ! Save the conversion factor in <unit_conversion>
+     unit_conversion(:) = 1.0
+     call chm_transform_profile(obsoper,unit_conversion)
+     call chm_convert_units(obsoper,unit_conversion)
+  case(2)
+     call chm_transform_profile(obsoper,model_col)
+     call chm_convert_units(obsoper,model_col)
+  end select
+
+  if (obsoper%apply_genoper) then
+     ! Perform unit conversion on obsoper%trial when applying the generalized
+     ! obs operator for kmode=2,3. Keep obsoper%trial in ug/kg in this case.
+     call chm_convert_units(obsoper,obsoper%trial,ppb=.true.)
+  end if
 
 ! Convert observation vertical coordinate value(s) to pressure if needed
 
@@ -4463,7 +4480,7 @@ contains
 
   case(3)
 !
-!     Ht*grad contribution from adjoint of tangent linear model.
+!     H^T*grad contribution from adjoint of tangent linear model.
 !
       model_col(:) = 0.0
 
@@ -4473,7 +4490,8 @@ contains
             zwork(obsoper%lvl_top(iobslev):obsoper%lvl_bot(iobslev)) = &
                  obs_col(iobslev)*obsoper%zh(iobslev,obsoper%lvl_top(iobslev):obsoper%lvl_bot(iobslev))
                 
-            call chm_convert_units(obsoper,zwork,4)
+            call chm_transform_profile(obsoper,zwork)
+            call chm_convert_units(obsoper,zwork)
            
             model_col(obsoper%lvl_top(iobslev):obsoper%lvl_bot(iobslev)) = &
                  model_col(obsoper%lvl_top(iobslev):obsoper%lvl_bot(iobslev)) + &
@@ -4510,13 +4528,104 @@ contains
   end if
   
   end function chm_checkfor_integlayer
-   
+
 !-------------------------------------------------------------------------------------------
 
-  subroutine chm_convert_units(obsoper,model_col,kmode)
+  subroutine chm_transform_profile(obsoper,increment_col,compute_dtransform)
+!
+!  Author: Y. Rochon, ARQI/AQRD, April 2016 (made into separate subroutine by M. Sitwell)
+!
+!  Purpose: Perform any required nonlinear transformations on a model-space profile.
+!
+!  Inout:
+!   
+!    obsoper              Contains basic information related to the observation operator
+!    increment_col        Model-space increment profile to transform (optional)
+!    compute_dtransform   Computes obsoper%dtransform (optional, only used when increment_col
+!                         is not provided and default is true in this case)
+!
+!  Comments:
+!    - If increment_col is not provided, transformations will be done on obsoper%trial. If
+!      increment_col is provided, then transformations will done on increment_col only and will
+!      not be done on obsoper%trial.
+!    - When called with increment_col provided, it is assumed that obsoper%dtransform has
+!      already been computed in a previous call.
+!    - At some point may be merged with chm_apply_transform.
+!
+! ---------------------------------------------------------------------------------------
+
+  use MathPhysConstants_mod
+    
+  implicit none
+
+  type(struct_chm_obsoperators), intent(inout) :: obsoper
+  real(8), intent(inout), optional  :: increment_col(obsoper%nmodlev)
+  logical, intent(in), optional :: compute_dtransform
+
+  logical :: comp_dtransform
+
+  if (obsoper%constituent_id.lt.0) return
+  if (chm_config%transform(obsoper%constituent_id).eq.0.and.trim(obsoper%varname).ne.'HU') return
+
+  if (present(increment_col)) then
+
+     increment_col = obsoper%dtransform * increment_col
+
+  else
+
+     if (present(compute_dtransform)) then
+        comp_dtransform = compute_dtransform
+     else
+        comp_dtransform = .true.
+     end if
+
+     if (obsoper%constituent_id.eq.1.and.trim(obsoper%varname).eq.'HU') then
+
+        ! Transformations for water vapor, converting from
+        ! log of specific humidity LQ to volume mixing ratio
+
+        ! Converts LQ=ln(q) to HU=q
+        obsoper%trial = exp(obsoper%trial)
+        where(obsoper%trial.gt.0.8) obsoper%trial = 0.8
+        where(obsoper%trial.lt.-1.D-5) obsoper%trial = -1.D-5
+        ! Converts specific humidity (q) to mass mixing ratio (rm) rm = q/(1-q)
+        ! then from mass mixing ratio (rm) to volume mixing ratio (r) r = m_a/m_H2O rm
+        obsoper%trial = obsoper%trial / (1.0-obsoper%trial) &
+             * MPC_MOLAR_MASS_DRY_AIR_R8/chm_config%amu(obsoper%constituent_id)
+     
+        ! For conversion of LQ increment (dlnq) to volume mixing ratio increment (dr) via mass mixing ratio (drm)
+        ! drm = dq/(1-q)^2 = q*dlnq/(1-q)^2 = rm(rm+1) dlnq, dr = m_a/m_H2O drm = r(r*m_H2O/m_a + 1) dlnq
+        if (comp_dtransform) obsoper%dtransform = obsoper%trial * &
+             (obsoper%trial*chm_config%amu(obsoper%constituent_id)/MPC_MOLAR_MASS_DRY_AIR_R8 + 1.0)
+     
+     else if (chm_config%transform(obsoper%constituent_id).eq.1) then
+
+        ! Transformations for ln(x) to x
+
+        ! Converts ln(x) to x
+        obsoper%trial = exp(obsoper%trial)
+ 
+        ! For conversion of dlnx to dx, dx = x dlnx
+        if (comp_dtransform) obsoper%dtransform = obsoper%trial
+
+     else
+     
+        call abort3d('chm_transform_profile: Transformation #' // trim(str(chm_config%transform(obsoper%constituent_id))) // &
+             ' for constituent ' // trim(str(obsoper%constituent_id)) // " and variable name " // trim(obsoper%varname) // &
+             ' is not defined.')
+        
+     end if
+
+  end if
+
+  end subroutine chm_transform_profile
+
+!-------------------------------------------------------------------------------------------
+
+  subroutine chm_convert_units(obsoper,model_col,ppb)
 !
 ! Author  : Y. Rochon and Y. Yang, June 2005 to June 2011
-!           - Pre-EnVar version
+!          
 ! Revision: 
 !           Ping Du, CDMA,Jan 2015
 !           - Adapted for the EnVar
@@ -4524,54 +4633,39 @@ contains
 !           - Modifications of adaptations and update of BUFR elements
 !           M. Sitwell, ARQI/AQRD, April 2016
 !           - Moved most of the inputs into obsoper
+!           Y. Rochon, ARQI/AQRD, April 2016
+!           - Added use of varName and consideration of ug/kg for model fields
+!           M. Sitwell, ARQI/AQRD, April 2016
+!           - Moved nonlinear transformations into chm_transform_profile
 !
-! Purpose: Set unit conversion factor and model variable transformations 
-!          for consistency of Hx units with obs units.  
+! Purpose: Set unit conversion factor for consistency of Hx units with obs units.  
 !
-!          For H2O, there are preliminary conversions related to transforming
-!          ln(q) to vmr and/or its TLM equivalent.
-! 
 ! Further changes required for generalization 
 !
 ! 1) May ultimately have two versions, with one called outside the minimization section. 
-! 2) Adapt to model variable units other than vmr.
+! 2) Conversion for surface emissions not included as yet (if any is needed)
 !
 ! Arguments:
 !
 !   Input
 !
-!     kmode     This flag has two uses.
-!
-!               1: For H2O, it directs conversions related to 'ln(q) to vmr'
-!                   0 for model_col = trial
-!                   1 for model_col = sigma
-!                   2 for model_col = dx
-!                   3 applied same as 2 for the ln(q) conversion to vmr
-!                   4 Same as 2 and or but the conversion to rval has already been done.
-!               
-!               2: For linear unit conversion:
-!                  Conversion applied when kmode=2,3, this depending on the BUFR element.
-!                  This conversion for rval only needed for chm_genoper
-!                  and when the variation in vertical must account for
-!                  unit changes involving pressure and or temperature.
-!                  Only the relative variation in the vertical matters as opposed
-!                  to the absolute values and so the conversion is not applied for
-!                  all BUFR elements.
+!     obsoper         Contains basic information related to the observation operator
+!     ppb             Logical indicating if model_col should be kept in ug/kg instead of
+!                     the units dictated by the BUFR number (optional, .false. by default)
 !
 !   InOut
 !
-!     model_col       Model space profile that has its units changed
-!
-!     obsoper%trial   Trial profile to have its units changed
+!     model_col       Model space profile to have its units changed
 !
 !  Other
 !
-!     chm_config%amu(iconstituent_id)  Molecular mass of constituent (g/mol). 
+!     chm_config%amu  Molecular mass of constituent (g/mol). 
 !
 ! Comments:
 !
-!     A. Standard model/analysis species field provided as volumetric mixing 
-!        ratio (vmr). Conversion to vmr is to applied when this is not the case. 
+!     A. Standard model/analysis species field provided as mass mixing 
+!        ratio in ug/kg (ppb). Conversion to ppb is pplied when this is 
+!        not the case except for AOD and surface emissions.
 !        As this is hardcoded, any changes in analysis variable must
 !        be reflected by correspondingly modifying this module.
 !
@@ -4585,14 +4679,22 @@ contains
 !
 !     Coefficients related to unit conversion
 !
-!        conv=1.E5                 ! m to 1e-5m (=1DU)
-!        rho_stp=1.293             ! air density at STP (1.293 kg/m^3)
-!        RG=9.807                  ! Acceleration due to gravity (m/s^2)
-!        MPC_AVOGADRO_R8           ! Avogadro's number. 6.023E23 molecules/mole
-!        PC_MOLAR_MASS_DRY_AIR_R8  ! Dry air molecular mass. 28.9644 g/mole
-!        MPC_RGAS_IDEAL_R8         ! Dry air constant. 8.341 J/mole/K  (J=kg m^2/s^2)
+!        rho_stp=1.293                     Air density at STP (1.293 kg/m^3)
+!        RG=9.807 (=g)                     Acceleration due to gravity (m/s^2)
+!        MPC_AVOGADRO_R8 = Na              Avogadro's number. 6.023E23 molecules/mole
+!        MPC_MOLAR_MASS_DRY_AIR_R8 (m_air) Dry air molecular mass. 28.9644 g/mole
+!        MPC_RGAS_IDEAL_R8 = R             Ideal gas constant. 8.341 J/mole/K  (J=kg m^2/s^2)
 !
-!      C. List should be revised following changes to the 'tableburp' file.
+!                                            PV = nRT (n=number of moles)
+!
+!        MPC_RGAS_DRY_AIR_R8  = Rd         Dry air constant. 287.1 J/kg/K  (J=kg m^2/s^2)
+!                                          = MPC_RGAS_IDEAL_R8 * 1000 g/km / MPC_MOLAR_MASS_DRY_AIR_R8
+!
+!                                            P=rho*Rd*T = [n*m_air*0.001 kg/g]*Rd*T
+!                                                       = n*[m_air*0.001*Rd]*T
+!                                                       = nRT
+!
+!     C. List should be revised following changes to the 'tableburp' file.
 !
 ! ---------------------------------------------------------------------------------------
 
@@ -4601,231 +4703,164 @@ contains
   
   implicit none
 
-  integer, intent(in) :: kmode
   type(struct_chm_obsoperators), intent(inout) :: obsoper
-  real(8), intent(inout)  :: model_col(obsoper%nmodlev)
+  real(8), intent(inout) :: model_col(obsoper%nmodlev)
+  logical, intent(in), optional :: ppb
 
 ! Declaration of local variables
-  integer :: jk
-  real(8) :: conv, zcoef
+  real(8) :: zcoef
+  integer :: exp_P,exp_T
+  logical :: ppb_out
   real(8), parameter :: rho_stp=1.293  ! kg/m^3
-  real(8), save :: zval1(100),zval2(100)
-!
+
   if (obsoper%constituent_id.lt.0) return
-  
-  if (obsoper%constituent_id.eq.1) then
-!
-!     Since the data is for H2O (iconstituent_id=1), then a conversion from the 
-!     incremental variable LQ (ln q) must be performed. 
-!     Then a variable transformation to vmr is performed.
-!
-!     First apply exponential or its TLM equivalent to get specific humidity q
-!
-      if (kmode.ge.2) then  ! TLM of exponential
-!
-!         dx = x dlnx, with lnx = trial, dlnx=model_col
-!         Note: x=trial when kmode>3
-!
-          if (kmode.le.3) then
-             obsoper%trial(:) = exp(obsoper%trial(:))
-             zval1(1:obsoper%nmodlev) = obsoper%trial(:)
-             if (kmode.ne.3) model_col(:) = zval1(1:obsoper%nmodlev)*model_col(:)
-          else
-!
-!            zval1 should be the same as previously transformed in an earlier 
-!            call with kmode=3 (see above the 'else').
-!
-             model_col(:) = zval1(1:obsoper%nmodlev)*model_col(:)
-          end if
-      else
-          if (kmode.eq.0) then  
-!
-!            Converts LQ to HU or ln(x) to x
-!
-             model_col(:) = exp(model_col(:))
-          else
-!
-!            Converts dLQ to dHU or dln(x) to dx 
-!
-!x           dx = x dlnx, with lnx = trial, dlnx=model_col
-!            dx = x dlnx, with x = trial, dlnx=model_col
-!                 
-             model_col(:) = obsoper%trial(:)*model_col(:)
-          end if
-      end if
-!
-!     Convert specific humidity to mass mixing ratio (or mass mixing ratio increment)
-!
-      if (kmode.ge.2) then
-         if (kmode.le.3) THEN
-!
-!           Apply tangent linear of r=q/(1-q):
-!
-!           dr = dq/(1-q)^2
-!
-            do jk=1,obsoper%nmodlev
-               conv=obsoper%trial(jk)
-               if (conv.gt.0.8) then
-                  write(*,*) 'CHM_CONVERT_UNITS: WARNING - Q exceeds 0.8 at',conv
-                  conv=0.8
-               else if (conv.lt.-1.D-5) then
-                  write(*,*) 'CHM_CONVERT_UNITS: WARNING - Q less than -1E-5 at ',conv
-                  conv=-1.D-5
-               end if
-               if (kmode.ne.3) model_col(jk)=model_col(jk)/(1.0-conv)**2
-               zval2(jk)=obsoper%trial(jk)
-               obsoper%trial(jk) = obsoper%trial(jk)/(1.0-conv)
-            end do
-         else
-!
-!            rval (zval2) should be the same as previously transformed in an earlier 
-!            call with kmode=3 (see above the 'else').
-!            
-             model_col(:) = model_col(:)/(1.0-zval2(1:obsoper%nmodlev))**2
-         end if
-      else
-         do jk=1,obsoper%nmodlev
-            conv=obsoper%trial(jk)   
-            if (conv.gt.0.8) then
-               write(*,*) 'CHM_CONVERT_UNITS: WARNING - Q exceeds 0.8 at',conv
-               conv=0.8
-            else if (conv.lt.-1.D-5) then
-               write(*,*) 'CHM_CONVERT_UNITS: WARNING - Q less than -1E-5 at ',conv
-               conv=-1.D-5
-            end if
-            model_col(jk) = model_col(jk)/(1.0-conv)**2
-         end do
-      end if
-!
-!     Mass mixing ratio to volume mixing ratio conversion
-!
-      if (kmode.ne.3) model_col(:) = model_col(:)*MPC_MOLAR_MASS_DRY_AIR_R8/chm_config%amu(obsoper%constituent_id)
+
+  ! No conversion necessary for these BUFR numbers
+  if (any( obsoper%varno .eq. (/ 15024,15196,12001,15055,15062 /)  )) return
+
+  if (present(ppb)) then
+     ppb_out = ppb
+  else
+     ppb_out = .false.
   end if
-!
-! Identify unit conversion factor and variable conversion
-! assuming model variable is in vmr.
 
-  if (kmode.eq.3) then
-!
-!     Apply conversion only to obsoper%trial (if needed)
-!
-      zcoef=1.0
-      select case (obsoper%varno)
-      case(15023,15027,15194,15195,15223) 
-!
-!        For conversion from vmr to kg/m^3
-!     
-         zcoef = zcoef*chm_config%amu(obsoper%constituent_id)/MPC_RGAS_IDEAL_R8
-!
-!        Apply temperature and pressure at observation level.
-!
-         obsoper%trial(:) = obsoper%trial(:)*obsoper%pp(:)/obsoper%tt(:)*zcoef
-!
-      case(15199,15003,15010) 
-!     
-!        For conversion from vmr to partial pressure (PA)
-!
-         obsoper%trial(:) = obsoper%trial(:)*obsoper%pp(:)*zcoef
-!
-      case(15230,15022) 
-!
-!        For conversion from vmr to molecules/m^3
-!        RDCJ: Dry air constant. 8.341 J/mole/K  (J=kg m^2/s^2)
-!
-         zcoef = zcoef*MPC_AVOGADRO_R8/MPC_RGAS_IDEAL_R8
-!
-!        Apply temperature and pressure at observation level.
-!
-         obsoper%trial(:) = obsoper%trial(:)*obsoper%pp(:)/obsoper%tt(:)*zcoef
-!         
-      end select
-      return
+  zcoef = 1.
+  exp_T = 0   ! exponent of multiplicative factor obsoper%tt
+  exp_P = 0   ! exponent of multiplicative factor obsoper%pp
+
+  ! Convert to ug/kg if not already in those units
+
+  if (obsoper%varName(1:2).eq.'AF' .or. obsoper%varName(1:2).eq.'AC') then
+
+     ! PM2.5 or PM10
+
+     if (any(obsoper%varno .eq. (/ 15198,15001,15005,15045,15009,15012,15199,15003,15010,15230, &
+          15022,15026,15008,15197,15208,1300 /) )) &
+          call abort3d("chm_convert_units: BUFR # " // trim(str(obsoper%varno)) // " is not valid for PM" )
+
+     ! Conversion from ug/m^3 to ug/kg  (scaling by Rd*T/P)
+     zcoef = zcoef * MPC_RGAS_DRY_AIR_R8
+     exp_T = exp_T+1 ! multiply by T
+     exp_P = exp_P-1 ! divide by P
+
+  else if (obsoper%varname(1:1).ne.'T') then
+
+     ! Conversion from vmr to ug/kg
+
+     zcoef = zcoef * 1.E9 * chm_config%amu(obsoper%constituent_id)/MPC_MOLAR_MASS_DRY_AIR_R8
+
   end if
-!  
-! Apply conversion to incrrement-related profile (and obsoper%trial if needed)
-!
-  zcoef=1.0
-  select case (obsoper%varno)
-      case(15198,15001,15005,15045) 
-!
-!        For conversion of vmr*dP integral to DU
-!
-         conv=1.E5              ! m to 1e-5m (=1DU)
-         zcoef = zcoef/RG/rho_stp*conv
-         model_col(:) = model_col(:)*zcoef
-!
-      case(15009,15012)
-!
-!        For conversion of vmr*dP integral to molecules/m^2
-!
-         conv=1.E3         ! 1.E3 g/kg
-!                          ! required for conversion of PC_MOLAR_MASS_DRY_AIR_R8 from g/mol
-!                          ! to kg/mol
-         zcoef = zcoef*MPC_AVOGADRO_R8*conv/MPC_MOLAR_MASS_DRY_AIR_R8/RG
-         model_col(:) = model_col(:)*zcoef
-!
-      case(15020,15021,15200) 
-!
-!        For conversion of vmr*dP integral to kg/m^2
-!
-         zcoef = zcoef*chm_config%amu(obsoper%constituent_id)/MPC_MOLAR_MASS_DRY_AIR_R8/RG
-         model_col(:) = model_col(:)*zcoef
-!
-      case(15023,15027,15194,15195,15223) 
-!
-!        For conversion from vmr to kg/m^3
-!     
-         zcoef = zcoef*chm_config%amu(obsoper%constituent_id)/MPC_RGAS_IDEAL_R8
-!
-!        Apply temperature and pressure at observation level.
-!
-         model_col(:) = model_col(:)*obsoper%pp(:)/obsoper%tt(:)*zcoef
-         if (kmode.eq.2.or.kmode.eq.3) obsoper%trial(:) = obsoper%trial(:)*obsoper%pp(:)/obsoper%tt(:)*zcoef
-!
-      case(15199,15003,15010) 
-!     
-!        For conversion from vmr to partial pressure (PA)
-!
-         model_col(:) = model_col(:)*obsoper%pp(:)*zcoef
-         if (kmode.eq.2.or.kmode.eq.3) obsoper%trial(:) = obsoper%trial(:)*obsoper%pp(:)*zcoef
-!
-      case(15230,15022) 
-!
-!        For conversion from vmr to molecules/m^3
-!        RDCJ: Dry air constant. 8.341 J/mole/K  (J=kg m^2/s^2)
-!
-         zcoef = zcoef*MPC_AVOGADRO_R8/MPC_RGAS_IDEAL_R8
-!
-!        Apply temperature and pressure at observation level.
-!
-         model_col(:) = model_col(:)*obsoper%pp(:)/obsoper%tt(:)*zcoef
-         if (kmode.eq.2.or.kmode.eq.3) obsoper%trial(:) = obsoper%trial(:)*obsoper%pp(:)/obsoper%tt(:)*zcoef
-!
-      case(15026,15008,15197,15208) 
-!
-!        Observation in molecules/molecules by volume (vmr).
-!        No conversion needed.
-!     
-         zcoef = zcoef*1.0D0
-         model_col(:) = model_col(:)*zcoef
 
-      case(15024,15196,12001,15055,15062)
+  ! Convert from ug/kg to desired unit if ppb_out = .false.
 
-!        Do nothing
+  if (.not.ppb_out) then
+     select case (obsoper%varno)
+     case(15198,15001,15005,15045) 
 
-      case(15192,15011) 
-!
-!        Code to be revised when actually applied for the first time
-!        according to model field units.
-!
-         call abort3d('CHM_CONVERT_UNITS: Obs conversion not yet defined for varno = ' // trim(str(obsoper%varno)) )
-!
-      case default 
-!
-         call abort3d('CHM_CONVERT_UNITS: Unknown obs units for varno = ' // trim(str(obsoper%varno)) )
+        ! For conversion of ppb*dP integral to DU
+        ! (integral in dP introduced later by the observation operator)
+        !
+        ! 1 DU equivalent to number density at STP for a column of 1E-5 m. 
+        ! Number density at STP = Na*rho_stp/m_air.
+        ! Hence 1 DU equivalent to Na*rho_stp/m_air * 1E-5 m (= 2.69E20 molecules/m^2)
+        !
+        ! Number of DU for gas = integral in Z of gas number density (over all altitudes) 
+        !                        divided by [Na*rho_stp/m_air * 1E-5 m]   
+        !                      = - integral in P of gas number density / [g*rho(air)] 
+        !                        divided by [Na*rho_stp/m_air * 1E-5 m]   
+        !          
+        ! Number density of gas = Na*rho(gas)/m_gas 
+        !                      
+        ! Number of DU for gas = - integral in P of [rho(gas)/rho(air)]*1E5*/g/rho_stp*m_air/m_gas
+        !                        = - integral in P of mass mixing ratio * [1E5*m_air/m_gas/g/rho_stp]
+                           
+        zcoef = zcoef * 1.E-4 * MPC_MOLAR_MASS_DRY_AIR_R8/chm_config%amu(obsoper%constituent_id)/RG/rho_stp
+        
+     case(15009,15012)
+
+        ! For conversion of ppb*dP integral to molecules/m^2
+        ! (integral in dP introduced later by the observation operator)
+        ! 
+        ! integral in Z of number density = - integral in P of number density / [g*rho(air)] 
+        !                                 = - integral in P of Na*[rho(gas)/rho(air)]/g/m_air
+        
+        zcoef = zcoef * 1.E-6 * MPC_AVOGADRO_R8/RG/chm_config%amu(obsoper%constituent_id)
+
+     case(15020,15021,15200) 
+        
+        ! For conversion of ppb*dP integral to kg/m^2
+        ! (integral in dP introduced later by the observation operator)
+        ! 
+        ! integral in Z of density = - integral in P of rho(gas) / [g*rho(air)] 
+        !                          = - integral in P of [rho(gas)/rho(air)]/g
+
+        zcoef = zcoef * 1.E-9 / RG
+        
+     case(15023,15027,15194,15195,15223)
+
+        ! For conversion from ug/kg to kg/m^3
+        !
+        ! rho(gas) = mass mixing ratio * rho(air) = mass mixing ratio * P/Rd/T
+        
+        zcoef = zcoef * 1.E-9 / MPC_RGAS_DRY_AIR_R8
+        exp_T = exp_T-1 ! divide by T
+        exp_P = exp_P+1 ! multiply by P
+
+     case(13001,13002) 
+
+        ! For conversion from ug/kg to kg/kg
+     
+        zcoef = zcoef * 1.E-9 
+     
+     case(15199,15003,15010) 
+     
+        ! For conversion from ug/kg to partial pressure (PA)
+        !
+        ! parial pressure = P * vmr
+        !                 = P * m_air/m_gas * mass mixing ratio
+          
+        zcoef = zcoef * 1.E-9 * MPC_MOLAR_MASS_DRY_AIR_R8/chm_config%amu(obsoper%constituent_id)
+        exp_P = exp_P+1 ! multiply by P
+
+     case(15230,15022)
+
+        ! For conversion from ug/kg to molecules/m^3
+        !
+        ! Number density of gase = Na*rho(gas)/m_gas = Na*rho(air) * mass mixing ratio /m_gas
+        !                         = Na * P/Rd/T * mass mixing ratio /m_gas
+        
+        zcoef = zcoef * 1.E-6 * MPC_AVOGADRO_R8/MPC_RGAS_DRY_AIR_R8/chm_config%amu(obsoper%constituent_id)
+        exp_T = exp_T-1 ! divide by T
+        exp_P = exp_P+1 ! multiply by P
+
+     case(15026,15008,15197,15208,1300) 
+
+        ! For conversion from ug/kg to vmr
+           
+        zcoef = zcoef * 1.E-9 * MPC_MOLAR_MASS_DRY_AIR_R8/chm_config%amu(obsoper%constituent_id)
+
+     !case(15192,15011) 
+           
+        ! Code to be revised when actually applied for the first time
+        ! according to model field units.
+           
+     case default 
+        
+        call abort3d('CHM_CONVERT_UNITS: Unknown obs units for varno = ' // trim(str(obsoper%varno)) )
          
-  end select
+     end select
+  end if
+  
+  ! Apply constant scaling
+  model_col = model_col * zcoef
 
+  if (exp_T.ne.0) then
+     if (any(obsoper%tt.le.0.)) call abort3d("CHM_CONVERT_UNITS: Missing valid temperature for conversion.")
+     model_col = model_col * obsoper%tt**exp_T
+  end if
+
+  if (exp_P.ne.0) model_col = model_col * obsoper%pp**exp_P
+  
   end subroutine chm_convert_units
 
 !---------------------------------------------------------------------------------------

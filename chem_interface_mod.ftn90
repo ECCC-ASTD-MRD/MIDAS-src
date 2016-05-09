@@ -125,8 +125,8 @@ contains
 
     ! Local variables: model space profile data
 
-    real(8), allocatable :: model_col(:),obs_col(:)
-    real(8), pointer :: col(:)
+    real(8), allocatable :: obs_col(:)
+    real(8), pointer :: col(:),model_col(:)
     integer :: nlev_bkgrnd, nlev_inc
     character(len=2), parameter :: varType = 'TH'
     
@@ -143,16 +143,18 @@ contains
 
     nlev_bkgrnd = col_getNumLev(column_bkgrnd,varType)
     
-    if (kmode.eq.2) then
+    ! Allocate memory for model_col. Not necessary for kmode=0 since model_col points to obsoper%trial.
+    select case(kmode)
+    case(2)
        nlev_inc = col_getNumLev(column_inc,varType)
        allocate(model_col(nlev_inc))
-    else
+    case(1,3)
        allocate(model_col(nlev_bkgrnd))
-    end if
+    end select
 
     ! Moved outside of chm_obsoper_init since this can be done outside the HEADER loop
-    allocate(obsoper%trial(nlev_bkgrnd),obsoper%pp(nlev_bkgrnd))
-    allocate(obsoper%tt(nlev_bkgrnd),obsoper%gz(nlev_bkgrnd),obsoper%vmodpress(nlev_bkgrnd+1))
+    allocate(obsoper%trial(nlev_bkgrnd),obsoper%pp(nlev_bkgrnd),obsoper%tt(nlev_bkgrnd))
+    allocate(obsoper%gz(nlev_bkgrnd),obsoper%dtransform(nlev_bkgrnd),obsoper%vmodpress(nlev_bkgrnd+1))
     allocate(obsoper%vweights(nlev_bkgrnd,nlev_bkgrnd))
 
     ! Loop over all header indices of the 'CH' family:
@@ -180,7 +182,7 @@ contains
       !                                3) the result of applying the adjoint of H_vert 
       select case(kmode)
       case(0)
-         model_col(1:nlev_bkgrnd) = obsoper%trial(1:nlev_bkgrnd)
+         model_col => obsoper%trial
       case(2)
          do jl = 1, nlev_inc
             model_col(jl) = col_getElem(column_inc,JL,headerIndex,obsoper%varName)
@@ -317,9 +319,9 @@ contains
   
     enddo HEADER
 
-    deallocate(model_col)
-    deallocate(obsoper%trial,obsoper%pp,obsoper%tt)
+    deallocate(obsoper%trial,obsoper%pp,obsoper%tt,obsoper%dtransform)
     deallocate(obsoper%gz,obsoper%vmodpress,obsoper%vweights)
+    if (kmode.ne.0) deallocate(model_col)
 
     if (present(jobs)) jobs=0.5d0*jobs
     
@@ -394,6 +396,7 @@ contains
     obsoper%zhp(:,:)=0.0D0
     obsoper%lvl_top(:)=1
     obsoper%lvl_bot(:)=nmodlev
+    obsoper%dtransform(:)=1.0D0
 
     if (.not.col_varExist('TT')) then
        if (chm_required_field('TT',obsoper%varno)) then
