@@ -1322,9 +1322,8 @@ CONTAINS
     !                     and 'namburp_chm' namelists
     !                  -- Added UNI_FAMILYTYPE.
     !                  -- Replaced "NDATA_SF= WRITE_BODY(*" to use UNI_FAMILYTYPE
-    !                     (see !PDD at corresponding locations)
     !                  -- Added use of FAMILYTYPE2 for the CH family.
-    !                 Y.J. Rochon (ARQI) Dec 2014
+    !                 Y.J. Rochon (ARQI) Dec 2014 - April 2016
     !                  -- Added 08046 (constituent code table) in LISTE_INFO.
     !                     Corresponds to new ObsSpaceData integer-header element OBS_CHM.
     !                  -- Added 15008,15011,15012,15020,15024,15026-29,15199,
@@ -1333,6 +1332,9 @@ CONTAINS
     !                  -- Extended 'vcord_type' from 1 to 7 elements for TR
     !                  -- Addition/use of 'vcoord_type'. Added 'vcoord_type' 
     !                     argument to WRITE_BODY.
+    !                  -- Added flag_passage*=1 for btyp10*_uni cases.
+    !                     Needed when only *_uni data being read to avoid
+    !                     incorrect output error message.
     !
     !       OBJECT: READ CMC BURP FILE 
     !
@@ -1712,6 +1714,8 @@ CONTAINS
           btyp10    = ishft(btyp,-5)
           if ( btyp10 - btyp10obs_uni == 0 .and. bkstp <= 4 ) then
 
+            flag_passage3 = 1
+
             ALLOCATE(obsvalue_sfc(NELE_SFC,1,nte))
             ALLOCATE(  OBSERV_SFC(NELE_SFC,1) )
 
@@ -1757,10 +1761,11 @@ CONTAINS
               end do
 
             end do
-
           endif
 
           if ( btyp10 - btyp10flg_uni == 0 .and. bkstp <= 4 ) then
+
+            flag_passage4 = 1
 
             ALLOCATE( qcflag_sfc (NELE_SFC,1,nte))
             ALLOCATE( qcflags_SFC(NELE_SFC,1) )
@@ -2477,7 +2482,7 @@ CONTAINS
         ELSE            
            ! Vertical coordinate not provided or not recognized.
            IF (NVAL.EQ.1) THEN
-              VCO=5 ! Initializes at surface point measurement
+              VCO=5 ! Initializes as surface point measurement
               DO il = 1, NELE
                  if ( obsvalue(il,1) .ne. PPMIS) then
                     if (liste_ele(il).EQ.15198.OR.liste_ele(il).EQ.15009.OR. &
@@ -2485,7 +2490,7 @@ CONTAINS
                         liste_ele(il).EQ.15024.OR.liste_ele(il).EQ.15200.OR. &
                         liste_ele(il).EQ.15001.OR.liste_ele(il).EQ.15005) then
                         
-                        VCO=4  ! Assumes this is total column measurement
+                        VCO=4  ! Assumes this is a total column measurement
                         exit
                     end if
                  end if

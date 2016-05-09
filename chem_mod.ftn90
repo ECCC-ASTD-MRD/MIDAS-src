@@ -100,7 +100,9 @@ module chem_mod
 ! -----------------
   integer, parameter :: chm_cfg_size=100           ! max size of config arrays
   integer, parameter :: chm_constituents_size=30   ! max size of constituents arrays
-
+                                                   ! = max allowed value of "iconstituent_id" for Table 08046.
+                                                   ! Value to be increased as needed up to a max of 6999 as values
+                                                   ! > 7000 (and less 0) are assumed assigned to non-constituent fields  
 
 ! module interfaces
 ! -----------------
@@ -253,7 +255,7 @@ module chem_mod
      !  apply_genoper          Indicates if the generalized observation operator should be applied
      !  column_bound           Boudary imporsed on a column measurement
      !  dtransform             Derivative for any transform that needs to be applied to a profile
-
+     
      integer :: nobslev,nmodlev,modelIndex,constituent_id,vco,varno,date,hhmm,iavgkern
      logical :: layer_identified,apply_genoper
      real(8) :: lat,lon,column_bound
@@ -339,20 +341,21 @@ module chem_mod
      !                               obsoper%column_bound set to zero.
      !                         Array index refers to BUFR code element of Table 08046 (iconstituent_id)
      !                         identifying the constituent. Relevant for total column measurements only.
-     !
+     !                         
      !  tropo_bound            Integer indicating which column top value to use if tropo_mode is non-zero.
      !                           0: Use fixed value of tropo_column_top
      !                           1: Use model determination of tropopause
      !                           2: Use model determination of PBL
      !                         Options 1 and 2 will default to the value set in tropo_column_top if the model
      !                         derived column top could not be determined. Relevant for total column measurements only.
-     !
+     !             
      !  tropo_column_top       Default value to use for the column boundary (in Pa). Array index refers to BUFR code
      !                         element of Table 08046 (iconstituent_id) identifying the constituent. 
      !                         Relevant for total column measurements only.
      !
-     !  obsdata_maxsize        Maximum size for struct_chm_obsdata arrays if not specified by other means
-     !                         
+     !  obsdata_maxsize        Max allowed size of work arrays (in terms of number of obs) associated to
+     !                         ordered observation indices
+     !
      !  low_cutoff             min value allowed for increments prior to storage in rebm expressed as a fraction
      !                         of the background field (generally < 1)
      !  high_cutoff            max value allowed for increments prior to storage in rebm expressed as a multiple
@@ -364,8 +367,8 @@ module chem_mod
      logical :: generalized_operator,diagn_save
      integer :: assim_num,tropo_mode(0:chm_constituents_size),tropo_bound(0:chm_constituents_size)
      integer :: assim_varno(chm_cfg_size),assim_nlev(chm_cfg_size)
+     integer :: obsdata_maxsize 
      integer :: transform(0:chm_constituents_size)
-     integer :: obsdata_maxsize
      character(len=9) :: assim_stnid(chm_cfg_size)
      real(8) :: diagn_pressmin
      real(8) :: amu(0:chm_constituents_size),tropo_column_top(0:chm_constituents_size)
@@ -389,8 +392,8 @@ module chem_mod
 
   type(struct_chm_obsdata) :: chm_column_boundary
 
-  ! File containing various warnings related to chemical constituents that
-  ! are not included in the listing file.
+! File containing various warnings related to chemical constituents that
+! are not included in the listing file.
   character(len=14), parameter :: chm_warnings_filename='chem_warnings_'
 
 
@@ -409,13 +412,13 @@ contains
 !          lobsSpaceData.
 !
 !----------------------------------------------------------------------------------------
-
-  implicit none
   
+  implicit none
+
   write(*,*) 'Begin chm_setup'
 
 ! Read miscellaneous flags and constants 
-    
+
   call chm_read_misc
       
 ! Read top and bottom layer boundaries of partial (or total) column meausurements
@@ -431,7 +434,7 @@ contains
   
 ! To deallocate space if required elsewhere, one should use
 ! call chm_dealloc_avgkern
-
+  
   write(*,*) 'Completed chm_setup'
   
   end subroutine chm_setup
@@ -516,7 +519,7 @@ contains
 !                              2: Use model determination of PBL
 !                            Options 1 and 2 will default to the value set in tropo_column_top if the model
 !                            derived column top could not be determined. Relevant for total column measurements only.
-!
+!                         
 !        tropo_column_top    Default value to use for the column boundary (in Pa). Array index refers to BUFR code
 !                            element of Table 08046 (iconstituent_id) identifying the constituent.
 !                            Relevant for total column measurements only.
@@ -524,6 +527,9 @@ contains
 !        amu                 Molecular mass  of constituents in g/moles (needed for unit conversions)
 !                            Array index refers to BUFR code element of Table 08046 (iconstituent_id)
 !                            identifying the constituent.
+!
+!        obsdata_maxsize     Max allowed size of work arrays (in terms of number of obs) associated to
+!                            ordered observation indices
 !
 !       low_cutoff           min value allowed for increments prior to storage in rebm expressed as a fraction
 !                            of the background field (generally < 1)
@@ -546,7 +552,7 @@ contains
   character(len=128) :: ligne  
   character(len=10)  :: namfile 
 
-  integer :: assim_num,diagn_num,diagn_nset
+  integer :: assim_num,diagn_num,diagn_nset,obsdata_maxsize
   integer :: assim_varno(chm_cfg_size),assim_nlev(chm_cfg_size)
   integer :: diagn_varno(chm_cfg_size),tropo_mode(0:chm_constituents_size),tropo_bound(0:chm_constituents_size)
   character(len=9) :: assim_stnid(chm_cfg_size),diagn_stnid(chm_cfg_size)
@@ -554,7 +560,7 @@ contains
   real(8) :: diagn_pressmin,tropo_column_top(0:chm_constituents_size)
   real(8) :: amu(0:chm_constituents_size)
   real(8) :: low_cutoff(0:chm_constituents_size),high_cutoff(0:chm_constituents_size)
-  integer :: transform(0:chm_constituents_size),obsdata_maxsize
+  integer :: transform(0:chm_constituents_size)
 
   EXTERNAL FNOM,FCLOS
 
@@ -564,14 +570,15 @@ contains
                      diagn_save,diagn_all,diagn_nset,diagn_pressmin, &
                      tropo_mode,tropo_bound,tropo_column_top,amu, &
                      low_cutoff,high_cutoff,transform,obsdata_maxsize
-  
+   
   ! Default NAMCHEM values
   
   genoper=.true.
+  obsdata_maxsize=90000
   low_cutoff(:)=0.1
   high_cutoff(:)=10.0
   transform(:)=0
-
+  
   assim_num=-1  
   assim_stnid(:)='*********'
   assim_varno(:)=0
@@ -589,8 +596,6 @@ contains
   tropo_mode(:) = 0
   tropo_bound(:) = 0
   tropo_column_top(:) = 0.0
-
-  obsdata_maxsize = 90000
 
   amu(:) = -1.0
   amu(0) = 48.0    ! Molecular mass in g/mole for O3
@@ -633,11 +638,11 @@ contains
   chm_config%tropo_bound = tropo_bound
   chm_config%tropo_column_top = tropo_column_top
   chm_config%amu = amu
+  chm_config%obsdata_maxsize = obsdata_maxsize
   chm_config%low_cutoff = low_cutoff
   chm_config%high_cutoff = high_cutoff
   chm_config%transform = transform
-  chm_config%obsdata_maxsize = obsdata_maxsize
-
+  
   ! Initialize chm_comboIDlist and add (stnid,varno) pairs from the namelist
 
   call chm_comboIdlist(initialize=.true., nset=diagn_nset, all_combos=diagn_all)
@@ -679,7 +684,7 @@ contains
   character (len=128) :: ligne
 
   EXTERNAL FNOM,FCLOS
-
+  
 ! Initialization
 
   chm_layers%n_stnid=0
@@ -870,6 +875,7 @@ contains
     END IF
 
   end subroutine chm_get_layer_boundaries
+
 
 !-----------------------------------------------------------------------------------------
 
@@ -1419,17 +1425,15 @@ contains
     integer, intent(in)           :: NLEV,VARNO
     real(8), intent(in)           :: ZLAT
     integer, intent(out)          :: ISTNID,JINT
-
     integer                       :: JN,ilen1,ilen2,ji,ibegin
 
- ! Important: Combination of STNID, BUFR element and number of vertical levels
+ !  Important: Combination of STNID, BUFR element and number of vertical levels
  !            to determine association to the observations.
 
  !            Find stnid with same number of vertical levels and same BUFR element.
  !            Note: * in chm_std%stnids stands for a wildcard
      
     ISTNID=0
-
     DO JN=1,chm_std%n_stnid
 
        ! First compare STNID values allowing for * and blanks in 
@@ -1563,7 +1567,7 @@ contains
        ELSE
           
           ! Adjust error standard deviations read from BURP file if requested.
-          
+
           sigma = obsdata_get_element(chm_burp_std(istnid), obsdata_get_loctime_code(zlon,zlat,idate,itime))
           
           IF (chm_std%std_type(ISTNID).EQ. 0) THEN
@@ -1634,6 +1638,9 @@ contains
 !
 ! Revision:  M. Sitwell, ARQI/AQRD, May 2015
 !            - Modified to read both 1D and 2D data from a report
+!            Y. Rochon, ARQI/AQRD, May 2016
+!            - Updated to increment 'icount' only if varno is also found in addition
+!              stnid, nlev, block_type and bkstp
 !
 ! Arguments:
 !
@@ -1686,15 +1693,15 @@ contains
 
     ! get number of reports in file
     Call BURP_Get_Property(brp, NRPTS=nrep)
-    
+
     ! allocate memory
     if (ndim.eq.1) then
        call obsdata_alloc(burp_out,nrep,dim1=nlev)
     else
        call obsdata_alloc(burp_out,nrep,dim1=nlev,dim2=nlev)
     end if
-
-    icount = 0  ! counter of reports with same stnid and number of levels as input 
+    
+    icount = 0  ! counter of reports with same stnid, number of levels, and varno as input 
     ref_rpt = 0
     
     ! loop through reports    
@@ -1719,15 +1726,17 @@ contains
           
           if (.not.IS_Burp_Btyp(trim(block_type),BLOCK=blk) .or. bkstp.ne.ref_bkstp .or. nval.ne.nlev) cycle BLOCKS
 
-          ! required block found if code reaches this point, retrieve data and store in burp_out
+          ivar = BURP_Find_Element(blk, ELEMENT=varno, IOSTAT=error)
+          if (ivar.lt.0) cycle BLOCKS
 
+          ! required block found if code reaches this point, retrieve data and store in burp_out
+                   
           icount=icount+1
           burp_out%code(icount) = obsdata_get_loctime_code(ilon,ilat,date,time)  ! this code is a unique identifier for this report
 
           if (ndim.eq.1) then
              ! retrieve 1D data
-             
-             ivar = BURP_Find_Element(blk, ELEMENT=varno, IOSTAT=error)
+
              iexp = BURP_Find_Element(blk, ELEMENT=8090, IOSTAT=error)
                 
              if (iexp.lt.0) then
@@ -1746,7 +1755,7 @@ contains
                    
           else if (ndim.eq.2) then
              ! retrieve 2D data
-             
+
              icol = 0
              do iele=1,nele
                 ivar = BURP_Get_Element(blk, INDEX=iele, IOSTAT=error)
@@ -1761,10 +1770,11 @@ contains
           end if
 
           exit BLOCKS
-
+          
        end do BLOCKS
+      
     end do REPORTS
-   
+
     ! resize first dimension of data arrays from length of nrep to icount
     call resize(burp_out%code,icount)
     if (ndim.eq.1) then
@@ -1772,6 +1782,7 @@ contains
     else if (ndim.eq.2) then
        call resize(burp_out%data2d,icount,nlev,nlev)
     end if
+
     burp_out%nrep = icount
     
     ! deallocate
@@ -1813,7 +1824,7 @@ contains
     
     obsdata%nrep = nrep
     obsdata%dim1 = dim1
-    
+
     if (present(dim2)) then
        obsdata%dim2 = dim2
        obsdata%ndim = 2
@@ -1883,16 +1894,16 @@ contains
     
     ! find (obsdata%irep,obsdata%idim1) for current observation
     call obsdata_set_index(obsdata,code)
-        
+     
     ! get element from data array at current position
     element = obsdata%data1d(obsdata%irep,obsdata%idim1)
-
+    
     ! increment position in data array
     if (obsdata%irep.eq.obsdata%nrep .and. obsdata%idim1.eq.obsdata%dim1) then
        obsdata%irep = 1
        obsdata%idim1 = 1
     else
-
+       
        if (obsdata%dim1.gt.1) then
           obsdata%idim1=obsdata%idim1+1
           if (obsdata%idim1.gt.obsdata%dim1) then
@@ -1996,7 +2007,7 @@ contains
 !           to reference the record that matches the input identifying code.
 !
 !  Author: Y. Rochon, ARQI/AQRD, Oct 2015
-!
+! 
 !  Revisions:
 !           M. Sitwell, April 2016
 !             - Changed function to use unique character string
@@ -2015,10 +2026,10 @@ contains
     type(struct_chm_obsdata), intent(inout) :: obsdata
     character(len=22), intent(in) :: code
     integer :: i
-     
+    
     if (obsdata%nrep.le.0) call abort3d("obsdata_set_index: No reports available.")
     i=0
-    
+ 
     ! Search for matching identifier code
     do while (obsdata%code(obsdata%irep).ne.code)
        obsdata%irep=obsdata%irep+1
@@ -2027,10 +2038,10 @@ contains
        if (i.gt.obsdata%nrep) &
             call abort3d("obsdata_set_index: Obs index not found for nrep = " // trim(str(obsdata%nrep)) // " and code = '" // code // "'" )
        i=i+1       
-    end do        
-
+    end do
+                     
   end subroutine obsdata_set_index
-
+    
 !-------------------------------------------------------------------------------------------
 
   function obsdata_get_loctime_code_i(ilon,ilat,date,time) result(code)
@@ -2051,7 +2062,7 @@ contains
 !           code          unique code
 ! 
 !-------------------------------------------------------------------------------------------
-    
+
     implicit none
 
     integer, intent(in) :: ilon,ilat,date,time
@@ -2186,7 +2197,7 @@ contains
     int2str = adjustl(int2str)
     
   end function int2str
-  
+            
 !-------------------------------------------------------------------------------------------
 
   character(len=20) function float2str(x)
@@ -2314,10 +2325,10 @@ contains
 !
 !   Output:
 !
-!       NListSize    Updated number of IDs
+!       NListSize    Updated number of IDs 
 !       IdList       Updated list of accumulated IDs.
 !       elemId       Index of id within List
-!        
+!     
 !-------------------------------------------------------------------------------------------
  
     implicit none
@@ -2345,6 +2356,7 @@ contains
         elemId=NListSize
         IdList(NListSize)=id
     end if
+    
     
   end subroutine chm_get_Id
 
@@ -2677,7 +2689,9 @@ contains
     if (dim1.gt.dim1_in) tmp(d1+1:dim1) = 0.0D0
     
     deallocate(arr)
+
     arr => tmp
+    
     nullify(tmp)
 
   end subroutine resize_1d_real
@@ -2707,13 +2721,15 @@ contains
     if (dim1.gt.dim1_in) tmp(d1+1:dim1) = 0
     
     deallocate(arr)
+
     arr => tmp
+    
     nullify(tmp)
 
   end subroutine resize_1d_int
 
 !-------------------------------------------------------------------------------------------
-
+  
   subroutine resize_1d_str(arr,dim1)
 !
 ! Author  : M. Sitwell  April 2016
@@ -2771,12 +2787,14 @@ contains
 
     allocate(tmp(dim1,dim2))
     tmp(1:d1,1:d2) = arr(1:d1,1:d2)
-    
+
     if (dim1.gt.dim1_in) tmp(d1+1:dim1,:) = 0.0D0
     if (dim2.gt.dim2_in) tmp(:,d2+1:dim2) = 0.0D0
       
     deallocate(arr)
+
     arr => tmp
+    
     nullify(tmp)
 
   end subroutine resize_2d_real
@@ -2812,9 +2830,11 @@ contains
     if (dim1.gt.dim1_in) tmp(d1+1:dim1,:,:) = 0.0D0
     if (dim2.gt.dim2_in) tmp(:,d2+1:dim2,:) = 0.0D0
     if (dim3.gt.dim3_in) tmp(:,:,d3+1:dim3) = 0.0D0
-
+    
     deallocate(arr)
+
     arr => tmp
+    
     nullify(tmp)
 
   end subroutine resize_3d_real
@@ -2890,7 +2910,7 @@ contains
     integer :: iconstituent_id
 
     iconstituent_id = chm_varnumFromVarname(varName)
-    if (iconstituent_id.lt.0) return
+    if (iconstituent_id.lt.0.or.iconstituent_id.gt.chm_constituents_size) return
     
     write(*,'(A,I2,A,I2,A,A)') "chm_apply_transform: applying transform number ",chm_config%transform(iconstituent_id), &
          " with mode = ",mode," for field ",trim(varName)
@@ -2980,16 +3000,23 @@ contains
 
 !-----------------------------------------------------------------------------------
  
-  function chm_varnumFromVarName(varName) result(varNumber)
+    function chm_varnumFromVarName(varName) result(varNumber)
 !
 !   Author: Y.J. Rochon (ARQI), Jan. 2016
 !
 !   Revisions:
 !
-!   Purpose: Identifies varNumber from varName 
-!          
+!   Purpose: Identifies varNumber from varName for use in assimilating obs in the CH family.
+! 
+!   IMPORTANT: varNumber is intended here to be associated to the field/variable (varName) and 
+!   not the observation units (BUFR number stored as OBS_VNM in obsSpaceData).
+!   In the assignments below, one varNumber is associated to each varName.
+!
+!   For NWP, there is a 1-1 association between sets of observation units and the variable(s).
+!   This is not the case for chemical assimilation as the same units can be associated
+!   to different obs fields. 
+!     
 !-----------------------------------------------------------------------------------
-
       use bufr
       implicit none
       character(len=*),  intent(in) :: varName
@@ -3010,7 +3037,10 @@ contains
       case('GZ')
         varNumber=BUFR_NEDZ
       case('HU')
-        varNumber=BUFR_NEHU
+!       Use table 08046 value of varNumber instead of that used for NWP when handling 'CH' observations
+!       as constituent obs.
+!        varNumber=BUFR_NEHU  
+        varNumber=BUFR_NECH_H2O
       case('P0')
         varNumber=BUFR_NEPS
       case('DW')
@@ -3020,6 +3050,8 @@ contains
               
       case('O3','TO3')
         varNumber=BUFR_NECH_O3
+      case('TH2O')
+        varNumber=BUFR_NECH_H2O
       case('TCH4')
         varNumber=BUFR_NECH_CH4
       case('TCO2')
@@ -3044,10 +3076,14 @@ contains
         varNumber=BUFR_NECH_PM10
         
       case default
-         write(*,*) 'chm_varnumFromVarName: Unknown variable name! ',varName
-         call abort3d('aborting in chm_varnumFromVarName')
+         call abort3d('chm_varnumFromVarName: Unknown variable name ' // trim(varName) )
       end select
 
+      if (varNumber.lt.7000.and.varNumber.gt.chm_constituents_size) then
+         ! Assume NWP fields have varNumber >=7000 and so constituent fields are to have varNumber < 7000.
+         call abort3d('chm_varnumFromVarName: chm_constituents_size less than ' // trim(str(varNumber)) // ' for ' // trim(varName) )         
+      end if
+      
     end function chm_varnumFromVarname
 
 !-----------------------------------------------------------------------------------
@@ -3070,7 +3106,7 @@ contains
 !
 ! In
 !
-!    varName          Field name (nomvar)
+!    varName        Field name (nomvar)
 !
 ! InOut
 !
@@ -3078,7 +3114,6 @@ contains
 !   bkgrnd_prt       pointer to statevector for the background (with same resolution as the increment)
 !
 !-----------------------------------------------------------------------------------
-
     implicit none
     
     character(len=*), intent(in) :: varName
@@ -3092,7 +3127,7 @@ contains
     integer, parameter :: unit=10
     
     iconstituent_id = chm_varnumFromVarname(varName)
-    if (iconstituent_id.lt.0) return
+    if (iconstituent_id.lt.0.or.iconstituent_id.gt.chm_constituents_size) return
 
     ! Open output file
     inquire(file=chm_warnings_filename, exist=file_exists)
@@ -3732,19 +3767,19 @@ contains
     real(8), optional, intent(in) :: uu(:),vv(:),hu(n_modlvl)
    
     real(8) :: bound_press
-        
+    
     bound_press = -1.
-
+    
     if (chm_config%tropo_mode(iconstituent_id).eq.0) return
-
+   
     if (chm_config%tropo_bound(iconstituent_id).gt.0) then
        if (.not.all(tt.lt.0.) .and. .not.all(gz.lt.0.) ) then
-
+    
           select case(chm_config%tropo_bound(iconstituent_id))
           case(1)
     
              ! Get tropopause pressure level
-          
+      
              if (present(hu)) then
                 bound_press = chm_get_tropopause(n_modlvl,pressmodlvl,tt,gz,hu=hu)
              else
@@ -3754,7 +3789,7 @@ contains
           case(2)
  
              ! Get PBL pressure level
-          
+      
              if (present(hu).and.present(uu).and.present(vv)) then
                 bound_press = chm_get_pbl(n_modlvl,pressmodlvl,tt,gz,hu=hu,uu=uu,vv=vv) 
              else if (present(hu)) then
@@ -3762,20 +3797,20 @@ contains
              else if (present(uu).and.present(vv)) then
                 bound_press = chm_get_pbl(n_modlvl,pressmodlvl,tt,gz,uu=uu,vv=vv) 
              end if
-
+      
           case default
              call abort3d("chm_get_col_boundary: Unrecognized value for chm_config%tropo_bound of " // trim(str(chm_config%tropo_bound(iconstituent_id))) )
           end select
-
-       end if
+                                     
+      end if     
     end if
-
+      
     ! Use tropo_column_top value if tropo_bound=0 or model derived boundary was unsuccessful
     if (bound_press.lt.0.0) &
          bound_press = chm_config%tropo_column_top(iconstituent_id)
       
   end function chm_get_col_boundary
-
+ 
 !----------------------------------------------------------------------------------------
 
   function chm_get_tropopause(n_modlvl,pressmodlvl,tt,gz,hu) result(tropo_press)
@@ -3811,12 +3846,11 @@ contains
     integer, intent(in) :: n_modlvl
     real(8), intent(in) :: pressmodlvl(n_modlvl),tt(n_modlvl),gz(n_modlvl)
     real(8), intent(in), optional :: hu(n_modlvl)
-
+   
     real(8) :: tropo_press
   
     integer :: itop,i,k,ilaps
     real(8) :: hu_ppmv1,hu_ppmv2,hu_ppmv3,xlaps,tropo_press_hu
-
     real(8), parameter :: press_min=6000.         ! Min tropoause pressure 60 hPa.; equivalent to ~ 20km
     real(8), parameter :: gz_min=6000.0           ! Min tropopause level in meters.
     real(8), parameter :: ppmv_threshold=10.0     
@@ -4146,23 +4180,23 @@ contains
     end if
 
   end function chm_get_pbl
-
+      
 !----------------------------------------------------------------------------------------
-
+ 
   subroutine chm_add_col_boundary(headerIndex,bound_press)
 !
 ! Author: M. Sitwell, ARQI/AQRD, April 2016
 !
 ! Purpose: Adds column boundary data to chm_column_boundary which can be retreived later
 !          using a header index.
-!
+! 
 !----------------------------------------------------------------------------------------
 
-    implicit none
-
+    implicit none 
+    
     integer, intent(in) :: headerIndex
     real(8), intent(in) :: bound_press
-
+    
     if (.not.associated(chm_column_boundary%data1d)) then
        call obsdata_alloc(chm_column_boundary, chm_config%obsdata_maxsize, dim1=1)
        chm_column_boundary%nrep = 0
@@ -4173,7 +4207,7 @@ contains
 
     if (chm_column_boundary%nrep.gt.chm_config%obsdata_maxsize) &
          call abort3d('chm_add_col_boundary: Reach max size of array ' // trim(str(chm_config%obsdata_maxsize)) )
-    
+  
     ! Use the header number as the unique code for this obs data
     write(chm_column_boundary%code(chm_column_boundary%nrep),'(I22)') headerIndex
 
@@ -4182,7 +4216,7 @@ contains
   end subroutine chm_add_col_boundary
 
 !----------------------------------------------------------------------------------------
-
+    
   function chm_retrieve_col_boundary(headerIndex) result(bound_press)
 !
 ! Author: M. Sitwell, ARQI/AQRD, April 2016
@@ -4278,14 +4312,14 @@ contains
 !                Can be modified internally - hence intent(inout) - even though
 !                these changes will not be needed outside this routine.
 !
-!     success    Indicates if the observation was successfully assimilated
+!     success   Indicates if the observation was successfully assimilated
 !
 ! Comments:
 !
 !     - When kmode=0, call from chm_observation_operators passes model_col as a pointer to
 !       obsoper%trial.
 !     - Does not yet account for potential future applications of obs 
-!       vertical correlation matrices.
+!        vertical correlation matrices.
 !        
 !-------------------------------------------------------------------------------------------
 
@@ -4294,7 +4328,7 @@ contains
 ! Declarations
 
 ! Structure to hold observation operator information
-
+    
   type(struct_chm_obsoperators), intent(inout) :: obsoper
 
 ! I/O arguments: obs space variables
@@ -4304,7 +4338,7 @@ contains
   logical, intent(inout) :: success(obsoper%nobslev)
 
 ! I/O arguments: model space profile data and others
-    
+
   real(8), intent(inout) :: model_col(obsoper%nmodlev), obs_col(obsoper%nobslev)
 
 ! Local variables
@@ -4324,7 +4358,7 @@ contains
   call chm_get_layer_boundaries(obsoper%stnid,obsoper%varno,obsoper%vco, &
        obsoper%nobslev,obsoper%pp(1),obsoper%pp(obsoper%nmodlev), &
        obsoper%layer_identified,obsoper%vlayertop,obsoper%vlayerbottom)
-
+            
 ! Identify observation operator based on observation units and presence or
 ! not of layer boundaries
 
@@ -4338,12 +4372,12 @@ contains
         obsoper%modelIndex=3
      end if
   else if (obsoper%layer_identified) then
-     ! Layer averaging operator
+      ! Layer averaging operator
      obsoper%modelIndex=2
-  else
-     ! Vertical interpolation operator
+  else    
+      ! Vertical interpolation operator
      obsoper%modelIndex=1
-  end if
+  end if  
 
 ! Indicates if the generalized innovation operator is to be applied.
 
@@ -4408,21 +4442,21 @@ contains
 !    Vertical interpolation operator
 
      call chm_vert_interp_operator(obsoper,press_obs,ixtr,success)
-     
+
 !  case(2)
 
 !    Layer averaging operator
 
-!     call chm_layer_avg_operator  ! see 3dvar_chem routine ch_vavg
+!    call chm_layer_avg_operator  ! see 3dvar_chem routine ch_vavg
 
-   case(3)
-
+      case(3)
+  
 !    Layer integration operator
 
      call chm_layer_integ_operator(obsoper,ixtr,success,kmode)
 
   end select
-
+  
 ! Apply averaging kernel if requested
 
   if (obsoper%iavgkern.gt.0) then
@@ -4459,8 +4493,7 @@ contains
   case(1)
 !
 !    Compute sqrt(diag(H*B*H^T))
-!
-     
+!     
      ! Apply unit conversion to observation operator
      do iobslev=1,obsoper%nobslev
         obsoper%zh(iobslev,:) = unit_conversion * obsoper%zh(iobslev,:)
@@ -4485,8 +4518,8 @@ contains
       model_col(:) = 0.0
 
       do iobslev=1,obsoper%nobslev
-         if (success(iobslev)) then
-            zwork(:)=0.0D0
+        if (success(iobslev)) then
+           zwork(:)=0.0D0
             zwork(obsoper%lvl_top(iobslev):obsoper%lvl_bot(iobslev)) = &
                  obs_col(iobslev)*obsoper%zh(iobslev,obsoper%lvl_top(iobslev):obsoper%lvl_bot(iobslev))
                 
@@ -4496,7 +4529,7 @@ contains
             model_col(obsoper%lvl_top(iobslev):obsoper%lvl_bot(iobslev)) = &
                  model_col(obsoper%lvl_top(iobslev):obsoper%lvl_bot(iobslev)) + &
                  zwork(obsoper%lvl_top(iobslev):obsoper%lvl_bot(iobslev))
-         end if
+        end if
       end do
       
   end select
@@ -4528,7 +4561,7 @@ contains
   end if
   
   end function chm_checkfor_integlayer
-
+   
 !-------------------------------------------------------------------------------------------
 
   subroutine chm_transform_profile(obsoper,increment_col,compute_dtransform)
@@ -4639,7 +4672,7 @@ contains
 !           - Moved nonlinear transformations into chm_transform_profile
 !
 ! Purpose: Set unit conversion factor for consistency of Hx units with obs units.  
-!
+! 
 ! Further changes required for generalization 
 !
 ! 1) May ultimately have two versions, with one called outside the minimization section. 
@@ -4694,7 +4727,7 @@ contains
 !                                                       = n*[m_air*0.001*Rd]*T
 !                                                       = nRT
 !
-!     C. List should be revised following changes to the 'tableburp' file.
+!      C. List should be revised following changes to the 'tableburp' file.
 !
 ! ---------------------------------------------------------------------------------------
 
@@ -4723,7 +4756,7 @@ contains
   else
      ppb_out = .false.
   end if
-
+      
   zcoef = 1.
   exp_T = 0   ! exponent of multiplicative factor obsoper%tt
   exp_P = 0   ! exponent of multiplicative factor obsoper%pp
@@ -4750,13 +4783,13 @@ contains
      zcoef = zcoef * 1.E9 * chm_config%amu(obsoper%constituent_id)/MPC_MOLAR_MASS_DRY_AIR_R8
 
   end if
-
+  
   ! Convert from ug/kg to desired unit if ppb_out = .false.
 
   if (.not.ppb_out) then
      select case (obsoper%varno)
      case(15198,15001,15005,15045) 
-
+      
         ! For conversion of ppb*dP integral to DU
         ! (integral in dP introduced later by the observation operator)
         !
@@ -4864,7 +4897,6 @@ contains
   end subroutine chm_convert_units
 
 !---------------------------------------------------------------------------------------
-
   function chm_required_field(varName,varno) result(needed)
 !
 ! Author:  M. Sitwell Dec 2015 
@@ -4943,7 +4975,7 @@ contains
 !
 !     obsoper  observation operator object
 !     success      success of integration
-!     ixtr         Modified ixtr as needed. 
+!     ixtr         Modified ixtr as needed.
 !
 !-----------------------------------------------------------------------------------------
 
@@ -4986,7 +5018,6 @@ contains
       
   end do
 
-
   ! Check for special treatment if chm_config%tropo_mode>=1, kmode=2,3, and nobslev=1 for
   ! column observations that extend to the surface.
    
@@ -4997,12 +5028,12 @@ contains
           call abort3d("chm_layer_integ_operator: Invalid constituent ID with value " // trim(str(obsoper%constituent_id)))
      
      vlayerbottom_ref=obsoper%vlayerbottom(1)
-     
+   
      if ( chm_config%tropo_mode(obsoper%constituent_id).ge.1 .and. obsoper%column_bound.gt.obsoper%vlayertop(1) ) then
-
+        
         if (obsoper%iavgkern.ne.0) &
              call abort3d("chm_layer_integ_operator: Use of averaging kernels not possible with reduced range of increment profile.")
-        
+ 
         if (kmode.eq.2.and.chm_config%tropo_mode(obsoper%constituent_id).eq.1) then
            
            ! When kmode=2, split calc in two. This is done due to difference in 
@@ -5051,7 +5082,7 @@ contains
       if (chm_config%tropo_mode(obsoper%constituent_id).eq.1.and.  &
          obsoper%column_bound.gt.obsoper%vlayertop(1).and. &
          vlayerbottom_ref.gt.obsoper%pp(obsoper%nmodlev)*0.99) then    
-          
+
          obsoper%vlayerbottom(1)=vlayerbottom_ref
          obsoper%lvl_bot(1)=lvl_bot_ref
       end if
@@ -5198,7 +5229,6 @@ contains
 !                                                related to resolution
 !
 !-----------------------------------------------------------------------------------------
-
       implicit none
 
       type(struct_chm_obsoperators), intent(inout) :: obsoper
@@ -5661,7 +5691,7 @@ contains
          call chm_corvert_mult(obsoper%varName,obsoper%zh(iobslev,1:obsoper%nmodlev),zhbh, &
                   obsoper%lvl_top(iobslev),obsoper%lvl_bot(iobslev),1,obsoper%nmodlev,1, &
                   lrgsig,obsoper%lat,lstart,3,rsig)
-
+            
          lstart=.false.         
 !
 !        Begin preparation of the new innovation operator w (=new zhp)
@@ -5675,7 +5705,7 @@ contains
 !           discretization issue from weakly affecting results at the boundaries.
 !
             work(1:obsoper%nmodlev)=obsoper%trial(1:obsoper%nmodlev)/rsig(1:obsoper%nmodlev,1) 
-         else 
+          else 
 
 !           Account for localized obs function (e.g. partial columns, Jacobians. For Jacobians,
 !           zhp must also be independent of the model layer thicknesses.)
@@ -5833,7 +5863,7 @@ contains
 !             write(6,*) 'NSIZE, NDIM2: ',nsize,ndim2
 !             call abort3d('CHM_corvert_mult: Inconsistent size')
 !         end if
-
+                                        
           if (present(rsig)) rsig(:,:)=rsig_local(:,:)
       else     
           if (.not.present(rsig).and.lrgsig) &

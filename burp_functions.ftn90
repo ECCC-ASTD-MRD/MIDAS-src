@@ -175,8 +175,10 @@
 !          - Generalized except for the assumption that if
 !            exponents are present, then they must be present
 !            for all obs and in the same sequential order.
-!          Y. Rochon, ARQI/AQRD, March 2016
+!          Y. Rochon, ARQI/AQRD, March/April 2016
 !          - Added consideration of HBHT (HPHT)
+!          - Avoid abort when 8090 present but not the mantissa as it could 
+!            have been filtered in READBURP.
 !
 !*    Purpose:  - Regenerate (or apply scaling of) the obs related value(s) 
 !                 by multiplying (or dividing) with 10^{expnt} 
@@ -234,58 +236,70 @@
 !       ========================================
 
         if (kk.gt.0) then
-           if (kk.ne.nlv/2) then
-               write(*,*) 'NLV/2 =',nlv/2,' Nexp=',kk
-               call abort3d('set_scal_chm: Inconsistent number of exponents')
-           else
-             if (kmode.eq.0) then
-               jj=0
-               DO J = RLN, NLV + RLN -1
-                  VARNO=obs_bodyElem_i(obsdat,OBS_VNM,j)
-                  IF (VARNO.ne.8090) THEN
-                    jj=jj+1
-                    obsv=obs_bodyElem_r(obsdat,OBS_VAR,j)
-                    call obs_bodySet_r(obsdat,OBS_VAR,j,obsv*10**(scal(jj)) )
-                  end if
-               END DO
-             else
+           if (kk.eq.nlv/2) then
+              if (kmode.eq.0) then
+                 jj=0
+                 DO J = RLN, NLV + RLN -1
+                    VARNO=obs_bodyElem_i(obsdat,OBS_VNM,j)
+                    IF (VARNO.ne.8090) THEN
+                      jj=jj+1
+                      obsv=obs_bodyElem_r(obsdat,OBS_VAR,j)
+                      call obs_bodySet_r(obsdat,OBS_VAR,j,obsv*10**(scal(jj)) )
+                    end if
+                 END DO
+              else
              
-!             Scale values
+!                Scale values
 
-              jj=0
-              DO J = RLN, NLV + RLN -1
-                 VARNO=obs_bodyElem_i(obsdat,OBS_VNM,j)
-                 IF (VARNO.ne.8090) THEN
-                   jj=jj+1
-                   obsv=obs_bodyElem_r(obsdat,OBS_VAR,j)
-                   vomp=obs_bodyElem_r(obsdat,OBS_OMP,j)
-                   voma=obs_bodyElem_r(obsdat,OBS_OMA,j)
-                   voer=obs_bodyElem_r(obsdat,OBS_OER,j)
-                   vhpht=obs_bodyElem_r(obsdat,OBS_HPHT,j)
-                   scale=10**(-scal(jj))
-                   call obs_bodySet_r(obsdat,OBS_VAR,j,obsv*scale )
-                   call obs_bodySet_r(obsdat,OBS_OMP,j,vomp*scale )
-                   call obs_bodySet_r(obsdat,OBS_OMA,j,voma*scale )
-                   call obs_bodySet_r(obsdat,OBS_OER,j,voer*scale )
-                   call obs_bodySet_r(obsdat,OBS_HPHT,j,vhpht*scale )
-                 END IF 
-              END DO
+                 jj=0
+                 DO J = RLN, NLV + RLN -1
+                    VARNO=obs_bodyElem_i(obsdat,OBS_VNM,j)
+                    IF (VARNO.ne.8090) THEN
+                      jj=jj+1
+                      obsv=obs_bodyElem_r(obsdat,OBS_VAR,j)
+                      vomp=obs_bodyElem_r(obsdat,OBS_OMP,j)
+                      voma=obs_bodyElem_r(obsdat,OBS_OMA,j)
+                      voer=obs_bodyElem_r(obsdat,OBS_OER,j)
+                      vhpht=obs_bodyElem_r(obsdat,OBS_HPHT,j)
+                      scale=10**(-scal(jj))
+                      call obs_bodySet_r(obsdat,OBS_VAR,j,obsv*scale )
+                      call obs_bodySet_r(obsdat,OBS_OMP,j,vomp*scale )
+                      call obs_bodySet_r(obsdat,OBS_OMA,j,voma*scale )
+                      call obs_bodySet_r(obsdat,OBS_OER,j,voer*scale )
+                      call obs_bodySet_r(obsdat,OBS_HPHT,j,vhpht*scale )
+                    END IF 
+                 END DO
 
-!             Store scaling exponents
+!                Store scaling exponents
               
-              jj=0
-              DO J = RLN, NLV + RLN -1
-                 VARNO=obs_bodyElem_i(obsdat,OBS_VNM,j)
-                 IF (VARNO.eq.8090) THEN
-                    jj=jj+1
-                    call obs_bodySet_r(obsdat,OBS_OMP,j,scal(jj))
-                    call obs_bodySet_r(obsdat,OBS_OMA,j,scal(jj))
-                    call obs_bodySet_r(obsdat,OBS_OER,j,scal(jj))
-                    call obs_bodySet_r(obsdat,OBS_HPHT,j,scal(jj))
-                 END IF 
-              END DO
+                 jj=0
+                 DO J = RLN, NLV + RLN -1
+                    VARNO=obs_bodyElem_i(obsdat,OBS_VNM,j)
+                    IF (VARNO.eq.8090) THEN
+                       jj=jj+1
+                       call obs_bodySet_r(obsdat,OBS_OMP,j,scal(jj))
+                       call obs_bodySet_r(obsdat,OBS_OMA,j,scal(jj))
+                       call obs_bodySet_r(obsdat,OBS_OER,j,scal(jj))
+                       call obs_bodySet_r(obsdat,OBS_HPHT,j,scal(jj))
+                    END IF 
+                 END DO
 
-             end if
+              end if 
+             
+           else
+!
+!             Skip over obs assuming mantissa was filtered out in READBURP 
+!             (not inserted in obsSpaceData) due to quality flags.
+!
+!             Set exponent quality flag to that of a 'Suspicious element' 
+!
+              do J = RLN, NLV + RLN -1
+                 call obs_bodySet_i(obsdat,OBS_FLG,j,  &
+                      ibset(obs_bodyElem_i(obsdat,OBS_FLG,j),04) )
+              end do
+!                     
+!             write(*,*) 'NLV =',nlv,' Nexp=',kk    
+!             call abort3d('set_scal_chm: Inconsistent number of exponents')
            end if
         end if
 !
@@ -295,9 +309,6 @@
       WRITE(*,*)' DONE SET_SCAL_CHM '
       RETURN
   END SUBROUTINE SET_SCAL_CHM
-
-
-  
 
 
   SUBROUTINE  ADJUST_SFVCOORD(obsdat,START,END)
