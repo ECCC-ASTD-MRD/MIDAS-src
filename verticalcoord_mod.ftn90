@@ -417,20 +417,20 @@ module verticalCoord_mod
   end subroutine vco_SetupFromFile
 
 
-  function vco_getNumLev(vco,varType) result(nlev)
+  function vco_getNumLev(vco,varLevel) result(nlev)
     implicit none
     type(struct_vco), pointer    :: vco
-    character(len=*), intent(in) :: varType
+    character(len=*), intent(in) :: varLevel
     integer                      :: nlev
 
-    if(varType.eq.'MM') then
+    if(varLevel.eq.'MM') then
       nlev = vco%nlev_M
-    elseif(varType.eq.'TH') then
+    elseif(varLevel.eq.'TH') then
       nlev = vco%nlev_T
-    elseif(varType.eq.'SF') then
+    elseif(varLevel.eq.'SF') then
       nlev = 1
     else
-      call abort3d('vco_getNumLev: Unknown variable type! ' // varType)
+      call abort3d('vco_getNumLev: Unknown variable type! ' // varLevel)
     endif
 
   end function vco_getNumLev

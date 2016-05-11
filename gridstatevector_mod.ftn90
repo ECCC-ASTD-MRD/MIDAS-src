@@ -56,7 +56,7 @@ MODULE gridStateVector_mod
 
   ! public entities accessed through inheritance
   public :: struct_vco, vco_SetupFromFile
-  public :: vnl_varnameFromVarnum, vnl_vartypeFromVarnum, vnl_vartypeFromVarname
+  public :: vnl_varnameFromVarnum, vnl_varLevelFromVarnum, vnl_varLevelFromVarname
   public :: vnl_numvarmax2d, vnl_numvarmax3d,vnl_numvarmax
   public :: vnl_varNameList2d, vnl_varNameList3d, vnl_varNameList
   public :: vgd_get,vgd_levels,vgd_ok,vgd_dpidpis,vgd_write
@@ -108,13 +108,13 @@ MODULE gridStateVector_mod
     end function gsv_varExist
 
 
-  function gsv_getNumLev(statevector,varType) result(nlev)
+  function gsv_getNumLev(statevector,varLevel) result(nlev)
     implicit none
     type(struct_gsv), intent(in)  :: statevector
-    character(len=*), intent(in)  :: varType
+    character(len=*), intent(in)  :: varLevel
     integer                       :: nlev
 
-    nlev = vco_getNumLev(statevector%vco,varType)
+    nlev = vco_getNumLev(statevector%vco,varLevel)
 
   end function gsv_getNumLev
 
@@ -279,7 +279,7 @@ MODULE gridStateVector_mod
     do jvar = 1, vnl_numvarmax3d
         if(ngexist(jvar)) then
           statevector%varOffset(jvar)=iloc
-          statevector%varNumLev(jvar)=gsv_getNumLev(statevector,vnl_vartypeFromVarname(vnl_varNameList(jvar)))
+          statevector%varNumLev(jvar)=gsv_getNumLev(statevector,vnl_varLevelFromVarname(vnl_varNameList(jvar)))
           iloc = iloc + statevector%varNumLev(jvar)
         endif
     enddo
@@ -1232,7 +1232,7 @@ MODULE gridStateVector_mod
     integer :: readLevPE(500)
     integer :: ini,inj,ig1,ig2,ig3,ig4
     character(len=4)  :: varName
-    character(len=2)  :: varType
+    character(len=2)  :: varLevel
     character(len=1)  :: clgrtyp
     logical :: FlipLatitude, doHorizInterp, doVertInterp, unitconversion2
     real(8), pointer :: field(:,:,:,:)
@@ -1309,23 +1309,26 @@ MODULE gridStateVector_mod
     field2dVV_interp_r4(:,:) = 0.0d0
 
     VARNAME_LOOP: do jvar = 0, vnl_numvarmax 
- 
+
       ! make sure that P0 is read first (needed for vertical interp)
-      if(jvar .eq. 0) then
+      if(jvar == 0) then
         varName = 'P0'
-      elseif(trim(vnl_varNameList(jvar)) .eq. 'P0') then
+      elseif(trim(vnl_varNameList(jvar)) == 'P0') then
         cycle VARNAME_LOOP
       else
         varName = trim(vnl_varNameList(jvar))
       endif
 
+      ! do not try to read diagnostic variables
+      if ( trim(vnl_varTypeFromVarname(varName)) == 'DIAG') cycle VARNAME_LOOP
+
       ! have to do UU and VV together when varName is UU
-      if(trim(varName).eq.'VV') cycle VARNAME_LOOP
+      if (trim(varName) == 'VV') cycle VARNAME_LOOP
 
       if (gsv_varExist(varName)) then
 
-        varType = vnl_vartypeFromVarname(varName)
-        nlev = vco_getNumLev(vco_file,varType)
+        varLevel = vnl_varLevelFromVarname(varName)
+        nlev = vco_getNumLev(vco_file,varLevel)
         if ( unitConversion2 ) then
           if ( trim(varName) == 'UU' .or. trim(varName) == 'VV') then
             factor_r4 = MPC_M_PER_S_PER_KNOT_R4 ! knots -> m/s
@@ -1347,7 +1350,7 @@ MODULE gridStateVector_mod
 
         allocate(field3d_tile(statevector%myLonBeg:statevector%myLonEnd,nlev, &
                               statevector%myLatBeg:statevector%myLatEnd))
-        if(trim(varName).eq.'UU') then
+        if(trim(varName) == 'UU') then
           allocate(field3dVV_tile(statevector%myLonBeg:statevector%myLonEnd,nlev, &
                                   statevector%myLatBeg:statevector%myLatEnd))
         endif
@@ -1356,23 +1359,23 @@ MODULE gridStateVector_mod
         ! distributing onto horizontal tiles as we go
         do jlev = 1, nlev
             
-          if(mpi_myid.eq.readLevPE(jlev)) then
+          if(mpi_myid == readLevPE(jlev)) then
 
-            if(varType.eq.'MM') then
-              ip1 = statevector%vco%ip1_M(jlev)
-            elseif(varType.eq.'TH') then
-              ip1 = statevector%vco%ip1_T(jlev)
-            elseif(varType.eq.'SF') then
+            if(varLevel == 'MM') then
+              ip1 = vco_file%ip1_M(jlev)
+            elseif(varLevel == 'TH') then
+              ip1 = vco_file%ip1_T(jlev)
+            elseif(varLevel == 'SF') then
               ip1 = -1
             else
-              call abort3d('gsv_readFromFile: unknown varType')
+              call abort3d('gsv_readFromFile: unknown varLevel')
             endif
 
             ierr=fstlir(field2d_file_r4(:,:),nulfile,ni,nj,nk,  &
                         statevector%datestamplist(indexStep),etiket_in,ip1,-1,-1,  &
                         typvar_in,varName)
 
-            if(trim(varName).eq.'UU') then
+            if(trim(varName) == 'UU') then
               ierr=fstlir(field2dVV_file_r4(:,:),nulfile,ni,nj,nk,  &
                           statevector%datestamplist(indexStep),etiket_in,ip1,-1,-1,  &
                           typvar_in,'VV')
@@ -1386,7 +1389,7 @@ MODULE gridStateVector_mod
             if(doHorizInterp) then
               ! horizontal interpolation
               ierr = ezdefset(target_gid, hco_file%EZscintID)
-              if(trim(varName).eq.'UU') then
+              if(trim(varName) == 'UU') then
                 ! interpolate both wind components
                 ierr = ezuvint(field2d_interp_r4, field2dVV_interp_r4,   &
                                field2d_file_r4, field2dVV_file_r4) 
@@ -1396,7 +1399,7 @@ MODULE gridStateVector_mod
               endif
             else
               field2d_interp_r4(:,:) = field2d_file_r4(:,:)
-              if(trim(varName).eq.'UU') then
+              if(trim(varName) == 'UU') then
                 field2dVV_interp_r4(:,:) = field2dVV_file_r4(:,:)
               endif
             endif
@@ -1412,7 +1415,7 @@ MODULE gridStateVector_mod
                 end do
               end do
 !$OMP END PARALLEL DO
-              if(trim(varName).eq.'UU') then
+              if(trim(varName) == 'UU') then
 !$OMP PARALLEL DO PRIVATE (jlon,jlat,temp_r4)
                 do jlon = 1, statevector%hco%ni
                   do jlat = 1, statevector%hco%nj/2
@@ -1425,7 +1428,7 @@ MODULE gridStateVector_mod
               endif
             else
               field2d_interp_r4(:,:) = factor_r4 * field2d_interp_r4(:,:)
-              if(trim(varName).eq.'UU') then
+              if(trim(varName) == 'UU') then
                 field2dVV_interp_r4(:,:) = factor_r4 * field2dVV_interp_r4(:,:)
               endif
             end if
@@ -1433,7 +1436,7 @@ MODULE gridStateVector_mod
           endif ! if readLevel
 
           ! do mpi communication
-          if(readLevPE(jlev).eq.(mpi_nprocs-1) .or. jlev.eq.nlev) then
+          if(readLevPE(jlev) == (mpi_nprocs-1) .or. jlev == nlev) then
             batchnum = ceiling(dble(jlev)/dble(mpi_nprocs))
 
 !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
@@ -1464,7 +1467,7 @@ MODULE gridStateVector_mod
             enddo
 !$OMP END PARALLEL DO
 
-            if(trim(varName).eq.'UU') then
+            if(trim(varName) == 'UU') then
 
 !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
               do youridy = 0, (mpi_npey-1)
@@ -1499,7 +1502,7 @@ MODULE gridStateVector_mod
 
         enddo ! jlev (now all levels read and distributed onto tiles)
 
-        if (trim(varName).eq.'P0') then
+        if (trim(varName) == 'P0') then
           allocate(psfc_tile(statevector%myLonBeg:statevector%myLonEnd, &
                               statevector%myLatBeg:statevector%myLatEnd))
           psfc_tile(:,:) = field3d_tile(:,1,:)
@@ -1511,7 +1514,7 @@ MODULE gridStateVector_mod
           if (doVertInterp) then
             if(associated(psfc_tile)) then
               call gsv_vint(vco_file,field3d_tile,psfc_tile,statevector,varName,indexStep)
-              if(trim(varName).eq.'UU') then
+              if(trim(varName) == 'UU') then
                 call gsv_vint(vco_file,field3dVV_tile,psfc_tile,statevector,'VV',indexStep)
                 deallocate(field3dVV_tile)
               endif
@@ -1520,11 +1523,13 @@ MODULE gridStateVector_mod
             endif
           else
             field => gsv_getField(statevector,varName)
+            field(:,:,:,:) = 0.0d0
             field(statevector%myLonBeg:statevector%myLonEnd,1:nlev, &
                   statevector%myLatBeg:statevector%myLatEnd,indexStep) =  &
                                             field3d_tile(:,1:nlev,:)
-            if(trim(varName).eq.'UU') then
+            if(trim(varName) == 'UU') then
               field => gsv_getField(statevector,'VV')
+              field(:,:,:,:) = 0.0d0
               field(statevector%myLonBeg:statevector%myLonEnd,1:nlev, &
                     statevector%myLatBeg:statevector%myLatEnd,indexStep) =  &
                                               field3dVV_tile(:,1:nlev,:)
@@ -1534,6 +1539,7 @@ MODULE gridStateVector_mod
         else
           ! 2D fields
           field => gsv_getField(statevector,varName)
+          field(:,:,:,:) = 0.0d0
           field(statevector%myLonBeg:statevector%myLonEnd,1, &
                 statevector%myLatBeg:statevector%myLatEnd,indexStep) =  &
                                           field3d_tile(:,1,:)
@@ -1590,7 +1596,7 @@ MODULE gridStateVector_mod
 
     ! define pressures on input and output levels
     ! NOTE: order of arguments for pres_in/out is (lon,lat,lev)
-    if(vnl_vartypeFromVarname(varName).eq.'TH') then
+    if(vnl_varLevelFromVarname(varName) == 'TH') then
       status=vgd_levels(vco_in%vgrid,           &
                         ip1_list=vco_in%ip1_T,  &
                         levels=pres_in,         &
@@ -1620,8 +1626,9 @@ MODULE gridStateVector_mod
 
     ! do the vertical interpolation
     field_out => gsv_getField(statevector_out,varName)
-    nlev_out = vco_getNumLev(statevector_out%vco, vnl_vartypeFromVarname(varName))
-    nlev_in  = vco_getNumLev(vco_in,              vnl_vartypeFromVarname(varName))
+    field_out(:,:,:,:) = 0.0d0
+    nlev_out = vco_getNumLev(statevector_out%vco, vnl_varLevelFromVarname(varName))
+    nlev_in  = vco_getNumLev(vco_in,              vnl_varLevelFromVarname(varName))
     do jlat = statevector_out%myLatBeg, statevector_out%myLatEnd
       jlat2 = jlat - statevector_out%myLatBeg + 1
       do jlon = statevector_out%myLonBeg, statevector_out%myLonEnd
@@ -1772,7 +1779,7 @@ MODULE gridStateVector_mod
       endif
 
       !- Write TicTacToc
-      if(mpi_myid.eq.0) call WriteTicTacToc(statevector,nulfile) ! IN
+      if(mpi_myid == 0) call WriteTicTacToc(statevector,nulfile) ! IN
 
     endif
 
@@ -1785,7 +1792,7 @@ MODULE gridStateVector_mod
       if (gsv_varExist(vnl_varNameList(jvar)) ) then
         field => gsv_getField(statevector,vnl_varNameList(jvar))
 
-        nlev = gsv_getNumLev(statevector,vnl_vartypeFromVarname(vnl_varNameList(jvar)))
+        nlev = gsv_getNumLev(statevector,vnl_varLevelFromVarname(vnl_varNameList(jvar)))
 
         allocate(work3d(statevector%myLonBeg:statevector%myLonEnd,nlev, &
                         statevector%myLatBeg:statevector%myLatEnd))
@@ -1837,7 +1844,7 @@ MODULE gridStateVector_mod
           if (iDoWriting.and.jlev.le.nlev) then
 
             if (nlev /= 1) then
-              if (vnl_vartypeFromVarname(vnl_varNameList(jvar)) == 'MM') then
+              if (vnl_varLevelFromVarname(vnl_varNameList(jvar)) == 'MM') then
                 ip1 = statevector%vco%ip1_M(jlev)
               else
                 ip1 = statevector%vco%ip1_T(jlev)

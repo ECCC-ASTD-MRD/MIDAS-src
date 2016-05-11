@@ -14,6 +14,17 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
+!--------------------------------------------------------------------------
+! MODULE varNameList (prefix="vnl")
+!
+! Purpose: To store info related to GEM variables used in VAR
+!
+! Functions:
+!
+! Dependencies:
+!    bufr
+!--------------------------------------------------------------------------
+
 module varNameList_mod
   use bufr
   implicit none
@@ -21,34 +32,50 @@ module varNameList_mod
   private
 
   ! public variables (parameters)
-  public :: vnl_numvarmax3D,vnl_numvarmax2D,vnl_numvarmax,vnl_varNameList3D,vnl_varNameList2D,vnl_varNameList
+  public :: vnl_numvarmax3D, vnl_numvarmax2D, vnl_numvarmax
+  public :: vnl_varNameList3D, vnl_varNameList2D, vnl_varNameList
+
   ! public procedures
-  public :: vnl_varListIndex3d,vnl_varListIndex2d,vnl_varListIndex,vnl_varnameFromVarnum
-  public :: vnl_vartypeFromVarname,vnl_vartypeFromVarnum
+  public :: vnl_varListIndex3d, vnl_varListIndex2d, vnl_varListIndex, vnl_varnameFromVarnum
+  public :: vnl_varLevelFromVarname, vnl_varLevelFromVarnum, vnl_varTypeFromVarname
 
-
-  integer, parameter          :: vnl_numvarmax3D=25,vnl_numvarmax2D=4
+  integer, parameter          :: vnl_numvarmax3D=25, vnl_numvarmax2D=4
 
   character(len=4), parameter :: vnl_varNameList3D(vnl_numvarmax3D) = (/                         &
                                  'UU  ','VV  ','GZ  ','TT  ','HU  ','LQ  ','ES  ','VT  ',        &
                                  'PP  ','CC  ','UC  ','UT  ','TB  ','DW  ','QR  ','DD  ',        &
                                  'O3  ','CH4 ','CO2 ','CO  ','NO2 ','N2O ','HCHO','SO2 ','NH3 '/)
 
-  character(len=2), parameter :: varTypeList3D(vnl_numvarmax3D)     = (/                         &
-                                 'MM',  'MM',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',          &
-                                 'MM',  'MM',  'MM',  'TH',  'TH',  'TH',  'MM',  'MM',          &
+  character(len=2), parameter :: varLevelList3D(vnl_numvarmax3D)     = (/                         &
+                                 'MM',  'MM',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',           &
+                                 'MM',  'MM',  'MM',  'TH',  'TH',  'TH',  'MM',  'MM',           &
                                  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH'/)
 
-  character(len=4), parameter :: vnl_varNameList2D(vnl_numvarmax2D) = (/'P0  ','TG  ','UP  ','PB  '/)
+  character(len=5), parameter :: varTypeList3D(vnl_numvarmax3D)     = (/                                  &
+                                 'MODEL', 'MODEL', 'MODEL', 'MODEL', 'MODEL', 'DIAG ', 'DIAG ', 'DIAG ',  &
+                                 'DIAG ', 'DIAG ', 'DIAG ', 'DIAG ', 'DIAG ', 'DIAG ', 'DIAG ', 'DIAG ',  &
+                                 'MODEL', 'MODEL', 'MODEL', 'MODEL', 'MODEL', 'MODEL', 'MODEL', 'MODEL', 'MODEL'/)
 
-  character(len=2), parameter :: varTypeList2D(vnl_numvarmax2D) = (/'SF',  'SF',  'SF',  'SF'/)
+  character(len=4), parameter :: vnl_varNameList2D(vnl_numvarmax2D) = (/ &
+                                 'P0  ','TG  ','UP  ','PB  '/)
 
-  integer, parameter          :: vnl_numvarmax=vnl_numvarmax3D+vnl_numvarmax2D
+  character(len=2), parameter :: varLevelList2D(vnl_numvarmax2D) = (/    &
+                                 'SF',  'SF',  'SF',  'SF'/)
+
+  character(len=5), parameter :: varTypeList2D(vnl_numvarmax2D) = (/     &
+                                 'MODEL', 'MODEL', 'DIAG ', 'DIAG '/)
+
+  integer, parameter          :: vnl_numvarmax = vnl_numvarmax3D + vnl_numvarmax2D
+
   character(len=4), parameter :: vnl_varNameList(vnl_numvarmax) = (/ vnl_varNameList3D, vnl_varNameList2D /)
-  character(len=2), parameter :: varTypeList(vnl_numvarmax) = (/ varTypeList3D, varTypeList2D /)
+  character(len=2), parameter :: varLevelList   (vnl_numvarmax) = (/ varLevelList3D   , varLevelList2D    /)
+  character(len=5), parameter :: varTypeList    (vnl_numvarmax) = (/ varTypeList3D    , varTypeList2D     /)
 
   contains
 
+    !--------------------------------------------------------------------------
+    ! vnl_varListIndex3d
+    !--------------------------------------------------------------------------
     function vnl_varListIndex3d(varName) result(listIndex)
       implicit none
       character(len=*), intent(in) :: varName
@@ -68,7 +95,9 @@ module varNameList_mod
 
     end function vnl_varListIndex3d
 
-
+    !--------------------------------------------------------------------------
+    ! vnl_varListIndex2d
+    !--------------------------------------------------------------------------
     function vnl_varListIndex2d(varName) result(listIndex)
       implicit none
       character(len=*), intent(in) :: varName
@@ -88,7 +117,9 @@ module varNameList_mod
 
     end function vnl_varListIndex2d
 
-
+    !--------------------------------------------------------------------------
+    ! vnl_varListIndex
+    !--------------------------------------------------------------------------
     function vnl_varListIndex(varName) result(listIndex)
       implicit none
       character(len=*), intent(in) :: varName
@@ -108,7 +139,9 @@ module varNameList_mod
 
     end function vnl_varListIndex
 
-
+    !--------------------------------------------------------------------------
+    ! vnl_varnameFromVarnum
+    !--------------------------------------------------------------------------
     function vnl_varnameFromVarnum(varNumber,varTrNumber) result(varName)
       implicit none
       integer, intent(in) :: varNumber
@@ -168,24 +201,28 @@ module varNameList_mod
 
     end function vnl_varnameFromVarnum
 
-
-    function vnl_vartypeFromVarname(varName) result(varType)
+    !--------------------------------------------------------------------------
+    ! vnl_varLevelFromVarname
+    !--------------------------------------------------------------------------
+    function vnl_varLevelFromVarname(varName) result(varLevel)
       implicit none
 
       character(len=*), intent(in)   :: varName
-      character(len=2)               :: varType
+      character(len=2)               :: varLevel
 
-      varType = varTypeList(vnl_varListIndex(varName))
+      varLevel = varLevelList(vnl_varListIndex(varName))
 
-    end function vnl_vartypeFromVarname
+    end function vnl_varLevelFromVarname
 
-
-    function vnl_vartypeFromVarnum(varNumber,varTrNumber) result(varType)
+    !--------------------------------------------------------------------------
+    ! vnl_varLevelFromVarnum
+    !--------------------------------------------------------------------------
+    function vnl_varLevelFromVarnum(varNumber,varTrNumber) result(varLevel)
       implicit none
 
       integer, intent(in)           :: varNumber
       integer, intent(in), optional :: varTrNumber
-      character(len=2)              :: varType
+      character(len=2)              :: varLevel
       character(len=4)              :: varName
 
       if (present(varTrNumber)) then      
@@ -193,9 +230,21 @@ module varNameList_mod
       else 
          varName = vnl_varnameFromVarnum(varNumber)
       endif 
+      varLevel = varLevelList(vnl_varListIndex(varName))
+
+    end function vnl_varLevelFromVarnum
+
+    !--------------------------------------------------------------------------
+    ! vnl_varTypeFromVarname
+    !--------------------------------------------------------------------------
+    function vnl_varTypeFromVarname(varName) result(varType)
+      implicit none
+
+      character(len=*), intent(in)   :: varName
+      character(len=5)               :: varType
+
       varType = varTypeList(vnl_varListIndex(varName))
 
-    end function vnl_vartypeFromVarnum
-
+    end function vnl_varTypeFromVarname
 
 end module varNameList_mod

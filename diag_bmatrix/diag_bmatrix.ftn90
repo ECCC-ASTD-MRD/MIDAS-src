@@ -185,7 +185,7 @@ program diag_bmatrix
                  cvm_vazx(:)=0.0d0
                  do jnj = statevector%myLatBeg,statevector%myLatEnd
                     rwtinv = real(statevector%ni,8)/gaus_rwt(jnj)
-                    do jnk = 1,gsv_getNumLev(statevector,vnl_vartypeFromVarname(vnl_varNameList(ivar)))
+                    do jnk = 1,gsv_getNumLev(statevector,vnl_varLevelFromVarname(vnl_varNameList(ivar)))
                        do jni = 1, statevector%ni
                           field(jni,jnk,jnj) = field(jni,jnk,jnj)*rwtinv
                        enddo

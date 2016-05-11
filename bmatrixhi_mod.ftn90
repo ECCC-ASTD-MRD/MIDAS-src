@@ -1768,7 +1768,7 @@ CONTAINS
 
     do jvar = 1, inbrvar3d
       clnomvar = varName3d(jvar)
-      if(vnl_varTypeFromVarName(clnomvar).eq.'MM') then
+      if(vnl_varLevelFromVarName(clnomvar).eq.'MM') then
         nlev_MT = nlev_M
       else
         nlev_MT = nlev_T
@@ -1934,14 +1934,14 @@ CONTAINS
     !write(*,*) 'Reading 3D variables'
     do jvar = 1, inbrvar3d
       clnomvar = varName3d(jvar)
-      if(vnl_varTypeFromVarName(clnomvar).eq.'MM') then
+      if(vnl_varLevelFromVarName(clnomvar).eq.'MM') then
         nlev_MT = nlev_M
       else
         nlev_MT = nlev_T
       endif
       !write(*,*)'Reading ',clnomvar
       do jlevo = 1, nlev_MT
-        if(vnl_varTypeFromVarName(clnomvar).eq.'MM') then
+        if(vnl_varLevelFromVarName(clnomvar).eq.'MM') then
           ip1 = vco_anl%ip1_M(jlevo)
         else
           ip1 = vco_anl%ip1_T(jlevo)
@@ -2080,7 +2080,7 @@ CONTAINS
     do jvar = 1, inbrvar3d
       clnomvar = varName3d(jvar)
       write(*,*)'Reading ',clnomvar
-      if(vnl_varTypeFromVarName(clnomvar).eq.'MM') then
+      if(vnl_varLevelFromVarName(clnomvar).eq.'MM') then
         nlev_MT = nlev_M
       else
         nlev_MT = nlev_T
@@ -2413,7 +2413,7 @@ CONTAINS
         else
           call abort3d('bmatrixhi_mod: copyToStatevector: No covariances available for variable:' // vnl_varNameList(jvar))
         endif
-        ilev2 = ilev1 - 1 + gsv_getNumLev(statevector,vnl_vartypeFromVarname(vnl_varNameList(jvar)))
+        ilev2 = ilev1 - 1 + gsv_getNumLev(statevector,vnl_varLevelFromVarname(vnl_varNameList(jvar)))
 !!!$OMP PARALLEL DO PRIVATE(jlat,jlev,jlev2,jlon)
         do jlat = myLatBeg, myLatEnd
           do jlev = ilev1, ilev2
@@ -2455,7 +2455,7 @@ CONTAINS
         else
           call abort3d('bmatrixhi_mod: copyFromStatevector: No covariances available for variable:' // vnl_varNameList(jvar))
         endif
-        ilev2 = ilev1 - 1 + gsv_getNumLev(statevector,vnl_vartypeFromVarname(vnl_varNameList(jvar)))
+        ilev2 = ilev1 - 1 + gsv_getNumLev(statevector,vnl_varLevelFromVarname(vnl_varNameList(jvar)))
 !!!$OMP PARALLEL DO PRIVATE(jlat,jlev,jlev2,jlon)
         do jlat = myLatBeg, myLatEnd
           do jlev = ilev1, ilev2

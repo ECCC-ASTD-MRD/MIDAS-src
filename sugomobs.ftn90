@@ -681,7 +681,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
 !--------------------------------------------------------------------------------
   CONTAINS
 
-    subroutine readTrialField(varInterphr_MT,varInterphr_VV,varName_in,varType,noUpperGZ)
+    subroutine readTrialField(varInterphr_MT,varInterphr_VV,varName_in,varLevel,noUpperGZ)
       !
       ! s/r readTrialField
       !
@@ -691,7 +691,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
       !
       implicit none
       character(len=*) :: varName_in
-      character(len=*) :: varType
+      character(len=*) :: varLevel
       character(len=4) :: varName
       logical, optional :: noUpperGZ
       real*8 :: varInterphr_MT(:,:),varInterphr_VV(:,:)
@@ -721,7 +721,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
         varName=varName_in
       endif
 
-      nlevel = col_getNumLev(columnhr,varType)
+      nlevel = col_getNumLev(columnhr,varLevel)
 
       !
       ! Check if too few GZ levels are in file, if so then just read surface
@@ -794,14 +794,14 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
             if(trim(varName).eq.'GZ'.and.jlev.eq.nlevel) then
               ! use surface level IP1 for GZ (essential for Vcode=5005)
               IIP1 = vco_trl%ip1_sfc
-            elseif(varType.eq.'MM') then
+            elseif(varLevel.eq.'MM') then
               IIP1 = vco_trl%ip1_M(jlev)
-            elseif(varType.eq.'TH') then
+            elseif(varLevel.eq.'TH') then
               IIP1 = vco_trl%ip1_T(jlev)
-            elseif(varType.eq.'SF') then
+            elseif(varLevel.eq.'SF') then
               IIP1 = -1
             else
-              call abort3d('SUGOMOBS: unknown varType')
+              call abort3d('SUGOMOBS: unknown varLevel')
             endif
 
             if(trim(varName).eq.'GZ'.and.present(noUpperGZ)) then

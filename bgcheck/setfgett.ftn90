@@ -36,7 +36,7 @@
       INTEGER J,INDEX_BODY
       REAL*8 ZWB,ZWT
       REAL*8 ZLEV,ZPB,ZPT
-      character(len=2) :: varType
+      character(len=2) :: varLevel
 
       ! loop over all body rows
       BODY: do index_body=1,obs_numbody(lobsSpaceData)
@@ -50,8 +50,8 @@
             IF ( (obs_bodyElem_i(lobsSpaceData,OBS_XTR,index_body) .NE. 0) .and.    &
                  (obs_bodyElem_i(lobsSpaceData,OBS_VCO,index_body) .EQ. 2) ) THEN
                ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,index_body)
-               varType = vnl_varTypeFromVarnum(ityp)
-               IK=col_getNumLev(lcolumng,varType)-1
+               varLevel = vnl_varLevelFromVarnum(ityp)
+               IK=col_getNumLev(lcolumng,varLevel)-1
                INDEX_HEADER = obs_bodyElem_i(lobsSpaceData,OBS_HIND,index_body)
                IPT  = IK + col_getOffsetFromVarno(lcolumng,ityp)
                IPB  = IPT +1
@@ -63,9 +63,9 @@
                IPT  = IK
                IPB  = IPT+1
                ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,index_body)
-               varType = vnl_varTypeFromVarnum(ityp)
-               ZPT  = col_getPressure(lcolumng,IK,INDEX_HEADER,varType)
-               ZPB  = col_getPressure(lcolumng,IK+1,INDEX_HEADER,varType)
+               varLevel = vnl_varLevelFromVarnum(ityp)
+               ZPT  = col_getPressure(lcolumng,IK,INDEX_HEADER,varLevel)
+               ZPB  = col_getPressure(lcolumng,IK+1,INDEX_HEADER,varLevel)
                ZWB  = LOG(ZLEV/ZPT)/LOG(ZPB/ZPT)
                ZWT  = 1.0D0 - ZWB
 !

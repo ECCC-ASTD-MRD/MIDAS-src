@@ -955,7 +955,7 @@ module calcbmatrix_glb_mod
           end if
           open (unit=99,file=outfilename,action="write",status="new")
 
-          if (vnl_varTypeFromVarName(nomvar3d(jvar1,variableType)).eq.'MM') then
+          if (vnl_varLevelFromVarName(nomvar3d(jvar1,variableType)).eq.'MM') then
              nLevEns1 = nLevEns_M
           else
              nLevEns1 = nLevEns_T
@@ -963,7 +963,7 @@ module calcbmatrix_glb_mod
           nLevStart1 = varLevOffset(jvar1)+ 1 
           nLevEnd1   = varLevOffset(jvar1)+ nLevEns1
 
-          if (vnl_varTypeFromVarName(nomvar3d(jvar2,variableType)).eq.'MM') then
+          if (vnl_varLevelFromVarName(nomvar3d(jvar2,variableType)).eq.'MM') then
              nLevEns2 = nLevEns_M
           else
              nLevEns2 = nLevEns_T
@@ -1045,7 +1045,7 @@ module calcbmatrix_glb_mod
 
     ! do 3d variables
     do jvar=1,nvar3d
-      if(vnl_varTypeFromVarName(nomvar3d(jvar,cvSpace)).eq.'MM') then
+      if(vnl_varLevelFromVarName(nomvar3d(jvar,cvSpace)).eq.'MM') then
         nLevEns = nLevEns_M
         nip1_l(1:nLevEns_M)=nip1_M(1:nLevEns_M)
       else
@@ -2493,7 +2493,7 @@ module calcbmatrix_glb_mod
        end if
        open (unit=99,file=outfilename,action="write",status="new")
 
-       if(vnl_varTypeFromVarName(nomvar3d(jvar,variableType)).eq.'MM') then
+       if(vnl_varLevelFromVarName(nomvar3d(jvar,variableType)).eq.'MM') then
           nLevEns = nLevEns_M
        else
           nLevEns = nLevEns_T
@@ -2562,7 +2562,7 @@ module calcbmatrix_glb_mod
     ! do 3d variables
     do jvar = 1, nvar3d
 
-      if(vnl_varTypeFromVarName(nomvar3d(jvar,variableType)).eq.'MM') then
+      if(vnl_varLevelFromVarName(nomvar3d(jvar,variableType)).eq.'MM') then
         nLevEns = nLevEns_M
         nip1_l(1:nLevEns_M)=nip1_M(1:nLevEns_M)
       else
@@ -2675,7 +2675,7 @@ module calcbmatrix_glb_mod
        end if
        open (unit=99,file=outfilename,action="write",status="new")
 
-       if(vnl_varTypeFromVarName(nomvar3d(jvar,variableType)).eq.'MM') then
+       if(vnl_varLevelFromVarName(nomvar3d(jvar,variableType)).eq.'MM') then
           nLevEns = nLevEns_M
           PressureProfile => pressureProfile_M
        else
@@ -2729,7 +2729,7 @@ module calcbmatrix_glb_mod
        outfilename = "./PowerSpec_"//trim(nomvar3d(jvar,variableType))//".txt"
        open (unit=99,file=outfilename,action="write",status="new")
 
-       if(vnl_varTypeFromVarName(nomvar3d(jvar,variableType)).eq.'MM') then
+       if(vnl_varLevelFromVarName(nomvar3d(jvar,variableType)).eq.'MM') then
           nLevEns = nLevEns_M
        else
           nLevEns = nLevEns_T
@@ -3198,7 +3198,7 @@ module calcbmatrix_glb_mod
        end if
        open (unit=99,file=outfilename,action="write",status="new")
 
-       if(vnl_varTypeFromVarName(nomvar3d(jvar,variableType)).eq.'MM') then
+       if(vnl_varLevelFromVarName(nomvar3d(jvar,variableType)).eq.'MM') then
           nLevEns = nLevEns_M
        else
           nLevEns = nLevEns_T
@@ -3252,7 +3252,7 @@ module calcbmatrix_glb_mod
        end if
        open (unit=99,file=outfilename,action="write",status="new")
 
-       if(vnl_varTypeFromVarName(nomvar3d(jvar,variableType)).eq.'MM') then
+       if(vnl_varLevelFromVarName(nomvar3d(jvar,variableType)).eq.'MM') then
           nLevEns = nLevEns_M
           PressureProfile => pressureProfile_M
        else
@@ -3579,7 +3579,7 @@ module calcbmatrix_glb_mod
 !!$       end if
 !!$       open (unit=99,file=outfilename,action="write",status="new")
 !!$
-!!$       if(vnl_varTypeFromVarName(nomvar3d(jvar,variableType)).eq.'MM') then
+!!$       if(vnl_varLevelFromVarName(nomvar3d(jvar,variableType)).eq.'MM') then
 !!$          nLevEns = nLevEns_M
 !!$       else
 !!$          nLevEns = nLevEns_T
@@ -3625,7 +3625,7 @@ module calcbmatrix_glb_mod
 !!$       end if
 !!$       open (unit=99,file=outfilename,action="write",status="new")
 !!$
-!!$       if(vnl_varTypeFromVarName(nomvar3d(jvar,variableType)).eq.'MM') then
+!!$       if(vnl_varLevelFromVarName(nomvar3d(jvar,variableType)).eq.'MM') then
 !!$          nLevEns = nLevEns_M
 !!$          PressureProfile => pressureProfile_M
 !!$       else
@@ -3847,7 +3847,7 @@ module calcbmatrix_glb_mod
           ! Loop on all 3D variables
           do jvar = 1, nvar3d
 
-             if (vnl_varTypeFromVarName(nomvar3d(jvar,variableType)).eq.'MM') then
+             if (vnl_varLevelFromVarName(nomvar3d(jvar,variableType)).eq.'MM') then
                 nLevEns = nLevEns_M
              else
                 nLevEns = nLevEns_T
@@ -3901,7 +3901,7 @@ module calcbmatrix_glb_mod
     t3=dble(nens-1)/dble(nens*(nens-2)*(nens-3))
 
     do jvar = 1, nvar3d
-       if (vnl_varTypeFromVarName(nomvar3d(jvar,variableType)).eq.'MM') then
+       if (vnl_varLevelFromVarName(nomvar3d(jvar,variableType)).eq.'MM') then
           nLevEns = nLevEns_M
        else
           nLevEns = nLevEns_T
@@ -3956,7 +3956,7 @@ module calcbmatrix_glb_mod
     distanceBinWeight(:)   = 1.d0 ! Even weight
 
     do jvar = 1, nvar3d
-       if (vnl_varTypeFromVarName(nomvar3d(jvar,variableType)).eq.'MM') then
+       if (vnl_varLevelFromVarName(nomvar3d(jvar,variableType)).eq.'MM') then
           nLevEns = nLevEns_M
           distanceBinInLnP => distanceBinInLnP_M
        else
@@ -4010,7 +4010,7 @@ module calcbmatrix_glb_mod
        end if
        open (unit=99,file=outfilename,action="write",status="new")
 
-       if(vnl_varTypeFromVarName(nomvar3d(jvar,variableType)).eq.'MM') then
+       if(vnl_varLevelFromVarName(nomvar3d(jvar,variableType)).eq.'MM') then
           nLevEns = nLevEns_M
           PressureProfile => pressureProfile_M
           distanceBinInLnP => distanceBinInLnP_M 
@@ -4046,7 +4046,7 @@ module calcbmatrix_glb_mod
        end if
        open (unit=99,file=outfilename,action="write",status="new")
 
-       if(vnl_varTypeFromVarName(nomvar3d(jvar,variableType)).eq.'MM') then
+       if(vnl_varLevelFromVarName(nomvar3d(jvar,variableType)).eq.'MM') then
           nLevEns = nLevEns_M
           PressureProfile => pressureProfile_M
        else

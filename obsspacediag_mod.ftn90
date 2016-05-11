@@ -129,7 +129,7 @@ contains
     do jvar=1,vnl_numvarmax 
       if(gsv_varExist(vnl_varNameList(jvar))) then
         field => gsv_getField(statevector,vnl_varNameList(jvar))
-        do jlev = 1, gsv_getNumLev(statevector,vnl_vartypeFromVarname(vnl_varNameList(jvar)))   
+        do jlev = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname(vnl_varNameList(jvar)))   
           if(scaleFactorBhi(jlev).gt.0.0d0) then
             field(:,jlev,:,:)=field(:,jlev,:,:)/scaleFactorBhi(jlev)
           endif
@@ -162,7 +162,7 @@ contains
     do jvar=1,vnl_numvarmax 
       if(gsv_varExist(vnl_varNameList(jvar))) then
         field => gsv_getField(statevector,vnl_varNameList(jvar))
-        do jlev = 1, gsv_getNumLev(statevector,vnl_vartypeFromVarname(vnl_varNameList(jvar)))   
+        do jlev = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname(vnl_varNameList(jvar)))   
           if(scaleFactorBen(jlev).gt.0.0d0) then
             field(:,jlev,:,:)=field(:,jlev,:,:)/scaleFactorBen(jlev)
           endif

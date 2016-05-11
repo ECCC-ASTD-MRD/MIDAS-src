@@ -70,7 +70,7 @@ module obsOperators_mod
     real(8) :: zlev,zpt,zpb,zomp
     real(8) :: columnVarB,columnVarT,lqtoes
     character(len=4) :: varName
-    character(len=2) :: varType
+    character(len=2) :: varLevel
     real(8),pointer :: col_ptr(:),col_ptr_tt(:),col_ptr_hu(:)
     !
     ! Temperature lapse rate for extrapolation of gz below model surface
@@ -108,9 +108,9 @@ module obsOperators_mod
         ! Process all data within the domain of the model
         ilyr  =obs_bodyElem_i (obsSpaceData,OBS_LYR,bodyIndex)
         varName = vnl_varnameFromVarnum(ivnm)
-        varType = vnl_varTypeFromVarnum(ivnm)
-        zpt= col_getPressure(columnhr,ilyr  ,headerIndex,varType)
-        zpb= col_getPressure(columnhr,ilyr+1,headerIndex,varType)
+        varLevel = vnl_varLevelFromVarnum(ivnm)
+        zpt= col_getPressure(columnhr,ilyr  ,headerIndex,varLevel)
+        zpb= col_getPressure(columnhr,ilyr+1,headerIndex,varLevel)
         zwb  = log(zlev/zpt)/log(zpb/zpt)
         zwt  = 1.d0 - zwb
         if(ivnm.eq.bufr_nees) then
@@ -179,7 +179,7 @@ module obsOperators_mod
     real(8) :: zvar,zcon,zexp,zgamma,ztvg
     real(8) :: zlev,zhhh,zgamaz,zslope,gzhr
     real(8) :: columnVarB,lqtoes,jobs
-    character(len=2) :: varType
+    character(len=2) :: varLevel
     !
     ! Temperature lapse rate for extrapolation of gz below model surface
     !
@@ -219,7 +219,7 @@ module obsOperators_mod
         zvar = obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)
         zlev = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
         zhhh = zlev * grav
-        varType = vnl_varTypeFromVarnum(ivnm)
+        varLevel = vnl_varLevelFromVarnum(ivnm)
 
         if(ivnm.eq.BUFR_NETS .or. ivnm.eq.BUFR_NESS .or.  &
            ivnm.eq.BUFR_NEUS .or. ivnm.eq.BUFR_NEVS) then
@@ -236,7 +236,7 @@ module obsOperators_mod
             zslope = 0.0d0
           endif
 
-          ipt  = col_getNumLev(COLUMNHR,varType)-1 + col_getOffsetFromVarno(columnhr,ivnm)
+          ipt  = col_getNumLev(COLUMNHR,varLevel)-1 + col_getOffsetFromVarno(columnhr,ivnm)
           ipb  = ipt + 1
           if(ivnm.eq.bufr_ness) then
             columnVarB=lqtoes(col_getElem(columnhr,col_getNumLev(COLUMNHR,'TH'),headerIndex,'HU'),  &
@@ -308,7 +308,7 @@ module obsOperators_mod
 
     integer :: ipb,ipt,ivnm,ik,headerIndex,bodyIndex
     real(8) :: zvar,zwb,zwt,zlev,zpt,zpb,jobs
-    character(len=2) :: varType, obsfam
+    character(len=2) :: varLevel, obsfam
 
     Write(*,*) "Entering subroutine oonl_zzz"
 
@@ -340,9 +340,9 @@ module obsOperators_mod
       ivnm = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
       ipt = ik + col_getOffsetFromVarno(columnhr,ivnm)
       ipb = ipt+1
-      varType = vnl_varTypeFromVarnum(ivnm)
-      zpt= col_getHeight(columnhr,ik  ,headerIndex,varType)/RG
-      zpb= col_getHeight(columnhr,ik+1,headerIndex,varType)/RG
+      varLevel = vnl_varLevelFromVarnum(ivnm)
+      zpt= col_getHeight(columnhr,ik  ,headerIndex,varLevel)/RG
+      zpb= col_getHeight(columnhr,ik+1,headerIndex,varLevel)/RG
       zwb  = (zpt-zlev)/(zpt-zpb)
       zwt  = 1.d0 - zwb
       if(ivnm.eq.bufr_nees) call abort3d('oonl_zzz: CANNOT ASSIMILATE ES!!!')

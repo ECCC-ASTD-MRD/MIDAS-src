@@ -59,7 +59,7 @@
       REAL(8) :: ZLEV,ZPT,ZPB
       INTEGER :: IOBS,IK,ITYP
       LOGICAL :: LLOK
-      CHARACTER(len=2) :: varType
+      CHARACTER(len=2) :: varLevel
       integer :: index_header, index_body
 C
 C-----------------------------------------------------------------------
@@ -86,16 +86,16 @@ C
                ENDIF
                IOBS = obs_bodyElem_i(lobsSpaceData,OBS_HIND,JDATA)
                ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,JDATA)
-               varType = vnl_vartypeFromVarnum(ITYP)
-               ZPT= col_getPressure(LCOLUMNGHR,1,IOBS,varType)
-               ZPB= col_getPressure(LCOLUMNGHR,COL_GETNUMLEV(LCOLUMNGHR,varType),IOBS,varType)
+               varLevel = vnl_varLevelFromVarnum(ITYP)
+               ZPT= col_getPressure(LCOLUMNGHR,1,IOBS,varLevel)
+               ZPB= col_getPressure(LCOLUMNGHR,COL_GETNUMLEV(LCOLUMNGHR,varLevel),IOBS,varLevel)
                IF ( ZLEV .LT. ZPT ) THEN
                   call obs_bodySet_i(lobsSpaceData,OBS_XTR,JDATA,1)
                   !
                   !- !!! WARNING !!! This obs is above the model lid. 
                   !  We must turn off its assimilation flag  because the
                   !  current obs operators cannot deal with this situation (JFC)                  
-                  if(varType.ne.'SF') then
+                  if(varLevel.ne.'SF') then
                      write(*,*) "vobslyrs: Rejecting OBS above model lid, pressure = ", ZLEV," < ",ZPT
                      call obs_bodySet_i(lobsSpaceData,OBS_ASS,JDATA, 0)
                   endif
@@ -120,15 +120,15 @@ C
                ENDIF
                IOBS = obs_bodyElem_i(lobsSpaceData,OBS_HIND,JDATA)
                ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,JDATA)
-               varType = vnl_vartypeFromVarnum(ITYP)
-               if(varType.eq.'SF') then
+               varLevel = vnl_varLevelFromVarnum(ITYP)
+               if(varLevel.eq.'SF') then
                  nlev=col_getNumLev(lcolumnghr,'TH')
                  ZPT= col_getHeight(lcolumnghr,1,IOBS,'TH')/RG
                  ZPB= col_getHeight(lcolumnghr,NLEV,IOBS,'TH')/RG                 
                else
-                 nlev=col_getNumLev(lcolumnghr,varType)
-                 ZPT= col_getHeight(lcolumnghr,1,IOBS,varType)/RG
-                 ZPB= col_getHeight(lcolumnghr,NLEV,IOBS,varType)/RG
+                 nlev=col_getNumLev(lcolumnghr,varLevel)
+                 ZPT= col_getHeight(lcolumnghr,1,IOBS,varLevel)/RG
+                 ZPB= col_getHeight(lcolumnghr,NLEV,IOBS,varLevel)/RG
                endif
                IF ( ZLEV .GT. ZPT ) THEN
                   call obs_bodySet_i(lobsSpaceData,OBS_XTR,JDATA,1)
@@ -164,14 +164,14 @@ C
                ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,JDATA)
                ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,JDATA)
                IK = 1
-               varType = vnl_vartypeFromVarnum(ITYP)
-               nlev=COL_GETNUMLEV(LCOLUMNGHR,varType)
+               varLevel = vnl_varLevelFromVarnum(ITYP)
+               nlev=COL_GETNUMLEV(LCOLUMNGHR,varLevel)
                DO JK = 2,NLEV - 1
-                  ZPT = col_getPressure(LCOLUMNGHR,JK,IOBS,varType)
+                  ZPT = col_getPressure(LCOLUMNGHR,JK,IOBS,varLevel)
                   IF( ZLEV .GT. ZPT ) IK = JK
                END DO
-               ZPT = col_getPressure(LCOLUMNGHR,IK,IOBS,varType)
-               ZPB = col_getPressure(LCOLUMNGHR,IK+1,IOBS,varType) 
+               ZPT = col_getPressure(LCOLUMNGHR,IK,IOBS,varLevel)
+               ZPB = col_getPressure(LCOLUMNGHR,IK+1,IOBS,varLevel) 
                call obs_bodySet_i(lobsSpaceData,OBS_LYR,JDATA, IK)
             ENDIF
          END DO
@@ -187,10 +187,10 @@ C
                ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,JDATA)
                ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,JDATA)
                IK = 1
-               varType = vnl_vartypeFromVarnum(ITYP)
-               nlev=COL_GETNUMLEV(LCOLUMNGHR,varType)
+               varLevel = vnl_varLevelFromVarnum(ITYP)
+               nlev=COL_GETNUMLEV(LCOLUMNGHR,varLevel)
                DO JK = 2,NLEV - 1
-                 ZPT = col_getHeight(lcolumnghr,JK,IOBS,varType)/RG
+                 ZPT = col_getHeight(lcolumnghr,JK,IOBS,varLevel)/RG
                  IF( ZLEV .LT. ZPT ) IK = JK
                END DO
                IF ( ITYP.EQ.BUFR_NEPS .or. ITYP.EQ.BUFR_NEPN .or.

@@ -1021,10 +1021,10 @@ CONTAINS
             call abort3d('ben_getPerturbation: No perturbations available for variable:' // vnl_varNameList(jvar))
           endif
 
-          if (vnl_vartypeFromVarname(vnl_varNameList(jvar)).eq.'SF') then
+          if (vnl_varLevelFromVarname(vnl_varNameList(jvar)).eq.'SF') then
             ilev2 = ilev1
             topLevOffset = 1
-          elseif (vnl_vartypeFromVarname(vnl_varNameList(jvar)).eq.'MM') then
+          elseif (vnl_varLevelFromVarname(vnl_varNameList(jvar)).eq.'MM') then
             ilev2 = ilev1 - 1 + nlevEns_M
             topLevOffset = topLevIndex_M
           else
@@ -2362,10 +2362,10 @@ CONTAINS
           else
             call abort3d('ben_bsqrt: No covariances available for variable:' // vnl_varNameList(jvar))
           endif
-          if(vnl_vartypeFromVarname(vnl_varNameList(jvar)).eq.'SF') then
+          if(vnl_varLevelFromVarname(vnl_varNameList(jvar)).eq.'SF') then
             ilev2 = ilev1
             topLevOffset = 1
-          elseif(vnl_vartypeFromVarname(vnl_varNameList(jvar)).eq.'MM') then
+          elseif(vnl_varLevelFromVarname(vnl_varNameList(jvar)).eq.'MM') then
             ilev2 = ilev1 - 1 + nlevEns_M
             topLevOffset = topLevIndex_M
           else
@@ -2458,10 +2458,10 @@ CONTAINS
           else
             call abort3d('ben_bsqrtad: No covariances available for variable:' // vnl_varNameList(jvar))
           endif
-          if(vnl_vartypeFromVarname(vnl_varNameList(jvar)).eq.'SF') then
+          if(vnl_varLevelFromVarname(vnl_varNameList(jvar)).eq.'SF') then
             ilev2 = ilev1
             topLevOffset = 1
-          elseif(vnl_vartypeFromVarname(vnl_varNameList(jvar)).eq.'MM') then
+          elseif(vnl_varLevelFromVarname(vnl_varNameList(jvar)).eq.'MM') then
             ilev2 = ilev1 - 1 + nlevEns_M
             topLevOffset = topLevIndex_M
           else

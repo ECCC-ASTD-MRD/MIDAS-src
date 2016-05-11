@@ -187,14 +187,14 @@ subroutine setObsMpiStrategy(lobsSpaceData, mpiStrategy)
     ! sort the list of loads per tile
     obsLoadTile_mpiglobal_tmp(:) = obsLoadTile_mpiglobal(:)
     do IP = 0, mpi_nprocs-1
-      obsLoadTile_sorted(IP+1) = 0
+      obsLoadTile_sorted(IP+1) = -1
       do IP2 = 0, mpi_nprocs-1
         if(obsLoadTile_mpiglobal_tmp(IP2+1).gt.obsLoadTile_sorted(IP+1)) then
           obsLoadTile_sorted(IP+1) = obsLoadTile_mpiglobal_tmp(IP2+1)
           PE_sorted(IP+1) = IP2
         endif
       enddo
-      obsLoadTile_mpiglobal_tmp(PE_sorted(IP+1)+1) = 0
+      obsLoadTile_mpiglobal_tmp(PE_sorted(IP+1)+1) = -1
     enddo
     write(*,*) 'setObsMpiStrategy: sorted obsLoadTile_mpiglobal       =',obsLoadTile_sorted(:)
     write(*,*) 'setObsMpiStrategy: corresponding sorted PE_mpiglobal  =',PE_sorted(:)

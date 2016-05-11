@@ -950,7 +950,7 @@ CONTAINS
         if(gsv_varExist(vnl_varNameList3D(jvar))) then
           write(*,*) 'min_calcRandomPert: undo Bhi scaleFactor varname= ',vnl_varNameList3D(jvar)
           field => gsv_getField(statevector_randpert,vnl_varNameList3D(jvar))
-          do jlev = 1, gsv_getNumLev(statevector_randpert,vnl_vartypeFromVarname(vnl_varNameList3D(jvar)))   
+          do jlev = 1, gsv_getNumLev(statevector_randpert,vnl_varLevelFromVarname(vnl_varNameList3D(jvar)))   
             if(scaleFactorBhi(jlev).gt.0.0d0) then
               field(lon1:lon2,jlev,lat1:lat2,:)=field(lon1:lon2,jlev,lat1:lat2,:)/scaleFactorBhi(jlev)
             endif
@@ -980,7 +980,7 @@ CONTAINS
              trim(vnl_varNameList3D(jvar)).eq.'VV') ) then
         write(*,*) 'min_calcRandomPert: pertScaleFactor_UV varname= ',vnl_varNameList3D(jvar)
         field => gsv_getField(statevector_randpert,vnl_varNameList3D(jvar))
-        do jlev = 1, gsv_getNumLev(statevector_randpert,vnl_vartypeFromVarname(vnl_varNameList3D(jvar)))   
+        do jlev = 1, gsv_getNumLev(statevector_randpert,vnl_varLevelFromVarname(vnl_varNameList3D(jvar)))   
           write(*,*) 'min_calcRandomPert: pertScaleFactor_UV= ',jlev,pertScaleFactor_UV(jlev)
           field(lon1:lon2,jlev,lat1:lat2,:)=field(lon1:lon2,jlev,lat1:lat2,:)*pertScaleFactor_UV(jlev)
         enddo

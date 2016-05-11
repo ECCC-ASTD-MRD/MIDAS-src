@@ -1236,7 +1236,7 @@ contains
       kgdStart = ControlVariable(var)%kDimStart
       kgdEnd   = ControlVariable(var)%kDimEnd
    
-      nlev = gsv_getNumLev(statevector,vnl_vartypeFromVarname(varname))
+      nlev = gsv_getNumLev(statevector,vnl_varLevelFromVarname(varname))
       if ( kgdEnd - kgdStart + 1  /= nlev ) then
          write(*,*)
          write(*,*) 'StatevectorInterface: Number of vertical level mismatch'
