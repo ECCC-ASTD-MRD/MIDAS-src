@@ -22,12 +22,12 @@ program diag_bmatrix
   use MathPhysConstants_mod
   use controlVector_mod
   use gridStateVector_mod
-  use gaussGrid_mod
   use bmatrix_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use timeCoord_mod
   use LamAnalysisGrid_mod
+  use globalSpectralTransform
   IMPLICIT NONE
 
   type(struct_gsv) :: statevector
@@ -62,6 +62,7 @@ program diag_bmatrix
 
   integer :: numperturbations,nrandseed,diagdate
   integer :: oneobs_levs(100),oneobs_lons(100),oneobs_lats(100)
+  integer :: gstID, mpiMode
 
   namelist /namdiag/numperturbations,nrandseed,diagdate,oneobs_levs,oneobs_lons,oneobs_lats
   
@@ -125,8 +126,8 @@ program diag_bmatrix
   hco_anl => hco_Get('Analysis')
 
   if ( hco_anl % global ) then
-    !- Setup the global analysis grid metrics
-    call gaus_SetupFromHCO(hco_anl) ! IN
+    mpiMode = 4
+    gstID = gst_setup(statevector%ni,statevector%nj,10,mpiMode)
   else
     !- Iniatilized the core (Non-Exteded) analysis grid
     call hco_SetupFromFile( './analysisgrid', 'COREGRID', 'AnalysisNonExt' ) ! IN
@@ -184,7 +185,7 @@ program diag_bmatrix
                  endif
                  cvm_vazx(:)=0.0d0
                  do jnj = statevector%myLatBeg,statevector%myLatEnd
-                    rwtinv = real(statevector%ni,8)/gaus_rwt(jnj)
+                    rwtinv = real(statevector%ni,8)/gst_getrwt(jnj,gstID)
                     do jnk = 1,gsv_getNumLev(statevector,vnl_varLevelFromVarname(vnl_varNameList(ivar)))
                        do jni = 1, statevector%ni
                           field(jni,jnk,jnj) = field(jni,jnk,jnj)*rwtinv

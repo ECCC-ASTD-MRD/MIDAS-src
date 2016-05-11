@@ -39,7 +39,6 @@ MODULE BmatrixHI
   use earthConstants_mod
   use gridStateVector_mod
   use globalSpectralTransform
-  use gaussGrid_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use varNameList_mod
@@ -1082,21 +1081,17 @@ CONTAINS
     !- 1.2 Rearrange the data according to the analysis grid (if necessary)
     if(clgrtyp == 'G' .and. ni_l == ini .and. nj_l == inj .and. ig1 == 0  &
           .and. ig2 ==0 .and. ig3 == 0 .and.ig4 == 0) then
-      !- 1.2.1 The std. dev. on the analysis grid but with REVERSED LATITUDE
-      do jlat = 1, nj_l
-        do jlon = 1,ni_l
-          tgstdbg(jlon,jlat) = dltg(jlon,nj_l-jlat+1)
-        enddo
-      enddo
-
-    elseif(clgrtyp == 'G' .and. ni_l == ini .and. nj_l == inj .and. ig1 ==   &
-            0 .and. ig2 ==1 .and. ig3 == 0 .and.ig4 == 0) then
-       !- 1.2.2 The std. dev. ARE on the analysis grid
+      !- 1.2.1 The std. dev. on the analysis grid 
       do jlat = 1, nj_l
         do jlon = 1,ni_l
           tgstdbg(jlon,jlat) = dltg(jlon,jlat)
         enddo
       enddo
+
+    elseif(clgrtyp == 'G' .and. ni_l == ini .and. nj_l == inj .and. ig1 ==   &
+            0 .and. ig2 ==1 .and. ig3 == 0 .and.ig4 == 0) then
+       !- 1.2.2 flipped Gaussian grid no longer supported
+       call abort3d('bhi_sutg: The flipped Gaussian grid is no longer supported!')
 
     else
        !- 1.2.3 The std. dev. are NOT on the analysis grid. Interpolation is needed
@@ -1273,7 +1268,7 @@ CONTAINS
         allocate(tgstdbg_tmp(ni_l,nj_l))
         do jlat = 1, nj_l
           do jlon = 1,ni_l
-             tgstdbg_tmp(jlon,jlat) = tgstdbg(jlon,nj_l-jlat+1)
+             tgstdbg_tmp(jlon,jlat) = tgstdbg(jlon,jlat)
           end do
         end do
 
@@ -1305,7 +1300,7 @@ CONTAINS
 
         do jlat = 1, nj_l
           do jlon = 1,ni_l
-             tgstdbg_tmp(jlon,jlat) = AnalLandSeaMask(jlon,nj_l-jlat+1)
+             tgstdbg_tmp(jlon,jlat) = AnalLandSeaMask(jlon,jlat)
           end do
         end do
         cltypvar = 'P'
@@ -1318,7 +1313,7 @@ CONTAINS
 
         do jlat = 1, nj_l
           do jlon = 1,ni_l
-             tgstdbg_tmp(jlon,jlat) = AnalSeaIceMask(jlon,nj_l-jlat+1)
+             tgstdbg_tmp(jlon,jlat) = AnalSeaIceMask(jlon,jlat)
           end do
         end do       
         cltypvar = 'P'
@@ -1434,7 +1429,7 @@ CONTAINS
     real(8) dlfact2,dlc,dsummed
     real(8) dtlen,zr,dlfact
     integer ilen,jn,jlat,jk
-    real(8) zlegi(0:ntrunc, nj_l),zleg(0:ntrunc, nj_l),zsp(0:ntrunc,nkgdim),zgr(nj_l,nkgdim)
+    real(8) zsp(0:ntrunc,nkgdim),zgr(nj_l,nkgdim)
     real(8) dlwti(nj_l),zrmu(nj_l)
 
     integer inracp
@@ -1454,30 +1449,6 @@ CONTAINS
        zrmu(jlat)  = gst_getrmu(jlat,gstID)
     end do
 
-    do jlat = 1, nj_l
-       zleg(0,jlat) = sqrt(0.5d0)
-       zleg(1,jlat) = sqrt(1.5d0)*zrmu(jlat)
-    enddo
-    do jn = 0, ntrunc
-       dln = 1.d0*real(jn,8)
-       dlnorm(jn) = dsqrt((2.d0*dln + 1.d0)/2.d0)
-    enddo
-
-    do jn = 1, ntrunc-1
-       dln = real(jn,8)
-       dlfact1 = ((2.d0*dln+1.d0)/(dln+1.d0))*(dlnorm(jn+1)/dlnorm(jn))
-       dlfact2 = (dln/(dln+1.d0))*(dlnorm(jn+1)/dlnorm(jn-1))
-       do jlat = 1, nj_l
-          zleg(jn+1,jlat) = dlfact1*zrmu(jlat)*zleg(jn,jlat) - dlfact2*zleg(jn-1,jlat)
-       enddo
-    enddo
-
-    do jlat = 1, nj_l
-       do jn = 0, ntrunc
-         zlegi(jn,jlat) = zleg(jn,jlat)
-       enddo
-    enddo
-
 !     1.2 CONVERT THE CORRELATIONS IN SPECTRAL SPACE INTO SPECTRAL
 !         COEFFICIENTS OF THE CORRELATION FUNCTION AND FUNCTION TO BE
 !         SELF-CONVOLVED
@@ -1490,7 +1461,7 @@ CONTAINS
     enddo
 
     ! Transform to physical space
-    call zleginv(zgr,zsp,zlegi,dlwti,ntrunc,nj_l,nkgdim,nj_l,nkgdim,ntrunc)
+    call gst_zleginv(gstID,zgr,zsp,nkgdim)
 
     ! Truncate in horizontal extent with Gaussian window
     do jk = 1, nkgdim
@@ -1520,7 +1491,7 @@ CONTAINS
     enddo
 
     ! Transform back to spectral space
-    call zlegdir(zgr,zsp,zlegi,dlwti,ntrunc,nj_l,nkgdim,nj_l,nkgdim,ntrunc)
+    call gst_zlegdir(gstID,zgr,zsp,nkgdim)
 
     ! Convert back to correlations
     do jk = 1, nkgdim
@@ -1732,7 +1703,7 @@ CONTAINS
     integer :: jvar,jn,inix,injx,inkx
     integer :: ikey, jlevo, jlat,firstn,lastn
     real(8) :: zsp(0:ntrunc,max(nlev_M,nlev_T)),zspbuf(max(nlev_M,nlev_T)),zwork
-    real(8) :: zleg(0:ntrunc,nj_l),zgr(nj_l,max(nlev_M,nlev_T)),zgsig(1,nj_l,max(nlev_M,nlev_T)),zstddev(nkgdim2,nj_l)
+    real(8) :: zgr(nj_l,max(nlev_M,nlev_T)),zgsig(1,nj_l,max(nlev_M,nlev_T)),zstddev(nkgdim2,nj_l)
     character(len=4) :: varName3d(inbrvar3d),varName2d(inbrvar2d)
 
     ! standard file variables
@@ -1748,9 +1719,6 @@ CONTAINS
 
     data varName3d/'PP  ','UC  ','UT  ','LQ  ','TB  '/
     data varName2d/'UP  ','PB  '/
-
-    call gst_setID(gstID)
-    call gst_zlegpol(zleg)
 
     rgsig(:,:) = 0.0d0
     rgsigtb(:,:) = 0.0d0
@@ -1799,7 +1767,7 @@ CONTAINS
                      ' AT N BETWEEN ',firstn,' AND ',lastn,', SETTING TO ZERO!!!'
       endif
 
-      call zleginv2(zgr(:,1:nlev_MT),zsp(:,1:nlev_MT),zleg,ntrunc,nj_l,nlev_MT,nj_l,nlev_MT,ntrunc)
+      call gst_zleginv(gstID,zgr(:,1:nlev_MT),zsp(:,1:nlev_MT),nlev_MT)
 
       if(clnomvar .eq. 'PP') then
         do jlat = 1, nj_l
@@ -1860,7 +1828,7 @@ CONTAINS
 
       endif
 
-      call zleginv2(zgr(:,1:nlev_MT),zsp(:,1:nlev_MT),zleg,ntrunc,nj_l,1,nj_l,nlev_MT,ntrunc)
+      call gst_zleginv(gstID,zgr(:,1:nlev_MT),zsp(:,1:nlev_MT),nlev_MT)
 
       if(clnomvar .eq. 'UP') then
         do jlat = 1, nj_l
@@ -1887,7 +1855,7 @@ CONTAINS
     integer :: ikey,jlevo,jlat
     real(8) :: zsp(0:ntrunc,max(nlev_M,nlev_T)),zwork
     real(8), allocatable :: zspbuf(:)
-    real(8) :: zleg(0:ntrunc,nj_l),zgr(nj_l,max(nlev_M,nlev_T)),zgsig(1,nj_l,max(nlev_M,nlev_T)),zstddev(nkgdim2,nj_l)
+    real(8) :: zgr(nj_l,max(nlev_M,nlev_T)),zgsig(1,nj_l,max(nlev_M,nlev_T)),zstddev(nkgdim2,nj_l)
     character(len=4) :: varName3d(inbrvar3d),varName2d(inbrvar2d)
 
     ! standard file variables
@@ -1903,9 +1871,6 @@ CONTAINS
 
     data varName3d/'PP  ','UC  ','UT  ','LQ  ','TB  '/
     data varName2d/'UP  ','PB  '/
-
-    call gst_setID(gstID)
-    call gst_zlegpol(zleg)
 
     rgsig(:,:) = 0.0d0
     rgsigtb(:,:) = 0.0d0
@@ -1965,7 +1930,7 @@ CONTAINS
 
       enddo
 
-      call zleginv2(zgr(:,1:nlev_MT),zsp(:,1:nlev_MT),zleg,ntrunc,nj_l,nlev_MT,nj_l,nlev_MT,ntrunc)
+      call gst_zleginv(gstID,zgr(:,1:nlev_MT),zsp(:,1:nlev_MT),nlev_MT)
 
       if(clnomvar .eq. 'PP') then
         do jlat = 1, nj_l
@@ -2023,7 +1988,7 @@ CONTAINS
       enddo
       deallocate(zspbuf)
 
-      call zleginv2(zgr(:,1:nlev_MT),zsp(:,1:nlev_MT),zleg,ntrunc,nj_l,1,nj_l,nlev_MT,ntrunc)
+      call gst_zleginv(gstID,zgr(:,1:nlev_MT),zsp(:,1:nlev_MT),nlev_MT)
 
       if(clnomvar .eq. 'UP') then
         do jlat = 1, nj_l
@@ -2041,137 +2006,12 @@ CONTAINS
   END SUBROUTINE BHI_RDSPSTD_NEWFMT
 
 
-  SUBROUTINE BHI_RDSTD2D
-    implicit none
-
-    integer, parameter  :: inbrvar3d=5
-    integer, parameter  :: inbrvar2d=2
-    integer :: jvar, ikey, jlevo, jlat, nlev_MT
-    real(8) :: zwork
-    real(8) :: zgr(nj_l,max(nlev_M,nlev_T))
-    character(len=4) :: varName3d(inbrvar3d),varName2d(inbrvar2d)
-
-    ! standard file variables
-    integer :: ini,inj,ink,ip1,ip2,ip3
-    integer :: idate
-    character(len=2)  :: cltypvar
-    character(len=4)  :: clnomvar
-    character(len=12) :: cletiket
-    integer :: vfstlir,vfstecr,fstinf
-
-    data varName3d/'PP  ','UC  ','UT  ','LQ  ','TT  '/
-    data varName2d/'UP  ','P0  '/
-
-    rgsig(:,:) = 0.0d0
-    rgsigtb(:,:) = 0.0d0
-    rgsigpsb(:) = 0.0d0
-
-!   2. Reading the data
-
-    idate    = -1
-    ip1      = -1
-    ip2      = -1
-    ip3      = -1
-
-    cletiket = 'STDDEV'
-    cltypvar = 'E'
-
-    write(*,*) 'Reading 3D variables'
-    do jvar = 1, inbrvar3d
-      clnomvar = varName3d(jvar)
-      write(*,*)'Reading ',clnomvar
-      if(vnl_varLevelFromVarName(clnomvar).eq.'MM') then
-        nlev_MT = nlev_M
-      else
-        nlev_MT = nlev_T
-      endif
-
-      ikey = fstinf(nulbgst,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
-
-      if (ink .ne. nlev_MT .or. inj .ne. nj_l) then
-        write(*,*) 'RDSTD2D: ikey, varname, ink, nlev, ini, nj=',ikey,clnomvar,ink,nlev_MT,inj,nj_l
-        call abort3d('RDSTD2D: BG stat levels or latitudes inconsitencies')
-      endif
-
-      if(ikey .ge.0 ) then
-        ikey = vfstlir(zgr(:,1:nlev_MT),nulbgst,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
-      else
-        write(*,*) 'RDSTD2D: variable name=',clnomvar
-        call abort3d('RDSTD2D: variable not found')
-      endif
-
-      if(clnomvar .eq. 'PP') then
-        do jlat = 1, nj_l
-          do jlevo = 1, nlev_M
-            rgsiguu(jlat,jlevo) = zgr(nj_l-jlat+1,jlevo)
-          enddo
-        enddo
-      elseif(clnomvar .eq. 'UC' .or. clnomvar .eq. 'CC') then
-        do jlat = 1, nj_l
-          do jlevo = 1, nlev_M
-            rgsigvv(jlat,jlevo) = zgr(nj_l-jlat+1,jlevo)
-          enddo
-        enddo
-      elseif(clnomvar .eq. 'UT') then
-        do jlat = 1, nj_l
-          do jlevo = 1, nlev_T
-            rgsigtt(jlat,jlevo) = zgr(nj_l-jlat+1,jlevo)
-          enddo
-        enddo
-      elseif(clnomvar .eq. 'TB' .or. clnomvar .eq. 'TT') then
-        do jlat = 1, nj_l
-          do jlevo = 1, nlev_T
-            rgsigtb(jlat,jlevo) = zgr(nj_l-jlat+1,jlevo)
-          enddo
-        enddo
-      elseif(clnomvar .eq. 'LQ') then
-        do jlat = 1, nj_l
-          do jlevo = 1, nlev_T
-            rgsigq(jlat,jlevo) = zgr(nj_l-jlat+1,jlevo)*rfacthum
-          enddo
-        enddo
-      endif
-
-    enddo
-
-    write(*,*) 'Reading 2D variables'
-    do jvar = 1, inbrvar2d
-      clnomvar = varName2d(jvar)
-      write(*,*)'Reading ',clnomvar
-      ikey = fstinf(nulbgst,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
-
-      if(ikey .ge.0 ) then
-        ikey = vfstlir(zgr,nulbgst,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
-      else
-        write(*,*) 'RDSTD2D: variable name=',clnomvar
-        call abort3d('RDSTD2D: variable not found')
-      endif
-
-      if(clnomvar .eq. 'UP') then
-        do jlat = 1, nj_l
-          rgsigps(jlat) = zgr(nj_l-jlat+1,1)*100.0d0
-        enddo
-      endif
-      if(clnomvar .eq. 'PB' .or. clnomvar .eq. 'P0') then
-        do jlat = 1, nj_l
-          rgsigpsb(jlat) = zgr(nj_l-jlat+1,1)*100.0d0
-        enddo
-      endif
-
-    enddo
-
-    write(*,*)'DONE in RDSTD2D'
-
-  END SUBROUTINE BHI_RDSTD2D
-
-
   SUBROUTINE BHI_RDSPPTOT
     IMPLICIT NONE
 
     integer :: jn, jk1, jk2, ikey, ilen,jlat,jcol,inix,injx,inkx
     real(8) :: zsptheta(0:ntrunc,nlev_M)
     real(8) :: zgrtheta(nj_l,nlev_M)
-    real(8) :: zleg(0:ntrunc,nj_l)
     real(8) :: zwork
     real(8) :: zPtoTsrc(nlev_T+1,nlev_M)
     real(8) :: zspPtoT(0:ntrunc,nlev_T+1,nlev_M)
@@ -2190,9 +2030,6 @@ CONTAINS
     character(len=12) :: cletiket
     integer :: vfstlir,vfstecr,fstprm,fstinf
     
-    call gst_setID(gstID)
-    call gst_zlegpol(zleg)
-
     ip1 = -1
     ip3 = -1
     idateo = -1
@@ -2221,7 +2058,7 @@ CONTAINS
 
     ! converting theta in physical space
 
-    call zleginv2(zgrtheta,zsptheta,zleg,ntrunc,nj_l,nlev_M,nj_l,nlev_M,ntrunc)
+    call gst_zleginv(gstID,zgrtheta,zsptheta,nlev_M)
 
     do jlat = 1, nj_l
       do jk1 = 1, nlev_M
@@ -2259,7 +2096,7 @@ CONTAINS
     enddo
 
     ilen = nlev_M*(nlev_T+1)
-    call zleginv2(zgrPtoT,zspPtoT,zleg,ntrunc,nj_l,ilen,nj_l,ilen,ntrunc)
+    call gst_zleginv(gstID,zgrPtoT,zspPtoT,ilen)
 
     do jlat = 1, nj_l
       do jk2 = 1, nlev_M
@@ -3112,122 +2949,6 @@ CONTAINS
   END SUBROUTINE BHI_SPA2GDAD
 
 
-  SUBROUTINE ZLEGDIR(PF,PN,PLEG,DDWT,KTRUNC,KNJ,KLEV,KNJDIM,KLEVDIM,KNDIM)
-!**s/r ZLEGDIR  - Direct Legendre transform restricted to
-!
-!*Arguments
-!*     i   PF(KNJDIM,KLEVDIM)   : field in physical space
-!*     o   PN(0:KNDIM, KLEVDIM ): spectral coefficients
-!*     o   PLEG(0:KNDIM, KNJDIM): Legendre polynomials evaluated at the Gaussian latitudes
-!*     i   DDWT(KNJDIM)          : weights of the Gaussian quadrature
-!*     i   KNJ                  : number of Gaussian latitudes
-!*     i   KTRUNC               : spectral truncation
-!*     i   KLEV                 : number of fields to transform
-!*     i   KNJDIM               : dimensioning of the field (in latitude)
-!*     i   KLEVDIM              : dimensioning of the field (in KLEV)
-!*     I   KNDIM                : dimensioning of the field (in KTRUNC)
-      IMPLICIT NONE
-
-      INTEGER :: KNJ, KLEV, KTRUNC, KNJDIM, KLEVDIM, KNDIM
-      REAL(8) :: PF(KNJDIM,4*KLEVDIM), PN(0:KNDIM, 4*KLEVDIM), PLEG(0:KNDIM,KNJDIM)
-      REAL(8) :: DDWT(KNJ)
-
-      INTEGER :: J, JN
-      REAL(8), ALLOCATABLE :: ZWORK(:,:)
-
-      ALLOCATE(ZWORK(0:KTRUNC,KNJ))
-      DO J = 1, KNJ
-         DO JN = 0, KTRUNC
-            ZWORK(JN,J) = PLEG(JN,J)*DDWT(J)
-         END DO
-      END DO
-
-      !CALL DGEMM('N','N',ZWORK(0,1),KTRUNC+1,'N',PF(1,1),KNJDIM,'N',PN(0,1),KNDIM+1,KNDIM+1,KNJ,KLEV) 
-      CALL DGEMM('N','N',KNDIM+1,KLEV,KNJ,1.0d0,ZWORK(0,1),KTRUNC+1,PF(1,1),KNJDIM,0.0d0,PN(0,1),KNDIM+1) 
-
-      DEALLOCATE(ZWORK)
-
-  END SUBROUTINE ZLEGDIR
-
-
-  SUBROUTINE ZLEGINV(PF,PN,PLEG,DDWT,KTRUNC,KNJ,KLEV,KNJDIM,KLEVDIM,KNDIM)
-!***s/r ZLEGINV  - Direct Legendre transform restricted to
-!*     .           fields that vary with latitude only
-!*Arguments
-!*     o   PF(KNJDIM,KLEVDIM)  : field in physical space
-!*     i   PN(0:KNDIM, KLEVDIM): spectral coefficients
-!*     i   PLEG(0:KNDIM,KNJDIM): Legendre functions evaluated at the KNJ Gaussian
-!*     .                         latitudes
-!*     i   DDWT(KNJDIM)         : weights of the Gaussian quadrature
-!*     i   KNJ                 : number of Gaussian latitudes
-!*     i   KTRUNC              : spectral truncation
-!*     i   KLEV                : number of fields to transform
-!*     i   KNJDIM              : dimensioning of the field (in latitude)
-!*     i   KLEVDIM             : dimensioning of the field (in KLEV)
-!*     I   KNDIM               : dimensioning of the field (in KTRUNC)
-      IMPLICIT NONE
-
-      INTEGER :: KNJ, KLEV, KTRUNC, KNJDIM, KLEVDIM, KNDIM
-      REAL(8) :: PF(KNJDIM,4*KLEVDIM), PN(0:KNDIM, 4*KLEVDIM), PLEG(0:KNDIM,KNJDIM)
-      REAL(8) :: DDWT(KNJDIM)
-
-      INTEGER :: J, JN
-      REAL(8), ALLOCATABLE :: ZWORK(:,:)
-
-      ALLOCATE(ZWORK(0:KTRUNC,KNJ))
-
-      DO J = 1, KNJ
-         DO JN = 0, KTRUNC
-            ZWORK(JN,J) = PLEG(JN,J)
-         END DO
-      END DO
-
-      !CALL DGEMUL(ZWORK(0,1),KTRUNC+1,'T',PN(0,1),KNDIM+1,'N',PF(1,1),KNJDIM,KNJ,KTRUNC+1,KLEV) 
-      CALL DGEMM('T','N',KNJ,KLEV,KTRUNC+1,1.0d0, ZWORK(0,1),KTRUNC+1,PN(0,1),KNDIM+1,0.0d0,PF(1,1),KNJDIM) 
-
-      DEALLOCATE(ZWORK)
-
-  END SUBROUTINE ZLEGINV
-
-
-  SUBROUTINE ZLEGINV2(PF,PN,PLEG,KTRUNC,KNJ,KLEV,KNJDIM,KLEVDIM,KNDIM)
-!***s/r ZLEGINV2  - Direct Legendre transform restricted to
-!*     .            fields that vary with latitude only
-!*Arguments
-!*     o   PF(KNJDIM,KLEVDIM)  : field in physical space
-!*     i   PN(0:KNDIM, KLEVDIM): spectral coefficients
-!*     i   PLEG(0:KNDIM,KNJDIM): Legendre functions evaluated at the KNJ Gaussian
-!*     .                         latitudes
-!*     i   KNJ                 : number of Gaussian latitudes
-!*     i   KTRUNC              : spectral truncation
-!*     i   KLEV                : number of fields to transform
-!*     i   KNJDIM              : dimensioning of the field (in latitude)
-!*     i   KLEVDIM             : dimensioning of the field (in KLEV)
-!*     I   KNDIM               : dimensioning of the field (in KTRUNC)
-      IMPLICIT NONE
-
-      INTEGER :: KNJ, KLEV, KTRUNC, KNJDIM, KLEVDIM, KNDIM
-      REAL(8) :: PF(KNJDIM,KLEVDIM), PN(0:KNDIM, KLEVDIM), PLEG(0:KNDIM,KNJDIM)
-
-      INTEGER :: J, JN
-      REAL(8), ALLOCATABLE :: ZWORK(:,:)
-
-      ALLOCATE(ZWORK(0:KTRUNC,KNJ))
-
-      DO J = 1, KNJ
-         DO JN = 0, KTRUNC
-            ZWORK(JN,J) = PLEG(JN,J)
-         END DO
-      END DO
-
-      !CALL DGEMUL(ZWORK(0,1),KTRUNC+1,'T',PN(0,1),KNDIM+1,'N',PF(1,1),KNJDIM,KNJ,KTRUNC+1,KLEV) 
-      CALL DGEMM('T','N',KNJ,KLEV,KTRUNC+1,1.0d0,ZWORK(0,1),KTRUNC+1,PN(0,1),KNDIM+1,0.0d0,PF(1,1),KNJDIM) 
-
-      DEALLOCATE(ZWORK)
-
-  END SUBROUTINE ZLEGINV2
-
-
   SUBROUTINE BHI_Finalize()
     implicit none
 
@@ -3257,6 +2978,7 @@ CONTAINS
 
     integer :: jstep, jlev, jlat, jlon, lon1, lon2, lat1, lat2, nlev_gsv
 
+    real(8) :: conphy
     real(8), pointer :: uu_ptr(:,:,:,:),vv_ptr(:,:,:,:)
     
     uu_ptr => gsv_getField(statevector,'UU')
@@ -3269,13 +2991,14 @@ CONTAINS
     nlev_gsv = gsv_getNumLev(statevector,'MM')
 
 !$OMP PARALLEL
-!$OMP DO PRIVATE (jlat,jstep,jlev,jlon)
+!$OMP DO PRIVATE (jlat,jstep,jlev,jlon,conphy)
     do jlat = lat1, lat2
+      conphy = ra*gst_getr1qm2(jlat,gstID)
       do jstep = 1, statevector%numStep
         do jlev = 1, nlev_gsv
           do jlon = lon1, lon2
-            uu_ptr(jlon,jlev,jlat,jstep) = gaus_conphy(jlat) * uu_ptr(jlon,jlev,jlat,jstep)
-            vv_ptr(jlon,jlev,jlat,jstep) = gaus_conphy(jlat) * vv_ptr(jlon,jlev,jlat,jstep)
+            uu_ptr(jlon,jlev,jlat,jstep) = conphy * uu_ptr(jlon,jlev,jlat,jstep)
+            vv_ptr(jlon,jlev,jlat,jstep) = conphy * vv_ptr(jlon,jlev,jlat,jstep)
           end do
         end do
       end do

@@ -113,7 +113,7 @@ module HorizontalCoord_mod
     if ( nGrid > nMaxGrid ) then
       write(*,*)
       write(*,*) 'hco_SetupFromFile: Too many grid coordinates!', nMaxGrid
-      stop
+      call abort3d('hco_setupFromFile')
     end if
 
     !
@@ -132,13 +132,13 @@ module HorizontalCoord_mod
         write(*,*)
         write(*,*) 'hco_SetupFromFile: Error in opening the template grid file'
         write(*,*) trim(TemplateFile)
-        stop
+        call abort3d('hco_SetupFromFile')
       end if
     else
       write(*,*)
       write(*,*) 'hco_SetupFromFile: template grid file DOES NOT EXIST'
       write(*,*) trim(TemplateFile)
-      stop
+      call abort3d('hco_SetupFromFile')
     end if
 
     !
@@ -161,7 +161,7 @@ module HorizontalCoord_mod
     if (key < 0) then
       write(*,*)
       write(*,*) 'hco_SetupFromFile: Unable to find output horiz grid info using = ',nomvar
-      stop
+      call abort3d('hco_setupFromFile')
     end if
 
     ier = fstprm( key,                                             & ! IN
@@ -170,11 +170,8 @@ module HorizontalCoord_mod
                   grtyp, ig1, ig2, ig3,                            & ! OUT
                   ig4, swa, lng, dltf, ubc, extra1, extra2, extra3 ) ! OUT
 
-    if ( trim(grtyp) == 'G' .and. ig2 == 0 ) then
-       write(*,*) 
-       write(*,*) 'The latitute in the input gaussian grid are ordered from SOUTH to NORTH (ig2=0)'
-       write(*,*) '  --> reordering from NORTH to SOUTH (ig2=1)'
-       ig2 = 1
+    if ( trim(grtyp) == 'G' .and. ig2 == 1 ) then
+       call abort3d('hco_setupFromFile: ERROR: due to bug in ezsint, Gaussian grid with ig2=1 no longer supported')
     end if
 
     EZscintID  = ezqkdef( ni, nj, grtyp, ig1, ig2, ig3, ig4, iu_template )   ! IN
@@ -202,7 +199,7 @@ module HorizontalCoord_mod
        if (ier < 0) then
          write(*,*)
          write(*,*) 'hco_SetupFromFile: Unable to find >> grid descriptors'
-         stop
+         call abort3d('hco_setupFromFile')
        end if
 
        !  Test if the dimensions are compatible with the grid
@@ -211,7 +208,7 @@ module HorizontalCoord_mod
          write(*,*) 'hco_SetupFromFile: Incompatible >> grid descriptors !'
          write(*,*) 'Found     :', ni_t, nj_t
          write(*,*) 'Should be :', ni, 1
-         stop 
+         call abort3d('hco_setupFromFile')
        end if
 
        !-  2.2.2 Read the latitudes
@@ -231,7 +228,7 @@ module HorizontalCoord_mod
        if (ier < 0) then
          write(*,*)
          write(*,*) 'hco_SetupFromFile: Unable to find ^^ grid descriptors'
-         stop
+         call abort3d('hco_setupFromFile')
        end if
 
        !  Test if the dimensions are compatible with the grid
@@ -240,7 +237,7 @@ module HorizontalCoord_mod
          write(*,*) 'hco_SetupFromFile: Incompatible ^^ grid descriptors !'
          write(*,*) 'Found     :', ni_t, nj_t
          write(*,*) 'Should be :', 1, nj
-         stop 
+         call abort3d('hco_setupFromFile')
        end if
 
        !- 2.2.3 Do we have a rotated grid ?
@@ -284,14 +281,7 @@ module HorizontalCoord_mod
                   lat2d_4, lon2d_4 ) ! OUT
 
       lon_8(:) = real(lon2d_4(:,nj/2),8)
-      if (ig2 == 1 .and. (lat2d_4(1,2) - lat2d_4(1,1)) > 0.0d0 ) then 
-        ! Revert latitudes since gdll does not handle properly this grid type
-        do j = 1, nj
-          lat_8(j) = real(lat2d_4(1,nj-j+1),8)
-        end do 
-      else
-        lat_8(:) = real(lat2d_4(1,:),8)
-      end if
+      lat_8(:) = real(lat2d_4(1,:),8)
 
       deallocate(lat2d_4)
       deallocate(lon2d_4)
@@ -306,7 +296,7 @@ module HorizontalCoord_mod
     else
       write(*,*)
       write(*,*) 'hco_SetupFromFile: Only grtyp = Z or G are supported !, grtyp = ', trim(grtyp)
-      stop 
+      call abort3d('hco_setupFromFile')
     end if
 
     !

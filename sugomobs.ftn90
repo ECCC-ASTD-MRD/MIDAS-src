@@ -266,11 +266,6 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
         ierr = gdxyfll( hco_anl % EZscintID, xpos_r4, ypos_r4, &
                         lat_deg_r4, lon_deg_r4, 1)
 
-        if ( trim(hco_anl % grtyp) == 'G' .and. hco_anl % ig2 == 1 ) then
-          ! Revert latitudes since gdxyfll does not handle properly this grid type
-          ypos_r4 = real(hco_anl % nj,4) - ypos_r4 + 1.0
-        end if
-
         !- Test if the obs is outside the analysis grid
         if ( xpos_r4 < xposLowerBoundAnl_r4  .or. &
              xpos_r4 > xposUpperBoundAnl_r4  .or. &
@@ -291,10 +286,6 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
                             lat_deg_r4, lon_deg_r4,      & ! OUT
                             xpos_r4, ypos_r4, 1)   ! IN
               
-            if ( trim(hco_anl % grtyp) == 'G' .and. hco_anl % ig2 == 1 ) then
-              ! Revert latitudes since gdllfxy does not handle properly this grid type
-              lat_deg_r4 = -1.0 * lat_deg_r4
-            end if
             write(*,*) '  new  position : ', lat_deg_r4, lon_deg_r4, ypos_r4, xpos_r4
 
             lat_r8 = real(lat_deg_r4,8) * MPC_RADIANS_PER_DEGREE_R8

@@ -32,7 +32,6 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   use columndata_mod
   use LamAnalysisGrid_mod
   use bmatrix_mod
-  use gaussgrid_mod
   use tovs_nl_mod
   use burpFiles_mod
   use observation_erreurs_mod
@@ -95,10 +94,7 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   call hco_SetupFromFile( './analysisgrid', 'ANALYSIS', 'Analysis' ) ! IN
   hco_anl => hco_Get('Analysis')
 
-  if ( hco_anl % global ) then
-    !- Setup the global analysis grid metrics
-    call gaus_SetupFromHCO(hco_anl) ! IN
-  else
+  if ( .not. hco_anl % global ) then
     !- Iniatilized the core (Non-Exteded) analysis grid
     call hco_SetupFromFile( './analysisgrid', 'COREGRID', 'AnalysisNonExt' ) ! IN
     !- Setup the LAM analysis grid metrics

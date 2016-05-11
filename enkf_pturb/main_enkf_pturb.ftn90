@@ -24,7 +24,6 @@ program main_enkf_pturb
   use MathPhysConstants_mod
   use controlVector_mod
   use gridStateVector_mod
-  use gaussGrid_mod
   use bmatrix_mod
   use verticalCoord_mod
   use horizontalCoord_mod
@@ -130,10 +129,7 @@ program main_enkf_pturb
   call hco_SetupFromFile( './analysisgrid', 'ANALYSIS', 'Analysis' ) ! IN
   hco_anl => hco_Get('Analysis')
 
-  if ( hco_anl % global ) then
-     !- Setup the global analysis grid metrics
-     call gaus_SetupFromHCO(hco_anl) ! IN
-  else
+  if ( .not. hco_anl % global ) then
      !- Iniatilized the core (Non-Exteded) analysis grid
      call hco_SetupFromFile( './analysisgrid', 'COREGRID', 'AnalysisNonExt' ) ! IN
      !- Setup the LAM analysis grid metrics
