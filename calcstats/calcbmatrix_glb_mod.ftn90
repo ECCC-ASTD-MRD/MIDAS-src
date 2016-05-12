@@ -43,7 +43,7 @@ module calcbmatrix_glb_mod
   integer, parameter :: modelSpace   = 1
   integer, parameter :: cvSpace      = 2
   integer, parameter :: cvUnbalSpace = 3
-  integer :: variableType
+!  integer :: variableType
 
   real(8) :: gridSpacingInKm
 
@@ -205,6 +205,8 @@ module calcbmatrix_glb_mod
     real*8,allocatable :: PtoT(:,:,:),theta1(:,:),theta2(:,:)
     real*8,allocatable :: corns(:,:,:),rstddev(:,:)
 
+    integer :: variableType 
+
     allocate(ensPerturbations(ni,nkgdimEns,nj,nens),stat=ierr)
     if(ierr.ne.0) then
       write(6,*) 'Problem allocating memory!',ierr
@@ -326,7 +328,8 @@ module calcbmatrix_glb_mod
 
     call calcCorrelations(ensPerturbations,corns,rstddev)
 
-    call writeStats(corns,rstddev,ptot,theta1)
+    variableType = cvUnbalSpace
+    call writeStats(corns,rstddev,variableType,ptot,theta1)
 
     call writeStddev(stddevZonAvg,stddevZonAvgUnbal,stddev3d,stddev3dUnbal)
 
@@ -363,6 +366,8 @@ module calcbmatrix_glb_mod
     real(4),pointer     :: ensPerturbations(:,:,:,:)
     real(8),allocatable :: stddev3d(:,:,:)
     real(8),allocatable :: corns(:,:,:), rstddev(:,:)
+
+    integer :: variableType
 
     character(len=60) :: tool
 
@@ -439,16 +444,16 @@ module calcbmatrix_glb_mod
                                 corns,            & ! OUT (vertical correlation in spectral space)
                                 rstddev)            ! OUT ( sqrt(normalized power spectrum) )
 
-          call writeStats(corns,rstddev,waveBandIndex=waveBandIndex) ! IN
+          call writeStats(corns,rstddev,variableType,waveBandIndex=waveBandIndex) ! IN
 
-          call calcHorizScale(rstddev,waveBandIndex=waveBandIndex) ! IN
+          call calcHorizScale(rstddev,variableType,waveBandIndex=waveBandIndex) ! IN
 
-          call horizCorrelFunction(rstddev,waveBandIndex=waveBandIndex) ! IN
+          call horizCorrelFunction(rstddev,variableType,waveBandIndex=waveBandIndex) ! IN
        else if (trim(tool) == 'HVCORREL_LOCAL') then
           call normalize3d(ensPerturbations,stddev3d) ! INOUT, IN
-          call calcLocalCorrelations(ensPerturbations, waveBandIndex=waveBandIndex) ! IN
+          call calcLocalCorrelations(ensPerturbations, variableType, waveBandIndex=waveBandIndex) ! IN
        else
-          call calcLocalizationRadii(ensPerturbations, stddev3d, waveBandIndex=waveBandIndex) ! IN
+          call calcLocalizationRadii(ensPerturbations, stddev3d, variableType, waveBandIndex=waveBandIndex) ! IN
        end if
 
     end do
@@ -469,6 +474,8 @@ module calcbmatrix_glb_mod
     ! NOTE: The diagnostic computed here are in model variable space 
     !       (no variable transform!!!)
 
+    integer :: variableType
+
     integer :: ierr,  waveBandIndex
 
     real*4,pointer     :: ensPerturbations(:,:,:,:)
@@ -478,6 +485,8 @@ module calcbmatrix_glb_mod
     write(6,*) 'calcb_glb_powerspec'
     write(6,*)
     
+    variableType = modelSpace
+
     allocate(ensPerturbations(ni,nkgdimEns,nj,nens))
     allocate(powerspec(nkgdimEns,0:ntrunc))
 
@@ -489,7 +498,7 @@ module calcbmatrix_glb_mod
     call calcPowerSpec(ensPerturbations, & ! IN
                        powerSpec)          ! OUT
 
-    call writePowerSpec(powerSpec) ! IN
+    call writePowerSpec(powerSpec, variableType) ! IN
 
   end subroutine calcb_glb_powerspec
 
@@ -847,10 +856,11 @@ module calcbmatrix_glb_mod
 !--------------------------------------------------------------------------
 ! WRITESTATS
 !--------------------------------------------------------------------------
-  subroutine writeStats(corns,rstddev,ptot,theta,waveBandIndex)
+  subroutine writeStats(corns,rstddev,variableType, ptot,theta,waveBandIndex)
     implicit none
 
     real*8 :: corns(nkgdimEns,nkgdimEns,0:ntrunc),rstddev(nkgdimEns,0:ntrunc)
+    integer, intent(in) :: variableType
     real*8, optional :: PtoT(:,:,:),theta(:,:)
     integer, optional :: waveBandIndex
 
@@ -2277,10 +2287,11 @@ module calcbmatrix_glb_mod
 !--------------------------------------------------------------------------
 ! HORIZCORRELFUNCTION
 !--------------------------------------------------------------------------
-  subroutine horizCorrelFunction(rstddev,waveBandIndex)
+  subroutine horizCorrelFunction(rstddev,variableType, waveBandIndex)
     implicit none
 
-    real*8,intent(in) :: rstddev(nkgdimEns,0:ntrunc)
+    real*8,  intent(in) :: rstddev(nkgdimEns,0:ntrunc)
+    integer, intent(in) :: variableType
     integer,optional, intent(in) :: waveBandIndex
 
     real*8  :: spectralState(nla,2,nkgdimEns)
@@ -2359,7 +2370,7 @@ module calcbmatrix_glb_mod
     else
        outfilename = "./horizCorrel_"//wbnum//".fst"
     end if
-    call write3d(GridState,outfilename,'HORIZCORFUNC')
+    call write3d(GridState,outfilename,'HORIZCORFUNC',variableType)
 
     !- 4.2 1D correlation function in txt format (for plotting purposes)
     iStart=iref
@@ -2413,12 +2424,13 @@ module calcbmatrix_glb_mod
 !--------------------------------------------------------------------------
 ! WRITE3D
 !--------------------------------------------------------------------------
-  subroutine write3d(gridpoint3d,filename,etiket_in)
+  subroutine write3d(gridpoint3d,filename,etiket_in,variableType)
     implicit none
 
     real*8, intent(in) :: gridpoint3d(:,:,:)
     character(len=*), intent(in) :: filename,etiket_in
-    
+    integer, intent(in) :: variableType
+
     real*8 :: dfact,zbuf(ni,nj)
     integer jlat,jlon,jlev,ierr,jvar,nLevEns
     integer vfstecr,fstouv,fnom,fstfrm,fclos
@@ -2492,11 +2504,12 @@ module calcbmatrix_glb_mod
 !--------------------------------------------------------------------------
 ! CALCHORIZSCALE
 !--------------------------------------------------------------------------
-  subroutine CalcHorizScale(rstddev,waveBandIndex)
+  subroutine CalcHorizScale(rstddev,variableType,waveBandIndex)
     implicit none
     
     ! Based on subroutine corrlength.ftn in the "old" var code
     real(8),intent(in) :: rstddev(nkgdimEns,0:ntrunc)
+    integer,intent(in) :: variableType
     integer,optional, intent(in) :: waveBandIndex
 
     real(8) :: HorizScale(nkgdimEns)
@@ -2592,10 +2605,11 @@ module calcbmatrix_glb_mod
 !--------------------------------------------------------------------------
 ! WRITEPOWERSPEC
 !--------------------------------------------------------------------------
-  subroutine writePowerSpec(powerSpec)
+  subroutine writePowerSpec(powerSpec,variableType)
     implicit none
 
     real*8,intent(in) :: powerSpec(nkgdimEns,0:ntrunc)
+    integer,intent(in) :: variableType
 
     integer :: jk, nLevEns, nLevStart, nLevEnd, jvar, jn
 
@@ -2656,10 +2670,11 @@ module calcbmatrix_glb_mod
   !--------------------------------------------------------------------------
   ! CALCLOCALCORRELATIONS
   !--------------------------------------------------------------------------
-  subroutine calcLocalCorrelations(ensPerturbations,waveBandIndex)
+  subroutine calcLocalCorrelations(ensPerturbations,variableType,waveBandIndex)
     implicit none
 
     real(4), intent(in) :: ensPerturbations(:,:,:,:)
+    integer, intent(in) :: variableType
     integer,optional, intent(in) :: waveBandIndex
 
     real(8), allocatable :: localHorizCorrel(:,:,:)
@@ -2756,10 +2771,10 @@ module calcbmatrix_glb_mod
     else
        outfilename = "./horizCorrelLocal_"//wbnum//".fst"
     end if
-    call write3d(localHorizCorrel,outfilename,'HCORREL_LOC')
+    call write3d(localHorizCorrel,outfilename,'HCORREL_LOC',variableType)
 
     localHorizCorrel(:,:,:) = localHorizCorrel(:,:,:)**2
-    call write3d(localHorizCorrel,outfilename,'HCORREL2_LOC')
+    call write3d(localHorizCorrel,outfilename,'HCORREL2_LOC',variableType)
 
     deallocate(localHorizCorrel)
 
@@ -2768,11 +2783,12 @@ module calcbmatrix_glb_mod
   !--------------------------------------------------------------------------
   ! CALCHORIZLOCALIZATIONRADII
   !--------------------------------------------------------------------------
-  subroutine calcLocalizationRadii(ensPerturbations,ensStdDev,waveBandIndex)
+  subroutine calcLocalizationRadii(ensPerturbations,ensStdDev,variableType,waveBandIndex)
     implicit none
 
     real(4), intent(in) :: ensPerturbations(:,:,:,:)
     real(8), intent(in) :: ensStdDev(:,:,:)
+    integer, intent(in) :: variableType
     integer,optional, intent(in) :: waveBandIndex
 
     integer :: nulnam, ierr, fclos, fnom, strideForHLoc,strideForVloc
@@ -2801,10 +2817,12 @@ module calcbmatrix_glb_mod
     !- 2. Estimate the horionzontal and vertical localization radii
     !
     if ( hLoc ) then
-       call calcHorizLocalizationRadii(ensPerturbations, ensStdDev, strideForHLoc, waveBandIndex=waveBandIndex) ! IN
+       call calcHorizLocalizationRadii(ensPerturbations, ensStdDev, strideForHLoc, & ! IN
+            variableType, waveBandIndex=waveBandIndex)                               ! IN
     end if
     if ( vLoc ) then
-       call calcVertLocalizationRadii(ensPerturbations, ensStdDev, strideForVloc, waveBandIndex=waveBandIndex) ! IN
+       call calcVertLocalizationRadii(ensPerturbations, ensStdDev, strideForVloc, &  ! IN
+            variableType, waveBandIndex=waveBandIndex)                               ! IN
     end if
 
   end subroutine calcLocalizationRadii
@@ -2812,13 +2830,13 @@ module calcbmatrix_glb_mod
   !--------------------------------------------------------------------------
   ! CALCHORIZLOCALIZATIONRADII
   !--------------------------------------------------------------------------
-  subroutine calcHorizLocalizationRadii(ensPerturbations,ensStdDev,stride,waveBandIndex)
+  subroutine calcHorizLocalizationRadii(ensPerturbations,ensStdDev,stride,variableType,waveBandIndex)
     use localizationFunction_mod
     implicit none
 
     real(4), intent(in) :: ensPerturbations(:,:,:,:)
     real(8), intent(in) :: ensStdDev(:,:,:)
-    integer, intent(in) :: stride
+    integer, intent(in) :: stride, variableType
     integer,optional, intent(in) :: waveBandIndex
 
     real*4, allocatable :: ensPert_local(:,:,:)
@@ -3607,13 +3625,13 @@ module calcbmatrix_glb_mod
  !--------------------------------------------------------------------------
   ! CALCVERTLOCALIZATIONRADII
   !--------------------------------------------------------------------------
-  subroutine calcVertLocalizationRadii(ensPerturbations,ensStdDev,stride,waveBandIndex)
+  subroutine calcVertLocalizationRadii(ensPerturbations,ensStdDev,stride,variableType,waveBandIndex)
     use localizationFunction_mod
     implicit none
 
     real(4), intent(in) :: ensPerturbations(:,:,:,:)
     real(8), intent(in) :: ensStdDev(:,:,:)
-    integer, intent(in) :: stride
+    integer, intent(in) :: stride,variableType
     integer,optional, intent(in) :: waveBandIndex
 
     real*4, allocatable :: ensPert_local(:,:)
