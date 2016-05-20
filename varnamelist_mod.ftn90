@@ -34,17 +34,19 @@ module varNameList_mod
   public :: vnl_varListIndex3d,vnl_varListIndex2d,vnl_varListIndex,vnl_varnameFromVarnum
   public :: vnl_vartypeFromVarname,vnl_vartypeFromVarnum,vnl_IsAtmosConstituent,vnl_varKindFromVarname
 
-
-  integer, parameter          :: vnl_numvarmax3D=23,vnl_numvarmax2D=9
+  integer, parameter          :: vnl_numvarmax3D=26,vnl_numvarmax2D=9
 
   character(len=4), parameter :: vnl_varNameList3D(vnl_numvarmax3D) = (/'UU  ','VV  ','GZ  ','TT  ','HU  ','LQ  ','ES  ','VT  ', &
-                                 'PP  ','CC  ','UC  ','UT  ','TB  ','DW  ','O3  ','CH4 ','CO2 ','CO  ','NO2 ','N2O ','HCHO','SO2 ','NH3 ' /)
-
+                                 'PP  ','CC  ','UC  ','UT  ','TB  ','DW  ','TO3 ','TCH4','TCO2','TCO ','TNO2','TN2O','THCH','TSO2','TNH3', & 
+                                 'AF  ','AC  ','TNO '/)
+                                 
   character(len=2), parameter :: varTypeList3D(vnl_numvarmax3D) = (/'MM',  'MM',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH', &
-                                 'MM',  'MM',  'MM',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH'/)
+                                 'MM',  'MM',  'MM',  'TH', 'TH',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH', &
+                                 'TH',  'TH',  'TH'/)
 
   character(len=2), parameter :: varKindList3D(vnl_numvarmax3D) = (/'MT', 'MT', 'MT', 'MT', 'MT', 'MT', 'MT', 'MT', &
-                                 'MT', 'MT', 'MT', 'MT', 'MT', 'MT', 'CH', 'CH', 'CH', 'CH', 'CH', 'CH', 'CH', 'CH', 'CH' /)
+                                 'MT', 'MT', 'MT', 'MT', 'MT', 'MT', 'CH', 'CH', 'CH', 'CH', 'CH', 'CH', 'CH', 'CH', 'CH', &
+                                 'CH', 'CH', 'CH' /)
   
   character(len=4), parameter :: vnl_varNameList2D(vnl_numvarmax2D) = (/'P0  ','TG  ','UP  ','PB  ','ECO ', 'ENO2 ', 'EHCH', 'ESO2', 'ENH3' /)
 
@@ -156,25 +158,31 @@ module varNameList_mod
         if (present(varNumber_chm)) then 
            select case (varnumber_chm)
               case(BUFR_NECH_O3)
-                 varname='O3'
+                 varname='TO3'
               case(BUFR_NECH_H2O)
                  varname='HU'
               case(BUFR_NECH_CH4)
-                 varname='CH4'
+                 varname='TCH4'
               case(BUFR_NECH_CO2)
-                 varname='CO2'
+                 varname='TCO2'
               case(BUFR_NECH_CO)
-                 varname='CO'
+                 varname='TCO'
               case(BUFR_NECH_NO2)
-                 varname='NO2'
+                 varname='TNO2'
               case(BUFR_NECH_N2O)
-                 varname='N2O'
+                 varname='TN2O'
+              case(BUFR_NECH_NO)
+                 varname='TNO'
               case(BUFR_NECH_HCHO)
-                 varname='HCHO'
+                 varname='THCH'
               case(BUFR_NECH_SO2)
-                 varname='SO2'
+                 varname='TSO2'
               case(BUFR_NECH_NH3)
-                 varname='NH3'
+                 varname='TNH3'
+              case(BUFR_NECH_PM25)
+                 varname='AF'
+              case(BUFR_NECH_PM10)
+                 varname='AC'
               case default
                  write(*,*) 'vnl_varnameFromVarnum: Unknown variable number! ',varNumber, varNumber_chm
                  call abort3d('aborting in vnl_varnameFromVarnum')
@@ -186,7 +194,6 @@ module varNameList_mod
       end select
 
     end function vnl_varnameFromVarnum
-
 
     function vnl_vartypeFromVarname(varName) result(varType)
       implicit none
@@ -235,10 +242,10 @@ module varNameList_mod
       logical                       :: var_chm
       integer                       :: i
 
-      integer, parameter            :: vnl_numunits_chm=16
+      integer, parameter            :: vnl_numunits_chm=23
       integer, parameter            :: vnl_varunits_chm(vnl_numunits_chm)= &
-                  (/15198,15008,15009,15010,15011,15012,15020,15022,15023,15024, &
-                    15026,15027,15028,15029,15199,15230/)
+                  (/15198,15001,15003,15005,15008,15009,15010,15020,15021,15022,15023,15024, &
+                    15026,15027,15028,15029,15199,15200,15208,15223,15230,13001,13002/)
                 
       var_chm=.false.
       do i=1,vnl_numunits_chm

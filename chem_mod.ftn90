@@ -57,6 +57,8 @@ module chem_mod
 !
 !       - Public routines "chm_apply_bounds" and "chm_apply_transform" applied to analysis increment fields.
 !
+!       - Public routine "chm_apply_2dfieldr4_transform" applied to 2D field variable transformation if requested.
+!
 !       - Public routine "chm_varnumFromVarname" to obtain the BUFR varno corresponding to
 !         to the constituent.
 !
@@ -88,8 +90,11 @@ module chem_mod
             chm_get_obs_err_stddev,chm_obsspace_diagnostic,chm_convert_z_to_pressure
   public :: chm_obsoperators,chm_get_stringID,chm_get_ID,stnid_equal
   public :: chm_lcheck_skipassim,chm_comboIDlist,chm_required_field
-  public :: chm_apply_bounds,chm_apply_transform,chm_get_col_boundary
+  public :: chm_apply_bounds,chm_get_col_boundary
   public :: chm_add_col_boundary,chm_retrieve_col_boundary
+  public :: chm_varnumFromVarName
+! Public procedures for variable transformations
+  public :: chm_apply_transform_array4d,chm_apply_2dfieldr4_transform
 
 ! public variables and types
 ! --------------------------
@@ -218,7 +223,8 @@ module chem_mod
      !  nobslev                Number of observations in the profile
      !  nmodlev                Number of model levels in the column
      !  varno                  BUFR descriptor element for obs units
-     !  constituent_id         BUFR code element of Table 08046 identifying the constituent
+     !  constituent_id         BUFR code element of local GRIB Table 08046 identifying the constituent
+     !                         (similar to BUFR Table 08043)
      !  modelIndex             Obs operator index
      !                         0 - vertical interpolator
      !                         1 - layer averaging
@@ -233,8 +239,9 @@ module chem_mod
      !  zhp                    Part of innovation operator not related to resolution.
      !  lvl_top                Top level of non-zero values in zh
      !  lvl_bot                Bottom level of non-zero values in zh
-     !  trial                  Trial (background) field at observation location
+     !  trial                  Trial (background) profile at observation location
      !  tt                     Temperature profile on model levels (Kelvin)
+     !  hu                     Specific humidity 
      !  gz                     Geopotential height on model levels (m)
      !  pp                     Pressure on model levels (Pa)
      !  lat                    Latitude of observation (radians)
@@ -244,11 +251,19 @@ module chem_mod
      !  stnid                  Observation station ID
      !  date                   YYYYMMDD (date of obs)
      !  hhmm                   HHMM (time of obs)
+     !  obs_index              Observation index
+     !                         Note: Depending on the data of interest, the index of a required array element or 
+     !                               profile associated to an observation can be identified from (lat,long,date,hhmm)
+     !                               or obs_index. The latter is for associations of data identified within
+     !                               processing of individual CPUs. Each of the two index identifiers is represented 
+     !                               by the unique character string identifier 'code' of struct_chm_obsdata
+     !                               (e.g. see obsdata_get_loctime_code_r).
      !  vco                    Index of vertical coord type for obs
      !                           1 - Altitudes (m)
      !                           2 - Pressure (Pa)
      !                           3 - Channel index
-     !                           4 - not provided with obs (normally for total column values)
+     !                           4 - not provided with obs. Obs is for total column values.
+     !                           5 - not provided with obs. Obs is a surface point value.
      !  iavgkern               Integer indicating if averaging kernels are to be applied. Value
      !                         of zero indicates no averaging kernel to be applied. Non-zero value
      !                         indicates index in chm_avgkern,chm_burp_avgkern arrays.
@@ -256,13 +271,13 @@ module chem_mod
      !  column_bound           Boudary imporsed on a column measurement
      !  dtransform             Derivative for any transform that needs to be applied to a profile
      
-     integer :: nobslev,nmodlev,modelIndex,constituent_id,vco,varno,date,hhmm,iavgkern
+     integer :: nobslev,nmodlev,modelIndex,constituent_id,vco,varno,date,hhmm,iavgkern,obs_index
      logical :: layer_identified,apply_genoper
      real(8) :: lat,lon,column_bound
      character(len=12) :: stnid
      character(len=4)  :: varName
      real(8), allocatable :: vlayertop(:),vlayerbottom(:),vmodpress(:),tt(:),gz(:),pp(:)
-     real(8), allocatable :: zh(:,:),zhp(:,:),vweights(:,:),obslev(:),dtransform(:)
+     real(8), allocatable :: zh(:,:),zhp(:,:),vweights(:,:),obslev(:),dtransform(:),hu(:)
      real(8), pointer     :: trial(:)
      integer, allocatable :: lvl_top(:),lvl_bot(:)
 
@@ -293,14 +308,50 @@ module chem_mod
   
   end type struct_chm_obsdata
 
+  type :: struct_chm_griddata
+
+     !  Structure storing gridded fields 
+     !     
+     !  Variable               Description
+     !  --------               -----------
+     !  field2d                Gridded 2 field
+     !  field3d                Gridded 3 field (lon,lat,vlev)
+     !  nlat                   number of latitudes
+     !  nlon                   number of longitudes
+     !  nlev                   number of vertical levels
+     !  lat,lon                grid lat,lon in radians
+     !  vlev                   vertical levels
+     !  ivkind                 Index of vertical coordinate type. Defintion may vary according to source.
+     !                         For fields read for RPN files and use of convip:
+     !                             0: P is in height [m] (metres) with respect to sea level 
+     !                             1: P is in sigma [sg] (0.0 -> 1.0) 
+     !                             2: P is in pressure [mb] (millibars) 
+     !                             3: P is in an arbitrary code 
+     !                             4: P is in height [M] (metres) with respect to ground level 
+     !                             5: P is in hybrid coordinates [hy] 
+     !                             6: P is in theta [th] 
+     !                         For use with obs                      
+     
+     real(8), pointer :: field2d(:,:),field3d(:,:,:),lat(:),lon(:),vlev(:)
+     integer :: nlev,nlon,nlat,ivkind
+  
+  end type struct_chm_griddata
+
   type :: struct_config
      
      !  Structure to store general config information.
      !     
      !  Variable               Description
      !  --------               -----------
-     !  generalized_operator   Logical indicating if the generalized innovation operator is to
-     !                         be applied in routine chm_obsoperators
+     !  generalized_operator   Flag indicatting if generalized observation operator should be used 
+     !                         and selection of approach
+     !
+     !                            <=0: not applied
+     !                            1: use trial field xb for mass weighted increment distribution
+     !                            2: use a combination of the difference of an external reference xc 
+     !                               and the trial field xb, i.e. mass weighted increment distribution 
+     !                               as a(xc-xb) + b*xc where a and b depend on the size of 
+     !                               sum[(xc-xb)/sig(xb)]^2 over the profile.
      !
      !  assim_num              Number of combinations (stnid, bufr element, multi/uni-level) 
      !                         identified for obs to be assimilated. All others will not
@@ -350,7 +401,7 @@ module chem_mod
      !                         derived column top could not be determined. Relevant for total column measurements only.
      !             
      !  tropo_column_top       Default value to use for the column boundary (in Pa). Array index refers to BUFR code
-     !                         element of Table 08046 (iconstituent_id) identifying the constituent. 
+     !                         element of Table 08046 (obsoper%constituent_id) identifying the constituent. 
      !                         Relevant for total column measurements only.
      !
      !  obsdata_maxsize        Max allowed size of work arrays (in terms of number of obs) associated to
@@ -364,7 +415,8 @@ module chem_mod
      !                         0: no transformation (dx given input trial field denoted as x)
      !                         1: dlnx 
      
-     logical :: generalized_operator,diagn_save
+     logical :: diagn_save
+     integer :: generalized_operator(0:chm_constituents_size)
      integer :: assim_num,tropo_mode(0:chm_constituents_size),tropo_bound(0:chm_constituents_size)
      integer :: assim_varno(chm_cfg_size),assim_nlev(chm_cfg_size)
      integer :: obsdata_maxsize 
@@ -389,8 +441,16 @@ module chem_mod
   type(struct_chm_obsdata), allocatable :: chm_burp_std(:),chm_burp_avgkern(:)
 
 ! Arrays for integration upper boundary of retrieved total column measurements 
-
   type(struct_chm_obsdata) :: chm_column_boundary
+
+! Arrays for background error std. dev.
+  type(struct_chm_obsdata) :: chm_sigma_trial
+
+! Arrays containing input reference fields and also reference fields 
+! interpolated to obs locations
+
+  type(struct_chm_obsdata)  :: chm_ref_trial
+  type(struct_chm_griddata) :: chm_ref_fields(0:chm_constituents_size,2)
 
 ! File containing various warnings related to chemical constituents that
 ! are not included in the listing file.
@@ -401,12 +461,15 @@ contains
 
 !------------------------------- Setup called from "preproc" ---------------------------
 
-  subroutine chm_setup
+  subroutine chm_setup(datestamp)
 !
 ! Author   : Y. Rochon, Dec 2014 
 ! 
 ! Revisions: M. Sitwell, Feb 2015
 !            - Removed references to earlier structure
+!            Y. Rochon, Dec 2015
+!            - Added call to chm_read_ref_fields and related optional input
+!              'datestamp'
 !          
 ! Purpose: Setup additional information required by constituent obs and not provided in
 !          lobsSpaceData.
@@ -414,6 +477,8 @@ contains
 !----------------------------------------------------------------------------------------
   
   implicit none
+
+  integer, intent(in), optional :: datestamp
 
   write(*,*) 'Begin chm_setup'
 
@@ -435,6 +500,14 @@ contains
 ! To deallocate space if required elsewhere, one should use
 ! call chm_dealloc_avgkern
   
+ ! Read reference (e.g. climatilogical) fields
+  
+  if (present(datestamp)) then
+     call chm_read_ref_fields(datestamp)
+  else
+     call chm_read_ref_fields
+  end if
+
   write(*,*) 'Completed chm_setup'
   
   end subroutine chm_setup
@@ -460,7 +533,13 @@ contains
 !
 !   Read from NAMCHEM namelist
 !
-!        genoper             If generalized observation operator should be used
+!        genoper             If generalized observation operator should be used and selection of approach
+!                            <=0: not applied
+!                            1: use trial field xb for mass weighted increment distribution
+!                            2: use a combination of the difference of an external reference xc 
+!                               and the trial field xb, i.e. mass weighted increment distribution 
+!                               as a(xc-xb) + b*xc where a and b depend on the size of 
+!                               sum[(xc-xb)/sig(xb)]^2 over the profile.
 !
 !        diagn_num           Prescribed (starting) number of (stnid, bufr, nlev) for the diagnostics calc
 !
@@ -547,7 +626,7 @@ contains
 
   integer :: FNOM, FCLOS
   integer :: IERR, JELM, nulstat, ios, isize, nulnam, i
-  logical :: genoper
+  integer :: genoper(0:chm_constituents_size)
   
   character(len=128) :: ligne  
   character(len=10)  :: namfile 
@@ -573,7 +652,7 @@ contains
    
   ! Default NAMCHEM values
   
-  genoper=.true.
+  genoper(:)=0
   obsdata_maxsize=90000
   low_cutoff(:)=0.1
   high_cutoff(:)=10.0
@@ -621,13 +700,15 @@ contains
   read(nulnam,nml=namchem,iostat=ios)
   if (ios.lt.-4.or.ios.gt.0) then 
      call abort3d('chm_read_misc: Error in reading NAMCHEM namelist. iostat = ' // trim(str(ios)) )
+  else
+     write(*,nml=namchem)   
   end if
   
   ierr=FCLOS(nulnam)      
   
   ! Set config values
 
-  chm_config%generalized_operator = genoper
+  chm_config%generalized_operator(:) = genoper(:)
   chm_config%assim_num = assim_num
   chm_config%assim_varno = assim_varno
   chm_config%assim_stnid = assim_stnid
@@ -1180,6 +1261,634 @@ contains
   end subroutine chm_get_avgkern
 
 !-----------------------------------------------------------------------------------------
+!-------------------------- Routines related to gridded reference fields  ----------------
+  
+  subroutine chm_read_ref_fields(datestamp)
+!
+! ****** NOT TESTED *********
+!
+! Author  : Y. Rochon, ARQI/AQRD, Feb 2015
+!
+! Revision: 
+!
+! Purpose:  Read reference fields as directed by the content of the ascii file obsinfo_chm.
+!           Fields are provided in RPN/fst files specified in the obsinfo_chm file (with path and filename)
+!
+!           Reference fields can be in a separate RPN file with name provided by obsinfo_chm or in
+!           monthly static background stats file (glbchemcov or bgcov; see 'isrc' below).
+!
+! Comments:
+!
+!     - Fields assumed to be of the same units as those of the corresponding input trial fields
+!
+!-----------------------------------------------------------------------------------------
+
+    use varNameList_mod
+    use MathPhysConstants_mod
+    
+    implicit none
+
+    integer, intent(in), optional :: datestamp
+    
+    character(len=128) :: fname
+    character(len=4) :: varName
+    character(len=12) :: etiket
+    integer :: i,id,nd,j,ndim,ijour,imonth,iday,itime,isrc
+    real(8) :: day
+    integer, external :: newdate
+   
+    integer, external :: FNOM, FCLOS
+    integer :: IERR, JLEV, JELM, nulstat, ios, isize, icount, iend
+    logical :: LExists
+    
+    logical, parameter :: linterp=.true.
+    
+    integer :: ni, nj, nkeys, kind
+    real(8), allocatable :: array1(:,:,:),array2(:,:,:),lvls(:),xlat(:),xlong(:) ! Allocated in chm_fst_read
+  
+    character (len=128) :: ligne
+
+!   Initialize dimensions to zero
+
+    chm_ref_fields(:,:)%nlon=0
+    chm_ref_fields(:,:)%nlat=0
+    chm_ref_fields(:,:)%nlev=1
+    
+    inquire(FILE='obsinfo_chm',EXIST=LExists)
+    IF (.not.LExists )then
+      WRITE(*,*)   '-----------------------------------------------------'
+      WRITE(*,*)   'chm_read_ref_fields: COULD NOT FIND FILE obsinfo_chm!'
+      WRITE(*,*)   '-----------------------------------------------------'
+      return
+    ENDIF
+
+!   Check for file names containing ref fields
+
+    NULSTAT=0
+    IERR=FNOM(NULSTAT,'obsinfo_chm','SEQ',0)
+    IF ( IERR .EQ. 0 ) THEN
+       open(unit=nulstat, file='obsinfo_chm', status='OLD')
+    ELSE
+       CALL ABORT3D('chm_read_ref_fields: COULD NOT OPEN FILE obsinfo_chm!')
+    ENDIF
+
+    ios=0
+    read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
+    do while (trim(adjustl(ligne(1:14))).ne.'SECTION IV:') 
+       read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
+    end do    
+    
+!   Read number of constituents with associated input file(s)
+   
+    read(nulstat,*,iostat=ios,err=10,end=10) ndim
+    if (ndim.le.0) go to 10
+    
+!   Initialization
+
+    if (linterp.and.present(datestamp)) then
+       ierr = newdate(datestamp,ijour,itime,-3)
+       if (ierr<0) then
+          Write(*,*) "Invalid datestamp ",datestamp,ijour,itime,ierr
+          call abort3d('chm_read_ref_fields')
+       endif
+       imonth = MOD(ijour/100,100)
+       iday = MOD(ijour,100)
+       day=iday+itime*1.0D-8
+       if (day.gt.15.) then
+          day=day-15.0
+       else
+          day=day+15.0
+       end if
+    endif
+    
+!   Get needed fields for each file(s)
+
+    do i=1,ndim 
+
+!      Read id,nd,isrc. id: constituent code; nd: number of sets; 1 or 2;
+!      isrc: 1 for fname being in obsinfo_chm, 0 for glbchemcov (or bgcov if glbchemcov not present) 
+       
+       read(nulstat,*,iostat=ios,err=10,end=10)
+       read(nulstat,*,iostat=ios,err=10,end=10) id,nd,isrc    
+       varName=vnl_varnameFromVarnum(0,id)
+
+       if (isrc.eq.1) then
+          read(nulstat,*,iostat=ios,err=10,end=10) fname
+       else
+         inquire(file='./glbchemcov',exist=LExists)
+         if (LExists) then
+            fname='./glbchemcov'
+         else
+            inquire(file='./bgcov',exist=LExists)
+            if(LExists) then
+              fname='./bgcov'
+            else               
+               call abort3d('chm_read_ref_fields: did not find file.')
+            end if
+          end if
+       end if
+       
+       do j=1,nd
+          read(nulstat,*,iostat=ios,err=10,end=10) etiket             
+                           
+          call chm_read_fst(trim(fname),varName,imonth,-1,etiket,ni,nj,array1,.true.,xlat,xlong,nkeys,lvls,kind)
+
+          if (j.eq.1) then
+              chm_ref_fields(id,1)%nlon=ni
+              chm_ref_fields(id,1)%nlat=nj
+              chm_ref_fields(id,1)%nlev=nkeys
+              chm_ref_fields(id,1)%ivkind=kind   
+                         
+              allocate(chm_ref_fields(id,1)%field3d(ni,nj,nkeys))
+              allocate(chm_ref_fields(id,1)%vlev(nkeys),chm_ref_fields(id,1)%lon(ni),chm_ref_fields(id,1)%lat(nj))
+              
+              chm_ref_fields(id,1)%lat(1:nj)=xlat(1:nj)*MPC_RADIANS_PER_DEGREE_R8
+              chm_ref_fields(id,1)%lon(1:ni)=xlong(1:ni)*MPC_RADIANS_PER_DEGREE_R8
+              where (chm_ref_fields(id,1)%lon(1:ni).lt.0.0) chm_ref_fields(id,1)%lon(1:ni)=2.0*MPC_PI_R8 + &
+                                                            chm_ref_fields(id,1)%lon(1:ni)
+              chm_ref_fields(id,1)%vlev(1:nkeys)=lvls(1:nkeys)              
+          else
+              chm_ref_fields(id,2)%nlon=ni
+              chm_ref_fields(id,2)%nlat=nj
+              chm_ref_fields(id,2)%nlev=nkeys
+              chm_ref_fields(id,2)%ivkind=kind
+
+              allocate(chm_ref_fields(id,2)%field3d(ni,nj,nkeys))
+              allocate(chm_ref_fields(id,2)%vlev(nkeys),chm_ref_fields(id,2)%lon(ni),chm_ref_fields(id,2)%lat(nj))
+              
+              chm_ref_fields(id,2)%lat(1:nj)=xlat(1:nj)*MPC_RADIANS_PER_DEGREE_R8
+              chm_ref_fields(id,2)%lon(1:ni)=xlong(1:ni)*MPC_RADIANS_PER_DEGREE_R8
+              where (chm_ref_fields(id,2)%lon(1:ni).lt.0.0) chm_ref_fields(id,2)%lon(1:ni)=2.0*MPC_PI_R8 + &
+                                                            chm_ref_fields(id,2)%lon(1:ni)
+              chm_ref_fields(id,2)%vlev(1:nkeys)=lvls(1:nkeys)
+          end if
+
+          if (.not.linterp .or. (.not.present(datestamp))) then
+
+             if (j.eq.1) then 
+                 chm_ref_fields(id,1)%field3d(:,:,:) = array1(:,:,:)
+             else
+                 chm_ref_fields(id,2)%field3d(:,:,:) = array1(:,:,:)
+             end if
+
+          else
+
+!            Following for interpolation as a function of days from mid-months.
+             
+             if (iday.gt.15) then
+                 if (imonth.eq.12) then
+                    call chm_read_fst(trim(fname),varName,1,-1,etiket,ni,nj,array2,.false.,xlat,xlong,nkeys,lvls,kind)
+                else
+                   call chm_read_fst(trim(fname),varName,imonth+1,-1,etiket,ni,nj,array2,.false.,xlat,xlong,nkeys,lvls,kind)
+                end if
+          
+!               Linearly interpolate in time (approximately - assumes 30 day months)
+
+                if (j.eq.1) then              
+                   chm_ref_fields(id,1)%field3d(:,:,:) = (array1(:,:,:)*(30.0-day)+array2(:,:,:)*day)/30.0
+                else
+                   chm_ref_fields(id,2)%field3d(:,:,:) = (array1(:,:,:)*(30.0-day)+array2(:,:,:)*day)/30.0
+                end if
+             
+             else if (iday.le.15) then
+                if (imonth.eq.1) then
+                   call chm_read_fst(trim(fname),varName,12,-1,etiket,ni,nj,array2,.false.,xlat,xlong,nkeys,lvls,kind)
+                else
+                   call chm_read_fst(trim(fname),varName,imonth-1,-1,etiket,ni,nj,array2,.false.,xlat,xlong,nkeys,lvls,kind)
+                end if
+
+!               Linearly interpolate in time (approximately - assumes 30 day months)
+
+                if (j.eq.1) then
+                   chm_ref_fields(id,1)%field3d(:,:,:) = (array2(:,:,:)*(30.0-day)+array1(:,:,:)*day)/30.0
+                else
+                   chm_ref_fields(id,2)%field3d(:,:,:) = (array2(:,:,:)*(30.0-day)+array1(:,:,:)*day)/30.0
+                end if
+             
+             end if
+          
+          end if
+ 
+          if (allocated(array1)) deallocate(array1)
+          if (allocated(array2)) deallocate(array2)   
+                 
+       end do
+    end do 
+     
+ 10 if (ios.gt.0) then
+       WRITE(*,*) 'File read error message number: ',ios
+       CALL ABORT3D('chm_read_ref_fields: READING PROBLEM')    
+    end if
+ 
+ 11 CLOSE(UNIT=NULSTAT)
+    IERR=FCLOS(NULSTAT)    
+    
+  end subroutine chm_read_ref_fields
+  
+!-----------------------------------------------------------------------------------------
+  
+  subroutine chm_read_fst(fname,varName,iip2,iip3,etiketi,ni,nj,array,lgrid,xlat,xlong,nkeys,lvls,kind)
+!
+! ****** NOT TESTED *********
+!
+! Author  : Y. Rochon, ARQI/AQRD, Nov 2015
+!
+! Revision: 
+!
+! Purpose:  Read specified field from standard RPN/fst file.
+!
+!-----------------------------------------------------------------------------------------
+
+    implicit none
+
+    integer, intent(in) :: iip2,iip3
+    character(len=*), intent(in) :: varName,fname,etiketi
+    logical, intent(in) :: lgrid
+    integer, intent(out) :: ni, nj, nkeys, kind
+    real(8), intent(out), allocatable :: array(:,:,:),lvls(:),xlat(:),xlong(:)
+
+    integer, external :: fnom,fclos,fstouv,fstfrm,fstinl,fstlir,fstluk,fstprm
+    
+    real(4) :: lvl_r4
+    
+    logical :: Exists
+    character(len=1) :: string
+     
+    integer, parameter :: iun=0
+    integer :: i,ier
+
+    integer, parameter :: maxkeys=1000
+    integer :: keys(maxkeys),ini,inj,nk
+    integer :: dateo, deet, npas, nbits, datyp
+    integer :: ip1, ip2, ip3, swa, lng, dltf, ubc
+    integer :: extra1, extra2, extra3
+    integer :: ig1, ig2, ig3, ig4  
+    character*1 clgrtyp
+    character*2 cltypvar
+    character*4 nomvar
+    character*12 cletiket
+    real(4), allocatable :: buffer(:,:)
+    
+!   Open file
+    
+    inquire(file=trim(fname),exist=Exists)
+    if(.not.Exists) then
+      write(*,*) 'File missing=',fname
+      call abort3d('chm_read_fst_field: did not find file.')
+    else
+      ier=fnom(iun,trim(fname),'RND+OLD+R/O',0)
+      ier=fstouv(iun,'RND+OLD')
+    end if
+
+!   Find reports in file for specified varName and iip3.
+
+    ier = fstinl(iun,ni,nj,nk,-1,etiketi,-1,iip2,iip3,'',varName,keys,nkeys,maxkeys) 
+
+    if(ier.lt.0.or.nkeys.eq.0) then
+      write(*,*) 'Search field missing ',varName, ' from file ',fname
+      call abort3d('chm_read_fst_field: did not find field.')
+    else if (nk.gt.1) then
+      write(*,*) 'Unexpected size nk ',nk,' for ',varName,' of file ',fname 
+      call abort3d('chm_read_fst_field')      
+    end if
+
+    if (lgrid) then
+
+!      Get lat and long if available.
+
+       allocate(xlat(nj),xlong(ni),buffer(ni*nj,1))
+       xlat(:)=-999.
+       xlong(:)=-999.
+
+       ier = fstprm(keys(1),dateo, deet, npas, ni, nj, nk, nbits,    &         
+                    datyp, ip1, ip2, ip3, cltypvar, nomvar, cletiket, &
+                    clgrtyp, ig1, ig2, ig3,                           &
+                    ig4, swa, lng, dltf, ubc, extra1, extra2, extra3)  
+    
+       if (ni.gt.1) then
+          ier=fstlir(buffer,iun,ni,inj,nk,ig1,ig2,ig3,'','>>')
+          if (ier.ge.0) xlong(:)=buffer(1:ni,1) 
+       end if
+       if (nj.gt.1) then
+          ier=fstlir(buffer,iun,ini,nj,nk,ig1,ig2,ig3,'','^^')
+          if (ier.ge.0) xlat(:)=buffer(1:nj,1)     
+       end if
+       deallocate(buffer)
+    
+    end if 
+    
+!   Get field and vertical coordinate
+    
+    allocate(array(ni,nj,nkeys),buffer(ni,nj),lvls(nkeys))
+   
+    do i=1,nkeys
+       ier=fstluk(buffer,keys(i),ni,nj,nk)
+       array(:,:,i)=buffer(:,:)
+      
+       ier = fstprm(keys(i),dateo, deet, npas, ni, nj, nk, nbits,    &         
+                    datyp, ip1, ip2, ip3, cltypvar, nomvar, cletiket, &
+                    clgrtyp, ig1, ig2, ig3,                           &
+                    ig4, swa, lng, dltf, ubc, extra1, extra2, extra3)  
+               
+       call convip(ip1,lvl_r4,kind,-1,string,.false.)
+       lvls(i)=lvl_r4
+    end do
+    
+    deallocate(buffer)
+    
+    ier=fstfrm(iun)  
+    ier=fclos(iun)  
+
+  end subroutine chm_read_fst
+
+!----------------------------------------------------------------------------------------
+
+  subroutine chm_set_reference_obsdata(obsoper)
+!
+! ***** NOT TESTED *****
+!
+! Author   : Y. Rochon, ARQI/AQRD May 2016
+!
+! Purpose: Determine and store reference profile at obs location if needed by
+!          the observation operators.
+!
+! Arguments:
+!
+!   Input
+!
+!      obsoper%constituent_id  Constituent id
+!      obsoper%nmodlev         Number of model levels for variables other than uu and vv
+!      obsoper%pressmod        Model pressure array
+!      obsoper%tt              Model temperature (Kelvin)
+!      obsoper%gz              Model geopotential height (m)
+!      obsoper%hu              Specific humidity 
+!      obsoper%lat             Latitude (rad)
+!      obsoper%lon             Longitude (rad)
+!
+!   Output
+!
+!      chem_ref_obsdata        Reference profile structure
+!
+!   Comments
+! 
+!----------------------------------------------------------------------------------------
+
+    implicit none
+
+    type(struct_chm_obsoperators), intent(inout) :: obsoper
+       
+    integer :: i,istart,id
+    real(8) :: tropo_press, refprof(obsoper%nmodlev),refprof2(obsoper%nmodlev),dt
+    real(8), allocatable :: pressrefin(:)
+    logical, allocatable :: lsuccess(:)
+    
+    if (obsoper%constituent_id.lt.0.or.obsoper%constituent_id.gt.chm_constituents_size) return
+
+    id=obsoper%constituent_id
+    
+    if (chm_config%generalized_operator(id).le.1) return           
+    if (chm_ref_fields(id,1)%nlat.eq.0) return
+    
+    ! Set vertical levels of reference.
+    ! Convert to pressure coordinate if needed.
+    
+    if (allocated(pressrefin)) deallocate(pressrefin)
+    allocate(pressrefin(chm_ref_fields(id,1)%nlev))
+    pressrefin(:)=chm_ref_fields(id,1)%vlev(1:chm_ref_fields(id,1)%nlev)
+
+    if (allocated(lsuccess)) deallocate(lsuccess)
+    allocate(lsuccess(chm_ref_fields(id,1)%nlev))
+    lsuccess(:)=.true.
+    
+    if (chm_ref_fields(id,1)%ivkind.eq.2) then
+        pressrefin(:)=pressrefin(:)*100. ! Conversion from hPa to Pa.
+    else if (chm_ref_fields(id,1)%ivkind.eq.0) then
+        where (pressrefin.lt.obsoper%gz(obsoper%nmodlev)) pressrefin=obsoper%gz(obsoper%nmodlev)
+        pressrefin(:) = chm_convert_z_to_pressure(pressrefin,obsoper%gz,obsoper%pp, &
+                        chm_ref_fields(id,1)%nlev,obsoper%nmodlev,obsoper%lat,lsuccess)
+    else if (chm_ref_fields(id,1)%ivkind.eq.4) then
+        pressrefin(:)=pressrefin(:) + obsoper%gz(obsoper%nmodlev)
+        pressrefin(:) = chm_convert_z_to_pressure(pressrefin,obsoper%gz,obsoper%pp, &
+                        chm_ref_fields(id,1)%nlev,obsoper%nmodlev,obsoper%lat,lsuccess)
+    else if (chm_ref_fields(id,1)%ivkind.eq.1) then
+        pressrefin(:)=pressrefin(:)*obsoper%pp(obsoper%nmodlev) ! Convert from sigma to Pa   
+    else
+       write(*,*) 'Vertical coordinate kind is ',chm_ref_fields(id,1)%ivkind
+       call abort3d('chm_get_reference_obsdata: Cannot handle vertical coordinate of this kind.')
+    end if
+    
+    ! Interpolate to obs lat/long location and model level
+
+    call chm_trilin(chm_ref_fields(id,1)%field3d,pressrefin, &
+                    chm_ref_fields(id,1)%nlon,chm_ref_fields(id,1)%nlat,chm_ref_fields(id,1)%nlev, &
+                    chm_ref_fields(id,1)%lon,chm_ref_fields(id,1)%lat,obsoper%lon,obsoper%lat, &
+                    refprof,obsoper%pp,obsoper%nmodlev)
+    
+    if (chm_ref_fields(id,2)%nlat.gt.0.and.chm_ref_fields(id,2)%nlon.gt.0.and.chm_ref_fields(id,2)%nlev.gt.0) then
+        
+        if (all(obsoper%tt.lt.0.0)) call abort3d('chm_get_reference_obsdata: Missing TT for determining tropopause pressure')
+        
+        ! Get second reference field (for troposphere)
+        
+        tropo_press=-1.0
+        
+        if (all(obsoper%hu.ge.0.0D0)) then
+           tropo_press=chm_get_tropopause(obsoper%nmodlev,obsoper%pp,obsoper%tt,obsoper%gz,hu=obsoper%hu)
+        else
+           tropo_press=chm_get_tropopause(obsoper%nmodlev,obsoper%pp,obsoper%tt,obsoper%gz)
+         end if
+
+        if (tropo_press.gt.0) then
+            
+           ! Set vertical levels of reference.
+           ! Convert to pressure coordinate if needed
+ 
+           if (allocated(pressrefin)) deallocate(pressrefin)
+           allocate(pressrefin(chm_ref_fields(id,2)%nlev))    
+           pressrefin(:)=chm_ref_fields(id,2)%vlev(1:chm_ref_fields(id,2)%nlev)
+
+           if (allocated(lsuccess)) deallocate(lsuccess)
+           allocate(lsuccess(chm_ref_fields(id,2)%nlev))
+           lsuccess(:)=.true.
+
+           if (chm_ref_fields(id,2)%ivkind.eq.2) then
+               pressrefin(:)=pressrefin(:)*100. ! Conversion from hPa to Pa.
+           else if (chm_ref_fields(id,2)%ivkind.eq.0) then
+               where (pressrefin.lt.obsoper%gz(obsoper%nmodlev)) pressrefin=obsoper%gz(obsoper%nmodlev)
+               pressrefin(:) = chm_convert_z_to_pressure(pressrefin,obsoper%gz,obsoper%pp, &
+                               chm_ref_fields(id,2)%nlev,obsoper%nmodlev,obsoper%lat,lsuccess)
+           else if (chm_ref_fields(id,2)%ivkind.eq.4) then
+               pressrefin(:)=pressrefin(:) + obsoper%gz(obsoper%nmodlev)
+               pressrefin(:) = chm_convert_z_to_pressure(pressrefin,obsoper%gz,obsoper%pp, &
+                               chm_ref_fields(id,2)%nlev,obsoper%nmodlev,obsoper%lat,lsuccess)
+           else if (chm_ref_fields(id,2)%ivkind.eq.1) then
+               pressrefin(:)=pressrefin(:)*obsoper%pp(obsoper%nmodlev) ! Convert from sigma to Pa        
+           else 
+               write(*,*) 'Vertical coordinate kind is ',chm_ref_fields(id,2)%ivkind
+               call abort3d('chm_get_reference_obsdata: Cannot handle vertical coordinate of this kind.')
+           end if
+      
+           ! Interpolate to obs lat/long and model levels
+
+           call chm_trilin(chm_ref_fields(id,2)%field3d,pressrefin, &
+                    chm_ref_fields(id,2)%nlon,chm_ref_fields(id,2)%nlat, &
+                    chm_ref_fields(id,2)%nlev,chm_ref_fields(id,2)%lon, &
+                    chm_ref_fields(id,2)%lat,obsoper%lon,obsoper%lat,refprof2,obsoper%pp,obsoper%nmodlev)
+    
+        end if
+
+        ! Combine with upper level profile
+       
+        do i=obsoper%nmodlev,3,-1
+           if (obsoper%pp(i).lt.tropo_press) exit
+           refprof(i)=refprof2(i)            
+        end do
+        istart=i
+             
+        ! Apply linear combination of four levels just above the tropopause
+        
+        do i=istart,max(2,istart-3),-1
+            dt=(istart+1.0-i)/5.0
+            refprof(i)=dt*refprof2(i) + (1.0-dt)*refprof(i)
+        end do
+                    
+    end if 
+
+    if (allocated(pressrefin)) deallocate(pressrefin)
+    if (allocated(lsuccess)) deallocate(lsuccess) 
+
+    ! ------- Save in chm_ref_trial ---------
+       
+    if (.not.associated(chm_ref_trial%data1d)) then
+       call obsdata_alloc(chm_ref_trial, chm_config%obsdata_maxsize, dim1=obsoper%nmodlev)
+       chm_ref_trial%nrep = 0
+    end if
+
+    ! Here, nrep will count the number of filled elements in the data arrays
+    chm_ref_trial%nrep = chm_ref_trial%nrep+1 
+
+    if (chm_ref_trial%nrep.gt.chm_config%obsdata_maxsize) &
+         call abort3d('chm_get_ref_obsdata: Reach max size of array ' // trim(str(chm_config%obsdata_maxsize)) )
+  
+    ! The obsoper%obs_index (header index) serves as the unique locator code 
+    write(chm_ref_trial%code(chm_ref_trial%nrep),'(I22)') obsoper%obs_index
+
+    ! Save profile in chm_ref_trial
+    
+    chm_ref_trial%data1d(chm_ref_trial%nrep,:) = refprof(:)
+
+  end subroutine chm_set_reference_obsdata
+
+!-------------------------------------------------------------------------------------------
+
+  subroutine chm_trilin(field,vlev,nlong,nlat,nlev,xlong,xlat,plong,plat,vprof,vlevout,nlevout)
+!
+! Author:  Y. Rochon, Nov 2015
+!
+! Purpose: Approximate trilinear interpolation from a 3D field to a profile at (plong,plat).
+!          Proper trilinear interpolation (i.e. conducting vertical interpolation for all 
+!          lat-long points involved in the interpolation) not essential here.
+!
+! Arguments:
+!
+!   Input
+!      
+!     field(nlong,nlat,nlev)  3D field
+!     nlong         number or latitudes
+!     nlat          number of longitudes
+!     nlev          number of vertical levels
+!     xlong         longitudes (radians)
+!     xlat          latitudes (radians)
+!     vlev          vertical levels of input field (in pressure)
+!     plat          target latitude (radian)
+!     plong         target longitude (radians) 
+!     nlevout       Number of target vertical levels
+!     vlevout       Target vertical levels (in pressure)
+!
+!   Output
+!
+!     vprof(nlev)   Profile at (plong,plat) 
+!
+!-------------------------------------------------------------------------------------------  
+
+    use MathPhysConstants_mod
+
+    implicit none
+
+    integer, intent(in) :: nlong,nlat,nlev,nlevout
+    real(8), intent(in) :: field(nlong,nlat,nlev),vlev(nlev),xlong(nlong),xlat(nlat),plong,plat
+    real(8), intent(in) :: vlevout(nlevout)
+    real(8), intent(out) :: vprof(nlevout)
+    
+    real(8) :: lnvlev(nlev),lnvlevout(nlevout),plong2
+    integer :: ilev,ilon,ilat,i,j
+
+    real(8) :: DLDX, DLDY, DLDP, DLW1, DLW2, DLW3, DLW4
+
+    ! Find near lat/long grid points
+    
+    plong2=plong
+    if (plong2.lt.0.0) plong2=2.D0*MPC_PI_R8 + plong2
+    do ilon=2,nlong
+       if  (xlong(ilon-1).lt.xlong(ilon)) then
+           if (plong2.ge.xlong(ilon-1).and.plong2.le.xlong(ilon)) exit
+       else 
+           ! Assumes this is a transition between 360 to 0 (if it exists). Skip over.
+       end if
+    end do
+    ilon=ilon-1
+       
+    do ilat=2,nlat
+       if (plat.le.xlat(ilat)) exit
+    end do
+    ilat=ilat-1
+    
+    ! Set lat/long interpolation weights
+    
+    DLDX = (plong - xlong(ilon))/(xlong(ilon+1)-xlong(ilon))
+    DLDY = (plat - xlat(ilat))/(xlat(ilat+1)-xlat(ilat))
+
+    DLW1 = (1.d0-DLDX) * (1.d0-DLDY)
+    DLW2 =       DLDX  * (1.d0-DLDY)
+    DLW3 = (1.d0-DLDX) *       DLDY
+    DLW4 =       DLDX  *       DLDY
+
+    ! Set vertical interpolation weights (assumes pressure vertical coordinate)
+    
+    lnvlevout(:)=log(vlevout(:))    
+    lnvlev(:)=log(vlev(:))    
+!    lnvlev(:) = DLW1 * log(vlev(ilon,:,ilat)) &
+!               + DLW2 * log(vlev(ilon+1,:,ilat)) &
+!               + DLW3 * log(vlev(ilon,:,ilat+1)) &
+!               + DLW4 * log(vlev(ilon+1,:,ilat+1)) 
+         
+    ilev=1
+    do i = 1, nlevout
+       do j=ilev,nlev          
+          if (lnvlevout(i).lt.lnvlev(j)) exit    ! assumes both lnvlevout and lnvlev increase with increasing index value
+       end do
+       ilev=j-1
+       if (ilev.lt.1) then
+          ilev=1
+       else if (ilev.ge.nlev) then
+           ilev=nlev-1
+       end if
+       
+       DLDP = (lnvlev(ilev+1)-lnvlevout(i))/(lnvlev(ilev+1)-lnvlev(ilev))
+          
+       vprof(i) = DLDP* (DLW1 * field(ilon,ilev,ilat) &
+                       + DLW2 * field(ilon+1,ilev,ilat) &
+                       + DLW3 * field(ilon,ilev,ilat+1) &
+                       + DLW4 * field(ilon+1,ilev,ilat+1)) &
+         + (1.d0-DLDP)* (DLW1 * field(ilon,ilev+1,ilat) &
+                       + DLW2 * field(ilon+1,ilev+1,ilat) &
+                       + DLW3 * field(ilon,ilev+1,ilat+1) &
+                       + DLW4 * field(ilon+1,ilev+1,ilat+1))                               
+    end do
+        
+  end subroutine chm_trilin
+
+!-----------------------------------------------------------------------------------------
 !----------- Routines relevant to error std. dev. (observation_erreurs.ftn90) ------------
 
   subroutine chm_read_obs_err_stddev
@@ -1502,12 +2211,12 @@ contains
     ! Identify level if needed
                    
     IF (ISTNID .EQ. 0) THEN
-       
-       ! Set error standard deviations as 5% default value.
-       
-       obs_err_stddev = 0.05D0*ZVAL
-       
-       WRITE(*,'(1X,"Error std. dev. for STNID= ",A10," not found. Set to 5%.")') CSTNID
+  
+       call abort3d('chm_get_obs_err_stddev: Errror std. dev. for STNID ' // trim(CSTNID) // ' is unavailable. Check section I of file obsinfo_chm.')
+     
+       ! Set error standard deviations as 5% default value.       
+       ! obs_err_stddev = 0.05D0*ZVAL       
+       ! WRITE(*,'(1X,"Error std. dev. for STNID= ",A10," not found. Set to 5%.")') CSTNID
 
     ELSE
              
@@ -1880,11 +2589,11 @@ contains
 !           M. Sitwell, April 2016
 !             - Changed function to use unique character string
 !
-!  Input 
+!   Input 
 !           obsdata       struct_chm_obsdata instance
 !           code          unique identifying code
 !
-!  Output
+!   Output
 !           element       retrieved element from obsdata%data1d
 !-------------------------------------------------------------------------------------------
 
@@ -2027,7 +2736,8 @@ contains
     character(len=22), intent(in) :: code
     integer :: i
     
-    if (obsdata%nrep.le.0) call abort3d("obsdata_set_index: No reports available.")
+    if (obsdata%nrep.le.0) call abort3d("obsdata_set_index: No reports available. " // &
+       "Check for consistency between file obsinfo_chm, input BURP file and input NAMBURP_FILTER_CHM* namelist.")
     i=0
  
     ! Search for matching identifier code
@@ -2201,7 +2911,6 @@ contains
 !-------------------------------------------------------------------------------------------
 
   character(len=20) function float2str(x)
-!-------------------------------------------------------------------------------------------
 !
 ! Author:  M. Sitwell April 2016
 !
@@ -2869,11 +3578,11 @@ contains
 
 !-----------------------------------------------------------------------------------
 
-  subroutine chm_apply_transform(varName,bkgrnd_ptr,l_reverse,mode,incr_ptr)
+  subroutine chm_apply_transform_array4d(varName,bkgrnd_ptr,l_reverse,mode,incr_ptr)
 !
 ! Author: Y. Rochon, Nov 2015
 !
-! Purpose: Apply transform (or its inverse) of background field or increment field.
+! Purpose: Apply transform (or its inverse) of 4D background field or increment field.
 !          Called by chm_transform_final_increments in file chem_interface_mod.ftn90.
 !
 ! Revisions:
@@ -2912,7 +3621,7 @@ contains
     iconstituent_id = chm_varnumFromVarname(varName)
     if (iconstituent_id.lt.0.or.iconstituent_id.gt.chm_constituents_size) return
     
-    write(*,'(A,I2,A,I2,A,A)') "chm_apply_transform: applying transform number ",chm_config%transform(iconstituent_id), &
+    write(*,'(A,I2,A,I2,A,A)') "chm_apply_transform_array4d: applying transform number ",chm_config%transform(iconstituent_id), &
          " with mode = ",mode," for field ",trim(varName)
 
     select case(chm_config%transform(iconstituent_id))
@@ -2923,7 +3632,7 @@ contains
        ! Transform lnx to/from x or dlnx to/from dx
        
        if (.not.present(incr_ptr).and.(mode.eq.1.or.mode.eq.2)) &
-            call abort3d("chm_apply_transform: incr_ptr must be provided for mode = " // trim(str(mode)) )
+            call abort3d("chm_apply_transform_array4d: incr_ptr must be provided for mode = " // trim(str(mode)) )
 
        if (.not.l_reverse) then
 
@@ -2954,7 +3663,7 @@ contains
        end if
 
     case default
-       call abort3d("chm_apply_transform: transform selection " // trim(str(chm_config%transform(iconstituent_id))) // " not currenly defined." )
+       call abort3d("chm_apply_transform_array4d: transform selection " // trim(str(chm_config%transform(iconstituent_id))) // " not currenly defined." )
     end select
     
   contains
@@ -2996,8 +3705,93 @@ contains
 
     end function log_matrix
 
-  end subroutine chm_apply_transform
+  end subroutine chm_apply_transform_array4d
+!-----------------------------------------------------------------------------------
 
+  subroutine chm_apply_transform_array1d(varName,bkgrnd_ptr,l_reverse,mode,incr_ptr)
+!
+! Author: Y. Rochon, May 2016 (based on chm_apply_transform_array4d)
+!
+! Purpose: Apply transform (or its inverse) of background field or increment profiles.
+!
+! Revisions:
+!
+! Arguments:
+!
+!   In
+!
+!     varName          Field name (nomvar)
+!     l_reverse        Reverse/inverse transformation
+!     mode             selected sub-transformation type (defined for each transformation
+!                      given in chm_config%transform)
+!
+!   InOut
+!
+!     bkgrnd_ptr       statevector profile
+!     incr_ptr         increment profile
+!
+!-----------------------------------------------------------------------------------
+
+    implicit none
+    
+    character(len=*), intent(in) :: varName
+    integer, intent(in) :: mode
+    logical, intent(in) :: l_reverse
+
+    real(8), intent(inout) :: bkgrnd_ptr(:)        
+    real(8), intent(inout), optional :: incr_ptr(:)   
+
+    integer :: iconstituent_id
+
+    iconstituent_id = chm_varnumFromVarname(varName)
+    if (iconstituent_id.lt.0.or.iconstituent_id.gt.chm_constituents_size) return
+    
+    write(*,'(A,I2,A,I2,A,A)') "chm_apply_transform_array1d: applying transform number ",chm_config%transform(iconstituent_id), &
+         " with mode = ",mode," for field ",trim(varName)
+
+    select case(chm_config%transform(iconstituent_id))
+    case(0)
+       return
+    case(1)
+    
+       ! Transform lnx to/from x or dlnx to/from dx
+       
+       if (.not.present(incr_ptr).and.(mode.eq.1.or.mode.eq.2)) &
+            call abort3d("chm_apply_transform_array1d: incr_ptr must be provided for mode = " // trim(str(mode)) )
+
+       if (.not.l_reverse) then
+
+          ! Forward transformation
+              
+          select case(mode)
+          case(0)
+             bkgrnd_ptr = log(bkgrnd_ptr)
+          case(1)
+             bkgrnd_ptr = log(bkgrnd_ptr+incr_ptr)
+          case(2)
+             incr_ptr = log(bkgrnd_ptr+incr_ptr) - log(bkgrnd_ptr)           
+          end select
+
+       else
+    
+          ! Reverse transformation          
+       
+          select case(mode)
+          case(0)
+             bkgrnd_ptr = exp(bkgrnd_ptr)
+          case(1)
+             bkgrnd_ptr = exp(bkgrnd_ptr+incr_ptr)
+          case(2)
+             incr_ptr = exp(bkgrnd_ptr+incr_ptr) - exp(bkgrnd_ptr)
+          end select 
+             
+       end if
+
+    case default
+       call abort3d("chm_apply_transform_array1d: transform selection " // trim(str(chm_config%transform(iconstituent_id))) // " not currenly defined." )
+    end select
+    
+  end subroutine chm_apply_transform_array1d
 !-----------------------------------------------------------------------------------
  
     function chm_varnumFromVarName(varName) result(varNumber)
@@ -3085,6 +3879,107 @@ contains
       end if
       
     end function chm_varnumFromVarname
+!-----------------------------------------------------------------------------------
+
+  subroutine chm_apply_2dfieldr4_transform(iconstituent_id,varName,jlev,jstep,field,l_reverse)
+!
+! ****** NOT TESTED *********
+!
+! Author: Y. Rochon, Feb 2016
+!
+! Revisions:
+!
+! Purpose: Apply transform (or its inverse) of 2D field.
+!          Called by routine readTrialField in file sugomobs.ftn90. 
+!
+! Arguments:
+!
+!   In
+!
+!     iconstituent_id BUFR code element of Table 08046 identifying the constituent.
+!     varName         Field name (nomvar)
+!     l_reverse       Reverse/inverse transformation if present.
+!     jlev            vertical level index
+!     jstep           Time step index
+!
+!   InOut
+!
+!     field           2D field
+!
+! Comments:
+!
+! 1. The EnVar assumes that the input background error covariances are provided
+!    for the transformed field if a variable transformation is requested!
+!
+!-----------------------------------------------------------------------------------
+
+    implicit none
+    
+    integer, intent(in) :: iconstituent_id,jlev,jstep
+    character(len=*), intent(in) :: varName
+    logical, intent(in), optional :: l_reverse
+
+    real(4), intent(inout) :: field(:,:)            
+
+    integer, parameter :: unit=10
+    integer :: i,j
+    real(4) :: valmin
+    logical :: file_exists
+    
+    if (iconstituent_id.ge.0.and.iconstituent_id.le.chm_constituents_size) return
+    
+    if (chm_config%transform(iconstituent_id).eq.0) return
+    
+    ! Open output warning file
+    inquire(file=chm_warnings_filename, exist=file_exists)
+    if (file_exists) then
+       open(unit, file=chm_warnings_filename, status="old", position="append", action="write")
+    else
+       open(unit, file=chm_warnings_filename, status="new", action="write")
+    end if
+    write(unit,*)
+    
+    if (chm_config%transform(iconstituent_id).eq.1) then
+
+       ! Transform lnx to/from x or dlnx to/from dx
+           
+       if (.not.present(l_reverse)) then
+       
+          ! Forward transformation
+ 
+          do j=1,size(field,2)
+             valmin=minval(field(:,j),mask=field(:,j).gt.0.0)
+             if (valmin.gt.1.E30) valmin=1.E-20
+             do i=1,size(field,1) 
+                if (field(i,j).lt.0.0) then
+                   write(unit,'(A,G9.2,A,A)') "Unexpected/undesired negative value of ",field(i,j), " for input field ",trim(varName)
+                   write(unit,'(A,3I4,A,I3,A,G9.2)')  "at location (",i,j,jlev,") and step ",jstep,". Value replaced by ",valmin,"."                    
+                   field(i,j)=valmin
+                end if
+             end do
+          end do
+      
+          field=log(field)
+     
+       else
+    
+          ! Reverse transformation          
+       
+          field=exp(field)
+             
+       end if 
+   
+    else
+     
+        call abort3d('chm_apply_2dfieldr4_transform: Transformation #' // trim(str(iconstituent_id)) // &
+             ' for constituent ' // trim(str(iconstituent_id)) // " and variable name " // trim(varname) // &
+             ' is not defined.')
+    end if
+    
+    write(unit,*) 
+    close(unit)
+ 
+  end subroutine chm_apply_2dfieldr4_transform
 
 !-----------------------------------------------------------------------------------
 
@@ -3730,7 +4625,7 @@ contains
 
 !----------------------------------------------------------------------------------------
 
-  function chm_get_col_boundary(iconstituent_id,n_modlvl,pressmodlvl,tt,gz,hu,uu,vv) result(bound_press)
+  function chm_get_col_boundary(iconstituent_id,nmodlev,pressmod,tt,gz,hu,uu,vv) result(bound_press)
 !
 ! Author   : Y. Rochon, ARQI/AQRD Oct 2015
 !
@@ -3744,8 +4639,8 @@ contains
 !   Input
 !
 !      iconstituent_id   BUFR code element of Table 08046 identifying the constituent.
-!      n_modlvl     Number of model levels for variables other than uu and vv
-!      pressmodlvl  Model pressure array
+!      nmodlev      Number of model levels for variables other than uu and vv
+!      pressmod     Model pressure array
 !      tt           Model temperature (Kelvin)
 !      gz           Model geopotential height (meters)
 !      hu           Specific humidity 
@@ -3762,9 +4657,9 @@ contains
 
     implicit none
 
-    integer, intent(in) :: n_modlvl,iconstituent_id
-    real(8), intent(in) :: pressmodlvl(n_modlvl),tt(n_modlvl),gz(n_modlvl)
-    real(8), optional, intent(in) :: uu(:),vv(:),hu(n_modlvl)
+    integer, intent(in) :: nmodlev,iconstituent_id
+    real(8), intent(in) :: pressmod(nmodlev),tt(nmodlev),gz(nmodlev)
+    real(8), optional, intent(in) :: uu(:),vv(:),hu(nmodlev)
    
     real(8) :: bound_press
     
@@ -3781,9 +4676,9 @@ contains
              ! Get tropopause pressure level
       
              if (present(hu)) then
-                bound_press = chm_get_tropopause(n_modlvl,pressmodlvl,tt,gz,hu=hu)
+                bound_press = chm_get_tropopause(nmodlev,pressmod,tt,gz,hu=hu)
              else
-                bound_press = chm_get_tropopause(n_modlvl,pressmodlvl,tt,gz)
+                bound_press = chm_get_tropopause(nmodlev,pressmod,tt,gz)
              end if
     
           case(2)
@@ -3791,11 +4686,11 @@ contains
              ! Get PBL pressure level
       
              if (present(hu).and.present(uu).and.present(vv)) then
-                bound_press = chm_get_pbl(n_modlvl,pressmodlvl,tt,gz,hu=hu,uu=uu,vv=vv) 
+                bound_press = chm_get_pbl(nmodlev,pressmod,tt,gz,hu=hu,uu=uu,vv=vv) 
              else if (present(hu)) then
-                bound_press = chm_get_pbl(n_modlvl,pressmodlvl,tt,gz,hu=hu)
+                bound_press = chm_get_pbl(nmodlev,pressmod,tt,gz,hu=hu)
              else if (present(uu).and.present(vv)) then
-                bound_press = chm_get_pbl(n_modlvl,pressmodlvl,tt,gz,uu=uu,vv=vv) 
+                bound_press = chm_get_pbl(nmodlev,pressmod,tt,gz,uu=uu,vv=vv) 
              end if
       
           case default
@@ -3813,7 +4708,7 @@ contains
  
 !----------------------------------------------------------------------------------------
 
-  function chm_get_tropopause(n_modlvl,pressmodlvl,tt,gz,hu) result(tropo_press)
+  function chm_get_tropopause(nmodlev,pressmod,tt,gz,hu) result(tropo_press)
 !
 ! Author   : Y. Rochon, ARQI/AQRD Oct 2015
 !            - Following consultation with Irena Paunova for water vapour based approach
@@ -3829,8 +4724,8 @@ contains
 !
 !   Input
 !
-!      n_modlvl     Number of model levels
-!      pressmodlvl  Model pressure array (Pa)
+!      nmodlev      Number of model levels
+!      pressmod     Model pressure array (Pa)
 !      hu           Model specific humidity 
 !      tt           Model temperature (Kelvin)
 !      gz           Model geopotential height (m)
@@ -3843,9 +4738,9 @@ contains
 
     implicit none
 
-    integer, intent(in) :: n_modlvl
-    real(8), intent(in) :: pressmodlvl(n_modlvl),tt(n_modlvl),gz(n_modlvl)
-    real(8), intent(in), optional :: hu(n_modlvl)
+    integer, intent(in) :: nmodlev
+    real(8), intent(in) :: pressmod(nmodlev),tt(nmodlev),gz(nmodlev)
+    real(8), intent(in), optional :: hu(nmodlev)
    
     real(8) :: tropo_press
   
@@ -3867,13 +4762,13 @@ contains
 !        Organization. 1992. p. 636. ISBN 92-63-02182-1.
 !   The second requirement, based on hu, may give levels that are to high (pressure too low) in the winter hemisphere.
 
-    do itop=3,n_modlvl
-       if (pressmodlvl(itop).ge.press_min) exit
+    do itop=3,nmodlev
+       if (pressmod(itop).ge.press_min) exit
     end do
     itop=itop-1
        
-    do i=n_modlvl,itop+1,-1
-       if (gz(i)-gz(n_modlvl).lt.gz_min) cycle
+    do i=nmodlev,itop+1,-1
+       if (gz(i)-gz(nmodlev).lt.gz_min) cycle
        xlaps=-(tt(i)-tt(i-1))/(gz(i)-gz(i-1))
        if (xlaps.le.tgrad_threshold) then
           ilaps=1
@@ -3885,7 +4780,7 @@ contains
           if (xlaps/ilaps.le.tgrad_threshold) exit
        end if
     enddo
-    tropo_press=pressmodlvl(i)
+    tropo_press=pressmod(i)
     
 !   Improve on tropopause pressure levels using specific humidity if available,
 
@@ -3894,7 +4789,7 @@ contains
 !      Use water vapour
       
        hu_ppmv1=0.0
-       do i=itop,n_modlvl
+       do i=itop,nmodlev
 
 !         Convert specific humidity to ppmv mixing ratio.
 !         First apply r=q/(1-q) to convert to mass mixing ratio.
@@ -3912,7 +4807,7 @@ contains
 
           if (hu_ppmv2.ge.ppmv_threshold) then
              ilaps=1
-             do k=i+1,n_modlvl
+             do k=i+1,nmodlev
                 if (gz(i)-gz(k).gt.5000.0) exit
                 if (hu(k).le.0.8.and.hu(k).ge.0) then
                    hu_ppmv3 = consth*hu(k)/(1.0-hu(k))
@@ -3933,11 +4828,11 @@ contains
 !            Interpolate between levels
       
              if (abs(hu_ppmv2-hu_ppmv1).lt.0.1) hu_ppmv1=hu_ppmv2-0.1
-!             tropo_press_hu=(log(pressmodlvl(i))*(ppmv_threshold-hu_ppmv1)+ &
-!                    log(pressmodlvl(i-1))*(hu_ppmv2-ppmv_threshold)) &
+!             tropo_press_hu=(log(pressmod(i))*(ppmv_threshold-hu_ppmv1)+ &
+!                    log(pressmod(i-1))*(hu_ppmv2-ppmv_threshold)) &
 !                   /(hu_ppmv2-hu_ppmv1)
 !             tropo_press_hu=exp(tropo_press_hu)
-             tropo_press_hu=pressmodlvl(i)
+             tropo_press_hu=pressmod(i)
              
              tropo_press=min(tropo_press,tropo_press_hu)
        else
@@ -3951,7 +4846,7 @@ contains
 
 !----------------------------------------------------------------------------------------
 
-  function chm_get_pbl(n_modlvl,pressmodlvl,tt,gz,hu,uu,vv) result(pbl_press)
+  function chm_get_pbl(nmodlev,pressmod,tt,gz,hu,uu,vv) result(pbl_press)
 !
 ! Author   : Y. Rochon, ARQI/AQRD Oct 2015
 !            - Following consultation with Amir Aliabadi, Shuzhan Ren and Saroja Polavarapu.
@@ -3985,8 +4880,8 @@ contains
 !
 !   Input
 !
-!      n_modlvl     Number of model levels for variables other than uu and vv
-!      pressmodlvl  Model pressure array (Pa)
+!      nmodlev      Number of model levels for variables other than uu and vv
+!      pressmod     Model pressure array (Pa)
 !      tt           Model temperature (Kelvin)
 !      gz           Model geopotential height (meters)
 !      hu           Specific humidity
@@ -4000,7 +4895,7 @@ contains
 !   Comments
 !
 !   A) Currently assumes (uu,vv) midlayer levels approximately at tt, gz, and hu levels
-!      when size(uu).ne.n_modlvl.
+!      when size(uu).ne.nmodlev.
 !
 !----------------------------------------------------------------------------------------
 
@@ -4008,27 +4903,27 @@ contains
 
     implicit none
 
-    integer, intent(in) :: n_modlvl
-    real(8), intent(in) :: pressmodlvl(n_modlvl),tt(n_modlvl),gz(n_modlvl)
-    real(8), optional :: uu(:),vv(:),hu(n_modlvl)
+    integer, intent(in) :: nmodlev
+    real(8), intent(in) :: pressmod(nmodlev),tt(nmodlev),gz(nmodlev)
+    real(8), optional :: uu(:),vv(:),hu(nmodlev)
    
     real(8) :: pbl_press
   
     integer :: itop,i,id,igradmax,inv,iRiBmax
-    real(8) :: RiB1,RiB2,RiBmax,zs,thetavs,thetavh(n_modlvl),us,vs,uv,hus,huh,gradmax,grad
+    real(8) :: RiB1,RiB2,RiBmax,zs,thetavs,thetavh(nmodlev),us,vs,uv,hus,huh,gradmax,grad
     real(8), parameter :: kappa = 287.04/1004.67  ! R/Cp
     real(8), parameter :: RiB_threshold=0.5, reduced=0.5 
 
 !   Imposed min presssure of PBL height of 200 hPa (extreme; PBL height should normally be under 3km)
     real(8), parameter :: press_min=20000.  
 
-    real(8) :: huw(n_modlvl)
+    real(8) :: huw(nmodlev)
 
     pbl_press=-1.0
     
 !   Set values for lowest prognostic level 
 
-    i = n_modlvl   
+    i = nmodlev   
     
     if (all(gz.lt.0.0))  call abort3d('chm_get_pbl: Missing GZ for determining PBL pressure')
 
@@ -4051,13 +4946,13 @@ contains
     
 !   Potential virtual temperature at lowest prognostic level
 
-    thetavs = tt(i)*(1.D5/pressmodlvl(i))**kappa* (1.0 + 0.61*hus )
-    thetavh(n_modlvl)=thetavs
+    thetavs = tt(i)*(1.D5/pressmod(i))**kappa* (1.0 + 0.61*hus )
+    thetavh(nmodlev)=thetavs
 
 !   Set max vertical level
 
-    do itop=2,n_modlvl-1
-       if (pressmodlvl(itop).ge.press_min) exit
+    do itop=2,nmodlev-1
+       if (pressmod(itop).ge.press_min) exit
     end do
 
     RiB1=0.0
@@ -4065,9 +4960,9 @@ contains
     RiBmax=0.0
     iRiBmax=0
     if (present(uu).and.present(vv)) then
-       id=n_modlvl-size(uu)
+       id=nmodlev-size(uu)
        if (id.gt.1.or.id.lt.0) then
-          call abort3d('chm_get_pbl: Unexpected number of UV levels, n_modlvl = ' // trim(str(n_modlvl)) // ' , size(uu) = ' // trim(str(size(uu))) )    
+          call abort3d('chm_get_pbl: Unexpected number of UV levels, nmodlev = ' // trim(str(nmodlev)) // ' , size(uu) = ' // trim(str(size(uu))) )    
        end if
        us = uu(size(uu))
        vs = vv(size(vv))
@@ -4077,7 +4972,7 @@ contains
 
 !      Calc RiB from near-surface to level attaining RiB_threshold
 
-       do i=n_modlvl-1,itop,-1
+       do i=nmodlev-1,itop,-1
   
            if (huw(i).le.0.8.and.huw(i).ge.0) then
                huh = huw(i)/(1.0-huw(i))
@@ -4086,7 +4981,7 @@ contains
            else if (huw(i).lt.0.0) then
                huh = 0.0
            end if
-           thetavh(i) = tt(i)*(1.D5/pressmodlvl(i))**kappa* ( 1.0 + 0.61*huh )
+           thetavh(i) = tt(i)*(1.D5/pressmod(i))**kappa* ( 1.0 + 0.61*huh )
 
            if (id.eq.0) then
                uv = max( (uu(i)-us)**2 + (vv(i)-vs)**2, 1.D-8 ) 
@@ -4107,7 +5002,7 @@ contains
 
 !      Calc only theta
       
-       do i=n_modlvl-1,itop,-1
+       do i=nmodlev-1,itop,-1
   
            if (huw(i).le.0.8.and.huw(i).ge.0) then
                huh = huw(i)/(1.0-huw(i))
@@ -4116,7 +5011,7 @@ contains
            else if (huw(i).lt.0.0) then
                huh = 0.0
            end if
-           thetavh(i) = tt(i)*(1.D5/pressmodlvl(i))**kappa* ( 1.0 + 0.61*huh )
+           thetavh(i) = tt(i)*(1.D5/pressmod(i))**kappa* ( 1.0 + 0.61*huh )
        end do
     end if   
     
@@ -4124,13 +5019,13 @@ contains
    
  !     Interpolate between levels
 
-       pbl_press=(log(pressmodlvl(i))*(RiB_threshold-RiB1)+ &
-               log(pressmodlvl(i+1))*(RiB2-RiB_threshold)) &
+       pbl_press=(log(pressmod(i))*(RiB_threshold-RiB1)+ &
+               log(pressmod(i+1))*(RiB2-RiB_threshold)) &
                /(RiB2-RiB1)
        pbl_press=exp(pbl_press)
     else if (RiBmax.ge.reduced*RiB_threshold) then
 !      Apply to level with largest RiB between reduced*RiB_threshold and RiB_threshold
-       pbl_press=pressmodlvl(iRiBmax)
+       pbl_press=pressmod(iRiBmax)
     else
     
 !      Estimate PBL level using the Heffter conditions:
@@ -4139,7 +5034,7 @@ contains
 !      Otherwise, assign PBL level as that with largest
 !      theta gradient.
        
-       i=n_modlvl-1
+       i=nmodlev-1
        do while (i.gt.itop) 
           !if (thetavh(i)-thetavh(i+1).gt.0.0) then
           if ((thetavh(i)-thetavh(i+1))/(gz(i)-gz(i+1)).ge.0.005) then
@@ -4152,7 +5047,7 @@ contains
              end do
              if ((thetavh(i+1)-thetavh(inv)).gt.2.0)  then
                 ! Apply  midlayer as PBL
-                pbl_press=sqrt(pressmodlvl(i+1)*pressmodlvl(inv))
+                pbl_press=sqrt(pressmod(i+1)*pressmod(inv))
                 exit
              end if 
           else
@@ -4161,8 +5056,8 @@ contains
        end do
        if (pbl_press.le.0.0) then
           gradmax=-1.D30
-          igradmax=n_modlvl-1
-          do i=n_modlvl-1,itop,-1
+          igradmax=nmodlev-1
+          do i=nmodlev-1,itop,-1
              grad=(thetavh(i)-thetavh(i+1))/(gz(i)-gz(i+1))
              if (gradmax.lt.grad) then
                 gradmax=(thetavh(i)-thetavh(i+1))/(gz(i)-gz(i+1))
@@ -4172,7 +5067,7 @@ contains
                 end if
             end if
           end do          
-          pbl_press=pressmodlvl(igradmax)
+          pbl_press=pressmod(igradmax)
           ! write(*,*) 'chm_get_pbl: Warning2 - Max allowed altitude reached for. ',pbl_press,igradmax,gradmax,RiB2,iRiBmax,RiBmax
        !else
        !   write(*,*) 'chm_get_pbl: Warning1 - Max allowed altitude reached for. ',pbl_press,i,RiB2,iRiBmax,RiBmax     
@@ -4187,7 +5082,7 @@ contains
 !
 ! Author: M. Sitwell, ARQI/AQRD, April 2016
 !
-! Purpose: Adds column boundary data to chm_column_boundary which can be retreived later
+! Purpose: Adds column boundary data to chm_column_boundary which can be retrieved later
 !          using a header index.
 ! 
 !----------------------------------------------------------------------------------------
@@ -4238,7 +5133,75 @@ contains
 
   end function chm_retrieve_col_boundary
 
-!-------------------------------------------------------------------------------------------
+!----------------------------------------------------------------------------------------
+ 
+  subroutine chm_add_sigma_trial(headerIndex,sigma)
+!
+! Author: Y. Rochon, ARQI/AQRD, May 2016 (based on chm_add_col_boundary by M. Sitwell)
+!
+! Purpose: Adds background sigma profiles (and inverse) to chm_sigma_trial which can be retrieved later
+!          using a header index.
+! 
+!----------------------------------------------------------------------------------------
+
+    implicit none 
+    
+    integer, intent(in) :: headerIndex
+    real(8), intent(in) :: sigma(:,:)
+    
+    if (.not.associated(chm_sigma_trial%data2d)) then
+       call obsdata_alloc(chm_sigma_trial, chm_config%obsdata_maxsize, dim1=size(sigma,dim=1), dim2=max(4,size(sigma,dim=2)))
+       chm_sigma_trial%nrep = 0
+    end if
+
+    ! In this case nrep will count the number of filled reps in the data arrays
+    chm_sigma_trial%nrep = chm_sigma_trial%nrep+1 
+
+    if (chm_sigma_trial%nrep.gt.chm_config%obsdata_maxsize) &
+         call abort3d('chm_sigma_trial: Reached max size of array ' // trim(str(chm_config%obsdata_maxsize)) )
+  
+    ! Use the header number as the unique code for this obs data
+    write(chm_sigma_trial%code(chm_sigma_trial%nrep),'(I22)') headerIndex
+
+    chm_sigma_trial%data2d(chm_sigma_trial%nrep,:,1:2) = sigma(:,1:2)
+
+    where (sigma(:,1).gt.0.0D0)
+       chm_sigma_trial%data2d(chm_sigma_trial%nrep,:,3) = 1.0D0/sigma(:,1)
+    elsewhere
+       chm_sigma_trial%data2d(chm_sigma_trial%nrep,:,3) = 0.0D0
+    end where
+
+    where (sigma(:,2).gt.0.0D0)
+       chm_sigma_trial%data2d(chm_sigma_trial%nrep,:,4) = 1.0D0/sigma(:,2)
+    elsewhere
+       chm_sigma_trial%data2d(chm_sigma_trial%nrep,:,4) = 0.0D0
+    end where
+
+  end subroutine chm_add_sigma_trial
+
+!----------------------------------------------------------------------------------------
+    
+  function chm_retrieve_sigma_trial(headerIndex) result(sigma)
+!
+! Author: Y. Rochon, ARQI/AQRD, May 2016 (based on chm_retrieve_col_boundary by M. Sitwell)
+!
+! Purpose: Retrieves previously saved background sigma profiles chm_sigma_trial from
+!          the header index.
+!
+!----------------------------------------------------------------------------------------
+
+    implicit none
+
+    integer, intent(in) :: headerIndex
+    real(8) :: sigma(chm_sigma_trial%dim1,chm_sigma_trial%dim2)
+    character(len=22) :: code
+
+    write(code,'(I22)') headerIndex
+    
+    sigma = obsdata_get_array2d(chm_sigma_trial,code)
+
+  end function chm_retrieve_sigma_trial
+  
 !--------------------------- Routines for observation operators ----------------------------
 
   subroutine chm_obsoperators(obsoper,model_col,obs_col,kmode,ixtr,success)
@@ -4320,9 +5283,14 @@ contains
 !       obsoper%trial.
 !     - Does not yet account for potential future applications of obs 
 !        vertical correlation matrices.
-!        
+!
+!      - Potential specification of background error std. dev. (sigma_trial(:,2)) and correlation matrices 
+!        for the ensemble-based and lam cases to be done when stats for these become in use with constituents.
+!
 !-------------------------------------------------------------------------------------------
-
+  use bmatrixchem, ONLY : bchm_corvert, bchm_varnamelist, bchm_getsigma     
+!!  use bmatrixchem, ONLY : bchm_getsigma
+  
   implicit none
 
 ! Declarations
@@ -4343,11 +5311,10 @@ contains
 
 ! Local variables
   
-  real(8) :: press_obs(obsoper%nobslev),zwork(obsoper%nmodlev),unit_conversion(obsoper%nmodlev),rsig(obsoper%nmodlev,2)
-  integer :: iobslev
+  real(8) :: press_obs(obsoper%nobslev),zwork(obsoper%nmodlev),unit_conversion(obsoper%nmodlev)
+  real(8) :: sigma_trial(obsoper%nmodlev,2)
+  integer :: iobslev,imodlev,jvar
   real(8), allocatable :: avg_kern(:,:)
-  logical :: lget_rsig
-
        
 ! Determine if layer boundaries are assigned to this data source.
 ! If so, obtain them for use in this routine. 
@@ -4373,16 +5340,37 @@ contains
      end if
   else if (obsoper%layer_identified) then
       ! Layer averaging operator
-     obsoper%modelIndex=2
+     obsoper%modelIndex=4
+  else if (obsoper%vco.eq.5.and.obsoper%nobslev.eq.1) then  
+      ! Surface point (in-situ) measurement
+      obsoper%modelIndex=2
   else    
       ! Vertical interpolation operator
      obsoper%modelIndex=1
   end if  
 
-! Indicates if the generalized innovation operator is to be applied.
+! Indicate if the generalized innovation operator is to be applied.
 
-  obsoper%apply_genoper = kmode.ge.2 .and. chm_config%generalized_operator .and. &
-       (obsoper%modelIndex.eq.2 .or. obsoper%modelIndex.eq.3)
+  obsoper%apply_genoper=.false.
+  if (chm_config%generalized_operator(obsoper%constituent_id).gt.0 .and. kmode.ne.1 .and. &
+       (obsoper%modelIndex.eq.3 .or. obsoper%modelIndex.eq.4)) then
+       
+      if (kmode.eq.0) then
+          ! Set reference profile for use with generalized innovation operator when kmode>=2
+          call chm_set_reference_obsdata(obsoper)
+  
+          ! Get background error std dev profile at obs locations
+          sigma_trial(:,:)=0.D0
+          call bchm_getsigma(obsoper%varName,obsoper%nmodlev,obsoper%lat,obsoper%lon,sigma_trial(:,1)) 
+!!          call blamchm_getsigma(obsoper%varName,obsoper%nmodlev,obsoper%lat,obsoper%lon,sigma_trial(:,1)) 
+!!          call benschm_getsigma(obsoper%varName,obsoper%nmodlev,obsoper%lat,obsoper%lon,sigma_trial(:,2)) 
+
+          call chm_add_sigma_trial(obsoper%obs_index,sigma_trial)
+
+      else if (kmode.ge.2) then
+          obsoper%apply_genoper = .true.
+      end if
+  end if
 
 ! Apply unit conversion and any necessary (nonlinear) transformations (apply unit conversion later for kmode=3)
 
@@ -4424,7 +5412,7 @@ contains
   case(2)
      ! Pressure, no conversion needed
      if (obsoper%modelIndex.eq.1) press_obs = obsoper%obslev
-  case(4)
+  case(4,5)
      ! No actions taken
   case default
      call abort3d("chm_obsoperators: vertical coordinate type vco = " // trim(str(obsoper%vco)) // " not available for this operator.")
@@ -4443,17 +5431,29 @@ contains
 
      call chm_vert_interp_operator(obsoper,press_obs,ixtr,success)
 
-!  case(2)
+  case(2)
 
-!    Layer averaging operator
+!    Surface point measurement
 
-!    call chm_layer_avg_operator  ! see 3dvar_chem routine ch_vavg
+!    Set weight to unity for lowest model level.
+     obsoper%zh(1,1:obsoper%nmodlev-1)=0.0
+     obsoper%zh(1,obsoper%nmodlev) = 1.0
 
-      case(3)
+!    Set range of elements for model vertical levels
+     obsoper%lvl_top(1) = obsoper%nmodlev
+     obsoper%lvl_bot(1) = obsoper%nmodlev 
+    
+  case(3)
   
 !    Layer integration operator
 
      call chm_layer_integ_operator(obsoper,ixtr,success,kmode)
+
+!  case(4)
+
+!    Layer averaging operator
+
+!    call chm_layer_avg_operator  ! see 3dvar_chem routine ch_vavg
 
   end select
   
@@ -4490,6 +5490,8 @@ contains
         end if
       end do
 
+     if (trim(obsoper%stnid).eq.'AIRNOW27'.and.success(1)) write(*,*) 'AIRNOW27 oper/tlm: ',obs_col(1),obsoper%lat,obsoper%hhmm
+
   case(1)
 !
 !    Compute sqrt(diag(H*B*H^T))
@@ -4499,12 +5501,36 @@ contains
         obsoper%zh(iobslev,:) = unit_conversion * obsoper%zh(iobslev,:)
      end do
 
-     lget_rsig=.TRUE.
+!    Get background error std dev profile at obs location
+     sigma_trial(:,:)=0
+     call bchm_getsigma(obsoper%varName,obsoper%nmodlev,obsoper%lat,obsoper%lon,sigma_trial(:,1)) 
+!!      call blamchm_getsigma(obsoper%varName,obsoper%nmodlev,obsoper%lat,obsoper%lon,sigma_trial(:,1)) 
+!!      call benschm_getsigma(obsoper%varName,obsoper%nmodlev,obsoper%lat,obsoper%lon,sigma_trial(:,2)) 
+
+!
+!     Identify variable position index in background error correlation matrices
+!
+     jvar=1
+     do while (trim(bchm_varnamelist(jvar)).ne.'') 
+        if (trim(bchm_varnamelist(jvar)).eq.trim(obsoper%varName)) exit
+        jvar=jvar+1
+     end do
+     if (trim(bchm_varnamelist(jvar)).eq.'') call abort3d('chm_genoper: Correlation matrix not found for ' // trim(obsoper%varName) )
+
      do iobslev=1,obsoper%nobslev
         if (success(iobslev)) then
-           call chm_corvert_mult(obsoper%varName,obsoper%zh(iobslev,:),obs_col(iobslev),obsoper%lvl_top(iobslev), & 
-                obsoper%lvl_bot(iobslev),1,obsoper%nmodlev,1,.TRUE.,obsoper%lat,lget_rsig,3,rsig) ! get h*B*h^T
-           lget_rsig=.FALSE.
+!!           call chm_corvert_mult(obsoper%varName,obsoper%zh(iobslev,:),obs_col(iobslev), &
+!!                obsoper%lvl_top(iobslev),obsoper%lvl_bot(iobslev),1,obsoper%nmodlev, &
+!!                1,.true.,3,sigma_trial) ! get h*B*h^T
+
+           do imodlev=obsoper%lvl_top(iobslev),obsoper%lvl_bot(iobslev)
+               zwork(imodlev)=sum(obsoper%zh(iobslev,obsoper%lvl_top(iobslev):obsoper%lvl_bot(iobslev)) &
+                         *bchm_corvert(imodlev,obsoper%lvl_top(iobslev):obsoper%lvl_bot(iobslev),jvar) &
+                         *sigma_trial(obsoper%lvl_top(iobslev):obsoper%lvl_bot(iobslev),1))*sigma_trial(imodlev,1)
+           end do
+           obs_col(iobslev)=sum(obsoper%zh(iobslev,obsoper%lvl_top(iobslev):obsoper%lvl_bot(iobslev)) &
+                *zwork(obsoper%lvl_top(iobslev):obsoper%lvl_bot(iobslev)))
+
            obs_col(iobslev) = sqrt(obs_col(iobslev))  ! save as sqrt(h*B*h^T)
         else
            obs_col(iobslev) = 0.0
@@ -4532,6 +5558,8 @@ contains
         end if
       end do
       
+      if (trim(obsoper%stnid).eq.'AIRNOW27'.and.success(1)) write(*,*) 'AIRNOW27 adjoint: ',model_col(obsoper%lvl_bot(1)),obsoper%lat,obsoper%hhmm
+      
   end select
 
   end subroutine chm_obsoperators
@@ -4544,7 +5572,7 @@ contains
 !
 ! Revision: 
 !
-! Purpose: Idenitfy if obs is a vertically integrated constituent measurement.
+! Purpose: Identify if obs is a vertically integrated constituent measurement.
 !
 ! ---------------------------------------------------------------------------------------
   
@@ -5019,10 +6047,10 @@ contains
   end do
 
   ! Check for special treatment if chm_config%tropo_mode>=1, kmode=2,3, and nobslev=1 for
-  ! column observations that extend to the surface.
+  ! column observations (obsoper%vco=4)  that extend to the surface.
    
   if (obsoper%nobslev.eq.1.and.kmode.ge.2.and.obsoper%vlayerbottom(1).gt.obsoper%pp(obsoper%nmodlev)*0.99.and. &
-      obsoper%constituent_id.ge.0) then
+      obsoper%constituent_id.ge.0.and.obsoper%vco.eq.4) then
 
      if (obsoper%constituent_id.gt.chm_constituents_size) &
           call abort3d("chm_layer_integ_operator: Invalid constituent ID with value " // trim(str(obsoper%constituent_id)))
@@ -5047,7 +6075,7 @@ contains
            vlayertop_ref=obsoper%vlayertop(1)
 
            obsoper%vlayertop(1) = obsoper%column_bound
-           
+                     
            call chm_vertintg(obsoper,ixtr,success)
            
            ! Apply generalized innovation operator if requested
@@ -5070,6 +6098,8 @@ contains
         end if
       
      end if
+  else
+     vlayerbottom_ref=0.0
   end if
   
    ! Calculate vertical integration components for specified obs layer.
@@ -5078,7 +6108,7 @@ contains
    
   ! If chm_config%tropo_mode=1, reset original vertical range for the tangent
   ! linear operator 
-  if (obsoper%nobslev.eq.1.and.kmode.eq.2.and.obsoper%constituent_id.ge.0) then
+  if (obsoper%nobslev.eq.1.and.kmode.eq.2.and.obsoper%constituent_id.ge.0.and.obsoper%vco.eq.4) then
       if (chm_config%tropo_mode(obsoper%constituent_id).eq.1.and.  &
          obsoper%column_bound.gt.obsoper%vlayertop(1).and. &
          vlayerbottom_ref.gt.obsoper%pp(obsoper%nmodlev)*0.99) then    
@@ -5117,9 +6147,9 @@ contains
 ! Arguments:
 !
 !  Output  
-!           obsoper%vmodpress(nmodlev+1) -- Model layer boundaries given that pressmod are
-!                                                taken at mid-layer values.
-!           obsoper%vweights(nmodlev,nmodlev)   -- Second order Lagrangian interp integration weights
+!           obsoper%vmodpress(nmodlev+1)       -- Model layer boundaries given that pressmod are
+!                                                 taken at mid-layer values.
+!           obsoper%vweights(nmodlev,nmodlev)  -- Second order Lagrangian interp integration weights
 !
 !-----------------------------------------------------------------------------------------
       implicit none
@@ -5213,9 +6243,9 @@ contains
 ! Arguments:
 !
 !  Input   
-!           n_modlvl              -- # of model vertical levels
-!           nobslev               -- # of obs vertical levels
-!           obsoper%vweights  -- See routine chm_vertintg_setup
+!           obsoper%nmodlev       -- # of model vertical levels
+!           obsoper%nobslev       -- # of obs vertical levels
+!           obsoper%vweights      -- See routine chm_vertintg_setup
 !           obsoper%vmodpress
 !           success               -- Logical indicating if calc are to be performed.
 !           ixtr                  -- Flag indicating if obs outside model vertical range
@@ -5223,10 +6253,10 @@ contains
 
 !
 !  Output  
-!           obsoper%zh(nobslev,nmodlev)  -- Initial innovation model array 
-!                                                (other than conversion constants)
-!           obsoper%zhp(nobslev,nmodlev) -- Part of innovation operator not 
-!                                                related to resolution
+!           obsoper%zh(obsoper%nobslev,obsoper%nmodlev)  -- Initial innovation model array 
+!                                                           (other than conversion constants)
+!           obsoper%zhp(obsoper%nobslev,obsoper%nmodlev) -- Part of innovation operator not 
+!                                                           related to resolution
 !
 !-----------------------------------------------------------------------------------------
       implicit none
@@ -5427,7 +6457,7 @@ contains
 !       ixtr            Modified ixtr as needed.
 !
 ! Comments:  Current implementation searches for index of nearest model level. This step
-!            is redundant since this information is already save in obsSpaceData in OBS_LYR.
+!            is redundant since this information is already saved in obsSpaceData in OBS_LYR.
 !            This step is repeated so that the routines in chem_mod are more independent
 !            of the rest of the EnVar code. If it is desired to skip this redundant step,
 !            the content of the OBS_LYR column could be passed to chm_obsoperators and
@@ -5570,6 +6600,8 @@ contains
 ! Revision: 
 !           M. Sitwell, April 2016
 !           - Some input arguments moved into obsoper
+!           Y. Rochon, May 2016
+!           - Added weighting cases 
 !
 ! Purpose:  Set generalized innovation operator for integral or layer avg obs.
 !           Relevant only for 3D incremental fields.
@@ -5584,13 +6616,14 @@ contains
 !           obsoper%zh, zhp   -- See routine chm_vertintg_setup
 !           kmode             -- Index specifying if content to be applied,
 !                                i.e. if kmode >1.
-
 !           success           -- Logical indicating if calc are to be performed.
 !
+!           chm_config%generalized_operator -- indicates specification of weighting
+!
 !  Output  
-!           obsoper%zh(nmodlev)  -- a*w: Final innovation model array 
-!                                        (other than conversion constants)
-!           obsoper%zhp(nmodlev) -- w (see comments section)
+!           obsoper%zh(obsoper%nmodlev)  -- a*w: Final innovation model array 
+!                                                (other than conversion constants)
+!           obsoper%zhp(obsoper%nmodlev) -- w (see comments section)
 !
 ! Comments:
 !
@@ -5662,7 +6695,12 @@ contains
 !     error correlation lengths - this distorting the vertical increment distribution stemming
 !     from chm_genoper alone.
 !
+!     (4) NOTE: Cases where ensemble-based and or lam-based background covariances
+!     are used are not taken into account in this version.
+!
 !-----------------------------------------------------------------------------------------
+      use bmatrixchem, ONLY : bchm_corvert, bchm_corverti, bchm_invsum, bchm_varnamelist
+      
       implicit none
       
       type(struct_chm_obsoperators), intent(inout) :: obsoper
@@ -5672,27 +6710,103 @@ contains
 !     Declaration of local variables
 !
       real(8), parameter :: pwin=0.01
-      integer  :: iobslev
-      logical  :: lstart,lrgsig
-      real(8)  :: zwbw(1),zhbh(1),za,work(obsoper%nmodlev)
-      real(8)  :: zmin,rsig(obsoper%nmodlev,2)
+      integer  :: iobslev,imodlev,irmse,jvar
+      logical  :: lrgsig
+      real(8)  :: zwbw(1),zhbh(1),za,work(obsoper%nmodlev),sigma_trial(obsoper%nmodlev,4)
+      real(8), parameter :: threshold=1.D-20
+      real(8)  :: zmin,rvalw(obsoper%nmodlev),rvalr(obsoper%nmodlev), &
+                  rvalc(obsoper%nmodlev),rmse,w1 
+      character(len=22) :: code
    
       if (kmode.le.1) return
 
-      lstart=.true. 
+!     Retrieve from stored background error std dev [elemements (:,1-2)] at obs location [and inverses at elements (:,3-4)]    
+      sigma_trial=chm_retrieve_sigma_trial(obsoper%obs_index)               
+!
+!     Identify variable position index in background error correlation matrices
+!
+      jvar=1
+      do while (trim(bchm_varnamelist(jvar)).ne.'') 
+         if (trim(bchm_varnamelist(jvar)).eq.trim(obsoper%varName)) exit
+         jvar=jvar+1
+      end do
+      if (trim(bchm_varnamelist(jvar)).eq.'') call abort3d('chm_genoper: Correlation matrix not found for ' // trim(obsoper%varName) )
+!
+!     Initialize reference mass (mixing ratio) weighting profile as profile from trial field
+! 
+      rvalr(1:obsoper%nmodlev)=obsoper%trial(1:obsoper%nmodlev)
+!
+!     Check on rvalr
+!        
+      if (any(abs(rvalr(:)).le.threshold)) then
+!         write(*,*) 'chm_genoper: Trial field profile segment is ~zero. Could cause an abort in this routine.'
+!         write(*,*) 'chm_genoper: To prevent abort and still be effective, corresponding elements set to a non-zero constant.'
+!         write(*,*) 'chm_genoper: ',varName,rlat,rlong,nobslev
+         if (all(abs(rvalr(:)).le.threshold)) then
+              rvalr(:)=1.0 
+         else  
+              zmin=minval(abs(rvalr(:)), &
+                   mask=abs(rvalr(:)).gt.threshold)
+              where (abs(rvalr(:)).le.threshold) &
+                   rvalr(:)=zmin  
+         end if
+      end if
+!
+!     Loop over obs elements
+!
       lrgsig=.true. 
+      write(code,'(I22)') obsoper%obs_index
+      
       do iobslev=1,obsoper%nobslev
            
          if (.not.success(iobslev)) cycle   
-!          
-!        First determine background error std. dev. and determine/estimate h*B*h^T. 
-!        Done first to acquire 'rsig' at the same time!
 !
-         call chm_corvert_mult(obsoper%varName,obsoper%zh(iobslev,1:obsoper%nmodlev),zhbh, &
-                  obsoper%lvl_top(iobslev),obsoper%lvl_bot(iobslev),1,obsoper%nmodlev,1, &
-                  lrgsig,obsoper%lat,lstart,3,rsig)
+!        Set reference mass (mixing ratio) weighting profile
+!
+         rvalw(1:obsoper%nmodlev)=rvalr(1:obsoper%nmodlev)
+         if (chm_config%generalized_operator(obsoper%constituent_id).gt.1) then
+!
+!           Set reference mass weighting profile according to the difference between 
+!           an external reference (such as a climatology) and trial field profiles.
+!
+!           This is a mechanism to force the solution profile shape somewhat towards that 
+!           of the external reference when the reliability of the vertical structure of the 
+!           trial field is not high.
+!
+!           This can be used at the beginning of long assimilation periods if the initial
+!           trial field is not as realistic as may be desired or somewhat mitigate
+!           gradual biasing of vertical structures that might otherwise occur from assimilation 
+!           of integrated quantities (when there is insufficient data from other observation types).
+!
+!           The larger the rms difference of xc (external reference) with xb (trial field profile), 
+!           the greater is the influence of this difference in the weighting. If there is 
+!           little difference, then either xb or xc can be directly used as the weighting 
+!           profile; xb is used below.
+!
+            rmse=0.0
+            irmse=0
+            rvalc(1:obsoper%nmodlev)=obsdata_get_array1d(chm_ref_trial,code)
             
-         lstart=.false.         
+            zmin=pwin*maxval(abs(obsoper%zhp(iobslev,1:obsoper%nmodlev)))
+            do imodlev=1,obsoper%nmodlev
+               if (obsoper%zhp(iobslev,imodlev).gt.zmin) then
+                   irmse=irmse+1
+                   rmse=rmse+((rvalc(imodlev)-obsoper%trial(imodlev))*sigma_trial(imodlev,3))**2
+               end if
+            end do
+            rmse=rmse*2./irmse
+            if (rmse.lt.1.0) then
+               rvalw(1:obsoper%nmodlev)=rvalc(1:obsoper%nmodlev)
+            else 
+               rvalw(1:obsoper%nmodlev)=rvalc(1:obsoper%nmodlev)-obsoper%trial(1:obsoper%nmodlev)
+               if (rmse.lt.5.0) then
+                  w1=(5.0-rmse)/(5.0-1.0)
+                  rvalw(1:obsoper%nmodlev)=(1.0-w1)*rvalw(1:obsoper%nmodlev)+w1*obsoper%trial(1:obsoper%nmodlev)
+               end if
+               where (abs(rvalw(1:obsoper%nmodlev)).lt.0.01*rvalc(1:obsoper%nmodlev)) &
+                      rvalw(1:obsoper%nmodlev)=sign(0.01*rvalc(1:obsoper%nmodlev),rvalw(1:obsoper%nmodlev))
+            end if         
+         end if
 !
 !        Begin preparation of the new innovation operator w (=new zhp)
 !
@@ -5704,57 +6818,82 @@ contains
 !           the latter due to the discretized domain. Not using zhp avoids this
 !           discretization issue from weakly affecting results at the boundaries.
 !
-            work(1:obsoper%nmodlev)=obsoper%trial(1:obsoper%nmodlev)/rsig(1:obsoper%nmodlev,1) 
+            work(1:obsoper%nmodlev)=obsoper%trial(1:obsoper%nmodlev)*sigma_trial(1:obsoper%nmodlev,3) 
           else 
 
 !           Account for localized obs function (e.g. partial columns, Jacobians. For Jacobians,
 !           zhp must also be independent of the model layer thicknesses.)
-            work(1:obsoper%nmodlev)=obsoper%zhp(iobslev,1:obsoper%nmodlev)*obsoper%trial(1:obsoper%nmodlev)/rsig(1:obsoper%nmodlev,1) 
+            work(1:obsoper%nmodlev)=obsoper%zhp(iobslev,1:obsoper%nmodlev)* &
+                obsoper%trial(1:obsoper%nmodlev)*sigma_trial(1:obsoper%nmodlev,3) 
          end if
 
-!        Apply cutoff (apply to zhp*obsoper%trial/rsig instead of the resultant zh)
-!        Resultant outside cutoff region should be zhp*obsoper%trial/rsig/rsig.
+!        Apply cutoff (apply to zhp*obsoper%trial/sigma_trial(:,1) instead of the resultant zh)
+!        Resultant outside cutoff region should be zhp*obsoper%trial/sigma_trial(:,1)/sigma_trial(:,1).
+!        Note: sigma_trial(:,3)=1.0/sigma_trial(:,1)
  
          zmin=pwin*maxval(abs(work(1:obsoper%nmodlev)))
          where (abs(work(1:obsoper%nmodlev)).lt.zmin) 
              work(1:obsoper%nmodlev)=0.0D0 
          elsewhere        
-             work(1:obsoper%nmodlev)=work(1:obsoper%nmodlev)/rsig(1:obsoper%nmodlev,1)
+             work(1:obsoper%nmodlev)=work(1:obsoper%nmodlev)*sigma_trial(1:obsoper%nmodlev,3)
          endwhere
 !
 !        Application of C^{-1} or substitute (for negating the weight impact of the
 !        later application of C in finalizing grad(Jo). Option 2 is favoured.
 !  
 !        Option 1: Application of C^{-1}
-!         call chm_corvert_mult(varName,work(1:obsoper%nmodlev),chm_obsoper%zhp(iobslev,1:obsoper%nmodlev), &
-!                  chm_obsoper%lvl_top(iobslev),chm_obsoper%lvl_bot(iobslev),1,obsoper%nmodlev,obsoper%nmodlev, &
-!                  .false.,obsoper%lat,lstart,-1)
+!         call chm_corvert_mult(obsoper%varName,work(1:obsoper%nmodlev),obsoper%zhp(iobslev,1:obsoper%nmodlev), &
+!                   obsoper%lvl_top(iobslev),obsoper%lvl_bot(iobslev),1,obsoper%nmodlev,obsoper%nmodlev, &
+!                   .false.,-1)
 !
 !        Option 2: Application of 1/sum(C(:,j)) to approximately negate the weight re-distribution from C
 !                  in the calc of grad(Jo).
-
-         call chm_corvert_mult(obsoper%varName,work(1:obsoper%nmodlev),obsoper%zhp(iobslev,1:obsoper%nmodlev), &
-                  obsoper%lvl_top(iobslev),obsoper%lvl_bot(iobslev),1,obsoper%nmodlev,obsoper%nmodlev, &
-                  .false.,obsoper%lat,lstart,0)
+!
+!!         call chm_corvert_mult(obsoper%varName,work(1:obsoper%nmodlev),obsoper%zhp(iobslev,1:obsoper%nmodlev), &
+!!                  obsoper%lvl_top(iobslev),obsoper%lvl_bot(iobslev),1,obsoper%nmodlev,obsoper%nmodlev, &
+!!                  .false.,0)
+         obsoper%zhp(iobslev,obsoper%lvl_top(iobslev):obsoper%lvl_bot(iobslev))= &
+                 obsoper%zhp(iobslev,obsoper%lvl_top(iobslev):obsoper%lvl_bot(iobslev)) &
+                 *bchm_invsum(obsoper%lvl_top(iobslev):obsoper%lvl_bot(iobslev),jvar)
 !
 !        Option 3: Just skip over consideration attempt at negating the weight re-distribution from C.
 !         chm_obsoper%zhp(iobslev,1:obsoper%nmodlev)=work(1:obsoper%nmodlev)
 !
 !        Determine proportionality factor 'a' = (h*B*h^T)(w*B*w^T)^{-1}
 !
-!        Determine/estimate w*B*w^T 
+!        Determine/estimate w*B*w^T (zwbw(1))
 !
-         call chm_corvert_mult(obsoper%varName,obsoper%zhp(iobslev,1:obsoper%nmodlev),zwbw, &
-                   obsoper%lvl_top(iobslev),obsoper%lvl_bot(iobslev),1,obsoper%nmodlev,1, &
-                   lrgsig,obsoper%lat,lstart,3,rsig)
+!!         call chm_corvert_mult(obsoper%varName,obsoper%zhp(iobslev,1:obsoper%nmodlev), &
+!!                   zwbw,obsoper%lvl_top(iobslev),obsoper%lvl_bot(iobslev),1,obsoper%nmodlev, &
+!!                   1,lrgsig,3,sigma_trial))
+         do imodlev=obsoper%lvl_top(iobslev),obsoper%lvl_bot(iobslev)
+            work(imodlev)=sum(obsoper%zhp(iobslev,obsoper%lvl_top(iobslev):obsoper%lvl_bot(iobslev)) &
+                         *bchm_corvert(imodlev,obsoper%lvl_top(iobslev):obsoper%lvl_bot(iobslev),jvar) &
+                         *sigma_trial(obsoper%lvl_top(iobslev):obsoper%lvl_bot(iobslev),1))*sigma_trial(imodlev,1)
+         end do
+         zwbw(1)=sum(obsoper%zhp(iobslev,obsoper%lvl_top(iobslev):obsoper%lvl_bot(iobslev)) &
+                *work(obsoper%lvl_top(iobslev):obsoper%lvl_bot(iobslev)))
+!          
+!        Determine/estimate h*B*h^T (zhbh(1))
 !
+!!         call chm_corvert_mult(obsoper%varName,obsoper%zh(iobslev,1:obsoper%nmodlev), &
+!!                  zhbh,obsoper%lvl_top(iobslev),obsoper%lvl_bot(iobslev),1,obsoper%nmodlev, &
+!!                  1,lrgsig,3,sigma_trial)
+         do imodlev=obsoper%lvl_top(iobslev),obsoper%lvl_bot(iobslev)
+            work(imodlev)=sum(obsoper%zh(iobslev,obsoper%lvl_top(iobslev):obsoper%lvl_bot(iobslev)) &
+                         *bchm_corvert(imodlev,obsoper%lvl_top(iobslev):obsoper%lvl_bot(iobslev),jvar) &
+                         *sigma_trial(obsoper%lvl_top(iobslev):obsoper%lvl_bot(iobslev),1))*sigma_trial(imodlev,1)
+         end do
+         zhbh(1)=sum(obsoper%zh(iobslev,obsoper%lvl_top(iobslev):obsoper%lvl_bot(iobslev)) &
+                *work(obsoper%lvl_top(iobslev):obsoper%lvl_bot(iobslev)))
+! 
 !        Set proportionality factor 'a'
 !
          za=sqrt(zhbh(1)/zwbw(1))
 !         if (abs(obsoper%lat*180./3.1415-78.).lt.2.0.and.abs(rlon*180./3.1415-185.).lt.2.0) then
 !             write(6,*) 'ZA  ',obsoper%lat*180.0/3.1415,rlon*180.0/3.1415,za,zhbh(1),zwbw(1)
 !             write(6,*) 'obsoper%trial',obsoper%trial(1:obsoper%nmodlev)
-!             write(6,*) 'obsoper%trial',rsig(1:obsoper%nmodlev,1)
+!             write(6,*) 'sigma_trial',sigma_trial(1:obsoper%nmodlev,1)
 !             write(6,*) 'ZH  ',chm_obsoper%zh(iobslev,1:obsoper%nmodlev)
 !             write(6,*) 'ZHP ',chm_obsoper%zhp(iobslev,1:obsoper%nmodlev)*za
 !         end if
@@ -5768,8 +6907,8 @@ contains
   end subroutine chm_genoper
 !-----------------------------------------------------------------------------------------
 
-  subroutine chm_corvert_mult(varName,rmat_in,rmat_out,lvl_top,lvl_bot,ndim1,ndim2,ndim3, &
-                              lrgsig,rlat,lstart,itype,rsig)
+  subroutine chm_corvert_mult(varName,rmat_in,rmat_out,lvl_top,lvl_bot, &
+                              ndim1,ndim2,ndim3,lrgsig,itype,rsig)
 !
 ! Author  : Y. Rochon, April 2015
 !
@@ -5804,18 +6943,13 @@ contains
 !                                   =ndim1 for itype= +/-3
 !                                   =ndim2 otherwise
 !           lrgsig               -- Index to indicate if rgsig to be included as part of C or CI below.
-!           rlat                 -- Input latitude (radians).
 !           itype                -- Type of operator (see above). 
-!           lstart               -- Logical indicating if local initiliation if std. dev. required 
-!                                   for given obs location. 
 !           rsig(ndim2,2)        -- Background error std. dev. at obs locations.
-!                                   Must be provided when lstart=.false. and lrgsig=.true.    
+!                                   Must be provided when lrgsig=.true.    
 !
 !  Output:
 !
 !           rmat_out(ndim1,ndim2) -- Output matrix/vector (see comments sections)
-!           rsig(ndim2,2)         -- Background error std. dev. at obs locations 
-!                                    Set/provided when lstart.eq.true.   
 !
 ! Comments:
 !
@@ -5827,50 +6961,24 @@ contains
 ! (B) Revisions required whem LAM and ensembles cases become available.
 !
 !-----------------------------------------------------------------------------------------
-      use bmatrixchem
+      use bmatrixchem, ONLY : bchm_corvert_mult
  
       implicit none
       character(len=*), intent(in) :: varName
-      logical, intent(in)    :: lstart,lrgsig
+      logical, intent(in)    :: lrgsig
       integer, intent(in)    :: ndim1,ndim2,ndim3,itype
       integer, intent(in)    :: lvl_top(ndim1),lvl_bot(ndim1)
-      real(8), intent(in)    :: rmat_in(ndim1,ndim2),rlat
+      real(8), intent(in)    :: rmat_in(ndim1,ndim2)
       real(8), intent(out)   :: rmat_out(ndim1,ndim3)
-      real(8), intent(inout), optional :: rsig(ndim2,2)
+      real(8), intent(in), optional :: rsig(ndim2,2)
    
       integer :: nsize
       real(8) :: rsig_local(ndim2,2)
       
-      rsig_local(:,:)=0.0D0
       rmat_out(:,:)=0.0D0
-  
-!     Set background error std. dev. if needed.
-
-      if (lstart) then
-!
-!        Get background error standard deviations
-!        Applicability tests within b*chm_getsigma.
-!
-         call bchm_getsigma(varName,ndim2,rlat,rsig_local(:,1),nsize)   
-!         call blamchm_getsigma(varName,ndim2,rlat,rsig_local(:,1),nsize)      
-         if (nsize.ne.ndim2) then
-             write(6,*) 'NSIZE, NDIM2: ',nsize,ndim2
-             call abort3d('CHM_corvert_mult: Inconsistent size')
-         end if
-
-!         call benschm_getsigma(varName,ndim2,rlat,rsig_local(:,2),nsize)      
-!         if (nsize.eq.ndim2) then
-!             write(6,*) 'NSIZE, NDIM2: ',nsize,ndim2
-!             call abort3d('CHM_corvert_mult: Inconsistent size')
-!         end if
-                                        
-          if (present(rsig)) rsig(:,:)=rsig_local(:,:)
-      else     
-          if (.not.present(rsig).and.lrgsig) &
-              call abort3d('CHM_corvert_mult: Missing rsig')
-          rsig_local(:,:)=rsig(:,:)
-      end if
-      
+      rsig_local=0.0
+      if (present(rsig)) rsig_local=rsig
+        
 !     Apply operation related to static background error covariance/correlation matrix.
 !     Applicability tests within b*chm_corvert_mult.
 

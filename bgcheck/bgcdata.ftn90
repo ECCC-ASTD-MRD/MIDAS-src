@@ -23,7 +23,7 @@
 !*Revisions:
 !*          Y.J. Rochon *ARQD/ARQI March 2016
 !*          - Allow ZFGE**2 + ZOER**2 .LT. 1.D-5 for CDFAM='CH'
-!*          - Set output format 123 for 'CH'
+!*          - Set output format 124 for 'CH'
 !*
 !**    Purpose:  -Calculate a background check for a data family
 !*                AND SET the appropriate quality control flags in

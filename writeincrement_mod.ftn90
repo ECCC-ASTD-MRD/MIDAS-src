@@ -181,7 +181,7 @@ module writeIncrement_mod
 
     END SUBROUTINE SUPOST
 
-
+    
     subroutine calcWriteIncrement(vco_anl,vco_trl,indexAnalysis,isLastAnalysis)
       !
       !  s/r calcWriteIncrement - calculate and write analysis increment after minimization
@@ -738,7 +738,7 @@ module writeIncrement_mod
           call gdout2(cppcvar(jvar),ZLOWVAR,jlev,  &
                llimplemented,nip1,FlipLatitude,statevector,zes,ztv,zgz_T,zhu)
           if(.not.llimplemented) exit
-
+          
           IERR  = VFSTECR(ZLOWVAR,zwork,inpak_inc  &
              ,nulfile,datestamp,ndeet,npas,statevector%ni,statevector%nj,1,nip1  &
              ,nip2,nip3,cltypinc,cppcvar(jvar),cletiket,cgrtyp,nig1  &

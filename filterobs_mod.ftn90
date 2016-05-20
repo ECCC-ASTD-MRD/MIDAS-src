@@ -995,7 +995,6 @@ contains
       zP0 = col_getElem(columnhr,1,headerIndex,'P0') 
       zPtop = col_getPressure(columnhr,1,headerIndex,'MM')
 
-            
       ! Identify max number of profile points in the profile (exclude 8090 elements)
       
       nobslev = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex)

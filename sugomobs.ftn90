@@ -27,12 +27,10 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
   !   Ping Du, Oct. 2014
   !   - Added input of constituents trial fields and related setting of trial profiles.
   !     This was done by including the "case(default)" in the loop over 3D variables.
-  !
-  ! 
-  !Revisions:
-  !   Ping Du, Oct. 2014
-  !   - Added input of constituents trial fields and related setting of trial profiles.
-  !     This was done by including the "case(default)" in the loop over 3D variables.
+  !   Y. Rochon, Feb 2016
+  !   - Additions introduced to allow variable transformations for constituent fields.
+  !   - Addition of varnmamelist_mod and valvarkindfromvanamr
+  !   - Added 'use chem_mod' for added call to chm_apply_2dfieldr4_transform in readTrialField
   !
   !Arguments: COLUMNG, COLUMNHR
   !
@@ -43,8 +41,10 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
   use timeCoord_mod
   use columnData_mod 
   use obsSpaceData_mod
+  use varNameList_mod
   use gridStateVector_mod
   use WindRotation_mod
+  use chem_mod
   implicit none
 
   type(struct_columnData) :: columng,columnhr
@@ -273,7 +273,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
         lon_r4=real(lon_r8)
         if (lon_r4.lt.0.0         ) lon_r4 = lon_r4 + 2.0*MPC_PI_R4
         if (lon_r4.ge.2.*MPC_PI_R4) lon_r4 = lon_r4 - 2.0*MPC_PI_R4
-
+                
         lat_deg_r4=lat_r4 * MPC_DEGREES_PER_RADIAN_R4 ! Radian To Degree
         lon_deg_r4=lon_r4 * MPC_DEGREES_PER_RADIAN_R4
 
@@ -389,7 +389,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
           ! With a LAM trial field we must discard this observation
           write(*,*) 'sugomobs: Rejecting OBS outside the TRIAL field domain, ', jobs
           write(*,*) '  position : ', lat_deg_r4, lon_deg_r4, ypos_r4, xpos_r4
-
+          
           idata   = obs_headElem_i(lobsSpaceData,OBS_RLN,jobs)
           idatend = obs_headElem_i(lobsSpaceData,OBS_NLV,jobs) + idata -1
           do jdata = idata, idatend
@@ -503,13 +503,13 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
   !
   call readTrialField(varInterphr_M,varInterphr_VV,'GZ  ','MM')
 
-  if(col_getNumCol(columng).gt.0) then       
-    varInterphr_M(:,:)=varInterphr_M(:,:)*10.0d0*RG
-    call col_fillmvo(columnhr,varInterphr_M,'GZ  ','MM')
-    if(mpi_myid.eq.0) write(*,*) 'sugomobs:GZ_M'
-    do jlev = 1,nlv_M
-      if(mpi_myid.eq.0) write(*,*) 'GZ,',jlev,varInterphr_M(jlev,1)
-    enddo
+  if(col_getNumCol(columng).gt.0) then 
+     varInterphr_M(:,:)=varInterphr_M(:,:)*10.0d0*RG
+     call col_fillmvo(columnhr,varInterphr_M,'GZ  ','MM')
+     if(mpi_myid.eq.0) write(*,*) 'sugomobs:GZ_M'
+     do jlev = 1,nlv_M
+       if(mpi_myid.eq.0) write(*,*) 'GZ,',jlev,varInterphr_M(jlev,1)
+     enddo
   endif
 
   !
@@ -517,15 +517,15 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
   !
   call readTrialField(varInterphr_T,varInterphr_VV,'GZ  ','TH')
 
-  if(col_getNumCol(columng).gt.0) then       
-    varInterphr_T(:,:)=varInterphr_T(:,:)*10.0d0*RG
-    call col_fillmvo(columnhr,varInterphr_T,'GZ  ','TH')
-    if(mpi_myid.eq.0) write(*,*) 'sugomobs:GZ_TH'
-    do jlev = 1,nlv_T
-      if(mpi_myid.eq.0) write(*,*)'GZ,',jlev,varInterphr_T(jlev,1)
-    enddo
-  endif
-
+  if(col_getNumCol(columng).gt.0) then 
+     varInterphr_T(:,:)=varInterphr_T(:,:)*10.0d0*RG
+     call col_fillmvo(columnhr,varInterphr_T,'GZ  ','TH')
+     if(mpi_myid.eq.0) write(*,*) 'sugomobs:GZ_TH'
+     do jlev = 1,nlv_T
+       if(mpi_myid.eq.0) write(*,*)'GZ,',jlev,varInterphr_T(jlev,1)
+     enddo
+  end if
+  
   !
   !     Now all of the other 3D variables
   !
@@ -740,6 +740,11 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
       !
       !     Author  : M. Buehner, Dec 2012
       !
+      !     Revisions:
+      !               Y. Rochon, ARQI/AQRD, Feb 2016
+      !               - Added calls for constituent variable transformations 
+      !                 (routine chm_apply_2dfieldr4_transform)
+      !
       !     Purpose: Read and interpolate all levels/time steps for a single variable of trial field
       !
       implicit none
@@ -850,6 +855,9 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
             ierr=fstlir(varTrial_r4(:,:),nultrl(jstep),ni,nj,ink,  &
                         datestamplist(jstep) ,cletiket,iip1,-1,-1,  &
                         cltypvar,varName)
+
+            if (vnl_varKindFromVarname(varName).eq.'CH') &
+               call chm_apply_2dfieldr4_transform(chm_varnumFromVarName(varName),varName,jlev,jstep,varTrial_r4)
 
             if(ierr.lt.0)then
               write(*,2001) varName,iip1,idate(jstep),itime(jstep)

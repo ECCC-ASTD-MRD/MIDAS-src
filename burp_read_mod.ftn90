@@ -88,10 +88,12 @@ CONTAINS
     !                 P. KOCLAS (CMDA/SMC)) May 2015
     !                  -- CHANGES  for GROUPED scatterometres or surface obs
     !                 Y.J. Rochon (ARQI), March 2016
-    !                  -- Account for pre-existing OER blocks. See LBLOCK_OER_CP
-    !                     and NBLOCK_OER_CP. These may contain additional data 
-    !                     such as averaging kernel matrices and obs error 
-    !                     correlation matrices at least for the CH family.
+    !                  -- Account for pre-existing FGE and OER blocks. See LBLOCK_OER_CP
+    !                     ,NBLOCK_OER_CP, LBLOCK_FGE_CP and BLOKC_FGE_CP. The OER block
+    !                     may contain additional data such as averaging kernel matrices 
+    !                     and obs error correlation matrices at least for the CH family.
+    !                     As well, the FGE values are not calculated at the analysis phase
+    !                     so would not be available if requested as output.
     !
     !       OBJECT: UPDATE CMC BURP FILE 
     !
@@ -166,8 +168,8 @@ CONTAINS
     INTEGER                :: LISTE_INFO(17),LISTE_ELE(20),LISTE_ELE_SFC(20),is_in_list
     INTEGER                :: ADDSIZE,SIZE_DATA_BK
 
-    LOGICAL                :: LBLOCK_OER_CP
-    TYPE(BURP_BLOCK)       :: BLOCK_OER_CP
+    LOGICAL                :: LBLOCK_OER_CP, LBLOCK_FGE_CP
+    TYPE(BURP_BLOCK)       :: BLOCK_OER_CP, BLOCK_FGE_CP
 
     DATA LISTE_INFO  &
        /1007,002019,007024,007025 ,005021, 005022, 008012, 013039,020010,2048,2022,33060, &
@@ -533,6 +535,7 @@ CONTAINS
         ref_blk = 0
 
         LBLOCK_OER_CP=.false.
+        LBLOCK_FGE_CP=.false.
         HIRES=.FALSE.
         REGRUP=.false.
         NDATA_SF=-1
@@ -582,6 +585,9 @@ CONTAINS
           if (bfam.eq.10.and.bkstp.eq.14) then
               LBLOCK_OER_CP=.true.
               BLOCK_OER_CP=BLOCK_IN
+          else  if (bfam.eq.10.and.bkstp.eq.15) then
+              LBLOCK_FGE_CP=.true.
+              BLOCK_FGE_CP=BLOCK_IN
           end if
         end do BLOCKS0
         if ( TYPE_RESUME == 'POSTALT' .or. TYPE_RESUME == 'BGCKALT') THEN
@@ -831,9 +837,15 @@ CONTAINS
                 cycle
               endif
               if ( BITEMLIST(item) .eq. 'FGE') then
-                Call BURP_Reduce_Block(BLOCK_FGE_SFC, NEW_NELE =il_index )
-                Call BURP_Write_Block( CP_RPT, BLOCK_FGE_SFC,&
-                ENCODE_BLOCK = .TRUE., CONVERT_BLOCK = .TRUE., IOSTAT= error) 
+                if (.not.LBLOCK_FGE_CP) then
+                   Call BURP_Reduce_Block(BLOCK_FGE_SFC, NEW_NELE =il_index )
+                   Call BURP_Write_Block( CP_RPT, BLOCK_FGE_SFC,&
+                   ENCODE_BLOCK = .TRUE., CONVERT_BLOCK = .TRUE., IOSTAT= error) 
+                else
+                   Call BURP_Set_Property(BLOCK_FGE_CP ,BKTYP =new_bktyp)
+                   Call BURP_Write_Block( CP_RPT, BLOCK_FGE_CP,&
+                        ENCODE_BLOCK = .FALSE., CONVERT_BLOCK = .FALSE., IOSTAT= error)                 
+                end if
                 cycle
               endif
 
@@ -1184,8 +1196,14 @@ CONTAINS
                   end if
               endif
               if ( BITEMLIST(item) .eq. 'FGE') then
-                Call BURP_Write_Block( CP_RPT, BLOCK_FGE,&
+                if (.not.LBLOCK_FGE_CP) then
+                   Call BURP_Write_Block( CP_RPT, BLOCK_FGE,&
                           ENCODE_BLOCK = .TRUE., CONVERT_BLOCK = .TRUE., IOSTAT= error) 
+                else
+                   Call BURP_Set_Property(BLOCK_FGE_CP ,BKTYP =new_bktyp)
+                   Call BURP_Write_Block( CP_RPT, BLOCK_FGE_CP,&
+                        ENCODE_BLOCK = .FALSE., CONVERT_BLOCK = .FALSE., IOSTAT= error) 
+                  end if
               endif
 
             end do

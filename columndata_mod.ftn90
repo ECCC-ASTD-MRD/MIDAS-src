@@ -68,8 +68,10 @@ module columnData_mod
       implicit none
       INTEGER JVAR, IPOS
       integer :: fnom,fclos,nulnam,ierr
-      CHARACTER(len=4) :: CMVONEED(VNL_NUMVARMAX)
-      NAMELIST /NAMSTATEO/CMVONEED,rhumin
+      CHARACTER(len=4) :: CMVONEED(VNL_NUMVARMAX),CGNEED(VNL_NUMVARMAX)
+      character(len=8) :: ANLTIME_BIN
+      NAMELIST /NAMSTATEO/rhumin
+      NAMELIST /NAMSTATE/CGNEED,ANLTIME_BIN
 
       if(mpi_myid.eq.0) write(*,*) 'col_setup: List of known (valid) variable names'
       if(mpi_myid.eq.0) write(*,*) 'col_setup: varNameList3D=',vnl_varNameList3D
@@ -79,6 +81,7 @@ module columnData_mod
       ! Read NAMELIST NAMSTATEO to find which fields are needed
 
       cmvoneed(:) = '    '
+      cgneed(:) = '    '
       rhumin = MPC_MINIMUM_HU_R8
 
       nulnam=0
@@ -87,6 +90,13 @@ module columnData_mod
       if(ierr.ne.0) call abort3d('col_setup: Error reading namelist')
       if(mpi_myid.eq.0) write(*,nml=namstateo)
       ierr=fclos(nulnam)
+
+      ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      read(nulnam,nml=namstate,iostat=ierr)
+      if(ierr.ne.0) call abort3d('col_setup: Error reading namelist')
+      if(mpi_myid.eq.0) write(*,nml=namstate)
+      ierr=fclos(nulnam)
+      cmvoneed(:)=cgneed(:)
 
       nvo3d  = 0
       nvo2d  = 0
