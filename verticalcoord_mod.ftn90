@@ -32,16 +32,8 @@ module verticalCoord_mod
      logical :: initialized=.false.
      integer :: nlev_T= 0
      integer :: nlev_M= 0
-     real*8  :: dptop               ! Pressure at top level
-     real*8  :: dprf                ! Reference pressure
-     real*8  :: drcf1, drcf2        ! Expansion coefficients
-     real*8  :: ip1_sfc, da_sfc, db_sfc  ! ip1, A, B values for the surface (Vcode=5005)
+     real*8  :: ip1_sfc  ! ip1 value for the surface (Vcode=5005)
      integer,pointer,dimension(:) :: ip1_T,ip1_M   ! encoded IP1 levels (Thermo/Moment)
-     real*8 ,pointer,dimension(:) :: da_T,db_T     ! A, B values for Thermo levels
-     real*8 ,pointer,dimension(:) :: da_M,db_M     ! A, B values for Momentum levels
-     real*8 ,pointer,dimension(:) :: db_dhyb_M,db_dhyb_T  ! factor needed for TLM/AD of tt2phi
-     real*8 ,pointer,dimension(:) :: da_dhyb_M,da_dhyb_T  ! factor needed for TLM/AD of tt2phi
-     real*8 ,pointer,dimension(:) :: dhyb_T,dhyb_M !decoded IP1 levels (Thermo/Momentum)
      type(vgrid_descriptor) :: vgrid
   end type struct_vco
 
@@ -57,29 +49,9 @@ module verticalCoord_mod
     ilnk = vco_getNumLev(vco,'MM')
     allocate (vco%ip1_M(ilnk),stat=nl_stat)
     stat = stat + nl_stat
-    allocate (vco%da_M(ilnk),stat=nl_stat)
-    stat = stat + nl_stat
-    allocate (vco%db_M(ilnk),stat=nl_stat)
-    stat = stat + nl_stat
-    allocate (vco%da_dhyb_M(ilnk),stat=nl_stat)
-    stat = stat + nl_stat
-    allocate (vco%db_dhyb_M(ilnk),stat=nl_stat)
-    stat = stat + nl_stat
-    allocate (vco%dhyb_M(ilnk),stat=nl_stat)
-    stat = stat + nl_stat
 
     ilnk = vco_getNumLev(vco,'TH')
     allocate (vco%ip1_T(ilnk),stat=nl_stat)
-    stat = stat + nl_stat
-    allocate (vco%da_T(ilnk),stat=nl_stat)
-    stat = stat + nl_stat
-    allocate (vco%db_T(ilnk),stat=nl_stat)
-    stat = stat + nl_stat
-    allocate (vco%da_dhyb_T(ilnk),stat=nl_stat)
-    stat = stat + nl_stat
-    allocate (vco%db_dhyb_T(ilnk),stat=nl_stat)
-    stat = stat + nl_stat
-    allocate (vco%dhyb_T(ilnk),stat=nl_stat)
     stat = stat + nl_stat
 
     if(stat .ne. 0 ) then
@@ -89,12 +61,11 @@ module verticalCoord_mod
   end subroutine vco_allocate
 
 
-  subroutine vco_SetupFromFile(vco,templatefile,lprecision,etiket,beSilent)
+  subroutine vco_SetupFromFile(vco,templatefile,etiket,beSilent)
     !  s/r vco_SetupFromFile - Initialize structure for a standard file using vgrid_descriptors library.
     implicit none
     type(struct_vco),pointer :: vco
     character(len=*) :: templatefile
-    logical :: lprecision
     character(len=*) :: etiket
     logical, optional :: beSilent
 
@@ -102,11 +73,9 @@ module verticalCoord_mod
     integer :: fnom,fstouv,fstfrm,fclos,fstinf,fstprm
     integer :: vgd_nlev_M, vgd_nlev_T
     integer,   pointer :: vgd_ip1_M(:),vgd_ip1_T(:)
-    real*8,    pointer :: vgd_da_M(:),vgd_da_T(:),vgd_db_M(:),vgd_db_T(:)
     integer :: ip1_sfc
     real    :: hyb_r4
-    real*8  :: dl_ptop,dl_pref,dl_rcf1,dl_rcf2,zterm
-    real*8  :: precision
+    real*8  :: zterm
     character(len=10) :: blk_S
     logical :: isExist_L, ip1_found
     integer :: ni,nj,nk
@@ -166,25 +135,13 @@ module verticalCoord_mod
       call abort3d('vco: problem with vgd_get: key= ig_1 - vertical coord code')
     endif
 
-    ! Get vgrid values for ip1, A and B
+    ! Get vgrid values for ip1
     stat = 0
 
-    stat = vgd_get(vco%vgrid,key='vipm - vertical levels (m)',value=vgd_ip1_M)
-    stat = stat + VGD_OK
-
-    stat = vgd_get(vco%vgrid,key='ca_m - vertical a coefficient (m)',value=vgd_da_M)
-    stat = stat + VGD_OK
-
-    stat = vgd_get(vco%vgrid,key='cb_m - vertical b coefficient (m)',value=vgd_db_M)
+    stat = vgd_get(vco%vgrid,key='vipm - vertical levels (m)',value=vgd_ip1_m)
     stat = stat + VGD_OK
 
     stat = vgd_get(vco%vgrid,key='vipt - vertical ip1 levels (t)',value=vgd_ip1_t)
-    stat = stat + VGD_OK
-
-    stat = vgd_get(vco%vgrid,key='ca_t - vertical a coefficient (t)',value=vgd_da_T)
-    stat = stat + VGD_OK
-
-    stat = vgd_get(vco%vgrid,key='cb_t - vertical b coefficient (t)',value=vgd_db_T)
     stat = stat + VGD_OK
 
     if(stat.ne.0) then
@@ -260,7 +217,7 @@ module verticalCoord_mod
     call vco_allocate(vco)
 
     !==========================================================================
-    ! Define levels (ip1, A, B) for momentum levels
+    ! Define levels ip1 for momentum levels
 
     ! Match up ip1 values from file and vgrid
     jlev2 = 0
@@ -272,8 +229,6 @@ module verticalCoord_mod
           call abort3d('vco: Problem with consistency between vgrid descriptor and template file (momentum)')
         endif
         vco%ip1_M(jlev2) = vgd_ip1_M(jlev)
-        vco%da_M(jlev2)  = vgd_da_M(jlev)
-        vco%db_M(jlev2)  = vgd_db_M(jlev)        
       else
         if(mpi_myid.eq.0 .and. .not.present(beSilent)) then
           write(*,*) 'vco: did not find a momentum level in the template file, ip1 =',vgd_ip1_M(jlev)
@@ -282,7 +237,7 @@ module verticalCoord_mod
     enddo
 
     !==========================================================================
-    ! Define levels (ip1, A, B) for thermo levels
+    ! Define levels ip1 for thermo levels
 
     ! Match up ip1 values from file and vgrid
     jlev2 = 0
@@ -294,8 +249,6 @@ module verticalCoord_mod
           call abort3d('vco: Problem with consistency between vgrid descriptor and template file (thermo)')
         endif
         vco%ip1_T(jlev2) = vgd_ip1_T(jlev)
-        vco%da_T(jlev2)  = vgd_da_T(jlev)
-        vco%db_T(jlev2)  = vgd_db_T(jlev)        
       else
         if(mpi_myid.eq.0 .and. .not.present(beSilent)) then
           write(*,*) 'vco: did not find a thermo level in the template file, ip1 =',vgd_ip1_T(jlev)
@@ -304,7 +257,7 @@ module verticalCoord_mod
     enddo
 
     !==========================================================================
-    ! Define level (ip1, A, B) for surface (only used for Vcode=5005)
+    ! Define level ip1 for surface (only used for Vcode=5005)
 
     ! determine IP1 of sfc (hyb=1.0)
     call convip(ip1_sfc, 1.0, 5, 2, blk_s, .false.) 
@@ -313,8 +266,6 @@ module verticalCoord_mod
       if(ip1_sfc .eq. vgd_ip1_T(jlev2)) then
         ip1_found = .true.
         vco%ip1_sfc = vgd_ip1_T(jlev2)
-        vco%da_sfc  = vgd_da_T(jlev2)
-        vco%db_sfc  = vgd_db_T(jlev2)
       endif
     enddo
     if(.not.ip1_found) then
@@ -322,89 +273,17 @@ module verticalCoord_mod
       call abort3d('vco: No surface level found in Vgrid!!!')
     endif
 
-    ! other stuff...
-    stat = 0
-
-    ! ptop should only be used for Vcode = 5001, set to negative for other cases
-    dl_ptop = -1.0d0
-    if(Vcode.eq.5001) then
-      stat = vgd_get(vco%vgrid,key='ptop - pressure at top level (m)',value=dl_ptop)
-      stat = stat + VGD_OK
-    endif
-    !
-    stat = vgd_get(vco%vgrid,key='pref - reference pressure (m)',value=dl_pref)
-    stat = stat + VGD_OK
-    !
-    stat = vgd_get(vco%vgrid,key='rc_1 - coefficient value for rectification (m)',value=dl_rcf1)
-    stat = stat + VGD_OK
-    !
-    if(stat.ne.0) then
-      call abort3d('vco: problem with vgd_get')
-    endif
-
-    vco%dprf   = dl_pref
-    vco%dptop  = dl_ptop
-    vco%drcf1  = dl_rcf1
-    !
-    ! Set to zero the non-significant digits (due to conversion from real*4)
-    !
-    if(lprecision) then
-      sigdigits=7
-      if(vco%dptop .gt. 0.0d0) then
-        precision=10.0d0**(sigdigits-int(log10(vco%dptop)))
-        vco%dptop = real(nint(precision*vco%dptop),8)/precision
-      endif
-      precision=10.0d0**(sigdigits-int(log10(vco%dprf)))
-      vco%dprf  = real(nint(precision*vco%dprf),8)/precision
-      if(vco%drcf1 .gt. 0.0d0) then
-        precision=10.0d0**(sigdigits-int(log10(vco%drcf1)))
-        vco%drcf1 = real(nint(precision*vco%drcf1),8)/precision
-      endif
-    endif
-
-    !==========================================================================
-    ! Compute derivatives of a and b wrt hyb: only kept for backward compatibity
-
     do jlev = 1, vco%nlev_M
-      call convip(vco%ip1_M(jlev),hyb_r4,kind,-1,blk_s,.false.)
-      vco%dhyb_M(jlev) = hyb_r4
       if(mpi_myid.eq.0 .and. .not.present(beSilent)) then
-        write(*,*) 'vco: jlev,nk,ip1,hyb(moment)= ',   & 
-             jlev,vco%nlev_M,vco%ip1_M(jlev),vco%dhyb_M(jlev)
+        write(*,*) 'vco: jlev,nk,ip1(moment)= ',   & 
+             jlev,vco%nlev_M,vco%ip1_M(jlev)
       endif
-      if((vco%drcf1-1.0d0) .lt. epsilon(vco%drcf1)) then
-        zterm = 1.0d0
-      else
-        zterm = (vco%dhyb_M(jlev) - vco%dptop/vco%dprf)
-        if (zterm <= 0.0D0) then
-          zterm = 0.0D0
-        else
-          zterm = (zterm /(1.0d0-vco%dptop/vco%dprf))**(vco%drcf1-1.0d0)
-        endif 
-      endif
-      vco%db_dhyb_M(jlev)= vco%drcf1 * zterm
-      vco%da_dhyb_M(jlev)= vco%dprf*(1.0d0 - vco%db_dhyb_M(jlev))
     enddo
-
     do jlev = 1,vco%nlev_T
-      call convip( vco%ip1_T(jlev),hyb_r4,kind,-1,blk_s,.false.)
-      vco%dhyb_T(jlev) = hyb_r4
       if(mpi_myid.eq.0 .and. .not.present(beSilent)) then
-        write(*,*) 'vco: jlev,nk,ip1,hyb(thermo)= ',  &
-             jlev,vco%nlev_T,vco%ip1_T(jlev),vco%dhyb_T(jlev)
+        write(*,*) 'vco: jlev,nk,ip1(thermo)= ',  &
+             jlev,vco%nlev_T,vco%ip1_T(jlev)
       endif
-      if((vco%drcf1-1.0d0) .lt. epsilon(vco%drcf1)) then
-        zterm = 1.0d0
-      else
-        zterm = (vco%dhyb_T(jlev) - vco%dptop/vco%dprf)
-        if (zterm <= 0.0d0 ) then
-          zterm=0.0d0
-        else
-          zterm = (zterm  /(1.0d0-vco%dptop/vco%dprf))**(vco%drcf1-1.0d0)
-        endif 
-      endif
-      vco%db_dhyb_T(jlev)= vco%drcf1 * zterm
-      vco%da_dhyb_T(jlev)= vco%dprf*(1.0d0 - vco%db_dhyb_T(jlev))
     enddo
 
     !==========================================================================

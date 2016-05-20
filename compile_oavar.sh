@@ -187,7 +187,8 @@ if [ "${mode}" == full ] ; then
   echo "If aborting, check in ${PWD}/listing1"
   SRC0="toplevelcontrol_mod.ftn90"
   SRC0="$SRC0 mathphysconstants_mod.ftn90 earthconstants_mod.ftn90 mpi_mod.ftn90 mpivar_mod.ftn90 bufr_mod.ftn90 codtyp_mod.ftn90"
-  SRC0="$SRC0 physicsfunctions_mod.ftn90 obsspacedata_mod.ftn90 localizationfunction_mod.ftn90 horizontalcoord_mod.ftn90 timecoord_mod.ftn90 verticalcoord_mod.ftn90"
+  SRC0="$SRC0 physicsfunctions_mod.ftn90 obsspacedata_mod.ftn90 localizationfunction_mod.ftn90"
+  SRC0="$SRC0 horizontalcoord_mod.ftn90 timecoord_mod.ftn90 verticalcoord_mod.ftn90 intavg_mod.ftn90"
   s.compile $COMPF -O ${FOPTMIZ} -src $SRC0 > listing1 2>&1
   status=1
   grep fail listing1 || status=0
@@ -210,7 +211,7 @@ if [ "${mode}" == full ] ; then
 
   echo "compiling analysis grid modules"
   echo "If aborting, check in ${PWD}/listing2"
-  SRC0="gaussgrid_mod.ftn90 windrotation_mod.ftn90 lamanalysisgrid_mod.ftn90"
+  SRC0="windrotation_mod.ftn90 lamanalysisgrid_mod.ftn90"
   s.compile $COMPF  -O ${FOPTMIZ} -src $SRC0 > listing2 2>&1
   status=1
   grep fail listing2 || status=0
@@ -223,7 +224,7 @@ if [ "${mode}" == full ] ; then
   echo "If aborting, check in ${PWD}/listing3"
   SRC1="controlvector_mod.ftn90 rmatrix_mod.ftn90 hir_chans_mod.ftn90 tovs_nl_mod.ftn90"
   SRC1="$SRC1 tovs_lin_mod.ftn90 varnamelist_mod.ftn90 columndata_mod.ftn90 multi_ir_bgck_mod.ftn90"
-  SRC1="$SRC1 emissivities_mod.ftn90 fft_mod.ftn90 globalspectraltransform_mod.ftn90"
+  SRC1="$SRC1 emissivities_mod.ftn90 fft_mod.ftn90 globalspectraltransform_mod.ftn90 tt2phi_mod.ftn90"
   SRC1="$SRC1 lamspectraltransform_mod.ftn90 gridstatevector_mod.ftn90 statetocolumn_mod.ftn90"
   SRC1="$SRC1 bmatrixensemble_mod.ftn90 bmatrixhi_mod.ftn90 lambmatrixhi_mod.ftn90"
   SRC1="$SRC1 bmatrix_mod.ftn90 variabletransforms_mod.ftn90"

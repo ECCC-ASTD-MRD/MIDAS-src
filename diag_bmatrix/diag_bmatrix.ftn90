@@ -141,7 +141,7 @@ program diag_bmatrix
   else
      etiket = 'STDDEV'
   end if
-  call vco_SetupFromFile(vco_anl,'./bgcov',.true.,etiket)
+  call vco_SetupFromFile(vco_anl,'./bgcov',etiket)
 
   ! Allocate the statevector
   call gsv_setVco(statevector,vco_anl)

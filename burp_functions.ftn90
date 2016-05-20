@@ -837,7 +837,7 @@
   END SUBROUTINE FDTOUV_OBSDAT
 
 
-  SUBROUTINE FLAGUVTOFD_OBSDAT(lobsSpaceData)
+  SUBROUTINE FLAGUVTOFD_OBSDAT(obsSpaceData)
 !
 !**s/r FLAGUVTOFD_OBSDAT  - Update WIND DIRECTION AND SPEED FLAGS
 !
@@ -852,7 +852,7 @@
       use bufr
       IMPLICIT NONE
 !
-      type(struct_obs) :: lobsSpaceData
+      type(struct_obs) :: obsSpaceData
       INTEGER :: IUU,IVV,IFF,IDD
       INTEGER :: FLAGU,FLAGV,NEWFLAG
       INTEGER :: INDEX_HEADER,ISTART,IEND,jwintyp
@@ -878,37 +878,37 @@
 !
 !
 !
-         BODY: DO INDEX_BODY=1,obs_numBody(lobsSpaceData)
+         BODY: DO INDEX_BODY=1,obs_numBody(obsSpaceData)
 
-            LLOK= ( obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY) .EQ. IUU)
+            LLOK= ( obs_bodyElem_i(obsSpaceData,OBS_VNM,INDEX_BODY) .EQ. IUU)
 
              FLAGU=-1
 	    !----------------
             IF ( LLOK ) THEN
 	    !----------------
-               INDEX_HEADER = obs_bodyElem_i(lobsSpaceData,OBS_HIND,INDEX_BODY)
-               ISTART       = obs_headElem_i(lobsSpaceData,OBS_RLN,INDEX_HEADER)
-               IEND=obs_headElem_i(lobsSpaceData,OBS_NLV,INDEX_HEADER) +ISTART-1
-	       STID=obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER)
+               INDEX_HEADER = obs_bodyElem_i(obsSpaceData,OBS_HIND,INDEX_BODY)
+               ISTART       = obs_headElem_i(obsSpaceData,OBS_RLN,INDEX_HEADER)
+               IEND=obs_headElem_i(obsSpaceData,OBS_NLV,INDEX_HEADER) +ISTART-1
+	       STID=obs_elem_c(obsSpaceData,'STID',INDEX_HEADER)
 
 
-               ZLEVU = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
+               ZLEVU = obs_bodyElem_r(obsSpaceData,OBS_PPP,INDEX_BODY)
 !
 !****************************************************************************
 !  GET FLAG OF U COMPONENT
 !***********************************************************************
 !
-	       FLAGU=obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY)
+	       FLAGU=obs_bodyElem_i(obsSpaceData,OBS_FLG,INDEX_BODY)
 
                BODY_2: DO INDEX_BODY2=ISTART,IEND
-                  IF ( ( obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY2) .EQ. IVV) &
-                 .AND. ( obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY2) .EQ. ZLEVU) ) THEN
+                  IF ( ( obs_bodyElem_i(obsSpaceData,OBS_VNM,INDEX_BODY2) .EQ. IVV) &
+                 .AND. ( obs_bodyElem_r(obsSpaceData,OBS_PPP,INDEX_BODY2) .EQ. ZLEVU) ) THEN
 !
 !****************************************************************************
 !  GET FLAG OF V COMPONENT
 !***********************************************************************
 !
-                     FLAGV= obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY2)
+                     FLAGV= obs_bodyElem_i(obsSpaceData,OBS_FLG,INDEX_BODY2)
                      NEWFLAG =IOR(FLAGU,FLAGV)
 !   
                   ENDIF
@@ -920,21 +920,21 @@
 !
                BODY_2_2: DO INDEX_BODY2=ISTART,IEND
 	       !===============================================
-                  IF ((obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY2).EQ.IDD) &
-                 .AND. obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY2) .EQ. ZLEVU ) THEN
+                  IF ((obs_bodyElem_i(obsSpaceData,OBS_VNM,INDEX_BODY2).EQ.IDD) &
+                 .AND. obs_bodyElem_r(obsSpaceData,OBS_PPP,INDEX_BODY2) .EQ. ZLEVU ) THEN
 
                      NEWFLAG =IOR(FLAGU,FLAGV)
-                     call obs_bodySet_i(lobsSpaceData, OBS_FLG, INDEX_BODY2, NEWFLAG) 
+                     call obs_bodySet_i(obsSpaceData, OBS_FLG, INDEX_BODY2, NEWFLAG) 
 
                   ENDIF
 	       !===============================================
 
 	       !===============================================
-                  IF ((obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY2).EQ.IFF) &
-                 .AND. obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY2) .EQ. ZLEVU ) THEN
+                  IF ((obs_bodyElem_i(obsSpaceData,OBS_VNM,INDEX_BODY2).EQ.IFF) &
+                 .AND. obs_bodyElem_r(obsSpaceData,OBS_PPP,INDEX_BODY2) .EQ. ZLEVU ) THEN
 
                      NEWFLAG =IOR(FLAGU,FLAGV)
-                     call obs_bodySet_i(lobsSpaceData,OBS_FLG,INDEX_BODY2, NEWFLAG)
+                     call obs_bodySet_i(obsSpaceData,OBS_FLG,INDEX_BODY2, NEWFLAG)
                   ENDIF
 	       !===============================================
                ENDDO BODY_2_2
@@ -949,3 +949,121 @@
 
       RETURN
   END SUBROUTINE FLAGUVTOFD_OBSDAT
+
+  SUBROUTINE VINT3DFD(elem_i,obsSpaceData)
+      !
+      ! s/r VINT3DFD  - Computation of DIRECTION AND SPEED RESIDUALS
+      !
+      ! Author  : P. Koclas *CMC/AES  September 1999
+      ! Revision:
+      !     1.0  P. Koclas CMC :  September 2000
+      !                 -remove quality control flag and (ff dd) component initializtions
+      !          JM Belanger CMDA/SMC  Jan 2001
+      !                   . 32 bits conversion
+      !
+      !     Purpose:  -Compute direction and speed residuals from u and
+      !                v residuals.
+      !
+      use MathPhysConstants_mod
+      use obsSpaceData_mod
+      use bufr
+      implicit none
+
+      type(struct_obs) :: obsSpaceData
+      integer, intent(in) :: elem_i
+      INTEGER IUU,IVV,IFF,IDD
+      INTEGER INDEX_HEADER,ISTART,IEND,jwintyp
+      INTEGER INDEX_BODY,INDEX_BODY2
+      REAL*8 ZLEVU
+      REAL*8 MODUL,ANG,UU,VV
+      LOGICAL LLOK
+
+      WIND_TYPE: do jwintyp=1,2
+
+         if (jwintyp .eq. 1) then
+            IUU=BUFR_NEUU
+            IVV=BUFR_NEVV
+            IDD=BUFR_NEDD
+            IFF=BUFR_NEFF
+         else
+            IUU=BUFR_NEUS
+            IVV=BUFR_NEVS
+            IDD=BUFR_NEDS
+            IFF=BUFR_NEFS
+         endif
+
+         ! Process all data within the domain of the model
+
+         BODY: DO INDEX_BODY=1,obs_numBody(obsSpaceData)
+            LLOK= (obs_bodyElem_i(obsSpaceData,OBS_ASS,INDEX_BODY) .EQ. 1)  &
+            .AND. (obs_bodyElem_i(obsSpaceData,OBS_VNM,INDEX_BODY) .EQ. IUU)
+            IF ( LLOK ) THEN
+               INDEX_HEADER = obs_bodyElem_i(obsSpaceData,OBS_HIND,INDEX_BODY)
+               ISTART=obs_headElem_i(obsSpaceData,OBS_RLN,INDEX_HEADER)
+               IEND=obs_headElem_i(obsSpaceData,OBS_NLV,INDEX_HEADER) +ISTART-1
+               ZLEVU = obs_bodyElem_r(obsSpaceData,OBS_PPP,INDEX_BODY)
+               UU=-obs_bodyElem_r(obsSpaceData,elem_i,INDEX_BODY) +  &
+                   obs_bodyElem_r(obsSpaceData,OBS_VAR,INDEX_BODY)
+               BODY_2: DO INDEX_BODY2=ISTART,IEND
+                  IF ((obs_bodyElem_i(obsSpaceData,OBS_VNM,INDEX_BODY2) .EQ. IVV)  &
+                 .AND.(obs_bodyElem_r(obsSpaceData,OBS_PPP,INDEX_BODY2) .EQ. ZLEVU)) THEN
+                   VV=-obs_bodyElem_r(obsSpaceData,elem_i,INDEX_BODY2) +  &
+                       obs_bodyElem_r(obsSpaceData,OBS_VAR,INDEX_BODY2)
+
+                     ! 1-calculate angle
+
+                     MODUL=SQRT((UU**2)+(VV**2))
+                     IF (MODUL.EQ.0.) THEN
+                        ANG=0.0D0
+                     ELSE
+                        ANG=ATAN2(VV,UU)
+                        ANG= (270.0D0 - ANG  * MPC_DEGREES_PER_RADIAN_R8 )
+
+                        ! 2-Change to meteorological definition of wind direction.
+
+                        IF (ANG.GT.360.0D0) ANG=ANG-360.0D0
+                        IF (ANG.LE.0.0D0)   ANG=ANG+360.0D0
+                     ENDIF
+   
+                  ENDIF
+               ENDDO BODY_2
+
+               ! insert resduals into obsSpaceData
+
+               BODY_2_2: DO INDEX_BODY2=ISTART,IEND
+                  IF ((obs_bodyElem_i(obsSpaceData,OBS_VNM,INDEX_BODY2).EQ.IDD)  &
+                 .AND. obs_bodyElem_r(obsSpaceData,OBS_PPP,INDEX_BODY2) .EQ. ZLEVU ) THEN
+
+                     call obs_bodySet_r(obsSpaceData, elem_i, INDEX_BODY2,    &
+                          obs_bodyElem_r(obsSpaceData,OBS_VAR,INDEX_BODY2) - ANG )
+
+                     IF ( obs_bodyElem_r(obsSpaceData,elem_i,INDEX_BODY2) .gt.  180.0d0)  &
+                        call obs_bodySet_r(obsSpaceData, elem_i, INDEX_BODY2,   &
+                                       obs_bodyElem_r(obsSpaceData,elem_i,INDEX_BODY2)-360.0d0)
+                     IF ( obs_bodyElem_r(obsSpaceData,elem_i,INDEX_BODY2) .le. -180.0d0)  &
+                        call obs_bodySet_r(obsSpaceData, elem_i, INDEX_BODY2,  &
+                                       obs_bodyElem_r(obsSpaceData,elem_i,INDEX_BODY2)+360.0d0)
+
+                      call obs_bodySet_r(obsSpaceData, elem_i, INDEX_BODY2, -1.0d0*  &
+                                         obs_bodyElem_r(obsSpaceData,elem_i,INDEX_BODY2))
+
+                      call obs_bodySet_r(obsSpaceData,OBS_OER,INDEX_BODY2,1.0d0)
+                      call obs_bodySet_i(obsSpaceData,OBS_ASS,INDEX_BODY2, 1)
+                      call obs_bodySet_i(obsSpaceData,OBS_FLG,INDEX_BODY2, 0)
+                  ENDIF
+                  IF ((obs_bodyElem_i(obsSpaceData,OBS_VNM,INDEX_BODY2).EQ.IFF)  &
+                 .AND. obs_bodyElem_r(obsSpaceData,OBS_PPP,INDEX_BODY2) .EQ. ZLEVU ) THEN
+                     call obs_bodySet_r(obsSpaceData,elem_i, INDEX_BODY2,   &
+                          obs_bodyElem_r(obsSpaceData,OBS_VAR,INDEX_BODY2) - MODUL)
+                     call obs_bodySet_r(obsSpaceData,OBS_OER,INDEX_BODY2,1.0d0)
+                     call obs_bodySet_i(obsSpaceData,OBS_ASS,INDEX_BODY2, 1)
+                     call obs_bodySet_i(obsSpaceData,OBS_FLG,INDEX_BODY2, 0)
+                  ENDIF
+               ENDDO BODY_2_2
+            ENDIF
+
+         ENDDO BODY
+
+      ENDDO WIND_TYPE
+
+  END SUBROUTINE VINT3DFD

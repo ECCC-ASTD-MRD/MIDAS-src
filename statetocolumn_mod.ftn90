@@ -25,6 +25,7 @@ module stateToColumn_mod
   use obsSpaceData_mod
   use columnData_mod
   use timeCoord_mod
+  use tt2phi_mod
   implicit none
   save
   private
@@ -40,6 +41,7 @@ module stateToColumn_mod
   real(8), allocatable :: myYposTile(:), myXposTile(:)
   real(8), allocatable :: myLatTile(:), myLonTile(:)
   real(8), allocatable :: myTimeInterpWeight(:,:)
+  real(8), pointer     :: fieldsWithHalo(:,:,:,:)
 
   integer :: get_max_rss
 
@@ -314,6 +316,10 @@ CONTAINS
 
     endif ! numHeaderTile .ne. numHeaderColumn
 
+    ! allocate the 4D array used to store the statevector with a Halo
+    allocate(fieldsWithHalo(statevector%myLonBeg:(statevector%myLonEnd+1),statevector%nk,  &
+                            statevector%myLatBeg:(statevector%myLatEnd+1),statevector%numStep))
+
     initialized = .true.
 
     if(mpi_myid.eq.0) write(*,*) 's2c_setup: END'
@@ -351,7 +357,7 @@ CONTAINS
     call rpn_comm_barrier("GRID",ierr)
     call tmg_stop(38)
     call tmg_start(39,'INTERP_COMM')
-    if (mpi_nprocs /= 1) call gsv_commLatLon(statevector)
+    call commLatLon(statevector)
     call tmg_stop(39)
 
     call gd2mvo
@@ -363,12 +369,8 @@ CONTAINS
     !- 2.1 Mass fields (TT,PS,HU) to hydrostatic geopotential
     vco_anl => col_getVco(columng)
     status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
-    call tmg_start(36,'INTERP_LTT2PHI')
-    if(Vcode_anl .eq. 5001) then
-      call ltt2phi(column,columng)
-    else
-      call ltt2phi_gem4(column,columng)
-    endif
+    call tmg_start(36,'INTERP_TT2PHI_TL')
+    call tt2phi_tl(column,columng)
     call tmg_stop(36)
 
     !- 2.2 Rotated wind to Meteorological wind
@@ -396,9 +398,6 @@ CONTAINS
       real(8) :: dldx, dldy, dlw1, dlw2, dlw3, dlw4
       real(8) :: xpos, ypos, lat, lon, latrot, lonrot
       real(8), pointer :: column_ptr(:,:), column_tile(:,:)
-      real(8), pointer :: field_ptr(:,:,:,:)
-
-      field_ptr  => gsv_getField(statevector)
 
       if (numHeaderTile > 0) then
         column_ptr => col_getAllColumns(column)
@@ -479,10 +478,10 @@ CONTAINS
             do jlev = 1, numLev
               column_tile(jlev,headerIndex) = column_tile(jlev,headerIndex)  +  &
                                   myTimeInterpWeight(headerIndex,stepIndex) * &
-                                  ( dlw1 * field_ptr(ilon  ,jlev,ilat  ,stepIndex) &
-                                  + dlw2 * field_ptr(ilon+1,jlev,ilat  ,stepIndex) &
-                                  + dlw3 * field_ptr(ilon  ,jlev,ilat+1,stepIndex) &
-                                  + dlw4 * field_ptr(ilon+1,jlev,ilat+1,stepIndex) )
+                                  ( dlw1 * fieldsWithHalo(ilon  ,jlev,ilat  ,stepIndex) &
+                                  + dlw2 * fieldsWithHalo(ilon+1,jlev,ilat  ,stepIndex) &
+                                  + dlw3 * fieldsWithHalo(ilon  ,jlev,ilat+1,stepIndex) &
+                                  + dlw4 * fieldsWithHalo(ilon+1,jlev,ilat+1,stepIndex) )
             enddo
 
           end if
@@ -641,12 +640,8 @@ CONTAINS
     !- 2.1 Mass fields (TT,PS,HU) to hydrostatic geopotential
     vco_anl => col_getVco(columng)
     status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
-    call tmg_start(37,'INTERP_ATT2PHI')
-    if(Vcode_anl .eq. 5001) then
-      call att2phi(column,columng)
-    else
-      call att2phi_gem4(column,columng)
-    endif
+    call tmg_start(37,'INTERP_TT2PHI_AD')
+    call tt2phi_ad(column,columng)
     call tmg_stop(37)
   
     !
@@ -661,7 +656,7 @@ CONTAINS
     call rpn_comm_barrier("GRID",ierr)
     call tmg_stop(38)
     call tmg_start(39,'INTERP_COMM')
-    if (mpi_nprocs /= 1) call gsv_commLatLonAd(statevector)
+    call commLatLonAd(statevector)
     call tmg_stop(39)
 
   CONTAINS
@@ -684,10 +679,7 @@ CONTAINS
       integer :: jlev, headerIndex, stepIndex, ilon, ilat
       real(8) :: dldx, dldy, dlw1, dlw2, dlw3, dlw4, DInterpWeight
       real(8) :: xpos, ypos, lat, lon, latrot, lonrot
-      real(8), pointer :: field_ptr(:,:,:,:)
       real(8), pointer :: column_ptr(:,:), column_tile(:,:)
-
-      field_ptr  => gsv_getField(statevector)
 
       if (col_getNumCol(column) > 0) then
         column_ptr => col_getAllColumns(column)
@@ -713,7 +705,7 @@ CONTAINS
 
       do stepIndex = 1, statevector%numStep
 
-        field_ptr(:,:,:,stepIndex) = 0.0D0
+        fieldsWithHalo(:,:,:,stepIndex) = 0.0D0
       
         !
         !- 2.  LOOP OVER ALL THE OBSERVATIONS
@@ -773,13 +765,13 @@ CONTAINS
 
             !- 2.4 Interpolate the model state to the obs point
             do jlev = 1, numLev
-              field_ptr(ilon  ,jlev,ilat,  stepIndex) = field_ptr(ilon  ,jlev,ilat,  stepIndex)    &
+              fieldsWithHalo(ilon  ,jlev,ilat,  stepIndex) = fieldsWithHalo(ilon  ,jlev,ilat,  stepIndex)    &
                                           + dlw1 * column_tile(jlev,headerIndex)
-              field_ptr(ilon+1,jlev,ilat,  stepIndex) = field_ptr(ilon+1,jlev,ilat,  stepIndex)    &
+              fieldsWithHalo(ilon+1,jlev,ilat,  stepIndex) = fieldsWithHalo(ilon+1,jlev,ilat,  stepIndex)    &
                                           + dlw2 * column_tile(jlev,headerIndex)
-              field_ptr(ilon  ,jlev,ilat+1,stepIndex) = field_ptr(ilon  ,jlev,ilat+1,stepIndex)    &
+              fieldsWithHalo(ilon  ,jlev,ilat+1,stepIndex) = fieldsWithHalo(ilon  ,jlev,ilat+1,stepIndex)    &
                                           + dlw3 * column_tile(jlev,headerIndex)
-              field_ptr(ilon+1,jlev,ilat+1,stepIndex) = field_ptr(ilon+1,jlev,ilat+1,stepIndex)    &
+              fieldsWithHalo(ilon+1,jlev,ilat+1,stepIndex) = fieldsWithHalo(ilon+1,jlev,ilat+1,stepIndex)    &
                                           + dlw4 * column_tile(jlev,headerIndex)
             enddo
 
@@ -897,5 +889,277 @@ CONTAINS
     end subroutine uvrot2uvAdj
 
   end subroutine s2c_ad
+
+
+  subroutine commLatLon(statevector_in)
+    implicit none
+    type(struct_gsv) :: statevector_in
+    integer :: nsize, ierr, status, latPerPEhalo, myLatEndP1
+    integer :: jlat, jstep, jlev, jlon
+    real(8), pointer :: field_ptr(:,:,:,:) 
+
+    ! copy statevector into fieldsWithHalo
+    field_ptr => gsv_getField(statevector_in)
+!$OMP PARALLEL DO PRIVATE (jlat,jstep,jlev,jlon)    
+    do jlat = statevector_in%myLatBeg, statevector_in%myLatEnd
+      do jstep = 1, statevector_in%numStep
+        do jlev = 1, statevector_in%nk
+          do jlon = statevector_in%myLonBeg, statevector_in%myLonEnd
+            fieldsWithHalo(jlon,jlev,jlat,jstep)= field_ptr(jlon,jlev,jlat,jstep)
+          enddo
+        enddo
+      enddo
+    enddo
+!$OMP END PARALLEL DO
+
+    ! ******First send latitude halos
+
+    if(mpi_npey.gt.1) then  ! only do exchange when more than one mpi task in Y direction
+
+      nsize=statevector_in%lonPerPE*statevector_in%nk*statevector_in%numStep
+
+      ! northern most latitude band
+      if(mpi_myidy.eq.(mpi_npey-1)) then
+        call rpn_comm_send(fieldsWithHalo(statevector_in%myLonBeg:statevector_in%myLonEnd,:,  &
+                                             statevector_in%myLatBeg:statevector_in%myLatBeg,:),nsize, &
+                           "mpi_double_precision",mpi_myidy-1,mpi_myidy*500+(mpi_myidy-1),  &
+                           "NS",ierr)
+      endif
+
+      ! all latitude bands not at the north or south poles
+      if(mpi_myidy.ne.0.and.mpi_myidy.ne.(mpi_npey-1)) then
+        call rpn_comm_sendrecv(fieldsWithHalo(statevector_in%myLonBeg:statevector_in%myLonEnd,:,  &
+                                                 statevector_in%myLatBeg:statevector_in%myLatBeg,:), &
+                               nsize,"mpi_double_precision",mpi_myidy-1,mpi_myidy*500+(mpi_myidy-1), &
+                               fieldsWithHalo(statevector_in%myLonBeg:statevector_in%myLonEnd,:, &
+                                                 (statevector_in%myLatEnd+1):(statevector_in%myLatEnd+1),:), &
+                               nsize,"mpi_double_precision",mpi_myidy+1,(mpi_myidy+1)*500+mpi_myidy, &
+                               "NS",status,ierr)
+      endif
+
+      ! southern most latitude band
+      if(mpi_myidy.eq.0) then
+        call rpn_comm_recv(fieldsWithHalo(statevector_in%myLonBeg:statevector_in%myLonEnd,:, &
+                                             (statevector_in%myLatEnd+1):(statevector_in%myLatEnd+1),:),nsize, &
+                          "mpi_double_precision",mpi_myidy+1,(mpi_myidy+1)*500+mpi_myidy,  &
+                          "NS",status,ierr)
+      endif
+
+    endif ! mpi_npey.gt.1
+
+
+    ! ******Now send longitude halos
+
+    if(mpi_myidy.eq.(mpi_npey-1)) then
+      ! northern most latitude band does not have a latitude halo to the north
+      latPerPEhalo = statevector_in%latPerPE
+      myLatEndP1 = statevector_in%myLatEnd
+    else
+      ! all others do
+      latPerPEhalo = statevector_in%latPerPE + 1
+      myLatEndP1 = statevector_in%myLatEnd + 1
+    endif
+
+    if(mpi_npex.gt.1) then  ! only do exchange when more than one mpi task in X direction
+
+      nsize=latPerPEhalo*statevector_in%nk*statevector_in%numStep
+
+      ! eastern most longitude band
+      if(mpi_myidx.eq.(mpi_npex-1)) then
+        call rpn_comm_send(fieldsWithHalo(statevector_in%myLonBeg:statevector_in%myLonBeg,:,  &
+                                             statevector_in%myLatBeg:myLatEndP1,:),nsize, &
+          "mpi_double_precision",mpi_myidx-1,mpi_myidx*500+(mpi_myidx-1),"EW",ierr)
+      endif
+
+      ! all other longitude bands (not first nor last)
+      if(mpi_myidx.ne.0.and.mpi_myidx.ne.(mpi_npex-1)) then
+        call rpn_comm_sendrecv(fieldsWithHalo(statevector_in%myLonBeg:statevector_in%myLonBeg,:,  &
+                                                 statevector_in%myLatBeg:myLatEndP1,:), &
+                               nsize,"mpi_double_precision",mpi_myidx-1,mpi_myidx*500+(mpi_myidx-1), &
+                               fieldsWithHalo((statevector_in%myLonEnd+1):(statevector_in%myLonEnd+1),:, &
+                                                 statevector_in%myLatBeg:myLatEndP1,:), &
+                               nsize,"mpi_double_precision",mpi_myidx+1,(mpi_myidx+1)*500+mpi_myidx, &
+                               "EW",status,ierr)
+      endif
+
+      ! western most longitude band
+      if(mpi_myidx.eq.0) then
+        call rpn_comm_recv(fieldsWithHalo((statevector_in%myLonEnd+1):(statevector_in%myLonEnd+1),:, &
+                                             statevector_in%myLatBeg:myLatEndP1,:),nsize, &
+          "mpi_double_precision",mpi_myidx+1,(mpi_myidx+1)*500+mpi_myidx,"EW",status,ierr)
+      endif
+
+      ! periodic, so also send the first meridian on myidx=0 to the last meridian on myidx=(npex-1)
+      if(mpi_myidx.eq.0) then
+        call rpn_comm_send(fieldsWithHalo(statevector_in%myLonBeg:statevector_in%myLonBeg,:,  &
+                                             statevector_in%myLatBeg:myLatEndP1,:),nsize, &
+          "mpi_double_precision",mpi_npex-1,mpi_myidx*500+(mpi_npex-1),"EW",ierr)
+      endif
+      if(mpi_myidx.eq.(mpi_npex-1)) then
+        call rpn_comm_recv(fieldsWithHalo((statevector_in%myLonEnd+1):(statevector_in%myLonEnd+1),:, &
+                                             statevector_in%myLatBeg:myLatEndP1,:),nsize, &
+          "mpi_double_precision",0,0*500+mpi_myidx,"EW",status,ierr)
+      endif
+
+    else ! only one mpi task in X direction, so just copy first meridian to last (plus 1)
+      
+      fieldsWithHalo(statevector_in%myLonEnd+1,:,statevector_in%myLatBeg:myLatEndP1,:) = &
+        fieldsWithHalo(1                      ,:,statevector_in%myLatBeg:myLatEndP1,:)
+
+    endif
+
+  end subroutine commlatlon
+
+
+  subroutine commLatLonAd(statevector_in)
+    implicit none
+    type(struct_gsv) :: statevector_in
+    integer :: nsize, ierr, status, latPerPEhalo, myLatEndP1
+    real*8, allocatable :: latHalo(:,:,:,:)
+    real*8, allocatable :: lonHalo(:,:,:,:)
+    integer :: jlat, jstep, jlev, jlon
+    real(8), pointer :: field_ptr(:,:,:,:) 
+
+    ! ******Adjoint of sending longitude halos
+
+    if(mpi_myidy.eq.(mpi_npey-1)) then
+      ! northern most latitude band does not have a latitude halo to the north
+      latPerPEhalo = statevector_in%latPerPE
+      myLatEndP1 = statevector_in%myLatEnd
+    else
+      ! all others do
+      latPerPEhalo = statevector_in%latPerPE + 1
+      myLatEndP1 = statevector_in%myLatEnd + 1
+    endif
+
+    if(mpi_npex.gt.1) then  ! only do adjoint of exchange when more than one mpi task in X direction
+
+      allocate(lonHalo(1, statevector_in%nk, latPerPEhalo, statevector_in%numStep))
+
+      nsize=latPerPEhalo*statevector_in%nk*statevector_in%numStep
+
+      ! periodic, so also do adjoint of sending the first meridian on myidx=0 to the last meridian on myidx=(npex-1)
+      if(mpi_myidx.eq.(mpi_npex-1)) then
+        call rpn_comm_send(fieldsWithHalo((statevector_in%myLonEnd+1):(statevector_in%myLonEnd+1),:, &
+                                             statevector_in%myLatBeg:myLatEndP1,:),nsize, &
+                           "mpi_double_precision",0,0*500+mpi_myidx,  &
+                           "EW",ierr)
+      endif
+      if(mpi_myidx.eq.0) then
+        call rpn_comm_recv(lonHalo,nsize, &
+                           "mpi_double_precision",mpi_npex-1,mpi_myidx*500+(mpi_npex-1),"EW",status,ierr)
+      endif
+
+      ! western most longitude band
+      if(mpi_myidx.eq.0) then
+        call rpn_comm_send(fieldsWithHalo((statevector_in%myLonEnd+1):(statevector_in%myLonEnd+1),:, &
+                                             statevector_in%myLatBeg:myLatEndP1,:),nsize, &
+                           "mpi_double_precision",mpi_myidx+1,(mpi_myidx+1)*500+mpi_myidx,  &
+                           "EW",ierr)
+      endif
+
+      ! all other longitude bands (not first nor last)
+      if(mpi_myidx.ne.0.and.mpi_myidx.ne.(mpi_npex-1)) then
+        call rpn_comm_sendrecv(fieldsWithHalo((statevector_in%myLonEnd+1):(statevector_in%myLonEnd+1),:, &
+                                                 statevector_in%myLatBeg:myLatEndP1,:), &
+                               nsize,"mpi_double_precision",mpi_myidx+1,(mpi_myidx+1)*500+mpi_myidx, &
+                               lonHalo, &
+                               nsize,"mpi_double_precision",mpi_myidx-1,mpi_myidx*500+(mpi_myidx-1), &
+                               "EW",status,ierr)
+      endif
+
+      ! eastern most longitude band
+      if(mpi_myidx.eq.(mpi_npex-1)) then
+        call rpn_comm_recv(lonHalo,nsize, &
+                           "mpi_double_precision",mpi_myidx-1,mpi_myidx*500+(mpi_myidx-1),"EW",status,ierr)
+      endif
+
+      ! add the sensitivity from the halo to the in situ sensitivity
+      fieldsWithHalo(statevector_in%myLonBeg:statevector_in%myLonBeg,:,  &
+                        statevector_in%myLatBeg:myLatEndP1,:) = &
+        fieldsWithHalo(statevector_in%myLonBeg:statevector_in%myLonBeg,:,  &
+                          statevector_in%myLatBeg:myLatEndP1,:) + lonHalo(:,:,:,:)
+
+      ! to make sure sensitivity from the halo is not double counted, set to zero
+      fieldsWithHalo(statevector_in%myLonEnd+1,:,statevector_in%myLatBeg:myLatEndP1,:) = 0.0d0
+
+      deallocate(lonHalo)
+
+    else ! only one mpi task in X direction, so just adjoint of copying first meridian to last (plus 1)
+      
+      fieldsWithHalo(1                          ,:,statevector_in%myLatBeg:myLatEndP1,:) =  &
+        fieldsWithHalo(1                        ,:,statevector_in%myLatBeg:myLatEndP1,:) +  &
+        fieldsWithHalo(statevector_in%myLonEnd+1,:,statevector_in%myLatBeg:myLatEndP1,:)
+        
+      ! to make sure sensitivity from the halo is not double counted, set to zero
+      fieldsWithHalo(statevector_in%myLonEnd+1,:,statevector_in%myLatBeg:myLatEndP1,:) = 0.0d0
+
+    endif
+
+    ! ******Adjoint of sending latitude halos
+
+    if(mpi_npey.gt.1) then  ! only do exchange when more than one mpi task in Y direction
+
+      allocate(latHalo(statevector_in%lonPerPE, statevector_in%nk, 1, statevector_in%numStep))
+
+      nsize=statevector_in%lonPerPE*statevector_in%nk*statevector_in%numStep
+
+      ! southern most latitude band
+      if(mpi_myidy.eq.0) then
+        call rpn_comm_send(fieldsWithHalo(statevector_in%myLonBeg:statevector_in%myLonEnd,:,  &
+                                             (statevector_in%myLatEnd+1):(statevector_in%myLatEnd+1),:), &
+                           nsize,"mpi_double_precision",mpi_myidy+1,(mpi_myidy+1)*500+mpi_myidy,"NS",ierr)
+      endif
+
+      ! all latitude bands not at the north or south poles
+      if(mpi_myidy.ne.0.and.mpi_myidy.ne.(mpi_npey-1)) then
+        call rpn_comm_sendrecv(fieldsWithHalo(statevector_in%myLonBeg:statevector_in%myLonEnd,:,  &
+                                                 (statevector_in%myLatEnd+1):(statevector_in%myLatEnd+1),:), &
+                               nsize,"mpi_double_precision",mpi_myidy+1,(mpi_myidy+1)*500+mpi_myidy, &
+                               latHalo, &
+                               nsize,"mpi_double_precision",mpi_myidy-1,mpi_myidy*500+(mpi_myidy-1), &
+                               "NS",status,ierr)
+      endif
+
+      ! northern most latitude band
+      if(mpi_myidy.eq.(mpi_npey-1)) then
+        call rpn_comm_recv(latHalo,nsize,  &
+                           "mpi_double_precision",mpi_myidy-1,mpi_myidy*500+(mpi_myidy-1), &
+                           "NS",status,ierr)
+      endif
+
+      ! add the sensitivity from the halo to the in situ sensitivity
+      if(mpi_myidy.ne.0) then
+        fieldsWithHalo(statevector_in%myLonBeg:statevector_in%myLonEnd,:,  &
+                       statevector_in%myLatBeg:statevector_in%myLatBeg,:) = &
+               fieldsWithHalo(statevector_in%myLonBeg:statevector_in%myLonEnd,:,  &
+                              statevector_in%myLatBeg:statevector_in%myLatBeg,:) + &
+               latHalo(:,:,:,:)
+      endif
+
+      ! to make sure sensitivity from the halo is not double counted, set to zero
+      if(mpi_myidy.ne.(mpi_npey-1)) then
+        fieldsWithHalo(statevector_in%myLonBeg:statevector_in%myLonEnd,:,statevector_in%myLatEnd+1,:)=0.0d0
+      endif
+
+      deallocate(latHalo)
+
+    endif
+
+    ! copy statevector into fieldsWithHalo
+    field_ptr => gsv_getField(statevector_in)
+!$OMP PARALLEL DO PRIVATE (jlat,jstep,jlev,jlon)    
+    do jlat = statevector_in%myLatBeg, statevector_in%myLatEnd
+      do jstep = 1, statevector_in%numStep
+        do jlev = 1, statevector_in%nk
+          do jlon = statevector_in%myLonBeg, statevector_in%myLonEnd
+            field_ptr(jlon,jlev,jlat,jstep) = fieldsWithHalo(jlon,jlev,jlat,jstep)
+          enddo
+        enddo
+      enddo
+    enddo
+!$OMP END PARALLEL DO
+
+  end subroutine commLatLonAd
 
 end module stateToColumn_mod

@@ -47,7 +47,8 @@ subroutine tovs_fill_profiles_tl(column,columng)
   use columnData_mod
   use tovs_extrap_mod
   use rttov_const ,only : q_mixratio_to_ppmv
-  Use parkind1, Only : jpim     ,jprb
+  use parkind1, Only : jpim     ,jprb
+  use intavg_mod
 
   implicit none
 

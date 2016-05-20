@@ -48,7 +48,6 @@ module columnData_mod
     real*8,pointer    :: pressure_T(:,:),pressure_M(:,:)
     real*8,pointer    :: dP_dPsfc_T(:,:),dP_dPsfc_M(:,:)
     real*8,pointer    :: oltv(:,:,:)    ! Tangent linear operator of virtual temperature
-    real*8,pointer    :: rtapfac(:,:)   ! Background surface pressure dependant factor used for Temperature to Phi calc.
     real*8,pointer    :: lat(:),lon(:)
     real(8),pointer   :: latRot(:),lonRot(:)
     real(8),pointer   :: ypos(:)
@@ -234,8 +233,6 @@ module columnData_mod
 
         allocate(column%oltv(2,col_getNumLev(column,'TH'),numCol))
         column%oltv(:,:,:)=0.0d0
-        allocate(column%rtapfac(col_getNumLev(column,'TH'),numCol))
-        column%rtapfac(:,:)=0.0d0
 
       endif
  
@@ -272,7 +269,6 @@ module columnData_mod
         deallocate(column%ypos)
         deallocate(column%xpos)
         deallocate(column%oltv)
-        deallocate(column%rtapfac)
       endif
 
       column%allocated=.false.

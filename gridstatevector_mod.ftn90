@@ -52,7 +52,6 @@ MODULE gridStateVector_mod
   public :: gsv_add, gsv_power, gsv_scale, gsv_scaleVertical, gsv_copy, gsv_stddev
   public :: gsv_getVco, gsv_setVco, gsv_getHco, gsv_setHco
   public :: gsv_commMPIGlobal, gsv_commMPIGlobal3D
-  public :: gsv_commLatLon, gsv_commLatLonAd
 
   ! public entities accessed through inheritance
   public :: struct_vco, vco_SetupFromFile
@@ -294,8 +293,8 @@ MODULE gridStateVector_mod
     statevector%nk=iloc
 
     if(statevector%mpi_local) then
-      allocate(statevector%gd(statevector%myLonBeg:(statevector%myLonEnd+1),statevector%nk,  &
-                              statevector%myLatBeg:(statevector%myLatEnd+1),numStep),stat=ierr)
+      allocate(statevector%gd(statevector%myLonBeg:statevector%myLonEnd,statevector%nk,  &
+                              statevector%myLatBeg:statevector%myLatEnd,numStep),stat=ierr)
     else
       allocate(statevector%gd(statevector%hco%ni,statevector%nk,statevector%hco%nj,numStep),stat=ierr)
     endif
@@ -323,9 +322,9 @@ MODULE gridStateVector_mod
     endif
 
     lon1=statevector%myLonBeg
-    lon2=min(statevector%myLonEnd+1,statevector%hco%ni)
+    lon2=statevector%myLonEnd
     lat1=statevector%myLatBeg
-    lat2=min(statevector%myLatEnd+1,statevector%hco%nj)
+    lat2=statevector%myLatEnd
 
 !$OMP PARALLEL
 !$OMP DO PRIVATE (jstep,jlat,jlev,jlon)    
@@ -342,245 +341,6 @@ MODULE gridStateVector_mod
 !$OMP END PARALLEL
 
   END SUBROUTINE GSV_zero
-
-  
-  SUBROUTINE GSV_commLatLon(statevector_in)
-    implicit none
-    type(struct_gsv) :: statevector_in
-    integer :: nsize, ierr, status, latPerPEhalo, myLatEndP1
-
-    ! ******First send latitude halos
-
-    if(mpi_npey.gt.1) then  ! only do exchange when more than one mpi task in Y direction
-
-      nsize=statevector_in%lonPerPE*statevector_in%nk*statevector_in%numStep
-
-      ! southern most latitude band
-      if(mpi_myidy.eq.(mpi_npey-1)) then
-        call rpn_comm_send(statevector_in%gd(statevector_in%myLonBeg:statevector_in%myLonEnd,:,  &
-                                             statevector_in%myLatBeg:statevector_in%myLatBeg,:),nsize, &
-                           "mpi_double_precision",mpi_myidy-1,mpi_myidy*500+(mpi_myidy-1),  &
-                           "NS",ierr)
-      endif
-
-      ! all latitude bands not at the north or south poles
-      if(mpi_myidy.ne.0.and.mpi_myidy.ne.(mpi_npey-1)) then
-        call rpn_comm_sendrecv(statevector_in%gd(statevector_in%myLonBeg:statevector_in%myLonEnd,:,  &
-                                                 statevector_in%myLatBeg:statevector_in%myLatBeg,:), &
-                               nsize,"mpi_double_precision",mpi_myidy-1,mpi_myidy*500+(mpi_myidy-1), &
-                               statevector_in%gd(statevector_in%myLonBeg:statevector_in%myLonEnd,:, &
-                                                 (statevector_in%myLatEnd+1):(statevector_in%myLatEnd+1),:), &
-                               nsize,"mpi_double_precision",mpi_myidy+1,(mpi_myidy+1)*500+mpi_myidy, &
-                               "NS",status,ierr)
-      endif
-
-      ! northern most latitude band
-      if(mpi_myidy.eq.0) then
-        call rpn_comm_recv(statevector_in%gd(statevector_in%myLonBeg:statevector_in%myLonEnd,:, &
-                                             (statevector_in%myLatEnd+1):(statevector_in%myLatEnd+1),:),nsize, &
-                          "mpi_double_precision",mpi_myidy+1,(mpi_myidy+1)*500+mpi_myidy,  &
-                          "NS",status,ierr)
-      endif
-
-    endif
-
-
-    ! ******Now send longitude halos
-
-    if(mpi_myidy.eq.(mpi_npey-1)) then
-      ! southern most latitude band does not have a latitude halo to the south
-      latPerPEhalo = statevector_in%latPerPE
-      myLatEndP1 = statevector_in%myLatEnd
-    else
-      ! all others do
-      latPerPEhalo = statevector_in%latPerPE + 1
-      myLatEndP1 = statevector_in%myLatEnd + 1
-    endif
-
-    if(mpi_npex.gt.1) then  ! only do exchange when more than one mpi task in X direction
-
-      nsize=latPerPEhalo*statevector_in%nk*statevector_in%numStep
-
-      ! eastern most longitude band
-      if(mpi_myidx.eq.(mpi_npex-1)) then
-        call rpn_comm_send(statevector_in%gd(statevector_in%myLonBeg:statevector_in%myLonBeg,:,  &
-                                             statevector_in%myLatBeg:myLatEndP1,:),nsize, &
-          "mpi_double_precision",mpi_myidx-1,mpi_myidx*500+(mpi_myidx-1),"EW",ierr)
-      endif
-
-      ! all other longitude bands (not first nor last)
-      if(mpi_myidx.ne.0.and.mpi_myidx.ne.(mpi_npex-1)) then
-        call rpn_comm_sendrecv(statevector_in%gd(statevector_in%myLonBeg:statevector_in%myLonBeg,:,  &
-                                                 statevector_in%myLatBeg:myLatEndP1,:), &
-                               nsize,"mpi_double_precision",mpi_myidx-1,mpi_myidx*500+(mpi_myidx-1), &
-                               statevector_in%gd((statevector_in%myLonEnd+1):(statevector_in%myLonEnd+1),:, &
-                                                 statevector_in%myLatBeg:myLatEndP1,:), &
-                               nsize,"mpi_double_precision",mpi_myidx+1,(mpi_myidx+1)*500+mpi_myidx, &
-                               "EW",status,ierr)
-      endif
-
-      ! western most longitude band
-      if(mpi_myidx.eq.0) then
-        call rpn_comm_recv(statevector_in%gd((statevector_in%myLonEnd+1):(statevector_in%myLonEnd+1),:, &
-                                             statevector_in%myLatBeg:myLatEndP1,:),nsize, &
-          "mpi_double_precision",mpi_myidx+1,(mpi_myidx+1)*500+mpi_myidx,"EW",status,ierr)
-      endif
-
-      ! periodic, so also send the first meridian on myidx=0 to the last meridian on myidx=(npex-1)
-      if(mpi_myidx.eq.0) then
-        call rpn_comm_send(statevector_in%gd(statevector_in%myLonBeg:statevector_in%myLonBeg,:,  &
-                                             statevector_in%myLatBeg:myLatEndP1,:),nsize, &
-          "mpi_double_precision",mpi_npex-1,mpi_myidx*500+(mpi_npex-1),"EW",ierr)
-      endif
-      if(mpi_myidx.eq.(mpi_npex-1)) then
-        call rpn_comm_recv(statevector_in%gd((statevector_in%myLonEnd+1):(statevector_in%myLonEnd+1),:, &
-                                             statevector_in%myLatBeg:myLatEndP1,:),nsize, &
-          "mpi_double_precision",0,0*500+mpi_myidx,"EW",status,ierr)
-      endif
-
-    else ! only one mpi task in X direction, so just copy first meridian to last (plus 1)
-      
-      statevector_in%gd(statevector_in%myLonEnd+1,:,statevector_in%myLatBeg:myLatEndP1,:) = &
-        statevector_in%gd(1                      ,:,statevector_in%myLatBeg:myLatEndP1,:)
-
-    endif
-
-  END SUBROUTINE GSV_commLatLon
-
-
-  SUBROUTINE GSV_commLatLonAd(statevector_in)
-    implicit none
-    type(struct_gsv) :: statevector_in
-    integer :: nsize, ierr, status, latPerPEhalo, myLatEndP1
-    real*8, allocatable :: latHalo(:,:,:,:)
-    real*8, allocatable :: lonHalo(:,:,:,:)
-
-    ! ******Adjoint of sending longitude halos
-
-    if(mpi_myidy.eq.(mpi_npey-1)) then
-      ! southern most latitude band does not have a latitude halo to the south
-      latPerPEhalo = statevector_in%latPerPE
-      myLatEndP1 = statevector_in%myLatEnd
-    else
-      ! all others do
-      latPerPEhalo = statevector_in%latPerPE + 1
-      myLatEndP1 = statevector_in%myLatEnd + 1
-    endif
-
-    if(mpi_npex.gt.1) then  ! only do adjoint of exchange when more than one mpi task in X direction
-
-      allocate(lonHalo(1, statevector_in%nk, latPerPEhalo, statevector_in%numStep))
-
-      nsize=latPerPEhalo*statevector_in%nk*statevector_in%numStep
-
-      ! periodic, so also do adjoint of sending the first meridian on myidx=0 to the last meridian on myidx=(npex-1)
-      if(mpi_myidx.eq.(mpi_npex-1)) then
-        call rpn_comm_send(statevector_in%gd((statevector_in%myLonEnd+1):(statevector_in%myLonEnd+1),:, &
-                                             statevector_in%myLatBeg:myLatEndP1,:),nsize, &
-                           "mpi_double_precision",0,0*500+mpi_myidx,  &
-                           "EW",ierr)
-      endif
-      if(mpi_myidx.eq.0) then
-        call rpn_comm_recv(lonHalo,nsize, &
-                           "mpi_double_precision",mpi_npex-1,mpi_myidx*500+(mpi_npex-1),"EW",status,ierr)
-      endif
-
-      ! western most longitude band
-      if(mpi_myidx.eq.0) then
-        call rpn_comm_send(statevector_in%gd((statevector_in%myLonEnd+1):(statevector_in%myLonEnd+1),:, &
-                                             statevector_in%myLatBeg:myLatEndP1,:),nsize, &
-                           "mpi_double_precision",mpi_myidx+1,(mpi_myidx+1)*500+mpi_myidx,  &
-                           "EW",ierr)
-      endif
-
-      ! all other longitude bands (not first nor last)
-      if(mpi_myidx.ne.0.and.mpi_myidx.ne.(mpi_npex-1)) then
-        call rpn_comm_sendrecv(statevector_in%gd((statevector_in%myLonEnd+1):(statevector_in%myLonEnd+1),:, &
-                                                 statevector_in%myLatBeg:myLatEndP1,:), &
-                               nsize,"mpi_double_precision",mpi_myidx+1,(mpi_myidx+1)*500+mpi_myidx, &
-                               lonHalo, &
-                               nsize,"mpi_double_precision",mpi_myidx-1,mpi_myidx*500+(mpi_myidx-1), &
-                               "EW",status,ierr)
-      endif
-
-      ! eastern most longitude band
-      if(mpi_myidx.eq.(mpi_npex-1)) then
-        call rpn_comm_recv(lonHalo,nsize, &
-                           "mpi_double_precision",mpi_myidx-1,mpi_myidx*500+(mpi_myidx-1),"EW",status,ierr)
-      endif
-
-      ! add the sensitivity from the halo to the in situ sensitivity
-      statevector_in%gd(statevector_in%myLonBeg:statevector_in%myLonBeg,:,  &
-                        statevector_in%myLatBeg:myLatEndP1,:) = &
-        statevector_in%gd(statevector_in%myLonBeg:statevector_in%myLonBeg,:,  &
-                          statevector_in%myLatBeg:myLatEndP1,:) + lonHalo(:,:,:,:)
-
-      ! to make sure sensitivity from the halo is not double counted, set to zero
-      statevector_in%gd(statevector_in%myLonEnd+1,:,statevector_in%myLatBeg:myLatEndP1,:) = 0.0d0
-
-      deallocate(lonHalo)
-
-    else ! only one mpi task in X direction, so just adjoint of copying first meridian to last (plus 1)
-      
-      statevector_in%gd(1                          ,:,statevector_in%myLatBeg:myLatEndP1,:) =  &
-        statevector_in%gd(1                        ,:,statevector_in%myLatBeg:myLatEndP1,:) +  &
-        statevector_in%gd(statevector_in%myLonEnd+1,:,statevector_in%myLatBeg:myLatEndP1,:)
-        
-      ! to make sure sensitivity from the halo is not double counted, set to zero
-      statevector_in%gd(statevector_in%myLonEnd+1,:,statevector_in%myLatBeg:myLatEndP1,:) = 0.0d0
-
-    endif
-
-    ! ******Adjoint of sending latitude halos
-
-    if(mpi_npey.gt.1) then  ! only do exchange when more than one mpi task in Y direction
-
-      allocate(latHalo(statevector_in%lonPerPE, statevector_in%nk, 1, statevector_in%numStep))
-
-      nsize=statevector_in%lonPerPE*statevector_in%nk*statevector_in%numStep
-
-      ! northern most latitude band
-      if(mpi_myidy.eq.0) then
-        call rpn_comm_send(statevector_in%gd(statevector_in%myLonBeg:statevector_in%myLonEnd,:,  &
-                                             (statevector_in%myLatEnd+1):(statevector_in%myLatEnd+1),:), &
-                           nsize,"mpi_double_precision",mpi_myidy+1,(mpi_myidy+1)*500+mpi_myidy,"NS",ierr)
-      endif
-
-      ! all latitude bands not at the north or south poles
-      if(mpi_myidy.ne.0.and.mpi_myidy.ne.(mpi_npey-1)) then
-        call rpn_comm_sendrecv(statevector_in%gd(statevector_in%myLonBeg:statevector_in%myLonEnd,:,  &
-                                                 (statevector_in%myLatEnd+1):(statevector_in%myLatEnd+1),:), &
-                               nsize,"mpi_double_precision",mpi_myidy+1,(mpi_myidy+1)*500+mpi_myidy, &
-                               latHalo, &
-                               nsize,"mpi_double_precision",mpi_myidy-1,mpi_myidy*500+(mpi_myidy-1), &
-                               "NS",status,ierr)
-      endif
-
-      ! southern most latitude band
-      if(mpi_myidy.eq.(mpi_npey-1)) then
-        call rpn_comm_recv(latHalo,nsize,  &
-                           "mpi_double_precision",mpi_myidy-1,mpi_myidy*500+(mpi_myidy-1), &
-                           "NS",status,ierr)
-      endif
-
-      ! add the sensitivity from the halo to the in situ sensitivity
-      if(mpi_myidy.ne.0) then
-        statevector_in%gd(statevector_in%myLonBeg:statevector_in%myLonEnd,:,  &
-                          statevector_in%myLatBeg:statevector_in%myLatBeg,:) = &
-          statevector_in%gd(statevector_in%myLonBeg:statevector_in%myLonEnd,:,  &
-                            statevector_in%myLatBeg:statevector_in%myLatBeg,:) + latHalo(:,:,:,:)
-      endif
-
-      ! to make sure sensitivity from the halo is not double counted, set to zero
-      if(mpi_myidy.ne.(mpi_npey-1)) then
-        statevector_in%gd(statevector_in%myLonBeg:statevector_in%myLonEnd,:,statevector_in%myLatEnd+1,:)=0.0d0
-      endif
-
-      deallocate(latHalo)
-
-    endif
-
-  END SUBROUTINE GSV_commLatLonAd
 
 
   SUBROUTINE GSV_commMPIGlobal(statevector_in)
@@ -724,9 +484,9 @@ MODULE gridStateVector_mod
     endif
 
     lon1=statevector_in%myLonBeg
-    lon2=min(statevector_in%myLonEnd+1,statevector_inout%hco%ni)
+    lon2=statevector_in%myLonEnd
     lat1=statevector_in%myLatBeg
-    lat2=min(statevector_in%myLatEnd+1,statevector_inout%hco%nj)
+    lat2=statevector_in%myLatEnd
 
     if(present(scaleFactor)) then
 !$OMP PARALLEL
@@ -779,9 +539,9 @@ MODULE gridStateVector_mod
     endif
 
     lon1=statevector_in%myLonBeg
-    lon2=min(statevector_in%myLonEnd+1,statevector_out%hco%ni)
+    lon2=statevector_in%myLonEnd
     lat1=statevector_in%myLatBeg
-    lat2=min(statevector_in%myLatEnd+1,statevector_out%hco%nj)
+    lat2=statevector_in%myLatEnd
 
     ! NOTE: The step index should only be specified when copying 4D into 3D
     if(present(indexStep_in)) then
@@ -836,9 +596,9 @@ MODULE gridStateVector_mod
     endif
 
     lon1=statevector_inout%myLonBeg
-    lon2=min(statevector_inout%myLonEnd+1,statevector_inout%hco%ni)
+    lon2=statevector_inout%myLonEnd
     lat1=statevector_inout%myLatBeg
-    lat2=min(statevector_inout%myLatEnd+1,statevector_inout%hco%nj)
+    lat2=statevector_inout%myLatEnd
 
     if(present(scaleFactor)) then
 !$OMP PARALLEL
@@ -888,9 +648,9 @@ MODULE gridStateVector_mod
     endif
 
     lon1=statevector_in%myLonBeg
-    lon2=min(statevector_in%myLonEnd+1,statevector_in%hco%ni)
+    lon2=statevector_in%myLonEnd
     lat1=statevector_in%myLatBeg
-    lat2=min(statevector_in%myLatEnd+1,statevector_in%hco%nj)
+    lat2=statevector_in%myLatEnd
 
     stddev(:) = 0.0d0
     do jlev = 1, statevector_in%nk
@@ -923,9 +683,9 @@ MODULE gridStateVector_mod
     endif
 
     lon1=statevector_inout%myLonBeg
-    lon2=min(statevector_inout%myLonEnd+1,statevector_inout%hco%ni)
+    lon2=statevector_inout%myLonEnd
     lat1=statevector_inout%myLatBeg
-    lat2=min(statevector_inout%myLatEnd+1,statevector_inout%hco%nj)
+    lat2=statevector_inout%myLatEnd
 
 !$OMP PARALLEL
 !$OMP DO PRIVATE (jstep,jlat,jlev,jlon)    
@@ -958,9 +718,9 @@ MODULE gridStateVector_mod
     endif
 
     lon1=statevector_inout%myLonBeg
-    lon2=min(statevector_inout%myLonEnd+1,statevector_inout%hco%ni)
+    lon2=statevector_inout%myLonEnd
     lat1=statevector_inout%myLatBeg
-    lat2=min(statevector_inout%myLatEnd+1,statevector_inout%hco%nj)
+    lat2=statevector_inout%myLatEnd
 
 !$OMP PARALLEL
 !$OMP DO PRIVATE (jstep,jlat,jlev,jlon)    
@@ -990,9 +750,9 @@ MODULE gridStateVector_mod
     endif
 
     lon1=statevector%myLonBeg
-    lon2=min(statevector%myLonEnd+1,statevector%hco%ni)
+    lon2=statevector%myLonEnd
     lat1=statevector%myLatBeg
-    lat2=min(statevector%myLatEnd+1,statevector%hco%nj)
+    lat2=statevector%myLatEnd
 
     if(statevector%numStep.eq.1) return
 
@@ -1019,17 +779,17 @@ MODULE gridStateVector_mod
     implicit none
     type(struct_gsv) :: statevector
     integer          :: jstep,jlon,jlev,jlat,lon1,lon2,lat1,lat2
-    real(8)          :: gd3d_tmp(statevector%myLonBeg:(statevector%myLonEnd+1),statevector%nk,  &
-                                 statevector%myLatBeg:(statevector%myLatEnd+1))
+    real(8)          :: gd3d_tmp(statevector%myLonBeg:statevector%myLonEnd,statevector%nk,  &
+                                 statevector%myLatBeg:statevector%myLatEnd)
 
     if(.not.statevector%allocated) then
       call abort3d('gridStateVector not yet allocated! Aborting.')
     endif
 
     lon1=statevector%myLonBeg
-    lon2=min(statevector%myLonEnd+1,statevector%hco%ni)
+    lon2=statevector%myLonEnd
     lat1=statevector%myLatBeg
-    lat2=min(statevector%myLatEnd+1,statevector%hco%nj)
+    lat2=statevector%myLatEnd
 
     if(statevector%numStep.eq.1) return
 
@@ -1264,7 +1024,7 @@ MODULE gridStateVector_mod
     endif
 
     ! set up vertical and horizontal coordinate for input file
-    call vco_SetupFromFile(vco_file,trim(fileName),.false.,' ',beSilent=.true.)
+    call vco_SetupFromFile(vco_file,trim(fileName),' ',beSilent=.true.)
     if(associated(hco_Get(gridName))) then
       write(*,*) 'gsv_readFromFile: horiz grid already defined with name: ', gridName
       hco_file => hco_Get(gridName)

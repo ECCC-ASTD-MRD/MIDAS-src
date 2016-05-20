@@ -71,7 +71,7 @@ program calcbmatrix_main
 
   !- 1.4 Initialize the vertical grid
   call vco_SetupFromFile( vco_ens,                 & ! OUT
-                          cflensin(1), .false., ' ') ! IN
+                          cflensin(1), ' ') ! IN
 
   !- 1.5 Read NAMCONF namelist to find the mode
   cmode  = 'BHI'  ! default value

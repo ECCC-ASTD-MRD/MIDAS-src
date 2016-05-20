@@ -72,7 +72,7 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   !
   if(mpi_myid.eq.0) write(*,*)''
   if(mpi_myid.eq.0) write(*,*)' preproc: Set vcoord parameters for trial grid'
-  call vco_SetupFromFile(vco_trl,'./trlm_01',.false.,' ')
+  call vco_SetupFromFile(vco_trl,'./trlm_01',' ')
   call col_setVco(lcolumnhr,vco_trl)
   
   !
@@ -113,7 +113,7 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   else
      etiket = 'STDDEV'
   end if
-  call vco_SetupFromFile(vco_anl,'./bgcov',.true.,etiket)
+  call vco_SetupFromFile(vco_anl,'./bgcov',etiket)
   call col_setVco(lcolumng,vco_anl)
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 

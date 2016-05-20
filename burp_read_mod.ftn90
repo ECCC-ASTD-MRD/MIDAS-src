@@ -2173,7 +2173,7 @@ CONTAINS
   END SUBROUTINE READBURP
 
 
-  integer function cvt_burp_instrum2(sensor)
+  integer function cvt_burp_instrum(sensor)
     !
     ! func CVT_BURP_INSTRUM : Map burp satellite sensor indicator (element #2048) to
     !                         the corresponding burp satellite instrument (element
@@ -2222,10 +2222,10 @@ CONTAINS
       case default; instrument=2047 ! Unrecognized value
     end select
 
-    cvt_burp_instrum2 = instrument
+    cvt_burp_instrum = instrument
     return
 
-  end function cvt_burp_instrum2
+  end function cvt_burp_instrum
 
 
   FUNCTION WRITE_BODY(obsdat,FAMTYP, ELEV,VERTCOORD &
@@ -2613,7 +2613,7 @@ CONTAINS
         INSTRUMENT=0
       ENDIF
     ELSE
-      INSTRUMENT = cvt_burp_instrum2(sensor)
+      INSTRUMENT = cvt_burp_instrum(sensor)
     ENDIF
 
     ! AIRS

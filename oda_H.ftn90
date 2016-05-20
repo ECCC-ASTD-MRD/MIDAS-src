@@ -110,18 +110,13 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
       INTEGER INDEX_HEADER,INDEX_FAMILY,IK
       INTEGER J,INDEX_BODY,ITYP,nlev_T
       REAL*8 ZDADPS,ZCON
-      REAL*8 ZWB,ZWT, ZEXP, ZGAMMA,ZLTV,ZTVG,ZPPOST
-      REAL*8 ZLEV,ZPT,ZPB,ZLAT,ZLON,ZTORAD
+      REAL*8 ZWB,ZWT,ZLTV,ZTVG
+      REAL*8 ZLEV,ZPT,ZPB
       REAL*8 dPdPsT,dPdPsB
       REAL*8 columnVarB,columnVarT,columngVarB,columngVarT,lqtoes,lqtoes_tl
       LOGICAL LLASSIM,LLDIAG
       INTEGER, PARAMETER :: numFamily=3
       CHARACTER(len=2) :: list_family(numFamily),varLevel
-      !
-      !     Temperature lapse rate for extrapolation of gz below model surface
-      !
-      zgamma = 0.0065D0 / GRAV
-      zexp = MPC_RGAS_DRY_AIR_R8*zgamma
 
       list_family(1) = 'UA'
       list_family(2) = 'AI'
@@ -187,22 +182,7 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
                  ZWB*columnVarB + ZWT*columnVarT+  &
                  (columngVarB - columngVarT)*  &
                  ZDADPS*col_getElem(LCOLUMN,1,INDEX_HEADER,'P0'))
-          elseif( (obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body) .EQ. 1) &
-            .AND. (obs_bodyElem_i(lobsSpaceData,OBS_XTR,index_body) .EQ. 2) &
-            .AND. (obs_bodyElem_i(lobsSpaceData,OBS_VCO,index_body) .EQ. 2) ) then
-            INDEX_HEADER = obs_bodyElem_i(lobsSpaceData,OBS_HIND,INDEX_BODY)
-            ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
-            !
-            ! TL model for height data below model's orography
-            !
-            nlev_T = col_getNumLev(LCOLUMN,'TH')
-            ZLTV = lcolumng%OLTV(1,nlev_T,INDEX_HEADER)*col_getElem(LCOLUMN,nlev_T,INDEX_HEADER,'TT') &
-                 + lcolumng%OLTV(2,nlev_T,INDEX_HEADER)*col_getElem(LCOLUMN,nlev_T,INDEX_HEADER,'HU')
-            ZTVG = lcolumng%OLTV(1,nlev_T,INDEX_HEADER)*col_getElem(lcolumng,nlev_T,INDEX_HEADER,'TT')
-            ZCON =(ZLEV/col_getElem(lcolumng,1,INDEX_HEADER,'P0'))**ZEXP
-            call obs_bodySet_r(lobsSpaceData,OBS_WORK,index_body, (1.d0-zcon)/zgamma*ZLTV &
-                + MPC_RGAS_DRY_AIR_R8*ZTVG*zcon*col_getElem(lcolumn,1,index_header,'P0') &
-                /col_getElem(lcolumng,1,index_header,'P0'))
+
           endif
 
         enddo BODY
@@ -224,7 +204,7 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
       INTEGER INDEX_HEADER,IK
       INTEGER J,INDEX_BODY,ITYP,INDEX_FAMILY,nlev
       REAL*8 ZCON
-      REAL*8 ZWB,ZWT, ZEXP,ZEXPGZ,ZGAMMA,ZLTV,ZTVG,ZPPOST
+      REAL*8 ZWB,ZWT, ZEXP,ZGAMMA,ZLTV,ZTVG
       REAL*8 ZLEV,ZPT,ZPB,ZDELPS,ZDELTV,ZGAMAZ,ZHHH
       REAL*8 columnVarB,lqtoes_tl
       REAL*8 dPdPsfc
@@ -235,7 +215,6 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
 !C
       zgamma = 0.0065d0 / GRAV
       zexp   = 1.0d0/(MPC_RGAS_DRY_AIR_R8*zgamma)
-      zexpGZ = MPC_RGAS_DRY_AIR_R8*zgamma
 !C
 !C
       list_family(1) = 'UA'
@@ -310,26 +289,7 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
                    ZWB*col_getElem(LCOLUMN,IPB,INDEX_HEADER) + ZWT*col_getElem(LCOLUMN,IPT,INDEX_HEADER)+  &
                    (col_getElem(lcolumng,IPB,INDEX_HEADER)-col_getElem(lcolumng,IPT,INDEX_HEADER)))
             ENDIF
-          elseif( (obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body) .EQ. 1) &
-            .AND. (obs_bodyElem_i(lobsSpaceData,OBS_XTR,index_body) .EQ. 2) &
-            .AND. (obs_bodyElem_i(lobsSpaceData,OBS_VNM,index_body) .EQ. BUFR_NEGZ ) &
-            .AND. (obs_bodyElem_i(lobsSpaceData,OBS_VCO,index_body) .EQ. 1)    ) then
 
-            nlev = col_getNumLev(lcolumn,'TH')
-            INDEX_HEADER = obs_bodyElem_i(lobsSpaceData,OBS_HIND,INDEX_BODY)
-            ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
-!C
-!C                 CONTRIBUTION TO Jo
-!C
-!c  TL model for height data below model's orography
-!c
-            ZLTV = lcolumng%OLTV(1,nlev,INDEX_HEADER)*col_getElem(LCOLUMN,nlev,INDEX_HEADER,'TT') &
-                 + lcolumng%OLTV(2,nlev,INDEX_HEADER)*col_getElem(LCOLUMN,nlev,INDEX_HEADER,'HU')
-            ZTVG = lcolumng%OLTV(1,nlev,INDEX_HEADER)*col_getElem(lcolumng,nlev,INDEX_HEADER,'TT')
-            ZCON=(ZLEV/col_getElem(lcolumng,1,INDEX_HEADER,'P0'))**ZEXPGZ
-            call obs_bodySet_r(lobsSpaceData,OBS_WORK,index_body,(1.d0-zcon)/zgamma*ZLTV &
-                + MPC_RGAS_DRY_AIR_R8*ZTVG*zcon*col_getElem(lcolumn,1,index_header,'P0') &
-                /col_getElem(lcolumng,1,index_header,'P0'))
           endif
 
         enddo BODY
@@ -668,9 +628,8 @@ end subroutine oda_Hto
       INTEGER INDEX_HEADER,IK
       INTEGER J,INDEX_BODY,ITYP
       REAL*8 ZVAR,ZDA1,ZDA2
-      REAL*8 ZWB,ZWT, ZLTV,ZTVG,ZPPOST
-      REAL*8 ZLEV,ZPT,ZPB,ZLAT,ZLON,ZTORAD,ZDENO
-      LOGICAL LLOK, LLPRINT, LLUV
+      REAL*8 ZWB,ZWT
+      REAL*8 ZLEV,ZPT,ZPB,ZDENO
       character(len=2) :: varLevel
 
       call obs_set_current_body_list(lobsSpaceData, 'PR')

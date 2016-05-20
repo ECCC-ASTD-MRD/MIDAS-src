@@ -3300,7 +3300,6 @@ CONTAINS
        call gsv_allocate(statevector,tim_nstepobsinc,datestamp=tim_getDatestamp(),mpi_local=.true.)
        call gsv_zero(statevector)
        do memberIndex = 1, nEns
-          call gsv_zero(statevector_temp) ! clean myLatEnd+1 and myLonEnd+1 
           !- Get normalized perturbations
           call ben_getPerturbation( statevector_temp, & ! OUT
                                     memberIndex,      & ! IN

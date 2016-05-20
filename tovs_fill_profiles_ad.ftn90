@@ -42,6 +42,8 @@ subroutine tovs_fill_profiles_ad(column,columng)
   use obsSpaceData_mod
   use tovs_extrap_mod
   use rttov_const ,only : q_mixratio_to_ppmv
+  use intavg_mod
+
   implicit none
 
   type(struct_columnData) :: column,columng

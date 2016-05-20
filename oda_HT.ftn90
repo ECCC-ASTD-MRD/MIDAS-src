@@ -90,7 +90,7 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
       implicit none
       INTEGER IPB,IPT,ITYP
       REAL*8 ZRES
-      REAL*8 ZWB,ZWT,zcon,zexp,zgamma,ZATV,ZTVG
+      REAL*8 ZWB,ZWT
       REAL*8 ZLEV,ZPT,ZPB,ZDADPS,ZPRESBPB,ZPRESBPT
       INTEGER INDEX_HEADER,IK,nlev_T
       INTEGER INDEX_BODY,INDEX_FAMILY
@@ -101,11 +101,6 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
       INTEGER, PARAMETER :: numFamily=3
       CHARACTER(len=2) :: list_family(numFamily),varLevel
       !
-      ! Temperature lapse rate for extrapolation of gz below model surface
-      !
-      zgamma = 0.0065d0 / GRAV
-      zexp = MPC_RGAS_DRY_AIR_R8*zgamma
-
       list_family(1) = 'UA'
       list_family(2) = 'AI'
       list_family(3) = 'SW'
@@ -176,28 +171,7 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
             ps_column(1)    = ps_column(1)    +         &
                  (columngVarB - columngVarT)  &
                  *ZDADPS*ZRES
-          elseif( (obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body) .EQ. 1) &
-            .AND. (obs_bodyElem_i(lobsSpaceData,OBS_XTR,index_body) .EQ. 2) &
-            .AND. (obs_bodyElem_i(lobsSpaceData,OBS_VCO,index_body) .EQ. 2) ) THEN
-            INDEX_HEADER = obs_bodyElem_i(lobsSpaceData,OBS_HIND,INDEX_BODY)
-            ZRES = obs_bodyElem_r(lobsSpaceData,OBS_WORK,INDEX_BODY)
-            ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
-            nlev_T = col_getNumLev(lcolumn,'TH')
-            IPT  = nlev_T - 1 + col_getOffsetFromVarno(lcolumng,ityp)
-            IPB  = IPT+1
-            !
-            ! adjoint of TL of geopotential extrapolation below orography
-            !
-            zcon = (zlev/col_getElem(lcolumng,1,index_header,'P0'))**zexp
-            ZATV = ((1.0d0 - ZCON)/ZGAMMA)*ZRES
-            ZTVG = lcolumng%OLTV(1,nlev_T,INDEX_HEADER)*col_getElem(lcolumng,nlev_T,INDEX_HEADER,'TT')
-            ps_column(1)    = ps_column(1)  &
-                 + MPC_RGAS_DRY_AIR_R8*ZTVG*zcon*zres &
-                 / col_getElem(lcolumng,1,index_header,'P0')
-            tt_column(nlev_T) = tt_column(nlev_T)  &
-                 + lcolumng%OLTV(1,nlev_T,INDEX_HEADER)*ZATV
-            hu_column(nlev_T) = hu_column(nlev_T)  &
-                 + lcolumng%OLTV(2,nlev_T,INDEX_HEADER)*ZATV
+
           endif
 
         enddo BODY
@@ -221,7 +195,7 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
       implicit none
       INTEGER IPB,IPT
       REAL*8 ZRES
-      REAL*8 ZWB,ZWT,zcon,zexp,zexpgz,zgamma,ZATV,ZTVG
+      REAL*8 ZWB,ZWT,zcon,zexp,zgamma,ZATV,ZTVG
       REAL*8 ZLEV,ZPT,ZPB,ZDADPS,ZDELPS,ZDELTV,ZGAMAZ,ZHHH
       INTEGER INDEX_HEADER,IK,nlev
       INTEGER INDEX_BODY,ITYP,INDEX_FAMILY
@@ -234,7 +208,6 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
 !C
       zgamma = 0.0065d0 / GRAV
       zexp   = 1.0d0/(MPC_RGAS_DRY_AIR_R8*zgamma)
-      zexpgz = MPC_RGAS_DRY_AIR_R8*zgamma
 !C
 !C*    1. Fill in COMMVO by using the adjoint of the "vertical" interpolation
 !C     .  ---------------------------------------------------------------
@@ -322,28 +295,6 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
                    *ZDADPS*ZRES
             ENDIF
             
-          elseif( (obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body) .EQ. 1) &
-            .AND. (obs_bodyElem_i(lobsSpaceData,OBS_XTR,index_body) .EQ. 2) &
-            .AND. (obs_bodyElem_i(lobsSpaceData,OBS_VNM,index_body) .EQ. BUFR_NEGZ ) &
-            .AND. (obs_bodyElem_i(lobsSpaceData,OBS_VCO,index_body) .EQ. 1) ) then
-
-            nlev = col_getNumLev(lcolumn,'TH')           
-            INDEX_HEADER = obs_bodyElem_i(lobsSpaceData,OBS_HIND,INDEX_BODY)
-            ZRES = obs_bodyElem_r(lobsSpaceData,OBS_WORK,INDEX_BODY)
-            ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
-!C
-!c  adjoint of TL of geopotential extrapolation below orography
-!c
-            zcon = (zlev/col_getElem(lcolumng,1,index_header,'P0'))**zexpgz
-            ZATV = ((1.0d0 - ZCON)/ZGAMMA)*ZRES
-            ZTVG = lcolumng%OLTV(1,nlev,INDEX_HEADER)*col_getElem(lcolumng,nlev,INDEX_HEADER,'TT')
-            ps_column(1)    = ps_column(1)     &
-                 + MPC_RGAS_DRY_AIR_R8*ZTVG*zcon*zres &
-                 / col_getElem(lcolumng,1,index_header,'P0')
-            tt_column(nlev) = tt_column(nlev)  &
-                 + lcolumng%OLTV(1,nlev,INDEX_HEADER)*ZATV
-            hu_column(nlev) = hu_column(nlev)  &
-                 + lcolumng%OLTV(2,nlev,INDEX_HEADER)*ZATV                
           endif
 
         ENDDO BODY
