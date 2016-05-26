@@ -38,12 +38,13 @@ MODULE minimization_mod
   use bmatrix_mod
   use stateToColumn_mod
   use variableTransforms_mod
+  use varqc_mod
   implicit none
   save
   private
 
   ! public variables
-  public              :: min_lvarqc,min_niter,min_nsim
+  public              :: min_niter,min_nsim
   ! public procedures
   public              :: min_Setup, min_minvar
 
@@ -73,7 +74,7 @@ MODULE minimization_mod
   INTEGER NVAMAJ,NITERMAX,NSIMMAX
   LOGICAL lxbar,lwrthess,lgrtest,lvazx
   REAL*8 REPSG,rdf1fac
-  LOGICAL min_lvarqc,lvarqc,pertBhiOnly
+  LOGICAL lvarqc,pertBhiOnly
   integer :: nwoqcv
   integer :: numIterMax_pert, numAnalyses, ntrunc_pert
   character(len=256) :: ensPathName
@@ -101,7 +102,7 @@ CONTAINS
     integer :: ierr,nulnam
     integer :: fnom,fclos
     character(len=32) :: envVariable
-    integer :: length_envVariableburp, status
+    integer :: length_envVariable, status
 
     if(nvadim_mpilocal_in.ne.cvm_nvadim) then
       write(*,*) 'nvadim_mpilocal,cvm_nvadim=',nvadim_mpilocal,cvm_nvadim
@@ -140,8 +141,6 @@ CONTAINS
     write(*,nml=nammin)
     ierr=fclos(nulnam)
 
-    min_lvarqc=lvarqc
-
     IF(N1GC.EQ.3)THEN
       NMTRA = (4 + 2*NVAMAJ)*nvadim_mpilocal
     ELSE
@@ -154,7 +153,7 @@ CONTAINS
 
     ! Retrieve environment variables related to doing an ensemble of perturbed analyses
     status = 0
-    call get_environment_variable('envar_loop',envVariable,length_envVariableburp,status,.true.)
+    call get_environment_variable('envar_loop',envVariable,length_envVariable,status,.true.)
     if (status.gt.1) then
       write(*,*) 'min_analysisPert: Problem when getting the environment variable envar_loop'
       envar_loop = 1
@@ -208,6 +207,8 @@ CONTAINS
       real*8 :: zeps0_000,zdf1_000
       integer :: iterdone_000,isimdone_000
       character(len=128) :: clfname
+
+      if (lvarqc) call vqc_setup(obsSpaceData)
 
       min_nsim=0 
 
@@ -475,6 +476,9 @@ CONTAINS
         call tmg_stop(4)
       endif
 
+      ! Set the QC flags to be consistent with VAR-QC if control analysis
+      if(lvarqc) call vqc_listrej(obsSpaceData)
+
       ! deallocate the control vector related arrays
       deallocate(vazx)
       deallocate(vazg)
@@ -596,8 +600,8 @@ CONTAINS
       call gsv_writeToFileMpi(statevector_incr, fileName, cetikinc, 1.0d0, 0, indexStep, statevector_trial)
 
       ! write out interpolated trial file for verification purposes
-      fileName = './trlm_interp_' // trim(coffset) // 'm' 
-      call gsv_writeToFileMpi(statevector_trial, fileName, 'TRLM_INTRP', 1.0d0, 0, indexStep)
+      !fileName = './trlm_interp_' // trim(coffset) // 'm' 
+      !call gsv_writeToFileMpi(statevector_trial, fileName, 'TRLM_INTRP', 1.0d0, 0, indexStep)
 
     enddo
 
@@ -1072,7 +1076,7 @@ CONTAINS
        call oda_Jo(obsSpaceData)  ! Store J-obs in OBS_JOBS : 1/2 * R**-1 (d-Hdx)**2
      
        IF (LVARQC) THEN          
-          call oda_qcv(obsSpaceData)  ! Store modified J_obs in OBS_JOBS : -ln((gamma-exp(J))/(gamma+1)) 
+          call vqc_tl(obsSpaceData)  ! Store modified J_obs in OBS_JOBS : -ln((gamma-exp(J))/(gamma+1)) 
        endif
 
        dl_Jo = 0.d0
@@ -1089,7 +1093,7 @@ CONTAINS
        call oda_sqrtRm1(obsSpaceData,OBS_WORK,OBS_WORK)  ! Modify OBS_WORK : R**-1 (d-Hdx)
 
        IF (LVARQC) THEN
-          call oda_qcvad(obsSpaceData)
+          call vqc_ad(obsSpaceData)
        endif
 
        call oda_resT(obsSpaceData)  ! Calculate adjoint of d-Hdx (mult OBS_WORK by -1)

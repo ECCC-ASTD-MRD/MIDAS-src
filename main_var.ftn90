@@ -25,6 +25,7 @@ program main_var
   use controlVector_mod
   use filterObs_mod  
   use minimization_mod
+  use burpFiles_mod
 
   implicit none
   integer :: istamp,exdb,exfin
@@ -158,9 +159,6 @@ program main_var
     ! Do minimization of cost function
     call minimize(columng,obsSpaceData)
 
-    ! Set the QC flags to be consistent with VAR-QC if control analysis
-    call listrej(obsSpaceData)
-
     ! Compute obs-space diagnostics (only does computation if NAMOSD present in flnml)
     call osd_calcInflation(obsSpaceData,columng)
 
@@ -170,7 +168,7 @@ program main_var
     end if
 
     ! Now write out the observation data files
-    if(min_niter.gt.0) call update_burpfiles(obsSpaceData)
+    if(min_niter.gt.0) call burp_updateFiles(obsSpaceData)
 
     ! Deallocate copied obsSpaceData
     call obs_finalize(obsSpaceData)

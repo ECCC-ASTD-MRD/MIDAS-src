@@ -24,6 +24,7 @@
 !*
       use obsSpaceData_mod
       use columnData_mod
+      use burpFiles_mod
       IMPLICIT NONE
 
       type(struct_obs) :: obsSpaceData
@@ -44,7 +45,7 @@
          call obs_prntbdy(obsSpaceData,j)
       END DO
 
-      CALL UPDATE_BURPFILES(obsSpaceData)
+      CALL burp_updateFiles(obsSpaceData)
 
       ! deallocate obsSpaceData
       call obs_finalize(obsSpaceData)

@@ -36,7 +36,7 @@
       use MathPhysConstants_mod
       use obsSpaceData_mod
       use columnData_mod
-      use modgpsro_mod
+      use gps_mod
       IMPLICIT NONE
 C
       type(struct_columnData) :: lcolumnhr
@@ -53,7 +53,7 @@ C
 C     Loop over all header indices of the 'RO' family:
 C
       call obs_set_current_header_list(lobsSpaceData,'RO')
-      numGPSROProfiles=0
+      gps_numROProfiles=0
       HEADER: do
          index_header = obs_getHeaderIndex(lobsSpaceData)
          if (index_header < 0) exit HEADER
@@ -62,7 +62,7 @@ C     *  Process only refractivity data (codtyp 169)
 C
          IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
          IF ( IDATYP .EQ. 169 ) THEN
-            numGPSROProfiles=numGPSROProfiles+1
+            gps_numROProfiles=gps_numROProfiles+1
 C
 C     *     Basic geometric variables of the profile:
 C
@@ -153,8 +153,8 @@ C
 
       ENDDO HEADER
 
-      IF (numGPSROProfiles.GT.0) THEN
-         if(.not.allocated(vGPSRO_IndexPrf)) allocate(vGPSRO_IndexPrf(numGPSROProfiles))
+      IF (gps_numROProfiles.GT.0) THEN
+         if(.not.allocated(gps_vRO_IndexPrf)) allocate(gps_vRO_IndexPrf(gps_numROProfiles))
 
          iProfile=0
 C
@@ -170,7 +170,7 @@ C
             IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
             IF ( IDATYP .EQ. 169 ) THEN
                iProfile=iProfile+1
-               vGPSRO_IndexPrf(iProfile)=INDEX_HEADER
+               gps_vRO_IndexPrf(iProfile)=INDEX_HEADER
                zLat = obs_headElem_r(lobsSpaceData,OBS_LAT,INDEX_HEADER)
                zLon = obs_headElem_r(lobsSpaceData,OBS_LON,INDEX_HEADER)
                Lat  = zLat * MPC_DEGREES_PER_RADIAN_R8

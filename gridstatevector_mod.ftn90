@@ -38,6 +38,7 @@ MODULE gridStateVector_mod
   use verticalCoord_mod
   use horizontalCoord_mod
   use MathPhysConstants_mod
+  use timeCoord_mod
   implicit none
   save
   private
@@ -258,7 +259,7 @@ MODULE gridStateVector_mod
 
     if(present(dateStamp)) then
       allocate(statevector%dateStampList(numStep))
-      call getstamplist(statevector%dateStampList,numStep,dateStamp)
+      call tim_getstamplist(statevector%dateStampList,numStep,dateStamp)
       !do jstep = 1,numStep
       !  write(*,*) 'gsv_allocate: jstep,dateStampList=',jstep,statevector%dateStampList(jstep)
       !enddo

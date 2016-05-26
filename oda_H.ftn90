@@ -22,11 +22,11 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
   use obsSpaceData_mod
   use columnData_mod
   use bufr
-  use modgpsro_mod
-  use modgpsztd_mod
+  use gps_mod
   use minimization_mod
   use timeCoord_mod
   use filterObs_mod
+  use lqtoes_mod
   implicit none
   !
   !Purpose:
@@ -50,7 +50,7 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
   !            - merged with latest version (oda_Hro) from Josep (Rev.213M)
   !            - like oda_Hro, use OpenMP and Jacobian storage for GPS ZTD
   ! S. Macpherson ARMA  18 Nov 2014
-  !            - in oda_Hgp, add surface pressure (P0) argument to call gpsstructztd()
+  !            - in oda_Hgp, add surface pressure (P0) argument to call gps_structztd()
   !
   !Local declarations
   integer, save :: nl_ncall = 0
@@ -113,7 +113,7 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
       REAL*8 ZWB,ZWT,ZLTV,ZTVG
       REAL*8 ZLEV,ZPT,ZPB
       REAL*8 dPdPsT,dPdPsB
-      REAL*8 columnVarB,columnVarT,columngVarB,columngVarT,lqtoes,lqtoes_tl
+      REAL*8 columnVarB,columnVarT,columngVarB,columngVarT
       LOGICAL LLASSIM,LLDIAG
       INTEGER, PARAMETER :: numFamily=3
       CHARACTER(len=2) :: list_family(numFamily),varLevel
@@ -206,7 +206,7 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
       REAL*8 ZCON
       REAL*8 ZWB,ZWT, ZEXP,ZGAMMA,ZLTV,ZTVG
       REAL*8 ZLEV,ZPT,ZPB,ZDELPS,ZDELTV,ZGAMAZ,ZHHH
-      REAL*8 columnVarB,lqtoes_tl
+      REAL*8 columnVarB
       REAL*8 dPdPsfc
       INTEGER, PARAMETER :: numFamily=4
       CHARACTER(len=2) :: list_family(numFamily),varLevel
@@ -351,13 +351,6 @@ end subroutine oda_Hto
 !*Author  : J. M. Aparicio Jan 2004
 !*Modified: J. M. Aparicio Dec 2012 adapt to accept bending angle data
 !*    -------------------
-      use modgps00base      , only : ngpscvmx
-      use modgps01ctphys    , only : p_TC, p_knot
-      use modgps02wgs84grav , only : gpsgravitysrf
-      use modgps03diff
-      use modgps04profile   , only : gpsprofile, gpsstruct1sw
-      use modgps08refop     , only : gpsrefopv
-      use modgps09bend      , only : gpsbndopv1
       use IndexListDepot_mod, only : struct_index_list
       implicit none
 
@@ -385,9 +378,9 @@ end subroutine oda_Hto
       LOGICAL  ASSIM, LFIRST
 
       INTEGER NH, NH1
-      TYPE(GPSPROFILE)           :: PRF
+      TYPE(GPS_PROFILE)           :: PRF
       REAL*8       , ALLOCATABLE :: H   (:),AZMV(:)
-      TYPE(GPSDIFF), ALLOCATABLE :: RSTV(:),RSTVP(:),RSTVM(:)
+      TYPE(GPS_DIFF), ALLOCATABLE :: RSTV(:),RSTVP(:),RSTVM(:)
 !C      WRITE(*,*)'ENTER oda_Hro'
 !C
 !C     * 1.  Initializations
@@ -396,7 +389,7 @@ end subroutine oda_Hto
       NGPSLEV=col_getNumLev(lcolumn,'TH')
       NWNDLEV=col_getNumLev(lcolumn,'MM')
       LFIRST=.FALSE.
-      if ( .NOT.allocated(vGPSRO_Jacobian) ) then
+      if ( .NOT.allocated(gps_vRO_Jacobian) ) then
          LFIRST = .TRUE.
          allocate(zPP (NGPSLEV))
          allocate(zDP (NGPSLEV))
@@ -405,9 +398,9 @@ end subroutine oda_Hto
          allocate(zUU (NGPSLEV))
          allocate(zVV (NGPSLEV))
 
-         allocate(vGPSRO_Jacobian(numGPSROProfiles,GPSRO_MAXPRFSIZE,2*NGPSLEV+1))
-         allocate(vGPSRO_lJac    (numGPSROProfiles))
-         vGPSRO_lJac=.false.
+         allocate(gps_vRO_Jacobian(gps_numROProfiles,GPSRO_MAXPRFSIZE,2*NGPSLEV+1))
+         allocate(gps_vRO_lJac    (gps_numROProfiles))
+         gps_vRO_lJac=.false.
 
          allocate( H    (GPSRO_MAXPRFSIZE) )
          allocate( AZMV (GPSRO_MAXPRFSIZE) )
@@ -460,11 +453,11 @@ end subroutine oda_Hto
 !C     *    If assimilations are requested, prepare and apply the observation operator
 !C
             ASSIMILATE: IF (ASSIM) THEN
-               iProfile=iProfile_from_index(INDEX_HEADER)
+               iProfile=gps_iprofile_from_index(INDEX_HEADER)
 !C
 !C     *       Profile at the observation location:
 !C
-               if (.not.vGPSRO_lJac(iProfile)) then
+               if (.not.gps_vRO_lJac(iProfile)) then
 !C
 !C     *          Basic geometric variables of the profile:
 !C
@@ -518,7 +511,7 @@ end subroutine oda_Hto
 !C     
 !C     *          GPS profile structure:
 !C
-                  call gpsstruct1sw(ngpslev,zLat,zLon,zAzm,zMT,Rad,geo,zP0,zPP,zDP,zTT,zHU,zUU,zVV,prf)
+                  call gps_struct1sw(ngpslev,zLat,zLon,zAzm,zMT,Rad,geo,zP0,zPP,zDP,zTT,zHU,zUU,zVV,prf)
 !C
 !C     *          Prepare the vector of all the observations:
 !C
@@ -538,19 +531,19 @@ end subroutine oda_Hto
 !C     *          Apply the observation operator:
 !C
                   IF (LEVELGPSRO.EQ.1) THEN
-                     CALL GPSBNDOPV1(H      , AZMV, NH, PRF, RSTV)
-!C                     CALL GPSBNDOPV1(H+WFGPS, AZMV, NH, PRF, RSTVP)
-!C                     CALL GPSBNDOPV1(H-WFGPS, AZMV, NH, PRF, RSTVM)
+                     CALL GPS_BNDOPV1(H      , AZMV, NH, PRF, RSTV)
+!C                     CALL GPS_BNDOPV1(H+WFGPS, AZMV, NH, PRF, RSTVP)
+!C                     CALL GPS_BNDOPV1(H-WFGPS, AZMV, NH, PRF, RSTVM)
 !C                     do nh1 = 1, nh
 !C                        RSTV(nh1)=(RSTVP(nh1)+RSTV(nh1)+RSTVM(nh1))/3.d0
 !C                     enddo
                   ELSE
-                     CALL GPSREFOPV (H,       NH, PRF, RSTV)
+                     CALL GPS_REFOPV (H,       NH, PRF, RSTV)
                   ENDIF
                   DO NH1=1,NH
-                     vGPSRO_Jacobian(iProfile,NH1,:)= RSTV(NH1)%DVAR(1:2*NGPSLEV+1)
+                     gps_vRO_Jacobian(iProfile,NH1,:)= RSTV(NH1)%DVAR(1:2*NGPSLEV+1)
                   ENDDO
-                  vGPSRO_lJac(iProfile)=.true.
+                  gps_vRO_lJac(iProfile)=.true.
                endif
 !C
 !C     *       Local vector state
@@ -577,7 +570,7 @@ end subroutine oda_Hto
 !C
                      ZMHXL = 0.d0
                      DO JV = 1, 2*NGPSLEV+1
-                        ZMHXL = ZMHXL + vGPSRO_Jacobian(iProfile,NH1,JV) * DX(JV)
+                        ZMHXL = ZMHXL + gps_vRO_Jacobian(iProfile,NH1,JV) * DX(JV)
                      ENDDO
 !C
 !C     *             Store in CMA
@@ -679,12 +672,6 @@ end subroutine oda_Hto
 !*    -------------------
 !**    Purpose: Compute H'dx for all GPS ZTD observations
 !*
-
-      use modgps00base      , only : ngpscvmx
-      use modgps01ctphys    , only : p_TC
-      use modgps03diff      , only : gpsdiff
-      use modgps04profilezd , only : gpsprofilezd, gpsstructztd, gpsdpress
-      use modgps08ztdop     , only : gpsZTDopv, gpsPW
       implicit none
 
       REAL*8 ZLAT, Lat
@@ -709,8 +696,8 @@ end subroutine oda_Hto
       
       real*8, dimension(:), pointer :: dpdp0 => null()
 
-      TYPE(gpsprofilezd)   :: PRF, PRF2
-      TYPE(gpsdiff)        :: ZTDOPV, ZTDOPV2
+      TYPE(gps_profilezd)   :: PRF, PRF2
+      TYPE(gps_diff)        :: ZTDOPV, ZTDOPV2
       
 !      WRITE(*,*)'ENTER oda_Hgp'
 
@@ -812,11 +799,11 @@ end subroutine oda_Hto
             ZMT  = col_getHeight(lcolumng,NFLEV,INDEX_HEADER,'TH')/RG
             if ( icount .eq. 1 .and. LTESTOP ) write(*,*) 'ZDP (dpdp0) = ', (ZDP(JL),JL= 1,NFLEV)
 !c
-            CALL gpsstructztd(NFLEV,Lat,Lon,ZMT,ZP0B,ZPPB,ZDP,ZTTB,ZHUB,LBEVIS,IREFOPT,PRF)
-            CALL gpsZTDopv(ZLEV,PRF,LBEVIS,ZDZMIN,ZTDopv,ZPSMOD,IZTDOP)
+            CALL gps_structztd(NFLEV,Lat,Lon,ZMT,ZP0B,ZPPB,ZDP,ZTTB,ZHUB,LBEVIS,IREFOPT,PRF)
+            CALL gps_ztdopv(ZLEV,PRF,LBEVIS,ZDZMIN,ZTDopv,ZPSMOD,IZTDOP)
 !C          Observation Jacobian H'(xb)            
             JAC = ZTDopv%DVar
-            iztd = i_from_index(INDEX_HEADER)
+            iztd = gps_i_from_index(INDEX_HEADER)
             DO JL = 1, 2*NFLEV+1
                 vGPSZTD_Jacobian(iztd,JL) = JAC(JL)
             ENDDO
@@ -825,15 +812,15 @@ end subroutine oda_Hto
             if ( icount .le. 3 .and. LTESTOP ) then
                write(*,*) '--------------------------------------------------------- '
                write(*,*) iztd, obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER),'ZTDopv (m) = ', ZTDopv%Var
-               CALL gpsPW(PRF,ZPWMOD)
+               CALL gps_pw(PRF,ZPWMOD)
 !           sfc pressure dx               
 !               ZPPB(NFLEV) = ZPPB(NFLEV) + 50.0d0
                nullify(dpdp0)
                sfcfield = ZP0B + 50.0d0
                status = vgd_dpidpis(vco_anl%vgrid,vco_anl%ip1_T,dpdp0,sfcfield)
                ZDP = dpdp0(1:NFLEV)
-               CALL gpsstructztd(NFLEV,Lat,Lon,ZMT,sfcfield,ZPPB,ZDP,ZTTB,ZHUB,LBEVIS,IREFOPT,PRF2)
-               CALL gpsZTDopv(ZLEV,PRF2,LBEVIS,ZDZMIN,ZTDopv2,ZPSMOD,IZTDOP)
+               CALL gps_structztd(NFLEV,Lat,Lon,ZMT,sfcfield,ZPPB,ZDP,ZTTB,ZHUB,LBEVIS,IREFOPT,PRF2)
+               CALL gps_ztdopv(ZLEV,PRF2,LBEVIS,ZDZMIN,ZTDopv2,ZPSMOD,IZTDOP)
                write(*,*) ' ZTD Operator Test:  dP0 = +50 Pa'
                write(*,*) ' dZTD NL     = ', ZTDopv2%Var - ZTDopv%Var
                write(*,*) ' dZTD Linear = ', vGPSZTD_Jacobian(iztd,2*NFLEV+1)*50.0d0
@@ -843,9 +830,9 @@ end subroutine oda_Hto
                ZHUB(64) = ZHUB(64) - 0.44D-01
                ZHUB(65) = ZHUB(65) - 0.44D-01
                ZHUB(66) = ZHUB(66) - 0.44D-01
-               CALL gpsstructztd(NFLEV,Lat,Lon,ZMT,ZP0B,ZPPB,ZDP,ZTTB,ZHUB,LBEVIS,IREFOPT,PRF2)
-               CALL gpsZTDopv(ZLEV,PRF2,LBEVIS,ZDZMIN,ZTDopv2,ZPSMOD,IZTDOP)
-               CALL gpsPW(PRF2,ZPWMOD2)
+               CALL gps_structztd(NFLEV,Lat,Lon,ZMT,ZP0B,ZPPB,ZDP,ZTTB,ZHUB,LBEVIS,IREFOPT,PRF2)
+               CALL gps_ztdopv(ZLEV,PRF2,LBEVIS,ZDZMIN,ZTDopv2,ZPSMOD,IZTDOP)
+               CALL gps_pw(PRF2,ZPWMOD2)
                write(*,*) ' ZTD Operator Test:  dLQ = -0.44E-01 JL = 64,65,66'
                write(*,*) ' dPW (mm)    = ', ZPWMOD2 - ZPWMOD
                write(*,*) ' dZTD NL     = ', ZTDopv2%Var - ZTDopv%Var
@@ -860,8 +847,8 @@ end subroutine oda_Hto
                ZTTB(64) = ZTTB(64) + 2.0d0
                ZTTB(65) = ZTTB(65) + 2.0d0
                ZTTB(66) = ZTTB(66) + 2.0d0
-               CALL gpsstructztd(NFLEV,Lat,Lon,ZMT,ZP0B,ZPPB,ZDP,ZTTB,ZHUB,LBEVIS,IREFOPT,PRF2)
-               CALL gpsZTDopv(ZLEV,PRF2,LBEVIS,ZDZMIN,ZTDopv2,ZPSMOD,IZTDOP)
+               CALL gps_structztd(NFLEV,Lat,Lon,ZMT,ZP0B,ZPPB,ZDP,ZTTB,ZHUB,LBEVIS,IREFOPT,PRF2)
+               CALL gps_ztdopv(ZLEV,PRF2,LBEVIS,ZDZMIN,ZTDopv2,ZPSMOD,IZTDOP)
                write(*,*) ' ZTD Operator Test:  dTT = +2.0K JL = 64,65,66'
                write(*,*) ' dZTD NL     = ', ZTDopv2%Var - ZTDopv%Var
                dZTD = vGPSZTD_Jacobian(iztd,64)*2.0d0 + vGPSZTD_Jacobian(iztd,65)*2.0d0 + &
@@ -926,9 +913,9 @@ end subroutine oda_Hto
 !C     * If ZTD assimilation, apply the TL observation operator
 !C
          IF ( ASSIM ) THEN
-            iztd = i_from_index(INDEX_HEADER)
+            iztd = gps_i_from_index(INDEX_HEADER)
             if ( iztd < 1 .or. iztd > numGPSZTD ) then
-              call abort3d('oda_Hgp: ERROR: index from i_from_index() is out of range!')
+              call abort3d('oda_Hgp: ERROR: index from gps_i_from_index() is out of range!')
             endif
 !C
 !C     *    Local vector state (analysis increments)

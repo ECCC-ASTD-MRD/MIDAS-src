@@ -21,7 +21,8 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
   use obsSpaceData_mod
   use columnData_mod 
   use bufr
-  use modgpsztd_mod
+  use gps_mod
+  use lqtoes_mod
   implicit none
   !
   !Purpose:
@@ -94,7 +95,7 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
       REAL*8 ZLEV,ZPT,ZPB,ZDADPS,ZPRESBPB,ZPRESBPT
       INTEGER INDEX_HEADER,IK,nlev_T
       INTEGER INDEX_BODY,INDEX_FAMILY
-      REAL*8 columngVarT,columngVarB,lqtoes
+      REAL*8 columngVarT,columngVarB
       real*8, pointer :: all_column(:),tt_column(:),hu_column(:),ps_column(:)
       REAL*8 :: dPdPsT,dPdPsB
       logical :: llassim
@@ -347,10 +348,6 @@ end subroutine oda_HTto
 !*Author  : J. M. Aparicio Jan 2004
 !*Modified: J. M. Aparicio Dec 2012 adapt to accept bending angle data
 !*    -------------------
-      use modgps00base      , only : ngpscvmx
-      use modgps01ctphys    , only : p_TC
-      use modgps03diff      , only : gpsdiff
-      use modgpsro_mod
       use IndexListDepot_mod, only : struct_index_list
       implicit none
 
@@ -426,7 +423,7 @@ end subroutine oda_HTto
 !C     *    If assimilations are requested, prepare and apply the observation operator
 !C
             ASSIMILATE: IF (ASSIM) THEN
-               iProfile=iProfile_from_index(INDEX_HEADER)
+               iProfile=gps_iprofile_from_index(INDEX_HEADER)
 !C
 !C     *    Basic geometric variables of the profile:
 !C
@@ -463,7 +460,7 @@ end subroutine oda_HTto
 !C
 !C     *             O-F Tested criteria:
 !C
-                     DPJO1(1:2*NGPSLEV+1) = ZINC * vGPSRO_Jacobian(iProfile,NH1,:)
+                     DPJO1(1:2*NGPSLEV+1) = ZINC * gps_vRO_Jacobian(iProfile,NH1,:)
 !C
 !C     *             Accumulate the gradient of the observation cost function:
 !C
@@ -573,8 +570,6 @@ end subroutine oda_HTto
 !  NOTE:  ZTD Jacobians are computed and stored in oda_Hgp (first iter.)
 !
 !*
-      use modgps00base      , only : ngpscvmx
-      use modgpsztd_mod
       implicit none
 
       REAL*8 DPJO0(ngpscvmx)
@@ -628,9 +623,9 @@ end subroutine oda_HTto
          IF (ASSIM) THEN
          
             icount = icount + 1
-            iztd = i_from_index(INDEX_HEADER)
+            iztd = gps_i_from_index(INDEX_HEADER)
             if ( iztd < 1 .or. iztd > numGPSZTD ) then
-              call abort3d('oda_HTgp: ERROR: index from i_from_index() is out of range!')
+              call abort3d('oda_HTgp: ERROR: index from gps_i_from_index() is out of range!')
             endif            
             
             DO JL = 1, 2*NFLEV+1

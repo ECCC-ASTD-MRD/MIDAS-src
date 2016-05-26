@@ -32,7 +32,7 @@
 !            - LTESTOP option now set in 3dvar namelist
 !            - if numGPSZTD=0, does nothing and returns
 !*        S. Macpherson *ARMA/MSC   November 2014
-!            - add surface pressure (P0) argument to call gpsstructztd()
+!            - add surface pressure (P0) argument to call gps_structztd()
 !
 !     *********************************************************************
 !     ****                   9 October 2015                            ****
@@ -52,13 +52,11 @@
 !*
       use EarthConstants_mod
       use MathPhysConstants_mod
-      use modgps04profilezd
-      use modgps08ztdop
       use bufr
       use columnData_mod
       use obsSpaceData_mod
       use verticalCoord_mod
-      use modgpsztd_mod
+      use gps_mod
       IMPLICIT NONE
 !   lcolumn  contains background errors for control variables on model levels
 !   lcolumng contains lo-res first guess profiles at obs locations
@@ -105,8 +103,8 @@
       
       CHARACTER(len=2) :: varLevel
       
-      TYPE(GPSPROFILEZD)    :: PRF, PRFP
-      TYPE(GPSDIFF)         :: ZTDopv, ZTDopvP
+      TYPE(GPS_PROFILEZD)    :: PRF, PRFP
+      TYPE(GPS_DIFF)         :: ZTDopv, ZTDopvP
 
       IF (numGPSZTD .EQ. 0) RETURN
 
@@ -211,8 +209,8 @@
                      ZP0  = col_getElem(lcolumn,1,INDEX_HEADER,'P0')
                      DX(2*NFLEV_T+1) = ZP0
                      ZMT  = ZGZ(NFLEV_T)/GRAV
-                     CALL gpsstructztd(NFLEV_T,Lat,Lon,ZMT,ZP0B,ZPP,ZDP,ZTTB,ZHUB,LBEVIS,IREFOPT,PRF)
-                     CALL gpsZTDopv(ZLEV,PRF,LBEVIS,ZDZMIN,ZTDopv,ZPSMOD,IZTDOP)
+                     CALL gps_structztd(NFLEV_T,Lat,Lon,ZMT,ZP0B,ZPP,ZDP,ZTTB,ZHUB,LBEVIS,IREFOPT,PRF)
+                     CALL gps_ztdopv(ZLEV,PRF,LBEVIS,ZDZMIN,ZTDopv,ZPSMOD,IZTDOP)
                      JAC = ZTDopv%DVar
 !c
                      DO INDEX_BODY= IDATA, IDATEND
@@ -340,12 +338,12 @@
 !C
 !C         Non-linear observation operator --> delta_H = H(x+delta_x) - H(x)
 !c
-           CALL gpsstructztd(NFLEV_T,Lat,Lon,ZMT,ZP0B,ZPP,ZDP,ZTTB,ZHUB,LBEVIS,IREFOPT,PRF)
-           CALL gpsstructztd(NFLEV_T,Lat,Lon,ZMT,ZP0B_P,ZPP_P,ZDP,ZTTB_P,RZHUB_P,LBEVIS,IREFOPT,PRFP)
-           CALL gpsZTDopv(ZLEV,PRF,LBEVIS,ZDZMIN,ZTDopv,ZPSMOD,IZTDOP)
+           CALL gps_structztd(NFLEV_T,Lat,Lon,ZMT,ZP0B,ZPP,ZDP,ZTTB,ZHUB,LBEVIS,IREFOPT,PRF)
+           CALL gps_structztd(NFLEV_T,Lat,Lon,ZMT,ZP0B_P,ZPP_P,ZDP,ZTTB_P,RZHUB_P,LBEVIS,IREFOPT,PRFP)
+           CALL gps_ztdopv(ZLEV,PRF,LBEVIS,ZDZMIN,ZTDopv,ZPSMOD,IZTDOP)
            JAC  = ZTDopv%DVar
            ZTDM = ZTDopv%Var
-           CALL gpsZTDopv(ZLEV,PRFP,LBEVIS,ZDZMIN,ZTDopvP,ZPSMOD,IZTDOP)
+           CALL gps_ztdopv(ZLEV,PRFP,LBEVIS,ZDZMIN,ZTDopvP,ZPSMOD,IZTDOP)
            DELTAH_NL = ZTDopvP%Var - ZTDopv%Var
 !c
 !c         Linear  --> delta_H = dH/dx * delta_x

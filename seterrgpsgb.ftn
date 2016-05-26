@@ -49,7 +49,7 @@
       use MathPhysConstants_mod
       use obsSpaceData_mod
       use bufr
-      use modgpsztd_mod
+      use gps_mod
       use columnData_mod
       IMPLICIT NONE
 C

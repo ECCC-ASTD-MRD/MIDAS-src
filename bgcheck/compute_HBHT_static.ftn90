@@ -8,7 +8,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
       use verticalCoord_mod
       use HorizontalCoord_mod
       use bmatrixhi
-      use modgpsztd_mod
+      use gps_mod
       IMPLICIT NONE
 
       type(struct_hco), pointer        :: hco_anl

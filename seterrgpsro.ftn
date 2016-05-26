@@ -29,13 +29,7 @@
 #endif
       use EarthConstants_mod
       use MathPhysConstants_mod
-      use modgps01ctphys    , only : p_TC, p_knot
-      use modgps02wgs84grav , only : gpsgravitysrf
-      use modgps03diff      , only : gpsdiff
-      use modgps04profile   , only : gpsprofile, gpsstruct1sw
-      use modgps08refop     , only : gpsrefopv
-      use modgps09bend      , only : gpsbndopv1
-      use modgpsro_mod
+      use gps_mod
       use obsSpaceData_mod
       use columnData_mod
       IMPLICIT NONE
@@ -62,10 +56,10 @@ C
       LOGICAL  ASSIM, L1, L2, L3
 
       INTEGER NH, NH1
-      TYPE(GPSPROFILE)           :: PRF
+      TYPE(GPS_PROFILE)           :: PRF
       REAL*8       , allocatable :: H   (:),AZMV(:)
       REAL*8       , allocatable :: ZOBS(:),ZREF(:),ZOFF(:),ZERR(:), ZMHX(:)
-      TYPE(GPSDIFF), allocatable :: RSTV(:)
+      TYPE(GPS_DIFF), allocatable :: RSTV(:)
 
       WRITE(*,*)'ENTER SETERRGPSRO'
 C
@@ -119,7 +113,7 @@ C
 C     *     If assimilations are requested, prepare and apply the observation operator
 C
             IF (ASSIM) THEN
-               iProfile=iProfile_from_index(INDEX_HEADER)
+               iProfile=gps_iprofile_from_index(INDEX_HEADER)
 C
 C     *        Basic geometric variables of the profile:
 C
@@ -174,7 +168,7 @@ C     *           True implementation of ZDP (dP/dP0)
 C     
 C     *        GPS profile structure:
 C
-               call gpsstruct1sw(ngpslev,zLat,zLon,zAzm,zMT,Rad,geo,zP0,zPP,zDP,zTT,zHU,zUU,zVV,prf)
+               call gps_struct1sw(ngpslev,zLat,zLon,zAzm,zMT,Rad,geo,zP0,zPP,zDP,zTT,zHU,zUU,zVV,prf)
 C
 C     *        Prepare the vector of all the observations:
 C
@@ -204,9 +198,9 @@ C
 C     *        Apply the observation operator:
 C
                IF (LEVELGPSRO.EQ.1) THEN
-                  CALL GPSBNDOPV1(H, AZMV, NH, PRF, RSTV)
+                  CALL GPS_BNDOPV1(H, AZMV, NH, PRF, RSTV)
                ELSE
-                  CALL GPSREFOPV (H,       NH, PRF, RSTV)
+                  CALL GPS_REFOPV (H,       NH, PRF, RSTV)
                ENDIF
 C
 C     *        Perform the (H(x)-Y)/R operation:

@@ -21,11 +21,11 @@
       use topLevelControl_mod
       use obsSpaceData_mod
       use filterObs_mod  
-      use modgpsztd_mod
-      use modgpsro_mod
+      use gps_mod
       use tovs_nl_mod
       use tovs_lin_mod
       use multi_ir_bgck_mod
+      use burpFiles_mod
       IMPLICIT NONE
 
       type(struct_obs) :: obsSpaceData
@@ -49,11 +49,11 @@
       !
       ! Read the NAMELIST NAMGGPSRO
       !
-      call sugpsro
+      call gps_setupro
       !
       ! Initialize GB-GPS processing (read NAMGPSGB in namelist file)
       !
-      call sugpsgb
+      call gps_setupgb
       !
       ! Initialize TOVS processing
       !
@@ -64,10 +64,7 @@
       call filt_setup
 
       call tmg_start(11,'READ_BURP')
-                                  !Select calls  BRPCMA
-                                  ! 1. Positioning of data records within ObsSpaceData
-      CALL SELECTB(obsSpaceData)  ! 2. Fill ObsSpaceData  with observation records
-                                  ! 3. Incrementation of obsSpaceData%numheader and obsSpaceData%numbody based on data selected
+      CALL burp_readFiles(obsSpaceData)
       call tmg_stop(11)
 
       !

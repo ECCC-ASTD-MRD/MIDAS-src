@@ -23,7 +23,7 @@ module filterObs_mod
   use columnData_mod
   use bufr
   use tovs_nl_mod ,only :  tvs_Is_idburp_tovs
-  use modgpsztd_mod
+  use gps_mod
   implicit none
   save
   private

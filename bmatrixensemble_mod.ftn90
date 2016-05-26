@@ -589,7 +589,7 @@ CONTAINS
     real(8) :: delhh
     logical :: lExists
     character(len=32) :: envVariable
-    integer :: length_envVariableburp
+    integer :: length_envVariable
 
     ! standard file variables
     integer :: ini,inj,ink,ip1,ip2(9),ip3,ierr,idateo(7),ikey
@@ -693,7 +693,7 @@ CONTAINS
 
     ! Retrieve environment variables related to doing an ensemble of perturbed analyses
     status = 0
-    call get_environment_variable('envar_memberIndexOffset',envVariable,length_envVariableburp,status,.true.)
+    call get_environment_variable('envar_memberIndexOffset',envVariable,length_envVariable,status,.true.)
     if (status.gt.1) then
       write(*,*) 'ben_setupEnsemble: Problem when getting the environment variable envar_memberIndexOffset'
       memberIndexOffset = 0
@@ -706,7 +706,7 @@ CONTAINS
     endif
 
     status = 0
-    call get_environment_variable('envar_totalEnsembleSize',envVariable,length_envVariableburp,status,.true.)
+    call get_environment_variable('envar_totalEnsembleSize',envVariable,length_envVariable,status,.true.)
     if (status.gt.1) then
       write(*,*) 'ben_setupEnsemble: Problem when getting the environment variable envar_totalEnsembleSize'
       totalEnsembleSize = nEns

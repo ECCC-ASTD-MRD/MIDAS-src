@@ -168,7 +168,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
   !
   !     Computing date and time of step obs for error message
   !
-  call getstamplist(datestamplist,tim_nStepObs,tim_getDatestamp())
+  call tim_getstamplist(datestamplist,tim_nStepObs,tim_getDatestamp())
   do jstep = 1,tim_nStepObs
     ierr = newdate(datestamplist(jstep),idate(jstep),itime(jstep),-3)
     if(mpi_myid.eq.0) write(*,*) 'sugomobs: datestamplist=',jstep,datestamplist(jstep)
