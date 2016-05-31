@@ -5490,8 +5490,6 @@ contains
         end if
       end do
 
-     if (trim(obsoper%stnid).eq.'AIRNOW27'.and.success(1)) write(*,*) 'AIRNOW27 oper/tlm: ',obs_col(1),obsoper%lat,obsoper%hhmm
-
   case(1)
 !
 !    Compute sqrt(diag(H*B*H^T))
@@ -5557,8 +5555,6 @@ contains
                  zwork(obsoper%lvl_top(iobslev):obsoper%lvl_bot(iobslev))
         end if
       end do
-      
-      if (trim(obsoper%stnid).eq.'AIRNOW27'.and.success(1)) write(*,*) 'AIRNOW27 adjoint: ',model_col(obsoper%lvl_bot(1)),obsoper%lat,obsoper%hhmm
       
   end select
 

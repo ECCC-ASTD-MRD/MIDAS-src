@@ -1341,7 +1341,7 @@ CONTAINS
     !                  -- Added UNI_FAMILYTYPE.
     !                  -- Replaced "NDATA_SF= WRITE_BODY(*" to use UNI_FAMILYTYPE
     !                  -- Added use of FAMILYTYPE2 for the CH family.
-    !                 Y.J. Rochon (ARQI) Dec 2014 - April 2016
+    !                 Y.J. Rochon (ARQI) Dec 2014 - May 2016
     !                  -- Added 08046 (constituent code table) in LISTE_INFO.
     !                     Corresponds to new ObsSpaceData integer-header element OBS_CHM.
     !                  -- Added 15008,15011,15012,15020,15024,15026-29,15199,
@@ -1353,6 +1353,8 @@ CONTAINS
     !                  -- Added flag_passage*=1 for btyp10*_uni cases.
     !                     Needed when only *_uni data being read to avoid
     !                     incorrect output error message.
+    !                  -- Added consideration of NDATA_SF for calling WRITE_INFO
+    !                     accompanied by initialization of NDATA_SF and NDATA to zero.
     !
     !       OBJECT: READ CMC BURP FILE 
     !
@@ -1933,7 +1935,7 @@ CONTAINS
                                  & ELEMENT  = LISTE_INFO(kl), &
                                  & IOSTAT   = error)
               if (  info_elepos .ge.  0 )then
-
+                
                 do k =1 , nte
                   RINFO(kl,k)= BURP_Get_rval(Block_in, &
                               &   NELE_IND = info_elepos, &
@@ -2083,6 +2085,8 @@ CONTAINS
 
             if (allocated(EMIS))     SURF_EMIS(1:NVAL)    =EMIS      (1:NVAL,k)
 
+            NDATA   =0
+            NDATA_SF=0
             IF ( allocated(obsvalue_sfc) ) THEN
               OBSERV_SFC(1:NELE_SFC,1:1)=obsvalue_sfc(1:NELE_SFC,1:1,k)
               QCFLAGS_sfc(1:NELE_SFC,1:1)=qcflag_sfc  (1:NELE_SFC,1:1,k)
@@ -2268,7 +2272,7 @@ CONTAINS
           ENDIF
 
           if (allocated(TRINFO))  then
-            IF ( NDATA  .gt. 0 ) then
+            IF ( NDATA.gt.0.or.NDATA_SF.gt.0 ) then
               call WRITE_INFO(obsdat,familytype, TRINFO,LISTE_INFO,NELE_INFO  )
             ENDIF
           endif
@@ -2824,7 +2828,7 @@ CONTAINS
           ELSE
             IRO_QCFLAG=NINT ( RRO_QCFLAG )
           ENDIF
-        CASE( 08046)
+        CASE( 08046)          
           IF (trim(FAMTYP) == 'CH') THEN
              RCONSTITUENT=INFOV
              IF (RCONSTITUENT .eq. PPMIS) THEN
