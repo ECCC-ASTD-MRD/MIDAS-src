@@ -235,7 +235,7 @@ contains
 
          ! Initialize obsoper variables and allocate arrays
          call chm_obsoper_init(obsoper,obsSpaceData,headerIndex,column_bkgrnd,nlev_bkgrnd,nobslev,kmode)
-          
+ 
          ! Initialize model_col, dependent on kmode. Used for input for kmode=0,2, output for kmode=3.
          ! model_col represents for kmode 0) the horizontally interpolated background H_horiz(x_b)
          !                                1) not used
@@ -288,6 +288,7 @@ contains
          !      1         not used        out
          !      2           in            out
          !      3           out           in
+
 
          call chm_obsoperators(obsoper,model_col,obs_col,kmode,ixtr,success)
  
