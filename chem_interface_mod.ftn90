@@ -197,8 +197,8 @@ contains
       headerIndex = obs_getHeaderIndex(obsSpaceData)
       if (headerIndex < 0) exit HEADER
   
-      icodtyp  = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
-      if (icodtyp.ne.codtyp_chemremote.and.icodtyp.ne.codtyp_cheminsitu) cycle HEADER
+      icodtyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
+      if (icodtyp.ne.codtyp_get_codtyp('CHEMREMOTE').and.icodtyp.ne.codtyp_get_codtyp('CHEMINSITU')) cycle HEADER
       
       ! Body info that we only need for first point in the profile
       bodyIndex = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)

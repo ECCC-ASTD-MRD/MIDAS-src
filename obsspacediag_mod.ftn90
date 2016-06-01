@@ -529,7 +529,7 @@ contains
       case(3)
         ! channel number
         verticalIndex = nint(obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex))
-        if(obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex).eq.CODTYP_AMSUA) then
+        if(obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex).eq.codtyp_get_codtyp("AMSUA")) then
           ! amsu-a
           verticalIndex = verticalIndex - 27
         else

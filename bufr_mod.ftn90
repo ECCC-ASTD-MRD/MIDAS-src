@@ -42,6 +42,7 @@ module bufr
  integer, parameter :: BUFR_NEHS=13220
  integer, parameter :: BUFR_NEZD=15031
  integer, parameter :: BUFR_NEFE=15032
+ integer, parameter :: BUFR_NEZW=15035
  ! Doppler wind 
  integer, parameter :: BUFR_NEDW=11200  
 

@@ -251,29 +251,14 @@ module observation_erreurs_mod
        READ (ILUTOV,*)
      ENDDO
 
-     IPLATFORM(JL) = -1    
-     DO I = 1, MXPLATFORM
-      IPOS1=LEN_TRIM(CPLATFORM(I))
-      IPOS2 = INDEX(CPLATF,CPLATFORM(I)(1:IPOS1))
-      IF ( IPOS2 .NE. 0 ) THEN
-         IPLATFORM(JL) = NOPLATFORM(I)
-         EXIT
-      ENDIF
-     ENDDO
+     IPLATFORM(JL) =  tvs_get_platform_id(CPLATF)
 
      IF ( IPLATFORM(JL) .EQ. -1 ) THEN
       WRITE ( *, '(" oer_read_obs_erreurs_tovs: Unknown platform!"/)' )
       CALL ABORT3D ('oer_read_obs_erreurs_tovs')
      ENDIF
 
-     IINSTRUMENT(JL) = -1    
-     DO I = 1, MXINSTR
-      IPOS1=LEN_TRIM(CINSTRUMENT(I))
-      IPOS2 = INDEX(CINSTR,CINSTRUMENT(I)(1:IPOS1))
-      IF ( IPOS2 .NE. 0 ) THEN
-       IINSTRUMENT(JL) = NOINSTRUMENT(I)
-      ENDIF
-     ENDDO
+     IINSTRUMENT(JL) = tvs_get_inst_id(CINSTR)
 
      IF ( IINSTRUMENT(JL) .EQ. -1 ) THEN
        WRITE ( *, '(" oer_read_obs_erreurs_tovs: Unknown instrument!"/)' )
@@ -622,6 +607,7 @@ module observation_erreurs_mod
   CHARACTER(len=2)  :: SENSORTYPE,CFAM
   CHARACTER(len=12) :: CSTNID
 
+
   !
   !     ========================================================================== 
   !
@@ -672,7 +658,7 @@ module observation_erreurs_mod
 
             ICHN = NINT(obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY))
             CALL MAP_SAT(IPLATF,IPLATFORM,ISAT)
-            CALL MAP_INSTRUM(INSTR,INSTRUM,SENSORTYPE)
+            CALL MAP_INSTRUM(INSTR,INSTRUM)
 
              DO JN = 1, NSENSORS
                 IF ( IPLATFORM .EQ.   PLATFORM(JN) .AND. &
@@ -901,9 +887,8 @@ module observation_erreurs_mod
  !
  !        Process only retrieved constituent data
  !        Also, exclude 8090 element as a data value!
-           
-           IF (IDBURP .EQ. CODTYP_CHEMREMOTE .OR. &
-                IDBURP .EQ. CODTYP_CHEMINSITU) THEN        
+               
+           if (idburp.eq.codtyp_get_codtyp('CHEMREMOTE').or.idburp.eq.codtyp_get_codtyp('CHEMINSITU')) then
 
               ifirst = index_header.ne.header_prev
 
@@ -925,7 +910,7 @@ module observation_erreurs_mod
               obs_err_stddev = chm_get_obs_err_stddev(CSTNID,NLEV,ITYP,ZLAT,ZLON,IDATE,ITIME,ZVAL,ZLEV,IFIRST)
               call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, obs_err_stddev)
               
-           END IF
+           end if
           
         ELSE
 

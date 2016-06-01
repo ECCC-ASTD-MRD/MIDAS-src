@@ -15,120 +15,98 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 module codtyp_mod
- ! all variables are public (parameters)
- public
-
  ! CODETYPES: (from https://wiki.cmc.ec.gc.ca/wiki/Description_exhaustive_du_format_BURP)
- integer, parameter :: CODTYP_SYNOPNONAUTO         =12 ! SYNOP, non automatique
- integer, parameter :: CODTYP_SHIPNONAUTO          =13 ! SHIP, non automatique
- integer, parameter :: CODTYP_SYNOPMOBIL           =14 ! SYNOP MOBIL
- integer, parameter :: CODTYP_METAR                =15 ! METAR
- integer, parameter :: CODTYP_SPECI                =16 ! SPECI
- integer, parameter :: CODTYP_DRIFTER              =18 ! DRIFTER
- integer, parameter :: CODTYP_RADOB                =20 ! RADOB
- integer, parameter :: CODTYP_RADPREP              =22 ! RADREP
- integer, parameter :: CODTYP_PILOT                =32 ! PILOT
- integer, parameter :: CODTYP_PILOTSHIP            =33 ! PILOT SHIP
- integer, parameter :: CODTYP_PILOTMOBIL           =34 ! PILOT MOBIL
- integer, parameter :: CODTYP_TEMP                 =35 ! TEMP
- integer, parameter :: CODTYP_TEMPSHIP             =36 ! TEMP SHIP
- integer, parameter :: CODTYP_TEMPDROP             =37 ! TEMP DROP
- integer, parameter :: CODTYP_TEMPMOBIL            =38 ! TEMP MOBIL
- integer, parameter :: CODTYP_ROCOB                =39 ! ROCOB
- integer, parameter :: CODTYP_ROCOBSHIP            =40 ! ROCOB SHIP
- integer, parameter :: CODTYP_CODAR                =41 ! CODAR
- integer, parameter :: CODTYP_AMDAR                =42 ! AMDAR
- integer, parameter :: CODTYP_ICEAN                =44 ! ICEAN
- integer, parameter :: CODTYP_IAC                  =45 ! IAC
- integer, parameter :: CODTYP_IACFLEET             =46 ! IAC FLEET
- integer, parameter :: CODTYP_GRID                 =47 ! GRID
- integer, parameter :: CODTYP_GRAF                 =49 ! GRAF
- integer, parameter :: CODTYP_WINTEM               =50 ! WINTEM
- integer, parameter :: CODTYP_TAF                  =51 ! TAF
- integer, parameter :: CODTYP_ARFOR                =53 ! ARFOR
- integer, parameter :: CODTYP_ROFOR                =54 ! ROFOR
- integer, parameter :: CODTYP_RADOF                =57 ! RADOF
- integer, parameter :: CODTYP_MAFOR                =61 ! MAFOR
- integer, parameter :: CODTYP_TRACKOB              =62 ! TRACKOB
- integer, parameter :: CODTYP_BATHY                =63 ! BATHY
- integer, parameter :: CODTYP_TESAC                =64 ! TESAC
- integer, parameter :: CODTYP_WAVEOB               =65 ! WAVEOB
- integer, parameter :: CODTYP_HYDRA                =67 ! HYDRA
- integer, parameter :: CODTYP_HYFOR                =68 ! HYFOR
- integer, parameter :: CODTYP_CLIMAT               =71 ! CLIMAT
- integer, parameter :: CODTYP_CLIMATSHIP           =72 ! CLIMAT SHIP
- integer, parameter :: CODTYP_NACLI                =73 ! NACLI/CLINP/SPCLI/CLISA/INCLI
- integer, parameter :: CODTYP_CLIMATTEMP           =75 ! CLIMAT TEMP
- integer, parameter :: CODTYP_CLIMATTEMPSHIP       =76 ! CLIMAT TEMP SHIP
- integer, parameter :: CODTYP_SFAZI                =81 ! SFAZI
- integer, parameter :: CODTYP_SFLOC                =82 ! SFLOC
- integer, parameter :: CODTYP_SFAZU                =83 ! SFAZU
- integer, parameter :: CODTYP_SAREP                =85 ! SAREP
- integer, parameter :: CODTYP_SATEM                =86 ! SATEM
- integer, parameter :: CODTYP_SARAD                =87 ! SARAD
- integer, parameter :: CODTYP_SATOB                =88 ! SATOB
- integer, parameter :: CODTYP_GRIB                 =92 ! GRIB
- integer, parameter :: CODTYP_BUFR                 =94 ! BUFR
- integer, parameter :: CODTYP_SFCAQ                =127 ! Données de surface de qualité de l'air
- integer, parameter :: CODTYP_AIREP                =128 ! AIREP
- integer, parameter :: CODTYP_PIREP                =129 ! PIREP
- integer, parameter :: CODTYP_PROFWIND             =130 ! Profileur de vent
- integer, parameter :: CODTYP_SYNOPSUPEROB         =131 ! SUPEROBS de SYNOP
- integer, parameter :: CODTYP_AIREPSUPEROB         =132 ! SUPEROBS de AIREP
- integer, parameter :: CODTYP_SASYNOP              =133 ! Sa + SYNOP
- integer, parameter :: CODTYP_PAOBS                =134 ! PAOBS (pseudo-données d'Australie)
- integer, parameter :: CODTYP_TEMPPILOT            =135 ! TEMP + PILOT
- integer, parameter :: CODTYP_TEMPSYNOP            =136 ! TEMP + SYNOP
- integer, parameter :: CODTYP_PILOTSYNOP           =137 ! PILOT + SYNOP
- integer, parameter :: CODTYP_TEMPPILOTSYNOP       =138 ! TEMP + PILOT + SYNOP
- integer, parameter :: CODTYP_TEMPPILOTSHIP        =139 ! TEMP SHIP + PILOT SHIP
- integer, parameter :: CODTYP_TEMPSHIPSHIP         =140 ! TEMP SHIP + SHIP
- integer, parameter :: CODTYP_TEMPSSHIPSHIP        =141 ! TEMPS SHIP + SHIP
- integer, parameter :: CODTYP_PILOTSHIPSHIP        =142 ! PILOT SHIP + SHIP
- integer, parameter :: CODTYP_SASWOBNONAUTO        =143 ! SA ou SWOB, station non automatique (régulier ou régulier spécial)
- integer, parameter :: CODTYP_SASWOBAUTO           =144 ! SA ou SWOB, station automatique (régulier ou régulier spécial)
- integer, parameter :: CODTYP_SYNOPPATROL          =145 ! SYNOP («Patrol ships»)
- integer, parameter :: CODTYP_ASYNOPAUTO           =146 ! ASYNOP, station automatique
- integer, parameter :: CODTYP_ASHIPAUTO            =147 ! ASHIP, station automatique, (bouées fixes, plates-formes.)
- integer, parameter :: CODTYP_SASWOBNONAUTOSPECIAL =148 ! SA ou SWOB, station non automatique (spécial)
- integer, parameter :: CODTYP_SASWOBAUTOSPECIAL    =149 ! SA ou SWOB, station automatique (spécial)
- integer, parameter :: CODTYP_PSEUDOSFC            =150 ! Pseudo-données du CMC, surface, mode analyse
- integer, parameter :: CODTYP_PSEUDOALT            =151 ! Pseudo-données du CMC, altitude, mode analyse
- integer, parameter :: CODTYP_PSEUDOSFCREP         =152 ! Pseudo-données du CMC, surface, mode réparation
- integer, parameter :: CODTYP_PSEUDOALTREP         =153 ! Pseudo-données du CMC, altitude, mode réparation
- integer, parameter :: CODTYP_ACARS                =157 ! ACARS (Aircraft Meteorological DAta Report)
- integer, parameter :: CODTYP_HUMSAT               =158 ! HUMSAT
- integer, parameter :: CODTYP_TEMPPILOTMOBIL       =159 ! TEMP MOBIL + PILOT MOBIL
- integer, parameter :: CODTYP_TEMPSYNOPMOBIL       =160 ! TEMP MOBIL + SYNOP MOBIL
- integer, parameter :: CODTYP_PILOTSYNOPMOBIL      =161 ! PILOT MOBIL + SYNOP MOBIL
- integer, parameter :: CODTYP_TEMPPILOTSYNOPMOBIL  =162 ! TEMP MOBIL + PILOT MOBIL + SYNOP MOBIL
- integer, parameter :: CODTYP_RADAR                =163 ! Radar
- integer, parameter :: CODTYP_AMSUA                =164 ! Radiances TOVS AMSUA
- integer, parameter :: CODTYP_SCAT                 =167 ! Données satellitaires provenant de scattéromètres (ERS, ADEOS, etc.)
- integer, parameter :: CODTYP_SSMI                 =168 ! Données satellitaires de type SSMI
- integer, parameter :: CODTYP_RO                   =169 ! Radio-occultations
- integer, parameter :: CODTYP_OZONE                =170 ! Ozone
- integer, parameter :: CODTYP_METEOSAT             =171 ! Météosat
- integer, parameter :: CODTYP_SHEF                 =172 ! Standard Hydrometeorological Exchange Format (S.H.E.F.)
- integer, parameter :: CODTYP_SAR                  =174 ! Données satellitaires provenant de radars Ã ouverture synthétique (ERS, etc.)
- integer, parameter :: CODTYP_ALTIM                =175 ! Données satellitaires provenant d'altimètres radar (ERS, etc.)
- integer, parameter :: CODTYP_ADS                  =177 ! ADS Automated Dependance Surveillance (Airep automatique)
- integer, parameter :: CODTYP_ICECLAKE             =178 ! Données provenant de ICEC pour les lacs
- integer, parameter :: CODTYP_ICECOCEAN            =179 ! Données provenant de ICEC pour les océans
- integer, parameter :: CODTYP_GOES                 =180 ! Radiances GOES
- integer, parameter :: CODTYP_AMSUB                =181 ! Radiances ATOVS AMSUB
- integer, parameter :: CODTYP_MHS                  =182 ! Radiances MHS
- integer, parameter :: CODTYP_AIRS                 =183 ! Données AIRS
- integer, parameter :: CODTYP_RADIANCE             =184 ! Radiances (generique)
- integer, parameter :: CODTYP_RADIANCECLEAR        =185 ! Clear Sky Radiances
- integer, parameter :: CODTYP_IASI                 =186 ! Radiances IASI
- integer, parameter :: CODTYP_WINDSBUFR            =188 ! Données satellitaires de vent améliorées (format BUFR)
- integer, parameter :: CODTYP_GPSSFC               =189 ! Données de surface GPS
- integer, parameter :: CODTYP_ATMS                 =192 ! Radiances ATMS
- integer, parameter :: CODTYP_CRIS                 =193 ! Radiances CrIS
- integer, parameter :: CODTYP_SMOSSMAP             =194 ! Humidité au sol (eg, SMOS, SMAP)
- integer, parameter :: CODTYP_CHEMREMOTE           =195 ! constituants chimiques (remote)
- integer, parameter :: CODTYP_CHEMINSITU           =196 ! constituants chimiques (in-situ)
- integer, parameter :: CODTYP_ASCAT                =254 ! ASCAT 
+ ! now read from namelist
+ private
+ integer ,parameter :: codtyp_numbers = 256
+ character(len=21) :: cnames(codtyp_numbers)
+ integer  :: icod (codtyp_numbers)
+ integer  :: ncodtyp
+ namelist /NAMCODTYP/ cnames, icod
+
+public :: codtyp_get_codtyp,codtyp_get_name
+
+contains
+
+integer function codtyp_get_codtyp(name)
+!******************************************
+! S. Heilliette November 2015
+! given a family name
+! return the codtyp
+! information from namelist NAMCODTYP
+!******************************************
+  use mpi_mod
+  implicit none
+  character (len=*),intent(in) :: name
+!*******************************************
+  logical ,save :: lfirst=.true.
+  integer :: nulnam, ierr, i, ilen
+  integer,external :: fnom, fclos
+  character (len=max(len(name),21)) :: ctempo
+!********************************************
+  if (lfirst) then
+     nulnam = 0
+     ncodtyp = 0
+     cnames(:) = "XXXXXXXXXXXXXXXXXXXX"
+     icod(:) = -1
+     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+     read(nulnam,nml=namcodtyp, iostat=ierr)
+     if (ierr.ne.0) call abort3d('codtyp_get_codtyp: Error reading namelist')
+     if (mpi_myid.eq.0) write(*,nml=namcodtyp)
+     ierr = fclos(nulnam)
+     do i=1, codtyp_numbers
+        if (icod(i) == -1 ) then
+           ncodtyp = i - 1
+           exit
+        endif
+        ilen = len_trim(cnames(i))
+        call up2low(cnames(i)(1:ilen),ctempo(1:ilen))
+        cnames(i)(1:ilen) = ctempo(1:ilen)
+     enddo
+     if ( ncodtyp == 0 ) call abort3d('codtyp_get_codtyp: Empty namcodtyp namelist')
+     lfirst = .false.
+  endif
+  ctempo(:) = ' '
+  codtyp_get_codtyp = -1
+  ilen = len_trim(name)
+  call up2low(name(1:ilen),ctempo(1:ilen))
+  do i=1, ncodtyp
+     if ( trim(ctempo) == trim(cnames(i)) ) then
+        codtyp_get_codtyp = icod(i)
+        exit
+     endif
+  enddo
+
+
+end function codtyp_get_codtyp
+
+character (len=21) function codtyp_get_name(codtyp)
+!******************************************
+! S. Heilliette November 2015
+! given a family name
+! return the codtyp
+! information from namelist NAMCODTYP
+!******************************************
+  use mpi_mod
+  implicit none
+  Integer,intent(in) :: codtyp
+!*******************************************
+  integer :: i, ilen
+!********************************************
+
+if (codtyp_get_codtyp("SYNOPNONAUTO")<0) then
+   Write(*,*) "Problem with NAMCODTYP section of the namelist !"
+   call abort3d("codtyp_get_name")
+endif
+
+do i=1, ncodtyp
+   if ( icod(i) == codtyp ) then
+      codtyp_get_name = trim(cnames(i))
+      exit
+   endif
+enddo
+
+end function codtyp_get_name
+
 
 end module codtyp_mod

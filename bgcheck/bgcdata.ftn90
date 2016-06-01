@@ -29,6 +29,18 @@
 !*                AND SET the appropriate quality control flags in
 !*                the CMA
 !*
+!*Revisions:
+!*
+!*        S. Macpherson *ARMA/MRD  9 October 2015
+!*           - Changed background check for GB-GPS ZTD observations:
+!*               Changed
+!*                  ZBGCHK=(ZOMP)**2/(ZFGE**2 + ZOER**2)
+!*               to
+!*                  ZBGCHK=(ZOMP**2)/(ZFGE**2) 
+!*               where ZFGE = StdDev(O-P) estimated from ZWD and set in
+!*               s/r SETERRGPSGB (stored in obsSpaceData col. OBS_HPHT).
+!              
+
       use MathPhysConstants_mod
       use bufr
       use obsSpaceData_mod
@@ -40,10 +52,6 @@
 !C         (ALONG WITH YZDERRWGT FOR ZTD) IN S/R SETERR AS A MULT. FACTOR TO ERRORS.
 !C         YZDERRWGT AND YSFERRWGT = 1 FOR NORMAL 3D-VAR (3D-THINNING).
 !C
-!C NOTE 2: GPS ZTD OBS ERROR SIGMAO IS BASED ON STD(O-P) SO INCLUDES CONTRIBUTION FROM
-!C         BACKGROUND ERROR SIGMAP. THUS A MAX LIMIT IS PLACED ON SIGMAO (12 MM).
-!C
-
 
 !C
       type(struct_obs) :: lobsSpaceData
@@ -56,9 +64,6 @@
       INTEGER INPOBS, INTOBS, INDOBS, INPREJ, INTREJ, INDREJ
       REAL*8 ZOER,ZOMP,ZFGE,ZBGCHK,ZVAR,ZLEV,ZLAT,ZLON,ZSOP
       LOGICAL LLOK, LLZD, LMODIF1020
-! MAX LIMIT IS PLACED ON ZTD SIGMAO (12 MM)
-      REAL*8 ZDSIGMAO
-      DATA ZDSIGMAO / 0.012D0 /
 
       lmodif1020=.false.
 
@@ -129,25 +134,16 @@
 !C              BACK GROUND CHECK
 !C
                   ZOMP  = obs_bodyElem_r(lobsSpaceData,OBS_OMP,index_body)
+!C              NOTE: For GB-GPS ZTD observations, ZFGE is not the FGE but rather Std(O-P)
+!C                    set in s/r SETERRGPSGB.
                   ZFGE  = obs_bodyElem_r(lobsSpaceData,OBS_HPHT,index_body)
                   IF ( CDFAM .EQ. 'GP' ) THEN
                     IF (ITYP .EQ. BUFR_NEZD) THEN
                       ZOER = ZOER/YZDERRWGT
-!C              IF YZTDERR (FROM modgpsztd_mod) = 0 THEN ZTD ERROR MODEL IS REGRESSION-BASED
-!C              (WHERE ERROR IS A FUNCTION OF ZWD) SO WE LIMIT THE OBSERVATION ERROR
-                      IF (YZTDERR .EQ. 0.0D0) THEN
-                        ZOER = MIN(ZDSIGMAO, ZOER)
-                      ENDIF
                     ELSE
                       ZOER = ZOER/YSFERRWGT
                     ENDIF
-                    !jfc IF (ZFGE .LT. 1.D-3 .OR. ZOER .LT. 1.D-3 ) THEN
-                    !jfc  WRITE(*,*)' Problem for STNID FGE ZOER=',  &
-                    !jfc     obs_elem_c(lobsSpaceData,'STID',index_header),ZFGE,ZOER
-                    !jfc  CALL ABORT3D('BGCDATA: PROBLEM WITH FGE, OER.')
-                    !jfc ENDIF
-                    !jfc new version - start
-                    IF (ZOER .LT. 1.D-3 ) THEN
+                    IF (ZOER .LT. 1.D-3 .AND. ITYP .NE. BUFR_NEZD) THEN
                       WRITE(*,*)' Problem for GP STNID ZOER= ' ,  &
                          obs_elem_c(lobsSpaceData,'STID',index_header),ZOER
                       CALL ABORT3D('BGCDATA: PROBLEM WITH OER.')
@@ -157,7 +153,6 @@
                          obs_elem_c(lobsSpaceData,'STID',index_header),ZFGE
                       ZFGE=1.D-3
                     ENDIF
-                    !jfc new version - end
                   ELSE IF (CDFAM.NE.'CH') THEN
                     IF ( ZFGE**2 + ZOER**2 .LT. 1.D-5)THEN
                         WRITE(*,*)' Problem for STNID FGE ZOER=',  &
@@ -173,8 +168,13 @@
                         ZOER=1.D-30
                     ENDIF
                   ENDIF
-                  ZBGCHK=(ZOMP)**2/(ZFGE**2 + ZOER**2)
-                  ZSOP = SQRT(ZFGE**2 + ZOER**2)
+                  IF ( CDFAM .EQ. 'GP' .AND. ITYP .EQ. BUFR_NEZD ) THEN
+                     ZBGCHK=(ZOMP**2)/(ZFGE**2)
+                     ZSOP = ZFGE
+                  ELSE
+                     ZBGCHK=(ZOMP)**2/(ZFGE**2 + ZOER**2)
+                     ZSOP = SQRT(ZFGE**2 + ZOER**2)
+                  ENDIF
 !C
 !C              UPDATE QUALITY CONTROL FLAGS
 !C              ( ELEMENT FLAGS + GLOBAL HEADER FLAGS)

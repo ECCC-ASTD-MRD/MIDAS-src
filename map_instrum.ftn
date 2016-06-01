@@ -14,120 +14,133 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      SUBROUTINE MAP_INSTRUM(INSTRUMBURP,INSTRUM,SENSORTYPE)
+      SUBROUTINE MAP_INSTRUM(INSTRUMBURP,INSTRUM)
 #if defined (DOC)
-*
-***s/r MAP_INSTRUM : Map burp satellite instrument (element #2019)
-*                    to RTTOV-10 instrument.
-*                    Also, provide sensor type, microwave or infrared.
-*
-*Author  : J. Halle *CMDA/SMC May 2002
-*
-*Revision 001: J. Halle *CMDA/SMC Sept. 2005
-*              - add MHS.
-*         002: R Sarrazin CMDA, April 2008
-*              - comment on MTSAT imager instrument number
-*         003: R. McTaggart-Cowan *RPN  Mar 2012
-*	       - Use assumed-length declarations for string dummy args
-*         003: S. Macpherson ARMA, August 2011
-*              - add NPP/ATMS codtyp=192
-*
-*
-*    -------------------
-**    Purpose:  Map burp satellite instrument (element #2019)
-*               to RTTOV-7 instrument.
-**              A negative value is returned, if no match in found.
-*
-*               Table of  RTTOV-7 instrument identifier
-*               ---------------------------------------
-*               Instrument        Instrument identifier  Sensor type
-*               ---------         ---------------------  -----------
-*               HIRS               0                     ir
-*               MSU                1                     mw
-*               SSU                2                     ir
-*               AMSUA              3                     mw
-*               AMSUB              4                     mw
-*               AVHRR              5                     ir
-*               SSMI               6                     mw
-*               VTPR1              7                     ir
-*               VTPR2              8                     ir
-*               TMI                9                     mw
-*               SSMIS             10                     mw
-*               AIRS              11                     ir
-*               MODIS             13                     ir
-*               ATSR              14                     ir
-*               MHS               15                     mw
-*               ATMS              19                     mw
-*               MVIRI             20                     ir
-*               SEVIRI            21                     ir
-*               GOESIMAGER        22                     ir
-*               GOESSOUNDER       23                     ir
-*               GMS/MTSAT IMAGER  24                     ir
-*               FY2-VISSR         25                     ir
-*               FY1-MVISR         26                     ir
-*
-*Argumets:
-*     i : INSTRUMBURP : burp satellite instrument (element #2019)
-*     o : INSTRUM     : RTTOV-7 instrument ID numbers (e.g. 3 for  AMSUA)
-*
+!
+!**s/r MAP_INSTRUM : Map burp satellite instrument (element #2019)
+!                    to RTTOV-10 instrument.
+!
+!Author  : J. Halle *CMDA/SMC May 2002
+!
+!Revision 001: J. Halle *CMDA/SMC Sept. 2005
+!              - add MHS.
+!         002: R Sarrazin CMDA, April 2008
+!              - comment on MTSAT imager instrument number
+!         003: R. McTaggart-Cowan *RPN  Mar 2012
+!	       - Use assumed-length declarations for string dummy args
+!         003: S. Macpherson ARMA, August 2011
+!              - add NPP/ATMS codtyp=192
+!         004: C. Cote Juillet 2015
+!              - Ajout Himawari-8/AHI codtyp=185
+!         005: S. Heilliette Novembre 2015
+!              - suppression des tables hardcodees
+!                lecture depuis une namelist
+!
+!
+!    -------------------
+!*    Purpose:  Map burp satellite instrument (element #2019)
+!               to RTTOV-7 instrument.
+!*              A negative value is returned, if no match in found.
+!
+!               Table of  RTTOV-7 instrument identifier
+!               ---------------------------------------
+!               Instrument        Instrument identifier  Sensor type
+!               ---------         ---------------------  -----------
+!               HIRS               0                     ir
+!               MSU                1                     mw
+!               SSU                2                     ir
+!               AMSUA              3                     mw
+!               AMSUB              4                     mw
+!               AVHRR              5                     ir
+!               SSMI               6                     mw
+!               VTPR1              7                     ir
+!               VTPR2              8                     ir
+!               TMI                9                     mw
+!               SSMIS             10                     mw
+!               AIRS              11                     ir
+!               MODIS             13                     ir
+!               ATSR              14                     ir
+!               MHS               15                     mw
+!               ATMS              19                     mw
+!               MVIRI             20                     ir
+!               SEVIRI            21                     ir
+!               GOESIMAGER        22                     ir
+!               GOESSOUNDER       23                     ir
+!               GMS/MTSAT IMAGER  24                     ir
+!               FY2-VISSR         25                     ir
+!               FY1-MVISR         26                     ir
+!               AHI               56                     ir
+!
+!Argumets:
+!     i : INSTRUMBURP : burp satellite instrument (element #2019)
+!     o : INSTRUM     : RTTOV-7 instrument ID numbers (e.g. 3 for  AMSUA)
+!
 #endif
+      use tovs_nl_mod, only : tvs_get_inst_id
       IMPLICIT NONE
-*
-      INTEGER J,INSTRUMBURP,INSTRUM
-*
-      INTEGER MXINSTRUMBURP
-      PARAMETER (MXINSTRUMBURP   =30)
-*
-      INTEGER LISTBURP   (MXINSTRUMBURP)
-      INTEGER LISTINSTRUM(MXINSTRUMBURP)
-*
-      CHARACTER*2 CTYPE(MXINSTRUMBURP)
-      CHARACTER(len=*) :: SENSORTYPE
-*
-**************
-*      TESTING ONLY: burp 2047 is AIRS.
-**************
-*
-**            Table of BURP satellite sensor identifier element #002019
-**            ----------------------------------------------------------
-*
-      DATA LISTBURP    / 050, 203, 205, 207, 221, 295, 296, 365, 389,
-     &                   420, 570, 571, 572, 573, 574, 590,
-     &                   591, 592, 605, 606, 607, 615, 620, 621, 626,
-     &                   623, 627, 905, 908, 2047 /
-*
-**            Table of RTTOV-10 instrument identifier
-**            --------------------------------------
-*
-      DATA LISTINSTRUM / 014, 015, 020, 021, 016, 024, 024, 009, 013,
-     &                   011, 003, 003, 003, 003, 004, 005,
-     &                   005, 005, 000, 000, 000, 022, 027,019, 023,
-     &                   001, 002, 006, 010, 011 /
-*
-**            Table of sensor type (mw or ir)
-**            --------------------------------------
-*
-      DATA CTYPE       /'ir','mw','ir','ir','ir','ir','ir','mw','ir',
-     &                  'ir','mw','mw','mw','mw','mw','ir',
-     &                  'ir','ir','ir','ir','ir','ir','ir','mw','ir',
-     &                  'mw','ir','mw','mw','ir' /
-C
-C
-C*    .  1.0 Find platform and satellite
-C     .      ---------------------------
- 100  CONTINUE
-C
+      INTEGER J,INSTRUMBURP,INSTRUM,numinstburp
+      INTEGER,parameter :: MXINSTRUMBURP   = 100
+      INTEGER,save ::   LISTBURP(MXINSTRUMBURP)
+      CHARACTER(len=8),save :: LISTINSTRUM(MXINSTRUMBURP)
+      NAMELIST /NAMINST/ LISTBURP, LISTINSTRUM
+      LOGICAL,SAVE :: LFIRST = .true.
+      INTEGER :: NULNAM, IER
+      integer ,external :: fnom, fclos
+!*************
+!      TESTING ONLY: burp 2047 is AIRS.
+!*************
+!
+!*            Table of BURP satellite sensor identifier element #002019
+!*            ----------------------------------------------------------
+
+!
+!
+!*    .  1.0 Find instrument
+!     .      ---------------------------
+
+      IF (LFIRST) THEN
+         ! set the default values
+         LISTBURP(:) = -1
+         LISTINSTRUM(:) = "XXXXXXXX"
+
+         ! read the namelist
+         NULNAM=0
+         IER=FNOM(NULNAM,'./flnml','FTN+SEQ+R/O',0)
+         IF (IER/=0) then
+            write(*,*) "Error while opening namelist file !"
+            call abort3d("map_instrum")
+         ENDIF
+         READ(NULNAM,NAMINST,iostat=ier)
+         IF (IER/=0) then
+            write(*,*) "Error while reading namelist file !"
+            call abort3d("map_instrum")
+         ENDIF
+         ier=FCLOS(NULNAM)
+
+         ! figure out how many valid elements in the lists
+         DO J=1, MXINSTRUMBURP
+           if(listburp(j).eq.-1) then
+             numinstburp = j - 1
+             exit
+           endif
+         enddo
+         if (numinstburp > MXINSTRUMBURP) then
+           call abort3d('map_instrum: exceeded maximum number of platforms')
+         endif
+         write(*,*) 'map_instrum: number of satellites found in namelist = ',numinstburp
+         WRITE(*,*) 'map_instrum: listburp   = ',listburp(1:numinstburp)
+         WRITE(*,*) 'map_instrum: listinstrum    = ',listinstrum(1:numinstburp)
+         LFIRST=.FALSE.
+      ENDIF
+
       INSTRUM = -1
-      SENSORTYPE = '  '
       DO J=1, MXINSTRUMBURP
          IF ( INSTRUMBURP .EQ. LISTBURP(J) ) THEN
-             INSTRUM    = LISTINSTRUM(J)
-             SENSORTYPE = CTYPE(J)
-             RETURN
+            INSTRUM    = tvs_get_inst_id( LISTINSTRUM(J) )
+            EXIT
          ENDIF
       ENDDO
-*
-      RETURN
+
       END
 
 

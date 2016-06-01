@@ -38,6 +38,9 @@
 !     S. Macpherson -ARMA/MRD  Feb 2015
 !         - Pass columnhr to s/r SETERRGPSGB to give routine access to background 
 !           Psfc, Tsfc at ZTD observation locations
+!     S. Macpherson -ARMA/MRD  Oct 2015
+!         - Pass top_AnalysisMode() to s/r SETERRGPSGB 
+!
 !
       use mpi_mod
       use topLevelControl_mod
@@ -133,7 +136,7 @@
 !
       ZJOGPSGB=0.0D0
       if (obs_famExist(obsSpaceData,'GP',local_mpi=.true.)) then
-         CALL SETERRGPSGB(columnhr,obsSpaceData,lgpdata)
+         CALL SETERRGPSGB(columnhr,obsSpaceData,lgpdata,top_AnalysisMode())
          if (lgpdata) call oonl_gpsgb(columnhr,obsSpaceData,ZJOGPSGB,top_AnalysisMode())
       end if
       call tmg_stop(48)

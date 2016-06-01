@@ -45,8 +45,7 @@ subroutine tovs_rttov_ad(lobsSpaceData)
   use obsSpaceData_mod
   use columnData_mod
   Use rttov_const, only : sensor_id_mw, gas_id_watervapour,surftype_land, &
-       surftype_seaice,inst_id_airs,inst_id_iasi,inst_id_cris,inst_id_mviri, &
-       inst_id_seviri,inst_id_goesim,inst_id_gmsim
+       surftype_seaice
 
   implicit none
 !implicits
@@ -202,9 +201,9 @@ subroutine tovs_rttov_ad(lobsSpaceData)
       allocate ( cloudemissivity_th(nchannels_max,nthreads)  ,stat=alloc_status(10))
       allocate ( cloudemissivity_ad_th(nchannels_max,nthreads),stat=alloc_status(11))
 
-!     get AIRS, IASI & CrIS ir emissivities
+!     get Hyperspectral IR emissivities
       
-      if (instrum==inst_id_airs .or. instrum==inst_id_iasi .or. instrum==inst_id_cris) then
+      if ( tvs_Is_Instrum_Hyperspectral(instrum) ) then
         surfem1(:) = 0.98d0
         do jn = 1, knpf
           iobs1 = iptobs(jn)
@@ -261,12 +260,11 @@ subroutine tovs_rttov_ad(lobsSpaceData)
                   calcemis_th(joff+1:joff+len_nchannels   ,ith) = .true.
                   surfem1_th (joff+1:joff+len_nchannels,ith) = 0.d0
                endif
-            elseif ((instrum == inst_id_airs) .or. (instrum == inst_id_iasi) .or. (instrum == inst_id_cris)) then
+            elseif ( tvs_Is_Instrum_Hyperspectral(instrum) ) then
                calcemis_th(joff+1:joff+len_nchannels   ,ith) = .false. 
                surfem1_th (joff+1:joff+len_nchannels   ,ith) = &         
                     surfem1(joff+1+ioffset:joff+len_nchannels+ioffset)
-            elseif ((instrum==inst_id_mviri) .or. (instrum==inst_id_seviri) .or. &
-                 (instrum==inst_id_goesim) .or. (instrum==inst_id_gmsim) ) then
+            elseif ( tvs_Is_Instrum_Geostationary(instrum) ) then
                calcemis_th(joff+1:joff+len_nchannels   ,ith) = .true.
                surfem1_th (joff+1:joff+len_nchannels,ith) = 0.d0
             else

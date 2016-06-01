@@ -87,6 +87,8 @@ CONTAINS
     !                     the reports with uni-level data blocks.
     !                 P. KOCLAS (CMDA/SMC)) May 2015
     !                  -- CHANGES  for GROUPED scatterometres or surface obs
+    !                 P. KOCLAS (CMDA/SMC)) Jan 2016
+    !                  -- bug fix for GROUPED scatterometres or surface obs(element doubling)
     !                 Y.J. Rochon (ARQI), March 2016
     !                  -- Account for pre-existing FGE and OER blocks. See LBLOCK_OER_CP
     !                     ,NBLOCK_OER_CP, LBLOCK_FGE_CP and BLOKC_FGE_CP. The OER block
@@ -730,15 +732,18 @@ CONTAINS
 
                  IND_ele  = BURP_Find_Element(BLOCK_OBS_SFC_CP, ELEMENT=iele, IOSTAT=error)
 
-                 if( OMA_SFC_EXIST .eqv.  .true.   ) then
-                   if (iele .ne. ILEMU .and. iele .ne. ILEMV) then
-                     il_index=il_index +1
-                     call BURP_Set_Element (BLOCK_OMA_SFC,NELE_IND= il_index,ElEMENT=iele,IOSTAT=error)
-                     Call BURP_Set_Element (BLOCK_OMP_SFC,NELE_IND= il_index,ElEMENT=iele,IOSTAT=error)
-                     Call BURP_Set_Element (BLOCK_OER_SFC,NELE_IND= il_index,ElEMENT=iele,IOSTAT=error)
-                     Call BURP_Set_Element (BLOCK_FGE_SFC,NELE_IND= il_index,ElEMENT=iele,IOSTAT=error)
-                   endif
+                 if ( k .eq. 1 ) then
+                    if( OMA_SFC_EXIST .eqv.  .true.   ) then
+                      if (iele .ne. ILEMU .and. iele .ne. ILEMV) then
+                        il_index=il_index +1
+                        call BURP_Set_Element (BLOCK_OMA_SFC,NELE_IND= il_index,ElEMENT=iele,IOSTAT=error)
+                        Call BURP_Set_Element (BLOCK_OMP_SFC,NELE_IND= il_index,ElEMENT=iele,IOSTAT=error)
+                        Call BURP_Set_Element (BLOCK_OER_SFC,NELE_IND= il_index,ElEMENT=iele,IOSTAT=error)
+                        Call BURP_Set_Element (BLOCK_FGE_SFC,NELE_IND= il_index,ElEMENT=iele,IOSTAT=error)
+                      endif
+                    endif
                  endif
+
                  is_in_list=-1
                  is_in_list=FIND_INDEX(LISTE_ELE_SFC,iele)
                  if (is_in_list .lt. 0   .and. iele  .ne. ILEMU .and. iele .ne. ILEMV) cycle ELEMS_SFC

@@ -33,40 +33,39 @@ Module multi_ir_bgck_mod
  Use tovs_nl_mod, only : jplev,rttov_coefs,transmission_Type,tvs_Is_idburp_tovs, &
       tvs_Is_idburp_inst, radiance_d,lsensor,coefs,nchan,NSENSORS,PLATFORM,SATELLITE, &
       INSTRUMENT,NOBTOV
+ Use rttov_const, only : inst_id_iasi
 
   implicit none
   save
   private
 ! Public functions (methods)
-  public :: hirqc,BGCK_IR_SETUP
+  public :: hirqc,BGCK_IR_SETUP,multi_ir_init
 ! Public  parameters (constants)
   public :: NCLASSAVHRR,NIR,NVIS,NCHANAVHRR,NCO2,BITFLAG
 ! Public variables ("global")
   public ::coefs_avhrr,avhrr_bgck,profiles_qc,transmission,transmission_d, emissivity
+  public :: INST, NINST
 !public types
   public :: avhrr_bgck_iasi,prof_qc
 
   INTEGER ,PARAMETER :: NCLASSAVHRR=7
   INTEGER ,PARAMETER :: NIR=3,NVIS=3
   INTEGER ,PARAMETER :: NCHANAVHRR=NIR+NVIS
+  INTEGER ,PARAMETER :: NMAXINST=10
 
+  character(len=6) :: INST(NMAXINST)
+  INTEGER :: NINST
   ! Reference (and alternate) window channel for clear / cloudy profile detection
   ! (subroutine cloud_height)
 
-  INTEGER, PARAMETER :: IWINDOW_AIRS = 787, IWINDOW_ALT_AIRS = 950
-  INTEGER, PARAMETER :: IWINDOW_IASI = 1090, IWINDOW_ALT_IASI = 1133
-  INTEGER, PARAMETER :: IWINDOW_CRIS = 427, IWINDOW_ALT_CRIS = 534
-
+  INTEGER :: IWINDOW(NMAXINST), IWINDOW_ALT(NMAXINST)
+ 
   ! Number of channels (and their values) to use for cloud top height detection
   ! with the "background profile matching" method (subroutine cloud_top)
 
   INTEGER, PARAMETER        :: NCH_HE = 4
 
-  INTEGER, PARAMETER  :: ILIST1_AIRS(NCH_HE) = (/ 528, 787, 950, 2209 /)
-
-  INTEGER, PARAMETER  :: ILIST1_IASI(NCH_HE) = (/ 705, 1090, 1133, 7475 /)
-
-  INTEGER, PARAMETER  :: ILIST1_CRIS(NCH_HE) = (/ 275, 427, 534, 1290 /)
+  INTEGER :: ILIST1(NMAXINST,NCH_HE) 
 
   ! Number of channels (and their values) to use for cloud top height detection
   ! with the CO2-slicing method. IREFR is the reference channel number (and alternate).
@@ -75,23 +74,7 @@ Module multi_ir_bgck_mod
 
   INTEGER, PARAMETER  :: NCO2 = 13
 
-  INTEGER, PARAMETER  :: ILIST2_AIRS(NCO2) = (/ 204, 221, 232, 252, 262, 272,  &
-                                                299, 305, 310, 355, 362, 375, 375 /)
-
-  INTEGER, PARAMETER  :: ILIST2_PAIR_AIRS(NCO2) = (/ 252, 262, 272, 299, 305, 310,  &
-                                                     355, 362, 375, 375, 262, 252, 204/)
-
-  INTEGER, PARAMETER  :: ILIST2_IASI(NCO2) = (/ 252, 269, 285, 309, 320, 332, &
-                                                363, 371, 375, 433, 442, 459, 459 /)
-
-  INTEGER, PARAMETER  :: ILIST2_PAIR_IASI(NCO2) = (/ 309, 320, 332,363, 371, 375, &
-                                                     433, 442, 459, 459, 320, 309, 252 /)
-
-  INTEGER, PARAMETER  :: ILIST2_CRIS(NCO2) = (/ 97, 130, 116, 153, 169, 158, &
-                                               143, 151, 239, 160, 228, 200, 200 /)
-
-  INTEGER, PARAMETER  :: ILIST2_PAIR_CRIS(NCO2) = (/ 153, 169, 158, 143, 151, 239, &
-                                                     160, 228, 200, 200, 169, 153, 97 /)
+  INTEGER :: ILIST2(NMAXINST,NCO2), ILIST2_PAIR(NMAXINST,NCO2)
 
   ! Cloud top units : (1) mb, (2) meters
   ! (subroutines cloud_height (IOPT1) and cloud_top (IOPT2))
@@ -107,25 +90,22 @@ Module multi_ir_bgck_mod
   ! Maximum delta temperature allowed between guess and true skin temperature
   ! over water (DTW) and land (DTL)   (subroutine airsqc)
 
-  REAL(8), PARAMETER        :: DTW = 1.5_8
-  REAL(8), PARAMETER        :: DTL = 4.0_8
+  REAL(8) :: DTW,DTL 
 
   ! Minimum and maximum RTTOV levels for LEV_START variable entering CO2 slicing
   ! In mb, between 50mb and 325mb (subroutine co2_slicing)
 
-  Real(8), PARAMETER        :: PCO2MIN = 56.73_8, PCO2MAX = 321.5_8
+  Real(8) :: PCO2MIN, PCO2MAX
 
   ! First channel affected by sun (for channels used only at night)
   ! (subroutine airsqc)
 
-  INTEGER, PARAMETER   :: ICHN_SUN_AIRS = 1865
-  INTEGER, PARAMETER   :: ICHN_SUN_IASI = 5446
-  INTEGER, PARAMETER   :: ICHN_SUN_CRIS = 1147
-
+  INTEGER :: ICHN_SUN(NMAXINST)
+  
   ! Minimum solar zenith angle for night (between 90 and 180)
   ! (subroutine airsqc)
 
-  REAL(8), PARAMETER       :: NIGHT_ANG = 100._8
+  REAL(8) :: NIGHT_ANG
 
   ! Highest flag in post files (value of N in 2^N)
   ! Currently 21
@@ -142,6 +122,9 @@ Module multi_ir_bgck_mod
   Real(8) :: seuilbt_homog(NVIS+1:NVIS+NIR,0:2,1:2)= reshape( (/5._8, 4._8, 4._8, 4._8, 3._8, 3._8, &
                                                                 5._8, 4._8, 4._8, 5._8, 5._8, 5._8, &
                                                                 4._8, 3._8, 3._8, 5._8, 5._8, 5._8/), (/3,3,2/) )
+
+  namelist /NAMBGCKIR/ NINST, INST, IWINDOW, IWINDOW_ALT, ILIST1, ILIST2, ILIST2_PAIR, ICHN_SUN
+  namelist /NAMBGCKIR/ DTW, DTL, PCO2MIN, PCO2MAX, NIGHT_ANG
 
   type( rttov_coefs ) :: coefs_avhrr
 
@@ -186,6 +169,24 @@ Module multi_ir_bgck_mod
 
 contains
 
+  SUBROUTINE  multi_ir_init()
+    use mpi_mod
+    implicit none
+    integer :: nulnam, ierr
+    logical, save :: lfirst = .true.
+    integer ,external :: fnom, fclos
+    if (lfirst) then
+       nulnam = 0
+       ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+       read(nulnam,nml=NAMBGCKIR, iostat=ierr)
+       if (ierr.ne.0) call abort3d('multi_ir_init: Error reading namelist')
+       if (mpi_myid.eq.0) write(*,nml=NAMBGCKIR)
+       ierr = fclos(nulnam)
+       lfirst = .false.
+    endif
+  end SUBROUTINE multi_ir_init
+
+
   SUBROUTINE BGCK_IR_SETUP(lobsSpaceData)
 #if defined (DOC)
 !
@@ -209,37 +210,12 @@ contains
     Integer :: alloc_status(2)
 
     INTEGER :: KRTID
-    INTEGER ::  JO, IDATYP,NCMAX
+    INTEGER ::  JO,NCMAX
     INTEGER ::  ISENS, NC, NL
     INTEGER ::  ICHN
-    INTEGER ::  NOBIASI
-    integer ::  index_header
 
-!     1. Determine the number of IASI profiles to be assimilated.
-!     .  ---------------------------------------------------
- 
-    NOBIASI = 0
 
-  ! loop over all header indices of the 'TO' family
-  ! Set the header list
-  ! (& start at the beginning of the list)
-    call obs_set_current_header_list(lobsSpaceData,'TO')
-    HEADER: do
-       index_header = obs_getHeaderIndex(lobsSpaceData)
-       if (index_header < 0) exit HEADER
-
-       IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,index_header)
-     
-       IF ( .not.  tvs_Is_idburp_tovs(IDATYP) ) cycle HEADER   ! Proceed to the next header_index
-
-       IF ( tvs_Is_idburp_inst(IDATYP,"IASI") ) NOBIASI = NOBIASI + 1
-
-    ENDDO HEADER
-
-    write(*,*) ' BGCK_IR_SETUP: nobiasi = ', nobiasi
-!-----------------------------------------------------------------------
-
-!     2. Memory allocation for background check related variables
+!     Memory allocation for background check related variables
 !     .  -----------------------------------------------------
 
     allocate(profiles_qc(NOBTOV) , stat= alloc_status(1))
@@ -318,10 +294,9 @@ contains
 
     DO KRTID = 1, NSENSORS
 
-       IF ( PLATFORM(KRTID) == 10 .AND. &
-            INSTRUMENT(KRTID) == 16 ) THEN
+       IF ( INSTRUMENT(KRTID) == inst_id_iasi ) THEN
 
-          allocate ( avhrr_bgck(NOBIASI), stat= alloc_status(1))
+          allocate ( avhrr_bgck(NOBTOV), stat= alloc_status(1))
 
           If( alloc_status(1)/=0 ) then
              WRITE(*,FMT=9201)
@@ -337,39 +312,28 @@ contains
   END SUBROUTINE BGCK_IR_SETUP
 
 
-  SUBROUTINE BGCK_GET_QCPARAM(CINSTR,IWINDOW,IWINDOW_ALT,ILIST1,ILIST2,ILIST2_PAIR,ICHN_SUN)
+  SUBROUTINE BGCK_GET_QCID(CINSTR,QCID)
     IMPLICIT NONE
     character (len=*),intent(in) :: CINSTR
-    integer ,intent (out) :: IWINDOW,IWINDOW_ALT,ILIST1(NCH_HE),ILIST2(NCO2),ILIST2_PAIR(NCO2),ICHN_SUN
+    integer ,intent (out) :: QCID
+    !**********
+    integer :: i 
 
-    select case(trim(cinstr))
-    case ("AIRS","airs")
-       IWINDOW     = IWINDOW_AIRS
-       IWINDOW_ALT = IWINDOW_ALT_AIRS
-       ILIST1      = ILIST1_AIRS
-       ILIST2      = ILIST2_AIRS
-       ILIST2_PAIR = ILIST2_PAIR_AIRS
-       ICHN_SUN=ICHN_SUN_AIRS
-    case("IASI","iasi")
-       IWINDOW     = IWINDOW_IASI
-       IWINDOW_ALT = IWINDOW_ALT_IASI
-       ILIST1      = ILIST1_IASI
-       ILIST2      = ILIST2_IASI
-       ILIST2_PAIR = ILIST2_PAIR_IASI
-       ICHN_SUN    = ICHN_SUN_IASI
-    case("CRIS","cris")
-       IWINDOW     = IWINDOW_CRIS
-       IWINDOW_ALT = IWINDOW_ALT_CRIS
-       ILIST1      = ILIST1_CRIS
-       ILIST2      = ILIST2_CRIS
-       ILIST2_PAIR = ILIST2_PAIR_CRIS
-       ICHN_SUN    = ICHN_SUN_CRIS
-    case default
+    QCID = -1
+
+    do i=1,NINST
+       if (trim(CINSTR) == trim(INST(i))) then
+         QCID = i
+         exit
+       endif
+    enddo
+
+    if (QCID == -1) then
        Write(*,*) "Unknown instrument ",CINSTR
-       CALL ABORT3D('BGCK_GET_QCPARAM')
-    end select
+       CALL ABORT3D('BGCK_GET_QCID')
+    endif
 
-  END SUBROUTINE BGCK_GET_QCPARAM
+  END SUBROUTINE BGCK_GET_QCID
 
   SUBROUTINE HIRQC ( lcolumnhr, lobsSpaceData,CINST,id_in)
 !
@@ -468,8 +432,7 @@ contains
     integer :: isatzen
     integer :: chan_indx,ILIST_SUN,ilist_co2(NCO2),ilist_co2_pair(NCO2),ilist_he(NCH_HE)
 !***************************************************************************************
-    integer :: nlv_T,nch_sel,id,KRTID
-    integer :: IWINDOW,IWINDOW_ALT,ILIST1(NCH_HE),ILIST2(NCO2),ILIST2_PAIR(NCO2),ICHN_SUN
+    integer :: nlv_T,nch_sel,id,KRTID, QCID
     logical :: liasi,lairs,lcris
 !****************************************
 
@@ -477,7 +440,7 @@ contains
     lairs= ( trim(cinst)=="AIRS" .or.  trim(cinst)=="airs")
     lcris= ( trim(cinst)=="CRIS" .or.  trim(cinst)=="cris")
 
-    call BGCK_GET_QCPARAM(cinst,IWINDOW,IWINDOW_ALT,ILIST1,ILIST2,ILIST2_PAIR,ICHN_SUN)
+    call BGCK_GET_QCID(cinst,QCID)
 
     if (present(id_in)) then
        id=id_in
@@ -787,8 +750,8 @@ contains
         
 !* -- REFERENCE FOR WINDOW CHANNEL
            
-        IWINDO     = hir_get_chindx_fr_chn(CINST,IWINDOW)
-        IWINDO_ALT = hir_get_chindx_fr_chn(CINST,IWINDOW_ALT)
+        IWINDO     = hir_get_chindx_fr_chn(CINST,IWINDOW(QCID))
+        IWINDO_ALT = hir_get_chindx_fr_chn(CINST,IWINDOW_ALT(QCID))
         ICHREF  = IWINDO
            
         IF ( REJFLAG(IWINDO,9) == 1 ) THEN
@@ -1003,7 +966,7 @@ contains
         LEV_START = 0
 
         DO JCH = 1, NCH_HE
-           ILIST_HE(JCH) = hir_get_chindx_fr_chn(CINST,ILIST1(JCH))
+           ILIST_HE(JCH) = hir_get_chindx_fr_chn(CINST,ILIST1(QCID,JCH))
         END DO
               
         CALL CLOUD_TOP ( PTOP_BT,PTOP_RD,NTOP_BT,NTOP_RD, &
@@ -1023,8 +986,8 @@ contains
 !* -- REFERENCE CHANNEL FOR CO2-SLICING
 
         DO JCH = 1, NCO2
-           ILIST_CO2(JCH) = hir_get_chindx_fr_chn(CINST,ILIST2(JCH))
-           ILIST_CO2_PAIR(JCH) = hir_get_chindx_fr_chn(CINST,ILIST2_PAIR(JCH))
+           ILIST_CO2(JCH) = hir_get_chindx_fr_chn(CINST,ILIST2(QCID,JCH))
+           ILIST_CO2_PAIR(JCH) = hir_get_chindx_fr_chn(CINST,ILIST2_PAIR(QCID,JCH))
         END DO
 
         cpt=0
@@ -1044,10 +1007,10 @@ contains
 
 !* -- EQUIVALENT HEIGHT OF SELECTED WINDOW CHANNEL
 
-        HEFF = PTOP_RD( hir_get_chindx_fr_chn(CINST,ILIST1(2)))
+        HEFF = PTOP_RD( hir_get_chindx_fr_chn(CINST,ILIST1(QCID,2)))
 
               
-        IF (ICHREF==IWINDO_ALT) HEFF = PTOP_RD( hir_get_chindx_fr_chn(CINST,ILIST1(3)) )
+        IF (ICHREF==IWINDO_ALT) HEFF = PTOP_RD( hir_get_chindx_fr_chn(CINST,ILIST1(QCID,3)) )
               
 !* -- CLOUD TOP BASED ON CO2 SLICING 
               
@@ -1140,7 +1103,7 @@ contains
 
 !     FURTHER REASONS TO REJECT OBSERVATIONS
 
-        ILIST_SUN= hir_get_chindx_fr_chn(CINST,ICHN_SUN)
+        ILIST_SUN= hir_get_chindx_fr_chn(CINST,ICHN_SUN(QCID))
 
         DO JC = 1, nch_sel
 

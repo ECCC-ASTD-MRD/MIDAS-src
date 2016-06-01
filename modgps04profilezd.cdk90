@@ -169,6 +169,7 @@ contains
     enddo
 
     if ( refopt == 2 ) then  ! use Aparicio & Laroche refractivity
+    ! This code is copied from modgps04profile.cdk90
     !
     ! Compressibility:
     !
