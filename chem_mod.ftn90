@@ -92,7 +92,7 @@ module chem_mod
   public :: chm_lcheck_skipassim,chm_comboIDlist,chm_required_field
   public :: chm_apply_bounds,chm_get_col_boundary
   public :: chm_add_col_boundary,chm_retrieve_col_boundary
-  public :: chm_varnumFromVarName
+  public :: chm_varnumFromVarName,chm_open_warningsfile
 ! Public procedures for variable transformations
   public :: chm_apply_transform_array4d,chm_apply_2dfieldr4_transform
 
@@ -455,6 +455,7 @@ module chem_mod
 ! File containing various warnings related to chemical constituents that
 ! are not included in the listing file.
   character(len=14), parameter :: chm_warnings_filename='chem_warnings_'
+  integer, parameter :: chm_warnings_unit=77
 
 
 contains
@@ -1006,7 +1007,7 @@ contains
           
           ! retrieve data from stats blocks (with bkstp=14 and block_type='DATA')
           chm_burp_avgkern(istnid) = chm_read_burp('brpch', chm_avgkern%stnids(istnid), &
-               15044, chm_avgkern%n_lvl(istnid), 2, 14, 'DATA')
+               15044, chm_avgkern%n_lvl(istnid), 2, 14, 'DATA', match_nlev=.true.)
           
        end if
     end do
@@ -1335,7 +1336,7 @@ contains
     ios=0
     read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
     do while (trim(adjustl(ligne(1:14))).ne.'SECTION IV:') 
-       read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
+       read(nulstat,'(A)',iostat=ios,err=10,end=11) ligne
     end do    
     
 !   Read number of constituents with associated input file(s)
@@ -1914,11 +1915,12 @@ contains
 
     ! read from BURP file
     do istnid=1,chm_std%n_stnid
-       if (chm_std%brp(istnid).eq.1) then
+       if (chm_std%brp(istnid).ge.1) then
           
           ! retrieve data from stats blocks (with bkstp=14 and block_type='DATA')
           chm_burp_std(istnid) = chm_read_burp('brpch', chm_std%stnids(istnid), &
-               chm_std%bfr(istnid), chm_std%n_lvl(istnid), 1, 14, 'DATA')
+               chm_std%bfr(istnid), chm_std%n_lvl(istnid), 1, 14, 'DATA',       &
+               match_nlev=chm_std%brp(istnid).eq.1 )
           
        end if
     end do
@@ -1989,7 +1991,7 @@ contains
 
   read(nulstat,*,iostat=ios,err=10,end=10) chm_std%n_stnid
   read(nulstat,*,iostat=ios,err=10,end=10) isize
-
+  
   allocate(chm_std%stnids(chm_std%n_stnid))
   allocate(chm_std%std_type(chm_std%n_stnid),chm_std%n_lat(chm_std%n_stnid))
   allocate(chm_std%brp(chm_std%n_stnid),chm_std%ibegin(chm_std%n_stnid))
@@ -2016,7 +2018,7 @@ contains
 
     ! Read STNID (* as wildcard)    
     read(nulstat,'(2X,A9)',iostat=ios,err=10,end=10) chm_std%stnids(jelm) 
-
+    
 !   Read (1) BUFR element,
 !        (2) Flag indication if EOR provided from this ascii file or
 !            to be read from the BURP file,
@@ -2043,8 +2045,8 @@ contains
     read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
     
     ! disregard data section if set to be specified by BUFR values only
-    if (chm_std%brp(jelm).eq.1.and.chm_std%std_type(jelm).eq.0) cycle STNIDLOOP 
-       
+    if (chm_std%brp(jelm).ge.1.and.chm_std%std_type(jelm).eq.0) cycle STNIDLOOP 
+
     if (chm_std%n_lvl(jelm).eq.1.and.chm_std%n_lat(jelm).eq.1) then
     
 !      Read one value only (independent of level and latitude)
@@ -2121,10 +2123,12 @@ contains
 !  s/r chm_set_obs_err_stddev_index - Returns the station ID and latitude 
 !                                     indices corresponding to a measurement
 !
-!  Author   : M. Sitwell Feb 2015 
-!             - Content moved from code originally in oer_fill_obs_erreurs.
+!  Author: M. Sitwell Feb 2015 
+!            - Content moved from code originally in oer_fill_obs_erreurs.
 !             
-!  Revisions: 
+!  Revisions:
+!      M. Sitwell, May 2016
+!       - Added chm_std%brp = 2 option
 !
 !----------------------------------------------------------------------------------------
    
@@ -2137,19 +2141,19 @@ contains
     integer                       :: JN,ilen1,ilen2,ji,ibegin
 
  !  Important: Combination of STNID, BUFR element and number of vertical levels
- !            to determine association to the observations.
+ !             to determine association to the observations.
 
- !            Find stnid with same number of vertical levels and same BUFR element.
- !            Note: * in chm_std%stnids stands for a wildcard
+ !             Find stnid with same number of vertical levels and same BUFR element.
+ !             Note: * in chm_std%stnids stands for a wildcard
      
     ISTNID=0
     DO JN=1,chm_std%n_stnid
 
        ! First compare STNID values allowing for * and blanks in 
        ! chm_std%stnids(JN) as wildcards
-                   
+
        IF (stnid_equal(chm_std%stnids(JN),CSTNID)) THEN
-          IF (NLEV .EQ. chm_std%n_lvl(JN) .AND. VARNO .EQ. chm_std%bfr(JN) ) THEN
+          IF ( (NLEV.EQ.chm_std%n_lvl(JN) .OR. chm_std%brp(JN).eq.2) .AND. VARNO.EQ.chm_std%bfr(JN) ) THEN
              ISTNID=JN
              exit
           END IF
@@ -2157,7 +2161,10 @@ contains
 
     END DO
 
-    IF (ISTNID.NE.0) THEN
+    IF (ISTNID.EQ.0) THEN
+       call abort3d('chm_obs_err_stddev_index: Error std. dev. for STNID ' // trim(CSTNID) // &
+                    ' is unavailable. Check section I of file obsinfo_chm.')
+    ELSE
 
        IF (chm_std%n_lat(ISTNID) .GT. 1) THEN
 
@@ -2173,8 +2180,8 @@ contains
              END DO
           END IF
                                            
-       END IF
-    END IF
+       END IF       
+    END IF         
 
   end subroutine chm_obs_err_stddev_index
 
@@ -2200,28 +2207,21 @@ contains
     real(8)  :: obs_err_stddev 
 
     real(8) :: wgt,zwb,sigma
-    integer :: ibegin,ILEV,JN
+    integer :: ibegin,ILEV,JN,stat
 
     integer, save :: ISTNID,JINT
-
+    
     ! If this call is for the first level for this measurement, get
     ! the station ID and latitude indices corresponding to this measurement
-    if (ifirst) call chm_obs_err_stddev_index(CSTNID,NLEV,VARNO,ZLAT,ISTNID,JINT)
+    if (ifirst) call chm_obs_err_stddev_index(CSTNID,NLEV,VARNO,ZLAT,ISTNID,JINT)                  
     
-    ! Identify level if needed
-                   
-    IF (ISTNID .EQ. 0) THEN
-  
-       call abort3d('chm_get_obs_err_stddev: Errror std. dev. for STNID ' // trim(CSTNID) // ' is unavailable. Check section I of file obsinfo_chm.')
-     
-       ! Set error standard deviations as 5% default value.       
-       ! obs_err_stddev = 0.05D0*ZVAL       
-       ! WRITE(*,'(1X,"Error std. dev. for STNID= ",A10," not found. Set to 5%.")') CSTNID
+            
+    ! Get weighting of error std. dev. if required
 
-    ELSE
-             
+    if (chm_std%brp(ISTNID).eq.0 .or. chm_std%std_type(ISTNID).ne.0) then
+
        IF (chm_std%n_lvl(ISTNID) .GT. 1) THEN
-                  
+                 
           ! Find nearest vertical level (no interpolation)
                  
           zwb=1.E10
@@ -2253,45 +2253,55 @@ contains
        ELSE
           wgt=chm_std%std1(ILEV)                
        END IF
-                                         
-       IF (chm_std%brp(ISTNID).EQ.0) THEN
+         
+    end if
+             
+    ! Set the error std. dev.
+                   
+    IF (chm_std%brp(ISTNID).EQ.0) THEN
                
-          ! Set error standard deviations from scratch using content of
-          ! previously read content of the "obsinfo_chm" file.
+       ! Set error standard deviations from scratch using content of
+       ! previously read content of the "obsinfo_chm" file.
                 
-          IF (chm_std%std_type(ISTNID).EQ. 0) THEN
-             obs_err_stddev = wgt
-          ELSE IF (chm_std%std_type(ISTNID).EQ. 1) THEN
-             obs_err_stddev = min(chm_std%std3(ISTNID),max(chm_std%std2(ISTNID),wgt*ZVAL))
-          ELSE IF (chm_std%std_type(ISTNID) .EQ. 2) THEN
-             obs_err_stddev = sqrt(chm_std%std2(ISTNID)**2+(wgt*ZVAL)**2)
-          ELSE 
-!             IF (INDEX_BODY.EQ.IDATA)  &
-!                  WRITE(*,'(1X,"EOR setup type ",I3," for STNID ",A10," is not recognized.")')     &
-!                  chm_std%std_type(ISTNID) , CSTNID
-             WRITE(*,'(1X,"EOR setup type ",I3," is not recognized.")')     &
-                  chm_std%std_type(ISTNID)
-          END IF
+       select case(chm_std%std_type(ISTNID))
+       case(0)
+          obs_err_stddev = wgt
+       case(1)
+          obs_err_stddev = min(chm_std%std3(ISTNID),max(chm_std%std2(ISTNID),wgt*ZVAL))
+       case(2)
+          obs_err_stddev = sqrt(chm_std%std2(ISTNID)**2+(wgt*ZVAL)**2)
+       case default
+          call abort3d('chm_get_obs_err_stddev: std_type = ' // trim(str(chm_std%std_type(ISTNID))) // &
+               ' for STNID = ' // trim(CSTNID) // ' is not recognized.')
+       end select
 
-       ELSE
+    ELSE
           
-          ! Adjust error standard deviations read from BURP file if requested.
+       ! Adjust error standard deviations read from BURP file if requested.
+       
+       sigma = obsdata_get_element(chm_burp_std(istnid), obsdata_get_loctime_code(zlon,zlat,idate,itime), stat=stat)
+       
+       select case(stat)
+       case(1)
+          call abort3d("chm_get_obs_err_stddev: No reports available for STNID = " // trim(cstnid) // &
+                       ", nlev = " // trim(str(nlev)) // ", varno = " // trim(str(varno)) )
+       case(2)
+          call abort3d("chm_get_obs_err_stddev: Report not found for STNID = " // trim(cstnid) // &
+                       ", nlev = " // trim(str(nlev)) // ", varno = " // trim(str(varno)) )
+       end select
 
-          sigma = obsdata_get_element(chm_burp_std(istnid), obsdata_get_loctime_code(zlon,zlat,idate,itime))
-          
-          IF (chm_std%std_type(ISTNID).EQ. 0) THEN
-             obs_err_stddev = sigma
-          ELSE IF (chm_std%std_type(ISTNID).EQ. 1) THEN
-             obs_err_stddev = max(chm_std%std2(ISTNID),wgt*sigma)
-          ELSE
-             WRITE(*,'(1X,"EOR setup type ",I3," for STNID ",A10," is not recognized.")')     &
-                  chm_std%std_type(ISTNID) , CSTNID
-             call abort3d('chm_get_obs_err_stddev:')
-          END IF
-       END IF
-              
+       select case(chm_std%std_type(ISTNID))
+       case(0)
+          obs_err_stddev = sigma
+       case(1)
+          obs_err_stddev = max(chm_std%std2(ISTNID),wgt*sigma)
+       case default
+          call abort3d('chm_get_obs_err_stddev: std_type = ' // trim(str(chm_std%std_type(ISTNID))) // &
+               ' for STNID = ' // trim(CSTNID) // ' is not recognized.')
+       end select
+
     END IF
-
+    
   end function chm_get_obs_err_stddev
 
 !-----------------------------------------------------------------------------------------
@@ -2313,7 +2323,7 @@ contains
     
     if (allocated(chm_burp_std)) then
        do istnid=1,chm_std%n_stnid
-          if (chm_std%brp(istnid).eq.1) call obsdata_dealloc(chm_burp_std(istnid))
+          if (chm_std%brp(istnid).ge.1) call obsdata_dealloc(chm_burp_std(istnid))
        end do
        deallocate(chm_burp_std)       
     end if
@@ -2336,7 +2346,7 @@ contains
 !-----------------------------------------------------------------------------------------
 !------------------- BURP functions and routines -----------------------------------------
 
-  function chm_read_burp(filename,stnid,varno,nlev,ndim,bkstp,block_type) result(burp_out)
+  function chm_read_burp(filename,stnid,varno,nlev,ndim,bkstp,block_type,match_nlev) result(burp_out)
 !
 ! Author  : M. Sitwell, ARQI/AQRD, March 2015
 !
@@ -2350,6 +2360,8 @@ contains
 !            Y. Rochon, ARQI/AQRD, May 2016
 !            - Updated to increment 'icount' only if varno is also found in addition
 !              stnid, nlev, block_type and bkstp
+!            M. Sitwell, ARQI/AQRD, June 2016
+!            - Added match_nlev input argument
 !
 ! Arguments:
 !
@@ -2365,6 +2377,9 @@ contains
 !           block_type    block type indicated by the two rightmost bits
 !                         of bknat. Valid values are 'DATA', 'INFO', '3-D',
 !                         and 'MRQR'.
+!           match_nlev    determines if the report matching criteria includes checking
+!                         if the report number of levels is the same as the input
+!                         argument nlev
 !
 !  Output 
 !           burp_out      struct_chm_obsdata object
@@ -2379,17 +2394,19 @@ contains
     character(len=9), intent(in) :: stnid
     character(len=4), intent(in) :: block_type
     integer, intent(in)          :: ndim,varno,nlev,bkstp
+    logical, intent(in)          :: match_nlev
     type(struct_chm_obsdata) :: burp_out
-    character(len=9)      :: rep_stnid
-    character(len=22)     :: code
-    type(burp_file)       :: brp
-    type(burp_rpt)        :: rep
-    type(burp_block)      :: blk
-    integer               :: error,ref_rpt,nrep,ref_blk
-    integer               :: ref_bkstp,nval,ivar,iexp,ilev,icount
-    integer               :: date,time,ilat,ilon,iele,nele,icol
-    real(8)               :: val,exponent
-      
+
+    character(len=9)  :: rep_stnid
+    character(len=22) :: code
+    type(burp_file)   :: brp
+    type(burp_rpt)    :: rep
+    type(burp_block)  :: blk
+    integer           :: error,ref_rpt,nrep,ref_blk
+    integer           :: ref_bkstp,nval,ivar,iexp,ilev,icount
+    integer           :: date,time,ilat,ilon,iele,nele,icol
+    real(8)           :: val,exponent
+
     ! initialize burp file, report, and block
     Call BURP_Init(brp, iostat=error)
     Call BURP_Init(rep, iostat=error)
@@ -2433,13 +2450,17 @@ contains
           
           call BURP_Get_Property(blk, NELE=nele, NVAL=nval, BKSTP=ref_bkstp, IOSTAT=error)
           
-          if (.not.IS_Burp_Btyp(trim(block_type),BLOCK=blk) .or. bkstp.ne.ref_bkstp .or. nval.ne.nlev) cycle BLOCKS
+          if (.not.IS_Burp_Btyp(trim(block_type),BLOCK=blk) .or. bkstp.ne.ref_bkstp .or. (match_nlev.and.nval.ne.nlev)) cycle BLOCKS
 
           ivar = BURP_Find_Element(blk, ELEMENT=varno, IOSTAT=error)
           if (ivar.lt.0) cycle BLOCKS
 
           ! required block found if code reaches this point, retrieve data and store in burp_out
-                   
+          
+          if (nval.gt.nlev) call abort3d('chm_read_burp: number of levels in the report (' // trim(str(nval)) // &
+                                         ') exceeds the specified maximum number of levels (' // trim(str(nlev)) // &
+                                         ') for STNID ' // rep_stnid )
+
           icount=icount+1
           burp_out%code(icount) = obsdata_get_loctime_code(ilon,ilat,date,time)  ! this code is a unique identifier for this report
 
@@ -2578,7 +2599,7 @@ contains
 
 !-------------------------------------------------------------------------------------------
 
-  function obsdata_get_element(obsdata,code) result(element)
+  function obsdata_get_element(obsdata,code,stat) result(element)
 ! 
 !   Purpose: Returns element of array from obsdata 1D data array. The returned element is the
 !            one with the specified identifying code.
@@ -2595,15 +2616,27 @@ contains
 !
 !   Output
 !           element       retrieved element from obsdata%data1d
+!           stat          status code
+!
 !-------------------------------------------------------------------------------------------
 
     type(struct_chm_obsdata), intent(inout) :: obsdata
-    character(len=22), intent(in) :: code
+    character(len=22), intent(in)  :: code
+    integer, intent(out), optional :: stat
+
     real(8) :: element
     
     ! find (obsdata%irep,obsdata%idim1) for current observation
-    call obsdata_set_index(obsdata,code)
-     
+    if (present(stat)) then
+       call obsdata_set_index(obsdata,code,stat=stat)
+       if (stat.ne.0) then
+          element = 0.
+          return
+       end if
+    else
+       call obsdata_set_index(obsdata,code)
+    end if
+
     ! get element from data array at current position
     element = obsdata%data1d(obsdata%irep,obsdata%idim1)
     
@@ -2710,7 +2743,7 @@ contains
 
 !-------------------------------------------------------------------------------------------
 
-  subroutine obsdata_set_index(obsdata,code)
+  subroutine obsdata_set_index(obsdata,code,stat)
 ! 
 !  Purpose: Sets the position variables in struct_chm_obsdata (burp%irep, burp%idim1)
 !           to reference the record that matches the input identifying code.
@@ -2729,15 +2762,32 @@ contains
 !           obsdata%irep      current index position for the observation/report
 !           obsdata%idim1     current index position that iterates through the first dimension
 !                             of the data array
+!           stat              status of call (optional)
+!                               0: no errors
+!                               1: no reports available
+!                               2: report not found
+!
+!  Comments:
+!    - If the optional argument stat is provided and an error occurs, the error code will
+!      be returned and the abort will not be called to allow for error handling.
 ! 
 !-------------------------------------------------------------------------------------------
 
     type(struct_chm_obsdata), intent(inout) :: obsdata
     character(len=22), intent(in) :: code
+    integer, intent(out), optional :: stat
     integer :: i
     
-    if (obsdata%nrep.le.0) call abort3d("obsdata_set_index: No reports available. " // &
-       "Check for consistency between file obsinfo_chm, input BURP file and input NAMBURP_FILTER_CHM* namelist.")
+    if (obsdata%nrep.le.0) then
+       if (present(stat)) then
+          stat = 1
+          return
+       else
+          call abort3d("obsdata_set_index: No reports available. Check for consistency between file obsinfo_chm, " // &
+                       "input BURP file and input NAMBURP_FILTER_CHM* namelist.")
+       end if
+    end if
+
     i=0
  
     ! Search for matching identifier code
@@ -2745,11 +2795,19 @@ contains
        obsdata%irep=obsdata%irep+1
        if (obsdata%irep.gt.obsdata%nrep) obsdata%irep=1
        obsdata%idim1=1
-       if (i.gt.obsdata%nrep) &
-            call abort3d("obsdata_set_index: Obs index not found for nrep = " // trim(str(obsdata%nrep)) // " and code = '" // code // "'" )
+       if (i.gt.obsdata%nrep) then
+          if (present(stat)) then
+             stat = 2
+             return
+          else
+             call abort3d("obsdata_set_index: Obs index not found for nrep = " // trim(str(obsdata%nrep)) // " and code = '" // code // "'")
+          end if
+       end if
        i=i+1       
     end do
-                     
+          
+    if (present(stat)) stat = 0
+           
   end subroutine obsdata_set_index
     
 !-------------------------------------------------------------------------------------------
@@ -2829,6 +2887,35 @@ contains
 
 !-----------------------------------------------------------------------------------------
 !------------------- Miscellaneous utilities functions and routines ----------------------
+
+  subroutine chm_open_warningsfile(unit)
+! 
+!  Purpose: Opens the file chm_warnings_filename.
+!
+!  Author: M. Sitwell, April 2016
+!
+!  Output
+!           unit          unit number associated with chm_warnings_filename (optional)
+!
+!-------------------------------------------------------------------------------------------
+
+    implicit none
+
+    integer, intent(out), optional :: unit
+    logical :: file_exists
+
+    inquire(file=chm_warnings_filename, exist=file_exists)
+    if (file_exists) then
+       open(chm_warnings_unit, file=chm_warnings_filename, status="old", position="append", action="write")
+    else
+       open(chm_warnings_unit, file=chm_warnings_filename, status="new", action="write")
+    end if
+
+    if (present(unit)) unit = chm_warnings_unit
+
+  end subroutine chm_open_warningsfile
+
+!-------------------------------------------------------------------------------------------
 
   function stnid_equal(id1,id2) result(same)
 !
@@ -3921,23 +4008,17 @@ contains
 
     real(4), intent(inout) :: field(:,:)            
 
-    integer, parameter :: unit=10
     integer :: i,j
     real(4) :: valmin
-    logical :: file_exists
     
     if (iconstituent_id.ge.0.and.iconstituent_id.le.chm_constituents_size) return
     
     if (chm_config%transform(iconstituent_id).eq.0) return
     
     ! Open output warning file
-    inquire(file=chm_warnings_filename, exist=file_exists)
-    if (file_exists) then
-       open(unit, file=chm_warnings_filename, status="old", position="append", action="write")
-    else
-       open(unit, file=chm_warnings_filename, status="new", action="write")
-    end if
-    write(unit,*)
+    call chm_open_warningsfile()
+
+    write(chm_warnings_unit,*)
     
     if (chm_config%transform(iconstituent_id).eq.1) then
 
@@ -3952,8 +4033,8 @@ contains
              if (valmin.gt.1.E30) valmin=1.E-20
              do i=1,size(field,1) 
                 if (field(i,j).lt.0.0) then
-                   write(unit,'(A,G9.2,A,A)') "Unexpected/undesired negative value of ",field(i,j), " for input field ",trim(varName)
-                   write(unit,'(A,3I4,A,I3,A,G9.2)')  "at location (",i,j,jlev,") and step ",jstep,". Value replaced by ",valmin,"."                    
+                   write(chm_warnings_unit,'(A,G9.2,A,A)') "Unexpected/undesired negative value of ",field(i,j), " for input field ",trim(varName)
+                   write(chm_warnings_unit,'(A,3I4,A,I3,A,G9.2)')  "at location (",i,j,jlev,") and step ",jstep,". Value replaced by ",valmin,"."                    
                    field(i,j)=valmin
                 end if
              end do
@@ -3976,8 +4057,8 @@ contains
              ' is not defined.')
     end if
     
-    write(unit,*) 
-    close(unit)
+    write(chm_warnings_unit,*) 
+    close(chm_warnings_unit)
  
   end subroutine chm_apply_2dfieldr4_transform
 
@@ -4017,20 +4098,12 @@ contains
     logical, allocatable :: outside(:,:,:,:)
 
     integer :: iconstituent_id,nlow,nhigh,i1,i2,i3,i4
-    logical :: file_exists
-
-    integer, parameter :: unit=10
     
     iconstituent_id = chm_varnumFromVarname(varName)
     if (iconstituent_id.lt.0.or.iconstituent_id.gt.chm_constituents_size) return
 
     ! Open output file
-    inquire(file=chm_warnings_filename, exist=file_exists)
-    if (file_exists) then
-       open(unit, file=chm_warnings_filename, status="old", position="append", action="write")
-    else
-       open(unit, file=chm_warnings_filename, status="new", action="write")
-    end if
+    call chm_open_warningsfile()
     
     allocate(outside(size(inc_ptr,1),size(inc_ptr,2),size(inc_ptr,3),size(inc_ptr,4)))
 
@@ -4041,20 +4114,20 @@ contains
        nlow = count(outside)
 
        if (nlow.gt.0) then
-          write(unit,'(A,I7,A,A,A)') "chm_apply_bounds: ",nlow," negative background and analysis values were found for field ",trim(varName),"."
-          write(unit,'(A)') "Modifying the increment so the analysis is instead equal to zero at these locations."       
-          write(unit,'(A)') "JLON JLEV JLAT TSTEP   Background   Init. incr."
+          write(chm_warnings_unit,'(A,I7,A,A,A)') "chm_apply_bounds: ",nlow," negative background and analysis values were found for field ",trim(varName),"."
+          write(chm_warnings_unit,'(A)') "Modifying the increment so the analysis is instead equal to zero at these locations."       
+          write(chm_warnings_unit,'(A)') "JLON JLEV JLAT TSTEP   Background   Init. incr."
           do i1=1,size(inc_ptr,1)
              do i2=1,size(inc_ptr,2)
                 do i3=1,size(inc_ptr,3)
                    do i4=1,size(inc_ptr,4)
-                      if (outside(i1,i2,i3,i4)) write(unit,'(4(I4,1X),2G12.2)') i1,i2,i3,i4,bkgrnd_ptr(i1,i2,i3,i4),inc_ptr(i1,i2,i3,i4)
+                      if (outside(i1,i2,i3,i4)) write(chm_warnings_unit,'(4(I4,1X),2G12.2)') i1,i2,i3,i4,bkgrnd_ptr(i1,i2,i3,i4),inc_ptr(i1,i2,i3,i4)
                    end do
                 end do
              end do
           end do
           where (outside) inc_ptr = -bkgrnd_ptr
-          write(unit,*)
+          write(chm_warnings_unit,*)
        end if
             
        ! Check if the analysis is below the trial field cutoff. If so set analysis to this cut-off value at these locations.
@@ -4062,16 +4135,16 @@ contains
        nlow = count(outside)
             
        if (nlow.gt.0) then
-          write(unit,'(A,I7,A,F4.1,A,A,A)') "chm_apply_bounds: ",nlow," analysis values were found below the cut-off of ", &
+          write(chm_warnings_unit,'(A,I7,A,F4.1,A,A,A)') "chm_apply_bounds: ",nlow," analysis values were found below the cut-off of ", &
                100*chm_config%low_cutoff(iconstituent_id), &
                "% of the trial field for field ",trim(varName),"."
-          write(unit,'(A)') "Modifying the increment so the analysis is instead equal to the lower bound cut-off value at these locations."
-          write(unit,'(A)') "JLON JLEV JLAT TSTEP   Background  Init.-incr.  New-incr."
+          write(chm_warnings_unit,'(A)') "Modifying the increment so the analysis is instead equal to the lower bound cut-off value at these locations."
+          write(chm_warnings_unit,'(A)') "JLON JLEV JLAT TSTEP   Background  Init.-incr.  New-incr."
           do i1=1,size(inc_ptr,1)
              do i2=1,size(inc_ptr,2)
                 do i3=1,size(inc_ptr,3)
                    do i4=1,size(inc_ptr,4)
-                      if (outside(i1,i2,i3,i4)) write(unit,'(4(I4,1X),3G12.2)') i1,i2,i3,i4,bkgrnd_ptr(i1,i2,i3,i4), &
+                      if (outside(i1,i2,i3,i4)) write(chm_warnings_unit,'(4(I4,1X),3G12.2)') i1,i2,i3,i4,bkgrnd_ptr(i1,i2,i3,i4), &
                            inc_ptr(i1,i2,i3,i4),(chm_config%low_cutoff(iconstituent_id)-1.0)*bkgrnd_ptr(i1,i2,i3,i4)
                    end do
                 end do
@@ -4089,16 +4162,16 @@ contains
        nhigh = count(outside)
             
        if (nhigh.gt.0) then
-          write(unit,'(A,I7,A,F5.2,A,A,A)') "chm_apply_bounds: ",nhigh," analysis values were found above the cut-off of ", &
+          write(chm_warnings_unit,'(A,I7,A,F5.2,A,A,A)') "chm_apply_bounds: ",nhigh," analysis values were found above the cut-off of ", &
                chm_config%high_cutoff(iconstituent_id), &
                " times the trial field for field ",trim(varName),"."
-          write(unit,'(A)') "Modifying the increment so the analysis is instead equal to the upper bound cut-off value at these locations."
-          write(unit,'(A)') "JLON JLEV JLAT TSTEP   Background  Init.-incr.  New-incr."
+          write(chm_warnings_unit,'(A)') "Modifying the increment so the analysis is instead equal to the upper bound cut-off value at these locations."
+          write(chm_warnings_unit,'(A)') "JLON JLEV JLAT TSTEP   Background  Init.-incr.  New-incr."
           do i1=1,size(inc_ptr,1)
              do i2=1,size(inc_ptr,2)
                 do i3=1,size(inc_ptr,3)
                    do i4=1,size(inc_ptr,4)
-                      if (outside(i1,i2,i3,i4)) write(unit,'(4(I4,1X),3G12.2)') i1,i2,i3,i4,bkgrnd_ptr(i1,i2,i3,i4), &
+                      if (outside(i1,i2,i3,i4)) write(chm_warnings_unit,'(4(I4,1X),3G12.2)') i1,i2,i3,i4,bkgrnd_ptr(i1,i2,i3,i4), &
                            inc_ptr(i1,i2,i3,i4),(chm_config%high_cutoff(iconstituent_id)-1.0)*bkgrnd_ptr(i1,i2,i3,i4)
                    end do
                 end do
@@ -4109,7 +4182,7 @@ contains
 
     end if
 
-    close(unit)
+    close(chm_warnings_unit)
     deallocate(outside)
 
   end subroutine chm_apply_bounds
@@ -5555,7 +5628,7 @@ contains
                  zwork(obsoper%lvl_top(iobslev):obsoper%lvl_bot(iobslev))
         end if
       end do
-      
+
   end select
 
   end subroutine chm_obsoperators
@@ -5890,7 +5963,7 @@ contains
         exp_T = exp_T-1 ! divide by T
         exp_P = exp_P+1 ! multiply by P
 
-     case(15026,15008,15197,15208,1300) 
+     case(15026,15008,15197,15208,1300)
 
         ! For conversion from ug/kg to vmr
            
@@ -6023,18 +6096,18 @@ contains
      
       if (obsoper%vlayerbottom(iobslev).lt.obsoper%vlayertop(iobslev)) then
          success(1:obsoper%nobslev)=.false.
-         write(*,*) 'chm_layer_integ_operator: WARNING. Layer top/bot value problem.',obsoper%vlayertop(iobslev), obsoper%vlayerbottom(iobslev)
-         write(*,*) 'chm_layer_integ_operator: Entire profile skipped over.'
+         write(chm_warnings_unit,*) 'chm_layer_integ_operator: WARNING. Layer top/bot value problem.',obsoper%vlayertop(iobslev), obsoper%vlayerbottom(iobslev), &
+                                    '. Entire profile skipped over.'
          return
       else if (obsoper%vlayerbottom(iobslev).lt.obsoper%pp(1)*1.01 .or. &  
-           obsoper%vlayertop(iobslev).gt.obsoper%pp(obsoper%nmodlev)*0.99) then
+               obsoper%vlayertop(iobslev).gt.obsoper%pp(obsoper%nmodlev)*0.99) then
          success(iobslev)=.false.
          if (obsoper%vlayerbottom(iobslev).lt.obsoper%pp(1)*1.01) then
             ixtr(iobslev)=1
          else
             ixtr(iobslev)=2
          end if 
-         write(*,*) 'chm_layer_integ_operator: WARNING. Layer top/bot value problem.',obsoper%vlayertop(iobslev), obsoper%vlayerbottom(iobslev)
+         write(chm_warnings_unit,*) 'chm_layer_integ_operator: WARNING. Layer top/bot value problem.',obsoper%vlayertop(iobslev), obsoper%vlayerbottom(iobslev)
          cycle
       end if
       if (obsoper%vlayerbottom(iobslev).gt.obsoper%pp(obsoper%nmodlev)*0.999) obsoper%vlayerbottom(iobslev)=obsoper%pp(obsoper%nmodlev)*0.999

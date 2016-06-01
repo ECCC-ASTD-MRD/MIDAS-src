@@ -134,7 +134,7 @@ contains
     ! Local variables
     
     real(8) :: zomp,zinc
-    integer :: jl
+    integer :: jl,unit
 
     ! Obs space local variables
 
@@ -152,6 +152,9 @@ contains
     character(len=2), parameter :: varType = 'TH'
     
     type(struct_chm_obsoperators) :: obsoper
+
+    ! Open chm_warnings_file (file may be written to from routines in chem_mod)
+    call chm_open_warningsfile(unit=unit)
 
     if ((kmode.eq.2.or.kmode.eq.3) .and. (.not.present(column_inc))) then
        write(*,*) "chm_observation_operators: column_inc must be specified for kmode = ",kmode
@@ -380,6 +383,9 @@ contains
     if (kmode.ne.0) deallocate(model_col)
    
     if (present(jobs)) jobs=0.5d0*jobs
+
+    ! Close chm_warnings_file
+    close(unit)
     
   end subroutine chm_observation_operators
 
