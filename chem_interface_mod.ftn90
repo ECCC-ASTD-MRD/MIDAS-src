@@ -162,7 +162,7 @@ contains
     end if
     
     ! Initializations
-    
+        
     if (present(jobs)) jobs = 0.d0
 
     nlev_bkgrnd = col_getNumLev(column_bkgrnd,varType)
@@ -196,7 +196,7 @@ contains
 
       headerIndex = obs_getHeaderIndex(obsSpaceData)
       if (headerIndex < 0) exit HEADER
-
+  
       icodtyp  = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
       if (icodtyp.ne.codtyp_chemremote.and.icodtyp.ne.codtyp_cheminsitu) cycle HEADER
       
@@ -228,11 +228,16 @@ contains
 
       ! Initialize processing success flag
       success(1:nobslev) = process_obs(1:nobslev)
-
       
       if (all(.not.process_obs)) then
+
          ! All observations in the profile flagged so can skip obs operator for current measurement
-         if (kmode.eq.3) model_col(:) = 0.0D0
+
+         if (kmode.eq.3) then
+            model_col(:) = 0.0D0
+            obsoper%varName =   &
+                 vnl_varnameFromVarnum(obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex),obs_headElem_i(obsSpaceData,OBS_CHM,headerIndex))
+         end if
 
       else  
 
@@ -244,6 +249,7 @@ contains
          !                                1) not used
          !                                2) the analysis increment H_horiz dx
          !                                3) the result of applying the adjoint of H_vert 
+
          select case(kmode)
          case(0)
             model_col => obsoper%trial
@@ -297,12 +303,11 @@ contains
  
       end if
 
-
       ! Output results
       
       if (kmode.eq.3) then
          ! Store H^T * R^-1 (OmP-Hdx) in column_inc
-         
+                     
          col => col_getColumn(column_inc,headerIndex,obsoper%varName)
          col(1:nlev_bkgrnd) = model_col(1:nlev_bkgrnd)
 
@@ -334,7 +339,7 @@ contains
                if (kmode.eq.1) call obs_bodySet_r(obsSpaceData,OBS_HPHT,bodyIndex,0.0D0)
                cycle BODY2
             end if
-        
+
             ! Store result in appropriate location in obsSpaceData            
             select case(kmode)
             case(0)
@@ -363,8 +368,7 @@ contains
                call obs_bodySet_r(obsSpaceData,OBS_HPHT,bodyIndex,obs_col(iobslev))
             case(2)
             
-               !   Store Hdx in OBS_WORK of obsSpaceData
-               
+               !   Store Hdx in OBS_WORK of obsSpaceData               
                call obs_bodySet_r(obsSpaceData,OBS_WORK,bodyIndex,obs_col(iobslev))
             end select
 
@@ -381,7 +385,7 @@ contains
     deallocate(obsoper%trial,obsoper%pp,obsoper%tt,obsoper%dtransform)
     deallocate(obsoper%gz,obsoper%vmodpress,obsoper%vweights,obsoper%hu)
     if (kmode.ne.0) deallocate(model_col)
-   
+  
     if (present(jobs)) jobs=0.5d0*jobs
 
     ! Close chm_warnings_file
@@ -468,7 +472,7 @@ contains
     ! Index of vertical coordinate type    
     obsoper%vco     = obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex)  
     ! Model field name (NOMVAR value)
-    obsoper%varName = vnl_varnameFromVarnum(obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex), obsoper%constituent_id)
+    obsoper%varName = vnl_varnameFromVarnum(obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex),obsoper%constituent_id)
     
     ! varno is expected to be the same for all profile points where OBS_VNM value .ne. 8090
     do jl=0,obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex)-1
