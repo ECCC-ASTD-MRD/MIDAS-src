@@ -279,7 +279,7 @@ module rmatrix_mod
       enddo
       ! Calculation of R**-1/2
       call tmg_start(98,'RMAT_MATSQRT')
-      call matsqrt(Rsub,nsubset,-1.d0)
+      call matsqrt(Rsub,nsubset,-1.d0,.false.)
       call tmg_stop(98)
       allocate(R_tovs(indexTovs)%Rmat(nsubset,nsubset))
       do j=1,nsubset

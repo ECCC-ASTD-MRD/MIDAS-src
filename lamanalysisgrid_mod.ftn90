@@ -23,7 +23,7 @@
 ! - Subroutines
 !    lag_SetupFromHCO    (public)
 !    lag_PsiChiToUV      (public)
-!    lag_PsiChiToUVAdj   (public)
+!    lag_PsiChiTspsoUVAdj   (public)
 !    lag_UVToVortDiv     (public)
 !    lag_mach            (public)
 !
@@ -93,7 +93,7 @@ module LamAnalysisGrid_mod
 
     real(8), allocatable :: rlath  (:) ! Latitudes of half grid-points of gridpoints in lat-direction
     real(8), allocatable :: rrcos  (:) ! 1.0/Cos(Latitudes of gridpoints)
-    real(8), allocatable :: rrcosh (:) ! 1.0/Cos(Half-Latitudes of gridpoints)
+    !real(8), allocatable :: rrcosh (:) ! 1.0/Cos(Half-Latitudes of gridpoints)
     real(8), allocatable :: rdmu   (:) ! Differences of mu=sin(lat)
     real(8), allocatable :: rdmuh  (:) ! Differences of muh=sin(lath)
     real(8), allocatable :: r1mmu2 (:) ! (1.-mu**2)
@@ -223,7 +223,7 @@ module LamAnalysisGrid_mod
     allocate(glmf%rlat(jstart:jend))
     allocate(rlath    (jstart:jend))
     allocate(rrcos    (jstart:jend))
-    allocate(rrcosh   (jstart:jend))
+    !allocate(rrcosh   (jstart:jend))
     allocate(rdmu     (jstart:jend))
     allocate(rdmuh    (jstart:jend))
     allocate(r1mmu2   (jstart:jend))
@@ -274,7 +274,7 @@ module LamAnalysisGrid_mod
     !- 4.1  Compute local factors
     do j = jstart+1, jend-2
       rrcos  (j) = 1.0d0 / cos(glmf%rlat (j))
-      rrcosh (j) = 1.0d0 / cos(rlath(j))
+      !rrcosh (j) = 1.0d0 / cos(rlath(j))
       rdmu   (j) = sin(glmf%rlat (j+1)) - sin(glmf%rlat (j))
       rdmuh  (j) = sin(rlath(j+1)) - sin(rlath(j))
       r1mmu2 (j) = (cos(glmf%rlat (j)))**2
@@ -326,8 +326,11 @@ module LamAnalysisGrid_mod
     allocate(glmf%conphy(nj_ext))
     allocate(glmf%conima(nj_ext))
 
+    call lag_mach(rrcos(1:nj_ext),  & ! INOUT
+                  1, nj_ext,1)        ! IN
+
     do j = 1, nj_ext
-      glmf%conphy(j) = rrcos(j)                  ! to go from Wind Images to true winds
+      glmf%conphy(j) = rrcos(j)                ! to go from Wind Images to true winds
       glmf%conima(j) = 1.0d0 / glmf%conphy(j)  ! to go from true winds to Wind Images
     end do
 
@@ -345,7 +348,7 @@ module LamAnalysisGrid_mod
     !
     deallocate(rlath  )
     deallocate(rrcos  )
-    deallocate(rrcosh )
+    !deallocate(rrcosh )
     deallocate(rdmu   )
     deallocate(rdmuh  )
     deallocate(r1mmu2 )
@@ -388,11 +391,11 @@ module LamAnalysisGrid_mod
 
     integer,          intent(in)  :: nk
 
-    real(8),          intent(in)  :: psi(myLonBeg:myLonEnd,myLatBeg:myLatEnd,1:nk)
-    real(8),          intent(in)  :: chi(myLonBeg:myLonEnd,myLatBeg:myLatEnd,1:nk)
+    real(8),          intent(in)  :: psi(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
+    real(8),          intent(in)  :: chi(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
 
-    real(8),          intent(out) :: uphy(myLonBeg:myLonEnd,myLatBeg:myLatEnd,1:nk)
-    real(8),          intent(out) :: vphy(myLonBeg:myLonEnd,myLatBeg:myLatEnd,1:nk)
+    real(8),          intent(out) :: uphy(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
+    real(8),          intent(out) :: vphy(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
 
     real(8), allocatable :: psi_ext(:,:,:)
     real(8), allocatable :: chi_ext(:,:,:)
@@ -481,11 +484,11 @@ module LamAnalysisGrid_mod
 
     integer,          intent(in)  :: nk
 
-    real(8),          intent(out) :: psi(myLonBeg:myLonEnd,myLatBeg:myLatEnd,1:nk)
-    real(8),          intent(out) :: chi(myLonBeg:myLonEnd,myLatBeg:myLatEnd,1:nk)
+    real(8),          intent(out) :: psi(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
+    real(8),          intent(out) :: chi(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
     
-    real(8),          intent(in)  :: uphy(myLonBeg:myLonEnd,myLatBeg:myLatEnd,1:nk)
-    real(8),          intent(in)  :: vphy(myLonBeg:myLonEnd,myLatBeg:myLatEnd,1:nk)
+    real(8),          intent(in)  :: uphy(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
+    real(8),          intent(in)  :: vphy(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
 
     real(8), allocatable :: psi_ext(:,:,:)
     real(8), allocatable :: chi_ext(:,:,:)
@@ -585,10 +588,10 @@ module LamAnalysisGrid_mod
     implicit none
 
     integer,          intent(in)  :: iBeg, iEnd, jBeg, JEnd, nk
-    real(8),          intent(out) :: uColloc(iBeg:iEnd  ,jBeg  :jEnd  ,1:nk)
-    real(8),          intent(out) :: vColloc(iBeg:iEnd  ,jBeg  :jEnd  ,1:nk)
-    real(8),          intent(in)  :: uStag  (iBeg-1:iEnd,jBeg  :jEnd+1,1:nk)
-    real(8),          intent(in)  :: vStag  (iBeg:iEnd+1,jBeg-1:jEnd  ,1:nk)
+    real(8),          intent(out) :: uColloc(iBeg:iEnd  ,jBeg  :jEnd  ,nk)
+    real(8),          intent(out) :: vColloc(iBeg:iEnd  ,jBeg  :jEnd  ,nk)
+    real(8),          intent(in)  :: uStag  (iBeg-1:iEnd,jBeg  :jEnd+1,nk)
+    real(8),          intent(in)  :: vStag  (iBeg:iEnd+1,jBeg-1:jEnd  ,nk)
 
     integer :: i,j,k
 
@@ -614,10 +617,10 @@ module LamAnalysisGrid_mod
     implicit none
 
     integer,          intent(in)  :: iBeg, iEnd, jBeg, jEnd, nk
-    real(8),          intent(in)  :: uColloc(iBeg:iEnd  ,jBeg  :jEnd  ,1:nk)
-    real(8),          intent(in)  :: vColloc(iBeg:iEnd  ,jBeg  :jEnd  ,1:nk)
-    real(8),          intent(out) :: uStag  (iBeg-1:iEnd,jBeg  :jEnd+1,1:nk)
-    real(8),          intent(out) :: vStag  (iBeg:iEnd+1,jBeg-1:jEnd  ,1:nk)
+    real(8),          intent(in)  :: uColloc(iBeg:iEnd  ,jBeg  :jEnd  ,nk)
+    real(8),          intent(in)  :: vColloc(iBeg:iEnd  ,jBeg  :jEnd  ,nk)
+    real(8),          intent(out) :: uStag  (iBeg-1:iEnd,jBeg  :jEnd+1,nk)
+    real(8),          intent(out) :: vStag  (iBeg:iEnd+1,jBeg-1:jEnd  ,nk)
 
     integer :: i, j, k
 
@@ -802,11 +805,11 @@ module LamAnalysisGrid_mod
 
     integer,          intent(in)  :: nk
 
-    real(8),          intent(out)  :: Vorticity (1:ni_ext,1:nj_ext,1:nk)
-    real(8),          intent(out)  :: Divergence(1:ni_ext,1:nj_ext,1:nk)
+    real(8),          intent(out)  :: Vorticity (myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
+    real(8),          intent(out)  :: Divergence(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
 
-    real(8),          intent(in) :: uphy(1:ni_ext,1:nj_ext,1:nk)
-    real(8),          intent(in) :: vphy(1:ni_ext,1:nj_ext,1:nk)
+    real(8),          intent(in) :: uphy(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
+    real(8),          intent(in) :: vphy(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
 
     real(8), allocatable :: uimg(:,:,:)
     real(8), allocatable :: vimg(:,:,:)
@@ -819,33 +822,26 @@ module LamAnalysisGrid_mod
       call abort3d('lag_UVToVortDiv: LamAnalysisGrid not initialized')
     endif
 
-    allocate(uimg_sym(-1:ni_ext+2,-1:nj_ext+2,nk))
-    allocate(vimg_sym(-1:ni_ext+2,-1:nj_ext+2,nk))
-
-    allocate(uimg ( 1:ni_ext,1:nj_ext,nk))
-    allocate(vimg ( 1:ni_ext,1:nj_ext,nk))
+    allocate(uimg_sym( (myLonBeg-1):(myLonEnd+1), (myLatBeg-1):(myLatEnd+1), nk))
+    allocate(vimg_sym( (myLonBeg-1):(myLonEnd+1), (myLatBeg-1):(myLatEnd+1), nk))
+    allocate(uimg    ( myLonBeg:myLonEnd        , myLatBeg:myLatEnd        , nk))
+    allocate(vimg    ( myLonBeg:myLonEnd        , myLatBeg:myLatEnd        , nk))
 
     !
     !- 2.  Convert Physical (true) winds to Wind images
     !
-    do j = 1, nj_ext
-      uimg(:,j,:) =  glmf%conima(j) * uphy(:,j,:)
-      vimg(:,j,:) =  glmf%conima(j) * vphy(:,j,:)
+    do j = myLatBeg, myLatEnd
+          uimg(:,j,:) =  glmf%conima(j) * uphy(:,j,:)
+          vimg(:,j,:) =  glmf%conima(j) * vphy(:,j,:)
     end do
-
-    !- Redo bi-periodization
-    call lag_mach(uimg,             & ! INOUT
-                  ni_ext, nj_ext,nk)  ! IN
-    call lag_mach(vimg,             & ! INOUT
-                  ni_ext, nj_ext,nk)  ! IN
 
     !
     !- 3.  Symmetrize
     !
-    call symmetrize_nompi( uimg_sym,            & ! OUT
-                     uimg, ni_ext, nj_ext, nk )   ! IN
-    call symmetrize_nompi( vimg_sym,            & ! OUT
-                     vimg, ni_ext, nj_ext, nk )   ! IN
+    call symmetrize( uimg_sym,                                        & ! OUT
+                     uimg, myLonBeg, myLonEnd, myLatBeg, myLatEnd, nk ) ! IN
+    call symmetrize( vimg_sym,                                        & ! OUT
+                     vimg, myLonBeg, myLonEnd, myLatBeg, myLatEnd, nk ) ! IN
     deallocate(uimg,vimg)
 
     !
@@ -855,8 +851,8 @@ module LamAnalysisGrid_mod
 !$OMP PARALLEL
 !$OMP DO PRIVATE (k,j,i)
      do k = 1, nk
-       do j = 1, nj_ext
-         do i = 1, ni_ext
+       do j = myLatBeg, myLatEnd
+         do i = myLonBeg, myLonEnd
            vorticity (i,j,k) = &
                 glmf%cos2hvd(j)  *  glmf%dx * (vimg_sym(i+1,j,k)-vimg_sym(i,j,k)) - &
                 (1.d0 / RA)  *   glmf%idmu(j) * (uimg_sym(i,j+1,k)-uimg_sym(i,j,k))
@@ -874,61 +870,5 @@ module LamAnalysisGrid_mod
     deallocate(vimg_sym)
 
   end subroutine lag_UVToVortDiv
-
-!--------------------------------------------------------------------------
-! Symmetrize_nompi
-!--------------------------------------------------------------------------
-  subroutine symmetrize_nompi(field_out, field_in, ni, nj, nk)
-    implicit none
-    !
-    ! Extend symmetrically outside 2 grid point all around 
-    ! LAM-boundary ready for finite differences up to 2nd order.
-    ! N.B.: The fields are periodic on ni+1 points for instance;
-    ! but the LAM-fields only contain "ni" points without explicit periodicity.
-    !
-    ! Author  : Luc Fillion - MSC/CAN - 12 Oct 04.
-    !
-
-    integer, intent(in) :: ni, nj, nk
-    real(8), intent(out):: field_out(-1:ni+2,-1:nj+2, nk)
-    real(8), intent(in) :: field_in(ni,nj,nk)
-
-    integer :: i,j,k
-
-    field_out(:,:,:) = 0.d0
-    
-    field_out(1:ni,1:nj,1:nk) = field_in(1:ni,1:nj,1:nk)
-
-    !
-    !- Symmetrize
-    !
-!$OMP PARALLEL
-!$OMP DO PRIVATE (k,j,i)
-    do k = 1, nk
-      ! South Boundary
-      do  i = 1, ni
-        field_out(i,0,k)    = field_out(i,nj,k)
-        field_out(i,-1,k)   = field_out(i,nj-1,k)
-      end do
-      ! West Boundary
-      do j = -1, nj
-        field_out(0,j,k)    = field_out(ni,j,k)
-        field_out(-1,j,k)   = field_out(ni-1,j,k)
-      end do
-      ! East Boundary
-      do j = -1, nj
-        field_out(ni+1,j,k) = field_out(1,j,k)
-        field_out(ni+2,j,k) = field_out(2,j,k)
-      end do
-      ! North Boundary
-      do  i = -1, ni+2
-        field_out(i,nj+1,k) = field_out(i,1,k)
-        field_out(i,nj+2,k) = field_out(i,2,k)
-      end do
-    end do
-!$OMP END DO
-!$OMP END PARALLEL
-
-  end subroutine symmetrize_nompi
 
 end module LamAnalysisGrid_mod

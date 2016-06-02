@@ -452,6 +452,9 @@ CONTAINS
       zps = 101000.D0
       status = vgd_levels( vco_anl%vgrid, ip1_list=vco_anl%ip1_M, levels=pressureProfileInc_M, &
                            sfc_field=zps, in_log=.false.)
+      if(status /= VGD_OK)then
+        call abort3d('ben_setup: ERROR from vgd_levels')
+      end if
 
       allocate(pressureProfileEns_M(nLevEns_M),stat=ierr)
       pressureProfileEns_M(1:nLevEns_M) = pressureProfileInc_M(topLevIndex_M:nLevInc_M)
@@ -1647,7 +1650,7 @@ CONTAINS
        enddo
 
        !- 1.3.2 Compute sqrt of the matrix if vertical localization requested
-       call matsqrt(ensLocal(waveBandIndex)%Vert(1,1),nLevEns_M,1.0d0)
+       call matsqrt(ensLocal(waveBandIndex)%Vert(1,1),nLevEns_M,1.0d0,.false.)
 
     end do
 
@@ -1790,13 +1793,14 @@ CONTAINS
                       'NoMpi')                          ! IN
 
       !- 1.2 Create a correlation function in physical space
-      allocate ( gd(ni,nj,nLevEns_M))
+      allocate (gd(ni,nj,nLevEns_M))
 
-      call CreateBiPerCorrelFunction( gd,                     & ! OUT
-                                      local_length, nLevEns_M ) ! IN
+      call loc_CreateBiPerFunction( gd,                           & ! OUT
+                                    local_length, hco_ben % dlon, & ! IN
+                                    ni, nj, nLevEns_M )             ! IN
 
       !- 1.3 Transform to spectral space
-      allocate ( sp(lst_hloc % nla, nphase, nLevEns_M))
+      allocate (sp(lst_hloc % nla, nphase, nLevEns_M))
 
       kind = 'GridPointToSpectral'
       call lst_VarTransform( lst_hloc % id,      & ! IN
@@ -1914,79 +1918,6 @@ CONTAINS
     endif
 
   END SUBROUTINE setupLamHLoc
-
-!--------------------------------------------------------------------------
-! CreateBiPerCorrelFunction
-!--------------------------------------------------------------------------
-  SUBROUTINE  CreateBiPerCorrelFunction(gridpoint,CorrelLength,nk)
-    implicit none
-
-    integer, intent(in)  :: nk
-
-    real(8), intent(in)  :: CorrelLength(nk)
-
-    real(8), intent(out) :: gridpoint(ni,nj,nk)
-
-    integer          :: i, j, k, iref, jref
-    real(8)          :: distance, distance_ref
-
-    gridpoint(:,:,:) = 0.d0
-
-    distance_ref = hco_ben % dlon * RA
-
-    !
-    !- Create a bi-periodic correlation function by centering the function in each 4 corners
-    !
-
-    !- Lower-Left Corner
-    iref = 1
-    jref = 1
-    do j = 1, nj
-       do i = 1, ni
-          distance = distance_ref * sqrt( real((i-iref)**2 + (j-jref)**2,8) )
-          do k = 1, nk
-             gridpoint(i,j,k) = gridpoint(i,j,k) + loc_response(distance,1000.d0*CorrelLength(k)) 
-          enddo
-       enddo
-    enddo
-
-    !- Upper-Left Corner
-    iref = 1
-    jref = nj
-    do j = 1, nj
-       do i = 1, ni
-          distance = distance_ref * sqrt( real((i-iref)**2 + (j-jref)**2,8) )
-          do k = 1, nk
-             gridpoint(i,j,k) = gridpoint(i,j,k) + loc_response(distance,1000.d0*CorrelLength(k)) 
-          enddo
-       enddo
-    enddo
-
-    !- Lower-Right Corner
-    iref = ni
-    jref = 1
-    do j = 1, nj
-       do i = 1, ni
-          distance = distance_ref * sqrt( real((i-iref)**2 + (j-jref)**2,8) )
-          do k = 1, nk
-             gridpoint(i,j,k) = gridpoint(i,j,k) + loc_response(distance,1000.d0*CorrelLength(k)) 
-          enddo
-       enddo
-    enddo
-
-    !- Upper-Right Corner
-    iref = ni
-    jref = nj
-    do j = 1, nj
-       do i = 1, ni
-          distance = distance_ref * sqrt( real((i-iref)**2 + (j-jref)**2,8) )
-          do k = 1, nk
-             gridpoint(i,j,k) = gridpoint(i,j,k) + loc_response(distance,1000.d0*CorrelLength(k)) 
-          enddo
-       enddo
-    enddo
-
-  END SUBROUTINE CreateBiPerCorrelFunction
 
 !--------------------------------------------------------------------------
 ! BEN_reduceToMPILocal

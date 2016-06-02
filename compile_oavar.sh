@@ -98,9 +98,19 @@ echo "loading hpcs/201402/02/base"
 if [ "${BASE_ARCH}" = "AIX-powerpc7" ];then
     echo "loading compiler hpcs/ext/xlf_13.1.0.10"
     . ssmuse-sh -d hpcs/ext/xlf_13.1.0.10
+    # NetCDF for the IBM:
+    echo "loading netcdf"
+    export EC_LD_LIBRARY_PATH="/ssm/net/rpn/mfv/netcdf4/lib ${EC_LD_LIBRARY_PATH}"
+    export EC_INCLUDE_PATH="/ssm/net/rpn/mfv/netcdf4/include ${EC_INCLUDE_PATH}"
+    CDF_LIBS="netcdf netcdff hdf5 hdf5_hl sz z"
 elif [ "${BASE_ARCH}" = "Linux_x86-64" ];then
     echo "loading compiler hpcs/201402/02/intel13sp1u2"
+    echo "(this includes the netcdf library)"
     . ssmuse-sh -d hpcs/201402/02/intel13sp1u2
+    . s.ssmuse.dot dot
+    echo "EC_LD_LIBRARY_PATH=${EC_LD_LIBRARY_PATH}"
+    echo "EC_INCLUDE_PATH=${EC_INCLUDE_PATH}"
+    CDF_LIBS=netcdff
 else
     echo "This platform 'ARCH=${ARCH}' is not supported.  Only 'AIX-powerpc7' and 'Linux_x86-64' are."
     exit 1
@@ -112,25 +122,22 @@ varabs=oavar_${BASE_ARCH}${ABSTAG}
 echo "loading rpn/libs/15.2"
 . ssmuse-sh -d rpn/libs/15.2
 ## for 'vgrid'
-echo "loading cmdn/vgrid/5.4.0/${COMP_ARCH}"
-. ssmuse-sh -d cmdn/vgrid/5.4.0/${COMP_ARCH}
+echo "loading cmdn/vgrid/5.3.2/${COMP_ARCH}"
+. ssmuse-sh -d cmdn/vgrid/5.3.2/${COMP_ARCH}
 ## for 'burplib'
-echo "loading cmda/libs/15.2/${COMP_ARCH}"
-. ssmuse-sh -d cmda/libs/15.2/${COMP_ARCH}
+echo "loading cmda/base/201411/01/${COMP_ARCH}"
+. ssmuse-sh -d cmda/base/201411/01/${COMP_ARCH}
 
 ## For hpcsperf needed for TMG timings
 echo "loading hpcs/exp/aspgjdm/perftools"
 . ssmuse-sh -d hpcs/exp/aspgjdm/perftools
 # For RTTOV package... 
-echo "loading arma/rttov/10v4.1"
-. ssmuse-sh -d arma/rttov/10v4.1
-# For NetCDF package
-echo "loading netcdf"
-. s.ssmuse.dot netcdf
+echo "loading arma/rttov/10v4"
+. ssmuse-sh -d arma/rttov/10v4
 
 #-----------------------------------------------------------------------------
 
-LIBAPPL="netcdf rttov10.2.0_coef_io rttov10.2.0_main rttov10.2.0_emis_atlas rttov10.2.0_other burp_module descrip $MPILIB"
+LIBAPPL="${CDF_LIBS} rttov10.2.0_coef_io rttov10.2.0_main rttov10.2.0_emis_atlas rttov10.2.0_other burp_module descrip $MPILIB"
 if [ "${BASE_ARCH}" = "AIX-powerpc7" ];then
     LIBSYS="hpcsperf lapack-3.4.0 essl mass"
 elif [ "${BASE_ARCH}" = "Linux_x86-64" ];then
@@ -187,9 +194,9 @@ if [ "${mode}" == full ] ; then
   # Compile the subroutines...
   echo "compiling low-level independent modules"
   echo "If aborting, check in ${PWD}/listing1"
-  SRC0="toplevelcontrol_mod.ftn90 localizationfunction_mod.ftn90"
+  SRC0="toplevelcontrol_mod.ftn90"
   SRC0="$SRC0 mathphysconstants_mod.ftn90 earthconstants_mod.ftn90 mpi_mod.ftn90 mpivar_mod.ftn90 bufr_mod.ftn90 codtyp_mod.ftn90"
-  SRC0="$SRC0 physicsfunctions_mod.ftn90 obsspacedata_mod.ftn90 horizontalcoord_mod.ftn90 timecoord_mod.ftn90 verticalcoord_mod.ftn90"
+  SRC0="$SRC0 physicsfunctions_mod.ftn90 obsspacedata_mod.ftn90 localizationfunction_mod.ftn90 horizontalcoord_mod.ftn90 timecoord_mod.ftn90 verticalcoord_mod.ftn90"
   s.compile $COMPF -O ${FOPTMIZ} -src $SRC0 > listing1 2>&1
   status=1
   grep fail listing1 || status=0
@@ -228,7 +235,7 @@ if [ "${mode}" == full ] ; then
   SRC1="$SRC1 emissivities_mod.ftn90 fft_mod.ftn90 globalspectraltransform_mod.ftn90"
   SRC1="$SRC1 lamspectraltransform_mod.ftn90  gridstatevector_mod.ftn90"
   SRC1="$SRC1 bmatrixensemble_mod.ftn90 bmatrixhi_mod.ftn90 lambmatrixhi_mod.ftn90"
-  SRC1="$SRC1 bmatrixchem_mod.ftn90 bmatrix_mod.ftn90 minimization_mod.ftn90"
+  SRC1="$SRC1 bmatrixchem_mod.ftn90 bmatrix_mod.ftn90 minimization_mod.ftn90 variabletransforms_mod.ftn90"
   SRC1="$SRC1 chem_mod.ftn90 chem_interface_mod.ftn90"
   SRC1="$SRC1 ozoneclim_mod.ftn90 tovs_extrap_mod.ftn90"
   SRC1="$SRC1 burpfiles_mod.ftn90 obsspacediag_mod.ftn90 observation_erreurs_mod.ftn90"
