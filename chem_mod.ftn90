@@ -455,7 +455,7 @@ module chem_mod
 ! File containing various warnings related to chemical constituents that
 ! are not included in the listing file.
   character(len=14), parameter :: chm_warnings_filename='chem_warnings_'
-  integer, parameter :: chm_warnings_unit=77
+  integer :: chm_warnings_unit
 
 
 contains
@@ -650,7 +650,11 @@ contains
                      diagn_save,diagn_all,diagn_nset,diagn_pressmin, &
                      tropo_mode,tropo_bound,tropo_column_top,amu, &
                      low_cutoff,high_cutoff,transform,obsdata_maxsize
-   
+
+  ! Initialize file unit number(s) to zero
+  
+  chm_warnings_unit=0
+     
   ! Default NAMCHEM values
   
   genoper(:)=0
@@ -1687,7 +1691,7 @@ contains
     
     if (chm_ref_fields(id,2)%nlat.gt.0.and.chm_ref_fields(id,2)%nlon.gt.0.and.chm_ref_fields(id,2)%nlev.gt.0) then
         
-        if (all(obsoper%tt.lt.0.0)) call abort3d('chm_get_reference_obsdata: Missing TT for determining tropopause pressure')
+        if (any(obsoper%tt.le.0.0)) call abort3d('chm_get_reference_obsdata: Missing TT for determining tropopause pressure')
         
         ! Get second reference field (for troposphere)
         
@@ -2903,12 +2907,25 @@ contains
 
     integer, intent(out), optional :: unit
     logical :: file_exists
+    integer :: ier
+    integer, external :: fnom
 
     inquire(file=chm_warnings_filename, exist=file_exists)
+    
     if (file_exists) then
-       open(chm_warnings_unit, file=chm_warnings_filename, status="old", position="append", action="write")
+       if (chm_warnings_unit.eq.0) then       
+          ier=fnom(chm_warnings_unit,chm_warnings_filename,'FTN+APPEND+R/W',0)
+          if (ier.ne.0) call abort3d('Error associating unit number in chm_open_warningsfile')
+       else
+          open(chm_warnings_unit, file=chm_warnings_filename, status="old", position="append", action="write")
+       end if 
     else
-       open(chm_warnings_unit, file=chm_warnings_filename, status="new", action="write")
+       if (chm_warnings_unit.eq.0) then       
+          ier=fnom(chm_warnings_unit,chm_warnings_filename,'FTN+R/W',0)
+          if (ier.ne.0) call abort3d('Error associating unit number in chm_open_warningsfile')
+       else
+          open(chm_warnings_unit, file=chm_warnings_filename, status="new", action="write")
+       end if
     end if
 
     if (present(unit)) unit = chm_warnings_unit
@@ -4008,8 +4025,9 @@ contains
 
     real(4), intent(inout) :: field(:,:)            
 
-    integer :: i,j
+    integer :: i,j,ier
     real(4) :: valmin
+    integer, external :: fclos
     
     if (iconstituent_id.ge.0.and.iconstituent_id.le.chm_constituents_size) return
     
@@ -4058,7 +4076,7 @@ contains
     end if
     
     write(chm_warnings_unit,*) 
-    close(chm_warnings_unit)
+    ier=fclos(chm_warnings_unit)
  
   end subroutine chm_apply_2dfieldr4_transform
 
@@ -4097,7 +4115,8 @@ contains
     real(8), intent(inout), pointer :: inc_ptr(:,:,:,:),bkgrnd_ptr(:,:,:,:)        
     logical, allocatable :: outside(:,:,:,:)
 
-    integer :: iconstituent_id,nlow,nhigh,i1,i2,i3,i4
+    integer :: iconstituent_id,nlow,nhigh,i1,i2,i3,i4,ier
+    integer, external :: fclos
     
     iconstituent_id = chm_varnumFromVarname(varName)
     if (iconstituent_id.lt.0.or.iconstituent_id.gt.chm_constituents_size) return
@@ -4182,7 +4201,7 @@ contains
 
     end if
 
-    close(chm_warnings_unit)
+    ier=fclos(chm_warnings_unit)
     deallocate(outside)
 
   end subroutine chm_apply_bounds
@@ -5579,7 +5598,7 @@ contains
 !!      call benschm_getsigma(obsoper%varName,obsoper%nmodlev,obsoper%lat,obsoper%lon,sigma_trial(:,2)) 
 
 !
-!     Identify variable position index in background error correlation matrices
+!    Identify variable position index in background error correlation matrices
 !
      jvar=1
      do while (trim(bchm_varnamelist(jvar)).ne.'') 
