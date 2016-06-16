@@ -134,7 +134,8 @@ contains
     ! Local variables
     
     real(8) :: zomp,zinc
-    integer :: jl,unit
+    integer :: jl,unit,ier
+    integer, external :: fclos
 
     ! Obs space local variables
 
@@ -389,7 +390,7 @@ contains
     if (present(jobs)) jobs=0.5d0*jobs
 
     ! Close chm_warnings_file
-    close(unit)
+    ier=fclos(unit)
     
   end subroutine chm_observation_operators
 
