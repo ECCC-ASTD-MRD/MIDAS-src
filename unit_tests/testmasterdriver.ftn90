@@ -1,0 +1,58 @@
+program main
+   use pFUnit
+   use testObs_mod
+   implicit none
+   include "mpif.h"
+
+
+   type (TestSuite_type) :: suite_master
+   type (TestResult_type) :: result_master
+   character(len=100) :: summary_statement_master
+   integer :: myip, ierr
+   external :: userinit_dummy
+   integer :: petotal, pex, pey
+
+   call pFUnit_init()
+                                        ! Even though mpi_init() has already
+                                        ! been called by pFUnit, rpn_comm must be
+                                        ! initialized too.
+   pex=2
+   pey=1
+   call rpn_comm_init(userinit_dummy, myip, petotal, pex, pey)
+   write(*,*)"rpn_comm_init:  myip, petotal=", myip, petotal
+
+   ! Build suite from test procedures:
+   suite_master = TestSuite('Master suite')
+
+   call add(suite_master, getTestSuite_obs())
+
+   ! Run the tests and accumulate the results
+   result_master = newTestResult(mode=MODE_USE_STDOUT+MODE_USE_LOGFILE)
+   call Run(suite_master, result_master)
+
+   ! Write the report
+                                        ! Because rpn_comm may not be initialized
+                                        ! address mpi_comm directly.
+   call mpi_comm_rank(mpi_comm_world, myip, ierr)
+   if(myip == 0) then
+      ! Write only one report
+      summary_statement_master=Summary(result_master)
+      call sleep(1)                     ! Allow the write buffer to empty
+      write(6,*)
+      write(6,*)trim(summary_statement_master)
+   end if
+
+   call clean(result_master)
+   call clean(suite_master)
+
+   call pFUnit_finalize()
+end program main
+
+
+
+subroutine userinit_dummy(pex, pey)
+   implicit none
+   integer :: pex, pey
+   pex = 0
+   pey = 0
+end subroutine userinit_dummy
