@@ -1,0 +1,56 @@
+module bufr
+ ! This module contains information that is needed from the
+ ! Binary Universal Format for the Representation of meteorological data, 
+ ! maintained by the World Meteorological Organization
+
+ public
+
+ ! Table B:
+ !          Universal Field-Identity Numbers
+ !          (At the CMC, these have also been known as burp_id.)
+ integer, parameter :: BUFR_NETT=12001
+ integer, parameter :: BUFR_NEUU=11003
+ integer, parameter :: BUFR_NEVV=11004
+ integer, parameter :: BUFR_NEGZ=10194
+ integer, parameter :: BUFR_NEES=12192
+ integer, parameter :: BUFR_NEFF=11002
+ integer, parameter :: BUFR_NEDD=11001
+ integer, parameter :: BUFR_NEUS=11215
+ integer, parameter :: BUFR_NEVS=11216
+ integer, parameter :: BUFR_NETS=12004
+ integer, parameter :: BUFR_NESS=12203
+ integer, parameter :: BUFR_NEFS=11012
+ integer, parameter :: BUFR_NEDS=11011
+ integer, parameter :: BUFR_NEDZ=10192
+ integer, parameter :: BUFR_NEPP=07004
+ integer, parameter :: BUFR_NEPS=10004
+ integer, parameter :: BUFR_NEPN=10051
+ integer, parameter :: BUFR_NEOZ=15001
+ integer, parameter :: BUFR_NBT1=12062
+ integer, parameter :: BUFR_NBT2=12063
+ integer, parameter :: BUFR_NBT3=12163
+ integer, parameter :: BUFR_NEBD=15037
+ integer, parameter :: BUFR_NERF=15036
+ integer, parameter :: BUFR_NEHU=13210
+ integer, parameter :: BUFR_NEHS=13220
+ integer, parameter :: BUFR_NEZD=15031
+ integer, parameter :: BUFR_NEFE=15032
+ integer, parameter :: BUFR_NEZW=15035
+ ! Doppler wind 
+ integer, parameter :: BUFR_NEDW=11200  
+ ! Atmospheric chemical or physical constituent type
+ integer, parameter :: BUFR_NETR=08046   
+ !
+ ! Table C-14: (for Code Table 08046)
+ !             Atmospheric chemical or physical constituent type
+ !             - Includes local values as well!
+ integer, parameter :: BUFR_NETR_O3    =0   
+ integer, parameter :: BUFR_NETR_H2O   =1   
+ integer, parameter :: BUFR_NETR_CH4   =2   
+ integer, parameter :: BUFR_NETR_CO2   =3   
+ integer, parameter :: BUFR_NETR_CO    =4   
+ integer, parameter :: BUFR_NETR_NO2   =5   
+ integer, parameter :: BUFR_NETR_N2O   =6   
+ integer, parameter :: BUFR_NETR_HCHO  =7
+ integer, parameter :: BUFR_NETR_SO2   =8  
+end module bufr
