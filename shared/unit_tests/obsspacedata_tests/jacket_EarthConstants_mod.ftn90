@@ -1,0 +1,4 @@
+module EarthConstants_mod
+   real(8), parameter :: RG      = 9.80616000000000000000D+00
+   real(8), parameter :: GRAV    = 0.9806160000000d+01
+end module EarthConstants_mod
