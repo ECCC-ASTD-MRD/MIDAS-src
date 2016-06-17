@@ -66,28 +66,13 @@ subroutine compute_HBHT(columng,columnhr,obsSpaceData)
      write(*,*)
      write(*,*) 'compute_HBHT: Using B_static ONLY'
      ! HBnmcHT std. dev. already in OBS_HPHT
-  else if ( .not. static .and. ensemble ) then
+  else if ( .not. static .and. ensemble .and. .not. static_chm ) then
      write(*,*)
      write(*,*) 'compute_HBHT: Using B_ensemble ONLY'
      ! Transfer HBensHT std. dev. values in OBS_WORK to OBS_HPHT
      do index_body = 1, obs_numBody(obsSpaceData)
         HBHT_ensemble = obs_bodyElem_r(obsSpaceData,OBS_WORK,index_body)
         HBHT_hybrid=HBHT_ensemble
-        if (obs_getFamily(obsSpaceData,obs_bodyElem_i(obsSpaceData,OBS_HIND,INDEX_BODY)).eq.'CH') then
-            if (static_chm) then
-               HBHT_static   = obs_bodyElem_r(obsSpaceData,OBS_HPHT,index_body)
-               select case ( trim(hybrid_mode) )
-               case ('WEIGHTED_SUM')
-                  HBHT_hybrid = sqrt(HBHT_static**2 + HBHT_ensemble**2)
-               case ('MAX_VALUE')
-                  HBHT_hybrid = max(HBHT_static,HBHT_ensemble)
-               case default
-                 write(*,*)
-                 write(*,*) 'compute_HBHT: Unknown hybrid_mode ', trim(hybrid_mode)
-                 call abort3d('compute_HBHT')
-               end select
-            end if
-        endif 
         call obs_bodySet_r(obsSpaceData,OBS_HPHT,index_body, HBHT_hybrid)
      end do
   else if ( static .and. ensemble ) then

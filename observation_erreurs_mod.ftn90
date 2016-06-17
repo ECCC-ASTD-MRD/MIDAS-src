@@ -888,7 +888,7 @@ module observation_erreurs_mod
  !        Process only retrieved constituent data
  !        Also, exclude 8090 element as a data value!
                
-           if (idburp.eq.codtyp_get_codtyp('CHEMREMOTE').or.idburp.eq.codtyp_get_codtyp('CHEMINSITU')) then
+           if (idburp.eq.codtyp_get_codtyp(name='CHEMREMOTE').or.idburp.eq.codtyp_get_codtyp(name='CHEMINSITU')) then
 
               ifirst = index_header.ne.header_prev
 

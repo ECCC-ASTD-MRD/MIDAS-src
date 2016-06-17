@@ -182,6 +182,13 @@ contains
     !
     !Author  : P. Koclas *CMC/AES  September 1994
     !
+    !Revisions:
+    !          S. Heilliette, ARMA/MRD, 2016
+    !          - Updates for TO family
+    !          Y. Rochon. ARQI/AQRD, June 2016
+    !          - Move of tvs_Is_idburp_tovs condition within brightness
+    !          temp conditional test.
+    !
     !*    Purpose: Select the data in the obsSpaceData which are to be assimilated
     !
     implicit none
@@ -266,13 +273,13 @@ contains
       !
       ! Filter TOVS data: check for invalid land/sea/sea-ice flag
       !
-      if ( tvs_Is_idburp_tovs(idburp) .and. (ivnm .eq. BUFR_NBT1 .or.   &
-                                             ivnm .eq. BUFR_NBT2 .or.   &
-                                             ivnm .eq. BUFR_NBT3) ) then
-        ilansea  = obs_headElem_i(obsSpaceData,OBS_OFL,headerIndex)
-        if (ilansea .lt. 0 .or. ilansea .gt. 2  ) then
-          llok = .false.
-        endif
+      if (ivnm.eq.BUFR_NBT1.or.ivnm.eq.BUFR_NBT2.or.ivnm.eq.BUFR_NBT3) then
+        if (tvs_Is_idburp_tovs(idburp)) then
+           ilansea  = obs_headElem_i(obsSpaceData,OBS_OFL,headerIndex)
+           if (ilansea .lt. 0 .or. ilansea .gt. 2  ) then
+             llok = .false.
+           endif
+        end if
       endif
 
       if (llok .and. .not.llrej) then

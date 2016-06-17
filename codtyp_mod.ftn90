@@ -37,12 +37,12 @@ integer function codtyp_get_codtyp(name)
 !******************************************
   use mpi_mod
   implicit none
-  character (len=*),intent(in) :: name
+  character (len=*),intent(in), optional :: name
 !*******************************************
   logical ,save :: lfirst=.true.
   integer :: nulnam, ierr, i, ilen
   integer,external :: fnom, fclos
-  character (len=max(len(name),21)) :: ctempo
+  character (len=21) :: ctempo
 !********************************************
   if (lfirst) then
      nulnam = 0
@@ -66,18 +66,21 @@ integer function codtyp_get_codtyp(name)
      if ( ncodtyp == 0 ) call abort3d('codtyp_get_codtyp: Empty namcodtyp namelist')
      lfirst = .false.
   endif
-  ctempo(:) = ' '
-  codtyp_get_codtyp = -1
-  ilen = len_trim(name)
-  call up2low(name(1:ilen),ctempo(1:ilen))
-  do i=1, ncodtyp
-     if ( trim(ctempo) == trim(cnames(i)) ) then
-        codtyp_get_codtyp = icod(i)
-        exit
-     endif
-  enddo
-
-
+  if (present(name)) then
+     ctempo(:) = ' '
+     codtyp_get_codtyp = -1
+     ilen = len_trim(name)
+     call up2low(name(1:ilen),ctempo(1:ilen))
+     do i=1, ncodtyp
+        if ( trim(ctempo) == trim(cnames(i)) ) then
+           codtyp_get_codtyp = icod(i)
+           exit
+        endif
+     enddo
+   else
+     codtyp_get_codtyp=0
+   end if
+   
 end function codtyp_get_codtyp
 
 character (len=21) function codtyp_get_name(codtyp)
@@ -94,18 +97,25 @@ character (len=21) function codtyp_get_name(codtyp)
   integer :: i, ilen
 !********************************************
 
-if (codtyp_get_codtyp("SYNOPNONAUTO")<0) then
+ i=codtyp_get_codtyp()
+ if (ncodtyp<=0.or.all(icod.lt.0)) then
    Write(*,*) "Problem with NAMCODTYP section of the namelist !"
    call abort3d("codtyp_get_name")
-endif
+ endif
 
-do i=1, ncodtyp
+ codtyp_get_name='blank'
+ do i=1, ncodtyp
    if ( icod(i) == codtyp ) then
       codtyp_get_name = trim(cnames(i))
       exit
    endif
-enddo
+ enddo
 
+ if (codtyp_get_name.eq.'blank') then
+    write(*,*) "Codtyp ",codtyp," not found in the icod list of NAMCODTYP"
+    call abort3d("codtyp_get_name: codtyp not found")
+ end if
+ 
 end function codtyp_get_name
 
 
