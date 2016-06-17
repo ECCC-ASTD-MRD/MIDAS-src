@@ -1,0 +1,3779 @@
+! Should test OBS_REAL=4, too?
+
+#include "maincompileswitch.inc"
+#include "compileswitches.inc"
+#define ZERO     real(0.0d0, OBS_REAL)
+
+module testObs_mod
+   use pFUnit
+   use obsSpaceData_mod
+   implicit none
+   private
+
+   public :: getTestSuite_obs, getTestSuite_obs_group2
+
+   integer, parameter :: NUM_PE = 2     ! number of processors used for mpi tests
+
+   character(len=4), parameter, dimension(34) :: columns_int_head &
+            = (/ 'RLN ','ONM','INS','OTP','ITY','SAT','TEC','DAT','ETM', &
+                 'NLV','OFL','PAS','REG','IP', 'AZA','SZA','SUN','CLF', &
+                 'ST1','IDO','IDF','SAZ','GQF','GQL','CF1','CF2','CF3', &
+                 'CF4','CF5','CF6','CF7','NCO2','STYP','ROQF'/)
+   character(len=4), parameter, dimension(9) :: columns_int_body &
+            = (/ 'VNM ','FLG','KFA','ASS','HIND','VCO','LYR','XTR','IDD' /)
+   character(len=4), parameter, dimension(101) :: columns_real_head &
+
+            = (/'LAT ','LON ','ALT ','BX  ','BY  ','BZ  ', &
+                'M1C1','M1C2','M1C3','M1C4','M1C5','M1C6', &
+                'M2C1','M2C2','M2C3','M2C4','M2C5','M2C6', &
+                'M3C1','M3C2','M3C3','M3C4','M3C5','M3C6', &
+                'M4C1','M4C2','M4C3','M4C4','M4C5','M4C6', &
+                'M5C1','M5C2','M5C3','M5C4','M5C5','M5C6', &
+                'M6C1','M6C2','M6C3','M6C4','M6C5','M6C6', &
+                'M7C1','M7C2','M7C3','M7C4','M7C5','M7C6', &
+                'S1C1','S1C2','S1C3','S1C4','S1C5','S1C6', &
+                'S2C1','S2C2','S2C3','S2C4','S2C5','S2C6', &
+                'S3C1','S3C2','S3C3','S3C4','S3C5','S3C6', &
+                'S4C1','S4C2','S4C3','S4C4','S4C5','S4C6', &
+                'S5C1','S5C2','S5C3','S5C4','S5C5','S5C6', &
+                'S6C1','S6C2','S6C3','S6C4','S6C5','S6C6', &
+                'S7C1','S7C2','S7C3','S7C4','S7C5','S7C6', &
+                'ETOP','VTOP','ECF ','HE  ','ZTSR','ZTM ', &
+                'ZTGM','ZLQM','ZPS ','TRAD','GEOI' /)
+   character(len=4), parameter, dimension(14) :: columns_real_body &
+            = (/ 'PPP ','SEM ','VAR ','OMP ','OMA ','OER ','HPHT','ZHA ','OMP6',&
+                 'SIGI','SIGO','POB ','OMF ','PRM ' /)
+   character(len=4), parameter, dimension(1) :: columns_char_head &
+            = (/ 'STID' /)
+                                        ! value of environment variable of the
+                                        ! same name
+   character(len=200) :: unit_test_obs_data_dir
+
+contains
+
+   subroutine PlaceKeeper()
+      ! Typically used in a command like this:
+      !     call add(suite_obs, TestCase('obsBasicTests', PlaceKeeper))
+      call fail('----->>>>> *** TEST HAS BEEN TURNED OFF *** <<<<<-----')
+   end subroutine PlaceKeeper
+
+   function getTestSuite_obs() result(suite_obs)
+      type (TestSuite_type) :: suite_obs
+
+      call get_environment_variables()
+
+      ! Specify the active observation-array columns
+      call obs_class_initialize('ALL')
+
+      ! Build suite from test procedures:
+      suite_obs = TestSuite('ObsSpaceData tests')
+
+      call add(suite_obs, get_obsDataColumnTests())
+      call add(suite_obs, get_obsBasicTests())
+      call add(suite_obs, get_obsObjectManipulationTests())
+
+   end function getTestSuite_obs
+
+   function getTestSuite_obs_group2() result(suite_obs)
+      type (TestSuite_type) :: suite_obs
+
+      call get_environment_variables()
+
+      ! Build suite from test procedures:
+      suite_obs = TestSuite('ObsSpaceData tests')
+
+      call add(suite_obs, TestCase('odc_columnSet_errors', &
+                               test_odc_columnSet_errors))
+      call add(suite_obs, TestCase('odc_columnElem_errors', &
+                               test_odc_columnElem_errors))
+
+   end function getTestSuite_obs_group2
+
+   function get_obsDataColumnTests() result(suite_odc)
+      type (TestSuite_type) :: suite_odc
+      ! This suite is of tests of operations on the ObsDataColumn module that is
+      ! used by the ObsSpaceData module.
+      ! It can be noted that the ObsDataColumn module is intended to be internal
+      ! to the ObsSpaceData module.  It is visible externally only due to
+      ! constraints imposed by the fortran language.  Therefore, it would be
+      ! reasonable at some point in the future for the module to fail these
+      ! tests.
+
+      ! Build suite from test procedures:
+      suite_odc = TestSuite('ObsDataColumn tests')
+
+      call add(suite_odc, TestCase('odc_allocate', test_odc_allocate))
+   end function get_obsDataColumnTests
+
+   function get_obsBasicTests() result(suite_obs)
+      type (TestSuite_type) :: suite_obs
+      ! This suite is of fundamental tests of operations on elemental parts
+      ! of the ObsSpaceData module.
+
+      ! Build suite from test procedures:
+      suite_obs = TestSuite('ObsSpaceData basic tests')
+
+      call add(suite_obs, TestCase('obs_init', test_obs_init))
+      call add(suite_obs, TestCase('obs_init_2', test_obs_init_2))
+      call add(suite_obs, TestCase('obs_init_3', test_obs_init_3))
+      call add(suite_obs, TestCase('obs_finalize', test_obs_finalize))
+      call add(suite_obs, TestCase('AddHeaderElement', test_AddHeaderElement))
+      call add(suite_obs, TestCase('SetAndRead_IntegerHeaderElement', &
+                                   test_headerElement_i))
+      call add(suite_obs, TestCase('SetAndRead_IntegerBodyElement', &
+                                   test_bodyElement_i))
+      call add(suite_obs, TestCase('SetAndRead_RealHeaderElement', &
+                                   test_headerElement_r))
+      call add(suite_obs, TestCase('SetAndRead_RealBodyElement', &
+                                   test_bodyElement_r))
+      call add(suite_obs, TestCase('SetAndRead_CharHeaderElement', &
+                                   test_headerElement_c))
+      call add(suite_obs, TestCase('obsStatus', test_obsStatus))
+      call add(suite_obs, TestCase('columnIndexFromName', test_columnIndices))
+   end function get_obsBasicTests
+
+   function get_obsObjectManipulationTests() result(suite_obs)
+      type (TestSuite_type) :: suite_obs
+      ! This suite is of tests of whole-object operations of the ObsSpaceData
+      ! module.
+
+      ! Build suite from test procedures:
+      suite_obs = TestSuite('ObsSpaceData whole-object tests')
+
+      call add(suite_obs, TestCase('obs_append', test_obs_append))
+      call add(suite_obs, TestCase('obs_copy',   test_obs_copy))
+      ! call add(suite_obs, TestCase('obs_copy_abort',   test_obs_copy_abort))
+      call add(suite_obs, TestCase('obs_count_headers', test_obs_count_headers))
+      call add(suite_obs, TestCase('WriteAndReadBinaryFile', test_binaryFile))
+      call add(suite_obs, TestCase('obs_select', test_obs_select))
+      call add(suite_obs, TestCase('obs_select_abort', test_obs_select_abort))
+      call add(suite_obs, TestCase('obs_order', test_obs_order))
+      call add(suite_obs, TestCase('ReadBinaryFileOnePass', &
+                                                         test_binaryFileOnePass))
+      call add(suite_obs, TestCase('ReadBinaryFileOnePass_Abort', &
+                                                   test_binaryFileOnePass_abort))
+      call add(suite_obs, TestCase('obs_clean_g1', test_obs_clean_g1))
+      call add(suite_obs, TestCase('obs_clean_g2', test_obs_clean_g2))
+      call add(suite_obs, TestCase('obs_clean_g3', test_obs_clean_g3))
+      call add(suite_obs, MpiTestCase('obs_comm', test_obs_comm, NUM_PE))
+      call add(suite_obs, MpiTestCase('obs_comm_boundaries', &
+                                       test_obs_comm_boundaries, NUM_PE))
+      call add(suite_obs, TestCase('obs_get_obs_index_for_bufr_element', &
+                                                              test_bufr_element))
+      call add(suite_obs, TestCase('obs_prntbdy', test_prntbdy))
+      call add(suite_obs, TestCase('obs_prnthdr', test_prnthdr))
+      call add(suite_obs, MpiTestCase('obs_mpiReduceExpand', &
+                                                  test_mpiReduceExpand, NUM_PE))
+      call add(suite_obs, MpiTestCase('obs_xxxxIndex_mpiglobal', &
+                                                  test_mpiGlobalIndices, NUM_PE))
+      call add(suite_obs, MpiTestCase('obs_set_current_header_list', &
+                                                        test_HeaderList, NUM_PE))
+      call add(suite_obs, MpiTestCase('obs_set_current_body_list(family)', &
+                                                   test_BodyList_Family, NUM_PE))
+      call add(suite_obs, MpiTestCase('obs_set_current_body_list(header)', &
+                                                   test_BodyList_Header, NUM_PE))
+      call add(suite_obs, MpiTestCase('obs_set_current_body_list(all)', &
+                                                      test_BodyList_All, NUM_PE))
+   end function get_obsObjectManipulationTests
+
+   subroutine get_environment_variables()
+      integer :: length, status
+      character(len=300) :: msg
+      call get_environment_variable('UNIT_TEST_OBS_DATA_DIR', &
+                                    unit_test_obs_data_dir, length, status)
+      if(status /= 0) then
+         write(msg,*)"ERROR retrieving the environment variable, ", &
+                     " UNIT_TEST_OBS_DATA_DIR.  Status = ", status
+         call fail(msg)
+      end if
+   end subroutine get_environment_variables
+
+   subroutine test_obs_init()
+      ! Start with the basics:  does the object initializer allocate okay?
+      ! This test does not exercise the column mode (2nd) argument.
+      use obsSpaceData_mod
+      implicit none
+
+      type(struct_obs) :: myobs
+      integer, parameter :: HEAD_MAX=3, BOD_MAX=7
+      integer :: num_heads, num_bods
+      logical :: logic_found
+
+      ! Method under test
+      call obs_initialize(myobs, HEAD_MAX, BOD_MAX)
+
+      ! Examine the results & test the inspection methods
+      num_heads = obs_numheader_max(myobs)
+      call assertEqual(HEAD_MAX, num_heads, 'obs_numheader_max')
+
+      num_bods = obs_numbody_max(myobs)
+      call assertEqual(BOD_MAX, num_bods, 'obs_numbody_max')
+
+      num_heads = obs_numheader(myobs)
+      call assertEqual(0, num_heads, 'obs_numheader')
+
+      num_bods = obs_numbody(myobs)
+      call assertEqual(0, num_bods, 'obs_numbody')
+
+      call obs_finalize(myobs)
+
+      ! Verify abortion when called with bad parameters
+      call assertFalse(logic_found, 'obs aborted prematurely on bad parameter')
+      call obs_class_initialize('VAR')
+      logic_found = catch('exiting in obs_abort')
+      call assertTrue(logic_found, 'obs failed to abort on bad parameter')
+
+      ! Clear the exception stack
+      logic_found = catch('exiting in obs_abort')
+   end subroutine test_obs_init
+
+   subroutine test_obs_init_2()
+      ! Start with the basics:  does the object initializer allocate okay?
+      ! This test does not exercise the column mode (2nd) argument.
+      use obsSpaceData_mod
+      implicit none
+
+      type(struct_obs) :: myobs
+      integer, parameter :: HEAD_MAX=2, BOD_MAX=4
+      integer, parameter :: FLNML_UNIT=80
+      integer :: num_heads, num_bods
+      logical :: logic_found
+      integer :: status
+
+
+      !
+      ! Verify abortion when dimensions are not supplied
+      !
+      call assertFalse(logic_found, &
+                       'obs aborted prematurely on missing dimensions')
+      ! Method under test
+      call obs_initialize(myobs)
+      logic_found = catch('exiting in obs_abort')
+      call assertTrue(logic_found, 'obs failed to abort on missing dimensions')
+      ! Clear the exception stack
+      logic_found = catch('exiting in obs_abort')
+      call obs_finalize(myobs)
+
+
+      !
+      ! Verify abortion when dimensions are missing from flnml
+      !
+      ! Create the file, flnml
+      open(unit=FLNML_UNIT, file='flnml', &
+                            status='REPLACE', &
+                            action='WRITE', &
+                            iostat=status)
+      if(status /= 0) write(*,*)"ERROR opening file , flnml: status=", status
+      write(FLNML_UNIT, *)"&namdimo"
+      write(FLNML_UNIT, *)"/"
+      close(unit=FLNML_UNIT)
+
+      call assertFalse(logic_found, &
+                      'obs aborted prematurely on dimensions missing from flnml')
+      ! Method under test
+      call obs_initialize(myobs)
+      logic_found = catch('exiting in obs_abort')
+      call assertTrue(logic_found, &
+                          'obs failed to abort on dimensions missing from flnml')
+      ! Clear the exception stack
+      logic_found = catch('exiting in obs_abort')
+      call obs_finalize(myobs)
+
+
+      !
+      ! Verify abortion when bad head_max is received from flnml
+      !
+      ! Create the file, flnml
+      open(unit=FLNML_UNIT, file='flnml', &
+                            status='REPLACE', &
+                            action='WRITE', &
+                            iostat=status)
+      if(status /= 0) write(*,*)"ERROR opening file , flnml: status=", status
+      write(FLNML_UNIT, *)"&namdimo"
+      write(FLNML_UNIT, *)"nmxobs=", -2
+      write(FLNML_UNIT, *)"ndatamx=", BOD_MAX
+      write(FLNML_UNIT, *)"/"
+      close(unit=FLNML_UNIT)
+
+      call assertFalse(logic_found, &
+                      'obs aborted prematurely on bad nmxobs flnml')
+      ! Method under test
+      call obs_initialize(myobs)
+      logic_found = catch('exiting in obs_abort')
+      call assertTrue(logic_found, &
+                          'obs failed to abort on bad nmxobs flnml')
+      ! Clear the exception stack
+      logic_found = catch('exiting in obs_abort')
+      call obs_finalize(myobs)
+
+
+      !
+      ! Verify abortion when bad bod_max is received from flnml
+      !
+      ! Create the file, flnml
+      open(unit=FLNML_UNIT, file='flnml', &
+                            status='REPLACE', &
+                            action='WRITE', &
+                            iostat=status)
+      if(status /= 0) write(*,*)"ERROR opening file , flnml: status=", status
+      write(FLNML_UNIT, *)"&namdimo"
+      write(FLNML_UNIT, *)"nmxobs=", HEAD_MAX
+      write(FLNML_UNIT, *)"ndatamx=", -3
+      write(FLNML_UNIT, *)"/"
+      close(unit=FLNML_UNIT)
+
+      call assertFalse(logic_found, &
+                      'obs aborted prematurely on bad ndatamx flnml')
+      ! Method under test
+      call obs_initialize(myobs)
+      logic_found = catch('exiting in obs_abort')
+      call assertTrue(logic_found, &
+                          'obs failed to abort on bad ndatamx flnml')
+      ! Clear the exception stack
+      logic_found = catch('exiting in obs_abort')
+      call obs_finalize(myobs)
+
+
+      !
+      ! Verify dimensions received from flnml
+      !
+      ! Create the file, flnml
+      open(unit=FLNML_UNIT, file='flnml', &
+                            status='REPLACE', &
+                            action='WRITE', &
+                            iostat=status)
+      if(status /= 0) write(*,*)"ERROR opening file , flnml: status=", status
+      write(FLNML_UNIT, *)"&namdimo"
+      write(FLNML_UNIT, *)"nmxobs=", HEAD_MAX
+      write(FLNML_UNIT, *)"ndatamx=", BOD_MAX
+      write(FLNML_UNIT, *)"/"
+      close(unit=FLNML_UNIT)
+
+      call assertFalse(logic_found, &
+                      'obs aborted prematurely on good dimensions in flnml')
+      ! Method under test
+      call obs_initialize(myobs)
+      logic_found = catch('exiting in obs_abort')
+      call assertFalse(logic_found, &
+                          'obs aborted on good dimensions in flnml')
+      ! Examine the results
+      num_heads = obs_numheader_max(myobs)
+      call assertEqual(HEAD_MAX, num_heads, 'obs_numheader_max')
+
+      num_bods = obs_numbody_max(myobs)
+      call assertEqual(BOD_MAX, num_bods, 'obs_numbody_max')
+      ! Clear the exception stack
+      logic_found = catch('exiting in obs_abort')
+      call obs_finalize(myobs)
+   end subroutine test_obs_init_2
+
+   subroutine test_obs_init_3()
+      ! Verify that the code aborts if a second initialization is attempted.
+      use obsSpaceData_mod
+      implicit none
+
+      type(struct_obs) :: myobs
+      integer, parameter :: HEAD_MAX=2, BOD_MAX=4
+      integer, parameter :: FLNML_UNIT=80
+      integer :: num_heads, num_bods
+      logical :: logic_found
+      integer :: status
+
+
+      ! Method under test
+      call obs_initialize(myobs, HEAD_MAX, BOD_MAX)
+      logic_found = catch('exiting in obs_abort')
+      call assertFalse(logic_found, &
+                       'obs aborted prematurely on first initialization')
+
+
+      ! Method under test
+      call obs_initialize(myobs, HEAD_MAX, BOD_MAX)
+      logic_found = catch('exiting in obs_abort')
+      call assertTrue(logic_found, &
+                      'obs failed to abort on repeated initialization')
+      ! Clear the exception stack
+      logic_found = catch('exiting in obs_abort')
+   end subroutine test_obs_init_3
+
+   subroutine test_obs_finalize()
+      ! Verify that code continues quietly if a second finalization is attempted.
+      use obsSpaceData_mod
+      implicit none
+
+      type(struct_obs) :: myobs
+      integer, parameter :: HEAD_MAX=2, BOD_MAX=4
+      integer, parameter :: FLNML_UNIT=80
+      integer :: num_heads, num_bods
+      logical :: logic_found
+      integer :: status
+
+
+      call obs_initialize(myobs, HEAD_MAX, BOD_MAX)
+
+
+      ! Method under test
+      call obs_finalize(myobs)
+      logic_found = catch('exiting in obs_abort')
+      call assertFalse(logic_found, &
+                      'obs aborted on first finalization')
+
+      call obs_finalize(myobs)
+      logic_found = catch('exiting in obs_abort')
+      call assertFalse(logic_found, &
+                      'obs aborted on repeated finalization')
+   end subroutine test_obs_finalize
+
+   subroutine test_AddHeaderElement()
+      ! A new header element is (currently) added by assigning a value to the
+      ! family of the *next* header.  So, assign some families and check to see
+      ! that the number of header elements has increased.
+      use obsSpaceData_mod
+      implicit none
+      type(struct_obs) :: myobs
+      integer, parameter :: HEAD_MAX=10, BOD_MAX=100
+      integer :: num_heads, headerIndex
+      character(len=10) :: Family_in
+      character(len=4) :: family
+      logical :: logic_found
+
+      call obs_initialize(myobs, HEAD_MAX, BOD_MAX)
+
+      ! Confirm the starting point
+      num_heads = obs_numheader(myobs)
+      call assertEqual(0, num_heads, 'obs_numheader')
+
+      ! Add a header element
+      headerIndex = 1
+      Family_in = 'JB'
+      call obs_setFamily(myobs, Family_in, headerIndex)
+
+      ! Confirm that the element has been added
+      num_heads = obs_numheader(myobs)
+      call assertEqual(1, num_heads, 'obs_numheader(2)')
+
+      ! Confirm the value of Family
+      family = obs_getFamily(myobs, headerIndex)
+      call assertEqual('JB', family, 'family')
+
+      ! Verify abortion for a bad call
+      family = obs_getFamily(myobs)
+      logic_found = catch('exiting in obs_abort')
+      call assertTrue(logic_found, 'obs failed to abort for a missing argument')
+
+      call obs_setFamily(myobs, Family_in)
+      logic_found = catch('exiting in obs_abort')
+      call assertTrue(logic_found, 'obs failed to abort for missing argument')
+
+      ! Revise the header element
+      headerIndex = 1
+      Family_in = 'JWB'
+      call obs_setFamily(myobs, Family_in, headerIndex)
+
+      ! Confirm that it is not a new element
+      num_heads = obs_numheader(myobs)
+      call assertEqual(1, num_heads, 'obs_numheader(3)')
+
+      ! Confirm the value of Family
+      family = obs_getFamily(myobs, headerIndex)
+      call assertEqual('JW', family, 'family(2)')
+
+
+
+      ! Add another header element ... incorrectly
+      headerIndex = 3
+      Family_in = 'OZ'
+      call obs_setFamily(myobs, Family_in, headerIndex)
+
+      ! Confirm that the element has not been added:  number
+      num_heads = obs_numheader(myobs)
+      call assertEqual(1, num_heads, 'obs_numheader(4)')
+
+      ! Some kind of error signal should have been sent,
+      ! because headerIndex has too great a value
+
+      call obs_finalize(myobs)
+   end subroutine test_AddHeaderElement
+
+   subroutine test_headerElement_i()
+      ! Test the setting of all integer header members:  obs_headSet_i().  One
+      ! must use obs_headElem_i() in order to verify the result.  Thus, this is a
+      ! test for both methods at once.
+      !
+      ! Note:  writing all of the values before reading any back verifies that no
+      !        two column names are assigned to the same column number.
+      use obsSpaceData_mod
+      implicit none
+      type(struct_obs) :: myobs
+      integer, parameter :: HEAD_MAX=10, BOD_MAX=100
+      integer, dimension(size(columns_int_head)) :: expected
+      integer :: found
+      logical :: logic_found
+      type(Exception_type) :: exception
+      character(len=150) :: msg_expected, msg_found
+      integer :: num, ndx, nchar
+      character(len=4) ::int_head_last
+
+
+      num = size(columns_int_head)
+      int_head_last=columns_int_head(num)
+      call obs_initialize(myobs, HEAD_MAX, BOD_MAX)
+
+      ! Assign unique integer values to obsSpaceData
+      do ndx=1,num
+         expected(ndx) = 0
+         do nchar=1,4
+                                        ! -30 to keep expected <100
+            expected(ndx) =   100*expected(ndx) &
+                            + iachar(columns_int_head(ndx)(nchar:nchar)) &
+                            - 30
+         end do
+
+         call obs_headSet_i (myobs, &
+             obs_columnIndexFromName_IH(columns_int_head(ndx)), 1, expected(ndx))
+      end do
+
+      ! Read the values back from obsSpaceData, and verify them
+      do ndx=1,num
+         found = obs_headElem_i(myobs, &
+                            obs_columnIndexFromName_IH(columns_int_head(ndx)), 1)
+         call assertEqual(expected(ndx), found, columns_int_head(ndx))
+      end do
+
+      ! REQUESTING AN OUT-OF-RANGE COLUMN INDEX SHOULD CAUSE ABORTION: reading
+                                        ! Request the last column
+      found = obs_headElem_i(myobs, obs_columnIndexFromName_IH(int_head_last), 1)
+      logic_found = catch('exiting in odc_abort')
+      call assertFalse(logic_found, 'odc aborted before expected')
+
+                                        ! Request the first column
+      found = obs_headElem_i(myobs, obs_columnIndexFromName_IH('RLN'), 1)
+      logic_found = catch('exiting in odc_abort')
+      call assertFalse(logic_found, 'odc aborted before expected')
+
+                                        ! Request one past the last column
+      call ClearExceptions()
+      found = obs_headElem_i(myobs,obs_columnIndexFromName_IH(int_head_last)+1,1)
+      exception = catchAny()
+      if (exception == NO_EXCEPTION)then
+         call Fail('odc failed to abort on requesting one past the last column')
+      else
+         msg_found = getMessage(exception)
+         msg_expected='exiting in odc_abort: abort in odc_columnElem (INT ,HEAD): column index out of range:           134'
+         call assertEqual(msg_expected, msg_found, 'bad error message', &
+                          ignoreWhiteSpace=.true.)
+      end if
+
+                                        ! Request one before the first column
+      call ClearExceptions()
+      found = obs_headElem_i(myobs, obs_columnIndexFromName_IH('RLN')-1, 1)
+      exception = catchAny()
+      if (exception == NO_EXCEPTION)then
+         call Fail('odc failed to abort on requesting one before first column')
+      else
+         msg_found = getMessage(exception)
+         msg_expected='exiting in odc_abort: abort in odc_columnElem (INT ,HEAD): column index out of range:           100'
+         call assertEqual(msg_expected, msg_found, 'bad error message', &
+                          ignoreWhiteSpace=.true.)
+      end if
+
+      ! REQUESTING AN OUT-OF-RANGE COLUMN INDEX SHOULD CAUSE ABORTION: writing
+                                        ! Request the last column
+      call ClearExceptions()
+      call obs_headSet_i(myobs, obs_columnIndexFromName_IH(int_head_last), 1, 0)
+      logic_found = catch()
+      call assertFalse(logic_found, 'odc aborted before expected')
+
+                                        ! Request the first column
+      call obs_headSet_i(myobs, obs_columnIndexFromName_IH('RLN'), 1, 0)
+      logic_found = catch()
+      call assertFalse(logic_found, 'odc aborted before expected')
+
+                                        ! Request one past the last column
+      call ClearExceptions()
+      call obs_headSet_i(myobs, obs_columnIndexFromName_IH(int_head_last)+1, 1,0)
+      exception = catchAny()
+      if (exception == NO_EXCEPTION)then
+         call Fail('odc failed to abort on requesting one past the last column')
+      else
+         msg_found = getMessage(exception)
+         msg_expected='exiting in odc_abort: abort in odc_columnSet (INT ,HEAD): column index out of range:           134'
+         call assertEqual(msg_expected, msg_found, 'bad error message', &
+                          ignoreWhiteSpace=.true.)
+      end if
+
+                                        ! Request one before the first column
+      call ClearExceptions()
+      call obs_headSet_i(myobs, obs_columnIndexFromName_IH('RLN')-1, 1, 0)
+      exception = catchAny()
+      if (exception == NO_EXCEPTION)then
+         call Fail('odc failed to abort on requesting one before first column')
+      else
+         msg_found = getMessage(exception)
+         msg_expected='exiting in odc_abort: abort in odc_columnSet (INT ,HEAD): column index out of range:           100'
+         call assertEqual(msg_expected, msg_found, 'bad error message', &
+                          ignoreWhiteSpace=.true.)
+      end if
+
+      call obs_finalize(myobs)
+   end subroutine test_headerElement_i
+
+   subroutine test_bodyElement_i()
+      ! Test the setting of all integer body members:  obs_bodySet_i().  One must
+      ! use obs_bodyElem_i() in order to verify the result.  Thus, this is a test
+      ! for both methods at once.
+      !
+      ! Note:  writing all of the values before reading any back verifies that no
+      !        two column names are assigned to the same column number.
+      use obsSpaceData_mod
+      implicit none
+      type(struct_obs) :: myobs
+      integer, parameter :: HEAD_MAX=10, BOD_MAX=100
+      integer, dimension(size(columns_int_body)) :: expected
+      integer :: found
+      logical :: logic_found
+      type(Exception_type) :: exception
+      character(len=150) :: msg_expected, msg_found
+      integer :: num, ndx, nchar
+
+      num = size(columns_int_body)
+      call obs_initialize(myobs, HEAD_MAX, BOD_MAX)
+
+      ! Assign unique integer values to obsSpaceData
+      do ndx=1,num
+         expected(ndx) = 0
+         do nchar=1,4
+                                        ! -30 to keep expected <100
+            expected(ndx) =   100*expected(ndx) &
+                            + iachar(columns_int_body(ndx)(nchar:nchar)) &
+                            - 30
+         end do
+
+         call obs_bodySet_i (myobs, &
+             obs_columnIndexFromName_IB(columns_int_body(ndx)), 1, expected(ndx))
+      end do
+
+      ! Read the values back from obsSpaceData, and verify them
+      do ndx=1,num
+         found = obs_bodyElem_i(myobs, &
+                            obs_columnIndexFromName_IB(columns_int_body(ndx)), 1)
+         call assertEqual(expected(ndx), found, columns_int_body(ndx))
+      end do
+
+      ! REQUESTING AN OUT-OF-RANGE COLUMN INDEX SHOULD CAUSE ABORTION: reading
+                                        ! Request the last column
+      found = obs_bodyElem_i(myobs, obs_columnIndexFromName_IB('IDD'), 1)
+      logic_found = catch('exiting in odc_abort')
+      call assertFalse(logic_found, 'odc aborted before expected')
+
+                                        ! Request the first column
+      found = obs_bodyElem_i(myobs, obs_columnIndexFromName_IB('VNM'), 1)
+      logic_found = catch('exiting in odc_abort')
+      call assertFalse(logic_found, 'odc aborted before expected')
+
+                                        ! Request one past the last column
+      call ClearExceptions()
+      found = obs_bodyElem_i(myobs, obs_columnIndexFromName_IB('IDD')+1, 1)
+      exception = catchAny()
+      if (exception == NO_EXCEPTION)then
+         call Fail('odc failed to abort on requesting one past the last column')
+      else
+         msg_found = getMessage(exception)
+         msg_expected='exiting in odc_abort: abort in odc_columnElem (REAL,BODY): column index out of range:           415'
+         call assertEqual(msg_expected, msg_found, 'bad error message', &
+                          ignoreWhiteSpace=.true.)
+      end if
+
+                                        ! Request one before the first column
+      call ClearExceptions()
+      found = obs_bodyElem_i(myobs, obs_columnIndexFromName_IB('VNM')-1, 1)
+      exception = catchAny()
+      if (exception == NO_EXCEPTION)then
+         call Fail('odc failed to abort on requesting one before first column')
+      else
+         msg_found = getMessage(exception)
+         msg_expected='exiting in odc_abort: abort in odc_columnElem (REAL,BODY): column index out of range:           400'
+         call assertEqual(msg_expected, msg_found, 'bad error message', &
+                          ignoreWhiteSpace=.true.)
+      end if
+
+      ! REQUESTING AN OUT-OF-RANGE COLUMN INDEX SHOULD CAUSE ABORTION: writing
+                                        ! Request the last column
+      call obs_bodySet_i(myobs, obs_columnIndexFromName_IB('IDD'), 1, 0)
+      logic_found = catch('exiting in odc_abort')
+      call assertFalse(logic_found, 'odc aborted before expected')
+
+                                        ! Request the first column
+      call obs_bodySet_i(myobs, obs_columnIndexFromName_IB('VNM'), 1, 0)
+      logic_found = catch('exiting in odc_abort')
+      call assertFalse(logic_found, 'odc aborted before expected')
+
+                                        ! Request one past the last column
+      call ClearExceptions()
+      call obs_bodySet_i(myobs, obs_columnIndexFromName_IB('IDD')+1, 1, 0)
+      exception = catchAny()
+      if (exception == NO_EXCEPTION)then
+         call Fail('odc failed to abort on requesting one past the last column')
+      else
+         msg_found = getMessage(exception)
+         msg_expected='exiting in odc_abort: abort in odc_columnSet (INT ,BODY): column index out of range:           310'
+         call assertEqual(msg_expected, msg_found, 'bad error message', &
+                          ignoreWhiteSpace=.true.)
+      end if
+
+                                        ! Request one before the first column
+      call ClearExceptions()
+      call obs_bodySet_i(myobs, obs_columnIndexFromName_IB('VNM')-1, 1, 0)
+      exception = catchAny()
+      if (exception == NO_EXCEPTION)then
+         call Fail('odc failed to abort on requesting one before first column')
+      else
+         msg_found = getMessage(exception)
+         msg_expected='exiting in odc_abort: abort in odc_columnSet (INT ,BODY): column index out of range:           400'
+         call assertEqual(msg_expected, msg_found, 'bad error message', &
+                          ignoreWhiteSpace=.true.)
+      end if
+
+      call obs_finalize(myobs)
+   end subroutine test_bodyElement_i
+
+   subroutine test_headerElement_r()
+      ! Test the setting of all real header members:  obs_headSet_r().  One must
+      ! use obs_headElem_r() in order to verify the result.  Thus, this is a test
+      ! for both methods at once.
+      use obsSpaceData_mod
+      implicit none
+      type(struct_obs) :: myobs
+      integer, parameter :: HEAD_MAX=10, BOD_MAX=100
+      real(OBS_REAL), dimension(size(columns_real_head)) :: expected
+      real(OBS_REAL) :: found
+      logical :: logic_found
+      type(Exception_type) :: exception
+      character(len=150) :: msg_expected, msg_found
+      integer :: num, ndx, nchar
+      character(len=4) ::real_head_last
+
+      num = size(columns_real_head)
+      real_head_last=columns_real_head(num)
+      call obs_initialize(myobs, HEAD_MAX, BOD_MAX)
+
+      ! Assign unique real values to obsSpaceData
+      do ndx=1,num
+         expected(ndx) = 0.
+         do nchar=1,4
+                                        ! -30 to keep expected <100
+            expected(ndx) =   100.*expected(ndx) &
+                            + real(iachar(columns_real_head(ndx)(nchar:nchar))) &
+                            - 30.
+         end do
+
+         call obs_headSet_r (myobs, &
+            obs_columnIndexFromName_RH(columns_real_head(ndx)), 1, expected(ndx))
+      end do
+
+      ! Read the values back from obsSpaceData, and verify them
+      do ndx=1,num
+         found = obs_headElem_r(myobs, &
+                           obs_columnIndexFromName_RH(columns_real_head(ndx)), 1)
+         call assertEqual(expected(ndx), found, columns_real_head(ndx))
+      end do
+
+      ! REQUESTING AN OUT-OF-RANGE COLUMN INDEX SHOULD CAUSE ABORTION: reading
+                                        ! Request the last column
+      found = obs_headElem_r(myobs, obs_columnIndexFromName_RH(real_head_last),1)
+      logic_found = catch('exiting in odc_abort')
+      call assertFalse(logic_found, 'odc aborted before expected')
+
+                                        ! Request the first column
+      found = obs_headElem_r(myobs, obs_columnIndexFromName_RH('LAT'), 1)
+      logic_found = catch('exiting in odc_abort')
+      call assertFalse(logic_found, 'odc aborted before expected')
+
+                                        ! Request one past the last column
+      call ClearExceptions()
+      found =obs_headElem_r(myobs,obs_columnIndexFromName_RH(real_head_last)+1,1)
+      exception = catchAny()
+      if (exception == NO_EXCEPTION)then
+         call Fail('odc failed to abort on requesting one past the last column')
+      else
+         msg_found = getMessage(exception)
+         msg_expected='exiting in odc_abort: abort in odc_columnElem (REAL,HEAD): column index out of range:           301'
+         call assertEqual(msg_expected, msg_found, 'bad error message', &
+                          ignoreWhiteSpace=.true.)
+      end if
+
+                                        ! Request one before the first column
+      call ClearExceptions()
+      found = obs_headElem_r(myobs, obs_columnIndexFromName_RH('LAT')-1, 1)
+      exception = catchAny()
+      if (exception == NO_EXCEPTION)then
+         call Fail('odc failed to abort on requesting one before first column')
+      else
+         msg_found = getMessage(exception)
+         msg_expected='exiting in odc_abort: abort in odc_columnElem (REAL,HEAD): column index out of range:           200'
+         call assertEqual(msg_expected, msg_found, 'bad error message', &
+                          ignoreWhiteSpace=.true.)
+      end if
+
+      ! REQUESTING AN OUT-OF-RANGE COLUMN INDEX SHOULD CAUSE ABORTION: writing
+                                        ! Request the last column
+      call obs_headSet_r(myobs,obs_columnIndexFromName_RH(real_head_last),1,ZERO)
+      logic_found = catch('exiting in odc_abort')
+      call assertFalse(logic_found, 'odc aborted before expected')
+
+                                        ! Request the first column
+      call obs_headSet_r(myobs, obs_columnIndexFromName_RH('LAT'), 1, ZERO)
+      logic_found = catch('exiting in odc_abort')
+      call assertFalse(logic_found, 'odc aborted before expected')
+
+                                        ! Request one past the last column
+      call ClearExceptions()
+      call obs_headSet_r(myobs, obs_columnIndexFromName_RH(real_head_last)+1, &
+                         1, ZERO)
+      exception = catchAny()
+      if (exception == NO_EXCEPTION)then
+         call Fail('odc failed to abort on requesting one past the last column')
+      else
+         msg_found = getMessage(exception)
+         msg_expected='exiting in odc_abort: abort in odc_columnSet (REAL,HEAD): column index out of range:           301v'
+         call assertEqual(msg_expected, msg_found, 'bad error message', &
+                          ignoreWhiteSpace=.true.)
+      end if
+
+                                        ! Request one before the first column
+      call ClearExceptions()
+      call obs_headSet_r(myobs, obs_columnIndexFromName_RH('LAT')-1, 1, ZERO)
+      exception = catchAny()
+      if (exception == NO_EXCEPTION)then
+         call Fail('odc failed to abort on requesting one before first column')
+      else
+         msg_found = getMessage(exception)
+         msg_expected='exiting in odc_abort: abort in odc_columnSet (REAL,HEAD): column index out of range:           200'
+         call assertEqual(msg_expected, msg_found, 'bad error message', &
+                          ignoreWhiteSpace=.true.)
+      end if
+
+      call obs_finalize(myobs)
+   end subroutine test_headerElement_r
+
+   subroutine test_bodyElement_r()
+      ! Test the setting of all real body members:  obs_bodySet_r().  One must
+      ! use obs_bodyElem_r() in order to verify the result.  Thus, this is a test
+      ! for both methods at once.
+      use obsSpaceData_mod
+      implicit none
+      type(struct_obs) :: myobs
+      integer, parameter :: HEAD_MAX=10, BOD_MAX=100
+      real(OBS_REAL), dimension(size(columns_real_body)) :: expected
+      real(OBS_REAL) :: found
+      logical :: logic_found
+      type(Exception_type) :: exception
+      character(len=150) :: msg_expected, msg_found
+      integer :: num, ndx, nchar
+
+      num = size(columns_real_body)
+      call obs_initialize(myobs, HEAD_MAX, BOD_MAX)
+
+      ! Assign unique real values to obsSpaceData
+      do ndx=1,num
+         expected(ndx) = 0.
+         do nchar=1,4
+                                        ! -30 to keep expected <100
+            expected(ndx) =   100.*expected(ndx) &
+                            + real(iachar(columns_real_body(ndx)(nchar:nchar))) &
+                            - 30.
+         end do
+
+         call obs_bodySet_r (myobs, &
+            obs_columnIndexFromName_RB(columns_real_body(ndx)), 1, expected(ndx))
+      end do
+
+      ! Read the values back from obsSpaceData, and verify them
+      do ndx=1,num
+         found = obs_bodyElem_r(myobs, &
+                           obs_columnIndexFromName_RB(columns_real_body(ndx)), 1)
+         call assertEqual(expected(ndx), found, columns_real_body(ndx))
+      end do
+
+      ! REQUESTING AN OUT-OF-RANGE COLUMN INDEX SHOULD CAUSE ABORTION: reading
+                                        ! Request the last column
+      found = obs_bodyElem_r(myobs, obs_columnIndexFromName_RB('PRM'), 1)
+      logic_found = catch('exiting in odc_abort')
+      call assertFalse(logic_found, 'odc aborted before expected')
+
+                                        ! Request the first column
+      found = obs_bodyElem_r(myobs, obs_columnIndexFromName_RB('PPP'), 1)
+      logic_found = catch('exiting in odc_abort')
+      call assertFalse(logic_found, 'odc aborted before expected')
+
+                                        ! Request one past the last column
+      call ClearExceptions()
+      found = obs_bodyElem_r(myobs, obs_columnIndexFromName_RB('PRM')+1, 1)
+      exception = catchAny()
+      if (exception == NO_EXCEPTION)then
+         call Fail('odc failed to abort on requesting one past the last column')
+      else
+         msg_found = getMessage(exception)
+         msg_expected='exiting in odc_abort: abort in odc_columnElem (REAL,BODY): column index out of range:           415'
+         call assertEqual(msg_expected, msg_found, 'bad error message', &
+                          ignoreWhiteSpace=.true.)
+      end if
+
+                                        ! Request one before the first column
+      call ClearExceptions()
+      found = obs_bodyElem_r(myobs, obs_columnIndexFromName_RB('PPP')-1, 1)
+      exception = catchAny()
+      if (exception == NO_EXCEPTION)then
+         call Fail('odc failed to abort on requesting one before first column')
+      else
+         msg_found = getMessage(exception)
+         msg_expected='exiting in odc_abort: abort in odc_columnElem (REAL,BODY): column index out of range:           500'
+         call assertEqual(msg_expected, msg_found, 'bad error message', &
+                          ignoreWhiteSpace=.true.)
+      end if
+
+      ! REQUESTING AN OUT-OF-RANGE COLUMN INDEX SHOULD CAUSE ABORTION: writing
+                                        ! Request the last column
+      call obs_bodySet_r(myobs, obs_columnIndexFromName_RB('PRM'), 1, ZERO)
+      logic_found = catch('exiting in odc_abort')
+      call assertFalse(logic_found, 'odc aborted before expected')
+
+                                        ! Request the first column
+      call obs_bodySet_r(myobs, obs_columnIndexFromName_RB('PPP'), 1, ZERO)
+      logic_found = catch('exiting in odc_abort')
+      call assertFalse(logic_found, 'odc aborted before expected')
+
+                                        ! Request one past the last column
+      call ClearExceptions()
+      call obs_bodySet_r(myobs, obs_columnIndexFromName_RB('PRM')+1, 1, ZERO)
+      exception = catchAny()
+      if (exception == NO_EXCEPTION)then
+         call Fail('odc failed to abort on requesting one past the last column')
+      else
+         msg_found = getMessage(exception)
+         msg_expected='exiting in odc_abort: abort in odc_columnSet (REAL,BODY): column index out of range:           415'
+         call assertEqual(msg_expected, msg_found, 'bad error message', &
+                          ignoreWhiteSpace=.true.)
+      end if
+
+                                        ! Request one before the first column
+      call ClearExceptions()
+      call obs_bodySet_r(myobs, obs_columnIndexFromName_RB('PPP')-1, 1, ZERO)
+      exception = catchAny()
+      if (exception == NO_EXCEPTION)then
+         call Fail('odc failed to abort on requesting one before first column')
+      else
+         msg_found = getMessage(exception)
+         msg_expected='exiting in odc_abort: abort in odc_columnSet (REAL,BODY): column index out of range:           500'
+         call assertEqual(msg_expected, msg_found, 'bad error message', &
+                          ignoreWhiteSpace=.true.)
+      end if
+
+      call obs_finalize(myobs)
+   end subroutine test_bodyElement_r
+
+   subroutine test_headerElement_c()
+      ! Test the setting of all character header members:  obs_set_c().  One must
+      ! use obs_elem_c() in order to verify the result.  Thus, this is a test for
+      ! both methods at once.
+      use obsSpaceData_mod
+      implicit none
+      type(struct_obs) :: myobs
+      integer, parameter :: HEAD_MAX=10, BOD_MAX=100
+      character(len=12), dimension(size(columns_char_head)) :: expected
+      character(len=12) :: found
+      integer :: num, ndx, nchar
+      logical :: logic_found
+
+      num = size(columns_char_head)
+      call obs_initialize(myobs, HEAD_MAX, BOD_MAX)
+
+      ! Assign unique character values to obsSpaceData
+      expected(1) = 'sTiD56789012'
+      call obs_set_c(myobs, columns_char_head(1), 1, expected(1))
+
+      ! Read the values back from obsSpaceData, and verify them
+      do ndx=1,num
+         found = obs_elem_c(myobs, columns_char_head(ndx), 1)
+         call assertEqual(expected(ndx), found, columns_char_head(ndx))
+      end do
+
+      ! Verify that a bad column name is rejected
+      call obs_set_c(myobs, 'BAD', 1, expected(1))
+      logic_found = catch('exiting in obs_abort')
+      call assertTrue(logic_found, 'obs failed to abort')
+
+      call obs_finalize(myobs)
+   end subroutine test_headerElement_c
+
+   subroutine setUp_OneHeaderAndBodies(myobs, hdx, bod_offset, nbdy, fp)
+      ! This is a utility for use by the test routines.  Given:
+      !    - myobs:      the ObsSpaceData_mod object
+      !    - hdx:        a header index number
+      !    - bod_offset: the number of bodies already in the table
+      !    - nbdy:       the number of bodies to create
+      !    - fp:         a fingerprint (unique integer) to apply to each datum
+      ! this routine will:
+      !    - create one header at the indicated index, hdx
+      !    - completely fill the header with values known to verify_obs()
+      !    - create nbdy bodies, beginning at bod_offset
+      !    - completely fill the body with values known to verify_obs()
+      implicit none
+      type(struct_obs), intent(inout) :: myobs
+      integer, intent(in) :: hdx        ! header index to populate
+      integer, intent(in) :: bod_offset ! number of bodies already in the table
+      integer, intent(in) :: nbdy       ! number of body elements to create
+      integer, intent(in) :: fp         ! fingerprint applied to each datum
+
+      integer :: num, ndx, bdx
+
+      ! POPULATE THE HEADER
+      call obs_setFamily(myobs, 'FA',   hdx)
+      call obs_set_c    (myobs, 'STID', hdx, 'MyStation' // achar(fp+30))
+
+      num = size(columns_real_head)
+      do ndx=1,num
+         call obs_headSet_r (myobs, &
+                             obs_columnIndexFromName_RH(columns_real_head(ndx)),&
+                             hdx,real(ndx, OBS_REAL)*100. + fp + .003)
+      end do
+
+      num = size(columns_int_head)
+      do ndx=1,num
+         call obs_headSet_i (myobs, &
+                             obs_columnIndexFromName_IH(columns_int_head(ndx)), &
+                             hdx, ndx*1000 + fp)
+      end do
+
+      ! POPULATE THE BODIES
+      do bdx = 1,nbdy
+         num = size(columns_real_body)
+         do ndx=1,num
+            call obs_bodySet_r (myobs, &
+                             obs_columnIndexFromName_RB(columns_real_body(ndx)),&
+                             bdx+bod_offset, &
+                             real(ndx, OBS_REAL)*10000. + fp + .003 &
+                                                      + 100.*real(bdx, OBS_REAL))
+         end do
+
+         num = size(columns_int_body)
+         do ndx=1,num
+            call obs_bodySet_i (myobs, &
+                             obs_columnIndexFromName_IB(columns_int_body(ndx)), &
+                             bdx+bod_offset, &
+                             ndx*100000 + fp + 100*bdx)
+
+            ! SET VALUES THAT ARE MEANINGFUL TO THE MANIPULATION OF OBSDAT ITSELF
+            call obs_bodySet_i    (myobs, OBS_HIND, bdx+bod_offset, hdx)
+         end do
+      end do ! bdx
+
+      ! SET VALUES THAT ARE MEANINGFUL TO THE MANIPULATION OF OBSDAT ITSELF.
+      call obs_headSet_i    (myobs, OBS_RLN,  hdx, bod_offset+1)
+      call obs_headSet_i    (myobs, OBS_NLV,  hdx, nbdy)
+      call obs_headSet_i    (myobs, OBS_ONM,  hdx, hdx)
+      call obs_headSet_i    (myobs, OBS_PAS,  hdx, hdx)
+   end subroutine setUp_OneHeaderAndBodies
+
+   subroutine verify_obs(obs_found, hdx, bod_offset, nbdy, fp, &
+                         mpiLocal_expected, msg, &
+                         omit_zha, omit_ip, omit_pas, omit_onm)
+      ! This is a utility for use by the test routines.  Given:
+      !    - obs_found:  the obs object that resulted from an obs method
+      !    - hdx:        a header index number
+      !    - bod_offset: number of bodies, previous to the ones being examined
+      !    - nbdy:       the number of bodies being examined
+      !    - fp:         a fingerprint (unique integer) expected in each datum
+      !    - msg:        incorporated into any error message
+      !    - omit_*:     optional flags to omit the verification of some members.
+      !                  This is useful when these values are altered by the
+      !                  obs method being tested.
+      ! this routine will:
+      !    - completely verify the content of the indicated header, hdx
+      !    - completely verify the content of the indicated bodies:
+      !          (bod_offset + 1) to (bod_offset + nbdy)
+      implicit none
+      type(struct_obs), intent(in) :: obs_found
+      integer, intent(in) :: hdx        ! header index to verify
+      integer, intent(in) :: bod_offset ! number of bodies already in the table
+      integer, intent(in) :: nbdy       ! number of body elements expected
+      integer, intent(in) :: fp         ! expected fingerprint for each datum
+      character(len=*), intent(in) ::msg! incorporated into any error message
+      logical, intent(in) :: mpiLocal_expected
+
+      logical, optional :: omit_zha,  omit_ip,  omit_pas,  omit_onm
+      logical ::           omit_zha_, omit_ip_, omit_pas_, omit_onm_
+      integer :: num, ndx, bdx
+      character(len=12) :: found_c
+      real(OBS_REAL) :: found_r, expected_r
+      integer :: found_i, expected_i, expected_rln, expected_nlv
+
+      if(present(omit_zha))then
+         omit_zha_ = omit_zha
+      else
+         omit_zha_ = .false.
+      end if
+
+      if(present(omit_ip))then
+         omit_ip_ = omit_ip
+      else
+         omit_ip_ = .false.
+      end if
+
+      if(present(omit_pas))then
+         omit_pas_ = omit_pas
+      else
+         omit_pas_ = .false.
+      end if
+
+      if(present(omit_onm))then
+         omit_onm_ = omit_onm
+      else
+         omit_onm_ = .false.
+      end if
+
+      ! VERIFY THE HEADER MEMBERS
+      found_c = obs_getFamily(obs_found, hdx)
+      call assertEqual('FA', found_c, msg//' FA')
+
+      found_c = obs_elem_c(obs_found, 'STID', hdx)
+      call assertEqual('MyStation' // achar(fp+30), found_c, msg//' STID')
+
+      num = size(columns_real_head)
+      do ndx=1,num
+         expected_r = real(ndx, OBS_REAL)*100. + fp + .003
+         found_r = obs_headElem_r (obs_found, &
+                         obs_columnIndexFromName_RH(columns_real_head(ndx)), hdx)
+         call assertEqual(expected_r, found_r, msg//' '//columns_real_head(ndx))
+      end do
+
+      num = size(columns_int_head)
+      do ndx=1,num
+         ! Skip tests as directed
+         if(omit_ip_  .and. columns_int_head(ndx) == 'IP' ) cycle
+         if(omit_pas_ .and. columns_int_head(ndx) == 'PAS') cycle
+         if(omit_onm_ .and. columns_int_head(ndx) == 'ONM') cycle
+
+         ! Calculate expected values for special members
+         select case(columns_int_head(ndx))
+         case('RLN')
+                                     ! Because each sample header has nbdy bodies
+            expected_rln = bod_offset
+            expected_i = expected_rln + 1
+
+         case('NLV')
+            expected_nlv = nbdy
+            expected_i = expected_nlv
+
+         case('ONM')
+            expected_i = hdx
+
+         case('PAS')
+            expected_i = hdx
+
+         case default
+            expected_i = ndx*1000 + fp
+         end select
+
+         found_i = obs_headElem_i (obs_found, &
+                          obs_columnIndexFromName_IH(columns_int_head(ndx)), hdx)
+         call assertEqual(expected_i, found_i, msg//' '//columns_int_head(ndx))
+      end do
+
+      ! VERIFY THE BODY MEMBERS
+      do bdx = 1, nbdy
+         num = size(columns_real_body)
+         do ndx=1,num
+                                        ! Skip tests as directed
+            if(omit_zha_ .and. columns_real_body(ndx) == 'ZHA') cycle
+
+            expected_r = real(ndx, OBS_REAL)*10000. + fp + .003 &
+                                                       + 100.*real(bdx, OBS_REAL)
+            found_r = obs_bodyElem_r (obs_found, &
+                            obs_columnIndexFromName_RB(columns_real_body(ndx)), &
+                            expected_rln + bdx)
+            call assertEqual(expected_r, found_r, &
+                             msg//' '//columns_real_body(ndx))
+         end do
+
+         num = size(columns_int_body)
+         do ndx=1,num
+            select case(columns_int_body(ndx))
+
+            case('HIND')
+               expected_i = hdx
+
+            case default
+               expected_i = ndx*100000 + fp + 100*bdx
+            end select
+
+            found_i = obs_bodyElem_i (obs_found, &
+                             obs_columnIndexFromName_IB(columns_int_body(ndx)), &
+                             expected_rln + bdx)
+            call assertEqual(expected_i, found_i, &
+                             msg//' '//columns_int_body(ndx))
+         end do
+      end do
+
+      ! VERIFY REMAINING MEMBERS
+      call assertTrue(mpiLocal_expected .eqv. obs_mpiLocal(obs_found), &
+                      msg//' '//'mpiLocal')
+   end subroutine verify_obs
+
+   subroutine test_ascii_output(testout_unit, fileNamePath)
+      ! Compares two files, one already opened and positioned on unit, &
+      ! testout_unit, the other residing at fileNamePath.
+
+      character(len=*), intent(in) :: fileNamePath
+      integer, intent(in) :: testout_unit
+
+      integer, parameter :: TESTREF_UNIT = 99
+      integer :: status, statusMethod
+      character(len=1000) :: fromMethod, fromRef
+      character(len=100) :: msg
+      integer :: slash_index
+
+      open(unit=TESTREF_UNIT, file=fileNamePath, &
+                              status='OLD', &
+                              action='READ', &
+                              iostat=status)
+      if(status /= 0) write(*,*)"ERROR opening reference file, ", fileNamePath, &
+                                ": ", status
+
+      read(TESTREF_UNIT,'(a)', iostat=status, end=100)fromRef
+      do while(status == 0)
+         read(testout_unit,'(a)', end=101)fromMethod
+         slash_index = index(fileNamePath, '/', .true.)
+         call assertEqual(fromRef, fromMethod, &
+                'bad output:  cf reference file, '//fileNamePath(slash_index+1:))
+         read(TESTREF_UNIT,'(a)', iostat=status)fromRef
+         cycle
+  100    write(*,*)"ERROR:  End of file while reading the reference"
+         exit
+  101    write(*,*)"ERROR:  End of file while reading nobsout from obs_select"
+         exit
+      end do
+
+      ! Test for excess output
+      read(testout_unit,'(a)', iostat=statusMethod)fromMethod
+      msg = 'method produced excess output: ' // fromMethod
+      call assertTrue(statusMethod /= 0, msg)
+   end subroutine test_ascii_output
+
+   subroutine test_obsStatus()
+      ! Verify that obs_status() returns correct values, and verify its
+      ! contribution to the listing.
+      use obsSpaceData_mod
+      implicit none
+      type(struct_obs) :: myobs
+      integer, parameter :: HEAD_MAX=3, BOD_MAX=100
+      integer :: header_position, bod_offset, num_bodies
+      integer :: fingerprint            ! a finger print for a data set
+      logical :: obs_full
+      integer :: numstns_out, numobs_out
+      integer, parameter :: TESTOUT_UNIT = 8
+      integer :: status, statusMethod
+      character(len=100) :: fromMethod, msg
+
+      call obs_initialize(myobs, HEAD_MAX, BOD_MAX)
+
+      ! Direct the output to a file so that it can be verified
+      open(unit=TESTOUT_UNIT, status='SCRATCH', &
+                              action='READWRITE', &
+                              iostat=status)
+      if(status /= 0) write(*,*)"ERROR opening a scratch file in ", &
+                                "test_obs_status: ", status
+
+      ! TEST 1:  Set up obs table, but don't make it full
+      header_position = 1
+      bod_offset      = 0
+      num_bodies      = 2
+      fingerprint     = 1
+      call setUp_OneHeaderAndBodies(myobs, header_position, bod_offset, &
+                                    num_bodies, fingerprint)
+      header_position = 2
+      bod_offset      = 2
+      num_bodies      = 2
+      fingerprint     = 2
+      call setUp_OneHeaderAndBodies(myobs, header_position, bod_offset, &
+                                    num_bodies, fingerprint)
+
+      ! THE METHOD BEING TESTED
+      obs_full = .true.
+      numstns_out = 100
+      numobs_out  = 100
+      call obs_status(myobs, obs_full, numstns_out, numobs_out, TESTOUT_UNIT)
+
+      call assertFalse(obs_full, 'obs_full')
+      call assertEqual(2, numstns_out, 'numstns_out')
+      call assertEqual(4, numobs_out, 'numobs_out')
+
+      ! Test for excess output (any output at all is excess)
+      endfile(unit=TESTOUT_UNIT)
+      rewind(unit=TESTOUT_UNIT)
+
+      read(TESTOUT_UNIT,'(a)', iostat=statusMethod)fromMethod
+      msg = 'method produced excess output: ' // fromMethod
+      call assertTrue(statusMethod /= 0, msg)
+
+      ! TEST 2:  Now, fill up obs table
+      header_position = 3
+      bod_offset      = 4
+      num_bodies      = 2
+      fingerprint     = 3
+      call setUp_OneHeaderAndBodies(myobs, header_position, bod_offset, &
+                                    num_bodies, fingerprint)
+
+      rewind(unit=TESTOUT_UNIT)
+
+      ! THE METHOD BEING TESTED (call it again)
+      obs_full = .true.
+      numstns_out = 100
+      numobs_out  = 100
+      call obs_status(myobs, obs_full, numstns_out, numobs_out, TESTOUT_UNIT)
+
+      call assertTrue(obs_full, 'obs_full')
+      call assertEqual(3, numstns_out, 'numstns_out')
+      call assertEqual(6, numobs_out, 'numobs_out')
+
+      ! Verify the output
+      endfile(unit=TESTOUT_UNIT)
+      rewind (unit=TESTOUT_UNIT)
+
+      read(TESTOUT_UNIT,'(a)', iostat=statusMethod)fromMethod
+      call assertEqual('  OBSDAT FILE FULL', fromMethod, 'bad output to listing')
+
+      ! Test for excess output
+      read(TESTOUT_UNIT,'(a)', iostat=statusMethod)fromMethod
+      msg = 'method produced excess output: ' // fromMethod
+      call assertTrue(statusMethod /= 0, msg)
+
+      close(unit=TESTOUT_UNIT)
+      call obs_finalize(myobs)
+   end subroutine test_obsStatus
+
+   subroutine test_columnIndices()
+      ! These indices can have any values that the ObsSpaceData modules decides,
+      ! provided that they are all unique.  Therefore, this is a test for
+      ! uniqueness.
+      use obsSpaceData_mod
+      implicit none
+      integer, parameter :: INDEX_MAX = 600
+      logical,dimension(INDEX_MAX) :: taken
+      character(len=4) :: name
+      integer :: name_index, column_index
+      logical :: logic_found
+
+      taken = .false.
+
+      do name_index = 1,size(columns_int_head)
+         name = columns_int_head(name_index)
+         column_index = obs_columnIndexFromName_IH(name)
+         call assertTrue(column_index < INDEX_MAX, &
+                         'must increase INDEX_MAX in the test')
+
+         call assertFalse(taken(column_index), &
+                          'index for '//name//' is used elsewhere')
+         taken(column_index) = .true.
+      end do
+
+      do name_index = 1,size(columns_int_body)
+         name = columns_int_body(name_index)
+         column_index = obs_columnIndexFromName_IB(name)
+         call assertTrue(column_index < INDEX_MAX, &
+                         'must increase INDEX_MAX in the test')
+
+         call assertFalse(taken(column_index), &
+                          'index for '//name//' is used elsewhere')
+         taken(column_index) = .true.
+      end do
+
+      do name_index = 1,size(columns_real_head)
+         name = columns_real_head(name_index)
+         column_index = obs_columnIndexFromName_RH(name)
+         call assertTrue(column_index < INDEX_MAX, &
+                         'must increase INDEX_MAX in the test')
+
+         call assertFalse(taken(column_index), &
+                          'index for '//name//' is used elsewhere')
+         taken(column_index) = .true.
+      end do
+
+      do name_index = 1,size(columns_real_body)
+         name = columns_real_body(name_index)
+         column_index = obs_columnIndexFromName_RB(name)
+         call assertTrue(column_index < INDEX_MAX, &
+                         'must increase INDEX_MAX in the test')
+
+         call assertFalse(taken(column_index), &
+                          'index for '//name//' is used elsewhere')
+         taken(column_index) = .true.
+      end do
+
+      ! TEST ALSO FOR ABORTION ON A BAD NAME
+      column_index = obs_columnIndexFromName_IH('DNE')
+      logic_found = catch('exiting in obs_abort')
+      call assertTrue(logic_found, 'obs failed to abort')
+
+      column_index = obs_columnIndexFromName_IB('DNE')
+      logic_found = catch('exiting in obs_abort')
+      call assertTrue(logic_found, 'obs failed to abort')
+
+      column_index = obs_columnIndexFromName_RH('DNE')
+      logic_found = catch('exiting in obs_abort')
+      call assertTrue(logic_found, 'obs failed to abort')
+
+      column_index = obs_columnIndexFromName_RB('DNE')
+      logic_found = catch('exiting in obs_abort')
+      call assertTrue(logic_found, 'obs failed to abort')
+
+   end subroutine test_columnIndices
+
+   subroutine test_obs_append()
+      ! Verify that one obs object is correctly and completely appended to
+      ! another.  Verify also that the original object is unchanged.
+      use obsSpaceData_mod
+      implicit none
+      type(struct_obs) :: myobs1, myobs2
+      integer :: header_position, bod_offset, num_bodies
+      integer :: fingerprint            ! a finger print for a data set
+      integer, parameter :: HEAD_MAX=10, BOD_MAX=100
+      integer :: idx_i, idx_j
+      real(8) :: hx_in         (2,5), hx_out         (2,5), &
+                 hx_in_original(2,5), hx_out_original(2,5)
+
+      call obs_initialize(myobs1, HEAD_MAX, BOD_MAX)
+      call obs_initialize(myobs2, HEAD_MAX, BOD_MAX)
+
+      ! Set up two obs tables
+      header_position = 1
+      bod_offset      = 0
+      num_bodies      = 2
+      fingerprint     = 1
+      call setUp_OneHeaderAndBodies(myobs1, header_position, bod_offset, &
+                                    num_bodies, fingerprint)
+      fingerprint     = 2
+      call setUp_OneHeaderAndBodies(myobs2, header_position, bod_offset, &
+                                    num_bodies, fingerprint)
+
+      ! Verify the starting point
+      call assertEqual(1, obs_numheader(myobs1), 'initial no. headers in myobs1')
+      call assertEqual(1, obs_numheader(myobs2), 'initial no. headers in myobs2')
+      call assertEqual(num_bodies, obs_numbody(myobs1), &
+                       'initial no. bodies in myobs1')
+      call assertEqual(num_bodies, obs_numbody(myobs2), &
+                       'initial no. bodies in myobs2')
+
+      ! Set up two hx tables
+      do idx_j = 1,2
+         do idx_i = 1,2
+            hx_in (idx_i, idx_j) = idx_i * 100 + idx_j * 10 + 8
+            hx_out(idx_i, idx_j) = idx_i * 100 + idx_j * 10 + 9
+         end do
+      end do
+      hx_in_original (:,:) = hx_in (:,:)
+      hx_out_original(:,:) = hx_out(:,:)
+
+      ! THE METHOD BEING TESTED:  Append myobs1 to myobs2
+      call obs_append(myobs1, hx_in, myobs2, hx_out)
+
+      ! Confirm the original data
+      fingerprint     = 1
+      call verify_obs(myobs1, header_position, bod_offset, num_bodies, &
+                      fingerprint, .false., 'i1:')
+      fingerprint     = 2
+      call verify_obs(myobs2, header_position, bod_offset, num_bodies, &
+                      fingerprint, .false., 'i2:')
+      call assertEqual(1, obs_numheader(myobs1), 'final no. headers in myobs1')
+      call assertEqual(num_bodies, obs_numbody(myobs1), &
+                       'final no. bodies in myobs1')
+      call assertEqual( hx_in_original(1:2,1:2), hx_in (1:2,1:2), 'hx_in')
+      call assertEqual(hx_out_original(1:2,1:2), hx_out(1:2,1:2), &
+                       'original portion of hx_out')
+
+      ! Confirm the addition of data
+      header_position = 2
+      bod_offset      = 2
+      fingerprint     = 1
+      call verify_obs(myobs2, header_position, bod_offset, num_bodies, &
+                      fingerprint, .false., '1 at end of 2:')
+      call assertEqual(2, obs_numheader(myobs2), 'final no. headers in myobs2')
+      call assertEqual(2*num_bodies, obs_numbody(myobs2), &
+                       'final no. bodies in myobs2')
+      call assertEqual( hx_in_original(1:2,1:2), hx_out (1:2,3:4), &
+                        'data of hx_in inside hx_out')
+
+      call obs_finalize(myobs1)
+      call obs_finalize(myobs2)
+   end subroutine test_obs_append
+
+   subroutine test_obs_copy()
+      ! Verify that one obs object is correctly and completely copied to another.
+      use obsSpaceData_mod
+      implicit none
+      type(struct_obs) :: myobs1, myobs2
+      integer :: header_position, bod_offset, num_bodies
+      integer :: fingerprint            ! a finger print for a data set
+      integer, parameter :: HEAD_MAX=10, BOD_MAX=100
+
+      call obs_initialize(myobs1, HEAD_MAX, BOD_MAX)
+      call obs_initialize(myobs2, HEAD_MAX, BOD_MAX)
+
+      ! Set up the first table
+      header_position = 1
+      bod_offset      = 0
+      num_bodies      = 2
+      fingerprint     = 3
+      call setUp_OneHeaderAndBodies(myobs1, header_position, bod_offset, &
+                                    num_bodies, fingerprint)
+
+      ! THE METHOD BEING TESTED:  Copy myobs1 to myobs2
+      call obs_copy(myobs1, myobs2)
+
+      ! Verify the result
+      call verify_obs(myobs1, header_position, bod_offset, num_bodies, &
+                      fingerprint, .false., 'obs1:')
+      call verify_obs(myobs2, header_position, bod_offset, num_bodies, &
+                      fingerprint, .false., 'obs2:')
+      call assertEqual(1, obs_numheader(myobs1), 'no. headers in myobs1')
+      call assertEqual(1, obs_numheader(myobs2), 'no. headers in myobs2')
+      call assertEqual(HEAD_MAX, obs_numheader_max(myobs1), &
+                       'max. no. headers in myobs1')
+      call assertEqual(HEAD_MAX, obs_numheader_max(myobs2), &
+                       'max. no. headers in myobs2')
+
+      call assertEqual(2, obs_numbody(myobs1), 'no. bodies in myobs1')
+      call assertEqual(2, obs_numbody(myobs2), 'no. bodies in myobs2')
+      call assertEqual(BOD_MAX, obs_numbody_max(myobs1), &
+                       'max. no. bodies in myobs1')
+      call assertEqual(BOD_MAX, obs_numbody_max(myobs2), &
+                       'max. no. bodies in myobs2')
+
+      call obs_finalize(myobs1)
+      call obs_finalize(myobs2)
+   end subroutine test_obs_copy
+
+!   subroutine test_obs_copy_abort()
+!      ! Verify that obs_copy refuses to copy an mpi_local object.
+!      ! N.B.:  This protection was removed from obs_copy in svn revision 129.
+!      !        Therefore, this test has been commented out too.
+!      use obsSpaceData_mod
+!      implicit none
+!      type(struct_obs) :: myobs1, myobs2
+!      integer :: header_position, bod_offset, num_bodies
+!      integer :: fingerprint            ! a finger print for a data set
+!      integer, parameter :: HEAD_MAX=10, BOD_MAX=100
+!      logical :: logic_found
+!
+!      call obs_initialize(myobs1, HEAD_MAX, BOD_MAX, mpi_local=.true.)
+!      call obs_initialize(myobs2, HEAD_MAX, BOD_MAX)
+!
+!      ! Set up the first table
+!      header_position = 1
+!      bod_offset      = 0
+!      num_bodies      = 2
+!      fingerprint     = 3
+!      call setUp_OneHeaderAndBodies(myobs1, header_position, bod_offset, &
+!                                    num_bodies, fingerprint)
+!
+!      ! THE METHOD BEING TESTED:  Copy myobs1 to myobs2
+!      call obs_copy(myobs1, myobs2)
+!
+!      ! Verify the result
+!      logic_found = catch('exiting in obs_abort')
+!      call assertTrue(logic_found, 'obs failed to abort')
+!
+!      call obs_finalize(myobs1)
+!      call obs_finalize(myobs2)
+!   end subroutine test_obs_copy_abort
+
+   subroutine test_obs_count_headers()
+      ! Verify that the numbers of headers and bodies are reported correctly in
+      ! the listing.
+      use obsSpaceData_mod
+      implicit none
+      type(struct_obs) :: myobs1
+      integer :: header_position, bod_offset, num_bodies
+      integer :: fingerprint            ! a finger print for a data set
+      integer, parameter :: HEAD_MAX=10, BOD_MAX=100
+      integer :: TESTOUT_UNIT = 8
+      integer :: status
+      logical :: logic_found
+
+      call obs_initialize(myobs1, HEAD_MAX, BOD_MAX)
+
+      ! Set up the table
+      header_position = 1
+      bod_offset      = 0
+      num_bodies      = 2
+      fingerprint     = 3
+      call setUp_OneHeaderAndBodies(myobs1, header_position, bod_offset, &
+                                    num_bodies, fingerprint)
+
+      ! Direct the output to a file so that it can be verified
+      open(unit=TESTOUT_UNIT, status='SCRATCH', &
+                              action='READWRITE', &
+                              iostat=status)
+      if(status /= 0) write(*,*)"ERROR opening a scratch file in ", &
+                                "test_obs_count_headers: ", status
+
+      ! THE METHOD BEING TESTED
+      call obs_count_headers(myobs1, TESTOUT_UNIT)
+
+      ! Verify the output
+      endfile(unit=TESTOUT_UNIT)
+      rewind(unit=TESTOUT_UNIT)
+                                        ! Note that the content of the reference
+                                        ! files has not been calculated but,
+                                        ! rather, is a snapshot of output from
+                                        ! obs_count_headers
+      call test_ascii_output(TESTOUT_UNIT, &
+                   trim(unit_test_obs_data_dir) // '/test_obs_count_headers.dat')
+
+      ! Verify that bad values are rejected
+      call obs_headSet_i(myobs1, OBS_ITY,  1, 1)
+      rewind(unit=TESTOUT_UNIT)
+      call obs_count_headers(myobs1, TESTOUT_UNIT)
+      logic_found = catch('exiting in obs_abort')
+      call assertFalse(logic_found, 'obs aborted for ITY=1')
+      
+      call obs_headSet_i(myobs1, OBS_ITY,  1, 0)
+      rewind(unit=TESTOUT_UNIT)
+      call obs_count_headers(myobs1, TESTOUT_UNIT)
+      logic_found = catch('exiting in obs_abort')
+      call assertTrue(logic_found, 'obs failed to abort for ITY=0')
+      
+      call obs_headSet_i(myobs1, OBS_ITY,  1, 256)
+      rewind(unit=TESTOUT_UNIT)
+      call obs_count_headers(myobs1, TESTOUT_UNIT)
+      logic_found = catch('exiting in obs_abort')
+      call assertFalse(logic_found, 'obs aborted for ITY=256')
+      
+      call obs_headSet_i(myobs1, OBS_ITY,  1, 257)
+      rewind(unit=TESTOUT_UNIT)
+      call obs_count_headers(myobs1, TESTOUT_UNIT)
+      logic_found = catch('exiting in obs_abort')
+      call assertTrue(logic_found, 'obs failed to abort for ITY=257')
+
+      close(unit=TESTOUT_UNIT)
+      
+      call obs_finalize(myobs1)
+   end subroutine test_obs_count_headers
+
+   subroutine test_binaryFile()
+      ! It can be noted that writing an obs object to a binary file, and then
+      ! reading it back is simply one way to make a copy.  This test verifies
+      ! that the copy is correct and complete.  This test differs, however, from
+      ! test_obs_copy(), because the binary 'copy' simultaneously makes a copy of
+      ! the hx array, and that is also verified.
+
+      use obsSpaceData_mod
+      implicit none
+      type(struct_obs) :: myobs1, myobs2
+      integer :: header_position, bod_offset, num_bodies
+      integer :: fingerprint            ! a finger print for a data set
+      integer, parameter :: HEAD_MAX=10, BOD_MAX=100
+      real(8) :: hx_in(2,5), hx_out(2,5), hx_in_original(2,5)
+      integer :: idx_i, idx_j
+      integer :: nens, nens_out, headers_written, bodies_written
+      integer :: unitnum, status
+      integer :: numheader, numbody
+
+      call obs_initialize(myobs1, HEAD_MAX, BOD_MAX)
+
+      ! Set up the table
+      header_position = 1
+      bod_offset      = 0
+      num_bodies      = 2
+      fingerprint     = 3
+      call setUp_OneHeaderAndBodies(myobs1, header_position, bod_offset, &
+                                    num_bodies, fingerprint)
+
+      ! Set up the hx table
+      do idx_j = 1,2
+         do idx_i = 1,2
+            hx_in (idx_i, idx_j) = idx_i * 100 + idx_j * 10 + 8
+            hx_out(idx_i, idx_j) = idx_i * 100 + idx_j * 10 + 9
+         end do
+      end do
+      hx_in_original (:,:) = hx_in (:,:)
+
+      ! Open the binary files
+      do unitnum=11,13
+         open(unit=unitnum, status='SCRATCH', &
+                            action='READWRITE', &
+                            form  ='UNFORMATTED', &
+                            iostat=status)
+         if(status /= 0) write(*,*)"ERROR opening the scratch file, ", unitnum,&
+                                   ", in test_binaryFile: ", status
+      end do
+
+      unitnum = 14
+      open(unit=unitnum, status='SCRATCH', &
+                         action='READWRITE', &
+                         form  ='FORMATTED', &
+                         iostat=status)
+      if(status /= 0) write(*,*)"ERROR opening the scratch file, ", unitnum,&
+                                ", in test_binaryFile: ", status
+
+      ! THE METHODS BEING TESTED:  Copy myobs1 to myobs2, via a binary file
+      nens = size(hx_in, 1)
+      !                           Unit no.
+      !                   hdr       11
+      !                   bdy       12
+      !                   hx        13
+      !                   dim       14
+      call obs_write(myobs1,hx_in, nens,11,12,13,14)
+      do unitnum=11,14
+         rewind(unit=unitnum)
+      end do
+
+      
+      read(14,*) numheader
+      read(14,*) numbody
+!     read(14,*) nens
+      rewind(unit=14)
+      call obs_initialize(myobs2, numheader, numbody)
+      call obs_read (myobs2,hx_out,     11,12,13)
+
+      ! Verify the result: myobs
+      call verify_obs(myobs1, header_position, bod_offset, num_bodies, &
+                      fingerprint, .false., 'obs1:')
+      call verify_obs(myobs2, header_position, bod_offset, num_bodies, &
+                      fingerprint, .false., 'obs2:')
+      call assertEqual(1, obs_numheader(myobs1), 'no. headers in myobs1')
+      call assertEqual(1, obs_numheader(myobs2), 'no. headers in myobs2')
+      call assertEqual(HEAD_MAX, obs_numheader_max(myobs1), &
+                       'max. no. headers in myobs1')
+      call assertEqual(1, obs_numheader_max(myobs2), &
+                       'max. no. headers in myobs2')
+
+      call assertEqual(2, obs_numbody(myobs1), 'no. bodies in myobs1')
+      call assertEqual(2, obs_numbody(myobs2), 'no. bodies in myobs2')
+      call assertEqual(BOD_MAX, obs_numbody_max(myobs1), &
+                       'max. no. bodies in myobs1')
+      call assertEqual(num_bodies, obs_numbody_max(myobs2), &
+                       'max. no. bodies in myobs2')
+
+      ! Verify the result:  hx
+      call assertEqual( hx_in_original(1:2,1:2), hx_in (1:2,1:2), &
+                        'data of hx in the original')
+      call assertEqual( hx_in_original(1:2,1:2), hx_out (1:2,1:2), &
+                        'data of hx in the copy')
+
+      ! Verify the result:  dims
+      read(14,*)headers_written
+      read(14,*)bodies_written
+      read(14,*)nens_out
+
+      call assertEqual(1, headers_written, 'number of headers written')
+      call assertEqual(2, bodies_written, 'number of bodies written')
+      call assertEqual(nens, nens_out, 'number of ensembles')
+
+!     obs_read has already closed the files 11, 12, 13
+      close(unit=14)
+
+      call obs_finalize(myobs1)
+      call obs_finalize(myobs2)
+   end subroutine test_binaryFile
+
+   subroutine test_obs_select()
+      ! Verify that bodies (and their headers) are selected (i.e. not deleted)
+      ! correctly, according to their values of ZHA.  Verify also, that the
+      ! original obs object and hx array are unaltered.
+      use obsSpaceData_mod
+      implicit none
+      type(struct_obs) :: myobs1, myobs2
+      integer :: header_position, bod_offset, num_bodies
+      integer :: fingerprint            ! a finger print for a data set
+      integer, parameter :: HEAD_MAX=10, BOD_MAX=100
+      integer :: idx_i, idx_j
+      real(8) :: hx_in         (2,10), hx_out         (2,10), &
+                 hx_in_original(2,10)
+      integer, parameter :: NENS = 2
+      real(OBS_REAL) :: zhamin, zhamax
+      integer :: body_ndx
+      real(OBS_REAL) :: value
+      integer :: TESTOUT_UNIT = 8, TESTREF_UNIT = 9
+      integer :: status, statusMethod
+      character(len=1000) :: fromMethod, fromRef
+      character(len=100) :: msg
+
+      call obs_initialize(myobs1, HEAD_MAX, BOD_MAX)
+      call obs_initialize(myobs2, HEAD_MAX, BOD_MAX)
+
+      ! Direct the output to a file so that it can be verified
+      open(unit=TESTOUT_UNIT, status='SCRATCH', &
+                              action='READWRITE', &
+                              iostat=status)
+      if(status /= 0) write(*,*)"ERROR opening a scratch file in ", &
+                                "test_obs_select: ", status
+
+      ! Set up one obs table
+      header_position = 1
+      bod_offset      = 0
+      num_bodies      = 2  ! sets body indices 1, 2
+      fingerprint     = 1
+      call setUp_OneHeaderAndBodies(myobs1, header_position, bod_offset, &
+                                    num_bodies, fingerprint)
+      header_position = 2
+      bod_offset      = 2
+      num_bodies      = 3  ! sets body indices 3, 4, 5
+      fingerprint     = 2
+      call setUp_OneHeaderAndBodies(myobs1, header_position, bod_offset, &
+                                    num_bodies, fingerprint)
+      header_position = 3
+      bod_offset      = 5
+      num_bodies      = 4  ! sets body indices 6,7,8,9
+      fingerprint     = 3
+      call setUp_OneHeaderAndBodies(myobs1, header_position, bod_offset, &
+                                    num_bodies, fingerprint)
+
+      ! Set the values that will be selected
+      body_ndx=1;value=2.5d0; call obs_bodySet_r(myobs1, OBS_ZHA,body_ndx,value)!select
+      body_ndx=2;value=2.2d0; call obs_bodySet_r(myobs1, OBS_ZHA,body_ndx,value)!no
+
+      body_ndx=3;value=2.8d0; call obs_bodySet_r(myobs1, OBS_ZHA,body_ndx,value)!no
+      body_ndx=4;value=2.4d0; call obs_bodySet_r(myobs1, OBS_ZHA,body_ndx,value)!no
+      body_ndx=5;value=2.0d0; call obs_bodySet_r(myobs1, OBS_ZHA,body_ndx,value)!no
+
+      body_ndx=6;value=2.45d0;call obs_bodySet_r(myobs1, OBS_ZHA,body_ndx,value)!select
+      body_ndx=7;value=2.7d0; call obs_bodySet_r(myobs1, OBS_ZHA,body_ndx,value)!select
+      body_ndx=8;value=2.65d0;call obs_bodySet_r(myobs1, OBS_ZHA,body_ndx,value)!select
+      body_ndx=9;value=2.8d0; call obs_bodySet_r(myobs1, OBS_ZHA,body_ndx,value)!no
+
+      ! Prepare the array, hx, to match
+      do idx_j = 1,9
+         do idx_i = 1,NENS
+            hx_in (idx_i, idx_j) = idx_i * 100 + idx_j * 10 + 8
+            hx_out(idx_i, idx_j) = idx_i * 100 + idx_j * 10 + 9
+         end do
+      end do
+      hx_in_original (:,:) = hx_in (:,:)
+
+      !
+      ! METHOD UNDER TEST:  Select the values, zha, such that 2.4 < zha <= 2.7
+      !
+      zhamin = real(2.4d0, OBS_REAL)
+      zhamax = real(2.7d0, OBS_REAL)
+      call obs_select(myobs1, hx_in, myobs2, hx_out, zhamin, zhamax, NENS, &
+                      TESTOUT_UNIT)
+
+      !
+      ! CONFIRM THE ORIGINAL DATA
+      !
+      header_position = 1
+      bod_offset      = 0
+      num_bodies      = 2
+      fingerprint     = 1
+      call verify_obs(myobs1, header_position, bod_offset, num_bodies, &
+                      fingerprint, .false., &
+                      'input header 1:', omit_zha=.true.)
+      call assertEqual(real(2.5d0,OBS_REAL), obs_bodyElem_r(myobs1, OBS_ZHA, 1))
+      call assertEqual(real(2.2d0,OBS_REAL), obs_bodyElem_r(myobs1, OBS_ZHA, 2))
+
+      header_position = 2
+      bod_offset      = 2
+      num_bodies      = 3  ! sets body indices 3, 4, 5
+      fingerprint     = 2
+      call verify_obs(myobs1, header_position, bod_offset, num_bodies, &
+                      fingerprint, .false., &
+                      'input header 2:', omit_zha=.true.)
+      call assertEqual(real(2.8d0,OBS_REAL), obs_bodyElem_r(myobs1, OBS_ZHA, 3))
+      call assertEqual(real(2.4d0,OBS_REAL), obs_bodyElem_r(myobs1, OBS_ZHA, 4))
+      call assertEqual(real(2.0d0,OBS_REAL), obs_bodyElem_r(myobs1, OBS_ZHA, 5))
+
+      header_position = 3
+      bod_offset      = 5
+      num_bodies      = 4  ! sets body indices 6,7,8,9
+      fingerprint     = 3
+      call verify_obs(myobs1, header_position, bod_offset, num_bodies, &
+                      fingerprint, .false., &
+                      'input header 3:', omit_zha=.true.)
+      call assertEqual(real(2.45d0,OBS_REAL),obs_bodyElem_r(myobs1, OBS_ZHA, 6))
+      call assertEqual(real(2.7d0,OBS_REAL), obs_bodyElem_r(myobs1, OBS_ZHA, 7))
+      call assertEqual(real(2.65d0,OBS_REAL),obs_bodyElem_r(myobs1, OBS_ZHA, 8))
+      call assertEqual(real(2.8d0,OBS_REAL), obs_bodyElem_r(myobs1, OBS_ZHA, 9))
+
+
+      call assertEqual(3, obs_numheader(myobs1), 'final no. headers in myobs1')
+      call assertEqual(9, obs_numbody(myobs1), &
+                       'final no. bodies in myobs1')
+      call assertEqual( hx_in_original(1:2,1:2), hx_in (1:2,1:2), 'hx_in')
+
+      !
+      ! CONFIRM THE SELECTED DATA
+      !
+           ! This first case verifies that all of the obs structure has been
+           ! correctly copied
+      header_position = 1
+      bod_offset      = 0
+      num_bodies      = 1  ! The second one should have been rejected
+      fingerprint     = 1
+      call verify_obs(myobs2, header_position, bod_offset, num_bodies, &
+                      fingerprint, .false., &
+                      'output header 1:', omit_zha=.true.)
+      call assertEqual(real(2.5d0,OBS_REAL), obs_bodyElem_r(myobs2, OBS_ZHA,1), &
+                                                          'selected zha, body 1')
+
+           ! For the remaining cases, test only that the correct bodies and
+           ! headers have been selected
+      call assertEqual(real(2.45d0,OBS_REAL),obs_bodyElem_r(myobs2, OBS_ZHA,2), &
+                                                          'selected zha, body 3')
+      call assertEqual(real(2.7d0,OBS_REAL), obs_bodyElem_r(myobs2, OBS_ZHA,3), &
+                                                          'selected zha, body 4')
+      call assertEqual(real(2.65d0,OBS_REAL),obs_bodyElem_r(myobs2, OBS_ZHA,4), &
+                                                          'selected zha, body 5')
+      call assertEqual(4, obs_numbody  (myobs2), 'number of selected bodies')
+      call assertEqual(2, obs_numheader(myobs2), 'number of selected headers')
+
+      !
+      ! TEST THE ASCII OUTPUT
+      !
+      endfile(unit=TESTOUT_UNIT)
+      rewind (unit=TESTOUT_UNIT)
+                                        ! Note that the content of the reference
+                                        ! files has not been calculated but,
+                                        ! rather, is a snapshot of output from
+                                        ! obs_select
+      call test_ascii_output(TESTOUT_UNIT, &
+                          trim(unit_test_obs_data_dir) // '/test_obs_select.dat')
+
+      close(unit=TESTOUT_UNIT)
+      call obs_finalize(myobs1)
+      call obs_finalize(myobs2)
+   end subroutine test_obs_select
+
+   subroutine test_obs_select_abort()
+      ! Verify that obs_select refuses to copy an mpi_local object.
+      use obsSpaceData_mod
+      implicit none
+      type(struct_obs) :: myobs1, myobs2
+      integer :: header_position, bod_offset, num_bodies
+      integer :: fingerprint            ! a finger print for a data set
+      integer, parameter :: HEAD_MAX=10, BOD_MAX=100
+      integer :: idx_i, idx_j
+      real(8) :: hx_in         (2,10), hx_out         (2,10), &
+                 hx_in_original(2,10)
+      integer, parameter :: NENS = 2
+      real(OBS_REAL) :: zhamin, zhamax
+      integer :: body_ndx
+      real(OBS_REAL) :: value
+      integer :: TESTOUT_UNIT = 8, TESTREF_UNIT = 9
+      integer :: status, statusMethod
+      character(len=1000) :: fromMethod, fromRef
+      character(len=100) :: msg
+      logical :: logic_found
+
+      call obs_initialize(myobs1, HEAD_MAX, BOD_MAX, mpi_local=.true.)
+      call obs_initialize(myobs2, HEAD_MAX, BOD_MAX)
+
+      ! Direct the output to a file so that it can be verified
+      open(unit=TESTOUT_UNIT, status='SCRATCH', &
+                              action='READWRITE', &
+                              iostat=status)
+      if(status /= 0) write(*,*)"ERROR opening a scratch file in ", &
+                                "test_obs_select_abort: ", status
+
+      ! Set up one obs table
+      header_position = 1
+      bod_offset      = 0
+      num_bodies      = 2  ! sets body indices 1, 2
+      fingerprint     = 1
+      call setUp_OneHeaderAndBodies(myobs1, header_position, bod_offset, &
+                                    num_bodies, fingerprint)
+
+      ! Prepare the array, hx, to match
+      do idx_j = 1,9
+         do idx_i = 1,NENS
+            hx_in (idx_i, idx_j) = idx_i * 100 + idx_j * 10 + 8
+            hx_out(idx_i, idx_j) = idx_i * 100 + idx_j * 10 + 9
+         end do
+      end do
+      hx_in_original (:,:) = hx_in (:,:)
+
+      !
+      ! METHOD UNDER TEST:  Select the values, zha, such that 2.4 < zha <= 2.7
+      !
+      zhamin = real(2.4d0, OBS_REAL)
+      zhamax = real(2.7d0, OBS_REAL)
+      call obs_select(myobs1, hx_in, myobs2, hx_out, zhamin, zhamax, NENS, &
+                      TESTOUT_UNIT)
+      logic_found = catch('exiting in obs_abort')
+      call assertTrue(logic_found, 'obs failed to abort')
+
+      close(unit=TESTOUT_UNIT)
+      call obs_finalize(myobs1)
+      call obs_finalize(myobs2)
+   end subroutine test_obs_select_abort
+
+   subroutine test_obs_order()
+      ! Verify that the obs headers have been correctly placed in the order that
+      ! is determined by their ONM values.
+      ! It can be noted that the obs bodies are unchanged by obs_order().
+      use obsSpaceData_mod
+      implicit none
+      type(struct_obs) :: myobs1
+      integer :: header_position, bod_offset, num_bodies
+      integer :: fingerprint            ! a finger print for a data set
+      integer, parameter :: HEAD_MAX=10, BOD_MAX=100
+      integer :: head_ndx, value
+
+      call obs_initialize(myobs1, HEAD_MAX, BOD_MAX)
+
+      ! Set up one obs table
+      header_position = 1
+      bod_offset      = 0
+      num_bodies      = 2  ! sets body indices 1, 2
+      fingerprint     = 1
+      call setUp_OneHeaderAndBodies(myobs1, header_position, bod_offset, &
+                                    num_bodies, fingerprint)
+      header_position = 2
+      bod_offset      = 2
+      num_bodies      = 3  ! sets body indices 3, 4, 5
+      fingerprint     = 2
+      call setUp_OneHeaderAndBodies(myobs1, header_position, bod_offset, &
+                                    num_bodies, fingerprint)
+      header_position = 3
+      bod_offset      = 5
+      num_bodies      = 2  ! sets body indices 6,7
+      fingerprint     = 3
+      call setUp_OneHeaderAndBodies(myobs1, header_position, bod_offset, &
+                                    num_bodies, fingerprint)
+      header_position = 4
+      bod_offset      = 7
+      num_bodies      = 2  ! sets body indices 8,9
+      fingerprint     = 4
+      call setUp_OneHeaderAndBodies(myobs1, header_position, bod_offset, &
+                                    num_bodies, fingerprint)
+      header_position = 5
+      bod_offset      = 9
+      num_bodies      = 1  ! sets body indices 10
+      fingerprint     = 5
+      call setUp_OneHeaderAndBodies(myobs1, header_position, bod_offset, &
+                                    num_bodies, fingerprint)
+
+      ! Set the values that will be ordered
+      head_ndx=1;value=5; call obs_headSet_i(myobs1, OBS_ONM,head_ndx,value)
+      head_ndx=2;value=2; call obs_headSet_i(myobs1, OBS_ONM,head_ndx,value)
+      head_ndx=3;value=1; call obs_headSet_i(myobs1, OBS_ONM,head_ndx,value)
+      head_ndx=4;value=3; call obs_headSet_i(myobs1, OBS_ONM,head_ndx,value)
+      head_ndx=5;value=4; call obs_headSet_i(myobs1, OBS_ONM,head_ndx,value)
+
+      ! METHOD UNDER TEST :  order the headers in the table
+      call obs_order(myobs1)
+
+      ! Verify the order of the headers
+      call assertEqual(1 , obs_headElem_i(myobs1, OBS_ONM, 1), 'ONM of header 1')
+      call assertEqual(2 , obs_headElem_i(myobs1, OBS_ONM, 2), 'ONM of header 2')
+      call assertEqual(3 , obs_headElem_i(myobs1, OBS_ONM, 3), 'ONM of header 3')
+      call assertEqual(4 , obs_headElem_i(myobs1, OBS_ONM, 4), 'ONM of header 4')
+      call assertEqual(5 , obs_headElem_i(myobs1, OBS_ONM, 5), 'ONM of header 5')
+
+      ! Verify the sources of the headers
+      call assertEqual(3 , obs_headElem_i(myobs1, OBS_PAS, 1), 'PAS of header 1')
+      call assertEqual(2 , obs_headElem_i(myobs1, OBS_PAS, 2), 'PAS of header 2')
+      call assertEqual(4 , obs_headElem_i(myobs1, OBS_PAS, 3), 'PAS of header 3')
+      call assertEqual(5 , obs_headElem_i(myobs1, OBS_PAS, 4), 'PAS of header 4')
+      call assertEqual(1 , obs_headElem_i(myobs1, OBS_PAS, 5), 'PAS of header 5')
+
+      ! Verify the content of the obs
+      ! REMEMBER:  only the headers have been moved.  The bodies are still in
+      !            their original positions.
+      header_position = 1
+      bod_offset      = 5
+      num_bodies      = 2
+      fingerprint     = 3
+      call verify_obs(myobs1, header_position, bod_offset, num_bodies, &
+                      fingerprint, .false., '1st header:', omit_pas=.true.)
+
+      header_position = 2
+      bod_offset      = 2
+      num_bodies      = 3
+      fingerprint     = 2
+      call verify_obs(myobs1, header_position, bod_offset, num_bodies, &
+                      fingerprint, .false., '1st header:', omit_pas=.true.)
+
+      header_position = 3
+      bod_offset      = 7
+      num_bodies      = 2
+      fingerprint     = 4
+      call verify_obs(myobs1, header_position, bod_offset, num_bodies, &
+                      fingerprint, .false., '1st header:', omit_pas=.true.)
+
+      header_position = 4
+      bod_offset      = 9
+      num_bodies      = 1
+      fingerprint     = 5
+      call verify_obs(myobs1, header_position, bod_offset, num_bodies, &
+                      fingerprint, .false., '4th header:', omit_pas=.true.)
+
+      header_position = 5
+      bod_offset      = 0
+      num_bodies      = 2
+      fingerprint     = 1
+      call verify_obs(myobs1, header_position, bod_offset, num_bodies, &
+                      fingerprint, .false., '4th header:', omit_pas=.true.)
+
+
+      call obs_finalize(myobs1)
+   end subroutine test_obs_order
+
+   subroutine test_binaryFileOnePass()
+      ! It can be noted that writing an obs object to a binary file and then
+      ! reading it back is simply one way to make a copy.  The method under test
+      ! makes such a copy, but it does so only one group of headers (with its
+      ! bodies and hx array) at a time.  This test verifies that the (partial)
+      ! copy is correct and complete.
+      !
+      ! A group of headers is identified by their common value in their PAS
+      ! members.  The PAS values count upward from 1.
+      !
+      ! NOTE:  the expected results cannot all be tested by the routine,
+      !        verify_obs():
+      !           - IP  - manipulated by obs_readstns() so as to contain
+      !                   mod(passNum, NUMPE)
+      !           - PAS - was manipulated by this test, after being set up by
+      !                   setUp_OneHeaderAndBodies().  Obs_readstns() acts on 
+      !                   these values so as to return in myobs2 the entries that
+      !                   have PAS == passNum
+      !           - ONM - verify_obs assumes that the value of ONM is the same
+      !                   as the header index.  However, because obs_readstns()
+      !                   has taken only a selection of the headers, the value of
+      !                   ONM reflects instead the index of its original position
+
+      use obsSpaceData_mod
+      implicit none
+      type(struct_obs) :: myobs1, myobs2
+      integer :: header_position, bod_offset, num_bodies
+      integer :: fingerprint            ! a finger print for a data set
+      integer, parameter :: HEAD_MAX=10, BOD_MAX=100
+      real(8) :: hx_in(2,5)
+      integer :: idx_i, idx_j
+      integer :: nens
+      integer :: unitnum, status
+      integer :: passNum, regionNum, head_ndx, value
+      integer, parameter :: NUMPE = 2
+
+      call obs_initialize(myobs1, HEAD_MAX, BOD_MAX)
+
+      !
+      ! SET UP THE TABLE
+      !
+      header_position = 1
+      bod_offset      = 0
+      num_bodies      = 2
+      fingerprint     = 1
+      call setUp_OneHeaderAndBodies(myobs1, header_position, bod_offset, &
+                                    num_bodies, fingerprint)
+      header_position = 2
+      bod_offset      = 2
+      num_bodies      = 2
+      fingerprint     = 2
+      call setUp_OneHeaderAndBodies(myobs1, header_position, bod_offset, &
+                                    num_bodies, fingerprint)
+      header_position = 3
+      bod_offset      = 4
+      num_bodies      = 2
+      fingerprint     = 3
+      call setUp_OneHeaderAndBodies(myobs1, header_position, bod_offset, &
+                                    num_bodies, fingerprint)
+      header_position = 4
+      bod_offset      = 6
+      num_bodies      = 2
+      fingerprint     = 4
+      call setUp_OneHeaderAndBodies(myobs1, header_position, bod_offset, &
+                                    num_bodies, fingerprint)
+      header_position = 5
+      bod_offset      = 8
+      num_bodies      = 2
+      fingerprint     = 5
+      call setUp_OneHeaderAndBodies(myobs1, header_position, bod_offset, &
+                                    num_bodies, fingerprint)
+                                        ! This extra header avoids triggering the
+                                        ! empty switch in obs_readstns
+                                        ! This header will actually be read by
+                                        ! the test_binaryFileOnePass_Abort test,
+                                        ! with no effect
+      header_position = 6
+      bod_offset      = 10
+      num_bodies      = 0
+      fingerprint     = 6
+      call setUp_OneHeaderAndBodies(myobs1, header_position, bod_offset, &
+                                    num_bodies, fingerprint)
+
+      ! Set the values that divide the data into passes
+      head_ndx=1;value=1; call obs_headSet_i(myobs1, OBS_PAS,head_ndx,value)
+      head_ndx=2;value=1; call obs_headSet_i(myobs1, OBS_PAS,head_ndx,value)
+      head_ndx=3;value=2; call obs_headSet_i(myobs1, OBS_PAS,head_ndx,value)
+      head_ndx=4;value=3; call obs_headSet_i(myobs1, OBS_PAS,head_ndx,value)
+      head_ndx=5;value=3; call obs_headSet_i(myobs1, OBS_PAS,head_ndx,value)
+      head_ndx=6;value=1; call obs_headSet_i(myobs1, OBS_PAS,head_ndx,value)
+
+      ! Set up the hx table
+      do idx_j = 1,2
+         do idx_i = 1,2
+            hx_in (idx_i, idx_j) = idx_i * 100 + idx_j * 10 + 8
+         end do
+      end do
+
+      ! OPEN THE BINARY FILES
+      do unitnum=11,13
+         open(unit=unitnum, status='SCRATCH', &
+                            action='READWRITE', &
+                            form  ='UNFORMATTED', &
+                            iostat=status)
+         if(status /= 0) write(*,*)"ERROR opening the scratch file, ", unitnum, &
+                                   ", in test_binaryFileOnePass: ", status
+      end do
+
+      unitnum=14
+      open(unit=unitnum, status='SCRATCH', &
+                         action='WRITE', &
+                         form  ='FORMATTED', &
+                         iostat=status)
+      if(status /= 0) write(*,*)"ERROR opening the scratch file, ", unitnum,&
+                                ", in test_binaryFileOnePass: ", status
+
+      ! WRITE THE BINARY FILES
+      nens = size(hx_in, 1)
+      !                           Unit no.
+      !                   hdr       11
+      !                   bdy       12
+      !                   hx        13
+      !                   dim       14
+      call obs_write(myobs1,hx_in, nens,11,12,13,14)
+      call obs_finalize(myobs1)
+
+      ! Close files 13, 14 - obs_readstns will close units 11, 12
+      do unitnum=13,14
+         close(unit=unitnum)
+      end do
+
+      ! Rewind files 11, 12
+      do unitnum=11,12
+         rewind(unit=unitnum)
+      end do
+
+      !
+      ! THE METHOD BEING TESTED:  it is the selective reading back that is being
+      !                           tested
+      ! READ BACK AND VERIFY THE DATA FOR PASS 1
+      !
+      call obs_initialize(myobs2, HEAD_MAX, BOD_MAX)
+      passNum = 1
+      call obs_readstns(myobs2, 0, passNum, regionNum, 11, 12, NUMPE, &
+                        HEAD_MAX, BOD_MAX)
+
+                                        ! 13002 since the last REG value takes
+                                        ! precedence (with real data, the REG
+                                        ! values should all be the same for a
+                                        ! single pass
+      call assertEqual(13002, regionNum, 'regionNum for pass 1')
+
+      call assertEqual(2, obs_numheader(myobs2), 'no. headers in pass 1')
+      call assertEqual(HEAD_MAX, obs_numheader_max(myobs2), &
+                       'max. no. headers in pass 1')
+      call assertEqual(4, obs_numbody(myobs2), 'no. bodies in pass 1')
+      call assertEqual(BOD_MAX, obs_numbody_max(myobs2), &
+                       'max. no. bodies in pass 1')
+
+      header_position = 1
+      bod_offset      = 0
+      num_bodies      = 2
+      fingerprint     = 1
+                                        ! ONM will test okay for the first pass
+      call verify_obs(myobs2, header_position, bod_offset, num_bodies, &
+                      fingerprint, .false., 'pass 1 header 1:', &
+                      omit_ip=.true., omit_pas=.true.)
+      call assertEqual(1, obs_headElem_i(myobs2, OBS_IP,  1), 'pass1 h1 IP')
+      call assertEqual(1, obs_headElem_i(myobs2, OBS_PAS, 1), 'pass1 h1 PAS')
+
+      header_position = 2
+      bod_offset      = 2
+      num_bodies      = 2
+      fingerprint     = 2
+      call verify_obs(myobs2, header_position, bod_offset, num_bodies, &
+                      fingerprint, .false., 'pass 1 header 2', &
+                      omit_ip=.true., omit_pas=.true.)
+      call assertEqual(1, obs_headElem_i(myobs2, OBS_IP,  2), 'pass1 h2 IP')
+      call assertEqual(1, obs_headElem_i(myobs2, OBS_PAS, 2), 'pass1 h2 PAS')
+
+      call obs_finalize(myobs2)
+
+
+      !
+      ! READ BACK AND VERIFY THE DATA FOR PASS 2
+      !
+      call obs_initialize(myobs2, HEAD_MAX, BOD_MAX)
+      passNum = 2
+      call obs_readstns(myobs2, 0, passNum, regionNum, 11, 12, NUMPE, &
+                        HEAD_MAX, BOD_MAX)
+
+      call assertEqual(13003, regionNum, 'regionNum for pass 2')
+
+      call assertEqual(1, obs_numheader(myobs2), 'no. headers in pass 2')
+      call assertEqual(HEAD_MAX, obs_numheader_max(myobs2), &
+                       'max. no. headers in pass 2')
+      call assertEqual(2, obs_numbody(myobs2), 'no. bodies in pass 2')
+      call assertEqual(BOD_MAX, obs_numbody_max(myobs2), &
+                       'max. no. bodies in pass 2')
+
+      header_position = 1
+      bod_offset      = 0
+      num_bodies      = 2
+      fingerprint     = 3
+      call verify_obs(myobs2, header_position, bod_offset, num_bodies, &
+                      fingerprint, .false., 'pass 2 header 1:', &
+                      omit_ip=.true., omit_pas=.true., omit_onm=.true.)
+      call assertEqual(0, obs_headElem_i(myobs2, OBS_IP,  1), 'pass2 h1 IP')
+      call assertEqual(2, obs_headElem_i(myobs2, OBS_PAS, 1), 'pass2 h1 PAS')
+      call assertEqual(3, obs_headElem_i(myobs2, OBS_ONM, 1), 'pass2 h1 ONM')
+
+      call obs_finalize(myobs2)
+
+
+      !
+      ! READ BACK AND VERIFY THE DATA FOR PASS 3
+      !
+      call obs_initialize(myobs2, HEAD_MAX, BOD_MAX)
+      passNum = 3
+      call obs_readstns(myobs2, 0, passNum, regionNum, 11, 12, NUMPE, &
+                        HEAD_MAX, BOD_MAX)
+
+                                        ! 13005 since the last REG value takes
+                                        ! precedence (with real data, the REG
+                                        ! values should all be the same for a
+                                        ! single pass
+      call assertEqual(13005, regionNum, 'regionNum for pass 3')
+
+      call assertEqual(2, obs_numheader(myobs2), 'no. headers in pass 3')
+      call assertEqual(HEAD_MAX, obs_numheader_max(myobs2), &
+                       'max. no. headers in pass 3')
+      call assertEqual(4, obs_numbody(myobs2), 'no. bodies in pass 3')
+      call assertEqual(BOD_MAX, obs_numbody_max(myobs2), &
+                       'max. no. bodies in pass 3')
+
+      header_position = 1
+      bod_offset      = 0
+      num_bodies      = 2
+      fingerprint     = 4
+      call verify_obs(myobs2, header_position, bod_offset, num_bodies, &
+                      fingerprint, .false., 'pass 3 header 1:', &
+                      omit_ip=.true., omit_pas=.true., omit_onm=.true.)
+      call assertEqual(1, obs_headElem_i(myobs2, OBS_IP,  1), 'pass3 h1 IP')
+      call assertEqual(3, obs_headElem_i(myobs2, OBS_PAS, 1), 'pass3 h1 PAS')
+      call assertEqual(4, obs_headElem_i(myobs2, OBS_ONM, 1), 'pass3 h1 ONM')
+
+      header_position = 2
+      bod_offset      = 2
+      num_bodies      = 2
+      fingerprint     = 5
+      call verify_obs(myobs2, header_position, bod_offset, num_bodies, &
+                      fingerprint, .false., 'pass 3 header 2', &
+                      omit_ip=.true., omit_pas=.true., omit_onm=.true.)
+      call assertEqual(1, obs_headElem_i(myobs2, OBS_IP,  2), 'pass3 h2 IP')
+      call assertEqual(3, obs_headElem_i(myobs2, OBS_PAS, 2), 'pass3 h2 PAS')
+      call assertEqual(5, obs_headElem_i(myobs2, OBS_ONM, 2), 'pass3 h2 ONM')
+
+      call obs_finalize(myobs2)
+      do unitnum=11,14
+         close(unit=unitnum)
+      end do
+   end subroutine test_binaryFileOnePass
+
+   subroutine test_binaryFileOnePass_abort()
+      ! Verify that obs_readstns aborts if the data for the passes are not
+      ! arranged in numerical order of the pass.
+
+      use obsSpaceData_mod
+      implicit none
+      type(struct_obs) :: myobs1, myobs2
+      integer :: header_position, bod_offset, num_bodies
+      integer :: fingerprint            ! a finger print for a data set
+      integer, parameter :: HEAD_MAX=10, BOD_MAX=100
+      real(8) :: hx_in(2,5)
+      integer :: idx_i, idx_j
+      integer :: nens
+      integer :: unitnum, status
+      integer :: passNum, regionNum, head_ndx, value
+      integer, parameter :: NUMPE = 2
+      logical :: logic_found
+
+      call obs_initialize(myobs1, HEAD_MAX, BOD_MAX)
+
+      !
+      ! SET UP THE TABLE
+      !
+      header_position = 1
+      bod_offset      = 0
+      num_bodies      = 2
+      fingerprint     = 1
+      call setUp_OneHeaderAndBodies(myobs1, header_position, bod_offset, &
+                                    num_bodies, fingerprint)
+      header_position = 2
+      bod_offset      = 2
+      num_bodies      = 2
+      fingerprint     = 2
+      call setUp_OneHeaderAndBodies(myobs1, header_position, bod_offset, &
+                                    num_bodies, fingerprint)
+      header_position = 3
+      bod_offset      = 4
+      num_bodies      = 2
+      fingerprint     = 3
+      call setUp_OneHeaderAndBodies(myobs1, header_position, bod_offset, &
+                                    num_bodies, fingerprint)
+      header_position = 4
+      bod_offset      = 6
+      num_bodies      = 2
+      fingerprint     = 4
+      call setUp_OneHeaderAndBodies(myobs1, header_position, bod_offset, &
+                                    num_bodies, fingerprint)
+
+      ! Set the values that divide the data into passes
+      head_ndx=1;value=1; call obs_headSet_i(myobs1, OBS_PAS,head_ndx,value)
+      head_ndx=2;value=1; call obs_headSet_i(myobs1, OBS_PAS,head_ndx,value)
+      head_ndx=3;value=2; call obs_headSet_i(myobs1, OBS_PAS,head_ndx,value)
+      head_ndx=4;value=4; call obs_headSet_i(myobs1, OBS_PAS,head_ndx,value)
+      head_ndx=5;value=4; call obs_headSet_i(myobs1, OBS_PAS,head_ndx,value)
+
+      ! Set up the hx table
+      do idx_j = 1,2
+         do idx_i = 1,2
+            hx_in (idx_i, idx_j) = idx_i * 100 + idx_j * 10 + 8
+         end do
+      end do
+
+      ! OPEN THE BINARY FILES
+      do unitnum=21,23
+         open(unit=unitnum, status='SCRATCH', &
+                            action='READWRITE', &
+                            form  ='UNFORMATTED', &
+                            iostat=status)
+         if(status /= 0) write(*,*)"ERROR opening the scratch file, ", unitnum, &
+                                   ", in test_binaryFileOnePass: ", status
+      end do
+
+      unitnum=24
+      open(unit=unitnum, status='SCRATCH', &
+                         action='WRITE', &
+                         form  ='FORMATTED', &
+                         iostat=status)
+      if(status /= 0) write(*,*)"ERROR opening the scratch file, ", unitnum,&
+                                ", in test_binaryFileOnePass: ", status
+
+      ! WRITE THE BINARY FILES
+      nens = size(hx_in, 1)
+      !                           Unit no.
+      !                   hdr       21
+      !                   bdy       22
+      !                   hx        23
+      !                   dim       24
+      call obs_write(myobs1,hx_in, nens,21,22,23,24)
+      call obs_finalize(myobs1)
+
+      ! Close files 23, 24 - obs_readstns will close units 21, 22
+      do unitnum=23,24
+         close(unit=unitnum)
+      end do
+
+      ! Rewind files 21, 22
+      do unitnum=21,22
+         rewind(unit=unitnum)
+      end do
+
+      !
+      ! THE METHOD BEING TESTED:  it is abortion while reading back that is being
+      !                           tested
+      ! READ BACK THE DATA FOR PASS 1
+      !
+      call obs_initialize(myobs2, HEAD_MAX, BOD_MAX)
+      passNum = 1
+      call obs_readstns(myobs2, 0, passNum, regionNum, 21, 22, NUMPE, &
+                        HEAD_MAX, BOD_MAX)
+      call obs_finalize(myobs2)
+
+
+      !
+      ! READ BACK THE DATA FOR PASS 2
+      !
+      call obs_initialize(myobs2, HEAD_MAX, BOD_MAX)
+      passNum = 2
+      call obs_readstns(myobs2, 0, passNum, regionNum, 21, 22, NUMPE, &
+                        HEAD_MAX, BOD_MAX)
+      call obs_finalize(myobs2)
+
+
+      !
+      ! ATTEMPT TO READ BACK THE DATA FOR PASS 3 ... BUT THEY DO NOT EXIST
+      !
+      call obs_initialize(myobs2, HEAD_MAX, BOD_MAX)
+      passNum = 3
+                                        ! Confirm that no exceptions are pending
+      logic_found = catch('exiting in obs_abort')
+      call assertFalse(logic_found, 'obs aborted prematurely')
+
+      call obs_readstns(myobs2, 0, passNum, regionNum, 21, 22, NUMPE, &
+                        HEAD_MAX, BOD_MAX)
+      logic_found = catch('exiting in obs_abort')
+      call assertTrue(logic_found, 'obs failed to abort')
+
+      call obs_finalize(myobs2)
+      do unitnum=21,24
+         close(unit=unitnum)
+      end do
+   end subroutine test_binaryFileOnePass_Abort
+
+   subroutine setup_obs_clean(myobs, hx, nens, testout_unit)
+      ! This is a setup utility for the tests on obs_clean.  It sets up the obs
+      ! object, and a matching hx array.  In addition, it initializes all of the
+      ! ZHA values to -1 so as to ensure that by default all bodies will be
+      ! 'cleaned' (i.e. deleted).
+      use obsSpaceData_mod
+      implicit none
+      type(struct_obs), intent(out) :: myobs
+      real(8), intent(out) :: hx(2,10)
+      integer, intent(in) :: nens
+      integer, intent(in) :: testout_unit
+
+      integer :: status
+      integer, parameter :: HEAD_MAX=10, BOD_MAX=100
+      integer :: header_position, bod_offset, num_bodies, fingerprint
+      integer :: idx_i, idx_j, body_ndx
+
+      call obs_initialize(myobs, HEAD_MAX, BOD_MAX)
+
+      ! Direct the output to a file so that it can be verified
+      open(unit=testout_unit, status='SCRATCH', &
+                              action='READWRITE', &
+                              iostat=status)
+      if(status /= 0) write(*,*)"ERROR opening a scratch file in ", &
+                                "test_obs_select: ", status
+
+      ! Set up the obs table
+      header_position = 1
+      bod_offset      = 0
+      num_bodies      = 2  ! sets body indices 1, 2
+      fingerprint     = 1
+      call setUp_OneHeaderAndBodies(myobs, header_position, bod_offset, &
+                                    num_bodies, fingerprint)
+                                        ! Set header and body cross-indices since
+                                        ! they will be revised by obs_clean
+      call obs_headSet_i(myobs, OBS_RLN, 1, 1)
+      call obs_headSet_i(myobs, OBS_NLV, 1, 2)
+      call obs_bodySet_i(myobs, OBS_HIND, 1, 1)
+      call obs_bodySet_i(myobs, OBS_HIND, 2, 1)
+
+      header_position = 2
+      bod_offset      = 2
+      num_bodies      = 3  ! sets body indices 3, 4, 5
+      fingerprint     = 2
+      call setUp_OneHeaderAndBodies(myobs, header_position, bod_offset, &
+                                    num_bodies, fingerprint)
+      call obs_headSet_i(myobs, OBS_RLN, 2, 3)
+      call obs_headSet_i(myobs, OBS_NLV, 2, 3)
+      call obs_bodySet_i(myobs, OBS_HIND, 3, 2)
+      call obs_bodySet_i(myobs, OBS_HIND, 4, 2)
+      call obs_bodySet_i(myobs, OBS_HIND, 5, 2)
+
+      header_position = 3
+      bod_offset      = 5
+      num_bodies      = 4  ! sets body indices 6,7,8,9
+      fingerprint     = 3
+      call setUp_OneHeaderAndBodies(myobs, header_position, bod_offset, &
+                                    num_bodies, fingerprint)
+      call obs_headSet_i(myobs, OBS_RLN, 3, 6)
+      call obs_headSet_i(myobs, OBS_NLV, 3, 4)
+      call obs_bodySet_i(myobs, OBS_HIND, 6, 3)
+      call obs_bodySet_i(myobs, OBS_HIND, 7, 3)
+      call obs_bodySet_i(myobs, OBS_HIND, 8, 3)
+      call obs_bodySet_i(myobs, OBS_HIND, 9, 3)
+
+      ! Prepare the array, hx, to match
+      do idx_j = 1,9
+         do idx_i = 1,nens
+            hx (idx_i, idx_j) = idx_i * 100 + idx_j * 10 + 8
+         end do
+      end do
+                                        ! To ensure that all uncontrolled
+                                        ! elements are cleaned, set the value of
+                                        ! ZHA to -1.0d0
+      do body_ndx = 1,9
+         call obs_bodySet_r(myobs, OBS_ZHA, body_ndx, real(-1.0d0, OBS_REAL))
+      end do
+   end subroutine setup_obs_clean
+
+   subroutine test_obs_clean_g1()
+      ! Verify that group 1 of bodies is retained (i.e. not cleaned) correctly.
+      ! Test the 3 ways of removing one condition, all with qcvar = .false.
+      use obsSpaceData_mod
+      implicit none
+      type(struct_obs) :: myobs1
+      real(8) :: hx_in(2,10), hx_in_original(2,10)
+      integer, parameter :: NENS = 2
+      integer :: body_ndx
+      integer, parameter :: TESTOUT_UNIT = 8
+      integer, parameter :: BIT12=4096
+      logical :: qcvar
+
+      call setup_obs_clean(myobs1, hx_in, NENS, TESTOUT_UNIT)
+      hx_in_original (:,:) = hx_in (:,:)
+
+      ! Set the values that will be selected.  A body (and its associated header)
+      ! will be retained if these three conditions are all met:
+      !    1) either of:
+      !         1a) btest(obsdat%mobdata(OBS_FLG,jdata),12)
+      !         1b) .not. qcvar (the 5th parameter of obs_clean)
+      !    2) obsdat%mobdata(OBS_ASS,jdata) .eq. 1
+      !    3) obsdat%robdata(OBS_ZHA,jdata) .ge. 0.0
+
+      ! Set up a case where all four conditions are met
+      body_ndx = 1 ! will be retained
+      call obs_bodySet_i(myobs1, OBS_FLG, body_ndx, BIT12)
+      call obs_bodySet_i(myobs1, OBS_ASS, body_ndx, 1)
+      call obs_bodySet_r(myobs1, OBS_ZHA, body_ndx, real(0.5d0, OBS_REAL))
+
+      ! Set up a case where condition 1a) is not met [but 1b) is still met]
+      body_ndx = 2 ! will be retained
+                                        ! set bits 0->20, then remove bit 12
+      call obs_bodySet_i(myobs1, OBS_FLG, body_ndx, 1048576 -1 -BIT12)
+      call obs_bodySet_i(myobs1, OBS_ASS, body_ndx, 1)
+      call obs_bodySet_r(myobs1, OBS_ZHA, body_ndx, real(0.5d0, OBS_REAL))
+
+      ! Set up a case where condition 3) is not met
+      body_ndx = 3 ! will not be retained
+      call obs_bodySet_i(myobs1, OBS_FLG, body_ndx, BIT12)
+      call obs_bodySet_i(myobs1, OBS_ASS, body_ndx, 1)
+      call obs_bodySet_r(myobs1, OBS_ZHA, body_ndx, real(-0.5d0, OBS_REAL))
+
+      ! Set up a case where condition 2) is not met
+      body_ndx = 4 ! will not be retained
+      call obs_bodySet_i(myobs1, OBS_FLG, body_ndx, BIT12)
+      call obs_bodySet_i(myobs1, OBS_ASS, body_ndx, 13)
+      call obs_bodySet_r(myobs1, OBS_ZHA, body_ndx, real(0.5d0, OBS_REAL))
+
+      qcvar = .false.                   ! meets condision 1b)
+
+      ! METHOD UNDER TEST
+      call obs_clean(myobs1, hx_in, NENS, TESTOUT_UNIT, qcvar)
+
+      call assertEqual(1, obs_numheader(myobs1), 'group 1, numheader')
+      call assertEqual(2, obs_numbody(myobs1), 'group 1, numbody')
+      call assertEqual(hx_in_original(:, 1:2), hx_in(:, 1:2), 'group 1, hx')
+
+      !
+      ! TEST THE ASCII OUTPUT
+      !
+      endfile(unit=TESTOUT_UNIT)
+      rewind (unit=TESTOUT_UNIT)
+                                        ! Note that the content of the reference
+                                        ! files has not been calculated but,
+                                        ! rather, is a snapshot of output from
+                                        ! obs_clean
+      call test_ascii_output(TESTOUT_UNIT, &
+                        trim(unit_test_obs_data_dir) // '/test_obs_clean_g1.dat')
+
+      close(unit=TESTOUT_UNIT)
+      call obs_finalize(myobs1)
+   end subroutine test_obs_clean_g1
+
+   subroutine test_obs_clean_g2()
+      ! Verify that group 2 of bodies is retained (i.e. not cleaned) correctly.
+      ! Test the ZHA condition close to its cut-off value, all with qcvar=.false.
+      use obsSpaceData_mod
+      implicit none
+      type(struct_obs) :: myobs1
+      real(8) :: hx_in(2,10), hx_in_original(2,10)
+      integer, parameter :: NENS = 2
+      integer :: body_ndx
+      integer, parameter :: TESTOUT_UNIT = 8
+      integer, parameter :: BIT12=4096
+      logical :: qcvar
+      real(OBS_REAL), parameter :: SMALL = real(0.d0, OBS_REAL)
+
+      call setup_obs_clean(myobs1, hx_in, NENS, TESTOUT_UNIT)
+      hx_in_original (:,:) = hx_in (:,:)
+
+      ! Set the values that will be selected.  A body (and its associated header)
+      ! will be retained if these three conditions are all met:
+      !    1) either of:
+      !         1a) btest(obsdat%mobdata(NCM_FLG,jdata),12)
+      !         1b) .not. qcvar (the 5th parameter of obs_clean)
+      !    2) obsdat%mobdata(NCM_ASS,jdata) .eq. 1
+      !    3) obsdat%robdata(NCM_ZHA,jdata) .ge. 0.0
+
+      ! Set up a case where condition 3) is met, but just
+      body_ndx = 3 ! will be retained
+      call obs_bodySet_i(myobs1, OBS_FLG, body_ndx, BIT12)
+      call obs_bodySet_i(myobs1, OBS_ASS, body_ndx, 1)
+      call obs_bodySet_r(myobs1, OBS_ZHA, body_ndx, tiny(SMALL))
+
+      ! Set up another case where condition 3) is met, but just
+      body_ndx = 4 ! will be retained
+      call obs_bodySet_i(myobs1, OBS_FLG, body_ndx, BIT12)
+      call obs_bodySet_i(myobs1, OBS_ASS, body_ndx, 1)
+      call obs_bodySet_r(myobs1, OBS_ZHA, body_ndx, ZERO)
+
+      qcvar = .false.                   ! meets condision 1b)
+
+      ! METHOD UNDER TEST
+      call obs_clean(myobs1, hx_in, NENS, TESTOUT_UNIT, qcvar)
+
+      call assertEqual(1, obs_numheader(myobs1), 'group 2, numheader')
+      call assertEqual(2, obs_numbody(myobs1), 'group 2, numbody')
+      call assertEqual(hx_in_original(:, 3:4), hx_in(:, 1:2), 'group 2, hx')
+
+      ! Verify that the header and body cross-indices have be revised
+      call assertEqual(1, obs_headElem_i(myobs1,OBS_RLN,1), &
+                       'group2, report location')
+      call assertEqual(2, obs_headElem_i(myobs1,OBS_NLV,1), &
+                       'group2, number of data')
+      call assertEqual(1, obs_bodyElem_i(myobs1,OBS_HIND,1), &
+                       'group2, header index in body 1')
+      call assertEqual(1, obs_bodyElem_i(myobs1,OBS_HIND,1), &
+                       'group2, header index in body 2')
+
+      !
+      ! TEST THE ASCII OUTPUT
+      !
+      endfile(unit=TESTOUT_UNIT)
+      rewind (unit=TESTOUT_UNIT)
+
+                                        ! Note that the content of the reference
+                                        ! files has not been calculated but,
+                                        ! rather, is a snapshot of output from
+                                        ! obs_clean
+      call test_ascii_output(TESTOUT_UNIT, &
+                        trim(unit_test_obs_data_dir) // '/test_obs_clean_g2.dat')
+
+      close(unit=TESTOUT_UNIT)
+      call obs_finalize(myobs1)
+   end subroutine test_obs_clean_g2
+
+   subroutine test_obs_clean_g3()
+      ! Verify that group 3 of bodies is retained (i.e. not cleaned) correctly.
+      ! Test the bit-12 condition, all with qcvar = .true.
+      use obsSpaceData_mod
+      implicit none
+      type(struct_obs) :: myobs1
+      real(8) :: hx_in(2,10), hx_in_original(2,10)
+      integer, parameter :: NENS = 2
+      integer :: body_ndx
+      integer, parameter :: TESTOUT_UNIT = 8
+      integer, parameter :: BIT12=4096
+      logical :: qcvar
+
+      call setup_obs_clean(myobs1, hx_in, NENS, TESTOUT_UNIT)
+      hx_in_original (:,:) = hx_in (:,:)
+
+      ! Set the values that will be selected.  A body (and its associated header)
+      ! will be retained if these three conditions are all met:
+      !    1) either of:
+      !         1a) btest(obsdat%mobdata(NCM_FLG,jdata),12)
+      !         1b) .not. qcvar (the 5th parameter of obs_clean)
+      !    2) obsdat%mobdata(NCM_ASS,jdata) .eq. 1
+      !    3) obsdat%robdata(NCM_ZHA,jdata) .ge. 0.0
+
+      ! Set up a case where all three conditions are met [but not 1b)]
+      body_ndx = 7 ! will be retained
+      call obs_bodySet_i(myobs1, OBS_FLG, body_ndx, BIT12)
+      call obs_bodySet_i(myobs1, OBS_ASS, body_ndx, 1)
+      call obs_bodySet_r(myobs1, OBS_ZHA, body_ndx, real(0.5d0, OBS_REAL))
+
+      ! Set up a case where condition 1a) is not met
+      body_ndx = 3 ! will not be retained
+      call obs_bodySet_i(myobs1, OBS_FLG, body_ndx, 1048576 -1 -BIT12)
+      call obs_bodySet_i(myobs1, OBS_ASS, body_ndx, 1)
+      call obs_bodySet_r(myobs1, OBS_ZHA, body_ndx, real(0.5d0, OBS_REAL))
+
+      qcvar = .true.                   ! does not meet condision 1b)
+
+      ! METHOD UNDER TEST
+      call obs_clean(myobs1, hx_in, NENS, TESTOUT_UNIT, qcvar)
+
+      call assertEqual(1, obs_numheader(myobs1), 'group 3, numheader')
+      call assertEqual(1, obs_numbody(myobs1), 'group 3, numbody')
+      call assertEqual(hx_in_original(:, 7), hx_in(:, 1), 'group 3, hx')
+
+      !
+      ! TEST THE ASCII OUTPUT
+      !
+      endfile(unit=TESTOUT_UNIT)
+      rewind (unit=TESTOUT_UNIT)
+                                        ! Note that the content of the reference
+                                        ! files has not been calculated but,
+                                        ! rather, is a snapshot of output from
+                                        ! obs_clean
+      call test_ascii_output(TESTOUT_UNIT, &
+                        trim(unit_test_obs_data_dir) // '/test_obs_clean_g3.dat')
+
+      close(unit=TESTOUT_UNIT)
+      call obs_finalize(myobs1)
+   end subroutine test_obs_clean_g3
+
+   subroutine test_obs_comm()
+      ! Verify that one obs object is correctly and completely copied from one
+      ! mpi processor to another.
+      !
+      ! The basic test mechanism is this.  Both PE's know the correct result,
+      ! either as an algorithm (as for obs) or as an array of values (as for hx).
+      ! The correct values are placed into a variable only on PE 0.  The variable
+      ! content is then copied to PE 1 using obs_comm(), the method under test.
+      ! Both PE's then perform assert's so as to verify the result.  PFUnit takes
+      ! care of merging any errors noted into the report of PE 0.
+
+      use obsSpaceData_mod
+      implicit none
+      include 'mpif.h'
+      type(struct_obs) :: myobs1
+      integer :: fingerprint            ! a finger print for a data set
+      integer, parameter :: HEAD_MAX=10, BOD_MAX=100
+      real(8) :: hx_in(2,5), hx_in_original(2,5)
+      integer :: header_position, bod_offset, num_bodies, idx_i, idx_j
+
+      integer :: nens, num_headers
+      integer :: myip, ierr
+      logical :: mpiLocal_expected
+      logical :: logic_found
+
+      call rpn_comm_rank('ALL', myip, ierr)
+                                        ! Set the internal variable, mpi_local,
+                                        ! to the non-default value
+      call obs_initialize(myobs1, HEAD_MAX, BOD_MAX)
+
+      header_position = 1
+      bod_offset      = 0
+      num_bodies      = 2
+      fingerprint     = 3
+
+      ! Set up the hx reference table on PE 0 and PE 1
+      do idx_j = 1,2
+         do idx_i = 1,2
+            hx_in_original (idx_i, idx_j) = idx_i * 100 + idx_j * 10 + 8
+         end do
+      end do
+
+      if(myip == 0) then
+         ! Set up the table on PE 0
+         call setUp_OneHeaderAndBodies(myobs1, header_position, bod_offset, &
+                                       num_bodies, fingerprint)
+
+         ! On PE 0 only, copy the reference table to hx_in
+         hx_in (:,:) = hx_in_original (:,:)
+      end if ! myip == 0
+
+      ! THE METHOD BEING TESTED:  Copy myobs1 and hx from PE 0 to PE 1
+      nens = 2
+      num_headers = 1
+      call obs_comm(myobs1, myip, nens, num_headers, hx_in)
+
+      ! VERIFY THE RESULT ON PE 1, AS WELL AS THE ORIGINAL ON PE 0
+      mpiLocal_expected=.false.
+      call verify_obs(myobs1, header_position, bod_offset, num_bodies, &
+                      fingerprint, mpiLocal_expected, ' ')
+      call assertEqual(1, obs_numheader(myobs1), 'no. headers')
+      call assertEqual(HEAD_MAX, obs_numheader_max(myobs1), 'max. no. headers')
+
+      call assertEqual(2, obs_numbody(myobs1), 'no. bodies')
+      call assertEqual(BOD_MAX, obs_numbody_max(myobs1), 'max. no. bodies')
+
+      ! VERIFY THE HX RESULT ON PE 1, AS WELL AS THE ORIGINAL ON PE 0
+      call assertEqual( hx_in_original(1:2,1:2), hx_in (1:2,1:2), &
+                        'data of hx')
+
+      call obs_finalize(myobs1)
+   end subroutine test_obs_comm
+
+   subroutine test_obs_comm_boundaries()
+      ! Test for abortion on bad parameters, particularly near boundaries.
+
+      use obsSpaceData_mod
+      implicit none
+      include 'mpif.h'
+      type(struct_obs) :: myobs1
+      integer :: fingerprint            ! a finger print for a data set
+      integer, parameter :: HEAD_MAX=10, BOD_MAX=100
+      real(8) :: hx(1,1)
+      integer :: header_position, bod_offset, num_bodies, idx_i, idx_j
+
+      integer :: nens, num_headers
+      integer :: myip, ierr
+      logical :: mpiLocal_expected
+      logical :: logic_found
+
+      nens = 0
+      call rpn_comm_rank('ALL', myip, ierr)
+
+      call obs_initialize(myobs1, HEAD_MAX, BOD_MAX)
+
+                                        ! Set the number of bodies to be 0
+      if(myip == 0) then
+         header_position = 1
+         bod_offset      = 0
+         num_bodies      = 0
+         fingerprint     = 3*header_position
+         call setUp_OneHeaderAndBodies(myobs1, header_position, bod_offset, &
+                                       num_bodies, fingerprint)
+      end if ! myip == 0
+      call obs_comm(myobs1, myip, nens, 1, hx)
+      logic_found = catch('exiting in obs_abort')
+      call assertTrue(logic_found, 'obs failed to abort with 0 bodies')
+
+      ! Set up the obs object on PE 0
+      if(myip == 0) then
+         do header_position = 1,HEAD_MAX
+            bod_offset      = (header_position- 1) * 2
+            num_bodies      = 2
+            fingerprint     = 3*header_position
+            call setUp_OneHeaderAndBodies(myobs1, header_position, bod_offset, &
+                                          num_bodies, fingerprint)
+         end do
+      end if ! myip == 0
+
+      call obs_comm(myobs1, myip, nens, HEAD_MAX, hx)
+      logic_found = catch('exiting in obs_abort')
+      call assertFalse(logic_found, 'obs aborted on BOD_MAX')
+
+      call obs_comm(myobs1, myip, nens, HEAD_MAX+1, hx)
+      logic_found = catch('exiting in obs_abort')
+      call assertTrue(logic_found, 'obs failed to abort on HEAD_MAX+1')
+
+      call obs_comm(myobs1, myip, nens, 0, hx)
+      logic_found = catch('exiting in obs_abort')
+      call assertTrue(logic_found, 'obs failed to abort on 0 headers')
+
+                                        ! Set the number of bodies to be
+                                        ! exactly equal to BOD_MAX
+      if(myip == 0) then
+         header_position = HEAD_MAX
+         bod_offset      = (header_position- 1) * 2
+         num_bodies      = BOD_MAX - 18
+         fingerprint     = 3*header_position
+         call setUp_OneHeaderAndBodies(myobs1, header_position, bod_offset, &
+                                       num_bodies, fingerprint)
+      end if ! myip == 0
+
+      call obs_comm(myobs1, myip, nens, HEAD_MAX, hx)
+      logic_found = catch('exiting in obs_abort')
+      call assertFalse(logic_found, 'obs aborted on BOD_MAX')
+
+                                        ! Set the number of bodies to be
+                                        ! greater than BOD_MAX
+                                        ! ... without writing beyond array bounds
+      if(myip == 0) then
+         call obs_headSet_i    (myobs1, OBS_NLV,  header_position, BOD_MAX - 17)
+      end if ! myip == 0
+
+      call obs_comm(myobs1, myip, nens, HEAD_MAX, hx)
+      logic_found = catch('exiting in obs_abort')
+      call assertTrue(logic_found, 'obs failed to abort on BOD_MAX+1')
+
+      call obs_finalize(myobs1)
+   end subroutine test_obs_comm_boundaries
+
+   subroutine test_bufr_element()
+      ! This test is just a spot check that ensures that the method,
+      ! obs_get_obs_index_for_bufr_element, is in basic working order.
+      use obsSpaceData_mod
+      implicit none
+      type(struct_obs) :: myobs
+      integer :: obs_index
+
+      obs_index = obs_get_obs_index_for_bufr_element(011216)
+      call assertEqual(13, obs_index, 'bufr element 011216')
+
+      obs_index = obs_get_obs_index_for_bufr_element(010194)
+      call assertEqual(3, obs_index, 'bufr element 010194')
+   end subroutine test_bufr_element
+
+   subroutine test_prntbdy()
+      ! Verify that the body of an ObsSpaceData object is correctly written by
+      ! obs_prntbdy() to an ascii file.
+      use obsSpaceData_mod
+      implicit none
+      type(struct_obs) :: myobs
+      integer, parameter :: HEAD_MAX=3, BOD_MAX=100
+      integer, parameter :: BDY_UNIT = 9
+      integer :: status, header_position, bod_offset, num_bodies, fingerprint
+      integer :: index_header
+
+      ! Open a file to receive the body output
+      open(unit=BDY_UNIT, status='SCRATCH', &
+                          action='READWRITE', &
+                          iostat=status)
+      if(status /= 0) write(*,*)"ERROR opening scratch file in ", &
+                                "test_prntbdy: ", status
+
+      call obs_initialize(myobs, HEAD_MAX, BOD_MAX)
+
+      ! Set up obs table
+      header_position = 1
+      bod_offset      = 0
+      num_bodies      = 2
+      fingerprint     = 1
+                                        ! To start, just fill in some values
+      call setUp_OneHeaderAndBodies(myobs, header_position, bod_offset, &
+                                    num_bodies, fingerprint)
+      header_position = 2
+      bod_offset      = 2
+      num_bodies      = 2
+      fingerprint     = 2
+      call setUp_OneHeaderAndBodies(myobs, header_position, bod_offset, &
+                                    num_bodies, fingerprint)
+
+                                        ! Set vertical co-ordinate to good value
+      call obs_bodySet_i(myobs, obs_columnIndexFromName_IB('VCO'), 1, 1)
+      call obs_bodySet_i(myobs, obs_columnIndexFromName_IB('VCO'), 2, 1)
+      call obs_bodySet_i(myobs, obs_columnIndexFromName_IB('VCO'), 3, 1)
+      call obs_bodySet_i(myobs, obs_columnIndexFromName_IB('VCO'), 4, 1)
+
+                                        ! Assimilation flag must fit small field
+      call obs_bodySet_i(myobs, obs_columnIndexFromName_IB('ASS'), 1, 1)
+      call obs_bodySet_i(myobs, obs_columnIndexFromName_IB('ASS'), 2, 1)
+      call obs_bodySet_i(myobs, obs_columnIndexFromName_IB('ASS'), 3, 0)
+      call obs_bodySet_i(myobs, obs_columnIndexFromName_IB('ASS'), 4, 1)
+
+      ! THE METHOD BEING TESTED
+      index_header = 2
+      call obs_prntbdy(myobs, index_header, BDY_UNIT)
+      index_header = 1
+      call obs_prntbdy(myobs, index_header, BDY_UNIT)
+
+      ! Verify the output
+      endfile(unit=BDY_UNIT)
+      rewind(unit=BDY_UNIT)
+
+                                        ! Note that the content of the reference
+                                        ! file has not been calculated but,
+                                        ! rather, is a snapshot of output from
+                                        ! obs_prntbdy()
+      call test_ascii_output(BDY_UNIT, &
+            trim(unit_test_obs_data_dir) // '/test_prntbdy.dat' // OBS_REAL_CHAR)
+
+
+      close(unit=BDY_UNIT)
+   end subroutine test_prntbdy
+
+   subroutine test_prnthdr()
+      ! Verify that the header of an ObsSpaceData object is correctly written by
+      ! obs_prnthdr() to an ascii file.
+      use obsSpaceData_mod
+      implicit none
+      type(struct_obs) :: myobs
+      integer, parameter :: HEAD_MAX=3, BOD_MAX=100
+      integer, parameter :: HDR_UNIT = 9
+      integer :: status, header_position, bod_offset, num_bodies, fingerprint
+      integer :: index_header
+
+      ! Open a file to receive the body output
+      open(unit=HDR_UNIT, status='SCRATCH', &
+                          action='READWRITE', &
+                          iostat=status)
+      if(status /= 0) write(*,*)"ERROR opening scratch file in ", &
+                                "test_prnthdr: ", status
+
+      call obs_initialize(myobs, HEAD_MAX, BOD_MAX)
+
+      ! Set up obs table
+      header_position = 1
+      bod_offset      = 0
+      num_bodies      = 2
+      fingerprint     = 1
+                                        ! To start, just fill in some values
+      call setUp_OneHeaderAndBodies(myobs, header_position, bod_offset, &
+                                    num_bodies, fingerprint)
+      header_position = 2
+      bod_offset      = 2
+      num_bodies      = 2
+      fingerprint     = 2
+      call setUp_OneHeaderAndBodies(myobs, header_position, bod_offset, &
+                                    num_bodies, fingerprint)
+
+      ! THE METHOD BEING TESTED
+      index_header = 2
+      call obs_prnthdr(myobs, index_header, HDR_UNIT)
+      index_header = 1
+      call obs_prnthdr(myobs, index_header, HDR_UNIT)
+
+      ! Verify the output
+      endfile(unit=HDR_UNIT)
+      rewind(unit=HDR_UNIT)
+
+                                        ! Note that the content of the reference
+                                        ! file has not been calculated but,
+                                        ! rather, is a snapshot of output from
+                                        ! obs_prnthdr()
+      call test_ascii_output(HDR_UNIT, &
+                   trim(unit_test_obs_data_dir) // '/test_prnthdr.dat')
+
+
+      close(unit=HDR_UNIT)
+   end subroutine test_prnthdr
+
+   subroutine test_mpiReduceExpand()
+      ! Verify that MPI reduction and expansion of an ObsSpaceData object do a
+      ! reasonable job.  Reduction followed by expansion should bring the object
+      ! back to its starting point ... Well, not quite.  Because the software
+      ! never really needs to do that in a normal calculation, once it has
+      ! expanded to global, it cannot go back to local without first allocating
+      ! space on all but PE 0, and then broadcasting the data to the other
+      ! processors from PE 0.
+
+      use obsSpaceData_mod
+      implicit none
+      type(struct_obs) :: myobs1
+      integer :: header_position, bod_offset, num_bodies, num_headers, nhead
+      integer :: fingerprint            ! a finger print for a data set
+      integer, parameter :: HEAD_MAX=10, BOD_MAX=100
+      logical :: logic_found
+      integer :: myip, ierr
+
+      call rpn_comm_rank('ALL', myip, ierr)
+
+      call obs_initialize(myobs1, HEAD_MAX, BOD_MAX)
+
+      ! Set up obs table
+      header_position = 1
+      bod_offset      = 0
+      num_bodies      = 2
+      fingerprint     = 1
+      call setUp_OneHeaderAndBodies(myobs1, header_position, bod_offset, &
+                                    num_bodies, fingerprint)
+      header_position = 2
+      bod_offset      = 2
+      num_bodies      = 2
+      fingerprint     = 2
+      call setUp_OneHeaderAndBodies(myobs1, header_position, bod_offset, &
+                                    num_bodies, fingerprint)
+
+      ! Set OBS_IP values, distributing the elements over mpi processors
+      num_headers = obs_numHeader(myobs1)
+      do nhead=1, num_headers, 2
+         call obs_headSet_i (myobs1, OBS_IP, nhead  , 0)
+      end do
+      do nhead=2, num_headers, 2
+         call obs_headSet_i (myobs1, OBS_IP, nhead, 1)
+      end do
+
+      ! THE METHODS BEING TESTED:  Reduce the obsSpaceData object to its
+      ! mpi-local state, and then expand it back to its mpi-global state.
+      call obs_reduceToMpiLocal (myobs1)
+      call obs_expandToMpiGlobal(myobs1)
+
+
+      if (myip == 0) then
+         ! Verify the result: myobs
+         header_position = 1
+         bod_offset      = 0
+         num_bodies      = 2
+         fingerprint     = 1
+         call verify_obs(myobs1, header_position, bod_offset, num_bodies, &
+            fingerprint, .false., 'first header', omit_ip=.true.)
+
+         header_position = 2
+         bod_offset      = 2
+         num_bodies      = 2
+         fingerprint     = 2
+         call verify_obs(myobs1, header_position, bod_offset, num_bodies, &
+            fingerprint, .false., 'second header', omit_ip=.true.)
+
+         do nhead=1, num_headers, 2
+            call assertEqual(0, obs_headElem_i (myobs1, OBS_IP, nhead))
+         end do
+         do nhead=2, num_headers, 2
+            call assertEqual(1, obs_headElem_i (myobs1, OBS_IP, nhead))
+         end do
+
+         ! Note:  obs_numheader_max() and obs_numbody_max() have been reduced by
+         !        obs_expandToMpiGlobal() to the minimum size necessary
+         call assertEqual(2, obs_numheader(myobs1), 'no. headers')
+         call assertEqual(2, obs_numheader_max(myobs1), 'max. no. headers')
+
+         call assertEqual(4, obs_numbody(myobs1), 'no. bodies')
+         call assertEqual(4, obs_numbody_max(myobs1), 'max. no. bodies')
+      endif
+
+      ! Verify that obs refuses to repeat the same operation twice in a row
+      call obs_expandToMpiGlobal(myobs1)
+      logic_found = catch('exiting in obs_abort')
+      call assertTrue(logic_found, 'obs failed to abort - expandToMpiGlobal')
+
+      call obs_reduceToMpiLocal (myobs1)
+      if (myip.ne.0) then
+         logic_found = catch('exiting in obs_abort')
+         call assertTrue(logic_found, 'obs failed to abort - reduceToMpiLocal')
+      else
+         call obs_reduceToMpiLocal (myobs1)
+         logic_found = catch('exiting in obs_abort')
+         call assertTrue(logic_found, &
+                         'obs failed to abort - obs_reduceToMpiLocal')
+      endif
+
+      call obs_finalize(myobs1)
+   end subroutine test_mpiReduceExpand
+
+   subroutine test_mpiGlobalIndices()
+      ! Verify that MPI global indices can be obtained even in the mpi-local
+      ! state.
+      !
+      ! NOTE:  This test relies on the assumption that the method,
+      !        obs_reduceToMpiLocal, assigns the headers to the mpi processors on
+      !        a round robin basis.  While this is true at the time of writing
+      !        this test, the ObsSpaceData module is allowed to change this
+      !        manner of working.
+
+      use obsSpaceData_mod
+      implicit none
+      type(struct_obs) :: myobs1
+      integer :: header_position, bod_offset, num_bodies
+      integer :: fingerprint            ! a finger print for a data set
+      integer, parameter :: HEAD_MAX=10, BOD_MAX=100
+      integer :: nprocs_mpi, myip, idx_dummy, idy_dummy
+      integer :: index_local, num_headers, nhead
+      integer :: expected_headerIndex, found_headerIndex ! global indices
+      integer :: expected_bodyIndex,   found_bodyIndex   ! global indices
+
+      call obs_initialize(myobs1, HEAD_MAX, BOD_MAX)
+
+      ! Set up obs table
+      header_position = 1
+      bod_offset      = 0
+      num_bodies      = 2
+      fingerprint     = 1
+      call setUp_OneHeaderAndBodies(myobs1, header_position, bod_offset, &
+                                    num_bodies, fingerprint)
+      header_position = 2
+      bod_offset      = 2
+      num_bodies      = 2
+      fingerprint     = 2
+      call setUp_OneHeaderAndBodies(myobs1, header_position, bod_offset, &
+                                    num_bodies, fingerprint)
+      header_position = 3
+      bod_offset      = 4
+      num_bodies      = 3
+      fingerprint     = 1
+      call setUp_OneHeaderAndBodies(myobs1, header_position, bod_offset, &
+                                    num_bodies, fingerprint)
+      header_position = 4
+      bod_offset      = 7
+      num_bodies      = 2
+      fingerprint     = 2
+      call setUp_OneHeaderAndBodies(myobs1, header_position, bod_offset, &
+                                    num_bodies, fingerprint)
+
+      ! Set OBS_IP values, distributing the elements over mpi processors
+      num_headers = obs_numHeader(myobs1)
+      do nhead=1, num_headers, 2
+         call obs_headSet_i (myobs1, OBS_IP, nhead  , 0)
+      end do
+      do nhead=2, num_headers, 2
+         call obs_headSet_i (myobs1, OBS_IP, nhead, 1)
+      end do
+
+      ! Reduce the obsSpaceData object to its mpi-local state.
+      call obs_reduceToMpiLocal (myobs1)
+
+      ! Obtain the number of the processor that is doing this test
+      call rpn_comm_mype(myip, idx_dummy, idy_dummy)
+
+      do index_local = 1, (header_position / NUM_PE)
+         ! ONE METHOD BEING TESTED:  verify the global header indices for this PE
+         found_headerIndex = obs_headerIndex_mpiglobal(myobs1, index_local)
+         expected_headerIndex = (index_local - 1) * NUM_PE + (myip + 1)
+         call assertEqual(expected_headerIndex, found_headerIndex, &
+                          'header index')
+      end do
+
+      select case(myip)
+      case (0)
+         do index_local = 1, 5
+            ! OTHER METHOD BEING TESTED:  verify global body indices for this PE
+            found_bodyIndex = obs_bodyIndex_mpiglobal(myobs1, index_local)
+            select case(index_local)
+               case (1); expected_bodyIndex = 1
+               case (2); expected_bodyIndex = 2
+               case (3); expected_bodyIndex = 5
+               case (4); expected_bodyIndex = 6
+               case (5); expected_bodyIndex = 7
+            end select
+            call assertEqual(expected_bodyIndex, found_bodyIndex, &
+                             'body index')
+         end do
+
+      case (1)
+         do index_local = 1, 4
+            ! OTHER METHOD BEING TESTED:  verify global body indices for this PE
+            found_bodyIndex = obs_bodyIndex_mpiglobal(myobs1, index_local)
+            select case(index_local)
+               case (1); expected_bodyIndex = 3
+               case (2); expected_bodyIndex = 4
+               case (3); expected_bodyIndex = 8
+               case (4); expected_bodyIndex = 9
+            end select
+            call assertEqual(expected_bodyIndex, found_bodyIndex, &
+                             'body index')
+         end do
+
+      case default
+         write(*,*)"error programming unit tests -- this number of " // &
+                   "processors has not been considered:  ", myip
+         call exit(13)
+      end select
+
+      call obs_finalize(myobs1)
+   end subroutine test_mpiGlobalIndices
+
+   subroutine test_HeaderList()
+      ! Verify that a header list is obtained correctly.
+
+      use obsSpaceData_mod
+      implicit none
+      type(struct_obs) :: myobs1
+      integer :: header_position, bod_offset, num_bodies
+      integer :: fingerprint            ! a finger print for a data set
+      integer, parameter :: HEAD_MAX=10, BOD_MAX=100
+      integer :: expected_headerIndex, found_headerIndex ! global indices
+
+      call obs_initialize(myobs1, HEAD_MAX, BOD_MAX)
+
+      ! Set up obs table
+      header_position = 1
+      bod_offset      = 0
+      num_bodies      = 2
+      fingerprint     = 1
+      call setUp_OneHeaderAndBodies(myobs1, header_position, bod_offset, &
+                                    num_bodies, fingerprint)
+      header_position = 2
+      bod_offset      = 2
+      num_bodies      = 2
+      fingerprint     = 2
+      call setUp_OneHeaderAndBodies(myobs1, header_position, bod_offset, &
+                                    num_bodies, fingerprint)
+      header_position = 3
+      bod_offset      = 4
+      num_bodies      = 3
+      fingerprint     = 1
+      call setUp_OneHeaderAndBodies(myobs1, header_position, bod_offset, &
+                                    num_bodies, fingerprint)
+      header_position = 4
+      bod_offset      = 7
+      num_bodies      = 2
+      fingerprint     = 2
+      call setUp_OneHeaderAndBodies(myobs1, header_position, bod_offset, &
+                                    num_bodies, fingerprint)
+
+      call obs_setFamily(myobs1, 'AA', 1)
+      call obs_setFamily(myobs1, 'BB', 2)
+      call obs_setFamily(myobs1, 'CC', 3)
+      call obs_setFamily(myobs1, 'BB', 4)
+
+      ! The method being tested.  Obs_getHeaderIndex is also tested implicitly.
+      call obs_set_current_header_list(myobs1, 'BB')
+
+      found_headerIndex = obs_getHeaderIndex(myobs1)
+      expected_headerIndex = 2
+      call assertEqual(expected_headerIndex, found_headerIndex, 'header index')
+
+      found_headerIndex = obs_getHeaderIndex(myobs1)
+      expected_headerIndex = 4
+      call assertEqual(expected_headerIndex, found_headerIndex, 'header index')
+
+      found_headerIndex = obs_getHeaderIndex(myobs1)
+      expected_headerIndex = -1         ! The end of the list
+      call assertEqual(expected_headerIndex, found_headerIndex, 'header index')
+
+      call obs_finalize(myobs1)
+   end subroutine test_HeaderList
+
+   subroutine test_BodyList_Family()
+      ! Verify that a body list (one that is based on the family) is obtained correctly.
+
+      use obsSpaceData_mod
+      implicit none
+      type(struct_obs) :: myobs1
+      integer :: header_position, bod_offset, num_bodies
+      integer :: fingerprint            ! a finger print for a data set
+      integer, parameter :: HEAD_MAX=10, BOD_MAX=100
+      integer :: expected_bodyIndex, found_bodyIndex ! global indices
+
+      call obs_initialize(myobs1, HEAD_MAX, BOD_MAX)
+
+      ! Set up obs table
+      header_position = 1
+      bod_offset      = 0
+      num_bodies      = 2
+      fingerprint     = 1
+      call setUp_OneHeaderAndBodies(myobs1, header_position, bod_offset, &
+                                    num_bodies, fingerprint)
+      header_position = 2
+      bod_offset      = 2
+      num_bodies      = 2
+      fingerprint     = 2
+      call setUp_OneHeaderAndBodies(myobs1, header_position, bod_offset, &
+                                    num_bodies, fingerprint)
+      header_position = 3
+      bod_offset      = 4
+      num_bodies      = 3
+      fingerprint     = 1
+      call setUp_OneHeaderAndBodies(myobs1, header_position, bod_offset, &
+                                    num_bodies, fingerprint)
+      header_position = 4
+      bod_offset      = 7
+      num_bodies      = 2
+      fingerprint     = 2
+      call setUp_OneHeaderAndBodies(myobs1, header_position, bod_offset, &
+                                    num_bodies, fingerprint)
+
+      call obs_setFamily(myobs1, 'AA', 1)
+      call obs_setFamily(myobs1, 'BB', 2)
+      call obs_setFamily(myobs1, 'CC', 3)
+      call obs_setFamily(myobs1, 'BB', 4)
+
+      ! The method being tested.  Obs_getBodyIndex is also tested implicitly.
+      call obs_set_current_body_list(myobs1, 'BB')
+
+      found_bodyIndex = obs_getBodyIndex(myobs1)
+      expected_bodyIndex = 3
+      call assertEqual(expected_bodyIndex, found_bodyIndex, 'body index')
+
+      found_bodyIndex = obs_getBodyIndex(myobs1)
+      expected_bodyIndex = 4
+      call assertEqual(expected_bodyIndex, found_bodyIndex, 'body index')
+
+      found_bodyIndex = obs_getBodyIndex(myobs1)
+      expected_bodyIndex = 8
+      call assertEqual(expected_bodyIndex, found_bodyIndex, 'body index')
+
+      found_bodyIndex = obs_getBodyIndex(myobs1)
+      expected_bodyIndex = 9
+      call assertEqual(expected_bodyIndex, found_bodyIndex, 'body index')
+
+      found_bodyIndex = obs_getBodyIndex(myobs1)
+      expected_bodyIndex = -1         ! The end of the list
+      call assertEqual(expected_bodyIndex, found_bodyIndex, 'body index')
+
+      call obs_finalize(myobs1)
+   end subroutine test_BodyList_Family
+
+   subroutine test_BodyList_Header()
+      ! Verify that a body list (one that is based on the header) is obtained correctly.
+
+      use obsSpaceData_mod
+      implicit none
+      type(struct_obs) :: myobs1
+      integer :: header_position, bod_offset, num_bodies
+      integer :: fingerprint            ! a finger print for a data set
+      integer, parameter :: HEAD_MAX=10, BOD_MAX=100
+      integer :: expected_bodyIndex, found_bodyIndex ! global indices
+
+      call obs_initialize(myobs1, HEAD_MAX, BOD_MAX)
+
+      ! Set up obs table
+      header_position = 1
+      bod_offset      = 0
+      num_bodies      = 2
+      fingerprint     = 1
+      call setUp_OneHeaderAndBodies(myobs1, header_position, bod_offset, &
+                                    num_bodies, fingerprint)
+      header_position = 2
+      bod_offset      = 2
+      num_bodies      = 2
+      fingerprint     = 2
+      call setUp_OneHeaderAndBodies(myobs1, header_position, bod_offset, &
+                                    num_bodies, fingerprint)
+      header_position = 3
+      bod_offset      = 4
+      num_bodies      = 3
+      fingerprint     = 1
+      call setUp_OneHeaderAndBodies(myobs1, header_position, bod_offset, &
+                                    num_bodies, fingerprint)
+      header_position = 4
+      bod_offset      = 7
+      num_bodies      = 2
+      fingerprint     = 2
+      call setUp_OneHeaderAndBodies(myobs1, header_position, bod_offset, &
+                                    num_bodies, fingerprint)
+
+      call obs_setFamily(myobs1, 'AA', 1)
+      call obs_setFamily(myobs1, 'BB', 2)
+      call obs_setFamily(myobs1, 'CC', 3)
+      call obs_setFamily(myobs1, 'BB', 4)
+
+      ! The method being tested.  Obs_getBodyIndex is also tested implicitly.
+      call obs_set_current_body_list(myobs1, 2)
+
+      found_bodyIndex = obs_getBodyIndex(myobs1)
+      expected_bodyIndex = 3
+      call assertEqual(expected_bodyIndex, found_bodyIndex, 'body index')
+
+      found_bodyIndex = obs_getBodyIndex(myobs1)
+      expected_bodyIndex = 4
+      call assertEqual(expected_bodyIndex, found_bodyIndex, 'body index')
+
+      found_bodyIndex = obs_getBodyIndex(myobs1)
+      expected_bodyIndex = -1         ! The end of the list
+      call assertEqual(expected_bodyIndex, found_bodyIndex, 'body index')
+
+      call obs_finalize(myobs1)
+   end subroutine test_BodyList_Header
+
+   subroutine test_BodyList_All()
+      ! Verify that a body list (all bodies) is obtained correctly.
+
+      use obsSpaceData_mod
+      implicit none
+      type(struct_obs) :: myobs1
+      integer :: header_position, bod_offset, num_bodies
+      integer :: fingerprint            ! a finger print for a data set
+      integer, parameter :: HEAD_MAX=10, BOD_MAX=100
+      integer :: expected_bodyIndex, found_bodyIndex ! global indices
+
+      call obs_initialize(myobs1, HEAD_MAX, BOD_MAX)
+
+      ! Set up obs table
+      header_position = 1
+      bod_offset      = 0
+      num_bodies      = 2
+      fingerprint     = 1
+      call setUp_OneHeaderAndBodies(myobs1, header_position, bod_offset, &
+                                    num_bodies, fingerprint)
+      header_position = 2
+      bod_offset      = 2
+      num_bodies      = 2
+      fingerprint     = 2
+      call setUp_OneHeaderAndBodies(myobs1, header_position, bod_offset, &
+                                    num_bodies, fingerprint)
+
+      ! The method being tested.  Obs_getBodyIndex is also tested implicitly.
+      call obs_set_current_body_list(myobs1)
+
+      found_bodyIndex = obs_getBodyIndex(myobs1)
+      expected_bodyIndex = 1
+      call assertEqual(expected_bodyIndex, found_bodyIndex, 'body index')
+
+      found_bodyIndex = obs_getBodyIndex(myobs1)
+      expected_bodyIndex = 2
+      call assertEqual(expected_bodyIndex, found_bodyIndex, 'body index')
+
+      found_bodyIndex = obs_getBodyIndex(myobs1)
+      expected_bodyIndex = 3
+      call assertEqual(expected_bodyIndex, found_bodyIndex, 'body index')
+
+      found_bodyIndex = obs_getBodyIndex(myobs1)
+      expected_bodyIndex = 4
+      call assertEqual(expected_bodyIndex, found_bodyIndex, 'body index')
+
+      found_bodyIndex = obs_getBodyIndex(myobs1)
+      expected_bodyIndex = -1         ! The end of the list
+      call assertEqual(expected_bodyIndex, found_bodyIndex, 'body index')
+
+      call obs_finalize(myobs1)
+   end subroutine test_BodyList_All
+
+   subroutine test_odc_allocate()
+      ! Verify that memory is allocated as requested
+      ! It can be noted that the method, odc_allocate, is visible publicly only
+      ! because of constraints imposed by the fortran language.  In other words
+      ! odc_allocate is not a part of the public interface to the ObsDataColumn
+      ! and ObsSpaceData modules.  Therefore, it would be reasonable at some
+      ! point in the future for the module to fail this test.
+
+      use obsDataColumn_mod
+      implicit none
+      type(struct_obsDataColumn) :: mycolumn
+      integer :: expected
+      type(Exception_type) :: exception
+      character(len=150) :: msg_expected, msg_found
+
+      real(OBS_REAL), pointer :: scratchReal(:)
+      integer       , pointer :: scratchInt (:)
+
+      integer, parameter :: NUMROWS=3
+      real(OBS_REAL), parameter :: NULL_COLUMN_VALUE_R = real(-9.99D9, OBS_REAL)
+      integer       , parameter :: NULL_COLUMN_VALUE_I = -9.99
+
+
+      allocate(scratchReal(NUMROWS))
+      allocate(scratchInt (NUMROWS))
+      scratchReal(:) = NULL_COLUMN_VALUE_R
+      scratchInt (:) = NULL_COLUMN_VALUE_I
+
+      
+      ! THE METHOD BEING TESTED - test the 4 column types
+      call odc_allocate(mycolumn,NUMROWS,'CLF','INT',scratchReal,scratchInt)
+      call assertTrue (associated(mycolumn%value_i), 'CLF not allocated')
+      call assertTrue (associated(mycolumn%value_r),'real not allocated for CLF')
+      call assertEqual(mycolumn%value_r(1), NULL_COLUMN_VALUE_R, &
+                                                         'real for CLF not NULL')
+      call assertEqual(NUMROWS, size(mycolumn%value_i), 'wrong number of rows')
+      call odc_deallocate(mycolumn)
+
+      call odc_allocate(mycolumn,NUMROWS,'LON','REAL',scratchReal,scratchInt)
+      call assertTrue (associated(mycolumn%value_r), 'LON not allocated')
+      call assertTrue (associated(mycolumn%value_i), 'int not allocated for LON')
+      call assertEqual(mycolumn%value_i(1), NULL_COLUMN_VALUE_I, &
+                                                      'integer for LON not NULL')
+      call assertEqual(NUMROWS, size(mycolumn%value_r), 'wrong number of rows')
+
+      expected = 768
+      mycolumn%value_i=expected
+      call assertEqual(expected, mycolumn%value_i, 'write to allocated variable')
+
+      ! RE-ALLOCATION OF THE COLUMN SHOULD CAUSE ABORTION
+      call ClearExceptions()
+      call odc_allocate(mycolumn,NUMROWS,'LON','REAL',scratchReal,scratchInt)
+      exception = catchAny()
+      if (exception == NO_EXCEPTION)then
+         call Fail('obs failed to abort on re-allocation of a column')
+      else
+         msg_found = getMessage(exception)
+         msg_expected='exiting in odc_abort:ODC_ALLOCATE: column is already allocated. name=LON'
+         call assertEqual(msg_expected, msg_found, 'bad error message', &
+                          ignoreWhiteSpace=.true.)
+      end if
+
+      call odc_deallocate(mycolumn)
+   end subroutine test_odc_allocate
+
+   subroutine test_odc_columnSet_errors()
+      ! Verify that bad parameters sent to odc_columnSet (via obs_bodySet_i,
+      ! etc.) produce the correct error messages.
+
+      use obsDataColumn_mod
+      implicit none
+      type(struct_obs) :: myobs
+      integer, parameter :: HEAD_MAX=2, BOD_MAX=4
+
+      type(Exception_type) :: exception
+      character(len=150) :: expected, found
+
+      ! Specify the active observation-array columns
+      call obs_class_initialize('ENKF')
+
+      call obs_initialize(myobs, HEAD_MAX, BOD_MAX)
+
+      ! Requesting a row beyond allocation should cause abortion
+      call ClearExceptions()
+      call obs_headSet_i(myobs, OBS_RLN, HEAD_MAX+1, 39)
+      exception = catchAny()
+      if (exception == NO_EXCEPTION)then
+         call Fail('obs failed to abort on row index beyond allocation')
+      else
+         found = getMessage(exception)
+         expected='exiting in odc_abort: The requested HEAD row_index,             3 , is greater than the maximum,             2'
+         call assertEqual(expected, found, 'bad error message', &
+                          ignoreWhiteSpace=.true.)
+      end if
+
+      ! Requesting a row more than 1 beyond the last row should cause abortion
+      call ClearExceptions()
+      call obs_headSet_i(myobs, OBS_RLN, 2, 41)
+      exception = catchAny()
+      if (exception == NO_EXCEPTION)then
+         call Fail('obs failed to abort on row index beyond last row+1')
+      else
+         found = getMessage(exception)
+         expected='exiting in odc_abort: The requested HEAD row_index,             2 , is beyond the next available index,             1'
+         call assertEqual(expected, found, 'bad error message', &
+                          ignoreWhiteSpace=.true.)
+      end if
+
+      ! Requesting an undefined column (for the flavour) should cause abortion
+      call ClearExceptions()
+      call obs_headSet_i(myobs, OBS_LAT, 1, 42)
+      exception = catchAny()
+      if (exception == NO_EXCEPTION)then
+         call Fail('obs failed to abort on undefined column')
+      else
+         found = getMessage(exception)
+         expected='exiting in odc_abort: abort in odc_columnSet (INT ,HEAD): column index out of range:           201'
+         call assertEqual(expected, found, 'bad error message', &
+                          ignoreWhiteSpace=.true.)
+      end if
+
+      ! Requesting an inactive column should cause abortion
+      call ClearExceptions()
+      call obs_headSet_i(myobs, OBS_CF1, 1, 43)
+      exception = catchAny()
+      if (exception == NO_EXCEPTION)then
+         call Fail('obs failed to abort on inactive column')
+      else
+         found = getMessage(exception)
+         expected='exiting in odc_abort: abort in odc_columnSet (INT ,HEAD): column not active: CF1'
+         call assertEqual(expected, found, 'bad error message', &
+                          ignoreWhiteSpace=.true.)
+      end if
+   end subroutine test_odc_columnSet_errors
+
+
+   subroutine test_odc_columnElem_errors()
+      ! Verify that bad parameters sent to odc_columnElem (via obs_bodyElem_i,
+      ! etc.) produce the correct error messages.
+
+      use obsDataColumn_mod
+      implicit none
+      type(struct_obs) :: myobs
+      integer, parameter :: HEAD_MAX=2, BOD_MAX=4
+      integer :: value
+
+      type(Exception_type) :: exception
+      character(len=150) :: expected, found
+
+      ! Specify the active observation-array columns
+      call obs_class_initialize('ENKF')
+
+      call obs_initialize(myobs, HEAD_MAX, BOD_MAX)
+
+      ! Requesting a row beyond allocation should cause abortion
+      call ClearExceptions()
+      value = obs_headElem_i(myobs, OBS_RLN, HEAD_MAX+1)
+      exception = catchAny()
+      if (exception == NO_EXCEPTION)then
+         call Fail('obs failed to abort on row index beyond allocation')
+      else
+         found = getMessage(exception)
+         expected='exiting in odc_abort: The requested HEAD row_index,             3 , is greater than the maximum,             2'
+         call assertEqual(expected, found, 'bad error message', &
+                          ignoreWhiteSpace=.true.)
+      end if
+
+      ! Requesting a row more than 1 beyond the last row should cause abortion
+      call ClearExceptions()
+      value = obs_headElem_i(myobs, OBS_RLN, 2)
+      exception = catchAny()
+      if (exception == NO_EXCEPTION)then
+         call Fail('obs failed to abort on row index beyond last row+1')
+      else
+         found = getMessage(exception)
+         expected='exiting in odc_abort: The requested HEAD row_index,             2 , is beyond the next available index,             1'
+         call assertEqual(expected, found, 'bad error message', &
+                          ignoreWhiteSpace=.true.)
+      end if
+
+      ! Requesting an undefined column (for the flavour) should cause abortion
+      call ClearExceptions()
+      value = obs_headElem_i(myobs, OBS_LAT, 1)
+      exception = catchAny()
+      if (exception == NO_EXCEPTION)then
+         call Fail('obs failed to abort on undefined column')
+      else
+         found = getMessage(exception)
+         expected='exiting in odc_abort: abort in odc_columnElem (INT ,HEAD): column index out of range:           201'
+         call assertEqual(expected, found, 'bad error message', &
+                          ignoreWhiteSpace=.true.)
+      end if
+
+      ! Requesting an inactive column should cause abortion
+      call ClearExceptions()
+      value = obs_headElem_i(myobs, OBS_CF1, 1)
+      exception = catchAny()
+      if (exception == NO_EXCEPTION)then
+         call Fail('obs failed to abort on inactive column')
+      else
+         found = getMessage(exception)
+         expected='exiting in odc_abort: abort in odc_columnElem (INT ,HEAD): column not active: CF1'
+         call assertEqual(expected, found, 'bad error message', &
+                          ignoreWhiteSpace=.true.)
+      end if
+   end subroutine test_odc_columnElem_errors
+end module testObs_mod
