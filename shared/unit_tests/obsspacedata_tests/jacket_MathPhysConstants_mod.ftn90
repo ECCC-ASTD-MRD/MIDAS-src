@@ -1,0 +1,5 @@
+module MathPhysConstants_mod
+   real(8), parameter ::MPC_RADIANS_PER_DEGREE_R8         =  1.745329251994330D-02 ! rad/deg - conversion: degrees to radians
+   real(4), parameter ::MPC_RADIANS_PER_DEGREE_R4         =  1.745329251994330D-02 ! rad/deg - conversion: degrees to radians
+   real(8), parameter ::MPC_PI_R8                         =  3.141592653589793D+00 ! (unitless)
+end module MathPhysConstants_mod
