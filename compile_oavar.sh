@@ -73,11 +73,10 @@ cd compiledir
 
 # automatically set the global revision number in toplevelcontrol_mod.ftn90 by
 # replacing the string XXXXX with the actual revision number
-revpath=$(ssh pollux "cd $trunkdir; svn info | awk '/^URL/ {print \$2}'")
-revnum=$(ssh pollux "cd $trunkdir;  svnversion")
-echo " " 
+revnum=$(git describe --always 2>/dev/null || ssh pollux "cd $trunkdir; git describe --always" 2>/dev/null || echo unkown revision)
+echo " "
 echo "-----------------------"
-echo "Revision number='$revnum' '$revpath'"
+echo "Revision number='$revnum'"
 echo "-----------------------"
 echo " "
 compiledir=${PWD}
@@ -171,7 +170,7 @@ if [ "${mode}" == full ] ; then
   rm -f *.o *.mod *.cdk* *.h *.ftn* *.f *.f90
 
   # Create a local copy of the source code
-  sed "s!XXXXX!${revnum} ${revpath}!g" ${trunkdir}/toplevelcontrol_mod.ftn90_template > toplevelcontrol_mod.ftn90
+  sed "s!XXXXX!${revnum}!g" ${trunkdir}/toplevelcontrol_mod.ftn90_template > toplevelcontrol_mod.ftn90
 
   cd ${trunkdir};          ls -1F | grep -v '/' | grep -v "*" | grep -v "@" | cpio -pl $compiledir ; cd $compiledir
   cd ${trunkdir}/bgcheck;  ls -1F | grep -v '/' | grep -v "*" | cpio -pl $compiledir ; cd $compiledir
