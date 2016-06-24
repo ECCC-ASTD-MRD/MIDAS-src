@@ -92,7 +92,7 @@ module chem_mod
   public :: chm_lcheck_skipassim,chm_comboIDlist,chm_required_field
   public :: chm_apply_bounds,chm_get_col_boundary
   public :: chm_add_col_boundary,chm_retrieve_col_boundary
-  public :: chm_varnumFromVarName,chm_open_warningsfile
+  public :: chm_varnumFromVarName,chm_open_messagefile
 ! Public procedures for variable transformations
   public :: chm_apply_transform_array4d,chm_apply_2dfieldr4_transform
 
@@ -409,11 +409,17 @@ module chem_mod
      !
      !  low_cutoff             min value allowed for increments prior to storage in rebm expressed as a fraction
      !                         of the background field (generally < 1)
+     !
      !  high_cutoff            max value allowed for increments prior to storage in rebm expressed as a multiple
      !                         of the background field (generally > 1)
+     !
      !  transform              Index specifying form of analysis increment (and related adjoint operation)
      !                         0: no transformation (dx given input trial field denoted as x)
-     !                         1: dlnx 
+     !                         1: dlnx
+     !
+     !  message_filename       File name for file containing various messages and warnings related to chemical
+     !                         constituents that are not included in the listing file.
+     !
      
      logical :: diagn_save
      integer :: generalized_operator(0:chm_constituents_size)
@@ -421,10 +427,11 @@ module chem_mod
      integer :: assim_varno(chm_cfg_size),assim_nlev(chm_cfg_size)
      integer :: obsdata_maxsize 
      integer :: transform(0:chm_constituents_size)
-     character(len=9) :: assim_stnid(chm_cfg_size)
      real(8) :: diagn_pressmin
      real(8) :: amu(0:chm_constituents_size),tropo_column_top(0:chm_constituents_size)
      real(8) :: low_cutoff(0:chm_constituents_size),high_cutoff(0:chm_constituents_size)
+     character(len=9) :: assim_stnid(chm_cfg_size)
+     character(len=50) :: message_filename
 
   end type struct_config
 
@@ -452,11 +459,8 @@ module chem_mod
   type(struct_chm_obsdata)  :: chm_ref_trial
   type(struct_chm_griddata) :: chm_ref_fields(0:chm_constituents_size,2)
 
-! File containing various warnings related to chemical constituents that
-! are not included in the listing file.
-  character(len=14), parameter :: chm_warnings_filename='chem_warnings_'
-  integer :: chm_warnings_unit
-
+! Unit number for chm_config%message_filename
+  integer :: chm_message_unit
 
 contains
 
@@ -608,7 +612,7 @@ contains
 !                            Array index refers to BUFR code element of Table 08046 (iconstituent_id)
 !                            identifying the constituent.
 !
-!        obsdata_maxsize     Max allowed size of work arrays (in terms of number of obs) associated to
+!       obsdata_maxsize      Max allowed size of work arrays (in terms of number of obs) associated to
 !                            ordered observation indices
 !
 !       low_cutoff           min value allowed for increments prior to storage in rebm expressed as a fraction
@@ -619,10 +623,17 @@ contains
 !
 !       transform            Index specifying form of analysis increment (and related adjoint operation)
 !                              0: no transformation (dx given input trial field denoted as x)
-!                              1: dlnx 
+!                              1: dlnx
+!
+!       message_filename     File name for file containing various messages and warnings related to chemical
+!                            constituents that are not included in the listing file.
+!
+!       message_unit         Unit number corresponding to message_filename
 !
 !---------------------------------------------------------------------------------------- 
  
+  use mpi_mod, only: mpi_myid
+
   implicit none
 
   integer :: FNOM, FCLOS
@@ -641,20 +652,19 @@ contains
   real(8) :: amu(0:chm_constituents_size)
   real(8) :: low_cutoff(0:chm_constituents_size),high_cutoff(0:chm_constituents_size)
   integer :: transform(0:chm_constituents_size)
+  character(len=50) :: message_filename
 
   EXTERNAL FNOM,FCLOS
 
   namelist /namchem/ genoper, &
-                     assim_num,assim_stnid,assim_varno,assim_nlev, &
-                     diagn_num,diagn_stnid,diagn_varno,diagn_unilev, &
-                     diagn_save,diagn_all,diagn_nset,diagn_pressmin, &
-                     tropo_mode,tropo_bound,tropo_column_top,amu, &
-                     low_cutoff,high_cutoff,transform,obsdata_maxsize
+                     assim_num,assim_stnid,assim_varno,assim_nlev,     &
+                     diagn_num,diagn_stnid,diagn_varno,diagn_unilev,   &
+                     diagn_save,diagn_all,diagn_nset,diagn_pressmin,   &
+                     tropo_mode,tropo_bound,tropo_column_top,amu,      &
+                     low_cutoff,high_cutoff,transform,obsdata_maxsize, &
+                     message_filename
 
-  ! Initialize file unit number(s) to zero
   
-  chm_warnings_unit=0
-     
   ! Default NAMCHEM values
   
   genoper(:)=0
@@ -681,6 +691,8 @@ contains
   tropo_bound(:) = 0
   tropo_column_top(:) = 0.0
 
+  message_filename = 'chem_message_'
+
   amu(:) = -1.0
   amu(0) = 48.0    ! Molecular mass in g/mole for O3
   amu(1) = 18.02   ! H2O
@@ -705,7 +717,7 @@ contains
   read(nulnam,nml=namchem,iostat=ios)
   if (ios.lt.-4.or.ios.gt.0) then 
      call abort3d('chm_read_misc: Error in reading NAMCHEM namelist. iostat = ' // trim(str(ios)) )
-  else
+  else if (mpi_myid.eq.0) then
      write(*,nml=namchem)   
   end if
   
@@ -728,6 +740,7 @@ contains
   chm_config%low_cutoff = low_cutoff
   chm_config%high_cutoff = high_cutoff
   chm_config%transform = transform
+  chm_config%message_filename = message_filename
   
   ! Initialize chm_comboIDlist and add (stnid,varno) pairs from the namelist
 
@@ -2892,14 +2905,14 @@ contains
 !-----------------------------------------------------------------------------------------
 !------------------- Miscellaneous utilities functions and routines ----------------------
 
-  subroutine chm_open_warningsfile(unit)
+  subroutine chm_open_messagefile(unit)
 ! 
-!  Purpose: Opens the file chm_warnings_filename.
+!  Purpose: Opens the file chm_message_filename.
 !
 !  Author: M. Sitwell, April 2016
 !
 !  Output
-!           unit          unit number associated with chm_warnings_filename (optional)
+!           unit          unit number associated with chm_message_filename (optional)
 !
 !-------------------------------------------------------------------------------------------
 
@@ -2910,27 +2923,21 @@ contains
     integer :: ier
     integer, external :: fnom
 
-    inquire(file=chm_warnings_filename, exist=file_exists)
+    inquire(file=chm_config%message_filename, exist=file_exists)
     
+    chm_message_unit = 0
+
     if (file_exists) then
-       if (chm_warnings_unit.eq.0) then       
-          ier=fnom(chm_warnings_unit,chm_warnings_filename,'FTN+APPEND+R/W',0)
-          if (ier.ne.0) call abort3d('Error associating unit number in chm_open_warningsfile')
-       else
-          open(chm_warnings_unit, file=chm_warnings_filename, status="old", position="append", action="write")
-       end if 
+       ier=fnom(chm_message_unit,chm_config%message_filename,'FTN+APPEND+R/W',0)
     else
-       if (chm_warnings_unit.eq.0) then       
-          ier=fnom(chm_warnings_unit,chm_warnings_filename,'FTN+R/W',0)
-          if (ier.ne.0) call abort3d('Error associating unit number in chm_open_warningsfile')
-       else
-          open(chm_warnings_unit, file=chm_warnings_filename, status="new", action="write")
-       end if
+       ier=fnom(chm_message_unit,chm_config%message_filename,'FTN+R/W',0)
     end if
 
-    if (present(unit)) unit = chm_warnings_unit
+    if (ier.ne.0) call abort3d('chm_open_messagefile: Error associating unit number')
 
-  end subroutine chm_open_warningsfile
+    if (present(unit)) unit = chm_message_unit
+
+  end subroutine chm_open_messagefile
 
 !-------------------------------------------------------------------------------------------
 
@@ -4033,10 +4040,10 @@ contains
     
     if (chm_config%transform(iconstituent_id).eq.0) return
     
-    ! Open output warning file
-    call chm_open_warningsfile()
+    ! Open output message file
+    call chm_open_messagefile()
 
-    write(chm_warnings_unit,*)
+    write(chm_message_unit,*)
     
     if (chm_config%transform(iconstituent_id).eq.1) then
 
@@ -4051,8 +4058,8 @@ contains
              if (valmin.gt.1.E30) valmin=1.E-20
              do i=1,size(field,1) 
                 if (field(i,j).lt.0.0) then
-                   write(chm_warnings_unit,'(A,G9.2,A,A)') "Unexpected/undesired negative value of ",field(i,j), " for input field ",trim(varName)
-                   write(chm_warnings_unit,'(A,3I4,A,I3,A,G9.2)')  "at location (",i,j,jlev,") and step ",jstep,". Value replaced by ",valmin,"."                    
+                   write(chm_message_unit,'(A,G9.2,A,A)') "Unexpected/undesired negative value of ",field(i,j), " for input field ",trim(varName)
+                   write(chm_message_unit,'(A,3I4,A,I3,A,G9.2)')  "at location (",i,j,jlev,") and step ",jstep,". Value replaced by ",valmin,"."                    
                    field(i,j)=valmin
                 end if
              end do
@@ -4075,8 +4082,8 @@ contains
              ' is not defined.')
     end if
     
-    write(chm_warnings_unit,*) 
-    ier=fclos(chm_warnings_unit)
+    write(chm_message_unit,*) 
+    ier=fclos(chm_message_unit)
  
   end subroutine chm_apply_2dfieldr4_transform
 
@@ -4122,7 +4129,7 @@ contains
     if (iconstituent_id.lt.0.or.iconstituent_id.gt.chm_constituents_size) return
 
     ! Open output file
-    call chm_open_warningsfile()
+    call chm_open_messagefile()
     
     allocate(outside(size(inc_ptr,1),size(inc_ptr,2),size(inc_ptr,3),size(inc_ptr,4)))
 
@@ -4133,20 +4140,20 @@ contains
        nlow = count(outside)
 
        if (nlow.gt.0) then
-          write(chm_warnings_unit,'(A,I7,A,A,A)') "chm_apply_bounds: ",nlow," negative background and analysis values were found for field ",trim(varName),"."
-          write(chm_warnings_unit,'(A)') "Modifying the increment so the analysis is instead equal to zero at these locations."       
-          write(chm_warnings_unit,'(A)') "JLON JLEV JLAT TSTEP   Background   Init. incr."
+          write(chm_message_unit,'(A,I7,A,A,A)') "chm_apply_bounds: ",nlow," negative background and analysis values were found for field ",trim(varName),"."
+          write(chm_message_unit,'(A)') "Modifying the increment so the analysis is instead equal to zero at these locations."       
+          write(chm_message_unit,'(A)') "JLON JLEV JLAT TSTEP   Background   Init. incr."
           do i1=1,size(inc_ptr,1)
              do i2=1,size(inc_ptr,2)
                 do i3=1,size(inc_ptr,3)
                    do i4=1,size(inc_ptr,4)
-                      if (outside(i1,i2,i3,i4)) write(chm_warnings_unit,'(4(I4,1X),2G12.2)') i1,i2,i3,i4,bkgrnd_ptr(i1,i2,i3,i4),inc_ptr(i1,i2,i3,i4)
+                      if (outside(i1,i2,i3,i4)) write(chm_message_unit,'(4(I4,1X),2G12.2)') i1,i2,i3,i4,bkgrnd_ptr(i1,i2,i3,i4),inc_ptr(i1,i2,i3,i4)
                    end do
                 end do
              end do
           end do
           where (outside) inc_ptr = -bkgrnd_ptr
-          write(chm_warnings_unit,*)
+          write(chm_message_unit,*)
        end if
             
        ! Check if the analysis is below the trial field cutoff. If so set analysis to this cut-off value at these locations.
@@ -4154,16 +4161,16 @@ contains
        nlow = count(outside)
             
        if (nlow.gt.0) then
-          write(chm_warnings_unit,'(A,I7,A,F4.1,A,A,A)') "chm_apply_bounds: ",nlow," analysis values were found below the cut-off of ", &
+          write(chm_message_unit,'(A,I7,A,F4.1,A,A,A)') "chm_apply_bounds: ",nlow," analysis values were found below the cut-off of ", &
                100*chm_config%low_cutoff(iconstituent_id), &
                "% of the trial field for field ",trim(varName),"."
-          write(chm_warnings_unit,'(A)') "Modifying the increment so the analysis is instead equal to the lower bound cut-off value at these locations."
-          write(chm_warnings_unit,'(A)') "JLON JLEV JLAT TSTEP   Background  Init.-incr.  New-incr."
+          write(chm_message_unit,'(A)') "Modifying the increment so the analysis is instead equal to the lower bound cut-off value at these locations."
+          write(chm_message_unit,'(A)') "JLON JLEV JLAT TSTEP   Background  Init. incr.  New incr."
           do i1=1,size(inc_ptr,1)
              do i2=1,size(inc_ptr,2)
                 do i3=1,size(inc_ptr,3)
                    do i4=1,size(inc_ptr,4)
-                      if (outside(i1,i2,i3,i4)) write(chm_warnings_unit,'(4(I4,1X),3G12.2)') i1,i2,i3,i4,bkgrnd_ptr(i1,i2,i3,i4), &
+                      if (outside(i1,i2,i3,i4)) write(chm_message_unit,'(4(I4,1X),3G12.2)') i1,i2,i3,i4,bkgrnd_ptr(i1,i2,i3,i4), &
                            inc_ptr(i1,i2,i3,i4),(chm_config%low_cutoff(iconstituent_id)-1.0)*bkgrnd_ptr(i1,i2,i3,i4)
                    end do
                 end do
@@ -4181,16 +4188,16 @@ contains
        nhigh = count(outside)
             
        if (nhigh.gt.0) then
-          write(chm_warnings_unit,'(A,I7,A,F5.2,A,A,A)') "chm_apply_bounds: ",nhigh," analysis values were found above the cut-off of ", &
+          write(chm_message_unit,'(A,I7,A,F5.2,A,A,A)') "chm_apply_bounds: ",nhigh," analysis values were found above the cut-off of ", &
                chm_config%high_cutoff(iconstituent_id), &
                " times the trial field for field ",trim(varName),"."
-          write(chm_warnings_unit,'(A)') "Modifying the increment so the analysis is instead equal to the upper bound cut-off value at these locations."
-          write(chm_warnings_unit,'(A)') "JLON JLEV JLAT TSTEP   Background  Init.-incr.  New-incr."
+          write(chm_message_unit,'(A)') "Modifying the increment so the analysis is instead equal to the upper bound cut-off value at these locations."
+          write(chm_message_unit,'(A)') "JLON JLEV JLAT TSTEP   Background  Init.-incr.  New-incr."
           do i1=1,size(inc_ptr,1)
              do i2=1,size(inc_ptr,2)
                 do i3=1,size(inc_ptr,3)
                    do i4=1,size(inc_ptr,4)
-                      if (outside(i1,i2,i3,i4)) write(chm_warnings_unit,'(4(I4,1X),3G12.2)') i1,i2,i3,i4,bkgrnd_ptr(i1,i2,i3,i4), &
+                      if (outside(i1,i2,i3,i4)) write(chm_message_unit,'(4(I4,1X),3G12.2)') i1,i2,i3,i4,bkgrnd_ptr(i1,i2,i3,i4), &
                            inc_ptr(i1,i2,i3,i4),(chm_config%high_cutoff(iconstituent_id)-1.0)*bkgrnd_ptr(i1,i2,i3,i4)
                    end do
                 end do
@@ -4201,7 +4208,7 @@ contains
 
     end if
 
-    ier=fclos(chm_warnings_unit)
+    ier=fclos(chm_message_unit)
     deallocate(outside)
 
   end subroutine chm_apply_bounds
@@ -4212,7 +4219,7 @@ contains
 !
 ! Author   : M. Sitwell, May 2015
 !          
-! Purpose: Converts an array of geopotential heights to pressures. Uses linear interpolation
+! Purpose: Converts an array of (geometric) altitudes to pressures. Uses linear interpolation
 !          in log(p).
 !
 ! Arguments:
@@ -4226,7 +4233,7 @@ contains
 !     lat           latitude (rad)
 !
 !   Output
-!     press         rz converted to pressures
+!     press         converted pressures
 !
 !----------------------------------------------------------------------------------------
 
@@ -6115,7 +6122,7 @@ contains
      
       if (obsoper%vlayerbottom(iobslev).lt.obsoper%vlayertop(iobslev)) then
          success(1:obsoper%nobslev)=.false.
-         write(chm_warnings_unit,*) 'chm_layer_integ_operator: WARNING. Layer top/bot value problem.',obsoper%vlayertop(iobslev), obsoper%vlayerbottom(iobslev), &
+         write(chm_message_unit,*) 'chm_layer_integ_operator: WARNING. Layer top/bot value problem.',obsoper%vlayertop(iobslev), obsoper%vlayerbottom(iobslev), &
                                     '. Entire profile skipped over.'
          return
       else if (obsoper%vlayerbottom(iobslev).lt.obsoper%pp(1)*1.01 .or. &  
@@ -6126,7 +6133,7 @@ contains
          else
             ixtr(iobslev)=2
          end if 
-         write(chm_warnings_unit,*) 'chm_layer_integ_operator: WARNING. Layer top/bot value problem.',obsoper%vlayertop(iobslev), obsoper%vlayerbottom(iobslev)
+         write(chm_message_unit,*) 'chm_layer_integ_operator: WARNING. Layer top/bot value problem.',obsoper%vlayertop(iobslev), obsoper%vlayerbottom(iobslev)
          cycle
       end if
       if (obsoper%vlayerbottom(iobslev).gt.obsoper%pp(obsoper%nmodlev)*0.999) obsoper%vlayerbottom(iobslev)=obsoper%pp(obsoper%nmodlev)*0.999

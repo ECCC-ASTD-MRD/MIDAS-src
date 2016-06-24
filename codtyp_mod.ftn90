@@ -50,6 +50,10 @@ integer function codtyp_get_codtyp(name)
      cnames(:) = "XXXXXXXXXXXXXXXXXXXX"
      icod(:) = -1
      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+     if (ierr.ne.0) then
+         write(*,*) 'Error opening namelist file. Unit ',nulnam,'. Error no.',ierr
+         call abort3d('codtyp_get_codtyp: Error opening namelist file') 
+     end if 
      read(nulnam,nml=namcodtyp, iostat=ierr)
      if (ierr.ne.0) call abort3d('codtyp_get_codtyp: Error reading namelist')
      if (mpi_myid.eq.0) write(*,nml=namcodtyp)

@@ -1040,7 +1040,7 @@ contains
             
         else if (obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex).eq.1) then
 
-           ! Check as a function of geopotential height.
+           ! Check as a function of altitude.
            
            zlev = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
            write(*,*) 'rejected zzz ',obs_elem_c(obsSpaceData,'STID',headerIndex),zlev,zP0,zPtop
@@ -1100,7 +1100,7 @@ contains
        do bodyIndex=1,obs_numbody(obsSpaceData)
           if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex).eq.1) countAssim=countAssim+1
        enddo
-       write(*,'(1X," NUMBER OF DATA TO BE ASSIMILATED AFTER ADJUSTMENTS (after filter_totoChm):",i10)') countAssim
+       write(*,'(1X," NUMBER OF DATA TO BE ASSIMILATED AFTER ADJUSTMENTS (after filter_topoChm):",i10)') countAssim
        write(*,*) ' '
     end if 
 222 format(2x,a29,100(2x,a10))

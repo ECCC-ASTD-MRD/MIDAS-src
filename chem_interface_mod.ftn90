@@ -154,8 +154,8 @@ contains
     
     type(struct_chm_obsoperators) :: obsoper
 
-    ! Open chm_warnings_file (file may be written to from routines in chem_mod)
-    call chm_open_warningsfile(unit=unit)
+    ! Open chm_message_file (file may be written to from routines in chem_mod)
+    call chm_open_messagefile(unit=unit)
 
     if ((kmode.eq.2.or.kmode.eq.3) .and. (.not.present(column_inc))) then
        write(*,*) "chm_observation_operators: column_inc must be specified for kmode = ",kmode
@@ -199,7 +199,7 @@ contains
       if (headerIndex < 0) exit HEADER
   
       icodtyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
-      if (icodtyp.ne.codtyp_get_codtyp('CHEMREMOTE').and.icodtyp.ne.codtyp_get_codtyp('CHEMINSITU')) cycle HEADER
+      if (icodtyp.ne.codtyp_get_codtyp(name='CHEMREMOTE').and.icodtyp.ne.codtyp_get_codtyp(name='CHEMINSITU')) cycle HEADER
       
       ! Body info that we only need for first point in the profile
       bodyIndex = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
@@ -389,7 +389,7 @@ contains
   
     if (present(jobs)) jobs=0.5d0*jobs
 
-    ! Close chm_warnings_file
+    ! Close chm_message_file
     ier=fclos(unit)
     
   end subroutine chm_observation_operators

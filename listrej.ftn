@@ -59,6 +59,9 @@
 *            ZFCST for CH constituents 
 *          - Extended output of obs_headElem_i(lobsSpaceData,OBS_ONM,INDEX_HEADER)
 *            from I5 to I7.
+*          Y. Rochon and M. Sitwell, June 2016
+*          - Introduction of codtypname to prevent recursive write error and 
+*            change of A16 to A21,1X, for consistency with max codtyp_get_name. 
 ************************************************************************
 #endif
 *
@@ -87,6 +90,7 @@
       REAL*8    SPD,DEG,ZLEV,ZSLEV,ZCUT
       CHARACTER *4 CLITM(NUMITEM),CLDESC
       CHARACTER *2 CLUNITS
+      CHARACTER *21 CODTYPNAME
 *
       LOGICAL LLOK,LLELREJ
 *
@@ -303,13 +307,14 @@
                      IF (ITYP .EQ. BUFR_NEUS .OR. ITYP .EQ. BUFR_NEVS) THEN
                        ICOUNT(10,JFAM) = ICOUNT(10,JFAM) + 1
                      ENDIF
+                     codtypname=codtyp_get_name(IDBURP)
                      WRITE(*,620)
      1                obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER),
-     2                IDBURP,codtyp_get_name(IDBURP),ZLAT,ZLON,
+     2                IDBURP,codtypname,ZLAT,ZLON,
      3                ILEV,CLUNITS,IDIRO,ISPDO,IDIRF,ISPDF,IDIRA,
      4                ISPDA,ZPOST,obs_headElem_i(lobsSpaceData,OBS_ONM,
      5                INDEX_HEADER)
- 620                 FORMAT(A9,1X,i3,1x,A16,F5.1,2X,F5.1,2X,I4,A2,2X,
+ 620                 FORMAT(A9,1X,i3,1x,A21,1X,F5.1,2X,F5.1,2X,I4,A2,2X,
      1                'WND',3X,I3,'/',I3,3X,I3,'/',I3,3X,I3,
      2                '/',I3,2X,F7.4,1X,I8)
 
@@ -410,10 +415,11 @@
      1             IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY),9))
                    call obs_bodySet_i(lobsSpaceData,OBS_FLG,INDEX_BODY,
      1             IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY),17))
+                   codtypname=codtyp_get_name(IDBURP)
                    WRITE(*,630) obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER),IDBURP,
-     1              codtyp_get_name(IDBURP),ZLAT,ZLON,ILEV,CLUNITS,CLDESC,
+     1              codtypname,ZLAT,ZLON,ILEV,CLUNITS,CLDESC,
      2              ZVAR,ZFCST,ZANA,ZPOST,obs_headElem_i(lobsSpaceData,OBS_ONM,INDEX_HEADER)
- 630               FORMAT(A9,1X,I3,1X,A16,F5.1,2X,F5.1,2X,I4,A2,2X,
+ 630               FORMAT(A9,1X,I3,1X,A21,1X,F5.1,2X,F5.1,2X,I4,A2,2X,
      2                A4,2X,F7.1,3X,F7.1,3X,F7.1,2X,F7.4,1X,I8,1X)
                  ENDIF
                ENDIF
