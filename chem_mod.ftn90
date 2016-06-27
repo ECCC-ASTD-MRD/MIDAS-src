@@ -299,12 +299,11 @@ module chem_mod
      !  data1d                 obs data of dimension (nrep,dim1)
      !  data2d                 obs data of dimension (nrep,dim1,dim2)
      !  irep                   current report position
-     !  idim1                  current position in the first dimension of the data array
      !  code                   unique character string for identifying the report/observation                    
      
      real(8), pointer :: data1d(:,:),data2d(:,:,:)
      character(len=22), pointer :: code(:)
-     integer :: ndim,nrep,dim1,dim2,irep,idim1
+     integer :: ndim,nrep,dim1,dim2,irep
   
   end type struct_chm_obsdata
 
@@ -1938,7 +1937,7 @@ contains
           chm_burp_std(istnid) = chm_read_burp('brpch', chm_std%stnids(istnid), &
                chm_std%bfr(istnid), chm_std%n_lvl(istnid), 1, 14, 'DATA',       &
                match_nlev=chm_std%brp(istnid).eq.1 )
-          
+
        end if
     end do
 
@@ -2204,7 +2203,7 @@ contains
 
 !----------------------------------------------------------------------------------------
 
-  function chm_get_obs_err_stddev(CSTNID,NLEV,VARNO,ZLAT,ZLON,IDATE,ITIME,ZVAL,ZLEV,IFIRST) result(obs_err_stddev) 
+  function chm_get_obs_err_stddev(CSTNID,NLEV,VARNO,ZLAT,ZLON,IDATE,ITIME,ZVAL,ZLEV,ILEV,IFIRST) result(obs_err_stddev) 
 !
 !  s/r chm_set_obs_err_stddev - Returns the observational error std for a CH family measurement
 !
@@ -2219,15 +2218,15 @@ contains
    
     character(len=*), intent(in) :: CSTNID
     real(8), intent(in) :: ZVAL,ZLEV,ZLAT,ZLON
-    integer, intent(in) :: NLEV,VARNO,IDATE,ITIME
+    integer, intent(in) :: NLEV,VARNO,IDATE,ITIME,ILEV
     logical, intent(in) :: IFIRST
     real(8)  :: obs_err_stddev 
 
     real(8) :: wgt,zwb,sigma
-    integer :: ibegin,ILEV,JN,stat
+    integer :: ibegin,JLEV,JN,stat
 
     integer, save :: ISTNID,JINT
-    
+
     ! If this call is for the first level for this measurement, get
     ! the station ID and latitude indices corresponding to this measurement
     if (ifirst) call chm_obs_err_stddev_index(CSTNID,NLEV,VARNO,ZLAT,ISTNID,JINT)                  
@@ -2245,30 +2244,30 @@ contains
           ibegin=chm_std%ibegin(ISTNID)-1
           DO JN=1,chm_std%n_lvl(ISTNID)
              IF (zwb .GT. abs(ZLEV-chm_std%levels(ibegin+JN)) ) THEN
-                ILEV=JN
+                JLEV=JN
                 zwb=abs(ZLEV-chm_std%levels(ibegin+JN))
              END IF
           END DO
-          ILEV=ibegin+(ILEV-1)*chm_std%n_lat(ISTNID)+1
+          JLEV=ibegin+(JLEV-1)*chm_std%n_lat(ISTNID)+1
        ELSE
-          ILEV=chm_std%ibegin(ISTNID)     
+          JLEV=chm_std%ibegin(ISTNID)
        END IF
 
        IF (chm_std%n_lat(ISTNID) .GT. 1) THEN
                 
           ! Apply interpolation
 
-          ILEV=ILEV+JINT-1
+          JLEV=JLEV+JINT-1
           ibegin=chm_std%ibegin(ISTNID)-1
           IF (JINT.EQ.1.OR.JINT.GT.chm_std%n_lat(ISTNID)) THEN
-             wgt=chm_std%std1(ILEV)
+             wgt=chm_std%std1(JLEV)
           ELSE
-             wgt=(chm_std%std1(ILEV-1)*(chm_std%lat(ibegin+JINT)-ZLAT)+ &
-                  chm_std%std1(ILEV)*(ZLAT-chm_std%lat(ibegin+JINT-1)))/ &
+             wgt=(chm_std%std1(JLEV-1)*(chm_std%lat(ibegin+JINT)-ZLAT)+ &
+                  chm_std%std1(JLEV)*(ZLAT-chm_std%lat(ibegin+JINT-1)))/ &
                   (chm_std%lat(ibegin+JINT)-chm_std%lat(ibegin+JINT-1))
           END IF
        ELSE
-          wgt=chm_std%std1(ILEV)                
+          wgt=chm_std%std1(JLEV)             
        END IF
          
     end if
@@ -2296,8 +2295,8 @@ contains
           
        ! Adjust error standard deviations read from BURP file if requested.
        
-       sigma = obsdata_get_element(chm_burp_std(istnid), obsdata_get_loctime_code(zlon,zlat,idate,itime), stat=stat)
-       
+       sigma = obsdata_get_element(chm_burp_std(istnid), obsdata_get_loctime_code(zlon,zlat,idate,itime), ilev, stat=stat)
+
        select case(stat)
        case(1)
           call abort3d("chm_get_obs_err_stddev: No reports available for STNID = " // trim(cstnid) // &
@@ -2316,7 +2315,7 @@ contains
           call abort3d('chm_get_obs_err_stddev: std_type = ' // trim(str(chm_std%std_type(ISTNID))) // &
                ' for STNID = ' // trim(CSTNID) // ' is not recognized.')
        end select
-
+       
     END IF
     
   end function chm_get_obs_err_stddev
@@ -2585,11 +2584,10 @@ contains
     ! code is a character string assigned to each observation/report to uniquely identify it
     allocate(obsdata%code(nrep))
     
-    ! The following are counters used to keep tract of position in the
-    ! data arrays when extracting values via obsdata_get_element.
-    ! The values are initialized to one, pointing to the very first element.
+    ! obsdata%irep is a counter used to keep tract of position in the
+    ! data arrays when extracting values via obsdata_get_array*.
+    ! The value is initialized to one, pointing to the very first element.
     obsdata%irep = 1
-    obsdata%idim1 = 1
 
   end subroutine obsdata_alloc
 
@@ -2616,7 +2614,7 @@ contains
 
 !-------------------------------------------------------------------------------------------
 
-  function obsdata_get_element(obsdata,code,stat) result(element)
+  function obsdata_get_element(obsdata,code,idim1,stat) result(element)
 ! 
 !   Purpose: Returns element of array from obsdata 1D data array. The returned element is the
 !            one with the specified identifying code.
@@ -2630,6 +2628,7 @@ contains
 !   Input 
 !           obsdata       struct_chm_obsdata instance
 !           code          unique identifying code
+!           idim1         position of element in the dim1 axis
 !
 !   Output
 !           element       retrieved element from obsdata%data1d
@@ -2639,11 +2638,12 @@ contains
 
     type(struct_chm_obsdata), intent(inout) :: obsdata
     character(len=22), intent(in)  :: code
+    integer, intent(in) :: idim1
     integer, intent(out), optional :: stat
 
     real(8) :: element
     
-    ! find (obsdata%irep,obsdata%idim1) for current observation
+    ! find obsdata%irep for current observation
     if (present(stat)) then
        call obsdata_set_index(obsdata,code,stat=stat)
        if (stat.ne.0) then
@@ -2655,31 +2655,20 @@ contains
     end if
 
     ! get element from data array at current position
-    element = obsdata%data1d(obsdata%irep,obsdata%idim1)
+    element = obsdata%data1d(obsdata%irep,idim1)
     
     ! increment position in data array
-    if (obsdata%irep.eq.obsdata%nrep .and. obsdata%idim1.eq.obsdata%dim1) then
+    if (obsdata%irep.eq.obsdata%nrep) then
        obsdata%irep = 1
-       obsdata%idim1 = 1
     else
-       
-       if (obsdata%dim1.gt.1) then
-          obsdata%idim1=obsdata%idim1+1
-          if (obsdata%idim1.gt.obsdata%dim1) then
-             obsdata%idim1=1
-             obsdata%irep=obsdata%irep+1
-          end if
-       else
-          obsdata%irep=obsdata%irep+1
-       end if
-
+       obsdata%irep=obsdata%irep+1
     end if
 
   end function obsdata_get_element
 
 !-------------------------------------------------------------------------------------------
 
-  function obsdata_get_array1d(obsdata,code) result(array)
+  function obsdata_get_array1d(obsdata,code,stat) result(array)
 ! 
 !   Purpose: Returns 1D data array from obsdata. The returned array is the one with the specified
 !            identifying code.
@@ -2701,10 +2690,19 @@ contains
 
     type(struct_chm_obsdata), intent(inout) :: obsdata
     character(len=22), intent(in) :: code
+    integer, intent(out), optional :: stat
     real(8) :: array(obsdata%dim1)
     
     ! find obsdata%irep for current observation
-    call obsdata_set_index(obsdata,code)
+    if (present(stat)) then
+       call obsdata_set_index(obsdata,code,stat=stat)
+       if (stat.ne.0) then
+          array(:) = 0.
+          return
+       end if
+    else
+       call obsdata_set_index(obsdata,code)
+    end if
     
     ! get element from data array at current position
     array = obsdata%data1d(obsdata%irep,:)
@@ -2720,7 +2718,7 @@ contains
 
 !-------------------------------------------------------------------------------------------
 
-  function obsdata_get_array2d(obsdata,code) result(array)
+  function obsdata_get_array2d(obsdata,code,stat) result(array)
 ! 
 !   Purpose: Returns 2D data array from obsdata. The returned array is the one with the specified
 !            identifying code.
@@ -2741,10 +2739,19 @@ contains
 
     type(struct_chm_obsdata), intent(inout) :: obsdata
     character(len=22), intent(in) :: code
+    integer, intent(out), optional :: stat
     real(8) :: array(obsdata%dim1,obsdata%dim2)
     
     ! find obsdata%irep for current observation
-    call obsdata_set_index(obsdata,code)
+    if (present(stat)) then
+       call obsdata_set_index(obsdata,code,stat=stat)
+       if (stat.ne.0) then
+          array(:,:) = 0.
+          return
+       end if
+    else
+       call obsdata_set_index(obsdata,code)
+    end if
     
     ! get elements from data array at current position
     array = obsdata%data2d(obsdata%irep,:,:)
@@ -2762,8 +2769,8 @@ contains
 
   subroutine obsdata_set_index(obsdata,code,stat)
 ! 
-!  Purpose: Sets the position variables in struct_chm_obsdata (burp%irep, burp%idim1)
-!           to reference the record that matches the input identifying code.
+!  Purpose: Sets the position variable (irep) in struct_chm_obsdata to reference the record
+!           that matches the input identifying code.
 !
 !  Author: Y. Rochon, ARQI/AQRD, Oct 2015
 ! 
@@ -2777,8 +2784,6 @@ contains
 !
 !  Output
 !           obsdata%irep      current index position for the observation/report
-!           obsdata%idim1     current index position that iterates through the first dimension
-!                             of the data array
 !           stat              status of call (optional)
 !                               0: no errors
 !                               1: no reports available
@@ -2811,7 +2816,6 @@ contains
     do while (obsdata%code(obsdata%irep).ne.code)
        obsdata%irep=obsdata%irep+1
        if (obsdata%irep.gt.obsdata%nrep) obsdata%irep=1
-       obsdata%idim1=1
        if (i.gt.obsdata%nrep) then
           if (present(stat)) then
              stat = 2
@@ -5228,7 +5232,7 @@ contains
 
     write(code,'(I22)') headerIndex
     
-    bound_press = obsdata_get_element(chm_column_boundary,code)
+    bound_press = obsdata_get_element(chm_column_boundary,code,1)
 
   end function chm_retrieve_col_boundary
 

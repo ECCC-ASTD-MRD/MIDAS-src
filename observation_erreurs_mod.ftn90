@@ -907,7 +907,12 @@ module observation_erreurs_mod
               
               ZLEV   = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
 
-              obs_err_stddev = chm_get_obs_err_stddev(CSTNID,NLEV,ITYP,ZLAT,ZLON,IDATE,ITIME,ZVAL,ZLEV,IFIRST)
+              ilev = 0
+              do ji=IDATA,INDEX_BODY
+                 if (obs_bodyElem_i(lobsSpaceData,OBS_VNM,ji).ne.8090) ilev = ilev+1
+              end do
+
+              obs_err_stddev = chm_get_obs_err_stddev(CSTNID,NLEV,ITYP,ZLAT,ZLON,IDATE,ITIME,ZVAL,ZLEV,ILEV,IFIRST)
               call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, obs_err_stddev)
               
            end if
