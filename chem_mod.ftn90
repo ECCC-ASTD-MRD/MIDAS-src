@@ -296,8 +296,8 @@ module chem_mod
      !  nrep                   number of reports or observations
      !  dim1                   first array dimension for each  report/observation
      !  dim2                   second array dimension for each  report/observation (only relevant for ndim=2)
-     !  data1d                 obs data of dimension (nrep,dim1)
-     !  data2d                 obs data of dimension (nrep,dim1,dim2)
+     !  data1d                 obs data of dimension (dim1,nrep)
+     !  data2d                 obs data of dimension (dim1,dim2,nrep)
      !  irep                   current report position
      !  code                   unique character string for identifying the report/observation                    
      
@@ -1243,13 +1243,13 @@ contains
 ! Purpose: Return averaging kernel for an observation.
 !
 ! Inputs:
-!   - istnid          index of averaging kernel in chm_avgkern
-!   - nlev            number of observation levels
-!   - idate           YYYYMMDD
-!   - itime           HHMM
+!   istnid          index of averaging kernel in chm_avgkern
+!   nlev            number of observation levels
+!   idate           YYYYMMDD
+!   itime           HHMM
 !
 ! Outputs:
-!   - avg_kern        the averaging kernel
+!   avg_kern        the averaging kernel
 !---------------------------------------------------------------------------------------
 
     implicit none
@@ -1792,7 +1792,7 @@ contains
 
     ! Save profile in chm_ref_trial
     
-    chm_ref_trial%data1d(chm_ref_trial%nrep,:) = refprof(:)
+    chm_ref_trial%data1d(:,chm_ref_trial%nrep) = refprof(:)
 
   end subroutine chm_set_reference_obsdata
 
@@ -2210,7 +2210,20 @@ contains
 !  Author   : M. Sitwell, ARQI/AQRD, Feb 2015 
 !             - Content moved from code originally in oer_fill_obs_erreurs.
 !
-!  Revisions: 
+!  Revisions:
+!
+!  Input
+!    cstnid        station ID
+!    nlev          number of levels
+!    varno         BUFR number
+!    zlat          latitude
+!    zlon          longitude
+!    idate         date in YYYYMMDD format
+!    itime         time in HHMM format
+!    zval          observation values
+!    zlev          vertical coordinate value
+!    ilev          observation number in the profile
+!    ifirst        logical indicating if first call for a profile
 !
 !----------------------------------------------------------------------------------------
 
@@ -2488,14 +2501,14 @@ contains
              if (iexp.lt.0) then
                 ! No exponent found in block
                 do ilev=1,nval                   
-                   burp_out%data1d(icount,ilev) = BURP_Get_Rval(blk, NELE_IND=ivar, NVAL_IND=ilev, NT_IND=1, IOSTAT=error)                
+                   burp_out%data1d(ilev,icount) = BURP_Get_Rval(blk, NELE_IND=ivar, NVAL_IND=ilev, NT_IND=1, IOSTAT=error)                
                 end do
              else
                 ! Apply exponent
                 do ilev=1,nval                   
                    val = BURP_Get_Rval(blk, NELE_IND=ivar, NVAL_IND=ilev, NT_IND=1, IOSTAT=error)                
                    exponent = BURP_Get_Rval(blk, NELE_IND=iexp, NVAL_IND=ilev, NT_IND=1, IOSTAT=error)
-                   burp_out%data1d(icount,ilev) = val * 10**exponent
+                   burp_out%data1d(ilev,icount) = val * 10**exponent
                 end do
              end if
                    
@@ -2508,7 +2521,7 @@ contains
                 if (ivar.eq.varno) then
                    icol = icol+1
                    do ilev=1,nval                  
-                      burp_out%data2d(icount,ilev,icol) = BURP_Get_Rval(blk, NELE_IND=iele, NVAL_IND=ilev, NT_IND=1, IOSTAT=error)
+                      burp_out%data2d(ilev,icol,icount) = BURP_Get_Rval(blk, NELE_IND=iele, NVAL_IND=ilev, NT_IND=1, IOSTAT=error)
                    end do
                 end if
              end do
@@ -2524,9 +2537,9 @@ contains
     ! resize first dimension of data arrays from length of nrep to icount
     call resize(burp_out%code,icount)
     if (ndim.eq.1) then
-       call resize(burp_out%data1d,icount,nlev)
+       call resize(burp_out%data1d,nlev,icount)
     else if (ndim.eq.2) then
-       call resize(burp_out%data2d,icount,nlev,nlev)
+       call resize(burp_out%data2d,nlev,nlev,icount)
     end if
 
     burp_out%nrep = icount
@@ -2574,11 +2587,11 @@ contains
     if (present(dim2)) then
        obsdata%dim2 = dim2
        obsdata%ndim = 2
-       allocate(obsdata%data2d(nrep,dim1,dim2))
+       allocate(obsdata%data2d(dim1,dim2,nrep))
     else
        obsdata%dim2 = 0
        obsdata%ndim = 1
-       allocate(obsdata%data1d(nrep,dim1))
+       allocate(obsdata%data1d(dim1,nrep))
     end if
 
     ! code is a character string assigned to each observation/report to uniquely identify it
@@ -2655,7 +2668,7 @@ contains
     end if
 
     ! get element from data array at current position
-    element = obsdata%data1d(obsdata%irep,idim1)
+    element = obsdata%data1d(idim1,obsdata%irep)
     
     ! increment position in data array
     if (obsdata%irep.eq.obsdata%nrep) then
@@ -2705,7 +2718,7 @@ contains
     end if
     
     ! get element from data array at current position
-    array = obsdata%data1d(obsdata%irep,:)
+    array = obsdata%data1d(:,obsdata%irep)
     
     ! increment position in data array
     if (obsdata%irep.eq.obsdata%nrep) then
@@ -2735,6 +2748,7 @@ contains
 !
 !  Output
 !           array        retrieved array from obsdata%data2d of dimension (obsdata%dim1,obsdata%dim2)
+!
 !-------------------------------------------------------------------------------------------
 
     type(struct_chm_obsdata), intent(inout) :: obsdata
@@ -2754,7 +2768,7 @@ contains
     end if
     
     ! get elements from data array at current position
-    array = obsdata%data2d(obsdata%irep,:,:)
+    array = obsdata%data2d(:,:,obsdata%irep)
     
     ! increment position in data array
     if (obsdata%irep.eq.obsdata%nrep) then
@@ -5209,7 +5223,7 @@ contains
     ! Use the header number as the unique code for this obs data
     write(chm_column_boundary%code(chm_column_boundary%nrep),'(I22)') headerIndex
 
-    chm_column_boundary%data1d(chm_column_boundary%nrep,1) = bound_press
+    chm_column_boundary%data1d(1,chm_column_boundary%nrep) = bound_press
 
   end subroutine chm_add_col_boundary
 
@@ -5266,18 +5280,18 @@ contains
     ! Use the header number as the unique code for this obs data
     write(chm_sigma_trial%code(chm_sigma_trial%nrep),'(I22)') headerIndex
 
-    chm_sigma_trial%data2d(chm_sigma_trial%nrep,:,1:2) = sigma(:,1:2)
+    chm_sigma_trial%data2d(:,1:2,chm_sigma_trial%nrep) = sigma(:,1:2)
 
     where (sigma(:,1).gt.0.0D0)
-       chm_sigma_trial%data2d(chm_sigma_trial%nrep,:,3) = 1.0D0/sigma(:,1)
+       chm_sigma_trial%data2d(:,3,chm_sigma_trial%nrep) = 1.0D0/sigma(:,1)
     elsewhere
-       chm_sigma_trial%data2d(chm_sigma_trial%nrep,:,3) = 0.0D0
+       chm_sigma_trial%data2d(:,3,chm_sigma_trial%nrep) = 0.0D0
     end where
 
     where (sigma(:,2).gt.0.0D0)
-       chm_sigma_trial%data2d(chm_sigma_trial%nrep,:,4) = 1.0D0/sigma(:,2)
+       chm_sigma_trial%data2d(:,4,chm_sigma_trial%nrep) = 1.0D0/sigma(:,2)
     elsewhere
-       chm_sigma_trial%data2d(chm_sigma_trial%nrep,:,4) = 0.0D0
+       chm_sigma_trial%data2d(:,4,chm_sigma_trial%nrep) = 0.0D0
     end where
 
   end subroutine chm_add_sigma_trial
