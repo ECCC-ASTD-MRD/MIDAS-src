@@ -17,8 +17,7 @@
 !--------------------------------------------------------------------------
 ! MODULE globalSpectralTransform (prefix = "gst")
 !
-! Purpose: Perform global spectral transform. Uses the fft module for
-!          the FFT part of the transform.
+! Purpose: Perform global spectral transform. 
 !
 ! Subroutines:
 !    gst_setup (public)
@@ -51,12 +50,9 @@
 !    gst_r1qm2
 !    gst_rsqm2
 !
-! Dependencies:
-!    fft
 !--------------------------------------------------------------------------
 MODULE globalSpectralTransform
   use mpivar_mod
-  use fft
   use MathPhysConstants_mod
   use earthConstants_mod
   implicit none
@@ -118,7 +114,6 @@ MODULE globalSpectralTransform
     integer,allocatable   :: allnBeg(:),allnEnd(:),allnSkip(:)
     integer               :: myLevBeg,myLevEnd,myLevCount,maxLevCount
     integer,allocatable   :: allLevBeg(:),allLevEnd(:)
-    integer               :: fftID
   end type T_gst
 
   integer,parameter :: nMaxGst = 10
@@ -738,10 +733,6 @@ CONTAINS
     write(*,*) 'gst_setup: myNla=',gst(gstID)%myNla
     write(*,*) 'gst_setup: maxMyNla=',gst(gstID)%maxMyNla
 
-    if(mpi_myid.eq.0) write(*,*) 'gst_setup: calling sufft...'
-    gst(gstID)%fftID = fft_sufft(6,gst(gstID)%ni,gst(gstID)%nj,           &
-                       gst(gstID)%myLatBeg,gst(gstID)%myLatEnd)
-
     allocate(gst(gstID)%r1snp1(gst(gstID)%nla))
     allocate(gst(gstID)%rnnp1(gst(gstID)%nla))
     gst(gstID)%r1snp1(1) = 0.d0
@@ -1103,11 +1094,11 @@ CONTAINS
 ! Global transposes
 !-----------------------------------------------------------------
 
-  SUBROUTINE transpose_LattoM(pgd2,pgd,kfield,kdim)
+  SUBROUTINE transpose_LattoM(pgd2,pgd,kfield)
     implicit none
-    integer :: kfield,kdim,yourid,jm,icount,nsize,ierr,jlev,jlat
-    real(8) :: pgd2(2*gst(gstID)%maxmCount,kdim,gst(gstID)%nj)
-    real(8) :: pgd(gst(gstID)%ni,kdim,gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+    integer :: kfield,yourid,jm,icount,nsize,ierr,jlev,jlat
+    real(8) :: pgd2(2*gst(gstID)%maxmCount,kfield,gst(gstID)%nj)
+    real(8) :: pgd(gst(gstID)%ni,kfield,gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
     real(8) :: gd_recv(gst(gstID)%maxmCount,2,kfield,gst(gstID)%nj)
     real(8) :: gd_send(gst(gstID)%maxmCount,2,kfield,gst(gstID)%latPerPE,mpi_nprocs)
 
@@ -1156,11 +1147,11 @@ CONTAINS
   END SUBROUTINE transpose_LattoM
 
 
-  SUBROUTINE transpose_MtoLat(pgd2,pgd,kfield,kdim)
+  SUBROUTINE transpose_MtoLat(pgd2,pgd,kfield)
     implicit none
-    integer :: kfield,kdim,yourid,jm,icount,nsize,ierr,jlev,jlat
-    real(8) :: pgd2(2*gst(gstID)%maxmCount,kdim,gst(gstID)%nj)
-    real(8) :: pgd(gst(gstID)%ni,kdim,gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+    integer :: kfield,yourid,jm,icount,nsize,ierr,jlev,jlat
+    real(8) :: pgd2(2*gst(gstID)%maxmCount,kfield,gst(gstID)%nj)
+    real(8) :: pgd(gst(gstID)%ni,kfield,gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
     real(8) :: gd_send(gst(gstID)%maxmCount,2,kfield,gst(gstID)%nj)
     real(8) :: gd_recv(gst(gstID)%maxmCount,2,kfield,gst(gstID)%latPerPE,mpi_nprocs)
 
@@ -1209,11 +1200,11 @@ CONTAINS
   END SUBROUTINE transpose_MtoLat
 
 
-  SUBROUTINE transpose_LattoLev(pgd2,pgd,kfield,kdim)
+  SUBROUTINE transpose_LattoLev(pgd2,pgd,kfield)
     implicit none
-    integer :: kfield,kdim,yourid,jm,icount,nsize,ierr,jlev,jlev2,jlat
+    integer :: kfield,yourid,jm,icount,nsize,ierr,jlev,jlev2,jlat
     real(8) :: pgd2(2*(gst(gstID)%ntrunc+1),gst(gstID)%myLevBeg:gst(gstID)%myLevEnd,gst(gstID)%nj)
-    real(8) :: pgd(gst(gstID)%ni,kdim,gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+    real(8) :: pgd(gst(gstID)%ni,kfield,gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
     real(8) :: gd_recv(gst(gstID)%ntrunc+1,2,gst(gstID)%maxLevCount,gst(gstID)%nj)
     real(8) :: gd_send(gst(gstID)%ntrunc+1,2,gst(gstID)%maxLevCount,gst(gstID)%latPerPE,mpi_nprocs)
 
@@ -1264,14 +1255,14 @@ CONTAINS
   END SUBROUTINE transpose_LattoLev
 
 
-  SUBROUTINE transpose_LevtoLat(pgd2,pgd,kfield,kdim)
+  SUBROUTINE transpose_LevtoLat(pgd2,pgd,kfield)
     implicit none
     real(8) :: pgd2(2*(gst(gstID)%ntrunc+1),gst(gstID)%myLevBeg:gst(gstID)%myLevEnd,gst(gstID)%nj)
-    real(8) :: pgd(gst(gstID)%ni,kdim,gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+    real(8) :: pgd(gst(gstID)%ni,kfield,gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
 
     real(8) :: gd_send(gst(gstID)%ntrunc+1,2,gst(gstID)%maxLevCount,gst(gstID)%nj)
     real(8) :: gd_recv(gst(gstID)%ntrunc+1,2,gst(gstID)%maxLevCount,gst(gstID)%latPerPE,mpi_nprocs)
-    integer :: kfield,kdim,yourid,jm,icount,nsize,ierr,jlev,jlev2,jlat
+    integer :: kfield,yourid,jm,icount,nsize,ierr,jlev,jlev2,jlat
 
     call rpn_comm_barrier("GRID",ierr)
 
@@ -1434,23 +1425,23 @@ CONTAINS
 ! Main spectral transform subroutines
 !--------------------------------------------------------------------------------------
 
-  SUBROUTINE GST_SPGD(SP,GD,KFIELD,NFLEV,KDIM)
+  SUBROUTINE GST_SPGD(SP,GD,KFIELD,NFLEV)
     implicit none
 
-    integer :: kfield, nflev, kdim
-    real(8) :: sp(gst(gstID)%nla,2,kdim)
-    real(8) :: gd(gst(gstID)%ni,kdim,gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+    integer :: kfield, nflev
+    real(8) :: sp(gst(gstID)%nla,2,kfield)
+    real(8) :: gd(gst(gstID)%ni,kfield,gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
 
     real(8), allocatable :: pgd2(:,:,:)
     integer :: jlat, jk, jlon
 
     ! 1. Inverse Legendre transform
     if(gst(gstID)%mpiMode.eq.2) then
-      allocate(pgd2(2*gst(gstID)%maxmCount,kdim,gst(gstID)%nj))
+      allocate(pgd2(2*gst(gstID)%maxmCount,kfield,gst(gstID)%nj))
       call tmg_start(72+gst(gstID)%mpiMode,'LT')
-      call spgdpar_mpi2(sp,pgd2,kfield,nflev,kdim)
+      call spgdpar_mpi2(sp,pgd2,kfield,nflev)
       call tmg_stop(72+gst(gstID)%mpiMode)
-      call transpose_MtoLat(pgd2,gd,kfield,kdim)
+      call transpose_MtoLat(pgd2,gd,kfield)
       deallocate(pgd2)
     else
       write(*,*) 'GST_SPGD: ONLY MPIMODE 2 SUPPORTED! ',gst(gstID)%mpiMode
@@ -1473,7 +1464,7 @@ CONTAINS
 
     ! 2.2 Apply the FFT 
     call tmg_start(20+gst(gstID)%mpiMode,'FFT')
-    call fft_fft3dvar2(gd,kfield,kdim,+1,gst(gstID)%fftID)
+    call fft3dvar(gd,+1)
     call tmg_stop(20+gst(gstID)%mpiMode)
 
   END SUBROUTINE GST_SPGD
@@ -1537,7 +1528,7 @@ CONTAINS
 
     ! 2.2 Apply the FFT 
     call tmg_start(20+gst(gstID)%mpiMode,'FFT')
-    call fft_fft3dvar2(pgd3,gst(gstID)%myLevCount,gst(gstID)%myLevCount,+1,gst(gstID)%fftID)
+    call fft3dvar(pgd3,+1)
     call tmg_stop(20+gst(gstID)%mpiMode)
 
     ! 2.3 Transpose data along npex from Levels to Longitudes
@@ -1553,12 +1544,12 @@ CONTAINS
 
 
   ! NO MPI MODIFICATIONS YET
-  SUBROUTINE GST_GDSP(SP,GD,KFIELD,NFLEV,KDIM)
+  SUBROUTINE GST_GDSP(SP,GD,KFIELD,NFLEV)
     implicit none
 
-    integer :: kfield, nflev, kdim
-    real(8) :: sp(gst(gstID)%nla,2,kdim)
-    real(8) :: gd(gst(gstID)%ni,kdim,gst(gstID)%nj)
+    integer :: kfield, nflev
+    real(8) :: sp(gst(gstID)%nla,2,kfield)
+    real(8) :: gd(gst(gstID)%ni,kfield,gst(gstID)%nj)
 
     integer :: jlat, jk, jlon
     real(8) :: zfm(gst(gstID)%ni,kfield,gst(gstID)%nj)
@@ -1577,23 +1568,23 @@ CONTAINS
 
     ! 1. Fourier transform all fields for all latitudes
     call tmg_start(20+gst(gstID)%mpiMode,'FFT')
-    call fft_fft3dvar(zfm,kfield,kdim,-1,gst(gstID)%fftID)
+    call fft3dvar(zfm,-1)
     call tmg_stop(20+gst(gstID)%mpiMode)
 
     ! 2. Direct Legendre transform including wind transformations
-    call gdsppar(sp,zfm,kfield,nflev,kdim)
+    call gdsppar(sp,zfm,kfield,nflev)
 
   END SUBROUTINE GST_GDSP
 
 
-  SUBROUTINE SPGDPAR_MPI2(SP,PGD2,KFIELD,NFLEV,KDIM)
+  SUBROUTINE SPGDPAR_MPI2(SP,PGD2,KFIELD,NFLEV)
 !**s/r SPGDPAR  - Inverse spectral transform(PARALLEL LOOP)
 
     implicit none
 
-    integer :: kfield, nflev, kdim
-    real(8) :: sp(gst(gstID)%nla,2,kdim)
-    real(8) :: pgd2(2*gst(gstID)%maxmCount,kdim,gst(gstID)%nj)
+    integer :: kfield, nflev
+    real(8) :: sp(gst(gstID)%nla,2,kfield)
+    real(8) :: pgd2(2*gst(gstID)%maxmCount,kfield,gst(gstID)%nj)
 
     ! local variables
     integer :: jj, jj2, jm, jn
@@ -1872,12 +1863,12 @@ CONTAINS
 
 
   ! NO MPI MODIFICATIONS YET
-  SUBROUTINE GDSPPAR(SP,PGD2,KFIELD,NFLEV,KDIM)
+  SUBROUTINE GDSPPAR(SP,PGD2,KFIELD,NFLEV)
     implicit none
 
-    INTEGER :: kfield,nflev,kdim
-    real(8) :: sp(gst(gstID)%nla,2,kdim)
-    real(8) :: pgd2(gst(gstID)%ni,kdim,gst(gstID)%nj)
+    INTEGER :: kfield,nflev
+    real(8) :: sp(gst(gstID)%nla,2,kfield)
+    real(8) :: pgd2(gst(gstID)%ni,kfield,gst(gstID)%nj)
 
     integer :: jj, jj2, jk, ilonr, iloni, jm ,ila, inm, jn, jm0, ins, jns
     integer :: njlath,nj,ntrunc
@@ -2029,7 +2020,7 @@ CONTAINS
 
     ! Fourier transform all fields for all latitudes
     call tmg_start(20+gst(gstID)%mpiMode,'FFT')
-    call fft_fft3dvar2(pgd3,gst(gstID)%myLevCount,gst(gstID)%myLevCount,-1,gst(gstID)%fftID)
+    call fft3dvar(pgd3,-1)
     call tmg_stop(20+gst(gstID)%mpiMode)
 
     ! Transpose data along npey from Latitudes to M
@@ -2279,30 +2270,30 @@ CONTAINS
   END SUBROUTINE SPGDAPAR_MPI2D
 
 
-  SUBROUTINE GST_SPEREE(PSP,PGD,KFIELD,KDIM)
+  SUBROUTINE GST_SPEREE(PSP,PGD,KFIELD)
     implicit none
 
-    integer :: kfield, kdim
-    real(8) :: psp(gst(gstID)%nla,2,kdim)
-    real(8) :: pgd(gst(gstID)%ni,kdim,gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+    integer :: kfield
+    real(8) :: psp(gst(gstID)%nla,2,kfield)
+    real(8) :: pgd(gst(gstID)%ni,kfield,gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
 
     real(8), allocatable :: pgd2(:,:,:)
     integer :: jlat, jk, jlon
 
     ! 1.1 Inverse Legendre transform
     if(gst(gstID)%mpiMode.eq.2) then
-      allocate(pgd2(2*gst(gstID)%maxmCount,kdim,gst(gstID)%nj))
+      allocate(pgd2(2*gst(gstID)%maxmCount,kfield,gst(gstID)%nj))
       call tmg_start(72+gst(gstID)%mpiMode,'LT')
-      call spereepar_mpi2(psp,pgd2,kfield,kdim)
+      call spereepar_mpi2(psp,pgd2,kfield)
       call tmg_stop(72+gst(gstID)%mpiMode)
-      call transpose_MtoLat(pgd2,pgd,kfield,kdim)
+      call transpose_MtoLat(pgd2,pgd,kfield)
       deallocate(pgd2)
     elseif(gst(gstID)%mpiMode.eq.3) then
       allocate(pgd2(2*(gst(gstID)%ntrunc+1),gst(gstID)%myLevBeg:gst(gstID)%myLevEnd,gst(gstID)%nj))
       call tmg_start(72+gst(gstID)%mpiMode,'LT')
-      call spereepar_mpi3(psp,pgd2,kfield,kdim)
+      call spereepar_mpi3(psp,pgd2,kfield)
       call tmg_stop(72+gst(gstID)%mpiMode)
-      call transpose_LevtoLat(pgd2,pgd,kfield,kdim)
+      call transpose_LevtoLat(pgd2,pgd,kfield)
       deallocate(pgd2)
     else
       write(*,*) 'GST_SPEREE: ONLY MPIMODE 2 AND 3 SUPPORTED! ',gst(gstID)%mpiMode
@@ -2325,7 +2316,7 @@ CONTAINS
 
     ! 2.2 Apply the inverse FFT 
     call tmg_start(20+gst(gstID)%mpiMode,'FFT')
-    call fft_fft3dvar2(pgd,kfield,kdim,+1,gst(gstID)%fftID)
+    call fft3dvar(pgd,+1)
     call tmg_stop(20+gst(gstID)%mpiMode)
 
   END SUBROUTINE GST_SPEREE
@@ -2369,7 +2360,7 @@ CONTAINS
 
     ! 2.2 Apply the inverse FFT 
     call tmg_start(20+gst(gstID)%mpiMode,'FFT')
-    call fft_fft3dvar2(pgd3,gst(gstID)%myLevCount,gst(gstID)%myLevCount,+1,gst(gstID)%fftID)
+    call fft3dvar(pgd3,+1)
     call tmg_stop(20+gst(gstID)%mpiMode)
 
     ! 2.3 Transpose data along npex from Levels to Longitudes
@@ -2423,7 +2414,7 @@ CONTAINS
 
     ! 2.2 Apply the inverse FFT 
     call tmg_start(20+gst(gstID)%mpiMode,'FFT')
-    call fft_fft3dvar2(pgd3,gst(gstID)%myLevCount,gst(gstID)%myLevCount,+1,gst(gstID)%fftID)
+    call fft3dvar(pgd3,+1)
     call tmg_stop(20+gst(gstID)%mpiMode)
 
     ! 2.3 Transpose data along npex from Levels to Longitudes
@@ -2433,34 +2424,34 @@ CONTAINS
   END SUBROUTINE GST_SPEREE4
 
 
-  SUBROUTINE GST_REESPE(PSP,PGD,KFIELD,KDIM)
+  SUBROUTINE GST_REESPE(PSP,PGD,KFIELD)
     implicit none
 
-    integer :: kfield,kdim
-    real(8) :: psp(gst(gstID)%nla,2,kdim)
-    real(8) :: pgd(gst(gstID)%ni,kdim,gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+    integer :: kfield
+    real(8) :: psp(gst(gstID)%nla,2,kfield)
+    real(8) :: pgd(gst(gstID)%ni,kfield,gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
 
     real(8), allocatable :: pgd2(:,:,:)
     integer :: ji,jj,jk, jlon, jlat
 
     ! 1. Apply the FFT
     call tmg_start(20+gst(gstID)%mpiMode,'FFT')
-    call fft_fft3dvar2(pgd,kfield,kdim,-1,gst(gstID)%fftID)
+    call fft3dvar(pgd,-1)
     call tmg_stop(20+gst(gstID)%mpiMode)
 
     ! 2. Direct Legendre transform
     if(gst(gstID)%mpiMode.eq.2) then
-      allocate(pgd2(2*gst(gstID)%maxmCount,kdim,gst(gstID)%nj))
-      call transpose_LattoM(pgd2,pgd,kfield,kdim)
+      allocate(pgd2(2*gst(gstID)%maxmCount,kfield,gst(gstID)%nj))
+      call transpose_LattoM(pgd2,pgd,kfield)
       call tmg_start(72+gst(gstID)%mpiMode,'LT')
-      call reespepar_mpi2(pgd2,psp,kfield,kdim)
+      call reespepar_mpi2(pgd2,psp,kfield)
       call tmg_stop(72+gst(gstID)%mpiMode)
       deallocate(pgd2)
     elseif(gst(gstID)%mpiMode.eq.3) then
       allocate(pgd2(2*(gst(gstID)%ntrunc+1),gst(gstID)%myLevBeg:gst(gstID)%myLevEnd,gst(gstID)%nj))
-      call transpose_LattoLev(pgd2,pgd,kfield,kdim)
+      call transpose_LattoLev(pgd2,pgd,kfield)
       call tmg_start(72+gst(gstID)%mpiMode,'LT')
-      call reespepar_mpi3(pgd2,psp,kfield,kdim)
+      call reespepar_mpi3(pgd2,psp,kfield)
       call tmg_stop(72+gst(gstID)%mpiMode)
       deallocate(pgd2)
     else
@@ -2491,7 +2482,7 @@ CONTAINS
 
     ! 1. Apply the FFT
     call tmg_start(20+gst(gstID)%mpiMode,'FFT')
-    call fft_fft3dvar2(pgd3,gst(gstID)%myLevCount,gst(gstID)%myLevCount,-1,gst(gstID)%fftID)
+    call fft3dvar(pgd3,-1)
     call tmg_stop(20+gst(gstID)%mpiMode)
 
     ! Transpose data along npey from Latitudes to M
@@ -2527,7 +2518,7 @@ CONTAINS
 
     ! 1. Apply the FFT
     call tmg_start(20+gst(gstID)%mpiMode,'FFT')
-    call fft_fft3dvar2(pgd3,gst(gstID)%myLevCount,gst(gstID)%myLevCount,-1,gst(gstID)%fftID)
+    call fft3dvar(pgd3,-1)
     call tmg_stop(20+gst(gstID)%mpiMode)
 
     ! Transpose data along npey from Latitudes to M
@@ -2547,14 +2538,14 @@ CONTAINS
   END SUBROUTINE GST_REESPE4
 
 
-  SUBROUTINE SPEREEPAR_MPI2(PSP,PGD2,KFIELD,KDIM)
+  SUBROUTINE SPEREEPAR_MPI2(PSP,PGD2,KFIELD)
 !**s/r SPEREEPAR_MPI2  - Inverse spectral transform(MPI PARALLEL LOOP)
 
     implicit none
 
-    integer :: kfield, kdim
-    real(8) :: psp(gst(gstID)%nla,2,kdim)
-    real(8) :: pgd2(2*gst(gstID)%maxmCount,kdim,gst(gstID)%nj)
+    integer :: kfield
+    real(8) :: psp(gst(gstID)%nla,2,kfield)
+    real(8) :: pgd2(2*gst(gstID)%maxmCount,kfield,gst(gstID)%nj)
 
     ! local variables
     integer :: jj, jj2, jm
@@ -2612,13 +2603,13 @@ CONTAINS
   END SUBROUTINE SPEREEPAR_MPI2
 
 
-  SUBROUTINE SPEREEPAR_MPI3(PSP,PGD2,KFIELD,KDIM)
+  SUBROUTINE SPEREEPAR_MPI3(PSP,PGD2,KFIELD)
 !**s/r SPEREEPAR_MPI3  - Inverse spectral transform(MPI PARALLEL LOOP)
 
     implicit none
 
-    integer kfield,kdim
-    real(8) :: psp(gst(gstID)%nla,2,kdim)
+    integer kfield
+    real(8) :: psp(gst(gstID)%nla,2,kfield)
     real(8) :: pgd2(2*(gst(gstID)%ntrunc+1),gst(gstID)%myLevBeg:gst(gstID)%myLevEnd,gst(gstID)%nj)
 
     ! local variables
@@ -2740,12 +2731,12 @@ CONTAINS
   END SUBROUTINE SPEREEPAR_MPI2D
 
 
-  SUBROUTINE REESPEPAR_MPI2(PGD2,PSP,KFIELD,KDIM)
+  SUBROUTINE REESPEPAR_MPI2(PGD2,PSP,KFIELD)
     implicit none
 
-    integer :: kfield,kdim
-    real(8) :: psp(gst(gstID)%nla,2,kdim)
-    real(8) :: pgd2(2*gst(gstID)%maxmCount,kdim,gst(gstID)%nj)
+    integer :: kfield
+    real(8) :: psp(gst(gstID)%nla,2,kfield)
+    real(8) :: pgd2(2*gst(gstID)%maxmCount,kfield,gst(gstID)%nj)
 
     integer :: jj, jj2, jk, jk2, ilonr, iloni
     integer :: jm, ila, inm, jn
@@ -2834,11 +2825,11 @@ CONTAINS
   END SUBROUTINE REESPEPAR_MPI2
 
 
-  SUBROUTINE REESPEPAR_MPI3(PGD2,PSP,KFIELD,KDIM)
+  SUBROUTINE REESPEPAR_MPI3(PGD2,PSP,KFIELD)
     implicit none
 
-    integer :: kfield,kdim
-    real(8) :: psp(gst(gstID)%nla,2,kdim)
+    integer :: kfield
+    real(8) :: psp(gst(gstID)%nla,2,kfield)
     real(8) :: pgd2(2*(gst(gstID)%ntrunc+1),gst(gstID)%myLevBeg:gst(gstID)%myLevEnd,gst(gstID)%nj)
 
     integer :: ilen,jj,jj2,jk,jk2,ilonr, iloni
@@ -3917,5 +3908,92 @@ CONTAINS
     deallocate(zwork)
 
   END SUBROUTINE GST_ZLEGINV
+
+
+! ---------------------------------------------
+! FFT subroutines
+! ---------------------------------------------
+
+  SUBROUTINE FFT3DVAR(pgd,kdir)
+    implicit none
+
+    integer :: kfield,kdir,ni,nj
+    real(8) :: pgd(:,:,:)
+    real(8), allocatable :: pgd2(:,:)
+    integer :: ji,jj,jk,ijump,i
+
+    ni = size(pgd,1)
+    kfield = size(pgd,2)
+    nj = size(pgd,3)
+    ijump = ni + 2
+
+    i = ni
+    call ngfft( i )
+    if ( i.ne.ni ) then
+       write(*,*) 'fft3dvar: NI = ',ni,' I = ',i
+       call abort3d('fft3dvar: vector length is not compatible with FFT')
+    endif
+    call setfft8(ni)
+
+    allocate(pgd2(ni+2,kfield))
+
+    ! Copy over input data into over-dimensioned array
+!$OMP PARALLEL DO PRIVATE (jj,jk,ji,pgd2)
+    do jj=1, nj
+      do jk=1,kfield
+        do ji=ni+1,ni+2
+          pgd2(ji,jk)=0.0d0
+        enddo
+        do ji=1,ni
+          pgd2(ji,jk)=pgd(ji,jk,jj)
+        enddo
+      enddo
+
+      call ffft8(pgd2(1,1),1,ijump,kfield,kdir)
+      !*     subroutine ffft8( a, inc, jump, lot, isign )
+      !*     a      is the array containing input & output data
+      !*     inc    is the increment within each data 'vector'
+      !*            (e.g. inc=1 for consecutively stored data)
+      !*     jump   is the increment between the start of each data vector
+      !*     lot    is the number of data vectors
+      !*     isign  = +1 for transform from spectral to gridpoint
+      !*            = -1 for transform from gridpoint to spectral
+
+      do jk=1,kfield
+        do ji=1,ni
+          pgd(ji,jk,jj)=pgd2(ji,jk)
+        enddo
+      enddo
+    enddo
+!$OMP END PARALLEL DO
+
+    deallocate(pgd2)
+
+  END SUBROUTINE fft3dvar
+
+  SUBROUTINE ngfft( n )
+    implicit none
+    integer n
+
+    integer l
+    parameter ( l = 3 )
+    integer k( l ) , m
+    data m , k / 8 , 2 , 3 , 5 /
+
+    integer i,j
+
+    if ( n.le.m ) n = m + 1
+    n = n - 1
+1   n = n + 1
+    i = n
+2   do 3 j=1,l
+       if( mod(i,k(j)) .eq. 0 ) go to 4
+3   continue
+    go to 1
+4   i = i/k(j)
+    if( i .ne. 1 ) go to 2
+
+  END SUBROUTINE ngfft
+
 
 END MODULE globalSpectralTransform

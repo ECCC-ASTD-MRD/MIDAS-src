@@ -673,9 +673,9 @@ module calcbmatrix_glb_mod
     do jens=1,nens
 
       psi(:,:,:)=ensPerturbations(:,1:nlevEns_M,:,jens)
-      call gst_reespe(spectralState,psi,nLevEns_M,nLevEns_M)
+      call gst_reespe(spectralState,psi,nLevEns_M)
       call calcBalancedP(spectralState,spBalancedP)
-      call gst_speree(spBalancedP,balancedP,nlevEns_M,nlevEns_M)
+      call gst_speree(spBalancedP,balancedP,nlevEns_M)
 
       tt_ptr => ensPerturbations(:,(1+2*nLevEns_M):(2*nLevEns_M+1*nLevEns_T),:,jens)
       ps_ptr => ensPerturbations(:,(1+2*nLevEns_M+2*nLevEns_T):(1+2*nLevEns_M+2*nLevEns_T),:,jens)
@@ -730,7 +730,7 @@ module calcbmatrix_glb_mod
       call flush(6)
 
       gridState(:,:,:)=ensPerturbations(:,:,:,jens)
-      call gst_reespe(spectralState,gridState,nkgdimEns,nkgdimEns)
+      call gst_reespe(spectralState,gridState,nkgdimEns)
 
 !$OMP PARALLEL
 !$OMP DO PRIVATE (jn,jm,dfact,ila,jk1,jk2)
@@ -820,7 +820,7 @@ module calcbmatrix_glb_mod
       call flush(6)
 
       gridState(:,:,:)=ensPerturbations(:,:,:,jens)
-      call gst_reespe(spectralState,gridState,nkgdimEns,nkgdimEns)
+      call gst_reespe(spectralState,gridState,nkgdimEns)
 
 !$OMP PARALLEL
 !$OMP DO PRIVATE (jn,jm,dfact,ila,jk)
@@ -1277,7 +1277,7 @@ module calcbmatrix_glb_mod
 
     do jens=1,nens
       member(:,:,:)=dble(ensPerturbations(:,:,:,jens))     
-      call gst_reespe(spectralState,member,nlev,nlev)
+      call gst_reespe(spectralState,member,nlev)
       if ( nWaveBand /= 1 ) then
 !$OMP PARALLEL
 !$OMP DO PRIVATE (jk,jn,jm,ila)
@@ -1293,7 +1293,7 @@ module calcbmatrix_glb_mod
 !$OMP END DO
 !$OMP END PARALLEL
       end if
-      call gst_speree(spectralState,member,nlev,nlev)
+      call gst_speree(spectralState,member,nlev)
       ensPerturbations(:,:,:,jens)=sngl(member(:,:,:))
     enddo
 
@@ -1402,9 +1402,9 @@ module calcbmatrix_glb_mod
       call flush(6)
 
       psi(:,:,:)=ensPerturbations(:,1:nlevEns_M,:,jens)
-      call gst_reespe(spectralState,psi,nlevEns_M,nlevEns_M)
+      call gst_reespe(spectralState,psi,nlevEns_M)
       CALL calcBalancedP(spectralState,spBalancedP)
-      call gst_speree(spBalancedP,balancedP,nlevEns_M,nlevEns_M)
+      call gst_speree(spBalancedP,balancedP,nlevEns_M)
 
       tt_ptr  => ensPerturbations(:,(2*nLevEns_M+1):(2*nLevEns_M+nLevEns_T),:,jens)
       ps_ptr  => ensPerturbations(:,2*nLevEns_M+2*nLevEns_T+1,:,jens)
@@ -2220,7 +2220,7 @@ module calcbmatrix_glb_mod
     dla2   = dble(ra)*dble(ra)
     do jens=1,nens
       member(:,:,:)=dble(ensPerturbations(:,:,:,jens))
-      call gst_gdsp(spectralState,member,nkgdimEns,nlevEns_M,nkgdimEns)
+      call gst_gdsp(spectralState,member,nkgdimEns,nlevEns_M)
       do jlev = 1, nlevEns_M
         do jla = 1, nla
           spectralState(jla,1,jlev)           = spectralState(jla,1,jlev)           * dla2*gst_getR1snp1(jla)
@@ -2229,7 +2229,7 @@ module calcbmatrix_glb_mod
           spectralState(jla,2,jlev+nlevEns_M) = spectralState(jla,2,jlev+nlevEns_M) * dla2*gst_getR1snp1(jla)
         enddo
       enddo
-      call gst_speree(spectralState,member,nkgdimEns,nkgdimEns)
+      call gst_speree(spectralState,member,nkgdimEns)
       ensPerturbations(:,:,:,jens)=sngl(member(:,:,:))
     enddo
 
@@ -2322,7 +2322,7 @@ module calcbmatrix_glb_mod
 
     !- 1.3 Move to spectral space
     call gst_reespe(spectralState,                & ! OUT
-                    GridState,nkgdimEns,nkgdimEns)  ! IN
+                    GridState,nkgdimEns)  ! IN
 
     !
     !- 2.  Apply the horizontal correlation function
@@ -2351,7 +2351,7 @@ module calcbmatrix_glb_mod
     !
     call gst_speree(spectralState,     & ! IN
                     GridState,         & ! OUT
-                    nkgdimEns,nkgdimEns) ! IN
+                    nkgdimEns) ! IN
 
     !
     !- 4.  Write to file
