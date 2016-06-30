@@ -2233,7 +2233,7 @@ CONTAINS
     real(8), pointer :: field(:,:,:)
 
     do jvar = 1, vnl_numvarmax 
-      if(gsv_varExist(vnl_varNameList(jvar))) then
+      if(gsv_varExist(statevector,vnl_varNameList(jvar))) then
         field => gsv_getField3D(statevector,vnl_varNameList(jvar))
         if(vnl_varNameList(jvar).eq.'UU  ') then
           ilev1 = nspositVO
@@ -2252,11 +2252,11 @@ CONTAINS
         endif
         ilev2 = ilev1 - 1 + gsv_getNumLev(statevector,vnl_varLevelFromVarname(vnl_varNameList(jvar)))
 !!!$OMP PARALLEL DO PRIVATE(jlat,jlev,jlev2,jlon)
-        do jlat = myLatBeg, myLatEnd
-          do jlev = ilev1, ilev2
-            jlev2 = jlev-ilev1+1
+        do jlev = ilev1, ilev2
+          jlev2 = jlev-ilev1+1
+          do jlat = myLatBeg, myLatEnd
             do jlon = myLonBeg, myLonEnd
-              field(jlon,jlev2,jlat) = gd(jlon,jlev,jlat)
+              field(jlon,jlat,jlev2) = gd(jlon,jlev,jlat)
             enddo
           enddo
         enddo
@@ -2275,7 +2275,7 @@ CONTAINS
     real(8), pointer :: field(:,:,:)
 
     do jvar = 1, vnl_numvarmax 
-      if(gsv_varExist(vnl_varNameList(jvar))) then
+      if(gsv_varExist(statevector,vnl_varNameList(jvar))) then
         field => gsv_getField3D(statevector,vnl_varNameList(jvar))
         if(vnl_varNameList(jvar).eq.'UU  ') then
           ilev1 = nspositVO
@@ -2294,11 +2294,11 @@ CONTAINS
         endif
         ilev2 = ilev1 - 1 + gsv_getNumLev(statevector,vnl_varLevelFromVarname(vnl_varNameList(jvar)))
 !!!$OMP PARALLEL DO PRIVATE(jlat,jlev,jlev2,jlon)
-        do jlat = myLatBeg, myLatEnd
-          do jlev = ilev1, ilev2
-            jlev2 = jlev-ilev1+1
+        do jlev = ilev1, ilev2
+          jlev2 = jlev-ilev1+1
+          do jlat = myLatBeg, myLatEnd
             do jlon = myLonBeg, myLonEnd
-              gd(jlon,jlev,jlat) = field(jlon,jlev2,jlat)
+              gd(jlon,jlev,jlat) = field(jlon,jlat,jlev2)
             enddo
           enddo
         enddo
@@ -2990,21 +2990,19 @@ CONTAINS
     lat2 = statevector%myLatEnd
     nlev_gsv = gsv_getNumLev(statevector,'MM')
 
-!$OMP PARALLEL
-!$OMP DO PRIVATE (jlat,jstep,jlev,jlon,conphy)
-    do jlat = lat1, lat2
-      conphy = ra*gst_getr1qm2(jlat,gstID)
+!$OMP PARALLEL DO PRIVATE (jlat,jstep,jlev,jlon,conphy)
+    do jlev = 1, nlev_gsv
       do jstep = 1, statevector%numStep
-        do jlev = 1, nlev_gsv
+        do jlat = lat1, lat2
+          conphy = ra*gst_getr1qm2(jlat,gstID)
           do jlon = lon1, lon2
-            uu_ptr(jlon,jlev,jlat,jstep) = conphy * uu_ptr(jlon,jlev,jlat,jstep)
-            vv_ptr(jlon,jlev,jlat,jstep) = conphy * vv_ptr(jlon,jlev,jlat,jstep)
+            uu_ptr(jlon,jlat,jlev,jstep) = conphy * uu_ptr(jlon,jlat,jlev,jstep)
+            vv_ptr(jlon,jlat,jlev,jstep) = conphy * vv_ptr(jlon,jlat,jlev,jstep)
           end do
         end do
       end do
     end do
-!$OMP END DO
-!$OMP END PARALLEL
+!$OMP END PARALLEL DO
 
   END SUBROUTINE uvwi2uv
 

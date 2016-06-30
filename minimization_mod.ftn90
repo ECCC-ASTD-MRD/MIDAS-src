@@ -576,12 +576,12 @@ CONTAINS
 
       ! Compute new diagnotics based on NAMSTATE
       call vtr_setup(statevector_incr) ! IN
-      if ( gsv_varExist('QR') .and. gsv_varExist('DD') ) then
+      if ( gsv_varExist(statevector_incr,'QR') .and. gsv_varExist(statevector_incr,'DD') ) then
         write(*,*)
         write(*,*) 'User is asking for Vort-Div analysis increment'
         call vtr_transform( statevector_incr,  & ! INOUT
                             'UVtoVortDiv' )      ! IN
-        if ( gsv_varExist('PP') .and. gsv_varExist('CC') ) then
+        if ( gsv_varExist(statevector_incr,'PP') .and. gsv_varExist(statevector_incr,'CC') ) then
           write(*,*)
           write(*,*) 'User is asking for Psi-Chi analysis increment'
           call vtr_transform( statevector_incr, & ! INOUT
@@ -951,23 +951,23 @@ CONTAINS
       call bhi_getScaleFactor(scaleFactorBhi)
       ! for 3D variables
       do jvar=1,vnl_numvarmax3D 
-        if(gsv_varExist(vnl_varNameList3D(jvar))) then
+        if(gsv_varExist(statevector_randpert,vnl_varNameList3D(jvar))) then
           write(*,*) 'min_calcRandomPert: undo Bhi scaleFactor varname= ',vnl_varNameList3D(jvar)
           field => gsv_getField(statevector_randpert,vnl_varNameList3D(jvar))
           do jlev = 1, gsv_getNumLev(statevector_randpert,vnl_varLevelFromVarname(vnl_varNameList3D(jvar)))   
             if(scaleFactorBhi(jlev).gt.0.0d0) then
-              field(lon1:lon2,jlev,lat1:lat2,:)=field(lon1:lon2,jlev,lat1:lat2,:)/scaleFactorBhi(jlev)
+              field(lon1:lon2,lat1:lat2,jlev,:)=field(lon1:lon2,lat1:lat2,jlev,:)/scaleFactorBhi(jlev)
             endif
           enddo
         endif
       enddo
       ! for 2D variables
       do jvar=1,vnl_numvarmax2D 
-        if(gsv_varExist(vnl_varNameList2D(jvar))) then
+        if(gsv_varExist(statevector_randpert,vnl_varNameList2D(jvar))) then
           field => gsv_getField(statevector_randpert,vnl_varNameList2D(jvar))
           jlev = max(nLev_M,nLev_T)
           if(scaleFactorBhi(jlev).gt.0.0d0) then
-            field(lon1:lon2,1,lat1:lat2,:)=field(lon1:lon2,1,lat1:lat2,:)/scaleFactorBhi(jlev)
+            field(lon1:lon2,lat1:lat2,1,:)=field(lon1:lon2,lat1:lat2,1,:)/scaleFactorBhi(jlev)
           endif
         endif
       enddo
@@ -979,14 +979,14 @@ CONTAINS
     nlev_M = gsv_getNumLev(statevector_randpert,'MM')
     ! for 3D variables
     do jvar=1,vnl_numvarmax3D 
-      if(gsv_varExist(vnl_varNameList3D(jvar)).and.  &
+      if(gsv_varExist(statevector_randpert,vnl_varNameList3D(jvar)).and.  &
             (trim(vnl_varNameList3D(jvar)).eq.'UU' .or.  &
              trim(vnl_varNameList3D(jvar)).eq.'VV') ) then
         write(*,*) 'min_calcRandomPert: pertScaleFactor_UV varname= ',vnl_varNameList3D(jvar)
         field => gsv_getField(statevector_randpert,vnl_varNameList3D(jvar))
         do jlev = 1, gsv_getNumLev(statevector_randpert,vnl_varLevelFromVarname(vnl_varNameList3D(jvar)))   
           write(*,*) 'min_calcRandomPert: pertScaleFactor_UV= ',jlev,pertScaleFactor_UV(jlev)
-          field(lon1:lon2,jlev,lat1:lat2,:)=field(lon1:lon2,jlev,lat1:lat2,:)*pertScaleFactor_UV(jlev)
+          field(lon1:lon2,lat1:lat2,jlev,:)=field(lon1:lon2,lat1:lat2,jlev,:)*pertScaleFactor_UV(jlev)
         enddo
       endif
     enddo

@@ -974,12 +974,11 @@ CONTAINS
       undoNormalization2 = .false.
     endif
 
-!$OMP PARALLEL
-!$OMP DO PRIVATE(jj,jvar,field,ilev1,ilev2,topLevOffset,jt,jk,jkInc,ji)
+!$OMP PARALLEL DO PRIVATE(jj,jvar,field,ilev1,ilev2,topLevOffset,jt,jk,jkInc,ji)
     do jj = myLatBeg, myLatEnd
       do jvar = 1, vnl_numvarmax 
 
-        if (gsv_varExist(vnl_varNameList(jvar))) then
+        if (gsv_varExist(statevector,vnl_varNameList(jvar))) then
           field => gsv_getField(statevector,vnl_varNameList(jvar))
           if (vnl_varNameList(jvar).eq.'UU  ') then
             ilev1 = ngposituu
@@ -1039,7 +1038,7 @@ CONTAINS
               endif
 
               do ji = myLonBeg, myLonEnd
-                field(ji,jkInc,jj,jt) = dnens2*dble(ensPerturbations(waveBandIndex,memberIndexWanted)%member_r4(ji,jj,jk,jt))
+                field(ji,jj,jkInc,jt) = dnens2*dble(ensPerturbations(waveBandIndex,memberIndexWanted)%member_r4(ji,jj,jk,jt))
               enddo
             enddo
 
@@ -1074,7 +1073,7 @@ CONTAINS
               do jkInc = 1, topLevOffset-1
                 ! using a constant value (the value at the ensemble lid: k = ilev1)
                 do ji = myLonBeg, myLonEnd
-                  field(ji,jkInc,jj,jt) = dnens2*dble(ensPerturbations(waveBandIndex,memberIndexWanted)%member_r4(ji,jj,ilev1,jt))
+                  field(ji,jj,jkInc,jt) = dnens2*dble(ensPerturbations(waveBandIndex,memberIndexWanted)%member_r4(ji,jj,ilev1,jt))
                 end do
               end do
             end if
@@ -1084,8 +1083,7 @@ CONTAINS
 
       enddo
     enddo
-!$OMP END DO
-!$OMP END PARALLEL
+!$OMP END PARALLEL DO
 
   END SUBROUTINE ben_getPerturbation
 
@@ -2317,50 +2315,48 @@ CONTAINS
     !
     !- Transfer the data (the analysis increment from Bens) to the GridStateVector
     !
-!$OMP PARALLEL
-!$OMP DO PRIVATE(jj,jvar,field,ilev1,ilev2,topLevOffset,jt,jk,jkInc,ji)
-    do jj = myLatBeg, myLatEnd
-      do jvar = 1, vnl_numvarmax 
-        if(gsv_varExist(vnl_varNameList(jvar))) then
-          field => gsv_getField(statevector,vnl_varNameList(jvar))
-          if(vnl_varNameList(jvar).eq.'UU  ') then
-            ilev1 = ngposituu
-          elseif(vnl_varNameList(jvar).eq.'VV  ') then
-            ilev1 = ngpositvv
-          elseif(vnl_varNameList(jvar).eq.'TT  ') then
-            ilev1 = ngposittt
-          elseif(vnl_varNameList(jvar).eq.'HU  ') then
-            ilev1 = ngpositq
-          elseif(vnl_varNameList(jvar).eq.'P0  ') then
-            ilev1 = ngpositps
-          elseif(vnl_varNameList(jvar).eq.'TG  ') then
-            ilev1 = ngposittg
-          else
-            call abort3d('ben_bsqrt: No covariances available for variable:' // vnl_varNameList(jvar))
-          endif
-          if(vnl_varLevelFromVarname(vnl_varNameList(jvar)).eq.'SF') then
-            ilev2 = ilev1
-            topLevOffset = 1
-          elseif(vnl_varLevelFromVarname(vnl_varNameList(jvar)).eq.'MM') then
-            ilev2 = ilev1 - 1 + nlevEns_M
-            topLevOffset = topLevIndex_M
-          else
-            ilev2 = ilev1 - 1 + nlevEns_T
-            topLevOffset = topLevIndex_T
-          endif
-          do jt = 1, numTime
-            do jk = ilev1, ilev2
-              jkInc = jk-ilev1 + topLevOffset
+!$OMP PARALLEL DO PRIVATE(jj,jvar,field,ilev1,ilev2,topLevOffset,jt,jk,jkInc,ji)
+    do jvar = 1, vnl_numvarmax 
+      if(gsv_varExist(statevector,vnl_varNameList(jvar))) then
+        field => gsv_getField(statevector,vnl_varNameList(jvar))
+        if(vnl_varNameList(jvar).eq.'UU  ') then
+          ilev1 = ngposituu
+        elseif(vnl_varNameList(jvar).eq.'VV  ') then
+          ilev1 = ngpositvv
+        elseif(vnl_varNameList(jvar).eq.'TT  ') then
+          ilev1 = ngposittt
+        elseif(vnl_varNameList(jvar).eq.'HU  ') then
+          ilev1 = ngpositq
+        elseif(vnl_varNameList(jvar).eq.'P0  ') then
+          ilev1 = ngpositps
+        elseif(vnl_varNameList(jvar).eq.'TG  ') then
+          ilev1 = ngposittg
+        else
+          call abort3d('ben_bsqrt: No covariances available for variable:' // vnl_varNameList(jvar))
+        endif
+        if(vnl_varLevelFromVarname(vnl_varNameList(jvar)).eq.'SF') then
+          ilev2 = ilev1
+          topLevOffset = 1
+        elseif(vnl_varLevelFromVarname(vnl_varNameList(jvar)).eq.'MM') then
+          ilev2 = ilev1 - 1 + nlevEns_M
+          topLevOffset = topLevIndex_M
+        else
+          ilev2 = ilev1 - 1 + nlevEns_T
+          topLevOffset = topLevIndex_T
+        endif
+        do jt = 1, numTime
+          do jk = ilev1, ilev2
+            jkInc = jk-ilev1 + topLevOffset
+            do jj = myLatBeg, myLatEnd
               do ji = myLonBeg, myLonEnd
-                field(ji,jkInc,jj,jt) = incrementLocal(ji,jj,jk,jt)
+                field(ji,jj,jkInc,jt) = incrementLocal(ji,jj,jk,jt)
               enddo
             enddo
           enddo
-        endif
-      enddo
+        enddo
+      endif
     enddo
-!$OMP END DO
-!$OMP END PARALLEL
+!$OMP END PARALLEL DO
 
     deallocate(incrementLocal)
 
@@ -2413,50 +2409,48 @@ CONTAINS
     !
     !- Get the data (the analysis increment from Bens) from the GridStateVector
     !
-!$OMP PARALLEL
-!$OMP DO PRIVATE(jj,jvar,field,ilev1,ilev2,topLevOffset,jt,jk,jkInc,ji)
-    do jj = myLatBeg, myLatEnd
-      do jvar = 1, vnl_numvarmax 
-        if(gsv_varExist(vnl_varNameList(jvar))) then
-          field => gsv_getField(statevector,vnl_varNameList(jvar))
-          if(vnl_varNameList(jvar).eq.'UU  ') then
-            ilev1 = ngposituu
-          elseif(vnl_varNameList(jvar).eq.'VV  ') then
-            ilev1 = ngpositvv
-          elseif(vnl_varNameList(jvar).eq.'TT  ') then
-            ilev1 = ngposittt
-          elseif(vnl_varNameList(jvar).eq.'HU  ') then
-            ilev1 = ngpositq
-          elseif(vnl_varNameList(jvar).eq.'P0  ') then
-            ilev1 = ngpositps
-          elseif(vnl_varNameList(jvar).eq.'TG  ') then
-            ilev1 = ngposittg
-          else
-            call abort3d('ben_bsqrtad: No covariances available for variable:' // vnl_varNameList(jvar))
-          endif
-          if(vnl_varLevelFromVarname(vnl_varNameList(jvar)).eq.'SF') then
-            ilev2 = ilev1
-            topLevOffset = 1
-          elseif(vnl_varLevelFromVarname(vnl_varNameList(jvar)).eq.'MM') then
-            ilev2 = ilev1 - 1 + nlevEns_M
-            topLevOffset = topLevIndex_M
-          else
-            ilev2 = ilev1 - 1 + nlevEns_T
-            topLevOffset = topLevIndex_T
-          endif
-          do jt = 1, numTime
-            do jk = ilev1, ilev2
-              jkInc = jk-ilev1 + topLevOffset
+!$OMP PARALLEL DO PRIVATE(jj,jvar,field,ilev1,ilev2,topLevOffset,jt,jk,jkInc,ji)
+    do jvar = 1, vnl_numvarmax 
+      if(gsv_varExist(statevector,vnl_varNameList(jvar))) then
+        field => gsv_getField(statevector,vnl_varNameList(jvar))
+        if(vnl_varNameList(jvar).eq.'UU  ') then
+          ilev1 = ngposituu
+        elseif(vnl_varNameList(jvar).eq.'VV  ') then
+          ilev1 = ngpositvv
+        elseif(vnl_varNameList(jvar).eq.'TT  ') then
+          ilev1 = ngposittt
+        elseif(vnl_varNameList(jvar).eq.'HU  ') then
+          ilev1 = ngpositq
+        elseif(vnl_varNameList(jvar).eq.'P0  ') then
+          ilev1 = ngpositps
+        elseif(vnl_varNameList(jvar).eq.'TG  ') then
+          ilev1 = ngposittg
+        else
+          call abort3d('ben_bsqrtad: No covariances available for variable:' // vnl_varNameList(jvar))
+        endif
+        if(vnl_varLevelFromVarname(vnl_varNameList(jvar)).eq.'SF') then
+          ilev2 = ilev1
+          topLevOffset = 1
+        elseif(vnl_varLevelFromVarname(vnl_varNameList(jvar)).eq.'MM') then
+          ilev2 = ilev1 - 1 + nlevEns_M
+          topLevOffset = topLevIndex_M
+        else
+          ilev2 = ilev1 - 1 + nlevEns_T
+          topLevOffset = topLevIndex_T
+        endif
+        do jt = 1, numTime
+          do jk = ilev1, ilev2
+            jkInc = jk-ilev1 + topLevOffset
+            do jj = myLatBeg, myLatEnd
               do ji = myLonBeg, myLonEnd
-                incrementLocal(ji,jj,jk,jt) = field(ji,jkInc,jj,jt)
+                incrementLocal(ji,jj,jk,jt) = field(ji,jj,jkInc,jt)
               enddo
             enddo
           enddo
-        endif
-      enddo
+        enddo
+      endif
     enddo
-!$OMP END DO
-!$OMP END PARALLEL
+!$OMP END PARALLEL DO
 
     !
     !- Compute the analysis increment from Bens

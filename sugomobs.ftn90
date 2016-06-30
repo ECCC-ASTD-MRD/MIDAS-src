@@ -199,7 +199,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
   !
   nobs(:) = 0
   do jvar=1,vnl_numvarmax2D
-    if(gsv_varExist(vnl_varNameList2D(jvar))) exit          
+    if(gsv_varExist(varName=vnl_varNameList2D(jvar))) exit          
   end do
 
   if(mpi_myid.eq.0) write(*,*) 'sugomobs: first 2d variable=',vnl_varNameList2D(jvar),jvar
@@ -412,7 +412,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
   !     reading 2D fields
   !
   do jvar=1,vnl_numvarmax2D
-    if(.not.gsv_varExist(vnl_varNameList2D(jvar))) cycle
+    if(.not.gsv_varExist(varName=vnl_varNameList2D(jvar))) cycle
 
     call readTrialField(varInterphr_M,varInterphr_VV,vnl_varNameList2D(jvar),'SF')
 
@@ -496,7 +496,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
   !
   do jvar=1, vnl_numvarmax3D
 
-    if(.not.gsv_varExist(vnl_varNameList3D(jvar))) cycle
+    if(.not.gsv_varExist(varName=vnl_varNameList3D(jvar))) cycle
 
     select case ( vnl_varNameList3D(jvar) )
       !

@@ -39,22 +39,25 @@ module varNameList_mod
   public :: vnl_varListIndex3d, vnl_varListIndex2d, vnl_varListIndex, vnl_varnameFromVarnum
   public :: vnl_varLevelFromVarname, vnl_varLevelFromVarnum, vnl_varTypeFromVarname
 
-  integer, parameter          :: vnl_numvarmax3D=25, vnl_numvarmax2D=4
+  integer, parameter          :: vnl_numvarmax3D=26, vnl_numvarmax2D=4
 
   character(len=4), parameter :: vnl_varNameList3D(vnl_numvarmax3D) = (/                         &
                                  'UU  ','VV  ','GZ  ','TT  ','HU  ','LQ  ','ES  ','VT  ',        &
                                  'PP  ','CC  ','UC  ','UT  ','TB  ','DW  ','QR  ','DD  ',        &
-                                 'O3  ','CH4 ','CO2 ','CO  ','NO2 ','N2O ','HCHO','SO2 ','NH3 '/)
+                                 'O3  ','CH4 ','CO2 ','CO  ','NO2 ','N2O ','HCHO','SO2 ',        &
+                                 'NH3 ','ALFA'/)
 
   character(len=2), parameter :: varLevelList3D(vnl_numvarmax3D)     = (/                         &
                                  'MM',  'MM',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',           &
                                  'MM',  'MM',  'MM',  'TH',  'TH',  'TH',  'MM',  'MM',           &
-                                 'TH',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH'/)
+                                 'TH',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',           &
+                                 'TH',  'MM'/)
 
   character(len=5), parameter :: varTypeList3D(vnl_numvarmax3D)     = (/                                  &
                                  'MODEL', 'MODEL', 'MODEL', 'MODEL', 'MODEL', 'DIAG ', 'DIAG ', 'DIAG ',  &
                                  'DIAG ', 'DIAG ', 'DIAG ', 'DIAG ', 'DIAG ', 'DIAG ', 'DIAG ', 'DIAG ',  &
-                                 'MODEL', 'MODEL', 'MODEL', 'MODEL', 'MODEL', 'MODEL', 'MODEL', 'MODEL', 'MODEL'/)
+                                 'MODEL', 'MODEL', 'MODEL', 'MODEL', 'MODEL', 'MODEL', 'MODEL', 'MODEL',  &
+                                 'MODEL', 'OTHER'/)
 
   character(len=4), parameter :: vnl_varNameList2D(vnl_numvarmax2D) = (/ &
                                  'P0  ','TG  ','UP  ','PB  '/)

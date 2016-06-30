@@ -122,14 +122,14 @@ SUBROUTINE BILIN(lcolumn,statevector,lobsSpaceData)
      if(col_varExist('TG')) tg_column => col_getColumn(lcolumn,jobs,'TG')
      
      DO JK = 1, gsv_getNumLev(statevector,'MM')
-        if(gsv_varExist('UU')) then
+        if(gsv_varExist(statevector,'UU')) then
            jk2=jk+gsv_getOffsetFromVarName(statevector,'UU')
            uu_column(JK) =   DLW1*zgd(ILON  ,JK2,ILA)  &
                            + DLW2*zgd(ILON+1,JK2,ILA)  &
                            + DLW3*zgd(ILON  ,JK2,ILA+1)  &
                            + DLW4*zgd(ILON+1,JK2,ILA+1)
         endif
-        if(gsv_varExist('VV')) then
+        if(gsv_varExist(statevector,'VV')) then
            jk2=jk+gsv_getOffsetFromVarName(statevector,'VV')
            vv_column(JK) =   DLW1*zgd(ILON  ,JK2,ILA)  &
                            + DLW2*zgd(ILON+1,JK2,ILA)  &
@@ -138,14 +138,14 @@ SUBROUTINE BILIN(lcolumn,statevector,lobsSpaceData)
         endif
      ENDDO
      DO JK = 1, gsv_getNumLev(statevector,'TH')
-        if(gsv_varExist('HU')) then
+        if(gsv_varExist(statevector,'HU')) then
            jk2=jk+gsv_getOffsetFromVarName(statevector,'HU')
            hu_column(JK) =   DLW1*zgd(ILON  ,JK2,ILA)  &
                            + DLW2*zgd(ILON+1,JK2,ILA)  &
                            + DLW3*zgd(ILON  ,JK2,ILA+1)  &
                            + DLW4*zgd(ILON+1,JK2,ILA+1)
         endif
-        if(gsv_varExist('TT')) then
+        if(gsv_varExist(statevector,'TT')) then
            jk2=jk+gsv_getOffsetFromVarName(statevector,'TT')
            tt_column(JK) =   DLW1*zgd(ILON  ,JK2,ILA)  &
                            + DLW2*zgd(ILON+1,JK2,ILA)  &
@@ -153,14 +153,14 @@ SUBROUTINE BILIN(lcolumn,statevector,lobsSpaceData)
                            + DLW4*zgd(ILON+1,JK2,ILA+1)
         endif
      enddo
-     if(gsv_varExist('P0')) then
+     if(gsv_varExist(statevector,'P0')) then
         jk2=1+gsv_getOffsetFromVarName(statevector,'P0')
         ps_column(1) =   DLW1*zgd(ILON  ,jk2,ILA)  &
                        + DLW2*zgd(ILON+1,jk2,ILA)  &
                        + DLW3*zgd(ILON  ,jk2,ILA+1)  &
                        + DLW4*zgd(ILON+1,jk2,ILA+1)
      endif
-     if(gsv_varExist('TG')) then
+     if(gsv_varExist(statevector,'TG')) then
         jk2=1+gsv_getOffsetFromVarName(statevector,'TG')
         tg_column(1) =   DLW1*zgd(ILON  ,jk2,ILA)  &
                        + DLW2*zgd(ILON+1,jk2,ILA)  &

@@ -167,7 +167,7 @@ program diag_bmatrix
      
      do ivar=1, vnl_numvarmax
 
-        if (gsv_varExist(vnl_varNameList(ivar)) ) then
+        if (gsv_varExist(varName=vnl_varNameList(ivar)) ) then
 
         filename = 'columnB_' // trim(vnl_varNameList(ivar)) // '_' // datestr // '.fst'
   

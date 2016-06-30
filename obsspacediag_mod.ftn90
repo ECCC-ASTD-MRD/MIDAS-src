@@ -127,11 +127,11 @@ contains
     call bmat_sqrtB(cvm_vazx,cvm_nvadim,statevector)
     ! undo the scaleFactor (THIS IS NOT CORRECT FOR 2D VARIABLES!!!) 
     do jvar=1,vnl_numvarmax 
-      if(gsv_varExist(vnl_varNameList(jvar))) then
+      if(gsv_varExist(statevector,vnl_varNameList(jvar))) then
         field => gsv_getField(statevector,vnl_varNameList(jvar))
         do jlev = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname(vnl_varNameList(jvar)))   
           if(scaleFactorBhi(jlev).gt.0.0d0) then
-            field(:,jlev,:,:)=field(:,jlev,:,:)/scaleFactorBhi(jlev)
+            field(:,:,jlev,:)=field(:,:,jlev,:)/scaleFactorBhi(jlev)
           endif
         enddo
       endif
@@ -160,11 +160,11 @@ contains
     call bmat_sqrtB(cvm_vazx,cvm_nvadim,statevector)
     ! undo the scaleFactor
     do jvar=1,vnl_numvarmax 
-      if(gsv_varExist(vnl_varNameList(jvar))) then
+      if(gsv_varExist(statevector,vnl_varNameList(jvar))) then
         field => gsv_getField(statevector,vnl_varNameList(jvar))
         do jlev = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname(vnl_varNameList(jvar)))   
           if(scaleFactorBen(jlev).gt.0.0d0) then
-            field(:,jlev,:,:)=field(:,jlev,:,:)/scaleFactorBen(jlev)
+            field(:,:,jlev,:)=field(:,:,jlev,:)/scaleFactorBen(jlev)
           endif
         enddo
       endif

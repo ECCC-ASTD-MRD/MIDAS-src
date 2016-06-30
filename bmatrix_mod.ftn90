@@ -232,7 +232,7 @@ contains
 
     integer :: jlev,jlat,jlon,lon1,lon2,lat1,lat2,jstep,jvar
 
-    real(8) :: rwtinv
+    real(8), allocatable :: rwtinv(:)
 
     real*8, pointer :: ptr(:,:,:,:)
     
@@ -241,23 +241,24 @@ contains
     lat1 = statevector % myLatBeg
     lat2 = statevector % myLatEnd
 
-    ptr => gsv_getField(statevector)
-!$OMP PARALLEL
-!$OMP DO PRIVATE (jlat,jstep,jlev,jlon,rwtinv)
+    allocate(rwtinv(lat1:lat2))
     do jlat = lat1, lat2
-       rwtinv = real(statevector % ni,8) / gst_getRWT(jlat)
-       do jstep = 1, statevector % numStep
-          do jlev = 1, statevector % nk
-             do jlon = lon1, lon2
-                ptr(jlon,jlev,jlat,jstep) = rwtinv * ptr(jlon,jlev,jlat,jstep)
-             end do
-          end do
-       end do
-    end do
-!$OMP END DO
-!$OMP END PARALLEL
+      rwtinv(jlat) = real(statevector % ni,8) / gst_getRWT(jlat)
+    enddo
 
-    RETURN
+    ptr => gsv_getField(statevector)
+!$OMP PARALLEL DO PRIVATE (jlat,jstep,jlev,jlon)
+    do jlev = 1, statevector % nk
+      do jstep = 1, statevector % numStep
+        do jlat = lat1, lat2
+          do jlon = lon1, lon2
+            ptr(jlon,jlat,jlev,jstep) = rwtinv(jlat) * ptr(jlon,jlat,jlev,jstep)
+          end do
+        end do
+      end do
+    end do
+!$OMP END PARALLEL DO
+
   END SUBROUTINE adjnorm
 
 !--------------------------------------------------------------------------

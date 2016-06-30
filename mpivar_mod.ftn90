@@ -42,20 +42,20 @@ module mpivar_mod
 
     latPerPE=ceiling(dble(nj)/dble(mpi_npey))
     myLatBeg=1+mpi_myidy*latPerPE
-    if(myLatBeg.gt.nj) then
+    if(myLatBeg > nj) then
       call abort3d('mpivar_setup_latbands: latitudes not separable on mpi processes!')
     endif
     myLatEnd=(1+mpi_myidy)*latPerPE
-    if(myLatEnd>nj) then
+    if(myLatEnd > nj) then
       call abort3d('mpivar_setup_latbands: latitudes not divisible by MPI numprocs!')
     endif
 
     if(present(myLatHalfBeg).and.present(myLatHalfEnd)) then
       njlath = (nj + 1)/2
-      if(myLatBeg<=njlath .and. myLatEnd<=njlath) then
+      if(myLatBeg <= njlath .and. myLatEnd <= njlath) then
         myLatHalfBeg=myLatBeg
         myLatHalfEnd=myLatEnd
-      elseif(myLatBeg>=njlath .and. myLatEnd>=njlath) then
+      elseif(myLatBeg >= njlath .and. myLatEnd >= njlath) then
         myLatHalfBeg=1+nj-myLatEnd
         myLatHalfEnd=1+nj-myLatBeg
       else
@@ -75,11 +75,11 @@ module mpivar_mod
 
     lonPerPE=ceiling(dble(ni)/dble(mpi_npex))
     myLonBeg=1+mpi_myidx*lonPerPE
-    if(myLonBeg.gt.ni) then
+    if(myLonBeg > ni) then
       call abort3d('mpivar_setup_lonbands: longitudes not separable on mpi processes!')
     endif
     myLonEnd=(1+mpi_myidx)*lonPerPE
-    if(myLonEnd>ni) then
+    if(myLonEnd > ni) then
       call abort3d('mpivar_setup_lonbands: longitudes not divisible by MPI npex!')
     endif
 
@@ -92,7 +92,7 @@ module mpivar_mod
     implicit none
     integer :: ntrunc,mymBeg,mymEnd,mymSkip,mymCount,jm
 
-    if((ntrunc+1) .lt. mpi_npey) then
+    if((ntrunc+1) < mpi_npey) then
       write(*,*) 'mpivar_setup_m: NPEY (=',mpi_npey,') ',  &
                  'must be less than or equal to ntrunc+1 (=',ntrunc+1,')!'
       call abort3d('mpivar_setup_m')
@@ -115,7 +115,7 @@ module mpivar_mod
     implicit none
     integer :: ntrunc,mynBeg,mynEnd,mynSkip,mynCount,jn
 
-    if((ntrunc+1) .lt. mpi_npex) then
+    if((ntrunc+1) < mpi_npex) then
       write(*,*) 'mpivar_setup_n: NPEX (=',mpi_npex,') ',  &
                  'must be less than or equal to ntrunc+1 (=',ntrunc+1,')!'
       call abort3d('mpivar_setup_n')
@@ -140,7 +140,7 @@ module mpivar_mod
     integer :: jlev,jproc
     integer :: myLevCounts(mpi_npey)
 
-    if(numlevels .lt. mpi_npey) then
+    if(numlevels < mpi_npey) then
       write(*,*) 'mpivar_setup_levels_npey: NPEY (=',mpi_npey,') ',  &
                  'must be less than or equal to number of levels (=',numlevels,')!'
       call abort3d('mpivar_setup_levels_npey')
@@ -172,14 +172,14 @@ module mpivar_mod
     integer :: myLevCounts(mpi_npex)
     logical :: makeEven = .true. ! for simplicity (for now) always divide into even number of levels per MPI task
 
-    if(numlevels .lt. mpi_npex) then
+    if(numlevels < mpi_npex) then
       write(*,*) 'mpivar_setup_levels_npex: NPEX (=',mpi_npex,') ',  &
                  'must be less than or equal to number of levels (=',numlevels,')!'
       call abort3d('mpivar_setup_levels_npex')
     endif
 
     if(makeEven) then
-      if(mod(numlevels,2).ne.0) then
+      if(mod(numlevels,2) /= 0) then
         write(*,*) 'mpivar_setup_levels_npex: total number of levels must be even, now=',numlevels
         call abort3d('mpivar_setup_levels_npex')
       endif
