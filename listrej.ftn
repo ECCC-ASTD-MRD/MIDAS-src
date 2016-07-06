@@ -126,12 +126,12 @@
         ELSE
           WRITE(*,602)
         ENDIF
- 601    FORMAT('IDENT     TYPE DESCRIPTION     LAT   LONG    ',
-     1    'LEVEL  ITEM   OBSVD     BKGND     ANAL  POST PROB',
-     2    ' REPORT')
- 602    FORMAT('IDENT     TYPE DESCRIPTION     LAT   LONG    ',
-     1    'CHNL   ITEM   OBSVD     BKGND     ANAL  POST PROB',
-     2    ' REPORT')
+ 601    FORMAT('IDENT     TYPE DESCRIPTION           LAT   LONG   ',
+     1    'LEVEL  ITEM    OBSVD     BKGND      ANAL  POST PROB',
+     2    '  REPORT')
+ 602    FORMAT('IDENT     TYPE DESCRIPTION           LAT   LONG   ',
+     1    'CHNL   ITEM    OBSVD     BKGND      ANAL  POST PROB',
+     2    '  REPORT')
 *
         ! loop over all header indices of the family
         call obs_set_current_header_list(lobsSpaceData,listFamily(jfam))

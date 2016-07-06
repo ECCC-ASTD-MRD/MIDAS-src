@@ -239,7 +239,8 @@ program main_var
     ! Deallocate original obsSpaceData
     call obs_finalize(obsSpaceData)
 
-    ! Compute obs-space diagnostics (diagnostic computations controlled by NAMOSD namelist in flnml)
+    ! Conduct obs-space post-processing diagnostic tasks (some diagnostic 
+    ! computations controlled by NAMOSD namelist in flnml)
     call osd_ObsSpaceDiag(obsSpaceData_out,columng)
 
     ! Deallocate bmatrix related arrays

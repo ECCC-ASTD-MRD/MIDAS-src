@@ -21,8 +21,11 @@ SUBROUTINE BGCHECK_CONV(columng,columnhr,obsSpaceData)
 !
 !Author  : P. Koclas *CMC/CMDA  Nov 1998
 !
-!Revision:  M. Sitwell (ARQI/AQRD) May 2015
+!Revision:  M. Sitwell (ARQI/AQRD) May 2015, March 2016
 !           - Added call to BGCDATA for chemical constituents
+!           - Added loop over bgfam list
+!           Y. Rochon (ARQI/AQRD) June 2016
+!           - Added call to osd_ObsSpaceDiag
 !
 !    -------------------
 !*    Purpose: DO  a background check on all conventionnal observations
@@ -30,6 +33,8 @@ SUBROUTINE BGCHECK_CONV(columng,columnhr,obsSpaceData)
   use mpivar_mod
   use obsSpaceData_mod
   use columnData_mod
+  use obsSpaceDiag_mod
+  
   IMPLICIT NONE
 
   type(struct_obs)        :: obsSpaceData  ! Observation-related data
@@ -64,6 +69,11 @@ SUBROUTINE BGCHECK_CONV(columng,columnhr,obsSpaceData)
   end do
 
   if (obs_famExist(obsSpaceData,'RO')) CALL BGCGPSRO(columnhr,obsSpaceData)
+
+! Conduct obs-space post-processing diagnostic tasks (some diagnostic 
+! computations controlled by NAMOSD namelist in flnml)
+
+  call osd_ObsSpaceDiag(obsSpaceData,columng,analysis_mode=.false.)
 
 !
 !     Write out contents of obsSpaceData into BURP files

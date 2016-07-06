@@ -32,11 +32,12 @@ module chem_interface_mod
 ! public procedures
 ! -----------------
 
-  public :: chm_observation_operators,chm_get_comboIdlist,chm_calc_OmA_nonassim
-  public :: chm_transform_final_increments,chm_assim
+  public :: chm_observation_operators,chm_get_comboIdlist
+  public :: chm_transform_final_increments,chm_assim,chm_obsPostProc
 
 contains
-  
+
+!--------------------- ROUTINES FOR OBSERVATION OPERATORS --------------------------  
 !-----------------------------------------------------------------------------------
   subroutine chm_observation_operators(column_bkgrnd,obsSpaceData,kmode,column_inc,jobs)
 !
@@ -596,77 +597,174 @@ contains
 
   end subroutine chm_obsoper_dealloc
 
-!-----------------------------------------------------------------------------------
-
-  subroutine chm_get_comboIdlist(obsSpaceData,stnid_list,varno_list,unilev_list,num_elements,nset)
-! 
-! Author: M. Sitwell (ARQI/AQRD), Sept 2015
-!         - Made as a separate subroutine from earlier code by
-!           Y. Rochon and M. Sitwell 
+!-------------------------------- OBSERVATION SPACE POST-PROC ------------------------------
+!-------------------------------------------------------------------------------------------
+  subroutine chm_obsPostProc(obsSpaceData,columng,date,deltaLat,deltaLon,deltaPressure,inc_OmA)
+!
+! Author:   Y. Rochon, ARQI/AQRD, June 2016
 !
 ! Revisions:
+!          
+! Purpose:  Interface for observation-space post-processing procedures.
 !
-! Purpose: Uses the subroutine chm_comboIdlist in chem_mod to compile a unique list of stnid,  
-!          (stnid,varno) or (stnid,varno,multi/uni-level) combinations to be used in searches.
+! Arguments
 !
-! Input
+!   Input
 !
-!   obsSpaceData    Observation space data
+!       obsSpaceData    Obs space data structure
+!       columng         Columns from analysis vertical coordinate in obs space (at obs location)
+!       date            YYYYMMDDHH
+!       deltaLat        Size of latitude bins for diagnostics (degrees)
+!       deltaLon        Size of longitude bins for diagnostics (degrees)
+!       deltaPressure   Size of vertical bins for diagnostics (Pascal)
+!       inc_OmA         Logical indicating if OmA (and Jo) diagnostics to be generated.
 !
-! Output
+!   Output 
 !
-!   stnid_list       List of unique stnids
-!   varno_list       List of unique varno
-!   unilev_list      List of unique uni/multi-level identifications
-!   num_elements     Number of unique elements in *_list arrrays
-!   nset             Integer indicating grouping, with values indicating
-!                      1: group by stnid
-!                      2: group by (stnid,bufr)
-!                      3: group by (stnid,bufr,multi/uni-level)
-!
-!-----------------------------------------------------------------------------------
+!-------------------------------------------------------------------------------------------
 
-    use chem_mod
+    use mpi_mod, only: mpi_myid
     use obsSpaceData_mod
+    use columnData_mod
+    use chem_mod
 
     implicit none
 
-    type(struct_obs), intent(inout) :: obsSpaceData
+    type(struct_obs) :: obsSpaceData
+    type(struct_columnData) :: columng
+    integer, intent(in) :: date
+    real(8), intent(in) :: deltaLat,deltaLon,deltaPressure
+    logical, intent(in) :: inc_OmA
+
+    if (mpi_myid.eq.0) then
+       write(*,*)
+       write(*,*) "Enter chm_obsPostProc: Observation-space post-processing tasks for chemical constituents"
+       write(*,*)
+    end if
+    
+    ! Generate and output cost function, OmP, and OmA diagnostics for the CH family
+    
+    call chm_CH_obsDiagnostics(obsSpaceData,columng,date,deltaLat,deltaLon,deltaPressure,inc_OmA)
+ 
+    ! Generate and output cost function, OmP, and OmA diagnostics for 
+    ! channels/instruments of the TO family (when processed with accompanying
+    ! CH obs). Call could be moved to osd_ObsSpaceDiag for general availability.
+    
+    ! call chm_TO_obsDiagnostics(obsSpaceData,columng,date,deltaLat,deltaLon,deltaPressure,inc_OmA)
+    
+    ! Apply any required obs file udpate
+    
+    call chm_update_obsfile()
+
+    if (mpi_myid.eq.0) then
+       write(*,*)
+       write(*,*) "Exit chm_obsPostProc"
+       write(*,*)
+    end if
+
+  end subroutine chm_obsPostProc
+  
+!-------------------------------------------------------------------------------------------
+  subroutine chm_CH_obsDiagnostics(obsSpaceData,columng,date,deltaLat,deltaLon,deltaPressure,inc_OmA)
+!
+! Author:   M. Sitwell, ARQI/AQRD, June 2015
+!
+! Revisions:
+!            Y. Rochon, ARQI/AQRD, July 2015
+!            - Additional generalizations
+!          
+! Purpose:  Calculates and prints observation-space diagnostics for chemical constituents
+!
+! Arguments
+!
+!   Input
+!
+!       obsSpaceData    Obs space data structure
+!       columng         Columns from analysis vertical coordinate in obs space (at obs location)
+!       date            YYYYMMDDHH
+!       deltaLat        Size of latitude bins for diagnostics (degrees)
+!       deltaLon        Size of longitude bins for diagnostics (degrees)
+!       deltaPressure   Size of vertical bins for diagnostics (Pascal)
+!       inc_OmA         Logical indicating if OmA (and Jo) diagnostics are to be generated.
+!
+!   Output 
+!
+!       Content of file 'obsspace_diag_CH_'
+!
+!-------------------------------------------------------------------------------------------
+
+    use mpi_mod, only: mpi_myid
+    use earthconstants_mod
+    use MathPhysConstants_mod
+    use obsSpaceData_mod
+    use columnData_mod
+    use chem_mod
+    
+    implicit none
+
+    type(struct_obs) :: obsSpaceData
+    type(struct_columnData) :: columng
+    integer, intent(in) :: date
+    real(8), intent(in) :: deltaLat,deltaLon,deltaPressure
+    logical, intent(in) :: inc_OmA
+
+    integer :: headerIndex,bodyIndex,istnid,vco,nlev_obs,ilev_obs,nlev_mod,ilev_mod
 
     integer, parameter :: nmax=100
-    integer, intent(out) :: num_elements,nset,varno_list(nmax)
-    character(len=9), intent(out) :: stnid_list(nmax)
-    logical, intent(out) :: unilev_list(nmax)
+    integer :: varno,varno_elemID(nmax)
+    integer :: elemID,i,num_elemID,nset
+    character(len=9) :: stnid_elemID(nmax)
+    logical :: unilev_elemID(nmax)
+    character(len=256) :: label,filename
+    real(8) :: lat,lon
+    logical :: unilevel,print_summary,add_obs
+    real(8), allocatable :: zobslev(:), lev(:), omp(:), oma(:), obs(:), jo(:), pres_mod(:), sigma_obs(:)
+    logical, allocatable :: success(:)
+    real(8), pointer :: gz_mod(:)
 
-    integer :: headerIndex,bodyIndex,vco,nlev_obs,varno
-    logical :: all_combos
-
-
-    call chm_comboIdlist(all_combos=all_combos)
+    filename = 'obsspace_diag_CH_' ! Date added to name by transfer script.
     
-    if (all_combos) then
+    ! Get combination lists to group diagnostics by
+    call chm_get_comboIdlist(obsSpaceData,stnid_elemID,varno_elemID,unilev_elemID,num_elemID,nset)
     
-       ! Loop over obs to find all (stnid,varno) pairs to form a common sequence of search pairs
-       ! over all processors. The prescribed starting stnid selections can have wild card 
-       ! characters (via *, see routine chm_comboIdlist).
+    if (num_elemID.eq.0) return
 
+    if (mpi_myid.eq.0) then
+       write(*,*)
+       write(*,*) "chm_CH_obsDiagnostics: Observation-space diagnostics for chemical constituents"
+       write(*,*)
+    end if
+
+    ! Calculate OmA for non-assimilated data (saved in OBS_OMA in obsSpaceData)
+    if (inc_oma) call chm_calc_OmA_nonassim(columng,obsSpaceData)
+    
+    ! Loop over all pairs in *_elemID lists
+    
+    call flush(6)
+    do elemID=1,num_elemID
+       
+       ! Initialize the diagnostic arrays
+       call chm_obsspace_diagnostic(deltaLat, deltaLon, initialize=.TRUE., deltaPressure=deltaPressure)
+       
        call obs_set_current_header_list(obsSpaceData,'CH')
        HEADER: do
           headerIndex = obs_getHeaderIndex(obsSpaceData)
           if (headerIndex < 0) exit HEADER
-         
+  
           ! Body info that we only need for first point in the profile
           bodyIndex = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)     
           vco = obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex)
 
           if (vco.ne.1 .and. vco.ne.2 .and. vco.ne.4 .and. vco.ne.5) then
              ! Vertical coordinate not handled
-             write(*,*) 'chm_get_comboIdlist: Currently unaccounted VCO = ',vco
+             write(*,*) 'chm_obsdiagnostics: Currently unaccounted VCO = ',vco
              cycle HEADER
           end if
-          
-          ! Identify varno and nlev_obs (exclude 8090 elements)
+
+          varno = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
           nlev_obs = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex)
+          
+          ! Identify max number of profile points in the profile (exclude 8090 elements)
           call obs_set_current_body_list(obsSpaceData,headerIndex)
           do
              bodyIndex = obs_getBodyIndex(obsSpaceData)
@@ -678,21 +776,119 @@ contains
              end if
           end do
 
-          ! Adds to running list of unique pairs if unique
-          call chm_comboIdlist(stnid_add=obs_elem_c(obsSpaceData,'STID',headerIndex), varno_add=varno, unilev_add=(nlev_obs.eq.1.and.vco.ge.4))
-                       
+          ! Determine if this observation should be added to this group (as specified by nset)
+          add_obs = stnid_equal(stnid_elemID(elemID),obs_elem_c(obsSpaceData,'STID',headerIndex))
+          if (nset.ge.2) add_obs = add_obs .and. varno.eq.varno_elemID(elemID)
+          if (nset.ge.3) add_obs = add_obs .and. (nlev_obs.eq.1.and.vco.eq.4).eqv.unilev_elemID(elemID)
+
+          if (add_obs) then
+             
+             ! Accumulate for this combo
+          
+             lat = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex)*MPC_DEGREES_PER_RADIAN_R8
+             lon = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex)*MPC_DEGREES_PER_RADIAN_R8
+              
+             allocate(lev(nlev_obs), omp(nlev_obs), oma(nlev_obs), obs(nlev_obs), jo(nlev_obs), sigma_obs(nlev_obs), success(nlev_obs))
+
+             lev(:) = 0.0d0
+             omp(:) = 0.0d0
+             oma(:) = 0.0d0
+             obs(:) = 0.0d0
+             jo(:)  = 0.0d0
+             sigma_obs(:)  = 0.0d0
+             success(:) = .false.
+             ilev_obs = 0
+          
+             call obs_set_current_body_list(obsSpaceData,headerIndex)
+             BODY: do
+
+                bodyIndex = obs_getBodyIndex(obsSpaceData)
+                if (bodyIndex < 0) exit BODY
+                
+                if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex).ne.varno) cycle BODY
+
+                if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex).eq.1) then
+
+                   ilev_obs = ilev_obs+1
+ 
+                   lev(ilev_obs) = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
+                   omp(ilev_obs) = obs_bodyElem_r(obsSpaceData,OBS_OMP,bodyIndex)
+                   obs(ilev_obs) = obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)
+                   sigma_obs(ilev_obs) = obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
+                   if (inc_oma) then
+                      oma(ilev_obs) = obs_bodyElem_r(obsSpaceData,OBS_OMA,bodyIndex)
+                      jo(ilev_obs)  = obs_bodyElem_r(obsSpaceData,OBS_JOBS,bodyIndex)
+                   end if
+                   success(ilev_obs) = .true.
+
+                end if
+
+             end do BODY
+            
+             if (ilev_obs.gt.0) then
+            
+                ! Convert to pressure if needed and identify unilevel observations
+                unilevel = .false.
+                select case(vco)
+                case(1)
+                   ! Height coordinate
+               
+                   nlev_mod = col_getNumLev(columng,'TH')  ! number of model levels     
+                   gz_mod => col_getColumn(columng,headerIndex,'GZ','TH') ! geopotential
+                
+                   allocate(pres_mod(nlev_mod))
+               
+                   do ilev_mod=1,nlev_mod
+                      pres_mod(ilev_mod) = col_getPressure(columng,ilev_mod,headerIndex,'TH') ! model pressure
+                   end do
+               
+                   ! Convert altidudes to pressure, note that gz_mod/RG converts geopotential to geopotential height
+                   lev = chm_convert_z_to_pressure(lev,gz_mod/RG,pres_mod,nlev_obs,nlev_mod,lat/MPC_DEGREES_PER_RADIAN_R8,success)
+               
+                   deallocate(pres_mod)
+                   
+                case(4)
+                   ! Uni-level observations
+                   unilevel = .true.
+                end select
+                
+                ! Add observation to diagnostic arrays
+                if (inc_oma) then 
+                   call chm_obsspace_diagnostic(lat, lon, pressure=lev, omp=omp, oma=oma, obs=obs, jo=jo, sigma_obs=sigma_obs, &
+                                             success=success, nlev_obs=nlev_obs, unilevel=unilevel)
+                else
+                   call chm_obsspace_diagnostic(lat, lon, pressure=lev, omp=omp, obs=obs, sigma_obs=sigma_obs, &
+                                             success=success, nlev_obs=nlev_obs, unilevel=unilevel)
+                end if
+                                        
+             end if
+        
+             deallocate(lev,omp,oma,obs,jo,sigma_obs,success)
+       
+          end if
+
        end do HEADER
        
-       ! Get a common sequence of search pairs over all processors. 
-       
-       call chm_comboIdlist(gather_mpi=.true.)
-       
-    end if
-    
-    ! Get list of unique pairs
-    call chm_comboIdlist(stnid_list=stnid_list, varno_list=varno_list, unilev_list=unilev_list, num_elements=num_elements, nset=nset)
+       ! Prepare output identification (to be used for mpi_mpid=0)
+       select case(nset)
+       case(1)
+          write(label,*) ">>> Statistics for STNID ",stnid_elemID(elemID)
+       case(2)
+          write(label,*) ">>> Statistics for BUFR # ",varno_elemID(elemID),"and STNID ",stnid_elemID(elemID)
+       case(3)
+          write(label,*) ">>> Statistics for BUFR # ",varno_elemID(elemID),"and STNID ",stnid_elemID(elemID),"and UNILEV = ",unilev_elemID(elemID)
+       end select
 
-  end subroutine chm_get_comboIdlist
+       ! Sum over different processors, output (when mpi_myid.eq.0), and deallocate diagnostic arrays
+       call chm_obsspace_diagnostic(0.0d0, 0.0d0, print_stats=.TRUE., label=label, filename=filename)
+    
+       call flush(6)
+    end do
+    
+    ! Output diagnostics summary (over all CH observations)
+    call chm_obsspace_diagnostic(0.0d0, 0.0d0, print_summary=.TRUE., filename=filename)
+    
+  end subroutine chm_CH_obsDiagnostics
 
 !-----------------------------------------------------------------------------------
 
@@ -1067,6 +1263,7 @@ contains
     
   end subroutine chm_horizontal_interp
 
+!--------------------------- MODEL and ANALYSIS SPACE POST-PROC --------------------
 !-----------------------------------------------------------------------------------
 
   subroutine chm_transform_final_increments(increment,background)
@@ -1135,6 +1332,105 @@ contains
     end do
     
   end subroutine chm_transform_final_increments
+
+!------------------------------------ MISC. TOOLS ----------------------------------
+!-----------------------------------------------------------------------------------
+
+  subroutine chm_get_comboIdlist(obsSpaceData,stnid_list,varno_list,unilev_list,num_elements,nset)
+! 
+! Author: M. Sitwell (ARQI/AQRD), Sept 2015
+!         - Made as a separate subroutine from earlier code by
+!           Y. Rochon and M. Sitwell 
+!
+! Revisions:
+!
+! Purpose: Uses the subroutine chm_comboIdlist in chem_mod to compile a unique list of stnid,  
+!          (stnid,varno) or (stnid,varno,multi/uni-level) combinations to be used in searches.
+!
+! Input
+!
+!   obsSpaceData    Observation space data
+!
+! Output
+!
+!   stnid_list       List of unique stnids
+!   varno_list       List of unique varno
+!   unilev_list      List of unique uni/multi-level identifications
+!   num_elements     Number of unique elements in *_list arrrays
+!   nset             Integer indicating grouping, with values indicating
+!                      1: group by stnid
+!                      2: group by (stnid,bufr)
+!                      3: group by (stnid,bufr,multi/uni-level)
+!
+!-----------------------------------------------------------------------------------
+
+    use chem_mod
+    use obsSpaceData_mod
+
+    implicit none
+
+    type(struct_obs), intent(inout) :: obsSpaceData
+
+    integer, parameter :: nmax=100
+    integer, intent(out) :: num_elements,nset,varno_list(nmax)
+    character(len=9), intent(out) :: stnid_list(nmax)
+    logical, intent(out) :: unilev_list(nmax)
+
+    integer :: headerIndex,bodyIndex,vco,nlev_obs,varno
+    logical :: all_combos
+
+
+    call chm_comboIdlist(all_combos=all_combos)
+    
+    if (all_combos) then
+    
+       ! Loop over obs to find all (stnid,varno) pairs to form a common sequence of search pairs
+       ! over all processors. The prescribed starting stnid selections can have wild card 
+       ! characters (via *, see routine chm_comboIdlist).
+
+       call obs_set_current_header_list(obsSpaceData,'CH')
+       HEADER: do
+          headerIndex = obs_getHeaderIndex(obsSpaceData)
+          if (headerIndex < 0) exit HEADER
+         
+          ! Body info that we only need for first point in the profile
+          bodyIndex = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)     
+          vco = obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex)
+
+          if (vco.ne.1 .and. vco.ne.2 .and. vco.ne.4 .and. vco.ne.5) then
+             ! Vertical coordinate not handled
+             write(*,*) 'chm_get_comboIdlist: Currently unaccounted VCO = ',vco
+             cycle HEADER
+          end if
+          
+          ! Identify varno and nlev_obs (exclude 8090 elements)
+          nlev_obs = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex)
+          call obs_set_current_body_list(obsSpaceData,headerIndex)
+          do
+             bodyIndex = obs_getBodyIndex(obsSpaceData)
+             if (bodyIndex < 0) exit
+             if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex).eq.8090) then
+                nlev_obs = nlev_obs-1
+             else
+                varno=obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
+             end if
+          end do
+
+          ! Adds to running list of unique pairs if unique
+          call chm_comboIdlist(stnid_add=obs_elem_c(obsSpaceData,'STID',headerIndex), varno_add=varno, unilev_add=(nlev_obs.eq.1.and.vco.ge.4))
+                       
+       end do HEADER
+       
+       ! Get a common sequence of search pairs over all processors. 
+       
+       call chm_comboIdlist(gather_mpi=.true.)
+       
+    end if
+    
+    ! Get list of unique pairs
+    call chm_comboIdlist(stnid_list=stnid_list, varno_list=varno_list, unilev_list=unilev_list, num_elements=num_elements, nset=nset)
+
+  end subroutine chm_get_comboIdlist
 
 !-----------------------------------------------------------------------------------
 
