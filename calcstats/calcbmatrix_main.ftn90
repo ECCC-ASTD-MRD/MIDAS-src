@@ -30,7 +30,7 @@ program calcbmatrix_main
   character(len=4)   :: censnumber
   character(len=256), allocatable :: cflensin(:)
 
-  integer           :: ens, nens
+  integer           :: ens, nens, fstopc
   integer           :: nulnam, ierr, fnom, fclos
   character(len=60) :: cmode
 
@@ -44,6 +44,8 @@ program calcbmatrix_main
   write(*,*) '-----------------------'
   write(*,*) '> STARTING CALCBMATRIX '
   write(*,*) '-----------------------'
+
+  ierr = fstopc('MSGLVL','ERRORS',0)
 
   !- 1.1 MPI
   call mpi_initialize
@@ -138,5 +140,7 @@ program calcbmatrix_main
   write(*,*) '---------------------'
   write(*,*) '> ENDING CALCBMATRIX '
   write(*,*) '---------------------'
+
+  call rpn_comm_finalize(ierr) 
 
 end program calcbmatrix_main

@@ -1429,11 +1429,7 @@ CONTAINS
     !
     !- 1.  Scale decomposition for every wave band except for wave band #1
     !
-    if (hco_ben % global) then
-       allocate(ensPertGD(myLonBeg:myLonEnd,nEns,myLatBeg:myLatEnd))
-    else
-       allocate(ensPertGD(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nEns))
-    endif
+    allocate(ensPertGD(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nEns))
 
     !- 1.1 Pre-compute the response function for each wave band except for wave band #1
     do waveBandIndex = nWaveBand, 2, -1 ! Start with the largest scales
@@ -1451,49 +1447,34 @@ CONTAINS
        do jk = 1, nkgdimEns ! Loop on variables and vertical levels
 
           !- 1.2 GridPoint space -> Spectral Space
-          if (hco_ben % global) then
-             ! Global Mode
-!$OMP PARALLEL
-!$OMP DO PRIVATE (memberIndex,jj,ji)
+!$OMP PARALLEL DO PRIVATE (memberIndex,jj,ji)
+          do memberIndex = 1, nEns
              do jj = myLatBeg, myLatEnd
-                do memberIndex = 1, nEns
-                   do ji = myLonBeg, myLonEnd
-                      ensPertGD(ji,memberIndex,jj) = &
-                           dble(ensPerturbations(1,memberIndex)%member_r4(ji,jj,jk,jt))
-                   end do
+                do ji = myLonBeg, myLonEnd
+                   ensPertGD(ji,jj,memberIndex) = &
+                        dble(ensPerturbations(1,memberIndex)%member_r4(ji,jj,jk,jt))
                 end do
              end do
-!$OMP END DO
-!$OMP END PARALLEL
+          end do
+!$OMP END PARALLEL DO
+          if (hco_ben % global) then
+             ! Global Mode
              call gst_setID(gstID) ! IN
              call gst_reespe5(ensPertSP, & ! OUT
                               ensPertGD)   ! IN
           else
              ! LAM mode
-!$OMP PARALLEL
-!$OMP DO PRIVATE (memberIndex,jj,ji)
-             do memberIndex = 1, nEns
-                do jj = myLatBeg, myLatEnd
-                   do ji = myLonBeg, myLonEnd
-                      ensPertGD(ji,jj,memberIndex) = &
-                           dble(ensPerturbations(1,memberIndex)%member_r4(ji,jj,jk,jt))
-                   end do
-                end do
-             end do
-!$OMP END DO
-!$OMP END PARALLEL
              kind = 'GridPointToSpectral'
              call lst_VarTransform( lst_ben % id, & ! IN
                                     ensPertSP,    & ! OUT
-                                    ensPertGD,    & ! IN (lat,lon,ensMember) !!!
+                                    ensPertGD,    & ! IN 
                                     kind, nEns )    ! IN
           end if
 
           !- 1.3 Filtering and transformation back to grid point space 
           do waveBandIndex = nWaveBand, 2, -1 ! Start with the largest scales
              ! Filtering
-!$OMP PARALLEL
-!$OMP DO PRIVATE (memberIndex,p,ila)
+!$OMP PARALLEL DO PRIVATE (memberIndex,p,ila)
              do memberIndex = myMemBeg, myMemEnd
                 do p = 1, nphase
                    do ila = 1, nla_mpiglobal
@@ -1502,8 +1483,7 @@ CONTAINS
                    end do
                 end do
              end do
-!$OMP END DO
-!$OMP END PARALLEL
+!$OMP END PARALLEL DO
 
              ! Spectral Space -> GridPoint space
              if (hco_ben % global) then
@@ -1511,18 +1491,6 @@ CONTAINS
                 call gst_setID(gstID) ! IN
                 call gst_speree5(ensPertSPfiltered, & ! IN
                                  ensPertGD)           ! OUT
-!$OMP PARALLEL
-!$OMP DO PRIVATE (memberIndex,jj,ji)
-                do jj = myLatBeg, myLatEnd
-                   do memberIndex = 1, nEns
-                      do ji = myLonBeg, myLonEnd
-                         ensPerturbations(waveBandIndex,memberIndex)%member_r4(ji,jj,jk,jt) = &
-                           sngl(ensPertGD(ji,memberIndex,jj))
-                      end do
-                   end do
-                end do
-!$OMP END DO
-!$OMP END PARALLEL
              else
                 ! LAM mode
                 kind = 'SpectralToGridPoint'
@@ -1530,8 +1498,8 @@ CONTAINS
                                        ensPertSPfiltered, & ! IN
                                        ensPertGD,         & ! OUT (lat,lon,ensMember) !!!
                                        kind, nEns )         ! IN
-!$OMP PARALLEL
-!$OMP DO PRIVATE (memberIndex,jj,ji)
+             end if
+!$OMP PARALLEL DO PRIVATE (memberIndex,jj,ji)
              do memberIndex = 1, nEns
                 do jj = myLatBeg, myLatEnd
                    do ji = myLonBeg, myLonEnd
@@ -1540,9 +1508,7 @@ CONTAINS
                    end do
                 end do
              end do
-!$OMP END DO
-!$OMP END PARALLEL
-             end if
+!$OMP END PARALLEL DO
 
           end do ! waveBandIndex
        end do ! variables and vertical levels
@@ -1554,8 +1520,7 @@ CONTAINS
     !- 2.  Isolate the smallest scales in waveBandIndex = 1 by difference in grid point space
     !
     do jt = 1, numTime
-!$OMP PARALLEL
-!$OMP DO PRIVATE (jk,memberindex,jj,ji,waveBandIndex,bandsum)
+!$OMP PARALLEL DO PRIVATE (jk,memberindex,jj,ji,waveBandIndex,bandsum)
        do jk = 1, nkgdimEns
           do memberIndex = 1, nEns
              do jj = myLatBeg, myLatEnd
@@ -1571,8 +1536,7 @@ CONTAINS
              end do
           end do
        end do
-!$OMP END DO
-!$OMP END PARALLEL
+!$OMP END PARALLEL DO
     end do
 
   END SUBROUTINE EnsembleScaleDecomposition
@@ -1678,7 +1642,7 @@ CONTAINS
     ! NOTE: arrays passed to spectral transform are dimensioned as follows
     !       gd: lat/lon tiles and sp: member index
     real(8) :: zsp_gst(nla_mpiglobal,nphase,myMemBeg:myMemEnd)
-    real(8) :: zgd_gst(myLonBeg:myLonEnd,nEns,myLatBeg:myLatEnd)
+    real(8) :: zgd_gst(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nEns)
 
     real(8), allocatable :: zsp(:,:,:)
     real(8), allocatable :: my_zsp(:,:,:)
@@ -1699,7 +1663,7 @@ CONTAINS
           zr = ra * acos(gst_getrmu(jlat,gstID))
           zcorr = loc_response(zr,zlc)
           do jlon = myLonBeg, myLonEnd
-            zgd_gst(jlon,1,jlat) = zcorr
+            zgd_gst(jlon,jlat,1) = zcorr
           enddo
         enddo
 
@@ -2199,7 +2163,6 @@ CONTAINS
     integer   :: ierr,nsize,jj,jk,ji,jt,jkInc,jvar,ilev1,ilev2,topLevOffset
     integer   :: memberIndex, waveBandIndex
 
-    real(8), allocatable :: gd_out(:,:,:)
     character(len=19)   :: kind
 
     if(.not. initialized) then
@@ -2243,17 +2206,11 @@ CONTAINS
     !
     do waveBandIndex = 1, nWaveBand !  Loop on WaveBand (for ScaleDependent Localization)
 
-!$OMP PARALLEL
-!$OMP DO PRIVATE (JJ,MEMBERINDEX,JI)
+!$OMP PARALLEL DO PRIVATE (MEMBERINDEX)
       do memberIndex = 1, nEns
-        do jj = myLatBeg, myLatEnd
-          do ji = myLonBeg, myLonEnd
-            ensAmplitude2(ji,jj,memberIndex) = 0.0d0
-          enddo
-        enddo
+        ensAmplitude2(:,:,memberIndex) = 0.0d0
       enddo
-!$OMP END DO
-!$OMP END PARALLEL
+!$OMP END PARALLEL DO
 
       ! this was necessary to avoid FP overflow with 512 mpi tasks
       zsp_all(:,:,:,:) = 0.0d0
@@ -2271,23 +2228,8 @@ CONTAINS
 
         if (hco_ben % global) then
 
-          allocate( gd_out(myLonBeg:myLonEnd,nEns,myLatBeg:myLatEnd) )
           call gst_setID(gstID)
-          call gst_speree5(zsp1,gd_out)
-
-          !- reordering because of gd_out(i,j,k)
-!$OMP PARALLEL
-!$OMP DO PRIVATE(memberIndex,jj,ji)        
-          do memberIndex = 1, nEns
-            do jj = myLatBeg, myLatEnd
-              do ji = myLonBeg, myLonEnd
-                ensAmplitude(ji,jj,memberIndex) = gd_out(ji,memberIndex,jj)
-              enddo
-            enddo
-          enddo
-!$OMP END DO
-!$OMP END PARALLEL
-          deallocate(gd_out)
+          call gst_speree5(zsp1,ensAmplitude)
 
         else
 
@@ -2380,7 +2322,6 @@ CONTAINS
     real(8),allocatable :: incrementLocal(:,:,:,:)
     real(8)    :: ensAmplitude(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nEns)
     real(8)    :: ensAmplitude2(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nEns)
-    real(8),allocatable    :: gd_in(:,:,:)
 
     integer   :: jlev,jj,jk,ji,jt,jkinc,nsize,ierr,jvar,ilev1,ilev2,topLevOffset
     integer   :: memberIndex, waveBandIndex
@@ -2467,23 +2408,9 @@ CONTAINS
         call tmg_start(64,'BEN_SPECTRAL')
 
         if (hco_ben % global) then
-          allocate( gd_in(myLonBeg:myLonEnd,nEns,myLatBeg:myLatEnd) )
-          !- reordering because of gd_in(i,j,k)
-!$OMP PARALLEL
-!$OMP DO PRIVATE(memberIndex,jj,ji)        
-          do memberIndex = 1, nEns
-            do jj = myLatBeg, myLatEnd
-              do ji = myLonBeg, myLonEnd
-                gd_in(ji,memberIndex,jj) = ensAmplitude(ji,jj,memberIndex)
-              enddo
-            enddo
-          enddo
-!$OMP END DO
-!$OMP END PARALLEL
 
           call gst_setID(gstID)
-          call gst_reespe5(zsp1,gd_in)
-          deallocate(gd_in)
+          call gst_reespe5(zsp1,ensAmplitude)
 
         else
 

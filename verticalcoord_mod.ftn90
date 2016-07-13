@@ -24,7 +24,7 @@ module verticalCoord_mod
   ! public derived type
   public :: struct_vco
   ! public procedures
-  public :: vco_SetupFromFile, vco_getNumLev, vco_equal
+  public :: vco_SetupFromFile, vco_SetupSimple, vco_getNumLev, vco_equal
   ! public entities accessed through inheritance
   public :: vgd_get,vgd_levels,vgd_ok,vgd_dpidpis,vgd_write
 
@@ -32,7 +32,7 @@ module verticalCoord_mod
      logical :: initialized=.false.
      integer :: nlev_T= 0
      integer :: nlev_M= 0
-     real*8  :: ip1_sfc  ! ip1 value for the surface (Vcode=5005)
+     integer :: ip1_sfc  ! ip1 value for the surface (Vcode=5005)
      integer,pointer,dimension(:) :: ip1_T,ip1_M   ! encoded IP1 levels (Thermo/Moment)
      type(vgrid_descriptor) :: vgrid
   end type struct_vco
@@ -59,6 +59,22 @@ module verticalCoord_mod
     endif
 
   end subroutine vco_allocate
+
+
+  subroutine vco_SetupSimple(vco,numLev)
+    implicit none
+    type(struct_vco), pointer :: vco
+    integer :: numLev
+
+    vco%initialized = .true.
+    vco%nlev_T = numLev
+    vco%nlev_M = numLev
+    vco%ip1_sfc = 0  ! ip1 value for the surface (Vcode=5005)
+    vco%ip1_T => NULL()
+    vco%ip1_M => NULL()
+    ! somehow set vco%vgrid to something safe?
+
+  end subroutine vco_SetupSimple
 
 
   subroutine vco_SetupFromFile(vco,templatefile,etiket,beSilent)
