@@ -73,7 +73,7 @@ cd compiledir
 
 # automatically set the global revision number in toplevelcontrol_mod.ftn90 by
 # replacing the string XXXXX with the actual revision number
-revnum=$(git describe --always 2>/dev/null || ssh pollux "cd $trunkdir; git describe --always" 2>/dev/null || echo unkown revision)
+revnum=$(git describe --always --dirty=_M 2>/dev/null || ssh pollux "cd $trunkdir; git describe --always --dirty=_M" 2>/dev/null || echo unkown revision)
 echo " "
 echo "-----------------------"
 echo "Revision number='$revnum'"
