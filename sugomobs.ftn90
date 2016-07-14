@@ -222,9 +222,9 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
       
     do jobs=1, obs_numheader(lobsSpaceData)
          
-      call getStepObsIndex(stepObsIndex,tim_getDatestamp(),  &
-                           obs_headElem_i(lobsSpaceData,OBS_DAT,jobs),  &
-                           obs_headElem_i(lobsSpaceData,OBS_ETM,jobs),tim_nstepobs)
+      call tim_getStepObsIndex(stepObsIndex,tim_getDatestamp(),  &
+                               obs_headElem_i(lobsSpaceData,OBS_DAT,jobs),  &
+                               obs_headElem_i(lobsSpaceData,OBS_ETM,jobs),tim_nstepobs)
 
       ! check if obs is outside of assimilation window when jstep = 1
       if(jstep.eq.1 .and.  &
@@ -283,9 +283,9 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
             if ( ypos_r4 < 1.0 )                ypos_r4 = 1.0
             if ( ypos_r4 > real(hco_anl % nj) ) ypos_r4 = real(hco_anl % nj)
 
-            ierr = gdllfxy( hco_anl % EZscintID, & ! IN
-                            lat_deg_r4, lon_deg_r4,      & ! OUT
-                            xpos_r4, ypos_r4, 1)   ! IN
+            ierr = gdllfxy( hco_anl % EZscintID, &    ! IN
+                            lat_deg_r4, lon_deg_r4, & ! OUT
+                            xpos_r4, ypos_r4, 1)      ! IN
               
             write(*,*) '  new  position : ', lat_deg_r4, lon_deg_r4, ypos_r4, xpos_r4
 
