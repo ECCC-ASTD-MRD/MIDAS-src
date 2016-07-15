@@ -498,8 +498,7 @@ CONTAINS
     type(struct_columnData),target :: columng
     ! locals
     integer              :: fnom, fstouv, fclos, fstfrm, fstinf
-    integer, parameter   :: maxNumFiles = 1000
-    integer              :: ierr, ikey, indexStep, indexTrial, numTrials, nulTrials(maxNumFiles)
+    integer              :: ierr, ikey, indexStep, indexTrial, numTrials, nulTrial
     integer              :: ni_file, nj_file, nk_file, dateStamp
     real(8)              :: deltaHours
     character(len=4)     :: coffset
@@ -525,8 +524,7 @@ CONTAINS
     ! compute increment from control vector (multiply by B^1/2)
     call bmat_sqrtB(incr_cv, nvadim_mpilocal, statevector_incr)
 
-    ! open all available trial files
-    nulTrials(:) = 0
+    ! check existence of all trial files
     numTrials = 0
     do 
       write(flnum,'(I2.2)') numTrials+1
@@ -534,9 +532,6 @@ CONTAINS
       inquire(file=trim(fileName),exist=fileExists)
       if(fileExists) then
         numTrials = numTrials + 1
-        ierr = fnom(nulTrials(numTrials),trim(fileName),'RND+OLD+R/O',0)
-        if(mpi_myid.eq.0) write(*,*) 'Trial file: ', trim(fileName), ' opened as unit file: ',nulTrials(numTrials)
-        ierr =  fstouv(nulTrials(numTrials),'RND+OLD')
       elseif ( (.not. fileExists) .and. numTrials > 0 ) then
         exit  
       elseif ( (.not. fileExists) .and. numTrials == 0 ) then
@@ -556,15 +551,16 @@ CONTAINS
       ! identify which trial file corresponds with current datestamp
       fileName = 'NOTFOUND'
       do indexTrial = 1, numTrials
-        ikey = fstinf(nulTrials(indexTrial), ni_file, nj_file, nk_file,  &
+        write(flnum,'(I2.2)') indexTrial
+        fileName = './trlm_' // trim(flnum)
+        nulTrial = 0
+        ierr = fnom(nulTrial,trim(fileName),'RND+OLD+R/O',0)
+        ierr = fstouv(nulTrial,'RND+OLD')
+        ikey = fstinf(nulTrial, ni_file, nj_file, nk_file,  &
                       dateStamp, ' ', -1, -1, -1, ' ', 'P0')
-        if(ikey.gt.0) then
-          write(flnum,'(I2.2)') indexTrial
-          fileName = './trlm_' // trim(flnum)
-          ierr = fstfrm(nulTrials(indexTrial))
-          ierr = fclos(nulTrials(indexTrial))
-          exit
-        endif
+        ierr = fstfrm(nulTrial)
+        ierr = fclos(nulTrial)
+        if(ikey.gt.0) exit
       enddo
       if(trim(fileName).eq.'NOTFOUND') then 
         write(*,*) 'indexStep, dateStamp = ', indexStep, dateStamp
