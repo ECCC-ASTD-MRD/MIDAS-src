@@ -207,12 +207,12 @@ module calcbmatrix_glb_mod
 
     integer :: variableType 
 
-    allocate(ensPerturbations(ni,nkgdimEns,nj,nens),stat=ierr)
+    allocate(ensPerturbations(ni,nj,nkgdimEns,nens),stat=ierr)
     if(ierr.ne.0) then
       write(6,*) 'Problem allocating memory!',ierr
       call flush(6)
     endif
-    allocate(ensBalPerturbations(ni,nLevEns_T+1,nj,nens),stat=ierr)
+    allocate(ensBalPerturbations(ni,nj,nLevEns_T+1,nens),stat=ierr)
     if(ierr.ne.0) then
       write(6,*) 'Problem allocating memory!',ierr
       call flush(6)
@@ -222,7 +222,7 @@ module calcbmatrix_glb_mod
       write(6,*) 'Problem allocating memory!',ierr
       call flush(6)
     endif
-    allocate(stddev3d(ni,nkgdimEns,nj),stat=ierr)
+    allocate(stddev3d(ni,nj,nkgdimEns),stat=ierr)
     if(ierr.ne.0) then
       write(6,*) 'Problem allocating memory!',ierr
       call flush(6)
@@ -242,12 +242,12 @@ module calcbmatrix_glb_mod
       write(6,*) 'Problem allocating memory!',ierr
       call flush(6)
     endif
-    allocate(stddev3dBal(ni,nLevEns_T+1,nj),stat=ierr)
+    allocate(stddev3dBal(ni,nj,nLevEns_T+1),stat=ierr)
     if(ierr.ne.0) then
       write(6,*) 'Problem allocating memory!',ierr
       call flush(6)
     endif
-    allocate(stddev3dUnbal(ni,nkgdimEns,nj),stat=ierr)
+    allocate(stddev3dUnbal(ni,nj,nkgdimEns),stat=ierr)
     if(ierr.ne.0) then
       write(6,*) 'Problem allocating memory!',ierr
       call flush(6)
@@ -304,11 +304,11 @@ module calcbmatrix_glb_mod
 
     call multiply3d(ensPerturbations,stddev3d,nkgdimens)
 
-    call multiply3d(ensBalPerturbations(:,1:nLevEns_T,:,:),   &
-                    stddev3d(:,(2*nLevEns_M+1):(2*nLevEns_M+nLevEns_T),:),nLevEns_T)
+    call multiply3d(ensBalPerturbations(:,:,1:nLevEns_T,:),   &
+                    stddev3d(:,:,(2*nLevEns_M+1):(2*nLevEns_M+nLevEns_T)),nLevEns_T)
 
-    call multiply3d(ensBalPerturbations(:,(nLevEns_T+1):(nLevEns_T+1),:,:),  &
-                    stddev3d(:,(2*nLevEns_M+2*nLevEns_T+1):(2*nLevEns_M+2*nLevEns_T+1),:),1)
+    call multiply3d(ensBalPerturbations(:,:,(nLevEns_T+1):(nLevEns_T+1),:),  &
+                    stddev3d(:,:,(2*nLevEns_M+2*nLevEns_T+1):(2*nLevEns_M+2*nLevEns_T+1)),1)
 
     call spectralFilter(ensPerturbations,nkgdimens)
 
@@ -407,8 +407,8 @@ module calcbmatrix_glb_mod
     !
     !- Horizontal and vertical correlation diagnostics
     !
-    allocate(ensPerturbations(ni,nkgdimEns,nj,nens))
-    allocate(stddev3d(ni,nkgdimEns,nj))
+    allocate(ensPerturbations(ni,nj,nkgdimEns,nens))
+    allocate(stddev3d(ni,nj,nkgdimEns))
     if (trim(tool) == 'HVCORREL_HI') then
        allocate(corns(nkgdimEns,nkgdimEns,0:ntrunc))
        allocate(rstddev(nkgdimEns,0:ntrunc))
@@ -487,7 +487,7 @@ module calcbmatrix_glb_mod
     
     variableType = modelSpace
 
-    allocate(ensPerturbations(ni,nkgdimEns,nj,nens))
+    allocate(ensPerturbations(ni,nj,nkgdimEns,nens))
     allocate(powerspec(nkgdimEns,0:ntrunc))
 
     call readEnsemble(ensPerturbations,windImages=.false.) ! OUT, IN
@@ -511,12 +511,12 @@ module calcbmatrix_glb_mod
     real*4,pointer  :: ensPerturbations(:,:,:,:)
     real*8,allocatable :: stddev3d(:,:,:),stddevZonAvg(:,:)
 
-    allocate(ensPerturbations(ni,nkgdimEns,nj,nens),stat=ierr)
+    allocate(ensPerturbations(ni,nj,nkgdimEns,nens),stat=ierr)
     if(ierr.ne.0) then
       write(6,*) 'Problem allocating memory!',ierr
       call flush(6)
     endif
-    allocate(stddev3d(ni,nkgdimEns,nj),stat=ierr)
+    allocate(stddev3d(ni,nj,nkgdimEns),stat=ierr)
     if(ierr.ne.0) then
       write(6,*) 'Problem allocating memory!',ierr
       call flush(6)
@@ -639,13 +639,13 @@ module calcbmatrix_glb_mod
     integer :: jens,jlat,jlev,jlon
 
     do jens = 1,nens
-      psi_ptr => ensPerturbations(:,1:nlevEns_M,:,jens)
-      chi_ptr => ensPerturbations(:,(nlevEns_M+1):(2*nlevEns_M),:,jens)
+      psi_ptr => ensPerturbations(:,:,1:nlevEns_M,jens)
+      chi_ptr => ensPerturbations(:,:,(nlevEns_M+1):(2*nlevEns_M),jens)
 
-      do jlat = 1, nj
-        do jlev = 1, nLevEns_M
+      do jlev = 1, nLevEns_M
+        do jlat = 1, nj
           do jlon = 1, ni
-            chi_ptr(jlon,jlev,jlat) = chi_ptr(jlon,jlev,jlat) + tan(theta(jlev,jlat))*psi_ptr(jlon,jlev,jlat)
+            chi_ptr(jlon,jlat,jlev) = chi_ptr(jlon,jlat,jlev) + tan(theta(jlev,jlat))*psi_ptr(jlon,jlat,jlev)
           enddo
         enddo
       enddo
@@ -667,20 +667,20 @@ module calcbmatrix_glb_mod
     real*8 :: PtoT(:,:,:)
 
     real*4,pointer :: tt_ptr(:,:,:),ps_ptr(:,:,:),ttb_ptr(:,:,:),psb_ptr(:,:,:)
-    real*8  :: spectralState(nla,2,nLevEns_M),spBalancedP(nla,2,nlevEns_M),balancedP(ni,nlevEns_M,nj),psi(ni,nLevEns_M,nj)
+    real*8  :: spectralState(nla,2,nLevEns_M),spBalancedP(nla,2,nlevEns_M),balancedP(ni,nj,nlevEns_M),psi(ni,nj,nLevEns_M)
     integer :: jens,jlat,jlon,jk1,jk2
 
     do jens=1,nens
 
-      psi(:,:,:)=ensPerturbations(:,1:nlevEns_M,:,jens)
+      psi(:,:,:)=ensPerturbations(:,:,1:nlevEns_M,jens)
       call gst_reespe(spectralState,psi,nLevEns_M)
       call calcBalancedP(spectralState,spBalancedP)
       call gst_speree(spBalancedP,balancedP,nlevEns_M)
 
-      tt_ptr => ensPerturbations(:,(1+2*nLevEns_M):(2*nLevEns_M+1*nLevEns_T),:,jens)
-      ps_ptr => ensPerturbations(:,(1+2*nLevEns_M+2*nLevEns_T):(1+2*nLevEns_M+2*nLevEns_T),:,jens)
-      ttb_ptr => ensBalPerturbations(:,1:nLevEns_T,:,jens)
-      psb_ptr => ensBalPerturbations(:,(1+nLevEns_T):(1+nLevEns_T),:,jens)
+      tt_ptr => ensPerturbations(:,:,(1+2*nLevEns_M):(2*nLevEns_M+1*nLevEns_T),jens)
+      ps_ptr => ensPerturbations(:,:,(1+2*nLevEns_M+2*nLevEns_T):(1+2*nLevEns_M+2*nLevEns_T),jens)
+      ttb_ptr => ensBalPerturbations(:,:,1:nLevEns_T,jens)
+      psb_ptr => ensBalPerturbations(:,:,(1+nLevEns_T):(1+nLevEns_T),jens)
 
       ttb_ptr(:,:,:)=0.0d0
       psb_ptr(:,:,:)=0.0d0
@@ -691,14 +691,14 @@ module calcbmatrix_glb_mod
         do jlon = 1, ni
           do jk1 = 1, nLevEns_T
             do jk2 = 1, nlevptot
-              ttb_ptr(jlon,jk1,jlat) = ttb_ptr(jlon,jk1,jlat) + PtoT(jk1,jk2,jlat)*balancedP(jlon,jk2,jlat)
+              ttb_ptr(jlon,jlat,jk1) = ttb_ptr(jlon,jlat,jk1) + PtoT(jk1,jk2,jlat)*balancedP(jlon,jlat,jk2)
             enddo
-            tt_ptr(jlon,jk1,jlat) = tt_ptr(jlon,jk1,jlat) - ttb_ptr(jlon,jk1,jlat)
+            tt_ptr(jlon,jlat,jk1) = tt_ptr(jlon,jlat,jk1) - ttb_ptr(jlon,jlat,jk1)
           enddo
           do jk2 = 1, nlevptot
-            psb_ptr(jlon,1,jlat) = psb_ptr(jlon,1,jlat) + PtoT(nLevEns_T+1,jk2,jlat)*balancedP(jlon,jk2,jlat)
+            psb_ptr(jlon,jlat,1) = psb_ptr(jlon,jlat,1) + PtoT(nLevEns_T+1,jk2,jlat)*balancedP(jlon,jlat,jk2)
           enddo
-          ps_ptr(jlon,1,jlat) = ps_ptr(jlon,1,jlat) - psb_ptr(jlon,1,jlat)
+          ps_ptr(jlon,jlat,1) = ps_ptr(jlon,jlat,1) - psb_ptr(jlon,jlat,1)
         enddo
       enddo
 !$OMP END DO
@@ -719,7 +719,7 @@ module calcbmatrix_glb_mod
     real*4,pointer :: ensPerturbations(:,:,:,:)
     real*8 :: corns(nkgdimEns,nkgdimEns,0:ntrunc),rstddev(nkgdimEns,0:ntrunc)
 
-    real*8  :: spectralState(nla,2,nkgdimEns),gridState(ni,nkgdimEns,nj)
+    real*8  :: spectralState(nla,2,nkgdimEns),gridState(ni,nj,nkgdimEns)
     real*8  :: dfact,dfact2,dsummed
     integer :: jens,ila,jn,jm,jk1,jk2
 
@@ -807,7 +807,7 @@ module calcbmatrix_glb_mod
     real*4,pointer, intent(in)  :: ensPerturbations(:,:,:,:)
     real*8,         intent(out) :: powerSpec(nkgdimEns,0:ntrunc)
 
-    real*8  :: spectralState(nla,2,nkgdimEns),gridState(ni,nkgdimEns,nj)
+    real*8  :: spectralState(nla,2,nkgdimEns),gridState(ni,nj,nkgdimEns)
     real*8  :: dfact,dfact2,dsummed
 
     integer :: jens,ila,jn,jm,jk
@@ -1058,7 +1058,7 @@ module calcbmatrix_glb_mod
       do jlev=1,nlevEns
         do jlat=1,nj
           do jlon=1,ni
-            zbuf(jlon,jlat)=dfact*stddev3d(jlon,varLevOffset(jvar)+jlev,jlat)
+            zbuf(jlon,jlat)=dfact*stddev3d(jlon,jlat,varLevOffset(jvar)+jlev)
           enddo
         enddo
         ierr = vfstecr(zbuf,zbuf,ipak,nulstats,idateo,0,0,ni,nj,1,nip1_l(jlev),ip2,ip3,   &
@@ -1079,7 +1079,7 @@ module calcbmatrix_glb_mod
         do jlev=1,nlevEns
           do jlat=1,nj
             do jlon=1,ni
-              zbuf(jlon,jlat)=dfact*stddev3dUnbal(jlon,varLevOffset(jvar)+jlev,jlat)
+              zbuf(jlon,jlat)=dfact*stddev3dUnbal(jlon,jlat,varLevOffset(jvar)+jlev)
             enddo 
           enddo
           ierr = vfstecr(zbuf,zbuf,ipak,nulstats,idateo,0,0,ni,nj,1,nip1_l(jlev),ip2,ip3,   &
@@ -1107,7 +1107,7 @@ module calcbmatrix_glb_mod
 
       do jlat=1,nj
         do jlon=1,ni
-          zbuf(jlon,jlat)=dfact*stddev3d(jlon,varLevOffset(nvar3d+1)+jvar,jlat)
+          zbuf(jlon,jlat)=dfact*stddev3d(jlon,jlat,varLevOffset(nvar3d+1)+jvar)
         enddo
       enddo
       ierr = vfstecr(zbuf,zbuf,ipak,nulstats,idateo,0,0,ni,nj,1,0,ip2,ip3,   &
@@ -1128,7 +1128,7 @@ module calcbmatrix_glb_mod
 
         do jlat=1,nj
           do jlon=1,ni
-            zbuf(jlon,jlat)=dfact*stddev3dUnbal(jlon,varLevOffset(nvar3d+1)+jvar,jlat)
+            zbuf(jlon,jlat)=dfact*stddev3dUnbal(jlon,jlat,varLevOffset(nvar3d+1)+jvar)
           enddo 
         enddo
         ierr = vfstecr(zbuf,zbuf,ipak,nulstats,idateo,0,0,ni,nj,1,0,ip2,ip3,   &
@@ -1188,7 +1188,7 @@ module calcbmatrix_glb_mod
       do jlev=1,nlevEns
         do jlat=1,nj
           do jlon=1,ni
-            zbuf(jlon,jlat)=dfact*stddev3dBal(jlon,varLevOffset(jvar)+jlev,jlat)
+            zbuf(jlon,jlat)=dfact*stddev3dBal(jlon,jlat,varLevOffset(jvar)+jlev)
           enddo
         enddo
         ierr = vfstecr(zbuf,zbuf,ipak,nulstats,idateo,0,0,ni,nj,1,nip1_l(jlev),ip2,ip3,   &
@@ -1211,7 +1211,7 @@ module calcbmatrix_glb_mod
 
       do jlat=1,nj
         do jlon=1,ni
-          zbuf(jlon,jlat)=dfact*stddev3dBal(jlon,varLevOffset(nvar3d+1)+jvar,jlat)
+          zbuf(jlon,jlat)=dfact*stddev3dBal(jlon,jlat,varLevOffset(nvar3d+1)+jvar)
         enddo
       enddo
       ierr = vfstecr(zbuf,zbuf,ipak,nulstats,idateo,0,0,ni,nj,1,0,ip2,ip3,   &
@@ -1243,7 +1243,7 @@ module calcbmatrix_glb_mod
     integer, optional, intent(in) :: waveBandIndex
 
     real*8  :: spectralState(nla,2,nlev)
-    real*8  :: member(ni,nlev,nj)
+    real*8  :: member(ni,nj,nlev)
     integer :: jens, jk, jn, jm, ila
 
     real(8), allocatable :: ResponseFunction(:)
@@ -1322,15 +1322,15 @@ module calcbmatrix_glb_mod
     zpsipsi(:,:) = 0.0d0
 
     do jens = 1,nens
-      psi_ptr => ensPerturbations(:,1:nlevEns_M,:,jens)
-      chi_ptr => ensPerturbations(:,(nlevEns_M+1):(2*nlevEns_M),:,jens)
+      psi_ptr => ensPerturbations(:,:,1:nlevEns_M,jens)
+      chi_ptr => ensPerturbations(:,:,(nlevEns_M+1):(2*nlevEns_M),jens)
 
       ! update zchipsi and zpsipsi covariances
       do jlat = 1, nj
         do jlon = 1, ni
           do jlev = 1, nLevEns_M
-            zpsipsi(jlev,jlat) = zpsipsi(jlev,jlat) + psi_ptr(jlon,jlev,jlat) * psi_ptr(jlon,jlev,jlat)
-            zchipsi(jlev,jlat) = zchipsi(jlev,jlat) + chi_ptr(jlon,jlev,jlat) * psi_ptr(jlon,jlev,jlat)
+            zpsipsi(jlev,jlat) = zpsipsi(jlev,jlat) + psi_ptr(jlon,jlat,jlev) * psi_ptr(jlon,jlat,jlev)
+            zchipsi(jlev,jlat) = zchipsi(jlev,jlat) + chi_ptr(jlon,jlat,jlev) * psi_ptr(jlon,jlat,jlev)
           enddo
         enddo
       enddo
@@ -1356,7 +1356,7 @@ module calcbmatrix_glb_mod
     real*4,pointer :: ensPerturbations(:,:,:,:)
     real*8  :: PtoT(:,:,:)
 
-    real*8  :: spectralState(nla,2,nLevEns_M),spBalancedP(nla,2,nlevEns_M),balancedP(ni,nlevEns_M,nj),psi(ni,nLevEns_M,nj)
+    real*8  :: spectralState(nla,2,nLevEns_M),spBalancedP(nla,2,nlevEns_M),balancedP(ni,nj,nlevEns_M),psi(ni,nj,nLevEns_M)
     real*4, pointer :: tt_ptr(:,:,:),ps_ptr(:,:)
     INTEGER JENS, IENS, JK1, JK2, JLA, JN, JM, ILA, JLEV
     INTEGER IERR, JFILE, JK, JLAT, ILON, JLON, JB, NLATBAND
@@ -1401,13 +1401,13 @@ module calcbmatrix_glb_mod
       write(6,*) 'calcPtoT: processing member ',jens
       call flush(6)
 
-      psi(:,:,:)=ensPerturbations(:,1:nlevEns_M,:,jens)
+      psi(:,:,:)=ensPerturbations(:,:,1:nlevEns_M,jens)
       call gst_reespe(spectralState,psi,nlevEns_M)
       CALL calcBalancedP(spectralState,spBalancedP)
       call gst_speree(spBalancedP,balancedP,nlevEns_M)
 
-      tt_ptr  => ensPerturbations(:,(2*nLevEns_M+1):(2*nLevEns_M+nLevEns_T),:,jens)
-      ps_ptr  => ensPerturbations(:,2*nLevEns_M+2*nLevEns_T+1,:,jens)
+      tt_ptr  => ensPerturbations(:,:,(2*nLevEns_M+1):(2*nLevEns_M+nLevEns_T),jens)
+      ps_ptr  => ensPerturbations(:,:,2*nLevEns_M+2*nLevEns_T+1,jens)
 
       DO JLAT = 1, NJ
         zlat(jlat)=GST_GETRLATI(JLAT)
@@ -1426,16 +1426,16 @@ module calcbmatrix_glb_mod
                 ! update ZM1 = sum_over_t_x_y[vec(T lnPs) vec(P_b)^T]
                 DO JK2 = 1, nLevEns_M
                   IF(JK1.LE.nLevEns_T) THEN
-                    ZM1(JK1,JK2,JB) = ZM1(JK1,JK2,JB) + ZFACT * tt_ptr(JLON,JK1,JLAT) * balancedP(JLON,JK2,JLAT)
+                    zm1(jk1,jk2,jb) = zm1(jk1,jk2,jb) + zfact * tt_ptr(jlon,jlat,jk1) * balancedP(jlon,jlat,jk2)
                   ELSE
-                    ZM1(JK1,JK2,JB) = ZM1(JK1,JK2,JB) + ZFACT * ps_ptr(JLON,JLAT) * balancedP(JLON,JK2,JLAT)
+                    zm1(jk1,jk2,jb) = zm1(jk1,jk2,jb) + zfact * ps_ptr(jlon,jlat) * balancedP(jlon,jlat,jk2)
                   ENDIF
                 ENDDO
 
                 ! update ZM2 = sum_over_t_x_y[vec(P_b) vec(P_b)^T]
                 IF(JK1.LE.NLEVPTOT) THEN
                   DO JK2 = 1, NLEVPTOT
-                    ZM2(JK1,JK2,JB) = ZM2(JK1,JK2,JB) + ZFACT * balancedP(JLON,JK1,JLAT) * balancedP(JLON,JK2,JLAT)
+                    zm2(jk1,jk2,jb) = zm2(jk1,jk2,jb) + zfact * balancedP(jlon,jlat,jk1) * balancedP(jlon,jlat,jk2)
                   ENDDO
                 ENDIF
 
@@ -1536,13 +1536,13 @@ module calcbmatrix_glb_mod
         dmean=0.0d0
         do jlat=1,nj
           do jlon=1,ni
-            dmean=dmean+ensPerturbations(jlon,jlev,jlat,jens)
+            dmean=dmean+ensPerturbations(jlon,jlat,jlev,jens)
           enddo
         enddo
         dmean=dmean/(dble(ni)*dble(nj))
         do jlat=1,nj
           do jlon=1,ni
-            ensPerturbations(jlon,jlev,jlat,jens)=ensPerturbations(jlon,jlev,jlat,jens)-dmean
+            ensPerturbations(jlon,jlat,jlev,jens)=ensPerturbations(jlon,jlat,jlev,jens)-dmean
           enddo
         enddo
       enddo
@@ -1568,10 +1568,10 @@ module calcbmatrix_glb_mod
     dfact=1.0d0/dble(ni)
 !$OMP PARALLEL
 !$OMP DO PRIVATE (JLEV,JLAT,JLON)
-      do jlat=1,nj
-        do jlev=1,nlev
+      do jlev=1,nlev
+        do jlat=1,nj
           do jlon=1,ni
-            fieldsZonAvg(jlev,jlat)=fieldsZonAvg(jlev,jlat)+dfact*fields3D(jlon,jlev,jlat)
+            fieldsZonAvg(jlev,jlat)=fieldsZonAvg(jlev,jlat)+dfact*fields3D(jlon,jlat,jlev)
           enddo
         enddo
       enddo
@@ -1605,16 +1605,16 @@ module calcbmatrix_glb_mod
         do jens=1,nens
           do jlat=1,nj
             do jlon=1,ni
-              stddev3d(jlon,jlev,jlat)=stddev3d(jlon,jlev,jlat)+ensPerturbations(jlon,jlev,jlat,jens)**2
+              stddev3d(jlon,jlat,jlev)=stddev3d(jlon,jlat,jlev)+ensPerturbations(jlon,jlat,jlev,jens)**2
             enddo
           enddo
         enddo
         do jlat=1,nj
           do jlon=1,ni
-            if(stddev3d(jlon,jlev,jlat).gt.0.0d0) then
-              stddev3d(jlon,jlev,jlat)=sqrt(stddev3d(jlon,jlev,jlat)*dnens)
+            if(stddev3d(jlon,jlat,jlev).gt.0.0d0) then
+              stddev3d(jlon,jlat,jlev)=sqrt(stddev3d(jlon,jlat,jlev)*dnens)
             else
-              stddev3d(jlon,jlev,jlat)=0.0d0
+              stddev3d(jlon,jlat,jlev)=0.0d0
             endif
           enddo
         enddo
@@ -1729,16 +1729,16 @@ module calcbmatrix_glb_mod
 
 !$OMP PARALLEL
 !$OMP DO PRIVATE (JLEV,JENS,JLAT,JLON,DFACT)
-      do jlat=1,nj
-        do jlev=1,nkgdimEns
+      do jlev=1,nkgdimEns
+        do jlat=1,nj
           do jlon=1,ni
-            if(stddev3d(jlon,jlev,jlat).gt.0.0d0) then
-              dfact=1.0d0/stddev3d(jlon,jlev,jlat)
+            if(stddev3d(jlon,jlat,jlev).gt.0.0d0) then
+              dfact=1.0d0/stddev3d(jlon,jlat,jlev)
             else
               dfact=0.0d0
             endif
             do jens=1,nens
-              ensPerturbations(jlon,jlev,jlat,jens)=ensPerturbations(jlon,jlev,jlat,jens)*dfact
+              ensPerturbations(jlon,jlat,jlev,jens)=ensPerturbations(jlon,jlat,jlev,jens)*dfact
             enddo
           enddo
         enddo
@@ -1763,11 +1763,11 @@ module calcbmatrix_glb_mod
 
 !$OMP PARALLEL
 !$OMP DO PRIVATE (JLEV,JENS,JLAT,JLON)
-      do jlat=1,nj
+      do jens=1,nens
         do jlev=1,nlev
-          do jlon=1,ni
-            do jens=1,nens
-              ensPerturbations(jlon,jlev,jlat,jens)=ensPerturbations(jlon,jlev,jlat,jens)*stddev3d(jlon,jlev,jlat)
+          do jlat=1,nj
+            do jlon=1,ni
+              ensPerturbations(jlon,jlat,jlev,jens)=ensPerturbations(jlon,jlat,jlev,jens)*stddev3d(jlon,jlat,jlev)
             enddo
           enddo
         enddo
@@ -1859,7 +1859,7 @@ module calcbmatrix_glb_mod
           endif
           do jlat=1,nj
             do jlon=1,ni
-              ensPerturbations(jlon,ngpositps,jlat,jens)= gd2d(jlon,jlat)*rmbtpa
+              ensPerturbations(jlon,jlat,ngpositps,jens)= gd2d(jlon,jlat)*rmbtpa
             enddo
           enddo
 
@@ -1875,7 +1875,7 @@ module calcbmatrix_glb_mod
             call flush(6)
             do jlat=1,nj
               do jlon=1,ni
-                ensPerturbations(jlon,jlev-1+ngposittt,jlat,jens)= gd2d(jlon,jlat)
+                ensPerturbations(jlon,jlat,jlev-1+ngposittt,jens)= gd2d(jlon,jlat)
               enddo
             enddo
           enddo
@@ -1894,14 +1894,14 @@ module calcbmatrix_glb_mod
               else
                 do jlat=1,nj
                   do jlon=1,ni
-                    ensPerturbations(jlon,jlev-1+ngpositq,jlat,jens)= gd2d(jlon,jlat)
+                    ensPerturbations(jlon,jlat,jlev-1+ngpositq,jens)= gd2d(jlon,jlat)
                   enddo
                 enddo
               endif
             else
               do jlat=1,nj
                 do jlon=1,ni
-                  ensPerturbations(jlon,jlev-1+ngpositq,jlat,jens)= log(max(gd2d(jlon,jlat),rhumin))
+                  ensPerturbations(jlon,jlat,jlev-1+ngpositq,jens)= log(max(gd2d(jlon,jlat),rhumin))
                 enddo
               enddo
             endif
@@ -1923,7 +1923,7 @@ module calcbmatrix_glb_mod
                  conima=1.d0
               end if
               do jlon=1,ni
-                ensPerturbations(jlon,jlev-1+ngposituu,jlat,jens)= gd2d(jlon,jlat)*rmsknt*conima
+                ensPerturbations(jlon,jlat,jlev-1+ngposituu,jens)= gd2d(jlon,jlat)*rmsknt*conima
               enddo
             enddo
           enddo
@@ -1944,7 +1944,7 @@ module calcbmatrix_glb_mod
                  conima=1.d0
               end if
               do jlon=1,ni
-                ensPerturbations(jlon,jlev-1+ngpositvv,jlat,jens)= gd2d(jlon,jlat)*rmsknt*conima
+                ensPerturbations(jlon,jlat,jlev-1+ngpositvv,jens)= gd2d(jlon,jlat)*rmsknt*conima
               enddo
             enddo
           enddo
@@ -1959,7 +1959,7 @@ module calcbmatrix_glb_mod
 !          else
 !            do jlat=1,nj
 !              do jlon=1,ni
-!                ensPerturbations(jlon,ngposittg,jlat,jens)= gd2d(jlon,jlat)
+!                ensPerturbations(jlon,jlat,ngposittg,jens)= gd2d(jlon,jlat)
 !              enddo
 !            enddo
 !          endif
@@ -2095,7 +2095,7 @@ module calcbmatrix_glb_mod
     endif
     do jlat=1,nj
        do jlon=1,ni
-          ensPerturbations(jlon,ngpositps,jlat,jens)= gd2d(jlon,jlat)*rmbtpa
+          ensPerturbations(jlon,jlat,ngpositps,jens)= gd2d(jlon,jlat)*rmbtpa
        enddo
     enddo
     
@@ -2111,7 +2111,7 @@ module calcbmatrix_glb_mod
        call flush(6)
        do jlat=1,nj
           do jlon=1,ni
-             ensPerturbations(jlon,jlev-1+ngposittt,jlat,jens)= gd2d(jlon,jlat)
+             ensPerturbations(jlon,jlat,jlev-1+ngposittt,jens)= gd2d(jlon,jlat)
           enddo
        enddo
     enddo
@@ -2130,14 +2130,14 @@ module calcbmatrix_glb_mod
           else
              do jlat=1,nj
                 do jlon=1,ni
-                   ensPerturbations(jlon,jlev-1+ngpositq,jlat,jens)= gd2d(jlon,jlat)
+                   ensPerturbations(jlon,jlat,jlev-1+ngpositq,jens)= gd2d(jlon,jlat)
                 enddo
              enddo
           endif
        else
           do jlat=1,nj
              do jlon=1,ni
-                ensPerturbations(jlon,jlev-1+ngpositq,jlat,jens)= log(max(gd2d(jlon,jlat),real(rhumin,4)))
+                ensPerturbations(jlon,jlat,jlev-1+ngpositq,jens)= log(max(gd2d(jlon,jlat),real(rhumin,4)))
              enddo
           enddo
        endif
@@ -2159,7 +2159,7 @@ module calcbmatrix_glb_mod
              conima=1.d0
           end if
           do jlon=1,ni
-             ensPerturbations(jlon,jlev-1+ngposituu,jlat,jens)= gd2d(jlon,jlat)*rmsknt*conima
+             ensPerturbations(jlon,jlat,jlev-1+ngposituu,jens)= gd2d(jlon,jlat)*rmsknt*conima
           enddo
        enddo
     enddo
@@ -2180,7 +2180,7 @@ module calcbmatrix_glb_mod
              conima=1.d0
           end if
           do jlon=1,ni
-             ensPerturbations(jlon,jlev-1+ngpositvv,jlat,jens)= gd2d(jlon,jlat)*rmsknt*conima
+             ensPerturbations(jlon,jlat,jlev-1+ngpositvv,jens)= gd2d(jlon,jlat)*rmsknt*conima
           enddo
        enddo
     enddo
@@ -2195,7 +2195,7 @@ module calcbmatrix_glb_mod
 !          else
 !            do jlat=1,nj
 !              do jlon=1,ni
-!                ensPerturbations(jlon,ngposittg,jlat,jens)= gd2d(jlon,jlat)
+!                ensPerturbations(jlon,jlat,ngposittg,jens)= gd2d(jlon,jlat)
 !              enddo
 !            enddo
 !          endif
@@ -2213,7 +2213,7 @@ module calcbmatrix_glb_mod
     real*8  :: dla2
     real*8  :: spectralState(nla,2,nkgdimEns)
     real*4  :: ensPerturbations(:,:,:,:)
-    real*8  :: member(ni,nkgdimens,nj)
+    real*8  :: member(ni,nj,nkgdimens)
 !
 ! Convert from U/V to PSI/CHI and spectrally filter all fields
 !
@@ -2257,7 +2257,7 @@ module calcbmatrix_glb_mod
         do jens=1,nens
           do jlat=1,nj
             do jlon=1,ni
-              gd2d(jlon,jlat)=gd2d(jlon,jlat)+ensPerturbations(jlon,jlev,jlat,jens)
+              gd2d(jlon,jlat)=gd2d(jlon,jlat)+ensPerturbations(jlon,jlat,jlev,jens)
             enddo
           enddo
         enddo
@@ -2269,8 +2269,8 @@ module calcbmatrix_glb_mod
         do jens=1,nens
           do jlat=1,nj
             do jlon=1,ni
-              ensPerturbations(jlon,jlev,jlat,jens)=     &
-                ensPerturbations(jlon,jlev,jlat,jens)-gd2d(jlon,jlat)
+              ensPerturbations(jlon,jlat,jlev,jens)=     &
+                ensPerturbations(jlon,jlat,jlev,jens)-gd2d(jlon,jlat)
             enddo
           enddo
         enddo
@@ -2295,7 +2295,7 @@ module calcbmatrix_glb_mod
     integer,optional, intent(in) :: waveBandIndex
 
     real*8  :: spectralState(nla,2,nkgdimEns)
-    real*8  :: gridState(ni,nkgdimEns,nj)
+    real*8  :: gridState(ni,nj,nkgdimEns)
 
     integer :: ji, jj, jk, jn, jm, ila, iref, jref
     integer :: nLevEns, nLevStart, nLevEnd, jvar, iStart, iEnd
@@ -2315,10 +2315,10 @@ module calcbmatrix_glb_mod
     jref = nj/2
 
     GridState(:,:,:)       = 0.d0
-    GridState(iref,:,jref) = 1.d0
+    GridState(iref,jref,:) = 1.d0
 
     !- 1.2 Adjoint of the identity (change of norm)
-    GridState(iref,:,jref) = GridState(iref,:,jref) * real(ni,8) / gst_getRWT(jref)
+    GridState(iref,jref,:) = GridState(iref,jref,:) * real(ni,8) / gst_getRWT(jref)
 
     !- 1.3 Move to spectral space
     call gst_reespe(spectralState,                & ! OUT
@@ -2395,11 +2395,11 @@ module calcbmatrix_glb_mod
        do ji=iStart,iEnd
           do jk = nLevStart,nLevEnd
              if ( jk == nLevStart  ) then
-                write(99,'(I7,2X,F7.1,2X,F6.4,$)')  ji-iStart, (ji-iStart)*gridSpacingInKm, GridState(ji,jk,jref)
+                write(99,'(I7,2X,F7.1,2X,F6.4,$)')  ji-iStart, (ji-iStart)*gridSpacingInKm, GridState(ji,jref,jk)
              else if ( jk == nLevEnd ) then 
-                write(99,'(2X,F6.4)')  GridState(ji,jk,jref) ! Saut de ligne
+                write(99,'(2X,F6.4)')  GridState(ji,jref,jk) ! Saut de ligne
              else
-                write(99,'(2X,F6.4,$)')  GridState(ji,jk,jref)
+                write(99,'(2X,F6.4,$)')  GridState(ji,jref,jk)
              end if
           end do
        end do
@@ -2414,7 +2414,7 @@ module calcbmatrix_glb_mod
        end if
        open (unit=99,file=outfilename,action="write",status="new")
        do ji=iStart,iEnd
-          write(99,'(I7,2X,F7.1,2X,F6.4)')  ji-iStart, (ji-iStart)*gridSpacingInKm, GridState(ji,varLevOffset(nvar3d+1)+jvar,jref)
+          write(99,'(I7,2X,F7.1,2X,F6.4)')  ji-iStart, (ji-iStart)*gridSpacingInKm, GridState(ji,jref,varLevOffset(nvar3d+1)+jvar)
        end do
        close(unit=99)
     end do
@@ -2466,7 +2466,7 @@ module calcbmatrix_glb_mod
       do jlev=1,nlevEns
         do jlat=1,nj
           do jlon=1,ni
-            zbuf(jlon,jlat)=dfact*gridpoint3d(jlon,varLevOffset(jvar)+jlev,jlat)
+            zbuf(jlon,jlat)=dfact*gridpoint3d(jlon,jlat,varLevOffset(jvar)+jlev)
           enddo
         enddo
         ierr = vfstecr(zbuf,zbuf,ipak,nulstats,idateo,0,0,ni,nj,1,nip1_l(jlev),ip2,ip3,   &
@@ -2485,7 +2485,7 @@ module calcbmatrix_glb_mod
 
       do jlat=1,nj
         do jlon=1,ni
-          zbuf(jlon,jlat)=dfact*gridpoint3d(jlon,varLevOffset(nvar3d+1)+jvar,jlat)
+          zbuf(jlon,jlat)=dfact*gridpoint3d(jlon,jlat,varLevOffset(nvar3d+1)+jvar)
         enddo
       enddo
       ierr = vfstecr(zbuf,zbuf,ipak,nulstats,idateo,0,0,ni,nj,1,0,ip2,ip3,   &
@@ -2734,7 +2734,7 @@ module calcbmatrix_glb_mod
                 do j = jmin, jmax
                    do i = imin, imax
                       localHorizCorrel(i,k,j)=localHorizCorrel(i,k,j) + &
-                           ensPerturbations(i,k,j,ens) * ensPerturbations(iref,k,jref,ens)
+                           ensPerturbations(i,j,k,ens) * ensPerturbations(iref,jref,k,ens)
                    end do
                 end do
              end do
@@ -2892,7 +2892,7 @@ module calcbmatrix_glb_mod
     allocate(meanFourthMoment(numBins,nkgdimEns))
     allocate(sumWeight(numBins,nkgdimEns))
 
-    allocate(gridPointWeight(ni,nkgdimEns,nj))
+    allocate(gridPointWeight(ni,nj,nkgdimEns))
 
     allocate(distanceBinThresholds(numBins))
 
@@ -2912,7 +2912,7 @@ module calcbmatrix_glb_mod
     write(6,*)
     write(6,*) 'Grid point Weight'
     do j = 1, nj
-       gridPointWeight(:,:,j) = cos(hco_ens%lat(j))
+       gridPointWeight(:,j,:) = cos(hco_ens%lat(j))
        write(6,*) j, hco_ens%lat(j), cos(hco_ens%lat(j))
     end do
 
@@ -2941,7 +2941,7 @@ module calcbmatrix_glb_mod
        do ens = 1, nens
           do j = 1, nj
              do i = 1, ni
-                ensPert_local(ens,i,j) = ensPerturbations(i,k,j,ens)
+                ensPert_local(ens,i,j) = ensPerturbations(i,j,k,ens)
              end do
           end do
        end do
@@ -2957,7 +2957,7 @@ module calcbmatrix_glb_mod
              do j = 1, nj
                 do i = 1, ni
                    distance=calcDistance(hco_ens%lat(jref),hco_ens%lon(iref),hco_ens%lat(j),hco_ens%lon(i))
-                   if (distance <= maxDistance .and. gridPointWeight(i,k,j) > 0.d0) then
+                   if (distance <= maxDistance .and. gridPointWeight(i,j,k) > 0.d0) then
                       covariance = 0.d0
                       fourthMoment = 0.d0
                       do ens = 1, nens
@@ -2972,7 +2972,7 @@ module calcbmatrix_glb_mod
 
                       bin=findBinIndex(distance,distanceBinThresholds,numBins)
                       
-                      weight = sqrt(gridPointWeight(iref,k,jref)) * sqrt(gridPointWeight(i,k,j))
+                      weight = sqrt(gridPointWeight(iref,jref,k)) * sqrt(gridPointWeight(i,j,k))
 
                       sumWeight(bin,k) = sumWeight(bin,k) + weight
 
@@ -2986,7 +2986,7 @@ module calcbmatrix_glb_mod
              end do
 
              ! From now on, omit the current reference point
-             gridPointWeight(iref,k,jref) = 0.d0
+             gridPointWeight(iref,jref,k) = 0.d0
 
           end do ! iref
        end do    ! jref
@@ -3265,7 +3265,7 @@ module calcbmatrix_glb_mod
 !!$    allocate(meanFourthMoment(numBins,nkgdimEns))
 !!$    allocate(sumWeight(numBins,nkgdimEns))
 !!$
-!!$    allocate(gridPointWeight(ni,nkgdimEns,nj))
+!!$    allocate(gridPointWeight(ni,nj,nkgdimEns))
 !!$
 !!$    allocate(distanceBinThresholds(numBins))
 !!$
@@ -3286,7 +3286,7 @@ module calcbmatrix_glb_mod
 !!$    write(6,*)
 !!$    write(6,*) 'Grid point Weight'
 !!$    do j = 1, nj
-!!$       gridPointWeight(:,:,j) = cos(hco_ens%lat(j))
+!!$       gridPointWeight(:,j,:) = cos(hco_ens%lat(j))
 !!$       write(6,*) j, hco_ens%lat(j), cos(hco_ens%lat(j))
 !!$    end do
 !!$
@@ -3328,16 +3328,16 @@ module calcbmatrix_glb_mod
 !!$                   do i = 1, ni
 !!$                      if (ens == 1) then
 !!$                         distance=calcDistance(hco_ens%lat(jref),hco_ens%lon(iref),hco_ens%lat(j),hco_ens%lon(i))
-!!$                         if (distance <= maxDistance .and. gridPointWeight(i,k,j) > 0.d0) then
+!!$                         if (distance <= maxDistance .and. gridPointWeight(i,j,k) > 0.d0) then
 !!$                            binVector(i,j)=findBinIndex(distance,distanceBinThresholds,numBins)                            
 !!$                         end if
 !!$                      end if
 !!$
 !!$                      if ( binVector(i,j) > 0 ) then
 !!$                         covariance(i,j) = covariance(i,j) + &
-!!$                               ensPerturbations(i,k,j,ens) * ensPerturbations(iref,k,jref,ens)
+!!$                               ensPerturbations(i,j,k,ens) * ensPerturbations(iref,jref,k,ens)
 !!$                         fourthMoment(i,j) = fourthMoment(i,j) + &
-!!$                               (ensPerturbations(i,k,j,ens) * ensPerturbations(iref,k,jref,ens))**2
+!!$                               (ensPerturbations(i,j,k,ens) * ensPerturbations(iref,jref,k,ens))**2
 !!$                     end if
 !!$                   end do
 !!$                end do
@@ -3352,7 +3352,7 @@ module calcbmatrix_glb_mod
 !!$
 !!$                      bin=binVector(i,j)
 !!$                      
-!!$                      weight = sqrt(gridPointWeight(iref,k,jref)) * sqrt(gridPointWeight(i,k,j))
+!!$                      weight = sqrt(gridPointWeight(iref,jref,k)) * sqrt(gridPointWeight(i,j,k))
 !!$                
 !!$                      sumWeight(bin,k) = sumWeight(bin,k) + weight
 !!$
@@ -3366,7 +3366,7 @@ module calcbmatrix_glb_mod
 !!$             end do
 !!$
 !!$             ! From now on, omit the current reference point
-!!$             gridPointWeight(iref,k,jref) = 0.d0
+!!$             gridPointWeight(iref,jref,k) = 0.d0
 !!$
 !!$          end do ! iref
 !!$       end do    ! jref
@@ -3738,7 +3738,7 @@ module calcbmatrix_glb_mod
           !  because ensemble member is the last loop index below)
           do ens = 1, nens
              do k = 1, nkgdimEns
-                ensPert_local(ens,k) = ensPerturbations(iref,k,jref,ens)
+                ensPert_local(ens,k) = ensPerturbations(iref,jref,k,ens)
              end do
           end do
 
