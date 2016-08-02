@@ -75,38 +75,45 @@ compiledir=${PWD}
 #  Set up dependent librarys and tools. 
 #---------------------------------------------------------------
 ## for s.compile
-echo "loading hpcs/201402/02/base"
-. ssmuse-sh -d hpcs/201402/02/base
+echo "loading hpco/tmp/eccc/201402/03/base"
+. ssmuse-sh -d hpco/tmp/eccc/201402/03/base
 ## for the compiler
 if [ "${BASE_ARCH}" = "AIX-powerpc7" ];then
     echo "loading compiler hpcs/ext/xlf_13.1.0.10"
     . ssmuse-sh -d hpcs/ext/xlf_13.1.0.10
 elif [ "${BASE_ARCH}" = "Linux_x86-64" ];then
-    echo "loading compiler hpcs/201402/02/intel13sp1u2"
-    . ssmuse-sh -d hpcs/201402/02/intel13sp1u2
+    echo "loading compiler main/opt/intelcomp/intelcomp-2016.1.156"
+    . ssmuse-sh -d main/opt/intelcomp/intelcomp-2016.1.156
 else
     echo "This platform 'ARCH=${ARCH}' is not supported.  Only 'AIX-powerpc7' and 'Linux_x86-64' are."
     exit 1
 fi
 
+echo "loading hpco/exp/jdm536/code-tools/code-tools_2.0_all"
+. ssmuse-sh -p hpco/exp/jdm536/code-tools/code-tools_2.0_all
+
 varabs=oavar_${BASE_ARCH}${ABSTAG}
 
-## for rmn_015, rpncomm
-echo "loading rpn/libs/15.2"
-. ssmuse-sh -d rpn/libs/15.2
+## for rmn, rpncomm
+echo "loading eccc/mrd/rpn/libs/16.0-alpha"
+. ssmuse-sh -d eccc/mrd/rpn/libs/16.0-alpha
+## for openmpi
+echo "loading main/opt/openmpi/openmpi-1.6.5/intelcomp-2016.1.156"
+. ssmuse-sh -d main/opt/openmpi/openmpi-1.6.5/intelcomp-2016.1.156
 ## for 'vgrid'
-echo "loading cmdn/vgrid/5.4.0/${COMP_ARCH}"
-. ssmuse-sh -d cmdn/vgrid/5.4.0/${COMP_ARCH}
+echo "loading eccc/cmd/cmdn/vgrid/5.6.3/${COMP_ARCH}"
+. ssmuse-sh -d eccc/cmd/cmdn/vgrid/5.6.3/${COMP_ARCH}
 ## for 'burplib'
-echo "loading cmda/libs/15.2/${COMP_ARCH}"
-. ssmuse-sh -d cmda/libs/15.2/${COMP_ARCH}
+echo "loading eccc/cmd/cmda/libs/development/${COMP_ARCH}"
+. ssmuse-sh -d eccc/cmd/cmda/libs/development/${COMP_ARCH}
 
 ## For hpcsperf needed for TMG timings
 echo "loading hpcs/exp/aspgjdm/perftools"
-. ssmuse-sh -d hpcs/exp/aspgjdm/perftools
+echo . ssmuse-sh -d hpcs/exp/aspgjdm/perftools
 # For RTTOV 10v3 package... 
-echo "loading arma/rttov/10v3.1"
-. ssmuse-sh -d arma/rttov/10v3.1
+echo "loading eccc/mrd/rpn/anl/rttov/10v3.1"
+. ssmuse-sh -d eccc/mrd/rpn/anl/rttov/10v3.1
+
 #-----------------------------------------------------------------------------
 
 LIBAPPL="rttov10.2.0_coef_io rttov10.2.0_main rttov10.2.0_other burp_module descrip $MPILIB"
