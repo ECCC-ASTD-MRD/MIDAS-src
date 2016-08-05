@@ -170,12 +170,12 @@ module HorizontalCoord_mod
                   grtyp, ig1, ig2, ig3,                            & ! OUT
                   ig4, swa, lng, dltf, ubc, extra1, extra2, extra3 ) ! OUT
 
-    if ( trim(grtyp) == 'G' .and. ig2 == 0 ) then
-       write(*,*) 
-       write(*,*) 'The latitute in the input gaussian grid are ordered from SOUTH to NORTH (ig2=0)'
-       write(*,*) '  --> reordering from NORTH to SOUTH (ig2=1)'
-       ig2 = 1
-    end if
+    !if ( trim(grtyp) == 'G' .and. ig2 == 0 ) then
+    !   write(*,*) 
+    !   write(*,*) 'The latitute in the input gaussian grid are ordered from SOUTH to NORTH (ig2=0)'
+    !   write(*,*) '  --> reordering from NORTH to SOUTH (ig2=1)'
+    !   ig2 = 1
+    !end if
 
     EZscintID  = ezqkdef( ni, nj, grtyp, ig1, ig2, ig3, ig4, iu_template )   ! IN
 
@@ -284,14 +284,14 @@ module HorizontalCoord_mod
                   lat2d_4, lon2d_4 ) ! OUT
 
       lon_8(:) = real(lon2d_4(:,nj/2),8)
-      if (ig2 == 1 .and. (lat2d_4(1,2) - lat2d_4(1,1)) > 0.0d0 ) then 
-        ! Revert latitudes since gdll does not handle properly this grid type
-        do j = 1, nj
-          lat_8(j) = real(lat2d_4(1,nj-j+1),8)
-        end do 
-      else
+      !if (ig2 == 1 .and. (lat2d_4(1,2) - lat2d_4(1,1)) > 0.0d0 ) then 
+      !  ! Revert latitudes since gdll does not handle properly this grid type
+      !  do j = 1, nj
+      !    lat_8(j) = real(lat2d_4(1,nj-j+1),8)
+      !  end do 
+      !else
         lat_8(:) = real(lat2d_4(1,:),8)
-      end if
+      !end if
 
       deallocate(lat2d_4)
       deallocate(lon2d_4)
