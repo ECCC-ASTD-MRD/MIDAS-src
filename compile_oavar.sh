@@ -56,10 +56,6 @@ else
     echo "This platform 'ARCH=${ARCH}' is not supported.  Only 'AIX-powerpc7' and 'Linux_x86-64' are."
     exit 1
 fi
-cd ../
-mkdir -p compiledir
-cd compiledir
-#rm -f *.o *.f *.f90 *.mod
 
 # automatically set the global revision number in toplevelcontrol_mod.ftn90 by
 # replacing the string XXXXX with the actual revision number
@@ -69,6 +65,11 @@ echo "-----------------------"
 echo "Revision number='$revnum'"
 echo "-----------------------"
 echo " "
+
+cd ../
+mkdir -p compiledir
+cd compiledir
+#rm -f *.o *.f *.f90 *.mod
 compiledir=${PWD}
 
 #----------------------------------------------------------------
