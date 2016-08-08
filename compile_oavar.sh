@@ -121,7 +121,7 @@ LIBAPPL="rttov10.2.0_coef_io rttov10.2.0_main rttov10.2.0_other burp_module desc
 if [ "${BASE_ARCH}" = "AIX-powerpc7" ];then
     LIBSYS="hpcsperf lapack-3.4.0 essl mass"
 elif [ "${BASE_ARCH}" = "Linux_x86-64" ];then
-    LIBSYS="lapack blas"
+    LIBSYS=""
 else
     echo "This platform 'BASE_ARCH=${BASE_ARCH}' is not supported.  Only 'AIX-powerpc7' and 'Linux_x86-64' are."
     exit 1
