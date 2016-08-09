@@ -69,7 +69,7 @@ module calcbmatrix_glb_mod
     type(struct_vco), pointer, intent(in)   :: vco_in
     type(struct_hco), pointer, intent(in)   :: hco_in
 
-    integer :: nulnam,ierr,mpiMode,status, waveBandIndex
+    integer :: nulnam,ierr,status, waveBandIndex
     integer :: fclos,fnom,fstouv,fstfrm
 
     real(8) :: zps
@@ -114,9 +114,9 @@ module calcbmatrix_glb_mod
     nkgdimEns=nLevEns_M*2+nLevEns_T*2+1 ! NO TG !!!
     nla=(ntrunc+1)*(ntrunc+2)/2
     
-    !- Setup the global spectral transform
-    mpiMode=2
-    gstID = gst_setup(ni,nj,ntrunc,mpiMode)
+    !- Setup the global spectral transform 
+    !  NOTE: code only run with mpi 1x1 until now!!!
+    gstID = gst_setup(ni,nj,ntrunc)
 
     !- Setup ip1s
     allocate(nip1_M(nLevEns_M))
