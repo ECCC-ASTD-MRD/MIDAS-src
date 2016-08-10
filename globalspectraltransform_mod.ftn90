@@ -368,7 +368,7 @@ CONTAINS
   integer FUNCTION GST_SETUP(NI_IN,NJ_IN,NTRUNC_IN,MAXLEVELS_IN)
     implicit none
     integer  :: ni_in,nj_in,ntrunc_in
-    integer,optional :: maxlevels_in
+    integer  :: maxlevels_in
     integer  :: jn,jm,ila,ierr
     integer  :: latPerPE,myLatBeg,myLatEnd,myLatHalfBeg,myLatHalfEnd
     integer  :: lonPerPE,myLonBeg,myLonEnd
@@ -398,22 +398,13 @@ CONTAINS
 
     call mpivar_setup_latbands(gst(gstID)%nj,latPerPE,myLatBeg,myLatEnd,myLatHalfBeg,myLatHalfEnd)
     call mpivar_setup_lonbands(gst(gstID)%ni,lonPerPE,myLonBeg,myLonEnd)
-    gst(gstID)%nk = 0
-    if(present(maxlevels_in)) then
-      gst(gstID)%nk = maxlevels_in
-      ! 2D MPI decomposition: split levels across npex
-      call mpivar_setup_levels_npex(maxlevels_in,myLevBeg,myLevEnd,myLevCount)
-      write(*,*) 'gst_setup: myLevBeg,End,Count=',myLevBeg,myLevEnd,myLevCount
-    else
-      ! set a dummy range of levels handled by this processor
-      gst(gstID)%myLevBeg = -1
-      gst(gstID)%myLevEnd = -1
-      gst(gstID)%myLevCount = 0
-    endif
+
+    gst(gstID)%nk = maxlevels_in
+    ! 2D MPI decomposition: split levels across npex
+    call mpivar_setup_levels_npex(maxlevels_in,myLevBeg,myLevEnd,myLevCount)
+    write(*,*) 'gst_setup: myLevBeg,End,Count=',myLevBeg,myLevEnd,myLevCount
+
     !!! Distribution of lon/lat tiles (gridpoint space) and n/m (spectral space)
-    if(.not.present(maxlevels_in)) then
-      call abort3d('gst_setup: ERROR, number of levels must be specified')
-    endif
     ! range of lons handled by this processor
     gst(gstID)%myLonBeg = myLonBeg
     gst(gstID)%myLonEnd = myLonEnd
@@ -1123,8 +1114,8 @@ CONTAINS
     if(gst(gstID)%myLevBeg.le.2*nflev) then
       ! ensure that the number of levels on this mpi task is even to allow interleaving of u and v
       if(mod(gst(gstID)%myLevCount,2).ne.0) then
-        write(*,*) 'GST_SPGD5: myLevCount = ',gst(gstID)%myLevCount
-        call abort3d('GST_SPGD5: Number of levels on this mpi task must be even!')
+        write(*,*) 'GST_SPGD: myLevCount = ',gst(gstID)%myLevCount
+        call abort3d('GST_SPGD: Number of levels on this mpi task must be even!')
       endif
     endif
 
@@ -1179,18 +1170,18 @@ CONTAINS
 
 
   ! NO MPI MODIFICATIONS YET
-  SUBROUTINE GST_GDSP(SP,GD,KFIELD,NFLEV)
+  SUBROUTINE GST_GDSP(SP,GD,NFLEV)
     implicit none
 
-    integer :: kfield, nflev
-    real(8) :: sp(gst(gstID)%nla,2,kfield)
-    real(8) :: gd(gst(gstID)%ni,gst(gstID)%nj,kfield)
+    integer :: nflev
+    real(8) :: sp(gst(gstID)%nla,2,gst(gstID)%nk)
+    real(8) :: gd(gst(gstID)%ni,gst(gstID)%nj,gst(gstID)%nk)
 
     integer :: jlat, jk, jlon
-    real(8) :: zfm(gst(gstID)%ni,gst(gstID)%nj,kfield)
+    real(8) :: zfm(gst(gstID)%ni,gst(gstID)%nj,gst(gstID)%nk)
 
 !$OMP PARALLEL DO PRIVATE (JLAT,JLON,JK)
-    do jk = 1, kfield
+    do jk = 1, gst(gstID)%nk
       do jlat = 1, gst(gstID)%nj
         do jlon = 1, gst(gstID)%ni
           zfm(jlon,jlat,jk) = gd(jlon,jlat,jk)
@@ -1205,7 +1196,7 @@ CONTAINS
     call tmg_stop(24)
 
     ! 2. Direct Legendre transform including wind transformations
-    call gdsppar(sp,zfm,kfield,nflev)
+    call gdsppar(sp,zfm,gst(gstID)%nk,nflev)
 
   END SUBROUTINE GST_GDSP
 
@@ -1484,8 +1475,8 @@ CONTAINS
     if(gst(gstID)%myLevBeg.le.2*nflev) then
       ! ensure that the number of levels on this mpi task is even to allow interleaving of u and v
       if(mod(gst(gstID)%myLevCount,2).ne.0) then
-        write(*,*) 'GST_SPGD5: myLevCount = ',gst(gstID)%myLevCount
-        call abort3d('GST_SPGD5: Number of levels on this mpi task must be even!')
+        write(*,*) 'GST_SPGD: myLevCount = ',gst(gstID)%myLevCount
+        call abort3d('GST_SPGD: Number of levels on this mpi task must be even!')
       endif
     endif
 
