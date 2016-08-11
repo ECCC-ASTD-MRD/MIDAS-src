@@ -136,12 +136,14 @@ contains
     
     real(8) :: zomp,zinc
     integer :: jl,unit,ier
+    logical :: diagn_only
     integer, external :: fclos
 
     ! Obs space local variables
 
-    integer :: headerIndex,bodyIndex
-    integer :: icodtyp, iobslev, nobslev
+    integer :: headerIndex,bodyIndex,varno
+    integer :: icodtyp,iobslev,nobslev
+    character(len=12) :: stnid
 
     integer, allocatable :: ixtr(:), iass(:)
     logical, allocatable :: success(:),process_obs(:)
@@ -204,6 +206,7 @@ contains
       
       ! Body info that we only need for first point in the profile
       bodyIndex = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
+      stnid = obs_elem_c(obsSpaceData,'STID',headerIndex)
 
       ! Set number of obs profile elements
       nobslev = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex)  
@@ -212,19 +215,48 @@ contains
          if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex+jl).eq.8090) nobslev = nobslev-1   ! Skip over 08090 elements
       end do
 
+      ! varno is expected to be the same for all profile points where OBS_VNM value .ne. 8090
+      do jl=0,obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex)-1
+         if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex+jl).ne.8090) then
+            varno = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex+jl)
+            exit
+         end if
+      end do
+
+      ! Indicates if diagnostics are to be calculated but observation not assimilated
+      diagn_only = chm_diagn_only(stnid,varno,nobslev)
+
       ! Allocate memory for remaining profile data not in obsoper
       allocate(obs_col(nobslev), success(nobslev), ixtr(nobslev), iass(nobslev), process_obs(nobslev))
 
       ! Prepare for checking if any processing is needed according to initial flag values     
-      ! First loop over all body indices (profile elements) to get/set flags      
       iobslev=0
       do jl=0,obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex)-1
          bodyIndexCount=bodyIndex+jl
          if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndexCount).ne.8090) then
+
             iobslev=iobslev+1
+
             ixtr(iobslev) = obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndexCount) ! flag indicating if obs extends outside model profile vertical range
-            iass(iobslev) = obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndexCount) ! flag indicating if obs is to be processed/assimilated
-            process_obs(iobslev) = ixtr(iobslev).eq.0 .and. iass(iobslev).eq.1  ! indicates if this obs should be processed by chm_obsoperators
+            iass(iobslev) = obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndexCount) ! flag indicating if obs is to be assimilated
+            process_obs(iobslev) = ixtr(iobslev).eq.0                           ! indicates if this obs should be processed by chm_obsoperators
+            
+            select case(kmode)
+            case(0)
+               if ( (diagn_only.and.iass(iobslev).eq.1) .or. btest(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndexCount),16) ) then
+                  ! Set flag to be recognized at postmin diagnostics calc in routine chm_calc_OmA_nonassim.
+                  ! Bit 16 of OBS_FLG indicates if flagged in background check.
+                  call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,3)
+                  iass(iobslev) = 3
+               else
+                  process_obs(iobslev) = process_obs(iobslev) .and. iass(iobslev).eq.1
+               end if
+
+            case(1)
+               process_obs(iobslev) = process_obs(iobslev) .and. (iass(iobslev).eq.1.or.iass(iobslev).eq.3)
+            case(2,3)
+               process_obs(iobslev) = process_obs(iobslev) .and. iass(iobslev).eq.1
+            end select
          end if
       end do
 
@@ -244,7 +276,7 @@ contains
       else  
 
          ! Initialize obsoper variables and allocate arrays
-         call chm_obsoper_init(obsoper,obsSpaceData,headerIndex,column_bkgrnd,nlev_bkgrnd,nobslev,kmode)
+         call chm_obsoper_init(obsoper,obsSpaceData,headerIndex,column_bkgrnd,nlev_bkgrnd,nobslev,kmode,varno,stnid)
  
          ! Initialize model_col, dependent on kmode. Used for input for kmode=0,2, output for kmode=3.
          ! model_col represents for kmode 0) the horizontally interpolated background H_horiz(x_b)
@@ -286,7 +318,13 @@ contains
             obsoper%obslev(iobslev) = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
 
             ! Get normalized increment
-            if (kmode.eq.3) obs_col(iobslev) = obs_bodyElem_r(obsSpaceData,OBS_WORK,bodyIndex)
+            if (kmode.eq.3) then
+               if (iass(iobslev).eq.1) then
+                  obs_col(iobslev) = obs_bodyElem_r(obsSpaceData,OBS_WORK,bodyIndex)
+               else
+                  obs_col(iobslev) = 0.0D0
+               end if
+            end if
 
          enddo BODY1
       
@@ -299,7 +337,6 @@ contains
          !      1         not used        out
          !      2           in            out
          !      3           out           in
-
 
          call chm_obsoperators(obsoper,model_col,obs_col,kmode,ixtr,success)
  
@@ -330,19 +367,26 @@ contains
             end if
 
             ! Check for success in calculations
-            if (.not.success(iobslev)) then
-               if ((iass(iobslev).ne.3.and.iass(iobslev).ne.4).or.kmode.lt.2) then
-                  call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
-                  call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex,0.0D0)
-                  call obs_bodySet_r(obsSpaceData,OBS_OMA,bodyIndex,0.0D0)
-                  if (process_obs(iobslev)) &
-                       call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex, ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),17) )
-               end if
-               if (kmode.eq.1) call obs_bodySet_r(obsSpaceData,OBS_HPHT,bodyIndex,0.0D0)
+            if (process_obs(iobslev).and..not.success(iobslev)) then
+               ! Observation was flagged within this call of chm_observation_operators
+               call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
+               call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex,0.0D0)
+               call obs_bodySet_r(obsSpaceData,OBS_OMA,bodyIndex,0.0D0)
+               call obs_bodySet_r(obsSpaceData,OBS_HPHT,bodyIndex,0.0D0)
+               call obs_bodySet_r(obsSpaceData,OBS_WORK,bodyIndex,0.0D0)
+               call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex, ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),9) )
                cycle BODY2
+!            else if (iass(iobslev).eq.0) then
+!               ! Observation was flagged previous to this call of chm_observation_operators
+!               call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
+!               call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex,0.0D0)
+!               call obs_bodySet_r(obsSpaceData,OBS_OMA,bodyIndex,0.0D0)
+!               call obs_bodySet_r(obsSpaceData,OBS_HPHT,bodyIndex,0.0D0)
+!               call obs_bodySet_r(obsSpaceData,OBS_WORK,bodyIndex,0.0D0)
+!               cycle BODY2
             end if
 
-            ! Store result in appropriate location in obsSpaceData            
+            ! Store result in appropriate location in obsSpaceData
             select case(kmode)
             case(0)
             
@@ -351,14 +395,10 @@ contains
                zomp = obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex) - obs_col(iobslev)
                call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex,zomp)
                
-               if (.not.chm_lcheck_skipassim(obsoper%stnid,obsoper%varno,obsoper%nobslev,iass(iobslev))) then
+               if (present(jobs).and.iass(iobslev).eq.1.and..not.diagn_only) then
                   ! Add to Jo contribution (factor of 0.5 to be applied outside report loop)
                   zinc = zomp/obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
-                  if (present(jobs)) jobs = jobs + zinc*zinc
-               else
-                  ! Set flag to be recognized at postmin diagnostics calc in
-                  ! routine chm_calc_OmA_nonassim
-                  call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,3)
+                  jobs = jobs + zinc*zinc
                end if
 
             case(1)
@@ -397,7 +437,7 @@ contains
 
 ! -------------------------------------------------------------------------------------------
 
-  subroutine chm_obsoper_init(obsoper,obsSpaceData,headerIndex,column_bkgrnd,nmodlev,nobslev,kmode)
+  subroutine chm_obsoper_init(obsoper,obsSpaceData,headerIndex,column_bkgrnd,nmodlev,nobslev,kmode,varno,stnid)
 !
 ! Author: M. Sitwell and Y. Rochon, April 2016
 !
@@ -418,6 +458,8 @@ contains
 !     nobslev         Number of obs elements (see chm_obsoper_proceed)
 !     nmodlev         Number of background field (model) levels
 !     varType         Vertical coordinate type ='TH'
+!     varno           BUFR number
+!     stnid           Station ID
 !
 ! InOut
 !
@@ -438,7 +480,8 @@ contains
 
     implicit none
 
-    integer, intent(in) :: headerIndex,nmodlev,nobslev,kmode
+    integer, intent(in) :: headerIndex,nmodlev,nobslev,kmode,varno
+    character(len=12), intent(in) :: stnid
     type(struct_chm_obsoperators), intent(inout) :: obsoper
     type(struct_obs), intent(inout) :: obsSpaceData
     type(struct_columnData), intent(inout) :: column_bkgrnd
@@ -451,9 +494,10 @@ contains
     obsoper%nmodlev = nmodlev
     obsoper%nobslev = nobslev
     obsoper%obs_index = headerIndex
+    obsoper%varno = varno
+    obsoper%stnid = stnid
 
     ! Get obs space info that are part of the profile header
-    obsoper%stnid = obs_elem_c(obsSpaceData,'STID',headerIndex)
     obsoper%date  = obs_headElem_i(obsSpaceData,OBS_DAT,headerIndex)
     obsoper%hhmm  = obs_headElem_i(obsSpaceData,OBS_ETM,headerIndex)
     ! Constituent identifyer following local version of WMO GRIB Table 08046 (similar to BUFR Table 08043)
@@ -475,14 +519,6 @@ contains
     obsoper%vco     = obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex)  
     ! Model field name (NOMVAR value)
     obsoper%varName = vnl_varnameFromVarnum(obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex),obsoper%constituent_id)
-    
-    ! varno is expected to be the same for all profile points where OBS_VNM value .ne. 8090
-    do jl=0,obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex)-1
-       if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex+jl).ne.8090) then
-          obsoper%varno = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
-          exit
-       end if
-    end do
 
     ! Allocate arrays
 
@@ -715,14 +751,12 @@ contains
     integer :: elemID,i,num_elemID,nset
     character(len=9) :: stnid_elemID(nmax)
     logical :: unilev_elemID(nmax)
-    character(len=256) :: label,filename
+    character(len=256) :: label
     real(8) :: lat,lon
     logical :: unilevel,print_summary,add_obs
     real(8), allocatable :: zobslev(:), lev(:), omp(:), oma(:), obs(:), jo(:), pres_mod(:), sigma_obs(:)
     logical, allocatable :: success(:)
     real(8), pointer :: gz_mod(:)
-
-    filename = 'obsspace_diag_CH_' ! Date added to name by transfer script.
     
     ! Get combination lists to group diagnostics by
     call chm_get_comboIdlist(obsSpaceData,stnid_elemID,varno_elemID,unilev_elemID,num_elemID,nset)
@@ -880,13 +914,13 @@ contains
        end select
 
        ! Sum over different processors, output (when mpi_myid.eq.0), and deallocate diagnostic arrays
-       call chm_obsspace_diagnostic(0.0d0, 0.0d0, print_stats=.TRUE., label=label, filename=filename)
+       call chm_obsspace_diagnostic(0.0d0, 0.0d0, print_stats=.true., label=label, openfile=.true.)
     
        call flush(6)
     end do
     
     ! Output diagnostics summary (over all CH observations)
-    call chm_obsspace_diagnostic(0.0d0, 0.0d0, print_summary=.TRUE., filename=filename)
+    call chm_obsspace_diagnostic(0.0d0, 0.0d0, print_summary=.true., openfile=.true.)
     
   end subroutine chm_CH_obsDiagnostics
 
@@ -972,7 +1006,7 @@ contains
        enddo BODY2
 
     end if
-       
+    
     ! Switch OBS_ASS values back from 4 to 1 and 1 to 0
     call obs_set_current_body_list(obsSpaceData,'CH')
     BODY3: DO

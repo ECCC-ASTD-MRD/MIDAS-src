@@ -41,7 +41,7 @@ module chem_mod
 !       - Public routines: "chm_get_stringId,chm_get_ID": Routines for use 
 !         in filtering out obs based on model vertical boundaries. See 'filterobs_mod.ftn90'.
 !
-!       - Public routine chm_lcheck_skipassim: Identify if data is to be assimilated or only used
+!       - Public routine chm_diagn_only: Identify if data is to be assimilated or only used
 !         for independent verifications.
 !
 !       - Public routine chm_comboIDlist: Provide list of fixed or accumulated stnid, 
@@ -95,7 +95,7 @@ module chem_mod
   public :: chm_setup,chm_dealloc_obs_err_stddev,chm_read_obs_err_stddev, &
             chm_get_obs_err_stddev,chm_obsspace_diagnostic,chm_convert_z_to_pressure
   public :: chm_obsoperators,chm_get_stringID,chm_get_ID,stnid_equal
-  public :: chm_lcheck_skipassim,chm_comboIDlist,chm_required_field
+  public :: chm_diagn_only,chm_comboIDlist,chm_required_field
   public :: chm_apply_bounds,chm_get_col_boundary
   public :: chm_add_col_boundary,chm_retrieve_col_boundary
   public :: chm_varnumFromVarName,chm_open_messagefile
@@ -160,25 +160,29 @@ module chem_mod
      !                            initial values read from BURP files
      !                         1: Initial values in obs BURP files 
      !                            (may be adjusted after input)
+     !                         2: Initial values in obs BURP files for variable number
+     !                            of vertical levels (for error std deviations only)
      !  std_type               Index of setup approach (used in combination with
      !                            nstd_brp_chm)
      !                         For nstd_brp_chm value 0 or 1, 
      !                         0: std1 or BURP file vales (sigma)
-     !                         1: min(std3,max(std2,std1_chm*ZVAL))
-     !                                                   or
-     !                            max(std2(ISTNID),xstd_std1_chm(ILEV)*sigma)
-     !                         2: sqrt(std2**2+(std1*ZVAL)**2))
-     !                                                   or
-     !                                              not applicable
+     !                         1: max(std3,std2*ZVAL)  if brp=0
+     !                            max(std3,std2*sigma) otherwise
+     !                         2: sqrt(std3**2+(std2*ZVAL)**2))  if brp=0
+     !                            sqrt(std3**2+(std2*sigma)**2)) otherwise
+     !                         3: min(std3,max(std2,std1_chm*ZVAL)) if brp=0
+     !                            min(std3,max(std2,std1_chm*sigma))  otherwise
+     !                         4: sqrt(std2**2+(std1*ZVAL)**2))  if brp=0 
+     !                            sqrt(std2**2+(std1*sigma)**2)) otherwise
      !  ibegin                 Position index of start of data for given
      !                         sub-family in the arrays std1,levels,lat
-     !  n_lvl                  Number of vertical levels
+     !  n_lvl                  Number of vertical levels (max number when brp=2)
      !  levels                 Vertical levels (in coordinate of sub-family data)
      !  n_lat                  Number of latitudes
      !  lat                    Latitudes (degrees; ordered in increasing size)
-     !  std1                   See std_type for usage
-     !  std2                   See std_type for usage
-     !  std3                   See std_type for usage  
+     !  std1                   See std_type for usage (dependent on vertical level)
+     !  std2                   See std_type for usage (independent of vertical level)
+     !  std3                   See std_type for usage (independent of vertical level)
 
      integer ::  n_stnid
      character(len=12), allocatable :: stnids(:)
@@ -200,13 +204,13 @@ module chem_mod
      !  bfr                    BUFR/BURP element in data block
      !  brp                    0: Set entirely from the ascii file being read. No 
      !                            initial values read from BURP files
-     !                         1: Initial values in obs BURP files 
-     !                             (may be adjusted after input)
+     !                         1: Initial values in obs BURP files for constant number
+     !                            of vertical levels (may be adjusted after input)
      !  vco                    Vertical coordinate type (1, 2, or 3, see bufr_read_mod)
      !
      !  ibegin                 Position index of start of data for given
      !                         sub-family.
-     !  n_lvl                  Number of vertical levels
+     !  n_lvl                  Number of vertical levels 
      !  n_lat                  Number of latitudes
      !  lat                    Latitudes (degrees; ordered in increasing size)
      !
@@ -370,7 +374,7 @@ module chem_mod
      !                         identified for obs to be assimilated. All others will not
      !                         be assimilated. OmP and OmA diagnostics and output
      !                         will still be produced for non-assimilated datasets.
-     !                         (see routines chm_lcheck_skipassim, oonl_chm in obsoperators_mod.ftn90)
+     !                         (see routines chm_diagn_only, oonl_chm in obsoperators_mod.ftn90)
      !
      !                           <0:  all are to be assimilated
      !                            0:  none are to be assimilated
@@ -433,6 +437,9 @@ module chem_mod
      !  message_filename       File name for file containing various messages and warnings related to chemical
      !                         constituents that are not included in the listing file.
      !
+     !  obsspace_diag_filename File name for file containing obs space diagnostics related to chemical
+     !                         constituents.
+     !
      
      logical :: diagn_save
      integer :: generalized_operator(0:chm_constituents_size)
@@ -444,7 +451,7 @@ module chem_mod
      real(8) :: amu(0:chm_constituents_size),tropo_column_top(0:chm_constituents_size)
      real(8) :: low_cutoff(0:chm_constituents_size),high_cutoff(0:chm_constituents_size)
      character(len=9) :: assim_stnid(chm_cfg_size)
-     character(len=50) :: message_filename
+     character(len=50) :: message_filename,obsspace_diag_filename 
 
   end type struct_config
 
@@ -657,6 +664,9 @@ contains
 !
 !       message_unit         Unit number corresponding to message_filename
 !
+!       obsspace_diag_filename 
+!                            File name for file containing obs space diagnostics related to chemical constituents.
+!
 !---------------------------------------------------------------------------------------- 
  
   use mpi_mod, only: mpi_myid
@@ -679,7 +689,7 @@ contains
   real(8) :: amu(0:chm_constituents_size)
   real(8) :: low_cutoff(0:chm_constituents_size),high_cutoff(0:chm_constituents_size)
   integer :: transform(0:chm_constituents_size)
-  character(len=50) :: message_filename
+  character(len=50) :: message_filename,obsspace_diag_filename
 
   EXTERNAL FNOM,FCLOS
 
@@ -689,7 +699,7 @@ contains
                      diagn_save,diagn_all,diagn_nset,diagn_pressmin,   &
                      tropo_mode,tropo_bound,tropo_column_top,amu,      &
                      low_cutoff,high_cutoff,transform,obsdata_maxsize, &
-                     message_filename
+                     message_filename,obsspace_diag_filename
 
   
   ! Default NAMCHEM values
@@ -719,7 +729,8 @@ contains
   tropo_column_top(:) = 0.0
 
   message_filename = 'chem_message_'
-
+  obsspace_diag_filename ='obsspace_diag_CH_'
+  
   amu(:) = -1.0
   amu(0) = 48.0    ! Molecular mass in g/mole for O3
   amu(1) = 18.02   ! H2O
@@ -768,6 +779,7 @@ contains
   chm_config%high_cutoff = high_cutoff
   chm_config%transform = transform
   chm_config%message_filename = message_filename
+  chm_config%obsspace_diag_filename = obsspace_diag_filename
   
   ! Initialize chm_comboIDlist and add (stnid,varno) pairs from the namelist
 
@@ -2098,8 +2110,9 @@ contains
     ! disregard line of dashes
     read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
     
-    ! disregard data section if set to be specified by BUFR values only
-    if (chm_std%brp(jelm).ge.1.and.chm_std%std_type(jelm).eq.0) cycle STNIDLOOP 
+    ! disregard data section if not needed
+    if (chm_std%std_type(jelm).eq.1.or.chm_std%std_type(jelm).eq.2.or.(chm_std%brp(jelm).ge.1.and.chm_std%std_type(jelm).eq.0)) &
+         cycle STNIDLOOP 
 
     if (chm_std%n_lvl(jelm).eq.1.and.chm_std%n_lat(jelm).eq.1) then
     
@@ -2247,6 +2260,8 @@ contains
 !
 !  Author   : M. Sitwell, ARQI/AQRD, Feb 2015 
 !             - Content moved from code originally in oer_fill_obs_erreurs.
+!             Y. Rochon, ARQI/AQDRD, Aug 2016
+!             - Updated cases
 !
 !  Revisions:
 !
@@ -2285,7 +2300,8 @@ contains
             
     ! Get weighting of error std. dev. if required
 
-    if (chm_std%brp(ISTNID).eq.0 .or. chm_std%std_type(ISTNID).ne.0) then
+    if (chm_std%std_type(ISTNID).gt.2 .or. &
+       (chm_std%brp(ISTNID).eq.0 .and. chm_std%std_type(ISTNID).eq.0) ) then
 
        IF (chm_std%n_lvl(ISTNID) .GT. 1) THEN
                  
@@ -2334,8 +2350,12 @@ contains
        case(0)
           obs_err_stddev = wgt
        case(1)
-          obs_err_stddev = min(chm_std%std3(ISTNID),max(chm_std%std2(ISTNID),wgt*ZVAL))
+          obs_err_stddev = max(chm_std%std3(ISTNID),chm_std%std2(ISTNID)*ZVAL)
        case(2)
+          obs_err_stddev = sqrt(chm_std%std3(ISTNID)**2+(chm_std%std2(ISTNID)*ZVAL)**2)
+       case(3)
+          obs_err_stddev = min(chm_std%std3(ISTNID),max(chm_std%std2(ISTNID),wgt*ZVAL))
+       case(4)
           obs_err_stddev = sqrt(chm_std%std2(ISTNID)**2+(wgt*ZVAL)**2)
        case default
           call abort3d('chm_get_obs_err_stddev: std_type = ' // trim(str(chm_std%std_type(ISTNID))) // &
@@ -2361,7 +2381,13 @@ contains
        case(0)
           obs_err_stddev = sigma
        case(1)
-          obs_err_stddev = max(chm_std%std2(ISTNID),wgt*sigma)
+          obs_err_stddev = max(chm_std%std3(ISTNID),chm_std%std2(ISTNID)*sigma)
+       case(2)
+          obs_err_stddev = sqrt(chm_std%std3(ISTNID)**2+(chm_std%std2(ISTNID)*sigma)**2)
+       case(3)
+          obs_err_stddev = min(chm_std%std3(ISTNID),max(chm_std%std2(ISTNID),wgt*sigma))
+       case(4)
+          obs_err_stddev = sqrt(chm_std%std2(ISTNID)**2+(wgt*sigma)**2)
        case default
           call abort3d('chm_get_obs_err_stddev: std_type = ' // trim(str(chm_std%std_type(ISTNID))) // &
                ' for STNID = ' // trim(CSTNID) // ' is not recognized.')
@@ -3917,7 +3943,7 @@ contains
 
 !-------------------------------------------------------------------------------------------
 
-  logical function chm_lcheck_skipassim(cstnid,varno,nobslev,iass)
+  logical function chm_diagn_only(cstnid,varno,nobslev)
 
 ! 
 !   Purpose: Identify whether or not the obs set identified by 
@@ -3933,31 +3959,27 @@ contains
 !       cstnid           Input station id
 !       varno            Obs BUFR number
 !       nobslev          Number of levels
-!       iass             Initial flag indicating if assimilatation status
-!
-!                          0: cannot (will not) be assimilated.
-!                          1: can be assimilated
 !
 !   Output:
 !
-!       chm_lcheck_skipassim   Indicating if assimilation to be skipped but data
-!                              is to be used for independent verifications after 
-!                              assimilation/minimization.
+!       chm_diagn_only     Indicating if assimilation to be skipped but data
+!                         is to be used for independent verifications after 
+!                         assimilation/minimization.
 !
 !-------------------------------------------------------------------------------------------
  
     implicit none
 
-    integer, intent(in) :: varno, nobslev, iass
+    integer, intent(in) :: varno, nobslev
     character(len=*), intent(in) :: cstnid
   
     integer :: i,elemId
     
-    chm_lcheck_skipassim=.false.
-    if (iass.ne.1.or.chm_config%assim_num.eq.-1) return
+    chm_diagn_only=.false.
+    if (chm_config%assim_num.eq.-1) return
     
     if (chm_config%assim_num.eq.0) then
-       chm_lcheck_skipassim=.true.  ! will not be assimilated
+       chm_diagn_only=.true.  ! will not be assimilated
     else if (chm_config%assim_num.gt.0) then
        elemId=0   
        do i=1,chm_config%assim_num
@@ -3971,10 +3993,10 @@ contains
              end if
           end if
        end do
-       if (elemId.eq.0) chm_lcheck_skipassim=.true.   ! will not be assimilated
+       if (elemId.eq.0) chm_diagn_only=.true.   ! will not be assimilated
     end if
        
-  end function chm_lcheck_skipassim
+  end function chm_diagn_only
 
 !-------------------------------------------------------------------------------------------
 
@@ -4808,7 +4830,7 @@ contains
 !----------------------------------------------------------------------------------------
 
   subroutine chm_obsspace_diagnostic(lat,lon,pressure,OmP,OmA,obs,Jo,sigma_obs,success,deltaPressure,nlev_obs, &
-                                     initialize,print_stats,print_summary,unilevel,label,filename)
+                                     initialize,print_stats,print_summary,unilevel,label,openfile)
 !
 ! Author   : M. Sitwell, ARQI/AQRD June 2015
 !          
@@ -4841,7 +4863,7 @@ contains
 !     print_summary  output summary of CH family statistics 
 !     unilevel       if the observation does not have a defined height coordinate
 !     label          label to print when print_stats is called
-!     filename       file name for lat/lon dependent statistics
+!     openfile       logical indicating if file chm%config%obsspace_diag_filename is to be opened.
 !
 !----------------------------------------------------------------------------------------
     
@@ -4851,9 +4873,9 @@ contains
 
     real(8), intent(in) :: lat,lon
     real(8), intent(in), optional :: deltaPressure,pressure(:),OmP(:),OmA(:),obs(:),Jo(:),sigma_obs(:)
-    logical, intent(in), optional :: initialize,print_stats,print_summary,unilevel,success(:)
+    logical, intent(in), optional :: initialize,print_stats,print_summary,unilevel,success(:),openfile
     integer, intent(in), optional :: nlev_obs
-    character(len=256), intent(in), optional :: label,filename
+    character(len=256), intent(in), optional :: label
 
     ! MPI local arrays
     ! Real arrays indexed by (lat,lon,lev,stat), where stat=1 for RMS and stat=2 for mean for all except Jo_stats.
@@ -4865,6 +4887,8 @@ contains
     real(8), allocatable :: OmP_global(:,:,:,:), OmA_global(:,:,:,:), obs_global(:,:,:,:), Jo_global(:,:,:,:)
     integer, allocatable :: counts_global(:,:,:)
 
+    integer, external :: fnom, fclos
+    
     logical, save :: allow_print_summary=.false.
     integer, save :: nlev,nlat,nlon,nbin
     real(8), save :: deltaLat,deltaLon,deltaLogPressure
@@ -4941,17 +4965,22 @@ contains
           
           if (mpi_myid.eq.0) then
              
-             ! Print globally averaged output to listing file or to output file 'filename'.
+             ! Print globally averaged output to listing file or to output file obspace_diag_filename.
              
              ! Open and append to output file if requested
              
-             if (present(filename)) then
-                unit = 10
-                inquire(file=filename, exist=fileout_exist)
-                if (fileout_exist) then
-                   open(unit, file=filename, status="old", position="append", action="write")
+             if (present(openfile)) then
+                if (openfile) then 
+                   inquire(file=chm_config%obsspace_diag_filename, exist=fileout_exist)
+                   unit = 0
+                   if (fileout_exist) then
+                      ierr=fnom(unit,chm_config%obsspace_diag_filename,'FTN+APPEND+R/W',0)
+                   else
+                      ierr=fnom(unit,chm_config%obsspace_diag_filename,'FTN+R/W',0)
+                   end if
+                   if (ierr.ne.0) call abort3d('chm_obsspace_diagnostic: Error associating unit number')
                 else
-                   open(unit, file=filename, status="new", action="write")
+                   unit=6
                 end if
              else
                 unit=6             
@@ -5025,8 +5054,9 @@ contains
                           
                 deallocate(ncounts)
              
-                ! Output lat,lon dependent averages to file if filename is provided
-                if (present(filename).and.chm_config%diagn_save.and.(nlat.gt.1.or.nlon.gt.1)) then
+                ! Output lat,lon dependent averages to file if obsspace_diag_filename is provided
+                if (present(openfile)) then
+                if (openfile.and.chm_config%diagn_save.and.(nlat.gt.1.or.nlon.gt.1)) then
 
                    write(unit,*)
                    write(unit,*) " Lat-long gridded statistics: "
@@ -5068,6 +5098,7 @@ contains
                    end do
                 
                 end if
+                end if
 
                 deallocate(press_bins)
 
@@ -5077,8 +5108,10 @@ contains
                 write(unit,*)
              end if
 
-             if (present(filename)) close(unit)     
-
+             if (present(openfile)) then
+                if (openfile) ierr=fclos(unit)     
+             end if
+             
              call flush(6)
              
           end if
@@ -5093,14 +5126,19 @@ contains
 
     if (present(print_summary)) then             
         if (allow_print_summary.and.mpi_myid.eq.0.and.print_summary) then        
-            if (present(filename)) then
-               unit = 10
-               inquire(file=filename, exist=fileout_exist)
-               if (fileout_exist) then
-                  open(unit, file=filename, status="old", position="append", action="write")
+            if (present(openfile)) then
+               if (openfile) then 
+                  inquire(file=chm_config%obsspace_diag_filename, exist=fileout_exist)
+                  unit = 0
+                  if (fileout_exist) then
+                     ierr=fnom(unit,chm_config%obsspace_diag_filename,'FTN+APPEND+R/W',0)
+                  else
+                     ierr=fnom(unit,chm_config%obsspace_diag_filename,'FTN+R/W',0)
+                  end if
+                  if (ierr.ne.0) call abort3d('chm_obsspace_diagnostic: Error associating unit number')
                else
-                  open(unit, file=filename, status="new", action="write")
-               end if              
+                  unit=6
+               end if
             else
                unit=6
             end if
@@ -5112,7 +5150,9 @@ contains
             write(unit,*) "                                            Jo(x_backgrnd) = ",Jo_b_total," ,   2*Jo(x_backgrnd)/N = ",2.*Jo_b_total/Jo_count_total
             write(unit,*)
             
-            if (present(filename)) close(unit)     
+            if (present(openfile)) then
+               if (openfile) ierr=fclos(unit) 
+            end if    
         end if
         if (print_summary) return
     end if
@@ -6093,9 +6133,9 @@ contains
                         /obs_col(1)
                 call obsdata_add_data1d(chm_efftemp,temp_eff,obsdata_get_loctime_code(obsoper%lon,obsoper%lat,obsoper%date,obsoper%hhmm), &
                                         cstnid=obsoper%stnid)
-            end if
-         end if
-      end if
+             end if
+          end if
+       end if
                        
   case(1)
 !

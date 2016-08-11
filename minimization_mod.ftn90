@@ -371,12 +371,12 @@ CONTAINS
         zeps0 = zeps1
         lvarqc = .true.
 
-        if (imode == 4 .and. itertot < itermax) then
+        if ((imode == 4 .or. imode == 1) .and. itertot < itermax) then
           imode = 2
           INDIC = 2
           call simvar(indic,nvadim_mpilocal,vazx,zjsp,vazg,dataptr_int(1))
         else
-          call abort3d(" MINIMIZATION_MOD: n1qn3 mode ne 4")
+          call abort3d(" MINIMIZATION_MOD: n1qn3 mode ne 1 or 4")
         endif
       endif
 
