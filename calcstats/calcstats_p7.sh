@@ -11,12 +11,13 @@
 flnml="namelist_glb_p7.nml"
 machine="hadar"
 gest="/users/dor/arma/bue/power7/test_calcstats/feeaf54_M"
-ensdir="/users/dor/arma/gr3/data_gpfs/var/gonzalo/ensemble/interpEnsTrials/gaussian_grid"
+ensdir="/users/dor/arma/bue/power7/nmc800x400/k5_redo"
+#ensdir="/users/dor/arma/gr3/data_gpfs/var/gonzalo/ensemble/interpEnsTrials/gaussian_grid"
 abs="/users/dor/arma/bue/home01/3dvar_git/compiledir_calcstats/calcstats_p7.abs"
 npex=1
 npey=1
 openmp=32
-maxcputime=600
+maxcputime=10800
 memory=3264M
 
 #
@@ -47,6 +48,7 @@ cat << EOF > $TMPDIR/go_calcstats.sh
  ulimit -a
  cd $gest
  export TMG_ON=YES
+ export LDR_CNTRL=TEXTPSIZE=64K@STACKPSIZE=64K@DATAPSIZE=64K@SHMPSIZE=64K@MAXDATA64=0x1900000000
  ./calcb.abs
 EOF
 

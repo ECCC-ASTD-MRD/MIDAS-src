@@ -178,7 +178,7 @@ module calcbmatrix_glb_mod
     end do
 
     ! Make sure the truncation is compatible with the waveBandPeaks
-    if ( ntrunc < nj-1 ) then
+    if ( ntrunc < nj-1 .and. nWaveBand > 1 ) then
        write(6,*) 'calcb_glb_setup: The truncation is not compatible with wave band decomposition'
        write(6,*) '                 ntrunc should = ', nj-1
        call abort3d('calbmatrix_glb')
@@ -210,70 +210,31 @@ module calcbmatrix_glb_mod
     integer :: variableType 
 
     allocate(ensPerturbations(ni,nj,nkgdimEns,nens),stat=ierr)
-    if(ierr.ne.0) then
-      write(6,*) 'Problem allocating memory!',ierr
-      call flush(6)
-    endif
+    if(ierr.ne.0) call abort3d('Problem allocating memory 1')
     allocate(ensBalPerturbations(ni,nj,nLevEns_T+1,nens),stat=ierr)
-    if(ierr.ne.0) then
-      write(6,*) 'Problem allocating memory!',ierr
-      call flush(6)
-    endif
+    if(ierr.ne.0) call abort3d('Problem allocating memory 1')
     allocate(theta1(nlevEns_M,nj),stat=ierr)
-    if(ierr.ne.0) then
-      write(6,*) 'Problem allocating memory!',ierr
-      call flush(6)
-    endif
+    if(ierr.ne.0) call abort3d('Problem allocating memory 1')
     allocate(stddev3d(ni,nj,nkgdimEns),stat=ierr)
-    if(ierr.ne.0) then
-      write(6,*) 'Problem allocating memory!',ierr
-      call flush(6)
-    endif
+    if(ierr.ne.0) call abort3d('Problem allocating memory 1')
     allocate(stddevZonAvg(nkgdimEns,nj),stat=ierr)
-    if(ierr.ne.0) then
-      write(6,*) 'Problem allocating memory!',ierr
-      call flush(6)
-    endif
+    if(ierr.ne.0) call abort3d('Problem allocating memory 1')
     allocate(PtoT(nlevEns_T+1,nlevEns_M,nj),stat=ierr)
-    if(ierr.ne.0) then
-      write(6,*) 'Problem allocating memory!',ierr
-      call flush(6)
-    endif
+    if(ierr.ne.0) call abort3d('Problem allocating memory 1')
     allocate(theta2(nlevEns_M,nj),stat=ierr)
-    if(ierr.ne.0) then
-      write(6,*) 'Problem allocating memory!',ierr
-      call flush(6)
-    endif
+    if(ierr.ne.0) call abort3d('Problem allocating memory 1')
     allocate(stddev3dBal(ni,nj,nLevEns_T+1),stat=ierr)
-    if(ierr.ne.0) then
-      write(6,*) 'Problem allocating memory!',ierr
-      call flush(6)
-    endif
+    if(ierr.ne.0) call abort3d('Problem allocating memory 1')
     allocate(stddev3dUnbal(ni,nj,nkgdimEns),stat=ierr)
-    if(ierr.ne.0) then
-      write(6,*) 'Problem allocating memory!',ierr
-      call flush(6)
-    endif
+    if(ierr.ne.0) call abort3d('Problem allocating memory 1')
     allocate(stddevZonAvgBal(nLevEns_T+1,nj),stat=ierr)
-    if(ierr.ne.0) then
-      write(6,*) 'Problem allocating memory!',ierr
-      call flush(6)
-    endif
+    if(ierr.ne.0) call abort3d('Problem allocating memory 1')
     allocate(stddevZonAvgUnbal(nkgdimEns,nj),stat=ierr)
-    if(ierr.ne.0) then
-      write(6,*) 'Problem allocating memory!',ierr
-      call flush(6)
-    endif
+    if(ierr.ne.0) call abort3d('Problem allocating memory 1')
     allocate(corns(nkgdimEns,nkgdimEns,0:ntrunc),stat=ierr)
-    if(ierr.ne.0) then
-      write(6,*) 'Problem allocating memory!',ierr
-      call flush(6)
-    endif
+    if(ierr.ne.0) call abort3d('Problem allocating memory 1')
     allocate(rstddev(nkgdimEns,0:ntrunc),stat=ierr)
-    if(ierr.ne.0) then
-      write(6,*) 'Problem allocating memory!',ierr
-      call flush(6)
-    endif
+    if(ierr.ne.0) call abort3d('Problem allocating memory 1')
 
     call readEnsemble(ensPerturbations)
     write(6,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -514,20 +475,11 @@ module calcbmatrix_glb_mod
     real*8,allocatable :: stddev3d(:,:,:),stddevZonAvg(:,:)
 
     allocate(ensPerturbations(ni,nj,nkgdimEns,nens),stat=ierr)
-    if(ierr.ne.0) then
-      write(6,*) 'Problem allocating memory!',ierr
-      call flush(6)
-    endif
+    if(ierr.ne.0) call abort3d('Problem allocating memory 1')
     allocate(stddev3d(ni,nj,nkgdimEns),stat=ierr)
-    if(ierr.ne.0) then
-      write(6,*) 'Problem allocating memory!',ierr
-      call flush(6)
-    endif
+    if(ierr.ne.0) call abort3d('Problem allocating memory 1')
     allocate(stddevZonAvg(nkgdimEns,nj),stat=ierr)
-    if(ierr.ne.0) then
-      write(6,*) 'Problem allocating memory!',ierr
-      call flush(6)
-    endif
+    if(ierr.ne.0) call abort3d('Problem allocating memory 1')
 
     call readEnsemble(ensPerturbations)
 
@@ -1846,11 +1798,7 @@ module calcbmatrix_glb_mod
 
           clnomvar = 'P0' 
           ikey = vfstlir(gd2d,nulens,ini,inj,ink,idateo,cletiket,-1,ip2,ip3,cltypvar,clnomvar)
-          if(ikey.lt.0) then
-            write(6,*) 'SUENS: Problem with P0 ENS'
-            call flush(6)
-            call qqexit(1)
-          endif
+          if(ikey.lt.0) call abort3d('readEnsemble1: Problem with P0 ENS')
           do jlat=1,nj
             do jlon=1,ni
               ensPerturbations(jlon,jlat,ngpositps,jens)= gd2d(jlon,jlat)*rmbtpa
@@ -1862,9 +1810,7 @@ module calcbmatrix_glb_mod
             ikey = vfstlir(gd2d,nulens,ini,inj,ink,idateo,cletiket,nip1_T(jlev),ip2,ip3,cltypvar,clnomvar)
             if(ikey.lt.0) then
               write(6,*) idateo,cletiket,nip1_T(jlev),ip2,ip3,cltypvar,clnomvar
-              write(6,*) 'SUENS: Problem with TT ENS'
-              call flush(6)
-              call qqexit(1)
+              call abort3d('readEnsemble1: Problem with TT ENS')
             endif
             call flush(6)
             do jlat=1,nj
@@ -1882,9 +1828,7 @@ module calcbmatrix_glb_mod
               ikey = vfstlir(gd2d,nulens,ini,inj,ink,idateo,cletiket,nip1_T(jlev),ip2,ip3,cltypvar,clnomvar)
               if(ikey.lt.0) then
                 write(6,*) idateo,cletiket,nip1_T(jlev),ip2,ip3,cltypvar,clnomvar
-                write(6,*) 'SUENS: Problem with HU and LQ ENS'
-                call flush(6)
-                call qqexit(1)
+                call abort3d('readEnsemble1: Problem with HU and LQ ENS')
               else
                 do jlat=1,nj
                   do jlon=1,ni
@@ -1906,9 +1850,7 @@ module calcbmatrix_glb_mod
             ikey = vfstlir(gd2d,nulens,ini,inj,ink,idateo,cletiket,nip1_M(jlev),ip2,ip3,cltypvar,clnomvar)
             if(ikey.lt.0) then
               write(6,*) idateo,cletiket,nip1_M(jlev),ip2,ip3,cltypvar,clnomvar
-              write(6,*) 'SUENS: Problem with UU ENS'
-              call flush(6)
-              call qqexit(1)
+              call abort3d('readEnsemble1: Problem with UU ENS')
             endif
             do jlat=1,nj
               if ( convertToWindImages ) then
@@ -1927,9 +1869,7 @@ module calcbmatrix_glb_mod
             ikey = vfstlir(gd2d,nulens,ini,inj,ink,idateo,cletiket,nip1_M(jlev),ip2,ip3,cltypvar,clnomvar)
             if(ikey.lt.0) then
               write(6,*) idateo,cletiket,nip1_M(jlev),ip2,ip3,cltypvar,clnomvar
-              write(6,*) 'SUENS: Problem with VV ENS'
-              call flush(6)
-              call qqexit(1)
+              call abort3d('readEnsemble1: Problem with VV ENS')
             endif
             do jlat=1,nj
               if ( convertToWindImages ) then
@@ -1947,9 +1887,7 @@ module calcbmatrix_glb_mod
 !          ikey = vfstlir(gd2d,nulens,ini,inj,ink,idateo,cletiket,-1,ip2,ip3,cltypvar,clnomvar)
 !          if(ikey.lt.0)  then
 !            write(6,*) idateo,cletiket,ip2,ip3,cltypvar,clnomvar
-!            write(6,*) 'SUENS: Problem with TG ENS'
-!            call flush(6)
-!            call qqexit(1)
+!            call abort3d('readEnsemble1: Problem with TG ENS')
 !          else
 !            do jlat=1,nj
 !              do jlon=1,ni
@@ -2080,11 +2018,7 @@ module calcbmatrix_glb_mod
 
     clnomvar = 'P0' 
     ikey=fstlir(gd2d,nulens(jens),ini,inj,ink,idateo,cletiket,-1,ip2,ip3, cltypvar,clnomvar)
-    if(ikey.lt.0) then
-       write(6,*) 'SUENS: Problem with P0 ENS'
-       call flush(6)
-       call qqexit(1)
-    endif
+    if(ikey.lt.0) call abort3d('readEnsembleMember: Problem with P0 ENS')
     do jlat=1,nj
        do jlon=1,ni
           ensPerturbations(jlon,jlat,ngpositps,jens)= gd2d(jlon,jlat)*rmbtpa
@@ -2096,9 +2030,7 @@ module calcbmatrix_glb_mod
        ikey=fstlir(gd2d,nulens(jens),ini,inj,ink,idateo,cletiket,nip1_T(jlev),ip2,ip3,cltypvar,clnomvar)
        if(ikey.lt.0) then
           write(6,*) idateo,cletiket,nip1_T(jlev),ip2,ip3,cltypvar,clnomvar
-          write(6,*) 'SUENS: Problem with TT ENS'
-          call flush(6)
-          call qqexit(1)
+          call abort3d('readEnsembleMember: Problem with TT ENS')
        endif
        call flush(6)
        do jlat=1,nj
@@ -2116,9 +2048,7 @@ module calcbmatrix_glb_mod
           ikey=fstlir(gd2d,nulens(jens),ini,inj,ink,idateo,cletiket,nip1_T(jlev),ip2,ip3,cltypvar,clnomvar)
           if(ikey.lt.0) then
              write(6,*) idateo,cletiket,nip1_T(jlev),ip2,ip3,cltypvar,clnomvar
-             write(6,*) 'SUENS: Problem with HU and LQ ENS'
-             call flush(6)
-             call qqexit(1)
+             call abort3d('readEnsembleMember: Problem with HU and LQ ENS')
           else
              do jlat=1,nj
                 do jlon=1,ni
@@ -2140,9 +2070,7 @@ module calcbmatrix_glb_mod
        ikey=fstlir(gd2d,nulens(jens),ini,inj,ink,idateo,cletiket,nip1_M(jlev),ip2,ip3,cltypvar,clnomvar)
        if(ikey.lt.0) then
           write(6,*) idateo,cletiket,nip1_M(jlev),ip2,ip3,cltypvar,clnomvar
-          write(6,*) 'SUENS: Problem with UU ENS'
-          call flush(6)
-          call qqexit(1)
+          call abort3d('readEnsembleMember: Problem with UU ENS')
        endif
        do jlat=1,nj
           if ( convertToWindImages ) then
@@ -2161,9 +2089,7 @@ module calcbmatrix_glb_mod
        ikey=fstlir(gd2d,nulens(jens),ini,inj,ink,idateo,cletiket,nip1_M(jlev),ip2,ip3,cltypvar,clnomvar)
        if(ikey.lt.0) then
           write(6,*) idateo,cletiket,nip1_M(jlev),ip2,ip3,cltypvar,clnomvar
-          write(6,*) 'SUENS: Problem with VV ENS'
-          call flush(6)
-          call qqexit(1)
+          call abort3d('readEnsembleMember: Problem with VV ENS')
        endif
        do jlat=1,nj
           if ( convertToWindImages ) then
@@ -2181,9 +2107,7 @@ module calcbmatrix_glb_mod
 !          ikey = vfstlir(gd2d,nulens,ini,inj,ink,idateo,cletiket,-1,ip2,ip3,cltypvar,clnomvar)
 !          if(ikey.lt.0)  then
 !            write(6,*) idateo,cletiket,ip2,ip3,cltypvar,clnomvar
-!            write(6,*) 'SUENS: Problem with TG ENS'
-!            call flush(6)
-!            call qqexit(1)
+!            call abort3d('readEnsembleMember: Problem with TG ENS')
 !          else
 !            do jlat=1,nj
 !              do jlon=1,ni
