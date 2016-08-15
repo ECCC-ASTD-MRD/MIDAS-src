@@ -472,8 +472,7 @@ module chem_mod
 
 ! Arrays to contain the calculated concentration-weighted effective temperature
 ! associated to total column data. It will be stored in the observation file.
-! Set for both local MPI and combined over all MPI
-  type(struct_chm_obsdata) :: chm_efftemp,chm_efftemp_all
+  type(struct_chm_obsdata) :: chm_efftemp
 
 ! Arrays for background error std. dev.
   type(struct_chm_obsdata) :: chm_sigma_trial
@@ -2639,33 +2638,34 @@ contains
   
     implicit none
     
-    integer :: ierr,icount,varno(1)
+    integer :: ierr,nrep_modified,varno(1)
 
 !   If needed, add effective temperature values in obs file for total column measurements
 
-    call obsdata_MPIgather(chm_efftemp,chm_efftemp_all) 
+    call obsdata_MPIgather(chm_efftemp)
     
-    if (chm_efftemp_all%nrep.gt.0.and.mpi_myid.eq.0) then
+    if (chm_efftemp%nrep.gt.0.and.mpi_myid.eq.0) then
         varno(1)=12001
-        icount=chm_update_burp('brpch',varno(1:max(1,chm_efftemp_all%dim2)),0,'INFO',chm_efftemp_all,multi='UNI') 
-        write(*,*) 'chm_update_obsfile: Added ',icount,' effective temperature values in the obs file.'
+        nrep_modified = chm_update_burp('brpch',varno(1:max(1,chm_efftemp%dim2)),0,'INFO',chm_efftemp,multi='UNI') 
+        write(*,*) 'chm_update_obsfiles: Added ',nrep_modified,' effective temperature values in the obs file.'
     end if 
 
   end subroutine chm_update_obsfile
 
 !-----------------------------------------------------------------------------------------
 
-  function chm_update_burp(filename,varno,bkstp,block_type,obsdata, &
-                           stnid,multi,rep_first,rep_last) result(icount)
+  function chm_update_burp(filename,varno,bkstp,block_type,obsdata,stnid,multi) result(nrep_modified)
 !
 ! Author  : Y. Rochon, ARQI/AQRD, June 2016
 !           - Partly based on chm_read_burp by M. Sitwell.
 !
+! Revision: 
+!          M. Sitwell, ARQI/AQRD, Aug 2016
+!          - Modified to preserve order of reports.
+!
 ! Purpose:  Add or modify information from BURP file in existing block and
 !           for specified BUFR descriptor varno(s). 
 !           Provided data can be either 1D or 2D data.
-!
-! Revision: 
 !
 ! Arguments:
 !
@@ -2678,23 +2678,21 @@ contains
 !                         of bknat. Valid values are 'DATA', 'INFO', '3-D',
 !                         and 'MRQR'.
 !           obsdata       Input struct_chm_obsdata object for varno.
-!
 !           stnid         station ID (optional)
 !                         if present, burp_in%code = (lat,long,date,time)
 !                         otherwise, burp_in%code = (lat,long,date,time,stnid)
 !           multi         Indicates in intended report are for 'UNI' or 'MULTI' level data (optional)
-!           rep_first     Report index of starting position in BURP file. (optional)
-!                         Start at beginning if not provided. 
-!           rep_last      Report index of final position of interest in BURP file. (option
-!                         Go to end of file if not provided.
 !
 !
 !  Output 
-!           icount        Number of modified reports        
+!           nrep_modified Number of modified reports
 !
 !  Comments:
 !
 !  - Currently assumes that all elements of varno(:) are distinct from each other.
+!  - In blocks with new data to be added/modified, if the varno already exists in the block, the
+!    new data will overwrite the existing varno data, otherwise will append the new data
+!    to the block.
 !
 !-----------------------------------------------------------------------------------------
     
@@ -2708,56 +2706,29 @@ contains
     integer, intent(in) :: varno(:),bkstp
     
     character(len=*), intent(in), optional :: stnid,multi
-    integer, intent(in), optional :: rep_first,rep_last
 
-    integer :: icount,ncount
+    integer :: nrep_modified,ncount
+    logical :: blk_found,encode_blk,convert_blk
     integer, parameter :: LNMX=100000
-    logical :: found
 
     character(len=9)  :: rep_stnid
     character(len=code_len) :: code
     type(burp_file)   :: brp
     type(burp_rpt)    :: rep,rep_new
-    type(burp_block)  :: blk,blk_new
+    type(burp_block)  :: blk
     integer           :: error,ref_rpt,nrep,ref_blk,ndim,dim1,dim2
-    integer           :: ref_bkstp,ref_btyp,ref_datyp,nval,ivar,ilev,istat
+    integer           :: ref_bkstp,nval,ivar,ilev,istat
     integer           :: date,time,ilat,ilon,iele,nele,k
     integer, allocatable :: address(:)
-    real(4), allocatable :: array(:,:)
+    real(4), allocatable :: new_vals(:,:,:)
+    logical, allocatable :: modify(:)
     
     ! Check presence of data to update
-    if (obsdata%nrep.le.0) call abort3d('chm_update_burp: Skipped due to absence of data to update.')
+    if (obsdata%nrep.le.0) then
+       write(*,*) 'chm_update_burp: Skipped due to absence of data to update.'
+       return
+    end if
     
-    ! initialize burp file, report, and block system resources
-    Call BURP_Init(brp, iostat=error)
-    Call BURP_Init(rep,R2=rep_new, iostat=error)
-    Call BURP_Init(blk, iostat=error)
-
-    ! open the burp file in append mode (block of interest will be first deleted if it exists and then appended)
-    Call BURP_New(brp, FILENAME=filename, MODE=FILE_ACC_APPEND, IOSTAT=error)
-    
-    if (error.ne.0) CALL ABORT3D('chm_update_burp: Could not open BURP file: ' // filename)
-
-    ! get number of reports in file
-    Call BURP_Get_Property(brp, NRPTS=nrep)
-    allocate(address(nrep))
-    address(:)=0
-
-    ! loop through reports to identify addresses of original file
-    ref_rpt = 0
-    ncount=0
-    if (present(rep_first)) ref_rpt=rep_first
-    do
-       ref_rpt = BURP_Find_Report(brp, REPORT=rep, SEARCH_FROM=ref_rpt, IOSTAT=error)
-       if (ref_rpt<0) exit
-       if (present(rep_last)) then
-          if (ref_rpt.gt.rep_last) exit
-       end if
-       ncount=ncount+1
-       address(ncount)=ref_rpt
-    end do
-    
-            
     ! Identify dimensions for the input data    
     ndim=obsdata%ndim
     dim1=obsdata%dim1
@@ -2766,107 +2737,137 @@ contains
     else
        dim2=obsdata%dim2
     end if
-
+    
     if (size(varno).lt.dim2) call abort3d('chm_update_burp: Number of BUFR elements not sufficient. ' // &
                                           trim(str(size(varno))) // ' vs ' // trim(str(dim2)))
+
+    ! initialize burp file, report, and block system resources
+    call BURP_Init(brp, iostat=error)
+    call BURP_Init(rep, R2=rep_new, iostat=error)
+    call BURP_Init(blk, iostat=error)
+
+    ! open the burp file in append mode (to replace or add data in a block)
+    call BURP_New(brp, FILENAME=filename, MODE=FILE_ACC_APPEND, IOSTAT=error)
+    if (error.ne.0) call abort3d('chm_update_burp: Could not open BURP file: ' // filename)
+
+    ! get number of reports in file
+    call BURP_Get_Property(brp, NRPTS=nrep)
+
+    allocate(address(nrep),modify(nrep),new_vals(dim1,dim2,nrep))
+    address(:)=0
+    modify(:)=.false.
+    new_vals(:,:,:)=0.
+
+    ! First loop through reports to identify addresses of original file as well as identify if new
+    ! information should be included to that report.
+    ! NOTE: The addresses of all reports have to be saved in their original order to ensure the
+    !       order of the reports in the file is unchanged.
+    ref_rpt=0
+    ncount=0
+    obsdata%irep=1
+    REPORTS1: do
+
+       ref_rpt = BURP_Find_Report(brp, REPORT=rep, SEARCH_FROM=ref_rpt, IOSTAT=error)
+       if (ref_rpt<0) exit REPORTS1
+
+       ncount=ncount+1
+       address(ncount)=ref_rpt
+
+       call BURP_Get_Property(rep, STNID=rep_stnid, DATE=date, TEMPS=time, LATI=ilat, LONG=ilon)
+
+       if (rep_stnid(1:2).eq.'>>') cycle REPORTS1
+
+       ! Set unique identifier for search from input data
+       if (present(stnid)) then
+          if (trim(rep_stnid).ne.stnid) cycle REPORTS1
+          code = obsdata_get_loctime_code(ilon,ilat,date,time)
+       else 
+          code = trim(obsdata_get_loctime_code(ilon,ilat,date,time))//trim(rep_stnid)
+       end if
+       
+       ! Determine if replacement/additional data likely present for this report
+       if (dim1.eq.1.and.dim2.eq.1) then
+          new_vals(1,1,ncount)=real(obsdata_get_element(obsdata,code,1,stat=istat))
+       else if (dim2.eq.1) then
+          new_vals(:,1,ncount)=real(obsdata_get_array1d(obsdata,code,stat=istat))
+       else 
+          new_vals(:,:,ncount)=real(obsdata_get_array2d(obsdata,code,stat=istat))
+       end if
+
+       if (istat.eq.0) modify(ncount) = .true.
+
+    end do REPORTS1
     
-    allocate(array(dim1,dim2))  
-      
+    nrep_modified = count(modify)   ! number of reports with same code and, possibly, same number of obs data levels
+
     ! Generate new report
     Call BURP_New(rep_new, ALLOC_SPACE=10*LNMX, IOSTAT=error)
+
     
-    icount = 0     ! counter of reports with same code and, possibly, same number of obs data levels
-    obsdata%irep=1
-    
-    ! loop through reports    
-    REPORTS: do k=1,ncount
+    ! second loop through reports to include the new information to the file    
+    REPORTS2: do k=1,ncount
     
        call BURP_Get_Report(brp, REPORT=rep, REF=address(k), IOSTAT=error)
        
-       call BURP_Get_Property(rep, STNID=rep_stnid, DATE=date, TEMPS=time, LATI=ilat, LONG=ilon) 
-       if (rep_stnid(1:2).eq.'>>') cycle REPORTS
-       
-       ! Set unique identifier for search from input data
-       if (present(stnid)) then
-          if (trim(rep_stnid).ne.stnid) cycle REPORTS
-          code = obsdata_get_loctime_code(ilon,ilat,date,time) 
-       else 
-          code = trim(obsdata_get_loctime_code(ilon,ilat,date,time))//trim(rep_stnid)  
-       end if
-       
-       ! Determine if replacement/additionl data likely present for this report
-       
-       call obsdata_set_index(obsdata,code,stat=istat)
-       if (istat.ne.0) cycle REPORTS
-
        ! Copy report header
        Call BURP_Copy_Header(TO=rep_new,FROM=rep)
        Call BURP_Init_Report_Write(brp,rep_new,IOSTAT=error)
                
-       ! loop through blocks to find target block
+       ! loop through blocks
        ref_blk = 0
-       found=.false.
        BLOCKS: do
           
           ref_blk = BURP_Find_Block(rep, BLOCK=blk, SEARCH_FROM=ref_blk, IOSTAT=error)          
           if (ref_blk<0) exit BLOCKS
           
-          call BURP_Get_Property(blk, NELE=nele, NVAL=nval, BKSTP=ref_bkstp, BTYP=ref_btyp, &
-                                 DATYP=ref_datyp, IOSTAT=error)
+          encode_blk = .false.
+          convert_blk = .false.
 
-          ! Assuming all blocks in a report have the same UNI/MULTI setting.
-          if (present(multi)) then 
-             if (.not.IS_Burp_Btyp(trim(multi),BTYP=ref_btyp)) cycle REPORTS
-          end if
-         
-          if (.not.IS_Burp_Btyp(trim(block_type),BTYP=ref_btyp) .or. bkstp.ne.ref_bkstp) then
-            ! Add block in new report 
-            call BURP_Write_Block(rep_new,BLOCK=blk,ENCODE_BLOCK=.FALSE.,CONVERT_BLOCK=.FALSE.,IOSTAT=error)
-            cycle BLOCKS
-          end if 
-           
-          if (dim1.ne.nval) cycle REPORTS
+          if (modify(k)) then
 
-          icount=icount+1
-          found=.true.
+             call BURP_Get_Property(blk, NELE=nele, NVAL=nval, BKSTP=ref_bkstp, IOSTAT=error)
 
-          if (dim1.eq.1.and.dim2.eq.1) then
-              array(1,1)=real(obsdata_get_element(obsdata,code,1))
-          else if (dim2.eq.1) then
-              array(:,1)=real(obsdata_get_array1d(obsdata,code))
-          else 
-              array(:,:)=real(obsdata_get_array2d(obsdata,code))
-          end if
+             blk_found = IS_Burp_Btyp(trim(block_type),BLOCK=blk) .and. bkstp.eq.ref_bkstp .and. dim1.eq.nval
 
-          ! Make copy of original block and add/modify content as needed          
-          blk_new=blk                                                          
-          do iele=1,dim2
-             ivar = BURP_Find_Element(blk_new, ELEMENT=varno(iele), IOSTAT=error)           
-             if (ivar.lt.0) then
-                ivar=nele+1
-                call BURP_Resize_Block(blk_new,ADD_NELE=1,IOSTAT=error)
-                call BURP_Set_Element(blk_new,NELE_IND=ivar,ELEMENT=varno(iele),IOSTAT=error)
+             if (present(multi)) then 
+                if (.not.IS_Burp_Btyp(trim(multi),BLOCK=blk)) blk_found = .false.
              end if
+         
+             if (blk_found) then
+                ! Block to be modified has been found, add new data to block.
+                ! If the varno is already in the block, the new data will overwrite the
+                ! existing data, otherwise will append the new data to the block.
 
-             do ilev=1,nval 
-                call BURP_Set_Rval(blk_new,NELE_IND=ivar,NVAL_IND=ilev,NT_IND=1,RVAL=array(ilev,iele),IOSTAT=error)                 
-             end do
-          end do
+                do iele=1,dim2
+                   ivar = BURP_Find_Element(blk, ELEMENT=varno(iele), IOSTAT=error)           
+                   if (ivar.lt.0) then
+                      ivar=nele+1
+                      call BURP_Resize_Block(blk,ADD_NELE=1,IOSTAT=error)
+                      call BURP_Set_Element(blk,NELE_IND=ivar,ELEMENT=varno(iele),IOSTAT=error)
+                   end if
+                
+                   do ilev=1,nval 
+                      call BURP_Set_Rval(blk,NELE_IND=ivar,NVAL_IND=ilev,NT_IND=1,RVAL=new_vals(ilev,iele,k),IOSTAT=error)                 
+                   end do
+                end do
         
-          ! Add modified block in new report 
-          call BURP_Write_Block(rep_new,BLOCK=blk_new,ENCODE_BLOCK=.TRUE.,CONVERT_BLOCK=.TRUE.,IOSTAT=error)
+                encode_blk = .true.
+                convert_blk = .true.
+
+             end if
+          end if
+             
+          call BURP_Write_Block(rep_new, BLOCK=blk, ENCODE_BLOCK=encode_blk, CONVERT_BLOCK=convert_blk, IOSTAT=error)
+         
        end do BLOCKS
        
-       if (found) then
-          Call BURP_Delete_Report(brp,rep, IOSTAT=error)
-          Call BURP_Write_Report(brp,rep_new,IOSTAT=error) 
-          if (error.ne.0) write(*,*) BURP_Str_Error()
-       end if 
-       
-    end do REPORTS
+       call BURP_Delete_Report(brp,rep,IOSTAT=error)
+       call BURP_Write_Report(brp,rep_new,IOSTAT=error) 
+  
+    end do REPORTS2
         
     ! deallocate
-    deallocate(address)
+    deallocate(address,modify,new_vals)
     Call BURP_Free(brp,iostat=error)
     Call BURP_Free(rep,R2=rep_new,iostat=error)
     Call BURP_Free(blk,iostat=error)
@@ -3248,8 +3249,8 @@ contains
   end function obsdata_get_loctime_code_r
 
 !----------------------------------------------------------------------------------------
- 
-  subroutine obsdata_add_data1d(obsdata,val,code,cstnid,dim1)
+
+  subroutine obsdata_add_data1d(obsdata,val,code,dim1)
 !
 ! Author: Y. Rochon, ARQI/AQRD, June 2016
 !         - Adapted from chm_add_col_boundary by M. Sitwell.
@@ -3285,7 +3286,6 @@ contains
     type(struct_chm_obsdata), intent(inout) :: obsdata
     real(8), intent(in) :: val(:)
     character(len=*), intent(in) :: code
-    character(len=*), intent(in), optional :: cstnid
     integer, intent(in), optional :: dim1
 
     if (.not.associated(obsdata%data1d)) then
@@ -3306,12 +3306,8 @@ contains
     if (obsdata%nrep.gt.chm_config%obsdata_maxsize) &
          call abort3d('obsdata_add_data1d: Reach max size of array ' // trim(str(chm_config%obsdata_maxsize)) )
   
-    ! Save unique code 
-    if (present(cstnid)) then
-       obsdata%code(obsdata%nrep)=trim(code)//trim(cstnid)
-    else
-       obsdata%code(obsdata%nrep)=trim(code)
-    end if
+    ! Save unique code
+    obsdata%code(obsdata%nrep)=trim(code)
     
     ! Save value(s)
     obsdata%data1d(1:obsdata%dim1,obsdata%nrep) = val(1:obsdata%dim1)
@@ -3320,23 +3316,22 @@ contains
 
 !----------------------------------------------------------------------------------------
     
-  subroutine obsdata_MPIgather(obsdata,obsdata_all) 
+  subroutine obsdata_MPIgather(obsdata) 
 !
 ! Author: Y. Rochon, ARQI/AQRD, June 2016
 !
 ! Revisions:
+!           M. AQRI/AQRD, Aug 2016
+!           - obsdata set as InOut instead of having separate In and Out structures.
 !
-! Purpose: Gather previously saved obsdata from all processors to obsdata_all
+! Purpose: Gathers previously saved obsdata from all processors.
 !
 ! Arguments
 !      
-!   Input
+!   InOut
 !
-!      obsdata      Local struct_chm_obsdata 
-!
-!   Output:
-!
-!      obsdata_all  Global struct_chm_obsdata 
+!      obsdata      Local struct_chm_obsdata to become global
+! 
 !
 ! Comments:
 !
@@ -3346,8 +3341,7 @@ contains
 
     implicit none
 
-    type(struct_chm_obsdata), intent(in)  :: obsdata
-    type(struct_chm_obsdata), intent(out) :: obsdata_all
+    type(struct_chm_obsdata), intent(inout) :: obsdata
 
     integer, allocatable :: nrep(:)
     character(len=code_len), allocatable :: code(:,:)  
@@ -3367,12 +3361,12 @@ contains
     call rpn_comm_allgather(obsdata%nrep,1,"MPI_INTEGER",nrep,1,"MPI_INTEGER","GRID",ierr)
     nrep_total=sum(nrep)
     if (nrep_total.eq.0) then
-       obsdata_all%nrep=0    
        deallocate(nrep)
        return
     end if
     
-    if (nrep_total.gt.chm_config%obsdata_maxsize) call abort3d('obsdata_MPIGather: Size exceeds chm_config%obsdata_maxsize.')
+    if (nrep_total.gt.chm_config%obsdata_maxsize) &
+         call abort3d('obsdata_MPIGather: Size exceeds chm_config%obsdata_maxsize of ' // trim(str(chm_config%obsdata_maxsize)) )
         
     allocate(code(chm_config%obsdata_maxsize,nproc))
     call allgather_string(obsdata%code,code,chm_config%obsdata_maxsize,code_len,nproc,"GRID",ierr)
@@ -3390,25 +3384,23 @@ contains
     ! Concatenate values from all processors
          
     if (obsdata%ndim.eq.1) then      
-       if (.not.associated(obsdata_all%data1d)) call obsdata_alloc(obsdata_all,chm_config%obsdata_maxsize,dim1=obsdata%dim1)
-       obsdata_all%nrep=0    
+       obsdata%nrep=0  
        do i=1,nproc
           if (nrep(i).gt.0) then
-             obsdata_all%code(obsdata_all%nrep+1:obsdata_all%nrep+nrep(i))=code(1:nrep(i),i)
-             obsdata_all%data1d(1:obsdata%dim1,obsdata_all%nrep+1:obsdata_all%nrep+nrep(i))= &
+             obsdata%code(obsdata%nrep+1:obsdata%nrep+nrep(i))=code(1:nrep(i),i)
+             obsdata%data1d(1:obsdata%dim1,obsdata%nrep+1:obsdata%nrep+nrep(i))= &
                          data1d(1:obsdata%dim1,1:nrep(i),i)
-             obsdata_all%nrep=obsdata_all%nrep+nrep(i)
+             obsdata%nrep=obsdata%nrep+nrep(i)
           end if
        end do
     else
-       if (.not.associated(obsdata_all%data2d)) call obsdata_alloc(obsdata_all,chm_config%obsdata_maxsize,dim1=obsdata%dim1,dim2=obsdata%dim2)
-       obsdata_all%nrep=0
+       obsdata%nrep=0
        do i=1,nproc
           if (nrep(i).gt.0) then
-             obsdata_all%code(obsdata_all%nrep+1:obsdata_all%nrep+nrep(i))=code(1:nrep(i),i)
-             obsdata_all%data2d(1:obsdata%dim1,1:obsdata%dim2,obsdata_all%nrep+1:obsdata_all%nrep+nrep(i))= &
+             obsdata%code(obsdata%nrep+1:obsdata%nrep+nrep(i))=code(1:nrep(i),i)
+             obsdata%data2d(1:obsdata%dim1,1:obsdata%dim2,obsdata%nrep+1:obsdata%nrep+nrep(i))= &
                          data2d(1:obsdata%dim1,1:obsdata%dim2,1:nrep(i),i)  
-             obsdata_all%nrep=obsdata_all%nrep+nrep(i)
+             obsdata%nrep=obsdata%nrep+nrep(i)
           end if
        end do    
     end if  
@@ -5946,6 +5938,7 @@ contains
   real(8) :: press_obs(obsoper%nobslev),zwork(obsoper%nmodlev),unit_conversion(obsoper%nmodlev)
   real(8) :: sigma_trial(obsoper%nmodlev,2),temp_eff(1)
   integer :: iobslev,imodlev,jvar
+  character(len=code_len) :: code
   real(8), allocatable :: avg_kern(:,:)
        
 ! Determine if layer boundaries are assigned to this data source.
@@ -6131,8 +6124,8 @@ contains
                 temp_eff(1)=dot_product(obsoper%zh(1,obsoper%lvl_top(1):obsoper%lvl_bot(1)), &
                         obsoper%tt(obsoper%lvl_top(1):obsoper%lvl_bot(1))*model_col(obsoper%lvl_top(1):obsoper%lvl_bot(1))) &
                         /obs_col(1)
-                call obsdata_add_data1d(chm_efftemp,temp_eff,obsdata_get_loctime_code(obsoper%lon,obsoper%lat,obsoper%date,obsoper%hhmm), &
-                                        cstnid=obsoper%stnid)
+                code = obsdata_get_loctime_code(obsoper%lon,obsoper%lat,obsoper%date,obsoper%hhmm) // obsoper%stnid
+                call obsdata_add_data1d(chm_efftemp,temp_eff,code)
              end if
           end if
        end if

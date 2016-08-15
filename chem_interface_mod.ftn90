@@ -635,7 +635,7 @@ contains
 
 !-------------------------------- OBSERVATION SPACE POST-PROC ------------------------------
 !-------------------------------------------------------------------------------------------
-  subroutine chm_obsPostProc(obsSpaceData,columng,date,deltaLat,deltaLon,deltaPressure,inc_OmA)
+  subroutine chm_obsPostProc(obsSpaceData,columng,date,deltaLat,deltaLon,deltaPressure,anlm_mode)
 !
 ! Author:   Y. Rochon, ARQI/AQRD, June 2016
 !
@@ -653,7 +653,7 @@ contains
 !       deltaLat        Size of latitude bins for diagnostics (degrees)
 !       deltaLon        Size of longitude bins for diagnostics (degrees)
 !       deltaPressure   Size of vertical bins for diagnostics (Pascal)
-!       inc_OmA         Logical indicating if OmA (and Jo) diagnostics to be generated.
+!       anlm_mode       Logical indicating if OmA (and Jo) diagnostics to be generated.
 !
 !   Output 
 !
@@ -670,7 +670,7 @@ contains
     type(struct_columnData) :: columng
     integer, intent(in) :: date
     real(8), intent(in) :: deltaLat,deltaLon,deltaPressure
-    logical, intent(in) :: inc_OmA
+    logical, intent(in) :: anlm_mode
 
     if (mpi_myid.eq.0) then
        write(*,*)
@@ -680,13 +680,13 @@ contains
     
     ! Generate and output cost function, OmP, and OmA diagnostics for the CH family
     
-    call chm_CH_obsDiagnostics(obsSpaceData,columng,date,deltaLat,deltaLon,deltaPressure,inc_OmA)
+    call chm_CH_obsDiagnostics(obsSpaceData,columng,date,deltaLat,deltaLon,deltaPressure,anlm_mode)
  
     ! Generate and output cost function, OmP, and OmA diagnostics for 
     ! channels/instruments of the TO family (when processed with accompanying
     ! CH obs). Call could be moved to osd_ObsSpaceDiag for general availability.
     
-    ! call chm_TO_obsDiagnostics(obsSpaceData,columng,date,deltaLat,deltaLon,deltaPressure,inc_OmA)
+    ! call chm_TO_obsDiagnostics(obsSpaceData,columng,date,deltaLat,deltaLon,deltaPressure,anlm_mode)
     
     ! Apply any required obs file udpate
     
@@ -701,7 +701,7 @@ contains
   end subroutine chm_obsPostProc
   
 !-------------------------------------------------------------------------------------------
-  subroutine chm_CH_obsDiagnostics(obsSpaceData,columng,date,deltaLat,deltaLon,deltaPressure,inc_OmA)
+  subroutine chm_CH_obsDiagnostics(obsSpaceData,columng,date,deltaLat,deltaLon,deltaPressure,anlm_mode)
 !
 ! Author:   M. Sitwell, ARQI/AQRD, June 2015
 !
@@ -721,11 +721,11 @@ contains
 !       deltaLat        Size of latitude bins for diagnostics (degrees)
 !       deltaLon        Size of longitude bins for diagnostics (degrees)
 !       deltaPressure   Size of vertical bins for diagnostics (Pascal)
-!       inc_OmA         Logical indicating if OmA (and Jo) diagnostics are to be generated.
+!       anlm_mode       Logical indicating if OmA (and Jo) diagnostics are to be generated.
 !
 !   Output 
 !
-!       Content of file 'obsspace_diag_CH_'
+!       Content of ascii file with obs space diagnostics
 !
 !-------------------------------------------------------------------------------------------
 
@@ -742,7 +742,7 @@ contains
     type(struct_columnData) :: columng
     integer, intent(in) :: date
     real(8), intent(in) :: deltaLat,deltaLon,deltaPressure
-    logical, intent(in) :: inc_OmA
+    logical, intent(in) :: anlm_mode
 
     integer :: headerIndex,bodyIndex,istnid,vco,nlev_obs,ilev_obs,nlev_mod,ilev_mod
 
@@ -770,7 +770,7 @@ contains
     end if
 
     ! Calculate OmA for non-assimilated data (saved in OBS_OMA in obsSpaceData)
-    if (inc_oma) call chm_calc_OmA_nonassim(columng,obsSpaceData)
+    if (anlm_mode) call chm_calc_OmA_nonassim(columng,obsSpaceData)
     
     ! Loop over all pairs in *_elemID lists
     
@@ -849,7 +849,7 @@ contains
                    omp(ilev_obs) = obs_bodyElem_r(obsSpaceData,OBS_OMP,bodyIndex)
                    obs(ilev_obs) = obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)
                    sigma_obs(ilev_obs) = obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
-                   if (inc_oma) then
+                   if (anlm_mode) then
                       oma(ilev_obs) = obs_bodyElem_r(obsSpaceData,OBS_OMA,bodyIndex)
                       jo(ilev_obs)  = obs_bodyElem_r(obsSpaceData,OBS_JOBS,bodyIndex)
                    end if
@@ -887,7 +887,7 @@ contains
                 end select
                 
                 ! Add observation to diagnostic arrays
-                if (inc_oma) then 
+                if (anlm_mode) then 
                    call chm_obsspace_diagnostic(lat, lon, pressure=lev, omp=omp, oma=oma, obs=obs, jo=jo, sigma_obs=sigma_obs, &
                                              success=success, nlev_obs=nlev_obs, unilevel=unilevel)
                 else
