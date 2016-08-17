@@ -1188,6 +1188,7 @@ module calcbmatrix_glb_mod
 ! SPECTRALFILTER
 !--------------------------------------------------------------------------
   subroutine spectralFilter(ensPerturbations,nlev,waveBandIndex)
+    use filterResponseFunction_mod
     implicit none
     real*4,pointer :: ensPerturbations(:,:,:,:)
     integer, intent(in) :: nlev
@@ -1198,7 +1199,7 @@ module calcbmatrix_glb_mod
     integer :: jens, jk, jn, jm, ila
 
     real(8), allocatable :: ResponseFunction(:)
-    real(8) :: waveLength, FilterResponseFunction
+    real(8) :: waveLength
 
     character(len=128) :: outfilename
     character(len=2) :: wbnum

@@ -64,7 +64,6 @@ MODULE BmatrixEnsemble
 
   integer             :: ntrunc
   integer,allocatable :: nip1_M(:),nip1_T(:),verticalLevel(:,:),verticalLevelEns(:)
-  integer,allocatable :: jn_vec(:)
   integer             :: nj,ni,lonPerPE,myLonBeg,myLonEnd,latPerPE,myLatBeg,myLatEnd
   integer             :: nLevInc_M,nLevInc_T,nkgdimInc,nLevEns_M,nLevEns_T,nkgdimEns,topLevIndex_M,topLevIndex_T
   integer             :: mynBeg,mynEnd,mynSkip,mynCount
@@ -74,7 +73,7 @@ MODULE BmatrixEnsemble
   integer,allocatable :: allLatBeg(:),allLatEnd(:),allLonBeg(:),allLonEnd(:)
   integer             :: numTime
   integer             :: ngposituu,ngpositvv,ngposittt,ngpositq,ngpositps,ngposittg
-  integer             :: gstID, gstID2
+  integer             :: gstID
   integer,allocatable :: dateStampList(:)
   character(len=256)  :: enspathname,ensfilebasename
   integer,external    :: get_max_rss
@@ -110,7 +109,7 @@ MODULE BmatrixEnsemble
   type(struct_hco), pointer :: hco_ben    ! Analysis horizontal grid parameters
 
   ! LAM spectral transform
-  type(struct_lst)          :: lst_ben    ! Spectral transform Parameters
+  type(struct_lst)          :: lst_ben        ! Spectral transform Parameters
 
   ! Global spectral transform
   integer, pointer    :: ilaList_mpiglobal(:)
@@ -191,8 +190,8 @@ CONTAINS
     !
     
     hco_ben => hco_in
-    ni = hco_ben % ni
-    nj = hco_ben % nj
+    ni = hco_ben%ni
+    nj = hco_ben%nj
 
     if ( present(mode) ) then
        if ( trim(mode) == 'Analysis' .or. trim(mode) == 'BackgroundCheck') then
@@ -211,7 +210,7 @@ CONTAINS
     end if
 
     !- 2.1 Global or LAM?
-    if (hco_ben % global) then
+    if (hco_ben%global) then
       if(mpi_myid.eq.0) write(*,*)
       if(mpi_myid.eq.0) write(*,*) 'bmatrixEnsemble: GLOBAL mode activated'
     else
@@ -331,7 +330,7 @@ CONTAINS
     !- 2.3 Spectral Transform
     if ( trim(ben_mode) == 'Analysis' ) then
 
-      if (hco_ben % global) then
+      if (hco_ben%global) then
 
         ! Global Mode
         nphase = 2
@@ -340,33 +339,16 @@ CONTAINS
         gstID = gst_setup(ni,nj,ntrunc,nLevEns_M)
         if(mpi_myid.eq.0) write(*,*) 'BEN : returned value of gstID = ',gstID
 
-        gstID2 = gst_setup(ni,nj,ntrunc,nkgdimEns)
-        if(mpi_myid.eq.0) write(*,*) 'BEN : returned value of gstID2 = ',gstID2
-
-        allocate(jn_vec(nla_mpiglobal),stat=ierr)
-        if(ierr.ne.0) then
-          write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=5',ierr
-          call abort3d('aborting in ben_setup')
-        endif
-        do jn = 0, ntrunc
-          do jm = 0, jn
-            ila = gst_getnind(jm,gstID)+jn-jm
-            jn_vec(ila) = jn
-          enddo
-        enddo
-
       else
 
         ! LAM mode
         call lst_Setup( lst_ben,                          & ! OUT
-                        ni, nj, hco_ben % dlon, ntrunc,   & ! IN
-                        'LatLonMLev', nEns )                ! IN
+                        ni, nj, hco_ben%dlon, ntrunc,   & ! IN
+                        'LatLonMN', nLevEns_M )             ! IN
 
-        if(mpi_myid.eq.0) write(*,*) 'BEN : returned value of lstID = ', lst_ben % id
-        nphase       = lst_ben % nphase
-        nla_mpilocal = lst_ben % nla
-        nla_mpiglobal= nla_mpilocal !!!! Because the variables in the global-mode code 
-                                    !    still uses the global size of nla
+        if(mpi_myid.eq.0) write(*,*) 'BEN : returned value of lstID = ', lst_ben%id
+        nphase       = lst_ben%nphase
+        nla_mpilocal = lst_ben%nla
 
       end if
 
@@ -377,7 +359,7 @@ CONTAINS
       call mpivar_setup_m(ntrunc,mymBeg,mymEnd,mymSkip,mymCount)
       call mpivar_setup_n(ntrunc,mynBeg,mynEnd,mynSkip,mynCount)
 
-      if (hco_ben % global) then
+      if (hco_ben%global) then
         ! compute arrays to facilitate conversions between ila_mpilocal and ila_mpiglobal
         call gst_ilaList_mpiglobal(ilaList_mpiglobal,nla_mpilocal,maxMyNla,gstID,mymBeg,mymEnd,mymSkip,mynBeg,mynEnd,mynSkip)
         call gst_ilaList_mpilocal(ilaList_mpilocal,gstID,mymBeg,mymEnd,mymSkip,mynBeg,mynEnd,mynSkip)
@@ -495,7 +477,7 @@ CONTAINS
         if (diagnostic) call EnsembleDiagnostic('WaveBandPerturbations')
       endif
 
-      if (hco_ben % global) then
+      if (hco_ben%global) then
         cvDim_mpiglobal = (ntrunc+1)*(ntrunc+1)*nLevEns_M*nEns
         cvDim_mpilocal  = 0
 
@@ -513,9 +495,9 @@ CONTAINS
           enddo
         enddo
       else
-        cvDim_mpiglobal = lst_ben % nlaGlobal * nphase * nLevEns_M * nEns
+        cvDim_mpiglobal = lst_ben%nlaGlobal * nphase * nLevEns_M * nEns
         cvDim_mpilocal  = nla_mpilocal        * nphase * nLevens_M * nEns
-        print*,'cvDim_mpiglobal ', cvDim_mpiglobal, lst_ben % nlaGlobal, nphase, nLevEns_M, nEns
+        print*,'cvDim_mpiglobal ', cvDim_mpiglobal, lst_ben%nlaGlobal, nphase, nLevEns_M, nEns
         print*,'cvDim_mpilocal  ', cvDim_mpilocal, nla_mpilocal, nphase, nLevEns_M, nEns
       endif
       cvDim_out = cvDim_mpilocal
@@ -1374,17 +1356,26 @@ CONTAINS
 ! EnsembleScaleDecomposition
 !--------------------------------------------------------------------------
   SUBROUTINE EnsembleScaleDecomposition()
+    use filterResponseFunction_mod
     implicit none
 
-    integer :: waveBandIndex, memberindex, jt, jk, jj, ji, ila_mpiglobal, ila_mpilocal, p
+    integer :: waveBandIndex, memberindex, jt, jk, jj, ji
+    integer :: ila_filter, p, nla_filter, nphase_filter
 
-    real(8) :: ResponseFunction(nla_mpiglobal,2:nWaveBand)
+    real(8), allocatable :: ResponseFunction(:,:)
+
     real(8) :: bandSum
-    real(8) :: totwvnb_r8, FilterResponseFunction
+    real(8) :: totwvnb_r8
 
-    real(8) :: ensPertSP        (nla_mpilocal,nphase,nkgdimEns)
-    real(8) :: ensPertSPfiltered(nla_mpilocal,nphase,nkgdimEns)
+    real(8), allocatable :: ensPertSP(:,:,:)
+    real(8), allocatable :: ensPertSPfiltered(:,:,:)
     real(8), allocatable :: ensPertGD(:,:,:)
+
+    integer, allocatable :: jn_vec(:)
+
+    integer :: gstID2, jm, jn
+
+    type(struct_lst)    :: lst_ben_filter ! Spectral transform Parameters for filtering
 
     character(len=19)   :: kind
 
@@ -1410,26 +1401,59 @@ CONTAINS
     end if
 
     !
+    !- Setup a spectral transform for filtering (nk = nkgdimEns)
+    !
+    if (hco_ben%global) then
+       ! Global mode
+       gstID2 = gst_setup(ni,nj,ntrunc,nkgdimEns)
+       if(mpi_myid.eq.0) write(*,*) 'BEN : returned value of gstID2 = ',gstID2
+       nla_filter = nla_mpilocal ! should be recomputed here based on gstID2 info
+       nphase_filter = 2
+       allocate(jn_vec(nla_filter))
+       ila_filter = 0
+       do jm = mymBeg, mymEnd, mymSkip
+          do jn = mynBeg, mynEnd, mynSkip
+            if(jm.le.jn) then
+               ila_filter = ila_filter + 1
+               jn_vec(ila_filter) = jn
+            end if
+          enddo
+       enddo
+    else
+       ! LAM mode
+        call lst_Setup( lst_ben_filter,               & ! OUT
+                        ni, nj, hco_ben%dlon, ntrunc, & ! IN
+                        'LatLonMN', nkgdimEns )         ! IN
+        nla_filter = lst_ben_filter%nla
+        nphase_filter = lst_ben_filter%nphase
+    end if
+
+    !
     !- 1.  Scale decomposition for every wave band except for wave band #1
     !
+    allocate(ResponseFunction(nla_filter,2:nWaveBand))
+    allocate(ensPertSP(nla_filter,nphase_filter,nkgdimEns))
+    allocate(ensPertSPfiltered(nla_filter,nphase_filter,nkgdimEns))
     allocate(ensPertGD(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdimEns))
+
     ensPertSP(:,:,:) = 0.0d0
     ensPertSPfiltered(:,:,:) = 0.0d0
 
     !- 1.1 Pre-compute the response function for each wave band except for wave band #1
     do waveBandIndex = nWaveBand, 2, -1 ! Start with the largest scales
-       do ila_mpiglobal = 1, nla_mpiglobal
-          if (hco_ben % global) then
-             totwvnb_r8 = real(jn_vec(ila_mpiglobal),8)
+       do ila_filter = 1, nla_filter
+          if (hco_ben%global) then
+             totwvnb_r8 = real(jn_vec(ila_filter),8)
           else
-             totwvnb_r8 = lst_ben%k_r8(ila_mpiglobal)
+             totwvnb_r8 = lst_ben_filter%k_r8(ila_filter)
           endif
-          ResponseFunction(ila_mpiglobal,waveBandIndex) = FilterResponseFunction(totwvnb_r8,waveBandIndex, waveBandPeaks, nWaveBand)
+          ResponseFunction(ila_filter,waveBandIndex) = FilterResponseFunction(totwvnb_r8,waveBandIndex, waveBandPeaks, nWaveBand)
        end do
     end do
+    if (hco_ben%global) deallocate(jn_vec)
 
     do jt = 1, numTime ! Loop on ensemble time bin
-       do memberIndex = 1, nEns ! Loop on variables and vertical levels
+       do memberIndex = 1, nEns ! Loop on ensemble member
 
           !- 1.2 GridPoint space -> Spectral Space
 !$OMP PARALLEL DO PRIVATE (jk,jj,ji)
@@ -1442,65 +1466,67 @@ CONTAINS
              end do
           end do
 !$OMP END PARALLEL DO
-          if (hco_ben % global) then
+          if (hco_ben%global) then
              ! Global Mode
              call gst_setID(gstID2) ! IN
              call gst_reespe(ensPertSP, & ! OUT
-                              ensPertGD)   ! IN
+                             ensPertGD)   ! IN
           else
              ! LAM mode
              kind = 'GridPointToSpectral'
-             call lst_VarTransform( lst_ben % id, & ! IN
-                                    ensPertSP,    & ! OUT
-                                    ensPertGD,    & ! IN 
-                                    kind, nEns )    ! IN
+             call lst_VarTransform( lst_ben_filter%id, & ! IN
+                                    ensPertSP,           & ! OUT
+                                    ensPertGD,           & ! IN 
+                                    kind, nkgdimEns )      ! IN
           end if
 
           !- 1.3 Filtering and transformation back to grid point space 
           do waveBandIndex = nWaveBand, 2, -1 ! Start with the largest scales
              ! Filtering
-!$OMP PARALLEL DO PRIVATE (jk,p,ila_mpiglobal,ila_mpilocal)
+!$OMP PARALLEL DO PRIVATE (jk,p,ila_filter)
              do jk = 1, nkgdimEns
-                do p = 1, nphase
-                   do ila_mpiglobal = 1, nla_mpiglobal
-                      ila_mpilocal = ilaList_mpilocal(ila_mpiglobal)
-                      ensPertSPfiltered(ila_mpilocal,p,jk) = &
-                           ensPertSP(ila_mpilocal,p,jk) * ResponseFunction(ila_mpiglobal,waveBandIndex)
+                do p = 1, nphase_filter
+                   do ila_filter = 1, nla_filter
+                      ensPertSPfiltered(ila_filter,p,jk) = &
+                           ensPertSP(ila_filter,p,jk) * ResponseFunction(ila_filter,waveBandIndex)
                    end do
                 end do
              end do
 !$OMP END PARALLEL DO
 
              ! Spectral Space -> GridPoint space
-             if (hco_ben % global) then
+             if (hco_ben%global) then
                 ! Global Mode
                 call gst_setID(gstID2) ! IN
                 call gst_speree(ensPertSPfiltered, & ! IN
-                                 ensPertGD)           ! OUT
+                                 ensPertGD)          ! OUT
              else
                 ! LAM mode
                 kind = 'SpectralToGridPoint'
-                call lst_VarTransform( lst_ben % id,      & ! IN
+                call lst_VarTransform( lst_ben_filter%id, & ! IN
                                        ensPertSPfiltered, & ! IN
-                                       ensPertGD,         & ! OUT (lat,lon,ensMember) !!!
-                                       kind, nEns )         ! IN
+                                       ensPertGD,         & ! OUT
+                                       kind, nkgdimEns )    ! IN
              end if
 !$OMP PARALLEL DO PRIVATE (jk,jj,ji)
              do jk = 1, nkgdimEns
                 do jj = myLatBeg, myLatEnd
                    do ji = myLonBeg, myLonEnd
                       ensPerturbations(waveBandIndex,memberIndex)%member_r4(ji,jj,jk,jt) = &
-                           sngl(ensPertGD(ji,jj,memberIndex))
+                           sngl(ensPertGD(ji,jj,jk))
                    end do
                 end do
              end do
 !$OMP END PARALLEL DO
 
           end do ! waveBandIndex
-       end do ! variables and vertical levels
+       end do ! ensemble member
     end do ! time bins
 
     deallocate(ensPertGD)
+    deallocate(ResponseFunction)
+    deallocate(ensPertSP)
+    deallocate(ensPertSPfiltered)
 
     !
     !- 2.  Isolate the smallest scales in waveBandIndex = 1 by difference in grid point space
@@ -1583,7 +1609,7 @@ CONTAINS
        endif
 
        !- 2.1.3 Compute matrix
-       if (hco_ben % global) then
+       if (hco_ben%global) then
           call setupGlobalHLoc(local_length, waveBandIndex) ! IN
        else
           call setupLamHLoc(local_length, waveBandIndex) ! IN
@@ -1739,21 +1765,21 @@ CONTAINS
 
       !- 1.1 Setup a non-MPI spectral transform
       call lst_Setup( lst_hloc,                       & ! OUT
-                      ni, nj, hco_ben % dlon, ntrunc, & ! IN
+                      ni, nj, hco_ben%dlon, ntrunc, & ! IN
                       'NoMpi')                          ! IN
 
       !- 1.2 Create a correlation function in physical space
       allocate (gd(ni,nj,nLevEns_M))
 
       call loc_CreateBiPerFunction( gd,                           & ! OUT
-                                    local_length, hco_ben % dlon, & ! IN
+                                    local_length, hco_ben%dlon, & ! IN
                                     ni, nj, nLevEns_M )             ! IN
 
       !- 1.3 Transform to spectral space
-      allocate (sp(lst_hloc % nla, nphase, nLevEns_M))
+      allocate (sp(lst_hloc%nla, nphase, nLevEns_M))
 
       kind = 'GridPointToSpectral'
-      call lst_VarTransform( lst_hloc % id,      & ! IN
+      call lst_VarTransform( lst_hloc%id,      & ! IN
                              sp,                 & ! OUT
                              gd,                 & ! IN
                              kind, nLevEns_M )     ! IN
@@ -1764,13 +1790,13 @@ CONTAINS
 
       ensLocal(waveBandIndex)%Horiz(:,:) = 0.d0
       do totwvnb = 0, ntrunc
-         do e = 1, lst_hloc % nePerK(totwvnb)
-            ila = lst_hloc % ilaFromEK(e,totwvnb)
-            do p = 1, lst_hloc % nphase
-               SumWeight(totwvnb) = SumWeight(totwvnb) + lst_hloc % Weight(ila)
+         do e = 1, lst_hloc%nePerK(totwvnb)
+            ila = lst_hloc%ilaFromEK(e,totwvnb)
+            do p = 1, lst_hloc%nphase
+               SumWeight(totwvnb) = SumWeight(totwvnb) + lst_hloc%Weight(ila)
                do k = 1, nLevEns_M
                   ensLocal(waveBandIndex)%Horiz(totwvnb,k) = ensLocal(waveBandIndex)%Horiz(totwvnb,k) + &
-                                                             lst_hloc % Weight(ila) * abs(sp(ila,p,k))
+                                                             lst_hloc%Weight(ila) * abs(sp(ila,p,k))
                 enddo
              enddo
          enddo
@@ -1810,7 +1836,7 @@ CONTAINS
       gd(ni/2,nj/2,:) = 1.d0
 
       kind = 'GridPointToSpectral'
-      call lst_VarTransform( lst_hloc % id,      & ! IN
+      call lst_VarTransform( lst_hloc%id,      & ! IN
                              sp,                 & ! OUT
                              gd,                 & ! IN
                              kind, nLevEns_M )     ! IN
@@ -1818,12 +1844,12 @@ CONTAINS
       !- 1.6.2 Apply the correlation function
 !$OMP PARALLEL DO PRIVATE (totwvnb,e,ila,p,k)
       do totwvnb = 0, ntrunc
-         do e = 1, lst_hloc % nePerK(totwvnb)
-            ila = lst_hloc % ilaFromEK(e,totwvnb)
+         do e = 1, lst_hloc%nePerK(totwvnb)
+            ila = lst_hloc%ilaFromEK(e,totwvnb)
             do p = 1, nphase
                do k = 1, nLevEns_M
                   sp(ila,p,k) = sp(ila,p,k) * ensLocal(waveBandIndex)%Horiz(totwvnb,k) * &
-                                lst_hloc % NormFactor(ila,p) * lst_hloc % NormFactorAd(ila,p)
+                                lst_hloc%NormFactor(ila,p) * lst_hloc%NormFactorAd(ila,p)
                enddo
             enddo
          enddo
@@ -1832,7 +1858,7 @@ CONTAINS
 
       !- 1.6.3 Move back to physical space
       kind = 'SpectralToGridPoint'
-      call lst_VarTransform( lst_hloc % id,      & ! IN
+      call lst_VarTransform( lst_hloc%id,      & ! IN
                              sp,                 & ! IN
                              gd,                 & ! OUT
                              kind, nLevEns_M )     ! IN
@@ -1881,7 +1907,7 @@ CONTAINS
 
     ! assign part of mpiglobal vector from current mpi process
 
-    if (hco_ben % global) then
+    if (hco_ben%global) then
 
       ! Global
       jdim_mpilocal = 0
@@ -1985,7 +2011,7 @@ CONTAINS
 
     ! gather all local control vectors onto mpi task 0
 
-    if (hco_ben % global) then
+    if (hco_ben%global) then
 
        ! Global
        call rpn_comm_allreduce(cvDim_mpilocal,cvDim_maxmpilocal,1,"mpi_integer","mpi_max","GRID",ierr)
@@ -2206,7 +2232,7 @@ CONTAINS
 
         zsp1(:,:,:) = zsp_all(:,:,:,memberIndex)
 
-        if (hco_ben % global) then
+        if (hco_ben%global) then
 
           call gst_setID(gstID)
           call gst_speree(zsp1,ensAmplitude)
@@ -2214,10 +2240,10 @@ CONTAINS
         else
 
           kind = 'SpectralToGridPoint'
-          call lst_VarTransform( lst_ben % id,  & ! IN
-                                 zsp1,          & ! IN
-                                 ensAmplitude,  & ! OUT (i,j,k) !!!
-                                 kind, nEns )     ! IN
+          call lst_VarTransform( lst_ben%id,   & ! IN
+                                 zsp1,           & ! IN
+                                 ensAmplitude,   & ! OUT (i,j,k) !!!
+                                 kind, nLevEns_M ) ! IN
 
         endif
 
@@ -2385,7 +2411,7 @@ CONTAINS
 
         call tmg_start(64,'BEN_SPECTRAL')
 
-        if (hco_ben % global) then
+        if (hco_ben%global) then
 
           call gst_setID(gstID)
           call gst_reespe(zsp1,ensAmplitude)
@@ -2393,10 +2419,10 @@ CONTAINS
         else
 
           kind = 'GridPointToSpectral'
-          call lst_VarTransform( lst_ben % id, & ! IN
-                                 zsp1,         & ! OUT
-                                 ensAmplitude, & ! IN (i,j,k) !!!
-                                 kind, nEns )    ! IN
+          call lst_VarTransform( lst_ben%id,   & ! IN
+                                 zsp1,           & ! OUT
+                                 ensAmplitude,   & ! IN (i,j,k) !!!
+                                 kind, nLevEns_M ) ! IN
 
         endif
 
@@ -2678,7 +2704,7 @@ CONTAINS
     !
     !- 1.  Horizontal Localization
     !
-    if (hco_ben % global) then
+    if (hco_ben%global) then
        call GlobalHLoc( zsp_all,                        & ! OUT
                         controlVector_in, waveBandIndex ) ! IN
     else
@@ -2794,7 +2820,7 @@ CONTAINS
               jdim = jdim + 1
               zsp_all(jla,p,jlev,memberIndex) = controlVector_in(jdim)           * &
                                                 ensLocal(waveBandIndex)%Horiz(lst_ben%k(jla),jlev) * &
-                                                lst_ben % NormFactor(jla,p)
+                                                lst_ben%NormFactor(jla,p)
             enddo
          enddo
        enddo
@@ -2849,7 +2875,7 @@ CONTAINS
     !
     !- 1.  Horizontal Localization
     !
-    if (hco_ben % global) then
+    if (hco_ben%global) then
       call GlobalHLocAd( zsp, waveBandIndex, & ! IN
                          controlVector_out )   ! OUT
     else
@@ -2943,7 +2969,7 @@ CONTAINS
              controlVector_out(jdim) = controlVector_out(jdim) +           &
                                        ( zsp_all(jla,p,jlev,memberIndex)  * &
                                          ensLocal(waveBandIndex)%Horiz(lst_ben%k(jla),jlev) * &
-                                         lst_ben % NormFactorAd(jla,p)    )
+                                         lst_ben%NormFactorAd(jla,p)    )
            enddo
          enddo
        enddo

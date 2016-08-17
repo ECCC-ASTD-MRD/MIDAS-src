@@ -218,7 +218,7 @@ contains
     lst(id)%mmax = lst(id)%ni/2
     lst(id)%nmax = lst(id)%nj/2
 
-    write(*,'(A,f4.1)') ' lst_Setup: Your grid spacing (in km) = ', RA*dlon_in/1000.0
+    write(*,'(A,f8.1)') ' lst_Setup: Your grid spacing (in km) = ', RA*dlon_in/1000.0
     write(*,*) '           Max wavenumbers in x-axis = ', lst(id)%mmax            
     write(*,*) '           Max wavenumbers in y-axis = ', lst(id)%nmax
     if      ( lst(id)%ktrunc > nint(sqrt(real(lst(id)%mmax)**2+real(lst(id)%nmax)**2)) ) then
@@ -230,20 +230,20 @@ contains
       if ( lst(id)%ktrunc > lst(id)%mmax ) then
          write(*,*) 'lst_Setup: Warning: Truncation is larger than mmax only'
          write(*,*) '           TRUNCATION will be applied only above nmax'
-         write(*,'(A,f4.1)') '          i.e., for wavelenght (in km) in y-axis smaller than ',&
+         write(*,'(A,f8.1)') '          i.e., for wavelenght (in km) in y-axis smaller than ',&
                      (lst(id)%nj*RA*dlon_in/1000.0)/lst(id)%ktrunc
       else
          write(*,*) 'lst_Setup: Warning: Truncation is larger than nmax only'
          write(*,*) '           TRUNCATION will be applied only above mmax'
-         write(*,'(A,f4.1)') '          i.e., for wavelenght (in km) in x-axis smaller than ',&
+         write(*,'(A,f8.1)') '          i.e., for wavelenght (in km) in x-axis smaller than ',&
                      (lst(id)%ni*RA*dlon_in/1000.0)/lst(id)%ktrunc
       end if
     else
       write(*,*)
       write(*,*) 'lst_Setup: TRUNCATION will be applied above k = ',lst(id)%ktrunc
-      write(*,'(A,f4.1)') '          i.e., for wavelenght (in km) in x-axis smaller than ',&
+      write(*,'(A,f8.1)') '          i.e., for wavelenght (in km) in x-axis smaller than ',&
                      (lst(id)%ni*RA*dlon_in/1000.0)/lst(id)%ktrunc
-      write(*,'(A,f4.1)') '          i.e., for wavelenght (in km) in y-axis smaller than ',&
+      write(*,'(A,f8.1)') '          i.e., for wavelenght (in km) in y-axis smaller than ',&
                      (lst(id)%nj*RA*dlon_in/1000.0)/lst(id)%ktrunc
     end if
 

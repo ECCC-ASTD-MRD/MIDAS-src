@@ -1,0 +1,229 @@
+program biper
+  use HorizontalCoord_mod
+  use LamAnalysisGrid_mod
+  implicit none
+!
+!-----------------------------------------------------------------------------
+!-- > BIPER : Programme pour bi-periodiciser tous les champs meteorologiques
+!             contenu dans un fichier FST
+!
+!     Note... Les tictacs des grilles d'origine (non-etendue) et 
+!             destination (etendue) doivent se trouver dans le
+!             fichier prototype_file avec un champs P0 correspondant pour
+!             chacune des grilles.
+!
+!     Appel : biper -p prototype_file -i input_file -o output_file (optionel -silent)
+!-----------------------------------------------------------------------------
+!
+
+!
+!--   Declaration des variables
+!
+  type(struct_hco), pointer  :: hco_anl
+  type(struct_hco), pointer  :: hco_anl_ext
+
+  real,    allocatable :: BiPerField(:,:)
+  real(8), allocatable :: BiPerField8(:,:)
+  real,    allocatable :: Field(:,:)
+  real,    allocatable :: work(:,:)
+  
+  integer :: iun01, iun02, iun51, ier
+  integer :: fnom, fstouv, fclos, fstfrm, fstopc
+  integer :: fstlir, fstecr, fstinl, fstluk, fstprm
+  integer :: key,dateo,deet,npas,ni,nj,nk,nbits,datyp
+  integer :: ip1,ip2,ip3,swa,lng,dltf,ubc
+  integer :: ig1,ig2,ig3,ig4,extra1,extra2,extra3
+  integer :: silent, NumField,f
+
+  character(len=4)  :: nomvar
+  character(len=1)  :: typvar, grtyp
+  character(len=12) :: etiket
+
+  character(len=256) :: protofile, infile, outfile
+
+  integer, parameter :: MaxNumField=100000
+  integer            :: liste(MaxNumField)
+
+!
+!- Message
+!
+  print*
+  print*,'BIPER v1.0 start'
+
+!
+!--   Traitement des cles d'appel
+!
+  call get_options(silent, protofile, infile, outfile)
+
+!
+!--   Initialisations
+!
+  iun01 = 1
+  iun02 = 02
+  iun51 = 51
+
+!
+!--   Ouverture fichiers input/output
+!
+  ier = fnom(iun01, trim(infile), 'RND', 0)
+  ier = fstouv(iun01, 'RND')
+  ier = fnom(iun02, trim(protofile), 'RND', 0)
+  ier = fstouv(iun02, 'RND')
+  ier = fnom(iun51, trim(outfile), 'RND', 0)
+  ier = fstouv(iun51, 'RND')
+
+!      
+!--   On ne tolere pas les erreurs a partir de warning et plus
+!
+  ier = fstopc('TOLRNC','WARNIN',.false.)
+
+!
+!- Get Analysis Horizontal grid info
+!
+
+  !- Iniatilized the core (Non-Exteded) analysis grid
+  call hco_SetupFromFile(trim(protofile),  'COREGRID', 'AnalysisNonExt' ) ! IN
+  hco_anl => hco_Get('AnalysisNonExt')
+
+  call hco_SetupFromFile(trim(protofile), 'ANALYSIS', 'Analysis' ) ! IN
+  hco_anl_ext => hco_Get('Analysis')
+
+  !- Setup the LAM analysis grid metrics
+  call lag_SetupFromHCO( 'Analysis', 'AnalysisNonExt' ) ! IN
+
+!----------------------------------------------------------------------
+!--   (DEBUT)   Biperiodisation des champs
+!----------------------------------------------------------------------
+
+  !- Find ALL the records in the input file
+  ier = fstinl(iun01,ni,nj,nk,-1,' ',-1,-1,-1,' ',' ', &
+               liste,NumField,MaxNumField)
+
+  print*
+  print*,'Number of fields to process = ', NumField
+
+  allocate(Field      (hco_anl     % ni, hco_anl     % nj))
+  allocate(BiPerField (hco_anl_ext % ni, hco_anl_ext % nj))
+  allocate(BiPerField8(hco_anl_ext % ni, hco_anl_ext % nj))
+  allocate(Work       (hco_anl_ext % ni, hco_anl_ext % nj))
+
+  !- Extend fields one by one
+  do f = 1, NumField
+
+     !- Read this record
+     ier = fstluk(Field,liste(f),ni,nj,nk)
+
+     !- Find all the parameters associated to this record
+     ier = fstprm(liste(f),dateo,deet,npas,ni,nj,nk,nbits,datyp,ip1, &
+                  ip2,ip3,typvar,nomvar,etiket,grtyp,ig1,ig2,ig3,    &
+                  ig4,swa,lng,dltf,ubc,extra1,extra2,extra3)      
+
+     !- Process only meteorological fields
+     if ( nomvar .ne. '^^' .and. nomvar .ne. '>>' .and. nomvar .ne. '!!' .and. nomvar .ne. 'HY' ) then
+
+        !- Check dimensions
+        if (ni /= hco_anl % ni .or. nj /= hco_anl % nj .or. nk /= 1) then
+           print*
+           print*,'Error: Invalid dimensions for ', nomvar, etiket, ip1, ip2, ip3
+           print*,'       ni,nj = ',ni,nj
+           print*,'   should be = ',hco_anl % ni,hco_anl % nj
+           stop
+        end if
+
+        BiPerField8(:,:) = 0.d0
+        BiPerField8(1:hco_anl % ni,1:hco_anl % nj) = real(Field(1:hco_anl % ni,1:hco_anl % nj),8)
+
+        call lag_mach(BiPerField8,                           & ! INOUT
+                      hco_anl_ext % ni, hco_anl_ext % nj, 1)   ! IN
+
+        BiPerField(:,:) = real(BiPerField8(:,:),4)
+
+        !- Writing
+        ier=fstecr(BiPerField,work,-16,iun51,dateo,deet,         &
+                   npas,hco_anl_ext % ni,hco_anl_ext % nj,1,ip1,ip2,ip3,&
+                   typvar,nomvar,etiket,grtyp,&
+                   hco_anl_ext % ig1,hco_anl_ext %ig2,hco_anl_ext %ig3,&
+                   hco_anl_ext %ig4,datyp,.true.)
+       end if
+
+   end do
+
+   deallocate(Field)
+   deallocate(BiPerField, BiPerField8)
+   deallocate(Work)
+
+!----------------------------------------------------------------------
+!--   (FIN)     Biperiodisation des champs
+!----------------------------------------------------------------------
+
+  ier = fstopc('MSGLVL','INFORM',.false.)
+  ier = fstfrm(iun01)
+  ier = fclos(iun01)
+  ier = fstfrm(iun02)
+  ier = fclos(iun02)
+  ier = fstfrm(iun51)
+  ier = fclos(iun51)
+
+  print*
+  print*, "BIPER end"
+
+CONTAINS  
+!----------------------------------------------------------------------
+!--  Sous-routine pour la lecture et la definition des options
+!----------------------------------------------------------------------
+  subroutine get_options(SILENT, PROTOFILE, INFILE, OUTFILE)
+    implicit none
+
+    integer, intent(out) :: silent
+    character(len=256), intent(out) :: infile
+    character(len=256), intent(out) :: protofile
+    character(len=256), intent(out) :: outfile
+    
+    integer :: ier
+    integer :: fstopc
+    
+    integer, parameter :: narg=4
+    
+    character(len=8)   :: cle(narg)
+    character(len=256) :: def(narg)
+    character(len=256) :: val(narg) 
+    
+!
+!-- Cles d'appel
+!         
+    data cle /'p.','i.','o.','silent'/
+!
+!-- Valeurs des cles si NON mentionnees a l'appel
+!
+    data val /'scrap','scrap','scrap','-1'/
+!
+!-- Valeurs des cles si mentionnees a l'appel SANS valeurs
+!
+    data def /'scrap','scrap','scrap','0'/
+
+!
+!-- On associe les parametres donnes a l'appel avec les 
+!   cles appropriees
+!
+    call ccard(cle, def, val, narg, -1)
+    
+    read (val(1),fmt='(a256)') protofile
+    read (val(2),fmt='(a256)') infile
+    read (val(3),fmt='(a256)') outfile
+    
+    read (val(4),*) silent
+    
+!
+!-- On attribue les valeurs par defaut aux cles non-specifiees
+!
+    if (silent == 0) then
+       ier=fstopc('MSGLVL','WARNIN',.false.)
+    end if
+
+    if (outfile == 'scrap') then
+       print *, "Valeurs par defaut: output  = scrap"
+    end if
+
+  end subroutine get_options
+
+end program biper

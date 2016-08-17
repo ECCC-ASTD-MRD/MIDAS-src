@@ -1,3 +1,13 @@
+MODULE filterresponsefunction_mod
+  implicit none
+  save
+  private
+
+  ! public procedures
+  public :: FilterResponseFunction
+
+CONTAINS
+
 !--------------------------------------------------------------------------
 ! FilterResponseFunction
 !--------------------------------------------------------------------------
@@ -92,3 +102,5 @@
     end if
 
   end function FilterResponseFunction
+
+END MODULE FILTERRESPONSEFUNCTION_MOD

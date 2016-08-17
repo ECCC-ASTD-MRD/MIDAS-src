@@ -337,11 +337,23 @@ module LamAnalysisGrid_mod
     !
     !- 5. MPI partitionning
     !
-    call mpivar_setup_lonbands(ni_ext,                      & ! IN
-                               lonPerPE, myLonBeg, myLonEnd ) ! OUT
-
-    call mpivar_setup_latbands(nj_ext,                      & ! IN
-                               latPerPE, myLatBeg, myLatEnd ) ! OUT
+    if ( mpi_nprocs /= 0 ) then
+       call mpivar_setup_lonbands(ni_ext,                      & ! IN
+                                  lonPerPE, myLonBeg, myLonEnd ) ! OUT
+       
+       call mpivar_setup_latbands(nj_ext,                      & ! IN
+                                  latPerPE, myLatBeg, myLatEnd ) ! OUT
+    else
+       ! This option is needed for the biper program
+       lonPerPE = ni_ext
+       myLonBeg = 1
+       myLonEnd = ni_ext
+       latPerPE = nj_ext
+       myLatBeg = 1
+       myLatEnd = nj_ext
+       write(*,*)
+       write(*,*) 'WARNING: the module will be executed in NO-MPI MODE!'
+    end if
 
     !
     !- 6.  Ending
