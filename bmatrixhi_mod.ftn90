@@ -743,7 +743,7 @@ CONTAINS
         call dsyev('V','U',nkgdim2,eigenvec,nkgdim2,eigenval,zwork,ilwork,info)
       else
         ! use old version of dsyev for backward compatibility
-        call dsyev2('V','U',nkgdim2,eigenvec,nkgdim2,eigenval,zwork,ilwork,info)
+        call dsyev('V','U',nkgdim2,eigenvec,nkgdim2,eigenval,zwork,ilwork,info)
       endif
       if(info.ne.0) then
         write(*,*) 'bhi_sucorns2: non-zero value of info =',info,' returned by dsyev for wavenumber ',jn
