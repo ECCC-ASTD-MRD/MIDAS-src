@@ -96,6 +96,9 @@ CONTAINS
     !                     and obs error correlation matrices at least for the CH family.
     !                     As well, the FGE values are not calculated at the analysis phase
     !                     so would not be available if requested as output.
+    !                 M. Sitwell (ARQI), Aug 2016
+    !                  -- Modified update of resume record so that it is written once instead
+    !                     of twice.
     !
     !       OBJECT: UPDATE CMC BURP FILE 
     !
@@ -517,14 +520,12 @@ CONTAINS
                ,OARS =oars,RUNN=runn ,IOSTAT=error)
 
         IF ( stnid(1:2) == ">>" ) THEN
-          Call BURP_Set_Property(Rpt_in ,STNID =">>"//TYPE_RESUME)
-          Call BURP_Write_Report(File_in,Rpt_in,UPDATE =.TRUE.,IOSTAT= error)
           write(*,*)  ' RESUME RECORD POSITION IN BURP FILE =',stnid,kk
           Call BURP_Copy_Header(TO=Cp_rpt,FROM=Rpt_in)
           Call BURP_Init_Report_Write(File_in,Cp_Rpt, IOSTAT=error)
+          Call BURP_Set_Property(Cp_Rpt,STNID =">>"//TYPE_RESUME)
           Call BURP_Delete_Report(File_in,Rpt_in, IOSTAT=error)
           Call BURP_Write_Report(File_in,Cp_rpt, IOSTAT=error)
-
           cycle REPORTS
         ELSE
           !write(*,*) ' UPDATING STN IN BURP FILE =',  TRIM(FAMILYTYPE),KK,stnid,lati,LONG,dx,DY,elev,idtyp
