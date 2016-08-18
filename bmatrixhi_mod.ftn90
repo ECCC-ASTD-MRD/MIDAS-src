@@ -94,6 +94,7 @@ MODULE BmatrixHI
   real(8)             :: rvloclq     = 4.0d0
   real(8)             :: rlimlv_bdl  = 85000.0d0
   integer             :: numModeZero  ! number of eigenmodes to set to zero
+  character(len=4)    :: stddevMode
 
   ! this should come from state vector object
   integer             :: numvar3d
@@ -136,7 +137,7 @@ CONTAINS
     real(8) :: zps
     character(len=8) :: bFileName = './bgcov'
     
-    NAMELIST /NAMBHI/ntrunc,scaleFactor,scaleFactorLQ,scaleTG,numModeZero,squareSqrt,TweakTG,ReadWrite_sqrt
+    NAMELIST /NAMBHI/ntrunc,scaleFactor,scaleFactorLQ,scaleTG,numModeZero,squareSqrt,TweakTG,ReadWrite_sqrt,stddevMode
 
     call tmg_start(15,'BHI_SETUP')
 
@@ -182,6 +183,7 @@ CONTAINS
     squareSqrt = .false.
     TweakTG = .false.
     ReadWrite_sqrt = .false.
+    stddevMode = 'SP2D'
 
     nulnam = 0
     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -322,7 +324,13 @@ CONTAINS
 
     call BHI_sutg
 
-    call BHI_rdspstd_newfmt
+    if(stddevmode.eq.'GD2D') then
+      call BHI_rdstd
+    elseif(stddevMode.eq.'SP2D') then
+      call BHI_rdspstd_newfmt
+    else
+      call abort3d('BHI_setup: unknown stddevMode')
+    endif
 
     call BHI_scalestd
 
@@ -1845,6 +1853,105 @@ CONTAINS
   END SUBROUTINE BHI_RDSPSTD
 
 
+  SUBROUTINE BHI_RDSTD
+    implicit none
+
+    integer, parameter  :: inbrvar3d=5
+    integer, parameter  :: inbrvar2d=2
+    integer :: jvar,jn,inix,injx,inkx
+    integer :: ikey, jlevo, jlat,firstn,lastn
+    real(8) :: zgr(nj_l,max(nlev_M,nlev_T)),zgsig(1,nj_l,max(nlev_M,nlev_T)),zstddev(nkgdim2,nj_l)
+    character(len=4) :: varName3d(inbrvar3d),varName2d(inbrvar2d)
+
+    ! standard file variables
+    integer :: ini,inj,ink, inpas, inbits, idatyp, ideet  
+    integer :: ip1,ip2,ip3,ig1,ig2,ig3,ig4,iswa,ilength,idltf
+    integer :: iubc,iextr1,iextr2,iextr3,ipak,ipas
+    integer :: iliste(100),idate(100),idimax,infon,iheures,idateo,nlev_MT
+    character(len=1)  :: clgrtyp
+    character(len=2)  :: cltypvar
+    character(len=4)  :: clnomvar
+    character(len=12) :: cletiket
+    integer :: vfstlir,vfstecr,fstprm,fstinf
+
+    data varName3d/'PP  ','UC  ','UT  ','LQ  ','TB  '/
+    data varName2d/'UP  ','PB  '/
+
+    rgsig(:,:) = 0.0d0
+    rgsigtb(:,:) = 0.0d0
+    rgsigpsb(:) = 0.0d0
+
+!   2. Reading the data
+
+    idate(1) = -1
+    ip1      = -1
+    ip2      = -1
+    ip3      = -1
+
+    cletiket = 'STDDEV'
+    cltypvar = 'E'
+
+    do jvar = 1, inbrvar3d
+      clnomvar = varName3d(jvar)
+      if(vnl_varLevelFromVarName(clnomvar).eq.'MM') then
+        nlev_MT = nlev_M
+      else
+        nlev_MT = nlev_T
+      endif
+
+      ikey = fstinf(nulbgst,inix,injx,inkx,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+
+      if(ikey .ge.0 ) then
+        ikey = vfstlir(zgr(:,1:nlev_MT),nulbgst,ini,inj,ink,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+      else
+        write(*,*) 'RDSTD: could not read varName=',clnomvar
+        call abort3d('RDSTD') 
+      endif
+
+      if (ink .ne. nlev_MT) then
+        write(*,*) 'ink, nlev_MT=', ink, nlev_MT
+        call abort3d('RDSPSTD: BG stat levels inconsitencies')
+      endif
+
+      if(clnomvar .eq. 'PP') then
+        rgsiguu(:,:) = zgr(:,1:nlev_M)
+      elseif(clnomvar .eq. 'UC' .or. clnomvar .eq. 'CC') then
+        rgsigvv(:,:) = zgr(:,1:nlev_M)
+      elseif(clnomvar .eq. 'UT') then
+        rgsigtt(:,:) = zgr(:,1:nlev_T)
+      elseif(clnomvar .eq. 'TB') then
+        rgsigtb(:,:) = zgr(:,1:nlev_T)
+      elseif(clnomvar .eq. 'LQ') then
+        rgsigq(:,:) = zgr(:,1:nlev_T)*rfacthum
+      endif
+
+    enddo
+
+    nlev_MT = 1
+    do jvar = 1, inbrvar2d
+      clnomvar = varName2d(jvar)
+
+      ikey = fstinf(nulbgst,inix,injx,inkx,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+
+      if(ikey .ge.0 ) then
+        ikey = vfstlir(zgr,nulbgst,ini,inj,ink,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+      else
+        write(*,*) 'RDSTD: could not read varName=',clnomvar
+        call abort3d('RDSTD') 
+      endif
+
+      if(clnomvar .eq. 'UP') then
+        rgsigps(:) = zgr(:,1)*100.0d0
+      endif
+      if(clnomvar .eq. 'PB') then
+        rgsigpsb(:) = zgr(:,1)*100.0d0
+      endif
+
+    enddo
+
+  END SUBROUTINE BHI_RDSTD
+
+
   SUBROUTINE BHI_RDSPSTD_NEWFMT
     implicit none
 
@@ -2233,7 +2340,7 @@ CONTAINS
 
     do jvar = 1, vnl_numvarmax 
       if(gsv_varExist(statevector,vnl_varNameList(jvar))) then
-        field => gsv_getField3D(statevector,vnl_varNameList(jvar))
+        field => gsv_getField3D_r8(statevector,vnl_varNameList(jvar))
         if(vnl_varNameList(jvar).eq.'UU  ') then
           ilev1 = nspositVO
         elseif(vnl_varNameList(jvar).eq.'VV  ') then
@@ -2275,7 +2382,7 @@ CONTAINS
 
     do jvar = 1, vnl_numvarmax 
       if(gsv_varExist(statevector,vnl_varNameList(jvar))) then
-        field => gsv_getField3D(statevector,vnl_varNameList(jvar))
+        field => gsv_getField3D_r8(statevector,vnl_varNameList(jvar))
         if(vnl_varNameList(jvar).eq.'UU  ') then
           ilev1 = nspositVO
         elseif(vnl_varNameList(jvar).eq.'VV  ') then
@@ -2983,8 +3090,8 @@ CONTAINS
     real(8) :: conphy
     real(8), pointer :: uu_ptr(:,:,:,:),vv_ptr(:,:,:,:)
     
-    uu_ptr => gsv_getField(statevector,'UU')
-    vv_ptr => gsv_getField(statevector,'VV')
+    uu_ptr => gsv_getField_r8(statevector,'UU')
+    vv_ptr => gsv_getField_r8(statevector,'VV')
     
     lon1 = statevector%myLonBeg
     lon2 = statevector%myLonEnd

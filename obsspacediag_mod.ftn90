@@ -128,7 +128,7 @@ contains
     ! undo the scaleFactor (THIS IS NOT CORRECT FOR 2D VARIABLES!!!) 
     do jvar=1,vnl_numvarmax 
       if(gsv_varExist(statevector,vnl_varNameList(jvar))) then
-        field => gsv_getField(statevector,vnl_varNameList(jvar))
+        field => gsv_getField_r8(statevector,vnl_varNameList(jvar))
         do jlev = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname(vnl_varNameList(jvar)))   
           if(scaleFactorBhi(jlev).gt.0.0d0) then
             field(:,:,jlev,:)=field(:,:,jlev,:)/scaleFactorBhi(jlev)
@@ -161,7 +161,7 @@ contains
     ! undo the scaleFactor
     do jvar=1,vnl_numvarmax 
       if(gsv_varExist(statevector,vnl_varNameList(jvar))) then
-        field => gsv_getField(statevector,vnl_varNameList(jvar))
+        field => gsv_getField_r8(statevector,vnl_varNameList(jvar))
         do jlev = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname(vnl_varNameList(jvar)))   
           if(scaleFactorBen(jlev).gt.0.0d0) then
             field(:,:,jlev,:)=field(:,:,jlev,:)/scaleFactorBen(jlev)

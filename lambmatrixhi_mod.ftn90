@@ -1231,7 +1231,7 @@ contains
          call abort3d('StatevectorInterface')
       end if
 
-      field => gsv_getField3D(statevector,varname)
+      field => gsv_getField3D_r8(statevector,varname)
 
       kgdStart = ControlVariable(var)%kDimStart
       kgdEnd   = ControlVariable(var)%kDimEnd

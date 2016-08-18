@@ -49,7 +49,8 @@ MODULE gridStateVector_mod
   ! public subroutines and functions
   public :: gsv_setup, gsv_allocate, gsv_deallocate, gsv_zero, gsv_3dto4d, gsv_3dto4dAdj, gsv_varExist
   public :: gsv_getOffsetFromVarName, gsv_writeToFileMpi, gsv_readFromFile
-  public :: gsv_getField, gsv_getField3D, gsv_getDateStamp, gsv_getNumLev
+  public :: gsv_getField_r8, gsv_getField3D_r8, gsv_getField_r4, gsv_getField3D_r4
+  public :: gsv_getDateStamp, gsv_getNumLev
   public :: gsv_add, gsv_power, gsv_scale, gsv_scaleVertical, gsv_copy, gsv_stddev
   public :: gsv_getVco, gsv_setVco, gsv_getHco, gsv_setHco
   public :: gsv_commMPIGlobal, gsv_commMPIGlobal3D
@@ -64,8 +65,11 @@ MODULE gridStateVector_mod
 
 
   type struct_gsv
-    real*8,pointer      :: gd(:,:,:,:) => null()
-    real*8,pointer      :: gd3d(:,:,:) => null()
+    integer         :: dataKind = 8
+    real(8),pointer :: gd_r8(:,:,:,:) => null()
+    real(8),pointer :: gd3d_r8(:,:,:) => null()
+    real(4),pointer :: gd_r4(:,:,:,:) => null()
+    real(4),pointer :: gd3d_r4(:,:,:) => null()
     integer             :: ni,nj,nk,numStep,anltime
     integer             :: latPerPE,myLatBeg,myLatEnd
     integer             :: lonPerPE,myLonBeg,myLonEnd
@@ -84,6 +88,12 @@ MODULE gridStateVector_mod
 
   logical :: varExistList(vnl_numVarMax)
   character(len=8) :: ANLTIME_BIN
+
+  ! define interfaces for generic procedures
+!  interface gsv_getField
+!    module procedure gsv_getField_r4
+!    module procedure gsv_getField_r8
+!  end interface
 
   CONTAINS
 
@@ -204,15 +214,17 @@ MODULE gridStateVector_mod
   END SUBROUTINE gsv_setup
 
 
-  SUBROUTINE gsv_allocate(statevector,numStep,dateStamp,mpi_local,varName,horizSubSample)
+  SUBROUTINE gsv_allocate(statevector,numStep,dateStamp,mpi_local,horizSubSample,varName,dataKind_in)
     implicit none
 
     type(struct_gsv)    :: statevector
     integer, intent(in) :: numStep
     integer, optional   :: dateStamp
     logical, optional   :: mpi_local
-    character(len = *), optional :: varName  ! allow specification of a single variable
     integer, optional   :: horizSubSample
+    character(len=4), optional :: varName  ! allow specification of a single variable
+    integer, optional   :: dataKind_in
+
     integer             :: ierr,iloc,jvar,jvar2,jstep,lon1,lat1
 
     if(.not.statevector%vco%initialized) then
@@ -224,6 +236,8 @@ MODULE gridStateVector_mod
       call gsv_deallocate(statevector)
       statevector%allocated=.false.
     end if
+
+    if( present(dataKind_in) ) statevector%dataKind = dataKind_in
 
     if( present(varName) ) then
       do jvar = 1, vnl_numVarMax3D
@@ -346,20 +360,38 @@ MODULE gridStateVector_mod
     statevector%nk=iloc
 
     if(statevector%mpi_local) then
-      allocate(statevector%gd(statevector%myLonBeg:statevector%myLonEnd,  &
-                              statevector%myLatBeg:statevector%myLatEnd,  &
-                              statevector%nk,numStep),stat=ierr)
+      if(statevector%dataKind==8) then
+        allocate(statevector%gd_r8(statevector%myLonBeg:statevector%myLonEnd,  &
+                                   statevector%myLatBeg:statevector%myLatEnd,  &
+                                   statevector%nk,numStep),stat=ierr)
+      elseif(statevector%dataKind==4) then
+        allocate(statevector%gd_r4(statevector%myLonBeg:statevector%myLonEnd,  &
+                                   statevector%myLatBeg:statevector%myLatEnd,  &
+                                   statevector%nk,numStep),stat=ierr)
+      else
+        call abort3d('gsv_allocate: unknown value of datakind')
+      endif
     else
-      allocate(statevector%gd(statevector%ni,statevector%nj,statevector%nk,numStep),stat=ierr)
+      if(statevector%dataKind==8) then
+        allocate(statevector%gd_r8(statevector%ni,statevector%nj,statevector%nk,numStep),stat=ierr)
+      elseif(statevector%dataKind==4) then
+        allocate(statevector%gd_r4(statevector%ni,statevector%nj,statevector%nk,numStep),stat=ierr)
+      else
+        call abort3d('gsv_allocate: unknown value of datakind')
+      endif
     endif
     if(ierr.ne.0) then
-      write(*,*) 'gridStateVector: Problem allocating memory! id=1',ierr
+      write(*,*) 'gridStateVector: Problem allocating memory! id=1 ',ierr
       call abort3d('aborting in gsv_allocate')
     endif
 
     lon1=statevector%myLonBeg
     lat1=statevector%myLatBeg
-    statevector%gd3d(lon1:,lat1:,1:) => statevector%gd(:,:,:,statevector%anltime)
+    if(statevector%dataKind==8) then
+      statevector%gd3d_r8(lon1:,lat1:,1:) => statevector%gd_r8(:,:,:,statevector%anltime)
+    elseif(statevector%dataKind==4) then
+      statevector%gd3d_r4(lon1:,lat1:,1:) => statevector%gd_r4(:,:,:,statevector%anltime)
+    endif
 
     statevector%allocated=.true.
 
@@ -385,7 +417,7 @@ MODULE gridStateVector_mod
       do jstep = 1, statevector%numStep
         do jlat = lat1, lat2
           do jlon = lon1, lon2
-            statevector%gd(jlon,jlat,jlev,jstep) = 0.0d0
+            statevector%gd_r8(jlon,jlat,jlev,jstep) = 0.0d0
           enddo
         enddo
       enddo
@@ -415,7 +447,7 @@ MODULE gridStateVector_mod
     ! NOTE: result of mpiglobal 3D statevector for timestep jstep is sent to proc jstep-1
     do jstep=1,statevector_in%numStep
 
-      call rpn_comm_gather(statevector_in%gd(statevector_in%myLonBeg:statevector_in%myLonEnd,  &
+      call rpn_comm_gather(statevector_in%gd_r8(statevector_in%myLonBeg:statevector_in%myLonEnd,  &
                                              statevector_in%myLatBeg:statevector_in%myLatEnd,:,jstep), &
                            nsize,"mpi_double_precision", &
                            gd_temp, &
@@ -423,7 +455,7 @@ MODULE gridStateVector_mod
                            jstep-1,"GRID",ierr)
 
     enddo
-    deallocate(statevector_in%gd)
+    deallocate(statevector_in%gd_r8)
 
     if(mpi_myid.lt.statevector_in%numStep) then
       ! reorganize data into mpiglobal array
@@ -444,8 +476,8 @@ MODULE gridStateVector_mod
     deallocate(gd_temp)
 
     ! reset values in statevector object for mpiglobal
-    statevector_in%gd => gd_mpiglobal
-    statevector_in%gd3d => statevector_in%gd(:,:,:,1)
+    statevector_in%gd_r8 => gd_mpiglobal
+    statevector_in%gd3d_r8 => statevector_in%gd_r8(:,:,:,1)
     statevector_in%myLonBeg=1
     statevector_in%myLonEnd = statevector_in%ni
     statevector_in%lonPerPE = statevector_in%ni
@@ -478,14 +510,14 @@ MODULE gridStateVector_mod
     ! NOTE: result of mpiglobal 3D statevector for timestep anltime is sent to proc 0
     jstep=statevector_in%anltime
 
-    call rpn_comm_gather(statevector_in%gd(statevector_in%myLonBeg:statevector_in%myLonEnd,  &
+    call rpn_comm_gather(statevector_in%gd_r8(statevector_in%myLonBeg:statevector_in%myLonEnd,  &
                                            statevector_in%myLatBeg:statevector_in%myLatEnd,:,jstep), &
                          nsize,"mpi_double_precision", &
                          gd_temp, &
                          nsize,"mpi_double_precision", &
                          0,"GRID",ierr)
 
-    deallocate(statevector_in%gd)
+    deallocate(statevector_in%gd_r8)
 
     if(mpi_myid.eq.0) then
       ! reorganize data into mpiglobal array
@@ -506,8 +538,8 @@ MODULE gridStateVector_mod
     deallocate(gd_temp)
 
     ! reset values in statevector object for mpiglobal
-    statevector_in%gd => gd_mpiglobal
-    statevector_in%gd3d => statevector_in%gd(:,:,:,1)
+    statevector_in%gd_r8 => gd_mpiglobal
+    statevector_in%gd3d_r8 => statevector_in%gd_r8(:,:,:,1)
     statevector_in%myLonBeg=1
     statevector_in%myLonEnd = statevector_in%ni
     statevector_in%lonPerPE = statevector_in%ni
@@ -546,8 +578,8 @@ MODULE gridStateVector_mod
         do jstep = 1, statevector_inout%numStep
           do jlat = lat1, lat2
             do jlon = lon1, lon2
-              statevector_inout%gd(jlon,jlat,jlev,jstep) = statevector_inout%gd(jlon,jlat,jlev,jstep) +  &
-                                             scaleFactor * statevector_in%gd(jlon,jlat,jlev,jstep)
+              statevector_inout%gd_r8(jlon,jlat,jlev,jstep) = statevector_inout%gd_r8(jlon,jlat,jlev,jstep) +  &
+                                             scaleFactor * statevector_in%gd_r8(jlon,jlat,jlev,jstep)
             enddo
           enddo
         enddo
@@ -559,8 +591,8 @@ MODULE gridStateVector_mod
         do jstep = 1, statevector_inout%numStep
           do jlat = lat1, lat2
             do jlon = lon1, lon2
-              statevector_inout%gd(jlon,jlat,jlev,jstep) = statevector_inout%gd(jlon,jlat,jlev,jstep) +  &
-                                                           statevector_in%gd(jlon,jlat,jlev,jstep)
+              statevector_inout%gd_r8(jlon,jlat,jlev,jstep) = statevector_inout%gd_r8(jlon,jlat,jlev,jstep) +  &
+                                                           statevector_in%gd_r8(jlon,jlat,jlev,jstep)
             enddo
           enddo
         enddo
@@ -601,7 +633,7 @@ MODULE gridStateVector_mod
       do jlev = 1, statevector_out%nk
         do jlat = lat1, lat2
           do jlon = lon1, lon2
-            statevector_out%gd(jlon,jlat,jlev,1) = statevector_in%gd(jlon,jlat,jlev,indexStep_in)
+            statevector_out%gd_r8(jlon,jlat,jlev,1) = statevector_in%gd_r8(jlon,jlat,jlev,indexStep_in)
           enddo
         enddo
       enddo
@@ -614,7 +646,7 @@ MODULE gridStateVector_mod
         do jstep = 1, statevector_out%numStep
           do jlat = lat1, lat2
             do jlon = lon1, lon2
-              statevector_out%gd(jlon,jlat,jlev,jstep) = statevector_in%gd(jlon,jlat,jlev,jstep)
+              statevector_out%gd_r8(jlon,jlat,jlev,jstep) = statevector_in%gd_r8(jlon,jlat,jlev,jstep)
             enddo
           enddo
         enddo
@@ -650,8 +682,8 @@ MODULE gridStateVector_mod
         do jstep = 1, statevector_inout%numStep
           do jlat = lat1, lat2
             do jlon = lon1, lon2
-              statevector_inout%gd(jlon,jlat,jlev,jstep) = &
-                   scaleFactor * (statevector_inout%gd(jlon,jlat,jlev,jstep))**power
+              statevector_inout%gd_r8(jlon,jlat,jlev,jstep) = &
+                   scaleFactor * (statevector_inout%gd_r8(jlon,jlat,jlev,jstep))**power
             enddo
           enddo
         enddo
@@ -663,8 +695,8 @@ MODULE gridStateVector_mod
         do jstep = 1, statevector_inout%numStep
           do jlat = lat1, lat2
             do jlon = lon1, lon2
-              statevector_inout%gd(jlon,jlat,jlev,jstep) = &
-                   (statevector_inout%gd(jlon,jlat,jlev,jstep))**power
+              statevector_inout%gd_r8(jlon,jlat,jlev,jstep) = &
+                   (statevector_inout%gd_r8(jlon,jlat,jlev,jstep))**power
             enddo
           enddo
         enddo
@@ -697,7 +729,7 @@ MODULE gridStateVector_mod
       do jlat = lat1, lat2
         do jstep = 1, statevector_in%numStep
           do jlon = lon1, lon2
-            stddev(jlev) = stddev(jlev) + statevector_in%gd(jlon,jlat,jlev,jstep)**2
+            stddev(jlev) = stddev(jlev) + statevector_in%gd_r8(jlon,jlat,jlev,jstep)**2
           enddo
         enddo
       enddo
@@ -732,8 +764,8 @@ MODULE gridStateVector_mod
       do jstep = 1, statevector_inout%numStep
         do jlat = lat1, lat2
           do jlon = lon1, lon2
-            statevector_inout%gd(jlon,jlat,jlev,jstep) = &
-                 scaleFactor * statevector_inout%gd(jlon,jlat,jlev,jstep)
+            statevector_inout%gd_r8(jlon,jlat,jlev,jstep) = &
+                 scaleFactor * statevector_inout%gd_r8(jlon,jlat,jlev,jstep)
           enddo
         enddo
       enddo
@@ -765,8 +797,8 @@ MODULE gridStateVector_mod
       do jstep = 1, statevector_inout%numStep
         do jlat = lat1, lat2
           do jlon = lon1, lon2
-            statevector_inout%gd(jlon,jlat,jlev,jstep) = &
-                 scaleFactor(jlev) * statevector_inout%gd(jlon,jlat,jlev,jstep)
+            statevector_inout%gd_r8(jlon,jlat,jlev,jstep) = &
+                 scaleFactor(jlev) * statevector_inout%gd_r8(jlon,jlat,jlev,jstep)
           enddo
         enddo
       enddo
@@ -798,7 +830,7 @@ MODULE gridStateVector_mod
         if(jstep.ne.statevector%anltime) then
           do jlat = lat1, lat2
             do jlon = lon1, lon2
-              statevector%gd(jlon,jlat,jlev,jstep) = statevector%gd3d(jlon,jlat,jlev)
+              statevector%gd_r8(jlon,jlat,jlev,jstep) = statevector%gd3d_r8(jlon,jlat,jlev)
             enddo
           enddo
         endif
@@ -838,13 +870,13 @@ MODULE gridStateVector_mod
         do jlat = lat1, lat2
           do jlon = lon1, lon2
             gd2d_tmp(jlon,jlat) = gd2d_tmp(jlon,jlat) +   &
-                                  statevector%gd(jlon,jlat,jlev,jstep)
+                                  statevector%gd_r8(jlon,jlat,jlev,jstep)
         enddo
       enddo
     enddo
     do jlat = lat1, lat2
         do jlon = lon1, lon2
-          statevector%gd3d(jlon,jlat,jlev) = gd2d_tmp(jlon,jlat)
+          statevector%gd3d_r8(jlon,jlat,jlev) = gd2d_tmp(jlon,jlat)
         enddo
       enddo
     enddo
@@ -870,10 +902,15 @@ MODULE gridStateVector_mod
     deallocate(statevector%allLatBeg)
     deallocate(statevector%allLatEnd)
 
-    deallocate(statevector%gd,stat=ierr)
-    nullify(statevector%gd)
+    if(statevector%dataKind==8) then
+      deallocate(statevector%gd_r8,stat=ierr)
+      nullify(statevector%gd_r8)
+    elseif(statevector%dataKind==4) then
+      deallocate(statevector%gd_r4,stat=ierr)
+      nullify(statevector%gd_r4)
+    endif
     if(ierr.ne.0) then
-      write(*,*) 'Problem detected in gridStateVector. IERR =',ierr
+      write(*,*) 'gsv_deallocate: Problem detected. IERR =',ierr
     endif
 
     if(associated(statevector%dateStampList)) deallocate(statevector%dateStampList)
@@ -883,54 +920,112 @@ MODULE gridStateVector_mod
   END SUBROUTINE GSV_deallocate
 
 
-  function gsv_getField(statevector,varName) result(field)
+  function gsv_getField_r8(statevector,varName) result(field)
     implicit none
     type(struct_gsv), intent(in)           :: statevector
     character(len=*), intent(in), optional :: varName
-    real*8,pointer                         :: field(:,:,:,:)
+    real(8),pointer                        :: field(:,:,:,:)
     integer                                :: ilev1,ilev2,lon1,lat1
 
     lon1=statevector%myLonBeg
     lat1=statevector%myLatBeg
 
+    if(.not. associated(statevector%gd_r8)) call abort3d('gsv_getField_r8: data with type r8 not allocated')
+
     if(present(varName)) then
       if(gsv_varExist(statevector,varName)) then
         ilev1 = 1 + statevector%varOffset(vnl_varListIndex(varName))
         ilev2 = ilev1 - 1 + statevector%varNumLev(vnl_varListIndex(varName))
-        field(lon1:,lat1:,1:,1:) => statevector%gd(:,:,ilev1:ilev2,:)
+        field(lon1:,lat1:,1:,1:) => statevector%gd_r8(:,:,ilev1:ilev2,:)
       else
-        call abort3d('gsv_getField: Unknown variable name! ' // varName)
+        call abort3d('gsv_getField_r8: Unknown variable name! ' // varName)
       endif
     else
-      field(lon1:,lat1:,1:,1:) => statevector%gd(:,:,:,:)
+      field(lon1:,lat1:,1:,1:) => statevector%gd_r8(:,:,:,:)
     endif
 
-  end function gsv_getField
+  end function gsv_getField_r8
 
 
-  function gsv_getField3D(statevector,varName) result(field3D)
+  function gsv_getField3D_r8(statevector,varName) result(field3D)
     implicit none
     type(struct_gsv), intent(in)           :: statevector
     character(len=*), intent(in), optional :: varName
-    real*8,pointer                         :: field3D(:,:,:)
+    real(8),pointer                        :: field3D(:,:,:)
     integer                                :: ilev1,ilev2,lon1,lat1
 
     lon1=statevector%myLonBeg
     lat1=statevector%myLatBeg
 
+    if(.not. associated(statevector%gd3d_r8)) call abort3d('gsv_getField3D_r8: data with type r8 not allocated')
+
     if(present(varName)) then
       if(gsv_varExist(statevector,varName)) then
         ilev1 = 1 + statevector%varOffset(vnl_varListIndex(varName))
         ilev2 = ilev1 - 1 + statevector%varNumLev(vnl_varListIndex(varName))
-        field3D(lon1:,lat1:,1:) => statevector%gd3d(:,:,ilev1:ilev2)
+        field3D(lon1:,lat1:,1:) => statevector%gd3d_r8(:,:,ilev1:ilev2)
       else
-        call abort3d('gsv_getField: Unknown variable name! ' // varName)
+        call abort3d('gsv_getField3D_r8: Unknown variable name! ' // varName)
       endif
     else
-      field3D(lon1:,lat1:,1:) => statevector%gd3d(:,:,:)
+      field3D(lon1:,lat1:,1:) => statevector%gd3d_r8(:,:,:)
     endif
 
-  end function gsv_getField3D
+  end function gsv_getField3D_r8
+
+
+  function gsv_getField_r4(statevector,varName) result(field)
+    implicit none
+    type(struct_gsv), intent(in)           :: statevector
+    character(len=*), intent(in), optional :: varName
+    real(4),pointer                        :: field(:,:,:,:)
+    integer                                :: ilev1,ilev2,lon1,lat1
+
+    lon1=statevector%myLonBeg
+    lat1=statevector%myLatBeg
+
+    if(.not. associated(statevector%gd_r4)) call abort3d('gsv_getField_r4: data with type r4 not allocated')
+
+    if(present(varName)) then
+      if(gsv_varExist(statevector,varName)) then
+        ilev1 = 1 + statevector%varOffset(vnl_varListIndex(varName))
+        ilev2 = ilev1 - 1 + statevector%varNumLev(vnl_varListIndex(varName))
+        field(lon1:,lat1:,1:,1:) => statevector%gd_r4(:,:,ilev1:ilev2,:)
+      else
+        call abort3d('gsv_getField_r4: Unknown variable name! ' // varName)
+      endif
+    else
+      field(lon1:,lat1:,1:,1:) => statevector%gd_r4(:,:,:,:)
+    endif
+
+  end function gsv_getField_r4
+
+
+  function gsv_getField3D_r4(statevector,varName) result(field3D)
+    implicit none
+    type(struct_gsv), intent(in)           :: statevector
+    character(len=*), intent(in), optional :: varName
+    real(4),pointer                        :: field3D(:,:,:)
+    integer                                :: ilev1,ilev2,lon1,lat1
+
+    lon1=statevector%myLonBeg
+    lat1=statevector%myLatBeg
+
+    if(.not. associated(statevector%gd3d_r4)) call abort3d('gsv_getField3D_r4: data with type r4 not allocated')
+
+    if(present(varName)) then
+      if(gsv_varExist(statevector,varName)) then
+        ilev1 = 1 + statevector%varOffset(vnl_varListIndex(varName))
+        ilev2 = ilev1 - 1 + statevector%varNumLev(vnl_varListIndex(varName))
+        field3D(lon1:,lat1:,1:) => statevector%gd3d_r4(:,:,ilev1:ilev2)
+      else
+        call abort3d('gsv_getField3D_r4: Unknown variable name! ' // varName)
+      endif
+    else
+      field3D(lon1:,lat1:,1:) => statevector%gd3d_r4(:,:,:)
+    endif
+
+  end function gsv_getField3D_r4
 
 
   function gsv_getDateStamp(statevector,step) result(dateStamp)
@@ -969,8 +1064,8 @@ MODULE gridStateVector_mod
 
   subroutine gsv_setVco(statevector,vco_ptr)
     implicit none
-    type(struct_gsv)          :: statevector
-    type(struct_vco), pointer :: vco_ptr
+    type(struct_gsv) :: statevector
+    type(struct_vco), pointer  :: vco_ptr
 
     statevector%vco => vco_ptr
 
@@ -1286,13 +1381,13 @@ MODULE gridStateVector_mod
               call abort3d('gsv_readFromFile: surface pressure not yet read, cannot call gsv_vint')
             endif
           else
-            field => gsv_getField(statevector,varName)
+            field => gsv_getField_r8(statevector,varName)
             field(:,:,:,:) = 0.0d0
             field(statevector%myLonBeg:statevector%myLonEnd, &
                   statevector%myLatBeg:statevector%myLatEnd,1:nlev,indexStep) =  &
                                             field3d_tile(:,:,1:nlev)
             if(trim(varName) == 'UU') then
-              field => gsv_getField(statevector,'VV')
+              field => gsv_getField_r8(statevector,'VV')
               field(:,:,:,:) = 0.0d0
               field(statevector%myLonBeg:statevector%myLonEnd, &
                     statevector%myLatBeg:statevector%myLatEnd,1:nlev,indexStep) =  &
@@ -1302,7 +1397,7 @@ MODULE gridStateVector_mod
           endif
         else
           ! 2D fields
-          field => gsv_getField(statevector,varName)
+          field => gsv_getField_r8(statevector,varName)
           field(:,:,:,:) = 0.0d0
           field(statevector%myLonBeg:statevector%myLonEnd, &
                 statevector%myLatBeg:statevector%myLatEnd,1,indexStep) =  &
@@ -1312,7 +1407,7 @@ MODULE gridStateVector_mod
 
         ! convert humidity into LQ
         if(trim(varName) == 'HU') then
-          field => gsv_getField(statevector,varName)
+          field => gsv_getField_r8(statevector,varName)
 !$OMP PARALLEL DO PRIVATE (jlat,jlev,jlon)
           do jlat = statevector%myLatBeg, statevector%myLatEnd
             do jlev = 1, nlev
@@ -1385,7 +1480,7 @@ MODULE gridStateVector_mod
     endif
 
     ! do the vertical interpolation
-    field_out => gsv_getField(statevector_out,varName)
+    field_out => gsv_getField_r8(statevector_out,varName)
     field_out(:,:,:,:) = 0.0d0
     nlev_out = vco_getNumLev(statevector_out%vco, vnl_varLevelFromVarname(varName))
     nlev_in  = vco_getNumLev(vco_in,              vnl_varLevelFromVarname(varName))
@@ -1543,7 +1638,7 @@ MODULE gridStateVector_mod
     do jvar = 1, vnl_numvarmax 
  
       if (gsv_varExist(statevector,vnl_varNameList(jvar)) ) then
-        field => gsv_getField(statevector,vnl_varNameList(jvar))
+        field => gsv_getField_r8(statevector,vnl_varNameList(jvar))
 
         nlev = gsv_getNumLev(statevector,vnl_varLevelFromVarname(vnl_varNameList(jvar)))
 
@@ -1554,7 +1649,7 @@ MODULE gridStateVector_mod
 
         ! convert LQ to HU if statevector_ref is present
         if(trim(vnl_varNameList(jvar)) == 'HU' .and. present(statevector_ref)) then
-          field_ref => gsv_getField(statevector_ref,vnl_varNameList(jvar))
+          field_ref => gsv_getField_r8(statevector_ref,vnl_varNameList(jvar))
           work3d(:,:,:) = work3d(:,:,:)*  &
               exp(field_ref(statevector%myLonBeg:statevector%myLonEnd, &
                             statevector%myLatBeg:statevector%myLatEnd,1:nlev,indexStep))
@@ -1799,9 +1894,9 @@ MODULE gridStateVector_mod
               ilon_in2 = ilon_in1 + relativeFactor - 1
               do jlon_in = ilon_in1, ilon_in2
 
-                statevector_out%gd(ilon_out, ilat_out, :, jstep) =  &
-                  statevector_out%gd(ilon_out, ilat_out, :, jstep) +  &
-                  statevector_in%gd(jlon_in, ilat_in, :, jstep)
+                statevector_out%gd_r8(ilon_out, ilat_out, :, jstep) =  &
+                  statevector_out%gd_r8(ilon_out, ilat_out, :, jstep) +  &
+                  statevector_in%gd_r8(jlon_in, ilat_in, :, jstep)
 
               enddo ! jlon_in
             enddo ! jlon
@@ -1837,8 +1932,8 @@ MODULE gridStateVector_mod
           do jlon = 1, statevector_out%lonPerPE
             ilon_out = jlon + statevector_in%myLonBeg - 1
             ilon_in  = floor(real(jlon-1,8)/real(relativeFactor,8)) + statevector_in%myLonBeg
-            statevector_out%gd(ilon_out, ilat_out, :, jstep) =  &
-              statevector_in%gd(ilon_in, ilat_in, :, jstep)
+            statevector_out%gd_r8(ilon_out, ilat_out, :, jstep) =  &
+              statevector_in%gd_r8(ilon_in, ilat_in, :, jstep)
           enddo ! jlon
         enddo ! jlat
 

@@ -178,7 +178,7 @@ program diag_bmatrix
 
                  call gsv_allocate(statevector,tim_nstepobsinc,datestamp=tim_getDatestamp(),mpi_local=.true.)
                  call gsv_zero(statevector)
-                 field => gsv_getField3d(statevector,vnl_varNameList(ivar))
+                 field => gsv_getField3d_r8(statevector,vnl_varNameList(ivar))
                  if(oneobs_lats(ilat).ge.statevector%myLatBeg.and.oneobs_lats(ilat).le.statevector%myLatEnd) then
                     field(oneobs_lons(ilon),oneobs_levs(ilev),oneobs_lats(ilat))=1.0d0
                  endif
@@ -234,7 +234,7 @@ program diag_bmatrix
      iseed = abs(nrandseed)
      zdum = gasdev(-iseed)
 
-     field => gsv_getField3d(statevector)
+     field => gsv_getField3d_r8(statevector)
 
      !
      !- Compute the ensemble of random perturbations
@@ -376,7 +376,7 @@ program diag_bmatrix
 
         allocate(gdstddev_zm(hco_anl%nj,nkgdim))
         gdstddev_zm(:,:) = 0.d0
-        field_global => gsv_getField3d(statevector)
+        field_global => gsv_getField3d_r8(statevector)
 
 !$OMP PARALLEL
 !$OMP DO PRIVATE (jni,jnj,jnk)

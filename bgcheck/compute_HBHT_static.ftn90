@@ -120,7 +120,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
 !
       clnomvar = 'UU'
       write(*,*) clnomvar 
-      field_ptr => gsv_getField3D(statevector,'UU')       
+      field_ptr => gsv_getField3D_r8(statevector,'UU')       
       do jlev = 1, nlev_M
          ip1 = vco_anl%ip1_M(jlev)
          ikey = vfstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
@@ -147,7 +147,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
 
       clnomvar = 'VV'
       write(*,*) clnomvar
-      field_ptr => gsv_getField3D(statevector,'VV')
+      field_ptr => gsv_getField3D_r8(statevector,'VV')
       do jlev = 1, nlev_M
          ip1 = vco_anl%ip1_M(jlev)
          ikey = vfstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
@@ -170,7 +170,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
 
       clnomvar = 'ES'
       write(*,*) clnomvar
-      field_ptr => gsv_getField3D(statevector,'HU')
+      field_ptr => gsv_getField3D_r8(statevector,'HU')
       do jlev = 1, nlev_T
          ip1 = vco_anl%ip1_T(jlev)
          ikey = vfstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
@@ -193,7 +193,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
       ! GZ is put into TT slot in gridStateVector
       clnomvar = 'GZ'
       write(*,*) clnomvar
-      field_ptr => gsv_getField3D(statevector,'TT')
+      field_ptr => gsv_getField3D_r8(statevector,'TT')
       do jlev = 1, nlev_T
          ip1 = vco_anl%ip1_T(jlev)
          ikey = vfstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
@@ -246,7 +246,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
 !
       clnomvar = 'TT'
       write(*,*) clnomvar
-      field_ptr => gsv_getField3D(statevector,'TT')
+      field_ptr => gsv_getField3D_r8(statevector,'TT')
       do jlev = 1, nlev_T
          ip1 = vco_anl%ip1_T(jlev)
          ikey = vfstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
@@ -286,7 +286,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
          write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, 1
          call abort3d('compute_HBHT_static')
       end if
-      field_ptr => gsv_getField3D(statevector,'P0')
+      field_ptr => gsv_getField3D_r8(statevector,'P0')
       do jlev = 1, ink
          do jlat = 1, hco_anl%nj
             do jlon = 1, hco_anl%ni
@@ -297,7 +297,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
 
       clnomvar = 'UU'
       write(*,*) clnomvar
-      field_ptr => gsv_getField3D(statevector,'UU')
+      field_ptr => gsv_getField3D_r8(statevector,'UU')
       do jlev = 1, nlev_M
          ip1 = vco_anl%ip1_M(jlev)
          ikey = vfstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
@@ -310,7 +310,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
 
       clnomvar = 'VV'
       write(*,*) clnomvar
-      field_ptr => gsv_getField3D(statevector,'VV')
+      field_ptr => gsv_getField3D_r8(statevector,'VV')
       do jlev = 1, nlev_M
          ip1 = vco_anl%ip1_M(jlev)
          ikey = vfstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
@@ -323,7 +323,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
 
       clnomvar = 'TT'
       write(*,*) clnomvar
-      field_ptr => gsv_getField3D(statevector,'TT')
+      field_ptr => gsv_getField3D_r8(statevector,'TT')
       do jlev = 1, nlev_T
          ip1 = vco_anl%ip1_T(jlev)
          ikey = vfstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
@@ -336,7 +336,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
 
       clnomvar = 'ES'
       write(*,*) clnomvar
-      field_ptr => gsv_getField3D(statevector,'HU')
+      field_ptr => gsv_getField3D_r8(statevector,'HU')
       do jlev = 1, nlev_T
          ip1 = vco_anl%ip1_T(jlev)
          ikey = vfstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
@@ -359,7 +359,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
 !
       clnomvar = 'LQ'
       write(*,*) clnomvar
-      field_ptr => gsv_getField3D(statevector,'HU')
+      field_ptr => gsv_getField3D_r8(statevector,'HU')
       do jlev = 1, nlev_T
          ip1 = vco_anl%ip1_T(jlev)
          ikey = vfstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)

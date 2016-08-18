@@ -927,7 +927,7 @@ CONTAINS
     real(8), pointer :: field_ptr(:,:,:,:) 
 
     ! copy statevector into fieldsWithHalo
-    field_ptr => gsv_getField(statevector_in)
+    field_ptr => gsv_getField_r8(statevector_in)
 !$OMP PARALLEL DO PRIVATE (jlat,jstep,jlev,jlon)    
     do jstep = 1, statevector_in%numStep
       do jlev = 1, statevector_in%nk
@@ -1175,7 +1175,7 @@ CONTAINS
     endif
 
     ! copy statevector into fieldsWithHalo
-    field_ptr => gsv_getField(statevector_in)
+    field_ptr => gsv_getField_r8(statevector_in)
 !$OMP PARALLEL DO PRIVATE (jlat,jstep,jlev,jlon)    
     do jstep = 1, statevector_in%numStep
       do jlev = 1, statevector_in%nk
