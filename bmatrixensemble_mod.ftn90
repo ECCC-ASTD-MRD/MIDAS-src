@@ -1612,7 +1612,7 @@ CONTAINS
     enddo
 
     !- 3.2 Compute sqrt of the matrix if vertical localization requested
-    call matsqrt(ensLocalVert(1,1),nLevEns_M,1.0d0)
+    call matsqrt(ensLocalVert(1,1),nLevEns_M,1.0d0,.false.)
 
     !
     !- 4.  Ending
