@@ -21,11 +21,11 @@
 !          for the limited-area computational analysis grids (extended and non-extended)
 !
 ! - Subroutines
-!    lag_SetupFromHCO    (public)
-!    lag_PsiChiToUV      (public)
-!    lag_PsiChiTspsoUVAdj   (public)
-!    lag_UVToVortDiv     (public)
-!    lag_mach            (public)
+!    lag_SetupFromHCO     (public)
+!    lag_PsiChiToUV       (public)
+!    lag_PsiChiTspsoUVAdj (public)
+!    lag_UVToVortDiv      (public)
+!    lag_mach             (public)
 !
 ! - Public variables
 !
@@ -34,7 +34,8 @@
 !--------------------------------------------------------------------------
 module LamAnalysisGrid_mod
   use earthconstants_mod, only : RA
-  use MathPhysConstants_mod, only: MPC_DEGREES_PER_RADIAN_R8, MPC_PI_R8
+  use MathPhysConstants_mod, only: MPC_DEGREES_PER_RADIAN_R8, MPC_PI_R8,  &
+                                   MPC_DEGREES_PER_RADIAN_R4, MPC_PI_R4
   use HorizontalCoord_mod
   use mpivar_mod
   implicit none
@@ -42,7 +43,7 @@ module LamAnalysisGrid_mod
   private
 
   ! public procedures
-  public :: lag_SetupFromHCO, lag_mach
+  public :: lag_SetupFromHCO, lag_mach, lag_mach_r4
   public :: lag_PsiChiToUV, lag_PsiChiToUVAdj, lag_UVToVortDiv
 
   ! Definition of some parameters characterizing the geometry of
@@ -808,6 +809,86 @@ module LamAnalysisGrid_mod
 !$OMP END PARALLEL
 
   end subroutine lag_mach
+
+!--------------------------------------------------------------------------
+! lag_Mach_r4
+!--------------------------------------------------------------------------
+  subroutine lag_mach_r4(gd,ni,nj,nk)
+    implicit none
+
+    ! Arguments:
+    !      ni    ! Maximum I-dimension where the input array is assumed to carry information.
+    !               Will be used as I-limit where backward derivatives will be evaluated
+    !      nj    ! Maximum J-dimension where the input array is assumed to carry information.
+    !               Will be used as J-limit where backward derivatives will be evaluated
+    !
+    integer,          intent(in)    :: ni, nj, nk
+    real(4),          intent(inout) :: gd(ni,nj,nk)
+
+    integer :: istart, jstart
+    integer :: i,j,k
+
+    real(4) :: con, xp, yp, a0, a1, b1, b2
+    real(4) :: deriv_istart, deriv_jstart, deriv_i0, deriv_j0, del
+
+    if ( .not. initialized ) then
+      call abort3d('lag_Mach_r4: LamAnalysisGrid not initialized')
+    endif
+
+    if ( (ni /= 1 .and. ni /= ni_ext) .or. &
+         (nj /= 1 .and. nj /= nj_ext) ) then
+      call abort3d('lag_Mach_r4 : Invalid Dimensions')
+    end if
+
+!$OMP PARALLEL
+!$OMP DO PRIVATE (k,j,i,istart,jstart,con,a0,a1,b1,b2,del,deriv_istart,deriv_i0,deriv_jstart,deriv_j0,xp,yp)
+    do k = 1, nk
+    !
+    !- 1.  Periodicized in x-direction from ni_core to ni
+    !    
+    if ( ni > 1 ) then
+      istart = ni_core - 2  ! I-limit where backward derivatives will be evaluated
+      con = 1.0 / ( glmf%rdlon * MPC_DEGREES_PER_RADIAN_R4 * 111.e+3)
+      do j = 1, nj
+        a0           = 0.50 * ( gd(istart,j,k)  + gd(1,j,k)       )
+        a1           = 0.50 * ( gd(istart,j,k)  - gd(1,j,k)       )
+        deriv_istart = con   * ( gd(istart,j,k)  - gd(istart-1,j,k))
+        deriv_i0     = con   * ( gd(2,j,k)       - gd(1,j,k)       )
+        b1           = 0.50 * ( deriv_istart  - deriv_i0       )
+        b2           = 0.250* ( deriv_istart  + deriv_i0       )
+        del          = real(ni_ext_per-istart,8)
+        do i = istart, ni
+          xp = MPC_PI_R4 * real(i-istart,8) / del
+          gd(i,j,k) = a0 + a1*cos(xp) + b1*sin(xp) + b2*sin(2.0*xp)
+        end do
+      end do
+    end if
+    !
+    !- 2.  Periodicized in y-direction from nj_core to nj
+    !
+    if ( nj > 1 ) then
+      jstart = nj_core - 2
+      con = 1.0 / (glmf%rdlat * MPC_DEGREES_PER_RADIAN_R4 * 111.e+3)
+      do i = 1, ni
+        a0           = 0.50 * ( gd(i,jstart,k) + gd(i,1,k)       )
+        a1           = 0.50 * ( gd(i,jstart,k) - gd(i,1,k)       )
+        deriv_jstart = con   * ( gd(i,jstart,k) - gd(i,jstart-1,k))
+        deriv_j0     = con   * ( gd(i,2,k)      - gd(i,1,k)       )
+        b1           = 0.50 * ( deriv_jstart - deriv_j0     )
+        b2           = 0.250* ( deriv_jstart + deriv_j0     )
+        del          = real(nj_ext_per-jstart,8)
+        do j = jstart , nj
+          yp = MPC_PI_R4 * real(j-jstart,8) / del
+          gd(i,j,k) = a0 + a1*cos(yp) + b1*sin(yp) + b2*sin(2.0*yp)
+        end do
+      end do
+    end if
+
+    end do
+!$OMP END DO
+!$OMP END PARALLEL
+
+  end subroutine lag_mach_r4
 
 !--------------------------------------------------------------------------
 ! lag_UVToVortDiv

@@ -412,18 +412,38 @@ MODULE gridStateVector_mod
     lat1=statevector%myLatBeg
     lat2=statevector%myLatEnd
 
+    if (statevector%dataKind==8 ) then
+
 !$OMP PARALLEL DO PRIVATE (jstep,jlat,jlev,jlon)    
-    do jlev = 1, statevector%nk
-      do jstep = 1, statevector%numStep
-        do jlat = lat1, lat2
-          do jlon = lon1, lon2
-            statevector%gd_r8(jlon,jlat,jlev,jstep) = 0.0d0
+       do jlev = 1, statevector%nk
+          do jstep = 1, statevector%numStep
+             do jlat = lat1, lat2
+                do jlon = lon1, lon2
+                   statevector%gd_r8(jlon,jlat,jlev,jstep) = 0.0d0
+                enddo
+             enddo
           enddo
-        enddo
-      enddo
-    enddo
+       enddo
 !$OMP END PARALLEL DO
 
+    elseif (statevector%dataKind==4) then
+
+!$OMP PARALLEL DO PRIVATE (jstep,jlat,jlev,jlon)
+       do jlev = 1, statevector%nk
+          do jstep = 1, statevector%numStep
+             do jlat = lat1, lat2
+                do jlon = lon1, lon2
+                   statevector%gd_r4(jlon,jlat,jlev,jstep) = 0.0
+                enddo
+             enddo
+          enddo
+       enddo
+!$OMP END PARALLEL DO
+
+    else
+       call abort3d('gsv_zero: unknown value of datakind')
+    endif
+    
   END SUBROUTINE GSV_zero
 
 

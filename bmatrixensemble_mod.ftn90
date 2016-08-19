@@ -77,8 +77,8 @@ MODULE BmatrixEnsemble
   integer             :: ensembleFileExtLength
   integer,allocatable :: dateStampList(:)
   character(len=256)  :: enspathname,ensfilebasename
-  character(len=8)   :: datestr_last
-  character(len=2)   :: hourstr_last
+  character(len=8)    :: datestr_last
+  character(len=2)    :: hourstr_last
   integer,external    :: get_max_rss
 
   ! Localizations
@@ -147,8 +147,8 @@ CONTAINS
     integer        :: fnom,fclos,ierr,nulnam
     integer        :: waveBandIndex
     integer        :: stamp_last,newdate,ndate,ntime
-    character(len=256) :: cflensin
-    character(len=4)   :: censnumber
+    character(len=256) :: ensFileName
+    character(len=4)   :: ensNumber
 
     logical        :: TweakTG,diagnostic,lExists
 
@@ -238,17 +238,17 @@ CONTAINS
     call tim_getstamplist(dateStampList,numTime,stamp_in)
 
     !- 2.5 Determine file name extension length for ensemble files (3 or 4)
-    write(censnumber,'(i4.4)') 1
-    cflensin = trim(enspathname) // '/' // trim(ensfilebasename) // &
-               trim(datestr_last) // trim(hourstr_last) // '_006_' // trim(censnumber)
-    inquire(file=cflensin,exist=lExists)
+    write(ensNumber,'(i4.4)') 1
+    ensFileName = trim(enspathname) // '/' // trim(ensfilebasename) // &
+               trim(datestr_last) // trim(hourstr_last) // '_006_' // trim(ensNumber)
+    inquire(file=ensFileName,exist=lExists)
     if(lExists) then
       ensembleFileExtLength = 4
     else
-      write(censnumber,'(i3.3)') 1
-      cflensin = trim(enspathname) // '/' // trim(ensfilebasename) // &
-                 trim(datestr_last) // trim(hourstr_last) // '_006_' // trim(censnumber)
-      inquire(file=cflensin,exist=lExists)
+      write(ensNumber,'(i3.3)') 1
+      ensFileName = trim(enspathname) // '/' // trim(ensfilebasename) // &
+                 trim(datestr_last) // trim(hourstr_last) // '_006_' // trim(ensNumber)
+      inquire(file=ensFileName,exist=lExists)
       if(lExists) then
         ensembleFileExtLength = 4
       else 
@@ -260,7 +260,7 @@ CONTAINS
 
     vco_anl => vco_in
     status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
-    call vco_SetupFromFile(vco_ens,cflensin,' ')
+    call vco_SetupFromFile(vco_ens,ensFileName,' ')
     nLevEns_M = vco_ens%nLev_M
     nLevEns_T = vco_ens%nLev_T
     nLevInc_M = vco_anl%nLev_M
@@ -269,6 +269,7 @@ CONTAINS
     nkgdimEns = 2*nLevEns_M+2*nLevEns_T+2  ! assume 4 3d and 2 2d variables
     topLevIndex_M = nLevInc_M-nLevEns_M+1
     topLevIndex_T = nLevInc_T-nLevEns_T+1
+
     allocate(nip1_M(nLevEns_M),stat=ierr)
     nip1_M(1:nLevEns_M) = vco_anl%ip1_M(topLevIndex_M:nLevInc_M)
     allocate(nip1_T(nLevEns_T),stat=ierr)
@@ -479,7 +480,7 @@ CONTAINS
         enddo
       else
         cvDim_mpiglobal = lst_ben%nlaGlobal * nphase * nLevEns_M * nEns
-        cvDim_mpilocal  = nla_mpilocal        * nphase * nLevens_M * nEns
+        cvDim_mpilocal  = nla_mpilocal      * nphase * nLevens_M * nEns
         print*,'cvDim_mpiglobal ', cvDim_mpiglobal, lst_ben%nlaGlobal, nphase, nLevEns_M, nEns
         print*,'cvDim_mpilocal  ', cvDim_mpilocal, nla_mpilocal, nphase, nLevEns_M, nEns
       endif
@@ -549,36 +550,50 @@ CONTAINS
 ! setupEnsemble
 !--------------------------------------------------------------------------
   SUBROUTINE setupEnsemble()
+    use lamAnalysisGrid_mod
     implicit none
  
     real(4), allocatable :: gd3d_r4(:,:,:)
-    type(struct_gsv) :: statevector_ensPert1_r4
     real(4), allocatable :: gd_send_r4(:,:,:,:)
     real(4), allocatable :: gd_recv_r4(:,:,:,:)
+
     real(4), pointer     :: ptr3d_r4(:,:,:), ptr4d_r4(:,:,:,:)
     real(8), pointer     :: ptr4d_r8(:,:,:,:)
+
     real(8) :: dnens,multfactor,multfactor2
+
     integer :: ji,jj,jt,jk,jvar,memberIndex,waveBandIndex,jpe,jlonband,jlatband
     integer :: memberIndex2,batchnum,nsize,status,pe_src,pe_dest
     integer :: yourid,youridx,youridy
     integer :: kulin
     integer :: readFilePE(1000)
     integer :: memberIndexOffset, totalEnsembleSize
+
     logical :: lExists
+
     character(len=32) :: envVariable
+
     integer :: length_envVariable
+    integer :: ni_expected, nj_expected, ni_transfer, nj_transfer, nlev
+
+    type(struct_gsv)           :: statevector_ensFcst_r4
+    type(struct_hco), pointer  :: hco_coregrid
 
     ! standard file variables
-    integer :: ini,inj,ink,ip1,ip2(9),ip3,ierr,ikey
-    character(len=2)   :: cltypvar
-    character(len=1)   :: clgrtyp
-    character(len=4)   :: clnomvar
-    character(len=12)  :: cletiket
-    character(len=256) :: cflensin
-    character(len=4)   :: censnumber
+    integer :: ni_fst,nj_fst,nk_fst,ip1,ip2(9),ip3,ierr,ikey
+    character(len=2)   :: typvar
+    character(len=1)   :: grtyp
+    character(len=4)   :: nomvar
+    character(len=12)  :: etiket
+    character(len=256) :: ensFileName
+    character(len=4)   :: ensNumber
     integer :: fstlir,fstfrm,fclos,fnom,fstouv,fstinf
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+    !
+    !- 1.  Setup 
+    !
 
     ! this should come from state vector object
     ngposituu = 1
@@ -588,6 +603,7 @@ CONTAINS
     ngpositps = 1+2*nLevEns_M+2*nLevEns_T
     ngposittg = 2+2*nLevEns_M+2*nLevEns_T
 
+    !- 1.1 Memory allocation
     allocate(gd_send_r4(lonPerPE,latPerPE,nkgdimEns,mpi_nprocs))
     allocate(gd_recv_r4(lonPerPE,latPerPE,nkgdimEns,mpi_nprocs))
 
@@ -605,23 +621,17 @@ CONTAINS
       enddo
     enddo
 
-    call gsv_setVco(statevector_ensPert1_r4,vco_ens)
-    call gsv_setHco(statevector_ensPert1_r4,hco_ben)
-    call gsv_allocate(statevector_ensPert1_r4,1,  &
+    call gsv_setVco(statevector_ensFcst_r4,vco_ens)
+    call gsv_setHco(statevector_ensFcst_r4,hco_ben)
+    call gsv_allocate(statevector_ensFcst_r4,1,  &
                       datestamp=tim_getDatestamp(),mpi_local=.false.,dataKind_in=4)
+    call gsv_zero(statevector_ensFcst_r4)
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-    ! read in raw ensemble (UU,VV,TT,P0,LQ (convert HU to LQ) - covariances)
 
     do memberIndex = 1, nEns
       readFilePE(memberIndex) = mod(memberIndex-1,mpi_nprocs)
     enddo
-
-    ip2 = -1
-    ip3 = -1
-    cltypvar = ' '
-    cletiket = ' '
 
     ! Retrieve environment variables related to doing an ensemble of perturbed analyses
     status = 0
@@ -652,50 +662,88 @@ CONTAINS
 
     if(mpi_myid.eq.0) write(*,*) 'dateStampList=',dateStampList(1:numTime)
 
-    do jt = 1, numTime  ! read all timesteps
+    !
+    !- 2.  Ensemble forecasts reading loop
+    !
+
+    ip2    = -1
+    ip3    = -1
+    typvar = ' '
+    etiket = ' '
+
+    if ( hco_ben%global ) then
+       ni_expected = ni+1 ! based on the actual EnKF outputs
+       nj_expected = nj
+       ni_transfer = ni
+       nj_transfer = nj
+    else
+       hco_coregrid => hco_Get('AnalysisCore')
+       ni_expected = hco_coregrid%ni
+       nj_expected = hco_coregrid%nj
+       ni_transfer = ni_expected
+       nj_transfer = nj_expected
+    end if
+
+    !- 2.1 Loop on time, ensemble member, variable, level
+    do jt = 1, numTime
       do memberIndex = 1, nEns
 
-        if(mpi_myid.eq.readFilePE(memberIndex)) then
+        if (mpi_myid.eq.readFilePE(memberIndex)) then
 
-          ! open the file
+          !  2.1.1 open the file
           if(ensembleFileExtLength == 4) then
-            write(censnumber,'(i4.4)') 1+mod(memberIndex+memberIndexOffset-1, totalEnsembleSize)
+            write(ensNumber,'(i4.4)') 1+mod(memberIndex+memberIndexOffset-1, totalEnsembleSize)
           elseif(ensembleFileExtLength == 3) then
-            write(censnumber,'(i3.3)') 1+mod(memberIndex+memberIndexOffset-1, totalEnsembleSize)
+            write(ensNumber,'(i3.3)') 1+mod(memberIndex+memberIndexOffset-1, totalEnsembleSize)
           else
             write(*,*) 'ben setupEnsemble: ensembleFileExtLength = ', ensembleFileExtLength
             call abort3d('ben setupEnsemble: unknown value')
           endif
-          cflensin = trim(enspathname) // '/' // trim(ensfilebasename) // &
-                     trim(datestr_last) // trim(hourstr_last) // '_006_' // trim(censnumber)
-          inquire(file=cflensin,exist=lExists)
+          ensFileName = trim(enspathname) // '/' // trim(ensfilebasename) // &
+                     trim(datestr_last) // trim(hourstr_last) // '_006_' // trim(ensNumber)
+          inquire(file=ensFileName,exist=lExists)
           if(lExists) then
             kulin = 0
-            ierr = fnom(kulin,cflensin,'RND+OLD+R/O',0)
+            ierr = fnom(kulin,ensFileName,'RND+OLD+R/O',0)
           else
-            write(*,*) 'filename=',trim(cflensin)
+            write(*,*) 'filename=',trim(ensFileName)
             call abort3d('ben setupEnsemble: Could not open ensemble file')
           endif
           ierr = fstouv(kulin,'RND+OLD')
 
-          ! get grid parameters by looking at P0
-          if(.not.allocated(gd3d_r4)) then
-            ikey = fstinf(kulin,ini,inj,ink,dateStampList(1),cletiket,-1,ip2,ip3,cltypvar,'P0')
-            write(*,*) 'ben_setupensemble: allocating temporary 2D buffer with ini,inj=',ini,inj
-            allocate(gd3d_r4(ini,inj,max(nLevEns_T,nLevEns_M)))
+          !  2.1.2 Get input grid parameters by looking at TG (because in LAM mode this variable can pose problem)
+          if ( .not. allocated(gd3d_r4) ) then
+            ikey = fstinf(kulin,ni_fst,nj_fst,nk_fst,dateStampList(1),etiket,-1,ip2,ip3,typvar,'TG')
+            if ( ni_fst /= ni_expected .or. nj_fst /= nj_expected ) then
+               write(*,*)
+               write(*,*) 'ben_setupensemble: Invalid horizontal dimensions ...'
+               write(*,*) 'Found ni,nj =', ni_fst, nj_fst
+               write(*,*) 'Should be   =', ni_expected, nj_expected
+               call abort3d('ben_setupensemble')
+            end if
+            if ( nk_fst /= 1 ) then
+               write(*,*)
+               write(*,*) 'ben_setupensemble: Invalid vertical dimensions ...'
+               write(*,*) 'Found nk =', nk_fst
+               write(*,*) 'Should be 1'
+               call abort3d('ben_setupensemble')
+            end if
+            write(*,*) 'ben_setupensemble: allocating temporary 3D buffer with ni_fst,nj_fst=',ni_fst,nj_fst
+            allocate(gd3d_r4(ni_fst,nj_fst,max(nLevEns_T,nLevEns_M)))
           endif
 
-          write(*,*) 'Reading time slice ',jt,' for ensemble member:',trim(cflensin)
+          write(*,*) 'Reading time slice ',jt,' for ensemble member:',trim(ensFileName)
           write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-          ! read 1 member per mpi task, only 1 timestep
-
+          !  2.1.3 Loop on variables
           do jvar = 1, vnl_numvarmax
-            if( .not. gsv_varExist(statevector_ensPert1_r4, vnl_varNameList(jvar)) ) cycle 
 
-            ptr3d_r4 => gsv_getField3D_r4(statevector_ensPert1_r4, vnl_varNameList(jvar))
+            if ( .not. gsv_varExist(statevector_ensFcst_r4, vnl_varNameList(jvar)) ) cycle 
 
-            if(trim(vnl_varNameList(jvar)) == 'P0') then
+            ptr3d_r4 => gsv_getField3D_r4(statevector_ensFcst_r4, vnl_varNameList(jvar))
+            nlev     =  gsv_getNumLev    (statevector_ensFcst_r4, vnl_varLevelFromVarname(vnl_varNameList(jvar)))
+
+            if (trim(vnl_varNameList(jvar)) == 'P0') then
               multfactor = MPC_PA_PER_MBAR_R8
             elseif(trim(vnl_varNameList(jvar)) == 'UU' .or. trim(vnl_varNameList(jvar)) == 'VV') then 
               multfactor = MPC_M_PER_S_PER_KNOT_R8
@@ -703,26 +751,28 @@ CONTAINS
               multfactor = 1.0D0
             endif
 
-            do jk = 1, gsv_getNumLev(statevector_ensPert1_r4, vnl_varLevelFromVarname(vnl_varNameList(jvar)))
-              if( vnl_varLevelFromVarname(vnl_varNameList(jvar)) .eq. 'MM' ) then
+            !  Loop on level
+            do jk = 1, nlev
+              if     ( vnl_varLevelFromVarname(vnl_varNameList(jvar)) .eq. 'MM' ) then
                 ip1 = nip1_M(jk)
-              elseif( vnl_varLevelFromVarname(vnl_varNameList(jvar)) .eq. 'TH' ) then
+              elseif ( vnl_varLevelFromVarname(vnl_varNameList(jvar)) .eq. 'TH' ) then
                 ip1 = nip1_T(jk)
               else
                 ip1 = -1
               endif                
-              ikey = fstlir(gd3d_r4(:,:,jk),kulin,ini,inj,ink,dateStampList(jt),cletiket,ip1,ip2,ip3,cltypvar,vnl_varNameList(jvar))
-              if(ikey.lt.0) then
-                write(*,*) dateStampList(jt),cletiket,nip1_T(jk),ip2,ip3,cltypvar,vnl_varNameList(jvar)
+              ikey = fstlir(gd3d_r4(:,:,jk),kulin,ni_fst,nj_fst,nk_fst,dateStampList(jt),etiket,ip1,ip2,ip3,typvar,vnl_varNameList(jvar))
+              if (ikey.lt.0) then
+                write(*,*) dateStampList(jt),etiket,nip1_T(jk),ip2,ip3,typvar,vnl_varNameList(jvar)
                 call abort3d('ben setupEnsemble: Problem reading member')
               endif
-            enddo ! jk
+            enddo ! level
 
-            if(trim(vnl_varNameList(jvar)) == 'HU') then
+            !  Transfer to statevector_ensFcst_r4
+            if (trim(vnl_varNameList(jvar)) == 'HU') then
 !$OMP PARALLEL DO PRIVATE(jk,jj,ji)
-              do jk = 1, gsv_getNumLev(statevector_ensPert1_r4, vnl_varLevelFromVarname(vnl_varNameList(jvar)))
-                do jj = 1, nj
-                  do ji = 1, ni
+              do jk = 1, nlev
+                do jj = 1, nj_transfer
+                  do ji = 1, ni_transfer
                     ptr3d_r4(ji,jj,jk) = sngl(log(max(real(gd3d_r4(ji,jj,jk),8),MPC_MINIMUM_HU_R8)))
                   enddo
                 enddo
@@ -730,29 +780,35 @@ CONTAINS
 !$OMP END PARALLEL DO
             else
 !$OMP PARALLEL DO PRIVATE(jk,jj,ji)
-              do jk = 1, gsv_getNumLev(statevector_ensPert1_r4, vnl_varLevelFromVarname(vnl_varNameList(jvar)))
-                do jj = 1, nj
-                  do ji = 1, ni
+              do jk = 1, nlev
+                do jj = 1, nj_transfer
+                  do ji = 1, ni_transfer
                     ptr3d_r4(ji,jj,jk) = sngl(gd3d_r4(ji,jj,jk)*multfactor)
                   enddo
                 enddo
-              enddo ! jk
+              enddo
 !$OMP END PARALLEL DO
-            endif ! if(HU)
+            endif
 
-          enddo ! jvar
+            !  Create bi-periodic forecasts when using scale-dependent localization in LAM mode
+            if ( .not. hco_ben%global .and. trim(LocalizationType) == 'ScaleDependent' ) then
+               call lag_mach_r4(ptr3d_r4,    & ! INOUT
+                                ni, nj, nlev)  ! IN
+            end if
 
-          ierr =  fstfrm(kulin)
-          ierr =  fclos (kulin)
+          enddo ! variable
+
+          ierr = fstfrm(kulin)
+          ierr = fclos (kulin)
 
         endif
 
-        ! do mpi communication
-        if(readFilePE(memberIndex).eq.(mpi_nprocs-1) .or. memberIndex.eq.nEns) then
+        !  MPI communication: from 1 ensemble member per process to 1 lat-lon tile per process  
+        if (readFilePE(memberIndex).eq.(mpi_nprocs-1) .or. memberIndex.eq.nEns) then
           call tmg_start(13,'PRE_SUENS_COMM')
           batchnum = ceiling(dble(memberIndex)/dble(mpi_nprocs))
 
-          ptr3d_r4 => gsv_getField3D_r4(statevector_ensPert1_r4)
+          ptr3d_r4 => gsv_getField3D_r4(statevector_ensFcst_r4)
 !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
           do youridy = 0, (mpi_npey-1)
             do youridx = 0, (mpi_npex-1)
@@ -765,7 +821,7 @@ CONTAINS
 !$OMP END PARALLEL DO
 
           nsize = lonPerPE*latPerPE*nkgdimEns
-          if(mpi_nprocs.gt.1) then
+          if (mpi_nprocs.gt.1) then
             call rpn_comm_alltoall(gd_send_r4,nsize,"mpi_real4",  &
                                    gd_recv_r4,nsize,"mpi_real4","GRID",ierr)
           else
@@ -783,18 +839,22 @@ CONTAINS
 
           call tmg_stop(13)
 
-        endif ! do communication
+        endif ! MPI communication
 
       enddo ! memberIndex
 
-    enddo ! jt
+    enddo ! time
 
-    call gsv_deallocate(statevector_ensPert1_r4)
+    call gsv_deallocate(statevector_ensFcst_r4)
     deallocate(gd3d_r4)
     deallocate(gd_send_r4)
     deallocate(gd_recv_r4)
 
     write(*,*) 'finished reading and communicating ensemble members...'
+
+    !
+    !- 3. From ensemble FORECASTS to ensemble PERTURBATIONS
+    !
 
     ! remove mean, normalize and apply scale factors
     call gsv_setVco(statevector_ensMean,vco_ens)
@@ -817,7 +877,7 @@ CONTAINS
  
       ! remove mean, normalize and apply scale factors
       do jvar = 1, vnl_numvarmax
-        if( .not. gsv_varExist(statevector_ensPert1_r4, vnl_varNameList(jvar)) ) cycle 
+        if( .not. gsv_varExist(statevector_ensFcst_r4, vnl_varNameList(jvar)) ) cycle 
 
         ptr4d_r8 => gsv_getField_r8(statevector_ensMean, vnl_varNameList(jvar))
         do memberIndex = 1, nEns
@@ -840,11 +900,11 @@ CONTAINS
 
             ptr4d_r4(:,:,jk,jt) =  &
               sngl( (dble(ptr4d_r4(:,:,jk,jt))-ptr4d_r8(:,:,jk,jt))*multFactor2 )
-          enddo ! jk
+          enddo ! level
         enddo ! memberIndex
-      enddo ! jvar
+      enddo ! variable
 
-    enddo ! jt
+    enddo ! time
 !$OMP END PARALLEL DO
 
     ! for testing of localization advection set perturbations to 1 everywhere
@@ -1030,10 +1090,10 @@ CONTAINS
     
     integer :: ezdefset, ezqkdef, ezsint, ezsetopt, TrialGridID
 
-    character(len=2)  :: cltypvar
-    character(len=1)  :: clgrtyp
-    character(len=4)  :: clnomvar
-    character(len=12) :: cletiket
+    character(len=2)  :: typvar
+    character(len=1)  :: grtyp
+    character(len=4)  :: nomvar
+    character(len=12) :: etiket
 
     character(len=2) :: flnum
     character(len=128) :: trialfile
@@ -1075,79 +1135,79 @@ CONTAINS
 
     !- Determine grid size and EZSCINT ID
     idateo    = -1
-    cletiket = ' '
+    etiket = ' '
     ip1      = -1
     ip2      = -1
     ip3      = -1
-    cltypvar = ' '
-    clnomvar = 'MG'
+    typvar = ' '
+    nomvar = 'MG'
 
     key = fstinf( nultrl,                                             & ! IN
                   ni_trial, nj_trial, ink,                            & ! OUT
-                  idateo, cletiket, ip1, ip2, ip3, cltypvar, clnomvar ) ! IN
+                  idateo, etiket, ip1, ip2, ip3, typvar, nomvar ) ! IN
 
     if (key < 0) then
        write(*,*)
-       write(*,*) 'bMatrixEnsemble: Unable to find trial field = ',clnomvar
+       write(*,*) 'bMatrixEnsemble: Unable to find trial field = ',nomvar
        call abort3d('BMatrixEnsemble')
     end if
 
     ierr = fstprm( key,                                                 & ! IN
                    idateo, deet, npas, ni_trial, nj_trial, ink, nbits,  & ! OUT
-                   datyp, ip1, ip2, ip3, cltypvar, clnomvar, cletiket,  & ! OUT
-                   clgrtyp, ig1, ig2, ig3,                              & ! OUT
+                   datyp, ip1, ip2, ip3, typvar, nomvar, etiket,  & ! OUT
+                   grtyp, ig1, ig2, ig3,                              & ! OUT
                    ig4, swa, lng, dltf, ubc, extra1, extra2, extra3 )     ! OUT
 
     allocate(TrialLandSeaMask(ni_trial, nj_trial))
     allocate(TrialSeaIceMask(ni_trial, nj_trial))
 
     idateo   = -1
-    cletiket = ' '
+    etiket = ' '
     ip1      = -1
     ip2      = -1
     ip3      = -1
-    cltypvar = ' '
-    clnomvar = 'MG'
+    typvar = ' '
+    nomvar = 'MG'
     ierr = fstlir(TrialLandSeaMask, nultrl, ini, inj, ink,  &
-                  idateo ,cletiket, ip1, ip2, ip3, cltypvar, clnomvar)
+                  idateo ,etiket, ip1, ip2, ip3, typvar, nomvar)
     if ( ierr < 0 ) then
        write(*,*)
-       write(*,*) 'bMatrixEnsemble: Unable to read trial field = ',clnomvar
+       write(*,*) 'bMatrixEnsemble: Unable to read trial field = ',nomvar
        call abort3d('BMatrixEnsemble : fstlir failed')
     end if
 
     if (ini /= ni_trial .or. inj /= nj_trial) then
        write(*,*)
        write(*,*) 'bMatrixEnsemble: Invalid dimensions for ...'
-       write(*,*) 'nomvar      =', trim(clnomvar)
-       write(*,*) 'etiket      =', trim(cletiket)
+       write(*,*) 'nomvar      =', trim(nomvar)
+       write(*,*) 'etiket      =', trim(etiket)
        write(*,*) 'ip1         =', ip1
        write(*,*) 'Found ni,nj =', ini, inj 
        write(*,*) 'Should be   =', ni_trial, nj_trial
        call abort3d('bMatrixEnsemble')
     end if
 
-    clnomvar = 'GL'
+    nomvar = 'GL'
     ierr = fstlir(TrialSeaIceMask, nultrl, ini, inj, ink,  &
-                    idateo ,cletiket, ip1, ip2, ip3, cltypvar, clnomvar)
+                    idateo ,etiket, ip1, ip2, ip3, typvar, nomvar)
     if ( ierr < 0 ) then
        write(*,*)
-       write(*,*) 'bMatrixEnsemble: Unable to read trial field = ',clnomvar
+       write(*,*) 'bMatrixEnsemble: Unable to read trial field = ',nomvar
        call abort3d('BMatrixEnsemble : fstlir failed')
     end if
 
     if (ini /= ni_trial .or. inj /= nj_trial) then
        write(*,*)
        write(*,*) 'bMatrixEnsemble: Invalid dimensions for ...'
-       write(*,*) 'nomvar      =', trim(clnomvar)
-       write(*,*) 'etiket      =', trim(cletiket)
+       write(*,*) 'nomvar      =', trim(nomvar)
+       write(*,*) 'etiket      =', trim(etiket)
        write(*,*) 'ip1         =', ip1
        write(*,*) 'Found ni,nj =', ini, inj 
        write(*,*) 'Should be   =', ni_trial, nj_trial
        call abort3d('bMatrixEnsemble')
     end if
 
-    TrialGridID  = ezqkdef( ni_trial, nj_trial, clgrtyp, ig1, ig2, ig3, ig4, nultrl )   ! IN
+    TrialGridID  = ezqkdef( ni_trial, nj_trial, grtyp, ig1, ig2, ig3, ig4, nultrl )   ! IN
  
     ierr = fstfrm(nultrl)  
     ierr = fclos(nultrl)
@@ -1212,10 +1272,10 @@ CONTAINS
     !    ip2 = 0
     !    ip3 = 0
     !    idateo = 0
-    !    cltypvar = 'E'
-    !    clnomvar = 'TG'
-    !    cletiket = 'MOD_ENS_PERT'
-    !    clgrtyp = 'G'
+    !    typvar = 'E'
+    !    nomvar = 'TG'
+    !    etiket = 'MOD_ENS_PERT'
+    !    grtyp = 'G'
     !    ig1 = 0
     !    ig2 = 0
     !    ig3 = 0
@@ -1223,8 +1283,8 @@ CONTAINS
     !    idatyp = 1
     !
     !    ierr = fstecr(tgstdbg_tmp, tgstdbg_tmp, -32, iultg, idateo,         &
-    !                   0, 0, ini, inj, ink, ip1, ip2, ip3, cltypvar,         &
-    !                   clnomvar,cletiket,clgrtyp,ig1, ig2, ig3, ig4, idatyp, &
+    !                   0, 0, ini, inj, ink, ip1, ip2, ip3, typvar,         &
+    !                   nomvar,etiket,grtyp,ig1, ig2, ig3, ig4, idatyp, &
     !                   .true.)
     !
     ! end if
@@ -1239,12 +1299,12 @@ CONTAINS
     ! call rpn_comm_allreduce(tgstdbg_tmp,tgstdbg_tmp,hco_ben%ni*hco_ben%nj,"mpi_real","mpi_sum","GRID",ierr)
     !
     ! if ( mpi_myid == 0 ) then
-    !    cltypvar = 'E'
-    !    clnomvar = 'TT'
-    !    cletiket = 'RAW_ENS_PERT'
+    !    typvar = 'E'
+    !    nomvar = 'TT'
+    !    etiket = 'RAW_ENS_PERT'
     !    ierr = fstecr(tgstdbg_tmp, tgstdbg_tmp, -32, iultg, idateo,         &
-    !                   0, 0, ini, inj, ink, 12000, ip2, ip3, cltypvar,         &
-    !                   clnomvar,cletiket,clgrtyp,ig1, ig2, ig3, ig4, idatyp, &
+    !                   0, 0, ini, inj, ink, 12000, ip2, ip3, typvar,         &
+    !                   nomvar,etiket,grtyp,ig1, ig2, ig3, ig4, idatyp, &
     !                   .true.)
     !
     !    do jlat = 1, hco_ben%nj
@@ -1252,12 +1312,12 @@ CONTAINS
     !         tgstdbg_tmp(jlon,jlat) = AnalLandSeaMask(jlon,jlat)
     !      end do
     !    end do
-    !    cltypvar = 'P'
-    !    clnomvar = 'MG'
-    !    cletiket = 'TRIAL2ANAL'
+    !    typvar = 'P'
+    !    nomvar = 'MG'
+    !    etiket = 'TRIAL2ANAL'
     !    ierr = fstecr(tgstdbg_tmp, tgstdbg_tmp, -32, iultg, idateo,         &
-    !                   0, 0, ini, inj, ink, ip1, ip2, ip3, cltypvar,         &
-    !                   clnomvar,cletiket,clgrtyp,ig1, ig2, ig3, ig4, idatyp, &
+    !                   0, 0, ini, inj, ink, ip1, ip2, ip3, typvar,         &
+    !                   nomvar,etiket,grtyp,ig1, ig2, ig3, ig4, idatyp, &
     !                   .true.)
     !
     !    do jlat = 1, hco_ben%nj
@@ -1265,12 +1325,12 @@ CONTAINS
     !         tgstdbg_tmp(jlon,jlat) = AnalSeaIceMask(jlon,jlat)
     !      end do
     !    end do       
-    !    cltypvar = 'P'
-    !    clnomvar = 'GL'
-    !    cletiket = 'TRIAL2ANAL'
+    !    typvar = 'P'
+    !    nomvar = 'GL'
+    !    etiket = 'TRIAL2ANAL'
     !    ierr = fstecr(tgstdbg_tmp, tgstdbg_tmp, -32, iultg, idateo,         &
-    !                   0, 0, ini, inj, ink, ip1, ip2, ip3, cltypvar,         &
-    !                   clnomvar,cletiket,clgrtyp,ig1, ig2, ig3, ig4, idatyp, &
+    !                   0, 0, ini, inj, ink, ip1, ip2, ip3, typvar,         &
+    !                   nomvar,etiket,grtyp,ig1, ig2, ig3, ig4, idatyp, &
     !                   .true.)
     !
     !    ierr = fstfrm(iultg)
