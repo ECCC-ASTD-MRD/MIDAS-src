@@ -66,6 +66,9 @@ module chem_mod
 !         to the CH family reports of the observation file content before the final update
 !         to the observation file(s).
 !
+!       - Public routines "chm_obsspace_diagn_*" for preparation and output of postproc diagnostics.
+!         Output placed in 'obsspace_diagn_filename'.
+!
 ! COMMENT:
 !
 !    This module can be expanded to contain other constituent related info
@@ -80,7 +83,7 @@ module chem_mod
 !           M. Sitwell and Y. Rochon, ARQI/AQRD, Aug 2015
 !           - Created struct_config (M. Sitwell) following specification of related
 !             variables (Y. Rochon) for reading in routine chm_read_misc.
-!           M. Sitwell and Y. Rochon, ARQI/AQRD Aug 2015 to July 2016
+!           M. Sitwell and Y. Rochon, ARQI/AQRD Aug 2015 to Aug 2016
 !           - Various changes and additions
 !           
 !
@@ -93,20 +96,22 @@ module chem_mod
 ! -----------------
 
   public :: chm_setup,chm_dealloc_obs_err_stddev,chm_read_obs_err_stddev, &
-            chm_get_obs_err_stddev,chm_obsspace_diagnostic,chm_convert_z_to_pressure
+            chm_get_obs_err_stddev,chm_convert_z_to_pressure
   public :: chm_obsoperators,chm_get_stringID,chm_get_ID,stnid_equal
   public :: chm_diagn_only,chm_comboIDlist,chm_required_field
   public :: chm_apply_bounds,chm_get_col_boundary
   public :: chm_add_col_boundary,chm_retrieve_col_boundary
   public :: chm_varnumFromVarName,chm_open_messagefile
   public :: chm_update_obsfile
+  public :: chm_obsspace_diagn_alloc,chm_obsspace_diagn_init,chm_obsspace_diagn_dealloc
+  public :: chm_obsspace_diagn_add,chm_obsspace_diagn_MPIreduce,chm_obsspace_diagn_print
 ! Public procedures for variable transformations
   public :: chm_apply_transform_array4d,chm_apply_2dfieldr4_transform
 
 ! public variables and types
 ! --------------------------
 
-  public :: chm_constituents_size,struct_chm_obsoperators
+  public :: chm_constituents_size,struct_chm_obsoperators,struct_chm_diagn
 
 ! module constants
 ! -----------------
@@ -354,6 +359,46 @@ module chem_mod
   
   end type struct_chm_griddata
 
+  type :: struct_chm_diagn
+
+     ! Structure for storing observation-space diagnostic arrays
+     !
+     ! Real arrays indexed by (lat,lon,lev,stat), where stat=1 for RMS and stat=2 for mean for all except Jo_stats.
+     ! For Jo_stats, stat=1 is Jo for x=x_analysis and stat=2 is Jo for x=x_background.
+     ! The array counts is indexed by (lat,lon,lev).
+     ! The array status_count is indexed (lat,lon,lev,status), where the status number ranges from 0 to 2.
+     !     
+     !  Variable               Description
+     !  --------               -----------
+     !  OmP_stats              obs - background statistics
+     !  OmA_stats              obs - analysis statistics
+     !  obs_stats              observation statistics
+     !  Jo_stats               cost function statistics
+     !  counts                 number of observations in a (lat,lon,lev) bin
+     !  nlat                   number of latitude levels
+     !  nlon                   number of longitude levels
+     !  nlev                   number of vertical levels
+     !  nbin                   total number of (lat,lon,lev) bins
+     !  nstat                  number of different statistics types
+     !  nstatus                indicates the number of observations with a certain status,
+     !                         with status values denoting:
+     !                           0 - observation has been rejected and not included for diagnostics
+     !                           1 - observation has been assimilated
+     !                           2 - observation has been used for diagnostics only (not assimilated)
+     !  deltaLat               latitude bin size (deg)
+     !  deltaLon               longitude bin size (deg)
+     !  deltaLogPressure       vertical bin size in log(pressure)
+     !  allow_print_summary    indicates is printing of summary diagnostics is allowed
+
+     real(8), allocatable :: OmP_stats(:,:,:,:),OmA_stats(:,:,:,:),obs_stats(:,:,:,:),Jo_stats(:,:,:,:)
+     integer, allocatable :: counts(:,:,:),nstatus(:,:,:,:)
+     
+     integer :: nlev,nlat,nlon,nbin,nstat
+     real(8) :: deltaLat,deltaLon,deltaLogPressure
+     logical :: allow_print_summary
+
+  end type struct_chm_diagn
+
   type :: struct_config
      
      !  Structure to store general config information.
@@ -437,8 +482,8 @@ module chem_mod
      !  message_filename       File name for file containing various messages and warnings related to chemical
      !                         constituents that are not included in the listing file.
      !
-     !  obsspace_diag_filename File name for file containing obs space diagnostics related to chemical
-     !                         constituents.
+     !  obsspace_diagn_filename  File name for file containing obs space diagnostics related to chemical
+     !                           constituents.
      !
      
      logical :: diagn_save
@@ -451,7 +496,7 @@ module chem_mod
      real(8) :: amu(0:chm_constituents_size),tropo_column_top(0:chm_constituents_size)
      real(8) :: low_cutoff(0:chm_constituents_size),high_cutoff(0:chm_constituents_size)
      character(len=9) :: assim_stnid(chm_cfg_size)
-     character(len=50) :: message_filename,obsspace_diag_filename 
+     character(len=50) :: message_filename,obsspace_diagn_filename 
 
   end type struct_config
 
@@ -663,7 +708,7 @@ contains
 !
 !       message_unit         Unit number corresponding to message_filename
 !
-!       obsspace_diag_filename 
+!       obsspace_diagn_filename 
 !                            File name for file containing obs space diagnostics related to chemical constituents.
 !
 !---------------------------------------------------------------------------------------- 
@@ -688,7 +733,7 @@ contains
   real(8) :: amu(0:chm_constituents_size)
   real(8) :: low_cutoff(0:chm_constituents_size),high_cutoff(0:chm_constituents_size)
   integer :: transform(0:chm_constituents_size)
-  character(len=50) :: message_filename,obsspace_diag_filename
+  character(len=50) :: message_filename,obsspace_diagn_filename
 
   EXTERNAL FNOM,FCLOS
 
@@ -698,7 +743,7 @@ contains
                      diagn_save,diagn_all,diagn_nset,diagn_pressmin,   &
                      tropo_mode,tropo_bound,tropo_column_top,amu,      &
                      low_cutoff,high_cutoff,transform,obsdata_maxsize, &
-                     message_filename,obsspace_diag_filename
+                     message_filename,obsspace_diagn_filename
 
   
   ! Default NAMCHEM values
@@ -728,7 +773,7 @@ contains
   tropo_column_top(:) = 0.0
 
   message_filename = 'chem_message_'
-  obsspace_diag_filename ='obsspace_diag_CH_'
+  obsspace_diagn_filename ='obsspace_diag_CH_'
   
   amu(:) = -1.0
   amu(0) = 48.0    ! Molecular mass in g/mole for O3
@@ -778,7 +823,7 @@ contains
   chm_config%high_cutoff = high_cutoff
   chm_config%transform = transform
   chm_config%message_filename = message_filename
-  chm_config%obsspace_diag_filename = obsspace_diag_filename
+  chm_config%obsspace_diagn_filename = obsspace_diagn_filename
   
   ! Initialize chm_comboIDlist and add (stnid,varno) pairs from the namelist
 
@@ -3434,16 +3479,20 @@ contains
     logical :: file_exists
     integer :: ier
     integer, external :: fnom
-
+    character(len=20) :: mode
+    
     inquire(file=chm_config%message_filename, exist=file_exists)
     
     chm_message_unit = 0
 
     if (file_exists) then
-       ier=fnom(chm_message_unit,chm_config%message_filename,'FTN+APPEND+R/W',0)
+       mode = 'FTN+APPEND+R/W'
     else
-       ier=fnom(chm_message_unit,chm_config%message_filename,'FTN+R/W',0)
+       mode = 'FTN+R/W'
     end if
+
+    !ier = fnom(chm_message_unit,chm_config%message_filename,trim(mode),0)
+    ier = open_file(chm_message_unit,chm_config%message_filename,trim(mode))
 
     if (ier.ne.0) call abort3d('chm_open_messagefile: Error associating unit number')
 
@@ -3451,6 +3500,44 @@ contains
 
   end subroutine chm_open_messagefile
 
+!-------------------------------------------------------------------------------------------
+
+  function open_file(unit,filename,mode) result(ier)
+! 
+!  Purpose: This is a temporary subroutine to open a file with fnom that is needed due to
+!           a bug in fnom that does not allow an ascii file to be opened in 'APPEND' mode.
+!
+!  Author: M. Sitwell, Aug 2016
+!
+!-------------------------------------------------------------------------------------------
+
+    implicit none
+
+    integer, intent(inout) :: unit
+    character(len=*) :: filename,mode
+    integer :: ier
+    character(len=10) :: position,action
+    integer, external :: fnom
+
+    if (index(mode,'APPEND').gt.0) then
+       position = 'APPEND'
+    else
+       position = 'ASIS'
+    end if
+    
+    if (index(mode,'R/W').gt.0) then
+       action = 'READWRITE'
+    else
+       action = 'READ'
+    end if
+
+    ier = fnom(unit,filename,mode,0)
+
+    close(unit=unit)
+    open(unit=unit, file=filename, position=position, action=action)
+
+  end function open_file
+    
 !-------------------------------------------------------------------------------------------
 
   function stnid_equal(id1,id2) result(same)
@@ -3639,6 +3726,7 @@ contains
   end subroutine chm_get_stringId
 
 !-------------------------------------------------------------------------------------------
+
   subroutine chm_get_Id(id,IdList,NListSize,Nmax,elemId)
 
 ! 
@@ -4410,6 +4498,7 @@ contains
     end select
     
   end subroutine chm_apply_transform_array1d
+
 !-----------------------------------------------------------------------------------
  
     function chm_varnumFromVarName(varName) result(varNumber)
@@ -4497,6 +4586,7 @@ contains
       end if
       
     end function chm_varnumFromVarname
+
 !-----------------------------------------------------------------------------------
 
   subroutine chm_apply_2dfieldr4_transform(iconstituent_id,varName,jlev,jstep,field,l_reverse)
@@ -4818,434 +4908,6 @@ contains
     rgz = (RG/9.8) * (1.-2.64D-03*cos(2.*lat)+5.9D-6*cos(2.*lat)**2) * RA*altitude/(RA+altitude)
 
   end function chm_convert_z_to_gz
-
-!----------------------------------------------------------------------------------------
-
-  subroutine chm_obsspace_diagnostic(lat,lon,pressure,OmP,OmA,obs,Jo,sigma_obs,success,deltaPressure,nlev_obs, &
-                                     initialize,print_stats,print_summary,unilevel,label,openfile)
-!
-! Author   : M. Sitwell, ARQI/AQRD June 2015
-!          
-! Purpose: Computes and prints observation space diagnostics. The data for a full profile is added to the
-!          statistics in a single call.
-!
-!          If <initialize>==.TRUE. then the input parameters lat,lon,vert refer to the bin size for that
-!          variable and the input parameters OmP,OmA,obs,Jo are not used.
-!
-! Revisions: 
-!           Y. Rochon ARQI/AQRD July 2015
-!           - Further generalizations.
-!          
-! Arguments:
-!
-!   Input
-!     lat            latitude in degrees
-!     lon            longitutde in degrees
-!     pressure       pressures of the profile (Pa)
-!     OmP            obs - background
-!     OmA            obs - analysis
-!     obs            observations
-!     Jo             cost function
-!     sigma_obs      observation error standard deviation
-!     success        determines which points in the profile should be added to the statistics
-!     deltaPressure  used to determine ln(P) bin size (deltaPressure in Pascal)
-!     nlev_obs       number of observations in the profile
-!     initialize     initialize the statistics arrays
-!     print_stats    output statistics and deallocate statistics arrays
-!     print_summary  output summary of CH family statistics 
-!     unilevel       if the observation does not have a defined height coordinate
-!     label          label to print when print_stats is called
-!     openfile       logical indicating if file chm%config%obsspace_diag_filename is to be opened.
-!
-!----------------------------------------------------------------------------------------
-    
-    use mpi_mod, only: mpi_myid
-
-    implicit none
-
-    real(8), intent(in) :: lat,lon
-    real(8), intent(in), optional :: deltaPressure,pressure(:),OmP(:),OmA(:),obs(:),Jo(:),sigma_obs(:)
-    logical, intent(in), optional :: initialize,print_stats,print_summary,unilevel,success(:),openfile
-    integer, intent(in), optional :: nlev_obs
-    character(len=256), intent(in), optional :: label
-
-    ! MPI local arrays
-    ! Real arrays indexed by (lat,lon,lev,stat), where stat=1 for RMS and stat=2 for mean for all except Jo_stats.
-    ! For Jo_stats, stat=1 is Jo for x=x_analysis and stat=2 is Jo for x=x_background
-    real(8), allocatable, save :: OmP_stats(:,:,:,:), OmA_stats(:,:,:,:), obs_stats(:,:,:,:), Jo_stats(:,:,:,:)
-    integer, allocatable, save :: counts(:,:,:)
-    
-    ! MPI global arrays
-    real(8), allocatable :: OmP_global(:,:,:,:), OmA_global(:,:,:,:), obs_global(:,:,:,:), Jo_global(:,:,:,:)
-    integer, allocatable :: counts_global(:,:,:)
-
-    integer, external :: fnom, fclos
-    
-    logical, save :: allow_print_summary=.false.
-    integer, save :: nlev,nlat,nlon,nbin
-    real(8), save :: deltaLat,deltaLon,deltaLogPressure
-
-    real(8) :: Jo_a,Jo_b
-    real(8), save :: Jo_a_total=0.0d0, Jo_b_total=0.0d0
-    integer, save :: Jo_count_total=0
-
-    integer, parameter :: nstat=2
-    integer :: ilev,ilat,ilon,ierr,unit,ilev_obs,icount
-    integer, allocatable :: ncounts(:)
-    real(8), allocatable :: press_bins(:)
-    logical :: fileout_exist
-   
-    ! Intialize arrays
-    if (present(initialize)) then
-       if (initialize) then
-
-          deltaLat = lat
-          deltaLon = lon
-          if (present(deltaPressure)) then
-             deltaLogPressure=deltaPressure/1.0d5 ! set constant delta ln(P) bin
-          else
-             call abort3d("chm_obsspace_diagnostic: deltaPressure not defined in intialization call.")
-          end if
-
-          nlat = floor(180.0d0/deltaLat)
-          nlon = floor(360.0d0/deltaLon)
-
-          ! Add a last unequal size bin if remainder is larger than one degree
-          if (180.0d0-nlat*deltaLat.gt.1.) nlat=nlat+1
-          if (360.0d0-nlon*deltaLon.gt.1.) nlon=nlon+1
-
-          ! Set number of levels for a pressure coordinate in hPa to cover the range
-          ! of 0.01*chm_config%diagn_pressmin (in hPa) to 1000 hPa for layers 2 to nlev-1. 
-          ! Layer 1 covers all pressure levels <= 0.01*chm_config%diagn_pressmin hPa = top of layer 2,
-          ! The bottom of layer nlev-1 is provided by press_bins(nlev).
-          nlev = 2 + nint(log(1.0d5/chm_config%diagn_pressmin)/deltaLogPressure) ! last index is for unilevel observations
-          nbin = nlev*nlat*nlon
-
-          if (.not. allocated(OmP_stats)) allocate(OmP_stats(nlat,nlon,nlev,nstat))
-          if (.not. allocated(OmA_stats)) allocate(OmA_stats(nlat,nlon,nlev,nstat))
-          if (.not. allocated(obs_stats)) allocate(obs_stats(nlat,nlon,nlev,nstat))
-          if (.not. allocated(Jo_stats))  allocate(Jo_stats(nlat,nlon,nlev,nstat))
-          if (.not. allocated(counts))    allocate(counts(nlat,nlon,nlev))
-
-          OmP_stats(:,:,:,:) = 0.0d0
-          OmA_stats(:,:,:,:) = 0.0d0
-          obs_stats(:,:,:,:) = 0.0d0
-          Jo_stats(:,:,:,:)  = 0.0d0
-          counts(:,:,:)  = 0
-
-          return
-       end if
-    end if
-
-    ! Accumulate the diagnostic statistics from all processors, print out when mpi_myid=0, and then deallocate the arrays
-    if (present(print_stats)) then
-       if (print_stats) then
-          
-          ! Allocate memory for mpi global arrays
-          if (.not. allocated(OmP_global)) allocate(OmP_global(nlat,nlon,nlev,nstat))
-          if (.not. allocated(OmA_global)) allocate(OmA_global(nlat,nlon,nlev,nstat))
-          if (.not. allocated(obs_global)) allocate(obs_global(nlat,nlon,nlev,nstat))
-          if (.not. allocated(Jo_global))  allocate(Jo_global(nlat,nlon,nlev,nstat))
-          if (.not. allocated(counts_global))  allocate(counts_global(nlat,nlon,nlev))
-         
-          ! Reduce from all mpi processes
-          call rpn_comm_allreduce(OmP_stats,OmP_global,nbin*nstat,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
-          call rpn_comm_allreduce(OmA_stats,OmA_global,nbin*nstat,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
-          call rpn_comm_allreduce(obs_stats,obs_global,nbin*nstat,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
-          call rpn_comm_allreduce(Jo_stats,Jo_global,nbin*nstat,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
-          call rpn_comm_allreduce(counts,counts_global,nbin,"MPI_INTEGER","MPI_SUM","GRID",ierr)
-          
-          if (mpi_myid.eq.0) then
-             
-             ! Print globally averaged output to listing file or to output file obspace_diag_filename.
-             
-             ! Open and append to output file if requested
-             
-             if (present(openfile)) then
-                if (openfile) then 
-                   inquire(file=chm_config%obsspace_diag_filename, exist=fileout_exist)
-                   unit = 0
-                   if (fileout_exist) then
-                      ierr=fnom(unit,chm_config%obsspace_diag_filename,'FTN+APPEND+R/W',0)
-                   else
-                      ierr=fnom(unit,chm_config%obsspace_diag_filename,'FTN+R/W',0)
-                   end if
-                   if (ierr.ne.0) call abort3d('chm_obsspace_diagnostic: Error associating unit number')
-                else
-                   unit=6
-                end if
-             else
-                unit=6             
-             end if
-             
-             if (present(label)) then
-                write(unit,*)
-                write(unit,*) trim(label)
-             end if
-                      
-             if (any(counts_global.gt.0)) then
-
-                allocate(ncounts(nlev), press_bins(nlev+1))
-
-                ! total counts for each level 
-                ncounts = sum(sum(counts_global,dim=1),dim=1)
-                Jo_count_total = Jo_count_total + sum(ncounts)
-             
-                Jo_a = sum(Jo_global(:,:,1:nlev,1))
-                Jo_b = sum(Jo_global(:,:,1:nlev,2))
-                Jo_a_total = Jo_a_total + Jo_a
-                Jo_b_total = Jo_b_total + Jo_b
-             
-                ! Set permission for allowing summary output (Jo_*_total) via print_summary.
-          
-                allow_print_summary=.true.
-                
-                ! Pressure boundaries for each bin starting from a top layer with lower boundary of 0.01*config%diagn_pressmin (i=2) in hPa 
-                ! and extending to the surface.
-                
-                press_bins(2:nlev-1) = (/ (0.01*chm_config%diagn_pressmin*exp((ilev-2)*deltaLogPressure), ilev=2,nlev-1) /)
-                press_bins(1) = 0.0d0
-                press_bins(nlev) = 1200.0d0 ! set to pressure larger than the largest expected surface pressure.
-                press_bins(nlev+1) = 0.0d0  ! set to zero for unilevel
-             
-                ! Multi-level data
-             
-                icount=sum(ncounts(1:nlev-1))
-             
-                if (icount.gt.0) then
-            
-                   write(unit,*)
-                   write(unit,*) " Multi-level data:"
-                   write(unit,*) " Cost function for this BUFR number/station ID:   Jo(x_analysis) = ",Jo_a," ,   2*Jo(x_analysis)/N = ",2.*Jo_a/icount,' with N = ',icount
-                   write(unit,*) "                                                  Jo(x_backgrnd) = ",Jo_b," ,   2*Jo(x_backgrnd)/N = ",2.*Jo_b/icount
-
-                   call chm_print_diagnostics(unit, 1, nlev-1, ncounts, press_bins, & 
-                        sum(sum(obs_global(:,:,1:nlev-1,1),dim=1),dim=1), sum(sum(obs_global(:,:,1:nlev-1,2),dim=1),dim=1), &
-                        sum(sum(OmP_global(:,:,1:nlev-1,1),dim=1),dim=1), sum(sum(OmP_global(:,:,1:nlev-1,2),dim=1),dim=1), &
-                        sum(sum(OmA_global(:,:,1:nlev-1,1),dim=1),dim=1), sum(sum(OmA_global(:,:,1:nlev-1,2),dim=1),dim=1), &
-                        sum(sum(Jo_global(:,:,1:nlev-1,1),dim=1),dim=1), sum(sum(Jo_global(:,:,1:nlev-1,2),dim=1),dim=1) )
-  
-                end if
-             
-                ! Uni-level data
-             
-                if (ncounts(nlev).gt.0) then
-             
-                   write(unit,*)
-                   write(unit,*) " Uni-level data:"
-                   write(unit,*) " Cost function for this BUFR number/station ID:   Jo(x_analysis) = ",Jo_a," ,   2*Jo(x_analysis)/N = ",2.*Jo_a/ncounts(nlev),' with N = ',ncounts(nlev)
-                   write(unit,*) "                                                  Jo(x_backgrnd) = ",Jo_b," ,   2*Jo(x_backgrnd)/N = ",2.*Jo_b/ncounts(nlev)
-
-                   call chm_print_diagnostics(unit, nlev, nlev, ncounts, press_bins, & 
-                        sum(sum(obs_global(:,:,:,1),dim=1),dim=1), sum(sum(obs_global(:,:,:,2),dim=1),dim=1), &
-                        sum(sum(OmP_global(:,:,:,1),dim=1),dim=1), sum(sum(OmP_global(:,:,:,2),dim=1),dim=1), &
-                        sum(sum(OmA_global(:,:,:,1),dim=1),dim=1), sum(sum(OmA_global(:,:,:,2),dim=1),dim=1), &
-                        sum(sum(Jo_global(:,:,:,1),dim=1),dim=1), sum(sum(Jo_global(:,:,:,2),dim=1),dim=1) )
-
-                end if
-                          
-                deallocate(ncounts)
-             
-                ! Output lat,lon dependent averages to file if obsspace_diag_filename is provided
-                if (present(openfile)) then
-                if (openfile.and.chm_config%diagn_save.and.(nlat.gt.1.or.nlon.gt.1)) then
-
-                   write(unit,*)
-                   write(unit,*) " Lat-long gridded statistics: "
-                   write(unit,'(2X,3(A,I4))') "nlat = ",nlat," , nlon = ",nlon," , nlev = ",nlev
-                   write(unit,*)
-
-                   do ilat=1,nlat
-                      do ilon=1,nlon
-                         write(unit,'(2X,2(A,I6),3X,2(F8.1,A,F8.1))') "ilat = ",ilat," , ilon = ",ilon, &
-                              (ilat-1.)*deltaLat-90.," < lat < ",ilat*deltaLat-90., &
-                              (ilon-1.)*deltaLon," < lon < ",ilon*deltaLon
-                         if (sum(counts_global(ilat,ilon,1:nlev-1)).gt.0) then
-                            write(unit,*)
-                            write(unit,*) " Multi-level data:"
-                            call chm_print_diagnostics(unit, 1,nlev-1, counts_global(ilat,ilon,1:nlev-1), press_bins, &
-                                 obs_global(ilat,ilon,1:nlev-1,1), obs_global(ilat,ilon,1:nlev-1,2), &
-                                 OmP_global(ilat,ilon,1:nlev-1,1), OmP_global(ilat,ilon,1:nlev-1,2), &
-                                 OmA_global(ilat,ilon,1:nlev-1,1), OmA_global(ilat,ilon,1:nlev-1,2), &
-                                 Jo_global(ilat,ilon,1:nlev-1,1), Jo_global(ilat,ilon,1:nlev-1,2) )
-                         else if (sum(counts_global(:,:,1:nlev-1)).gt.0) then
-                            write(unit,*)
-                            write(unit,*) " No multi-level data."
-                            write(unit,*)
-                         end if
-                         if (counts_global(ilat,ilon,nlev).gt.0) then
-                            write(unit,*)
-                            write(unit,*) " Uni-level data:"
-                            call chm_print_diagnostics(unit, nlev,nlev, counts_global(ilat,ilon,:), press_bins, &
-                                 obs_global(ilat,ilon,:,1), obs_global(ilat,ilon,:,2), &
-                                 OmP_global(ilat,ilon,:,1), OmP_global(ilat,ilon,:,2), &
-                                 OmA_global(ilat,ilon,:,1), OmA_global(ilat,ilon,:,2), &
-                                 Jo_global(ilat,ilon,:,1), Jo_global(ilat,ilon,:,2) )
-                         else if (sum(counts_global(:,:,nlev)).gt.0) then
-                            write(unit,*)
-                            write(unit,*) " No uni-level data."
-                            write(unit,*)
-                         end if
-                      end do
-                   end do
-                
-                end if
-                end if
-
-                deallocate(press_bins)
-
-             else
-                write(unit,*)
-                write(unit,*) "No data found for this combination."
-                write(unit,*)
-             end if
-
-             if (present(openfile)) then
-                if (openfile) ierr=fclos(unit)     
-             end if
-             
-             call flush(6)
-             
-          end if
-
-          ! Deallocate arrays
-          deallocate(OmP_stats,OmA_stats,obs_stats,Jo_stats,counts)
-          deallocate(OmP_global,OmA_global,obs_global,Jo_global,counts_global)
-
-          return
-       end if
-    end if
-
-    if (present(print_summary)) then             
-        if (allow_print_summary.and.mpi_myid.eq.0.and.print_summary) then        
-            if (present(openfile)) then
-               if (openfile) then 
-                  inquire(file=chm_config%obsspace_diag_filename, exist=fileout_exist)
-                  unit = 0
-                  if (fileout_exist) then
-                     ierr=fnom(unit,chm_config%obsspace_diag_filename,'FTN+APPEND+R/W',0)
-                  else
-                     ierr=fnom(unit,chm_config%obsspace_diag_filename,'FTN+R/W',0)
-                  end if
-                  if (ierr.ne.0) call abort3d('chm_obsspace_diagnostic: Error associating unit number')
-               else
-                  unit=6
-               end if
-            else
-               unit=6
-            end if
-            
-            write(unit,*)
-            write(unit,*) "------------------------------------------------------------------------------------------------------------------------------------------------"
-            write(unit,*)
-            write(unit,*) " Total cost function for CH observations:   Jo(x_analysis) = ",Jo_a_total," ,   2*Jo(x_analysis)/N = ",2.*Jo_a_total/Jo_count_total,' with N = ',Jo_count_total
-            write(unit,*) "                                            Jo(x_backgrnd) = ",Jo_b_total," ,   2*Jo(x_backgrnd)/N = ",2.*Jo_b_total/Jo_count_total
-            write(unit,*)
-            
-            if (present(openfile)) then
-               if (openfile) ierr=fclos(unit) 
-            end if    
-        end if
-        if (print_summary) return
-    end if
-
-    ! Add observation stats to the arrays
-    ! Put in first/list bin if lat,lon,level lower/higher than diagnostic range
-    
-    ilat = max(min(1 + floor((90.0d0+lat)/deltaLat), nlat), 1)
-    ilon = max(min(1 + floor(lon/deltaLon), nlon), 1)
-
-    if (present(nlev_obs)) then
-
-       LEVELS: do ilev_obs=1,nlev_obs
-
-          if (present(success)) then
-             if (.not. success(ilev_obs)) cycle LEVELS
-          end if
-          
-          ilev = max(min(2 + floor(log(pressure(ilev_obs)/chm_config%diagn_pressmin)/deltaLogPressure), nlev-1), 1)
-          
-          if (present(unilevel)) then
-             if (unilevel) ilev = nlev ! put unilevel data in last level index
-          end if
-          
-          counts(ilat,ilon,ilev)  = counts(ilat,ilon,ilev) + 1
-
-          if (present(OmP)) then
-             OmP_stats(ilat,ilon,ilev,1) = OmP_stats(ilat,ilon,ilev,1) + OmP(ilev_obs)**2
-             OmP_stats(ilat,ilon,ilev,2) = OmP_stats(ilat,ilon,ilev,2) + OmP(ilev_obs)
-          end if
-          if (present(OmA)) then
-             OmA_stats(ilat,ilon,ilev,1) = OmA_stats(ilat,ilon,ilev,1) + OmA(ilev_obs)**2
-             OmA_stats(ilat,ilon,ilev,2) = OmA_stats(ilat,ilon,ilev,2) + OmA(ilev_obs)
-          end if
-          if (present(obs)) then
-             obs_stats(ilat,ilon,ilev,1) = obs_stats(ilat,ilon,ilev,1) + obs(ilev_obs)**2
-             obs_stats(ilat,ilon,ilev,2) = obs_stats(ilat,ilon,ilev,2) + obs(ilev_obs)
-          end if
-          if (present(Jo)) then
-             Jo_stats(ilat,ilon,ilev,1)  = Jo_stats(ilat,ilon,ilev,1)  + Jo(ilev_obs)
-             Jo_stats(ilat,ilon,ilev,2)  = Jo_stats(ilat,ilon,ilev,2)  + 0.5 * OmP(ilev_obs)**2 / sigma_obs(ilev_obs)**2
-          end if
-
-       end do LEVELS
-    else
-       call abort3d("chm_obsspace_diagnostic: nlev_obs not specified")
-    end if
-
-  end subroutine chm_obsspace_diagnostic
-
-!----------------------------------------------------------------------------------------
-
-  subroutine chm_print_diagnostics(unit,nstart,nlev,counts,pressure,obs_square,obs_mean,OmP_rms,OmP_mean,OmA_rms,OmA_mean,jo_a,jo_b)
-!
-! Author   : M. Sitwell, June 2015
-!          
-! Purpose: Prints observation space diagnostics for a set of levels
-!
-! Arguments:
-!
-!   Input
-!     unit           unit number for output
-!     nstart         first level to save
-!     nlev           number of level bins for the statistics
-!     counts         counts per bin
-!     pressure       pressure level boundaries of the bins
-!
-!----------------------------------------------------------------------------------------
-
-    implicit none
-
-    integer, intent(in) :: unit,nlev,nstart,counts(nlev)
-    real(8), intent(in) :: pressure(nlev+1),obs_square(nlev),obs_mean(nlev),OmP_rms(nlev),OmP_mean(nlev), &
-                           OmA_rms(nlev),OmA_mean(nlev),jo_a(nlev),jo_b(nlev)
-
-    integer :: ilev
-
-    write(unit,*)
-                   
-    write(unit,*) " Layer #    Pressure (hPa)       Counts  obs (mean)   obs (std)   rms(O-P)/<O>  <O-P>/<O>   rms(O-A)/<O>  <O-A>/<O>", &
-                                                                      "    Jo(O-A)     2*Jo(O-A)/N   Jo(O-P)     2*Jo(O-P)/N"
-    do ilev=nstart,nlev
-       if (counts(ilev).le.0) cycle
-       if (nstart.lt.nlev) then
-          write(unit,11) ilev,pressure(ilev),pressure(ilev+1),counts(ilev),obs_mean(ilev)/counts(ilev), &
-               sqrt(max(0.0D0,(obs_square(ilev)-obs_mean(ilev)*obs_mean(ilev)/counts(ilev))/counts(ilev))),sqrt(counts(ilev)*OmP_rms(ilev))/obs_mean(ilev), &
-               OmP_mean(ilev)/obs_mean(ilev),sqrt(counts(ilev)*OmA_rms(ilev))/obs_mean(ilev),OmA_mean(ilev)/obs_mean(ilev),jo_a(ilev),2.*jo_a(ilev)/counts(ilev), &
-               jo_b(ilev),2.*jo_b(ilev)/counts(ilev)
-       else
-          write(unit,11) 0,0.0d0,0.0d0,counts(ilev),obs_mean(ilev)/counts(ilev), &
-               sqrt(max(0.0D0,(obs_square(ilev)-obs_mean(ilev)*obs_mean(ilev)/counts(ilev))/counts(ilev))),sqrt(counts(ilev)*OmP_rms(ilev))/obs_mean(ilev), &
-               OmP_mean(ilev)/obs_mean(ilev),sqrt(counts(ilev)*OmA_rms(ilev))/obs_mean(ilev),OmA_mean(ilev)/obs_mean(ilev),jo_a(ilev),2.*jo_a(ilev)/counts(ilev), &
-               jo_b(ilev),2.*jo_b(ilev)/counts(ilev)
-       end if
-    end do
-    
-    write(unit,*)
-
-11  FORMAT(2X, I4, 2(F11.3), 2X, I9, 10(2X, ES11.4))
-    
-  end subroutine chm_print_diagnostics
 
 !----------------------------------------------------------------------------------------
 
@@ -5825,7 +5487,650 @@ contains
     sigma = obsdata_get_array2d(chm_sigma_trial,code)
 
   end function chm_retrieve_sigma_trial
+
+!-----------------------------------------------------------------------------------------
+!------------------- Observation-space diagnostic functions and routines -----------------
+
+  subroutine chm_obsspace_diagn_alloc(obs_diagn,deltaLat,deltaLon,deltaPressure)
+!
+! Author:  M. Sitwell, ARQI/AQRD June 2015
+!          
+! Purpose: Allocates diagnostic arrays in obs_diagn.
+!
+! Revisions: 
+!           M. Sitwell ARQI/AQRD Aug 2016
+!           - Cast as a separate subroutine
+!          
+! Arguments:
+!
+!   Input
+!
+!     deltaLat       latitude bin size in degrees
+!     deltaLon       longitutde in degrees
+!     deltaPressure  pressures bin size in Pa (approximate)
+!
+!----------------------------------------------------------------------------------------
+
+    implicit none
+
+    type(struct_chm_diagn), intent(inout) :: obs_diagn
+    real(8), intent(in) :: deltaLat,deltaLon,deltaPressure
+    
+    integer :: nlev,nlat,nlon,nbin,nstat
+
+    obs_diagn%deltaLat = deltaLat
+    obs_diagn%deltaLon = deltaLon
+    obs_diagn%deltaLogPressure = deltaPressure/1.0d5  ! set constant delta ln(P) bin
+
+    nlat = floor(180.0d0/deltaLat)
+    nlon = floor(360.0d0/deltaLon)
+
+    ! Add a last unequal size bin if remainder is larger than one degree
+    if (180.0d0-nlat*deltaLat.gt.1.) nlat = nlat+1
+    if (360.0d0-nlon*deltaLon.gt.1.) nlon = nlon+1
+
+    ! Set number of levels for a pressure coordinate in hPa to cover the range
+    ! of 0.01*chm_config%diagn_pressmin (in hPa) to 1000 hPa for layers 2 to nlev-1. 
+    ! Layer 1 covers all pressure levels <= 0.01*chm_config%diagn_pressmin hPa = top of layer 2,
+    ! The bottom of layer nlev-1 is provided by press_bins(nlev).
+    nlev = 2 + nint(log(1.0d5/chm_config%diagn_pressmin)/obs_diagn%deltaLogPressure) ! last index is for unilevel observations
+    nbin = nlev*nlat*nlon
+
+    ! Two different statistics held, stat=1 for RMS and stat=2 for mean
+    nstat = 2
+
+    obs_diagn%nlat = nlat
+    obs_diagn%nlon = nlon
+    obs_diagn%nlev = nlev
+    obs_diagn%nbin = nbin
+    obs_diagn%nstat = nstat
+
+    if (.not. allocated(obs_diagn%OmP_stats)) allocate(obs_diagn%OmP_stats(nlat,nlon,nlev,nstat))
+    if (.not. allocated(obs_diagn%OmA_stats)) allocate(obs_diagn%OmA_stats(nlat,nlon,nlev,nstat))
+    if (.not. allocated(obs_diagn%obs_stats)) allocate(obs_diagn%obs_stats(nlat,nlon,nlev,nstat))
+    if (.not. allocated(obs_diagn%Jo_stats))  allocate(obs_diagn%Jo_stats(nlat,nlon,nlev,nstat))
+    if (.not. allocated(obs_diagn%counts))    allocate(obs_diagn%counts(nlat,nlon,nlev))
+    if (.not. allocated(obs_diagn%nstatus))   allocate(obs_diagn%nstatus(nlat,nlon,nlev,0:2))
+
+  end subroutine chm_obsspace_diagn_alloc
+
+!----------------------------------------------------------------------------------------
+
+  subroutine chm_obsspace_diagn_init(obs_diagn)
+!
+! Author:  M. Sitwell, ARQI/AQRD June 2015
+!          
+! Purpose: Initializes diagnostic arrays in obs_diagn.
+!
+! Revisions: 
+!           M. Sitwell ARQI/AQRD Aug 2016
+!           - Cast as a separate subroutine
+!
+!----------------------------------------------------------------------------------------
+
+    implicit none
+
+    type(struct_chm_diagn), intent(inout) :: obs_diagn
+
+    obs_diagn%OmP_stats(:,:,:,:) = 0.0d0
+    obs_diagn%OmA_stats(:,:,:,:) = 0.0d0
+    obs_diagn%obs_stats(:,:,:,:) = 0.0d0
+    obs_diagn%Jo_stats(:,:,:,:)  = 0.0d0
+    obs_diagn%counts(:,:,:) = 0
+    obs_diagn%nstatus(:,:,:,:) = 0
+
+    obs_diagn%allow_print_summary = .false.
+
+  end subroutine chm_obsspace_diagn_init
+
+!----------------------------------------------------------------------------------------
+
+  subroutine chm_obsspace_diagn_dealloc(obs_diagn)
+!
+! Author:  M. Sitwell, ARQI/AQRD June 2015
+!          
+! Purpose: Deallocates diagnostic arrays in obs_diagn.
+!
+! Revisions: 
+!           M. Sitwell ARQI/AQRD Aug 2016
+!           - Cast as a separate subroutine
+!
+!----------------------------------------------------------------------------------------
+
+    implicit none
+
+    type(struct_chm_diagn), intent(inout) :: obs_diagn
+
+    deallocate(obs_diagn%OmP_stats,obs_diagn%OmA_stats,obs_diagn%obs_stats)
+    deallocate(obs_diagn%Jo_stats,obs_diagn%counts,obs_diagn%nstatus)
+
+  end subroutine chm_obsspace_diagn_dealloc
+
+!----------------------------------------------------------------------------------------
+
+  subroutine chm_obsspace_diagn_add(obs_diagn,lat,lon,pressure,OmP,obs,sigma_obs,nlev_obs,unilevel,status,OmA)
+!
+! Author:  M. Sitwell, ARQI/AQRD June 2015
+!          
+! Purpose: Adds an observation to the diagnostic arrays in obs_diagn.
+!
+! Revisions:
+!           M. Sitwell ARQI/AQRD Aug 2016
+!           - Cast as a separate subroutine
+!          
+! Arguments:
+!
+!   Input
+!
+!     lat            latitude in degrees
+!     lon            longitutde in degrees
+!     pressure       pressures of the profile (Pa)
+!     OmP            obs - background
+!     OmA            obs - analysis
+!     obs            observations
+!     Jo             cost function
+!     sigma_obs      observation error standard deviation
+!     status         indicates status of the observations, with values denoting:
+!                      0 - observation has been rejected
+!                      1 - observation has been assimilated
+!                      2 - observation has been used for diagnostics only (not assimilated)
+!                    only observations with status=1,2 will be added to the statistic arrays
+!     nlev_obs       number of observations in the profile
+!     unilevel       if the observation does not have a defined height coordinate
+!
+!----------------------------------------------------------------------------------------
+
+    implicit none
+
+    type(struct_chm_diagn), intent(inout) :: obs_diagn
+    real(8), intent(in) :: lat,lon
+    integer, intent(in) :: nlev_obs,status(nlev_obs)
+    real(8), intent(in) :: pressure(nlev_obs),OmP(nlev_obs),obs(nlev_obs),sigma_obs(nlev_obs)
+    logical, intent(in) :: unilevel
+    real(8), intent(in), optional :: OmA(nlev_obs)
+
+    integer :: ilat,ilon,ilev,ilev_obs
+
+    ! Put in first/list bin if lat,lon,level lower/higher than diagnostic range
+    
+    ilat = max(min(1 + floor((90.0d0+lat)/obs_diagn%deltaLat), obs_diagn%nlat), 1)
+    ilon = max(min(1 + floor(lon/obs_diagn%deltaLon), obs_diagn%nlon), 1)
+
+    LEVELS: do ilev_obs=1,nlev_obs
+          
+       if (unilevel) then
+          ilev = obs_diagn%nlev  ! put unilevel data in last level index
+       else
+          ilev = max(min(2 + floor(log(pressure(ilev_obs)/chm_config%diagn_pressmin)/obs_diagn%deltaLogPressure), obs_diagn%nlev-1), 1)
+       end if
+       
+       obs_diagn%nstatus(ilat,ilon,ilev,status(ilev_obs)) = obs_diagn%nstatus(ilat,ilon,ilev,status(ilev_obs)) + 1
+
+       if (status(ilev_obs).eq.0) cycle LEVELS  ! skip adding of stats if the observation was rejected
+   
+       obs_diagn%counts(ilat,ilon,ilev) = obs_diagn%counts(ilat,ilon,ilev) + 1
+
+       obs_diagn%OmP_stats(ilat,ilon,ilev,1) = obs_diagn%OmP_stats(ilat,ilon,ilev,1) + OmP(ilev_obs)**2
+       obs_diagn%OmP_stats(ilat,ilon,ilev,2) = obs_diagn%OmP_stats(ilat,ilon,ilev,2) + OmP(ilev_obs)
+
+       obs_diagn%obs_stats(ilat,ilon,ilev,1) = obs_diagn%obs_stats(ilat,ilon,ilev,1) + obs(ilev_obs)**2
+       obs_diagn%obs_stats(ilat,ilon,ilev,2) = obs_diagn%obs_stats(ilat,ilon,ilev,2) + obs(ilev_obs)
+
+       obs_diagn%Jo_stats(ilat,ilon,ilev,2)  = obs_diagn%Jo_stats(ilat,ilon,ilev,2)  + 0.5 * OmP(ilev_obs)**2 / sigma_obs(ilev_obs)**2
+
+       if (present(OmA)) then
+          obs_diagn%OmA_stats(ilat,ilon,ilev,1) = obs_diagn%OmA_stats(ilat,ilon,ilev,1) + OmA(ilev_obs)**2
+          obs_diagn%OmA_stats(ilat,ilon,ilev,2) = obs_diagn%OmA_stats(ilat,ilon,ilev,2) + OmA(ilev_obs)
+          obs_diagn%Jo_stats(ilat,ilon,ilev,1)  = obs_diagn%Jo_stats(ilat,ilon,ilev,1)  + 0.5 * OmA(ilev_obs)**2 / sigma_obs(ilev_obs)**2
+       end if
+
+    end do LEVELS
+
+  end subroutine chm_obsspace_diagn_add
+
+!----------------------------------------------------------------------------------------
+
+  subroutine chm_obsspace_diagn_MPIreduce(obs_diagn)
+!
+! Author:  M. Sitwell, ARQI/AQRD June 2015
+!          
+! Purpose: Performs a MPI allreduce on diagnostic arrays in obs_diagn.
+!
+! Revisions:
+!           M. Sitwell ARQI/AQRD Aug 2016
+!           - Cast as a separate subroutine
+!
+!----------------------------------------------------------------------------------------
+
+    implicit none
+
+    type(struct_chm_diagn), intent(inout) :: obs_diagn
+
+    ! MPI global arrays
+    real(8), allocatable :: OmP_global(:,:,:,:), OmA_global(:,:,:,:), obs_global(:,:,:,:), Jo_global(:,:,:,:)
+    integer, allocatable :: counts_global(:,:,:),nstatus_global(:,:,:,:)
+
+    integer :: nlat,nlon,nlev,nstat,nbin,ierr
+
+    nlat = obs_diagn%nlat
+    nlon = obs_diagn%nlon
+    nlev = obs_diagn%nlev
+    nstat = obs_diagn%nstat
+    nbin = obs_diagn%nbin
+
+    ! Allocate memory for mpi global arrays
+    allocate(OmP_global(nlat,nlon,nlev,nstat))
+    allocate(OmA_global(nlat,nlon,nlev,nstat))
+    allocate(obs_global(nlat,nlon,nlev,nstat))
+    allocate(Jo_global(nlat,nlon,nlev,nstat))
+    allocate(counts_global(nlat,nlon,nlev))
+    allocate(nstatus_global(nlat,nlon,nlev,0:2))
+         
+    ! Reduce from all mpi processes
+    call rpn_comm_allreduce(obs_diagn%OmP_stats,OmP_global,nbin*nstat,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
+    call rpn_comm_allreduce(obs_diagn%OmA_stats,OmA_global,nbin*nstat,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
+    call rpn_comm_allreduce(obs_diagn%obs_stats,obs_global,nbin*nstat,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
+    call rpn_comm_allreduce(obs_diagn%Jo_stats,Jo_global,nbin*nstat,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
+    call rpn_comm_allreduce(obs_diagn%counts,counts_global,nbin,"MPI_INTEGER","MPI_SUM","GRID",ierr)
+    call rpn_comm_allreduce(obs_diagn%nstatus,nstatus_global,nbin*3,"MPI_INTEGER","MPI_SUM","GRID",ierr)
+
+    ! save in struct_chm_diagn
+    obs_diagn%OmP_stats = OmP_global
+    obs_diagn%OmA_stats = OmA_global
+    obs_diagn%obs_stats = obs_global
+    obs_diagn%Jo_stats = Jo_global
+    obs_diagn%counts = counts_global
+    obs_diagn%nstatus = nstatus_global
+
+    deallocate(OmP_global,OmA_global,obs_global,Jo_global,counts_global,nstatus_global)
+
+  end subroutine chm_obsspace_diagn_MPIreduce
+
+!----------------------------------------------------------------------------------------
+
+  subroutine chm_obsspace_diagn_print(obs_diagn,print_type,label,openfile)
+!
+! Author:  M. Sitwell, ARQI/AQRD June 2015
+!          
+! Purpose: Prints observation space diagnostics. If called with print_type = 'stats', the
+!          printed statistics will be added to the total diagnostic arrays.
+!
+! Revisions: 
+!           Y. Rochon ARQI/AQRD July 2015
+!           - Further generalizations.
+!           M. Sitwell ARQI/AQRD Aug 2016
+!           - Cast as a separate subroutine
+!          
+! Arguments:
+!
+!   Input
+!
+!     print_type     Specifies which statistics to print, with possible values:
+!                      'stats'  - prints statistics for the the arrays within obs_diagn
+!                      'summary'- prints total statistics held in the saved variables
+!                                 within this subrouine
+!     label          label to print (only relevant if print_type = 'stats')
+!     openfile       logical indicating if file chm_config%obsspace_diagn_filename is to be opened.
+!
+!----------------------------------------------------------------------------------------
+    
+    implicit none
+
+    type(struct_chm_diagn), intent(inout) :: obs_diagn
+    character(len=*) :: print_type
+    logical, intent(in), optional :: openfile
+    character(len=256), intent(in), optional :: label
+
+    integer, external :: fnom, fclos
+    
+    real(8) :: Jo_a,Jo_b
+    real(8), save :: Jo_a_total=0.0d0, Jo_b_total=0.0d0
+    integer, save :: counts_total=0
+
+    integer :: ierr,unit,icount,nlat,nlon,nlev,ilev,ilat,ilon
+    integer, allocatable :: ncounts(:)
+    real(8), allocatable :: press_bins(:)
+    logical :: fileout_exist,multilevel,unilevel
+    character(len=20) :: mode
+   
+    select case(trim(print_type))
+    case('stats','STATS')
+                       
+       ! Print observation-space statistics to listing file or to output file obspace_diag_filename.
+             
+       ! Open and append to output file if requested
+             
+       if (present(openfile)) then
+          if (openfile) then 
+             inquire(file=chm_config%obsspace_diagn_filename, exist=fileout_exist)
+             unit = 0
+             if (fileout_exist) then
+                mode = 'FTN+APPEND+R/W'
+             else
+                mode = 'FTN+R/W'
+             end if
+             !ierr = fnom(unit,chm_config%obsspace_diagn_filename,trim(mode),0)
+             ierr = open_file(unit,chm_config%obsspace_diagn_filename,trim(mode))  ! temporary bug fix, see comments in open_file subroutine
+             if (ierr.ne.0) call abort3d('chm_obsspace_diagn_print: Error associating unit number')
+          else
+             unit=6
+          end if
+       else
+          unit=6             
+       end if
+             
+       if (present(label)) then
+          write(unit,*)
+          write(unit,*) trim(label)
+       end if
+                      
+       if (any(obs_diagn%counts.gt.0)) then
+
+          nlat = obs_diagn%nlat
+          nlon = obs_diagn%nlon
+          nlev = obs_diagn%nlev
+          
+          allocate(ncounts(nlev), press_bins(nlev+1))
+          
+          ! Pressure boundaries for each bin starting from a top layer with lower boundary of 0.01*config%diagn_pressmin (i=2) in hPa 
+          ! and extending to the surface.
+          
+          press_bins(2:nlev-1) = (/ (0.01*chm_config%diagn_pressmin*exp((ilev-2)*obs_diagn%deltaLogPressure), ilev=2,nlev-1) /)
+          press_bins(1) = 0.0d0
+          press_bins(nlev) = 1200.0d0 ! set to pressure larger than the largest expected surface pressure.
+          press_bins(nlev+1) = 0.0d0  ! set to zero for unilevel
+
+          ! Total counts for each level 
+          ncounts = sum(sum(obs_diagn%counts,dim=1),dim=1)
+          counts_total = counts_total + sum(ncounts)
+
+          ! Indicates if any multilevel or unilevel observations exist
+          multilevel = any(obs_diagn%nstatus(:,:,1:nlev-1,:).gt.0)
+          unilevel = any(obs_diagn%nstatus(:,:,nlev,:).gt.0)
+          
+          write(unit,*)
+          write(unit,'(A)') " Global statistics"
+          write(unit,'(A)') " -----------------"
+
+          ! Multi-level data
+
+          if (multilevel) then
+            
+             icount = sum(ncounts(1:nlev-1))
+             
+             if (icount.gt.0) then
+                Jo_a = sum(obs_diagn%Jo_stats(:,:,1:nlev-1,1))
+                Jo_b = sum(obs_diagn%Jo_stats(:,:,1:nlev-1,2))
+                Jo_a_total = Jo_a_total + Jo_a
+                Jo_b_total = Jo_b_total + Jo_b
+             else
+                Jo_a = 0.0d0
+                Jo_b = 0.0d0
+             end if
+                    
+             obs_diagn%allow_print_summary = .true.
+
+             call print_Jo(unit,"Multi-level data:",Jo_a,Jo_b,icount)
+
+             call print_stats(unit,obs_diagn,press_bins,1,nlat,1,nlon,1,nlev-1) 
+             
+          end if
+             
+          ! Uni-level data
+          
+          if (unilevel) then
+             
+             if (ncounts(nlev).gt.0) then
+                Jo_a = sum(obs_diagn%Jo_stats(:,:,nlev,1))
+                Jo_b = sum(obs_diagn%Jo_stats(:,:,nlev,2))
+                Jo_a_total = Jo_a_total + Jo_a
+                Jo_b_total = Jo_b_total + Jo_b
+             else
+                Jo_a = 0.0d0
+                Jo_b = 0.0d0
+             end if
+
+             obs_diagn%allow_print_summary = .true.
+
+             call print_Jo(unit,"Uni-level data:",Jo_a,Jo_b,ncounts(nlev))
+             
+             call print_stats(unit,obs_diagn,press_bins,1,nlat,1,nlon,nlev,nlev) 
+             
+          end if
+                          
+          deallocate(ncounts)
+             
+          ! Output lat,lon dependent averages to file if obsspace_diagn_filename is provided
+          if (present(openfile)) then
+             if (openfile.and.chm_config%diagn_save.and.(nlat.gt.1.or.nlon.gt.1)) then
+                
+                write(unit,*)
+                write(unit,'(A)') " Lat-lon gridded statistics"
+                write(unit,'(A)') " --------------------------"
+                write(unit,*)
+                write(unit,'(2X,3(A,I4))') "nlat = ",nlat," , nlon = ",nlon," , nlev = ",nlev
+                write(unit,*)
+
+                do ilat=1,nlat
+                   do ilon=1,nlon
+                      write(unit,'(2X,2(A,I6),3X,2(F8.1,A,F8.1))') "ilat = ",ilat," , ilon = ",ilon, &
+                           (ilat-1.)*obs_diagn%deltaLat-90.," < lat < ",ilat*obs_diagn%deltaLat-90., &
+                           (ilon-1.)*obs_diagn%deltaLon," < lon < ",ilon*obs_diagn%deltaLon
+                      if (any(obs_diagn%nstatus(ilat,ilon,1:nlev-1,:).gt.0)) then
+                         write(unit,*)
+                         write(unit,'(A)') " Multi-level data:"
+                         write(unit,*)
+                         call print_stats(unit,obs_diagn,press_bins,ilat,ilat,ilon,ilon,1,nlev-1) 
+                      else if (multilevel) then
+                         write(unit,*)
+                         write(unit,'(A)') " No multi-level data."
+                         write(unit,*)
+                      end if
+                      if (any(obs_diagn%nstatus(ilat,ilon,nlev,:).gt.0)) then
+                         write(unit,*)
+                         write(unit,'(A)') " Uni-level data:"
+                         write(unit,*)
+                         call print_stats(unit,obs_diagn,press_bins,ilat,ilat,ilon,ilon,nlev,nlev) 
+                      else if (unilevel) then
+                         write(unit,*)
+                         write(unit,'(A)') " No uni-level data."
+                         write(unit,*)
+                      end if
+                   end do
+                end do
+                
+             end if
+          end if
+
+          deallocate(press_bins)
+
+       else
+          write(unit,*)
+          write(unit,*) "No data found for this combination."
+          write(unit,*)
+       end if
+       
+       if (present(openfile)) then
+          if (openfile) ierr=fclos(unit)     
+       end if
+             
+       call flush(6)
+             
+    case('summary','SUMMARY')
+
+       if (.not.obs_diagn%allow_print_summary) then
+          write(*,*) "chm_obsspace_diagn_print: allow_print_summary is set to false, no summary will be printed."
+          return
+       end if
+          
+       if (present(openfile)) then
+          if (openfile) then 
+             inquire(file=chm_config%obsspace_diagn_filename, exist=fileout_exist)
+             unit = 0
+             if (fileout_exist) then
+                mode = 'FTN+APPEND+R/W'
+             else
+                mode = 'FTN+R/W'
+             end if
+             !ierr = fnom(unit,chm_config%obsspace_diagn_filename,trim(mode),0)
+             ierr = open_file(unit,chm_config%obsspace_diagn_filename,trim(mode))  ! temporary bug fix, see comments in open_file subroutine
+             if (ierr.ne.0) call abort3d('chm_obsspace_diagn_print: Error associating unit number')
+          else
+             unit=6
+          end if
+       else
+          unit=6
+       end if
+            
+       call print_Jo(unit,"Total cost function for CH observations:",Jo_a_total,Jo_b_total,counts_total)
+
+       if (present(openfile)) then
+          if (openfile) ierr=fclos(unit) 
+       end if
+    
+    case default
+       call abort3d("chm_obsspace_diagn_print: Invalid print_type select of " // trim(print_type) )
+    end select
+
   
+  contains
+ 
+    !----------------------------------------------------------------------------------------
+
+    subroutine print_Jo(unit,title,Jo_analysis,Jo_backgrnd,nobs)
+
+      implicit none
+
+      integer, intent(in) :: unit,nobs
+      character(len=*), intent(in) :: title
+      real(8), intent(in) :: Jo_analysis,Jo_backgrnd
+
+      real(8) :: Jo_analysis_norm,Jo_backgrnd_norm
+
+      if (nobs.gt.0) then
+         Jo_analysis_norm = 2.*Jo_analysis/nobs
+         Jo_backgrnd_norm = 2.*Jo_backgrnd/nobs
+      else
+         Jo_analysis_norm = 0.0d0
+         Jo_backgrnd_norm = 0.0d0
+      end if
+
+      write(unit,*)
+      write(unit,'(A)') " " // title
+      write(unit,*)
+      write(unit,'(A,F24.8,A,F24.8)') "   Jo(x_analysis) = ",Jo_analysis," ,   2*Jo(x_analysis)/N = ",Jo_analysis_norm
+      write(unit,'(A,F24.8,A,F24.8)') "   Jo(x_backgrnd) = ",Jo_backgrnd," ,   2*Jo(x_backgrnd)/N = ",Jo_backgrnd_norm
+      write(unit,'(A,I24)')           "                N = ",nobs
+      write(unit,*)
+
+    end subroutine print_Jo
+
+    !----------------------------------------------------------------------------------------
+
+    subroutine print_stats(unit,obs_diagn,pressure,ilat_start,ilat_end,ilon_start,ilon_end,ilev_start,ilev_end)
+
+      implicit none
+
+      type(struct_chm_diagn), intent(in) :: obs_diagn
+      real(8), intent(in) :: pressure(obs_diagn%nlev+1)
+      integer, intent(in) :: unit,ilat_start,ilat_end,ilon_start,ilon_end,ilev_start,ilev_end
+
+      integer :: ilev,level,counts(obs_diagn%nlev),N_assim,N_diagn,N_rej
+      real(8) :: pres1,pres2,jo_a,jo_b,jo_a_norm,jo_b_norm,obs_sum,obs_mean,obs_std,OmP_mean,OmP_rms,OmA_mean,OmA_rms
+      logical :: skip(obs_diagn%nlev)
+
+      skip(:) = .false.
+
+      write(unit,'(A)') "  Layer     Pressure (hPa)      Counts (N)    N_assim    N_diagn      N_rej    Jo(O-A)     2*Jo(O-A)/N   Jo(O-P)     2*Jo(O-P)/N"
+      write(unit,'(A)') "  -----     --------------      ----------    -------    -------      -----    -------     -----------   -------     -----------"
+
+      do ilev=ilev_start,ilev_end
+
+         counts(ilev) = sum(obs_diagn%counts(ilat_start:ilat_end,ilon_start:ilon_end,ilev))
+
+         N_rej   = sum(obs_diagn%nstatus(ilat_start:ilat_end,ilon_start:ilon_end,ilev,0))
+         N_assim = sum(obs_diagn%nstatus(ilat_start:ilat_end,ilon_start:ilon_end,ilev,1))
+         N_diagn = sum(obs_diagn%nstatus(ilat_start:ilat_end,ilon_start:ilon_end,ilev,2))
+
+         skip(ilev) = counts(ilev).eq.0.and.N_rej.eq.0
+
+         if (skip(ilev)) cycle
+
+         if (ilev.lt.nlev) then
+            pres1 = pressure(ilev)
+            pres2 = pressure(ilev+1)
+            level = ilev
+         else
+            pres1 = 0.0d0
+            pres2 = 0.0d0
+            level = 0
+         end if
+         
+         jo_a = sum(obs_diagn%Jo_stats(ilat_start:ilat_end,ilon_start:ilon_end,ilev,1))
+         jo_b = sum(obs_diagn%Jo_stats(ilat_start:ilat_end,ilon_start:ilon_end,ilev,2))
+
+         if (counts(ilev).eq.0) then
+            jo_a_norm = 0.0d0
+            jo_b_norm = 0.0d0
+         else
+            jo_a_norm = 2.*jo_a/counts(ilev)
+            jo_b_norm = 2.*jo_b/counts(ilev)
+         end if
+
+         write(unit,'(2X,I3, 2(2X, F11.4), 4(2X,I9), 4(2X, ES11.4))') &
+              level,pres1,pres2,counts(ilev),N_assim,N_diagn,N_rej,jo_a,jo_a_norm,jo_b,jo_b_norm
+
+      end do
+    
+      write(unit,*)
+      write(unit,'(A)') "  Layer     Pressure (hPa)        obs (mean)   obs (std)  rms(O-P)/<O>   <O-P>/<O>   rms(O-A)/<O>  <O-A>/<O>"
+      write(unit,'(A)') "  -----     --------------        ----------   ---------  ------------   ---------   ------------  ---------"
+
+      do ilev=ilev_start,ilev_end
+
+         if (skip(ilev)) cycle
+
+         if (ilev.lt.nlev) then
+            pres1 = pressure(ilev)
+            pres2 = pressure(ilev+1)
+            level = ilev
+         else
+            pres1 = 0.0d0
+            pres2 = 0.0d0
+            level = 0
+         end if
+         
+         if (counts(ilev).eq.0) then
+            obs_mean = 0.0d0
+            obs_std = 0.0d0
+            OmP_rms = 0.0d0
+            OmP_mean = 0.0d0
+            OmA_rms = 0.0d0
+            OmA_mean = 0.0d0
+         else
+            obs_sum = sum(obs_diagn%obs_stats(ilat_start:ilat_end,ilon_start:ilon_end,ilev,2))
+            obs_mean = obs_sum / counts(ilev)
+            obs_std = sqrt(max(0.0D0, sum(obs_diagn%obs_stats(ilat_start:ilat_end,ilon_start:ilon_end,ilev,1))/counts(ilev) - (obs_sum/counts(ilev))**2 ))
+
+            OmP_rms = sqrt(max(0.0D0, sum(obs_diagn%OmP_stats(ilat_start:ilat_end,ilon_start:ilon_end,ilev,1)) / counts(ilev) ))
+            OmP_mean = sum(obs_diagn%OmP_stats(ilat_start:ilat_end,ilon_start:ilon_end,ilev,2)) / obs_sum
+            
+            OmA_rms = sqrt(max(0.0D0, sum(obs_diagn%OmA_stats(ilat_start:ilat_end,ilon_start:ilon_end,ilev,1)) / counts(ilev) ))
+            OmA_mean = sum(obs_diagn%OmA_stats(ilat_start:ilat_end,ilon_start:ilon_end,ilev,2)) / obs_sum
+         end if
+
+         write(unit,'(2X,I3, 2(2X, F11.4), 6(2X, ES11.4))') &
+              level,pres1,pres2,obs_mean,obs_std,OmP_rms,OmP_mean,OmA_rms,OmA_mean
+
+      end do
+
+      write(unit,*)
+
+    end subroutine print_stats
+
+  end subroutine chm_obsspace_diagn_print
+
+!-------------------------------------------------------------------------------------------
 !--------------------------- Routines for observation operators ----------------------------
 
   subroutine chm_obsoperators(obsoper,model_col,obs_col,kmode,ixtr,success)

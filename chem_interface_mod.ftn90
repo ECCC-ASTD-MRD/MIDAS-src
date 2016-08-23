@@ -668,13 +668,13 @@ contains
     integer, intent(in) :: date
     real(8), intent(in) :: deltaLat,deltaLon,deltaPressure
     logical, intent(in) :: anlm_mode
-
+    
     if (mpi_myid.eq.0) then
        write(*,*)
        write(*,*) "Enter chm_obsPostProc: Observation-space post-processing tasks for chemical constituents"
        write(*,*)
     end if
-    
+
     ! Generate and output cost function, OmP, and OmA diagnostics for the CH family
     
     call chm_CH_obsDiagnostics(obsSpaceData,columng,date,deltaLat,deltaLon,deltaPressure,anlm_mode)
@@ -705,6 +705,9 @@ contains
 ! Revisions:
 !            Y. Rochon, ARQI/AQRD, July 2015
 !            - Additional generalizations
+!            M. Sitwell, ARQI/AQRD, Aug 2016
+!            - Modified for calculation of diagnostic-only observations
+!            - Changed to use of chm_obsspace_diagn_* functions
 !          
 ! Purpose:  Calculates and prints observation-space diagnostics for chemical constituents
 !
@@ -718,11 +721,16 @@ contains
 !       deltaLat        Size of latitude bins for diagnostics (degrees)
 !       deltaLon        Size of longitude bins for diagnostics (degrees)
 !       deltaPressure   Size of vertical bins for diagnostics (Pascal)
-!       anlm_mode       Logical indicating if OmA (and Jo) diagnostics are to be generated.
+!       anlm_mode       Logical indicating if OmA diagnostics are to be generated.
 !
 !   Output 
 !
 !       Content of ascii file with obs space diagnostics
+!
+! Comments:
+!   - Although Jo_analysis is already calculated in OBS_JOBS obsSpaceData and can be passed
+!     to chm_obsspace_diagn_add, it is recalculated in chm_obsspace_diagn_add since OBS_JOBS
+!     will be set to zero for diagnostic-only observations.
 !
 !-------------------------------------------------------------------------------------------
 
@@ -741,18 +749,21 @@ contains
     real(8), intent(in) :: deltaLat,deltaLon,deltaPressure
     logical, intent(in) :: anlm_mode
 
+    type(struct_chm_diagn) :: obs_diagn
     integer :: headerIndex,bodyIndex,istnid,vco,nlev_obs,ilev_obs,nlev_mod,ilev_mod
 
     integer, parameter :: nmax=100
     integer :: varno,varno_elemID(nmax)
     integer :: elemID,i,num_elemID,nset,iass
     character(len=9) :: stnid_elemID(nmax)
-    logical :: unilev_elemID(nmax)
+    logical :: unilev_elemID(nmax),unilevel,diagn_only
     character(len=256) :: label
     real(8) :: lat,lon
-    logical :: unilevel,print_summary,add_obs
-    real(8), allocatable :: zobslev(:), lev(:), omp(:), oma(:), obs(:), jo(:), pres_mod(:), sigma_obs(:)
+    character(len=12) :: stnid
+
+    real(8), allocatable :: zobslev(:), lev(:), omp(:), oma(:), obs(:), pres_mod(:), sigma_obs(:)
     logical, allocatable :: success(:)
+    integer, allocatable :: status(:)
     real(8), pointer :: gz_mod(:)
     
     ! Get combination lists to group diagnostics by
@@ -769,13 +780,16 @@ contains
     ! Calculate OmA for non-assimilated data (saved in OBS_OMA in obsSpaceData)
     if (anlm_mode) call chm_calc_OmA_nonassim(columng,obsSpaceData)
     
+    ! Allocate memory for diagnostic arrays in obs_diagn
+    call chm_obsspace_diagn_alloc(obs_diagn,deltaLat,deltaLon,deltaPressure)
+
     ! Loop over all pairs in *_elemID lists
-    
+   
     call flush(6)
     do elemID=1,num_elemID
-       
+
        ! Initialize the diagnostic arrays
-       call chm_obsspace_diagnostic(deltaLat, deltaLon, initialize=.TRUE., deltaPressure=deltaPressure)
+       call chm_obsspace_diagn_init(obs_diagn)
        
        call obs_set_current_header_list(obsSpaceData,'CH')
        HEADER: do
@@ -788,13 +802,14 @@ contains
 
           if (vco.ne.1 .and. vco.ne.2 .and. vco.ne.4 .and. vco.ne.5) then
              ! Vertical coordinate not handled
-             write(*,*) 'chm_obsdiagnostics: Currently unaccounted VCO = ',vco
+             write(*,*) 'chm_CH_obsDiagnostics: Currently unaccounted VCO = ',vco
              cycle HEADER
           end if
 
           varno = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
           nlev_obs = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex)
-          
+          stnid = obs_elem_c(obsSpaceData,'STID',headerIndex)
+
           ! Identify max number of profile points in the profile (exclude 8090 elements)
           call obs_set_current_body_list(obsSpaceData,headerIndex)
           do
@@ -808,98 +823,96 @@ contains
           end do
 
           ! Determine if this observation should be added to this group (as specified by nset)
-          add_obs = stnid_equal(stnid_elemID(elemID),obs_elem_c(obsSpaceData,'STID',headerIndex))
-          if (nset.ge.2) add_obs = add_obs .and. varno.eq.varno_elemID(elemID)
-          if (nset.ge.3) add_obs = add_obs .and. (nlev_obs.eq.1.and.vco.eq.4).eqv.unilev_elemID(elemID)
+          if (.not.stnid_equal(stnid_elemID(elemID),stnid)) cycle HEADER
+          if (nset.ge.2.and.varno.ne.varno_elemID(elemID)) cycle HEADER
+          if (nset.ge.3.and..not.((nlev_obs.eq.1.and.vco.eq.4).eqv.unilev_elemID(elemID))) cycle HEADER
 
-          if (add_obs) then
-             
-             ! Accumulate for this combo
+          ! Accumulate for this combo
           
-             lat = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex)*MPC_DEGREES_PER_RADIAN_R8
-             lon = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex)*MPC_DEGREES_PER_RADIAN_R8
+          lat = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex)*MPC_DEGREES_PER_RADIAN_R8
+          lon = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex)*MPC_DEGREES_PER_RADIAN_R8
               
-             allocate(lev(nlev_obs), omp(nlev_obs), oma(nlev_obs), obs(nlev_obs), jo(nlev_obs), sigma_obs(nlev_obs), success(nlev_obs))
+          allocate(lev(nlev_obs), omp(nlev_obs), oma(nlev_obs), obs(nlev_obs), sigma_obs(nlev_obs))
+          allocate(success(nlev_obs), status(nlev_obs))
 
-             lev(:) = 0.0d0
-             omp(:) = 0.0d0
-             oma(:) = 0.0d0
-             obs(:) = 0.0d0
-             jo(:)  = 0.0d0
-             sigma_obs(:)  = 0.0d0
-             success(:) = .false.
-             ilev_obs = 0
+          lev(:) = 0.0d0
+          omp(:) = 0.0d0
+          oma(:) = 0.0d0
+          obs(:) = 0.0d0
+          sigma_obs(:)  = 0.0d0
+          status(:) = 0
+          ilev_obs = 0
           
-             call obs_set_current_body_list(obsSpaceData,headerIndex)
-             BODY: do
+          diagn_only = chm_diagn_only(stnid,varno,nlev_obs)
 
-                bodyIndex = obs_getBodyIndex(obsSpaceData)
-                if (bodyIndex < 0) exit BODY
+          call obs_set_current_body_list(obsSpaceData,headerIndex)
+          BODY: do
+             
+             bodyIndex = obs_getBodyIndex(obsSpaceData)
+             if (bodyIndex < 0) exit BODY
+             
+             if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex).ne.varno) cycle BODY
+             
+             ilev_obs = ilev_obs+1
+
+             iass = obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex)
                 
-                if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex).ne.varno) cycle BODY
-
-                iass = obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex)
-
-                if (iass.eq.1.or.iass.eq.3) then
-
-                   ilev_obs = ilev_obs+1
- 
-                   lev(ilev_obs) = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
-                   omp(ilev_obs) = obs_bodyElem_r(obsSpaceData,OBS_OMP,bodyIndex)
-                   obs(ilev_obs) = obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)
-                   sigma_obs(ilev_obs) = obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
-                   if (anlm_mode) then
-                      oma(ilev_obs) = obs_bodyElem_r(obsSpaceData,OBS_OMA,bodyIndex)
-                      jo(ilev_obs)  = obs_bodyElem_r(obsSpaceData,OBS_JOBS,bodyIndex)
-                   end if
-                   success(ilev_obs) = .true.
-
-                end if
-
-             end do BODY
-            
-             if (ilev_obs.gt.0) then
-            
-                ! Convert to pressure if needed and identify unilevel observations
-                unilevel = .false.
-                select case(vco)
-                case(1)
-                   ! Height coordinate
-               
-                   nlev_mod = col_getNumLev(columng,'TH')  ! number of model levels     
-                   gz_mod => col_getColumn(columng,headerIndex,'GZ','TH') ! geopotential
-                
-                   allocate(pres_mod(nlev_mod))
-               
-                   do ilev_mod=1,nlev_mod
-                      pres_mod(ilev_mod) = col_getPressure(columng,ilev_mod,headerIndex,'TH') ! model pressure
-                   end do
-               
-                   ! Convert altidudes to pressure, note that gz_mod/RG converts geopotential to geopotential height
-                   lev = chm_convert_z_to_pressure(lev,gz_mod/RG,pres_mod,nlev_obs,nlev_mod,lat/MPC_DEGREES_PER_RADIAN_R8,success)
-               
-                   deallocate(pres_mod)
-                   
-                case(4)
-                   ! Uni-level observations
-                   unilevel = .true.
-                end select
-                
-                ! Add observation to diagnostic arrays
-                if (anlm_mode) then 
-                   call chm_obsspace_diagnostic(lat, lon, pressure=lev, omp=omp, oma=oma, obs=obs, jo=jo, sigma_obs=sigma_obs, &
-                                             success=success, nlev_obs=nlev_obs, unilevel=unilevel)
-                else
-                   call chm_obsspace_diagnostic(lat, lon, pressure=lev, omp=omp, obs=obs, sigma_obs=sigma_obs, &
-                                             success=success, nlev_obs=nlev_obs, unilevel=unilevel)
-                end if
-                                        
+             if (iass.eq.1) then
+                status(ilev_obs) = 1
+             else if (iass.eq.3.and.diagn_only) then
+                status(ilev_obs) = 2
              end if
-        
-             deallocate(lev,omp,oma,obs,jo,sigma_obs,success)
-       
-          end if
 
+             ! Include in the sum assimilated data and diagnostic only data
+             if (status(ilev_obs).gt.0) then
+                
+                lev(ilev_obs) = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
+                omp(ilev_obs) = obs_bodyElem_r(obsSpaceData,OBS_OMP,bodyIndex)
+                obs(ilev_obs) = obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)
+                sigma_obs(ilev_obs) = obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
+                if (anlm_mode) then
+                   oma(ilev_obs) = obs_bodyElem_r(obsSpaceData,OBS_OMA,bodyIndex)
+                end if
+                
+             end if
+
+          end do BODY
+             
+          ! Convert to pressure if needed and identify unilevel observations
+          unilevel = .false.
+          select case(vco)
+          case(1)
+             ! Height coordinate
+             
+             nlev_mod = col_getNumLev(columng,'TH')  ! number of model levels     
+             gz_mod => col_getColumn(columng,headerIndex,'GZ','TH') ! geopotential
+                
+             allocate(pres_mod(nlev_mod))
+               
+             do ilev_mod=1,nlev_mod
+                pres_mod(ilev_mod) = col_getPressure(columng,ilev_mod,headerIndex,'TH') ! model pressure
+             end do
+               
+             ! Convert altidudes to pressure, note that gz_mod/RG converts geopotential to geopotential height
+             success = status.gt.0
+             lev = chm_convert_z_to_pressure(lev,gz_mod/RG,pres_mod,nlev_obs,nlev_mod,lat/MPC_DEGREES_PER_RADIAN_R8,success)
+
+             deallocate(pres_mod)
+                
+          case(4,5)
+             ! Uni-level observations
+             unilevel = .true.
+          end select
+             
+          ! Add observation to diagnostic arrays
+          if (anlm_mode) then 
+             call chm_obsspace_diagn_add(obs_diagn, lat, lon, lev, omp, obs, sigma_obs, nlev_obs, unilevel, status, oma=oma)
+          else
+             call chm_obsspace_diagn_add(obs_diagn, lat, lon, lev, omp, obs, sigma_obs, nlev_obs, unilevel, status)
+          end if
+                     
+          deallocate(lev,omp,oma,obs,sigma_obs,success,status)
+       
        end do HEADER
        
        ! Prepare output identification (to be used for mpi_mpid=0)
@@ -912,15 +925,27 @@ contains
           write(label,*) ">>> Statistics for BUFR # ",varno_elemID(elemID),"and STNID ",stnid_elemID(elemID),"and UNILEV = ",unilev_elemID(elemID)
        end select
 
-       ! Sum over different processors, output (when mpi_myid.eq.0), and deallocate diagnostic arrays
-       call chm_obsspace_diagnostic(0.0d0, 0.0d0, print_stats=.true., label=label, openfile=.true.)
-    
+       ! Sum over different processors
+       call chm_obsspace_diagn_MPIreduce(obs_diagn)
+
+       ! Output, and deallocate diagnostic arrays
+       if (mpi_myid.eq.0) call chm_obsspace_diagn_print(obs_diagn, 'stats', label=label, openfile=.true.)
+ 
        call flush(6)
     end do
     
     ! Output diagnostics summary (over all CH observations)
-    call chm_obsspace_diagnostic(0.0d0, 0.0d0, print_summary=.true., openfile=.true.)
-    
+    if (mpi_myid.eq.0) call chm_obsspace_diagn_print(obs_diagn, 'summary', openfile=.true.)
+ 
+    ! Deallocate arrays in obs_diagn
+    call chm_obsspace_diagn_dealloc(obs_diagn)
+   
+    if (mpi_myid.eq.0) then
+       write(*,*)
+       write(*,*) "End chm_CH_obsDiagnostics"
+       write(*,*)
+    end if
+
   end subroutine chm_CH_obsDiagnostics
 
 !-----------------------------------------------------------------------------------
