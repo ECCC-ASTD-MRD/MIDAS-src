@@ -374,6 +374,12 @@ module chem_mod
      !  OmA_stats              obs - analysis statistics
      !  obs_stats              observation statistics
      !  Jo_stats               cost function statistics
+     !  diagR_stats            Elements for the calc of time_mean{[(O-P)-mean(O-P)][(O-A)-mean(O-A)]} 
+     !                         (with each O-P and O-A difference divided by sigma_obs)
+     !                         for scaling factor adjustments of obs std. dev via the Desroziers approach.
+     !  diagHPHT_stats         Elements for the calc of time_mean{[(O-P)-mean(O-P)][[(O-P)-mean(O-P)]-[(O-A)-mean(O-A)]]}
+     !                         (with each O-P and O-A difference divided by sqrtHPHT)
+     !                         for scaling factor adjustments of background std. dev. in obs space via the Desroziers approach.
      !  counts                 number of observations in a (lat,lon,lev) bin
      !  nlat                   number of latitude levels
      !  nlon                   number of longitude levels
@@ -389,13 +395,15 @@ module chem_mod
      !  deltaLon               longitude bin size (deg)
      !  deltaLogPressure       vertical bin size in log(pressure)
      !  allow_print_summary    indicates is printing of summary diagnostics is allowed
+     !  assim_mode             indicates if assimilation was performed for this dataset
 
      real(8), allocatable :: OmP_stats(:,:,:,:),OmA_stats(:,:,:,:),obs_stats(:,:,:,:),Jo_stats(:,:,:,:)
+     real(8), allocatable :: diagR_stats(:,:,:,:),diagHPHT_stats(:,:,:,:)
      integer, allocatable :: counts(:,:,:),nstatus(:,:,:,:)
      
      integer :: nlev,nlat,nlon,nbin,nstat
      real(8) :: deltaLat,deltaLon,deltaLogPressure
-     logical :: allow_print_summary
+     logical :: allow_print_summary,assim_mode
 
   end type struct_chm_diagn
 
@@ -5551,6 +5559,8 @@ contains
     if (.not. allocated(obs_diagn%Jo_stats))  allocate(obs_diagn%Jo_stats(nlat,nlon,nlev,nstat))
     if (.not. allocated(obs_diagn%counts))    allocate(obs_diagn%counts(nlat,nlon,nlev))
     if (.not. allocated(obs_diagn%nstatus))   allocate(obs_diagn%nstatus(nlat,nlon,nlev,0:2))
+    if (.not. allocated(obs_diagn%diagR_stats))    allocate(obs_diagn%diagR_stats(nlat,nlon,nlev,3))
+    if (.not. allocated(obs_diagn%diagHPHT_stats)) allocate(obs_diagn%diagHPHT_stats(nlat,nlon,nlev,3))
 
   end subroutine chm_obsspace_diagn_alloc
 
@@ -5578,8 +5588,11 @@ contains
     obs_diagn%Jo_stats(:,:,:,:)  = 0.0d0
     obs_diagn%counts(:,:,:) = 0
     obs_diagn%nstatus(:,:,:,:) = 0
+    obs_diagn%diagR_stats(:,:,:,:)    = 0.0d0
+    obs_diagn%diagHPHT_stats(:,:,:,:) = 0.0d0
 
     obs_diagn%allow_print_summary = .false.
+    obs_diagn%assim_mode = .false.
 
   end subroutine chm_obsspace_diagn_init
 
@@ -5603,12 +5616,13 @@ contains
 
     deallocate(obs_diagn%OmP_stats,obs_diagn%OmA_stats,obs_diagn%obs_stats)
     deallocate(obs_diagn%Jo_stats,obs_diagn%counts,obs_diagn%nstatus)
+    deallocate(obs_diagn%diagR_stats,obs_diagn%diagHPHT_stats)
 
   end subroutine chm_obsspace_diagn_dealloc
 
 !----------------------------------------------------------------------------------------
 
-  subroutine chm_obsspace_diagn_add(obs_diagn,lat,lon,pressure,OmP,obs,sigma_obs,nlev_obs,unilevel,status,OmA)
+  subroutine chm_obsspace_diagn_add(obs_diagn,lat,lon,pressure,OmP,obs,sigma_obs,nlev_obs,unilevel,status,OmA,sqrtHPHT)
 !
 ! Author:  M. Sitwell, ARQI/AQRD June 2015
 !          
@@ -5630,8 +5644,9 @@ contains
 !     obs            observations
 !     Jo             cost function
 !     sigma_obs      observation error standard deviation
+!     sqrtHPHT       forecast error standard deviation in obs space
 !     status         indicates status of the observations, with values denoting:
-!                      0 - observation has been rejected
+!                      0 - observation has been rejected and not included in diagnostics
 !                      1 - observation has been assimilated
 !                      2 - observation has been used for diagnostics only (not assimilated)
 !                    only observations with status=1,2 will be added to the statistic arrays
@@ -5645,9 +5660,10 @@ contains
     type(struct_chm_diagn), intent(inout) :: obs_diagn
     real(8), intent(in) :: lat,lon
     integer, intent(in) :: nlev_obs,status(nlev_obs)
-    real(8), intent(in) :: pressure(nlev_obs),OmP(nlev_obs),obs(nlev_obs),sigma_obs(nlev_obs)
+    real(8), intent(in) :: pressure(nlev_obs),OmP(nlev_obs),obs(nlev_obs)
+    real(8), intent(in) :: sigma_obs(nlev_obs)
     logical, intent(in) :: unilevel
-    real(8), intent(in), optional :: OmA(nlev_obs)
+    real(8), intent(in), optional :: OmA(nlev_obs),sqrtHPHT(nlev_obs)
 
     integer :: ilat,ilon,ilev,ilev_obs
 
@@ -5679,9 +5695,33 @@ contains
        obs_diagn%Jo_stats(ilat,ilon,ilev,2)  = obs_diagn%Jo_stats(ilat,ilon,ilev,2)  + 0.5 * OmP(ilev_obs)**2 / sigma_obs(ilev_obs)**2
 
        if (present(OmA)) then
+
           obs_diagn%OmA_stats(ilat,ilon,ilev,1) = obs_diagn%OmA_stats(ilat,ilon,ilev,1) + OmA(ilev_obs)**2
           obs_diagn%OmA_stats(ilat,ilon,ilev,2) = obs_diagn%OmA_stats(ilat,ilon,ilev,2) + OmA(ilev_obs)
           obs_diagn%Jo_stats(ilat,ilon,ilev,1)  = obs_diagn%Jo_stats(ilat,ilon,ilev,1)  + 0.5 * OmA(ilev_obs)**2 / sigma_obs(ilev_obs)**2
+
+          if (status(ilev_obs).eq.1) then
+
+             obs_diagn%diagR_stats(ilat,ilon,ilev,1) = obs_diagn%diagR_stats(ilat,ilon,ilev,1) &
+                + OmP(ilev_obs)*OmA(ilev_obs)/sigma_obs(ilev_obs)**2
+             obs_diagn%diagR_stats(ilat,ilon,ilev,2) = obs_diagn%diagR_stats(ilat,ilon,ilev,2) &
+                + OmP(ilev_obs)/sigma_obs(ilev_obs)
+             obs_diagn%diagR_stats(ilat,ilon,ilev,3) = obs_diagn%diagR_stats(ilat,ilon,ilev,3) &
+                + OmA(ilev_obs)/sigma_obs(ilev_obs)
+
+             if (present(sqrtHPHT)) then
+                if (sqrtHPHT(ilev_obs).gt.0.0) then
+                   obs_diagn%diagHPHT_stats(ilat,ilon,ilev,1) = obs_diagn%diagHPHT_stats(ilat,ilon,ilev,1) &
+                        + OmP(ilev_obs)*(OmP(ilev_obs)-OmA(ilev_obs))/sqrtHPHT(ilev_obs)**2
+                   obs_diagn%diagHPHT_stats(ilat,ilon,ilev,2) = obs_diagn%diagHPHT_stats(ilat,ilon,ilev,2) &
+                        + OmP(ilev_obs)/sqrtHPHT(ilev_obs)
+                   obs_diagn%diagHPHT_stats(ilat,ilon,ilev,3) = obs_diagn%diagHPHT_stats(ilat,ilon,ilev,3) &
+                        + (OmP(ilev_obs)-OmA(ilev_obs))/sqrtHPHT(ilev_obs)
+                end if
+             end if
+
+          end if
+
        end if
 
     end do LEVELS
@@ -5708,6 +5748,7 @@ contains
 
     ! MPI global arrays
     real(8), allocatable :: OmP_global(:,:,:,:), OmA_global(:,:,:,:), obs_global(:,:,:,:), Jo_global(:,:,:,:)
+    real(8), allocatable :: diagR_global(:,:,:,:), diagHPHT_global(:,:,:,:)
     integer, allocatable :: counts_global(:,:,:),nstatus_global(:,:,:,:)
 
     integer :: nlat,nlon,nlev,nstat,nbin,ierr
@@ -5723,6 +5764,8 @@ contains
     allocate(OmA_global(nlat,nlon,nlev,nstat))
     allocate(obs_global(nlat,nlon,nlev,nstat))
     allocate(Jo_global(nlat,nlon,nlev,nstat))
+    allocate(diagR_global(nlat,nlon,nlev,3))
+    allocate(diagHPHT_global(nlat,nlon,nlev,3))
     allocate(counts_global(nlat,nlon,nlev))
     allocate(nstatus_global(nlat,nlon,nlev,0:2))
          
@@ -5731,6 +5774,8 @@ contains
     call rpn_comm_allreduce(obs_diagn%OmA_stats,OmA_global,nbin*nstat,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
     call rpn_comm_allreduce(obs_diagn%obs_stats,obs_global,nbin*nstat,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
     call rpn_comm_allreduce(obs_diagn%Jo_stats,Jo_global,nbin*nstat,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
+    call rpn_comm_allreduce(obs_diagn%diagR_stats,diagR_global,nbin*3,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
+    call rpn_comm_allreduce(obs_diagn%diagHPHT_stats,diagHPHT_global,nbin*3,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
     call rpn_comm_allreduce(obs_diagn%counts,counts_global,nbin,"MPI_INTEGER","MPI_SUM","GRID",ierr)
     call rpn_comm_allreduce(obs_diagn%nstatus,nstatus_global,nbin*3,"MPI_INTEGER","MPI_SUM","GRID",ierr)
 
@@ -5739,10 +5784,12 @@ contains
     obs_diagn%OmA_stats = OmA_global
     obs_diagn%obs_stats = obs_global
     obs_diagn%Jo_stats = Jo_global
+    obs_diagn%diagR_stats = diagR_global
+    obs_diagn%diagHPHT_stats = diagHPHT_global
     obs_diagn%counts = counts_global
     obs_diagn%nstatus = nstatus_global
 
-    deallocate(OmP_global,OmA_global,obs_global,Jo_global,counts_global,nstatus_global)
+    deallocate(OmP_global,OmA_global,obs_global,Jo_global,diagR_global,diagHPHT_global,counts_global,nstatus_global)
 
   end subroutine chm_obsspace_diagn_MPIreduce
 
@@ -5792,7 +5839,7 @@ contains
     real(8), allocatable :: press_bins(:)
     logical :: fileout_exist,multilevel,unilevel
     character(len=20) :: mode
-   
+    
     select case(trim(print_type))
     case('stats','STATS')
                        
@@ -5848,6 +5895,13 @@ contains
           multilevel = any(obs_diagn%nstatus(:,:,1:nlev-1,:).gt.0)
           unilevel = any(obs_diagn%nstatus(:,:,nlev,:).gt.0)
           
+          if (obs_diagn%assim_mode) then
+              write(unit,*)
+              write(unit,'(A)') "  Elements for calc of obs and background error standard deviation scaling factors via"
+              write(unit,'(A)') "  the Desroziers approach can be found in the third and fourth blocks of statistics."
+              write(unit,*)
+          end if
+
           write(unit,*)
           write(unit,'(A)') " Global statistics"
           write(unit,'(A)') " -----------------"
@@ -5873,6 +5927,7 @@ contains
              call print_Jo(unit,"Multi-level data:",Jo_a,Jo_b,icount)
 
              call print_stats(unit,obs_diagn,press_bins,1,nlat,1,nlon,1,nlev-1) 
+             if (obs_diagn%assim_mode) call print_Desroziers(unit,obs_diagn,press_bins,1,nlat,1,nlon,1,nlev-1)
              
           end if
              
@@ -5895,6 +5950,7 @@ contains
              call print_Jo(unit,"Uni-level data:",Jo_a,Jo_b,ncounts(nlev))
              
              call print_stats(unit,obs_diagn,press_bins,1,nlat,1,nlon,nlev,nlev) 
+             if (obs_diagn%assim_mode) call print_Desroziers(unit,obs_diagn,press_bins,1,nlat,1,nlon,nlev,nlev)
              
           end if
                           
@@ -5921,6 +5977,7 @@ contains
                          write(unit,'(A)') " Multi-level data:"
                          write(unit,*)
                          call print_stats(unit,obs_diagn,press_bins,ilat,ilat,ilon,ilon,1,nlev-1) 
+                         if (obs_diagn%assim_mode) call print_Desroziers(unit,obs_diagn,press_bins,ilat,ilat,ilon,ilon,1,nlev-1)
                       else if (multilevel) then
                          write(unit,*)
                          write(unit,'(A)') " No multi-level data."
@@ -5931,6 +5988,7 @@ contains
                          write(unit,'(A)') " Uni-level data:"
                          write(unit,*)
                          call print_stats(unit,obs_diagn,press_bins,ilat,ilat,ilon,ilon,nlev,nlev) 
+                         if (obs_diagn%assim_mode) call print_Desroziers(unit,obs_diagn,press_bins,ilat,ilat,ilon,ilon,nlev,nlev)
                       else if (unilevel) then
                          write(unit,*)
                          write(unit,'(A)') " No uni-level data."
@@ -6077,7 +6135,7 @@ contains
             jo_b_norm = 2.*jo_b/counts(ilev)
          end if
 
-         write(unit,'(2X,I3, 2(2X, F11.4), 4(2X,I9), 4(2X, ES11.4))') &
+         write(unit,'(2X, I3, 2(2X, F11.4), 4(2X,I9), 4(2X, ES11.4))') &
               level,pres1,pres2,counts(ilev),N_assim,N_diagn,N_rej,jo_a,jo_a_norm,jo_b,jo_b_norm
 
       end do
@@ -6119,7 +6177,7 @@ contains
             OmA_mean = sum(obs_diagn%OmA_stats(ilat_start:ilat_end,ilon_start:ilon_end,ilev,2)) / obs_sum
          end if
 
-         write(unit,'(2X,I3, 2(2X, F11.4), 6(2X, ES11.4))') &
+         write(unit,'(2X, I3, 2(2X, F11.4), 6(2X, ES11.4))') &
               level,pres1,pres2,obs_mean,obs_std,OmP_rms,OmP_mean,OmA_rms,OmA_mean
 
       end do
@@ -6127,6 +6185,92 @@ contains
       write(unit,*)
 
     end subroutine print_stats
+
+    !----------------------------------------------------------------------------------------
+
+    subroutine print_Desroziers(unit,obs_diagn,pressure,ilat_start,ilat_end,ilon_start,ilon_end,ilev_start,ilev_end)
+      !
+      ! Author:  Y. Rochon, ARQI/AQRD Aug 2016
+      !          based on routine 'print_stats'
+      !          
+      ! Purpose: Prints elements contributing to the calc of scaling factors for observation and background
+      !          error std. dev. based on the Desroziers approach.
+      !
+      ! Revisions: 
+      ! 
+      !---------------------------------------------------------------------------------------
+
+      implicit none
+
+      type(struct_chm_diagn), intent(in) :: obs_diagn
+      real(8), intent(in) :: pressure(obs_diagn%nlev+1)
+      integer, intent(in) :: unit,ilat_start,ilat_end,ilon_start,ilon_end,ilev_start,ilev_end
+
+      integer :: ilev,level,N_assim(obs_diagn%nlev)
+      real(8) :: pres1,pres2,sum_prod,sum_OmP,sum_OmA,sum_AmP,scaling
+      
+      N_assim(:) = 0
+
+      write(unit,'(A)') "  Layer     Pressure (hPa)         N_assim   sum[(O-P)(O-A)/var(O)]  sum[(O-P)/sig(O)]  sum[(O-A)/sig(O)]  mean[(O-P)(O-A)/var(O)]-mean[(O-P)/sig(O)]*mean[(O-A)/sig(O)]"
+      write(unit,'(A)') "  -----     --------------         -------   ----------------------  -----------------  -----------------  -------------------------------------------------------------"
+
+      do ilev=ilev_start,ilev_end
+         
+         N_assim(ilev) = sum(obs_diagn%nstatus(ilat_start:ilat_end,ilon_start:ilon_end,ilev,1))
+
+         if (N_assim(ilev).eq.0) cycle
+
+         if (ilev.lt.nlev) then
+            pres1 = pressure(ilev)
+            pres2 = pressure(ilev+1)
+            level = ilev
+         else
+            pres1 = 0.0d0
+            pres2 = 0.0d0
+            level = 0
+         end if
+         
+         sum_prod = sum(obs_diagn%diagR_stats(ilat_start:ilat_end,ilon_start:ilon_end,ilev,1))
+         sum_OmP  = sum(obs_diagn%diagR_stats(ilat_start:ilat_end,ilon_start:ilon_end,ilev,2))
+         sum_OmA  = sum(obs_diagn%diagR_stats(ilat_start:ilat_end,ilon_start:ilon_end,ilev,3))
+
+         scaling = sum_prod/N_assim(ilev) - sum_OmP*sum_OmA/N_assim(ilev)**2
+
+         write(unit,'(2X, I3, 2(2X, F11.4), 2X, I9, 11X, ES11.4, 2(8X,ES11.4), 10X, ES11.4)') level,pres1,pres2,N_assim(ilev),sum_prod,sum_OmP,sum_OmA,scaling
+            
+      end do
+
+      write(unit,*)
+      write(unit,'(A)') "  Layer     Pressure (hPa)         N_assim   sum[(O-P)(A-P)/var(P)]  sum[(O-P)/sig(P)]  sum[(A-P)/sig(P)]  mean[(O-P)(A-P)/var(P)]-mean[(O-P)/sig(P)]*mean[(A-P)/sig(P)]"
+      write(unit,'(A)') "  -----     --------------         -------   ----------------------  -----------------  -----------------  -------------------------------------------------------------"
+
+      do ilev=ilev_start,ilev_end
+         
+         if (N_assim(ilev).eq.0) cycle
+
+         if (ilev.lt.nlev) then
+            pres1 = pressure(ilev)
+            pres2 = pressure(ilev+1)
+            level = ilev
+         else
+            pres1 = 0.0d0
+            pres2 = 0.0d0
+            level = 0
+         end if
+         
+         sum_prod = sum(obs_diagn%diagHPHT_stats(ilat_start:ilat_end,ilon_start:ilon_end,ilev,1))
+         sum_OmP  = sum(obs_diagn%diagHPHT_stats(ilat_start:ilat_end,ilon_start:ilon_end,ilev,2))
+         sum_AmP  = sum(obs_diagn%diagHPHT_stats(ilat_start:ilat_end,ilon_start:ilon_end,ilev,3))
+
+         scaling = sum_prod/N_assim(ilev) - sum_OmP*sum_AmP/N_assim(ilev)**2
+
+         write(unit,'(2X, I3, 2(2X, F11.4), 2X, I9, 11X, ES11.4, 2(8X,ES11.4), 10X, ES11.4)') level,pres1,pres2,N_assim(ilev),sum_prod,sum_OmP,sum_AmP,scaling
+            
+      end do
+         
+      write(unit,*)
+
+    end subroutine print_Desroziers
 
   end subroutine chm_obsspace_diagn_print
 
@@ -6824,18 +6968,29 @@ contains
         zcoef = zcoef * 1.E-9 * MPC_MOLAR_MASS_DRY_AIR_R8/chm_config%amu(obsoper%constituent_id)
         exp_P = exp_P+1 ! multiply by P
 
-     case(15230,15022)
+     case(15022)
 
         ! For conversion from ug/kg to molecules/m^3
         !
-        ! Number density of gase = Na*rho(gas)/m_gas = Na*rho(air) * mass mixing ratio /m_gas
-        !                         = Na * P/Rd/T * mass mixing ratio /m_gas
+        ! Number density of gas = Na*rho(gas)/m_gas = Na*rho(air) * mass mixing ratio /m_gas
+        !                       = Na * P/Rd/T * mass mixing ratio /m_gas
         
         zcoef = zcoef * 1.E-6 * MPC_AVOGADRO_R8/MPC_RGAS_DRY_AIR_R8/chm_config%amu(obsoper%constituent_id)
         exp_T = exp_T-1 ! divide by T
         exp_P = exp_P+1 ! multiply by P
 
-     case(15026,15008,15197,15208,1300)
+     case(15230)
+
+        ! For conversion from ug/kg to mol/m^3
+        !
+        ! Mole density of gas = rho(gas)/m_gas = rho(air) * mass mixing ratio /m_gas
+        !                       = P/Rd/T * mass mixing ratio /m_gas
+
+        zcoef = zcoef * 1.E-6 /MPC_RGAS_DRY_AIR_R8/chm_config%amu(obsoper%constituent_id)
+        exp_T = exp_T-1 ! divide by T
+        exp_P = exp_P+1 ! multiply by P
+
+     case(15026,15008,15197,15208,1300) ! 1300 ??
 
         ! For conversion from ug/kg to vmr
            

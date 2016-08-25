@@ -756,12 +756,13 @@ contains
     integer :: varno,varno_elemID(nmax)
     integer :: elemID,i,num_elemID,nset,iass
     character(len=9) :: stnid_elemID(nmax)
-    logical :: unilev_elemID(nmax),unilevel,diagn_only
+    logical :: unilev_elemID(nmax),unilevel,diagn_only,assim_mode
     character(len=256) :: label
     real(8) :: lat,lon
     character(len=12) :: stnid
 
-    real(8), allocatable :: zobslev(:), lev(:), omp(:), oma(:), obs(:), pres_mod(:), sigma_obs(:)
+    real(8), allocatable :: zobslev(:), lev(:), omp(:), oma(:), obs(:)
+    real(8), allocatable :: pres_mod(:), sigma_obs(:), sqrtHPHT(:)
     logical, allocatable :: success(:)
     integer, allocatable :: status(:)
     real(8), pointer :: gz_mod(:)
@@ -833,17 +834,19 @@ contains
           lon = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex)*MPC_DEGREES_PER_RADIAN_R8
               
           allocate(lev(nlev_obs), omp(nlev_obs), oma(nlev_obs), obs(nlev_obs), sigma_obs(nlev_obs))
-          allocate(success(nlev_obs), status(nlev_obs))
+          allocate(success(nlev_obs), status(nlev_obs), sqrtHPHT(nlev_obs))
 
           lev(:) = 0.0d0
           omp(:) = 0.0d0
           oma(:) = 0.0d0
           obs(:) = 0.0d0
-          sigma_obs(:)  = 0.0d0
+          sigma_obs(:) = 0.0d0
+          sqrtHPHT(:) = 0.0d0
           status(:) = 0
           ilev_obs = 0
           
           diagn_only = chm_diagn_only(stnid,varno,nlev_obs)
+          if ((.not.diagn_only).and.anlm_mode) obs_diagn%assim_mode = .true.
 
           call obs_set_current_body_list(obsSpaceData,headerIndex)
           BODY: do
@@ -872,6 +875,8 @@ contains
                 sigma_obs(ilev_obs) = obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
                 if (anlm_mode) then
                    oma(ilev_obs) = obs_bodyElem_r(obsSpaceData,OBS_OMA,bodyIndex)
+                   if (obs_bodyElem_r(obsSpaceData,OBS_HPHT,bodyIndex).gt.0.0) &
+                        sqrtHPHT(ilev_obs) = obs_bodyElem_r(obsSpaceData,OBS_HPHT,bodyIndex)
                 end if
                 
              end if
@@ -906,12 +911,12 @@ contains
              
           ! Add observation to diagnostic arrays
           if (anlm_mode) then 
-             call chm_obsspace_diagn_add(obs_diagn, lat, lon, lev, omp, obs, sigma_obs, nlev_obs, unilevel, status, oma=oma)
+             call chm_obsspace_diagn_add(obs_diagn, lat, lon, lev, omp, obs, sigma_obs, nlev_obs, unilevel, status, oma=oma, sqrtHPHT=sqrtHPHT)
           else
              call chm_obsspace_diagn_add(obs_diagn, lat, lon, lev, omp, obs, sigma_obs, nlev_obs, unilevel, status)
           end if
                      
-          deallocate(lev,omp,oma,obs,sigma_obs,success,status)
+          deallocate(lev,omp,oma,obs,sigma_obs,sqrtHPHT,success,status)
        
        end do HEADER
        
