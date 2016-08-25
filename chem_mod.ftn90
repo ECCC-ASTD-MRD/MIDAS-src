@@ -374,11 +374,11 @@ module chem_mod
      !  OmA_stats              obs - analysis statistics
      !  obs_stats              observation statistics
      !  Jo_stats               cost function statistics
-     !  diagR_stats            Elements for the calc of time_mean{[(O-P)-mean(O-P)][(O-A)-mean(O-A)]} 
+     !  diagR_stats            Elements for the calc of mean{[(O-P)-mean(O-P)][(O-A)-mean(O-A)]} 
      !                         (with each O-P and O-A difference divided by sigma_obs)
      !                         for scaling factor adjustments of obs std. dev via the Desroziers approach.
-     !  diagHPHT_stats         Elements for the calc of time_mean{[(O-P)-mean(O-P)][[(O-P)-mean(O-P)]-[(O-A)-mean(O-A)]]}
-     !                         (with each O-P and O-A difference divided by sqrtHPHT)
+     !  diagHPHT_stats         Elements for the calc of mean{[(O-P)-mean(O-P)][[(O-P)-mean(O-P)]-[(O-A)-mean(O-A)]]}
+     !                         = mean{[(O-P)-mean(O-P)][(A-P)-mean(A-P)]}(with each O-P and O-A difference divided by sqrtHPHT)
      !                         for scaling factor adjustments of background std. dev. in obs space via the Desroziers approach.
      !  counts                 number of observations in a (lat,lon,lev) bin
      !  nlat                   number of latitude levels
