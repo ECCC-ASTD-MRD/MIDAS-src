@@ -1128,7 +1128,7 @@ MODULE gridStateVector_mod
 
     ! locals
     integer :: fnom, fstouv, fclos, fstfrm, fstlir
-    integer :: ezdefset, ezsint, ezuvint, ezqkdef, ezgprm
+    integer :: ezdefset, ezsint, ezuvint, ezqkdef, ezgprm, ezsetopt
     integer :: nulfile
     real(4), allocatable :: field2d_file_r4(:,:),   field2d_interp_r4(:,:)
     real(4), allocatable :: field2dVV_file_r4(:,:), field2dVV_interp_r4(:,:)
@@ -1276,7 +1276,6 @@ MODULE gridStateVector_mod
             ierr=fstlir(field2d_file_r4(:,:),nulfile,ni,nj,nk,  &
                         statevector%datestamplist(indexStep),etiket_in,ip1,-1,-1,  &
                         typvar_in,varName)
-
             if(trim(varName) == 'UU') then
               ierr=fstlir(field2dVV_file_r4(:,:),nulfile,ni,nj,nk,  &
                           statevector%datestamplist(indexStep),etiket_in,ip1,-1,-1,  &
@@ -1291,6 +1290,7 @@ MODULE gridStateVector_mod
             if(doHorizInterp) then
               ! horizontal interpolation
               ierr = ezdefset(target_gid, hco_file%EZscintID)
+              ierr = ezsetopt('INTERP_DEGREE', 'LINEAR')
               if(trim(varName) == 'UU') then
                 ! interpolate both wind components
                 ierr = ezuvint(field2d_interp_r4, field2dVV_interp_r4,   &
@@ -1534,7 +1534,8 @@ MODULE gridStateVector_mod
   !--------------------------------------------------------------------------
   ! gsv_writeToFileMpi
   !--------------------------------------------------------------------------
-  subroutine gsv_writeToFileMpi(statevector,fileName,etiket_in,scaleFactor,ip3_in,indexStep_in,statevector_ref,unitconversion)
+  subroutine gsv_writeToFileMpi(statevector, fileName, etiket_in, scaleFactor, ip3_in, &
+       indexStep_in, HUcontainsLQ, unitconversion)
     implicit none
 
     ! arguments
@@ -1542,9 +1543,9 @@ MODULE gridStateVector_mod
     character(len=*), intent(in) :: fileName
     character(len=*), intent(in) :: etiket_in
     real(8), optional,intent(in) :: scaleFactor
-    integer, optional            :: ip3_in, indexStep_in
-    type(struct_gsv), optional   :: statevector_ref
-    logical, optional            :: unitconversion
+    integer, optional,intent(in) :: ip3_in, indexStep_in
+    logical, optional,intent(in) :: HUcontainsLQ
+    logical, optional,intent(in) :: unitconversion
 
     ! locals
     integer :: fclos, fnom, fstouv, fstfrm
@@ -1571,7 +1572,7 @@ MODULE gridStateVector_mod
 
     write(*,*) 'gsv_writeToFileMpi: START'
 
-    if(.not.statevector%mpi_local) then
+    if ( .not. statevector%mpi_local ) then
       call abort3d('gsv_writeToFileMpi: cannot use this subroutine for mpiglobal data!')
     endif
 
@@ -1667,14 +1668,6 @@ MODULE gridStateVector_mod
         work3d(:,:,:) = field(statevector%myLonBeg:statevector%myLonEnd, &
                               statevector%myLatBeg:statevector%myLatEnd,1:nlev,indexStep)
 
-        ! convert LQ to HU if statevector_ref is present
-        if(trim(vnl_varNameList(jvar)) == 'HU' .and. present(statevector_ref)) then
-          field_ref => gsv_getField_r8(statevector_ref,vnl_varNameList(jvar))
-          work3d(:,:,:) = work3d(:,:,:)*  &
-              exp(field_ref(statevector%myLonBeg:statevector%myLonEnd, &
-                            statevector%myLatBeg:statevector%myLatEnd,1:nlev,indexStep))
-        endif
-
         do batchnum = 1, ceiling(dble(nlev)/dble(mpi_nprocs))
 
           jlev      = (batchnum-1)*mpi_nprocs + mpi_myid + 1
@@ -1711,6 +1704,7 @@ MODULE gridStateVector_mod
           ! now do writing
           if (iDoWriting.and.jlev.le.nlev) then
 
+            ! Set the ip1 value
             if (nlev /= 1) then
               if (vnl_varLevelFromVarname(vnl_varNameList(jvar)) == 'MM') then
                 ip1 = statevector%vco%ip1_M(jlev)
@@ -1720,11 +1714,14 @@ MODULE gridStateVector_mod
             else
               ip1 = 0
             end if
+
+            ! Set the output variable name
             nomvar = trim(vnl_varNameList(jvar))
+            if ( trim(nomvar) == 'HU' .and. present(HUcontainsLQ) ) then
+               if ( HUcontainsLQ ) nomvar = 'LQ'
+            end if
 
-            ! if variable name is HU, write with name LQ (unless a reference state was supplied)
-            if(trim(nomvar) == 'HU' .and. .not.present(statevector_ref)) nomvar = 'LQ'
-
+            ! Set the conversion factor
             if ( unitConversion2 ) then
               if ( trim(nomvar) == 'UU' .or. trim(nomvar) == 'VV') then
                 factor_r4 = MPC_KNOTS_PER_M_PER_S_R4 ! m/s -> knots

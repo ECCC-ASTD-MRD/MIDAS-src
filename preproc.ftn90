@@ -35,6 +35,7 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   use tovs_nl_mod
   use burpFiles_mod
   use observation_erreurs_mod
+  use variableTransforms_mod
   IMPLICIT NONE
   
   type(struct_obs) :: lobsSpaceData
@@ -148,6 +149,11 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
     call bmat_setup(hco_anl,vco_anl)
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
   end if
+
+  !
+  ! - Initialize the gridded variable transform module
+  !
+  call vtr_setup(hco_anl,vco_anl)
 
   !
   !- Set up the minimization module, now that the required parameters are known
