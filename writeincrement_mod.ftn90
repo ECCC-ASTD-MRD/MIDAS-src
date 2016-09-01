@@ -878,6 +878,8 @@ module writeIncrement_mod
 
       write(*,FMT='(/,4X,"Starting LTT2PHIGD_GEM4",//)')
 
+      nullify(Psfc,ps_ptr,zpres3d_ptr,dP_dPsfc_M,dP_dPsfc_T,Pres_M,Pres_T,hu_ptr,tt_ptr,delPsfc)
+
       vco_anl => gsv_getVco(statevectorg)
       status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
 
@@ -1543,6 +1545,8 @@ module writeIncrement_mod
       integer :: nsizes(0:(mpi_nprocs-1)), displs(0:(mpi_nprocs-1))
 
       WRITE(*,FMT='(/,4X,"Starting VHFSTFLD",//)')
+
+      nullify(zprestrl,zpresanl)
 
       ierr = ezsetopt('INTERP_DEGREE','LINEAR')
       !

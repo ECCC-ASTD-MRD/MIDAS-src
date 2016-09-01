@@ -111,6 +111,8 @@ module verticalCoord_mod
     integer :: ni,nj,nk
     character(len=4) :: nomvar_T, nomvar_M
 
+    nullify(vgd_ip1_M,vgd_ip1_T,vgd_da_M,vgd_da_T,vgd_db_M,vgd_db_T)
+
     if(mpi_myid.eq.0) write(*,*) 'vco_SetupFromFile: TEMPLATEFILE=', templatefile
     inquire(file=templatefile,exist=isExist_L)
     if( isExist_L )then
