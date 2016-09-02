@@ -185,7 +185,7 @@ CONTAINS
       integer              :: impres
       INTEGER              :: NGRANGE = 10 ! range of powers of 10 used for gradient test
 
-      INTEGER IZS(1),IZTRL(10)
+      INTEGER IZS(1),IZTRL(5)
       REAL ZZSUNUSED(1)
 
       real*8,allocatable :: vazg(:)
@@ -1205,7 +1205,7 @@ CONTAINS
 
   SUBROUTINE rw_vatra (cfname,status,                       &
           nsim,kbrpstamp,zeps1,zdf1,itertot,isimtot,      &
-          nztrl,vatra,vazxbar,vazx,llxbar,llvazx,k1gc,imode)
+          iztrl,vatra,vazxbar,vazx,llxbar,llvazx,k1gc,imode)
 
     !***s/r RW_VATRA  - Read-Write VAZXBAR and VATRA on file
     !*
@@ -1221,7 +1221,7 @@ CONTAINS
     !*     i   zdf1      : Parameter in N1QN3
     !*     i   itertot   : Parameter in N1QN3
     !*     i   isimtot   : Parameter in N1QN3
-    !*     i   nztrl     : Localisation parameters for Hessian
+    !*     i   iztrl     : Localisation parameters for Hessian
     !*     i   vatra     : Hessian
     !*     i   vazxbar   : Vazx of previous loop
     !*     i   vazx      : Current state of the minimization
@@ -1234,7 +1234,7 @@ CONTAINS
     logical llxbar,llvazx
 
     integer status,kbrpstamp,nsim,itertot,isimtot
-    integer, dimension(10), target :: nztrl
+    integer, dimension(5), target :: iztrl
     integer k1gc, imode
     real*8 zeps1,zdf1
     real*8, dimension(nvadim_mpilocal), target :: vazxbar, vazx
@@ -1249,7 +1249,7 @@ CONTAINS
     integer :: ivadim, itrunc
     integer :: imtra,ivamaj
     integer :: jvec, i1gc,ictrlvec,ii,jproc
-    integer, dimension(10), target, save :: iztrl
+    integer, dimension(10), target, save :: iztrl_io
 
     character(len=*) :: cfname
     character(len=3) :: cl_version
@@ -1297,13 +1297,13 @@ CONTAINS
 
       read(ireslun) cl_version,i1gc,nsim,ibrpstamp,zeps1,zdf1,itertot,isimtot,ivadim,itrunc
       if(trim(cl_version) == 'V4') then
-        read(ireslun) ivamaj,iztrl
+        read(ireslun) ivamaj,iztrl_io
         if((ivamaj.ne.nvamaj).or.(nvadim_mpiglobal.ne.ivadim)) then
           write(*,*) nvamaj,ivamaj,nvadim_mpiglobal,ivadim
           call abort3d(" RW_VATRA : ERROR, size of V4 Hessian not consistent")
         endif
       else
-        read(ireslun) imtra,iztrl
+        read(ireslun) imtra,iztrl_io
         if(.not.(nmtra_mpiglobal.eq.imtra.or.(nmtra_mpiglobal+nvamaj).eq.imtra).or.nvadim_mpiglobal.ne.ivadim) then
           write(*,*) nmtra_mpiglobal,imtra,nvadim_mpiglobal,ivadim
           write(*,*) ' RW_VATRA : ERROR, size of Hessian not consistent, but not stopping!'
@@ -1342,12 +1342,13 @@ CONTAINS
 
       imode = 2
 
+      iztrl(:) = iztrl_io(1:5)
       if(k1gc.eq.3) then
-        nztrl(1) = nvadim_mpilocal
-        nztrl(2) = 0
-        nztrl(3) = nvamaj
-        nztrl(4) = iztrl(4)
-        nztrl(5) = iztrl(5)
+        iztrl(1) = nvadim_mpilocal
+        iztrl(2) = 0
+        iztrl(3) = nvamaj
+        iztrl(4) = iztrl_io(4)
+        iztrl(5) = iztrl_io(5)
       endif
 
       if(ibrpstamp == kbrpstamp .and. llxbar) then
@@ -1383,8 +1384,11 @@ CONTAINS
       if(mpi_myid.eq.0) ierr = fnom(ireslun,cfname, 'FTN+SEQ+UNF' , 0)
       cl_version = 'V4'
       itrunc=0
+      iztrl_io(1: 5) = iztrl(:)
+      iztrl_io(6:10) = 0 ! dummy values for hessian size legacy purposes
       if(mpi_myid.eq.0) write(ireslun) cl_version,k1gc,nsim,kbrpstamp,zeps1,zdf1,itertot,isimtot,nvadim_mpiglobal,itrunc
-      if(mpi_myid.eq.0) write(ireslun) nvamaj,nztrl
+      if(mpi_myid.eq.0) write(ireslun) nvamaj,iztrl_io
+
       if(k1gc.eq.3) ictrlvec = 2*nvamaj+1
 
       if(mpi_myid.eq.0) allocate(vatravec_r4_mpiglobal(nvadim_mpiglobal))
