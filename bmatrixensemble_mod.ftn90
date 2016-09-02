@@ -194,6 +194,14 @@ CONTAINS
     if(mpi_myid.eq.0) write(*,nml=namben)
     ierr = fclos(nulnam)
 
+    ! If zero weight, skip rest of setup
+    if ( sum(scaleFactor(:)) == 0.0d0 ) then
+      if(mpi_myid.eq.0) write(*,*) 'bmatrixEnsemble: scaleFactor=0, skipping rest of setup'
+      cvdim_out = 0
+      initialized = .true.
+      return
+    endif
+
     !
     !- 2.  Settings
     !
@@ -308,13 +316,6 @@ CONTAINS
     endif
 
     !- 2.7 Bmatrix Weight
-    if ( sum(scaleFactor(1:nLevEns_T)) == 0.0d0 ) then
-      if(mpi_myid.eq.0) write(*,*) 'bmatrixEnsemble: scaleFactor=0, skipping rest of setup'
-      cvdim_out = 0
-      initialized = .true.
-      return
-    endif
-
     allocate(scaleFactor_M(nLevEns_M))
     allocate(scaleFactor_T(nLevEns_T))
     do jlev = 1, nLevEns_T

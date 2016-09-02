@@ -80,12 +80,11 @@ CONTAINS
     type(struct_vco), pointer :: vco_anl
 
     integer              :: fnom, fstouv, fclos, fstfrm, fstinf
-    integer, parameter   :: maxNumFiles = 1000
-    integer              :: ierr, ikey, indexStep, indexTrial, numTrials, nulTrials(maxNumFiles)
+    integer              :: ierr, ikey, indexStep, indexTrial, numTrials, nulTrial
     integer              :: ni_file, nj_file, nk_file, dateStamp
     integer, allocatable :: dateStampList(:)
 
-    character(len=2)     :: flnum
+    character(len=2)     :: fileNumber
     character(len=30)    :: fileName
 
     logical              :: fileExists
@@ -99,65 +98,54 @@ CONTAINS
     allocate(datestamplist(tim_nStepObsInc))
     call tim_getstamplist(datestamplist,tim_nStepObsInc,tim_getDatestamp())
 
-    ! open all available trial files
-    nulTrials(:) = 0
+    ! check existence of all trial files
     numTrials = 0
     do 
-      write(flnum,'(I2.2)') numTrials+1
-      fileName = './trlm_' // trim(flnum)
-      inquire(file=trim(fileName),exist=fileExists)
-      if (fileExists) then
-        numTrials = numTrials + 1
-        ierr = fnom(nulTrials(numTrials),trim(fileName),'RND+OLD+R/O',0)
-        if (mpi_myid.eq.0) write(*,*) 'Trial file: ', trim(fileName), ' opened as unit file: ',nulTrials(numTrials)
-        ierr =  fstouv(nulTrials(numTrials),'RND+OLD')
-      elseif ( (.not. fileExists) .and. numTrials > 0 ) then
-        exit  
-      elseif ( (.not. fileExists) .and. numTrials == 0 ) then
-        call abort3d('vtr_setupTrials: No trial files found')
-      endif 
-    enddo 
+       write(fileNumber,'(I2.2)') numTrials+1
+       fileName = './trlm_' // trim(fileNumber)
+       inquire(file=trim(fileName),exist=fileExists)
+       if (fileExists) then
+          numTrials = numTrials + 1
+       elseif ( (.not. fileExists) .and. numTrials > 0 ) then
+          exit  
+       elseif ( (.not. fileExists) .and. numTrials == 0 ) then
+          call abort3d('vtr_setupTrials: No trial files found')
+       endif
+    enddo
 
-    if(numTrials.ne.tim_nstepobs) then
-      write(*,*) 'numTrials, tim_nstepobs = ',numTrials, tim_nstepobs
-      call abort3d('vtr_setupTrials: numTrials <> tim_nstepobs')
+    if (numTrials.ne.tim_nstepobs) then
+       write(*,*) 'numTrials, tim_nstepobs = ',numTrials, tim_nstepobs
+       call abort3d('vtr_setupTrials: numTrials /= tim_nstepobs')
     endif
 
-    ! loop over times for which increment is computed and read trial field
+    ! loop over times for which increment is computed
     do indexStep = 1, tim_nstepobsinc
-      dateStamp = dateStampList(indexStep)
-      if(mpi_myid.eq.0) write(*,*) 'vtr_setupTrials: reading trial fields for time step: ',indexStep, dateStamp
+       dateStamp = dateStampList(indexStep)
+       if(mpi_myid.eq.0) write(*,*) 'vtr_setupTrials: reading background for time step: ',indexStep, dateStamp
 
-      ! identify which trial file corresponds with current dateStamp
-      fileName = 'NOTFOUND'
-      do indexTrial = 1, numTrials
-        ikey = fstinf(nulTrials(indexTrial), ni_file, nj_file, nk_file,  &
-                      dateStamp, ' ', -1, -1, -1, ' ', 'P0')
-        if (ikey.gt.0) then
-          write(flnum,'(I2.2)') indexTrial
-          fileName = './trlm_' // trim(flnum)
-          ierr = fstfrm(nulTrials(indexTrial))
-          ierr = fclos(nulTrials(indexTrial))
-          nulTrials(indexTrial)=-999
-          exit
-        endif
-      enddo
-      if (trim(fileName).eq.'NOTFOUND') then 
-        write(*,*) 'indexStep, dateStamp = ', indexStep, dateStamp
-        call abort3d('vtr_setupTrials: trial file not found for this increment timestep')
-      endif
+       ! identify which trial file corresponds with current datestamp
+       fileName = 'NOTFOUND'
+       do indexTrial = 1, numTrials
+          write(fileNumber,'(I2.2)') indexTrial
+          fileName = './trlm_' // trim(fileNumber)
+          nulTrial = 0
+          ierr = fnom(nulTrial,trim(fileName),'RND+OLD+R/O',0)
+          ierr = fstouv(nulTrial,'RND+OLD')
+          ikey = fstinf(nulTrial, ni_file, nj_file, nk_file,  &
+               dateStamp, ' ', -1, -1, -1, ' ', 'P0')
+          ierr = fstfrm(nulTrial)
+          ierr = fclos(nulTrial)
+          if(ikey.gt.0) exit
+       enddo
+
+       if (trim(fileName).eq.'NOTFOUND') then 
+          write(*,*) 'indexStep, dateStamp = ', indexStep, dateStamp
+          call abort3d('vtr_setupTrials: trial file not found for this increment timestep')
+       endif
 
       ! read the trial file for this timestep
       call gsv_readFromFile(statevector_trial, fileName, ' ', 'P', 'TRIAL', indexStep)
 
-    enddo
-
-    ! close all trial fields not read
-    do indexTrial = 1, numTrials
-      if (nulTrials(indexTrial) .ne. -999) then
-        ierr = fstfrm(nulTrials(indexTrial))
-        ierr = fclos (nulTrials(indexTrial))
-      endif
     enddo
 
   end subroutine vtr_setupTrials

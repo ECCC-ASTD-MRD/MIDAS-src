@@ -270,6 +270,10 @@ module HorizontalCoord_mod
           rotated = .true.
        end if
 
+       !- 2.2.4 Is this a global or a LAM domain ?
+       call global_or_lam( global,     & ! OUT
+                           lon_8, ni )   ! IN
+
     !- 2.3 Gaussian Grid
     elseif ( trim(grtyp) == 'G' ) then
 
@@ -286,12 +290,32 @@ module HorizontalCoord_mod
       deallocate(lat2d_4)
       deallocate(lon2d_4)
 
-      ! This grid type is not rotated
+      !- 2.3.2 This grid type is not rotated
       rotated = .false.
       xlat1_4 =   0.0
       xlon1_4 = 180.0
       xlat2_4 =   0.0
       xlon2_4 = 180.0
+
+      !- 2.3.3 We know this is a global grid
+      global = .true.
+
+    !- 2.4 Universal Grid (Yin-Yang) - not fully supported: use at own risk!
+    elseif ( trim(grtyp) == 'U' ) then
+
+      !-  2.4.1 Initialize latitudes and longitudes to dummy values - should not be used!
+      lon_8(:) = -999.999d0
+      lat_8(:) = -999.999d0
+
+      !-  2.4.2 Initialize these parameters to dummy values
+      rotated = .false.
+      xlat1_4 = -999.999
+      xlon1_4 = -999.999
+      xlat2_4 = -999.999
+      xlon2_4 = -999.999
+
+      !-  2.4.3 We know this is a global grid
+      global = .true.
 
     else
       write(*,*)
@@ -300,13 +324,7 @@ module HorizontalCoord_mod
     end if
 
     !
-    !- 3.  Is this a global or a LAM domain ?
-    !
-    call global_or_lam( global,     & ! OUT
-                        lon_8, ni )   ! IN
-
-    !
-    !- 4.  Initialized Horizontal Grid Structure
+    !- 3.  Initialized Horizontal Grid Structure
     !
     allocate(hco(nGrid) % lat(1:nj))
     allocate(hco(nGrid) % lon(1:ni))
