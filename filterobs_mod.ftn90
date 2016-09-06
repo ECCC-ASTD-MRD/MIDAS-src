@@ -85,7 +85,7 @@ contains
                  'MASQUE TERRE-MER                  ', &
                  'OROGRAPHIE                        ', &
                  'REJECTED BY QCVAR                 ', &
-                 'REJECTED BY BACKGROUND GCHECK     ', &
+                 'REJECTED BY BACKGROUND CHECK      ', &
                  'BACKGROUND CHECK  LEVEL 3         ', &
                  'BACKGROUND CHECK  LEVEL 2         ', &
                  'BACKGROUND GHECK  LEVEL 1         ', &
@@ -945,29 +945,38 @@ contains
     !             - Removed call to subroutine chm_adj_model_bndry for consistency
     !               in the flagging of obs above/below the model done in vobslyrs
     !               (routine also removed in chem_mod.ftn90)
+    !             M. Sitwell Sept 2016
+    !             - Added flagging of bit 4 in OBS_FLG set in set_scal_chm indicating
+    !               mismatch of number of levels of mantissa and exponent. 
     !
     ! Purpose: Rejects elements which are too far below the model surface
     !          or above the model top.
     !
+    ! Comments:
+    !   - Flagging of bit 4 in OBS_FLG done in filt_topoChm instead of set_scal_chm
+    !     since this subroutine is called after chm_setup, allowing use of chm_open_messagefile
+    !
 
     use chem_mod
+    use MathPhysConstants_mod
 
     implicit none
     type(struct_columnData) :: columnhr
     type(struct_obs) :: obsSpaceData
 
     integer :: headerIndex, bodyIndex, listIndex, elemIndex, listIndex_stnid
-    integer :: ivnm, countAssim, jl, icount
+    integer :: ivnm, countAssim, jl, icount,unit,ier
     real(8) :: zlev,zPtop,zP0
     real(8) :: zStnAlt,zModAlt,zpb,zpt
-    logical :: list_is_empty
+    logical :: list_is_empty,warn_suspicious
     
     integer, parameter :: Nmax=100
     integer :: Num_stnid_chm,nobslev,Num_chm,iconstituentid
     character(len=13) :: CstnidList_chm(Nmax)
     integer :: countAcc_stnid(Nmax),countRej_stnid(Nmax)
     integer :: countRejflg_stnid(Nmax),countRejflg(Nmax)
-    integer :: countAcc(Nmax),countRej(Nmax),iConstituentList(Nmax)    
+    integer :: countAcc(Nmax),countRej(Nmax),iConstituentList(Nmax)  
+    integer, external :: fclos
 
     if (.not.obs_famExist(obsSpaceData,'CH')) return
     
@@ -1015,6 +1024,8 @@ contains
       call chm_get_stringId(obs_elem_c(obsSpaceData,'STID',headerIndex),&
                nobslev,CstnidList_chm,Num_stnid_chm,Nmax,listIndex_stnid)
 
+      warn_suspicious = .false.
+
       ! Loop over all body indices (still in the 'CH' family)
       icount=0
       BODY: do 
@@ -1028,6 +1039,12 @@ contains
         if (icount.eq.0) call chm_get_Id(obs_headElem_i(obsSpaceData,OBS_CHM,headerIndex), &
                               iConstituentList,Num_chm,Nmax,listIndex)
         icount=icount+1
+
+        ! Check for bit 4 of OBS_FLG, indicating a 'Suspicious element'
+        if (btest(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),4)) then
+           call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
+           warn_suspicious = .true.
+        end if
 
         if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex).eq.0) then
         
@@ -1043,7 +1060,7 @@ contains
            ! Check as a function of altitude.
            
            zlev = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
-           write(*,*) 'rejected zzz ',obs_elem_c(obsSpaceData,'STID',headerIndex),zlev,zP0,zPtop
+           !write(*,*) 'rejected zzz ',obs_elem_c(obsSpaceData,'STID',headerIndex),zlev,zP0,zPtop
            if( zlev.lt.zpb .or. zlev.gt.zpt ) then
                call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
                    ibset( obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 18 ))
@@ -1077,6 +1094,18 @@ contains
         end if
 
       enddo BODY
+
+      if (warn_suspicious) then
+         call chm_open_messagefile(unit)
+         write(unit,'(A)') "set_scal_chm: Number of levels mismatch between mantissa and exponent for observation"
+         write(unit,'(14X,A,4X,I8,2X,I4)') obs_elem_c(obsSpaceData,'STID',headerIndex),obs_headElem_i(obsSpaceData,OBS_DAT,headerIndex),&
+              obs_headElem_i(obsSpaceData,OBS_ETM,headerIndex)
+         write(unit,'(14X,A,F9.2,A,F9.2)') "lon = ",obs_headElem_r(obsSpaceData,OBS_LON,headerIndex)*MPC_DEGREES_PER_RADIAN_R8, &
+              " lat = ",obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex)*MPC_DEGREES_PER_RADIAN_R8
+         write(unit,*)
+         ier = fclos(unit)
+      end if
+
     enddo HEADER
 
     if (Num_stnid_chm.gt.0) then    

@@ -2250,7 +2250,9 @@ contains
 !       - Added chm_std%brp = 2 option
 !
 !----------------------------------------------------------------------------------------
-   
+    
+    use MathPhysConstants_mod
+
     implicit none
 
     character(len=*), intent(in)  :: CSTNID
@@ -2258,6 +2260,7 @@ contains
     real(8), intent(in)           :: ZLAT
     integer, intent(out)          :: ISTNID,JINT
     integer                       :: JN,ilen1,ilen2,ji,ibegin
+    real(8)                       :: lat
 
  !  Important: Combination of STNID, BUFR element and number of vertical levels
  !             to determine association to the observations.
@@ -2281,8 +2284,18 @@ contains
     END DO
 
     IF (ISTNID.EQ.0) THEN
-       call abort3d('chm_obs_err_stddev_index: Error std. dev. for STNID ' // trim(CSTNID) // &
-                    ' is unavailable. Check section I of file obsinfo_chm.')
+       write(*,*) 'chm_obs_err_stddev_index: Error std. dev. is unavailable for STNID ' // trim(CSTNID) // & 
+                  ' and NLEV = ' // trim(str(NLEV)) // ' and VARNO = ' // trim(str(VARNO))
+       write(*,*)
+       write(*,*) ' Contents of chm_std (n_stnid = ' // trim(str(chm_std%n_stnid)) // '):'
+       if (chm_std%n_stnid.gt.0) then
+          write(*,'(A)') '  STNID                 BUFR     NLEVELS'
+          do jn=1,chm_std%n_stnid
+             write(*,'(2X,A,2X,I12,2X,I10)') chm_std%stnids(jn),chm_std%bfr(jn),chm_std%n_lvl(jn)
+          end do
+       end if
+       write(*,*)
+       call abort3d('chm_obs_err_stddev_index: Check section I of file obsinfo_chm.')
     ELSE
 
        IF (chm_std%n_lat(ISTNID) .GT. 1) THEN
@@ -2290,12 +2303,14 @@ contains
           ! Find latitude index for interpolation.
           ! Assuming increasing latitudes in chm_std%lat
 
+          lat = zlat / MPC_RADIANS_PER_DEGREE_R8  ! radians to degrees
+
           ibegin=chm_std%ibegin(ISTNID)-1
-          IF (ZLAT .GE. chm_std%lat(ibegin+chm_std%n_lat(ISTNID))) THEN
+          IF (lat .GE. chm_std%lat(ibegin+chm_std%n_lat(ISTNID))) THEN
              JINT=chm_std%n_lat(ISTNID)+1
           ELSE
              DO JINT=1,chm_std%n_lat(ISTNID)
-                IF (ZLAT .LE. chm_std%lat(ibegin+JINT) ) exit
+                IF (lat .LE. chm_std%lat(ibegin+JINT) ) exit
              END DO
           END IF
                                            
@@ -2321,8 +2336,8 @@ contains
 !    cstnid        station ID
 !    nlev          number of levels
 !    varno         BUFR number
-!    zlat          latitude
-!    zlon          longitude
+!    zlat          latitude (radians)
+!    zlon          longitude (radians)
 !    idate         date in YYYYMMDD format
 !    itime         time in HHMM format
 !    zval          observation values
@@ -2344,7 +2359,7 @@ contains
     integer :: ibegin,JLEV,JN,stat
 
     integer, save :: ISTNID,JINT
-
+    
     ! If this call is for the first level for this measurement, get
     ! the station ID and latitude indices corresponding to this measurement
     if (ifirst) call chm_obs_err_stddev_index(CSTNID,NLEV,VARNO,ZLAT,ISTNID,JINT)                  
@@ -2746,6 +2761,9 @@ contains
 !  - In blocks with new data to be added/modified, if the varno already exists in the block, the
 !    new data will overwrite the existing varno data, otherwise will append the new data
 !    to the block.
+!  - The settings for BURP_Write_Block should have ENCODE_BLOCK and CONVERT_BLOCK set to
+!    .true. in all cases, including when the block has not been modified, due to problems
+!    that can occur when writing blocks containing negative integers with datyp=4.
 !
 !-----------------------------------------------------------------------------------------
     
@@ -2761,7 +2779,7 @@ contains
     character(len=*), intent(in), optional :: stnid,multi
 
     integer :: nrep_modified,ncount
-    logical :: blk_found,encode_blk,convert_blk
+    logical :: blk_found
     integer, parameter :: LNMX=100000
 
     character(len=9)  :: rep_stnid
@@ -2873,9 +2891,6 @@ contains
           ref_blk = BURP_Find_Block(rep, BLOCK=blk, SEARCH_FROM=ref_blk, IOSTAT=error)          
           if (ref_blk<0) exit BLOCKS
           
-          encode_blk = .false.
-          convert_blk = .false.
-
           if (modify(k)) then
 
              call BURP_Get_Property(blk, NELE=nele, NVAL=nval, BKSTP=ref_bkstp, IOSTAT=error)
@@ -2904,13 +2919,10 @@ contains
                    end do
                 end do
         
-                encode_blk = .true.
-                convert_blk = .true.
-
              end if
           end if
              
-          call BURP_Write_Block(rep_new, BLOCK=blk, ENCODE_BLOCK=encode_blk, CONVERT_BLOCK=convert_blk, IOSTAT=error)
+          call BURP_Write_Block(rep_new, BLOCK=blk, ENCODE_BLOCK=.true., CONVERT_BLOCK=.true., IOSTAT=error)
          
        end do BLOCKS
        
@@ -5622,7 +5634,7 @@ contains
 
 !----------------------------------------------------------------------------------------
 
-  subroutine chm_obsspace_diagn_add(obs_diagn,lat,lon,pressure,OmP,obs,sigma_obs,nlev_obs,unilevel,status,OmA,sqrtHPHT)
+  subroutine chm_obsspace_diagn_add(obs_diagn,lat,lon,pressure,OmP,obs,sigma_obs,nlev_obs,unilevel,assim_obs,status,OmA,sqrtHPHT)
 !
 ! Author:  M. Sitwell, ARQI/AQRD June 2015
 !          
@@ -5645,6 +5657,7 @@ contains
 !     Jo             cost function
 !     sigma_obs      observation error standard deviation
 !     sqrtHPHT       forecast error standard deviation in obs space
+!     assim_obs      indicates if the profile belongs to an assimilated data set
 !     status         indicates status of the observations, with values denoting:
 !                      0 - observation has been rejected and not included in diagnostics
 !                      1 - observation has been assimilated
@@ -5662,10 +5675,12 @@ contains
     integer, intent(in) :: nlev_obs,status(nlev_obs)
     real(8), intent(in) :: pressure(nlev_obs),OmP(nlev_obs),obs(nlev_obs)
     real(8), intent(in) :: sigma_obs(nlev_obs)
-    logical, intent(in) :: unilevel
+    logical, intent(in) :: unilevel,assim_obs
     real(8), intent(in), optional :: OmA(nlev_obs),sqrtHPHT(nlev_obs)
 
     integer :: ilat,ilon,ilev,ilev_obs
+
+    if (assim_obs) obs_diagn%assim_mode = .true.
 
     ! Put in first/list bin if lat,lon,level lower/higher than diagnostic range
     
@@ -5695,7 +5710,7 @@ contains
        obs_diagn%Jo_stats(ilat,ilon,ilev,2)  = obs_diagn%Jo_stats(ilat,ilon,ilev,2)  + 0.5 * OmP(ilev_obs)**2 / sigma_obs(ilev_obs)**2
 
        if (present(OmA)) then
-
+          
           obs_diagn%OmA_stats(ilat,ilon,ilev,1) = obs_diagn%OmA_stats(ilat,ilon,ilev,1) + OmA(ilev_obs)**2
           obs_diagn%OmA_stats(ilat,ilon,ilev,2) = obs_diagn%OmA_stats(ilat,ilon,ilev,2) + OmA(ilev_obs)
           obs_diagn%Jo_stats(ilat,ilon,ilev,1)  = obs_diagn%Jo_stats(ilat,ilon,ilev,1)  + 0.5 * OmA(ilev_obs)**2 / sigma_obs(ilev_obs)**2
@@ -5709,16 +5724,21 @@ contains
              obs_diagn%diagR_stats(ilat,ilon,ilev,3) = obs_diagn%diagR_stats(ilat,ilon,ilev,3) &
                 + OmA(ilev_obs)/sigma_obs(ilev_obs)
 
-             if (present(sqrtHPHT)) then
-                if (sqrtHPHT(ilev_obs).gt.0.0) then
-                   obs_diagn%diagHPHT_stats(ilat,ilon,ilev,1) = obs_diagn%diagHPHT_stats(ilat,ilon,ilev,1) &
-                        + OmP(ilev_obs)*(OmP(ilev_obs)-OmA(ilev_obs))/sqrtHPHT(ilev_obs)**2
-                   obs_diagn%diagHPHT_stats(ilat,ilon,ilev,2) = obs_diagn%diagHPHT_stats(ilat,ilon,ilev,2) &
-                        + OmP(ilev_obs)/sqrtHPHT(ilev_obs)
-                   obs_diagn%diagHPHT_stats(ilat,ilon,ilev,3) = obs_diagn%diagHPHT_stats(ilat,ilon,ilev,3) &
-                        + (OmP(ilev_obs)-OmA(ilev_obs))/sqrtHPHT(ilev_obs)
-                end if
-             end if
+             !if (present(sqrtHPHT)) then
+             !   if (sqrtHPHT(ilev_obs).gt.0.0) then
+             !      obs_diagn%diagHPHT_stats(ilat,ilon,ilev,1) = obs_diagn%diagHPHT_stats(ilat,ilon,ilev,1) &
+             !           + OmP(ilev_obs)*(OmP(ilev_obs)-OmA(ilev_obs))/sqrtHPHT(ilev_obs)**2
+             !      obs_diagn%diagHPHT_stats(ilat,ilon,ilev,2) = obs_diagn%diagHPHT_stats(ilat,ilon,ilev,2) &
+             !           + OmP(ilev_obs)/sqrtHPHT(ilev_obs)
+             !      obs_diagn%diagHPHT_stats(ilat,ilon,ilev,3) = obs_diagn%diagHPHT_stats(ilat,ilon,ilev,3) &
+             !           + (OmP(ilev_obs)-OmA(ilev_obs))/sqrtHPHT(ilev_obs)
+             !   end if
+             !end if
+
+             ! as sqrtHPHT is currently not available in assimilation mode, temporarily do not divide by sqrtHPHT
+             obs_diagn%diagHPHT_stats(ilat,ilon,ilev,1) = obs_diagn%diagHPHT_stats(ilat,ilon,ilev,1) + OmP(ilev_obs)*(OmP(ilev_obs)-OmA(ilev_obs))
+             obs_diagn%diagHPHT_stats(ilat,ilon,ilev,2) = obs_diagn%diagHPHT_stats(ilat,ilon,ilev,2) + OmP(ilev_obs)
+             obs_diagn%diagHPHT_stats(ilat,ilon,ilev,3) = obs_diagn%diagHPHT_stats(ilat,ilon,ilev,3) + OmP(ilev_obs)-OmA(ilev_obs)
 
           end if
 
@@ -5750,6 +5770,7 @@ contains
     real(8), allocatable :: OmP_global(:,:,:,:), OmA_global(:,:,:,:), obs_global(:,:,:,:), Jo_global(:,:,:,:)
     real(8), allocatable :: diagR_global(:,:,:,:), diagHPHT_global(:,:,:,:)
     integer, allocatable :: counts_global(:,:,:),nstatus_global(:,:,:,:)
+    logical :: assim_global
 
     integer :: nlat,nlon,nlev,nstat,nbin,ierr
 
@@ -5768,7 +5789,7 @@ contains
     allocate(diagHPHT_global(nlat,nlon,nlev,3))
     allocate(counts_global(nlat,nlon,nlev))
     allocate(nstatus_global(nlat,nlon,nlev,0:2))
-         
+    
     ! Reduce from all mpi processes
     call rpn_comm_allreduce(obs_diagn%OmP_stats,OmP_global,nbin*nstat,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
     call rpn_comm_allreduce(obs_diagn%OmA_stats,OmA_global,nbin*nstat,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
@@ -5778,6 +5799,7 @@ contains
     call rpn_comm_allreduce(obs_diagn%diagHPHT_stats,diagHPHT_global,nbin*3,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
     call rpn_comm_allreduce(obs_diagn%counts,counts_global,nbin,"MPI_INTEGER","MPI_SUM","GRID",ierr)
     call rpn_comm_allreduce(obs_diagn%nstatus,nstatus_global,nbin*3,"MPI_INTEGER","MPI_SUM","GRID",ierr)
+    call rpn_comm_allreduce(obs_diagn%assim_mode,assim_global,1,"MPI_LOGICAL","MPI_LOR","GRID",ierr)
 
     ! save in struct_chm_diagn
     obs_diagn%OmP_stats = OmP_global
@@ -5788,9 +5810,10 @@ contains
     obs_diagn%diagHPHT_stats = diagHPHT_global
     obs_diagn%counts = counts_global
     obs_diagn%nstatus = nstatus_global
+    obs_diagn%assim_mode = assim_global
 
     deallocate(OmP_global,OmA_global,obs_global,Jo_global,diagR_global,diagHPHT_global,counts_global,nstatus_global)
-
+    
   end subroutine chm_obsspace_diagn_MPIreduce
 
 !----------------------------------------------------------------------------------------
@@ -5842,7 +5865,7 @@ contains
     
     select case(trim(print_type))
     case('stats','STATS')
-                       
+       
        ! Print observation-space statistics to listing file or to output file obspace_diag_filename.
              
        ! Open and append to output file if requested
@@ -6064,6 +6087,7 @@ contains
       real(8), intent(in) :: Jo_analysis,Jo_backgrnd
 
       real(8) :: Jo_analysis_norm,Jo_backgrnd_norm
+      character(len=100) :: fmt
 
       if (nobs.gt.0) then
          Jo_analysis_norm = 2.*Jo_analysis/nobs
@@ -6073,12 +6097,18 @@ contains
          Jo_backgrnd_norm = 0.0d0
       end if
 
+      if (Jo_analysis.lt.1.0d6.and.Jo_backgrnd.lt.1.0d6) then
+         fmt = '(A,F24.8,A,F24.8)'
+      else
+         fmt = '(A,ES24.8,A,ES24.8)'
+      end if
+
       write(unit,*)
       write(unit,'(A)') " " // title
       write(unit,*)
-      write(unit,'(A,F24.8,A,F24.8)') "   Jo(x_analysis) = ",Jo_analysis," ,   2*Jo(x_analysis)/N = ",Jo_analysis_norm
-      write(unit,'(A,F24.8,A,F24.8)') "   Jo(x_backgrnd) = ",Jo_backgrnd," ,   2*Jo(x_backgrnd)/N = ",Jo_backgrnd_norm
-      write(unit,'(A,I24)')           "                N = ",nobs
+      write(unit,fmt)       "   Jo(x_analysis) = ",Jo_analysis," ,   2*Jo(x_analysis)/N = ",Jo_analysis_norm
+      write(unit,fmt)       "   Jo(x_backgrnd) = ",Jo_backgrnd," ,   2*Jo(x_backgrnd)/N = ",Jo_backgrnd_norm
+      write(unit,'(A,I24)') "                N = ",nobs
       write(unit,*)
 
     end subroutine print_Jo
@@ -6196,7 +6226,9 @@ contains
       ! Purpose: Prints elements contributing to the calc of scaling factors for observation and background
       !          error std. dev. based on the Desroziers approach.
       !
-      ! Revisions: 
+      ! Revisions: M. Sitwell, ARQI/AQRD Aug 2016
+      !            - Changed printing of HPHT stats as HPHT is currently not available
+      !              in assimilation mode.
       ! 
       !---------------------------------------------------------------------------------------
 
@@ -6208,7 +6240,7 @@ contains
 
       integer :: ilev,level,N_assim(obs_diagn%nlev)
       real(8) :: pres1,pres2,sum_prod,sum_OmP,sum_OmA,sum_AmP,scaling
-      
+
       N_assim(:) = 0
 
       write(unit,'(A)') "  Layer     Pressure (hPa)         N_assim   sum[(O-P)(O-A)/var(O)]  sum[(O-P)/sig(O)]  sum[(O-A)/sig(O)]  mean[(O-P)(O-A)/var(O)]-mean[(O-P)/sig(O)]*mean[(O-A)/sig(O)]"
@@ -6241,13 +6273,14 @@ contains
       end do
 
       write(unit,*)
-      write(unit,'(A)') "  Layer     Pressure (hPa)         N_assim   sum[(O-P)(A-P)/var(P)]  sum[(O-P)/sig(P)]  sum[(A-P)/sig(P)]  mean[(O-P)(A-P)/var(P)]-mean[(O-P)/sig(P)]*mean[(A-P)/sig(P)]"
+      !write(unit,'(A)') "  Layer     Pressure (hPa)         N_assim   sum[(O-P)(A-P)/var(P)]  sum[(O-P)/sig(P)]  sum[(A-P)/sig(P)]  mean[(O-P)(A-P)/var(P)]-mean[(O-P)/sig(P)]*mean[(A-P)/sig(P)]"
+      write(unit,'(A)') "  Layer     Pressure (hPa)         N_assim       sum[(O-P)(A-P)]         sum[O-P]           sum[A-P]            mean[(O-P)(A-P)]-mean[O-P]*mean[A-P]"
       write(unit,'(A)') "  -----     --------------         -------   ----------------------  -----------------  -----------------  -------------------------------------------------------------"
 
       do ilev=ilev_start,ilev_end
          
          if (N_assim(ilev).eq.0) cycle
-
+         
          if (ilev.lt.nlev) then
             pres1 = pressure(ilev)
             pres2 = pressure(ilev+1)
@@ -6261,13 +6294,13 @@ contains
          sum_prod = sum(obs_diagn%diagHPHT_stats(ilat_start:ilat_end,ilon_start:ilon_end,ilev,1))
          sum_OmP  = sum(obs_diagn%diagHPHT_stats(ilat_start:ilat_end,ilon_start:ilon_end,ilev,2))
          sum_AmP  = sum(obs_diagn%diagHPHT_stats(ilat_start:ilat_end,ilon_start:ilon_end,ilev,3))
-
-         scaling = sum_prod/N_assim(ilev) - sum_OmP*sum_AmP/N_assim(ilev)**2
-
-         write(unit,'(2X, I3, 2(2X, F11.4), 2X, I9, 11X, ES11.4, 2(8X,ES11.4), 10X, ES11.4)') level,pres1,pres2,N_assim(ilev),sum_prod,sum_OmP,sum_AmP,scaling
-            
-      end do
          
+         scaling = sum_prod/N_assim(ilev) - sum_OmP*sum_AmP/N_assim(ilev)**2
+         
+         write(unit,'(2X, I3, 2(2X, F11.4), 2X, I9, 11X, ES11.4, 2(8X,ES11.4), 10X, ES11.4)') level,pres1,pres2,N_assim(ilev),sum_prod,sum_OmP,sum_AmP,scaling
+         
+      end do
+
       write(unit,*)
 
     end subroutine print_Desroziers
@@ -6990,7 +7023,7 @@ contains
         exp_T = exp_T-1 ! divide by T
         exp_P = exp_P+1 ! multiply by P
 
-     case(15026,15008,15197,15208,1300) ! 1300 ??
+     case(15026,15008,15197,15208,1300)
 
         ! For conversion from ug/kg to vmr
            
