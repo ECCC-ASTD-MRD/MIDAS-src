@@ -142,11 +142,11 @@ module chem_mod
      module procedure float2str
   end interface str
 
-  ! interface for generating obsdata loctime codes from (lat,long,date,hhmm)
-  interface obsdata_get_loctime_code
-     module procedure obsdata_get_loctime_code_i
-     module procedure obsdata_get_loctime_code_r
-  end interface obsdata_get_loctime_code
+  ! interface for generating obsdata BURP header codes from (lat,long,date,hhmm,stnid)
+  interface obsdata_get_header_code
+     module procedure obsdata_get_header_code_i
+     module procedure obsdata_get_header_code_r
+  end interface obsdata_get_header_code
 
 ! module structures
 ! -----------------
@@ -277,7 +277,7 @@ module chem_mod
      !                               The latter is for associations of data identified within
      !                               processing of individual CPUs. Each of the two index identifiers is represented 
      !                               by the unique character string identifier 'code' of struct_chm_obsdata
-     !                               (e.g. see obsdata_get_loctime_code_r for use of (lat,long,date,hhmm)).
+     !                               (e.g. see obsdata_get_header_code_r for use of (lat,long,date,hhmm,stnid)).
      !  vco                    Index of vertical coord type for obs
      !                           1 - Altitudes (m)
      !                           2 - Pressure (Pa)
@@ -1332,7 +1332,7 @@ contains
 
 !-----------------------------------------------------------------------------------------
 
-  subroutine chm_get_avgkern(istnid,nlev,zlat,zlon,idate,itime,avg_kern)
+  subroutine chm_get_avgkern(istnid,stnid,nlev,zlat,zlon,idate,itime,avg_kern)
 !
 ! Author  : M. Sitwell, March 2015
 ! Revision: 
@@ -1353,6 +1353,7 @@ contains
 
     integer, intent(in)  :: istnid,nlev,idate,itime
     real(8), intent(in)  :: zlat,zlon
+    character(len=*), intent(in) :: stnid
     real(8), intent(out) :: avg_kern(nlev,nlev)
     integer :: start_index,end_index
 
@@ -1365,7 +1366,7 @@ contains
           avg_kern = RESHAPE(chm_avgkern%rak(start_index:end_index),(/nlev,nlev/),ORDER =(/2,1/))
        else
           ! get averaging kernel from BURP file
-          avg_kern = obsdata_get_array2d(chm_burp_avgkern(istnid), obsdata_get_loctime_code(zlon,zlat,idate,itime))
+          avg_kern = obsdata_get_array2d(chm_burp_avgkern(istnid), obsdata_get_header_code(zlon,zlat,idate,itime,stnid))
        end if
 
     else
@@ -2433,7 +2434,7 @@ contains
           
        ! Adjust error standard deviations read from BURP file if requested.
        
-       sigma = obsdata_get_element(chm_burp_std(istnid), obsdata_get_loctime_code(zlon,zlat,idate,itime), ilev, stat=stat)
+       sigma = obsdata_get_element(chm_burp_std(istnid), obsdata_get_header_code(zlon,zlat,idate,itime,cstnid), ilev, stat=stat)
 
        select case(stat)
        case(1)
@@ -2629,7 +2630,7 @@ contains
                                          ') for STNID ' // rep_stnid )
 
           icount=icount+1
-          burp_out%code(icount) = obsdata_get_loctime_code(ilon,ilat,date,time)  ! this code is a unique identifier for this report
+          burp_out%code(icount) = obsdata_get_header_code(ilon,ilat,date,time,rep_stnid)  ! this code is a unique identifier for this report
 
           if (ndim.eq.1) then
              ! retrieve 1D data
@@ -2722,7 +2723,7 @@ contains
 
 !-----------------------------------------------------------------------------------------
 
-  function chm_update_burp(filename,varno,bkstp,block_type,obsdata,stnid,multi) result(nrep_modified)
+  function chm_update_burp(filename,varno,bkstp,block_type,obsdata,multi) result(nrep_modified)
 !
 ! Author  : Y. Rochon, ARQI/AQRD, June 2016
 !           - Partly based on chm_read_burp by M. Sitwell.
@@ -2746,9 +2747,6 @@ contains
 !                         of bknat. Valid values are 'DATA', 'INFO', '3-D',
 !                         and 'MRQR'.
 !           obsdata       Input struct_chm_obsdata object for varno.
-!           stnid         station ID (optional)
-!                         if present, burp_in%code = (lat,long,date,time)
-!                         otherwise, burp_in%code = (lat,long,date,time,stnid)
 !           multi         Indicates in intended report are for 'UNI' or 'MULTI' level data (optional)
 !
 !
@@ -2776,13 +2774,13 @@ contains
     type(struct_chm_obsdata), intent(inout) :: obsdata
     integer, intent(in) :: varno(:),bkstp
     
-    character(len=*), intent(in), optional :: stnid,multi
+    character(len=*), intent(in), optional :: multi
 
     integer :: nrep_modified,ncount
     logical :: blk_found
     integer, parameter :: LNMX=100000
 
-    character(len=9)  :: rep_stnid
+    character(len=9)  :: stnid
     character(len=code_len) :: code
     type(burp_file)   :: brp
     type(burp_rpt)    :: rep,rep_new
@@ -2844,17 +2842,12 @@ contains
        ncount=ncount+1
        address(ncount)=ref_rpt
 
-       call BURP_Get_Property(rep, STNID=rep_stnid, DATE=date, TEMPS=time, LATI=ilat, LONG=ilon)
+       call BURP_Get_Property(rep, STNID=stnid, DATE=date, TEMPS=time, LATI=ilat, LONG=ilon)
 
-       if (rep_stnid(1:2).eq.'>>') cycle REPORTS1
+       if (stnid(1:2).eq.'>>') cycle REPORTS1
 
-       ! Set unique identifier for search from input data
-       if (present(stnid)) then
-          if (trim(rep_stnid).ne.stnid) cycle REPORTS1
-          code = obsdata_get_loctime_code(ilon,ilat,date,time)
-       else 
-          code = trim(obsdata_get_loctime_code(ilon,ilat,date,time))//trim(rep_stnid)
-       end if
+       ! Get unique identifier for search from input data
+       code = obsdata_get_header_code(ilon,ilat,date,time,stnid)
        
        ! Determine if replacement/additional data likely present for this report
        if (dim1.eq.1.and.dim2.eq.1) then
@@ -3240,11 +3233,13 @@ contains
     
 !-------------------------------------------------------------------------------------------
 
-  function obsdata_get_loctime_code_i(ilon,ilat,date,time) result(code)
+  function obsdata_get_header_code_i(ilon,ilat,date,time,stnid) result(code)
 ! 
-!  Purpose: Generates a unique 22 character code corresponding to lon,lat,date,time. To be
-!           used for setting the unique identifier 'code' in struct_chm_obsdata. Can be
-!           called under the interface obsdata_get_loctime_code.
+!  Purpose: Generates a string code to identify an obervation by the header information in
+!           a BURP report. The BURP header information is saved as a string in the form  
+!           LON--LAT--YYYYMMDDHHMMSTNID----. Intention of this function is to be used for
+!           setting the unique identifier 'code' in struct_chm_obsdata. Can be called under
+!           the interface obsdata_get_header_code.
 !
 !  Author: M. Sitwell, April 2016
 !    
@@ -3253,6 +3248,7 @@ contains
 !           ilat          latitude integer
 !           date          date in YYYYMMDD
 !           time          time in HHMM
+!           stnid         station ID
 !
 !  Output
 !           code          unique code
@@ -3262,7 +3258,9 @@ contains
     implicit none
 
     integer, intent(in) :: ilon,ilat,date,time
-    character(len=22)   :: code
+    character(len=*), intent(in) :: stnid
+    character(len=code_len) :: code
+    integer :: len_stnid
 
     if (ilon.gt.0) then
        write(code(1:5),'(I5.5)') ilon
@@ -3274,15 +3272,19 @@ contains
     write(code(11:18),'(I8.8)') date
     write(code(19:22),'(I4.4)') time
 
-  end function obsdata_get_loctime_code_i
+    write(code(23:code_len),'(A)') stnid(1:min(len_trim(stnid),code_len-22))
+
+  end function obsdata_get_header_code_i
 
 !-------------------------------------------------------------------------------------------
 
-  function obsdata_get_loctime_code_r(lon,lat,date,time) result(code)
+  function obsdata_get_header_code_r(lon,lat,date,time,stnid) result(code)
 ! 
-!  Purpose: Generates a unique 22 character code corresponding to lon,lat,date,time. To be
-!           used for setting the unique identifier 'code' in struct_chm_obsdata. Can be
-!           called under the interface obsdata_get_loctime_code.
+!  Purpose: Generates a string code to identify an obervation by the header information in
+!           a BURP report. The BURP header information is saved as a string in the form  
+!           LON--LAT--YYYYMMDDHHMMSTNID----. Intention of this function is to be used for
+!           setting the unique identifier 'code' in struct_chm_obsdata. Can be called under
+!           the interface obsdata_get_header_code.
 !
 !  Author: M. Sitwell, April 2016
 !    
@@ -3291,6 +3293,7 @@ contains
 !           lat           latitude real (radians)
 !           date          date in YYYYMMDD
 !           time          time in HHMM
+!           stnid         station ID
 !
 !  Output
 !           code          unique code
@@ -3303,15 +3306,16 @@ contains
 
     real(8), intent(in) :: lon,lat
     integer, intent(in) :: date,time
-    character(len=22)   :: code
+    character(len=*), intent(in) :: stnid
+    character(len=code_len) :: code
     integer :: ilon,ilat
     
     ilon = nint(100*(lon/MPC_RADIANS_PER_DEGREE_R8))
     ilat = nint(100*(90. + lat/MPC_RADIANS_PER_DEGREE_R8))
 
-    code = obsdata_get_loctime_code_i(ilon,ilat,date,time)
+    code = obsdata_get_header_code_i(ilon,ilat,date,time,stnid)
 
-  end function obsdata_get_loctime_code_r
+  end function obsdata_get_header_code_r
 
 !----------------------------------------------------------------------------------------
 
@@ -6570,7 +6574,7 @@ contains
 
      allocate(avg_kern(obsoper%nobslev,obsoper%nobslev))
      
-     call chm_get_avgkern(obsoper%iavgkern,obsoper%nobslev,obsoper%lat,obsoper%lon,obsoper%date,obsoper%hhmm,avg_kern)
+     call chm_get_avgkern(obsoper%iavgkern,obsoper%stnid,obsoper%nobslev,obsoper%lat,obsoper%lon,obsoper%date,obsoper%hhmm,avg_kern)
      obsoper%zh = matmul(avg_kern,obsoper%zh)
      if (obsoper%apply_genoper) obsoper%zhp = matmul(avg_kern,obsoper%zhp)
 
@@ -6606,7 +6610,7 @@ contains
                 temp_eff(1)=dot_product(obsoper%zh(1,obsoper%lvl_top(1):obsoper%lvl_bot(1)), &
                         obsoper%tt(obsoper%lvl_top(1):obsoper%lvl_bot(1))*model_col(obsoper%lvl_top(1):obsoper%lvl_bot(1))) &
                         /obs_col(1)
-                code = obsdata_get_loctime_code(obsoper%lon,obsoper%lat,obsoper%date,obsoper%hhmm) // obsoper%stnid
+                code = obsdata_get_header_code(obsoper%lon,obsoper%lat,obsoper%date,obsoper%hhmm,obsoper%stnid)
                 call obsdata_add_data1d(chm_efftemp,temp_eff,code)
              end if
           end if
