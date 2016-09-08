@@ -1501,7 +1501,7 @@ MODULE gridStateVector_mod
 
     ! do the vertical interpolation
     field_out => gsv_getField_r8(statevector_out,varName)
-    field_out(:,:,:,:) = 0.0d0
+    field_out(:,:,:,indexStep) = 0.0d0
     nlev_out = vco_getNumLev(statevector_out%vco, vnl_varLevelFromVarname(varName))
     nlev_in  = vco_getNumLev(vco_in,              vnl_varLevelFromVarname(varName))
     do jlat = statevector_out%myLatBeg, statevector_out%myLatEnd
