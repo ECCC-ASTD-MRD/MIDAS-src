@@ -15,6 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 MODULE BMatrix_mod
+  use mpivar_mod
   use bMatrixHI
   use bMatrixEnsemble
   use controlVector_mod
@@ -68,7 +69,7 @@ contains
     cvdimens = 0
 
     !- 2.1 Time-Mean Homogeneous and Isotropic...
-    if ( hco_anl % global ) then
+    if ( hco_anl%global ) then
       write(*,*)
       write(*,*) 'Setting up the modular GLOBAL HI covariances...'
       call bhi_Setup( hco_anl, vco_anl_in, & ! IN
@@ -134,7 +135,7 @@ contains
     call gsv_setVco(statevector_temp, gsv_getVco(statevector))
     call gsv_setHco(statevector_temp, hco_anl)
     call gsv_allocate(statevector_temp,&
-                      statevector % numStep, mpi_local=.true.)
+                      statevector%numStep, mpi_local=.true.)
     call gsv_zero(statevector_temp)
 
     !- 2.2 Compute 3D contribution to increment from BmatrixHI
@@ -142,7 +143,7 @@ contains
     cvBhi => cvm_getSubVector(da_v,1)
 
     if ( associated(cvBhi) ) then
-      if ( statevector % hco % global ) then
+      if ( statevector%hco%global ) then
         !- 2.2.1 Global mode 
         call bhi_bsqrt( cvBhi,      & ! IN
                         statevector ) ! OUT
@@ -180,11 +181,11 @@ contains
     !           to error covariance space.
     !
     integer :: na_vdim
-    real*8 :: da_v(na_vdim)
-    real*8,pointer :: cvBhi(:),cvBen(:)
+    real(8) :: da_v(na_vdim)
+    real(8),pointer :: cvBhi(:),cvBen(:)
     type(struct_gsv) :: statevector
 
-    if ( statevector % hco % global ) then
+    if ( statevector%hco%global ) then
       !- 1.1 Adjoint of the identity (change of norm)
       call adjnorm(statevector)
     end if
@@ -206,7 +207,7 @@ contains
       !- 1.4.1 adjoint of copy 3D increment to 4D increment
       call gsv_3dto4dAdj(statevector)
 
-      if ( statevector % hco % global ) then
+      if ( statevector%hco%global ) then
         !- 1.4.2 add contribution to gradient from GLOBAL BmatrixHI
         call bhi_bsqrtad( statevector, & ! IN
                           cvBhi )        ! OUT
@@ -234,22 +235,22 @@ contains
 
     real(8), allocatable :: rwtinv(:)
 
-    real*8, pointer :: ptr(:,:,:,:)
+    real(8), pointer :: ptr(:,:,:,:)
     
-    lon1 = statevector % myLonBeg
-    lon2 = statevector % myLonEnd
-    lat1 = statevector % myLatBeg
-    lat2 = statevector % myLatEnd
+    lon1 = statevector%myLonBeg
+    lon2 = statevector%myLonEnd
+    lat1 = statevector%myLatBeg
+    lat2 = statevector%myLatEnd
 
     allocate(rwtinv(lat1:lat2))
     do jlat = lat1, lat2
-      rwtinv(jlat) = real(statevector % ni,8) / gst_getRWT(jlat)
+      rwtinv(jlat) = real(statevector%ni,8) / gst_getRWT(jlat)
     enddo
 
     ptr => gsv_getField_r8(statevector)
 !$OMP PARALLEL DO PRIVATE (jlat,jstep,jlev,jlon)
-    do jlev = 1, statevector % nk
-      do jstep = 1, statevector % numStep
+    do jlev = 1, statevector%nk
+      do jstep = 1, statevector%numStep
         do jlat = lat1, lat2
           do jlon = lon1, lon2
             ptr(jlon,jlat,jlev,jstep) = rwtinv(jlat) * ptr(jlon,jlat,jlev,jstep)
@@ -266,7 +267,7 @@ contains
 !--------------------------------------------------------------------------
   SUBROUTINE bmat_finalize(da_v)
     implicit none
-    real*8 :: da_v(:)
+    real(8) :: da_v(:)
     !
     !- Purpose: Releases memory used by B matrices.
     !
@@ -274,7 +275,7 @@ contains
 
     cvBhi => cvm_getSubVector(da_v,1)
     if ( associated(cvBhi) ) then
-      if ( hco_anl % global ) then
+      if ( hco_anl%global ) then
         call bhi_finalize()
       else
         call lbhi_finalize
@@ -291,26 +292,35 @@ contains
 !--------------------------------------------------------------------------
   SUBROUTINE BMAT_reduceToMPILocal(cv_mpilocal,cv_mpiglobal,cvDim_mpilocal_out)
     implicit none
-    real*8  :: cv_mpilocal(:)
-    real*8  :: cv_mpiglobal(:)
-    integer :: cvDim_mpilocal_out
+    real(8), intent(out) :: cv_mpilocal(:)
+    real(8), intent(in)  :: cv_mpiglobal(:)
+    integer, intent(out) :: cvDim_mpilocal_out
 
     integer :: cvDim_Bhi_mpilocal,cvDim_Ben_mpilocal
-    real*8,pointer :: cvBhi_mpilocal(:),cvBen_mpilocal(:)
-    real*8,pointer :: cvBhi_mpiglobal(:),cvBen_mpiglobal(:)
+
+    real(8),pointer :: cvBhi_mpilocal(:) ,cvBen_mpilocal(:)
+    real(8),pointer :: cvBhi_mpiglobal(:),cvBen_mpiglobal(:)
 
     cvBhi_mpilocal =>cvm_getSubVector(cv_mpilocal,1)
-    cvBhi_mpiglobal=>cvm_getSubVector_mpiglobal(cv_mpiglobal,1)
+    if (mpi_myid == 0) then
+       cvBhi_mpiglobal=>cvm_getSubVector_mpiglobal(cv_mpiglobal,1)
+    else
+       cvBhi_mpiglobal=>null()
+    end if
     if(associated(cvBhi_mpilocal)) then
-      if ( hco_anl % global ) then 
-         call bhi_reduceToMPILocal(cvBhi_mpilocal,cvBhi_mpiglobal,cvDim_Bhi_mpilocal)
+      if ( hco_anl%global ) then 
+         call bhi_reduceToMPILocal (cvBhi_mpilocal,cvBhi_mpiglobal,cvDim_Bhi_mpilocal)
       else
          call lbhi_reduceToMPILocal(cvBhi_mpilocal,cvBhi_mpiglobal,cvDim_Bhi_mpilocal)
       end if
     endif
 
     cvBen_mpilocal =>cvm_getSubVector(cv_mpilocal,2)
-    cvBen_mpiglobal=>cvm_getSubVector_mpiglobal(cv_mpiglobal,2)
+    if (mpi_myid == 0) then
+       cvBen_mpiglobal=>cvm_getSubVector_mpiglobal(cv_mpiglobal,2)
+    else
+       cvBen_mpiglobal=>null()
+    end  if
     if(associated(cvBen_mpilocal)) then
        call ben_reduceToMPILocal(cvBen_mpilocal,cvBen_mpiglobal,cvDim_Ben_mpilocal)
     end if
@@ -324,19 +334,25 @@ contains
 !--------------------------------------------------------------------------
   SUBROUTINE BMAT_expandToMPIGlobal(cv_mpilocal,cv_mpiglobal,cvDim_mpiglobal_out)
     implicit none
-    real*8  :: cv_mpilocal(:)
-    real*8  :: cv_mpiglobal(:)
-    integer :: cvDim_mpiglobal_out
+
+    real(8), intent(in)  :: cv_mpilocal(:)
+    real(8), intent(out) :: cv_mpiglobal(:)
+    integer, intent(out) :: cvDim_mpiglobal_out
 
     integer :: cvDim_Bhi_mpiglobal,cvDim_Ben_mpiglobal
-    real*8,pointer :: cvBhi_mpilocal(:),cvBen_mpilocal(:)
-    real*8,pointer :: cvBhi_mpiglobal(:),cvBen_mpiglobal(:)
+
+    real(8), pointer :: cvBhi_mpilocal(:) ,cvBen_mpilocal(:)
+    real(8), pointer :: cvBhi_mpiglobal(:),cvBen_mpiglobal(:)
 
     cvBhi_mpilocal =>cvm_getSubVector(cv_mpilocal,1)
-    cvBhi_mpiglobal=>cvm_getSubVector_mpiglobal(cv_mpiglobal,1)
+    if (mpi_myid == 0) then
+       cvBhi_mpiglobal=>cvm_getSubVector_mpiglobal(cv_mpiglobal,1)
+    else
+       cvBhi_mpiglobal=>null()
+    end if
     if(associated(cvBhi_mpilocal)) then
-      if ( hco_anl % global ) then
-         call bhi_expandToMPIGlobal(cvBhi_mpilocal,cvBhi_mpiglobal,cvDim_Bhi_mpiglobal)
+      if ( hco_anl%global ) then
+         call bhi_expandToMPIGlobal (cvBhi_mpilocal,cvBhi_mpiglobal,cvDim_Bhi_mpiglobal)
       else
          call lbhi_expandToMPIGlobal(cvBhi_mpilocal,cvBhi_mpiglobal,cvDim_Bhi_mpiglobal)
       end if
@@ -345,7 +361,11 @@ contains
     cvDim_Ben_mpiglobal = 0
 
     cvBen_mpilocal =>cvm_getSubVector(cv_mpilocal,2)
-    cvBen_mpiglobal=>cvm_getSubVector_mpiglobal(cv_mpiglobal,2)
+    if (mpi_myid == 0) then
+       cvBen_mpiglobal=>cvm_getSubVector_mpiglobal(cv_mpiglobal,2)
+    else
+       cvBen_mpiglobal=>null()
+    end if
     if(associated(cvBen_mpilocal)) then
        call ben_expandToMPIGlobal(cvBen_mpilocal,cvBen_mpiglobal,cvDim_Ben_mpiglobal)
     endif

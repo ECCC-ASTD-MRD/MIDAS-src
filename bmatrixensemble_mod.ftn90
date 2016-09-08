@@ -190,13 +190,13 @@ CONTAINS
     nulnam = 0
     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=namben,iostat=ierr)
-    if(ierr.ne.0) call abort3d('ben_setup: Error reading namelist')
-    if(mpi_myid.eq.0) write(*,nml=namben)
+    if (ierr.ne.0) call abort3d('ben_setup: Error reading namelist')
+    if (mpi_myid == 0) write(*,nml=namben)
     ierr = fclos(nulnam)
 
     ! If zero weight, skip rest of setup
     if ( sum(scaleFactor(:)) == 0.0d0 ) then
-      if(mpi_myid.eq.0) write(*,*) 'bmatrixEnsemble: scaleFactor=0, skipping rest of setup'
+      if (mpi_myid == 0) write(*,*) 'bmatrixEnsemble: scaleFactor=0, skipping rest of setup'
       cvdim_out = 0
       initialized = .true.
       return
@@ -214,8 +214,8 @@ CONTAINS
     if ( present(mode) ) then
        if ( trim(mode) == 'Analysis' .or. trim(mode) == 'BackgroundCheck') then
          ben_mode = trim(mode)
-         if(mpi_myid.eq.0) write(*,*)
-         if(mpi_myid.eq.0) write(*,*) 'bmatrixEnsemble: Mode activated = ', trim(ben_mode)
+         if (mpi_myid == 0) write(*,*)
+         if (mpi_myid == 0) write(*,*) 'bmatrixEnsemble: Mode activated = ', trim(ben_mode)
        else
           write(*,*)
           write(*,*) 'mode = ', trim(mode)
@@ -223,21 +223,21 @@ CONTAINS
        end if
     else
        ben_mode = 'Analysis'
-       if(mpi_myid.eq.0) write(*,*)
-       if(mpi_myid.eq.0) write(*,*) 'bmatrixEnsemble: Analysis mode activated (by default)'
+       if (mpi_myid == 0) write(*,*)
+       if (mpi_myid == 0) write(*,*) 'bmatrixEnsemble: Analysis mode activated (by default)'
     end if
 
     !- 2.2 Global or LAM?
     if (hco_ben%global) then
-      if(mpi_myid.eq.0) write(*,*)
-      if(mpi_myid.eq.0) write(*,*) 'bmatrixEnsemble: GLOBAL mode activated'
+      if (mpi_myid == 0) write(*,*)
+      if (mpi_myid == 0) write(*,*) 'bmatrixEnsemble: GLOBAL mode activated'
     else
-      if(mpi_myid.eq.0) write(*,*)
-      if(mpi_myid.eq.0) write(*,*) 'bmatrixEnsemble: LAM mode activated'
+      if (mpi_myid == 0) write(*,*)
+      if (mpi_myid == 0) write(*,*) 'bmatrixEnsemble: LAM mode activated'
     endif
 
     !- 2.3 Number of time bins
-    if(numTime_in.eq.1.or.numTime_in.eq.3.or.numTime_in.eq.5.or.numTime_in.eq.7) then
+    if (numTime_in == 1.or.numTime_in == 3.or.numTime_in == 5.or.numTime_in == 7) then
       numTime = numTime_in
     else
       call abort3d('Invalid value for NUMTIME (choose 1 or 3 or 5 or 7)!')
@@ -249,7 +249,7 @@ CONTAINS
     ierr = newdate(stamp_last,ndate,ntime,-3)
     write(datestr_last,'(i8.8)') ndate
     write(hourstr_last,'(i2.2)') ntime/1000000
-    if(mpi_myid.eq.0) write(*,*) 'DATE,TIME=',ndate,'  ,',ntime
+    if (mpi_myid == 0) write(*,*) 'DATE,TIME=',ndate,'  ,',ntime
     allocate(dateStampList(numTime))
     call tim_getstamplist(dateStampList,numTime,stamp_in)
 
@@ -258,14 +258,14 @@ CONTAINS
     ensFileName = trim(enspathname) // '/' // trim(ensfilebasename) // &
                trim(datestr_last) // trim(hourstr_last) // '_006_' // trim(ensNumber)
     inquire(file=ensFileName,exist=lExists)
-    if(lExists) then
+    if (lExists) then
       ensembleFileExtLength = 4
     else
       write(ensNumber,'(i3.3)') 1
       ensFileName = trim(enspathname) // '/' // trim(ensfilebasename) // &
                  trim(datestr_last) // trim(hourstr_last) // '_006_' // trim(ensNumber)
       inquire(file=ensFileName,exist=lExists)
-      if(lExists) then
+      if (lExists) then
         ensembleFileExtLength = 4
       else 
         call abort3d('ben_setup: could not determine file extension length')
@@ -291,13 +291,13 @@ CONTAINS
     allocate(nip1_T(nLevEns_T),stat=ierr)
     nip1_T(1:nLevEns_T) = vco_anl%ip1_T(topLevIndex_T:nLevInc_T)
 
-    if(Vcode_anl .eq. 5002) then
-      if(nLevEns_T.ne.(nLevEns_M+1)) then
+    if (Vcode_anl == 5002) then
+      if (nLevEns_T.ne.(nLevEns_M+1)) then
         write(*,*) 'bmatrixEnsemble: nLevEns_T, nLevEns_M = ',nLevEns_T,nLevEns_M
         call abort3d('bmatrixEnsemble: Vcode=5002, nLevEns_T must equal nLevEns_M+1!')
       endif
-    elseif(Vcode_anl .eq. 5004) then
-      if(nLevEns_T.ne.nLevEns_M) then
+    elseif (Vcode_anl == 5004) then
+      if (nLevEns_T.ne.nLevEns_M) then
         write(*,*) 'bmatrixEnsemble: nLevEns_T, nLevEns_M = ',nLevEns_T,nLevEns_M
         call abort3d('bmatrixEnsemble: Vcode=5004, nLevEns_T must equal nLevEns_M!')
       endif
@@ -306,34 +306,34 @@ CONTAINS
       call abort3d('bmatrixEnsemble: unknown vertical coordinate type!')
     endif
 
-    if(nLevEns_M.gt.nLevInc_M) then
+    if (nLevEns_M.gt.nLevInc_M) then
       call abort3d('bmatrixEnsemble: ensemble has more levels than increment - not allowed!')
     endif
 
-    if(nLevEns_M.lt.nLevInc_M) then
-      if(mpi_myid.eq.0) write(*,*) 'bmatrixEnsemble: ensemble has less levels than increment'
-      if(mpi_myid.eq.0) write(*,*) '                 some levels near top will have zero increment'
+    if (nLevEns_M.lt.nLevInc_M) then
+      if (mpi_myid == 0) write(*,*) 'bmatrixEnsemble: ensemble has less levels than increment'
+      if (mpi_myid == 0) write(*,*) '                 some levels near top will have zero increment'
     endif
 
     !- 2.7 Bmatrix Weight
     allocate(scaleFactor_M(nLevEns_M))
     allocate(scaleFactor_T(nLevEns_T))
     do jlev = 1, nLevEns_T
-      if(scaleFactor(jlev).gt.0.0d0) then 
+      if (scaleFactor(jlev).gt.0.0d0) then 
         scaleFactor(jlev) = sqrt(scaleFactor(jlev))
       else
         scaleFactor(jlev) = 0.0d0
       endif
     enddo
     scaleFactor_T(1:nLevEns_T) = scaleFactor(1:nLevEns_T)
-    if(Vcode_anl .eq. 5002) then
+    if (Vcode_anl == 5002) then
       scaleFactor_M(1:nLevEns_M) = scaleFactor(2:(nLevEns_M+1))
     else
       scaleFactor_M(1:nLevEns_M) = scaleFactor(1:nLevEns_M)
     endif
 
     do jlev = 1, nLevEns_T
-      if(scaleFactorHumidity(jlev).gt.0.0d0) then 
+      if (scaleFactorHumidity(jlev).gt.0.0d0) then 
         scaleFactorHumidity(jlev) = sqrt(scaleFactorHumidity(jlev))
       else
         scaleFactorHumidity(jlev) = 0.0d0
@@ -350,7 +350,7 @@ CONTAINS
         nla_mpiglobal = (ntrunc+1)*(ntrunc+2)/2
 
         gstID = gst_setup(ni,nj,ntrunc,nLevEns_M)
-        if(mpi_myid.eq.0) write(*,*) 'BEN : returned value of gstID = ',gstID
+        if (mpi_myid == 0) write(*,*) 'BEN : returned value of gstID = ',gstID
 
       else
 
@@ -359,7 +359,7 @@ CONTAINS
                         ni, nj, hco_ben%dlon, ntrunc,   & ! IN
                         'LatLonMN', nLevEns_M )             ! IN
 
-        if(mpi_myid.eq.0) write(*,*) 'BEN : returned value of lstID = ', lst_ben%id
+        if (mpi_myid == 0) write(*,*) 'BEN : returned value of lstID = ', lst_ben%id
         nphase       = lst_ben%nphase
         nla_mpilocal = lst_ben%nla
 
@@ -388,12 +388,12 @@ CONTAINS
     if ( trim(ben_mode) == 'Analysis' ) then
       call loc_setup('FifthOrder') ! IN
       if (trim(LocalizationType) == 'LevelDependent') then
-         if(mpi_myid.eq.0) write(*,*)
-         if(mpi_myid.eq.0) write(*,*) 'bmatrixEnsemble: Level-Dependent (Standard) localization will be used'
+         if (mpi_myid == 0) write(*,*)
+         if (mpi_myid == 0) write(*,*) 'bmatrixEnsemble: Level-Dependent (Standard) localization will be used'
          nWaveBand = 1
       else if (trim(LocalizationType) == 'ScaleDependent') then
-         if(mpi_myid.eq.0) write(*,*)
-         if(mpi_myid.eq.0) write(*,*) 'bmatrixEnsemble: Scale-Dependent localization will be used'
+         if (mpi_myid == 0) write(*,*)
+         if (mpi_myid == 0) write(*,*) 'bmatrixEnsemble: Scale-Dependent localization will be used'
          nWaveBand = count(waveBandPeaks .ge. 0)
          if ( nWaveBand <= 1 ) then
             call abort3d('ben_setup: nWaveBand <= 1')
@@ -436,7 +436,7 @@ CONTAINS
       zps = 101000.D0
       status = vgd_levels( vco_anl%vgrid, ip1_list=vco_anl%ip1_M, levels=pressureProfileInc_M, &
                            sfc_field=zps, in_log=.false.)
-      if(status /= VGD_OK)then
+      if (status /= VGD_OK)then
         call abort3d('ben_setup: ERROR from vgd_levels')
       end if
 
@@ -492,8 +492,8 @@ CONTAINS
 
         do jm = mymBeg, mymEnd, mymSkip
           do jn = mynBeg, mynEnd, mynSkip
-            if(jm.le.jn) then
-              if(jm.eq.0) then
+            if (jm.le.jn) then
+              if (jm == 0) then
                 ! controlVector only contains real part for jm=0
                 cvDim_mpilocal = cvDim_mpilocal + 1*nLevEns_M*nEns
               else
@@ -633,7 +633,7 @@ CONTAINS
     allocate(gd_recv_r4(lonPerPE,latPerPE,nkgdimEns,mpi_nprocs))
 
     allocate(ensPerts(nWaveBand,nEns),stat=ierr)
-    if(ierr.ne.0) then
+    if (ierr.ne.0) then
       write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=7.1',ierr
       call abort3d('aborting in ben setupEnsemble')
     endif
@@ -664,7 +664,7 @@ CONTAINS
     if (status.gt.1) then
       write(*,*) 'ben_setupEnsemble: Problem when getting the environment variable envar_memberIndexOffset'
       memberIndexOffset = 0
-    elseif (status.eq.1) then
+    elseif (status == 1) then
       memberIndexOffset = 0
     else
       write(*,*) 'ben_setupEnsemble: The environment variable envar_memberIndexOffset has been detected: ',envVariable
@@ -677,7 +677,7 @@ CONTAINS
     if (status.gt.1) then
       write(*,*) 'ben_setupEnsemble: Problem when getting the environment variable envar_totalEnsembleSize'
       totalEnsembleSize = nEns
-    elseif (status.eq.1) then
+    elseif (status == 1) then
       totalEnsembleSize = nEns
     else
       write(*,*) 'ben_setupEnsemble: The environment variable envar_totalEnsembleSize has been detected: ',envVariable
@@ -685,7 +685,7 @@ CONTAINS
       write(*,*) 'totalEnsembleSize = ',totalEnsembleSize
     endif
 
-    if(mpi_myid.eq.0) write(*,*) 'dateStampList=',dateStampList(1:numTime)
+    if (mpi_myid == 0) write(*,*) 'dateStampList=',dateStampList(1:numTime)
 
     !
     !- 2.  Ensemble forecasts reading loop
@@ -713,12 +713,12 @@ CONTAINS
     do jt = 1, numTime
       do memberIndex = 1, nEns
 
-        if (mpi_myid.eq.readFilePE(memberIndex)) then
+        if (mpi_myid == readFilePE(memberIndex)) then
 
           !  2.1.1 open the file
-          if(ensembleFileExtLength == 4) then
+          if (ensembleFileExtLength == 4) then
             write(ensNumber,'(i4.4)') 1+mod(memberIndex+memberIndexOffset-1, totalEnsembleSize)
-          elseif(ensembleFileExtLength == 3) then
+          elseif (ensembleFileExtLength == 3) then
             write(ensNumber,'(i3.3)') 1+mod(memberIndex+memberIndexOffset-1, totalEnsembleSize)
           else
             write(*,*) 'ben setupEnsemble: ensembleFileExtLength = ', ensembleFileExtLength
@@ -727,7 +727,7 @@ CONTAINS
           ensFileName = trim(enspathname) // '/' // trim(ensfilebasename) // &
                      trim(datestr_last) // trim(hourstr_last) // '_006_' // trim(ensNumber)
           inquire(file=ensFileName,exist=lExists)
-          if(lExists) then
+          if (lExists) then
             kulin = 0
             ierr = fnom(kulin,ensFileName,'RND+OLD+R/O',0)
           else
@@ -770,7 +770,7 @@ CONTAINS
 
             if (trim(vnl_varNameList(jvar)) == 'P0') then
               multfactor = MPC_PA_PER_MBAR_R8
-            elseif(trim(vnl_varNameList(jvar)) == 'UU' .or. trim(vnl_varNameList(jvar)) == 'VV') then 
+            elseif (trim(vnl_varNameList(jvar)) == 'UU' .or. trim(vnl_varNameList(jvar)) == 'VV') then 
               multfactor = MPC_M_PER_S_PER_KNOT_R8
             else
               multfactor = 1.0D0
@@ -778,9 +778,9 @@ CONTAINS
 
             !  Loop on level
             do jk = 1, nlev
-              if     ( vnl_varLevelFromVarname(vnl_varNameList(jvar)) .eq. 'MM' ) then
+              if     ( vnl_varLevelFromVarname(vnl_varNameList(jvar)) == 'MM' ) then
                 ip1 = nip1_M(jk)
-              elseif ( vnl_varLevelFromVarname(vnl_varNameList(jvar)) .eq. 'TH' ) then
+              elseif ( vnl_varLevelFromVarname(vnl_varNameList(jvar)) == 'TH' ) then
                 ip1 = nip1_T(jk)
               else
                 ip1 = -1
@@ -839,7 +839,7 @@ CONTAINS
         endif
 
         !  MPI communication: from 1 ensemble member per process to 1 lat-lon tile per process  
-        if (readFilePE(memberIndex).eq.(mpi_nprocs-1) .or. memberIndex.eq.nEns) then
+        if (readFilePE(memberIndex) == (mpi_nprocs-1) .or. memberIndex == nEns) then
           call tmg_start(13,'PRE_SUENS_COMM')
           batchnum = ceiling(dble(memberIndex)/dble(mpi_nprocs))
 
@@ -912,16 +912,16 @@ CONTAINS
  
       ! remove mean, normalize and apply scale factors
       do jvar = 1, vnl_numvarmax
-        if( .not. gsv_varExist(statevector_ensFcst_r4, vnl_varNameList(jvar)) ) cycle 
+        if ( .not. gsv_varExist(statevector_ensFcst_r4, vnl_varNameList(jvar)) ) cycle 
 
         ptr4d_r8 => gsv_getField_r8(statevector_ensMean, vnl_varNameList(jvar))
         do memberIndex = 1, nEns
           ptr4d_r4 => gsv_getField_r4(ensPerts(1,memberIndex)%statevector_r4, vnl_varNameList(jvar))
 
           do jk = 1, gsv_getNumLev(statevector_ensMean, vnl_varLevelFromVarname(vnl_varNameList(jvar)))
-            if( vnl_varLevelFromVarname(vnl_varNameList(jvar)) .eq. 'MM' ) then
+            if ( vnl_varLevelFromVarname(vnl_varNameList(jvar)) == 'MM' ) then
               multFactor2 = scaleFactor_M(jk)
-            elseif( vnl_varLevelFromVarname(vnl_varNameList(jvar)) .eq. 'TH' ) then
+            elseif ( vnl_varLevelFromVarname(vnl_varNameList(jvar)) == 'TH' ) then
               multFactor2 = scaleFactor_T(jk)
             else ! SF
               multFactor2 = scaleFactor_T(nLevEns_T)
@@ -929,7 +929,7 @@ CONTAINS
 
             multFactor2 = multFactor2/sqrt(1.0d0*dble(nEns-1))
 
-            if(trim(vnl_varNameList(jvar)) .eq. 'HU') then
+            if (trim(vnl_varNameList(jvar)) == 'HU') then
               multFactor2 = multFactor2*scaleFactorHumidity(jk)
             endif
 
@@ -1005,10 +1005,10 @@ CONTAINS
         do jk = 1, gsv_getNumLev(ensPerts(waveBandIndex,memberIndexWanted)%statevector_r4,  &
                                  vnl_varLevelFromVarname(vnl_varNameList(jvar)))
 
-          if( vnl_varLevelFromVarname(vnl_varNameList(jvar)) .eq. 'MM' ) then
+          if ( vnl_varLevelFromVarname(vnl_varNameList(jvar)) == 'MM' ) then
             topLevOffset = topLevIndex_M - 1
             scaleFactor_MT = scaleFactor_M(jk)
-          elseif( vnl_varLevelFromVarname(vnl_varNameList(jvar)) .eq. 'TH' ) then
+          elseif ( vnl_varLevelFromVarname(vnl_varNameList(jvar)) == 'TH' ) then
             topLevOffset = topLevIndex_T - 1
             scaleFactor_MT = scaleFactor_T(jk)
           else ! SF
@@ -1019,21 +1019,21 @@ CONTAINS
           jkInc = jk + topLevOffset
 
           ! undo the normalization (optional)
-          if(undoNormalization2) then
-            if(scaleFactor_MT.gt.0.0d0) then
+          if (undoNormalization2) then
+            if (scaleFactor_MT.gt.0.0d0) then
               dnens2 = sqrt(1.0d0*dble(nEns-1))/scaleFactor_MT
             else
-              if(jt.eq.1) then 
+              if (jt == 1) then 
                 write(*,*) 'scalefactor not positive, cannot undo normalization!'
                 write(*,*) vnl_varNameList(jvar),scaleFactor_MT,jk
               endif
               dnens2 = 0.0d0
             endif
-            if(vnl_varNameList(jvar).eq.'HU  ') then
-              if(scaleFactorHumidity(jk).gt.0.0d0) then
+            if (vnl_varNameList(jvar) == 'HU  ') then
+              if (scaleFactorHumidity(jk).gt.0.0d0) then
                 dnens2 = dnens2/scaleFactorHumidity(jk)
               else
-                if(jt.eq.1) then
+                if (jt == 1) then
                   write(*,*) 'Humidity scalefactor not positive, cannot undo normalization!'
                   write(*,*) vnl_varNameList(jvar),scaleFactorHumidity(jk),jk
                 endif
@@ -1054,21 +1054,21 @@ CONTAINS
           ! Fill the gap between the ensemble lid and the analysis lid
 
           ! undo the normalization (optional)
-          if(undoNormalization2) then
-            if(scaleFactor(1) > 0.0d0) then
+          if (undoNormalization2) then
+            if (scaleFactor(1) > 0.0d0) then
               dnens2 = sqrt(1.0d0*dble(nEns-1))/scaleFactor(1)
             else
-              if(jt == 1) then
+              if (jt == 1) then
                 write(*,*) 'scalefactor(top) not positive, cannot undo normalization!'
                 write(*,*) vnl_varNameList(jvar),scaleFactor(1)
               endif
               dnens2 = 0.0d0
             endif
-            if(vnl_varNameList(jvar).eq.'HU  ') then
-              if(scaleFactorHumidity(1) > 0.0d0) then
+            if (vnl_varNameList(jvar) == 'HU  ') then
+              if (scaleFactorHumidity(1) > 0.0d0) then
                 dnens2 = dnens2/scaleFactorHumidity(1)
               else
-                if(jt == 1) then
+                if (jt == 1) then
                   write(*,*) 'Humidity scalefactor(top) not positive, cannot undo normalization!'
                   write(*,*) vnl_varNameList(jvar),scaleFactorHumidity(1)
                 endif
@@ -1456,14 +1456,14 @@ CONTAINS
     if (hco_ben%global) then
        ! Global mode
        gstID2 = gst_setup(ni,nj,ntrunc,nkgdimEns)
-       if(mpi_myid.eq.0) write(*,*) 'BEN : returned value of gstID2 = ',gstID2
+       if (mpi_myid == 0) write(*,*) 'BEN : returned value of gstID2 = ',gstID2
        nla_filter = nla_mpilocal ! should be recomputed here based on gstID2 info
        nphase_filter = 2
        allocate(jn_vec(nla_filter))
        ila_filter = 0
        do jm = mymBeg, mymEnd, mymSkip
           do jn = mynBeg, mynEnd, mynSkip
-            if(jm.le.jn) then
+            if (jm.le.jn) then
                ila_filter = ila_filter + 1
                jn_vec(ila_filter) = jn
             end if
@@ -1660,7 +1660,7 @@ CONTAINS
              local_length(jk) = ( hLocalize(1)*( log(pressureProfile(jk       ))-log(pressureProfile(1 )) ) +    &
                                   hLocalize(2)*( log(pressureProfile(nLevEns_M))-log(pressureProfile(jk)) ) ) /  &
                                                ( log(pressureProfile(nLevEns_M))-log(pressureProfile(1)) )
-             if(mpi_myid.eq.0) write(*,*) 'bmatrixEnsemble: localization length scale (',jk,') = ',local_length(jk)
+             if (mpi_myid == 0) write(*,*) 'bmatrixEnsemble: localization length scale (',jk,') = ',local_length(jk)
           enddo
        endif
 
@@ -1679,7 +1679,7 @@ CONTAINS
           do jk2 = 1, nLevEns_M
              ZR = abs(log(pressureProfile(jk2)) - log(pressureProfile(jk1)))
              zcorr = loc_response(zr,zlc)
-             !if(zcorr.lt.0.0d0) zcorr = 0.0d0
+             !if (zcorr.lt.0.0d0) zcorr = 0.0d0
              ensLocal(waveBandIndex)%Vert(jk1,jk2) = zcorr
           enddo
        enddo
@@ -1692,7 +1692,7 @@ CONTAINS
     !
     !- 3.  Ending
     !
-    if (mpi_myid.eq.0) write(*,*) 'done setting up localization function'
+    if (mpi_myid == 0) write(*,*) 'done setting up localization function'
 
   END SUBROUTINE setupLocalization
 
@@ -1717,7 +1717,7 @@ CONTAINS
     integer :: ilen,jn,jlat,jla,jlon,jk,jk1,jk2,nsize,ierr
     integer :: ila_mpiglobal,jla_mpilocal
 
-    if(local_length(1).gt.0.0d0) then
+    if (local_length(1).gt.0.0d0) then
 
       zgd_gst(:,:,:) = 0.0d0
       do jk = 1, nLevEns_M
@@ -1765,7 +1765,7 @@ CONTAINS
         do  jn = 0, ntrunc
           zpole = zpole + ensLocal(waveBandIndex)%Horiz(jn,jk)*sqrt((2.d0*jn+1.d0)/2.d0)
         enddo
-        if(zpole.le.0.d0) then
+        if (zpole.le.0.d0) then
           write(*,*)'POLE VALUE NEGATIVE IN setupGlobalHLoc jk=',jk
           call abort3d('setupGlobalHLoc')
         endif
@@ -1953,140 +1953,37 @@ CONTAINS
   SUBROUTINE BEN_reduceToMPILocal(cv_mpilocal,cv_mpiglobal,cvDim_mpilocal_out)
     implicit none
     real(8), intent(out) :: cv_mpilocal(cvDim_mpilocal)
-    real(8), intent(in)  :: cv_mpiglobal(cvDim_mpiglobal)
+    real(8), intent(in)  :: cv_mpiglobal(:)
     integer, intent(out) :: cvDim_mpilocal_out
 
+    real(8), allocatable :: cv_allmaxmpilocal(:,:)
+
+    integer, allocatable :: cvDim_allMpilocal(:), displs(:)
+
+    integer, allocatable :: ilaGlobal(:), allnlaLocal(:)
+    integer, allocatable :: allilaGlobal(:,:)
+
+    integer, allocatable :: allnBeg(:),allnEnd(:),allnSkip(:)
+    integer, allocatable :: allmBeg(:),allmEnd(:),allmSkip(:)
+
+    integer :: jproc, cvDim_maxmpilocal
     integer :: jdim_mpilocal, jdim_mpiglobal, ila_mpilocal, ila_mpiglobal
-    integer :: jm, jn, memberIndex, jlev, ierr, p
+    integer :: jm, jn, memberIndex, jlev, ierr, p, nlaMax
 
     cvDim_mpilocal_out = cvDim_mpilocal
+
+    call rpn_comm_allreduce(cvDim_mpilocal, cvDim_maxmpilocal, &
+         1,"MPI_INTEGER","MPI_MAX","GRID",ierr)
+
+    allocate(cvDim_allMpiLocal(mpi_nprocs))
+    call rpn_comm_allgather(cvDim_mpiLocal   ,1,"mpi_integer",       &
+                            cvDim_allMpiLocal,1,"mpi_integer","GRID",ierr)
 
     ! assign part of mpiglobal vector from current mpi process
 
     if (hco_ben%global) then
 
-      ! Global
-      jdim_mpilocal = 0
-      do memberIndex = 1, nEns
-
-        do jlev = 1, nLevEns_M
-          do jm = mymBeg, mymEnd, mymSkip
-            do jn = mynBeg, mynEnd, mynSkip
-              if(jm.le.jn) then
-
-                ! figure out index into global control vector
-                ila_mpiglobal = gst_getNIND(jm,gstID) + jn - jm
-                if(jm.eq.0) then
-                  ! for jm=0 only real part
-                  jdim_mpiglobal = ila_mpiglobal
-                else
-                  ! for jm>0 both real and imaginary part
-                  jdim_mpiglobal = 2*ila_mpiglobal-1 - (ntrunc+1)
-                endif
-                ! add offset for level
-                jdim_mpiglobal = jdim_mpiglobal + (jlev-1) * (ntrunc+1)*(ntrunc+1)
-                ! add offset for member index
-                jdim_mpiglobal = jdim_mpiglobal + (memberIndex-1) * (ntrunc+1)*(ntrunc+1)*nLevEns_M
-
-                if(jm.eq.0) then
-                  ! controlVector only contain real part for jm=0
-                  jdim_mpilocal = jdim_mpilocal + 1
-                  cv_mpilocal(jdim_mpilocal) = cv_mpiglobal(jdim_mpiglobal)
-                else
-                  ! controlVector contains real and imag parts for jm>0
-                  jdim_mpilocal = jdim_mpilocal + 1
-                  cv_mpilocal(jdim_mpilocal) = cv_mpiglobal(jdim_mpiglobal)
-                  jdim_mpilocal = jdim_mpilocal + 1
-                  cv_mpilocal(jdim_mpilocal) = cv_mpiglobal(jdim_mpiglobal+1)
-                endif
-
-              endif
-            enddo
-          enddo
-        enddo
-
-      enddo
-
-    else
-       
-      ! LAM
-
-      do memberIndex = 1, nEns
-         do jlev = 1, nLevEns_M
-            do ila_mpilocal = 1, lst_ben%nla
-               do p = 1, lst_ben%nphase
-
-                  jdim_mpilocal = ( (jlev-1) * nEns * lst_ben%nla * lst_ben%nphase ) + &
-                                  ( (memberIndex-1) * lst_ben%nla * lst_ben%nphase ) + &
-                                               ( (ila_mpilocal-1) * lst_ben%nphase ) + p
-
-                  ila_mpiglobal = lst_ben%ilaGlobal(ila_mpilocal)
-                  jdim_mpiglobal = ( (jlev-1) * nEns * lst_ben%nlaGlobal * lst_ben%nphase ) + &
-                                   ( (memberIndex-1) * lst_ben%nlaGlobal * lst_ben%nphase ) + &
-                                                     ( (ila_mpiglobal-1) * lst_ben%nphase ) + p
-  
-                  if ( jdim_mpilocal  > cvDim_mpilocal ) then 
-                     write(*,*) 'BEN_reduceToMPILocal: jdim_mpilocal > cvDim_mpilocal ',memberIndex,jlev,ila_mpilocal,p
-                     call abort3d('BEN_reduceToMPILocal')
-                  end if
-                  if ( jdim_mpiglobal > cvDim_mpiglobal) then
-                     write(*,*) 'BEN_reduceToMPILocal: jdim_mpiglobal > cvDim_mpiglobal ',memberIndex,jlev,ila_mpilocal,p,ila_mpiglobal
-                     call abort3d('BEN_reduceToMPILocal')
-                  end if
-                  
-                  cv_mpilocal(jdim_mpilocal) = cv_mpiglobal(jdim_mpiglobal)
-
-               end do
-            end do
-         end do
-      end do
-
-    end if
-
-  END SUBROUTINE BEN_reduceToMPILocal
-
-!--------------------------------------------------------------------------
-! BEN_expandToMPIGlobal
-!--------------------------------------------------------------------------
-  SUBROUTINE BEN_expandToMPIGlobal(cv_mpilocal,cv_mpiglobal,cvDim_mpiglobal_out)
-    implicit none
-
-    real(8), intent(in)  :: cv_mpilocal(cvDim_mpilocal)
-    real(8), intent(out) :: cv_mpiglobal(cvDim_mpiglobal)
-    integer, intent(out) :: cvDim_mpiglobal_out
-
-    real(8), allocatable :: cv_maxmpilocal(:)
-    real(8), pointer     :: cv_allmaxmpilocal(:,:) => null()
-    integer, allocatable :: allnBeg(:),allnEnd(:),allnSkip(:)
-    integer, allocatable :: allmBeg(:),allmEnd(:),allmSkip(:)
-    integer :: jdim_mpilocal, jdim_mpiglobal, ila_mpiglobal, ila_mpilocal, cvDim_maxmpilocal
-    integer :: jm, jn, jproc, memberIndex, jlev, ierr, p
-    real(8), allocatable :: my_cv_mpiglobal(:)
-
-    cvDim_mpiglobal_out = cvDim_mpiglobal
-
-    ! gather all local control vectors onto mpi task 0
-
-    if (hco_ben%global) then
-
        ! Global
-       call rpn_comm_allreduce(cvDim_mpilocal,cvDim_maxmpilocal,1,"mpi_integer","mpi_max","GRID",ierr)
-
-       allocate(cv_maxmpilocal(cvDim_maxmpilocal))
-
-       cv_maxmpilocal(:) = 0.0d0
-       cv_maxmpilocal(1:cvDim_mpilocal) = cv_mpilocal(1:cvDim_mpilocal)
-
-       nullify(cv_allmaxmpilocal)
-       if(mpi_myid.eq.0) then
-          allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mpi_nprocs))
-       else
-          allocate(cv_allmaxmpilocal(1,1))
-       end if
-       call rpn_comm_gather(cv_maxmpilocal,    cvDim_maxmpilocal, "mpi_double_precision",  &
-                            cv_allmaxmpilocal, cvDim_maxmpilocal, "mpi_double_precision", 0, "GRID", ierr )
-
-       deallocate(cv_maxmpilocal)
 
        allocate(allnBeg(mpi_nprocs))
        call rpn_comm_allgather(mynBeg,1,"mpi_integer",       &
@@ -2108,8 +2005,267 @@ CONTAINS
        call rpn_comm_allgather(mymSkip,1,"mpi_integer",       &
                                allmSkip,1,"mpi_integer","GRID",ierr)
 
+
+       if (mpi_myid == 0) then
+
+          allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mpi_nprocs))
+
+!$OMP PARALLEL DO PRIVATE(jproc,jdim_mpilocal,memberIndex,jlev,jm,jn,ila_mpiglobal,jdim_mpiglobal)
+          do jproc = 0, (mpi_nprocs-1)
+             cv_allmaxmpilocal(:,jproc+1) = 0.d0
+
+             jdim_mpilocal = 0
+             do memberIndex = 1, nEns
+
+                do jlev = 1, nLevEns_M
+                   do jm = allmBeg(jproc+1), allmEnd(jproc+1), allmSkip(jproc+1)
+                      do jn = allnBeg(jproc+1), allnEnd(jproc+1), allnSkip(jproc+1)
+
+                         if (jm.le.jn) then
+
+                            ! figure out index into global control vector
+                            ila_mpiglobal = gst_getNIND(jm,gstID) + jn - jm
+                            if (jm == 0) then
+                               ! for jm=0 only real part
+                               jdim_mpiglobal = ila_mpiglobal
+                            else
+                               ! for jm>0 both real and imaginary part
+                               jdim_mpiglobal = 2*ila_mpiglobal-1 - (ntrunc+1)
+                            endif
+                            ! add offset for level
+                            jdim_mpiglobal = jdim_mpiglobal + (jlev-1) * (ntrunc+1)*(ntrunc+1)
+                            ! add offset for member index
+                            jdim_mpiglobal = jdim_mpiglobal + (memberIndex-1) * (ntrunc+1)*(ntrunc+1)*nLevEns_M
+                            
+                            if (jm == 0) then
+                               ! controlVector only contain real part for jm=0
+                               jdim_mpilocal = jdim_mpilocal + 1
+                               cv_allmaxmpilocal(jdim_mpilocal,jproc+1) = cv_mpiglobal(jdim_mpiglobal)
+                            else
+                               ! controlVector contains real and imag parts for jm>0
+                               jdim_mpilocal = jdim_mpilocal + 1
+                               cv_allmaxmpilocal(jdim_mpilocal,jproc+1) = cv_mpiglobal(jdim_mpiglobal)
+                               jdim_mpilocal = jdim_mpilocal + 1
+                               cv_allmaxmpilocal(jdim_mpilocal,jproc+1) = cv_mpiglobal(jdim_mpiglobal+1)
+                            endif
+                           
+                            if (jdim_mpilocal > cvDim_allMpiLocal(jproc+1)) then
+                               write(*,*)
+                               write(*,*) 'ERROR: jdim_mpilocal > cvDim_allMpiLocal(jproc+1)', jdim_mpilocal, cvDim_allMpiLocal(jproc+1)
+                               write(*,*) '       proc, jlev, jn, jm = ',jproc, jlev, jn, jm
+                               call abort3d('ben_reduceToMPILocal')
+                            end if
+                            if (jdim_mpiglobal > cvDim_mpiglobal) then
+                               write(*,*)
+                               write(*,*) 'ERROR: jdim_mpiglobal > cvDim_mpiglobal', jdim_mpiglobal, cvDim_mpiglobal
+                               write(*,*) '       proc, jlev, jn, jm = ',jproc, jlev, jn, jm
+                               call abort3d('ben_reduceToMPILocal')
+                            end if
+ 
+                         endif
+                      enddo
+                   enddo
+                enddo
+                
+             enddo
+
+          enddo ! procs
+!$OMP END PARALLEL DO
+
+       else
+          allocate(cv_allmaxmpilocal(1,1))
+       end if
+
+       deallocate(allnBeg)
+       deallocate(allnEnd)
+       deallocate(allnSkip)
+       deallocate(allmBeg)
+       deallocate(allmEnd)
+       deallocate(allmSkip)
+
+    else
+       
+      ! LAM
+      call rpn_comm_allreduce(lst_ben%nla,nlaMax,1,"mpi_integer","mpi_max","GRID",ierr)
+
+      if (mpi_myid == 0) then
+         allocate(allnlaLocal(mpi_nprocs))
+         allocate(allilaGlobal(nlaMax,mpi_nprocs))
+      else
+         allocate(allnlaLocal(1))
+         allocate(allilaGlobal(1,1))
+      end if
+      
+      allocate(ilaGlobal(nlaMax))
+      ilaGlobal(:)             = -1
+      ilaGlobal(1:lst_ben%nla) = lst_ben%ilaGlobal(:)
+      
+      call rpn_comm_gather(lst_ben%nla, 1, "mpi_integer",       &
+                           allnlaLocal, 1, "mpi_integer", 0, "GRID", ierr)
+      call rpn_comm_gather(ilaGlobal   , nlaMax, "mpi_integer",       &
+                           allilaGlobal, nlaMax, "mpi_integer",0 ,"GRID", ierr)
+
+      deallocate(ilaGlobal)
+
+      if (mpi_myid == 0) then
+
+         allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mpi_nprocs))
+
+         do jproc = 0, (mpi_nprocs-1)
+            cv_allmaxmpilocal(:,jproc+1) = 0.d0
+            do memberIndex = 1, nEns
+               do jlev = 1, nLevEns_M
+                  do ila_mpilocal = 1, allnlaLocal(jproc+1)
+                     do p = 1, lst_ben%nphase
+
+                        jdim_mpilocal = ( (jlev-1) * nEns * allnlaLocal(jproc+1) * lst_ben%nphase ) + &
+                                        ( (memberIndex-1) * allnlaLocal(jproc+1) * lst_ben%nphase ) + &
+                                                               ( (ila_mpilocal-1) * lst_ben%nphase ) + p
+
+                        ila_mpiglobal = allilaGlobal(ila_mpilocal,jproc+1)
+                        if ( ila_mpiglobal <= 0 ) then 
+                           write(*,*) 'ben_reduceToMPILocal: invalid ila_mpiglobal index ', ila_mpiglobal
+                           call abort3d('ben_reduceToMPILocal')
+                        end if
+                        jdim_mpiglobal = ( (jlev-1) * nEns * lst_ben%nlaGlobal * lst_ben%nphase ) + &
+                                         ( (memberIndex-1) * lst_ben%nlaGlobal * lst_ben%nphase ) + &
+                                                           ( (ila_mpiglobal-1) * lst_ben%nphase ) + p
+  
+                        if (jdim_mpilocal > cvDim_allMpiLocal(jproc+1)) then
+                            write(*,*)
+                            write(*,*) 'ERROR: jdim_mpilocal > cvDim_allMpiLocal(jproc+1)', jdim_mpilocal, cvDim_allMpiLocal(jproc+1)
+                            write(*,*) '       proc, memberIndex, jlev, ila, p = ',jproc,memberIndex,jlev,ila_mpilocal,p
+                            call abort3d('ben_reduceToMPILocal')
+                         end if
+                         if (jdim_mpiglobal > cvDim_mpiglobal) then
+                            write(*,*)
+                            write(*,*) 'ERROR: jdim_mpiglobal > cvDim_mpiglobal', jdim_mpiglobal, cvDim_mpiglobal
+                            write(*,*) '       proc, memberIndex, jlev, ila, p = ',jproc,memberIndex,jlev,ila_mpilocal,p
+                            call abort3d('ben_reduceToMPILocal')
+                         end if
+                  
+                         cv_allmaxmpilocal(jdim_mpilocal,jproc+1) = cv_mpiglobal(jdim_mpiglobal)
+
+                     end do
+                  end do
+               end do
+            end do
+         end do
+      else
+         allocate(cv_allmaxmpilocal(1,1))
+      end if
+
+     deallocate(allnlaLocal)
+     deallocate(allilaGlobal) 
+      
+   end if
+
+   !- Distribute
+   allocate(displs(mpi_nprocs))
+   do jproc = 0, (mpi_nprocs-1)
+      displs(jproc+1) = jproc*cvDim_maxMpiLocal ! displacement wrt cv_allMaxMpiLocal from which
+                                                 ! to take the outgoing data to process jproc
+   end do
+
+   call rpn_comm_scatterv(cv_allMaxMpiLocal, cvDim_allMpiLocal, displs, "mpi_double_precision", &
+                          cv_mpiLocal, cvDim_mpiLocal, "mpi_double_precision", &
+                          0, "GRID", ierr)
+
+   deallocate(displs) 
+   deallocate(cv_allMaxMpiLocal)
+   deallocate(cvDim_allMpiLocal)
+   
+ END SUBROUTINE BEN_reduceToMPILocal
+
+!--------------------------------------------------------------------------
+! BEN_expandToMPIGlobal
+!--------------------------------------------------------------------------
+  SUBROUTINE BEN_expandToMPIGlobal(cv_mpilocal,cv_mpiglobal,cvDim_mpiglobal_out)
+    implicit none
+
+    real(8), intent(in)  :: cv_mpilocal(cvDim_mpilocal)
+    real(8), intent(out) :: cv_mpiglobal(:)
+    integer, intent(out) :: cvDim_mpiglobal_out
+
+    real(8), allocatable :: cv_maxmpilocal(:)
+    real(8), pointer     :: cv_allmaxmpilocal(:,:) => null()
+
+    integer, allocatable :: cvDim_allMpilocal(:)
+
+    integer, allocatable :: ilaGlobal(:), allnlaLocal(:)
+    integer, allocatable :: allilaGlobal(:,:)
+
+    integer, allocatable :: allnBeg(:),allnEnd(:),allnSkip(:)
+    integer, allocatable :: allmBeg(:),allmEnd(:),allmSkip(:)
+
+    integer :: jdim_mpilocal, jdim_mpiglobal, ila_mpiglobal, ila_mpilocal, cvDim_maxmpilocal
+    integer :: jm, jn, jproc, memberIndex, jlev, ierr, p, nlaMax
+
+    cvDim_mpiglobal_out = cvDim_mpiglobal
+
+    !
+    !- 1.  Gather all local control vectors onto mpi task 0
+    !
+    allocate(cvDim_allMpiLocal(mpi_nprocs))
+    call rpn_comm_allgather(cvDim_mpiLocal   ,1,"mpi_integer",       &
+                            cvDim_allMpiLocal,1,"mpi_integer","GRID",ierr)
+
+    call rpn_comm_allreduce(cvDim_mpilocal,cvDim_maxmpilocal,1,"mpi_integer","mpi_max","GRID",ierr)
+
+    allocate(cv_maxmpilocal(cvDim_maxmpilocal))
+
+    cv_maxmpilocal(:) = 0.0d0
+    cv_maxmpilocal(1:cvDim_mpilocal) = cv_mpilocal(1:cvDim_mpilocal)
+
+    nullify(cv_allmaxmpilocal)
+    if (mpi_myid == 0) then
+       allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mpi_nprocs))
+    else
+       allocate(cv_allmaxmpilocal(1,1))
+    end if
+    call rpn_comm_gather(cv_maxmpilocal,    cvDim_maxmpilocal, "mpi_double_precision",  &
+                         cv_allmaxmpilocal, cvDim_maxmpilocal, "mpi_double_precision", 0, "GRID", ierr )
+
+    deallocate(cv_maxmpilocal)
+
+    !
+    !- 2.  Reorganize gathered mpilocal control vectors into the mpiglobal control vector
+    !
+    if (hco_ben%global) then
+
+       ! Global
+       if (mpi_myid == 0) then
+          allocate(allnBeg(mpi_nprocs))
+          allocate(allnEnd(mpi_nprocs))
+          allocate(allnSkip(mpi_nprocs))
+          allocate(allmBeg(mpi_nprocs))
+          allocate(allmEnd(mpi_nprocs))
+          allocate(allmSkip(mpi_nprocs))
+       else
+          allocate(allnBeg(1))
+          allocate(allnEnd(1))
+          allocate(allnSkip(1))
+          allocate(allmBeg(1))
+          allocate(allmEnd(1))
+          allocate(allmSkip(1))
+       end if
+
+       call rpn_comm_gather(mynBeg  ,1,"mpi_integer",       &
+                            allnBeg ,1,"mpi_integer",0,"GRID",ierr)
+       call rpn_comm_gather(mynEnd  ,1,"mpi_integer",       &
+                            allnEnd ,1,"mpi_integer",0,"GRID",ierr)
+       call rpn_comm_gather(mynSkip ,1,"mpi_integer",       &
+                            allnSkip,1,"mpi_integer",0,"GRID",ierr)
+
+       call rpn_comm_gather(mymBeg  ,1,"mpi_integer",       &
+                            allmBeg ,1,"mpi_integer",0,"GRID",ierr)
+       call rpn_comm_gather(mymEnd  ,1,"mpi_integer",       &
+                            allmEnd ,1,"mpi_integer",0,"GRID",ierr)
+       call rpn_comm_gather(mymSkip ,1,"mpi_integer",       &
+                            allmSkip,1,"mpi_integer",0,"GRID",ierr)
+
        ! reorganize gathered mpilocal control vectors into the mpiglobal control vector
-       if(mpi_myid.eq.0) then
+       if (mpi_myid == 0) then
          cv_mpiglobal(:) = 0.0d0
 
 !$OMP PARALLEL DO PRIVATE(jproc,jdim_mpilocal,memberIndex,jlev,jm,jn,ila_mpiglobal,jdim_mpiglobal)
@@ -2120,11 +2276,11 @@ CONTAINS
              do jlev = 1, nLevEns_M
                do jm = allmBeg(jproc+1), allmEnd(jproc+1), allmSkip(jproc+1)
                  do jn = allnBeg(jproc+1), allnEnd(jproc+1), allnSkip(jproc+1)
-                   if(jm.le.jn) then
+                   if (jm.le.jn) then
 
                      ! figure out index into global control vector
                      ila_mpiglobal = gst_getNIND(jm,gstID) + jn - jm
-                     if(jm.eq.0) then
+                     if (jm == 0) then
                        ! for jm=0 only real part
                        jdim_mpiglobal = ila_mpiglobal
                      else
@@ -2137,7 +2293,7 @@ CONTAINS
                      jdim_mpiglobal = jdim_mpiglobal + (memberIndex-1) * (ntrunc+1)*(ntrunc+1)*nLevEns_M
 
                      ! index into local control vector
-                     if(jm.eq.0) then
+                     if (jm == 0) then
                        ! only real component for jm=0
                        jdim_mpilocal = jdim_mpilocal + 1
                        cv_mpiglobal(jdim_mpiglobal) = cv_allmaxmpilocal(jdim_mpilocal,jproc+1)
@@ -2149,8 +2305,18 @@ CONTAINS
                        cv_mpiglobal(jdim_mpiglobal+1) = cv_allmaxmpilocal(jdim_mpilocal,jproc+1)
                      endif
 
-                     if(jdim_mpiglobal.gt.cvDim_mpiglobal)   &
-                       write(*,*) 'ERROR: jdim,cvDim,mpiglobal=',jdim_mpiglobal,cvDim_mpiglobal,jlev,jn,jm
+                     if (jdim_mpilocal > cvDim_allMpiLocal(jproc+1)) then
+                        write(*,*)
+                        write(*,*) 'ERROR: jdim_mpilocal > cvDim_allMpiLocal(jproc+1)', jdim_mpilocal, cvDim_allMpiLocal(jproc+1)
+                        write(*,*) '       proc, jlev, jn, jm = ',jproc, jlev, jn, jm
+                        call abort3d('ben_expandToMPIGlobal')
+                     end if
+                     if (jdim_mpiglobal > cvDim_mpiglobal) then
+                        write(*,*)
+                        write(*,*) 'ERROR: jdim_mpiglobal > cvDim_mpiglobal', jdim_mpiglobal, cvDim_mpiglobal
+                        write(*,*) '       proc, jlev, jn, jm = ',jproc, jlev, jn, jm
+                        call abort3d('ben_expandToMPIGlobal')
+                     end if
 
                    endif
                  enddo
@@ -2160,7 +2326,7 @@ CONTAINS
          enddo ! jproc
 !$OMP END PARALLEL DO
 
-      endif ! myid .eq. 0 
+      endif ! myid == 0 
 
       deallocate(allnBeg)
       deallocate(allnEnd)
@@ -2168,47 +2334,84 @@ CONTAINS
       deallocate(allmBeg)
       deallocate(allmEnd)
       deallocate(allmSkip)
-      deallocate(cv_allmaxmpilocal)
 
     else
 
       ! LAM
-      allocate(my_cv_mpiglobal(cvDim_mpiglobal)) 
-      my_cv_mpiglobal(:) = 0.0d0
+       call rpn_comm_allreduce(lst_ben%nla,nlaMax,1,"mpi_integer","mpi_max","GRID",ierr)
 
-      do memberIndex = 1, nEns
-         do jlev = 1, nLevEns_M
-            do ila_mpilocal = 1, lst_ben%nla
-               do p = 1, lst_ben%nphase
+       if (mpi_myid == 0) then
+          allocate(allnlaLocal(mpi_nprocs))
+          allocate(allilaGlobal(nlaMax,mpi_nprocs))
+       else
+          allocate(allnlaLocal(1))
+          allocate(allilaGlobal(1,1))
+       end if
 
-                  jdim_mpilocal = ( (jlev-1) * nEns * lst_ben%nla * lst_ben%nphase ) + &
-                                  ( (memberIndex-1) * lst_ben%nla * lst_ben%nphase ) + &
-                                               ( (ila_mpilocal-1) * lst_ben%nphase ) + p
+       allocate(ilaGlobal(nlaMax))
+       ilaGlobal(:)             = -1
+       ilaGlobal(1:lst_ben%nla) = lst_ben%ilaGlobal(:)
 
-                  ila_mpiglobal = lst_ben%ilaGlobal(ila_mpilocal)
-                  jdim_mpiglobal = ( (jlev-1) * nEns * lst_ben%nlaGlobal * lst_ben%nphase ) + &
-                                   ( (memberIndex-1) * lst_ben%nlaGlobal * lst_ben%nphase ) + &
-                                                     ( (ila_mpiglobal-1) * lst_ben%nphase ) + p
-  
-                  if ( jdim_mpilocal  > cvDim_mpilocal ) then 
-                     write(*,*) 'BEN_expandToMPIGlobal: jdim_mpilocal > cvDim_mpilocal ',memberIndex,jlev,ila_mpilocal,p
-                     call abort3d('BEN_expandToMPIGlobal')
-                  end if
-                  if ( jdim_mpiglobal > cvDim_mpiglobal) then
-                     write(*,*) 'BEN_expandToMPIGlobal: jdim_mpiglobal > cvDim_mpiglobal ',memberIndex,jlev,ila_mpilocal,p,ila_mpiglobal
-                     call abort3d('BEN_expandToMPIGlobal')
-                  end if
-            
-                  my_cv_mpiglobal(jdim_mpiglobal) = cv_mpilocal(jdim_mpilocal)
+       call rpn_comm_gather(lst_ben%nla, 1, "mpi_integer",       &
+                            allnlaLocal, 1, "mpi_integer", 0, "GRID", ierr)
+       call rpn_comm_gather(ilaGlobal   , nlaMax, "mpi_integer",       &
+                            allilaGlobal, nlaMax, "mpi_integer",0 ,"GRID", ierr)
 
-               end do
-            end do
-         end do
-      end do
+       deallocate(ilaGlobal)
 
-      call rpn_comm_allreduce(my_cv_mpiglobal,cv_mpiglobal,cvDim_mpiglobal,"mpi_double_precision","mpi_sum","GRID",ierr)
-      deallocate(my_cv_mpiglobal) 
+       if (mpi_myid == 0) then
+          cv_mpiglobal(:) = 0.0d0
+
+          do jproc = 0, (mpi_nprocs-1)
+             do memberIndex = 1, nEns
+                do jlev = 1, nLevEns_M
+                   do ila_mpilocal = 1, allnlaLocal(jproc+1)
+                      do p = 1, lst_ben%nphase
+
+                         jdim_mpilocal = ( (jlev-1) * nEns * allnlaLocal(jproc+1) * lst_ben%nphase ) + &
+                                         ( (memberIndex-1) * allnlaLocal(jproc+1) * lst_ben%nphase ) + &
+                                                      ( (ila_mpilocal-1) * lst_ben%nphase ) + p
+
+                         ila_mpiglobal = allilaGlobal(ila_mpilocal,jproc+1)
+                         if ( ila_mpiglobal <= 0 ) then 
+                            write(*,*) 'ben_expandToMPIGlobal: invalid ila_mpiglobal index ', ila_mpiglobal
+                            call abort3d('ben_expandToMPIGlobal')
+                         end if
+
+                         jdim_mpiglobal = ( (jlev-1) * nEns * lst_ben%nlaGlobal * lst_ben%nphase ) + &
+                                          ( (memberIndex-1) * lst_ben%nlaGlobal * lst_ben%nphase ) + &
+                                                            ( (ila_mpiglobal-1) * lst_ben%nphase ) + p
+
+                         if (jdim_mpilocal > cvDim_allMpiLocal(jproc+1)) then
+                            write(*,*)
+                            write(*,*) 'ERROR: jdim_mpilocal > cvDim_allMpiLocal(jproc+1)', jdim_mpilocal, cvDim_allMpiLocal(jproc+1)
+                            write(*,*) '       proc, memberIndex, jlev, ila, p = ',jproc,memberIndex,jlev,ila_mpilocal,p
+                            call abort3d('ben_expandToMPIGlobal')
+                         end if
+                         if (jdim_mpiglobal > cvDim_mpiglobal) then
+                            write(*,*)
+                            write(*,*) 'ERROR: jdim_mpiglobal > cvDim_mpiglobal', jdim_mpiglobal, cvDim_mpiglobal
+                            write(*,*) '       proc, memberIndex, jlev, ila, p = ',jproc,memberIndex,jlev,ila_mpilocal,p
+                            call abort3d('ben_expandToMPIGlobal')
+                         end if
+
+                         cv_mpiglobal(jdim_mpiglobal) = cv_allmaxmpilocal(jdim_mpilocal,jproc+1)
+                         
+                      end do
+                   end do
+                end do
+             end do
+          end do
+
+       end if
+
+       deallocate(allnlaLocal)
+       deallocate(allilaGlobal)
+
     end if
+
+    deallocate(cv_allmaxmpilocal)
+    deallocate(cvDim_allMpiLocal)
 
   end SUBROUTINE BEN_expandToMPIGlobal
 
@@ -2233,23 +2436,23 @@ CONTAINS
 
     character(len=19)   :: kind
 
-    if(.not. initialized) then
-      if(mpi_myid.eq.0) write(*,*) 'bMatrixEnsemble not initialized'
+    if (.not. initialized) then
+      if (mpi_myid == 0) write(*,*) 'bMatrixEnsemble not initialized'
       return
     endif
 
-    if(sum(scaleFactor).eq.0.0d0) then
-      if(mpi_myid.eq.0) write(*,*) 'bMatrixEnsemble: scaleFactor=0, skipping bSqrt'
+    if (sum(scaleFactor) == 0.0d0) then
+      if (mpi_myid == 0) write(*,*) 'bMatrixEnsemble: scaleFactor=0, skipping bSqrt'
       return
     endif
 
-    if(maxval(controlVector_in).eq.0.0d0 .and. minval(controlVector_in).eq.0.0d0) then
-      if(mpi_myid.eq.0) write(*,*) 'bMatrixEnsemble: controlVector=0, skipping bSqrt'
+    if (maxval(controlVector_in) == 0.0d0 .and. minval(controlVector_in) == 0.0d0) then
+      if (mpi_myid == 0) write(*,*) 'bMatrixEnsemble: controlVector=0, skipping bSqrt'
       return
     endif
 
-    if(mpi_myid.eq.0) write(*,*) 'ben_bsqrt: starting'
-    if(mpi_myid.eq.0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    if (mpi_myid == 0) write(*,*) 'ben_bsqrt: starting'
+    if (mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     call gsv_setVco(statevector_ensAmp,vco_ens)
     call gsv_setHco(statevector_ensAmp,hco_ben)
@@ -2316,8 +2519,8 @@ CONTAINS
 
     call gsv_deallocate(statevector_ensAmp)
 
-    if(mpi_myid.eq.0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    if(mpi_myid.eq.0) write(*,*) 'ben_bsqrt: done'
+    if (mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    if (mpi_myid == 0) write(*,*) 'ben_bsqrt: done'
 
   END SUBROUTINE BEN_BSqrt
 
@@ -2341,18 +2544,18 @@ CONTAINS
 
     character(len=19)   :: kind
 
-    if(.not. initialized) then
-      if(mpi_myid.eq.0) write(*,*) 'bMatrixEnsemble not initialized'
+    if (.not. initialized) then
+      if (mpi_myid == 0) write(*,*) 'bMatrixEnsemble not initialized'
       return
     endif
 
-    if(sum(scaleFactor).eq.0.0d0) then
-      if(mpi_myid.eq.0) write(*,*) 'bMatrixEnsemble: scaleFactor=0, skipping bSqrtAd'
+    if (sum(scaleFactor) == 0.0d0) then
+      if (mpi_myid == 0) write(*,*) 'bMatrixEnsemble: scaleFactor=0, skipping bSqrtAd'
       return
     endif
 
-    if(mpi_myid.eq.0) write(*,*) 'ben_bsqrtad: starting'
-    if(mpi_myid.eq.0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    if (mpi_myid == 0) write(*,*) 'ben_bsqrtad: starting'
+    if (mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     call gsv_setVco(statevector_ensAmp,vco_ens)
     call gsv_setHco(statevector_ensAmp,hco_ben)
@@ -2410,8 +2613,8 @@ CONTAINS
 
     call gsv_deallocate(statevector_ensAmp)
 
-    if(mpi_myid.eq.0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    if(mpi_myid.eq.0) write(*,*) 'ben_bsqrtad: done'
+    if (mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    if (mpi_myid == 0) write(*,*) 'ben_bsqrtad: done'
 
   END SUBROUTINE BEN_BSqrtAd
 
@@ -2439,14 +2642,14 @@ CONTAINS
     ensAmplitude_M => gsv_getField3D_r8(statevector_ensamp)
 
     ! compute thermo level amplitudes from momentum level amplitudes
-    if(Vcode_anl .eq. 5002) then
+    if (Vcode_anl == 5002) then
 
 !$OMP PARALLEL DO PRIVATE (jlev)
       do jlev = 1, nLevEns_T
-        if(jlev.eq.1) then
+        if (jlev == 1) then
           ! use top momentum level amplitudes for top thermo level
           ensAmplitude_T(:,:,jlev) = ensAmplitude_M(:,:,jlev)
-        elseif(jlev.eq.nLevEns_T) then
+        elseif (jlev == nLevEns_T) then
           ! use surface momentum level amplitudes for surface thermo level
           ensAmplitude_T(:,:,jlev) = ensAmplitude_M(:,:,nLevEns_M)
         else
@@ -2457,11 +2660,11 @@ CONTAINS
       enddo
 !$OMP END PARALLEL DO
 
-    elseif(Vcode_anl .eq. 5004) then
+    elseif (Vcode_anl == 5004) then
 
 !$OMP PARALLEL DO PRIVATE (jlev)
       do jlev = 1, nLevEns_T
-        if(jlev.eq.nLevEns_T) then
+        if (jlev == nLevEns_T) then
           ! use surface momentum level amplitudes for surface thermo level
           ensAmplitude_T(:,:,jlev) = ensAmplitude_M(:,:,jlev)
         else
@@ -2474,21 +2677,21 @@ CONTAINS
 
     endif
 
-    if(Vcode_anl .eq. 5002 .or. Vcode_anl .eq. 5004) then
+    if (Vcode_anl == 5002 .or. Vcode_anl == 5004) then
 
       do jt = 1, numTime
 
         do jvar = 1, vnl_numvarmax 
-          if(.not. gsv_varExist(statevector_out, vnl_varNameList(jvar))) cycle
+          if (.not. gsv_varExist(statevector_out, vnl_varNameList(jvar))) cycle
           increment_out => gsv_getField_r8(statevector_out, vnl_varNameList(jvar))
           ensMember_r4 => gsv_getField_r4(ensPerts(waveBandIndex,memberIndex)%statevector_r4, &
                                           vnl_varNameList(jvar))
-          if(vnl_varLevelFromVarname(vnl_varNameList(jvar)).eq.'SF') then
+          if (vnl_varLevelFromVarname(vnl_varNameList(jvar)) == 'SF') then
             numLev = 1
             topLevOffset = 1
             ensAmplitude_MT(myLonBeg:, myLatBeg:, 1:        ) =>   &
              ensAmplitude_M(myLonBeg:, myLatBeg:, nLevEns_M:)
-          elseif(vnl_varLevelFromVarname(vnl_varNameList(jvar)).eq.'MM') then
+          elseif (vnl_varLevelFromVarname(vnl_varNameList(jvar)) == 'MM') then
             numLev = nlevEns_M
             topLevOffset = topLevIndex_M
             ensAmplitude_MT => ensAmplitude_M
@@ -2552,22 +2755,22 @@ CONTAINS
     ensAmplitude_M(:,:,:) = 0.0d0
     ensAmplitude_T(:,:,:) = 0.0d0
 
-    if(Vcode_anl .eq. 5002 .or. Vcode_anl .eq. 5004) then
+    if (Vcode_anl == 5002 .or. Vcode_anl == 5004) then
 
       do jt = 1, numTime
 
         do jvar = 1, vnl_numvarmax
-          if(.not. gsv_varExist(statevector_in, vnl_varNameList(jvar))) cycle
+          if (.not. gsv_varExist(statevector_in, vnl_varNameList(jvar))) cycle
           increment_in => gsv_getField_r8(statevector_in, vnl_varNameList(jvar))
           ensMember_r4 => gsv_getField_r4(ensPerts(waveBandIndex,memberIndex)%statevector_r4, &
                                           vnl_varNameList(jvar))
 
-          if(vnl_varLevelFromVarname(vnl_varNameList(jvar)).eq.'SF') then
+          if (vnl_varLevelFromVarname(vnl_varNameList(jvar)) == 'SF') then
             numLev = 1
             topLevOffset = 1
             ensAmplitude_MT(myLonBeg:, myLatBeg:, 1:        ) =>   &
              ensAmplitude_M(myLonBeg:, myLatBeg:, nLevEns_M:)
-          elseif(vnl_varLevelFromVarname(vnl_varNameList(jvar)).eq.'MM') then
+          elseif (vnl_varLevelFromVarname(vnl_varNameList(jvar)) == 'MM') then
             numLev = nlevEns_M
             topLevOffset = topLevIndex_M
             ensAmplitude_MT => ensAmplitude_M
@@ -2601,14 +2804,14 @@ CONTAINS
     endif
 
     ! combine thermo and momentum level amplitude sensitivites
-    if(Vcode_anl .eq. 5002) then
+    if (Vcode_anl == 5002) then
 
 !$OMP PARALLEL DO PRIVATE (jlev)
       do jlev = 1, nLevEns_T
-        if(jlev.eq.1) then
+        if (jlev == 1) then
           ! use top momentum level amplitudes for top thermo level
           ensAmplitude_M(:,:,jlev) = ensAmplitude_M(:,:,jlev) + ensAmplitude_T(:,:,jlev)
-        elseif(jlev.eq.nLevEns_T) then
+        elseif (jlev == nLevEns_T) then
           ! use surface momentum level amplitudes for surface thermo level
           ensAmplitude_M(:,:,nLevEns_M) = ensAmplitude_M(:,:,nLevEns_M) + ensAmplitude_T(:,:,jlev)
         else
@@ -2624,11 +2827,11 @@ CONTAINS
       enddo
 !$OMP END PARALLEL DO
 
-    elseif(Vcode_anl .eq. 5004) then
+    elseif (Vcode_anl == 5004) then
 
 !$OMP PARALLEL DO PRIVATE (jlev)
       do jlev = 1, nLevEns_T
-        if(jlev.eq.nLevEns_T) then
+        if (jlev == nLevEns_T) then
           ! use surface momentum level amplitudes for surface thermo level
           ensAmplitude_M(:,:,jlev) = ensAmplitude_M(:,:,jlev) + ensAmplitude_T(:,:,jlev)
         else
@@ -2723,11 +2926,11 @@ CONTAINS
       do jlev = 1, nLevEns_M
         do jm = mymBeg, mymEnd, mymSkip
           do jn = mynBeg, mynEnd, mynSkip
-            if(jm .le. jn) then
+            if (jm .le. jn) then
 
               ila_mpiglobal = gst_getnind(jm,gstID) + jn - jm
               ila_mpilocal  = ilaList_mpilocal(ila_mpiglobal)
-              if(jm.eq.0) then
+              if (jm == 0) then
                 ! controlVector only contain real part for jm=0
                 jdim = jdim + 1
                 zsp_all(ila_mpilocal,1,jlev,memberIndex) = controlVector_in(jdim)*ensLocal(waveBandIndex)%Horiz(jn,jlev)*rsq2
@@ -2745,7 +2948,7 @@ CONTAINS
         enddo
       enddo
 
-      if(jdim.gt.cvDim_mpilocal) then
+      if (jdim.gt.cvDim_mpilocal) then
         write(*,*) 'ben globalHLoc: jdim > cvDim_mpilocal! ',jdim,memberIndex,cvDim_mpilocal
         call abort3d('aborted in ben globalHLoc')
       endif
@@ -2869,11 +3072,11 @@ CONTAINS
        do jlev = 1, nLevEns_M
           do jm = mymBeg, mymEnd, mymSkip
             do jn = mynBeg, mynEnd, mynSkip
-              if(jm .le. jn) then
+              if (jm .le. jn) then
 
                 ila_mpiglobal = gst_getnind(jm,gstID) + jn - jm
                 ila_mpilocal  = ilaList_mpilocal(ila_mpiglobal)
-                if(jm.eq.0) then
+                if (jm == 0) then
                   ! controlVector only contain real part for jm=0
                   jdim = jdim + 1
                   controlVector_out(jdim) = controlVector_out(jdim) +  &
@@ -2893,7 +3096,7 @@ CONTAINS
          enddo
        enddo
 
-       if(jdim.gt.cvDim_mpilocal) then
+       if (jdim.gt.cvDim_mpilocal) then
           write(*,*) 'ben globalHLocAd: jdim > cvDim_mpilocal! ',jdim,memberIndex,cvDim_mpilocal
           call abort3d('aborted in ben globalHLocAd')
        endif
