@@ -137,17 +137,16 @@ contains
     
     real(8) :: zomp,zinc
     integer :: unit,ier
-    logical :: diagn_only
     integer, external :: fclos
 
     ! Obs space local variables
 
     integer :: headerIndex,bodyIndex,bodyIndex_start,bodyIndex_end
-    integer :: icodtyp,iobslev,nobslev,varno
+    integer :: icodtyp,iobslev,nobslev,varno,flag
     character(len=12) :: stnid
 
     integer, allocatable :: ixtr(:), iass(:)
-    logical, allocatable :: success(:),process_obs(:)
+    logical, allocatable :: success(:),process_obs(:),diagn_only(:)
 
     ! Model space profile local variables
 
@@ -223,11 +222,9 @@ contains
          end if
       end do
 
-      ! Indicates if diagnostics are to be calculated but observation not assimilated
-      diagn_only = chm_diagn_only(stnid,varno,nobslev)
       
       ! Allocate memory for remaining profile data not in obsoper
-      allocate(obs_col(nobslev), success(nobslev), ixtr(nobslev), iass(nobslev), process_obs(nobslev))
+      allocate(obs_col(nobslev), success(nobslev), ixtr(nobslev), iass(nobslev), process_obs(nobslev), diagn_only(nobslev))
 
       ! Prepare for checking if any processing is needed according to initial flag values     
       iobslev=0
@@ -236,13 +233,19 @@ contains
 
             iobslev=iobslev+1
 
-            ixtr(iobslev) = obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) ! flag indicating if obs extends outside model profile vertical range
-            iass(iobslev) = obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) ! flag indicating if obs is to be assimilated
-            process_obs(iobslev) = ixtr(iobslev).eq.0                      ! indicates if this obs should be processed by chm_obsoperators
-            
+            ixtr(iobslev) = obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) ! indicates if obs extends outside model profile vertical range
+            iass(iobslev) = obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) ! indicates if obs is to be assimilated
+            flag          = obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex) ! observation integer flag
+
+            ! Indicates if diagnostics are to be calculated but observation not assimilated
+            diagn_only(iobslev) = chm_diagn_only(stnid,varno,nobslev,flag)
+
+            ! Indicates if this obs should be processed by chm_obsoperators
+            process_obs(iobslev) = ixtr(iobslev).eq.0
+
             select case(kmode)
             case(0)
-               if ( (diagn_only.and.iass(iobslev).eq.1) .or. btest(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),16) ) then
+               if ( (diagn_only(iobslev).and.iass(iobslev).eq.1) .or. btest(flag,16) ) then
                   ! Set flag to be recognized at postmin diagnostics calc in routine chm_calc_OmA_nonassim.
                   ! Bit 16 of OBS_FLG indicates if flagged in background check.
                   call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,3)
@@ -392,7 +395,7 @@ contains
                zomp = obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex) - obs_col(iobslev)
                call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex,zomp)
                
-               if (present(jobs).and.iass(iobslev).eq.1.and..not.diagn_only) then
+               if (present(jobs).and.iass(iobslev).eq.1.and..not.diagn_only(iobslev)) then
                   ! Add to Jo contribution (factor of 0.5 to be applied outside report loop)
                   zinc = zomp/obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
                   jobs = jobs + zinc*zinc
@@ -416,7 +419,7 @@ contains
       end if
 
       ! Deallocate profile data
-      deallocate(process_obs,success,ixtr,iass,obs_col)
+      deallocate(process_obs,success,ixtr,iass,obs_col,diagn_only)
       call chm_obsoper_dealloc(obsoper)
   
     enddo HEADER
@@ -843,11 +846,8 @@ contains
           obs(:) = 0.0d0
           sigma_obs(:) = 0.0d0
           status(:) = 0
-          ilev_obs = 0
-          
-          diagn_only = chm_diagn_only(stnid,varno,nlev_obs)
-          assim_obs = (.not.diagn_only).and.anlm_mode
-             
+          assim_obs = .false.
+          ilev_obs = 0   
           
           call obs_set_current_body_list(obsSpaceData,headerIndex)
           BODY: do
@@ -860,7 +860,11 @@ contains
              ilev_obs = ilev_obs+1
 
              iass = obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex)
-                
+
+             diagn_only = chm_diagn_only(stnid,varno,nlev_obs,obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex))
+
+             assim_obs = ((.not.diagn_only).and.anlm_mode) .or. assim_obs
+
              if (iass.eq.1) then
                 status(ilev_obs) = 1
              else if (iass.eq.3.and.diagn_only) then

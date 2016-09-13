@@ -273,7 +273,7 @@ module chem_mod
      !  obs_index              Observation index
      !                         Note: Depending on the data of interest, the index of a required array element or 
      !                               profile associated to an observation can be identified from (lat,long,date,hhmm,
-     !                               optional task-dependent identifier if needed) or obs_index. 
+     !                               stnid,optional task-dependent identifier if needed) or obs_index. 
      !                               The latter is for associations of data identified within
      !                               processing of individual CPUs. Each of the two index identifiers is represented 
      !                               by the unique character string identifier 'code' of struct_chm_obsdata
@@ -448,6 +448,12 @@ module chem_mod
      !                         in an ascii file in addition to overall diagnostics. 
      !                         (see routine chm_obsspace_diagnostic)
      !
+     !  diagn_flag             Array specifying bits for identifying diagnostic-only observations for
+     !                         observations that would otherwise be assimilated according to the assim_*
+     !                         arrays
+     !
+     !  diagn_nflag            Number of bit flags to specify in diagn_flag array
+     !
      !  amu                    Molecular mass of constituents in g/moles (needed for unit conversions)
      !                         Array index refers to BUFR code element of Table 08046 (iconstituent_id)
      !                         identifying the constituent.
@@ -498,7 +504,7 @@ module chem_mod
      integer :: generalized_operator(0:chm_constituents_size)
      integer :: assim_num,tropo_mode(0:chm_constituents_size),tropo_bound(0:chm_constituents_size)
      integer :: assim_varno(chm_cfg_size),assim_nlev(chm_cfg_size)
-     integer :: obsdata_maxsize 
+     integer :: obsdata_maxsize,diagn_nflag,diagn_flag(chm_cfg_size)
      integer :: transform(0:chm_constituents_size)
      real(8) :: diagn_pressmin
      real(8) :: amu(0:chm_constituents_size),tropo_column_top(0:chm_constituents_size)
@@ -654,6 +660,12 @@ contains
 !        diagn_all           Logical indicating if all combinations specified by diagn_nset are to be
 !                            used in diagnostics or only those specified by the diagn_* arrays
 !
+!        diagn_flag          Array specifying bits for identifying diagnostic-only observations for
+!                            observations that would otherwise be assimilated according to the assim_*
+!                            arrays
+!
+!        diagn_nflag         Number of bit flags to specify in diagn_flag array
+!
 !        assim_num           Number combinations (stnid, bufr element, multi/uni-level) 
 !                            identified for assimilation. All others will not
 !                            be assimilated. OmP and OmA diagnostics and output
@@ -732,8 +744,8 @@ contains
   character(len=128) :: ligne  
   character(len=10)  :: namfile 
 
-  integer :: assim_num,diagn_num,diagn_nset,obsdata_maxsize
-  integer :: assim_varno(chm_cfg_size),assim_nlev(chm_cfg_size)
+  integer :: assim_num,diagn_num,diagn_nset,obsdata_maxsize,diagn_nflag
+  integer :: assim_varno(chm_cfg_size),assim_nlev(chm_cfg_size),diagn_flag(chm_cfg_size)
   integer :: diagn_varno(chm_cfg_size),tropo_mode(0:chm_constituents_size),tropo_bound(0:chm_constituents_size)
   character(len=9) :: assim_stnid(chm_cfg_size),diagn_stnid(chm_cfg_size)
   logical :: diagn_save,diagn_all,diagn_unilev(chm_cfg_size)
@@ -749,6 +761,7 @@ contains
                      assim_num,assim_stnid,assim_varno,assim_nlev,     &
                      diagn_num,diagn_stnid,diagn_varno,diagn_unilev,   &
                      diagn_save,diagn_all,diagn_nset,diagn_pressmin,   &
+                     diagn_nflag,diagn_flag,                           &
                      tropo_mode,tropo_bound,tropo_column_top,amu,      &
                      low_cutoff,high_cutoff,transform,obsdata_maxsize, &
                      message_filename,obsspace_diagn_filename
@@ -775,6 +788,9 @@ contains
   diagn_stnid(:)='*********'
   diagn_varno(:)=0
   diagn_unilev(:)=.false.
+  diagn_nflag=1
+  diagn_flag(1)=6  ! this is for the 'in reserve' bit for a BURP marker
+  diagn_flag(2:)=0
 
   tropo_mode(:) = 0
   tropo_bound(:) = 0
@@ -822,6 +838,8 @@ contains
   chm_config%assim_nlev = assim_nlev 
   chm_config%diagn_pressmin = diagn_pressmin
   chm_config%diagn_save = diagn_save
+  chm_config%diagn_nflag = diagn_nflag
+  chm_config%diagn_flag = diagn_flag
   chm_config%tropo_mode = tropo_mode
   chm_config%tropo_bound = tropo_bound
   chm_config%tropo_column_top = tropo_column_top
@@ -4047,7 +4065,7 @@ contains
 
 !-------------------------------------------------------------------------------------------
 
-  logical function chm_diagn_only(cstnid,varno,nobslev)
+  logical function chm_diagn_only(cstnid,varno,nobslev,flag)
 
 ! 
 !   Purpose: Identify whether or not the obs set identified by 
@@ -4063,10 +4081,11 @@ contains
 !       cstnid           Input station id
 !       varno            Obs BUFR number
 !       nobslev          Number of levels
+!       flag             observation integer flag
 !
 !   Output:
 !
-!       chm_diagn_only     Indicating if assimilation to be skipped but data
+!       chm_diagn_only    Indicating if assimilation to be skipped but data
 !                         is to be used for independent verifications after 
 !                         assimilation/minimization.
 !
@@ -4074,32 +4093,46 @@ contains
  
     implicit none
 
-    integer, intent(in) :: varno, nobslev
+    integer, intent(in) :: varno,nobslev,flag
     character(len=*), intent(in) :: cstnid
   
     integer :: i,elemId
     
-    chm_diagn_only=.false.
-    if (chm_config%assim_num.eq.-1) return
-    
-    if (chm_config%assim_num.eq.0) then
-       chm_diagn_only=.true.  ! will not be assimilated
-    else if (chm_config%assim_num.gt.0) then
-       elemId=0   
+    if (chm_config%assim_num.lt.0) then
+       ! assimilate all observations
+       chm_diagn_only = .false.
+    else if (chm_config%assim_num.eq.0) then
+       ! assimilate no observations
+       chm_diagn_only = .true.
+    else
+       ! check if this observation is listed in the chm_config%assim_* arrays
+       elemId=0
        do i=1,chm_config%assim_num
           if (stnid_equal(trim(chm_config%assim_stnid(i)),trim(cstnid))) then
              if (chm_config%assim_varno(i).eq.0.or.chm_config%assim_varno(i).eq.varno) then
                 if (chm_config%assim_nlev(i).eq.0.or.(nobslev.eq.1.and.chm_config%assim_nlev(i).eq.1).or. &
-                   (nobslev.gt.1.and.chm_config%assim_nlev(i).gt.1)) then
-                    elemId=i
-                    exit
+                     (nobslev.gt.1.and.chm_config%assim_nlev(i).gt.1)) then
+                   elemId=i
+                   exit
                 end if
              end if
           end if
        end do
-       if (elemId.eq.0) chm_diagn_only=.true.   ! will not be assimilated
+       chm_diagn_only = elemId.eq.0
     end if
-       
+    
+    if (chm_diagn_only) return
+
+    ! check if the observation integer flag has a bit marked by chm_config%diagn_flag (same flagging as in filt_suprep)
+    if (chm_config%diagn_nflag.gt.0) then
+       do i=1,chm_config%diagn_nflag
+          if (btest(flag, 13 - chm_config%diagn_flag(i) )) then
+             chm_diagn_only = .true.
+             return
+          end if
+       end do
+    end if
+
   end function chm_diagn_only
 
 !-------------------------------------------------------------------------------------------
