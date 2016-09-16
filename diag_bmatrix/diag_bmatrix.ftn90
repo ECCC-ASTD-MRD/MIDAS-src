@@ -88,7 +88,7 @@ program diag_bmatrix
   nulnam=0
   ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
   read(nulnam,nml=namdiag,iostat=ierr)
-  if(ierr.ne.0) call abort3d('diag_bmatrix: Error reading namelist')
+  if(ierr.ne.0) call varAbort('diag_bmatrix: Error reading namelist')
   write(*,nml=namdiag)
   ierr=fclos(nulnam)
   

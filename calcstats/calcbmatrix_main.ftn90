@@ -115,7 +115,7 @@ program calcbmatrix_main
      else
         write(*,*)
         write(*,*) 'STDDEV mode is not availbale in LAM mode'
-        call abort3d('calcbmatrix_main')
+        call varAbort('calcbmatrix_main')
      end if
   case ('POWERSPEC')
      if (hco_ens % global) then
@@ -123,12 +123,12 @@ program calcbmatrix_main
      else
         write(*,*)
         write(*,*) 'POWERSPEC mode is not availbale in LAM mode'
-        call abort3d('calcbmatrix_main')
+        call varAbort('calcbmatrix_main')
      end if
   case default
      write(*,*)
      write(*,*) 'Unknown value of CMODE in global mode: ',cmode
-     call abort3d('calcbmatrix_main')
+     call varAbort('calcbmatrix_main')
   end select
 
   !

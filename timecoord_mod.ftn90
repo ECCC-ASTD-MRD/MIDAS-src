@@ -52,7 +52,7 @@ contains
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=namtime,iostat=ierr)
-    if(ierr.ne.0) call abort3d('tim_setup: Error reading namelist')
+    if(ierr.ne.0) call varAbort('tim_setup: Error reading namelist')
     if(mpi_myid.eq.0) write(*,nml=namtime)
     ierr=fclos(nulnam)
 

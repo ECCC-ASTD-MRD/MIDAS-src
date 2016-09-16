@@ -141,7 +141,7 @@
                     IF (ZOER .LT. 1.D-3 .AND. ITYP .NE. BUFR_NEZD) THEN
                       WRITE(*,*)' Problem for GP STNID ZOER= ' ,  &
                          obs_elem_c(lobsSpaceData,'STID',index_header),ZOER
-                      CALL ABORT3D('BGCDATA: PROBLEM WITH OER.')
+                      CALL varAbort('BGCDATA: PROBLEM WITH OER.')
                     ENDIF
                     IF (ZFGE .LT. 1.D-3 ) THEN
                       WRITE(*,*)' Problem for GP STNID FGE= ',  &

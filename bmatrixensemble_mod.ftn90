@@ -201,7 +201,7 @@ CONTAINS
     nulnam = 0
     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=namben,iostat=ierr)
-    if (ierr.ne.0) call abort3d('ben_setup: Error reading namelist')
+    if (ierr.ne.0) call varAbort('ben_setup: Error reading namelist')
     if (mpi_myid == 0) write(*,nml=namben)
     ierr = fclos(nulnam)
 
@@ -230,7 +230,7 @@ CONTAINS
        else
           write(*,*)
           write(*,*) 'mode = ', trim(mode)
-          call abort3d('ben_setup: unknown mode')
+          call varAbort('ben_setup: unknown mode')
        end if
     else
        ben_mode = 'Analysis'
@@ -251,7 +251,7 @@ CONTAINS
     if (numStep_in == 1.or.numStep_in == 3.or.numStep_in == 5.or.numStep_in == 7) then
       numStep = numStep_in
     else
-      call abort3d('ben_setup: Invalid value for numStep (choose 1 or 3 or 5 or 7)!')
+      call varAbort('ben_setup: Invalid value for numStep (choose 1 or 3 or 5 or 7)!')
     endif
 
     !- 2.4 Initialize dates for ensemble files
@@ -279,7 +279,7 @@ CONTAINS
       if (lExists) then
         ensembleFileExtLength = 4
       else 
-        call abort3d('ben_setup: could not determine file extension length')
+        call varAbort('ben_setup: could not determine file extension length')
       endif
     endif
 
@@ -305,20 +305,20 @@ CONTAINS
     if (Vcode_anl == 5002) then
       if (nLevEns_T.ne.(nLevEns_M+1)) then
         write(*,*) 'ben_setup: nLevEns_T, nLevEns_M = ',nLevEns_T,nLevEns_M
-        call abort3d('ben_setup: Vcode=5002, nLevEns_T must equal nLevEns_M+1!')
+        call varAbort('ben_setup: Vcode=5002, nLevEns_T must equal nLevEns_M+1!')
       endif
     elseif (Vcode_anl == 5004) then
       if (nLevEns_T.ne.nLevEns_M) then
         write(*,*) 'ben_setup: nLevEns_T, nLevEns_M = ',nLevEns_T,nLevEns_M
-        call abort3d('ben_setup: Vcode=5004, nLevEns_T must equal nLevEns_M!')
+        call varAbort('ben_setup: Vcode=5004, nLevEns_T must equal nLevEns_M!')
       endif
     else
       write(*,*) 'Vcode_anl = ',Vcode_anl
-      call abort3d('ben_setup: unknown vertical coordinate type!')
+      call varAbort('ben_setup: unknown vertical coordinate type!')
     endif
 
     if (nLevEns_M.gt.nLevInc_M) then
-      call abort3d('ben_setup: ensemble has more levels than increment - not allowed!')
+      call varAbort('ben_setup: ensemble has more levels than increment - not allowed!')
     endif
 
     if (nLevEns_M.lt.nLevInc_M) then
@@ -407,7 +407,7 @@ CONTAINS
          if (mpi_myid == 0) write(*,*) 'ben_setup: Scale-Dependent localization will be used'
          nWaveBand = count(waveBandPeaks .ge. 0)
          if ( nWaveBand <= 1 ) then
-            call abort3d('ben_setup: nWaveBand <= 1')
+            call varAbort('ben_setup: nWaveBand <= 1')
          end if
          ! You must provide nWaveBand wavenumbers in decreasing order
          ! e.g. For a 3 wave bands decomposition...
@@ -421,34 +421,34 @@ CONTAINS
          ! Make sure that the wavenumbers are in the correct (decreasing) order
          do waveBandIndex = 1, nWaveBand-1
             if ( waveBandPeaks(waveBandIndex)-waveBandPeaks(waveBandIndex+1) <= 0 ) then
-               call abort3d('ben_setup: waveBandPeaks are not in decreasing wavenumber order') 
+               call varAbort('ben_setup: waveBandPeaks are not in decreasing wavenumber order') 
             end if
          end do
 
          ! Make sure that we have valid localization length scales for each wave bands
          do  waveBandIndex = 1, nWaveBand
             if ( hLocalize(waveBandIndex) <= 0.0d0 ) then
-               call abort3d('ben_setup: Invalid HORIZONTAL localization length scale')
+               call varAbort('ben_setup: Invalid HORIZONTAL localization length scale')
             end if
             if ( vLocalize(waveBandIndex) <= 0.0d0 ) then
-               call abort3d('ben_setup: Invalid VERTICAL localization length scale')
+               call varAbort('ben_setup: Invalid VERTICAL localization length scale')
             end if
          end do
 
          ! Make sure the truncation is compatible with the waveBandPeaks
          if ( ntrunc < waveBandPeaks(1) ) then
-            call abort3d('ben_setup: The truncation is not compatible with the your scale-dependent localization')
+            call varAbort('ben_setup: The truncation is not compatible with the your scale-dependent localization')
          end if
 
       else
-         call abort3d('ben_setup: Invalid mode for LocalizationType')
+         call varAbort('ben_setup: Invalid mode for LocalizationType')
       endif
 
       zps = 101000.D0
       status = vgd_levels( vco_anl%vgrid, ip1_list=vco_anl%ip1_M, levels=pressureProfileInc_M, &
                            sfc_field=zps, in_log=.false.)
       if (status /= VGD_OK)then
-        call abort3d('ben_setup: ERROR from vgd_levels')
+        call varAbort('ben_setup: ERROR from vgd_levels')
       end if
 
       allocate(pressureProfileEns_M(nLevEns_M),stat=ierr)
@@ -473,7 +473,7 @@ CONTAINS
        write(*,*)
        write(*,*) 'Unknown humidity control variable'
        write(*,*) 'Should be LQ or LU, found = ', ctrlVarHumidity
-       call abort3d('ben_setup')
+       call varAbort('ben_setup')
     end if
 
     !
@@ -659,7 +659,7 @@ CONTAINS
     allocate(ensPerts(nWaveBand,nEns),stat=ierr)
     if (ierr.ne.0) then
       write(*,*) 'ben_setupEnsemble: Problem allocating memory! id=7.1',ierr
-      call abort3d('aborting in ben setupEnsemble')
+      call varAbort('aborting in ben setupEnsemble')
     endif
     do waveBandIndex = 1, nWaveBand
       do memberIndex = 1, nEns
@@ -746,7 +746,7 @@ CONTAINS
             write(ensNumber,'(i3.3)') 1+mod(memberIndex+memberIndexOffset-1, totalEnsembleSize)
           else
             write(*,*) 'ben setupEnsemble: ensembleFileExtLength = ', ensembleFileExtLength
-            call abort3d('ben setupEnsemble: unknown value')
+            call varAbort('ben setupEnsemble: unknown value')
           endif
           ensFileName = trim(enspathname) // '/' // trim(ensfilebasename) // &
                      trim(datestr_last) // trim(hourstr_last) // '_006_' // trim(ensNumber)
@@ -756,7 +756,7 @@ CONTAINS
             ierr = fnom(kulin,ensFileName,'RND+OLD+R/O',0)
           else
             write(*,*) 'filename=',trim(ensFileName)
-            call abort3d('ben setupEnsemble: Could not open ensemble file')
+            call varAbort('ben setupEnsemble: Could not open ensemble file')
           endif
           ierr = fstouv(kulin,'RND+OLD')
 
@@ -768,14 +768,14 @@ CONTAINS
                write(*,*) 'ben_setupensemble: Invalid horizontal dimensions ...'
                write(*,*) 'Found ni,nj =', ni_fst, nj_fst
                write(*,*) 'Should be   =', ni_expected, nj_expected
-               call abort3d('ben_setupensemble')
+               call varAbort('ben_setupensemble')
             end if
             if ( nk_fst /= 1 ) then
                write(*,*)
                write(*,*) 'ben_setupensemble: Invalid vertical dimensions ...'
                write(*,*) 'Found nk =', nk_fst
                write(*,*) 'Should be 1'
-               call abort3d('ben_setupensemble')
+               call varAbort('ben_setupensemble')
             end if
             write(*,*) 'ben_setupensemble: allocating temporary 3D buffer with ni_fst,nj_fst=',ni_fst,nj_fst
             allocate(gd3d_r4(ni_fst,nj_fst,max(nLevEns_T,nLevEns_M)))
@@ -812,7 +812,7 @@ CONTAINS
               ikey = fstlir(gd3d_r4(:,:,jk),kulin,ni_fst,nj_fst,nk_fst,dateStampList(jstep),etiket,ip1,ip2,ip3,typvar,vnl_varNameList(jvar))
               if (ikey.lt.0) then
                 write(*,*) dateStampList(jstep),etiket,nip1_T(jk),ip2,ip3,typvar,vnl_varNameList(jvar)
-                call abort3d('ben setupEnsemble: Problem reading member')
+                call varAbort('ben setupEnsemble: Problem reading member')
               endif
             enddo ! level
 
@@ -999,7 +999,7 @@ CONTAINS
     integer :: ji,jj,jvar,jstep,jk,jkInc,topLevOffset
 
     if ( trim(upwardExtrapolationMethod) /= "ConstantValue" ) then
-       call abort3d('ben_getPerturbation : Invalid value for upwardExtrapolationMethod')
+       call varAbort('ben_getPerturbation : Invalid value for upwardExtrapolationMethod')
     end if
 
     if ( present(waveBandIndexWanted) ) then
@@ -1184,7 +1184,7 @@ CONTAINS
        inquire(file=trim(trialfile),exist=trialExists)
        if ( .not. trialExists ) then
           if ( mpi_myid == 0 ) write(*,*) 'Ensemble trial file not found = ', trialfile
-          call abort3d('BMatrixEnsemble : DID NOT FIND A TRIAL FIELD FILE')
+          call varAbort('BMatrixEnsemble : DID NOT FIND A TRIAL FIELD FILE')
        end if
     end if
 
@@ -1208,7 +1208,7 @@ CONTAINS
     if (key < 0) then
        write(*,*)
        write(*,*) 'bMatrixEnsemble: Unable to find trial field = ',nomvar
-       call abort3d('BMatrixEnsemble')
+       call varAbort('BMatrixEnsemble')
     end if
 
     ierr = fstprm( key,                                                 & ! IN
@@ -1232,7 +1232,7 @@ CONTAINS
     if ( ierr < 0 ) then
        write(*,*)
        write(*,*) 'bMatrixEnsemble: Unable to read trial field = ',nomvar
-       call abort3d('BMatrixEnsemble : fstlir failed')
+       call varAbort('BMatrixEnsemble : fstlir failed')
     end if
 
     if (ini /= ni_trial .or. inj /= nj_trial) then
@@ -1243,7 +1243,7 @@ CONTAINS
        write(*,*) 'ip1         =', ip1
        write(*,*) 'Found ni,nj =', ini, inj 
        write(*,*) 'Should be   =', ni_trial, nj_trial
-       call abort3d('bMatrixEnsemble')
+       call varAbort('bMatrixEnsemble')
     end if
 
     nomvar = 'GL'
@@ -1252,7 +1252,7 @@ CONTAINS
     if ( ierr < 0 ) then
        write(*,*)
        write(*,*) 'bMatrixEnsemble: Unable to read trial field = ',nomvar
-       call abort3d('BMatrixEnsemble : fstlir failed')
+       call varAbort('BMatrixEnsemble : fstlir failed')
     end if
 
     if (ini /= ni_trial .or. inj /= nj_trial) then
@@ -1263,7 +1263,7 @@ CONTAINS
        write(*,*) 'ip1         =', ip1
        write(*,*) 'Found ni,nj =', ini, inj 
        write(*,*) 'Should be   =', ni_trial, nj_trial
-       call abort3d('bMatrixEnsemble')
+       call varAbort('bMatrixEnsemble')
     end if
 
     TrialGridID  = ezqkdef( ni_trial, nj_trial, grtyp, ig1, ig2, ig3, ig4, nultrl )   ! IN
@@ -1420,7 +1420,7 @@ CONTAINS
        write(*,*) 'i-dim = ', niEns, lonPerPE
        write(*,*) 'j-dim = ', njEns, latPerPE
        write(*,*) 'k-dim = ', nkEns, 1
-       call abort3d('Ensemble dimensions are incompatible with the topology and/or the analysis grid')
+       call varAbort('Ensemble dimensions are incompatible with the topology and/or the analysis grid')
     endif
 
   END SUBROUTINE CheckEnsDim
@@ -1662,13 +1662,13 @@ CONTAINS
        allocate(ensLocal(waveBandIndex)%Horiz(0:ntrunc,nLevEns_M),stat=ierr)
        if (ierr.ne.0 ) then
           write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=9',ierr
-          call abort3d('aborting in ben: setupLocalization')
+          call varAbort('aborting in ben: setupLocalization')
        endif
 
        allocate(ensLocal(waveBandIndex)%Vert(nLevEns_M,nLevEns_M),stat=ierr)
        if (ierr.ne.0 ) then
           write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=10',ierr
-          call abort3d('aborting in ben: setupLocalization')
+          call varAbort('aborting in ben: setupLocalization')
        endif
 
        !- 2.2.  Compute HORIZONTAL localization correlation matrix
@@ -1791,7 +1791,7 @@ CONTAINS
         enddo
         if (zpole.le.0.d0) then
           write(*,*)'POLE VALUE NEGATIVE IN setupGlobalHLoc jk=',jk
-          call abort3d('setupGlobalHLoc')
+          call varAbort('setupGlobalHLoc')
         endif
         do jn = 0, ntrunc
           ensLocal(waveBandIndex)%Horiz(jn,jk) = ensLocal(waveBandIndex)%Horiz(jn,jk)/zpole
@@ -1947,7 +1947,7 @@ CONTAINS
       do k = 1, nLevEns_M
          if ( gd(ni/2,nj/2,k) <= 0.d0 ) then
             write(*,*) 'setupLamHLoc: Problem in normalization ',gd(ni/2,nj/2,k)
-            call abort3d('aborting in setupLamHLoc')
+            call varAbort('aborting in setupLamHLoc')
          endif
          if ( mpi_myid == 0 ) then
            write(*,*) 'setupLamHLoc: Normalization factor = ', k, gd(ni/2,nj/2,k), 1.d0 / gd(ni/2,nj/2,k)
@@ -2077,13 +2077,13 @@ CONTAINS
                                write(*,*)
                                write(*,*) 'ERROR: jdim_mpilocal > cvDim_allMpiLocal(jproc+1)', jdim_mpilocal, cvDim_allMpiLocal(jproc+1)
                                write(*,*) '       proc, jlev, jn, jm = ',jproc, jlev, jn, jm
-                               call abort3d('ben_reduceToMPILocal')
+                               call varAbort('ben_reduceToMPILocal')
                             end if
                             if (jdim_mpiglobal > cvDim_mpiglobal) then
                                write(*,*)
                                write(*,*) 'ERROR: jdim_mpiglobal > cvDim_mpiglobal', jdim_mpiglobal, cvDim_mpiglobal
                                write(*,*) '       proc, jlev, jn, jm = ',jproc, jlev, jn, jm
-                               call abort3d('ben_reduceToMPILocal')
+                               call varAbort('ben_reduceToMPILocal')
                             end if
  
                          endif
@@ -2149,7 +2149,7 @@ CONTAINS
                         ila_mpiglobal = allilaGlobal(ila_mpilocal,jproc+1)
                         if ( ila_mpiglobal <= 0 ) then 
                            write(*,*) 'ben_reduceToMPILocal: invalid ila_mpiglobal index ', ila_mpiglobal
-                           call abort3d('ben_reduceToMPILocal')
+                           call varAbort('ben_reduceToMPILocal')
                         end if
                         jdim_mpiglobal = ( (jlev-1) * nEns * lst_ben%nlaGlobal * lst_ben%nphase ) + &
                                          ( (memberIndex-1) * lst_ben%nlaGlobal * lst_ben%nphase ) + &
@@ -2159,13 +2159,13 @@ CONTAINS
                             write(*,*)
                             write(*,*) 'ERROR: jdim_mpilocal > cvDim_allMpiLocal(jproc+1)', jdim_mpilocal, cvDim_allMpiLocal(jproc+1)
                             write(*,*) '       proc, memberIndex, jlev, ila, p = ',jproc,memberIndex,jlev,ila_mpilocal,p
-                            call abort3d('ben_reduceToMPILocal')
+                            call varAbort('ben_reduceToMPILocal')
                          end if
                          if (jdim_mpiglobal > cvDim_mpiglobal) then
                             write(*,*)
                             write(*,*) 'ERROR: jdim_mpiglobal > cvDim_mpiglobal', jdim_mpiglobal, cvDim_mpiglobal
                             write(*,*) '       proc, memberIndex, jlev, ila, p = ',jproc,memberIndex,jlev,ila_mpilocal,p
-                            call abort3d('ben_reduceToMPILocal')
+                            call varAbort('ben_reduceToMPILocal')
                          end if
                   
                          cv_allmaxmpilocal(jdim_mpilocal,jproc+1) = cv_mpiglobal(jdim_mpiglobal)
@@ -2333,13 +2333,13 @@ CONTAINS
                         write(*,*)
                         write(*,*) 'ERROR: jdim_mpilocal > cvDim_allMpiLocal(jproc+1)', jdim_mpilocal, cvDim_allMpiLocal(jproc+1)
                         write(*,*) '       proc, jlev, jn, jm = ',jproc, jlev, jn, jm
-                        call abort3d('ben_expandToMPIGlobal')
+                        call varAbort('ben_expandToMPIGlobal')
                      end if
                      if (jdim_mpiglobal > cvDim_mpiglobal) then
                         write(*,*)
                         write(*,*) 'ERROR: jdim_mpiglobal > cvDim_mpiglobal', jdim_mpiglobal, cvDim_mpiglobal
                         write(*,*) '       proc, jlev, jn, jm = ',jproc, jlev, jn, jm
-                        call abort3d('ben_expandToMPIGlobal')
+                        call varAbort('ben_expandToMPIGlobal')
                      end if
 
                    endif
@@ -2399,7 +2399,7 @@ CONTAINS
                          ila_mpiglobal = allilaGlobal(ila_mpilocal,jproc+1)
                          if ( ila_mpiglobal <= 0 ) then 
                             write(*,*) 'ben_expandToMPIGlobal: invalid ila_mpiglobal index ', ila_mpiglobal
-                            call abort3d('ben_expandToMPIGlobal')
+                            call varAbort('ben_expandToMPIGlobal')
                          end if
 
                          jdim_mpiglobal = ( (jlev-1) * nEns * lst_ben%nlaGlobal * lst_ben%nphase ) + &
@@ -2410,13 +2410,13 @@ CONTAINS
                             write(*,*)
                             write(*,*) 'ERROR: jdim_mpilocal > cvDim_allMpiLocal(jproc+1)', jdim_mpilocal, cvDim_allMpiLocal(jproc+1)
                             write(*,*) '       proc, memberIndex, jlev, ila, p = ',jproc,memberIndex,jlev,ila_mpilocal,p
-                            call abort3d('ben_expandToMPIGlobal')
+                            call varAbort('ben_expandToMPIGlobal')
                          end if
                          if (jdim_mpiglobal > cvDim_mpiglobal) then
                             write(*,*)
                             write(*,*) 'ERROR: jdim_mpiglobal > cvDim_mpiglobal', jdim_mpiglobal, cvDim_mpiglobal
                             write(*,*) '       proc, memberIndex, jlev, ila, p = ',jproc,memberIndex,jlev,ila_mpilocal,p
-                            call abort3d('ben_expandToMPIGlobal')
+                            call varAbort('ben_expandToMPIGlobal')
                          end if
 
                          cv_mpiglobal(jdim_mpiglobal) = cv_allmaxmpilocal(jdim_mpilocal,jproc+1)
@@ -3266,7 +3266,7 @@ CONTAINS
     else ! other Vcode
 
       write(*,*) 'addEnsMember: this Vcode not supported =',Vcode_anl
-      call abort3d('addEnsMember')
+      call varAbort('addEnsMember')
 
     endif
 
@@ -3350,7 +3350,7 @@ CONTAINS
     else ! other Vcode
 
       write(*,*) 'addEnsMember: this Vcode not supported =',Vcode_anl
-      call abort3d('addEnsMember')
+      call varAbort('addEnsMember')
 
     endif
 
@@ -3501,7 +3501,7 @@ CONTAINS
 
       if (jdim.gt.cvDim_mpilocal) then
         write(*,*) 'ben globalHLoc: jdim > cvDim_mpilocal! ',jdim,memberIndex,cvDim_mpilocal
-        call abort3d('aborted in ben globalHLoc')
+        call varAbort('aborted in ben globalHLoc')
       endif
 
     enddo
@@ -3542,7 +3542,7 @@ CONTAINS
        enddo
        if (jdim > cvDim_mpilocal ) then
           write(*,*) 'BEN: LamHLoc: jdim > cvDim! ',jdim,memberIndex,cvDim_mpilocal
-          call abort3d('aborted in LamHLoc')
+          call varAbort('aborted in LamHLoc')
        endif
        call tmg_stop(65)
 
@@ -3649,7 +3649,7 @@ CONTAINS
 
        if (jdim.gt.cvDim_mpilocal) then
           write(*,*) 'ben globalHLocAd: jdim > cvDim_mpilocal! ',jdim,memberIndex,cvDim_mpilocal
-          call abort3d('aborted in ben globalHLocAd')
+          call varAbort('aborted in ben globalHLocAd')
        endif
     
     enddo
@@ -3691,7 +3691,7 @@ CONTAINS
        enddo
        if (jdim > cvDim_mpilocal ) then
           write(*,*) 'BEN: LamHLocAD: jdim > cvDim! ',jdim, memberIndex, cvDim_mpilocal
-          call abort3d('aborted in LamHLocAd')
+          call varAbort('aborted in LamHLocAd')
        endif
        call tmg_stop(65)
 
@@ -3724,7 +3724,7 @@ CONTAINS
     else
        write(*,*)
        write(*,*) 'mode = ', trim(mode)
-       call abort3d('EnsembleDiagnostic: unknown mode')
+       call varAbort('EnsembleDiagnostic: unknown mode')
     end if
 
     if ( mpi_myid == 0 ) write(*,*)

@@ -42,9 +42,9 @@ module topLevelControl_mod
       ! Read the NAMELIST to modify these values
       nulnam=0
       ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-      if(ierr.ne.0) call abort3d('top_setup: Error opening file flnml')
+      if(ierr.ne.0) call varAbort('top_setup: Error opening file flnml')
       read(nulnam,nml=namct0,iostat=ierr)
-      if(ierr.ne.0) call abort3d('top_setup: Error reading namelist')
+      if(ierr.ne.0) call varAbort('top_setup: Error reading namelist')
       write(*,nml=namct0)
       ierr=fclos(nulnam)
 
@@ -66,7 +66,7 @@ module topLevelControl_mod
 	burp_split_mode = 'DEFAULT'
         ! At this point the code only supports split files
         write(*,*) 'top_setup: Expecting split burp files!'
-        call abort3d('top_setup')
+        call varAbort('top_setup')
       else
         write(*,*)
         write(*,*) 'top_setup: The environment variable ARMA_BURP_SPLIT has correctly been detected'
@@ -81,17 +81,17 @@ module topLevelControl_mod
 	   burp_split_mode = 'DEFAULT'
            ! At this point the code only supports split files
            write(*,*) 'top_setup: Expecting split burp files!'
-           call abort3d('top_setup')
+           call varAbort('top_setup')
         case ('ROUNDROBIN')
 	   write(*,*) 'top_setup: The observation files	ARE split using the ROUNDROBIN strategy'
 	   burp_split_L = .true.
 	case ('LATLONTILES')
 	   write(*,*) 'top_setup: The observation files	ARE split by LAT-LON tiles'
            write(*,*) 'top_setup: LAT-LON TILES NO LONGER PERMITTED, USE ROUND ROBIN!'
-           call abort3d('top_setup')
+           call varAbort('top_setup')
         case default
            write(*,*) 'top_setup: Unknown burp_split_mode ', trim(burp_split_mode)
-           call abort3d('top_setup')
+           call varAbort('top_setup')
         end select
       end if
 

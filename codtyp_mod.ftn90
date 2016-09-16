@@ -51,7 +51,7 @@ integer function codtyp_get_codtyp(name)
      icod(:) = -1
      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
      read(nulnam,nml=namcodtyp, iostat=ierr)
-     if (ierr.ne.0) call abort3d('codtyp_get_codtyp: Error reading namelist')
+     if (ierr.ne.0) call varAbort('codtyp_get_codtyp: Error reading namelist')
      if (mpi_myid.eq.0) write(*,nml=namcodtyp)
      ierr = fclos(nulnam)
      do i=1, codtyp_numbers
@@ -63,7 +63,7 @@ integer function codtyp_get_codtyp(name)
         call up2low(cnames(i)(1:ilen),ctempo(1:ilen))
         cnames(i)(1:ilen) = ctempo(1:ilen)
      enddo
-     if ( ncodtyp == 0 ) call abort3d('codtyp_get_codtyp: Empty namcodtyp namelist')
+     if ( ncodtyp == 0 ) call varAbort('codtyp_get_codtyp: Empty namcodtyp namelist')
      lfirst = .false.
   endif
   ctempo(:) = ' '
@@ -96,7 +96,7 @@ character (len=21) function codtyp_get_name(codtyp)
 
 if (codtyp_get_codtyp("SYNOPNONAUTO")<0) then
    Write(*,*) "Problem with NAMCODTYP section of the namelist !"
-   call abort3d("codtyp_get_name")
+   call varAbort("codtyp_get_name")
 endif
 
 do i=1, ncodtyp

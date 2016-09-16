@@ -14,31 +14,19 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-      subroutine abort3d(cdmessage)
-!
-!**s/r ABORT3D  - Abort a job on error
-!
-!Author  : P. Gauthier *ARMA/AES  June 9, 1992
-!    -------------------
-!*    Purpose:
-!     To stop a job when an error occurred
-!
-!Arguments
-!     i     CDMESSAGE: message to be printed
-!
-      implicit none
-      character(len=*) :: cdmessage
-      integer :: comm, ierr, rpn_comm_comm
+subroutine varAbort(cdmessage)
 
-      write(*,9000)cdmessage
- 9000 format(//,4X,"ABORT3D:-------",/,8X,"Job stopped in ",A)
+  implicit none
+  character(len=*) :: cdmessage
+  integer :: comm, ierr, rpn_comm_comm
 
-      call flush(6)
+  write(6,9000)cdmessage
+9000 format(//,4X,"VAR ABORT:-------",/,8X,"Job stopped in ",A)
+  call flush(6)
 
-      comm = rpn_comm_comm("WORLD")
-      call MPI_Abort( comm, 1, ierr )
-      call qqexit(1)
-      stop
+  comm = rpn_comm_comm("WORLD")
+  call MPI_Abort( comm, 1, ierr )
+  !call qqexit(1)
+  !stop
 
-      end
-
+end subroutine varAbort

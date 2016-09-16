@@ -106,7 +106,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
     inquire(file=trim(trialfile),exist=trialExists)
     if(.not.trialExists) then
       write(*,*) 'File missing=',trialfile
-      call abort3d('SUGOMOBS:DID NOT FIND A TRIAL FIELD FILE')
+      call varAbort('SUGOMOBS:DID NOT FIND A TRIAL FIELD FILE')
     else
       ierr=fnom(nultrl(jstep),trim(trialfile),'RND+OLD+R/O',0)
       ierr=fstouv(nultrl(jstep),'RND+OLD')
@@ -129,9 +129,9 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
   if(mpi_myid.eq.0) write(*,*) 'sugomobs: Vcode_trl= ',Vcode_trl, &
                                        '  Vcode_anl= ',Vcode_anl
   if(Vcode_trl.ne.5002.and.Vcode_trl.ne.5004.and.Vcode_trl.ne.5005) &
-    call abort3d('sugomobs: invalid vertical coord for background state!')
+    call varAbort('sugomobs: invalid vertical coord for background state!')
   if(Vcode_anl.ne.5002.and.Vcode_anl.ne.5004) &
-    call abort3d('sugomobs: invalid vertical coord for analysis grid!')
+    call varAbort('sugomobs: invalid vertical coord for analysis grid!')
 
   !
   !     Compute the maximum number of columns over all processors (lat-lon tiles)
@@ -213,7 +213,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
              nultrl(:),ip1_pak_trl,ip1_vco_trl,tim_nStepObs,  &
              nultrl2)
     if (itrlnlev <= 0 ) then
-      call abort3d('SUGOMOBS:Problem with background file')
+      call varAbort('SUGOMOBS:Problem with background file')
     end if
     ierr = ezgprm(itrlgid,clgrtyp,ini,inj,iig1,iig2,iig3,iig4)
 
@@ -730,7 +730,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
       if (key < 0) then
         write(6,*)
         write(6,*) 'SUGOMOBS: Unable to find trial field = ',varName
-        call abort3d('SUGOMOBS')
+        call varAbort('SUGOMOBS')
       end if
 
       ierr = fstprm( key,                                              & ! IN
@@ -775,7 +775,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
             elseif(varLevel.eq.'SF') then
               IIP1 = -1
             else
-              call abort3d('SUGOMOBS: unknown varLevel')
+              call varAbort('SUGOMOBS: unknown varLevel')
             endif
 
             if(trim(varName).eq.'GZ'.and.present(noUpperGZ)) then
@@ -795,7 +795,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
 
             if(ierr.lt.0)then
               write(*,2001) varName,iip1,idate(jstep),itime(jstep)
-              call abort3d('SUGOMOBS:Problem with background file')
+              call varAbort('SUGOMOBS:Problem with background file')
             end if
 
             if(varName.eq.'UU') then
@@ -804,7 +804,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
                           cltypvar,'VV')
               if(ierr.lt.0)then
                 write(*,2001) 'VV',iip1,idate(jstep),itime(jstep)
-                call abort3d('SUGOMOBS:Problem with background file')
+                call varAbort('SUGOMOBS:Problem with background file')
               end if
             endif
 

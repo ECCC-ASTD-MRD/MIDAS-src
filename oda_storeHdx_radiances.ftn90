@@ -55,7 +55,7 @@ subroutine oda_storeHdx_radiances(lobsSpaceData)
 
   integer  isrcheq
   external isrcheq
-  external abort3d
+  external varAbort
 
   if(NOBTOV.eq.0) return    ! exit if there are no tovs data
 
@@ -86,7 +86,7 @@ subroutine oda_storeHdx_radiances(lobsSpaceData)
      if ( indxtovs .eq. 0 ) then
         write(*,fmt=9203)
 9203    format(' tovs_calc_jo_tl: error with indxtovs')
-        call abort3d('tovs_calc_jo_tl ')
+        call varAbort('tovs_calc_jo_tl ')
      endif
 
 !     if (rttov_errorstatus(indxtovs) .lt. 20   ) then
@@ -108,7 +108,7 @@ subroutine oda_storeHdx_radiances(lobsSpaceData)
               if ( indxchn .eq. 0 ) then
                  write(*,fmt=9202)
 9202             format(' tovs_calc_jo_tl: error with channel number')
-                 call abort3d('tovs_calc_jo_tl  ')
+                 call varAbort('tovs_calc_jo_tl  ')
               endif
               call obs_bodySet_r(lobsSpaceData,OBS_WORK,index_body, &
                               radiance_tl (indxtovs) % bt(indxchn))

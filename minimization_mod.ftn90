@@ -106,7 +106,7 @@ CONTAINS
 
     if(nvadim_mpilocal_in.ne.cvm_nvadim) then
       write(*,*) 'nvadim_mpilocal,cvm_nvadim=',nvadim_mpilocal,cvm_nvadim
-      call abort3d('aborting in min_setup: control vector dimension not consistent')
+      call varAbort('aborting in min_setup: control vector dimension not consistent')
     endif
 
     nvadim_mpilocal=nvadim_mpilocal_in
@@ -137,14 +137,14 @@ CONTAINS
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=nammin,iostat=ierr)
-    if(ierr.ne.0) call abort3d('min_setup: Error reading namelist')
+    if(ierr.ne.0) call varAbort('min_setup: Error reading namelist')
     write(*,nml=nammin)
     ierr=fclos(nulnam)
 
     IF(N1GC == 3)THEN
       NMTRA = (4 + 2*NVAMAJ)*nvadim_mpilocal
     ELSE
-      call abort3d('min_setup: only N1GC=3 currently supported!') 
+      call varAbort('min_setup: only N1GC=3 currently supported!') 
     END IF
     WRITE(*,9401)N1GC,NVAMAJ,NMTRA
  9401 FORMAT(4X,'N1GC = ',I2,4X,'NVAMAJ = ',I3,/5X,"NMTRA =",1X,I14)
@@ -231,26 +231,26 @@ CONTAINS
       allocate(vazx(nvadim_mpilocal),stat=ierr)
       if(ierr.ne.0) then
         write(*,*) 'minimization: Problem allocating memory! id=3',ierr
-        call abort3d('aborting in min_minvar')
+        call varAbort('aborting in min_minvar')
       endif
 
       allocate(dg_vbar(nvadim_mpilocal),stat=ierr)
       if(ierr.ne.0) then
         write(*,*) 'minimization: Problem allocating memory! id=1',ierr
-        call abort3d('aborting in min_minvar')
+        call varAbort('aborting in min_minvar')
       endif
 
       allocate(vazg(nvadim_mpilocal),stat=ierr)
       if(ierr.ne.0) then
         write(*,*) 'minimization: Problem allocating memory! id=2',ierr
-        call abort3d('aborting in min_minvar')
+        call varAbort('aborting in min_minvar')
       endif
 
       allocate(vatra(nmtra),stat=ierr)
       if(ierr.ne.0.or.nmtra.le.0) then
         write(*,*) 'minimization: Problem allocating memory! id=4',ierr
         write(*,*) 'minimization: nmtra=',nmtra
-        call abort3d('aborting in min_minvar')
+        call varAbort('aborting in min_minvar')
       endif
 
       ! recast pointer to obsSpaceData as an integer array, so it can be passed through n1qn3 to simvar
@@ -261,7 +261,7 @@ CONTAINS
       allocate(dataptr_int(dataptr_int_size),stat=ierr)
       if(ierr.ne.0) then
         write(*,*) 'minimization: Problem allocating memory! id=2',ierr
-        call abort3d('aborting in min_minvar')
+        call varAbort('aborting in min_minvar')
       endif
       dataptr_int(1:dataptr_int_size)=transfer(dataptr,dataptr_int)
 
@@ -393,7 +393,7 @@ CONTAINS
             INDIC = 2
             call simvar(indic,nvadim_mpilocal,vazx,zjsp,vazg,dataptr_int(1))
           else
-            call abort3d(" MINIMIZATION_MOD: n1qn3 mode ne 4")
+            call varAbort(" MINIMIZATION_MOD: n1qn3 mode ne 4")
           endif
         endif
 
@@ -1260,7 +1260,7 @@ CONTAINS
     elseif (status == 1) then
       if (mpi_myid == 0) write(*,*) 'Write Hessian in min_hessianIO to file ', cfname
     else
-      call abort3d("min_hessianIO: status not valid ")
+      call varAbort("min_hessianIO: status not valid ")
     endif
 
     call rpn_comm_allreduce(nvadim_mpilocal,nvadim_mpiglobal,1,"mpi_integer","mpi_sum","GRID",ierr)
@@ -1284,14 +1284,14 @@ CONTAINS
          else
             write(*,*)
             write(*,*) 'min_hessianIO : Only V4 Hessian are supported, found ', trim(cl_version)
-            call abort3d("min_hessianIO")
+            call varAbort("min_hessianIO")
          endif
 
          if (i1gc == 3 .and. i1gc == k1gc) then
             write(*,*) trim(cl_version),' M1QN3'
          else
             write(*,*) 'Version, n1gc =',trim(cl_version),i1gc
-            call abort3d("min_hessianIO: Inconsistant input hessian")
+            call varAbort("min_hessianIO: Inconsistant input hessian")
          endif
 
          rewind (ireslun)
@@ -1300,7 +1300,7 @@ CONTAINS
          read(ireslun) ivamaj,iztrl_io
          if ((ivamaj.ne.nvamaj).or.(nvadim_mpiglobal.ne.ivadim)) then
             write(*,*) nvamaj,ivamaj,nvadim_mpiglobal,ivadim
-            call abort3d("min_hessianIO : ERROR, size of V4 Hessian not consistent")
+            call varAbort("min_hessianIO : ERROR, size of V4 Hessian not consistent")
          endif
 
       end if
@@ -1437,7 +1437,7 @@ CONTAINS
       !- Close the Hessian matrix file
       if (mpi_myid == 0) ierr = fclos(ireslun)
     else
-      call abort3d("min_hessianIO: status not valid")
+      call varAbort("min_hessianIO: status not valid")
     endif
 
     call tmg_stop(88)

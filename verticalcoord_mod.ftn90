@@ -55,7 +55,7 @@ module verticalCoord_mod
     stat = stat + nl_stat
 
     if(stat .ne. 0 ) then
-       call abort3d(' vco: problem with allocate in vco ')
+       call varAbort(' vco: problem with allocate in vco ')
     endif
 
   end subroutine vco_allocate
@@ -118,10 +118,10 @@ module verticalCoord_mod
         endif
         ierr =  fstouv(nultemplate,'RND+OLD')
       else
-        call abort3d('vco_SetupFromFile: CANNOT OPEN TEMPLATE FILE!')
+        call varAbort('vco_SetupFromFile: CANNOT OPEN TEMPLATE FILE!')
       endif
     else
-      call abort3d('vco_SetupFromFile: CANNOT FIND TEMPLATE FILE!')
+      call varAbort('vco_SetupFromFile: CANNOT FIND TEMPLATE FILE!')
     endif
 
     if(.not.associated(vco)) allocate(vco)
@@ -131,14 +131,14 @@ module verticalCoord_mod
   
     stat = vgd_new(vco%vgrid,unit=nultemplate,format="fst",ip1=-1,ip2=-1)
     if(stat.ne.VGD_OK)then
-      call abort3d('ERROR with vgd_new')
+      call varAbort('ERROR with vgd_new')
     endif
 
     ! Print out vertical structure 
     if(mpi_myid.eq.0 .and. .not.present(beSilent)) then
       stat = vgd_print(vco%vgrid)
       if(stat.ne.VGD_OK)then
-        call abort3d('ERROR with vgd_print')
+        call varAbort('ERROR with vgd_print')
       endif
     endif
 
@@ -148,7 +148,7 @@ module verticalCoord_mod
     stat = 0
     stat = vgd_get(vco%vgrid,key='ig_1 - vertical coord code',value=Vcode)
     if(stat.ne.VGD_OK) then
-      call abort3d('vco: problem with vgd_get: key= ig_1 - vertical coord code')
+      call varAbort('vco: problem with vgd_get: key= ig_1 - vertical coord code')
     endif
 
     ! Get vgrid values for ip1
@@ -161,7 +161,7 @@ module verticalCoord_mod
     stat = stat + VGD_OK
 
     if(stat.ne.0) then
-      call abort3d('vco: problem with vgd_get')
+      call varAbort('vco: problem with vgd_get')
     endif
 
     vgd_nlev_M = size(vgd_ip1_M)
@@ -190,7 +190,7 @@ module verticalCoord_mod
       write(*,*) 'vco_setupfromfile: template file name=',templatefile
       write(*,*) 'vco_setupfromfile: etiket=',etiket
       write(*,*) 'vco_setupfromfile: variable name=',nomvar_T
-      call abort3d('vco_setupfromfile: Could not find a valid thermodynamic variable in the template file!')
+      call varAbort('vco_setupfromfile: Could not find a valid thermodynamic variable in the template file!')
     endif
 
     vco%nlev_M = 0
@@ -223,7 +223,7 @@ module verticalCoord_mod
       write(*,*) 'vco_setupfromfile: template file name=',templatefile
       write(*,*) 'vco_setupfromfile: etiket=',etiket
       write(*,*) 'vco_setupfromfile: variable name=',nomvar_M
-      call abort3d('vco_setupfromfile: Could not find a valid momentum variable in the template file!')
+      call varAbort('vco_setupfromfile: Could not find a valid momentum variable in the template file!')
     endif
 
     if(mpi_myid.eq.0 .and. .not.present(beSilent)) then
@@ -242,7 +242,7 @@ module verticalCoord_mod
       if(ikey.gt.0) then
         jlev2 = jlev2 + 1
         if(jlev2.gt.vco%nlev_M) then
-          call abort3d('vco: Problem with consistency between vgrid descriptor and template file (momentum)')
+          call varAbort('vco: Problem with consistency between vgrid descriptor and template file (momentum)')
         endif
         vco%ip1_M(jlev2) = vgd_ip1_M(jlev)
       else
@@ -262,7 +262,7 @@ module verticalCoord_mod
       if(ikey.gt.0) then
         jlev2 = jlev2 + 1
         if(jlev2.gt.vco%nlev_T) then
-          call abort3d('vco: Problem with consistency between vgrid descriptor and template file (thermo)')
+          call varAbort('vco: Problem with consistency between vgrid descriptor and template file (thermo)')
         endif
         vco%ip1_T(jlev2) = vgd_ip1_T(jlev)
       else
@@ -286,7 +286,7 @@ module verticalCoord_mod
     enddo
     if(.not.ip1_found) then
       write(*,*) 'vco: Could not find IP1=',ip1_sfc
-      call abort3d('vco: No surface level found in Vgrid!!!')
+      call varAbort('vco: No surface level found in Vgrid!!!')
     endif
 
     do jlev = 1, vco%nlev_M
@@ -325,7 +325,7 @@ module verticalCoord_mod
     elseif(varLevel.eq.'SF') then
       nlev = 1
     else
-      call abort3d('vco_getNumLev: Unknown variable type! ' // varLevel)
+      call varAbort('vco_getNumLev: Unknown variable type! ' // varLevel)
     endif
 
   end function vco_getNumLev

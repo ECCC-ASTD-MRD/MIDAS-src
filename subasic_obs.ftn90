@@ -41,7 +41,7 @@ subroutine subasic_obs(lcolumng)
 
   if(Vcode_anl .ne. 5002 .and. &
      Vcode_anl .ne. 5004 ) then
-    call abort3d('subasic_obs: invalid vertical coord!')
+    call varAbort('subasic_obs: invalid vertical coord!')
   endif
 
   ! initialize virtual temperature operator

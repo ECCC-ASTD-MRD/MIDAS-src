@@ -62,7 +62,7 @@ subroutine compute_HBHT(columng,columnhr,obsSpaceData)
      nulnam = 0
      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
      read(nulnam,nml=namhbht,iostat=ierr)
-     if ( ierr /= 0) call abort3d('compute_HBHT: Error reading namelist')
+     if ( ierr /= 0) call varAbort('compute_HBHT: Error reading namelist')
      if ( mpi_myid == 0 ) write(*,nml=namhbht)
      ierr = fclos(nulnam)
 
@@ -80,13 +80,13 @@ subroutine compute_HBHT(columng,columnhr,obsSpaceData)
         case default
            write(*,*)
            write(*,*) 'compute_HBHT: Unknown hybrid_mode ', trim(hybrid_mode)
-           call abort3d('compute_HBHT')
+           call varAbort('compute_HBHT')
         end select
         call obs_bodySet_r(obsSpaceData,OBS_HPHT,index_body, HBHT_hybrid)
      end do
 
   else
-     call abort3d('compute_HBHT: no B matrix was initialized')
+     call varAbort('compute_HBHT: no B matrix was initialized')
   end if
 
 end subroutine compute_HBHT

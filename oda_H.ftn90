@@ -651,7 +651,7 @@ end subroutine oda_Hto
 
           if(ITYP.eq.BUFR_NEES) then
             write(*,*) 'ABORTING IN ODA_HZP: CANNOT ASSIMILATE ES!!!',ityp,obs_getfamily(lobsSpaceData,index_header),index_header,index_body
-            call abort3d('Aborting in oda_H')
+            call varAbort('Aborting in oda_H')
           endif
           call obs_bodySet_r(lobsSpaceData,OBS_WORK,INDEX_BODY,  &
               ZWB*col_getElem(LCOLUMN,IPB,INDEX_HEADER) + ZWT*col_getElem(LCOLUMN,IPT,INDEX_HEADER) +  &
@@ -722,7 +722,7 @@ end subroutine oda_Hto
 !     NOTE:  vGPSZTD_Index(numGPSZTD) is initialized in s/r dobsgpsgb
 !
       if (.not.allocated(vGPSZTD_Index)) then
-         call abort3d('oda_Hgp: ERROR:  vGPSZTD_Index not allocated!')
+         call varAbort('oda_Hgp: ERROR:  vGPSZTD_Index not allocated!')
       elseif (.not.allocated(vGPSZTD_Jacobian)) then
          write(*,*) ' Allocate vGPSZTD_Jacobian(numGPSZTD,2*NFLEV+1)'
          allocate(vGPSZTD_Jacobian(numGPSZTD,2*NFLEV+1))
@@ -748,7 +748,7 @@ end subroutine oda_Hto
       write(*,*) '         col_getNumLev(lcolumn,TH)  = ', NFLEV2
       write(*,*) '         numGPSZTD = ', numGPSZTD
 
-      if ( NFLEV .ne. NFLEV2 ) call abort3d('oda_Hgp: ERROR: NFLEV .ne. NFLEV2!')
+      if ( NFLEV .ne. NFLEV2 ) call varAbort('oda_Hgp: ERROR: NFLEV .ne. NFLEV2!')
 
       icount = 0
 
@@ -794,7 +794,7 @@ end subroutine oda_Hto
             if ( ZPPB(NFLEV) .ne. ZP0B ) then
               write(*,*) ' oda_Hgp: ERROR: ZPPB(NFLEV) .ne. ZP0B'
               write(*,*) '          ZPPB(NFLEV), ZP0B =', ZPPB(NFLEV), ZP0B
-              call abort3d('oda_Hgp:ABORT')
+              call varAbort('oda_Hgp:ABORT')
             endif
             ZMT  = col_getHeight(lcolumng,NFLEV,INDEX_HEADER,'TH')/RG
             if ( icount .eq. 1 .and. LTESTOP ) write(*,*) 'ZDP (dpdp0) = ', (ZDP(JL),JL= 1,NFLEV)
@@ -873,13 +873,13 @@ end subroutine oda_Hto
       write(*,*) '           vGPSZTD_Index(iztd)         = ', vGPSZTD_Index(iztd)
       
       if ( icount .ne. numGPSZTD ) then
-        call abort3d('oda_Hgp: ERROR: icount .ne. numGPSZTD!')
+        call varAbort('oda_Hgp: ERROR: icount .ne. numGPSZTD!')
       endif
       if ( icount .ne. iztd ) then
-        call abort3d('oda_Hgp: ERROR: icount .ne. iztd!')
+        call varAbort('oda_Hgp: ERROR: icount .ne. iztd!')
       endif      
       if ( numGPSZTD .ne. iztd ) then
-        call abort3d('oda_Hgp: ERROR: numGPSZTD .ne. iztd!')
+        call varAbort('oda_Hgp: ERROR: numGPSZTD .ne. iztd!')
       endif
 
 
@@ -915,7 +915,7 @@ end subroutine oda_Hto
          IF ( ASSIM ) THEN
             iztd = gps_i_from_index(INDEX_HEADER)
             if ( iztd < 1 .or. iztd > numGPSZTD ) then
-              call abort3d('oda_Hgp: ERROR: index from gps_i_from_index() is out of range!')
+              call varAbort('oda_Hgp: ERROR: index from gps_i_from_index() is out of range!')
             endif
 !C
 !C     *    Local vector state (analysis increments)

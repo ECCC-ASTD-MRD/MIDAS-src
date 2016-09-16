@@ -178,7 +178,7 @@ module observation_erreurs_mod
   IER =  FNOM(ILUTOV,'stats_tovs','SEQ+FMT',0)
   IF(IER.LT.0)THEN
      WRITE ( *, '(" oer_read_obs_erreurs_tovs: Problem opening ","file stats_tovs ")' )
-     CALL ABORT3D ('oer_read_obs_erreurs_tovs')
+     CALL varAbort ('oer_read_obs_erreurs_tovs')
   END IF
 
   !
@@ -216,14 +216,14 @@ module observation_erreurs_mod
 
      IF ( IPLATFORM(JL) .EQ. -1 ) THEN
       WRITE ( *, '(" oer_read_obs_erreurs_tovs: Unknown platform!"/)' )
-      CALL ABORT3D ('oer_read_obs_erreurs_tovs')
+      CALL varAbort ('oer_read_obs_erreurs_tovs')
      ENDIF
 
      IINSTRUMENT(JL) = tvs_get_inst_id(CINSTR)
 
      IF ( IINSTRUMENT(JL) .EQ. -1 ) THEN
        WRITE ( *, '(" oer_read_obs_erreurs_tovs: Unknown instrument!"/)' )
-       CALL ABORT3D ('oer_read_obs_erreurs_tovs')
+       CALL varAbort ('oer_read_obs_erreurs_tovs')
      ENDIF  
 
      DO JI = 1, NUMCHNIN(JL)
@@ -271,11 +271,11 @@ module observation_erreurs_mod
      ISAT = ISRCHEQ ( ISATID     , INUMSAT, SATELLITE (JL) )
      IF ( IPLF .EQ. 0 .OR. ISAT .EQ. 0 ) THEN
        WRITE ( *, '(" oer_read_obs_erreurs_tovs: Observation errors not ","defined for sensor # ", I3)' ) JL
-       CALL ABORT3D ('oer_read_obs_erreurs_tovs')
+       CALL varAbort ('oer_read_obs_erreurs_tovs')
      END IF
      IF ( NUMCHN(JL) .EQ. 0 ) THEN 
        WRITE ( *, '(" oer_read_obs_erreurs_tovs: Problem setting errors ","for sensor # ", I3)' ) JL
-       CALL ABORT3D ('oer_read_obs_erreurs_tovs')
+       CALL varAbort ('oer_read_obs_erreurs_tovs')
      ENDIF
   ENDDO
 
@@ -323,7 +323,7 @@ module observation_erreurs_mod
   !
   IER = FCLOS(ILUTOV)
   IF(IER.NE.0)THEN
-     CALL ABORT3D ('oer_read_obs_erreurs_tovs')
+     CALL varAbort ('oer_read_obs_erreurs_tovs')
   END IF
 
       contains
@@ -451,7 +451,7 @@ module observation_erreurs_mod
     WRITE(*,*) 'read_obs_errors_conv: reads observation errors in obserr'
     WRITE(*,*) '--------------------------------------------------------'
   else
-    CALL ABORT3D('read_obs_errors_conv: NO OBSERVATION STAT FILE FOUND!!')     
+    CALL varAbort('read_obs_errors_conv: NO OBSERVATION STAT FILE FOUND!!')     
   ENDIF
 !
 !     Read observation errors from file obserr for conventional data
@@ -464,7 +464,7 @@ module observation_erreurs_mod
     write(*,*) ' opened as unit file ',nulstat
     open(unit=nulstat, file='obserr', status='OLD')
   ELSE
-    CALL ABORT3D('read_obs_errors_conv:COULD NOT OPEN FILE obserr!!!')
+    CALL varAbort('read_obs_errors_conv:COULD NOT OPEN FILE obserr!!!')
   ENDIF
 
 write(*, '(A)') ' '
@@ -836,7 +836,7 @@ write(*, '(A)') ' '
                obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY), &
                obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)
 
-          CALL ABORT3D('oer_fill_obs_erreurs: PROBLEM OBSERR VARIANCE.')
+          CALL varAbort('oer_fill_obs_erreurs: PROBLEM OBSERR VARIANCE.')
 
         ENDIF
 

@@ -335,7 +335,7 @@ module obsOperators_mod
       zpb= col_getHeight(columnhr,ik+1,headerIndex,varLevel)/RG
       zwb  = (zpt-zlev)/(zpt-zpb)
       zwt  = 1.d0 - zwb
-      if(ivnm.eq.bufr_nees) call abort3d('oonl_zzz: CANNOT ASSIMILATE ES!!!')
+      if(ivnm.eq.bufr_nees) call varAbort('oonl_zzz: CANNOT ASSIMILATE ES!!!')
       call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex,  &
            zvar-zwb*col_getElem(columnhr,ipb,headerIndex) &
           - zwt*col_getElem(columnhr,ipt,headerIndex))
@@ -867,7 +867,7 @@ module obsOperators_mod
             write(*,*) ' Problem with ZTD observation error!'
             write(*,*) ' Station =',cstnid
             write(*,*) ' Error =', zoer
-            call abort3d('OONL_GPSGB: ABORT! BAD ZTD OBSERR') 
+            call varAbort('OONL_GPSGB: ABORT! BAD ZTD OBSERR') 
           endif
 
           ! Observation height (m)
@@ -948,7 +948,7 @@ module obsOperators_mod
           endif
         enddo HEADER_1
       else
-        call abort3d('ERROR: FAILED TO SELECT SINGLE OBSERVATION!')
+        call varAbort('ERROR: FAILED TO SELECT SINGLE OBSERVATION!')
       endif
     endif
       
@@ -1006,7 +1006,7 @@ module obsOperators_mod
         enddo HEADER_2
           
         if ( iztd .ne. numgpsztd ) then
-          call abort3d('ERROR: vGPSZTD_Index init: iztd .ne. numGPSZTD!')
+          call varAbort('ERROR: vGPSZTD_Index init: iztd .ne. numGPSZTD!')
         endif
 
      endif
@@ -1065,7 +1065,7 @@ module obsOperators_mod
     else
       option = 'HR'
     endif
-    if ( option .ne. 'HR' ) call abort3d('oonl_tovs: Invalid option for input state')
+    if ( option .ne. 'HR' ) call varAbort('oonl_tovs: Invalid option for input state')
 
     if(present(source_obs_in)) then
       source_obs = source_obs_in

@@ -564,7 +564,7 @@ CONTAINS
           enddo
           deallocate(col_recv)
         else
-          call abort3d('transpose_tileToColumn: NOT SURE WHAT IS GOING ON, CALL MARK')
+          call varAbort('transpose_tileToColumn: NOT SURE WHAT IS GOING ON, CALL MARK')
         endif
 
       else
@@ -860,7 +860,7 @@ CONTAINS
           call tmg_stop(35)
           deallocate(col_send)
         else
-          call abort3d('transpose_tileToColumn: NOT SURE WHAT IS GOING ON, CALL MARK')
+          call varAbort('transpose_tileToColumn: NOT SURE WHAT IS GOING ON, CALL MARK')
         endif
 
       else

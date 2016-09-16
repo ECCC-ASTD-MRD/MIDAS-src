@@ -587,7 +587,7 @@ end subroutine oda_HTto
       NFLEV  = col_getNumLev(lcolumng,'TH')
 
       IF ( .not.vGPSZTD_lJac(1) ) THEN
-         call abort3d('oda_HTgp:ERROR: ZTD Jacobians not stored!')
+         call varAbort('oda_HTgp:ERROR: ZTD Jacobians not stored!')
       ENDIF
 
       ! loop over all header indices of the 'GP' family (GPS observations)
@@ -625,7 +625,7 @@ end subroutine oda_HTto
             icount = icount + 1
             iztd = gps_i_from_index(INDEX_HEADER)
             if ( iztd < 1 .or. iztd > numGPSZTD ) then
-              call abort3d('oda_HTgp: ERROR: index from gps_i_from_index() is out of range!')
+              call varAbort('oda_HTgp: ERROR: index from gps_i_from_index() is out of range!')
             endif            
             
             DO JL = 1, 2*NFLEV+1

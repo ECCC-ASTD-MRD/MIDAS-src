@@ -266,14 +266,14 @@ C  *** APPLY TIME-SERIES WEIGHTING FACTOR TO OBSERVATION ERROR (YZDERRWGT=1 FOR 
      &         ZZTD*1000.D0, ZTDOER*1000.D0, ZLEV, ZPSFC/100.D0, ZWD*1000.D0, ZSTDOMP*1000.D0
              ENDIF
            ELSE
-               CALL ABORT3D('SETERRGPSGB: ERROR:NEGATIVE ZTD VALUE!')
+               CALL varAbort('SETERRGPSGB: ERROR:NEGATIVE ZTD VALUE!')
            ENDIF
          ENDIF       
 
 c
       ENDDO HEADER
 
-c      IF (DEBUG) CALL ABORT3D('******DEBUG STOP*******')
+c      IF (DEBUG) CALL varAbort('******DEBUG STOP*******')
       
       IF (.not.ldata) numGPSZTD = 0
       

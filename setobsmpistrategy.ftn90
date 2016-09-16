@@ -359,7 +359,7 @@ subroutine setObsMpiStrategy(lobsSpaceData, mpiStrategy)
   case default
     write(*,*)
     write(*,*) 'ERROR unknown mpiStrategy: ', trim(mpiStrategy)
-    call abort3d('setObsMpiStrategy')
+    call varAbort('setObsMpiStrategy')
   end select
 
 CONTAINS

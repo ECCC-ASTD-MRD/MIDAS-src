@@ -151,7 +151,7 @@ subroutine tovs_fill_profiles_ad(column,columng)
 
   if( any(alloc_status /= 0) ) then
      write(*,*) ' tovs_fill_profiles_ad : memory allocation error'
-     call abort3d('tovs_fill_profiles_ad     ')
+     call varAbort('tovs_fill_profiles_ad     ')
   end if
 !
 !     2.  Adjoint of fill profiles structure
@@ -353,7 +353,7 @@ subroutine tovs_fill_profiles_ad(column,columng)
 
   if( any(alloc_status /= 0) ) then
      write(*,*) ' tovs_fill_profiles_ad : memory deallocation error'
-     call abort3d('tovs_fill_profiles_ad        ')
+     call varAbort('tovs_fill_profiles_ad        ')
   end if
 
   9263 format(1x,10f8.4)

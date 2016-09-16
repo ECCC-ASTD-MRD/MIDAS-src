@@ -168,7 +168,7 @@ subroutine tovs_fill_profiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode
   ier = newdate(datestamp,ijour,itime,-3)
   if (ier<0) then
      Write(*,*) "Invalid datestamp ",datestamp,ijour,itime,ier
-     call abort3d('tovs_fill_profiles')
+     call varAbort('tovs_fill_profiles')
   endif
   year= ijour / 10000
   MONTH = MOD(ijour/100,100)
@@ -205,7 +205,7 @@ subroutine tovs_fill_profiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode
 
   if( any(alloc_status /= 0) ) then
      write(*,*) ' tovs_fill_profiles : memory allocation error'
-     call abort3d('tovs_fill_profiles        ')
+     call varAbort('tovs_fill_profiles        ')
   end if
 
 !     1.2   Read ozone climatology
@@ -491,7 +491,7 @@ subroutine tovs_fill_profiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode
 
   if( any(alloc_status /= 0) ) then
      write(*,*) ' tovs_fill_profiles : memory deallocation error'
-     call abort3d('tovs_fill_profiles        ')
+     call varAbort('tovs_fill_profiles        ')
   end if
 
   9263 format(1x,10f8.4)

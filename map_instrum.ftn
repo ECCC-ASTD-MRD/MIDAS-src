@@ -108,12 +108,12 @@
          IER=FNOM(NULNAM,'./flnml','FTN+SEQ+R/O',0)
          IF (IER/=0) then
             write(*,*) "Error while opening namelist file !"
-            call abort3d("map_instrum")
+            call varAbort("map_instrum")
          ENDIF
          READ(NULNAM,NAMINST,iostat=ier)
          IF (IER/=0) then
             write(*,*) "Error while reading namelist file !"
-            call abort3d("map_instrum")
+            call varAbort("map_instrum")
          ENDIF
          ier=FCLOS(NULNAM)
 
@@ -125,7 +125,7 @@
            endif
          enddo
          if (numinstburp > MXINSTRUMBURP) then
-           call abort3d('map_instrum: exceeded maximum number of platforms')
+           call varAbort('map_instrum: exceeded maximum number of platforms')
          endif
          write(*,*) 'map_instrum: number of satellites found in namelist = ',numinstburp
          WRITE(*,*) 'map_instrum: listburp   = ',listburp(1:numinstburp)

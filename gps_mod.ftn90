@@ -2460,7 +2460,7 @@ contains
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=NAMGPSRO,iostat=ierr)
-    if(ierr.ne.0) call abort3d('gps_setupro: Error reading namelist')
+    if(ierr.ne.0) call varAbort('gps_setupro: Error reading namelist')
     if(mpi_myid.eq.0) write(*,nml=NAMGPSRO)
     ierr=fclos(nulnam)
     if(mpi_myid.eq.0) write(*,*)'NAMGPSRO',LEVELGPSRO,GPSRO_MAXPRFSIZE,SURFMIN,HSFMIN,HTPMAX,BGCKBAND,NUMGPSSATS
@@ -2528,7 +2528,7 @@ contains
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=NAMGPSGB,iostat=ierr)
-    if(ierr.ne.0) call abort3d('gps_setupgb: Error reading namelist')
+    if(ierr.ne.0) call varAbort('gps_setupgb: Error reading namelist')
     if(mpi_myid.eq.0) write(*,nml=NAMGPSGB)
     ierr=fclos(nulnam)
 

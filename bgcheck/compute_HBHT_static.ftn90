@@ -74,7 +74,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
          is_staggered = .true.
       else
          write(*,*) 'Vcode_anl = ',Vcode_anl
-         call abort3d('compute_HBHT_static: unknown vertical coordinate type!')
+         call varAbort('compute_HBHT_static: unknown vertical coordinate type!')
       end if
       if ( mpi_myid == 0 ) write(*,*) 'compute_HBHT: vertical coord is_staggered = ',is_staggered
 
@@ -104,7 +104,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
         write(*,*) ' opened as unit file ',iulssf
         ierr =  fstouv(iulssf,'RND+OLD')
       ELSE
-        CALL ABORT3D('HBHT_static:NO BACKGROUND STAT FILE!!')
+        CALL varAbort('HBHT_static:NO BACKGROUND STAT FILE!!')
       ENDIF
 !
 !     2.1 Background error standard deviations
@@ -136,7 +136,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
             write(*,*) 'etiket         =', trim(cletiket)
             write(*,*) 'Found ni,nj,nk =', ini, inj, ink
             write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, nlev_M
-            call abort3d('compute_HBHT_static')
+            call varAbort('compute_HBHT_static')
          end if
          do jlat = 1, hco_anl%nj
             do jlon = 1, hco_anl%ni
@@ -158,7 +158,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
             write(*,*) 'etiket         =', trim(cletiket)
             write(*,*) 'Found ni,nj,nk =', ini, inj, ink
             write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, nlev_M
-            call abort3d('compute_HBHT_static')
+            call varAbort('compute_HBHT_static')
          end if
 
          do jlat = 1, hco_anl%nj
@@ -181,7 +181,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
             write(*,*) 'etiket         =', trim(cletiket)
             write(*,*) 'Found ni,nj,nk =', ini, inj, ink
             write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, nlev_T
-            call abort3d('compute_HBHT_static')
+            call varAbort('compute_HBHT_static')
          end if
          do jlat = 1, hco_anl%nj
             do jlon = 1, hco_anl%ni
@@ -204,7 +204,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
             write(*,*) 'etiket         =', trim(cletiket)
             write(*,*) 'Found ni,nj,nk =', ini, inj, ink
             write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, nlev_T
-            call abort3d('compute_HBHT_static')
+            call varAbort('compute_HBHT_static')
          end if
          do jlat = 1, hco_anl%nj
             do jlon = 1, hco_anl%ni
@@ -257,7 +257,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
             write(*,*) 'etiket         =', trim(cletiket)
             write(*,*) 'Found ni,nj,nk =', ini, inj, ink
             write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, nlev_T
-            call abort3d('compute_HBHT_static')
+            call varAbort('compute_HBHT_static')
          end if
          do jlat = 1, hco_anl%nj
             do jlon = 1, hco_anl%ni
@@ -284,7 +284,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
          write(*,*) 'etiket         =', trim(CLETIKET)
          write(*,*) 'Found ni,nj,nk =', ini, inj, ink
          write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, 1
-         call abort3d('compute_HBHT_static')
+         call varAbort('compute_HBHT_static')
       end if
       field_ptr => gsv_getField3D_r8(statevector,'P0')
       do jlev = 1, ink
@@ -370,7 +370,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
             write(*,*) 'etiket         =', trim(cletiket)
             write(*,*) 'Found ni,nj,nk =', ini, inj, ink
             write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, nlev_T
-            call abort3d('compute_HBHT_static')
+            call varAbort('compute_HBHT_static')
          end if
          do jlat = 1, hco_anl%nj
             do jlon = 1, hco_anl%ni
