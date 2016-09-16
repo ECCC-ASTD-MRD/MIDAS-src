@@ -81,9 +81,6 @@ subroutine tovs_fill_profiles_ad(column,columng)
   real*8, pointer :: uu_column(:),vv_column(:),tt_column(:),hu_column(:),ps_column(:),tg_column(:)
   real(8), pointer :: TTb(:), HUb(:), Pres(:)
 
-  external intavgad
-  external aexthum4
-         
   if(NOBTOV.eq.0) return    ! exit if there are not tovs data
 
 
@@ -179,7 +176,6 @@ subroutine tovs_fill_profiles_ad(column,columng)
 
         knpf = knpf + 1
 
-        call tmg_start(69,'fillin_ad')
         TTb => col_getColumn(columng,jo,'TT')
         HUb => col_getColumn(columng,jo,'HU')
         Pres => col_getColumn(columng,jo,'PR','TH')
@@ -199,7 +195,6 @@ subroutine tovs_fill_profiles_ad(column,columng)
                                  col_getPressure(columng,2,jo,'TH') )
            zlq  (1,knpf) =  zlq  (2,knpf)
         endif
-        call tmg_stop(69)
 
         iptobs   (knpf) = iobs
         iptobscma(knpf) = jo
@@ -208,7 +203,6 @@ subroutine tovs_fill_profiles_ad(column,columng)
 
 !     .  2.4  Adjoint of filling profiles_ad structure
 !     .       ----------------------------------------
-        call tmg_start(69,'fillin_ad')
         do j = 1, knpf
            qoext(:,j) =  profiles(iptobs(j)) % q(:) / q_mixratio_to_ppmv
         enddo
@@ -232,7 +226,6 @@ subroutine tovs_fill_profiles_ad(column,columng)
            uu_column(ilowlvl_M) = profiles_ad(iptobs(j)) % s2m % u
            vv_column(ilowlvl_M) = profiles_ad(iptobs(j)) % s2m % v
         end do
-        call tmg_stop(69)
 
 !     .  2.3  Adjoint of extrapolation of humidity profile (kg/kg)
 !             above rlimlvhu (normally 300mbs or 70mbs)

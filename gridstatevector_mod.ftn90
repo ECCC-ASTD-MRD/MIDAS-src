@@ -967,10 +967,11 @@ MODULE gridStateVector_mod
   end function gsv_getField_r8
 
 
-  function gsv_getField3D_r8(statevector,varName) result(field3D)
+  function gsv_getField3D_r8(statevector,varName,indexStep_in) result(field3D)
     implicit none
     type(struct_gsv), intent(in)           :: statevector
     character(len=*), intent(in), optional :: varName
+    integer, intent(in), optional          :: indexStep_in
     real(8),pointer                        :: field3D(:,:,:)
     integer                                :: ilev1,ilev2,lon1,lat1
 
@@ -983,12 +984,20 @@ MODULE gridStateVector_mod
       if(gsv_varExist(statevector,varName)) then
         ilev1 = 1 + statevector%varOffset(vnl_varListIndex(varName))
         ilev2 = ilev1 - 1 + statevector%varNumLev(vnl_varListIndex(varName))
-        field3D(lon1:,lat1:,1:) => statevector%gd3d_r8(:,:,ilev1:ilev2)
+        if(present(indexStep_in)) then
+          field3D(lon1:,lat1:,1:) => statevector%gd_r8(:,:,ilev1:ilev2,indexStep_in)
+        else
+          field3D(lon1:,lat1:,1:) => statevector%gd3d_r8(:,:,ilev1:ilev2)
+        endif
       else
         call abort3d('gsv_getField3D_r8: Unknown variable name! ' // varName)
       endif
     else
-      field3D(lon1:,lat1:,1:) => statevector%gd3d_r8(:,:,:)
+      if(present(indexStep_in)) then
+        field3D(lon1:,lat1:,1:) => statevector%gd_r8(:,:,:,indexStep_in)
+      else
+        field3D(lon1:,lat1:,1:) => statevector%gd3d_r8(:,:,:)
+      endif
     endif
 
   end function gsv_getField3D_r8
@@ -1021,10 +1030,11 @@ MODULE gridStateVector_mod
   end function gsv_getField_r4
 
 
-  function gsv_getField3D_r4(statevector,varName) result(field3D)
+  function gsv_getField3D_r4(statevector,varName,indexStep_in) result(field3D)
     implicit none
     type(struct_gsv), intent(in)           :: statevector
     character(len=*), intent(in), optional :: varName
+    integer, intent(in), optional          :: indexStep_in
     real(4),pointer                        :: field3D(:,:,:)
     integer                                :: ilev1,ilev2,lon1,lat1
 
@@ -1037,12 +1047,20 @@ MODULE gridStateVector_mod
       if(gsv_varExist(statevector,varName)) then
         ilev1 = 1 + statevector%varOffset(vnl_varListIndex(varName))
         ilev2 = ilev1 - 1 + statevector%varNumLev(vnl_varListIndex(varName))
-        field3D(lon1:,lat1:,1:) => statevector%gd3d_r4(:,:,ilev1:ilev2)
+        if(present(indexStep_in)) then
+          field3D(lon1:,lat1:,1:) => statevector%gd_r4(:,:,ilev1:ilev2,indexStep_in)
+        else
+          field3D(lon1:,lat1:,1:) => statevector%gd3d_r4(:,:,ilev1:ilev2)
+        endif
       else
         call abort3d('gsv_getField3D_r4: Unknown variable name! ' // varName)
       endif
     else
-      field3D(lon1:,lat1:,1:) => statevector%gd3d_r4(:,:,:)
+      if(present(indexStep_in)) then
+        field3D(lon1:,lat1:,1:) => statevector%gd_r4(:,:,:,indexStep_in)
+      else
+        field3D(lon1:,lat1:,1:) => statevector%gd3d_r4(:,:,:)
+      endif
     endif
 
   end function gsv_getField3D_r4

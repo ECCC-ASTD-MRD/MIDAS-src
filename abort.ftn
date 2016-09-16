@@ -28,14 +28,17 @@
 !
       implicit none
       character(len=*) :: cdmessage
+      integer :: comm, ierr, rpn_comm_comm
 
       write(*,9000)cdmessage
  9000 format(//,4X,"ABORT3D:-------",/,8X,"Job stopped in ",A)
 
       call flush(6)
 
+      comm = rpn_comm_comm("WORLD")
+      call MPI_Abort( comm, 1, ierr )
       call qqexit(1)
-
       stop
+
       end
 
