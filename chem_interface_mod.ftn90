@@ -224,7 +224,8 @@ contains
 
       
       ! Allocate memory for remaining profile data not in obsoper
-      allocate(obs_col(nobslev), success(nobslev), ixtr(nobslev), iass(nobslev), process_obs(nobslev), diagn_only(nobslev))
+      allocate(obs_col(nobslev), success(nobslev), ixtr(nobslev), iass(nobslev), process_obs(nobslev))
+      if (kmode.eq.0) allocate(diagn_only(nobslev))
 
       ! Prepare for checking if any processing is needed according to initial flag values     
       iobslev=0
@@ -237,14 +238,15 @@ contains
             iass(iobslev) = obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) ! indicates if obs is to be assimilated
             flag          = obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex) ! observation integer flag
 
-            ! Indicates if diagnostics are to be calculated but observation not assimilated
-            diagn_only(iobslev) = chm_diagn_only(stnid,varno,nobslev,flag)
-
             ! Indicates if this obs should be processed by chm_obsoperators
             process_obs(iobslev) = ixtr(iobslev).eq.0
 
             select case(kmode)
             case(0)
+
+               ! Indicates if diagnostics are to be calculated but observation not assimilated
+               diagn_only(iobslev) = chm_diagn_only(stnid,varno,nobslev,flag)
+
                if ( (diagn_only(iobslev).and.iass(iobslev).eq.1) .or. btest(flag,16) ) then
                   ! Set flag to be recognized at postmin diagnostics calc in routine chm_calc_OmA_nonassim.
                   ! Bit 16 of OBS_FLG indicates if flagged in background check.
@@ -253,6 +255,7 @@ contains
                else
                   process_obs(iobslev) = process_obs(iobslev) .and. iass(iobslev).eq.1
                end if
+
             case(1)
                process_obs(iobslev) = process_obs(iobslev) .and. (iass(iobslev).eq.1.or.iass(iobslev).eq.3)
             case(2,3)
@@ -419,7 +422,8 @@ contains
       end if
 
       ! Deallocate profile data
-      deallocate(process_obs,success,ixtr,iass,obs_col,diagn_only)
+      deallocate(process_obs,success,ixtr,iass,obs_col)
+      if (kmode.eq.0) deallocate(diagn_only)
       call chm_obsoper_dealloc(obsoper)
   
     enddo HEADER

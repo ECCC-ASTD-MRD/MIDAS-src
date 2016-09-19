@@ -426,7 +426,7 @@ module chem_mod
      !  assim_num              Number of combinations (stnid, bufr element, multi/uni-level) 
      !                         identified for obs to be assimilated. All others will not
      !                         be assimilated. OmP and OmA diagnostics and output
-     !                         will still be produced for non-assimilated datasets.
+     !                         will still be produced for non-assimilated (i.e. diagnostic-only) datasets.
      !                         (see routines chm_diagn_only, oonl_chm in obsoperators_mod.ftn90)
      !
      !                           <0:  all are to be assimilated
@@ -448,9 +448,12 @@ module chem_mod
      !                         in an ascii file in addition to overall diagnostics. 
      !                         (see routine chm_obsspace_diagnostic)
      !
-     !  diagn_flag             Array specifying bits for identifying diagnostic-only observations for
+     !  diagn_flag             Array specifying bits for identifying diagnostic-only (non-assim) observations for
      !                         observations that would otherwise be assimilated according to the assim_*
-     !                         arrays
+     !                         arrays. Those not included as part assim_* are automatically classified as diagnostic-only 
+     !                         observations. This array allows screening of data specific to CH family observations 
+     !                         as oppose to common screening for all other families done through the NLIST
+     !                         array of the NAMFILT namelist (see file filterobs_mod.ftn90).
      !
      !  diagn_nflag            Number of bit flags to specify in diagn_flag array
      !
