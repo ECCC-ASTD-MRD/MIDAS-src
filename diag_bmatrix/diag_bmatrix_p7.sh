@@ -10,14 +10,14 @@
 #
 flnml="namelist_glb_p7.nml"
 machine="hadar"
-gest="/users/dor/arma/gr3/data_gpfs/var/gonzalo/diag_bmatrix/atelier"
-bgcov="cassini:/users/dor/arma/gr3/local/var/NewCovFormat4bgck/__GLBSTRATO_NMC_T380_TAPER_UVT_FIX_THETA__newFormat800x400/glbstrato10_nmc_80n_hyb_t380_taper_uvt_fix_theta_with_toctoc"
-analysisgrid="datasvr:/users/dor/arma/gr3/data_cnfs/prototype_grid/analysisgrid_glb_800x400"
-abs="/users/dor/arma/gr3/home1/var/trunk_572m/compiledir_diag_bmatrix/diag_bmatrix_p7.abs"
-npex=2
+gest="/users/dor/arma/bue/power7/3dvar_modular/diag"
+bgcov="hadar:/home/dormrb02/modeles/ANAL_shared/stats/auto/__GEM25km_NMC_T399_stag5002_BgckStddev3d_800x400__/01"
+analysisgrid="/home/dormrb02/ibmenv/armnlib/modeles/ANAL_shared/datafiles/constants/arma/oavar/2.1.1/analysis_grid_prototypes/analysis_grid_prototype_glb_800x400_south-to-north"
+abs="/users/dor/arma/bue/home01/3dvar_git/compiledir_diag_bmatrix/diag_bmatrix_p7.abs"
+npex=4
 npey=2
-openmp=8
-maxcputime=1800
+openmp=2
+maxcputime=300
 memory=3264M
 
 #
@@ -47,10 +47,11 @@ ssh $machine ls -l $gest
 
 cat << EOF > $TMPDIR/go_diag_bmatrix.sh
  echo "!!STARTING SCRIPT!!"
- ulimit -a
+. ssmuse-sh -d rpn/utils/15.2
  cd $gest
  export TMG_ON=YES
- ./diag_bmatrix.abs
+ export MP_STDOUTMODE=ordered
+ r.run_in_parallel -pgm ./diag_bmatrix.abs -npex ${npex} -npey ${npey}
 EOF
 
 cat << EOF > $TMPDIR/ptopo_nml
@@ -61,4 +62,4 @@ cat << EOF > $TMPDIR/ptopo_nml
 EOF
 scp $TMPDIR/ptopo_nml ${machine}:${gest}
 
-ord_soumet $TMPDIR/go_diag_bmatrix.sh -mach $machine -t $maxcputime -cpus ${npex}x${npey}x${openmp} -cm ${memory} -listing ${gest} -jn diag_bmatrix
+ord_soumet $TMPDIR/go_diag_bmatrix.sh -mach $machine -t $maxcputime -cpus ${npex}x${npey}x${openmp} -cm ${memory} -listing ${gest} -jn diag_bmatrix -waste
