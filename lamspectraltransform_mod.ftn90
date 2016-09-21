@@ -504,7 +504,13 @@ contains
       end do
     end do
 
-    lst(id)%nla      = ila
+    if ( ila == 0 ) then
+       write(*,*)
+       write(*,*) 'There are no spectral elements associated to this mpi task!'
+       write(*,*) 'Your options: decrease the number of mpi tasks and/or increase the truncation'
+       call varAbort('lst_setup')
+    end if
+    lst(id)%nla = ila
     lst_out%nla = lst(id)%nla ! Number of spectral element per phase in the VAR array
 
     allocate( KfromMNglb(0:lst(id)%mmax,0:lst(id)%nmax) )
