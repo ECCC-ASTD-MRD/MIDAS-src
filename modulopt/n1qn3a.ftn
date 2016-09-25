@@ -38,7 +38,7 @@ c         variables locales
 c
       logical sscale,cold,warm
       integer i,itmax,moderl,isim,jcour,indic,ierr,impresmax
-      double precision d1,t,tmin,tmax,gnorm,eps1,ff,preco,precos,ys,den,
+      double precision d1,t,tmin,tmin_recv,tmax,gnorm,eps1,ff,preco,precos,ys,den,
      &    dk,dk1,ps,ps2,hp0
 c
 c         parametres
@@ -211,8 +211,9 @@ c
           tmin=max(tmin,dabs(d(i)))
 200   continue
       call tmg_start(79,'QN_COMM')
-      call rpn_comm_allreduce(tmin,tmin,1,"mpi_double_precision",
+      call rpn_comm_allreduce(tmin,tmin_recv,1,"mpi_double_precision",
      &                        "mpi_max","GRID",ierr)
+      tmin = tmin_recv
       call tmg_stop(79)
 
       tmin=dxmin/tmin

@@ -189,7 +189,7 @@ contains
     integer, parameter :: numFamily = 9
     integer bodyIndex,headerIndex
     integer ipres,ivco,ierr,loopIndex
-    integer ij,idburp,ivnm,iflg,ibad,iknt
+    integer ij,idburp,ivnm,iflg,ibad,iknt,iknt_recv
     integer idata,idatend
     integer ilansea
     logical llok,llrej,llbogus
@@ -281,7 +281,8 @@ contains
 
     enddo body
 
-    call rpn_comm_allreduce(iknt,iknt,1,"MPI_INTEGER","MPI_SUM","GRID",ierr)
+    call rpn_comm_allreduce(iknt,iknt_recv,1,"MPI_INTEGER","MPI_SUM","GRID",ierr)
+    iknt = iknt_recv
     if(mpi_myid.eq.0) write(*,*) '  Number of data to be assimilated:',iknt
 
     if(mpi_myid.eq.0) write(*,*) 'end of filt_suprep'

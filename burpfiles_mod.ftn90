@@ -48,7 +48,7 @@ SUBROUTINE burp_setupfiles(datestamp)
   CHARACTER(len=128) :: burpin   
   LOGICAL   isExist_L 
 
-  INTEGER KTIME,KDATE
+  INTEGER KTIME,KDATE,KDATE_RECV,KTIME_RECV
   INTEGER IHANDL,ILONG,DATESTAMP
   INTEGER ITIME,IFLGS,IDBURP,ILAT,ILON,IDX,IDY
   INTEGER IALT,IDELAY,IDATE,IRS,IRUNN,INBLK,ISUP,IXAUX
@@ -208,8 +208,11 @@ SUBROUTINE burp_setupfiles(datestamp)
   END DO
 
   ! Make sure all mpi tasks have a valid date (important for split burp files)
-  call rpn_comm_allreduce(kdate,kdate,1,"MPI_INTEGER","MPI_MAX","GRID",ier)
-  call rpn_comm_allreduce(ktime,ktime,1,"MPI_INTEGER","MPI_MAX","GRID",ier)
+  call rpn_comm_allreduce(kdate,kdate_recv,1,"MPI_INTEGER","MPI_MAX","GRID",ier)
+  call rpn_comm_allreduce(ktime,ktime_recv,1,"MPI_INTEGER","MPI_MAX","GRID",ier)
+
+  kdate = kdate_recv
+  ktime = ktime_recv
 
   ier = newdate(istampobs,kdate,ktime,3)
   delhh = 3.0d0
