@@ -134,7 +134,8 @@ else
     exit 1
 fi
 
-if [ "${COMPILE_OAVAR_ADD_DEBUG_OPTIONS:-yes}" = yes ]; then
+if [ "${COMPILE_OAVAR_ADD_DEBUG_OPTIONS:-no}" = yes ]; then
+    echo "Using debug options"
     COMPF_NOC="${COMPF_GLOBAL} -debug DEBUG -optf ${OPTF}"
     COMPF="${COMPF_NOC} =-C"
 else
