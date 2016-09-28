@@ -676,6 +676,11 @@ CONTAINS
                       datestamp=tim_getDatestamp(),mpi_local=.false.,dataKind_in=4)
     call gsv_zero(statevector_ensFcst_r4)
 
+    ptr3d_r4 => gsv_getField3D_r4(statevector_ensFcst_r4)
+    if ( size(ptr3d_r4(1,1,:)) /= nkgdimEns ) then
+       call varAbort('ben_setupEnsemble: statevector_ensFcst_r4 nk sizes is not equal to nkgdimEns')
+    end if
+
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     do memberIndex = 1, nEns
