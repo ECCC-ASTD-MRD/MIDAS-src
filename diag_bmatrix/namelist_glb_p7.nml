@@ -16,6 +16,7 @@
    ANLVAR(3)   ='TT'
    ANLVAR(4)   ='HU'
    ANLVAR(5)   ='P0'
+   ANLVAR(6)   ='TG'
 /
  &NAMTIME
   DSTEPOBS = 6.0d0

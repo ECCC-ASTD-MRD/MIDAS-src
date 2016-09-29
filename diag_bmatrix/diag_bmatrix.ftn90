@@ -37,6 +37,7 @@ program diag_bmatrix
   real(8), allocatable :: gdmean(:,:,:)
   real(8), allocatable :: gdstddev(:,:,:)
   real(8), allocatable :: gdstddev_zm(:,:),gdstddev_zm2(:,:)
+  real(8), allocatable :: gdstddev_dm(:,:),gdstddev_dm2(:,:)
   real(8), allocatable :: cvm_vazx_global(:)
   integer :: fclos, fnom, fstopc, newdate, get_max_rss
   integer :: ierr, nsize, iseed, cvDim_local
@@ -195,7 +196,7 @@ program diag_bmatrix
 
                  ip3 = ip3 + 1
                  call gsv_writeToFileMpi(statevector,filename,'ONEOBS_'//trim(vnl_varNameList(jvar)),  &
-                                         ip3_in=ip3,HUcontainsLQ=.true.,unitConversion=.false.)
+                                         ip3_in=ip3,HUcontainsLQ=.true.,unitConversion=.true.)
                  
               enddo
            enddo
@@ -349,7 +350,7 @@ program diag_bmatrix
 
      !- Write to file
      call gsv_writeToFileMpi(statevector,'stddev_' // datestr // '.fst','GD_STDDEV',  &
-                             HUcontainsLQ=.true.,unitConversion=.false.)
+                             HUcontainsLQ=.true.,unitConversion=.true.)
 
      !
      !- Compute the zonal mean std dev
@@ -394,7 +395,53 @@ program diag_bmatrix
      deallocate(gdstddev_zm2)
 
      call gsv_writeToFileMpi(statevector,'stddev_' // datestr // '.fst','ZM_STDDEV',  &
-                             HUcontainsLQ=.true.,unitConversion=.false.)
+                             HUcontainsLQ=.true.,unitConversion=.true.)
+
+     !
+     !- Compute the domain mean std dev
+     !
+     write(*,*) 'Compute the domain mean stddev'
+     call flush(6)
+
+     allocate(gdstddev_dm(hco_anl%ni,nkgdim))
+     allocate(gdstddev_dm2(hco_anl%ni,nkgdim))
+     gdstddev_dm(:,:) = 0.d0
+     gdstddev_dm2(:,:) = 0.d0
+
+!$OMP PARALLEL DO PRIVATE (jlat,jlev)
+     do jlev = 1, nkgdim
+        do jlat = statevector%myLatBeg, statevector%myLatEnd
+           do jlon = statevector%myLonBeg, statevector%myLonEnd
+              gdstddev_dm(jlon,jlev) = gdstddev_dm(jlon,jlev) + (field(jlon,jlat,jlev)**2)/real(hco_anl%nj,8)
+           end do
+        enddo
+     enddo
+!$OMP END PARALLEL DO 
+
+     nsize = statevector%ni*nkgdim
+     call rpn_comm_allreduce(gdstddev_dm,gdstddev_dm2,nsize,  &
+                            "MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
+
+     !- Insert results in statevector
+                                                                                                                  
+!$OMP PARALLEL DO PRIVATE (jlon,jlat,jlev)
+     do jlev = 1, nkgdim
+        do jlat = statevector%myLatBeg, statevector%myLatEnd
+           do jlon = statevector%myLonBeg, statevector%myLonEnd
+              if(gdstddev_dm2(jlon,jlev)> 0.0d0) then
+                 field(jlon,jlat,jlev) = sqrt(gdstddev_dm2(jlon,jlev))
+              else
+                 field(jlon,jlat,jlev) = 0.0d0
+              endif
+           enddo
+        enddo
+     enddo
+!$OMP END PARALLEL DO
+     deallocate(gdstddev_dm)
+     deallocate(gdstddev_dm2)
+ 
+     call gsv_writeToFileMpi(statevector,'stddev_' // datestr // '.fst','DM_STDDEV',  &
+                             HUcontainsLQ=.true.,unitConversion=.true.)
 
   endif ! if numperturbations.gt.1
 

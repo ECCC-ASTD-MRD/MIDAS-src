@@ -10,14 +10,14 @@
 #
 flnml="namelist_glb_p7.nml"
 machine="hadar"
-gest="/users/dor/arma/bue/power7/3dvar_modular/diag"
-bgcov="hadar:/home/dormrb02/modeles/ANAL_shared/stats/auto/__GEM25km_NMC_T399_stag5002_BgckStddev3d_800x400__/01"
-analysisgrid="/home/dormrb02/ibmenv/armnlib/modeles/ANAL_shared/datafiles/constants/arma/oavar/2.1.1/analysis_grid_prototypes/analysis_grid_prototype_glb_800x400_south-to-north"
-abs="/users/dor/arma/bue/home01/3dvar_git/compiledir_diag_bmatrix/diag_bmatrix_p7.abs"
+gest="/users/dor/arma/gr3/data_gpfs/var/rdps_sdhloc/diag_bmatrix/ben_3D_test"
+bgcov=/home/dormrb02/modeles/ANAL_shared/stats/auto/__GEM25km_NMC_T399_stag5002_BgckStddev3d_800x400__/01
+analysisgrid=/home/dormrb02/modeles/ANAL_shared/datafiles/constants/arma/oavar/2.1.1/analysis_grid_prototypes/analysis_grid_prototype_glb_800x400_south-to-north
+abs=/users/dor/arma/gr3/home1/var/latest_trunk/compiledir_diag_bmatrix/diag_bmatrix_p7.abs
 npex=4
 npey=2
-openmp=2
-maxcputime=300
+openmp=4
+maxcputime=500
 memory=3264M
 
 #
@@ -38,7 +38,8 @@ echo "Executable file name :" $abs_basename
 echo "Topology             :" ${npex}x${npey}x${openmp}
 echo
 
-ssh $machine rm -f $gest/*
+ssh $machine rm -rf $gest
+ssh $machine mkdir -p $gest
 scp $flnml ${machine}:${gest}/flnml
 scp $analysisgrid ${machine}:${gest}/analysisgrid
 scp $bgcov ${machine}:${gest}/bgcov
@@ -52,6 +53,8 @@ cat << EOF > $TMPDIR/go_diag_bmatrix.sh
  export TMG_ON=YES
  export MP_STDOUTMODE=ordered
  r.run_in_parallel -pgm ./diag_bmatrix.abs -npex ${npex} -npey ${npey}
+ ~armabue/bin/combineprocs.sh
+ rm -f *_proc???
 EOF
 
 cat << EOF > $TMPDIR/ptopo_nml
