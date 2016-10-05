@@ -19,6 +19,7 @@ module stateToColumn_mod
   !       the possibility of having the obs distributing arbitrarily over
   !       the mpi tasks, while the increment is distributed by horizontal tiles
   !
+  use topLevelControl_mod
   use MathPhysConstants_mod
   use mpivar_mod 
   use gridstatevector_mod
@@ -370,11 +371,13 @@ CONTAINS
     !
 
     !- 2.1 Mass fields (TT,PS,HU) to hydrostatic geopotential
-    vco_anl => col_getVco(columng)
-    status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
-    call tmg_start(36,'INTERP_TT2PHI_TL')
-    call tt2phi_tl(column,columng)
-    call tmg_stop(36)
+    if ( top_spatialDimensions() /= '2D') then
+       vco_anl => col_getVco(columng)
+       status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
+       call tmg_start(36,'INTERP_TT2PHI_TL')
+       call tt2phi_tl(column,columng)
+       call tmg_stop(36)
+    end if
 
     !- 2.2 Rotated wind to Meteorological wind
     if ( gsv_varExist(statevector,'UU') .and. gsv_varExist(statevector,'VV') .and.  &
@@ -656,12 +659,14 @@ CONTAINS
     end if
   
     !- 2.1 Mass fields (TT,PS,HU) to hydrostatic geopotential
-    vco_anl => col_getVco(columng)
-    status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
-    call tmg_start(37,'INTERP_TT2PHI_AD')
-    call tt2phi_ad(column,columng)
-    call tmg_stop(37)
-  
+    if ( top_spatialDimensions() /= '2D') then
+       vco_anl => col_getVco(columng)
+       status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
+       call tmg_start(37,'INTERP_TT2PHI_AD')
+       call tt2phi_ad(column,columng)
+       call tmg_stop(37)
+    end if
+
     !
     !- 1.  Interpolation to obs location
     !

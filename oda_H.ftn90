@@ -76,13 +76,17 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
   call oda_Hsf              ! fill in OBS_WORK : Hdx
   call tmg_stop (43)
 
-  call tmg_start(44,'OBS_TOV_TLAD') !
-  call oda_Hto              ! fill in OBS_WORK : Hdx
-  call tmg_stop (44)
+  if ( top_spatialDimensions() /= '2D') then
+     call tmg_start(44,'OBS_TOV_TLAD') !
+     call oda_Hto              ! fill in OBS_WORK : Hdx
+     call tmg_stop (44)
+  end if
 
-  call tmg_start(45,'OBS_GPSRO_TLAD') !
-  call oda_Hro
-  call tmg_stop (45)        !
+  if ( top_spatialDimensions() /= '2D') then
+     call tmg_start(45,'OBS_GPSRO_TLAD') !
+     call oda_Hro
+     call tmg_stop (45)        !
+  end if
 
   call tmg_start(46,'OBS_ZZZ_TLAD') !
   call oda_Hzp

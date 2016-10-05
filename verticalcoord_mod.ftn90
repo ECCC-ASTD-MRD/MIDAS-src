@@ -24,7 +24,7 @@ module verticalCoord_mod
   ! public derived type
   public :: struct_vco
   ! public procedures
-  public :: vco_SetupFromFile, vco_SetupSimple, vco_getNumLev, vco_equal
+  public :: vco_SetupFromFile, vco_SetupManual, vco_getNumLev, vco_equal
   ! public entities accessed through inheritance
   public :: vgd_get,vgd_levels,vgd_ok,vgd_dpidpis,vgd_write
 
@@ -35,6 +35,7 @@ module verticalCoord_mod
      integer :: ip1_sfc  ! ip1 value for the surface (Vcode=5005)
      integer,pointer,dimension(:) :: ip1_T,ip1_M   ! encoded IP1 levels (Thermo/Moment)
      type(vgrid_descriptor) :: vgrid
+     character(len=8) :: setuptype
   end type struct_vco
 
   contains
@@ -61,20 +62,41 @@ module verticalCoord_mod
   end subroutine vco_allocate
 
 
-  subroutine vco_SetupSimple(vco,numLev)
+  subroutine vco_SetupManual(vco,ip1,numLev)
     implicit none
     type(struct_vco), pointer :: vco
-    integer :: numLev
+    integer, intent(in) :: numLev
+    integer, intent(in) :: ip1(numlev)
 
-    vco%initialized = .true.
-    vco%nlev_T = numLev
-    vco%nlev_M = numLev
-    vco%ip1_sfc = 0  ! ip1 value for the surface (Vcode=5005)
-    vco%ip1_T => NULL()
-    vco%ip1_M => NULL()
-    ! somehow set vco%vgrid to something safe?
+    integer :: ip1_sfc
+    character(len=10) :: blk_S
 
-  end subroutine vco_SetupSimple
+    write(*,*) 
+    write(*,*) 'vco_SetupManual: Creating an adhoc verticalgrid using'
+    write(*,*) '                   number of level = ', numLev
+    write(*,*) '                   ip1             = ', ip1
+
+    if (.not.associated(vco)) allocate(vco)
+
+    vco%setupType = 'Manual'
+ 
+    vco%nlev_T    = numLev
+    vco%nlev_M    = numLev
+    !vco%vgrid    = ???
+
+    call vco_allocate(vco)
+
+    vco%ip1_T(:)  = ip1(:)
+    vco%ip1_M(:)  = ip1(:)
+
+    ! determine IP1 of sfc (hyb=1.0)
+    call convip(ip1_sfc, 1.0, 5, 2, blk_s, .false.)
+
+    vco%ip1_sfc   = ip1_sfc  ! ip1 value for the surface (Vcode=5005)
+
+    vco%initialized=.true.
+
+  end subroutine vco_SetupManual
 
 
   subroutine vco_SetupFromFile(vco,templatefile,etiket,beSilent)
@@ -125,6 +147,8 @@ module verticalCoord_mod
     endif
 
     if(.not.associated(vco)) allocate(vco)
+
+    vco%setupType='FromFile'
 
     !==========================================================================
     ! Get vertical coordinate descriptors from standard file (vgd_new reads "!!" record)
@@ -337,10 +361,43 @@ module verticalCoord_mod
     logical                   :: equal
 
     equal = .true.
-    equal = equal .and. (vco1%vgrid == vco2%vgrid)
+
+    if ( trim(vco1%setupType) == 'fromFile' .and. trim(vco2%setupType) == 'fromFile' ) then
+       equal = equal .and. (vco1%vgrid == vco2%vgrid)
+       if (.not. equal) then
+          write(*,*) 'vco_equal: vgrid not equal'
+          return
+       endif
+    else
+       ! At least one vco was manually setup where vgrid is not defined
+       equal = equal .and. (vco1%nlev_T == vco2%nlev_T)
+       if (.not. equal) then
+          write(*,*) 'vco_equal: nlev_T not equal', vco1%nlev_T, vco2%nlev_T
+          return
+       endif
+       equal = equal .and. (vco1%nlev_M == vco2%nlev_M)
+       if (.not. equal) then
+          write(*,*) 'vco_equal: nlev_M not equal', vco1%nlev_M, vco2%nlev_M
+          return
+       endif
+       equal = equal .and. all(vco1%ip1_T(:) == vco2%ip1_T(:))
+       if (.not. equal) then
+          write(*,*) 'vco_equal: ip1_T not equal'
+          return
+       endif
+       equal = equal .and. all(vco1%ip1_M(:) == vco2%ip1_M(:))
+       if (.not. equal) then
+          write(*,*) 'vco_equal: ip1_M not equal'
+          return
+       endif
+       equal = equal .and. (vco1%ip1_sfc == vco2%ip1_sfc)
+       if (.not. equal) then
+          write(*,*) 'vco_equal: ip1_sfc not equal'
+          return
+       endif
+
+    end if
 
   end function vco_equal
 
-
 end module VerticalCoord_mod
-

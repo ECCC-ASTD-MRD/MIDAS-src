@@ -530,10 +530,12 @@ CONTAINS
                               'VortDivToPsiChi')  ! IN
        end if
     end if
-    
+
     ! convert LQ to HU
-    call vtr_transform( statevector_incr, & ! INOUT
-                       'LQtoHU_tlm' )       ! IN
+    if ( gsv_varExist(statevector_incr,'HU') ) then
+       call vtr_transform( statevector_incr, & ! INOUT
+                          'LQtoHU_tlm' )       ! IN
+    end if
 
     ! loop over times for which increment is computed
     do indexStep = 1, tim_nstepobsinc
@@ -775,8 +777,10 @@ CONTAINS
     integer            :: indexStep
 
     ! convert LQ to HU
-    call vtr_transform( statevector, & ! INOUT
-                        'LQtoHU_tlm' ) ! IN
+    if ( gsv_varExist(statevector,'HU') ) then
+       call vtr_transform( statevector, & ! INOUT
+                           'LQtoHU_tlm' ) ! IN
+    end if
 
     do indexStep = 1, statevector%numStep
       fileNameFull = trim(fileName) // trim(fileNameExt(statevector,indexStep,indexAnalysis))

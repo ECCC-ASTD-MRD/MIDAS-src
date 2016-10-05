@@ -33,6 +33,7 @@
 !
 !--------------------------------------------------------------------------
 MODULE gridStateVector_mod
+  use topLevelControl_mod
   use mpivar_mod
   use varNameList_mod
   use verticalCoord_mod
@@ -1181,7 +1182,12 @@ MODULE gridStateVector_mod
     endif
 
     ! set up vertical and horizontal coordinate for input file
-    call vco_SetupFromFile(vco_file,trim(fileName),' ',beSilent=.true.)
+    if ( top_spatialDimensions() /= '2D') then
+       call vco_SetupFromFile(vco_file,trim(fileName),' ',beSilent=.true.)
+    else
+       call vco_SetupManual( vco_file,                 & ! OUT
+                             top_AnalysisLevel2d(), 1 )  ! IN
+    end if
     if(associated(hco_Get(gridName))) then
       write(*,*) 'gsv_readFromFile: horiz grid already defined with name: ', gridName
       hco_file => hco_Get(gridName)
@@ -1723,14 +1729,18 @@ MODULE gridStateVector_mod
           if (iDoWriting.and.jlev.le.nlev) then
 
             ! Set the ip1 value
-            if (nlev /= 1) then
-              if (vnl_varLevelFromVarname(vnl_varNameList(jvar)) == 'MM') then
-                ip1 = statevector%vco%ip1_M(jlev)
-              else
-                ip1 = statevector%vco%ip1_T(jlev)
-              end if
+            if ( top_spatialDimensions() /= '2D') then
+               if (nlev /= 1) then
+                  if (vnl_varLevelFromVarname(vnl_varNameList(jvar)) == 'MM') then
+                     ip1 = statevector%vco%ip1_M(jlev)
+                  else
+                     ip1 = statevector%vco%ip1_T(jlev)
+                  end if
+               else
+                  ip1 = 0
+               end if
             else
-              ip1 = 0
+               ip1 = statevector%vco%ip1_T(1) ! same as ip1_M
             end if
 
             ! Set the output variable name
@@ -1849,12 +1859,11 @@ MODULE gridStateVector_mod
     !
     !- Writing Toc-Toc
     !
-    status = vgd_write(statevector%vco%vgrid,iun,'fst')
-
-    if ( status /= VGD_OK ) then
-      write(*,*)
-      write(*,*) 'WriteTicTacToc: ERROR with vgd_write '
-      stop
+    if ( trim(statevector%vco%setupType) == 'FromFile' ) then 
+       status = vgd_write(statevector%vco%vgrid,iun,'fst')
+       if ( status /= VGD_OK ) then
+          call varAbort('WriteTicTacToc: ERROR with vgd_write')
+       end if
     end if
 
   end subroutine WriteTicTacToc

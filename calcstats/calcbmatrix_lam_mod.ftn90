@@ -80,6 +80,7 @@ module calcbmatrix_lam_mod
 
   character(len=12) :: WindTransform
   character(len=12) :: SpectralWeights
+  character(len=2)  :: spatialDimensions
 
   real(8), pointer     :: pressureProfile_M(:), pressureProfile_T(:)
 
@@ -131,6 +132,16 @@ module calcbmatrix_lam_mod
 
     hco_ens => hco_ens_in
     vco_bhi => vco_ens_in
+
+    if ( vco_bhi%nlev_T == 1 .and. vco_bhi%nlev_T == 1 ) then
+       write(*,*)
+       write(*,*) 'Spatial dimensions = 2D'
+       spatialDimensions = '2D'
+    else
+       write(*,*)
+       write(*,*) 'Spatial dimensions = 3D'
+       spatialDimensions = '3D'
+    end if
 
     !
     !- 2. Read namelist NAMCALCB_LAM
@@ -211,6 +222,7 @@ module calcbmatrix_lam_mod
 
     !- 4.2 Set ControlVariable structure
     nkgdim = 0
+    momentumControlVar(:) = 'NULL' 
     do var = 1, nControlVariable
 
        !- Set variable name
@@ -252,7 +264,7 @@ module calcbmatrix_lam_mod
        end if
 
        !- Set Level info
-       if ( ControlVariable(var)%nomvar(cv_model) /= 'TG' ) then
+       if ( ControlVariable(var)%nomvar(cv_model) /= 'TG' .and. spatialDimensions /= '2D' ) then
           call VarLevInfo(ControlVariable(var)%nlev,             & ! OUT
                           ControlVariable(var)%GridType,         & ! OUT
                           ControlVariable(var)%nomvar(cv_model), & ! IN 
@@ -269,14 +281,18 @@ module calcbmatrix_lam_mod
        
        allocate( ControlVariable(var)%ip1 (ControlVariable(var)%nlev) )
 
-       if (ControlVariable(var)%nlev /= 1) then
-          if (ControlVariable(var)%GridType == 'TH') then
-            ControlVariable(var)%ip1(:) = vco_bhi%ip1_T(:)
+       if ( spatialDimensions /= '2D' ) then
+          if (ControlVariable(var)%nlev /= 1) then
+             if (ControlVariable(var)%GridType == 'TH') then
+                ControlVariable(var)%ip1(:) = vco_bhi%ip1_T(:)
+             else
+                ControlVariable(var)%ip1(:) = vco_bhi%ip1_M(:)
+             end if
           else
-            ControlVariable(var)%ip1(:) = vco_bhi%ip1_M(:)
+             ControlVariable(var)%ip1(:) = 0
           end if
        else
-          ControlVariable(var)%ip1(:) = 0
+          ControlVariable(var)%ip1(:) = vco_bhi%ip1_T(:) ! which is identical to ip1_M(:)
        end if
 
        ControlVariable(var)%kDimStart = nkgdim + 1
@@ -465,7 +481,9 @@ module calcbmatrix_lam_mod
     !
     !- 3.  Transform u-wind and v-wind to control variables 
     !
-    call UVToCtrlVar(ensPerturbations) ! INOUT
+    if ( momentumControlVar(1) /= 'NULL' .and. momentumControlVar(2) /= 'NULL' ) then
+       call UVToCtrlVar(ensPerturbations) ! INOUT
+    end if
 
     if (writeEnsPert) call WriteEnsemble(ensPerturbations, './EnsPert_cv_bhi', cv_bhi ) ! IN
 
@@ -649,7 +667,9 @@ module calcbmatrix_lam_mod
     !
     !- 3.  Transform u-wind and v-wind to control variables 
     !
-    call UVToCtrlVar(ensPerturbations) ! INOUT
+    if ( momentumControlVar(1) /= 'NULL' .and. momentumControlVar(2) /= 'NULL' ) then
+       call UVToCtrlVar(ensPerturbations) ! INOUT
+    end if
 
     !
     !- 4.  Remove the ensemble mean
@@ -3172,12 +3192,14 @@ module calcbmatrix_lam_mod
     !
     !- Writing Toc-Toc
     !
-    status = vgd_write(vco_bhi%vgrid,iun,'fst')
+    if ( spatialDimensions /= '2D' ) then
+       status = vgd_write(vco_bhi%vgrid,iun,'fst')
 
-    if ( status /= VGD_OK ) then
-      write(*,*)
-      write(*,*) 'WriteTicTacToc: ERROR with vgd_write '
-      call varAbort('WriteTicTacToc')
+       if ( status /= VGD_OK ) then
+          write(*,*)
+          write(*,*) 'WriteTicTacToc: ERROR with vgd_write '
+          call varAbort('WriteTicTacToc')
+       end if
     end if
 
   end subroutine WriteTicTacToc

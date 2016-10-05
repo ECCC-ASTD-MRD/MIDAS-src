@@ -17,7 +17,7 @@
 subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
                    obsColumnMode, obsMpiStrategy)
   !
-  !**s/r preproc  - Control of the preprocessing of the 3D variational assimilation
+  !**s/r preproc  - Control of the preprocessing of the variational assimilation
   !
   use topLevelControl_mod
   use mpivar_mod
@@ -36,6 +36,7 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   use burpFiles_mod
   use observation_erreurs_mod
   use variableTransforms_mod
+  use verticalCoord_mod
   IMPLICIT NONE
   
   type(struct_obs) :: lobsSpaceData
@@ -73,9 +74,15 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   !
   if(mpi_myid.eq.0) write(*,*)''
   if(mpi_myid.eq.0) write(*,*)' preproc: Set vcoord parameters for trial grid'
-  call vco_SetupFromFile(vco_trl,'./trlm_01',' ')
+  if ( top_spatialDimensions() /= '2D') then
+     call vco_SetupFromFile( vco_trl,         & ! OUT
+                             './trlm_01',' ')   ! IN
+  else  
+     call vco_SetupManual( vco_trl,                  & ! OUT
+                           top_AnalysisLevel2d(), 1 )  ! IN 
+  end if
   call col_setVco(lcolumnhr,vco_trl)
-  
+
   !
   !- Initialize variables of the model states
   !
@@ -109,12 +116,19 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   !     
   !- Initialisation of the analysis grid vertical coordinate from !! in Bnmc file
   !
-  if ( hco_anl % global ) then
-     etiket = 'BGCK_STDDEV'
+  if ( top_spatialDimensions() /= '2D') then
+     if ( hco_anl % global ) then
+        etiket = 'BGCK_STDDEV'
+     else
+        etiket = 'STDDEV'
+     end if
+     call vco_SetupFromFile( vco_anl,         & ! OUT
+                             './bgcov', etiket) ! IN
   else
-     etiket = 'STDDEV'
+     call vco_SetupManual( vco_anl,                  & ! OUT
+                           top_AnalysisLevel2d(), 1 )  ! IN
   end if
-  call vco_SetupFromFile(vco_anl,'./bgcov',etiket)
+
   call col_setVco(lcolumng,vco_anl)
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 

@@ -26,16 +26,20 @@ program calcbmatrix_main
   type(struct_hco), pointer :: hco_ens
 
   character(len=256), parameter :: enspathname = './ensemble'
-  character(len=256) :: ensfilebasename
   character(len=4)   :: censnumber
   character(len=256), allocatable :: cflensin(:)
 
-  integer           :: ens, nens, fstopc
+  integer           :: ens, fstopc
   integer           :: nulnam, ierr, fnom, fclos
-  character(len=60) :: cmode
 
-  NAMELIST /NAMCONF/cmode
-  NAMELIST /NAMENS/nens,ensfilebasename
+  integer           :: nens
+  integer           :: ip1(1)
+  character(len=256):: ensfilebasename
+  character(len=60) :: mode
+  character(len=2)  :: spatialDimensions
+
+  NAMELIST /NAMCONF/mode
+  NAMELIST /NAMENS/nens,ensfilebasename,spatialDimensions,ip1
 
   !
   !- 1.  Initilization
@@ -51,8 +55,10 @@ program calcbmatrix_main
   call mpi_initialize
 
   !- 1.2 Read NAMENS namelist
-  nens            = 96                ! default value
-  ensfilebasename = '2011011918_006_' ! default value
+  nens              = 96                ! default value
+  ensfilebasename   = '2011011918_006_' ! default value
+  spatialDimensions = '3D'              ! default value
+  ip1(:)            = -1                ! default value
 
   nulnam = 0
   ierr   = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -72,11 +78,22 @@ program calcbmatrix_main
   hco_ens => hco_Get('Ensemble')
 
   !- 1.4 Initialize the vertical grid
-  call vco_SetupFromFile( vco_ens,                 & ! OUT
-                          cflensin(1), ' ') ! IN
+  select case(trim(spatialDimensions))
+  case ('3D')
+     call vco_SetupFromFile( vco_ens,        & ! OUT
+                             cflensin(1), ' ') ! IN
+  case ('2D')
+     call vco_SetupManual( vco_ens,  & ! OUT
+                           ip1, 1 )    ! IN
+  case default
+     write(*,*)
+     write(*,*) 'Unknown value for spatialDimensions', spatialDimensions
+     write(*,*) 'use 3D or 2D'
+     call varAbort('calcbmatrix_main')
+  end select
 
   !- 1.5 Read NAMCONF namelist to find the mode
-  cmode  = 'BHI'  ! default value
+  mode  = 'BHI'  ! default value
 
   nulnam = 0
   ierr   = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -96,7 +113,7 @@ program calcbmatrix_main
   end if
 
   !- 2.2 Mode selection
-  select case(trim(cmode))
+  select case(trim(mode))
   case ('BHI')
      if (hco_ens % global) then
         call calcb_glb_computeStats
@@ -127,7 +144,7 @@ program calcbmatrix_main
      end if
   case default
      write(*,*)
-     write(*,*) 'Unknown value of CMODE in global mode: ',cmode
+     write(*,*) 'Unknown value of MODE in global mode: ',mode
      call varAbort('calcbmatrix_main')
   end select
 

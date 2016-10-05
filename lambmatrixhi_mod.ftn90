@@ -36,6 +36,7 @@
 !    lamspectraltransform
 !--------------------------------------------------------------------------
 module LamBMatrixHI_mod
+  use topLevelControl_mod
   use mpivar_mod
   use HorizontalCoord_mod
   use VerticalCoord_mod
@@ -201,15 +202,21 @@ contains
     do var = 1, nControlVariable
       allocate( ControlVariable(var)%GpStdDev (1:hco_bhi%ni, 1:hco_bhi%nj, 1:ControlVariable(var)%nlev) )
       allocate( ControlVariable(var)%ip1 (1:ControlVariable(var)%nlev) )
-      if (ControlVariable(var)%nlev /= 1) then
-         if (ControlVariable(var)%GridType == 'TH') then
-            ControlVariable(var)%ip1(:) = vco_anl_in%ip1_T(:)
+
+      if ( top_spatialDimensions() /= '2D' ) then
+         if (ControlVariable(var)%nlev /= 1) then
+            if (ControlVariable(var)%GridType == 'TH') then
+               ControlVariable(var)%ip1(:) = vco_anl_in%ip1_T(:)
+            else
+               ControlVariable(var)%ip1(:) = vco_anl_in%ip1_M(:)
+            end if
          else
-            ControlVariable(var)%ip1(:) = vco_anl_in%ip1_M(:)
+            ControlVariable(var)%ip1(:) = 0
          end if
       else
-         ControlVariable(var)%ip1(:) = 0
+         ControlVariable(var)%ip1(:) = vco_anl_in%ip1_T(:) ! which is identical to ip1_M(:)
       end if
+
       ControlVariable(var)%kDimStart = nkgdim + 1
       nkgdim = nkgdim + ControlVariable(var)%nlev
       ControlVariable(var)%kDimEnd    = nkgdim
@@ -408,10 +415,12 @@ contains
     !
     !- 4. Error traps
     !
-    if ( UWindID == -1 .or. VWindID == -1) then
-      write(*,*)
-      write(*,*) 'lbhi_GetControlVariableInfo: UU and/or VV not in the Control Variable list'
-      call varAbort('lbhi_GetControlVariableInfo')
+    if ( gsv_varExist(varName='UU') .and. gsv_varExist(varName='VV' ) ) then
+       if ( UWindID == -1 .or. VWindID == -1) then
+          write(*,*)
+          write(*,*) 'lbhi_GetControlVariableInfo: UU and/or VV not in the Control Variable list'
+          call varAbort('lbhi_GetControlVariableInfo')
+       end if
     end if
 
     !- Make sure that all the control variables are present in GridStateVector
@@ -427,29 +436,31 @@ contains
     !
     !- 5.  Set the type of momentum control variables
     !
-    if ( trim(ControlVariable(UWindID)%nomvar(cv_model)) == 'UU' .and. &
-         trim(ControlVariable(UWindID)%nomvar(cv_bhi))   == 'PP' .and. &
-         trim(ControlVariable(VWindID)%nomvar(cv_model)) == 'VV' .and. &
-         trim(ControlVariable(VWindID)%nomvar(cv_bhi))   == 'CC' ) then
-       write(*,*)
-       write(*,*) 'Momentum Control Variables = Psi-Chi'
-       WindTransform = 'PsiChi'
-    else if ( trim(ControlVariable(UWindID)%nomvar(cv_model)) == 'UU' .and. &
-         trim(ControlVariable(UWindID)%nomvar(cv_bhi))   == 'QR' .and. &
-         trim(ControlVariable(VWindID)%nomvar(cv_model)) == 'VV' .and. &
-         trim(ControlVariable(VWindID)%nomvar(cv_bhi))   == 'DD' ) then
-       write(*,*)
-       write(*,*) 'Momentum Control Variables = Vort-Div'
-       WindTransform = 'VortDiv'
-    else if ( trim(ControlVariable(UWindID)%nomvar(cv_model)) == 'UU' .and. &
-         trim(ControlVariable(UWindID)%nomvar(cv_bhi))   == 'UU' .and. &
-         trim(ControlVariable(VWindID)%nomvar(cv_model)) == 'VV' .and. &
-         trim(ControlVariable(VWindID)%nomvar(cv_bhi))   == 'VV' ) then
-       write(*,*)
-       write(*,*) 'Momentum Control Variables = U-V '
-       WindTransform = 'UV'
-    else
-      call varAbort('lbhi_GetControlVariableInfo: Unkown Wind Tranform')
+    if ( gsv_varExist(varName='UU') .and. gsv_varExist(varName='VV' ) ) then
+       if ( trim(ControlVariable(UWindID)%nomvar(cv_model)) == 'UU' .and. &
+            trim(ControlVariable(UWindID)%nomvar(cv_bhi))   == 'PP' .and. &
+            trim(ControlVariable(VWindID)%nomvar(cv_model)) == 'VV' .and. &
+            trim(ControlVariable(VWindID)%nomvar(cv_bhi))   == 'CC' ) then
+          write(*,*)
+          write(*,*) 'Momentum Control Variables = Psi-Chi'
+          WindTransform = 'PsiChi'
+       else if ( trim(ControlVariable(UWindID)%nomvar(cv_model)) == 'UU' .and. &
+            trim(ControlVariable(UWindID)%nomvar(cv_bhi))   == 'QR' .and. &
+            trim(ControlVariable(VWindID)%nomvar(cv_model)) == 'VV' .and. &
+            trim(ControlVariable(VWindID)%nomvar(cv_bhi))   == 'DD' ) then
+          write(*,*)
+          write(*,*) 'Momentum Control Variables = Vort-Div'
+          WindTransform = 'VortDiv'
+       else if ( trim(ControlVariable(UWindID)%nomvar(cv_model)) == 'UU' .and. &
+            trim(ControlVariable(UWindID)%nomvar(cv_bhi))   == 'UU' .and. &
+            trim(ControlVariable(VWindID)%nomvar(cv_model)) == 'VV' .and. &
+            trim(ControlVariable(VWindID)%nomvar(cv_bhi))   == 'VV' ) then
+          write(*,*)
+          write(*,*) 'Momentum Control Variables = U-V '
+          WindTransform = 'UV'
+       else
+          call varAbort('lbhi_GetControlVariableInfo: Unkown Wind Tranform')
+       end if
     end if
 
   end subroutine lbhi_GetControlVariableInfo
@@ -899,57 +910,59 @@ contains
     !
     !- 4.  Momentum variables transform
     !
-    if ( ControlVariable(UWindID)%nlev /= nlev_M .or. &
-         ControlVariable(VWindID)%nlev /= nlev_M  ) then
-       call varAbort('lbhi_cv2gd: Error in Wind related parameters')
-    end if
+    if ( UWindID /= -1 .and. VWindID /= -1) then
+       if ( ControlVariable(UWindID)%nlev /= nlev_M .or. &
+            ControlVariable(VWindID)%nlev /= nlev_M  ) then
+          call varAbort('lbhi_cv2gd: Error in Wind related parameters')
+       end if
     
-    if ( trim(WindTransform) /= 'UV') then
+       if ( trim(WindTransform) /= 'UV') then
 
-       allocate(uphy(myLonBeg:myLonEnd,myLatBeg:myLatEnd,1:nlev_M))
-       allocate(vphy(myLonBeg:myLonEnd,myLatBeg:myLatEnd,1:nlev_M))
-       allocate(psi (myLonBeg:myLonEnd,myLatBeg:myLatEnd,1:nlev_M))
-       allocate(chi (myLonBeg:myLonEnd,myLatBeg:myLatEnd,1:nlev_M))
+          allocate(uphy(myLonBeg:myLonEnd,myLatBeg:myLatEnd,1:nlev_M))
+          allocate(vphy(myLonBeg:myLonEnd,myLatBeg:myLatEnd,1:nlev_M))
+          allocate(psi (myLonBeg:myLonEnd,myLatBeg:myLatEnd,1:nlev_M))
+          allocate(chi (myLonBeg:myLonEnd,myLatBeg:myLatEnd,1:nlev_M))
 
-       !- 4.1 Vort / Div -> Psi / Chi
-       if ( trim(WindTransform) == 'VortDiv') then
+          !- 4.1 Vort / Div -> Psi / Chi
+          if ( trim(WindTransform) == 'VortDiv') then
 
-          !  4.1.1 Putting vorticity in psi array and divergence in chi array
-          psi(:,:,:) = gd_out(:,:,ControlVariable(UWindID)%kDimStart:ControlVariable(UWindID)%kDimEnd)
-          chi(:,:,:) = gd_out(:,:,ControlVariable(VWindID)%kDimStart:ControlVariable(VWindID)%kDimEnd)
+             !  4.1.1 Putting vorticity in psi array and divergence in chi array
+             psi(:,:,:) = gd_out(:,:,ControlVariable(UWindID)%kDimStart:ControlVariable(UWindID)%kDimEnd)
+             chi(:,:,:) = gd_out(:,:,ControlVariable(VWindID)%kDimStart:ControlVariable(VWindID)%kDimEnd)
+             
+             !  4.1.2 Vort -> Psi
+             call lst_Laplacian( lst_wind%id,        & ! IN
+                                 Psi,                & ! INOUT
+                                 'Inverse', nlev_M )   ! IN    
 
-          !  4.1.2 Vort -> Psi
-          call lst_Laplacian( lst_wind%id,        & ! IN
-                              Psi,                & ! INOUT
-                              'Inverse', nlev_M )   ! IN    
+             !  4.1.3 Div -> Chi
+             call lst_Laplacian( lst_wind%id,        & ! IN
+                                 Chi,                & ! INOUT
+                                 'Inverse', nlev_M )   ! IN
 
-          !  4.1.3 Div -> Chi
-          call lst_Laplacian( lst_wind%id,        & ! IN
-                              Chi,                & ! INOUT
-                              'Inverse', nlev_M )   ! IN
+          end if
 
+          !- 4.2 Psi / Chi -> U-wind / V-wind
+          if ( trim(WindTransform) == 'PsiChi') then
+             psi(:,:,:) = gd_out(:,:,ControlVariable(UWindID)%kDimStart:ControlVariable(UWindID)%kDimEnd)
+             chi(:,:,:) = gd_out(:,:,ControlVariable(VWindID)%kDimStart:ControlVariable(VWindID)%kDimEnd)
+          end if
+
+          !  4.2.1 Do Transform
+          call lag_PsiChiToUV( psi, chi,           & ! IN
+                               uphy, vphy,         & ! OUT
+                               nlev_M)               ! IN
+
+          !  4.2.2 Insert results in gd_out and deallocate memories
+          gd_out(:,:,1       :  nlev_M) = uphy(:,:,:)
+          gd_out(:,:,nlev_M+1:2*nlev_M) = vphy(:,:,:)
+          
+          deallocate(chi)
+          deallocate(psi)
+          deallocate(vphy)
+          deallocate(uphy)
+          
        end if
-
-       !- 4.2 Psi / Chi -> U-wind / V-wind
-
-       if ( trim(WindTransform) == 'PsiChi') then
-          psi(:,:,:) = gd_out(:,:,ControlVariable(UWindID)%kDimStart:ControlVariable(UWindID)%kDimEnd)
-          chi(:,:,:) = gd_out(:,:,ControlVariable(VWindID)%kDimStart:ControlVariable(VWindID)%kDimEnd)
-       end if
-
-       !  4.2.1 Do Transform
-       call lag_PsiChiToUV( psi, chi,           & ! IN
-                            uphy, vphy,         & ! OUT
-                            nlev_M)               ! IN
-
-       !  4.2.2 Insert results in gd_out and deallocate memories
-       gd_out(:,:,1       :  nlev_M) = uphy(:,:,:)
-       gd_out(:,:,nlev_M+1:2*nlev_M) = vphy(:,:,:)
-
-       deallocate(chi)
-       deallocate(psi)
-       deallocate(vphy)
-       deallocate(uphy)
 
     end if
 
@@ -976,52 +989,55 @@ contains
     !
     !- 4.  Momentum variables transform
     !
-    if ( ControlVariable(UWindID)%nlev /= nlev_M .or. &
-         ControlVariable(VWindID)%nlev /= nlev_M  ) then
-      call varAbort('lbhi_cv2gdadj: Error in Wind related parameters')
-    end if
+    if ( UWindID /= -1 .and. VWindID /= -1) then
+       if ( ControlVariable(UWindID)%nlev /= nlev_M .or. &
+            ControlVariable(VWindID)%nlev /= nlev_M  ) then
+          call varAbort('lbhi_cv2gdadj: Error in Wind related parameters')
+       end if
+       
+       if ( trim(WindTransform) /= 'UV' ) then
 
-    if ( trim(WindTransform) /= 'UV' ) then
+          allocate(uphy(myLonBeg:myLonEnd,myLatBeg:myLatEnd,1:nlev_M))
+          allocate(vphy(myLonBeg:myLonEnd,myLatBeg:myLatEnd,1:nlev_M))
+          allocate(psi (myLonBeg:myLonEnd,myLatBeg:myLatEnd,1:nlev_M))
+          allocate(chi (myLonBeg:myLonEnd,myLatBeg:myLatEnd,1:nlev_M))
+          
+          !- 4.2  U-wind / V-wind -> Psi / Chi
 
-       allocate(uphy(myLonBeg:myLonEnd,myLatBeg:myLatEnd,1:nlev_M))
-       allocate(vphy(myLonBeg:myLonEnd,myLatBeg:myLatEnd,1:nlev_M))
-       allocate(psi (myLonBeg:myLonEnd,myLatBeg:myLatEnd,1:nlev_M))
-       allocate(chi (myLonBeg:myLonEnd,myLatBeg:myLatEnd,1:nlev_M))
+          !  4.2.2 Extract winds
+          uphy(:,:,:) = gd_in(:,:,1       :  nlev_M)
+          vphy(:,:,:) = gd_in(:,:,nlev_M+1:2*nlev_M)
 
-       !- 4.2  U-wind / V-wind -> Psi / Chi
+          !  4.2.1 Do Transform
+          call lag_PsiChiToUVAdj( psi, chi,           & ! OUT
+                                  uphy, vphy,         & ! IN
+                                  nlev_M)               ! IN
 
-       !  4.2.2 Extract winds
-       uphy(:,:,:) = gd_in(:,:,1       :  nlev_M)
-       vphy(:,:,:) = gd_in(:,:,nlev_M+1:2*nlev_M)
+          !- 4.1 Psi / Chi -> Vort / Div (Laplacian and inverse Laplacian are auto-adjoint operators)
+          if ( trim(WindTransform) == 'VortDiv' ) then
 
-       !  4.2.1 Do Transform
-       call lag_PsiChiToUVAdj( psi, chi,           & ! OUT
-                               uphy, vphy,         & ! IN
-                               nlev_M)               ! IN
+             !  4.1.2 Psi -> Vort
+             call lst_Laplacian( lst_wind%id,        & ! IN
+                                 Psi,                & ! INOUT
+                                 'Inverse', nlev_M )   ! IN    
 
-       !- 4.1 Psi / Chi -> Vort / Div (Laplacian and inverse Laplacian are auto-adjoint operators)
-       if ( trim(WindTransform) == 'VortDiv' ) then
+             !  4.1.3 Chi -> Vort
+             call lst_Laplacian( lst_wind%id,        & ! IN
+                                 Chi,                & ! INOUT
+                                 'Inverse', nlev_M )   ! IN
 
-          !  4.1.2 Psi -> Vort
-          call lst_Laplacian( lst_wind%id,        & ! IN
-                              Psi,                & ! INOUT
-                              'Inverse', nlev_M )   ! IN    
+          end if
 
-          !  4.1.3 Chi -> Vort
-          call lst_Laplacian( lst_wind%id,        & ! IN
-                              Chi,                & ! INOUT
-                              'Inverse', nlev_M )   ! IN
+          !- Insert results in gd and deallocate moemories
+          gd_in(:,:,ControlVariable(UWindID)%kDimStart:ControlVariable(UWindID)%kDimEnd) = psi(:,:,:)
+          gd_in(:,:,ControlVariable(VWindID)%kDimStart:ControlVariable(VWindID)%kDimEnd) = chi(:,:,:)
+
+          deallocate(chi)
+          deallocate(psi)
+          deallocate(vphy)
+          deallocate(uphy)
 
        end if
-
-       !- Insert results in gd and deallocate moemories
-       gd_in(:,:,ControlVariable(UWindID)%kDimStart:ControlVariable(UWindID)%kDimEnd) = psi(:,:,:)
-       gd_in(:,:,ControlVariable(VWindID)%kDimStart:ControlVariable(VWindID)%kDimEnd) = chi(:,:,:)
-
-       deallocate(chi)
-       deallocate(psi)
-       deallocate(vphy)
-       deallocate(uphy)
 
     end if
 

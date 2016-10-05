@@ -74,11 +74,11 @@
 !
 !     Remove surface station wind observations
 !
-      IF( top_AnalysisMode() ) CALL SFCWNDZAP(obsSpaceData)
+      IF ( top_AnalysisMode() ) CALL SFCWNDZAP(obsSpaceData)
 !
 !     Find interpolation layer in model profiles 
 !
-      call vobslyrs(columnhr,obsSpaceData)
+      if ( top_spatialDimensions() /= '2D') call vobslyrs(columnhr,obsSpaceData)
 !
 !
 !------ Calculate the innovations Y - H(Xb) and place
@@ -181,7 +181,7 @@
 !
 !     Find interpolation layer in model profiles 
 !
-      CALL VOBSLYRS(columng,obsSpaceData)
+      if ( top_spatialDimensions() /= '2D') CALL VOBSLYRS(columng,obsSpaceData)
 
       write(*,*) 'PRDATABIN: After filtering done in SUINNOV'
       call prdatabin(obsSpaceData,tim_nstepobs)

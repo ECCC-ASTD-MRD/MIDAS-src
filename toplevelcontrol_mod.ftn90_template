@@ -19,25 +19,34 @@ module topLevelControl_mod
   ! public procedures
   public :: top_setup, top_AnalysisMode, top_BgckIrMode, top_BgckConvMode, top_OmpMode
   public :: top_BurpSplit, top_BurpSplitMode
+  public :: top_spatialDimensions, top_AnalysisLevel2d
 
   character(len=len('XXXXX')),parameter :: top_crevision='XXXXX'
-  integer :: top_nconf
+  character(len=2) :: top_spatial_Dimensions
+  integer :: top_nconf, top_ip1
 
   character(len=256) :: burp_split_mode
   logical :: burp_split_L
 
   contains
 
+!--------------------------------------------------------------------------
+! top_setup
+!--------------------------------------------------------------------------
     subroutine top_setup
       implicit none
-      integer :: nconf
-      NAMELIST /NAMCT0/NCONF
+      integer :: nconf, ip1
+      character(len=2) :: spatialDimensions
+
+      NAMELIST /NAMCT0/NCONF,spatialDimensions,ip1
       integer nulnam,ierr,fnom,fclos 
 
       integer :: length_burp_split, status
 
       ! Set the default values
-      nconf  = 141
+      nconf             = 141
+      spatialDimensions = '3D'   ! default value
+      ip1               = -1     ! default value
 
       ! Read the NAMELIST to modify these values
       nulnam=0
@@ -48,7 +57,9 @@ module topLevelControl_mod
       write(*,nml=namct0)
       ierr=fclos(nulnam)
 
-      top_nconf = nconf
+      top_nconf              = nconf
+      top_spatial_Dimensions = spatialDimensions
+      top_ip1                = ip1
 
       !
       !- Determine if the observation files are already split by subdomain
@@ -97,6 +108,9 @@ module topLevelControl_mod
 
     end subroutine top_setup
 
+!--------------------------------------------------------------------------
+! top_AnalysisMode
+!--------------------------------------------------------------------------
     function top_AnalysisMode() result(analysisMode)
       implicit none
       logical :: analysisMode
@@ -105,6 +119,9 @@ module topLevelControl_mod
         
     end function top_AnalysisMode
 
+!--------------------------------------------------------------------------
+! top_OmpMode
+!--------------------------------------------------------------------------
     function top_OmpMode() result(ompMode)
       implicit none
       logical :: ompMode
@@ -113,6 +130,9 @@ module topLevelControl_mod
         
     end function top_OmpMode
 
+!--------------------------------------------------------------------------
+! top_BgckIrMode
+!--------------------------------------------------------------------------
     function top_BgckIrMode() result(bgckMode)
       implicit none
       logical :: bgckMode
@@ -121,6 +141,9 @@ module topLevelControl_mod
         
     end function top_BgckIrMode
 
+!--------------------------------------------------------------------------
+! top_BgckConvMode
+!--------------------------------------------------------------------------
     function top_BgckConvMode() result(bgckMode)
       implicit none
       logical :: bgckMode
@@ -129,6 +152,9 @@ module topLevelControl_mod
         
     end function top_BgckConvMode
 
+!--------------------------------------------------------------------------
+! top_BurpSplitMode
+!--------------------------------------------------------------------------
     function top_BurpSplitMode() result(BurpSplitMode)
       implicit none
       character(len=48) :: BurpSplitMode
@@ -137,6 +163,9 @@ module topLevelControl_mod
         
     end function top_BurpSplitMode
 
+!--------------------------------------------------------------------------
+! top_BurpSplit
+!--------------------------------------------------------------------------
     function top_BurpSplit() result(BurpSplit)
       implicit none
       logical :: BurpSplit
@@ -144,5 +173,27 @@ module topLevelControl_mod
       BurpSplit = burp_split_L
         
     end function top_BurpSplit
+
+!--------------------------------------------------------------------------
+! top_spatialDimensions
+!--------------------------------------------------------------------------
+    function top_spatialDimensions() result(spatialDimensions)
+      implicit none
+      character(len=2) :: spatialDimensions
+
+      spatialDimensions = top_spatial_Dimensions
+
+    end function top_spatialDimensions
+
+!--------------------------------------------------------------------------
+! top_AnalysisLevel2d
+!--------------------------------------------------------------------------
+    function top_AnalysisLevel2d() result(AnalysisLevel2d)
+      implicit none
+      integer :: AnalysisLevel2d(1)
+
+      AnalysisLevel2d = top_ip1
+
+    end function top_AnalysisLevel2d
 
 end module topLevelControl_mod
