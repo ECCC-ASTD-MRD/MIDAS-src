@@ -45,7 +45,9 @@ SUBROUTINE burp_setupfiles(datestamp)
   CHARACTER(len=2) :: CFAMI(JPFILES)
   CHARACTER(len=4) :: cmyidx, cmyidy
   CHARACTER(len=9) :: cmyid
-  CHARACTER(len=128) :: burpin   
+  CHARACTER(len=1024) :: burp_directory
+  CHARACTER(len=1060) :: burpin   !! the length should be more than len(burp_directory)+1+len(clvalu)+1+len(cmyid)
+  integer :: length_burp_directory
   LOGICAL   isExist_L 
 
   INTEGER KTIME,KDATE,KDATE_RECV,KTIME_RECV
@@ -65,6 +67,29 @@ SUBROUTINE burp_setupfiles(datestamp)
   CHARACTER*9   CLSTNID
 
   EXTERNAL FCLOS,FNOM,MRFCLS,MRFOPN,MRFOPC,MRBHDR,MRFLOC,MRFGET,MRFMXL,NUMBLKS
+
+  ier = 0
+  call get_environment_variable('ARMA_BURP_DIRECTORY',burp_directory,length_burp_directory,ier,.true.)
+  if (ier.eq.-1) then
+     write(*,*) 'burp_setupfiles: Problem when getting the environment variable ARMA_BURP_DIRECTORY'
+     write(*,*) '                 The length of the variable ''burp_directory'' is too short to hold the complete value'
+     write(*,*) '                 Rely on defaut which is the current directory'
+     call abort3d("burp_setupfiles")
+  end if
+  if (ier.gt.1) then
+     write(*,*) 'burp_setupfiles: Problem when getting the environment variable ARMA_BURP_DIRECTORY'
+     write(*,*) '                 Rely on defaut which is the current directory'
+     burp_directory = '.'
+  end if
+  if (ier.eq.1) then
+     write(*,*) 'burp_setupfiles: The environment variable ARMA_BURP_DIRECTORY does not exist'
+     write(*,*) '                 Rely on defaut which is the current directory'
+     burp_directory = '.'
+  end if
+  if (ier.eq.0) then
+     write(*,*) 'burp_setupfiles: The environment variable ARMA_BURP_DIRECTORY does exist'
+     write(*,*) '                 Retrieve it'
+  end if
 
   write(cmyidy,'(I4.4)') (mpi_npey-mpi_myidy)
   write(cmyidx,'(I4.4)') (mpi_myidx+1)
@@ -155,7 +180,8 @@ SUBROUTINE burp_setupfiles(datestamp)
   DO JJ=1,JPFILES 
     IF(CLVALU(JJ) == '') EXIT
     nulburp=0
-    burpin=trim(CLVALU(JJ))//'_'//trim(cmyid)
+    burpin=trim(burp_directory)//'/'//trim(CLVALU(JJ))//'_'//trim(cmyid)
+
     INQUIRE(FILE=trim(burpin),EXIST=isExist_L)
     IF (.NOT. isExist_L )THEN
       burpin=trim(CLVALU(JJ))
