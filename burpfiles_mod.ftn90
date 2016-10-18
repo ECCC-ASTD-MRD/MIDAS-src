@@ -231,7 +231,7 @@ SUBROUTINE burp_setupfiles(datestamp)
   WRITE(*,*)'TYPE  NAME '
   WRITE(*,*)'----  ---- '
   DO JJ=1,burp_nfiles
-    WRITE(*,'(1X,A2,1X,A128)' ) burp_cfamtyp(JJ),burp_cfilnam(JJ)
+    WRITE(*,'(1X,A2,1X,A128)' ) burp_cfamtyp(JJ),trim(burp_cfilnam(JJ))
   END DO
 
   ! Make sure all mpi tasks have a valid date (important for split burp files)
