@@ -29,7 +29,8 @@ module burpFiles_mod
   integer, parameter :: jpfiles=64
   integer :: burp_nfiles
   character(len=2)   :: burp_cfamtyp(jpfiles)
-  character(len=128) :: burp_cfilnam(jpfiles)
+  integer, parameter :: jmaxburpfilename=1060
+  character(len=jmaxburpfilename) :: burp_cfilnam(jpfiles)
 
 contains
 
@@ -45,8 +46,8 @@ SUBROUTINE burp_setupfiles(datestamp)
   CHARACTER(len=2) :: CFAMI(JPFILES)
   CHARACTER(len=4) :: cmyidx, cmyidy
   CHARACTER(len=9) :: cmyid
-  CHARACTER(len=1024) :: burp_directory
-  CHARACTER(len=1060) :: burpin   !! the length should be more than len(burp_directory)+1+len(clvalu)+1+len(cmyid)
+  CHARACTER(len=jmaxburpfilename-(1+20+1+9)) :: burp_directory
+  CHARACTER(len=jmaxburpfilename) :: burpin   !! the length should be more than len(burp_directory)+1+len(clvalu)+1+len(cmyid)
   integer :: length_burp_directory
   LOGICAL   isExist_L 
 
@@ -189,7 +190,7 @@ SUBROUTINE burp_setupfiles(datestamp)
     END IF
     IF ( isExist_L )THEN
       IER=FNOM(nulburp,burpin,'RND+OLD',0)
-      WRITE(*,*)' Open File : ',burpin   
+      WRITE(*,*)' Open File : ',trim(burpin)
       IF ( IER .EQ. 0 ) THEN
         INBLKS= -1
         INBLKS=NUMBLKS(nulburp)
