@@ -1159,7 +1159,7 @@ contains
 !--------------------------- MODEL and ANALYSIS SPACE POST-PROC --------------------
 !-----------------------------------------------------------------------------------
 
-  subroutine chm_transform_final_increments(increment,background)
+  subroutine chm_transform_final_increments(background,increment)
 !
 ! Author: M. Sitwell Sept 2015
 !         - Originally as chm_check_negative
@@ -1185,46 +1185,420 @@ contains
 !
 ! InOut
 !
-!   increment        statevector for the increment
-!   background       statevector for the background (with same resolution as the increment)
+!   background       statevector for the background
+!   increment        statevector for the increment (with same resolution as the background)
 !
 !-----------------------------------------------------------------------------------
 
+    use chem_mod
     use gridStateVector_mod
     use varNameList_mod
-    use columnData_mod
-    use chem_mod
 
     implicit none
     
-    type(struct_gsv), intent(inout) :: increment,background
+    type(struct_gsv), intent(inout) :: background,increment
+    
+    integer :: jvar,unit,ier
+    character(len=4) :: varName
 
-    real(8), pointer :: inc_ptr(:,:,:,:),bkgrnd_ptr(:,:,:,:)
-
-    integer :: jvar
-    character(len=4)  :: varName
+    integer, external :: fclos
 
     do jvar = 1, vnl_numvarmax
       if (gsv_varExist(vnl_varNameList(jvar))) then 
          if (vnl_varKindFromVarname(vnl_varNameList(jvar)).eq.'CH') then
 
             varName=vnl_varNameList(jvar)
-            inc_ptr => gsv_getField(increment,varName)
-            bkgrnd_ptr => gsv_getField(background,varName)
 
-!           Analysis increment transformations to dx if needed.
+            ! Check that the background and increment fields have the same index boundaries
+
+            if (background%myLonBeg.ne.increment%myLonBeg .or. background%myLonEnd.ne.increment%myLonEnd .or. &
+                background%myLatBeg.ne.increment%myLatBeg .or. background%myLatEnd.ne.increment%myLatEnd .or. &
+                background%varNumLev(vnl_varListIndex(varName)).ne.increment%varNumLev(vnl_varListIndex(varName)) .or. &
+                background%numStep.ne.increment%numStep) then
+
+               call chm_open_messagefile(unit=unit)
+
+               write(unit,'(A)') "chm_transform_final_increments: Warning - background and increment field index boundaries not equal."
+               write(unit,'(A)') "   index      background     increment"
+               write(unit,'(A,6X,I5,10X,I5)') 'myLonBeg ',background%myLonBeg,increment%myLonBeg
+               write(unit,'(A,6X,I5,10X,I5)') 'myLonEnd ',background%myLonEnd,increment%myLonEnd
+               write(unit,'(A,6X,I5,10X,I5)') 'myLatBeg ',background%myLatBeg,increment%myLatBeg
+               write(unit,'(A,6X,I5,10X,I5)') 'myLatEnd ',background%myLatEnd,increment%myLatEnd
+               write(unit,'(A,6X,I5,10X,I5)') 'varNumLev',background%varNumLev(vnl_varListIndex(varName)),increment%varNumLev(vnl_varListIndex(varName))
+               write(unit,'(A,6X,I5,10X,I5)') 'numStep  ',background%numStep,increment%numStep
+
+               ier=fclos(unit)
+
+            end if
+
+            ! Analysis increment transformations to dx if needed.
            
-            call chm_apply_transform_array4d(varName, bkgrnd_ptr, l_reverse=.true., mode=2, incr_ptr=inc_ptr)
+            call chm_apply_transform(background, varName, l_reverse=.true., mode=2, increment=increment)
 
-!           Apply min and max boundaries if needed.
+            ! Apply min and max boundaries if needed.
 
-            call chm_apply_bounds(varName,bkgrnd_ptr,inc_ptr)
+            call chm_apply_bounds(background,increment,varName)
              
          end if
       end if
     end do
     
   end subroutine chm_transform_final_increments
+
+!-----------------------------------------------------------------------------------
+
+  subroutine chm_apply_transform(background,varName,l_reverse,mode,increment)
+!
+! Author: Y. Rochon, Nov 2015
+!
+! Purpose: Apply transform (or its inverse) of 4D background field or increment field.
+!
+! Revisions:
+!        M. Sitwell, April 2016
+!          - Added input integer mode for selection of transform sub-type.
+!          - Create new sub-function log_matrix from previous code for handling
+!            negative values before taking the log. 
+!
+! Arguments:
+!
+!   In
+!
+!     varName          Field name (nomvar)
+!     l_reverse        Reverse/inverse transformation
+!     mode             selected sub-transformation type (defined for each transformation
+!                      given in chm_config%transform)
+!
+!   InOut
+!
+!     background       statevector for the background
+!     increment        statevector for the increment (with same resolution as the background)
+!
+!-----------------------------------------------------------------------------------
+
+    use gridStateVector_mod
+    use varNameList_mod
+    use chem_mod
+
+    implicit none
+
+    type(struct_gsv), intent(inout) :: background
+    type(struct_gsv), intent(inout), optional :: increment
+    character(len=*), intent(in) :: varName
+    integer, intent(in) :: mode
+    logical, intent(in) :: l_reverse
+
+    real(8), pointer :: background_field(:,:,:,:)        
+    real(8), pointer :: increment_field(:,:,:,:)   
+
+    integer :: lon1,lon2,lev1,lev2,lat1,lat2,step1,step2
+    integer :: iconstituent_id
+
+    iconstituent_id = chm_varnumFromVarname(varName)
+    if (iconstituent_id.lt.0.or.iconstituent_id.gt.chm_constituents_size) return
+    
+    select case(chm_config%transform(iconstituent_id))
+    case(0)
+       write(*,'(A,A)') "chm_apply_transform: No transform to be applied for field ",trim(varName)
+       return
+    case(1)
+    
+       write(*,'(A,I2,A,A)') "chm_apply_transform: Applying logarithm transform with mode = ",mode," for field ",trim(varName)
+
+       ! Transform lnx to/from x or dlnx to/from dx
+       
+       if (.not.present(increment).and.(mode.eq.1.or.mode.eq.2)) then
+          write(*,'(A,I2)') "chm_apply_transform: increment must be provided for mode = ",mode
+          call abort3d("chm_apply_transform")
+       end if
+       
+       ! Get the pointers to the fields
+       background_field => gsv_getField(background,varName)
+       if (present(increment)) increment_field => gsv_getField(increment,varName)
+
+       if (.not.l_reverse) then
+
+          ! Forward transformation
+          
+          ! Get lat,lon,time,height index range, assumed the same for the background and increment
+          lon1 = background%myLonBeg
+          lon2 = background%myLonEnd
+          lat1 = background%myLatBeg
+          lat2 = background%myLatEnd
+          lev1 = 1
+          lev2 = background%varNumLev(vnl_varListIndex(varName))
+          step1 = 1
+          step2 = background%numStep
+
+          select case(mode)
+          case(0)
+             background_field = log_field(background_field,lon1,lon2,lev1,lev2,lat1,lat2,step1,step2)
+          case(1)
+             background_field = log_field(background_field+increment_field,lon1,lon2,lev1,lev2,lat1,lat2,step1,step2)
+          case(2)
+             increment_field = log_field(background_field+increment_field,lon1,lon2,lev1,lev2,lat1,lat2,step1,step2) &
+                             - log_field(background_field,lon1,lon2,lev1,lev2,lat1,lat2,step1,step2)           
+          end select
+
+       else
+    
+          ! Reverse transformation
+       
+          select case(mode)
+          case(0)
+             background_field = exp(background_field)
+          case(1)
+             background_field = exp(background_field + increment_field)
+          case(2)
+             increment_field = exp(background_field + increment_field) - exp(background_field)
+          end select 
+             
+       end if
+
+    case default
+       write(*,'(A,I2,A)') "chm_apply_transform: transform selection ",chm_config%transform(iconstituent_id)," not currenly defined." 
+       call abort3d("chm_apply_transform")
+    end select
+    
+  contains
+
+    function log_field(field,lon1,lon2,lev1,lev2,lat1,lat2,step1,step2)
+    !
+    ! Author: Y. Rochon, Nov 2015 (made into function by M. Sitwell)
+    !
+    ! Purpose: Helper function for taking the log of a field that might contain negative values.
+    !          Places where negative values occur will be set as the log of the minimum positive
+    !          value along the longitudinal dimension.
+    !
+    !-----------------------------------------------------------------------------------
+
+      implicit none
+
+      real(8), intent(in) :: field(lon1:lon2,lev1:lev2,lat1:lat2,step1:step2)
+      integer, intent(in) :: lon1,lon2,lev1,lev2,lat1,lat2,step1,step2
+      real(8) :: log_field(lon1:lon2,lev1:lev2,lat1:lat2,step1:step2)
+
+      integer :: jstep,jlon,jlev,jlat
+      real(8) :: valmin
+      
+      do jstep=step1,step2
+         do jlat=lat1,lat2
+            do jlev=lev1,lev2
+                
+               valmin = minval(field(lon1:lon2,jlev,jlat,jstep), mask=field(lon1:lon2,jlev,jlat,jstep).gt.0.)
+               if (valmin.gt.1.E30) valmin=1.E-20
+
+               do jlon=lon1,lon2
+                  if (field(jlon,jlev,jlat,jstep).gt.0) then
+                     log_field(jlon,jlev,jlat,jstep) = log(field(jlon,jlev,jlat,jstep))
+                  else
+                     log_field(jlon,jlev,jlat,jstep) = log(valmin)
+                  end if
+               end do
+
+            end do
+         end do
+      end do
+
+    end function log_field
+
+  end subroutine chm_apply_transform
+
+!-----------------------------------------------------------------------------------
+
+  subroutine chm_apply_bounds(background,increment,varName)
+!
+! Author: M. Sitwell Sept 2015
+!         - Originally as chm_check_negative
+!
+! Revisions:
+!            Y. Rochon, Nov 2015
+!            - Modified to chm_apply_bounds
+!
+! Purpose: Checks for negative analysis values and if any negative values found will
+!          modify the increment so that the analysis  is reset to low_cutoff*background
+!          at these points. This check is done with fields of the same resolution as
+!          the increment. Also applies upper bound.
+!
+! In
+!
+!    varName        Field name (nomvar)
+!
+! InOut
+!
+!   background       statevector for the background
+!   increment        statevector for the increment (with same resolution as the background)
+!
+!-----------------------------------------------------------------------------------
+
+    use gridStateVector_mod
+    use varNameList_mod
+    use chem_mod
+
+    implicit none
+    
+    type(struct_gsv), intent(inout) :: background,increment
+    character(len=*), intent(in) :: varName
+
+    real(8), pointer :: background_field(:,:,:,:),increment_field(:,:,:,:)
+    real(8) :: bkgrnd,inc,new_inc
+    integer :: iconstituent_id,count,ier,unit
+    integer :: jstep,jlon,jlev,jlat,lon1,lon2,lat1,lat2,step1,step2,lev1,lev2
+
+    integer, external :: fclos
+    
+    iconstituent_id = chm_varnumFromVarname(varName)
+    if (iconstituent_id.lt.0.or.iconstituent_id.gt.chm_constituents_size) return
+
+    ! Open output file
+    call chm_open_messagefile(unit=unit)
+
+    ! Get lat,lon,time,height index range, assumed the same for the background and increment
+    lon1 = background%myLonBeg
+    lon2 = background%myLonEnd
+    lat1 = background%myLatBeg
+    lat2 = background%myLatEnd
+    lev1 = 1
+    lev2 = background%varNumLev(vnl_varListIndex(varName))
+    step1 = 1
+    step2 = background%numStep
+
+    ! Get the pointers to the fields
+    background_field => gsv_getField(background,varName)
+    increment_field => gsv_getField(increment,varName)
+
+    if (chm_config%low_cutoff(iconstituent_id).ge.0.) then
+
+       ! Check if both background and analysis are negative. If so set the increment to force an analysis of zero at these locations
+
+       count = 0
+
+       do jstep=step1,step2
+          do jlat=lat1,lat2
+             do jlev=lev1,lev2
+                do jlon=lon1,lon2
+                   
+                   bkgrnd = background_field(jlon,jlev,jlat,jstep)
+                   inc = increment_field(jlon,jlev,jlat,jstep)
+
+                   if (bkgrnd.lt.0.0 .and. bkgrnd+inc.lt.0.0) then
+
+                      if (count.eq.0) then
+                         write(unit,'(A,A,A)') "chm_apply_bounds: Negative background and analysis values were found for field ",trim(varName),"."
+                         write(unit,'(A)') "Modifying the increment so the analysis is instead equal to zero at these locations."       
+                         write(unit,'(A)') "JLON JLEV JLAT TSTEP   Background   Init. incr."
+                      end if
+
+                      write(unit,'(4(I4,1X),2G12.2)') jlon,jlev,jlat,jstep,bkgrnd,inc
+
+                      increment_field(jlon,jlev,jlat,jstep) = -bkgrnd
+                      count = count+1
+
+                   end if
+
+                end do
+             end do
+          end do
+       end do
+
+       if (count.gt.0) then
+          write(unit,*)
+          write(unit,'(A,I7,A,A,A)') "Total of ",count," negative background and analysis values were found for field ",trim(varName),"."
+          write(unit,*)
+       end if
+
+            
+       ! Check if the analysis is below the trial field cutoff. If so set analysis to this cut-off value at these locations.
+
+       count = 0
+
+       do jstep=step1,step2
+          do jlat=lat1,lat2
+             do jlev=lev1,lev2
+                do jlon=lon1,lon2
+
+                   bkgrnd = background_field(jlon,jlev,jlat,jstep)
+                   inc = increment_field(jlon,jlev,jlat,jstep)
+
+                   if (bkgrnd+inc.lt.chm_config%low_cutoff(iconstituent_id)*bkgrnd .and. bkgrnd.ge.0.) then
+
+                      if (count.eq.0) then
+                         write(unit,'(A,F4.1,A,A,A)') "chm_apply_bounds: Analysis values were found below the cut-off of ", &
+                              100*chm_config%low_cutoff(iconstituent_id),"% of the trial field for field ",trim(varName),"."
+                          write(unit,'(A)') "Modifying the increment so the analysis is instead equal to the lower bound cut-off value at these locations."
+                          write(unit,'(A)') "JLON JLEV JLAT TSTEP   Background  Init. incr.  New incr."
+                      end if
+
+                      new_inc = (chm_config%low_cutoff(iconstituent_id)-1.)*bkgrnd
+
+                      write(unit,'(4(I4,1X),3G12.2)') jlon,jlev,jlat,jstep,bkgrnd,inc,new_inc
+
+                      increment_field(jlon,jlev,jlat,jstep) = new_inc
+                      count = count+1
+
+                   end if
+
+                end do
+             end do
+          end do
+       end do
+
+       if (count.gt.0) then
+          write(unit,*)
+          write(unit,'(A,I7,A,A,A)') "Total of ",count," analysis values found below the cut-off for field ",trim(varName),"."
+          write(unit,*)
+       end if
+
+    end if
+
+
+    if (chm_config%high_cutoff(iconstituent_id).ge.0.) then
+
+       ! Check if the analysis is above the imposed upper bound. If so set analysis to this cut-off value at these locations.
+
+       count = 0
+
+       do jstep=step1,step2
+          do jlat=lat1,lat2
+             do jlev=lev1,lev2
+                do jlon=lon1,lon2
+
+                   bkgrnd = background_field(jlon,jlev,jlat,jstep)
+                   inc = increment_field(jlon,jlev,jlat,jstep)
+
+                   if (bkgrnd+inc.gt.chm_config%high_cutoff(iconstituent_id)*bkgrnd .and. bkgrnd.ge.0.) then
+
+                      if (count.eq.0) then
+                         write(unit,'(A,A,F4.1,A,A,A)') "chm_apply_bounds: Analysis values were found above the cut-off of ", &
+                              100*chm_config%high_cutoff(iconstituent_id)," times the trial field for field ",trim(varName),"."
+                         write(unit,'(A)') "Modifying the increment so the analysis is instead equal to the upper bound cut-off value at these locations."
+                         write(unit,'(A)') "JLON JLEV JLAT TSTEP   Background  Init.-incr.  New-incr."
+                      end if
+
+                      new_inc = (chm_config%high_cutoff(iconstituent_id)-1.)*bkgrnd
+
+                      write(unit,'(4(I4,1X),3G12.2)') jlon,jlev,jlat,jstep,bkgrnd,inc,new_inc
+
+                      increment_field(jlon,jlev,jlat,jstep) = new_inc
+                      count = count+1
+
+                   end if
+
+                end do
+             end do
+          end do
+       end do
+
+       if (count.gt.0) then
+          write(unit,*)
+          write(unit,'(A,I7,A,A,A)') "Total of ",count," analysis values found above the cut-off for field ",trim(varName),"."
+          write(unit,*)
+       end if
+
+    end if
+
+    ier=fclos(unit)
+
+  end subroutine chm_apply_bounds
 
 !------------------------------------ MISC. TOOLS ----------------------------------
 !-----------------------------------------------------------------------------------

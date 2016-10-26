@@ -60,27 +60,6 @@
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
       !
-      ! Read the NAMELIST NAMGGPSRO
-      ! 
-      if (obs_famExist(obsSpaceData,'RO')) call sugpsro
-      
-      !
-      ! Initialize GB-GPS processing (read NAMGPSGB in namelist file)
-      !
-      if (obs_famExist(obsSpaceData,'GP')) call sugpsgb
-      
-      !
-      ! Read the NAMELIST NAMTOV and initialize the sensor information.
-      !
-      if (obs_famExist(obsSpaceData,'TO')) call tovs_setup
-
-      !
-      ! Read the NAMELIST NAMCHEM and set up additional constituent 
-      ! obs related info not found in obsSpaceData.
-      !
-      if (obs_famExist(obsSpaceData,'CH')) call chm_setup
-
-      !
       ! Set up the list of elements to be assimilated and flags for rejection
       !
       call filt_setup
@@ -121,6 +100,27 @@
         call obs_reduceToMpiLocal(obsSpaceData)
       end if  
       
+      !
+      ! Read the NAMELIST NAMGGPSRO
+      ! 
+      if (obs_famExist(obsSpaceData,'RO')) call sugpsro
+
+      !
+      ! Initialize GB-GPS processing (read NAMGPSGB in namelist file)
+      !
+      if (obs_famExist(obsSpaceData,'GP')) call sugpsgb
+
+      !
+      ! Read the NAMELIST NAMTOV and initialize the sensor information.
+      !
+      if (obs_famExist(obsSpaceData,'TO')) call tovs_setup
+
+      !
+      ! Read the NAMELIST NAMCHEM and set up additional constituent 
+      ! obs related info not found in obsSpaceData.
+      !
+      if (obs_famExist(obsSpaceData,'CH')) call chm_setup
+
       !
       ! Initialization and memory allocation for TOVS processing
       !

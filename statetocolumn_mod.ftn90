@@ -294,6 +294,11 @@ CONTAINS
     ! Purpose: Horizontal interpolation to transform a 
     !          statevector object into a column object
     !
+    ! Author:
+    ! Revisions:
+    !           Yves Rochon and Mike Sitwell, Oct 2016
+    !           - Addition of gsv_varExist test for calls to ltt2phi*
+    !           
     type(struct_columnData) :: column, columng
     type(struct_obs)        :: obsSpaceData
     type(struct_gsv)        :: statevector
@@ -328,14 +333,16 @@ CONTAINS
     !- 2.1 Mass fields (TT,PS,HU) to hydrostatic geopotential
     vco_anl => col_getVco(columng)
     status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
-    call tmg_start(36,'INTERP_LTT2PHI')
-    if(Vcode_anl .eq. 5001) then
-      call ltt2phi(column,columng)
-    else
-      call ltt2phi_gem4(column,columng)
-    endif
-    call tmg_stop(36)
-
+    if (gsv_varExist('TT').and.gsv_varExist('HU').and.gsv_varExist('P0')) then
+       call tmg_start(36,'INTERP_LTT2PHI')
+       if(Vcode_anl .eq. 5001) then
+         call ltt2phi(column,columng)
+       else
+         call ltt2phi_gem4(column,columng)
+       endif
+       call tmg_stop(36)
+    end if
+    
     !- 2.2 Rotated wind to Meteorological wind
     if ( gsv_varExist('UU') .and. gsv_varExist('VV') .and. statevector%hco%Rotated ) then
       write(*,*) 'uvrot2uv Active'
@@ -578,6 +585,11 @@ CONTAINS
     ! Purpose: Adjoint of horizontal interpolations
     !          Compute adjoint statevector object from adjoint column object
     !
+    ! Author:
+    ! Revisions:
+    !           Yves Rochon and Mike Sitwell, Oct 2016
+    !           - Addition of gsv_varExist test for calls to att2phi*
+    !           
 
     type(struct_columnData) :: column,columng
     type(struct_obs)        :: obsSpaceData
@@ -604,14 +616,16 @@ CONTAINS
     !- 2.1 Mass fields (TT,PS,HU) to hydrostatic geopotential
     vco_anl => col_getVco(columng)
     status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
-    call tmg_start(37,'INTERP_ATT2PHI')
-    if(Vcode_anl .eq. 5001) then
-      call att2phi(column,columng)
-    else
-      call att2phi_gem4(column,columng)
-    endif
-    call tmg_stop(37)
-  
+    if (gsv_varExist('TT').and.gsv_varExist('HU').and.gsv_varExist('P0')) then
+       call tmg_start(37,'INTERP_ATT2PHI')
+       if(Vcode_anl .eq. 5001) then
+         call att2phi(column,columng)
+       else
+         call att2phi_gem4(column,columng)
+       endif
+       call tmg_stop(37)
+    end if
+    
     !
     !- 1.  Interpolation to obs location
     !

@@ -55,8 +55,6 @@ module chem_mod
 !
 !       - Public routine "chm_convert_z_to_pressure".
 !
-!       - Public routines "chm_apply_bounds" and "chm_apply_transform" applied to analysis increment fields.
-!
 !       - Public routine "chm_apply_2dfieldr4_transform" applied to 2D field variable transformation if requested.
 !
 !       - Public routine "chm_varnumFromVarname" to obtain the BUFR varno corresponding to
@@ -99,19 +97,24 @@ module chem_mod
             chm_get_obs_err_stddev,chm_convert_z_to_pressure
   public :: chm_obsoperators,chm_get_stringID,chm_get_ID,stnid_equal
   public :: chm_diagn_only,chm_comboIDlist,chm_required_field
-  public :: chm_apply_bounds,chm_get_col_boundary
+  public :: chm_get_col_boundary
   public :: chm_add_col_boundary,chm_retrieve_col_boundary
   public :: chm_varnumFromVarName,chm_open_messagefile
   public :: chm_update_obsfile
   public :: chm_obsspace_diagn_alloc,chm_obsspace_diagn_init,chm_obsspace_diagn_dealloc
   public :: chm_obsspace_diagn_add,chm_obsspace_diagn_MPIreduce,chm_obsspace_diagn_print
 ! Public procedures for variable transformations
-  public :: chm_apply_transform_array4d,chm_apply_2dfieldr4_transform
+  public :: chm_apply_2dfieldr4_transform
 
-! public variables and types
-! --------------------------
+! public types
+! ------------
 
-  public :: chm_constituents_size,struct_chm_obsoperators,struct_chm_diagn
+  public :: struct_chm_obsoperators,struct_chm_diagn
+
+! public variables
+! ----------------
+
+  public :: chm_constituents_size,chm_config
 
 ! module constants
 ! -----------------
@@ -1118,11 +1121,6 @@ contains
 !
 ! Purpose:  Read averaging kernels from ascii file and BURP file if specified in ascii file
 !
-! Comments:
-!
-! - Filename 'brpch' currently hardcoded should ideally be the filename for the CH family 
-!   identified from the list of input filenames.
-!
 !-----------------------------------------------------------------------------------------
 
     implicit none
@@ -1140,7 +1138,7 @@ contains
        if (chm_avgkern%brp(istnid).eq.1) then
           
           ! retrieve data from stats blocks (with bkstp=14 and block_type='DATA')
-          chm_burp_avgkern(istnid) = chm_read_burp('brpch', chm_avgkern%stnids(istnid), &
+          chm_burp_avgkern(istnid) = chm_read_burp_all(chm_avgkern%stnids(istnid), &
                15044, chm_avgkern%n_lvl(istnid), 2, 14, 'DATA', match_nlev=.true.)
           
        end if
@@ -2036,11 +2034,6 @@ contains
 !
 ! Purpose:  Read observation errors from ascii file and BURP file if specified in ascii file
 !
-! Comments:
-!
-! - Filename 'brpch' currently hardcoded should ideally be the filename for the CH family 
-!   identified from the list of input filenames.
-!
 !-----------------------------------------------------------------------------------------
 
     implicit none
@@ -2058,7 +2051,7 @@ contains
        if (chm_std%brp(istnid).ge.1) then
           
           ! retrieve data from stats blocks (with bkstp=14 and block_type='DATA')
-          chm_burp_std(istnid) = chm_read_burp('brpch', chm_std%stnids(istnid), &
+          chm_burp_std(istnid) = chm_read_burp_all(chm_std%stnids(istnid), &
                chm_std%bfr(istnid), chm_std%n_lvl(istnid), 1, 14, 'DATA',       &
                match_nlev=chm_std%brp(istnid).eq.1 )
 
@@ -2530,7 +2523,7 @@ contains
 
   function chm_read_burp(filename,stnid,varno,nlev,ndim,bkstp,block_type,match_nlev) result(burp_out)
 !
-! Author  : M. Sitwell, ARQI/AQRD, March 2015
+! Author:   M. Sitwell, ARQI/AQRD, March 2015
 !
 ! Purpose:  Retrieve information from BURP file for CH family observations. Can retrieve
 !           either 1D or 2D data from a report.
@@ -2597,17 +2590,23 @@ contains
     real(8)           :: val,exponent
 
     ! initialize burp file, report, and block
-    Call BURP_Init(brp, iostat=error)
-    Call BURP_Init(rep, iostat=error)
-    Call BURP_Init(blk, iostat=error)
+    call BURP_Init(brp, iostat=error)
+    call BURP_Init(rep, iostat=error)
+    call BURP_Init(blk, iostat=error)
 
     ! open the burp file
-    Call BURP_New(brp, FILENAME=filename, MODE=FILE_ACC_READ, IOSTAT=error)
+    call BURP_New(brp, FILENAME=filename, MODE=FILE_ACC_READ, IOSTAT=error)
     
-    if (error.ne.0) CALL ABORT3D('chm_read_burp: Could not open BURP file: ' // filename)
+    if (error.eq.0) then
+       write(*,*) "chm_read_burp: Reading file " // filename
+       write(*,*) "chm_read_burp: Selecting STNID = ",stnid," BUFR = ",varno," block type = ",block_type
+       write(*,*) "chm_read_burp:           bkstp = ",bkstp," nlev = ",nlev," match_nlev = ",match_nlev
+    else
+       call abort3d('chm_read_burp: Could not open BURP file: ' // filename)
+    end if
 
     ! get number of reports in file
-    Call BURP_Get_Property(brp, NRPTS=nrep)
+    call BURP_Get_Property(brp, NRPTS=nrep)
 
     ! allocate memory
     if (ndim.eq.1) then
@@ -2638,10 +2637,11 @@ contains
           if (ref_blk<0) exit BLOCKS
           
           call BURP_Get_Property(blk, NELE=nele, NVAL=nval, BKSTP=ref_bkstp, IOSTAT=error)
-          
+
           if (.not.IS_Burp_Btyp(trim(block_type),BLOCK=blk) .or. bkstp.ne.ref_bkstp .or. (match_nlev.and.nval.ne.nlev)) cycle BLOCKS
 
           ivar = BURP_Find_Element(blk, ELEMENT=varno, IOSTAT=error)
+
           if (ivar.lt.0) cycle BLOCKS
 
           ! required block found if code reaches this point, retrieve data and store in burp_out
@@ -2703,6 +2703,8 @@ contains
     end if
 
     burp_out%nrep = icount
+
+    write(*,*) "chm_read_burp: Reading of file complete. Number of reports found: ",burp_out%nrep
     
     ! deallocate
     Call BURP_Free(brp,iostat=error)
@@ -2710,37 +2712,6 @@ contains
     Call BURP_Free(blk,iostat=error)
     
   end function chm_read_burp
-
-!-----------------------------------------------------------------------------------------
-
-  subroutine chm_update_obsfile()
-!
-! Author   : Y. Rochon, June 2016 
-! 
-! Revisions:
-!          
-! Purpose: Update of CH family obs file when needed.
-!          
-!          Content can be augmented as needed.
-!
-!----------------------------------------------------------------------------------------
-    use mpi_mod, only: mpi_myid
-  
-    implicit none
-    
-    integer :: ierr,nrep_modified,varno(1)
-
-!   If needed, add effective temperature values in obs file for total column measurements
-
-    call obsdata_MPIgather(chm_efftemp)
-    
-    if (chm_efftemp%nrep.gt.0.and.mpi_myid.eq.0) then
-        varno(1)=12001
-        nrep_modified = chm_update_burp('brpch',varno(1:max(1,chm_efftemp%dim2)),0,'INFO',chm_efftemp,multi='UNI') 
-        write(*,*) 'chm_update_obsfiles: Added ',nrep_modified,' effective temperature values in the obs file.'
-    end if 
-
-  end subroutine chm_update_obsfile
 
 !-----------------------------------------------------------------------------------------
 
@@ -2952,6 +2923,160 @@ contains
     Call BURP_Free(blk,iostat=error)
     
   end function chm_update_burp
+
+!--------------------------------------------------------------------------------------------
+
+  function chm_get_burp_filename(fam,found) result(burp_filename)
+!
+! Author:   M. Sitwell  Sept 2016
+!
+! Purpose: Returns the BURP file name assigned to the calling processor. If the input family
+!          has more than one file, the first file found will be returned. File names are
+!          assigned in the module burpFiles_mod.
+!
+! Input
+!
+!    fam          observation family type
+!
+! Output
+!
+!    burp_filename  file name of associated BURP file
+!    found          logical indicating if the BURP file could be found (optional)
+!
+!---------------------------------------------------------------------------------------
+    
+    use burpFiles_mod
+
+    implicit none
+
+    character(len=2), intent(in) :: fam
+    logical, intent(out), optional :: found
+    character(len=128) :: burp_filename
+
+    integer :: ifile
+
+    burp_filename = ""
+    if (present(found)) found = .false.
+    
+    do ifile=1,burp_nfiles
+       if (fam.eq.burp_cfamtyp(ifile)) then
+          burp_filename = burp_cfilnam(ifile)
+          if (present(found)) found = .true.
+          exit
+       end if
+    end do
+
+  end function chm_get_burp_filename
+
+!--------------------------------------------------------------------------------------------
+
+  function chm_read_burp_all(stnid,varno,nlev,ndim,bkstp,block_type,match_nlev) result(burp_out)
+!
+! Author:   M. Sitwell, ARQI/AQRD, Sept 2016
+!
+! Purpose:  Retrieve information for CH family observations from all chemical constituent BURP files.
+!           If the BURP files are not split, then the single BURP file is read. If the BURP files are
+!           split, then each split BURP file is read and the data combined into one struct_chm_obsdata
+!           object. See the function chm_read_burp for more details.
+!
+! Arguments:
+!
+!  Input
+!
+!           stnid         station ID of observation
+!           varno         BUFR code
+!           nlev          number of levels in the observation
+!           ndim          number of dimensions for the retrieved data in
+!                         each report (e.g. ndim=1 for std, ndim=2 for
+!                         averagine kernels) 
+!           bkstp         bkstp number of requested block
+!           block_type    block type indicated by the two rightmost bits
+!                         of bknat. Valid values are 'DATA', 'INFO', '3-D',
+!                         and 'MRQR'.
+!           match_nlev    determines if the report matching criteria includes checking
+!                         if the report number of levels is the same as the input
+!                         argument nlev
+!
+!  Output 
+!           burp_out      struct_chm_obsdata object
+!
+!-----------------------------------------------------------------------------------------
+
+    use topLevelControl_mod
+
+    implicit none
+
+    character(len=9), intent(in) :: stnid
+    character(len=4), intent(in) :: block_type
+    integer, intent(in)          :: ndim,varno,nlev,bkstp
+    logical, intent(in)          :: match_nlev
+    type(struct_chm_obsdata) :: burp_out
+
+    burp_out = chm_read_burp(chm_get_burp_filename('CH'),stnid,varno,nlev,ndim,bkstp,block_type,match_nlev)
+
+    if (top_BurpSplit()) call obsdata_MPIgather(burp_out)
+    
+  end function chm_read_burp_all
+
+!--------------------------------------------------------------------------------------------
+
+  function chm_update_burp_all(varno,bkstp,block_type,obsdata,multi) result(nrep_modified)
+!
+! Author:   M. Sitwell, ARQI/AQRD, Sept 2016
+!
+! Purpose:  Add or modify information from all BURP files. If BURP files are not split,
+!           a single files is updated. If BURP files are split, then each split file
+!           is updated. See the function chm_update_burp for more details.
+!
+! Arguments:
+!
+!  Input
+!
+!           varno         BUFR descriptors. Number of elements must be 
+!                         max(1,obsdata%dim2)
+!           bkstp         bkstp number of requested block
+!           block_type    block type indicated by the two rightmost bits
+!                         of bknat. Valid values are 'DATA', 'INFO', '3-D',
+!                         and 'MRQR'.
+!           obsdata       Input struct_chm_obsdata object for varno.
+!           multi         Indicates in intended report are for 'UNI' or 'MULTI' level data (optional)
+!
+!
+!  Output 
+!           nrep_modified Number of modified reports
+!
+!-----------------------------------------------------------------------------------------
+
+    use topLevelControl_mod
+    use mpi_mod, only: mpi_myid
+
+    implicit none
+
+    character(len=4), intent(in) :: block_type
+    type(struct_chm_obsdata), intent(inout) :: obsdata
+    integer, intent(in) :: varno(:),bkstp    
+    character(len=*), intent(in), optional :: multi
+    integer :: nrep_modified
+
+    logical :: burp_split
+    integer :: ierr,nrep_modified_global
+
+    burp_split = top_BurpSplit()
+
+    if (burp_split .or. mpi_myid.eq.0) then
+       if (present(multi)) then
+          nrep_modified = chm_update_burp(chm_get_burp_filename('CH'),varno,bkstp,block_type,obsdata,multi=multi)
+       else
+          nrep_modified = chm_update_burp(chm_get_burp_filename('CH'),varno,bkstp,block_type,obsdata)
+       end if
+    end if
+
+    if (burp_split) then
+       call rpn_comm_allreduce(nrep_modified,nrep_modified_global,1,"MPI_INTEGER","MPI_SUM","GRID",ierr)
+       nrep_modified = nrep_modified_global
+    end if
+
+  end function chm_update_burp_all
 
 !--------------------------------------------------------------------------------------------
 !------------------- OBSDATA functions and routines -----------------------------------------
@@ -3434,76 +3559,112 @@ contains
     type(struct_chm_obsdata), intent(inout) :: obsdata
 
     integer, allocatable :: nrep(:)
-    character(len=code_len), allocatable :: code(:,:)  
-    real(8), allocatable :: data1d(:,:,:),data2d(:,:,:,:)
-    integer :: i,j,k,ierr,nproc,nrep_total
+    character(len=code_len), allocatable :: code_local(:),code_global(:,:)
+    real(8), allocatable :: data1d_local(:,:),data1d_global(:,:,:),data2d_local(:,:,:),data2d_global(:,:,:,:)
+    integer :: i,j,k,ierr,nproc,nrep_total,nrep_max,irep,array_size
 
     character(len=*), parameter :: MPI_OBS_REAL="mpi_double_precision"
     
-    ! Get values from all processors into (*,nproc) arrays where nproc is the number of processors
-
     ! Identify number of processors.
     call rpn_comm_size("GRID",nproc,ierr)
     
-    allocate(nrep(nproc))
+    ! Get number of reports on each processor
 
+    allocate(nrep(nproc))
     nrep(:)=0
+
     call rpn_comm_allgather(obsdata%nrep,1,"MPI_INTEGER",nrep,1,"MPI_INTEGER","GRID",ierr)
+
     nrep_total=sum(nrep)
+
     if (nrep_total.eq.0) then
        deallocate(nrep)
        return
     end if
-    
-    if (nrep_total.gt.chm_config%obsdata_maxsize) &
-         call abort3d('obsdata_MPIGather: Size exceeds chm_config%obsdata_maxsize of ' // trim(str(chm_config%obsdata_maxsize)) )
         
-    allocate(code(chm_config%obsdata_maxsize,nproc))
-    call allgather_string(obsdata%code,code,chm_config%obsdata_maxsize,code_len,nproc,"GRID",ierr)
+    nrep_max = maxval(nrep)
+
+    ! Get values from all processors into global arrays
+
+    allocate(code_local(nrep_max))
+    allocate(code_global(nrep_max,nproc))
+
+    if (obsdata%nrep.gt.0) code_local(1:obsdata%nrep) = obsdata%code(1:obsdata%nrep)
+
+    call allgather_string(code_local,code_global,nrep_max,code_len,nproc,"GRID",ierr)
 
     if (obsdata%ndim.eq.1) then
-       allocate(data1d(obsdata%dim1,chm_config%obsdata_maxsize,nproc))
-       call rpn_comm_allgather(obsdata%data1d,chm_config%obsdata_maxsize*obsdata%dim1,MPI_OBS_REAL, &
-            data1d,chm_config%obsdata_maxsize*obsdata%dim1,MPI_OBS_REAL,"GRID",ierr)
-    else       
-       allocate(data2d(obsdata%dim1,obsdata%dim2,chm_config%obsdata_maxsize,nproc))
-       call rpn_comm_allgather(obsdata%data2d,chm_config%obsdata_maxsize*obsdata%dim1*obsdata%dim2,MPI_OBS_REAL, &
-            data2d,chm_config%obsdata_maxsize*obsdata%dim1*obsdata%dim2,MPI_OBS_REAL,"GRID",ierr)
+
+       allocate(data1d_local(obsdata%dim1,nrep_max))
+       allocate(data1d_global(obsdata%dim1,nrep_max,nproc))
+
+       if (obsdata%nrep.gt.0) data1d_local(:,1:obsdata%nrep) = obsdata%data1d(:,1:obsdata%nrep)
+       
+       array_size = nrep_max*obsdata%dim1
+
+       call rpn_comm_allgather(data1d_local,array_size,MPI_OBS_REAL,data1d_global,array_size,MPI_OBS_REAL,"GRID",ierr)
+
+    else 
+       
+       allocate(data2d_local(obsdata%dim1,obsdata%dim2,nrep_max))
+       allocate(data2d_global(obsdata%dim1,obsdata%dim2,nrep_max,nproc))
+       
+       if (obsdata%nrep.gt.0) data2d_local(:,:,1:obsdata%nrep) = obsdata%data2d(:,:,1:obsdata%nrep)
+
+       array_size = nrep_max*obsdata%dim1*obsdata%dim2
+
+       call rpn_comm_allgather(data2d_local,array_size,MPI_OBS_REAL,data2d_global,array_size,MPI_OBS_REAL,"GRID",ierr)
+
     end if
   
+    deallocate(code_local)
+    if (obsdata%ndim.eq.1) then 
+        deallocate(data1d_local)
+    else
+        deallocate(data2d_local)
+    end if 
+
     ! Concatenate values from all processors
          
+    irep = 0
+    call obsdata_dealloc(obsdata)    
+
     if (obsdata%ndim.eq.1) then      
-       obsdata%nrep=0  
+       
+       call obsdata_alloc(obsdata,nrep_total,obsdata%dim1)
+
        do i=1,nproc
           if (nrep(i).gt.0) then
-             obsdata%code(obsdata%nrep+1:obsdata%nrep+nrep(i))=code(1:nrep(i),i)
-             obsdata%data1d(1:obsdata%dim1,obsdata%nrep+1:obsdata%nrep+nrep(i))= &
-                         data1d(1:obsdata%dim1,1:nrep(i),i)
-             obsdata%nrep=obsdata%nrep+nrep(i)
+             obsdata%code(irep+1:irep+nrep(i)) = code_global(1:nrep(i),i)
+             obsdata%data1d(1:obsdata%dim1,irep+1:irep+nrep(i)) = data1d_global(1:obsdata%dim1,1:nrep(i),i)
+             irep = irep+nrep(i)
           end if
        end do
+
     else
-       obsdata%nrep=0
+
+       call obsdata_alloc(obsdata,nrep_total,obsdata%dim1,obsdata%dim2)
+
        do i=1,nproc
           if (nrep(i).gt.0) then
-             obsdata%code(obsdata%nrep+1:obsdata%nrep+nrep(i))=code(1:nrep(i),i)
-             obsdata%data2d(1:obsdata%dim1,1:obsdata%dim2,obsdata%nrep+1:obsdata%nrep+nrep(i))= &
-                         data2d(1:obsdata%dim1,1:obsdata%dim2,1:nrep(i),i)  
-             obsdata%nrep=obsdata%nrep+nrep(i)
+             obsdata%code(irep+1:irep+nrep(i)) = code_global(1:nrep(i),i)
+             obsdata%data2d(1:obsdata%dim1,1:obsdata%dim2,irep+1:irep+nrep(i)) = &
+                         data2d_global(1:obsdata%dim1,1:obsdata%dim2,1:nrep(i),i)  
+             irep = irep+nrep(i)
           end if
-       end do    
+       end do
+ 
     end if  
      
-    deallocate(nrep,code)
+    deallocate(nrep,code_global)
     if (obsdata%ndim.eq.1) then 
-        deallocate(data1d)
+        deallocate(data1d_global)
     else
-        deallocate(data2d)
+        deallocate(data2d_global)
     end if 
      
   end subroutine obsdata_MPIgather
-     
+
 !-----------------------------------------------------------------------------------------
 !------------------- Miscellaneous utilities functions and routines ----------------------
 
@@ -4344,139 +4505,9 @@ contains
 
 !-----------------------------------------------------------------------------------
 
-  subroutine chm_apply_transform_array4d(varName,bkgrnd_ptr,l_reverse,mode,incr_ptr)
-!
-! Author: Y. Rochon, Nov 2015
-!
-! Purpose: Apply transform (or its inverse) of 4D background field or increment field.
-!          Called by chm_transform_final_increments in file chem_interface_mod.ftn90.
-!
-! Revisions:
-!        M. Sitwell, April 2016
-!          - Added input integer mode for selection of transform sub-type.
-!          - Create new sub-function log_matrix from previous code for handling
-!            negative values before taking the log. 
-!
-! Arguments:
-!
-!   In
-!
-!     varName          Field name (nomvar)
-!     l_reverse        Reverse/inverse transformation
-!     mode             selected sub-transformation type (defined for each transformation
-!                      given in chm_config%transform)
-!
-!   InOut
-!
-!     bkgrnd_ptr       pointer to statevector for the background
-!     incr_ptr         pointer to increment field
-!
-!-----------------------------------------------------------------------------------
-
-    implicit none
-    
-    character(len=*), intent(in) :: varName
-    integer, intent(in) :: mode
-    logical, intent(in) :: l_reverse
-
-    real(8), intent(inout), pointer :: bkgrnd_ptr(:,:,:,:)        
-    real(8), intent(inout), pointer, optional :: incr_ptr(:,:,:,:)   
-
-    integer :: iconstituent_id
-
-    iconstituent_id = chm_varnumFromVarname(varName)
-    if (iconstituent_id.lt.0.or.iconstituent_id.gt.chm_constituents_size) return
-    
-    write(*,'(A,I2,A,I2,A,A)') "chm_apply_transform_array4d: applying transform number ",chm_config%transform(iconstituent_id), &
-         " with mode = ",mode," for field ",trim(varName)
-
-    select case(chm_config%transform(iconstituent_id))
-    case(0)
-       return
-    case(1)
-    
-       ! Transform lnx to/from x or dlnx to/from dx
-       
-       if (.not.present(incr_ptr).and.(mode.eq.1.or.mode.eq.2)) &
-            call abort3d("chm_apply_transform_array4d: incr_ptr must be provided for mode = " // trim(str(mode)) )
-
-       if (.not.l_reverse) then
-
-          ! Forward transformation
-              
-          select case(mode)
-          case(0)
-             bkgrnd_ptr = log_matrix(bkgrnd_ptr)
-          case(1)
-             bkgrnd_ptr = log_matrix(bkgrnd_ptr+incr_ptr)
-          case(2)
-             incr_ptr = log_matrix(bkgrnd_ptr+incr_ptr) - log_matrix(bkgrnd_ptr)           
-          end select
-
-       else
-    
-          ! Reverse transformation          
-       
-          select case(mode)
-          case(0)
-             bkgrnd_ptr = exp(bkgrnd_ptr)
-          case(1)
-             bkgrnd_ptr = exp(bkgrnd_ptr+incr_ptr)
-          case(2)
-             incr_ptr = exp(bkgrnd_ptr+incr_ptr) - exp(bkgrnd_ptr)
-          end select 
-             
-       end if
-
-    case default
-       call abort3d("chm_apply_transform_array4d: transform selection " // trim(str(chm_config%transform(iconstituent_id))) // " not currenly defined." )
-    end select
-    
-  contains
-
-    function log_matrix(mat)
-    !
-    ! Author: Y. Rochon, Nov 2015 (made into function by M. Sitwell)
-    !
-    ! Purpose: Helper function for taking the log of a matrix that might contain negative values.
-    !          Places where negative values occur will be set as the log of the minimum positive
-    !          value along the first (longitudinal) dimension.
-    !
-    !-----------------------------------------------------------------------------------
-
-      implicit none
-
-      real(8), intent(in) :: mat(:,:,:,:)
-      real(8) :: log_matrix(size(mat,1),size(mat,2),size(mat,3),size(mat,4))
-
-      integer :: j,k,m
-      real(8) :: valmin
-
-      do m=1,size(mat,4)
-         do j=1,size(mat,3)
-            do k=1,size(mat,2)
-
-               valmin = minval(mat(:,k,j,m), mask=mat(:,k,j,m).gt.0.0)
-               if (valmin.gt.1.E30) valmin=1.E-20
-
-               where (mat(:,k,j,m).gt.0.0)
-                  log_matrix(:,k,j,m) = log(mat(:,k,j,m))
-               elsewhere
-                  log_matrix(:,k,j,m) = log(valmin)
-               end where
-               
-            end do
-         end do
-      end do
-
-    end function log_matrix
-
-  end subroutine chm_apply_transform_array4d
-!-----------------------------------------------------------------------------------
-
   subroutine chm_apply_transform_array1d(varName,bkgrnd_ptr,l_reverse,mode,incr_ptr)
 !
-! Author: Y. Rochon, May 2016 (based on chm_apply_transform_array4d)
+! Author: Y. Rochon, May 2016 (based on chm_apply_transform)
 !
 ! Purpose: Apply transform (or its inverse) of background field or increment profiles.
 !
@@ -4743,132 +4774,6 @@ contains
     ier=fclos(chm_message_unit)
  
   end subroutine chm_apply_2dfieldr4_transform
-
-!-----------------------------------------------------------------------------------
-
-  subroutine chm_apply_bounds(varName,bkgrnd_ptr,inc_ptr)
-!
-! Author: M. Sitwell Sept 2015
-!         - Originally as chm_check_negative
-!
-! Revisions:
-!            Y. Rochon, Nov 2015
-!            - Modified to chm_apply_bounds
-!
-! Purpose: Checks for negative analysis values and if any negative values found will
-!          modify the increment so that the analysis  is reset to low_cutoff*background
-!          at these points. This check is done with fields of the same resolution as
-!          the increment. Also applies upper bound.
-!
-!          Called by chm_transform_final_increments in file chem_interface_mod.ftn90.
-!
-! In
-!
-!    varName        Field name (nomvar)
-!
-! InOut
-!
-!   inc_prt          pointer to statevector for the increment
-!   bkgrnd_prt       pointer to statevector for the background (with same resolution as the increment)
-!
-!-----------------------------------------------------------------------------------
-    implicit none
-    
-    character(len=*), intent(in) :: varName
-
-    real(8), intent(inout), pointer :: inc_ptr(:,:,:,:),bkgrnd_ptr(:,:,:,:)        
-    logical, allocatable :: outside(:,:,:,:)
-
-    integer :: iconstituent_id,nlow,nhigh,i1,i2,i3,i4,ier
-    integer, external :: fclos
-    
-    iconstituent_id = chm_varnumFromVarname(varName)
-    if (iconstituent_id.lt.0.or.iconstituent_id.gt.chm_constituents_size) return
-
-    ! Open output file
-    call chm_open_messagefile()
-    
-    allocate(outside(size(inc_ptr,1),size(inc_ptr,2),size(inc_ptr,3),size(inc_ptr,4)))
-
-    if (chm_config%low_cutoff(iconstituent_id).ge.0.0) then
-
-       ! Check if both background and analysis are negative. If so set the increment to force an analysis of zero at these locations
-       outside = bkgrnd_ptr.lt.0.0 .and. bkgrnd_ptr+inc_ptr.lt.0.0
-       nlow = count(outside)
-
-       if (nlow.gt.0) then
-          write(chm_message_unit,'(A,I7,A,A,A)') "chm_apply_bounds: ",nlow," negative background and analysis values were found for field ",trim(varName),"."
-          write(chm_message_unit,'(A)') "Modifying the increment so the analysis is instead equal to zero at these locations."       
-          write(chm_message_unit,'(A)') "JLON JLEV JLAT TSTEP   Background   Init. incr."
-          do i1=1,size(inc_ptr,1)
-             do i2=1,size(inc_ptr,2)
-                do i3=1,size(inc_ptr,3)
-                   do i4=1,size(inc_ptr,4)
-                      if (outside(i1,i2,i3,i4)) write(chm_message_unit,'(4(I4,1X),2G12.2)') i1,i2,i3,i4,bkgrnd_ptr(i1,i2,i3,i4),inc_ptr(i1,i2,i3,i4)
-                   end do
-                end do
-             end do
-          end do
-          where (outside) inc_ptr = -bkgrnd_ptr
-          write(chm_message_unit,*)
-       end if
-            
-       ! Check if the analysis is below the trial field cutoff. If so set analysis to this cut-off value at these locations.
-       outside = bkgrnd_ptr+inc_ptr.lt.chm_config%low_cutoff(iconstituent_id)*bkgrnd_ptr .and. bkgrnd_ptr.ge.0.0
-       nlow = count(outside)
-            
-       if (nlow.gt.0) then
-          write(chm_message_unit,'(A,I7,A,F4.1,A,A,A)') "chm_apply_bounds: ",nlow," analysis values were found below the cut-off of ", &
-               100*chm_config%low_cutoff(iconstituent_id), &
-               "% of the trial field for field ",trim(varName),"."
-          write(chm_message_unit,'(A)') "Modifying the increment so the analysis is instead equal to the lower bound cut-off value at these locations."
-          write(chm_message_unit,'(A)') "JLON JLEV JLAT TSTEP   Background  Init. incr.  New incr."
-          do i1=1,size(inc_ptr,1)
-             do i2=1,size(inc_ptr,2)
-                do i3=1,size(inc_ptr,3)
-                   do i4=1,size(inc_ptr,4)
-                      if (outside(i1,i2,i3,i4)) write(chm_message_unit,'(4(I4,1X),3G12.2)') i1,i2,i3,i4,bkgrnd_ptr(i1,i2,i3,i4), &
-                           inc_ptr(i1,i2,i3,i4),(chm_config%low_cutoff(iconstituent_id)-1.0)*bkgrnd_ptr(i1,i2,i3,i4)
-                   end do
-                end do
-             end do
-          end do
-          where (outside) inc_ptr = (chm_config%low_cutoff(iconstituent_id)-1.0)*bkgrnd_ptr
-       end if
-
-    end if
-
-    if (chm_config%high_cutoff(iconstituent_id).ge.0.0) then
-
-       ! Check if the analysis is above the imposed upper bound. If so set analysis to this cut-off value at these locations.
-       outside = bkgrnd_ptr+inc_ptr.gt.chm_config%high_cutoff(iconstituent_id)*bkgrnd_ptr .and. bkgrnd_ptr.ge.0.0
-       nhigh = count(outside)
-            
-       if (nhigh.gt.0) then
-          write(chm_message_unit,'(A,I7,A,F5.2,A,A,A)') "chm_apply_bounds: ",nhigh," analysis values were found above the cut-off of ", &
-               chm_config%high_cutoff(iconstituent_id), &
-               " times the trial field for field ",trim(varName),"."
-          write(chm_message_unit,'(A)') "Modifying the increment so the analysis is instead equal to the upper bound cut-off value at these locations."
-          write(chm_message_unit,'(A)') "JLON JLEV JLAT TSTEP   Background  Init.-incr.  New-incr."
-          do i1=1,size(inc_ptr,1)
-             do i2=1,size(inc_ptr,2)
-                do i3=1,size(inc_ptr,3)
-                   do i4=1,size(inc_ptr,4)
-                      if (outside(i1,i2,i3,i4)) write(chm_message_unit,'(4(I4,1X),3G12.2)') i1,i2,i3,i4,bkgrnd_ptr(i1,i2,i3,i4), &
-                           inc_ptr(i1,i2,i3,i4),(chm_config%high_cutoff(iconstituent_id)-1.0)*bkgrnd_ptr(i1,i2,i3,i4)
-                   end do
-                end do
-             end do
-          end do
-          where (outside) inc_ptr = (chm_config%high_cutoff(iconstituent_id)-1.0)*bkgrnd_ptr
-       end if
-
-    end if
-
-    ier=fclos(chm_message_unit)
-    deallocate(outside)
-
-  end subroutine chm_apply_bounds
       
 !-------------------------------------------------------------------------------------------
 
@@ -6346,6 +6251,37 @@ contains
     end subroutine print_Desroziers
 
   end subroutine chm_obsspace_diagn_print
+
+!-------------------------------------------------------------------------------------------
+!--------------------------- Routines for Postprocessing ------ ----------------------------
+
+  subroutine chm_update_obsfile()
+!
+! Author   : Y. Rochon, June 2016 
+! 
+! Revisions:
+!          
+! Purpose: Update of CH family obs file when needed.
+!          
+!          Content can be augmented as needed.
+!
+!----------------------------------------------------------------------------------------
+
+    implicit none
+    
+    integer :: ierr,nrep_modified,varno(1)
+
+!   If needed, add effective temperature values in obs file for total column measurements
+
+    call obsdata_MPIgather(chm_efftemp)
+    
+    if (chm_efftemp%nrep.gt.0) then
+        varno(1)=12001
+        nrep_modified = chm_update_burp_all(varno(1:max(1,chm_efftemp%dim2)),0,'INFO',chm_efftemp,multi='UNI') 
+        write(*,*) 'chm_update_obsfiles: Added ',nrep_modified,' effective temperature values in the obs file.'
+    end if 
+
+  end subroutine chm_update_obsfile
 
 !-------------------------------------------------------------------------------------------
 !--------------------------- Routines for observation operators ----------------------------
