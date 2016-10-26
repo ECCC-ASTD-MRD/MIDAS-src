@@ -503,8 +503,7 @@ CONTAINS
     type(struct_columnData),target :: columng
     ! locals
     integer              :: fnom, fstouv, fclos, fstfrm, fstinf
-    integer, parameter   :: maxNumFiles = 1000
-    integer              :: ierr, ikey, indexStep, indexTrial, numTrials, nulTrials(maxNumFiles)
+    integer              :: ierr, ikey, indexStep, indexTrial, numTrials, nulTrial
     integer              :: ni_file, nj_file, nk_file, dateStamp
     real(8)              :: deltaHours
     character(len=4)     :: coffset
@@ -530,8 +529,7 @@ CONTAINS
     ! compute increment from control vector (multiply by B^1/2)
     call bmat_sqrtB(incr_cv, nvadim_mpilocal, statevector_incr)
 
-    ! open all available trial files
-    nulTrials(:) = 0
+    ! check existence of all trial files
     numTrials = 0
     do 
       write(flnum,'(I2.2)') numTrials+1
@@ -539,9 +537,6 @@ CONTAINS
       inquire(file=trim(fileName),exist=fileExists)
       if(fileExists) then
         numTrials = numTrials + 1
-        ierr = fnom(nulTrials(numTrials),trim(fileName),'RND+OLD+R/O',0)
-        if(mpi_myid.eq.0) write(*,*) 'Trial file: ', trim(fileName), ' opened as unit file: ',nulTrials(numTrials)
-        ierr =  fstouv(nulTrials(numTrials),'RND+OLD')
       elseif ( (.not. fileExists) .and. numTrials > 0 ) then
         exit  
       elseif ( (.not. fileExists) .and. numTrials == 0 ) then
@@ -561,15 +556,16 @@ CONTAINS
       ! identify which trial file corresponds with current datestamp
       fileName = 'NOTFOUND'
       do indexTrial = 1, numTrials
-        ikey = fstinf(nulTrials(indexTrial), ni_file, nj_file, nk_file,  &
+        write(flnum,'(I2.2)') indexTrial
+        fileName = './trlm_' // trim(flnum)
+        nulTrial = 0
+        ierr = fnom(nulTrial,trim(fileName),'RND+OLD+R/O',0)
+        ierr = fstouv(nulTrial,'RND+OLD')
+        ikey = fstinf(nulTrial, ni_file, nj_file, nk_file,  &
                       dateStamp, ' ', -1, -1, -1, ' ', 'P0')
-        if(ikey.gt.0) then
-          write(flnum,'(I2.2)') indexTrial
-          fileName = './trlm_' // trim(flnum)
-          ierr = fstfrm(nulTrials(indexTrial))
-          ierr = fclos(nulTrials(indexTrial))
-          exit
-        endif
+        ierr = fstfrm(nulTrial)
+        ierr = fclos(nulTrial)
+        if(ikey.gt.0) exit
       enddo
       if(trim(fileName).eq.'NOTFOUND') then 
         write(*,*) 'indexStep, dateStamp = ', indexStep, dateStamp
@@ -581,12 +577,12 @@ CONTAINS
 
       ! Compute new diagnotics based on NAMSTATE
       call vtr_setup(statevector_incr) ! IN
-      if ( gsv_varExist('QR') .and. gsv_varExist('DD') ) then
+      if ( gsv_varExist(statevector_incr,'QR') .and. gsv_varExist(statevector_incr,'DD') ) then
         write(*,*)
         write(*,*) 'User is asking for Vort-Div analysis increment'
         call vtr_transform( statevector_incr,  & ! INOUT
                             'UVtoVortDiv' )      ! IN
-        if ( gsv_varExist('PP') .and. gsv_varExist('CC') ) then
+        if ( gsv_varExist(statevector_incr,'PP') .and. gsv_varExist(statevector_incr,'CC') ) then
           write(*,*)
           write(*,*) 'User is asking for Psi-Chi analysis increment'
           call vtr_transform( statevector_incr, & ! INOUT
@@ -978,7 +974,7 @@ CONTAINS
       call bhi_getScaleFactor(scaleFactorBhi)
       icount=0
       do jvar=1,vnl_numvarmax 
-        if(gsv_varExist(vnl_varNameList(jvar))) then
+        if(gsv_varExist(statevector_randpert,vnl_varNameList(jvar))) then
            field => gsv_getField(statevector_randpert,vnl_varNameList(jvar))
            nlev=gsv_getNumLev(statevector_randpert,vnl_varLevelFromVarname(vnl_varNameList(jvar))) 
            if (vnl_varKindFromVarname(vnl_varNameList(jvar)).eq.'MT') then
@@ -986,12 +982,12 @@ CONTAINS
              if (nlev.gt.1) then 
                 do jlev = 1,nlev 
                   if(scaleFactorBhi(jlev).gt.0.0d0) then
-                    field(lon1:lon2,jlev,lat1:lat2,:)=field(lon1:lon2,jlev,lat1:lat2,:)/scaleFactorBhi(jlev)
+                    field(lon1:lon2,lat1:lat2,jlev,:)=field(lon1:lon2,lat1:lat2,jlev,:)/scaleFactorBhi(jlev)
                   endif
                 enddo
              else
                 if(scaleFactorBhi(nlevmax).gt.0.0d0) then
-                  field(lon1:lon2,1,lat1:lat2,:)=field(lon1:lon2,1,lat1:lat2,:)/scaleFactorBhi(nlevmax)
+                  field(lon1:lon2,lat1:lat2,1,:)=field(lon1:lon2,lat1:lat2,1,:)/scaleFactorBhi(nlevmax)
                 endif
              end if
            else if (vnl_varKindFromVarname(vnl_varNameList(jvar)).eq.'CH') then
@@ -1004,12 +1000,12 @@ CONTAINS
              if (nlev.gt.1) then 
                 do jlev = 1,nlev  
                   if(scaleFactorBchm(jlev,icount).gt.0.0d0) then
-                    field(lon1:lon2,jlev,lat1:lat2,:)=field(lon1:lon2,jlev,lat1:lat2,:)/scaleFactorBChm(jlev,icount)
+                    field(lon1:lon2,lat1:lat2,jlev,:)=field(lon1:lon2,lat1:lat2,jlev,:)/scaleFactorBChm(jlev,icount)
                   endif
                 enddo
              else 
                 if(scaleFactorBchm(1,icount).gt.0.0d0) then
-                   field(lon1:lon2,1,lat1:lat2,:)=field(lon1:lon2,1,lat1:lat2,:)/scaleFactorBChm(1,icount)
+                   field(lon1:lon2,lat1:lat2,1,:)=field(lon1:lon2,lat1:lat2,1,:)/scaleFactorBChm(1,icount)
                 endif
              end if
            endif
@@ -1024,14 +1020,14 @@ CONTAINS
     nlev_M = gsv_getNumLev(statevector_randpert,'MM')
     ! for 3D variables
     do jvar=1,vnl_numvarmax3D 
-      if(gsv_varExist(vnl_varNameList3D(jvar)).and.  &
+      if(gsv_varExist(statevector_randpert,vnl_varNameList3D(jvar)).and.  &
             (trim(vnl_varNameList3D(jvar)).eq.'UU' .or.  &
              trim(vnl_varNameList3D(jvar)).eq.'VV') ) then
         write(*,*) 'min_calcRandomPert: pertScaleFactor_UV varname= ',vnl_varNameList3D(jvar)
         field => gsv_getField(statevector_randpert,vnl_varNameList3D(jvar))
         do jlev = 1, gsv_getNumLev(statevector_randpert,vnl_varLevelFromVarname(vnl_varNameList3D(jvar)))   
           write(*,*) 'min_calcRandomPert: pertScaleFactor_UV= ',jlev,pertScaleFactor_UV(jlev)
-          field(lon1:lon2,jlev,lat1:lat2,:)=field(lon1:lon2,jlev,lat1:lat2,:)*pertScaleFactor_UV(jlev)
+          field(lon1:lon2,lat1:lat2,jlev,:)=field(lon1:lon2,lat1:lat2,jlev,:)*pertScaleFactor_UV(jlev)
         enddo
       endif
     enddo

@@ -1970,10 +1970,10 @@ module calcbmatrix_lam_mod
                   ControlVariable(var1)%nomvar(cv_bhi) == momentumControlVar(1)) .or. &
                  (ControlVariable(var2)%nomvar(cv_bhi) == 'P0'                  .and. & ! P0-TT
                   ControlVariable(var1)%nomvar(cv_bhi) == 'TT')                  .or. &
-                 (ControlVariable(var2)%nomvar(cv_bhi) == 'TT'                  .and. & ! TT-VV
-                  ControlVariable(var1)%nomvar(cv_bhi) == 'VV')                  .or. &
-                 (ControlVariable(var2)%nomvar(cv_bhi) == 'P0'                  .and. & ! P0-VV
-                  ControlVariable(var1)%nomvar(cv_bhi) == 'VV') ) then
+                 (ControlVariable(var2)%nomvar(cv_bhi) == 'TT'                  .and. & ! TT-(CC, DD or VV)
+                  ControlVariable(var1)%nomvar(cv_bhi) == momentumControlVar(2)) .or. &
+                 (ControlVariable(var2)%nomvar(cv_bhi) == 'P0'                  .and. & ! P0-(CC, DD or VV)
+                  ControlVariable(var1)%nomvar(cv_bhi) == momentumControlVar(2)) ) then
            KeepOrDiscard(var1,var2) = 1.d0 ! Keep these Cross-Correlations
          else
            KeepOrDiscard(var1,var2) = 0.d0 ! Discard these Cross-Correlation

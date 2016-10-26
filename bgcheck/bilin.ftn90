@@ -54,26 +54,26 @@ SUBROUTINE BILIN(lcolumn,statevector,lobsSpaceData)
   ! Note: We assume here the all the obs between the poles and the last grid points
   !       (i.e. outside the grid) have been moved within the grid by suprep
 
-  allocate(zgd(1:statevector%ni+1, 1:statevector%nk,1:statevector%nj))
+  allocate(zgd(statevector%ni+1,statevector%nj,statevector%nk))
   
-  ZGD(:,:,:)=0.0d0
+  zgd(:,:,:)=0.0d0
   field_ptr => gsv_getField3D(statevector)
-  ZGD(1:STATEVECTOR%NI,1:statevector%nk,1:STATEVECTOR%NJ)= &
-       field_ptr(1:STATEVECTOR%NI,1:statevector%nk,1:STATEVECTOR%NJ)
+  zgd(1:statevector%ni,1:statevector%nj,1:statevector%nk)= &
+       field_ptr(1:statevector%ni,1:statevector%nj,1:statevector%nk)
 
   !
   !- 1.  EXPAND Field BY REPEATING MERIDIAN 1 into INTO MERIDIAN NI+1
   !
-  DO JK = 1, statevector % nk
-     DO JGL = 1, STATEVECTOR % NJ
-        ZGD(STATEVECTOR % NI+1,JK,JGL) = ZGD( 1,JK,JGL)
-     END DO
-  END DO
+  do jk = 1, statevector%nk
+     do jgl = 1, statevector%nj
+        zgd(statevector%ni+1,jgl,jk) = zgd( 1,jgl,jk)
+     end do
+  end do
   
   !
   !- 2.  LOOP OVER ALL THE OBSERVATIONS
   !
-  DO JOBS = 1, col_getNumCol(lcolumn)
+  do jobs = 1, col_getNumCol(lcolumn)
 
      !- 2.1 Find the obs positin within the analysis grid
      call col_getLatLon( lcolumn, jobs,                       & ! IN
@@ -81,37 +81,37 @@ SUBROUTINE BILIN(lcolumn,statevector,lobsSpaceData)
 
      !- Make sure we are within bounds
      if ( ypos < 1.d0                           .or. &
-          ypos > real(statevector % nj      ,8) .or. &
+          ypos > real(statevector%nj      ,8) .or. &
           xpos < 1.d0                           .or. &
-          xpos > real(statevector % ni + 1  ,8) ) then
+          xpos > real(statevector%ni + 1  ,8) ) then
        write(*,*) 'bilin: Obs outside local domain for job = ', jobs
        write(*,*) '  obs    lat, lon position            = ', Lat*MPC_DEGREES_PER_RADIAN_R8, Lon*MPC_DEGREES_PER_RADIAN_R8
        write(*,*) '  obs    x, y     position            = ', xpos, ypos
-       write(*,*) '  domain x_end, y_end bounds          = ', statevector % ni + 1, statevector % nj
+       write(*,*) '  domain x_end, y_end bounds          = ', statevector%ni + 1, statevector%nj
        stop
      end if
 
      !- 2.2 Find the lower-left grid point next to the observation
-     if ( xpos /= real(statevector % ni + 1,8) ) then
+     if ( xpos /= real(statevector%ni + 1,8) ) then
        ILON = floor(xpos)
      else
        ILON = floor(xpos) - 1
      end if
 
-     if ( ypos /= real(statevector % nj,8) ) then
+     if ( ypos /= real(statevector%nj,8) ) then
        ILA = floor(ypos)
      else
        ILA = floor(ypos) - 1
      end if
 
      !- 2.3 COMPUTE THE 4 WEIGHTS OF THE BILINEAR INTERPOLATION
-     DLDX = xpos - real(ILON,8)
-     DLDY = ypos - real(ILA,8)
+     dldx = xpos - real(ILON,8)
+     dldy = ypos - real(ILA,8)
 
-     DLW1 = (1.D0-DLDX) * (1.D0-DLDY)
-     DLW2 =       DLDX  * (1.D0-DLDY)
-     DLW3 = (1.D0-DLDX) *       DLDY
-     DLW4 =       DLDX  *       DLDY
+     dlw1 = (1.d0-dldx) * (1.d0-dldy)
+     dlw2 =       dldx  * (1.d0-dldy)
+     dlw3 = (1.d0-dldx) *       dldy
+     dlw4 =       dldx  *       dldy
      
      !- 2.4 Interpolate the model state to the obs point
      if(col_varExist('UU')) uu_column => col_getColumn(lcolumn,jobs,'UU')
@@ -121,53 +121,53 @@ SUBROUTINE BILIN(lcolumn,statevector,lobsSpaceData)
      if(col_varExist('P0')) ps_column => col_getColumn(lcolumn,jobs,'P0')
      if(col_varExist('TG')) tg_column => col_getColumn(lcolumn,jobs,'TG')
      
-     DO JK = 1, gsv_getNumLev(statevector,'MM')
-        if(gsv_varExist('UU')) then
+     do jk = 1, gsv_getNumLev(statevector,'MM')
+        if(gsv_varExist(statevector,'UU')) then
            jk2=jk+gsv_getOffsetFromVarName(statevector,'UU')
-           uu_column(JK) =   DLW1*zgd(ILON  ,JK2,ILA)  &
-                           + DLW2*zgd(ILON+1,JK2,ILA)  &
-                           + DLW3*zgd(ILON  ,JK2,ILA+1)  &
-                           + DLW4*zgd(ILON+1,JK2,ILA+1)
+           uu_column(jk) =   dlw1*zgd(ilon  ,ila,jk2)  &
+                           + dlw2*zgd(ilon+1,ila,jk2)  &
+                           + dlw3*zgd(ilon  ,ila+1,jk2)  &
+                           + dlw4*zgd(ilon+1,ila+1,jk2)
         endif
-        if(gsv_varExist('VV')) then
+        if(gsv_varExist(statevector,'VV')) then
            jk2=jk+gsv_getOffsetFromVarName(statevector,'VV')
-           vv_column(JK) =   DLW1*zgd(ILON  ,JK2,ILA)  &
-                           + DLW2*zgd(ILON+1,JK2,ILA)  &
-                           + DLW3*zgd(ILON  ,JK2,ILA+1)  &
-                           + DLW4*zgd(ILON+1,JK2,ILA+1)
-        endif
-     ENDDO
-     DO JK = 1, gsv_getNumLev(statevector,'TH')
-        if(gsv_varExist('HU')) then
-           jk2=jk+gsv_getOffsetFromVarName(statevector,'HU')
-           hu_column(JK) =   DLW1*zgd(ILON  ,JK2,ILA)  &
-                           + DLW2*zgd(ILON+1,JK2,ILA)  &
-                           + DLW3*zgd(ILON  ,JK2,ILA+1)  &
-                           + DLW4*zgd(ILON+1,JK2,ILA+1)
-        endif
-        if(gsv_varExist('TT')) then
-           jk2=jk+gsv_getOffsetFromVarName(statevector,'TT')
-           tt_column(JK) =   DLW1*zgd(ILON  ,JK2,ILA)  &
-                           + DLW2*zgd(ILON+1,JK2,ILA)  &
-                           + DLW3*zgd(ILON  ,JK2,ILA+1)  &
-                           + DLW4*zgd(ILON+1,JK2,ILA+1)
+           vv_column(jk) =   dlw1*zgd(ilon  ,ila,jk2)  &
+                           + dlw2*zgd(ilon+1,ila,jk2)  &
+                           + dlw3*zgd(ilon  ,ila+1,jk2)  &
+                           + dlw4*zgd(ilon+1,ila+1,jk2)
         endif
      enddo
-     if(gsv_varExist('P0')) then
+     do jk = 1, gsv_getNumLev(statevector,'TH')
+        if(gsv_varExist(statevector,'HU')) then
+           jk2=jk+gsv_getOffsetFromVarName(statevector,'HU')
+           hu_column(jk) =   dlw1*zgd(ilon  ,ila,jk2)  &
+                           + dlw2*zgd(ilon+1,ila,jk2)  &
+                           + dlw3*zgd(ilon  ,ila+1,jk2)  &
+                           + dlw4*zgd(ilon+1,ila+1,jk2)
+        endif
+        if(gsv_varExist(statevector,'TT')) then
+           jk2=jk+gsv_getOffsetFromVarName(statevector,'TT')
+           tt_column(jk) =   dlw1*zgd(ilon  ,ila,jk2)  &
+                           + dlw2*zgd(ilon+1,ila,jk2)  &
+                           + dlw3*zgd(ilon  ,ila+1,jk2)  &
+                           + dlw4*zgd(ilon+1,ila+1,jk2)
+        endif
+     enddo
+     if(gsv_varExist(statevector,'P0')) then
         jk2=1+gsv_getOffsetFromVarName(statevector,'P0')
-        ps_column(1) =   DLW1*zgd(ILON  ,jk2,ILA)  &
-                       + DLW2*zgd(ILON+1,jk2,ILA)  &
-                       + DLW3*zgd(ILON  ,jk2,ILA+1)  &
-                       + DLW4*zgd(ILON+1,jk2,ILA+1)
+        ps_column(1) =   dlw1*zgd(ilon  ,ila,jk2)  &
+                       + dlw2*zgd(ilon+1,ila,jk2)  &
+                       + dlw3*zgd(ilon  ,ila+1,jk2)  &
+                       + dlw4*zgd(ilon+1,ila+1,jk2)
      endif
-     if(gsv_varExist('TG')) then
+     if(gsv_varExist(statevector,'TG')) then
         jk2=1+gsv_getOffsetFromVarName(statevector,'TG')
-        tg_column(1) =   DLW1*zgd(ILON  ,jk2,ILA)  &
-                       + DLW2*zgd(ILON+1,jk2,ILA)  &
-                       + DLW3*zgd(ILON  ,jk2,ILA+1)  &
-                       + DLW4*zgd(ILON+1,jk2,ILA+1)
+        tg_column(1) =   dlw1*zgd(ilon  ,ila,jk2)  &
+                       + dlw2*zgd(ilon+1,ila,jk2)  &
+                       + dlw3*zgd(ilon  ,ila+1,jk2)  &
+                       + dlw4*zgd(ilon+1,ila+1,jk2)
      endif
-  END DO
+  end do
 
   deallocate(zgd)
   

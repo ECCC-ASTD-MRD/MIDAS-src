@@ -211,7 +211,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
   !
   nobs(:) = 0
   do jvar=1,vnl_numvarmax2D
-    if(gsv_varExist(vnl_varNameList2D(jvar))) exit          
+    if(gsv_varExist(varName=vnl_varNameList2D(jvar))) exit          
   end do
 
   if(mpi_myid.eq.0) write(*,*) 'sugomobs: first 2d variable=',vnl_varNameList2D(jvar),jvar
@@ -234,9 +234,9 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
       
     do jobs=1, obs_numheader(lobsSpaceData)
          
-      call getStepObsIndex(stepObsIndex,tim_getDatestamp(),  &
-                           obs_headElem_i(lobsSpaceData,OBS_DAT,jobs),  &
-                           obs_headElem_i(lobsSpaceData,OBS_ETM,jobs),tim_nstepobs)
+      call tim_getStepObsIndex(stepObsIndex,tim_getDatestamp(),  &
+                               obs_headElem_i(lobsSpaceData,OBS_DAT,jobs),  &
+                               obs_headElem_i(lobsSpaceData,OBS_ETM,jobs),tim_nstepobs)
 
       ! check if obs is outside of assimilation window when jstep = 1
       if(jstep.eq.1 .and.  &
@@ -295,9 +295,9 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
             if ( ypos_r4 < 1.0 )                ypos_r4 = 1.0
             if ( ypos_r4 > real(hco_anl % nj) ) ypos_r4 = real(hco_anl % nj)
 
-            ierr = gdllfxy( hco_anl % EZscintID, & ! IN
-                            lat_deg_r4, lon_deg_r4,      & ! OUT
-                            xpos_r4, ypos_r4, 1)   ! IN
+            ierr = gdllfxy( hco_anl % EZscintID, &    ! IN
+                            lat_deg_r4, lon_deg_r4, & ! OUT
+                            xpos_r4, ypos_r4, 1)      ! IN
               
             write(*,*) '  new  position : ', lat_deg_r4, lon_deg_r4, ypos_r4, xpos_r4
 
@@ -424,7 +424,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
   !     reading 2D fields
   !
   do jvar=1,vnl_numvarmax2D
-    if(.not.gsv_varExist(vnl_varNameList2D(jvar))) cycle
+    if(.not.gsv_varExist(varName=vnl_varNameList2D(jvar))) cycle
 
     call readTrialField(varInterphr_M,varInterphr_VV,vnl_varNameList2D(jvar),'SF')
 
@@ -508,7 +508,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
   !
   do jvar=1, vnl_numvarmax3D
 
-    if(.not.gsv_varExist(vnl_varNameList3D(jvar))) cycle
+    if(.not.gsv_varExist(varName=vnl_varNameList3D(jvar))) cycle
 ! to avoid cycle for VV      
     if(vnl_varNameList3D(jvar) .eq. 'VV') cycle
 
@@ -629,7 +629,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
     end select 
   enddo
   
-  if (gsv_varExist('TT').and.gsv_varExist('HU').and.gsv_varExist('P0')) then      
+  if (gsv_varExist(varName='TT').and.gsv_varExist(varName='HU').and.gsv_varExist(varName='P0')) then      
 
      !
      !- Initialisation of TLM operators
@@ -841,13 +841,13 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
                           cltypvar,varName)
             endif
 
-            if (vnl_varKindFromVarname(varName).eq.'CH') &
-               call chm_apply_2dfieldr4_transform(chm_varnumFromVarName(varName),varName,jlev,jstep,varTrial_r4)
-
             if(ierr.lt.0)then
               write(*,2001) varName,iip1,idate(jstep),itime(jstep)
               call abort3d('SUGOMOBS:Problem with background file')
             end if
+
+            if (vnl_varKindFromVarname(varName).eq.'CH') &
+               call chm_apply_2dfieldr4_transform(chm_varnumFromVarName(varName),varName,jlev,jstep,varTrial_r4)
 
             if(varName.eq.'UU') then
               ierr=fstlir(varTrial_VV_r4(:,:),nultrl(jstep),ni,nj,ink,  &

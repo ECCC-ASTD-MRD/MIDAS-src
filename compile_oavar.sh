@@ -72,20 +72,31 @@ else
     echo "This platform 'ARCH=${ARCH}' is not supported.  Only 'AIX-powerpc7' and 'Linux_x86-64' are."
     exit 1
 fi
-cd ../
-mkdir -p compiledir
-cd compiledir
-#rm -f *.o *.f *.f90 *.mod
 
 # automatically set the global revision number in toplevelcontrol_mod.ftn90 by
 # replacing the string XXXXX with the actual revision number
-revnum=$(git describe --always 2>/dev/null || ssh pollux "cd $trunkdir; git describe --always" 2>/dev/null || echo unkown revision)
+revnum=$(git describe --always --dirty=_M 2>/dev/null || ssh pollux "cd $trunkdir; git describe --always --dirty=_M" 2>/dev/null || echo unkown revision)
 echo " "
 echo "-----------------------"
 echo "Revision number='$revnum'"
 echo "-----------------------"
 echo " "
-compiledir=${PWD}
+
+# Set compiledir
+compiledir_main=${COMPILEDIR_OAVAR_MAIN:-".."}
+compiledir=${compiledir_main}/compiledir_${revnum}
+
+mkdir -p $compiledir
+cd $compiledir
+compiledir=${PWD} # needed when compiledir_main = ".."
+
+if [ ${compiledir_main} != ".." ] ; then
+    if [ ! -d  ${trunkdir}/../compiledir_${revnum} ] ; then
+	ln -s ${compiledir_main}/compiledir_${revnum} ${trunkdir}/../compiledir_${revnum}
+    else
+	echo "${trunkdir}/../compiledir_${revnum} already exist. Doing nothing..."
+    fi
+fi
 
 #----------------------------------------------------------------
 #  Set up dependent librarys and tools. 

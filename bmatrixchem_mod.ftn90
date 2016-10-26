@@ -185,6 +185,7 @@ MODULE BmatrixChem
 CONTAINS
 
 !-------------------------------------------------------------------------------------------
+
   SUBROUTINE BCHM_setup(hco_in,vco_in,CVDIM_OUT,mode)
     implicit none
 
@@ -248,7 +249,7 @@ CONTAINS
 !   Find the 3D variables (within NAMSTATE namelist)
 
     do jvar = 1, vnl_numvarmax3D    
-       if(gsv_varExist(vnl_varNameList3D(jvar))) then
+       if(gsv_varExist(varName=vnl_varNameList3D(jvar))) then
 
           if (vnl_varKindFromVarname(vnl_varNameList(jvar)).eq.'CH') then
              numvar3d = numvar3d + 1
@@ -262,7 +263,7 @@ CONTAINS
 !   Find the 2D variables (within NAMSTATE namelist)
 
     do jvar=1,vnl_numvarmax2D
-       if(gsv_varExist(vnl_varNameList2D(jvar))) then
+       if(gsv_varExist(varName=vnl_varNameList2D(jvar))) then
 
           if (vnl_varKindFromVarname(vnl_varNameList(jvar)).eq.'CH') then
              numvar2d = numvar2d + 1
@@ -388,6 +389,7 @@ CONTAINS
     call tmg_stop(90)
 
   END SUBROUTINE BCHM_setup
+
 !-----------------------------------------------------------------------------------------------
   logical function bchm_is_initialized()
 !
@@ -402,6 +404,7 @@ CONTAINS
   end function bchm_is_initialized
 
 !-----------------------------------------------------------------------------------------------
+
   subroutine bchm_getScaleFactor(scaleFactor_out)
 !
 ! Revisions: 
@@ -420,7 +423,9 @@ CONTAINS
     enddo
 
   end subroutine bchm_getScaleFactor
+
 !-----------------------------------------------------------------------------------------------
+
   SUBROUTINE BCHM_SUNEWSTATS
 !
 !  Revisions:
@@ -467,7 +472,9 @@ CONTAINS
     ierr = fclos(nulbgst)
 
   END SUBROUTINE BCHM_SUNEWSTATS
+
 !-------------------------------------------------------------------------------------------
+
   SUBROUTINE BCHM_scalestd
     implicit none
 
@@ -488,7 +495,9 @@ CONTAINS
     enddo
 
   END SUBROUTINE BCHM_scalestd
+
 !-------------------------------------------------------------------------------------------
+
   SUBROUTINE BCHM_truncateCV(controlVector_inout,ntruncCut)
     implicit none
     ! set to zero all coefficients with total wavenumber > ntruncCut
@@ -533,6 +542,7 @@ CONTAINS
  end SUBROUTINE BCHM_truncateCV
 
 !-------------------------------------------------------------------------------------------
+
  SUBROUTINE BCHM_bSqrt(controlvector_in,statevector)
   
    implicit none
@@ -548,7 +558,7 @@ CONTAINS
     if(mpi_myid.eq.0) write(*,*) 'BCHM_bsqrt: starting'
     if(mpi_myid.eq.0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-    allocate(gd_out(myLonBeg:myLonEnd,nkgdim,myLatBeg:myLatEnd))
+    allocate(gd_out(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim))
 
     call bchm_cain(controlVector_in,hiControlVector)
 
@@ -562,7 +572,9 @@ CONTAINS
     if(mpi_myid.eq.0) write(*,*) 'bchm_bsqrt: done'
 
   END SUBROUTINE BCHM_bSqrt
+
 !-----------------------------------------------------------------------------------------------
+
   SUBROUTINE BCHM_cain(controlVector_in,hiControlVector_out)
     implicit none
 
@@ -596,11 +608,13 @@ CONTAINS
     enddo
 
   end SUBROUTINE BCHM_cain
+
 !-----------------------------------------------------------------------------------------------
+
   SUBROUTINE BCHM_copyToStatevector(statevector,gd)
     implicit none
     type(struct_gsv) :: statevector
-    real(8) :: gd(myLonBeg:myLonEnd,nkgdim,myLatBeg:myLatEnd)
+    real(8) :: gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim)
     integer :: jlon, jlev, jlev2, jlat, jvar, ilev1, ilev2
     real(8), pointer :: field(:,:,:)
 
@@ -610,18 +624,20 @@ CONTAINS
         ilev2 = nsposit(jvar+1)-1 
         
 !!!$OMP PARALLEL DO PRIVATE(jlat,jlev,jlev2,jlon)
-        do jlat = myLatBeg, myLatEnd
-          do jlev = ilev1, ilev2
-            jlev2 = jlev-ilev1+1
-            do jlon = myLonBeg, myLonEnd
-              field(jlon,jlev2,jlat) = gd(jlon,jlev,jlat)
+        do jlev = ilev1, ilev2
+           jlev2 = jlev-ilev1+1
+           do jlat = myLatBeg, myLatEnd
+              do jlon = myLonBeg, myLonEnd
+                 field(jlon,jlat,jlev2) = gd(jlon,jlat,jlev)
             enddo
           enddo
         enddo
 !!!$OMP END PARALLEL DO
     enddo
   END SUBROUTINE BCHM_copyToStatevector
+
 !-----------------------------------------------------------------------------------------------
+
   SUBROUTINE BCHM_bSqrtAd(statevector,controlVector_out)
     implicit none
 
@@ -639,7 +655,7 @@ CONTAINS
     if(mpi_myid.eq.0) write(*,*) 'bchm_bsqrtad: starting'
     if(mpi_myid.eq.0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-    allocate(gd_in(myLonBeg:myLonEnd,nkgdim,myLatBeg:myLatEnd))
+    allocate(gd_in(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim))
     call bchm_copyFromStatevector(statevector,gd_in)
 
     call bchm_spa2gdad(gd_in,hiControlVector)
@@ -652,11 +668,13 @@ CONTAINS
     if(mpi_myid.eq.0) write(*,*) 'BCHM_bsqrtad: done'
 
   END SUBROUTINE BCHM_bSqrtAd
+
 !-----------------------------------------------------------------------------------------------
+
   SUBROUTINE BCHM_copyFromStatevector(statevector,gd)
     implicit none
     type(struct_gsv) :: statevector
-    real(8)          :: gd(myLonBeg:myLonEnd,nkgdim,myLatBeg:myLatEnd)
+    real(8)          :: gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim)
     integer :: jlon, jlev, jlev2, jlat, jvar, ilev1, ilev2
     real(8), pointer :: field(:,:,:)
 
@@ -667,19 +685,21 @@ CONTAINS
         ilev2 = nsposit(jvar+1)-1 
 
 !!!$OMP PARALLEL DO PRIVATE(jlat,jlev,jlev2,jlon)
-        do jlat = myLatBeg, myLatEnd
-          do jlev = ilev1, ilev2
-            jlev2 = jlev-ilev1+1
-            do jlon = myLonBeg, myLonEnd
-              gd(jlon,jlev,jlat) = field(jlon,jlev2,jlat)
-            enddo
-          enddo
+        do jlev = ilev1, ilev2
+           jlev2 = jlev-ilev1+1
+           do jlat = myLatBeg, myLatEnd
+              do jlon = myLonBeg, myLonEnd
+                 gd(jlon,jlat,jlev) = field(jlon,jlat,jlev2)
+              enddo
+           enddo
         enddo
 !!!$OMP END PARALLEL DO
-    enddo
+     enddo
 
   END SUBROUTINE BCHM_copyFromStatevector
+
 !-----------------------------------------------------------------------------------------------
+
   SUBROUTINE BCHM_READCORNS2
 !
 ! N.B.: Currently assumes distinct block diagonal matrices (no cross-correlations)
@@ -773,7 +793,9 @@ CONTAINS
 
     !write(*,*) 'Done in BCHM_READCORNS2'
   END SUBROUTINE BCHM_READCORNS2
+
 !-----------------------------------------------------------------------------------------------
+
   SUBROUTINE BCHM_convol
     implicit none
 
@@ -941,7 +963,9 @@ CONTAINS
     endif
 
   END SUBROUTINE BCHM_convol
+
 !-----------------------------------------------------------------------------------------------
+
   SUBROUTINE BCHM_RDSPSTD
     implicit none
 
@@ -1009,7 +1033,9 @@ CONTAINS
     enddo 
 
   END SUBROUTINE BCHM_RDSPSTD
+
 !-----------------------------------------------------------------------------------------------
+
   SUBROUTINE BCHM_RDSPSTD_NEWFMT
     implicit none
 
@@ -1098,7 +1124,9 @@ CONTAINS
     enddo
 
   END SUBROUTINE BCHM_RDSPSTD_NEWFMT
+
 !-----------------------------------------------------------------------------------------------
+
   SUBROUTINE BCHM_RDSTDDEV
 !
 !   Purpose: Reads 3D stddev if available.
@@ -1198,7 +1226,9 @@ CONTAINS
     enddo
 
   END SUBROUTINE BCHM_RDSTDDEV
+
 !-----------------------------------------------------------------------------------------------
+
   SUBROUTINE BCHM_SUCORNS2
     implicit none
 
@@ -1430,6 +1460,7 @@ CONTAINS
   END SUBROUTINE READCORNS_SQRT
 
 !-----------------------------------------------------------------------------------------------
+
   FUNCTION GASPARICOHN(ztlen,zr)
 
     real(8)  :: gasparicohn
@@ -1449,12 +1480,14 @@ CONTAINS
     if(gasparicohn.lt.0.0d0) gasparicohn = 0.0d0
 
   END FUNCTION GASPARICOHN
+
 !-----------------------------------------------------------------------------------------------
+
   SUBROUTINE BCHM_SPA2GD(hiControlVector_in,gd_out)
     IMPLICIT NONE
 
     real(8) :: hiControlVector_in(nla_mpilocal,2,nkgdim)
-    real(8) :: gd_out(myLonBeg:myLonEnd,nkgdim,myLatBeg:myLatEnd)
+    real(8) :: gd_out(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim)
 
     real(8) :: sp(maxMyNla,2,nkgdim)
 
@@ -1462,7 +1495,7 @@ CONTAINS
     real(8) :: sq2, zp
     real(8) , allocatable :: zsp(:,:,:), zsp2(:,:,:)
     integer :: ilon, jlev, jlon, jlat, jla_mpilocal
-    real(8), target  :: gd(myLonBeg:myLonEnd,nkgdim,myLatBeg:myLatEnd)
+    real(8), target  :: gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim)
     real(8) :: dla2, dl1sa2, zpsb(myLonBeg:myLonEnd,myLatBeg:myLatEnd)
 
     call tmg_start(82,'BCHM_SPA2GD1')
@@ -1529,12 +1562,12 @@ CONTAINS
 
 
 !$OMP PARALLEL DO PRIVATE(JLAT,JLEV,JLON)
-    do jlat = myLatBeg, myLatEnd
-      do jlev = 1, nkgdim
-        do jlon = myLonBeg, myLonEnd
-          gd(jlon,jlev,jlat) = 0.0d0
-        enddo
-      enddo
+    do jlev = 1, nkgdim
+       do jlat = myLatBeg, myLatEnd
+          do jlon = myLonBeg, myLonEnd
+             gd(jlon,jlat,jlev) = 0.0d0
+          enddo
+       enddo
     enddo
 !$OMP END PARALLEL DO
 
@@ -1547,34 +1580,36 @@ CONTAINS
     call tmg_start(85,'BCHM_SPA2GD2')
 
 !$OMP PARALLEL DO PRIVATE(jlat,jlev,jlon)
-    do jlat = myLatBeg, myLatEnd
-      do jlev = 1, nkgdim
-        do jlon = myLonBeg, myLonEnd
-            gd(jlon,jlev,jlat) = gd(jlon,jlev,jlat)*rgsig(jlon,jlat,jlev)
-        enddo
-      enddo
-    enddo  ! jlat
+    do jlev = 1, nkgdim
+       do jlat = myLatBeg, myLatEnd
+          do jlon = myLonBeg, myLonEnd
+             gd(jlon,jlat,jlev) = gd(jlon,jlat,jlev)*rgsig(jlon,jlat,jlev)
+          enddo
+       enddo
+    enddo
 !$OMP END PARALLEL DO
 
     call tmg_stop(85)
 
 !$OMP PARALLEL DO PRIVATE(JLAT,JLEV,JLON)
-   do jlat = myLatBeg, myLatEnd
-      do jlev = 1, nkgdim
-        do jlon = myLonBeg, myLonEnd
-          gd_out(jlon,jlev,jlat) = gd(jlon,jlev,jlat)
-        enddo
-      enddo
+    do jlev = 1, nkgdim
+       do jlat = myLatBeg, myLatEnd
+          do jlon = myLonBeg, myLonEnd
+             gd_out(jlon,jlat,jlev) = gd(jlon,jlat,jlev)
+          enddo
+       enddo
     enddo
 !$OMP END PARALLEL DO
 
   END SUBROUTINE BCHM_SPA2GD
+
 !-----------------------------------------------------------------------------------------------
+
   SUBROUTINE BCHM_SPA2GDAD(gd_in,hiControlVector_out)
     implicit none
 
     real(8) :: hiControlVector_out(nla_mpilocal,2,nkgdim)
-    real(8) :: gd_in(myLonBeg:myLonEnd,nkgdim,myLatBeg:myLatEnd)
+    real(8) :: gd_in(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim)
 
     real(8) :: sp(maxMyNla,2,nkgdim)
 
@@ -1584,31 +1619,29 @@ CONTAINS
 
     integer :: ilon, jlev, jlon, jlat, jla_mpilocal
     real(8) :: dl1sa2, dla2, zpsb(myLonBeg:myLonEnd,myLatBeg:myLatEnd)
-    real(8), target :: gd(myLonBeg:myLonEnd,nkgdim,myLatBeg:myLatEnd)
+    real(8), target :: gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim)
 
 
 !$OMP PARALLEL DO PRIVATE(JLAT,JLEV,JLON)
-    do jlat = myLatBeg, myLatEnd
-      do jlev = 1, nkgdim
-        do jlon = myLonBeg, myLonEnd                                                      
-          gd(jlon,jlev,jlat) = gd_in(jlon,jlev,jlat)
-        enddo
-      enddo
+    do jlev = 1, nkgdim
+       do jlat = myLatBeg, myLatEnd
+          do jlon = myLonBeg, myLonEnd                                                      
+             gd(jlon,jlat,jlev) = gd_in(jlon,jlat,jlev)
+          enddo
+       enddo
     enddo
 !$OMP END PARALLEL DO
 
    call tmg_start(85,'BCHM_SPA2GD2')
 
 !$OMP PARALLEL DO PRIVATE(jlat,jlev,jlon)
-    do jlat = myLatBeg, myLatEnd
-      do jlev = 1, nkgdim
-        do jlon = myLonBeg, myLonEnd
-            gd(jlon,jlev,jlat) = gd(jlon,jlev,jlat)*rgsig(jlon,jlat,jlev)
-        enddo
+   do jlev = 1, nkgdim
+      do jlat = myLatBeg, myLatEnd
+         do jlon = myLonBeg, myLonEnd
+            gd(jlon,jlat,jlev) = gd(jlon,jlat,jlev)*rgsig(jlon,jlat,jlev)
+         enddo
       enddo
-
-
-    enddo
+   enddo
 !$OMP END PARALLEL DO
 
     call tmg_stop(85)
@@ -1678,7 +1711,9 @@ CONTAINS
     call tmg_stop(82)
 
   END SUBROUTINE BCHM_SPA2GDAD
+
 !----------------------------------------------------------------------------------------------- 
+
   SUBROUTINE BCHM_cainAd(hiControlVector_in,controlVector_out)
     IMPLICIT NONE
 
@@ -1711,7 +1746,9 @@ CONTAINS
     enddo
 
   END SUBROUTINE BCHM_cainAd
+
 !-----------------------------------------------------------------------------------------------
+
   SUBROUTINE BCHM_Finalize()
     implicit none
 
@@ -1725,7 +1762,9 @@ CONTAINS
     end if
 
   END SUBROUTINE BCHM_Finalize
+
 !-----------------------------------------------------------------------------------------------
+
   SUBROUTINE BCHM_reduceToMPILocal(cv_mpilocal,cv_mpiglobal,cvDim_mpilocal_out)
     implicit none
     real(8) :: cv_mpilocal(cvDim_mpilocal)
@@ -1781,7 +1820,9 @@ CONTAINS
     enddo
 
   END SUBROUTINE BCHM_reduceToMPILocal
+
 !-----------------------------------------------------------------------------------------------
+
   SUBROUTINE BCHM_expandToMPIGlobal(cv_mpilocal,cv_mpiglobal,cvDim_mpiglobal_out)
     implicit none
     real(8) :: cv_mpilocal(cvDim_mpilocal)
@@ -1894,7 +1935,9 @@ CONTAINS
     if(mpi_myid.eq.0) deallocate(cv_allmaxmpilocal)
 
   end SUBROUTINE BCHM_expandToMPIGlobal
+
 !-----------------------------------------------------------------------------------------------
+
   SUBROUTINE BCHM_corvert_setup
 !
 ! Purpose: Compute total vertical correlations (bchm_corvert) and its inverse (bchm_corverti; currently 
@@ -2085,7 +2128,9 @@ CONTAINS
     end if
 
   END SUBROUTINE BCHM_corvert_setup
+
 !-----------------------------------------------------------------------------------------------
+
   Subroutine bchm_corvert_mult(varName,rmat_in,rmat_out,lvl_top,lvl_bot,ndim1,ndim2,ndim3, &
                                lrgsig,itype,rsig)
 !
@@ -2334,7 +2379,9 @@ CONTAINS
     end if
    
   end subroutine bchm_corvert_mult
+
 !-----------------------------------------------------------------------------------------------
+
   Subroutine bchm_getsigma(varName,ndim2,xlat,xlong,rsig)
 !
 ! Purpose: Interpolate error std. dev. to obs location.

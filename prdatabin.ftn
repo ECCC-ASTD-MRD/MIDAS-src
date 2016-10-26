@@ -17,7 +17,7 @@
       subroutine prdatabin(lobsSpaceData,nstepobs)
       use mpivar_mod
       use obsSpaceData_mod
-      use timeCoord_mod, only: tim_getDatestamp
+      use timeCoord_mod
       IMPLICIT NONE
 
 !
@@ -64,7 +64,7 @@
       familylist(10)='CH'
  
       do jobs = 1, obs_numheader(lobsSpaceData)
-        call getStepObsIndex(stepObsIndex,tim_getDatestamp(),
+        call tim_getStepObsIndex(stepObsIndex,tim_getDatestamp(),
      &        obs_headElem_i(lobsSpaceData,OBS_DAT,jobs),
      &        obs_headElem_i(lobsSpaceData,OBS_ETM,jobs),nstepobs)
         if(stepObsIndex.gt.0.0d0) then

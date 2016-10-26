@@ -10,13 +10,13 @@
 #
 flnml="namelist_glb_p7.nml"
 machine="hadar"
-gest="/users/dor/arma/gr3/data_gpfs/var/gonzalo/calcstats_hvcorrel/atelier"
+gest="/users/dor/arma/bue/power7/test_calcstats/r93e2174"
 ensdir="/users/dor/arma/gr3/data_gpfs/var/gonzalo/ensemble/interpEnsTrials/gaussian_grid"
-abs="/users/dor/arma/gr3/home1/var/trunk_572m/compiledir_calcstats/calcstats_p7.abs"
+abs="/users/dor/arma/bue/home01/3dvar_git/compiledir_calcstats/calcstats_p7.abs"
 npex=1
 npey=1
 openmp=32
-maxcputime=500
+maxcputime=600
 memory=3264M
 
 #

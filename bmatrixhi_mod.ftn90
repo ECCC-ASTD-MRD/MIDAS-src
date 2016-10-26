@@ -204,8 +204,8 @@ CONTAINS
       initialized = .true.
       return
     else
-       if (.not. (gsv_varExist('TT').and.gsv_varExist('UU').and.gsv_varExist('VV').and. &
-                  gsv_varExist('HU').and.gsv_varExist('P0').and.gsv_varExist('TG')) ) &
+       if (.not. (gsv_varExist(varName='TT').and.gsv_varExist(varName='UU').and.gsv_varExist(varName='VV').and. &
+                  gsv_varExist(varName='HU').and.gsv_varExist(varName='P0').and.gsv_varExist(varName='TG')) ) &
             call abort3d('bmatrixHI: Some or all weather fields are missing. If it is desired to deactivate the weather assimilation, then all entries of the array SCALEFACTOR in the namelist NAMBHI should be set to zero.')
     end if
 
@@ -963,7 +963,7 @@ CONTAINS
   SUBROUTINE BHI_CALCCORR(zgd,pcscl,klev)
     implicit none
     integer :: klev
-    real(8) :: zgd(myLonBeg:myLonEnd,klev,myLatBeg:myLatEnd)
+    real(8) :: zgd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,klev)
     real(8) :: pcscl(klev)
 
     integer :: jlev, jlat, jlon
@@ -988,7 +988,7 @@ CONTAINS
           zr = ra * acos(gst_getRmu(jlat,gstID))
           dlcorr = dexp(-(zr**2)*dlc)
           do  jlon = myLonBeg, myLonEnd
-            zgd(jlon,jlev,jlat) = dlcorr
+            zgd(jlon,jlat,jlev) = dlcorr
           enddo
         enddo
       enddo
@@ -1003,7 +1003,7 @@ CONTAINS
             + dlalpha*(1.d0 + dlcsurn*zr + zr*dlcsurn*zr*dlcsurn/3.d0)*dexp(-zr*dlcsurn)
           dlcorr = dlcorr*dlfac
           do jlon = myLonBeg, myLonEnd
-            zgd(jlon,jlev,jlat) = dlcorr
+            zgd(jlon,jlat,jlev) = dlcorr
           enddo
         enddo
       enddo
@@ -1029,7 +1029,7 @@ CONTAINS
     real(8) :: rcscltg_vec(nlev_T_even)
     real(8) :: zabs, zpole, dlfac, dlcorr
     real(8) :: zsp_mpilocal(maxMyNla,2,nlev_T_even)
-    real(8) :: zgd(myLonBeg:myLonEnd,nlev_T_even,myLatBeg:myLatEnd)
+    real(8) :: zgd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nlev_T_even)
     real(8) :: zsp_mpiglobal(nla_mpiglobal,2,1)
 
     real(8),allocatable :: my_zsp_mpiglobal(:,:,:)
@@ -2174,7 +2174,7 @@ CONTAINS
       return
     endif
 
-    allocate(gd_out(myLonBeg:myLonEnd,nkgdim,myLatBeg:myLatEnd))
+    allocate(gd_out(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim))
 
     call bhi_cain(controlVector_in,hiControlVector)
     call bhi_spa2gd(hiControlVector,gd_out)
@@ -2212,7 +2212,7 @@ CONTAINS
     !- Conversion of physical winds to wind images
     call uvwi2uv(statevector) ! INOUT
 
-    allocate(gd_in(myLonBeg:myLonEnd,nkgdim,myLatBeg:myLatEnd))
+    allocate(gd_in(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim))
 
     call copyFromStatevector(statevector,gd_in)
 
@@ -2231,12 +2231,12 @@ CONTAINS
   SUBROUTINE copyToStatevector(statevector,gd)
     implicit none
     type(struct_gsv) :: statevector
-    real(8) :: gd(myLonBeg:myLonEnd,nkgdim,myLatBeg:myLatEnd)
+    real(8) :: gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim)
     integer :: jlon, jlev, jlev2, jlat, jvar, ilev1, ilev2
     real(8), pointer :: field(:,:,:)
 
     do jvar = 1, vnl_numvarmax 
-      if(gsv_varExist(vnl_varNameList(jvar))) then
+      if(gsv_varExist(statevector,vnl_varNameList(jvar))) then
         field => gsv_getField3D(statevector,vnl_varNameList(jvar))
         if(vnl_varNameList(jvar).eq.'UU  ') then
           ilev1 = nspositVO
@@ -2256,11 +2256,11 @@ CONTAINS
         endif
         ilev2 = ilev1 - 1 + gsv_getNumLev(statevector,vnl_varLevelFromVarname(vnl_varNameList(jvar)))
 !!!$OMP PARALLEL DO PRIVATE(jlat,jlev,jlev2,jlon)
-        do jlat = myLatBeg, myLatEnd
-          do jlev = ilev1, ilev2
-            jlev2 = jlev-ilev1+1
+        do jlev = ilev1, ilev2
+          jlev2 = jlev-ilev1+1
+          do jlat = myLatBeg, myLatEnd
             do jlon = myLonBeg, myLonEnd
-              field(jlon,jlev2,jlat) = gd(jlon,jlev,jlat)
+              field(jlon,jlat,jlev2) = gd(jlon,jlat,jlev)
             enddo
           enddo
         enddo
@@ -2274,12 +2274,12 @@ CONTAINS
   SUBROUTINE copyFromStatevector(statevector,gd)
     implicit none
     type(struct_gsv) :: statevector
-    real(8)          :: gd(myLonBeg:myLonEnd,nkgdim,myLatBeg:myLatEnd)
+    real(8)          :: gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim)
     integer :: jlon, jlev, jlev2, jlat, jvar, ilev1, ilev2
     real(8), pointer :: field(:,:,:)
 
     do jvar = 1, vnl_numvarmax 
-      if(gsv_varExist(vnl_varNameList(jvar))) then
+      if(gsv_varExist(statevector,vnl_varNameList(jvar))) then
         field => gsv_getField3D(statevector,vnl_varNameList(jvar))
         if(vnl_varNameList(jvar).eq.'UU  ') then
           ilev1 = nspositVO
@@ -2299,11 +2299,11 @@ CONTAINS
         endif
         ilev2 = ilev1 - 1 + gsv_getNumLev(statevector,vnl_varLevelFromVarname(vnl_varNameList(jvar)))
 !!!$OMP PARALLEL DO PRIVATE(jlat,jlev,jlev2,jlon)
-        do jlat = myLatBeg, myLatEnd
-          do jlev = ilev1, ilev2
-            jlev2 = jlev-ilev1+1
+        do jlev = ilev1, ilev2
+          jlev2 = jlev-ilev1+1
+          do jlat = myLatBeg, myLatEnd
             do jlon = myLonBeg, myLonEnd
-              gd(jlon,jlev,jlat) = field(jlon,jlev2,jlat)
+              gd(jlon,jlat,jlev) = field(jlon,jlat,jlev2)
             enddo
           enddo
         enddo
@@ -2560,17 +2560,17 @@ CONTAINS
     IMPLICIT NONE
 
     real(8) :: hiControlVector_in(nla_mpilocal,2,nkgdimSqrt)
-    real(8) :: gd_out(myLonBeg:myLonEnd,nkgdim,myLatBeg:myLatEnd)
+    real(8) :: gd_out(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim)
 
     real(8) :: sptb(maxMyNla,2,nlev_T_even),sp(maxMyNla,2,nkgdim)
-    real(8) :: tb0(myLonBeg:myLonEnd,nlev_T_even,myLatBeg:myLatEnd)
+    real(8) :: tb0(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nlev_T_even)
 
     integer :: jn,jm,ila_mpilocal,ila_mpiglobal,icount
     real(8) :: sq2, zp
     real(8) , allocatable :: zsp(:,:,:), zsp2(:,:,:)
     integer :: ilon, jlev, jlon, jlat, jla_mpilocal, klatPtoT
     real(8), pointer :: zgdpsi(:,:,:),zgdchi(:,:,:)
-    real(8), target  :: gd(myLonBeg:myLonEnd,nkgdim,myLatBeg:myLatEnd)
+    real(8), target  :: gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim)
     real(8) :: dla2, dl1sa2, zcoriolis, zpsb(myLonBeg:myLonEnd,myLatBeg:myLatEnd)
 
     klatPtoT = 1
@@ -2602,7 +2602,6 @@ CONTAINS
 
       if(icount.gt.0) then
 
-        !CALL DGEMUL(corns(1,1,jn),nkgdim2,'N',zsp(1,1,1),nkgdimSqrt,'N',zsp2(1,1,1),nkgdim2,nkgdim2,nkgdimSqrt,2*icount)
         CALL DGEMM('N','N',nkgdim2,2*icount,nkgdimSqrt,1.0d0,corns(1,1,jn),nkgdim2,zsp(1,1,1),nkgdimSqrt,0.0d0,zsp2(1,1,1),nkgdim2)
 
         icount = 0
@@ -2648,15 +2647,20 @@ CONTAINS
     call tmg_stop(53)
 
 !$OMP PARALLEL DO PRIVATE(JLAT,JLEV,JLON)
-    do jlat = myLatBeg, myLatEnd
-      do jlev = 1, nkgdim
+    do jlev = 1, nkgdim
+      do jlat = myLatBeg, myLatEnd
         do jlon = myLonBeg, myLonEnd
-          gd(jlon,jlev,jlat) = 0.0d0
+          gd(jlon,jlat,jlev) = 0.0d0
         enddo
       enddo
-      do jlev = 1, nlev_T_even
+    enddo
+!$OMP END PARALLEL DO
+
+!$OMP PARALLEL DO PRIVATE(JLAT,JLEV,JLON)
+    do jlev = 1, nlev_T_even
+      do jlat = myLatBeg, myLatEnd
         do jlon = myLonBeg, myLonEnd
-          tb0(jlon,jlev,jlat) = 0.0d0
+          tb0(jlon,jlat,jlev) = 0.0d0
         enddo
       enddo
     enddo
@@ -2676,48 +2680,48 @@ CONTAINS
       do jlon = myLonBeg, myLonEnd
         zpsb(jlon,jlat) = 0.0d0
         do jlev = 1, nlevPtoT
-         zp = zcoriolis*gd(jlon,nspositVO+jlev-1,jlat)
+         zp = zcoriolis*gd(jlon,jlat,nspositVO+jlev-1)
          zpsb(jlon,jlat) = zpsb(jlon,jlat) + PtoT(nlev_T+1,jlev,klatPtoT)*zp
         enddo
       enddo
 
       do jlev = 1, nlev_T
         do jlon = myLonBeg, myLonEnd
-          tb0(jlon,jlev,jlat) = zcoriolis*tb0(jlon,jlev,jlat)
+          tb0(jlon,jlat,jlev) = zcoriolis*tb0(jlon,jlat,jlev)
         enddo
       enddo
 
       do jlev = 1, nkgdim
         do jlon = myLonBeg, myLonEnd
           if(jlev.ne.nspositTG) then
-            gd(jlon,jlev,jlat) = gd(jlon,jlev,jlat)*rgsig(jlat,jlev)
+            gd(jlon,jlat,jlev) = gd(jlon,jlat,jlev)*rgsig(jlat,jlev)
           else
-            gd(jlon,jlev,jlat) = gd(jlon,jlev,jlat)*tgstdbg(jlon,jlat)
+            gd(jlon,jlat,jlev) = gd(jlon,jlat,jlev)*tgstdbg(jlon,jlat)
           endif
         enddo
       enddo
 
       do jlev = 1, nlev_T
         do jlon = myLonBeg, myLonEnd
-          tb0(jlon,jlev,jlat) = tb0(jlon,jlev,jlat)*rgsigtb(jlat,jlev)
-          gd(jlon,nspositTT+jlev-1,jlat) = gd(jlon,nspositTT+jlev-1,jlat)+tb0(jlon,jlev,jlat)
+          tb0(jlon,jlat,jlev) = tb0(jlon,jlat,jlev)*rgsigtb(jlat,jlev)
+          gd(jlon,jlat,nspositTT+jlev-1) = gd(jlon,jlat,nspositTT+jlev-1)+tb0(jlon,jlat,jlev)
         enddo
       enddo
       do jlon = myLonBeg, myLonEnd
         zpsb(jlon,jlat) = zpsb(jlon,jlat)*rgsigpsb(jlat)
-        gd(jlon,nspositPS,jlat) = gd(jlon,nspositPS,jlat)+zpsb(jlon,jlat)
+        gd(jlon,jlat,nspositPS) = gd(jlon,jlat,nspositPS)+zpsb(jlon,jlat)
       enddo
     enddo  ! jlat
 !$OMP END PARALLEL DO
     call tmg_stop(54)
 
-    zgdpsi(myLonBeg:,1:,myLatBeg:) => gd(myLonBeg:myLonEnd,nspositVO:(nspositVO+nlev_M-1),myLatBeg:myLatEnd)
-    zgdchi(myLonBeg:,1:,myLatBeg:) => gd(myLonBeg:myLonEnd,nspositDI:(nspositDI+nlev_M-1),myLatBeg:myLatEnd)
+    zgdpsi(myLonBeg:,myLatBeg:,1:) => gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nspositVO:(nspositVO+nlev_M-1))
+    zgdchi(myLonBeg:,myLatBeg:,1:) => gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nspositDI:(nspositDI+nlev_M-1))
 !$OMP PARALLEL DO PRIVATE(jlat,jlev,jlon)
-    do jlat = myLatBeg, myLatEnd
-      do jlev = nlev_bdl, nlev_M
+    do jlev = nlev_bdl, nlev_M
+      do jlat = myLatBeg, myLatEnd
         do jlon = myLonBeg, myLonEnd
-          zgdchi(jlon,jlev,jlat) = zgdchi(jlon,jlev,jlat) - tantheta(jlev,jlat)*zgdpsi(jlon,jlev,jlat)
+          zgdchi(jlon,jlat,jlev) = zgdchi(jlon,jlat,jlev) - tantheta(jlev,jlat)*zgdpsi(jlon,jlat,jlev)
         enddo
       enddo
     enddo
@@ -2745,10 +2749,10 @@ CONTAINS
 !$OMP END PARALLEL DO
 
 !$OMP PARALLEL DO PRIVATE(JLAT,JLEV,JLON)
-    do jlat = myLatBeg, myLatEnd
-      do jlev = 1, nkgdim
+    do jlev = 1, nkgdim
+      do jlat = myLatBeg, myLatEnd
         do jlon = myLonBeg, myLonEnd
-          gd(jlon,jlev,jlat) = 0.0d0
+          gd(jlon,jlat,jlev) = 0.0d0
         enddo
       enddo
     enddo
@@ -2760,10 +2764,10 @@ CONTAINS
     call tmg_stop(57)
 
 !$OMP PARALLEL DO PRIVATE(JLAT,JLEV,JLON)
-    do jlat = myLatBeg, myLatEnd
-      do jlev = 1, nkgdim
+    do jlev = 1, nkgdim
+      do jlat = myLatBeg, myLatEnd
         do jlon = myLonBeg, myLonEnd
-          gd_out(jlon,jlev,jlat) = gd(jlon,jlev,jlat)
+          gd_out(jlon,jlat,jlev) = gd(jlon,jlat,jlev)
         enddo
       enddo
     enddo
@@ -2776,11 +2780,11 @@ CONTAINS
     implicit none
 
     real(8) :: hiControlVector_out(nla_mpilocal,2,nkgdimSqrt)
-    real(8) :: gd_in(myLonBeg:myLonEnd,nkgdim,myLatBeg:myLatEnd)
+    real(8) :: gd_in(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim)
 
     real(8) :: sptb(maxMyNla,2,nlev_T_even)
     real(8) :: sp(maxMyNla,2,nkgdim)
-    real(8) :: tb0(myLonBeg:myLonEnd,nlev_T_even,myLatBeg:myLatEnd)
+    real(8) :: tb0(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nlev_T_even)
 
     integer :: jn, jm, ila_mpilocal, ila_mpiglobal, icount
     real(8) :: sq2, zp
@@ -2789,15 +2793,15 @@ CONTAINS
     integer :: ilon, jlev, jlon, jlat, jla_mpilocal, klatPtoT
     real(8) :: dl1sa2, dla2, zcoriolis, zpsb(myLonBeg:myLonEnd,myLatBeg:myLatEnd)
     real(8),pointer :: zgdpsi(:,:,:) ,zgdchi(:,:,:)
-    real(8), target :: gd(myLonBeg:myLonEnd,nkgdim,myLatBeg:myLatEnd)
+    real(8), target :: gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim)
 
     klatPtoT = 1
 
 !$OMP PARALLEL DO PRIVATE(JLAT,JLEV,JLON)
-    do jlat = myLatBeg, myLatEnd
-      do jlev = 1, nkgdim
+    do jlev = 1, nkgdim
+      do jlat = myLatBeg, myLatEnd
         do jlon = myLonBeg, myLonEnd
-          gd(jlon,jlev,jlat) = gd_in(jlon,jlev,jlat)
+          gd(jlon,jlat,jlev) = gd_in(jlon,jlat,jlev)
         enddo
       enddo
     enddo
@@ -2827,13 +2831,13 @@ CONTAINS
     call gst_speree4(sp,gd)
     call tmg_stop(55) 
 
-    zgdpsi(myLonBeg:,1:,myLatBeg:) => gd(myLonBeg:myLonEnd,nspositVO:(nspositVO+nlev_M-1),myLatBeg:myLatEnd)
-    zgdchi(myLonBeg:,1:,myLatBeg:) => gd(myLonBeg:myLonEnd,nspositDI:(nspositDI+nlev_M-1),myLatBeg:myLatEnd)
+    zgdpsi(myLonBeg:,myLatBeg:,1:) => gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nspositVO:(nspositVO+nlev_M-1))
+    zgdchi(myLonBeg:,myLatBeg:,1:) => gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nspositDI:(nspositDI+nlev_M-1))
 !$OMP PARALLEL DO PRIVATE(jlat,jlev,jlon)
-    do jlat = myLatBeg, myLatEnd
-      do jlev = nlev_bdl, nlev_M
+    do jlev = nlev_bdl, nlev_M
+      do jlat = myLatBeg, myLatEnd
         do jlon = myLonBeg, myLonEnd
-          zgdpsi(jlon,jlev,jlat) = zgdpsi(jlon,jlev,jlat) - tantheta(jlev,jlat)*zgdchi(jlon,jlev,jlat)
+          zgdpsi(jlon,jlat,jlev) = zgdpsi(jlon,jlat,jlev) - tantheta(jlev,jlat)*zgdchi(jlon,jlat,jlev)
         enddo
       enddo
     enddo
@@ -2843,38 +2847,38 @@ CONTAINS
 !$OMP PARALLEL DO PRIVATE(jlat,zcoriolis,jlev,jlon,zp)
     do jlat = myLatBeg, myLatEnd
       zcoriolis = 2.d0*romega*gst_getRMU(jlat,gstID)
-      tb0(:,:,jlat) = 0.0d0
+      tb0(:,jlat,:) = 0.0d0
       do jlev = 1, nlev_T
         do jlon = myLonBeg, myLonEnd
-          tb0(jlon,jlev,jlat) = gd(jlon,nspositTT+jlev-1,jlat)
-          tb0(jlon,jlev,jlat) = tb0(jlon,jlev,jlat)*rgsigtb(jlat,jlev)
+          tb0(jlon,jlat,jlev) = gd(jlon,jlat,nspositTT+jlev-1)
+          tb0(jlon,jlat,jlev) = tb0(jlon,jlat,jlev)*rgsigtb(jlat,jlev)
         enddo
       enddo
       do jlon = myLonBeg, myLonEnd
-        zpsb(jlon,jlat) = gd(jlon,nspositPS,jlat)
+        zpsb(jlon,jlat) = gd(jlon,jlat,nspositPS)
         zpsb(jlon,jlat) = zpsb(jlon,jlat)*rgsigpsb(jlat)
       enddo
 
       do jlev = 1, nkgdim
         do jlon = myLonBeg, myLonEnd
           if(jlev.ne.nspositTG) then
-            gd(jlon,jlev,jlat) = gd(jlon,jlev,jlat)*rgsig(jlat,jlev)
+            gd(jlon,jlat,jlev) = gd(jlon,jlat,jlev)*rgsig(jlat,jlev)
           else
-            gd(jlon,nspositTG,jlat) = gd(jlon,nspositTG,jlat)*tgstdbg(jlon,jlat)
+            gd(jlon,jlat,nspositTG) = gd(jlon,jlat,nspositTG)*tgstdbg(jlon,jlat)
           endif
         enddo
       enddo
 
       do jlev = 1, nlev_T
         do jlon = myLonBeg, myLonEnd
-          tb0(jlon,jlev,jlat) = zcoriolis*tb0(jlon,jlev,jlat)
+          tb0(jlon,jlat,jlev) = zcoriolis*tb0(jlon,jlat,jlev)
         enddo
       enddo
 
       do jlev = 1, nlevPtoT
         do jlon = myLonBeg, myLonEnd
           zp = PtoT(nlev_T+1,jlev,klatPtoT)*zpsb(jlon,jlat)
-          gd(jlon,nspositVO+jlev-1,jlat) = zcoriolis*zp+gd(jlon,nspositVO+jlev-1,jlat)
+          gd(jlon,jlat,nspositVO+jlev-1) = zcoriolis*zp+gd(jlon,jlat,nspositVO+jlev-1)
         enddo
       enddo
     enddo
@@ -2916,7 +2920,6 @@ CONTAINS
 
       if(icount.gt.0) then
 
-        !CALL DGEMUL(corns(1,1,jn),nkgdim2,'T',zsp2(1,1,1),nkgdim2,'N',zsp(1,1,1),nkgdimSqrt,nkgdimSqrt,nkgdim2,2*icount)
         CALL DGEMM('T','N',nkgdimSqrt,2*icount,nkgdim2,1.0d0,corns(1,1,jn),nkgdim2,zsp2(1,1,1),nkgdim2,0.0d0,zsp(1,1,1),nkgdimSqrt)
 
         icount = 0
@@ -2995,21 +2998,19 @@ CONTAINS
     lat2 = statevector%myLatEnd
     nlev_gsv = gsv_getNumLev(statevector,'MM')
 
-!$OMP PARALLEL
-!$OMP DO PRIVATE (jlat,jstep,jlev,jlon,conphy)
-    do jlat = lat1, lat2
-      conphy = ra*gst_getr1qm2(jlat,gstID)
+!$OMP PARALLEL DO PRIVATE (jlat,jstep,jlev,jlon,conphy)
+    do jlev = 1, nlev_gsv
       do jstep = 1, statevector%numStep
-        do jlev = 1, nlev_gsv
+        do jlat = lat1, lat2
+          conphy = ra*gst_getr1qm2(jlat,gstID)
           do jlon = lon1, lon2
-            uu_ptr(jlon,jlev,jlat,jstep) = conphy * uu_ptr(jlon,jlev,jlat,jstep)
-            vv_ptr(jlon,jlev,jlat,jstep) = conphy * vv_ptr(jlon,jlev,jlat,jstep)
+            uu_ptr(jlon,jlat,jlev,jstep) = conphy * uu_ptr(jlon,jlat,jlev,jstep)
+            vv_ptr(jlon,jlat,jlev,jstep) = conphy * vv_ptr(jlon,jlat,jlev,jstep)
           end do
         end do
       end do
     end do
-!$OMP END DO
-!$OMP END PARALLEL
+!$OMP END PARALLEL DO
 
   END SUBROUTINE uvwi2uv
 

@@ -2,15 +2,15 @@
    CMODE   = 'BHI'
 /
  &NAMSTATE
-   CGNEED(1)   ='UU'
-   CGNEED(2)   ='VV'
-   CGNEED(3)   ='TT'
-   CGNEED(4)   ='HU'
-   CGNEED(5)   ='P0'
+   ANLVAR(1)   ='UU'
+   ANLVAR(2)   ='VV'
+   ANLVAR(3)   ='TT'
+   ANLVAR(4)   ='HU'
+   ANLVAR(5)   ='P0'
 /
  &NAMENS
-   NENS=176
-   ENSFILEBASENAME='nmc_ensemble_'  
+   NENS=10
+   ENSFILEBASENAME='2014101706_006_'  
 /
  &NAMCALCB_GLB
    NTRUNC=399

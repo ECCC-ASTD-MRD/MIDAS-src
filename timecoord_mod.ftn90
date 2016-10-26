@@ -22,12 +22,12 @@ MODULE timeCoord_mod
   private
   
   ! public variables
-  public :: tim_dstepobs,tim_dstepobsinc
-  public :: tim_nstepobs,tim_nstepobsinc
+  public :: tim_dstepobs, tim_dstepobsinc
+  public :: tim_nstepobs, tim_nstepobsinc
   ! public procedures
   public :: tim_setup
-  public :: tim_sutimeinterp,tim_setTimeInterpWeight,tim_getTimeInterpWeight
-  public :: tim_getDateStamp,tim_setDateStamp,tim_getStampList
+  public :: tim_sutimeinterp, tim_setTimeInterpWeight, tim_getTimeInterpWeight
+  public :: tim_getDateStamp, tim_setDateStamp, tim_getStampList, tim_getStepObsIndex
 
   real*8    :: tim_dstepobs
   real*8    :: tim_dstepobsinc
@@ -93,7 +93,7 @@ contains
       if(tim_nstepobsinc.eq.1) then
         call tim_setTimeInterpWeight(1.0d0,jobs,1)
       else
-        call getStepObsIndex(stepObsIndex,tim_getDatestamp(),  &
+        call tim_getStepObsIndex(stepObsIndex,tim_getDatestamp(),  &
                              obs_headElem_i(lobsSpaceData,OBS_DAT,jobs),  &
                              obs_headElem_i(lobsSpaceData,OBS_ETM,jobs),tim_nstepobsinc)
         if(floor(stepObsIndex).ge.tim_nstepobsinc) then
@@ -188,5 +188,58 @@ contains
     enddo
 
   end subroutine tim_getStampList
+
+
+  subroutine tim_getStepObsIndex(dnstepobs,kstsyn,kdobs,ktobs,knstepobs)
+    implicit none
+    ! Author : Mark Buehner (based on stepobs.ftn90)
+    !
+    ! Purpose: Return the stepobs index as a real number (-1.0 if out of range)
+    !
+    integer, intent(in) :: kstsyn    ! Synop CMC date-time stamp
+    integer, intent(in) :: kdobs     ! Obs date YYYYMMDD
+    integer, intent(in) :: ktobs     ! Obs time HHMM
+    integer, intent(in) :: knstepobs ! number of stepobs in assimilation window
+
+    real*8,  intent(out):: dnstepobs ! number of stepobs from synop time
+
+    ! Locals
+    real*8  :: dddt      ! dstepobs
+    integer :: newdate, istat, imode
+    integer :: istobs    ! Obs CMC date-time stamp
+    integer :: itobs     ! Obs time HHMMSShh
+    real*8  :: dlhours   ! Del time from synop time
+
+    ! ----------------------- CODE ---------------------------------------------
+
+    ! Building observation stamp
+    imode = 3 ! printable to stamp
+!    itobs = ktobs * 10000 + 2900
+    itobs = ktobs * 10000
+    istat = newdate(istobs, kdobs,itobs,imode)
+
+    ! Difference (in hours) between obs time and synop time
+    call difdatr (istobs,kstsyn, dlhours)
+
+    if(knstepobs.gt.1) then
+      ! FGAT: more than 1 trial field in time window
+      dddt = 6.0d0/(real(knstepobs-1,8))
+      dnstepobs = dlhours/dddt ! number of step obs from synop time
+      dnstepobs = dnstepobs + real((knstepobs+1)/2,8)
+      if(dnstepobs.lt.0.5d0.or.dnstepobs.gt.(0.5d0+real(knstepobs,8))) dnstepobs=-1.0d0
+
+    else
+      ! 3D-Var: only 1 trial field in time window
+      if(dlhours.lt.-3.0d0.or.dlhours.gt.3.0d0) then
+        ! outside time window
+        dnstepobs=-1.0d0
+      else
+        ! inside time window
+        dnstepobs= 1.0d0
+      endif
+
+    endif
+
+  end subroutine tim_getStepObsIndex
 
 end MODULE timeCoord_mod

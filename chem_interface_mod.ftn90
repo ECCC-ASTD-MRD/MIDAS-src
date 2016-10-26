@@ -1203,7 +1203,7 @@ contains
     integer, external :: fclos
 
     do jvar = 1, vnl_numvarmax
-      if (gsv_varExist(vnl_varNameList(jvar))) then 
+      if (gsv_varExist(varName=vnl_varNameList(jvar))) then 
          if (vnl_varKindFromVarname(vnl_varNameList(jvar)).eq.'CH') then
 
             varName=vnl_varNameList(jvar)
@@ -1380,17 +1380,17 @@ contains
       real(8) :: valmin
       
       do jstep=step1,step2
-         do jlat=lat1,lat2
-            do jlev=lev1,lev2
+         do jlev=lev1,lev2
+            do jlat=lat1,lat2
                 
-               valmin = minval(field(lon1:lon2,jlev,jlat,jstep), mask=field(lon1:lon2,jlev,jlat,jstep).gt.0.)
+               valmin = minval(field(lon1:lon2,jlat,jlev,jstep), mask=field(lon1:lon2,jlat,jlev,jstep).gt.0.)
                if (valmin.gt.1.E30) valmin=1.E-20
 
                do jlon=lon1,lon2
                   if (field(jlon,jlev,jlat,jstep).gt.0) then
-                     log_field(jlon,jlev,jlat,jstep) = log(field(jlon,jlev,jlat,jstep))
+                     log_field(jlon,jlat,jlev,jstep) = log(field(jlon,jlat,jlev,jstep))
                   else
-                     log_field(jlon,jlev,jlat,jstep) = log(valmin)
+                     log_field(jlon,jlat,jlev,jstep) = log(valmin)
                   end if
                end do
 
@@ -1472,12 +1472,12 @@ contains
        count = 0
 
        do jstep=step1,step2
-          do jlat=lat1,lat2
-             do jlev=lev1,lev2
+          do jlev=lev1,lev2
+             do jlat=lat1,lat2
                 do jlon=lon1,lon2
                    
-                   bkgrnd = background_field(jlon,jlev,jlat,jstep)
-                   inc = increment_field(jlon,jlev,jlat,jstep)
+                   bkgrnd = background_field(jlon,jlat,jlev,jstep)
+                   inc = increment_field(jlon,jlat,jlev,jstep)
 
                    if (bkgrnd.lt.0.0 .and. bkgrnd+inc.lt.0.0) then
 
@@ -1489,7 +1489,7 @@ contains
 
                       write(unit,'(4(I4,1X),2G12.2)') jlon,jlev,jlat,jstep,bkgrnd,inc
 
-                      increment_field(jlon,jlev,jlat,jstep) = -bkgrnd
+                      increment_field(jlon,jlat,jlev,jstep) = -bkgrnd
                       count = count+1
 
                    end if
@@ -1511,12 +1511,12 @@ contains
        count = 0
 
        do jstep=step1,step2
-          do jlat=lat1,lat2
-             do jlev=lev1,lev2
+          do jlev=lev1,lev2
+             do jlat=lat1,lat2
                 do jlon=lon1,lon2
 
-                   bkgrnd = background_field(jlon,jlev,jlat,jstep)
-                   inc = increment_field(jlon,jlev,jlat,jstep)
+                   bkgrnd = background_field(jlon,jlat,jlev,jstep)
+                   inc = increment_field(jlon,jlat,jlev,jstep)
 
                    if (bkgrnd+inc.lt.chm_config%low_cutoff(iconstituent_id)*bkgrnd .and. bkgrnd.ge.0.) then
 
@@ -1531,7 +1531,7 @@ contains
 
                       write(unit,'(4(I4,1X),3G12.2)') jlon,jlev,jlat,jstep,bkgrnd,inc,new_inc
 
-                      increment_field(jlon,jlev,jlat,jstep) = new_inc
+                      increment_field(jlon,jlat,jlev,jstep) = new_inc
                       count = count+1
 
                    end if
@@ -1557,12 +1557,12 @@ contains
        count = 0
 
        do jstep=step1,step2
-          do jlat=lat1,lat2
-             do jlev=lev1,lev2
+          do jlev=lev1,lev2
+             do jlat=lat1,lat2
                 do jlon=lon1,lon2
 
-                   bkgrnd = background_field(jlon,jlev,jlat,jstep)
-                   inc = increment_field(jlon,jlev,jlat,jstep)
+                   bkgrnd = background_field(jlon,jlat,jlev,jstep)
+                   inc = increment_field(jlon,jlat,jlev,jstep)
 
                    if (bkgrnd+inc.gt.chm_config%high_cutoff(iconstituent_id)*bkgrnd .and. bkgrnd.ge.0.) then
 
@@ -1577,7 +1577,7 @@ contains
 
                       write(unit,'(4(I4,1X),3G12.2)') jlon,jlev,jlat,jstep,bkgrnd,inc,new_inc
 
-                      increment_field(jlon,jlev,jlat,jstep) = new_inc
+                      increment_field(jlon,jlat,jlev,jstep) = new_inc
                       count = count+1
 
                    end if
@@ -1722,7 +1722,7 @@ contains
     if (.not.chm_initialized) return
 
     VARLIST: do jvar = 1, vnl_numvarmax
-       if (gsv_varExist(vnl_varNameList(jvar))) then
+       if (gsv_varExist(varName=vnl_varNameList(jvar))) then
           if (vnl_varKindFromVarname(vnl_varNameList(jvar)).eq.'CH') then
              chm_assim = .true.
              exit VARLIST 

@@ -416,7 +416,7 @@ contains
 
     !- Make sure that all the control variables are present in GridStateVector
     do var = 1, nControlVariable
-       if ( .not. gsv_varExist(ControlVariable(var)%nomvar(cv_model)) ) then
+       if ( .not. gsv_varExist(varName=ControlVariable(var)%nomvar(cv_model)) ) then
           write(*,*)
           write(*,*) 'lbhi_GetControlVariableInfo: The following variable is MISSING in GridStateVector'
           write(*,*) trim(ControlVariable(var)%nomvar(cv_model))
@@ -428,7 +428,7 @@ contains
 !!$    !- Make sure that all the variables in GridStateVector are present in the control variables
 !!$    do varvnl = 1, vnl_numvarmax
 !!$
-!!$       if ( gsv_varExist(vnl_varNameList(varvnl)) ) then
+!!$       if ( gsv_varExist(varName=vnl_varNameList(varvnl)) ) then
 !!$
 !!$          found = .false.
 !!$          do var = 1, nControlVariable
@@ -1224,7 +1224,7 @@ contains
 
       varname = ControlVariable(var)%nomvar(cv_model)
 
-      if (.not. gsv_varExist(varname) ) then
+      if (.not. gsv_varExist(statevector,varname) ) then
          write(*,*)
          write(*,*) 'StatevectorInterface: The following variable is MISSING in GridStateVector'
          write(*,*) varname
@@ -1245,14 +1245,14 @@ contains
       end if
 
 !$OMP PARALLEL DO PRIVATE(j,kgd,k,i)
-      do j = myLatBeg, myLatEnd
-         do kgd = kgdStart, kgdEnd
-            k = kgd - kgdStart + 1
+      do kgd = kgdStart, kgdEnd
+         k = kgd - kgdStart + 1
+         do j = myLatBeg, myLatEnd
             do i = myLonBeg, myLonEnd
                if ( ToStateVector ) then
-                  field(i,k,j) = gd(i,j,kgd)
+                  field(i,j,k) = gd(i,j,kgd)
                else
-                  gd(i,j,kgd)  = field(i,k,j)
+                  gd(i,j,kgd)  = field(i,j,k)
                end if
             end do
          end do

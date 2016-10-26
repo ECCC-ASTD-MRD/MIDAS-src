@@ -138,11 +138,11 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
        obs_famExist(lobsSpaceData,'SF').or.obs_famExist(lobsSpaceData,'RO').or.obs_famExist(lobsSpaceData,'SC').or. &
        obs_famExist(lobsSpaceData,'GP').or.obs_famExist(lobsSpaceData,'PR') ) then
      ! Not all following fields required for some of the above families.
-     if (.not.(gsv_varExist('TT').and.gsv_varExist('UU').and.gsv_varExist('VV') &
-          .and.gsv_varExist('HU').and.gsv_varExist('P0').and.gsv_varExist('TG')) ) then      
+     if (.not.(gsv_varExist(varName='TT').and.gsv_varExist(varName='UU').and.gsv_varExist(varName='VV') &
+          .and.gsv_varExist(varName='HU').and.gsv_varExist(varName='P0').and.gsv_varExist(varName='TG')) ) then      
         call abort3d(' preproc: One or more missing weather field in NAMSTATE') 
      end if
-  else if (obs_famExist(lobsSpaceData,'TO') .and. .not.gsv_varExist('TT')) then
+  else if (obs_famExist(lobsSpaceData,'TO') .and. .not.gsv_varExist(varName='TT')) then
      ! Minimum requirement for 'TO' in the absence of assimilation of other weather-related families.
      ! This minimum requirement is for when only constituent (non-H2O) increments are to be produced 
      ! when TO obs are provided.

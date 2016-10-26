@@ -19,7 +19,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
 
       logical                 :: active
 
-      INTEGER JLAT, JLON, J, JOBS
+      INTEGER JLAT, JLON, JLEV, JOBS
 
       CHARACTER*12 CLETIKET
       CHARACTER*2 CLTYPVAR
@@ -84,7 +84,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
          shift_level = 0
       endif
 
-      allocate(ZBUFFER(HCO_ANL % NI,HCO_ANL % NJ))
+      allocate(ZBUFFER(HCO_ANL%NI,HCO_ANL%NJ))
 
       call gsv_setVco(statevector,col_getVco(lcolumng))
       call gsv_setHco(statevector,hco_anl)
@@ -94,9 +94,9 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
       call col_setVco(lcolumn,col_getVco(lcolumng))
       call col_allocate(lcolumn,col_getNumCol(lcolumng))
       call col_copyLatLon(lcolumng,lcolumn)
-!C
-!C     1. Opening the statistics file
-!C
+!
+!     1. Opening the statistics file
+!
       IULSSF=0
       IERR=FNOM(iulssf,'./bgcov','RND+OLD+R/O',0)
       IF ( IERR .EQ. 0 ) THEN
@@ -106,292 +106,291 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
       ELSE
         CALL ABORT3D('HBHT_static:NO BACKGROUND STAT FILE!!')
       ENDIF
-!C
-!C     .  2.1 Background error standard deviations
-!C
+!
+!     2.1 Background error standard deviations
+!
       CLETIKET = 'BGCK_STDDEV'
       write(*,*) 'HBHT_static: CLETIKET = ',CLETIKET
       IDATE    = -1
       IP2      = -1
       IP3      = -1
       CLTYPVAR =' '
-!C
-!C READ IN STANDARD DEVIATION FOR EACH OBSERVATION TYPE
-!C
-      CLNOMVAR = 'UU'
-      write(*,*) CLNOMVAR 
+!
+!     READ IN STANDARD DEVIATION FOR EACH OBSERVATION TYPE
+!
+      clnomvar = 'UU'
+      write(*,*) clnomvar 
       field_ptr => gsv_getField3D(statevector,'UU')       
-      do j = 1,nlev_M
-         IP1 = vco_anl%ip1_M(j)
-         IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
-         IERR = FSTPRM(IKEY,IDATEO,IDEET,INPAS   &
-              ,INI,INJ,INK, INBITS, IDATYP       &
-              ,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR,CLETIKET,CLGRTYP   &
-              ,IG1,IG2,IG3,IG4,ISWA,ILENGTH,IDLTF   &
-              ,IUBC,IEXTR1,IEXTR2,IEXTR3)
-         if (ini /= hco_anl % ni .or. inj /= hco_anl % nj .or. ink /= 1) then
+      do jlev = 1, nlev_M
+         ip1 = vco_anl%ip1_M(jlev)
+         ikey = vfstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+         ierr = fstprm(ikey,idateo,ideet,inpas   &
+              ,ini,inj,ink, inbits, idatyp       &
+              ,ip1,ip2,ip3,cltypvar,clnomvar,cletiket,clgrtyp   &
+              ,ig1,ig2,ig3,ig4,iswa,ilength,idltf   &
+              ,iubc,iextr1,iextr2,iextr3)
+         if (ini /= hco_anl%ni .or. inj /= hco_anl%nj .or. ink /= 1) then
             write(*,*)
             write(*,*) 'HBHT_static: Invalid dimensions for...'
-            write(*,*) 'nomvar         =', trim(CLNOMVAR)
-            write(*,*) 'etiket         =', trim(CLETIKET)
+            write(*,*) 'nomvar         =', trim(clnomvar)
+            write(*,*) 'etiket         =', trim(cletiket)
             write(*,*) 'Found ni,nj,nk =', ini, inj, ink
-            write(*,*) 'Should be      =', hco_anl % ni, hco_anl % nj, nlev_M
+            write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, nlev_M
             call abort3d('compute_HBHT_static')
          end if
-         DO JLAT = 1, hco_anl % nJ
-            DO JLON=1,hco_anl % nI
-               field_ptr(JLON,J,JLAT)       = scaleFactor(j+shift_level)*ZBUFFER(JLON,JLAT)*MPC_M_PER_S_PER_KNOT_R8
-             END DO
-          END DO
-      END DO
+         do jlat = 1, hco_anl%nj
+            do jlon = 1, hco_anl%ni
+               field_ptr(jlon,jlat,jlev) = scaleFactor(jlev+shift_level)*zbuffer(jlon,jlat)*MPC_M_PER_S_PER_KNOT_R8
+             end do
+          end do
+      end do
 
-      CLNOMVAR = 'VV'
-      write(*,*) CLNOMVAR
+      clnomvar = 'VV'
+      write(*,*) clnomvar
       field_ptr => gsv_getField3D(statevector,'VV')
-      do j = 1,nlev_M
-         IP1 = vco_anl%ip1_M(j)
-         IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
-         if (ini /= hco_anl % ni .or. inj /= hco_anl % nj .or. ink /= 1) then
+      do jlev = 1, nlev_M
+         ip1 = vco_anl%ip1_M(jlev)
+         ikey = vfstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+         if (ini /= hco_anl%ni .or. inj /= hco_anl%nj .or. ink /= 1) then
             write(*,*)
             write(*,*) 'HBHT_static: Invalid dimensions for...'
-            write(*,*) 'nomvar         =', trim(CLNOMVAR)
-            write(*,*) 'etiket         =', trim(CLETIKET)
+            write(*,*) 'nomvar         =', trim(clnomvar)
+            write(*,*) 'etiket         =', trim(cletiket)
             write(*,*) 'Found ni,nj,nk =', ini, inj, ink
-            write(*,*) 'Should be      =', hco_anl % ni, hco_anl % nj, nlev_M
+            write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, nlev_M
             call abort3d('compute_HBHT_static')
          end if
 
-         DO JLAT = 1, HCO_ANL % NJ
-            DO JLON=1,HCO_ANL % NI
-               field_ptr(JLON,J,JLAT)       = scaleFactor(j+shift_level)*ZBUFFER(JLON,JLAT)*MPC_M_PER_S_PER_KNOT_R8
-            END DO
-         END DO
-      END DO
+         do jlat = 1, hco_anl%nj
+            do jlon = 1, hco_anl%ni
+               field_ptr(jlon,jlat,jlev) = scalefactor(jlev+shift_level)*zbuffer(jlon,jlat)*MPC_M_PER_S_PER_KNOT_R8
+            end do
+         end do
+      end do
 
-      CLNOMVAR = 'ES'
-      write(*,*) CLNOMVAR
+      clnomvar = 'ES'
+      write(*,*) clnomvar
       field_ptr => gsv_getField3D(statevector,'HU')
-      DO J = 1, nlev_T
-         IP1 = vco_anl%ip1_T(j)
-         IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
-         if (ini /= hco_anl % ni .or. inj /= hco_anl % nj .or. ink /= 1) then
+      do jlev = 1, nlev_T
+         ip1 = vco_anl%ip1_T(jlev)
+         ikey = vfstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+         if (ini /= hco_anl%ni .or. inj /= hco_anl%nj .or. ink /= 1) then
             write(*,*)
             write(*,*) 'HBHT_static: Invalid dimensions for...'
-            write(*,*) 'nomvar         =', trim(CLNOMVAR)
-            write(*,*) 'etiket         =', trim(CLETIKET)
+            write(*,*) 'nomvar         =', trim(clnomvar)
+            write(*,*) 'etiket         =', trim(cletiket)
             write(*,*) 'Found ni,nj,nk =', ini, inj, ink
-            write(*,*) 'Should be      =', hco_anl % ni, hco_anl % nj, nlev_T
+            write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, nlev_T
             call abort3d('compute_HBHT_static')
          end if
-         DO JLAT = 1, HCO_ANL % NJ
-            DO JLON=1,HCO_ANL % NI
-               field_ptr(JLON,J,JLAT)       = scaleFactor(j)*ZBUFFER(JLON,JLAT)
-            END DO
-         END DO
-      END DO
+         do jlat = 1, hco_anl%nj
+            do jlon = 1, hco_anl%ni
+               field_ptr(jlon,jlat,jlev) = scaleFactor(jlev)*zbuffer(jlon,jlat)
+            end do
+         end do
+      end do
 
       ! GZ is put into TT slot in gridStateVector
-      CLNOMVAR = 'GZ'
-      write(*,*) CLNOMVAR
+      clnomvar = 'GZ'
+      write(*,*) clnomvar
       field_ptr => gsv_getField3D(statevector,'TT')
-      DO J = 1, nlev_T
-         IP1 = vco_anl%ip1_T(j)
-         IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
-         if (ini /= hco_anl % ni .or. inj /= hco_anl % nj .or. ink /= 1) then
+      do jlev = 1, nlev_T
+         ip1 = vco_anl%ip1_T(jlev)
+         ikey = vfstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+         if (ini /= hco_anl%ni .or. inj /= hco_anl%nj .or. ink /= 1) then
             write(*,*)
             write(*,*) 'HBHT_static: Invalid dimensions for...'
-            write(*,*) 'nomvar         =', trim(CLNOMVAR)
-            write(*,*) 'etiket         =', trim(CLETIKET)
+            write(*,*) 'nomvar         =', trim(clnomvar)
+            write(*,*) 'etiket         =', trim(cletiket)
             write(*,*) 'Found ni,nj,nk =', ini, inj, ink
-            write(*,*) 'Should be      =', hco_anl % ni, hco_anl % nj, nlev_T
+            write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, nlev_T
             call abort3d('compute_HBHT_static')
          end if
-         DO JLAT = 1, HCO_ANL % NJ
-            DO JLON=1,HCO_ANL % NI
-               field_ptr(JLON,J,JLAT)       = scaleFactor(j)*ZBUFFER(JLON,JLAT)*RG*10.d0
-            END DO
-         END DO
-      END DO
+         do jlat = 1, hco_anl%nj
+            do jlon = 1, hco_anl%ni
+               field_ptr(jlon,jlat,jlev) = scaleFactor(jlev)*zbuffer(jlon,jlat)*RG*10.d0
+            end do
+         end do
+      end do
 
-      CALL BILIN(lcolumn,statevector,lobsSpaceData)
+      call bilin(lcolumn,statevector,lobsSpaceData)
 
       ! copy GZ data from TT to GZ slot in columnData
       do jobs= 1, col_getNumCol(lcolumn)
          gz_column => col_getColumn(lcolumn,jobs,'GZ','TH')
          tt_column => col_getColumn(lcolumn,jobs,'TT')
-         do j = 1,col_getNumLev(lcolumn,'TH')
-            gz_column(j)=tt_column(j)
+         do jlev = 1,col_getNumLev(lcolumn,'TH')
+            gz_column(jlev)=tt_column(jlev)
          enddo
       enddo
 
-!C
-!C    SET THE FIRST-GUESS ERRORS FOR CONVENTIONAL DATA ON PRESSURE LEVELS
-!C    --------------------------------------------------------------------
-!C
-      CALL SETFGEFAM('AI',lcolumn,lcolumng,lobsSpaceData)
-      CALL SETFGEFAM('SW',lcolumn,lcolumng,lobsSpaceData)
-      CALL SETFGEFAM('UA',lcolumn,lcolumng,lobsSpaceData)
-      CALL SETFGEFAM('SF',lcolumn,lcolumng,lobsSpaceData)
-      CALL SETFGEFAM('HU',lcolumn,lcolumng,lobsSpaceData)
-      CALL SETFGEFAMZ('PR',lcolumn,lcolumng,lobsSpaceData)
-!C
-!C    SET THE FIRST-GUESS ERRORS FOR RADIO OCCULTATION DATA
-!C    -----------------------------------------------------
-!C
-      CALL SETFGEDIF('RO',lcolumng,lobsSpaceData)
+!
+!     SET THE FIRST-GUESS ERRORS FOR CONVENTIONAL DATA ON PRESSURE LEVELS
+!     --------------------------------------------------------------------
+!
+      call setfgefam('AI',lcolumn,lcolumng,lobsSpaceData)
+      call setfgefam('SW',lcolumn,lcolumng,lobsSpaceData)
+      call setfgefam('UA',lcolumn,lcolumng,lobsSpaceData)
+      call setfgefam('SF',lcolumn,lcolumng,lobsSpaceData)
+      call setfgefam('HU',lcolumn,lcolumng,lobsSpaceData)
+      call setfgefamz('PR',lcolumn,lcolumng,lobsSpaceData)
+!
+!     SET THE FIRST-GUESS ERRORS FOR RADIO OCCULTATION DATA
+!     -----------------------------------------------------
+!
+      call setfgedif('RO',lcolumng,lobsSpaceData)
 
-!C
-!C    DO TEMPERATURE FIRST-GUESS ERROR
-!C    ---------------------------------
-!C
-      CLNOMVAR = 'TT'
-      write(*,*) CLNOMVAR
+!
+!     DO TEMPERATURE FIRST-GUESS ERROR
+!     ---------------------------------
+!
+      clnomvar = 'TT'
+      write(*,*) clnomvar
       field_ptr => gsv_getField3D(statevector,'TT')
-      DO J = 1, nlev_T
-         IP1 = vco_anl%ip1_T(j)
-         IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
-         if (ini /= hco_anl % ni .or. inj /= hco_anl % nj .or. ink /= 1) then
+      do jlev = 1, nlev_T
+         ip1 = vco_anl%ip1_T(jlev)
+         ikey = vfstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+         if (ini /= hco_anl%ni .or. inj /= hco_anl%nj .or. ink /= 1) then
             write(*,*)
             write(*,*) 'HBHT_static: Invalid dimensions for...'
-            write(*,*) 'nomvar         =', trim(CLNOMVAR)
-            write(*,*) 'etiket         =', trim(CLETIKET)
+            write(*,*) 'nomvar         =', trim(clnomvar)
+            write(*,*) 'etiket         =', trim(cletiket)
             write(*,*) 'Found ni,nj,nk =', ini, inj, ink
-            write(*,*) 'Should be      =', hco_anl % ni, hco_anl % nj, nlev_T
+            write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, nlev_T
             call abort3d('compute_HBHT_static')
          end if
-         DO JLAT = 1, HCO_ANL % NJ
-            DO JLON=1,HCO_ANL % NI
-               field_ptr(JLON,J,JLAT)       = scaleFactor(j)*ZBUFFER(JLON,JLAT)
-            END DO
-         END DO
-      END DO
+         do jlat = 1, hco_anl%nj
+            do jlon = 1, hco_anl%ni
+               field_ptr(jlon,jlat,jlev) = scaleFactor(jlev)*zbuffer(jlon,jlat)
+            end do
+         end do
+      end do
 
-      CALL BILIN(lcolumn,statevector,lobsSpaceData)
-      CALL SETFGETT(lcolumn,lcolumng,lobsSpaceData)
+      call bilin(lcolumn,statevector,lobsSpaceData)
+      call setfgett(lcolumn,lcolumng,lobsSpaceData)
 
-!C
-!C     RELOAD DATA TO DO SURFACE FIRST-GUESS ERRORS
-!C     ---------------------------------------------
-!C
-      CLNOMVAR = 'P0'
-      write(*,*) CLNOMVAR
-      IP1 = -1
-      IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
-      if (ini /= hco_anl % ni .or. inj /= hco_anl % nj .or. ink /= 1) then
+!
+!     RELOAD DATA TO DO SURFACE FIRST-GUESS ERRORS
+!     ---------------------------------------------
+!
+      clnomvar = 'P0'
+      write(*,*) clnomvar
+      ip1 = -1
+      ikey = vfstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+      if (ini /= hco_anl%ni .or. inj /= hco_anl%nj .or. ink /= 1) then
          write(*,*)
          write(*,*) 'HBHT_static: Invalid dimensions for...'
          write(*,*) 'nomvar         =', trim(CLNOMVAR)
          write(*,*) 'etiket         =', trim(CLETIKET)
          write(*,*) 'Found ni,nj,nk =', ini, inj, ink
-         write(*,*) 'Should be      =', hco_anl % ni, hco_anl % nj, 1
+         write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, 1
          call abort3d('compute_HBHT_static')
       end if
       field_ptr => gsv_getField3D(statevector,'P0')
-      DO J = 1, INK
-         DO JLAT = 1, HCO_ANL % NJ
-            DO JLON=1,HCO_ANL % NI
-               field_ptr(JLON,J,JLAT)       = scaleFactor(max(nLev_M,nLev_T))*ZBUFFER(JLON,JLAT)*MPC_PA_PER_MBAR_R8
-            END DO
-         END DO
-      END DO
+      do jlev = 1, ink
+         do jlat = 1, hco_anl%nj
+            do jlon = 1, hco_anl%ni
+               field_ptr(jlon,jlat,jlev) = scaleFactor(max(nLev_M,nLev_T))*zbuffer(jlon,jlat)*MPC_PA_PER_MBAR_R8
+            end do
+         end do
+      end do
 
-      CLNOMVAR = 'UU'
-      write(*,*) CLNOMVAR
+      clnomvar = 'UU'
+      write(*,*) clnomvar
       field_ptr => gsv_getField3D(statevector,'UU')
-      DO J = 1, nlev_M
-         IP1 = vco_anl%ip1_M(j)
-         IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
-         DO JLAT = 1, HCO_ANL % NJ
-            DO JLON=1,HCO_ANL % NI
-               field_ptr(JLON,J,JLAT)       = scaleFactor(j+shift_level)*ZBUFFER(JLON,JLAT)*MPC_M_PER_S_PER_KNOT_R8
-            END DO
-         END DO
-      END DO
+      do jlev = 1, nlev_M
+         ip1 = vco_anl%ip1_M(jlev)
+         ikey = vfstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+         do jlat = 1, hco_anl%nj
+            do jlon = 1, hco_anl%ni
+               field_ptr(jlon,jlat,jlev) = scaleFactor(jlev+shift_level)*zbuffer(jlon,jlat)*MPC_M_PER_S_PER_KNOT_R8
+            end do
+         end do
+      end do
 
-      CLNOMVAR = 'VV'
-      write(*,*) CLNOMVAR
+      clnomvar = 'VV'
+      write(*,*) clnomvar
       field_ptr => gsv_getField3D(statevector,'VV')
-      DO J = 1, nlev_M
-         IP1 = vco_anl%ip1_M(j)
-         IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
-         DO JLAT = 1, HCO_ANL % NJ
-            DO JLON=1,HCO_ANL % NI
-               field_ptr(JLON,J,JLAT)       = scaleFactor(j+shift_level)*ZBUFFER(JLON,JLAT)*MPC_M_PER_S_PER_KNOT_R8
-            END DO
-         END DO
-      END DO
+      do jlev = 1, nlev_M
+         ip1 = vco_anl%ip1_M(jlev)
+         ikey = vfstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+         do jlat = 1, hco_anl%nj
+            do jlon = 1, hco_anl%ni
+               field_ptr(jlon,jlat,jlev) = scaleFactor(jlev+shift_level)*zbuffer(jlon,jlat)*MPC_M_PER_S_PER_KNOT_R8
+            end do
+         end do
+      end do
 
-      CLNOMVAR = 'TT'
-      write(*,*) CLNOMVAR
+      clnomvar = 'TT'
+      write(*,*) clnomvar
       field_ptr => gsv_getField3D(statevector,'TT')
-      DO J = 1, nlev_T
-         IP1 = vco_anl%ip1_T(j)
-         IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
-         DO JLAT = 1, HCO_ANL % NJ
-            DO JLON=1,HCO_ANL % NI
-               field_ptr(JLON,J,JLAT)       = scaleFactor(j)*ZBUFFER(JLON,JLAT)
-            END DO
-         END DO
-      END DO
+      do jlev = 1, nlev_T
+         ip1 = vco_anl%ip1_T(jlev)
+         ikey = vfstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+         do jlat = 1, hco_anl%nj
+            do jlon = 1, hco_anl%ni
+               field_ptr(jlon,jlat,jlev) = scaleFactor(jlev)*zbuffer(jlon,jlat)
+            end do
+         end do
+      end do
 
-      CLNOMVAR = 'ES'
-      write(*,*) CLNOMVAR
+      clnomvar = 'ES'
+      write(*,*) clnomvar
       field_ptr => gsv_getField3D(statevector,'HU')
-      DO J = 1, nlev_T
-         IP1 = vco_anl%ip1_T(j)
-         IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
-         DO JLAT = 1, HCO_ANL % NJ
-            DO JLON=1,HCO_ANL % NI
-               field_ptr(JLON,J,JLAT)       = scaleFactor(j)*ZBUFFER(JLON,JLAT)
-            END DO
-         END DO
-      END DO
+      do jlev = 1, nlev_T
+         ip1 = vco_anl%ip1_T(jlev)
+         ikey = vfstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+         do jlat = 1, hco_anl%nj
+            do jlon = 1, hco_anl%ni
+               field_ptr(jlon,jlat,jlev) = scaleFactor(jlev)*zbuffer(jlon,jlat)
+            end do
+         end do
+      end do
 
-      CALL BILIN(lcolumn,statevector,lobsSpaceData)
-!C
-!C    SET THE FIRST-GUESS ERRORS FOR THE SURFACE DATA
-!C    ------------------------------------------------
-!C
-      CALL SETFGESURF(lcolumn,lcolumng,lobsSpaceData)
+      call bilin(lcolumn,statevector,lobsSpaceData)
+!
+!     SET THE FIRST-GUESS ERRORS FOR THE SURFACE DATA
+!     ------------------------------------------------
+!
+      call setfgesurf(lcolumn,lcolumng,lobsSpaceData)
 
-!C    READ IN LN Q FIRST-GUESS ERRORS FOR SETFGEGPS
-!C    ---------------------------------------------
-!C
-      CLNOMVAR = 'LQ'
-      write(*,*) CLNOMVAR
+!     READ IN LN Q FIRST-GUESS ERRORS FOR SETFGEGPS
+!     ---------------------------------------------
+!
+      clnomvar = 'LQ'
+      write(*,*) clnomvar
       field_ptr => gsv_getField3D(statevector,'HU')
-      DO J = 1, nlev_T
-         IP1 = vco_anl%ip1_T(j)
-         IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
-         if (ini /= hco_anl % ni .or. inj /= hco_anl % nj .or. ink /= 1) then
+      do jlev = 1, nlev_T
+         ip1 = vco_anl%ip1_T(jlev)
+         ikey = vfstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+         if (ini /= hco_anl%ni .or. inj /= hco_anl%nj .or. ink /= 1) then
             write(*,*)
             write(*,*) 'HBHT_static: Invalid dimensions for...'
-            write(*,*) 'nomvar         =', trim(CLNOMVAR)
-            write(*,*) 'etiket         =', trim(CLETIKET)
+            write(*,*) 'nomvar         =', trim(clnomvar)
+            write(*,*) 'etiket         =', trim(cletiket)
             write(*,*) 'Found ni,nj,nk =', ini, inj, ink
-            write(*,*) 'Should be      =', hco_anl % ni, hco_anl % nj, nlev_T
+            write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, nlev_T
             call abort3d('compute_HBHT_static')
          end if
-         DO JLAT = 1, HCO_ANL % NJ
-            DO JLON=1,HCO_ANL % NI
-               field_ptr(JLON,J,JLAT)       = scaleFactor(j)*ZBUFFER(JLON,JLAT)
-            END DO
-         END DO
-      END DO
+         do jlat = 1, hco_anl%nj
+            do jlon = 1, hco_anl%ni
+               field_ptr(jlon,jlat,jlev) = scaleFactor(jlev)*zbuffer(jlon,jlat)
+            end do
+         end do
+      end do
 
-      CALL BILIN(lcolumn,statevector,lobsSpaceData)
-!C
-!C    OPTIONAL TEST OF THE GB-GPS ZTD OPERATOR JACOBIAN
-!C    -------------------------------------------------
-!C
-      if (LTESTOP) CALL SETFGEGPS(lcolumn,lcolumng,lobsSpaceData)
+      call bilin(lcolumn,statevector,lobsSpaceData)
+!
+!     OPTIONAL TEST OF THE GB-GPS ZTD OPERATOR JACOBIAN
+!     -------------------------------------------------
+!
+      if (ltestop) call setfgegps(lcolumn,lcolumng,lobsSpaceData)
 
       deallocate(scaleFactor)
       call col_deallocate(lcolumn)
-      deallocate(ZBUFFER)
+      deallocate(zbuffer)
 
       write(*,*)
       write(*,*) 'Computing HBHT from Bnmc - END'
       
-      RETURN
     END SUBROUTINE COMPUTE_HBHT_STATIC

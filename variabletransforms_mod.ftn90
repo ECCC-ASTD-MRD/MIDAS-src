@@ -85,7 +85,7 @@ CONTAINS
     case ('UVtoVortDiv')
        call UVtoVortDiv(statevector)
     case ('VortDivToPsiChi')
-       if ( .not. gsv_varExist('QR') .or. .not. gsv_varExist('DD') ) then
+       if ( .not. gsv_varExist(statevector,'QR') .or. .not. gsv_varExist(statevector,'DD') ) then
          write(*,*)
          write(*,*) 'for VortDivToPsiChi, variables QR and DD must be allocated in gridstatevector'
          call abort3d('vtr_transform')
@@ -111,9 +111,6 @@ CONTAINS
     real(8), pointer :: uu_ptr(:,:,:,:), vv_ptr(:,:,:,:)
     real(8), pointer :: qr_ptr(:,:,:,:), dd_ptr(:,:,:,:)
 
-    real(8), allocatable :: uu3d(:,:,:), vv3d(:,:,:)
-    real(8), allocatable :: qr3d(:,:,:), dd3d(:,:,:)
-
     integer :: nlev_M, tstep
 
     uu_ptr => gsv_getField(statevector,'UU')
@@ -125,29 +122,15 @@ CONTAINS
     if (  statevector%hco%global ) then
        call abort3d('UVtoVortDiv:global mode not available')
     else
-       allocate(uu3d(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nlev_M))
-       allocate(vv3d(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nlev_M))
-       allocate(qr3d(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nlev_M))
-       allocate(dd3d(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nlev_M))
 
        do tstep = 1, statevector%numStep
           
-          call lamInterface(uu3d,uu_ptr,tstep,nlev_M,'fromGSV')
-          call lamInterface(vv3d,vv_ptr,tstep,nlev_M,'fromGSV')
-          
-          call lag_UVToVortDiv(qr3d, dd3d, & ! OUT
-               uu3d, vv3d, & ! IN
-               nlev_M )      ! IN
-          
-          call lamInterface(qr3d,qr_ptr,tstep,nlev_M,'toGSV')
-          call lamInterface(dd3d,dd_ptr,tstep,nlev_M,'toGSV')
+          call lag_UVToVortDiv(qr_ptr(:,:,:,tstep), dd_ptr(:,:,:,tstep), & ! OUT
+                               uu_ptr(:,:,:,tstep), vv_ptr(:,:,:,tstep), & ! IN
+                               nlev_M )      ! IN
           
        end do
        
-       deallocate(dd3d)
-       deallocate(qr3d)
-       deallocate(vv3d)
-       deallocate(uu3d)
     end if
 
   end subroutine UVtoVortDiv
@@ -163,8 +146,6 @@ CONTAINS
  
     real(8), pointer :: qr_ptr(:,:,:,:), dd_ptr(:,:,:,:)
     real(8), pointer :: pp_ptr(:,:,:,:), cc_ptr(:,:,:,:)
-
-    real(8), allocatable :: vortpsi3d(:,:,:), divchi3d(:,:,:)
 
     type(struct_lst)     :: lst_lapl   ! Spectral transform Parameters for Vort/Div -> Psi/Chi
 
@@ -186,78 +167,26 @@ CONTAINS
                        statevector%hco%dlon, trunc,             & ! IN
                       'LatLonMN', nlev_M )                        ! IN
 
-       allocate(VortPsi3d(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nlev_M))
-       allocate(DivChi3d(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nlev_M))
-
        do tstep = 1, statevector%numStep
           
-          call lamInterface(VortPsi3d,qr_ptr,tstep,nlev_M,'fromGSV')
-          call lamInterface(DivChi3d,dd_ptr,tstep,nlev_M,'fromGSV')
+          pp_ptr(:,:,:,tstep) = qr_ptr(:,:,:,tstep)
+          cc_ptr(:,:,:,tstep) = dd_ptr(:,:,:,tstep)
          
           ! Vort -> Psi
-          call lst_Laplacian( lst_lapl%id,       & ! IN
-                              VortPsi3d,         & ! INOUT
-                              'Inverse', nlev_M )  ! IN    
+          call lst_Laplacian( lst_lapl%id,         & ! IN
+                              pp_ptr(:,:,:,tstep), & ! INOUT
+                              'Inverse', nlev_M )    ! IN    
 
           ! Div -> Chi
-          call lst_Laplacian( lst_lapl%id,       & ! IN
-                              DivChi3d,          & ! INOUT
-                              'Inverse', nlev_M )  ! IN
-
-          call lamInterface(VortPsi3d,pp_ptr,tstep,nlev_M,'toGSV')
-          call lamInterface(DivChi3d,cc_ptr,tstep,nlev_M,'toGSV')
+          call lst_Laplacian( lst_lapl%id,         & ! IN
+                              cc_ptr(:,:,:,tstep), & ! INOUT
+                              'Inverse', nlev_M )    ! IN
 
        end do
        
-       deallocate(DivChi3d)
-       deallocate(VortPsi3d)
-
     end if
 
   end subroutine VortDivToPsiChi
 
-!--------------------------------------------------------------------------
-! lamInterface
-!--------------------------------------------------------------------------
-  subroutine lamInterface(array_lonlatlev, array_lonlevlat, tstep, nk, reOrdering)
-    implicit none
-
-    integer,          intent(in)  :: tstep, nk 
-
-    real(8),          intent(inout)  :: array_lonlatlev(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nk)
-    real(8),          intent(inout)  :: array_lonlevlat(myLonBeg:,:,myLatBeg:,:)
-
-    character(len=*), intent(in) :: reOrdering
-
-    integer :: i,j,k
-
-    if ( .not. initialized ) then
-      call abort3d('lag_reOrder: LamAnalysisGrid not initialized')
-    endif
-
-    select case(trim(reOrdering))
-    case ('fromGSV') 
-    do k = 1, nk
-       do j = myLatBeg, myLatEnd
-          do i = myLonBeg, myLonEnd
-            array_lonlatlev(i,j,k) =  array_lonlevlat(i,k,j,tstep)
-          end do
-       end do
-    end do
-    case ('toGSV')
-    do k = 1, nk
-       do j = myLatBeg, myLatEnd
-          do i = myLonBeg, myLonEnd
-             array_lonlevlat(i,k,j,tstep) = array_lonlatlev(i,j,k)
-          end do
-       end do
-    end do
-    case default
-       write(*,*)
-       write(*,*) 'Unsupported reOrdering : ', trim(reOrdering)
-       call abort3d('lamInterface')
-    end select
-
-  end subroutine lamInterface
 
 END MODULE variableTransforms_mod
