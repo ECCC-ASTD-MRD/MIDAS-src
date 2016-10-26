@@ -45,6 +45,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
   use gridStateVector_mod
   use WindRotation_mod
   use chem_mod
+  use tt2phi_mod
   implicit none
 
   type(struct_columnData) :: columng,columnhr
@@ -139,9 +140,9 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
   status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
   if(mpi_myid.eq.0) write(*,*) 'sugomobs: Vcode_trl= ',Vcode_trl, &
                                        '  Vcode_anl= ',Vcode_anl
-  if(Vcode_trl.ne.5001.and.Vcode_trl.ne.5002.and.Vcode_trl.ne.5004.and.Vcode_trl.ne.5005) &
+  if(Vcode_trl.ne.5002.and.Vcode_trl.ne.5004.and.Vcode_trl.ne.5005) &
     call abort3d('sugomobs: invalid vertical coord for background state!')
-  if(Vcode_anl.ne.5001.and.Vcode_anl.ne.5002.and.Vcode_anl.ne.5004) &
+  if(Vcode_anl.ne.5002.and.Vcode_anl.ne.5004) &
     call abort3d('sugomobs: invalid vertical coord for analysis grid!')
 
   !
@@ -179,7 +180,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
   !
   !     Computing date and time of step obs for error message
   !
-  call getstamplist(datestamplist,tim_nStepObs,tim_getDatestamp())
+  call tim_getstamplist(datestamplist,tim_nStepObs,tim_getDatestamp())
   do jstep = 1,tim_nStepObs
     ierr = newdate(datestamplist(jstep),idate(jstep),itime(jstep),-3)
     if(mpi_myid.eq.0) write(*,*) 'sugomobs: datestamplist=',jstep,datestamplist(jstep)
@@ -278,11 +279,6 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
         ierr = gdxyfll( hco_anl % EZscintID, xpos_r4, ypos_r4, &
                         lat_deg_r4, lon_deg_r4, 1)
 
-        if ( trim(hco_anl % grtyp) == 'G' .and. hco_anl % ig2 == 1 ) then
-          ! Revert latitudes since gdxyfll does not handle properly this grid type
-          ypos_r4 = real(hco_anl % nj,4) - ypos_r4 + 1.0
-        end if
-
         !- Test if the obs is outside the analysis grid
         if ( xpos_r4 < xposLowerBoundAnl_r4  .or. &
              xpos_r4 > xposUpperBoundAnl_r4  .or. &
@@ -303,10 +299,6 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
                             lat_deg_r4, lon_deg_r4,      & ! OUT
                             xpos_r4, ypos_r4, 1)   ! IN
               
-            if ( trim(hco_anl % grtyp) == 'G' .and. hco_anl % ig2 == 1 ) then
-              ! Revert latitudes since gdllfxy does not handle properly this grid type
-              lat_deg_r4 = -1.0 * lat_deg_r4
-            end if
             write(*,*) '  new  position : ', lat_deg_r4, lon_deg_r4, ypos_r4, xpos_r4
 
             lat_r8 = real(lat_deg_r4,8) * MPC_RADIANS_PER_DEGREE_R8
@@ -448,7 +440,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
 
   !
   !     Derive the pressure fields at observation points from the hybrid
-  !     levels(vco_anl%dhyb_m), the hybrid coordinate parameters of the
+  !     levels, the hybrid coordinate parameters of the
   !     analysis increment and the surface pressure of the trial field
   !      
   if(col_getNumCol(columng).gt.0) then
@@ -456,8 +448,8 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
     call col_calcPressure(columng)
 
     do jlev = 1,col_getNumLev(columng,'MM')
-      if(mpi_myid.eq.0) write(*,*) 'sugomobs: jlev, vco_anl%dhyb_m(jlev), col_getPressure(COLUMNG,jlev,1,MM) = ',  &
-           jlev,vco_anl%dhyb_m(jlev),col_getPressure(COLUMNG,jlev,1,'MM')
+      if(mpi_myid.eq.0) write(*,*) 'sugomobs: jlev, col_getPressure(COLUMNG,jlev,1,MM) = ',  &
+           jlev,col_getPressure(COLUMNG,jlev,1,'MM')
     end do
 
     !     Calculate profiles of pressure values at station location
@@ -467,12 +459,12 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
     call col_calcPressure(columnhr)
 
     do jlev = 1,col_getNumLev(columnhr,'MM')
-      if(mpi_myid.eq.0) write(*,*) 'sugomobs: jlev, vco_trl%dhyb_m(jlev), col_getPressure(COLUMNHR,jlev,1,MM) = ',  &
-          jlev,vco_trl%dhyb_m(jlev),col_getPressure(columnhr,jlev,1,'MM')
+      if(mpi_myid.eq.0) write(*,*) 'sugomobs: jlev, col_getPressure(COLUMNHR,jlev,1,MM) = ',  &
+          jlev,col_getPressure(columnhr,jlev,1,'MM')
     end do
     do jlev = 1,col_getNumLev(columnhr,'TH')
-      if(mpi_myid.eq.0) write(*,*) 'sugomobs: jlev, vco_trl%dhyb_t(jlev), col_getPressure(COLUMNHR,jlev,1,TH) = ',  &
-          jlev,vco_trl%dhyb_t(jlev),col_getPressure(columnhr,jlev,1,'TH')
+      if(mpi_myid.eq.0) write(*,*) 'sugomobs: jlev, col_getPressure(COLUMNHR,jlev,1,TH) = ',  &
+          jlev,col_getPressure(columnhr,jlev,1,'TH')
     end do
     if(mpi_myid.eq.0) write(*,*) 'sugomobs: surface Pressure=',col_getElem(columnhr,1,1,'P0')
 
@@ -639,47 +631,29 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
   
   if (gsv_varExist('TT').and.gsv_varExist('HU').and.gsv_varExist('P0')) then      
 
-    !
-    !- Initialisation of TLM operators
-    !
-    if(Vcode_anl .eq. 5001) then
-       ! initialize virtual temperature and GZ operators
-       call subasic_obs(columng)
-    elseif(Vcode_anl .eq. 5002 .or. Vcode_anl .eq. 5004) then
-       ! only initialize virtual temperature operator
-       call subasic_obs_gem4(columng)
-    else
-       call abort3d('sugomobs: invalid vertical coord for analysis increment grid!')
-    endif
+     !
+     !- Initialisation of TLM operators
+     !
+     call subasic_obs(columng)
+     
+     !
+     !- Using T, q and PS to compute GZ for columng
+     !
+     do jobs = 1, col_getNumCol(columng)
+        call col_setMountain(columng ,jobs,col_getMountain(columnhr,jobs))
+     enddo
+     call tt2phi(columng)
 
-    !
-    !- Using T, q and PS to compute GZ for columng
-    !
-    do jobs = 1, col_getNumCol(columng)
-       call col_setMountain(columng ,jobs,col_getMountain(columnhr,jobs))
-    enddo
-    if(Vcode_anl .eq. 5001) then
-       call tt2phi(columng)
-    elseif(Vcode_anl .eq. 5002 .or. Vcode_anl .eq. 5004) then
-       call tt2phi_gem4(columng)
-    else
-       call abort3d('sugomobs: invalid vertical coord for analysis increment grid!')
-    endif
-
-    !
-    !- Using T, q and PS to compute GZ for columnhr
-    !
-    if(Vcode_trl .eq. 5001 ) then 
-       call tt2phi(columnhr)
-    else
-       if(noUpperGZ) then
-          write(*,*) 'sugomobs: No upper level GZ found, computing'
-          call tt2phi_gem4(columnhr)
-       endif
-    endif
-
+     !
+     !- Using T, q and PS to compute GZ for columnhr
+     !
+     if(noUpperGZ) then
+        write(*,*) 'sugomobs: No upper level GZ found, computing'
+        call tt2phi(columnhr)
+     endif
+     
   else
-    write(*,*) 'sugomobs:  GZ TLM calcs not generated since TT, HU and P0 not all present'
+     write(*,*) 'sugomobs:  GZ TLM calcs not generated since TT, HU and P0 not all present'
   end if
 
   !
@@ -722,7 +696,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
 !--------------------------------------------------------------------------------
   CONTAINS
 
-    subroutine readTrialField(varInterphr_MT,varInterphr_VV,varName_in,varType,noUpperGZ)
+    subroutine readTrialField(varInterphr_MT,varInterphr_VV,varName_in,varLevel,noUpperGZ)
       !
       ! s/r readTrialField
       !
@@ -737,7 +711,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
       !
       implicit none
       character(len=*) :: varName_in
-      character(len=*) :: varType
+      character(len=*) :: varLevel
       character(len=4) :: varName
       logical, optional :: noUpperGZ
       real*8 :: varInterphr_MT(:,:),varInterphr_VV(:,:)
@@ -768,7 +742,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
         varName=varName_in
       endif
 
-      nlevel = col_getNumLev(columnhr,varType)
+      nlevel = col_getNumLev(columnhr,varLevel)
 
       !
       ! Check if too few GZ levels are in file, if so then just read surface
@@ -842,14 +816,14 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
             if(trim(varName).eq.'GZ'.and.jlev.eq.nlevel) then
               ! use surface level IP1 for GZ (essential for Vcode=5005)
               IIP1 = vco_trl%ip1_sfc
-            elseif(varType.eq.'MM') then
+            elseif(varLevel.eq.'MM') then
               IIP1 = vco_trl%ip1_M(jlev)
-            elseif(varType.eq.'TH') then
+            elseif(varLevel.eq.'TH') then
               IIP1 = vco_trl%ip1_T(jlev)
-            elseif(varType.eq.'SF') then
+            elseif(varLevel.eq.'SF') then
               IIP1 = -1
             else
-              call abort3d('SUGOMOBS: unknown varType')
+              call abort3d('SUGOMOBS: unknown varLevel')
             endif
 
             if(trim(varName).eq.'GZ'.and.present(noUpperGZ)) then

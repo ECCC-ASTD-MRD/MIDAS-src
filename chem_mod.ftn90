@@ -114,7 +114,7 @@ module chem_mod
 ! public variables
 ! ----------------
 
-  public :: chm_constituents_size,chm_config,chm_initialized
+  public :: chm_constituents_size,chm_initialized,chm_config
 
 ! module constants
 ! -----------------
@@ -2931,7 +2931,7 @@ contains
 
 !--------------------------------------------------------------------------------------------
 
-  function chm_get_burp_filename(fam,found) result(burp_filename)
+  function chm_get_burp_filename(found) result(burp_filename)
 !
 ! Author:   M. Sitwell  Sept 2016
 !
@@ -2939,9 +2939,11 @@ contains
 !          has more than one file, the first file found will be returned. File names are
 !          assigned in the module burpFiles_mod.
 !
-! Input
-!
-!    fam          observation family type
+! Note: This original contents of this function has temporarily been commented out and code
+!       from burpfiles_mod.ftn90 has been copied and pasted here due to a change in the
+!       dependencies of burpfiles_mod that moved it after chem_mod in the compilation sequence.
+!       This funciton should be reverted back to its original form, which is dependent on
+!       burpfiles_mod, once the dependencies of chem related routines can be reorganized.
 !
 ! Output
 !
@@ -2950,26 +2952,45 @@ contains
 !
 !---------------------------------------------------------------------------------------
     
-    use burpFiles_mod
+!    use burpFiles_mod
+    use mpivar_mod
 
     implicit none
 
-    character(len=2), intent(in) :: fam
+!    character(len=2), intent(in) :: fam
     logical, intent(out), optional :: found
     character(len=128) :: burp_filename
+    
+    character(len=4) :: cmyidx, cmyidy
+    character(len=9) :: cmyid
+    logical :: file_found
 
-    integer :: ifile
+!    integer :: ifile
 
     burp_filename = ""
     if (present(found)) found = .false.
     
-    do ifile=1,burp_nfiles
-       if (fam.eq.burp_cfamtyp(ifile)) then
-          burp_filename = burp_cfilnam(ifile)
-          if (present(found)) found = .true.
-          exit
-       end if
-    end do
+!    do ifile=1,burp_nfiles
+!       if (fam.eq.burp_cfamtyp(ifile)) then
+!          burp_filename = burp_cfilnam(ifile)
+!          if (present(found)) found = .true.
+!          exit
+!       end if
+!    end do
+
+    write(cmyidy,'(I4.4)') (mpi_npey-mpi_myidy)
+    write(cmyidx,'(I4.4)') (mpi_myidx+1)
+    cmyid  = trim(cmyidx) // '_' // trim(cmyidy)
+
+    burp_filename = 'brpch' // '_' // trim(cmyid)
+
+    inquire(file=trim(burp_filename), exist=file_found)
+    if (.not.file_found) then
+       burp_filename = 'brpch'
+       inquire(file=trim(burp_filename), exist=file_found)
+    end if
+
+    if (present(found)) found = file_found
 
   end function chm_get_burp_filename
 
@@ -3017,7 +3038,7 @@ contains
     logical, intent(in)          :: match_nlev
     type(struct_chm_obsdata) :: burp_out
 
-    burp_out = chm_read_burp(chm_get_burp_filename('CH'),stnid,varno,nlev,ndim,bkstp,block_type,match_nlev)
+    burp_out = chm_read_burp(chm_get_burp_filename(),stnid,varno,nlev,ndim,bkstp,block_type,match_nlev)
 
     if (top_BurpSplit()) call obsdata_MPIgather(burp_out)
     
@@ -3070,9 +3091,9 @@ contains
 
     if (burp_split .or. mpi_myid.eq.0) then
        if (present(multi)) then
-          nrep_modified = chm_update_burp(chm_get_burp_filename('CH'),varno,bkstp,block_type,obsdata,multi=multi)
+          nrep_modified = chm_update_burp(chm_get_burp_filename(),varno,bkstp,block_type,obsdata,multi=multi)
        else
-          nrep_modified = chm_update_burp(chm_get_burp_filename('CH'),varno,bkstp,block_type,obsdata)
+          nrep_modified = chm_update_burp(chm_get_burp_filename(),varno,bkstp,block_type,obsdata)
        end if
     end if
 

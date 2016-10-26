@@ -36,7 +36,7 @@ module columnData_mod
 
   ! public entities accessed through inheritance
   public :: struct_vco, vco_SetupFromFile, vco_getNumLev
-  public :: vnl_varnameFromVarnum, vnl_vartypeFromVarnum
+  public :: vnl_varnameFromVarnum, vnl_varLevelFromVarnum
   public :: vgd_get,vgd_levels,vgd_ok,vgd_dpidpis,vgd_write
 
   type struct_columnData
@@ -48,7 +48,6 @@ module columnData_mod
     real*8,pointer    :: pressure_T(:,:),pressure_M(:,:)
     real*8,pointer    :: dP_dPsfc_T(:,:),dP_dPsfc_M(:,:)
     real*8,pointer    :: oltv(:,:,:)    ! Tangent linear operator of virtual temperature
-    real*8,pointer    :: rtapfac(:,:)   ! Background surface pressure dependant factor used for Temperature to Phi calc.
     real*8,pointer    :: lat(:),lon(:)
     real(8),pointer   :: latRot(:),lonRot(:)
     real(8),pointer   :: ypos(:)
@@ -184,7 +183,7 @@ module columnData_mod
       do jvar = 1, vnl_numvarmax3d
         if(nmvoexist(jvar)) then
           column%varOffset(jvar)=iloc
-          column%varNumLev(jvar)=col_getNumLev(column,vnl_vartypeFromVarname(vnl_varNameList(jvar)))
+          column%varNumLev(jvar)=col_getNumLev(column,vnl_varLevelFromVarname(vnl_varNameList(jvar)))
           iloc = iloc + column%varNumLev(jvar)
         endif
       enddo
@@ -234,8 +233,6 @@ module columnData_mod
 
         allocate(column%oltv(2,col_getNumLev(column,'TH'),numCol))
         column%oltv(:,:,:)=0.0d0
-        allocate(column%rtapfac(col_getNumLev(column,'TH'),numCol))
-        column%rtapfac(:,:)=0.0d0
 
       endif
  
@@ -272,7 +269,6 @@ module columnData_mod
         deallocate(column%ypos)
         deallocate(column%xpos)
         deallocate(column%oltv)
-        deallocate(column%rtapfac)
       endif
 
       column%allocated=.false.
@@ -281,7 +277,7 @@ module columnData_mod
     END SUBROUTINE col_deallocate
 
 
-    SUBROUTINE col_fillmvo(columnghr,pvar,varName,varType)
+    SUBROUTINE col_fillmvo(columnghr,pvar,varName,varLevel)
     !
     !**s/r fillmvo - Fill in values for a complete set of columns at once
     !
@@ -296,7 +292,7 @@ module columnData_mod
     type(struct_columnData) :: columnghr
     real*8 pvar(:,:)
     character(len=*) :: varName
-    character(len=*), optional :: varType
+    character(len=*), optional :: varLevel
 
     integer jobs,jlev
     real*8, pointer :: column_ptr(:)
@@ -304,46 +300,46 @@ module columnData_mod
     ! Pressure
     select case(trim(varName))
     case('PR')
-      if(present(varType)) then
-        if(varType.eq.'TH') then
+      if(present(varLevel)) then
+        if(varLevel.eq.'TH') then
           do jobs = 1,columnghr%numCol
             do jlev = 1,col_getNumLev(columnghr,'TH')
               columnghr%pressure_T(jlev,jobs) = pvar(jlev,jobs)
             enddo
           enddo
-        elseif(varType.eq.'MM') then
+        elseif(varLevel.eq.'MM') then
           do jobs = 1,columnghr%numCol
             do jlev = 1,col_getNumLev(columnghr,'MM')
               columnghr%pressure_M(jlev,jobs) = pvar(jlev,jobs)
             enddo
           enddo
         else
-          call abort3d('col_fillmvo: must specify varType TH or MM for Pressure! ' // varType)
+          call abort3d('col_fillmvo: must specify varLevel TH or MM for Pressure! ' // varLevel)
         endif
       else
-        call abort3d('col_fillmvo: must specify varType for Pressure!')
+        call abort3d('col_fillmvo: must specify varLevel for Pressure!')
       endif
 
     ! Height
     case('GZ')
-      if(present(varType)) then
-        if(varType.eq.'TH') then
+      if(present(varLevel)) then
+        if(varLevel.eq.'TH') then
           do jobs = 1,columnghr%numCol
             do jlev = 1, col_getNumLev(columnghr,'TH')
               columnghr%gz_T(jlev,jobs)=pvar(jlev,jobs)
             enddo
           enddo
-        elseif(varType.eq.'MM') then
+        elseif(varLevel.eq.'MM') then
           do jobs = 1,columnghr%numCol
             do jlev = 1, col_getNumLev(columnghr,'MM')
               columnghr%gz_M(jlev,jobs)=pvar(jlev,jobs)
             enddo
           enddo
         else
-          call abort3d('col_fillmvo: must specify varType TH or MM for GZ! ' // varType)
+          call abort3d('col_fillmvo: must specify varLevel TH or MM for GZ! ' // varLevel)
         endif
       else
-        call abort3d('col_fillmvo: must specify varType for GZ!')
+        call abort3d('col_fillmvo: must specify varLevel for GZ!')
       endif
 
     ! All the other variables that are stored in column%all
@@ -351,7 +347,7 @@ module columnData_mod
       if(col_varExist(trim(varName))) then
         do jobs = 1,columnghr%numCol
           column_ptr => col_getColumn(columnghr,jobs,varName)
-          do jlev = 1, col_getNumLev(columnghr,vnl_vartypeFromVarname(varName))
+          do jlev = 1, col_getNumLev(columnghr,vnl_varLevelFromVarname(varName))
             column_ptr(jlev)=pvar(jlev,jobs) 
           enddo
         enddo
@@ -457,26 +453,26 @@ module columnData_mod
     character(len=*) :: varName
 
     real(kind=8), pointer :: column_ptr_in(:),column_ptr_out(:)
-    character(len=2) :: varType
+    character(len=2) :: varLevel
     real(kind=8)     :: zwb,zwt
     integer          :: jlevo,jlevi,jprof
 
-    varType = vnl_vartypeFromVarname(varName)
+    varLevel = vnl_varLevelFromVarname(varName)
 
     do jprof = 1, col_getNumCol(column_out)
       column_ptr_in  => col_getColumn(column_in ,jprof,varName)
       column_ptr_out => col_getColumn(column_out,jprof,varName)
       jlevi = 1
-      do jlevo = 1, col_getNumLev(column_out,varType)
+      do jlevo = 1, col_getNumLev(column_out,varLevel)
         jlevi = jlevi + 1
-        do while(col_getPressure(column_out,jlevo,jprof,varType) .gt.  &
-                 col_getPressure(column_in ,jlevi,jprof,varType) .and. &
-                 jlevi .lt. col_getNumLev(column_in,varType) )
+        do while(col_getPressure(column_out,jlevo,jprof,varLevel) .gt.  &
+                 col_getPressure(column_in ,jlevi,jprof,varLevel) .and. &
+                 jlevi .lt. col_getNumLev(column_in,varLevel) )
           jlevi = jlevi + 1
         enddo
         jlevi = jlevi - 1
-        zwb = log(col_getPressure(column_out,jlevo,jprof,varType)/col_getPressure(column_in,jlevi,jprof,varType))/  &
-              log(col_getPressure(column_in,jlevi+1,jprof,varType)/col_getPressure(column_in,jlevi,jprof,varType))
+        zwb = log(col_getPressure(column_out,jlevo,jprof,varLevel)/col_getPressure(column_in,jlevi,jprof,varLevel))/  &
+              log(col_getPressure(column_in,jlevi+1,jprof,varLevel)/col_getPressure(column_in,jlevi,jprof,varLevel))
         zwt = 1. - zwb
         column_ptr_out(jlevo) = zwb*column_ptr_in(jlevi+1) + zwt*column_ptr_in(jlevi)
       enddo
@@ -485,56 +481,56 @@ module columnData_mod
   end subroutine col_vintprof
 
 
-  function col_getPressure(column,ilev,headerIndex,varType) result(pressure)
+  function col_getPressure(column,ilev,headerIndex,varLevel) result(pressure)
     implicit none
     type(struct_columnData), intent(in) :: column
     integer, intent(in)                 :: ilev,headerIndex
-    character(len=*), intent(in)        :: varType
+    character(len=*), intent(in)        :: varLevel
     real*8                              :: pressure
 
-    if (varType .eq. 'TH') then
+    if (varLevel .eq. 'TH') then
       pressure = column%pressure_t(ilev,headerIndex)
-    elseif (varType .eq. 'MM' ) then
+    elseif (varLevel .eq. 'MM' ) then
       pressure = column%pressure_m(ilev,headerIndex)
     else
-      call abort3d('col_getPressure: Unknown variable type: ' // varType)
+      call abort3d('col_getPressure: Unknown variable type: ' // varLevel)
     endif
 
   end function col_getPressure
  
 
-  function col_getPressureDeriv(column,ilev,headerIndex,varType) result(dP_dPsfc)
+  function col_getPressureDeriv(column,ilev,headerIndex,varLevel) result(dP_dPsfc)
     implicit none
     type(struct_columnData), intent(in) :: column
     integer, intent(in)                 :: ilev,headerIndex
-    character(len=*), intent(in)        :: varType
+    character(len=*), intent(in)        :: varLevel
     real*8                              :: dP_dPsfc
 
-    if (varType .eq. 'TH') then
+    if (varLevel .eq. 'TH') then
       dP_dPsfc = column%dP_dPsfc_t(ilev,headerIndex)
-    elseif (varType .eq. 'MM' ) then
+    elseif (varLevel .eq. 'MM' ) then
       dP_dPsfc = column%dP_dPsfc_m(ilev,headerIndex)
     else
-      call abort3d('col_getPressureDeriv: Unknown variable type: ' // varType)
+      call abort3d('col_getPressureDeriv: Unknown variable type: ' // varLevel)
     endif
 
   end function col_getPressureDeriv
 
 
-  function col_getHeight(column,ilev,headerIndex,varType) result(height)
+  function col_getHeight(column,ilev,headerIndex,varLevel) result(height)
     implicit none
     type(struct_columnData), intent(in) :: column
     integer, intent(in)                 :: ilev,headerIndex
-    character(len=*), intent(in)        :: varType
+    character(len=*), intent(in)        :: varLevel
     real*8                              :: height
     integer                             :: ilev1
 
-    if (varType .eq. 'TH') then
+    if (varLevel .eq. 'TH') then
       height = column%gz_t(ilev,headerIndex)
-    elseif (varType .eq. 'MM' ) then
+    elseif (varLevel .eq. 'MM' ) then
       height = column%gz_m(ilev,headerIndex)
     else
-      call abort3d('col_getHeight: unknown varType! ' // varType)
+      call abort3d('col_getHeight: unknown varLevel! ' // varLevel)
     endif
 
   end function col_getHeight
@@ -648,12 +644,12 @@ module columnData_mod
   end function col_getAllColumns
 
 
-  function col_getColumn(column,headerIndex,varName,varType) result(onecolumn)
+  function col_getColumn(column,headerIndex,varName,varLevel) result(onecolumn)
     implicit none
     type(struct_columnData), intent(in)    :: column
     integer, intent(in)                    :: headerIndex
     character(len=*), intent(in), optional :: varName
-    character(len=*), intent(in), optional :: varType
+    character(len=*), intent(in), optional :: varLevel
     real*8,pointer                         :: onecolumn(:)
     integer                                :: ilev1,ilev2
 
@@ -662,29 +658,29 @@ module columnData_mod
 
         select case(trim(varName))
         case('PR')
-          if(present(varType)) then 
-            if(varType.eq.'TH') then
+          if(present(varLevel)) then 
+            if(varLevel.eq.'TH') then
               onecolumn => column%pressure_T(:,headerIndex)
-            elseif(varType.eq.'MM') then
+            elseif(varLevel.eq.'MM') then
               onecolumn => column%pressure_M(:,headerIndex)
             else
-              call abort3d('col_getColumn: varType must MM or TH for Pressure! ' // varType)         
+              call abort3d('col_getColumn: varLevel must MM or TH for Pressure! ' // varLevel)         
             endif
           else
-            call abort3d('col_getColumn: varType must be specified for Pressure!')
+            call abort3d('col_getColumn: varLevel must be specified for Pressure!')
           endif
 
         case('GZ')
-          if(present(varType)) then 
-            if(varType.eq.'TH') then
+          if(present(varLevel)) then 
+            if(varLevel.eq.'TH') then
               onecolumn => column%gz_T(:,headerIndex)
-            elseif(varType.eq.'MM') then
+            elseif(varLevel.eq.'MM') then
               onecolumn => column%gz_M(:,headerIndex)
             else
-              call abort3d('col_getColumn: varType must MM or TH for Height! ' // varType)         
+              call abort3d('col_getColumn: varLevel must MM or TH for Height! ' // varLevel)         
             endif
           else
-            call abort3d('col_getColumn: varType must be specified for Height!')         
+            call abort3d('col_getColumn: varLevel must be specified for Height!')         
           endif
 
         case default ! all other variable names
@@ -726,13 +722,13 @@ module columnData_mod
   end function col_getElem
 
 
-  function col_getNumLev(column,varType) result(nlev)
+  function col_getNumLev(column,varLevel) result(nlev)
     implicit none
     type(struct_columnData), intent(in) :: column
-    character(len=*), intent(in)        :: varType
+    character(len=*), intent(in)        :: varLevel
     integer                             :: nlev
 
-    nlev = vco_getNumLev(column%vco,varType)
+    nlev = vco_getNumLev(column%vco,varLevel)
 
   end function col_getNumLev
 

@@ -17,8 +17,7 @@
 !--------------------------------------------------------------------------
 ! MODULE globalSpectralTransform (prefix = "gst")
 !
-! Purpose: Perform global spectral transform. Uses the fft module for
-!          the FFT part of the transform.
+! Purpose: Perform global spectral transform. 
 !
 ! Subroutines:
 !    gst_setup (public)
@@ -51,12 +50,9 @@
 !    gst_r1qm2
 !    gst_rsqm2
 !
-! Dependencies:
-!    fft
 !--------------------------------------------------------------------------
 MODULE globalSpectralTransform
   use mpivar_mod
-  use fft
   use MathPhysConstants_mod
   use earthConstants_mod
   implicit none
@@ -68,12 +64,12 @@ MODULE globalSpectralTransform
             gst_speree, gst_speree4, gst_speree5,  &
             gst_reespe, gst_reespe4, gst_reespe5,  &
             gst_spgd4, gst_spgda4, gst_gdsp,  &
-            gst_zlegpol,  &
+            gst_zleginv, gst_zlegdir,  &
             gst_setID, gst_setDefaultID, gst_setToDefaultID,  &
             gst_ilaList_mpilocal, gst_ilaList_mpiglobal, gst_nList_mpilocal
   ! public functions
   public :: gst_getRmu, gst_getRwt, gst_getnind, gst_getrlati, gst_getr1qm2, gst_getrsqm2, &
-            gst_getrnnp1, gst_getr1snp1
+            gst_getrnnp1, gst_getr1snp1, gst_getzleg
 
 
   type  :: T_gst
@@ -94,6 +90,7 @@ MODULE globalSpectralTransform
     integer,allocatable   :: nclm(:)
     real(8),allocatable   :: r1snp1(:)
     real(8),allocatable   :: rnnp1(:)
+    real(8),allocatable   :: zleg(:,:)
     integer               :: ntrunc
     integer               :: nla
     integer               :: nlarh
@@ -117,7 +114,6 @@ MODULE globalSpectralTransform
     integer,allocatable   :: allnBeg(:),allnEnd(:),allnSkip(:)
     integer               :: myLevBeg,myLevEnd,myLevCount,maxLevCount
     integer,allocatable   :: allLevBeg(:),allLevEnd(:)
-    integer               :: fftID
   end type T_gst
 
   integer,parameter :: nMaxGst = 10
@@ -163,6 +159,7 @@ CONTAINS
 
     integer :: latIndex,gstID_l
     integer,optional :: gstID_in
+    integer :: latIndex2
 
     if(present(gstID_in)) then
       gstID_l = gstID_in
@@ -170,15 +167,17 @@ CONTAINS
       gstID_l = gstIdDefault
     endif
 
-    gst_getRmu = gst(gstID_l)%rmu(latIndex)
+    ! use a flipped latitude (south to north)
+    latIndex2 = gst(gstID_l)%nj - latIndex + 1
+    gst_getRmu = gst(gstID_l)%rmu(latIndex2)
 
   END FUNCTION GST_getRmu
 
 
-  real(8) FUNCTION GST_getRnnp1(latIndex,gstID_in)
+  real(8) FUNCTION GST_getRnnp1(ilaIndex,gstID_in)
     implicit none
 
-    integer :: latIndex,gstID_l
+    integer :: ilaIndex,gstID_l
     integer,optional :: gstID_in
 
     if(present(gstID_in)) then
@@ -187,15 +186,15 @@ CONTAINS
       gstID_l = gstIdDefault
     endif
 
-    gst_getRnnp1 = gst(gstID_l)%rnnp1(latIndex)
+    gst_getRnnp1 = gst(gstID_l)%rnnp1(ilaIndex)
 
   END FUNCTION GST_getRnnp1
 
 
-  real(8) FUNCTION GST_getR1snp1(latIndex,gstID_in)
+  real(8) FUNCTION GST_getR1snp1(ilaIndex,gstID_in)
     implicit none
 
-    integer :: latIndex,gstID_l
+    integer :: ilaIndex,gstID_l
     integer,optional :: gstID_in
 
     if(present(gstID_in)) then
@@ -204,7 +203,7 @@ CONTAINS
       gstID_l = gstIdDefault
     endif
 
-    gst_getR1snp1 = gst(gstID_l)%r1snp1(latIndex)
+    gst_getR1snp1 = gst(gstID_l)%r1snp1(ilaIndex)
 
   END FUNCTION GST_getR1snp1
 
@@ -214,6 +213,7 @@ CONTAINS
 
     integer :: latIndex,gstID_l
     integer,optional :: gstID_in
+    integer :: latIndex2
   
     if(present(gstID_in)) then
       gstID_l = gstID_in
@@ -221,15 +221,17 @@ CONTAINS
       gstID_l = gstIdDefault
     endif
 
-    gst_getRwt = gst(gstID_l)%rwt(latIndex)
+    ! use a flipped latitude (south to north)
+    latIndex2 = gst(gstID_l)%nj - latIndex + 1
+    gst_getRwt = gst(gstID_l)%rwt(latIndex2)
 
   END FUNCTION GST_getRwt
 
 
-  integer FUNCTION GST_getNind(latIndex,gstID_in)
+  integer FUNCTION GST_getNind(mIndex,gstID_in)
     implicit none
 
-    integer :: latIndex,gstID_l
+    integer :: mIndex,gstID_l
     integer,optional :: gstID_in
   
     if(present(gstID_in)) then
@@ -238,7 +240,7 @@ CONTAINS
       gstID_l = gstIdDefault
     endif
 
-    gst_getNind = gst(gstID_l)%nind(latIndex)
+    gst_getNind = gst(gstID_l)%nind(mIndex)
 
   END FUNCTION GST_getNind
 
@@ -248,6 +250,7 @@ CONTAINS
 
     integer :: latIndex,gstID_l
     integer,optional :: gstID_in
+    integer :: latIndex2
  
     if(present(gstID_in)) then
       gstID_l = gstID_in
@@ -255,7 +258,9 @@ CONTAINS
       gstID_l = gstIdDefault
     endif
 
-    gst_getRlati = gst(gstID_l)%rlati(latIndex)
+    ! use a flipped latitude (south to north)
+    latIndex2 = gst(gstID_l)%nj - latIndex + 1
+    gst_getRlati = gst(gstID_l)%rlati(latIndex2)
 
   END FUNCTION GST_getRlati
 
@@ -265,6 +270,7 @@ CONTAINS
 
     integer :: latIndex,gstID_l
     integer,optional :: gstID_in
+    integer :: latIndex2
   
     if(present(gstID_in)) then
       gstID_l = gstID_in
@@ -272,7 +278,9 @@ CONTAINS
       gstID_l = gstIdDefault
     endif
 
-    gst_getR1qm2 = gst(gstID_l)%r1qm2(latIndex)
+    ! use a flipped latitude (south to north)
+    latIndex2 = gst(gstID_l)%nj - latIndex + 1
+    gst_getR1qm2 = gst(gstID_l)%r1qm2(latIndex2)
 
   END FUNCTION GST_getR1qm2
 
@@ -282,6 +290,7 @@ CONTAINS
 
     integer :: latIndex,gstID_l
     integer,optional :: gstID_in
+    integer :: latIndex2
 
     if(present(gstID_in)) then
       gstID_l = gstID_in
@@ -289,9 +298,29 @@ CONTAINS
       gstID_l = gstIdDefault
     endif
 
-    gst_getRsqm2 = gst(gstID_l)%rsqm2(latIndex)
+    ! use a flipped latitude (south to north)
+    latIndex2 = gst(gstID_l)%nj - latIndex + 1
+    gst_getRsqm2 = gst(gstID_l)%rsqm2(latIndex2)
 
   END FUNCTION GST_getRsqm2
+
+
+  real(8) FUNCTION GST_getzleg(legendreIndex,latIndex,gstID_in)
+    ! 
+    ! Purpose: Pass on Legendre polynomial element 
+    !
+    ! Author: Y. Rochon, ARQI/AQRD, Aug 2016.
+    !
+    ! Revisions:
+    !
+    !------------------------------------------------------------------ 
+    implicit none
+ 
+    integer :: legendreIndex,latIndex,gstID_in
+       
+    gst_getzleg=gst(gstID_in)%zleg(legendreIndex,latIndex)
+
+  END FUNCTION GST_getzleg
 
 
   subroutine GST_ilaList_mpiglobal(ilaList,myNla,maxMyNla,gstID_in,mymBeg,mymEnd,mymSkip,mynBeg,mynEnd,mynSkip)
@@ -727,10 +756,6 @@ CONTAINS
     write(*,*) 'gst_setup: myNla=',gst(gstID)%myNla
     write(*,*) 'gst_setup: maxMyNla=',gst(gstID)%maxMyNla
 
-    if(mpi_myid.eq.0) write(*,*) 'gst_setup: calling sufft...'
-    gst(gstID)%fftID = fft_sufft(6,gst(gstID)%ni,gst(gstID)%nj,           &
-                       gst(gstID)%myLatBeg,gst(gstID)%myLatEnd)
-
     allocate(gst(gstID)%r1snp1(gst(gstID)%nla))
     allocate(gst(gstID)%rnnp1(gst(gstID)%nla))
     gst(gstID)%r1snp1(1) = 0.d0
@@ -744,6 +769,9 @@ CONTAINS
           gst(gstID)%rnnp1(ila) = znnp1
        enddo
     enddo
+
+    call gst_zlegpol(gstID)
+
     gst_setup = gstID
   
   END FUNCTION GST_SETUP
@@ -1089,11 +1117,11 @@ CONTAINS
 ! Global transposes
 !-----------------------------------------------------------------
 
-  SUBROUTINE transpose_LattoM(pgd2,pgd,kfield,kdim)
+  SUBROUTINE transpose_LattoM(pgd2,pgd,kfield)
     implicit none
-    integer :: kfield,kdim,yourid,jm,icount,nsize,ierr,jlev,jlat
-    real(8) :: pgd2(2*gst(gstID)%maxmCount,kdim,gst(gstID)%nj)
-    real(8) :: pgd(gst(gstID)%ni,kdim,gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+    integer :: kfield,yourid,jm,icount,nsize,ierr,jlev,jlat
+    real(8) :: pgd2(2*gst(gstID)%maxmCount,kfield,gst(gstID)%nj)
+    real(8) :: pgd(gst(gstID)%ni,kfield,gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
     real(8) :: gd_recv(gst(gstID)%maxmCount,2,kfield,gst(gstID)%nj)
     real(8) :: gd_send(gst(gstID)%maxmCount,2,kfield,gst(gstID)%latPerPE,mpi_nprocs)
 
@@ -1142,11 +1170,11 @@ CONTAINS
   END SUBROUTINE transpose_LattoM
 
 
-  SUBROUTINE transpose_MtoLat(pgd2,pgd,kfield,kdim)
+  SUBROUTINE transpose_MtoLat(pgd2,pgd,kfield)
     implicit none
-    integer :: kfield,kdim,yourid,jm,icount,nsize,ierr,jlev,jlat
-    real(8) :: pgd2(2*gst(gstID)%maxmCount,kdim,gst(gstID)%nj)
-    real(8) :: pgd(gst(gstID)%ni,kdim,gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+    integer :: kfield,yourid,jm,icount,nsize,ierr,jlev,jlat
+    real(8) :: pgd2(2*gst(gstID)%maxmCount,kfield,gst(gstID)%nj)
+    real(8) :: pgd(gst(gstID)%ni,kfield,gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
     real(8) :: gd_send(gst(gstID)%maxmCount,2,kfield,gst(gstID)%nj)
     real(8) :: gd_recv(gst(gstID)%maxmCount,2,kfield,gst(gstID)%latPerPE,mpi_nprocs)
 
@@ -1195,11 +1223,11 @@ CONTAINS
   END SUBROUTINE transpose_MtoLat
 
 
-  SUBROUTINE transpose_LattoLev(pgd2,pgd,kfield,kdim)
+  SUBROUTINE transpose_LattoLev(pgd2,pgd,kfield)
     implicit none
-    integer :: kfield,kdim,yourid,jm,icount,nsize,ierr,jlev,jlev2,jlat
+    integer :: kfield,yourid,jm,icount,nsize,ierr,jlev,jlev2,jlat
     real(8) :: pgd2(2*(gst(gstID)%ntrunc+1),gst(gstID)%myLevBeg:gst(gstID)%myLevEnd,gst(gstID)%nj)
-    real(8) :: pgd(gst(gstID)%ni,kdim,gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+    real(8) :: pgd(gst(gstID)%ni,kfield,gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
     real(8) :: gd_recv(gst(gstID)%ntrunc+1,2,gst(gstID)%maxLevCount,gst(gstID)%nj)
     real(8) :: gd_send(gst(gstID)%ntrunc+1,2,gst(gstID)%maxLevCount,gst(gstID)%latPerPE,mpi_nprocs)
 
@@ -1250,14 +1278,14 @@ CONTAINS
   END SUBROUTINE transpose_LattoLev
 
 
-  SUBROUTINE transpose_LevtoLat(pgd2,pgd,kfield,kdim)
+  SUBROUTINE transpose_LevtoLat(pgd2,pgd,kfield)
     implicit none
     real(8) :: pgd2(2*(gst(gstID)%ntrunc+1),gst(gstID)%myLevBeg:gst(gstID)%myLevEnd,gst(gstID)%nj)
-    real(8) :: pgd(gst(gstID)%ni,kdim,gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+    real(8) :: pgd(gst(gstID)%ni,kfield,gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
 
     real(8) :: gd_send(gst(gstID)%ntrunc+1,2,gst(gstID)%maxLevCount,gst(gstID)%nj)
     real(8) :: gd_recv(gst(gstID)%ntrunc+1,2,gst(gstID)%maxLevCount,gst(gstID)%latPerPE,mpi_nprocs)
-    integer :: kfield,kdim,yourid,jm,icount,nsize,ierr,jlev,jlev2,jlat
+    integer :: kfield,yourid,jm,icount,nsize,ierr,jlev,jlev2,jlat
 
     call rpn_comm_barrier("GRID",ierr)
 
@@ -1420,23 +1448,23 @@ CONTAINS
 ! Main spectral transform subroutines
 !--------------------------------------------------------------------------------------
 
-  SUBROUTINE GST_SPGD(SP,GD,KFIELD,NFLEV,KDIM)
+  SUBROUTINE GST_SPGD(SP,GD,KFIELD,NFLEV)
     implicit none
 
-    integer :: kfield, nflev, kdim
-    real(8) :: sp(gst(gstID)%nla,2,kdim)
-    real(8) :: gd(gst(gstID)%ni,kdim,gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+    integer :: kfield, nflev
+    real(8) :: sp(gst(gstID)%nla,2,kfield)
+    real(8) :: gd(gst(gstID)%ni,kfield,gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
 
     real(8), allocatable :: pgd2(:,:,:)
     integer :: jlat, jk, jlon
 
     ! 1. Inverse Legendre transform
     if(gst(gstID)%mpiMode.eq.2) then
-      allocate(pgd2(2*gst(gstID)%maxmCount,kdim,gst(gstID)%nj))
+      allocate(pgd2(2*gst(gstID)%maxmCount,kfield,gst(gstID)%nj))
       call tmg_start(72+gst(gstID)%mpiMode,'LT')
-      call spgdpar_mpi2(sp,pgd2,kfield,nflev,kdim)
+      call spgdpar_mpi2(sp,pgd2,kfield,nflev)
       call tmg_stop(72+gst(gstID)%mpiMode)
-      call transpose_MtoLat(pgd2,gd,kfield,kdim)
+      call transpose_MtoLat(pgd2,gd,kfield)
       deallocate(pgd2)
     else
       write(*,*) 'GST_SPGD: ONLY MPIMODE 2 SUPPORTED! ',gst(gstID)%mpiMode
@@ -1459,7 +1487,7 @@ CONTAINS
 
     ! 2.2 Apply the FFT 
     call tmg_start(20+gst(gstID)%mpiMode,'FFT')
-    call fft_fft3dvar2(gd,kfield,kdim,+1,gst(gstID)%fftID)
+    call fft3dvar(gd,+1)
     call tmg_stop(20+gst(gstID)%mpiMode)
 
   END SUBROUTINE GST_SPGD
@@ -1523,7 +1551,7 @@ CONTAINS
 
     ! 2.2 Apply the FFT 
     call tmg_start(20+gst(gstID)%mpiMode,'FFT')
-    call fft_fft3dvar2(pgd3,gst(gstID)%myLevCount,gst(gstID)%myLevCount,+1,gst(gstID)%fftID)
+    call fft3dvar(pgd3,+1)
     call tmg_stop(20+gst(gstID)%mpiMode)
 
     ! 2.3 Transpose data along npex from Levels to Longitudes
@@ -1539,12 +1567,12 @@ CONTAINS
 
 
   ! NO MPI MODIFICATIONS YET
-  SUBROUTINE GST_GDSP(SP,GD,KFIELD,NFLEV,KDIM)
+  SUBROUTINE GST_GDSP(SP,GD,KFIELD,NFLEV)
     implicit none
 
-    integer :: kfield, nflev, kdim
-    real(8) :: sp(gst(gstID)%nla,2,kdim)
-    real(8) :: gd(gst(gstID)%ni,kdim,gst(gstID)%nj)
+    integer :: kfield, nflev
+    real(8) :: sp(gst(gstID)%nla,2,kfield)
+    real(8) :: gd(gst(gstID)%ni,kfield,gst(gstID)%nj)
 
     integer :: jlat, jk, jlon
     real(8) :: zfm(gst(gstID)%ni,kfield,gst(gstID)%nj)
@@ -1563,23 +1591,23 @@ CONTAINS
 
     ! 1. Fourier transform all fields for all latitudes
     call tmg_start(20+gst(gstID)%mpiMode,'FFT')
-    call fft_fft3dvar(zfm,kfield,kdim,-1,gst(gstID)%fftID)
+    call fft3dvar(zfm,-1)
     call tmg_stop(20+gst(gstID)%mpiMode)
 
     ! 2. Direct Legendre transform including wind transformations
-    call gdsppar(sp,zfm,kfield,nflev,kdim)
+    call gdsppar(sp,zfm,kfield,nflev)
 
   END SUBROUTINE GST_GDSP
 
 
-  SUBROUTINE SPGDPAR_MPI2(SP,PGD2,KFIELD,NFLEV,KDIM)
+  SUBROUTINE SPGDPAR_MPI2(SP,PGD2,KFIELD,NFLEV)
 !**s/r SPGDPAR  - Inverse spectral transform(PARALLEL LOOP)
 
     implicit none
 
-    integer :: kfield, nflev, kdim
-    real(8) :: sp(gst(gstID)%nla,2,kdim)
-    real(8) :: pgd2(2*gst(gstID)%maxmCount,kdim,gst(gstID)%nj)
+    integer :: kfield, nflev
+    real(8) :: sp(gst(gstID)%nla,2,kfield)
+    real(8) :: pgd2(2*gst(gstID)%maxmCount,kfield,gst(gstID)%nj)
 
     ! local variables
     integer :: jj, jj2, jm, jn
@@ -1632,30 +1660,30 @@ CONTAINS
              if(jj.le.gst(gstID)%njlath) then
                 ! Scalar fields
                 do jk = 2*nflev+1, kfield
-                   pgd2(ilonr,jk,jj)  = zfms(jj,1,jk) + zfma(jj,1,jk)
-                   pgd2(iloni,jk,jj) = zfms(jj,2,jk) + zfma(jj,2,jk)
+                   pgd2(ilonr,jk,jj2)  = zfms(jj,1,jk) + zfma(jj,1,jk)
+                   pgd2(iloni,jk,jj2) = zfms(jj,2,jk) + zfma(jj,2,jk)
                 enddo
                 ! Vector fields
                 do jk = 1, nflev
                    jk2= jk + nflev
-                   pgd2(ilonr,jk,jj)   = -zjm*(zfms(jj,2,jk2) + zfma(jj,2,jk2))
-                   pgd2(iloni,jk,jj)   =  zjm*(zfms(jj,1,jk2) + zfma(jj,1,jk2))
-                   pgd2(ilonr,jk2,jj)  = -zjm*(zfms(jj,2,jk ) + zfma(jj,2,jk ))
-                   pgd2(iloni,jk2,jj)  =  zjm*(zfms(jj,1,jk ) + zfma(jj,1,jk ))
+                   pgd2(ilonr,jk,jj2)   = -zjm*(zfms(jj,2,jk2) + zfma(jj,2,jk2))
+                   pgd2(iloni,jk,jj2)   =  zjm*(zfms(jj,1,jk2) + zfma(jj,1,jk2))
+                   pgd2(ilonr,jk2,jj2)  = -zjm*(zfms(jj,2,jk ) + zfma(jj,2,jk ))
+                   pgd2(iloni,jk2,jj2)  =  zjm*(zfms(jj,1,jk ) + zfma(jj,1,jk ))
                 enddo
              else
                 ! Scalar fields
                 do jk = 2*nflev+1, kfield
-                   pgd2(ilonr,jk,jj) = zfms(jj2,1,jk) - zfma(jj2,1,jk)
-                   pgd2(iloni,jk,jj) = zfms(jj2,2,jk) - zfma(jj2,2,jk)
+                   pgd2(ilonr,jk,jj2) = zfms(jj2,1,jk) - zfma(jj2,1,jk)
+                   pgd2(iloni,jk,jj2) = zfms(jj2,2,jk) - zfma(jj2,2,jk)
                 enddo
                 ! Vector fields
                 do jk = 1, nflev
                    jk2 = jk + nflev
-                   pgd2(ilonr,jk ,jj) = -zjm*(zfms(jj2,2,jk2) - zfma(jj2,2,jk2))
-                   pgd2(iloni,jk ,jj) =  zjm*(zfms(jj2,1,jk2) - zfma(jj2,1,jk2))
-                   pgd2(ilonr,jk2,jj) = -zjm*(zfms(jj2,2,jk ) - zfma(jj2,2,jk ))
-                   pgd2(iloni,jk2,jj) =  zjm*(zfms(jj2,1,jk ) - zfma(jj2,1,jk ))
+                   pgd2(ilonr,jk ,jj2) = -zjm*(zfms(jj2,2,jk2) - zfma(jj2,2,jk2))
+                   pgd2(iloni,jk ,jj2) =  zjm*(zfms(jj2,1,jk2) - zfma(jj2,1,jk2))
+                   pgd2(ilonr,jk2,jj2) = -zjm*(zfms(jj2,2,jk ) - zfma(jj2,2,jk ))
+                   pgd2(iloni,jk2,jj2) =  zjm*(zfms(jj2,1,jk ) - zfma(jj2,1,jk ))
                 enddo
              endif
           enddo
@@ -1671,19 +1699,19 @@ CONTAINS
                    do jk = 1,nflev
                       jk2 = jk + nflev
                       ! northern latitudes
-                      pgd2(ilonr,jk ,jj) = pgd2(ilonr,jk ,jj) -(zfms(jj,1,jk ) + zfma(jj,1,jk ))
-                      pgd2(iloni,jk ,jj) = pgd2(iloni,jk ,jj) -(zfms(jj,2,jk ) + zfma(jj,2,jk ))
-                      pgd2(ilonr,jk2,jj) = pgd2(ilonr,jk2,jj) +(zfms(jj,1,jk2) + zfma(jj,1,jk2))
-                      pgd2(iloni,jk2,jj) = pgd2(iloni,jk2,jj) +(zfms(jj,2,jk2) + zfma(jj,2,jk2))
+                      pgd2(ilonr,jk ,jj2) = pgd2(ilonr,jk ,jj2) -(zfms(jj,1,jk ) + zfma(jj,1,jk ))
+                      pgd2(iloni,jk ,jj2) = pgd2(iloni,jk ,jj2) -(zfms(jj,2,jk ) + zfma(jj,2,jk ))
+                      pgd2(ilonr,jk2,jj2) = pgd2(ilonr,jk2,jj2) +(zfms(jj,1,jk2) + zfma(jj,1,jk2))
+                      pgd2(iloni,jk2,jj2) = pgd2(iloni,jk2,jj2) +(zfms(jj,2,jk2) + zfma(jj,2,jk2))
                    enddo
                 else
                    do jk = 1,nflev
                       jk2 = jk + nflev
                       ! southern latitudes
-                      pgd2(ilonr,jk ,jj) = pgd2(ilonr,jk ,jj) -(zfms(jj2,1,jk ) - zfma(jj2,1,jk ))
-                      pgd2(iloni,jk ,jj) = pgd2(iloni,jk ,jj) -(zfms(jj2,2,jk ) - zfma(jj2,2,jk ))
-                      pgd2(ilonr,jk2,jj) = pgd2(ilonr,jk2,jj) +(zfms(jj2,1,jk2) - zfma(jj2,1,jk2))
-                      pgd2(iloni,jk2,jj) = pgd2(iloni,jk2,jj) +(zfms(jj2,2,jk2) - zfma(jj2,2,jk2))
+                      pgd2(ilonr,jk ,jj2) = pgd2(ilonr,jk ,jj2) -(zfms(jj2,1,jk ) - zfma(jj2,1,jk ))
+                      pgd2(iloni,jk ,jj2) = pgd2(iloni,jk ,jj2) -(zfms(jj2,2,jk ) - zfma(jj2,2,jk ))
+                      pgd2(ilonr,jk2,jj2) = pgd2(ilonr,jk2,jj2) +(zfms(jj2,1,jk2) - zfma(jj2,1,jk2))
+                      pgd2(iloni,jk2,jj2) = pgd2(iloni,jk2,jj2) +(zfms(jj2,2,jk2) - zfma(jj2,2,jk2))
                    enddo
                 endif
              else
@@ -1691,10 +1719,10 @@ CONTAINS
                 write(*,*) 'SPGDPAR: special case of jj.eq.jj2!!!'
                 do jk = 1, nflev
                    jk2 = jk + nflev
-                   pgd2(ilonr,jk ,jj) = pgd2(ilonr,jk ,jj) -(zfms(jj,1,jk ) + zfma(jj,1,jk ))
-                   pgd2(iloni,jk ,jj) = pgd2(iloni,jk ,jj) -(zfms(jj,2,jk ) + zfma(jj,2,jk ))
-                   pgd2(ilonr,jk2,jj) = pgd2(ilonr,jk2,jj) +(zfms(jj,1,jk2) + zfma(jj,1,jk2))
-                   pgd2(iloni,jk2,jj) = pgd2(iloni,jk2,jj) +(zfms(jj,2,jk2) + zfma(jj,2,jk2))
+                   pgd2(ilonr,jk ,jj2) = pgd2(ilonr,jk ,jj2) -(zfms(jj,1,jk ) + zfma(jj,1,jk ))
+                   pgd2(iloni,jk ,jj2) = pgd2(iloni,jk ,jj2) -(zfms(jj,2,jk ) + zfma(jj,2,jk ))
+                   pgd2(ilonr,jk2,jj2) = pgd2(ilonr,jk2,jj2) +(zfms(jj,1,jk2) + zfma(jj,1,jk2))
+                   pgd2(iloni,jk2,jj2) = pgd2(iloni,jk2,jj2) +(zfms(jj,2,jk2) + zfma(jj,2,jk2))
                 enddo
              endif
           enddo
@@ -1765,36 +1793,36 @@ CONTAINS
              ! Scalar fields
              do jk = gst(gstID)%myLevBeg, gst(gstID)%myLevEnd
                 if(jk .gt. 2*nflev) then
-                   pgd2(ilonr,jk,jj) = zfms(jj,1,jk) + zfma(jj,1,jk)
-                   pgd2(iloni,jk,jj) = zfms(jj,2,jk) + zfma(jj,2,jk)
+                   pgd2(ilonr,jk,jj2) = zfms(jj,1,jk) + zfma(jj,1,jk)
+                   pgd2(iloni,jk,jj2) = zfms(jj,2,jk) + zfma(jj,2,jk)
                 endif
              enddo
              ! Vector fields: Note that u and v are interleaved in mode 5!
              do jk = gst(gstID)%myLevBeg, gst(gstID)%myLevEnd, 2
                 if(jk .le. 2*nflev) then
                    jk2 = jk + 1  ! jk is u, jk2 is v
-                   pgd2(ilonr,jk,jj)  = -zjm*(zfms(jj,2,jk2) + zfma(jj,2,jk2))
-                   pgd2(iloni,jk,jj)  =  zjm*(zfms(jj,1,jk2) + zfma(jj,1,jk2))
-                   pgd2(ilonr,jk2,jj) = -zjm*(zfms(jj,2,jk)  + zfma(jj,2,jk))
-                   pgd2(iloni,jk2,jj) =  zjm*(zfms(jj,1,jk)  + zfma(jj,1,jk))
+                   pgd2(ilonr,jk,jj2)  = -zjm*(zfms(jj,2,jk2) + zfma(jj,2,jk2))
+                   pgd2(iloni,jk,jj2)  =  zjm*(zfms(jj,1,jk2) + zfma(jj,1,jk2))
+                   pgd2(ilonr,jk2,jj2) = -zjm*(zfms(jj,2,jk)  + zfma(jj,2,jk))
+                   pgd2(iloni,jk2,jj2) =  zjm*(zfms(jj,1,jk)  + zfma(jj,1,jk))
                 endif
              enddo
           else
              ! Scalar fields
              do jk = gst(gstID)%myLevBeg, gst(gstID)%myLevEnd
                 if(jk .gt. 2*nflev) then
-                   pgd2(ilonr,jk,jj) = zfms(jj2,1,jk) - zfma(jj2,1,jk)
-                   pgd2(iloni,jk,jj) = zfms(jj2,2,jk) - zfma(jj2,2,jk)
+                   pgd2(ilonr,jk,jj2) = zfms(jj2,1,jk) - zfma(jj2,1,jk)
+                   pgd2(iloni,jk,jj2) = zfms(jj2,2,jk) - zfma(jj2,2,jk)
                 endif
              enddo
              ! Vector fields: Note that u and v are interleaved in mode 5!
              do jk = gst(gstID)%myLevBeg, gst(gstID)%myLevEnd, 2
                 if(jk .le. 2*nflev) then
                    jk2 = jk + 1  ! jk is u, jk2 is v
-                   pgd2(ilonr,jk,jj)  = -zjm*(zfms(jj2,2,jk2) - zfma(jj2,2,jk2))
-                   pgd2(iloni,jk,jj)  =  zjm*(zfms(jj2,1,jk2) - zfma(jj2,1,jk2))
-                   pgd2(ilonr,jk2,jj) = -zjm*(zfms(jj2,2,jk)  - zfma(jj2,2,jk))
-                   pgd2(iloni,jk2,jj) =  zjm*(zfms(jj2,1,jk)  - zfma(jj2,1,jk))
+                   pgd2(ilonr,jk,jj2)  = -zjm*(zfms(jj2,2,jk2) - zfma(jj2,2,jk2))
+                   pgd2(iloni,jk,jj2)  =  zjm*(zfms(jj2,1,jk2) - zfma(jj2,1,jk2))
+                   pgd2(ilonr,jk2,jj2) = -zjm*(zfms(jj2,2,jk)  - zfma(jj2,2,jk))
+                   pgd2(iloni,jk2,jj2) =  zjm*(zfms(jj2,1,jk)  - zfma(jj2,1,jk))
                 endif
              enddo
           endif
@@ -1812,12 +1840,12 @@ CONTAINS
                 do jk = gst(gstID)%myLevBeg, gst(gstID)%myLevEnd, 2
                    if(jk .le. 2*nflev) then
                       ! u component
-                      pgd2(ilonr,jk,jj)  = pgd2(ilonr,jk,jj)  - (zfms(jj,1,jk)  + zfma(jj,1,jk))
-                      pgd2(iloni,jk,jj)  = pgd2(iloni,jk,jj)  - (zfms(jj,2,jk)  + zfma(jj,2,jk))
+                      pgd2(ilonr,jk,jj2)  = pgd2(ilonr,jk,jj2)  - (zfms(jj,1,jk)  + zfma(jj,1,jk))
+                      pgd2(iloni,jk,jj2)  = pgd2(iloni,jk,jj2)  - (zfms(jj,2,jk)  + zfma(jj,2,jk))
                       ! v component
                       jk2 = jk + 1  ! jk is u, jk2 is v
-                      pgd2(ilonr,jk2,jj) = pgd2(ilonr,jk2,jj) + (zfms(jj,1,jk2) + zfma(jj,1,jk2))
-                      pgd2(iloni,jk2,jj) = pgd2(iloni,jk2,jj) + (zfms(jj,2,jk2) + zfma(jj,2,jk2))
+                      pgd2(ilonr,jk2,jj2) = pgd2(ilonr,jk2,jj2) + (zfms(jj,1,jk2) + zfma(jj,1,jk2))
+                      pgd2(iloni,jk2,jj2) = pgd2(iloni,jk2,jj2) + (zfms(jj,2,jk2) + zfma(jj,2,jk2))
                    endif
                 enddo
              else
@@ -1825,12 +1853,12 @@ CONTAINS
                 do jk = gst(gstID)%myLevBeg, gst(gstID)%myLevEnd, 2
                    if(jk .le. 2*nflev) then
                       ! u component
-                      pgd2(ilonr,jk ,jj) = pgd2(ilonr,jk ,jj) -(zfms(jj2,1,jk ) - zfma(jj2,1,jk ))
-                      pgd2(iloni,jk ,jj) = pgd2(iloni,jk ,jj) -(zfms(jj2,2,jk ) - zfma(jj2,2,jk ))
+                      pgd2(ilonr,jk ,jj2) = pgd2(ilonr,jk ,jj2) -(zfms(jj2,1,jk ) - zfma(jj2,1,jk ))
+                      pgd2(iloni,jk ,jj2) = pgd2(iloni,jk ,jj2) -(zfms(jj2,2,jk ) - zfma(jj2,2,jk ))
                       ! v component
                       jk2 = jk + 1
-                      pgd2(ilonr,jk2,jj) = pgd2(ilonr,jk2,jj) +(zfms(jj2,1,jk2) - zfma(jj2,1,jk2))
-                      pgd2(iloni,jk2,jj) = pgd2(iloni,jk2,jj) +(zfms(jj2,2,jk2) - zfma(jj2,2,jk2))
+                      pgd2(ilonr,jk2,jj2) = pgd2(ilonr,jk2,jj2) +(zfms(jj2,1,jk2) - zfma(jj2,1,jk2))
+                      pgd2(iloni,jk2,jj2) = pgd2(iloni,jk2,jj2) +(zfms(jj2,2,jk2) - zfma(jj2,2,jk2))
                    endif
                 enddo
              endif
@@ -1840,12 +1868,12 @@ CONTAINS
              do jk = gst(gstID)%myLevBeg, gst(gstID)%myLevEnd, 2
                 if(jk .le. 2*nflev) then
                    ! u component
-                   pgd2(ilonr,jk ,jj) = pgd2(ilonr,jk ,jj) -(zfms(jj,1,jk ) + zfma(jj,1,jk ))
-                   pgd2(iloni,jk ,jj) = pgd2(iloni,jk ,jj) -(zfms(jj,2,jk ) + zfma(jj,2,jk ))
+                   pgd2(ilonr,jk ,jj2) = pgd2(ilonr,jk ,jj2) -(zfms(jj,1,jk ) + zfma(jj,1,jk ))
+                   pgd2(iloni,jk ,jj2) = pgd2(iloni,jk ,jj2) -(zfms(jj,2,jk ) + zfma(jj,2,jk ))
                    ! v component
                    jk2 = jk + 1
-                   pgd2(ilonr,jk2,jj) = pgd2(ilonr,jk2,jj) +(zfms(jj,1,jk2) + zfma(jj,1,jk2))
-                   pgd2(iloni,jk2,jj) = pgd2(iloni,jk2,jj) +(zfms(jj,2,jk2) + zfma(jj,2,jk2))
+                   pgd2(ilonr,jk2,jj2) = pgd2(ilonr,jk2,jj2) +(zfms(jj,1,jk2) + zfma(jj,1,jk2))
+                   pgd2(iloni,jk2,jj2) = pgd2(iloni,jk2,jj2) +(zfms(jj,2,jk2) + zfma(jj,2,jk2))
                 endif
              enddo
           endif
@@ -1858,12 +1886,12 @@ CONTAINS
 
 
   ! NO MPI MODIFICATIONS YET
-  SUBROUTINE GDSPPAR(SP,PGD2,KFIELD,NFLEV,KDIM)
+  SUBROUTINE GDSPPAR(SP,PGD2,KFIELD,NFLEV)
     implicit none
 
-    INTEGER :: kfield,nflev,kdim
-    real(8) :: sp(gst(gstID)%nla,2,kdim)
-    real(8) :: pgd2(gst(gstID)%ni,kdim,gst(gstID)%nj)
+    INTEGER :: kfield,nflev
+    real(8) :: sp(gst(gstID)%nla,2,kfield)
+    real(8) :: pgd2(gst(gstID)%ni,kfield,gst(gstID)%nj)
 
     integer :: jj, jj2, jk, ilonr, iloni, jm ,ila, inm, jn, jm0, ins, jns
     integer :: njlath,nj,ntrunc
@@ -1887,7 +1915,7 @@ CONTAINS
     end if
 
 !$OMP PARALLEL PRIVATE(DLALP,DLDALP,JM0,DLSP,DLSP2,ZFMS,ZFMA)
-!$OMP DO PRIVATE(INM,ILA,JM,JN,JK,JJ,ZJM,JNS,INS,ILONR,ILONI)
+!$OMP DO PRIVATE(INM,ILA,JM,JN,JK,JJ,JJ2,ZJM,JNS,INS,ILONR,ILONI)
     do jm0 = 0, ntrunc/2
        ins = 1
        if(jm0.eq.ntrunc-jm0) ins = 0
@@ -1908,27 +1936,27 @@ CONTAINS
              ! 2.2.1  Coefficients for scalar fields
              do jk = 2*nflev+1, kfield
                 ! symmetric coefficients
-                zfms(jj,1,jk) = dlrwt(jj)*(pgd2(ilonr,jk,jj) + pgd2(ilonr,jk,jj2))
-                zfms(jj,2,jk) = dlrwt(jj)*(pgd2(iloni,jk,jj) + pgd2(iloni,jk,jj2))
+                zfms(jj,1,jk) = dlrwt(jj)*(pgd2(ilonr,jk,jj2) + pgd2(ilonr,jk,jj))
+                zfms(jj,2,jk) = dlrwt(jj)*(pgd2(iloni,jk,jj2) + pgd2(iloni,jk,jj))
                 ! antisymmetric coefficients
-                zfma(jj,1,jk) = dlrwt(jj)*(pgd2(ilonr,jk,jj) - pgd2(ilonr,jk,jj2))
-                zfma(jj,2,jk) = dlrwt(jj)*(pgd2(iloni,jk,jj) - pgd2(iloni,jk,jj2))
+                zfma(jj,1,jk) = dlrwt(jj)*(pgd2(ilonr,jk,jj2) - pgd2(ilonr,jk,jj))
+                zfma(jj,2,jk) = dlrwt(jj)*(pgd2(iloni,jk,jj2) - pgd2(iloni,jk,jj))
              enddo
 
              ! 2.2.2 Coefficients associated with the wind fields
              do jk = 1, nflev
                 ! vorticity: symmetric coefficients
-                zfms(jj,1,jk) = -zjm*dlrwocs(jj)*(pgd2(iloni,jk+nflev,jj)+pgd2(iloni,jk+nflev,jj2))
-                zfms(jj,2,jk) = zjm*dlrwocs(jj)*(pgd2(ilonr,jk+nflev,jj) +pgd2(ilonr,jk+nflev,jj2))
+                zfms(jj,1,jk) = -zjm*dlrwocs(jj)*(pgd2(iloni,jk+nflev,jj2)+pgd2(iloni,jk+nflev,jj))
+                zfms(jj,2,jk) = zjm*dlrwocs(jj) *(pgd2(ilonr,jk+nflev,jj2)+pgd2(ilonr,jk+nflev,jj))
                 ! vorticity: antisymmetric coefficients
-                zfma(jj,1,jk) = -zjm*dlrwocs(jj)*(pgd2(iloni,jk+nflev,jj)- pgd2(iloni,jk+nflev,jj2))
-                zfma(jj,2,jk) = zjm*dlrwocs(jj) *(pgd2(ilonr,jk+nflev,jj)- pgd2(ilonr,jk+nflev,jj2))
+                zfma(jj,1,jk) = -zjm*dlrwocs(jj)*(pgd2(iloni,jk+nflev,jj2)- pgd2(iloni,jk+nflev,jj))
+                zfma(jj,2,jk) = zjm*dlrwocs(jj) *(pgd2(ilonr,jk+nflev,jj2)- pgd2(ilonr,jk+nflev,jj))
                 ! divergence: symmetric coefficients
-                zfms(jj,1,jk+nflev) = -zjm*dlrwocs(jj)*(pgd2(iloni,jk,jj)+ pgd2(iloni,jk,jj2))
-                zfms(jj,2,jk+nflev) = zjm*dlrwocs(jj)*(pgd2(ilonr,jk,jj)+ pgd2(ilonr,jk,jj2))
+                zfms(jj,1,jk+nflev) = -zjm*dlrwocs(jj)*(pgd2(iloni,jk,jj2)+ pgd2(iloni,jk,jj))
+                zfms(jj,2,jk+nflev) = zjm*dlrwocs(jj) *(pgd2(ilonr,jk,jj2)+ pgd2(ilonr,jk,jj))
                 ! divergence: antisymmetric coefficients
-                zfma(jj,1,jk+nflev) = -zjm*dlrwocs(jj)*(pgd2(iloni,jk,jj)- pgd2(iloni,jk,jj2))
-                zfma(jj,2,jk+nflev) = zjm*dlrwocs(jj)*(pgd2(ilonr,jk,jj)- pgd2(ilonr,jk,jj2))
+                zfma(jj,1,jk+nflev) = -zjm*dlrwocs(jj)*(pgd2(iloni,jk,jj2)- pgd2(iloni,jk,jj))
+                zfma(jj,2,jk+nflev) = zjm*dlrwocs(jj) *(pgd2(ilonr,jk,jj2)- pgd2(ilonr,jk,jj))
              enddo
           enddo
 
@@ -1942,19 +1970,19 @@ CONTAINS
              jj2 = nj - jj + 1
              do jk = 1, nflev
                 ! symmetric coefficients for zonal wind
-                zfms(jj,1,jk) = dlrwocs(jj)*(pgd2(ilonr,jk,jj) + pgd2(ilonr,jk,jj2))
-                zfms(jj,2,jk) = dlrwocs(jj)*(pgd2(iloni,jk,jj) + pgd2(iloni,jk,jj2))
+                zfms(jj,1,jk) = dlrwocs(jj)*(pgd2(ilonr,jk,jj2) + pgd2(ilonr,jk,jj))
+                zfms(jj,2,jk) = dlrwocs(jj)*(pgd2(iloni,jk,jj2) + pgd2(iloni,jk,jj))
                 ! antisymmetric coefficients for zonal wind
-                zfma(jj,1,jk) = dlrwocs(jj)*(pgd2(ilonr,jk,jj) - pgd2(ilonr,jk,jj2))
-                zfma(jj,2,jk) = dlrwocs(jj)*(pgd2(iloni,jk,jj) - pgd2(iloni,jk,jj2))
+                zfma(jj,1,jk) = dlrwocs(jj)*(pgd2(ilonr,jk,jj2) - pgd2(ilonr,jk,jj))
+                zfma(jj,2,jk) = dlrwocs(jj)*(pgd2(iloni,jk,jj2) - pgd2(iloni,jk,jj))
              enddo
              do jk = nflev+1, 2*nflev
                 ! symmetric coefficients for zonal wind
-                zfms(jj,1,jk) = -dlrwocs(jj)*(pgd2(ilonr,jk,jj) + pgd2(ilonr,jk,jj2))
-                zfms(jj,2,jk) = -dlrwocs(jj)*(pgd2(iloni,jk,jj) + pgd2(iloni,jk,jj2))
+                zfms(jj,1,jk) = -dlrwocs(jj)*(pgd2(ilonr,jk,jj2) + pgd2(ilonr,jk,jj))
+                zfms(jj,2,jk) = -dlrwocs(jj)*(pgd2(iloni,jk,jj2) + pgd2(iloni,jk,jj))
                 ! antisymmetric coefficients for zonal wind
-                zfma(jj,1,jk) = -dlrwocs(jj)*(pgd2(ilonr,jk,jj) - pgd2(ilonr,jk,jj2))
-                zfma(jj,2,jk) = -dlrwocs(jj)*(pgd2(iloni,jk,jj) - pgd2(iloni,jk,jj2))
+                zfma(jj,1,jk) = -dlrwocs(jj)*(pgd2(ilonr,jk,jj2) - pgd2(ilonr,jk,jj))
+                zfma(jj,2,jk) = -dlrwocs(jj)*(pgd2(iloni,jk,jj2) - pgd2(iloni,jk,jj))
              enddo
           enddo
           call legdir3(jm,zfma,zfms,dlsp2,dldalp,2*nflev,njlath,ntrunc,ntrunc)
@@ -2015,7 +2043,7 @@ CONTAINS
 
     ! Fourier transform all fields for all latitudes
     call tmg_start(20+gst(gstID)%mpiMode,'FFT')
-    call fft_fft3dvar2(pgd3,gst(gstID)%myLevCount,gst(gstID)%myLevCount,-1,gst(gstID)%fftID)
+    call fft3dvar(pgd3,-1)
     call tmg_stop(20+gst(gstID)%mpiMode)
 
     ! Transpose data along npey from Latitudes to M
@@ -2093,20 +2121,20 @@ CONTAINS
                 ! Northern hemisphere
                 do jk = gst(gstID)%myLevBeg, gst(gstID)%myLevEnd
                    if(jk .gt. 2*nflev) then
-                      zfms(jj,1,jk) = pgd2(ilonr,jk,jj)
-                      zfms(jj,2,jk) = pgd2(iloni,jk,jj)
-                      zfma(jj,1,jk) = pgd2(ilonr,jk,jj)
-                      zfma(jj,2,jk) = pgd2(iloni,jk,jj)
+                      zfms(jj,1,jk) = pgd2(ilonr,jk,jj2)
+                      zfms(jj,2,jk) = pgd2(iloni,jk,jj2)
+                      zfma(jj,1,jk) = pgd2(ilonr,jk,jj2)
+                      zfma(jj,2,jk) = pgd2(iloni,jk,jj2)
                    endif
                 enddo
              else
                 ! Southern hemisphere
                 do jk = gst(gstID)%myLevBeg, gst(gstID)%myLevEnd
                     if(jk .gt. 2*nflev) then
-                      zfms(jj2,1,jk) = zfms(jj2,1,jk) + pgd2(ilonr,jk,jj)
-                      zfms(jj2,2,jk) = zfms(jj2,2,jk) + pgd2(iloni,jk,jj)
-                      zfma(jj2,1,jk) = zfma(jj2,1,jk) - pgd2(ilonr,jk,jj)
-                      zfma(jj2,2,jk) = zfma(jj2,2,jk) - pgd2(iloni,jk,jj)
+                      zfms(jj2,1,jk) = zfms(jj2,1,jk) + pgd2(ilonr,jk,jj2)
+                      zfms(jj2,2,jk) = zfms(jj2,2,jk) + pgd2(iloni,jk,jj2)
+                      zfma(jj2,1,jk) = zfma(jj2,1,jk) - pgd2(ilonr,jk,jj2)
+                      zfma(jj2,2,jk) = zfma(jj2,2,jk) - pgd2(iloni,jk,jj2)
                    endif
                 enddo
              endif
@@ -2118,17 +2146,17 @@ CONTAINS
                    if(jk .le. 2*nflev) then
                       jk2 = jk + 1
                       ! vorticity: symmetric coefficients
-                      zfms(jj,1,jk ) = -pgd2(iloni,jk2,jj)
-                      zfms(jj,2,jk ) =  pgd2(ilonr,jk2,jj)
+                      zfms(jj,1,jk ) = -pgd2(iloni,jk2,jj2)
+                      zfms(jj,2,jk ) =  pgd2(ilonr,jk2,jj2)
                       ! vorticity: antisymmetric coefficients
-                      zfma(jj,1,jk ) = -pgd2(iloni,jk2,jj)
-                      zfma(jj,2,jk ) =  pgd2(ilonr,jk2,jj)
+                      zfma(jj,1,jk ) = -pgd2(iloni,jk2,jj2)
+                      zfma(jj,2,jk ) =  pgd2(ilonr,jk2,jj2)
                       ! divergence: symmetric coefficients
-                      zfms(jj,1,jk2) = -pgd2(iloni,jk ,jj)
-                      zfms(jj,2,jk2) =  pgd2(ilonr,jk ,jj)
+                      zfms(jj,1,jk2) = -pgd2(iloni,jk ,jj2)
+                      zfms(jj,2,jk2) =  pgd2(ilonr,jk ,jj2)
                       ! divergence: antisymmetric coefficients
-                      zfma(jj,1,jk2) = -pgd2(iloni,jk ,jj)
-                      zfma(jj,2,jk2) =  pgd2(ilonr,jk ,jj)
+                      zfma(jj,1,jk2) = -pgd2(iloni,jk ,jj2)
+                      zfma(jj,2,jk2) =  pgd2(ilonr,jk ,jj2)
                    endif
                 enddo
              else
@@ -2137,17 +2165,17 @@ CONTAINS
                    if(jk .le. 2*nflev) then
                       jk2 = jk + 1
                       ! vorticity: symmetric coefficients
-                      zfms(jj2,1,jk ) = zfms(jj2,1,jk ) - pgd2(iloni,jk2,jj)
-                      zfms(jj2,2,jk ) = zfms(jj2,2,jk ) + pgd2(ilonr,jk2,jj)
+                      zfms(jj2,1,jk ) = zfms(jj2,1,jk ) - pgd2(iloni,jk2,jj2)
+                      zfms(jj2,2,jk ) = zfms(jj2,2,jk ) + pgd2(ilonr,jk2,jj2)
                       ! vorticity: antisymmetric coefficients
-                      zfma(jj2,1,jk ) = zfma(jj2,1,jk ) + pgd2(iloni,jk2,jj)
-                      zfma(jj2,2,jk ) = zfma(jj2,2,jk ) - pgd2(ilonr,jk2,jj)
+                      zfma(jj2,1,jk ) = zfma(jj2,1,jk ) + pgd2(iloni,jk2,jj2)
+                      zfma(jj2,2,jk ) = zfma(jj2,2,jk ) - pgd2(ilonr,jk2,jj2)
                       ! divergence: symmetric coefficients
-                      zfms(jj2,1,jk2) = zfms(jj2,1,jk2) - pgd2(iloni,jk ,jj)
-                      zfms(jj2,2,jk2) = zfms(jj2,2,jk2) + pgd2(ilonr,jk ,jj)
+                      zfms(jj2,1,jk2) = zfms(jj2,1,jk2) - pgd2(iloni,jk ,jj2)
+                      zfms(jj2,2,jk2) = zfms(jj2,2,jk2) + pgd2(ilonr,jk ,jj2)
                       ! divergence: antisymmetric coefficients
-                      zfma(jj2,1,jk2) = zfma(jj2,1,jk2) + pgd2(iloni,jk ,jj)
-                      zfma(jj2,2,jk2) = zfma(jj2,2,jk2) - pgd2(ilonr,jk ,jj)
+                      zfma(jj2,1,jk2) = zfma(jj2,1,jk2) + pgd2(iloni,jk ,jj2)
+                      zfma(jj2,2,jk2) = zfma(jj2,2,jk2) - pgd2(ilonr,jk ,jj2)
                    endif
                 enddo
              endif
@@ -2195,17 +2223,17 @@ CONTAINS
                    if(jk .le. 2*nflev) then
                       jk2 = jk + 1
                       ! symmetric coefficients for zonal wind
-                      zfms(jj,1,jk ) =  pgd2(ilonr,jk ,jj)
-                      zfms(jj,2,jk ) =  pgd2(iloni,jk ,jj)
+                      zfms(jj,1,jk ) =  pgd2(ilonr,jk ,jj2)
+                      zfms(jj,2,jk ) =  pgd2(iloni,jk ,jj2)
                       ! antisymmetric coefficients for zonal wind
-                      zfma(jj,1,jk ) =  pgd2(ilonr,jk ,jj)
-                      zfma(jj,2,jk ) =  pgd2(iloni,jk ,jj)
+                      zfma(jj,1,jk ) =  pgd2(ilonr,jk ,jj2)
+                      zfma(jj,2,jk ) =  pgd2(iloni,jk ,jj2)
                       ! symmetric coefficients for meridional wind
-                      zfms(jj,1,jk2) = -pgd2(ilonr,jk2,jj)
-                      zfms(jj,2,jk2) = -pgd2(iloni,jk2,jj)
+                      zfms(jj,1,jk2) = -pgd2(ilonr,jk2,jj2)
+                      zfms(jj,2,jk2) = -pgd2(iloni,jk2,jj2)
                       ! antisymmetric coefficients for meridional wind
-                      zfma(jj,1,jk2) = -pgd2(ilonr,jk2,jj)
-                      zfma(jj,2,jk2) = -pgd2(iloni,jk2,jj)
+                      zfma(jj,1,jk2) = -pgd2(ilonr,jk2,jj2)
+                      zfma(jj,2,jk2) = -pgd2(iloni,jk2,jj2)
                    endif
                 enddo
              else
@@ -2214,17 +2242,17 @@ CONTAINS
                    if(jk .le. 2*nflev) then
                       jk2 = jk + 1
                       ! symmetric coefficients for zonal wind
-                      zfms(jj2,1,jk ) = zfms(jj2,1,jk ) + pgd2(ilonr,jk ,jj)
-                      zfms(jj2,2,jk ) = zfms(jj2,2,jk ) + pgd2(iloni,jk ,jj)
+                      zfms(jj2,1,jk ) = zfms(jj2,1,jk ) + pgd2(ilonr,jk ,jj2)
+                      zfms(jj2,2,jk ) = zfms(jj2,2,jk ) + pgd2(iloni,jk ,jj2)
                       ! antisymmetric coefficients for zonal wind
-                      zfma(jj2,1,jk ) = zfma(jj2,1,jk ) - pgd2(ilonr,jk ,jj)
-                      zfma(jj2,2,jk ) = zfma(jj2,2,jk ) - pgd2(iloni,jk ,jj)
+                      zfma(jj2,1,jk ) = zfma(jj2,1,jk ) - pgd2(ilonr,jk ,jj2)
+                      zfma(jj2,2,jk ) = zfma(jj2,2,jk ) - pgd2(iloni,jk ,jj2)
                       ! symmetric coefficients for meridional wind
-                      zfms(jj2,1,jk2) = zfms(jj2,1,jk2) - pgd2(ilonr,jk2,jj)
-                      zfms(jj2,2,jk2) = zfms(jj2,2,jk2) - pgd2(iloni,jk2,jj)
+                      zfms(jj2,1,jk2) = zfms(jj2,1,jk2) - pgd2(ilonr,jk2,jj2)
+                      zfms(jj2,2,jk2) = zfms(jj2,2,jk2) - pgd2(iloni,jk2,jj2)
                       ! antisymmetric coefficients for meridional wind
-                      zfma(jj2,1,jk2) = zfma(jj2,1,jk2) + pgd2(ilonr,jk2,jj)
-                      zfma(jj2,2,jk2) = zfma(jj2,2,jk2) + pgd2(iloni,jk2,jj)
+                      zfma(jj2,1,jk2) = zfma(jj2,1,jk2) + pgd2(ilonr,jk2,jj2)
+                      zfma(jj2,2,jk2) = zfma(jj2,2,jk2) + pgd2(iloni,jk2,jj2)
                    endif
                 enddo
              endif
@@ -2265,30 +2293,30 @@ CONTAINS
   END SUBROUTINE SPGDAPAR_MPI2D
 
 
-  SUBROUTINE GST_SPEREE(PSP,PGD,KFIELD,KDIM)
+  SUBROUTINE GST_SPEREE(PSP,PGD,KFIELD)
     implicit none
 
-    integer :: kfield, kdim
-    real(8) :: psp(gst(gstID)%nla,2,kdim)
-    real(8) :: pgd(gst(gstID)%ni,kdim,gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+    integer :: kfield
+    real(8) :: psp(gst(gstID)%nla,2,kfield)
+    real(8) :: pgd(gst(gstID)%ni,kfield,gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
 
     real(8), allocatable :: pgd2(:,:,:)
     integer :: jlat, jk, jlon
 
     ! 1.1 Inverse Legendre transform
     if(gst(gstID)%mpiMode.eq.2) then
-      allocate(pgd2(2*gst(gstID)%maxmCount,kdim,gst(gstID)%nj))
+      allocate(pgd2(2*gst(gstID)%maxmCount,kfield,gst(gstID)%nj))
       call tmg_start(72+gst(gstID)%mpiMode,'LT')
-      call spereepar_mpi2(psp,pgd2,kfield,kdim)
+      call spereepar_mpi2(psp,pgd2,kfield)
       call tmg_stop(72+gst(gstID)%mpiMode)
-      call transpose_MtoLat(pgd2,pgd,kfield,kdim)
+      call transpose_MtoLat(pgd2,pgd,kfield)
       deallocate(pgd2)
     elseif(gst(gstID)%mpiMode.eq.3) then
       allocate(pgd2(2*(gst(gstID)%ntrunc+1),gst(gstID)%myLevBeg:gst(gstID)%myLevEnd,gst(gstID)%nj))
       call tmg_start(72+gst(gstID)%mpiMode,'LT')
-      call spereepar_mpi3(psp,pgd2,kfield,kdim)
+      call spereepar_mpi3(psp,pgd2,kfield)
       call tmg_stop(72+gst(gstID)%mpiMode)
-      call transpose_LevtoLat(pgd2,pgd,kfield,kdim)
+      call transpose_LevtoLat(pgd2,pgd,kfield)
       deallocate(pgd2)
     else
       write(*,*) 'GST_SPEREE: ONLY MPIMODE 2 AND 3 SUPPORTED! ',gst(gstID)%mpiMode
@@ -2311,7 +2339,7 @@ CONTAINS
 
     ! 2.2 Apply the inverse FFT 
     call tmg_start(20+gst(gstID)%mpiMode,'FFT')
-    call fft_fft3dvar2(pgd,kfield,kdim,+1,gst(gstID)%fftID)
+    call fft3dvar(pgd,+1)
     call tmg_stop(20+gst(gstID)%mpiMode)
 
   END SUBROUTINE GST_SPEREE
@@ -2355,7 +2383,7 @@ CONTAINS
 
     ! 2.2 Apply the inverse FFT 
     call tmg_start(20+gst(gstID)%mpiMode,'FFT')
-    call fft_fft3dvar2(pgd3,gst(gstID)%myLevCount,gst(gstID)%myLevCount,+1,gst(gstID)%fftID)
+    call fft3dvar(pgd3,+1)
     call tmg_stop(20+gst(gstID)%mpiMode)
 
     ! 2.3 Transpose data along npex from Levels to Longitudes
@@ -2409,7 +2437,7 @@ CONTAINS
 
     ! 2.2 Apply the inverse FFT 
     call tmg_start(20+gst(gstID)%mpiMode,'FFT')
-    call fft_fft3dvar2(pgd3,gst(gstID)%myLevCount,gst(gstID)%myLevCount,+1,gst(gstID)%fftID)
+    call fft3dvar(pgd3,+1)
     call tmg_stop(20+gst(gstID)%mpiMode)
 
     ! 2.3 Transpose data along npex from Levels to Longitudes
@@ -2419,34 +2447,34 @@ CONTAINS
   END SUBROUTINE GST_SPEREE4
 
 
-  SUBROUTINE GST_REESPE(PSP,PGD,KFIELD,KDIM)
+  SUBROUTINE GST_REESPE(PSP,PGD,KFIELD)
     implicit none
 
-    integer :: kfield,kdim
-    real(8) :: psp(gst(gstID)%nla,2,kdim)
-    real(8) :: pgd(gst(gstID)%ni,kdim,gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+    integer :: kfield
+    real(8) :: psp(gst(gstID)%nla,2,kfield)
+    real(8) :: pgd(gst(gstID)%ni,kfield,gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
 
     real(8), allocatable :: pgd2(:,:,:)
     integer :: ji,jj,jk, jlon, jlat
 
     ! 1. Apply the FFT
     call tmg_start(20+gst(gstID)%mpiMode,'FFT')
-    call fft_fft3dvar2(pgd,kfield,kdim,-1,gst(gstID)%fftID)
+    call fft3dvar(pgd,-1)
     call tmg_stop(20+gst(gstID)%mpiMode)
 
     ! 2. Direct Legendre transform
     if(gst(gstID)%mpiMode.eq.2) then
-      allocate(pgd2(2*gst(gstID)%maxmCount,kdim,gst(gstID)%nj))
-      call transpose_LattoM(pgd2,pgd,kfield,kdim)
+      allocate(pgd2(2*gst(gstID)%maxmCount,kfield,gst(gstID)%nj))
+      call transpose_LattoM(pgd2,pgd,kfield)
       call tmg_start(72+gst(gstID)%mpiMode,'LT')
-      call reespepar_mpi2(pgd2,psp,kfield,kdim)
+      call reespepar_mpi2(pgd2,psp,kfield)
       call tmg_stop(72+gst(gstID)%mpiMode)
       deallocate(pgd2)
     elseif(gst(gstID)%mpiMode.eq.3) then
       allocate(pgd2(2*(gst(gstID)%ntrunc+1),gst(gstID)%myLevBeg:gst(gstID)%myLevEnd,gst(gstID)%nj))
-      call transpose_LattoLev(pgd2,pgd,kfield,kdim)
+      call transpose_LattoLev(pgd2,pgd,kfield)
       call tmg_start(72+gst(gstID)%mpiMode,'LT')
-      call reespepar_mpi3(pgd2,psp,kfield,kdim)
+      call reespepar_mpi3(pgd2,psp,kfield)
       call tmg_stop(72+gst(gstID)%mpiMode)
       deallocate(pgd2)
     else
@@ -2477,7 +2505,7 @@ CONTAINS
 
     ! 1. Apply the FFT
     call tmg_start(20+gst(gstID)%mpiMode,'FFT')
-    call fft_fft3dvar2(pgd3,gst(gstID)%myLevCount,gst(gstID)%myLevCount,-1,gst(gstID)%fftID)
+    call fft3dvar(pgd3,-1)
     call tmg_stop(20+gst(gstID)%mpiMode)
 
     ! Transpose data along npey from Latitudes to M
@@ -2513,7 +2541,7 @@ CONTAINS
 
     ! 1. Apply the FFT
     call tmg_start(20+gst(gstID)%mpiMode,'FFT')
-    call fft_fft3dvar2(pgd3,gst(gstID)%myLevCount,gst(gstID)%myLevCount,-1,gst(gstID)%fftID)
+    call fft3dvar(pgd3,-1)
     call tmg_stop(20+gst(gstID)%mpiMode)
 
     ! Transpose data along npey from Latitudes to M
@@ -2533,14 +2561,14 @@ CONTAINS
   END SUBROUTINE GST_REESPE4
 
 
-  SUBROUTINE SPEREEPAR_MPI2(PSP,PGD2,KFIELD,KDIM)
+  SUBROUTINE SPEREEPAR_MPI2(PSP,PGD2,KFIELD)
 !**s/r SPEREEPAR_MPI2  - Inverse spectral transform(MPI PARALLEL LOOP)
 
     implicit none
 
-    integer :: kfield, kdim
-    real(8) :: psp(gst(gstID)%nla,2,kdim)
-    real(8) :: pgd2(2*gst(gstID)%maxmCount,kdim,gst(gstID)%nj)
+    integer :: kfield
+    real(8) :: psp(gst(gstID)%nla,2,kfield)
+    real(8) :: pgd2(2*gst(gstID)%maxmCount,kfield,gst(gstID)%nj)
 
     ! local variables
     integer :: jj, jj2, jm
@@ -2582,13 +2610,13 @@ CONTAINS
              jj2 = gst(gstID)%nj - jj + 1
              if(jj.le.gst(gstID)%njlath) then
                 do jk = 1,kfield
-                   pgd2(ilonr,jk,jj) = zfms(jj,1,jk) + zfma(jj,1,jk)
-                   pgd2(iloni,jk,jj) = zfms(jj,2,jk) + zfma(jj,2,jk)
+                   pgd2(ilonr,jk,jj2) = zfms(jj,1,jk) + zfma(jj,1,jk)
+                   pgd2(iloni,jk,jj2) = zfms(jj,2,jk) + zfma(jj,2,jk)
                 enddo
              else
                 do jk = 1,kfield
-                   pgd2(ilonr,jk,jj) = zfms(jj2,1,jk) - zfma(jj2,1,jk)
-                   pgd2(iloni,jk,jj) = zfms(jj2,2,jk) - zfma(jj2,2,jk)
+                   pgd2(ilonr,jk,jj2) = zfms(jj2,1,jk) - zfma(jj2,1,jk)
+                   pgd2(iloni,jk,jj2) = zfms(jj2,2,jk) - zfma(jj2,2,jk)
                 enddo
              endif
           enddo
@@ -2598,13 +2626,13 @@ CONTAINS
   END SUBROUTINE SPEREEPAR_MPI2
 
 
-  SUBROUTINE SPEREEPAR_MPI3(PSP,PGD2,KFIELD,KDIM)
+  SUBROUTINE SPEREEPAR_MPI3(PSP,PGD2,KFIELD)
 !**s/r SPEREEPAR_MPI3  - Inverse spectral transform(MPI PARALLEL LOOP)
 
     implicit none
 
-    integer kfield,kdim
-    real(8) :: psp(gst(gstID)%nla,2,kdim)
+    integer kfield
+    real(8) :: psp(gst(gstID)%nla,2,kfield)
     real(8) :: pgd2(2*(gst(gstID)%ntrunc+1),gst(gstID)%myLevBeg:gst(gstID)%myLevEnd,gst(gstID)%nj)
 
     ! local variables
@@ -2647,13 +2675,13 @@ CONTAINS
           jj2 = gst(gstID)%nj - jj + 1
           if(jj.le.gst(gstID)%njlath) then
              do jk = gst(gstID)%myLevBeg,gst(gstID)%myLevEnd
-                pgd2(ilonr,jk,jj) = zfms(jj,1,jk) + zfma(jj,1,jk)
-                pgd2(iloni,jk,jj) = zfms(jj,2,jk) + zfma(jj,2,jk)
+                pgd2(ilonr,jk,jj2) = zfms(jj,1,jk) + zfma(jj,1,jk)
+                pgd2(iloni,jk,jj2) = zfms(jj,2,jk) + zfma(jj,2,jk)
              enddo
           else
              do jk = gst(gstID)%myLevBeg,gst(gstID)%myLevEnd
-                pgd2(ilonr,jk,jj) = zfms(jj2,1,jk) - zfma(jj2,1,jk)
-                pgd2(iloni,jk,jj) = zfms(jj2,2,jk) - zfma(jj2,2,jk)
+                pgd2(ilonr,jk,jj2) = zfms(jj2,1,jk) - zfma(jj2,1,jk)
+                pgd2(iloni,jk,jj2) = zfms(jj2,2,jk) - zfma(jj2,2,jk)
              enddo
           endif
        enddo
@@ -2710,13 +2738,13 @@ CONTAINS
           jj2 = gst(gstID)%nj - jj + 1
           if(jj.le.gst(gstID)%njlath) then
              do jk = gst(gstID)%myLevBeg, gst(gstID)%myLevEnd
-                pgd2(ilonr,jk,jj) = zfms(jj,1,jk) + zfma(jj,1,jk)
-                pgd2(iloni,jk,jj) = zfms(jj,2,jk) + zfma(jj,2,jk)
+                pgd2(ilonr,jk,jj2) = zfms(jj,1,jk) + zfma(jj,1,jk)
+                pgd2(iloni,jk,jj2) = zfms(jj,2,jk) + zfma(jj,2,jk)
              enddo
           else
              do jk = gst(gstID)%myLevBeg, gst(gstID)%myLevEnd
-                pgd2(ilonr,jk,jj) = zfms(jj2,1,jk) - zfma(jj2,1,jk)
-                pgd2(iloni,jk,jj) = zfms(jj2,2,jk) - zfma(jj2,2,jk)
+                pgd2(ilonr,jk,jj2) = zfms(jj2,1,jk) - zfma(jj2,1,jk)
+                pgd2(iloni,jk,jj2) = zfms(jj2,2,jk) - zfma(jj2,2,jk)
              enddo
           endif
        enddo
@@ -2726,12 +2754,12 @@ CONTAINS
   END SUBROUTINE SPEREEPAR_MPI2D
 
 
-  SUBROUTINE REESPEPAR_MPI2(PGD2,PSP,KFIELD,KDIM)
+  SUBROUTINE REESPEPAR_MPI2(PGD2,PSP,KFIELD)
     implicit none
 
-    integer :: kfield,kdim
-    real(8) :: psp(gst(gstID)%nla,2,kdim)
-    real(8) :: pgd2(2*gst(gstID)%maxmCount,kdim,gst(gstID)%nj)
+    integer :: kfield
+    real(8) :: psp(gst(gstID)%nla,2,kfield)
+    real(8) :: pgd2(2*gst(gstID)%maxmCount,kfield,gst(gstID)%nj)
 
     integer :: jj, jj2, jk, jk2, ilonr, iloni
     integer :: jm, ila, inm, jn
@@ -2774,18 +2802,18 @@ CONTAINS
           if(jj.le.gst(gstID)%njlath) then
              ! Northern hemisphere
              do jk = 1,kfield
-                zfms(jj,1,jk) = pgd2(ilonr,jk,jj)
-                zfms(jj,2,jk) = pgd2(iloni,jk,jj)
-                zfma(jj,1,jk) = pgd2(ilonr,jk,jj)
-                zfma(jj,2,jk) = pgd2(iloni,jk,jj)
+                zfms(jj,1,jk) = pgd2(ilonr,jk,jj2)
+                zfms(jj,2,jk) = pgd2(iloni,jk,jj2)
+                zfma(jj,1,jk) = pgd2(ilonr,jk,jj2)
+                zfma(jj,2,jk) = pgd2(iloni,jk,jj2)
              enddo
           else
              ! Southern hemisphere
              do jk = 1,kfield
-                zfms(jj2,1,jk) = zfms(jj2,1,jk) + pgd2(ilonr,jk,jj)
-                zfms(jj2,2,jk) = zfms(jj2,2,jk) + pgd2(iloni,jk,jj)
-                zfma(jj2,1,jk) = zfma(jj2,1,jk) - pgd2(ilonr,jk,jj)
-                zfma(jj2,2,jk) = zfma(jj2,2,jk) - pgd2(iloni,jk,jj)
+                zfms(jj2,1,jk) = zfms(jj2,1,jk) + pgd2(ilonr,jk,jj2)
+                zfms(jj2,2,jk) = zfms(jj2,2,jk) + pgd2(iloni,jk,jj2)
+                zfma(jj2,1,jk) = zfma(jj2,1,jk) - pgd2(ilonr,jk,jj2)
+                zfma(jj2,2,jk) = zfma(jj2,2,jk) - pgd2(iloni,jk,jj2)
              enddo
           endif
        enddo
@@ -2820,11 +2848,11 @@ CONTAINS
   END SUBROUTINE REESPEPAR_MPI2
 
 
-  SUBROUTINE REESPEPAR_MPI3(PGD2,PSP,KFIELD,KDIM)
+  SUBROUTINE REESPEPAR_MPI3(PGD2,PSP,KFIELD)
     implicit none
 
-    integer :: kfield,kdim
-    real(8) :: psp(gst(gstID)%nla,2,kdim)
+    integer :: kfield
+    real(8) :: psp(gst(gstID)%nla,2,kfield)
     real(8) :: pgd2(2*(gst(gstID)%ntrunc+1),gst(gstID)%myLevBeg:gst(gstID)%myLevEnd,gst(gstID)%nj)
 
     integer :: ilen,jj,jj2,jk,jk2,ilonr, iloni
@@ -2868,18 +2896,18 @@ CONTAINS
              if(jj.le.gst(gstID)%njlath) then
                 ! Northern hemisphere
                 do jk = gst(gstID)%myLevBeg,gst(gstID)%myLevEnd
-                   zfms(jj,1,jk) = pgd2(ilonr,jk,jj)
-                   zfms(jj,2,jk) = pgd2(iloni,jk,jj)
-                   zfma(jj,1,jk) = pgd2(ilonr,jk,jj)
-                   zfma(jj,2,jk) = pgd2(iloni,jk,jj)
+                   zfms(jj,1,jk) = pgd2(ilonr,jk,jj2)
+                   zfms(jj,2,jk) = pgd2(iloni,jk,jj2)
+                   zfma(jj,1,jk) = pgd2(ilonr,jk,jj2)
+                   zfma(jj,2,jk) = pgd2(iloni,jk,jj2)
                 enddo
              else
                 ! Southern hemisphere
                 do jk = gst(gstID)%myLevBeg,gst(gstID)%myLevEnd
-                   zfms(jj2,1,jk) = zfms(jj2,1,jk) + pgd2(ilonr,jk,jj)
-                   zfms(jj2,2,jk) = zfms(jj2,2,jk) + pgd2(iloni,jk,jj)
-                   zfma(jj2,1,jk) = zfma(jj2,1,jk) - pgd2(ilonr,jk,jj)
-                   zfma(jj2,2,jk) = zfma(jj2,2,jk) - pgd2(iloni,jk,jj)
+                   zfms(jj2,1,jk) = zfms(jj2,1,jk) + pgd2(ilonr,jk,jj2)
+                   zfms(jj2,2,jk) = zfms(jj2,2,jk) + pgd2(iloni,jk,jj2)
+                   zfma(jj2,1,jk) = zfma(jj2,1,jk) - pgd2(ilonr,jk,jj2)
+                   zfma(jj2,2,jk) = zfma(jj2,2,jk) - pgd2(iloni,jk,jj2)
                 enddo
              endif
           enddo
@@ -2962,18 +2990,18 @@ CONTAINS
              if(jj.le.gst(gstID)%njlath) then
                 ! Northern hemisphere
                 do jk = gst(gstID)%myLevBeg, gst(gstID)%myLevEnd
-                   zfms(jj,1,jk) = pgd2(ilonr,jk,jj)
-                   zfms(jj,2,jk) = pgd2(iloni,jk,jj)
-                   zfma(jj,1,jk) = pgd2(ilonr,jk,jj)
-                   zfma(jj,2,jk) = pgd2(iloni,jk,jj)
+                   zfms(jj,1,jk) = pgd2(ilonr,jk,jj2)
+                   zfms(jj,2,jk) = pgd2(iloni,jk,jj2)
+                   zfma(jj,1,jk) = pgd2(ilonr,jk,jj2)
+                   zfma(jj,2,jk) = pgd2(iloni,jk,jj2)
                 enddo
              else
                 ! Southern hemisphere
                 do jk = gst(gstID)%myLevBeg, gst(gstID)%myLevEnd
-                   zfms(jj2,1,jk) = zfms(jj2,1,jk) + pgd2(ilonr,jk,jj)
-                   zfms(jj2,2,jk) = zfms(jj2,2,jk) + pgd2(iloni,jk,jj)
-                   zfma(jj2,1,jk) = zfma(jj2,1,jk) - pgd2(ilonr,jk,jj)
-                   zfma(jj2,2,jk) = zfma(jj2,2,jk) - pgd2(iloni,jk,jj)
+                   zfms(jj2,1,jk) = zfms(jj2,1,jk) + pgd2(ilonr,jk,jj2)
+                   zfms(jj2,2,jk) = zfms(jj2,2,jk) + pgd2(iloni,jk,jj2)
+                   zfma(jj2,1,jk) = zfma(jj2,1,jk) - pgd2(ilonr,jk,jj2)
+                   zfma(jj2,2,jk) = zfma(jj2,2,jk) - pgd2(iloni,jk,jj2)
                 enddo
              endif
           enddo
@@ -3808,39 +3836,187 @@ CONTAINS
   END SUBROUTINE ALLP2
 
 
-  SUBROUTINE GST_ZLEGPOL(PLEG)
-    !***s/r ZLEGPOL  - Evaluation of Legendre polynomials restricted to
-    !*     .           (n,m) = (n,0)
-    !*Arguments
-    !*     o   PLEG               : Legendre functions evaluated at the KNJ Gaussian latitudes
+  SUBROUTINE GST_ZLEGPOL(gstID_in)
+    ! s/r ZLEGPOL  - Evaluation of Legendre polynomials restricted to
+    !    .           (n,m) = (n,0)
     implicit none
 
-    real(8) :: pleg(0:gst(gstID)%ntrunc,gst(gstID)%nj)
-
-    integer :: jn, jlat, ierr
+    integer :: gstID_in, jn, jlat, ierr
     real(8) :: dlfact1, dlfact2, dln
     real(8) :: dlnorm(0:gst(gstID)%ntrunc)
 
-    do jlat = 1, gst(gstID)%nj
-       pleg(0,jlat) = sqrt(0.5d0)
-       pleg(1,jlat) = sqrt(1.5d0)*gst(gstID)%rmu(jlat)
+    allocate(gst(gstID_in)%zleg(0:gst(gstID)%ntrunc,gst(gstID)%nj))
+
+    do jlat = 1, gst(gstID_in)%nj
+       gst(gstID_in)%zleg(0,gst(gstID_in)%nj-jlat+1) = sqrt(0.5d0)
+       gst(gstID_in)%zleg(1,gst(gstID_in)%nj-jlat+1) = sqrt(1.5d0)*gst(gstID_in)%rmu(jlat)
     enddo
 
-    do jn = 0, gst(gstID)%ntrunc
+    do jn = 0, gst(gstID_in)%ntrunc
        dln = 1.d0*real(jn,8)
        dlnorm(jn) = dsqrt((2.d0*dln + 1.d0)/2.d0)
     enddo
 
-    do jn = 1, gst(gstID)%ntrunc-1
+    do jn = 1, gst(gstID_in)%ntrunc-1
        dln = real(jn,8)
        dlfact1 = ((2.d0*dln+1.d0)/(dln+1.d0))*(dlnorm(jn+1)/dlnorm(jn))
        dlfact2 = (dln/(dln+1.d0))*(dlnorm(jn+1)/dlnorm(jn-1))
-       do jlat = 1,gst(gstID)%nj
-          pleg(jn+1,jlat) = dlfact1*gst(gstID)%rmu(jlat)*dble(pleg(jn,jlat))   &
-                - dlfact2*dble(pleg(jn-1,jlat))
+       do jlat = 1,gst(gstID_in)%nj
+          gst(gstID_in)%zleg(jn+1,gst(gstID_in)%nj-jlat+1) =   &
+                  dlfact1*gst(gstID_in)%rmu(jlat)*dble(gst(gstID_in)%zleg(jn,gst(gstID_in)%nj-jlat+1))   &
+                - dlfact2*dble(gst(gstID_in)%zleg(jn-1,gst(gstID_in)%nj-jlat+1))
        enddo
     enddo
 
   END SUBROUTINE GST_ZLEGPOL
+
+
+  SUBROUTINE GST_ZLEGDIR(gstID_in,pf,pn,klev)
+    ! s/r ZLEGDIR  - Direct Legendre transform restricted to
+    !
+    !Arguments
+    !     i   PF(NJ,KLEV)   : field in physical space
+    !     o   PN(0:ntrunc, KLEV): spectral coefficients
+    !     i   KLEV                 : number of fields to transform
+    implicit none
+
+    integer :: gstID_in, klev
+    real(8) :: pf(gst(gstID_in)%nj,klev), pn(0:gst(gstID_in)%ntrunc,klev)
+    integer :: jlat, jn
+    real(8), allocatable :: zwork(:,:)
+
+    allocate(zwork(0:gst(gstID_in)%ntrunc,gst(gstID_in)%nj))
+
+    do jlat = 1, gst(gstID_in)%nj
+       do jn = 0, gst(gstID_in)%ntrunc
+          zwork(jn,jlat) = gst(gstID_in)%zleg(jn,jlat)*gst_getRWT(jlat,gstID_in)
+       end do
+    end do
+
+    call dgemm('N','N',gst(gstID_in)%ntrunc+1, klev, gst(gstID_in)%nj, 1.0d0, zwork(0,1),  &
+                       gst(gstID_in)%ntrunc+1, pf(1,1),  &
+                       gst(gstID_in)%nj, 0.0d0, pn(0,1), gst(gstID_in)%ntrunc+1) 
+
+    deallocate(zwork)
+
+  END SUBROUTINE GST_ZLEGDIR
+
+
+  SUBROUTINE GST_ZLEGINV(gstID_in,pf,pn,klev)
+    ! s/r ZLEGINV  - Direct Legendre transform restricted to
+    !     .           fields that vary with latitude only
+    !Arguments
+    !     o   PF(KNJDIM,KLEVDIM)  : field in physical space
+    !     i   PN(0:KNDIM, KLEVDIM): spectral coefficients
+    !     i   KLEV                : number of fields to transform
+    implicit none
+
+    integer :: gstID_in, klev
+    real(8) :: pf(gst(gstID_in)%nj,klev), pn(0:gst(gstID_in)%ntrunc,klev)
+    integer :: jlat, jn
+    real(8), allocatable :: zwork(:,:)
+
+    allocate(zwork(0:gst(gstID_in)%ntrunc,gst(gstID_in)%nj))
+
+    do jlat = 1, gst(gstID_in)%nj
+       do jn = 0, gst(gstID_in)%ntrunc
+          zwork(jn,jlat) = gst(gstID_in)%zleg(jn,jlat)
+       end do
+    end do
+
+    call dgemm('T','N',gst(gstID_in)%nj, klev, gst(gstID_in)%ntrunc+1, 1.0d0, zwork(0,1),  &
+                       gst(gstID_in)%ntrunc+1, pn(0,1),   &
+                       gst(gstID_in)%ntrunc+1, 0.0d0, pf(1,1), gst(gstID_in)%nj) 
+
+    deallocate(zwork)
+
+  END SUBROUTINE GST_ZLEGINV
+
+
+! ---------------------------------------------
+! FFT subroutines
+! ---------------------------------------------
+
+  SUBROUTINE FFT3DVAR(pgd,kdir)
+    implicit none
+
+    integer :: kfield,kdir,ni,nj
+    real(8) :: pgd(:,:,:)
+    real(8), allocatable :: pgd2(:,:)
+    integer :: ji,jj,jk,ijump,i
+
+    ni = size(pgd,1)
+    kfield = size(pgd,2)
+    nj = size(pgd,3)
+    ijump = ni + 2
+
+    i = ni
+    call ngfft( i )
+    if ( i.ne.ni ) then
+       write(*,*) 'fft3dvar: NI = ',ni,' I = ',i
+       call abort3d('fft3dvar: vector length is not compatible with FFT')
+    endif
+    call setfft8(ni)
+
+    allocate(pgd2(ni+2,kfield))
+
+    ! Copy over input data into over-dimensioned array
+!$OMP PARALLEL DO PRIVATE (jj,jk,ji,pgd2)
+    do jj=1, nj
+      do jk=1,kfield
+        do ji=ni+1,ni+2
+          pgd2(ji,jk)=0.0d0
+        enddo
+        do ji=1,ni
+          pgd2(ji,jk)=pgd(ji,jk,jj)
+        enddo
+      enddo
+
+      call ffft8(pgd2(1,1),1,ijump,kfield,kdir)
+      !*     subroutine ffft8( a, inc, jump, lot, isign )
+      !*     a      is the array containing input & output data
+      !*     inc    is the increment within each data 'vector'
+      !*            (e.g. inc=1 for consecutively stored data)
+      !*     jump   is the increment between the start of each data vector
+      !*     lot    is the number of data vectors
+      !*     isign  = +1 for transform from spectral to gridpoint
+      !*            = -1 for transform from gridpoint to spectral
+
+      do jk=1,kfield
+        do ji=1,ni
+          pgd(ji,jk,jj)=pgd2(ji,jk)
+        enddo
+      enddo
+    enddo
+!$OMP END PARALLEL DO
+
+    deallocate(pgd2)
+
+  END SUBROUTINE fft3dvar
+
+  SUBROUTINE ngfft( n )
+    implicit none
+    integer n
+
+    integer l
+    parameter ( l = 3 )
+    integer k( l ) , m
+    data m , k / 8 , 2 , 3 , 5 /
+
+    integer i,j
+
+    if ( n.le.m ) n = m + 1
+    n = n - 1
+1   n = n + 1
+    i = n
+2   do 3 j=1,l
+       if( mod(i,k(j)) .eq. 0 ) go to 4
+3   continue
+    go to 1
+4   i = i/k(j)
+    if( i .ne. 1 ) go to 2
+
+  END SUBROUTINE ngfft
+
 
 END MODULE globalSpectralTransform

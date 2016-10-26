@@ -37,7 +37,6 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   use columndata_mod
   use LamAnalysisGrid_mod
   use bmatrix_mod
-  use gaussgrid_mod
   use tovs_nl_mod
   use burpFiles_mod
   use observation_erreurs_mod
@@ -78,7 +77,7 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   !
   if(mpi_myid.eq.0) write(*,*)''
   if(mpi_myid.eq.0) write(*,*)' preproc: Set vcoord parameters for trial grid'
-  call vco_SetupFromFile(vco_trl,'./trlm_01',.false.,' ')
+  call vco_SetupFromFile(vco_trl,'./trlm_01',' ')
   call col_setVco(lcolumnhr,vco_trl)
   
   !
@@ -100,10 +99,7 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   call hco_SetupFromFile( './analysisgrid', 'ANALYSIS', 'Analysis' ) ! IN
   hco_anl => hco_Get('Analysis')
 
-  if ( hco_anl % global ) then
-    !- Setup the global analysis grid metrics
-    call gaus_SetupFromHCO(hco_anl) ! IN
-  else
+  if ( .not. hco_anl % global ) then
     !- Iniatilized the core (Non-Exteded) analysis grid
     call hco_SetupFromFile( './analysisgrid', 'COREGRID', 'AnalysisNonExt' ) ! IN
     !- Setup the LAM analysis grid metrics
@@ -122,7 +118,7 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   else
      etiket = 'STDDEV'
   end if
-  call vco_SetupFromFile(vco_anl,'./bgcov',.true.,etiket)
+  call vco_SetupFromFile(vco_anl,'./bgcov',etiket)
   call col_setVco(lcolumng,vco_anl)
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 

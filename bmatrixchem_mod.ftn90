@@ -86,9 +86,8 @@
 !    bchm_is_initialized: checks if B_chm has been intialized.
 !
 ! Other subroutines/functions info:
-!    BCHM_readcorns2:        calls BCHM_convol (zleginv, zlegdir)
-!    BCHM_rdspstd:           calls zleginv2
-!    BCHM_rdspstd_newfmt:    calls gst_setID, gst_zlegpol, zleginv2, BCHM_rdspstd
+!    BCHM_readcorns2:        calls BCHM_convol (gst_zleginv, gst_zlegdir, gst_getzleg))
+!    BCHM_rdspstd_newfmt:    calls gst_zleginv, BCHM_rdspstd
 !
 ! Dependencies:
 !    globalSpectralTransform, ....
@@ -101,7 +100,6 @@ MODULE BmatrixChem
   use earthConstants_mod
   use gridStateVector_mod
   use globalSpectralTransform
-  use gaussGrid_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use varNameList_mod
@@ -113,16 +111,16 @@ MODULE BmatrixChem
 
   ! public procedures
   public :: bchm_Setup,bchm_BSqrt,bchm_BSqrtAd,bchm_Finalize
-  public :: bchm_expandToMPIglobal,bchm_reduceToMPIlocal
-  public :: bchm_getScaleFactor,bchm_truncateCV
+  public :: bchm_expandToMPIglobal,bchm_reduceToMPIlocal,bchm_getScaleFactor
   public :: bchm_corvert_mult, bchm_getsigma, bchm_is_initialized
+  public :: bchm_truncateCV
 
   ! public arrays
   public :: bchm_corvert, bchm_corverti, bchm_invsum, bchm_varnamelist 
   
   logical             :: initialized = .false.                    
   integer             :: nj_l,ni_l                    
-  integer             :: nlev_M,nlev_T,nlev_T_even,nkgdim,nkgdim2    
+  integer             :: nlev_M,nlev_T,nlev_T_even,nkgdim
   integer             :: nla_mpiglobal,nla_mpilocal           
   integer             :: cvDim_mpilocal,cvDim_mpiglobal           
   integer             :: gstID, gstID2          
@@ -291,7 +289,6 @@ CONTAINS
     end if
 
     nkgdim =  nsposit(numvar3d+numvar2d+1)-1
-    nkgdim2 = nkgdim
 
     ! Initialization of namelist NAMBCHM parameters
     
@@ -355,10 +352,10 @@ CONTAINS
         if(jm.le.jn) then
           if(jm.eq.0) then
             ! only real component for jm=0
-            cvDim_mpilocal = cvDim_mpilocal + 1*nkgdim2
+            cvDim_mpilocal = cvDim_mpilocal + 1*nkgdim
           else
             ! both real and imaginary components for jm>0
-            cvDim_mpilocal = cvDim_mpilocal + 2*nkgdim2
+            cvDim_mpilocal = cvDim_mpilocal + 2*nkgdim
           endif
         endif
       enddo
@@ -783,7 +780,7 @@ CONTAINS
     real(8) dlfact2,dlc,dsummed
     real(8) dtlen,zr,dlfact
     integer ilen,jn,jlat,jk,jvar,jlev
-    real(8) zlegi(0:ntrunc, nj_l),zleg(0:ntrunc, nj_l),zsp(0:ntrunc,nkgdim),zgr(nj_l,nkgdim)
+    real(8) zleg(0:ntrunc,nj_l),zsp(0:ntrunc,nkgdim),zgr(nj_l,nkgdim)
     real(8) dlwti(nj_l),zrmu(nj_l)
 
     integer inracp
@@ -801,44 +798,21 @@ CONTAINS
        zrmu(jlat)  = gst_getrmu(jlat,gstID)
     end do
 
-    do jlat = 1, nj_l
-       zleg(0,jlat) = sqrt(0.5d0)
-       zleg(1,jlat) = sqrt(1.5d0)*zrmu(jlat)
-    enddo
-    do jn = 0, ntrunc
-       dln = 1.d0*real(jn,8)
-       dlnorm(jn) = dsqrt((2.d0*dln + 1.d0)/2.d0)
-    enddo
-    do jn = 1, ntrunc-1
-       dln = real(jn,8)
-       dlfact1 = ((2.d0*dln+1.d0)/(dln+1.d0))*(dlnorm(jn+1)/dlnorm(jn))
-       dlfact2 = (dln/(dln+1.d0))*(dlnorm(jn+1)/dlnorm(jn-1))
-       do jlat = 1, nj_l
-          zleg(jn+1,jlat) = dlfact1*zrmu(jlat)*zleg(jn,jlat) - dlfact2*zleg(jn-1,jlat)
-       enddo
-    enddo
-
-    do jlat = 1, nj_l
-       do jn = 0, ntrunc
-         zlegi(jn,jlat) = zleg(jn,jlat)
-       enddo
-    enddo
-
-!     1.2 CONVERT THE CORRELATIONS IN SPECTRAL SPACE INTO SPECTRAL
-!         COEFFICIENTS OF THE CORRELATION FUNCTION AND FUNCTION TO BE
-!         SELF-CONVOLVED
+!   CONVERT THE CORRELATIONS IN SPECTRAL SPACE INTO SPECTRAL
+!   COEFFICIENTS OF THE CORRELATION FUNCTION AND FUNCTION TO BE
+!   SELF-CONVOLVED
 
     do jn = 0, ntrunc
-      dlfact = ((2.0d0*jn + 1.0d0)/2.0d0)**0.25d0
-      dlfact2 = ((2.0d0*jn + 1.0d0)/2.0d0)**(0.25d0)
+      dlfact = ((2.0d0*jn+1.0d0)/2.0d0)**(0.25d0)
+      dlfact2 = ((2.0d0*jn +1.0d0)/2.0d0)**(0.25d0)
       do jk = 1, nkgdim
         zsp(jn,jk) = rstddev(jk,jn)*dlfact*dlfact2
       enddo
     enddo
 
     ! Transform to physical space
-    call zleginv(zgr,zsp,zlegi,dlwti,ntrunc,nj_l,nkgdim,nj_l,nkgdim,ntrunc)
-
+    call gst_zleginv(gstID,zgr,zsp,nkgdim)
+    
     ! Truncate in horizontal extent with Gaussian window
     
     jvar=1
@@ -861,7 +835,7 @@ CONTAINS
     enddo
 
     ! Transform back to spectral space
-    call zlegdir(zgr,zsp,zlegi,dlwti,ntrunc,nj_l,nkgdim,nj_l,nkgdim,ntrunc)
+    call gst_zlegdir(gstID,zgr,zsp,nkgdim)
 
     ! Convert back to correlations
     do jk = 1, nkgdim
@@ -889,8 +863,8 @@ CONTAINS
       enddo
     enddo
 
-    !     CONVERT THE SPECTRAL COEFFICIENTS OF THE CORRELATION FUNCTION
-    !     .  BACK INTO CORRELATIONS OF SPECTRAL COMPONENTS
+    ! CONVERT THE SPECTRAL COEFFICIENTS OF THE CORRELATION FUNCTION
+    ! BACK INTO CORRELATIONS OF SPECTRAL COMPONENTS
     do jn = 0, ntrunc
       dlfact = sqrt(0.5d0)*(1.0d0/((2.0d0*jn+1)/2.0d0))**0.25d0
       do jk = 1, nkgdim
@@ -904,6 +878,13 @@ CONTAINS
     allocate(corrlong(nj_l,nlev_T,numvar3d+numvar2d))
     if (allocated(hwhm)) deallocate(hwhm)
     allocate(hwhm(nlev_T,numvar3d+numvar2d))
+    
+    do jlat=1,nj_l
+    do jn=0,ntrunc
+       zleg(jn,jlat)=gst_getzleg(jn,jlat,gstID)
+    end do
+    end do
+    
     jvar=1
     jlev=1
     do jk = 1, nkgdim
@@ -915,7 +896,7 @@ CONTAINS
          corrlong(jlat,jlev,jvar)=0.0D0
          do jn = 0, ntrunc
             corrlong(jlat,jlev,jvar)=corrlong(jlat,jlev,jvar)+rstddev(jk,jn)*rstddev(jk,jn)*  &
-                                     sqrt(2.0)*sqrt(2.0*jn+1.0)*zleg(jn,jlat) 
+                                     sqrt(2.0)*sqrt(2.0*jn+1.0)*zleg(jn,jlat)
           end do
       enddo
       jlev=jlev+1 
@@ -967,7 +948,7 @@ CONTAINS
     integer :: jvar,jn,inix,injx,inkx
     integer :: ikey, jlevo, jlat,firstn,lastn
     real(8) :: zsp(0:ntrunc,max(nlev_M,nlev_T)),zspbuf(max(nlev_M,nlev_T)),zwork
-    real(8) :: zleg(0:ntrunc,nj_l),zgr(nj_l,max(nlev_M,nlev_T)),zstddev(nkgdim,nj_l)
+    real(8) :: zgr(nj_l,max(nlev_M,nlev_T)),zstddev(nkgdim,nj_l)
     
     ! standard file variables
     integer :: ini,inj,ink, inpas, inbits, idatyp, ideet
@@ -979,9 +960,6 @@ CONTAINS
     character(len=4)  :: clnomvar
     character(len=12) :: cletiket
     integer :: vfstlir,vfstecr,fstprm,fstinf
-
-    call gst_setID(gstID)
-    call gst_zlegpol(zleg)
 
     rgsig(:,:,:) = 0.0d0
     
@@ -1022,7 +1000,7 @@ CONTAINS
       if(mpi_myid.eq.0.and.firstn.ne.-1) write(*,*) 'WARNING: CANNOT FIND SPSTD FOR ',clnomvar, &
             ' AT N BETWEEN ',firstn,' AND ',lastn,', SETTING TO ZERO!!!'
 
-      call zleginv2(zgr(:,1:nlev_MT),zsp(:,1:nlev_MT),zleg,ntrunc,nj_l,nlev_MT,nj_l,nlev_MT,ntrunc)
+      call gst_zleginv(gstID,zgr(:,1:nlev_MT),zsp(:,1:nlev_MT),nlev_MT)
 
       do jn=1,ni_l+1
          rgsig(jn,1:nj_l,nsposit(jvar):nsposit(jvar+1)-1)= zgr(1:nj_l,1:nlev_MT)
@@ -1037,9 +1015,9 @@ CONTAINS
 
     integer :: jvar,jn,inix,injx,inkx,ntrunc_file
     integer :: ikey,jlevo,jlat
-    real(8) :: zsp(0:ntrunc,max(nlev_M,nlev_T)),zwork
+    real(8) :: zsp(0:ntrunc,max(nlev_M,nlev_T)),work
     real(8), allocatable :: zspbuf(:)
-    real(8) :: zleg(0:ntrunc,nj_l),zgr(nj_l,max(nlev_M,nlev_T)),zstddev(nkgdim,nj_l)
+    real(8) :: zgr(nj_l,max(nlev_M,nlev_T)),zstddev(nkgdim,nj_l)
 
     ! standard file variables
     integer :: ini,inj,ink, inpas, inbits, idatyp, ideet
@@ -1051,9 +1029,6 @@ CONTAINS
     character(len=4)  :: clnomvar
     character(len=12) :: cletiket
     integer :: vfstlir,vfstecr,fstprm,fstinf
-
-    call gst_setID(gstID)
-    call gst_zlegpol(zleg)
 
     rgsig(:,:,:) = 0.0d0
 
@@ -1089,7 +1064,7 @@ CONTAINS
       do jlevo = 1, nlev_MT
         if (nlev_MT.eq.1) then
            ip1=-1
-        else if(vnl_varTypeFromVarName(clnomvar).eq.'MM') then
+        else if(vnl_varLevelFromVarName(clnomvar).eq.'MM') then
           ip1 = vco_anl%ip1_M(jlevo)
         else
           ip1 = vco_anl%ip1_T(jlevo)
@@ -1099,7 +1074,7 @@ CONTAINS
         ntrunc_file = ntrunc_file-1
 
         allocate(zspbuf(0:ntrunc_file))
-
+        
         if(ikey .ge.0 ) then
           ikey = vfstlir(zspbuf(0:ntrunc_file),nulbgst,ini,inj,ink,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
         else
@@ -1112,10 +1087,9 @@ CONTAINS
           zsp(jn,jlevo) = zspbuf(jn)
         enddo
         deallocate(zspbuf)
-        
       enddo
 
-      call zleginv2(zgr(:,1:nlev_MT),zsp(:,1:nlev_MT),zleg,ntrunc,nj_l,nlev_MT,nj_l,nlev_MT,ntrunc)
+      call gst_zleginv(gstID,zgr(:,1:nlev_MT),zsp(:,1:nlev_MT),nlev_MT)
 
       do jn=1,ni_l+1
          rgsig(jn,1:nj_l,nsposit(jvar):nsposit(jvar+1)-1)= zgr(1:nj_l,1:nlev_MT)
@@ -1204,7 +1178,7 @@ CONTAINS
       do jlevo = 1, nlev_MT
         if (nlev_MT.eq.1) then
            ip1=-1
-        else if(vnl_varTypeFromVarName(clnomvar).eq.'MM') then
+        else if(vnl_varLevelFromVarName(clnomvar).eq.'MM') then
           ip1 = vco_anl%ip1_M(jlevo)
         else
           ip1 = vco_anl%ip1_T(jlevo)
@@ -1384,7 +1358,7 @@ CONTAINS
 
       do jn = 0, ntrunc
         ip2 = jn
-        ierr = vfstecr(corns(1,1,jn),corns(1,1,jn),ipak,nulcorns_sqrt,idateo,0,0,nkgdim2,nkgdim2,1,  &
+        ierr = vfstecr(corns(1,1,jn),corns(1,1,jn),ipak,nulcorns_sqrt,idateo,0,0,nkgdim,nkgdim,1,  &
                        ip1,ip2,ip3,'X','ZZ','CORNS_SQRT','X',0,0,0,0,idatyp,.true.)
       enddo
 
@@ -1414,7 +1388,7 @@ CONTAINS
     character(len=12) :: cletiket
     integer :: vfstlir
 
-    allocate(zcornssrc(nkgdim2,nkgdim2))
+    allocate(zcornssrc(nkgdim,nkgdim))
 
     do jn = 0, ntrunc
 
@@ -1439,12 +1413,12 @@ CONTAINS
         lfound_sqrt = .true.
       endif
 
-      if (ini .ne. nkgdim2 .or. inj .ne. nkgdim2) then
+      if (ini .ne. nkgdim .or. inj .ne. nkgdim) then
         call abort3d('READCORNS2: BG stat levels inconsitencies')
       endif
 
-      do jcol = 1, nkgdim2
-        do jrow = 1, nkgdim2
+      do jcol = 1, nkgdim
+        do jrow = 1, nkgdim
           corns(jrow,jcol,jn) = zcornssrc(jrow,jcol)
         enddo
       enddo
@@ -1920,116 +1894,6 @@ CONTAINS
     if(mpi_myid.eq.0) deallocate(cv_allmaxmpilocal)
 
   end SUBROUTINE BCHM_expandToMPIGlobal
-!-----------------------------------------------------------------------------------------------
-  SUBROUTINE ZLEGINV(PF,PN,PLEG,DDWT,KTRUNC,KNJ,KLEV,KNJDIM,KLEVDIM,KNDIM)
-!***s/r ZLEGINV  - Direct Legendre transform restricted to
-!*     .           fields that vary with latitude only
-!*Arguments
-!*     o   PF(KNJDIM,KLEVDIM)  : field in physical space
-!*     i   PN(0:KNDIM, KLEVDIM): spectral coefficients
-!*     i   PLEG(0:KNDIM,KNJDIM): Legendre functions evaluated at the KNJ Gaussian
-!*     .                         latitudes
-!*     i   DDWT(KNJDIM)         : weights of the Gaussian quadrature
-!*     i   KNJ                 : number of Gaussian latitudes
-!*     i   KTRUNC              : spectral truncation
-!*     i   KLEV                : number of fields to transform
-!*     i   KNJDIM              : dimensioning of the field (in latitude)
-!*     i   KLEVDIM             : dimensioning of the field (in KLEV)
-!*     I   KNDIM               : dimensioning of the field (in KTRUNC)
-      IMPLICIT NONE
-
-      INTEGER :: KNJ, KLEV, KTRUNC, KNJDIM, KLEVDIM, KNDIM
-      REAL(8) :: PF(KNJDIM,4*KLEVDIM), PN(0:KNDIM, 4*KLEVDIM), PLEG(0:KNDIM,KNJDIM)
-      REAL(8) :: DDWT(KNJDIM)
-
-      INTEGER :: J, JN
-      REAL(8), ALLOCATABLE :: ZWORK(:,:)
-
-      ALLOCATE(ZWORK(0:KTRUNC,KNJ))
-
-      DO J = 1, KNJ
-         DO JN = 0, KTRUNC
-            ZWORK(JN,J) = PLEG(JN,J)
-         END DO
-      END DO
-
-      CALL DGEMUL(ZWORK(0,1),KTRUNC+1,'T',PN(0,1),KNDIM+1,'N',PF(1,1),KNJDIM,KNJ,KTRUNC+1,KLEV)
-
-      DEALLOCATE(ZWORK)
-
-  END SUBROUTINE ZLEGINV
-!-----------------------------------------------------------------------------------------------
-  SUBROUTINE ZLEGINV2(PF,PN,PLEG,KTRUNC,KNJ,KLEV,KNJDIM,KLEVDIM,KNDIM)
-!***s/r ZLEGINV2  - Direct Legendre transform restricted to
-!*     .            fields that vary with latitude only
-!*Arguments
-!*     o   PF(KNJDIM,KLEVDIM)  : field in physical space
-!*     i   PN(0:KNDIM, KLEVDIM): spectral coefficients
-!*     i   PLEG(0:KNDIM,KNJDIM): Legendre functions evaluated at the KNJ Gaussian
-!*     .                         latitudes
-!*     i   KNJ                 : number of Gaussian latitudes
-!*     i   KTRUNC              : spectral truncation
-!*     i   KLEV                : number of fields to transform
-!*     i   KNJDIM              : dimensioning of the field (in latitude)
-!*     i   KLEVDIM             : dimensioning of the field (in KLEV)
-!*     I   KNDIM               : dimensioning of the field (in KTRUNC)
-      IMPLICIT NONE
-
-      INTEGER :: KNJ, KLEV, KTRUNC, KNJDIM, KLEVDIM, KNDIM
-      REAL(8) :: PF(KNJDIM,KLEVDIM), PN(0:KNDIM, KLEVDIM), PLEG(0:KNDIM,KNJDIM)
-
-      INTEGER :: J, JN
-      REAL(8), ALLOCATABLE :: ZWORK(:,:)
-
-      ALLOCATE(ZWORK(0:KTRUNC,KNJ))
-
-      DO J = 1, KNJ
-         DO JN = 0, KTRUNC
-            ZWORK(JN,J) = PLEG(JN,J)
-         END DO
-      END DO
-
-      CALL DGEMUL(ZWORK(0,1),KTRUNC+1,'T',PN(0,1),KNDIM+1,'N',PF(1,1),KNJDIM,KNJ,KTRUNC+1,KLEV)
-
-      DEALLOCATE(ZWORK)
-
-  END SUBROUTINE ZLEGINV2
-!-----------------------------------------------------------------------------------------------
-  SUBROUTINE ZLEGDIR(PF,PN,PLEG,DDWT,KTRUNC,KNJ,KLEV,KNJDIM,KLEVDIM,KNDIM)
-!**s/r ZLEGDIR  - Direct Legendre transform restricted to
-!
-!*Arguments
-!*     i   PF(KNJDIM,KLEVDIM)   : field in physical space
-!*     o   PN(0:KNDIM, KLEVDIM ): spectral coefficients
-!*     o   PLEG(0:KNDIM, KNJDIM): Legendre polynomials evaluated at the Gaussian latitudes
-!*     i   DDWT(KNJDIM)          : weights of the Gaussian quadrature
-!*     i   KNJ                  : number of Gaussian latitudes
-!*     i   KTRUNC               : spectral truncation
-!*     i   KLEV                 : number of fields to transform
-!*     i   KNJDIM               : dimensioning of the field (in latitude)
-!*     i   KLEVDIM              : dimensioning of the field (in KLEV)
-!*     I   KNDIM                : dimensioning of the field (in KTRUNC)
-      IMPLICIT NONE
-
-      INTEGER :: KNJ, KLEV, KTRUNC, KNJDIM, KLEVDIM, KNDIM
-      REAL(8) :: PF(KNJDIM,4*KLEVDIM), PN(0:KNDIM, 4*KLEVDIM), PLEG(0:KNDIM,KNJDIM)
-      REAL(8) :: DDWT(KNJ)
-
-      INTEGER :: J, JN
-      REAL(8), ALLOCATABLE :: ZWORK(:,:)
-
-      ALLOCATE(ZWORK(0:KTRUNC,KNJ))
-      DO J = 1, KNJ
-         DO JN = 0, KTRUNC
-            ZWORK(JN,J) = PLEG(JN,J)*DDWT(J)
-         END DO
-      END DO
-
-      CALL DGEMUL(ZWORK(0,1),KTRUNC+1,'N',PF(1,1),KNJDIM,'N',PN(0,1),KNDIM+1,KNDIM+1,KNJ,KLEV)
-
-      DEALLOCATE(ZWORK)
-
-  END SUBROUTINE ZLEGDIR
 !-----------------------------------------------------------------------------------------------
   SUBROUTINE BCHM_corvert_setup
 !

@@ -8,7 +8,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
       use verticalCoord_mod
       use HorizontalCoord_mod
       use bmatrixhi
-      use modgpsztd_mod
+      use gps_mod
       IMPLICIT NONE
 
       type(struct_hco), pointer        :: hco_anl
@@ -140,11 +140,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
          end if
          DO JLAT = 1, hco_anl % nJ
             DO JLON=1,hco_anl % nI
-               if(IG2 .eq. 0) then
-                  field_ptr(JLON,J,INJ-JLAT+1) = scaleFactor(j+shift_level)*ZBUFFER(JLON,JLAT)*MPC_M_PER_S_PER_KNOT_R8
-               else
-                  field_ptr(JLON,J,JLAT)       = scaleFactor(j+shift_level)*ZBUFFER(JLON,JLAT)*MPC_M_PER_S_PER_KNOT_R8
-               endif
+               field_ptr(JLON,J,JLAT)       = scaleFactor(j+shift_level)*ZBUFFER(JLON,JLAT)*MPC_M_PER_S_PER_KNOT_R8
              END DO
           END DO
       END DO
@@ -167,11 +163,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
 
          DO JLAT = 1, HCO_ANL % NJ
             DO JLON=1,HCO_ANL % NI
-               if(IG2 .eq. 0) then
-                  field_ptr(JLON,J,INJ-JLAT+1) = scaleFactor(j+shift_level)*ZBUFFER(JLON,JLAT)*MPC_M_PER_S_PER_KNOT_R8
-               else
-                  field_ptr(JLON,J,JLAT)       = scaleFactor(j+shift_level)*ZBUFFER(JLON,JLAT)*MPC_M_PER_S_PER_KNOT_R8
-               endif
+               field_ptr(JLON,J,JLAT)       = scaleFactor(j+shift_level)*ZBUFFER(JLON,JLAT)*MPC_M_PER_S_PER_KNOT_R8
             END DO
          END DO
       END DO
@@ -193,11 +185,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
          end if
          DO JLAT = 1, HCO_ANL % NJ
             DO JLON=1,HCO_ANL % NI
-               if(IG2 .eq. 0) then
-                  field_ptr(JLON,J,INJ-JLAT+1) = scaleFactor(j)*ZBUFFER(JLON,JLAT)
-               else
-                  field_ptr(JLON,J,JLAT)       = scaleFactor(j)*ZBUFFER(JLON,JLAT)
-               endif
+               field_ptr(JLON,J,JLAT)       = scaleFactor(j)*ZBUFFER(JLON,JLAT)
             END DO
          END DO
       END DO
@@ -220,11 +208,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
          end if
          DO JLAT = 1, HCO_ANL % NJ
             DO JLON=1,HCO_ANL % NI
-               if(IG2 .eq. 0) then
-                  field_ptr(JLON,J,INJ-JLAT+1) = scaleFactor(j)*ZBUFFER(JLON,JLAT)*RG*10.d0
-               else
-                  field_ptr(JLON,J,JLAT)       = scaleFactor(j)*ZBUFFER(JLON,JLAT)*RG*10.d0
-               endif
+               field_ptr(JLON,J,JLAT)       = scaleFactor(j)*ZBUFFER(JLON,JLAT)*RG*10.d0
             END DO
          END DO
       END DO
@@ -277,11 +261,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
          end if
          DO JLAT = 1, HCO_ANL % NJ
             DO JLON=1,HCO_ANL % NI
-               if(IG2 .eq. 0) then
-                  field_ptr(JLON,J,INJ-JLAT+1) = scaleFactor(j)*ZBUFFER(JLON,JLAT)
-               else
-                  field_ptr(JLON,J,JLAT)       = scaleFactor(j)*ZBUFFER(JLON,JLAT)
-               endif
+               field_ptr(JLON,J,JLAT)       = scaleFactor(j)*ZBUFFER(JLON,JLAT)
             END DO
          END DO
       END DO
@@ -310,11 +290,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
       DO J = 1, INK
          DO JLAT = 1, HCO_ANL % NJ
             DO JLON=1,HCO_ANL % NI
-               if(IG2 .eq. 0) then
-                  field_ptr(JLON,J,INJ-JLAT+1) = scaleFactor(max(nLev_M,nLev_T))*ZBUFFER(JLON,JLAT)*MPC_PA_PER_MBAR_R8
-               else
-                  field_ptr(JLON,J,JLAT)       = scaleFactor(max(nLev_M,nLev_T))*ZBUFFER(JLON,JLAT)*MPC_PA_PER_MBAR_R8
-               endif
+               field_ptr(JLON,J,JLAT)       = scaleFactor(max(nLev_M,nLev_T))*ZBUFFER(JLON,JLAT)*MPC_PA_PER_MBAR_R8
             END DO
          END DO
       END DO
@@ -327,11 +303,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
          IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
          DO JLAT = 1, HCO_ANL % NJ
             DO JLON=1,HCO_ANL % NI
-               if(IG2 .eq. 0) then
-                  field_ptr(JLON,J,INJ-JLAT+1) = scaleFactor(j+shift_level)*ZBUFFER(JLON,JLAT)*MPC_M_PER_S_PER_KNOT_R8
-               else
-                  field_ptr(JLON,J,JLAT)       = scaleFactor(j+shift_level)*ZBUFFER(JLON,JLAT)*MPC_M_PER_S_PER_KNOT_R8
-               endif
+               field_ptr(JLON,J,JLAT)       = scaleFactor(j+shift_level)*ZBUFFER(JLON,JLAT)*MPC_M_PER_S_PER_KNOT_R8
             END DO
          END DO
       END DO
@@ -344,11 +316,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
          IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
          DO JLAT = 1, HCO_ANL % NJ
             DO JLON=1,HCO_ANL % NI
-               if(IG2 .eq. 0) then
-                  field_ptr(JLON,J,INJ-JLAT+1) = scaleFactor(j+shift_level)*ZBUFFER(JLON,JLAT)*MPC_M_PER_S_PER_KNOT_R8
-               else
-                  field_ptr(JLON,J,JLAT)       = scaleFactor(j+shift_level)*ZBUFFER(JLON,JLAT)*MPC_M_PER_S_PER_KNOT_R8
-               endif
+               field_ptr(JLON,J,JLAT)       = scaleFactor(j+shift_level)*ZBUFFER(JLON,JLAT)*MPC_M_PER_S_PER_KNOT_R8
             END DO
          END DO
       END DO
@@ -361,11 +329,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
          IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
          DO JLAT = 1, HCO_ANL % NJ
             DO JLON=1,HCO_ANL % NI
-               if(IG2 .eq. 0) then
-                  field_ptr(JLON,J,INJ-JLAT+1) = scaleFactor(j)*ZBUFFER(JLON,JLAT)
-               else
-                  field_ptr(JLON,J,JLAT)       = scaleFactor(j)*ZBUFFER(JLON,JLAT)
-               endif
+               field_ptr(JLON,J,JLAT)       = scaleFactor(j)*ZBUFFER(JLON,JLAT)
             END DO
          END DO
       END DO
@@ -378,11 +342,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
          IKEY = VFSTLIR(ZBUFFER,IULSSF,INI,INJ,INK,IDATE,CLETIKET,IP1,IP2,IP3,CLTYPVAR,CLNOMVAR)
          DO JLAT = 1, HCO_ANL % NJ
             DO JLON=1,HCO_ANL % NI
-               if(IG2 .eq. 0) then
-                  field_ptr(JLON,J,INJ-JLAT+1) = scaleFactor(j)*ZBUFFER(JLON,JLAT)
-               else
-                  field_ptr(JLON,J,JLAT)       = scaleFactor(j)*ZBUFFER(JLON,JLAT)
-               endif
+               field_ptr(JLON,J,JLAT)       = scaleFactor(j)*ZBUFFER(JLON,JLAT)
             END DO
          END DO
       END DO
@@ -414,11 +374,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
          end if
          DO JLAT = 1, HCO_ANL % NJ
             DO JLON=1,HCO_ANL % NI
-               if(IG2 .eq. 0) then
-                   field_ptr(JLON,J,INJ-JLAT+1) = scaleFactor(j)*ZBUFFER(JLON,JLAT)
-               else
-                   field_ptr(JLON,J,JLAT)       = scaleFactor(j)*ZBUFFER(JLON,JLAT)
-               endif
+               field_ptr(JLON,J,JLAT)       = scaleFactor(j)*ZBUFFER(JLON,JLAT)
             END DO
          END DO
       END DO

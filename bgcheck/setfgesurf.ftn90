@@ -40,7 +40,7 @@
       INTEGER INDEX_BODY,ITYP
       REAL*8 ZWB,ZWT
       REAL*8 ZLEV,ZPT,ZPB,ZHHH
-      CHARACTER(len=2) :: cfam,varType
+      CHARACTER(len=2) :: cfam,varLevel
       LOGICAL LLOK
 
       ! loop over all body rows
@@ -75,9 +75,9 @@
             IF ( LLOK ) THEN
               INDEX_HEADER = obs_bodyElem_i(lobsSpaceData,OBS_HIND,index_body)
               ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,index_body)
-              varType = vnl_vartypeFromVarnum(ityp)
+              varLevel = vnl_varLevelFromVarnum(ityp)
               idim=1
-              if (varType.eq.'SF') idim=0
+              if (varLevel.eq.'SF') idim=0
               IK   = obs_bodyElem_i(lobsSpaceData,OBS_LYR,index_body)
               ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,index_body)
               ZHHH = ZLEV * GRAV
@@ -92,8 +92,8 @@
               ELSE
                 IPT  = IK + col_getOffsetFromVarno(lcolumng,ityp)
                 IPB  = IPT+1
-                ZPT  = col_getHeight(lcolumng,IK,INDEX_HEADER,varType)
-                ZPB  = col_getHeight(lcolumng,IK+1,INDEX_HEADER,varType)
+                ZPT  = col_getHeight(lcolumng,IK,INDEX_HEADER,varLevel)
+                ZPB  = col_getHeight(lcolumng,IK+1,INDEX_HEADER,varLevel)
                 ZWB  = idim*(ZPT-ZHHH)/(ZPT-ZPB)
                 ZWT  = 1.d0 - ZWB
                 IF ( obs_bodyElem_i(lobsSpaceData,OBS_XTR,index_body) .eq. 0) then

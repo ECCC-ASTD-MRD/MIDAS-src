@@ -31,6 +31,7 @@ SUBROUTINE BGCHECK_IR(columng,columnhr,obsSpaceData)
   use multi_ir_bgck_mod
   use topLevelControl_mod, only: top_BurpSplit
   use mpivar_mod, only: mpi_myid
+  use burpFiles_mod
   IMPLICIT NONE
 
   type(struct_obs) :: obsSpaceData
@@ -87,7 +88,7 @@ SUBROUTINE BGCHECK_IR(columng,columnhr,obsSpaceData)
 !
 !     Write out contents of obsSpaceData into BURP files
 !
-  CALL UPDATE_BURPFILES(obsSpaceData)
+  CALL burp_updateFiles(obsSpaceData)
       ! add cloud parameter data to burp files (AIRS,IASI,CrIS,...)
   CALL ADD_CLOUDPRMS(obsSpaceData)
   DO j =1, min(1,obs_numHeader(obsSpaceData))

@@ -37,7 +37,7 @@ MODULE BMatrix_mod
   use LAMbMatrixHI_mod
   use horizontalCoord_mod
   use timeCoord_mod
-  use gaussGrid_mod
+  use globalSpectralTransform
   implicit none
   save
   private
@@ -341,7 +341,7 @@ contains
 !$OMP PARALLEL
 !$OMP DO PRIVATE (jlat,jstep,jlev,jlon,rwtinv)
     do jlat = lat1, lat2
-       rwtinv = real(statevector % ni,8) / gaus_RWT(jlat)
+       rwtinv = real(statevector % ni,8) / gst_getRWT(jlat)
        do jstep = 1, statevector % numStep
           do jlev = 1, statevector % nk
              do jlon = lon1, lon2

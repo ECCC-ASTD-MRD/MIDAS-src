@@ -27,7 +27,7 @@ MODULE timeCoord_mod
   ! public procedures
   public :: tim_setup
   public :: tim_sutimeinterp,tim_setTimeInterpWeight,tim_getTimeInterpWeight
-  public :: tim_getDateStamp,tim_setDateStamp
+  public :: tim_getDateStamp,tim_setDateStamp,tim_getStampList
 
   real*8    :: tim_dstepobs
   real*8    :: tim_dstepobsinc
@@ -69,10 +69,7 @@ contains
   end subroutine tim_setup
 
   subroutine tim_sutimeinterp(lobsSpaceData)
-  !*
-  !***s/r sutimeinterp  
-  !*
-    IMPLICIT NONE
+    implicit none
 
     type(struct_obs) :: lobsSpaceData
     integer :: jobs,jstep
@@ -119,49 +116,77 @@ contains
 
   end subroutine tim_sutimeinterp
 
-    SUBROUTINE tim_setTimeInterpWeight(weight_in,headerIndex,stepObs)
-      implicit none
-      integer, intent(in)    :: headerIndex,stepObs
-      real(kind=8),intent(in):: weight_in
+  subroutine tim_setTimeInterpWeight(weight_in,headerIndex,stepObs)
+    implicit none
+    integer, intent(in)    :: headerIndex,stepObs
+    real(kind=8),intent(in):: weight_in
 
-      timeInterpWeight(headerIndex,stepObs)=weight_in
+    timeInterpWeight(headerIndex,stepObs)=weight_in
 
-    end SUBROUTINE tim_setTimeInterpWeight
-
-
-    FUNCTION tim_getTimeInterpWeight(headerIndex,stepObs) result(weight_out)
-      implicit none
-      real(kind=8)        :: weight_out
-      integer,intent(in)  :: headerIndex,stepObs
-
-      weight_out=timeInterpWeight(headerIndex,stepObs)
-
-    end FUNCTION tim_getTimeInterpWeight
-
-   subroutine tim_setDatestamp(datestamp_in)
-      !
-      ! object: to control access to the minimization object.  Sets the date
-      !         of the window centre of analysis validity to the indicated value.
-
-      implicit none
-      integer, intent(in) :: datestamp_in
-
-      datestamp = datestamp_in
-
-   end subroutine tim_setDatestamp
+  end SUBROUTINE tim_setTimeInterpWeight
 
 
-   function tim_getDatestamp() result(datestamp_out)
-      !
-      ! object: to control access to the minimization object.  Returns the date
-      !         of the window centre of analysis validity.
+  function tim_getTimeInterpWeight(headerIndex,stepObs) result(weight_out)
+    implicit none
+    real(kind=8)        :: weight_out
+    integer,intent(in)  :: headerIndex,stepObs
 
-      implicit none
-      integer :: datestamp_out
+    weight_out=timeInterpWeight(headerIndex,stepObs)
 
-      datestamp_out = datestamp
+  end function tim_getTimeInterpWeight
 
-   end function tim_getDatestamp
+  subroutine tim_setDatestamp(datestamp_in)
+    !
+    ! object: to control access to the minimization object.  Sets the date
+    !         of the window centre of analysis validity to the indicated value.
+    implicit none
+    integer, intent(in) :: datestamp_in
 
+    datestamp = datestamp_in
+
+  end subroutine tim_setDatestamp
+
+
+  function tim_getDatestamp() result(datestamp_out)
+    !
+    ! object: to control access to the minimization object.  Returns the date
+    !         of the window centre of analysis validity.
+
+    implicit none
+    integer :: datestamp_out
+
+    datestamp_out = datestamp
+
+  end function tim_getDatestamp
+
+
+  subroutine tim_getStampList(datestamplist,kstep,ksystamp)
+    implicit none
+    !
+    ! Author: Simon Pellerin *ARMA/SMC Nov. 2001
+    ! Purpose: Compute a list of STAMPS corresponding to stepobs time
+    !
+    ! Dummies
+    integer, intent(in) :: kstep ! number of step obs
+    integer, intent(in) :: ksystamp ! Synoptic time
+    integer, intent(out), dimension(kstep) :: datestamplist
+
+    ! Locals
+    integer :: jstep
+    real*8 :: dldelt
+    real*8 :: dtstep ! Del Time in hours between step obs
+
+    if(kstep.gt.1) then
+      dtstep = 6.0d0/(real(kstep-1,8))
+    else
+      dtstep = 6.0d0
+    endif
+
+    do jstep = 1,kstep
+      dldelt = (jstep - ((kstep-1)/2+1)) * dtstep
+      call incdatr (datestamplist(jstep),ksystamp, dldelt)
+    enddo
+
+  end subroutine tim_getStampList
 
 end MODULE timeCoord_mod

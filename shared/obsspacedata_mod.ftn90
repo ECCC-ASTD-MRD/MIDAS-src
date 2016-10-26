@@ -3518,6 +3518,11 @@ contains
          obsdat%numBody     =  numBody_mpiGlobal
          obsdat%numHeader   =numHeader_mpiGlobal
 
+      else
+
+         obsdat%numBody     = 0
+         obsdat%numHeader   = 0
+
       endif ! myid_mpi.eq.0
 
       ! deallocate the complete temporary arrays
@@ -5386,6 +5391,7 @@ contains
       integer :: bodyIndex, headerIndex, headerIndex_out, bodyIndex_out, columnIndex, activeIndex, procIndex, charIndex
       integer :: bodyIndexBeg, bodyIndexEnd
       integer :: nprocs_mpi, myid_mpi, ierr, nsize, target_ip
+      logical :: needToRedistribute, needToRedistribute_mpiglobal
 
       write(*,*) '============= Enter obs_MpiRedistribute =============='
       write(*,*) 'redistribute data according to mpi task ID stored in column :', &
@@ -5395,15 +5401,28 @@ contains
       call rpn_comm_size("GRID",nprocs_mpi,ierr)
       call rpn_comm_rank("GRID",myid_mpi,ierr)
 
+      ! Number of headers and bodies per task before redistribution
+      numHeader_in = obs_numHeader(obsdat_inout)
+      numBody_in   = obs_numBody(obsdat_inout)
+
+      ! check if redistribution is really needed
+      needToRedistribute = .false.
+      do headerIndex = 1, numHeader_in
+         target_ip = obs_headElem_i(obsdat_inout,target_ip_index,headerIndex)
+         if (target_ip.ne.myid_mpi) needToRedistribute = .true.
+      enddo
+      call rpn_comm_allreduce(needToRedistribute,needToRedistribute_mpiglobal,1,  &
+                              "MPI_LOGICAL","MPI_LOR","world",ierr)
+      if(.not.needToRedistribute_mpiglobal) then
+         write(*,*) 'obs_MpiRedistribute: do not need to redistribute, returning'
+         return
+      endif
+
       ! allocate arrays used for counting on each mpi task
       allocate(numHeaderPE_mpilocal(nprocs_mpi))
       allocate(numHeaderPE_mpiglobal(nprocs_mpi))
       allocate(numBodyPE_mpilocal(nprocs_mpi))
       allocate(numBodyPE_mpiglobal(nprocs_mpi))
-
-      ! Number of headers and bodies per task before redistribution
-      numHeader_in = obs_numHeader(obsdat_inout)
-      numBody_in   = obs_numBody(obsdat_inout)
 
       ! Compute number of headers and bodies per task after redistribution
       numHeaderPE_mpilocal(:) = 0

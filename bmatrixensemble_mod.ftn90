@@ -589,7 +589,7 @@ CONTAINS
     real(8) :: delhh
     logical :: lExists
     character(len=32) :: envVariable
-    integer :: length_envVariableburp
+    integer :: length_envVariable
 
     ! standard file variables
     integer :: ini,inj,ink,ip1,ip2(9),ip3,ierr,idateo(7),ikey
@@ -693,7 +693,7 @@ CONTAINS
 
     ! Retrieve environment variables related to doing an ensemble of perturbed analyses
     status = 0
-    call get_environment_variable('envar_memberIndexOffset',envVariable,length_envVariableburp,status,.true.)
+    call get_environment_variable('envar_memberIndexOffset',envVariable,length_envVariable,status,.true.)
     if (status.gt.1) then
       write(*,*) 'ben_setupEnsemble: Problem when getting the environment variable envar_memberIndexOffset'
       memberIndexOffset = 0
@@ -706,7 +706,7 @@ CONTAINS
     endif
 
     status = 0
-    call get_environment_variable('envar_totalEnsembleSize',envVariable,length_envVariableburp,status,.true.)
+    call get_environment_variable('envar_totalEnsembleSize',envVariable,length_envVariable,status,.true.)
     if (status.gt.1) then
       write(*,*) 'ben_setupEnsemble: Problem when getting the environment variable envar_totalEnsembleSize'
       totalEnsembleSize = nEns
@@ -771,11 +771,7 @@ CONTAINS
           endif
           do jj = 1, nj
             do ji = 1, ni
-              if (hco_ben % global) then
-                 ensPerturbation1_r4(ji,jj,ngpositps) = sngl(gd2d_r4(ji,nj+1-jj)*MPC_PA_PER_MBAR_R8)
-              else
-                 ensPerturbation1_r4(ji,jj,ngpositps) = sngl(gd2d_r4(ji,jj)*MPC_PA_PER_MBAR_R8)
-              endif
+              ensPerturbation1_r4(ji,jj,ngpositps) = sngl(gd2d_r4(ji,jj)*MPC_PA_PER_MBAR_R8)
             enddo
           enddo
 
@@ -788,11 +784,7 @@ CONTAINS
             endif
             do jj = 1, nj
               do ji = 1, ni
-                if (hco_ben % global) then
-                   ensPerturbation1_r4(ji,jj,jk-1+ngposittt) = gd2d_r4(ji,nj+1-jj)
-                else
-                   ensPerturbation1_r4(ji,jj,jk-1+ngposittt) = gd2d_r4(ji,jj)
-                endif
+                ensPerturbation1_r4(ji,jj,jk-1+ngposittt) = gd2d_r4(ji,jj)
               enddo
             enddo
           enddo
@@ -806,11 +798,7 @@ CONTAINS
             endif
             do jj = 1, nj
               do ji = 1, ni
-                if (hco_ben % global) then
-                   ensPerturbation1_r4(ji,jj,jk-1+ngpositq) = sngl(log(max(real(gd2d_r4(ji,nj+1-jj),8),MPC_MINIMUM_HU_R8)))
-                else
-                   ensPerturbation1_r4(ji,jj,jk-1+ngpositq) = sngl(log(max(real(gd2d_r4(ji,jj),8),MPC_MINIMUM_HU_R8)))
-                endif
+                ensPerturbation1_r4(ji,jj,jk-1+ngpositq) = sngl(log(max(real(gd2d_r4(ji,jj),8),MPC_MINIMUM_HU_R8)))
               enddo
             enddo
           enddo
@@ -824,11 +812,7 @@ CONTAINS
             endif
             do jj = 1, nj
               do ji = 1, ni
-                if (hco_ben % global) then
-                   ensPerturbation1_r4(ji,jj,jk-1+ngposituu) = sngl(gd2d_r4(ji,nj+1-jj)*MPC_M_PER_S_PER_KNOT_R8)
-                else
-                   ensPerturbation1_r4(ji,jj,jk-1+ngposituu) = sngl(gd2d_r4(ji,jj)*MPC_M_PER_S_PER_KNOT_R8)
-                endif
+                ensPerturbation1_r4(ji,jj,jk-1+ngposituu) = sngl(gd2d_r4(ji,jj)*MPC_M_PER_S_PER_KNOT_R8)
               enddo
             enddo
           enddo
@@ -842,11 +826,7 @@ CONTAINS
             endif
             do jj = 1, nj
               do ji = 1, ni
-                if (hco_ben % global) then
-                   ensPerturbation1_r4(ji,jj,jk-1+ngpositvv) = sngl(gd2d_r4(ji,nj+1-jj)*MPC_M_PER_S_PER_KNOT_R8)
-                else
-                   ensPerturbation1_r4(ji,jj,jk-1+ngpositvv) = sngl(gd2d_r4(ji,jj)*MPC_M_PER_S_PER_KNOT_R8)
-                endif
+                ensPerturbation1_r4(ji,jj,jk-1+ngpositvv) = sngl(gd2d_r4(ji,jj)*MPC_M_PER_S_PER_KNOT_R8)
               enddo
             enddo
           enddo
@@ -859,11 +839,7 @@ CONTAINS
           else
             do jj = 1, nj
               do ji = 1, ni
-                if (hco_ben % global) then
-                   ensPerturbation1_r4(ji,jj,ngposittg) = gd2d_r4(ji,nj+1-jj)
-                else
-                   ensPerturbation1_r4(ji,jj,ngposittg) = gd2d_r4(ji,jj)
-                endif
+                ensPerturbation1_r4(ji,jj,ngposittg) = gd2d_r4(ji,jj)
               enddo
             enddo
           endif
@@ -1021,10 +997,10 @@ CONTAINS
             call abort3d('ben_getPerturbation: No perturbations available for variable:' // vnl_varNameList(jvar))
           endif
 
-          if (vnl_vartypeFromVarname(vnl_varNameList(jvar)).eq.'SF') then
+          if (vnl_varLevelFromVarname(vnl_varNameList(jvar)).eq.'SF') then
             ilev2 = ilev1
             topLevOffset = 1
-          elseif (vnl_vartypeFromVarname(vnl_varNameList(jvar)).eq.'MM') then
+          elseif (vnl_varLevelFromVarname(vnl_varNameList(jvar)).eq.'MM') then
             ilev2 = ilev1 - 1 + nlevEns_M
             topLevOffset = topLevIndex_M
           else
@@ -1302,7 +1278,7 @@ CONTAINS
     !tgstdbg_tmp(:,:) = 0.0
     !do jlat = myLatBeg, myLatEnd
     !   do jlon = myLonBeg, myLonEnd
-    !      tgstdbg_tmp(jlon,hco_ben%nj-jlat+1) = ensPerturbations(1)%member_r4(jlon,jlat,levTG  ,1)
+    !      tgstdbg_tmp(jlon,jlat) = ensPerturbations(1)%member_r4(jlon,jlat,levTG  ,1)
     !   end do
     !end do
     !call RPN_COMM_allreduce(tgstdbg_tmp,tgstdbg_tmp,hco_ben%ni*hco_ben%nj,"mpi_real","mpi_sum","GRID",ierr)
@@ -1340,7 +1316,7 @@ CONTAINS
     ! tgstdbg_tmp(:,:) = 0.0
     ! do jlat = myLatBeg, myLatEnd
     !    do jlon = myLonBeg, myLonEnd
-    !       tgstdbg_tmp(jlon,hco_ben%nj-jlat+1) = ensPerturbations(1)%member_r4(jlon,jlat,levTT2m  ,1)
+    !       tgstdbg_tmp(jlon,jlat) = ensPerturbations(1)%member_r4(jlon,jlat,levTT2m  ,1)
     !    end do
     ! end do
     ! call RPN_COMM_allreduce(tgstdbg_tmp,tgstdbg_tmp,hco_ben%ni*hco_ben%nj,"mpi_real","mpi_sum","GRID",ierr)
@@ -1356,7 +1332,7 @@ CONTAINS
     !
     !    do jlat = 1, hco_ben%nj
     !      do jlon = 1,hco_ben%ni
-    !         tgstdbg_tmp(jlon,jlat) = AnalLandSeaMask(jlon,hco_ben%nj-jlat+1)
+    !         tgstdbg_tmp(jlon,jlat) = AnalLandSeaMask(jlon,jlat)
     !      end do
     !    end do
     !    cltypvar = 'P'
@@ -1369,7 +1345,7 @@ CONTAINS
     !
     !    do jlat = 1, hco_ben%nj
     !      do jlon = 1,hco_ben%ni
-    !         tgstdbg_tmp(jlon,jlat) = AnalSeaIceMask(jlon,hco_ben%nj-jlat+1)
+    !         tgstdbg_tmp(jlon,jlat) = AnalSeaIceMask(jlon,jlat)
     !      end do
     !    end do       
     !    cltypvar = 'P'
@@ -2368,10 +2344,10 @@ CONTAINS
 !            call abort3d('ben_bsqrt: No covariances available for variable:' // vnl_varNameList(jvar))
             cycle 
           endif
-          if(vnl_vartypeFromVarname(vnl_varNameList(jvar)).eq.'SF') then
+          if(vnl_varLevelFromVarname(vnl_varNameList(jvar)).eq.'SF') then
             ilev2 = ilev1
             topLevOffset = 1
-          elseif(vnl_vartypeFromVarname(vnl_varNameList(jvar)).eq.'MM') then
+          elseif(vnl_varLevelFromVarname(vnl_varNameList(jvar)).eq.'MM') then
             ilev2 = ilev1 - 1 + nlevEns_M
             topLevOffset = topLevIndex_M
           else
@@ -2470,10 +2446,10 @@ CONTAINS
 !           call abort3d('ben_bsqrtad: No covariances available for variable:' // vnl_varNameList(jvar))
            cycle 
           endif
-          if(vnl_vartypeFromVarname(vnl_varNameList(jvar)).eq.'SF') then
+          if(vnl_varLevelFromVarname(vnl_varNameList(jvar)).eq.'SF') then
             ilev2 = ilev1
             topLevOffset = 1
-          elseif(vnl_vartypeFromVarname(vnl_varNameList(jvar)).eq.'MM') then
+          elseif(vnl_varLevelFromVarname(vnl_varNameList(jvar)).eq.'MM') then
             ilev2 = ilev1 - 1 + nlevEns_M
             topLevOffset = topLevIndex_M
           else
@@ -3336,7 +3312,6 @@ CONTAINS
        call gsv_allocate(statevector,tim_nstepobsinc,datestamp=tim_getDatestamp(),mpi_local=.true.)
        call gsv_zero(statevector)
        do memberIndex = 1, nEns
-          call gsv_zero(statevector_temp) ! clean myLatEnd+1 and myLonEnd+1 
           !- Get normalized perturbations
           call ben_getPerturbation( statevector_temp, & ! OUT
                                     memberIndex,      & ! IN

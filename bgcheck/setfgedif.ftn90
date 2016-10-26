@@ -28,14 +28,7 @@
 !*
       use EarthConstants_mod
       use MathPhysConstants_mod
-      use modgps00base      , only : ngpscvmx
-      use modgps01ctphys    , only : p_TC, p_knot
-      use modgps02wgs84grav , only : gpsgravitysrf
-      use modgps03diff
-      use modgps04profile   , only : gpsprofile, gpsstruct1sw
-      use modgps08refop     , only : gpsrefopv
-      use modgps09bend      , only : gpsbndopv1
-      use modgpsro_mod
+      use gps_mod
       use obsSpaceData_mod
       use columnData_mod
       IMPLICIT NONE
@@ -67,9 +60,9 @@
 
 !      REAL*8 JAC(ngpscvmx)
       REAL*8 DV (ngpscvmx)
-      TYPE(GPSPROFILE)           :: PRF
+      TYPE(GPS_PROFILE)           :: PRF
       REAL*8       , allocatable :: H   (:),AZMV(:)
-      TYPE(GPSDIFF), allocatable :: RSTV(:),RSTVP(:),RSTVM(:)
+      TYPE(GPS_DIFF), allocatable :: RSTV(:),RSTVP(:),RSTVM(:)
       type(struct_vco), pointer  :: vco_anl
 
       WRITE(*,*)'ENTER SETFGEDIFF'
@@ -80,7 +73,7 @@
       NGPSLEV=col_getNumLev(lcolumng,'TH')
       NWNDLEV=col_getNumLev(lcolumng,'MM')
       LFIRST=.FALSE.
-      if ( .NOT.allocated(vGPSRO_Jacobian) ) then
+      if ( .NOT.allocated(gps_vRO_Jacobian) ) then
          LFIRST = .TRUE.
          allocate(zPP (NGPSLEV))
          allocate(zDP (NGPSLEV))
@@ -89,9 +82,9 @@
          allocate(zUU (NGPSLEV))
          allocate(zVV (NGPSLEV))
 
-         allocate(vGPSRO_Jacobian(numGPSROProfiles,GPSRO_MAXPRFSIZE,2*NGPSLEV+1))
-         allocate(vGPSRO_lJac    (numGPSROProfiles))
-         vGPSRO_lJac=.false.
+         allocate(gps_vRO_Jacobian(gps_numROProfiles,GPSRO_MAXPRFSIZE,2*NGPSLEV+1))
+         allocate(gps_vRO_lJac    (gps_numROProfiles))
+         gps_vRO_lJac=.false.
 
          allocate( H    (GPSRO_MAXPRFSIZE) )
          allocate( AZMV (GPSRO_MAXPRFSIZE) )
@@ -134,11 +127,11 @@
 !C     *    If assimilations are requested, prepare and apply the observation operator
 !C
             IF (ASSIM) THEN
-               iProfile=iProfile_from_index(INDEX_HEADER)
+               iProfile=gps_iprofile_from_index(INDEX_HEADER)
 !C
 !C     *       Profile at the observation location:
 !C
-               if (.not.vGPSRO_lJac(iProfile)) then
+               if (.not.gps_vRO_lJac(iProfile)) then
 !C
 !C     *          Basic geometric variables of the profile:
 !C
@@ -181,7 +174,7 @@
 !C     
 !C     *          GPS profile structure:
 !C
-                  call gpsstruct1sw(ngpslev,zLat,zLon,zAzm,zMT,Rad,geo,zP0,zPP,zDP,zTT,zHU,zUU,zVV,prf)
+                  call gps_struct1sw(ngpslev,zLat,zLon,zAzm,zMT,Rad,geo,zP0,zPP,zDP,zTT,zHU,zUU,zVV,prf)
 !C
 !C     *          Prepare the vector of all the observations:
 !C
@@ -200,19 +193,19 @@
 !C     *          Apply the observation operator:
 !C
                   IF (LEVELGPSRO.EQ.1) THEN
-                     CALL GPSBNDOPV1(H      , AZMV, NH, PRF, RSTV)
-!C                     CALL GPSBNDOPV1(H+WFGPS, AZMV, NH, PRF, RSTVP)
-!C                     CALL GPSBNDOPV1(H-WFGPS, AZMV, NH, PRF, RSTVM)
+                     CALL GPS_BNDOPV1(H      , AZMV, NH, PRF, RSTV)
+!C                     CALL GPS_BNDOPV1(H+WFGPS, AZMV, NH, PRF, RSTVP)
+!C                     CALL GPS_BNDOPV1(H-WFGPS, AZMV, NH, PRF, RSTVM)
 !C                     do nh1 = 1, nh
 !C                        RSTV(nh1)=(RSTVP(nh1)+RSTV(nh1)+RSTVM(nh1))/3.d0
 !C                     enddo
                   ELSE
-                     CALL GPSREFOPV (H,       NH, PRF, RSTV)
+                     CALL GPS_REFOPV (H,       NH, PRF, RSTV)
                   ENDIF
                   DO NH1=1,NH
-                     vGPSRO_Jacobian(iProfile,NH1,:)= RSTV(NH1)%DVAR(1:2*NGPSLEV+1)
+                     gps_vRO_Jacobian(iProfile,NH1,:)= RSTV(NH1)%DVAR(1:2*NGPSLEV+1)
                   ENDDO
-                  vGPSRO_lJac(iProfile)=.true.
+                  gps_vRO_lJac(iProfile)=.true.
                endif
 !C
 !C     *       Local error
@@ -241,7 +234,7 @@
 !C
                      ZFGE = 0.d0
                      DO JV = 1, 2*PRF%NGPSLEV+1
-                        ZFGE = ZFGE + (vGPSRO_Jacobian(iProfile,NH1,JV) * DV(JV))**2
+                        ZFGE = ZFGE + (gps_vRO_Jacobian(iProfile,NH1,JV) * DV(JV))**2
                      ENDDO
                      ZFGE = SQRT(ZFGE)
                      ZERR = obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)

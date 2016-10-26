@@ -40,7 +40,6 @@ module obsSpaceDiag_mod
   use gridStateVector_mod
   use bMatrix_mod
   use chem_interface_mod
-  use burpfiles_mod
   use varNameList_mod
   use stateToColumn_mod
   implicit none
@@ -255,12 +254,12 @@ contains
              field => gsv_getField(statevector,vnl_varNameList(jvar))
 
              if (vnl_varKindFromVarname(vnl_varNameList(jvar)).eq.'MT') then
-                do jlev = 1, gsv_getNumLev(statevector,vnl_vartypeFromVarname(vnl_varNameList(jvar)))   
+                do jlev = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname(vnl_varNameList(jvar)))   
                    if(scaleFactor(jlev).gt.0.0d0) field(:,jlev,:,:)=field(:,jlev,:,:)/scaleFactor(jlev)
                 enddo
              else if (vnl_varKindFromVarname(vnl_varNameList(jvar)).eq.'CH') then
                 ivar_count=ivar_count+1
-                do jlev = 1, gsv_getNumLev(statevector,vnl_vartypeFromVarname(vnl_varNameList(jvar)))   
+                do jlev = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname(vnl_varNameList(jvar)))   
                    if(scaleFactorChm(jlev,ivar_count).gt.0.0d0) field(:,jlev,:,:)=field(:,jlev,:,:) &
                          /scaleFactorChm(jlev,ivar_count)
                 end do
@@ -309,12 +308,12 @@ contains
              field => gsv_getField(statevector,vnl_varNameList(jvar))
 
              if (vnl_varKindFromVarname(vnl_varNameList(jvar)).eq.'MT') then
-                do jlev = 1, gsv_getNumLev(statevector,vnl_vartypeFromVarname(vnl_varNameList(jvar)))   
+                do jlev = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname(vnl_varNameList(jvar)))   
                    if(scaleFactor(jlev).gt.0.0d0) field(:,jlev,:,:)=field(:,jlev,:,:)/scaleFactor(jlev)
                 enddo
              else if (vnl_varKindFromVarname(vnl_varNameList(jvar)).eq.'CH') then
                 ivar_count=ivar_count+1
-                do jlev = 1, gsv_getNumLev(statevector,vnl_vartypeFromVarname(vnl_varNameList(jvar)))   
+                do jlev = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname(vnl_varNameList(jvar)))   
                    if(scaleFactorChm(jlev,ivar_count).gt.0.0d0) field(:,jlev,:,:)=field(:,jlev,:,:) &
                          /scaleFactorChm(jlev,ivar_count)
                 end do

@@ -102,10 +102,6 @@ subroutine setObsMpiStrategy(lobsSpaceData, mpiStrategy)
       ierr = gdxyfll( hco_anl%EZscintID,   & ! IN 
                       xpos_r4, ypos_r4,    & ! OUT
                       lat_r4, lon_r4, 1 )    ! IN
-      if ( trim(hco_anl%grtyp) == 'G' .and. hco_anl%ig2 == 1 ) then
-         ! Revert latitudes since gdxyfll does not handle properly this grid type
-         ypos_r4 = real(hco_anl%nj,4) - ypos_r4 + 1.0
-      end if
       latIndex = floor(ypos_r4)
       lonIndex = floor(xpos_r4)
       IP_y = ( mpi_npey * (latIndex-1) ) / hco_anl%nj
@@ -131,10 +127,6 @@ subroutine setObsMpiStrategy(lobsSpaceData, mpiStrategy)
       ierr = gdxyfll( hco_anl%EZscintID,   & ! IN 
                       xpos_r4, ypos_r4,    & ! OUT
                       lat_r4, lon_r4, 1 )    ! IN
-      if ( trim(hco_anl%grtyp) == 'G' .and. hco_anl%ig2 == 1 ) then
-         ! Revert latitudes since gdxyfll does not handle properly this grid type
-         ypos_r4 = real(hco_anl%nj,4) - ypos_r4 + 1.0
-      end if
       latIndex = floor(ypos_r4)
       lonIndex = floor(xpos_r4)
       IP_y = ( mpi_npey * (latIndex-1) ) / hco_anl%nj
@@ -187,14 +179,14 @@ subroutine setObsMpiStrategy(lobsSpaceData, mpiStrategy)
     ! sort the list of loads per tile
     obsLoadTile_mpiglobal_tmp(:) = obsLoadTile_mpiglobal(:)
     do IP = 0, mpi_nprocs-1
-      obsLoadTile_sorted(IP+1) = 0
+      obsLoadTile_sorted(IP+1) = -1
       do IP2 = 0, mpi_nprocs-1
         if(obsLoadTile_mpiglobal_tmp(IP2+1).gt.obsLoadTile_sorted(IP+1)) then
           obsLoadTile_sorted(IP+1) = obsLoadTile_mpiglobal_tmp(IP2+1)
           PE_sorted(IP+1) = IP2
         endif
       enddo
-      obsLoadTile_mpiglobal_tmp(PE_sorted(IP+1)+1) = 0
+      obsLoadTile_mpiglobal_tmp(PE_sorted(IP+1)+1) = -1
     enddo
     write(*,*) 'setObsMpiStrategy: sorted obsLoadTile_mpiglobal       =',obsLoadTile_sorted(:)
     write(*,*) 'setObsMpiStrategy: corresponding sorted PE_mpiglobal  =',PE_sorted(:)

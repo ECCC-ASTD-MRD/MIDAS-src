@@ -28,19 +28,8 @@ module obsOperators_mod
   use obsSpaceData_mod
   use columnData_mod 
   use bufr
-  ! only for oonl_gpsgb
-  use modgps04profilezd
-  use modgps08ztdop
-  use modgpsztd_mod
-  ! only for oonl_gpsro
-  use modgps01ctphys    , only : p_TC, p_knot
-  use modgps02wgs84grav , only : gpsgravitysrf
-  use modgps03diff
-  use modgps04profile   , only : gpsprofile, gpsstruct1sw
-  use modgps08refop     , only : gpsrefopv
-  use modgps09bend      , only : gpsbndopv1
-  use modgpsro_mod
-  
+  use lqtoes_mod
+  use gps_mod
   implicit none
   save
   private
@@ -74,9 +63,9 @@ module obsOperators_mod
     real(8) :: zvar,zoer,jobs
     real(8) :: zwb,zwt,zexp,zgamma,ztvg
     real(8) :: zlev,zpt,zpb,zomp
-    real(8) :: columnVarB,columnVarT,lqtoes
+    real(8) :: columnVarB,columnVarT
     character(len=4) :: varName
-    character(len=2) :: varType
+    character(len=2) :: varLevel
     real(8),pointer :: col_ptr(:),col_ptr_tt(:),col_ptr_hu(:)
     !
     ! Temperature lapse rate for extrapolation of gz below model surface
@@ -114,9 +103,9 @@ module obsOperators_mod
         ! Process all data within the domain of the model
         ilyr  =obs_bodyElem_i (obsSpaceData,OBS_LYR,bodyIndex)
         varName = vnl_varnameFromVarnum(ivnm)
-        varType = vnl_varTypeFromVarnum(ivnm)
-        zpt= col_getPressure(columnhr,ilyr  ,headerIndex,varType)
-        zpb= col_getPressure(columnhr,ilyr+1,headerIndex,varType)
+        varLevel = vnl_varLevelFromVarnum(ivnm)
+        zpt= col_getPressure(columnhr,ilyr  ,headerIndex,varLevel)
+        zpb= col_getPressure(columnhr,ilyr+1,headerIndex,varLevel)
         zwb  = log(zlev/zpt)/log(zpb/zpt)
         zwt  = 1.d0 - zwb
         if(ivnm.eq.bufr_nees) then
@@ -184,8 +173,8 @@ module obsOperators_mod
     integer :: ipb,ipt,ivnm,headerIndex,bodyIndex
     real(8) :: zvar,zcon,zexp,zgamma,ztvg
     real(8) :: zlev,zhhh,zgamaz,zslope,gzhr
-    real(8) :: columnVarB,lqtoes,jobs
-    character(len=2) :: varType
+    real(8) :: columnVarB,jobs
+    character(len=2) :: varLevel
     !
     ! Temperature lapse rate for extrapolation of gz below model surface
     !
@@ -225,7 +214,7 @@ module obsOperators_mod
         zvar = obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)
         zlev = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
         zhhh = zlev * grav
-        varType = vnl_varTypeFromVarnum(ivnm)
+        varLevel = vnl_varLevelFromVarnum(ivnm)
 
         if(ivnm.eq.BUFR_NETS .or. ivnm.eq.BUFR_NESS .or.  &
            ivnm.eq.BUFR_NEUS .or. ivnm.eq.BUFR_NEVS) then
@@ -242,7 +231,7 @@ module obsOperators_mod
             zslope = 0.0d0
           endif
 
-          ipt  = col_getNumLev(COLUMNHR,varType)-1 + col_getOffsetFromVarno(columnhr,ivnm)
+          ipt  = col_getNumLev(COLUMNHR,varLevel)-1 + col_getOffsetFromVarno(columnhr,ivnm)
           ipb  = ipt + 1
           if(ivnm.eq.bufr_ness) then
             columnVarB=lqtoes(col_getElem(columnhr,col_getNumLev(COLUMNHR,'TH'),headerIndex,'HU'),  &
@@ -314,7 +303,7 @@ module obsOperators_mod
 
     integer :: ipb,ipt,ivnm,ik,headerIndex,bodyIndex
     real(8) :: zvar,zwb,zwt,zlev,zpt,zpb,jobs
-    character(len=2) :: varType, obsfam
+    character(len=2) :: varLevel, obsfam
 
     Write(*,*) "Entering subroutine oonl_zzz"
 
@@ -346,9 +335,9 @@ module obsOperators_mod
       ivnm = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
       ipt = ik + col_getOffsetFromVarno(columnhr,ivnm)
       ipb = ipt+1
-      varType = vnl_varTypeFromVarnum(ivnm)
-      zpt= col_getHeight(columnhr,ik  ,headerIndex,varType)/RG
-      zpb= col_getHeight(columnhr,ik+1,headerIndex,varType)/RG
+      varLevel = vnl_varLevelFromVarnum(ivnm)
+      zpt= col_getHeight(columnhr,ik  ,headerIndex,varLevel)/RG
+      zpb= col_getHeight(columnhr,ik+1,headerIndex,varLevel)/RG
       zwb  = (zpt-zlev)/(zpt-zpb)
       zwt  = 1.d0 - zwb
       if(ivnm.eq.bufr_nees) call abort3d('oonl_zzz: CANNOT ASSIMILATE ES!!!')
@@ -406,9 +395,9 @@ module obsOperators_mod
     integer jl, ngpslev, nwndlev, stat
     logical  assim, firstheader, ldsc
     integer :: nh, nh1
-    type(gpsprofile)           :: prf
+    type(gps_profile)           :: prf
     real(8)      , allocatable :: h   (:),azmv(:)
-    type(gpsdiff), allocatable :: rstv(:),rstvp(:),rstvm(:)
+    type(gps_diff), allocatable :: rstv(:),rstvp(:),rstvm(:)
 
     write(*,*)'ENTER oonl_gpsro'
     !
@@ -521,7 +510,7 @@ module obsOperators_mod
       !     
       ! GPS profile structure:
       !
-      call gpsstruct1sw(ngpslev,zLat,zLon,zAzm,zMT,Rad,geo,zP0,zPP,zDP,zTT,zHU,zUU,zVV,prf)
+      call gps_struct1sw(ngpslev,zLat,zLon,zAzm,zMT,Rad,geo,zP0,zPP,zDP,zTT,zHU,zUU,zVV,prf)
       ldsc=.not.btest(iclf,16-3)
       !
       ! Prepare the vector of all the observations:
@@ -545,14 +534,14 @@ module obsOperators_mod
       ! Apply the observation operator:
       !
       if (levelgpsro.eq.1) then
-        call gpsbndopv1(h      , azmv, nh, prf, rstv)
-        !call gpsbndopv1(h+wfgps, azmv, nh, prf, rstvp)
-        !call gpsbndopv1(h-wfgps, azmv, nh, prf, rstvm)
+        call gps_bndopv1(h      , azmv, nh, prf, rstv)
+        !call gps_bndopv1(h+wfgps, azmv, nh, prf, rstvp)
+        !call gps_bndopv1(h-wfgps, azmv, nh, prf, rstvm)
         !do nh1 = 1, nh
         !  rstv(nh1)=(rstvp(nh1)+rstv(nh1)+rstvm(nh1))/3.d0
         !enddo
       else
-        call gpsrefopv (h,       nh, prf, rstv)
+        call gps_refopv (h,       nh, prf, rstv)
       endif
       !
       ! Perform the (H(x)-Y)/S operation:
@@ -648,13 +637,13 @@ module obsOperators_mod
     !           -- conversion of 3dvar v11.2.2 version to Rev189 modular form.
     !           -- uses new (modified) GPS-RO modgps*.f90 for ZTD observation operator
     !           -- option to use old NL operator removed
-    !           -- ZTD operator gpsZTDopv is found in MODIF modgps08refop.f90
+    !           -- ZTD operator gps_ztdopv is found in MODIF modgps08refop.f90
     !           -- Uses columnData_mod.
     !
     !          S. Macpherson Dec 2012 - Jan 2013
     !           -- update from Rev189 to Rev213
     !           -- new namelist parameters in modgpsztd_mod
-    !           -- ZTD operator gpsZTDopv is found in NEW modgps08ztdop.cdk90
+    !           -- ZTD operator gps_ztdopv is found in NEW modgps08ztdop.cdk90
     !           -- ZETA (eta/hybrid values) and ZGZ profiles no longer needed.
     !           -- add filter for 1-OBS option (L1OBS=.true. in namelist)
     !           -- Set vGPSZTD_Index(numGPSZTD) for Jacobian storage
@@ -693,8 +682,8 @@ module obsOperators_mod
     integer :: icount1, icount2, icount3, icount, icountp
     logical  :: assim, llrej, analysisMode, lfsl
     character(9) :: cstnid
-    type(gpsprofilezd)    :: prf
-    type(gpsdiff)         :: ztdopv
+    type(gps_profilezd)    :: prf
+    type(gps_diff)         :: ztdopv
     !
     !     PW lower limit (mm) and Ps O-P upper limit (Pa) for ZTD assimilation
     !       Note:  1 mb = 100 Pa --> 2.2 mm ZTD
@@ -819,14 +808,14 @@ module obsOperators_mod
       zdz = zlev - zmt
 
       ! Fill GPS ZTD profile structure (PRF):
-      call gpsstructztd(nlev_T,lat,lon,zmt,zp0,zpp,zdp,ztt,zhu,lbevis,irefopt,prf)
+      call gps_structztd(nlev_T,lat,lon,zmt,zp0,zpp,zdp,ztt,zhu,lbevis,irefopt,prf)
 
       ! Apply the GPS ZTD observation operator
-      ! --> output is model ZTD (type gpsdiff) and P at obs height ZLEV
-      call gpsztdopv(zlev,prf,lbevis,zdzmin,ztdopv,zpsmod,iztdop)
+      ! --> output is model ZTD (type gps_diff) and P at obs height ZLEV
+      call gps_ztdopv(zlev,prf,lbevis,zdzmin,ztdopv,zpsmod,iztdop)
 
       ! Get model profile PW
-      call gpspw(prf,zpwmod)
+      call gps_pw(prf,zpwmod)
       ! ZTD (m)
       zhx    = ztdopv%var
 

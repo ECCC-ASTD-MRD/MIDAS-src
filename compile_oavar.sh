@@ -79,11 +79,10 @@ cd compiledir
 
 # automatically set the global revision number in toplevelcontrol_mod.ftn90 by
 # replacing the string XXXXX with the actual revision number
-revpath=$(ssh pollux "cd $trunkdir; svn info | awk '/^URL/ {print \$2}'")
-revnum=$(ssh pollux "cd $trunkdir;  svnversion")
-echo " " 
+revnum=$(git describe --always 2>/dev/null || ssh pollux "cd $trunkdir; git describe --always" 2>/dev/null || echo unkown revision)
+echo " "
 echo "-----------------------"
-echo "Revision number='$revnum' '$revpath'"
+echo "Revision number='$revnum'"
 echo "-----------------------"
 echo " "
 compiledir=${PWD}
@@ -177,7 +176,7 @@ if [ "${mode}" == full ] ; then
   rm -f *.o *.mod *.cdk* *.h *.ftn* *.f *.f90
 
   # Create a local copy of the source code
-  sed "s!XXXXX!${revnum} ${revpath}!g" ${trunkdir}/toplevelcontrol_mod.ftn90_template > toplevelcontrol_mod.ftn90
+  sed "s!XXXXX!${revnum}!g" ${trunkdir}/toplevelcontrol_mod.ftn90_template > toplevelcontrol_mod.ftn90
 
   # temporarily use the version of obsspacedata_mod.ftn90 and bufr_mod.ftn90 that is in the main directory until these
   # changes get committed to the 'shared' repository
@@ -196,7 +195,9 @@ if [ "${mode}" == full ] ; then
   echo "If aborting, check in ${PWD}/listing1"
   SRC0="toplevelcontrol_mod.ftn90"
   SRC0="$SRC0 mathphysconstants_mod.ftn90 earthconstants_mod.ftn90 mpi_mod.ftn90 mpivar_mod.ftn90 bufr_mod.ftn90 codtyp_mod.ftn90"
-  SRC0="$SRC0 physicsfunctions_mod.ftn90 obsspacedata_mod.ftn90 localizationfunction_mod.ftn90 horizontalcoord_mod.ftn90 timecoord_mod.ftn90 verticalcoord_mod.ftn90"
+  SRC0="$SRC0 physicsfunctions_mod.ftn90 obsspacedata_mod.ftn90 localizationfunction_mod.ftn90"
+  SRC0="$SRC0 horizontalcoord_mod.ftn90 timecoord_mod.ftn90 verticalcoord_mod.ftn90"
+  SRC0="$SRC0 lqtoes_mod.ftn90 intavg_mod.ftn90"
   s.compile $COMPF -O ${FOPTMIZ} -src $SRC0 > listing1 2>&1
   status=1
   grep fail listing1 || status=0
@@ -219,7 +220,7 @@ if [ "${mode}" == full ] ; then
 
   echo "compiling analysis grid modules"
   echo "If aborting, check in ${PWD}/listing2"
-  SRC0="gaussgrid_mod.ftn90 windrotation_mod.ftn90 lamanalysisgrid_mod.ftn90"
+  SRC0="windrotation_mod.ftn90 lamanalysisgrid_mod.ftn90"
   s.compile $COMPF  -O ${FOPTMIZ} -src $SRC0 > listing2 2>&1
   status=1
   grep fail listing2 || status=0
@@ -232,8 +233,8 @@ if [ "${mode}" == full ] ; then
   echo "If aborting, check in ${PWD}/listing3"
   SRC1="controlvector_mod.ftn90 rmatrix_mod.ftn90 hir_chans_mod.ftn90 tovs_nl_mod.ftn90"
   SRC1="$SRC1 tovs_lin_mod.ftn90 varnamelist_mod.ftn90 columndata_mod.ftn90 multi_ir_bgck_mod.ftn90"
-  SRC1="$SRC1 emissivities_mod.ftn90 fft_mod.ftn90 globalspectraltransform_mod.ftn90"
-  SRC1="$SRC1 lamspectraltransform_mod.ftn90 gridstatevector_mod.ftn90 statetocolumn_mod.ftn90 burpfiles_mod.ftn90"
+  SRC1="$SRC1 emissivities_mod.ftn90 globalspectraltransform_mod.ftn90 tt2phi_mod.ftn90"
+  SRC1="$SRC1 lamspectraltransform_mod.ftn90 gridstatevector_mod.ftn90 statetocolumn_mod.ftn90"
   SRC1="$SRC1 bmatrixensemble_mod.ftn90 bmatrixhi_mod.ftn90 lambmatrixhi_mod.ftn90 bmatrixchem_mod.ftn90"
   SRC1="$SRC1 bmatrix_mod.ftn90 variabletransforms_mod.ftn90"
   SRC1="$SRC1 chem_mod.ftn90 chem_interface_mod.ftn90"
@@ -250,7 +251,7 @@ if [ "${mode}" == full ] ; then
 
   echo "compiling burp_read module"
   echo "If aborting, check in ${PWD}/listing4"
-  SRC1="burp_read_mod.ftn90 burp_functions.ftn90 selectb.ftn90 update_burpfiles.ftn90"
+  SRC1="burp_read_mod.ftn90"
   s.compile $COMPF  -O ${FOPTMIZ} -src $SRC1 > listing4 2>&1
   status=1
   grep fail listing4 || status=0
@@ -259,11 +260,9 @@ if [ "${mode}" == full ] ; then
       exit 1
   fi
   
-  echo "compiling the GPS modules (cdk90)..."
+  echo "compiling the GPS module ..."
   echo "If aborting, check in ${PWD}/listing5"
-  SRC2="modgps00base.cdk90 modgps01ctmath.cdk90 modgps01ctphys.cdk90 modgps02wgs84const.cdk90 modgps02wgs84grav.cdk90 modgps03diff.cdk90 modgps04profile.cdk90"
-  SRC2="$SRC2 modgps05refstruct.cdk90 modgps07geostruct.cdk90 modgps08refop.cdk90 modgps09bend.cdk90 modgps04profilezd.cdk90"
-  SRC2="$SRC2 modgps08ztdop.cdk90"
+  SRC2="gps_mod.ftn90"
   s.compile $COMPF  -O ${FOPTMIZ} -src $SRC2 > listing5 2>&1
   status=1
   grep fail listing5 || status=0
@@ -274,8 +273,8 @@ if [ "${mode}" == full ] ; then
 
   echo "compiling some more modules..."
   echo "If aborting, check in ${PWD}/listing6"
-  SRC2="modgpsro_mod.ftn90 modgpsztd_mod.ftn90 filterobs_mod.ftn90 obsoperators_mod.ftn90"
-  SRC2="$SRC2 minimization_mod.ftn90"
+  SRC2="varqc_mod.ftn90 filterobs_mod.ftn90 obsoperators_mod.ftn90"
+  SRC2="$SRC2 minimization_mod.ftn90 burpfiles_mod.ftn90"
   s.compile $COMPF  -O ${FOPTMIZ} -src $SRC2 > listing6 2>&1
   status=1
   grep fail listing6 || status=0

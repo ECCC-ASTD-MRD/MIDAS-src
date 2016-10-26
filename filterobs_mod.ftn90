@@ -23,7 +23,7 @@ module filterObs_mod
   use columnData_mod
   use bufr
   use tovs_nl_mod ,only :  tvs_Is_idburp_tovs
-  use modgpsztd_mod
+  use gps_mod
   implicit none
   save
   private
@@ -951,14 +951,14 @@ contains
     !               in the flagging of obs above/below the model done in vobslyrs
     !               (routine also removed in chem_mod.ftn90)
     !             M. Sitwell Sept 2016
-    !             - Added flagging of bit 4 in OBS_FLG set in set_scal_chm indicating
+    !             - Added flagging of bit 4 in OBS_FLG set in set_scale_chm indicating
     !               mismatch of number of levels of mantissa and exponent. 
     !
     ! Purpose: Rejects elements which are too far below the model surface
     !          or above the model top.
     !
     ! Comments:
-    !   - Flagging of bit 4 in OBS_FLG done in filt_topoChm instead of set_scal_chm
+    !   - Flagging of bit 4 in OBS_FLG done in filt_topoChm instead of set_scale_chm
     !     since this subroutine is called after chm_setup, allowing use of chm_open_messagefile
     !
 
@@ -1102,7 +1102,7 @@ contains
 
       if (warn_suspicious) then
          call chm_open_messagefile(unit)
-         write(unit,'(A)') "set_scal_chm: Number of levels mismatch between mantissa and exponent for observation"
+         write(unit,'(A)') "set_scale_chm: Number of levels mismatch between mantissa and exponent for observation"
          write(unit,'(14X,A,4X,I8,2X,I4)') obs_elem_c(obsSpaceData,'STID',headerIndex),obs_headElem_i(obsSpaceData,OBS_DAT,headerIndex),&
               obs_headElem_i(obsSpaceData,OBS_ETM,headerIndex)
          write(unit,'(14X,A,F9.2,A,F9.2)') "lon = ",obs_headElem_r(obsSpaceData,OBS_LON,headerIndex)*MPC_DEGREES_PER_RADIAN_R8, &
