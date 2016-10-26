@@ -990,7 +990,7 @@ CONTAINS
 
             if ( HIRES .AND. NDATA_SF .gt.0 ) OBS_START =OBS_START +1
             OBSN=OBS_START
-            STATUS_HIRES=obs_headElem_i(obsdat,OBS_ST1,OBS_START )
+            if( HIRES .AND. NDATA_SF .gt.0 ) STATUS_HIRES=obs_headElem_i(obsdat,OBS_ST1,OBS_START )
 
             regrup_LOOP: do k=1,nte
               KOBSN=0
@@ -1161,10 +1161,10 @@ CONTAINS
               Call BURP_Set_Property(CP_RPT ,FLGS =STATUS)
             ENDIF
             IF ( .not. HIRES .and. .not. regrup .and. KOBSN .eq. 0 ) THEN
-              write(*,*) ' KOBSN=0  stnid',stnid
+              write(*,*) ' KOBSN=0  stnid=',stnid
             ENDIF
             IF ( .not. HIRES .and.  regrup .and. KOBSN .eq. 0 ) THEN
-              write(*,*)' KOBSN=0 regrup stnid',kk,stnid,obsn,obs_numHeader(obsdat)
+              write(*,*)' KOBSN=0 regrup stnid=',kk,stnid,obsn,obs_numHeader(obsdat)
             ENDIF
 
             IF (REGRUP) SAVE_OBS=OBS_START

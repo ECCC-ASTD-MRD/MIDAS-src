@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
 subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
-                   obsColumnMode, obsMpiStrategy, numAnalyses)
+                   obsColumnMode, obsMpiStrategy)
   !
   !**s/r preproc  - Control of the preprocessing of the 3D variational assimilation
   !
@@ -47,7 +47,7 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   type(struct_columnData) :: lcolumng,lcolumnhr
   character (len=*) :: obsColumnMode
   character (len=*) :: obsMpiStrategy
-  integer :: numAnalyses,datestamp
+  integer :: datestamp
 
   type(struct_vco), pointer :: vco_anl => null()
   type(struct_vco), pointer :: vco_trl => null()
@@ -78,11 +78,7 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
   !
   if(mpi_myid.eq.0) write(*,*)''
   if(mpi_myid.eq.0) write(*,*)' preproc: Set vcoord parameters for trial grid'
-  if(numAnalyses.eq.1) then
-    call vco_SetupFromFile(vco_trl,'./trlm_01',.false.,' ')
-  else
-    call vco_SetupFromFile(vco_trl,'./trlm_01_0000',.false.,' ')
-  endif
+  call vco_SetupFromFile(vco_trl,'./trlm_01',.false.,' ')
   call col_setVco(lcolumnhr,vco_trl)
   
   !

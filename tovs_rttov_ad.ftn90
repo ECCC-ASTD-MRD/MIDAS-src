@@ -503,6 +503,7 @@ subroutine tovs_rttov_ad(lobsSpaceData)
       emissivity_ad_th(:,:) = 0.0d0
       emissivity_out_ad_th(:,:) = 0.0d0
 
+      call tmg_start(84,'rttov_ad')
 !$omp parallel
 !$omp do private(ith)
       do ith = 1, nthreads
@@ -533,6 +534,7 @@ subroutine tovs_rttov_ad(lobsSpaceData)
     enddo
 !$omp end do
 !$omp end parallel
+     call tmg_stop(84)
 
      !.. store results from rttov_ad into profiles_ad
 

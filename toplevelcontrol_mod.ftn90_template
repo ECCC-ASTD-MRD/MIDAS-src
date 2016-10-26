@@ -61,27 +61,34 @@ module topLevelControl_mod
       end if
       if (status.eq.1) then
         write(*,*) 'top_setup: The environment variable ARMA_BURP_SPLIT has not been detected!'
-	write(*,*) '           The observation files are NOT splitted'
+	write(*,*) '           The observation files are NOT split'
 	burp_split_L = .false.  
 	burp_split_mode = 'DEFAULT'
+        ! At this point the code only supports split files
+        write(*,*) 'top_setup: Expecting split burp files!'
+        call abort3d('top_setup')
       else
         write(*,*)
         write(*,*) 'top_setup: The environment variable ARMA_BURP_SPLIT has correctly been detected'
 	select case ( trim(burp_split_mode) )
 	case ('yes')
-	   write(*,*) 'top_setup: The observation files are ARE splitted. Assuming the DEFAULT mode strategy'
+	   write(*,*) 'top_setup: The observation files ARE split. Assuming ROUNDROBIN strategy'
 	   burp_split_L = .true.
-	   burp_split_mode = 'DEFAULT'
+	   burp_split_mode = 'ROUNDROBIN'
         case ('no')
-	   write(*,*) 'top_setup: The observation files are NOT splitted'
+	   write(*,*) 'top_setup: The observation files are NOT split'
 	   burp_split_L = .false.
 	   burp_split_mode = 'DEFAULT'
+           ! At this point the code only supports split files
+           write(*,*) 'top_setup: Expecting split burp files!'
+           call abort3d('top_setup')
         case ('ROUNDROBIN')
-	   write(*,*) 'top_setup: The observation files	ARE splitted using the ROUNDROBIN strategy'
+	   write(*,*) 'top_setup: The observation files	ARE split using the ROUNDROBIN strategy'
 	   burp_split_L = .true.
 	case ('LATLONTILES')
-	   write(*,*) 'top_setup: The observation files	ARE splitted by LAT-LON tiles'
-	   burp_split_L = .true.
+	   write(*,*) 'top_setup: The observation files	ARE split by LAT-LON tiles'
+           write(*,*) 'top_setup: LAT-LON TILES NO LONGER PERMITTED, USE ROUND ROBIN!'
+           call abort3d('top_setup')
         case default
            write(*,*) 'top_setup: Unknown burp_split_mode ', trim(burp_split_mode)
            call abort3d('top_setup')

@@ -47,7 +47,7 @@ SUBROUTINE BGCHECK_CONV(columng,columnhr,obsSpaceData)
   character(len=2), dimension(10) :: bgfam = (/ 'UA', 'AI', 'HU', 'SF', 'ST', 'SW', 'SC', 'PR', 'GP', 'CH' /)
       
 !
-  call tmg_start(2,'BGCHECK_CONV')
+  call tmg_start(3,'BGCHECK_CONV')
 
   WRITE(*,FMT=9000)
 9000 FORMAT(//,3(" **********"),/," BEGIN CONVENTIONNAL BACKGROUND CHECK",/,3(" **********"),/)
@@ -81,7 +81,7 @@ SUBROUTINE BGCHECK_CONV(columng,columnhr,obsSpaceData)
   CALL UPDATE_BURPFILES(obsSpaceData)
 
   if (mpi_myid == 0 ) then
-     DO j =1,1
+     DO j =1, min(1,obs_numHeader(obsSpaceData))
         call obs_prnthdr(obsSpaceData,j)
         call obs_prntbdy(obsSpaceData,j)
      END DO
@@ -90,6 +90,6 @@ SUBROUTINE BGCHECK_CONV(columng,columnhr,obsSpaceData)
   ! deallocate obsSpaceData
   call obs_finalize(obsSpaceData)
 
-  call tmg_stop(2)
+  call tmg_stop(3)
 
 END SUBROUTINE BGCHECK_CONV

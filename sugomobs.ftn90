@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
+subroutine sugomobs(columng,columnhr,lobsSpaceData)
   !
   ! s/r sumgomobs
   !
@@ -49,7 +49,6 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
 
   type(struct_columnData) :: columng,columnhr
   type(struct_obs) :: lobsSpaceData
-  integer          :: indexAnalysis
   type(struct_vco), pointer :: vco_anl, vco_trl
   type(struct_hco), pointer :: hco_anl
   
@@ -81,13 +80,12 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
   real*8 :: lat_r8,lon_r8, ypos_r8, xpos_r8, lat_rot, lon_rot
   
   character(len=2) :: flnum
-  character(len=5) :: flnum2
   character(len=128) :: trialfile
 
   integer, allocatable :: nultrl(:)
   integer :: nultrl2
   
-  logical :: trialExists
+  logical :: trialExists, noUpperGZ
   
   real*8  :: zig1,zig2,zig3,zig4,stepObsIndex
   real*8, allocatable ::  dlonfld(:), dlatfld(:)
@@ -97,10 +95,13 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
   integer :: status,Vcode_trl,Vcode_anl
   
   real*8, pointer :: column_ptr(:) => null()
-  
+  integer :: get_max_rss
+ 
   write(*,*) ' '
   write(*,*) '-------- ENTERING SUGOMOBS ---------'
   write(*,*) ' '
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
   if(mpi_myid.eq.0) write(*,*) 'nstepobs=',tim_nstepobs
   call tmg_start(10,'SUGOMOBS')
 
@@ -110,15 +111,9 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
   !
   allocate(nultrl(tim_nStepObs))
   nultrl(:)=0
-  if(indexAnalysis.gt.0) then
-    write(flnum2,'(I4.4)') (indexAnalysis-1)
-    flnum2='_' // trim(flnum2)
-  else
-    flnum2=''
-  endif
   do jstep = 1, tim_nStepObs
     write(flnum,'(I2.2)') jstep
-    trialfile='./trlm_'//trim(flnum)//trim(flnum2)
+    trialfile='./trlm_'//trim(flnum)
     inquire(file=trim(trialfile),exist=trialExists)
     if(.not.trialExists) then
       write(*,*) 'File missing=',trialfile
@@ -319,16 +314,6 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
             call obs_headSet_r(lobsSpaceData,OBS_LAT,jobs, lat_r8) ! IN
             call obs_headSet_r(lobsSpaceData,OBS_LON,jobs, lon_r8) ! IN
 
-              ! Recompute position to make sure it is consistent with modified lat/lon
-!              lat_deg_r4=real(lat_r8) * MPC_DEGREES_PER_RADIAN_R4 ! Radian To Degree
-!              lon_deg_r4=real(lon_r8) * MPC_DEGREES_PER_RADIAN_R4
-!              ierr = gdxyfll( hco_anl % EZscintID, xpos_r4, ypos_r4, &
-!                              lat_deg_r4, lon_deg_r4, 1)
-!              if ( trim(hco_anl % grtyp) == 'G' .and. hco_anl % ig2 == 1 ) then
-!                ! Revert latitudes since gdxyfll does not handle properly this grid type
-!                ypos_r4 = real(hco_anl % nj,4) - ypos_r4 + 1.0
-!              end if
-              
           else
             ! The observation is outside the domain
             ! In LAM Analysis mode we must discard this observation
@@ -501,7 +486,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
   !
   !     Lire les GZ des niveaux Momentum
   !
-  call readTrialField(varInterphr_M,varInterphr_VV,'GZ  ','MM')
+  call readTrialField(varInterphr_M,varInterphr_VV,'GZ  ','MM',noUpperGZ)
 
   if(col_getNumCol(columng).gt.0) then 
      varInterphr_M(:,:)=varInterphr_M(:,:)*10.0d0*RG
@@ -515,7 +500,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
   !
   !     Lire les GZ des niveaux Thermodynamique
   !
-  call readTrialField(varInterphr_T,varInterphr_VV,'GZ  ','TH')
+  call readTrialField(varInterphr_T,varInterphr_VV,'GZ  ','TH',noUpperGZ)
 
   if(col_getNumCol(columng).gt.0) then 
      varInterphr_T(:,:)=varInterphr_T(:,:)*10.0d0*RG
@@ -684,11 +669,13 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
     !
     !- Using T, q and PS to compute GZ for columnhr
     !
-    if(Vcode_trl .eq. 5001 ) then  ! only in non-staggered mode
+    if(Vcode_trl .eq. 5001 ) then 
        call tt2phi(columnhr)
     else
-       ! test out the staggered GZ calculation, recomputing GZ for columnhr
-       !call tt2phi_gem4(columnhr)
+       if(noUpperGZ) then
+          write(*,*) 'sugomobs: No upper level GZ found, computing'
+          call tt2phi_gem4(columnhr)
+       endif
     endif
 
   else
@@ -725,6 +712,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
   deallocate(nobsgid_mpiglobal)
   deallocate(nobs_mpiglobal)
 
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
   write(*,*) ' '
   write(*,*) '-------- Leaving SUGOMOBS ---------'
   write(*,*) ' '
@@ -734,7 +722,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
 !--------------------------------------------------------------------------------
   CONTAINS
 
-    subroutine readTrialField(varInterphr_MT,varInterphr_VV,varName_in,varType_in)
+    subroutine readTrialField(varInterphr_MT,varInterphr_VV,varName_in,varType,noUpperGZ)
       !
       ! s/r readTrialField
       !
@@ -749,10 +737,9 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
       !
       implicit none
       character(len=*) :: varName_in
-      character(len=*),optional :: varType_in
-      character(len=2) :: varType
+      character(len=*) :: varType
       character(len=4) :: varName
-      character(len=10) :: blk_S
+      logical, optional :: noUpperGZ
       real*8 :: varInterphr_MT(:,:),varInterphr_VV(:,:)
       real*4, allocatable :: varTrial_r4(:,:),varTrial_VV_r4(:,:)
       real*4, allocatable :: varTrial_zero_r4(:,:)
@@ -762,7 +749,9 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
       integer :: nlevel,nsize,iip1,pe_send,pe_recv,tag,tag2
       integer :: fstlir,vezuvint2,vezsint2,ezdefset
 
-      integer :: key, fstinf, fstprm, EZscintID, ezqkdef
+      integer, parameter :: maxnumkeys = 500
+      integer :: numkeys, keys(maxnumkeys)
+      integer :: key, fstinf, fstprm, fstinl, EZscintID, ezqkdef
       integer :: ni, nj, nk
       integer :: dateo, deet, npas, nbits, datyp
       integer :: ip1, ip2, ip3, swa, lng, dltf, ubc
@@ -779,12 +768,23 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
         varName=varName_in
       endif
 
-      if(present(varType_in)) then
-        varType = varType_in
-      else
-        varType = vnl_vartypeFromVarname(varName)
-      endif
       nlevel = col_getNumLev(columnhr,varType)
+
+      !
+      ! Check if too few GZ levels are in file, if so then just read surface
+      !
+      if(trim(varName).eq.'GZ'.and.present(noUpperGZ)) then
+        ierr = fstinl(nultrl(1), ni, nj, nk, -1, ' ', -1, -1, -1, &
+                      ' ','GZ',keys, numkeys, maxnumkeys)
+        write(*,*) 'sugomobs: nlevel =  ', nlevel, ', numkeys = ', numkeys
+        if(numkeys.lt.nlevel) then
+          write(*,*) 'sugomobs: Too few GZ levels found, will only read surface'
+          noUpperGZ = .true.
+        else
+          write(*,*) 'sugomobs: sufficient levels of GZ found, will read all'
+          noUpperGZ = .false.
+        endif
+      endif
 
       !
       ! Determine grid size and EZSCINT ID
@@ -852,9 +852,20 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData,indexAnalysis)
               call abort3d('SUGOMOBS: unknown varType')
             endif
 
-            ierr=fstlir(varTrial_r4(:,:),nultrl(jstep),ni,nj,ink,  &
-                        datestamplist(jstep) ,cletiket,iip1,-1,-1,  &
-                        cltypvar,varName)
+            if(trim(varName).eq.'GZ'.and.present(noUpperGZ)) then
+              if(noUpperGZ.and.jlev.ne.nlevel) then
+                ! do not try to read GZ above surface if it does not exist
+                varTrial_r4(:,:) = 0.0
+              else
+                ierr=fstlir(varTrial_r4(:,:),nultrl(jstep),ni,nj,ink,  &
+                            datestamplist(jstep) ,cletiket,iip1,-1,-1,  &
+                            cltypvar,varName)
+              endif
+            else
+              ierr=fstlir(varTrial_r4(:,:),nultrl(jstep),ni,nj,ink,  &
+                          datestamplist(jstep) ,cletiket,iip1,-1,-1,  &
+                          cltypvar,varName)
+            endif
 
             if (vnl_varKindFromVarname(varName).eq.'CH') &
                call chm_apply_2dfieldr4_transform(chm_varnumFromVarName(varName),varName,jlev,jstep,varTrial_r4)

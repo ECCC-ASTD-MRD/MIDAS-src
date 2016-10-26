@@ -207,29 +207,15 @@ module observation_erreurs_mod
   END IF
 
   !
-  !     3. Print the file contents
-  !        -----------------------
-  !
-  IF(MPI_MYID.EQ.0) THEN
-     WRITE(*,'(20X,"ASCII dump of stats_tovs file: "//)')
-     DO JI = 1, 9999999
-       READ (ILUTOV,'(A)',IOSTAT=IER) CLDUM
-       IF(IER.EQ.-1) EXIT
-       WRITE(*,'(A)')   CLDUM
-     ENDDO
-  ENDIF
-
-  !
-  !     4. Read number of satellites
+  !     3. Read number of satellites
   !        -------------------------
   !
-  REWIND(ILUTOV)
   READ (ILUTOV,*)
   READ (ILUTOV,*) INUMSAT
   READ (ILUTOV,*)
 
   !
-  !     5. Read the satellite identification, the number of channels,
+  !     4. Read the satellite identification, the number of channels,
   !        the observation errors and the utilization flags
   !        ----------------------------------------------------------
   !
@@ -340,7 +326,7 @@ module observation_erreurs_mod
   END IF
 
   !
-  !    6. Print out observation errors for each sensor
+  !    5. Print out observation errors for each sensor
   !       --------------------------------------------
   !
   IF(MPI_MYID.eq.0) THEN
@@ -351,13 +337,13 @@ module observation_erreurs_mod
               JL, CSATID(JL), CINSTRUMENTID(JL)
       WRITE(*,'(1X,"Channel",5X,"  error   ")')
       DO JI = 1, NUMCHN(JL)
-       WRITE (*,'(1X,I7,1(5X,F10.2))') ICHN(JI,JL),TOVERRST(ICHN(JI,JL),JL)
+       WRITE (*,'(1X,I7,1(5X,F10.5))') ICHN(JI,JL),TOVERRST(ICHN(JI,JL),JL)
       ENDDO
      ENDDO
   ENDIF
 
   !
-  !    7. Close the file
+  !    6. Close the file
   !       --------------
   !
   IER = FCLOS(ILUTOV)

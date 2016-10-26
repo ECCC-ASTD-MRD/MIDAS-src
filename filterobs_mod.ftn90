@@ -31,7 +31,7 @@ module filterObs_mod
   ! public variables
   public :: filt_rlimlvhu
   ! public procedures
-  public :: filt_setup,filt_topo,filt_suprep
+  public :: filt_setup,filt_topo,filt_sethind,filt_suprep
 
 
   integer filt_nelems,filt_nlist(30)
@@ -178,6 +178,25 @@ contains
   end subroutine filt_setup
 
 
+  subroutine filt_sethind(obsSpaceData)
+    implicit none
+    type(struct_obs) :: obsSpaceData
+    integer :: ij,idata,idatend,bodyIndex,headerIndex
+    !
+    ! Set the header index in the body of obsSpaceData
+    !
+    ij=0
+    do headerIndex = 1, obs_numheader(obsSpaceData)
+      idata   = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
+      idatend = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + idata - 1
+      do bodyIndex= idata, idatend
+        ij   = ij+1
+        call obs_bodySet_i(obsSpaceData,OBS_HIND,IJ, headerIndex)
+      enddo
+    enddo
+  end subroutine filt_sethind
+
+
   subroutine filt_suprep(obsSpaceData)
     !
     !Author  : P. Koclas *CMC/AES  September 1994
@@ -195,25 +214,11 @@ contains
     type(struct_obs) :: obsSpaceData
     integer bodyIndex,headerIndex
     integer ipres,ivco,ierr,loopIndex
-    integer ij,idburp,ivnm,iflg,ibad,iknt
-    integer idata,idatend
+    integer idburp,ivnm,iflg,ibad,iknt
     integer ilansea
     logical llok,llrej,llbogus
 
     if(mpi_myid.eq.0) write(*,*) 'starting subroutine filt_suprep'
-
-    !
-    ! Set the header index in the body of obsSpaceData
-    !
-    ij=0
-    do headerIndex = 1, obs_numheader(obsSpaceData)
-      idata   = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
-      idatend = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + idata - 1
-      do bodyIndex= idata, idatend
-        ij   = ij+1
-        call obs_bodySet_i(obsSpaceData,OBS_HIND,IJ, headerIndex)
-      enddo
-    enddo
 
     iknt=0
 

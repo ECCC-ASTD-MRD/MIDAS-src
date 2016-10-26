@@ -14,8 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-
-subroutine perturbObs(obsSpaceData,numAnalyses,indexAnalysis,obs_column_index_src,obs_column_index_dest)
+subroutine perturbObs(obsSpaceData,numAnalyses,indexAnalysis,indexBatch,obs_column_index_src,obs_column_index_dest)
   !
   !Purpose:
   ! Perturb the innovation vector to simulate effect of observation uncertainty
@@ -28,10 +27,10 @@ subroutine perturbObs(obsSpaceData,numAnalyses,indexAnalysis,obs_column_index_sr
   implicit none
 
   type(struct_obs) :: obsSpaceData
-  integer :: numAnalyses,indexAnalysis,numPerturbations
+  integer :: numAnalyses,indexAnalysis,indexBatch,numPerturbations
   integer :: obs_column_index_src,obs_column_index_dest
 
-  integer :: nrandseed,iseed,indexMember,indexBody,indexFamily,iass
+  integer :: nrandseed,iseed,indexAnalysis2,indexBody,indexFamily,iass
   integer, parameter :: numFamily=9
   real*8  :: zdum,zmean,gasdev,originalOmp
   real*8  :: scaleFactor(numFamily)
@@ -42,11 +41,11 @@ subroutine perturbObs(obsSpaceData,numAnalyses,indexAnalysis,obs_column_index_sr
   familyList(1)='UA' ; scaleFactor(1)=1.00d0
   familyList(2)='AI' ; scaleFactor(2)=1.00d0
   familyList(3)='SF' ; scaleFactor(3)=1.00d0
-  familyList(4)='TO' ; scaleFactor(4)=0.75d0
-  familyList(5)='SW' ; scaleFactor(5)=0.50d0
-  familyList(6)='SC' ; scaleFactor(6)=0.80d0
+  familyList(4)='TO' ; scaleFactor(4)=1.00d0
+  familyList(5)='SW' ; scaleFactor(5)=1.00d0
+  familyList(6)='SC' ; scaleFactor(6)=1.00d0
   familyList(7)='PR' ; scaleFactor(7)=1.00d0
-  familyList(8)='RO' ; scaleFactor(8)=0.80d0
+  familyList(8)='RO' ; scaleFactor(8)=1.00d0
   familyList(9)='GP' ; scaleFactor(9)=1.00d0
 
   numPerturbations = numAnalyses
@@ -60,14 +59,14 @@ subroutine perturbObs(obsSpaceData,numAnalyses,indexAnalysis,obs_column_index_sr
 
     write(*,*) 'perturbObs: computing random numbers'
 
-    nrandseed   = 1
-    iseed     = ABS(nrandseed)
-    zdum      = gasdev(-iseed)
-
     ! compute random perturbations
-    do indexMember = 1,numPerturbations
+    do indexAnalysis2 = 1,numPerturbations
+      nrandseed   = indexAnalysis2 + (indexBatch-1)*numAnalyses
+      iseed     = ABS(nrandseed)
+      write(*,*) 'perturbobs: indexAnalysis, iseed=',indexAnalysis2, iseed
+      zdum      = gasdev(-iseed)
       do indexBody = 1,obs_numBody(obsSpaceData)      
-        obsPerturbations(indexBody,indexMember)=gasdev(1)*obs_bodyElem_r(obsSpaceData,OBS_OER,indexBody)
+        obsPerturbations(indexBody,indexAnalysis2)=gasdev(1)*obs_bodyElem_r(obsSpaceData,OBS_OER,indexBody)
       enddo
     enddo
 
@@ -75,8 +74,8 @@ subroutine perturbObs(obsSpaceData,numAnalyses,indexAnalysis,obs_column_index_sr
     do indexFamily = 1,numFamily
       do indexBody = 1,obs_numBody(obsSpaceData)      
         if(obs_getFamily(obsSpaceData,bodyIndex=indexBody).eq.familyList(indexFamily)) then
-          do indexMember = 1,numPerturbations
-            obsPerturbations(indexBody,indexMember)=obsPerturbations(indexBody,indexMember)*scaleFactor(indexFamily)
+          do indexAnalysis2 = 1,numPerturbations
+            obsPerturbations(indexBody,indexAnalysis2)=obsPerturbations(indexBody,indexAnalysis2)*scaleFactor(indexFamily)
           enddo
         endif
       enddo
@@ -85,12 +84,12 @@ subroutine perturbObs(obsSpaceData,numAnalyses,indexAnalysis,obs_column_index_sr
     ! remove ensemble mean
     do indexBody = 1,obs_numBody(obsSpaceData)      
       zmean=0.0d0
-      do indexMember = 1,numPerturbations
-        zmean=zmean+obsPerturbations(indexBody,indexMember)
+      do indexAnalysis2 = 1,numPerturbations
+        zmean=zmean+obsPerturbations(indexBody,indexAnalysis2)
       enddo
       zmean=zmean/numPerturbations
-      do indexMember = 1,numPerturbations
-        obsPerturbations(indexBody,indexMember)=obsPerturbations(indexBody,indexMember)-zmean
+      do indexAnalysis2 = 1,numPerturbations
+        obsPerturbations(indexBody,indexAnalysis2)=obsPerturbations(indexBody,indexAnalysis2)-zmean
       enddo
     enddo
 
@@ -99,7 +98,7 @@ subroutine perturbObs(obsSpaceData,numAnalyses,indexAnalysis,obs_column_index_sr
   endif
 
   ! apply perturbation for current analysis
-  write(*,*) 'perturbObs: applying perturbation for member: ',indexAnalysis
+  write(*,*) 'perturbObs: applying perturbation for analysis number: ',indexAnalysis
   do indexBody = 1,obs_numBody(obsSpaceData)      
     iass = obs_bodyElem_i(obsSpaceData,OBS_ASS,indexBody)
     if(iass.eq.1 .or. iass.eq.-1) then

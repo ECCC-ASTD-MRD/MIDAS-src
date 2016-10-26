@@ -6,6 +6,7 @@ subroutine compute_HBHT_ensemble(columng,columnhr,obsSpaceData,active)
   use bMatrixEnsemble
   use horizontalCoord_mod
   use gridStateVector_mod
+  use stateToColumn_mod
   implicit none
 
   type(struct_obs)        :: obsSpaceData ! Observation-related data
@@ -82,9 +83,9 @@ subroutine compute_HBHT_ensemble(columng,columnhr,obsSpaceData,active)
                                'ConstantValue' ) ! IN
 
      !- 2.2 Interpolation to the observation horizontal locations
-     call oda_L( statevector,           & ! IN
-                 column,                & ! OUT (H_horiz EnsPert)
-                 columng, obsSpaceData )  ! IN
+     call s2c_tl( statevector,           & ! IN
+                  column,                & ! OUT (H_horiz EnsPert)
+                  columng, obsSpaceData )  ! IN
 
      !- 2.3 Interpolation to observation space
      call oda_H( column, columng, & ! IN

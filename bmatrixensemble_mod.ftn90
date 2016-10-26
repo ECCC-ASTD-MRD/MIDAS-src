@@ -585,9 +585,11 @@ CONTAINS
     integer :: yourid,youridx,youridy
     integer :: kulin,ndate,ntime
     integer :: readFilePE(256),allLatBeg(256),allLatEnd(256),allLonBeg(256),allLonEnd(256)
-    integer :: stamp_last,newdate
+    integer :: stamp_last,newdate, memberIndexOffset, totalEnsembleSize
     real(8) :: delhh
     logical :: lExists
+    character(len=32) :: envVariable
+    integer :: length_envVariableburp
 
     ! standard file variables
     integer :: ini,inj,ink,ip1,ip2(9),ip3,ierr,idateo(7),ikey
@@ -689,6 +691,33 @@ CONTAINS
     cltypvar = ' '
     cletiket = ' '
 
+    ! Retrieve environment variables related to doing an ensemble of perturbed analyses
+    status = 0
+    call get_environment_variable('envar_memberIndexOffset',envVariable,length_envVariableburp,status,.true.)
+    if (status.gt.1) then
+      write(*,*) 'ben_setupEnsemble: Problem when getting the environment variable envar_memberIndexOffset'
+      memberIndexOffset = 0
+    elseif (status.eq.1) then
+      memberIndexOffset = 0
+    else
+      write(*,*) 'ben_setupEnsemble: The environment variable envar_memberIndexOffset has been detected: ',envVariable
+      read(envVariable,'(i8)') memberIndexOffset
+      write(*,*) 'memberIndexOffset = ',memberIndexOffset
+    endif
+
+    status = 0
+    call get_environment_variable('envar_totalEnsembleSize',envVariable,length_envVariableburp,status,.true.)
+    if (status.gt.1) then
+      write(*,*) 'ben_setupEnsemble: Problem when getting the environment variable envar_totalEnsembleSize'
+      totalEnsembleSize = nEns
+    elseif (status.eq.1) then
+      totalEnsembleSize = nEns
+    else
+      write(*,*) 'ben_setupEnsemble: The environment variable envar_totalEnsembleSize has been detected: ',envVariable
+      read(envVariable,'(i8)') totalEnsembleSize
+      write(*,*) 'totalEnsembleSize = ',totalEnsembleSize
+    endif
+
     if(mpi_myid.eq.0) write(*,*) 'idateo=',idateo(1:numTime)
 
     do jt = 1, numTime  ! read all timesteps
@@ -699,7 +728,7 @@ CONTAINS
           ! open the file
 
           ! first try to open file with 4 digit member number
-          write(censnumber,'(i4.4)') memberIndex
+          write(censnumber,'(i4.4)') 1+mod(memberIndex+memberIndexOffset-1, totalEnsembleSize)
           cflensin = trim(enspathname) // '/' // trim(ensfilebasename) // &
                      trim(datestr_last) // trim(hourstr_last) // '_006_' // trim(censnumber)
           inquire(file=cflensin,exist=lExists)
@@ -708,7 +737,7 @@ CONTAINS
             ierr = fnom(kulin,cflensin,'RND+OLD+R/O',0)
           else
             ! now try to open file with (older) 3 digit member number
-            write(censnumber,'(i3.3)') memberIndex
+            write(censnumber,'(i3.3)') 1+mod(memberIndex+memberIndexOffset-1, totalEnsembleSize)
             cflensin = trim(enspathname) // '/' // trim(ensfilebasename) // &
                        trim(datestr_last) // trim(hourstr_last) // '_006_' // trim(censnumber)
             inquire(file=cflensin,exist=lExists)
@@ -2214,6 +2243,11 @@ CONTAINS
       return
     endif
 
+    if(maxval(controlVector_in).eq.0.0d0 .and. minval(controlVector_in).eq.0.0d0) then
+      if(mpi_myid.eq.0) write(*,*) 'bMatrixEnsemble: controlVector=0, skipping bSqrt'
+      return
+    endif
+
     if(mpi_myid.eq.0) write(*,*) 'ben_bsqrt: starting'
     if(mpi_myid.eq.0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
@@ -3283,7 +3317,7 @@ CONTAINS
              write(wbnum,'(I2.2)') waveBandIndex
              etiket = 'PERT001_WB' // trim(wbnum)
           end if
-          call gsv_writeToFile(statevector,'./ens_pert001.fst',etiket, & ! IN
+          call gsv_writeToFileMPI(statevector,'./ens_pert001.fst',etiket, & ! IN
                                dnens2 ) ! IN
           call gsv_deallocate(statevector)
        end do
@@ -3326,7 +3360,7 @@ CONTAINS
           write(wbnum,'(I2.2)') waveBandIndex
           etiket = 'STDDEV_WB' // trim(wbnum)
        end if
-       call gsv_writeToFile(statevector,'./ens_stddev.fst',etiket) ! IN
+       call gsv_writeToFileMPI(statevector,'./ens_stddev.fst',etiket) ! IN
        call gsv_deallocate(statevector)
     end do
 

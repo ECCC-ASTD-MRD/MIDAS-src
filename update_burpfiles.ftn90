@@ -78,6 +78,9 @@ SUBROUTINE UPDATE_BURPFILES(obsSpaceData)
            call tmg_stop(93)
            RETURN
          endif
+      else
+         ! redistribute obs data to how it was just after reading the files
+         call obs_MpiRedistribute(obsSpaceData,OBS_IPF)
       end if
 
 !     CH family: Scaling of the obs related values to be stored in the BURP files
@@ -103,19 +106,9 @@ SUBROUTINE UPDATE_BURPFILES(obsSpaceData)
 !     Storage to BURP files.
         
       DO J =1,burp_nfiles
-
-!      IER   =FNOM(IBRP1,burp_cfilnam(J),'RND+OLD',0)
-!      IF ( IER .EQ. 0 ) THEN
-!       INRECS=MRFOPN(IBRP1,'READ')
-!       LNMX =MRFMXL(IBRP1)
-!       ISTAT=MRFCLS(IBRP1)
-!       print *,  ' LONGUEUR MAX=',trim(burp_cfilnam(J)),LNMX
-!       IER = FCLOS(IBRP1)
-!      ENDIF
-!        call UPDATE_BURP(obsSpaceData,burp_cfamtyp(J),burp_cfilnam(J),J,LNMX)
          call UPDATE_BURP(obsSpaceData,burp_cfamtyp(J),burp_cfilnam(J),J)
       END DO
-!
+
       WRITE(*,*)' '
       WRITE(*,*)'================================================='
       WRITE(*,*)'                UPDATE_BURP    END               '

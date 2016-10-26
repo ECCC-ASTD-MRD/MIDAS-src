@@ -82,6 +82,7 @@ subroutine tovs_fill_profiles_tl(column,columng)
   real*8, allocatable :: xpres    (:)
 
   real*8 :: zptop, zptopmbs
+  real(8), pointer :: delTT(:), delLQ(:), TTb(:), HUb(:), Pres(:)
  
   external intavg
   external exthum4
@@ -195,13 +196,18 @@ subroutine tovs_fill_profiles_tl(column,columng)
         knpf = knpf + 1
 
         zps_tl  (knpf) = col_getElem(column,1,jo,'P0')*MPC_MBAR_PER_PA_R8
+        delTT => col_getColumn(column,jo,'TT')
+        delLQ => col_getColumn(column,jo,'HU')
+        TTb => col_getColumn(columng,jo,'TT')
+        HUb => col_getColumn(columng,jo,'HU')
+        Pres => col_getColumn(columng,jo,'PR','TH')
         do jl = 1, nlv_T
-           zt_tl   (jl,knpf) = col_getElem(column,jl,jo,'TT')
-           zlq_tl  (jl,knpf) = col_getElem(column,jl,jo,'HU')
-           zt   (jl,knpf) = col_getElem(columng,jl,jo,'TT')
-           zlq  (jl,knpf) = col_getElem(columng,jl,jo,'HU')
-           zvlev(jl,knpf) = col_getPressure(columng,jl,jo,'TH') *MPC_MBAR_PER_PA_R8
-           dPdPs(jl,knpf) = col_getPressureDeriv(columng,jl,jo,'TH')
+           zt_tl (jl,knpf) = delTT(jl)
+           zlq_tl(jl,knpf) = delLQ(jl)
+           zt   (jl,knpf)  = TTb(jl)
+           zlq  (jl,knpf)  = HUb(jl)
+           zvlev(jl,knpf)  = Pres(jl) *MPC_MBAR_PER_PA_R8
+           dPdPs(jl,knpf)  = col_getPressureDeriv(columng,jl,jo,'TH')
         enddo
 
         ! Fix pour eviter probleme au toit avec GEM 4

@@ -42,6 +42,7 @@ module obsSpaceDiag_mod
   use chem_interface_mod
   use burpfiles_mod
   use varNameList_mod
+  use stateToColumn_mod
   implicit none
   save
   private
@@ -271,7 +272,7 @@ contains
        deallocate(scaleFactorChm)
        
        ! multiply by H
-       call oda_L(statevector,column,columng,obsSpaceData)  ! put in column H_horiz dx
+       call s2c_tl(statevector,column,columng,obsSpaceData)  ! put in column H_horiz dx
        call oda_H(column,columng,obsSpaceData)  ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
        do bodyIndex=1,obs_numBody(obsSpaceData)
           HxBhi(bodyIndex) = obs_bodyElem_r(obsSpaceData,OBS_WORK,bodyIndex)
@@ -324,7 +325,7 @@ contains
        deallocate(scaleFactor)
        
        ! multiply vector by H
-       call oda_L(statevector,column,columng,obsSpaceData)  ! put in column H_horiz dx
+       call s2c_tl(statevector,column,columng,obsSpaceData)  ! put in column H_horiz dx
        call oda_H(column,columng,obsSpaceData)  ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
        do bodyIndex=1,obs_numBody(obsSpaceData)
           HxBen(bodyIndex) = obs_bodyElem_r(obsSpaceData,OBS_WORK,bodyIndex)

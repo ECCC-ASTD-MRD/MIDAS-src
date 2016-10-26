@@ -30,7 +30,7 @@
       type(struct_columnData) :: columng,columnhr
       INTEGER J
 
-      call tmg_start(2,'RESIDUALS')
+      call tmg_start(3,'RESIDUALS')
       WRITE(*,FMT=9000)
  9000 FORMAT(//,3(" *****************"),/," residuals: BEGIN RESIDUAL CALCULATION",/,3(" *****************"),/)
 !C
@@ -39,7 +39,7 @@
 !C
       call compute_HBHT(columng,columnhr,obsSpaceData)
 
-      DO j =1,1
+      DO j =1, min(1,obs_numHeader(obsSpaceData))
          call obs_prnthdr(obsSpaceData,j)
          call obs_prntbdy(obsSpaceData,j)
       END DO
@@ -49,7 +49,7 @@
       ! deallocate obsSpaceData
       call obs_finalize(obsSpaceData)
 
-      call tmg_stop (2)
+      call tmg_stop(3)
 
       RETURN
       END SUBROUTINE RESIDUALS

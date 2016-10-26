@@ -94,7 +94,7 @@
          WRITE(*,'(1x,10f7.3)') (ZEIGENV2(JI,JI),JI=1,KN)
       end if
 *
-      IF (ZSIGN < 0.) THEN
+      IF (ZSIGN < 0. .and. print_information) THEN
          Write(*,'(A,1x,e14.6)') "Condition number:",
      +        maxval(ZEIGENV)/minval(ZEIGENV)
       ENDIF

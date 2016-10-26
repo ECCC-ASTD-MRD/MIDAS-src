@@ -59,10 +59,11 @@
       real*8 zjosfcsf,zjosfcua,zjotov,zjoairep,zjosfcsc,zjoprof
       real*8 zjogpsro,zjogpsgb,zjosfcgp
       real*8 zjochm
-      integer :: ierr
+      integer :: ierr, get_max_rss
       logical lgpdata
 
-      write(*,*) '--Starting subrouting suinnov--'
+      write(*,*) '--Starting subroutine suinnov--'
+      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
       write(*,*) 'PRDATABIN: Before filtering done in SUINNOV'
       call prdatabin(obsSpaceData,tim_nstepobs)
@@ -204,6 +205,9 @@
 
       write(*,*) 'PRDATABIN: After filtering done in SUINNOV'
       call prdatabin(obsSpaceData,tim_nstepobs)
+
+      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+      write(*,*) '--Done subroutine suinnov--'
 
       RETURN
       END
