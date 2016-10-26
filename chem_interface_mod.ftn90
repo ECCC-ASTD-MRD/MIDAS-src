@@ -1710,6 +1710,7 @@ contains
 !
 !-----------------------------------------------------------------------------------
 
+    use chem_mod
     use gridStateVector_mod
     use varNameList_mod
 
@@ -1718,6 +1719,8 @@ contains
     integer :: jvar
 
     chm_assim = .false.
+
+    if (.not.chm_initialized) return
 
     VARLIST: do jvar = 1, vnl_numvarmax
        if (gsv_varExist(vnl_varNameList(jvar))) then

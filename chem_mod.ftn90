@@ -114,7 +114,7 @@ module chem_mod
 ! public variables
 ! ----------------
 
-  public :: chm_constituents_size,chm_config
+  public :: chm_constituents_size,chm_config,chm_initialized
 
 ! module constants
 ! -----------------
@@ -551,6 +551,9 @@ module chem_mod
 ! Unit number for chm_config%message_filename
   integer :: chm_message_unit
 
+! Logical indicating if chm_setup has been called
+  logical :: chm_initialized=.false.
+
 contains
 
 !---------------------------- Setup called from "preproc/suobs" -------------------------
@@ -610,6 +613,8 @@ contains
       call obsdata_alloc(chm_efftemp,chm_config%obsdata_maxsize,dim1=1)
       chm_efftemp%nrep=0
   end if
+
+  chm_initialized=.true.
 
   write(*,*) 'Completed chm_setup'
   

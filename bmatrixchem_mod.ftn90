@@ -114,7 +114,7 @@ MODULE BmatrixChem
   ! public procedures
   public :: bchm_Setup,bchm_BSqrt,bchm_BSqrtAd,bchm_Finalize
   public :: bchm_expandToMPIglobal,bchm_reduceToMPIlocal
-  public :: bchm_getScaleFactor, bchm_truncateCV
+  public :: bchm_getScaleFactor,bchm_truncateCV
   public :: bchm_corvert_mult, bchm_getsigma, bchm_is_initialized
 
   ! public arrays
