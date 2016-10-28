@@ -46,8 +46,7 @@ module bufr
  integer, parameter :: BUFR_NEZW=15035
  ! Doppler wind 
  integer, parameter :: BUFR_NEDW=11200  
- ! Atmospheric chemical or physical constituent type
- integer, parameter :: BUFR_NETR=08046   
+ 
  !
  ! Table C-14: (for Code Table 08046)
  !             Atmospheric chemical or physical constituent type

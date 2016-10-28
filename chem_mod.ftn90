@@ -2942,7 +2942,7 @@ contains
 ! Note: This original contents of this function has temporarily been commented out and code
 !       from burpfiles_mod.ftn90 has been copied and pasted here due to a change in the
 !       dependencies of burpfiles_mod that moved it after chem_mod in the compilation sequence.
-!       This funciton should be reverted back to its original form, which is dependent on
+!       This function should be reverted back to its original form, which is dependent on
 !       burpfiles_mod, once the dependencies of chem related routines can be reorganized.
 !
 ! Output
