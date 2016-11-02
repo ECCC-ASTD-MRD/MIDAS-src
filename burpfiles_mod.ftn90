@@ -74,7 +74,6 @@ SUBROUTINE burp_setupfiles(datestamp)
   if (ier.eq.-1) then
      write(*,*) 'burp_setupfiles: Problem when getting the environment variable ARMA_BURP_DIRECTORY'
      write(*,*) '                 The length of the variable ''burp_directory'' is too short to hold the complete value'
-     write(*,*) '                 Rely on defaut which is the current directory'
      call abort3d("burp_setupfiles")
   end if
   if (ier.gt.1) then
