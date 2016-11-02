@@ -127,10 +127,10 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
      status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
      if (mpi_myid.eq.0) write(*,*) 'SUGOMOBS: Vcode_trl= ',Vcode_trl, &
                                           '  Vcode_anl= ',Vcode_anl
-     if (Vcode_trl.ne.5002.and.Vcode_trl.ne.5004.and.Vcode_trl.ne.5005) &
+     if (Vcode_trl.ne.5002.and.Vcode_trl.ne.5005) &
           call varAbort('SUGOMOBS: invalid vertical coord for background state!')
-     if (Vcode_anl.ne.5002.and.Vcode_anl.ne.5004) &
-          call varAbort('SUGOMOBS: invalid vertical coord for analysis grid!')
+     if (Vcode_anl.ne.5002.and.Vcode_anl.ne.5005) &
+          call varAbort('SUGOMOBS: invalid vertical coord for analysis increment!')
   else
      if (mpi_myid.eq.0) write(*,*) 'SUGOMOBS: skipping vcode check because this is a 2D spatial configuration'
   end if

@@ -55,7 +55,7 @@ subroutine tt2phi(columnghr)
   nlev_T = col_getNumLev(columnghr,'TH')
   nlev_M = col_getNumLev(columnghr,'MM')
   if(Vcode .eq. 5002 .and. nlev_T .ne. nlev_M+1) call varAbort('tt2phi: nlev_T is not equal to nlev_M+1!')
-  if(Vcode .eq. 5004 .and. nlev_T .ne. nlev_M)   call varAbort('tt2phi: nlev_T is not equal to nlev_M!')
+  if(Vcode .eq. 5005 .and. nlev_T .ne. nlev_M)   call varAbort('tt2phi: nlev_T is not equal to nlev_M!')
 
   allocate(tv(nlev_T))
 
@@ -114,7 +114,7 @@ subroutine tt2phi(columnghr)
 
     enddo
 
-  elseif(Vcode .eq. 5004) then
+  elseif(Vcode .eq. 5005) then
 
     ! loop over all columns
     do columnIndex = 1, col_getNumCol(columnghr)
@@ -122,7 +122,7 @@ subroutine tt2phi(columnghr)
       gz_M => col_getColumn(columnghr,columnIndex,'GZ','MM')
       gz_T => col_getColumn(columnghr,columnIndex,'GZ','TH')
 
-      ! set the surface height
+      ! set the surface height (this is the true surface, not the lowest UU/TT level)
       gz_M(nlev_M) = col_getMountain(columnghr,columnIndex)
       gz_T(nlev_T) = col_getMountain(columnghr,columnIndex)
 
@@ -182,7 +182,7 @@ subroutine tt2phi_tl(column,columng)
   !                     4) the placement of the thermo levels means that GZ_T is the average of 2 nearest GZ_M
   !                        (according to Ron and Claude)
   !
-  ! NOTE: after revision 680 removed code for vcode=5004 when rewriting for increased efficiency (M. Buehner)
+  ! NOTE: after revision 680 removed code for vcode=5005 when rewriting for increased efficiency (M. Buehner)
   !
   !Author  : M. Buehner, February 2014
   !
@@ -314,9 +314,82 @@ subroutine tt2phi_tl(column,columng)
     enddo
 !$OMP END PARALLEL DO
 
-  elseif(Vcode_anl .eq. 5004) then
+  elseif(Vcode_anl .eq. 5005) then
 
-    call varAbort('tt2phi_tl: 5004 NOT IMPLEMENTED YET')
+    if(firstTime) then
+      ! initialize and save coefficients for increased efficiency (assumes no relinearization)
+      firstTime = .false.
+
+      allocate(coeff_M_TT(nlev_T,col_getNumCol(columng)))
+      allocate(coeff_M_HU(nlev_T,col_getNumCol(columng)))
+      allocate(coeff_M_P0(nlev_T,col_getNumCol(columng)))
+
+      do columnIndex = 1, col_getNumCol(columng)
+
+        ! compute coefficients for GZ on momentum levels
+        do lev_M = 1, nlev_M
+          delLnP_M(lev_M) = col_getPressureDeriv(columng,lev_M,columnIndex,'MM')/  &
+                            col_getPressure(columng,lev_M,columnIndex,'MM')
+        enddo
+        do lev_T = 1, (nlev_T-1)
+          ratioP1 = log( col_getPressure(columng,lev_T+1,columnIndex,'MM') /  &
+                         col_getPressure(columng,lev_T  ,columnIndex,'MM') )
+          hu = exp(col_getElem(columng,lev_T,columnIndex,'HU'))
+          tt = col_getElem(columng,lev_T,columnIndex,'TT')
+          coeff_M_TT(lev_T,columnIndex) = MPC_RGAS_DRY_AIR_R8 * ratioP1 * fottva(hu,1.0d0)
+          coeff_M_HU(lev_T,columnIndex) = MPC_RGAS_DRY_AIR_R8 * ratioP1 * folnqva(hu,tt,1.0d0)
+          coeff_M_P0(lev_T,columnIndex) = MPC_RGAS_DRY_AIR_R8 * (delLnP_M(lev_T+1)-delLnP_M(lev_T)) * fotvt8(tt,hu)
+        enddo
+
+      enddo
+
+    endif
+
+    ! loop over all columns
+
+!$OMP PARALLEL DO PRIVATE(columnIndex,delGz_M,delGz_T,delThick,delTT,delLQ,delP0,lev_M,lev_T)
+    do columnIndex = 1, col_getNumCol(columng)
+
+      delGz_M => col_getColumn(column,columnIndex,'GZ','MM')
+      delGz_T => col_getColumn(column,columnIndex,'GZ','TH')
+      delTT   => col_getColumn(column,columnIndex,'TT')
+      delLQ   => col_getColumn(column,columnIndex,'HU')
+      delP0   => col_getColumn(column,columnIndex,'P0')
+
+      ! ensure increment at sfc is zero (fixed height level)
+      delGz_M(nlev_M) = 0.0d0
+      delGz_T(nlev_T) = 0.0d0
+
+      ! compute increment to thickness for each layer
+      do lev_T = 1, (nlev_T-1)
+        delThick(lev_T) = coeff_M_TT(lev_T,columnIndex) * delTT(lev_T) + &
+                          coeff_M_HU(lev_T,columnIndex) * delLQ(lev_T) + &
+                          coeff_M_P0(lev_T,columnIndex) * delP0(1)
+      enddo
+
+      ! compute GZ increment on momentum levels above the surface
+      do lev_M = (nlev_M-1), 1, -1
+        lev_T = lev_M ! thermo level just below momentum level being computed
+        delGz_M(lev_M) = delGz_M(lev_M+1) + delThick(lev_T) 
+      enddo
+
+      ! compute GZ increment on thermo levels by simple averaging, except for top level
+      do lev_T = 1, (nlev_T-1)
+        lev_M = lev_T+1 ! momentum level just below thermo level being computed
+        delGz_T(lev_T) = 0.5d0*( delGz_M(lev_M-1) + delGz_M(lev_M) )
+      enddo
+
+      !if(columnIndex.eq.1) then
+      !  do lev_M = 1, nlev_M
+      !    write(*,*) 'tt2phi_tl: delGz_M=',lev_M,delGz_M(lev_M)
+      !  enddo
+      !  do lev_T = 1, nlev_T
+      !    write(*,*) 'tt2phi_tl: delGz_T=',lev_T,delGz_T(lev_T)
+      !  enddo
+      !endif
+
+    enddo
+!$OMP END PARALLEL DO
 
   endif
 
@@ -338,7 +411,7 @@ subroutine tt2phi_ad(column,columng)
   !                     4) the placement of the thermo levels means that GZ_T is the average of 2 nearest GZ_M
   !                        (according to Ron and Claude)
   !
-  ! NOTE: after revision 680 removed code for vcode=5004 when rewriting for increased efficiency (M. Buehner)
+  ! NOTE: after revision 680 removed code for vcode=5005 when rewriting for increased efficiency (M. Buehner)
   !
   !Author  : M. Buehner, February 2014
   !
@@ -371,7 +444,7 @@ subroutine tt2phi_ad(column,columng)
   allocate(delLnP_T(nlev_T))
   allocate(delGz_M(nlev_M))
   allocate(delGz_T(nlev_T))
-  allocate(sumGz_T(nlev_T))
+  allocate(sumGz_T(0:nlev_T))
 
   if(Vcode_anl .eq. 5002) then
 
@@ -459,7 +532,7 @@ subroutine tt2phi_ad(column,columng)
       delP0(1) = delP0(1) + coeff_T_P0(columnIndex)*delGz_T(1)
 
       ! adjoint of compute GZ increment on momentum levels
-      sumGz_T(1) = 0.0d0
+      sumGz_T(0:1) = 0.0d0
       do lev_M = 1, (nlev_M-1)
         lev_T = lev_M+1 ! thermo level just below momentum level being computed
         sumGz_T(lev_T) = sumGz_T(lev_T-1) + delGz_M(lev_M)
@@ -480,9 +553,90 @@ subroutine tt2phi_ad(column,columng)
     enddo
 !$OMP END PARALLEL DO
 
-  elseif(Vcode_anl .eq. 5004) then
+  elseif(Vcode_anl .eq. 5005) then
 
-    call varAbort('tt2phi_ad: 5004 NOT IMPLEMENTED YET')
+    if(firstTime) then
+      ! initialize and save coefficients for increased efficiency (assumes no relinearization)
+      firstTime = .false.
+
+      allocate(coeff_M_TT(nlev_T,col_getNumCol(columng)))
+      allocate(coeff_M_HU(nlev_T,col_getNumCol(columng)))
+      allocate(coeff_M_P0(nlev_T,col_getNumCol(columng)))
+
+      do columnIndex = 1, col_getNumCol(columng)
+
+        ! compute coefficients for GZ on momentum levels
+        do lev_M = 1, nlev_M
+          delLnP_M(lev_M) = col_getPressureDeriv(columng,lev_M,columnIndex,'MM')/  &
+                            col_getPressure(columng,lev_M,columnIndex,'MM')
+        enddo
+        do lev_T = 1, (nlev_T-1)
+          ratioP1 = log( col_getPressure(columng,lev_T+1,columnIndex,'MM') /  &
+                         col_getPressure(columng,lev_T  ,columnIndex,'MM') )
+          hu = exp(col_getElem(columng,lev_T,columnIndex,'HU'))
+          tt = col_getElem(columng,lev_T,columnIndex,'TT')
+          coeff_M_TT(lev_T,columnIndex) = MPC_RGAS_DRY_AIR_R8 * ratioP1 * fottva(hu,1.0d0)
+          coeff_M_HU(lev_T,columnIndex) = MPC_RGAS_DRY_AIR_R8 * ratioP1 * folnqva(hu,tt,1.0d0)
+          coeff_M_P0(lev_T,columnIndex) = MPC_RGAS_DRY_AIR_R8 * (delLnP_M(lev_T+1)-delLnP_M(lev_T)) * fotvt8(tt,hu)
+        enddo
+
+      enddo
+
+    endif
+
+    ! loop over all columns
+
+!$OMP PARALLEL DO PRIVATE(columnIndex,delGz_M_in,delGz_T_in,delTT,  &
+!$OMP delLQ,delP0,lev_M,lev_T,sumGz_T,delGz_M,delGz_T)
+    do columnIndex = 1, col_getNumCol(columng)
+
+      delGz_M_in => col_getColumn(column,columnIndex,'GZ','MM')
+      delGz_T_in => col_getColumn(column,columnIndex,'GZ','TH')
+      delTT      => col_getColumn(column,columnIndex,'TT')
+      delLQ      => col_getColumn(column,columnIndex,'HU')
+      delP0      => col_getColumn(column,columnIndex,'P0')
+
+      !if(columnIndex.eq.1) then
+      !  do lev_M = 1, nlev_M
+      !    write(*,*) 'tt2phi_ad: gradient wrt GZ_M=',lev_M,delGZ_M_in(lev_M)
+      !  enddo
+      !  do lev_T = 1, nlev_T
+      !    write(*,*) 'tt2phi_ad: gradient wrt GZ_T=',lev_T,delGZ_T_in(lev_T)
+      !  enddo
+      !endif
+
+      delGz_M(:) = delGz_M_in(:)
+      delGz_T(:) = delGz_T_in(:)
+
+      ! adjoint of compute GZ increment on remaining thermo levels by simple averaging
+      do lev_T = 1, (nlev_T-1)
+        lev_M = lev_T+1 ! momentum level just below thermo level being computed
+        !delGz_T(lev_T) = 0.5d0*( delGz_M(lev_M-1) + delGz_M(lev_M) )
+        delGz_M(lev_M-1) = delGz_M(lev_M-1) + 0.5d0*delGz_T(lev_T)
+        delGz_M(lev_M)   = delGz_M(lev_M)   + 0.5d0*delGz_T(lev_T)
+      enddo
+
+      ! adjoint of compute GZ increment on momentum levels
+      sumGz_T(0) = 0.0d0
+      do lev_M = 1, (nlev_M-1)
+        lev_T = lev_M ! thermo level just below momentum level being computed
+        sumGz_T(lev_T) = sumGz_T(lev_T-1) + delGz_M(lev_M)
+      enddo
+      do lev_T = 1, nlev_T-1
+        delTT(lev_T) = delTT(lev_T) + coeff_M_TT(lev_T,columnIndex)*sumGz_T(lev_T)
+        delLQ(lev_T) = delLQ(lev_T) + coeff_M_HU(lev_T,columnIndex)*sumGz_T(lev_T)
+        delP0(1)     = delP0(1)     + coeff_M_P0(lev_T,columnIndex)*sumGz_T(lev_T)
+      enddo
+
+      !if(columnIndex.eq.1) then
+      !  do lev_T = 1, nlev_T
+      !    write(*,*) 'tt2phi_ad: gradient wrt TT, LQ=',lev_T,delTT(lev_T),delLQ(lev_T)
+      !  enddo
+      !  write(*,*) 'tt2phi_ad: gradient wrt P0=',delP0(1)
+      !endif
+
+    enddo
+!$OMP END PARALLEL DO
 
   endif
 

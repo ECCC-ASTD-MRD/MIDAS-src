@@ -693,10 +693,9 @@ end subroutine oda_Hto
       REAL*8 DX (ngpscvmx)
 
       INTEGER INDEX_HEADER, INDEX_BODY
-      INTEGER JL, NFLEV, status, iztd, icount, NFLEV2, stat, iversion
+      INTEGER JL, NFLEV, status, iztd, icount, stat, vcode
 
-      LOGICAL      ASSIM, LSTAG
-      CHARACTER*2  varLevel
+      LOGICAL      ASSIM
       
       real*8, dimension(:), pointer :: dpdp0 => null()
 
@@ -705,19 +704,11 @@ end subroutine oda_Hto
       
 !      WRITE(*,*)'ENTER oda_Hgp'
 
-      stat = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=iversion)
-      if (iversion .ne. 5001) then
-         LSTAG = .TRUE. 
-         varLevel = 'TH'
-      else
-         LSTAG = .FALSE.
-         varLevel = 'TH'
-      endif
+      stat = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=vcode)
       
       ZDZMIN = DZMIN                     ! from modgpsztd_mod
       
       NFLEV  = col_getNumLev(lcolumng,'TH')
-      NFLEV2 = col_getNumLev(lcolumn,'TH')
       
 !C
 !C     * 1.  Initializations
@@ -746,13 +737,9 @@ end subroutine oda_Hto
       allocate(ZDP(NFLEV))
       
       write(*,*) 'oda_Hgp: Storing Jacobians for GPS ZTD data ...'
-      write(*,*) '   INFO: Analysis grid iversion = ', iversion
-      write(*,*) '         LSTAG = ', LSTAG
+      write(*,*) '   INFO: Analysis grid iversion = ', vcode
       write(*,*) '         col_getNumLev(lcolumng,TH) = ', NFLEV
-      write(*,*) '         col_getNumLev(lcolumn,TH)  = ', NFLEV2
       write(*,*) '         numGPSZTD = ', numGPSZTD
-
-      if ( NFLEV .ne. NFLEV2 ) call varAbort('oda_Hgp: ERROR: NFLEV .ne. NFLEV2!')
 
       icount = 0
 
@@ -791,14 +778,14 @@ end subroutine oda_Hto
             DO JL = 1, NFLEV
               ZTTB(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'TT') - p_TC
               ZHUB(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'HU')
-              ZPPB(JL) = col_getPressure(lcolumng,JL,INDEX_HEADER,varLevel)
+              ZPPB(JL) = col_getPressure(lcolumng,JL,INDEX_HEADER,'TH')
 !C            Get ZDP = dP/dP0
-              ZDP(JL)  = col_getPressureDeriv(lcolumng,JL,INDEX_HEADER,varLevel)
+              ZDP(JL)  = col_getPressureDeriv(lcolumng,JL,INDEX_HEADER,'TH')
             ENDDO
             if ( ZPPB(NFLEV) .ne. ZP0B ) then
               write(*,*) ' oda_Hgp: ERROR: ZPPB(NFLEV) .ne. ZP0B'
               write(*,*) '          ZPPB(NFLEV), ZP0B =', ZPPB(NFLEV), ZP0B
-              call varAbort('oda_Hgp:ABORT')
+!BUE              call varAbort('oda_Hgp')
             endif
             ZMT  = col_getHeight(lcolumng,NFLEV,INDEX_HEADER,'TH')/RG
             if ( icount .eq. 1 .and. LTESTOP ) write(*,*) 'ZDP (dpdp0) = ', (ZDP(JL),JL= 1,NFLEV)

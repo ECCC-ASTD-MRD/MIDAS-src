@@ -169,7 +169,7 @@ CONTAINS
     if(mpi_myid == 0) write(*,*) 'BHI_setup: nLev_M, nLev_T, nLev_T_even=',nLev_M, nLev_T, nLev_T_even
 
     status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
-    if(Vcode_anl .ne. 5001 .and. Vcode_anl .ne. 5002 .and. Vcode_anl .ne. 5004) then
+    if(Vcode_anl .ne. 5002 .and. Vcode_anl .ne. 5005) then
       write(*,*) 'Vcode_anl = ',Vcode_anl
       call varAbort('bmatrixHI: unknown vertical coordinate type!')
     endif

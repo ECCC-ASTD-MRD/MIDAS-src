@@ -1155,7 +1155,7 @@ MODULE gridStateVector_mod
     real(8), pointer     :: field3d_tile(:,:,:), field3dVV_tile(:,:,:), psfc_tile(:,:) => null()
     real(4) :: factor_r4, temp_r4
     integer :: ierr, ni, nj, nk, batchnum, youridx, youridy, yourid, nsize
-    integer :: jlon, jlev, jlat, nlev, jvar, jlev2, ip1, indexStep, target_gid
+    integer :: jlon, jlev, jlat, nlev, nlev_gsv, jvar, jlev2, ip1, indexStep, target_gid
     integer :: readLevPE(500)
     integer :: ini,inj,ig1,ig2,ig3,ig4
     character(len=4)  :: varName
@@ -1426,13 +1426,13 @@ MODULE gridStateVector_mod
             endif
           else
             field => gsv_getField_r8(statevector,varName)
-            field(:,:,:,:) = 0.0d0
+            field(:,:,:,indexStep) = 0.0d0
             field(statevector%myLonBeg:statevector%myLonEnd, &
                   statevector%myLatBeg:statevector%myLatEnd,1:nlev,indexStep) =  &
                                             field3d_tile(:,:,1:nlev)
             if(trim(varName) == 'UU') then
               field => gsv_getField_r8(statevector,'VV')
-              field(:,:,:,:) = 0.0d0
+              field(:,:,:,indexStep) = 0.0d0
               field(statevector%myLonBeg:statevector%myLonEnd, &
                     statevector%myLatBeg:statevector%myLatEnd,1:nlev,indexStep) =  &
                                               field3dVV_tile(:,:,1:nlev)
@@ -1442,7 +1442,7 @@ MODULE gridStateVector_mod
         else
           ! 2D fields
           field => gsv_getField_r8(statevector,varName)
-          field(:,:,:,:) = 0.0d0
+          field(:,:,:,indexStep) = 0.0d0
           field(statevector%myLonBeg:statevector%myLonEnd, &
                 statevector%myLatBeg:statevector%myLatEnd,1,indexStep) =  &
                                           field3d_tile(:,:,1)
@@ -1451,10 +1451,11 @@ MODULE gridStateVector_mod
 
         ! convert humidity into LQ
         if(trim(varName) == 'HU') then
+          nlev_gsv = gsv_getNumLev(statevector,'TH')
           field => gsv_getField_r8(statevector,varName)
 !$OMP PARALLEL DO PRIVATE (jlat,jlev,jlon)
           do jlat = statevector%myLatBeg, statevector%myLatEnd
-            do jlev = 1, nlev
+            do jlev = 1, nlev_gsv
               do jlon = statevector%myLonBeg, statevector%myLonEnd
                 field(jlon,jlat,jlev,indexStep) = log(max(field(jlon,jlat,jlev,indexStep),MPC_MINIMUM_HU_R8))
               end do

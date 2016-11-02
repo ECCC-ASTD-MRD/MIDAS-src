@@ -307,10 +307,10 @@ CONTAINS
         write(*,*) 'ben_setup: nLevEns_T, nLevEns_M = ',nLevEns_T,nLevEns_M
         call varAbort('ben_setup: Vcode=5002, nLevEns_T must equal nLevEns_M+1!')
       endif
-    elseif (Vcode_anl == 5004) then
+    elseif (Vcode_anl == 5005) then
       if (nLevEns_T.ne.nLevEns_M) then
         write(*,*) 'ben_setup: nLevEns_T, nLevEns_M = ',nLevEns_T,nLevEns_M
-        call varAbort('ben_setup: Vcode=5004, nLevEns_T must equal nLevEns_M!')
+        call varAbort('ben_setup: Vcode=5005, nLevEns_T must equal nLevEns_M!')
       endif
     else
       write(*,*) 'Vcode_anl = ',Vcode_anl
@@ -580,8 +580,13 @@ CONTAINS
     real(8) :: scaleFactor_out(:)
     integer :: jlev
 
-    do jlev = 1, nLevInc_T
-      scaleFactor_out(jlev) = scaleFactor(jlev)
+    ! return value of 0 above highest level of ensemble
+    do jlev = 1, (topLevIndex_T - 1)
+      scaleFactor_out(jlev) = 0.0d0
+    enddo
+    ! return scale factor for thermo levels
+    do jlev = topLevIndex_T, nLevInc_T
+      scaleFactor_out(jlev) = scaleFactor_T(jlev-topLevIndex_T+1)
     enddo
 
   end subroutine ben_getScaleFactor
@@ -3206,12 +3211,13 @@ CONTAINS
       enddo
 !$OMP END PARALLEL DO
 
-    elseif (Vcode_anl == 5004) then
+    elseif (Vcode_anl == 5005) then
 
 !$OMP PARALLEL DO PRIVATE (jlev)
       do jlev = 1, nLevEns_T
         if (jlev == nLevEns_T) then
-          ! use surface momentum level amplitudes for surface thermo level
+          ! use surface momentum level amplitudes for surface thermo level (this is not correct, 
+          ! but consistent with how it has been done until now)
           ensAmplitude_T(:,:,jlev,:) = ensAmplitude_M(:,:,jlev,:)
         else
           ! for other levels, interpolate momentum weights to get thermo amplitudes
@@ -3223,7 +3229,7 @@ CONTAINS
 
     endif
 
-    if (Vcode_anl == 5002 .or. Vcode_anl == 5004) then
+    if (Vcode_anl == 5002 .or. Vcode_anl == 5005) then
 
       do jstep = 1, numStep
         if(advectAmplitude) then
@@ -3306,7 +3312,7 @@ CONTAINS
     ensAmplitude_M(:,:,:,:) = 0.0d0
     ensAmplitude_T(:,:,:,:) = 0.0d0
 
-    if (Vcode_anl == 5002 .or. Vcode_anl == 5004) then
+    if (Vcode_anl == 5002 .or. Vcode_anl == 5005) then
 
       do jstep = 1, numStep
         if(advectAmplitude) then
@@ -3383,12 +3389,13 @@ CONTAINS
       enddo
 !$OMP END PARALLEL DO
 
-    elseif (Vcode_anl == 5004) then
+    elseif (Vcode_anl == 5005) then
 
 !$OMP PARALLEL DO PRIVATE (jlev)
       do jlev = 1, nLevEns_T
         if (jlev == nLevEns_T) then
-          ! use surface momentum level amplitudes for surface thermo level
+          ! use surface momentum level amplitudes for surface thermo level (not correct, but
+          ! consistent with how it has been done until now)
           ensAmplitude_M(:,:,jlev,:) = ensAmplitude_M(:,:,jlev,:) + ensAmplitude_T(:,:,jlev,:)
         else
           ! for other levels, interpolate momentum weights to get thermo amplitudes
