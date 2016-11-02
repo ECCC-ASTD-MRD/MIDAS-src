@@ -114,6 +114,8 @@ CONTAINS
     integer        :: jlev,jn,jm,jproc,ila,mpiMode,return_code,status,Vcode_anl
     integer        :: fnom,fclos,ierr,nulnam
     integer        :: mynBeg,mynEnd,mynSkip
+    integer        :: length_enspathname
+    character(len=256) :: enspathname_nml
 
     logical        :: TweakTG
 
@@ -384,6 +386,32 @@ CONTAINS
     !
     !- 3.  Read/Process the Ensemble
     !
+
+    ierr = 0
+    enspathname_nml = enspathname
+    call get_environment_variable('ARMA_ENSPATHNAME',enspathname,length_enspathname,ierr,.true.)
+    if (ierr.eq.-1) then
+       write(*,*) 'bmatrix_ensemble.setupEnsemble: Problem when getting the environment variable ARMA_ENSPATHNAME'
+       write(*,*) '                 The length of the variable ''enspathname'' is too short to hold the complete value'
+       call abort3d("bmatrix_ensemble.setupEnsemble")
+    end if
+    if (ierr.gt.1) then
+       write(*,*) 'burp_setupfiles: Problem when getting the environment variable ARMA_ENSPATHNAME'
+       write(*,*) '                 Rely on the value in the namelist NAMBEN'
+       enspathname = enspathname_nml
+    end if
+    if (ierr.eq.1) then
+       write(*,*) 'burp_setupfiles: The environment variable ARMA_ENSPATHNAME does not exist'
+       write(*,*) '                 Rely on the value in the namelist NAMBEN'
+       enspathname = enspathname_nml
+    end if
+    if (ierr.eq.0) then
+       write(*,*) 'burp_setupfiles: The environment variable ARMA_ENSPATHNAME does exist'
+       write(*,*) '                 Retrieve it'
+    end if
+
+    write(*,*) 'ben_setup: enspathname = ', trim(enspathname)
+
     call setupEnsemble_latlon(stamp_in,return_code)
     if ( return_code .lt. 0 ) then
       ! could not open local ensemble files, try global files
