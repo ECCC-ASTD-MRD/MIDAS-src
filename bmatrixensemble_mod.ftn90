@@ -64,10 +64,9 @@ MODULE BmatrixEnsemble
 
   integer             :: ntrunc
   integer,allocatable :: nip1_M(:),nip1_T(:),verticalLevel(:,:),verticalLevelEns(:)
-  integer,allocatable :: jn_vec(:)
   integer             :: nj,ni,lonPerPE,myLonBeg,myLonEnd,latPerPE,myLatBeg,myLatEnd
   integer             :: nLevInc_M,nLevInc_T,nkgdimInc,nLevEns_M,nLevEns_T,nkgdimEns,topLevIndex_M,topLevIndex_T
-  integer             :: myMemBeg,myMemEnd,myMemCount
+  integer             :: mynBeg,mynEnd,mynSkip,mynCount
   integer             :: mymBeg,mymEnd,mymSkip,mymCount
   integer             :: nla_mpiglobal,nla_mpilocal,maxMyNla,nphase
   integer             :: nEns,cvDim_mpilocal,cvDim_mpiglobal
@@ -103,13 +102,14 @@ MODULE BmatrixEnsemble
 
   ! Vertical grid
   type(struct_vco),pointer :: vco_anl
+  integer                  :: Vcode_anl
 
   ! Horizontal grid
   logical                   :: is_staggered
   type(struct_hco), pointer :: hco_ben    ! Analysis horizontal grid parameters
 
   ! LAM spectral transform
-  type(struct_lst)          :: lst_ben    ! Spectral transform Parameters
+  type(struct_lst)          :: lst_ben        ! Spectral transform Parameters
 
   ! Global spectral transform
   integer, pointer    :: ilaList_mpiglobal(:)
@@ -141,9 +141,8 @@ CONTAINS
 
     integer        :: numTime_in,stamp_in
     integer        :: cvDim_out
-    integer        :: jlev,jn,jm,ila,mpiMode,return_code,status,Vcode_anl
+    integer        :: jlev,jn,jm,ila,return_code,status
     integer        :: fnom,fclos,ierr,nulnam
-    integer        :: mynBeg,mynEnd,mynSkip
     integer        :: waveBandIndex
 
     logical        :: TweakTG,diagnostic
@@ -191,8 +190,8 @@ CONTAINS
     !
     
     hco_ben => hco_in
-    ni = hco_ben % ni
-    nj = hco_ben % nj
+    ni = hco_ben%ni
+    nj = hco_ben%nj
 
     if ( present(mode) ) then
        if ( trim(mode) == 'Analysis' .or. trim(mode) == 'BackgroundCheck') then
@@ -211,7 +210,7 @@ CONTAINS
     end if
 
     !- 2.1 Global or LAM?
-    if (hco_ben % global) then
+    if (hco_ben%global) then
       if(mpi_myid.eq.0) write(*,*)
       if(mpi_myid.eq.0) write(*,*) 'bmatrixEnsemble: GLOBAL mode activated'
     else
@@ -285,8 +284,8 @@ CONTAINS
     topLevIndex_M = nLevInc_M-nLevEns_M+1
     topLevIndex_T = nLevInc_T-nLevEns_T+1
 
-    ! array to convert amplitude field level (1->nLevEns_M) for each variable into ens (1->nkgdimEns)
-    allocate(verticalLevel(nLevEns_M,6),stat=ierr)
+    ! array to convert amplitude field level (1->nLevEns_M or nLevEns_T) for each variable into ens (1->nkgdimEns)
+    allocate(verticalLevel(max(nLevEns_M,nLevEns_T),6),stat=ierr)
     if(ierr.ne.0) then
       write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=1',ierr
       call abort3d('aborting in ben_setup')
@@ -296,12 +295,12 @@ CONTAINS
       verticalLevel(jlev,1) =                       jlev ! UU
       verticalLevel(jlev,2) = 1*nLevEns_M          +jlev ! VV
     enddo
-    do jlev = 1, nLevEns_M
+    do jlev = 1, nLevEns_T
       verticalLevel(jlev,3) = 2*nLevEns_M          +jlev ! TT
       verticalLevel(jlev,4) = 2*nLevEns_M+nLevEns_T+jlev ! HU
     enddo
-    verticalLevel(nLevEns_M,5) = 2*nLevEns_M+2*nLevEns_T+1 ! P0
-    verticalLevel(nLevEns_M,6) = 2*nLevEns_M+2*nLevEns_T+2 ! TG
+    verticalLevel(:,5) = 2*nLevEns_M+2*nLevEns_T+1 ! P0
+    verticalLevel(:,6) = 2*nLevEns_M+2*nLevEns_T+2 ! TG
 
     allocate(verticalLevelEns(nkgdimEns),stat=ierr)
     if(ierr.ne.0) then
@@ -331,40 +330,25 @@ CONTAINS
     !- 2.3 Spectral Transform
     if ( trim(ben_mode) == 'Analysis' ) then
 
-      if (hco_ben % global) then
+      if (hco_ben%global) then
 
         ! Global Mode
         nphase = 2
         nla_mpiglobal = (ntrunc+1)*(ntrunc+2)/2
 
-        mpimode = 5
-        gstID = gst_setup(ni,nj,ntrunc,mpiMode,nEns)
+        gstID = gst_setup(ni,nj,ntrunc,nLevEns_M)
         if(mpi_myid.eq.0) write(*,*) 'BEN : returned value of gstID = ',gstID
-
-        allocate(jn_vec(nla_mpiglobal),stat=ierr)
-        if(ierr.ne.0) then
-          write(*,*) 'bmatrixEnsemble: Problem allocating memory! id=5',ierr
-          call abort3d('aborting in ben_setup')
-        endif
-        do jn = 0, ntrunc
-          do jm = 0, jn
-            ila = gst_getnind(jm,gstID)+jn-jm
-            jn_vec(ila) = jn
-          enddo
-        enddo
 
       else
 
         ! LAM mode
         call lst_Setup( lst_ben,                          & ! OUT
-                        ni, nj, hco_ben % dlon, ntrunc,   & ! IN
-                        'LatLonMLev', nEns )                ! IN
+                        ni, nj, hco_ben%dlon, ntrunc,   & ! IN
+                        'LatLonMN', nLevEns_M )             ! IN
 
-        if(mpi_myid.eq.0) write(*,*) 'BEN : returned value of lstID = ', lst_ben % id
-        nphase       = lst_ben % nphase
-        nla_mpilocal = lst_ben % nla
-        nla_mpiglobal= nla_mpilocal !!!! Because the variables in the global-mode code 
-                                    !    still uses the global size of nla
+        if(mpi_myid.eq.0) write(*,*) 'BEN : returned value of lstID = ', lst_ben%id
+        nphase       = lst_ben%nphase
+        nla_mpilocal = lst_ben%nla
 
       end if
 
@@ -372,25 +356,14 @@ CONTAINS
 
     !- 2.4 Distribute control vector over mpi processes according to member index and m
     if ( trim(ben_mode) == 'Analysis' ) then
-      call mpivar_setup_levels_npex(nEns,myMemBeg,myMemEnd,myMemCount)
-      write(*,*) 'ben_setup: myMemBeg,End,Count=',myMemBeg,myMemEnd,myMemCount
-
-      if ( myMemCount .le. 0 ) then
-        write(*,*) 'ERROR: Number of MPI processes must be <= number of ensemble members'
-        call abort3d('ben_setup')
-      endif
-
       call mpivar_setup_m(ntrunc,mymBeg,mymEnd,mymSkip,mymCount)
+      call mpivar_setup_n(ntrunc,mynBeg,mynEnd,mynSkip,mynCount)
 
-      if (hco_ben % global) then
-        ! all total wavenumbers "n" on each mpi task
-        mynBeg = 0
-        mynEnd = ntrunc
-        mynSkip = 1
-
-        ! compute arrays to facilitate conversions between ila_mpilocal and ila_mpiglobal (only split by m)
+      if (hco_ben%global) then
+        ! compute arrays to facilitate conversions between ila_mpilocal and ila_mpiglobal
         call gst_ilaList_mpiglobal(ilaList_mpiglobal,nla_mpilocal,maxMyNla,gstID,mymBeg,mymEnd,mymSkip,mynBeg,mynEnd,mynSkip)
         call gst_ilaList_mpilocal(ilaList_mpilocal,gstID,mymBeg,mymEnd,mymSkip,mynBeg,mynEnd,mynSkip)
+        write(*,*) 'ben_setup: nla_mpiglobal, nla_mpilocal, maxMyNla = ', nla_mpiglobal, nla_mpilocal, maxMyNla
       end if
     end if
 
@@ -401,14 +374,14 @@ CONTAINS
     allocate(allLatEnd(mpi_npey))
     allocate(allLonBeg(mpi_npex))
     allocate(allLonEnd(mpi_npex))
-    CALL rpn_comm_allgather(myLatBeg,1,"mpi_integer",       &
+    call rpn_comm_allgather(myLatBeg,1,"mpi_integer",       &
                             allLatBeg,1,"mpi_integer","NS",ierr)
-    CALL rpn_comm_allgather(myLatEnd,1,"mpi_integer",       &
+    call rpn_comm_allgather(myLatEnd,1,"mpi_integer",       &
                             allLatEnd,1,"mpi_integer","NS",ierr)
 
-    CALL rpn_comm_allgather(myLonBeg,1,"mpi_integer",       &
+    call rpn_comm_allgather(myLonBeg,1,"mpi_integer",       &
                             allLonBeg,1,"mpi_integer","EW",ierr)
-    CALL rpn_comm_allgather(myLonEnd,1,"mpi_integer",       &
+    call rpn_comm_allgather(myLonEnd,1,"mpi_integer",       &
                             allLonEnd,1,"mpi_integer","EW",ierr)
 
     !- 2.6 Number of time bins
@@ -504,25 +477,28 @@ CONTAINS
         if (diagnostic) call EnsembleDiagnostic('WaveBandPerturbations')
       endif
 
-      if (hco_ben % global) then
+      if (hco_ben%global) then
         cvDim_mpiglobal = (ntrunc+1)*(ntrunc+1)*nLevEns_M*nEns
         cvDim_mpilocal  = 0
+
         do jm = mymBeg, mymEnd, mymSkip
-          do jn = jm, ntrunc
-            if(jm.eq.0) then
-              ! controlVector only contains real part for jm=0
-              cvDim_mpilocal = cvDim_mpilocal + 1*myMemCount*nLevEns_M
-            else
-              ! controlVector contains real and imag parts for jm>0
-              cvDim_mpilocal = cvDim_mpilocal + 2*myMemCount*nLevEns_M
+          do jn = mynBeg, mynEnd, mynSkip
+            if(jm.le.jn) then
+              if(jm.eq.0) then
+                ! controlVector only contains real part for jm=0
+                cvDim_mpilocal = cvDim_mpilocal + 1*nLevEns_M*nEns
+              else
+                ! controlVector contains real and imag parts for jm>0
+                cvDim_mpilocal = cvDim_mpilocal + 2*nLevEns_M*nEns
+              endif
             endif
           enddo
         enddo
       else
-        cvDim_mpiglobal = lst_ben % nlaGlobal * nphase * nLevEns_M * nEns
-        cvDim_mpilocal  = nla_mpilocal        * nphase * nLevEns_M * myMemCount
-        print*,'cvDim_mpiglobal ', cvDim_mpiglobal, lst_ben % nlaGlobal, nphase, nLevEns_M, nEns
-        print*,'cvDim_mpilocal  ', cvDim_mpilocal, nla_mpilocal, nphase, nLevEns_M, myMemCount
+        cvDim_mpiglobal = lst_ben%nlaGlobal * nphase * nLevEns_M * nEns
+        cvDim_mpilocal  = nla_mpilocal        * nphase * nLevens_M * nEns
+        print*,'cvDim_mpiglobal ', cvDim_mpiglobal, lst_ben%nlaGlobal, nphase, nLevEns_M, nEns
+        print*,'cvDim_mpilocal  ', cvDim_mpilocal, nla_mpilocal, nphase, nLevEns_M, nEns
       endif
       cvDim_out = cvDim_mpilocal
     else
@@ -1268,7 +1244,7 @@ CONTAINS
     !      tgstdbg_tmp(jlon,jlat) = ensPerturbations(1)%member_r4(jlon,jlat,levTG  ,1)
     !   end do
     !end do
-    !call RPN_COMM_allreduce(tgstdbg_tmp,tgstdbg_tmp,hco_ben%ni*hco_ben%nj,"mpi_real","mpi_sum","GRID",ierr)
+    !call rpn_comm_allreduce(tgstdbg_tmp,tgstdbg_tmp,hco_ben%ni*hco_ben%nj,"mpi_real","mpi_sum","GRID",ierr)
     !
     !if ( mpi_myid == 0 ) then
     !
@@ -1306,7 +1282,7 @@ CONTAINS
     !       tgstdbg_tmp(jlon,jlat) = ensPerturbations(1)%member_r4(jlon,jlat,levTT2m  ,1)
     !    end do
     ! end do
-    ! call RPN_COMM_allreduce(tgstdbg_tmp,tgstdbg_tmp,hco_ben%ni*hco_ben%nj,"mpi_real","mpi_sum","GRID",ierr)
+    ! call rpn_comm_allreduce(tgstdbg_tmp,tgstdbg_tmp,hco_ben%ni*hco_ben%nj,"mpi_real","mpi_sum","GRID",ierr)
     !
     ! if ( mpi_myid == 0 ) then
     !    cltypvar = 'E'
@@ -1380,17 +1356,26 @@ CONTAINS
 ! EnsembleScaleDecomposition
 !--------------------------------------------------------------------------
   SUBROUTINE EnsembleScaleDecomposition()
+    use filterResponseFunction_mod
     implicit none
 
-    integer :: waveBandIndex, memberindex, jt, jk, jj, ji, ila, p
+    integer :: waveBandIndex, memberindex, jt, jk, jj, ji
+    integer :: ila_filter, p, nla_filter, nphase_filter
 
-    real(8) :: ResponseFunction(nla_mpiglobal,2:nWaveBand)
+    real(8), allocatable :: ResponseFunction(:,:)
+
     real(8) :: bandSum
-    real(8) :: totwvnb_r8, FilterResponseFunction
+    real(8) :: totwvnb_r8
 
-    real(8) :: ensPertSP        (nla_mpiglobal,nphase,myMemBeg:myMemEnd)
-    real(8) :: ensPertSPfiltered(nla_mpiglobal,nphase,myMemBeg:myMemEnd)
+    real(8), allocatable :: ensPertSP(:,:,:)
+    real(8), allocatable :: ensPertSPfiltered(:,:,:)
     real(8), allocatable :: ensPertGD(:,:,:)
+
+    integer, allocatable :: jn_vec(:)
+
+    integer :: gstID2, jm, jn
+
+    type(struct_lst)    :: lst_ben_filter ! Spectral transform Parameters for filtering
 
     character(len=19)   :: kind
 
@@ -1416,102 +1401,140 @@ CONTAINS
     end if
 
     !
+    !- Setup a spectral transform for filtering (nk = nkgdimEns)
+    !
+    if (hco_ben%global) then
+       ! Global mode
+       gstID2 = gst_setup(ni,nj,ntrunc,nkgdimEns)
+       if(mpi_myid.eq.0) write(*,*) 'BEN : returned value of gstID2 = ',gstID2
+       nla_filter = nla_mpilocal ! should be recomputed here based on gstID2 info
+       nphase_filter = 2
+       allocate(jn_vec(nla_filter))
+       ila_filter = 0
+       do jm = mymBeg, mymEnd, mymSkip
+          do jn = mynBeg, mynEnd, mynSkip
+            if(jm.le.jn) then
+               ila_filter = ila_filter + 1
+               jn_vec(ila_filter) = jn
+            end if
+          enddo
+       enddo
+    else
+       ! LAM mode
+        call lst_Setup( lst_ben_filter,               & ! OUT
+                        ni, nj, hco_ben%dlon, ntrunc, & ! IN
+                        'LatLonMN', nkgdimEns )         ! IN
+        nla_filter = lst_ben_filter%nla
+        nphase_filter = lst_ben_filter%nphase
+    end if
+
+    !
     !- 1.  Scale decomposition for every wave band except for wave band #1
     !
-    allocate(ensPertGD(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nEns))
+    allocate(ResponseFunction(nla_filter,2:nWaveBand))
+    allocate(ensPertSP(nla_filter,nphase_filter,nkgdimEns))
+    allocate(ensPertSPfiltered(nla_filter,nphase_filter,nkgdimEns))
+    allocate(ensPertGD(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdimEns))
+
+    ensPertSP(:,:,:) = 0.0d0
+    ensPertSPfiltered(:,:,:) = 0.0d0
 
     !- 1.1 Pre-compute the response function for each wave band except for wave band #1
     do waveBandIndex = nWaveBand, 2, -1 ! Start with the largest scales
-       do ila = 1, nla_mpiglobal
-          if (hco_ben % global) then
-             totwvnb_r8 = real(jn_vec(ila),8)
+       do ila_filter = 1, nla_filter
+          if (hco_ben%global) then
+             totwvnb_r8 = real(jn_vec(ila_filter),8)
           else
-             totwvnb_r8 = lst_ben%k_r8(ila)
+             totwvnb_r8 = lst_ben_filter%k_r8(ila_filter)
           endif
-          ResponseFunction(ila,waveBandIndex) = FilterResponseFunction(totwvnb_r8,waveBandIndex, waveBandPeaks, nWaveBand)
+          ResponseFunction(ila_filter,waveBandIndex) = FilterResponseFunction(totwvnb_r8,waveBandIndex, waveBandPeaks, nWaveBand)
        end do
     end do
+    if (hco_ben%global) deallocate(jn_vec)
 
     do jt = 1, numTime ! Loop on ensemble time bin
-       do jk = 1, nkgdimEns ! Loop on variables and vertical levels
+       do memberIndex = 1, nEns ! Loop on ensemble member
 
           !- 1.2 GridPoint space -> Spectral Space
-!$OMP PARALLEL DO PRIVATE (memberIndex,jj,ji)
-          do memberIndex = 1, nEns
+!$OMP PARALLEL DO PRIVATE (jk,jj,ji)
+          do jk = 1, nkgdimEns
              do jj = myLatBeg, myLatEnd
                 do ji = myLonBeg, myLonEnd
-                   ensPertGD(ji,jj,memberIndex) = &
+                   ensPertGD(ji,jj,jk) = &
                         dble(ensPerturbations(1,memberIndex)%member_r4(ji,jj,jk,jt))
                 end do
              end do
           end do
 !$OMP END PARALLEL DO
-          if (hco_ben % global) then
+          if (hco_ben%global) then
              ! Global Mode
-             call gst_setID(gstID) ! IN
-             call gst_reespe5(ensPertSP, & ! OUT
-                              ensPertGD)   ! IN
+             call gst_setID(gstID2) ! IN
+             call gst_reespe(ensPertSP, & ! OUT
+                             ensPertGD)   ! IN
           else
              ! LAM mode
              kind = 'GridPointToSpectral'
-             call lst_VarTransform( lst_ben % id, & ! IN
-                                    ensPertSP,    & ! OUT
-                                    ensPertGD,    & ! IN 
-                                    kind, nEns )    ! IN
+             call lst_VarTransform( lst_ben_filter%id, & ! IN
+                                    ensPertSP,           & ! OUT
+                                    ensPertGD,           & ! IN 
+                                    kind, nkgdimEns )      ! IN
           end if
 
           !- 1.3 Filtering and transformation back to grid point space 
           do waveBandIndex = nWaveBand, 2, -1 ! Start with the largest scales
              ! Filtering
-!$OMP PARALLEL DO PRIVATE (memberIndex,p,ila)
-             do memberIndex = myMemBeg, myMemEnd
-                do p = 1, nphase
-                   do ila = 1, nla_mpiglobal
-                      ensPertSPfiltered(ila,p,memberIndex) = &
-                           ensPertSP(ila,p,memberIndex) * ResponseFunction(ila,waveBandIndex)
+!$OMP PARALLEL DO PRIVATE (jk,p,ila_filter)
+             do jk = 1, nkgdimEns
+                do p = 1, nphase_filter
+                   do ila_filter = 1, nla_filter
+                      ensPertSPfiltered(ila_filter,p,jk) = &
+                           ensPertSP(ila_filter,p,jk) * ResponseFunction(ila_filter,waveBandIndex)
                    end do
                 end do
              end do
 !$OMP END PARALLEL DO
 
              ! Spectral Space -> GridPoint space
-             if (hco_ben % global) then
+             if (hco_ben%global) then
                 ! Global Mode
-                call gst_setID(gstID) ! IN
-                call gst_speree5(ensPertSPfiltered, & ! IN
-                                 ensPertGD)           ! OUT
+                call gst_setID(gstID2) ! IN
+                call gst_speree(ensPertSPfiltered, & ! IN
+                                 ensPertGD)          ! OUT
              else
                 ! LAM mode
                 kind = 'SpectralToGridPoint'
-                call lst_VarTransform( lst_ben % id,      & ! IN
+                call lst_VarTransform( lst_ben_filter%id, & ! IN
                                        ensPertSPfiltered, & ! IN
-                                       ensPertGD,         & ! OUT (lat,lon,ensMember) !!!
-                                       kind, nEns )         ! IN
+                                       ensPertGD,         & ! OUT
+                                       kind, nkgdimEns )    ! IN
              end if
-!$OMP PARALLEL DO PRIVATE (memberIndex,jj,ji)
-             do memberIndex = 1, nEns
+!$OMP PARALLEL DO PRIVATE (jk,jj,ji)
+             do jk = 1, nkgdimEns
                 do jj = myLatBeg, myLatEnd
                    do ji = myLonBeg, myLonEnd
                       ensPerturbations(waveBandIndex,memberIndex)%member_r4(ji,jj,jk,jt) = &
-                           sngl(ensPertGD(ji,jj,memberIndex))
+                           sngl(ensPertGD(ji,jj,jk))
                    end do
                 end do
              end do
 !$OMP END PARALLEL DO
 
           end do ! waveBandIndex
-       end do ! variables and vertical levels
+       end do ! ensemble member
     end do ! time bins
 
     deallocate(ensPertGD)
+    deallocate(ResponseFunction)
+    deallocate(ensPertSP)
+    deallocate(ensPertSPfiltered)
 
     !
     !- 2.  Isolate the smallest scales in waveBandIndex = 1 by difference in grid point space
     !
     do jt = 1, numTime
-!$OMP PARALLEL DO PRIVATE (jk,memberindex,jj,ji,waveBandIndex,bandsum)
-       do jk = 1, nkgdimEns
-          do memberIndex = 1, nEns
+!$OMP PARALLEL DO PRIVATE (memberindex,jk,jj,ji,waveBandIndex,bandsum)
+       do memberIndex = 1, nEns
+          do jk = 1, nkgdimEns
              do jj = myLatBeg, myLatEnd
                 do ji = myLonBeg, myLonEnd
                    bandSum = 0.d0
@@ -1586,7 +1609,7 @@ CONTAINS
        endif
 
        !- 2.1.3 Compute matrix
-       if (hco_ben % global) then
+       if (hco_ben%global) then
           call setupGlobalHLoc(local_length, waveBandIndex) ! IN
        else
           call setupLamHLoc(local_length, waveBandIndex) ! IN
@@ -1630,50 +1653,48 @@ CONTAINS
 
     ! NOTE: arrays passed to spectral transform are dimensioned as follows
     !       gd: lat/lon tiles and sp: member index
-    real(8) :: zsp_gst(nla_mpiglobal,nphase,myMemBeg:myMemEnd)
-    real(8) :: zgd_gst(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nEns)
-
-    real(8), allocatable :: zsp(:,:,:)
-    real(8), allocatable :: my_zsp(:,:,:)
+    real(8) :: zsp_mpilocal(nla_mpilocal,nphase,nLevEns_M)
+    real(8) :: zsp_mpiglobal(nla_mpiglobal,nphase,nLevEns_M)
+    real(8) :: zsp_mympiglobal(nla_mpiglobal,nphase,nLevEns_M)
+    real(8) :: zgd_gst(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nLevEns_M)
 
     integer :: ilen,jn,jlat,jla,jlon,jk,jk1,jk2,nsize,ierr
+    integer :: ila_mpiglobal,jla_mpilocal
 
     if(local_length(1).gt.0.0d0) then
 
-      allocate(zsp(nla_mpiglobal,nphase,nLevEns_M))
-      allocate(my_zsp(nla_mpiglobal,nphase,nLevEns_M))
-      my_zsp=0.0d0 
       zgd_gst(:,:,:) = 0.0d0
       do jk = 1, nLevEns_M
-
         ! Calculate 5th Order Correlation Functions in Physical Space
         zlc = 1000.0d0*local_length(jk)
         do jlat = myLatBeg, myLatEnd
           zr = ra * acos(gst_getrmu(jlat,gstID))
           zcorr = loc_response(zr,zlc)
           do jlon = myLonBeg, myLonEnd
-            zgd_gst(jlon,jlat,1) = zcorr
+            zgd_gst(jlon,jlat,jk) = zcorr
           enddo
         enddo
-
-        ! Transform to spectral space (extra manipulation because of mpi spectral transform)
-        zsp_gst(:,:,:) = 0.0d0
-        call gst_setID(gstID)
-        call gst_reespe5(zsp_gst,zgd_gst)
-        if(myMemBeg.eq.1) then
-          my_zsp(:,:,jk) = zsp_gst(:,:,myMemBeg)
-        else
-          my_zsp(:,:,jk) = 0.0d0
-        endif
       enddo
 
+      ! Transform to spectral space
+      zsp_mpilocal(:,:,:) = 0.0d0
+      call gst_setID(gstID)
+      call gst_reespe(zsp_mpilocal,zgd_gst)
+
+      ! Make mpiglobal in spectral space
+      zsp_mympiglobal(:,:,:) = 0.0d0
+      do jla_mpilocal = 1, nla_mpilocal
+        ila_mpiglobal = ilaList_mpiglobal(jla_mpilocal)
+        zsp_mympiglobal(ila_mpiglobal,:,:) = zsp_mpilocal(jla_mpilocal,:,:)
+      enddo
       nsize = nla_mpiglobal*nphase*nLevEns_M
-      call RPN_COMM_allreduce(my_zsp,zsp,nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
-      deallocate(my_zsp) 
+      zsp_mpiglobal(:,:,:) = 0.0d0
+      call rpn_comm_allreduce(zsp_mympiglobal,zsp_mpiglobal,nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
+      
       ! Copy over to EnsLocal(WaveBandIndex)%Horiz and truncate to NTRUNC
       do jk = 1, nLevEns_M
         do jn = 0, ntrunc
-          ensLocal(waveBandIndex)%Horiz(jn,jk) = zsp(jn+1,1,jk)
+          ensLocal(waveBandIndex)%Horiz(jn,jk) = zsp_mpiglobal(jn+1,1,jk)
         enddo
       enddo
 
@@ -1705,7 +1726,6 @@ CONTAINS
         enddo
       enddo
 
-      deallocate(zsp)
     else
 
        ! NO HORIZONTAL LOCALIZATION, set ensLocal(waveBandIndex)%Horiz to 1.0 for wavenumber 0
@@ -1745,21 +1765,21 @@ CONTAINS
 
       !- 1.1 Setup a non-MPI spectral transform
       call lst_Setup( lst_hloc,                       & ! OUT
-                      ni, nj, hco_ben % dlon, ntrunc, & ! IN
+                      ni, nj, hco_ben%dlon, ntrunc, & ! IN
                       'NoMpi')                          ! IN
 
       !- 1.2 Create a correlation function in physical space
       allocate (gd(ni,nj,nLevEns_M))
 
       call loc_CreateBiPerFunction( gd,                           & ! OUT
-                                    local_length, hco_ben % dlon, & ! IN
+                                    local_length, hco_ben%dlon, & ! IN
                                     ni, nj, nLevEns_M )             ! IN
 
       !- 1.3 Transform to spectral space
-      allocate (sp(lst_hloc % nla, nphase, nLevEns_M))
+      allocate (sp(lst_hloc%nla, nphase, nLevEns_M))
 
       kind = 'GridPointToSpectral'
-      call lst_VarTransform( lst_hloc % id,      & ! IN
+      call lst_VarTransform( lst_hloc%id,      & ! IN
                              sp,                 & ! OUT
                              gd,                 & ! IN
                              kind, nLevEns_M )     ! IN
@@ -1770,13 +1790,13 @@ CONTAINS
 
       ensLocal(waveBandIndex)%Horiz(:,:) = 0.d0
       do totwvnb = 0, ntrunc
-         do e = 1, lst_hloc % nePerK(totwvnb)
-            ila = lst_hloc % ilaFromEK(e,totwvnb)
-            do p = 1, lst_hloc % nphase
-               SumWeight(totwvnb) = SumWeight(totwvnb) + lst_hloc % Weight(ila)
+         do e = 1, lst_hloc%nePerK(totwvnb)
+            ila = lst_hloc%ilaFromEK(e,totwvnb)
+            do p = 1, lst_hloc%nphase
+               SumWeight(totwvnb) = SumWeight(totwvnb) + lst_hloc%Weight(ila)
                do k = 1, nLevEns_M
                   ensLocal(waveBandIndex)%Horiz(totwvnb,k) = ensLocal(waveBandIndex)%Horiz(totwvnb,k) + &
-                                                             lst_hloc % Weight(ila) * abs(sp(ila,p,k))
+                                                             lst_hloc%Weight(ila) * abs(sp(ila,p,k))
                 enddo
              enddo
          enddo
@@ -1816,7 +1836,7 @@ CONTAINS
       gd(ni/2,nj/2,:) = 1.d0
 
       kind = 'GridPointToSpectral'
-      call lst_VarTransform( lst_hloc % id,      & ! IN
+      call lst_VarTransform( lst_hloc%id,      & ! IN
                              sp,                 & ! OUT
                              gd,                 & ! IN
                              kind, nLevEns_M )     ! IN
@@ -1824,12 +1844,12 @@ CONTAINS
       !- 1.6.2 Apply the correlation function
 !$OMP PARALLEL DO PRIVATE (totwvnb,e,ila,p,k)
       do totwvnb = 0, ntrunc
-         do e = 1, lst_hloc % nePerK(totwvnb)
-            ila = lst_hloc % ilaFromEK(e,totwvnb)
+         do e = 1, lst_hloc%nePerK(totwvnb)
+            ila = lst_hloc%ilaFromEK(e,totwvnb)
             do p = 1, nphase
                do k = 1, nLevEns_M
                   sp(ila,p,k) = sp(ila,p,k) * ensLocal(waveBandIndex)%Horiz(totwvnb,k) * &
-                                lst_hloc % NormFactor(ila,p) * lst_hloc % NormFactorAd(ila,p)
+                                lst_hloc%NormFactor(ila,p) * lst_hloc%NormFactorAd(ila,p)
                enddo
             enddo
          enddo
@@ -1838,7 +1858,7 @@ CONTAINS
 
       !- 1.6.3 Move back to physical space
       kind = 'SpectralToGridPoint'
-      call lst_VarTransform( lst_hloc % id,      & ! IN
+      call lst_VarTransform( lst_hloc%id,      & ! IN
                              sp,                 & ! IN
                              gd,                 & ! OUT
                              kind, nLevEns_M )     ! IN
@@ -1887,42 +1907,44 @@ CONTAINS
 
     ! assign part of mpiglobal vector from current mpi process
 
-    if (hco_ben % global) then
+    if (hco_ben%global) then
 
       ! Global
       jdim_mpilocal = 0
-      do memberIndex = myMemBeg, myMemEnd
+      do memberIndex = 1, nEns
 
         do jlev = 1, nLevEns_M
           do jm = mymBeg, mymEnd, mymSkip
-            do jn = jm, ntrunc
+            do jn = mynBeg, mynEnd, mynSkip
+              if(jm.le.jn) then
 
-              ! figure out index into global control vector
-              ila_mpiglobal = gst_getNIND(jm,gstID) + jn - jm
-              if(jm.eq.0) then
-                ! for jm=0 only real part
-                jdim_mpiglobal = ila_mpiglobal
-              else
-                ! for jm>0 both real and imaginary part
-                jdim_mpiglobal = 2*ila_mpiglobal-1 - (ntrunc+1)
+                ! figure out index into global control vector
+                ila_mpiglobal = gst_getNIND(jm,gstID) + jn - jm
+                if(jm.eq.0) then
+                  ! for jm=0 only real part
+                  jdim_mpiglobal = ila_mpiglobal
+                else
+                  ! for jm>0 both real and imaginary part
+                  jdim_mpiglobal = 2*ila_mpiglobal-1 - (ntrunc+1)
+                endif
+                ! add offset for level
+                jdim_mpiglobal = jdim_mpiglobal + (jlev-1) * (ntrunc+1)*(ntrunc+1)
+                ! add offset for member index
+                jdim_mpiglobal = jdim_mpiglobal + (memberIndex-1) * (ntrunc+1)*(ntrunc+1)*nLevEns_M
+
+                if(jm.eq.0) then
+                  ! controlVector only contain real part for jm=0
+                  jdim_mpilocal = jdim_mpilocal + 1
+                  cv_mpilocal(jdim_mpilocal) = cv_mpiglobal(jdim_mpiglobal)
+                else
+                  ! controlVector contains real and imag parts for jm>0
+                  jdim_mpilocal = jdim_mpilocal + 1
+                  cv_mpilocal(jdim_mpilocal) = cv_mpiglobal(jdim_mpiglobal)
+                  jdim_mpilocal = jdim_mpilocal + 1
+                  cv_mpilocal(jdim_mpilocal) = cv_mpiglobal(jdim_mpiglobal+1)
+                endif
+
               endif
-              ! add offset for level
-              jdim_mpiglobal = jdim_mpiglobal + (jlev-1) * (ntrunc+1)*(ntrunc+1)
-              ! add offset for member index
-              jdim_mpiglobal = jdim_mpiglobal + (memberIndex-1) * (ntrunc+1)*(ntrunc+1)*nLevEns_M
-
-              if(jm.eq.0) then
-                ! controlVector only contain real part for jm=0
-                jdim_mpilocal = jdim_mpilocal + 1
-                cv_mpilocal(jdim_mpilocal) = cv_mpiglobal(jdim_mpiglobal)
-              else
-                ! controlVector contains real and imag parts for jm>0
-                jdim_mpilocal = jdim_mpilocal + 1
-                cv_mpilocal(jdim_mpilocal) = cv_mpiglobal(jdim_mpiglobal)
-                jdim_mpilocal = jdim_mpilocal + 1
-                cv_mpilocal(jdim_mpilocal) = cv_mpiglobal(jdim_mpiglobal+1)
-              endif
-
             enddo
           enddo
         enddo
@@ -1933,19 +1955,19 @@ CONTAINS
        
       ! LAM
 
-      do memberIndex = myMemBeg, myMemEnd
+      do memberIndex = 1, nEns
          do jlev = 1, nLevEns_M
             do ila_mpilocal = 1, lst_ben%nla
                do p = 1, lst_ben%nphase
 
-                  jdim_mpilocal = ( (memberIndex-myMemBeg) * nLevEns_M * lst_ben%nla * lst_ben%nphase ) + &
-                                                            ( (jlev-1) * lst_ben%nla * lst_ben%nphase ) + &
-                                                                  ( (ila_mpilocal-1) * lst_ben%nphase ) + p
+                  jdim_mpilocal = ( (jlev-1) * nEns * lst_ben%nla * lst_ben%nphase ) + &
+                                  ( (memberIndex-1) * lst_ben%nla * lst_ben%nphase ) + &
+                                               ( (ila_mpilocal-1) * lst_ben%nphase ) + p
 
                   ila_mpiglobal = lst_ben%ilaGlobal(ila_mpilocal)
-                  jdim_mpiglobal = ( (memberIndex-1) * nLevEns_M * lst_ben%nlaGlobal * lst_ben%nphase ) + &
-                                                      ( (jlev-1) * lst_ben%nlaGlobal * lst_ben%nphase ) + &
-                                                                 ( (ila_mpiglobal-1) * lst_ben%nphase ) + p
+                  jdim_mpiglobal = ( (jlev-1) * nEns * lst_ben%nlaGlobal * lst_ben%nphase ) + &
+                                   ( (memberIndex-1) * lst_ben%nlaGlobal * lst_ben%nphase ) + &
+                                                     ( (ila_mpiglobal-1) * lst_ben%nphase ) + p
   
                   if ( jdim_mpilocal  > cvDim_mpilocal ) then 
                      write(*,*) 'BEN_reduceToMPILocal: jdim_mpilocal > cvDim_mpilocal ',memberIndex,jlev,ila_mpilocal,p
@@ -1979,8 +2001,8 @@ CONTAINS
 
     real(8), allocatable :: cv_maxmpilocal(:)
     real(8), pointer     :: cv_allmaxmpilocal(:,:) => null()
+    integer, allocatable :: allnBeg(:),allnEnd(:),allnSkip(:)
     integer, allocatable :: allmBeg(:),allmEnd(:),allmSkip(:)
-    integer, allocatable :: allMemBeg(:),allMemEnd(:)
     integer :: jdim_mpilocal, jdim_mpiglobal, ila_mpiglobal, ila_mpilocal, cvDim_maxmpilocal
     integer :: jm, jn, jproc, memberIndex, jlev, ierr, p
     real(8), allocatable :: my_cv_mpiglobal(:)
@@ -1989,7 +2011,7 @@ CONTAINS
 
     ! gather all local control vectors onto mpi task 0
 
-    if (hco_ben % global) then
+    if (hco_ben%global) then
 
        ! Global
        call rpn_comm_allreduce(cvDim_mpilocal,cvDim_maxmpilocal,1,"mpi_integer","mpi_max","GRID",ierr)
@@ -2010,12 +2032,15 @@ CONTAINS
 
        deallocate(cv_maxmpilocal)
 
-       allocate(allMemBeg(mpi_nprocs))
-       call rpn_comm_allgather(myMemBeg,1,"mpi_integer",       &
-                               allMemBeg,1,"mpi_integer","GRID",ierr)
-       allocate(allMemEnd(mpi_nprocs))
-       call rpn_comm_allgather(myMemEnd,1,"mpi_integer",       &
-                               allMemEnd,1,"mpi_integer","GRID",ierr)
+       allocate(allnBeg(mpi_nprocs))
+       call rpn_comm_allgather(mynBeg,1,"mpi_integer",       &
+                               allnBeg,1,"mpi_integer","GRID",ierr)
+       allocate(allnEnd(mpi_nprocs))
+       call rpn_comm_allgather(mynEnd,1,"mpi_integer",       &
+                               allnEnd,1,"mpi_integer","GRID",ierr)
+       allocate(allnSkip(mpi_nprocs))
+       call rpn_comm_allgather(mynSkip,1,"mpi_integer",       &
+                               allnSkip,1,"mpi_integer","GRID",ierr)
 
        allocate(allmBeg(mpi_nprocs))
        call rpn_comm_allgather(mymBeg,1,"mpi_integer",       &
@@ -2034,42 +2059,44 @@ CONTAINS
 !$OMP PARALLEL DO PRIVATE(jproc,jdim_mpilocal,memberIndex,jlev,jm,jn,ila_mpiglobal,jdim_mpiglobal)
          do jproc = 0, (mpi_nprocs-1)
            jdim_mpilocal = 0
-           do memberIndex = allMemBeg(jproc+1), allMemEnd(jproc+1)
+           do memberIndex = 1, nEns
 
              do jlev = 1, nLevEns_M
                do jm = allmBeg(jproc+1), allmEnd(jproc+1), allmSkip(jproc+1)
-                 do jn = jm, ntrunc
+                 do jn = allnBeg(jproc+1), allnEnd(jproc+1), allnSkip(jproc+1)
+                   if(jm.le.jn) then
 
-                   ! figure out index into global control vector
-                   ila_mpiglobal = gst_getNIND(jm,gstID) + jn - jm
-                   if(jm.eq.0) then
-                     ! for jm=0 only real part
-                     jdim_mpiglobal = ila_mpiglobal
-                   else
-                     ! for jm>0 both real and imaginary part
-                     jdim_mpiglobal = 2*ila_mpiglobal-1 - (ntrunc+1)
+                     ! figure out index into global control vector
+                     ila_mpiglobal = gst_getNIND(jm,gstID) + jn - jm
+                     if(jm.eq.0) then
+                       ! for jm=0 only real part
+                       jdim_mpiglobal = ila_mpiglobal
+                     else
+                       ! for jm>0 both real and imaginary part
+                       jdim_mpiglobal = 2*ila_mpiglobal-1 - (ntrunc+1)
+                     endif
+                     ! add offset for level
+                     jdim_mpiglobal = jdim_mpiglobal + (jlev-1) * (ntrunc+1)*(ntrunc+1)
+                     ! add offset for member index
+                     jdim_mpiglobal = jdim_mpiglobal + (memberIndex-1) * (ntrunc+1)*(ntrunc+1)*nLevEns_M
+
+                     ! index into local control vector
+                     if(jm.eq.0) then
+                       ! only real component for jm=0
+                       jdim_mpilocal = jdim_mpilocal + 1
+                       cv_mpiglobal(jdim_mpiglobal) = cv_allmaxmpilocal(jdim_mpilocal,jproc+1)
+                     else
+                       ! both real and imaginary components for jm>0
+                       jdim_mpilocal = jdim_mpilocal + 1
+                       cv_mpiglobal(jdim_mpiglobal) = cv_allmaxmpilocal(jdim_mpilocal,jproc+1)
+                       jdim_mpilocal = jdim_mpilocal + 1
+                       cv_mpiglobal(jdim_mpiglobal+1) = cv_allmaxmpilocal(jdim_mpilocal,jproc+1)
+                     endif
+
+                     if(jdim_mpiglobal.gt.cvDim_mpiglobal)   &
+                       write(*,*) 'ERROR: jdim,cvDim,mpiglobal=',jdim_mpiglobal,cvDim_mpiglobal,jlev,jn,jm
+
                    endif
-                   ! add offset for level
-                   jdim_mpiglobal = jdim_mpiglobal + (jlev-1) * (ntrunc+1)*(ntrunc+1)
-                   ! add offset for member index
-                   jdim_mpiglobal = jdim_mpiglobal + (memberIndex-1) * (ntrunc+1)*(ntrunc+1)*nLevEns_M
-
-                   ! index into local control vector
-                   if(jm.eq.0) then
-                     ! only real component for jm=0
-                     jdim_mpilocal = jdim_mpilocal + 1
-                     cv_mpiglobal(jdim_mpiglobal) = cv_allmaxmpilocal(jdim_mpilocal,jproc+1)
-                   else
-                     ! both real and imaginary components for jm>0
-                     jdim_mpilocal = jdim_mpilocal + 1
-                     cv_mpiglobal(jdim_mpiglobal) = cv_allmaxmpilocal(jdim_mpilocal,jproc+1)
-                     jdim_mpilocal = jdim_mpilocal + 1
-                     cv_mpiglobal(jdim_mpiglobal+1) = cv_allmaxmpilocal(jdim_mpilocal,jproc+1)
-                   endif
-
-                   if(jdim_mpiglobal.gt.cvDim_mpiglobal)   &
-                     write(*,*) 'ERROR: jdim,cvDim,mpiglobal=',jdim_mpiglobal,cvDim_mpiglobal,jlev,jn,jm
-
                  enddo
                enddo
              enddo
@@ -2079,8 +2106,9 @@ CONTAINS
 
       endif ! myid .eq. 0 
 
-      deallocate(allMemBeg)
-      deallocate(allMemEnd)
+      deallocate(allnBeg)
+      deallocate(allnEnd)
+      deallocate(allnSkip)
       deallocate(allmBeg)
       deallocate(allmEnd)
       deallocate(allmSkip)
@@ -2092,19 +2120,19 @@ CONTAINS
       allocate(my_cv_mpiglobal(cvDim_mpiglobal)) 
       my_cv_mpiglobal(:) = 0.0d0
 
-      do memberIndex = myMemBeg, myMemEnd
+      do memberIndex = 1, nEns
          do jlev = 1, nLevEns_M
             do ila_mpilocal = 1, lst_ben%nla
                do p = 1, lst_ben%nphase
 
-                  jdim_mpilocal = ( (memberIndex-myMemBeg) * nLevEns_M * lst_ben%nla * lst_ben%nphase ) + &
-                                                            ( (jlev-1) * lst_ben%nla * lst_ben%nphase ) + &
-                                                                  ( (ila_mpilocal-1) * lst_ben%nphase ) + p
+                  jdim_mpilocal = ( (jlev-1) * nEns * lst_ben%nla * lst_ben%nphase ) + &
+                                  ( (memberIndex-1) * lst_ben%nla * lst_ben%nphase ) + &
+                                               ( (ila_mpilocal-1) * lst_ben%nphase ) + p
 
                   ila_mpiglobal = lst_ben%ilaGlobal(ila_mpilocal)
-                  jdim_mpiglobal = ( (memberIndex-1) * nLevEns_M * lst_ben%nlaGlobal * lst_ben%nphase ) + &
-                                                      ( (jlev-1) * lst_ben%nlaGlobal * lst_ben%nphase ) + &
-                                                                 ( (ila_mpiglobal-1) * lst_ben%nphase ) + p
+                  jdim_mpiglobal = ( (jlev-1) * nEns * lst_ben%nlaGlobal * lst_ben%nphase ) + &
+                                   ( (memberIndex-1) * lst_ben%nlaGlobal * lst_ben%nphase ) + &
+                                                     ( (ila_mpiglobal-1) * lst_ben%nphase ) + p
   
                   if ( jdim_mpilocal  > cvDim_mpilocal ) then 
                      write(*,*) 'BEN_expandToMPIGlobal: jdim_mpilocal > cvDim_mpilocal ',memberIndex,jlev,ila_mpilocal,p
@@ -2143,10 +2171,9 @@ CONTAINS
     type(struct_gsv) :: statevector
 
     real(8),allocatable  :: incrementLocal(:,:,:,:)
-    real(8)    :: ensAmplitude(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nEns)
-    real(8)    :: ensAmplitude2(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nEns)
-    real(8)    :: zsp_all(nLevEns_M,nla_mpiglobal,nphase,myMemBeg:myMemEnd)
-    real(8)    :: zsp1(nla_mpiglobal,nphase,myMemBeg:myMemEnd)
+    real(8)    :: ensAmplitude(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nLevEns_M)
+    real(8)    :: zsp_all(nla_mpilocal,nphase,nLevEns_M,nEns)
+    real(8)    :: zsp1(nla_mpilocal,nphase,nLevEns_M)
     real(8), pointer :: field(:,:,:,:)
 
     integer   :: jlev
@@ -2190,49 +2217,45 @@ CONTAINS
     !
     do waveBandIndex = 1, nWaveBand !  Loop on WaveBand (for ScaleDependent Localization)
 
-!$OMP PARALLEL DO PRIVATE (MEMBERINDEX)
+!$OMP PARALLEL DO PRIVATE (memberIndex)
       do memberIndex = 1, nEns
-        ensAmplitude2(:,:,memberIndex) = 0.0d0
+        zsp_all(:,:,:,memberIndex) = 0.0d0
       enddo
 !$OMP END PARALLEL DO
-
-      ! this was necessary to avoid FP overflow with 512 mpi tasks
-      zsp_all(:,:,:,:) = 0.0d0
 
       call localizationSqrt(controlVector_in, waveBandIndex, & ! IN
                             zsp_all )                          ! OUT
 
-      do jlev = 1, nLevEns_M ! loop over levels in amplitude field
+      do memberIndex = 1, nEns ! loop over all members
 
         ! now transform amplitude to grid-point space
+        call tmg_start(67,'BEN_BARR')
         call rpn_comm_barrier("GRID",ierr)
+        call tmg_stop(67)
+
         call tmg_start(64,'BEN_SPECTRAL')
 
-        zsp1(:,:,:) = zsp_all(jlev,:,:,:)
+        zsp1(:,:,:) = zsp_all(:,:,:,memberIndex)
 
-        if (hco_ben % global) then
+        if (hco_ben%global) then
 
           call gst_setID(gstID)
-          call gst_speree5(zsp1,ensAmplitude)
+          call gst_speree(zsp1,ensAmplitude)
 
         else
 
           kind = 'SpectralToGridPoint'
-          call lst_VarTransform( lst_ben % id,  & ! IN
-                                 zsp1,          & ! IN
-                                 ensAmplitude,  & ! OUT (i,j,k) !!!
-                                 kind, nEns )     ! IN
+          call lst_VarTransform( lst_ben%id,   & ! IN
+                                 zsp1,           & ! IN
+                                 ensAmplitude,   & ! OUT (i,j,k) !!!
+                                 kind, nLevEns_M ) ! IN
 
         endif
 
         call tmg_stop(64)
 
-        call addEnsMember( ensAmplitude, ensAmplitude2, incrementLocal, & ! INOUT 
-                           jlev, waveBandIndex )                          ! IN
-
-        if (is_staggered) then
-          ensAmplitude2(:,:,:) = ensAmplitude(:,:,:)
-        endif
+        call addEnsMember( ensAmplitude, incrementLocal, & ! INOUT 
+                           memberIndex, waveBandIndex )           ! IN
 
       enddo ! Loop on vertical levels & ensemble members
 
@@ -2309,12 +2332,11 @@ CONTAINS
     real(8)    :: controlVector_out(cvDim_mpilocal) 
     type(struct_gsv) :: statevector
 
-    real(8)    :: zsp_all(nLevEns_M,nla_mpiglobal,nphase,myMemBeg:myMemEnd)
-    real(8)    :: zsp1(nla_mpiglobal,nphase,myMemBeg:myMemEnd)
+    real(8)    :: zsp_all(nla_mpilocal,nphase,nLevEns_M,nEns)
+    real(8)    :: zsp1(nla_mpilocal,nphase,nLevEns_M)
     real(8), pointer :: field(:,:,:,:)
     real(8),allocatable :: incrementLocal(:,:,:,:)
-    real(8)    :: ensAmplitude(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nEns)
-    real(8)    :: ensAmplitude2(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nEns)
+    real(8)    :: ensAmplitude(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nLevEns_M)
 
     integer   :: jlev,jj,jk,ji,jt,jkinc,nsize,ierr,jvar,ilev1,ilev2,topLevOffset
     integer   :: memberIndex, waveBandIndex
@@ -2393,37 +2415,40 @@ CONTAINS
     !
     do waveBandIndex = 1, nWaveBand !  Loop on WaveBand (for ScaleDependent Localization)
 
-      do jlev = 1, nLevEns_M ! loop over levels in amplitude field
+      do memberIndex = 1, nEns ! loop over all members
 
         call addEnsMemberAd(incrementLocal,ensAmplitude, & ! INOUT
-                            jlev, waveBandIndex)           ! IN
+                            memberIndex, waveBandIndex)           ! IN
 
-        zsp1(:,:,:) = 0.0d0 ! needed, not all levels set
+        zsp1(:,:,:) = 0.0d0 ! needed, not everything is set
+        call tmg_start(67,'BEN_BARR')
         call rpn_comm_barrier("GRID",ierr)
+        call tmg_stop(67)
+
         call tmg_start(64,'BEN_SPECTRAL')
 
-        if (hco_ben % global) then
+        if (hco_ben%global) then
 
           call gst_setID(gstID)
-          call gst_reespe5(zsp1,ensAmplitude)
+          call gst_reespe(zsp1,ensAmplitude)
 
         else
 
           kind = 'GridPointToSpectral'
-          call lst_VarTransform( lst_ben % id, & ! IN
-                                 zsp1,         & ! OUT
-                                 ensAmplitude, & ! IN (i,j,k) !!!
-                                 kind, nEns )    ! IN
+          call lst_VarTransform( lst_ben%id,   & ! IN
+                                 zsp1,           & ! OUT
+                                 ensAmplitude,   & ! IN (i,j,k) !!!
+                                 kind, nLevEns_M ) ! IN
 
         endif
 
-        zsp_all(jlev,:,:,:) = zsp1(:,:,:)
+        zsp_all(:,:,:,memberIndex) = zsp1(:,:,:)
         call tmg_stop(64)
 
       enddo
 
-        call localizationSqrtAd(zsp_all, waveBandIndex, & ! IN
-                                controlVector_out )       ! OUT
+      call localizationSqrtAd(zsp_all, waveBandIndex, & ! IN
+                              controlVector_out )       ! OUT
 
     enddo ! Loop on WaveBand
 
@@ -2437,191 +2462,112 @@ CONTAINS
 !--------------------------------------------------------------------------
 ! addEnsMember
 !--------------------------------------------------------------------------
-  SUBROUTINE addEnsMember(ensAmplitude_in, ensAmplitude2_in, incrementLocal_out, &
-                          levelIndex, waveBandIndex)
+  SUBROUTINE addEnsMember(ensAmplitude_M, incrementLocal_out, &
+                          memberIndex, waveBandIndex)
     implicit none
 
-    integer, intent(in) :: levelIndex, waveBandIndex
-    real(8)             :: ensAmplitude_in(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nEns)
-    real(8)             :: ensAmplitude2_in(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nEns)
+    integer, intent(in) :: memberIndex, waveBandIndex
+    real(8)             :: ensAmplitude_M(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nLevEns_M)
+    real(8)             :: ensAmplitude_T(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nLevEns_T)
     real(8)             :: incrementLocal_out(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdimEns,numTime)
 
-    integer     :: jvar, jlev, memberIndex, jt, jj, ji, numVar, status, Vcode_anl
+    integer     :: jvar, jlev, jlev2, jt, jj, ji, numVar
 
     call tmg_start(62,'ADDMEM')
 
-    status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
-
+    ! compute thermo level amplitudes from momentum level amplitudes
     if(Vcode_anl .eq. 5002) then
 
-      if(levelIndex.eq.1) then
-        ! use top momentum level amplitudes for top thermo levels
-        ensAmplitude2_in(:,:,:) = ensAmplitude_in(:,:,:)
-      else
-        ! for other levels, interpolate momentum weights to get thermo amplitudes
-        ensAmplitude2_in(:,:,:) = 0.5d0*( ensAmplitude2_in(:,:,:) +   &
-                                          ensAmplitude_in(:,:,:) )
-      endif
-
-      do memberIndex = 1, nEns
-!$OMP PARALLEL DO PRIVATE (JT,JJ,JVAR,JLEV,JI)
-        do jt = 1, numTime
-
-          ! momentum variables
-          do jvar = 1, 2
-            jlev = verticalLevel(levelIndex,jvar)
-            do jj = myLatBeg, myLatEnd
-              do ji = myLonBeg, myLonEnd
-                incrementLocal_out(ji,jj,jlev,jt) = incrementLocal_out(ji,jj,jlev,jt) +   &
-                  ensAmplitude_in(ji,jj,memberIndex) * &
-                  dble(ensPerturbations(waveBandIndex,memberIndex)%member_r4(ji,jj,jlev,jt))
-              enddo
-            enddo
-          enddo
-
-          ! non-surface thermo variables (uses interpolated amplitude field)
-          do jvar = 3, 4
-            jlev = verticalLevel(levelIndex,jvar)
-            do jj = myLatBeg, myLatEnd
-              do ji = myLonBeg, myLonEnd
-                incrementLocal_out(ji,jj,jlev,jt) = incrementLocal_out(ji,jj,jlev,jt) +   &
-                  ensAmplitude2_in(ji,jj,memberIndex) * &
-                  dble(ensPerturbations(waveBandIndex,memberIndex)%member_r4(ji,jj,jlev,jt))
-              enddo
-            enddo
-          enddo
-
-          ! surface thermo variables (uses sfc amplitude field)
-          if(levelIndex.eq.nLevEns_M) then
-            do jvar = 3, 4
-              jlev = verticalLevel(levelIndex,jvar)+1
-              do jj = myLatBeg, myLatEnd
-                do ji = myLonBeg, myLonEnd
-                  incrementLocal_out(ji,jj,jlev,jt) = incrementLocal_out(ji,jj,jlev,jt) +   &
-                    ensAmplitude_in(ji,jj,memberIndex) * &
-                    dble(ensPerturbations(waveBandIndex,memberIndex)%member_r4(ji,jj,jlev,jt))
-                enddo
-              enddo
-            enddo
-          endif
-
-          ! other surface variables (uses sfc amplitude field)
-          if(levelIndex.eq.nLevEns_M) then
-            do jvar = 5, 6
-              jlev = verticalLevel(levelIndex,jvar)
-              do jj = myLatBeg, myLatEnd
-                do ji = myLonBeg, myLonEnd
-                  incrementLocal_out(ji,jj,jlev,jt) = incrementLocal_out(ji,jj,jlev,jt) +   &
-                    ensAmplitude_in(ji,jj,memberIndex) * &
-                    dble(ensPerturbations(waveBandIndex,memberIndex)%member_r4(ji,jj,jlev,jt))
-                enddo
-              enddo
-            enddo
-          endif
-
-        enddo ! jt
-!$OMP END PARALLEL DO
+!$OMP PARALLEL DO PRIVATE (jlev)
+      do jlev = 1, nLevEns_T
+        if(jlev.eq.1) then
+          ! use top momentum level amplitudes for top thermo level
+          ensAmplitude_T(:,:,jlev) = ensAmplitude_M(:,:,jlev)
+        elseif(jlev.eq.nLevEns_T) then
+          ! use surface momentum level amplitudes for surface thermo level
+          ensAmplitude_T(:,:,jlev) = ensAmplitude_M(:,:,nLevEns_M)
+        else
+          ! for other levels, interpolate momentum weights to get thermo amplitudes
+          ensAmplitude_T(:,:,jlev) = 0.5d0*( ensAmplitude_M(:,:,jlev-1) +   &
+                                             ensAmplitude_M(:,:,jlev) )
+        endif
       enddo
+!$OMP END PARALLEL DO
 
     elseif(Vcode_anl .eq. 5004) then
 
-      if(levelIndex .eq. 1) then
-        ! there is no thermo level above the top momentum level
-        ensAmplitude2_in(:,:,:) = 0.0d0
-      else
-        ! for other levels, interpolate momentum weights to get thermo amplitudes
-        ensAmplitude2_in(:,:,:) = 0.5d0*( ensAmplitude2_in(:,:,:) +   &
-                                          ensAmplitude_in(:,:,:) )
-      endif
-
-      do memberIndex = 1, nEns
-!$OMP PARALLEL DO PRIVATE (JT,JJ,JVAR,JLEV,JI)
-        do jt = 1, numTime
-
-          ! momentum variables
-          do jvar = 1, 2
-            jlev = verticalLevel(levelIndex,jvar)
-            do jj = myLatBeg, myLatEnd
-              do ji = myLonBeg, myLonEnd
-                incrementLocal_out(ji,jj,jlev,jt) = incrementLocal_out(ji,jj,jlev,jt) +   &
-                  ensAmplitude_in(ji,jj,memberIndex) * &
-                  dble(ensPerturbations(waveBandIndex,memberIndex)%member_r4(ji,jj,jlev,jt))
-              enddo
-            enddo
-          enddo
-
-          ! non-surface thermo variables (uses interpolated amplitude field)
-          if(levelIndex .gt. 1) then
-            do jvar = 3, 4
-              jlev = verticalLevel(levelIndex,jvar)-1
-              do jj = myLatBeg, myLatEnd
-                do ji = myLonBeg, myLonEnd
-                  incrementLocal_out(ji,jj,jlev,jt) = incrementLocal_out(ji,jj,jlev,jt) +   &
-                    ensAmplitude2_in(ji,jj,memberIndex) * &
-                    dble(ensPerturbations(waveBandIndex,memberIndex)%member_r4(ji,jj,jlev,jt))
-                enddo
-              enddo
-            enddo
-          endif
-
-          ! surface thermo variables (uses sfc amplitude field)
-          if(levelIndex .eq. nLevEns_M) then
-            do jvar = 3, 4
-              jlev = verticalLevel(levelIndex,jvar)
-              do jj = myLatBeg, myLatEnd
-                do ji = myLonBeg, myLonEnd
-                  incrementLocal_out(ji,jj,jlev,jt) = incrementLocal_out(ji,jj,jlev,jt) +   &
-                    ensAmplitude_in(ji,jj,memberIndex) * &
-                    dble(ensPerturbations(waveBandIndex,memberIndex)%member_r4(ji,jj,jlev,jt))
-                enddo
-              enddo
-            enddo
-          endif
-
-          ! other surface variables (uses sfc amplitude field)
-          if(levelIndex .eq. nLevEns_M) then
-            do jvar = 5, 6
-              jlev = verticalLevel(levelIndex,jvar)
-              do jj = myLatBeg, myLatEnd
-                do ji = myLonBeg, myLonEnd
-                  incrementLocal_out(ji,jj,jlev,jt) = incrementLocal_out(ji,jj,jlev,jt) +   &
-                    ensAmplitude_in(ji,jj,memberIndex) * &
-                    dble(ensPerturbations(waveBandIndex,memberIndex)%member_r4(ji,jj,jlev,jt))
-                enddo
-              enddo
-            enddo
-          endif
-
-        enddo ! jt
-!$OMP END PARALLEL DO
+!$OMP PARALLEL DO PRIVATE (jlev)
+      do jlev = 1, nLevEns_T
+        if(jlev.eq.nLevEns_T) then
+          ! use surface momentum level amplitudes for surface thermo level
+          ensAmplitude_T(:,:,jlev) = ensAmplitude_M(:,:,jlev)
+        else
+          ! for other levels, interpolate momentum weights to get thermo amplitudes
+          ensAmplitude_T(:,:,jlev) = 0.5d0*( ensAmplitude_M(:,:,jlev) +   &
+                                             ensAmplitude_M(:,:,jlev+1) )
+        endif
       enddo
+!$OMP END PARALLEL DO
 
-    else ! not staggered
+    endif
 
-      if(levelIndex.eq.nLevEns_M) then
-        ! surface level, 4 3D and 2 sfc fields
-        numVar = 6
-      else
-        ! above the surface, only 4 3D fields
-        numVar = 4
-      endif
+    if(Vcode_anl .eq. 5002 .or. Vcode_anl .eq. 5004) then
 
-      do memberIndex = 1, nEns
-!$OMP PARALLEL DO PRIVATE (JT,JJ,JVAR,JLEV,JI)
-        do jt = 1, numTime
-          do jvar = 1, numVar
-            jlev = verticalLevel(levelIndex,jvar)
+      do jt = 1, numTime
+
+        ! momentum variables
+        do jvar = 1, 2
+!$OMP PARALLEL DO PRIVATE (jlev,jlev2,jj,ji)
+          do jlev = 1, nLevEns_M
+            jlev2 = verticalLevel(jlev,jvar)
             do jj = myLatBeg, myLatEnd
               do ji = myLonBeg, myLonEnd
-                incrementLocal_out(ji,jj,jlev,jt) = incrementLocal_out(ji,jj,jlev,jt) +   &
-                  ensAmplitude_in(ji,jj,memberIndex) * &
-                  dble(ensPerturbations(waveBandIndex,memberIndex)%member_r4(ji,jj,jlev,jt))
+                incrementLocal_out(ji,jj,jlev2,jt) = incrementLocal_out(ji,jj,jlev2,jt) +   &
+                  ensAmplitude_M(ji,jj,jlev) * &
+                  dble(ensPerturbations(waveBandIndex,memberIndex)%member_r4(ji,jj,jlev2,jt))
               enddo
             enddo
           enddo
+!$OMP END PARALLEL DO
         enddo
+
+        ! thermo variables
+        do jvar = 3, 4
+!$OMP PARALLEL DO PRIVATE (jlev,jlev2,jj,ji)
+          do jlev = 1, nLevEns_T
+            jlev2 = verticalLevel(jlev,jvar)
+            do jj = myLatBeg, myLatEnd
+              do ji = myLonBeg, myLonEnd
+                incrementLocal_out(ji,jj,jlev2,jt) = incrementLocal_out(ji,jj,jlev2,jt) +   &
+                  ensAmplitude_T(ji,jj,jlev) * &
+                  dble(ensPerturbations(waveBandIndex,memberIndex)%member_r4(ji,jj,jlev2,jt))
+              enddo
+            enddo
+          enddo
 !$OMP END PARALLEL DO
-      enddo
+        enddo
+
+        ! other surface variables (uses sfc amplitude field)
+        do jvar = 5, 6
+          jlev = nLevEns_M
+          jlev2 = verticalLevel(jlev,jvar)
+!$OMP PARALLEL DO PRIVATE (jj,ji)
+          do jj = myLatBeg, myLatEnd
+            do ji = myLonBeg, myLonEnd
+              incrementLocal_out(ji,jj,jlev2,jt) = incrementLocal_out(ji,jj,jlev2,jt) +   &
+                ensAmplitude_M(ji,jj,jlev) * &
+                dble(ensPerturbations(waveBandIndex,memberIndex)%member_r4(ji,jj,jlev2,jt))
+            enddo
+          enddo
+!$OMP END PARALLEL DO
+        enddo
+
+      enddo ! jt
+
+    else ! other Vcode
+
+      write(*,*) 'addEnsMember: this Vcode not supported =',Vcode_anl
+      call abort3d('addEnsMember')
 
     endif
 
@@ -2632,223 +2578,125 @@ CONTAINS
 !--------------------------------------------------------------------------
 ! addEnsMemberAd
 !--------------------------------------------------------------------------
-  SUBROUTINE addEnsMemberAd(incrementLocal_in, ensAmplitude_out, &
-                            levelIndex, waveBandIndex)
+  SUBROUTINE addEnsMemberAd(incrementLocal_in, ensAmplitude_M, &
+                            memberIndex, waveBandIndex)
     implicit none
 
-    integer,intent(in) :: levelIndex, waveBandIndex
-    real(8)      :: ensAmplitude_out(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nEns)
+    integer,intent(in) :: memberIndex, waveBandIndex
+    real(8)      :: ensAmplitude_M(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nLevEns_M)
+    real(8)      :: ensAmplitude_T(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nLevEns_T)
     real(8)      :: incrementLocal_in(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdimEns,numTime)
 
-    real(8)     :: dfact
-    integer     :: jvar, jlev, memberIndex, jt, jj, ji, numVar, status, Vcode_anl
+    integer     :: jvar, jlev, jlev2, jt, jj, ji, numVar
 
     call tmg_start(62,'ADDMEM')
 
-    status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
+    ensAmplitude_M(:,:,:) = 0.0d0
+    ensAmplitude_T(:,:,:) = 0.0d0
 
-!$OMP PARALLEL DO PRIVATE (jt)
-      do memberIndex = 1, nEns
-        do jj = myLatBeg, myLatEnd
-          do ji = myLonBeg, myLonEnd
-            ensAmplitude_out(ji,jj,memberIndex) = 0.0d0
-          enddo
-        enddo
-      enddo
-!$OMP END PARALLEL DO
-
-    if(Vcode_anl .eq. 5002) then
+    if(Vcode_anl .eq. 5002 .or. Vcode_anl .eq. 5004) then
 
       do jt = 1, numTime
 
         ! momentum variables
         do jvar = 1, 2
-          jlev = verticalLevel(levelIndex,jvar)
-!$OMP PARALLEL DO PRIVATE (memberIndex,JJ,JI)
-          do memberIndex = 1, nEns
+!$OMP PARALLEL DO PRIVATE (jlev,jlev2,jj,ji)
+          do jlev = 1, nLevEns_M
+            jlev2 = verticalLevel(jlev,jvar)
             do jj = myLatBeg, myLatEnd
               do ji = myLonBeg, myLonEnd
-                ensAmplitude_out(ji,jj,memberIndex) = ensAmplitude_out(ji,jj,memberIndex) +   &
-                  incrementLocal_in(ji,jj,jlev,jt) * &
-                  dble(ensPerturbations(waveBandIndex,memberIndex)%member_r4(ji,jj,jlev,jt))
+                ensAmplitude_M(ji,jj,jlev) = ensAmplitude_M(ji,jj,jlev) +   &
+                  incrementLocal_in(ji,jj,jlev2,jt) * &
+                  dble(ensPerturbations(waveBandIndex,memberIndex)%member_r4(ji,jj,jlev2,jt))
               enddo
             enddo
           enddo
 !$OMP END PARALLEL DO
         enddo ! jvar
 
-        ! non-surface thermo variables (impact on amplitude just below: same level index)
+        ! thermo variables
         do jvar = 3, 4
-          jlev = verticalLevel(levelIndex,jvar)
-          if(levelIndex.eq.1) then
-            dfact = 1.0d0
-          else
-            dfact = 0.5d0
-          endif
-!$OMP PARALLEL DO PRIVATE (memberIndex,JJ,JI)
-          do memberIndex = 1, nEns
+!$OMP PARALLEL DO PRIVATE (jlev,jlev2,jj,ji)
+          do jlev = 1, nLevEns_T
+            jlev2 = verticalLevel(jlev,jvar)
             do jj = myLatBeg, myLatEnd
               do ji = myLonBeg, myLonEnd
-                ensAmplitude_out(ji,jj,memberIndex) = ensAmplitude_out(ji,jj,memberIndex) +   &
-                  dfact*incrementLocal_in(ji,jj,jlev,jt) * &
-                  dble(ensPerturbations(waveBandIndex,memberIndex)%member_r4(ji,jj,jlev,jt))
+                ensAmplitude_T(ji,jj,jlev) = ensAmplitude_T(ji,jj,jlev) +   &
+                  incrementLocal_in(ji,jj,jlev2,jt) * &
+                  dble(ensPerturbations(waveBandIndex,memberIndex)%member_r4(ji,jj,jlev2,jt))
               enddo
             enddo
           enddo
 !$OMP END PARALLEL DO
         enddo ! jvar
 
-        ! thermo variables (impact on amplitude just above)
-        if(levelIndex.eq.nLevEns_M) then
-          dfact = 1.0d0
-        else
-          dfact = 0.5d0
-        endif
-        do jvar = 3, 4
-          jlev = verticalLevel(levelIndex,jvar) + 1
-!$OMP PARALLEL DO PRIVATE (memberIndex,JJ,JI)
-          do memberIndex = 1, nEns
-            do jj = myLatBeg, myLatEnd
-              do ji = myLonBeg, myLonEnd
-                ensAmplitude_out(ji,jj,memberIndex) = ensAmplitude_out(ji,jj,memberIndex) +   &
-                  dfact*incrementLocal_in(ji,jj,jlev,jt) * &
-                  dble(ensPerturbations(waveBandIndex,memberIndex)%member_r4(ji,jj,jlev,jt))
-              enddo
+        ! other surface variables (use sfc amplitude field)
+        do jvar = 5, 6
+          jlev = nLevEns_M
+          jlev2 = verticalLevel(jlev,jvar)
+!$OMP PARALLEL DO PRIVATE (jj,ji)
+          do jj = myLatBeg, myLatEnd
+            do ji = myLonBeg, myLonEnd
+              ensAmplitude_M(ji,jj,jlev) = ensAmplitude_M(ji,jj,jlev) +   &
+                incrementLocal_in(ji,jj,jlev2,jt)* &
+                dble(ensPerturbations(waveBandIndex,memberIndex)%member_r4(ji,jj,jlev2,jt))
             enddo
           enddo
 !$OMP END PARALLEL DO
         enddo ! jvar
-
-        ! surface variables (impact on amplitude at the surface)
-        if(levelIndex.eq.nLevEns_M) then
-          do jvar = 5, 6
-            jlev = verticalLevel(levelIndex,jvar)
-!$OMP PARALLEL DO PRIVATE (memberIndex,JJ,JI)
-            do memberIndex = 1, nEns
-              do jj = myLatBeg, myLatEnd
-                do ji = myLonBeg, myLonEnd
-                  ensAmplitude_out(ji,jj,memberIndex) = ensAmplitude_out(ji,jj,memberIndex) +   &
-                    incrementLocal_in(ji,jj,jlev,jt)* &
-                    dble(ensPerturbations(waveBandIndex,memberIndex)%member_r4(ji,jj,jlev,jt))
-                enddo
-              enddo
-            enddo
-!$OMP END PARALLEL DO
-          enddo ! jvar
-        endif
 
       enddo ! jt
+
+    else ! other Vcode
+
+      write(*,*) 'addEnsMember: this Vcode not supported =',Vcode_anl
+      call abort3d('addEnsMember')
+
+    endif
+
+    ! combine thermo and momentum level amplitude sensitivites
+    if(Vcode_anl .eq. 5002) then
+
+!$OMP PARALLEL DO PRIVATE (jlev)
+      do jlev = 1, nLevEns_T
+        if(jlev.eq.1) then
+          ! use top momentum level amplitudes for top thermo level
+          ensAmplitude_M(:,:,jlev) = ensAmplitude_M(:,:,jlev) + ensAmplitude_T(:,:,jlev)
+        elseif(jlev.eq.nLevEns_T) then
+          ! use surface momentum level amplitudes for surface thermo level
+          ensAmplitude_M(:,:,nLevEns_M) = ensAmplitude_M(:,:,nLevEns_M) + ensAmplitude_T(:,:,jlev)
+        else
+          ! for other levels, interpolate momentum weights to get thermo amplitudes
+          ensAmplitude_M(:,:,jlev)   = ensAmplitude_M(:,:,jlev)   + 0.5d0*ensAmplitude_T(:,:,jlev)
+        endif
+      enddo
+!$OMP END PARALLEL DO
+
+!$OMP PARALLEL DO PRIVATE (jlev)
+      do jlev = 2, (nLevEns_T-1)
+        ensAmplitude_M(:,:,jlev-1) = ensAmplitude_M(:,:,jlev-1) + 0.5d0*ensAmplitude_T(:,:,jlev)
+      enddo
+!$OMP END PARALLEL DO
 
     elseif(Vcode_anl .eq. 5004) then
 
-      do jt = 1, numTime
-
-        ! momentum variables
-        do jvar = 1, 2
-          jlev = verticalLevel(levelIndex,jvar)
-!$OMP PARALLEL DO PRIVATE (memberIndex,JJ,JI)
-          do memberIndex = 1, nEns
-            do jj = myLatBeg, myLatEnd
-              do ji = myLonBeg, myLonEnd
-                ensAmplitude_out(ji,jj,memberIndex) = ensAmplitude_out(ji,jj,memberIndex) +   &
-                  incrementLocal_in(ji,jj,jlev,jt)* &
-                  dble(ensPerturbations(waveBandIndex,memberIndex)%member_r4(ji,jj,jlev,jt))
-              enddo
-            enddo
-          enddo
-!$OMP END PARALLEL DO
-        enddo ! jvar
-
-        ! non-surface thermo variables (impact on amplitude just below: same level index)
-        if(levelIndex .gt. 1) then
-          do jvar = 3, 4
-            jlev = verticalLevel(levelIndex,jvar)-1
-            if(levelIndex.eq.1) then
-              dfact = 1.0d0
-            else
-              dfact = 0.5d0
-            endif
-!$OMP PARALLEL DO PRIVATE (memberIndex,JJ,JI)
-            do memberIndex = 1, nEns
-              do jj = myLatBeg, myLatEnd
-                do ji = myLonBeg, myLonEnd
-                  ensAmplitude_out(ji,jj,memberIndex) = ensAmplitude_out(ji,jj,memberIndex) +   &
-                    dfact*incrementLocal_in(ji,jj,jlev,jt)* &
-                    dble(ensPerturbations(waveBandIndex,memberIndex)%member_r4(ji,jj,jlev,jt))
-                enddo
-              enddo
-            enddo
-!$OMP END PARALLEL DO
-          enddo ! jvar
-        endif
-
-        ! thermo variables (impact on amplitude just above)
-        if(levelIndex.eq.nLevEns_M) then
-          dfact = 1.0d0
+!$OMP PARALLEL DO PRIVATE (jlev)
+      do jlev = 1, nLevEns_T
+        if(jlev.eq.nLevEns_T) then
+          ! use surface momentum level amplitudes for surface thermo level
+          ensAmplitude_M(:,:,jlev) = ensAmplitude_M(:,:,jlev) + ensAmplitude_T(:,:,jlev)
         else
-          dfact = 0.5d0
+          ! for other levels, interpolate momentum weights to get thermo amplitudes
+          ensAmplitude_M(:,:,jlev)   = ensAmplitude_M(:,:,jlev)   + 0.5d0*ensAmplitude_T(:,:,jlev)
         endif
-        do jvar = 3, 4
-          jlev = verticalLevel(levelIndex,jvar)
-!$OMP PARALLEL DO PRIVATE (memberIndex,JJ,JI)
-          do memberIndex = 1, nEns
-            do jj = myLatBeg, myLatEnd
-              do ji = myLonBeg, myLonEnd
-                ensAmplitude_out(ji,jj,memberIndex) = ensAmplitude_out(ji,jj,memberIndex) +   &
-                  dfact*incrementLocal_in(ji,jj,jlev,jt)* &
-                  dble(ensPerturbations(waveBandIndex,memberIndex)%member_r4(ji,jj,jlev,jt))
-              enddo
-            enddo
-          enddo
-!$OMP END PARALLEL DO
-        enddo ! jvar
-
-        ! surface variables (impact on amplitude at the surface)
-        if(levelIndex.eq.nLevEns_M) then
-          do jvar = 5, 6
-            jlev = verticalLevel(levelIndex,jvar)
-!$OMP PARALLEL DO PRIVATE (memberIndex,JJ,JI)
-            do memberIndex = 1, nEns
-              do jj = myLatBeg, myLatEnd
-                do ji = myLonBeg, myLonEnd
-                  ensAmplitude_out(ji,jj,memberIndex) = ensAmplitude_out(ji,jj,memberIndex) +   &
-                    incrementLocal_in(ji,jj,jlev,jt)* &
-                    dble(ensPerturbations(waveBandIndex,memberIndex)%member_r4(ji,jj,jlev,jt))
-                enddo
-              enddo
-            enddo
-!$OMP END PARALLEL DO
-          enddo ! jvar
-        endif
-
-      enddo ! jt
-
-    else ! not staggered
-
-      if(levelIndex.eq.nLevEns_M) then
-        ! surface level, 4 3D and 2 sfc fields
-        numVar = 6
-      else
-        ! above the surface, only 4 3D fields
-        numVar = 4
-      endif
-
-      do jt = 1, numTime
-        do jvar = 1, numVar
-          jlev = verticalLevel(levelIndex,jvar)
-!$OMP PARALLEL DO PRIVATE (memberIndex,JJ,JI)
-          do memberIndex = 1, nEns
-            do jj = myLatBeg, myLatEnd
-              do ji = myLonBeg, myLonEnd
-                ensAmplitude_out(ji,jj,memberIndex) = ensAmplitude_out(ji,jj,memberIndex) +   &
-                  incrementLocal_in(ji,jj,jlev,jt)* &
-                  dble(ensPerturbations(waveBandIndex,memberIndex)%member_r4(ji,jj,jlev,jt))
-              enddo
-            enddo
-          enddo
-!$OMP END PARALLEL DO
-        enddo
       enddo
+!$OMP END PARALLEL DO
+
+!$OMP PARALLEL DO PRIVATE (jlev)
+      do jlev = 1, (nLevEns_T-1)
+        ensAmplitude_M(:,:,jlev+1) = ensAmplitude_M(:,:,jlev+1) + 0.5d0*ensAmplitude_T(:,:,jlev)
+      enddo
+!$OMP END PARALLEL DO
 
     endif
 
@@ -2864,15 +2712,15 @@ CONTAINS
 
     real(8), intent(in)  :: controlVector_in(cvDim_mpilocal)
     integer, intent(in)  :: waveBandIndex
-    real(8), intent(out) :: zsp_all(nLevEns_M,nla_mpiglobal,nphase,myMemBeg:myMemEnd)
+    real(8), intent(out) :: zsp_all(nla_mpilocal,nphase,nLevEns_M,nEns)
 
-    integer          :: jlev,jla,memberIndex,p
+    integer :: jlev1,jlev2,jla,p,memberIndex
     real(8) ,allocatable :: zsp(:,:,:,:)
 
     !
     !- 1.  Horizontal Localization
     !
-    if (hco_ben % global) then
+    if (hco_ben%global) then
        call GlobalHLoc( zsp_all,                        & ! OUT
                         controlVector_in, waveBandIndex ) ! IN
     else
@@ -2883,15 +2731,27 @@ CONTAINS
     !
     !- 2.  Vertical localization
     !
-    allocate(zsp(nLevEns_M,nla_mpiglobal,nphase,myMemBeg:myMemEnd)) 
+    allocate(zsp(nla_mpilocal,nphase,nLevEns_M,nEns)) 
     call tmg_start(63,'BEN_VLOC')
 
-    call dgemm('N','N',nLevEns_M,nphase*nla_mpiglobal*myMemCount,nLevEns_M,1.0D0,&
-                ensLocal(waveBandIndex)%Vert(1,1),nLevEns_M,zsp_all(1,1,1,myMemBeg),nLevEns_M,&
-                0.0D0,zsp(1,1,1,myMemBeg),nLevEns_M)
+!$OMP PARALLEL DO PRIVATE (memberIndex,jlev1,jlev2,p,jla)
+    do memberIndex = 1, nEns
+      zsp(:,:,:,memberIndex) = 0.0d0
+      do jlev1 = 1, nLevEns_M
+        do jlev2 = 1, nLevEns_M
+          do p = 1, nphase
+            do jla = 1, nla_mpilocal
+              zsp(jla,p,jlev1,memberIndex) = zsp(jla,p,jlev1,memberIndex) +  &
+                                             ensLocal(waveBandIndex)%Vert(jlev1,jlev2)*zsp_all(jla,p,jlev2,memberIndex)
+            enddo
+          enddo
+        enddo
+      enddo
+    enddo
+!$OMP END PARALLEL DO
 
     call tmg_stop(63)
-    zsp_all = zsp
+    zsp_all(:,:,:,:) = zsp(:,:,:,:)
     deallocate(zsp)
 
   END SUBROUTINE localizationSqrt
@@ -2904,31 +2764,36 @@ CONTAINS
 
     real(8), intent(in)  :: controlVector_in(cvDim_mpilocal)
     integer, intent(in)  :: waveBandIndex
-    real(8), intent(out) :: zsp_all(nLevEns_M,nla_mpiglobal,nphase,myMemBeg:myMemEnd)
+    real(8), intent(out) :: zsp_all(nla_mpilocal,nphase,nLevEns_M,nEns)
 
-    integer :: jlev, jm, jn, ila, jdim, memberIndex 
+    integer :: jlev, jm, jn, ila_mpilocal, ila_mpiglobal, jdim, memberIndex 
 
     call tmg_start(65,'BEN_HLOC')
 
     jdim = 0
 
-    do memberIndex = myMemBeg, myMemEnd
+    do memberIndex = 1, nEns
 
       do jlev = 1, nLevEns_M
         do jm = mymBeg, mymEnd, mymSkip
-          do jn = jm, ntrunc
-            ila = gst_getnind(jm,gstID) + jn - jm
-            if(jm.eq.0) then
-              ! controlVector only contain real part for jm=0
-              jdim = jdim + 1
-              zsp_all(jlev,ila,1,memberIndex) = controlVector_in(jdim)*ensLocal(waveBandIndex)%Horiz(jn_vec(ila),jlev)*rsq2
-              zsp_all(jlev,ila,2,memberIndex) = 0.0d0
-            else
-              ! controlVector contains real and imag parts for jm>0
-              jdim = jdim + 1
-              zsp_all(jlev,ila,1,memberIndex) = controlVector_in(jdim)*ensLocal(waveBandIndex)%Horiz(jn_vec(ila),jlev)
-              jdim = jdim + 1
-              zsp_all(jlev,ila,2,memberIndex) = controlVector_in(jdim)*ensLocal(waveBandIndex)%Horiz(jn_vec(ila),jlev)
+          do jn = mynBeg, mynEnd, mynSkip
+            if(jm .le. jn) then
+
+              ila_mpiglobal = gst_getnind(jm,gstID) + jn - jm
+              ila_mpilocal  = ilaList_mpilocal(ila_mpiglobal)
+              if(jm.eq.0) then
+                ! controlVector only contain real part for jm=0
+                jdim = jdim + 1
+                zsp_all(ila_mpilocal,1,jlev,memberIndex) = controlVector_in(jdim)*ensLocal(waveBandIndex)%Horiz(jn,jlev)*rsq2
+                zsp_all(ila_mpilocal,2,jlev,memberIndex) = 0.0d0
+              else
+                ! controlVector contains real and imag parts for jm>0
+                jdim = jdim + 1
+                zsp_all(ila_mpilocal,1,jlev,memberIndex) = controlVector_in(jdim)*ensLocal(waveBandIndex)%Horiz(jn,jlev)
+                jdim = jdim + 1
+                zsp_all(ila_mpilocal,2,jlev,memberIndex) = controlVector_in(jdim)*ensLocal(waveBandIndex)%Horiz(jn,jlev)
+              endif
+
             endif
           enddo
         enddo
@@ -2953,7 +2818,7 @@ CONTAINS
 
     real(8), intent(in)  :: controlVector_in(cvDim_mpilocal)
     integer, intent(in)  :: waveBandIndex
-    real(8), intent(out) :: zsp_all(nLevEns_M,nla_mpiglobal,nphase,myMemBeg:myMemEnd)
+    real(8), intent(out) :: zsp_all(nla_mpilocal,nphase,nLevEns_M,nEns)
 
     integer :: jlev,jla, jdim, memberIndex, p 
 
@@ -2962,16 +2827,16 @@ CONTAINS
     !
     jdim = 0
 
-    do memberIndex = myMemBeg, myMemEnd
+    do memberIndex = 1, nEns
 
        call tmg_start(65,'BEN_HLOC')
        do jlev = 1, nLevEns_M
-         do jla = 1, nla_mpiglobal
+         do jla = 1, nla_mpilocal
             do p = 1, nphase
               jdim = jdim + 1
-              zsp_all(jlev,jla,p,memberIndex) = controlVector_in(jdim)           * &
+              zsp_all(jla,p,jlev,memberIndex) = controlVector_in(jdim)           * &
                                                 ensLocal(waveBandIndex)%Horiz(lst_ben%k(jla),jlev) * &
-                                                lst_ben % NormFactor(jla,p)
+                                                lst_ben%NormFactor(jla,p)
             enddo
          enddo
        enddo
@@ -2992,37 +2857,48 @@ CONTAINS
     implicit none
 
     real(8), intent(out) :: controlVector_out(cvDim_mpilocal)
-    real(8), intent(in)  :: zsp_all(nLevEns_M,nla_mpiglobal,nphase,myMemBeg:myMemEnd)
+    real(8), intent(in)  :: zsp_all(nla_mpilocal,nphase,nLevEns_M,nEns)
     integer, intent(in)  :: waveBandIndex
 
-    integer :: jlev,jla,memberIndex,p
+    integer :: jlev1,jlev2,jla,memberIndex,p
     real(8),allocatable::zsp(:,:,:,:)
 
     !
     !- 2.  Vertical Localization
-
-    allocate(zsp(nLevEns_M,nla_mpiglobal,nphase,myMemBeg:myMemEnd) ) 
-    zsp=0.0D0
     !
+    allocate(zsp(nla_mpilocal,nphase,nLevEns_M,nEns) ) 
+
     call tmg_start(63,'BEN_VLOC')
 
-    call dgemm('N','N',nLevEns_M,nphase*nla_mpiglobal*myMemCount,nLevEns_M,1.0D0, &
-                ensLocal(waveBandIndex)%Vert(1,1),nLevEns_M, zsp_all(1,1,1,myMemBeg),nLevEns_M,&
-                0.0D0,zsp(1,1,1,myMemBeg),nLevEns_M)
+!$OMP PARALLEL DO PRIVATE (memberIndex,jlev1,jlev2,p,jla)
+    do memberIndex = 1, nEns
+      zsp(:,:,:,memberIndex) = 0.0d0
+      do jlev1 = 1, nLevEns_M
+        do jlev2 = 1, nLevEns_M
+          do p = 1, nphase
+            do jla = 1, nla_mpilocal
+              zsp(jla,p,jlev2,memberIndex) = zsp(jla,p,jlev2,memberIndex) +  & 
+                                             ensLocal(waveBandIndex)%Vert(jlev2,jlev1)*zsp_all(jla,p,jlev1,memberIndex)
+            enddo
+          enddo
+        enddo
+      enddo
+    enddo
+!$OMP END PARALLEL DO
 
     call tmg_stop(63)
 
     !
     !- 1.  Horizontal Localization
     !
-    if (hco_ben % global) then
+    if (hco_ben%global) then
       call GlobalHLocAd( zsp, waveBandIndex, & ! IN
                          controlVector_out )   ! OUT
     else
       call LamHLocAd( zsp, waveBandIndex, & ! IN
                       controlVector_out )   ! OUT
     endif
-     deallocate(zsp)
+    deallocate(zsp)
 
   END SUBROUTINE localizationSqrtAd
 
@@ -3034,37 +2910,43 @@ CONTAINS
 
     real(8), intent(out)   :: controlVector_out(cvDim_mpilocal)
     integer, intent(in)    :: waveBandIndex
-    real(8), intent(in)    :: zsp_all(nLevEns_M,nla_mpiglobal,nphase,myMemBeg:myMemEnd)
+    real(8), intent(in)    :: zsp_all(nla_mpilocal,nphase,nLevEns_M,nEns)
 
-    integer :: jlev, jm, jn, ila, jdim, memberIndex 
+    integer :: jlev, jm, jn, ila_mpilocal, ila_mpiglobal, jdim, memberIndex 
 
     call tmg_start(65,'BEN_HLOC')
 
     jdim = 0
 
-    do memberIndex = myMemBeg, myMemEnd
+    do memberIndex = 1, nEns
 
        do jlev = 1, nLevEns_M
           do jm = mymBeg, mymEnd, mymSkip
-            do jn = jm, ntrunc
-              ila = gst_getnind(jm,gstID) + jn - jm
-              if(jm.eq.0) then
-                ! controlVector only contain real part for jm=0
-                jdim = jdim + 1
-                controlVector_out(jdim) = controlVector_out(jdim) +  &
-                                          zsp_all(jlev,ila,1,memberIndex)*ensLocal(waveBandIndex)%Horiz(jn_vec(ila),jlev)*rsq2
-              else
-                ! controlVector contains real and imag parts for jm>0
-                jdim = jdim + 1
-                controlVector_out(jdim) = controlVector_out(jdim) +  &
-                                          zsp_all(jlev,ila,1,memberIndex)*ensLocal(waveBandIndex)%Horiz(jn_vec(ila),jlev)*2.0d0
-                jdim = jdim + 1
-                controlVector_out(jdim) = controlVector_out(jdim) +  &
-                                          zsp_all(jlev,ila,2,memberIndex)*ensLocal(waveBandIndex)%Horiz(jn_vec(ila),jlev)*2.0d0
-              endif
+            do jn = mynBeg, mynEnd, mynSkip
+              if(jm .le. jn) then
+
+                ila_mpiglobal = gst_getnind(jm,gstID) + jn - jm
+                ila_mpilocal  = ilaList_mpilocal(ila_mpiglobal)
+                if(jm.eq.0) then
+                  ! controlVector only contain real part for jm=0
+                  jdim = jdim + 1
+                  controlVector_out(jdim) = controlVector_out(jdim) +  &
+                                            zsp_all(ila_mpilocal,1,jlev,memberIndex)*ensLocal(waveBandIndex)%Horiz(jn,jlev)*rsq2
+                else
+                  ! controlVector contains real and imag parts for jm>0
+                  jdim = jdim + 1
+                  controlVector_out(jdim) = controlVector_out(jdim) +  &
+                                            zsp_all(ila_mpilocal,1,jlev,memberIndex)*ensLocal(waveBandIndex)%Horiz(jn,jlev)*2.0d0
+                  jdim = jdim + 1
+                  controlVector_out(jdim) = controlVector_out(jdim) +  &
+                                            zsp_all(ila_mpilocal,2,jlev,memberIndex)*ensLocal(waveBandIndex)%Horiz(jn,jlev)*2.0d0
+                endif
+
+             endif
            enddo
          enddo
        enddo
+
        if(jdim.gt.cvDim_mpilocal) then
           write(*,*) 'ben globalHLocAd: jdim > cvDim_mpilocal! ',jdim,memberIndex,cvDim_mpilocal
           call abort3d('aborted in ben globalHLocAd')
@@ -3084,7 +2966,7 @@ CONTAINS
 
     real(8), intent(out)   :: controlVector_out(cvDim_mpilocal)
     integer, intent(in)    :: waveBandIndex
-    real(8), intent(in)    :: zsp_all(nLevEns_M,nla_mpiglobal,nphase,myMemBeg:myMemEnd)
+    real(8), intent(in)    :: zsp_all(nla_mpilocal,nphase,nLevEns_M,nEns)
 
     integer :: jla, jlev, jdim, memberIndex, p
 
@@ -3093,17 +2975,17 @@ CONTAINS
     !
     jdim = 0
 
-    do memberIndex = myMemBeg, myMemEnd
+    do memberIndex = 1, nEns
 
        call tmg_start(65,'BEN_HLOC')
        do jlev = 1, nLevEns_M
-         do jla = 1, nla_mpiglobal
+         do jla = 1, nla_mpilocal
            do p = 1, nphase
              jdim = jdim + 1
              controlVector_out(jdim) = controlVector_out(jdim) +           &
-                                       ( zsp_all(jlev,jla,p,memberIndex)  * &
+                                       ( zsp_all(jla,p,jlev,memberIndex)  * &
                                          ensLocal(waveBandIndex)%Horiz(lst_ben%k(jla),jlev) * &
-                                         lst_ben % NormFactorAd(jla,p)    )
+                                         lst_ben%NormFactorAd(jla,p)    )
            enddo
          enddo
        enddo

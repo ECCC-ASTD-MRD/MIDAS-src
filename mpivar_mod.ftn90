@@ -187,10 +187,12 @@ module mpivar_mod
 
     if(makeEven) then
       if(mod(numlevels,2) /= 0) then
-        write(*,*) 'mpivar_setup_levels_npex: total number of levels must be even, now=',numlevels
-        call abort3d('mpivar_setup_levels_npex')
+        write(*,*) 'mpivar_setup_levels_npex: total number of levels is not even, now=',numlevels
+        write(*,*) '                          therefore cannot do transforms of vor/div <-> u/v'
+        factor = 1
+      else
+        factor = 2
       endif
-      factor = 2
     else 
       factor = 1
     endif

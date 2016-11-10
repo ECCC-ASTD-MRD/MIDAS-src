@@ -130,7 +130,7 @@ CONTAINS
 
     character(len=15) :: bhi_mode
     
-    integer :: jlev, mpiMode, nulnam, ierr, fnom, fclos, fstouv, fstfrm
+    integer :: jlev, nulnam, ierr, fnom, fclos, fstouv, fstfrm
     integer :: jm, jn, status, latPerPE, lonPerPE, Vcode_anl
     logical :: llfound, lExists
     real(8) :: zps
@@ -247,9 +247,8 @@ CONTAINS
     nj_l = hco_in%nj
     AnalGridID = hco_in%EZscintID
 
-    mpiMode = 4
-    gstID  = gst_setup(ni_l,nj_l,ntrunc,mpiMode,nkgdim)
-    gstID2 = gst_setup(ni_l,nj_l,ntrunc,mpiMode,nlev_T_even)
+    gstID  = gst_setup(ni_l,nj_l,ntrunc,nkgdim)
+    gstID2 = gst_setup(ni_l,nj_l,ntrunc,nlev_T_even)
     if(mpi_myid.eq.0) write(*,*) 'BHI:returned value of gstID =',gstID
     if(mpi_myid.eq.0) write(*,*) 'BHI:returned value of gstID2=',gstID2
 
@@ -1028,7 +1027,7 @@ CONTAINS
     real(8) :: cortgg(nla_mpiglobal,2)
     real(8) :: rcscltg_vec(nlev_T_even)
     real(8) :: zabs, zpole, dlfac, dlcorr
-    real(8) :: zsp_mpilocal(maxMyNla,2,nlev_T_even)
+    real(8) :: zsp_mpilocal(nla_mpilocal,2,nlev_T_even)
     real(8) :: zgd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nlev_T_even)
     real(8) :: zsp_mpiglobal(nla_mpiglobal,2,1)
 
@@ -1358,7 +1357,7 @@ CONTAINS
 
     ! 2.4.3  Bring back the result in spectral space
     call gst_setID(gstID2)
-    call gst_reespe4(zsp_mpilocal,zgd)
+    call gst_reespe(zsp_mpilocal,zgd)
 
     ! and make the result mpiglobal
     do jm = mymBeg, mymEnd, mymSkip
@@ -2562,7 +2561,7 @@ CONTAINS
     real(8) :: hiControlVector_in(nla_mpilocal,2,nkgdimSqrt)
     real(8) :: gd_out(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim)
 
-    real(8) :: sptb(maxMyNla,2,nlev_T_even),sp(maxMyNla,2,nkgdim)
+    real(8) :: sptb(nla_mpilocal,2,nlev_T_even),sp(nla_mpilocal,2,nkgdim)
     real(8) :: tb0(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nlev_T_even)
 
     integer :: jn,jm,ila_mpilocal,ila_mpiglobal,icount
@@ -2668,9 +2667,9 @@ CONTAINS
 
     call tmg_start(55,'BHI_SPEREE') 
     call gst_setID(gstID)
-    call gst_speree4(sp,gd)
+    call gst_speree(sp,gd)
     call gst_setID(gstID2)
-    call gst_speree4(sptb,tb0)
+    call gst_speree(sptb,tb0)
     call tmg_stop(55) 
 
     call tmg_start(54,'BHI_SPA2GD2')
@@ -2731,7 +2730,7 @@ CONTAINS
 
     call tmg_start(56,'BHI_REESPE') 
     call gst_setID(gstID)
-    call gst_reespe4(sp,gd)
+    call gst_reespe(sp,gd)
     call tmg_stop(56) 
 
     dla2   = ra*ra
@@ -2760,7 +2759,7 @@ CONTAINS
 
     call tmg_start(57,'BHI_SPGD_SPGDA')
     call gst_setID(gstID)
-    call gst_spgd4(sp,gd,nlev_M)
+    call gst_spgd(sp,gd,nlev_M)
     call tmg_stop(57)
 
 !$OMP PARALLEL DO PRIVATE(JLAT,JLEV,JLON)
@@ -2782,8 +2781,8 @@ CONTAINS
     real(8) :: hiControlVector_out(nla_mpilocal,2,nkgdimSqrt)
     real(8) :: gd_in(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim)
 
-    real(8) :: sptb(maxMyNla,2,nlev_T_even)
-    real(8) :: sp(maxMyNla,2,nkgdim)
+    real(8) :: sptb(nla_mpilocal,2,nlev_T_even)
+    real(8) :: sp(nla_mpilocal,2,nkgdim)
     real(8) :: tb0(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nlev_T_even)
 
     integer :: jn, jm, ila_mpilocal, ila_mpiglobal, icount
@@ -2809,7 +2808,7 @@ CONTAINS
 
     call tmg_start(57,'BHI_SPGD_SPGDA')
     call gst_setID(gstID)
-    call gst_spgda4(sp,gd,nlev_M)
+    call gst_spgda(sp,gd,nlev_M)
     call tmg_stop(57)
 
     dla2   = ra*ra
@@ -2828,7 +2827,7 @@ CONTAINS
 
     call tmg_start(55,'BHI_SPEREE') 
     call gst_setID(gstID)
-    call gst_speree4(sp,gd)
+    call gst_speree(sp,gd)
     call tmg_stop(55) 
 
     zgdpsi(myLonBeg:,myLatBeg:,1:) => gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nspositVO:(nspositVO+nlev_M-1))
@@ -2887,9 +2886,9 @@ CONTAINS
 
     call tmg_start(56,'BHI_REESPE') 
     call gst_setID(gstID)
-    call gst_reespe4(sp,gd)
+    call gst_reespe(sp,gd)
     call gst_setID(gstID2)
-    call gst_reespe4(sptb,tb0)
+    call gst_reespe(sptb,tb0)
     call tmg_stop(56) 
 
     call tmg_start(53,'BHI_SPA2GD1')

@@ -100,7 +100,7 @@ module calcbmatrix_lam_mod
     type(struct_vco), pointer, intent(in)   :: vco_ens_in
     type(struct_hco), pointer, intent(in)   :: hco_ens_in
 
-    integer :: nulnam, ier, mpiMode, status
+    integer :: nulnam, ier, status
     integer :: fclos, fnom, fstouv, fstfrm
     integer :: grd_ext_x, grd_ext_y
     integer :: var, k

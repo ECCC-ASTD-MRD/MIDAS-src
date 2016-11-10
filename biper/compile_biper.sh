@@ -36,14 +36,14 @@ if [ "${BASE_ARCH}" != "AIX-powerpc7" ] ; then
     exit 1
 fi
 
-echo " Compiling for an MPI executable (even if calcstats is not MPI capable)"
+echo " Compiling for an MPI executable (even if biper is not MPI capable)"
 echo ""
 MPILIBDIR="-libpath /users/dor/arma/anl/userlibs/${BASE_ARCH}/xlf13" # JFC : Mesure temporaire pour avoir acces a
 MPILIB="_anl_rpn_comm_4051103"                                       #       la S-R RPN_COMM_adj_halo8 de M. Valin
 MPIKEY="-mpi"
 ABSTAG=""
 
-calcstatsdir=$PWD
+biperdir=$PWD
 trunkdir=$PWD/../
 
 ## for s.compile
@@ -84,7 +84,7 @@ COMPF_NOC="-openmp $MPIKEY -O"
 COMPF="$COMPF_NOC -debug DEBUG -optf=-C "
 
 # Create and Move to compilation directory
-compiledir="../../compiledir_calcstats"
+compiledir="../../compiledir_biper"
 echo "COMPILEDIR IS SET TO: $compiledir"
 mkdir -p $compiledir
 cd $compiledir
@@ -100,10 +100,10 @@ if [ $mode == full ] ; then
             globalspectraltransform_mod.ftn90 lamanalysisgrid_mod.ftn90 timecoord_mod.ftn90 \
             gridstatevector_mod.ftn90 maincompileswitch.inc varnamelist_mod.ftn90 \
             utils_3dvar.ftn lamspectraltransform_mod.ftn90 localizationfunction_mod.ftn90 \
-            verticalcoord_mod.ftn90 horizontalcoord_mod.ftn90 dsyev2.ftn filterresponsefunction_mod.ftn90"
+            verticalcoord_mod.ftn90 horizontalcoord_mod.ftn90 dsyev2.ftn filterresponsefunction.ftn90"
 
   cd ${trunkdir}
-  cp -f calcstats/*.ftn90 ${compiledir}
+  cp -f biper/*.ftn90 ${compiledir}
   cp -f ${trunkfiles} ${compiledir}
   cd ${trunkdir}/shared; ls -1F | grep -v '/' | grep -v "*" | cpio -pl ${compiledir}
   cd ${compiledir}
@@ -116,8 +116,8 @@ if [ $mode == full ] ; then
 
   # Compile the subroutines...
   echo "compiling low-level independent modules"
-  SRC0="mathphysconstants_mod.ftn90 earthconstants_mod.ftn90 obsspacedata_mod.ftn90 mpi_mod.ftn90 mpivar_mod.ftn90 timecoord_mod.ftn90"
-  SRC0="$SRC0 bufr_mod.ftn90 physicsfunctions_mod.ftn90 horizontalcoord_mod.ftn90 localizationfunction_mod.ftn90"
+  SRC0="mathphysconstants_mod.ftn90 earthconstants_mod.ftn90 mpi_mod.ftn90 mpivar_mod.ftn90"
+  SRC0="$SRC0 bufr_mod.ftn90 physicsfunctions_mod.ftn90 horizontalcoord_mod.ftn90"
   s.compile $COMPF -src $SRC0 > listing0a 2>&1
   grep fail listing0a
   if [ $? = "0" ] ; then exit ; fi
@@ -129,10 +129,8 @@ if [ $mode == full ] ; then
   if [ $? = "0" ] ; then exit ; fi
 
   echo "compiling most of the new modules"
-  SRC1="controlvector_mod.ftn90 varnamelist_mod.ftn90"
-  SRC1="$SRC1 globalspectraltransform_mod.ftn90 verticalcoord_mod.ftn90"
-  SRC1="$SRC1 lamspectraltransform_mod.ftn90 gridstatevector_mod.ftn90"
-  SRC1="$SRC1 calcbmatrix_glb_mod.ftn90 calcbmatrix_lam_mod.ftn90"
+  SRC1="$SRC1 verticalcoord_mod.ftn90"
+
   s.compile $COMPF -src $SRC1 > listing1 2>&1
   grep fail listing1
   if [ $? = "0" ] ; then exit ; fi
@@ -148,7 +146,7 @@ if [ $mode == full ] ; then
   if [ $? = "0" ] ; then exit ; fi
 
   echo "building the executable..."
-  s.compile $COMPF ${MPILIBDIR} -libappl $LIBAPPL $LIBEXTRA -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o calcstats_p7.abs$ABSTAG > listing5 2>&1
+  s.compile $COMPF ${MPILIBDIR} -libappl $LIBAPPL $LIBEXTRA -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o biper_p7.abs$ABSTAG > listing5 2>&1
 
   grep -i ERROR listing?
   if [ $? = "0" ] ; then exit; echo "ERROR found: STOP" ; fi
@@ -165,17 +163,17 @@ elif [ $mode == abs ] ; then
   echo
   echo "building the executable..."
   echo
-  s.compile $COMPF ${MPILIBDIR} -libappl $LIBAPPL $LIBEXTRA -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o calcstats_p7.abs$ABSTAG
+  s.compile $COMPF ${MPILIBDIR} -libappl $LIBAPPL $LIBEXTRA -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o biper_p7.abs$ABSTAG
 
 else
 
-  if [ -f $calcstatsdir/$mode ] ; then
+  if [ -f $biperdir/$mode ] ; then
     file=`basename $mode`
     rm -f $file
-    cp $calcstatsdir/$mode .
+    cp $biperdir/$mode .
     s.compile $COMPF -src $file
   else
-    echo "File $calcstatsdir/$mode does NOT exist. Stop"
+    echo "File $biperdir/$mode does NOT exist. Stop"
     exit 1
   fi
 

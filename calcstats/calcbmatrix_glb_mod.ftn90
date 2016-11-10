@@ -33,7 +33,7 @@ module calcbmatrix_glb_mod
 
   integer :: nens,ntrunc,ni,nj,nLevEns_M,nLevEns_T,nLevPtoT,nkgdimEns,varLevOffset(6),nla
   character(len=256), allocatable :: cflensin(:)
-  integer :: gstID
+  integer :: gstID_nkgdimEns, gstID_nLevEns_M, gstID_nLevEns_T_P1
   integer, allocatable :: nip1_M(:),nip1_T(:)
   real(8), pointer :: pressureProfile_M(:), pressureProfile_T(:)
   integer,external    :: get_max_rss
@@ -69,7 +69,7 @@ module calcbmatrix_glb_mod
     type(struct_vco), pointer, intent(in)   :: vco_in
     type(struct_hco), pointer, intent(in)   :: hco_in
 
-    integer :: nulnam,ierr,mpiMode,status, waveBandIndex
+    integer :: nulnam,ierr,status, waveBandIndex
     integer :: fclos,fnom,fstouv,fstfrm
 
     real(8) :: zps
@@ -114,9 +114,11 @@ module calcbmatrix_glb_mod
     nkgdimEns=nLevEns_M*2+nLevEns_T*2+1 ! NO TG !!!
     nla=(ntrunc+1)*(ntrunc+2)/2
     
-    !- Setup the global spectral transform
-    mpiMode=2
-    gstID = gst_setup(ni,nj,ntrunc,mpiMode)
+    !- Setup the global spectral transform 
+    !  NOTE: code only run with mpi 1x1 until now!!!
+    gstID_nkgdimEns = gst_setup(ni,nj,ntrunc,nkgdimEns)
+    gstID_nLevEns_M = gst_setup(ni,nj,ntrunc,nLevEns_M)
+    gstID_nLevEns_T_P1 = gst_setup(ni,nj,ntrunc,nLevEns_T+1)
 
     !- Setup ip1s
     allocate(nip1_M(nLevEns_M))
@@ -176,7 +178,7 @@ module calcbmatrix_glb_mod
     end do
 
     ! Make sure the truncation is compatible with the waveBandPeaks
-    if ( ntrunc < nj-1 ) then
+    if ( ntrunc < nj-1 .and. nWaveBand > 1 ) then
        write(6,*) 'calcb_glb_setup: The truncation is not compatible with wave band decomposition'
        write(6,*) '                 ntrunc should = ', nj-1
        call abort3d('calbmatrix_glb')
@@ -208,70 +210,31 @@ module calcbmatrix_glb_mod
     integer :: variableType 
 
     allocate(ensPerturbations(ni,nj,nkgdimEns,nens),stat=ierr)
-    if(ierr.ne.0) then
-      write(6,*) 'Problem allocating memory!',ierr
-      call flush(6)
-    endif
+    if(ierr.ne.0) call abort3d('Problem allocating memory 1')
     allocate(ensBalPerturbations(ni,nj,nLevEns_T+1,nens),stat=ierr)
-    if(ierr.ne.0) then
-      write(6,*) 'Problem allocating memory!',ierr
-      call flush(6)
-    endif
+    if(ierr.ne.0) call abort3d('Problem allocating memory 1')
     allocate(theta1(nlevEns_M,nj),stat=ierr)
-    if(ierr.ne.0) then
-      write(6,*) 'Problem allocating memory!',ierr
-      call flush(6)
-    endif
+    if(ierr.ne.0) call abort3d('Problem allocating memory 1')
     allocate(stddev3d(ni,nj,nkgdimEns),stat=ierr)
-    if(ierr.ne.0) then
-      write(6,*) 'Problem allocating memory!',ierr
-      call flush(6)
-    endif
+    if(ierr.ne.0) call abort3d('Problem allocating memory 1')
     allocate(stddevZonAvg(nkgdimEns,nj),stat=ierr)
-    if(ierr.ne.0) then
-      write(6,*) 'Problem allocating memory!',ierr
-      call flush(6)
-    endif
+    if(ierr.ne.0) call abort3d('Problem allocating memory 1')
     allocate(PtoT(nlevEns_T+1,nlevEns_M,nj),stat=ierr)
-    if(ierr.ne.0) then
-      write(6,*) 'Problem allocating memory!',ierr
-      call flush(6)
-    endif
+    if(ierr.ne.0) call abort3d('Problem allocating memory 1')
     allocate(theta2(nlevEns_M,nj),stat=ierr)
-    if(ierr.ne.0) then
-      write(6,*) 'Problem allocating memory!',ierr
-      call flush(6)
-    endif
+    if(ierr.ne.0) call abort3d('Problem allocating memory 1')
     allocate(stddev3dBal(ni,nj,nLevEns_T+1),stat=ierr)
-    if(ierr.ne.0) then
-      write(6,*) 'Problem allocating memory!',ierr
-      call flush(6)
-    endif
+    if(ierr.ne.0) call abort3d('Problem allocating memory 1')
     allocate(stddev3dUnbal(ni,nj,nkgdimEns),stat=ierr)
-    if(ierr.ne.0) then
-      write(6,*) 'Problem allocating memory!',ierr
-      call flush(6)
-    endif
+    if(ierr.ne.0) call abort3d('Problem allocating memory 1')
     allocate(stddevZonAvgBal(nLevEns_T+1,nj),stat=ierr)
-    if(ierr.ne.0) then
-      write(6,*) 'Problem allocating memory!',ierr
-      call flush(6)
-    endif
+    if(ierr.ne.0) call abort3d('Problem allocating memory 1')
     allocate(stddevZonAvgUnbal(nkgdimEns,nj),stat=ierr)
-    if(ierr.ne.0) then
-      write(6,*) 'Problem allocating memory!',ierr
-      call flush(6)
-    endif
+    if(ierr.ne.0) call abort3d('Problem allocating memory 1')
     allocate(corns(nkgdimEns,nkgdimEns,0:ntrunc),stat=ierr)
-    if(ierr.ne.0) then
-      write(6,*) 'Problem allocating memory!',ierr
-      call flush(6)
-    endif
+    if(ierr.ne.0) call abort3d('Problem allocating memory 1')
     allocate(rstddev(nkgdimEns,0:ntrunc),stat=ierr)
-    if(ierr.ne.0) then
-      write(6,*) 'Problem allocating memory!',ierr
-      call flush(6)
-    endif
+    if(ierr.ne.0) call abort3d('Problem allocating memory 1')
 
     call readEnsemble(ensPerturbations)
     write(6,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -512,20 +475,11 @@ module calcbmatrix_glb_mod
     real*8,allocatable :: stddev3d(:,:,:),stddevZonAvg(:,:)
 
     allocate(ensPerturbations(ni,nj,nkgdimEns,nens),stat=ierr)
-    if(ierr.ne.0) then
-      write(6,*) 'Problem allocating memory!',ierr
-      call flush(6)
-    endif
+    if(ierr.ne.0) call abort3d('Problem allocating memory 1')
     allocate(stddev3d(ni,nj,nkgdimEns),stat=ierr)
-    if(ierr.ne.0) then
-      write(6,*) 'Problem allocating memory!',ierr
-      call flush(6)
-    endif
+    if(ierr.ne.0) call abort3d('Problem allocating memory 1')
     allocate(stddevZonAvg(nkgdimEns,nj),stat=ierr)
-    if(ierr.ne.0) then
-      write(6,*) 'Problem allocating memory!',ierr
-      call flush(6)
-    endif
+    if(ierr.ne.0) call abort3d('Problem allocating memory 1')
 
     call readEnsemble(ensPerturbations)
 
@@ -579,7 +533,7 @@ module calcbmatrix_glb_mod
       enddo
     enddo
 
-    call gst_zlegdir(gstID,bufyz,zsp,nLevEns_M)
+    call gst_zlegdir(gstID_nkgdimEns,bufyz,zsp,nLevEns_M)
 
     do jn = 0, ntrunc
       do jlev1=1, nLevEns_M
@@ -602,7 +556,7 @@ module calcbmatrix_glb_mod
     enddo
 
     nlev=(nLevEns_T+1)*nLevEns_M
-    call gst_zlegdir(gstID,bufptot,spptot,nLev)
+    call gst_zlegdir(gstID_nkgdimEns,bufptot,spptot,nLev)
 
     do jn = 0, ntrunc
       do jlev1 = 1, (nLevEns_T+1)
@@ -673,9 +627,10 @@ module calcbmatrix_glb_mod
     do jens=1,nens
 
       psi(:,:,:)=ensPerturbations(:,:,1:nlevEns_M,jens)
-      call gst_reespe(spectralState,psi,nLevEns_M)
+      call gst_setID(gstID_nLevEns_M)
+      call gst_reespe(spectralState,psi)
       call calcBalancedP(spectralState,spBalancedP)
-      call gst_speree(spBalancedP,balancedP,nlevEns_M)
+      call gst_speree(spBalancedP,balancedP)
 
       tt_ptr => ensPerturbations(:,:,(1+2*nLevEns_M):(2*nLevEns_M+1*nLevEns_T),jens)
       ps_ptr => ensPerturbations(:,:,(1+2*nLevEns_M+2*nLevEns_T):(1+2*nLevEns_M+2*nLevEns_T),jens)
@@ -685,8 +640,7 @@ module calcbmatrix_glb_mod
       ttb_ptr(:,:,:)=0.0d0
       psb_ptr(:,:,:)=0.0d0
 
-!$OMP PARALLEL
-!$OMP DO PRIVATE (jlat,jlon,jk1,jk2)
+!$OMP PARALLEL DO PRIVATE (jlat,jlon,jk1,jk2)
       do jlat = 1, nj
         do jlon = 1, ni
           do jk1 = 1, nLevEns_T
@@ -701,8 +655,7 @@ module calcbmatrix_glb_mod
           ps_ptr(jlon,jlat,1) = ps_ptr(jlon,jlat,1) - psb_ptr(jlon,jlat,1)
         enddo
       enddo
-!$OMP END DO
-!$OMP END PARALLEL
+!$OMP END PARALLEL DO
 
     enddo
 
@@ -730,10 +683,10 @@ module calcbmatrix_glb_mod
       call flush(6)
 
       gridState(:,:,:)=ensPerturbations(:,:,:,jens)
-      call gst_reespe(spectralState,gridState,nkgdimEns)
+      call gst_setID(gstID_nkgdimEns)
+      call gst_reespe(spectralState,gridState)
 
-!$OMP PARALLEL
-!$OMP DO PRIVATE (jn,jm,dfact,ila,jk1,jk2)
+!$OMP PARALLEL DO PRIVATE (jn,jm,dfact,ila,jk1,jk2)
       do jn = 0, ntrunc
         do jm = 0, jn
           dfact = 2.0d0
@@ -748,8 +701,7 @@ module calcbmatrix_glb_mod
           enddo
         enddo
       enddo
-!$OMP END DO
-!$OMP END PARALLEL
+!$OMP END PARALLEL DO
 
     enddo
 
@@ -820,10 +772,10 @@ module calcbmatrix_glb_mod
       call flush(6)
 
       gridState(:,:,:)=ensPerturbations(:,:,:,jens)
-      call gst_reespe(spectralState,gridState,nkgdimEns)
+      call gst_setID(gstID_nkgdimEns)
+      call gst_reespe(spectralState,gridState)
 
-!$OMP PARALLEL
-!$OMP DO PRIVATE (jn,jm,dfact,ila,jk)
+!$OMP PARALLEL DO PRIVATE (jn,jm,dfact,ila,jk)
       do jn = 0, ntrunc
         do jm = 0, jn
           dfact = 2.0d0
@@ -835,8 +787,7 @@ module calcbmatrix_glb_mod
           enddo
         enddo
       enddo
-!$OMP END DO
-!$OMP END PARALLEL
+!$OMP END PARALLEL DO
 
     enddo
 
@@ -1237,6 +1188,7 @@ module calcbmatrix_glb_mod
 ! SPECTRALFILTER
 !--------------------------------------------------------------------------
   subroutine spectralFilter(ensPerturbations,nlev,waveBandIndex)
+    use filterResponseFunction_mod
     implicit none
     real*4,pointer :: ensPerturbations(:,:,:,:)
     integer, intent(in) :: nlev
@@ -1247,7 +1199,7 @@ module calcbmatrix_glb_mod
     integer :: jens, jk, jn, jm, ila
 
     real(8), allocatable :: ResponseFunction(:)
-    real(8) :: waveLength, FilterResponseFunction
+    real(8) :: waveLength
 
     character(len=128) :: outfilename
     character(len=2) :: wbnum
@@ -1277,23 +1229,29 @@ module calcbmatrix_glb_mod
 
     do jens=1,nens
       member(:,:,:)=dble(ensPerturbations(:,:,:,jens))     
-      call gst_reespe(spectralState,member,nlev)
+      if(nlev.eq.nkgdimEns) then
+        call gst_setID(gstID_nkgdimEns)
+      elseif(nlev.eq.nLevEns_T+1) then
+        call gst_setID(gstID_nLevEns_T_P1)
+      else
+        write(*,*) 'spectralFilter: nlev = ',nlev
+        call abort3d('spectralFilter: spectral transform not initialized for this number of levels')
+      endif
+      call gst_reespe(spectralState,member)
       if ( nWaveBand /= 1 ) then
-!$OMP PARALLEL
-!$OMP DO PRIVATE (jk,jn,jm,ila)
+!$OMP PARALLEL DO PRIVATE (jk,jn,jm,ila)
          do jk = 1, nlev
             do jn = 0, ntrunc
                do jm = 0, jn
-                  ila = gst_getnind(jm,gstID)+jn-jm
+                  ila = gst_getnind(jm,gstID_nkgdimEns)+jn-jm
                   spectralState(ila,1,jk) = spectralState(ila,1,jk) * ResponseFunction(jn)
                   spectralState(ila,2,jk) = spectralState(ila,2,jk) * ResponseFunction(jn)
                end do
             end do
          end do
-!$OMP END DO
-!$OMP END PARALLEL
+!$OMP END PARALLEL DO
       end if
-      call gst_speree(spectralState,member,nlev)
+      call gst_speree(spectralState,member)
       ensPerturbations(:,:,:,jens)=sngl(member(:,:,:))
     enddo
 
@@ -1402,9 +1360,10 @@ module calcbmatrix_glb_mod
       call flush(6)
 
       psi(:,:,:)=ensPerturbations(:,:,1:nlevEns_M,jens)
-      call gst_reespe(spectralState,psi,nlevEns_M)
+      call gst_setID(gstID_nLevEns_M)
+      call gst_reespe(spectralState,psi)
       CALL calcBalancedP(spectralState,spBalancedP)
-      call gst_speree(spBalancedP,balancedP,nlevEns_M)
+      call gst_speree(spBalancedP,balancedP)
 
       tt_ptr  => ensPerturbations(:,:,(2*nLevEns_M+1):(2*nLevEns_M+nLevEns_T),jens)
       ps_ptr  => ensPerturbations(:,:,2*nLevEns_M+2*nLevEns_T+1,jens)
@@ -1413,8 +1372,7 @@ module calcbmatrix_glb_mod
         zlat(jlat)=GST_GETRLATI(JLAT)
       enddo
 
-!$OMP PARALLEL
-!$OMP DO PRIVATE (JK1,JB,JLAT,ZFACT,JLON,JK2)
+!$OMP PARALLEL DO PRIVATE (JK1,JB,JLAT,ZFACT,JLON,JK2)
       DO JK1 = 1, (nLevEns_T+1)
         DO JB=1,JPNLATBND
           DO JLAT = 1, NJ
@@ -1444,8 +1402,7 @@ module calcbmatrix_glb_mod
           ENDDO
         ENDDO ! Loop on JPNLATBND
       END DO  ! Loop on JK1
-!$OMP END DO
-!$OMP END PARALLEL
+!$OMP END PARALLEL DO
 
     ENDDO
 
@@ -1529,8 +1486,7 @@ module calcbmatrix_glb_mod
     real*4  :: ensPerturbations(:,:,:,:)
     real*8  :: dmean
 
-!$OMP PARALLEL
-!$OMP DO PRIVATE (JENS,JLEV,JLAT,JLON,DMEAN)
+!$OMP PARALLEL DO PRIVATE (JENS,JLEV,JLAT,JLON,DMEAN)
     do jens=1,nens
       do jlev=1,nkgdimEns
         dmean=0.0d0
@@ -1547,8 +1503,7 @@ module calcbmatrix_glb_mod
         enddo
       enddo
     enddo
-!$OMP END DO
-!$OMP END PARALLEL
+!$OMP END PARALLEL DO
 
     write(6,*) 'finished removing global mean...'
     call flush(6)
@@ -1566,8 +1521,7 @@ module calcbmatrix_glb_mod
 
     fieldsZonAvg(:,:)=0.0d0
     dfact=1.0d0/dble(ni)
-!$OMP PARALLEL
-!$OMP DO PRIVATE (JLEV,JLAT,JLON)
+!$OMP PARALLEL DO PRIVATE (JLEV,JLAT,JLON)
       do jlev=1,nlev
         do jlat=1,nj
           do jlon=1,ni
@@ -1575,8 +1529,7 @@ module calcbmatrix_glb_mod
           enddo
         enddo
       enddo
-!$OMP END DO
-!$OMP END PARALLEL
+!$OMP END PARALLEL DO
 
     write(6,*) 'finished computing the zonal average...'
     call flush(6)
@@ -1599,8 +1552,7 @@ module calcbmatrix_glb_mod
 
     stddev3d(:,:,:)=0.0d0
     dnens=1.0d0/dble(nens-1)
-!$OMP PARALLEL
-!$OMP DO PRIVATE (JLEV,JENS,JLAT,JLON)
+!$OMP PARALLEL DO PRIVATE (JLEV,JENS,JLAT,JLON)
       do jlev=1,nlev
         do jens=1,nens
           do jlat=1,nj
@@ -1619,8 +1571,7 @@ module calcbmatrix_glb_mod
           enddo
         enddo
       enddo
-!$OMP END DO
-!$OMP END PARALLEL
+!$OMP END PARALLEL DO
 
     write(6,*) 'finished computing the stddev...'
     call flush(6)
@@ -1727,8 +1678,7 @@ module calcbmatrix_glb_mod
     real*8  :: dfact,stddev3d(:,:,:)
     real*4  :: ensPerturbations(:,:,:,:)
 
-!$OMP PARALLEL
-!$OMP DO PRIVATE (JLEV,JENS,JLAT,JLON,DFACT)
+!$OMP PARALLEL DO PRIVATE (JLEV,JENS,JLAT,JLON,DFACT)
       do jlev=1,nkgdimEns
         do jlat=1,nj
           do jlon=1,ni
@@ -1743,8 +1693,7 @@ module calcbmatrix_glb_mod
           enddo
         enddo
       enddo
-!$OMP END DO
-!$OMP END PARALLEL
+!$OMP END PARALLEL DO
 
     write(6,*) 'finished normalizing by stddev3D...'
     call flush(6)
@@ -1761,8 +1710,7 @@ module calcbmatrix_glb_mod
     real*8  :: stddev3d(:,:,:)
     real*4  :: ensPerturbations(:,:,:,:)
 
-!$OMP PARALLEL
-!$OMP DO PRIVATE (JLEV,JENS,JLAT,JLON)
+!$OMP PARALLEL DO PRIVATE (JLEV,JENS,JLAT,JLON)
       do jens=1,nens
         do jlev=1,nlev
           do jlat=1,nj
@@ -1772,8 +1720,7 @@ module calcbmatrix_glb_mod
           enddo
         enddo
       enddo
-!$OMP END DO
-!$OMP END PARALLEL
+!$OMP END PARALLEL DO
 
     write(6,*) 'finished multiplying by stddev3D...'
     call flush(6)
@@ -1852,11 +1799,7 @@ module calcbmatrix_glb_mod
 
           clnomvar = 'P0' 
           ikey = vfstlir(gd2d,nulens,ini,inj,ink,idateo,cletiket,-1,ip2,ip3,cltypvar,clnomvar)
-          if(ikey.lt.0) then
-            write(6,*) 'SUENS: Problem with P0 ENS'
-            call flush(6)
-            call qqexit(1)
-          endif
+          if(ikey.lt.0) call abort3d('readEnsemble1: Problem with P0 ENS')
           do jlat=1,nj
             do jlon=1,ni
               ensPerturbations(jlon,jlat,ngpositps,jens)= gd2d(jlon,jlat)*rmbtpa
@@ -1868,9 +1811,7 @@ module calcbmatrix_glb_mod
             ikey = vfstlir(gd2d,nulens,ini,inj,ink,idateo,cletiket,nip1_T(jlev),ip2,ip3,cltypvar,clnomvar)
             if(ikey.lt.0) then
               write(6,*) idateo,cletiket,nip1_T(jlev),ip2,ip3,cltypvar,clnomvar
-              write(6,*) 'SUENS: Problem with TT ENS'
-              call flush(6)
-              call qqexit(1)
+              call abort3d('readEnsemble1: Problem with TT ENS')
             endif
             call flush(6)
             do jlat=1,nj
@@ -1888,9 +1829,7 @@ module calcbmatrix_glb_mod
               ikey = vfstlir(gd2d,nulens,ini,inj,ink,idateo,cletiket,nip1_T(jlev),ip2,ip3,cltypvar,clnomvar)
               if(ikey.lt.0) then
                 write(6,*) idateo,cletiket,nip1_T(jlev),ip2,ip3,cltypvar,clnomvar
-                write(6,*) 'SUENS: Problem with HU and LQ ENS'
-                call flush(6)
-                call qqexit(1)
+                call abort3d('readEnsemble1: Problem with HU and LQ ENS')
               else
                 do jlat=1,nj
                   do jlon=1,ni
@@ -1912,13 +1851,11 @@ module calcbmatrix_glb_mod
             ikey = vfstlir(gd2d,nulens,ini,inj,ink,idateo,cletiket,nip1_M(jlev),ip2,ip3,cltypvar,clnomvar)
             if(ikey.lt.0) then
               write(6,*) idateo,cletiket,nip1_M(jlev),ip2,ip3,cltypvar,clnomvar
-              write(6,*) 'SUENS: Problem with UU ENS'
-              call flush(6)
-              call qqexit(1)
+              call abort3d('readEnsemble1: Problem with UU ENS')
             endif
             do jlat=1,nj
               if ( convertToWindImages ) then
-                 conima=r1sa*gst_getRSQM2(jlat,gstID)
+                 conima=r1sa*gst_getRSQM2(jlat,gstID_nkgdimEns)
               else
                  conima=1.d0
               end if
@@ -1933,13 +1870,11 @@ module calcbmatrix_glb_mod
             ikey = vfstlir(gd2d,nulens,ini,inj,ink,idateo,cletiket,nip1_M(jlev),ip2,ip3,cltypvar,clnomvar)
             if(ikey.lt.0) then
               write(6,*) idateo,cletiket,nip1_M(jlev),ip2,ip3,cltypvar,clnomvar
-              write(6,*) 'SUENS: Problem with VV ENS'
-              call flush(6)
-              call qqexit(1)
+              call abort3d('readEnsemble1: Problem with VV ENS')
             endif
             do jlat=1,nj
               if ( convertToWindImages ) then
-                 conima=r1sa*gst_getRSQM2(jlat,gstID)
+                 conima=r1sa*gst_getRSQM2(jlat,gstID_nkgdimEns)
               else
                  conima=1.d0
               end if
@@ -1953,9 +1888,7 @@ module calcbmatrix_glb_mod
 !          ikey = vfstlir(gd2d,nulens,ini,inj,ink,idateo,cletiket,-1,ip2,ip3,cltypvar,clnomvar)
 !          if(ikey.lt.0)  then
 !            write(6,*) idateo,cletiket,ip2,ip3,cltypvar,clnomvar
-!            write(6,*) 'SUENS: Problem with TG ENS'
-!            call flush(6)
-!            call qqexit(1)
+!            call abort3d('readEnsemble1: Problem with TG ENS')
 !          else
 !            do jlat=1,nj
 !              do jlon=1,ni
@@ -2000,8 +1933,7 @@ module calcbmatrix_glb_mod
     write(6,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     call flush(6)
 
-!$OMP PARALLEL
-!$OMP DO PRIVATE (jens)
+!$OMP PARALLEL DO PRIVATE (jens)
     do jens = 1, nens
         write(6,*) 'Reading ensemble member:',trim(cflensin(jens))
         call flush(6)
@@ -2009,8 +1941,7 @@ module calcbmatrix_glb_mod
         write(6,*) 'done reading member ',jens
         call flush(6)
     end do
-!$OMP END DO
-!$OMP END PARALLEL
+!$OMP END PARALLEL DO
 
     write(6,*) 'After reading the ensemble:'
     write(6,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -2088,11 +2019,7 @@ module calcbmatrix_glb_mod
 
     clnomvar = 'P0' 
     ikey=fstlir(gd2d,nulens(jens),ini,inj,ink,idateo,cletiket,-1,ip2,ip3, cltypvar,clnomvar)
-    if(ikey.lt.0) then
-       write(6,*) 'SUENS: Problem with P0 ENS'
-       call flush(6)
-       call qqexit(1)
-    endif
+    if(ikey.lt.0) call abort3d('readEnsembleMember: Problem with P0 ENS')
     do jlat=1,nj
        do jlon=1,ni
           ensPerturbations(jlon,jlat,ngpositps,jens)= gd2d(jlon,jlat)*rmbtpa
@@ -2104,9 +2031,7 @@ module calcbmatrix_glb_mod
        ikey=fstlir(gd2d,nulens(jens),ini,inj,ink,idateo,cletiket,nip1_T(jlev),ip2,ip3,cltypvar,clnomvar)
        if(ikey.lt.0) then
           write(6,*) idateo,cletiket,nip1_T(jlev),ip2,ip3,cltypvar,clnomvar
-          write(6,*) 'SUENS: Problem with TT ENS'
-          call flush(6)
-          call qqexit(1)
+          call abort3d('readEnsembleMember: Problem with TT ENS')
        endif
        call flush(6)
        do jlat=1,nj
@@ -2124,9 +2049,7 @@ module calcbmatrix_glb_mod
           ikey=fstlir(gd2d,nulens(jens),ini,inj,ink,idateo,cletiket,nip1_T(jlev),ip2,ip3,cltypvar,clnomvar)
           if(ikey.lt.0) then
              write(6,*) idateo,cletiket,nip1_T(jlev),ip2,ip3,cltypvar,clnomvar
-             write(6,*) 'SUENS: Problem with HU and LQ ENS'
-             call flush(6)
-             call qqexit(1)
+             call abort3d('readEnsembleMember: Problem with HU and LQ ENS')
           else
              do jlat=1,nj
                 do jlon=1,ni
@@ -2148,13 +2071,11 @@ module calcbmatrix_glb_mod
        ikey=fstlir(gd2d,nulens(jens),ini,inj,ink,idateo,cletiket,nip1_M(jlev),ip2,ip3,cltypvar,clnomvar)
        if(ikey.lt.0) then
           write(6,*) idateo,cletiket,nip1_M(jlev),ip2,ip3,cltypvar,clnomvar
-          write(6,*) 'SUENS: Problem with UU ENS'
-          call flush(6)
-          call qqexit(1)
+          call abort3d('readEnsembleMember: Problem with UU ENS')
        endif
        do jlat=1,nj
           if ( convertToWindImages ) then
-             conima=r1sa*gst_getRSQM2(jlat,gstID)
+             conima=r1sa*gst_getRSQM2(jlat,gstID_nkgdimEns)
           else
              conima=1.d0
           end if
@@ -2169,13 +2090,11 @@ module calcbmatrix_glb_mod
        ikey=fstlir(gd2d,nulens(jens),ini,inj,ink,idateo,cletiket,nip1_M(jlev),ip2,ip3,cltypvar,clnomvar)
        if(ikey.lt.0) then
           write(6,*) idateo,cletiket,nip1_M(jlev),ip2,ip3,cltypvar,clnomvar
-          write(6,*) 'SUENS: Problem with VV ENS'
-          call flush(6)
-          call qqexit(1)
+          call abort3d('readEnsembleMember: Problem with VV ENS')
        endif
        do jlat=1,nj
           if ( convertToWindImages ) then
-             conima=r1sa*gst_getRSQM2(jlat,gstID)
+             conima=r1sa*gst_getRSQM2(jlat,gstID_nkgdimEns)
           else
              conima=1.d0
           end if
@@ -2189,9 +2108,7 @@ module calcbmatrix_glb_mod
 !          ikey = vfstlir(gd2d,nulens,ini,inj,ink,idateo,cletiket,-1,ip2,ip3,cltypvar,clnomvar)
 !          if(ikey.lt.0)  then
 !            write(6,*) idateo,cletiket,ip2,ip3,cltypvar,clnomvar
-!            write(6,*) 'SUENS: Problem with TG ENS'
-!            call flush(6)
-!            call qqexit(1)
+!            call abort3d('readEnsembleMember: Problem with TG ENS')
 !          else
 !            do jlat=1,nj
 !              do jlon=1,ni
@@ -2220,7 +2137,8 @@ module calcbmatrix_glb_mod
     dla2   = dble(ra)*dble(ra)
     do jens=1,nens
       member(:,:,:)=dble(ensPerturbations(:,:,:,jens))
-      call gst_gdsp(spectralState,member,nkgdimEns,nlevEns_M)
+      call gst_setID(gstID_nkgdimEns)
+      call gst_gdsp(spectralState,member,nlevEns_M)
       do jlev = 1, nlevEns_M
         do jla = 1, nla
           spectralState(jla,1,jlev)           = spectralState(jla,1,jlev)           * dla2*gst_getR1snp1(jla)
@@ -2229,7 +2147,7 @@ module calcbmatrix_glb_mod
           spectralState(jla,2,jlev+nlevEns_M) = spectralState(jla,2,jlev+nlevEns_M) * dla2*gst_getR1snp1(jla)
         enddo
       enddo
-      call gst_speree(spectralState,member,nkgdimEns)
+      call gst_speree(spectralState,member)
       ensPerturbations(:,:,:,jens)=sngl(member(:,:,:))
     enddo
 
@@ -2250,8 +2168,7 @@ module calcbmatrix_glb_mod
 
     ! remove mean and divide by sqrt(2*(NENS-1)) - extra 2 is needed?
     dnens=1.0d0/dble(nens)
-!$OMP PARALLEL
-!$OMP DO PRIVATE (JLEV,GD2D,JENS,JLAT,JLON)
+!$OMP PARALLEL DO PRIVATE (JLEV,GD2D,JENS,JLAT,JLON)
       do jlev=1,nkgdimEns
         gd2d(:,:)=0.0d0
         do jens=1,nens
@@ -2275,8 +2192,7 @@ module calcbmatrix_glb_mod
           enddo
         enddo
       enddo
-!$OMP END DO
-!$OMP END PARALLEL
+!$OMP END PARALLEL DO
 
     write(6,*) 'finished removing the ensemble mean...'
     call flush(6)
@@ -2321,14 +2237,14 @@ module calcbmatrix_glb_mod
     GridState(iref,jref,:) = GridState(iref,jref,:) * real(ni,8) / gst_getRWT(jref)
 
     !- 1.3 Move to spectral space
-    call gst_reespe(spectralState,                & ! OUT
-                    GridState,nkgdimEns)  ! IN
+    call gst_setID(gstID_nkgdimEns)
+    call gst_reespe(spectralState,  & ! OUT
+                    GridState)        ! IN
 
     !
     !- 2.  Apply the horizontal correlation function
     !
-!$OMP PARALLEL
-!$OMP DO PRIVATE (jk,jn,jm,ila)
+!$OMP PARALLEL DO PRIVATE (jk,jn,jm,ila)
     do jk = 1, nkgdimEns
        do jn = 0, ntrunc
           do jm = 0, jn
@@ -2343,15 +2259,14 @@ module calcbmatrix_glb_mod
           end do
        end do
     end do
-!$OMP END DO
-!$OMP END PARALLEL
+!$OMP END PARALLEL DO
 
     !
     !- 3.  Move back to grid point space
     !
+    call gst_setID(gstID_nkgdimEns)
     call gst_speree(spectralState,     & ! IN
-                    GridState,         & ! OUT
-                    nkgdimEns) ! IN
+                    GridState)           ! OUT
 
     !
     !- 4.  Write to file
@@ -2718,8 +2633,7 @@ module calcbmatrix_glb_mod
 
     dnens = 1.0d0/dble(nens-1)
 
-!$OMP PARALLEL
-!$OMP DO PRIVATE (k,jref_id,iref_id,iref,jref,jmin,jmax,imin,imax,j,i,ens)
+!$OMP PARALLEL DO PRIVATE (k,jref_id,iref_id,iref,jref,jmin,jmax,imin,imax,j,i,ens)
     do k = 1, nkgdimEns
 
        do ens = 1, nens
@@ -2748,8 +2662,7 @@ module calcbmatrix_glb_mod
        end do
 
     end do
-!$OMP END DO
-!$OMP END PARALLEL
+!$OMP END PARALLEL DO
 
     write(6,*) 'finished computing the local horizontal correlations...'
     call flush(6)
@@ -2930,8 +2843,8 @@ module calcbmatrix_glb_mod
 
     allocate(ensPert_local(nens,ni,nj))
 
-!$OMP PARALLEL
-!$OMP DO PRIVATE (k,iref,jref,j,i,ens,correlation,covariance,fourthMoment,distance,bin,weight,ensPert_local)
+!$OMP PARALLEL DO PRIVATE (k,iref,jref,j,i,ens,correlation,covariance, &
+!$OMP                      fourthMoment,distance,bin,weight,ensPert_local)
     do k = 1, nkgdimEns
        write(6,*) 'Computing distance-bin statistics for ensemble level: ', k
        call flush(6)
@@ -2992,8 +2905,7 @@ module calcbmatrix_glb_mod
        end do    ! jref
 
     end do ! nkgdimEns
-!$OMP END DO
-!$OMP END PARALLEL
+!$OMP END PARALLEL DO
 
     deallocate(ensPert_local)
     
@@ -3002,8 +2914,7 @@ module calcbmatrix_glb_mod
     t1=dble((nens-1)**2)/dble(nens*(nens-3))
     t2=dble(nens)/dble((nens-2)*(nens-3))
     t3=dble(nens-1)/dble(nens*(nens-2)*(nens-3))
-!$OMP PARALLEL
-!$OMP DO PRIVATE (k,bin)
+!$OMP PARALLEL DO PRIVATE (k,bin)
     do k = 1, nkgdimEns
        do bin = 1, numbins
 
@@ -3035,8 +2946,7 @@ module calcbmatrix_glb_mod
           end if
        end do
     end do
-!$OMP END DO
-!$OMP END PARALLEL
+!$OMP END PARALLEL DO
 
     !
     !- 3.  Estimation of localization radii (curve fitting)
@@ -3060,8 +2970,7 @@ module calcbmatrix_glb_mod
     do f = 1, numFunctions
        write(6,*)
        write(6,*) 'Localization Function : ', f
-!$OMP PARALLEL
-!$OMP DO PRIVATE (k,rmse)
+!$OMP PARALLEL DO PRIVATE (k,rmse)
        do k =  1, nkgdimEns
           write(6,*) '         ----- EnsLev : ', k
           call loc_lengthscale( localizationRadii(f,k),       & ! INOUT
@@ -3072,8 +2981,7 @@ module calcbmatrix_glb_mod
                                 numbins )                       ! IN
           !write(6,*) 'localizationRadii = ', localizationRadii(f,k), rmse
        end do
-!$OMP END DO
-!$OMP END PARALLEL
+!$OMP END PARALLEL DO
     end do
 
     !
@@ -3753,8 +3661,7 @@ module calcbmatrix_glb_mod
              nLevStart = varLevOffset(jvar)+ 1
              nLevEnd   = varLevOffset(jvar)+ nLevEns
 
-!$OMP PARALLEL
-!$OMP DO PRIVATE (k,k2,ens,correlation,covariance,fourthMoment,bin,weight)
+!$OMP PARALLEL DO PRIVATE (k,k2,ens,correlation,covariance,fourthMoment,bin,weight)
              do k = nLevStart, nLevEnd
                 do k2 = nLevStart, nLevEnd
 
@@ -3783,8 +3690,7 @@ module calcbmatrix_glb_mod
                    meanFourthMoment(bin,k)     = meanFourthMoment(bin,k)     + fourthMoment   * weight
                 end do
              end do
-!$OMP END DO
-!$OMP END PARALLEL
+!$OMP END PARALLEL DO
           end do ! var3D
 
        end do ! iref
@@ -3806,8 +3712,7 @@ module calcbmatrix_glb_mod
        endif
        nLevStart = varLevOffset(jvar)+ 1
        nLevEnd   = varLevOffset(jvar)+ nLevEns
-!$OMP PARALLEL
-!$OMP DO PRIVATE (k,bin)       
+!$OMP PARALLEL DO PRIVATE (k,bin)       
        do k = nLevStart, nLevEnd
           do bin = 1, nLevEns
              meanCorrel(bin,k)           = meanCorrel(bin,k)           / sumWeight(bin,k)
@@ -3838,8 +3743,7 @@ module calcbmatrix_glb_mod
              end if
           end do
        end do
-!$OMP END DO
-!$OMP END PARALLEL
+!$OMP END PARALLEL DO
     end do
 
     !
@@ -3871,8 +3775,6 @@ module calcbmatrix_glb_mod
 
           write(6,*)
           write(6,*) 'Localization Function : ', f
-!!$OMP PARALLEL
-!!$OMP DO PRIVATE (k,kens,rmse)
           do k =  nLevStart, nLevEnd
              kens = k-nLevStart+1
              write(6,*) '         ----- EnsLev : ', k
@@ -3883,8 +3785,6 @@ module calcbmatrix_glb_mod
                                    distanceBinWeight(1:nLevEns), & ! IN
                                    nLevEns )                       ! IN
           end do
-!!$OMP END DO
-!!$OMP END PARALLEL
        end do
     end do
 

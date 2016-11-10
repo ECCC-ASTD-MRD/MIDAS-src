@@ -141,11 +141,13 @@ CONTAINS
         myPEsourceColumn(headerIndex) = obs_headElem_i(obsSpaceData,OBS_IPT,headerIndex)
       enddo
 
-      allocate(myYPosTile(numHeaderTile))
-      allocate(myXPosTile(numHeaderTile))
-      allocate(myLatTile(numHeaderTile))
-      allocate(myLonTile(numHeaderTile))
-      allocate(myTimeInterpWeight(numHeaderTile,statevector%numStep))
+      if(numHeaderTile.gt.0) then
+        allocate(myYPosTile(numHeaderTile))
+        allocate(myXPosTile(numHeaderTile))
+        allocate(myLatTile(numHeaderTile))
+        allocate(myLonTile(numHeaderTile))
+        allocate(myTimeInterpWeight(numHeaderTile,statevector%numStep))
+      endif
 
       if(PE_sender.eq.-1) then
         ! I am a sender from TILE to COLUMN:
@@ -408,20 +410,26 @@ CONTAINS
       real(8) :: xpos, ypos, lat, lon, latrot, lonrot
       real(8), pointer :: column_ptr(:,:), column_tile(:,:)
 
-      if (numHeaderTile > 0) then
+      if (numHeaderColumn > 0) then
         column_ptr => col_getAllColumns(column)
         column_ptr(:,:) = 0.0d0
         numLev = size(column_ptr,1)
         write(*,*) 'gd2mvo: total number of levels for all variables=',numLev
+      else
+        numLev = 1
+        write(*,*) 'gd2mvo: numHeaderTile not positive, set numLev to 1'
+      endif
 
+      if (numHeaderTile > 0) then
         allocate(column_tile(numLev,numHeaderTile))
-        column_tile(:,:) = 0.0d0
         write(*,*) 'gd2mvo: after allocate of column_tile'
         write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
         call flush(6)
       else
+        allocate(column_tile(numLev,1))
         write(*,*) 'gd2mvo: numHeaderTile not positive: ',numHeaderTile
       end if
+      column_tile(:,:) = 0.0d0
 
       ! Note: We assume here that all the obs between the poles and the last grid points
       !       (i.e. outside the grid) have been moved within the grid by sugomobs
@@ -502,10 +510,8 @@ CONTAINS
       call tmg_start(38,'INTERP_BARR')
       call rpn_comm_barrier("GRID",ierr)
       call tmg_stop(38)
-      if (numHeaderTile > 0) then
-        call transpose_tileToColumn(column_tile,column_ptr,numLev)
-        deallocate(column_tile)
-      endif
+      call transpose_tileToColumn(column_tile,column_ptr,numLev)
+      deallocate(column_tile)
 
     end subroutine gd2mvo
 
@@ -525,46 +531,55 @@ CONTAINS
 
       call tmg_start(39,'INTERP_COMM')
 
-      if(PE_receiver_mpiglobal(mpi_myid+1).ne.-1) then
-        ! I am a sender from TILE to COLUMN
-        col_ptr_out(:,1:numHeaderColumn) = col_ptr_in(:,1:numHeaderColumn)
+      nsize = abs(numlev*(numHeaderTile-numHeaderColumn))
 
-        nsize = numlev*(numHeaderTile-numHeaderColumn)
-        call tmg_start(35,'INTERP_SENDRECV')
-        call rpn_comm_send(col_ptr_in(1:numlev,numHeaderColumn+1:numHeaderTile),nsize, &
-                           "mpi_double_precision",PE_receiver_mpiglobal(mpi_myid+1), &
-                           PE_receiver_mpiglobal(mpi_myid+1)*2000+mpi_myid,  &
-                           "GRID",ierr)
-        call tmg_stop(35)
-      elseif(PE_sender_mpiglobal(mpi_myid+1).ne.-1) then
-        ! I am a receiver from TILE to COLUMN:
-        nsize = numlev*(numHeaderColumn-numHeaderTile)
-        allocate(col_recv(numLev,nsize))
-        call tmg_start(35,'INTERP_SENDRECV')
-        call rpn_comm_recv(col_recv(:,:),nsize, &
-                           "mpi_double_precision",PE_sender_mpiglobal(mpi_myid+1), &
-                           mpi_myid*2000+PE_sender_mpiglobal(mpi_myid+1),  &
-                           "GRID",status,ierr)
-        call tmg_stop(35)
-        headerIndex_local = 0
-        headerIndex_recv = 0
-        do headerIndex = 1, numHeaderColumn
-          if(myPEsourceColumn(headerIndex).eq.mpi_myid) then
-            headerIndex_local = headerIndex_local + 1
-            do jlev = 1, numLev
-              col_ptr_out(jlev,headerIndex) = col_ptr_in(jlev,headerIndex_local)
-            enddo
-          else
-            headerIndex_recv = headerIndex_recv + 1
-            do jlev = 1, numLev
-              col_ptr_out(jlev,headerIndex) = col_recv(jlev,headerIndex_recv)
-            enddo
-          endif
-        enddo
-        deallocate(col_recv)
+      if(nsize > 0) then
+
+        if(PE_receiver_mpiglobal(mpi_myid+1).ne.-1) then
+          ! I am a sender from TILE to COLUMN
+          col_ptr_out(:,1:numHeaderColumn) = col_ptr_in(:,1:numHeaderColumn)
+
+          call tmg_start(35,'INTERP_SENDRECV')
+          call rpn_comm_send(col_ptr_in(1:numlev,numHeaderColumn+1:numHeaderTile),nsize, &
+                             "mpi_double_precision",PE_receiver_mpiglobal(mpi_myid+1), &
+                             PE_receiver_mpiglobal(mpi_myid+1)*2000+mpi_myid,  &
+                             "GRID",ierr)
+          call tmg_stop(35)
+        elseif(PE_sender_mpiglobal(mpi_myid+1).ne.-1) then
+          ! I am a receiver from TILE to COLUMN:
+          allocate(col_recv(numLev,nsize))
+          call tmg_start(35,'INTERP_SENDRECV')
+          call rpn_comm_recv(col_recv(:,:),nsize, &
+                             "mpi_double_precision",PE_sender_mpiglobal(mpi_myid+1), &
+                             mpi_myid*2000+PE_sender_mpiglobal(mpi_myid+1),  &
+                             "GRID",status,ierr)
+          call tmg_stop(35)
+          headerIndex_local = 0
+          headerIndex_recv = 0
+          do headerIndex = 1, numHeaderColumn
+            if(myPEsourceColumn(headerIndex).eq.mpi_myid) then
+              headerIndex_local = headerIndex_local + 1
+              do jlev = 1, numLev
+                col_ptr_out(jlev,headerIndex) = col_ptr_in(jlev,headerIndex_local)
+              enddo
+            else
+              headerIndex_recv = headerIndex_recv + 1
+              do jlev = 1, numLev
+                col_ptr_out(jlev,headerIndex) = col_recv(jlev,headerIndex_recv)
+              enddo
+            endif
+          enddo
+          deallocate(col_recv)
+        else
+          call abort3d('transpose_tileToColumn: NOT SURE WHAT IS GOING ON, CALL MARK')
+        endif
+
       else
+
         ! No communication
-        col_ptr_out(:,1:numHeaderColumn) = col_ptr_in(:,1:numHeaderColumn)
+        if(numHeaderColumn > 0) then
+          col_ptr_out(:,1:numHeaderColumn) = col_ptr_in(:,1:numHeaderColumn)
+        endif
       endif
 
       call tmg_stop(39)
@@ -698,23 +713,25 @@ CONTAINS
       real(8) :: xpos, ypos, lat, lon, latrot, lonrot
       real(8), pointer :: column_ptr(:,:), column_tile(:,:)
 
-      if (col_getNumCol(column) > 0) then
+      if (numHeaderColumn > 0) then
         column_ptr => col_getAllColumns(column)
         numLev = size(column_ptr,1)
+      else
+        numLev = 1
       endif
 
       if (numHeaderTile > 0) then
         allocate(column_tile(numLev,numHeaderTile))
-        column_tile(:,:) = 0.0d0
-      endif
+      else
+        allocate(column_tile(numLev,1))
+      end if
+      column_tile(:,:) = 0.0d0
 
       call tmg_start(38,'INTERP_BARR')
       call rpn_comm_barrier("GRID",ierr)
       call tmg_stop(38)
 
-      if (numHeaderTile > 0) then
-        call transpose_columnToTile(column_tile,column_ptr,numLev)
-      endif
+      call transpose_columnToTile(column_tile,column_ptr,numLev)
 
       ! Note: We assume here the all the obs between the poles and the last grid points
       !       (i.e. outside the grid) have been moved within the grid previously
@@ -798,9 +815,7 @@ CONTAINS
 
       enddo ! stepIndex
 
-      if (numHeaderTile > 0) then
-        deallocate(column_tile)
-      endif
+      deallocate(column_tile)
 
     end subroutine gd2mvoad
 
@@ -817,48 +832,58 @@ CONTAINS
 
       call tmg_start(39,'INTERP_COMM')
 
-      if(PE_receiver_mpiglobal(mpi_myid+1).ne.-1) then
-        ! I am a receiver from COLUMN to TILE
-        col_ptr_out(:,1:numHeaderColumn) = col_ptr_in(:,1:numHeaderColumn)
+      nsize = abs(numlev*(numHeaderTile-numHeaderColumn))
 
-        call tmg_start(35,'INTERP_SENDRECV')
-        nsize = numlev*(numHeaderTile-numHeaderColumn)
-        call rpn_comm_recv(col_ptr_out(1:numlev,numHeaderColumn+1:numHeaderTile),nsize, &
-                           "mpi_double_precision",PE_receiver_mpiglobal(mpi_myid+1), &
-                           PE_receiver_mpiglobal(mpi_myid+1)*2000+mpi_myid,  &
-                           "GRID",status,ierr)
-        call tmg_stop(35)
+      if(nsize > 0) then
+
+        if(PE_receiver_mpiglobal(mpi_myid+1).ne.-1) then
+          ! I am a receiver from COLUMN to TILE
+          col_ptr_out(:,1:numHeaderColumn) = col_ptr_in(:,1:numHeaderColumn)
+
+          call tmg_start(35,'INTERP_SENDRECV')
+          call rpn_comm_recv(col_ptr_out(1:numlev,numHeaderColumn+1:numHeaderTile),nsize, &
+                             "mpi_double_precision",PE_receiver_mpiglobal(mpi_myid+1), &
+                             PE_receiver_mpiglobal(mpi_myid+1)*2000+mpi_myid,  &
+                             "GRID",status,ierr)
+          call tmg_stop(35)
 
 
-      elseif(PE_sender_mpiglobal(mpi_myid+1).ne.-1) then
-        ! I am a sender from COLUMN to TILE:
-        nsize = numlev*(numHeaderColumn-numHeaderTile)
-        allocate(col_send(numLev,nsize))
-        headerIndex_local = 0
-        headerIndex_send = 0
-        do headerIndex = 1, numHeaderColumn
-          if(myPEsourceColumn(headerIndex).eq.mpi_myid) then
-            headerIndex_local = headerIndex_local + 1
-            do jlev = 1, numLev
-              col_ptr_out(jlev,headerIndex_local) = col_ptr_in(jlev,headerIndex)
-            enddo
-          else
-            headerIndex_send = headerIndex_send + 1
-            do jlev = 1, numLev
-              col_send(jlev,headerIndex_send) = col_ptr_in(jlev,headerIndex)
-            enddo
-          endif
-        enddo
-        call tmg_start(35,'INTERP_SENDRECV')
-        call rpn_comm_send(col_send(:,:),nsize, &
-                           "mpi_double_precision",PE_sender_mpiglobal(mpi_myid+1), &
-                           mpi_myid*2000+PE_sender_mpiglobal(mpi_myid+1),  &
-                           "GRID",ierr)
-        call tmg_stop(35)
-        deallocate(col_send)
+        elseif(PE_sender_mpiglobal(mpi_myid+1).ne.-1) then
+          ! I am a sender from COLUMN to TILE:
+          allocate(col_send(numLev,nsize))
+          headerIndex_local = 0
+          headerIndex_send = 0
+          do headerIndex = 1, numHeaderColumn
+            if(myPEsourceColumn(headerIndex).eq.mpi_myid) then
+              headerIndex_local = headerIndex_local + 1
+              do jlev = 1, numLev
+                col_ptr_out(jlev,headerIndex_local) = col_ptr_in(jlev,headerIndex)
+              enddo
+            else
+              headerIndex_send = headerIndex_send + 1
+              do jlev = 1, numLev
+                col_send(jlev,headerIndex_send) = col_ptr_in(jlev,headerIndex)
+              enddo
+            endif
+          enddo
+          call tmg_start(35,'INTERP_SENDRECV')
+          call rpn_comm_send(col_send(:,:),nsize, &
+                             "mpi_double_precision",PE_sender_mpiglobal(mpi_myid+1), &
+                             mpi_myid*2000+PE_sender_mpiglobal(mpi_myid+1),  &
+                             "GRID",ierr)
+          call tmg_stop(35)
+          deallocate(col_send)
+        else
+          call abort3d('transpose_tileToColumn: NOT SURE WHAT IS GOING ON, CALL MARK')
+        endif
+
       else
+
         ! No communication
-        col_ptr_out(:,1:numHeaderColumn) = col_ptr_in(:,1:numHeaderColumn)
+        if(numHeaderColumn > 0) then
+          col_ptr_out(:,1:numHeaderColumn) = col_ptr_in(:,1:numHeaderColumn)
+        endif
+
       endif
 
       call tmg_stop(39)

@@ -62,7 +62,7 @@ program diag_bmatrix
 
   integer :: numperturbations,nrandseed,diagdate
   integer :: oneobs_levs(100),oneobs_lons(100),oneobs_lats(100)
-  integer :: gstID, mpiMode
+  integer :: gstID
 
   namelist /namdiag/numperturbations,nrandseed,diagdate,oneobs_levs,oneobs_lons,oneobs_lats
   
@@ -126,8 +126,7 @@ program diag_bmatrix
   hco_anl => hco_Get('Analysis')
 
   if ( hco_anl % global ) then
-    mpiMode = 4
-    gstID = gst_setup(statevector%ni,statevector%nj,10,mpiMode)
+    gstID = gst_setup(statevector%ni,statevector%nj,10)
   else
     !- Iniatilized the core (Non-Exteded) analysis grid
     call hco_SetupFromFile( './analysisgrid', 'COREGRID', 'AnalysisNonExt' ) ! IN

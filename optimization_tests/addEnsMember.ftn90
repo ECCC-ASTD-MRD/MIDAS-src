@@ -1,0 +1,431 @@
+program addEnsMember
+  implicit none
+
+  integer, parameter :: niter = 25
+  integer, parameter :: nWaveBand = 1
+  integer, parameter :: nLevEns_M = 73
+  integer, parameter :: nLevEns_T = 74
+  integer, parameter :: nEns = 256
+  integer, parameter :: numTime = 7
+  integer, parameter :: ni = 80
+  integer, parameter :: nj = 40
+  integer, parameter :: numVar3D = 4
+  integer, parameter :: numVar2D = 2
+
+  integer :: iter, waveBandIndex, jlev, memberIndex, jt, jj, ji, nkgdimEns, jvar, levIndex
+  integer :: numVar, levelIndex
+  integer, external :: get_max_rss
+
+  integer(2), parameter :: int2 = 10
+
+  type :: struct_ensPert1
+     real(4), allocatable :: member_r4(:,:,:,:)
+    end type struct_ensPert1
+  type(struct_ensPert1), pointer :: ensPerturbations1(:,:)
+
+  type :: struct_ensPert2
+     integer(2), allocatable :: member_i2(:,:,:,:)
+  end type struct_ensPert2
+  type(struct_ensPert2), pointer :: ensPerturbations2(:,:)
+
+  real(8), allocatable :: incrementLocal_out(:,:,:,:)
+  real(8), allocatable :: ensAmplitude_in(:,:,:)
+
+  real(4), allocatable :: incrementLocal_r4(:,:,:,:)
+  real(4), allocatable :: ensAmplitude_r4(:,:,:)
+  
+  integer,allocatable :: verticalLevel(:,:)
+
+  real(8), allocatable  :: int2ToReal8_scalefactor(:,:,:)
+  real(8), allocatable  :: int2ToReal8_offset(:,:,:)
+
+  real(4), allocatable  :: int2ToReal4_scalefactor(:,:,:)
+  real(4), allocatable  :: int2ToReal4_offset(:,:,:)
+
+  real(8), allocatable  :: ensPert2d(:,:)
+
+  real(8) :: scalefactor, ensPert
+  real(8) :: offset
+
+  real(4) :: scalefactor_r4
+  real(4) :: offset_r4
+
+
+  write(*,*)
+  write(*,*) '--------------------------------------'
+  write(*,*) '>>>>>>> AddEnsMember STARTING <<<<<<<<'
+  write(*,*) '--------------------------------------'
+  write(*,*)
+
+  !
+  !- Setup
+  !
+  call tmg_init(1, 'TMG_AddEnsMember' )
+
+  nkgdimEns = 2*nLevEns_M+2*nLevEns_T+2 
+
+  ! array to convert amplitude field level (1->nLevEns_M) for each variable into ens (1->nkgdimEns)
+  allocate(verticalLevel(nLevEns_M,6))
+  verticalLevel(:,:) = 0
+  do jlev = 1, nLevEns_M
+     verticalLevel(jlev,1) =                       jlev ! UU
+     verticalLevel(jlev,2) = 1*nLevEns_M          +jlev ! VV
+  enddo
+  do jlev = 1, nLevEns_M
+     verticalLevel(jlev,3) = 2*nLevEns_M          +jlev ! TT
+     verticalLevel(jlev,4) = 2*nLevEns_M+nLevEns_T+jlev ! HU
+  enddo
+  verticalLevel(nLevEns_M,5) = 2*nLevEns_M+2*nLevEns_T+1 ! P0
+  verticalLevel(nLevEns_M,6) = 2*nLevEns_M+2*nLevEns_T+2 ! TG
+
+  write(*,*)
+  write(*,*) 'End of Setup, Memory Used = ',get_max_rss()/1024,'Mb'
+
+  !
+  !- AddEnsMember version 1 (real4)
+  !
+!!$  write(*,*) '> Test #1'
+!!$
+!!$  write(*,*) 'Allocating memory for incrementLocal'
+!!$  allocate(incrementLocal_out(ni,nj,nkgdimEns,numTime))
+!!$
+!!$  write(*,*) 'Allocating memory for ensAmplitude'
+!!$  allocate(ensAmplitude_in(ni,nj,nEns))
+!!$  ensAmplitude_in(:,:,:) = 1.d0
+!!$
+!!$  write(*,*) 'Allocating memory for ensPerturbations'
+!!$  allocate(ensPerturbations1(nWaveBand,nEns))
+!!$  do waveBandIndex = 1, nWaveBand
+!!$     do memberIndex = 1, nEns
+!!$        allocate(ensPerturbations1(waveBandIndex,memberIndex)%member_r4(ni,nj,nkgdimEns,numTime))
+!!$        ensPerturbations1(waveBandIndex,memberIndex)%member_r4(:,:,:,:) = 1.d0
+!!$     enddo
+!!$  enddo
+!!$
+!!$  write(*,*) '            Memory Used = ',get_max_rss()/1024,'Mb'
+!!$
+!!$  do iter = 1, niter
+!!$     incrementLocal_out(:,:,:,:) = 0.d0
+!!$     do waveBandIndex = 1, nWaveBand
+!!$        do levelIndex = 1, nLevEns_M
+!!$           call tmg_start(1,'AddEnsMember_real4')
+!!$           if ( levelIndex .eq. nLevEns_M ) then
+!!$              numVar = 6 ! surface level, 4 3D and 2 sfc fields
+!!$           else
+!!$              numVar = 4 ! above the surface, only 4 3D fields
+!!$           endif
+!!$           do memberIndex = 1, nEns
+!!$!$OMP PARALLEL DO PRIVATE (JT,JJ,JVAR,JLEV,JI)
+!!$              do jt = 1, numTime
+!!$                 do jvar = 1, numVar
+!!$                    jlev = verticalLevel(levelIndex,jvar)
+!!$                    do jj = 1,nj
+!!$                       do ji = 1,ni
+!!$                          incrementLocal_out(ji,jj,jlev,jt) = incrementLocal_out(ji,jj,jlev,jt) +   &
+!!$                               ensAmplitude_in(ji,jj,memberIndex) * &
+!!$                               dble(ensPerturbations1(waveBandIndex,memberIndex)%member_r4(ji,jj,jlev,jt))
+!!$                       end do
+!!$                    end do
+!!$                 end do
+!!$              end do
+!!$!$OMP END PARALLEL DO
+!!$           end do
+!!$           call tmg_stop(1)
+!!$        end do
+!!$     end do
+!!$  end do
+!!$
+!!$  do waveBandIndex = 1, nWaveBand
+!!$     do memberIndex = 1, nEns
+!!$        deallocate(ensPerturbations1(waveBandIndex,memberIndex)%member_r4)
+!!$     enddo
+!!$  enddo
+!!$  deallocate(ensPerturbations1)
+!!$  deallocate(ensAmplitude_in,incrementLocal_out)
+!!$  
+!!$  write(*,*) '            Memory Used = ',get_max_rss()/1024,'Mb'
+
+  !
+  !- AddEnsMember version 2 (real4)
+  !
+!!$  write(*,*) '> Test #5'
+!!$
+!!$  write(*,*) 'Allocating memory for ensPerturbations'
+!!$  allocate(ensPerturbations1(nWaveBand,nEns))
+!!$  do waveBandIndex = 1, nWaveBand
+!!$     do memberIndex = 1, nEns
+!!$!        write(*,*) memberIndex
+!!$        allocate(ensPerturbations1(waveBandIndex,memberIndex)%member_r4(ni,nj,nkgdimEns,numTime))
+!!$        ensPerturbations1(waveBandIndex,memberIndex)%member_r4(:,:,:,:) = 1.0
+!!$     enddo
+!!$  enddo
+!!$
+!!$  allocate(incrementLocal_r4(ni,nj,nkgdimEns,numTime))
+!!$  
+!!$  write(*,*) 'Allocating memory for ensAmplitude'
+!!$  allocate(ensAmplitude_r4(ni,nj,nEns))
+!!$  ensAmplitude_r4(:,:,:) = 1.0
+!!$
+!!$  write(*,*) '            Memory Used = ',get_max_rss()/1024,'Mb'
+!!$
+!!$  do iter = 1, niter
+!!$     incrementLocal_r4(:,:,:,:) = 0.0
+!!$     do waveBandIndex = 1, nWaveBand
+!!$        do levelIndex = 1, nLevEns_M
+!!$           call tmg_start(5,'AddEnsMember_real4_2')
+!!$           if ( levelIndex .eq. nLevEns_M ) then
+!!$              numVar = 6 ! surface level, 4 3D and 2 sfc fields
+!!$           else
+!!$              numVar = 4 ! above the surface, only 4 3D fields
+!!$           endif
+!!$           do memberIndex = 1, nEns
+!!$!$OMP PARALLEL DO PRIVATE (JT,JJ,JVAR,JLEV,JI)
+!!$              do jt = 1, numTime
+!!$                 do jvar = 1, numVar
+!!$                    jlev = verticalLevel(levelIndex,jvar)
+!!$                    do jj = 1,nj
+!!$                       do ji = 1,ni
+!!$                          incrementLocal_r4(ji,jj,jlev,jt) = incrementLocal_r4(ji,jj,jlev,jt) +   &
+!!$                               ensAmplitude_r4(ji,jj,memberIndex) * &
+!!$                               ensPerturbations1(waveBandIndex,memberIndex)%member_r4(ji,jj,jlev,jt)
+!!$                       end do
+!!$                    end do
+!!$                 end do
+!!$              end do
+!!$!$OMP END PARALLEL DO
+!!$           end do
+!!$           call tmg_stop(5)
+!!$        end do
+!!$     end do
+!!$  end do
+!!$
+!!$  do waveBandIndex = 1, nWaveBand
+!!$     do memberIndex = 1, nEns
+!!$        deallocate(ensPerturbations1(waveBandIndex,memberIndex)%member_r4)
+!!$     enddo
+!!$  enddo
+!!$  deallocate(ensPerturbations1)
+!!$  deallocate(ensAmplitude_r4,incrementLocal_r4)
+!!$  
+!!$  write(*,*) '            Memory Used = ',get_max_rss()/1024,'Mb'
+
+  !
+  !- AddEnsMember version 2 (16-bit integer)
+  !
+!!$  write(*,*) '> Test #2'
+!!$
+!!$  allocate(ensPerturbations2(nWaveBand,nEns))
+!!$  do waveBandIndex = 1, nWaveBand
+!!$     do memberIndex = 1, nEns
+!!$        allocate(ensPerturbations2(waveBandIndex,memberIndex)%member_i2(ni,nj,nkgdimEns,numTime))
+!!$        ensPerturbations2(waveBandIndex,memberIndex)%member_i2(:,:,:,:) = 1
+!!$     enddo
+!!$  enddo
+!!$
+!!$  write(*,*) 'Allocating memory for incrementLocal'
+!!$  allocate(incrementLocal_out(ni,nj,nkgdimEns,numTime))
+!!$
+!!$  write(*,*) 'Allocating memory for ensAmplitude'
+!!$  allocate(ensAmplitude_in(ni,nj,nEns))
+!!$  ensAmplitude_in(:,:,:) = 1.d0
+!!$
+!!$  allocate(int2ToReal8_scalefactor(nkgdimEns,numTime,nWaveBand))
+!!$  int2ToReal8_scalefactor(:,:,:) = 1.d0
+!!$  allocate(int2ToReal8_offset     (nkgdimEns,numTime,nWaveBand))
+!!$  int2ToReal8_offset(:,:,:) = -1.d0
+!!$
+!!$  write(*,*) '            Memory Used = ',get_max_rss()/1024,'Mb'
+!!$
+!!$  do iter = 1, niter
+!!$     incrementLocal_out(:,:,:,:) = 0.d0
+!!$     do waveBandIndex = 1, nWaveBand
+!!$        do levelIndex = 1, nLevEns_M 
+!!$ !          write(*,*) levelIndex
+!!$           call tmg_start(2,'AddEnsMember_int2')
+!!$           do memberIndex = 1, nEns
+!!$              if ( levelIndex .eq. nLevEns_M ) then
+!!$                 numVar = 6 ! surface level, 4 3D and 2 sfc fields
+!!$              else
+!!$                 numVar = 4 ! above the surface, only 4 3D fields
+!!$              endif
+!!$!$OMP PARALLEL DO PRIVATE (JT,JJ,JVAR,JLEV,JI,scalefactor,offset)
+!!$              do jt = 1, numTime
+!!$                 do jvar = 1, numVar
+!!$                    jlev = verticalLevel(levelIndex,jvar)
+!!$                    scalefactor = int2ToReal8_scalefactor(jlev,jt,waveBandIndex)
+!!$                    offset      = int2ToReal8_offset(jlev,jt,waveBandIndex)
+!!$                    do jj = 1,nj
+!!$                       do ji = 1,ni
+!!$                          incrementLocal_out(ji,jj,jlev,jt) = incrementLocal_out(ji,jj,jlev,jt) +   &
+!!$                               ensAmplitude_in(ji,jj,memberIndex) * &
+!!$                               (real(ensPerturbations2(waveBandIndex,memberIndex)%member_i2(ji,jj,jlev,jt),8)* &
+!!$                               scalefactor+offset)
+!!$                       end do
+!!$                    end do
+!!$                 end do
+!!$              end do
+!!$!$OMP END PARALLEL DO
+!!$           end do
+!!$!           write(*,*) maxval(incrementLocal_out), minval(incrementLocal_out)
+!!$           call tmg_stop(2)
+!!$        end do
+!!$     end do
+!!$  end do
+!!$
+!!$  do waveBandIndex = 1, nWaveBand
+!!$     do memberIndex = 1, nEns
+!!$        deallocate(ensPerturbations2(waveBandIndex,memberIndex)%member_i2)
+!!$     enddo
+!!$  enddo
+!!$  deallocate(ensPerturbations2)
+!!$  deallocate(int2ToReal8_scalefactor, int2ToReal8_offset)
+!!$  deallocate(ensAmplitude_in,incrementLocal_out)
+!!$
+!!$  write(*,*) '            Memory Used = ',get_max_rss()/1024,'Mb'
+
+  !
+  !- AddEnsMember version 3 (real4 mimicking int2ToReal8)
+  !
+!!$  write(*,*) '> Test #3'
+!!$
+!!$  write(*,*) 'Allocating memory for ensPerturbations'
+!!$  allocate(ensPerturbations1(nWaveBand,nEns))
+!!$  do waveBandIndex = 1, nWaveBand
+!!$     do memberIndex = 1, nEns
+!!$        allocate(ensPerturbations1(waveBandIndex,memberIndex)%member_r4(ni,nj,nkgdimEns,numTime))
+!!$        ensPerturbations1(waveBandIndex,memberIndex)%member_r4(:,:,:,:) = 1.d0
+!!$     enddo
+!!$  enddo
+!!$
+!!$  allocate(int2ToReal8_scalefactor(nkgdimEns,numTime,nWaveBand))
+!!$  int2ToReal8_scalefactor(:,:,:) = 1.d0
+!!$  allocate(int2ToReal8_offset     (nkgdimEns,numTime,nWaveBand))
+!!$  int2ToReal8_offset(:,:,:) = -1.d0
+!!$
+!!$  write(*,*) '            Memory Used = ',get_max_rss()/1024,'Mb'
+!!$
+!!$  do iter = 1, niter
+!!$     incrementLocal_out(:,:,:,:) = 0.d0
+!!$     do waveBandIndex = 1, nWaveBand
+!!$        do levelIndex = 1, nLevEns_M
+!!$           call tmg_start(3,'AddEnsMember_real4_scaleAndOffset')
+!!$           if ( levelIndex .eq. nLevEns_M ) then
+!!$              numVar = 6 ! surface level, 4 3D and 2 sfc fields
+!!$           else
+!!$              numVar = 4 ! above the surface, only 4 3D fields
+!!$           endif
+!!$           do memberIndex = 1, nEns
+!!$!$OMP PARALLEL DO PRIVATE (JT,JJ,JVAR,JLEV,JI)
+!!$              do jt = 1, numTime
+!!$                 do jvar = 1, numVar
+!!$                    jlev = verticalLevel(levelIndex,jvar)
+!!$                    scalefactor = int2ToReal8_scalefactor(jlev,jt,waveBandIndex)
+!!$                    offset      = int2ToReal8_offset(jlev,jt,waveBandIndex)
+!!$                    do jj = 1,nj
+!!$                       do ji = 1,ni
+!!$                          incrementLocal_out(ji,jj,jlev,jt) = incrementLocal_out(ji,jj,jlev,jt) +   &
+!!$                               ensAmplitude_in(ji,jj,memberIndex) * &
+!!$                               (dble(int(ensPerturbations1(waveBandIndex,memberIndex)%member_r4(ji,jj,jlev,jt),2))*&
+!!$                               scalefactor-offset)
+!!$                       end do
+!!$                    end do
+!!$                 end do
+!!$             end do
+!!$!$OMP END PARALLEL DO
+!!$           end do
+!!$           call tmg_stop(3)
+!!$        end do
+!!$     end do
+!!$  end do
+!!$
+!!$  do waveBandIndex = 1, nWaveBand
+!!$     do memberIndex = 1, nEns
+!!$        deallocate(ensPerturbations1(waveBandIndex,memberIndex)%member_r4)
+!!$     enddo
+!!$  enddo
+!!$  deallocate(ensPerturbations1)
+!!$  deallocate(int2ToReal8_scalefactor, int2ToReal8_offset)
+!!$  
+!!$  write(*,*) '            Memory Used = ',get_max_rss()/1024,'Mb'
+
+    !
+  !- AddEnsMember version 4 (16-bit integer)
+  !
+  write(*,*) '> Test #4'
+
+  allocate(ensPerturbations2(nWaveBand,nEns))
+  do waveBandIndex = 1, nWaveBand
+     do memberIndex = 1, nEns
+        allocate(ensPerturbations2(waveBandIndex,memberIndex)%member_i2(ni,nj,nkgdimEns,numTime))
+        ensPerturbations2(waveBandIndex,memberIndex)%member_i2(:,:,:,:) = 1
+     enddo
+  enddo
+
+  allocate(int2ToReal4_scalefactor(nkgdimEns,numTime,nWaveBand))
+  int2ToReal4_scalefactor(:,:,:) = 1.0
+  allocate(int2ToReal4_offset     (nkgdimEns,numTime,nWaveBand))
+  int2ToReal4_offset(:,:,:) = -1.0
+
+  allocate(incrementLocal_r4(ni,nj,nkgdimEns,numTime))
+  
+  write(*,*) 'Allocating memory for ensAmplitude'
+  allocate(ensAmplitude_r4(ni,nj,nEns))
+  ensAmplitude_r4(:,:,:) = 1.0
+
+  write(*,*) '            Memory Used = ',get_max_rss()/1024,'Mb'
+
+  do iter = 1, niter
+     incrementLocal_r4(:,:,:,:) = 0.0
+     do waveBandIndex = 1, nWaveBand
+        do levelIndex = 1, nLevEns_M 
+           call tmg_start(4,'AddEnsMember_int2_2')
+           do memberIndex = 1, nEns
+              if ( levelIndex .eq. nLevEns_M ) then
+                 numVar = 6 ! surface level, 4 3D and 2 sfc fields
+              else
+                 numVar = 4 ! above the surface, only 4 3D fields
+              endif
+!$OMP PARALLEL DO PRIVATE (JT,JJ,JVAR,JLEV,JI,scalefactor_r4,offset_r4)
+              do jt = 1, numTime
+                 do jvar = 1, numVar
+                    jlev = verticalLevel(levelIndex,jvar)
+                    scalefactor_r4 = int2ToReal4_scalefactor(jlev,jt,waveBandIndex)
+                    offset_r4      = int2ToReal4_offset(jlev,jt,waveBandIndex)
+                    do jj = 1,nj
+                       do ji = 1,ni
+                          incrementLocal_r4(ji,jj,jlev,jt) = incrementLocal_r4(ji,jj,jlev,jt) +   &
+                               ensAmplitude_r4(ji,jj,memberIndex) * &
+                               (real(ensPerturbations2(waveBandIndex,memberIndex)%member_i2(ji,jj,jlev,jt),4)*scalefactor_r4+offset_r4)
+                       end do
+                    end do
+                 end do
+              end do
+!$OMP END PARALLEL DO
+           end do
+           call tmg_stop(4)
+        end do
+     end do
+  end do
+
+  do waveBandIndex = 1, nWaveBand
+     do memberIndex = 1, nEns
+        deallocate(ensPerturbations2(waveBandIndex,memberIndex)%member_i2)
+     enddo
+  enddo
+  deallocate(ensPerturbations2)
+  
+  write(*,*) '            Memory Used = ',get_max_rss()/1024,'Mb'
+
+  !
+  !- Ending
+  !
+
+  call tmg_terminate(1, 'TMG_AddEnsMember' )
+
+  write(*,*)
+  write(*,*) '--------------------------------------'
+  write(*,*) '>>>>>>> AddEnsMember ENDING <<<<<<<<'
+  write(*,*) '--------------------------------------'
+  write(*,*)
+
+end program addEnsMember
