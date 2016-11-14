@@ -342,7 +342,7 @@ contains
       rwtinv(jlat) = real(statevector % ni,8) / gst_getRWT(jlat)
     enddo
 
-    ptr => gsv_getField(statevector)
+    ptr => gsv_getField_r8(statevector)
 !$OMP PARALLEL DO PRIVATE (jlat,jstep,jlev,jlon)
     do jlev = 1, statevector % nk
       do jstep = 1, statevector % numStep

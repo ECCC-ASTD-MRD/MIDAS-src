@@ -101,9 +101,9 @@ subroutine preproc(lcolumng,lcolumnhr,lobsSpaceData, &
 
   if ( .not. hco_anl % global ) then
     !- Iniatilized the core (Non-Exteded) analysis grid
-    call hco_SetupFromFile( './analysisgrid', 'COREGRID', 'AnalysisNonExt' ) ! IN
+    call hco_SetupFromFile( './analysisgrid', 'COREGRID', 'AnalysisCore' ) ! IN
     !- Setup the LAM analysis grid metrics
-    call lag_SetupFromHCO( 'Analysis', 'AnalysisNonExt' ) ! IN
+    call lag_SetupFromHCO( 'Analysis', 'AnalysisCore' ) ! IN
   end if
 
   if ( hco_anl % rotated ) then

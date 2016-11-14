@@ -618,7 +618,7 @@ CONTAINS
     real(8), pointer :: field(:,:,:)
 
     do jvar = 1,numvar3d+numvar2d
-        field => gsv_getField3D(statevector,bchm_varNameList(jvar))
+        field => gsv_getField3D_r8(statevector,bchm_varNameList(jvar))
         ilev1 = nsposit(jvar)
         ilev2 = nsposit(jvar+1)-1 
         
@@ -678,7 +678,7 @@ CONTAINS
     real(8), pointer :: field(:,:,:)
 
     do jvar = 1,numvar3d+numvar2d
-        field => gsv_getField3D(statevector,bchm_varNameList(jvar))
+        field => gsv_getField3D_r8(statevector,bchm_varNameList(jvar))
 
         ilev1 = nsposit(jvar)
         ilev2 = nsposit(jvar+1)-1 

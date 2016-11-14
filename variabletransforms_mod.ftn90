@@ -113,10 +113,10 @@ CONTAINS
 
     integer :: nlev_M, tstep
 
-    uu_ptr => gsv_getField(statevector,'UU')
-    vv_ptr => gsv_getField(statevector,'VV')
-    qr_ptr => gsv_getField(statevector,'QR')
-    dd_ptr => gsv_getField(statevector,'DD')
+    uu_ptr => gsv_getField_r8(statevector,'UU')
+    vv_ptr => gsv_getField_r8(statevector,'VV')
+    qr_ptr => gsv_getField_r8(statevector,'QR')
+    dd_ptr => gsv_getField_r8(statevector,'DD')
     nlev_M = gsv_getNumLev(statevector,'MM')
     
     if (  statevector%hco%global ) then
@@ -153,10 +153,10 @@ CONTAINS
 
     integer :: trunc=125
 
-    qr_ptr => gsv_getField(statevector,'QR')
-    dd_ptr => gsv_getField(statevector,'DD')
-    pp_ptr => gsv_getField(statevector,'PP')
-    cc_ptr => gsv_getField(statevector,'CC')
+    qr_ptr => gsv_getField_r8(statevector,'QR')
+    dd_ptr => gsv_getField_r8(statevector,'DD')
+    pp_ptr => gsv_getField_r8(statevector,'PP')
+    cc_ptr => gsv_getField_r8(statevector,'CC')
     nlev_M = gsv_getNumLev(statevector,'MM')
     
     if (  statevector%hco%global ) then

@@ -1311,8 +1311,8 @@ contains
        end if
        
        ! Get the pointers to the fields
-       background_field => gsv_getField(background,varName)
-       if (present(increment)) increment_field => gsv_getField(increment,varName)
+       background_field => gsv_getField_r8(background,varName)
+       if (present(increment)) increment_field => gsv_getField_r8(increment,varName)
 
        if (.not.l_reverse) then
 
@@ -1462,8 +1462,8 @@ contains
     step2 = background%numStep
 
     ! Get the pointers to the fields
-    background_field => gsv_getField(background,varName)
-    increment_field => gsv_getField(increment,varName)
+    background_field => gsv_getField_r8(background,varName)
+    increment_field => gsv_getField_r8(increment,varName)
 
     if (chm_config%low_cutoff(iconstituent_id).ge.0.) then
 

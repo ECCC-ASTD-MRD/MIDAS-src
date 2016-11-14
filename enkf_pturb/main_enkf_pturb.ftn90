@@ -193,7 +193,7 @@ program main_enkf_pturb
   zdum      = gasdev(-iseed)
 
   gdmean(:,:,:) = 0.0D0
-  field => gsv_getField3d(statevector)
+  field => gsv_getField3d_r8(statevector)
 
   !- 4.1 Generate a (potentially) biased ensemble
   do jmem = 1,NENKFMEM
@@ -270,7 +270,7 @@ program main_enkf_pturb
      write(*,*) ' pre-processing for writing member number= ',jmem
 
      call gsv_allocate(statevector,1,dateStamp=nstamp,mpi_local=.true.)
-     field => gsv_getField3d(statevector)
+     field => gsv_getField3d_r8(statevector)
 
 !$OMP PARALLEL
 !$OMP DO PRIVATE (jni,jnj,jnk)    

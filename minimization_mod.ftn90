@@ -975,7 +975,7 @@ CONTAINS
       icount=0
       do jvar=1,vnl_numvarmax 
         if(gsv_varExist(statevector_randpert,vnl_varNameList(jvar))) then
-           field => gsv_getField(statevector_randpert,vnl_varNameList(jvar))
+           field => gsv_getField_r8(statevector_randpert,vnl_varNameList(jvar))
            nlev=gsv_getNumLev(statevector_randpert,vnl_varLevelFromVarname(vnl_varNameList(jvar))) 
            if (vnl_varKindFromVarname(vnl_varNameList(jvar)).eq.'MT') then
              write(*,*) 'min_calcRandomPert: undo Bhi scaleFactor varname= ',vnl_varNameList(jvar)
@@ -1024,7 +1024,7 @@ CONTAINS
             (trim(vnl_varNameList3D(jvar)).eq.'UU' .or.  &
              trim(vnl_varNameList3D(jvar)).eq.'VV') ) then
         write(*,*) 'min_calcRandomPert: pertScaleFactor_UV varname= ',vnl_varNameList3D(jvar)
-        field => gsv_getField(statevector_randpert,vnl_varNameList3D(jvar))
+        field => gsv_getField_r8(statevector_randpert,vnl_varNameList3D(jvar))
         do jlev = 1, gsv_getNumLev(statevector_randpert,vnl_varLevelFromVarname(vnl_varNameList3D(jvar)))   
           write(*,*) 'min_calcRandomPert: pertScaleFactor_UV= ',jlev,pertScaleFactor_UV(jlev)
           field(lon1:lon2,lat1:lat2,jlev,:)=field(lon1:lon2,lat1:lat2,jlev,:)*pertScaleFactor_UV(jlev)

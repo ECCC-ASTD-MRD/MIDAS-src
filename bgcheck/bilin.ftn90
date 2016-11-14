@@ -57,7 +57,7 @@ SUBROUTINE BILIN(lcolumn,statevector,lobsSpaceData)
   allocate(zgd(statevector%ni+1,statevector%nj,statevector%nk))
   
   zgd(:,:,:)=0.0d0
-  field_ptr => gsv_getField3D(statevector)
+  field_ptr => gsv_getField3D_r8(statevector)
   zgd(1:statevector%ni,1:statevector%nj,1:statevector%nk)= &
        field_ptr(1:statevector%ni,1:statevector%nj,1:statevector%nk)
 
