@@ -102,8 +102,8 @@ fi
 varabs=oavar_${ORDENV_PLAT}${ABSTAG}
 
 ## for rmn, rpncomm
-echo "loading eccc/mrd/rpn/libs/16.0-beta"
-. ssmuse-sh -d eccc/mrd/rpn/libs/16.0-beta
+echo "loading eccc/mrd/rpn/libs/16.0-beta-2"
+. ssmuse-sh -d eccc/mrd/rpn/libs/16.0-beta-2
 if [ "${ORDENV_PLAT}" = ubuntu-14.04-amd64-64 ];then
     ## for openmpi
     echo "loading main/opt/openmpi/openmpi-1.6.5/intelcomp-2016.1.156"
@@ -115,8 +115,8 @@ fi
 echo "loading eccc/cmd/cmdn/vgrid/5.6.6/${COMP_ARCH}"
 . ssmuse-sh -d eccc/cmd/cmdn/vgrid/5.6.6/${COMP_ARCH}
 ## for 'burplib'
-echo "loading eccc/cmd/cmda/libs/development/${COMP_ARCH}"
-. ssmuse-sh -d eccc/cmd/cmda/libs/development/${COMP_ARCH}
+echo "loading eccc/cmd/cmda/libs/16.0-beta-2/${COMP_ARCH}"
+. ssmuse-sh -d eccc/cmd/cmda/libs/16.0-beta-2/${COMP_ARCH}
 
 ## For hpcsperf needed for TMG timings
 echo "loading hpcs/exp/aspgjdm/perftools"
