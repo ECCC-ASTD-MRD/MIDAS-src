@@ -502,97 +502,55 @@ CONTAINS
     real(8)                        :: incr_cv(:)
     type(struct_columnData),target :: columng
     ! locals
-    integer              :: fnom, fstouv, fclos, fstfrm, fstinf
-    integer              :: ierr, ikey, indexStep, indexTrial, numTrials, nulTrial
-    integer              :: ni_file, nj_file, nk_file, dateStamp
+    integer              :: indexStep, dateStamp
     real(8)              :: deltaHours
     character(len=4)     :: coffset
     character(len=2)     :: flnum
     character(len=30)    :: fileName
-    logical              :: fileExists
-    type(struct_gsv)     :: statevector_trial, statevector_incr
+    type(struct_gsv)     :: statevector_incr
     type(struct_hco), pointer :: hco_anl
+    type(struct_vco), pointer :: vco_anl
 
     if(mpi_myid.eq.0) write(*,*) 'min_writeIncrement: STARTING'
 
-    ! initialize statevector_trial and statevector_incr
+    ! initialize statevector_incr
     hco_anl => hco_get('Analysis')
-
-    call gsv_setVco(statevector_trial,col_getVco(columng))
-    call gsv_setHco(statevector_trial,hco_anl)
-    call gsv_allocate(statevector_trial,tim_nstepobsinc,datestamp=tim_getDatestamp(),mpi_local=.true.)
-
-    call gsv_setVco(statevector_incr,col_getVco(columng))
+    vco_anl => col_getVco(columng)
+    
+    call gsv_setVco(statevector_incr,vco_anl)
     call gsv_setHco(statevector_incr,hco_anl)
     call gsv_allocate(statevector_incr,tim_nstepobsinc,datestamp=tim_getDatestamp(),mpi_local=.true.)
 
     ! compute increment from control vector (multiply by B^1/2)
     call bmat_sqrtB(incr_cv, nvadim_mpilocal, statevector_incr)
 
-    ! check existence of all trial files
-    numTrials = 0
-    do 
-      write(flnum,'(I2.2)') numTrials+1
-      fileName = './trlm_' // trim(flnum)
-      inquire(file=trim(fileName),exist=fileExists)
-      if(fileExists) then
-        numTrials = numTrials + 1
-      elseif ( (.not. fileExists) .and. numTrials > 0 ) then
-        exit  
-      elseif ( (.not. fileExists) .and. numTrials == 0 ) then
-        call abort3d('min_writeIncrement: No trial files found')
-      endif 
-    enddo 
-    if(numTrials.ne.tim_nstepobs) then
-      write(*,*) 'numTrials, tim_nstepobs = ',numTrials, tim_nstepobs
-      call abort3d('min_writeIncrement: numTrials <> tim_nstepobs')
-    endif
-
-    ! loop over times for which increment is computed
-    do indexStep = 1, tim_nstepobsinc
-      dateStamp = gsv_getDateStamp(statevector_incr,indexStep)
-      if(mpi_myid.eq.0) write(*,*) 'min_writeIncrement: writing increment for time step: ',indexStep, dateStamp
-
-      ! identify which trial file corresponds with current datestamp
-      fileName = 'NOTFOUND'
-      do indexTrial = 1, numTrials
-        write(flnum,'(I2.2)') indexTrial
-        fileName = './trlm_' // trim(flnum)
-        nulTrial = 0
-        ierr = fnom(nulTrial,trim(fileName),'RND+OLD+R/O',0)
-        ierr = fstouv(nulTrial,'RND+OLD')
-        ikey = fstinf(nulTrial, ni_file, nj_file, nk_file,  &
-                      dateStamp, ' ', -1, -1, -1, ' ', 'P0')
-        ierr = fstfrm(nulTrial)
-        ierr = fclos(nulTrial)
-        if(ikey.gt.0) exit
-      enddo
-      if(trim(fileName).eq.'NOTFOUND') then 
-        write(*,*) 'indexStep, dateStamp = ', indexStep, dateStamp
-        call abort3d('min_writeIncrement: trial file not found for this increment timestep')
-      endif
-
-      ! read the trial file for this timestep
-      call gsv_readFromFile(statevector_trial, fileName, ' ', 'P', 'TRIAL', indexStep)
-
-      ! Compute new diagnotics based on NAMSTATE
-      call vtr_setup(statevector_incr) ! IN
-      if ( gsv_varExist(statevector_incr,'QR') .and. gsv_varExist(statevector_incr,'DD') ) then
-        write(*,*)
-        write(*,*) 'User is asking for Vort-Div analysis increment'
-        call vtr_transform( statevector_incr,  & ! INOUT
-                            'UVtoVortDiv' )      ! IN
-        if ( gsv_varExist(statevector_incr,'PP') .and. gsv_varExist(statevector_incr,'CC') ) then
+    ! Compute new diagnotics based on NAMSTATE
+    if ( gsv_varExist(statevector_incr,'QR') .and. gsv_varExist(statevector_incr,'DD') ) then
+       write(*,*)
+       write(*,*) 'User is asking for Vort-Div analysis increment'
+       call vtr_transform( statevector_incr, & ! INOUT
+                           'UVtoVortDiv' )     ! IN
+       if ( gsv_varExist(statevector_incr,'PP') .and. gsv_varExist(statevector_incr,'CC') ) then
           write(*,*)
           write(*,*) 'User is asking for Psi-Chi analysis increment'
           call vtr_transform( statevector_incr, & ! INOUT
-                              'VortDivToPsiChi' ) ! IN
-        end if
-      end if
+                              'VortDivToPsiChi')  ! IN
+       end if
+    end if
+    
+    ! convert LQ to HU
+    call vtr_transform( statevector_incr, & ! INOUT
+                       'LQtoHU_tlm' )       ! IN
 
-      ! Adjust and or transform chemical consituent concentration increments as needed.
-      ! This includes ensuring non-negative analysis values on the analysis/increment grid.
-      if (chm_assim()) call chm_transform_final_increments(statevector_trial,statevector_incr)
+    ! Adjust and or transform chemical consituent concentration increments as needed.
+    ! This includes ensuring non-negative analysis values on the analysis/increment grid.
+    if (chm_assim()) call chm_transform_final_increments(statevector_incr,hco_anl,vco_anl)
+
+    ! loop over times for which increment is computed
+    do indexStep = 1, tim_nstepobsinc
+
+      dateStamp = gsv_getDateStamp(statevector_incr,indexStep)
+      if(mpi_myid.eq.0) write(*,*) 'min_writeIncrement: writing increment for time step: ',indexStep, dateStamp
 
       ! write the increment file for this time step
       call difdatr(dateStamp,tim_getDatestamp(),deltaHours)
@@ -602,15 +560,10 @@ CONTAINS
         write(coffset,'(I3.3)') nint(deltaHours*60.0d0)
       endif
       fileName = './rebm_' // trim(coffset) // 'm'
-      call gsv_writeToFileMpi(statevector_incr, fileName, cetikinc, 1.0d0, 0, indexStep, statevector_trial)
-
-      ! write out interpolated trial file for verification purposes
-      !fileName = './trlm_interp_' // trim(coffset) // 'm' 
-      !call gsv_writeToFileMpi(statevector_trial, fileName, 'TRLM_INTRP', 1.0d0, 0, indexStep)
+      call gsv_writeToFileMpi(statevector_incr, fileName, cetikinc, 1.0d0, 0, indexStep)
 
     enddo
 
-    call gsv_deallocate(statevector_trial)
     call gsv_deallocate(statevector_incr)
 
   end subroutine min_writeIncrement
@@ -832,12 +785,15 @@ CONTAINS
     character(len=100) :: fileNameFull
     integer            :: indexStep
 
+    ! convert LQ to HU
+    call vtr_transform( statevector, & ! INOUT
+                        'LQtoHU_tlm' ) ! IN
+
     do indexStep = 1, statevector%numStep
       fileNameFull = trim(fileName) // trim(fileNameExt(statevector,indexStep,indexAnalysis))
       call gsv_writeToFileMpi(statevector,fileNameFull,cetiket,1.0d0, &
                               ip3_in=0,  &
-                              indexStep_in=indexStep,  &
-                              statevector_ref=statevector_ref)
+                              indexStep_in=indexStep)
     enddo
 
   end subroutine writeToFile4D

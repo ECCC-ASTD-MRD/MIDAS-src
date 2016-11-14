@@ -48,6 +48,7 @@ MODULE BmatrixEnsemble
   use localizationFunction_mod
   use mathPhysConstants_mod
   use earthConstants_mod
+  use variableTransforms_mod
   implicit none
   save
   private
@@ -60,7 +61,7 @@ MODULE BmatrixEnsemble
 
   integer,parameter   :: maxNumLevels=200
   real(8)             :: scaleFactor(maxNumLevels)
-  real(8)             :: scaleFactorLQ(maxNumLevels)
+  real(8)             :: scaleFactorHumidity(maxNumLevels)
   real(8),allocatable :: scaleFactor_M(:), scaleFactor_T(:)
 
   integer             :: ntrunc
@@ -76,9 +77,11 @@ MODULE BmatrixEnsemble
   integer             :: gstID
   integer             :: ensembleFileExtLength
   integer,allocatable :: dateStampList(:)
+
   character(len=256)  :: enspathname,ensfilebasename
   character(len=8)    :: datestr_last
   character(len=2)    :: hourstr_last
+
   integer,external    :: get_max_rss
 
   ! Localizations
@@ -102,6 +105,10 @@ MODULE BmatrixEnsemble
   type(struct_gsv)   :: statevector_ensMean
 
   real(8), parameter :: rsq2 = sqrt(2.0d0)
+
+  character(len=2)   :: ctrlVarHumidity
+
+  logical            :: gsv_HUcontainsLQ
 
   ! Vertical grid
   type(struct_vco),pointer :: vco_anl, vco_ens
@@ -153,9 +160,9 @@ CONTAINS
     logical        :: TweakTG,diagnostic,lExists
 
     !namelist
-    NAMELIST /NAMBEN/nEns,scaleFactor,scaleFactorLQ,ntrunc,enspathname,ensfilebasename, &
+    NAMELIST /NAMBEN/nEns,scaleFactor,scaleFactorHumidity,ntrunc,enspathname,ensfilebasename, &
                      hLocalize,vLocalize,tweakTG,LocalizationType, &
-                     waveBandPeaks,diagnostic
+                     waveBandPeaks,diagnostic,ctrlVarHumidity
 
     call tmg_start(12,'BEN_SETUP')
 
@@ -165,7 +172,7 @@ CONTAINS
 
     ! parameters from namelist
     scaleFactor(:)   = 0.0d0
-    scaleFactorLQ(:) = 1.0d0
+    scaleFactorHumidity(:) = 1.0d0
     nEns             = 10
     ntrunc           = 30
     enspathname      = '***NOT_DEFINED***'
@@ -178,6 +185,7 @@ CONTAINS
     vLocalize(:)     =   -1.0d0
     vLocalize(1)     =    2.0d0
     tweakTG          = .false.
+    ctrlVarHumidity  = 'LQ'
 
     nulnam = 0
     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -186,6 +194,14 @@ CONTAINS
     if(mpi_myid.eq.0) write(*,nml=namben)
     ierr = fclos(nulnam)
 
+    ! If zero weight, skip rest of setup
+    if ( sum(scaleFactor(:)) == 0.0d0 ) then
+      if(mpi_myid.eq.0) write(*,*) 'bmatrixEnsemble: scaleFactor=0, skipping rest of setup'
+      cvdim_out = 0
+      initialized = .true.
+      return
+    endif
+
     !
     !- 2.  Settings
     !
@@ -193,13 +209,6 @@ CONTAINS
     hco_ben => hco_in
     ni = hco_ben%ni
     nj = hco_ben%nj
-
-    if ( sum(scaleFactor) == 0.0d0 ) then
-      if(mpi_myid.eq.0) write(*,*) 'bmatrixEnsemble: scaleFactor=0, skipping rest of setup'
-      cvdim_out = 0
-      initialized = .true.
-      return
-    endif
 
     !- 2.1 Mode
     if ( present(mode) ) then
@@ -307,7 +316,6 @@ CONTAINS
     endif
 
     !- 2.7 Bmatrix Weight
-
     allocate(scaleFactor_M(nLevEns_M))
     allocate(scaleFactor_T(nLevEns_T))
     do jlev = 1, nLevEns_T
@@ -325,10 +333,10 @@ CONTAINS
     endif
 
     do jlev = 1, nLevEns_T
-      if(scaleFactorLQ(jlev).gt.0.0d0) then 
-        scaleFactorLQ(jlev) = sqrt(scaleFactorLQ(jlev))
+      if(scaleFactorHumidity(jlev).gt.0.0d0) then 
+        scaleFactorHumidity(jlev) = sqrt(scaleFactorHumidity(jlev))
       else
-        scaleFactorLQ(jlev) = 0.0d0
+        scaleFactorHumidity(jlev) = 0.0d0
       endif
     enddo
 
@@ -439,6 +447,22 @@ CONTAINS
 
       deallocate(pressureProfileEns_M)
       deallocate(pressureProfileInc_M)
+    end if
+
+    !- 2.12 Control variables
+    if      ( ctrlVarHumidity == 'LQ' ) then
+       write(*,*)
+       write(*,*) 'Humidity control variable = ', ctrlVarHumidity
+       gsv_HUcontainsLQ = .true.
+    else if ( ctrlVarHumidity == 'HU' ) then
+       write(*,*)
+       write(*,*) 'Humidity control variable = ', ctrlVarHumidity
+       gsv_HUcontainsLQ = .false.
+    else
+       write(*,*)
+       write(*,*) 'Unknown humidity control variable'
+       write(*,*) 'Should be LQ or LU, found = ', ctrlVarHumidity
+       call abort3d('ben_setup')
     end if
 
     !
@@ -769,7 +793,7 @@ CONTAINS
             enddo ! level
 
             !  Transfer to statevector_ensFcst_r4
-            if (trim(vnl_varNameList(jvar)) == 'HU') then
+            if (trim(vnl_varNameList(jvar)) == 'HU' .and. ctrlVarHumidity == 'LQ' ) then
 !$OMP PARALLEL DO PRIVATE(jk,jj,ji)
               do jk = 1, nlev
                 do jj = 1, nj_transfer
@@ -779,6 +803,16 @@ CONTAINS
                 enddo
               enddo
 !$OMP END PARALLEL DO
+            else if (trim(vnl_varNameList(jvar)) == 'HU' .and. ctrlVarHumidity == 'HU' ) then
+!$OMP PARALLEL DO PRIVATE(jk,jj,ji)
+              do jk = 1, nlev
+                do jj = 1, nj_transfer
+                  do ji = 1, ni_transfer
+                    ptr3d_r4(ji,jj,jk) = sngl(max(real(gd3d_r4(ji,jj,jk),8),MPC_MINIMUM_HU_R8))
+                  enddo
+                enddo
+              enddo
+!$OMP END PARALLEL DO              
             else
 !$OMP PARALLEL DO PRIVATE(jk,jj,ji)
               do jk = 1, nlev
@@ -896,7 +930,7 @@ CONTAINS
             multFactor2 = multFactor2/sqrt(1.0d0*dble(nEns-1))
 
             if(trim(vnl_varNameList(jvar)) .eq. 'HU') then
-              multFactor2 = multFactor2*scaleFactorLQ(jk)
+              multFactor2 = multFactor2*scaleFactorHumidity(jk)
             endif
 
             ptr4d_r4(:,:,jk,jt) =  &
@@ -996,12 +1030,12 @@ CONTAINS
               dnens2 = 0.0d0
             endif
             if(vnl_varNameList(jvar).eq.'HU  ') then
-              if(scaleFactorLQ(jk).gt.0.0d0) then
-                dnens2 = dnens2/scaleFactorLQ(jk)
+              if(scaleFactorHumidity(jk).gt.0.0d0) then
+                dnens2 = dnens2/scaleFactorHumidity(jk)
               else
                 if(jt.eq.1) then
-                  write(*,*) 'LQ scalefactor not positive, cannot undo normalization!'
-                  write(*,*) vnl_varNameList(jvar),scaleFactorLQ(jk),jk
+                  write(*,*) 'Humidity scalefactor not positive, cannot undo normalization!'
+                  write(*,*) vnl_varNameList(jvar),scaleFactorHumidity(jk),jk
                 endif
               endif
             endif
@@ -1031,12 +1065,12 @@ CONTAINS
               dnens2 = 0.0d0
             endif
             if(vnl_varNameList(jvar).eq.'HU  ') then
-              if(scaleFactorLQ(1) > 0.0d0) then
-                dnens2 = dnens2/scaleFactorLQ(1)
+              if(scaleFactorHumidity(1) > 0.0d0) then
+                dnens2 = dnens2/scaleFactorHumidity(1)
               else
                 if(jt == 1) then
-                  write(*,*) 'LQ scalefactor(top) not positive, cannot undo normalization!'
-                  write(*,*) vnl_varNameList(jvar),scaleFactorLQ(1)
+                  write(*,*) 'Humidity scalefactor(top) not positive, cannot undo normalization!'
+                  write(*,*) vnl_varNameList(jvar),scaleFactorHumidity(1)
                 endif
               endif
             endif
@@ -2182,11 +2216,6 @@ CONTAINS
 ! BEN_BSqrt
 !--------------------------------------------------------------------------
   SUBROUTINE BEN_BSqrt(controlVector_in,statevector)
-  
-  ! Revisions: 
-  !           Ping Du, July 2014
-  !           - Commented out 'call abort3d('ben_bsqrt: No ...'
-  
     implicit none
 
     real(8)    :: controlVector_in(cvDim_mpilocal) 
@@ -2265,7 +2294,7 @@ CONTAINS
           kind = 'SpectralToGridPoint'
           call lst_VarTransform( lst_ben%id,     & ! IN
                                  zsp1,           & ! IN
-                                 ensAmplitude,   & ! OUT (i,j,k) !!!
+                                 ensAmplitude,   & ! OUT
                                  kind, nLevEns_M ) ! IN
 
         endif
@@ -2279,6 +2308,12 @@ CONTAINS
 
     enddo ! Loop on WaveBand
 
+    if ( ctrlVarHumidity == 'HU') then
+       ! convert HU to LQ
+       call vtr_transform( statevector, & ! INOUT
+                           'HUtoLQ_tlm' ) ! IN
+    end if
+
     call gsv_deallocate(statevector_ensAmp)
 
     if(mpi_myid.eq.0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -2290,11 +2325,6 @@ CONTAINS
 ! BEN_BSqrtAd
 !--------------------------------------------------------------------------
   SUBROUTINE BEN_BSqrtAd(statevector,controlVector_out)
-
-  ! Revisions: 
-  !           Ping Du, July 2014
-  !           - Commented out 'call abort3d('ben_bsqrtad: No ...'
-  !
     implicit none
 
     real(8)    :: controlVector_out(cvDim_mpilocal) 
@@ -2333,6 +2363,12 @@ CONTAINS
     !
     !- Compute the analysis increment from Bens
     !
+    if ( ctrlVarHumidity == 'HU') then
+       ! convert HU to LQ
+       call vtr_transform( statevector, & ! INOUT
+                           'HUtoLQ_tlm' ) ! IN
+    end if
+
     do waveBandIndex = 1, nWaveBand !  Loop on WaveBand (for ScaleDependent Localization)
 
       do memberIndex = 1, nEns ! loop over all members
@@ -2357,7 +2393,7 @@ CONTAINS
           kind = 'GridPointToSpectral'
           call lst_VarTransform( lst_ben%id,     & ! IN
                                  zsp1,           & ! OUT
-                                 ensAmplitude,   & ! IN (i,j,k) !!!
+                                 ensAmplitude,   & ! IN
                                  kind, nLevEns_M ) ! IN
 
         endif
@@ -2964,7 +3000,7 @@ CONTAINS
              etiket = 'PERT001_WB' // trim(wbnum)
           end if
           call gsv_writeToFileMPI(statevector,'./ens_pert001.fst',etiket, & ! IN
-                               dnens2 ) ! IN
+                                  dnens2,HUcontainsLQ=gsv_HUcontainsLQ )    ! IN
           call gsv_deallocate(statevector)
        end do
     end if
@@ -3005,7 +3041,8 @@ CONTAINS
           write(wbnum,'(I2.2)') waveBandIndex
           etiket = 'STDDEV_WB' // trim(wbnum)
        end if
-       call gsv_writeToFileMPI(statevector,'./ens_stddev.fst',etiket) ! IN
+       call gsv_writeToFileMPI(statevector,'./ens_stddev.fst',etiket, & ! IN
+                               HUcontainsLQ=gsv_HUcontainsLQ)           ! IN
        call gsv_deallocate(statevector)
     end do
 

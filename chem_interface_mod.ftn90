@@ -1158,7 +1158,7 @@ contains
 !--------------------------- MODEL and ANALYSIS SPACE POST-PROC --------------------
 !-----------------------------------------------------------------------------------
 
-  subroutine chm_transform_final_increments(background,increment)
+  subroutine chm_transform_final_increments(statevector_increment,hco_anl,vco_anl)
 !
 ! Author: M. Sitwell Sept 2015
 !         - Originally as chm_check_negative
@@ -1184,23 +1184,29 @@ contains
 !
 ! InOut
 !
-!   background       statevector for the background
-!   increment        statevector for the increment (with same resolution as the background)
+!   statevector_increment     statevector for the increment (with same resolution as the background)
 !
 !-----------------------------------------------------------------------------------
 
     use chem_mod
     use gridStateVector_mod
     use varNameList_mod
+    use horizontalCoord_mod
+    use verticalCoord_mod
 
     implicit none
     
-    type(struct_gsv), intent(inout) :: background,increment
-    
+    type(struct_gsv), intent(inout) :: statevector_increment
+    type(struct_hco), pointer, intent(inout) :: hco_anl
+    type(struct_vco), pointer, intent(inout) :: vco_anl
+
+    type(struct_gsv) :: statevector_trial
     integer :: jvar,unit,ier
     character(len=4) :: varName
 
     integer, external :: fclos
+
+    call chm_getTrial_statevector(hco_anl,vco_anl,statevector_trial)
 
     do jvar = 1, vnl_numvarmax
       if (gsv_varExist(varName=vnl_varNameList(jvar))) then 
@@ -1210,21 +1216,21 @@ contains
 
             ! Check that the background and increment fields have the same index boundaries
 
-            if (background%myLonBeg.ne.increment%myLonBeg .or. background%myLonEnd.ne.increment%myLonEnd .or. &
-                background%myLatBeg.ne.increment%myLatBeg .or. background%myLatEnd.ne.increment%myLatEnd .or. &
-                background%varNumLev(vnl_varListIndex(varName)).ne.increment%varNumLev(vnl_varListIndex(varName)) .or. &
-                background%numStep.ne.increment%numStep) then
+            if (statevector_trial%myLonBeg.ne.statevector_increment%myLonBeg .or. statevector_trial%myLonEnd.ne.statevector_increment%myLonEnd .or. &
+                statevector_trial%myLatBeg.ne.statevector_increment%myLatBeg .or. statevector_trial%myLatEnd.ne.statevector_increment%myLatEnd .or. &
+                statevector_trial%varNumLev(vnl_varListIndex(varName)).ne.statevector_increment%varNumLev(vnl_varListIndex(varName)) .or. &
+                statevector_trial%numStep.ne.statevector_increment%numStep) then
 
                call chm_open_messagefile(unit=unit)
 
                write(unit,'(A)') "chm_transform_final_increments: Warning - background and increment field index boundaries not equal."
                write(unit,'(A)') "   index      background     increment"
-               write(unit,'(A,6X,I5,10X,I5)') 'myLonBeg ',background%myLonBeg,increment%myLonBeg
-               write(unit,'(A,6X,I5,10X,I5)') 'myLonEnd ',background%myLonEnd,increment%myLonEnd
-               write(unit,'(A,6X,I5,10X,I5)') 'myLatBeg ',background%myLatBeg,increment%myLatBeg
-               write(unit,'(A,6X,I5,10X,I5)') 'myLatEnd ',background%myLatEnd,increment%myLatEnd
-               write(unit,'(A,6X,I5,10X,I5)') 'varNumLev',background%varNumLev(vnl_varListIndex(varName)),increment%varNumLev(vnl_varListIndex(varName))
-               write(unit,'(A,6X,I5,10X,I5)') 'numStep  ',background%numStep,increment%numStep
+               write(unit,'(A,6X,I5,10X,I5)') 'myLonBeg ',statevector_trial%myLonBeg,statevector_increment%myLonBeg
+               write(unit,'(A,6X,I5,10X,I5)') 'myLonEnd ',statevector_trial%myLonEnd,statevector_increment%myLonEnd
+               write(unit,'(A,6X,I5,10X,I5)') 'myLatBeg ',statevector_trial%myLatBeg,statevector_increment%myLatBeg
+               write(unit,'(A,6X,I5,10X,I5)') 'myLatEnd ',statevector_trial%myLatEnd,statevector_increment%myLatEnd
+               write(unit,'(A,6X,I5,10X,I5)') 'varNumLev',statevector_trial%varNumLev(vnl_varListIndex(varName)),statevector_increment%varNumLev(vnl_varListIndex(varName))
+               write(unit,'(A,6X,I5,10X,I5)') 'numStep  ',statevector_trial%numStep,statevector_increment%numStep
 
                ier=fclos(unit)
 
@@ -1232,17 +1238,120 @@ contains
 
             ! Analysis increment transformations to dx if needed.
            
-            call chm_apply_transform(background, varName, l_reverse=.true., mode=2, increment=increment)
+            call chm_apply_transform(statevector_trial, varName, l_reverse=.true., mode=2, increment=statevector_increment)
 
             ! Apply min and max boundaries if needed.
 
-            call chm_apply_bounds(background,increment,varName)
+            call chm_apply_bounds(statevector_trial,statevector_increment,varName)
              
          end if
       end if
     end do
     
+    call gsv_deallocate(statevector_trial)
+
   end subroutine chm_transform_final_increments
+
+!-----------------------------------------------------------------------------------
+
+  subroutine chm_getTrial_statevector(hco_anl,vco_anl,statevector_trial)
+!
+! Author: M. Sitwell Nov 2016 (copied from subroutine vtr_setupTrials)
+!
+! Purpose: Returns the trial statevector valid at the analysis time(s) on the analysis
+!          hortizonal and vertical grids.
+!
+! In
+!
+!   hco_anl      horizonal analysis grid
+!   vco_anl      vertical analysis grid
+!
+! Out
+!
+!   statevector_trial   trial statevector valid at the analysis time(s)
+!
+!-----------------------------------------------------------------------------------
+
+    use gridStateVector_mod
+    use horizontalCoord_mod
+    use verticalCoord_mod
+    use timeCoord_mod
+
+    implicit none
+    
+    type(struct_hco), pointer, intent(inout) :: hco_anl
+    type(struct_vco), pointer, intent(inout) :: vco_anl
+    type(struct_gsv), intent(out) :: statevector_trial
+
+    integer              :: fnom, fstouv, fclos, fstfrm, fstinf
+    integer              :: ierr, ikey, indexStep, indexTrial, numTrials, nulTrial
+    integer              :: ni_file, nj_file, nk_file, dateStamp
+    integer, allocatable :: dateStampList(:)
+
+    character(len=2)     :: fileNumber
+    character(len=30)    :: fileName
+
+    logical              :: fileExists
+
+    ! initialize statevector_trial
+    call gsv_setVco(statevector_trial,vco_anl)
+    call gsv_setHco(statevector_trial,hco_anl)
+    call gsv_allocate(statevector_trial,tim_nstepobsinc,dateStamp=tim_getDateStamp(),mpi_local=.true.)
+    
+    ! initialize list of dates for the 4D analysis increment
+    allocate(datestamplist(tim_nStepObsInc))
+    call tim_getstamplist(datestamplist,tim_nStepObsInc,tim_getDatestamp())
+
+    ! check existence of all trial files
+    numTrials = 0
+    do 
+       write(fileNumber,'(I2.2)') numTrials+1
+       fileName = './trlm_' // trim(fileNumber)
+       inquire(file=trim(fileName),exist=fileExists)
+       if (fileExists) then
+          numTrials = numTrials + 1
+       elseif ( (.not. fileExists) .and. numTrials > 0 ) then
+          exit  
+       elseif ( (.not. fileExists) .and. numTrials == 0 ) then
+          call abort3d('chm_getTrial_statevector: No trial files found')
+       endif
+    enddo
+
+    if (numTrials.ne.tim_nstepobs) then
+       write(*,*) 'numTrials, tim_nstepobs = ',numTrials, tim_nstepobs
+       call abort3d('chm_getTrial_statevector: numTrials /= tim_nstepobs')
+    endif
+
+    ! loop over times for which increment is computed
+    do indexStep = 1, tim_nstepobsinc
+       dateStamp = dateStampList(indexStep)
+
+       ! identify which trial file corresponds with current datestamp
+       fileName = 'NOTFOUND'
+       do indexTrial = 1, numTrials
+          write(fileNumber,'(I2.2)') indexTrial
+          fileName = './trlm_' // trim(fileNumber)
+          nulTrial = 0
+          ierr = fnom(nulTrial,trim(fileName),'RND+OLD+R/O',0)
+          ierr = fstouv(nulTrial,'RND+OLD')
+          ikey = fstinf(nulTrial, ni_file, nj_file, nk_file,  &
+               dateStamp, ' ', -1, -1, -1, ' ', 'P0')
+          ierr = fstfrm(nulTrial)
+          ierr = fclos(nulTrial)
+          if(ikey.gt.0) exit
+       enddo
+
+       if (trim(fileName).eq.'NOTFOUND') then 
+          write(*,*) 'indexStep, dateStamp = ', indexStep, dateStamp
+          call abort3d('chm_getTrial_statevector: trial file not found for this increment timestep')
+       endif
+
+      ! read the trial file for this timestep
+      call gsv_readFromFile(statevector_trial, fileName, ' ', 'P', 'TRIAL', indexStep)
+
+    enddo
+
+  end subroutine chm_getTrial_statevector
 
 !-----------------------------------------------------------------------------------
 

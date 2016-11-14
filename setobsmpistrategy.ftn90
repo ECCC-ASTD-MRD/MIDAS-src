@@ -46,6 +46,7 @@ subroutine setObsMpiStrategy(lobsSpaceData, mpiStrategy)
   integer :: obsLoadTile_mpilocal(mpi_nprocs),obsLoadTile_mpiglobal(mpi_nprocs)
   integer :: obsLoadTile_mpiglobal_tmp(mpi_nprocs)
   integer :: obsLoadTile_sorted(mpi_nprocs), PE_sorted(mpi_nprocs), load_to_send
+  integer :: numHeaderTile_mpilocal(mpi_nprocs),numHeaderTile_mpiglobal(mpi_nprocs)
   integer :: PE_sender, PE_receiver, loadSent
   integer, allocatable :: IPT_mpiglobal(:,:), IPT_mpilocal(:)
   integer, allocatable :: obsLoad_mpiglobal(:,:), obsLoad_mpilocal(:)
@@ -164,6 +165,16 @@ subroutine setObsMpiStrategy(lobsSpaceData, mpiStrategy)
     write(*,*) 'setObsMpiStrategy: do balancing according to approximate load'
     write(*,*) ' '
 
+    ! compute total number of headers per PE on tiles
+    numHeaderTile_mpilocal(:) = 0
+    do headerIndex = 1, numHeaderFile
+      IP = obs_headElem_i(lobsSpaceData,OBS_IPT,headerIndex)
+      numHeaderTile_mpilocal(IP+1) = numHeaderTile_mpilocal(IP+1) + 1
+    end do
+    call rpn_comm_allreduce(numHeaderTile_mpilocal,numHeaderTile_mpiglobal,mpi_nprocs,  &
+                            "MPI_INTEGER","MPI_SUM","GRID",ierr)
+    write(*,*) 'setObsMpiStrategy: original numHeaderTile_mpiglobal     =',numHeaderTile_mpiglobal(:)
+
     ! compute total load per PE on tiles
     obsLoadTile_mpilocal(:) = 0
     do headerIndex = 1, numHeaderFile
@@ -175,6 +186,15 @@ subroutine setObsMpiStrategy(lobsSpaceData, mpiStrategy)
     call rpn_comm_allreduce(obsLoadTile_mpilocal,obsLoadTile_mpiglobal,mpi_nprocs,  &
                             "MPI_INTEGER","MPI_SUM","GRID",ierr)
     write(*,*) 'setObsMpiStrategy: original obsLoadTile_mpiglobal     =',obsLoadTile_mpiglobal(:)
+
+    ! set obsLoad to zero if only 1 header on the tile to avoid sending it
+    do IP = 0, mpi_nprocs-1
+      if(numHeaderTile_mpiglobal(IP+1)==1) then
+        obsLoadTile_mpiglobal(IP+1) = 0
+        write(*,*) 'setObsMpiStrategy: setting the obsLoad to zero, ', & 
+                   'since only 1 header index on the tile with myid = ',IP
+      endif
+    enddo
 
     ! sort the list of loads per tile
     obsLoadTile_mpiglobal_tmp(:) = obsLoadTile_mpiglobal(:)

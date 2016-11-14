@@ -28,7 +28,13 @@
 !    gridStateVector
 !--------------------------------------------------------------------------
 MODULE variableTransforms_mod
+  use mpivar_mod
+  use timeCoord_mod
   use gridStateVector_mod
+  use lamSpectralTransform_mod
+  use lamAnalysisGrid_mod
+  use horizontalCoord_mod
+  use verticalCoord_mod
   implicit none
   save
   private
@@ -38,6 +44,7 @@ MODULE variableTransforms_mod
 
   logical             :: initialized = .false.
 
+  type(struct_gsv)    :: statevector_trial
   integer             :: myLonBeg, myLonEnd, myLatBeg, myLatEnd
 
 CONTAINS
@@ -45,25 +52,103 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! vtr_Setup
   !--------------------------------------------------------------------------
-  subroutine vtr_setup(statevector)
+  subroutine vtr_setup(hco_anl,vco_anl)
     implicit none
 
-    type(struct_gsv) :: statevector
+    type(struct_hco), pointer :: hco_anl
+    type(struct_vco), pointer :: vco_anl
     
     if (initialized) return
 
     write(*,*) 'vtr_setup: starting'
 
-    myLonBeg = statevector%myLonBeg
-    myLonEnd = statevector%myLonEnd
-    myLatBeg = statevector%myLatBeg
-    myLatEnd = statevector%myLatEnd
-
     initialized  = .true.
+
+    call vtr_setupTrials(hco_anl,vco_anl) ! in
 
     write(*,*) 'vtr_setup: done'
 
   end subroutine vtr_setup
+
+  !--------------------------------------------------------------------------
+  ! vtr_setupTrials
+  !--------------------------------------------------------------------------
+  subroutine vtr_setupTrials(hco_anl,vco_anl)
+    implicit none
+
+    type(struct_hco), pointer :: hco_anl
+    type(struct_vco), pointer :: vco_anl
+
+    integer              :: fnom, fstouv, fclos, fstfrm, fstinf
+    integer              :: ierr, ikey, indexStep, indexTrial, numTrials, nulTrial
+    integer              :: ni_file, nj_file, nk_file, dateStamp
+    integer, allocatable :: dateStampList(:)
+
+    character(len=2)     :: fileNumber
+    character(len=30)    :: fileName
+
+    logical              :: fileExists
+
+    ! initialize statevector_trial
+    call gsv_setVco(statevector_trial,vco_anl)
+    call gsv_setHco(statevector_trial,hco_anl)
+    call gsv_allocate(statevector_trial,tim_nstepobsinc,dateStamp=tim_getDateStamp(),mpi_local=.true.)
+
+    ! initialize list of dates for the 4D analysis increment
+    allocate(datestamplist(tim_nStepObsInc))
+    call tim_getstamplist(datestamplist,tim_nStepObsInc,tim_getDatestamp())
+
+    ! check existence of all trial files
+    numTrials = 0
+    do 
+       write(fileNumber,'(I2.2)') numTrials+1
+       fileName = './trlm_' // trim(fileNumber)
+       inquire(file=trim(fileName),exist=fileExists)
+       if (fileExists) then
+          numTrials = numTrials + 1
+       elseif ( (.not. fileExists) .and. numTrials > 0 ) then
+          exit  
+       elseif ( (.not. fileExists) .and. numTrials == 0 ) then
+          call abort3d('vtr_setupTrials: No trial files found')
+       endif
+    enddo
+
+    if (numTrials.ne.tim_nstepobs) then
+       write(*,*) 'numTrials, tim_nstepobs = ',numTrials, tim_nstepobs
+       call abort3d('vtr_setupTrials: numTrials /= tim_nstepobs')
+    endif
+
+    ! loop over times for which increment is computed
+    do indexStep = 1, tim_nstepobsinc
+       dateStamp = dateStampList(indexStep)
+       if(mpi_myid.eq.0) write(*,*) 'vtr_setupTrials: reading background for time step: ',indexStep, dateStamp
+
+       ! identify which trial file corresponds with current datestamp
+       fileName = 'NOTFOUND'
+       do indexTrial = 1, numTrials
+          write(fileNumber,'(I2.2)') indexTrial
+          fileName = './trlm_' // trim(fileNumber)
+          nulTrial = 0
+          ierr = fnom(nulTrial,trim(fileName),'RND+OLD+R/O',0)
+          ierr = fstouv(nulTrial,'RND+OLD')
+          ikey = fstinf(nulTrial, ni_file, nj_file, nk_file,  &
+               dateStamp, ' ', -1, -1, -1, ' ', 'P0')
+          ierr = fstfrm(nulTrial)
+          ierr = fclos(nulTrial)
+          if(ikey.gt.0) exit
+       enddo
+
+       if (trim(fileName).eq.'NOTFOUND') then 
+          write(*,*) 'indexStep, dateStamp = ', indexStep, dateStamp
+          call abort3d('vtr_setupTrials: trial file not found for this increment timestep')
+       endif
+
+      ! read the trial file for this timestep
+      call gsv_readFromFile(statevector_trial, fileName, ' ', 'P', 'TRIAL', indexStep)
+
+    enddo
+
+  end subroutine vtr_setupTrials
 
   !--------------------------------------------------------------------------
   ! vtr_transform
@@ -75,13 +160,21 @@ CONTAINS
  
     character(len=*), intent(in) :: transform
 
+    integer :: indexStep
+
     if ( .not. initialized ) then
       write(*,*)
       write(*,*) 'The variable transforms module was NOT initialized'
       call abort3d('vtr_transform')
     endif
 
+    myLonBeg = statevector%myLonBeg
+    myLonEnd = statevector%myLonEnd
+    myLatBeg = statevector%myLatBeg
+    myLatEnd = statevector%myLatEnd
+
     select case(trim(transform))
+
     case ('UVtoVortDiv')
        call UVtoVortDiv(statevector)
     case ('VortDivToPsiChi')
@@ -91,6 +184,14 @@ CONTAINS
          call abort3d('vtr_transform')
        end if
        call VortDivToPsiChi(statevector)
+    case ('LQtoHU')
+       call LQtoHU_tlm(statevector)
+    case ('HUtoLQ')
+       call HUtoLQ_tlm(statevector)
+    case ('LQtoHU_tlm')
+       call LQtoHU_tlm(statevector)
+    case ('HUtoLQ_tlm')
+       call HUtoLQ_tlm(statevector)
     case default
        write(*,*)
        write(*,*) 'Unsupported function : ', trim(transform)
@@ -100,37 +201,151 @@ CONTAINS
   end subroutine vtr_transform
 
 !--------------------------------------------------------------------------
+! LQtoHU
+!--------------------------------------------------------------------------
+  subroutine LQtoHU(statevector)
+    implicit none
+
+    type(struct_gsv) :: statevector
+    integer :: i,j,k,indexStep
+
+    real(8), pointer :: hu_ptr(:,:,:,:), lq_ptr(:,:,:,:)
+
+    hu_ptr => gsv_getField_r8(statevector,'HU')
+    lq_ptr => gsv_getField_r8(statevector,'HU')
+
+    do indexStep = 1, statevector%numStep
+ !$OMP PARALLEL DO PRIVATE(i,j,k)
+       do k = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
+          do j = statevector%myLatBeg, statevector%myLatEnd
+             do i = statevector%myLonBeg, statevector%myLonEnd
+                hu_ptr(i,j,k,indexStep) = exp(lq_ptr(i,j,k,indexStep))
+             end do
+          end do
+       end do
+ !$OMP END PARALLEL DO
+   end do
+
+  end subroutine LQtoHU
+
+!--------------------------------------------------------------------------
+! HUtoLQ
+!--------------------------------------------------------------------------
+  subroutine HUtoLQ(statevector)
+    implicit none
+
+    type(struct_gsv)    :: statevector
+    integer :: i,j,k,indexStep
+
+    real(8), pointer :: hu_ptr(:,:,:,:), lq_ptr(:,:,:,:)
+
+    hu_ptr   => gsv_getField_r8(statevector,'HU')
+    lq_ptr   => gsv_getField_r8(statevector,'HU')
+
+    do indexStep = 1, statevector%numStep
+ !$OMP PARALLEL DO PRIVATE(i,j,k)
+       do k = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
+          do j = statevector%myLatBeg, statevector%myLatEnd
+             do i = statevector%myLonBeg, statevector%myLonEnd
+                lq_ptr(i,j,k,indexStep) = log(hu_ptr(i,j,k,indexStep))
+             end do
+          end do
+       end do
+ !$OMP END PARALLEL DO
+    end do
+
+  end subroutine HUtoLQ
+
+!--------------------------------------------------------------------------
+! LQtoHU_tlm
+!--------------------------------------------------------------------------
+  subroutine LQtoHU_tlm(statevector)
+    implicit none
+
+    type(struct_gsv)    :: statevector
+    integer :: i,j,k,indexStep
+
+    real(8), pointer :: hu_ptr(:,:,:,:), lq_ptr(:,:,:,:), lq_trial(:,:,:,:)
+
+    lq_trial => gsv_getField_r8(statevector_trial,'HU')
+    hu_ptr   => gsv_getField_r8(statevector      ,'HU')
+    lq_ptr   => gsv_getField_r8(statevector      ,'HU')
+
+    do indexStep = 1, statevector%numStep
+!$OMP PARALLEL DO PRIVATE(i,j,k)
+       do k = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
+          do j = statevector%myLatBeg, statevector%myLatEnd
+             do i = statevector%myLonBeg, statevector%myLonEnd       
+                hu_ptr(i,j,k,indexStep) = lq_ptr(i,j,k,indexStep)*exp(lq_trial(i,j,k,indexStep))
+             end do
+          end do
+       end do
+!$OMP END PARALLEL DO
+    end do
+
+  end subroutine LQtoHU_tlm
+
+!--------------------------------------------------------------------------
+! HUtoLQ_tlm
+!--------------------------------------------------------------------------
+  subroutine HUtoLQ_tlm(statevector)
+    implicit none
+
+    type(struct_gsv)    :: statevector
+    integer :: i,j,k,indexStep
+
+    real(8), pointer :: hu_ptr(:,:,:,:), lq_ptr(:,:,:,:), lq_trial(:,:,:,:)
+
+    lq_trial => gsv_getField_r8(statevector_trial,'HU')
+    hu_ptr   => gsv_getField_r8(statevector      ,'HU')
+    lq_ptr   => gsv_getField_r8(statevector      ,'HU')
+
+    do indexStep = 1, statevector%numStep
+!$OMP PARALLEL DO PRIVATE(i,j,k)
+       do k = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
+          do j = statevector%myLatBeg, statevector%myLatEnd
+             do i = statevector%myLonBeg, statevector%myLonEnd
+                lq_ptr(i,j,k,indexStep) = hu_ptr(i,j,k,indexStep)/exp(lq_trial(i,j,k,indexStep))
+             end do
+          end do
+       end do
+ !$OMP END PARALLEL DO
+    end do
+
+  end subroutine HUtoLQ_tlm
+
+!--------------------------------------------------------------------------
 ! UVtoVortDiv
 !--------------------------------------------------------------------------
   subroutine UVtoVortDiv(statevector)
-    use lamAnalysisGrid_mod
     implicit none
    
     type(struct_gsv) :: statevector
+    integer :: indexStep
  
     real(8), pointer :: uu_ptr(:,:,:,:), vv_ptr(:,:,:,:)
     real(8), pointer :: qr_ptr(:,:,:,:), dd_ptr(:,:,:,:)
 
-    integer :: nlev_M, tstep
+    integer :: nlev_M
 
     uu_ptr => gsv_getField_r8(statevector,'UU')
     vv_ptr => gsv_getField_r8(statevector,'VV')
     qr_ptr => gsv_getField_r8(statevector,'QR')
     dd_ptr => gsv_getField_r8(statevector,'DD')
-    nlev_M = gsv_getNumLev(statevector,'MM')
+    nlev_M =  gsv_getNumLev  (statevector,'MM')
     
     if (  statevector%hco%global ) then
        call abort3d('UVtoVortDiv:global mode not available')
     else
 
-       do tstep = 1, statevector%numStep
+       do indexStep = 1, statevector%numStep
           
-          call lag_UVToVortDiv(qr_ptr(:,:,:,tstep), dd_ptr(:,:,:,tstep), & ! OUT
-                               uu_ptr(:,:,:,tstep), vv_ptr(:,:,:,tstep), & ! IN
+          call lag_UVToVortDiv(qr_ptr(:,:,:,indexStep), dd_ptr(:,:,:,indexStep), & ! OUT
+                               uu_ptr(:,:,:,indexStep), vv_ptr(:,:,:,indexStep), & ! IN
                                nlev_M )      ! IN
           
        end do
-       
+          
     end if
 
   end subroutine UVtoVortDiv
@@ -139,25 +354,23 @@ CONTAINS
 ! VortDivToPsiChi
 !--------------------------------------------------------------------------
   subroutine VortDivToPsiChi(statevector)
-    use LamSpectralTransform_mod
     implicit none
    
     type(struct_gsv) :: statevector
- 
+    integer :: indexStep
+
     real(8), pointer :: qr_ptr(:,:,:,:), dd_ptr(:,:,:,:)
     real(8), pointer :: pp_ptr(:,:,:,:), cc_ptr(:,:,:,:)
 
     type(struct_lst)     :: lst_lapl   ! Spectral transform Parameters for Vort/Div -> Psi/Chi
-
-    integer :: nlev_M, tstep
-
-    integer :: trunc=125
+    integer :: nlev_M
+    integer :: trunc=125 !!!!!********** UGLY *********!!!!!!!
 
     qr_ptr => gsv_getField_r8(statevector,'QR')
     dd_ptr => gsv_getField_r8(statevector,'DD')
     pp_ptr => gsv_getField_r8(statevector,'PP')
     cc_ptr => gsv_getField_r8(statevector,'CC')
-    nlev_M = gsv_getNumLev(statevector,'MM')
+    nlev_M =  gsv_getNumLev  (statevector,'MM')
     
     if (  statevector%hco%global ) then
        call abort3d('VortDivToPsiChi:global mode not available')
@@ -167,26 +380,25 @@ CONTAINS
                        statevector%hco%dlon, trunc,             & ! IN
                       'LatLonMN', nlev_M )                        ! IN
 
-       do tstep = 1, statevector%numStep
+       do indexStep = 1, statevector%numStep
           
-          pp_ptr(:,:,:,tstep) = qr_ptr(:,:,:,tstep)
-          cc_ptr(:,:,:,tstep) = dd_ptr(:,:,:,tstep)
+          pp_ptr(:,:,:,indexStep) = qr_ptr(:,:,:,indexStep)
+          cc_ptr(:,:,:,indexStep) = dd_ptr(:,:,:,indexStep)
          
           ! Vort -> Psi
-          call lst_Laplacian( lst_lapl%id,         & ! IN
-                              pp_ptr(:,:,:,tstep), & ! INOUT
-                              'Inverse', nlev_M )    ! IN    
+          call lst_Laplacian( lst_lapl%id,             & ! IN
+                              pp_ptr(:,:,:,indexStep), & ! INOUT
+                              'Inverse', nlev_M )        ! IN
 
           ! Div -> Chi
-          call lst_Laplacian( lst_lapl%id,         & ! IN
-                              cc_ptr(:,:,:,tstep), & ! INOUT
-                              'Inverse', nlev_M )    ! IN
+          call lst_Laplacian( lst_lapl%id,             & ! IN
+                              cc_ptr(:,:,:,indexStep), & ! INOUT
+                              'Inverse', nlev_M )        ! IN
 
        end do
        
     end if
 
   end subroutine VortDivToPsiChi
-
 
 END MODULE variableTransforms_mod
