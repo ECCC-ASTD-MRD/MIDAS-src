@@ -389,24 +389,24 @@ CONTAINS
 
     ierr = 0
     enspathname_nml = enspathname
-    call get_environment_variable('ARMA_ENSPATHNAME',enspathname,length_enspathname,ierr,.true.)
+    call get_environment_variable('OAVAR_ENSPATHNAME',enspathname,length_enspathname,ierr,.true.)
     if (ierr.eq.-1) then
-       write(*,*) 'bmatrix_ensemble.setupEnsemble: Problem when getting the environment variable ARMA_ENSPATHNAME'
+       write(*,*) 'bmatrix_ensemble.setupEnsemble: Problem when getting the environment variable OAVAR_ENSPATHNAME'
        write(*,*) '                 The length of the variable ''enspathname'' is too short to hold the complete value'
        call abort3d("bmatrix_ensemble.setupEnsemble")
     end if
     if (ierr.gt.1) then
-       write(*,*) 'burp_setupfiles: Problem when getting the environment variable ARMA_ENSPATHNAME'
+       write(*,*) 'burp_setupfiles: Problem when getting the environment variable OAVAR_ENSPATHNAME'
        write(*,*) '                 Rely on the value in the namelist NAMBEN'
        enspathname = enspathname_nml
     end if
     if (ierr.eq.1) then
-       write(*,*) 'burp_setupfiles: The environment variable ARMA_ENSPATHNAME does not exist'
+       write(*,*) 'burp_setupfiles: The environment variable OAVAR_ENSPATHNAME does not exist'
        write(*,*) '                 Rely on the value in the namelist NAMBEN'
        enspathname = enspathname_nml
     end if
     if (ierr.eq.0) then
-       write(*,*) 'burp_setupfiles: The environment variable ARMA_ENSPATHNAME does exist'
+       write(*,*) 'burp_setupfiles: The environment variable OAVAR_ENSPATHNAME does exist'
        write(*,*) '                 Retrieve it'
     end if
 

@@ -70,24 +70,24 @@ SUBROUTINE burp_setupfiles(datestamp)
   EXTERNAL FCLOS,FNOM,MRFCLS,MRFOPN,MRFOPC,MRBHDR,MRFLOC,MRFGET,MRFMXL,NUMBLKS
 
   ier = 0
-  call get_environment_variable('ARMA_BURP_DIRECTORY',burp_directory,length_burp_directory,ier,.true.)
+  call get_environment_variable('OAVAR_BURP_DIRECTORY',burp_directory,length_burp_directory,ier,.true.)
   if (ier.eq.-1) then
-     write(*,*) 'burp_setupfiles: Problem when getting the environment variable ARMA_BURP_DIRECTORY'
+     write(*,*) 'burp_setupfiles: Problem when getting the environment variable OAVAR_BURP_DIRECTORY'
      write(*,*) '                 The length of the variable ''burp_directory'' is too short to hold the complete value'
      call abort3d("burp_setupfiles")
   end if
   if (ier.gt.1) then
-     write(*,*) 'burp_setupfiles: Problem when getting the environment variable ARMA_BURP_DIRECTORY'
+     write(*,*) 'burp_setupfiles: Problem when getting the environment variable OAVAR_BURP_DIRECTORY'
      write(*,*) '                 Rely on defaut which is the current directory'
      burp_directory = '.'
   end if
   if (ier.eq.1) then
-     write(*,*) 'burp_setupfiles: The environment variable ARMA_BURP_DIRECTORY does not exist'
+     write(*,*) 'burp_setupfiles: The environment variable OAVAR_BURP_DIRECTORY does not exist'
      write(*,*) '                 Rely on defaut which is the current directory'
      burp_directory = '.'
   end if
   if (ier.eq.0) then
-     write(*,*) 'burp_setupfiles: The environment variable ARMA_BURP_DIRECTORY does exist'
+     write(*,*) 'burp_setupfiles: The environment variable OAVAR_BURP_DIRECTORY does exist'
      write(*,*) '                 Retrieve it'
   end if
 

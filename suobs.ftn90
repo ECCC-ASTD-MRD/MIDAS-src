@@ -74,7 +74,7 @@
       call tmg_stop(11)
 
       !
-      ! Check env variable ARMA_BURP_SPLIT to know if burp files already split by subdomains
+      ! Check env variable OAVAR_BURP_SPLIT to know if burp files already split by subdomains
       !
       if ( .not. top_BurpSplit() ) then !! global observations files so have to localize them for each MPI process
         call setObsMpiStrategy(lobsSpaceData,obsMpiStrategy)

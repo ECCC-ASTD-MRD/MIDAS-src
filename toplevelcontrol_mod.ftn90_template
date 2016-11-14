@@ -54,19 +54,19 @@ module topLevelControl_mod
       !- Determine if the observation files are already split by subdomain
       !
       status = 0
-      call get_environment_variable('ARMA_BURP_SPLIT',burp_split_mode,length_burp_split,status,.true.)
+      call get_environment_variable('OAVAR_BURP_SPLIT',burp_split_mode,length_burp_split,status,.true.)
 
       if (status.gt.1) then
-        write(*,*) 'top_setup: Problem when getting the environment variable ARMA_BURP_SPLIT'
+        write(*,*) 'top_setup: Problem when getting the environment variable OAVAR_BURP_SPLIT'
       end if
       if (status.eq.1) then
-        write(*,*) 'top_setup: The environment variable ARMA_BURP_SPLIT has not been detected!'
+        write(*,*) 'top_setup: The environment variable OAVAR_BURP_SPLIT has not been detected!'
 	write(*,*) '           The observation files are NOT splitted'
 	burp_split_L = .false.  
 	burp_split_mode = 'DEFAULT'
       else
         write(*,*)
-        write(*,*) 'top_setup: The environment variable ARMA_BURP_SPLIT has correctly been detected'
+        write(*,*) 'top_setup: The environment variable OAVAR_BURP_SPLIT has correctly been detected'
 	select case ( trim(burp_split_mode) )
 	case ('yes')
 	   write(*,*) 'top_setup: The observation files are ARE splitted. Assuming the DEFAULT mode strategy'
