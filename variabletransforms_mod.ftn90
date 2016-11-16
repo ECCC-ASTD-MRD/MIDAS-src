@@ -109,13 +109,13 @@ CONTAINS
        elseif ( (.not. fileExists) .and. numTrials > 0 ) then
           exit  
        elseif ( (.not. fileExists) .and. numTrials == 0 ) then
-          call abort3d('vtr_setupTrials: No trial files found')
+          call varAbort('vtr_setupTrials: No trial files found')
        endif
     enddo
 
     if (numTrials.ne.tim_nstepobs) then
        write(*,*) 'numTrials, tim_nstepobs = ',numTrials, tim_nstepobs
-       call abort3d('vtr_setupTrials: numTrials /= tim_nstepobs')
+       call varAbort('vtr_setupTrials: numTrials /= tim_nstepobs')
     endif
 
     ! loop over times for which increment is computed
@@ -140,7 +140,7 @@ CONTAINS
 
        if (trim(fileName).eq.'NOTFOUND') then 
           write(*,*) 'indexStep, dateStamp = ', indexStep, dateStamp
-          call abort3d('vtr_setupTrials: trial file not found for this increment timestep')
+          call varAbort('vtr_setupTrials: trial file not found for this increment timestep')
        endif
 
       ! read the trial file for this timestep
@@ -165,7 +165,7 @@ CONTAINS
     if ( .not. initialized ) then
       write(*,*)
       write(*,*) 'The variable transforms module was NOT initialized'
-      call abort3d('vtr_transform')
+      call varAbort('vtr_transform')
     endif
 
     myLonBeg = statevector%myLonBeg
@@ -181,7 +181,7 @@ CONTAINS
        if ( .not. gsv_varExist(statevector,'QR') .or. .not. gsv_varExist(statevector,'DD') ) then
          write(*,*)
          write(*,*) 'for VortDivToPsiChi, variables QR and DD must be allocated in gridstatevector'
-         call abort3d('vtr_transform')
+         call varAbort('vtr_transform')
        end if
        call VortDivToPsiChi(statevector)
     case ('LQtoHU')
@@ -195,7 +195,7 @@ CONTAINS
     case default
        write(*,*)
        write(*,*) 'Unsupported function : ', trim(transform)
-       call abort3d('vtr_transform')
+       call varAbort('vtr_transform')
     end select
 
   end subroutine vtr_transform
@@ -335,7 +335,7 @@ CONTAINS
     nlev_M =  gsv_getNumLev  (statevector,'MM')
     
     if (  statevector%hco%global ) then
-       call abort3d('UVtoVortDiv:global mode not available')
+       call varAbort('UVtoVortDiv:global mode not available')
     else
 
        do indexStep = 1, statevector%numStep
@@ -373,7 +373,7 @@ CONTAINS
     nlev_M =  gsv_getNumLev  (statevector,'MM')
     
     if (  statevector%hco%global ) then
-       call abort3d('VortDivToPsiChi:global mode not available')
+       call varAbort('VortDivToPsiChi:global mode not available')
     else
        call lst_Setup( lst_lapl,                                & ! OUT
                        statevector%hco%ni, statevector%hco%nj,  & ! IN

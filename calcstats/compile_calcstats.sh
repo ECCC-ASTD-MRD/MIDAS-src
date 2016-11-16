@@ -96,7 +96,7 @@ if [ $mode == full ] ; then
   rm -f *.o *.mod *.cdk* *.h *.ftn* *.f *.f90
 
   # Create a local copy of the source code
-  trunkfiles="mpi_mod.ftn90 mpivar_mod.ftn90 abort.ftn physicsfunctions_mod.ftn90 controlvector_mod.ftn90 \
+  trunkfiles="mpi_mod.ftn90 mpivar_mod.ftn90 varabort.ftn90 physicsfunctions_mod.ftn90 controlvector_mod.ftn90 \
             globalspectraltransform_mod.ftn90 lamanalysisgrid_mod.ftn90 timecoord_mod.ftn90 \
             gridstatevector_mod.ftn90 maincompileswitch.inc varnamelist_mod.ftn90 \
             utils_3dvar.ftn lamspectraltransform_mod.ftn90 localizationfunction_mod.ftn90 \
@@ -117,7 +117,7 @@ if [ $mode == full ] ; then
   # Compile the subroutines...
   echo "compiling low-level independent modules"
   SRC0="mathphysconstants_mod.ftn90 earthconstants_mod.ftn90 obsspacedata_mod.ftn90 mpi_mod.ftn90 mpivar_mod.ftn90 timecoord_mod.ftn90"
-  SRC0="$SRC0 bufr_mod.ftn90 physicsfunctions_mod.ftn90 horizontalcoord_mod.ftn90 localizationfunction_mod.ftn90"
+  SRC0="$SRC0 bufr_mod.ftn90 physicsfunctions_mod.ftn90 horizontalcoord_mod.ftn90 filterresponsefunction_mod.ftn90 localizationfunction_mod.ftn90"
   s.compile $COMPF -src $SRC0 > listing0a 2>&1
   grep fail listing0a
   if [ $? = "0" ] ; then exit ; fi

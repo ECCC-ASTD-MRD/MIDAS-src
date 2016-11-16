@@ -162,7 +162,7 @@ contains
 
     if ((kmode.eq.2.or.kmode.eq.3) .and. (.not.present(column_inc))) then
        write(*,*) "chm_observation_operators: column_inc must be specified for kmode = ",kmode
-       call abort3d("chm_observation_operators")
+       call varAbort("chm_observation_operators")
     end if
     
     ! Initializations
@@ -510,7 +510,7 @@ contains
         write(*,*) 'chm_obsoper_init: chm_constituents_size less than ',obsoper%constituent_id,' for STNID ',obsoper%stnid
         write(*,*) 'chm_obsoper_init: may need to increae chm_constituents_size in chem_mod.ftn90'
         write(*,*) 'chm_obsoper_init: or edit BURP file values for Table 08046 element.'
-        call abort3d('aborting in chm_obsoper_init')                  
+        call varAbort('aborting in chm_obsoper_init')                  
     end if
 
     obsoper%lat = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex) 
@@ -544,7 +544,7 @@ contains
     if (.not.col_varExist('TT')) then
        if (chm_required_field('TT',obsoper%varno)) then
           write(*,*) "chm_observation_operators: TT required for BUFR code ",obsoper%varno 
-          call abort3d("chm_observation_operators")
+          call varAbort("chm_observation_operators")
        end if
     end if
 
@@ -1206,6 +1206,8 @@ contains
 
     integer, external :: fclos
 
+    write(*,*) "chm_transform_final_increments: Beginning final increment transformations."
+
     call chm_getTrial_statevector(hco_anl,vco_anl,statevector_trial)
 
     do jvar = 1, vnl_numvarmax
@@ -1249,6 +1251,8 @@ contains
     end do
     
     call gsv_deallocate(statevector_trial)
+
+    write(*,*) "chm_transform_final_increments: Ending final increment transformations."
 
   end subroutine chm_transform_final_increments
 
@@ -1313,13 +1317,13 @@ contains
        elseif ( (.not. fileExists) .and. numTrials > 0 ) then
           exit  
        elseif ( (.not. fileExists) .and. numTrials == 0 ) then
-          call abort3d('chm_getTrial_statevector: No trial files found')
+          call varAbort('chm_getTrial_statevector: No trial files found')
        endif
     enddo
 
     if (numTrials.ne.tim_nstepobs) then
        write(*,*) 'numTrials, tim_nstepobs = ',numTrials, tim_nstepobs
-       call abort3d('chm_getTrial_statevector: numTrials /= tim_nstepobs')
+       call varAbort('chm_getTrial_statevector: numTrials /= tim_nstepobs')
     endif
 
     ! loop over times for which increment is computed
@@ -1343,7 +1347,7 @@ contains
 
        if (trim(fileName).eq.'NOTFOUND') then 
           write(*,*) 'indexStep, dateStamp = ', indexStep, dateStamp
-          call abort3d('chm_getTrial_statevector: trial file not found for this increment timestep')
+          call varAbort('chm_getTrial_statevector: trial file not found for this increment timestep')
        endif
 
       ! read the trial file for this timestep
@@ -1416,7 +1420,7 @@ contains
        
        if (.not.present(increment).and.(mode.eq.1.or.mode.eq.2)) then
           write(*,'(A,I2)') "chm_apply_transform: increment must be provided for mode = ",mode
-          call abort3d("chm_apply_transform")
+          call varAbort("chm_apply_transform")
        end if
        
        ! Get the pointers to the fields
@@ -1464,7 +1468,7 @@ contains
 
     case default
        write(*,'(A,I2,A)') "chm_apply_transform: transform selection ",chm_config%transform(iconstituent_id)," not currenly defined." 
-       call abort3d("chm_apply_transform")
+       call varAbort("chm_apply_transform")
     end select
     
   contains

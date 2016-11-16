@@ -113,7 +113,7 @@ module HorizontalCoord_mod
     if ( nGrid > nMaxGrid ) then
       write(*,*)
       write(*,*) 'hco_SetupFromFile: Too many grid coordinates!', nMaxGrid
-      call abort3d('hco_setupFromFile')
+      call varAbort('hco_setupFromFile')
     end if
 
     !
@@ -133,13 +133,13 @@ module HorizontalCoord_mod
         write(*,*)
         write(*,*) 'hco_SetupFromFile: Error in opening the template grid file'
         write(*,*) trim(TemplateFile)
-        call abort3d('hco_SetupFromFile')
+        call varAbort('hco_SetupFromFile')
       end if
     else
       write(*,*)
       write(*,*) 'hco_SetupFromFile: template grid file DOES NOT EXIST'
       write(*,*) trim(TemplateFile)
-      call abort3d('hco_SetupFromFile')
+      call varAbort('hco_SetupFromFile')
     end if
 
     !
@@ -162,7 +162,7 @@ module HorizontalCoord_mod
     if (key < 0) then
       write(*,*)
       write(*,*) 'hco_SetupFromFile: Unable to find output horiz grid info using = ',nomvar
-      call abort3d('hco_setupFromFile')
+      call varAbort('hco_setupFromFile')
     end if
 
     ier = fstprm( key,                                             & ! IN
@@ -172,7 +172,7 @@ module HorizontalCoord_mod
                   ig4, swa, lng, dltf, ubc, extra1, extra2, extra3 ) ! OUT
 
     if ( trim(grtyp) == 'G' .and. ig2 == 1 ) then
-       call abort3d('hco_setupFromFile: ERROR: due to bug in ezsint, Gaussian grid with ig2=1 no longer supported')
+       call varAbort('hco_setupFromFile: ERROR: due to bug in ezsint, Gaussian grid with ig2=1 no longer supported')
     end if
 
     EZscintID  = ezqkdef( ni, nj, grtyp, ig1, ig2, ig3, ig4, iu_template )   ! IN
@@ -200,7 +200,7 @@ module HorizontalCoord_mod
        if (ier < 0) then
          write(*,*)
          write(*,*) 'hco_SetupFromFile: Unable to find >> grid descriptors'
-         call abort3d('hco_setupFromFile')
+         call varAbort('hco_setupFromFile')
        end if
 
        !  Test if the dimensions are compatible with the grid
@@ -209,7 +209,7 @@ module HorizontalCoord_mod
          write(*,*) 'hco_SetupFromFile: Incompatible >> grid descriptors !'
          write(*,*) 'Found     :', ni_t, nj_t
          write(*,*) 'Should be :', ni, 1
-         call abort3d('hco_setupFromFile')
+         call varAbort('hco_setupFromFile')
        end if
 
        !-  2.2.2 Read the latitudes
@@ -229,7 +229,7 @@ module HorizontalCoord_mod
        if (ier < 0) then
          write(*,*)
          write(*,*) 'hco_SetupFromFile: Unable to find ^^ grid descriptors'
-         call abort3d('hco_setupFromFile')
+         call varAbort('hco_setupFromFile')
        end if
 
        !  Test if the dimensions are compatible with the grid
@@ -238,7 +238,7 @@ module HorizontalCoord_mod
          write(*,*) 'hco_SetupFromFile: Incompatible ^^ grid descriptors !'
          write(*,*) 'Found     :', ni_t, nj_t
          write(*,*) 'Should be :', 1, nj
-         call abort3d('hco_setupFromFile')
+         call varAbort('hco_setupFromFile')
        end if
 
        !- 2.2.3 Do we have a rotated grid ?
@@ -321,7 +321,7 @@ module HorizontalCoord_mod
     else
       write(*,*)
       write(*,*) 'hco_SetupFromFile: Only grtyp = Z or G are supported !, grtyp = ', trim(grtyp)
-      call abort3d('hco_setupFromFile')
+      call varAbort('hco_setupFromFile')
     end if
 
     !

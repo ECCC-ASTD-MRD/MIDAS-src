@@ -179,7 +179,7 @@ contains
        nulnam = 0
        ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
        read(nulnam,nml=NAMBGCKIR, iostat=ierr)
-       if (ierr.ne.0) call abort3d('multi_ir_init: Error reading namelist')
+       if (ierr.ne.0) call varAbort('multi_ir_init: Error reading namelist')
        if (mpi_myid.eq.0) write(*,nml=NAMBGCKIR)
        ierr = fclos(nulnam)
        lfirst = .false.
@@ -222,7 +222,7 @@ contains
     If( alloc_status(1) /= 0) then
        WRITE(*,FMT=9201)
 9201   FORMAT(' BGCK_IR_SETUP: Memory Allocation Error')
-       CALL ABORT3D('BGCK_IR_SETUP')
+       CALL varAbort('BGCK_IR_SETUP')
     End If
 
     do jo = 1, NOBTOV
@@ -232,7 +232,7 @@ contains
        
        If( alloc_status(1)/=0 ) then
           WRITE(*,FMT=9201)
-          CALL ABORT3D('BGCK_IR_SETUP')
+          CALL varAbort('BGCK_IR_SETUP')
        End If
     end do
 
@@ -251,7 +251,7 @@ contains
      
        If( alloc_status(1) /= 0 ) then
           WRITE(*,FMT=9201)
-          CALL ABORT3D('BGCK_IR_SETUP')
+          CALL varAbort('BGCK_IR_SETUP')
        End If
     end do
 
@@ -271,7 +271,7 @@ contains
 
        If( any(alloc_status /= 0) ) then
           WRITE(*,FMT=9201)
-          CALL ABORT3D('BGCK_IR_SETUP')
+          CALL varAbort('BGCK_IR_SETUP')
        End If
     end do
 
@@ -289,7 +289,7 @@ contains
        
     If( alloc_status(1) /= 0 ) then
        WRITE(*,FMT=9201)
-       CALL ABORT3D('BGCK_IR_SETUP')
+       CALL varAbort('BGCK_IR_SETUP')
     End If
 
     DO KRTID = 1, NSENSORS
@@ -300,7 +300,7 @@ contains
 
           If( alloc_status(1)/=0 ) then
              WRITE(*,FMT=9201)
-             CALL ABORT3D('BGCK_IR_SETUP')
+             CALL varAbort('BGCK_IR_SETUP')
           End If
 
           EXIT
@@ -330,7 +330,7 @@ contains
 
     if (QCID == -1) then
        Write(*,*) "Unknown instrument ",CINSTR
-       CALL ABORT3D('BGCK_GET_QCID')
+       CALL varAbort('BGCK_GET_QCID')
     endif
 
   END SUBROUTINE BGCK_GET_QCID
@@ -453,7 +453,7 @@ contains
              EXIT
           END IF
        END DO
-       IF (ID<0) Call abort3d("hirqc: should not happen !")
+       IF (ID<0) Call varAbort("hirqc: should not happen !")
     endif
 
 ! ** find number of profiles 
@@ -489,7 +489,7 @@ contains
     if (nlev==51) iextr=2
     if (nlev /= 43 .and. nlev/=44 .and. nlev/= 51) then
        Write(*,*) "Attention: modification necessaire dans HIRQC"
-       call abort3d('hirqc')
+       call varAbort('hirqc')
     endif
     
     NLEVB=NLEV-iextr
@@ -560,7 +560,7 @@ contains
   allocate ( ZLQ(nlv_T),                stat= alloc_status(27))
   if( any(alloc_status /= 0) ) then
      write(*,*) ' hirqc : memory allocation error'
-     call abort3d('hirqc')
+     call varAbort('hirqc')
   end if
 
   DO JL = 1, NLEVB
@@ -1276,7 +1276,7 @@ contains
   deallocate ( ZLQ,       stat= alloc_status(28))
   if( any(alloc_status /= 0) ) then
      write(*,*) ' hirqc : memory deallocation error'
-     call abort3d('hirqc        ')
+     call varAbort('hirqc        ')
   end if
         
 end SUBROUTINE HIRQC
@@ -2286,7 +2286,7 @@ SUBROUTINE ESTIM_TS(TS, tg,emi,rcal,radobs,sfctau,cldflag, &
 
   if (NCHNKEPT/=hir_get_nchan_selected(CINST)) then
      Write(*,*) "Invalid NCHNKEPT: ",NCHNKEPT,hir_get_nchan_selected(CINST),CINST
-     call abort3d("estim_ts")
+     call varAbort("estim_ts")
   endif
 
 
@@ -3055,7 +3055,7 @@ subroutine tovs_rttov_AVHRR_for_IASI (iptobs,surfem1_avhrr,idiasi)
         call rttov_dealloc_coefs(setup_errorstatus, coefs_avhrr )
         if ( setup_errorstatus/=0) then
            write(*,*) "Probleme dans rttov_dealloc_coefs !"
-           call abort3d("tovs_rttov_AVHRR_for_IASI")
+           call varAbort("tovs_rttov_AVHRR_for_IASI")
         endif
      endif
 
@@ -3070,7 +3070,7 @@ subroutine tovs_rttov_AVHRR_for_IASI (iptobs,surfem1_avhrr,idiasi)
        
      if ( setup_errorstatus/=0) then
         write(*,*) "Probleme dans rttov_setup!"
-        call abort3d("tovs_rttov_AVHRR_for_IASI")
+        call varAbort("tovs_rttov_AVHRR_for_IASI")
      endif
 
      opts_avhrr%co2_data = ( coefs_avhrr%coef%nco2 > 0 )
@@ -3110,7 +3110,7 @@ subroutine tovs_rttov_AVHRR_for_IASI (iptobs,surfem1_avhrr,idiasi)
   call rttov_alloc_rad (errorstatus,nchannels,radiancedata_d,nlevels-1,asw)
   if (errorstatus/=0) THEN
      Write(*,*) "Error in radiance allocation",errorstatus
-     call abort3d("tovs_rttov_AVHRR_for_IASI")
+     call varAbort("tovs_rttov_AVHRR_for_IASI")
   ENDIF
    
 
@@ -3140,7 +3140,7 @@ subroutine tovs_rttov_AVHRR_for_IASI (iptobs,surfem1_avhrr,idiasi)
   call rttov_alloc_rad (errorstatus,nchannels,radiancedata_d,nlevels-1,asw)
   if (errorstatus/=0) THEN
      Write(*,*) "Erreur in radiance deallocation: ",errorstatus
-     call abort3d("tovs_rttov_AVHRR_for_IASI")
+     call varAbort("tovs_rttov_AVHRR_for_IASI")
   ENDIF
 
 end subroutine tovs_rttov_AVHRR_for_IASI

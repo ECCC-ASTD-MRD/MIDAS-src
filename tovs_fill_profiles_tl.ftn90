@@ -85,9 +85,6 @@ subroutine tovs_fill_profiles_tl(column,columng)
   real*8 :: zptop, zptopmbs
   real(8), pointer :: delTT(:), delLQ(:), TTb(:), HUb(:), Pres(:)
  
-  external intavg
-  external exthum4
-         
   if(NOBTOV.eq.0) return    ! exit if there are not tovs data
 
 
@@ -156,7 +153,7 @@ subroutine tovs_fill_profiles_tl(column,columng)
 
   if( any(alloc_status /= 0) ) then
      write(*,*) ' tovs_fill_profiles_tl : memory allocation error'
-     call abort3d('tovs_fill_profiles_tl     ')
+     call varAbort('tovs_fill_profiles_tl     ')
   end if
 
   iptobs   (:) = 0 
@@ -383,7 +380,7 @@ subroutine tovs_fill_profiles_tl(column,columng)
 
   if( any(alloc_status /= 0) ) then
      write(*,*) ' tovs_fill_profiles_tl : memory deallocation error'
-     call abort3d('tovs_fill_profiles_tl        ')
+     call varAbort('tovs_fill_profiles_tl        ')
   end if
 
   9263 format(1x,10f8.4)

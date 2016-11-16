@@ -188,7 +188,7 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
 9201 FORMAT(' TOVS_NL_SETUPALLO: Memory Allocation Error')
      WRITE(*,FMT=9201)
      WRITE(*,*) alloc_status(1:5)
-     CALL ABORT3D('TOVS_NL_SETUPALLO')
+     CALL varAbort('TOVS_NL_SETUPALLO')
   End If
 
   nchan(:)   = 0 
@@ -218,14 +218,14 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
      CALL MAP_SAT(IVAL,IPLATFORM,ISAT)
      if (IPLATFORM==-1) then
         Write(*,*) "Unknown OBS_SAT !",IVAL
-        CALL ABORT3D('TOVS_NL_SETUPALLO')
+        CALL varAbort('TOVS_NL_SETUPALLO')
      endif
 !    map burp instrument info to RTTOV instrument.
      IVAL = obs_headElem_i(lobsSpaceData,OBS_INS,index_header)
      CALL MAP_INSTRUM(IVAL,INSTRUM)
      if (INSTRUM==-1) then
         Write(*,*) "Unknown OBS_INS !",IVAL
-        CALL ABORT3D('TOVS_NL_SETUPALLO')
+        CALL varAbort('TOVS_NL_SETUPALLO')
      endif
 !    find sensor number for this obs.
      DO KRTID = 1, NSENSORS
@@ -239,7 +239,7 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
      Write(*,*) "IPLATFORM,ISAT,INSTRUM ",IPLATFORM,ISAT,INSTRUM
      WRITE(*,FMT=9101)
 9101 FORMAT(' TOVS_NL_SETUPALLO: Invalid Sensor')
-     CALL ABORT3D('TOVS_NL_SETUPALLO')
+     CALL varAbort('TOVS_NL_SETUPALLO')
 
 110  lsensor(nobtov) = nosensor
      lobsno (nobtov) = index_header
@@ -298,7 +298,7 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
      If( any(alloc_status /= 0) ) then
         WRITE(*,FMT=9201)
         WRITE(*,*) alloc_status(1:3)
-        CALL ABORT3D('TOVS_NL_SETUPALLO')
+        CALL varAbort('TOVS_NL_SETUPALLO')
      End If
 
   ! The levels of verbosity are
@@ -348,7 +348,7 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
              & ICHAN(1:nchan(JK),JK)         ) !in (opt) 
         if ( setup_errorstatus/=0 ) then
            Write(*,*) "Error during RTTOV setup !",JK,LIST_SENSORS(1:3,JK)
-           CALL ABORT3D('TOVS_SETUPALLO')
+           CALL varAbort('TOVS_SETUPALLO')
         endif
 
         opts(JK)%co2_data = ( coefs(jk)%coef%nco2 > 0 )
@@ -378,7 +378,7 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
            WRITE(*,FMT=9311)
   9311     FORMAT(' TOVS_SETUPALLO: Number of levels not', &
                   ' identical in all coef files')
-           CALL ABORT3D('TOVS_SETUPALLO')
+           CALL varAbort('TOVS_SETUPALLO')
         endif
      enddo
 
@@ -396,7 +396,7 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
   allocate(profiles(NOBTOV)         , stat= alloc_status(1) )
   If( alloc_status(1) /= 0 ) then
      WRITE(*,FMT=9201)
-     CALL ABORT3D('TOVS_NL_SETUPALLO')
+     CALL varAbort('TOVS_NL_SETUPALLO')
   End If
 
   asw=1
@@ -409,7 +409,7 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
           opts(isens),asw,coefs=coefs(isens),init=.false. )
      if (errorstatus/=0) THEN
         Write(*,*) "Error in profiles allocation",errorstatus
-        CALL ABORT3D('TOVS_NL_SETUPALLO')
+        CALL varAbort('TOVS_NL_SETUPALLO')
      endif
        
   end do
@@ -420,7 +420,7 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
   allocate( radiance_d(NOBTOV) ,stat= alloc_status(1))
   If( alloc_status(1) /= 0 ) then
      WRITE(*,FMT=9201)
-     CALL ABORT3D('TOVS_NL_SETUPALLO')
+     CALL varAbort('TOVS_NL_SETUPALLO')
   End If
   do jo = 1, NOBTOV
      isens = lsensor(jo)
@@ -439,7 +439,7 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
      If( any(alloc_status /= 0) ) then
          WRITE(*,FMT=9201)
          Write(*,*) alloc_status(1:2)
-         CALL ABORT3D('TOVS_NL_SETUPALLO')
+         CALL varAbort('TOVS_NL_SETUPALLO')
      End If
   end do
 
@@ -482,7 +482,7 @@ SUBROUTINE TOVS_SETUP
   nulnam=0
   ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
   read(nulnam,nml=namtov,iostat=ierr)
-  if(ierr.ne.0) call abort3d('tov_setup: Error reading namelist')
+  if(ierr.ne.0) call varAbort('tov_setup: Error reading namelist')
   if(mpi_myid.eq.0) write(*,nml=namtov)
   ierr=fclos(nulnam)
 
@@ -492,14 +492,14 @@ SUBROUTINE TOVS_SETUP
   IF ( CRTMODL .NE. 'RTTOV' ) THEN
      WRITE(*,FMT=9131)
   9131    FORMAT(' TOVS_SETUP: Invalid radiation model name')
-     CALL ABORT3D('TOVS_SETUP')
+     CALL varAbort('TOVS_SETUP')
   ENDIF
 
   IF ( NSENSORS .GT. JPNSATMAX ) THEN
      WRITE(*,FMT=9132)
   9132    FORMAT(' TOVS_SETUP: Number of sensors (NSENSORS)', &
             ' is greater than maximum allowed (JPNSATMAX)')
-     CALL ABORT3D('TOVS_SETUP')
+     CALL varAbort('TOVS_SETUP')
   ENDIF
 
   if(mpi_myid.eq.0) WRITE(*,FMT=9140) LDBGTOV, LNLVTOV, luse_uwiremis,CRTMODL
@@ -589,14 +589,14 @@ SUBROUTINE SENSORS
      IERR=FNOM(NULNAM,'./flnml','FTN+SEQ+R/O',0)
      IF (IERR/=0) then
         write(*,*) "Error while opening namelist file !"
-        call abort3d("sensors")
+        call varAbort("sensors")
      ENDIF
      LISTOFFSET(:) = 0
      LISTINSTRUM(:) = "XXXXXXXX"
      READ(NULNAM,NAMCHANOFFSET,iostat=ierr)
      IF (IERR/=0) then
         write(*,*) "Error while reading namelist file !"
-        call abort3d("sensors")
+        call varAbort("sensors")
      ENDIF
      do j=0, ninst-1
         if ( LISTINSTRUM(j) /= "XXXXXXXX" ) then
@@ -646,14 +646,14 @@ SUBROUTINE SENSORS
      IF ( PLATFORM(J) .LT. 0 ) THEN
         WRITE(*,FMT=9132) TEMPOCSATID
 9132    FORMAT(' SENSORS: Satellite ',A,' not supported.')
-        CALL ABORT3D('SENSORS')
+        CALL varAbort('SENSORS')
      ELSE
         IPOS1 = LEN_TRIM(platform_name(KINDEX))
         IPOS2 = LEN_TRIM(TEMPOCSATID)
         READ(TEMPOCSATID(IPOS1+1:IPOS2),*,IOSTAT=IERR) NUMEROSAT
         IF ( IERR .NE. 0) THEN
            WRITE(*,FMT=9132) TEMPOCSATID
-           CALL ABORT3D('SENSORS')
+           CALL varAbort('SENSORS')
         ELSE
            SATELLITE(J) = NUMEROSAT
         ENDIF
@@ -682,7 +682,7 @@ SUBROUTINE SENSORS
      IF ( INSTRUMENT(J) .LT. 0 ) THEN
         WRITE(*,FMT=9133) CINSTRUMENTID(J)
  9133      FORMAT(' SENSORS: INSTRUMENT ',A,' not supported.')
-        CALL ABORT3D('SENSORS')
+        CALL varAbort('SENSORS')
      ENDIF
      CHANOFFSET(J) = IOFFSET1B(INSTRUMENT(J))
   ENDDO
@@ -727,7 +727,7 @@ logical function tvs_Is_idburp_tovs(idatyp)
      inst_names="XXXXXX"
      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
      read(nulnam,nml=namtovsinst, iostat=ierr)
-     if (ierr.ne.0) call abort3d('tvs_Is_idburp_tovs: Error reading namelist')
+     if (ierr.ne.0) call varAbort('tvs_Is_idburp_tovs: Error reading namelist')
      if (mpi_myid.eq.0) write(*,nml=namtovsinst)
      ierr = fclos(nulnam)
      do i=1, ninst
@@ -738,11 +738,11 @@ logical function tvs_Is_idburp_tovs(idatyp)
            list_inst(i) = codtyp_get_codtyp( name=inst_names(i) )
            if (list_inst(i) < 0) then
               Write(*,*) inst_names(i)
-              call abort3d('tvs_Is_idburp_tovs: unknown instrument in namtovsinst namelist')
+              call varAbort('tvs_Is_idburp_tovs: unknown instrument in namtovsinst namelist')
            endif
         endif
      enddo
-     if ( ninst_tovs == 0 ) call abort3d('tvs_Is_idburp_tovs: Empty namtovsinst namelist')
+     if ( ninst_tovs == 0 ) call varAbort('tvs_Is_idburp_tovs: Empty namtovsinst namelist')
      lfirst = .false.
   endif
 
@@ -852,7 +852,7 @@ logical function tvs_Is_Instrum_Hyperspectral(instrum)
      name_inst(:) = "XXXXXX"
      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
      read(nulnam,nml=namhyper, iostat=ierr)
-     if (ierr.ne.0) call abort3d('tvs_Is_Instrum_Hyperspectral: Error reading namelist')
+     if (ierr.ne.0) call varAbort('tvs_Is_Instrum_Hyperspectral: Error reading namelist')
      if (mpi_myid.eq.0) write(*,nml=namhyper)
      ierr = fclos(nulnam)
      list_inst(:) = -1
@@ -861,7 +861,7 @@ logical function tvs_Is_Instrum_Hyperspectral(instrum)
         if (name_inst(i) /= "XXXXXX") then
            if (list_inst(i) == -1) then
               Write(*,*) i,name_inst(i)
-              call abort3d('tvs_Is_Instrum_Hyperspectral: Unknown instrument name')
+              call varAbort('tvs_Is_Instrum_Hyperspectral: Unknown instrument name')
            endif
         else
            ninst_hir = i -1
@@ -907,7 +907,7 @@ logical function tvs_Is_Instrum_Geostationary(instrum)
      name_inst(:) = "XXXXXX"
      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
      read(nulnam,nml=namgeo, iostat=ierr)
-     if (ierr.ne.0) call abort3d('tvs_Is_Instrum_Geostationary: Error reading namelist')
+     if (ierr.ne.0) call varAbort('tvs_Is_Instrum_Geostationary: Error reading namelist')
      if (mpi_myid.eq.0) write(*,nml=namgeo)
      ierr = fclos(nulnam)
      list_inst(:) = -1
@@ -916,7 +916,7 @@ logical function tvs_Is_Instrum_Geostationary(instrum)
         if (name_inst(i) /= "XXXXXX") then
            if (list_inst(i) == -1) then
               Write(*,*) i,name_inst(i)
-              call abort3d('tvs_Is_Instrum_Geostationary: Unknown instrument name')
+              call varAbort('tvs_Is_Instrum_Geostationary: Unknown instrument name')
            endif
         else
            ninst_geo = i -1

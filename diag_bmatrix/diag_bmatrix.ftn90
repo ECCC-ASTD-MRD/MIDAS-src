@@ -15,9 +15,9 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 program diag_bmatrix
-!
-! program: diag_bmatrix  - Program to compute diagnostics of the B matrix
-!
+  !
+  ! program: diag_bmatrix  - Program to compute diagnostics of the B matrix
+  !
   use mpivar_mod
   use MathPhysConstants_mod
   use controlVector_mod
@@ -27,44 +27,33 @@ program diag_bmatrix
   use verticalCoord_mod
   use timeCoord_mod
   use LamAnalysisGrid_mod
-  use globalSpectralTransform
   IMPLICIT NONE
 
   type(struct_gsv) :: statevector
-
-  type(struct_hco), pointer :: hco_anl
+  type(struct_hco), pointer :: hco_anl => null()
   type(struct_vco), pointer :: vco_anl => null()
-
-  real*8, pointer :: field(:,:,:)
-  real*8, pointer :: field_global(:,:,:)
-  real*4, allocatable :: ensemble(:,:,:,:)
-  real*8, allocatable :: gdmean(:,:,:)
-  real*8, allocatable :: gdstddev(:,:,:)
-  real*8, allocatable :: gdstddev_zm(:,:)
-  real*8, allocatable :: gdstddev_dm(:)
+  real(8), pointer :: field(:,:,:)
+  real(4), allocatable :: ensemble(:,:,:,:)
+  real(8), allocatable :: gdmean(:,:,:)
+  real(8), allocatable :: gdstddev(:,:,:)
+  real(8), allocatable :: gdstddev_zm(:,:),gdstddev_zm2(:,:)
+  real(8), allocatable :: gdstddev_dm(:,:),gdstddev_dm2(:,:)
   real(8), allocatable :: cvm_vazx_global(:)
-  
-  integer  fclos,fnom,fstouv,fstfrm,fstopc,nulfile,newdate,nstamp
-  integer  ierr,iseed, cvDim_local
-  integer  jmem,jj,jni,jnj,jnk,nkgdim
-  integer  idate,itime,nulnam
+  integer :: fclos, fnom, fstopc, newdate, get_max_rss
+  integer :: ierr, nsize, iseed, cvDim_local
+  integer :: jmem, jj, jlon, jlat, jlev, nkgdim
+  integer :: idate, itime, nulnam, nstamp
+  integer :: nlons, nlats, nlevs, nlevs2, jvar, ip3
+  real(8) :: gasdev, zdum
+  character(len=128) :: filename
+  character(len=10)  :: datestr
+  character(len=12)  :: etiket
 
-  integer,external    :: get_max_rss
-
-  real*8   gasdev,zdum,rwtinv
-
-  character*128 filename
-  character(len=10) :: datestr
-  character(len=4) :: varnames(10)
-  character(len=12) :: etiket
-
-  integer :: nlons,nlats,nlevs,ilon,ilat,ilev,iloc,nvarnames,ivar
-
-  integer :: numperturbations,nrandseed,diagdate
+  ! namelist variables
+  integer :: numperturbations, nrandseed, diagdate
   integer :: oneobs_levs(100),oneobs_lons(100),oneobs_lats(100)
-  integer :: gstID
 
-  namelist /namdiag/numperturbations,nrandseed,diagdate,oneobs_levs,oneobs_lons,oneobs_lats
+  namelist /namdiag/numperturbations, nrandseed, diagdate, oneobs_levs, oneobs_lons, oneobs_lats
   
   write(*,*) " -------------------------------------------"
   write(*,*) " --- START OF MAIN PROGRAM DIAG_BMATRIX: ---"
@@ -74,6 +63,7 @@ program diag_bmatrix
   ! MPI, tmg initialization
   call mpi_initialize 
   call tmg_init(mpi_myid, 'TMG_DIAG-BMATRIX' )
+  call tmg_start(1,'MAIN')
   ierr = fstopc('MSGLVL','ERRORS',0)
 
   ! Set default values for namelist NAMDIAG parameters
@@ -88,20 +78,20 @@ program diag_bmatrix
   nulnam=0
   ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
   read(nulnam,nml=namdiag,iostat=ierr)
-  if(ierr.ne.0) call abort3d('diag_bmatrix: Error reading namelist')
+  if(ierr.ne.0) call varabort('diag_bmatrix: Error reading namelist')
   write(*,nml=namdiag)
   ierr=fclos(nulnam)
   
   nlevs=0
-  do jj=1,size(oneobs_levs)
+  do jj = 1, size(oneobs_levs)
      if(oneobs_levs(jj).ge.1) nlevs=nlevs+1  
   enddo
   nlons=0
-  do jj=1,size(oneobs_lons)
+  do jj = 1, size(oneobs_lons)
      if(oneobs_lons(jj).ge.1) nlons=nlons+1  
   enddo
   nlats=0
-  do jj=1,size(oneobs_lats)
+  do jj = 1, size(oneobs_lats)
      if(oneobs_lats(jj).ge.1) nlats=nlats+1  
   enddo
   
@@ -125,14 +115,14 @@ program diag_bmatrix
   call hco_SetupFromFile( './analysisgrid', 'ANALYSIS', 'Analysis' ) ! IN
   hco_anl => hco_Get('Analysis')
 
-  if ( hco_anl % global ) then
-    gstID = gst_setup(statevector%ni,statevector%nj,10)
-  else
-    !- Iniatilized the core (Non-Exteded) analysis grid
+  if ( .not. hco_anl % global ) then
+    !- Iniatilized the core (Non-Extended) analysis grid
     call hco_SetupFromFile( './analysisgrid', 'COREGRID', 'AnalysisNonExt' ) ! IN
     !- Setup the LAM analysis grid metrics
     call lag_SetupFromHCO( 'Analysis', 'AnalysisNonExt' ) ! IN
   end if
+
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Initialize the vertical coordinate from the statistics file
   if ( hco_anl % global ) then
@@ -145,9 +135,13 @@ program diag_bmatrix
   ! Allocate the statevector
   call gsv_setVco(statevector,vco_anl)
   call gsv_setHco(statevector,hco_anl)
+  call gsv_allocate(statevector,tim_nstepobsinc,datestamp=tim_getDatestamp(),mpi_local=.true.)
+  nkgdim = statevector%nk
 
   ! Setup the B matrix
   call bmat_setup(hco_anl,vco_anl)
+
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   !
   !==============================================
@@ -164,50 +158,55 @@ program diag_bmatrix
      write(*,*) 'number of longitudes =',nlons
      write(*,*) 'number of latitudes  =',nlats
      
-     do ivar=1, vnl_numvarmax
+     do jvar = 1, vnl_numvarmax
 
-        if (gsv_varExist(varName=vnl_varNameList(ivar)) ) then
+        if (.not. gsv_varExist(varName=vnl_varNameList(jvar)) ) cycle
 
-        filename = 'columnB_' // trim(vnl_varNameList(ivar)) // '_' // datestr // '.fst'
+        filename = 'columnB_' // trim(vnl_varNameList(jvar)) // '_' // datestr // '.fst'
   
-        iloc=0
-        do ilev=1,nlevs
-           do ilon=1,nlons
-              do ilat=1,nlats
-                 iloc=iloc+1
+        if(vnl_varLevelFromVarname(vnl_varNameList(jvar)).eq.'SF') then
+          nlevs2 = 1
+        else
+          nlevs2 = nlevs
+        endif
 
-                 call gsv_allocate(statevector,tim_nstepobsinc,datestamp=tim_getDatestamp(),mpi_local=.true.)
-                 call gsv_zero(statevector)
-                 field => gsv_getField3d_r8(statevector,vnl_varNameList(ivar))
-                 if(oneobs_lats(ilat).ge.statevector%myLatBeg.and.oneobs_lats(ilat).le.statevector%myLatEnd) then
-                    field(oneobs_lons(ilon),oneobs_levs(ilev),oneobs_lats(ilat))=1.0d0
+        ip3 = 0
+        do jlev = 1, nlevs2
+           do jlon = 1, nlons
+              do jlat = 1, nlats
+
+                 call gsv_zero(statevector)                   
+                 field => gsv_getField3d_r8(statevector,vnl_varNameList(jvar))
+
+                 if(oneobs_lats(jlat).ge.statevector%myLatBeg .and. oneobs_lats(jlat).le.statevector%myLatEnd .and.  &
+                    oneobs_lons(jlon).ge.statevector%myLonBeg .and. oneobs_lons(jlon).le.statevector%myLonEnd) then
+                    if(vnl_varLevelFromVarname(vnl_varNameList(jvar)).eq.'SF') then
+                      field(oneobs_lons(jlon),oneobs_lats(jlat),1) = 1.0D0
+                    else
+                      field(oneobs_lons(jlon),oneobs_lats(jlat),oneobs_levs(jlev)) = 1.0D0
+                    endif
                  endif
+
                  cvm_vazx(:)=0.0d0
-                 do jnj = statevector%myLatBeg,statevector%myLatEnd
-                    rwtinv = real(statevector%ni,8)/gst_getrwt(jnj,gstID)
-                    do jnk = 1,gsv_getNumLev(statevector,vnl_varLevelFromVarname(vnl_varNameList(ivar)))
-                       do jni = 1, statevector%ni
-                          field(jni,jnk,jnj) = field(jni,jnk,jnj)*rwtinv
-                       enddo
-                    enddo
-                 enddo
                  call bmat_sqrtBT(cvm_vazx,cvm_nvadim,statevector)
                  call bmat_sqrtB(cvm_vazx,cvm_nvadim,statevector)
                  
-                 write(*,*)'DIAG_BMATRIX: writing out the column of B, ilev,ilon,ilat=',ilev,ilon,ilat
+                 write(*,*)'DIAG_BMATRIX: writing out the column of B, jlev,jlon,jlat=',jlev,jlon,jlat
+                 call flush(6)
 
-                 call gsv_writeToFile(statevector,filename,'TEST') ! IN
-                call gsv_deallocate(statevector)
+                 ip3 = ip3 + 1
+                 call gsv_writeToFileMpi(statevector,filename,'ONEOBS_'//trim(vnl_varNameList(jvar)),  &
+                                         ip3_in=ip3,HUcontainsLQ=.true.,unitConversion=.true.)
                  
               enddo
            enddo
         enddo
  
-        endif
-
      enddo
      
-  endif ! if oneobs_????(1).ge.1
+  endif ! if any oneobs selected
+
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   !
   !==============================================
@@ -222,14 +221,12 @@ program diag_bmatrix
 
      allocate(cvm_vazx_global(cvm_nvadim_mpiglobal))
 
-     call gsv_allocate(statevector,tim_nstepobsinc,datestamp=tim_getDatestamp(),mpi_local=.true.)
-     nkgdim = statevector%nk
      call gsv_zero(statevector)
      
      ! Allocate the ensemble, mean and stddev
-     allocate(ensemble(statevector%myLonBeg:statevector%myLonEnd,nkgdim,statevector%myLatBeg:statevector%myLatEnd,numperturbations))
-     allocate(gdmean(statevector%myLonBeg:statevector%myLonEnd,nkgdim,statevector%myLatBeg:statevector%myLatEnd))
-     allocate(gdstddev(statevector%myLonBeg:statevector%myLonEnd,nkgdim,statevector%myLatBeg:statevector%myLatEnd))
+     allocate(ensemble(statevector%myLonBeg:statevector%myLonEnd,statevector%myLatBeg:statevector%myLatEnd,nkgdim,numperturbations))
+     allocate(gdmean(statevector%myLonBeg:statevector%myLonEnd,statevector%myLatBeg:statevector%myLatEnd,nkgdim))
+     allocate(gdstddev(statevector%myLonBeg:statevector%myLonEnd,statevector%myLatBeg:statevector%myLatEnd,nkgdim))
 
      iseed = abs(nrandseed)
      zdum = gasdev(-iseed)
@@ -239,8 +236,9 @@ program diag_bmatrix
      !
      !- Compute the ensemble of random perturbations
      !
-     do jmem = 1,numperturbations
+     do jmem = 1, numperturbations
         write(*,*) ' computing member number= ',jmem
+        call flush(6)
 
         !- Global vector (same for each processors)
         do jj = 1, cvm_nvadim_mpiglobal
@@ -255,17 +253,15 @@ program diag_bmatrix
         !- Transform to control variables in physical space
         call bmat_sqrtB(cvm_vazx,cvm_nvadim,statevector)
 
-!$OMP PARALLEL
-!$OMP DO PRIVATE (jni,jnj,jnk)    
-        do jni = statevector%myLonBeg,statevector%myLonEnd
-           do jnj = statevector%myLatBeg,statevector%myLatEnd
-              do jnk = 1,nkgdim
-                 ensemble(jni,jnk,jnj,jmem)=field(jni,jnk,jnj)
+!$OMP PARALLEL DO PRIVATE (jlon,jlat,jlev)    
+        do jlev = 1, nkgdim
+           do jlat = statevector%myLatBeg, statevector%myLatEnd
+              do jlon = statevector%myLonBeg, statevector%myLonEnd
+                 ensemble(jlon,jlat,jlev,jmem) = field(jlon,jlat,jlev)
               enddo
            enddo
         enddo
-!$OMP END DO
-!$OMP END PARALLEL
+!$OMP END PARALLEL DO
 
      enddo ! Loop on ens member
 
@@ -273,48 +269,42 @@ program diag_bmatrix
      !- Compute the ensemble mean
      !
      gdmean(:,:,:) = 0.0d0
-     do jmem = 1,numperturbations
-!$OMP PARALLEL
-!$OMP DO PRIVATE (jni,jnj,jnk)
-        do jni = statevector%myLonBeg,statevector%myLonEnd
-           do jnj = statevector%myLatBeg,statevector%myLatEnd
-              do jnk = 1,nkgdim
-                 gdmean(jni,jnk,jnj) = gdmean(jni,jnk,jnj) + ensemble(jni,jnk,jnj,jmem)
+     do jmem = 1, numperturbations
+!$OMP PARALLEL DO PRIVATE (jlon,jlat,jlev)
+        do jlev = 1, nkgdim
+           do jlat = statevector%myLatBeg, statevector%myLatEnd
+              do jlon = statevector%myLonBeg, statevector%myLonEnd
+                 gdmean(jlon,jlat,jlev) = gdmean(jlon,jlat,jlev) + ensemble(jlon,jlat,jlev,jmem)
               enddo
            enddo
         enddo
-!$OMP END DO
-!$OMP END PARALLEL
+!$OMP END PARALLEL DO
      enddo
 
-!$OMP PARALLEL
-!$OMP DO PRIVATE (jni,jnj,jnk)    
-     do jni = statevector%myLonBeg,statevector%myLonEnd
-        do jnj = statevector%myLatBeg,statevector%myLatEnd
-           do jnk = 1,nkgdim
-              gdmean(jni,jnk,jnj) = gdmean(jni,jnk,jnj)/real(numperturbations,8)
+!$OMP PARALLEL DO PRIVATE (jlon,jlat,jlev)    
+     do jlev = 1, nkgdim
+        do jlat = statevector%myLatBeg, statevector%myLatEnd
+           do jlon = statevector%myLonBeg, statevector%myLonEnd
+              gdmean(jlon,jlat,jlev) = gdmean(jlon,jlat,jlev)/real(numperturbations,8)
            enddo
         enddo
      enddo
-!$OMP END DO
-!$OMP END PARALLEL
+!$OMP END PARALLEL DO
      
      !
      !- Remove the ensemble mean from the ensemble
      !
-!$OMP PARALLEL
-!$OMP DO PRIVATE (jni,jmem,jnj,jnk)    
-     do jni = statevector%myLonBeg,statevector%myLonEnd
-        do jmem = 1,numperturbations
-           do jnj = statevector%myLatBeg,statevector%myLatEnd
-              do jnk = 1,nkgdim
-                 ensemble(jni,jnk,jnj,jmem) = ensemble(jni,jnk,jnj,jmem) - gdmean(jni,jnk,jnj)
+!$OMP PARALLEL DO PRIVATE (jlon,jmem,jlat,jlev)    
+     do jmem = 1, numperturbations
+        do jlev = 1, nkgdim
+           do jlat = statevector%myLatBeg, statevector%myLatEnd
+              do jlon = statevector%myLonBeg, statevector%myLonEnd
+                 ensemble(jlon,jlat,jlev,jmem) = ensemble(jlon,jlat,jlev,jmem) - gdmean(jlon,jlat,jlev)
               enddo
            enddo
         enddo
      enddo
-!$OMP END DO
-!$OMP END PARALLEL     
+!$OMP END PARALLEL DO
      deallocate(gdmean)
 
      !
@@ -322,137 +312,145 @@ program diag_bmatrix
      !
      gdstddev(:,:,:) = 0.0d0
 
-     do jmem = 1,numperturbations
-!$OMP PARALLEL
-!$OMP DO PRIVATE (jni,jnj,jnk)
-        do jni = statevector%myLonBeg,statevector%myLonEnd
-           do jnj = statevector%myLatBeg,statevector%myLatEnd
-              do jnk = 1,nkgdim
-                 gdstddev(jni,jnk,jnj) = gdstddev(jni,jnk,jnj)+(ensemble(jni,jnk,jnj,jmem)**2)/real(numperturbations,8)
+     do jmem = 1, numperturbations
+!$OMP PARALLEL DO PRIVATE (jlon,jlat,jlev)
+        do jlon = statevector%myLonBeg, statevector%myLonEnd
+           do jlat = statevector%myLatBeg, statevector%myLatEnd
+              do jlev = 1, nkgdim
+                 gdstddev(jlon,jlat,jlev) = gdstddev(jlon,jlat,jlev) + &
+                    (ensemble(jlon,jlat,jlev,jmem)**2)/real(numperturbations,8)
               enddo
            enddo
         enddo
-!$OMP END DO
-!$OMP END PARALLEL
+!$OMP END PARALLEL DO
      enddo
      deallocate(ensemble)
 
-!$OMP PARALLEL
-!$OMP DO PRIVATE (jni,jnj,jnk)
-     do jni = statevector%myLonBeg,statevector%myLonEnd
-        do jnj = statevector%myLatBeg,statevector%myLatEnd
-           do jnk = 1,nkgdim
-              gdstddev(jni,jnk,jnj)=sqrt(gdstddev(jni,jnk,jnj))
+!$OMP PARALLEL DO PRIVATE (jlon,jlat,jlev)
+     do jlev = 1, nkgdim
+        do jlat = statevector%myLatBeg, statevector%myLatEnd
+           do jlon = statevector%myLonBeg, statevector%myLonEnd
+              gdstddev(jlon,jlat,jlev) = sqrt(gdstddev(jlon,jlat,jlev))
            enddo
         enddo
      enddo
-!$OMP END DO
-!$OMP END PARALLEL
+!$OMP END PARALLEL DO
 
      !- Insert results in statevector
-!$OMP PARALLEL
-!$OMP DO PRIVATE (jni,jnj,jnk)    
-     do jni = statevector%myLonBeg,statevector%myLonEnd
-        do jnj = statevector%myLatBeg,statevector%myLatEnd
-           do jnk = 1,nkgdim
-              field(jni,jnk,jnj) = gdstddev(jni,jnk,jnj)
+!$OMP PARALLEL DO PRIVATE (jlon,jlat,jlev)    
+     do jlev = 1, nkgdim
+        do jlat = statevector%myLatBeg, statevector%myLatEnd
+           do jlon = statevector%myLonBeg, statevector%myLonEnd
+              field(jlon,jlat,jlev) = gdstddev(jlon,jlat,jlev)
            enddo
         enddo
      enddo
-!$OMP END DO
-!$OMP END PARALLEL
+!$OMP END PARALLEL DO
      deallocate(gdstddev)
 
      !- Write to file
-     call gsv_writeToFile(statevector,'stddev_' // datestr // '.fst','GD_STDDEV') ! IN
+     call gsv_writeToFileMpi(statevector,'stddev_' // datestr // '.fst','GD_STDDEV',  &
+                             HUcontainsLQ=.true.,unitConversion=.true.)
 
      !
-     !- Compute the zonal mean std dev (on processor 0)
+     !- Compute the zonal mean std dev
      !
-     call gsv_commMPIGlobal3D(statevector) ! Note: statevector contains the grid point std dev
+     write(*,*) 'Compute the zonal mean stddev'
+     call flush(6)
 
-     if ( mpi_myid == 0 ) then
-        write(*,*) 'Compute the zonal mean stddev'
+     allocate(gdstddev_zm(hco_anl%nj,nkgdim))
+     allocate(gdstddev_zm2(hco_anl%nj,nkgdim))
+     gdstddev_zm(:,:) = 0.d0
+     gdstddev_zm2(:,:) = 0.d0
 
-        allocate(gdstddev_zm(hco_anl%nj,nkgdim))
-        gdstddev_zm(:,:) = 0.d0
-        field_global => gsv_getField3d_r8(statevector)
-
-!$OMP PARALLEL
-!$OMP DO PRIVATE (jni,jnj,jnk)
-        do jnj = 1,hco_anl%nj
-           do jnk = 1,nkgdim
-              do jni = 1,hco_anl%ni
-                 gdstddev_zm(jnj,jnk) = gdstddev_zm(jnj,jnk) + (field_global(jni,jnk,jnj)**2)/real(hco_anl%ni,8)
-              enddo
+!$OMP PARALLEL DO PRIVATE (jlon,jlat,jlev)
+     do jlev = 1, nkgdim
+        do jlat = statevector%myLatBeg, statevector%myLatEnd
+           do jlon = statevector%myLonBeg, statevector%myLonEnd
+              gdstddev_zm(jlat,jlev) = gdstddev_zm(jlat,jlev) + (field(jlon,jlat,jlev)**2)/real(hco_anl%ni,8)
            enddo
         enddo
-!$OMP END DO
-!$OMP END PARALLEL
+     enddo
+!$OMP END PARALLEL DO
 
-        !- Insert results in statevector
-!$OMP PARALLEL
-!$OMP DO PRIVATE (jni,jnj,jnk)    
-        do jni = 1,hco_anl%ni
-           do jnj = 1,hco_anl%nj
-              do jnk = 1,nkgdim
-                 field_global(jni,jnk,jnj) = sqrt(gdstddev_zm(jnj,jnk))
-              enddo
+     nsize = statevector%nj*nkgdim
+     call rpn_comm_allreduce(gdstddev_zm,gdstddev_zm2,nsize,  &
+                            "MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
+
+     !- Insert results in statevector
+!$OMP PARALLEL DO PRIVATE (jlon,jlat,jlev)    
+     do jlev = 1, nkgdim
+        do jlat = statevector%myLatBeg, statevector%myLatEnd
+           do jlon = statevector%myLonBeg, statevector%myLonEnd
+              if(gdstddev_zm2(jlat,jlev)> 0.0d0) then
+                 field(jlon,jlat,jlev) = sqrt(gdstddev_zm2(jlat,jlev))
+              else
+                 field(jlon,jlat,jlev) = 0.0d0
+              endif
            enddo
         enddo
-!$OMP END DO
-!$OMP END PARALLEL
-        deallocate(gdstddev_zm)
+     enddo
+!$OMP END PARALLEL DO
+     deallocate(gdstddev_zm)
+     deallocate(gdstddev_zm2)
 
-        call gsv_writeToFile(statevector,'stddev_' // datestr // '.fst','ZM_STDDEV') ! IN
-
-     end if ! mpi_myid == 0
+     call gsv_writeToFileMpi(statevector,'stddev_' // datestr // '.fst','ZM_STDDEV',  &
+                             HUcontainsLQ=.true.,unitConversion=.true.)
 
      !
-     !- Compute the global/domain mean stddev (still on processor 0)
+     !- Compute the domain mean std dev
      !
-     if ( mpi_myid == 0 ) then
-        write(*,*) 'Compute the global/domain mean stddev'
+     write(*,*) 'Compute the domain mean stddev'
+     call flush(6)
 
-        allocate(gdstddev_dm(nkgdim))
-        gdstddev_dm(:) = 0.d0
+     allocate(gdstddev_dm(hco_anl%ni,nkgdim))
+     allocate(gdstddev_dm2(hco_anl%ni,nkgdim))
+     gdstddev_dm(:,:) = 0.d0
+     gdstddev_dm2(:,:) = 0.d0
 
-!$OMP PARALLEL
-!$OMP DO PRIVATE (jnj,jnk)
-        do jnk = 1,nkgdim
-           do jnj = 1,hco_anl%nj
-              gdstddev_dm(jnk) = gdstddev_dm(jnk) + (field_global(1,jnk,jnj)**2)/real(hco_anl%nj,8)
+!$OMP PARALLEL DO PRIVATE (jlat,jlev)
+     do jlev = 1, nkgdim
+        do jlat = statevector%myLatBeg, statevector%myLatEnd
+           do jlon = statevector%myLonBeg, statevector%myLonEnd
+              gdstddev_dm(jlon,jlev) = gdstddev_dm(jlon,jlev) + (field(jlon,jlat,jlev)**2)/real(hco_anl%nj,8)
+           end do
+        enddo
+     enddo
+!$OMP END PARALLEL DO 
+
+     nsize = statevector%ni*nkgdim
+     call rpn_comm_allreduce(gdstddev_dm,gdstddev_dm2,nsize,  &
+                            "MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
+
+     !- Insert results in statevector
+                                                                                                                  
+!$OMP PARALLEL DO PRIVATE (jlon,jlat,jlev)
+     do jlev = 1, nkgdim
+        do jlat = statevector%myLatBeg, statevector%myLatEnd
+           do jlon = statevector%myLonBeg, statevector%myLonEnd
+              if(gdstddev_dm2(jlon,jlev)> 0.0d0) then
+                 field(jlon,jlat,jlev) = sqrt(gdstddev_dm2(jlon,jlev))
+              else
+                 field(jlon,jlat,jlev) = 0.0d0
+              endif
            enddo
         enddo
-!$OMP END DO
-!$OMP END PARALLEL
-
-        !- Insert results in statevector
-!$OMP PARALLEL
-!$OMP DO PRIVATE (jni,jnj,jnk)    
-        do jni = 1,hco_anl%ni
-           do jnj = 1,hco_anl%nj
-              do jnk = 1,nkgdim
-                 field_global(jni,jnk,jnj) = sqrt(gdstddev_dm(jnk))
-              enddo
-           enddo
-        enddo
-!$OMP END DO
-!$OMP END PARALLEL
-        deallocate(gdstddev_dm)
-
-        call gsv_writeToFile(statevector,'stddev_' // datestr // '.fst','DM_STDDEV') ! IN
-
-     end if ! mpi_myid == 0
-
-     write(*,*) 'arrived at the barrier'
-     call rpn_comm_barrier("GRID",ierr)
-
-     call gsv_deallocate(statevector)
+     enddo
+!$OMP END PARALLEL DO
+     deallocate(gdstddev_dm)
+     deallocate(gdstddev_dm2)
+ 
+     call gsv_writeToFileMpi(statevector,'stddev_' // datestr // '.fst','DM_STDDEV',  &
+                             HUcontainsLQ=.true.,unitConversion=.true.)
 
   endif ! if numperturbations.gt.1
 
+  call gsv_deallocate(statevector)
+
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
   ! MPI, tmg finalize
+  call tmg_stop(1)
   call tmg_terminate(mpi_myid, 'TMG_DIAG-BMATRIX' )
   call rpn_comm_finalize(ierr) 
   

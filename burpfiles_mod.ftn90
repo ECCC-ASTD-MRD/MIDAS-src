@@ -716,7 +716,7 @@ END SUBROUTINE burp_updateFiles
               end do
 !                     
 !             write(*,*) 'NLV =',nlv,' Nexp=',kk    
-!             call abort3d('set_scale_chm: Inconsistent number of exponents')
+!             call varAbort('set_scale_chm: Inconsistent number of exponents')
            end if
         end if
 !

@@ -1182,7 +1182,7 @@ case("CRIS","cris","CrIS")
    hir_get_nchan_selected = CRISSNCH
 case default
    Write(*,*) "Unknown instrument! ",CINST
-   call abort3d("hir_get_nchan_selected from  hir_chans module")
+   call varAbort("hir_get_nchan_selected from  hir_chans module")
 end select
 
 
@@ -1205,7 +1205,7 @@ case("CRIS","cris","CrIS")
    hir_get_nchan_all= CRISRNCH
 case default
    Write(*,*) "Unknown instrument! ",CINST
-   call abort3d("hir_get_nchan_all from  hir_chans module")
+   call varAbort("hir_get_nchan_all from  hir_chans module")
 end select
 
 end function hir_get_nchan_all
@@ -1220,46 +1220,46 @@ integer :: ipos
 
 if (ichan<1) then
    Write(*,*) "Channel index ",ichan," should be a positive integer !"
-   call abort3d("hir_get_wavn from  hir_chans module")
+   call varAbort("hir_get_wavn from  hir_chans module")
 endif
 
 select case(trim(CINST))
 case("AIRS","airs")
    if (ichan>AIRSRNCH) then
       Write(*,*) "Channel index ",ichan," exceeds ",AIRSRNCH," for the AIRS instrument"
-      call abort3d("hir_get_wavn from  hir_chans module")
+      call varAbort("hir_get_wavn from  hir_chans module")
    endif
    ipos=AIRSSCH(ICHAN)
    if (ipos==-1) then
       Write(*,*) "Channel ",ICHAN," is not part of the selection for the AIRS instrument"
-      call abort3d("hir_get_wavn from  hir_chans module")
+      call varAbort("hir_get_wavn from  hir_chans module")
    endif
    hir_get_wavn=AIRSSWN(ipos)
 case("IASI","iasi")
    if (ichan>IASIRNCH) then
       Write(*,*) "Channel index ",ichan," exceeds ",IASIRNCH," for the IASI instrument"
-      call abort3d("hir_get_wavn from  hir_chans module")
+      call varAbort("hir_get_wavn from  hir_chans module")
    endif
    ipos=IASISCH(ICHAN)
    if (ipos==-1) then
       Write(*,*) "Channel ",ICHAN," is not part of the selection for the IASI instrument"
-      call abort3d("hir_get_wavn from  hir_chans module")
+      call varAbort("hir_get_wavn from  hir_chans module")
    endif
    hir_get_wavn=IASISWN(ipos)
 case("CRIS","cris","CrIS")
    if (ichan>CRISRNCH) then
       Write(*,*) "Channel index ",ichan," exceeds ",CRISRNCH," for the CRIS instrument"
-      call abort3d("hir_get_wavn from  hir_chans module")
+      call varAbort("hir_get_wavn from  hir_chans module")
    endif
    ipos=CRISSCH(ICHAN)
    if (ipos==-1) then
       Write(*,*) "Channel ",ICHAN," is not part of the selection for the CRIS instrument"
-      call abort3d("hir_get_wavn from  hir_chans module")
+      call varAbort("hir_get_wavn from  hir_chans module")
    endif
    hir_get_wavn=CRISSWN(ipos)
 case default
    Write(*,*) "Unknown instrument! ",CINST
-   call abort3d("hir_get_wavn from  hir_chans module")
+   call varAbort("hir_get_wavn from  hir_chans module")
 end select
 
 end function hir_get_wavn
@@ -1274,49 +1274,49 @@ integer :: indx
 
 if (ichan<1) then
    Write(*,*) "Channel number ",ichan," should be a positive integer !"
-   call abort3d("hir_get_chindx_fr_chn from  hir_chans module")
+   call varAbort("hir_get_chindx_fr_chn from  hir_chans module")
 endif
 
 select case(trim(CINST))
 case("AIRS","airs")
    if (ichan>AIRSRNCH) then
       Write(*,*) "Channel ",ichan," exceeds ",AIRSRNCH," for the AIRS instrument"
-      call abort3d("hir_get_chindx_fr_chn from  hir_chans module")
+      call varAbort("hir_get_chindx_fr_chn from  hir_chans module")
    endif
    indx=AIRSSCH(ichan)
    if (indx/=-1) then
       hir_get_chindx_fr_chn = indx
    else
       Write(*,*) "Channel ",ichan," is not selected for the AIRS instrument"
-      call abort3d("hir_get_chindx_fr_chn from  hir_chans module")
+      call varAbort("hir_get_chindx_fr_chn from  hir_chans module")
    endif
 case("IASI","iasi")
    if (ichan>IASIRNCH) then
       Write(*,*) "Channel ",ichan," exceeds ",IASIRNCH," for the IASI instrument"
-      call abort3d("hir_get_chindx_fr_chn from  hir_chans module")
+      call varAbort("hir_get_chindx_fr_chn from  hir_chans module")
    endif
    indx=IASISCH(ichan)
    if (indx/=-1) then
       hir_get_chindx_fr_chn = indx
    else
       Write(*,*) "Channel ",ichan," is not selected for the IASI instrument"
-      call abort3d("hir_get_chindx_fr_chn from  hir_chans module")
+      call varAbort("hir_get_chindx_fr_chn from  hir_chans module")
    endif
 case("CRIS","cris","CrIS")
    if (ichan>CRISRNCH) then
       Write(*,*) "Channel ",ichan," exceeds ",CRISRNCH," for the CRIS instrument"
-      call abort3d("hir_get_chindx_fr_chn from  hir_chans module")
+      call varAbort("hir_get_chindx_fr_chn from  hir_chans module")
    endif
    indx=CRISSCH(ichan)
    if (indx/=-1) then
       hir_get_chindx_fr_chn = indx
    else
       Write(*,*) "Channel ",ichan," is not selected for the CRIS instrument"
-      call abort3d("hir_get_chindx_fr_chn from  hir_chans module")
+      call varAbort("hir_get_chindx_fr_chn from  hir_chans module")
    endif
 case default
    Write(*,*) "Unknown instrument! ",CINST
-   call abort3d("hir_get_chindx_fr_chn from  hir_chans module")
+   call varAbort("hir_get_chindx_fr_chn from  hir_chans module")
 end select
 
 
@@ -1336,13 +1336,13 @@ nch=size(iselec)
 
 if (nch<1) then
    Write(*,*) "Empty channel selection !"
-   call abort3d("hir_set_assim_chan from  hir_chans module")
+   call varAbort("hir_set_assim_chan from  hir_chans module")
 endif
 
 if (nch/=hir_get_nchan_selected(CINST)) then
    Write(*,*) "Wrong number of channels",nch
    Write(*,*) "Should be ",hir_get_nchan_selected(CINST)
-   call abort3d("hir_set_assim_chan from  hir_chans module")
+   call varAbort("hir_set_assim_chan from  hir_chans module")
 endif
 
 select case(trim(CINST))
@@ -1354,7 +1354,7 @@ case("CRIS","cris","CrIS")
    pt=>cris_assim
 case default
    Write(*,*) "Unknown instrument! ",CINST
-   call abort3d("set_assim_chan from  hir_chans module")
+   call varAbort("set_assim_chan from  hir_chans module")
 end select
 
 do i=1,nch
@@ -1362,7 +1362,7 @@ do i=1,nch
       pt(i)=iselec(i)
    else
       Write(*,*) "Invalid selection flag ",iselec(i),i,cinst
-      call abort3d("hir_set_assim_chan from  hir_chans module")
+      call varAbort("hir_set_assim_chan from  hir_chans module")
    endif
 enddo
 
@@ -1387,12 +1387,12 @@ case("CRIS","cris","CrIS")
    pt=>cris_assim
 case default
    Write(*,*) "Unknown instrument! ",CINST
-   call abort3d("hir_get_assim_chan from  hir_chans module")
+   call varAbort("hir_get_assim_chan from  hir_chans module")
 end select
 
 if (ichan<1 .or. ichan>hir_get_nchan_selected(CINST)) then
    Write(*,*) "Invalid channel index",ichan
-   call abort3d("hir_get_assim_chan from  hir_chans module")
+   call varAbort("hir_get_assim_chan from  hir_chans module")
 endif
 
 hir_get_assim_chan = pt(ichan)

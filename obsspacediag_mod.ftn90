@@ -382,7 +382,7 @@ contains
             else if(latIndex.gt.maxLat .or. lonIndex.gt.maxLon .or. verticalIndex.gt.maxVertical) then
                write(*,*) 'osd_calcInflation: index too big: lat,lon,vertical=',latIndex,lonIndex,verticalIndex, &
                           ' lat_max,lon_max,vertical_max=',maxlat,maxlon,maxvertical
-               call abort3d('osd_calcInflation')
+               call varAbort('osd_calcInflation')
             endif
 
             ivco = obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex)

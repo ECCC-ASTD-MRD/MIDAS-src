@@ -36,6 +36,7 @@
 !    lamspectraltransform
 !--------------------------------------------------------------------------
 module LamBMatrixHI_mod
+  use topLevelControl_mod
   use mpivar_mod
   use HorizontalCoord_mod
   use VerticalCoord_mod
@@ -177,13 +178,13 @@ contains
         write(*,*)
         write(*,*) 'lbhi_Setup: Error in opening the background stats file'
         write(*,*) trim(BStatsFilename)
-        call abort3d('lbhi_Setup')
+        call varAbort('lbhi_Setup')
       end if
     else
       write(*,*)
       write(*,*) 'lbhi_Setup: The background stats file DOES NOT EXIST'
       write(*,*) trim(BStatsFilename)
-      call abort3d('lbhi_Setup')
+      call varAbort('lbhi_Setup')
     end if
 
     !
@@ -201,15 +202,21 @@ contains
     do var = 1, nControlVariable
       allocate( ControlVariable(var)%GpStdDev (1:hco_bhi%ni, 1:hco_bhi%nj, 1:ControlVariable(var)%nlev) )
       allocate( ControlVariable(var)%ip1 (1:ControlVariable(var)%nlev) )
-      if (ControlVariable(var)%nlev /= 1) then
-         if (ControlVariable(var)%GridType == 'TH') then
-            ControlVariable(var)%ip1(:) = vco_anl_in%ip1_T(:)
+
+      if ( top_spatialDimensions() /= '2D' ) then
+         if (ControlVariable(var)%nlev /= 1) then
+            if (ControlVariable(var)%GridType == 'TH') then
+               ControlVariable(var)%ip1(:) = vco_anl_in%ip1_T(:)
+            else
+               ControlVariable(var)%ip1(:) = vco_anl_in%ip1_M(:)
+            end if
          else
-            ControlVariable(var)%ip1(:) = vco_anl_in%ip1_M(:)
+            ControlVariable(var)%ip1(:) = 0
          end if
       else
-         ControlVariable(var)%ip1(:) = 0
+         ControlVariable(var)%ip1(:) = vco_anl_in%ip1_T(:) ! which is identical to ip1_M(:)
       end if
+
       ControlVariable(var)%kDimStart = nkgdim + 1
       nkgdim = nkgdim + ControlVariable(var)%nlev
       ControlVariable(var)%kDimEnd    = nkgdim
@@ -309,7 +316,7 @@ contains
     if (key < 0) then
       write(*,*)
       write(*,*) 'lbhi_GetControlVariableInfo: Unable to find variable =',nomvar
-      call abort3d('lbhi_GetControlVariableInfo')
+      call varAbort('lbhi_GetControlVariableInfo')
     end if
 
     nControlVariable = ni
@@ -334,7 +341,7 @@ contains
     if (key < 0) then
       write(*,*)
       write(*,*) 'lbhi_GetControlVariableInfo: Cannot find variable ', nomvar 
-      call abort3d('lbhi_GetControlVariableInfo') 
+      call varAbort('lbhi_GetControlVariableInfo') 
     end if
 
     etiket = 'B_HI'
@@ -345,7 +352,7 @@ contains
     if (key < 0) then
       write(*,*)
       write(*,*) 'lbhi_GetControlVariableInfo: Cannot find variable ', nomvar
-      call abort3d('lbhi_GetControlVariableInfo') 
+      call varAbort('lbhi_GetControlVariableInfo') 
     end if
     
 
@@ -359,7 +366,7 @@ contains
     if (key < 0) then
       write(*,*)
       write(*,*) 'lbhi_GetControlVariableInfo: Cannot find variable ', nomvar
-      call abort3d('lbhi_GetControlVariableInfo') 
+      call varAbort('lbhi_GetControlVariableInfo') 
     end if
 
     etiket = 'LEVTYPE'
@@ -370,7 +377,7 @@ contains
     if (key < 0) then
       write(*,*)
       write(*,*) 'lbhi_GetControlVariableInfo: Cannot find variable ', nomvar
-      call abort3d('lbhi_GetControlVariableInfo') 
+      call varAbort('lbhi_GetControlVariableInfo') 
     end if
 
     !
@@ -408,10 +415,12 @@ contains
     !
     !- 4. Error traps
     !
-    if ( UWindID == -1 .or. VWindID == -1) then
-      write(*,*)
-      write(*,*) 'lbhi_GetControlVariableInfo: UU and/or VV not in the Control Variable list'
-      call abort3d('lbhi_GetControlVariableInfo')
+    if ( gsv_varExist(varName='UU') .and. gsv_varExist(varName='VV' ) ) then
+       if ( UWindID == -1 .or. VWindID == -1) then
+          write(*,*)
+          write(*,*) 'lbhi_GetControlVariableInfo: UU and/or VV not in the Control Variable list'
+          call varAbort('lbhi_GetControlVariableInfo')
+       end if
     end if
 
     !- Make sure that all the control variables are present in GridStateVector
@@ -420,61 +429,38 @@ contains
           write(*,*)
           write(*,*) 'lbhi_GetControlVariableInfo: The following variable is MISSING in GridStateVector'
           write(*,*) trim(ControlVariable(var)%nomvar(cv_model))
-          call abort3d('lbhi_GetControlVariableInfo')
+          call varAbort('lbhi_GetControlVariableInfo')
        end if
     end do
-
-    ! The code below should not be used anymore since statevector can now also contain diagnostic variables
-!!$    !- Make sure that all the variables in GridStateVector are present in the control variables
-!!$    do varvnl = 1, vnl_numvarmax
-!!$
-!!$       if ( gsv_varExist(varName=vnl_varNameList(varvnl)) ) then
-!!$
-!!$          found = .false.
-!!$          do var = 1, nControlVariable
-!!$             if ( vnl_varNameList(varvnl) == ControlVariable(var)%nomvar(cv_model) ) then
-!!$                found = .true.
-!!$                exit
-!!$             end if
-!!$          end do
-!!$
-!!$          if (.not. found) then
-!!$             write(*,*)
-!!$             write(*,*) 'lbhi_GetControlVariableInfo: The following variable is MISSING in the Control Variables'
-!!$             write(*,*) trim(vnl_varNameList(varvnl))
-!!$             call abort3d('lbhi_GetControlVariableInfo')
-!!$          end if
-!!$
-!!$       end if
-!!$
-!!$    end do
 
     !
     !- 5.  Set the type of momentum control variables
     !
-    if ( trim(ControlVariable(UWindID)%nomvar(cv_model)) == 'UU' .and. &
-         trim(ControlVariable(UWindID)%nomvar(cv_bhi))   == 'PP' .and. &
-         trim(ControlVariable(VWindID)%nomvar(cv_model)) == 'VV' .and. &
-         trim(ControlVariable(VWindID)%nomvar(cv_bhi))   == 'CC' ) then
-       write(*,*)
-       write(*,*) 'Momentum Control Variables = Psi-Chi'
-       WindTransform = 'PsiChi'
-    else if ( trim(ControlVariable(UWindID)%nomvar(cv_model)) == 'UU' .and. &
-         trim(ControlVariable(UWindID)%nomvar(cv_bhi))   == 'QR' .and. &
-         trim(ControlVariable(VWindID)%nomvar(cv_model)) == 'VV' .and. &
-         trim(ControlVariable(VWindID)%nomvar(cv_bhi))   == 'DD' ) then
-       write(*,*)
-       write(*,*) 'Momentum Control Variables = Vort-Div'
-       WindTransform = 'VortDiv'
-    else if ( trim(ControlVariable(UWindID)%nomvar(cv_model)) == 'UU' .and. &
-         trim(ControlVariable(UWindID)%nomvar(cv_bhi))   == 'UU' .and. &
-         trim(ControlVariable(VWindID)%nomvar(cv_model)) == 'VV' .and. &
-         trim(ControlVariable(VWindID)%nomvar(cv_bhi))   == 'VV' ) then
-       write(*,*)
-       write(*,*) 'Momentum Control Variables = U-V '
-       WindTransform = 'UV'
-    else
-      call abort3d('lbhi_GetControlVariableInfo: Unkown Wind Tranform')
+    if ( gsv_varExist(varName='UU') .and. gsv_varExist(varName='VV' ) ) then
+       if ( trim(ControlVariable(UWindID)%nomvar(cv_model)) == 'UU' .and. &
+            trim(ControlVariable(UWindID)%nomvar(cv_bhi))   == 'PP' .and. &
+            trim(ControlVariable(VWindID)%nomvar(cv_model)) == 'VV' .and. &
+            trim(ControlVariable(VWindID)%nomvar(cv_bhi))   == 'CC' ) then
+          write(*,*)
+          write(*,*) 'Momentum Control Variables = Psi-Chi'
+          WindTransform = 'PsiChi'
+       else if ( trim(ControlVariable(UWindID)%nomvar(cv_model)) == 'UU' .and. &
+            trim(ControlVariable(UWindID)%nomvar(cv_bhi))   == 'QR' .and. &
+            trim(ControlVariable(VWindID)%nomvar(cv_model)) == 'VV' .and. &
+            trim(ControlVariable(VWindID)%nomvar(cv_bhi))   == 'DD' ) then
+          write(*,*)
+          write(*,*) 'Momentum Control Variables = Vort-Div'
+          WindTransform = 'VortDiv'
+       else if ( trim(ControlVariable(UWindID)%nomvar(cv_model)) == 'UU' .and. &
+            trim(ControlVariable(UWindID)%nomvar(cv_bhi))   == 'UU' .and. &
+            trim(ControlVariable(VWindID)%nomvar(cv_model)) == 'VV' .and. &
+            trim(ControlVariable(VWindID)%nomvar(cv_bhi))   == 'VV' ) then
+          write(*,*)
+          write(*,*) 'Momentum Control Variables = U-V '
+          WindTransform = 'UV'
+       else
+          call varAbort('lbhi_GetControlVariableInfo: Unkown Wind Tranform')
+       end if
     end if
 
   end subroutine lbhi_GetControlVariableInfo
@@ -518,7 +504,7 @@ contains
     if (key < 0) then
       write(*,*)
       write(*,*) 'lbhi_GetHorizGridInfo: Unable to find input horiz grid info using =',nomvar
-      call abort3d('lbhi_GetHorizGridInfo')
+      call varAbort('lbhi_GetHorizGridInfo')
     end if
 
     ier = fstprm( key,                                                 & ! IN
@@ -625,12 +611,12 @@ contains
         write(*,*) 'lbhi_ReadBSqrt: Truncation here and on stats file different'
         write(*,*) 'VAR truncation        = ', trunc
         write(*,*) 'Stats file truncation = ', infon-1
-        call abort3d('lbhi_ReadBSqrt')
+        call varAbort('lbhi_ReadBSqrt')
       end if
     else
       write(*,*)
       write(*,*) 'lbhi_ReadBSqrt: Cannot find B square-root ', nomvar 
-      call abort3d('lbhi_ReadBSqrt')
+      call varAbort('lbhi_ReadBSqrt')
     end if
 
     !
@@ -653,7 +639,7 @@ contains
           write(*,*)
           write(*,*) 'lbhi_ReadBSqrt: BG stat levels inconsitencies'
           write(*,*) 'for BSQRT: ni_t, nj_t, nksdim =', ni_t, nj_t, nksdim
-          call abort3d('lbhi_ReadBSqrt')
+          call varAbort('lbhi_ReadBSqrt')
         endif
 
         !- 2.3 Reading
@@ -664,7 +650,7 @@ contains
       else
         write(*,*)
         write(*,*) 'lbhi_ReadBSqrt: Cannot find BSQRT for totwvnb = ', totwvnb
-        call abort3d('lbhi_ReadBSqrt')
+        call varAbort('lbhi_ReadBSqrt')
       end if
 
       !- 2.4 Transfer to a 3D array
@@ -735,7 +721,7 @@ contains
           write(*,*) 'nomvar =', trim(ControlVariable(var)%nomvar(cv_bhi))
           write(*,*) 'etiket =', trim(etiket)
           write(*,*) 'ip1    =', ControlVariable(var)%ip1(k)
-          call abort3d('lbhi_ReadGridPointStdDev')
+          call varAbort('lbhi_ReadGridPointStdDev')
         end if
 
         if (ni_t /= hco_bstats%ni .or. nj_t /= hco_bstats%nj) then
@@ -746,7 +732,7 @@ contains
           write(*,*) 'ip1         =', ControlVariable(var)%ip1(k)
           write(*,*) 'Found ni,nj =', ni_t, nj_t 
           write(*,*) 'Should be   =', hco_bstats%ni, hco_bstats%nj
-          call abort3d('lbhi_ReadGridPointStdDev')
+          call varAbort('lbhi_ReadGridPointStdDev')
         end if
 
         !- 1.2.2 Regrid (if necessary) and transfer to 3D array
@@ -789,7 +775,7 @@ contains
     integer :: iu_out = 90
 
     if ( .not. initialized ) then
-      call abort3d('lbhi_bSqrt: LAM_bMatrixHI not initialized')
+      call varAbort('lbhi_bSqrt: LAM_bMatrixHI not initialized')
     endif
 
     write(*,*)
@@ -840,7 +826,7 @@ contains
     real(8), allocatable :: hiControlVector(:,:,:)
 
     if ( .not. initialized ) then
-      call abort3d('lbhi_bSqrtAdj: LAM_bMatrixHI not initialized')
+      call varAbort('lbhi_bSqrtAdj: LAM_bMatrixHI not initialized')
     endif
 
     write(*,*)
@@ -913,66 +899,70 @@ contains
     !
     !- 3.  Multiply by the grid point standard deviations
     !
+!$OMP PARALLEL DO PRIVATE(var,kstart,kend)
     do var = 1, nControlVariable
       kstart = ControlVariable(var)%kDimStart
       kend   = ControlVariable(var)%kDimEnd
       gd_out(:,:,kstart:kend) = gd_out(:,:,kstart:kend) * ControlVariable(var)%GpStdDev(myLonBeg:myLonEnd,myLatBeg:myLatEnd,:)
     end do
+!$OMP END PARALLEL DO
 
     !
     !- 4.  Momentum variables transform
     !
-    if ( ControlVariable(UWindID)%nlev /= nlev_M .or. &
-         ControlVariable(VWindID)%nlev /= nlev_M  ) then
-       call abort3d('lbhi_cv2gd: Error in Wind related parameters')
-    end if
+    if ( UWindID /= -1 .and. VWindID /= -1) then
+       if ( ControlVariable(UWindID)%nlev /= nlev_M .or. &
+            ControlVariable(VWindID)%nlev /= nlev_M  ) then
+          call varAbort('lbhi_cv2gd: Error in Wind related parameters')
+       end if
     
-    if ( trim(WindTransform) /= 'UV') then
+       if ( trim(WindTransform) /= 'UV') then
 
-       allocate(uphy(myLonBeg:myLonEnd,myLatBeg:myLatEnd,1:nlev_M))
-       allocate(vphy(myLonBeg:myLonEnd,myLatBeg:myLatEnd,1:nlev_M))
-       allocate(psi (myLonBeg:myLonEnd,myLatBeg:myLatEnd,1:nlev_M))
-       allocate(chi (myLonBeg:myLonEnd,myLatBeg:myLatEnd,1:nlev_M))
+          allocate(uphy(myLonBeg:myLonEnd,myLatBeg:myLatEnd,1:nlev_M))
+          allocate(vphy(myLonBeg:myLonEnd,myLatBeg:myLatEnd,1:nlev_M))
+          allocate(psi (myLonBeg:myLonEnd,myLatBeg:myLatEnd,1:nlev_M))
+          allocate(chi (myLonBeg:myLonEnd,myLatBeg:myLatEnd,1:nlev_M))
 
-       !- 4.1 Vort / Div -> Psi / Chi
-       if ( trim(WindTransform) == 'VortDiv') then
+          !- 4.1 Vort / Div -> Psi / Chi
+          if ( trim(WindTransform) == 'VortDiv') then
 
-          !  4.1.1 Putting vorticity in psi array and divergence in chi array
-          psi(:,:,:) = gd_out(:,:,ControlVariable(UWindID)%kDimStart:ControlVariable(UWindID)%kDimEnd)
-          chi(:,:,:) = gd_out(:,:,ControlVariable(VWindID)%kDimStart:ControlVariable(VWindID)%kDimEnd)
+             !  4.1.1 Putting vorticity in psi array and divergence in chi array
+             psi(:,:,:) = gd_out(:,:,ControlVariable(UWindID)%kDimStart:ControlVariable(UWindID)%kDimEnd)
+             chi(:,:,:) = gd_out(:,:,ControlVariable(VWindID)%kDimStart:ControlVariable(VWindID)%kDimEnd)
+             
+             !  4.1.2 Vort -> Psi
+             call lst_Laplacian( lst_wind%id,        & ! IN
+                                 Psi,                & ! INOUT
+                                 'Inverse', nlev_M )   ! IN    
 
-          !  4.1.2 Vort -> Psi
-          call lst_Laplacian( lst_wind%id,        & ! IN
-                              Psi,                & ! INOUT
-                              'Inverse', nlev_M )   ! IN    
+             !  4.1.3 Div -> Chi
+             call lst_Laplacian( lst_wind%id,        & ! IN
+                                 Chi,                & ! INOUT
+                                 'Inverse', nlev_M )   ! IN
 
-          !  4.1.3 Div -> Chi
-          call lst_Laplacian( lst_wind%id,        & ! IN
-                              Chi,                & ! INOUT
-                              'Inverse', nlev_M )   ! IN
+          end if
 
+          !- 4.2 Psi / Chi -> U-wind / V-wind
+          if ( trim(WindTransform) == 'PsiChi') then
+             psi(:,:,:) = gd_out(:,:,ControlVariable(UWindID)%kDimStart:ControlVariable(UWindID)%kDimEnd)
+             chi(:,:,:) = gd_out(:,:,ControlVariable(VWindID)%kDimStart:ControlVariable(VWindID)%kDimEnd)
+          end if
+
+          !  4.2.1 Do Transform
+          call lag_PsiChiToUV( psi, chi,           & ! IN
+                               uphy, vphy,         & ! OUT
+                               nlev_M)               ! IN
+
+          !  4.2.2 Insert results in gd_out and deallocate memories
+          gd_out(:,:,1       :  nlev_M) = uphy(:,:,:)
+          gd_out(:,:,nlev_M+1:2*nlev_M) = vphy(:,:,:)
+          
+          deallocate(chi)
+          deallocate(psi)
+          deallocate(vphy)
+          deallocate(uphy)
+          
        end if
-
-       !- 4.2 Psi / Chi -> U-wind / V-wind
-
-       if ( trim(WindTransform) == 'PsiChi') then
-          psi(:,:,:) = gd_out(:,:,ControlVariable(UWindID)%kDimStart:ControlVariable(UWindID)%kDimEnd)
-          chi(:,:,:) = gd_out(:,:,ControlVariable(VWindID)%kDimStart:ControlVariable(VWindID)%kDimEnd)
-       end if
-
-       !  4.2.1 Do Transform
-       call lag_PsiChiToUV( psi, chi,           & ! IN
-                            uphy, vphy,         & ! OUT
-                            nlev_M)               ! IN
-
-       !  4.2.2 Insert results in gd_out and deallocate memories
-       gd_out(:,:,1       :  nlev_M) = uphy(:,:,:)
-       gd_out(:,:,nlev_M+1:2*nlev_M) = vphy(:,:,:)
-
-       deallocate(chi)
-       deallocate(psi)
-       deallocate(vphy)
-       deallocate(uphy)
 
     end if
 
@@ -999,63 +989,69 @@ contains
     !
     !- 4.  Momentum variables transform
     !
-    if ( ControlVariable(UWindID)%nlev /= nlev_M .or. &
-         ControlVariable(VWindID)%nlev /= nlev_M  ) then
-      call abort3d('lbhi_cv2gdadj: Error in Wind related parameters')
-    end if
+    if ( UWindID /= -1 .and. VWindID /= -1) then
+       if ( ControlVariable(UWindID)%nlev /= nlev_M .or. &
+            ControlVariable(VWindID)%nlev /= nlev_M  ) then
+          call varAbort('lbhi_cv2gdadj: Error in Wind related parameters')
+       end if
+       
+       if ( trim(WindTransform) /= 'UV' ) then
 
-    if ( trim(WindTransform) /= 'UV' ) then
+          allocate(uphy(myLonBeg:myLonEnd,myLatBeg:myLatEnd,1:nlev_M))
+          allocate(vphy(myLonBeg:myLonEnd,myLatBeg:myLatEnd,1:nlev_M))
+          allocate(psi (myLonBeg:myLonEnd,myLatBeg:myLatEnd,1:nlev_M))
+          allocate(chi (myLonBeg:myLonEnd,myLatBeg:myLatEnd,1:nlev_M))
+          
+          !- 4.2  U-wind / V-wind -> Psi / Chi
 
-       allocate(uphy(myLonBeg:myLonEnd,myLatBeg:myLatEnd,1:nlev_M))
-       allocate(vphy(myLonBeg:myLonEnd,myLatBeg:myLatEnd,1:nlev_M))
-       allocate(psi (myLonBeg:myLonEnd,myLatBeg:myLatEnd,1:nlev_M))
-       allocate(chi (myLonBeg:myLonEnd,myLatBeg:myLatEnd,1:nlev_M))
+          !  4.2.2 Extract winds
+          uphy(:,:,:) = gd_in(:,:,1       :  nlev_M)
+          vphy(:,:,:) = gd_in(:,:,nlev_M+1:2*nlev_M)
 
-       !- 4.2  U-wind / V-wind -> Psi / Chi
+          !  4.2.1 Do Transform
+          call lag_PsiChiToUVAdj( psi, chi,           & ! OUT
+                                  uphy, vphy,         & ! IN
+                                  nlev_M)               ! IN
 
-       !  4.2.2 Extract winds
-       uphy(:,:,:) = gd_in(:,:,1       :  nlev_M)
-       vphy(:,:,:) = gd_in(:,:,nlev_M+1:2*nlev_M)
+          !- 4.1 Psi / Chi -> Vort / Div (Laplacian and inverse Laplacian are auto-adjoint operators)
+          if ( trim(WindTransform) == 'VortDiv' ) then
 
-       !  4.2.1 Do Transform
-       call lag_PsiChiToUVAdj( psi, chi,           & ! OUT
-                               uphy, vphy,         & ! IN
-                               nlev_M)               ! IN
+             !  4.1.2 Psi -> Vort
+             call lst_Laplacian( lst_wind%id,        & ! IN
+                                 Psi,                & ! INOUT
+                                 'Inverse', nlev_M )   ! IN    
 
-       !- 4.1 Psi / Chi -> Vort / Div (Laplacian and inverse Laplacian are auto-adjoint operators)
-       if ( trim(WindTransform) == 'VortDiv' ) then
+             !  4.1.3 Chi -> Vort
+             call lst_Laplacian( lst_wind%id,        & ! IN
+                                 Chi,                & ! INOUT
+                                 'Inverse', nlev_M )   ! IN
 
-          !  4.1.2 Psi -> Vort
-          call lst_Laplacian( lst_wind%id,        & ! IN
-                              Psi,                & ! INOUT
-                              'Inverse', nlev_M )   ! IN    
+          end if
 
-          !  4.1.3 Chi -> Vort
-          call lst_Laplacian( lst_wind%id,        & ! IN
-                              Chi,                & ! INOUT
-                              'Inverse', nlev_M )   ! IN
+          !- Insert results in gd and deallocate moemories
+          gd_in(:,:,ControlVariable(UWindID)%kDimStart:ControlVariable(UWindID)%kDimEnd) = psi(:,:,:)
+          gd_in(:,:,ControlVariable(VWindID)%kDimStart:ControlVariable(VWindID)%kDimEnd) = chi(:,:,:)
+
+          deallocate(chi)
+          deallocate(psi)
+          deallocate(vphy)
+          deallocate(uphy)
 
        end if
-
-       !- Insert results in gd and deallocate moemories
-       gd_in(:,:,ControlVariable(UWindID)%kDimStart:ControlVariable(UWindID)%kDimEnd) = psi(:,:,:)
-       gd_in(:,:,ControlVariable(VWindID)%kDimStart:ControlVariable(VWindID)%kDimEnd) = chi(:,:,:)
-
-       deallocate(chi)
-       deallocate(psi)
-       deallocate(vphy)
-       deallocate(uphy)
 
     end if
 
     !
     !- 3.  Multiply by the grid point standard deviations
     !
+
+!$OMP PARALLEL DO PRIVATE(var,kstart,kend)
     do var = 1, nControlVariable
       kstart = ControlVariable(var)%kDimStart
       kend   = ControlVariable(var)%kDimEnd
       gd_in(:,:,kstart:kend) = gd_in(:,:,kstart:kend) * ControlVariable(var)%GpStdDev(myLonBeg:myLonEnd,myLatBeg:myLatEnd,:)
     end do
+!$OMP END PARALLEL DO
 
     !
     !- 2. Grid Point Space -> Spectral Space
@@ -1102,12 +1098,14 @@ contains
       allocate( sp_out(nksdim,lst_bhi%nphase,lst_bhi%nePerK(totwvnb)) )
 
       !- 1.1 Select spectral elements associated with the total wavenumber
+!$OMP PARALLEL DO PRIVATE(e,ila,k)
       do e = 1, lst_bhi%nePerK(totwvnb)
         ila = lst_bhi%ilaFromEK(e,totwvnb)
         do k = 1, nksdim
           sp_in(k,1:lst_bhi%nphase,e) = hiControlVector_in(ila,1:lst_bhi%nphase,k)
         end do
       end do
+!$OMP END PARALLEL DO
 
       !- 1.2 Compute bsqrt * sp_in using DGEMM 
 
@@ -1128,12 +1126,14 @@ contains
                   ldc )                                         ! IN
 
       !- 1.3 Replace sp values with output matrix
+!$OMP PARALLEL DO PRIVATE(e,ila,k)
       do e = 1, lst_bhi%nePerK(totwvnb)
         ila = lst_bhi%ilaFromEK(e,totwvnb)
         do k = 1, nksdim
           hiControlVector_in(ila,1:lst_bhi%nphase,k) = sp_out(k,1:lst_bhi%nphase,e)
         end do
       end do
+!$OMP END PARALLEL DO
 
       deallocate(sp_in)
       deallocate(sp_out)
@@ -1217,7 +1217,7 @@ contains
     case default
       write(*,*)
       write(*,*) 'StatevectorInterface: Unknown Direction ', trim(Direction)
-      call abort3d('StatevectorInterface')
+      call varAbort('StatevectorInterface')
     end select
 
     do var = 1, nControlVariable
@@ -1228,7 +1228,7 @@ contains
          write(*,*)
          write(*,*) 'StatevectorInterface: The following variable is MISSING in GridStateVector'
          write(*,*) varname
-         call abort3d('StatevectorInterface')
+         call varAbort('StatevectorInterface')
       end if
 
       field => gsv_getField3D_r8(statevector,varname)
@@ -1241,25 +1241,33 @@ contains
          write(*,*)
          write(*,*) 'StatevectorInterface: Number of vertical level mismatch'
          write(*,*) kgdEnd - kgdStart + 1, nlev
-         call abort3d('StatevectorInterface')
+         call varAbort('StatevectorInterface')
       end if
 
+      if ( ToStateVector ) then
 !$OMP PARALLEL DO PRIVATE(j,kgd,k,i)
-      do kgd = kgdStart, kgdEnd
-         k = kgd - kgdStart + 1
-         do j = myLatBeg, myLatEnd
-            do i = myLonBeg, myLonEnd
-               if ( ToStateVector ) then
+         do kgd = kgdStart, kgdEnd
+            k = kgd - kgdStart + 1
+            do j = myLatBeg, myLatEnd
+               do i = myLonBeg, myLonEnd
                   field(i,j,k) = gd(i,j,kgd)
-               else
-                  gd(i,j,kgd)  = field(i,j,k)
-               end if
+               end do
             end do
          end do
-      end do
 !$OMP END PARALLEL DO
-
-    end do
+      else
+!$OMP PARALLEL DO PRIVATE(j,kgd,k,i)
+         do kgd = kgdStart, kgdEnd
+            k = kgd - kgdStart + 1
+            do j = myLatBeg, myLatEnd
+               do i = myLonBeg, myLonEnd
+                  gd(i,j,kgd)  = field(i,j,k)
+               end do
+            end do
+         end do
+!$OMP END PARALLEL DO
+      end if
+   end do
 
   end subroutine StatevectorInterface
 
@@ -1269,38 +1277,119 @@ contains
   SUBROUTINE LBHI_reduceToMPILocal(cv_mpilocal,cv_mpiglobal,cvDim_mpilocal_out)
     implicit none
     real(8), intent(out) :: cv_mpilocal(cvDim)
-    real(8), intent(in)  :: cv_mpiglobal(cvDim_mpiglobal)
+    real(8), intent(in)  :: cv_mpiglobal(:)
     integer, intent(out) :: cvDim_mpilocal_out
 
-    integer :: k, ila, p, ilaGlb, jdim_mpilocal, jdim_mpiglobal 
+    real(8), allocatable :: cv_allmaxmpilocal(:,:)
+
+    integer, allocatable :: cvDim_allMpilocal(:), displs(:)    
+    integer, allocatable :: ilaGlobal(:), allnlaLocal(:)
+    integer, allocatable :: allilaGlobal(:,:)
+
+    integer :: k, ila, p, ila_mpiglobal, jdim_mpilocal, jdim_mpiglobal
+    integer :: ier, nlaMax, cvDim_maxmpilocal, jproc
 
     cvDim_mpilocal_out = cvDim
 
-    do k = 1, nksdim
-      do ila = 1, lst_bhi%nla
-        do p = 1, lst_bhi%nphase
+    call rpn_comm_allreduce(cvDim, cvDim_maxmpilocal, &
+         1,"MPI_INTEGER","MPI_MAX","GRID",ier)
 
-          jdim_mpilocal = ( (k-1) * lst_bhi%nla * lst_bhi%nphase ) + &
-                                        ( (ila-1) * lst_bhi%nphase ) + p
+    allocate(cvDim_allMpiLocal(mpi_nprocs))
 
-          ilaGlb = lst_bhi%ilaGlobal(ila)
-          jdim_mpiglobal = ( (k-1) * lst_bhi%nlaGlobal * lst_bhi%nphase ) + &
-                                            ( (ilaGlb-1) * lst_bhi%nphase ) + p
+    call rpn_comm_allgather(cvDim   ,1,"mpi_integer",       &
+                            cvDim_allMpiLocal,1,"mpi_integer","GRID",ier)
+
+    call rpn_comm_allreduce(lst_bhi%nla,nlaMax,1,"mpi_integer","mpi_max","GRID",ier)
+
+    if (mpi_myid == 0) then
+       allocate(allnlaLocal(mpi_nprocs))
+       allocate(allilaGlobal(nlaMax,mpi_nprocs))
+    else
+       allocate(allnlaLocal(1))
+       allocate(allilaGlobal(1,1))
+    end if
+    
+    allocate(ilaGlobal(nlaMax))
+    ilaGlobal(:)             = -1
+    ilaGlobal(1:lst_bhi%nla) = lst_bhi%ilaGlobal(:)
+    
+    call rpn_comm_gather(lst_bhi%nla, 1, "mpi_integer",       &
+                         allnlaLocal, 1, "mpi_integer", 0, "GRID", ier)
+    call rpn_comm_gather(ilaGlobal   , nlaMax, "mpi_integer",       &
+                         allilaGlobal, nlaMax, "mpi_integer",0 ,"GRID", ier)
+
+    deallocate(ilaGlobal)
+
+    ! assign part of mpiglobal vector from current mpi process
+    if (mpi_myid == 0) then
+
+       allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mpi_nprocs))
+
+!$OMP PARALLEL DO PRIVATE(jproc,jdim_mpilocal,k,ila,p,ila_mpiglobal,jdim_mpiglobal)
+       do jproc = 0, (mpi_nprocs-1)
+          cv_allmaxmpilocal(:,jproc+1) = 0.d0
+          
+          do k = 1, nksdim
+             do ila = 1, allnlaLocal(jproc+1)
+                do p = 1, lst_bhi%nphase
+
+                   jdim_mpilocal = ( (k-1) * allnlaLocal(jproc+1) * lst_bhi%nphase ) + &
+                                                        ( (ila-1) * lst_bhi%nphase ) + p
+
+                   ila_mpiglobal = allilaGlobal(ila,jproc+1)
+                   if ( ila_mpiglobal <= 0 ) then 
+                      write(*,*) 'LBHI_reduceToMPILocal: invalid ila_mpiglobal index ', ila_mpiglobal
+                      call varAbort('LBHI_reduceToMPILocal')
+                   end if
+
+                   jdim_mpiglobal = ( (k-1) * lst_bhi%nlaGlobal * lst_bhi%nphase ) + &
+                                            ( (ila_mpiglobal-1) * lst_bhi%nphase ) + p
   
-          if ( jdim_mpilocal  > cvDim          ) then 
-             write(*,*) 'LBHI_reduceToMPILocal: jdim_mpilocal > cvDim ',k,ila,p,ilaGlb
-             call abort3d('LBHI_reduceToMPILocal')
-          end if
-          if ( jdim_mpiglobal > cvDim_mpiglobal) then
-             write(*,*) 'LBHI_reduceToMPILocal: jdim_mpiglobal > cvDim_mpiglobal ',k,ila,p,ilaGlb
-            call abort3d('LBHI_reduceToMPILocal')
-          end if
+                   if (jdim_mpilocal > cvDim_allMpiLocal(jproc+1)) then
+                      write(*,*)
+                      write(*,*) 'ERROR: jdim_mpilocal > cvDim_allMpiLocal(jproc+1)', jdim_mpilocal, cvDim_allMpiLocal(jproc+1) 
+                      write(*,*) '       proc, k, ila, p = ',jproc,k,ila,p
+                      call varAbort('LBHI_reduceToMPILocal')
+                   end if
+                   if (jdim_mpiglobal > cvDim_mpiglobal) then
+                      write(*,*)
+                      write(*,*) 'ERROR: jdim_mpiglobal > cvDim_mpiglobal', jdim_mpiglobal, cvDim_mpiglobal
+                      write(*,*) '       proc, k, ila, p = ',jproc,k,ila,p
+                      call varAbort('LBHI_reduceToMPILocal')
+                   end if
+                   
+                   cv_allmaxmpilocal(jdim_mpilocal,jproc+1) = cv_mpiglobal(jdim_mpiglobal)
+                   
+                end do
+             end do
+          end do
+       end do
+!$OMP END PARALLEL DO
 
-          cv_mpilocal(jdim_mpilocal) = cv_mpiglobal(jdim_mpiglobal)
+    else
+       allocate(cv_allmaxmpilocal(1,1))
+    end if
 
-        end do
-      end do
+    deallocate(allnlaLocal)
+    deallocate(allilaGlobal)
+
+    !- Distribute
+    allocate(displs(mpi_nprocs))
+!$OMP PARALLEL DO PRIVATE(jproc)
+    do jproc = 0, (mpi_nprocs-1)
+       displs(jproc+1) = jproc*cvDim_maxMpiLocal ! displacement wrt cv_allMaxMpiLocal from which
+                                                 ! to take the outgoing data to process jproc
     end do
+!$OMP END PARALLEL DO
+
+    call rpn_comm_scatterv(cv_allMaxMpiLocal, cvDim_allMpiLocal, displs, "mpi_double_precision", &
+                           cv_mpiLocal      , cvDim , "mpi_double_precision", &
+                           0, "GRID", ier)
+
+   deallocate(displs) 
+   deallocate(cv_allMaxMpiLocal)
+   deallocate(cvDim_allMpiLocal)
+
 
   END SUBROUTINE LBHI_reduceToMPILocal
 
@@ -1310,45 +1399,121 @@ contains
   SUBROUTINE LBHI_expandToMPIGlobal(cv_mpilocal,cv_mpiglobal,cvDim_mpiglobal_out)
     implicit none
     real(8), intent(in)  :: cv_mpilocal(cvDim)
-    real(8), intent(out) :: cv_mpiglobal(cvDim_mpiglobal)
+    real(8), intent(out) :: cv_mpiglobal(:)
     integer, intent(out) :: cvDim_mpiglobal_out
 
-    real(8),allocatable :: my_cv_mpiglobal(:)
-    integer :: k, ila, p, ilaGlb, jdim_mpilocal, jdim_mpiglobal, ier
+    real(8), allocatable :: cv_maxmpilocal(:)
+    real(8), pointer     :: cv_allmaxmpilocal(:,:) => null()
+
+    integer, allocatable :: cvDim_allMpilocal(:)
+
+    integer, allocatable :: ilaGlobal(:), allnlaLocal(:)
+    integer, allocatable :: allilaGlobal(:,:)
+
+    integer :: k, ila, p, ila_mpiglobal, jdim_mpilocal, jdim_mpiglobal
+    integer :: ier, nlaMax, cvDim_maxmpilocal, jproc
 
     cvDim_mpiglobal_out = cvDim_mpiglobal
 
-    allocate(my_cv_mpiglobal(cvDim_mpiglobal)) 
-    my_cv_mpiglobal(:) = 0.0d0
+    !
+    !- 1.  Gather all local control vectors onto mpi task 0
+    !
+    allocate(cvDim_allMpiLocal(mpi_nprocs))
+    call rpn_comm_allgather(cvDim            ,1,"mpi_integer",       &
+                            cvDim_allMpiLocal,1,"mpi_integer","GRID",ier)
 
-    do k = 1, nksdim
-      do ila = 1, lst_bhi%nla
-        do p = 1, lst_bhi%nphase
+    call rpn_comm_allreduce(cvDim,cvDim_maxmpilocal,1,"mpi_integer","mpi_max","GRID",ier)
 
-          jdim_mpilocal = ( (k-1) * lst_bhi%nla * lst_bhi%nphase ) + &
-                                        ( (ila-1) * lst_bhi%nphase ) + p
+    allocate(cv_maxmpilocal(cvDim_maxmpilocal))
 
-          ilaGlb = lst_bhi%ilaGlobal(ila)
-          jdim_mpiglobal = ( (k-1) * lst_bhi%nlaGlobal * lst_bhi%nphase ) + &
-                                            ( (ilaGlb-1) * lst_bhi%nphase ) + p
+    cv_maxmpilocal(:) = 0.0d0
+    cv_maxmpilocal(1:cvDim) = cv_mpilocal(1:cvDim)
+
+    nullify(cv_allmaxmpilocal)
+    if (mpi_myid == 0) then
+       allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mpi_nprocs))
+    else
+       allocate(cv_allmaxmpilocal(1,1))
+    end if
+
+    call rpn_comm_gather(cv_maxmpilocal,    cvDim_maxmpilocal, "mpi_double_precision",  &
+                         cv_allmaxmpilocal, cvDim_maxmpilocal, "mpi_double_precision", 0, "GRID", ier )
+
+    deallocate(cv_maxmpilocal)
+
+    !
+    !- 2.  Reorganize gathered mpilocal control vectors into the mpiglobal control vector
+    !
+
+    call rpn_comm_allreduce(lst_bhi%nla,nlaMax,1,"mpi_integer","mpi_max","GRID",ier)
+
+    if (mpi_myid == 0) then
+       allocate(allnlaLocal(mpi_nprocs))
+       allocate(allilaGlobal(nlaMax,mpi_nprocs))
+    else
+       allocate(allnlaLocal(1))
+       allocate(allilaGlobal(1,1))
+    end if
+    
+    allocate(ilaGlobal(nlaMax))
+    ilaGlobal(:)             = -1
+    ilaGlobal(1:lst_bhi%nla) = lst_bhi%ilaGlobal(:)
+
+    call rpn_comm_gather(lst_bhi%nla, 1, "mpi_integer",       &
+                         allnlaLocal, 1, "mpi_integer", 0, "GRID", ier)
+    call rpn_comm_gather(ilaGlobal   , nlaMax, "mpi_integer",       &
+                         allilaGlobal, nlaMax, "mpi_integer",0 ,"GRID", ier)
+
+    deallocate(ilaGlobal)
+
+    if (mpi_myid == 0) then
+       cv_mpiglobal(:) = 0.0d0
+
+!$OMP PARALLEL DO PRIVATE(jproc,jdim_mpilocal,k,ila,p,ila_mpiglobal,jdim_mpiglobal)
+       do jproc = 0, (mpi_nprocs-1)
+          do k = 1, nksdim
+             do ila = 1, allnlaLocal(jproc+1)
+                do p = 1, lst_bhi%nphase
+
+                   jdim_mpilocal = ( (k-1) * allnlaLocal(jproc+1) * lst_bhi%nphase ) + &
+                                                        ( (ila-1) * lst_bhi%nphase ) + p
+
+                   ila_mpiglobal = allilaGlobal(ila,jproc+1)
+                   if ( ila_mpiglobal <= 0 ) then 
+                      write(*,*) 'LBHI_expandToMPIGlobal: invalid ila_mpiglobal index ', ila_mpiglobal
+                      call varAbort('LBHI_expandToMPIGlobal')
+                   end if
+
+                   jdim_mpiglobal = ( (k-1) * lst_bhi%nlaGlobal * lst_bhi%nphase ) + &
+                                            ( (ila_mpiglobal-1) * lst_bhi%nphase ) + p
   
-          if ( jdim_mpilocal  > cvDim          ) then 
-            write(*,*) 'LBHI_expandToMPIGlobal: jdim_mpilocal > cvDim ',k,ila,p,ilaGlb
-            call abort3d('LBHI_expandToMPIGlobal')
-          end if
-          if ( jdim_mpiglobal > cvDim_mpiglobal) then
-            write(*,*) 'LBHI_expandToMPIGlobal: jdim_mpiglobal > cvDim_mpiglobal ',k,ila,p,ilaGlb
-            call abort3d('LBHI_expandToMPIGlobal')
-          end if
+                   if (jdim_mpilocal > cvDim_allMpiLocal(jproc+1)) then
+                      write(*,*)
+                      write(*,*) 'ERROR: jdim_mpilocal > cvDim_allMpiLocal(jproc+1)', jdim_mpilocal, cvDim_allMpiLocal(jproc+1) 
+                      write(*,*) '       proc, k, ila, p = ',jproc,k,ila,p
+                      call varAbort('LBHI_expandToMPIGlobal')
+                   end if
+                   if (jdim_mpiglobal > cvDim_mpiglobal) then
+                      write(*,*)
+                      write(*,*) 'ERROR: jdim_mpiglobal > cvDim_mpiglobal', jdim_mpiglobal, cvDim_mpiglobal
+                      write(*,*) '       proc, k, ila, p = ',jproc,k,ila,p
+                      call varAbort('LBHI_expandToMPIGlobal')
+                   end if
+                   
+                   cv_mpiglobal(jdim_mpiglobal) = cv_allmaxmpilocal(jdim_mpilocal,jproc+1)
 
-          my_cv_mpiglobal(jdim_mpiglobal) = cv_mpilocal(jdim_mpilocal)
+                end do
+             end do
+          end do
+       end do
+!$OMP END PARALLEL DO
 
-        end do
-      end do
-    end do
+    end if
 
-    call rpn_comm_allreduce(my_cv_mpiglobal,cv_mpiglobal,cvDim_mpiglobal,"mpi_double_precision","mpi_sum","GRID",ier)
-    deallocate(my_cv_mpiglobal) 
+    deallocate(allnlaLocal)
+    deallocate(allilaGlobal)
+    deallocate(cv_allmaxmpilocal)
+    deallocate(cvDim_allMpiLocal)
 
   end SUBROUTINE LBHI_expandToMPIGlobal
 

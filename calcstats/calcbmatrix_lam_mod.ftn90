@@ -80,6 +80,7 @@ module calcbmatrix_lam_mod
 
   character(len=12) :: WindTransform
   character(len=12) :: SpectralWeights
+  character(len=2)  :: spatialDimensions
 
   real(8), pointer     :: pressureProfile_M(:), pressureProfile_T(:)
 
@@ -132,6 +133,16 @@ module calcbmatrix_lam_mod
     hco_ens => hco_ens_in
     vco_bhi => vco_ens_in
 
+    if ( vco_bhi%nlev_T == 1 .and. vco_bhi%nlev_T == 1 ) then
+       write(*,*)
+       write(*,*) 'Spatial dimensions = 2D'
+       spatialDimensions = '2D'
+    else
+       write(*,*)
+       write(*,*) 'Spatial dimensions = 3D'
+       spatialDimensions = '3D'
+    end if
+
     !
     !- 2. Read namelist NAMCALCB_LAM
     !
@@ -170,7 +181,7 @@ module calcbmatrix_lam_mod
     case default
        write(*,*)
        write(*,*) 'Unknown spectral weights TYPE : ', trim(SpectralWeights)
-       call abort3d('calcb_lam_setup')
+       call varAbort('calcb_lam_setup')
     end select
 
     !
@@ -211,6 +222,7 @@ module calcbmatrix_lam_mod
 
     !- 4.2 Set ControlVariable structure
     nkgdim = 0
+    momentumControlVar(:) = 'NULL' 
     do var = 1, nControlVariable
 
        !- Set variable name
@@ -231,7 +243,7 @@ module calcbmatrix_lam_mod
           else
              write(*,*)
              write(*,*) 'Wind Transform not available ', trim((WindTransform))
-             call abort3d('calcb_lam_setup')
+             call varAbort('calcb_lam_setup')
           end if
           ControlVariable(var)%nomvar(cv_bhi) = trim(momentumControlVar(1))
        else if ( ControlVariable(var)%nomvar(cv_model) == 'VV' ) then
@@ -244,7 +256,7 @@ module calcbmatrix_lam_mod
           else
              write(*,*)
              write(*,*) 'Wind Transform not available ', trim((WindTransform))
-             call abort3d('calcb_lam_setup')
+             call varAbort('calcb_lam_setup')
           end if
           ControlVariable(var)%nomvar(cv_bhi) = momentumControlVar(2)
        else
@@ -252,7 +264,7 @@ module calcbmatrix_lam_mod
        end if
 
        !- Set Level info
-       if ( ControlVariable(var)%nomvar(cv_model) /= 'TG' ) then
+       if ( ControlVariable(var)%nomvar(cv_model) /= 'TG' .and. spatialDimensions /= '2D' ) then
           call VarLevInfo(ControlVariable(var)%nlev,             & ! OUT
                           ControlVariable(var)%GridType,         & ! OUT
                           ControlVariable(var)%nomvar(cv_model), & ! IN 
@@ -269,14 +281,18 @@ module calcbmatrix_lam_mod
        
        allocate( ControlVariable(var)%ip1 (ControlVariable(var)%nlev) )
 
-       if (ControlVariable(var)%nlev /= 1) then
-          if (ControlVariable(var)%GridType == 'TH') then
-            ControlVariable(var)%ip1(:) = vco_bhi%ip1_T(:)
+       if ( spatialDimensions /= '2D' ) then
+          if (ControlVariable(var)%nlev /= 1) then
+             if (ControlVariable(var)%GridType == 'TH') then
+                ControlVariable(var)%ip1(:) = vco_bhi%ip1_T(:)
+             else
+                ControlVariable(var)%ip1(:) = vco_bhi%ip1_M(:)
+             end if
           else
-            ControlVariable(var)%ip1(:) = vco_bhi%ip1_M(:)
+             ControlVariable(var)%ip1(:) = 0
           end if
        else
-          ControlVariable(var)%ip1(:) = 0
+          ControlVariable(var)%ip1(:) = vco_bhi%ip1_T(:) ! which is identical to ip1_M(:)
        end if
 
        ControlVariable(var)%kDimStart = nkgdim + 1
@@ -319,7 +335,7 @@ module calcbmatrix_lam_mod
        if ( status /= VGD_OK ) then
           write(*,*)
           write(*,*) 'calcb_lam_setup: ERROR with vgd_levels for MOMENTUM levels '
-          call abort3d('calcb_lam_setup')
+          call varAbort('calcb_lam_setup')
        else
           write(*,*)
           write(*,*) 'Pressure profile...'
@@ -335,7 +351,7 @@ module calcbmatrix_lam_mod
        if ( status /= VGD_OK ) then
           write(*,*)
           write(*,*) 'calcb_lam_setup: ERROR with vgd_levels for THERMO levels '
-          call abort3d('calcb_lam_setup')
+          call varAbort('calcb_lam_setup')
        else
           write(*,*)
           write(*,*) 'Pressure profile...'
@@ -390,62 +406,62 @@ module calcbmatrix_lam_mod
     if(ier /= 0) then
       write(*,*) 'Problem allocating ensPerturbations memory!',ier
       write(*,*)  hco_bhi%ni,hco_bhi%nj,nkgdim,nens
-      call abort3d('calcb_lam_computeStats') 
+      call varAbort('calcb_lam_computeStats') 
     endif
     allocate(ensMean3d(hco_bhi%ni,hco_bhi%nj,nkgdim),stat=ier)
     if (ier /= 0) then
       write(*,*) 'Problem allocating ensMean3d memory!',ier
-      call abort3d('calcb_lam_computeStats')
+      call varAbort('calcb_lam_computeStats')
     end if
     allocate(Bin2d(hco_bhi%ni,hco_bhi%nj),stat=ier)
     if (ier /= 0) then
       write(*,*) 'Problem allocating Bin2d memory!',ier
-      call abort3d('calcb_lam_computeStats')
+      call varAbort('calcb_lam_computeStats')
     end if
     allocate(Bin2dGridPoint(hco_bhi%ni,hco_bhi%nj),stat=ier)
     if (ier /= 0) then
       write(*,*) 'Problem allocating Bin2d memory!',ier
-      call abort3d('calcb_lam_computeStats')
+      call varAbort('calcb_lam_computeStats')
     end if
     allocate(StdDev3d(hco_bhi%ni,hco_bhi%nj,nkgdim),stat=ier)
     if (ier /= 0) then
       write(*,*) 'Problem allocating StdDev3d memory!',ier
-      call abort3d('calcb_lam_computeStats')
+      call varAbort('calcb_lam_computeStats')
     end if
     allocate(StdDev3dGridPoint(hco_bhi%ni,hco_bhi%nj,nkgdim),stat=ier)
     if (ier /= 0) then
       write(*,*) 'Problem allocating StdDev3dGridPoint memory!',ier
-      call abort3d('calcb_lam_computeStats')
+      call varAbort('calcb_lam_computeStats')
     end if
     allocate(SpVertCorrel(nkgdim,nkgdim,0:ntrunc),stat=ier)
     if(ier.ne.0) then
       write(*,*) 'Problem allocating SpVertCorrel memory!',ier
-      call abort3d('calcb_lam_computeStats')
+      call varAbort('calcb_lam_computeStats')
     endif
     allocate(TotVertCorrel(nkgdim,nkgdim),stat=ier)
     if(ier.ne.0) then
       write(*,*) 'Problem allocating TotVertCorrel memory!',ier
-      call abort3d('calcb_lam_computeStats')
+      call varAbort('calcb_lam_computeStats')
     endif
     allocate(PowerSpectrum(nkgdim,0:ntrunc),stat=ier)
     if(ier.ne.0) then
       write(*,*) 'Problem allocating PowerSpectrum memory!',ier
-      call abort3d('calcb_lam_computeStats')
+      call varAbort('calcb_lam_computeStats')
     endif
     allocate(NormB(nkgdim,nkgdim,0:ntrunc),stat=ier)
     if(ier.ne.0) then
       write(*,*) 'Problem allocating Bsqrt memory!',ier
-      call abort3d('calcb_lam_computeStats')
+      call varAbort('calcb_lam_computeStats')
     endif
     allocate(NormBsqrt(nkgdim,nkgdim,0:ntrunc),stat=ier)
     if(ier.ne.0) then
       write(*,*) 'Problem allocating Bsqrt memory!',ier
-      call abort3d('calcb_lam_computeStats')
+      call varAbort('calcb_lam_computeStats')
     endif
     allocate(HorizScale(nkgdim),stat=ier)
     if(ier.ne.0) then
       write(*,*) 'Problem allocating HorizScale memory!',ier
-      call abort3d('calcb_lam_computeStats')
+      call varAbort('calcb_lam_computeStats')
     endif
 
     ensPerturbations(:,:,:,:) = 0.d0
@@ -465,7 +481,9 @@ module calcbmatrix_lam_mod
     !
     !- 3.  Transform u-wind and v-wind to control variables 
     !
-    call UVToCtrlVar(ensPerturbations) ! INOUT
+    if ( momentumControlVar(1) /= 'NULL' .and. momentumControlVar(2) /= 'NULL' ) then
+       call UVToCtrlVar(ensPerturbations) ! INOUT
+    end if
 
     if (writeEnsPert) call WriteEnsemble(ensPerturbations, './EnsPert_cv_bhi', cv_bhi ) ! IN
 
@@ -606,7 +624,7 @@ module calcbmatrix_lam_mod
     case default
        write(*,*)
        write(*,*) 'Unknown TOOL in calcb_lam_toolbox : ', trim(tool)
-       call abort3d('calbmatrix_lam')
+       call varAbort('calbmatrix_lam')
     end select
 
     !
@@ -616,22 +634,22 @@ module calcbmatrix_lam_mod
     if(ier /= 0) then
       write(*,*) 'Problem allocating ensPerturbations memory!',ier
       write(*,*)  hco_bhi%ni,hco_bhi%nj,nkgdim,nens
-      call abort3d('calcb_lam_computeStats') 
+      call varAbort('calcb_lam_computeStats') 
     endif
     allocate(ensMean3d(hco_bhi%ni,hco_bhi%nj,nkgdim),stat=ier)
     if (ier /= 0) then
       write(*,*) 'Problem allocating ensMean3d memory!',ier
-      call abort3d('calcb_lam_computeStats')
+      call varAbort('calcb_lam_computeStats')
     end if
     allocate(StdDev3dGridPoint(hco_bhi%ni,hco_bhi%nj,nkgdim),stat=ier)
     if (ier /= 0) then
       write(*,*) 'Problem allocating StdDev3dGridPoint memory!',ier
-      call abort3d('calcb_lam_computeStats')
+      call varAbort('calcb_lam_computeStats')
     end if
     allocate(Bin2d(hco_bhi%ni,hco_bhi%nj),stat=ier)
     if (ier /= 0) then
       write(*,*) 'Problem allocating Bin2d memory!',ier
-      call abort3d('calcb_lam_computeStats')
+      call varAbort('calcb_lam_computeStats')
     end if
 
     ensPerturbations(:,:,:,:) = 0.d0
@@ -649,7 +667,9 @@ module calcbmatrix_lam_mod
     !
     !- 3.  Transform u-wind and v-wind to control variables 
     !
-    call UVToCtrlVar(ensPerturbations) ! INOUT
+    if ( momentumControlVar(1) /= 'NULL' .and. momentumControlVar(2) /= 'NULL' ) then
+       call UVToCtrlVar(ensPerturbations) ! INOUT
+    end if
 
     !
     !- 4.  Remove the ensemble mean
@@ -991,7 +1011,7 @@ module calcbmatrix_lam_mod
     if (key < 0) then
       write(*,*)
       write(*,*) 'VarLevInfo: Cannot find variable ', VarName 
-      call abort3d('VarLevInfo') 
+      call varAbort('VarLevInfo') 
     end if
 
     !
@@ -1005,7 +1025,7 @@ module calcbmatrix_lam_mod
        write(*,*) 'The number of levels found does not match with the vco structure !!!'
        write(*,*) 'nlev found = ', nlev
        write(*,*) 'vco nlevs  = ', vco_bhi%nlev_T, vco_bhi%nlev_M
-       call abort3d('VarLevInfo')
+       call varAbort('VarLevInfo')
     end if
 
     !
@@ -1025,7 +1045,7 @@ module calcbmatrix_lam_mod
       else
          write(*,*)
          write(*,*) 'The ip1 found does not match with the vco structure !!!', ip1
-         call abort3d('VarLevInfo')
+         call varAbort('VarLevInfo')
       end if
 
     else
@@ -1115,7 +1135,7 @@ module calcbmatrix_lam_mod
             write(*,*) 'nomvar =', trim(nomvar)
             write(*,*) 'etiket =', trim(etiket)
             write(*,*) 'ip1    =', ip1
-            call abort3d('ReadEnsemble')
+            call varAbort('ReadEnsemble')
           end if
 
           if (ni_t /= hco_ens%ni .or. nj_t /= hco_ens%nj) then
@@ -1126,7 +1146,7 @@ module calcbmatrix_lam_mod
             write(*,*) 'ip1         =', ip1
             write(*,*) 'Found ni,nj =', ni_t, nj_t 
             write(*,*) 'Should be   =', hco_ens%ni, hco_ens%nj
-            call abort3d('ReadEnsemble')
+            call varAbort('ReadEnsemble')
           end if
 
           !- Insert in EnsPerturbations
@@ -1172,7 +1192,7 @@ module calcbmatrix_lam_mod
     if ( ControlVariable(1)%nlev /= ControlVariable(2)%nlev ) then
       write(*,*)
       write(*,*) 'UVToCtrlVar: Error in Wind Field vertical grid !!!'
-      call abort3d('UVToCtrlVar')
+      call varAbort('UVToCtrlVar')
     end if
     if ( ControlVariable(1)%nomvar(cv_model) /= 'UU' .or. &
          ControlVariable(2)%nomvar(cv_model) /= 'VV' ) then
@@ -1180,7 +1200,7 @@ module calcbmatrix_lam_mod
       write(*,*) 'UVToCtrlVar: Wind field(s) missing on input !!!'
       write(*,*) 'nomvar(1) = ', ControlVariable(1)%nomvar(cv_model)
       write(*,*) 'nomvar(2) = ', ControlVariable(2)%nomvar(cv_model)
-      call abort3d('UVToCtrlVar')
+      call varAbort('UVToCtrlVar')
     end if
 
     if (trim(WindTransform) == 'UV') then
@@ -1723,7 +1743,7 @@ module calcbmatrix_lam_mod
     do k = 1, nkgdim
        if ( GridState(hco_bhi%ni/2,hco_bhi%nj/2,k) < 0.d0 ) then
           write(*,*) 'NormalizePowerSpectrum: Problem in normalization ', k, GridState(hco_bhi%ni/2,hco_bhi%nj/2,k)
-          call abort3d('aborting in NormalizePowerSpectrum')
+          call varAbort('aborting in NormalizePowerSpectrum')
        end if
 
        if ( GridState(hco_bhi%ni/2,hco_bhi%nj/2,k) /= 0.d0 ) then
@@ -1909,7 +1929,7 @@ module calcbmatrix_lam_mod
        if ( info /= 0 ) then
          write(*,*)
          write(*,*) 'CalcBsqrt: DSYEV failed !!! ', totwvnb, info
-         call abort3d('CalcBsqrt')
+         call varAbort('CalcBsqrt')
        end if
 
        !- Calculate B^0.5 = V D^0.5 V^t
@@ -2079,7 +2099,7 @@ module calcbmatrix_lam_mod
     case default
       write(*,*)
       write(*,*) 'Invalid Binning Strategy : ',trim(BinningStrategy)
-      call abort3d('CreateBins')
+      call varAbort('CreateBins')
     end select
 
   end subroutine CreateBins
@@ -2338,7 +2358,7 @@ module calcbmatrix_lam_mod
        else if ( ControlVariable(var)%nomvar(cv_bhi) == 'LQ' ) then
           hLocalize = hLocalize_humidity
        else
-          call abort3d('applyHorizLoc')
+          call varAbort('applyHorizLoc')
        end if
 
        do k = ControlVariable(var)%kDimStart, ControlVariable(var)%kDimEnd
@@ -2454,7 +2474,7 @@ module calcbmatrix_lam_mod
           else if ( ControlVariable(var1)%nomvar(cv_bhi) == 'LQ' ) then
              vLocalize1 = vLocalize_humidity
           else
-             call abort3d('applyVertLoc')
+             call varAbort('applyVertLoc')
           end if
 
           !-  2.2.2 Select the length scale for control variable 2
@@ -2470,7 +2490,7 @@ module calcbmatrix_lam_mod
           else if ( ControlVariable(var2)%nomvar(cv_bhi) == 'LQ' ) then
              vLocalize2 = vLocalize_humidity
           else
-             call abort3d('applyVertLoc')
+             call varAbort('applyVertLoc')
           end if
           
           !- 2.2.3 Length scale to be use for var1-var2 correlation
@@ -3172,12 +3192,14 @@ module calcbmatrix_lam_mod
     !
     !- Writing Toc-Toc
     !
-    status = vgd_write(vco_bhi%vgrid,iun,'fst')
+    if ( spatialDimensions /= '2D' ) then
+       status = vgd_write(vco_bhi%vgrid,iun,'fst')
 
-    if ( status /= VGD_OK ) then
-      write(*,*)
-      write(*,*) 'WriteTicTacToc: ERROR with vgd_write '
-      call abort3d('WriteTicTacToc')
+       if ( status /= VGD_OK ) then
+          write(*,*)
+          write(*,*) 'WriteTicTacToc: ERROR with vgd_write '
+          call varAbort('WriteTicTacToc')
+       end if
     end if
 
   end subroutine WriteTicTacToc

@@ -63,7 +63,7 @@ CONTAINS
     case default
        write(*,*)
        write(*,*) 'Unsupported HORIZONTAL localization function : ', trim(LocFunctionWanted)
-       call abort3d('loc_setup')
+       call varAbort('loc_setup')
     end select
 
     initialized  = .true.
@@ -82,7 +82,7 @@ CONTAINS
     if ( .not. initialized ) then
       write(*,*)
       write(*,*) 'The localixation function module was NOT initialized'
-      call abort3d('loc_horizResponse')
+      call varAbort('loc_horizResponse')
     endif
 
     select case(trim(LocFunction))
@@ -91,7 +91,7 @@ CONTAINS
     case default
        write(*,*)
        write(*,*) 'Unsupported localization function : ', trim(LocFunction)
-       call abort3d('loc_Response')
+       call varAbort('loc_Response')
     end select
 
   end function loc_Response
@@ -108,7 +108,7 @@ CONTAINS
     if ( .not. initialized ) then
       write(*,*)
       write(*,*) 'The localixation function module was NOT initialized'
-      call abort3d('loc_gradient')
+      call varAbort('loc_gradient')
     endif
 
     select case(trim(LocFunction))
@@ -117,7 +117,7 @@ CONTAINS
     case default
        write(*,*)
        write(*,*) 'Unsupported localization function : ', trim(LocFunction)
-       call abort3d('loc_gradient')
+       call varAbort('loc_gradient')
     end select
 
   end function loc_gradient
@@ -400,7 +400,7 @@ CONTAINS
              DO i = 1, nmax
                 write(*,*) g(i), w(i), x(i), param 
              END DO
-             call abort3d('Loc_Curvefit')
+             call varAbort('Loc_Curvefit')
           end if
           
           ! 2.2.5  Find vector M (i.e. increment of PARAM)

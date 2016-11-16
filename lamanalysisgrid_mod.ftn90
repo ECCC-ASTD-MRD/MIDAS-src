@@ -121,7 +121,7 @@ module LamAnalysisGrid_mod
       write(*,*) 'lag_SetupFromHCO: At least one hco structure was not initilzed'
       write(*,*) 'hco_core = ', hco_core%initialized
       write(*,*) 'hco_ext = ', hco_ext%initialized
-      call abort3d('lag_SetupFromHCO: abort')
+      call varAbort('lag_SetupFromHCO: abort')
     end if
 
     if ( (hco_core%global) .or.  & 
@@ -130,7 +130,7 @@ module LamAnalysisGrid_mod
       write(*,*) 'lag_SetupFromHCO: At least one hco structure is from a global grid'
       write(*,*) 'hco_core = ', hco_core%global
       write(*,*) 'hco_ext = ', hco_ext%global
-      call abort3d('lag_SetupFromHCO: abort')
+      call varAbort('lag_SetupFromHCO: abort')
     end if
 
     !
@@ -151,7 +151,7 @@ module LamAnalysisGrid_mod
       write(*,*)
       write(*,*) 'lag_SetupFromHCO: Domain extension is less than 10 gridpoints'
       write(*,*) ' ext_i = ', ext_i,' ext_j = ', ext_j
-      call abort3d('lag_SetupFromHCO')
+      call varAbort('lag_SetupFromHCO')
     end if
 
     ni_ext_per = ni_ext + 1  ! Fields will be periodic (i = 1 repeated) at ni_ext+1
@@ -169,7 +169,7 @@ module LamAnalysisGrid_mod
         write(*,*) ' i         = ', i
         write(*,*) ' dlon      = ', dlon_test
         write(*,*) ' dlon ref  = ', dlon_ref
-        call abort3d('lag_SetupFromHCO')
+        call varAbort('lag_SetupFromHCO')
       end if
     end do
 
@@ -182,7 +182,7 @@ module LamAnalysisGrid_mod
         write(*,*) ' j         = ', j
         write(*,*) ' dlat      = ', dlon_test
         write(*,*) ' dlat ref  = ', dlon_ref
-        call abort3d('lag_SetupFromHCO') 
+        call varAbort('lag_SetupFromHCO') 
       end if
     end do
 
@@ -196,7 +196,7 @@ module LamAnalysisGrid_mod
         write(*,*) ' i         = ', i
         write(*,*) ' dlon      = ', dlon_test
         write(*,*) ' dlon ref  = ', dlon_ref
-        call abort3d('lag_SetupFromHCO')
+        call varAbort('lag_SetupFromHCO')
       end if
     end do
 
@@ -209,7 +209,7 @@ module LamAnalysisGrid_mod
         write(*,*) ' j         = ', j
         write(*,*) ' dlat      = ', dlon_test
         write(*,*) ' dlat ref  = ', dlon_ref
-        call abort3d('lag_SetupFromHCO') 
+        call varAbort('lag_SetupFromHCO') 
       end if
     end do
 
@@ -420,10 +420,8 @@ module LamAnalysisGrid_mod
     integer :: i,j,k
 
     if ( .not. initialized ) then
-      call abort3d('lag_PsiChiToUV: LamAnalysisGrid not initialized')
+      call varAbort('lag_PsiChiToUV: LamAnalysisGrid not initialized')
     endif
-
-    
 
     allocate(psi_ext( (myLonBeg-1):(myLonEnd+1), (myLatBeg-1):(myLatEnd+1), nk))
     allocate(chi_ext( (myLonBeg-1):(myLonEnd+1), (myLatBeg-1):(myLatEnd+1), nk))
@@ -444,8 +442,7 @@ module LamAnalysisGrid_mod
     !- 2.  Compute Wind on staggered grid
     !
 
-!$OMP PARALLEL
-!$OMP DO PRIVATE (k,j,i)
+!$OMP PARALLEL DO PRIVATE (k,j,i)
     do k = 1, nk
       !- 2.1 u-wind component
        do j = myLatBeg, myLatEnd+1
@@ -462,8 +459,7 @@ module LamAnalysisGrid_mod
         end do
       end do
     end do
-!$OMP END DO
-!$OMP END PARALLEL
+!$OMP END PARALLEL DO
 
     !
     !- 3.  Move to collocated (scalar) grid
@@ -475,10 +471,12 @@ module LamAnalysisGrid_mod
     !
     !- 4.  Convert Wind images to Physical (true) winds
     !
+!$OMP PARALLEL DO PRIVATE (j)
     do j = myLatBeg, myLatEnd
       uphy(:,j,:) =  glmf%conphy(j) * uimg(:,j,:)
       vphy(:,j,:) =  glmf%conphy(j) * vimg(:,j,:)
     end do
+!$OMP END PARALLEL DO
 
     deallocate(psi_ext)
     deallocate(chi_ext)
@@ -513,7 +511,7 @@ module LamAnalysisGrid_mod
     integer :: i,j,k
 
     if ( .not. initialized ) then
-      call abort3d('lag_PsiChiToUV: LamAnalysisGrid not initialized')
+      call varAbort('lag_PsiChiToUV: LamAnalysisGrid not initialized')
     endif
 
     allocate(psi_ext( (myLonBeg-1):(myLonEnd+1), (myLatBeg-1):(myLatEnd+1), nk))
@@ -526,10 +524,12 @@ module LamAnalysisGrid_mod
     !
     !- 4.  Convert Physical (true) winds to Wind images
     !
+!$OMP PARALLEL DO PRIVATE (j)
     do j = myLatBeg, myLatEnd
       uimg(:,j,:) =  glmf%conphy(j) * uphy(:,j,:)
       vimg(:,j,:) =  glmf%conphy(j) * vphy(:,j,:)
     end do
+!$OMP END PARALLEL DO
 
     !
     !- 3.  Move to stagerred grid
@@ -547,8 +547,7 @@ module LamAnalysisGrid_mod
     chi_ext(:,:,:) = 0.d0
     psi_ext(:,:,:) = 0.d0
 
-!$OMP PARALLEL
-!$OMP DO PRIVATE (k,j,i)
+!$OMP PARALLEL DO PRIVATE (k,j,i)
     do k = 1, nk
       !- 2.2 from v-wind component
       do j = myLatEnd, myLatBeg-1, -1
@@ -569,8 +568,7 @@ module LamAnalysisGrid_mod
         end do
      end do
     end do
-!$OMP END DO
-!$OMP END PARALLEL
+!$OMP END PARALLEL DO
 
     !
     !- 1.  De-Symmetrize
@@ -608,8 +606,7 @@ module LamAnalysisGrid_mod
 
     integer :: i,j,k
 
-!$OMP PARALLEL
-!$OMP DO PRIVATE (k,j,i)
+!$OMP PARALLEL DO PRIVATE (k,j,i)
     do k = 1, nk
       do j = jBeg, jEnd
         do i = iBeg, iEnd
@@ -618,8 +615,7 @@ module LamAnalysisGrid_mod
         end do
       end do
     end do
-!$OMP END DO
-!$OMP END PARALLEL
+!$OMP END PARALLEL DO
 
   end subroutine uvStagToColloc
 
@@ -637,8 +633,7 @@ module LamAnalysisGrid_mod
 
     integer :: i, j, k
 
-!$OMP PARALLEL
-!$OMP DO PRIVATE (k,j,i)
+!$OMP PARALLEL DO PRIVATE (k,j,i)
     do k = 1, nk
       do j = jEnd, jBeg, -1
         do i = iEnd, iBeg, -1
@@ -649,8 +644,7 @@ module LamAnalysisGrid_mod
         end do
       end do
     end do
-!$OMP END DO
-!$OMP END PARALLEL
+!$OMP END PARALLEL DO
 
   end subroutine uvStagToCollocAdj
 
@@ -714,8 +708,7 @@ module LamAnalysisGrid_mod
                             0,ni+1,0,nj+1,ni,nj,nk,  & ! IN
                             1,1,.true.,.true.,ni,0)    ! IN
 
-!$OMP PARALLEL
-!$OMP DO PRIVATE (k,j,i)
+!$OMP PARALLEL DO PRIVATE (k,j,i)
     do k = 1, nk
        do j = jBeg, jEnd
           do i = iBeg, iEnd
@@ -723,8 +716,7 @@ module LamAnalysisGrid_mod
           end do
        end do
     end do
-!$OMP END DO
-!$OMP END PARALLEL
+!$OMP END PARALLEL DO
 
     deallocate(field_8)
 
@@ -752,12 +744,12 @@ module LamAnalysisGrid_mod
     real(8) :: deriv_istart, deriv_jstart, deriv_i0, deriv_j0, del
 
     if ( .not. initialized ) then
-      call abort3d('lag_Mach2: LamAnalysisGrid not initialized')
+      call varAbort('lag_Mach2: LamAnalysisGrid not initialized')
     endif
 
     if ( (ni /= 1 .and. ni /= ni_ext) .or. &
          (nj /= 1 .and. nj /= nj_ext) ) then
-      call abort3d('lag_Mach2 : Invalid Dimensions')
+      call varAbort('lag_Mach2 : Invalid Dimensions')
     end if
 
 !$OMP PARALLEL
@@ -832,12 +824,12 @@ module LamAnalysisGrid_mod
     real(4) :: deriv_istart, deriv_jstart, deriv_i0, deriv_j0, del
 
     if ( .not. initialized ) then
-      call abort3d('lag_Mach_r4: LamAnalysisGrid not initialized')
+      call varAbort('lag_Mach_r4: LamAnalysisGrid not initialized')
     endif
 
     if ( (ni /= 1 .and. ni /= ni_ext) .or. &
          (nj /= 1 .and. nj /= nj_ext) ) then
-      call abort3d('lag_Mach_r4 : Invalid Dimensions')
+      call varAbort('lag_Mach_r4 : Invalid Dimensions')
     end if
 
 !$OMP PARALLEL
@@ -912,7 +904,7 @@ module LamAnalysisGrid_mod
     integer :: i,j,k
 
     if ( .not. initialized ) then
-      call abort3d('lag_UVToVortDiv: LamAnalysisGrid not initialized')
+      call varAbort('lag_UVToVortDiv: LamAnalysisGrid not initialized')
     endif
 
     allocate(uimg_sym( (myLonBeg-1):(myLonEnd+1), (myLatBeg-1):(myLatEnd+1), nk))
@@ -923,10 +915,12 @@ module LamAnalysisGrid_mod
     !
     !- 2.  Convert Physical (true) winds to Wind images
     !
+!$OMP PARALLEL DO PRIVATE (j)
     do j = myLatBeg, myLatEnd
           uimg(:,j,:) =  glmf%conima(j) * uphy(:,j,:)
           vimg(:,j,:) =  glmf%conima(j) * vphy(:,j,:)
     end do
+!$OMP END PARALLEL DO
 
     !
     !- 3.  Symmetrize
@@ -941,8 +935,7 @@ module LamAnalysisGrid_mod
     !- 4.  Compute Vorticity and Divergence
     !
 
-!$OMP PARALLEL
-!$OMP DO PRIVATE (k,j,i)
+!$OMP PARALLEL DO PRIVATE (k,j,i)
      do k = 1, nk
        do j = myLatBeg, myLatEnd
          do i = myLonBeg, myLonEnd
@@ -956,8 +949,7 @@ module LamAnalysisGrid_mod
          end do
        end do
      end do
-!$OMP END DO
-!$OMP END PARALLEL
+!$OMP END PARALLEL DO
 
     deallocate(uimg_sym)
     deallocate(vimg_sym)

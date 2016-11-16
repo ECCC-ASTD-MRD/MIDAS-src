@@ -221,7 +221,7 @@ CONTAINS
        else
           write(*,*)
           write(*,*) 'mode = ', trim(mode)
-          call abort3d('bchm_setup: unknown mode')
+          call varAbort('bchm_setup: unknown mode')
        end if
     else
        bchm_mode = 'Analysis'
@@ -305,7 +305,7 @@ CONTAINS
     nulnam = 0
     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=NAMBCHM,iostat=ierr)
-    if(ierr.ne.0) call abort3d('BCHM_setup: Error reading namelist')
+    if(ierr.ne.0) call varAbort('BCHM_setup: Error reading namelist')
     if(mpi_myid.eq.0) write(*,nml=NAMBCHM)
     ierr = fclos(nulnam)
 
@@ -444,7 +444,7 @@ CONTAINS
       if ( ierr .eq. 0 ) then
         ierr =  fstouv(nulbgst,'RND+OLD')
       else
-        call abort3d('BCHM_SUNEWSTATS: NO BACKGROUND CHEMICAL CONSTITUENT STAT FILE!!')
+        call varAbort('BCHM_SUNEWSTATS: NO BACKGROUND CHEMICAL CONSTITUENT STAT FILE!!')
       endif
     else
       ! Assume chemical constituent stats in file bgcov. 
@@ -454,10 +454,10 @@ CONTAINS
          if ( ierr .eq. 0 ) then
            ierr =  fstouv(nulbgst,'RND+OLD')
          else
-           call abort3d('BCHM_SUNEWSTATS: NO BACKGROUND CHEMICAL CONSTITUENT STAT FILE!!')
+           call varAbort('BCHM_SUNEWSTATS: NO BACKGROUND CHEMICAL CONSTITUENT STAT FILE!!')
          endif 
       else          
-         call abort3d('BCHM_SUNEWSTATS: NO BACKGROUND CHEMICAL CONSTITUENT STAT FILE!!')
+         call varAbort('BCHM_SUNEWSTATS: NO BACKGROUND CHEMICAL CONSTITUENT STAT FILE!!')
       end if
     endif
 
@@ -512,7 +512,7 @@ CONTAINS
 
     if(ntruncCut.gt.ntrunc) then
       write(*,*) ntruncCut, ntrunc
-      call abort3d('bchm_truncateCV: ntruncCut is greater than ntrunc!')
+      call varAbort('bchm_truncateCV: ntruncCut is greater than ntrunc!')
     endif
 
     jdim = 0
@@ -745,9 +745,9 @@ CONTAINS
           
           if (istdkey.lt.0) then
              write(*,*) 'BCHM_READCORNS2: RSTDDEV ',ip2,jnum,clnomvar
-             call abort3d('BCHM_READCORNS2: Problem with constituents background stat file')
+             call varAbort('BCHM_READCORNS2: Problem with constituents background stat file')
           end if
-          if (ini.ne.jnum)  call abort3d('BCHM_READCORNS2: Constituents background stat levels inconsistencies')
+          if (ini.ne.jnum)  call varAbort('BCHM_READCORNS2: Constituents background stat levels inconsistencies')
 
           ! Looking for FST record parameters..
 
@@ -761,9 +761,9 @@ CONTAINS
 
           if (icornskey.lt.0) then
              write(*,*) 'BCHM_READCORNS2: CORRNS ',ip2,jnum,clnomvar
-             call abort3d('BCHM_READCORNS2: Problem with constituents background stat file')
+             call varAbort('BCHM_READCORNS2: Problem with constituents background stat file')
           end if
-          if (ini.ne.jnum.and.inj.ne.jnum) call abort3d('BCHM_READCORNS2: Constituents BG stat levels inconsistencies')
+          if (ini.ne.jnum.and.inj.ne.jnum) call varAbort('BCHM_READCORNS2: Constituents BG stat levels inconsistencies')
 
           rstddev(jstart:jstart+jnum-1,jn) = zstdsrc(1:jnum)
           corns(jstart:jstart+jnum-1,jstart:jstart+jnum-1,jn)=zcornssrc(1:jnum,1:jnum)
@@ -1013,7 +1013,7 @@ CONTAINS
           zspbuf(:) = 0.0d0
         endif
 
-        if (ini.ne.nlev_MT) call abort3d('RDSPSTD: Constituents background stat levels inconsitencies')
+        if (ini.ne.nlev_MT) call varAbort('RDSPSTD: Constituents background stat levels inconsitencies')
 
         do jlevo = 1, nlev_MT
           zsp(jn,jlevo) = zspbuf(jlevo)
@@ -1104,7 +1104,7 @@ CONTAINS
           ikey = vfstlir(zspbuf(0:ntrunc_file),nulbgst,ini,inj,ink,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
         else
           write(*,*) 'RDSPSTD_NEWFMT: ',jvar,clnomvar,nlev_MT,jlevo,ikey,ntrunc,ntrunc_file
-          call abort3d('RDSPSTD_NEWFMT: SPSTDDEV record not found')
+          call varAbort('RDSPSTD_NEWFMT: SPSTDDEV record not found')
         endif
 
         zsp(:,jlevo) = 0.0d0
@@ -1168,7 +1168,7 @@ CONTAINS
        rlat(1:nj_l)=rlat(1:nj_l)*MPC_RADIANS_PER_DEGREE_R8
     else
        write(*,*) 'BCHM_RDSTDDEV: latitudes not read. ',ikey,inj,nj_l
-       call abort3d('BCHM_RDSTDDEV')
+       call varAbort('BCHM_RDSTDDEV')
     end if    
     ikey = vfstlir(rcoord,nulbgst,ini,inj,ink, &
                          idate(1),' ',ip1,ip2,ip3,' ','>>')
@@ -1177,7 +1177,7 @@ CONTAINS
         rlong(1:ni_l)=rlong(1:ni_l)*MPC_RADIANS_PER_DEGREE_R8
     else
        write(*,*) 'BCHM_RDSTDDEV: longitudes not read. ',ikey,ini,ni_l
-       call abort3d('BCHM_RDSTDDEV')
+       call varAbort('BCHM_RDSTDDEV')
     end if 
     rlong(ni_l+1)=360.*MPC_RADIANS_PER_DEGREE_R8
     
@@ -1215,7 +1215,7 @@ CONTAINS
                          idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
         if (ikey.lt.0) then
           write(*,*) 'BCHM_RDSTDDEV: ',jvar,clnomvar,nlev_MT,jlevo,ikey,ip1
-          call abort3d(': BCHM_SPSTDDEV record not found')
+          call varAbort(': BCHM_SPSTDDEV record not found')
         endif
         
         ! Add strip at 360 degrees.
@@ -1301,7 +1301,7 @@ CONTAINS
       call dsyev('V','U',nkgdim,eigenvec,nkgdim,eigenval,zwork,ilwork,info)
       if(info.ne.0) then
         write(*,*) 'BCHM_sucorns2: non-zero value of info =',info,' returned by dsyev for wavenumber ',jn
-        call abort3d('BCHM_SUCORNS')
+        call varAbort('BCHM_SUCORNS')
       endif
       
       ! set selected number of eigenmodes to zero
@@ -1443,7 +1443,7 @@ CONTAINS
       endif
 
       if (ini .ne. nkgdim .or. inj .ne. nkgdim) then
-        call abort3d('READCORNS2: BG stat levels inconsitencies')
+        call varAbort('READCORNS2: BG stat levels inconsitencies')
       endif
 
       do jcol = 1, nkgdim
@@ -1766,57 +1766,153 @@ CONTAINS
 
   SUBROUTINE BCHM_reduceToMPILocal(cv_mpilocal,cv_mpiglobal,cvDim_mpilocal_out)
     implicit none
-    real(8) :: cv_mpilocal(cvDim_mpilocal)
-    real(8) :: cv_mpiglobal(cvDim_mpiglobal)
-    integer :: cvDim_mpilocal_out
+    real(8), intent(out) :: cv_mpilocal(cvDim_mpilocal)
+    real(8), intent(in)  :: cv_mpiglobal(:)
+    integer, intent(out) :: cvDim_mpilocal_out
 
+    real(8), allocatable :: cv_allMaxMpilocal(:,:)
+
+    integer, allocatable :: cvDim_allMpilocal(:), displs(:)
+    integer, allocatable :: allnBeg(:),allnEnd(:),allnSkip(:)
+    integer, allocatable :: allmBeg(:),allmEnd(:),allmSkip(:)
+
+    integer :: jproc,cvDim_maxmpilocal,ierr
     integer :: jlev,jn,jm,ila_mpilocal,ila_mpiglobal,jdim_mpilocal,jdim_mpiglobal
 
-    if(.not. initialized) return
+    if (.not.initialized) return
 
     cvDim_mpilocal_out = cvDim_mpilocal
 
-    jdim_mpilocal = 0
-    do jlev = 1, nkgdim
-      do jm = mymBeg, mymEnd, mymSkip
-        do jn = mynBeg, mynEnd, mynSkip
-          if(jm.le.jn) then
+    call rpn_comm_allreduce(cvDim_mpilocal, cvDim_maxmpilocal, &
+                            1,"MPI_INTEGER","MPI_MAX","GRID",ierr)
 
-            ila_mpiglobal = gst_getNIND(jm,gstID) + jn - jm
+    if(mpi_myid == 0) then
+       allocate(cvDim_allMpiLocal(mpi_nprocs))
+    else
+       allocate(cvDim_allMpiLocal(1))
+    end if
 
-            ! figure out index into global control vector
-            if(jm.eq.0) then
-              ! for jm=0 only real part
-              jdim_mpiglobal = ila_mpiglobal
-            else
-              ! for jm>0 both real and imaginary part
-              jdim_mpiglobal = 2*ila_mpiglobal-1 - (ntrunc+1)
-            endif
-            ! add offset for level
-            jdim_mpiglobal = jdim_mpiglobal + (jlev-1) * (ntrunc+1)*(ntrunc+1)
+    call rpn_comm_gather(cvDim_mpiLocal   ,1,"mpi_integer",       &
+                         cvDim_allMpiLocal,1,"mpi_integer",0,"GRID",ierr)
 
-            ! index into local control vector computer as in cain
-            if(jm.eq.0) then
-              ! only real component for jm=0
-              jdim_mpilocal = jdim_mpilocal + 1
-              cv_mpilocal(jdim_mpilocal) = cv_mpiglobal(jdim_mpiglobal)
-            else
-              ! both real and imaginary components for jm>0
-              jdim_mpilocal = jdim_mpilocal + 1
-              cv_mpilocal(jdim_mpilocal) = cv_mpiglobal(jdim_mpiglobal)
-              jdim_mpilocal = jdim_mpilocal + 1
-              cv_mpilocal(jdim_mpilocal) = cv_mpiglobal(jdim_mpiglobal+1)
-            endif
+    if(mpi_myid == 0) then
+       allocate(allnBeg(mpi_nprocs))
+       allocate(allnEnd(mpi_nprocs))
+       allocate(allnSkip(mpi_nprocs))
+       allocate(allmBeg(mpi_nprocs))
+       allocate(allmEnd(mpi_nprocs))
+       allocate(allmSkip(mpi_nprocs))
+    else
+       allocate(allnBeg(1))
+       allocate(allnEnd(1))
+       allocate(allnSkip(1))
+       allocate(allmBeg(1))
+       allocate(allmEnd(1))
+       allocate(allmSkip(1))
+    end if
 
-            if(jdim_mpilocal.gt.cvDim_mpilocal)   &
-              write(*,*) 'ERROR: jdim,cvDim,mpilocal=',jdim_mpilocal,cvDim_mpilocal,jlev,jn,jm
-            if(jdim_mpiglobal.gt.cvDim_mpiglobal)   &
-              write(*,*) 'ERROR: jdim,cvDim,mpiglobal=',jdim_mpiglobal,cvDim_mpiglobal,jlev,jn,jm
+    call rpn_comm_gather(mynBeg  ,1,"mpi_integer",       &
+                         allnBeg ,1,"mpi_integer",0,"GRID",ierr)
+    call rpn_comm_gather(mynEnd  ,1,"mpi_integer",       &
+                         allnEnd ,1,"mpi_integer",0,"GRID",ierr)
+    call rpn_comm_gather(mynSkip ,1,"mpi_integer",       &
+                         allnSkip,1,"mpi_integer",0,"GRID",ierr)
 
-          endif
-        enddo
-      enddo
-    enddo
+    call rpn_comm_gather(mymBeg  ,1,"mpi_integer",       &
+                         allmBeg ,1,"mpi_integer",0,"GRID",ierr)
+    call rpn_comm_gather(mymEnd  ,1,"mpi_integer",       &
+                         allmEnd ,1,"mpi_integer",0,"GRID",ierr)
+    call rpn_comm_gather(mymSkip ,1,"mpi_integer",       &
+                         allmSkip,1,"mpi_integer",0,"GRID",ierr)
+
+    ! Prepare to data to be distributed
+    if (mpi_myid == 0) then
+
+       allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mpi_nprocs))
+
+!$OMP PARALLEL DO PRIVATE(jproc,jdim_mpilocal,jlev,jm,jn,ila_mpiglobal,jdim_mpiglobal)
+       do jproc = 0, (mpi_nprocs-1)
+          cv_allmaxmpilocal(:,jproc+1) = 0.d0
+          jdim_mpilocal = 0
+
+          do jlev = 1, nkgdim
+             do jm = allmBeg(jproc+1), allmEnd(jproc+1), allmSkip(jproc+1)
+                do jn = allnBeg(jproc+1), allnEnd(jproc+1), allnSkip(jproc+1)
+
+                   if(jm.le.jn) then
+                      
+                      ila_mpiglobal = gst_getNIND(jm,gstID) + jn - jm
+                      
+                      ! figure out index into global control vector
+                      if(jm == 0) then
+                         ! for jm=0 only real part
+                         jdim_mpiglobal = ila_mpiglobal
+                      else
+                         ! for jm>0 both real and imaginary part
+                         jdim_mpiglobal = 2*ila_mpiglobal-1 - (ntrunc+1)
+                      endif
+                      ! add offset for level
+                      jdim_mpiglobal = jdim_mpiglobal + (jlev-1) * (ntrunc+1)*(ntrunc+1)
+                      
+                      ! index into local control vector computer as in cain
+                      if(jm == 0) then
+                         ! only real component for jm=0
+                         jdim_mpilocal = jdim_mpilocal + 1
+                         cv_allmaxmpilocal(jdim_mpilocal,jproc+1) = cv_mpiglobal(jdim_mpiglobal)
+                      else
+                         ! both real and imaginary components for jm>0
+                         jdim_mpilocal = jdim_mpilocal + 1
+                         cv_allmaxmpilocal(jdim_mpilocal,jproc+1) = cv_mpiglobal(jdim_mpiglobal)
+                         jdim_mpilocal = jdim_mpilocal + 1
+                         cv_allmaxmpilocal(jdim_mpilocal,jproc+1) = cv_mpiglobal(jdim_mpiglobal+1)
+                      endif
+                      
+                      if (jdim_mpilocal > cvDim_allMpiLocal(jproc+1)) then
+                         write(*,*)
+                         write(*,*) 'ERROR: jdim_mpilocal > cvDim_allMpiLocal(jproc+1)', jdim_mpilocal, cvDim_mpilocal
+                         write(*,*) '       proc, jlev, jn, jm = ',jproc, jlev, jn, jm
+                         call varAbort('bhi_reduceToMPILocal')
+                      end if
+                      if (jdim_mpiglobal > cvDim_mpiglobal) then
+                         write(*,*)
+                         write(*,*) 'ERROR: jdim_mpiglobal > cvDim_mpiglobal', jdim_mpiglobal, cvDim_mpiglobal
+                         write(*,*) '       proc, jlev, jn, jm = ',jproc, jlev, jn, jm
+                         call varAbort('bhi_reduceToMPILocal')
+                      end if
+
+                   endif
+                enddo
+             enddo
+          enddo
+ 
+       end do ! jproc
+!$OMP END PARALLEL DO
+
+    else
+       allocate(cv_allmaxmpilocal(1,1))
+    end if
+
+    !- Distribute
+    allocate(displs(mpi_nprocs))
+    do jproc = 0, (mpi_nprocs-1)
+       displs(jproc+1) = jproc*cvDim_maxMpiLocal ! displacement wrt cv_allMaxMpiLocal from which
+                                                 ! to take the outgoing data to process jproc
+    end do
+
+    call rpn_comm_scatterv(cv_allMaxMpiLocal, cvDim_allMpiLocal, displs, "mpi_double_precision", &
+                           cv_mpiLocal, cvDim_mpiLocal, "mpi_double_precision", &
+                           0, "GRID", ierr)
+
+    !- End
+    deallocate(displs)
+    deallocate(cv_allMaxMpiLocal)
+    deallocate(cvDim_allMpiLocal)
+    deallocate(allnBeg)
+    deallocate(allnEnd)
+    deallocate(allnSkip)
+    deallocate(allmBeg)
+    deallocate(allmEnd)
+    deallocate(allmSkip)
 
   END SUBROUTINE BCHM_reduceToMPILocal
 
@@ -1824,9 +1920,9 @@ CONTAINS
 
   SUBROUTINE BCHM_expandToMPIGlobal(cv_mpilocal,cv_mpiglobal,cvDim_mpiglobal_out)
     implicit none
-    real(8) :: cv_mpilocal(cvDim_mpilocal)
-    real(8) :: cv_mpiglobal(cvDim_mpiglobal)
-    integer :: cvDim_mpiglobal_out
+    real(8), intent(in)  :: cv_mpilocal(cvDim_mpilocal)
+    real(8), intent(out) :: cv_mpiglobal(:)
+    integer, intent(out) :: cvDim_mpiglobal_out
 
     real(8), allocatable :: cv_maxmpilocal(:)
     real(8), pointer :: cv_allmaxmpilocal(:,:) => null()
@@ -1834,14 +1930,17 @@ CONTAINS
     integer, allocatable :: allmBeg(:),allmEnd(:),allmSkip(:)
     integer :: jlev, jn, jm, jproc, ila_mpiglobal, jdim_mpilocal, jdim_mpiglobal, ierr, cvDim_maxmpilocal
 
-    if(.not. initialized) return
+    if (.not.initialized) return
 
     cvDim_mpiglobal_out = cvDim_mpiglobal
 
-    ! gather all local control vectors onto mpi task 0
+    !
+    !- 1.  Gather all local control vectors onto mpi task 0
+    !
     call rpn_comm_allreduce(cvDim_mpilocal,cvDim_maxmpilocal,1,"mpi_integer","mpi_max","GRID",ierr)
 
     allocate(cv_maxmpilocal(cvDim_maxmpilocal))
+
     if(mpi_myid.eq.0) allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mpi_nprocs))
 
     cv_maxmpilocal(:) = 0.0d0
@@ -1854,28 +1953,40 @@ CONTAINS
 
     deallocate(cv_maxmpilocal)
 
-    allocate(allnBeg(mpi_nprocs))
-    call rpn_comm_allgather(mynBeg,1,"mpi_integer",       &
-                            allnBeg,1,"mpi_integer","GRID",ierr)
-    allocate(allnEnd(mpi_nprocs))
-    call rpn_comm_allgather(mynEnd,1,"mpi_integer",       &
-                            allnEnd,1,"mpi_integer","GRID",ierr)
-    allocate(allnSkip(mpi_nprocs))
-    call rpn_comm_allgather(mynSkip,1,"mpi_integer",       &
-                            allnSkip,1,"mpi_integer","GRID",ierr)
+    !
+    !- 2.  Reorganize gathered mpilocal control vectors into the mpiglobal control vector
+    !
+    if(mpi_myid == 0) then
+       allocate(allnBeg(mpi_nprocs))
+       allocate(allnEnd(mpi_nprocs))
+       allocate(allnSkip(mpi_nprocs))
+       allocate(allmBeg(mpi_nprocs))
+       allocate(allmEnd(mpi_nprocs))
+       allocate(allmSkip(mpi_nprocs))
+    else
+       allocate(allnBeg(1))
+       allocate(allnEnd(1))
+       allocate(allnSkip(1))
+       allocate(allmBeg(1))
+       allocate(allmEnd(1))
+       allocate(allmSkip(1))
+    end if
 
-    allocate(allmBeg(mpi_nprocs))
-    call rpn_comm_allgather(mymBeg,1,"mpi_integer",       &
-                            allmBeg,1,"mpi_integer","GRID",ierr)
-    allocate(allmEnd(mpi_nprocs))
-    call rpn_comm_allgather(mymEnd,1,"mpi_integer",       &
-                            allmEnd,1,"mpi_integer","GRID",ierr)
-    allocate(allmSkip(mpi_nprocs))
-    call rpn_comm_allgather(mymSkip,1,"mpi_integer",       &
-                            allmSkip,1,"mpi_integer","GRID",ierr)
+    call rpn_comm_gather(mynBeg  ,1,"mpi_integer",       &
+                         allnBeg ,1,"mpi_integer",0,"GRID",ierr)
+    call rpn_comm_gather(mynEnd  ,1,"mpi_integer",       &
+                         allnEnd ,1,"mpi_integer",0,"GRID",ierr)
+    call rpn_comm_gather(mynSkip ,1,"mpi_integer",       &
+                         allnSkip,1,"mpi_integer",0,"GRID",ierr)
 
-    ! reorganize gathered mpilocal control vectors into the mpiglobal control vector
-    if(mpi_myid.eq.0) then
+    call rpn_comm_gather(mymBeg  ,1,"mpi_integer",       &
+                         allmBeg ,1,"mpi_integer",0,"GRID",ierr)
+    call rpn_comm_gather(mymEnd  ,1,"mpi_integer",       &
+                         allmEnd ,1,"mpi_integer",0,"GRID",ierr)
+    call rpn_comm_gather(mymSkip ,1,"mpi_integer",       &
+                         allmSkip,1,"mpi_integer",0,"GRID",ierr)
+
+    if(mpi_myid == 0) then
       cv_mpiglobal(:) = 0.0d0
 
 !$OMP PARALLEL DO PRIVATE(jproc,jdim_mpilocal,jlev,jm,jn,ila_mpiglobal,jdim_mpiglobal)
@@ -1890,7 +2001,7 @@ CONTAINS
                 ila_mpiglobal = gst_getNIND(jm,gstID) + jn - jm
 
                 ! figure out index into global control vector
-                if(jm.eq.0) then
+                if(jm == 0) then
                   ! for jm=0 only real part
                   jdim_mpiglobal = ila_mpiglobal
                 else
@@ -1901,7 +2012,7 @@ CONTAINS
                 jdim_mpiglobal = jdim_mpiglobal + (jlev-1) * (ntrunc+1)*(ntrunc+1)
 
                 ! index into local control vector
-                if(jm.eq.0) then
+                if(jm == 0) then
                   ! only real component for jm=0
                   jdim_mpilocal = jdim_mpilocal + 1
                   cv_mpiglobal(jdim_mpiglobal) = cv_allmaxmpilocal(jdim_mpilocal,jproc+1)
@@ -1923,7 +2034,7 @@ CONTAINS
       enddo ! jproc
 !$OMP END PARALLEL DO
 
-    endif ! myid .eq. 0
+    endif ! myid == 0 
 
     deallocate(allnBeg)
     deallocate(allnEnd)
@@ -1931,7 +2042,7 @@ CONTAINS
     deallocate(allmBeg)
     deallocate(allmEnd)
     deallocate(allmSkip)
-    if(mpi_myid.eq.0) deallocate(cv_allmaxmpilocal)
+    if (mpi_myid.eq.0) deallocate(cv_allmaxmpilocal)
 
   end SUBROUTINE BCHM_expandToMPIGlobal
 
@@ -2041,7 +2152,7 @@ CONTAINS
        call dsyev('V','U',jnum,eigenvec(1:jnum,1:jnum),jnum,eigenval,zwork,ilwork,info)
        if(info.ne.0) then
          write(*,*) 'BCHM_corvert_setup: non-zero value of info =',info,' returned by dsyev for wavenumber ',jn
-         call abort3d('BCHM_corvert_setup')
+         call varAbort('BCHM_corvert_setup')
        endif
 
       ! Set selected number of eigenmodes to zero
@@ -2200,14 +2311,14 @@ CONTAINS
 
     if (.not.initialized) return
  
-    if (.not.present(rsig).and.lrgsig) call abort3d('BCHM_corvert_mult: Missing rsig')  
+    if (.not.present(rsig).and.lrgsig) call varAbort('BCHM_corvert_mult: Missing rsig')  
 
 !   Determine location and size in bchm_corvert/bchm_corverti
     
     do jvar=1,numvar3d+numvar2d
        if (trim(varName).eq.trim(bchm_varNameList(jvar))) exit
     end do
-    if  (jvar.gt.numvar3d+numvar2d) call abort3d('BCHM_corvert_mult: Variable not found')
+    if  (jvar.gt.numvar3d+numvar2d) call varAbort('BCHM_corvert_mult: Variable not found')
     
     nsize=nsposit(jvar+1)-nsposit(jvar)
     
@@ -2219,7 +2330,7 @@ CONTAINS
 
 !      A*C*A^T
        
-       if (ndim3.ne.ndim1.or.ndim2.ne.nsize) call abort3d('BCHM_corvert_mult: Size does not match - itype=3')
+       if (ndim3.ne.ndim1.or.ndim2.ne.nsize) call varAbort('BCHM_corvert_mult: Size does not match - itype=3')
        if (lrgsig) then
           do jk1=1,nsize
           do jk2=1,ndim1
@@ -2244,7 +2355,7 @@ CONTAINS
 
 !      A*CI*A^T
        
-       if (ndim3.ne.ndim1.or.ndim2.ne.nsize) call abort3d('BCHM_corvert_mult: Size does not match - itype=3')
+       if (ndim3.ne.ndim1.or.ndim2.ne.nsize) call varAbort('BCHM_corvert_mult: Size does not match - itype=3')
        if (lrgsig) then
           do jk1=1,nsize
           do jk2=1,ndim1
@@ -2270,7 +2381,7 @@ CONTAINS
     
 !      C*A
 
-       if (ndim3.ne.ndim2.or.ndim1.ne.nsize) call abort3d('BCHM_corvert_mult: Size does not match - itype=2')
+       if (ndim3.ne.ndim2.or.ndim1.ne.nsize) call varAbort('BCHM_corvert_mult: Size does not match - itype=2')
        if (lrgsig) then
           do jk1=1,nsize
           do jk3=1,nsize
@@ -2293,7 +2404,7 @@ CONTAINS
     
 !      CI*A
 
-       if (ndim3.ne.ndim2.or.ndim1.ne.nsize) call abort3d('BCHM_corvert_mult: Size does match - itype=-2')
+       if (ndim3.ne.ndim2.or.ndim1.ne.nsize) call varAbort('BCHM_corvert_mult: Size does match - itype=-2')
        if (lrgsig) then
           do jk1=1,nsize
           do jk3=1,nsize
@@ -2316,7 +2427,7 @@ CONTAINS
     
 !      A*C
 
-       if (ndim3.ne.ndim2.or.ndim2.ne.nsize) call abort3d('BCHM_corvert_mult: Size does not match - itype=1')
+       if (ndim3.ne.ndim2.or.ndim2.ne.nsize) call varAbort('BCHM_corvert_mult: Size does not match - itype=1')
        if (lrgsig) then
           do jk1=1,ndim1
           do jk2=1,nsize
@@ -2336,7 +2447,7 @@ CONTAINS
 
 !      A*CI
 
-       if (ndim3.ne.ndim2.or.ndim2.ne.nsize) call abort3d('BCHM_corvert_mult: Size does not match - itype=-1')
+       if (ndim3.ne.ndim2.or.ndim2.ne.nsize) call varAbort('BCHM_corvert_mult: Size does not match - itype=-1')
        if (lrgsig) then
           do jk1=1,ndim1
           do jk2=1,nsize
@@ -2356,7 +2467,7 @@ CONTAINS
 
 !      Instead of A*CI do D(i,j)=A(i,j)/sum(C(1:n,i))
 
-       if (ndim3.ne.ndim2.or.ndim2.ne.nsize) call abort3d('BCHM_corvert_mult: Size does not match - itype=0')
+       if (ndim3.ne.ndim2.or.ndim2.ne.nsize) call varAbort('BCHM_corvert_mult: Size does not match - itype=0')
        if (lrgsig) then
           do jk1=1,ndim1
           do jk2=lvl_top(jk1),lvl_bot(jk1)   ! instead of do jk2=1,nsize
@@ -2374,7 +2485,7 @@ CONTAINS
        endif
 
     else
-       call abort3d('BCHM_corvert_mult: Requested type not found')
+       call varAbort('BCHM_corvert_mult: Requested type not found')
     end if
    
   end subroutine bchm_corvert_mult
@@ -2419,12 +2530,12 @@ CONTAINS
     do jvar=1,numvar3d+numvar2d
        if (trim(varName).eq.trim(bchm_varNameList(jvar))) exit
     end do
-    if  (jvar.gt.numvar3d+numvar2d) call abort3d('BCHM_getsigma: Variable not found')
+    if  (jvar.gt.numvar3d+numvar2d) call varAbort('BCHM_getsigma: Variable not found')
     
     nsize=nsposit(jvar+1)-nsposit(jvar)
     if (nsize.ne.ndim2) then
         write(6,*) 'NSIZE, NDIM2: ',nsize,ndim2
-        call abort3d('BCHM_getsigma: Inconsistent size')
+        call varAbort('BCHM_getsigma: Inconsistent size')
     end if
  
 !   Determine reference longitude index 
@@ -2498,7 +2609,7 @@ CONTAINS
        if (rsig(j).lt.0.0.or.rsig(j).gt.maxval(rgsig(:,:,nsposit(jvar)-1+j))) then
           write(6,*) 'bchm_getsigma: Innterpolated sigma incorrect. ',jlong,jlat,xlong,xlat,j,rsig(j)
           write(6,*) 'bchm_getsigma: Innterpolated sigma incorrect. ',rlong2,rlong1,rlat1,rlat2,zc1,zc2,zd1,zd2
-          call abort3d('bchm_getsigma')
+          call varAbort('bchm_getsigma')
        end if
     end do
 

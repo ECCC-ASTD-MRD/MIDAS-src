@@ -167,7 +167,7 @@ contains
        write(*,*)
        write(*,*) "lst_setup: Setting transform id = ",id
     else
-       call abort3d('lst_setup: Too many Spectral Transforms!!!')
+       call varAbort('lst_setup: Too many Spectral Transforms!!!')
     end if
 
     lst(id)%ni = ni_in
@@ -189,7 +189,7 @@ contains
                   ' dimensions be EVEN. Fields MUST be periodic' , &
                   ' but the last colum and row MUST NOT BE a '   , &
                   ' repetition of the first colum and row. '
-       call abort3d('lst_setup')
+       call varAbort('lst_setup')
     end if
 
     nfact = lst(id)%ni
@@ -197,7 +197,7 @@ contains
     if ( nfact /= lst(id)%ni ) then
        write(6,*) 'Error: A fast transform cannot be used in X'
        write(6,6130) lst(id)%ni, nfact
-       call abort3d('lst_setup')
+       call varAbort('lst_setup')
     end if
 
     nfact = lst(id)%nj
@@ -205,7 +205,7 @@ contains
     if ( nfact /= lst(id)%nj ) then
        write(6,*) 'Error: A fast transform cannot be used in Y'
        write(6,6140) lst(id)%nj, nfact
-       call abort3d('lst_setup')
+       call varAbort('lst_setup')
     end if
 
 6130 FORMAT('N = ni = ', I4,' the nearest factorizable N = ',I4)
@@ -302,7 +302,7 @@ contains
 
        ! range of LEVELS TEMPORARILY handled by this processor DURING THE SPECTRAL TRANSFORM
        if ( .not.present(maxlevels_in) ) then
-          call abort3d('lst_setup: ERROR, number of levels must be specified with MpiMode LatLonMN')
+          call varAbort('lst_setup: ERROR, number of levels must be specified with MpiMode LatLonMN')
        end if
             ! 2D MPI decomposition: split levels across npex
        call mpivar_setup_levels_npex( maxlevels_in,                                        & ! IN
@@ -331,7 +331,7 @@ contains
 
        ! range of LEVELS handled by this processor in SPECTRAL SPACE
        if ( .not.present(maxlevels_in) ) then
-          call abort3d('lst_setup: ERROR, number of levels must be specified with MpiMode LatLonMLev')
+          call varAbort('lst_setup: ERROR, number of levels must be specified with MpiMode LatLonMLev')
        end if
             ! 2D MPI decomposition: split levels across npex
        call mpivar_setup_levels_npex( maxlevels_in,                                        & ! IN
@@ -340,7 +340,7 @@ contains
     case default
        write(*,*)
        write(*,*) 'Error: MpiMode Unknown ', trim(MpiMode)
-       call abort3d('lst_setup')
+       call varAbort('lst_setup')
     end select
 
     write(*,*)
@@ -486,7 +486,7 @@ contains
     case default
        write(*,*)
        write(*,*) 'Unknown KREFTYPE in lst_setup : ', trim(kreftype)
-       call abort3d('lst_setup')
+       call varAbort('lst_setup')
     end select
 
     ila = 0
@@ -504,7 +504,13 @@ contains
       end do
     end do
 
-    lst(id)%nla      = ila
+    if ( ila == 0 ) then
+       write(*,*)
+       write(*,*) 'There are no spectral elements associated to this mpi task!'
+       write(*,*) 'Your options: decrease the number of mpi tasks and/or increase the truncation'
+       call varAbort('lst_setup')
+    end if
+    lst(id)%nla = ila
     lst_out%nla = lst(id)%nla ! Number of spectral element per phase in the VAR array
 
     allocate( KfromMNglb(0:lst(id)%mmax,0:lst(id)%nmax) )
@@ -610,7 +616,7 @@ contains
             i = 2*m+2
             j = 2*n+2
          else
-            call abort3d('lst_Setup: Error in NormFactor')
+            call varAbort('lst_Setup: Error in NormFactor')
          end if
 
          if ( i == 1 .or. j == 1) then  
@@ -732,7 +738,7 @@ contains
     case default
        write(*,*)
        write(*,*) 'Error: TranformDirection Unknown ', trim(TransformDirection)
-       call abort3d('lst_VarTransform')
+       call varAbort('lst_VarTransform')
     end select
 
     allocate( Step0(iStart:iEnd,jStart:jEnd,kStart:kEnd) )
@@ -786,7 +792,7 @@ contains
     case default
        write(*,*)
        write(*,*) 'Error: TranformDirection Unknown ', trim(TransformDirection)
-       call abort3d('lst_VarTransform')
+       call varAbort('lst_VarTransform')
     end select
 
     allocate( Step1(ni_l+nip_l,nj_l+njp_l,kStart:kEnd) )
@@ -902,7 +908,7 @@ contains
     case default
        write(*,*)
        write(*,*) 'Error: TranformDirection Unknown ', trim(TransformDirection)
-       call abort3d('lst_VarTransform')
+       call varAbort('lst_VarTransform')
     end select
 
     allocate( Step3(iStart:iEnd,jStart:jEnd,kStart:kEnd) )
@@ -979,7 +985,7 @@ contains
     case default
        write(*,*)
        write(*,*) 'Error: TranformDirection Unknown ', trim(TransformDirection)
-       call abort3d('lst_VarTransform')
+       call varAbort('lst_VarTransform')
     end select
 
     nk = kEnd - kStart + 1
@@ -1003,7 +1009,7 @@ contains
     case default
        write(*,*)
        write(*,*) 'Error: TranformAxe Unknown ', trim(TransformAxe)
-       call abort3d('lst_VarTransform')
+       call varAbort('lst_VarTransform')
     end select
 
     !- 1.2 Fast or Slow Fourier Transform ?
@@ -1013,7 +1019,7 @@ contains
     if (nfact == n ) then
        call setfft8( n ) ! IN
     else
-       call abort3d('lst_VarTransform: This module can only handle fast sin&cos FFT')
+       call varAbort('lst_VarTransform: This module can only handle fast sin&cos FFT')
     end if
 
     select case ( trim(TransformAxe) )
@@ -1490,7 +1496,7 @@ contains
     case default
       write(6,*)
       write(6,*) 'lst_ReshapeTrunc: Unknown Direction', trim(Direction)
-      call abort3d('lst_ReshapeTrunc')
+      call varAbort('lst_ReshapeTrunc')
     end select
 
   end subroutine lst_ReshapeTrunc
@@ -1533,7 +1539,7 @@ contains
     case default
       write(6,*)
       write(6,*) 'lst_Laplacian: Error: Mode Unknown ', trim(Mode)
-      call abort3d('lst_Laplacian')
+      call varAbort('lst_Laplacian')
     end select
 
     !
@@ -1585,7 +1591,7 @@ contains
     if ( .not. lst(id)%allocated) then
        write(*,*)
        write(*,*) "transform ID ", id
-       call abort3d('lst_IDCHECK: Unknown transform ID')
+       call varAbort('lst_IDCHECK: Unknown transform ID')
     end if
 
   end subroutine idcheck

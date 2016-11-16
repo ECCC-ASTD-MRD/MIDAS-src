@@ -49,7 +49,7 @@ subroutine tovs_allocate_transmission(ptransmission,knchannels,knlevels)
   if( any(istat /= 0) ) then
      write(*,*) ' tovs_allocate_transmission: istat = ', istat(:)
      write(*,'("  tovs_allocate_transmission: memory allocation error")')
-     call abort3d('tovs_allocate_transmission')
+     call varAbort('tovs_allocate_transmission')
   end if
 
   ptransmission % tau_levels (:,:)=0.0D0

@@ -139,7 +139,7 @@ module chem_mod
      module procedure resize_3d_real
   end interface resize
 
-  ! interface for conversion to a left-justified string (useful for calls to abort3d)
+  ! interface for conversion to a left-justified string (useful for calls to varAbort)
   interface str
      module procedure int2str
      module procedure float2str
@@ -833,7 +833,7 @@ contains
 
   read(nulnam,nml=namchem,iostat=ios)
   if (ios.lt.-4.or.ios.gt.0) then 
-     call abort3d('chm_read_misc: Error in reading NAMCHEM namelist. iostat = ' // trim(str(ios)) )
+     call varAbort('chm_read_misc: Error in reading NAMCHEM namelist. iostat = ' // trim(str(ios)) )
   else if (mpi_myid.eq.0) then
      write(*,nml=namchem)   
   end if
@@ -923,7 +923,7 @@ contains
   IF ( IERR .EQ. 0 ) THEN
     open(unit=nulstat, file='obsinfo_chm', status='OLD')
   ELSE
-    CALL ABORT3D('chm_read_layers: COULD NOT OPEN FILE obsinfo_chm!')
+    CALL VARABORT('chm_read_layers: COULD NOT OPEN FILE obsinfo_chm!')
   ENDIF
 
   ios=0
@@ -976,7 +976,7 @@ contains
     
     if (icount+chm_layers%n_lvl(jelm).gt.isize) then
        write(*,'(10X,"Max array size exceeded: ",I6)') isize
-       CALL ABORT3D('chm_read_layers: READING PROBLEM.')    
+       CALL VARABORT('chm_read_layers: READING PROBLEM.')    
     end if
 
     read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
@@ -1004,7 +1004,7 @@ contains
    
  10 if (ios.gt.0) then
        WRITE(*,*) 'File read error message number: ',ios
-       CALL ABORT3D('chm_read_layers: READING PROBLEM')    
+       CALL VARABORT('chm_read_layers: READING PROBLEM')    
     end if
  
  11 CLOSE(UNIT=NULSTAT)
@@ -1193,7 +1193,7 @@ contains
   IF ( IERR .EQ. 0 ) THEN
     open(unit=nulstat, file='obsinfo_chm', status='OLD')
   ELSE
-    CALL ABORT3D('chm_read_avgkern_ascii: COULD NOT OPEN FILE obsinfo_chm!')
+    CALL VARABORT('chm_read_avgkern_ascii: COULD NOT OPEN FILE obsinfo_chm!')
   ENDIF
 
   ios=0
@@ -1243,7 +1243,7 @@ contains
     
     if (icount+chm_avgkern%n_lvl(jelm).gt.isize) then
        write(*,'(10X,"Max array size exceeded: ",I6)') isize
-       CALL ABORT3D('chm_read_avgkern_ascii: READING PROBLEM.')    
+       CALL VARABORT('chm_read_avgkern_ascii: READING PROBLEM.')    
     end if
 
     read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
@@ -1268,7 +1268,7 @@ contains
    
  10 if (ios.gt.0) then
        WRITE(*,*) 'File read error message number: ',ios
-       CALL ABORT3D('chm_read_avgkern_ascii: READING PROBLEM')    
+       CALL VARABORT('chm_read_avgkern_ascii: READING PROBLEM')    
     end if
  
  11 CLOSE(UNIT=NULSTAT)
@@ -1394,7 +1394,7 @@ contains
        end if
 
     else
-       call abort3d("chm_get_avgkern: Invalid station ID index.")
+       call varAbort("chm_get_avgkern: Invalid station ID index.")
     end if
 
   end subroutine chm_get_avgkern
@@ -1468,7 +1468,7 @@ contains
     IF ( IERR .EQ. 0 ) THEN
        open(unit=nulstat, file='obsinfo_chm', status='OLD')
     ELSE
-       CALL ABORT3D('chm_read_ref_fields: COULD NOT OPEN FILE obsinfo_chm!')
+       CALL VARABORT('chm_read_ref_fields: COULD NOT OPEN FILE obsinfo_chm!')
     ENDIF
 
     ios=0
@@ -1488,7 +1488,7 @@ contains
        ierr = newdate(datestamp,ijour,itime,-3)
        if (ierr<0) then
           Write(*,*) "Invalid datestamp ",datestamp,ijour,itime,ierr
-          call abort3d('chm_read_ref_fields')
+          call varAbort('chm_read_ref_fields')
        endif
        imonth = MOD(ijour/100,100)
        iday = MOD(ijour,100)
@@ -1522,7 +1522,7 @@ contains
             if(LExists) then
               fname='./bgcov'
             else               
-               call abort3d('chm_read_ref_fields: did not find file.')
+               call varAbort('chm_read_ref_fields: did not find file.')
             end if
           end if
        end if
@@ -1616,7 +1616,7 @@ contains
      
  10 if (ios.gt.0) then
        WRITE(*,*) 'File read error message number: ',ios
-       CALL ABORT3D('chm_read_ref_fields: READING PROBLEM')    
+       CALL VARABORT('chm_read_ref_fields: READING PROBLEM')    
     end if
  
  11 CLOSE(UNIT=NULSTAT)
@@ -1673,7 +1673,7 @@ contains
     inquire(file=trim(fname),exist=Exists)
     if(.not.Exists) then
       write(*,*) 'File missing=',fname
-      call abort3d('chm_read_fst_field: did not find file.')
+      call varAbort('chm_read_fst_field: did not find file.')
     else
       ier=fnom(iun,trim(fname),'RND+OLD+R/O',0)
       ier=fstouv(iun,'RND+OLD')
@@ -1685,10 +1685,10 @@ contains
 
     if(ier.lt.0.or.nkeys.eq.0) then
       write(*,*) 'Search field missing ',varName, ' from file ',fname
-      call abort3d('chm_read_fst_field: did not find field.')
+      call varAbort('chm_read_fst_field: did not find field.')
     else if (nk.gt.1) then
       write(*,*) 'Unexpected size nk ',nk,' for ',varName,' of file ',fname 
-      call abort3d('chm_read_fst_field')      
+      call varAbort('chm_read_fst_field')      
     end if
 
     if (lgrid) then
@@ -1813,7 +1813,7 @@ contains
         pressrefin(:)=pressrefin(:)*obsoper%pp(obsoper%nmodlev) ! Convert from sigma to Pa   
     else
        write(*,*) 'Vertical coordinate kind is ',chm_ref_fields(id,1)%ivkind
-       call abort3d('chm_get_reference_obsdata: Cannot handle vertical coordinate of this kind.')
+       call varAbort('chm_get_reference_obsdata: Cannot handle vertical coordinate of this kind.')
     end if
     
     ! Interpolate to obs lat/long location and model level
@@ -1825,7 +1825,7 @@ contains
     
     if (chm_ref_fields(id,2)%nlat.gt.0.and.chm_ref_fields(id,2)%nlon.gt.0.and.chm_ref_fields(id,2)%nlev.gt.0) then
         
-        if (any(obsoper%tt.le.0.0)) call abort3d('chm_get_reference_obsdata: Missing TT for determining tropopause pressure')
+        if (any(obsoper%tt.le.0.0)) call varAbort('chm_get_reference_obsdata: Missing TT for determining tropopause pressure')
         
         ! Get second reference field (for troposphere)
         
@@ -1864,7 +1864,7 @@ contains
                pressrefin(:)=pressrefin(:)*obsoper%pp(obsoper%nmodlev) ! Convert from sigma to Pa        
            else 
                write(*,*) 'Vertical coordinate kind is ',chm_ref_fields(id,2)%ivkind
-               call abort3d('chm_get_reference_obsdata: Cannot handle vertical coordinate of this kind.')
+               call varAbort('chm_get_reference_obsdata: Cannot handle vertical coordinate of this kind.')
            end if
       
            ! Interpolate to obs lat/long and model levels
@@ -1907,7 +1907,7 @@ contains
     chm_ref_trial%nrep = chm_ref_trial%nrep+1 
 
     if (chm_ref_trial%nrep.gt.chm_config%obsdata_maxsize) &
-         call abort3d('chm_get_ref_obsdata: Reach max size of array ' // trim(str(chm_config%obsdata_maxsize)) )
+         call varAbort('chm_get_ref_obsdata: Reach max size of array ' // trim(str(chm_config%obsdata_maxsize)) )
   
     ! The obsoper%obs_index (header index) serves as the unique locator code 
     write(chm_ref_trial%code(chm_ref_trial%nrep),'(I22)') obsoper%obs_index
@@ -2113,7 +2113,7 @@ contains
   IF ( IERR .EQ. 0 ) THEN
     open(unit=nulstat, file='obsinfo_chm', status='OLD')
   ELSE
-    CALL ABORT3D('chm_read_obs_err_stddev_ascii: COULD NOT OPEN FILE obsinfo_chm!')
+    CALL VARABORT('chm_read_obs_err_stddev_ascii: COULD NOT OPEN FILE obsinfo_chm!')
   ENDIF
 
 ! Read error standard deviations for constituents if available.
@@ -2176,7 +2176,7 @@ contains
     
     if (icount+chm_std%n_lvl(jelm)*chm_std%n_lat(jelm).gt.isize) then
        write(*,'(10X,"Max array size exceeded: ",I6)') isize
-       CALL ABORT3D('chm_read_obs_err_stddev_ascii: PROBLEM READING OBSERR STD DEV.')    
+       CALL VARABORT('chm_read_obs_err_stddev_ascii: PROBLEM READING OBSERR STD DEV.')    
     end if
 
     ! disregard line of dashes
@@ -2247,7 +2247,7 @@ contains
    
  10 if (ios.gt.0) then
        WRITE(*,*) 'File read error message number: ',ios
-       CALL ABORT3D('chm_read_obs_err_stddev_ascii: PROBLEM READING OBSERR STD DEV.')    
+       CALL VARABORT('chm_read_obs_err_stddev_ascii: PROBLEM READING OBSERR STD DEV.')    
     end if
  
  11 CLOSE(UNIT=NULSTAT)
@@ -2315,7 +2315,7 @@ contains
           end do
        end if
        write(*,*)
-       call abort3d('chm_obs_err_stddev_index: Check section I of file obsinfo_chm.')
+       call varAbort('chm_obs_err_stddev_index: Check section I of file obsinfo_chm.')
     ELSE
 
        IF (chm_std%n_lat(ISTNID) .GT. 1) THEN
@@ -2445,7 +2445,7 @@ contains
        case(4)
           obs_err_stddev = sqrt(chm_std%std2(ISTNID)**2+(wgt*ZVAL)**2)
        case default
-          call abort3d('chm_get_obs_err_stddev: std_type = ' // trim(str(chm_std%std_type(ISTNID))) // &
+          call varAbort('chm_get_obs_err_stddev: std_type = ' // trim(str(chm_std%std_type(ISTNID))) // &
                ' for STNID = ' // trim(CSTNID) // ' is not recognized.')
        end select
 
@@ -2457,10 +2457,10 @@ contains
 
        select case(stat)
        case(1)
-          call abort3d("chm_get_obs_err_stddev: No reports available for STNID = " // trim(cstnid) // &
+          call varAbort("chm_get_obs_err_stddev: No reports available for STNID = " // trim(cstnid) // &
                        ", nlev = " // trim(str(nlev)) // ", varno = " // trim(str(varno)) )
        case(2)
-          call abort3d("chm_get_obs_err_stddev: Report not found for STNID = " // trim(cstnid) // &
+          call varAbort("chm_get_obs_err_stddev: Report not found for STNID = " // trim(cstnid) // &
                        ", nlev = " // trim(str(nlev)) // ", varno = " // trim(str(varno)) )
        end select
 
@@ -2476,7 +2476,7 @@ contains
        case(4)
           obs_err_stddev = sqrt(chm_std%std2(ISTNID)**2+(wgt*sigma)**2)
        case default
-          call abort3d('chm_get_obs_err_stddev: std_type = ' // trim(str(chm_std%std_type(ISTNID))) // &
+          call varAbort('chm_get_obs_err_stddev: std_type = ' // trim(str(chm_std%std_type(ISTNID))) // &
                ' for STNID = ' // trim(CSTNID) // ' is not recognized.')
        end select
        
@@ -2607,7 +2607,7 @@ contains
        write(*,*) "chm_read_burp: Selecting STNID = ",stnid," BUFR = ",varno," block type = ",block_type
        write(*,*) "chm_read_burp:           bkstp = ",bkstp," nlev = ",nlev," match_nlev = ",match_nlev
     else
-       call abort3d('chm_read_burp: Could not open BURP file: ' // filename)
+       call varAbort('chm_read_burp: Could not open BURP file: ' // filename)
     end if
 
     ! get number of reports in file
@@ -2651,7 +2651,7 @@ contains
 
           ! required block found if code reaches this point, retrieve data and store in burp_out
           
-          if (nval.gt.nlev) call abort3d('chm_read_burp: number of levels in the report (' // trim(str(nval)) // &
+          if (nval.gt.nlev) call varAbort('chm_read_burp: number of levels in the report (' // trim(str(nval)) // &
                                          ') exceeds the specified maximum number of levels (' // trim(str(nlev)) // &
                                          ') for STNID ' // rep_stnid )
 
@@ -2804,7 +2804,7 @@ contains
        dim2=obsdata%dim2
     end if
     
-    if (size(varno).lt.dim2) call abort3d('chm_update_burp: Number of BUFR elements not sufficient. ' // &
+    if (size(varno).lt.dim2) call varAbort('chm_update_burp: Number of BUFR elements not sufficient. ' // &
                                           trim(str(size(varno))) // ' vs ' // trim(str(dim2)))
 
     ! initialize burp file, report, and block system resources
@@ -2814,7 +2814,7 @@ contains
 
     ! open the burp file in append mode (to replace or add data in a block)
     call BURP_New(brp, FILENAME=filename, MODE=FILE_ACC_APPEND, IOSTAT=error)
-    if (error.ne.0) call abort3d('chm_update_burp: Could not open BURP file: ' // filename)
+    if (error.ne.0) call varAbort('chm_update_burp: Could not open BURP file: ' // filename)
 
     ! get number of reports in file
     call BURP_Get_Property(brp, NRPTS=nrep)
@@ -3377,7 +3377,7 @@ contains
           stat = 1
           return
        else
-          call abort3d("obsdata_set_index: No reports available. Check for consistency between file obsinfo_chm, " // &
+          call varAbort("obsdata_set_index: No reports available. Check for consistency between file obsinfo_chm, " // &
                        "input BURP file and input NAMBURP_FILTER_CHM* namelist.")
        end if
     end if
@@ -3393,7 +3393,7 @@ contains
              stat = 2
              return
           else
-             call abort3d("obsdata_set_index: Obs index not found for nrep = " // trim(str(obsdata%nrep)) // " and code = '" // code // "'")
+             call varAbort("obsdata_set_index: Obs index not found for nrep = " // trim(str(obsdata%nrep)) // " and code = '" // code // "'")
           end if
        end if
        i=i+1       
@@ -3539,13 +3539,13 @@ contains
     end if
 
     if (obsdata%dim1.gt.size(val)) &
-         call abort3d('obsdata_add_data1d: Insufficient data values provided. ' // trim(str(size(val))) )
+         call varAbort('obsdata_add_data1d: Insufficient data values provided. ' // trim(str(size(val))) )
      
     ! nrep counts the number data values/profiles in the data arrays
     obsdata%nrep = obsdata%nrep+1 
 
     if (obsdata%nrep.gt.chm_config%obsdata_maxsize) &
-         call abort3d('obsdata_add_data1d: Reach max size of array ' // trim(str(chm_config%obsdata_maxsize)) )
+         call varAbort('obsdata_add_data1d: Reach max size of array ' // trim(str(chm_config%obsdata_maxsize)) )
   
     ! Save unique code
     obsdata%code(obsdata%nrep)=trim(code)
@@ -3726,7 +3726,7 @@ contains
     !ier = fnom(chm_message_unit,chm_config%message_filename,trim(mode),0)
     ier = open_file(chm_message_unit,chm_config%message_filename,trim(mode))
 
-    if (ier.ne.0) call abort3d('chm_open_messagefile: Error associating unit number')
+    if (ier.ne.0) call varAbort('chm_open_messagefile: Error associating unit number')
 
     if (present(unit)) unit = chm_message_unit
 
@@ -3837,7 +3837,7 @@ contains
 !
 ! Author  : M. Sitwell Oct 2015
 !
-! Purpose: Function for integer to string conversion. Helpful when calling subroutine abort3d.
+! Purpose: Function for integer to string conversion. Helpful when calling subroutine varAbort.
 !
 !-------------------------------------------------------------------------------------------
 
@@ -3856,7 +3856,7 @@ contains
 !
 ! Author:  M. Sitwell April 2016
 !
-! Purpose: Function for integer to string conversion. Helpful when calling subroutine abort3d.
+! Purpose: Function for integer to string conversion. Helpful when calling subroutine varAbort.
 !
 !-------------------------------------------------------------------------------------------
 
@@ -3915,7 +3915,7 @@ contains
     
     elemId=0
     if (NListSize.gt.Nmax-1) then
-       call abort3d('chm_get_stringId: Dimension error, NListSize > Nmax-1.')     
+       call varAbort('chm_get_stringId: Dimension error, NListSize > Nmax-1.')     
     else if (NListSize.gt.0) then
        if (nobslev.eq.1) then 
           cstring=trim(cstringin)//'U'
@@ -3993,7 +3993,7 @@ contains
     
     elemId=0
     if (NListSize.gt.Nmax-1) then
-       call abort3d('chm_get_Id: Dimension error, NListSize > Nmax-1.')     
+       call varAbort('chm_get_Id: Dimension error, NListSize > Nmax-1.')     
     else if (NListSize.gt.0) then
        do i=1,NListSize
           if (id.eq.IdList(i)) then
@@ -4113,8 +4113,8 @@ contains
     ! Add new elements to internal arrays if not there already
     if (present(stnid_add)) then
       
-       if (iset.ge.2 .and. (.not. present(varno_add))) call abort3d('chm_comboIdlist: varno_add must be present to add element for nset>=2.')
-       if (iset.ge.3 .and. (.not. present(unilev_add))) call abort3d('chm_comboIdlist: unilev_add must be present to add element for nset>=3.')
+       if (iset.ge.2 .and. (.not. present(varno_add))) call varAbort('chm_comboIdlist: varno_add must be present to add element for nset>=2.')
+       if (iset.ge.3 .and. (.not. present(unilev_add))) call varAbort('chm_comboIdlist: unilev_add must be present to add element for nset>=3.')
 
        same = .false.
 
@@ -4127,7 +4127,7 @@ contains
 
        if (.not.same) then
           num_unique=num_unique+1
-          if (num_unique.gt.nmax) call abort3d("chm_comboIDlist: Max allowed dimension exceeded.")
+          if (num_unique.gt.nmax) call varAbort("chm_comboIDlist: Max allowed dimension exceeded.")
           stnid_unique(num_unique) = stnid_add
           if (iset.ge.2) varno_unique(num_unique) = varno_add
           if (iset.ge.3) unilev_unique(num_unique) = unilev_add
@@ -4178,7 +4178,7 @@ contains
               
                 if (.not.same) then
                    num_unique=num_unique+1
-                   if (num_unique.gt.nmax) call abort3d("chm_comboIDlist: Max allowed dimension exceeded.")
+                   if (num_unique.gt.nmax) call varAbort("chm_comboIDlist: Max allowed dimension exceeded.")
                    stnid_unique(num_unique) = stnid_unique_all(j,iproc)
                    if (iset.ge.2) varno_unique(num_unique) = varno_unique_all(j,iproc)
                    if (iset.ge.3) unilev_unique(num_unique) = unilev_unique_all(j,iproc)
@@ -4580,7 +4580,7 @@ contains
        ! Transform lnx to/from x or dlnx to/from dx
        
        if (.not.present(incr_ptr).and.(mode.eq.1.or.mode.eq.2)) &
-            call abort3d("chm_apply_transform_array1d: incr_ptr must be provided for mode = " // trim(str(mode)) )
+            call varAbort("chm_apply_transform_array1d: incr_ptr must be provided for mode = " // trim(str(mode)) )
 
        if (.not.l_reverse) then
 
@@ -4611,7 +4611,7 @@ contains
        end if
 
     case default
-       call abort3d("chm_apply_transform_array1d: transform selection " // trim(str(chm_config%transform(iconstituent_id))) // " not currenly defined." )
+       call varAbort("chm_apply_transform_array1d: transform selection " // trim(str(chm_config%transform(iconstituent_id))) // " not currenly defined." )
     end select
     
   end subroutine chm_apply_transform_array1d
@@ -4694,12 +4694,12 @@ contains
         varNumber=BUFR_NECH_PM10
         
       case default
-         call abort3d('chm_varnumFromVarName: Unknown variable name ' // trim(varName) )
+         call varAbort('chm_varnumFromVarName: Unknown variable name ' // trim(varName) )
       end select
 
       if (varNumber.lt.7000.and.varNumber.gt.chm_constituents_size) then
          ! Assume NWP fields have varNumber >=7000 and so constituent fields are to have varNumber < 7000.
-         call abort3d('chm_varnumFromVarName: chm_constituents_size less than ' // trim(str(varNumber)) // ' for ' // trim(varName) )         
+         call varAbort('chm_varnumFromVarName: chm_constituents_size less than ' // trim(str(varNumber)) // ' for ' // trim(varName) )         
       end if
       
     end function chm_varnumFromVarname
@@ -4791,7 +4791,7 @@ contains
    
     else
      
-        call abort3d('chm_apply_2dfieldr4_transform: Transformation #' // trim(str(iconstituent_id)) // &
+        call varAbort('chm_apply_2dfieldr4_transform: Transformation #' // trim(str(iconstituent_id)) // &
              ' for constituent ' // trim(str(iconstituent_id)) // " and variable name " // trim(varname) // &
              ' is not defined.')
     end if
@@ -4971,7 +4971,7 @@ contains
              end if
       
           case default
-             call abort3d("chm_get_col_boundary: Unrecognized value for chm_config%tropo_bound of " // trim(str(chm_config%tropo_bound(iconstituent_id))) )
+             call varAbort("chm_get_col_boundary: Unrecognized value for chm_config%tropo_bound of " // trim(str(chm_config%tropo_bound(iconstituent_id))) )
           end select
                                      
       end if     
@@ -5030,7 +5030,7 @@ contains
     real(8), parameter :: consth=0.160754938e+07  ! conversion from mass mixing ratio to ppmv;  1.0e+06 / (18.015/28.96)
 
     tropo_press=-1.0
-    if (all(gz.lt.0.0))  call abort3d('chm_get_tropopause: Missing GZ for determining tropopause pressure')
+    if (all(gz.lt.0.0))  call varAbort('chm_get_tropopause: Missing GZ for determining tropopause pressure')
 
 !   Initialize tropopause pressure level using temperature gradient.
 !   Thermal tropopause is defined as the lowest level (above gz_min) at which (1) the lapse rate decreases
@@ -5114,7 +5114,7 @@ contains
              tropo_press=min(tropo_press,tropo_press_hu)
        else
           write(*,*) 'chm_get_tropopause: Level and specific humidity: ',itop,hu_ppmv2
-          call abort3d('chm_get_tropopause: Specific humidity too small.')
+          call varAbort('chm_get_tropopause: Specific humidity too small.')
        end if
                              
     end if
@@ -5202,7 +5202,7 @@ contains
 
     i = nmodlev   
     
-    if (all(gz.lt.0.0))  call abort3d('chm_get_pbl: Missing GZ for determining PBL pressure')
+    if (all(gz.lt.0.0))  call varAbort('chm_get_pbl: Missing GZ for determining PBL pressure')
 
 !   Convert hu to mass mixing ratio
 
@@ -5239,7 +5239,7 @@ contains
     if (present(uu).and.present(vv)) then
        id=nmodlev-size(uu)
        if (id.gt.1.or.id.lt.0) then
-          call abort3d('chm_get_pbl: Unexpected number of UV levels, nmodlev = ' // trim(str(nmodlev)) // ' , size(uu) = ' // trim(str(size(uu))) )    
+          call varAbort('chm_get_pbl: Unexpected number of UV levels, nmodlev = ' // trim(str(nmodlev)) // ' , size(uu) = ' // trim(str(size(uu))) )    
        end if
        us = uu(size(uu))
        vs = vv(size(vv))
@@ -5378,7 +5378,7 @@ contains
     chm_column_boundary%nrep = chm_column_boundary%nrep+1 
 
     if (chm_column_boundary%nrep.gt.chm_config%obsdata_maxsize) &
-         call abort3d('chm_add_col_boundary: Reach max size of array ' // trim(str(chm_config%obsdata_maxsize)) )
+         call varAbort('chm_add_col_boundary: Reach max size of array ' // trim(str(chm_config%obsdata_maxsize)) )
   
     ! Use the header number as the unique code for this obs data
     write(chm_column_boundary%code(chm_column_boundary%nrep),'(I22)') headerIndex
@@ -5435,7 +5435,7 @@ contains
     chm_sigma_trial%nrep = chm_sigma_trial%nrep+1 
 
     if (chm_sigma_trial%nrep.gt.chm_config%obsdata_maxsize) &
-         call abort3d('chm_sigma_trial: Reached max size of array ' // trim(str(chm_config%obsdata_maxsize)) )
+         call varAbort('chm_sigma_trial: Reached max size of array ' // trim(str(chm_config%obsdata_maxsize)) )
   
     ! Use the header number as the unique code for this obs data
     write(chm_sigma_trial%code(chm_sigma_trial%nrep),'(I22)') headerIndex
@@ -5852,7 +5852,7 @@ contains
              end if
              !ierr = fnom(unit,chm_config%obsspace_diagn_filename,trim(mode),0)
              ierr = open_file(unit,chm_config%obsspace_diagn_filename,trim(mode))  ! temporary bug fix, see comments in open_file subroutine
-             if (ierr.ne.0) call abort3d('chm_obsspace_diagn_print: Error associating unit number')
+             if (ierr.ne.0) call varAbort('chm_obsspace_diagn_print: Error associating unit number')
           else
              unit=6
           end if
@@ -6026,7 +6026,7 @@ contains
              end if
              !ierr = fnom(unit,chm_config%obsspace_diagn_filename,trim(mode),0)
              ierr = open_file(unit,chm_config%obsspace_diagn_filename,trim(mode))  ! temporary bug fix, see comments in open_file subroutine
-             if (ierr.ne.0) call abort3d('chm_obsspace_diagn_print: Error associating unit number')
+             if (ierr.ne.0) call varAbort('chm_obsspace_diagn_print: Error associating unit number')
           else
              unit=6
           end if
@@ -6041,7 +6041,7 @@ contains
        end if
     
     case default
-       call abort3d("chm_obsspace_diagn_print: Invalid print_type select of " // trim(print_type) )
+       call varAbort("chm_obsspace_diagn_print: Invalid print_type select of " // trim(print_type) )
     end select
 
   
@@ -6442,7 +6442,7 @@ contains
      if (.not.obsoper%layer_identified) then
         write(*,*)   '----------------------------------------------------------'
         write(*,*)   'STNID, BUFR index, nobslev: ',obsoper%stnid,' ',obsoper%varno,obsoper%nobslev
-        call abort3d('chm_obsoperators: Required layer boundaries not available!')
+        call varAbort('chm_obsoperators: Required layer boundaries not available!')
      else
         ! Vertical integration operator
         obsoper%modelIndex=3
@@ -6524,7 +6524,7 @@ contains
   case(4,5)
      ! No actions taken
   case default
-     call abort3d("chm_obsoperators: vertical coordinate type vco = " // trim(str(obsoper%vco)) // " not available for this operator.")
+     call varAbort("chm_obsoperators: vertical coordinate type vco = " // trim(str(obsoper%vco)) // " not available for this operator.")
   end select
 
 ! Determine if averaging kernel is to be applied
@@ -6637,7 +6637,7 @@ contains
         if (trim(bchm_varnamelist(jvar)).eq.trim(obsoper%varName)) exit
         jvar=jvar+1
      end do
-     if (trim(bchm_varnamelist(jvar)).eq.'') call abort3d('chm_genoper: Correlation matrix not found for ' // trim(obsoper%varName) )
+     if (trim(bchm_varnamelist(jvar)).eq.'') call varAbort('chm_genoper: Correlation matrix not found for ' // trim(obsoper%varName) )
 
      do iobslev=1,obsoper%nobslev
         if (success(iobslev)) then
@@ -6791,7 +6791,7 @@ contains
 
      else
      
-        call abort3d('chm_transform_profile: Transformation #' // trim(str(chm_config%transform(obsoper%constituent_id))) // &
+        call varAbort('chm_transform_profile: Transformation #' // trim(str(chm_config%transform(obsoper%constituent_id))) // &
              ' for constituent ' // trim(str(obsoper%constituent_id)) // " and variable name " // trim(obsoper%varname) // &
              ' is not defined.')
         
@@ -6917,7 +6917,7 @@ contains
 
      if (any(obsoper%varno .eq. (/ 15198,15001,15005,15045,15009,15012,15199,15003,15010,15230, &
           15022,15026,15008,15197,15208,1300 /) )) &
-          call abort3d("chm_convert_units: BUFR # " // trim(str(obsoper%varno)) // " is not valid for PM" )
+          call varAbort("chm_convert_units: BUFR # " // trim(str(obsoper%varno)) // " is not valid for PM" )
 
      ! Conversion from ug/m^3 to ug/kg  (scaling by Rd*T/P)
      zcoef = zcoef * MPC_RGAS_DRY_AIR_R8
@@ -7038,7 +7038,7 @@ contains
            
      case default 
         
-        call abort3d('CHM_CONVERT_UNITS: Unknown obs units for varno = ' // trim(str(obsoper%varno)) )
+        call varAbort('CHM_CONVERT_UNITS: Unknown obs units for varno = ' // trim(str(obsoper%varno)) )
          
      end select
   end if
@@ -7047,7 +7047,7 @@ contains
   model_col = model_col * zcoef
 
   if (exp_T.ne.0) then
-     if (any(obsoper%tt.le.0.)) call abort3d("CHM_CONVERT_UNITS: Missing valid temperature for conversion.")
+     if (any(obsoper%tt.le.0.)) call varAbort("CHM_CONVERT_UNITS: Missing valid temperature for conversion.")
      model_col = model_col * obsoper%tt**exp_T
   end if
 
@@ -7184,14 +7184,14 @@ contains
       obsoper%constituent_id.ge.0.and.obsoper%vco.eq.4) then
 
      if (obsoper%constituent_id.gt.chm_constituents_size) &
-          call abort3d("chm_layer_integ_operator: Invalid constituent ID with value " // trim(str(obsoper%constituent_id)))
+          call varAbort("chm_layer_integ_operator: Invalid constituent ID with value " // trim(str(obsoper%constituent_id)))
      
      vlayerbottom_ref=obsoper%vlayerbottom(1)
    
      if ( chm_config%tropo_mode(obsoper%constituent_id).ge.1 .and. obsoper%column_bound.gt.obsoper%vlayertop(1) ) then
         
         if (obsoper%iavgkern.ne.0) &
-             call abort3d("chm_layer_integ_operator: Use of averaging kernels not possible with reduced range of increment profile.")
+             call varAbort("chm_layer_integ_operator: Use of averaging kernels not possible with reduced range of increment profile.")
  
         if (kmode.eq.2.and.chm_config%tropo_mode(obsoper%constituent_id).eq.1) then
            
@@ -7862,7 +7862,7 @@ contains
          if (trim(bchm_varnamelist(jvar)).eq.trim(obsoper%varName)) exit
          jvar=jvar+1
       end do
-      if (trim(bchm_varnamelist(jvar)).eq.'') call abort3d('chm_genoper: Correlation matrix not found for ' // trim(obsoper%varName) )
+      if (trim(bchm_varnamelist(jvar)).eq.'') call varAbort('chm_genoper: Correlation matrix not found for ' // trim(obsoper%varName) )
 !
 !     Initialize reference mass (mixing ratio) weighting profile as profile from trial field
 ! 

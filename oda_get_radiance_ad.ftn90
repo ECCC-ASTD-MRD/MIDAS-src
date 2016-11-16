@@ -51,7 +51,7 @@ subroutine oda_get_radiance_ad(lobsSpaceData)
 
    integer  isrcheq
    external isrcheq
-   external abort3d
+   external varAbort
 
    if(NOBTOV.eq.0) return    ! exit if there are no tovs data
 
@@ -75,7 +75,7 @@ subroutine oda_get_radiance_ad(lobsSpaceData)
       if ( indxtovs .eq. 0 ) then
          write(*,fmt=9203)
 9203     format(' tovs_calc_jo_ad: error with indxtovs')
-         call abort3d('tovs_calc_jo_ad ')
+         call varAbort('tovs_calc_jo_ad ')
       endif
 
       radiance_ad (indxtovs) % bt(:) = 0.d0
@@ -98,7 +98,7 @@ subroutine oda_get_radiance_ad(lobsSpaceData)
                if ( indxchn .eq. 0 ) then
                   write(*,fmt=9202)
 9202              format(' tovs_calc_jo_ad: error with channel number')
-                  call abort3d('tovs_calc_jo_ad  ')
+                  call varAbort('tovs_calc_jo_ad  ')
                endif
                zres = obs_bodyElem_r(lobsSpaceData,OBS_WORK,index_body)
                radiance_ad (indxtovs) % bt(indxchn) = zres

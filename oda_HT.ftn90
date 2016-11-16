@@ -16,6 +16,7 @@
 !
 subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
   use mpivar_mod
+  use topLevelControl_mod
   use EarthConstants_mod
   use MathPhysConstants_mod
   use obsSpaceData_mod
@@ -64,13 +65,17 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
   call oda_HTzp
   call tmg_stop (46)
 
-  call tmg_start(45,'OBS_GPSRO_TLAD') !
-  call oda_HTro
-  call tmg_stop (45)      !     !
+  if ( top_spatialDimensions() /= '2D') then
+     call tmg_start(45,'OBS_GPSRO_TLAD') !
+     call oda_HTro
+     call tmg_stop (45)      !     !
+  end if
 
-  call tmg_start(44,'OBS_TOV_TLAD') !
-  call oda_HTto
-  call tmg_stop (44)      !
+  if ( top_spatialDimensions() /= '2D') then
+     call tmg_start(44,'OBS_TOV_TLAD') !
+     call oda_HTto
+     call tmg_stop (44)      !
+  end if
 
   call tmg_start(43,'OBS_SFC_TLAD')
   call oda_HTsf
@@ -248,10 +253,6 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
             nlev = col_getNumLev(lcolumn,varLevel)
 
             INDEX_HEADER = obs_bodyElem_i(lobsSpaceData,OBS_HIND,INDEX_BODY)
-            all_column => col_getColumn(lcolumn,INDEX_HEADER)
-            tt_column  => col_getColumn(lcolumn,INDEX_HEADER,'TT')
-            hu_column  => col_getColumn(lcolumn,INDEX_HEADER,'HU')
-            ps_column  => col_getColumn(lcolumn,INDEX_HEADER,'P0')
             ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
             IK   = obs_bodyElem_i(lobsSpaceData,OBS_LYR,INDEX_BODY)
             ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
@@ -263,6 +264,9 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
                 ITYP.EQ.BUFR_NEUS .OR. ITYP.EQ.BUFR_NEVS ) THEN
               if(ityp.eq.bufr_ness) then
                 dPdPsfc = col_getPressureDeriv(lcolumng,nlev,index_header,'TH')
+                tt_column  => col_getColumn(lcolumn,INDEX_HEADER,'TT')
+                hu_column  => col_getColumn(lcolumn,INDEX_HEADER,'HU')
+                ps_column  => col_getColumn(lcolumn,INDEX_HEADER,'P0')
                 call lqtoes_ad(hu_column(nlev),  &
                                tt_column(nlev),  &
                                ps_column(1),     &
@@ -271,9 +275,13 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
                                col_getPressure(lcolumng,nlev,INDEX_HEADER,'TH'),  &
                                dPdPsfc)
               else
+                all_column => col_getColumn(lcolumn,INDEX_HEADER) 
                 all_column(IPB) = all_column(IPB) + ZRES
               endif
             ELSEIF (ITYP.EQ.BUFR_NEPS .OR. ITYP.EQ.BUFR_NEPN) THEN
+              tt_column  => col_getColumn(lcolumn,INDEX_HEADER,'TT')
+              hu_column  => col_getColumn(lcolumn,INDEX_HEADER,'HU')
+              ps_column  => col_getColumn(lcolumn,INDEX_HEADER,'P0')
               ZTVG  = lcolumng%OLTV(1,nlev,INDEX_HEADER)*col_getElem(lcolumng,nlev,INDEX_HEADER,'TT')
               ZGAMAZ= ZGAMMA*(ZHHH-col_getHeight(lcolumng,nlev,INDEX_HEADER,varLevel))
               ZCON  = ((ZTVG-ZGAMAZ)/ZTVG)
@@ -287,6 +295,8 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
               hu_column(nlev)= hu_column(nlev)   &
                    + lcolumng%OLTV(2,nlev,INDEX_HEADER)*ZATV
             ELSE
+              all_column => col_getColumn(lcolumn,INDEX_HEADER)
+              ps_column  => col_getColumn(lcolumn,INDEX_HEADER,'P0')
               IPT  = IK + col_getOffsetFromVarno(lcolumng,ityp)
               IPB  = IPT+1
               ZPT  = col_getHeight(lcolumng,IK  ,INDEX_HEADER,varLevel)
@@ -596,7 +606,7 @@ end subroutine oda_HTto
       NFLEV  = col_getNumLev(lcolumng,'TH')
 
       IF ( .not.vGPSZTD_lJac(1) ) THEN
-         call abort3d('oda_HTgp:ERROR: ZTD Jacobians not stored!')
+         call varAbort('oda_HTgp:ERROR: ZTD Jacobians not stored!')
       ENDIF
 
       ! loop over all header indices of the 'GP' family (GPS observations)
@@ -634,7 +644,7 @@ end subroutine oda_HTto
             icount = icount + 1
             iztd = gps_i_from_index(INDEX_HEADER)
             if ( iztd < 1 .or. iztd > numGPSZTD ) then
-              call abort3d('oda_HTgp: ERROR: index from gps_i_from_index() is out of range!')
+              call varAbort('oda_HTgp: ERROR: index from gps_i_from_index() is out of range!')
             endif            
             
             DO JL = 1, 2*NFLEV+1

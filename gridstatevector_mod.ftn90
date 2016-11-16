@@ -33,6 +33,7 @@
 !
 !--------------------------------------------------------------------------
 MODULE gridStateVector_mod
+  use topLevelControl_mod
   use mpivar_mod
   use varNameList_mod
   use verticalCoord_mod
@@ -163,11 +164,11 @@ MODULE gridStateVector_mod
       nulnam=0
       ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       read(nulnam,nml=namstate,iostat=ierr)
-      if(ierr.ne.0) call abort3d('gsv_setup: Error reading namelist')
+      if(ierr.ne.0) call varAbort('gsv_setup: Error reading namelist')
       if(mpi_myid.eq.0) write(*,nml=namstate)
       ierr=fclos(nulnam)
 
-      if(varneed('GZ')) call abort3d('gsv_setup: GZ can no longer be included as a variable in gridStateVector!')
+      if(varneed('GZ')) call varAbort('gsv_setup: GZ can no longer be included as a variable in gridStateVector!')
 
       do jvar = 1, vnl_numvarmax3D
         if (varneed(vnl_varNameList3D(jvar))) then
@@ -191,7 +192,7 @@ MODULE gridStateVector_mod
 !     Check value for ANLTIME_BIN
 !
       if (ANLTIME_BIN .ne. 'MIDDLE' .and. ANLTIME_BIN .ne. 'FIRST' .and.  ANLTIME_BIN .ne. 'LAST') then
-         call abort3d('gsv_setup: Problem setting ANLTIME_BIN. Verify NAMSTATE namelist. Aborting!')
+         call varAbort('gsv_setup: Problem setting ANLTIME_BIN. Verify NAMSTATE namelist. Aborting!')
       endif
 
       RETURN
@@ -228,7 +229,7 @@ MODULE gridStateVector_mod
     integer             :: ierr,iloc,jvar,jvar2,jstep,lon1,lat1
 
     if(.not.statevector%vco%initialized) then
-       call abort3d('statevector_allocate: VerticalCoord has not been initialized!')
+       call varAbort('statevector_allocate: VerticalCoord has not been initialized!')
     endif
 
     if (statevector%allocated)then
@@ -274,13 +275,13 @@ MODULE gridStateVector_mod
     if( statevector%ni * statevector%horizSubSample /= statevector%hco%ni ) then
       write(*,*) 'gsv_allocate: number of longitudes is not evenly divisible at this subSample level'
       write(*,*) 'gsv_allocate: ni, horizSubSample = ', statevector%ni, statevector%horizSubSample
-      call abort3d('gsv_allocate')
+      call varAbort('gsv_allocate')
     endif
 
     if( statevector%nj * statevector%horizSubSample /= statevector%hco%nj ) then
       write(*,*) 'gsv_allocate: number of latitudes is not evenly divisible at this subSample level'
       write(*,*) 'gsv_allocate: nj, horizSubSample = ', statevector%nj, statevector%horizSubSample
-      call abort3d('gsv_allocate')
+      call varAbort('gsv_allocate')
     endif
 
     statevector%numStep=numStep
@@ -369,7 +370,7 @@ MODULE gridStateVector_mod
                                    statevector%myLatBeg:statevector%myLatEnd,  &
                                    statevector%nk,numStep),stat=ierr)
       else
-        call abort3d('gsv_allocate: unknown value of datakind')
+        call varAbort('gsv_allocate: unknown value of datakind')
       endif
     else
       if(statevector%dataKind==8) then
@@ -377,12 +378,12 @@ MODULE gridStateVector_mod
       elseif(statevector%dataKind==4) then
         allocate(statevector%gd_r4(statevector%ni,statevector%nj,statevector%nk,numStep),stat=ierr)
       else
-        call abort3d('gsv_allocate: unknown value of datakind')
+        call varAbort('gsv_allocate: unknown value of datakind')
       endif
     endif
     if(ierr.ne.0) then
       write(*,*) 'gridStateVector: Problem allocating memory! id=1 ',ierr
-      call abort3d('aborting in gsv_allocate')
+      call varAbort('aborting in gsv_allocate')
     endif
 
     lon1=statevector%myLonBeg
@@ -404,7 +405,7 @@ MODULE gridStateVector_mod
     integer          :: jstep,jlon,jlev,jlat,lat1,lat2,lon1,lon2
 
     if(.not.statevector%allocated) then
-      call abort3d('gridStateVector not yet allocated! Aborting.')
+      call varAbort('gridStateVector not yet allocated! Aborting.')
     endif
 
     lon1=statevector%myLonBeg
@@ -441,7 +442,7 @@ MODULE gridStateVector_mod
 !$OMP END PARALLEL DO
 
     else
-       call abort3d('gsv_zero: unknown value of datakind')
+       call varAbort('gsv_zero: unknown value of datakind')
     endif
     
   END SUBROUTINE GSV_zero
@@ -456,7 +457,7 @@ MODULE gridStateVector_mod
     real*8, allocatable :: gd_temp(:,:,:,:)
 
     if(.not.statevector_in%mpi_local) then
-      call abort3d('gsv_commMPIGlobal: statevector already global!')
+      call varAbort('gsv_commMPIGlobal: statevector already global!')
     endif
 
     ! only allocate a single 3D mpiglobal statevector as an array of latlon tiles
@@ -519,7 +520,7 @@ MODULE gridStateVector_mod
     real*8, allocatable :: gd_temp(:,:,:,:)
 
     if(.not.statevector_in%mpi_local) then
-      call abort3d('gsv_commMPIGlobal3D: statevector already global!')
+      call varAbort('gsv_commMPIGlobal3D: statevector already global!')
     endif
 
     ! only allocate a single 3D mpiglobal statevector as an array of latlon tiles
@@ -581,10 +582,10 @@ MODULE gridStateVector_mod
     real(8), optional :: scaleFactor
 
     if(.not.statevector_in%allocated) then
-      call abort3d('gridStateVector_in not yet allocated! Aborting.')
+      call varAbort('gridStateVector_in not yet allocated! Aborting.')
     endif
     if(.not.statevector_inout%allocated) then
-      call abort3d('gridStateVector_inout not yet allocated! Aborting.')
+      call varAbort('gridStateVector_inout not yet allocated! Aborting.')
     endif
 
     lon1=statevector_in%myLonBeg
@@ -632,10 +633,10 @@ MODULE gridStateVector_mod
     integer           :: jstep,jlon,jlev,jlat,lon1,lon2,lat1,lat2
 
     if(.not.statevector_in%allocated) then
-      call abort3d('gridStateVector_in not yet allocated! Aborting.')
+      call varAbort('gridStateVector_in not yet allocated! Aborting.')
     endif
     if(.not.statevector_out%allocated) then
-      call abort3d('gridStateVector_out not yet allocated! Aborting.')
+      call varAbort('gridStateVector_out not yet allocated! Aborting.')
     endif
 
     lon1=statevector_in%myLonBeg
@@ -688,7 +689,7 @@ MODULE gridStateVector_mod
     real(8), optional :: scaleFactor
 
     if(.not.statevector_inout%allocated) then
-      call abort3d('gridStateVector_inout not yet allocated! Aborting.')
+      call varAbort('gridStateVector_inout not yet allocated! Aborting.')
     endif
 
     lon1=statevector_inout%myLonBeg
@@ -736,7 +737,7 @@ MODULE gridStateVector_mod
     integer          :: jstep,jlon,jlev,jlat,lon1,lon2,lat1,lat2
 
     if(.not.statevector_in%allocated) then
-      call abort3d('gridStateVector_in not yet allocated! Aborting.')
+      call varAbort('gridStateVector_in not yet allocated! Aborting.')
     endif
 
     lon1=statevector_in%myLonBeg
@@ -771,7 +772,7 @@ MODULE gridStateVector_mod
     real(8)          :: scaleFactor
 
     if(.not.statevector_inout%allocated) then
-      call abort3d('gsv_Scale: gridStateVector_inout not yet allocated! Aborting.')
+      call varAbort('gsv_Scale: gridStateVector_inout not yet allocated! Aborting.')
     endif
 
     lon1=statevector_inout%myLonBeg
@@ -804,7 +805,7 @@ MODULE gridStateVector_mod
     real(8)          :: scaleFactor(:)
 
     if(.not.statevector_inout%allocated) then
-      call abort3d('gsv_Scale: gridStateVector_inout not yet allocated! Aborting.')
+      call varAbort('gsv_Scale: gridStateVector_inout not yet allocated! Aborting.')
     endif
 
     lon1=statevector_inout%myLonBeg
@@ -834,7 +835,7 @@ MODULE gridStateVector_mod
     integer          :: jstep,jlon,jlev,jlat,lon1,lon2,lat1,lat2
 
     if(.not.statevector%allocated) then
-      call abort3d('gridStateVector not yet allocated! Aborting.')
+      call varAbort('gridStateVector not yet allocated! Aborting.')
     endif
 
     lon1=statevector%myLonBeg
@@ -869,7 +870,7 @@ MODULE gridStateVector_mod
                                  statevector%myLatBeg:statevector%myLatEnd)
 
     if(.not.statevector%allocated) then
-      call abort3d('gridStateVector not yet allocated! Aborting.')
+      call varAbort('gridStateVector not yet allocated! Aborting.')
     endif
 
     lon1=statevector%myLonBeg
@@ -912,7 +913,7 @@ MODULE gridStateVector_mod
     integer        :: ierr
 
     if(.not.statevector%allocated) then
-      call abort3d('gridStateVector not yet allocated! Aborting.')
+      call varAbort('gridStateVector not yet allocated! Aborting.')
     endif
 
     statevector%allocated=.false.
@@ -950,7 +951,7 @@ MODULE gridStateVector_mod
     lon1=statevector%myLonBeg
     lat1=statevector%myLatBeg
 
-    if(.not. associated(statevector%gd_r8)) call abort3d('gsv_getField_r8: data with type r8 not allocated')
+    if(.not. associated(statevector%gd_r8)) call varAbort('gsv_getField_r8: data with type r8 not allocated')
 
     if(present(varName)) then
       if(gsv_varExist(statevector,varName)) then
@@ -958,7 +959,7 @@ MODULE gridStateVector_mod
         ilev2 = ilev1 - 1 + statevector%varNumLev(vnl_varListIndex(varName))
         field(lon1:,lat1:,1:,1:) => statevector%gd_r8(:,:,ilev1:ilev2,:)
       else
-        call abort3d('gsv_getField_r8: Unknown variable name! ' // varName)
+        call varAbort('gsv_getField_r8: Unknown variable name! ' // varName)
       endif
     else
       field(lon1:,lat1:,1:,1:) => statevector%gd_r8(:,:,:,:)
@@ -967,28 +968,37 @@ MODULE gridStateVector_mod
   end function gsv_getField_r8
 
 
-  function gsv_getField3D_r8(statevector,varName) result(field3D)
+  function gsv_getField3D_r8(statevector,varName,indexStep_in) result(field3D)
     implicit none
     type(struct_gsv), intent(in)           :: statevector
     character(len=*), intent(in), optional :: varName
+    integer, intent(in), optional          :: indexStep_in
     real(8),pointer                        :: field3D(:,:,:)
     integer                                :: ilev1,ilev2,lon1,lat1
 
     lon1=statevector%myLonBeg
     lat1=statevector%myLatBeg
 
-    if(.not. associated(statevector%gd3d_r8)) call abort3d('gsv_getField3D_r8: data with type r8 not allocated')
+    if(.not. associated(statevector%gd3d_r8)) call varAbort('gsv_getField3D_r8: data with type r8 not allocated')
 
     if(present(varName)) then
       if(gsv_varExist(statevector,varName)) then
         ilev1 = 1 + statevector%varOffset(vnl_varListIndex(varName))
         ilev2 = ilev1 - 1 + statevector%varNumLev(vnl_varListIndex(varName))
-        field3D(lon1:,lat1:,1:) => statevector%gd3d_r8(:,:,ilev1:ilev2)
+        if(present(indexStep_in)) then
+          field3D(lon1:,lat1:,1:) => statevector%gd_r8(:,:,ilev1:ilev2,indexStep_in)
+        else
+          field3D(lon1:,lat1:,1:) => statevector%gd3d_r8(:,:,ilev1:ilev2)
+        endif
       else
-        call abort3d('gsv_getField3D_r8: Unknown variable name! ' // varName)
+        call varAbort('gsv_getField3D_r8: Unknown variable name! ' // varName)
       endif
     else
-      field3D(lon1:,lat1:,1:) => statevector%gd3d_r8(:,:,:)
+      if(present(indexStep_in)) then
+        field3D(lon1:,lat1:,1:) => statevector%gd_r8(:,:,:,indexStep_in)
+      else
+        field3D(lon1:,lat1:,1:) => statevector%gd3d_r8(:,:,:)
+      endif
     endif
 
   end function gsv_getField3D_r8
@@ -1004,7 +1014,7 @@ MODULE gridStateVector_mod
     lon1=statevector%myLonBeg
     lat1=statevector%myLatBeg
 
-    if(.not. associated(statevector%gd_r4)) call abort3d('gsv_getField_r4: data with type r4 not allocated')
+    if(.not. associated(statevector%gd_r4)) call varAbort('gsv_getField_r4: data with type r4 not allocated')
 
     if(present(varName)) then
       if(gsv_varExist(statevector,varName)) then
@@ -1012,7 +1022,7 @@ MODULE gridStateVector_mod
         ilev2 = ilev1 - 1 + statevector%varNumLev(vnl_varListIndex(varName))
         field(lon1:,lat1:,1:,1:) => statevector%gd_r4(:,:,ilev1:ilev2,:)
       else
-        call abort3d('gsv_getField_r4: Unknown variable name! ' // varName)
+        call varAbort('gsv_getField_r4: Unknown variable name! ' // varName)
       endif
     else
       field(lon1:,lat1:,1:,1:) => statevector%gd_r4(:,:,:,:)
@@ -1021,28 +1031,37 @@ MODULE gridStateVector_mod
   end function gsv_getField_r4
 
 
-  function gsv_getField3D_r4(statevector,varName) result(field3D)
+  function gsv_getField3D_r4(statevector,varName,indexStep_in) result(field3D)
     implicit none
     type(struct_gsv), intent(in)           :: statevector
     character(len=*), intent(in), optional :: varName
+    integer, intent(in), optional          :: indexStep_in
     real(4),pointer                        :: field3D(:,:,:)
     integer                                :: ilev1,ilev2,lon1,lat1
 
     lon1=statevector%myLonBeg
     lat1=statevector%myLatBeg
 
-    if(.not. associated(statevector%gd3d_r4)) call abort3d('gsv_getField3D_r4: data with type r4 not allocated')
+    if(.not. associated(statevector%gd3d_r4)) call varAbort('gsv_getField3D_r4: data with type r4 not allocated')
 
     if(present(varName)) then
       if(gsv_varExist(statevector,varName)) then
         ilev1 = 1 + statevector%varOffset(vnl_varListIndex(varName))
         ilev2 = ilev1 - 1 + statevector%varNumLev(vnl_varListIndex(varName))
-        field3D(lon1:,lat1:,1:) => statevector%gd3d_r4(:,:,ilev1:ilev2)
+        if(present(indexStep_in)) then
+          field3D(lon1:,lat1:,1:) => statevector%gd_r4(:,:,ilev1:ilev2,indexStep_in)
+        else
+          field3D(lon1:,lat1:,1:) => statevector%gd3d_r4(:,:,ilev1:ilev2)
+        endif
       else
-        call abort3d('gsv_getField3D_r4: Unknown variable name! ' // varName)
+        call varAbort('gsv_getField3D_r4: Unknown variable name! ' // varName)
       endif
     else
-      field3D(lon1:,lat1:,1:) => statevector%gd3d_r4(:,:,:)
+      if(present(indexStep_in)) then
+        field3D(lon1:,lat1:,1:) => statevector%gd_r4(:,:,:,indexStep_in)
+      else
+        field3D(lon1:,lat1:,1:) => statevector%gd3d_r4(:,:,:)
+      endif
     endif
 
   end function gsv_getField3D_r4
@@ -1060,13 +1079,13 @@ MODULE gridStateVector_mod
           dateStamp=statevector%dateStampList(step)
         else
           write(*,*) 'gsv_getDateStamp: requested step is out of range! Step,numStep=',step,statevector%numStep
-          call abort3d('aborting in gsv_getDateStamp')
+          call varAbort('aborting in gsv_getDateStamp')
         endif    
       else
         dateStamp=statevector%dateStamp3D
       endif
     else
-      call abort3d('gsv_getDateStamp: dateStampList was not created during allocation!')
+      call varAbort('gsv_getDateStamp: dateStampList was not created during allocation!')
     endif
 
   end function gsv_getDateStamp
@@ -1136,7 +1155,7 @@ MODULE gridStateVector_mod
     real(8), pointer     :: field3d_tile(:,:,:), field3dVV_tile(:,:,:), psfc_tile(:,:) => null()
     real(4) :: factor_r4, temp_r4
     integer :: ierr, ni, nj, nk, batchnum, youridx, youridy, yourid, nsize
-    integer :: jlon, jlev, jlat, nlev, jvar, jlev2, ip1, indexStep, target_gid
+    integer :: jlon, jlev, jlat, nlev, nlev_gsv, jvar, jlev2, ip1, indexStep, target_gid
     integer :: readLevPE(500)
     integer :: ini,inj,ig1,ig2,ig3,ig4
     character(len=4)  :: varName
@@ -1163,7 +1182,12 @@ MODULE gridStateVector_mod
     endif
 
     ! set up vertical and horizontal coordinate for input file
-    call vco_SetupFromFile(vco_file,trim(fileName),' ',beSilent=.true.)
+    if ( top_spatialDimensions() /= '2D') then
+       call vco_SetupFromFile(vco_file,trim(fileName),' ',beSilent=.true.)
+    else
+       call vco_SetupManual( vco_file,                 & ! OUT
+                             top_AnalysisLevel2d(), 1 )  ! IN
+    end if
     if(associated(hco_Get(gridName))) then
       write(*,*) 'gsv_readFromFile: horiz grid already defined with name: ', gridName
       hco_file => hco_Get(gridName)
@@ -1180,7 +1204,7 @@ MODULE gridStateVector_mod
 
     ! possibly adjust target grid definition
     if ( trim(statevector % hco % grtyp) == 'G' .and. statevector % hco % ig2 == 1 ) then
-      call abort3d('gsv_readFromFile: ERROR: due to bug in ezsint, Gaussian grid with ig2=1 no longer supported')
+      call varAbort('gsv_readFromFile: ERROR: due to bug in ezsint, Gaussian grid with ig2=1 no longer supported')
     else 
       target_gid = statevector % hco % EZscintID
     end if
@@ -1194,11 +1218,11 @@ MODULE gridStateVector_mod
        write(*,*)'gsv_readFromFile: file opened with unit number ',nulfile
        ierr  =  fstouv(nulfile,'RND+OLD')
     else
-       call abort3d('gsv_readFromFile: problem opening input file, aborting!')
+       call varAbort('gsv_readFromFile: problem opening input file, aborting!')
     end if
 
     if (nulfile == 0 ) then
-       call abort3d('gsv_readFromFile: unit number for input file not valid!')
+       call varAbort('gsv_readFromFile: unit number for input file not valid!')
     endif
 
     allocate(field2d_file_r4(hco_file%ni,hco_file%nj))
@@ -1270,7 +1294,7 @@ MODULE gridStateVector_mod
             elseif(varLevel == 'SF') then
               ip1 = -1
             else
-              call abort3d('gsv_readFromFile: unknown varLevel')
+              call varAbort('gsv_readFromFile: unknown varLevel')
             endif
 
             ierr=fstlir(field2d_file_r4(:,:),nulfile,ni,nj,nk,  &
@@ -1284,7 +1308,7 @@ MODULE gridStateVector_mod
 
             if(ierr.lt.0)then
               write(*,*) varName,ip1,statevector%datestamplist(indexStep)
-              call abort3d('gsv_readFromFile: Problem with background file')
+              call varAbort('gsv_readFromFile: Problem with background file')
             end if
 
             if(doHorizInterp) then
@@ -1398,17 +1422,17 @@ MODULE gridStateVector_mod
                 deallocate(field3dVV_tile)
               endif
             else
-              call abort3d('gsv_readFromFile: surface pressure not yet read, cannot call gsv_vint')
+              call varAbort('gsv_readFromFile: surface pressure not yet read, cannot call gsv_vint')
             endif
           else
             field => gsv_getField_r8(statevector,varName)
-            field(:,:,:,:) = 0.0d0
+            field(:,:,:,indexStep) = 0.0d0
             field(statevector%myLonBeg:statevector%myLonEnd, &
                   statevector%myLatBeg:statevector%myLatEnd,1:nlev,indexStep) =  &
                                             field3d_tile(:,:,1:nlev)
             if(trim(varName) == 'UU') then
               field => gsv_getField_r8(statevector,'VV')
-              field(:,:,:,:) = 0.0d0
+              field(:,:,:,indexStep) = 0.0d0
               field(statevector%myLonBeg:statevector%myLonEnd, &
                     statevector%myLatBeg:statevector%myLatEnd,1:nlev,indexStep) =  &
                                               field3dVV_tile(:,:,1:nlev)
@@ -1418,7 +1442,7 @@ MODULE gridStateVector_mod
         else
           ! 2D fields
           field => gsv_getField_r8(statevector,varName)
-          field(:,:,:,:) = 0.0d0
+          field(:,:,:,indexStep) = 0.0d0
           field(statevector%myLonBeg:statevector%myLonEnd, &
                 statevector%myLatBeg:statevector%myLatEnd,1,indexStep) =  &
                                           field3d_tile(:,:,1)
@@ -1427,10 +1451,11 @@ MODULE gridStateVector_mod
 
         ! convert humidity into LQ
         if(trim(varName) == 'HU') then
+          nlev_gsv = gsv_getNumLev(statevector,'TH')
           field => gsv_getField_r8(statevector,varName)
 !$OMP PARALLEL DO PRIVATE (jlat,jlev,jlon)
           do jlat = statevector%myLatBeg, statevector%myLatEnd
-            do jlev = 1, nlev
+            do jlev = 1, nlev_gsv
               do jlon = statevector%myLonBeg, statevector%myLonEnd
                 field(jlon,jlat,jlev,indexStep) = log(max(field(jlon,jlat,jlev,indexStep),MPC_MINIMUM_HU_R8))
               end do
@@ -1501,7 +1526,7 @@ MODULE gridStateVector_mod
 
     ! do the vertical interpolation
     field_out => gsv_getField_r8(statevector_out,varName)
-    field_out(:,:,:,:) = 0.0d0
+    field_out(:,:,:,indexStep) = 0.0d0
     nlev_out = vco_getNumLev(statevector_out%vco, vnl_varLevelFromVarname(varName))
     nlev_in  = vco_getNumLev(vco_in,              vnl_varLevelFromVarname(varName))
     do jlat = statevector_out%myLatBeg, statevector_out%myLatEnd
@@ -1573,7 +1598,7 @@ MODULE gridStateVector_mod
     write(*,*) 'gsv_writeToFileMpi: START'
 
     if ( .not. statevector%mpi_local ) then
-      call abort3d('gsv_writeToFileMpi: cannot use this subroutine for mpiglobal data!')
+      call varAbort('gsv_writeToFileMpi: cannot use this subroutine for mpiglobal data!')
     endif
 
     call tmg_start(5,'WRITETOFILE')
@@ -1640,11 +1665,11 @@ MODULE gridStateVector_mod
         write(*,*)'gsv_writeToFileMpi: increment file opened with unit number ',nulfile
         ierr  =  fstouv(nulfile,'RND')
       else
-        call abort3d('gsv_writeToFileMpi: problem opening output file, aborting!')
+        call varAbort('gsv_writeToFileMpi: problem opening output file, aborting!')
       end if
 
       if (nulfile == 0 ) then
-        call abort3d('gsv_writeToFileMpi: unit number for output file not valid!')
+        call varAbort('gsv_writeToFileMpi: unit number for output file not valid!')
       endif
 
       !- Write TicTacToc
@@ -1705,14 +1730,18 @@ MODULE gridStateVector_mod
           if (iDoWriting.and.jlev.le.nlev) then
 
             ! Set the ip1 value
-            if (nlev /= 1) then
-              if (vnl_varLevelFromVarname(vnl_varNameList(jvar)) == 'MM') then
-                ip1 = statevector%vco%ip1_M(jlev)
-              else
-                ip1 = statevector%vco%ip1_T(jlev)
-              end if
+            if ( top_spatialDimensions() /= '2D') then
+               if (nlev /= 1) then
+                  if (vnl_varLevelFromVarname(vnl_varNameList(jvar)) == 'MM') then
+                     ip1 = statevector%vco%ip1_M(jlev)
+                  else
+                     ip1 = statevector%vco%ip1_T(jlev)
+                  end if
+               else
+                  ip1 = 0
+               end if
             else
-              ip1 = 0
+               ip1 = statevector%vco%ip1_T(1) ! same as ip1_M
             end if
 
             ! Set the output variable name
@@ -1831,12 +1860,11 @@ MODULE gridStateVector_mod
     !
     !- Writing Toc-Toc
     !
-    status = vgd_write(statevector%vco%vgrid,iun,'fst')
-
-    if ( status /= VGD_OK ) then
-      write(*,*)
-      write(*,*) 'WriteTicTacToc: ERROR with vgd_write '
-      stop
+    if ( trim(statevector%vco%setupType) == 'FromFile' ) then 
+       status = vgd_write(statevector%vco%vgrid,iun,'fst')
+       if ( status /= VGD_OK ) then
+          call varAbort('WriteTicTacToc: ERROR with vgd_write')
+       end if
     end if
 
   end subroutine WriteTicTacToc
@@ -1890,7 +1918,7 @@ MODULE gridStateVector_mod
       if( abs(ratio_r8 - real(nint(ratio_r8),8)) > 1.0d-5 ) then
         write(*,*) 'gsv_horizSubSample: original subsample level=', statevector_in%horizSubSample
         write(*,*) 'gsv_horizSubSample: new      subsample level=', statevector_out%horizSubSample
-        call abort3d('gsv_horizSubSample: relative change of subsample level not an integer!')
+        call varAbort('gsv_horizSubSample: relative change of subsample level not an integer!')
       endif
       relativeFactor = nint(ratio_r8)
 
@@ -1935,7 +1963,7 @@ MODULE gridStateVector_mod
       if( abs(ratio_r8 - real(nint(ratio_r8),8)) > 1.0d-5 ) then
         write(*,*) 'gsv_horizSubSample: original subsample level=', statevector_in%horizSubSample
         write(*,*) 'gsv_horizSubSample: new      subsample level=', statevector_out%horizSubSample
-        call abort3d('gsv_horizSubSample: relative change of subsample level not an integer!')
+        call varAbort('gsv_horizSubSample: relative change of subsample level not an integer!')
       endif
       relativeFactor = nint(ratio_r8)
 

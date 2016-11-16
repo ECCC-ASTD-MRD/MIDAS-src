@@ -16,7 +16,7 @@
 !
 subroutine sugomobs(columng,columnhr,lobsSpaceData)
   !
-  ! s/r sumgomobs
+  ! Purpose: Fill in COLUMNG and COLUMNHR with trial profiles
   !
   !     Author  : S. Pellerin ARMA/AES Nov. 1999
   !
@@ -32,8 +32,9 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
   !   - Addition of varnmamelist_mod and valvarkindfromvanamr
   !   - Added 'use chem_mod' for added call to chm_apply_2dfieldr4_transform in readTrialField
   !
-  !Arguments: COLUMNG, COLUMNHR
+  ! Arguments: COLUMNG, COLUMNHR
   !
+  use topLevelControl_mod
   use EarthConstants_mod
   use MathPhysConstants_mod
   use mpivar_mod
@@ -82,6 +83,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
   
   character(len=2) :: flnum
   character(len=128) :: trialfile
+  character(len=4) :: varnameForGetfldprm2
 
   integer, allocatable :: nultrl(:)
   integer :: nultrl2
@@ -103,7 +105,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
   write(*,*) ' '
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-  if(mpi_myid.eq.0) write(*,*) 'nstepobs=',tim_nstepobs
+  if (mpi_myid.eq.0) write(*,*) 'nstepobs=',tim_nstepobs
   call tmg_start(10,'SUGOMOBS')
 
   !
@@ -116,9 +118,9 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
     write(flnum,'(I2.2)') jstep
     trialfile='./trlm_'//trim(flnum)
     inquire(file=trim(trialfile),exist=trialExists)
-    if(.not.trialExists) then
+    if (.not.trialExists) then
       write(*,*) 'File missing=',trialfile
-      call abort3d('SUGOMOBS:DID NOT FIND A TRIAL FIELD FILE')
+      call varAbort('SUGOMOBS:DID NOT FIND A TRIAL FIELD FILE')
     else
       ierr=fnom(nultrl(jstep),trim(trialfile),'RND+OLD+R/O',0)
       ierr=fstouv(nultrl(jstep),'RND+OLD')
@@ -134,16 +136,20 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
   vco_trl => col_getVco(columnhr)
   nlv_M = vco_getNumLev(vco_trl,'MM')
   nlv_T = vco_getNumLev(vco_trl,'TH')
-  if(mpi_myid.eq.0) write(*,*)'sugomobs:niv thermo:',nlv_T,' momentum',nlv_M
+  if (mpi_myid.eq.0) write(*,*)'SUGOMOBS:niv thermo:',nlv_T,' momentum',nlv_M
 
-  status = vgd_get(vco_trl%vgrid,key='ig_1 - vertical coord code',value=Vcode_trl)
-  status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
-  if(mpi_myid.eq.0) write(*,*) 'sugomobs: Vcode_trl= ',Vcode_trl, &
-                                       '  Vcode_anl= ',Vcode_anl
-  if(Vcode_trl.ne.5002.and.Vcode_trl.ne.5004.and.Vcode_trl.ne.5005) &
-    call abort3d('sugomobs: invalid vertical coord for background state!')
-  if(Vcode_anl.ne.5002.and.Vcode_anl.ne.5004) &
-    call abort3d('sugomobs: invalid vertical coord for analysis grid!')
+  if ( top_spatialDimensions() /= '2D') then
+     status = vgd_get(vco_trl%vgrid,key='ig_1 - vertical coord code',value=Vcode_trl)
+     status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
+     if (mpi_myid.eq.0) write(*,*) 'SUGOMOBS: Vcode_trl= ',Vcode_trl, &
+                                          '  Vcode_anl= ',Vcode_anl
+     if (Vcode_trl.ne.5002.and.Vcode_trl.ne.5005) &
+          call varAbort('SUGOMOBS: invalid vertical coord for background state!')
+     if (Vcode_anl.ne.5002.and.Vcode_anl.ne.5005) &
+          call varAbort('SUGOMOBS: invalid vertical coord for analysis increment!')
+  else
+     if (mpi_myid.eq.0) write(*,*) 'SUGOMOBS: skipping vcode check because this is a 2D spatial configuration'
+  end if
 
   !
   !     Compute the maximum number of columns over all processors (lat-lon tiles)
@@ -154,7 +160,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
   !
   !     Allocate trial field column object and other local arrays
   !
-  if(col_getNumCol(columng).gt.0) then
+  if (col_getNumCol(columng).gt.0) then
      allocate(notag(col_getNumCol(columng),tim_nStepObs))
      allocate(varInterphr_T(nlv_T,col_getNumCol(columng)))
      allocate(varInterphr_M(nlv_M,col_getNumCol(columng)))
@@ -183,8 +189,8 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
   call tim_getstamplist(datestamplist,tim_nStepObs,tim_getDatestamp())
   do jstep = 1,tim_nStepObs
     ierr = newdate(datestamplist(jstep),idate(jstep),itime(jstep),-3)
-    if(mpi_myid.eq.0) write(*,*) 'sugomobs: datestamplist=',jstep,datestamplist(jstep)
-    if(datestamplist(jstep) == tim_getDatestamp()) nstepanltime = jstep
+    if (mpi_myid.eq.0) write(*,*) 'SUGOMOBS: datestamplist=',jstep,datestamplist(jstep)
+    if (datestamplist(jstep) == tim_getDatestamp()) nstepanltime = jstep
   end do
 
   !
@@ -210,28 +216,40 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
   !     The following code replaces the subroutine suobsgid
   !
   nobs(:) = 0
+  varnameForGetfldprm2='NONE'
   do jvar=1,vnl_numvarmax2D
-    if(gsv_varExist(varName=vnl_varNameList2D(jvar))) exit          
+    if (gsv_varExist(varName=vnl_varNameList2D(jvar))) then
+       varnameForGetfldprm2=vnl_varNameList2D(jvar)
+       exit
+    end if
   end do
+  if (trim(varnameForGetfldprm2) == 'NONE' ) then
+     do jvar=1,vnl_numvarmax3D
+        if (gsv_varExist(varName=vnl_varNameList3D(jvar))) then
+           varnameForGetfldprm2=vnl_varNameList3D(jvar)
+           exit
+        end if
+     end do
+  end if
 
-  if(mpi_myid.eq.0) write(*,*) 'sugomobs: first 2d variable=',vnl_varNameList2D(jvar),jvar
+  if (mpi_myid.eq.0) write(*,*) 'SUGOMOBS: varname for getfldprm2 =',trim(varnameForGetfldprm2)
 
   do jstep = 1,tim_nStepObs
     !
     !- Get horizontal grid parameters to be used to test grid bounds
     !
     call getfldprm2(IIP1S,IIP2,IIP3,ITRLNLEV,CLETIKET,CLTYPVAR,  &
-             ITRLGID,vnl_varNameList2D(jvar),datestamplist(jstep),jpnflev,  &
+             ITRLGID,trim(varnameForGetfldprm2),datestamplist(jstep),jpnflev,  &
              nultrl(:),ip1_pak_trl,ip1_vco_trl,tim_nStepObs,  &
              nultrl2)
     if (itrlnlev <= 0 ) then
-      call abort3d('SUGOMOBS:Problem with background file')
+      call varAbort('SUGOMOBS:Problem with background file')
     end if
     ierr = ezgprm(itrlgid,clgrtyp,ini,inj,iig1,iig2,iig3,iig4)
 
     dlonfld(:)=0.0d0
     dlatfld(:)=0.0d0
-      
+
     do jobs=1, obs_numheader(lobsSpaceData)
          
       call tim_getStepObsIndex(stepObsIndex,tim_getDatestamp(),  &
@@ -239,9 +257,9 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
                                obs_headElem_i(lobsSpaceData,OBS_ETM,jobs),tim_nstepobs)
 
       ! check if obs is outside of assimilation window when jstep = 1
-      if(jstep.eq.1 .and.  &
+      if (jstep.eq.1 .and.  &
            (stepobsIndex.lt.1.0 .or. stepObsIndex.gt.real(tim_nstepobs,8)) ) then
-        write(*,*) 'sugomobs: Observation time outside assimilation window: ',  &
+        write(*,*) 'SUGOMOBS: Observation time outside assimilation window: ',  &
              obs_headElem_i(lobsSpaceData,OBS_DAT,jobs),obs_headElem_i(lobsSpaceData,OBS_ETM,jobs)
 
         ! put the obs in the first time bin (it has to go somewhere!)
@@ -269,7 +287,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
         lon_r4=real(lon_r8)
         if (lon_r4.lt.0.0         ) lon_r4 = lon_r4 + 2.0*MPC_PI_R4
         if (lon_r4.ge.2.*MPC_PI_R4) lon_r4 = lon_r4 - 2.0*MPC_PI_R4
-                
+
         lat_deg_r4=lat_r4 * MPC_DEGREES_PER_RADIAN_R4 ! Radian To Degree
         lon_deg_r4=lon_r4 * MPC_DEGREES_PER_RADIAN_R4
 
@@ -288,7 +306,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
           if ( hco_anl % global ) then
             ! Modify latitude if we have an observation at or near the poles
             write(*,*) ''
-            write(*,*) 'sugomobs: Moving OBS inside the GLOBAL ANALYSIS grid, ', jobs
+            write(*,*) 'SUGOMOBS: Moving OBS inside the GLOBAL ANALYSIS grid, ', jobs
             write(*,*) '  true position : ', lat_deg_r4, lon_deg_r4, ypos_r4, xpos_r4
 
             !- Move the observation to the nearest grid point
@@ -309,7 +327,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
           else
             ! The observation is outside the domain
             ! In LAM Analysis mode we must discard this observation
-            write(*,*) 'sugomobs: Rejecting OBS outside the LAM ANALYSIS grid domain, ', jobs
+            write(*,*) 'SUGOMOBS: Rejecting OBS outside the LAM ANALYSIS grid domain, ', jobs
             write(*,*) '  position : ', lat_deg_r4, lon_deg_r4, ypos_r4, xpos_r4
 
             idata   = obs_headElem_i(lobsSpaceData,OBS_RLN,jobs)
@@ -352,10 +370,10 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
  
           dlonfld(nobs(jstep)) = lon_r8
           dlatfld(nobs(jstep)) = lat_r8
-          if(dlonfld(nobs(jstep)).lt.0.0d0)  &
+          if (dlonfld(nobs(jstep)).lt.0.0d0)  &
                dlonfld(nobs(jstep)) = dlonfld(nobs(jstep)) +  &
                2*MPC_PI_R8
-          if(dlonfld(nobs(jstep)).ge.2.0d0*MPC_PI_R8)  &
+          if (dlonfld(nobs(jstep)).ge.2.0d0*MPC_PI_R8)  &
                dlonfld(nobs(jstep)) =dlonfld(nobs(jstep)) -  &
                2*MPC_PI_R8
           dlonfld(nobs(jstep))=dlonfld(nobs(jstep))*MPC_DEGREES_PER_RADIAN_R8
@@ -364,9 +382,9 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
         else
           ! The observation is outside the domain
           ! With a LAM trial field we must discard this observation
-          write(*,*) 'sugomobs: Rejecting OBS outside the TRIAL field domain, ', jobs
+          write(*,*) 'SUGOMOBS: Rejecting OBS outside the TRIAL field domain, ', jobs
           write(*,*) '  position : ', lat_deg_r4, lon_deg_r4, ypos_r4, xpos_r4
-          
+
           idata   = obs_headElem_i(lobsSpaceData,OBS_RLN,jobs)
           idatend = obs_headElem_i(lobsSpaceData,OBS_NLV,jobs) + idata -1
           do jdata = idata, idatend
@@ -413,7 +431,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
                dlonfld_mpiglobal(1:nobs_mpiglobal(jstep,jlatlontile),jlatlontile),  &
                dlatfld_mpiglobal(1:nobs_mpiglobal(jstep,jlatlontile),jlatlontile))
       else
-        !write(*,*) 'sugomobs: NO OBS found for this time/lat bin =',jstep,jlatlontile
+        !write(*,*) 'SUGOMOBS: NO OBS found for this time/lat bin =',jstep,jlatlontile
         nobsgid_mpiglobal(jstep,jlatlontile) = -999
       end if
     end do
@@ -424,12 +442,12 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
   !     reading 2D fields
   !
   do jvar=1,vnl_numvarmax2D
-    if(.not.gsv_varExist(varName=vnl_varNameList2D(jvar))) cycle
+    if (.not.gsv_varExist(varName=vnl_varNameList2D(jvar))) cycle
 
     call readTrialField(varInterphr_M,varInterphr_VV,vnl_varNameList2D(jvar),'SF')
 
-    if(col_getNumCol(columng).gt.0) then       
-      if(vnl_varNameList2D(jvar).eq.'P0  ') then
+    if (col_getNumCol(columng).gt.0) then       
+      if (vnl_varNameList2D(jvar).eq.'P0  ') then
         varInterphr_M(:,:)=varInterphr_M(:,:)*MPC_PA_PER_MBAR_R8
       endif
       call col_fillmvo(columng ,varInterphr_M,vnl_varNameList2D(jvar))
@@ -443,12 +461,12 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
   !     levels, the hybrid coordinate parameters of the
   !     analysis increment and the surface pressure of the trial field
   !      
-  if(col_getNumCol(columng).gt.0) then
+  if (col_getNumCol(columng).gt.0 .and. top_spatialDimensions() /= '2D') then
 
     call col_calcPressure(columng)
 
     do jlev = 1,col_getNumLev(columng,'MM')
-      if(mpi_myid.eq.0) write(*,*) 'sugomobs: jlev, col_getPressure(COLUMNG,jlev,1,MM) = ',  &
+      if (mpi_myid.eq.0) write(*,*) 'SUGOMOBS: jlev, col_getPressure(COLUMNG,jlev,1,MM) = ',  &
            jlev,col_getPressure(COLUMNG,jlev,1,'MM')
     end do
 
@@ -459,14 +477,14 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
     call col_calcPressure(columnhr)
 
     do jlev = 1,col_getNumLev(columnhr,'MM')
-      if(mpi_myid.eq.0) write(*,*) 'sugomobs: jlev, col_getPressure(COLUMNHR,jlev,1,MM) = ',  &
+      if (mpi_myid.eq.0) write(*,*) 'SUGOMOBS: jlev, col_getPressure(COLUMNHR,jlev,1,MM) = ',  &
           jlev,col_getPressure(columnhr,jlev,1,'MM')
     end do
     do jlev = 1,col_getNumLev(columnhr,'TH')
-      if(mpi_myid.eq.0) write(*,*) 'sugomobs: jlev, col_getPressure(COLUMNHR,jlev,1,TH) = ',  &
+      if (mpi_myid.eq.0) write(*,*) 'SUGOMOBS: jlev, col_getPressure(COLUMNHR,jlev,1,TH) = ',  &
           jlev,col_getPressure(columnhr,jlev,1,'TH')
     end do
-    if(mpi_myid.eq.0) write(*,*) 'sugomobs: surface Pressure=',col_getElem(columnhr,1,1,'P0')
+    if (mpi_myid.eq.0) write(*,*) 'SUGOMOBS: surface Pressure=',col_getElem(columnhr,1,1,'P0')
 
   end if
 
@@ -480,13 +498,13 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
   !
   call readTrialField(varInterphr_M,varInterphr_VV,'GZ  ','MM',noUpperGZ)
 
-  if(col_getNumCol(columng).gt.0) then 
-     varInterphr_M(:,:)=varInterphr_M(:,:)*10.0d0*RG
-     call col_fillmvo(columnhr,varInterphr_M,'GZ  ','MM')
-     if(mpi_myid.eq.0) write(*,*) 'sugomobs:GZ_M'
-     do jlev = 1,nlv_M
-       if(mpi_myid.eq.0) write(*,*) 'GZ,',jlev,varInterphr_M(jlev,1)
-     enddo
+  if (col_getNumCol(columng).gt.0) then       
+    varInterphr_M(:,:)=varInterphr_M(:,:)*10.0d0*RG
+    call col_fillmvo(columnhr,varInterphr_M,'GZ  ','MM')
+    if (mpi_myid.eq.0) write(*,*) 'SUGOMOBS:GZ_M'
+    do jlev = 1,nlv_M
+      if (mpi_myid.eq.0) write(*,*) 'GZ,',jlev,varInterphr_M(jlev,1)
+    enddo
   endif
 
   !
@@ -494,23 +512,23 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
   !
   call readTrialField(varInterphr_T,varInterphr_VV,'GZ  ','TH',noUpperGZ)
 
-  if(col_getNumCol(columng).gt.0) then 
-     varInterphr_T(:,:)=varInterphr_T(:,:)*10.0d0*RG
-     call col_fillmvo(columnhr,varInterphr_T,'GZ  ','TH')
-     if(mpi_myid.eq.0) write(*,*) 'sugomobs:GZ_TH'
-     do jlev = 1,nlv_T
-       if(mpi_myid.eq.0) write(*,*)'GZ,',jlev,varInterphr_T(jlev,1)
-     enddo
-  end if
-  
+  if (col_getNumCol(columng).gt.0) then       
+    varInterphr_T(:,:)=varInterphr_T(:,:)*10.0d0*RG
+    call col_fillmvo(columnhr,varInterphr_T,'GZ  ','TH')
+    if (mpi_myid.eq.0) write(*,*) 'SUGOMOBS:GZ_TH'
+    do jlev = 1,nlv_T
+      if (mpi_myid.eq.0) write(*,*)'GZ,',jlev,varInterphr_T(jlev,1)
+    enddo
+  endif
+
   !
   !     Now all of the other 3D variables
   !
   do jvar=1, vnl_numvarmax3D
 
     if(.not.gsv_varExist(varName=vnl_varNameList3D(jvar))) cycle
-! to avoid cycle for VV      
-    if(vnl_varNameList3D(jvar) .eq. 'VV') cycle
+
+    if(vnl_varNameList3D(jvar) .eq. 'VV') cycle  ! to avoid cycle for VV
 
 
     select case ( vnl_varNameList3D(jvar) )
@@ -522,15 +540,15 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
 
         call readTrialField(varInterphr_M,varInterphr_VV,'UV  ','MM')
          
-        if(col_getNumCol(columng).gt.0) then       
+        if (col_getNumCol(columng).gt.0) then       
 
-          if(mpi_myid.eq.0) write(*,*) 'sugomobs: UU ,nlev= ',nlv_M
+          if (mpi_myid.eq.0) write(*,*) 'SUGOMOBS: UU ,nlev= ',nlv_M
           do jlev = 1,nlv_M
-            if(mpi_myid.eq.0) write(*,*) 'UU',jvar,jlev,varInterphr_M(jlev,1)
+            if (mpi_myid.eq.0) write(*,*) 'UU',jvar,jlev,varInterphr_M(jlev,1)
           enddo
-          if(mpi_myid.eq.0) write(*,*) 'sugomobs: VV ,nlev= ',nlv_M
+          if (mpi_myid.eq.0) write(*,*) 'SUGOMOBS: VV ,nlev= ',nlv_M
           do jlev = 1,nlv_M
-            if(mpi_myid.eq.0) write(*,*) 'VV',jvar,jlev,varInterphr_VV(jlev,1)
+            if (mpi_myid.eq.0) write(*,*) 'VV',jvar,jlev,varInterphr_VV(jlev,1)
           enddo
 
           call col_fillmvo(columnhr,varInterphr_M,'UU  ')
@@ -568,17 +586,22 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
 
         call readTrialField(varInterphr_T,varInterphr_VV,vnl_varNameList3D(jvar),'TH')
 
-        if(col_getNumCol(columng).gt.0) then       
+        if (col_getNumCol(columng).gt.0) then       
 
-          if(mpi_myid.eq.0) write(*,*) 'sugomobs:',vnl_varNameList3D(jvar)
+          if (mpi_myid.eq.0) write(*,*) 'SUGOMOBS:',vnl_varNameList3D(jvar)
           do jlev = 1,nlv_T
-            if(mpi_myid.eq.0) write(*,*) trim(vnl_varNameList3D(jvar)),',',jlev,varInterphr_T(jlev,1)
+            if (mpi_myid.eq.0) write(*,*) trim(vnl_varNameList3D(jvar)),',',jlev,varInterphr_T(jlev,1)
           enddo
 
           call col_fillmvo(columnhr,varInterphr_T,vnl_varNameList3D(jvar))
-          call col_vintprof(columnhr,columng,vnl_varNameList3D(jvar))
+          if (top_spatialDimensions() /= '2D') then
+             call col_vintprof(columnhr,columng,vnl_varNameList3D(jvar))
+          else
+             ! Do not try interpolate: In 2D mode trial and analysis are on the same level by construction
+             call col_vintprof(columnhr,columng,vnl_varNameList3D(jvar),noInterp=.true.)
+          end if
 
-          if(vnl_varNameList3D(jvar).eq.'TT  ') then
+          if (vnl_varNameList3D(jvar).eq.'TT  ') then
             ! conversion from Celcius to Kelvin
             do jobs=1,col_getNumCol(columng)
               column_ptr => col_getColumn(columnhr,jobs,'TT')
@@ -590,7 +613,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
                 column_ptr(jlev)=column_ptr(jlev)+MPC_K_C_DEGREE_OFFSET_R8
               enddo
             enddo
-          elseif(vnl_varNameList3D(jvar).eq.'HU  ') then
+          elseif (vnl_varNameList3D(jvar).eq.'HU  ') then
             ! conversion from specific humidity to log(humidity)
             do jobs=1,col_getNumCol(columng)
               column_ptr => col_getColumn(columnhr,jobs,'HU')
@@ -634,7 +657,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
      !
      !- Initialisation of TLM operators
      !
-     call subasic_obs(columng)
+     if (top_spatialDimensions() /= '2D') call subasic_obs(columng)
      
      !
      !- Using T, q and PS to compute GZ for columng
@@ -642,18 +665,18 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
      do jobs = 1, col_getNumCol(columng)
         call col_setMountain(columng ,jobs,col_getMountain(columnhr,jobs))
      enddo
-     call tt2phi(columng)
+     if (top_spatialDimensions() /= '2D') call tt2phi(columng)
 
      !
      !- Using T, q and PS to compute GZ for columnhr
      !
-     if(noUpperGZ) then
-        write(*,*) 'sugomobs: No upper level GZ found, computing'
+     if(noUpperGZ .and. top_spatialDimensions() /= '2D') then
+        write(*,*) 'SUGOMOBS: No upper level GZ found, computing'
         call tt2phi(columnhr)
      endif
      
   else
-     write(*,*) 'sugomobs:  GZ TLM calcs not generated since TT, HU and P0 not all present'
+     write(*,*) 'SUGOMOBS:  GZ TLM calcs not generated since TT, HU and P0 not all present'
   end if
 
   !
@@ -667,7 +690,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
   !
   !- Deallocate the local arrays
   !
-  if(col_getNumCol(columng).gt.0) then       
+  if (col_getNumCol(columng).gt.0) then       
     deallocate(notag)
     deallocate(varInterphr_T)
     deallocate(varInterphr_M)
@@ -735,8 +758,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
       !
       ! Determine the type and number of vertical levels
       !
-      
-      if(trim(varName_in).eq.'UV') then
+      if (trim(varName_in).eq.'UV') then
         varName='UU  '
       else
         varName=varName_in
@@ -747,19 +769,24 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
       !
       ! Check if too few GZ levels are in file, if so then just read surface
       !
-      if(trim(varName).eq.'GZ'.and.present(noUpperGZ)) then
-        ierr = fstinl(nultrl(1), ni, nj, nk, -1, ' ', -1, -1, -1, &
-                      ' ','GZ',keys, numkeys, maxnumkeys)
-        write(*,*) 'sugomobs: nlevel =  ', nlevel, ', numkeys = ', numkeys
-        if(numkeys.lt.nlevel) then
-          write(*,*) 'sugomobs: Too few GZ levels found, will only read surface'
-          noUpperGZ = .true.
-        else
-          write(*,*) 'sugomobs: sufficient levels of GZ found, will read all'
-          noUpperGZ = .false.
-        endif
+      if (trim(varName).eq.'GZ' .and. present(noUpperGZ)) then
+         if ( top_spatialDimensions() /= '2D') then
+            ierr = fstinl(nultrl(1), ni, nj, nk, -1, ' ', -1, -1, -1, &
+                          ' ','GZ',keys, numkeys, maxnumkeys)
+            write(*,*) 'SUGOMOBS: nlevel =  ', nlevel, ', numkeys = ', numkeys
+            if (numkeys.lt.nlevel) then
+               write(*,*) 'SUGOMOBS: Too few GZ levels found, will only read surface'
+               noUpperGZ = .true.
+            else
+               write(*,*) 'SUGOMOBS: sufficient levels of GZ found, will read all'
+               noUpperGZ = .false.
+            endif
+         else
+            write(*,*) 'SUGOMOBS: In 2D spatial mode, we only read GZ at the surface'
+            noUpperGZ = .true.
+         end if
       endif
-
+         
       !
       ! Determine grid size and EZSCINT ID
       !
@@ -777,7 +804,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
       if (key < 0) then
         write(6,*)
         write(6,*) 'SUGOMOBS: Unable to find trial field = ',varName
-        call abort3d('SUGOMOBS')
+        call varAbort('SUGOMOBS')
       end if
 
       ierr = fstprm( key,                                              & ! IN
@@ -785,7 +812,6 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
                     datyp, ip1, ip2, ip3, cltypvar, varName, cletiket, & ! OUT
                     clgrtyp, ig1, ig2, ig3,                            & ! OUT
                     ig4, swa, lng, dltf, ubc, extra1, extra2, extra3 )   ! OUT
-
 
       EZscintID  = ezqkdef( ni, nj, clgrtyp, ig1, ig2, ig3, ig4, nultrl(1) )   ! IN
 
@@ -807,27 +833,27 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
 
       do jstep = 1,tim_nStepObs
 
-        if(nobs_maxmpiglobal(jstep) > 0) then
+        if (nobs_maxmpiglobal(jstep) > 0) then
 
           call rpn_comm_barrier("GRID",ierr)
 
           do jlev = (1+mpi_myid),nlevel,mpi_nprocs
             
-            if(trim(varName).eq.'GZ'.and.jlev.eq.nlevel) then
+            if (trim(varName).eq.'GZ'.and.jlev.eq.nlevel) then
               ! use surface level IP1 for GZ (essential for Vcode=5005)
               IIP1 = vco_trl%ip1_sfc
-            elseif(varLevel.eq.'MM') then
+            elseif (varLevel.eq.'MM') then
               IIP1 = vco_trl%ip1_M(jlev)
-            elseif(varLevel.eq.'TH') then
+            elseif (varLevel.eq.'TH') then
               IIP1 = vco_trl%ip1_T(jlev)
-            elseif(varLevel.eq.'SF') then
+            elseif (varLevel.eq.'SF') then
               IIP1 = -1
             else
-              call abort3d('SUGOMOBS: unknown varLevel')
+              call varAbort('SUGOMOBS: unknown varLevel')
             endif
 
-            if(trim(varName).eq.'GZ'.and.present(noUpperGZ)) then
-              if(noUpperGZ.and.jlev.ne.nlevel) then
+            if (trim(varName).eq.'GZ'.and.present(noUpperGZ)) then
+              if (noUpperGZ.and.jlev.ne.nlevel) then
                 ! do not try to read GZ above surface if it does not exist
                 varTrial_r4(:,:) = 0.0
               else
@@ -841,21 +867,21 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
                           cltypvar,varName)
             endif
 
-            if(ierr.lt.0)then
+            if (ierr.lt.0)then
               write(*,2001) varName,iip1,idate(jstep),itime(jstep)
-              call abort3d('SUGOMOBS:Problem with background file')
+              call varAbort('SUGOMOBS: Problem with background file')
             end if
 
             if (vnl_varKindFromVarname(varName).eq.'CH') &
                call chm_apply_2dfieldr4_transform(chm_varnumFromVarName(varName),varName,jlev,jstep,varTrial_r4)
 
-            if(varName.eq.'UU') then
+            if (varName.eq.'UU') then
               ierr=fstlir(varTrial_VV_r4(:,:),nultrl(jstep),ni,nj,ink,  &
                           datestamplist(jstep) ,cletiket,iip1,-1,-1,  &
                           cltypvar,'VV')
-              if(ierr.lt.0)then
+              if (ierr.lt.0)then
                 write(*,2001) 'VV',iip1,idate(jstep),itime(jstep)
-                call abort3d('SUGOMOBS:Problem with background file')
+                call varAbort('SUGOMOBS: Problem with background file')
               end if
             endif
 
@@ -863,7 +889,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
             do jlatlontile = 1,mpi_nprocs
               if (nobs_mpiglobal(jstep,jlatlontile).gt.0) then
                 iset = ezdefset(nobsgid_mpiglobal(jstep,jlatlontile),EZscintID)
-                if(trim(varName).eq.'UU') then
+                if (trim(varName).eq.'UU') then
 
                   ierr = vezuvint2(varInterp(1:nobs_mpiglobal(jstep,jlatlontile),jlev,jlatlontile),  &
                                    varInterp_VV(1:nobs_mpiglobal(jstep,jlatlontile),jlev,jlatlontile),  &
@@ -900,31 +926,31 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
                 tag  = pe_recv*500 + pe_send
                 tag2 = pe_recv*500 + pe_send + 1000000
 
-                if(pe_send.eq.pe_recv) then
-                  if(mpi_myid.eq.pe_send) then
+                if (pe_send.eq.pe_recv) then
+                  if (mpi_myid.eq.pe_send) then
                     varInterp_recv(1:nobs_mpiglobal(jstep,jlatlontile),jlev) =  &
                          varInterp(1:nobs_mpiglobal(jstep,jlatlontile),jlev,jlatlontile)
-                    if(trim(varName).eq.'UU') then
+                    if (trim(varName).eq.'UU') then
                       varInterp_recv_VV(1:nobs_mpiglobal(jstep,jlatlontile),jlev) =  &
                            varInterp_VV(1:nobs_mpiglobal(jstep,jlatlontile),jlev,jlatlontile)
                     endif
                   endif
                 else
-                  if(mpi_myid.eq.pe_send) then
+                  if (mpi_myid.eq.pe_send) then
                     nsize=nobs_mpiglobal(jstep,jlatlontile)
                     call rpn_comm_send(varInterp(1:nobs_mpiglobal(jstep,jlatlontile),jlev,jlatlontile), &
                        nsize,"mpi_double_precision",pe_recv,tag,"GRID",ierr)
-                    if(trim(varName).eq.'UU') then
+                    if (trim(varName).eq.'UU') then
                       call rpn_comm_send(varInterp_VV(1:nobs_mpiglobal(jstep,jlatlontile),jlev,jlatlontile), &
                          nsize,"mpi_double_precision",pe_recv,tag2,"GRID",ierr)
                     endif
                   endif
 
-                  if(mpi_myid.eq.pe_recv) then
+                  if (mpi_myid.eq.pe_recv) then
                     nsize=nobs_mpiglobal(jstep,jlatlontile)
                     call rpn_comm_recv(varInterp_recv(1:nobs_mpiglobal(jstep,jlatlontile),jlev), &
                        nsize,"mpi_double_precision",pe_send,tag,"GRID",status,ierr)
-                    if(trim(varName).eq.'UU') then
+                    if (trim(varName).eq.'UU') then
                       call rpn_comm_recv(varInterp_recv_VV(1:nobs_mpiglobal(jstep,jlatlontile),jlev), &
                          nsize,"mpi_double_precision",pe_send,tag2,"GRID",status,ierr)
                     endif
@@ -938,7 +964,7 @@ subroutine sugomobs(columng,columnhr,lobsSpaceData)
           do jlev = 1,nlevel
             do jobs = 1, nobs(jstep)
               varInterphr_MT(jlev,notag(jobs,jstep)) = varInterp_recv(jobs,jlev)
-              if(trim(varName).eq.'UU') then
+              if (trim(varName).eq.'UU') then
                 varInterphr_VV(jlev,notag(jobs,jstep)) = varInterp_recv_VV(jobs,jlev)
               endif
             enddo

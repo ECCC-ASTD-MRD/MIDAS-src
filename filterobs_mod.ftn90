@@ -133,7 +133,7 @@ contains
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=namfilt,iostat=ierr)
-    if(ierr.ne.0) call abort3d('filt_setup: Error reading namelist')
+    if(ierr.ne.0) call varAbort('filt_setup: Error reading namelist')
     if(mpi_myid.eq.0) write(*,nml=namfilt)
     ierr=fclos(nulnam)
 
@@ -303,7 +303,7 @@ contains
 
     ! abort if there is no data to be assimilated
     if (iknt.eq.0 ) then
-      call abort3d('SUPREP. NO DATA TO BE ASSIMILATED')
+      call varAbort('SUPREP. NO DATA TO BE ASSIMILATED')
     endif
 
   end subroutine filt_suprep
