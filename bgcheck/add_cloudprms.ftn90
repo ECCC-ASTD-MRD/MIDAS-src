@@ -49,7 +49,7 @@ subroutine add_cloudprms(lobsSpaceData)
   end if
 
   do jfile=1,burp_nfiles
-     write(*,*) 'INPUT FILE TO  hir_cldprm_to_brp= ', burp_cfilnam(jfile)
+     write(*,*) 'INPUT FILE TO  hir_cldprm_to_brp= ', trim(burp_cfilnam(jfile))
      call hir_cldprm_to_brp(lobsspacedata,burp_cfilnam(jfile))
   enddo
 

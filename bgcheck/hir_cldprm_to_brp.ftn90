@@ -107,7 +107,7 @@ SUBROUTINE hir_cldprm_to_brp(lobsspacedata,brp_file)
 ! opening file
 ! ------------
 
-  write(*,*) 'OPENED FILE = ', brp_file
+  write(*,*) 'OPENED FILE = ', trim(brp_file)
 
   Call BURP_New(File_in, &
        FILENAME = brp_file, &
