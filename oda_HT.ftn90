@@ -53,9 +53,9 @@ subroutine oda_HT(lcolumn,lcolumng,lobsSpaceData)
 
   vco_anl => col_getVco(lcolumng)
 
-  call tmg_start(25,'OBS_CHM_TLAD') !
+  call tmg_start(125,'OBS_CHM_TLAD') !
   call oda_HTchm
-  call tmg_stop (25)
+  call tmg_stop (125)
 
   call tmg_start(47,'OBS_GPSGB_TLAD') !
   if (numGPSZTD > 0) call oda_HTgp

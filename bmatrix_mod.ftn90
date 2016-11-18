@@ -206,7 +206,7 @@ contains
     call tmg_stop(50)
 
     !- 2.2chm  Compute 3D contribution to increment from BmatrixChem
-    call tmg_start(23,'B_CHM')
+    call tmg_start(123,'B_CHM')
     cvBchm => cvm_getSubVector(da_v,3)
 
     if ( associated(cvBchm) ) then
@@ -220,7 +220,7 @@ contains
       !- copy 3D increment to other timesteps to create 4D increment
       call gsv_3dto4d(statevector)
     end if
-    call tmg_stop(23)
+    call tmg_stop(123)
 
     !- 2.3 compute 4D contribution to increment from BmatrixEnsemble
     call tmg_start(60,'B_ENS')
