@@ -76,8 +76,8 @@ echo "-----------------------"
 echo " "
 
 cd ../
-mkdir -p compiledir
-cd compiledir
+mkdir -p compiledir-${ORDENV_PLAT}
+cd compiledir-${ORDENV_PLAT}
 #rm -f *.o *.f *.f90 *.mod
 compiledir=${PWD}
 
