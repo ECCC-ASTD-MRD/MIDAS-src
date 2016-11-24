@@ -117,18 +117,17 @@ echo "loading eccc/cmd/cmdn/vgrid/5.6.6/${COMP_ARCH}"
 ## for 'burplib'
 echo "loading eccc/cmd/cmda/libs/16.0-beta-2/${COMP_ARCH}"
 . ssmuse-sh -d eccc/cmd/cmda/libs/16.0-beta-2/${COMP_ARCH}
-
-## For hpcsperf needed for TMG timings
-echo "loading hpcs/exp/aspgjdm/perftools"
-echo . ssmuse-sh -d hpcs/exp/aspgjdm/perftools
-# For RTTOV 10v3 package... 
+## For hpcoperf needed for TMG timings
+echo "loading main/opt/perftools/perftools-2.0/${COMP_ARCH}"
+. ssmuse-sh -d main/opt/perftools/perftools-2.0/${COMP_ARCH}
+# For RTTOV 10v3 package...
 echo "loading eccc/mrd/rpn/anl/rttov/10v3.2/${COMP_ARCH}"
 . ssmuse-sh -d eccc/mrd/rpn/anl/rttov/10v3.2/${COMP_ARCH}
 
 #-----------------------------------------------------------------------------
 
 LIBAPPL="rttov10.2.0_coef_io rttov10.2.0_main rttov10.2.0_other burp_module descrip $MPILIB"
-#LIBSYS="hpcsperf lapack-3.4.0 essl mass"
+LIBSYS="hpcoperf"
 
 LIBRMN=rmn
 
