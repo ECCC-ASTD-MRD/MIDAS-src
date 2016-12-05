@@ -115,8 +115,8 @@ fi
 echo "loading eccc/cmd/cmdn/vgrid/5.6.6/${COMP_ARCH}"
 . ssmuse-sh -d eccc/cmd/cmdn/vgrid/5.6.6/${COMP_ARCH}
 ## for 'burplib'
-echo "loading eccc/cmd/cmda/libs/16.0-beta-2/${COMP_ARCH}"
-. ssmuse-sh -d eccc/cmd/cmda/libs/16.0-beta-2/${COMP_ARCH}
+echo "loading eccc/cmd/cmda/libs/16.0-beta-2_2/${COMP_ARCH}"
+. ssmuse-sh -d eccc/cmd/cmda/libs/16.0-beta-2_2/${COMP_ARCH}
 ## For hpcoperf needed for TMG timings
 echo "loading main/opt/perftools/perftools-2.0/${COMP_ARCH}"
 . ssmuse-sh -d main/opt/perftools/perftools-2.0/${COMP_ARCH}
