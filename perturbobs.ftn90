@@ -24,6 +24,7 @@ subroutine perturbObs(obsSpaceData,numAnalyses,indexAnalysis,indexBatch,obs_colu
   !Author  : M. Buehner, Dec, 2013
   !
   use obsSpaceData_mod
+  use randomNumber_mod
   implicit none
 
   type(struct_obs) :: obsSpaceData
@@ -32,7 +33,7 @@ subroutine perturbObs(obsSpaceData,numAnalyses,indexAnalysis,indexBatch,obs_colu
 
   integer :: nrandseed,iseed,indexAnalysis2,indexBody,indexFamily,iass
   integer, parameter :: numFamily=9
-  real*8  :: zdum,zmean,gasdev,originalOmp
+  real*8  :: zmean,originalOmp
   real*8  :: scaleFactor(numFamily)
   character(len=2) :: familyList(numFamily)
   real*8, save, pointer :: obsPerturbations(:,:) => NULL()
@@ -64,9 +65,9 @@ subroutine perturbObs(obsSpaceData,numAnalyses,indexAnalysis,indexBatch,obs_colu
       nrandseed   = indexAnalysis2 + (indexBatch-1)*numAnalyses
       iseed     = ABS(nrandseed)
       write(*,*) 'perturbobs: indexAnalysis, iseed=',indexAnalysis2, iseed
-      zdum      = gasdev(-iseed)
-      do indexBody = 1,obs_numBody(obsSpaceData)      
-        obsPerturbations(indexBody,indexAnalysis2)=gasdev(1)*obs_bodyElem_r(obsSpaceData,OBS_OER,indexBody)
+      call rng_setup(iseed) ! JFC: should be called only once, no???
+      do indexBody = 1,obs_numBody(obsSpaceData)
+        obsPerturbations(indexBody,indexAnalysis2)=rng_gaussian()*obs_bodyElem_r(obsSpaceData,OBS_OER,indexBody)
       enddo
     enddo
 

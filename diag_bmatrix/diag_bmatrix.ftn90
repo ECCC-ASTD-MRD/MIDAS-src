@@ -27,6 +27,7 @@ program diag_bmatrix
   use verticalCoord_mod
   use timeCoord_mod
   use LamAnalysisGrid_mod
+  use randomNumber_mod
   IMPLICIT NONE
 
   type(struct_gsv) :: statevector
@@ -44,8 +45,7 @@ program diag_bmatrix
   integer :: jmem, jj, jlon, jlat, jlev, nkgdim
   integer :: idate, itime, nulnam, nstamp
   integer :: nlons, nlats, nlevs, nlevs2, jvar, ip3
-  real(8) :: gasdev, zdum
-  character(len=128) :: filename
+   character(len=128) :: filename
   character(len=10)  :: datestr
   character(len=12)  :: etiket
 
@@ -229,7 +229,7 @@ program diag_bmatrix
      allocate(gdstddev(statevector%myLonBeg:statevector%myLonEnd,statevector%myLatBeg:statevector%myLatEnd,nkgdim))
 
      iseed = abs(nrandseed)
-     zdum = gasdev(-iseed)
+     call rng_setup(iseed)
 
      field => gsv_getField3d_r8(statevector)
 
@@ -242,7 +242,7 @@ program diag_bmatrix
 
         !- Global vector (same for each processors)
         do jj = 1, cvm_nvadim_mpiglobal
-           cvm_vazx_global(jj) = gasdev(1)
+           cvm_vazx_global(jj) = rng_gaussian()
         enddo
         
         !- Extract only the subvector for this processor

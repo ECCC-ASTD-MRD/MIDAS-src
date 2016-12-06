@@ -88,7 +88,7 @@ if [ $mode == full ] ; then
             utils_3dvar.ftn lamspectraltransform_mod.ftn90 shared/obsspacedata_mod.ftn90 \
             verticalcoord_mod.ftn90 horizontalcoord_mod.ftn90 dsyev2.ftn timecoord_mod.ftn90 \
             columndata_mod.ftn90 bmatrixensemble_mod.ftn90 bmatrixhi_mod.ftn90 bmatrix_mod.ftn90 \
-            matsqrt.ftn getfldprm2.ftn gasdev.ftn variabletransforms_mod.ftn90 filterresponsefunction_mod.ftn90"
+            matsqrt.ftn getfldprm2.ftn randomnumber_mod.ftn90 variabletransforms_mod.ftn90 filterresponsefunction_mod.ftn90"
 
   cd ${trunkdir}
   cp -f diag_bmatrix/diag_bmatrix.ftn90 ${compiledir}
@@ -102,7 +102,7 @@ if [ $mode == full ] ; then
   # Compile the subroutines...
   echo "compiling low-level independent modules"
   SRC0="mathphysconstants_mod.ftn90 earthconstants_mod.ftn90 mpi_mod.ftn90 mpivar_mod.ftn90 filterresponsefunction_mod.ftn90"
-  SRC0="$SRC0 bufr_mod.ftn90 physicsfunctions_mod.ftn90 horizontalcoord_mod.ftn90 obsspacedata_mod.ftn90"
+  SRC0="$SRC0 bufr_mod.ftn90 physicsfunctions_mod.ftn90 horizontalcoord_mod.ftn90 obsspacedata_mod.ftn90 randomnumber_mod.ftn90"
   s.compile $COMPF -src $SRC0 > listing0a 2>&1
   grep fail listing0a
   if [ $? = "0" ] ; then exit ; fi

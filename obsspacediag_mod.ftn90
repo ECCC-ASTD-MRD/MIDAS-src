@@ -29,6 +29,7 @@ module obsSpaceDiag_mod
   use gridStateVector_mod
   use bMatrix_mod
   use stateToColumn_mod
+  use randomNumber_mod
   implicit none
   save
   private
@@ -66,7 +67,6 @@ contains
     
     integer :: ierr,nulinnov,nulBmatHi,nulBmatEn,nulcount,fnom,fclos,ivco,iseed,jj,jlev,jvar
     integer :: dateprnt,timeprnt,newdate
-    real*8 :: zdum,gasdev
     real*8,pointer :: cvBhi(:), cvBen(:), field(:,:,:,:)
     real*8,allocatable :: HxBhi(:), HxBen(:)
     real*8,allocatable :: scaleFactorBhi(:),scaleFactorBen(:)
@@ -114,9 +114,9 @@ contains
 
     ! compute random control vector
     iseed = abs(nrandseed)
-    zdum = gasdev(-iseed)
+    call rng_setup(iseed)
     do jj = 1,cvm_nvadim
-      cvm_vazx(jj)=gasdev(1)
+      cvm_vazx(jj)=rng_gaussian()
     enddo
 
     ! set Ben contribution to zero
@@ -147,9 +147,9 @@ contains
 
     ! compute random control vector
     iseed = abs(nrandseed)
-    zdum = gasdev(-iseed)
+    call rng_setup(iseed)
     do jj = 1,cvm_nvadim
-      cvm_vazx(jj)=gasdev(1)
+      cvm_vazx(jj)=rng_gaussian()
     enddo
 
     ! set Bhi contribution to zero

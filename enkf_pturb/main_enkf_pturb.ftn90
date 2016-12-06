@@ -29,34 +29,27 @@ program main_enkf_pturb
   use horizontalCoord_mod
   use timeCoord_mod
   use LamAnalysisGrid_mod
-  use writeIncrement_mod
+  use randomNumber_mod
   IMPLICIT NONE
 
   type(struct_gsv) :: statevector
 
   type(struct_vco), pointer :: vco_anl => null()
-
   type(struct_hco), pointer :: hco_anl => null()
 
   real(8), pointer :: field(:,:,:)
   
   integer :: fclos,fnom,newdate,nstamp
   integer :: ierr,iseed,status
-  integer :: ji,jj,jmem,jni,jnj,jnk,nkgdim,nlev_T
+  integer :: jmem,i,j,k,nkgdim
   integer :: idate,itime,ndate,nulnam,cvDim_local
   integer :: get_max_rss
 
   integer :: LatPerPE, myLatBeg, myLatEnd
   integer :: LonPerPE, myLonBeg, myLonEnd
 
-  real(8) :: gasdev,zdum
-
   real(8), allocatable :: cvm_vazx_global(:)
   real(8), allocatable :: gdmean(:,:,:)
-  real(8), allocatable :: zes_global(:,:,:)
-  real(8), allocatable :: ztv_global(:,:,:)
-  real(8), allocatable :: zgz_global(:,:,:)
-  real(8), allocatable :: zhu_global(:,:,:)
   real(4), allocatable :: ensemble_r4(:,:,:,:)
 
   character(len=10) :: cldate
@@ -161,20 +154,10 @@ program main_enkf_pturb
   call gsv_setVco(statevector,vco_anl)
   call gsv_allocate(statevector,1,dateStamp=nstamp,mpi_local=.true.)
   nkgdim = statevector%nk
-  allocate(ensemble_r4(myLonBeg:myLonEnd,statevector%nk,myLatBeg:myLatEnd,nenkfmem))
+  allocate(ensemble_r4(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim,nenkfmem))
 
   !- 3.2 Allocate auxillary variables
-  nlev_T = vco_getNumLev(vco_anl,'TH')
-  allocate(zes_global(hco_anl%ni,nlev_T,hco_anl % nj))
-  allocate(ztv_global(hco_anl % ni,nlev_T,hco_anl % nj))
-  allocate(zgz_global(hco_anl % ni,nlev_T,hco_anl % nj))
-  allocate(zhu_global(hco_anl % ni,nlev_T,hco_anl % nj)) 
-  zes_global(:,:,:)=0.0d0
-  ztv_global(:,:,:)=0.0d0
-  zgz_global(:,:,:)=0.0d0
-  zhu_global(:,:,:)=0.0d0
- 
-  allocate(gdmean(myLonBeg:myLonEnd,nkgdim,myLatBeg:myLatEnd),STAT=status)
+  allocate(gdmean(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim),STAT=status)
   if ( status /= 0 ) then
      call varAbort('main_enkf_pturb: PROBLEM WITH ALLOCATING OF GDMEAN')
   endif
@@ -190,7 +173,7 @@ program main_enkf_pturb
               ,' of all the members'
 
   iseed     = ABS(nrandseed)
-  zdum      = gasdev(-iseed)
+  call rng_setup(iseed)
 
   gdmean(:,:,:) = 0.0D0
   field => gsv_getField3d_r8(statevector)
@@ -203,27 +186,27 @@ program main_enkf_pturb
      !- 4.1.1 Create a random control vector in spectral space
 
      !- Global vector (same for each processors)
-     do jj = 1, cvm_nvadim_mpiglobal
-        cvm_vazx_global(jj) = gasdev(1)
+     do j = 1, cvm_nvadim_mpiglobal
+        cvm_vazx_global(j) = rng_gaussian()
      enddo
 
      !- Extract only the subvector for this processor
      call bmat_reduceToMPILocal(cvm_vazx,        & ! OUT
                                 cvm_vazx_global, & ! IN
-                                cvDim_local )     ! OUT
+                                cvDim_local )      ! OUT
 
      !- 4.1.2 Transform to control variables in physical space
      call bmat_sqrtB(cvm_vazx, cvm_nvadim, & ! IN
-                     statevector          ) ! OUT
+                     statevector          )  ! OUT
 
      !- 4.1.3 Running ensemble sum
 !$OMP PARALLEL
-!$OMP DO PRIVATE (jni,jnj,jnk)    
-     do jni = myLonBeg, myLonEnd
-        do jnj = myLatBeg, myLatEnd
-           do jnk = 1, nkgdim
-              ensemble_r4(jni,jnk,jnj,jmem) = real(field(jni,jnk,jnj),4)
-              gdmean(jni,jnk,jnj) = gdmean(jni,jnk,jnj) + field(jni,jnk,jnj)
+!$OMP DO PRIVATE (i,j,k)    
+     do i = myLonBeg, myLonEnd
+        do j = myLatBeg, myLatEnd
+           do k = 1, nkgdim
+              ensemble_r4(i,j,k,jmem) = real(field(i,j,k),4)
+              gdmean(i,j,k) = gdmean(i,j,k) + field(i,j,k)
            end do
         end do
      end do
@@ -237,11 +220,11 @@ program main_enkf_pturb
   !- 4.2 Remove the ensemble mean
   if ( LREMOVE_MEAN ) then
 !$OMP PARALLEL
-!$OMP DO PRIVATE (jni,jnj,jnk)    
-     do jni = myLonBeg, myLonEnd
-        do jnj = myLatBeg, myLatEnd
-           do jnk = 1, nkgdim
-              gdmean(jni,jnk,jnj) = gdmean(jni,jnk,jnj) / real(NENKFMEM,8)
+!$OMP DO PRIVATE (i,j,k)    
+     do i = myLonBeg, myLonEnd
+        do j = myLatBeg, myLatEnd
+           do k = 1, nkgdim
+              gdmean(i,j,k) = gdmean(i,j,k) / real(NENKFMEM,8)
            end do
         end do
      end do
@@ -249,13 +232,13 @@ program main_enkf_pturb
 !$OMP END PARALLEL
 
 !$OMP PARALLEL
-!$OMP DO PRIVATE (jni,jmem,jnj,jnk)    
-     do jni = myLonBeg, myLonEnd
+!$OMP DO PRIVATE (i,jmem,j,k)    
+     do i = myLonBeg, myLonEnd
         do jmem = 1, NENKFMEM
-           do jnj = myLatBeg, myLatEnd
-              do jnk = 1, nkgdim
-                 ensemble_r4(jni,jnk,jnj,jmem) = ensemble_r4(jni,jnk,jnj,jmem) - &
-                                                 real(gdmean(jni,jnk,jnj),4)
+           do j = myLatBeg, myLatEnd
+              do k = 1, nkgdim
+                 ensemble_r4(i,j,k,jmem) = ensemble_r4(i,j,k,jmem) - &
+                                                 real(gdmean(i,j,k),4)
               end do
            end do
         end do
@@ -273,29 +256,23 @@ program main_enkf_pturb
      field => gsv_getField3d_r8(statevector)
 
 !$OMP PARALLEL
-!$OMP DO PRIVATE (jni,jnj,jnk)    
-     do jni = myLonBeg, myLonEnd
-        do jnj = myLatBeg, myLatEnd
-           do jnk = 1, nkgdim
-              field(jni,jnk,jnj) = ensemble_r4(jni,jnk,jnj,jmem)
+!$OMP DO PRIVATE (i,j,k)    
+     do i = myLonBeg, myLonEnd
+        do j = myLatBeg, myLatEnd
+           do k = 1, nkgdim
+              field(i,j,k) = ensemble_r4(i,j,k,jmem)
            end do
         end do
      end do
 !$OMP END DO
 !$OMP END PARALLEL
 
-     ! mpiglobal result for 3D increment only on myid=0 
-     call gsv_commMPIGlobal3D(statevector)
-     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+     write(clmember,'(I3.3)') jmem
+     clfiname = './ptbm_'//trim(cldate)//'_'//trim(clmember)
+     write(*,*)'MAIN_ENKF_PTURB: PROCESSING clfiname= ',clfiname
 
-     if (mpi_myid == 0) then
-        write(clmember,'(I3.3)') jmem
-        clfiname = './ptbm_'//trim(cldate)//'_'//trim(clmember)
-        write(*,*)'MAIN_ENKF_PTURB: PROCESSING clfiname= ',clfiname
-        call writeIncrement(clfiname,statevector,zes_global,ztv_global, & ! IN
-                            zgz_global,zhu_global,nstamp)                 ! IN
-        write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-     end if
+     call gsv_writeToFileMpi(statevector,clfiname ,'RANDOM_PERT',      & ! IN
+                             HUcontainsLQ=.true.,unitConversion=.true.)  ! IN
 
      call gsv_deallocate(statevector)
 
@@ -309,12 +286,7 @@ program main_enkf_pturb
      call varAbort('main_enkf_pturb: PROBLEM WITH DEALLOCATE OF GDMEAN')
   endif
 
-  deallocate(zes_global)
-  deallocate(ztv_global)
-  deallocate(zgz_global)
-  deallocate(zhu_global)
   deallocate(ensemble_r4)
-  
   deallocate(cvm_vazx_global)
 
   !

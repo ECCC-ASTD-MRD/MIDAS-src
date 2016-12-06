@@ -39,6 +39,7 @@ MODULE minimization_mod
   use stateToColumn_mod
   use variableTransforms_mod
   use varqc_mod
+  use randomNumber_mod
   implicit none
   save
   private
@@ -822,7 +823,6 @@ CONTAINS
     integer :: numAnalyses, indexAnalysis
 
     integer :: iseed,jj,nlev_T,nlev_M,jvar,jlev,indexAnalysis2
-    real(8) :: gasdev,zdum
     real(8), allocatable :: cv_pert_mpiglobal(:), cv_pert_mpilocal(:)
     real(8), pointer :: cv_pert_bens_mpilocal(:), cv_pert_bhi_mpilocal(:), field(:,:,:,:)
     real(8), allocatable :: scaleFactorBhi(:), stddev_orig(:), stddev_trunc(:)
@@ -841,9 +841,9 @@ CONTAINS
       cv_pert_mpiglobal(:) = 0.0d0
       do indexAnalysis2 = 1, numAnalyses
         iseed = abs(tim_getDatestamp()) + indexAnalysis2 + (envar_loop-1)*numAnalyses
-        zdum = gasdev(-iseed)
+        call rng_setup(iseed) ! JFC: should be called only once, no???
         do jj = 1, cvm_nvadim_mpiglobal
-          cv_pert_mpiglobal(jj) = cv_pert_mpiglobal(jj) + gasdev(1)
+          cv_pert_mpiglobal(jj) = cv_pert_mpiglobal(jj) + rng_gaussian()
         enddo
       enddo
       cv_pert_mpiglobal(:) = cv_pert_mpiglobal(:)/real(numAnalyses,8)
@@ -858,9 +858,9 @@ CONTAINS
     ! compute perturbation and make mpilocal
     iseed = abs(tim_getDatestamp()) + indexAnalysis + (envar_loop-1)*numAnalyses
     write(*,*) 'min_calcRandomPert: indexAnalysis, iseed=', indexAnalysis, iseed
-    zdum = gasdev(-iseed)
+    call rng_setup(iseed) ! JFC : why re-initializing the seed??? 
     do jj = 1, cvm_nvadim_mpiglobal
-      cv_pert_mpiglobal(jj) = gasdev(1)
+      cv_pert_mpiglobal(jj) = rng_gaussian()
     enddo
 
     call bmat_reduceToMPILocal(cv_pert_mpilocal,   & ! OUT
