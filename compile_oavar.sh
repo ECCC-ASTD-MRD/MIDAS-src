@@ -85,8 +85,8 @@ compiledir=${PWD}
 #  Set up dependent librarys and tools. 
 #---------------------------------------------------------------
 ## for s.compile
-echo "loading hpco/tmp/eccc/201402/05/base"
-. ssmuse-sh -d hpco/tmp/eccc/201402/05/base
+echo "loading hpco/tmp/eccc/201402/06/base"
+. ssmuse-sh -d hpco/tmp/eccc/201402/06/base
 ## for the compiler
 if [ "${ORDENV_PLAT}" = ubuntu-14.04-amd64-64 ];then
     echo "loading compiler main/opt/intelcomp/intelcomp-2016.1.156"
