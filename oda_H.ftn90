@@ -25,7 +25,7 @@ subroutine oda_H(lcolumn,lcolumng,lobsSpaceData)
   use gps_mod
   use minimization_mod
   use timeCoord_mod
-  use filterObs_mod
+  use obsFilter_mod
   use lqtoes_mod
   implicit none
   !

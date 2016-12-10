@@ -1424,5 +1424,23 @@ END SUBROUTINE burp_updateFiles
 
   END SUBROUTINE VINT3DFD
 
+  SUBROUTINE SETASSFLG(lobsSpaceData)
+!*    Purpose:  -Set BANCO QUALITY CONTROL BIT No 12 FOR ALL DATA ASSIMILATED
+!                BY CURRENT ANALYSIS.
+!
+    IMPLICIT NONE
+!
+      type(struct_obs) :: lobsSpaceData
+      INTEGER INDEX_BODY
+!
+!     Process all data
+!
+      DO INDEX_BODY=1,obs_numBody(lobsSpaceData)
+         IF (obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) .EQ. 1)  THEN
+            call obs_bodySet_i(lobsSpaceData,OBS_FLG,INDEX_BODY,ibset( obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY), 12 ))
+         ENDIF
+      END DO
+!--------------------------------------------------------------------
+    END SUBROUTINE SETASSFLG
 
 end module burpFiles_mod

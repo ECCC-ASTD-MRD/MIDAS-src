@@ -785,14 +785,14 @@ module calcbmatrix_lam_mod
 
     integer :: ni_ext, nj_ext, i, j
     integer :: iun = 0
-    integer :: ier, fnom, fstouv, fstfrm, fclos, vfstecr
+    integer :: ier, fnom, fstouv, fstfrm, fclos
 
     real(8), allocatable :: Field2d(:,:)
 
     real(8), allocatable :: lat_ext(:)
     real(8), allocatable :: lon_ext(:)
 
-    real(8) :: work, dlat, dlon
+    real(8) :: dlat, dlon
 
     integer :: dateo,npak
     integer :: ip1,ip2,ip3,deet,npas,datyp,ig1,ig2,ig3,ig4
@@ -836,15 +836,15 @@ module calcbmatrix_lam_mod
     ig3      =  ig3_tictac
     ig4      =  ig4_tictac
 
-    ier = vfstecr(hco_ens%lon*MPC_DEGREES_PER_RADIAN_R8, work, npak, &
-                  iun, dateo, deet, npas, hco_ens%ni, 1, 1, ip1,    &
-                  ip2, ip3, typvar, '>>', etiket, grtyp, ig1,          &
-                  ig2, ig3, ig4, datyp, .true.)
+    ier = utl_fstecr(hco_ens%lon*MPC_DEGREES_PER_RADIAN_R8, npak, &
+                     iun, dateo, deet, npas, hco_ens%ni, 1, 1, ip1,    &
+                     ip2, ip3, typvar, '>>', etiket, grtyp, ig1,          &
+                     ig2, ig3, ig4, datyp, .true.)
 
-    ier = vfstecr(hco_ens%lat*MPC_DEGREES_PER_RADIAN_R8, work, npak, &
-                  iun, dateo, deet, npas, 1, hco_ens%nj, 1, ip1,    &
-                  ip2, ip3, typvar, '^^', etiket, grtyp, ig1,          &
-                  ig2, ig3, ig4, datyp, .true.)
+    ier = utl_fstecr(hco_ens%lat*MPC_DEGREES_PER_RADIAN_R8, npak, &
+                     iun, dateo, deet, npas, 1, hco_ens%nj, 1, ip1,    &
+                     ip2, ip3, typvar, '^^', etiket, grtyp, ig1,          &
+                     ig2, ig3, ig4, datyp, .true.)
 
     !- 2.2 2D Field
     allocate(Field2d(hco_ens%ni,hco_ens%nj))
@@ -865,10 +865,10 @@ module calcbmatrix_lam_mod
     ig3       =  hco_ens%ig3
     ig4       =  hco_ens%ig4
 
-    ier = vfstecr(Field2d, work, npak,                                       &
-                  iun, dateo, deet, npas, hco_ens%ni, hco_ens%nj, 1, ip1, &
-                  ip2, ip3, typvar, 'P0', etiket, grtyp, ig1,                &
-                  ig2, ig3, ig4, datyp, .true.)
+    ier = utl_fstecr(Field2d, npak,                                    &
+                     iun, dateo, deet, npas, hco_ens%ni, hco_ens%nj, 1, ip1, &
+                     ip2, ip3, typvar, 'P0', etiket, grtyp, ig1,                &
+                     ig2, ig3, ig4, datyp, .true.)
 
     deallocate(Field2d)
 
@@ -913,15 +913,15 @@ module calcbmatrix_lam_mod
     ig3      =  ig3_tictac
     ig4      =  ig4_tictac
 
-    ier = vfstecr(lon_ext*MPC_DEGREES_PER_RADIAN_R8, work, npak, &
-                  iun, dateo, deet, npas, ni_ext, 1, 1, ip1,  &
-                  ip2, ip3, typvar, '>>', etiket, grtyp, ig1,    &
-                  ig2, ig3, ig4, datyp, .true.)
+    ier = utl_fstecr(lon_ext*MPC_DEGREES_PER_RADIAN_R8, npak, &
+                     iun, dateo, deet, npas, ni_ext, 1, 1, ip1,  &
+                     ip2, ip3, typvar, '>>', etiket, grtyp, ig1,    &
+                     ig2, ig3, ig4, datyp, .true.)
 
-    ier = vfstecr(lat_ext*MPC_DEGREES_PER_RADIAN_R8, work, npak, &
-                  iun, dateo, deet, npas, 1, nj_ext, 1, ip1,  &
-                  ip2, ip3, typvar, '^^', etiket, grtyp, ig1,    &
-                  ig2, ig3, ig4, datyp, .true.)
+    ier = utl_fstecr(lat_ext*MPC_DEGREES_PER_RADIAN_R8, npak, &
+                     iun, dateo, deet, npas, 1, nj_ext, 1, ip1,  &
+                     ip2, ip3, typvar, '^^', etiket, grtyp, ig1,    &
+                     ig2, ig3, ig4, datyp, .true.)
 
     deallocate(lon_ext)
     deallocate(lat_ext)
@@ -945,10 +945,10 @@ module calcbmatrix_lam_mod
     ig3       =  0
     ig4       =  0
 
-    ier = vfstecr(Field2d, work, npak,                               &
-                  iun, dateo, deet, npas, ni_ext, nj_ext, 1, ip1, &
-                  ip2, ip3, typvar, 'P0', etiket, grtyp, ig1,        &
-                  ig2, ig3, ig4, datyp, .true.)
+    ier = utl_fstecr(Field2d, work, npak,                               &
+                     iun, dateo, deet, npas, ni_ext, nj_ext, 1, ip1, &
+                     ip2, ip3, typvar, 'P0', etiket, grtyp, ig1,        &
+                     ig2, ig3, ig4, datyp, .true.)
 
     deallocate(Field2d)
 
@@ -2686,7 +2686,7 @@ module calcbmatrix_lam_mod
 
     real(4), allocatable :: work2d(:,:)
 
-    real(4)   :: work
+    real(4) :: work
 
     integer   :: ier, fstecr
     integer   :: k, kgdim, totwvnb
@@ -3142,10 +3142,7 @@ module calcbmatrix_lam_mod
 
     integer, intent(in) :: iun
 
-    integer :: ier, vfstecr
-
-    real(8) :: work
-
+    integer :: ier
     integer :: dateo,npak, status
     integer :: ip1,ip2,ip3,deet,npas,datyp,ig1,ig2,ig3,ig4
     integer :: ig1_tictac,ig2_tictac,ig3_tictac,ig4_tictac
@@ -3179,15 +3176,15 @@ module calcbmatrix_lam_mod
     ig3      =  ig3_tictac
     ig4      =  ig4_tictac
 
-    ier = vfstecr(hco_bhi%lon*MPC_DEGREES_PER_RADIAN_R8, work, npak, &
-                  iun, dateo, deet, npas, hco_bhi%ni, 1, 1, ip1,    &
-                  ip2, ip3, typvar, '>>', etiket, grtyp, ig1,          &
-                  ig2, ig3, ig4, datyp, .true.)
+    ier = utl_fstecr(hco_bhi%lon*MPC_DEGREES_PER_RADIAN_R8, npak, &
+                     iun, dateo, deet, npas, hco_bhi%ni, 1, 1, ip1,    &
+                     ip2, ip3, typvar, '>>', etiket, grtyp, ig1,          &
+                     ig2, ig3, ig4, datyp, .true.)
 
-    ier = vfstecr(hco_bhi%lat*MPC_DEGREES_PER_RADIAN_R8, work, npak, &
-                  iun, dateo, deet, npas, 1, hco_bhi%nj, 1, ip1,    &
-                  ip2, ip3, typvar, '^^', etiket, grtyp, ig1,          &
-                  ig2, ig3, ig4, datyp, .true.)
+    ier = utl_fstecr(hco_bhi%lat*MPC_DEGREES_PER_RADIAN_R8, npak, &
+                     iun, dateo, deet, npas, 1, hco_bhi%nj, 1, ip1,    &
+                     ip2, ip3, typvar, '^^', etiket, grtyp, ig1,          &
+                     ig2, ig3, ig4, datyp, .true.)
 
     !
     !- Writing Toc-Toc

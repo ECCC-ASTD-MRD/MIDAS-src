@@ -9,6 +9,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
       use HorizontalCoord_mod
       use bmatrixhi
       use gps_mod
+      use utilities_mod
       IMPLICIT NONE
 
       type(struct_hco), pointer        :: hco_anl
@@ -27,7 +28,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
       CHARACTER*4 CLNOMVAR
 
       INTEGER IULSSF,IDATEO
-      INTEGER VFSTLIR,FSTPRM,FNOM,FSTOUV,FCLOS,FSTFRM
+      INTEGER FSTPRM,FNOM,FSTOUV,FCLOS,FSTFRM
       INTEGER IKEY,ILEN,IERR,IDATE
 
       REAL*8, allocatable :: ZBUFFER(:,:)
@@ -123,7 +124,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
       field_ptr => gsv_getField3D_r8(statevector,'UU')       
       do jlev = 1, nlev_M
          ip1 = vco_anl%ip1_M(jlev)
-         ikey = vfstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+         ikey = utl_fstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
          ierr = fstprm(ikey,idateo,ideet,inpas   &
               ,ini,inj,ink, inbits, idatyp       &
               ,ip1,ip2,ip3,cltypvar,clnomvar,cletiket,clgrtyp   &
@@ -150,7 +151,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
       field_ptr => gsv_getField3D_r8(statevector,'VV')
       do jlev = 1, nlev_M
          ip1 = vco_anl%ip1_M(jlev)
-         ikey = vfstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+         ikey = utl_fstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
          if (ini /= hco_anl%ni .or. inj /= hco_anl%nj .or. ink /= 1) then
             write(*,*)
             write(*,*) 'HBHT_static: Invalid dimensions for...'
@@ -173,7 +174,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
       field_ptr => gsv_getField3D_r8(statevector,'HU')
       do jlev = 1, nlev_T
          ip1 = vco_anl%ip1_T(jlev)
-         ikey = vfstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+         ikey = utl_fstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
          if (ini /= hco_anl%ni .or. inj /= hco_anl%nj .or. ink /= 1) then
             write(*,*)
             write(*,*) 'HBHT_static: Invalid dimensions for...'
@@ -196,7 +197,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
       field_ptr => gsv_getField3D_r8(statevector,'TT')
       do jlev = 1, nlev_T
          ip1 = vco_anl%ip1_T(jlev)
-         ikey = vfstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+         ikey = utl_fstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
          if (ini /= hco_anl%ni .or. inj /= hco_anl%nj .or. ink /= 1) then
             write(*,*)
             write(*,*) 'HBHT_static: Invalid dimensions for...'
@@ -249,7 +250,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
       field_ptr => gsv_getField3D_r8(statevector,'TT')
       do jlev = 1, nlev_T
          ip1 = vco_anl%ip1_T(jlev)
-         ikey = vfstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+         ikey = utl_fstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
          if (ini /= hco_anl%ni .or. inj /= hco_anl%nj .or. ink /= 1) then
             write(*,*)
             write(*,*) 'HBHT_static: Invalid dimensions for...'
@@ -276,7 +277,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
       clnomvar = 'P0'
       write(*,*) clnomvar
       ip1 = -1
-      ikey = vfstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+      ikey = utl_fstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
       if (ini /= hco_anl%ni .or. inj /= hco_anl%nj .or. ink /= 1) then
          write(*,*)
          write(*,*) 'HBHT_static: Invalid dimensions for...'
@@ -300,7 +301,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
       field_ptr => gsv_getField3D_r8(statevector,'UU')
       do jlev = 1, nlev_M
          ip1 = vco_anl%ip1_M(jlev)
-         ikey = vfstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+         ikey = utl_fstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
          do jlat = 1, hco_anl%nj
             do jlon = 1, hco_anl%ni
                field_ptr(jlon,jlat,jlev) = scaleFactor(jlev+shift_level)*zbuffer(jlon,jlat)*MPC_M_PER_S_PER_KNOT_R8
@@ -313,7 +314,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
       field_ptr => gsv_getField3D_r8(statevector,'VV')
       do jlev = 1, nlev_M
          ip1 = vco_anl%ip1_M(jlev)
-         ikey = vfstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+         ikey = utl_fstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
          do jlat = 1, hco_anl%nj
             do jlon = 1, hco_anl%ni
                field_ptr(jlon,jlat,jlev) = scaleFactor(jlev+shift_level)*zbuffer(jlon,jlat)*MPC_M_PER_S_PER_KNOT_R8
@@ -326,7 +327,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
       field_ptr => gsv_getField3D_r8(statevector,'TT')
       do jlev = 1, nlev_T
          ip1 = vco_anl%ip1_T(jlev)
-         ikey = vfstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+         ikey = utl_fstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
          do jlat = 1, hco_anl%nj
             do jlon = 1, hco_anl%ni
                field_ptr(jlon,jlat,jlev) = scaleFactor(jlev)*zbuffer(jlon,jlat)
@@ -339,7 +340,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
       field_ptr => gsv_getField3D_r8(statevector,'HU')
       do jlev = 1, nlev_T
          ip1 = vco_anl%ip1_T(jlev)
-         ikey = vfstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+         ikey = utl_fstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
          do jlat = 1, hco_anl%nj
             do jlon = 1, hco_anl%ni
                field_ptr(jlon,jlat,jlev) = scaleFactor(jlev)*zbuffer(jlon,jlat)
@@ -362,7 +363,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
       field_ptr => gsv_getField3D_r8(statevector,'HU')
       do jlev = 1, nlev_T
          ip1 = vco_anl%ip1_T(jlev)
-         ikey = vfstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+         ikey = utl_fstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
          if (ini /= hco_anl%ni .or. inj /= hco_anl%nj .or. ink /= 1) then
             write(*,*)
             write(*,*) 'HBHT_static: Invalid dimensions for...'

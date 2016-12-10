@@ -193,13 +193,13 @@ if [ "${mode}" == full ] ; then
   cd ${trunkdir};          ls -1F | grep -v '/' | grep -v "*" | grep -v "@" | cpio -pl $compiledir ; cd $compiledir
   cd ${trunkdir}/bgcheck;  ls -1F | grep -v '/' | grep -v "*" | cpio -pl $compiledir ; cd $compiledir
   cd ${trunkdir}/shared;   ls -1F | grep -v '/' | grep -v "*" | cpio -pl $compiledir ; cd $compiledir
-  cd ${trunkdir}/modulopt; ls -1F | grep -v '/' | grep -v "*" | cpio -pl $compiledir ; cd $compiledir
+  cd ${trunkdir}/quasi_newton; ls -1F | grep -v '/' | grep -v "*" | cpio -pl $compiledir ; cd $compiledir
   rm -f *.ftn~ *.ftn90~
 
   # Compile the subroutines...
   echo "... > Compiling low-level independent modules"
   echo "...   if aborting, check in ${PWD}/listing1"
-  SRC0="toplevelcontrol_mod.ftn90 randomnumber_mod.ftn90"
+  SRC0="toplevelcontrol_mod.ftn90 randomnumber_mod.ftn90 utilities_mod.ftn90"
   SRC0="$SRC0 mathphysconstants_mod.ftn90 earthconstants_mod.ftn90 mpi_mod.ftn90 mpivar_mod.ftn90 bufr_mod.ftn90 codtyp_mod.ftn90"
   SRC0="$SRC0 physicsfunctions_mod.ftn90 obsspacedata_mod.ftn90 localizationfunction_mod.ftn90"
   SRC0="$SRC0 horizontalcoord_mod.ftn90 timecoord_mod.ftn90 verticalcoord_mod.ftn90"
@@ -212,7 +212,7 @@ if [ "${mode}" == full ] ; then
       exit 1
   fi
 
-  echo "... > Compiling modulopt (n1qn3)"
+  echo "... > Compiling quasi_newton (n1qn3)"
   echo "...   if aborting, check in ${PWD}/listing0"
   SRC0="dcube.ftn ddd.ftn ddds.ftn dystbl.ftn mupdts.ftn n1qn3.ftn n1qn3a.ftn nlis0.ftn"
   s.compile $COMPF_NOC  -O ${FOPTMIZ} -src $SRC0 > listing0 2>&1
@@ -244,7 +244,7 @@ if [ "${mode}" == full ] ; then
   SRC1="$SRC1 bmatrixensemble_mod.ftn90 bmatrixhi_mod.ftn90 lambmatrixhi_mod.ftn90"
   SRC1="$SRC1 bmatrix_mod.ftn90"
   SRC1="$SRC1 ozoneclim_mod.ftn90 tovs_extrap_mod.ftn90"
-  SRC1="$SRC1 obsspacediag_mod.ftn90 observation_erreurs_mod.ftn90"
+  SRC1="$SRC1 obsspacediag_mod.ftn90 obserrors_mod.ftn90"
 
   s.compile $COMPF  -O ${FOPTMIZ} -src $SRC1 > listing3 2>&1
   status=1
@@ -278,8 +278,8 @@ if [ "${mode}" == full ] ; then
 
   echo "... > Compiling some more modules..."
   echo "...   if aborting, check in ${PWD}/listing6"
-  SRC2="varqc_mod.ftn90 filterobs_mod.ftn90 obsoperators_mod.ftn90"
-  SRC2="$SRC2 minimization_mod.ftn90 burpfiles_mod.ftn90"
+  SRC2="varqc_mod.ftn90 obsfilter_mod.ftn90 obsoperators_mod.ftn90"
+  SRC2="$SRC2 minimization_mod.ftn90 burpfiles_mod.ftn90 innovation_mod.ftn90"
   s.compile $COMPF  -O ${FOPTMIZ} -src $SRC2 > listing6 2>&1
   status=1
   grep fail listing6 || status=0
@@ -316,7 +316,7 @@ if [ "${mode}" == full ] ; then
   fi
 
   status=1
-  grep -i ERROR listing? || status=0
+  grep -i " ERROR " listing? || status=0
   if [ "${status}" -ne 0 ] ; then
       echo "... !! ERROR found: STOP; check listing in ${PWD} !!"
       exit 1

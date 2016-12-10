@@ -16,29 +16,29 @@
 !
 subroutine tovs_fill_profiles_tl(column,columng)
 #if defined (doc)
-!
-!**s/r tovs_fill_profiles_tl  - tangent linear of interpolation of obs.space to rttov space
-!                          (adapted from part of code of lvtov)
-!
-!
-!author        : j. halle *cmda/aes  april 12, 2005
-!
-!revision 001  : a. beaulne *cmda/smc  june 2006
-!                 -add ozone from climatology to all sensors
-!
-!revision 002  : j. halle  *cmda/smc  march 2007
-!                 -fix zvlev for hybrid coordinate
-!revision 003  : S. Heilliette septembre 2011
-!                 -adapt to rttv-10
-!revision 004  : s. macpherson  nov 2012
-!                  - remove #include "comtovst.cdk"
-!
-!    -------------------
-!     purpose: fill tangent linear profiles structure with info from obs. space
-!
-!arguments
-!
-!
+  !
+  !**s/r tovs_fill_profiles_tl  - tangent linear of interpolation of obs.space to rttov space
+  !                          (adapted from part of code of lvtov)
+  !
+  !
+  !author        : j. halle *cmda/aes  april 12, 2005
+  !
+  !revision 001  : a. beaulne *cmda/smc  june 2006
+  !                 -add ozone from climatology to all sensors
+  !
+  !revision 002  : j. halle  *cmda/smc  march 2007
+  !                 -fix zvlev for hybrid coordinate
+  !revision 003  : S. Heilliette septembre 2011
+  !                 -adapt to rttv-10
+  !revision 004  : s. macpherson  nov 2012
+  !                  - remove #include "comtovst.cdk"
+  !
+  !    -------------------
+  !     purpose: fill tangent linear profiles structure with info from obs. space
+  !
+  !arguments
+  !
+  !
 #endif
   use MathPhysConstants_mod
   use tovs_nl_mod
@@ -84,13 +84,13 @@ subroutine tovs_fill_profiles_tl(column,columng)
 
   real*8 :: zptop, zptopmbs
   real(8), pointer :: delTT(:), delLQ(:), TTb(:), HUb(:), Pres(:)
- 
+
   if(NOBTOV.eq.0) return    ! exit if there are not tovs data
 
 
-!     1.    Set index for model's lowest level and model top
-!     .     ------------------------------------------------
-                 
+  !     1.    Set index for model's lowest level and model top
+  !     .     ------------------------------------------------
+
   nlv_M = col_getNumLev(columng,'MM')
   nlv_T = col_getNumLev(columng,'TH')
 
@@ -105,7 +105,7 @@ subroutine tovs_fill_profiles_tl(column,columng)
   vco_anl => col_getVco(columng)
   status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode)
   diagTtop = (Vcode.eq.5002)
- 
+
   nlevels=coefs(1) %coef%  nlevels
   allocate (xpres(nlevels))
   xpres(1:nlevels) = coefs(1)% coef % ref_prfl_p(1:nlevels)
@@ -127,12 +127,12 @@ subroutine tovs_fill_profiles_tl(column,columng)
   enddo
   jpmolev = (nlevels-jpmotop+1)
 
-!     1.1   Number of threads and memory allocation
-!     .     ---------------------------------------
+  !     1.1   Number of threads and memory allocation
+  !     .     ---------------------------------------
 
-!$omp parallel 
+  !$omp parallel 
   nthreads = omp_get_num_threads()
-!$omp end parallel
+  !$omp end parallel
 
   alloc_status(:) = 0
   allocate (iptobs    (jppf*nthreads)          ,stat= alloc_status(1) )
@@ -170,12 +170,12 @@ subroutine tovs_fill_profiles_tl(column,columng)
   to_tl    (:,:) = 0.0d0
   lqo_tl   (:,:) = 0.0d0
 
-!
-!     2.  Fill profiles structure
-!     .   -----------------------
-! loop over all instruments
+  !
+  !     2.  Fill profiles structure
+  !     .   -----------------------
+  ! loop over all instruments
   binst: do krtid=1,nsensors
-! loop over all obs.
+     ! loop over all obs.
      knpf = 0
      xpres(1:nlevels) = coefs(krtid)% coef % ref_prfl_p(1:nlevels)
 
@@ -190,7 +190,7 @@ subroutine tovs_fill_profiles_tl(column,columng)
         if (lsensor(iobs)/=krtid) cycle bobs
 
         jo = lobsno(iobs)
-       
+
         knpf = knpf + 1
 
         zps_tl  (knpf) = col_getElem(column,1,jo,'P0')*MPC_MBAR_PER_PA_R8
@@ -215,8 +215,8 @@ subroutine tovs_fill_profiles_tl(column,columng)
            zt_tl   (1,knpf) =  0.d0
            zlq_tl  (1,knpf) =  0.d0
            zt   (1,knpf) =  zt   (2,knpf) + mesosphere_lapse_rate *  &
-                            log( col_getPressure(columng,1,jo,'TH') /  &
-                                 col_getPressure(columng,2,jo,'TH') )
+                log( col_getPressure(columng,1,jo,'TH') /  &
+                col_getPressure(columng,2,jo,'TH') )
            zlq  (1,knpf) =  zlq  (2,knpf)
         endif
 
@@ -224,15 +224,15 @@ subroutine tovs_fill_profiles_tl(column,columng)
         iptobscma(knpf) = jo
         if ( knpf .le. 0                                    ) cycle bobs
         if ( knpf .ne. jppf*nthreads .and. iobs .ne. NOBMAX ) cycle bobs
- 
-!     .  2.1  Vertical interpolation of model temperature and logarithm of
-!             specific humidity to pressure levels required by tovs rt model
-!     .       --------------------------------------------------------------
+
+        !     .  2.1  Vertical interpolation of model temperature and logarithm of
+        !             specific humidity to pressure levels required by tovs rt model
+        !     .       --------------------------------------------------------------
 
         do jn = 1, knpf
            qoext(1:nlevels,jn) =  profiles(iptobs(jn)) % q(1:nlevels) / q_mixratio_to_ppmv
         enddo
-  
+
         to_tl (:,:) = 0.0d0
         lqo_tl(:,:) = 0.0d0
         imodulo = mod(knpf,nthreads)
@@ -241,8 +241,8 @@ subroutine tovs_fill_profiles_tl(column,columng)
         else
            istride = max(1,(knpf/nthreads)+1)
         endif
-!$omp parallel
-!$omp do private(jn,ilen)
+        !$omp parallel
+        !$omp do private(jn,ilen)
         do jn=1,knpf,istride
            ilen = min (knpf-jn+1,istride)
            if ( ilen .gt. 0) then
@@ -256,11 +256,11 @@ subroutine tovs_fill_profiles_tl(column,columng)
 
            endif
         enddo
-!$omp end do
-!$omp end parallel
+        !$omp end do
+        !$omp end parallel
 
-!     .  2.2  Extrapolation of temperature profile above 10mb
-!     .       -----------------------------------------------
+        !     .  2.2  Extrapolation of temperature profile above 10mb
+        !     .       -----------------------------------------------
         toext_tl(:,:) = 0.0d0
         if ( .not. TopAt10hPa ) then
            do jn = 1, knpf
@@ -270,11 +270,11 @@ subroutine tovs_fill_profiles_tl(column,columng)
         else
            call lextrap (to_tl,toext_tl,jpmolev,nlevels,knpf)
         endif
-     
 
-!     .  2.3  Extrapolation of humidity profile (kg/kg)
-!             above rlimlvhu (normally 300mbs or 70mbs)
-!     .       -----------------------------------------
+
+        !     .  2.3  Extrapolation of humidity profile (kg/kg)
+        !             above rlimlvhu (normally 300mbs or 70mbs)
+        !     .       -----------------------------------------
 
         qoext_tl(:,:) = 0.0d0
 
@@ -305,8 +305,8 @@ subroutine tovs_fill_profiles_tl(column,columng)
            endif
         endif
 
-!     .  2.4  Fill profiles_tl structure
-!     .       --------------------------
+        !     .  2.4  Fill profiles_tl structure
+        !     .       --------------------------
 
         do  j = 1 , knpf
            jj=iptobs(j)
@@ -335,25 +335,25 @@ subroutine tovs_fill_profiles_tl(column,columng)
            profiles_tl(jj) % skin % salinity = 0.0d0
            profiles_tl(jj) % s2m % t         = col_getElem(column,ilowlvl_T,iptobscma(j),'TT')
 
-   !! The following line has been commented out because qoext(ilowlvl_T,j) may be out of bound
+           !! The following line has been commented out because qoext(ilowlvl_T,j) may be out of bound
 !!!        profiles_tl(jj) % s2m % q         = qoext(ilowlvl_T,j) * col_getElem(column,ilowlvl_T,iptobscma(j),'HU') * q_mixratio_to_ppmv
-   !! The right code should be
-        !!profiles_tl(jj) % s2m % q         = exp(gomq1(ilowlvl_T,iptobscma(j))) * pgomq_tl(ilowlvl_T,iptobscma(j)) * q_mixratio_to_ppmv
-   !! but since the logical flag 'use_q2m' is set to .false. in rttov_const.F90 (in RTTOV code)
-   !! this variable profiles_tl(jj) % s2m % q is not used so it can be set to 0
+           !! The right code should be
+           !!profiles_tl(jj) % s2m % q         = exp(gomq1(ilowlvl_T,iptobscma(j))) * pgomq_tl(ilowlvl_T,iptobscma(j)) * q_mixratio_to_ppmv
+           !! but since the logical flag 'use_q2m' is set to .false. in rttov_const.F90 (in RTTOV code)
+           !! this variable profiles_tl(jj) % s2m % q is not used so it can be set to 0
            profiles_tl(jj) % s2m % q         = 0.d0
 
            profiles_tl(jj) % s2m % p         = col_getElem(column,1,iptobscma(j),'P0')*MPC_MBAR_PER_PA_R8
            profiles_tl(jj) % s2m % u         = col_getElem(column,ilowlvl_M,iptobscma(j),'UU')
            profiles_tl(jj) % s2m % v         = col_getElem(column,ilowlvl_M,iptobscma(j),'VV')
-        
+
            profiles_tl(jj) % p(1:nlevels)    = 0.d0
            profiles_tl(jj) % t(1:nlevels)    = toext_tl(1:nlevels,j)
            profiles_tl(jj) % q(1:nlevels)    = qoext_tl(1:nlevels,j) * q_mixratio_to_ppmv
 
         end do
- 
-!    next bunch !
+
+        !    next bunch !
 
         knpf = 0
 
@@ -383,12 +383,118 @@ subroutine tovs_fill_profiles_tl(column,columng)
      call varAbort('tovs_fill_profiles_tl        ')
   end if
 
-  9263 format(1x,10f8.4)
+9263 format(1x,10f8.4)
 
 
-!     3.  Close up
-!     .   --------
+  !     3.  Close up
+  !     .   --------
 
-  return
+contains
+
+  SUBROUTINE LEXTHUM4(KNPF,KLAPF,PPRES,PAV,PAV5)
+    !
+    !**** *lexthum4* - tangent linear of extrapolaatione upper level humidity profil!.
+    !                 (adapted from exthumtl by J. Eyre)
+    !
+    !     purpose.
+    !     --------
+    !          to extend mixing ratio profile into stratosphere in
+    !          a reasonable way.
+    !
+    !**   interface.
+    !     ----------
+    !          *call* *lexthum4(knpf,klapf,ppres,pav,pav5)*
+    !               *knpf*:  no. of profiles to be processed.
+    !               *klapf*: length of atm. profiles.
+    !               *ppres*: pressure levels of atm. profiles.
+    !               *pav*:   gradient humidity profiles.
+    !               *pav5*:  humidity profiles.
+    !
+    !     method.
+    !     -------
+    !          take top tropospheric mixing ratio (e.g. near 300 mb) and
+    !          extrapolate with given fall off into lower stratosphere
+    !          (e.g. to 70 mb).  constrain mixing ratio to be .ge. zwmin
+    !          (e.g. 0.000003 kg/kg).   in upper strat, mixing ratio = zwmin.
+    !
+    !     externals.
+    !     ----------
+    !          none.
+    !
+    !     reference.
+    !     ----------
+    !          ecmwf tech mem 176.
+    !
+
+    use MathPhysConstants_mod
+    use obsFilter_mod
+    IMPLICIT none
+    !
+    integer :: klapf, knpf
+    REAL*8 PPRES(*),PAV(KLAPF,*),PAV5(KLAPF,*)
+    !
+    REAL*8, allocatable :: ZPRES3(:)
+    !
+    real*8 ZP1,zwb5,zwb
+    integer :: inlvw,j,jnpf,ierr
+    DATA ZP1/70.0D0/         ! PRESS LIMITS (IN HPA) OF REGION
+    !                              ! to be extrapolated
+    !
+    !     -----------------------------------------------------------------
+    !
+    !**        0. Dynamic memory allocation for temporary vectors
+    !     .       -----------------------------------------------
+    !
+050 CONTINUE
+    ALLOCATE(ZPRES3(KLAPF))
+    !
+    !
+    !*         1.   extrapolate humidity profile.
+    !               ----------- -------- -------
+100 CONTINUE
+    !
+    !          find top level of given profile
+    DO J=KLAPF,1,-1
+       IF (PPRES(J).LT.FILT_RLIMLVHU) THEN
+          INLVW=J
+          GOTO 120
+       ENDIF
+    end do
+    !
+    !** Null extrapolation case
+    !
+    RETURN
+    !
+    !          constants defining p**3 fall off around tropopause
+120 DO J=1,INLVW
+       ZPRES3(J)=(PPRES(J)/PPRES(INLVW+1))**3
+    end do
+    !
+    DO JNPF=1,KNPF
+       ZWB =PAV (INLVW+1,JNPF)
+       ZWB5=PAV5(INLVW+1,JNPF)
+       DO J=1,INLVW
+          IF (PPRES(J).LT.ZP1) THEN
+             PAV(J,JNPF)=0.D0
+          ELSE
+             IF ( ZWB5*ZPRES3(J) .LE. MPC_MINIMUM_HU_R8 ) THEN
+                PAV(J,JNPF)=0.D0
+             ELSE
+                PAV(J,JNPF)=ZWB*ZPRES3(J)
+             ENDIF
+          ENDIF
+       end do
+    end do
+    !
+    !*    2.  Deallocate memory
+    !     .   -----------------
+    !
+200 CONTINUE
+    !
+    DEALLOCATE(ZPRES3)
+    !
+    !    -----------------------------------------------------------------
+    !
+  END SUBROUTINE LEXTHUM4
 
 end subroutine tovs_fill_profiles_tl

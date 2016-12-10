@@ -39,7 +39,7 @@ subroutine oda_get_radiance_ad(lobsSpaceData)
    use tovs_lin_mod
    use tovs_nl_mod
    use obsSpaceData_mod
-
+   use utilities_mod
    implicit none
 
    type(struct_obs) :: lobsSpaceData
@@ -49,8 +49,6 @@ subroutine oda_get_radiance_ad(lobsSpaceData)
    integer ichn
    integer :: index_header, index_body
 
-   integer  isrcheq
-   external isrcheq
    external varAbort
 
    if(NOBTOV.eq.0) return    ! exit if there are no tovs data
@@ -94,7 +92,7 @@ subroutine oda_get_radiance_ad(lobsSpaceData)
                ichn = nint(obs_bodyElem_r(lobsSpaceData,OBS_PPP,index_body))
                ichn = max(0,min(ichn,jpchmax+1))
                ichn=ichn-chanoffset(isens)
-               indxchn = isrcheq (ichan(:,isens),nchan(isens),ichn)
+               indxchn = utl_findArrayIndex(ichan(:,isens),nchan(isens),ichn)
                if ( indxchn .eq. 0 ) then
                   write(*,fmt=9202)
 9202              format(' tovs_calc_jo_ad: error with channel number')

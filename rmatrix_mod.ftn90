@@ -20,6 +20,7 @@ module rmatrix_mod
   ! S. Heilliette ARMA August 2013
   use mpivar_mod,  only  : mpi_myid
   use rttov_const, only  : errorstatus_success
+  use utilities_mod
   implicit none
   private
   save
@@ -279,7 +280,7 @@ module rmatrix_mod
       enddo
       ! Calculation of R**-1/2
       call tmg_start(95,'RMAT_MATSQRT')
-      call matsqrt(Rsub,nsubset,-1.d0,.false.)
+      call utl_matSqrt(Rsub,nsubset,-1.d0,.false.)
       call tmg_stop(95)
       allocate(R_tovs(indexTovs)%Rmat(nsubset,nsubset))
       do j=1,nsubset

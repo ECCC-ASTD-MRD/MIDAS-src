@@ -21,7 +21,7 @@
 !
 ! Subroutines (public):
 !    min_setup
-!    min_minvar
+!    min_minimize
 !
 ! Dependencies:
 !
@@ -40,6 +40,7 @@ MODULE minimization_mod
   use variableTransforms_mod
   use varqc_mod
   use randomNumber_mod
+  use rmatrix_mod
   implicit none
   save
   private
@@ -47,7 +48,7 @@ MODULE minimization_mod
   ! public variables
   public              :: min_niter,min_nsim
   ! public procedures
-  public              :: min_Setup, min_minvar
+  public              :: min_Setup, min_minimize
 
   type struct_dataptr
     type(struct_obs),pointer        :: obsSpaceData
@@ -170,8 +171,40 @@ CONTAINS
 
   END SUBROUTINE min_setup
 
+  subroutine min_minimize(columng,obsSpaceData)
+    implicit none
 
-  SUBROUTINE min_minvar(column,columng,obsSpaceData)
+    type(struct_obs) :: obsSpaceData
+    type(struct_columnData) :: column,columng
+    integer :: get_max_rss
+
+    write(*,*) '--------------------------------'
+    write(*,*) '--Starting subroutine minimize--'
+    write(*,*) '--------------------------------'
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call tmg_start(3,'MIN')
+
+    call col_setVco(column,col_getVco(columng))
+    call col_allocate(column,col_getNumCol(columng),mpi_local=.true.)
+    call col_copyLatLon(columng,column)
+
+    write(*,*) 'PRDATABIN: For 4D increment'
+    call prdatabin(obsSpaceData,tim_nstepobsinc)
+    call tim_sutimeinterp(obsSpaceData)
+
+    call quasiNewtonMinimization(column,columng,obsSpaceData)
+
+    call col_deallocate(column)
+    call tmg_stop(3)
+
+    ! Memory deallocations for non diagonal R matrices for radiances
+    call rmat_cleanup()
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    write(*,*) '--Done subroutine minimize--'
+
+  end subroutine min_minimize
+
+  SUBROUTINE quasiNewtonMinimization(column,columng,obsSpaceData)
     !
     ! Purpose:
     ! 3D/En VAR minimization
@@ -232,26 +265,26 @@ CONTAINS
       allocate(vazx(nvadim_mpilocal),stat=ierr)
       if(ierr.ne.0) then
         write(*,*) 'minimization: Problem allocating memory! id=3',ierr
-        call varAbort('aborting in min_minvar')
+        call varAbort('aborting in quasiNewtonMinimization')
       endif
 
       allocate(dg_vbar(nvadim_mpilocal),stat=ierr)
       if(ierr.ne.0) then
         write(*,*) 'minimization: Problem allocating memory! id=1',ierr
-        call varAbort('aborting in min_minvar')
+        call varAbort('aborting in quasiNewtonMinimization')
       endif
 
       allocate(vazg(nvadim_mpilocal),stat=ierr)
       if(ierr.ne.0) then
         write(*,*) 'minimization: Problem allocating memory! id=2',ierr
-        call varAbort('aborting in min_minvar')
+        call varAbort('aborting in quasiNewtonMinimization')
       endif
 
       allocate(vatra(nmtra),stat=ierr)
       if(ierr.ne.0.or.nmtra.le.0) then
         write(*,*) 'minimization: Problem allocating memory! id=4',ierr
         write(*,*) 'minimization: nmtra=',nmtra
-        call varAbort('aborting in min_minvar')
+        call varAbort('aborting in quasiNewtonMinimization')
       endif
 
       ! recast pointer to obsSpaceData as an integer array, so it can be passed through n1qn3 to simvar
@@ -262,7 +295,7 @@ CONTAINS
       allocate(dataptr_int(dataptr_int_size),stat=ierr)
       if(ierr.ne.0) then
         write(*,*) 'minimization: Problem allocating memory! id=2',ierr
-        call varAbort('aborting in min_minvar')
+        call varAbort('aborting in quasiNewtonMinimization')
       endif
       dataptr_int(1:dataptr_int_size)=transfer(dataptr,dataptr_int)
 
@@ -288,7 +321,7 @@ CONTAINS
 
       lldf1 = .true.
       if (preconFileExists) then
-        if(mpi_myid == 0) write(*,*) 'min_minvar : Preconditioning mode'
+        if(mpi_myid == 0) write(*,*) 'quasiNewtonMinimization : Preconditioning mode'
         lrdvatra = .true.
         imode = 2
         llvazx = lvazx ! from namelist (default is .false.)
@@ -488,9 +521,8 @@ CONTAINS
 
       deallocate(dataptr_int)
 
-  END SUBROUTINE min_minvar
+  END SUBROUTINE quasiNewtonMinimization
 
-  
   subroutine min_writeIncrement(incr_cv,columng)
     implicit none
 

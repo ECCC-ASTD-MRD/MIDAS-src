@@ -14,19 +14,19 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-module observation_erreurs_mod
-
+module obsErrors_mod
   use MathPhysConstants_mod
   use obsSpaceData_mod
   use tovs_nl_mod
   use bufr
+  use utilities_mod
   implicit none
   private
 
   ! public procedures
   ! -----------------
 
-  public :: oer_set_obs_erreurs
+  public :: oer_setObsErrors
 
   ! TOVS OBS ERRORS
   ! ---------------
@@ -49,9 +49,9 @@ module observation_erreurs_mod
 !-----------------------------------------------------------------------------------------
 !-----------------------------------------------------------------------------------------
 
-  subroutine oer_set_obs_erreurs(lobsSpaceData)
+  subroutine oer_setObsErrors(lobsSpaceData)
   !
-  ! s/r set_observation_erreurs -SET OBSERVATION ERROR FOR ALL DATA 
+  ! s/r set_obsErrors -SET OBSERVATION ERROR FOR ALL DATA 
   !
   ! Author  : S. Laroche  February 2014
   ! Revision: 
@@ -65,27 +65,27 @@ module observation_erreurs_mod
   !
   ! Read in the observation stddev errors for radiance data
   !
-  call oer_read_obs_erreurs_tovs
+  call read_obs_erreurs_tovs
 
   !
   ! Read in the observation stddev errors for conventional data
   !
-  call oer_read_obs_erreurs_conv
+  call read_obs_erreurs_conv
 
   !
   ! Set obs error information in obsSpaceData object
   !
-  call oer_fill_obs_erreurs(lobsSpaceData)
+  call fill_obs_erreurs(lobsSpaceData)
 
 
-  end subroutine oer_set_obs_erreurs
+  end subroutine oer_setObsErrors
 
 !-----------------------------------------------------------------------------------------
 !-----------------------------------------------------------------------------------------
 
-  subroutine oer_read_obs_erreurs_tovs
+  subroutine read_obs_erreurs_tovs
   !
-  ! s/r oer_read_obs_erreurs_tovs
+  ! s/r read_obs_erreurs_tovs
   ! - Read the observation erreur statistics and utilization flag for TOVS processing.
   !
   !
@@ -132,7 +132,7 @@ module observation_erreurs_mod
   use rmatrix_mod
   implicit none
 
-  integer,external  :: FNOM, FCLOS, ISRCHEQ
+  integer,external  :: FNOM, FCLOS
   integer  :: IER, ILUTOV, JI, JJ, JK, JL, JM, I, IPOS1, IPOS2, INUMSAT, ISAT, IPLF
   integer, dimension(JPNSATMAX)         :: IPLATFORM, ISATID, IINSTRUMENT, NUMCHN, NUMCHNIN
   integer, dimension(JPCHMAX,JPNSATMAX) :: IUTILST, ICHN, ICHNIN
@@ -143,7 +143,7 @@ module observation_erreurs_mod
 
   character (len=132) :: CLDUM,CPLATF,CINSTR
 
-  WRITE(*,'(//,10x,"-oer_read_obs_erreurs_tovs: reading observation error statistics required for TOVS processing")')
+  WRITE(*,'(//,10x,"-read_obs_erreurs_tovs: reading observation error statistics required for TOVS processing")')
 
   !
   !    1. Initialize
@@ -177,8 +177,8 @@ module observation_erreurs_mod
   ilutov = 0
   IER =  FNOM(ILUTOV,'stats_tovs','SEQ+FMT',0)
   IF(IER.LT.0)THEN
-     WRITE ( *, '(" oer_read_obs_erreurs_tovs: Problem opening ","file stats_tovs ")' )
-     CALL varAbort ('oer_read_obs_erreurs_tovs')
+     WRITE ( *, '(" read_obs_erreurs_tovs: Problem opening ","file stats_tovs ")' )
+     CALL varAbort ('read_obs_erreurs_tovs')
   END IF
 
   !
@@ -194,7 +194,7 @@ module observation_erreurs_mod
   !        the observation errors and the utilization flags
   !        ----------------------------------------------------------
   !
-  WRITE(*,'(5X,"oer_read_obs_erreurs_tovs: Reading stats_tovs file: "//)')
+  WRITE(*,'(5X,"read_obs_erreurs_tovs: Reading stats_tovs file: "//)')
 
   DO JL = 1, INUMSAT
 
@@ -215,15 +215,15 @@ module observation_erreurs_mod
      IPLATFORM(JL) =  tvs_get_platform_id(CPLATF)
 
      IF ( IPLATFORM(JL) .EQ. -1 ) THEN
-      WRITE ( *, '(" oer_read_obs_erreurs_tovs: Unknown platform!"/)' )
-      CALL varAbort ('oer_read_obs_erreurs_tovs')
+      WRITE ( *, '(" read_obs_erreurs_tovs: Unknown platform!"/)' )
+      CALL varAbort ('read_obs_erreurs_tovs')
      ENDIF
 
      IINSTRUMENT(JL) = tvs_get_inst_id(CINSTR)
 
      IF ( IINSTRUMENT(JL) .EQ. -1 ) THEN
-       WRITE ( *, '(" oer_read_obs_erreurs_tovs: Unknown instrument!"/)' )
-       CALL varAbort ('oer_read_obs_erreurs_tovs')
+       WRITE ( *, '(" read_obs_erreurs_tovs: Unknown instrument!"/)' )
+       CALL varAbort ('read_obs_erreurs_tovs')
      ENDIF  
 
      DO JI = 1, NUMCHNIN(JL)
@@ -246,7 +246,7 @@ module observation_erreurs_mod
   !
   !   Fill the observation error array TOVERRST
   !
-  WRITE(*,'(5X,"oer_read_obs_erreurs_tovs: Fill error array TOVERRST: "//)')
+  WRITE(*,'(5X,"read_obs_erreurs_tovs: Fill error array TOVERRST: "//)')
   DO JM= 1, INUMSAT
     DO JL = 1, NSENSORS
       IF ( PLATFORM (JL) .EQ. IPLATFORM(JM) .AND. SATELLITE(JL) .EQ. ISATID(JM) ) THEN
@@ -267,15 +267,15 @@ module observation_erreurs_mod
   !  all the satellites specified in the namelist.
   !
   DO JL = 1, NSENSORS
-     IPLF = ISRCHEQ ( IPLATFORM  , INUMSAT, PLATFORM  (JL) )
-     ISAT = ISRCHEQ ( ISATID     , INUMSAT, SATELLITE (JL) )
+     IPLF = utl_findArrayIndex( IPLATFORM  , INUMSAT, PLATFORM  (JL) )
+     ISAT =  utl_findArrayIndex( ISATID     , INUMSAT, SATELLITE (JL) )
      IF ( IPLF .EQ. 0 .OR. ISAT .EQ. 0 ) THEN
-       WRITE ( *, '(" oer_read_obs_erreurs_tovs: Observation errors not ","defined for sensor # ", I3)' ) JL
-       CALL varAbort ('oer_read_obs_erreurs_tovs')
+       WRITE ( *, '(" read_obs_erreurs_tovs: Observation errors not ","defined for sensor # ", I3)' ) JL
+       CALL varAbort ('read_obs_erreurs_tovs')
      END IF
      IF ( NUMCHN(JL) .EQ. 0 ) THEN 
-       WRITE ( *, '(" oer_read_obs_erreurs_tovs: Problem setting errors ","for sensor # ", I3)' ) JL
-       CALL varAbort ('oer_read_obs_erreurs_tovs')
+       WRITE ( *, '(" read_obs_erreurs_tovs: Problem setting errors ","for sensor # ", I3)' ) JL
+       CALL varAbort ('read_obs_erreurs_tovs')
      ENDIF
   ENDDO
 
@@ -323,7 +323,7 @@ module observation_erreurs_mod
   !
   IER = FCLOS(ILUTOV)
   IF(IER.NE.0)THEN
-     CALL varAbort ('oer_read_obs_erreurs_tovs')
+     CALL varAbort ('read_obs_erreurs_tovs')
   END IF
 
       contains
@@ -417,14 +417,14 @@ module observation_erreurs_mod
 
       end subroutine split
 
-  end subroutine oer_read_obs_erreurs_tovs
+  end subroutine read_obs_erreurs_tovs
 
 !-----------------------------------------------------------------------------------------
 !-----------------------------------------------------------------------------------------
 
-  subroutine oer_read_obs_erreurs_conv
+  subroutine read_obs_erreurs_conv
   !
-  ! s/r oer_read_obs_erreurs_conv -READ OBSERVATION ERROR OF CONVENTIONAL DATA 
+  ! s/r read_obs_erreurs_conv -READ OBSERVATION ERROR OF CONVENTIONAL DATA 
   !
   ! Author  : S. Laroche  February 2014
   ! Revision: 
@@ -512,14 +512,14 @@ write(*, '(A)') ' '
   CLOSE(UNIT=NULSTAT)
   IERR=FCLOS(NULSTAT)    
 
-  end subroutine oer_read_obs_erreurs_conv
+  end subroutine read_obs_erreurs_conv
 
 !-----------------------------------------------------------------------------------------
 !-----------------------------------------------------------------------------------------
 
-  subroutine oer_fill_obs_erreurs(lobsSpaceData)
+  subroutine fill_obs_erreurs(lobsSpaceData)
   !
-  ! s/r oer_fill_obs_erreurs -FILL OBSERVATION ERRORS IN lobsSpaceData
+  ! s/r fill_obs_erreurs -FILL OBSERVATION ERRORS IN lobsSpaceData
   !
   ! Author  : S. Laroche  February 2014
   ! Revision: 
@@ -836,7 +836,7 @@ write(*, '(A)') ' '
                obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY), &
                obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)
 
-          CALL varAbort('oer_fill_obs_erreurs: PROBLEM OBSERR VARIANCE.')
+          CALL varAbort('fill_obs_erreurs: PROBLEM OBSERR VARIANCE.')
 
         ENDIF
 
@@ -849,8 +849,8 @@ write(*, '(A)') ' '
   WRITE(*,'(10X,"Fill_obs_errors")')
   WRITE(*,'(10X,"---------------",/)')
 
-  end subroutine oer_fill_obs_erreurs
+  end subroutine fill_obs_erreurs
 
 !-----------------------------------------------------------------------------------------
 
-end module observation_erreurs_mod
+end module obsErrors_mod

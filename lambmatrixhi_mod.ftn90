@@ -43,6 +43,7 @@ module LamBMatrixHI_mod
   use LamSpectralTransform_mod
   use GridStateVector_mod
   use LamAnalysisGrid_mod
+  use utilities_mod
   implicit none
   save
   private
@@ -576,7 +577,7 @@ contains
 
     real(8), allocatable :: bsqrt2d  (:,:)
 
-    integer :: key, fstinf, fstinl, vfstlir, totwvnb, infon
+    integer :: key, fstinf, fstinl, totwvnb, infon
     integer, parameter :: nmax=2000
     integer :: liste(nmax)
 
@@ -643,10 +644,10 @@ contains
         endif
 
         !- 2.3 Reading
-        key = vfstlir( bsqrt2d,                                    & ! OUT 
-                       iu_bstats,                                  & ! IN
-                       ni_t, nj_t, nlev_t,                         & ! OUT
-                       dateo, etiket, ip1, ip2, ip3, typvar,nomvar)  ! IN
+        key = utl_fstlir( bsqrt2d,                                    & ! OUT 
+                          iu_bstats,                                  & ! IN
+                          ni_t, nj_t, nlev_t,                         & ! OUT
+                          dateo, etiket, ip1, ip2, ip3, typvar,nomvar)  ! IN
       else
         write(*,*)
         write(*,*) 'lbhi_ReadBSqrt: Cannot find BSQRT for totwvnb = ', totwvnb
@@ -673,7 +674,7 @@ contains
     real(8), allocatable :: StdDev2D(:,:)
     real(8), allocatable :: StdDev2D_Regrid(:,:)
 
-    integer :: vfstlir, ezsint, ier
+    integer :: ezsint, ier
     integer :: ni_t, nj_t, nlev_t, var, k
     integer :: dateo, ip1,ip2,ip3
 
@@ -710,10 +711,10 @@ contains
         end if
 
         !- 1.2.1 Reading
-        ier = vfstlir( StdDev2D,                                   & ! OUT 
-                       iu_bstats,                                  & ! IN
-                       ni_t, nj_t, nlev_t,                         & ! OUT
-                       dateo, etiket, ip1, ip2, ip3, typvar,nomvar)  ! IN 
+        ier = utl_fstlir( StdDev2D,                                   & ! OUT 
+                          iu_bstats,                                  & ! IN
+                          ni_t, nj_t, nlev_t,                         & ! OUT
+                          dateo, etiket, ip1, ip2, ip3, typvar,nomvar)  ! IN 
 
         if (ier < 0) then
           write(*,*)

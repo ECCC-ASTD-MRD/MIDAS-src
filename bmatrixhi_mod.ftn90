@@ -42,6 +42,7 @@ MODULE BmatrixHI
   use horizontalCoord_mod
   use verticalCoord_mod
   use varNameList_mod
+  use utilities_mod
   implicit none
   save
   private
@@ -429,7 +430,7 @@ CONTAINS
     character(len=1)  :: clgrtyp
     character(len=4)  :: clnomvar
     character(len=12) :: cletiket
-    integer :: vfstlir,vfstecr,fstprm,fstinf
+    integer :: fstprm,fstinf
     integer :: fnom,fstouv,fstfrm,fclos
 
     lldebug = .false.
@@ -673,7 +674,7 @@ CONTAINS
         cletiket = 'CORVERT'
         idatyp = 5
 
-        ierr = vfstecr(corvert, corvert, -inbits, iulcorvert, idateo    &
+        ierr = utl_fstecr(corvert, -inbits, iulcorvert, idateo    &
              , ideet,inpas, ini, inj, ink, ip1, ip2, ip3, cltypvar,     &
              clnomvar,cletiket,clgrtyp,ig1, ig2, ig3, ig4, idatyp,      &
              .true.)
@@ -854,7 +855,7 @@ CONTAINS
     character(len=1)  :: clgrtyp
     character(len=4)  :: clnomvar
     character(len=12) :: cletiket
-    integer :: fnom, fstouv, vfstecr, fstfrm, fclos
+    integer :: fnom, fstouv,  fstfrm, fclos
 
     write(*,*) 'WRITECORNS_SQRT: CORNS_SQRT will be written to file corns_sqrt.fst for NTRUNC =', ntrunc
 
@@ -871,7 +872,7 @@ CONTAINS
 
       do jn = 0, ntrunc
         ip2 = jn
-        ierr = vfstecr(corns(1,1,jn),corns(1,1,jn),ipak,nulcorns_sqrt,idateo,0,0,nkgdim2,nkgdim2,1,  &
+        ierr = utl_fstecr(corns(1,1,jn),ipak,nulcorns_sqrt,idateo,0,0,nkgdim2,nkgdim2,1,  &
                        ip1,ip2,ip3,'X','ZZ','CORNS_SQRT','X',0,0,0,0,idatyp,.true.)
       enddo
 
@@ -898,7 +899,6 @@ CONTAINS
     character(len=1)  :: clgrtyp
     character(len=4)  :: clnomvar
     character(len=12) :: cletiket
-    integer :: vfstlir
 
     allocate(zcornssrc(nkgdim2,nkgdim2))
 
@@ -914,7 +914,7 @@ CONTAINS
       ip3 = ntrunc
       cltypvar = 'X'
       clnomvar = 'ZZ'
-      icornskey = vfstlir(ZCORNSSRC,nulbgst,INI,INJ,INK,idateo,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+      icornskey = utl_fstlir(ZCORNSSRC,nulbgst,INI,INJ,INK,idateo,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
 
       if(icornskey .lt.0 ) then
         write(*,*) 'READCORNS_SQRT: CORNS_SQRT not found in stats file, use computed sqrt'
@@ -1024,7 +1024,7 @@ CONTAINS
     logical :: llpb
     integer :: ikey, jlat, jlon, jla, ezgprm, igdgid, ezqkdef
     integer :: jn, jm, ila_mpilocal, ila_mpiglobal, inlev, itggid, inmxlev, iset, nsize
-    integer :: ezdefset, vezsint, ezsetopt
+    integer :: ezdefset, ezsetopt
     integer :: ip1style,ip1kind
     integer :: koutmpg
     real(8), allocatable :: dltg(:,:), tgstdbg_tmp(:,:)
@@ -1045,7 +1045,8 @@ CONTAINS
     integer :: ip1,ip2,ip3,ig1,ig2,ig3,ig4,iswa,ilength,idltf
     integer :: iubc,iextr1,iextr2,iextr3,ierr,ipak,ipas,ntrials
     integer :: iliste(100),idate(100),idimax,infon,iheures,idateo
-    integer :: vfstlir,vfstecr,fstprm,fstinf,iultg,fnom,fclos,fstouv,fstfrm
+    integer :: fstprm,fstinf,iultg,fnom,fclos,fstouv,fstfrm
+    integer :: ip1s(1), nulbgsts(1)
 
     integer :: TrlmNumberWanted
     integer :: fstlir, key, fstinl, nultrl, ni_trial, nj_trial
@@ -1074,15 +1075,17 @@ CONTAINS
     idateo = -1
     inmxlev = 1
     ntrials = 1
+    nulbgsts(1) = nulbgst
 
-    call getfldprm2(IP1, IP2, IP3, INLEV, CLETIKET, CLTYPVAR, ITGGID,  &
-         clnomvar, idateo, inmxlev, nulbgst, ip1style, ip1kind,  &
-         ntrials, koutmpg)
+    call utl_getfldprm(IP1S, IP2, IP3, INLEV, CLETIKET, CLTYPVAR, ITGGID,  &
+                       clnomvar, idateo, inmxlev, nulbgsts, ip1style, ip1kind,  &
+                       ntrials, koutmpg)
+    ip1 = ip1s(1)
 
     ierr = ezgprm(itggid,CLGRTYP,INI,INJ,IG1,IG2,IG3,IG4)
     allocate(dltg(ini,inj))
 
-    ikey = vfstlir(dltg,koutmpg,ini,inj,ink,idateo,cletiket,ip1,   &
+    ikey = utl_fstlir(dltg,koutmpg,ini,inj,ink,idateo,cletiket,ip1,   &
            ip2, ip3, cltypvar, clnomvar)
 
     !- 1.2 Rearrange the data according to the analysis grid (if necessary)
@@ -1108,7 +1111,7 @@ CONTAINS
        else
           ierr = ezsetopt('INTERP_DEGREE', 'CUBIC') ! Cubic interpolation (legacy mode)
        end if
-       ierr = vezsint(tgstdbg,dltg,ni_l,nj_l,1,ini,inj,1)
+       ierr = utl_ezsint(tgstdbg,dltg,ni_l,nj_l,1,ini,inj,1)
 
     end if
 
@@ -1300,7 +1303,7 @@ CONTAINS
         ig4 = 0
         idatyp = 1
 
-        ierr = vfstecr(tgstdbg_tmp, tgstdbg_tmp, -32, iultg, idateo,         &
+        ierr = utl_fstecr(tgstdbg_tmp, -32, iultg, idateo,         &
                        0, 0, ini, inj, ink, ip1, ip2, ip3, cltypvar,         &
                        clnomvar,cletiket,clgrtyp,ig1, ig2, ig3, ig4, idatyp, &
                        .true.)
@@ -1313,7 +1316,7 @@ CONTAINS
         cltypvar = 'P'
         clnomvar = 'MG'
         cletiket = 'TRIAL2ANAL'
-        ierr = vfstecr(tgstdbg_tmp, tgstdbg_tmp, -32, iultg, idateo,         &
+        ierr = utl_fstecr(tgstdbg_tmp, -32, iultg, idateo,         &
                        0, 0, ini, inj, ink, ip1, ip2, ip3, cltypvar,         &
                        clnomvar,cletiket,clgrtyp,ig1, ig2, ig3, ig4, idatyp, &
                        .true.)
@@ -1326,7 +1329,7 @@ CONTAINS
         cltypvar = 'P'
         clnomvar = 'GL'
         cletiket = 'TRIAL2ANAL'
-        ierr = vfstecr(tgstdbg_tmp, tgstdbg_tmp, -32, iultg, idateo,         &
+        ierr = utl_fstecr(tgstdbg_tmp, -32, iultg, idateo,         &
                        0, 0, ini, inj, ink, ip1, ip2, ip3, cltypvar,         &
                        clnomvar,cletiket,clgrtyp,ig1, ig2, ig3, ig4, idatyp, &
                        .true.)
@@ -1609,7 +1612,7 @@ CONTAINS
     character(len=1)  :: clgrtyp
     character(len=4)  :: clnomvar
     character(len=12) :: cletiket
-    integer :: vfstlir,vfstecr,fstprm,fstinf
+    integer :: fstprm,fstinf
 
     iksdim = 2*nlev_M+2*nlev_T+1    ! assume 4 3d variables and 1 2d variable (TG not included)
     allocate(zcornssrc(iksdim,iksdim))
@@ -1629,7 +1632,7 @@ CONTAINS
       cltypvar = 'X'
       clnomvar = 'SS'
 
-      istdkey = vfstlir(ZSTDSRC,nulbgst,INI,INJ,INK,idateo,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+      istdkey = utl_fstlir(ZSTDSRC,nulbgst,INI,INJ,INK,idateo,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
 
       if(istdkey .lt.0 ) then
         call varAbort('READCORNS2: Problem with background stat file')
@@ -1648,7 +1651,7 @@ CONTAINS
       ip3 = -1
       cltypvar = 'X'
       clnomvar = 'ZZ'
-      icornskey = vfstlir(ZCORNSSRC,nulbgst,INI,INJ,INK,idateo,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+      icornskey = utl_fstlir(ZCORNSSRC,nulbgst,INI,INJ,INK,idateo,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
 
       if(icornskey .lt.0 ) then
         call varAbort('READCORNS2: Problem with background stat file')
@@ -1722,7 +1725,7 @@ CONTAINS
     character(len=2)  :: cltypvar
     character(len=4)  :: clnomvar
     character(len=12) :: cletiket
-    integer :: vfstlir,vfstecr,fstprm,fstinf
+    integer :: fstprm,fstinf
 
     data varName3d/'PP  ','UC  ','UT  ','LQ  ','TB  '/
     data varName2d/'UP  ','PB  '/
@@ -1754,7 +1757,7 @@ CONTAINS
         ikey = fstinf(nulbgst,inix,injx,inkx,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
 
         if(ikey .ge.0 ) then
-          ikey = vfstlir(zspbuf(1:nlev_MT),nulbgst,ini,inj,ink,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+          ikey = utl_fstlir(zspbuf(1:nlev_MT),nulbgst,ini,inj,ink,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
         else
           if(firstn == -1) firstn = jn
           lastn = jn
@@ -1819,7 +1822,7 @@ CONTAINS
         ikey = fstinf(nulbgst,inix,injx,inkx,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
 
         if(ikey .ge.0 ) then
-          ikey = vfstlir(zspbuf,nulbgst,ini,inj,ink,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+          ikey = utl_fstlir(zspbuf,nulbgst,ini,inj,ink,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
         else
           if(firstn == -1) firstn = jn
           lastn = jn
@@ -1872,7 +1875,7 @@ CONTAINS
     character(len=2)  :: cltypvar
     character(len=4)  :: clnomvar
     character(len=12) :: cletiket
-    integer :: vfstlir,vfstecr,fstprm,fstinf
+    integer :: fstprm,fstinf
 
     data varName3d/'PP  ','UC  ','UT  ','LQ  ','TB  '/
     data varName2d/'UP  ','PB  '/
@@ -1902,7 +1905,7 @@ CONTAINS
       ikey = fstinf(nulbgst,inix,injx,inkx,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
 
       if(ikey .ge.0 ) then
-        ikey = vfstlir(zgr(:,1:nlev_MT),nulbgst,ini,inj,ink,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+        ikey = utl_fstlir(zgr(:,1:nlev_MT),nulbgst,ini,inj,ink,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
       else
         write(*,*) 'RDSTD: could not read varName=',clnomvar
         call varAbort('RDSTD') 
@@ -1934,7 +1937,7 @@ CONTAINS
       ikey = fstinf(nulbgst,inix,injx,inkx,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
 
       if(ikey .ge.0 ) then
-        ikey = vfstlir(zgr,nulbgst,ini,inj,ink,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+        ikey = utl_fstlir(zgr,nulbgst,ini,inj,ink,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
       else
         write(*,*) 'RDSTD: could not read varName=',clnomvar
         call varAbort('RDSTD') 
@@ -1973,7 +1976,7 @@ CONTAINS
     character(len=2)  :: cltypvar
     character(len=4)  :: clnomvar
     character(len=12) :: cletiket
-    integer :: vfstlir,vfstecr,fstprm,fstinf
+    integer :: fstprm,fstinf
 
     data varName3d/'PP  ','UC  ','UT  ','LQ  ','TB  '/
     data varName2d/'UP  ','PB  '/
@@ -2022,7 +2025,7 @@ CONTAINS
 
         allocate(zspbuf(0:ntrunc_file))
         if(ikey .ge.0 ) then
-          ikey = vfstlir(zspbuf(0:ntrunc_file),nulbgst,ini,inj,ink,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+          ikey = utl_fstlir(zspbuf(0:ntrunc_file),nulbgst,ini,inj,ink,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
         else
           write(*,*) 'RDSPSTD_NEWFMT: ',jvar,clnomvar,nlev_MT,jlevo,ikey,ntrunc,ntrunc_file
           call varAbort('RDSPSTD_NEWFMT: SPSTDDEV record not found')
@@ -2082,7 +2085,7 @@ CONTAINS
       allocate(zspbuf(0:ntrunc_file))
 
       if(ikey .ge.0 ) then
-        ikey = vfstlir(zspbuf(0:ntrunc_file),nulbgst,ini,inj,ink,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+        ikey = utl_fstlir(zspbuf(0:ntrunc_file),nulbgst,ini,inj,ink,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
       else
         write(*,*) 'RDSPSTD_NEWFMT: ',jvar,clnomvar,nlev_MT,jlevo,ikey,ntrunc,ntrunc_file
         call varAbort('RDSPSTD_NEWFMT: SPSTDDEV record not found')
@@ -2134,7 +2137,7 @@ CONTAINS
     character(len=1)  :: clgrtyp
     character(len=4)  :: clnomvar
     character(len=12) :: cletiket
-    integer :: vfstlir,vfstecr,fstprm,fstinf
+    integer :: fstprm,fstinf
     
     ip1 = -1
     ip3 = -1
@@ -2150,7 +2153,7 @@ CONTAINS
       ikey = fstinf(nulbgst,inix,injx,inkx,idateo,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
 
       if(ikey .ge.0 ) then
-        ikey = vfstlir(ztheta,nulbgst,ini,inj,ink,idateo,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+        ikey = utl_fstlir(ztheta,nulbgst,ini,inj,ink,idateo,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
       else
         if(mpi_myid == 0) write(*,*) 'WARNING: CANNOT FIND THETA FOR ',jn,' SETTING TO ZERO!!!'
         ztheta(:) = 0.0d0
@@ -2187,7 +2190,7 @@ CONTAINS
       ikey = fstinf(nulbgst,inix,injx,inkx,idateo,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
 
       if(ikey .ge.0 ) then
-        ikey = vfstlir(zPtoTsrc,nulbgst,ini,inj,ink,idateo,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+        ikey = utl_fstlir(zPtoTsrc,nulbgst,ini,inj,ink,idateo,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
       else
         if(mpi_myid == 0) write(*,*) 'WARNING: CANNOT FIND P_to_T FOR ',jn,' SETTING TO ZERO!!!'
         zPtoTsrc(:,:) = 0.0d0

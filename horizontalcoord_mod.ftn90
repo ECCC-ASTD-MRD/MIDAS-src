@@ -32,6 +32,7 @@
 !--------------------------------------------------------------------------
 module HorizontalCoord_mod
   use MathPhysConstants_mod
+  use utilities_mod
   implicit none
   save
   private
@@ -92,7 +93,7 @@ module HorizontalCoord_mod
     real    :: xlat1_4, xlon1_4, xlat2_4, xlon2_4
 
     integer :: iu_template = 0
-    integer :: fnom, fstouv, fstfrm, fclos, ezqkdef, vfstlir
+    integer :: fnom, fstouv, fstfrm, fclos, ezqkdef
     integer :: key, fstinf, fstprm, ier, fstinl, EZscintID
     integer :: ni, nj, ni_t, nj_t, nlev_t, i, j, gdll
     integer :: dateo, deet, npas, nk, nbits, datyp
@@ -191,10 +192,10 @@ module HorizontalCoord_mod
        typvar = 'X'
        nomvar = '>>'
 
-       ier = vfstlir( lon_8,                                      & ! OUT 
-                      iu_template,                                & ! IN
-                      ni_t, nj_t, nlev_t,                         & ! OUT
-                      dateo, etiket, ip1, ip2, ip3, typvar,nomvar)  ! IN
+       ier = utl_fstlir( lon_8,                                      & ! OUT 
+                         iu_template,                                & ! IN
+                         ni_t, nj_t, nlev_t,                         & ! OUT
+                         dateo, etiket, ip1, ip2, ip3, typvar,nomvar)  ! IN
 
        if (ier < 0) then
          write(*,*)
@@ -220,10 +221,10 @@ module HorizontalCoord_mod
        typvar = 'X'
        nomvar = '^^'
 
-       ier = vfstlir( lat_8,                                      & ! OUT 
-                      iu_template,                                & ! IN
-                      ni_t, nj_t, nlev_t,                         & ! OUT
-                      dateo, etiket, ip1, ip2, ip3, typvar,nomvar)  ! IN
+       ier = utl_fstlir( lat_8,                                      & ! OUT 
+                         iu_template,                                & ! IN
+                         ni_t, nj_t, nlev_t,                         & ! OUT
+                         dateo, etiket, ip1, ip2, ip3, typvar,nomvar)  ! IN
 
        if (ier < 0) then
          write(*,*)

@@ -40,6 +40,7 @@ MODULE gridStateVector_mod
   use horizontalCoord_mod
   use MathPhysConstants_mod
   use timeCoord_mod
+  use utilities_mod
   implicit none
   save
   private
@@ -1808,9 +1809,7 @@ MODULE gridStateVector_mod
     type(struct_gsv)    :: statevector
     integer, intent(in) :: iun
 
-    integer :: ier, vfstecr
-
-    real(8) :: work
+    integer :: ier
 
     integer :: dateo,npak, status
     integer :: ip1,ip2,ip3,deet,npas,datyp,ig1,ig2,ig3,ig4
@@ -1846,15 +1845,15 @@ MODULE gridStateVector_mod
        ig3      =  ig3_tictac
        ig4      =  ig4_tictac
 
-       ier = vfstecr(statevector%hco%lon*MPC_DEGREES_PER_RADIAN_R8, work, npak, &
-                     iun, dateo, deet, npas, statevector%ni, 1, 1, ip1,    &
-                     ip2, ip3, typvar, '>>', etiket, grtyp, ig1,          &
-                     ig2, ig3, ig4, datyp, .true.)
+       ier = utl_fstecr(statevector%hco%lon*MPC_DEGREES_PER_RADIAN_R8, npak, &
+                        iun, dateo, deet, npas, statevector%ni, 1, 1, ip1,    &
+                        ip2, ip3, typvar, '>>', etiket, grtyp, ig1,          &
+                        ig2, ig3, ig4, datyp, .true.)
 
-       ier = vfstecr(statevector%hco%lat*MPC_DEGREES_PER_RADIAN_R8, work, npak, &
-                     iun, dateo, deet, npas, 1, statevector%nj, 1, ip1,    &
-                     ip2, ip3, typvar, '^^', etiket, grtyp, ig1,          &
-                     ig2, ig3, ig4, datyp, .true.)
+       ier = utl_fstecr(statevector%hco%lat*MPC_DEGREES_PER_RADIAN_R8, npak, &
+                        iun, dateo, deet, npas, 1, statevector%nj, 1, ip1,    &
+                        ip2, ip3, typvar, '^^', etiket, grtyp, ig1,          &
+                        ig2, ig3, ig4, datyp, .true.)
     end if
 
     !
