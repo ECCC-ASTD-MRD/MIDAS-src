@@ -49,6 +49,7 @@ MODULE BmatrixEnsemble
   use earthConstants_mod
   use variableTransforms_mod
   use utilities_mod
+  use spectralTransform_mod
   implicit none
   save
   private
@@ -1442,7 +1443,6 @@ CONTAINS
 ! EnsembleScaleDecomposition
 !--------------------------------------------------------------------------
   SUBROUTINE EnsembleScaleDecomposition()
-    use filterResponseFunction_mod
     implicit none
 
     integer :: waveBandIndex, memberindex, jstep, jk, jj, ji
@@ -1534,7 +1534,7 @@ CONTAINS
           else
              totwvnb_r8 = lst_ben_filter%k_r8(ila_filter)
           endif
-          ResponseFunction(ila_filter,waveBandIndex) = FilterResponseFunction(totwvnb_r8,waveBandIndex, waveBandPeaks, nWaveBand)
+          ResponseFunction(ila_filter,waveBandIndex) = spt_FilterResponseFunction(totwvnb_r8,waveBandIndex, waveBandPeaks, nWaveBand)
        end do
     end do
     if (hco_anl%global) deallocate(jn_vec)

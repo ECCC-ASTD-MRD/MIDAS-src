@@ -25,7 +25,7 @@ MODULE timeCoord_mod
   public :: tim_dstepobs, tim_dstepobsinc
   public :: tim_nstepobs, tim_nstepobsinc
   ! public procedures
-  public :: tim_setup
+  public :: tim_setup, tim_timeBinning
   public :: tim_sutimeinterp, tim_setTimeInterpWeight, tim_getTimeInterpWeight
   public :: tim_getDateStamp, tim_setDateStamp, tim_getStampList, tim_getStepObsIndex
 
@@ -67,6 +67,126 @@ contains
     if(mpi_myid.eq.0) write(*,*) 'tim_setup: nstepobsinc=',tim_nstepobsinc
 
   end subroutine tim_setup
+
+  subroutine tim_timeBinning(lobsSpaceData,nstepobs)
+    IMPLICIT NONE
+    type(struct_obs) :: lobsSpaceData
+    integer :: nstepobs
+
+    integer :: jstep,jobs,jfamily,jdata,iobs,idatabeg,idatend,nsize,ierr
+    integer, allocatable, dimension(:,:) :: idataass,inumheader
+    integer, allocatable, dimension(:,:) :: my_idataass,my_inumheader
+    integer, parameter :: nfamily=9
+    character*2 :: familylist(nfamily)
+    character*256 :: formatspec,formatspec2
+    real*8 :: stepObsIndex
+
+    allocate(idataass(nfamily,nStepObs+1))
+    allocate(my_idataass(nfamily,nStepObs+1))
+    my_idataass(:,:) = 0
+    allocate(inumheader(nfamily,nStepObs+1))
+    allocate(my_inumheader(nfamily,nStepObs+1))
+    my_inumheader(:,:) = 0
+
+    familylist(1)='UA'
+    familylist(2)='AI'
+    familylist(3)='SF'
+    familylist(4)='TO'
+    familylist(5)='SW'
+    familylist(6)='SC'
+    familylist(7)='PR'
+    familylist(8)='RO'
+    familylist(9)='GP'
+
+    do jobs = 1, obs_numheader(lobsSpaceData)
+       call tim_getStepObsIndex(stepObsIndex,tim_getDatestamp(), &
+            obs_headElem_i(lobsSpaceData,OBS_DAT,jobs), &
+            obs_headElem_i(lobsSpaceData,OBS_ETM,jobs),nstepobs)
+       if(stepObsIndex.gt.0.0d0) then
+          jstep=nint(stepObsIndex)
+          idatabeg   = obs_headElem_i(lobsSpaceData,OBS_RLN,jobs)
+          idatend = obs_headElem_i(lobsSpaceData,OBS_NLV,jobs) + idatabeg - 1          
+          do jfamily = 1, nfamily
+             if(obs_getfamily(lobsSpaceData,jobs).eq.familylist(jfamily)) then
+                my_inumheader(jfamily,jstep)=my_inumheader(jfamily,jstep)+1
+                my_inumheader(jfamily,nStepObs+1)=my_inumheader(jfamily,nStepObs+1)+1
+                do jdata = idatabeg, idatend
+                   if ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,jdata) .eq. 1) then
+                      my_idataass(jfamily,jstep) = my_idataass(jfamily,jstep) + 1
+                      my_idataass(jfamily,nStepObs+1) = &
+                           my_idataass(jfamily,nStepObs+1) + 1
+                   endif
+                enddo
+             endif
+          enddo
+       else
+          write(*,*) 'TIM_TIMEBINNING: observation outside time window:',jobs,stepObsIndex
+       endif
+    enddo
+
+    formatspec='(1X,A6,":"'
+    do jstep=1,nStepObs
+       formatspec=trim(formatspec)//',1X,I6' ! this is for each time bin
+    enddo
+    formatspec=trim(formatspec)//',1X,I8' ! this is for the total
+    formatspec=trim(formatspec)//')'
+
+    formatspec2='(1X,A6,":"'
+    do jstep=1,nStepObs
+       formatspec2=trim(formatspec2)//',1X,I6'
+    enddo
+    formatspec2=trim(formatspec2)//',1X,A8)'
+
+    write(*,*)'-----------------------------------------------------------------'
+    write(*,*)'Distribution of number of headers over stepobs ON LOCAL PROCESSOR'
+    write(*,trim(formatspec2))'Bin#',(jstep,jstep=1,nStepObs),'Total'
+    do jfamily = 1, nfamily
+       write(*,trim(formatspec)) familylist(jfamily),(my_inumheader(jfamily,jstep) &
+            ,jstep=1,nStepObs+1)
+    enddo
+    write(*,trim(formatspec)) 'ALL',(sum(my_inumheader(:,jstep)),jstep=1,nStepObs+1)
+    write(*,*)'----------------------------------------------------------------'
+    write(*,*)'Distribution of assimilated data over stepobs ON LOCAL PROCESSOR'
+    write(*,trim(formatspec2))'Bin#',(jstep,jstep=1,nStepObs),'Total'
+    do jfamily = 1, nfamily
+       write(*,trim(formatspec)) familylist(jfamily),(my_idataass(jfamily,jstep) &
+            ,jstep=1,nStepObs+1)
+    enddo
+    write(*,trim(formatspec)) 'ALL',(sum(my_idataass(:,jstep)),jstep=1,nStepObs+1)
+    write(*,*)'----------------------------------------------------------------'
+
+    nsize=size(inumheader)
+    call rpn_comm_allreduce(my_inumheader,inumheader,nsize, &
+         "mpi_integer","mpi_sum","GRID",ierr)
+    deallocate(my_inumheader) 
+    nsize=size(idataass)
+    call rpn_comm_allreduce(my_idataass,idataass,nsize, &
+         "mpi_integer","mpi_sum","GRID",ierr)
+    deallocate(my_idataass) 
+    if(mpi_myid.eq.0) then
+       write(*,*)'----------------------------------------------------------------'
+       write(*,*)'Distribution of number of headers over stepobs ON ALL PROCESSORS'
+       write(*,trim(formatspec2))'Bin#',(jstep,jstep=1,nStepObs),'Total'
+       do jfamily = 1, nfamily
+          write(*,trim(formatspec)) familylist(jfamily),(inumheader(jfamily,jstep) &
+               ,jstep=1,nStepObs+1)
+       enddo
+       write(*,trim(formatspec)) 'ALL',(sum(inumheader(:,jstep)),jstep=1,nStepObs+1)
+       write(*,*)'---------------------------------------------------------------'
+       write(*,*)'Distribution of assimilated data over stepobs ON ALL PROCESSORS'
+       write(*,trim(formatspec2))'Bin#',(jstep,jstep=1,nStepObs),'Total'
+       do jfamily = 1, nfamily
+          write(*,trim(formatspec)) familylist(jfamily),(idataass(jfamily,jstep) &
+               ,jstep=1,nStepObs+1)
+       enddo
+       write(*,trim(formatspec)) 'ALL',(sum(idataass(:,jstep)),jstep=1,nStepObs+1)
+       write(*,*)'---------------------------------------------------------------'
+    endif
+
+    deallocate(idataass)
+    deallocate(inumheader)
+
+  end subroutine tim_timeBinning
 
   subroutine tim_sutimeinterp(lobsSpaceData)
     implicit none

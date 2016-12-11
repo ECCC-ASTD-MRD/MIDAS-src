@@ -41,12 +41,16 @@ MODULE minimization_mod
   use varqc_mod
   use randomNumber_mod
   use rmatrix_mod
+  use costFunction_mod
+  use residual_mod
+  use obsOperators_mod
+  use innovation_mod
   implicit none
   save
   private
 
   ! public variables
-  public              :: min_niter,min_nsim
+  public              :: min_niter
   ! public procedures
   public              :: min_Setup, min_minimize
 
@@ -188,8 +192,8 @@ CONTAINS
     call col_allocate(column,col_getNumCol(columng),mpi_local=.true.)
     call col_copyLatLon(columng,column)
 
-    write(*,*) 'PRDATABIN: For 4D increment'
-    call prdatabin(obsSpaceData,tim_nstepobsinc)
+    write(*,*) 'TIM_TIMEBINNING: For 4D increment'
+    call tim_timeBinning(obsSpaceData,tim_nstepobsinc)
     call tim_sutimeinterp(obsSpaceData)
 
     call quasiNewtonMinimization(column,columng,obsSpaceData)
@@ -706,13 +710,13 @@ CONTAINS
 
       ! compute -H*xb', put in OBS_WORK
       call s2c_tl(statevector_ens(indexAnalysis),column,columng,obsSpaceData)  ! put in column H_horiz
-      call oda_H(column,columng,obsSpaceData)
+      call oop_Htl(column,columng,obsSpaceData,min_nsim)
 
       ! undo the multiply by -1 (-xb')
       call gsv_scale(statevector_ens(indexAnalysis),-1.0d0)
 
       ! obs perturbation added to OBS_WORK and copy into OBS_OMP
-      call perturbObs(obsSpaceData,numAnalyses,indexAnalysis,envar_loop,OBS_WORK,OBS_OMP)
+      call inn_perturbObs(obsSpaceData,numAnalyses,indexAnalysis,envar_loop,OBS_WORK,OBS_OMP)
 
       ! compute initial gradient
       incr_cv(:) = 0.0d0
@@ -1052,21 +1056,21 @@ CONTAINS
        call tmg_stop(30)
 
        call tmg_start(40,'OBS_TL')
-       call oda_H(column,columng,obsSpaceData)  ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
+       call oop_Htl(column,columng,obsSpaceData,min_nsim)  ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
        call tmg_stop(40)
 
-       call oda_res(obsSpaceData)  ! Calculate OBS_OMA from OBS_WORK : d-Hdx
+       call res_compute(obsSpaceData)  ! Calculate OBS_OMA from OBS_WORK : d-Hdx
      
-       call oda_sqrtRm1(obsSpaceData,OBS_WORK,OBS_OMA)  ! Save as OBS_WORK : R**-1/2 (d-Hdx)
+       call cfn_RsqrtInverse(obsSpaceData,OBS_WORK,OBS_OMA)  ! Save as OBS_WORK : R**-1/2 (d-Hdx)
      
-       call oda_Jo(obsSpaceData)  ! Store J-obs in OBS_JOBS : 1/2 * R**-1 (d-Hdx)**2
+       call cfn_calcJo(obsSpaceData)  ! Store J-obs in OBS_JOBS : 1/2 * R**-1 (d-Hdx)**2
      
        IF (LVARQC) THEN          
           call vqc_tl(obsSpaceData)  ! Store modified J_obs in OBS_JOBS : -ln((gamma-exp(J))/(gamma+1)) 
        endif
 
        dl_Jo = 0.d0
-       call oda_sumJo(obsSpaceData,dl_Jo)
+       call cfn_sumJo(obsSpaceData,dl_Jo)
        da_J = dl_Jb + dl_Jo
        if (na_indic  ==  3) then
           da_J = dl_Jo
@@ -1076,18 +1080,18 @@ CONTAINS
           IF(mpi_myid == 0) write(*,FMT='(6X,"SIMVAR:  Jb = ",G23.16,6X,"JO = ",G23.16,6X,"Jt = ",G23.16)') dl_Jb,dl_Jo,da_J
        endif
 
-       call oda_sqrtRm1(obsSpaceData,OBS_WORK,OBS_WORK)  ! Modify OBS_WORK : R**-1 (d-Hdx)
+       call cfn_RsqrtInverse(obsSpaceData,OBS_WORK,OBS_WORK)  ! Modify OBS_WORK : R**-1 (d-Hdx)
 
        IF (LVARQC) THEN
           call vqc_ad(obsSpaceData)
        endif
 
-       call oda_resT(obsSpaceData)  ! Calculate adjoint of d-Hdx (mult OBS_WORK by -1)
+       call res_computeAd(obsSpaceData)  ! Calculate adjoint of d-Hdx (mult OBS_WORK by -1)
 
        call col_zero(column)
 
        call tmg_start(41,'OBS_AD')
-       call oda_HT(column,columng,obsSpaceData)   ! Put in column : -H_vert**T R**-1 (d-Hdx)
+       call oop_Had(column,columng,obsSpaceData)   ! Put in column : -H_vert**T R**-1 (d-Hdx)
        call tmg_stop(41)
 
        call tmg_start(31,'OBS_INTERPAD')
@@ -1497,21 +1501,7 @@ CONTAINS
   !gives for small changes in the control variable. This test should be
   !accurate for values as small as DLALPHA =  SQRT(machine precision).
   !(see Courtier, 1987)
-  !
-  !Author  : P. Gauthier *ARMA/AES  June 9, 1992
-  !
-  !Revision:
-  !
-  !     JM Belanger CMDA/SMC  Oct 2000
-  !                   . 32 bits conversion
-  !     P. Gauthier ARMA/MSC July 2003
-  !                   . Set the output unit through an argument
-  !     S. Pellerin ARMA/MSC Oct. 2005
-  !                   . Introduction of call back simulator
-  !                   . Automatic array (argument cleanup)
-  !                   . F90 free style and ODA Norm coding
-  !
-  ! Local delcarations
+
   integer :: nl_indic, nl_j,ierr
   real*8  :: dl_wrk(na_dim),dl_gradj0(na_dim), dl_x(na_dim)
   real*8  :: dl_J0, dl_J, dl_test, dl_start,dl_end
@@ -1557,7 +1547,5 @@ CONTAINS
           G23.16)
   return
 end subroutine grtest2
-
-
 
 END MODULE minimization_mod

@@ -48,17 +48,20 @@ module innovation_mod
   use tovs_lin_mod
   use multi_ir_bgck_mod
   use burpFiles_mod
+  use randomNumber_mod
+  use obsErrors_mod
   implicit none
   save
   private
 
   ! public procedures
   public :: inn_setupObs, inn_setupBackgroundColumns, inn_computeInnovation
+  public :: inn_perturbObs
 
 contains
 
   !--------------------------------------------------------------------------
-  ! inn_setup
+  ! inn_setupObs
   !--------------------------------------------------------------------------
   SUBROUTINE INN_SETUPOBS(obsSpaceData,obsColumnMode,obsMpiStrategy)
     !
@@ -1052,8 +1055,7 @@ contains
 
   subroutine inn_computeInnovation(columng,columnhr,obsSpaceData)
     !
-    !**s/r inn_computeInnovation  - Initialise Observation Innovations.
-    !
+    ! Initialise Observation Innovations using the nonlinear H
     !
     implicit none
 
@@ -1069,8 +1071,8 @@ contains
     write(*,*) '--Starting subroutine inn_computeInnovation--'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-    write(*,*) 'PRDATABIN: Before filtering done in INN_COMPUTEINNOVATION'
-    call prdatabin(obsSpaceData,tim_nstepobs)
+    write(*,*) 'TIM_TIMEBINNING: Before filtering done in INN_COMPUTEINNOVATION'
+    call tim_timeBinning(obsSpaceData,tim_nstepobs)
     !
     !     Reject observed elements too far below the surface. Pressure values
     !     for elements slightly below the surface are replaced by the surface
@@ -1096,44 +1098,44 @@ contains
     !------------------------------
     !
     call tmg_start(48,'NL_OBS_OPER')
-    CALL oonl_ppp(columnhr,obsSpaceData,ZJORAOB,'UA')
+    CALL oop_ppp_nl(columnhr,obsSpaceData,ZJORAOB,'UA')
     !
     !        AIREPS
     !--------------------------------
-    CALL oonl_ppp(columnhr,obsSpaceData,ZJOAIREP,'AI')
+    CALL oop_ppp_nl(columnhr,obsSpaceData,ZJOAIREP,'AI')
     !
     !        SATWINDS
     !--------------------------------
-    CALL oonl_ppp(columnhr,obsSpaceData,ZJOSATWIND,'SW')
+    CALL oop_ppp_nl(columnhr,obsSpaceData,ZJOSATWIND,'SW')
     !
     !        SURFACE (SF, UA, SC AND GP FAMILIES)
     !-------------------------------
-    call oonl_sfc(columnhr,obsSpaceData,ZJOSFCSF,'SF')
-    call oonl_sfc(columnhr,obsSpaceData,ZJOSFCUA,'UA')
-    call oonl_sfc(columnhr,obsSpaceData,ZJOSFCSC,'SC')
-    call oonl_sfc(columnhr,obsSpaceData,ZJOSFCGP,'GP')
+    call oop_sfc_nl(columnhr,obsSpaceData,ZJOSFCSF,'SF')
+    call oop_sfc_nl(columnhr,obsSpaceData,ZJOSFCUA,'UA')
+    call oop_sfc_nl(columnhr,obsSpaceData,ZJOSFCSC,'SC')
+    call oop_sfc_nl(columnhr,obsSpaceData,ZJOSFCGP,'GP')
     ZJOSURFC = ZJOSFCUA + ZJOSFCSF + ZJOSFCSC + ZJOSFCGP
     !
     !        TOVS - RADIANCE
     !-------------------------------
-    call oonl_tovs(columnhr,obsSpaceData,tim_getDatestamp(),filt_rlimlvhu,top_BgckIrMode(),ZJOTOV)
+    call oop_tovs_nl(columnhr,obsSpaceData,tim_getDatestamp(),filt_rlimlvhu,top_BgckIrMode(),ZJOTOV)
     !
     !        PROFILER
     !------------------------------
-    call oonl_zzz(columnhr,obsSpaceData,ZJOPROF,'PR')
+    call oop_zzz_nl(columnhr,obsSpaceData,ZJOPROF,'PR')
     !
     !        GPS - RADIO OCCULTATION
     !-------------------------------
     CALL filt_gpsro(columnhr,obsSpaceData)
-    CALL SETERRGPSRO(columnhr,obsSpaceData)
-    call oonl_gpsro(columnhr,obsSpaceData,ZJOGPSRO)
+    CALL oer_SETERRGPSRO(columnhr,obsSpaceData)
+    call oop_gpsro_nl(columnhr,obsSpaceData,ZJOGPSRO)
     !
     !        GPS - GROUND-BASED ZENITH DELAY
     !-------------------------------
     !
     ZJOGPSGB=0.0D0
-    CALL SETERRGPSGB(columnhr,obsSpaceData,lgpdata,top_AnalysisMode())
-    if (lgpdata) call oonl_gpsgb(columnhr,obsSpaceData,ZJOGPSGB,top_AnalysisMode())
+    CALL oer_SETERRGPSGB(columnhr,obsSpaceData,lgpdata,top_AnalysisMode())
+    if (lgpdata) call oop_gpsgb_nl(columnhr,obsSpaceData,ZJOGPSGB,top_AnalysisMode())
 
     call tmg_stop(48)
     !
@@ -1191,8 +1193,8 @@ contains
     !
     if ( top_spatialDimensions() /= '2D') CALL VOBSLYRS(columng,obsSpaceData)
 
-    write(*,*) 'PRDATABIN: After filtering done in INN_COMPUTEINNOVATION'
-    call prdatabin(obsSpaceData,tim_nstepobs)
+    write(*,*) 'TIM_TIMEBINNING: After filtering done in INN_COMPUTEINNOVATION'
+    call tim_timeBinning(obsSpaceData,tim_nstepobs)
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     write(*,*) '--Done subroutine inn_computeInnovation--'
@@ -1414,5 +1416,475 @@ contains
     !$OMP END PARALLEL DO
 
   end subroutine subasic_obs
+
+  subroutine setObsMpiStrategy(lobsSpaceData, mpiStrategy)
+    !
+    ! PURPOSE:
+    !  Header indices are distributed following the chosen strategy,
+    !  current options: "LIKESPLITFILES", "ROUNDROBIN", "LATLONTILES" or "LATLONTILESBALANCED".
+    !
+    implicit none
+
+    type(struct_obs), intent(inout) :: lobsSpaceData
+    character(len=*), intent(in)    :: mpiStrategy
+
+    type(struct_hco), pointer :: hco_anl
+
+    real(8) :: lat_r8, lon_r8
+    real    :: lat_r4, lon_r4
+    real    :: xpos_r4, ypos_r4
+
+    integer :: headerIndex
+    integer :: latIndex, lonIndex
+    integer :: ierr, nsize
+    integer :: IP, IP_x, IP_y, IP2
+    integer :: gdxyfll
+    integer :: numHeaderFile,numHeaderFile_mpiglobal(mpi_nprocs)
+    integer :: obsLoadTile_mpilocal(mpi_nprocs),obsLoadTile_mpiglobal(mpi_nprocs)
+    integer :: obsLoadTile_mpiglobal_tmp(mpi_nprocs)
+    integer :: obsLoadTile_sorted(mpi_nprocs), PE_sorted(mpi_nprocs), load_to_send
+    integer :: numHeaderTile_mpilocal(mpi_nprocs),numHeaderTile_mpiglobal(mpi_nprocs)
+    integer :: PE_sender, PE_receiver, loadSent
+    integer, allocatable :: IPT_mpiglobal(:,:), IPT_mpilocal(:)
+    integer, allocatable :: obsLoad_mpiglobal(:,:), obsLoad_mpilocal(:)
+    integer :: codtyp, numtovs(mpi_nprocs), numir(mpi_nprocs), numtovs_mpiglobal(mpi_nprocs), numir_mpiglobal(mpi_nprocs)
+    integer :: totalObsLoad_mpilocal(mpi_nprocs), totalObsLoad_mpiglobal(mpi_nprocs)
+    integer :: get_max_rss
+    !
+    !- 1.  Get some info
+    !
+
+    !- 1.1 Get the horizontal coordinate of the analysis grid
+    hco_anl => hco_Get('Analysis')
+
+    !
+    !- 2.  Determine obs_ipc (column) and obs_ipt (tile) according to distribution strategy
+    !
+    write(*,*)
+    numHeaderFile = obs_numheader(lobsSpaceData)
+    write(*,*) 'setObsMpiStrategy: numHeader after reading files = ',numHeaderFile
+    write(*,*) 'setObsMpiStrategy: strategy = ',trim(mpiStrategy)
+
+    ! make sure old PE index is not used (set to -1)
+    do headerIndex = 1, numHeaderFile
+       call obs_headSet_i(lobsSpaceData,OBS_IP,headerIndex,-1)
+    end do
+
+    ! set PE index for the file (where reading and updating was/will be done)
+    do headerIndex = 1, numHeaderFile
+       call obs_headSet_i(lobsSpaceData,OBS_IPF,headerIndex,mpi_myid)
+    end do
+
+    select case (trim(mpiStrategy))
+    case ('LIKESPLITFILES')
+       !- 2.1 Keep distribution exactly as it is in the split files:
+       do headerIndex = 1, numHeaderFile
+          call obs_headSet_i(lobsSpaceData,OBS_IPC,headerIndex, mpi_myid)
+          call obs_headSet_i(lobsSpaceData,OBS_IPT,headerIndex, mpi_myid)
+       end do
+    case ('ROUNDROBIN')
+       !- 2.2 Distribute by a round-robin strategy for both obs_ipc and obs_ipt:
+       !      (Only use if files already not split by round robin)
+       do headerIndex = 1, numHeaderFile
+          IP = mod((headerIndex-1),mpi_nprocs)
+          call obs_headSet_i(lobsSpaceData,OBS_IPC,headerIndex, IP)
+          call obs_headSet_i(lobsSpaceData,OBS_IPT,headerIndex, IP)
+       end do
+    case ('LATLONTILES')
+       !- 2.3 Distribute by latitude/longitude tiles for both obs_ipc and obs_ipt:
+       do headerIndex = 1, numHeaderFile
+          lat_r8 = obs_headElem_r(lobsSpaceData,OBS_LAT,headerIndex)
+          lon_r8 = obs_headElem_r(lobsSpaceData,OBS_LON,headerIndex)
+          lat_r4 = real(lat_r8) * MPC_DEGREES_PER_RADIAN_R4
+          lon_r4 = real(lon_r8) * MPC_DEGREES_PER_RADIAN_R4
+          ierr = gdxyfll( hco_anl%EZscintID,   & ! IN 
+               xpos_r4, ypos_r4,    & ! OUT
+               lat_r4, lon_r4, 1 )    ! IN
+          latIndex = floor(ypos_r4)
+          lonIndex = floor(xpos_r4)
+          IP_y = ( mpi_npey * (latIndex-1) ) / hco_anl%nj
+          IP_x = ( mpi_npex * (lonIndex-1) ) / hco_anl%ni
+          IP = IP_x + IP_y*mpi_npex
+          call obs_headSet_i(lobsSpaceData,OBS_IPC,headerIndex, IP)
+          call obs_headSet_i(lobsSpaceData,OBS_IPT,headerIndex, IP)
+       end do
+
+    case ('LATLONTILESBALANCED')
+       !- 2.4 Distribute by latitude/longitude tiles, but with simple & cheap balancing for obs_ipc (1 send or recv):
+
+       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+       call rpn_comm_allgather(numHeaderFile, 1, "mpi_integer",  &
+            numHeaderFile_mpiglobal, 1, "mpi_integer", "GRID", ierr)
+
+       ! set PE index for the tile (where interpolation will be done)
+       do headerIndex = 1, numHeaderFile
+          lat_r8 = obs_headElem_r(lobsSpaceData,OBS_LAT,headerIndex)
+          lon_r8 = obs_headElem_r(lobsSpaceData,OBS_LON,headerIndex)
+          lat_r4 = real(lat_r8) * MPC_DEGREES_PER_RADIAN_R4
+          lon_r4 = real(lon_r8) * MPC_DEGREES_PER_RADIAN_R4
+          ierr = gdxyfll( hco_anl%EZscintID,   & ! IN 
+               xpos_r4, ypos_r4,    & ! OUT
+               lat_r4, lon_r4, 1 )    ! IN
+          latIndex = floor(ypos_r4)
+          lonIndex = floor(xpos_r4)
+          IP_y = ( mpi_npey * (latIndex-1) ) / hco_anl%nj
+          IP_x = ( mpi_npex * (lonIndex-1) ) / hco_anl%ni
+          IP = IP_x + IP_y*mpi_npex
+          call obs_headSet_i(lobsSpaceData,OBS_IPT,headerIndex,IP)
+       end do
+
+       ! set PE index for the column (where the obs operator will be done)
+
+       ! initialize IPC = IPT
+       do headerIndex = 1, numHeaderFile
+          IP = obs_headElem_i(lobsSpaceData,OBS_IPT,headerIndex)
+          call obs_headSet_i(lobsSpaceData,OBS_IPC,headerIndex,IP)
+       end do
+
+       ! make all of the IPT and obsLoad values visible on all processors
+       nsize = maxval(numHeaderFile_mpiglobal(:))
+       allocate(IPT_mpiglobal(nsize,mpi_nprocs))
+       allocate(IPT_mpilocal(nsize))
+       allocate(obsLoad_mpiglobal(nsize,mpi_nprocs))
+       allocate(obsLoad_mpilocal(nsize))
+       IPT_mpilocal(:) = -1
+       obsLoad_mpilocal(:) = -1
+       do headerIndex = 1, numHeaderFile
+          IPT_mpilocal(headerIndex) = obs_headElem_i(lobsSpaceData,OBS_IPT,headerIndex)
+          obsLoad_mpilocal(headerIndex) = obsLoad(headerIndex)
+       enddo
+       call rpn_comm_allgather(IPT_mpilocal, nsize, "mpi_integer",  &
+            IPT_mpiglobal, nsize, "mpi_integer", "GRID", ierr)
+       call rpn_comm_allgather(obsLoad_mpilocal, nsize, "mpi_integer",  &
+            obsLoad_mpiglobal, nsize, "mpi_integer", "GRID", ierr)
+
+       write(*,*) ' '
+       write(*,*) 'setObsMpiStrategy: do balancing according to approximate load'
+       write(*,*) ' '
+
+       ! compute total number of headers per PE on tiles
+       numHeaderTile_mpilocal(:) = 0
+       do headerIndex = 1, numHeaderFile
+          IP = obs_headElem_i(lobsSpaceData,OBS_IPT,headerIndex)
+          numHeaderTile_mpilocal(IP+1) = numHeaderTile_mpilocal(IP+1) + 1
+       end do
+       call rpn_comm_allreduce(numHeaderTile_mpilocal,numHeaderTile_mpiglobal,mpi_nprocs,  &
+            "MPI_INTEGER","MPI_SUM","GRID",ierr)
+       write(*,*) 'setObsMpiStrategy: original numHeaderTile_mpiglobal     =',numHeaderTile_mpiglobal(:)
+
+       ! compute total load per PE on tiles
+       obsLoadTile_mpilocal(:) = 0
+       do headerIndex = 1, numHeaderFile
+          if(obsLoad(headerIndex).gt.0) then
+             IP = obs_headElem_i(lobsSpaceData,OBS_IPT,headerIndex)
+             obsLoadTile_mpilocal(IP+1) = obsLoadTile_mpilocal(IP+1) + obsLoad(headerIndex)
+          endif
+       end do
+       call rpn_comm_allreduce(obsLoadTile_mpilocal,obsLoadTile_mpiglobal,mpi_nprocs,  &
+            "MPI_INTEGER","MPI_SUM","GRID",ierr)
+       write(*,*) 'setObsMpiStrategy: original obsLoadTile_mpiglobal     =',obsLoadTile_mpiglobal(:)
+
+       ! set obsLoad to zero if only 1 header on the tile to avoid sending it
+       do IP = 0, mpi_nprocs-1
+          if(numHeaderTile_mpiglobal(IP+1)==1) then
+             obsLoadTile_mpiglobal(IP+1) = 0
+             write(*,*) 'setObsMpiStrategy: setting the obsLoad to zero, ', & 
+                  'since only 1 header index on the tile with myid = ',IP
+          endif
+       enddo
+
+       ! sort the list of loads per tile
+       obsLoadTile_mpiglobal_tmp(:) = obsLoadTile_mpiglobal(:)
+       do IP = 0, mpi_nprocs-1
+          obsLoadTile_sorted(IP+1) = -1
+          do IP2 = 0, mpi_nprocs-1
+             if(obsLoadTile_mpiglobal_tmp(IP2+1).gt.obsLoadTile_sorted(IP+1)) then
+                obsLoadTile_sorted(IP+1) = obsLoadTile_mpiglobal_tmp(IP2+1)
+                PE_sorted(IP+1) = IP2
+             endif
+          enddo
+          obsLoadTile_mpiglobal_tmp(PE_sorted(IP+1)+1) = -1
+       enddo
+       write(*,*) 'setObsMpiStrategy: sorted obsLoadTile_mpiglobal       =',obsLoadTile_sorted(:)
+       write(*,*) 'setObsMpiStrategy: corresponding sorted PE_mpiglobal  =',PE_sorted(:)
+
+       ! modify IPC for headers that need to be sent to balance load
+       do IP = 0, (mpi_nprocs/2)-1
+          PE_sender=PE_sorted(IP+1);
+          PE_receiver=PE_sorted(mpi_nprocs-IP);
+          load_to_send=floor(0.5*(obsLoadTile_mpiglobal(PE_sender+1) -  &
+               obsLoadTile_mpiglobal(PE_receiver+1)))
+          write(*,*) 'setObsMpiStrategy: PE_sender, PE_receiver, load_to_send = ', PE_sender, PE_receiver, load_to_send
+
+          ! modify IPC value from PE_sender to PE_receiver for headers whose load adds up to load_to_send
+          loadSent=0
+          do IP2 = 0, (mpi_nprocs-1)
+             if(loadSent<load_to_send) then
+                do headerIndex = 1, numHeaderFile_mpiglobal(IP2+1)
+                   if( IPT_mpiglobal(headerIndex,IP2+1).eq.PE_sender .and. &
+                        obsLoad_mpiglobal(headerIndex,IP2+1).gt.0 .and. &
+                        loadSent.lt.load_to_send ) then
+                      loadSent = loadSent + obsLoad_mpiglobal(headerIndex,IP2+1)
+                      if(mpi_myid.eq.IP2) then
+                         ! header to send is currently on my PE
+                         !write(*,*) 'setObsMpiStrategy: changing obs_ipc from ', &
+                         !           obs_headElem_i(lobsSpaceData,OBS_IPC,headerIndex),' to ',PE_receiver
+                         call obs_headSet_i(lobsSpaceData,OBS_IPC,headerIndex,PE_receiver)
+                      endif
+                   endif
+                enddo
+             endif
+          enddo
+       enddo
+
+       deallocate(IPT_mpiglobal)
+       deallocate(IPT_mpilocal)
+       deallocate(obsLoad_mpiglobal)
+       deallocate(obsLoad_mpilocal)
+
+       ! ** The rest is just diagnostics used when trying to improve the 
+       ! ** formula for estimating the load - could be removed
+
+       ! count the number of tovs and IR observations for each file
+       numtovs(:)=0
+       numir(:)=0
+       totalObsLoad_mpilocal(:)=0
+       do headerIndex = 1, numHeaderFile
+          codtyp = obs_headElem_i(lobsSpaceData,OBS_ITY,headerIndex)
+          if(tvs_Is_idburp_tovs(codtyp) ) numtovs(mpi_myid+1)=numtovs(mpi_myid+1)+1
+          if(tvs_Is_idburp_inst(codtyp,"IASI") ) numir(mpi_myid+1)=numir(mpi_myid+1)+1
+          if(tvs_Is_idburp_inst(codtyp,"AIRS") ) numir(mpi_myid+1)=numir(mpi_myid+1)+1
+          if(tvs_Is_idburp_inst(codtyp,"CRIS") ) numir(mpi_myid+1)=numir(mpi_myid+1)+1
+          totalObsLoad_mpilocal(mpi_myid+1) = totalObsLoad_mpilocal(mpi_myid+1) + obsLoad(headerIndex)
+       enddo
+       call rpn_comm_allreduce(numtovs,numtovs_mpiglobal,mpi_nprocs,  &
+            "MPI_INTEGER","MPI_SUM","GRID",ierr)
+       call rpn_comm_allreduce(numir,numir_mpiglobal,mpi_nprocs,  &
+            "MPI_INTEGER","MPI_SUM","GRID",ierr)
+       call rpn_comm_allreduce(totalObsLoad_mpilocal,totalObsLoad_mpiglobal,mpi_nprocs,  &
+            "MPI_INTEGER","MPI_SUM","GRID",ierr)
+       write(*,*) 'setObsMpiStrategy: number of FILE headers for all TOVS = ',numtovs_mpiglobal(:)
+       write(*,*) '                   number of FILE headers for only IR  = ',numir_mpiglobal(:)
+       write(*,*) '                   estimated total obsLoad             = ',totalObsLoad_mpiglobal(:)
+
+       ! count the number of tovs and IR observations for each tile
+       numtovs(:)=0
+       numir(:)=0
+       totalObsLoad_mpilocal(:)=0
+       do headerIndex = 1, numHeaderFile
+          IP = obs_headElem_i(lobsSpaceData,OBS_IPT,headerIndex)
+          codtyp = obs_headElem_i(lobsSpaceData,OBS_ITY,headerIndex)
+          if(tvs_Is_idburp_tovs(codtyp) ) numtovs(IP+1)=numtovs(IP+1)+1
+          if(tvs_Is_idburp_inst(codtyp,"IASI") ) numir(IP+1)=numir(IP+1)+1
+          if(tvs_Is_idburp_inst(codtyp,"AIRS") ) numir(IP+1)=numir(IP+1)+1
+          if(tvs_Is_idburp_inst(codtyp,"CRIS") ) numir(IP+1)=numir(IP+1)+1
+          totalObsLoad_mpilocal(IP+1) = totalObsLoad_mpilocal(IP+1) + obsLoad(headerIndex)
+       enddo
+       call rpn_comm_allreduce(numtovs,numtovs_mpiglobal,mpi_nprocs,  &
+            "MPI_INTEGER","MPI_SUM","GRID",ierr)
+       call rpn_comm_allreduce(numir,numir_mpiglobal,mpi_nprocs,  &
+            "MPI_INTEGER","MPI_SUM","GRID",ierr)
+       call rpn_comm_allreduce(totalObsLoad_mpilocal,totalObsLoad_mpiglobal,mpi_nprocs,  &
+            "MPI_INTEGER","MPI_SUM","GRID",ierr)
+       write(*,*) 'setObsMpiStrategy: number of TILE headers for all TOVS = ',numtovs_mpiglobal(:)
+       write(*,*) '                   number of TILE headers for only IR  = ',numir_mpiglobal(:)
+       write(*,*) '                   estimated total obsLoad             = ',totalObsLoad_mpiglobal(:)
+
+       ! count the number of tovs and IR observations for columns
+       numtovs(:)=0
+       numir(:)=0
+       totalObsLoad_mpilocal(:)=0
+       do headerIndex = 1, numHeaderFile
+          IP = obs_headElem_i(lobsSpaceData,OBS_IPC,headerIndex)
+          codtyp = obs_headElem_i(lobsSpaceData,OBS_ITY,headerIndex)
+          if(tvs_Is_idburp_tovs(codtyp) ) numtovs(IP+1)=numtovs(IP+1)+1
+          if(tvs_Is_idburp_inst(codtyp,"IASI") ) numir(IP+1)=numir(IP+1)+1
+          if(tvs_Is_idburp_inst(codtyp,"AIRS") ) numir(IP+1)=numir(IP+1)+1
+          if(tvs_Is_idburp_inst(codtyp,"CRIS") ) numir(IP+1)=numir(IP+1)+1
+          totalObsLoad_mpilocal(IP+1) = totalObsLoad_mpilocal(IP+1) + obsLoad(headerIndex)
+       enddo
+       call rpn_comm_allreduce(numtovs,numtovs_mpiglobal,mpi_nprocs,  &
+            "MPI_INTEGER","MPI_SUM","GRID",ierr)
+       call rpn_comm_allreduce(numir,numir_mpiglobal,mpi_nprocs,  &
+            "MPI_INTEGER","MPI_SUM","GRID",ierr)
+       call rpn_comm_allreduce(totalObsLoad_mpilocal,totalObsLoad_mpiglobal,mpi_nprocs,  &
+            "MPI_INTEGER","MPI_SUM","GRID",ierr)
+       write(*,*) 'setObsMpiStrategy: number of COLS headers for all TOVS = ',numtovs_mpiglobal(:)
+       write(*,*) '                   number of COLS headers for only IR  = ',numir_mpiglobal(:)
+       write(*,*) '                   estimated total obsLoad             = ',totalObsLoad_mpiglobal(:)
+
+       numtovs(:)=0
+       do headerIndex = 1, numHeaderFile
+          IP = obs_headElem_i(lobsSpaceData,OBS_IPC,headerIndex)
+          codtyp = obs_headElem_i(lobsSpaceData,OBS_ITY,headerIndex)
+          if(tvs_Is_idburp_inst(codtyp,"AMSUA")) numtovs(IP+1)=numtovs(IP+1)+1
+       enddo
+       call rpn_comm_allreduce(numtovs,numtovs_mpiglobal,mpi_nprocs,  &
+            "MPI_INTEGER","MPI_SUM","GRID",ierr)
+       write(*,*) 'setObsMpiStrategy: number of COLS headers for AMSUA     = ',numtovs_mpiglobal(:)
+
+       numtovs(:)=0
+       do headerIndex = 1, numHeaderFile
+          IP = obs_headElem_i(lobsSpaceData,OBS_IPC,headerIndex)
+          codtyp = obs_headElem_i(lobsSpaceData,OBS_ITY,headerIndex)
+          if(tvs_Is_idburp_inst(codtyp,"AMSUB") .or. tvs_Is_idburp_inst(codtyp,"MHS")) numtovs(IP+1)=numtovs(IP+1)+1
+       enddo
+       call rpn_comm_allreduce(numtovs,numtovs_mpiglobal,mpi_nprocs,  &
+            "MPI_INTEGER","MPI_SUM","GRID",ierr)
+       write(*,*) 'setObsMpiStrategy: number of COLS headers for AMSUB/MHS = ',numtovs_mpiglobal(:)
+
+       numtovs(:)=0
+       do headerIndex = 1, numHeaderFile
+          IP = obs_headElem_i(lobsSpaceData,OBS_IPC,headerIndex)
+          codtyp = obs_headElem_i(lobsSpaceData,OBS_ITY,headerIndex)
+          if(tvs_Is_idburp_inst(codtyp,"METEOSAT") .or. tvs_Is_idburp_inst(codtyp,"GOES")) numtovs(IP+1)=numtovs(IP+1)+1
+       enddo
+       call rpn_comm_allreduce(numtovs,numtovs_mpiglobal,mpi_nprocs,  &
+            "MPI_INTEGER","MPI_SUM","GRID",ierr)
+       write(*,*) 'setObsMpiStrategy: number of COLS headers for GEORAD    = ',numtovs_mpiglobal(:)
+
+       numtovs(:)=0
+       do headerIndex = 1, numHeaderFile
+          IP = obs_headElem_i(lobsSpaceData,OBS_IPC,headerIndex)
+          codtyp = obs_headElem_i(lobsSpaceData,OBS_ITY,headerIndex)
+          if(tvs_Is_idburp_inst(codtyp,"SSMIS")) numtovs(IP+1)=numtovs(IP+1)+1
+       enddo
+       call rpn_comm_allreduce(numtovs,numtovs_mpiglobal,mpi_nprocs,  &
+            "MPI_INTEGER","MPI_SUM","GRID",ierr)
+       write(*,*) 'setObsMpiStrategy: number of COLS headers for SSMIS     = ',numtovs_mpiglobal(:)
+
+    case default
+       write(*,*)
+       write(*,*) 'ERROR unknown mpiStrategy: ', trim(mpiStrategy)
+       call varAbort('setObsMpiStrategy')
+    end select
+
+  CONTAINS
+
+    function obsLoad(headerIndex)
+      implicit none
+      integer :: headerIndex, codtyp, obsLoad
+      integer :: bodyIndexBeg, bodyIndexEnd, bodyIndex
+
+      ! this is a very simple recipe for estimating the computational load 
+      ! based only on the codtyp - it works better than more complicated 
+      ! approaches that tried to count the number of assimilated elements in
+      ! each header and then multiply this by a factor based on the number 
+      ! of RTTOV predictors for each type of radiance - probably should write
+      ! a separate program to do a more objective evalution of this
+
+      codtyp = obs_headElem_i(lobsSpaceData,OBS_ITY,headerIndex)
+
+      if(tvs_Is_idburp_inst(codtyp,"IASI")) then
+         obsLoad = 100
+      elseif(tvs_Is_idburp_inst(codtyp,"AIRS")) then
+         obsLoad = 100
+      elseif(tvs_Is_idburp_inst(codtyp,"CRIS")) then
+         obsLoad = 100
+      elseif(tvs_Is_idburp_tovs(codtyp)) then
+         ! all other types of radiance obs
+         obsLoad = 10
+      else
+         ! all non-radiance obs
+         obsLoad = 1
+      endif
+
+    end function obsLoad
+
+  end subroutine setObsMpiStrategy
+
+  subroutine inn_perturbObs(obsSpaceData,numAnalyses,indexAnalysis,indexBatch,obs_column_index_src,obs_column_index_dest)
+    !
+    !Purpose:
+    ! Perturb the innovation vector to simulate effect of observation uncertainty
+    !
+    ! WARNING: perturbations are not the same when MPI topology changes!!!
+    !
+    !Author  : M. Buehner, Dec, 2013
+    !
+    implicit none
+
+    type(struct_obs) :: obsSpaceData
+    integer :: numAnalyses,indexAnalysis,indexBatch,numPerturbations
+    integer :: obs_column_index_src,obs_column_index_dest
+
+    integer :: nrandseed,iseed,indexAnalysis2,indexBody,indexFamily,iass
+    integer, parameter :: numFamily=9
+    real*8  :: zmean,originalOmp
+    real*8  :: scaleFactor(numFamily)
+    character(len=2) :: familyList(numFamily)
+    real*8, save, pointer :: obsPerturbations(:,:) => NULL()
+    logical, save :: firstTime = .true.
+
+    familyList(1)='UA' ; scaleFactor(1)=1.00d0
+    familyList(2)='AI' ; scaleFactor(2)=1.00d0
+    familyList(3)='SF' ; scaleFactor(3)=1.00d0
+    familyList(4)='TO' ; scaleFactor(4)=1.00d0
+    familyList(5)='SW' ; scaleFactor(5)=1.00d0
+    familyList(6)='SC' ; scaleFactor(6)=1.00d0
+    familyList(7)='PR' ; scaleFactor(7)=1.00d0
+    familyList(8)='RO' ; scaleFactor(8)=1.00d0
+    familyList(9)='GP' ; scaleFactor(9)=1.00d0
+
+    numPerturbations = numAnalyses
+
+    if(firstTime) then
+
+       if(.not.associated(obsPerturbations)) then
+          write(*,*) 'perturbObs: allocating space for all perturbations'
+          allocate(obsPerturbations(obs_numBody(obsSpaceData),numPerturbations))
+       endif
+
+       write(*,*) 'perturbObs: computing random numbers'
+
+       ! compute random perturbations
+       do indexAnalysis2 = 1,numPerturbations
+          nrandseed   = indexAnalysis2 + (indexBatch-1)*numAnalyses
+          iseed     = ABS(nrandseed)
+          write(*,*) 'perturbobs: indexAnalysis, iseed=',indexAnalysis2, iseed
+          call rng_setup(iseed) ! JFC: should be called only once, no???
+          do indexBody = 1,obs_numBody(obsSpaceData)
+             obsPerturbations(indexBody,indexAnalysis2)=rng_gaussian()*obs_bodyElem_r(obsSpaceData,OBS_OER,indexBody)
+          enddo
+       enddo
+
+       ! apply scale factor
+       do indexFamily = 1,numFamily
+          do indexBody = 1,obs_numBody(obsSpaceData)      
+             if(obs_getFamily(obsSpaceData,bodyIndex=indexBody).eq.familyList(indexFamily)) then
+                do indexAnalysis2 = 1,numPerturbations
+                   obsPerturbations(indexBody,indexAnalysis2)=obsPerturbations(indexBody,indexAnalysis2)*scaleFactor(indexFamily)
+                enddo
+             endif
+          enddo
+       enddo
+
+       ! remove ensemble mean
+       do indexBody = 1,obs_numBody(obsSpaceData)      
+          zmean=0.0d0
+          do indexAnalysis2 = 1,numPerturbations
+             zmean=zmean+obsPerturbations(indexBody,indexAnalysis2)
+          enddo
+          zmean=zmean/numPerturbations
+          do indexAnalysis2 = 1,numPerturbations
+             obsPerturbations(indexBody,indexAnalysis2)=obsPerturbations(indexBody,indexAnalysis2)-zmean
+          enddo
+       enddo
+
+       firstTime=.false.
+
+    endif
+
+    ! apply perturbation for current analysis
+    write(*,*) 'perturbObs: applying perturbation for analysis number: ',indexAnalysis
+    do indexBody = 1,obs_numBody(obsSpaceData)      
+       iass = obs_bodyElem_i(obsSpaceData,OBS_ASS,indexBody)
+       if(iass.eq.1 .or. iass.eq.-1) then
+          originalOmp = obs_bodyElem_r(obsSpaceData,obs_column_index_src,indexBody)
+          call obs_bodySet_r(obsSpaceData,obs_column_index_dest,indexBody,originalOmp+obsPerturbations(indexBody,indexAnalysis))
+       endif
+    enddo
+
+  end subroutine inn_perturbObs
 
 end module innovation_mod

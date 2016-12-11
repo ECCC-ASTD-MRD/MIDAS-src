@@ -7,6 +7,7 @@ subroutine compute_HBHT_ensemble(columng,columnhr,obsSpaceData,active)
   use horizontalCoord_mod
   use gridStateVector_mod
   use stateToColumn_mod
+  use obsOperators_mod
   implicit none
 
   type(struct_obs)        :: obsSpaceData ! Observation-related data
@@ -67,7 +68,7 @@ subroutine compute_HBHT_ensemble(columng,columnhr,obsSpaceData,active)
   HBHT_ens(:) = 0.d0
 
   !- 1.6
-  call prdatabin(obsSpaceData,tim_nstepobsinc)
+  call tim_timeBinning(obsSpaceData,tim_nstepobsinc)
   call tim_sutimeinterp(obsSpaceData)
 
   !
@@ -88,8 +89,9 @@ subroutine compute_HBHT_ensemble(columng,columnhr,obsSpaceData,active)
                   columng, obsSpaceData )  ! IN
 
      !- 2.3 Interpolation to observation space
-     call oda_H( column, columng, & ! IN
-                 obsSpaceData )     ! OUT (Save as OBS_WORK: H_vert H_horiz EnsPert = H EnsPert)
+     call oop_Htl( column, columng, & ! IN
+                   obsSpaceData,    & ! OUT (Save as OBS_WORK: H_vert H_horiz EnsPert = H EnsPert)
+                   1 )                ! IN
 
      !- 2.4 alpha * HBH^T = sum(OBS_WORK^2)
      do index_body = 1, obs_numBody(obsSpaceData)
