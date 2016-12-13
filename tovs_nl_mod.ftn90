@@ -55,7 +55,7 @@ Module tovs_nl_mod
 
   ! public procedures
   public :: TOVS_NL_SETUPALLO,TOVS_SETUP, tvs_Is_idburp_tovs, tvs_Is_idburp_inst
-  public :: tvs_get_inst_id, tvs_get_platform_id
+  public :: tvs_get_inst_id, tvs_get_platform_id, tvs_mapSat, tvs_mapInstrum
   public ::  tvs_Is_Instrum_Geostationary,  tvs_Is_Instrum_HyperSpectral
   ! Module parameters
   Integer, PARAMETER :: jppf      = 40       ! Max no. profiles per RTTOV call
@@ -214,14 +214,14 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
 !    Construct list of channels for each sensor:
 !          map burp satellite info to RTTOV platform and satellite.
      IVAL = obs_headElem_i(lobsSpaceData,OBS_SAT,index_header)
-     CALL MAP_SAT(IVAL,IPLATFORM,ISAT)
+     CALL TVS_MAPSAT(IVAL,IPLATFORM,ISAT)
      if (IPLATFORM==-1) then
         Write(*,*) "Unknown OBS_SAT !",IVAL
         CALL varAbort('TOVS_NL_SETUPALLO')
      endif
 !    map burp instrument info to RTTOV instrument.
      IVAL = obs_headElem_i(lobsSpaceData,OBS_INS,index_header)
-     CALL MAP_INSTRUM(IVAL,INSTRUM)
+     CALL TVS_MAPINSTRUM(IVAL,INSTRUM)
      if (INSTRUM==-1) then
         Write(*,*) "Unknown OBS_INS !",IVAL
         CALL varAbort('TOVS_NL_SETUPALLO')
@@ -939,5 +939,280 @@ logical function tvs_Is_Instrum_Geostationary(instrum)
 
 end function tvs_Is_Instrum_Geostationary
 
-End Module tovs_nl_mod
+      SUBROUTINE TVS_MAPINSTRUM(INSTRUMBURP,INSTRUM)
+!
+!**s/r TVS_MAPINSTRUM : Map burp satellite instrument (element #2019)
+!                    to RTTOV-10 instrument.
+!
+!Author  : J. Halle *CMDA/SMC May 2002
+!
+!Revision 001: J. Halle *CMDA/SMC Sept. 2005
+!              - add MHS.
+!         002: R Sarrazin CMDA, April 2008
+!              - comment on MTSAT imager instrument number
+!         003: R. McTaggart-Cowan *RPN  Mar 2012
+!	       - Use assumed-length declarations for string dummy args
+!         003: S. Macpherson ARMA, August 2011
+!              - add NPP/ATMS codtyp=192
+!         004: C. Cote Juillet 2015
+!              - Ajout Himawari-8/AHI codtyp=185
+!         005: S. Heilliette Novembre 2015
+!              - suppression des tables hardcodees
+!                lecture depuis une namelist
+!
+!
+!    -------------------
+!*    Purpose:  Map burp satellite instrument (element #2019)
+!               to RTTOV-7 instrument.
+!*              A negative value is returned, if no match in found.
+!
+!               Table of  RTTOV-7 instrument identifier
+!               ---------------------------------------
+!               Instrument        Instrument identifier  Sensor type
+!               ---------         ---------------------  -----------
+!               HIRS               0                     ir
+!               MSU                1                     mw
+!               SSU                2                     ir
+!               AMSUA              3                     mw
+!               AMSUB              4                     mw
+!               AVHRR              5                     ir
+!               SSMI               6                     mw
+!               VTPR1              7                     ir
+!               VTPR2              8                     ir
+!               TMI                9                     mw
+!               SSMIS             10                     mw
+!               AIRS              11                     ir
+!               MODIS             13                     ir
+!               ATSR              14                     ir
+!               MHS               15                     mw
+!               ATMS              19                     mw
+!               MVIRI             20                     ir
+!               SEVIRI            21                     ir
+!               GOESIMAGER        22                     ir
+!               GOESSOUNDER       23                     ir
+!               GMS/MTSAT IMAGER  24                     ir
+!               FY2-VISSR         25                     ir
+!               FY1-MVISR         26                     ir
+!               AHI               56                     ir
+!
+!Argumets:
+!     i : INSTRUMBURP : burp satellite instrument (element #2019)
+!     o : INSTRUM     : RTTOV-7 instrument ID numbers (e.g. 3 for  AMSUA)
+!
+      IMPLICIT NONE
+      INTEGER J,INSTRUMBURP,INSTRUM,numinstburp
+      INTEGER,parameter :: MXINSTRUMBURP   = 100
+      INTEGER,save ::   LISTBURP(MXINSTRUMBURP)
+      CHARACTER(len=8),save :: LISTINSTRUM(MXINSTRUMBURP)
+      NAMELIST /NAMINST/ LISTBURP, LISTINSTRUM
+      LOGICAL,SAVE :: LFIRST = .true.
+      INTEGER :: NULNAM, IER
+      integer ,external :: fnom, fclos
+!*************
+!      TESTING ONLY: burp 2047 is AIRS.
+!*************
+!
+!*            Table of BURP satellite sensor identifier element #002019
+!*            ----------------------------------------------------------
 
+!
+!
+!*    .  1.0 Find instrument
+!     .      ---------------------------
+
+      IF (LFIRST) THEN
+         ! set the default values
+         LISTBURP(:) = -1
+         LISTINSTRUM(:) = "XXXXXXXX"
+
+         ! read the namelist
+         NULNAM=0
+         IER=FNOM(NULNAM,'./flnml','FTN+SEQ+R/O',0)
+         IF (IER/=0) then
+            write(*,*) "Error while opening namelist file !"
+            call varAbort("tvs_mapInstrum")
+         ENDIF
+         READ(NULNAM,NAMINST,iostat=ier)
+         IF (IER/=0) then
+            write(*,*) "Error while reading namelist file !"
+            call varAbort("tvs_mapInstrum")
+         ENDIF
+         ier=FCLOS(NULNAM)
+
+         ! figure out how many valid elements in the lists
+         DO J=1, MXINSTRUMBURP
+           if(listburp(j).eq.-1) then
+             numinstburp = j - 1
+             exit
+           endif
+         enddo
+         if (numinstburp > MXINSTRUMBURP) then
+           call varAbort('tvs_mapInstrum: exceeded maximum number of platforms')
+         endif
+         write(*,*) 'tvs_mapInstrum: number of satellites found in namelist = ',numinstburp
+         WRITE(*,*) 'tvs_mapInstrum: listburp   = ',listburp(1:numinstburp)
+         WRITE(*,*) 'tvs_mapInstrum: listinstrum    = ',listinstrum(1:numinstburp)
+         LFIRST=.FALSE.
+      ENDIF
+
+      INSTRUM = -1
+      DO J=1, MXINSTRUMBURP
+         IF ( INSTRUMBURP .EQ. LISTBURP(J) ) THEN
+            INSTRUM    = tvs_get_inst_id( LISTINSTRUM(J) )
+            EXIT
+         ENDIF
+      ENDDO
+
+    END subroutine TVS_MAPINSTRUM
+
+    SUBROUTINE TVS_MAPSAT(ISATBURP,IPLATFORM,ISAT)
+!
+!**s/r TVS_MAPSAT : Map burp satellite identifier (element #1007)
+!                to RTTOV-10 platform and satellite.
+!
+!Author  :       J. Halle *CMDA/SMC May 2002
+!
+!Revision 001  : J. Halle *CMDA/AES Jul 2005
+!                . add NOAA-18.
+!
+!Revision 002  : J. Halle *CMDA/AES May 2007
+!                . add METOP 1,2,3.
+!
+!Revision 003  : R. Sarrazin CMDA   Apr 2008
+!                  add MTSAT1, GOES13 and MSG2, modif to MSG1
+!
+!Revision 004  : C. Cote  mars 2009
+!                . add NOAA-19.
+!
+!Revision 005  : S. Macpherson *ARMA  Jul 2010
+!                . add SSMIS satellites DMSP17-18
+!
+!Revision 006  : S. Macpherson *ARMA  Feb 2013
+!                . add NPP/ATMS codtyp=192
+!
+!Revision 007  : J. Morneau CMDA    FEb 2014
+!                . add GOES15 and MTSAT-2
+!                . add GOES14
+!                . add MSG3 and MSG4
+!Revision 008 :  S. Heilliette    March 2014
+!                . Major Modification:
+!                . information is now read from namelist
+!                . instead of being hardcoded
+!
+!    -------------------
+!    Purpose:  Map burp satellite identifier (element #1007)
+!               to RTTOV-7 platform and satellite.
+!               Negative values are returned, if no match in found.
+!
+!               ---------------------------------------------
+!               Table of  RTTOV-7 platform identifier
+!               ---------------------------------------------
+!               Platform          RTTOV-7 platform identifier
+!               ---------         ---------------------------
+!               NOAA               1
+!               DMSP               2
+!               METEOSAT           3
+!               GOES               4
+!               GMS                5
+!               FY2                6
+!               TRMM               7
+!               ERS                8
+!               EOS                9
+!               METOP             10
+!               ENVISAT           11
+!               MSG               12
+!               FY1               13
+!               ADEOS             14
+!               MTSAT             15
+!               CORIOLIS          16
+!               NPP               17
+!               ---------------------------------------------
+!
+!               Example: NOAA15, which has a burp satellite identifier value of 206,
+!                        is mapped into the following:
+!                                RTTOV-7 platform  =  1,
+!                                RTTOV-7 satellite = 15.
+!
+!
+!
+!Arguments:
+!     i : ISATBURP      : BURP satellite identifier
+!     o : IPLATFORM     : RTTOV-7 platform ID numbers (e.g. 1 for  NOAA)
+!     o : ISAT          : RTTOV-7 satellite ID numbers (e.g. 15)
+!
+      IMPLICIT NONE
+
+      INTEGER J,ISATBURP,IPLATFORM,ISAT
+      INTEGER IER,NULNAM
+      LOGICAL ,SAVE :: LFIRST=.TRUE.
+      INTEGER ,EXTERNAL :: FNOM, FCLOS
+
+      integer, parameter :: mxsatburp = 100
+      INTEGER,SAVE :: NUMSATBURP
+
+      ! Table of BURP satellite identifier element #001007
+      INTEGER,SAVE :: LISTBURP(mxsatburp)
+      ! Table of RTTOV-7 platform identifier
+      CHARACTER(len=8),SAVE :: LISTPLAT(mxsatburp)
+      ! Table of RTTOV-7 satellite identifier
+      INTEGER,SAVE :: LISTSAT (mxsatburp)
+
+      NAMELIST /NAMSAT/ LISTBURP, LISTPLAT, LISTSAT
+
+!     Fill tables from namelist at the first call 
+!     -------------------------------------------
+!
+      IF (LFIRST) THEN
+         ! set the default values
+         LISTBURP(:) = -1
+         LISTSAT(:) = -1
+         LISTPLAT(:) = "XXXXXXXX"
+
+         ! read the namelist
+         NULNAM=0
+         IER=FNOM(NULNAM,'./flnml','FTN+SEQ+R/O',0)
+         IF (IER/=0) then
+            write(*,*) "Error while opening namelist file !"
+            call varAbort("tvs_mapSat")
+         ENDIF
+         READ(NULNAM,NAMSAT,iostat=ier)
+         IF (IER/=0) then
+            write(*,*) "Error while reading namelist file !"
+            call varAbort("tvs_mapSat")
+         ENDIF
+         ier=FCLOS(NULNAM)
+
+         ! figure out how many valid elements in the lists
+         DO J=1, MXSATBURP
+           if(listburp(j).eq.-1) then
+             numsatburp = j - 1
+             exit
+           endif
+         enddo
+         if(numsatburp.ge.mxsatburp) then
+           call varAbort('tvs_mapSat: exceeded maximum number of platforms')
+         endif
+         write(*,*) 'tvs_mapSat: number of satellites found in namelist = ',numsatburp
+         WRITE(*,*) 'tvs_mapSat: listburp   = ',listburp(1:numsatburp)
+         WRITE(*,*) 'tvs_mapSat: listsat    = ',listsat(1:numsatburp)
+         WRITE(*,*) 'tvs_mapSat: listplat   = ',listplat(1:numsatburp)
+         LFIRST=.FALSE.
+      ENDIF
+
+
+!     .  Find platform and satellite
+!     .      ---------------------------
+!
+      IPLATFORM = -1
+      ISAT      = -1
+      DO J=1, NUMSATBURP
+         IF ( ISATBURP .EQ. LISTBURP(J) ) THEN
+            IPLATFORM = tvs_get_platform_id( LISTPLAT(J) )
+            ISAT      = LISTSAT (J)
+            EXIT
+         ENDIF
+      ENDDO
+
+      END SUBROUTINE TVS_MAPSAT
+
+    end module tovs_nl_mod

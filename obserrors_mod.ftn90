@@ -587,8 +587,8 @@ contains
                      ITYP .EQ. BUFR_NBT3     )THEN
 
                    ICHN = NINT(obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY))
-                   CALL MAP_SAT(IPLATF,IPLATFORM,ISAT)
-                   CALL MAP_INSTRUM(INSTR,INSTRUM)
+                   CALL tvs_mapSat(IPLATF,IPLATFORM,ISAT)
+                   CALL tvs_mapInstrum(INSTR,INSTRUM)
 
                    DO JN = 1, NSENSORS
                       IF ( IPLATFORM .EQ.   PLATFORM(JN) .AND. &

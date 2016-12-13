@@ -193,7 +193,6 @@ if [ "${mode}" == full ] ; then
   cd ${trunkdir};          ls -1F | grep -v '/' | grep -v "*" | grep -v "@" | cpio -pl $compiledir ; cd $compiledir
   cd ${trunkdir}/bgcheck;  ls -1F | grep -v '/' | grep -v "*" | cpio -pl $compiledir ; cd $compiledir
   cd ${trunkdir}/shared;   ls -1F | grep -v '/' | grep -v "*" | cpio -pl $compiledir ; cd $compiledir
-  cd ${trunkdir}/quasi_newton; ls -1F | grep -v '/' | grep -v "*" | cpio -pl $compiledir ; cd $compiledir
   rm -f *.ftn~ *.ftn90~
 
   # Compile the subroutines...
@@ -212,9 +211,9 @@ if [ "${mode}" == full ] ; then
       exit 1
   fi
 
-  echo "... > Compiling quasi_newton (n1qn3)"
+  echo "... > Compiling quasi-newton module"
   echo "...   if aborting, check in ${PWD}/listing0"
-  SRC0="dcube.ftn ddd.ftn ddds.ftn dystbl.ftn mupdts.ftn n1qn3.ftn n1qn3a.ftn nlis0.ftn"
+  SRC0="quasinewton_mod.ftn"
   s.compile $COMPF_NOC  -O ${FOPTMIZ} -src $SRC0 > listing0 2>&1
   status=1
   grep fail listing0 || status=0

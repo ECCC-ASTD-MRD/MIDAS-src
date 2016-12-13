@@ -45,6 +45,7 @@ MODULE minimization_mod
   use residual_mod
   use obsOperators_mod
   use innovation_mod
+  use quasinewton_mod
   implicit none
   save
   private
@@ -241,7 +242,7 @@ CONTAINS
 
       integer fnom,fclos, remove_c
       external fnom,fclos
-      external  n1qn3
+
       real*8 :: zeps0_000,zdf1_000
       integer :: iterdone_000,isimdone_000
       character(len=128) :: clfname
@@ -291,7 +292,7 @@ CONTAINS
         call varAbort('aborting in quasiNewtonMinimization')
       endif
 
-      ! recast pointer to obsSpaceData as an integer array, so it can be passed through n1qn3 to simvar
+      ! recast pointer to obsSpaceData as an integer array, so it can be passed through qna_n1qn3 to simvar
       dataptr%obsSpaceData => obsSpaceData
       dataptr%column       => column
       dataptr%columng      => columng
@@ -395,7 +396,7 @@ CONTAINS
       ZXMIN = epsilon(ZXMIN)
       WRITE(*,FMT=9320)ZXMIN,ZDF1,ZEPS0,IMPRES,ITERMAX,NSIMMAX
 
- 9320 FORMAT(//,10X,' Minimization N1QN3 starts ...',/  &
+ 9320 FORMAT(//,10X,' Minimization QNA_N1QN3 starts ...',/  &
              10x,'DXMIN =',G23.16,2X,'DF1 =',G23.16,2X,'EPSG =',G23.16  &
              /,10X,'IMPRES =',I3,2X,'NITER = ',I3,2X,'NSIM = ',I3)
 
@@ -408,9 +409,9 @@ CONTAINS
           isimnovqc = isimmax
           lvarqc = .false.
           call tmg_start(70,'QN')
-          call n1qn3(simvar, dscalqn, dcanonb, dcanab, nvadim_mpilocal, vazx,  &
+          call qna_n1qn3(simvar, dscalqn, dcanonb, dcanab, nvadim_mpilocal, vazx,  &
               zjsp,vazg, zxmin, zdf1, zeps1, impres, nulout, imode,       &
-              iitnovqc, isimnovqc ,iztrl, vatra, nmtra, dataptr_int(1),   &
+              iitnovqc, isimnovqc ,iztrl, vatra, nmtra, dataptr_int,   &
               zzsunused, dlds)
           call tmg_stop(70)
           call fool_optimizer(obsSpaceData)
@@ -431,15 +432,15 @@ CONTAINS
             INDIC = 2
             call simvar(indic,nvadim_mpilocal,vazx,zjsp,vazg,dataptr_int(1))
           else
-            call varAbort(" MINIMIZATION_MOD: n1qn3 mode ne 4")
+            call varAbort(" MINIMIZATION_MOD: qna_n1qn3 mode ne 4")
           endif
         endif
 
         ! Now do main minimization with var-QC
         call tmg_start(70,'QN')
-        call n1qn3(simvar, dscalqn, dcanonb, dcanab, nvadim_mpilocal, vazx,  &
+        call qna_n1qn3(simvar, dscalqn, dcanonb, dcanab, nvadim_mpilocal, vazx,  &
             zjsp,vazg, zxmin, zdf1, zeps1, impres, nulout, imode,   &
-            itermaxtodo,isimmax, iztrl, vatra, nmtra, dataptr_int(1), zzsunused,   &
+            itermaxtodo,isimmax, iztrl, vatra, nmtra, dataptr_int, zzsunused,   &
             dlds)
         call tmg_stop(70)
         call fool_optimizer(obsSpaceData)
@@ -599,7 +600,7 @@ CONTAINS
 
   subroutine min_analysisPert(vatra,iztrl,dataptr_int,zdf1,column,columng,obsSpaceData)
     implicit none
-    ! Purpose: use N1QN3 minimization to perform analysis step on 
+    ! Purpose: use QNA_N1QN3 minimization to perform analysis step on 
     !          ensemble perturbations
     !
     ! arguments
@@ -723,7 +724,7 @@ CONTAINS
       indic = 2
       call simvar(indic, nvadim_mpilocal, incr_cv, zjsp, vazg, dataptr_int)
 
-      ! Initialization for call to N1QN3
+      ! Initialization for call to QNA_N1QN3
       itertot = numIterMax_pert
       simtot = 2*itertot
       if(indexAnalysis == 1) then
@@ -749,11 +750,11 @@ CONTAINS
       else 
         impres=0
       endif
-      ! call N1QN3 minimization for perturbation
+      ! call QNA_N1QN3 minimization for perturbation
       call tmg_start(70,'QN')
-      call n1qn3(simvar, dscalqn, dcanonb, dcanab, nvadim_mpilocal, incr_cv,  &
+      call qna_n1qn3(simvar, dscalqn, dcanonb, dcanab, nvadim_mpilocal, incr_cv,  &
           zjsp, vazg, zxmin, zdf1, zeps1, impres, nulout, imode,       &
-          itertot, simtot ,iztrl, vatra, nmtra, dataptr_int(1),   &
+          itertot, simtot ,iztrl, vatra, nmtra, dataptr_int,   &
           zzsunused, dlds)
       call tmg_stop(70)
       call fool_optimizer(obsSpaceData)
@@ -1118,7 +1119,7 @@ CONTAINS
     !***s/r DSCALQN: inner product in canonical space
     !*    ------------------- 
     !**    Purpose: interface for the inner product to be used
-    !*     .        by the minimization subroutines N1QN3.
+    !*     .        by the minimization subroutines QNA_N1QN3.
     !*
     !*Arguments
     !*     i : KDIM      : dimension of the vectors
@@ -1189,7 +1190,7 @@ CONTAINS
     !*
     !*Author    JM Belanger CMDA/SMC   May 2001
     !*     .    Double precision version based on single precision CTCAB.
-    !*          Refered to  as dummy argument DTCAB by N1QN3 minimization
+    !*          Refered to  as dummy argument DTCAB by QNA_N1QN3 minimization
     !*          package.
     !*    -------------------
     !**    Purpose: to compute PX = L^-1 * Py with L related to the inner product
@@ -1219,7 +1220,7 @@ CONTAINS
     !*
     !*Author    JM Belanger CMDA/SMC  May 2001
     !*     .    Double precision version based on single precision CANONB.
-    !*          Refered to as dummy argument DTONB by N1QN3 minimization
+    !*          Refered to as dummy argument DTONB by QNA_N1QN3 minimization
     !*          package.
     !*    -------------------
     !**    Purpose: to compute PY = L * PX with L related to the inner product
@@ -1255,12 +1256,12 @@ CONTAINS
     !*Arguments
     !*     i   cfname    : precon file
     !*     i   status    : = 0 if READ, = 1 if WRITE
-    !*     i   nsim      : Number of simulations in N1QN3
+    !*     i   nsim      : Number of simulations in QNA_N1QN3
     !*     io  kbrpstamp : Date
-    !*     i   zeps1     : Parameter in N1QN3
-    !*     i   zdf1      : Parameter in N1QN3
-    !*     i   itertot   : Parameter in N1QN3
-    !*     i   isimtot   : Parameter in N1QN3
+    !*     i   zeps1     : Parameter in QNA_N1QN3
+    !*     i   zdf1      : Parameter in QNA_N1QN3
+    !*     i   itertot   : Parameter in QNA_N1QN3
+    !*     i   isimtot   : Parameter in QNA_N1QN3
     !*     i   iztrl     : Localisation parameters for Hessian
     !*     i   vatra     : Hessian
     !*     i   vazxbar   : Vazx of previous loop
