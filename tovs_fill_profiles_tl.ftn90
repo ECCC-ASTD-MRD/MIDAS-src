@@ -47,9 +47,8 @@ subroutine tovs_fill_profiles_tl(column,columng)
   use columnData_mod
   use tovs_extrap_mod
   use rttov_const ,only : q_mixratio_to_ppmv
-  use parkind1, Only : jpim     ,jprb
-  use intavg_mod
-
+  use presProfileOperators_mod
+  use utilities_mod
   implicit none
 
   type(struct_columnData) :: column,columng
@@ -153,7 +152,7 @@ subroutine tovs_fill_profiles_tl(column,columng)
 
   if( any(alloc_status /= 0) ) then
      write(*,*) ' tovs_fill_profiles_tl : memory allocation error'
-     call varAbort('tovs_fill_profiles_tl     ')
+     call utl_abort('tovs_fill_profiles_tl     ')
   end if
 
   iptobs   (:) = 0 
@@ -247,10 +246,10 @@ subroutine tovs_fill_profiles_tl(column,columng)
            ilen = min (knpf-jn+1,istride)
            if ( ilen .gt. 0) then
 
-              call intavgtl(zvlev(:,jn:jn+ilen-1),dPdPs(:,jn:jn+ilen-1),zt_tl(:,jn:jn+ilen-1),zt(:,jn:jn+ilen-1), &
+              call ppo_intAvgTl(zvlev(:,jn:jn+ilen-1),dPdPs(:,jn:jn+ilen-1),zt_tl(:,jn:jn+ilen-1),zt(:,jn:jn+ilen-1), &
                    zps_tl(jn:jn+ilen-1),nlv_T,nlv_T,ilen, &
                    jpmolev,xpres(jpmotop:nlevels),to_tl(:,jn:jn+ilen-1))
-              call intavgtl(zvlev(:,jn:jn+ilen-1),dPdPs(:,jn:jn+ilen-1),zlq_tl(:,jn:jn+ilen-1),zlq(:,jn:jn+ilen-1), &
+              call ppo_intAvgTl(zvlev(:,jn:jn+ilen-1),dPdPs(:,jn:jn+ilen-1),zlq_tl(:,jn:jn+ilen-1),zlq(:,jn:jn+ilen-1), &
                    zps_tl(jn:jn+ilen-1),nlv_T,nlv_T,ilen, &
                    jpmolev,xpres(jpmotop:nlevels),lqo_tl(:,jn:jn+ilen-1))
 
@@ -380,7 +379,7 @@ subroutine tovs_fill_profiles_tl(column,columng)
 
   if( any(alloc_status /= 0) ) then
      write(*,*) ' tovs_fill_profiles_tl : memory deallocation error'
-     call varAbort('tovs_fill_profiles_tl        ')
+     call utl_abort('tovs_fill_profiles_tl        ')
   end if
 
 9263 format(1x,10f8.4)

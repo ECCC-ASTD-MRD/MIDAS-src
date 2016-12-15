@@ -88,7 +88,7 @@ program main_enkf_pturb
   nulnam=0
   ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
   read(nulnam,nml=namenkf,iostat=ierr)
-  if(ierr.ne.0) call varAbort('main_enkf_pturb: Error reading namelist')
+  if(ierr.ne.0) call utl_abort('main_enkf_pturb: Error reading namelist')
   write(*,nml=namenkf)
   ierr=fclos(nulnam)
 
@@ -159,7 +159,7 @@ program main_enkf_pturb
   !- 3.2 Allocate auxillary variables
   allocate(gdmean(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim),STAT=status)
   if ( status /= 0 ) then
-     call varAbort('main_enkf_pturb: PROBLEM WITH ALLOCATING OF GDMEAN')
+     call utl_abort('main_enkf_pturb: PROBLEM WITH ALLOCATING OF GDMEAN')
   endif
 
   allocate(cvm_vazx_global(cvm_nvadim_mpiglobal))
@@ -283,7 +283,7 @@ program main_enkf_pturb
   !
   deallocate(gdmean,STAT=status)
   if ( status /= 0 ) then
-     call varAbort('main_enkf_pturb: PROBLEM WITH DEALLOCATE OF GDMEAN')
+     call utl_abort('main_enkf_pturb: PROBLEM WITH DEALLOCATE OF GDMEAN')
   endif
 
   deallocate(ensemble_r4)

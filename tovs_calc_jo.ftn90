@@ -74,8 +74,6 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData,dest_obs)
   integer :: list_chan(jpchmax)
   integer :: count
 
-  external varAbort
-
   write(*,*) "Entering tovs_calc_jo subroutine"
 
   if(NOBTOV.eq.0) return    ! exit if there are not tovs data
@@ -110,7 +108,7 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData,dest_obs)
      if ( indxtovs .eq. 0 ) then
         write(*,fmt=9203)
 9203    format(' tovs_calc_jo: error with indxtovs')
-        call varAbort('tovs_calc_jo    ')
+        call utl_abort('tovs_calc_jo    ')
      endif
 
      isens = lsensor(indxtovs)
@@ -140,7 +138,7 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData,dest_obs)
         if ( indxchn .eq. 0 ) then
            write(*,fmt=9202)
 9202       format(' tovs_calc_jo: error with channel number')
-           call varAbort('tovs_calc_jo    ')
+           call utl_abort('tovs_calc_jo    ')
         endif
 
         zdtb =   obs_bodyElem_r(lobsSpaceData,OBS_PRM,index_body) - &

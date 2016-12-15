@@ -16,6 +16,7 @@
 
 module mpivar_mod
   use mpi_mod
+  use utilities_mod
   implicit none
   save
   private
@@ -41,7 +42,7 @@ module mpivar_mod
     integer,optional :: myLatHalfBeg,myLatHalfEnd
 
     if ( mod(nj,mpi_npey) /= 0 ) then
-      call varAbort('mpivar_setup_latbands: latitudes not divisible by MPI npey!')
+      call utl_abort('mpivar_setup_latbands: latitudes not divisible by MPI npey!')
     end if
 
     latPerPE = nj/mpi_npey
@@ -72,7 +73,7 @@ module mpivar_mod
     integer          :: ni,lonPerPE,myLonBeg,myLonEnd
 
     if ( mod(ni,mpi_npex) /= 0 ) then
-      call varAbort('mpivar_setup_lonbands: longitudes not divisible by MPI npex!')
+      call utl_abort('mpivar_setup_lonbands: longitudes not divisible by MPI npex!')
     end if
 
     lonPerPE = ni/mpi_npex
@@ -91,7 +92,7 @@ module mpivar_mod
     if((ntrunc+1) < mpi_npey) then
       write(*,*) 'mpivar_setup_m: NPEY (=',mpi_npey,') ',  &
                  'must be less than or equal to ntrunc+1 (=',ntrunc+1,')!'
-      call varAbort('mpivar_setup_m')
+      call utl_abort('mpivar_setup_m')
     endif
 
     mymBeg=mpi_myidy
@@ -114,7 +115,7 @@ module mpivar_mod
     if((ntrunc+1) < mpi_npex) then
       write(*,*) 'mpivar_setup_n: NPEX (=',mpi_npex,') ',  &
                  'must be less than or equal to ntrunc+1 (=',ntrunc+1,')!'
-      call varAbort('mpivar_setup_n')
+      call utl_abort('mpivar_setup_n')
     endif
 
     mynBeg=mpi_myidx
@@ -139,7 +140,7 @@ module mpivar_mod
     if(numlevels < mpi_npey) then
       write(*,*) 'mpivar_setup_levels_npey: NPEY (=',mpi_npey,') ',  &
                  'must be less than or equal to number of levels (=',numlevels,')!'
-      call varAbort('mpivar_setup_levels_npey')
+      call utl_abort('mpivar_setup_levels_npey')
     endif
 
     myLevCounts(:)=0
@@ -171,7 +172,7 @@ module mpivar_mod
     if(numlevels < mpi_npex) then
       write(*,*) 'mpivar_setup_levels_npex: NPEX (=',mpi_npex,') ',  &
                  'must be less than or equal to number of levels (=',numlevels,')!'
-      call varAbort('mpivar_setup_levels_npex')
+      call utl_abort('mpivar_setup_levels_npex')
     endif
 
     if(makeEven) then

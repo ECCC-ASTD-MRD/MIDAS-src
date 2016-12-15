@@ -129,7 +129,7 @@ contains
 
 
     use topLevelControl_mod
-    use hir_chans
+    use hirchannels_mod
     use mpivar_mod
     use tovs_nl_mod
     use rmatrix_mod
@@ -181,7 +181,7 @@ contains
     IER =  FNOM(ILUTOV,'stats_tovs','SEQ+FMT',0)
     IF(IER.LT.0)THEN
        WRITE ( *, '(" read_obs_erreurs_tovs: Problem opening ","file stats_tovs ")' )
-       CALL varAbort ('read_obs_erreurs_tovs')
+       CALL utl_abort ('read_obs_erreurs_tovs')
     END IF
 
     !
@@ -219,14 +219,14 @@ contains
 
        IF ( IPLATFORM(JL) .EQ. -1 ) THEN
           WRITE ( *, '(" read_obs_erreurs_tovs: Unknown platform!"/)' )
-          CALL varAbort ('read_obs_erreurs_tovs')
+          CALL utl_abort ('read_obs_erreurs_tovs')
        ENDIF
 
        IINSTRUMENT(JL) = tvs_get_inst_id(CINSTR)
 
        IF ( IINSTRUMENT(JL) .EQ. -1 ) THEN
           WRITE ( *, '(" read_obs_erreurs_tovs: Unknown instrument!"/)' )
-          CALL varAbort ('read_obs_erreurs_tovs')
+          CALL utl_abort ('read_obs_erreurs_tovs')
        ENDIF
 
        DO JI = 1, NUMCHNIN(JL)
@@ -274,11 +274,11 @@ contains
        ISAT =  utl_findArrayIndex( ISATID     , INUMSAT, SATELLITE (JL) )
        IF ( IPLF .EQ. 0 .OR. ISAT .EQ. 0 ) THEN
           WRITE ( *, '(" read_obs_erreurs_tovs: Observation errors not ","defined for sensor # ", I3)' ) JL
-          CALL varAbort ('read_obs_erreurs_tovs')
+          CALL utl_abort ('read_obs_erreurs_tovs')
        END IF
        IF ( NUMCHN(JL) .EQ. 0 ) THEN 
           WRITE ( *, '(" read_obs_erreurs_tovs: Problem setting errors ","for sensor # ", I3)' ) JL
-          CALL varAbort ('read_obs_erreurs_tovs')
+          CALL utl_abort ('read_obs_erreurs_tovs')
        ENDIF
     ENDDO
 
@@ -326,7 +326,7 @@ contains
     !
     IER = FCLOS(ILUTOV)
     IF(IER.NE.0)THEN
-       CALL varAbort ('read_obs_erreurs_tovs')
+       CALL utl_abort ('read_obs_erreurs_tovs')
     END IF
 
   contains
@@ -454,7 +454,7 @@ contains
        WRITE(*,*) 'read_obs_errors_conv: reads observation errors in obserr'
        WRITE(*,*) '--------------------------------------------------------'
     else
-       CALL varAbort('read_obs_errors_conv: NO OBSERVATION STAT FILE FOUND!!')     
+       CALL utl_abort('read_obs_errors_conv: NO OBSERVATION STAT FILE FOUND!!')     
     ENDIF
     !
     !     Read observation errors from file obserr for conventional data
@@ -467,7 +467,7 @@ contains
        write(*,*) ' opened as unit file ',nulstat
        open(unit=nulstat, file='obserr', status='OLD')
     ELSE
-       CALL varAbort('read_obs_errors_conv:COULD NOT OPEN FILE obserr!!!')
+       CALL utl_abort('read_obs_errors_conv:COULD NOT OPEN FILE obserr!!!')
     ENDIF
 
     write(*, '(A)') ' '
@@ -839,7 +839,7 @@ contains
                      obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY), &
                      obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)
 
-                CALL varAbort('fill_obs_erreurs: PROBLEM OBSERR VARIANCE.')
+                CALL utl_abort('fill_obs_erreurs: PROBLEM OBSERR VARIANCE.')
 
              ENDIF
 
@@ -1354,14 +1354,14 @@ contains
                      ZZTD*1000.D0, ZTDOER*1000.D0, ZLEV, ZPSFC/100.D0, ZWD*1000.D0, ZSTDOMP*1000.D0
              ENDIF
           ELSE
-             CALL varAbort('SETERRGPSGB: ERROR:NEGATIVE ZTD VALUE!')
+             CALL utl_abort('SETERRGPSGB: ERROR:NEGATIVE ZTD VALUE!')
           ENDIF
        ENDIF
 
        !
     ENDDO HEADER
 
-    !      IF (DEBUG) CALL varAbort('******DEBUG STOP*******')
+    !      IF (DEBUG) CALL utl_abort('******DEBUG STOP*******')
 
     IF (.not.ldata) numGPSZTD = 0
 

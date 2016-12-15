@@ -38,6 +38,7 @@ module LamAnalysisGrid_mod
                                    MPC_DEGREES_PER_RADIAN_R4, MPC_PI_R4
   use HorizontalCoord_mod
   use mpivar_mod
+  use utilities_mod
   implicit none
   save
   private
@@ -121,7 +122,7 @@ module LamAnalysisGrid_mod
       write(*,*) 'lag_SetupFromHCO: At least one hco structure was not initilzed'
       write(*,*) 'hco_core = ', hco_core%initialized
       write(*,*) 'hco_ext = ', hco_ext%initialized
-      call varAbort('lag_SetupFromHCO: abort')
+      call utl_abort('lag_SetupFromHCO: abort')
     end if
 
     if ( (hco_core%global) .or.  & 
@@ -130,7 +131,7 @@ module LamAnalysisGrid_mod
       write(*,*) 'lag_SetupFromHCO: At least one hco structure is from a global grid'
       write(*,*) 'hco_core = ', hco_core%global
       write(*,*) 'hco_ext = ', hco_ext%global
-      call varAbort('lag_SetupFromHCO: abort')
+      call utl_abort('lag_SetupFromHCO: abort')
     end if
 
     !
@@ -151,7 +152,7 @@ module LamAnalysisGrid_mod
       write(*,*)
       write(*,*) 'lag_SetupFromHCO: Domain extension is less than 10 gridpoints'
       write(*,*) ' ext_i = ', ext_i,' ext_j = ', ext_j
-      call varAbort('lag_SetupFromHCO')
+      call utl_abort('lag_SetupFromHCO')
     end if
 
     ni_ext_per = ni_ext + 1  ! Fields will be periodic (i = 1 repeated) at ni_ext+1
@@ -169,7 +170,7 @@ module LamAnalysisGrid_mod
         write(*,*) ' i         = ', i
         write(*,*) ' dlon      = ', dlon_test
         write(*,*) ' dlon ref  = ', dlon_ref
-        call varAbort('lag_SetupFromHCO')
+        call utl_abort('lag_SetupFromHCO')
       end if
     end do
 
@@ -182,7 +183,7 @@ module LamAnalysisGrid_mod
         write(*,*) ' j         = ', j
         write(*,*) ' dlat      = ', dlon_test
         write(*,*) ' dlat ref  = ', dlon_ref
-        call varAbort('lag_SetupFromHCO') 
+        call utl_abort('lag_SetupFromHCO') 
       end if
     end do
 
@@ -196,7 +197,7 @@ module LamAnalysisGrid_mod
         write(*,*) ' i         = ', i
         write(*,*) ' dlon      = ', dlon_test
         write(*,*) ' dlon ref  = ', dlon_ref
-        call varAbort('lag_SetupFromHCO')
+        call utl_abort('lag_SetupFromHCO')
       end if
     end do
 
@@ -209,7 +210,7 @@ module LamAnalysisGrid_mod
         write(*,*) ' j         = ', j
         write(*,*) ' dlat      = ', dlon_test
         write(*,*) ' dlat ref  = ', dlon_ref
-        call varAbort('lag_SetupFromHCO') 
+        call utl_abort('lag_SetupFromHCO') 
       end if
     end do
 
@@ -420,7 +421,7 @@ module LamAnalysisGrid_mod
     integer :: i,j,k
 
     if ( .not. initialized ) then
-      call varAbort('lag_PsiChiToUV: LamAnalysisGrid not initialized')
+      call utl_abort('lag_PsiChiToUV: LamAnalysisGrid not initialized')
     endif
 
     allocate(psi_ext( (myLonBeg-1):(myLonEnd+1), (myLatBeg-1):(myLatEnd+1), nk))
@@ -511,7 +512,7 @@ module LamAnalysisGrid_mod
     integer :: i,j,k
 
     if ( .not. initialized ) then
-      call varAbort('lag_PsiChiToUV: LamAnalysisGrid not initialized')
+      call utl_abort('lag_PsiChiToUV: LamAnalysisGrid not initialized')
     endif
 
     allocate(psi_ext( (myLonBeg-1):(myLonEnd+1), (myLatBeg-1):(myLatEnd+1), nk))
@@ -744,12 +745,12 @@ module LamAnalysisGrid_mod
     real(8) :: deriv_istart, deriv_jstart, deriv_i0, deriv_j0, del
 
     if ( .not. initialized ) then
-      call varAbort('lag_Mach2: LamAnalysisGrid not initialized')
+      call utl_abort('lag_Mach2: LamAnalysisGrid not initialized')
     endif
 
     if ( (ni /= 1 .and. ni /= ni_ext) .or. &
          (nj /= 1 .and. nj /= nj_ext) ) then
-      call varAbort('lag_Mach2 : Invalid Dimensions')
+      call utl_abort('lag_Mach2 : Invalid Dimensions')
     end if
 
 !$OMP PARALLEL
@@ -824,12 +825,12 @@ module LamAnalysisGrid_mod
     real(4) :: deriv_istart, deriv_jstart, deriv_i0, deriv_j0, del
 
     if ( .not. initialized ) then
-      call varAbort('lag_Mach_r4: LamAnalysisGrid not initialized')
+      call utl_abort('lag_Mach_r4: LamAnalysisGrid not initialized')
     endif
 
     if ( (ni /= 1 .and. ni /= ni_ext) .or. &
          (nj /= 1 .and. nj /= nj_ext) ) then
-      call varAbort('lag_Mach_r4 : Invalid Dimensions')
+      call utl_abort('lag_Mach_r4 : Invalid Dimensions')
     end if
 
 !$OMP PARALLEL
@@ -904,7 +905,7 @@ module LamAnalysisGrid_mod
     integer :: i,j,k
 
     if ( .not. initialized ) then
-      call varAbort('lag_UVToVortDiv: LamAnalysisGrid not initialized')
+      call utl_abort('lag_UVToVortDiv: LamAnalysisGrid not initialized')
     endif
 
     allocate(uimg_sym( (myLonBeg-1):(myLonEnd+1), (myLatBeg-1):(myLatEnd+1), nk))

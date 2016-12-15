@@ -29,6 +29,8 @@ module ozoneclim
 !*
 !************************************************************************
   use obsSpaceData_mod
+  use presProfileOperators_mod
+  use utilities_mod
   implicit none
   save
   private
@@ -107,7 +109,7 @@ END DO
 
 FORALL(K=1:NLEVO3) PRO3(K,:) = PO3(K)
 
-CALL LINTV2(pro3,qo3b,nlevo3,nlevo3,nprf,nlev,plev,O3P)
+CALL ppo_LINTV(pro3,qo3b,nlevo3,nlevo3,nprf,nlev,plev,O3P)
 
 
 !* if total climatological ozone is known from outside source
@@ -177,7 +179,7 @@ SUBROUTINE OZO_READ_CLIMATOLOGY(datestamp)
      write(*,*) 'LES IV DE OZO_READ_CLIMATOLOGY ',iv1,iv2,iv3,iv4,iv5,iv6
      write(*,*) 'THESE NUMBERS SHOULD NOT BE NEGATIVE'
      write(*,*) 'datestamp,ijour,itime,imonth = ',datestamp,ijour,itime,imonth
-     call varAbort('Problem with file in ozo_read_climatology (ozoneclim_mod)')
+     call utl_abort('Problem with file in ozo_read_climatology (ozoneclim_mod)')
   endif
     
 END SUBROUTINE OZO_READ_CLIMATOLOGY

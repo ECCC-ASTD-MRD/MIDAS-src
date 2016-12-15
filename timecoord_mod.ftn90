@@ -17,6 +17,7 @@
 MODULE timeCoord_mod
   use mpivar_mod
   use obsSpaceData_mod
+  use utilities_mod
   implicit none
   save
   private
@@ -52,7 +53,7 @@ contains
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=namtime,iostat=ierr)
-    if(ierr.ne.0) call varAbort('tim_setup: Error reading namelist')
+    if(ierr.ne.0) call utl_abort('tim_setup: Error reading namelist')
     if(mpi_myid.eq.0) write(*,nml=namtime)
     ierr=fclos(nulnam)
 

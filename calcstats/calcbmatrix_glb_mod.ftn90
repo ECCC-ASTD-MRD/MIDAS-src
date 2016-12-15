@@ -164,7 +164,7 @@ module calcbmatrix_glb_mod
        nWaveBand = 1
     else if (nWaveBand == 1) then
        write(6,*) 'You have specified only ONE waveBandPeaks'
-       call varAbort('calbmatrix_glb')
+       call utl_abort('calbmatrix_glb')
     else
        write(6,*)
        write(6,*) 'WaveBand decomposition is ACTIVATED'
@@ -174,7 +174,7 @@ module calcbmatrix_glb_mod
     do waveBandIndex = 1, nWaveBand-1
        if ( waveBandPeaks(waveBandIndex)-waveBandPeaks(waveBandIndex+1) <= 0 ) then
           write(6,*) 'calcb_glb_setup: waveBandPeaks are not in decreasing wavenumber order'
-          call varAbort('calbmatrix_glb')
+          call utl_abort('calbmatrix_glb')
        end if
     end do
 
@@ -182,7 +182,7 @@ module calcbmatrix_glb_mod
     if ( ntrunc < nj-1 .and. nWaveBand > 1 ) then
        write(6,*) 'calcb_glb_setup: The truncation is not compatible with wave band decomposition'
        write(6,*) '                 ntrunc should = ', nj-1
-       call varAbort('calbmatrix_glb')
+       call utl_abort('calbmatrix_glb')
     end if
 
     !
@@ -211,31 +211,31 @@ module calcbmatrix_glb_mod
     integer :: variableType 
 
     allocate(ensPerturbations(ni,nj,nkgdimEns,nens),stat=ierr)
-    if(ierr.ne.0) call varAbort('Problem allocating memory 1')
+    if(ierr.ne.0) call utl_abort('Problem allocating memory 1')
     allocate(ensBalPerturbations(ni,nj,nLevEns_T+1,nens),stat=ierr)
-    if(ierr.ne.0) call varAbort('Problem allocating memory 1')
+    if(ierr.ne.0) call utl_abort('Problem allocating memory 1')
     allocate(theta1(nlevEns_M,nj),stat=ierr)
-    if(ierr.ne.0) call varAbort('Problem allocating memory 1')
+    if(ierr.ne.0) call utl_abort('Problem allocating memory 1')
     allocate(stddev3d(ni,nj,nkgdimEns),stat=ierr)
-    if(ierr.ne.0) call varAbort('Problem allocating memory 1')
+    if(ierr.ne.0) call utl_abort('Problem allocating memory 1')
     allocate(stddevZonAvg(nkgdimEns,nj),stat=ierr)
-    if(ierr.ne.0) call varAbort('Problem allocating memory 1')
+    if(ierr.ne.0) call utl_abort('Problem allocating memory 1')
     allocate(PtoT(nlevEns_T+1,nlevEns_M,nj),stat=ierr)
-    if(ierr.ne.0) call varAbort('Problem allocating memory 1')
+    if(ierr.ne.0) call utl_abort('Problem allocating memory 1')
     allocate(theta2(nlevEns_M,nj),stat=ierr)
-    if(ierr.ne.0) call varAbort('Problem allocating memory 1')
+    if(ierr.ne.0) call utl_abort('Problem allocating memory 1')
     allocate(stddev3dBal(ni,nj,nLevEns_T+1),stat=ierr)
-    if(ierr.ne.0) call varAbort('Problem allocating memory 1')
+    if(ierr.ne.0) call utl_abort('Problem allocating memory 1')
     allocate(stddev3dUnbal(ni,nj,nkgdimEns),stat=ierr)
-    if(ierr.ne.0) call varAbort('Problem allocating memory 1')
+    if(ierr.ne.0) call utl_abort('Problem allocating memory 1')
     allocate(stddevZonAvgBal(nLevEns_T+1,nj),stat=ierr)
-    if(ierr.ne.0) call varAbort('Problem allocating memory 1')
+    if(ierr.ne.0) call utl_abort('Problem allocating memory 1')
     allocate(stddevZonAvgUnbal(nkgdimEns,nj),stat=ierr)
-    if(ierr.ne.0) call varAbort('Problem allocating memory 1')
+    if(ierr.ne.0) call utl_abort('Problem allocating memory 1')
     allocate(corns(nkgdimEns,nkgdimEns,0:ntrunc),stat=ierr)
-    if(ierr.ne.0) call varAbort('Problem allocating memory 1')
+    if(ierr.ne.0) call utl_abort('Problem allocating memory 1')
     allocate(rstddev(nkgdimEns,0:ntrunc),stat=ierr)
-    if(ierr.ne.0) call varAbort('Problem allocating memory 1')
+    if(ierr.ne.0) call utl_abort('Problem allocating memory 1')
 
     call readEnsemble(ensPerturbations)
     write(6,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -365,7 +365,7 @@ module calcbmatrix_glb_mod
     case default
        write(6,*)
        write(6,*) 'Unknown TOOL in calcb_glb_toolbox : ', trim(tool)
-       call varAbort('calbmatrix_glb')
+       call utl_abort('calbmatrix_glb')
     end select
 
     !
@@ -476,11 +476,11 @@ module calcbmatrix_glb_mod
     real*8,allocatable :: stddev3d(:,:,:),stddevZonAvg(:,:)
 
     allocate(ensPerturbations(ni,nj,nkgdimEns,nens),stat=ierr)
-    if(ierr.ne.0) call varAbort('Problem allocating memory 1')
+    if(ierr.ne.0) call utl_abort('Problem allocating memory 1')
     allocate(stddev3d(ni,nj,nkgdimEns),stat=ierr)
-    if(ierr.ne.0) call varAbort('Problem allocating memory 1')
+    if(ierr.ne.0) call utl_abort('Problem allocating memory 1')
     allocate(stddevZonAvg(nkgdimEns,nj),stat=ierr)
-    if(ierr.ne.0) call varAbort('Problem allocating memory 1')
+    if(ierr.ne.0) call utl_abort('Problem allocating memory 1')
 
     call readEnsemble(ensPerturbations)
 
@@ -834,7 +834,7 @@ module calcbmatrix_glb_mod
     else
        if (.not. present(waveBandIndex)) then
           write(6,*) 'writeStats: No waveBandIndex was supplied!!!'
-          call varAbort('calbmatrix_glb')
+          call utl_abort('calbmatrix_glb')
        end if
        write(wbnum,'(I2.2)') waveBandIndex
        outfilename='./bgcov_'//trim(wbnum)//'.fst'
@@ -1209,7 +1209,7 @@ module calcbmatrix_glb_mod
        write(6,*) 'Bandpass filtering step'
        if (.not. present(waveBandIndex)) then
           write(6,*) 'Error: No waveBandIndex was supplied!!!'
-          call varAbort('calbmatrix_glb')
+          call utl_abort('calbmatrix_glb')
        end if
        allocate(ResponseFunction(0:ntrunc))
        write(wbnum,'(I2.2)') waveBandIndex
@@ -1236,7 +1236,7 @@ module calcbmatrix_glb_mod
         call gst_setID(gstID_nLevEns_T_P1)
       else
         write(*,*) 'spectralFilter: nlev = ',nlev
-        call varAbort('spectralFilter: spectral transform not initialized for this number of levels')
+        call utl_abort('spectralFilter: spectral transform not initialized for this number of levels')
       endif
       call gst_reespe(spectralState,member)
       if ( nWaveBand /= 1 ) then
@@ -1800,7 +1800,7 @@ module calcbmatrix_glb_mod
 
           clnomvar = 'P0' 
           ikey = utl_fstlir(gd2d,nulens,ini,inj,ink,idateo,cletiket,-1,ip2,ip3,cltypvar,clnomvar)
-          if(ikey.lt.0) call varAbort('readEnsemble1: Problem with P0 ENS')
+          if(ikey.lt.0) call utl_abort('readEnsemble1: Problem with P0 ENS')
           do jlat=1,nj
             do jlon=1,ni
               ensPerturbations(jlon,jlat,ngpositps,jens)= gd2d(jlon,jlat)*rmbtpa
@@ -1812,7 +1812,7 @@ module calcbmatrix_glb_mod
             ikey = utl_fstlir(gd2d,nulens,ini,inj,ink,idateo,cletiket,nip1_T(jlev),ip2,ip3,cltypvar,clnomvar)
             if(ikey.lt.0) then
               write(6,*) idateo,cletiket,nip1_T(jlev),ip2,ip3,cltypvar,clnomvar
-              call varAbort('readEnsemble1: Problem with TT ENS')
+              call utl_abort('readEnsemble1: Problem with TT ENS')
             endif
             call flush(6)
             do jlat=1,nj
@@ -1830,7 +1830,7 @@ module calcbmatrix_glb_mod
               ikey = utl_fstlir(gd2d,nulens,ini,inj,ink,idateo,cletiket,nip1_T(jlev),ip2,ip3,cltypvar,clnomvar)
               if(ikey.lt.0) then
                 write(6,*) idateo,cletiket,nip1_T(jlev),ip2,ip3,cltypvar,clnomvar
-                call varAbort('readEnsemble1: Problem with HU and LQ ENS')
+                call utl_abort('readEnsemble1: Problem with HU and LQ ENS')
               else
                 do jlat=1,nj
                   do jlon=1,ni
@@ -1852,7 +1852,7 @@ module calcbmatrix_glb_mod
             ikey = utl_fstlir(gd2d,nulens,ini,inj,ink,idateo,cletiket,nip1_M(jlev),ip2,ip3,cltypvar,clnomvar)
             if(ikey.lt.0) then
               write(6,*) idateo,cletiket,nip1_M(jlev),ip2,ip3,cltypvar,clnomvar
-              call varAbort('readEnsemble1: Problem with UU ENS')
+              call utl_abort('readEnsemble1: Problem with UU ENS')
             endif
             do jlat=1,nj
               if ( convertToWindImages ) then
@@ -1871,7 +1871,7 @@ module calcbmatrix_glb_mod
             ikey = utl_fstlir(gd2d,nulens,ini,inj,ink,idateo,cletiket,nip1_M(jlev),ip2,ip3,cltypvar,clnomvar)
             if(ikey.lt.0) then
               write(6,*) idateo,cletiket,nip1_M(jlev),ip2,ip3,cltypvar,clnomvar
-              call varAbort('readEnsemble1: Problem with VV ENS')
+              call utl_abort('readEnsemble1: Problem with VV ENS')
             endif
             do jlat=1,nj
               if ( convertToWindImages ) then
@@ -1889,7 +1889,7 @@ module calcbmatrix_glb_mod
 !          ikey = utl_fstlir(gd2d,nulens,ini,inj,ink,idateo,cletiket,-1,ip2,ip3,cltypvar,clnomvar)
 !          if(ikey.lt.0)  then
 !            write(6,*) idateo,cletiket,ip2,ip3,cltypvar,clnomvar
-!            call varAbort('readEnsemble1: Problem with TG ENS')
+!            call utl_abort('readEnsemble1: Problem with TG ENS')
 !          else
 !            do jlat=1,nj
 !              do jlon=1,ni
@@ -2020,7 +2020,7 @@ module calcbmatrix_glb_mod
 
     clnomvar = 'P0' 
     ikey=fstlir(gd2d,nulens(jens),ini,inj,ink,idateo,cletiket,-1,ip2,ip3, cltypvar,clnomvar)
-    if(ikey.lt.0) call varAbort('readEnsembleMember: Problem with P0 ENS')
+    if(ikey.lt.0) call utl_abort('readEnsembleMember: Problem with P0 ENS')
     do jlat=1,nj
        do jlon=1,ni
           ensPerturbations(jlon,jlat,ngpositps,jens)= gd2d(jlon,jlat)*rmbtpa
@@ -2032,7 +2032,7 @@ module calcbmatrix_glb_mod
        ikey=fstlir(gd2d,nulens(jens),ini,inj,ink,idateo,cletiket,nip1_T(jlev),ip2,ip3,cltypvar,clnomvar)
        if(ikey.lt.0) then
           write(6,*) idateo,cletiket,nip1_T(jlev),ip2,ip3,cltypvar,clnomvar
-          call varAbort('readEnsembleMember: Problem with TT ENS')
+          call utl_abort('readEnsembleMember: Problem with TT ENS')
        endif
        call flush(6)
        do jlat=1,nj
@@ -2050,7 +2050,7 @@ module calcbmatrix_glb_mod
           ikey=fstlir(gd2d,nulens(jens),ini,inj,ink,idateo,cletiket,nip1_T(jlev),ip2,ip3,cltypvar,clnomvar)
           if(ikey.lt.0) then
              write(6,*) idateo,cletiket,nip1_T(jlev),ip2,ip3,cltypvar,clnomvar
-             call varAbort('readEnsembleMember: Problem with HU and LQ ENS')
+             call utl_abort('readEnsembleMember: Problem with HU and LQ ENS')
           else
              do jlat=1,nj
                 do jlon=1,ni
@@ -2072,7 +2072,7 @@ module calcbmatrix_glb_mod
        ikey=fstlir(gd2d,nulens(jens),ini,inj,ink,idateo,cletiket,nip1_M(jlev),ip2,ip3,cltypvar,clnomvar)
        if(ikey.lt.0) then
           write(6,*) idateo,cletiket,nip1_M(jlev),ip2,ip3,cltypvar,clnomvar
-          call varAbort('readEnsembleMember: Problem with UU ENS')
+          call utl_abort('readEnsembleMember: Problem with UU ENS')
        endif
        do jlat=1,nj
           if ( convertToWindImages ) then
@@ -2091,7 +2091,7 @@ module calcbmatrix_glb_mod
        ikey=fstlir(gd2d,nulens(jens),ini,inj,ink,idateo,cletiket,nip1_M(jlev),ip2,ip3,cltypvar,clnomvar)
        if(ikey.lt.0) then
           write(6,*) idateo,cletiket,nip1_M(jlev),ip2,ip3,cltypvar,clnomvar
-          call varAbort('readEnsembleMember: Problem with VV ENS')
+          call utl_abort('readEnsembleMember: Problem with VV ENS')
        endif
        do jlat=1,nj
           if ( convertToWindImages ) then
@@ -2109,7 +2109,7 @@ module calcbmatrix_glb_mod
 !          ikey = utl_fstlir(gd2d,nulens,ini,inj,ink,idateo,cletiket,-1,ip2,ip3,cltypvar,clnomvar)
 !          if(ikey.lt.0)  then
 !            write(6,*) idateo,cletiket,ip2,ip3,cltypvar,clnomvar
-!            call varAbort('readEnsembleMember: Problem with TG ENS')
+!            call utl_abort('readEnsembleMember: Problem with TG ENS')
 !          else
 !            do jlat=1,nj
 !              do jlon=1,ni
@@ -2275,7 +2275,7 @@ module calcbmatrix_glb_mod
     if ( nWaveBand /= 1 ) then
        if (.not. present(waveBandIndex)) then
           write(6,*) 'horizCorrelFunction: No waveBandIndex was supplied!!!'
-          call varAbort('calbmatrix_glb')
+          call utl_abort('calbmatrix_glb')
        end if
        write(wbnum,'(I2.2)') waveBandIndex
     end if
@@ -2468,7 +2468,7 @@ module calcbmatrix_glb_mod
     if ( nWaveBand /= 1 ) then
        if (.not. present(waveBandIndex)) then
           write(6,*) 'CalcHorizScale: No waveBandIndex was supplied!!!'
-          call varAbort('calbmatrix_glb')
+          call utl_abort('calbmatrix_glb')
        end if
        write(wbnum,'(I2.2)') waveBandIndex
     end if
@@ -2674,7 +2674,7 @@ module calcbmatrix_glb_mod
     if ( nWaveBand /= 1 ) then
        if (.not. present(waveBandIndex)) then
           write(6,*) 'calcLocalCorrelations: No waveBandIndex was supplied!!!'
-          call varAbort('calbmatrix_glb')
+          call utl_abort('calbmatrix_glb')
        end if
        write(wbnum,'(I2.2)') waveBandIndex
     end if
@@ -2991,7 +2991,7 @@ module calcbmatrix_glb_mod
     if ( nWaveBand /= 1 ) then
        if (.not. present(waveBandIndex)) then
           write(6,*) 'calcLocalizationRadii: No waveBandIndex was supplied!!!'
-          call varAbort('calbmatrix_glb')
+          call utl_abort('calbmatrix_glb')
        end if
        write(wbnum,'(I2.2)') waveBandIndex
     end if
@@ -3372,7 +3372,7 @@ module calcbmatrix_glb_mod
 !!$    if ( nWaveBand /= 1 ) then
 !!$       if (.not. present(waveBandIndex)) then
 !!$          write(6,*) 'calcLocalizationRadii: No waveBandIndex was supplied!!!'
-!!$          call varAbort('calbmatrix_glb')
+!!$          call utl_abort('calbmatrix_glb')
 !!$       end if
 !!$       write(wbnum,'(I2.2)') waveBandIndex
 !!$    end if
@@ -3501,7 +3501,7 @@ module calcbmatrix_glb_mod
 
       if (binIndex == -1) then
          write(6,*) 'findBinIndex: No match found! ABORTING'
-         call varAbort('findBinIndex')
+         call utl_abort('findBinIndex')
       end if
 
     end function findBinIndex
@@ -3795,7 +3795,7 @@ module calcbmatrix_glb_mod
     if ( nWaveBand /= 1 ) then
        if (.not. present(waveBandIndex)) then
           write(6,*) 'calcLocalizationRadii: No waveBandIndex was supplied!!!'
-          call varAbort('calbmatrix_glb')
+          call utl_abort('calbmatrix_glb')
        end if
        write(wbnum,'(I2.2)') waveBandIndex
     end if

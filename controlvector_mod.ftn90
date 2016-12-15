@@ -26,7 +26,7 @@
 !
 !--------------------------------------------------------------------------
 MODULE ControlVector_mod
-
+  use utilities_mod
   implicit none
   save
   private
@@ -69,7 +69,7 @@ CONTAINS
     allocate(cvm_vazx(cvm_nvadim),stat=ierr)
     if(ierr.ne.0) then
       write(*,*) 'controlVector: Problem allocating memory! id=1',ierr
-      call varAbort('aborting in cvm_setup')
+      call utl_abort('aborting in cvm_setup')
     endif
 
     cvm_vazx(:)=0.0d0

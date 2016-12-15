@@ -89,7 +89,7 @@ program calcbmatrix_main
      write(*,*)
      write(*,*) 'Unknown value for spatialDimensions', spatialDimensions
      write(*,*) 'use 3D or 2D'
-     call varAbort('calcbmatrix_main')
+     call utl_abort('calcbmatrix_main')
   end select
 
   !- 1.5 Read NAMCONF namelist to find the mode
@@ -132,7 +132,7 @@ program calcbmatrix_main
      else
         write(*,*)
         write(*,*) 'STDDEV mode is not availbale in LAM mode'
-        call varAbort('calcbmatrix_main')
+        call utl_abort('calcbmatrix_main')
      end if
   case ('POWERSPEC')
      if (hco_ens % global) then
@@ -140,12 +140,12 @@ program calcbmatrix_main
      else
         write(*,*)
         write(*,*) 'POWERSPEC mode is not availbale in LAM mode'
-        call varAbort('calcbmatrix_main')
+        call utl_abort('calcbmatrix_main')
      end if
   case default
      write(*,*)
      write(*,*) 'Unknown value of MODE in global mode: ',mode
-     call varAbort('calcbmatrix_main')
+     call utl_abort('calcbmatrix_main')
   end select
 
   !

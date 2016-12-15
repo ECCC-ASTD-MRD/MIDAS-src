@@ -29,6 +29,7 @@
       use bufr
       use columnData_mod
       use obsSpaceData_mod
+      use utilities_mod
       IMPLICIT NONE
       type(struct_columnData) :: lcolumn,lcolumng
       type(struct_obs) :: lobsSpaceData
@@ -95,7 +96,7 @@
                  write(*,*) 'SETFGEFAM: lcolumn_all(IPT,INDEX_HEADER)=',col_getElem(lcolumn,IPT,INDEX_HEADER)
                  write(*,*) 'SETFGEFAM: get_height(IK+1,INDEX_HEADER)=',col_getHeight(lcolumn,IK+1,INDEX_HEADER,'TH')
                  write(*,*) 'SETFGEFAM: get_height(IK  ,INDEX_HEADER)=',col_getHeight(lcolumn,IK  ,INDEX_HEADER,'TH')
-                 CALL varAbort('SETFGEFAM: First-guess stdev bad value')
+                 CALL utl_abort('SETFGEFAM: First-guess stdev bad value')
                endif
             ENDIF
             ENDIF

@@ -179,13 +179,13 @@ contains
         write(*,*)
         write(*,*) 'lbhi_Setup: Error in opening the background stats file'
         write(*,*) trim(BStatsFilename)
-        call varAbort('lbhi_Setup')
+        call utl_abort('lbhi_Setup')
       end if
     else
       write(*,*)
       write(*,*) 'lbhi_Setup: The background stats file DOES NOT EXIST'
       write(*,*) trim(BStatsFilename)
-      call varAbort('lbhi_Setup')
+      call utl_abort('lbhi_Setup')
     end if
 
     !
@@ -317,7 +317,7 @@ contains
     if (key < 0) then
       write(*,*)
       write(*,*) 'lbhi_GetControlVariableInfo: Unable to find variable =',nomvar
-      call varAbort('lbhi_GetControlVariableInfo')
+      call utl_abort('lbhi_GetControlVariableInfo')
     end if
 
     nControlVariable = ni
@@ -342,7 +342,7 @@ contains
     if (key < 0) then
       write(*,*)
       write(*,*) 'lbhi_GetControlVariableInfo: Cannot find variable ', nomvar 
-      call varAbort('lbhi_GetControlVariableInfo') 
+      call utl_abort('lbhi_GetControlVariableInfo') 
     end if
 
     etiket = 'B_HI'
@@ -353,7 +353,7 @@ contains
     if (key < 0) then
       write(*,*)
       write(*,*) 'lbhi_GetControlVariableInfo: Cannot find variable ', nomvar
-      call varAbort('lbhi_GetControlVariableInfo') 
+      call utl_abort('lbhi_GetControlVariableInfo') 
     end if
     
 
@@ -367,7 +367,7 @@ contains
     if (key < 0) then
       write(*,*)
       write(*,*) 'lbhi_GetControlVariableInfo: Cannot find variable ', nomvar
-      call varAbort('lbhi_GetControlVariableInfo') 
+      call utl_abort('lbhi_GetControlVariableInfo') 
     end if
 
     etiket = 'LEVTYPE'
@@ -378,7 +378,7 @@ contains
     if (key < 0) then
       write(*,*)
       write(*,*) 'lbhi_GetControlVariableInfo: Cannot find variable ', nomvar
-      call varAbort('lbhi_GetControlVariableInfo') 
+      call utl_abort('lbhi_GetControlVariableInfo') 
     end if
 
     !
@@ -420,7 +420,7 @@ contains
        if ( UWindID == -1 .or. VWindID == -1) then
           write(*,*)
           write(*,*) 'lbhi_GetControlVariableInfo: UU and/or VV not in the Control Variable list'
-          call varAbort('lbhi_GetControlVariableInfo')
+          call utl_abort('lbhi_GetControlVariableInfo')
        end if
     end if
 
@@ -430,7 +430,7 @@ contains
           write(*,*)
           write(*,*) 'lbhi_GetControlVariableInfo: The following variable is MISSING in GridStateVector'
           write(*,*) trim(ControlVariable(var)%nomvar(cv_model))
-          call varAbort('lbhi_GetControlVariableInfo')
+          call utl_abort('lbhi_GetControlVariableInfo')
        end if
     end do
 
@@ -460,7 +460,7 @@ contains
           write(*,*) 'Momentum Control Variables = U-V '
           WindTransform = 'UV'
        else
-          call varAbort('lbhi_GetControlVariableInfo: Unkown Wind Tranform')
+          call utl_abort('lbhi_GetControlVariableInfo: Unkown Wind Tranform')
        end if
     end if
 
@@ -505,7 +505,7 @@ contains
     if (key < 0) then
       write(*,*)
       write(*,*) 'lbhi_GetHorizGridInfo: Unable to find input horiz grid info using =',nomvar
-      call varAbort('lbhi_GetHorizGridInfo')
+      call utl_abort('lbhi_GetHorizGridInfo')
     end if
 
     ier = fstprm( key,                                                 & ! IN
@@ -612,12 +612,12 @@ contains
         write(*,*) 'lbhi_ReadBSqrt: Truncation here and on stats file different'
         write(*,*) 'VAR truncation        = ', trunc
         write(*,*) 'Stats file truncation = ', infon-1
-        call varAbort('lbhi_ReadBSqrt')
+        call utl_abort('lbhi_ReadBSqrt')
       end if
     else
       write(*,*)
       write(*,*) 'lbhi_ReadBSqrt: Cannot find B square-root ', nomvar 
-      call varAbort('lbhi_ReadBSqrt')
+      call utl_abort('lbhi_ReadBSqrt')
     end if
 
     !
@@ -640,7 +640,7 @@ contains
           write(*,*)
           write(*,*) 'lbhi_ReadBSqrt: BG stat levels inconsitencies'
           write(*,*) 'for BSQRT: ni_t, nj_t, nksdim =', ni_t, nj_t, nksdim
-          call varAbort('lbhi_ReadBSqrt')
+          call utl_abort('lbhi_ReadBSqrt')
         endif
 
         !- 2.3 Reading
@@ -651,7 +651,7 @@ contains
       else
         write(*,*)
         write(*,*) 'lbhi_ReadBSqrt: Cannot find BSQRT for totwvnb = ', totwvnb
-        call varAbort('lbhi_ReadBSqrt')
+        call utl_abort('lbhi_ReadBSqrt')
       end if
 
       !- 2.4 Transfer to a 3D array
@@ -722,7 +722,7 @@ contains
           write(*,*) 'nomvar =', trim(ControlVariable(var)%nomvar(cv_bhi))
           write(*,*) 'etiket =', trim(etiket)
           write(*,*) 'ip1    =', ControlVariable(var)%ip1(k)
-          call varAbort('lbhi_ReadGridPointStdDev')
+          call utl_abort('lbhi_ReadGridPointStdDev')
         end if
 
         if (ni_t /= hco_bstats%ni .or. nj_t /= hco_bstats%nj) then
@@ -733,7 +733,7 @@ contains
           write(*,*) 'ip1         =', ControlVariable(var)%ip1(k)
           write(*,*) 'Found ni,nj =', ni_t, nj_t 
           write(*,*) 'Should be   =', hco_bstats%ni, hco_bstats%nj
-          call varAbort('lbhi_ReadGridPointStdDev')
+          call utl_abort('lbhi_ReadGridPointStdDev')
         end if
 
         !- 1.2.2 Regrid (if necessary) and transfer to 3D array
@@ -776,7 +776,7 @@ contains
     integer :: iu_out = 90
 
     if ( .not. initialized ) then
-      call varAbort('lbhi_bSqrt: LAM_bMatrixHI not initialized')
+      call utl_abort('lbhi_bSqrt: LAM_bMatrixHI not initialized')
     endif
 
     write(*,*)
@@ -827,7 +827,7 @@ contains
     real(8), allocatable :: hiControlVector(:,:,:)
 
     if ( .not. initialized ) then
-      call varAbort('lbhi_bSqrtAdj: LAM_bMatrixHI not initialized')
+      call utl_abort('lbhi_bSqrtAdj: LAM_bMatrixHI not initialized')
     endif
 
     write(*,*)
@@ -914,7 +914,7 @@ contains
     if ( UWindID /= -1 .and. VWindID /= -1) then
        if ( ControlVariable(UWindID)%nlev /= nlev_M .or. &
             ControlVariable(VWindID)%nlev /= nlev_M  ) then
-          call varAbort('lbhi_cv2gd: Error in Wind related parameters')
+          call utl_abort('lbhi_cv2gd: Error in Wind related parameters')
        end if
     
        if ( trim(WindTransform) /= 'UV') then
@@ -993,7 +993,7 @@ contains
     if ( UWindID /= -1 .and. VWindID /= -1) then
        if ( ControlVariable(UWindID)%nlev /= nlev_M .or. &
             ControlVariable(VWindID)%nlev /= nlev_M  ) then
-          call varAbort('lbhi_cv2gdadj: Error in Wind related parameters')
+          call utl_abort('lbhi_cv2gdadj: Error in Wind related parameters')
        end if
        
        if ( trim(WindTransform) /= 'UV' ) then
@@ -1218,7 +1218,7 @@ contains
     case default
       write(*,*)
       write(*,*) 'StatevectorInterface: Unknown Direction ', trim(Direction)
-      call varAbort('StatevectorInterface')
+      call utl_abort('StatevectorInterface')
     end select
 
     do var = 1, nControlVariable
@@ -1229,7 +1229,7 @@ contains
          write(*,*)
          write(*,*) 'StatevectorInterface: The following variable is MISSING in GridStateVector'
          write(*,*) varname
-         call varAbort('StatevectorInterface')
+         call utl_abort('StatevectorInterface')
       end if
 
       field => gsv_getField3D_r8(statevector,varname)
@@ -1242,7 +1242,7 @@ contains
          write(*,*)
          write(*,*) 'StatevectorInterface: Number of vertical level mismatch'
          write(*,*) kgdEnd - kgdStart + 1, nlev
-         call varAbort('StatevectorInterface')
+         call utl_abort('StatevectorInterface')
       end if
 
       if ( ToStateVector ) then
@@ -1340,7 +1340,7 @@ contains
                    ila_mpiglobal = allilaGlobal(ila,jproc+1)
                    if ( ila_mpiglobal <= 0 ) then 
                       write(*,*) 'LBHI_reduceToMPILocal: invalid ila_mpiglobal index ', ila_mpiglobal
-                      call varAbort('LBHI_reduceToMPILocal')
+                      call utl_abort('LBHI_reduceToMPILocal')
                    end if
 
                    jdim_mpiglobal = ( (k-1) * lst_bhi%nlaGlobal * lst_bhi%nphase ) + &
@@ -1350,13 +1350,13 @@ contains
                       write(*,*)
                       write(*,*) 'ERROR: jdim_mpilocal > cvDim_allMpiLocal(jproc+1)', jdim_mpilocal, cvDim_allMpiLocal(jproc+1) 
                       write(*,*) '       proc, k, ila, p = ',jproc,k,ila,p
-                      call varAbort('LBHI_reduceToMPILocal')
+                      call utl_abort('LBHI_reduceToMPILocal')
                    end if
                    if (jdim_mpiglobal > cvDim_mpiglobal) then
                       write(*,*)
                       write(*,*) 'ERROR: jdim_mpiglobal > cvDim_mpiglobal', jdim_mpiglobal, cvDim_mpiglobal
                       write(*,*) '       proc, k, ila, p = ',jproc,k,ila,p
-                      call varAbort('LBHI_reduceToMPILocal')
+                      call utl_abort('LBHI_reduceToMPILocal')
                    end if
                    
                    cv_allmaxmpilocal(jdim_mpilocal,jproc+1) = cv_mpiglobal(jdim_mpiglobal)
@@ -1482,7 +1482,7 @@ contains
                    ila_mpiglobal = allilaGlobal(ila,jproc+1)
                    if ( ila_mpiglobal <= 0 ) then 
                       write(*,*) 'LBHI_expandToMPIGlobal: invalid ila_mpiglobal index ', ila_mpiglobal
-                      call varAbort('LBHI_expandToMPIGlobal')
+                      call utl_abort('LBHI_expandToMPIGlobal')
                    end if
 
                    jdim_mpiglobal = ( (k-1) * lst_bhi%nlaGlobal * lst_bhi%nphase ) + &
@@ -1492,13 +1492,13 @@ contains
                       write(*,*)
                       write(*,*) 'ERROR: jdim_mpilocal > cvDim_allMpiLocal(jproc+1)', jdim_mpilocal, cvDim_allMpiLocal(jproc+1) 
                       write(*,*) '       proc, k, ila, p = ',jproc,k,ila,p
-                      call varAbort('LBHI_expandToMPIGlobal')
+                      call utl_abort('LBHI_expandToMPIGlobal')
                    end if
                    if (jdim_mpiglobal > cvDim_mpiglobal) then
                       write(*,*)
                       write(*,*) 'ERROR: jdim_mpiglobal > cvDim_mpiglobal', jdim_mpiglobal, cvDim_mpiglobal
                       write(*,*) '       proc, k, ila, p = ',jproc,k,ila,p
-                      call varAbort('LBHI_expandToMPIGlobal')
+                      call utl_abort('LBHI_expandToMPIGlobal')
                    end if
                    
                    cv_mpiglobal(jdim_mpiglobal) = cv_allmaxmpilocal(jdim_mpilocal,jproc+1)

@@ -32,7 +32,7 @@ subroutine tovs_deallocate_transmission(ptransmission)
 !
 #endif
   use tovs_nl_mod,only : transmission_type
-
+  use utilities_mod
   implicit none
 
   integer :: istat(2)
@@ -46,7 +46,7 @@ subroutine tovs_deallocate_transmission(ptransmission)
   if( any(istat /= 0) ) then
      write(*,*) ' tovs_deallocate_transmission: istat = ', istat(:)
      write(*,'("  tovs_deallocate_transmission: memory allocation error")')
-     call varAbort('tovs_deallocate_transmission')
+     call utl_abort('tovs_deallocate_transmission')
   end if
 
   return

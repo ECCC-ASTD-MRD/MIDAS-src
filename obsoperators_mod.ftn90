@@ -344,7 +344,7 @@ contains
        zpb= col_getHeight(columnhr,ik+1,headerIndex,varLevel)/RG
        zwb  = (zpt-zlev)/(zpt-zpb)
        zwt  = 1.d0 - zwb
-       if(ivnm.eq.bufr_nees) call varAbort('oop_zzz_nl: CANNOT ASSIMILATE ES!!!')
+       if(ivnm.eq.bufr_nees) call utl_abort('oop_zzz_nl: CANNOT ASSIMILATE ES!!!')
        call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex,  &
             zvar-zwb*col_getElem(columnhr,ipb,headerIndex) &
             - zwt*col_getElem(columnhr,ipt,headerIndex))
@@ -876,7 +876,7 @@ contains
                 write(*,*) ' Problem with ZTD observation error!'
                 write(*,*) ' Station =',cstnid
                 write(*,*) ' Error =', zoer
-                call varAbort('OOP_GPSGB_NL: ABORT! BAD ZTD OBSERR') 
+                call utl_abort('OOP_GPSGB_NL: ABORT! BAD ZTD OBSERR') 
              endif
 
              ! Observation height (m)
@@ -957,7 +957,7 @@ contains
              endif
           enddo HEADER_1
        else
-          call varAbort('ERROR: FAILED TO SELECT SINGLE OBSERVATION!')
+          call utl_abort('ERROR: FAILED TO SELECT SINGLE OBSERVATION!')
        endif
     endif
 
@@ -1015,7 +1015,7 @@ contains
        enddo HEADER_2
 
        if ( iztd .ne. numgpsztd ) then
-          call varAbort('ERROR: vGPSZTD_Index init: iztd .ne. numGPSZTD!')
+          call utl_abort('ERROR: vGPSZTD_Index init: iztd .ne. numGPSZTD!')
        endif
 
     endif
@@ -1074,7 +1074,7 @@ contains
     else
        option = 'HR'
     endif
-    if ( option .ne. 'HR' ) call varAbort('oop_tovs_nl: Invalid option for input state')
+    if ( option .ne. 'HR' ) call utl_abort('oop_tovs_nl: Invalid option for input state')
 
     if(present(source_obs_in)) then
        source_obs = source_obs_in
@@ -1730,7 +1730,7 @@ contains
 
             if(ITYP.eq.BUFR_NEES) then
                write(*,*) 'ABORTING IN OOP_HZP: CANNOT ASSIMILATE ES!!!',ityp,obs_getfamily(lobsSpaceData,index_header),index_header,index_body
-               call varAbort('Aborting in oop_H')
+               call utl_abort('Aborting in oop_H')
             endif
             call obs_bodySet_r(lobsSpaceData,OBS_WORK,INDEX_BODY,  &
                  ZWB*col_getElem(LCOLUMN,IPB,INDEX_HEADER) + ZWT*col_getElem(LCOLUMN,IPT,INDEX_HEADER) +  &
@@ -1792,7 +1792,7 @@ contains
       !     NOTE:  vGPSZTD_Index(numGPSZTD) is initialized in s/r dobsgpsgb
       !
       if (.not.allocated(vGPSZTD_Index)) then
-         call varAbort('oop_Hgp: ERROR:  vGPSZTD_Index not allocated!')
+         call utl_abort('oop_Hgp: ERROR:  vGPSZTD_Index not allocated!')
       elseif (.not.allocated(vGPSZTD_Jacobian)) then
          write(*,*) ' Allocate vGPSZTD_Jacobian(numGPSZTD,2*NFLEV+1)'
          allocate(vGPSZTD_Jacobian(numGPSZTD,2*NFLEV+1))
@@ -1860,7 +1860,7 @@ contains
                if ( ZPPB(NFLEV) .ne. ZP0B ) then
                   write(*,*) ' oop_Hgp: ERROR: ZPPB(NFLEV) .ne. ZP0B'
                   write(*,*) '          ZPPB(NFLEV), ZP0B =', ZPPB(NFLEV), ZP0B
-                  !BUE              call varAbort('oop_Hgp')
+                  !BUE              call utl_abort('oop_Hgp')
                endif
                ZMT  = col_getHeight(lcolumng,NFLEV,INDEX_HEADER,'TH')/RG
                if ( icount .eq. 1 .and. LTESTOP ) write(*,*) 'ZDP (dpdp0) = ', (ZDP(JL),JL= 1,NFLEV)
@@ -1939,13 +1939,13 @@ contains
          write(*,*) '           vGPSZTD_Index(iztd)         = ', vGPSZTD_Index(iztd)
 
          if ( icount .ne. numGPSZTD ) then
-            call varAbort('oop_Hgp: ERROR: icount .ne. numGPSZTD!')
+            call utl_abort('oop_Hgp: ERROR: icount .ne. numGPSZTD!')
          endif
          if ( icount .ne. iztd ) then
-            call varAbort('oop_Hgp: ERROR: icount .ne. iztd!')
+            call utl_abort('oop_Hgp: ERROR: icount .ne. iztd!')
          endif
          if ( numGPSZTD .ne. iztd ) then
-            call varAbort('oop_Hgp: ERROR: numGPSZTD .ne. iztd!')
+            call utl_abort('oop_Hgp: ERROR: numGPSZTD .ne. iztd!')
          endif
 
 
@@ -1981,7 +1981,7 @@ contains
          IF ( ASSIM ) THEN
             iztd = gps_i_from_index(INDEX_HEADER)
             if ( iztd < 1 .or. iztd > numGPSZTD ) then
-               call varAbort('oop_Hgp: ERROR: index from gps_i_from_index() is out of range!')
+               call utl_abort('oop_Hgp: ERROR: index from gps_i_from_index() is out of range!')
             endif
             !C
             !C     *    Local vector state (analysis increments)
@@ -2598,7 +2598,7 @@ contains
       NFLEV  = col_getNumLev(lcolumng,'TH')
 
       IF ( .not.vGPSZTD_lJac(1) ) THEN
-         call varAbort('oop_HTgp:ERROR: ZTD Jacobians not stored!')
+         call utl_abort('oop_HTgp:ERROR: ZTD Jacobians not stored!')
       ENDIF
 
       ! loop over all header indices of the 'GP' family (GPS observations)
@@ -2636,7 +2636,7 @@ contains
             icount = icount + 1
             iztd = gps_i_from_index(INDEX_HEADER)
             if ( iztd < 1 .or. iztd > numGPSZTD ) then
-               call varAbort('oop_HTgp: ERROR: index from gps_i_from_index() is out of range!')
+               call utl_abort('oop_HTgp: ERROR: index from gps_i_from_index() is out of range!')
             endif
 
             DO JL = 1, 2*NFLEV+1
@@ -2698,8 +2698,6 @@ contains
     integer ichn
     integer :: index_header, index_body
 
-    external varAbort
-
     if(NOBTOV.eq.0) return    ! exit if there are no tovs data
 
     ! loop over all header indices of the 'TO' family
@@ -2722,7 +2720,7 @@ contains
        if ( indxtovs .eq. 0 ) then
           write(*,fmt=9203)
 9203      format(' tovs_calc_jo_ad: error with indxtovs')
-          call varAbort('tovs_calc_jo_ad ')
+          call utl_abort('tovs_calc_jo_ad ')
        endif
 
        radiance_ad (indxtovs) % bt(:) = 0.d0
@@ -2745,7 +2743,7 @@ contains
              if ( indxchn .eq. 0 ) then
                 write(*,fmt=9202)
 9202            format(' tovs_calc_jo_ad: error with channel number')
-                call varAbort('tovs_calc_jo_ad  ')
+                call utl_abort('tovs_calc_jo_ad  ')
              endif
              zres = obs_bodyElem_r(lobsSpaceData,OBS_WORK,index_body)
              radiance_ad (indxtovs) % bt(indxchn) = zres
@@ -2771,8 +2769,6 @@ contains
     !  integer kfailtot
 
     integer :: index_header, index_body
-
-    external varAbort
 
     if(NOBTOV.eq.0) return    ! exit if there are no tovs data
 
@@ -2803,7 +2799,7 @@ contains
        if ( indxtovs .eq. 0 ) then
           write(*,fmt=9203)
 9203      format(' tovs_calc_jo_tl: error with indxtovs')
-          call varAbort('tovs_calc_jo_tl ')
+          call utl_abort('tovs_calc_jo_tl ')
        endif
 
        !     if (rttov_errorstatus(indxtovs) .lt. 20   ) then
@@ -2825,7 +2821,7 @@ contains
              if ( indxchn .eq. 0 ) then
                 write(*,fmt=9202)
 9202            format(' tovs_calc_jo_tl: error with channel number')
-                call varAbort('tovs_calc_jo_tl  ')
+                call utl_abort('tovs_calc_jo_tl  ')
              endif
              call obs_bodySet_r(lobsSpaceData,OBS_WORK,index_body, &
                   radiance_tl (indxtovs) % bt(indxchn))

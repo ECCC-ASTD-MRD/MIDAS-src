@@ -15,6 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 module mpi_mod
+  use utilities_mod
   implicit none
   save
   private
@@ -80,9 +81,9 @@ module mpi_mod
 
     nulnam=0
     ierr=fnom(nulnam,'ptopo_nml','FTN+SEQ+R/O',0)
-    if(ierr.ne.0) call varAbort('mpi_getptopo: Error opening file ptopo_nml')
+    if(ierr.ne.0) call utl_abort('mpi_getptopo: Error opening file ptopo_nml')
     read(nulnam,nml=ptopo,iostat=ierr)
-    if(ierr.ne.0) call varAbort('mpi_getptopo: Error reading namelist')
+    if(ierr.ne.0) call utl_abort('mpi_getptopo: Error reading namelist')
     write(*,nml=ptopo)
     ierr=fclos(nulnam)
 

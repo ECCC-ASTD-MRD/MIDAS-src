@@ -24,6 +24,7 @@ MODULE globalSpectralTransform
   use mpivar_mod
   use MathPhysConstants_mod
   use earthConstants_mod
+  use utilities_mod
   implicit none
   save
   private
@@ -379,7 +380,7 @@ CONTAINS
 
     if(nGstAlreadyAllocated.eq.nMaxGst) then
       if(mpi_myid.eq.0) write(*,*) 'gst_setup: The maxmimum number of spectral transform have already been allocated! ',nMaxGst
-      call varAbort('gst_setup')
+      call utl_abort('gst_setup')
     endif
 
     nGstAlreadyAllocated = nGstAlreadyAllocated+1
@@ -1115,7 +1116,7 @@ CONTAINS
       ! ensure that the number of levels on this mpi task is even to allow interleaving of u and v
       if(mod(gst(gstID)%myLevCount,2).ne.0) then
         write(*,*) 'GST_SPGD: myLevCount = ',gst(gstID)%myLevCount
-        call varAbort('GST_SPGD: Number of levels on this mpi task must be even!')
+        call utl_abort('GST_SPGD: Number of levels on this mpi task must be even!')
       endif
     endif
 
@@ -1476,7 +1477,7 @@ CONTAINS
       ! ensure that the number of levels on this mpi task is even to allow interleaving of u and v
       if(mod(gst(gstID)%myLevCount,2).ne.0) then
         write(*,*) 'GST_SPGD: myLevCount = ',gst(gstID)%myLevCount
-        call varAbort('GST_SPGD: Number of levels on this mpi task must be even!')
+        call utl_abort('GST_SPGD: Number of levels on this mpi task must be even!')
       endif
     endif
 
@@ -2641,7 +2642,7 @@ CONTAINS
     call ngfft( i )
     if ( i.ne.ni ) then
        write(*,*) 'fft3dvar: NI = ',ni,' I = ',i
-       call varAbort('fft3dvar: vector length is not compatible with FFT')
+       call utl_abort('fft3dvar: vector length is not compatible with FFT')
     endif
     call setfft8(ni)
 

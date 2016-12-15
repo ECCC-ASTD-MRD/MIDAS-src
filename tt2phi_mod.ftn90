@@ -15,6 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 !
 module tt2phi_mod
+  use utilities_mod
   implicit none
   save
   private
@@ -54,8 +55,8 @@ subroutine tt2phi(columnghr)
 
   nlev_T = col_getNumLev(columnghr,'TH')
   nlev_M = col_getNumLev(columnghr,'MM')
-  if(Vcode .eq. 5002 .and. nlev_T .ne. nlev_M+1) call varAbort('tt2phi: nlev_T is not equal to nlev_M+1!')
-  if(Vcode .eq. 5005 .and. nlev_T .ne. nlev_M)   call varAbort('tt2phi: nlev_T is not equal to nlev_M!')
+  if(Vcode .eq. 5002 .and. nlev_T .ne. nlev_M+1) call utl_abort('tt2phi: nlev_T is not equal to nlev_M+1!')
+  if(Vcode .eq. 5005 .and. nlev_T .ne. nlev_M)   call utl_abort('tt2phi: nlev_T is not equal to nlev_M!')
 
   allocate(tv(nlev_T))
 
@@ -87,7 +88,7 @@ subroutine tt2phi(columnghr)
         lev_T = lev_M+1 ! thermo level just below momentum level being computed
         if(col_getPressure(columnghr,lev_M,columnIndex,'MM').eq.0.0d0) then
           write(*,*) 'tt2phi: pressure is zero, lev_m, columnIndex=',lev_m, columnIndex
-          call varAbort('tt2phi')
+          call utl_abort('tt2phi')
         endif
         ratioP = col_getPressure(columnghr,lev_M+1,columnIndex,'MM') / col_getPressure(columnghr,lev_M,columnIndex,'MM')
         gz_M(lev_M) = gz_M(lev_M+1) + MPC_RGAS_DRY_AIR_R8*tv(lev_T)*log(ratioP)
@@ -142,7 +143,7 @@ subroutine tt2phi(columnghr)
         lev_T = lev_M ! thermo level just below momentum level being computed
         if(col_getPressure(columnghr,lev_M,columnIndex,'MM').eq.0.0d0) then
           write(*,*) 'tt2phi: pressure is zero, lev_m, columnIndex=',lev_m, columnIndex
-          call varAbort('tt2phi')
+          call utl_abort('tt2phi')
         endif
         ratioP = col_getPressure(columnghr,lev_M+1,columnIndex,'MM') / col_getPressure(columnghr,lev_M,columnIndex,'MM')
         gz_M(lev_M) = gz_M(lev_M+1) + MPC_RGAS_DRY_AIR_R8*tv(lev_T)*log(ratioP)

@@ -1479,7 +1479,7 @@ contains
       !     . C. Charette ARMA/SMC   October 2001
       !         - replace SUTERM by SUTERMF to only close files
       !     . J. Blezius  ARMA/SMC   2012
-      !         - import varAbort into obsspacedata_mod as OBS_ABORT
+      !         - import utl_abort into obsspacedata_mod as OBS_ABORT
       !         - delete call to SUTERMF
       !    -------------------
       ! Purpose:

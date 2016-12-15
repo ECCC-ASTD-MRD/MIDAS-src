@@ -16,7 +16,7 @@
 
 #include "maincompileswitch.inc"
 #include "compileswitches.inc"
-module  burp_read
+module  burpread_mod
 
 use burp_module
 use ObsSpaceData_mod
@@ -2664,5 +2664,4 @@ CONTAINS
     RETURN
   END FUNCTION FIND_INDEX
 
-
-end module burp_read
+end module burpread_mod

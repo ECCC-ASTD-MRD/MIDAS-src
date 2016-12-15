@@ -27,6 +27,7 @@
 
 module varNameList_mod
   use bufr
+  use utilities_mod
   implicit none
   save
   private
@@ -93,7 +94,7 @@ module varNameList_mod
       enddo
 
       if(listIndex.le.0) then
-        call varAbort('vnl_varListIndex3D: Unknown variable name! ' // varName)
+        call utl_abort('vnl_varListIndex3D: Unknown variable name! ' // varName)
       endif
 
     end function vnl_varListIndex3d
@@ -115,7 +116,7 @@ module varNameList_mod
       enddo
 
       if(listIndex.le.0) then
-        call varAbort('vnl_varListIndex2D: Unknown variable name! ' // varName)
+        call utl_abort('vnl_varListIndex2D: Unknown variable name! ' // varName)
       endif
 
     end function vnl_varListIndex2d
@@ -137,7 +138,7 @@ module varNameList_mod
       enddo
 
       if(listIndex.le.0) then
-        call varAbort('vnl_varListIndex: Unknown variable name! ' // varName)
+        call utl_abort('vnl_varListIndex: Unknown variable name! ' // varName)
       endif
 
     end function vnl_varListIndex
@@ -192,14 +193,14 @@ module varNameList_mod
               varname='SO2'
            case default
               write(*,*) 'vnl_varnameFromVarnum: Unknown TR variable number! ',varTrNumber
-              call varAbort('aborting in vnl_varnameFromVarnum')
+              call utl_abort('aborting in vnl_varnameFromVarnum')
            end select
         else
-           call varAbort('vnl_varnameFromVarnum: Missing TR variable number ')
+           call utl_abort('vnl_varnameFromVarnum: Missing TR variable number ')
         endif 
       case default
         write(*,*) 'vnl_varnameFromVarnum: Unknown variable number! ',varNumber
-        call varAbort('aborting in vnl_varnameFromVarnum')
+        call utl_abort('aborting in vnl_varnameFromVarnum')
       end select
 
     end function vnl_varnameFromVarnum

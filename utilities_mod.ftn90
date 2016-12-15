@@ -33,7 +33,7 @@ module utilities_mod
   ! public procedures
   public :: utl_EZUVINT, utl_EZGDEF, utl_CXGAIG, utl_FSTLIR, utl_FSTECR
   public :: utl_EZSINT, utl_EZSINT2, utl_findArrayIndex, utl_matSqrt
-  public :: utl_writeStatus, utl_getfldprm
+  public :: utl_writeStatus, utl_getfldprm, utl_abort
 
 contains
 
@@ -591,7 +591,7 @@ contains
                   ,' contains mixed dateo,deet,npas,etiket,grtyp,ip2,ip3' &
                   ,',typvar,datyp,ig1,ig2,ig3 and/or ig4 ' &
                   ,'for variable ',cdvar,' and datev, ',kstampv
-             call varAbort('GETFLDPRM2')
+             call utl_abort('GETFLDPRM2')
           endif
        enddo
        !
@@ -620,9 +620,27 @@ contains
        write(*,*) 'Error - getfldprm2: no record found at time ' &
             ,idatefull,' for field ',cdvar,' but',knlev, &
             ' records found in unit ',kinmpg(k)
-       call varAbort('GETFLDPRM2')
+       call utl_abort('GETFLDPRM2')
     endif
     !
   end subroutine utl_getfldprm
 
+  !--------------------------------------------------------------------------
+  ! utl_abort
+  !--------------------------------------------------------------------------
+  subroutine utl_abort(message)
+    
+    implicit none
+    character(len=*) :: message
+    integer :: comm, ierr, rpn_comm_comm
+    
+    write(6,9000) message
+9000 format(//,4X,"!!!---ABORT---!!!",/,8X,"VAR stopped in ",A)
+    call flush(6)
+
+    comm = rpn_comm_comm("WORLD")
+    call mpi_abort( comm, 1, ierr )
+
+  end subroutine utl_abort
+  
 end module utilities_mod

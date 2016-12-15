@@ -53,8 +53,8 @@ subroutine tovs_fill_profiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode
   use obsSpaceData_mod
   use columnData_mod 
   use tovs_extrap_mod
-  use intavg_mod
-
+  use presProfileOperators_mod
+  use utilities_mod
   use rttov_const, only : q_mixratio_to_ppmv, &
        gas_id_co2, &
        gas_id_n2o, &
@@ -112,7 +112,7 @@ subroutine tovs_fill_profiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode
   real*8 :: zptop, zptopmbs
 
   real*8, allocatable :: toto3obs(:),PP(:,:) 
-  external lintv2
+
   integer ,external :: newdate
 
   write(*,*) "Entering tovs_fill_profiles subroutine"
@@ -166,7 +166,7 @@ subroutine tovs_fill_profiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode
   ier = newdate(datestamp,ijour,itime,-3)
   if (ier<0) then
      Write(*,*) "Invalid datestamp ",datestamp,ijour,itime,ier
-     call varAbort('tovs_fill_profiles')
+     call utl_abort('tovs_fill_profiles')
   endif
   year= ijour / 10000
   MONTH = MOD(ijour/100,100)
@@ -203,7 +203,7 @@ subroutine tovs_fill_profiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode
 
   if( any(alloc_status /= 0) ) then
      write(*,*) ' tovs_fill_profiles : memory allocation error'
-     call varAbort('tovs_fill_profiles        ')
+     call utl_abort('tovs_fill_profiles        ')
   end if
 
   !     1.2   Read ozone climatology
@@ -285,11 +285,11 @@ subroutine tovs_fill_profiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode
         do jn=1,knpf,istride
            ilen = min (knpf-jn+1,istride)
            if ( ilen .gt. 0) then
-              call intavg (zvlev(:,jn:jn+ilen-1),zt(:,jn:jn+ilen-1),nlv_T,nlv_T,ilen, &
+              call ppo_intavg (zvlev(:,jn:jn+ilen-1),zt(:,jn:jn+ilen-1),nlv_T,nlv_T,ilen, &
                    jpmolev,xpres(jpmotop:nlevels),to(:,jn:jn+ilen-1))
-              call intavg (zvlev(:,jn:jn+ilen-1),zlq(:,jn:jn+ilen-1),nlv_T,nlv_T,ilen, &
+              call ppo_intavg (zvlev(:,jn:jn+ilen-1),zlq(:,jn:jn+ilen-1),nlv_T,nlv_T,ilen, &
                    jpmolev,xpres(jpmotop:nlevels),lqo(:,jn:jn+ilen-1))
-              call lintv2 (zvlev(:,jn:jn+ilen-1),zht(:,jn:jn+ilen-1),nlv_T,nlv_T,ilen, &
+              call ppo_lintv (zvlev(:,jn:jn+ilen-1),zht(:,jn:jn+ilen-1),nlv_T,nlv_T,ilen, &
                    jpmolev,xpres(jpmotop:nlevels),zho(:,jn:jn+ilen-1))
            endif
         enddo
@@ -489,7 +489,7 @@ subroutine tovs_fill_profiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode
 
   if( any(alloc_status /= 0) ) then
      write(*,*) ' tovs_fill_profiles : memory deallocation error'
-     call varAbort('tovs_fill_profiles        ')
+     call utl_abort('tovs_fill_profiles        ')
   end if
 
 9263 format(1x,10f8.4)

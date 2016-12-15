@@ -82,7 +82,7 @@ if [ $mode == full ] ; then
   rm -f *.o *.mod *.cdk* *.h *.ftn* *.f *.f90
 
   # Create a local copy of the source code
-  trunkfiles="mpi_mod.ftn90 mpivar_mod.ftn90 varabort.ftn90 physicsfunctions_mod.ftn90 controlvector_mod.ftn90 \
+  trunkfiles="mpi_mod.ftn90 mpivar_mod.ftn90 utl_abort.ftn90 physicsfunctions_mod.ftn90 controlvector_mod.ftn90 \
             globalspectraltransform_mod.ftn90 lamanalysisgrid_mod.ftn90 localizationfunction_mod.ftn90 \
             gridstatevector_mod.ftn90 maincompileswitch.inc varnamelist_mod.ftn90 lambmatrixhi_mod.ftn90 \
             utils_3dvar.ftn lamspectraltransform_mod.ftn90 shared/obsspacedata_mod.ftn90 \

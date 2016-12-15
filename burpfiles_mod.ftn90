@@ -21,7 +21,7 @@ module burpFiles_mod
   use EarthConstants_mod
   use mpivar_mod
   use obsSpaceData_mod
-  use burp_read
+  use burpread_mod
   use topLevelControl_mod
   use bufr
   implicit none

@@ -19,6 +19,7 @@ module columnData_mod
   use varNameList_mod
   use verticalCoord_mod
   use MathPhysConstants_mod
+  use utilities_mod
   implicit none
   save
   private
@@ -85,14 +86,14 @@ module columnData_mod
       nulnam=0
       ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       read(nulnam,nml=namstate,iostat=ierr)
-      if(ierr.ne.0) call varAbort('col_setup: Error reading namelist')
+      if(ierr.ne.0) call utl_abort('col_setup: Error reading namelist')
       if(mpi_myid.eq.0) write(*,nml=namstate)
       ierr=fclos(nulnam)
 
       nvo3d  = 0
       nvo2d  = 0
 
-      if(varneed('GZ')) call varAbort('col_setup: GZ can no longer be included as a variable in columnData!')
+      if(varneed('GZ')) call utl_abort('col_setup: GZ can no longer be included as a variable in columnData!')
 
       do jvar = 1, vnl_numvarmax3D
         if (varneed(vnl_varNameList3D(jvar))) then
@@ -171,7 +172,7 @@ module columnData_mod
       endif
 
       if(.not.column%vco%initialized) then
-        call varAbort('col_allocate: VerticalCoord has not been initialized!')
+        call utl_abort('col_allocate: VerticalCoord has not been initialized!')
       endif
 
       allocate(column%varOffset(vnl_numvarmax))
@@ -314,10 +315,10 @@ module columnData_mod
             enddo
           enddo
         else
-          call varAbort('col_fillmvo: must specify varLevel TH or MM for Pressure! ' // varLevel)
+          call utl_abort('col_fillmvo: must specify varLevel TH or MM for Pressure! ' // varLevel)
         endif
       else
-        call varAbort('col_fillmvo: must specify varLevel for Pressure!')
+        call utl_abort('col_fillmvo: must specify varLevel for Pressure!')
       endif
 
     ! Height
@@ -336,10 +337,10 @@ module columnData_mod
             enddo
           enddo
         else
-          call varAbort('col_fillmvo: must specify varLevel TH or MM for GZ! ' // varLevel)
+          call utl_abort('col_fillmvo: must specify varLevel TH or MM for GZ! ' // varLevel)
         endif
       else
-        call varAbort('col_fillmvo: must specify varLevel for GZ!')
+        call utl_abort('col_fillmvo: must specify varLevel for GZ!')
       endif
 
     ! All the other variables that are stored in column%all
@@ -354,7 +355,7 @@ module columnData_mod
 
       ! Unknown variable name
       else
-        call varAbort('col_fillmvo: Unknown variable name: ' // varName)
+        call utl_abort('col_fillmvo: Unknown variable name: ' // varName)
       endif
 
     end select
@@ -409,7 +410,7 @@ module columnData_mod
 
     status=vgd_levels(column%vco%vgrid,ip1_list=column%vco%ip1_M,  &
                       levels=zppobs1,sfc_field=Psfc,in_log=.false.)
-    if(status.ne.VGD_OK) call varAbort('ERROR with vgd_levels')
+    if(status.ne.VGD_OK) call utl_abort('ERROR with vgd_levels')
     allocate(zppobs2(col_getNumLev(column,'MM'),col_getNumCol(column)))
     zppobs2 = transpose(zppobs1(1,:,:))
     call col_fillmvo(column,zppobs2,'PR','MM')
@@ -418,7 +419,7 @@ module columnData_mod
 
     status=vgd_levels(column%vco%vgrid,ip1_list=column%vco%ip1_T,  &
                       levels=zppobs1,sfc_field=Psfc,in_log=.false.)
-    if(status.ne.VGD_OK) call varAbort('ERROR with vgd_levels')
+    if(status.ne.VGD_OK) call utl_abort('ERROR with vgd_levels')
     allocate(zppobs2(col_getNumLev(column,'TH'),col_getNumCol(column)))
     zppobs2 = transpose(zppobs1(1,:,:))
     call col_fillmvo(column,zppobs2,'PR','TH')
@@ -466,7 +467,7 @@ module columnData_mod
           column_ptr_in  => col_getColumn(column_in ,jprof,varName)
           column_ptr_out => col_getColumn(column_out,jprof,varName)
           if ( col_getNumLev(column_out,varLevel) /= col_getNumLev(column_in,varLevel) ) then
-             call varAbort('col_vintprof: inconsistent number of levels')
+             call utl_abort('col_vintprof: inconsistent number of levels')
           end if
           do jlevo = 1, col_getNumLev(column_out,varLevel)
              column_ptr_out(jlevo) = column_ptr_in(jlevo)
@@ -511,7 +512,7 @@ module columnData_mod
     elseif (varLevel .eq. 'MM' ) then
       pressure = column%pressure_m(ilev,headerIndex)
     else
-      call varAbort('col_getPressure: Unknown variable type: ' // varLevel)
+      call utl_abort('col_getPressure: Unknown variable type: ' // varLevel)
     endif
 
   end function col_getPressure
@@ -529,7 +530,7 @@ module columnData_mod
     elseif (varLevel .eq. 'MM' ) then
       dP_dPsfc = column%dP_dPsfc_m(ilev,headerIndex)
     else
-      call varAbort('col_getPressureDeriv: Unknown variable type: ' // varLevel)
+      call utl_abort('col_getPressureDeriv: Unknown variable type: ' // varLevel)
     endif
 
   end function col_getPressureDeriv
@@ -548,7 +549,7 @@ module columnData_mod
     elseif (varLevel .eq. 'MM' ) then
       height = column%gz_m(ilev,headerIndex)
     else
-      call varAbort('col_getHeight: unknown varLevel! ' // varLevel)
+      call utl_abort('col_getHeight: unknown varLevel! ' // varLevel)
     endif
 
   end function col_getHeight
@@ -644,13 +645,13 @@ module columnData_mod
     if ( column%numCol > 0 ) then
       if(present(varName)) then
         if(trim(varName).eq.'GZ') then
-          call varAbort('col_getAllColumns: Cannot call this for GZ!')
+          call utl_abort('col_getAllColumns: Cannot call this for GZ!')
         elseif(col_varExist(varName)) then
           ilev1 = column%varOffset(vnl_varListIndex(varName))+1
           ilev2 = ilev1 - 1 + column%varNumLev(vnl_varListIndex(varName))
           allColumns => column%all(ilev1:ilev2,:)
         else
-          call varAbort('col_getAllColumn: Unknown variable name! ' // varName)
+          call utl_abort('col_getAllColumn: Unknown variable name! ' // varName)
         endif
       else
         allColumns => column%all(:,:)
@@ -682,10 +683,10 @@ module columnData_mod
             elseif(varLevel.eq.'MM') then
               onecolumn => column%pressure_M(:,headerIndex)
             else
-              call varAbort('col_getColumn: varLevel must MM or TH for Pressure! ' // varLevel)         
+              call utl_abort('col_getColumn: varLevel must MM or TH for Pressure! ' // varLevel)         
             endif
           else
-            call varAbort('col_getColumn: varLevel must be specified for Pressure!')
+            call utl_abort('col_getColumn: varLevel must be specified for Pressure!')
           endif
 
         case('GZ')
@@ -695,10 +696,10 @@ module columnData_mod
             elseif(varLevel.eq.'MM') then
               onecolumn => column%gz_M(:,headerIndex)
             else
-              call varAbort('col_getColumn: varLevel must MM or TH for Height! ' // varLevel)         
+              call utl_abort('col_getColumn: varLevel must MM or TH for Height! ' // varLevel)         
             endif
           else
-            call varAbort('col_getColumn: varLevel must be specified for Height!')         
+            call utl_abort('col_getColumn: varLevel must be specified for Height!')         
           endif
 
         case default ! all other variable names
@@ -708,7 +709,7 @@ module columnData_mod
         end select
 
       else
-        call varAbort('col_getColumn: Unknown variable name! ' // varName)
+        call utl_abort('col_getColumn: Unknown variable name! ' // varName)
       endif
     else
       onecolumn => column%all(:,headerIndex)
@@ -726,8 +727,8 @@ module columnData_mod
     real*8                                 :: value
 
     if(present(varName)) then
-      if(trim(varName).eq.'GZ') call varAbort('col_getElem: cannot call for GZ!')
-      if(trim(varName).eq.'PR') call varAbort('col_getElem: cannot call for Pressure!')
+      if(trim(varName).eq.'GZ') call utl_abort('col_getElem: cannot call for GZ!')
+      if(trim(varName).eq.'PR') call utl_abort('col_getElem: cannot call for Pressure!')
       value = column%all(column%varOffset(vnl_varListIndex(varName))+ilev,headerIndex)
     else
       value = column%all(ilev,headerIndex)
