@@ -38,7 +38,7 @@
 ! Revisions:
 !        Ping Du, Jan 2015
 !         - Change from btr/tr to bchm/chm prefixes/suffixes.
-!        Yves Rochon, October 2014 - Feb 2015
+!        Yves Rochon, October 2014 - Nov 2016
 !        - Addition and modification of comments.
 !        - Generalizations for any constituent or set of constituents.
 !        - Extended use of nsposit and numvar*d instead of nlev_* beyond
@@ -47,6 +47,7 @@
 !                 BCHM_copyFromStatevector, BCHM_readcorns2, BCHM_convol,
 !                 BCHM_rdspstd, BCHM_rdstsrtd_newfmt, BCHM_sucorns2, BCHM_finalize
 !        - Addition of bchm_corvert and bchm_corverti. 
+!        - Others
 !
 ! Comments and  questions:
 !
@@ -67,8 +68,9 @@
 ! Public Subroutines (which call other internal routines/functions):
 !    BCHM_setup:      Must be called first. Sets of background covariance matrix
 !                     (and balance operators if any are eventually added)
-!                     calls BCHM_sunewsta ts (BCHM_readcorns2, BCHM_rdspstd_newfmt,
-!                                             BCHM_scalestd), 
+!                     calls BCHM_rdstats (BCHM_readcorns2, BCHM_rdstddev (BCHM_rdstd3d,
+!                                         BCHM_rdstd, BCHM_rdspstd_newfmt (BCHM_rdspstd)),
+!                                         BCHM_scalestd), 
 !                           BCHM_sucorns2 (gasparicohn, bchm_corvert_setup, dsyev, 
 !                                          rpn_comm_allreduce)
 !    BCHM_BSqrt:      Transformations from control vector to analysis increments 
@@ -83,10 +85,11 @@
 !    BCHM_corvert_mult: Multiple an input matrix/array with 'bchm_corvert' or 'bchm_corverti'
 !    BCHM_getsigma:   Obtain background error std. dev. profile at obs/specified
 !                     location. 
-!    bchm_is_initialized: checks if B_chm has been intialized.
+!    BCHM_is_initialized: checks if B_chm has been intialized.
 !
 ! Other subroutines/functions info:
 !    BCHM_readcorns2:        calls BCHM_convol (gst_zleginv, gst_zlegdir, gst_getzleg))
+!    BCHM_rdstddev:          calls BCHM_rdstd3d, BCHM_rdstd, BCHM_rdspstd_newfmt.
 !    BCHM_rdspstd_newfmt:    calls gst_zleginv, BCHM_rdspstd
 !
 ! Dependencies:
@@ -173,6 +176,7 @@ MODULE BmatrixChem
   real(8)             :: scaleFactor(maxNumLevels,100)
   real(8)             :: scaleFactor_sigma(maxNumLevels,100)
   integer             :: numModeZero  ! number of eigenmodes to set to zero
+  character(len=4)    :: stddevMode
 
 ! Number of incremental variables/fields
   integer             :: numvar3d,numvar2d
@@ -201,7 +205,7 @@ CONTAINS
   
     integer :: jvar
     
-    NAMELIST /NAMBCHM/ntrunc,rpor,rvloc,scaleFactor,numModeZero,ReadWrite_sqrt
+    NAMELIST /NAMBCHM/ntrunc,rpor,rvloc,scaleFactor,numModeZero,ReadWrite_sqrt,stddevMode
 
     call tmg_start(90,'BCHM_SETUP')
 
@@ -216,8 +220,8 @@ CONTAINS
     if ( present(mode) ) then
        if ( trim(mode) == 'Analysis' .or. trim(mode) == 'BackgroundCheck') then
          bchm_mode = trim(mode)
-         if(mpi_myid.eq.0) write(*,*)
-         if(mpi_myid.eq.0) write(*,*) 'bchm_setup: Mode activated = ', trim(bchm_mode)
+         if(mpi_myid == 0) write(*,*)
+         if(mpi_myid == 0) write(*,*) 'bchm_setup: Mode activated = ', trim(bchm_mode)
        else
           write(*,*)
           write(*,*) 'mode = ', trim(mode)
@@ -225,8 +229,8 @@ CONTAINS
        end if
     else
        bchm_mode = 'Analysis'
-       if(mpi_myid.eq.0) write(*,*)
-       if(mpi_myid.eq.0) write(*,*) 'bchm_setup: Analysis mode activated (by default)'
+       if(mpi_myid == 0) write(*,*)
+       if(mpi_myid == 0) write(*,*) 'bchm_setup: Analysis mode activated (by default)'
     end if
 
 !   Identify if analysis mode (top_nconf=141) as this determines if all actions
@@ -244,14 +248,14 @@ CONTAINS
     else
       nLev_T_even = nLev_T
     endif
-    if(mpi_myid.eq.0) write(*,*) 'BCHM_setup: nLev_T, nLev_T_even=',nLev_T, nLev_T_even
+    if(mpi_myid == 0) write(*,*) 'BCHM_setup: nLev_T, nLev_T_even=',nLev_T, nLev_T_even
     
 !   Find the 3D variables (within NAMSTATE namelist)
 
     do jvar = 1, vnl_numvarmax3D    
        if(gsv_varExist(varName=vnl_varNameList3D(jvar))) then
 
-          if (vnl_varKindFromVarname(vnl_varNameList(jvar)).eq.'CH') then
+          if (vnl_varKindFromVarname(vnl_varNameList(jvar)) == 'CH') then
              numvar3d = numvar3d + 1
              nsposit(numvar3d+1)=nsposit(numvar3d)+nLev_T
              bchm_varNameList(numvar3d)=vnl_varNameList3D(jvar)
@@ -265,7 +269,7 @@ CONTAINS
     do jvar=1,vnl_numvarmax2D
        if(gsv_varExist(varName=vnl_varNameList2D(jvar))) then
 
-          if (vnl_varKindFromVarname(vnl_varNameList(jvar)).eq.'CH') then
+          if (vnl_varKindFromVarname(vnl_varNameList(jvar)) == 'CH') then
              numvar2d = numvar2d + 1
              nsposit(numvar3d+numvar2d+1)=nsposit(numvar3d+numvar2d)+1
              bchm_varNameList(numvar2d)=vnl_varNameList2D(jvar)
@@ -274,15 +278,15 @@ CONTAINS
        end if       
     end do
     
-    if (numvar3d+numvar2d.eq.0) then    
-       if(mpi_myid.eq.0) then
+    if (numvar3d+numvar2d == 0) then    
+       if(mpi_myid == 0) then
            write(*,*) 'Bhi matrix for CH family not produced.'
            write(*,*) 'No chemical assimilation to be performed.'
            write(*,*) 'END OF BCHM_SETUP'
        end if
        call tmg_stop(90)
        return
-    else if (mpi_myid.eq.0) then
+    else if (mpi_myid == 0) then
        if (numvar3d.gt.0) &
        write(*,*) 'BCHM_setup: Number of 3D variables', numvar3d,bchm_varNameList(1:numvar3d)
        if (numvar2d.gt.0) &
@@ -299,6 +303,7 @@ CONTAINS
     scaleFactor(:,:) = 1.0d0
     numModeZero = 0
     ReadWrite_sqrt = .false.
+    stddevMode = 'GD3D'
  
     ! Read namelist input
     
@@ -306,7 +311,7 @@ CONTAINS
     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=NAMBCHM,iostat=ierr)
     if(ierr.ne.0) call varAbort('BCHM_setup: Error reading namelist')
-    if(mpi_myid.eq.0) write(*,nml=NAMBCHM)
+    if(mpi_myid == 0) write(*,nml=NAMBCHM)
     ierr = fclos(nulnam)
 
     ! Assumes the input 'scalefactor' is a scaling factor of the variances.
@@ -334,8 +339,8 @@ CONTAINS
     
     gstID  = gst_setup(ni_l,nj_l,ntrunc,nkgdim,makeEven_in)
     gstID2 = gst_setup(ni_l,nj_l,ntrunc,nlev_T_even)
-    if(mpi_myid.eq.0) write(*,*) 'BCHM:returned value of gstID =',gstID
-    if(mpi_myid.eq.0) write(*,*) 'BCHM:returned value of gstID2=',gstID2
+    if(mpi_myid == 0) write(*,*) 'BCHM:returned value of gstID =',gstID
+    if(mpi_myid == 0) write(*,*) 'BCHM:returned value of gstID2=',gstID2
 
     call mpivar_setup_latbands(nj_l,latPerPE,myLatBeg,myLatEnd)
     call mpivar_setup_lonbands(ni_l,lonPerPE,myLonBeg,myLonEnd)
@@ -350,7 +355,7 @@ CONTAINS
     do jm = mymBeg, mymEnd, mymSkip
       do jn = mynBeg, mynEnd, mynSkip
         if(jm.le.jn) then
-          if(jm.eq.0) then
+          if(jm == 0) then
             ! only real component for jm=0
             cvDim_mpilocal = cvDim_mpilocal + 1*nkgdim
           else
@@ -378,10 +383,10 @@ CONTAINS
     status = vgd_levels( vco_anl%vgrid, ip1_list=vco_anl%ip1_T, levels=pressureProfile_T, &
                          sfc_field=zps, in_log=.false.)
 
-    call BCHM_sunewstats
+    call BCHM_rdstats
     call BCHM_sucorns2
 
-    if(mpi_myid.eq.0) write(*,*) 'END OF BCHM_SETUP'
+    if(mpi_myid == 0) write(*,*) 'END OF BCHM_SETUP'
     
     initialized = .true.
 
@@ -390,7 +395,8 @@ CONTAINS
   END SUBROUTINE BCHM_setup
 
 !-----------------------------------------------------------------------------------------------
-  logical function bchm_is_initialized()
+
+  logical function BCHM_is_initialized()
 !
 ! Author  : M. Sitwell, May 2015
 !
@@ -400,11 +406,11 @@ CONTAINS
 
     bchm_is_initialized = initialized
 
-  end function bchm_is_initialized
+  end function BCHM_is_initialized
 
 !-----------------------------------------------------------------------------------------------
 
-  subroutine bchm_getScaleFactor(scaleFactor_out)
+  subroutine BCHM_getScaleFactor(scaleFactor_out)
 !
 ! Revisions: 
 !           Y.J. Rochon, ARQI/AQRD, Mar 2015
@@ -421,16 +427,19 @@ CONTAINS
     end do
     enddo
 
-  end subroutine bchm_getScaleFactor
+  end subroutine BCHM_getScaleFactor
 
 !-----------------------------------------------------------------------------------------------
 
-  SUBROUTINE BCHM_SUNEWSTATS
+  SUBROUTINE BCHM_RDSTATS
 !
-!  Revisions:
-!            Y.J. Rochon, March 2016
-!            - replaced BCHM_rdspstd_newfmt by BCHM_rdstddev
-!     
+! Author: Y.J. Rochon, Nov 2016
+!            - Based on BCHM_rdspstd_newfmt
+!
+! Purpose: Reads chemical constituents background stats file.
+!
+!-----------------------------------------------------------------------------------------
+
    implicit none
 
     integer :: ierr, fnom, fstouv, fstfrm, fclos
@@ -441,23 +450,23 @@ CONTAINS
     inquire(file=bFileName1,exist=lExists)
     if ( lexists ) then
       ierr = fnom(nulbgst,bFileName1,'RND+OLD+R/O',0)
-      if ( ierr .eq. 0 ) then
+      if ( ierr == 0 ) then
         ierr =  fstouv(nulbgst,'RND+OLD')
       else
-        call varAbort('BCHM_SUNEWSTATS: NO BACKGROUND CHEMICAL CONSTITUENT STAT FILE!!')
+        call varAbort('BCHM_RDSTATS: NO BACKGROUND CHEMICAL CONSTITUENT STAT FILE!!')
       endif
     else
       ! Assume chemical constituent stats in file bgcov. 
       inquire(file=bFileName2,exist=lExists)  
       if (lexists) then 
          ierr = fnom(nulbgst,bFileName2,'RND+OLD+R/O',0)
-         if ( ierr .eq. 0 ) then
+         if ( ierr == 0 ) then
            ierr =  fstouv(nulbgst,'RND+OLD')
          else
-           call varAbort('BCHM_SUNEWSTATS: NO BACKGROUND CHEMICAL CONSTITUENT STAT FILE!!')
+           call varAbort('BCHM_RDSTATS: NO BACKGROUND CHEMICAL CONSTITUENT STAT FILE!!')
          endif 
       else          
-         call varAbort('BCHM_SUNEWSTATS: NO BACKGROUND CHEMICAL CONSTITUENT STAT FILE!!')
+         call varAbort('BCHM_RDSTATS: NO BACKGROUND CHEMICAL CONSTITUENT STAT FILE!!')
       end if
     endif
 
@@ -470,11 +479,19 @@ CONTAINS
     ierr = fstfrm(nulbgst)
     ierr = fclos(nulbgst)
 
-  END SUBROUTINE BCHM_SUNEWSTATS
+  END SUBROUTINE BCHM_RDSTATS
 
 !-------------------------------------------------------------------------------------------
 
   SUBROUTINE BCHM_scalestd
+!
+! Purpose: Scales error standard deviation values.
+!
+! Revisions: Y.J. Rochon
+!            - Converted from original of bhi_scalestd for 3D std. dev. 
+!
+!-----------------------------------------------------------------------------------------
+
     implicit none
 
     integer :: jlon, jlat, jvar, nlev
@@ -498,15 +515,21 @@ CONTAINS
 !-------------------------------------------------------------------------------------------
 
   SUBROUTINE BCHM_truncateCV(controlVector_inout,ntruncCut)
+!
+! Purpose: Sets to zero all coefficients with total wavenumber > ntruncCut
+!
+! Based on bhi_truncateCV.
+!
+!-----------------------------------------------------------------------------------------
+
     implicit none
-    ! set to zero all coefficients with total wavenumber > ntruncCut
 
     real(8), pointer :: controlVector_inout(:)
     integer          :: ntruncCut
     integer          :: jn, jm, ila_mpiglobal, ila_mpilocal, jlev, jdim
 
     if(.not. initialized) then
-      if(mpi_myid.eq.0) write(*,*) 'bchm_truncateCV: bMatrixChem not initialized'
+      if(mpi_myid == 0) write(*,*) 'bchm_truncateCV: bMatrixChem not initialized'
       return
     endif
 
@@ -522,7 +545,7 @@ CONTAINS
           if(jm.le.jn) then
             ila_mpiglobal = gst_getNIND(jm,gstID) + jn - jm
             ila_mpilocal  = ilaList_mpilocal(ila_mpiglobal)
-            if(jm.eq.0) then
+            if(jm == 0) then
               ! only real component for jm=0
               jdim = jdim + 1
               if(jn.gt.ntruncCut) controlVector_inout(jdim) = 0.0d0
@@ -543,6 +566,12 @@ CONTAINS
 !-------------------------------------------------------------------------------------------
 
  SUBROUTINE BCHM_bSqrt(controlvector_in,statevector)
+!
+! Purpose: Applies B_CHM^1/2 to a control vector.
+!
+! Based on bhi_bsqrt
+!
+!-----------------------------------------------------------------------------------------
   
    implicit none
 
@@ -554,8 +583,8 @@ CONTAINS
 
     if(.not. initialized) return
 
-    if(mpi_myid.eq.0) write(*,*) 'BCHM_bsqrt: starting'
-    if(mpi_myid.eq.0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    if(mpi_myid == 0) write(*,*) 'BCHM_bsqrt: starting'
+    if(mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     allocate(gd_out(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim))
 
@@ -567,8 +596,8 @@ CONTAINS
 
     deallocate(gd_out)
 
-    if(mpi_myid.eq.0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    if(mpi_myid.eq.0) write(*,*) 'bchm_bsqrt: done'
+    if(mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    if(mpi_myid == 0) write(*,*) 'bchm_bsqrt: done'
 
   END SUBROUTINE BCHM_bSqrt
 
@@ -590,7 +619,7 @@ CONTAINS
           if(jm.le.jn) then
             ila_mpiglobal = gst_getNIND(jm,gstID) + jn - jm
             ila_mpilocal  = ilaList_mpilocal(ila_mpiglobal)
-            if(jm.eq.0) then
+            if(jm == 0) then
               ! only real component for jm=0
               jdim = jdim + 1
               hiControlVector_out(ila_mpilocal,1,jlev) = controlVector_in(jdim)
@@ -638,6 +667,13 @@ CONTAINS
 !-----------------------------------------------------------------------------------------------
 
   SUBROUTINE BCHM_bSqrtAd(statevector,controlVector_out)
+!
+! Purpose: Applies adjoint of B_CHM^1/2 to a statevector.
+!
+! Based on bhi_bSqrtAd.
+!
+!-----------------------------------------------------------------------------------------
+
     implicit none
 
     real(8)   :: controlVector_out(cvDim_mpilocal)
@@ -647,12 +683,12 @@ CONTAINS
     integer   :: jvar, ilev1, ilev2
 
     if(.not. initialized) then
-      if(mpi_myid.eq.0) write(*,*) 'bMatrixChem not initialized'
+      if(mpi_myid == 0) write(*,*) 'bMatrixChem not initialized'
       return
     endif
 
-    if(mpi_myid.eq.0) write(*,*) 'bchm_bsqrtad: starting'
-    if(mpi_myid.eq.0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    if(mpi_myid == 0) write(*,*) 'bchm_bsqrtad: starting'
+    if(mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     allocate(gd_in(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim))
     call bchm_copyFromStatevector(statevector,gd_in)
@@ -663,8 +699,8 @@ CONTAINS
 
     deallocate(gd_in)
 
-    if(mpi_myid.eq.0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    if(mpi_myid.eq.0) write(*,*) 'BCHM_bsqrtad: done'
+    if(mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    if(mpi_myid == 0) write(*,*) 'BCHM_bsqrtad: done'
 
   END SUBROUTINE BCHM_bSqrtAd
 
@@ -701,13 +737,23 @@ CONTAINS
 
   SUBROUTINE BCHM_READCORNS2
 !
-! N.B.: Currently assumes distinct block diagonal matrices (no cross-correlations)
-!  
+! Purpose: Reads correlation information and forms the correlation matrix.
+!
+! Based on bhi_readcorns2.
+!
+! Revisions: 
+!            Y.J. Rochon
+!            - Set for block diagonal matrices. Can be expanded later
+!              for cross-correlations.
+!
+! Notes: Currently assumes distinct block diagonal matrices (no cross-correlations)
+!
+!-----------------------------------------------------------------------------------------
+ 
     implicit none
 
     integer :: jn, istdkey,icornskey,jvar
     integer :: jcol,jrow,jstart,jnum
-    real(8) :: zwork
     real(8), allocatable, dimension(:) :: zstdsrc
     real(8), allocatable, dimension(:,:) :: zcornssrc
 
@@ -838,7 +884,7 @@ CONTAINS
     
     jvar=1
     do jk = 1, nkgdim
-      if (jk.eq.nsposit(jvar)) then
+      if (jk == nsposit(jvar)) then
         dtlen = rpor(jvar)
         jvar=jvar+1 
       endif
@@ -909,7 +955,7 @@ CONTAINS
     jvar=1
     jlev=1
     do jk = 1, nkgdim
-      if (jk.eq.nsposit(jvar+1)) then
+      if (jk == nsposit(jvar+1)) then
          jvar=jvar+1 
          jlev=1
       end if
@@ -928,7 +974,7 @@ CONTAINS
     jvar=1
     jlev=1
     do jk = 1, nkgdim
-      if (jk.eq.nsposit(jvar+1)) then
+      if (jk == nsposit(jvar+1)) then
          jvar=jvar+1 
          jlev=1
       end if
@@ -965,12 +1011,84 @@ CONTAINS
 
 !-----------------------------------------------------------------------------------------------
 
+  SUBROUTINE BCHM_RDSTDDEV
+!
+!   Author: Y.J. Rochon, Nov 2016
+!           - Based on partial content of bhi_setup
+!
+!   Purpose: Reads stddev and set as 3D fields.
+!
+!-----------------------------------------------------------------------------------------------
+
+    implicit none
+
+    integer :: ikey
+    real(8) :: rcoord(10000)
+    
+    ! standard file variables
+    integer :: ini,inj,ink, inpas, inbits, idatyp, ideet
+    integer :: ip1,ip2,ip3,ig1,ig2,ig3,ig4,iswa,ilength,idltf
+    integer :: iubc,iextr1,iextr2,iextr3,ipak,ipas
+    integer :: iliste(100),idate(100),idimax,infon,iheures,idateo,nlev_MT
+    character(len=1)  :: clgrtyp
+    character(len=2)  :: cltypvar
+    character(len=4)  :: clnomvar
+    character(len=12) :: cletiket
+    integer :: vfstlir
+
+!   Reading the data
+
+    idate(1) = -1
+    ip2      = -1
+    ip3      = -1
+
+!   Get latitudes and longitudes if available
+
+    ip1=-1
+    ikey = vfstlir(rcoord,nulbgst,ini,inj,ink, &
+                         idate(1),' ',ip1,ip2,ip3,' ','^^')
+                         
+    if (ikey.ge.0.and.inj == nj_l) then
+       rlat(1:nj_l)=rcoord(1:nj_l) 
+       rlat(1:nj_l)=rlat(1:nj_l)*MPC_RADIANS_PER_DEGREE_R8
+    else
+       write(*,*) 'BCHM_RDSTDDEV: latitudes not read. ',ikey,inj,nj_l
+       call varAbort('BCHM_RDSTDDEV')
+    end if    
+
+    ikey = vfstlir(rcoord,nulbgst,ini,inj,ink, &
+                         idate(1),' ',ip1,ip2,ip3,' ','>>')
+    if (ikey.ge.0.and.ini == ni_l) then
+        rlong(1:ni_l)=rcoord(1:ni_l)
+        rlong(1:ni_l)=rlong(1:ni_l)*MPC_RADIANS_PER_DEGREE_R8
+    else
+       write(*,*) 'BCHM_RDSTDDEV: longitudes not read. ',ikey,ini,ni_l
+       call varAbort('BCHM_RDSTDDEV')
+    end if 
+    rlong(ni_l+1)=360.*MPC_RADIANS_PER_DEGREE_R8
+    
+    ! Read specified input type for error std. dev.
+    
+    if(stddevMode == 'GD3D') then
+      call BCHM_rdstd3D
+    elseif(stddevMode == 'GD2D') then
+      call BCHM_rdstd
+    elseif(stddevMode == 'SP2D') then
+      call BCHM_rdspstd_newfmt
+    else
+      call varAbort('BCHM_RDSTDDEV: unknown stddevMode')
+    endif
+    
+  END SUBROUTINE BCHM_RDSTDDEV
+
+!-----------------------------------------------------------------------------------------------
+
   SUBROUTINE BCHM_RDSPSTD
     implicit none
 
     integer :: jvar,jn,inix,injx,inkx
-    integer :: ikey, jlevo, jlat,firstn,lastn
-    real(8) :: zsp(0:ntrunc,max(nlev_M,nlev_T)),zspbuf(max(nlev_M,nlev_T)),zwork
+    integer :: ikey, jlevo, firstn,lastn
+    real(8) :: zsp(0:ntrunc,max(nlev_M,nlev_T)),zspbuf(max(nlev_M,nlev_T))
     real(8) :: zgr(nj_l,max(nlev_M,nlev_T)),zstddev(nkgdim,nj_l)
     
     ! standard file variables
@@ -1008,7 +1126,7 @@ CONTAINS
         if(ikey .ge.0 ) then
           ikey = vfstlir(zspbuf(1:nlev_MT),nulbgst,ini,inj,ink,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
         else
-          if(firstn.eq.-1) firstn = jn
+          if(firstn == -1) firstn = jn
           lastn = jn
           zspbuf(:) = 0.0d0
         endif
@@ -1020,7 +1138,7 @@ CONTAINS
         enddo
       enddo
       
-      if(mpi_myid.eq.0.and.firstn.ne.-1) write(*,*) 'WARNING: CANNOT FIND SPSTD FOR ',clnomvar, &
+      if(mpi_myid == 0.and.firstn.ne.-1) write(*,*) 'WARNING: CANNOT FIND SPSTD FOR ',clnomvar, &
             ' AT N BETWEEN ',firstn,' AND ',lastn,', SETTING TO ZERO!!!'
 
       call gst_zleginv(gstID,zgr(:,1:nlev_MT),zsp(:,1:nlev_MT),nlev_MT)
@@ -1039,7 +1157,7 @@ CONTAINS
     implicit none
 
     integer :: jvar,jn,inix,injx,inkx,ntrunc_file
-    integer :: ikey,jlevo,jlat
+    integer :: ikey,jlevo
     real(8) :: zsp(0:ntrunc,max(nlev_M,nlev_T)),work
     real(8), allocatable :: zspbuf(:)
     real(8) :: zgr(nj_l,max(nlev_M,nlev_T)),zstddev(nkgdim,nj_l)
@@ -1087,9 +1205,9 @@ CONTAINS
       !write(*,*) 'Reading ',clnomvar
 
       do jlevo = 1, nlev_MT
-        if (nlev_MT.eq.1) then
+        if (nlev_MT == 1) then
            ip1=-1
-        else if(vnl_varLevelFromVarName(clnomvar).eq.'MM') then
+        else if(vnl_varLevelFromVarName(clnomvar) == 'MM') then
           ip1 = vco_anl%ip1_M(jlevo)
         else
           ip1 = vco_anl%ip1_T(jlevo)
@@ -1126,18 +1244,18 @@ CONTAINS
 
 !-----------------------------------------------------------------------------------------------
 
-  SUBROUTINE BCHM_RDSTDDEV
+  SUBROUTINE BCHM_RDSTD
 !
-!   Purpose: Reads 3D stddev if available.
+!   Purpose: Reads 2D stddev and store as 3D
 !
-!   Author: Y.J. Rochon, March 2016
-!           (based on BCHM_RDSPSTD_NEWFMT)
+!   Author: Y.J. Rochon, Nov 2016
+!           - Based on BCHM_RDSTD3D in consideration of BHI_RDSTD
 !-----------------------------------------------------------------------------------------------
     implicit none
 
-    integer :: jvar,jn,inix,injx,inkx
-    integer :: ikey,jlevo,jlat
-    real(8) :: zwork,rcoord(10000)
+    integer :: jvar,in
+    integer :: ikey,jlevo
+    real(8), allocatable :: rgsig2d(:,:)
     
     ! standard file variables
     integer :: ini,inj,ink, inpas, inbits, idatyp, ideet
@@ -1148,7 +1266,75 @@ CONTAINS
     character(len=2)  :: cltypvar
     character(len=4)  :: clnomvar
     character(len=12) :: cletiket
-    integer :: vfstlir,fstprm,fstinf
+    integer :: vfstlir
+
+    rgsig(:,:,:) = 0.0d0
+
+!   Reading the data
+
+    idate(1) = -1
+    ip1      = -1
+    ip2      = -1
+    ip3      = -1
+    
+    cletiket = 'STDDEV'
+    cltypvar=' '
+
+    ! Reading for 3D and 2D variables
+    
+    do jvar = 1,numvar3d+numvar2d
+      clnomvar=bchm_varNameList(jvar)
+      nlev_MT=nsposit(jvar+1)-nsposit(jvar)
+
+      !write(*,*) 'Reading ',clnomvar
+ 
+      allocate(rgsig2d(nj_l,nlev_MT))
+      rgsig2d(:,:)=0.0D0
+      
+      ikey = vfstlir(rgsig2d(:,:),nulbgst,ini,inj,ink, &
+                         idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+
+      if (ikey.lt.0) then
+          write(*,*) 'BCHM_RDSTD: ',jvar,clnomvar,nlev_MT,ikey
+          call varAbort(': BCHM_RDSTD record not found')
+      endif
+        
+      ! Extend to 3D
+      
+      do in=2,ni_l+1
+         rgsig(in,:,nsposit(jvar):nsposit(jvar+1)-1)=rgsig2d(:,:) 
+      end do
+
+      deallocate(rgsig2d)
+      
+    enddo
+
+  END SUBROUTINE BCHM_RDSTD
+
+!-----------------------------------------------------------------------------------------------
+
+  SUBROUTINE BCHM_RDSTD3D
+!
+!   Purpose: Reads 3D stddev.
+!
+!   Author: Y.J. Rochon, March/Nov 2016
+!           (originally based on BCHM_RDSPSTD_NEWFMT)
+!-----------------------------------------------------------------------------------------------
+    implicit none
+
+    integer :: jvar
+    integer :: ikey,jlevo
+    
+    ! standard file variables
+    integer :: ini,inj,ink, inpas, inbits, idatyp, ideet
+    integer :: ip1,ip2,ip3,ig1,ig2,ig3,ig4,iswa,ilength,idltf
+    integer :: iubc,iextr1,iextr2,iextr3,ipak,ipas
+    integer :: iliste(100),idate(100),idimax,infon,iheures,idateo,nlev_MT
+    character(len=1)  :: clgrtyp
+    character(len=2)  :: cltypvar
+    character(len=4)  :: clnomvar
+    character(len=12) :: cletiket
+    integer :: vfstlir
 
     rgsig(:,:,:) = 0.0d0
 
@@ -1157,42 +1343,9 @@ CONTAINS
     idate(1) = -1
     ip2      = -1
     ip3      = -1
-
-!   Get latitudes and longitudes if available
-    ip1=-1
-    ikey = vfstlir(rcoord,nulbgst,ini,inj,ink, &
-                         idate(1),' ',ip1,ip2,ip3,' ','^^')
-                         
-    if (ikey.ge.0.and.inj.eq.nj_l) then
-       rlat(1:nj_l)=rcoord(1:nj_l) 
-       rlat(1:nj_l)=rlat(1:nj_l)*MPC_RADIANS_PER_DEGREE_R8
-    else
-       write(*,*) 'BCHM_RDSTDDEV: latitudes not read. ',ikey,inj,nj_l
-       call varAbort('BCHM_RDSTDDEV')
-    end if    
-    ikey = vfstlir(rcoord,nulbgst,ini,inj,ink, &
-                         idate(1),' ',ip1,ip2,ip3,' ','>>')
-    if (ikey.ge.0.and.ini.eq.ni_l) then
-        rlong(1:ni_l)=rcoord(1:ni_l)
-        rlong(1:ni_l)=rlong(1:ni_l)*MPC_RADIANS_PER_DEGREE_R8
-    else
-       write(*,*) 'BCHM_RDSTDDEV: longitudes not read. ',ikey,ini,ni_l
-       call varAbort('BCHM_RDSTDDEV')
-    end if 
-    rlong(ni_l+1)=360.*MPC_RADIANS_PER_DEGREE_R8
     
-    cletiket = 'BGCK_STDDEV'
+    cletiket = 'STDDEV3D'
     cltypvar=' '
-
-    ! Check if file uses old formats
-    
-    ip1 = -1
-    clnomvar = bchm_varNameList(1) 
-    ikey = fstinf(nulbgst,inix,injx,inkx,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
-    if (ikey.lt.0) then
-       call bchm_rdspstd_newfmt
-       return
-    endif
 
     ! Reading for 3D and 2D variables
     
@@ -1203,19 +1356,19 @@ CONTAINS
       !write(*,*) 'Reading ',clnomvar
 
       do jlevo = 1, nlev_MT
-        if (nlev_MT.eq.1) then
+        if (nlev_MT == 1) then
            ip1=-1
-        else if(vnl_varLevelFromVarName(clnomvar).eq.'MM') then
-          ip1 = vco_anl%ip1_M(jlevo)
+        else if(vnl_varLevelFromVarName(clnomvar) == 'MM') then
+           ip1 = vco_anl%ip1_M(jlevo)
         else
-          ip1 = vco_anl%ip1_T(jlevo)
+           ip1 = vco_anl%ip1_T(jlevo)
         endif
         
         ikey = vfstlir(rgsig(1:ni_l,:,nsposit(jvar)+(jlevo-1)),nulbgst,ini,inj,ink, &
                          idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
         if (ikey.lt.0) then
-          write(*,*) 'BCHM_RDSTDDEV: ',jvar,clnomvar,nlev_MT,jlevo,ikey,ip1
-          call varAbort(': BCHM_SPSTDDEV record not found')
+          write(*,*) 'BCHM_RDSTD3D: ',jvar,clnomvar,nlev_MT,jlevo,ikey,ip1
+          call varAbort(': BCHM_RDSTD3D record not found')
         endif
         
         ! Add strip at 360 degrees.
@@ -1224,7 +1377,7 @@ CONTAINS
       enddo
     enddo
 
-  END SUBROUTINE BCHM_RDSTDDEV
+  END SUBROUTINE BCHM_RDSTD3D
 
 !-----------------------------------------------------------------------------------------------
 
@@ -1541,7 +1694,7 @@ CONTAINS
       endif
 
       ! make adjustments for jm=0
-      if(mymBeg.eq.0) then
+      if(mymBeg == 0) then
 
         ila_mpiglobal = gst_getNind(0,gstID) + jn
         ila_mpilocal = ilaList_mpilocal(ila_mpiglobal)
@@ -1691,7 +1844,7 @@ CONTAINS
       endif
 
       ! make adjustments for jm=0
-      if(mymBeg.eq.0) then
+      if(mymBeg == 0) then
 
         ila_mpiglobal = gst_getNIND(0,gstID) + jn
         ila_mpilocal = ilaList_mpilocal(ila_mpiglobal)
@@ -1728,7 +1881,7 @@ CONTAINS
           if(jm.le.jn) then
             ila_mpiglobal = gst_getNIND(jm,gstID) + jn - jm
             ila_mpilocal  = ilaList_mpilocal(ila_mpiglobal)
-            if(jm.eq.0) then
+            if(jm == 0) then
               ! only real component for jm=0
               jdim = jdim + 1
               controlVector_out(jdim) = controlVector_out(jdim) + hiControlVector_in(ila_mpilocal,1,jlev)
@@ -1941,7 +2094,7 @@ CONTAINS
 
     allocate(cv_maxmpilocal(cvDim_maxmpilocal))
 
-    if(mpi_myid.eq.0) allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mpi_nprocs))
+    if(mpi_myid == 0) allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mpi_nprocs))
 
     cv_maxmpilocal(:) = 0.0d0
     cv_maxmpilocal(1:cvDim_mpilocal) = cv_mpilocal(1:cvDim_mpilocal)
@@ -2042,7 +2195,7 @@ CONTAINS
     deallocate(allmBeg)
     deallocate(allmEnd)
     deallocate(allmSkip)
-    if (mpi_myid.eq.0) deallocate(cv_allmaxmpilocal)
+    if (mpi_myid == 0) deallocate(cv_allmaxmpilocal)
 
   end SUBROUTINE BCHM_expandToMPIGlobal
 
@@ -2316,7 +2469,7 @@ CONTAINS
 !   Determine location and size in bchm_corvert/bchm_corverti
     
     do jvar=1,numvar3d+numvar2d
-       if (trim(varName).eq.trim(bchm_varNameList(jvar))) exit
+       if (trim(varName) == trim(bchm_varNameList(jvar))) exit
     end do
     if  (jvar.gt.numvar3d+numvar2d) call varAbort('BCHM_corvert_mult: Variable not found')
     
@@ -2326,7 +2479,7 @@ CONTAINS
     
     rmat_work(:,:)=0.0D0
 
-    if (itype.eq.3) then
+    if (itype == 3) then
 
 !      A*C*A^T
        
@@ -2351,7 +2504,7 @@ CONTAINS
        end do
        end do
  
-    else if (itype.eq.-3) then
+    else if (itype == -3) then
 
 !      A*CI*A^T
        
@@ -2377,7 +2530,7 @@ CONTAINS
        end do
        end do
       
-    else if (itype.eq.2) then
+    else if (itype == 2) then
     
 !      C*A
 
@@ -2400,7 +2553,7 @@ CONTAINS
           end do
        endif
 
-    else if (itype.eq.-2) then
+    else if (itype == -2) then
     
 !      CI*A
 
@@ -2423,7 +2576,7 @@ CONTAINS
           end do
        endif
           
-    else if (itype.eq.1) then
+    else if (itype == 1) then
     
 !      A*C
 
@@ -2443,7 +2596,7 @@ CONTAINS
           end do
        endif
           
-    else if (itype.eq.-1) then
+    else if (itype == -1) then
 
 !      A*CI
 
@@ -2463,7 +2616,7 @@ CONTAINS
           end do
        endif
 
-    else if (itype.eq.0) then
+    else if (itype == 0) then
 
 !      Instead of A*CI do D(i,j)=A(i,j)/sum(C(1:n,i))
 
@@ -2528,7 +2681,7 @@ CONTAINS
 !   Determine location and size of background error std. dev.
 
     do jvar=1,numvar3d+numvar2d
-       if (trim(varName).eq.trim(bchm_varNameList(jvar))) exit
+       if (trim(varName) == trim(bchm_varNameList(jvar))) exit
     end do
     if  (jvar.gt.numvar3d+numvar2d) call varAbort('BCHM_getsigma: Variable not found')
     
@@ -2579,7 +2732,7 @@ CONTAINS
 !   Apply interpolation
 
     itype=0
-    if (itype.eq.0) then
+    if (itype == 0) then
     
 !     Interpolation of variances and take square root
     
