@@ -15,14 +15,14 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-! > MODULE CalcBMatrix_lam_mod (prefix="calcb_lam")
+! > MODULE CalcStatsLam_mod (prefix="csl")
 !
 ! Purpose: Compute homogeneous and isotropic background error covariances 
 !          from forecast error estimate in model variable space
 !
 ! - Subroutines
-!    calcb_lam_Setup        (public)
-!    calcb_lam_computeStats (public)
+!    csl_Setup        (public)
+!    csl_computeStats (public)
 !
 ! - Public variables
 !    NONE
@@ -30,19 +30,20 @@
 ! - Dependencies
 !    lamspectraltransform
 !--------------------------------------------------------------------------
-module calcbmatrix_lam_mod
+module calcstatslam_mod
   use gridStateVector_mod
   use LamSpectralTransform_mod
   use LamAnalysisGrid_mod
   use HorizontalCoord_mod
   use localizationFunction_mod
+  use utilities_mod
   implicit none
   save
   private
 
   ! Public Subroutines
-  public :: calcb_lam_setup, calcb_lam_computeStats
-  public :: calcb_lam_toolbox
+  public :: csl_setup, csl_computeStats
+  public :: csl_toolbox
 
   type(struct_hco), pointer :: hco_ens ! Ensemble horizontal grid parameters
   type(struct_hco), pointer :: hco_bhi ! B matrix horizontal grid parameters
@@ -90,9 +91,9 @@ module calcbmatrix_lam_mod
   contains
 
 !--------------------------------------------------------------------------
-! CALCB_LAM_SETUP
+! CSL_SETUP
 !--------------------------------------------------------------------------
-    subroutine calcb_lam_setup( nens_in, cflens_in, hco_ens_in, vco_ens_in)
+    subroutine csl_setup( nens_in, cflens_in, hco_ens_in, vco_ens_in)
     use vGrid_Descriptors , only: vgrid_descriptor, vgd_levels, VGD_OK  
     implicit none
 
@@ -112,14 +113,14 @@ module calcbmatrix_lam_mod
 
     logical :: mask(nMaxControlVar)
 
-    NAMELIST /NAMCALCB_LAM/ntrunc,grd_ext_x,grd_ext_y,WindTransform,NormByStdDev,&
+    NAMELIST /NAMCALCSTATS_LAM/ntrunc,grd_ext_x,grd_ext_y,WindTransform,NormByStdDev,&
          SetTGtoZero,writeEnsPert,SpectralWeights,&
          vLocalize_wind,vlocalize_mass,vlocalize_humidity,&
          hLocalize_wind,hlocalize_mass,hlocalize_humidity
     NAMELIST /NAMSTATE/CGNEED
 
     write(*,*)
-    write(*,*) 'calcb_lam_setup: Starting...'
+    write(*,*) 'csl_setup: Starting...'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     !
@@ -144,7 +145,7 @@ module calcbmatrix_lam_mod
     end if
 
     !
-    !- 2. Read namelist NAMCALCB_LAM
+    !- 2. Read namelist NAMCALCSTATS_LAM
     !
     ntrunc        = 75       ! Default value
     grd_ext_x     = 10       ! Default value
@@ -164,8 +165,8 @@ module calcbmatrix_lam_mod
     nulnam = 0
 
     ier=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-    read (nulnam,nml=namcalcb_lam)
-    write(*     ,nml=namcalcb_lam)
+    read (nulnam,nml=namcalcstats_lam)
+    write(*     ,nml=namcalcstats_lam)
     ier=fclos(nulnam)
 
     write(*,*)
@@ -181,7 +182,7 @@ module calcbmatrix_lam_mod
     case default
        write(*,*)
        write(*,*) 'Unknown spectral weights TYPE : ', trim(SpectralWeights)
-       call utl_abort('calcb_lam_setup')
+       call utl_abort('csl_setup')
     end select
 
     !
@@ -243,7 +244,7 @@ module calcbmatrix_lam_mod
           else
              write(*,*)
              write(*,*) 'Wind Transform not available ', trim((WindTransform))
-             call utl_abort('calcb_lam_setup')
+             call utl_abort('csl_setup')
           end if
           ControlVariable(var)%nomvar(cv_bhi) = trim(momentumControlVar(1))
        else if ( ControlVariable(var)%nomvar(cv_model) == 'VV' ) then
@@ -256,7 +257,7 @@ module calcbmatrix_lam_mod
           else
              write(*,*)
              write(*,*) 'Wind Transform not available ', trim((WindTransform))
-             call utl_abort('calcb_lam_setup')
+             call utl_abort('csl_setup')
           end if
           ControlVariable(var)%nomvar(cv_bhi) = momentumControlVar(2)
        else
@@ -308,22 +309,22 @@ module calcbmatrix_lam_mod
     !- 5.1 Setup horizontal localization
     if ( hLocalize_wind < 0.d0 .and. hLocalize_mass < 0.d0 .and. hLocalize_humidity < 0.d0 ) then
        write(*,*) 
-       write(*,*) 'calcb_lam_setup: NO horizontal correlation localization will be performed'
+       write(*,*) 'csl_setup: NO horizontal correlation localization will be performed'
        horizLoc=.false.
     else
        write(*,*) 
-       write(*,*) 'calcb_lam_setup: horizontal correlation localization WILL BE performed'
+       write(*,*) 'csl_setup: horizontal correlation localization WILL BE performed'
        horizLoc=.true.
     end if
 
     !- 5.2 Setup vertical pressure profile for vertical localization
     if ( vLocalize_wind < 0.d0 .and. vLocalize_mass < 0.d0 .and. vLocalize_humidity < 0.d0 ) then
        write(*,*) 
-       write(*,*) 'calcb_lam_setup: NO vertical correlation localization will be performed'
+       write(*,*) 'csl_setup: NO vertical correlation localization will be performed'
        vertLoc=.false.
     else
        write(*,*) 
-       write(*,*) 'calcb_lam_setup: vertical correlation localization WILL BE performed'
+       write(*,*) 'csl_setup: vertical correlation localization WILL BE performed'
        vertLoc=.true.
 
        SurfacePressure = 101000.D0
@@ -334,8 +335,8 @@ module calcbmatrix_lam_mod
 
        if ( status /= VGD_OK ) then
           write(*,*)
-          write(*,*) 'calcb_lam_setup: ERROR with vgd_levels for MOMENTUM levels '
-          call utl_abort('calcb_lam_setup')
+          write(*,*) 'csl_setup: ERROR with vgd_levels for MOMENTUM levels '
+          call utl_abort('csl_setup')
        else
           write(*,*)
           write(*,*) 'Pressure profile...'
@@ -350,8 +351,8 @@ module calcbmatrix_lam_mod
 
        if ( status /= VGD_OK ) then
           write(*,*)
-          write(*,*) 'calcb_lam_setup: ERROR with vgd_levels for THERMO levels '
-          call utl_abort('calcb_lam_setup')
+          write(*,*) 'csl_setup: ERROR with vgd_levels for THERMO levels '
+          call utl_abort('csl_setup')
        else
           write(*,*)
           write(*,*) 'Pressure profile...'
@@ -369,14 +370,14 @@ module calcbmatrix_lam_mod
 
     write(*,*)
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    write(*,*) 'calcb_lam_setup: Done!'
+    write(*,*) 'csl_setup: Done!'
 
-  end subroutine calcb_lam_setup
+  end subroutine csl_setup
 
 !--------------------------------------------------------------------------
-! CALCB_LAM_ComputeStats
+! CSL_ComputeStats
 !--------------------------------------------------------------------------
-  subroutine calcb_lam_computeStats
+  subroutine csl_computeStats
     implicit none
 
     integer :: ier
@@ -399,69 +400,69 @@ module calcbmatrix_lam_mod
     integer,allocatable :: Bin2dGridPoint(:,:)
 
     write(*,*)
-    write(*,*) 'calcb_lam_computeStats: Starting...'
+    write(*,*) 'csl_computeStats: Starting...'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     allocate(ensPerturbations(hco_bhi%ni,hco_bhi%nj,nkgdim,nens),stat=ier)
     if(ier /= 0) then
       write(*,*) 'Problem allocating ensPerturbations memory!',ier
       write(*,*)  hco_bhi%ni,hco_bhi%nj,nkgdim,nens
-      call utl_abort('calcb_lam_computeStats') 
+      call utl_abort('csl_computeStats') 
     endif
     allocate(ensMean3d(hco_bhi%ni,hco_bhi%nj,nkgdim),stat=ier)
     if (ier /= 0) then
       write(*,*) 'Problem allocating ensMean3d memory!',ier
-      call utl_abort('calcb_lam_computeStats')
+      call utl_abort('csl_computeStats')
     end if
     allocate(Bin2d(hco_bhi%ni,hco_bhi%nj),stat=ier)
     if (ier /= 0) then
       write(*,*) 'Problem allocating Bin2d memory!',ier
-      call utl_abort('calcb_lam_computeStats')
+      call utl_abort('csl_computeStats')
     end if
     allocate(Bin2dGridPoint(hco_bhi%ni,hco_bhi%nj),stat=ier)
     if (ier /= 0) then
       write(*,*) 'Problem allocating Bin2d memory!',ier
-      call utl_abort('calcb_lam_computeStats')
+      call utl_abort('csl_computeStats')
     end if
     allocate(StdDev3d(hco_bhi%ni,hco_bhi%nj,nkgdim),stat=ier)
     if (ier /= 0) then
       write(*,*) 'Problem allocating StdDev3d memory!',ier
-      call utl_abort('calcb_lam_computeStats')
+      call utl_abort('csl_computeStats')
     end if
     allocate(StdDev3dGridPoint(hco_bhi%ni,hco_bhi%nj,nkgdim),stat=ier)
     if (ier /= 0) then
       write(*,*) 'Problem allocating StdDev3dGridPoint memory!',ier
-      call utl_abort('calcb_lam_computeStats')
+      call utl_abort('csl_computeStats')
     end if
     allocate(SpVertCorrel(nkgdim,nkgdim,0:ntrunc),stat=ier)
     if(ier.ne.0) then
       write(*,*) 'Problem allocating SpVertCorrel memory!',ier
-      call utl_abort('calcb_lam_computeStats')
+      call utl_abort('csl_computeStats')
     endif
     allocate(TotVertCorrel(nkgdim,nkgdim),stat=ier)
     if(ier.ne.0) then
       write(*,*) 'Problem allocating TotVertCorrel memory!',ier
-      call utl_abort('calcb_lam_computeStats')
+      call utl_abort('csl_computeStats')
     endif
     allocate(PowerSpectrum(nkgdim,0:ntrunc),stat=ier)
     if(ier.ne.0) then
       write(*,*) 'Problem allocating PowerSpectrum memory!',ier
-      call utl_abort('calcb_lam_computeStats')
+      call utl_abort('csl_computeStats')
     endif
     allocate(NormB(nkgdim,nkgdim,0:ntrunc),stat=ier)
     if(ier.ne.0) then
       write(*,*) 'Problem allocating Bsqrt memory!',ier
-      call utl_abort('calcb_lam_computeStats')
+      call utl_abort('csl_computeStats')
     endif
     allocate(NormBsqrt(nkgdim,nkgdim,0:ntrunc),stat=ier)
     if(ier.ne.0) then
       write(*,*) 'Problem allocating Bsqrt memory!',ier
-      call utl_abort('calcb_lam_computeStats')
+      call utl_abort('csl_computeStats')
     endif
     allocate(HorizScale(nkgdim),stat=ier)
     if(ier.ne.0) then
       write(*,*) 'Problem allocating HorizScale memory!',ier
-      call utl_abort('calcb_lam_computeStats')
+      call utl_abort('csl_computeStats')
     endif
 
     ensPerturbations(:,:,:,:) = 0.d0
@@ -570,14 +571,14 @@ module calcbmatrix_lam_mod
 
     write(*,*)
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    write(*,*) 'calcb_lam_computeStats: Done!'
+    write(*,*) 'csl_computeStats: Done!'
 
-  end subroutine calcb_lam_computeStats
+  end subroutine csl_computeStats
 
 !--------------------------------------------------------------------------
-! CALCB_LAM_TOOLBOOX
+! CSL_TOOLBOOX
 !--------------------------------------------------------------------------
-  subroutine calcb_lam_toolbox
+  subroutine csl_toolbox
     implicit none
 
     integer :: nulnam, ier, fstouv, fnom, fstfrm, fclos
@@ -602,7 +603,7 @@ module calcbmatrix_lam_mod
     NAMELIST /NAMTOOLBOX/tool
 
     write(*,*)
-    write(*,*) 'calcb_lam_toolbox: Starting...'
+    write(*,*) 'csl_toolbox: Starting...'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     !
@@ -623,7 +624,7 @@ module calcbmatrix_lam_mod
        write(*,*) 'Computing horizontal correlation functions'
     case default
        write(*,*)
-       write(*,*) 'Unknown TOOL in calcb_lam_toolbox : ', trim(tool)
+       write(*,*) 'Unknown TOOL in csl_toolbox : ', trim(tool)
        call utl_abort('calbmatrix_lam')
     end select
 
@@ -634,22 +635,22 @@ module calcbmatrix_lam_mod
     if(ier /= 0) then
       write(*,*) 'Problem allocating ensPerturbations memory!',ier
       write(*,*)  hco_bhi%ni,hco_bhi%nj,nkgdim,nens
-      call utl_abort('calcb_lam_computeStats') 
+      call utl_abort('csl_computeStats') 
     endif
     allocate(ensMean3d(hco_bhi%ni,hco_bhi%nj,nkgdim),stat=ier)
     if (ier /= 0) then
       write(*,*) 'Problem allocating ensMean3d memory!',ier
-      call utl_abort('calcb_lam_computeStats')
+      call utl_abort('csl_computeStats')
     end if
     allocate(StdDev3dGridPoint(hco_bhi%ni,hco_bhi%nj,nkgdim),stat=ier)
     if (ier /= 0) then
       write(*,*) 'Problem allocating StdDev3dGridPoint memory!',ier
-      call utl_abort('calcb_lam_computeStats')
+      call utl_abort('csl_computeStats')
     end if
     allocate(Bin2d(hco_bhi%ni,hco_bhi%nj),stat=ier)
     if (ier /= 0) then
       write(*,*) 'Problem allocating Bin2d memory!',ier
-      call utl_abort('calcb_lam_computeStats')
+      call utl_abort('csl_computeStats')
     end if
 
     ensPerturbations(:,:,:,:) = 0.d0
@@ -768,9 +769,9 @@ module calcbmatrix_lam_mod
 
     write(*,*)
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    write(*,*) 'calcb_lam_toolbox: Done!'
+    write(*,*) 'csl_toolbox: Done!'
 
-  end subroutine calcb_lam_toolbox
+  end subroutine csl_toolbox
 
 !--------------------------------------------------------------------------
 ! CreateLamTemplateGrids
@@ -945,9 +946,9 @@ module calcbmatrix_lam_mod
     ig3       =  0
     ig4       =  0
 
-    ier = utl_fstecr(Field2d, work, npak,                               &
+    ier = utl_fstecr(Field2d, npak,                                  &
                      iun, dateo, deet, npas, ni_ext, nj_ext, 1, ip1, &
-                     ip2, ip3, typvar, 'P0', etiket, grtyp, ig1,        &
+                     ip2, ip3, typvar, 'P0', etiket, grtyp, ig1,     &
                      ig2, ig3, ig4, datyp, .true.)
 
     deallocate(Field2d)
@@ -3294,4 +3295,4 @@ module calcbmatrix_lam_mod
 
   end subroutine WriteControlVarInfo
 
-end module calcbmatrix_lam_mod
+end module calcstatslam_mod

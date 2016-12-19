@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-module calcbmatrix_glb_mod
+module calcstatsglb_mod
   use gridStateVector_mod
   use globalSpectralTransform
   use MathPhysConstants_mod
@@ -27,8 +27,8 @@ module calcbmatrix_glb_mod
   private
 
   ! Public Subroutines
-  public :: calcb_glb_setup, calcb_glb_computeStats, calcb_glb_stddev
-  public :: calcb_glb_toolbox, calcb_glb_powerspec
+  public :: csg_setup, csg_computeStats, csg_stddev
+  public :: csg_toolbox, csg_powerspec
 
   type(struct_hco), pointer :: hco_ens ! Ensemble horizontal grid parameters
 
@@ -58,9 +58,9 @@ module calcbmatrix_glb_mod
   contains
 
 !--------------------------------------------------------------------------
-! CALCB_GLB_SETUP
+! CSG_SETUP
 !--------------------------------------------------------------------------
-  subroutine calcb_glb_setup( nens_in, cflens_in, hco_in, vco_in)
+  subroutine csg_setup( nens_in, cflens_in, hco_in, vco_in)
     implicit none
 
     integer, intent(in)            :: nens_in
@@ -75,10 +75,10 @@ module calcbmatrix_glb_mod
 
     real(8) :: zps
 
-    NAMELIST /NAMCALCB_GLB/ntrunc,waveBandPeaks
+    NAMELIST /NAMCALCSTATS_GLB/ntrunc,waveBandPeaks
 
     write(6,*)
-    write(6,*) 'calcb_glb_setup: Starting...'
+    write(6,*) 'csg_setup: Starting...'
 
     nens=nens_in
     allocate(cflensin(nens))
@@ -91,8 +91,8 @@ module calcbmatrix_glb_mod
 
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-    read(nulnam,nml=namcalcb_glb)
-    write(*,nml=namcalcb_glb)
+    read(nulnam,nml=NAMCALCSTATS_GLB)
+    write(*,nml=NAMCALCSTATS_GLB)
     ierr=fclos(nulnam)
 
     !- Setup horizontal grid
@@ -173,14 +173,14 @@ module calcbmatrix_glb_mod
     ! Make sure that the wavenumbers are in the correct (decreasing) order
     do waveBandIndex = 1, nWaveBand-1
        if ( waveBandPeaks(waveBandIndex)-waveBandPeaks(waveBandIndex+1) <= 0 ) then
-          write(6,*) 'calcb_glb_setup: waveBandPeaks are not in decreasing wavenumber order'
+          write(6,*) 'csg_setup: waveBandPeaks are not in decreasing wavenumber order'
           call utl_abort('calbmatrix_glb')
        end if
     end do
 
     ! Make sure the truncation is compatible with the waveBandPeaks
     if ( ntrunc < nj-1 .and. nWaveBand > 1 ) then
-       write(6,*) 'calcb_glb_setup: The truncation is not compatible with wave band decomposition'
+       write(6,*) 'csg_setup: The truncation is not compatible with wave band decomposition'
        write(6,*) '                 ntrunc should = ', nj-1
        call utl_abort('calbmatrix_glb')
     end if
@@ -191,14 +191,14 @@ module calcbmatrix_glb_mod
     initialized = .true.
 
     write(6,*)
-    write(6,*) 'calcb_glb_setup: Done!'
+    write(6,*) 'csg_setup: Done!'
 
-  end subroutine calcb_glb_setup
+  end subroutine csg_setup
 
 !--------------------------------------------------------------------------
-! CALCB_GLB_COMPUTESTATS
+! CSG_COMPUTESTATS
 !--------------------------------------------------------------------------
-  subroutine calcb_glb_computeStats
+  subroutine csg_computeStats
     implicit none
     integer :: ierr
     real*4,pointer  :: ensPerturbations(:,:,:,:)
@@ -313,12 +313,12 @@ module calcbmatrix_glb_mod
     write(403,*) stddevZonAvgUnbal((1+2*nlevEns_M+1*nlevEns_T):(2*nlevEns_M+2*nlevEns_T),:)
     write(404,*) stddevZonAvgUnbal((1+2*nlevEns_M+2*nlevEns_T),:)/1.0d2
 
-  end subroutine calcb_glb_computeStats
+  end subroutine csg_computeStats
 
 !--------------------------------------------------------------------------
-! CALCB_GLB_TOOLBOOX
+! CSG_TOOLBOOX
 !--------------------------------------------------------------------------
-  subroutine calcb_glb_toolbox
+  subroutine csg_toolbox
     implicit none
 
     ! NOTE: The diagnostic computed here are in model variable space 
@@ -338,7 +338,7 @@ module calcbmatrix_glb_mod
     NAMELIST /NAMTOOLBOX/tool
 
     write(6,*)
-    write(6,*) 'calcb_glb_toolbox'
+    write(6,*) 'csg_toolbox'
     write(6,*)
 
     variableType = modelSpace
@@ -364,7 +364,7 @@ module calcbmatrix_glb_mod
        write(6,*) 'Estimating the optimal covariance localization radii'
     case default
        write(6,*)
-       write(6,*) 'Unknown TOOL in calcb_glb_toolbox : ', trim(tool)
+       write(6,*) 'Unknown TOOL in csg_toolbox : ', trim(tool)
        call utl_abort('calbmatrix_glb')
     end select
 
@@ -427,12 +427,12 @@ module calcbmatrix_glb_mod
     !
     call writePressureProfiles
 
-  end subroutine calcb_glb_toolbox
+  end subroutine csg_toolbox
 
 !--------------------------------------------------------------------------
-! CALCB_GLB_POWERSPEC
+! CSG_POWERSPEC
 !--------------------------------------------------------------------------
-  subroutine calcb_glb_powerspec
+  subroutine csg_powerspec
     implicit none
 
     ! NOTE: The diagnostic computed here are in model variable space 
@@ -446,7 +446,7 @@ module calcbmatrix_glb_mod
     real*8,allocatable :: powerSpec(:,:)
 
     write(6,*)
-    write(6,*) 'calcb_glb_powerspec'
+    write(6,*) 'csg_powerspec'
     write(6,*)
     
     variableType = modelSpace
@@ -464,12 +464,12 @@ module calcbmatrix_glb_mod
 
     call writePowerSpec(powerSpec, variableType) ! IN
 
-  end subroutine calcb_glb_powerspec
+  end subroutine csg_powerspec
 
 !--------------------------------------------------------------------------
-! CALCB_GLB_STDDEV
+! CSG_STDDEV
 !--------------------------------------------------------------------------
-  subroutine calcb_glb_stddev
+  subroutine csg_stddev
     implicit none
     integer :: ierr
     real*4,pointer  :: ensPerturbations(:,:,:,:)
@@ -500,7 +500,7 @@ module calcbmatrix_glb_mod
     write(203,*) stddevZonAvg((1+2*nlevEns_M+1*nlevEns_T):(2*nlevEns_M+2*nlevEns_T),:)
     write(204,*) stddevZonAvg((1+2*nlevEns_M+2*nlevEns_T),:)/1.0d2
 
-  end subroutine calcb_glb_stddev
+  end subroutine csg_stddev
 
 !--------------------------------------------------------------------------
 ! WRITESPSTATS
@@ -850,23 +850,23 @@ module calcbmatrix_glb_mod
     idateo = 0
 
     if (present(ptot)) then
-       ierr = utl_fstecr(ptot(1,1,1),ipak,nulstats,idateo,0,0,nlevEns_T+1,nlevEns_M,nj,  &
+       ierr = utl_fstecr(ptot,ipak,nulstats,idateo,0,0,nlevEns_T+1,nlevEns_M,nj,  &
                       ip1,ip2,ip3,'X','ZZ','P_to_T  ','X',0,0,0,0,idatyp,.true.)
     end if
     if (present(theta)) then
-       ierr = utl_fstecr(theta(1,1),ipak,nulstats,idateo,0,0,nlevEns_M,nj,1,   &
+       ierr = utl_fstecr(theta,ipak,nulstats,idateo,0,0,nlevEns_M,nj,1,   &
                       ip1,ip2,ip3,'X','ZZ','THETA   ','X',0,0,0,0,idatyp,.true.)
     end if
 
     do jn = 0, ntrunc
       ip2 = jn
-      ierr = utl_fstecr(corns(1,1,jn),ipak,nulstats,idateo,0,0,nkgdimEns,nkgdimEns,1,  &
+      ierr = utl_fstecr(corns(:,:,jn),ipak,nulstats,idateo,0,0,nkgdimEns,nkgdimEns,1,  &
                      ip1,ip2,ip3,'X','ZZ','CORRNS  ','X',0,0,0,0,idatyp,.true.)
     enddo
 
     do jn = 0, ntrunc
       ip2 = jn
-      ierr = utl_fstecr(rstddev(1,jn),ipak,nulstats,idateo,0,0,nkgdimEns,1,1,   &
+      ierr = utl_fstecr(rstddev(:,jn),ipak,nulstats,idateo,0,0,nkgdimEns,1,1,   &
                      ip1,ip2,ip3,'X','SS','RSTDDEV ','X',0,0,0,0,idatyp,.true.)
     enddo
 
@@ -891,7 +891,7 @@ module calcbmatrix_glb_mod
       enddo
     enddo
     ip2 =0
-    ierr = utl_fstecr(prcor(1,1),ipak,nulstats,idateo,0,0,nkgdimEns,nkgdimEns,1,   &
+    ierr = utl_fstecr(prcor(:,:),ipak,nulstats,idateo,0,0,nkgdimEns,nkgdimEns,1,   &
                    ip1,ip2,ip3,'X','ZV','CORVERT ','X',0,0,0,0,idatyp,.true.)
 
     ierr =  fstfrm(nulstats)
@@ -1189,7 +1189,7 @@ module calcbmatrix_glb_mod
 ! SPECTRALFILTER
 !--------------------------------------------------------------------------
   subroutine spectralFilter(ensPerturbations,nlev,waveBandIndex)
-    use filterResponseFunction_mod
+    use spectraltransform_mod
     implicit none
     real*4,pointer :: ensPerturbations(:,:,:,:)
     integer, intent(in) :: nlev
@@ -1216,7 +1216,7 @@ module calcbmatrix_glb_mod
        outfilename = "./ResponseFunction_"//wbnum//".txt"
        open (unit=99,file=outfilename,action="write",status="new")
        do jn = 0, ntrunc
-          ResponseFunction(jn) = FilterResponseFunction(dble(jn),waveBandIndex, waveBandPeaks, nWaveBand)
+          ResponseFunction(jn) = spt_filterResponseFunction(dble(jn),waveBandIndex, waveBandPeaks, nWaveBand)
           if ( jn /= 0) then
              waveLength=4.d0*asin(1.d0)*ra/dble(jn)
           else
@@ -3879,4 +3879,4 @@ module calcbmatrix_glb_mod
 
   end subroutine calcVertLocalizationRadii
 
-end module calcbmatrix_glb_mod
+end module calcstatsglb_mod
