@@ -184,7 +184,7 @@ SUBROUTINE burp_setupfiles(datestamp)
 
     INQUIRE(FILE=trim(burpin),EXIST=isExist_L)
     IF (.NOT. isExist_L )THEN
-      burpin=trim(CLVALU(JJ))
+      burpin=trim(burp_directory)//'/'//trim(CLVALU(JJ))
       INQUIRE(FILE=trim(burpin),EXIST=isExist_L)
     END IF
     IF ( isExist_L )THEN
