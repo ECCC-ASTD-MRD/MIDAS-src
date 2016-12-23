@@ -8,16 +8,15 @@
 #
 # User-defined options
 #
-flnml="namelist_glb_p7.nml"
+flnml="namelist_lam_p7.nml"
 machine="hadar"
-gest="/users/dor/arma/bue/power7/test_calcstats/feeaf54_M"
-ensdir="/users/dor/arma/bue/power7/nmc800x400/k5_redo"
-#ensdir="/users/dor/arma/gr3/data_gpfs/var/gonzalo/ensemble/interpEnsTrials/gaussian_grid"
-abs="/users/dor/arma/bue/home01/3dvar_git/compiledir_calcstats/calcstats_p7.abs"
+gest="/users/dor/arma/gr3/data_gpfs/var/national_10km/test_scalingRandomPert/stddev_ens_raw/output"
+ensdir="/users/dor/arma/gr3/data_gpfs/maestro/UnitTests/EnVar_LAM/work/20140702000000/Tests/EnVar_LAM/UnitTest/envar/interpEnsTrials/output"
+abs="/users/dor/arma/gr3/home1/var/latest_trunk/compiledir_calcstats/calcstats_p7.abs"
 npex=1
 npey=1
 openmp=32
-maxcputime=10800
+maxcputime=600
 memory=3264M
 
 #
@@ -37,7 +36,8 @@ echo "Executable file name :" $abs_basename
 echo "Topology             :" ${npex}x${npey}x${openmp}
 echo
 
-ssh $machine rm -f $gest/*
+ssh $machine rm -rf $gest
+ssh $machine mkdir -p $gest  
 scp $flnml ${machine}:${gest}/flnml
 scp $abs ${machine}:${gest}/calcstats.abs
 ssh $machine ln -s ${ensdir} ${gest}/ensemble
@@ -45,11 +45,12 @@ ssh $machine ls -l $gest
 
 cat << EOF > $TMPDIR/go_calcstats.sh
  echo "!!STARTING SCRIPT!!"
+. ssmuse-sh -d rpn/utils/15.2
  ulimit -a
  cd $gest
  export TMG_ON=YES
- export LDR_CNTRL=TEXTPSIZE=64K@STACKPSIZE=64K@DATAPSIZE=64K@SHMPSIZE=64K@MAXDATA64=0x1900000000
- ./calcstats.abs
+ export MP_STDOUTMODE=ordered
+ r.run_in_parallel -pgm ./calcstats.abs -npex ${npex} -npey ${npey}
 EOF
 
 cat << EOF > $TMPDIR/ptopo_nml

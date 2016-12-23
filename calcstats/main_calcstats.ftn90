@@ -33,14 +33,15 @@ program main_calcstats
   integer           :: ens, fstopc
   integer           :: nulnam, ierr, fnom, fclos
 
-  integer           :: nens
+  integer           :: nens   ! Ensemble size
   integer           :: ip1(1)
+  integer           :: ip2    ! Ensemble lead time (hour) selected within the file
   character(len=256):: ensfilebasename
   character(len=60) :: mode
   character(len=2)  :: spatialDimensions
 
   NAMELIST /NAMCONF/mode
-  NAMELIST /NAMENS/nens,ensfilebasename,spatialDimensions,ip1
+  NAMELIST /NAMENS/nens,ensfilebasename,spatialDimensions,ip1,ip2
 
   !
   !- 1.  Initilization
@@ -60,6 +61,7 @@ program main_calcstats
   ensfilebasename   = '2011011918_006_' ! default value
   spatialDimensions = '3D'              ! default value
   ip1(:)            = -1                ! default value
+  ip2               = -1                ! default value
 
   nulnam = 0
   ierr   = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -110,7 +112,7 @@ program main_calcstats
   if (hco_ens % global) then
      call csg_setup( nens, cflensin, hco_ens, vco_ens) ! IN
   else
-     call csl_setup( nens, cflensin, hco_ens, vco_ens) ! IN
+     call csl_setup( nens, cflensin, hco_ens, vco_ens, ip2) ! IN
   end if
 
   !- 2.2 Mode selection

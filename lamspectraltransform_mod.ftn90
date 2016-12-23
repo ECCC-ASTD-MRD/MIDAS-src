@@ -142,21 +142,21 @@ contains
     real(8)                         :: NormFactor1, NormFactor2, NormFactor3
     real(8)                         :: NormFactorAd1, NormFactorAd2, NormFactorAd3
     real(8)                         :: factor, factorAd
-    integer                         :: nulnam, ierr, fnom, fclos
+    !integer                         :: nulnam, ierr, fnom, fclos
     character(len=60)               :: kreftype
 
-    NAMELIST /NAMSPECTRAL/kreftype
+    !NAMELIST /NAMSPECTRAL/kreftype
 
     !
     !- 0. Read namelist
     !
     kreftype = 'MAX' ! default value
 
-    nulnam = 0
-    ierr   = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-    read (nulnam,nml=NAMSPECTRAL)
-    write(*     ,nml=NAMSPECTRAL)
-    ierr=fclos(nulnam)
+    !nulnam = 0
+    !ierr   = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+    !read (nulnam,nml=NAMSPECTRAL)
+    !write(*     ,nml=NAMSPECTRAL)
+    !ierr=fclos(nulnam)
 
     !
     !- 1.  Set variables needed by the LAM Spectral Transform in VAR

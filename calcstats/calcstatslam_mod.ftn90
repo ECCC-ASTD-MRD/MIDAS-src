@@ -74,6 +74,7 @@ module calcstatslam_mod
   integer :: nens
   integer :: ntrunc
   integer :: nkgdim
+  integer :: ip2_ens
 
   logical :: initialized = .false.
   logical :: NormByStdDev, SetTGtoZero, writeEnsPert
@@ -93,7 +94,7 @@ module calcstatslam_mod
 !--------------------------------------------------------------------------
 ! CSL_SETUP
 !--------------------------------------------------------------------------
-    subroutine csl_setup( nens_in, cflens_in, hco_ens_in, vco_ens_in)
+    subroutine csl_setup( nens_in, cflens_in, hco_ens_in, vco_ens_in, ip2_in)
     use vGrid_Descriptors , only: vgrid_descriptor, vgd_levels, VGD_OK  
     implicit none
 
@@ -101,6 +102,7 @@ module calcstatslam_mod
     character(len=*),          intent(in)   :: cflens_in(nens_in)
     type(struct_vco), pointer, intent(in)   :: vco_ens_in
     type(struct_hco), pointer, intent(in)   :: hco_ens_in
+    integer,                   intent(in)   :: ip2_in
 
     integer :: nulnam, ier, status
     integer :: fclos, fnom, fstouv, fstfrm
@@ -143,6 +145,8 @@ module calcstatslam_mod
        write(*,*) 'Spatial dimensions = 3D'
        spatialDimensions = '3D'
     end if
+
+    ip2_ens = ip2_in
 
     !
     !- 2. Read namelist NAMCALCSTATS_LAM
@@ -622,6 +626,9 @@ module calcstatslam_mod
     case ('HORIZCORREL_FUNCTION')
        write(*,*)
        write(*,*) 'Computing horizontal correlation functions'
+    case ('STDDEV')
+       write(*,*)
+       write(*,*) 'Computing Standard-Deviations'
     case default
        write(*,*)
        write(*,*) 'Unknown TOOL in csl_toolbox : ', trim(tool)
@@ -689,6 +696,17 @@ module calcstatslam_mod
     call CalcStdDev3d(ensPerturbations,   & ! INOUT
                       StdDev3dGridPoint,  & ! OUT
                       Bin2d, NumBins2d)     ! IN
+
+    if ( trim(tool) == 'STDDEV' ) then
+       iunstats = 0
+       ier    = fnom(iunstats,'./stddev.fst','RND',0)
+       ier    = fstouv(iunstats,'RND')
+       call Write3d(StdDev3dGridPoint,iunstats,'STDDEV_GRIDP',cv_bhi) ! IN
+       call WriteTicTacToc(iunstats) ! IN
+       ier =  fstfrm(iunstats)
+       ier =  fclos (iunstats)
+       return
+    end if
 
     !- 5.2 Normalization
     call Normalize3d(ensPerturbations, & ! INOUT
@@ -999,7 +1017,7 @@ module calcstatslam_mod
     dateo  = -1
     etiket = ' '
     ip1    = -1
-    ip2    = -1
+    ip2    = ip2_ens
     ip3    = -1
     typvar = ' '
 
@@ -1107,7 +1125,7 @@ module calcstatslam_mod
 
           dateo  = -1
           ip1    = ControlVariable(var)%ip1(k)
-          ip2    = -1
+          ip2    = ip2_ens
           ip3    = -1
           typvar = ' '
           nomvar = trim(ControlVariable(var)%nomvar(cv_model))
@@ -1136,6 +1154,7 @@ module calcstatslam_mod
             write(*,*) 'nomvar =', trim(nomvar)
             write(*,*) 'etiket =', trim(etiket)
             write(*,*) 'ip1    =', ip1
+            write(*,*) 'ip2    =', ip2
             call utl_abort('ReadEnsemble')
           end if
 

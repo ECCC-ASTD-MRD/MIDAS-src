@@ -188,7 +188,7 @@ if [ "${mode}" == full ] ; then
   rm -f *.o *.mod *.cdk* *.h *.ftn* *.f *.f90
 
   # Create a local copy of the source code
-  sed "s!XXXXX!${revnum}!g" ${trunkdir}/toplevelcontrol_mod.ftn90_template > toplevelcontrol_mod.ftn90
+  sed "s!XXXXX!${revnum}!g" ${trunkdir}/toplevelcontrol_mod_template.ftn90 > toplevelcontrol_mod.ftn90
 
   cd ${trunkdir};          ls -1F | grep -v '/' | grep -v "*" | grep -v "@" | cpio -pl $compiledir ; cd $compiledir
   cd ${trunkdir}/bgcheck;  ls -1F | grep -v '/' | grep -v "*" | cpio -pl $compiledir ; cd $compiledir
@@ -289,7 +289,7 @@ if [ "${mode}" == full ] ; then
   echo "... > Compiling remaining ftn ftn90..."
   echo "...   if aborting, check in ${PWD}/listing7"
   filelist=""
-  for i in *.ftn *.ftn90 ; do
+  for i in *.ftn90 ; do
       if [[ "${i}" != *_mod.ftn* ]]; then
 	  filelist="$filelist ${i}"
       fi
