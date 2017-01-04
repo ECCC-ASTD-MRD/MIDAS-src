@@ -37,7 +37,7 @@ module obsFilter_mod
 
   integer filt_nelems,filt_nlist(30)
   integer filt_nflags,filt_nlistflg(15)
-  logical ltopofilt
+  logical ltopofilt,discardlandsfcwind
   real(8) :: filt_rlimlvhu
 
   ! topographic rejection criteria
@@ -104,7 +104,7 @@ contains
          'ELEMENT EXCEEDS CLIMATE EXTREME   ', &
          'ELEMENT MODIFIED OR GEN BY  ADE   '/
 
-    namelist /namfilt/nelems,nlist,nflags,nlistflg,ltopofilt,rlimlvhu
+    namelist /namfilt/nelems,nlist,nflags,nlistflg,ltopofilt,rlimlvhu,discardlandsfcwind
 
     ! set default values for namelist variables
     do jelem = 1, 30
@@ -130,6 +130,7 @@ contains
 
     ltopofilt = .true.
     rlimlvhu = 300.d0
+    discardlandsfcwind = .true.
 
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -943,6 +944,7 @@ contains
 
     DATA    IDLND / 12, 14, 146, 32, 35, 135, 136, 137, 138 /
     !
+    if ( .not. discardlandsfcwind ) return
     !
     ILISTEL(1)=BUFR_NEUS
     ILISTEL(2)=BUFR_NEVS
