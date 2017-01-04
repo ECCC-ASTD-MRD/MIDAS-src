@@ -44,7 +44,7 @@ program main_randomPert
   integer :: ierr,status
   integer :: jmem,i,j,k,nkgdim
   integer :: idate,itime,ndate,nulnam,cvDim_local
-  integer :: get_max_rss
+  integer :: get_max_rss,n_grid_point,n_grid_point_glb
 
   integer :: LatPerPE, myLatBeg, myLatEnd
   integer :: LonPerPE, myLonBeg, myLonEnd
@@ -52,15 +52,18 @@ program main_randomPert
   real(8), allocatable :: cvm_vazx_global(:)
   real(8), allocatable :: gdmean(:,:,:)
   real(4), allocatable :: ensemble_r4(:,:,:,:)
+  real(8), allocatable :: avg_pturb_var(:)
+  real(8), allocatable :: avg_pturb_var_glb(:)
+  real(8), allocatable :: pturb_var(:,:,:)
 
   character(len=10) :: cldate
   character(len=3)  :: clmember
   character(len=25) :: clfiname
   character(len=12) :: etiket
   
-  LOGICAL  :: REMOVE_MEAN
+  LOGICAL  :: REMOVE_MEAN,SMOOTH_VARIANCES
   INTEGER  :: NENS,SEED,DATE
-  NAMELIST /NAMENKF/NENS,SEED,DATE,REMOVE_MEAN
+  NAMELIST /NAMENKF/NENS,SEED,DATE,REMOVE_MEAN,SMOOTH_VARIANCES
 
   write(*,'(/,' //                                            &
             '3(" *****************"),/,' //                   &
@@ -246,8 +249,94 @@ program main_randomPert
 !$OMP END DO
 !$OMP END PARALLEL
   end if
+  
+  !- 4.3 Smooth variances to horizontally constant values
+  if ( SMOOTH_VARIANCES ) then
+  
+  allocate(pturb_var(myLonBeg:myLonEnd,myLatBeg:myLatEnd,statevector%nk))
+  allocate(avg_pturb_var(statevector%nk),avg_pturb_var_glb(statevector%nk))
+  pturb_var(:,:,:) = 0.0D0
+  avg_pturb_var(:) = 0.0D0
+  avg_pturb_var_glb(:) = 0.0D0
+  
+  do jmem = 1, NENS  
+!$OMP PARALLEL
+!$OMP DO PRIVATE (i,j,k)  
+     do k = 1, nkgdim
+        do j = myLatBeg, myLatEnd
+           do i = myLonBeg, myLonEnd
+                 pturb_var(i,j,k) = pturb_var(i,j,k) + real(ensemble_r4(i,j,k,jmem),8)**2
+           end do
+        end do
+     end do
+!$OMP END DO
+!$OMP END PARALLEL
+  end do
+  
+!$OMP PARALLEL
+!$OMP DO PRIVATE (i,j,k)  
+     do k = 1, nkgdim
+        do j = myLatBeg, myLatEnd
+           do i = myLonBeg, myLonEnd
+              pturb_var(i,j,k) = pturb_var(i,j,k) / real(NENS,8)
+           end do
+        end do
+     end do
+!$OMP END DO
+!$OMP END PARALLEL
+  
+  do j = myLatBeg, myLatEnd
+     do i = myLonBeg, myLonEnd
+!$OMP PARALLEL
+!$OMP DO PRIVATE (k)  
+        do k = 1, nkgdim
+           avg_pturb_var(k) = avg_pturb_var(k) + pturb_var(i,j,k)
+        end do
+!$OMP END DO
+!$OMP END PARALLEL
+     end do
+  end do
+  
+  n_grid_point=(1+myLonEnd-myLonBeg)*(1+myLatEnd-myLatBeg)
+  call rpn_comm_allreduce(n_grid_point,n_grid_point_glb,1,"mpi_double_precision","mpi_sum","GRID",ierr)
+  call rpn_comm_allreduce(avg_pturb_var,avg_pturb_var_glb,nkgdim,"mpi_double_precision","mpi_sum","GRID",ierr)
+  
+!$OMP PARALLEL
+!$OMP DO PRIVATE (i,j,k)  
+     do k = 1, nkgdim
+        do j = myLatBeg, myLatEnd
+           do i = myLonBeg, myLonEnd
+              pturb_var(i,j,k) = sqrt( pturb_var(i,j,k))
+           end do
+        end do
+     end do
+!$OMP END DO
+!$OMP END PARALLEL
+  
+!$OMP PARALLEL
+!$OMP DO PRIVATE (k)  
+     do k = 1, nkgdim
+        avg_pturb_var_glb(k) = sqrt( avg_pturb_var_glb(k) / real(n_grid_point_glb,8) )
+     end do
+!$OMP END DO
+!$OMP END PARALLEL
 
-  !- 4.3 Write the perturbations
+!$OMP PARALLEL
+!$OMP DO PRIVATE (i,j,k,jmem)    
+     do jmem = 1, NENS
+        do k = 1, nkgdim
+           do j = myLatBeg, myLatEnd
+              do i = myLonBeg, myLonEnd
+                 ensemble_r4(i,j,k,jmem) = ensemble_r4(i,j,k,jmem) * real(avg_pturb_var_glb(k)/pturb_var(i,j,k),4)
+              end do
+           end do
+        end do
+     end do
+!$OMP END DO
+!$OMP END PARALLEL
+  end if
+
+  !- 4.4 Write the perturbations
   do jmem = 1,NENS
      write(*,*)
      write(*,*) ' pre-processing for writing member number= ',jmem
