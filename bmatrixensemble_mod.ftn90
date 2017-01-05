@@ -107,7 +107,7 @@ MODULE BmatrixEnsemble
 
   real(8), parameter :: rsq2 = sqrt(2.0d0)
 
-  character(len=2)   :: ctrlVarHumidity
+  character(len=2)   :: ctrlVarHumidity,ENSctrlVarHumidity
 
   logical            :: gsv_HUcontainsLQ
 
@@ -198,6 +198,7 @@ CONTAINS
     tweakTG          = .false.
     ctrlVarHumidity  = 'LQ'
     advectAmplitudeFactor = 0.0D0
+    ENSctrlVarHumidity  = 'HU'
 
     nulnam = 0
     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -825,13 +826,22 @@ CONTAINS
               endif                
               ikey = fstlir(gd3d_r4(:,:,jk),kulin,ni_fst,nj_fst,nk_fst,dateStampList(jstep),etiket,ip1,ip2,ip3,typvar,vnl_varNameList(jvar))
               if (ikey.lt.0) then
-                write(*,*) dateStampList(jstep),etiket,nip1_T(jk),ip2,ip3,typvar,vnl_varNameList(jvar)
-                call utl_abort('ben setupEnsemble: Problem reading member')
+                if (trim(vnl_varNameList(jvar)) == 'HU') then
+                  ikey = fstlir(gd3d_r4(:,:,jk),kulin,ni_fst,nj_fst,nk_fst,dateStampList(jstep),etiket,ip1,ip2,ip3,typvar,'LQ')
+                  if (ikey.lt.0) then
+                    call abort3d('ben setupEnsemble: Problem reading member')
+                  else
+                    ENSctrlVarHumidity='LQ'
+                  endif
+                else
+                  write(*,*) dateStampList(jstep),etiket,nip1_T(jk),ip2,ip3,typvar,vnl_varNameList(jvar)
+                  call abort3d('ben setupEnsemble: Problem reading member')
+                endif
               endif
             enddo ! level
 
             !  Transfer to statevector_ensFcst_r4
-            if (trim(vnl_varNameList(jvar)) == 'HU' .and. ctrlVarHumidity == 'LQ' ) then
+            if (trim(vnl_varNameList(jvar)) == 'HU' .and. ctrlVarHumidity == 'LQ' .and. ENSctrlVarHumidity == 'HU' ) then
 !$OMP PARALLEL DO PRIVATE(jk,jj,ji)
               do jk = 1, nlev
                 do jj = 1, nj_transfer
@@ -841,7 +851,7 @@ CONTAINS
                 enddo
               enddo
 !$OMP END PARALLEL DO
-            else if (trim(vnl_varNameList(jvar)) == 'HU' .and. ctrlVarHumidity == 'HU' ) then
+            else if (trim(vnl_varNameList(jvar)) == 'HU' .and. ctrlVarHumidity == 'HU' .and. ENSctrlVarHumidity == 'HU' ) then
 !$OMP PARALLEL DO PRIVATE(jk,jj,ji)
               do jk = 1, nlev
                 do jj = 1, nj_transfer
@@ -850,7 +860,19 @@ CONTAINS
                   enddo
                 enddo
               enddo
-!$OMP END PARALLEL DO              
+!$OMP END PARALLEL DO
+            else if (trim(vnl_varNameList(jvar)) == 'HU' .and. ctrlVarHumidity == 'LQ' .and. ENSctrlVarHumidity == 'LQ' ) then
+!$OMP PARALLEL DO PRIVATE(jk,jj,ji)
+              do jk = 1, nlev
+                do jj = 1, nj_transfer
+                  do ji = 1, ni_transfer
+                    ptr3d_r4(ji,jj,jk) = sngl(real(gd3d_r4(ji,jj,jk),8))
+                  enddo
+                enddo
+              enddo
+!$OMP END PARALLEL DO
+            else if (trim(vnl_varNameList(jvar)) == 'HU' .and. ctrlVarHumidity == 'HU' .and. ENSctrlVarHumidity == 'LQ' ) then
+              call abort3d('ben setupEnsemble: Problem with humidity variable (need to transform ENS LQ to HU in the code)')
             else
 !$OMP PARALLEL DO PRIVATE(jk,jj,ji)
               do jk = 1, nlev
