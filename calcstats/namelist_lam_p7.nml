@@ -1,5 +1,5 @@
  &NAMCONF
-   MODE   = 'TOOLBOX'
+   CMODE   = 'BHI'
 /
  &NAMSTATE
    CGNEED(1)   ='UU'
@@ -10,16 +10,18 @@
    CGNEED(6)   ='TG'
 /
  &NAMENS
-   NENS=32
-   ENSFILEBASENAME='2014070118_006_'
+   NENS=117
+   ENSFILEBASENAME='national_'
    IP2=6
 /
  &NAMCALCSTATS_LAM
-   NTRUNC    = 125
+   NTRUNC    = 250
    GRD_EXT_X = 196
    GRD_EXT_Y = 184
-   WindTransform = 'UV'
+   NORMBYSTDDEV  = .TRUE.
+   WRITEENSPERT  = .FALSE.
+   CORRELATIONLQ = .TRUE.
 /
- &NAMTOOLBOX
-   TOOL    = 'STDDEV'
+ &NAMSPECTRAL
+   KREFTYPE = 'max' 
 /
