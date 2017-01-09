@@ -829,13 +829,13 @@ CONTAINS
                 if (trim(vnl_varNameList(jvar)) == 'HU') then
                   ikey = fstlir(gd3d_r4(:,:,jk),kulin,ni_fst,nj_fst,nk_fst,dateStampList(jstep),etiket,ip1,ip2,ip3,typvar,'LQ')
                   if (ikey.lt.0) then
-                    call abort3d('ben setupEnsemble: Problem reading member')
+                    call utl_abort('ben setupEnsemble: Problem reading member')
                   else
                     inputVarHumidity='LQ'
                   endif
                 else
                   write(*,*) dateStampList(jstep),etiket,nip1_T(jk),ip2,ip3,typvar,vnl_varNameList(jvar)
-                  call abort3d('ben setupEnsemble: Problem reading member')
+                  call utl_abort('ben setupEnsemble: Problem reading member')
                 endif
               endif
             enddo ! level
@@ -872,7 +872,7 @@ CONTAINS
               enddo
 !$OMP END PARALLEL DO
             else if (trim(vnl_varNameList(jvar)) == 'HU' .and. ctrlVarHumidity == 'HU' .and. inputVarHumidity == 'LQ' ) then
-              call abort3d('ben setupEnsemble: Problem with humidity variable (need to transform ENS LQ to HU in the code)')
+              call utl_abort('ben setupEnsemble: Problem with humidity variable (need to transform ENS LQ to HU in the code)')
             else
 !$OMP PARALLEL DO PRIVATE(jk,jj,ji)
               do jk = 1, nlev
