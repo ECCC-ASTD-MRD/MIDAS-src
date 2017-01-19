@@ -51,7 +51,7 @@ trunkdir=$PWD
 
 if [ "${ORDENV_PLAT}" = sles-11-haswell-64-xc40 ];then
     echo "Switching ORDENV_PLAT from '${ORDENV_PLAT}' to 'sles-11-broadwell-64-xc40'"
-    . ./r.env.dot --arch sles-11-broadwell-64-xc40
+    . r.env.dot --arch sles-11-broadwell-64-xc40
     echo ORDENV_PLAT=${ORDENV_PLAT}
 fi
 
