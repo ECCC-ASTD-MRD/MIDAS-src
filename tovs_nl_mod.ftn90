@@ -735,7 +735,7 @@ logical function tvs_Is_idburp_tovs(idatyp)
             ninst_tovs= i - 1
            exit
         else
-           list_inst(i) = codtyp_get_codtyp( name=inst_names(i) )
+           list_inst(i) = codtyp_get_codtyp( inst_names(i) )
            if (list_inst(i) < 0) then
               Write(*,*) inst_names(i)
               call varAbort('tvs_Is_idburp_tovs: unknown instrument in namtovsinst namelist')
@@ -762,7 +762,7 @@ logical function tvs_Is_idburp_inst(idburp,cinst)
   integer ,intent(in) :: idburp
   character (len=*) ,intent(in) :: cinst
 
-  tvs_Is_idburp_inst = ( idburp == codtyp_get_codtyp(name=cinst) )
+  tvs_Is_idburp_inst = ( idburp == codtyp_get_codtyp(cinst) )
 
 end function tvs_Is_idburp_inst
 

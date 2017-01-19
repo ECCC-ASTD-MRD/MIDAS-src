@@ -34,7 +34,7 @@
 !*
 !* Revisions: 
 !*            M. Sitwell (ARQI/AQRD) May 2015
-!*            - Added flagged for chemical constituents
+!*            - Added flag setting for chemical constituents
 
       use bufr
       IMPLICIT NONE

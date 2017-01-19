@@ -383,11 +383,10 @@ CONTAINS
   end SUBROUTINE GST_nList_mpilocal
 
 
-  integer FUNCTION GST_SETUP(NI_IN,NJ_IN,NTRUNC_IN,MAXLEVELS_IN,makeEven_in)
+  integer FUNCTION GST_SETUP(NI_IN,NJ_IN,NTRUNC_IN,MAXLEVELS_IN)
     implicit none
     integer  :: ni_in,nj_in,ntrunc_in
     integer  :: maxlevels_in
-    logical,optional :: makeEven_in
     integer  :: jn,jm,ila,ierr
     integer  :: latPerPE,myLatBeg,myLatEnd,myLatHalfBeg,myLatHalfEnd
     integer  :: lonPerPE,myLonBeg,myLonEnd
@@ -420,11 +419,7 @@ CONTAINS
 
     gst(gstID)%nk = maxlevels_in
     ! 2D MPI decomposition: split levels across npex
-    if (present(makeEven_in)) then
-       call mpivar_setup_levels_npex(maxlevels_in,myLevBeg,myLevEnd,myLevCount,makeEven_in)
-    else
-       call mpivar_setup_levels_npex(maxlevels_in,myLevBeg,myLevEnd,myLevCount)
-    endif
+    call mpivar_setup_levels_npex(maxlevels_in,myLevBeg,myLevEnd,myLevCount)
     write(*,*) 'gst_setup: myLevBeg,End,Count=',myLevBeg,myLevEnd,myLevCount
 
     !!! Distribution of lon/lat tiles (gridpoint space) and n/m (spectral space)

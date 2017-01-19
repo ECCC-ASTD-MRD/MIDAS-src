@@ -70,7 +70,7 @@ CONTAINS
     !                  -- CHANGE ADDSIZE FOR SW ( GROUPED SATWINDS)
     !                 Ping Du (CMDA), Nov/Dec 2014
     !                  -- Added CASE('CH') option with intitial settings.
-    !                  -- Added use of FAMILYTYPE2 and the 'namburp_ch' and 
+    !                  -- Added use of FAMILYTYPE2 and the 'namburp_chm_sfc' and 
     !                     'namburp_chm' namelists for the CH family 
     !                 Y.J. Rochon (ARQI), Dec 2014
     !                  -- Added 08046 (constituent code table) in LISTE_INFO.

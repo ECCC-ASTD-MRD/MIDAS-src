@@ -56,6 +56,10 @@ SUBROUTINE burp_setupfiles(datestamp)
 !          -- Initialized CVALUEs and CFAMI to ''. This prevents 
 !             the possibility of related issues with statements such as
 !                  IF (CVALUE(JJ) == '') EXIT
+!          Y. Rochon ARQI/AQRD, July 2016
+!          -- Allows nearest reference time to differ from synoptic hour when the
+!             resume record is present.
+!             The resume record first encountered must contain the desired reference time.
 !             
   INTEGER IER,INBLKS,nulburp,JJ
   INTEGER FNOM,FCLOS,NUMBLKS
@@ -77,7 +81,7 @@ SUBROUTINE burp_setupfiles(datestamp)
   INTEGER MRFCLS,MRFOPN,MRFOPC,MRBHDR,MRFLOC,MRFGET
   INTEGER MRFMXL
 
-  INTEGER NBRPDATE,NBRPHH,ISTAMPOBS,INEWHH,NEWDATE
+  INTEGER ISTAMPOBS,INEWHH,NEWDATE,nresume
   REAL*8 DELHH
   INTEGER       IVALS
   CHARACTER*9   CLSTNID
@@ -166,6 +170,7 @@ SUBROUTINE burp_setupfiles(datestamp)
   IVALS=8
   KDATE=-9999
   KTIME=-9999
+  nresume=0
   burp_nfiles=0
   DO JJ=1,JPFILES 
     IF(CLVALU(JJ) == '') EXIT
@@ -190,6 +195,8 @@ SUBROUTINE burp_setupfiles(datestamp)
           IHANDL  =MRFLOC(NULBURP,0,'>>*******',-1,-1,-1,-1,-1,-1,0)
           IF ( IHANDL .LT. 0 ) THEN
             IHANDL=MRFLOC(NULBURP,0,'*********',-1,-1,-1,-1,-1,-1,0)
+          ELSE
+            nresume=nresume+1
           ENDIF
           IF ( IHANDL .LT. 0 ) THEN
             WRITE(*,*) 'AUCUN ENREGISTREMENT VALIDE DANS LE FICHIER BURP'
@@ -197,14 +204,17 @@ SUBROUTINE burp_setupfiles(datestamp)
             burp_nfiles=burp_nfiles + 1
             burp_cfilnam(burp_nfiles)=burpin
             burp_cfamtyp(burp_nfiles)=CFAMI(JJ)
-            INSUP=0
-            INXAUX=0
-            IER=MRFGET(IHANDL,IBUF)
-            IER=MRBHDR(IBUF,ITIME,IFLGS,CLSTNID,IDBURP,ILAT,   &
-              ILON,IDX,IDY, IALT,IDELAY,IDATE,IRS,IRUNN,INBLK, &
-              ISUP,INSUP,IXAUX,INXAUX)
-            KTIME=ITIME
-            KDATE=IDATE
+            if ((kdate.lt.0.and.ktime.lt.0).or.nresume.eq.1) then 
+               INSUP=0
+               INXAUX=0
+               IER=MRFGET(IHANDL,IBUF)
+               IER=MRBHDR(IBUF,ITIME,IFLGS,CLSTNID,IDBURP,ILAT,   &
+                 ILON,IDX,IDY, IALT,IDELAY,IDATE,IRS,IRUNN,INBLK, &
+                 ISUP,INSUP,IXAUX,INXAUX)
+               KTIME=ITIME
+               KDATE=IDATE
+               if (nresume.eq.1) nresume=2
+             end if
           ENDIF
           DEALLOCATE(IBUF)
           IER=MRFCLS(NULBURP)
@@ -226,23 +236,33 @@ SUBROUTINE burp_setupfiles(datestamp)
   call rpn_comm_allreduce(kdate,kdate,1,"MPI_INTEGER","MPI_MAX","GRID",ier)
   call rpn_comm_allreduce(ktime,ktime,1,"MPI_INTEGER","MPI_MAX","GRID",ier)
 
-  ier = newdate(istampobs,kdate,ktime,3)
-  delhh = 3.0d0
-  call INCDATR (datestamp, istampobs, delhh)
-  ier = newdate(datestamp,nbrpdate,inewhh,-3)
-  nbrphh=KTIME/100
-  if (nbrphh .ge. 21 .or. nbrphh .lt. 3) then
-    nbrphh = 0
-  elseif(nbrphh .ge. 3 .and. nbrphh .lt. 9) then
-    nbrphh = 6
-  elseif(nbrphh .ge. 9 .and. nbrphh .lt. 15) then
-    nbrphh = 12
+  ! Set reference datestamp
+
+  if (nresume.ge.1) then  
+    ier = newdate(datestamp,kdate,ktime*10000,3)
   else
-    nbrphh = 18
-  endif
-  ier = newdate(datestamp,nbrpdate,nbrphh*1000000,3)
-  WRITE(*, *)' BURP FILES VALID DATE (YYYYMMDD) : ',nbrpdate
-  WRITE(*, *)' BURP FILES VALID TIME       (HH) : ',nbrphh
+    ! Assumes 6-hour windows with reference times being synoptic times.
+    ! Does not require kdate and ktime to be from a resume record.
+    ier = newdate(istampobs,kdate,ktime*10000,3)
+    delhh = 3.0d0
+    call INCDATR (datestamp, istampobs, delhh)
+    ier = newdate(datestamp,kdate,inewhh,-3)
+    ktime=KTIME/100
+    if (ktime .ge. 21 .or. ktime .lt. 3) then
+       ktime = 0
+    elseif(ktime .ge. 3 .and. ktime .lt. 9) then
+       ktime = 6
+    elseif(ktime .ge. 9 .and. ktime .lt. 15) then
+       ktime = 12
+    else
+       ktime = 18
+    endif
+    ier = newdate(datestamp,kdate,ktime*1000000,3)
+    ktime=ktime*100
+  end if
+    
+  WRITE(*, *)' BURP FILES VALID DATE (YYYYMMDD) : ',kdate
+  WRITE(*, *)' BURP FILES VALID TIME     (HHMM) : ',ktime
 
 END SUBROUTINE burp_setupfiles
 

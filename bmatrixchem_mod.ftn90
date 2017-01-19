@@ -201,7 +201,6 @@ CONTAINS
     integer :: jlev, nulnam, ierr, fnom, fclos, jm, jn, status
     integer :: latPerPE, lonPerPE
     real(8) :: zps
-    logical :: makeEven_in = .false. ! to avoid the even number requirement in mpivar_setup_levels_npex 
   
     integer :: jvar
     
@@ -337,7 +336,7 @@ CONTAINS
     
     ! Need an even number of levels for spectral transform (gstID2)
     
-    gstID  = gst_setup(ni_l,nj_l,ntrunc,nkgdim,makeEven_in)
+    gstID  = gst_setup(ni_l,nj_l,ntrunc,nkgdim)
     gstID2 = gst_setup(ni_l,nj_l,ntrunc,nlev_T_even)
     if(mpi_myid == 0) write(*,*) 'BCHM:returned value of gstID =',gstID
     if(mpi_myid == 0) write(*,*) 'BCHM:returned value of gstID2=',gstID2
@@ -1131,7 +1130,7 @@ CONTAINS
           zspbuf(:) = 0.0d0
         endif
 
-        if (ini.ne.nlev_MT) call varAbort('RDSPSTD: Constituents background stat levels inconsitencies')
+        if (ini.ne.nlev_MT) call varAbort('CHM_RDSPSTD: Constituents background stats levels inconsistency')
 
         do jlevo = 1, nlev_MT
           zsp(jn,jlevo) = zspbuf(jlevo)
@@ -1221,8 +1220,8 @@ CONTAINS
         if(ikey .ge.0 ) then
           ikey = vfstlir(zspbuf(0:ntrunc_file),nulbgst,ini,inj,ink,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
         else
-          write(*,*) 'RDSPSTD_NEWFMT: ',jvar,clnomvar,nlev_MT,jlevo,ikey,ntrunc,ntrunc_file
-          call varAbort('RDSPSTD_NEWFMT: SPSTDDEV record not found')
+          write(*,*) 'BCHM_RDSPSTD_NEWFMT: ',jvar,clnomvar,nlev_MT,jlevo,ikey,ntrunc,ntrunc_file
+          call varAbort('BCHM_RDSPSTD_NEWFMT: SPSTDDEV record not found')
         endif
 
         zsp(:,jlevo) = 0.0d0
@@ -1596,7 +1595,7 @@ CONTAINS
       endif
 
       if (ini .ne. nkgdim .or. inj .ne. nkgdim) then
-        call varAbort('READCORNS2: BG stat levels inconsitencies')
+        call varAbort('READCORNS_SQRT: BG stat levels inconsitencies')
       endif
 
       do jcol = 1, nkgdim

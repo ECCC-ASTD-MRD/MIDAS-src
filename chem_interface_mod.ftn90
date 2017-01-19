@@ -202,7 +202,7 @@ contains
       if (headerIndex < 0) exit HEADER
   
       icodtyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
-      if (icodtyp.ne.codtyp_get_codtyp(name='CHEMREMOTE').and.icodtyp.ne.codtyp_get_codtyp(name='CHEMINSITU')) cycle HEADER
+      if (icodtyp.ne.codtyp_get_codtyp('CHEMREMOTE').and.icodtyp.ne.codtyp_get_codtyp('CHEMINSITU')) cycle HEADER
       
       stnid = obs_elem_c(obsSpaceData,'STID',headerIndex)
       bodyIndex_start = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
@@ -763,13 +763,13 @@ contains
     integer :: varno,varno_elemID(nmax)
     integer :: elemID,i,num_elemID,nset,iass
     character(len=9) :: stnid_elemID(nmax)
-    logical :: unilev_elemID(nmax),unilevel,diagn_only,assim_obs
+    logical :: unilev_elemID(nmax),unilevel,diagn_only,assim_obs,status_hpht
     character(len=256) :: label
     real(8) :: lat,lon
     character(len=12) :: stnid
 
     real(8), allocatable :: zobslev(:), lev(:), omp(:), oma(:), obs(:)
-    real(8), allocatable :: pres_mod(:), sigma_obs(:)
+    real(8), allocatable :: pres_mod(:), sigma_obs(:), sqrtHPHT(:)
     logical, allocatable :: success(:)
     integer, allocatable :: status(:)
     real(8), pointer :: gz_mod(:)
@@ -784,6 +784,10 @@ contains
        write(*,*) "chm_CH_obsDiagnostics: Observation-space diagnostics for chemical constituents"
        write(*,*)
     end if
+
+    ! Read forecast error std. dev. at obs locations from obs files (saved in OBS_HPHT in obsSpaceData)
+    !status_hpht=.false.
+    if (anlm_mode) call chm_ReadSqrtHPHT(obsSpaceData,status_hpht)
 
     ! Calculate OmA for non-assimilated data (saved in OBS_OMA in obsSpaceData)
     if (anlm_mode) call chm_calc_OmA_nonassim(columng,obsSpaceData)
@@ -840,7 +844,9 @@ contains
           lat = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex)*MPC_DEGREES_PER_RADIAN_R8
           lon = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex)*MPC_DEGREES_PER_RADIAN_R8
               
-          allocate(lev(nlev_obs), omp(nlev_obs), oma(nlev_obs), obs(nlev_obs), sigma_obs(nlev_obs))
+          allocate(lev(nlev_obs), omp(nlev_obs), oma(nlev_obs), obs(nlev_obs))
+          allocate(sigma_obs(nlev_obs))          
+          if (anlm_mode) allocate(sqrtHPHT(nlev_obs))
           allocate(success(nlev_obs), status(nlev_obs))
 
           lev(:) = 0.0d0
@@ -848,6 +854,7 @@ contains
           oma(:) = 0.0d0
           obs(:) = 0.0d0
           sigma_obs(:) = 0.0d0
+          if (anlm_mode) sqrtHPHT(:) = 0.0d0
           status(:) = 0
           assim_obs = .false.
           ilev_obs = 0   
@@ -881,7 +888,17 @@ contains
                 omp(ilev_obs) = obs_bodyElem_r(obsSpaceData,OBS_OMP,bodyIndex)
                 obs(ilev_obs) = obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)
                 sigma_obs(ilev_obs) = obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
-                if (anlm_mode) oma(ilev_obs) = obs_bodyElem_r(obsSpaceData,OBS_OMA,bodyIndex)
+                if (anlm_mode) then
+                   oma(ilev_obs) = obs_bodyElem_r(obsSpaceData,OBS_OMA,bodyIndex)
+                   if (status_hpht) then
+                      sqrtHPHT(ilev_obs) = obs_bodyElem_r(obsSpaceData,OBS_HPHT,bodyIndex)
+                      if (sqrtHPHT(ilev_obs).lt.1.D-30) then
+                         write(*,*) 'chm_obsDiagnostics: WARNING. sqrtHPHT not found for all CH obs'
+                         write(*,*) 'Will not be used in Desroziers-based diagnostics.'       
+                         status_hpht=.false.
+                      end if
+                   end if                      
+                end if                   
                    
              end if
 
@@ -915,12 +932,19 @@ contains
              
           ! Add observation to diagnostic arrays
           if (anlm_mode) then 
-             call chm_obsspace_diagn_add(obs_diagn, lat, lon, lev, omp, obs, sigma_obs, nlev_obs, unilevel, assim_obs, status, oma=oma)
+             if (status_hpht) then
+                call chm_obsspace_diagn_add(obs_diagn, lat, lon, lev, omp, obs, sigma_obs, nlev_obs, unilevel, assim_obs, status, &
+                                         oma=oma, sqrtHPHT=sqrtHPHT)
+             else 
+                call chm_obsspace_diagn_add(obs_diagn, lat, lon, lev, omp, obs, sigma_obs, nlev_obs, unilevel, assim_obs, status, &
+                                         oma=oma)
+             end if
           else
              call chm_obsspace_diagn_add(obs_diagn, lat, lon, lev, omp, obs, sigma_obs, nlev_obs, unilevel, assim_obs, status)
           end if
           
           deallocate(lev,omp,oma,obs,sigma_obs,success,status)
+          if (anlm_mode) deallocate(sqrtHPHT)
        
        end do HEADER
        
@@ -938,13 +962,13 @@ contains
        call chm_obsspace_diagn_MPIreduce(obs_diagn)
        
        ! Output, and deallocate diagnostic arrays
-       if (mpi_myid.eq.0) call chm_obsspace_diagn_print(obs_diagn, 'stats', label=label, openfile=.true.)
+       if (mpi_myid.eq.0) call chm_obsspace_diagn_print(obs_diagn, 'stats', status_hpht, label=label, openfile=.true.)
  
        call flush(6)
     end do
     
     ! Output diagnostics summary (over all CH observations)
-    if (mpi_myid.eq.0) call chm_obsspace_diagn_print(obs_diagn, 'summary', openfile=.true.)
+    if (mpi_myid.eq.0) call chm_obsspace_diagn_print(obs_diagn, 'summary', status_hpht, openfile=.true.)
  
     ! Deallocate arrays in obs_diagn
     call chm_obsspace_diagn_dealloc(obs_diagn)
@@ -956,6 +980,108 @@ contains
     end if
 
   end subroutine chm_CH_obsDiagnostics
+
+!-----------------------------------------------------------------------------------
+
+  subroutine chm_ReadSqrtHPHT(obsSpaceData,status_hpht)
+!
+! Author: Y. Rochon, Oct 2016
+!
+! Revisions:
+!
+! Purpose: Read background error std. dev. at obs locations from the obs files and store
+!          under OBS_HPHT in obsSpaceData
+!
+! InOut
+!
+!   obsSpaceData     Observation space data
+!
+!
+! Out
+!
+!   status_hpht      logical indicating if successfully retrieved sqrtHPHT from obs file
+!
+!-----------------------------------------------------------------------------------
+
+    use chem_mod
+    use codtyp_mod
+    use obsSpaceData_mod
+
+    implicit none
+
+    logical, intent(out) :: status_hpht
+    type(struct_obs), intent(inout) :: obsSpaceData
+
+    integer :: bodyIndex,headerIndex,ierr,rln,nlv,kk
+    integer :: codtyplist(2),stat,varno,icodtyp
+    integer, parameter :: max_nlev=300
+    real(8) :: array(max_nlev)
+    character(len=12), parameter :: stnid='************'
+    
+    type(struct_chm_obsdata) :: SqrtHPHT_struct
+    
+    write(*,*) 'chm_ReadSqrtHPHT: STARTING'
+
+    ! Retrieve data from FGE blocks, i.e. sqrt(HPHT) 
+    ! (with ndim=1, bkstp=15 and block_type='DATA')
+
+    codtyplist(1)=codtyp_get_codtyp('CHEMREMOTE')
+    codtyplist(2)=codtyp_get_codtyp('CHEMINSITU')
+
+    status_hpht=.true.
+    SqrtHPHT_struct = chm_read_burp_all(stnid,-1,max_nlev,1,15,'DATA',.false.,codtyplist=codtyplist)
+    if (SqrtHPHT_struct%nrep.eq.0) then
+       write(*,*) 'chm_ReadSqrtHPHT: WARNING. sqrtHPHT not found in obs file(s).'
+       write(*,*) 'Will not be used in Desroziers-based diagnostics.'       
+       status_hpht=.false.
+       call chm_obsdata_dealloc(SqrtHPHT_struct)
+       return
+    end if
+    
+    ! Save in OBS_HPHT of obsSpaceData
+    
+    call obs_set_current_header_list(obsSpaceData,'CH')
+    HEADER: do
+
+       headerIndex = obs_getHeaderIndex(obsSpaceData)
+       if (headerIndex < 0) exit HEADER
+  
+       icodtyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
+       if (icodtyp.ne.codtyplist(1).and.icodtyp.ne.codtyplist(2)) cycle HEADER
+  
+       ! Search for corresponding HPHT profile/element
+       
+       array(:)=0.0D0
+       array=chm_get_obsdata_data1d(SqrtHPHT_struct, &
+             obs_headElem_r(obsSpaceData,OBS_LON,headerIndex),obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex), &
+             obs_headElem_i(obsSpaceData,OBS_DAT,headerIndex),obs_headElem_i(obsSpaceData,OBS_ETM,headerIndex), &
+             obs_elem_c(obsSpaceData,'STID',headerIndex),stat=stat) 
+ 
+       if (stat.eq.0) then
+
+          ! Store OBS_HPHT profile
+
+          rln=obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
+          nlv=obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex)
+          kk=0
+          do bodyIndex = rln, nlv + rln -1
+             varno=obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
+             if (varno.gt.10000.and.varno.lt.16000) then 
+                kk=kk+1
+                call obs_bodySet_r(obsSpaceData,OBS_HPHT,bodyIndex,array(kk))
+             else
+                call obs_bodySet_r(obsSpaceData,OBS_HPHT,bodyIndex,0.0D0)          
+             end if
+          end do
+       end if
+       
+    enddo HEADER
+
+    call chm_obsdata_dealloc(SqrtHPHT_struct)
+    
+    write(*,*) 'chm_ReadSqrtHPHT: DONE'
+    
+  end subroutine chm_ReadSqrtHPHT
 
 !-----------------------------------------------------------------------------------
 

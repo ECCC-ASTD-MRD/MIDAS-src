@@ -22,7 +22,7 @@ MODULE timeCoord_mod
   private
   
   ! public variables
-  public :: tim_dstepobs, tim_dstepobsinc
+  public :: tim_dstepobs, tim_dstepobsinc, tim_windowsize
   public :: tim_nstepobs, tim_nstepobsinc
   ! public procedures
   public :: tim_setup
@@ -30,7 +30,7 @@ MODULE timeCoord_mod
   public :: tim_getDateStamp, tim_setDateStamp, tim_getStampList, tim_getStepObsIndex
 
   real*8    :: tim_dstepobs
-  real*8    :: tim_dstepobsinc
+  real*8    :: tim_dstepobsinc, tim_windowsize
   integer   :: tim_nstepobs
   integer   :: tim_nstepobsinc
   integer, parameter :: mxstepobs=9 
@@ -40,14 +40,41 @@ MODULE timeCoord_mod
 contains
 
   subroutine tim_setup
+  !
+  ! Purpose: Setup of obs time window size and related trial field 
+  !          time step for OmP determination. 
+  !  
+  ! Revisions:
+  !           Y. Rochon ARQI/AQRD July 2016
+  !           - Allowance for obs time windows of size different from 6 hours.
+  !             Related addition of dwindowsize and tim_windowsize 
+  !
+  ! Namelist parameters:
+  !
+  !   dstepobs          time step (hrs) between successive trial fields 
+  !                     for use in OmP determation. Set to dwindowsize for
+  !                     single trial field, i.e. use of 3dvar instead of 3dvar-FGAT.
+  !                     nstepobs = number of trial fields 
+  !   dstepobsinc       time step (hrs) between obs groupings in time. Set to
+  !                     dwindowsize for use of a single obs group.
+  !                     nstepobsinc = number of obs time intervals 
+  !   dwindowsize       Time window size (hrs).
+  !
+  ! Comment:
+  !
+  ! - Provided dates and number of provided trial field files must be
+  !   consistent with nstepobs, dstepobs and dwindowsize with reference datestamp
+  !   corresponding to the date of the middle trial field file.
+  !
     implicit none
     
     integer :: nulnam,ierr,fnom,fclos
-    real*8  :: dstepobs,dstepobsinc
-    NAMELIST /NAMTIME/dstepobs,dstepobsinc
+    real*8  :: dstepobs,dstepobsinc,dwindowsize
+    NAMELIST /NAMTIME/dstepobs,dstepobsinc,dwindowsize
 
     dstepobs    = 6.0d0
     dstepobsinc = 6.0d0      
+    dwindowsize = 6.0d0     
 
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -58,9 +85,20 @@ contains
 
     tim_dstepobs    = dstepobs
     tim_dstepobsinc = dstepobsinc
+    tim_windowsize = dwindowsize
+    if (dstepobs.gt.dwindowsize) then
+        if(mpi_myid.eq.0) write(*,*) 'tim_setup: dstepobs>dwindowsize. Reset to dwindowsize value.'
+        tim_dstepobs = tim_windowsize 
+    end if
+    if (dstepobsinc.gt.dwindowsize) then
+        if(mpi_myid.eq.0) write(*,*) 'tim_setup: dstepobsinc>dwindowsize. Reset to dwindowsize value.'
+        tim_dstepobsinc = tim_windowsize 
+    end if      
 
-    tim_nstepobs    = 2*nint((3.d0 - tim_dstepobs/2.d0)/tim_dstepobs) + 1
-    tim_nstepobsinc = 2*nint((3.d0 - tim_dstepobsinc/2.d0)/tim_dstepobsinc) + 1
+    tim_nstepobs    = 2*nint(((tim_windowsize - tim_dstepobs)/2.d0)/tim_dstepobs) + 1
+    tim_nstepobsinc = 2*nint(((tim_windowsize - tim_dstepobsinc)/2.d0)/tim_dstepobsinc) + 1
+
+    if(mpi_myid.eq.0) write(*,*) 'tim_setup: dobs_windowsize=',tim_windowsize
     if(mpi_myid.eq.0) write(*,*) 'tim_setup: dstepobs   =',tim_dstepobs
     if(mpi_myid.eq.0) write(*,*) 'tim_setup: nstepobs   =',tim_nstepobs
     if(mpi_myid.eq.0) write(*,*) 'tim_setup: dstepobsinc=',tim_dstepobsinc
@@ -79,7 +117,7 @@ contains
     if(mpi_myid.eq.0) write(*,*) '-------- ENTERING TIM_SUTIMEINTERP ---------'
     if(mpi_myid.eq.0) write(*,*) ' '
 
-    ! Compute the number of step obs over a 6 hours assimilation window
+    ! Compute the number of step obs over the observation time window 
     if(mpi_myid.eq.0) write(*,*) 'TIM_SUTIMEINTERP: Number of step obs inc : ',tim_nstepobsinc
 
     if(associated(timeInterpWeight)) deallocate(timeInterpWeight)
@@ -166,6 +204,11 @@ contains
     ! Author: Simon Pellerin *ARMA/SMC Nov. 2001
     ! Purpose: Compute a list of STAMPS corresponding to stepobs time
     !
+    ! Revisions:
+    !           Y. Rochon ARQI/AQRD Julu 2016
+    !           - Allowance for obs time windows of size different from 6 hours
+    !             through use of tim_windowsize.
+    !
     ! Dummies
     integer, intent(in) :: kstep ! number of step obs
     integer, intent(in) :: ksystamp ! Synoptic time
@@ -177,9 +220,9 @@ contains
     real*8 :: dtstep ! Del Time in hours between step obs
 
     if(kstep.gt.1) then
-      dtstep = 6.0d0/(real(kstep-1,8))
+      dtstep = tim_windowsize/(real(kstep-1,8))
     else
-      dtstep = 6.0d0
+      dtstep = tim_windowsize
     endif
 
     do jstep = 1,kstep
@@ -196,12 +239,17 @@ contains
     !
     ! Purpose: Return the stepobs index as a real number (-1.0 if out of range)
     !
+    ! Revisions:
+    !           Y. Rochon ARQI/AQRD Julu 2016
+    !           - Allowance for obs time windows of size different from 6 hours
+    !             through use of tim_windowsize.
+    !
     integer, intent(in) :: kstsyn    ! Synop CMC date-time stamp
     integer, intent(in) :: kdobs     ! Obs date YYYYMMDD
     integer, intent(in) :: ktobs     ! Obs time HHMM
     integer, intent(in) :: knstepobs ! number of stepobs in assimilation window
 
-    real*8,  intent(out):: dnstepobs ! number of stepobs from synop time
+    real*8,  intent(out):: dnstepobs ! number of stepobs from reference time
 
     ! Locals
     real*8  :: dddt      ! dstepobs
@@ -218,19 +266,19 @@ contains
     itobs = ktobs * 10000
     istat = newdate(istobs, kdobs,itobs,imode)
 
-    ! Difference (in hours) between obs time and synop time
+    ! Difference (in hours) between obs time and reference time
     call difdatr (istobs,kstsyn, dlhours)
 
     if(knstepobs.gt.1) then
       ! FGAT: more than 1 trial field in time window
-      dddt = 6.0d0/(real(knstepobs-1,8))
-      dnstepobs = dlhours/dddt ! number of step obs from synop time
+      dddt = tim_windowsize/(real(knstepobs-1,8))
+      dnstepobs = dlhours/dddt ! number of step obs from reference (e.g. synoptic)
       dnstepobs = dnstepobs + real((knstepobs+1)/2,8)
       if(dnstepobs.lt.0.5d0.or.dnstepobs.gt.(0.5d0+real(knstepobs,8))) dnstepobs=-1.0d0
 
     else
       ! 3D-Var: only 1 trial field in time window
-      if(dlhours.lt.-3.0d0.or.dlhours.gt.3.0d0) then
+      if(dlhours.lt.-tim_windowsize/2.0D0.or.dlhours.gt.tim_windowsize/2.0D0) then
         ! outside time window
         dnstepobs=-1.0d0
       else

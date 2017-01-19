@@ -37,14 +37,14 @@ module observation_erreurs_mod
   real(8) :: toverrst(jpchmax,jpnsatmax)
 
   !
-  ! CONVENTIONAL OBS ERRORS 
+  ! CONVENTIONAL OBS ERRORS
   ! -----------------------
 
   real(8) :: xstd_ua_ai_sw(20,11)
   real(8) :: xstd_sf(9,4)
   real(8) :: xstd_pr(2)
   real(8) :: xstd_sc(1)
-  
+
   save
   contains
 
@@ -460,7 +460,7 @@ module observation_erreurs_mod
   implicit none
 
   integer :: FNOM, FCLOS
-  integer :: IERR, JLEV, JELM, icodtyp, nulstat, ios, isize, icount
+  integer :: IERR, JLEV, JELM, icodtyp, nulstat
   logical :: LnewExists
 
   character (len=128) :: ligne
@@ -559,7 +559,6 @@ module observation_erreurs_mod
 
   end subroutine oer_read_obs_erreurs_chm
 
-!-----------------------------------------------------------------------------------------
 !-----------------------------------------------------------------------------------------
 
   subroutine oer_fill_obs_erreurs(lobsSpaceData)
@@ -874,7 +873,7 @@ module observation_erreurs_mod
  !        Process only retrieved constituent data
  !        Also, exclude 8090 element as a data value!
                
-           if (idburp.eq.codtyp_get_codtyp(name='CHEMREMOTE').or.idburp.eq.codtyp_get_codtyp(name='CHEMINSITU')) then
+           if (idburp.eq.codtyp_get_codtyp('CHEMREMOTE').or.idburp.eq.codtyp_get_codtyp('CHEMINSITU')) then
 
               ifirst = index_header.ne.header_prev
 
@@ -945,8 +944,5 @@ module observation_erreurs_mod
   end subroutine oer_fill_obs_erreurs
 
 !-----------------------------------------------------------------------------------------
-!-----------------------------------------------------------------------------------------
-
-
 
 end module observation_erreurs_mod

@@ -19,13 +19,11 @@ MODULE BMatrix_mod
 ! Revisions: Pind Du, CMDA, 2014
 !            - Added 'use bMatrixChem'
 !            Y. Rochon, ARQI. July 2015
-!            - Added 'public bchm*getScaleFactor' for constituents. 
-!              bchmdens_getScaleFactor (currently commented out) is to be 
-!              made available when the routine is implemented.
+!            - Added 'public bchm_getScaleFactor' for constituents. 
+!
 ! Comments:
-!            - All commented out lines for with with ensemble-based covariances
-!              for constituents to be uncommented when the routines become
-!              available.
+!            - Considerations for ensemble-based and regional static covariances
+!              for constituents not yet included.
 !
 !------------------------------------------------------------------------------------------
 !

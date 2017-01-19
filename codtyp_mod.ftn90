@@ -39,7 +39,7 @@ integer function codtyp_get_codtyp(name)
   !******************************************
   use mpi_mod
   implicit none
-  character (len=*),intent(in), optional :: name
+  character (len=*),intent(in) :: name
   !*******************************************
   logical ,save :: lfirst=.true.
   integer :: nulnam, ierr, i, ilen
@@ -72,7 +72,7 @@ integer function codtyp_get_codtyp(name)
      if ( ncodtyp == 0 ) call varAbort('codtyp_get_codtyp: Empty namcodtyp namelist')
      lfirst = .false.
   endif
-  if (present(name)) then
+  if (name.ne.''.and.name.ne.'blank') then
      ctempo(:) = ' '
      codtyp_get_codtyp = -1
      ilen = len_trim(name)
@@ -83,9 +83,9 @@ integer function codtyp_get_codtyp(name)
            exit
         endif
      enddo
-  else
-     codtyp_get_codtyp=0
-  end if
+   else
+      codtyp_get_codtyp=0
+   end if
    
 end function codtyp_get_codtyp
 
@@ -103,7 +103,7 @@ character (len=codtyp_name_length) function codtyp_get_name(codtyp)
   integer :: i, ilen
   !********************************************
 
-  i=codtyp_get_codtyp()
+  i=codtyp_get_codtyp('blank')
   if (ncodtyp<=0.or.all(icod.lt.0)) then
      Write(*,*) "Problem with NAMCODTYP section of the namelist !"
      call varAbort("codtyp_get_name")

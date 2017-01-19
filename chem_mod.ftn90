@@ -67,6 +67,11 @@ module chem_mod
 !       - Public routines "chm_obsspace_diagn_*" for preparation and output of postproc diagnostics.
 !         Output placed in 'obsspace_diagn_filename'.
 !
+!       - Public routine "chm_get_obsdata_data1d" to get 1D array from input 'struc_chm_obsdata' structure.
+!         Requires companion availabity of "chm_obsdata_alloc" and "chm_obsdata_dealloc"
+!
+!       - Public routines "chm_read_burp_all" to read specified content of input BURP file.
+!
 ! COMMENT:
 !
 !    This module can be expanded to contain other constituent related info
@@ -103,6 +108,7 @@ module chem_mod
   public :: chm_update_obsfile
   public :: chm_obsspace_diagn_alloc,chm_obsspace_diagn_init,chm_obsspace_diagn_dealloc
   public :: chm_obsspace_diagn_add,chm_obsspace_diagn_MPIreduce,chm_obsspace_diagn_print
+  public :: chm_get_obsdata_data1d, chm_read_burp_all, chm_obsdata_alloc, chm_obsdata_dealloc
 ! Public procedures for variable transformations
   public :: chm_apply_2dfieldr4_transform
 
@@ -110,6 +116,7 @@ module chem_mod
 ! ------------
 
   public :: struct_chm_obsoperators,struct_chm_diagn
+  public :: struct_chm_obsdata
 
 ! public variables
 ! ----------------
@@ -602,7 +609,7 @@ contains
   if (present(datestamp)) then
      call chm_read_ref_fields(datestamp)
   else
-     call chm_read_ref_fields
+     call chm_read_ref_fields()
   end if
 
 ! Allocation of chm_efftemp done in chm_setup instead of obsdata_add_data1d
@@ -610,7 +617,7 @@ contains
 ! This is to ensure that rpn_comm_allgather will work in routine obsdata_MPIGather.
 
   if (.not.associated(chm_efftemp%data1d)) then
-      call obsdata_alloc(chm_efftemp,chm_config%obsdata_maxsize,dim1=1)
+      call chm_obsdata_alloc(chm_efftemp,chm_config%obsdata_maxsize,dim1=1)
       chm_efftemp%nrep=0
   end if
 
@@ -833,9 +840,9 @@ contains
 
   read(nulnam,nml=namchem,iostat=ios)
   if (ios.lt.-4.or.ios.gt.0) then 
-     call varAbort('chm_read_misc: Error in reading NAMCHEM namelist. iostat = ' // trim(str(ios)) )
+      call varAbort('chm_read_misc: Error in reading NAMCHEM namelist. iostat = ' // trim(str(ios)) )   
   else if (mpi_myid.eq.0) then
-     write(*,nml=namchem)   
+      write(*,nml=namchem)   
   end if
   
   ierr=FCLOS(nulnam)      
@@ -1295,7 +1302,7 @@ contains
 
     if (allocated(chm_burp_avgkern)) then
        do istnid=1,chm_avgkern%n_stnid
-          if (chm_avgkern%brp(istnid).eq.1) call obsdata_dealloc(chm_burp_avgkern(istnid))
+          if (chm_avgkern%brp(istnid).eq.1) call chm_obsdata_dealloc(chm_burp_avgkern(istnid))
        end do
        deallocate(chm_burp_avgkern)
     end if
@@ -1530,7 +1537,7 @@ contains
        do j=1,nd
           read(nulstat,*,iostat=ios,err=10,end=10) etiket             
                            
-          call chm_read_fst(trim(fname),varName,imonth,-1,etiket,ni,nj,array1,.true.,xlat,xlong,nkeys,lvls,kind)
+          call chm_read_fst(trim(fname),varName,-1,imonth,-1,etiket,ni,nj,array1,.true.,xlat,xlong,nkeys,lvls,kind)
 
           if (j.eq.1) then
               chm_ref_fields(id,1)%nlon=ni
@@ -1576,9 +1583,9 @@ contains
              
              if (iday.gt.15) then
                  if (imonth.eq.12) then
-                    call chm_read_fst(trim(fname),varName,1,-1,etiket,ni,nj,array2,.false.,xlat,xlong,nkeys,lvls,kind)
+                    call chm_read_fst(trim(fname),varName,-1,1,-1,etiket,ni,nj,array2,.false.,xlat,xlong,nkeys,lvls,kind)
                 else
-                   call chm_read_fst(trim(fname),varName,imonth+1,-1,etiket,ni,nj,array2,.false.,xlat,xlong,nkeys,lvls,kind)
+                   call chm_read_fst(trim(fname),varName,-1,imonth+1,-1,etiket,ni,nj,array2,.false.,xlat,xlong,nkeys,lvls,kind)
                 end if
           
 !               Linearly interpolate in time (approximately - assumes 30 day months)
@@ -1591,9 +1598,9 @@ contains
              
              else if (iday.le.15) then
                 if (imonth.eq.1) then
-                   call chm_read_fst(trim(fname),varName,12,-1,etiket,ni,nj,array2,.false.,xlat,xlong,nkeys,lvls,kind)
+                   call chm_read_fst(trim(fname),varName,-1,12,-1,etiket,ni,nj,array2,.false.,xlat,xlong,nkeys,lvls,kind)
                 else
-                   call chm_read_fst(trim(fname),varName,imonth-1,-1,etiket,ni,nj,array2,.false.,xlat,xlong,nkeys,lvls,kind)
+                   call chm_read_fst(trim(fname),varName,-1,imonth-1,-1,etiket,ni,nj,array2,.false.,xlat,xlong,nkeys,lvls,kind)
                 end if
 
 !               Linearly interpolate in time (approximately - assumes 30 day months)
@@ -1626,7 +1633,7 @@ contains
   
 !-----------------------------------------------------------------------------------------
   
-  subroutine chm_read_fst(fname,varName,iip2,iip3,etiketi,ni,nj,array,lgrid,xlat,xlong,nkeys,lvls,kind)
+  subroutine chm_read_fst(fname,varName,iip1,iip2,iip3,etiketi,ni,nj,array,lgrid,xlat,xlong,nkeys,lvls,kind)
 !
 ! ****** NOT TESTED *********
 !
@@ -1640,7 +1647,7 @@ contains
 
     implicit none
 
-    integer, intent(in) :: iip2,iip3
+    integer, intent(in) :: iip1,iip2,iip3
     character(len=*), intent(in) :: varName,fname,etiketi
     logical, intent(in) :: lgrid
     integer, intent(out) :: ni, nj, nkeys, kind
@@ -1679,9 +1686,9 @@ contains
       ier=fstouv(iun,'RND+OLD')
     end if
 
-!   Find reports in file for specified varName and iip3.
+!   Find reports in file for specified varName and iip*.
 
-    ier = fstinl(iun,ni,nj,nk,-1,etiketi,-1,iip2,iip3,'',varName,keys,nkeys,maxkeys) 
+    ier = fstinl(iun,ni,nj,nk,-1,etiketi,iip1,iip2,iip3,'',varName,keys,nkeys,maxkeys) 
 
     if(ier.lt.0.or.nkeys.eq.0) then
       write(*,*) 'Search field missing ',varName, ' from file ',fname
@@ -1705,11 +1712,11 @@ contains
                     ig4, swa, lng, dltf, ubc, extra1, extra2, extra3)  
     
        if (ni.gt.1) then
-          ier=fstlir(buffer,iun,ni,inj,nk,ig1,ig2,ig3,'','>>')
+          ier=fstlir(buffer,iun,ni,inj,nk,-1,'',ig1,ig2,ig3,'','>>')
           if (ier.ge.0) xlong(:)=buffer(1:ni,1) 
        end if
        if (nj.gt.1) then
-          ier=fstlir(buffer,iun,ini,nj,nk,ig1,ig2,ig3,'','^^')
+          ier=fstlir(buffer,iun,ini,nj,nk,-1,'',ig1,ig2,ig3,'','^^')
           if (ier.ge.0) xlat(:)=buffer(1:nj,1)     
        end if
        deallocate(buffer)
@@ -1899,7 +1906,7 @@ contains
     ! ------- Save in chm_ref_trial ---------
        
     if (.not.associated(chm_ref_trial%data1d)) then
-       call obsdata_alloc(chm_ref_trial, chm_config%obsdata_maxsize, dim1=obsoper%nmodlev)
+       call chm_obsdata_alloc(chm_ref_trial, chm_config%obsdata_maxsize, dim1=obsoper%nmodlev)
        chm_ref_trial%nrep = 0
     end if
 
@@ -2383,7 +2390,6 @@ contains
     ! If this call is for the first level for this measurement, get
     ! the station ID and latitude indices corresponding to this measurement
     if (ifirst) call chm_obs_err_stddev_index(CSTNID,NLEV,VARNO,ZLAT,ISTNID,JINT)                  
-    
             
     ! Get weighting of error std. dev. if required
 
@@ -2503,7 +2509,7 @@ contains
     
     if (allocated(chm_burp_std)) then
        do istnid=1,chm_std%n_stnid
-          if (chm_std%brp(istnid).ge.1) call obsdata_dealloc(chm_burp_std(istnid))
+          if (chm_std%brp(istnid).ge.1) call chm_obsdata_dealloc(chm_burp_std(istnid))
        end do
        deallocate(chm_burp_std)       
     end if
@@ -2526,7 +2532,7 @@ contains
 !-----------------------------------------------------------------------------------------
 !------------------- BURP functions and routines -----------------------------------------
 
-  function chm_read_burp(filename,stnid,varno,nlev,ndim,bkstp,block_type,match_nlev) result(burp_out)
+  function chm_read_burp(filename,stnid,varno,nlev,ndim,bkstp,block_type,match_nlev,codtyplist) result(burp_out)
 !
 ! Author:   M. Sitwell, ARQI/AQRD, March 2015
 !
@@ -2542,6 +2548,8 @@ contains
 !              stnid, nlev, block_type and bkstp
 !            M. Sitwell, ARQI/AQRD, June 2016
 !            - Added match_nlev input argument
+!            Y. Rochon, ARQI/AQRD, Oct 2016
+!            - Added optional codtyplist argument and option of input varno<=0.
 !
 ! Arguments:
 !
@@ -2549,6 +2557,8 @@ contains
 !           filename      BURP file name
 !           stnid         station ID of observation
 !           varno         BUFR code
+!                         If <=0, search through all codes to obtain first
+!                         between 10000 and 16000.
 !           nlev          number of levels in the observation
 !           ndim          number of dimensions for the retrieved data in
 !                         each report (e.g. ndim=1 for std, ndim=2 for
@@ -2560,6 +2570,7 @@ contains
 !           match_nlev    determines if the report matching criteria includes checking
 !                         if the report number of levels is the same as the input
 !                         argument nlev
+!           codtyplist    optional CODTYP list for search
 !
 !  Output 
 !           burp_out      struct_chm_obsdata object
@@ -2582,6 +2593,7 @@ contains
     character(len=4), intent(in) :: block_type
     integer, intent(in)          :: ndim,varno,nlev,bkstp
     logical, intent(in)          :: match_nlev
+    integer, intent(in), optional :: codtyplist(:)
     type(struct_chm_obsdata) :: burp_out
 
     character(len=9)  :: rep_stnid
@@ -2589,8 +2601,8 @@ contains
     type(burp_file)   :: brp
     type(burp_rpt)    :: rep
     type(burp_block)  :: blk
-    integer           :: error,ref_rpt,nrep,ref_blk
-    integer           :: ref_bkstp,nval,ivar,iexp,ilev,icount
+    integer           :: error,ref_rpt,nrep,ref_blk,varno_ivar
+    integer           :: ref_bkstp,nval,ivar,iexp,ilev,icount,icodtyp
     integer           :: date,time,ilat,ilon,iele,nele,icol
     real(8)           :: val,exponent
 
@@ -2603,11 +2615,12 @@ contains
     call BURP_New(brp, FILENAME=filename, MODE=FILE_ACC_READ, IOSTAT=error)
     
     if (error.eq.0) then
-       write(*,*) "chm_read_burp: Reading file " // filename
+       write(*,*) "chm_read_burp: Reading file " // trim(filename)
        write(*,*) "chm_read_burp: Selecting STNID = ",stnid," BUFR = ",varno," block type = ",block_type
        write(*,*) "chm_read_burp:           bkstp = ",bkstp," nlev = ",nlev," match_nlev = ",match_nlev
+       if (present(codtyplist)) write(*,*) "chm_read_burp: CodeTypeList: ",codtyplist(:)
     else
-       call varAbort('chm_read_burp: Could not open BURP file: ' // filename)
+       call varAbort('chm_read_burp: Could not find/open BURP file: ' // trim(filename))
     end if
 
     ! get number of reports in file
@@ -2615,9 +2628,9 @@ contains
 
     ! allocate memory
     if (ndim.eq.1) then
-       call obsdata_alloc(burp_out,nrep,dim1=nlev)
+       call chm_obsdata_alloc(burp_out,nrep,dim1=nlev)
     else
-       call obsdata_alloc(burp_out,nrep,dim1=nlev,dim2=nlev)
+       call chm_obsdata_alloc(burp_out,nrep,dim1=nlev,dim2=nlev)
     end if
     
     icount = 0  ! counter of reports with same stnid, number of levels, and varno as input 
@@ -2630,7 +2643,11 @@ contains
 
        if (ref_rpt<0) exit REPORTS
        
-       call BURP_Get_Property(rep, STNID=rep_stnid, DATE=date, TEMPS=time, LATI=ilat, LONG=ilon) 
+       call BURP_Get_Property(rep, STNID=rep_stnid, DATE=date, TEMPS=time, LATI=ilat, LONG=ilon, IDTYP=icodtyp) 
+
+       if (present(codtyplist)) then
+          if (.not.any(codtyplist(:).eq.icodtyp)) cycle REPORTS
+       end if
 
        if (.not.stnid_equal(stnid,rep_stnid)) cycle REPORTS
 
@@ -2645,9 +2662,18 @@ contains
 
           if (.not.IS_Burp_Btyp(trim(block_type),BLOCK=blk) .or. bkstp.ne.ref_bkstp .or. (match_nlev.and.nval.ne.nlev)) cycle BLOCKS
 
-          ivar = BURP_Find_Element(blk, ELEMENT=varno, IOSTAT=error)
-
-          if (ivar.lt.0) cycle BLOCKS
+          if (varno.gt.0) then
+             ivar = BURP_Find_Element(blk, ELEMENT=varno, IOSTAT=error)
+             if (ivar.lt.0) cycle BLOCKS
+          else 
+             ! Search for first data element within elements 10000 and 16000.
+             varno_ivar=-1
+             do ivar=1,nele
+                varno_ivar=BURP_Get_Element(blk, INDEX=ivar, IOSTAT=error)
+                if (varno_ivar.ge.10000.and.varno_ivar.lt.16000) exit
+             end do
+             if (varno_ivar.lt.10000.or.varno_ivar.ge.16000) call varAbort('chm_read_burp: No valid element found for STNID ' // rep_stnid )
+          end if
 
           ! required block found if code reaches this point, retrieve data and store in burp_out
           
@@ -2728,6 +2754,8 @@ contains
 ! Revision: 
 !          M. Sitwell, ARQI/AQRD, Aug 2016
 !          - Modified to preserve order of reports.
+!          Y. Rochon, ARQI/AQRD, Jan 2017
+!          - Added optional check for multi using 'DATA' when block_type='INFO'.
 !
 ! Purpose:  Add or modify information from BURP file in existing block and
 !           for specified BUFR descriptor varno(s). 
@@ -2744,7 +2772,7 @@ contains
 !                         of bknat. Valid values are 'DATA', 'INFO', '3-D',
 !                         and 'MRQR'.
 !           obsdata       Input struct_chm_obsdata object for varno.
-!           multi         Indicates in intended report are for 'UNI' or 'MULTI' level data (optional)
+!           multi         Indicates if intended report are for 'UNI' or 'MULTI' level data (optional)
 !
 !
 !  Output 
@@ -2814,7 +2842,7 @@ contains
 
     ! open the burp file in append mode (to replace or add data in a block)
     call BURP_New(brp, FILENAME=filename, MODE=FILE_ACC_APPEND, IOSTAT=error)
-    if (error.ne.0) call varAbort('chm_update_burp: Could not open BURP file: ' // filename)
+    if (error.ne.0) call varAbort('chm_update_burp: Could not open BURP file: ' // trim(filename))
 
     ! get number of reports in file
     call BURP_Get_Property(brp, NRPTS=nrep)
@@ -2855,7 +2883,22 @@ contains
           new_vals(:,:,ncount)=real(obsdata_get_array2d(obsdata,code,stat=istat))
        end if
 
-       if (istat.eq.0) modify(ncount) = .true.
+       if (istat.eq.0) then
+          if (present(multi)) then
+             ! loop through blocks to find first data block
+             ref_blk = 0
+             BLOCKS1: do
+                ref_blk = BURP_Find_Block(rep, BLOCK=blk, SEARCH_FROM=ref_blk, IOSTAT=error)          
+                if (ref_blk<0) exit BLOCKS1
+                if (IS_Burp_Btyp('DATA',BLOCK=blk)) then
+                   if (IS_Burp_Btyp(trim(multi),BLOCK=blk)) modify(ncount) = .true.
+                   exit BLOCKS1
+                end if
+             end do BLOCKS1
+          else
+             modify(ncount) = .true.
+          end if
+       end if
 
     end do REPORTS1
     
@@ -2864,7 +2907,6 @@ contains
     ! Generate new report
     Call BURP_New(rep_new, ALLOC_SPACE=10*LNMX, IOSTAT=error)
 
-    
     ! second loop through reports to include the new information to the file    
     REPORTS2: do k=1,ncount
     
@@ -2873,7 +2915,7 @@ contains
        ! Copy report header
        Call BURP_Copy_Header(TO=rep_new,FROM=rep)
        Call BURP_Init_Report_Write(brp,rep_new,IOSTAT=error)
-               
+
        ! loop through blocks
        ref_blk = 0
        BLOCKS: do
@@ -2886,10 +2928,6 @@ contains
              call BURP_Get_Property(blk, NELE=nele, NVAL=nval, BKSTP=ref_bkstp, IOSTAT=error)
 
              blk_found = IS_Burp_Btyp(trim(block_type),BLOCK=blk) .and. bkstp.eq.ref_bkstp .and. dim1.eq.nval
-
-             if (present(multi)) then 
-                if (.not.IS_Burp_Btyp(trim(multi),BLOCK=blk)) blk_found = .false.
-             end if
          
              if (blk_found) then
                 ! Block to be modified has been found, add new data to block.
@@ -2996,9 +3034,12 @@ contains
 
 !--------------------------------------------------------------------------------------------
 
-  function chm_read_burp_all(stnid,varno,nlev,ndim,bkstp,block_type,match_nlev) result(burp_out)
+  function chm_read_burp_all(stnid,varno,nlev,ndim,bkstp,block_type,match_nlev,codtyplist) result(burp_out)
 !
 ! Author:   M. Sitwell, ARQI/AQRD, Sept 2016
+!
+! Revisions: Y. Rochon, ARQI/AQRD, Nov 2016
+!            - Added optional input argument codtyplist and option of varno <=0 (in chm_read_burp)
 !
 ! Purpose:  Retrieve information for CH family observations from all chemical constituent BURP files.
 !           If the BURP files are not split, then the single BURP file is read. If the BURP files are
@@ -3010,7 +3051,9 @@ contains
 !  Input
 !
 !           stnid         station ID of observation
-!           varno         BUFR code
+!           varno         BUFR code 
+!                         If <=0, to search through all codes to obtain first
+!                         between 10000 and 16000.
 !           nlev          number of levels in the observation
 !           ndim          number of dimensions for the retrieved data in
 !                         each report (e.g. ndim=1 for std, ndim=2 for
@@ -3022,6 +3065,7 @@ contains
 !           match_nlev    determines if the report matching criteria includes checking
 !                         if the report number of levels is the same as the input
 !                         argument nlev
+!           codtyplist    optional CODTYP list for search
 !
 !  Output 
 !           burp_out      struct_chm_obsdata object
@@ -3036,12 +3080,41 @@ contains
     character(len=4), intent(in) :: block_type
     integer, intent(in)          :: ndim,varno,nlev,bkstp
     logical, intent(in)          :: match_nlev
+    integer, intent(in), optional :: codtyplist(:)
     type(struct_chm_obsdata) :: burp_out
 
-    burp_out = chm_read_burp(chm_get_burp_filename(),stnid,varno,nlev,ndim,bkstp,block_type,match_nlev)
+    character(len=500) :: filename
+    logical :: found,burp_split
 
-    if (top_BurpSplit()) call obsdata_MPIgather(burp_out)
-    
+    filename = chm_get_burp_filename(found)
+    burp_split = top_BurpSplit()
+
+    if (found) then
+       if (present(codtyplist)) then
+          burp_out = chm_read_burp(filename,stnid,varno,nlev,ndim,bkstp,block_type,match_nlev, &
+                                   codtyplist=codtyplist)
+       else
+          burp_out = chm_read_burp(filename,stnid,varno,nlev,ndim,bkstp,block_type,match_nlev)
+       end if
+    else
+       if (burp_split) then
+          ! Must allocate burp_out so that it is available from ALL processors when
+          ! requiring of rpn_comm_allgather via obsdata_MPIallgather.
+          write(*,*) "chm_read_burp_all: Could not find/open BURP file: ",filename
+          if (ndim.eq.1) then
+             call chm_obsdata_alloc(burp_out,1,dim1=nlev)
+          else
+             call chm_obsdata_alloc(burp_out,1,dim1=nlev,dim2=nlev)
+          end if
+          burp_out%nrep=0
+          write(*,*) "chm_read_burp_all: Number of reports set to ",burp_out%nrep
+       else
+          call varAbort('chm_read_burp_all: Could not find BURP file: ' // trim(filename))
+       end if
+    end if
+
+    if (burp_split) call obsdata_MPIallgather(burp_out)
+
   end function chm_read_burp_all
 
 !--------------------------------------------------------------------------------------------
@@ -3065,7 +3138,7 @@ contains
 !                         of bknat. Valid values are 'DATA', 'INFO', '3-D',
 !                         and 'MRQR'.
 !           obsdata       Input struct_chm_obsdata object for varno.
-!           multi         Indicates in intended report are for 'UNI' or 'MULTI' level data (optional)
+!           multi         Indicates if intended report are for 'UNI' or 'MULTI' level data (optional)
 !
 !
 !  Output 
@@ -3107,7 +3180,7 @@ contains
 !--------------------------------------------------------------------------------------------
 !------------------- OBSDATA functions and routines -----------------------------------------
 
-  subroutine obsdata_alloc(obsdata,nrep,dim1,dim2)
+  subroutine chm_obsdata_alloc(obsdata,nrep,dim1,dim2)
 !
 ! Author  : M. Sitwell  April 2015
 !
@@ -3157,11 +3230,11 @@ contains
     ! The value is initialized to one, pointing to the very first element.
     obsdata%irep = 1
 
-  end subroutine obsdata_alloc
+  end subroutine chm_obsdata_alloc
 
 !-------------------------------------------------------------------------------------------
 
-  subroutine obsdata_dealloc(obsdata)
+  subroutine chm_obsdata_dealloc(obsdata)
 !
 ! Author  : M. Sitwell  April 2015
 ! Revision: 
@@ -3178,7 +3251,7 @@ contains
     if (associated(obsdata%data2d)) deallocate(obsdata%data2d)
     if (associated(obsdata%code))   deallocate(obsdata%code)
 
-  end subroutine obsdata_dealloc
+  end subroutine chm_obsdata_dealloc
 
 !-------------------------------------------------------------------------------------------
 
@@ -3285,6 +3358,49 @@ contains
     end if
 
   end function obsdata_get_array1d
+
+!-------------------------------------------------------------------------------------------
+
+  function chm_get_obsdata_data1d(obsdata,lon,lat,date,time,stnid,stat) result(array)
+!
+! Purpose: Extract 1D data array from structure according to input (lat,long,date,time,stnid)
+!
+! Author: Y. Rochon, Oct 2016
+!   
+!  Input
+!
+!           obsdata       Structure from which data elements are to be found  
+!           lon           longitude real (radians)
+!           lat           latitude real (radians)
+!           date          date in YYYYMMDD
+!           time          time in HHMM
+!           stnid         station ID
+!
+!  Output
+!
+!           array        Identified 1D array
+!           stat         search success (0 - found; 1 = no data; 2 = not found)
+!    
+! 
+!-------------------------------------------------------------------------------------------
+    implicit none
+
+    type(struct_chm_obsdata), intent(inout) :: obsdata
+    real(8), intent(in) :: lon,lat
+    integer, intent(in) :: date,time
+    character(len=*), intent(in) :: stnid
+    integer, intent(out), optional :: stat
+
+    character(len=code_len) :: code
+    real(8) :: array(obsdata%dim1)
+    
+    ! Set desired identifier code
+    code=obsdata_get_header_code(lon,lat,date,time,stnid) 
+  
+    ! Get array corresponding to code.
+    array=obsdata_get_array1d(obsdata,code,stat=stat)
+    
+  end function chm_get_obsdata_data1d
 
 !-------------------------------------------------------------------------------------------
 
@@ -3531,9 +3647,9 @@ contains
 
     if (.not.associated(obsdata%data1d)) then
       if (present(dim1)) then 
-         call obsdata_alloc(obsdata,chm_config%obsdata_maxsize,dim1=dim1)
+         call chm_obsdata_alloc(obsdata,chm_config%obsdata_maxsize,dim1=dim1)
       else
-         call obsdata_alloc(obsdata,chm_config%obsdata_maxsize,dim1=1)
+         call chm_obsdata_alloc(obsdata,chm_config%obsdata_maxsize,dim1=1)
       end if
       obsdata%nrep=0
     end if
@@ -3557,7 +3673,7 @@ contains
 
 !----------------------------------------------------------------------------------------
     
-  subroutine obsdata_MPIgather(obsdata) 
+  subroutine obsdata_MPIallgather(obsdata) 
 !
 ! Author: Y. Rochon, ARQI/AQRD, June 2016
 !
@@ -3590,10 +3706,12 @@ contains
     integer :: i,j,k,ierr,nproc,nrep_total,nrep_max,irep,array_size
 
     character(len=*), parameter :: MPI_OBS_REAL="mpi_double_precision"
-    
+  
+    write(*,*) 'Begin obsdata_MPIallgather'
+      
     ! Identify number of processors.
     call rpn_comm_size("GRID",nproc,ierr)
-    
+      
     ! Get number of reports on each processor
 
     allocate(nrep(nproc))
@@ -3605,6 +3723,7 @@ contains
 
     if (nrep_total.eq.0) then
        deallocate(nrep)
+       write(*,*) 'Exit obsdata_MPIallgather: no reports'
        return
     end if
         
@@ -3615,6 +3734,7 @@ contains
     allocate(code_local(nrep_max))
     allocate(code_global(nrep_max,nproc))
 
+    code_local(:)=''
     if (obsdata%nrep.gt.0) code_local(1:obsdata%nrep) = obsdata%code(1:obsdata%nrep)
 
     call allgather_string(code_local,code_global,nrep_max,code_len,nproc,"GRID",ierr)
@@ -3624,17 +3744,18 @@ contains
        allocate(data1d_local(obsdata%dim1,nrep_max))
        allocate(data1d_global(obsdata%dim1,nrep_max,nproc))
 
+       data1d_local(:,:)=0.0D0
        if (obsdata%nrep.gt.0) data1d_local(:,1:obsdata%nrep) = obsdata%data1d(:,1:obsdata%nrep)
        
        array_size = nrep_max*obsdata%dim1
 
        call rpn_comm_allgather(data1d_local,array_size,MPI_OBS_REAL,data1d_global,array_size,MPI_OBS_REAL,"GRID",ierr)
-
     else 
        
        allocate(data2d_local(obsdata%dim1,obsdata%dim2,nrep_max))
        allocate(data2d_global(obsdata%dim1,obsdata%dim2,nrep_max,nproc))
        
+       data2d_local(:,:,:)=0.0D0
        if (obsdata%nrep.gt.0) data2d_local(:,:,1:obsdata%nrep) = obsdata%data2d(:,:,1:obsdata%nrep)
 
        array_size = nrep_max*obsdata%dim1*obsdata%dim2
@@ -3653,11 +3774,11 @@ contains
     ! Concatenate values from all processors
          
     irep = 0
-    call obsdata_dealloc(obsdata)    
+    call chm_obsdata_dealloc(obsdata)    
 
     if (obsdata%ndim.eq.1) then      
        
-       call obsdata_alloc(obsdata,nrep_total,obsdata%dim1)
+       call chm_obsdata_alloc(obsdata,nrep_total,obsdata%dim1)
 
        do i=1,nproc
           if (nrep(i).gt.0) then
@@ -3669,7 +3790,7 @@ contains
 
     else
 
-       call obsdata_alloc(obsdata,nrep_total,obsdata%dim1,obsdata%dim2)
+       call chm_obsdata_alloc(obsdata,nrep_total,obsdata%dim1,obsdata%dim2)
 
        do i=1,nproc
           if (nrep(i).gt.0) then
@@ -3688,8 +3809,10 @@ contains
     else
         deallocate(data2d_global)
     end if 
-     
-  end subroutine obsdata_MPIgather
+    
+    write(*,*) 'Exit obsdata_MPIallgather'
+ 
+  end subroutine obsdata_MPIallgather
 
 !-----------------------------------------------------------------------------------------
 !------------------- Miscellaneous utilities functions and routines ----------------------
@@ -4833,6 +4956,10 @@ contains
     real(8) :: press(nlev),rgz(nlev)
     integer :: ilev,ilev_mod
 
+    ! Check model geopotential heights and pressures
+    if (any(rgz_mod.lt.0.0D0)) call varAbort("compute_z_to_pressure: Invalid model GZ.")
+    if (any(press_mod.lt.0.0D0)) call varAbort("compute_z_to_pressure: Invalid model pressure.")
+    
     ! Convert altitudes to geopotential heights
     rgz = chm_convert_z_to_gz(altitude,lat,nlev)
 
@@ -5370,7 +5497,7 @@ contains
     real(8), intent(in) :: bound_press
     
     if (.not.associated(chm_column_boundary%data1d)) then
-       call obsdata_alloc(chm_column_boundary, chm_config%obsdata_maxsize, dim1=1)
+       call chm_obsdata_alloc(chm_column_boundary, chm_config%obsdata_maxsize, dim1=1)
        chm_column_boundary%nrep = 0
     end if
 
@@ -5427,7 +5554,7 @@ contains
     real(8), intent(in) :: sigma(:,:)
     
     if (.not.associated(chm_sigma_trial%data2d)) then
-       call obsdata_alloc(chm_sigma_trial, chm_config%obsdata_maxsize, dim1=size(sigma,dim=1), dim2=max(4,size(sigma,dim=2)))
+       call chm_obsdata_alloc(chm_sigma_trial, chm_config%obsdata_maxsize, dim1=size(sigma,dim=1), dim2=max(4,size(sigma,dim=2)))
        chm_sigma_trial%nrep = 0
     end if
 
@@ -5695,22 +5822,24 @@ contains
              obs_diagn%diagR_stats(ilat,ilon,ilev,3) = obs_diagn%diagR_stats(ilat,ilon,ilev,3) &
                 + OmA(ilev_obs)/sigma_obs(ilev_obs)
 
-             !if (present(sqrtHPHT)) then
-             !   if (sqrtHPHT(ilev_obs).gt.0.0) then
-             !      obs_diagn%diagHPHT_stats(ilat,ilon,ilev,1) = obs_diagn%diagHPHT_stats(ilat,ilon,ilev,1) &
-             !           + OmP(ilev_obs)*(OmP(ilev_obs)-OmA(ilev_obs))/sqrtHPHT(ilev_obs)**2
-             !      obs_diagn%diagHPHT_stats(ilat,ilon,ilev,2) = obs_diagn%diagHPHT_stats(ilat,ilon,ilev,2) &
-             !           + OmP(ilev_obs)/sqrtHPHT(ilev_obs)
-             !      obs_diagn%diagHPHT_stats(ilat,ilon,ilev,3) = obs_diagn%diagHPHT_stats(ilat,ilon,ilev,3) &
-             !           + (OmP(ilev_obs)-OmA(ilev_obs))/sqrtHPHT(ilev_obs)
-             !   end if
-             !end if
+             if (present(sqrtHPHT)) then
+                if (sqrtHPHT(ilev_obs).gt.0.0) then
+                   obs_diagn%diagHPHT_stats(ilat,ilon,ilev,1) = obs_diagn%diagHPHT_stats(ilat,ilon,ilev,1) &
+                        + OmP(ilev_obs)*(OmP(ilev_obs)-OmA(ilev_obs))/sqrtHPHT(ilev_obs)**2
+                   obs_diagn%diagHPHT_stats(ilat,ilon,ilev,2) = obs_diagn%diagHPHT_stats(ilat,ilon,ilev,2) &
+                        + OmP(ilev_obs)/sqrtHPHT(ilev_obs)
+                   obs_diagn%diagHPHT_stats(ilat,ilon,ilev,3) = obs_diagn%diagHPHT_stats(ilat,ilon,ilev,3) &
+                        + (OmP(ilev_obs)-OmA(ilev_obs))/sqrtHPHT(ilev_obs)
+                end if
+             else
 
-             ! as sqrtHPHT is currently not available in assimilation mode, temporarily do not divide by sqrtHPHT
-             obs_diagn%diagHPHT_stats(ilat,ilon,ilev,1) = obs_diagn%diagHPHT_stats(ilat,ilon,ilev,1) + OmP(ilev_obs)*(OmP(ilev_obs)-OmA(ilev_obs))
-             obs_diagn%diagHPHT_stats(ilat,ilon,ilev,2) = obs_diagn%diagHPHT_stats(ilat,ilon,ilev,2) + OmP(ilev_obs)
-             obs_diagn%diagHPHT_stats(ilat,ilon,ilev,3) = obs_diagn%diagHPHT_stats(ilat,ilon,ilev,3) + OmP(ilev_obs)-OmA(ilev_obs)
-
+                ! No division by sqrtHPHT
+                
+                obs_diagn%diagHPHT_stats(ilat,ilon,ilev,1) = obs_diagn%diagHPHT_stats(ilat,ilon,ilev,1) + OmP(ilev_obs)*(OmP(ilev_obs)-OmA(ilev_obs))
+                obs_diagn%diagHPHT_stats(ilat,ilon,ilev,2) = obs_diagn%diagHPHT_stats(ilat,ilon,ilev,2) + OmP(ilev_obs)
+                obs_diagn%diagHPHT_stats(ilat,ilon,ilev,3) = obs_diagn%diagHPHT_stats(ilat,ilon,ilev,3) + OmP(ilev_obs)-OmA(ilev_obs)
+             end if
+             
           end if
 
        end if
@@ -5789,7 +5918,7 @@ contains
 
 !----------------------------------------------------------------------------------------
 
-  subroutine chm_obsspace_diagn_print(obs_diagn,print_type,label,openfile)
+  subroutine chm_obsspace_diagn_print(obs_diagn,print_type,status_hpht,label,openfile)
 !
 ! Author:  M. Sitwell, ARQI/AQRD June 2015
 !          
@@ -5812,6 +5941,7 @@ contains
 !                                 within this subrouine
 !     label          label to print (only relevant if print_type = 'stats')
 !     openfile       logical indicating if file chm_config%obsspace_diagn_filename is to be opened.
+!     status_hpht    logical indicating if sqrtHPHT were available.
 !
 !----------------------------------------------------------------------------------------
     
@@ -5819,6 +5949,7 @@ contains
 
     type(struct_chm_diagn), intent(inout) :: obs_diagn
     character(len=*) :: print_type
+    logical, intent(in) :: status_hpht
     logical, intent(in), optional :: openfile
     character(len=256), intent(in), optional :: label
 
@@ -5921,7 +6052,7 @@ contains
              call print_Jo(unit,"Multi-level data:",Jo_a,Jo_b,icount)
 
              call print_stats(unit,obs_diagn,press_bins,1,nlat,1,nlon,1,nlev-1) 
-             if (obs_diagn%assim_mode) call print_Desroziers(unit,obs_diagn,press_bins,1,nlat,1,nlon,1,nlev-1)
+             if (obs_diagn%assim_mode) call print_Desroziers(unit,obs_diagn,press_bins,1,nlat,1,nlon,1,nlev-1,status_hpht)
              
           end if
              
@@ -5944,7 +6075,7 @@ contains
              call print_Jo(unit,"Uni-level data:",Jo_a,Jo_b,ncounts(nlev))
              
              call print_stats(unit,obs_diagn,press_bins,1,nlat,1,nlon,nlev,nlev) 
-             if (obs_diagn%assim_mode) call print_Desroziers(unit,obs_diagn,press_bins,1,nlat,1,nlon,nlev,nlev)
+             if (obs_diagn%assim_mode) call print_Desroziers(unit,obs_diagn,press_bins,1,nlat,1,nlon,nlev,nlev,status_hpht)
              
           end if
                           
@@ -5971,7 +6102,7 @@ contains
                          write(unit,'(A)') " Multi-level data:"
                          write(unit,*)
                          call print_stats(unit,obs_diagn,press_bins,ilat,ilat,ilon,ilon,1,nlev-1) 
-                         if (obs_diagn%assim_mode) call print_Desroziers(unit,obs_diagn,press_bins,ilat,ilat,ilon,ilon,1,nlev-1)
+                         if (obs_diagn%assim_mode) call print_Desroziers(unit,obs_diagn,press_bins,ilat,ilat,ilon,ilon,1,nlev-1,status_hpht)
                       else if (multilevel) then
                          write(unit,*)
                          write(unit,'(A)') " No multi-level data."
@@ -5982,7 +6113,7 @@ contains
                          write(unit,'(A)') " Uni-level data:"
                          write(unit,*)
                          call print_stats(unit,obs_diagn,press_bins,ilat,ilat,ilon,ilon,nlev,nlev) 
-                         if (obs_diagn%assim_mode) call print_Desroziers(unit,obs_diagn,press_bins,ilat,ilat,ilon,ilon,nlev,nlev)
+                         if (obs_diagn%assim_mode) call print_Desroziers(unit,obs_diagn,press_bins,ilat,ilat,ilon,ilon,nlev,nlev,status_hpht)
                       else if (unilevel) then
                          write(unit,*)
                          write(unit,'(A)') " No uni-level data."
@@ -6189,7 +6320,7 @@ contains
 
     !----------------------------------------------------------------------------------------
 
-    subroutine print_Desroziers(unit,obs_diagn,pressure,ilat_start,ilat_end,ilon_start,ilon_end,ilev_start,ilev_end)
+    subroutine print_Desroziers(unit,obs_diagn,pressure,ilat_start,ilat_end,ilon_start,ilon_end,ilev_start,ilev_end,status_hpht)
       !
       ! Author:  Y. Rochon, ARQI/AQRD Aug 2016
       !          based on routine 'print_stats'
@@ -6208,6 +6339,7 @@ contains
       type(struct_chm_diagn), intent(in) :: obs_diagn
       real(8), intent(in) :: pressure(obs_diagn%nlev+1)
       integer, intent(in) :: unit,ilat_start,ilat_end,ilon_start,ilon_end,ilev_start,ilev_end
+      logical, intent(in) :: status_hpht
 
       integer :: ilev,level,N_assim(obs_diagn%nlev)
       real(8) :: pres1,pres2,sum_prod,sum_OmP,sum_OmA,sum_AmP,scaling
@@ -6244,8 +6376,11 @@ contains
       end do
 
       write(unit,*)
-      !write(unit,'(A)') "  Layer     Pressure (hPa)         N_assim   sum[(O-P)(A-P)/var(P)]  sum[(O-P)/sig(P)]  sum[(A-P)/sig(P)]  mean[(O-P)(A-P)/var(P)]-mean[(O-P)/sig(P)]*mean[(A-P)/sig(P)]"
-      write(unit,'(A)') "  Layer     Pressure (hPa)         N_assim       sum[(O-P)(A-P)]         sum[O-P]           sum[A-P]            mean[(O-P)(A-P)]-mean[O-P]*mean[A-P]"
+      if (status_hpht) then
+         write(unit,'(A)') "  Layer     Pressure (hPa)         N_assim   sum[(O-P)(A-P)/var(P)]  sum[(O-P)/sig(P)]  sum[(A-P)/sig(P)]  mean[(O-P)(A-P)/var(P)]-mean[(O-P)/sig(P)]*mean[(A-P)/sig(P)]"
+      else
+         write(unit,'(A)') "  Layer     Pressure (hPa)         N_assim       sum[(O-P)(A-P)]         sum[O-P]           sum[A-P]            mean[(O-P)(A-P)]-mean[O-P]*mean[A-P]"
+      end if
       write(unit,'(A)') "  -----     --------------         -------   ----------------------  -----------------  -----------------  -------------------------------------------------------------"
 
       do ilev=ilev_start,ilev_end
@@ -6299,7 +6434,7 @@ contains
 
 !   If needed, add effective temperature values in obs file for total column measurements
 
-    call obsdata_MPIgather(chm_efftemp)
+    call obsdata_MPIallgather(chm_efftemp)
     
     if (chm_efftemp%nrep.gt.0) then
         varno(1)=12001

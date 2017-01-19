@@ -122,7 +122,6 @@ module HorizontalCoord_mod
     inquire(file=trim(TemplateFile), exist=FileExist)
 
     if ( FileExist ) then
-      iu_template = 179  ! temporary fix due to a problem in fnom assigning a unit number already in use
       ier = fnom(iu_template,trim(TemplateFile),'RND+OLD+R/O',0)
       if ( ier == 0 ) then
         write(*,*)
