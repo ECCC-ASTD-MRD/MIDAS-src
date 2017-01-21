@@ -129,7 +129,7 @@ echo "loading eccc/mrd/rpn/anl/rttov/10v3.2/${COMP_ARCH}"
 LIBAPPL="rttov10.2.0_coef_io rttov10.2.0_main rttov10.2.0_other burp_module descrip $MPILIB"
 LIBSYS="hpcoperf"
 
-LIBRMN=rmn
+LIBRMN=rmnMP
 
 COMPF_GLOBAL="-openmp ${MPIKEY}"
 OPTF="=-check =noarg_temp_created"
