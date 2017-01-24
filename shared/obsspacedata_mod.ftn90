@@ -76,6 +76,8 @@ module IndexListDepot_mod
    !
    ! author  : J.W. Blezius - 2012
    !
+   ! Revisions:
+   !
 
    implicit none
    save
@@ -313,6 +315,14 @@ module ObsColumnNames_mod
    !        visible (from outside ObsSpaceData_mod) interface to
    !        ObsSpaceData_mod, the parameters defined in this module carry the
    !        prefix, OBS_, and not CN_.
+   !
+   ! Revisions:
+   !           Y.J. Rochon (ARQI), Dec 2014
+   !           -- Addition of OBS_CHM integer header element
+   !              for identifying the constituent type according
+   !              to BUFR code table 08046 (plus local additions).
+   !
+
    public
 
 
@@ -361,10 +371,12 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_NCO2= OBS_CF7+1 ! NCO2: number of valid CO2 slicing estimates (AIRS,IASI,CrIS)
    integer, parameter, public :: OBS_STYP= OBS_NCO2+1! surface type in obs file (0,1,2)
    integer, parameter, public :: OBS_ROQF= OBS_STYP+1! QUALITY FLAGS FOR RADIO OCCULTATION DATA
+   integer, parameter, public :: OBS_CHM = OBS_ROQF+1! BUFR code (table 08046) of constituent type (for the CH family)
 
 
    ! the last column index for integer header variables defined just above
-   integer, parameter :: NHDR_INT_END = OBS_ROQF
+   integer, parameter :: NHDR_INT_END = OBS_CHM
+
    integer, parameter :: NHDR_INT_SIZE = NHDR_INT_END - NHDR_INT_BEG + 1
 
    !
@@ -374,7 +386,7 @@ module ObsColumnNames_mod
       (/ 'RLN ','ONM ','INS ','OTP ','ITY ','SAT ','TEC ','DAT ','ETM ', &  
          'NLV ','OFL ','PAS ','REG ','IP  ','IPF ','IPC ','IPT ','AZA ','SZA ','SUN ','CLF ', &  
          'ST1 ','IDO ','IDF ','SAZ ','GQF ','GQL ','CF1 ','CF2 ','CF3 ', &
-         'CF4 ','CF5 ','CF6 ','CF7 ','NCO2','STYP','ROQF' /)  
+         'CF4 ','CF5 ','CF6 ','CF7 ','NCO2','STYP','ROQF','CHM '/)  
 
    !
    ! REAL-HEADER COLUMN NUMBERS
@@ -1331,6 +1343,7 @@ module ObsSpaceData_mod
    public obs_set_current_body_list   ! set a body list for a family as current
    public obs_set_current_header_list ! set a header list for a family as current
    public obs_setFamily  ! set the family of a datum
+   public obs_famExist   ! checks if a family is present in the observation set
    public obs_status     ! returns the values of the object's status variables
    public obs_write      ! write the observation data to binary files
                          ! (calls obs_write_hdr, obs_write_bdy, obs_write_hx
@@ -1373,7 +1386,7 @@ module ObsSpaceData_mod
    public :: OBS_AZA, OBS_SZA, OBS_SUN, OBS_CLF, OBS_ST1, OBS_IDO, OBS_IDF
    public :: OBS_SAZ, OBS_GQF, OBS_GQL
    public :: OBS_CF1, OBS_CF2, OBS_CF3, OBS_CF4, OBS_CF5, OBS_CF6, OBS_CF7
-   public :: OBS_NCO2,OBS_STYP,OBS_ROQF
+   public :: OBS_NCO2,OBS_STYP,OBS_ROQF,OBS_CHM
 
    !    real-header column numbers
    public :: OBS_LAT, OBS_LON, OBS_ALT, OBS_BX,  OBS_BY,  OBS_BZ
@@ -1479,7 +1492,7 @@ contains
       !     . C. Charette ARMA/SMC   October 2001
       !         - replace SUTERM by SUTERMF to only close files
       !     . J. Blezius  ARMA/SMC   2012
-      !         - import varAbort into obsspacedata_mod as OBS_ABORT
+      !         - import ABORT3D into obsspacedata_mod as OBS_ABORT
       !         - delete call to SUTERMF
       !    -------------------
       ! Purpose:
@@ -5038,6 +5051,7 @@ contains
       integer :: headerIndex_mpilocal,headerIndex_mpiglobal
       integer :: idataend,ifamid,idata,active_index
       integer :: column_index
+
       !!---------------------------------------------------------------
       WRITE(*,*) '============= Enter obs_reduceToMpiLocal =============='
 
@@ -5400,6 +5414,7 @@ contains
       ! determine rank and number of mpi tasks
       call rpn_comm_size("GRID",nprocs_mpi,ierr)
       call rpn_comm_rank("GRID",myid_mpi,ierr)
+
 
       ! Number of headers and bodies per task before redistribution
       numHeader_in = obs_numHeader(obsdat_inout)
@@ -6612,5 +6627,72 @@ contains
       return
 
    end subroutine obs_write_hx
+
+
+   function obs_famExist(obsdat,family,local_mpi)
+     !
+     ! object - Check if any observations of a particular family are present
+     !          in obsdat. Returned result will be the MPI local value if
+     !          the optional argument local_mpi is set to .true., will be
+     !          the MPI global value otherwise.
+     !
+     ! author - M. Sitwell (AQRD/ARQI) Jan 2016 
+     !
+     ! arguments
+     !    input
+     !        obsdat    : ObsSpaceData structure
+     !        family    : Obs family
+     !        local_mpi : return MPI local result; optional, default is .false.
+     !
+     !    output 
+     !        obs_famExist : Logical indicating if 'family' is part of the list
+     !
+     implicit none 
+
+     logical :: obs_famExist
+     type(struct_obs), intent(in)  :: obsdat
+     character(len=2), intent(in)  :: family
+     logical, intent(in), optional :: local_mpi
+     
+     integer :: index_header,ierr
+     logical :: famExist,local
+
+     if (present(local_mpi)) then
+        local = local_mpi
+     else
+        local = .false.
+     end if
+     
+     if (local) then
+        call tmg_start(101,'FAMEXISTL')
+     else
+        call tmg_start(102,'FAMEXISTG')
+     end if
+
+     famExist = .false.
+
+     ! check if family exists in local MPI process
+     do index_header = 1,obs_numheader(obsdat)
+        if (obs_getFamily(obsdat,index_header).eq.family) then
+           famExist = .true.
+           exit
+        end if
+     end do
+
+     if (local) then
+        ! return MPI local value
+        obs_famExist = famExist
+     else
+        ! return MPI global value
+        call rpn_comm_allreduce(famExist,obs_famExist,1,"MPI_LOGICAL","MPI_LOR","GRID",ierr)
+     end if
+
+     if (local) then
+        call tmg_stop(101)
+     else
+        call tmg_stop(102)
+     end if
+
+   end function obs_famExist
 
 end module ObsSpaceData_mod

@@ -196,12 +196,9 @@ if [ "${mode}" == full ] ; then
   # Create a local copy of the source code
   sed "s!XXXXX!${revnum}!g" ${trunkdir}/toplevelcontrol_mod.ftn90_template > toplevelcontrol_mod.ftn90
 
-  # temporarily use the version of obsspacedata_mod.ftn90 and bufr_mod.ftn90 that is in the main directory until these
-  # changes get committed to the 'shared' repository
-
   cd ${trunkdir};          ls -1F | grep -v '/' | grep -v "*" | grep -v "@" | cpio -pl $compiledir ; cd $compiledir
   cd ${trunkdir}/bgcheck;  ls -1F | grep -v '/' | grep -v "*" | cpio -pl $compiledir ; cd $compiledir
-  cd ${trunkdir}/shared;   ls -1F | grep -v '/' | grep -v "*" | grep -v 'bufr_mod' |  grep -v 'obsspacedata_mod' | cpio -pl $compiledir ; cd $compiledir
+  cd ${trunkdir}/shared;   ls -1F | grep -v '/' | grep -v "*" | cpio -pl $compiledir ; cd $compiledir
   cd ${trunkdir}/modulopt; ls -1F | grep -v '/' | grep -v "*" | cpio -pl $compiledir ; cd $compiledir
   rm -f *.ftn~ *.ftn90~
 
