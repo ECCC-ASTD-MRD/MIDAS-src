@@ -31,71 +31,45 @@ else
   echo
 fi
 
-echo " !!! Compiling for an MPI executable !!!"
+echo " Compiling for an MPI executable"
 echo ""
-# JFC : Mesure temporaire pour avoir acces a la S-R RPN_COMM_adj_halo8 de M. Valin
-if [ "${BASE_ARCH}" = "AIX-powerpc7" ] ; then
-    MPILIBDIR="-libpath /users/dor/arma/anl/userlibs/${BASE_ARCH}/xlf13"
-elif [ "${BASE_ARCH}" = "Linux_x86-64" ] ; then
-    MPILIBDIR="-libpath /users/dor/arma/anl/userlibs/${BASE_ARCH}/intel13sp1u2"
-else
-    echo "This platform 'ARCH=${ARCH}' is not supported.  Only 'AIX-powerpc7' and 'Linux_x86-64' are."
-    exit 1
-fi
-MPILIB="_anl_rpn_comm_4051103"
-# JFC : Mesure temporaire FIN
+MPILIBDIR="-libpath /users/dor/arma/gr3/userlibs/AIX-powerpc7/xlf13" # JFC : Mesure temporaire pour avoir acces a
+MPILIB="rpn_comm_adj_halo8"                                          #       la S-R RPN_COMM_adj_halo8 de M. Valin
 MPIKEY="-mpi"
 ABSTAG=""
+
+# replacing the string XXXXX with the actual revision number
+revnum=$(git describe --always --dirty=_M 2>/dev/null || ssh pollux "cd $trunkdir; git describe --always --dirty=_M" 2>/dev/null || echo unkown revision)
+echo "..."
+echo "... > Revision Number = '$revnum'"
 
 enkfpturbdir=$PWD
 trunkdir=$PWD/../
 
-# automatically set the global revision number in toplevelcontrol_mod.ftn90 by
-# replacing the string XXXXX with the actual revision number
-revpath=$(ssh pollux "cd $trunkdir; svn info | awk '/^URL/ {print \$2}'")
-revnum=$(ssh pollux "cd $trunkdir;  svnversion")
-echo " " 
-echo "-----------------------"
-echo "Revision number='$revnum' '$revpath'"
-echo "-----------------------"
-echo " "
-rm -f ${trunkdir}/toplevelcontrol_mod.ftn90
-cat ${trunkdir}/toplevelcontrol_mod.ftn90_template |sed "s!XXXXX!${revnum} ${revpath}!g" > toplevelcontrol_mod.ftn90
-
 ## for s.compile
 echo "loading hpcs/201402/02/base"
 . ssmuse-sh -d hpcs/201402/02/base
+
+## for the compiler
 echo "loading compiler hpcs/ext/xlf_13.1.0.10"
 . ssmuse-sh -d hpcs/ext/xlf_13.1.0.10
 
-## for rmn_015, rpncomm
+## for rmn, lapack_3.4.0, rpncomm
 echo "loading rpn/libs/15.2"
 . ssmuse-sh -d rpn/libs/15.2
+
 ## for 'vgrid'
-echo "loading cmdn/vgrid/5.4.0/${COMP_ARCH}"
-. ssmuse-sh -d cmdn/vgrid/5.4.0/${COMP_ARCH}
-## for 'burplib'
-echo "loading cmda/libs/15.2/${COMP_ARCH}"
-. ssmuse-sh -d cmda/libs/15.2/${COMP_ARCH}
-
-## For hpcsperf needed for TMG timings
-echo "loading hpcs/exp/aspgjdm/perftools"
-. ssmuse-sh -d hpcs/exp/aspgjdm/perftools
-# For RTTOV package... 
-echo "loading arma/rttov/10v4.1"
-. ssmuse-sh -d arma/rttov/10v4.1
-# For NetCDF package
-echo "loading netcdf"
-. s.ssmuse.dot netcdf
+echo "loading cmdn/vgrid/5.3.2/${COMP_ARCH}"
+. ssmuse-sh -d cmdn/vgrid/5.3.2/${COMP_ARCH}
 
 ## For hpcsperf needed for TMG timings
 . ssmuse-sh -d hpcs/exp/aspgjdm/perftools
 
-LIBAPPL="netcdf rttov10.2.0_coef_io rttov10.2.0_main rttov10.2.0_emis_atlas rttov10.2.0_other burp_module descrip $MPILIB"
-#LIBAPPL="rttov10.2.0_coef_io rttov10.2.0_main rttov10.2.0_other burp_module modelutils_base descrip $MPILIB "
+LIBAPPL="descrip $MPILIB"
 
-LIBSYS="hpcsperf lapack-3.4.0 essl mass"
+LIBSYS="essl mass"
 LIBRMN="rmn"
+LIBEXTRA="hpcsperf lapack-3.4.0"
 COMPF_NOC="-openmp $MPIKEY -O"
 #COMPF="$COMPF_NOC"
 COMPF="$COMPF_NOC -debug DEBUG -optf=-C "
@@ -110,45 +84,60 @@ if [ $mode == full ] ; then
   rm -f *.o *.mod *.cdk* *.h *.ftn* *.f *.f90
 
   # Create a local copy of the source code
-  cd ${trunkdir};          ls -1F | grep -v '/' | grep -v "*" | grep -v "@" | cpio -pl $compiledir ; cd $compiledir
-  cd ${trunkdir}/shared;   ls -1F | grep -v '/' | grep -v "*" | cpio -pl $compiledir ; cd $compiledir
-  cd ${trunkdir}/enkf_pturb; ls -1F | grep -v '/' | grep -v "*" | cpio -pl $compiledir ; cd $compiledir
-  rm -f *.ftn~ *.ftn90~
+  sed "s!XXXXX!${revnum}!g" ${trunkdir}/toplevelcontrol_mod.ftn90_template > toplevelcontrol_mod.ftn90
+
+  # Create a local copy of the source code
+  trunkfiles="mpi_mod.ftn90 mpivar_mod.ftn90 varabort.ftn90 physicsfunctions_mod.ftn90 controlvector_mod.ftn90 \
+            globalspectraltransform_mod.ftn90 lamanalysisgrid_mod.ftn90 localizationfunction_mod.ftn90 \
+            gridstatevector_mod.ftn90 maincompileswitch.inc varnamelist_mod.ftn90 lambmatrixhi_mod.ftn90 \
+            utils_3dvar.ftn lamspectraltransform_mod.ftn90 \
+            verticalcoord_mod.ftn90 horizontalcoord_mod.ftn90 dsyev2.ftn timecoord_mod.ftn90 \
+            columndata_mod.ftn90 bmatrixensemble_mod.ftn90 bmatrixhi_mod.ftn90 bmatrix_mod.ftn90 \
+            matsqrt.ftn getfldprm2.ftn randomnumber_mod.ftn90 variabletransforms_mod.ftn90 filterresponsefunction_mod.ftn90"
+
+  cd ${trunkdir}
+  cp -f enkf_pturb/main_enkf_pturb.ftn90 ${compiledir}
+  cp -f ${trunkfiles} ${compiledir}
+  cd ${trunkdir}/shared; ls -1F | grep -v '/' | grep -v "*" | cpio -pl ${compiledir}
+  cd ${compiledir}
 
   echo "STARTING COMPILATION AT:" 
   date
 
   # Compile the subroutines...
   echo "compiling low-level independent modules"
-  SRC0="toplevelcontrol_mod.ftn90"
-  SRC0="$SRC0 mathphysconstants_mod.ftn90 earthconstants_mod.ftn90 mpi_mod.ftn90 mpivar_mod.ftn90 bufr_mod.ftn90 codtyp_mod.ftn90"
-  SRC0="$SRC0 physicsfunctions_mod.ftn90 obsspacedata_mod.ftn90 localizationfunction_mod.ftn90 horizontalcoord_mod.ftn90 timecoord_mod.ftn90 verticalcoord_mod.ftn90 dsyev2.ftn"
-  s.compile $COMPF -src $SRC0 > listing1 2>&1
-  grep fail listing1
+  SRC0="toplevelcontrol_mod.ftn90 randomnumber_mod.ftn90"
+  SRC0="$SRC0 mathphysconstants_mod.ftn90 earthconstants_mod.ftn90 mpi_mod.ftn90 mpivar_mod.ftn90 filterresponsefunction_mod.ftn90"
+  SRC0="$SRC0 bufr_mod.ftn90 physicsfunctions_mod.ftn90 horizontalcoord_mod.ftn90 obsspacedata_mod.ftn90"
+  s.compile $COMPF -src $SRC0 > listing0a 2>&1
+  grep fail listing0a
   if [ $? = "0" ] ; then exit ; fi
 
   echo "compiling analysis grid modules"
-  SRC0="gaussgrid_mod.ftn90 windrotation_mod.ftn90 lamanalysisgrid_mod.ftn90"
-  s.compile $COMPF -src $SRC0 > listing2 2>&1
-  grep fail listing2
+  SRC0="lamanalysisgrid_mod.ftn90"
+  s.compile $COMPF -src $SRC0 > listing0b 2>&1
+  grep fail listing0b
   if [ $? = "0" ] ; then exit ; fi
 
   echo "compiling most of the new modules"
-  SRC1="controlvector_mod.ftn90 fft_mod.ftn90"
-  SRC1="$SRC1 globalspectraltransform_mod.ftn90 varnamelist_mod.ftn90"
+  SRC1="localizationfunction_mod.ftn90 controlvector_mod.ftn90 varnamelist_mod.ftn90 timecoord_mod.ftn90"
+  SRC1="$SRC1 globalspectraltransform_mod.ftn90 verticalcoord_mod.ftn90"
   SRC1="$SRC1 lamspectraltransform_mod.ftn90 gridstatevector_mod.ftn90"
-  SRC1="$SRC1 bmatrixensemble_mod.ftn90 bmatrixhi_mod.ftn90 lambmatrixhi_mod.ftn90"
-  SRC1="$SRC1 bmatrix_mod.ftn90 writeincrement_mod.ftn90"
-  s.compile $COMPF -src $SRC1 > listing3 2>&1
-  grep fail listing3
+  SRC1="$SRC1 columndata_mod.ftn90 lambmatrixhi_mod.ftn90"
+  SRC1="$SRC1 variabletransforms_mod.ftn90 bmatrixensemble_mod.ftn90 bmatrixhi_mod.ftn90"
+  SRC1="$SRC1 bmatrix_mod.ftn90"
+  s.compile $COMPF -src $SRC1 > listing1 2>&1
+  grep fail listing1
   if [ $? = "0" ] ; then exit ; fi
 
   echo "compiling remaining ftn ftn90..."
-  filelist="abort.ftn utils_3dvar.ftn getstamplist.ftn90 matsqrt.ftn getfldprm.ftn getfldprm2.ftn"
-  filelist="$filelist getstepobsindex.ftn90 matapat.ftn vintgd.ftn90 initgdg2.ftn90 gasdev.ftn"
-  filelist="$filelist filterresponsefunction.ftn90 main_enkf_pturb.ftn90"
-  s.compile $COMPF -src $filelist > listing7 2>&1
-  grep fail listing7
+  filelist=""
+  for i in *.ftn *.ftn90 ; do
+    xx=`echo $i |grep -v _mod.ftn` 
+    filelist="$filelist $xx"
+  done
+  s.compile $COMPF -src $filelist > listing4 2>&1
+  grep fail listing4
   if [ $? = "0" ] ; then exit ; fi
 
   echo "building the executable..."
@@ -157,7 +146,7 @@ if [ $mode == full ] ; then
   grep -i ERROR listing?
   if [ $? = "0" ] ; then echo "ERROR found: STOP" ; exit ; fi
 
-  rm -f *.ftn* *.f *.f90
+  rm -f *.ftn* 
 
   echo "FINISHED COMPILATION AT:"
   date

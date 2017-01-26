@@ -21,7 +21,7 @@
 !
 ! Subroutines (public):
 !    min_setup
-!    min_minvar
+!    min_minimize
 !
 ! Dependencies:
 !
@@ -40,14 +40,20 @@ MODULE minimization_mod
   use variableTransforms_mod
   use varNameList_mod
   use varqc_mod
+  use randomNumber_mod
+  use rmatrix_mod
+  use costFunction_mod
+  use residual_mod
+  use obsOperators_mod
+  use innovation_mod
   implicit none
   save
   private
 
   ! public variables
-  public              :: min_niter,min_nsim
+  public              :: min_niter
   ! public procedures
-  public              :: min_Setup, min_minvar
+  public              :: min_Setup, min_minimize
 
   type struct_dataptr
     type(struct_obs),pointer        :: obsSpaceData
@@ -170,8 +176,40 @@ CONTAINS
 
   END SUBROUTINE min_setup
 
+  subroutine min_minimize(columng,obsSpaceData)
+    implicit none
 
-  SUBROUTINE min_minvar(column,columng,obsSpaceData)
+    type(struct_obs) :: obsSpaceData
+    type(struct_columnData) :: column,columng
+    integer :: get_max_rss
+
+    write(*,*) '--------------------------------'
+    write(*,*) '--Starting subroutine minimize--'
+    write(*,*) '--------------------------------'
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call tmg_start(3,'MIN')
+
+    call col_setVco(column,col_getVco(columng))
+    call col_allocate(column,col_getNumCol(columng),mpi_local=.true.)
+    call col_copyLatLon(columng,column)
+
+    write(*,*) 'TIM_TIMEBINNING: For 4D increment'
+    call tim_timeBinning(obsSpaceData,tim_nstepobsinc)
+    call tim_sutimeinterp(obsSpaceData)
+
+    call quasiNewtonMinimization(column,columng,obsSpaceData)
+
+    call col_deallocate(column)
+    call tmg_stop(3)
+
+    ! Memory deallocations for non diagonal R matrices for radiances
+    call rmat_cleanup()
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    write(*,*) '--Done subroutine minimize--'
+
+  end subroutine min_minimize
+
+  SUBROUTINE quasiNewtonMinimization(column,columng,obsSpaceData)
     !
     ! Purpose:
     ! 3D/En VAR minimization
@@ -232,26 +270,26 @@ CONTAINS
       allocate(vazx(nvadim_mpilocal),stat=ierr)
       if(ierr.ne.0) then
         write(*,*) 'minimization: Problem allocating memory! id=3',ierr
-        call varAbort('aborting in min_minvar')
+        call varAbort('aborting in quasiNewtonMinimization')
       endif
 
       allocate(dg_vbar(nvadim_mpilocal),stat=ierr)
       if(ierr.ne.0) then
         write(*,*) 'minimization: Problem allocating memory! id=1',ierr
-        call varAbort('aborting in min_minvar')
+        call varAbort('aborting in quasiNewtonMinimization')
       endif
 
       allocate(vazg(nvadim_mpilocal),stat=ierr)
       if(ierr.ne.0) then
         write(*,*) 'minimization: Problem allocating memory! id=2',ierr
-        call varAbort('aborting in min_minvar')
+        call varAbort('aborting in quasiNewtonMinimization')
       endif
 
       allocate(vatra(nmtra),stat=ierr)
       if(ierr.ne.0.or.nmtra.le.0) then
         write(*,*) 'minimization: Problem allocating memory! id=4',ierr
         write(*,*) 'minimization: nmtra=',nmtra
-        call varAbort('aborting in min_minvar')
+        call varAbort('aborting in quasiNewtonMinimization')
       endif
 
       ! recast pointer to obsSpaceData as an integer array, so it can be passed through n1qn3 to simvar
@@ -262,7 +300,7 @@ CONTAINS
       allocate(dataptr_int(dataptr_int_size),stat=ierr)
       if(ierr.ne.0) then
         write(*,*) 'minimization: Problem allocating memory! id=2',ierr
-        call varAbort('aborting in min_minvar')
+        call varAbort('aborting in quasiNewtonMinimization')
       endif
       dataptr_int(1:dataptr_int_size)=transfer(dataptr,dataptr_int)
 
@@ -288,7 +326,7 @@ CONTAINS
 
       lldf1 = .true.
       if (preconFileExists) then
-        if(mpi_myid == 0) write(*,*) 'min_minvar : Preconditioning mode'
+        if(mpi_myid == 0) write(*,*) 'quasiNewtonMinimization : Preconditioning mode'
         lrdvatra = .true.
         imode = 2
         llvazx = lvazx ! from namelist (default is .false.)
@@ -489,9 +527,8 @@ CONTAINS
 
       deallocate(dataptr_int)
 
-  END SUBROUTINE min_minvar
+  END SUBROUTINE quasiNewtonMinimization
 
-  
   subroutine min_writeIncrement(incr_cv,columng)
 
     use chem_interface_mod
@@ -684,13 +721,13 @@ CONTAINS
 
       ! compute -H*xb', put in OBS_WORK
       call s2c_tl(statevector_ens(indexAnalysis),column,columng,obsSpaceData)  ! put in column H_horiz
-      call oda_H(column,columng,obsSpaceData)
+      call oop_Htl(column,columng,obsSpaceData,min_nsim)
 
       ! undo the multiply by -1 (-xb')
       call gsv_scale(statevector_ens(indexAnalysis),-1.0d0)
 
       ! obs perturbation added to OBS_WORK and copy into OBS_OMP
-      call perturbObs(obsSpaceData,numAnalyses,indexAnalysis,envar_loop,OBS_WORK,OBS_OMP)
+      call inn_perturbObs(obsSpaceData,numAnalyses,indexAnalysis,envar_loop,OBS_WORK,OBS_OMP)
 
       ! compute initial gradient
       incr_cv(:) = 0.0d0
@@ -843,7 +880,6 @@ CONTAINS
     integer :: numAnalyses, indexAnalysis
 
     integer :: iseed,jj,nlev_T,nlev_M,jvar,jlev,indexAnalysis2
-    real(8) :: gasdev,zdum
     real(8), allocatable :: cv_pert_mpiglobal(:), cv_pert_mpilocal(:)
     real(8), pointer :: cv_pert_bens_mpilocal(:), cv_pert_bhi_mpilocal(:), field(:,:,:,:)
     real(8), pointer :: cv_pert_bchm_mpilocal(:)
@@ -863,9 +899,9 @@ CONTAINS
       cv_pert_mpiglobal(:) = 0.0d0
       do indexAnalysis2 = 1, numAnalyses
         iseed = abs(tim_getDatestamp()) + indexAnalysis2 + (envar_loop-1)*numAnalyses
-        zdum = gasdev(-iseed)
+        call rng_setup(iseed) ! JFC: should be called only once, no???
         do jj = 1, cvm_nvadim_mpiglobal
-          cv_pert_mpiglobal(jj) = cv_pert_mpiglobal(jj) + gasdev(1)
+          cv_pert_mpiglobal(jj) = cv_pert_mpiglobal(jj) + rng_gaussian()
         enddo
       enddo
       cv_pert_mpiglobal(:) = cv_pert_mpiglobal(:)/real(numAnalyses,8)
@@ -880,9 +916,9 @@ CONTAINS
     ! compute perturbation and make mpilocal
     iseed = abs(tim_getDatestamp()) + indexAnalysis + (envar_loop-1)*numAnalyses
     write(*,*) 'min_calcRandomPert: indexAnalysis, iseed=', indexAnalysis, iseed
-    zdum = gasdev(-iseed)
+    call rng_setup(iseed) ! JFC : why re-initializing the seed??? 
     do jj = 1, cvm_nvadim_mpiglobal
-      cv_pert_mpiglobal(jj) = gasdev(1)
+      cv_pert_mpiglobal(jj) = rng_gaussian()
     enddo
 
     call bmat_reduceToMPILocal(cv_pert_mpilocal,   & ! OUT
@@ -1067,21 +1103,21 @@ CONTAINS
        call tmg_stop(30)
 
        call tmg_start(40,'OBS_TL')
-       call oda_H(column,columng,obsSpaceData)  ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
+       call oop_Htl(column,columng,obsSpaceData,min_nsim)  ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
        call tmg_stop(40)
 
-       call oda_res(obsSpaceData)  ! Calculate OBS_OMA from OBS_WORK : d-Hdx
+       call res_compute(obsSpaceData)  ! Calculate OBS_OMA from OBS_WORK : d-Hdx
      
-       call oda_sqrtRm1(obsSpaceData,OBS_WORK,OBS_OMA)  ! Save as OBS_WORK : R**-1/2 (d-Hdx)
+       call cfn_RsqrtInverse(obsSpaceData,OBS_WORK,OBS_OMA)  ! Save as OBS_WORK : R**-1/2 (d-Hdx)
      
-       call oda_Jo(obsSpaceData)  ! Store J-obs in OBS_JOBS : 1/2 * R**-1 (d-Hdx)**2
+       call cfn_calcJo(obsSpaceData)  ! Store J-obs in OBS_JOBS : 1/2 * R**-1 (d-Hdx)**2
      
        IF (LVARQC) THEN          
           call vqc_tl(obsSpaceData)  ! Store modified J_obs in OBS_JOBS : -ln((gamma-exp(J))/(gamma+1)) 
        endif
 
        dl_Jo = 0.d0
-       call oda_sumJo(obsSpaceData,dl_Jo)
+       call cfn_sumJo(obsSpaceData,dl_Jo)
        da_J = dl_Jb + dl_Jo
        if (na_indic  ==  3) then
           da_J = dl_Jo
@@ -1091,18 +1127,18 @@ CONTAINS
           IF(mpi_myid == 0) write(*,FMT='(6X,"SIMVAR:  Jb = ",G23.16,6X,"JO = ",G23.16,6X,"Jt = ",G23.16)') dl_Jb,dl_Jo,da_J
        endif
 
-       call oda_sqrtRm1(obsSpaceData,OBS_WORK,OBS_WORK)  ! Modify OBS_WORK : R**-1 (d-Hdx)
+       call cfn_RsqrtInverse(obsSpaceData,OBS_WORK,OBS_WORK)  ! Modify OBS_WORK : R**-1 (d-Hdx)
 
        IF (LVARQC) THEN
           call vqc_ad(obsSpaceData)
        endif
 
-       call oda_resT(obsSpaceData)  ! Calculate adjoint of d-Hdx (mult OBS_WORK by -1)
+       call res_computeAd(obsSpaceData)  ! Calculate adjoint of d-Hdx (mult OBS_WORK by -1)
 
        call col_zero(column)
 
        call tmg_start(41,'OBS_AD')
-       call oda_HT(column,columng,obsSpaceData)   ! Put in column : -H_vert**T R**-1 (d-Hdx)
+       call oop_Had(column,columng,obsSpaceData)   ! Put in column : -H_vert**T R**-1 (d-Hdx)
        call tmg_stop(41)
 
        call tmg_start(31,'OBS_INTERPAD')
@@ -1512,21 +1548,7 @@ CONTAINS
   !gives for small changes in the control variable. This test should be
   !accurate for values as small as DLALPHA =  SQRT(machine precision).
   !(see Courtier, 1987)
-  !
-  !Author  : P. Gauthier *ARMA/AES  June 9, 1992
-  !
-  !Revision:
-  !
-  !     JM Belanger CMDA/SMC  Oct 2000
-  !                   . 32 bits conversion
-  !     P. Gauthier ARMA/MSC July 2003
-  !                   . Set the output unit through an argument
-  !     S. Pellerin ARMA/MSC Oct. 2005
-  !                   . Introduction of call back simulator
-  !                   . Automatic array (argument cleanup)
-  !                   . F90 free style and ODA Norm coding
-  !
-  ! Local delcarations
+
   integer :: nl_indic, nl_j,ierr
   real*8  :: dl_wrk(na_dim),dl_gradj0(na_dim), dl_x(na_dim)
   real*8  :: dl_J0, dl_J, dl_test, dl_start,dl_end
@@ -1572,7 +1594,5 @@ CONTAINS
           G23.16)
   return
 end subroutine grtest2
-
-
 
 END MODULE minimization_mod

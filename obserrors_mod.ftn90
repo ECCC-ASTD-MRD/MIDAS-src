@@ -14,8 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-module observation_erreurs_mod
-
+module obsErrors_mod
   use MathPhysConstants_mod
   use obsSpaceData_mod
   use tovs_nl_mod
@@ -23,13 +22,17 @@ module observation_erreurs_mod
   use chem_interface_mod
   use codtyp_mod
   use bufr
+  use utilities_mod
+  use EarthConstants_mod
+  use gps_mod
+  use columnData_mod
   implicit none
   private
 
   ! public procedures
   ! -----------------
 
-  public :: oer_set_obs_erreurs
+  public :: oer_setObsErrors, oer_SETERRGPSGB, oer_SETERRGPSRO
 
   ! TOVS OBS ERRORS
   ! ---------------
@@ -52,65 +55,65 @@ module observation_erreurs_mod
 !-----------------------------------------------------------------------------------------
 !-----------------------------------------------------------------------------------------
 
-  subroutine oer_set_obs_erreurs(lobsSpaceData)
+  subroutine oer_setObsErrors(lobsSpaceData)
   !
-  ! s/r set_observation_erreurs -SET OBSERVATION ERROR STDDEV FOR ALL DATA 
+  ! s/r set_obsErrors -SET OBSERVATION ERROR FOR ALL DATA 
   !
   ! Author  : S. Laroche  February 2014
   ! Revision: Y. Rochon, Nov 2014
-  !           - Added call to oer_read_obs_erreurs_chm
+  !           - Added call to read_obs_erreurs_chm
   !
-  ! Purpose: read and set observation error stddev (from former sucovo subroutine).
+  ! Purpose: read and set observation errors (from former sucovo subroutine).
   !
   !
 
   type(struct_obs) :: lobsSpaceData
 
   !
-  ! Read in the observation error stddev for radiance data
+    ! Read in the observation stddev errors for radiance data
   !
   if (obs_famexist(lobsSpaceData,'TO')) then
-      call oer_read_obs_erreurs_tovs
+       call read_obs_erreurs_tovs
   else 
-      write(*,*) "oer_set_obs_erreurs: No brightness temperature observations found."
+       write(*,*) "oer_setObsErrors: No brightness temperature observations found."
   end if
   !
-  ! Read in the observation error stddev for conventional data
+    ! Read in the observation stddev errors for conventional data
   !
   if (obs_famExist(lobsSpaceData,'UA').or.obs_famExist(lobsSpaceData,'AI').or.obs_famExist(lobsSpaceData,'SW').or. &
       obs_famExist(lobsSpaceData,'SF').or.obs_famExist(lobsSpaceData,'SC').or.obs_famExist(lobsSpaceData,'PR') ) then
-      call oer_read_obs_erreurs_conv
+       call read_obs_erreurs_conv
   else
-      write(*,*) "oer_set_obs_erreurs: No conventional weather observations found."
+       write(*,*) "oer_setObsErrors: No conventional weather observations found."
   end if
 
   !
-  ! Read in the observation error stddev for constituent data
+    ! Read in the observation stddev error for constituent data
   !
   if (obs_famexist(lobsSpaceData,'CH')) then
-      call oer_read_obs_erreurs_chm
+       call read_obs_erreurs_chm
   else
-      write(*,*) "oer_set_obs_erreurs: No CH observations found."
+       write(*,*) "oer_setObsErrors: No CH observations found."
   end if
   
   !
   ! Set obs error information in obsSpaceData object
   !
-  call oer_fill_obs_erreurs(lobsSpaceData)
+    call fill_obs_erreurs(lobsSpaceData)
 
   !
   ! Deallocate temporary storage
   !
   if (obs_famExist(lobsspaceData,'CH')) call chm_dealloc_obs_err_stddev
 
-  end subroutine oer_set_obs_erreurs
+  end subroutine oer_setObsErrors
 
 !-----------------------------------------------------------------------------------------
 !-----------------------------------------------------------------------------------------
 
-  subroutine oer_read_obs_erreurs_tovs
+  subroutine read_obs_erreurs_tovs
   !
-  ! s/r oer_read_obs_erreurs_tovs
+    ! s/r read_obs_erreurs_tovs
   ! - Read the observation erreur statistics and utilization flag for TOVS processing.
   !
   !
@@ -157,7 +160,7 @@ module observation_erreurs_mod
   use rmatrix_mod
   implicit none
 
-  integer,external  :: FNOM, FCLOS, ISRCHEQ
+    integer,external  :: FNOM, FCLOS
   integer  :: IER, ILUTOV, JI, JJ, JK, JL, JM, I, IPOS1, IPOS2, INUMSAT, ISAT, IPLF
   integer, dimension(JPNSATMAX)         :: IPLATFORM, ISATID, IINSTRUMENT, NUMCHN, NUMCHNIN
   integer, dimension(JPCHMAX,JPNSATMAX) :: IUTILST, ICHN, ICHNIN
@@ -168,7 +171,7 @@ module observation_erreurs_mod
 
   character (len=132) :: CLDUM,CPLATF,CINSTR
 
-  WRITE(*,'(//,10x,"-oer_read_obs_erreurs_tovs: reading observation error statistics required for TOVS processing")')
+    WRITE(*,'(//,10x,"-read_obs_erreurs_tovs: reading observation error statistics required for TOVS processing")')
 
   !
   !    1. Initialize
@@ -202,8 +205,8 @@ module observation_erreurs_mod
   ilutov = 0
   IER =  FNOM(ILUTOV,'stats_tovs','SEQ+FMT',0)
   IF(IER.LT.0)THEN
-     WRITE ( *, '(" oer_read_obs_erreurs_tovs: Problem opening ","file stats_tovs ")' )
-     CALL varAbort ('oer_read_obs_erreurs_tovs')
+       WRITE ( *, '(" read_obs_erreurs_tovs: Problem opening ","file stats_tovs ")' )
+       CALL varAbort ('read_obs_erreurs_tovs')
   END IF
 
   !
@@ -219,7 +222,7 @@ module observation_erreurs_mod
   !        the observation errors and the utilization flags
   !        ----------------------------------------------------------
   !
-  WRITE(*,'(5X,"oer_read_obs_erreurs_tovs: Reading stats_tovs file: "//)')
+    WRITE(*,'(5X,"read_obs_erreurs_tovs: Reading stats_tovs file: "//)')
 
   DO JL = 1, INUMSAT
 
@@ -240,15 +243,15 @@ module observation_erreurs_mod
      IPLATFORM(JL) =  tvs_get_platform_id(CPLATF)
 
      IF ( IPLATFORM(JL) .EQ. -1 ) THEN
-      WRITE ( *, '(" oer_read_obs_erreurs_tovs: Unknown platform!"/)' )
-      CALL varAbort ('oer_read_obs_erreurs_tovs')
+          WRITE ( *, '(" read_obs_erreurs_tovs: Unknown platform!"/)' )
+          CALL varAbort ('read_obs_erreurs_tovs')
      ENDIF
 
      IINSTRUMENT(JL) = tvs_get_inst_id(CINSTR)
 
      IF ( IINSTRUMENT(JL) .EQ. -1 ) THEN
-       WRITE ( *, '(" oer_read_obs_erreurs_tovs: Unknown instrument!"/)' )
-       CALL varAbort ('oer_read_obs_erreurs_tovs')
+          WRITE ( *, '(" read_obs_erreurs_tovs: Unknown instrument!"/)' )
+          CALL varAbort ('read_obs_erreurs_tovs')
      ENDIF  
 
      DO JI = 1, NUMCHNIN(JL)
@@ -271,7 +274,7 @@ module observation_erreurs_mod
   !
   !   Fill the observation error array TOVERRST
   !
-  WRITE(*,'(5X,"oer_read_obs_erreurs_tovs: Fill error array TOVERRST: "//)')
+    WRITE(*,'(5X,"read_obs_erreurs_tovs: Fill error array TOVERRST: "//)')
   DO JM= 1, INUMSAT
     DO JL = 1, NSENSORS
       IF ( PLATFORM (JL) .EQ. IPLATFORM(JM) .AND. SATELLITE(JL) .EQ. ISATID(JM) ) THEN
@@ -292,15 +295,15 @@ module observation_erreurs_mod
   !  all the satellites specified in the namelist.
   !
   DO JL = 1, NSENSORS
-     IPLF = ISRCHEQ ( IPLATFORM  , INUMSAT, PLATFORM  (JL) )
-     ISAT = ISRCHEQ ( ISATID     , INUMSAT, SATELLITE (JL) )
+       IPLF = utl_findArrayIndex( IPLATFORM  , INUMSAT, PLATFORM  (JL) )
+       ISAT =  utl_findArrayIndex( ISATID     , INUMSAT, SATELLITE (JL) )
      IF ( IPLF .EQ. 0 .OR. ISAT .EQ. 0 ) THEN
-       WRITE ( *, '(" oer_read_obs_erreurs_tovs: Observation errors not ","defined for sensor # ", I3)' ) JL
-       CALL varAbort ('oer_read_obs_erreurs_tovs')
+          WRITE ( *, '(" read_obs_erreurs_tovs: Observation errors not ","defined for sensor # ", I3)' ) JL
+          CALL varAbort ('read_obs_erreurs_tovs')
      END IF
      IF ( NUMCHN(JL) .EQ. 0 ) THEN 
-       WRITE ( *, '(" oer_read_obs_erreurs_tovs: Problem setting errors ","for sensor # ", I3)' ) JL
-       CALL varAbort ('oer_read_obs_erreurs_tovs')
+          WRITE ( *, '(" read_obs_erreurs_tovs: Problem setting errors ","for sensor # ", I3)' ) JL
+          CALL varAbort ('read_obs_erreurs_tovs')
      ENDIF
   ENDDO
 
@@ -348,7 +351,7 @@ module observation_erreurs_mod
   !
   IER = FCLOS(ILUTOV)
   IF(IER.NE.0)THEN
-     CALL varAbort ('oer_read_obs_erreurs_tovs')
+       CALL varAbort ('read_obs_erreurs_tovs')
   END IF
 
       contains
@@ -442,14 +445,14 @@ module observation_erreurs_mod
 
       end subroutine split
 
-  end subroutine oer_read_obs_erreurs_tovs
+  end subroutine read_obs_erreurs_tovs
 
 !-----------------------------------------------------------------------------------------
 !-----------------------------------------------------------------------------------------
 
-  subroutine oer_read_obs_erreurs_conv
+  subroutine read_obs_erreurs_conv
   !
-  ! s/r oer_read_obs_erreurs_conv -READ OBSERVATION ERROR OF CONVENTIONAL DATA 
+    ! s/r read_obs_erreurs_conv -READ OBSERVATION ERROR OF CONVENTIONAL DATA 
   !
   ! Author  : S. Laroche  February 2014
   ! Revision:
@@ -537,13 +540,13 @@ module observation_erreurs_mod
   CLOSE(UNIT=NULSTAT)
   IERR=FCLOS(NULSTAT)    
 
-  end subroutine oer_read_obs_erreurs_conv
+  end subroutine read_obs_erreurs_conv
 
 !-----------------------------------------------------------------------------------------
 
-  subroutine oer_read_obs_erreurs_chm
+  subroutine read_obs_erreurs_chm
 !
-! s/r oer_read_obs_erreurs_chm - READ OBSERVATION ERROR OF CONSTITUENT DATA 
+! s/r read_obs_erreurs_chm - READ OBSERVATION ERROR OF CONSTITUENT DATA 
 !
 ! Author   : Y. Rochon and M. Sitwell, ARQI/AQRD, Nov 2014 - Feb 2015
 !
@@ -557,13 +560,13 @@ module observation_erreurs_mod
 
   call chm_read_obs_err_stddev
 
-  end subroutine oer_read_obs_erreurs_chm
+  end subroutine read_obs_erreurs_chm
 
 !-----------------------------------------------------------------------------------------
 
-  subroutine oer_fill_obs_erreurs(lobsSpaceData)
+  subroutine fill_obs_erreurs(lobsSpaceData)
   !
-  ! s/r oer_fill_obs_erreurs -FILL OBSERVATION ERRORS IN lobsSpaceData
+    ! s/r fill_obs_erreurs -FILL OBSERVATION ERRORS IN lobsSpaceData
   !
   ! Author  : S. Laroche  February 2014
   ! Revision: 
@@ -592,6 +595,7 @@ module observation_erreurs_mod
   CHARACTER(len=2)  :: SENSORTYPE,CFAM
   CHARACTER(len=12) :: CSTNID
 
+    CHARACTER(len=2) :: CFAM
 
   !
   !     ========================================================================== 
@@ -928,7 +932,7 @@ module observation_erreurs_mod
                obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY), &
                obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)
 
-          CALL varAbort('oer_fill_obs_erreurs: PROBLEM OBSERR VARIANCE.')
+                CALL varAbort('fill_obs_erreurs: PROBLEM OBSERR VARIANCE.')
 
         ENDIF
 
@@ -941,8 +945,525 @@ module observation_erreurs_mod
   WRITE(*,'(10X,"Fill_obs_errors")')
   WRITE(*,'(10X,"---------------",/)')
 
-  end subroutine oer_fill_obs_erreurs
+  end subroutine fill_obs_erreurs
+
+  SUBROUTINE oer_SETERRGPSRO(lcolumnhr,lobsSpaceData)
+
+    !**s/r SETERRGPSRO - Compute estimated errors for GPSRO observations
+    IMPLICIT NONE
+    !
+    type(struct_columnData) :: lcolumnhr
+    type(struct_obs)        :: lobsSpaceData
+    !
+    INTEGER INDEX_HEADER, IDATYP, INDEX_BODY, iProfile
+    REAL*8 zLat, Lat, sLat
+    REAL*8 zLon, Lon
+    REAL*8 zAzm, Azm
+    REAL*8, allocatable :: ZPP(:)
+    REAL*8, allocatable :: ZDP(:)
+    REAL*8, allocatable :: ZTT(:)
+    REAL*8, allocatable :: ZHU(:)
+    REAL*8, allocatable :: ZUU(:)
+    REAL*8, allocatable :: ZVV(:)
+    !
+    REAL*8 DH,DDH
+    INTEGER JL, IAZM, ISAT, JH, NGPSLEV, NWNDLEV
+    REAL*8 zMT, Rad, Geo, zP0
+    REAL*8 HNH1, SUM0, SUM1, ZMIN
+    !
+    LOGICAL  ASSIM, L1, L2, L3
+
+    INTEGER NH, NH1
+    TYPE(GPS_PROFILE)           :: PRF
+    REAL*8       , allocatable :: H   (:),AZMV(:)
+    REAL*8       , allocatable :: ZOBS(:),ZREF(:),ZOFF(:),ZERR(:), ZMHX(:)
+    TYPE(GPS_DIFF), allocatable :: RSTV(:)
+
+    WRITE(*,*)'ENTER SETERRGPSRO'
+    !
+    !     * 1.  Initializations
+    !     *     ---------------
+    !
+    NGPSLEV=col_getNumLev(LCOLUMNHR,'TH')
+    NWNDLEV=col_getNumLev(LCOLUMNHR,'MM')
+    allocate(ZPP (NGPSLEV))
+    allocate(ZDP (NGPSLEV))
+    allocate(ZTT (NGPSLEV))
+    allocate(ZHU (NGPSLEV))
+    allocate(ZUU (NGPSLEV))
+    allocate(ZVV (NGPSLEV))
+    !
+    allocate( H    (GPSRO_MAXPRFSIZE) )
+    allocate( AZMV (GPSRO_MAXPRFSIZE) )
+    allocate( ZOBS (GPSRO_MAXPRFSIZE) )
+    allocate( ZREF (GPSRO_MAXPRFSIZE) )
+    allocate( ZOFF (GPSRO_MAXPRFSIZE) )
+    allocate( ZERR (GPSRO_MAXPRFSIZE) )
+    allocate( RSTV (GPSRO_MAXPRFSIZE) )
+    allocate( ZMHX (GPSRO_MAXPRFSIZE) )
+    !
+    !     Loop over all header indices of the 'RO' family:
+    !
+    call obs_set_current_header_list(lobsSpaceData,'RO')
+    HEADER: do
+       INDEX_HEADER = obs_getHeaderIndex(lobsSpaceData)
+       if (INDEX_HEADER < 0) exit HEADER
+       !
+       !     *  Process only refractivity data (codtyp 169)
+       !
+       IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
+       IF ( IDATYP .EQ. 169 ) THEN
+          !
+          !     *     Scan for requested data values of the profile, and count them
+          !
+          ASSIM = .FALSE.
+          NH = 0
+          call obs_set_current_body_list(lobsSpaceData, INDEX_HEADER)
+          BODY: do 
+             index_body = obs_getBodyIndex(lobsSpaceData)
+             if (index_body < 0) exit BODY
+             IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY).EQ.1 ) THEN
+                ASSIM = .TRUE.
+                NH = NH + 1
+             ENDIF
+          ENDDO BODY
+          !
+          !     *     If assimilations are requested, prepare and apply the observation operator
+          !
+          IF (ASSIM) THEN
+             iProfile=gps_iprofile_from_index(INDEX_HEADER)
+             !
+             !     *        Basic geometric variables of the profile:
+             !
+             IAZM = obs_headElem_i(lobsSpaceData,OBS_AZA,INDEX_HEADER)
+             ISAT = obs_headElem_i(lobsSpaceData,OBS_SAT,INDEX_HEADER)
+             Rad  = obs_headElem_r(lobsSpaceData,OBS_TRAD,INDEX_HEADER)
+             Geo  = obs_headElem_r(lobsSpaceData,OBS_GEOI,INDEX_HEADER)
+             zAzm = 0.01d0*IAZM / MPC_DEGREES_PER_RADIAN_R8
+             zMT  = col_getHeight(lcolumnhr,NGPSLEV,INDEX_HEADER,'TH')/RG
+             !     
+             !     *        Profile at the observation location:
+             !
+             zLat = obs_headElem_r(lobsSpaceData,OBS_LAT,INDEX_HEADER)
+             zLon = obs_headElem_r(lobsSpaceData,OBS_LON,INDEX_HEADER)
+             Lat  = zLat * MPC_DEGREES_PER_RADIAN_R8
+             Lon  = zLon * MPC_DEGREES_PER_RADIAN_R8
+             Azm  = zAzm * MPC_DEGREES_PER_RADIAN_R8
+             sLat = sin(zLat)
+             zMT  = zMT * RG / gpsgravitysrf(sLat)
+             zP0  = col_getElem(lcolumnhr,1,INDEX_HEADER,'P0')
+             DO JL = 1, NGPSLEV
+                !
+                !     *           Profile x
+                !
+                ZPP(JL) = col_getPressure(LCOLUMNHR,JL,INDEX_HEADER,'TH')
+                !     *           True implementation of ZDP (dP/dP0)
+                ZDP(JL) = col_getPressureDeriv(LCOLUMNHR,JL,INDEX_HEADER,'TH')
+                ZTT(JL) = col_getElem(lcolumnhr,JL,INDEX_HEADER,'TT') - p_TC
+                ZHU(JL) = col_getElem(lcolumnhr,JL,INDEX_HEADER,'HU')
+                ZUU(JL) = 0.d0
+                ZVV(JL) = 0.d0
+             ENDDO
+
+             if((col_getPressure(lcolumnhr,1,index_header,'TH') + 1.0d-4) .lt. &
+                  col_getPressure(lcolumnhr,1,index_header,'MM')) then
+                ! case with top thermo level above top momentum level (Vcode=5002)
+                do jl = 1, nwndlev
+                   zuu(jl) = col_getElem(lcolumnhr,jl  ,index_header,'UU') * p_knot
+                   zvv(jl) = col_getElem(lcolumnhr,jl  ,index_header,'VV') * p_knot
+                enddo
+             else
+                ! case without top thermo above top momentum level or unstaggered (Vcode=5001/4/5)
+                do jl = 1, nwndlev-1
+                   zuu(jl) = col_getElem(lcolumnhr,jl+1,index_header,'UU') * p_knot
+                   zvv(jl) = col_getElem(lcolumnhr,jl+1,index_header,'VV') * p_knot
+                enddo
+                zuu(nwndlev) = zuu(nwndlev-1)
+                zvv(nwndlev) = zuu(nwndlev-1)
+             endif
+             zuu(ngpslev) = zuu(nwndlev)
+             zvv(ngpslev) = zuu(nwndlev)
+             !     
+             !     *        GPS profile structure:
+             !
+             call gps_struct1sw(ngpslev,zLat,zLon,zAzm,zMT,Rad,geo,zP0,zPP,zDP,zTT,zHU,zUU,zVV,prf)
+             !
+             !     *        Prepare the vector of all the observations:
+             !
+             NH1 = 0
+             !
+             !     *        Loop over all body indices for this index_header:
+             !     *        (start at the beginning of the list)
+             !
+             call obs_set_current_body_list(lobsSpaceData, index_header)
+             BODY_2: do 
+                index_body = obs_getBodyIndex(lobsSpaceData)
+                if (index_body < 0) exit BODY_2
+                IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY).EQ.1 ) THEN
+                   NH1      = NH1 + 1
+                   H(NH1)   = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
+                   AZMV(NH1)= zAzm
+                   ZOBS(NH1)= obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY)
+                   !     *              Reference value:
+                   IF (LEVELGPSRO.EQ.1) THEN
+                      ZREF(NH1) = 0.025d0*exp(-(H(NH1)-Rad)/6500.d0)
+                   ELSE
+                      ZREF(NH1) = 300.d0*exp(-H(NH1)/6500.d0)
+                   ENDIF
+                ENDIF
+             ENDDO BODY_2
+             !
+             !     *        Apply the observation operator:
+             !
+             IF (LEVELGPSRO.EQ.1) THEN
+                CALL GPS_BNDOPV1(H, AZMV, NH, PRF, RSTV)
+             ELSE
+                CALL GPS_REFOPV (H,       NH, PRF, RSTV)
+             ENDIF
+             !
+             !     *        Perform the (H(x)-Y)/R operation:
+             !
+             DO NH1 = 1, NH
+                ZMHX(NH1) = RSTV(NH1)%VAR
+                !
+                !     *           Normalized offset:
+                !
+                IF ( NUMGPSSATS .GE. 1 ) THEN
+                   ZOFF(NH1) = (ZOBS(NH1) - ZMHX(NH1)) / ZREF(NH1)
+                ELSE
+                   ZOFF(NH1) = (ZOBS(NH1) - ZMHX(NH1)) / ZMHX(NH1)
+                ENDIF
+             ENDDO
+             !
+             !     *        The procedure below is well tested to collectively
+             !     *        create error profiles from the data profile, and
+             !     *        intended to be used for these data.
+             !
+             DH = 5000.d0
+             IF (LEVELGPSRO.EQ.1) THEN
+                ZMIN=0.01D0
+             ELSE
+                ZMIN=0.002D0
+             ENDIF
+
+             IF (LEVELGPSRO.EQ.2) THEN
+                DO NH1 = 1, NH
+                   SUM0=0.d0
+                   SUM1=0.d0
+                   DO JH = 1, NH
+                      DDH=H(JH)-H(NH1)
+                      SUM0=SUM0+EXP(-(DDH/DH)**2)
+                      SUM1=SUM1+EXP(-(DDH/DH)**2)*ZOFF(JH)**2
+                   ENDDO
+                   ZERR(NH1)=(SUM1/SUM0)**0.5D0
+                   IF ( NUMGPSSATS .GE. 1 ) THEN
+                      IF (ISAT.EQ.3 .OR. ISAT.EQ.4) ZERR(NH1) = 2*ZERR(NH1)
+                   ENDIF
+                   IF ( ZERR(NH1) < ZMIN ) ZERR(NH1) = ZMIN
+                ENDDO
+             ELSE
+                DO NH1 = 1, NH
+                   ZERR(NH1)=0.05d0
+                   HNH1=H(NH1)-Rad
+                   L1=( HNH1.LE.10000.d0 )
+                   L2=( HNH1.GT.10000.d0 .AND. HNH1.LT.30000.d0 )
+                   L3=( HNH1.GT.30000.d0 )
+                   IF ( L1 ) ZERR(NH1)=0.02d0+0.08d0*(10000.d0-HNH1)/10000.d0
+                   IF ( L2 ) ZERR(NH1)=0.02d0
+                   IF ( L3 ) ZERR(NH1)=0.02d0+0.13d0*(HNH1-30000.d0)/30000.d0
+                   IF (ISAT.EQ.3 .OR. ISAT.EQ.4 .OR. ISAT.EQ.5) ZERR(NH1) = 2*ZERR(NH1)
+                   IF ( ZERR(NH1) < ZMIN ) ZERR(NH1) = ZMIN
+                ENDDO
+             ENDIF
+
+             NH1 = 0
+             !
+             !     *        Loop over all body indices for this index_header:
+             !     *        (start at the beginning of the list)
+             !
+             call obs_set_current_body_list(lobsSpaceData, index_header)
+             BODY_4: do 
+                index_body = obs_getBodyIndex(lobsSpaceData)
+                if (index_body < 0) exit BODY_4
+                IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY).EQ.1 ) THEN
+                   NH1 = NH1 + 1
+                   !
+                   !     *              Observation error    S
+                   !
+                   IF ( NUMGPSSATS .GE. 1 ) THEN
+                      call obs_bodySet_r(lobsSpaceData,OBS_OER,index_body, ZERR(NH1) * ZREF(NH1))
+                   ELSE
+                      call obs_bodySet_r(lobsSpaceData,OBS_OER,index_body, ZERR(NH1) * ZMHX(NH1))
+                   ENDIF
+                ENDIF
+             ENDDO BODY_4
+          ENDIF
+       ENDIF
+    ENDDO HEADER
+
+    deallocate( RSTV )
+    deallocate( ZERR )
+    deallocate( ZOFF )
+    deallocate( ZREF )
+    deallocate( ZOBS )
+    deallocate( AZMV )
+    deallocate( H    )
+    deallocate( ZMHX )
+
+    deallocate(zVV)
+    deallocate(zUU)
+    deallocate(zHU)
+    deallocate(zTT)
+    deallocate(zDP)
+    deallocate(zPP)
+
+    WRITE(*,*)'EXIT SETERRGPSRO'
+    RETURN
+  END SUBROUTINE OER_SETERRGPSRO
+
+  SUBROUTINE oer_SETERRGPSGB(columnhr,lobsSpaceData,ldata,analysisMode)
+    !
+    !s/r SETERRGPSGB - SET OBSERVATION ERROR COVARIANCES FOR GB-GPS ZTD DATA
+    !
+    !*    Purpose:
+    !             - Set the observation errors [OBS_OER] and Std(O-P) [OBS_HPHT] for GB-GPS ZTD data.
+    !               (GPS surface met obs errors are set before in observation_erreurs_mod.ftn90.
+    !               The ZTD error is also initialized to the "formal error" or to 1.0 if missing.)
+    !             - Returns ldata=.false. if there are no GPS ZTD data to assimilate
+    !               and also sets the modgpsztd_mod variable numGPSZTD = 0.
+    !
+    IMPLICIT NONE
+    !
+    ! NOTE: YZDERRWGT IN modgpsztd_mod (FROM NML FILE) IS USED FOR ERROR WEIGHTING
+    !       OF TIME SERIES (FGAT) GPS ZTD OBSERVATIONS TO ACCOUNT FOR TEMPORAL ERROR
+    !       CORRELATIONS.
+    !
+    type(struct_columnData) :: columnhr
+    type(struct_obs)        :: lobsSpaceData
+    logical                 :: ldata
+    logical                 :: analysisMode
+
+    INTEGER INDEX_BODY, INDEX_HEADER, ITYP, IASS, IZTDJ, NBRPDATE, ICOUNT, ICOUNT2
+    integer ielem, nlev_T
+
+    LOGICAL LLCZTDE, LLFER, LLFZTDE, LLZTD, LLRZTDE, ASSIM, ERRSET, DEBUG, LESTP
+    LOGICAL LLZWD
+
+    !
+    REAL*8  ZTDERR, ZZTD, ZMINZDE, ZPSFC, ZHD, ZWD, ZTDOER, ZLEV, ZVAL, ZZWD
+    REAL*8  ZBTSFC, ZBPSFC, ZBZSFC, ZDZ, ZSTDOMP
+
+    !
+    !     ZZDERMIN = MIN ZTD OER VALUE (M), ZZFERREJ = MAX FERR VALUE (M) FOR REJECTION
+    !     ZZDERMAX = MAX ZTD OER VALUE (M)
+    !     ZTDERFAC = MULTIPLICATION FACTOR FOR FORMAL ZTD MEASUREMENT ERROR
+    !     ZOPEFAC  = FRACTION OF REGRESSION EQUATION SD(O-P) TO USE AS ZTD OBSERVATION ERROR
+    !     ----------------------------------------------------------------------------------
+    !
+    REAL*8 ZZDERMIN, ZZFERREJ, ZZDERMAX, ZTDERFAC, ZOPEFAC
+    DATA ZZDERMIN /0.004D0/
+    DATA ZZFERREJ /0.015D0/
+    DATA ZZDERMAX /0.030D0/
+    DATA ZTDERFAC /3.0D0/
+    DATA ZOPEFAC  /1.0D0/
+    !
+    !     FOR ESTIMATION OF PSFC (IF MISSING)
+    !       ZGAMMA = (NEG. OF) TEMPERATURE LAPSE RATE (K/M)
+    !
+    REAL*8 ZGAMMA
+    DATA ZGAMMA /0.0065D0/
+
+    !     ----------------------------------------------------------------------------------
+    !     LINEAR REGRESSION EQUATION CONSTANTS AND COEFFS FOR ZTD ERROR AND STD(O-P):
+
+    !     ZRCONST, ZRCOEFF:
+    !       - From linear regression of Desroziers error estimates binned by observed ZWD.
+    !       - Gives ZTDerror (mm) as function of ZWD (m):
+    !            ZTDerror(mm) = ZRCONST + ZRCOEFF*ZWD(m)
+    !     ZRCONST2, ZRCOEFF2:
+    !       - From linear regression of Std(O-P) binned by observed ZWD.
+    !       - Gives Std(O-P) (mm) as function of ZWD (m):
+    !            Std(O-P)(mm) = ZRCONST2 + ZRCOEFF2*ZWD(m)
+    !     ----------------------------------------------------------------------------------
+    REAL*8 ZRCONST, ZRCOEFF, ZRCONST2, ZRCOEFF2
+    DATA  ZRCONST  /5.12D0/
+    DATA  ZRCOEFF  /26.4D0/
+    DATA  ZRCONST2 /6.67D0/
+    DATA  ZRCOEFF2 /42.6D0/
+    !
+    !
+    WRITE(*,*) 'ENTER SETERRGPSGB'
+    !
+    DEBUG = .FALSE.
+
+    LLCZTDE = .FALSE.
+    LLRZTDE = .FALSE.
+    LLFZTDE = .FALSE.
+    IF (YZTDERR .LT. 0.0D0) THEN
+       LLFZTDE = .TRUE.
+    ELSE IF (YZTDERR .GT. 0.0D0) THEN
+       LLCZTDE = .TRUE.
+    ELSE
+       LLRZTDE = .TRUE.
+    ENDIF
+
+    nlev_T = col_getNumLev(columnhr,'TH')
+
+    ldata = .false.
+    ICOUNT  = 0
+    ICOUNT2 = 0
+    !
+    !     Loop over all header indices of the 'GP' family:
+    !
+    call obs_set_current_header_list(lobsSpaceData,'GP')
+    HEADER: DO
+       index_header = obs_getHeaderIndex(lobsSpaceData)
+       if (index_header < 0) exit HEADER
+       NBRPDATE  = obs_headElem_i(lobsSpaceData,OBS_DAT,INDEX_HEADER)
+       LLZTD     = .FALSE.
+       LLFER     = .FALSE.
+       LLZWD     = .FALSE.
+       ASSIM     = .FALSE.
+       ERRSET    = .FALSE.
+       ZZTD      = -1.0D0
+       ZZWD      = -1.0D0
+       ZPSFC     = -1.0D0
+       LESTP     = .FALSE.
+       ZSTDOMP   = 15.0D0*0.001D0
+
+       !   Get Psfc (Pa), Tsfc (K) and model surface height (m) from background profile
+
+       ZBPSFC = col_getElem(columnhr,1,index_header,'P0')
+       ZBTSFC = col_getElem(columnhr,nlev_T,index_header,'TT')
+       ZBZSFC = col_getHeight(columnhr,nlev_T,index_header,'TH')/RG
+       !
+       !    Loop over all body indices of current report; Set the ZTD error if
+       !    constant value specified (LLCZTDE=true). Get GPS height and Psfc obs (if any).
+       !    Get ZTD obs, ZTD formal error and ZWD observation.
+       !
+       call obs_set_current_body_list(lobsSpaceData, INDEX_HEADER)
+       BODY: DO 
+          index_body = obs_getBodyIndex(lobsSpaceData)
+          if (index_body < 0) exit BODY
+          ITYP   = obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
+          IASS   = obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY)
+          ZVAL   = obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY)
+          !         Store Psfc
+          IF ( ITYP .EQ. BUFR_NEPS ) THEN
+             IF ( ZVAL .GT. 0.0D0 ) ZPSFC = ZVAL
+          ENDIF
+          !         Set ZTDOER to constant value (if LLCZTDE); get value of ZTD, 
+          !         ZTD formal error (OBS_OER) and antenna height (OBS_PPP).
+          IF ( ITYP .EQ. BUFR_NEZD ) THEN
+             IF ( LLCZTDE ) THEN
+                ZTDOER = YZTDERR
+                ERRSET = .TRUE.
+             ENDIF
+             ZLEV   = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
+             ZTDERR = obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)
+             IF ( ZTDERR .NE. 1.0D0 ) LLFER = .TRUE.
+             IZTDJ = INDEX_BODY
+             IF ( ZVAL .GT. 0.0D0 ) THEN
+                ZZTD = ZVAL
+                LLZTD = .TRUE.
+             ENDIF
+             IF ( IASS .EQ. 1 ) ASSIM = .TRUE.
+          ENDIF
+          IF ( ITYP .EQ. BUFR_NEZW ) THEN
+             IF ( ZVAL .GT. 0.0D0 ) THEN
+                ZZWD = ZVAL
+                LLZWD = .TRUE.
+             ENDIF
+          ENDIF
+       ENDDO BODY
+
+       !      Initialize Std(O-P) to 15 mm  for ZTD observation (for bgck mode)
+       IF ( LLZTD .AND. .NOT.analysisMode) &
+            call obs_bodySet_r(lobsSpaceData,OBS_HPHT,IZTDJ,ZSTDOMP)
+
+       !      Replace formal ZTD error with real error for all ZTD to be assimilated.
+       !      Set Std(O-P) as function of ZWD for ZTD observation and store in OBS_HPHT. 
+
+       IF ( ASSIM ) THEN
+          IF ( LLZTD ) THEN
+             ldata = .true.
+             ICOUNT = ICOUNT + 1
+             IF ( LLZWD ) THEN
+                ZWD = ZZWD
+             ELSE
+                !               If Psfc obs is missing, estimate the pressure from background state
+                IF ( ZPSFC .LT. 0.0D0 ) THEN
+                   LESTP = .TRUE.
+                   ZDZ = ZLEV - ZBZSFC
+                   ZPSFC  = ZBPSFC * &
+                        (1.0D0-(ZGAMMA/ZBTSFC)*ZDZ)**(RG/(MPC_RGAS_DRY_AIR_R8*ZGAMMA))
+                   ICOUNT2 = ICOUNT2 + 1
+                ENDIF
+                !                Compute the hydrostatic delay ZHD (m) from Psfc (Pa)
+                ZHD = 2.2766D-05 * ZPSFC
+                !               Compute the wet delay (m) from ZTD and ZHD. Avoid negative ZWD.
+                IF ( ZHD .GT. ZZTD ) THEN
+                   ZWD = 0.0D0
+                ELSE
+                   ZWD = ZZTD - ZHD
+                ENDIF
+             ENDIF
+             !              Std(O-P) for background check. Limit to 30 mm in case ZTD obs is bad (too high).             
+             ZSTDOMP = (ZRCONST2 + ZRCOEFF2*ZWD)*0.001D0
+             ZSTDOMP = MIN(ZZDERMAX, ZSTDOMP)
+             !             Compute ZTD error as a function of ZWD using regression coeff (SD(O-P) vs ZWD).
+             !             Take fraction ZOPEFAC of computed error and convert from mm to m.
+             !             Ensure error is > ZZDERMIN and < ZZDERMAX
+             IF ( .NOT. ERRSET ) THEN 
+                ZMINZDE = ZRCONST + ZRCOEFF*ZWD
+                ZMINZDE = ZMINZDE * ZOPEFAC * 0.001D0
+                IF (LLRZTDE) THEN
+                   ZTDOER = MAX(ZZDERMIN, ZMINZDE)
+                   ZTDOER = MIN(ZZDERMAX, ZTDOER)
+                ELSE
+                   IF (LLFER) THEN
+                      ZTDOER = MAX(ZZDERMIN, ZTDERR*ZTDERFAC)
+                   ELSE
+                      ZTDOER = MAX(ZZDERMIN, ZMINZDE)
+                      ZTDOER = MIN(ZZDERMAX, ZTDOER)
+                   ENDIF
+                ENDIF
+                !  Ensure that error is not less than formal error ZTDERR
+                IF (LLFER) THEN
+                   IF (DEBUG .AND. ICOUNT .LE. 50) THEN
+                      WRITE(*,*) obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER), &
+                           ' FORMAL ERR, OBS ERROR (mm) = ', &
+                           ZTDERR*1000.D0, ZTDOER*1000.D0
+                   ENDIF
+                   ZTDOER = MAX(ZTDOER, ZTDERR)
+                ENDIF
+             ENDIF
+             !  *** APPLY TIME-SERIES WEIGHTING FACTOR TO OBSERVATION ERROR (YZDERRWGT=1 FOR 3D THINNING)
+             call obs_bodySet_r(lobsSpaceData,OBS_OER,IZTDJ, ZTDOER*YZDERRWGT)
+             IF (.NOT.analysisMode) call obs_bodySet_r(lobsSpaceData,OBS_HPHT,IZTDJ, ZSTDOMP)
+             IF (DEBUG .AND. (ICOUNT2 .LE. 50) .AND. LESTP) THEN
+                WRITE(*,*) 'TAG    SITE    ZTD    ERROR    ELEV    PSFC    ZWD     STDOMP'
+                WRITE(*,*) 'ERRDEBUG ', obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER), &
+                     ZZTD*1000.D0, ZTDOER*1000.D0, ZLEV, ZPSFC/100.D0, ZWD*1000.D0, ZSTDOMP*1000.D0
+             ENDIF
+          ELSE
+             CALL varAbort('SETERRGPSGB: ERROR:NEGATIVE ZTD VALUE!')
+          ENDIF
+       ENDIF
+
+       !
+    ENDDO HEADER
+
+    !      IF (DEBUG) CALL varAbort('******DEBUG STOP*******')
+
+    IF (.not.ldata) numGPSZTD = 0
+
+    IF (ldata) WRITE(*,*) ' numGPSZTD = ', ICOUNT
+
+    WRITE(*,*) 'EXIT SETERRGPSGB'
+
+  END SUBROUTINE OER_SETERRGPSGB
 
 !-----------------------------------------------------------------------------------------
 
-end module observation_erreurs_mod
+end module obsErrors_mod

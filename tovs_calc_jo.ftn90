@@ -50,7 +50,7 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData,dest_obs)
   use rmatrix_mod
   use tovs_nl_mod
   use obsSpaceData_mod
-
+  use utilities_mod
   implicit none
 
   real(8) :: pjo
@@ -74,8 +74,6 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData,dest_obs)
   integer :: list_chan(jpchmax)
   integer :: count
 
-  integer  isrcheq
-  external isrcheq
   external varAbort
 
   write(*,*) "Entering tovs_calc_jo subroutine"
@@ -138,7 +136,7 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData,dest_obs)
         ichn = max(0,min(ichn,jpchmax+1))
         ichOBS_A = max(0,min(ichn,jpchmax+1))
         ichn=ichn-chanoffset(isens)
-        indxchn = isrcheq (ichan(:,isens),nchan(isens),ichn)
+        indxchn = utl_findArrayIndex(ichan(:,isens),nchan(isens),ichn)
         if ( indxchn .eq. 0 ) then
            write(*,fmt=9202)
 9202       format(' tovs_calc_jo: error with channel number')

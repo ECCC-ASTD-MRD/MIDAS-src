@@ -35,7 +35,6 @@
 !
 ! Dependencies:
 !    globalSpectralTransform
-!    matsqrt
 !--------------------------------------------------------------------------
 MODULE BmatrixEnsemble
   use mpivar_mod
@@ -49,6 +48,8 @@ MODULE BmatrixEnsemble
   use mathPhysConstants_mod
   use earthConstants_mod
   use variableTransforms_mod
+  use utilities_mod
+  use spectralTransform_mod
   implicit none
   save
   private
@@ -773,6 +774,9 @@ CONTAINS
           !  2.1.2 Get input grid parameters by looking at TG (because in LAM mode this variable can pose problem)
           if ( .not. allocated(gd3d_r4) ) then
             ikey = fstinf(kulin,ni_fst,nj_fst,nk_fst,dateStampList(1),etiket,-1,ip2,ip3,typvar,'TG')
+            if ( ikey < 0 ) then
+               call varAbort('ben_setupensemble: TG was not found. Cannot determine the horizontal grid size.')
+            end if
             if ( ni_fst /= ni_expected .or. nj_fst /= nj_expected ) then
                write(*,*)
                write(*,*) 'ben_setupensemble: Invalid horizontal dimensions ...'
@@ -1439,7 +1443,6 @@ CONTAINS
 ! EnsembleScaleDecomposition
 !--------------------------------------------------------------------------
   SUBROUTINE EnsembleScaleDecomposition()
-    use filterResponseFunction_mod
     implicit none
 
     integer :: waveBandIndex, memberindex, jstep, jk, jj, ji
@@ -1531,7 +1534,7 @@ CONTAINS
           else
              totwvnb_r8 = lst_ben_filter%k_r8(ila_filter)
           endif
-          ResponseFunction(ila_filter,waveBandIndex) = FilterResponseFunction(totwvnb_r8,waveBandIndex, waveBandPeaks, nWaveBand)
+          ResponseFunction(ila_filter,waveBandIndex) = spt_FilterResponseFunction(totwvnb_r8,waveBandIndex, waveBandPeaks, nWaveBand)
        end do
     end do
     if (hco_anl%global) deallocate(jn_vec)
@@ -1719,7 +1722,7 @@ CONTAINS
        enddo
 
        !- 1.3.2 Compute sqrt of the matrix if vertical localization requested
-       call matsqrt(ensLocal(waveBandIndex)%Vert(1,1),nLevEns_M,1.0d0,.false.)
+       call utl_matSqrt(ensLocal(waveBandIndex)%Vert(1,1),nLevEns_M,1.0d0,.false.)
 
     end do
 

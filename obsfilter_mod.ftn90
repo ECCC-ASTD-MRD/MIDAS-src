@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-module filterObs_mod
+module obsFilter_mod
   use topLevelControl_mod
   use mpivar_mod
   use EarthConstants_mod
@@ -32,7 +32,7 @@ module filterObs_mod
   public :: filt_rlimlvhu
   ! public procedures
   public :: filt_setup,filt_topo,filt_sethind,filt_suprep
-
+  public :: filt_surfaceWind, filt_gpsro
 
   integer filt_nelems,filt_nlist(30)
   integer filt_nflags,filt_nlistflg(15)
@@ -939,6 +939,285 @@ contains
 
   end subroutine filt_topocsbt
 
+  SUBROUTINE filt_surfaceWind(lobsSpaceData)
+    !
+    !*    Purpose:
+    !      Zap sfc wind components at land stations
+    IMPLICIT NONE
+    type(struct_obs) :: lobsSpaceData
+    INTEGER JPINEL,JPIDLND
+    PARAMETER(JPINEL=2,JPIDLND=9)
+    INTEGER J,JID,JDATA
+    LOGICAL LLPRINT
+    REAL(8) ZDIFF
+    INTEGER ITYP,IDBURP
+    INTEGER ILISTEL(JPINEL),IDLND(JPIDLND)
+    INTEGER IKOUNTREJ(JPINEL),IKOUNTT
+    !                     SYNOP(3)     TEMP/PILOT(6)
+    character(len=2), dimension(2) :: list_family
+    integer :: index_family, index_header, index_body
+
+    DATA    IDLND / 12, 14, 146, 32, 35, 135, 136, 137, 138 /
+    !
+    !
+    ILISTEL(1)=BUFR_NEUS
+    ILISTEL(2)=BUFR_NEVS
+    WRITE(*,* ) ' '
+    WRITE(*,* ) ' SUBROUTINE SFCWNDZAP '
+    WRITE(*,* ) ' '
+    WRITE(*,* ) '*****************************************************'
+    WRITE(*,222)'ELEMENTS REJECTED         ',(  ILISTEL(J),J=1,jpinel)
+    WRITE(*,222)'LIST OF IDTYP             ',(   idlnd(J),J=1,jpidlnd)
+    WRITE(*,* ) '*****************************************************'
+    WRITE(*,* ) ' '
+    LLPRINT = .FALSE.
+    !cc      LLPRINT = .TRUE.
+    !
+    !     SET COUNTERS TO ZERO
+    !
+    DO J=1,JPINEL
+       IKOUNTREJ(J)=0
+    END DO
+
+    !
+    ! Loop over the families of interest
+    !
+    list_family(1) = 'SF'
+    list_family(2) = 'UA'
+    do index_family = 1,2
+       WRITE(*,'(2x,A9,2x,A2)')'FAMILY = ',list_family(index_family)
+
+    !
+       ! loop over all header indices of each family
+    !
+       ! Set the header list
+       ! (& start at the beginning of the list)
+       call obs_set_current_header_list(lobsSpaceData, &
+            list_family(index_family))
+    HEADER: do
+          index_header = obs_getHeaderIndex(lobsSpaceData)
+          if (index_header < 0) exit HEADER
+      
+          !
+          ! loop over all body indices (still in the same family)
+          !
+          ! Set the body list
+          ! (& start at the beginning of the list)
+          call obs_set_current_body_list(lobsSpaceData, index_header)
+      BODY: do 
+             index_body = obs_getBodyIndex(lobsSpaceData)
+             if (index_body < 0) exit BODY
+
+             !             UNCONDITIONALLY REJECT SURFACE WINDS AT SYNOP/TEMP LAND STATIONS
+             ITYP=obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
+             IDBURP = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
+             IF ( ITYP.EQ.BUFR_NEUS .OR. ITYP.EQ.BUFR_NEVS) THEN
+                DO JID = 1, JPIDLND
+                   IF(IDBURP .EQ. IDLND(JID) .AND. &
+                        obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) .EQ. 1) THEN
+                      call obs_bodySet_i(lobsSpaceData,OBS_FLG,INDEX_BODY, &
+                           ibset( obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY), 19))
+                      call obs_bodySet_i(lobsSpaceData,OBS_ASS,INDEX_BODY,0)
+                      DO J = 1, JPINEL
+                         IF(ITYP .EQ.ILISTEL(J)) THEN
+                            IKOUNTREJ(J)=IKOUNTREJ(J)+1
+                         ENDIF
+                      ENDDO
+                      IF(LLPRINT) THEN
+                         WRITE(*,225) 'Rej sfc wind lnd',INDEX_HEADER,ITYP &
+                              ,obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER),IDBURP &
+                              ,obs_headElem_r(lobsSpaceData,OBS_LAT,INDEX_HEADER) &
+                              ,obs_headElem_r(lobsSpaceData,OBS_LON,INDEX_HEADER) &
+                              ,obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY),ZDIFF
+                      ENDIF
+                   ENDIF
+                ENDDO
+             ENDIF ! BUFR_NEUS or BUFR_NEVS
+          END DO BODY
+       END DO HEADER
+       !
+       WRITE(*,* ) ' '
+       WRITE(*,* ) '*****************************************************'
+       WRITE(*,222 )'ELEMENTS            ', (  ILISTEL(J),J=1,JPINEL)
+       WRITE(*,222)'REJECTED             ',(IKOUNTREJ(J),J=1,JPINEL)
+       WRITE(*,* ) '*****************************************************'
+       WRITE(*,* ) ' '
+222    FORMAT(2x,a29,10(2x,i5))
+223    FORMAT(2x,a29,10(2x,f5.0))
+224    FORMAT(2x,a17,2x,I6,2X,I5,1x,a9,1x,2(2x,f9.2))
+225    FORMAT(2x,a13,2x,I6,2X,I5,1x,a9,1x,I6,1x,4(2x,f9.2))
+       !
+    END DO ! family
+    !
+    IKOUNTT=0
+    DO JDATA=1,obs_numbody(lobsSpaceData)
+       IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,JDATA) .EQ. 1) IKOUNTT=IKOUNTT+1
+    END DO
+    WRITE(*, &
+         '(1X," NUMBER OF DATA ASSIMILATED BY 3D","-VAR AFTER ADJUSTMENTS: ",i10)') &
+         IKOUNTT
+    WRITE(*,* ) ' '
+
+  END SUBROUTINE filt_surfaceWind
+
+  SUBROUTINE FILT_GPSRO(lcolumnhr,lobsSpaceData)
+
+    !**s/r FILTERGPSRO - Filter GPSRO observations
+    !                    Guarantee that altitude and observation values are
+    !                    within bounds for further processing
+    !
+    !                    For noncompliant GPSRO observations:
+    !                    -Set assimilable flag to 0
+    !                    -Set bit of cma flag 11 ON
+    !
+    use gps_mod
+    IMPLICIT NONE
+    !
+    type(struct_columnData) :: lcolumnhr
+    type(struct_obs)        :: lobsSpaceData
+    !
+    INTEGER INDEX_HEADER, IDATYP, INDEX_BODY
+    INTEGER JL, IAZM, ISAT, ICLF, iProfile, NH, I
+    REAL*8 ZMT, Rad, Geo, zLat, zLon, Lat, Lon
+    REAL*8 HNH1, HSF, HTP, HGP, HMIN, HMAX, ZOBS, ZREF
+    LOGICAL LLEV, LOBS, LNOM, LSAT
+    !
+    WRITE(*,*)'ENTER FILTERGPSRO'
+    !
+    !     Loop over all header indices of the 'RO' family:
+    !
+    call obs_set_current_header_list(lobsSpaceData,'RO')
+    gps_numROProfiles=0
+    HEADER: do
+       index_header = obs_getHeaderIndex(lobsSpaceData)
+       if (index_header < 0) exit HEADER
+       !
+       !     *  Process only refractivity data (codtyp 169)
+       !
+       IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
+       IF ( IDATYP .EQ. 169 ) THEN
+          gps_numROProfiles=gps_numROProfiles+1
+          !
+          !     *     Basic geometric variables of the profile:
+          !
+          IAZM = obs_headElem_i(lobsSpaceData,OBS_AZA,INDEX_HEADER)
+          ISAT = obs_headElem_i(lobsSpaceData,OBS_SAT,INDEX_HEADER)
+          ICLF = obs_headElem_i(lobsSpaceData,OBS_ROQF,INDEX_HEADER)
+          Rad  = obs_headElem_r(lobsSpaceData,OBS_TRAD,INDEX_HEADER)
+          Geo  = obs_headElem_r(lobsSpaceData,OBS_GEOI,INDEX_HEADER)
+          LNOM = .NOT.BTEST(ICLF,16-1)
+          !
+          !     *     Check if the satellite is within the accepted set:
+          !
+          IF ( NUMGPSSATS .GE. 1 ) THEN
+             LSAT = .FALSE.
+             DO I=1,NUMGPSSATS
+                LSAT=( LSAT .OR. (ISAT.EQ.IGPSSAT(I)) )
+             ENDDO
+          ELSE
+             LSAT = .TRUE.
+          ENDIF
+          !
+          JL  = col_getNumLev(LCOLUMNHR,'TH')
+          ZMT = col_getHeight(lcolumnhr,JL,INDEX_HEADER,'TH')/RG
+          !
+          !     *     Acceptable height limits:
+          !
+          JL = 1
+          HTP = col_getHeight(lcolumnhr,JL,INDEX_HEADER,'TH')/RG
+          HSF = ZMT+SURFMIN
+          !
+          !     *     Discard low data for METOP/GRAS:
+          !
+          IF ( NUMGPSSATS .GE. 1 ) THEN
+             IF ( ISAT.EQ.3 .OR. ISAT.EQ.4 .OR. ISAT.EQ.5 ) THEN
+                IF (HSF .LT. 10000.d0) HSF=10000.d0
+             ENDIF
+          ENDIF
+          !
+          !     *     Min/max altitudes:
+          !
+          IF (HSF .LT. HSFMIN) HSF=HSFMIN
+          IF (HTP .GT. HTPMAX) HTP=HTPMAX
+          HMIN=Geo+HSF
+          HMAX=Geo+HTP
+          !
+          !     *     Loop over all body indices for this index_header:
+          !     *     (start at the beginning of the list)
+          !
+          call obs_set_current_body_list(lobsSpaceData, INDEX_HEADER)
+          BODY: do 
+             index_body = obs_getBodyIndex(lobsSpaceData)
+             if (index_body < 0) exit BODY
+             !
+             !     *        Altitude:
+             !
+             HNH1= obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
+             IF (LEVELGPSRO.EQ.1) HNH1=HNH1-Rad
+             !
+             !     *        Observation:
+             !
+             ZOBS= obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY)
+             !
+             !     *        Reference order of magnitude value:
+             !
+             IF (LEVELGPSRO.EQ.1) THEN
+                ZREF = 0.025d0*exp(-HNH1/6500.d0)
+             ELSE
+                ZREF = 300.d0*exp(-HNH1/6500.d0)
+             ENDIF
+             !
+             !     *        Positively verify that the altitude is within bounds:
+             !
+             LLEV= (HNH1.GT.HMIN) .AND. (HNH1.LT.HMAX)
+             !
+             !     *        Positively verify that the observable is within bounds:
+             !
+             LOBS= (ZOBS.GT.(0.3d0*ZREF)) .AND. (ZOBS.LT.(3.d0*ZREF))
+             !
+             !     *        Mark as not assimilable unless all conditions are satisfied:
+             !
+             IF ( .NOT.LLEV .OR. .NOT.LOBS .OR. IAZM.LT.0 .OR. .NOT.LNOM .OR. .NOT.LSAT) THEN
+                call obs_bodySet_i(lobsSpaceData,OBS_ASS,INDEX_BODY, 0)
+                call obs_bodySet_i(lobsSpaceData,OBS_FLG,INDEX_BODY, IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY),11))
+             ENDIF
+          ENDDO BODY
+
+       ENDIF
+
+    ENDDO HEADER
+
+    IF (gps_numROProfiles.GT.0) THEN
+       if(.not.allocated(gps_vRO_IndexPrf)) allocate(gps_vRO_IndexPrf(gps_numROProfiles))
+
+       iProfile=0
+       !
+       !     *  Loop over all header indices of the 'RO' family:
+       !
+       call obs_set_current_header_list(lobsSpaceData,'RO')
+       HEADER2: do
+          index_header = obs_getHeaderIndex(lobsSpaceData)
+          if (index_header < 0) exit HEADER2
+          !     
+          !     *  Process only refractivity data (codtyp 169)
+          !
+          IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
+          IF ( IDATYP .EQ. 169 ) THEN
+             iProfile=iProfile+1
+             gps_vRO_IndexPrf(iProfile)=INDEX_HEADER
+             zLat = obs_headElem_r(lobsSpaceData,OBS_LAT,INDEX_HEADER)
+             zLon = obs_headElem_r(lobsSpaceData,OBS_LON,INDEX_HEADER)
+             Lat  = zLat * MPC_DEGREES_PER_RADIAN_R8
+             Lon  = zLon * MPC_DEGREES_PER_RADIAN_R8
+          ENDIF
+       ENDDO HEADER2
+
+    ENDIF
+
+    WRITE(*,*)'EXIT FILTERGPSRO'
+
+  END SUBROUTINE FILT_GPSRO
+
 
   subroutine filt_topoChm(columnhr,obsSpaceData)
     !
@@ -952,7 +1231,7 @@ contains
     !               (routine also removed in chem_mod.ftn90)
     !             M. Sitwell Sept 2016
     !             - Added flagging of bit 4 in OBS_FLG set in set_scale_chm indicating
-    !               mismatch of number of levels of mantissa and exponent. 
+    !               mismatch of number of levels of mantissa and exponent.
     !
     ! Purpose: Rejects elements which are too far below the model surface
     !          or above the model top.
@@ -974,17 +1253,17 @@ contains
     real(8) :: zlev,zPtop,zP0
     real(8) :: zStnAlt,zModAlt,zpb,zpt
     logical :: list_is_empty,warn_suspicious
-    
+
     integer, parameter :: Nmax=100
     integer :: Num_stnid_chm,nobslev,Num_chm,iconstituentid
     character(len=13) :: CstnidList_chm(Nmax)
     integer :: countAcc_stnid(Nmax),countRej_stnid(Nmax)
     integer :: countRejflg_stnid(Nmax),countRejflg(Nmax)
-    integer :: countAcc(Nmax),countRej(Nmax),iConstituentList(Nmax)  
+    integer :: countAcc(Nmax),countRej(Nmax),iConstituentList(Nmax)
     integer, external :: fclos
 
     if (.not.obs_famExist(obsSpaceData,'CH')) return
-    
+
     ! Set counters to zero
     countAcc_stnid(:)=0
     countRej_stnid(:)=0
@@ -1004,20 +1283,20 @@ contains
 
       ! Set the body list & start at the beginning of the list
       call obs_set_current_body_list(obsSpaceData, headerIndex,list_is_empty)
-     
+
       if (list_is_empty) cycle HEADER ! Proceed to next HEADER
-      
+
       ! Set geopotential height and pressure boundaries.
-      
+
       zModAlt = col_getHeight(columnhr,col_getNumLev(columnhr,'MM'),headerIndex,'MM')/RG
       zpb=zModAlt
       zStnAlt = obs_headElem_r(obsSpaceData,OBS_ALT,headerIndex)
       zpt = col_getHeight(columnhr,1,headerIndex,'MM')/RG
-      zP0 = col_getElem(columnhr,1,headerIndex,'P0') 
+      zP0 = col_getElem(columnhr,1,headerIndex,'P0')
       zPtop = col_getPressure(columnhr,1,headerIndex,'MM')
 
       ! Identify max number of profile points in the profile (exclude 8090 elements)
-      
+
       nobslev = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex)
       bodyIndex =obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
       do jl=0,obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex)-1
@@ -1025,7 +1304,7 @@ contains
       end do
 
       ! Identify element index of stnid list for the CH family.
-       
+
       call chm_get_stringId(obs_elem_c(obsSpaceData,'STID',headerIndex),&
                nobslev,CstnidList_chm,Num_stnid_chm,Nmax,listIndex_stnid)
 
@@ -1033,11 +1312,11 @@ contains
 
       ! Loop over all body indices (still in the 'CH' family)
       icount=0
-      BODY: do 
+      BODY: do
         bodyIndex = obs_getBodyIndex(obsSpaceData)
         if (bodyIndex < 0) exit BODY
 
-        ivnm = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)                
+        ivnm = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
         if (ivnm.eq.08090) cycle BODY
 
         !  Identify element index of constituent ID list for the CH family.
@@ -1052,18 +1331,18 @@ contains
         end if
 
         if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex).eq.0) then
-        
+
             ! Already rejected from input marker/flag.
-            
+
             countRej(listIndex)=countRej(listIndex)+1
-            countRej_stnid(listIndex_stnid)=countRej_stnid(listIndex_stnid)+1          
+            countRej_stnid(listIndex_stnid)=countRej_stnid(listIndex_stnid)+1
             countRejflg(listIndex)=countRejflg(listIndex)+1
-            countRejflg_stnid(listIndex_stnid)=countRejflg_stnid(listIndex_stnid)+1          
-            
+            countRejflg_stnid(listIndex_stnid)=countRejflg_stnid(listIndex_stnid)+1
+
         else if (obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex).eq.1) then
 
            ! Check as a function of altitude.
-           
+
            zlev = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
            !write(*,*) 'rejected zzz ',obs_elem_c(obsSpaceData,'STID',headerIndex),zlev,zP0,zPtop
            if( zlev.lt.zpb .or. zlev.gt.zpt ) then
@@ -1071,12 +1350,12 @@ contains
                    ibset( obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 18 ))
                call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
                countRej(listIndex)=countRej(listIndex)+1
-               countRej_stnid(listIndex_stnid)=countRej_stnid(listIndex_stnid)+1          
+               countRej_stnid(listIndex_stnid)=countRej_stnid(listIndex_stnid)+1
            else
-               countAcc(listIndex)=countAcc(listIndex)+1           
-               countAcc_stnid(listIndex_stnid)=countAcc_stnid(listIndex_stnid)+1          
+               countAcc(listIndex)=countAcc(listIndex)+1
+               countAcc_stnid(listIndex_stnid)=countAcc_stnid(listIndex_stnid)+1
            endif
- 
+
         else if (obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex).eq.2) then
 
            ! Check as a function of pressure.
@@ -1088,14 +1367,14 @@ contains
                call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
                  ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),18 ))
                countRej(listIndex)=countRej(listIndex)+1
-               countRej_stnid(listIndex_stnid)=countRej_stnid(listIndex_stnid)+1          
-           else 
+               countRej_stnid(listIndex_stnid)=countRej_stnid(listIndex_stnid)+1
+           else
                countAcc(listIndex)=countAcc(listIndex)+1
-               countAcc_stnid(listIndex_stnid)=countAcc_stnid(listIndex_stnid)+1          
+               countAcc_stnid(listIndex_stnid)=countAcc_stnid(listIndex_stnid)+1
            end if
         else
-           countAcc(listIndex)=countAcc(listIndex)+1          
-           countAcc_stnid(listIndex_stnid)=countAcc_stnid(listIndex_stnid)+1          
+           countAcc(listIndex)=countAcc(listIndex)+1
+           countAcc_stnid(listIndex_stnid)=countAcc_stnid(listIndex_stnid)+1
         end if
 
       enddo BODY
@@ -1113,7 +1392,7 @@ contains
 
     enddo HEADER
 
-    if (Num_stnid_chm.gt.0) then    
+    if (Num_stnid_chm.gt.0) then
        write(*,*) ' '
        write(*,*) '*****************************************************************'
        write(*,*) ' SUBROUTINE filt_topoChm '
@@ -1136,7 +1415,7 @@ contains
        enddo
        write(*,'(1X," NUMBER OF DATA TO BE ASSIMILATED AFTER ADJUSTMENTS (after filter_topoChm):",i10)') countAssim
        write(*,*) ' '
-    end if 
+    end if
 222 format(2x,a29,100(2x,a10))
 223 format(2x,a29,100(2x,i8,2x))
 224 format(2x,a29,100(2x,i6))
@@ -1144,4 +1423,4 @@ contains
   end subroutine filt_topoChm
 
 
-end module filterObs_mod
+end module obsFilter_mod

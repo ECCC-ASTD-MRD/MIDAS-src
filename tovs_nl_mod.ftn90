@@ -33,6 +33,7 @@ Module tovs_nl_mod
        platform_id_jpss
   use codtyp_mod
   use mpi
+  use utilities_mod
 
   implicit none
   save
@@ -168,7 +169,6 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
   INTEGER ::  JO, IDATYP, J, JI, JK
   INTEGER ::  ISENS, NC, NL
   INTEGER ::  ICHN, NOSENSOR, INDXCHN
-  INTEGER ::  ISRCHEQ
   INTEGER ::  ERRORSTATUS,ASW
   integer ::  index_header, index_body
 
@@ -259,7 +259,7 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
 
            ICHN=ICHN-CHANOFFSET(NOSENSOR)
 
-           INDXCHN = ISRCHEQ(ichan(:,nosensor),nchan(nosensor),ichn)
+           INDXCHN = utl_findArrayIndex(ichan(:,nosensor),nchan(nosensor),ichn)
            if ( indxchn .eq. 0 ) then
               nchan(nosensor) = nchan(nosensor) + 1
               ichan(nchan(nosensor),nosensor) = ichn

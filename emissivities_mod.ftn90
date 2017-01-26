@@ -35,6 +35,7 @@ Module emissivities
   use tovs_nl_mod
   use multi_ir_bgck_mod
   use hir_chans
+  use utilities_mod
 
   implicit none
   save
@@ -347,7 +348,7 @@ contains
     INTEGER            :: NISF,NJSF,NKSF
     INTEGER            :: NIWA,NJWA,NKWA
     CHARACTER(len=100) :: CFILE
-    INTEGER,EXTERNAL   :: FNOM,FSTOUV,VFSTLIR,FSTFRM,FCLOS,FSTLIR
+    INTEGER,EXTERNAL   :: FNOM,FSTOUV,FSTFRM,FCLOS,FSTLIR
 
     integer            :: isftest
     integer            :: iv1,iv2,iv3,iv4,iv5,iv6
@@ -362,7 +363,7 @@ contains
     IV1=FNOM(ISFTEST,CFILE,'RND+R/O',0)
     IV2=FSTOUV(ISFTEST,'RND')
     IV3=FSTLIR(JTYPE,ISFTEST,NISF,NJSF,NKSF,-1,'SFC-TYPE',-1,-1,-1,'','TY')
-    IV4=VFSTLIR(WATERF,ISFTEST,NIWA,NJWA,NKWA,-1,'WATER_FR',-1,-1,-1,'','W%')
+    IV4=UTL_FSTLIR(WATERF,ISFTEST,NIWA,NJWA,NKWA,-1,'WATER_FR',-1,-1,-1,'','W%')
     IV5=FSTFRM(ISFTEST)
     IV6=FCLOS(ISFTEST)
 
@@ -627,7 +628,6 @@ contains
     CHARACTER(len=8)   :: ETIKET
     INTEGER,EXTERNAL   :: FNOM,FSTOUV,FSTINF,FSTPRM,FSTFRM,FCLOS
     INTEGER,EXTERNAL   :: ezsetopt,ezqkdef,ezdefset
-    INTEGER            :: vfstlir,vezgdef,vezsint
     REAL(8)            :: zig1,zig2,zig3,zig4
     INTEGER            :: ig1obs,ig2obs,ig3obs,ig4obs
     REAL (8)           :: ALAT, ALON, ZZLAT, ZZLON
@@ -774,20 +774,20 @@ contains
     ALLOCATE ( ALB    (NI5,NJ5) )
 
 
-! VFSTLIR: read records data (field on the grid) given the key
+! UTL_FSTLIR: read records data (field on the grid) given the key
 ! success = handle of the record
 ! desired output = FIELD
 
     write(*,*) 
 
-    IX5 = vfstlir(GLACE, iun3,NI3,NJ3,NK3,-1,'',-1,-1,-1,'','LG')
-    write(*,*) 'variable = LG           : VFSTLIR : return = ', IX5
+    IX5 = utl_fstlir(GLACE, iun3,NI3,NJ3,NK3,-1,'',-1,-1,-1,'','LG')
+    write(*,*) 'variable = LG           : UTL_FSTLIR : return = ', IX5
 
-    IY5 = vfstlir(NEIGE, iun3,NI4,NJ4,NK4,-1,'',-1,-1,-1,'',snowvar)
-    write(*,*) 'variable = ', snowvar, '           : VFSTLIR : return = ', IY5
+    IY5 = utl_fstlir(NEIGE, iun3,NI4,NJ4,NK4,-1,'',-1,-1,-1,'',snowvar)
+    write(*,*) 'variable = ', snowvar, '           : UTL_FSTLIR : return = ', IY5
 
-    IZ5 = vfstlir(ALB,   iun5,NI5,NJ5,NK5,-1,'',-1,-1,-1,'','AL')
-    write(*,*) 'variable = AL           : VFSTLIR : return = ', IZ5
+    IZ5 = utl_fstlir(ALB,   iun5,NI5,NJ5,NK5,-1,'',-1,-1,-1,'','AL')
+    write(*,*) 'variable = AL           : UTL_FSTLIR : return = ', IZ5
 
 
 ! EZSETOPT: set nearest neighbor interpolation option within EZSCINT package
@@ -799,7 +799,7 @@ contains
     write(*,*) 'apply to all variables  : ezsetopt : return = ', IV6
 
 
-! VCXGAIG: define the grid descriptors (integer form) of the
+! UTL_CXGAIG: define the grid descriptors (integer form) of the
 !          observation profile output grid
 ! desired output = IG1OBS, IG2OBS, IG3OBS, IG4OBS
 
@@ -808,18 +808,18 @@ contains
     zig3 = 1.0D0
     zig4 = 1.0D0
 
-    call vcxgaig('L',IG1OBS,IG2OBS,IG3OBS,IG4OBS,zig1,zig2,zig3,zig4)
+    call utl_cxgaig('L',IG1OBS,IG2OBS,IG3OBS,IG4OBS,zig1,zig2,zig3,zig4)
 
 
-! VEZGDEF: define the grid of the observations profiles (output grid)
+! UTL_EZGDEF: define the grid of the observations profiles (output grid)
 ! of type Y containing the lat-lon of profiles
 ! success = token to identify the grid
 ! desired output = token
 
     write(*,*) 
 
-    IV7 = vezgdef(nprf,1,'Y','L',ig1obs,ig2obs,ig3obs,ig4obs,zlon,zlat)
-    write(*,*) 'apply to all variables  : VEZGDEF : return = ', IV7
+    IV7 = utl_ezgdef(nprf,1,'Y','L',ig1obs,ig2obs,ig3obs,ig4obs,zlon,zlat)
+    write(*,*) 'apply to all variables  : UTL_EZGDEF : return = ', IV7
 
 
 ! EZQKDEF: define the grid of the records data (input grid)
@@ -827,7 +827,7 @@ contains
 ! desired output = token
 ! EZDEFSET: interpolate from input grids to output grid
 ! success = key
-! VEZSINT: interpolation of the field on the input grid to observation profiles
+! UTL_EZSINT: interpolation of the field on the input grid to observation profiles
 ! success = 0
 ! desired output = FIELD_INTRPL
 
@@ -839,8 +839,8 @@ contains
     IX9 = ezdefset(iv7,ix8)
     write(*,*) 'variable = LG           : ezdefset : return = ', IX9
 
-    IX10 = vezsint(GLACE_INTRPL,glace,nprf,1,1,ni3,nj3,1)
-    write(*,*) 'variable = LG           : vezsint  : return = ', IX10
+    IX10 = utl_ezsint(GLACE_INTRPL,glace,nprf,1,1,ni3,nj3,1)
+    write(*,*) 'variable = LG           : utl_ezsint  : return = ', IX10
 
     write(*,*) 
 
@@ -850,8 +850,8 @@ contains
     IY9 = ezdefset(iv7,iy8)
     write(*,*) 'variable = ', snowvar, '           : ezdefset : return = ', IY9
 
-    IY10 = vezsint(NEIGE_INTRPL,neige,nprf,1,1,ni4,nj4,1)
-    write(*,*) 'variable = ', snowvar, '           : vezsint  : return = ', IY10
+    IY10 = utl_ezsint(NEIGE_INTRPL,neige,nprf,1,1,ni4,nj4,1)
+    write(*,*) 'variable = ', snowvar, '           : utl_ezsint  : return = ', IY10
 
     write(*,*) 
 
@@ -861,8 +861,8 @@ contains
     IZ9 = ezdefset(iv7,iz8)
     write(*,*) 'variable = AL           : ezdefset : return = ', IZ9
 
-    IZ10 = vezsint(ALB_INTRPL,alb,nprf,1,1,ni5,nj5,1)
-    write(*,*) 'variable = AL           : vezsint  : return = ', IZ10
+    IZ10 = utl_ezsint(ALB_INTRPL,alb,nprf,1,1,ni5,nj5,1)
+    write(*,*) 'variable = AL           : utl_ezsint  : return = ', IZ10
 
 
 ! FSTFRM: close the standard files

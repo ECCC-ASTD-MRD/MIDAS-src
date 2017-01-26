@@ -107,7 +107,8 @@ MODULE BmatrixChem
   use verticalCoord_mod
   use varNameList_mod
   use obsSpaceData_mod
-  
+  use utilities_mod
+
   implicit none
   save
   private
@@ -762,7 +763,7 @@ CONTAINS
     character(len=2)  :: cltypvar
     character(len=4)  :: clnomvar
     character(len=12) :: cletiket
-    integer :: vfstlir,vfstecr,fstprm,fstinf
+    integer :: fstinf
 
     rstddev(:,:)=0.0d0
     corns(:,:,:)=0.0d0
@@ -786,7 +787,7 @@ CONTAINS
           ip3 = -1
           cltypvar = 'X'
           
-          istdkey = vfstlir(ZSTDSRC,nulbgst,INI,INJ,INK,idateo,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+          istdkey = utl_fstlir(ZSTDSRC,nulbgst,INI,INJ,INK,idateo,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
           
           if (istdkey.lt.0) then
              write(*,*) 'BCHM_READCORNS2: RSTDDEV ',ip2,jnum,clnomvar
@@ -802,7 +803,7 @@ CONTAINS
           ip2 = jn
           ip3 = -1
           cltypvar = 'X'
-          icornskey = vfstlir(ZCORNSSRC,nulbgst,INI,INJ,INK,idateo,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+          icornskey = utl_fstlir(ZCORNSSRC,nulbgst,INI,INJ,INK,idateo,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
 
           if (icornskey.lt.0) then
              write(*,*) 'BCHM_READCORNS2: CORRNS ',ip2,jnum,clnomvar
@@ -1033,7 +1034,6 @@ CONTAINS
     character(len=2)  :: cltypvar
     character(len=4)  :: clnomvar
     character(len=12) :: cletiket
-    integer :: vfstlir
 
 !   Reading the data
 
@@ -1044,7 +1044,7 @@ CONTAINS
 !   Get latitudes and longitudes if available
 
     ip1=-1
-    ikey = vfstlir(rcoord,nulbgst,ini,inj,ink, &
+    ikey = utl_fstlir(rcoord,nulbgst,ini,inj,ink, &
                          idate(1),' ',ip1,ip2,ip3,' ','^^')
                          
     if (ikey.ge.0.and.inj == nj_l) then
@@ -1055,7 +1055,7 @@ CONTAINS
        call varAbort('BCHM_RDSTDDEV')
     end if    
 
-    ikey = vfstlir(rcoord,nulbgst,ini,inj,ink, &
+    ikey = utl_fstlir(rcoord,nulbgst,ini,inj,ink, &
                          idate(1),' ',ip1,ip2,ip3,' ','>>')
     if (ikey.ge.0.and.ini == ni_l) then
         rlong(1:ni_l)=rcoord(1:ni_l)
@@ -1099,7 +1099,7 @@ CONTAINS
     character(len=2)  :: cltypvar
     character(len=4)  :: clnomvar
     character(len=12) :: cletiket
-    integer :: vfstlir,vfstecr,fstprm,fstinf
+    integer :: fstinf
 
     rgsig(:,:,:) = 0.0d0
     
@@ -1123,7 +1123,7 @@ CONTAINS
         ikey = fstinf(nulbgst,inix,injx,inkx,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
 
         if(ikey .ge.0 ) then
-          ikey = vfstlir(zspbuf(1:nlev_MT),nulbgst,ini,inj,ink,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+          ikey = utl_fstlir(zspbuf(1:nlev_MT),nulbgst,ini,inj,ink,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
         else
           if(firstn == -1) firstn = jn
           lastn = jn
@@ -1170,7 +1170,7 @@ CONTAINS
     character(len=2)  :: cltypvar
     character(len=4)  :: clnomvar
     character(len=12) :: cletiket
-    integer :: vfstlir,vfstecr,fstprm,fstinf
+    integer :: fstinf
 
     rgsig(:,:,:) = 0.0d0
 
@@ -1218,7 +1218,7 @@ CONTAINS
         allocate(zspbuf(0:ntrunc_file))
         
         if(ikey .ge.0 ) then
-          ikey = vfstlir(zspbuf(0:ntrunc_file),nulbgst,ini,inj,ink,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+          ikey = utl_fstlir(zspbuf(0:ntrunc_file),nulbgst,ini,inj,ink,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
         else
           write(*,*) 'BCHM_RDSPSTD_NEWFMT: ',jvar,clnomvar,nlev_MT,jlevo,ikey,ntrunc,ntrunc_file
           call varAbort('BCHM_RDSPSTD_NEWFMT: SPSTDDEV record not found')
@@ -1265,7 +1265,6 @@ CONTAINS
     character(len=2)  :: cltypvar
     character(len=4)  :: clnomvar
     character(len=12) :: cletiket
-    integer :: vfstlir
 
     rgsig(:,:,:) = 0.0d0
 
@@ -1290,7 +1289,7 @@ CONTAINS
       allocate(rgsig2d(nj_l,nlev_MT))
       rgsig2d(:,:)=0.0D0
       
-      ikey = vfstlir(rgsig2d(:,:),nulbgst,ini,inj,ink, &
+      ikey = utl_fstlir(rgsig2d(:,:),nulbgst,ini,inj,ink, &
                          idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
 
       if (ikey.lt.0) then
@@ -1333,7 +1332,6 @@ CONTAINS
     character(len=2)  :: cltypvar
     character(len=4)  :: clnomvar
     character(len=12) :: cletiket
-    integer :: vfstlir
 
     rgsig(:,:,:) = 0.0d0
 
@@ -1363,7 +1361,7 @@ CONTAINS
            ip1 = vco_anl%ip1_T(jlevo)
         endif
         
-        ikey = vfstlir(rgsig(1:ni_l,:,nsposit(jvar)+(jlevo-1)),nulbgst,ini,inj,ink, &
+        ikey = utl_fstlir(rgsig(1:ni_l,:,nsposit(jvar)+(jlevo-1)),nulbgst,ini,inj,ink, &
                          idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
         if (ikey.lt.0) then
           write(*,*) 'BCHM_RDSTD3D: ',jvar,clnomvar,nlev_MT,jlevo,ikey,ip1
@@ -1404,8 +1402,6 @@ CONTAINS
     character(len=1)  :: clgrtyp
     character(len=4)  :: clnomvar
     character(len=12) :: cletiket
-    integer :: vfstlir,vfstecr,fstprm,fstinf
-    integer :: fnom,fstouv,fstfrm,fclos
 
     ! Apply vertical localization to correlations of 3D fields.
     ! Currently assumes no-cross correlations for variables (block diagonal matrix)
@@ -1522,7 +1518,7 @@ CONTAINS
     character(len=1)  :: clgrtyp
     character(len=4)  :: clnomvar
     character(len=12) :: cletiket
-    integer :: fnom, fstouv, vfstecr, fstfrm, fclos
+    integer :: fnom, fstouv, fstfrm, fclos
 
     write(*,*) 'WRITECORNS_SQRT: CORNS_SQRT will be written to file corns_sqrt.fst for NTRUNC =', ntrunc
 
@@ -1539,7 +1535,7 @@ CONTAINS
 
       do jn = 0, ntrunc
         ip2 = jn
-        ierr = vfstecr(corns(1,1,jn),corns(1,1,jn),ipak,nulcorns_sqrt,idateo,0,0,nkgdim,nkgdim,1,  &
+        ierr = utl_fstecr(corns(1,1,jn),ipak,nulcorns_sqrt,idateo,0,0,nkgdim,nkgdim,1,  &
                        ip1,ip2,ip3,'X','ZZ','CORNS_SQRT','X',0,0,0,0,idatyp,.true.)
       enddo
 
@@ -1567,7 +1563,6 @@ CONTAINS
     character(len=1)  :: clgrtyp
     character(len=4)  :: clnomvar
     character(len=12) :: cletiket
-    integer :: vfstlir
 
     allocate(zcornssrc(nkgdim,nkgdim))
 
@@ -1583,7 +1578,7 @@ CONTAINS
       ip3 = ntrunc
       cltypvar = 'X'
       clnomvar = 'ZZ'
-      icornskey = vfstlir(ZCORNSSRC,nulbgst,INI,INJ,INK,idateo,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+      icornskey = utl_fstlir(ZCORNSSRC,nulbgst,INI,INJ,INK,idateo,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
 
       if(icornskey .lt.0 ) then
         write(*,*) 'READCORNS_SQRT: CORNS_SQRT not found in stats file, use computed sqrt'
@@ -2236,7 +2231,7 @@ CONTAINS
     character(len=1)  :: clgrtyp
     character(len=4)  :: clnomvar
     character(len=12) :: cletiket
-    integer :: vfstlir,vfstecr,fstprm,fstinf
+    integer :: fstprm,fstinf
     integer :: fnom,fstouv,fstfrm,fclos
 
     lldebug=.false.
@@ -2278,7 +2273,7 @@ CONTAINS
           cletiket = 'CORVERT'
           idatyp = 5
 
-          ierr = vfstecr(bchm_corvert(1:jnum,1:jnum,jvar),bchm_corvert(1:jnum,1:jnum,jvar) &
+          ierr = utl_fstecr(bchm_corvert(1:jnum,1:jnum,jvar) &
              , -inbits, iulcorvert, idateo    &
              , ideet,inpas, ini, inj, ink, ip1, ip2, ip3, cltypvar,     &
              clnomvar,cletiket,clgrtyp,ig1, ig2, ig3, ig4, idatyp,      &
@@ -2353,7 +2348,7 @@ CONTAINS
 
           cletiket = 'CORVERTI'
 
-          ierr = vfstecr(bchm_corverti(1:jnum,1:jnum,jvar),bchm_corverti(1:jnum,1:jnum,jvar) &
+          ierr = utl_fstecr(bchm_corverti(1:jnum,1:jnum,jvar) &
              ,  -inbits, iulcorvert, idateo    &
              , ideet,inpas, ini, inj, ink, ip1, ip2, ip3, cltypvar,     &
              clnomvar,cletiket,clgrtyp,ig1, ig2, ig3, ig4, idatyp,      &
@@ -2361,7 +2356,7 @@ CONTAINS
 
           cletiket = 'C*C^-1'
           
-          ierr = vfstecr(result(1:jnum,1:jnum),result(1:jnum,1:jnum) &
+          ierr = utl_fstecr(result(1:jnum,1:jnum) &
              ,  -inbits, iulcorvert, idateo    &
              , ideet,inpas, ini, inj, ink, ip1, ip2, ip3, cltypvar,     &
              clnomvar,cletiket,clgrtyp,ig1, ig2, ig3, ig4, idatyp,      &

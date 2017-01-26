@@ -23,9 +23,11 @@ program main_var
   use columnData_mod  
   use obsSpaceDiag_mod
   use controlVector_mod
-  use filterObs_mod  
+  use obsFilter_mod  
   use minimization_mod
   use burpFiles_mod
+  use utilities_mod
+  use innovation_mod
 
   implicit none
   integer :: istamp,exdb,exfin
@@ -38,7 +40,7 @@ program main_var
 
   character(len=48) :: obsMpiStrategy
 
-  istamp = exdb('3DVAR','DEBUT','NON')
+  istamp = exdb('VAR','DEBUT','NON')
 
   write(*,'(/,' //                                            &
             '3(" *****************"),/,' //                   &
@@ -50,13 +52,13 @@ program main_var
   ! MPI initilization
   call mpi_initialize  
 
-  call tmg_init(mpi_myid, 'TMG_3D-VAR' )
+  call tmg_init(mpi_myid, 'TMG_VAR' )
 
   call tmg_start(1,'MAIN')
 
   if(mpi_myid == 0) then
     clmsg = 'VAR3D_BEG'
-    call wrstatus(clmsg)
+    call utl_writeStatus(clmsg)
   endif 
 
   ! 1. Top Level Control setup (read NCONF from namelist)
@@ -73,15 +75,15 @@ program main_var
 
     obsMpiStrategy = 'LIKESPLITFILES'
 
-    call preproc(columng,columnhr,obsSpaceData,  &
+    call var_setup(columng,columnhr,obsSpaceData,  &
                  "ALL",                & ! obsColumnMode   
                  trim(obsMpiStrategy))
 
     ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
-    call sugomobs(columng,columnhr,obsSpaceData)
+    call inn_setupBackgroundColumns(columng,columnhr,obsSpaceData)
 
     ! Compute observation innovations and prepare obsSpaceData for minimization
-    call suinnov(columng,columnhr,obsSpaceData)
+    call inn_computeInnovation(columng,columnhr,obsSpaceData)
     call tmg_stop(2)
 
     ! Do the background check and output the observation data files
@@ -96,15 +98,15 @@ program main_var
 
     obsMpiStrategy = 'LIKESPLITFILES'
 
-    call preproc(columng,columnhr,obsSpaceData,  &
+    call var_setup(columng,columnhr,obsSpaceData,  &
                  "ALL",        &       ! obsColumnMode   
                  trim(obsMpiStrategy)) ! obsMpiStrategy
 
     ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
-    call sugomobs(columng,columnhr,obsSpaceData)
+    call inn_setupBackgroundColumns(columng,columnhr,obsSpaceData)
 
     ! Compute observation innovations and prepare obsSpaceData for minimization
-    call suinnov(columng,columnhr,obsSpaceData)
+    call inn_computeInnovation(columng,columnhr,obsSpaceData)
     call tmg_stop(2)
 
     ! Do the background check and output the observation data files
@@ -120,15 +122,15 @@ program main_var
 
     obsMpiStrategy = 'LIKESPLITFILES'
 
-    call preproc(columng,columnhr,obsSpaceData,  &
+    call var_setup(columng,columnhr,obsSpaceData,  &
                  "VAR",        &         ! obsColumnMode
                  trim(obsMpiStrategy))   ! obsMpiStrategy
 
     ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
-    call sugomobs(columng,columnhr,obsSpaceData)
+    call inn_setupBackgroundColumns(columng,columnhr,obsSpaceData)
 
     ! Compute observation innovations and prepare obsSpaceData for minimization
-    call suinnov(columng,columnhr,obsSpaceData)
+    call inn_computeInnovation(columng,columnhr,obsSpaceData)
     call tmg_stop(2)
 
     ! Compute OER and update the observation data files
@@ -143,21 +145,21 @@ program main_var
 
     obsMpiStrategy = 'LATLONTILESBALANCED'
 
-    call preproc(columng,columnhr,obsSpaceData,  &
+    call var_setup(columng,columnhr,obsSpaceData,  &
                  "VAR",          &      ! obsColumnMode
                  trim(obsMpiStrategy))  ! obsMpiStrategy
     call tmg_stop(2)
 
     ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
     call tmg_start(2,'PREMIN')
-    call sugomobs(columng,columnhr,obsSpaceData)
+    call inn_setupBackgroundColumns(columng,columnhr,obsSpaceData)
 
     ! Compute observation innovations and prepare obsSpaceData for minimization
-    call suinnov(columng,columnhr,obsSpaceData)
+    call inn_computeInnovation(columng,columnhr,obsSpaceData)
     call tmg_stop(2)
 
     ! Do minimization of cost function
-    call minimize(columng,obsSpaceData)
+    call min_minimize(columng,obsSpaceData)
 
     ! Conduct obs-space post-processing diagnostic tasks (some diagnostic 
     ! computations controlled by NAMOSD namelist in flnml)
@@ -165,7 +167,7 @@ program main_var
 
     if (mpi_myid == 0) then
        clmsg = 'REBM_DONE'
-       call wrstatus(clmsg)
+       call utl_writeStatus(clmsg)
     end if
 
     ! Now write out the observation data files
@@ -182,17 +184,212 @@ program main_var
 
   ! 3. Job termination
 
-  istamp = exfin('3DVAR','FIN','NON')
+  istamp = exfin('VAR','FIN','NON')
 
   if(mpi_myid == 0) then
     clmsg = 'VAR3D_END'
-    call wrstatus(clmsg)
+    call utl_writeStatus(clmsg)
   endif
 
   call tmg_stop(1)
 
-  call tmg_terminate(mpi_myid, 'TMG_3D-VAR' )
+  call tmg_terminate(mpi_myid, 'TMG_VAR' )
 
   call rpn_comm_finalize(ierr) 
+
+contains
+
+  subroutine var_setup(lcolumng,lcolumnhr,lobsSpaceData, &
+       obsColumnMode, obsMpiStrategy)
+    !
+    !**s/r var_setup  - Control of the preprocessing of the variational assimilation
+    !
+    ! Revisions:
+    !           Y.J. Rochon, Jan 2016
+    !           - Addition of test on availability of input trial fields according
+    !             to related observation families.
+    !
+    use topLevelControl_mod
+    use mpivar_mod
+    use MathPhysConstants_mod
+    use horizontalCoord_mod
+    use timeCoord_mod
+    use WindRotation_mod
+    use obsSpaceData_mod
+    use controlVector_mod
+    use gridStateVector_mod
+    use minimization_mod
+    use columndata_mod
+    use LamAnalysisGrid_mod
+    use bmatrix_mod
+    use tovs_nl_mod
+    use burpFiles_mod
+    use obserrors_mod
+    use variableTransforms_mod
+    use verticalCoord_mod
+    IMPLICIT NONE
+
+    type(struct_obs) :: lobsSpaceData
+    type(struct_columnData) :: lcolumng,lcolumnhr
+    character (len=*) :: obsColumnMode
+    character (len=*) :: obsMpiStrategy
+    integer :: datestamp
+
+    type(struct_vco), pointer :: vco_anl => null()
+    type(struct_vco), pointer :: vco_trl => null()
+    type(struct_hco), pointer  :: hco_anl
+
+    integer :: get_max_rss
+
+    character(len=12) :: etiket
+
+    write(*,*) ''
+    write(*,*) '-----------------------------------'
+    write(*,*) '-- Starting subroutine var_setup --'
+    write(*,*) '-----------------------------------'
+
+    !     
+    !- Initialize burp file names and set datestamp
+    !
+    call burp_setupFiles(datestamp)
+    call tim_setDatestamp(datestamp)
+
+    !
+    !- Initialize constants
+    !
+    if(mpi_myid.eq.0) call mpc_printConstants(6)
+
+    !
+    !- Set vertical coordinate parameters from !! record in trial file
+    !
+    if(mpi_myid.eq.0) write(*,*)''
+    if(mpi_myid.eq.0) write(*,*)' preproc: Set vcoord parameters for trial grid'
+    if ( top_spatialDimensions() /= '2D') then
+       call vco_SetupFromFile( vco_trl,         & ! OUT
+            './trlm_01',' ')   ! IN
+    else  
+       call vco_SetupManual( vco_trl,                  & ! OUT
+            top_AnalysisLevel2d(), 1 )  ! IN 
+    end if
+    call col_setVco(lcolumnhr,vco_trl)
+
+    !
+    !- Initialize variables of the model states
+    !
+    call gsv_setup
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+    !
+    !- Initialize the Temporal grid
+    !
+    call tim_setup
+
+    !
+    !- Initialize the Analysis grid
+    !
+    if(mpi_myid.eq.0) write(*,*)''
+    if(mpi_myid.eq.0) write(*,*)' preproc: Set hco parameters for analysis grid'
+    call hco_SetupFromFile( './analysisgrid', 'ANALYSIS', 'Analysis' ) ! IN
+    hco_anl => hco_Get('Analysis')
+
+    if ( .not. hco_anl % global ) then
+       !- Iniatilized the core (Non-Exteded) analysis grid
+       call hco_SetupFromFile( './analysisgrid', 'COREGRID', 'AnalysisCore' ) ! IN
+       !- Setup the LAM analysis grid metrics
+       call lag_SetupFromHCO( 'Analysis', 'AnalysisCore' ) ! IN
+    end if
+
+    if ( hco_anl % rotated ) then
+       call uvr_Setup(hco_anl) ! IN 
+    end if
+
+    !     
+    !- Initialisation of the analysis grid vertical coordinate from !! in Bnmc file
+    !
+    if ( top_spatialDimensions() /= '2D') then
+       if ( hco_anl % global ) then
+          etiket = 'BGCK_STDDEV'
+       else
+          etiket = 'STDDEV'
+       end if
+       call vco_SetupFromFile( vco_anl,         & ! OUT
+            './bgcov', etiket) ! IN
+    else
+       call vco_SetupManual( vco_anl,                  & ! OUT
+            top_AnalysisLevel2d(), 1 )  ! IN
+    end if
+
+    call col_setVco(lcolumng,vco_anl)
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+    !
+    !- Setup and read observations
+    !
+    call inn_setupObs(lobsSpaceData,obsColumnMode,obsMpiStrategy)
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+    !
+    !- Test availability of all "minimum" required model weather fields given
+    !  presented observation families. 'P0' must always be present
+    !  and an abort would have occured prior to this point if it was not present.
+    !  Requirements beyond the minimum set to be tested where needed.
+    !
+    if ( obs_famExist(lobsSpaceData,'UA').or.obs_famExist(lobsSpaceData,'AI').or.obs_famExist(lobsSpaceData,'SW').or. &
+         obs_famExist(lobsSpaceData,'SF').or.obs_famExist(lobsSpaceData,'RO').or.obs_famExist(lobsSpaceData,'SC').or. &
+         obs_famExist(lobsSpaceData,'GP').or.obs_famExist(lobsSpaceData,'PR') ) then
+       ! Not all following fields required for some of the above families.
+       if (.not.(gsv_varExist(varName='TT').and.gsv_varExist(varName='UU').and.gsv_varExist(varName='VV') &
+            .and.gsv_varExist(varName='HU').and.gsv_varExist(varName='P0').and.gsv_varExist(varName='TG')) ) then
+          call varAbort(' preproc: One or more missing weather field in NAMSTATE')
+       end if
+    else if (obs_famExist(lobsSpaceData,'TO') .and. .not.gsv_varExist(varName='TT')) then
+       ! Minimum requirement for 'TO' in the absence of assimilation of other weather-related families.
+       ! This minimum requirement is for when only constituent (non-H2O) increments are to be produced
+       ! when TO obs are provided.
+       call varAbort(' preproc: TT missing in NAMSTATE')
+    end if
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+    !
+    !- Basic setup of columnData module
+    !
+    call col_setup
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+    !
+    !- Memory allocation for background column data
+    !
+    call col_allocate(lcolumng, obs_numheader(lobsSpaceData),mpi_local=.true.)
+    call col_allocate(lcolumnhr,obs_numheader(lobsSpaceData),mpi_local=.true.)
+
+    !
+    !- Initialize the observation error covariances
+    !
+    call oer_setObsErrors(lobsSpaceData)
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+    !
+    !- Initialize the background-error covariance, also sets up control vector module (cvm)
+    !
+    if ( top_AnalysisMode() ) then
+       call bmat_setup(hco_anl,vco_anl)
+       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    end if
+
+    !
+    ! - Initialize the gridded variable transform module
+    !
+    call vtr_setup(hco_anl,vco_anl)
+
+    !
+    !- Set up the minimization module, now that the required parameters are known
+    !  NOTE: some global variables remain in minimization_mod that must be initialized before inn_setupBackgroundColumns
+    !
+    if (top_AnalysisMode() ) then
+       call min_setup( cvm_nvadim ) ! IN
+       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    end if
+
+  end subroutine var_setup
 
 end program main_var
