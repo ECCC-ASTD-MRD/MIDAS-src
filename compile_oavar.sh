@@ -112,8 +112,8 @@ elif [ "${ORDENV_PLAT}" = sles-11-amd64-64 -o "${ORDENV_PLAT}" = sles-11-broadwe
     true
 fi
 ## for 'vgrid'
-echo "loading eccc/cmd/cmdn/vgrid/5.6.8/${COMP_ARCH}"
-. ssmuse-sh -d eccc/cmd/cmdn/vgrid/5.6.8/${COMP_ARCH}
+echo "loading eccc/cmd/cmdn/vgrid/5.6.9/${COMP_ARCH}"
+. ssmuse-sh -d eccc/cmd/cmdn/vgrid/5.6.9/${COMP_ARCH}
 ## for 'burplib'
 echo "loading eccc/cmd/cmda/libs/16.1-3/${COMP_ARCH}"
 . ssmuse-sh -d eccc/cmd/cmda/libs/16.1-3/${COMP_ARCH}
