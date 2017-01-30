@@ -225,7 +225,7 @@ CONTAINS
        else
           write(*,*)
           write(*,*) 'mode = ', trim(mode)
-          call varAbort('bchm_setup: unknown mode')
+          call utl_abort('bchm_setup: unknown mode')
        end if
     else
        bchm_mode = 'Analysis'
@@ -310,7 +310,7 @@ CONTAINS
     nulnam = 0
     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=NAMBCHM,iostat=ierr)
-    if(ierr.ne.0) call varAbort('BCHM_setup: Error reading namelist')
+    if(ierr.ne.0) call utl_abort('BCHM_setup: Error reading namelist')
     if(mpi_myid == 0) write(*,nml=NAMBCHM)
     ierr = fclos(nulnam)
 
@@ -453,7 +453,7 @@ CONTAINS
       if ( ierr == 0 ) then
         ierr =  fstouv(nulbgst,'RND+OLD')
       else
-        call varAbort('BCHM_RDSTATS: NO BACKGROUND CHEMICAL CONSTITUENT STAT FILE!!')
+        call utl_abort('BCHM_RDSTATS: NO BACKGROUND CHEMICAL CONSTITUENT STAT FILE!!')
       endif
     else
       ! Assume chemical constituent stats in file bgcov. 
@@ -463,10 +463,10 @@ CONTAINS
          if ( ierr == 0 ) then
            ierr =  fstouv(nulbgst,'RND+OLD')
          else
-           call varAbort('BCHM_RDSTATS: NO BACKGROUND CHEMICAL CONSTITUENT STAT FILE!!')
+           call utl_abort('BCHM_RDSTATS: NO BACKGROUND CHEMICAL CONSTITUENT STAT FILE!!')
          endif 
       else          
-         call varAbort('BCHM_RDSTATS: NO BACKGROUND CHEMICAL CONSTITUENT STAT FILE!!')
+         call utl_abort('BCHM_RDSTATS: NO BACKGROUND CHEMICAL CONSTITUENT STAT FILE!!')
       end if
     endif
 
@@ -535,7 +535,7 @@ CONTAINS
 
     if(ntruncCut.gt.ntrunc) then
       write(*,*) ntruncCut, ntrunc
-      call varAbort('bchm_truncateCV: ntruncCut is greater than ntrunc!')
+      call utl_abort('bchm_truncateCV: ntruncCut is greater than ntrunc!')
     endif
 
     jdim = 0
@@ -791,9 +791,9 @@ CONTAINS
           
           if (istdkey.lt.0) then
              write(*,*) 'BCHM_READCORNS2: RSTDDEV ',ip2,jnum,clnomvar
-             call varAbort('BCHM_READCORNS2: Problem with constituents background stat file')
+             call utl_abort('BCHM_READCORNS2: Problem with constituents background stat file')
           end if
-          if (ini.ne.jnum)  call varAbort('BCHM_READCORNS2: Constituents background stat levels inconsistencies')
+          if (ini.ne.jnum)  call utl_abort('BCHM_READCORNS2: Constituents background stat levels inconsistencies')
 
           ! Looking for FST record parameters..
 
@@ -807,9 +807,9 @@ CONTAINS
 
           if (icornskey.lt.0) then
              write(*,*) 'BCHM_READCORNS2: CORRNS ',ip2,jnum,clnomvar
-             call varAbort('BCHM_READCORNS2: Problem with constituents background stat file')
+             call utl_abort('BCHM_READCORNS2: Problem with constituents background stat file')
           end if
-          if (ini.ne.jnum.and.inj.ne.jnum) call varAbort('BCHM_READCORNS2: Constituents BG stat levels inconsistencies')
+          if (ini.ne.jnum.and.inj.ne.jnum) call utl_abort('BCHM_READCORNS2: Constituents BG stat levels inconsistencies')
 
           rstddev(jstart:jstart+jnum-1,jn) = zstdsrc(1:jnum)
           corns(jstart:jstart+jnum-1,jstart:jstart+jnum-1,jn)=zcornssrc(1:jnum,1:jnum)
@@ -1052,7 +1052,7 @@ CONTAINS
        rlat(1:nj_l)=rlat(1:nj_l)*MPC_RADIANS_PER_DEGREE_R8
     else
        write(*,*) 'BCHM_RDSTDDEV: latitudes not read. ',ikey,inj,nj_l
-       call varAbort('BCHM_RDSTDDEV')
+       call utl_abort('BCHM_RDSTDDEV')
     end if    
 
     ikey = utl_fstlir(rcoord,nulbgst,ini,inj,ink, &
@@ -1062,7 +1062,7 @@ CONTAINS
         rlong(1:ni_l)=rlong(1:ni_l)*MPC_RADIANS_PER_DEGREE_R8
     else
        write(*,*) 'BCHM_RDSTDDEV: longitudes not read. ',ikey,ini,ni_l
-       call varAbort('BCHM_RDSTDDEV')
+       call utl_abort('BCHM_RDSTDDEV')
     end if 
     rlong(ni_l+1)=360.*MPC_RADIANS_PER_DEGREE_R8
     
@@ -1075,7 +1075,7 @@ CONTAINS
     elseif(stddevMode == 'SP2D') then
       call BCHM_rdspstd_newfmt
     else
-      call varAbort('BCHM_RDSTDDEV: unknown stddevMode')
+      call utl_abort('BCHM_RDSTDDEV: unknown stddevMode')
     endif
     
   END SUBROUTINE BCHM_RDSTDDEV
@@ -1130,7 +1130,7 @@ CONTAINS
           zspbuf(:) = 0.0d0
         endif
 
-        if (ini.ne.nlev_MT) call varAbort('CHM_RDSPSTD: Constituents background stats levels inconsistency')
+        if (ini.ne.nlev_MT) call utl_abort('CHM_RDSPSTD: Constituents background stats levels inconsistency')
 
         do jlevo = 1, nlev_MT
           zsp(jn,jlevo) = zspbuf(jlevo)
@@ -1221,7 +1221,7 @@ CONTAINS
           ikey = utl_fstlir(zspbuf(0:ntrunc_file),nulbgst,ini,inj,ink,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
         else
           write(*,*) 'BCHM_RDSPSTD_NEWFMT: ',jvar,clnomvar,nlev_MT,jlevo,ikey,ntrunc,ntrunc_file
-          call varAbort('BCHM_RDSPSTD_NEWFMT: SPSTDDEV record not found')
+          call utl_abort('BCHM_RDSPSTD_NEWFMT: SPSTDDEV record not found')
         endif
 
         zsp(:,jlevo) = 0.0d0
@@ -1294,7 +1294,7 @@ CONTAINS
 
       if (ikey.lt.0) then
           write(*,*) 'BCHM_RDSTD: ',jvar,clnomvar,nlev_MT,ikey
-          call varAbort(': BCHM_RDSTD record not found')
+          call utl_abort(': BCHM_RDSTD record not found')
       endif
         
       ! Extend to 3D
@@ -1365,7 +1365,7 @@ CONTAINS
                          idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
         if (ikey.lt.0) then
           write(*,*) 'BCHM_RDSTD3D: ',jvar,clnomvar,nlev_MT,jlevo,ikey,ip1
-          call varAbort(': BCHM_RDSTD3D record not found')
+          call utl_abort(': BCHM_RDSTD3D record not found')
         endif
         
         ! Add strip at 360 degrees.
@@ -1449,7 +1449,7 @@ CONTAINS
       call dsyev('V','U',nkgdim,eigenvec,nkgdim,eigenval,zwork,ilwork,info)
       if(info.ne.0) then
         write(*,*) 'BCHM_sucorns2: non-zero value of info =',info,' returned by dsyev for wavenumber ',jn
-        call varAbort('BCHM_SUCORNS')
+        call utl_abort('BCHM_SUCORNS')
       endif
       
       ! set selected number of eigenmodes to zero
@@ -1590,7 +1590,7 @@ CONTAINS
       endif
 
       if (ini .ne. nkgdim .or. inj .ne. nkgdim) then
-        call varAbort('READCORNS_SQRT: BG stat levels inconsitencies')
+        call utl_abort('READCORNS_SQRT: BG stat levels inconsitencies')
       endif
 
       do jcol = 1, nkgdim
@@ -2018,13 +2018,13 @@ CONTAINS
                          write(*,*)
                          write(*,*) 'ERROR: jdim_mpilocal > cvDim_allMpiLocal(jproc+1)', jdim_mpilocal, cvDim_mpilocal
                          write(*,*) '       proc, jlev, jn, jm = ',jproc, jlev, jn, jm
-                         call varAbort('bhi_reduceToMPILocal')
+                         call utl_abort('bhi_reduceToMPILocal')
                       end if
                       if (jdim_mpiglobal > cvDim_mpiglobal) then
                          write(*,*)
                          write(*,*) 'ERROR: jdim_mpiglobal > cvDim_mpiglobal', jdim_mpiglobal, cvDim_mpiglobal
                          write(*,*) '       proc, jlev, jn, jm = ',jproc, jlev, jn, jm
-                         call varAbort('bhi_reduceToMPILocal')
+                         call utl_abort('bhi_reduceToMPILocal')
                       end if
 
                    endif
@@ -2299,7 +2299,7 @@ CONTAINS
        call dsyev('V','U',jnum,eigenvec(1:jnum,1:jnum),jnum,eigenval,zwork,ilwork,info)
        if(info.ne.0) then
          write(*,*) 'BCHM_corvert_setup: non-zero value of info =',info,' returned by dsyev for wavenumber ',jn
-         call varAbort('BCHM_corvert_setup')
+         call utl_abort('BCHM_corvert_setup')
        endif
 
       ! Set selected number of eigenmodes to zero
@@ -2458,14 +2458,14 @@ CONTAINS
 
     if (.not.initialized) return
  
-    if (.not.present(rsig).and.lrgsig) call varAbort('BCHM_corvert_mult: Missing rsig')  
+    if (.not.present(rsig).and.lrgsig) call utl_abort('BCHM_corvert_mult: Missing rsig')  
 
 !   Determine location and size in bchm_corvert/bchm_corverti
     
     do jvar=1,numvar3d+numvar2d
        if (trim(varName) == trim(bchm_varNameList(jvar))) exit
     end do
-    if  (jvar.gt.numvar3d+numvar2d) call varAbort('BCHM_corvert_mult: Variable not found')
+    if  (jvar.gt.numvar3d+numvar2d) call utl_abort('BCHM_corvert_mult: Variable not found')
     
     nsize=nsposit(jvar+1)-nsposit(jvar)
     
@@ -2477,7 +2477,7 @@ CONTAINS
 
 !      A*C*A^T
        
-       if (ndim3.ne.ndim1.or.ndim2.ne.nsize) call varAbort('BCHM_corvert_mult: Size does not match - itype=3')
+       if (ndim3.ne.ndim1.or.ndim2.ne.nsize) call utl_abort('BCHM_corvert_mult: Size does not match - itype=3')
        if (lrgsig) then
           do jk1=1,nsize
           do jk2=1,ndim1
@@ -2502,7 +2502,7 @@ CONTAINS
 
 !      A*CI*A^T
        
-       if (ndim3.ne.ndim1.or.ndim2.ne.nsize) call varAbort('BCHM_corvert_mult: Size does not match - itype=3')
+       if (ndim3.ne.ndim1.or.ndim2.ne.nsize) call utl_abort('BCHM_corvert_mult: Size does not match - itype=3')
        if (lrgsig) then
           do jk1=1,nsize
           do jk2=1,ndim1
@@ -2528,7 +2528,7 @@ CONTAINS
     
 !      C*A
 
-       if (ndim3.ne.ndim2.or.ndim1.ne.nsize) call varAbort('BCHM_corvert_mult: Size does not match - itype=2')
+       if (ndim3.ne.ndim2.or.ndim1.ne.nsize) call utl_abort('BCHM_corvert_mult: Size does not match - itype=2')
        if (lrgsig) then
           do jk1=1,nsize
           do jk3=1,nsize
@@ -2551,7 +2551,7 @@ CONTAINS
     
 !      CI*A
 
-       if (ndim3.ne.ndim2.or.ndim1.ne.nsize) call varAbort('BCHM_corvert_mult: Size does match - itype=-2')
+       if (ndim3.ne.ndim2.or.ndim1.ne.nsize) call utl_abort('BCHM_corvert_mult: Size does match - itype=-2')
        if (lrgsig) then
           do jk1=1,nsize
           do jk3=1,nsize
@@ -2574,7 +2574,7 @@ CONTAINS
     
 !      A*C
 
-       if (ndim3.ne.ndim2.or.ndim2.ne.nsize) call varAbort('BCHM_corvert_mult: Size does not match - itype=1')
+       if (ndim3.ne.ndim2.or.ndim2.ne.nsize) call utl_abort('BCHM_corvert_mult: Size does not match - itype=1')
        if (lrgsig) then
           do jk1=1,ndim1
           do jk2=1,nsize
@@ -2594,7 +2594,7 @@ CONTAINS
 
 !      A*CI
 
-       if (ndim3.ne.ndim2.or.ndim2.ne.nsize) call varAbort('BCHM_corvert_mult: Size does not match - itype=-1')
+       if (ndim3.ne.ndim2.or.ndim2.ne.nsize) call utl_abort('BCHM_corvert_mult: Size does not match - itype=-1')
        if (lrgsig) then
           do jk1=1,ndim1
           do jk2=1,nsize
@@ -2614,7 +2614,7 @@ CONTAINS
 
 !      Instead of A*CI do D(i,j)=A(i,j)/sum(C(1:n,i))
 
-       if (ndim3.ne.ndim2.or.ndim2.ne.nsize) call varAbort('BCHM_corvert_mult: Size does not match - itype=0')
+       if (ndim3.ne.ndim2.or.ndim2.ne.nsize) call utl_abort('BCHM_corvert_mult: Size does not match - itype=0')
        if (lrgsig) then
           do jk1=1,ndim1
           do jk2=lvl_top(jk1),lvl_bot(jk1)   ! instead of do jk2=1,nsize
@@ -2632,7 +2632,7 @@ CONTAINS
        endif
 
     else
-       call varAbort('BCHM_corvert_mult: Requested type not found')
+       call utl_abort('BCHM_corvert_mult: Requested type not found')
     end if
    
   end subroutine bchm_corvert_mult
@@ -2677,12 +2677,12 @@ CONTAINS
     do jvar=1,numvar3d+numvar2d
        if (trim(varName) == trim(bchm_varNameList(jvar))) exit
     end do
-    if  (jvar.gt.numvar3d+numvar2d) call varAbort('BCHM_getsigma: Variable not found')
+    if  (jvar.gt.numvar3d+numvar2d) call utl_abort('BCHM_getsigma: Variable not found')
     
     nsize=nsposit(jvar+1)-nsposit(jvar)
     if (nsize.ne.ndim2) then
         write(6,*) 'NSIZE, NDIM2: ',nsize,ndim2
-        call varAbort('BCHM_getsigma: Inconsistent size')
+        call utl_abort('BCHM_getsigma: Inconsistent size')
     end if
  
 !   Determine reference longitude index 
@@ -2756,7 +2756,7 @@ CONTAINS
        if (rsig(j).lt.0.0.or.rsig(j).gt.maxval(rgsig(:,:,nsposit(jvar)-1+j))) then
           write(6,*) 'bchm_getsigma: Innterpolated sigma incorrect. ',jlong,jlat,xlong,xlat,j,rsig(j)
           write(6,*) 'bchm_getsigma: Innterpolated sigma incorrect. ',rlong2,rlong1,rlat1,rlat2,zc1,zc2,zd1,zd2
-          call varAbort('bchm_getsigma')
+          call utl_abort('bchm_getsigma')
        end if
     end do
 

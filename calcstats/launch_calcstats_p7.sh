@@ -39,7 +39,7 @@ echo
 
 ssh $machine rm -f $gest/*
 scp $flnml ${machine}:${gest}/flnml
-scp $abs ${machine}:${gest}/calcb.abs
+scp $abs ${machine}:${gest}/calcstats.abs
 ssh $machine ln -s ${ensdir} ${gest}/ensemble
 ssh $machine ls -l $gest
 
@@ -49,7 +49,7 @@ cat << EOF > $TMPDIR/go_calcstats.sh
  cd $gest
  export TMG_ON=YES
  export LDR_CNTRL=TEXTPSIZE=64K@STACKPSIZE=64K@DATAPSIZE=64K@SHMPSIZE=64K@MAXDATA64=0x1900000000
- ./calcb.abs
+ ./calcstats.abs
 EOF
 
 cat << EOF > $TMPDIR/ptopo_nml

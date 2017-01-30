@@ -45,6 +45,7 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
   use emissivities
   Use rttov_const, only : sensor_id_mw,gas_id_watervapour,surftype_land, &
        surftype_seaice
+  use utilities_mod
   implicit none
 !implicits
 #include "rttov_direct2.interface"
@@ -104,8 +105,6 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
   real*8, allocatable  :: surfem1 (:)
   real*8, allocatable  :: surfem2_th (:,:), emissivity_std_th(:,:)
   integer, allocatable :: emissivity_flg_th(:,:)
-
-  external varAbort
   
   write(*,*) "Entering tovs_rttov subroutine"
   write(*,*) "luse_uwiremis=",luse_uwiremis
@@ -130,7 +129,7 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
   if( any(alloc_status /= 0) ) then
      write(*,*) ' tovs_rttov: alloc_status = ', alloc_status(:)
      write(*,'(" tovs_rttov: arrays #1 memory allocation error")')
-     call varAbort('tovs_rttov        ')
+     call utl_abort('tovs_rttov        ')
   end if
 
 !     1.1   Read surface information
@@ -249,7 +248,7 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
       if( any(alloc_status /= 0) ) then
          write(*,*) ' tovs_rttov: alloc_status = ', alloc_status(:)
          write(*,'(" tovs_rttov: arrays #2 memory allocation error")')
-         call varAbort('tovs_rttov        ')
+         call utl_abort('tovs_rttov        ')
       end if
       
 !     loop on threads
@@ -274,7 +273,7 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
             nchannels=nchannels_th(ith),asw=asw,init=.true. )
        if (rttov_err_stat/=0) THEN
           Write(*,*) "Error in transmittance allocation",rttov_err_stat
-          call varAbort('tovs_rttov        ')
+          call utl_abort('tovs_rttov        ')
        ENDIF
 
        ! allocate radiance structure
@@ -282,7 +281,7 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
        call rttov_alloc_rad (rttov_err_stat,nchannels_th(ith),radiancedata_d_th(ith),nlevels-1,asw,init=.true.)
        if (rttov_err_stat/=0) THEN
           Write(*,*) "Error in radiance allocation",rttov_err_stat
-          call varAbort('tovs_rttov        ')
+          call utl_abort('tovs_rttov        ')
        ENDIF
          
     end do
@@ -296,7 +295,7 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
             opts(krtid),asw=asw,init=init)
        if (rttov_err_stat/=0) THEN
           Write(*,*) "Error in profiles allocation",rttov_err_stat
-          call varAbort('tovs_rttov        ')
+          call utl_abort('tovs_rttov        ')
        endif
        
      !.. fill profilesdata arrays
@@ -400,7 +399,7 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
              calcemis_th(joff+1:joff+len_nchannels   ,ith) = .true.
              surfem1_th (joff+1:joff+len_nchannels,ith) = 0.d0
           else
-             call varAbort('tovs_rttov. invalid sensor type')
+             call utl_abort('tovs_rttov. invalid sensor type')
           endif
        enddo
        if (luse_uwiremis .and. tvs_Is_Instrum_Hyperspectral(instrum) .and. bgckMode) then
@@ -411,7 +410,7 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
                   coef=  coefs(krtid)%coef   )             ! in
              if (rttov_err_stat/=0) THEN
                 Write(*,*) "Error in rttov_atlas_setup ",rttov_err_stat
-                call varAbort('tovs_rttov')
+                call utl_abort('tovs_rttov')
              ENDIF
              first=.false.
           endif
@@ -426,7 +425,7 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
 
           if (rttov_err_stat/=0) THEN
              Write(*,*) "Error in rttov_get_emis ",rttov_err_stat
-             call varAbort('tovs_rttov')
+             call utl_abort('tovs_rttov')
           ENDIF
 
           do j=1,knpf_th(ith) !loop on profiles
@@ -487,7 +486,7 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
 
          if (errorstatus_th(ith)/=0) then
             Write(*,*) "Error in rttov_direct2",ith,errorstatus_th(ith)
-            call varAbort('tovs_rttov        ')
+            call utl_abort('tovs_rttov        ')
          endif
 
       enddo
@@ -533,20 +532,20 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
               nchannels=nchannels_th(ith),asw=asw )
          if (rttov_err_stat/=0) THEN
             Write(*,*) "Error in transmittance deallocation",rttov_err_stat
-            call varAbort('tovs_rttov        ')
+            call utl_abort('tovs_rttov        ')
          ENDIF
          ! radiance deallocation       
          call rttov_alloc_rad (rttov_err_stat,nchannels_th(ith),radiancedata_d_th(ith),nlevels-1,asw)
          if (rttov_err_stat/=0) THEN
             Write(*,*) "Error in radiance deallocation",rttov_err_stat
-            call varAbort('tovs_rttov        ')
+            call utl_abort('tovs_rttov        ')
          ENDIF
          ! profile deallocation
          call rttov_alloc_prof (rttov_err_stat,knpf_th(ith),profilesdata_th(:,ith),nlevels, &
               opts(krtid),asw=asw)
          if (rttov_err_stat/=0) THEN
             Write(*,*) "Error in profiles deallocation",rttov_err_stat
-            call varAbort('tovs_rttov        ')
+            call utl_abort('tovs_rttov        ')
          ENDIF
       enddo
       alloc_status(:) = 0
@@ -570,7 +569,7 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
       if( any(alloc_status /= 0) ) then
          write(*,*) ' tovs_rttov: alloc_status = ', alloc_status(:)
          write(*,'(" tovs_rttov: arrays #2 memory deallocation error")')
-         call varAbort('tovs_rttov        ')
+         call utl_abort('tovs_rttov        ')
       end if
 
 !   next bunch !
@@ -601,7 +600,7 @@ enddo
   if( any(alloc_status /= 0) ) then
      write(*,*) ' tovs_rttov: alloc_status = ', alloc_status(:)
      write(*,'(" tovs_rttov: arrays #1 memory deallocation error")')
-     call varAbort('tovs_rttov        ')
+     call utl_abort('tovs_rttov        ')
   end if
 
   return

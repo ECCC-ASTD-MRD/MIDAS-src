@@ -17,12 +17,13 @@
 
 #include "maincompileswitch.inc"
 #include "compileswitches.inc"
-module  burp_read
+module  burpread_mod
 
 use burp_module
 use ObsSpaceData_mod
 use MathPhysConstants_mod
 use earthconstants_mod
+use utilities_mod
 implicit none
 save
 
@@ -2524,7 +2525,7 @@ CONTAINS
                  end if
               END DO
            ELSE   
-              CALL VARABORT('write_body: Invalid BURP vertical coordinate type.')
+              call utl_abort('write_body: Invalid BURP vertical coordinate type.')
            END IF
         END IF
     END SELECT
@@ -2838,7 +2839,7 @@ CONTAINS
           IF (trim(FAMTYP) == 'CH') THEN
              RCONSTITUENT=INFOV
              IF (RCONSTITUENT .eq. PPMIS) THEN
-                call varAbort('WRITE_INFO: Missing 08046 element for the CH family.')
+                call utl_abort('WRITE_INFO: Missing 08046 element for the CH family.')
              ELSE
                 CONSTITUENT_TYPE=NINT(RCONSTITUENT)
              END IF
@@ -2909,5 +2910,4 @@ CONTAINS
     RETURN
   END FUNCTION FIND_INDEX
 
-
-end module burp_read
+end module burpread_mod

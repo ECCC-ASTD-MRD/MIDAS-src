@@ -21,7 +21,7 @@ module burpFiles_mod
   use EarthConstants_mod
   use mpivar_mod
   use obsSpaceData_mod
-  use burp_read
+  use burpread_mod
   use topLevelControl_mod
   use bufr
   implicit none
@@ -736,7 +736,7 @@ END SUBROUTINE burp_updateFiles
               end do
 !                     
 !             write(*,*) 'NLV =',nlv,' Nexp=',kk    
-!             call varAbort('set_scale_chm: Inconsistent number of exponents')
+!             call utl_abort('set_scale_chm: Inconsistent number of exponents')
            end if
         end if
 !

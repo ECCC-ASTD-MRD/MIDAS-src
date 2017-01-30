@@ -46,6 +46,8 @@ MODULE minimization_mod
   use residual_mod
   use obsOperators_mod
   use innovation_mod
+  use quasinewton_mod
+  use utilities_mod
   implicit none
   save
   private
@@ -113,7 +115,7 @@ CONTAINS
 
     if(nvadim_mpilocal_in.ne.cvm_nvadim) then
       write(*,*) 'nvadim_mpilocal,cvm_nvadim=',nvadim_mpilocal,cvm_nvadim
-      call varAbort('aborting in min_setup: control vector dimension not consistent')
+      call utl_abort('aborting in min_setup: control vector dimension not consistent')
     endif
 
     nvadim_mpilocal=nvadim_mpilocal_in
@@ -144,14 +146,14 @@ CONTAINS
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=nammin,iostat=ierr)
-    if(ierr.ne.0) call varAbort('min_setup: Error reading namelist')
+    if(ierr.ne.0) call utl_abort('min_setup: Error reading namelist')
     write(*,nml=nammin)
     ierr=fclos(nulnam)
 
     IF(N1GC == 3)THEN
       NMTRA = (4 + 2*NVAMAJ)*nvadim_mpilocal
     ELSE
-      call varAbort('min_setup: only N1GC=3 currently supported!') 
+      call utl_abort('min_setup: only N1GC=3 currently supported!') 
     END IF
     WRITE(*,9401)N1GC,NVAMAJ,NMTRA
  9401 FORMAT(4X,'N1GC = ',I2,4X,'NVAMAJ = ',I3,/5X,"NMTRA =",1X,I14)
@@ -242,7 +244,7 @@ CONTAINS
 
       integer fnom,fclos, remove_c
       external fnom,fclos
-      external  n1qn3
+
       real*8 :: zeps0_000,zdf1_000
       integer :: iterdone_000,isimdone_000
       character(len=128) :: clfname
@@ -270,29 +272,29 @@ CONTAINS
       allocate(vazx(nvadim_mpilocal),stat=ierr)
       if(ierr.ne.0) then
         write(*,*) 'minimization: Problem allocating memory! id=3',ierr
-        call varAbort('aborting in quasiNewtonMinimization')
+        call utl_abort('aborting in quasiNewtonMinimization')
       endif
 
       allocate(dg_vbar(nvadim_mpilocal),stat=ierr)
       if(ierr.ne.0) then
         write(*,*) 'minimization: Problem allocating memory! id=1',ierr
-        call varAbort('aborting in quasiNewtonMinimization')
+        call utl_abort('aborting in quasiNewtonMinimization')
       endif
 
       allocate(vazg(nvadim_mpilocal),stat=ierr)
       if(ierr.ne.0) then
         write(*,*) 'minimization: Problem allocating memory! id=2',ierr
-        call varAbort('aborting in quasiNewtonMinimization')
+        call utl_abort('aborting in quasiNewtonMinimization')
       endif
 
       allocate(vatra(nmtra),stat=ierr)
       if(ierr.ne.0.or.nmtra.le.0) then
         write(*,*) 'minimization: Problem allocating memory! id=4',ierr
         write(*,*) 'minimization: nmtra=',nmtra
-        call varAbort('aborting in quasiNewtonMinimization')
+        call utl_abort('aborting in quasiNewtonMinimization')
       endif
 
-      ! recast pointer to obsSpaceData as an integer array, so it can be passed through n1qn3 to simvar
+      ! recast pointer to obsSpaceData as an integer array, so it can be passed through qna_n1qn3 to simvar
       dataptr%obsSpaceData => obsSpaceData
       dataptr%column       => column
       dataptr%columng      => columng
@@ -300,7 +302,7 @@ CONTAINS
       allocate(dataptr_int(dataptr_int_size),stat=ierr)
       if(ierr.ne.0) then
         write(*,*) 'minimization: Problem allocating memory! id=2',ierr
-        call varAbort('aborting in quasiNewtonMinimization')
+        call utl_abort('aborting in quasiNewtonMinimization')
       endif
       dataptr_int(1:dataptr_int_size)=transfer(dataptr,dataptr_int)
 
@@ -396,7 +398,7 @@ CONTAINS
       ZXMIN = epsilon(ZXMIN)
       WRITE(*,FMT=9320)ZXMIN,ZDF1,ZEPS0,IMPRES,ITERMAX,NSIMMAX
 
- 9320 FORMAT(//,10X,' Minimization N1QN3 starts ...',/  &
+ 9320 FORMAT(//,10X,' Minimization QNA_N1QN3 starts ...',/  &
              10x,'DXMIN =',G23.16,2X,'DF1 =',G23.16,2X,'EPSG =',G23.16  &
              /,10X,'IMPRES =',I3,2X,'NITER = ',I3,2X,'NSIM = ',I3)
 
@@ -409,9 +411,9 @@ CONTAINS
           isimnovqc = isimmax
           lvarqc = .false.
           call tmg_start(70,'QN')
-          call n1qn3(simvar, dscalqn, dcanonb, dcanab, nvadim_mpilocal, vazx,  &
+          call qna_n1qn3(simvar, dscalqn, dcanonb, dcanab, nvadim_mpilocal, vazx,  &
               zjsp,vazg, zxmin, zdf1, zeps1, impres, nulout, imode,       &
-              iitnovqc, isimnovqc ,iztrl, vatra, nmtra, dataptr_int(1),   &
+              iitnovqc, isimnovqc ,iztrl, vatra, nmtra, dataptr_int,   &
               zzsunused, dlds)
           call tmg_stop(70)
           call fool_optimizer(obsSpaceData)
@@ -432,15 +434,15 @@ CONTAINS
             INDIC = 2
             call simvar(indic,nvadim_mpilocal,vazx,zjsp,vazg,dataptr_int(1))
           else
-            call varAbort(" MINIMIZATION_MOD: n1qn3 mode ne 4")
+            call utl_abort(" MINIMIZATION_MOD: qna_n1qn3 mode ne 4")
           endif
         endif
 
         ! Now do main minimization with var-QC
         call tmg_start(70,'QN')
-        call n1qn3(simvar, dscalqn, dcanonb, dcanab, nvadim_mpilocal, vazx,  &
+        call qna_n1qn3(simvar, dscalqn, dcanonb, dcanab, nvadim_mpilocal, vazx,  &
             zjsp,vazg, zxmin, zdf1, zeps1, impres, nulout, imode,   &
-            itermaxtodo,isimmax, iztrl, vatra, nmtra, dataptr_int(1), zzsunused,   &
+            itermaxtodo,isimmax, iztrl, vatra, nmtra, dataptr_int, zzsunused,   &
             dlds)
         call tmg_stop(70)
         call fool_optimizer(obsSpaceData)
@@ -610,7 +612,7 @@ CONTAINS
 
   subroutine min_analysisPert(vatra,iztrl,dataptr_int,zdf1,column,columng,obsSpaceData)
     implicit none
-    ! Purpose: use N1QN3 minimization to perform analysis step on 
+    ! Purpose: use QNA_N1QN3 minimization to perform analysis step on 
     !          ensemble perturbations
     !
     ! arguments
@@ -734,7 +736,7 @@ CONTAINS
       indic = 2
       call simvar(indic, nvadim_mpilocal, incr_cv, zjsp, vazg, dataptr_int)
 
-      ! Initialization for call to N1QN3
+      ! Initialization for call to QNA_N1QN3
       itertot = numIterMax_pert
       simtot = 2*itertot
       if(indexAnalysis == 1) then
@@ -760,11 +762,11 @@ CONTAINS
       else 
         impres=0
       endif
-      ! call N1QN3 minimization for perturbation
+      ! call QNA_N1QN3 minimization for perturbation
       call tmg_start(70,'QN')
-      call n1qn3(simvar, dscalqn, dcanonb, dcanab, nvadim_mpilocal, incr_cv,  &
+      call qna_n1qn3(simvar, dscalqn, dcanonb, dcanab, nvadim_mpilocal, incr_cv,  &
           zjsp, vazg, zxmin, zdf1, zeps1, impres, nulout, imode,       &
-          itertot, simtot ,iztrl, vatra, nmtra, dataptr_int(1),   &
+          itertot, simtot ,iztrl, vatra, nmtra, dataptr_int,   &
           zzsunused, dlds)
       call tmg_stop(70)
       call fool_optimizer(obsSpaceData)
@@ -1165,7 +1167,7 @@ CONTAINS
     !***s/r DSCALQN: inner product in canonical space
     !*    ------------------- 
     !**    Purpose: interface for the inner product to be used
-    !*     .        by the minimization subroutines N1QN3.
+    !*     .        by the minimization subroutines QNA_N1QN3.
     !*
     !*Arguments
     !*     i : KDIM      : dimension of the vectors
@@ -1236,7 +1238,7 @@ CONTAINS
     !*
     !*Author    JM Belanger CMDA/SMC   May 2001
     !*     .    Double precision version based on single precision CTCAB.
-    !*          Refered to  as dummy argument DTCAB by N1QN3 minimization
+    !*          Refered to  as dummy argument DTCAB by QNA_N1QN3 minimization
     !*          package.
     !*    -------------------
     !**    Purpose: to compute PX = L^-1 * Py with L related to the inner product
@@ -1266,7 +1268,7 @@ CONTAINS
     !*
     !*Author    JM Belanger CMDA/SMC  May 2001
     !*     .    Double precision version based on single precision CANONB.
-    !*          Refered to as dummy argument DTONB by N1QN3 minimization
+    !*          Refered to as dummy argument DTONB by QNA_N1QN3 minimization
     !*          package.
     !*    -------------------
     !**    Purpose: to compute PY = L * PX with L related to the inner product
@@ -1302,12 +1304,12 @@ CONTAINS
     !*Arguments
     !*     i   cfname    : precon file
     !*     i   status    : = 0 if READ, = 1 if WRITE
-    !*     i   nsim      : Number of simulations in N1QN3
+    !*     i   nsim      : Number of simulations in QNA_N1QN3
     !*     io  kbrpstamp : Date
-    !*     i   zeps1     : Parameter in N1QN3
-    !*     i   zdf1      : Parameter in N1QN3
-    !*     i   itertot   : Parameter in N1QN3
-    !*     i   isimtot   : Parameter in N1QN3
+    !*     i   zeps1     : Parameter in QNA_N1QN3
+    !*     i   zdf1      : Parameter in QNA_N1QN3
+    !*     i   itertot   : Parameter in QNA_N1QN3
+    !*     i   isimtot   : Parameter in QNA_N1QN3
     !*     i   iztrl     : Localisation parameters for Hessian
     !*     i   vatra     : Hessian
     !*     i   vazxbar   : Vazx of previous loop
@@ -1347,7 +1349,7 @@ CONTAINS
     elseif (status == 1) then
       if (mpi_myid == 0) write(*,*) 'Write Hessian in min_hessianIO to file ', cfname
     else
-      call varAbort("min_hessianIO: status not valid ")
+      call utl_abort("min_hessianIO: status not valid ")
     endif
 
     call rpn_comm_allreduce(nvadim_mpilocal,nvadim_mpiglobal,1,"mpi_integer","mpi_sum","GRID",ierr)
@@ -1371,14 +1373,14 @@ CONTAINS
          else
             write(*,*)
             write(*,*) 'min_hessianIO : Only V4 Hessian are supported, found ', trim(cl_version)
-            call varAbort("min_hessianIO")
+            call utl_abort("min_hessianIO")
          endif
 
          if (i1gc == 3 .and. i1gc == k1gc) then
             write(*,*) trim(cl_version),' M1QN3'
          else
             write(*,*) 'Version, n1gc =',trim(cl_version),i1gc
-            call varAbort("min_hessianIO: Inconsistant input hessian")
+            call utl_abort("min_hessianIO: Inconsistant input hessian")
          endif
 
          rewind (ireslun)
@@ -1387,7 +1389,7 @@ CONTAINS
          read(ireslun) ivamaj,iztrl_io
          if ((ivamaj.ne.nvamaj).or.(nvadim_mpiglobal.ne.ivadim)) then
             write(*,*) nvamaj,ivamaj,nvadim_mpiglobal,ivadim
-            call varAbort("min_hessianIO : ERROR, size of V4 Hessian not consistent")
+            call utl_abort("min_hessianIO : ERROR, size of V4 Hessian not consistent")
          endif
 
       end if
@@ -1524,7 +1526,7 @@ CONTAINS
       !- Close the Hessian matrix file
       if (mpi_myid == 0) ierr = fclos(ireslun)
     else
-      call varAbort("min_hessianIO: status not valid")
+      call utl_abort("min_hessianIO: status not valid")
     endif
 
     call tmg_stop(88)

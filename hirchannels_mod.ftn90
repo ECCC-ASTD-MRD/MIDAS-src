@@ -14,38 +14,39 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-Module hir_chans
+Module hirchannels_mod
 
-!************************************************************************
-!*
-!*       Module hir_chans
-!*       --------------
-!*
-!*       PURPOSE: HYPERSPECTRAL INFRARED CHANNEL PROPERTIES
-!*
-!*       AUTHOR:   A. BEAULNE (CMDA/SMC) February 2006
-!*
-!*       REVISION: S. Heilliette transformation into a real module
-!*                  and addition of IASI and CrIS March 2013
-!*
-!*       METHODS:
-!*              - hir_get_nchan_selected : get the number of channels for the received subset
-!*              - hir_get_nchan_all : get the total number of channels
-!*              - hir_get_wavn : get channel wavenumbers (work only for the received subset)
-!*              - hir_get_chindx_fr_chn : get subset channel index from channel number
-!*              - hir_get_assim_chan : get assimilation flag from channel number
-!*              - hir_set_assim_chan : set a vector of  assimilation flags (1=assimilate)
-!*
-!*
-!************************************************************************
+  !************************************************************************
+  !*
+  !*       Module hirchannels
+  !*       --------------
+  !*
+  !*       PURPOSE: HYPERSPECTRAL INFRARED CHANNEL PROPERTIES
+  !*
+  !*       AUTHOR:   A. BEAULNE (CMDA/SMC) February 2006
+  !*
+  !*       REVISION: S. Heilliette transformation into a real module
+  !*                  and addition of IASI and CrIS March 2013
+  !*
+  !*       METHODS:
+  !*              - hir_get_nchan_selected : get the number of channels for the received subset
+  !*              - hir_get_nchan_all : get the total number of channels
+  !*              - hir_get_wavn : get channel wavenumbers (work only for the received subset)
+  !*              - hir_get_chindx_fr_chn : get subset channel index from channel number
+  !*              - hir_get_assim_chan : get assimilation flag from channel number
+  !*              - hir_set_assim_chan : set a vector of  assimilation flags (1=assimilate)
+  !*
+  !*
+  !************************************************************************
+  use utilities_mod
   implicit none
   save
   private
-  
+
   ! public procedures
   public :: hir_get_nchan_selected,hir_get_nchan_all,hir_get_wavn,hir_get_chindx_fr_chn
   public :: hir_get_assim_chan,hir_set_assim_chan
-  
+
 
   INTEGER, PARAMETER :: AIRSSNCH = 281, AIRSRNCH = 2378
   INTEGER   :: AIRSRCH(AIRSSNCH)
@@ -546,7 +547,7 @@ Module hir_chans
        7424 , 7426 , 7428 , 7431 , 7436 , 7444 , 7475 , 7549 , 7584 , 7665 , &
        7666 , 7831 , 7836 , 7853 , 7865 , 7885 , 7888 , 7912 , 7950 , 7972 , &
        7980 , 7995 , 8007 , 8015 , 8055 , 8078 / ! 611-616
-  
+
 
 
   DATA IASISCH(1:902) /     &
@@ -1156,7 +1157,7 @@ Module hir_chans
   integer :: i
   INTEGER,parameter  :: CRISRCH(CRISSNCH)=(/(i,i=1,CRISRNCH) /)
   Integer ,target    :: CRISSCH(CRISRNCH)=(/(i,i=1,CRISSNCH) /)
-  
+
   REAL (8),parameter  :: CRISSWN_LW(1:713)=(/(650.0_8 + (i-1)*0.625_8,i=1,713) /)
   REAL (8),parameter  :: CRISSWN_MW(714:1146)=(/(1210.0_8 + (i-714)*1.25_8,i=714,1146) /)
   REAL (8),parameter  :: CRISSWN_SW(1147:1305)=(/(2155.0_8 + (i-1147)*2.50_8,i=1147,1305) /)
@@ -1168,237 +1169,237 @@ Module hir_chans
 
 contains
 
-integer function hir_get_nchan_selected(CINST)
-implicit none
-character (len=*),intent(in) :: CINST
+  integer function hir_get_nchan_selected(CINST)
+    implicit none
+    character (len=*),intent(in) :: CINST
 
 
-select case(trim(CINST))
-case("AIRS","airs")
-   hir_get_nchan_selected= AIRSSNCH
-case("IASI","iasi")
-   hir_get_nchan_selected= IASISNCH
-case("CRIS","cris","CrIS")
-   hir_get_nchan_selected = CRISSNCH
-case default
-   Write(*,*) "Unknown instrument! ",CINST
-   call varAbort("hir_get_nchan_selected from  hir_chans module")
-end select
+    select case(trim(CINST))
+    case("AIRS","airs")
+       hir_get_nchan_selected= AIRSSNCH
+    case("IASI","iasi")
+       hir_get_nchan_selected= IASISNCH
+    case("CRIS","cris","CrIS")
+       hir_get_nchan_selected = CRISSNCH
+    case default
+       Write(*,*) "Unknown instrument! ",CINST
+       call utl_abort("hir_get_nchan_selected from  hirchannels module")
+    end select
 
 
-end function hir_get_nchan_selected
+  end function hir_get_nchan_selected
 
 
 
-!Methode inutile pour l'instant
-integer function hir_get_nchan_all(CINST)
-implicit none
-character (len=*),intent(in) :: CINST
+  !Methode inutile pour l'instant
+  integer function hir_get_nchan_all(CINST)
+    implicit none
+    character (len=*),intent(in) :: CINST
 
 
-select case(trim(CINST))
-case("AIRS","airs")
-   hir_get_nchan_all= AIRSRNCH
-case("IASI","iasi")
-   hir_get_nchan_all= IASIRNCH
-case("CRIS","cris","CrIS")
-   hir_get_nchan_all= CRISRNCH
-case default
-   Write(*,*) "Unknown instrument! ",CINST
-   call varAbort("hir_get_nchan_all from  hir_chans module")
-end select
+    select case(trim(CINST))
+    case("AIRS","airs")
+       hir_get_nchan_all= AIRSRNCH
+    case("IASI","iasi")
+       hir_get_nchan_all= IASIRNCH
+    case("CRIS","cris","CrIS")
+       hir_get_nchan_all= CRISRNCH
+    case default
+       Write(*,*) "Unknown instrument! ",CINST
+       call utl_abort("hir_get_nchan_all from  hirchannels module")
+    end select
 
-end function hir_get_nchan_all
-
-
-real (8)function hir_get_wavn(CINST,ICHAN)
-implicit none
-character (len=*),intent(in) :: CINST
-integer,intent(in) :: ichan
-!ichan channel index among ALL the channels
-integer :: ipos
-
-if (ichan<1) then
-   Write(*,*) "Channel index ",ichan," should be a positive integer !"
-   call varAbort("hir_get_wavn from  hir_chans module")
-endif
-
-select case(trim(CINST))
-case("AIRS","airs")
-   if (ichan>AIRSRNCH) then
-      Write(*,*) "Channel index ",ichan," exceeds ",AIRSRNCH," for the AIRS instrument"
-      call varAbort("hir_get_wavn from  hir_chans module")
-   endif
-   ipos=AIRSSCH(ICHAN)
-   if (ipos==-1) then
-      Write(*,*) "Channel ",ICHAN," is not part of the selection for the AIRS instrument"
-      call varAbort("hir_get_wavn from  hir_chans module")
-   endif
-   hir_get_wavn=AIRSSWN(ipos)
-case("IASI","iasi")
-   if (ichan>IASIRNCH) then
-      Write(*,*) "Channel index ",ichan," exceeds ",IASIRNCH," for the IASI instrument"
-      call varAbort("hir_get_wavn from  hir_chans module")
-   endif
-   ipos=IASISCH(ICHAN)
-   if (ipos==-1) then
-      Write(*,*) "Channel ",ICHAN," is not part of the selection for the IASI instrument"
-      call varAbort("hir_get_wavn from  hir_chans module")
-   endif
-   hir_get_wavn=IASISWN(ipos)
-case("CRIS","cris","CrIS")
-   if (ichan>CRISRNCH) then
-      Write(*,*) "Channel index ",ichan," exceeds ",CRISRNCH," for the CRIS instrument"
-      call varAbort("hir_get_wavn from  hir_chans module")
-   endif
-   ipos=CRISSCH(ICHAN)
-   if (ipos==-1) then
-      Write(*,*) "Channel ",ICHAN," is not part of the selection for the CRIS instrument"
-      call varAbort("hir_get_wavn from  hir_chans module")
-   endif
-   hir_get_wavn=CRISSWN(ipos)
-case default
-   Write(*,*) "Unknown instrument! ",CINST
-   call varAbort("hir_get_wavn from  hir_chans module")
-end select
-
-end function hir_get_wavn
+  end function hir_get_nchan_all
 
 
-integer function hir_get_chindx_fr_chn(CINST,ichan)
-implicit none
-character (len=*),intent(in) :: CINST
-integer,intent(in) :: ichan
-!*************************************************
-integer :: indx
+  real (8)function hir_get_wavn(CINST,ICHAN)
+    implicit none
+    character (len=*),intent(in) :: CINST
+    integer,intent(in) :: ichan
+    !ichan channel index among ALL the channels
+    integer :: ipos
 
-if (ichan<1) then
-   Write(*,*) "Channel number ",ichan," should be a positive integer !"
-   call varAbort("hir_get_chindx_fr_chn from  hir_chans module")
-endif
+    if (ichan<1) then
+       Write(*,*) "Channel index ",ichan," should be a positive integer !"
+       call utl_abort("hir_get_wavn from  hirchannels module")
+    endif
 
-select case(trim(CINST))
-case("AIRS","airs")
-   if (ichan>AIRSRNCH) then
-      Write(*,*) "Channel ",ichan," exceeds ",AIRSRNCH," for the AIRS instrument"
-      call varAbort("hir_get_chindx_fr_chn from  hir_chans module")
-   endif
-   indx=AIRSSCH(ichan)
-   if (indx/=-1) then
-      hir_get_chindx_fr_chn = indx
-   else
-      Write(*,*) "Channel ",ichan," is not selected for the AIRS instrument"
-      call varAbort("hir_get_chindx_fr_chn from  hir_chans module")
-   endif
-case("IASI","iasi")
-   if (ichan>IASIRNCH) then
-      Write(*,*) "Channel ",ichan," exceeds ",IASIRNCH," for the IASI instrument"
-      call varAbort("hir_get_chindx_fr_chn from  hir_chans module")
-   endif
-   indx=IASISCH(ichan)
-   if (indx/=-1) then
-      hir_get_chindx_fr_chn = indx
-   else
-      Write(*,*) "Channel ",ichan," is not selected for the IASI instrument"
-      call varAbort("hir_get_chindx_fr_chn from  hir_chans module")
-   endif
-case("CRIS","cris","CrIS")
-   if (ichan>CRISRNCH) then
-      Write(*,*) "Channel ",ichan," exceeds ",CRISRNCH," for the CRIS instrument"
-      call varAbort("hir_get_chindx_fr_chn from  hir_chans module")
-   endif
-   indx=CRISSCH(ichan)
-   if (indx/=-1) then
-      hir_get_chindx_fr_chn = indx
-   else
-      Write(*,*) "Channel ",ichan," is not selected for the CRIS instrument"
-      call varAbort("hir_get_chindx_fr_chn from  hir_chans module")
-   endif
-case default
-   Write(*,*) "Unknown instrument! ",CINST
-   call varAbort("hir_get_chindx_fr_chn from  hir_chans module")
-end select
+    select case(trim(CINST))
+    case("AIRS","airs")
+       if (ichan>AIRSRNCH) then
+          Write(*,*) "Channel index ",ichan," exceeds ",AIRSRNCH," for the AIRS instrument"
+          call utl_abort("hir_get_wavn from  hirchannels module")
+       endif
+       ipos=AIRSSCH(ICHAN)
+       if (ipos==-1) then
+          Write(*,*) "Channel ",ICHAN," is not part of the selection for the AIRS instrument"
+          call utl_abort("hir_get_wavn from  hirchannels module")
+       endif
+       hir_get_wavn=AIRSSWN(ipos)
+    case("IASI","iasi")
+       if (ichan>IASIRNCH) then
+          Write(*,*) "Channel index ",ichan," exceeds ",IASIRNCH," for the IASI instrument"
+          call utl_abort("hir_get_wavn from  hirchannels module")
+       endif
+       ipos=IASISCH(ICHAN)
+       if (ipos==-1) then
+          Write(*,*) "Channel ",ICHAN," is not part of the selection for the IASI instrument"
+          call utl_abort("hir_get_wavn from  hirchannels module")
+       endif
+       hir_get_wavn=IASISWN(ipos)
+    case("CRIS","cris","CrIS")
+       if (ichan>CRISRNCH) then
+          Write(*,*) "Channel index ",ichan," exceeds ",CRISRNCH," for the CRIS instrument"
+          call utl_abort("hir_get_wavn from  hirchannels module")
+       endif
+       ipos=CRISSCH(ICHAN)
+       if (ipos==-1) then
+          Write(*,*) "Channel ",ICHAN," is not part of the selection for the CRIS instrument"
+          call utl_abort("hir_get_wavn from  hirchannels module")
+       endif
+       hir_get_wavn=CRISSWN(ipos)
+    case default
+       Write(*,*) "Unknown instrument! ",CINST
+       call utl_abort("hir_get_wavn from  hirchannels module")
+    end select
 
-
-end function hir_get_chindx_fr_chn
+  end function hir_get_wavn
 
 
-subroutine hir_set_assim_chan(CINST,iselec)
-implicit none
-character (len=*),intent(in) :: CINST
-integer,intent(in) :: iselec(:)
-!*************************************************
-integer :: nch,i
-integer ,pointer :: pt(:)
-!***************************
+  integer function hir_get_chindx_fr_chn(CINST,ichan)
+    implicit none
+    character (len=*),intent(in) :: CINST
+    integer,intent(in) :: ichan
+    !*************************************************
+    integer :: indx
 
-nch=size(iselec)
+    if (ichan<1) then
+       Write(*,*) "Channel number ",ichan," should be a positive integer !"
+       call utl_abort("hir_get_chindx_fr_chn from  hirchannels module")
+    endif
 
-if (nch<1) then
-   Write(*,*) "Empty channel selection !"
-   call varAbort("hir_set_assim_chan from  hir_chans module")
-endif
+    select case(trim(CINST))
+    case("AIRS","airs")
+       if (ichan>AIRSRNCH) then
+          Write(*,*) "Channel ",ichan," exceeds ",AIRSRNCH," for the AIRS instrument"
+          call utl_abort("hir_get_chindx_fr_chn from  hirchannels module")
+       endif
+       indx=AIRSSCH(ichan)
+       if (indx/=-1) then
+          hir_get_chindx_fr_chn = indx
+       else
+          Write(*,*) "Channel ",ichan," is not selected for the AIRS instrument"
+          call utl_abort("hir_get_chindx_fr_chn from  hirchannels module")
+       endif
+    case("IASI","iasi")
+       if (ichan>IASIRNCH) then
+          Write(*,*) "Channel ",ichan," exceeds ",IASIRNCH," for the IASI instrument"
+          call utl_abort("hir_get_chindx_fr_chn from  hirchannels module")
+       endif
+       indx=IASISCH(ichan)
+       if (indx/=-1) then
+          hir_get_chindx_fr_chn = indx
+       else
+          Write(*,*) "Channel ",ichan," is not selected for the IASI instrument"
+          call utl_abort("hir_get_chindx_fr_chn from  hirchannels module")
+       endif
+    case("CRIS","cris","CrIS")
+       if (ichan>CRISRNCH) then
+          Write(*,*) "Channel ",ichan," exceeds ",CRISRNCH," for the CRIS instrument"
+          call utl_abort("hir_get_chindx_fr_chn from  hirchannels module")
+       endif
+       indx=CRISSCH(ichan)
+       if (indx/=-1) then
+          hir_get_chindx_fr_chn = indx
+       else
+          Write(*,*) "Channel ",ichan," is not selected for the CRIS instrument"
+          call utl_abort("hir_get_chindx_fr_chn from  hirchannels module")
+       endif
+    case default
+       Write(*,*) "Unknown instrument! ",CINST
+       call utl_abort("hir_get_chindx_fr_chn from  hirchannels module")
+    end select
 
-if (nch/=hir_get_nchan_selected(CINST)) then
-   Write(*,*) "Wrong number of channels",nch
-   Write(*,*) "Should be ",hir_get_nchan_selected(CINST)
-   call varAbort("hir_set_assim_chan from  hir_chans module")
-endif
 
-select case(trim(CINST))
-case("AIRS","airs")
-   pt=>airs_assim
-case("IASI","iasi")
-   pt=>iasi_assim
-case("CRIS","cris","CrIS")
-   pt=>cris_assim
-case default
-   Write(*,*) "Unknown instrument! ",CINST
-   call varAbort("set_assim_chan from  hir_chans module")
-end select
-
-do i=1,nch
-   if (iselec(i)==0 .or. iselec(i)==1) then
-      pt(i)=iselec(i)
-   else
-      Write(*,*) "Invalid selection flag ",iselec(i),i,cinst
-      call varAbort("hir_set_assim_chan from  hir_chans module")
-   endif
-enddo
-
-nullify(pt)
-
-end subroutine hir_set_assim_chan
+  end function hir_get_chindx_fr_chn
 
 
-integer function hir_get_assim_chan(CINST,ichan)
-implicit none
-character (len=*),intent(in) :: CINST
-integer,intent(in) :: ichan
-!*******************************
-integer ,pointer :: pt(:)
+  subroutine hir_set_assim_chan(CINST,iselec)
+    implicit none
+    character (len=*),intent(in) :: CINST
+    integer,intent(in) :: iselec(:)
+    !*************************************************
+    integer :: nch,i
+    integer ,pointer :: pt(:)
+    !***************************
 
-select case(trim(CINST))
-case("AIRS","airs")
-   pt=>airs_assim
-case("IASI","iasi")
-   pt=>iasi_assim
-case("CRIS","cris","CrIS")
-   pt=>cris_assim
-case default
-   Write(*,*) "Unknown instrument! ",CINST
-   call varAbort("hir_get_assim_chan from  hir_chans module")
-end select
+    nch=size(iselec)
 
-if (ichan<1 .or. ichan>hir_get_nchan_selected(CINST)) then
-   Write(*,*) "Invalid channel index",ichan
-   call varAbort("hir_get_assim_chan from  hir_chans module")
-endif
+    if (nch<1) then
+       Write(*,*) "Empty channel selection !"
+       call utl_abort("hir_set_assim_chan from  hirchannels module")
+    endif
 
-hir_get_assim_chan = pt(ichan)
+    if (nch/=hir_get_nchan_selected(CINST)) then
+       Write(*,*) "Wrong number of channels",nch
+       Write(*,*) "Should be ",hir_get_nchan_selected(CINST)
+       call utl_abort("hir_set_assim_chan from  hirchannels module")
+    endif
 
-nullify(pt)
+    select case(trim(CINST))
+    case("AIRS","airs")
+       pt=>airs_assim
+    case("IASI","iasi")
+       pt=>iasi_assim
+    case("CRIS","cris","CrIS")
+       pt=>cris_assim
+    case default
+       Write(*,*) "Unknown instrument! ",CINST
+       call utl_abort("set_assim_chan from  hirchannels module")
+    end select
 
-end function hir_get_assim_chan
+    do i=1,nch
+       if (iselec(i)==0 .or. iselec(i)==1) then
+          pt(i)=iselec(i)
+       else
+          Write(*,*) "Invalid selection flag ",iselec(i),i,cinst
+          call utl_abort("hir_set_assim_chan from  hirchannels module")
+       endif
+    enddo
 
-End module hir_chans
+    nullify(pt)
+
+  end subroutine hir_set_assim_chan
+
+
+  integer function hir_get_assim_chan(CINST,ichan)
+    implicit none
+    character (len=*),intent(in) :: CINST
+    integer,intent(in) :: ichan
+    !*******************************
+    integer ,pointer :: pt(:)
+
+    select case(trim(CINST))
+    case("AIRS","airs")
+       pt=>airs_assim
+    case("IASI","iasi")
+       pt=>iasi_assim
+    case("CRIS","cris","CrIS")
+       pt=>cris_assim
+    case default
+       Write(*,*) "Unknown instrument! ",CINST
+       call utl_abort("hir_get_assim_chan from  hirchannels module")
+    end select
+
+    if (ichan<1 .or. ichan>hir_get_nchan_selected(CINST)) then
+       Write(*,*) "Invalid channel index",ichan
+       call utl_abort("hir_get_assim_chan from  hirchannels module")
+    endif
+
+    hir_get_assim_chan = pt(ichan)
+
+    nullify(pt)
+
+  end function hir_get_assim_chan
+
+End module hirchannels_mod

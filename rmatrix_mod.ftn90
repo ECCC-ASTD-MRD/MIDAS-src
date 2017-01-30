@@ -60,7 +60,7 @@ module rmatrix_mod
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=namrmat,iostat=ierr)
-    if(ierr.ne.0) call varAbort('rmat_init: Error reading namelist')
+    if(ierr.ne.0) call utl_abort('rmat_init: Error reading namelist')
     if(mpi_myid.eq.0) write(*,nml=namrmat)
     ierr=fclos(nulnam)
     if (rmat_lnonDiagR) then
@@ -95,7 +95,7 @@ module rmatrix_mod
       call rmat_readCMatrixByFileName(filename,C_inst(sensor_id), ichan )
     else
       write(*,*) "Unknown instrument ",instrument(:)
-      call varAbort("rmat_read_C_matrix")
+      call utl_abort("rmat_read_C_matrix")
     end if
     
   end subroutine rmat_readCMatrix
@@ -135,7 +135,7 @@ module rmatrix_mod
         if(product<=0.) then
           write(*,*) "Invalid variance: missing channel in stat_tovs !"
           write(*,*) ii,jj,offset,sigma(ii),sigma(jj)
-          call varAbort('rmat_setFullRMatrix')
+          call utl_abort('rmat_setFullRMatrix')
         endif
         R_inst(sensor_id)%Rmat(i,j)=product*C_inst(sensor_id)%Rmat(i,j)
       enddo
@@ -164,7 +164,7 @@ module rmatrix_mod
     ierr=fnom(iu,trim(infile),'FTN+SEQ+R/O',0)
     if (ierr/=0) then
       write(*,*) "Cannot open "//trim(infile)
-      call varAbort("rmat_readCMatrixByFileName")
+      call utl_abort("rmat_readCMatrixByFileName")
     endif
 
     write(*,*) "rmat_readCMatrixByFileName: Reading "//trim(infile)
@@ -176,7 +176,7 @@ module rmatrix_mod
       if(nchn.gt.nch) then
         write(*,*) "Not enough channels in "//trim(infile)
         write(*,*) nchn,nch
-        call varAbort("rmat_readCMatrixByFileName")
+        call utl_abort("rmat_readCMatrixByFileName")
       endif
     endif
     allocate(index(nch))
@@ -252,7 +252,7 @@ module rmatrix_mod
         R=>R_inst(sensor_id)
       else
         write(*,*) "invalid sensor_id",sensor_id,size(R_inst)
-        call varAbort('rmat_sqrtRm1')
+        call utl_abort('rmat_sqrtRm1')
       end if
 
       index=-1
@@ -268,7 +268,7 @@ module rmatrix_mod
         write(*,*) "Missing information for some channel !"
         write(*,*) list_sub(:)
         write(*,*) index(:)
-        call varAbort('rmat_sqrtRm1')
+        call utl_abort('rmat_sqrtRm1')
       endif
       R_tovs(indexTovs)%nchans=nsubset
       allocate(R_tovs(indexTovs)%listChans(nsubset))

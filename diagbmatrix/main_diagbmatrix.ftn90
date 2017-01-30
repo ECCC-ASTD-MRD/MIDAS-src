@@ -14,9 +14,9 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-program diag_bmatrix
+program main_diagBmatrix
   !
-  ! program: diag_bmatrix  - Program to compute diagnostics of the B matrix
+  ! program: diagBmatrix  - Program to compute diagnostics of the B matrix
   !
   use mpivar_mod
   use MathPhysConstants_mod
@@ -28,6 +28,7 @@ program diag_bmatrix
   use timeCoord_mod
   use LamAnalysisGrid_mod
   use randomNumber_mod
+  use utilities_mod
   IMPLICIT NONE
 
   type(struct_gsv) :: statevector
@@ -56,13 +57,13 @@ program diag_bmatrix
   namelist /namdiag/numperturbations, nrandseed, diagdate, oneobs_levs, oneobs_lons, oneobs_lats
   
   write(*,*) " -------------------------------------------"
-  write(*,*) " --- START OF MAIN PROGRAM DIAG_BMATRIX: ---"
+  write(*,*) " --- START OF MAIN PROGRAM diagBmatrix   ---"
   write(*,*) " --- Diagnositcs of the B matrix         ---"
   write(*,*) " -------------------------------------------"
 
   ! MPI, tmg initialization
   call mpi_initialize 
-  call tmg_init(mpi_myid, 'TMG_DIAG-BMATRIX' )
+  call tmg_init(mpi_myid, 'TMG_DIAGBMATRIX' )
   call tmg_start(1,'MAIN')
   ierr = fstopc('MSGLVL','ERRORS',0)
 
@@ -78,7 +79,7 @@ program diag_bmatrix
   nulnam=0
   ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
   read(nulnam,nml=namdiag,iostat=ierr)
-  if(ierr.ne.0) call varabort('diag_bmatrix: Error reading namelist')
+  if(ierr.ne.0) call utl_abort('diagBmatrix: Error reading namelist')
   write(*,nml=namdiag)
   ierr=fclos(nulnam)
   
@@ -191,7 +192,7 @@ program diag_bmatrix
                  call bmat_sqrtBT(cvm_vazx,cvm_nvadim,statevector)
                  call bmat_sqrtB(cvm_vazx,cvm_nvadim,statevector)
                  
-                 write(*,*)'DIAG_BMATRIX: writing out the column of B, jlev,jlon,jlat=',jlev,jlon,jlat
+                 write(*,*)'diagBmatrix: writing out the column of B, jlev,jlon,jlat=',jlev,jlon,jlat
                  call flush(6)
 
                  ip3 = ip3 + 1
@@ -451,11 +452,11 @@ program diag_bmatrix
 
   ! MPI, tmg finalize
   call tmg_stop(1)
-  call tmg_terminate(mpi_myid, 'TMG_DIAG-BMATRIX' )
+  call tmg_terminate(mpi_myid, 'TMG_DIAGBMATRIX' )
   call rpn_comm_finalize(ierr) 
   
   write(*,*) ' --------------------------------'
-  write(*,*) ' DIAG_BMATRIX ENDS'
+  write(*,*) ' diagBmatrix ENDS'
   write(*,*) ' --------------------------------'
   
-end program diag_bmatrix
+end program main_diagBmatrix

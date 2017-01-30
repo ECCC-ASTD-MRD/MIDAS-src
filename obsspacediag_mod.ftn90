@@ -44,6 +44,7 @@ module obsSpaceDiag_mod
   use stateToColumn_mod
   use randomNumber_mod
   use obsOperators_mod
+  use utilities_mod
   implicit none
   save
   private
@@ -381,7 +382,7 @@ contains
             else if(latIndex.gt.maxLat .or. lonIndex.gt.maxLon .or. verticalIndex.gt.maxVertical) then
                write(*,*) 'osd_calcInflation: index too big: lat,lon,vertical=',latIndex,lonIndex,verticalIndex, &
                           ' lat_max,lon_max,vertical_max=',maxlat,maxlon,maxvertical
-               call varAbort('osd_calcInflation')
+               call utl_abort('osd_calcInflation')
             endif
 
             ivco = obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex)

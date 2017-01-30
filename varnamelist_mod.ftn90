@@ -35,6 +35,7 @@ module varNameList_mod
 !              where 'MT'=meteorological and 'CH'=chemical constituent
 !
   use bufr
+  use utilities_mod
   implicit none
   save
   private
@@ -112,7 +113,7 @@ module varNameList_mod
       enddo
 
       if(listIndex.le.0) then
-        call varAbort('vnl_varListIndex3D: Unknown variable name! ' // varName)
+        call utl_abort('vnl_varListIndex3D: Unknown variable name! ' // varName)
       endif
 
     end function vnl_varListIndex3d
@@ -134,7 +135,7 @@ module varNameList_mod
       enddo
 
       if(listIndex.le.0) then
-        call varAbort('vnl_varListIndex2D: Unknown variable name! ' // varName)
+        call utl_abort('vnl_varListIndex2D: Unknown variable name! ' // varName)
       endif
 
     end function vnl_varListIndex2d
@@ -156,7 +157,7 @@ module varNameList_mod
       enddo
 
       if(listIndex.le.0) then
-        call varAbort('vnl_varListIndex: Unknown variable name! ' // varName)
+        call utl_abort('vnl_varListIndex: Unknown variable name! ' // varName)
       endif
 
     end function vnl_varListIndex
@@ -229,11 +230,11 @@ module varNameList_mod
                  varname='AC'
               case default
                  write(*,*) 'vnl_varnameFromVarnum: Unknown variable number! ',varNumber, varNumber_chm
-                 call varAbort('aborting in vnl_varnameFromVarnum')
+                 call utl_abort('aborting in vnl_varnameFromVarnum')
            end select
         else
            write(*,*) 'vnl_varnameFromVarnum: Unknown variable number! ',varNumber
-           call varAbort('aborting in vnl_varnameFromVarnum')
+           call utl_abort('aborting in vnl_varnameFromVarnum')
         endif 
       end select
 

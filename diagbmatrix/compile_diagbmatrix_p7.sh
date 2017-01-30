@@ -38,7 +38,7 @@ MPILIB="rpn_comm_adj_halo8"                                          #       la 
 MPIKEY="-mpi"
 ABSTAG=""
 
-diag_bmatrixdir=$PWD
+diagbmatrixdir=$PWD
 trunkdir=$PWD/../
 
 ## for s.compile
@@ -70,7 +70,7 @@ COMPF_NOC="-openmp $MPIKEY -O"
 COMPF="$COMPF_NOC -debug DEBUG -optf=-C "
 
 # Create and Move to compilation directory
-compiledir="../../compiledir_diag_bmatrix"
+compiledir="../../compiledir_diagbmatrix"
 echo "COMPILEDIR IS SET TO: $compiledir"
 mkdir -p $compiledir
 cd $compiledir
@@ -82,16 +82,19 @@ if [ $mode == full ] ; then
   rm -f *.o *.mod *.cdk* *.h *.ftn* *.f *.f90
 
   # Create a local copy of the source code
-  trunkfiles="mpi_mod.ftn90 mpivar_mod.ftn90 varabort.ftn90 physicsfunctions_mod.ftn90 controlvector_mod.ftn90 \
+  sed "s!XXXXX!${revnum}!g" ${trunkdir}/toplevelcontrol_mod.ftn90_template > toplevelcontrol_mod.ftn90
+
+  # Create a local copy of the source code
+  trunkfiles="mpi_mod.ftn90 mpivar_mod.ftn90 physicsfunctions_mod.ftn90 controlvector_mod.ftn90 \
             globalspectraltransform_mod.ftn90 lamanalysisgrid_mod.ftn90 localizationfunction_mod.ftn90 \
             gridstatevector_mod.ftn90 maincompileswitch.inc varnamelist_mod.ftn90 lambmatrixhi_mod.ftn90 \
-            utils_3dvar.ftn lamspectraltransform_mod.ftn90 shared/obsspacedata_mod.ftn90 \
+            utilities_mod.ftn90 lamspectraltransform_mod.ftn90 bufr_mod.ftn90 \
             verticalcoord_mod.ftn90 horizontalcoord_mod.ftn90 dsyev2.ftn timecoord_mod.ftn90 \
             columndata_mod.ftn90 bmatrixensemble_mod.ftn90 bmatrixhi_mod.ftn90 bmatrix_mod.ftn90 \
-            matsqrt.ftn getfldprm2.ftn randomnumber_mod.ftn90 variabletransforms_mod.ftn90 filterresponsefunction_mod.ftn90"
+            randomnumber_mod.ftn90 variabletransforms_mod.ftn90 spectraltransform_mod.ftn90"
 
   cd ${trunkdir}
-  cp -f diag_bmatrix/diag_bmatrix.ftn90 ${compiledir}
+  cp -f diagbmatrix/main_diagbmatrix.ftn90 ${compiledir}
   cp -f ${trunkfiles} ${compiledir}
   cd ${trunkdir}/shared; ls -1F | grep -v '/' | grep -v "*" | cpio -pl ${compiledir}
   cd ${compiledir}
@@ -101,8 +104,9 @@ if [ $mode == full ] ; then
 
   # Compile the subroutines...
   echo "compiling low-level independent modules"
-  SRC0="mathphysconstants_mod.ftn90 earthconstants_mod.ftn90 mpi_mod.ftn90 mpivar_mod.ftn90 filterresponsefunction_mod.ftn90"
-  SRC0="$SRC0 bufr_mod.ftn90 physicsfunctions_mod.ftn90 horizontalcoord_mod.ftn90 obsspacedata_mod.ftn90 randomnumber_mod.ftn90"
+  SRC0="randomnumber_mod.ftn90 utilities_mod.ftn90 toplevelcontrol_mod.ftn90 bufr_mod.ftn90"
+  SRC0="$SRC0 mathphysconstants_mod.ftn90 earthconstants_mod.ftn90 mpi_mod.ftn90 mpivar_mod.ftn90"
+  SRC0="$SRC0 physicsfunctions_mod.ftn90 horizontalcoord_mod.ftn90 obsspacedata_mod.ftn90"
   s.compile $COMPF -src $SRC0 > listing0a 2>&1
   grep fail listing0a
   if [ $? = "0" ] ; then exit ; fi
@@ -117,7 +121,7 @@ if [ $mode == full ] ; then
   SRC1="localizationfunction_mod.ftn90 controlvector_mod.ftn90 varnamelist_mod.ftn90 timecoord_mod.ftn90"
   SRC1="$SRC1 globalspectraltransform_mod.ftn90 verticalcoord_mod.ftn90"
   SRC1="$SRC1 lamspectraltransform_mod.ftn90 gridstatevector_mod.ftn90"
-  SRC1="$SRC1 columndata_mod.ftn90 lambmatrixhi_mod.ftn90"
+  SRC1="$SRC1 columndata_mod.ftn90 lambmatrixhi_mod.ftn90 spectraltransform_mod.ftn90"
   SRC1="$SRC1 variabletransforms_mod.ftn90 bmatrixensemble_mod.ftn90 bmatrixhi_mod.ftn90"
   SRC1="$SRC1 bmatrix_mod.ftn90"
   s.compile $COMPF -src $SRC1 > listing1 2>&1
@@ -135,7 +139,7 @@ if [ $mode == full ] ; then
   if [ $? = "0" ] ; then exit ; fi
 
   echo "building the executable..."
-  s.compile $COMPF ${MPILIBDIR} -libappl $LIBAPPL $LIBEXTRA -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o diag_bmatrix_p7.abs$ABSTAG > listing5 2>&1
+  s.compile $COMPF ${MPILIBDIR} -libappl $LIBAPPL $LIBEXTRA -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o diagbmatrix_p7.abs$ABSTAG > listing5 2>&1
 
   grep -i ERROR listing?
   if [ $? = "0" ] ; then exit; echo "ERROR found: STOP" ; fi
@@ -147,22 +151,22 @@ if [ $mode == full ] ; then
 
 elif [ $mode == abs ] ; then
 
-  rm -f diag_bmatrix_p7.abs$ABSTAG
+  rm -f diagbmatrix_p7.abs$ABSTAG
 
   echo
   echo "building the executable..."
   echo
-  s.compile $COMPF ${MPILIBDIR} -libappl $LIBAPPL $LIBEXTRA -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o diag_bmatrix_p7.abs$ABSTAG
+  s.compile $COMPF ${MPILIBDIR} -libappl $LIBAPPL $LIBEXTRA -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o diagbmatrix_p7.abs$ABSTAG
 
 else
 
-  if [ -f $diag_bmatrixdir/$mode ] ; then
+  if [ -f $diagbmatrixdir/$mode ] ; then
     file=`basename $mode`
     rm -f $file
-    cp $diag_bmatrixdir/$mode .
+    cp $diagbmatrixdir/$mode .
     s.compile $COMPF -src $file
   else
-    echo "File $diag_bmatrixdir/$mode does NOT exist. Stop"
+    echo "File $diagbmatrixdir/$mode does NOT exist. Stop"
     exit 1
   fi
 

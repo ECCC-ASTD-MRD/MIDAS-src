@@ -34,7 +34,7 @@ Module emissivities
 !************************************************************************
   use tovs_nl_mod
   use multi_ir_bgck_mod
-  use hir_chans
+  use hirchannels_mod
   use utilities_mod
 
   implicit none
@@ -370,7 +370,7 @@ contains
     if (iv1.lt.0.or.iv2.lt.0.or.iv3.lt.0.or.iv4.lt.0.or.iv5.lt.0.or.iv6.lt.0) then
        write(*,*) 'LES IV DE CERES ',iv1,iv2,iv3,iv4,iv5,iv6
        write(*,*) 'THESE NUMBER SHOULD NOT BE NEGATIVE WHEN DOING AIRS BACKGROUND CHECK'
-       call varAbort('Problem with file ceres_global.std in emis_read_climatology ')
+       call utl_abort('Problem with file ceres_global.std in emis_read_climatology ')
     endif
    
   END SUBROUTINE emis_read_climatology

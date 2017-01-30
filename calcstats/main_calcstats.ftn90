@@ -14,12 +14,13 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-program calcbmatrix_main
+program main_calcstats
   use mpivar_mod
   use HorizontalCoord_mod
   use VerticalCoord_mod
-  use calcbmatrix_glb_mod
-  use calcbmatrix_lam_mod
+  use calcstatsglb_mod
+  use calcstatslam_mod
+  use utilities_mod
   implicit none
 
   type(struct_vco), pointer :: vco_ens => null()
@@ -46,7 +47,7 @@ program calcbmatrix_main
   !
   write(*,*)
   write(*,*) '-----------------------'
-  write(*,*) '> STARTING CALCBMATRIX '
+  write(*,*) '> STARTING CALCSTATS '
   write(*,*) '-----------------------'
 
   ierr = fstopc('MSGLVL','ERRORS',0)
@@ -89,7 +90,7 @@ program calcbmatrix_main
      write(*,*)
      write(*,*) 'Unknown value for spatialDimensions', spatialDimensions
      write(*,*) 'use 3D or 2D'
-     call varAbort('calcbmatrix_main')
+     call utl_abort('main_calcstats')
   end select
 
   !- 1.5 Read NAMCONF namelist to find the mode
@@ -107,45 +108,45 @@ program calcbmatrix_main
 
   !- 2.1 Module initialization
   if (hco_ens % global) then
-     call calcb_glb_setup( nens, cflensin, hco_ens, vco_ens) ! IN
+     call csg_setup( nens, cflensin, hco_ens, vco_ens) ! IN
   else
-     call calcb_lam_setup( nens, cflensin, hco_ens, vco_ens) ! IN
+     call csl_setup( nens, cflensin, hco_ens, vco_ens) ! IN
   end if
 
   !- 2.2 Mode selection
   select case(trim(mode))
   case ('BHI')
      if (hco_ens % global) then
-        call calcb_glb_computeStats
+        call csg_computeStats
      else
-        call calcb_lam_computeStats
+        call csl_computeStats
      end if
   case ('TOOLBOX')
      if (hco_ens % global) then
-        call calcb_glb_toolbox
+        call csg_toolbox
      else
-        call calcb_lam_toolbox
+        call csl_toolbox
      end if
   case ('STDDEV')
      if (hco_ens % global) then
-        call calcb_glb_stddev
+        call csg_stddev
      else
         write(*,*)
         write(*,*) 'STDDEV mode is not availbale in LAM mode'
-        call varAbort('calcbmatrix_main')
+        call utl_abort('main_calcstats')
      end if
   case ('POWERSPEC')
      if (hco_ens % global) then
-        call calcb_glb_powerspec
+        call csg_powerspec
      else
         write(*,*)
         write(*,*) 'POWERSPEC mode is not availbale in LAM mode'
-        call varAbort('calcbmatrix_main')
+        call utl_abort('main_calcstats')
      end if
   case default
      write(*,*)
      write(*,*) 'Unknown value of MODE in global mode: ',mode
-     call varAbort('calcbmatrix_main')
+     call utl_abort('main_calcstats')
   end select
 
   !
@@ -160,4 +161,4 @@ program calcbmatrix_main
 
   call rpn_comm_finalize(ierr) 
 
-end program calcbmatrix_main
+end program main_calcstats

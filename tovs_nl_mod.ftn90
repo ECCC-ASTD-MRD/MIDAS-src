@@ -55,7 +55,7 @@ Module tovs_nl_mod
 
   ! public procedures
   public :: TOVS_NL_SETUPALLO,TOVS_SETUP, tvs_Is_idburp_tovs, tvs_Is_idburp_inst
-  public :: tvs_get_inst_id, tvs_get_platform_id
+  public :: tvs_get_inst_id, tvs_get_platform_id, tvs_mapSat, tvs_mapInstrum
   public ::  tvs_Is_Instrum_Geostationary,  tvs_Is_Instrum_HyperSpectral
   ! Module parameters
   Integer, PARAMETER :: jppf      = 40       ! Max no. profiles per RTTOV call
@@ -150,7 +150,7 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
 !           S.  Heilliette
 !            - adapt to CrIS (codtyp 193)
 #endif
-  use hir_chans
+  use hirchannels_mod
   use obsSpaceData_mod
 
   IMPLICIT NONE
@@ -188,7 +188,7 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
 9201 FORMAT(' TOVS_NL_SETUPALLO: Memory Allocation Error')
      WRITE(*,FMT=9201)
      WRITE(*,*) alloc_status(1:5)
-     CALL varAbort('TOVS_NL_SETUPALLO')
+     CALL utl_abort('TOVS_NL_SETUPALLO')
   End If
 
   nchan(:)   = 0 
@@ -215,17 +215,17 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
 !    Construct list of channels for each sensor:
 !          map burp satellite info to RTTOV platform and satellite.
      IVAL = obs_headElem_i(lobsSpaceData,OBS_SAT,index_header)
-     CALL MAP_SAT(IVAL,IPLATFORM,ISAT)
+     CALL TVS_MAPSAT(IVAL,IPLATFORM,ISAT)
      if (IPLATFORM==-1) then
         Write(*,*) "Unknown OBS_SAT !",IVAL
-        CALL varAbort('TOVS_NL_SETUPALLO')
+        CALL utl_abort('TOVS_NL_SETUPALLO')
      endif
 !    map burp instrument info to RTTOV instrument.
      IVAL = obs_headElem_i(lobsSpaceData,OBS_INS,index_header)
-     CALL MAP_INSTRUM(IVAL,INSTRUM)
+     CALL TVS_MAPINSTRUM(IVAL,INSTRUM)
      if (INSTRUM==-1) then
         Write(*,*) "Unknown OBS_INS !",IVAL
-        CALL varAbort('TOVS_NL_SETUPALLO')
+        CALL utl_abort('TOVS_NL_SETUPALLO')
      endif
 !    find sensor number for this obs.
      DO KRTID = 1, NSENSORS
@@ -239,7 +239,7 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
      Write(*,*) "IPLATFORM,ISAT,INSTRUM ",IPLATFORM,ISAT,INSTRUM
      WRITE(*,FMT=9101)
 9101 FORMAT(' TOVS_NL_SETUPALLO: Invalid Sensor')
-     CALL varAbort('TOVS_NL_SETUPALLO')
+     CALL utl_abort('TOVS_NL_SETUPALLO')
 
 110  lsensor(nobtov) = nosensor
      lobsno (nobtov) = index_header
@@ -298,7 +298,7 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
      If( any(alloc_status /= 0) ) then
         WRITE(*,FMT=9201)
         WRITE(*,*) alloc_status(1:3)
-        CALL varAbort('TOVS_NL_SETUPALLO')
+        CALL utl_abort('TOVS_NL_SETUPALLO')
      End If
 
   ! The levels of verbosity are
@@ -348,7 +348,7 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
              & ICHAN(1:nchan(JK),JK)         ) !in (opt) 
         if ( setup_errorstatus/=0 ) then
            Write(*,*) "Error during RTTOV setup !",JK,LIST_SENSORS(1:3,JK)
-           CALL varAbort('TOVS_SETUPALLO')
+           CALL utl_abort('TOVS_SETUPALLO')
         endif
 
         opts(JK)%co2_data = ( coefs(jk)%coef%nco2 > 0 )
@@ -378,7 +378,7 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
            WRITE(*,FMT=9311)
   9311     FORMAT(' TOVS_SETUPALLO: Number of levels not', &
                   ' identical in all coef files')
-           CALL varAbort('TOVS_SETUPALLO')
+           CALL utl_abort('TOVS_SETUPALLO')
         endif
      enddo
 
@@ -396,7 +396,7 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
   allocate(profiles(NOBTOV)         , stat= alloc_status(1) )
   If( alloc_status(1) /= 0 ) then
      WRITE(*,FMT=9201)
-     CALL varAbort('TOVS_NL_SETUPALLO')
+     CALL utl_abort('TOVS_NL_SETUPALLO')
   End If
 
   asw=1
@@ -409,7 +409,7 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
           opts(isens),asw,coefs=coefs(isens),init=.false. )
      if (errorstatus/=0) THEN
         Write(*,*) "Error in profiles allocation",errorstatus
-        CALL varAbort('TOVS_NL_SETUPALLO')
+        CALL utl_abort('TOVS_NL_SETUPALLO')
      endif
        
   end do
@@ -420,7 +420,7 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
   allocate( radiance_d(NOBTOV) ,stat= alloc_status(1))
   If( alloc_status(1) /= 0 ) then
      WRITE(*,FMT=9201)
-     CALL varAbort('TOVS_NL_SETUPALLO')
+     CALL utl_abort('TOVS_NL_SETUPALLO')
   End If
   do jo = 1, NOBTOV
      isens = lsensor(jo)
@@ -439,7 +439,7 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
      If( any(alloc_status /= 0) ) then
          WRITE(*,FMT=9201)
          Write(*,*) alloc_status(1:2)
-         CALL varAbort('TOVS_NL_SETUPALLO')
+         CALL utl_abort('TOVS_NL_SETUPALLO')
      End If
   end do
 
@@ -482,7 +482,7 @@ SUBROUTINE TOVS_SETUP
   nulnam=0
   ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
   read(nulnam,nml=namtov,iostat=ierr)
-  if(ierr.ne.0) call varAbort('tov_setup: Error reading namelist')
+  if(ierr.ne.0) call utl_abort('tov_setup: Error reading namelist')
   if(mpi_myid.eq.0) write(*,nml=namtov)
   ierr=fclos(nulnam)
 
@@ -492,14 +492,14 @@ SUBROUTINE TOVS_SETUP
   IF ( CRTMODL .NE. 'RTTOV' ) THEN
      WRITE(*,FMT=9131)
   9131    FORMAT(' TOVS_SETUP: Invalid radiation model name')
-     CALL varAbort('TOVS_SETUP')
+     CALL utl_abort('TOVS_SETUP')
   ENDIF
 
   IF ( NSENSORS .GT. JPNSATMAX ) THEN
      WRITE(*,FMT=9132)
   9132    FORMAT(' TOVS_SETUP: Number of sensors (NSENSORS)', &
             ' is greater than maximum allowed (JPNSATMAX)')
-     CALL varAbort('TOVS_SETUP')
+     CALL utl_abort('TOVS_SETUP')
   ENDIF
 
   if(mpi_myid.eq.0) WRITE(*,FMT=9140) LDBGTOV, LNLVTOV, luse_uwiremis,CRTMODL
@@ -589,14 +589,14 @@ SUBROUTINE SENSORS
      IERR=FNOM(NULNAM,'./flnml','FTN+SEQ+R/O',0)
      IF (IERR/=0) then
         write(*,*) "Error while opening namelist file !"
-        call varAbort("sensors")
+        call utl_abort("sensors")
      ENDIF
      LISTOFFSET(:) = 0
      LISTINSTRUM(:) = "XXXXXXXX"
      READ(NULNAM,NAMCHANOFFSET,iostat=ierr)
      IF (IERR/=0) then
         write(*,*) "Error while reading namelist file !"
-        call varAbort("sensors")
+        call utl_abort("sensors")
      ENDIF
      do j=0, ninst-1
         if ( LISTINSTRUM(j) /= "XXXXXXXX" ) then
@@ -646,14 +646,14 @@ SUBROUTINE SENSORS
      IF ( PLATFORM(J) .LT. 0 ) THEN
         WRITE(*,FMT=9132) TEMPOCSATID
 9132    FORMAT(' SENSORS: Satellite ',A,' not supported.')
-        CALL varAbort('SENSORS')
+        CALL utl_abort('SENSORS')
      ELSE
         IPOS1 = LEN_TRIM(platform_name(KINDEX))
         IPOS2 = LEN_TRIM(TEMPOCSATID)
         READ(TEMPOCSATID(IPOS1+1:IPOS2),*,IOSTAT=IERR) NUMEROSAT
         IF ( IERR .NE. 0) THEN
            WRITE(*,FMT=9132) TEMPOCSATID
-           CALL varAbort('SENSORS')
+           CALL utl_abort('SENSORS')
         ELSE
            SATELLITE(J) = NUMEROSAT
         ENDIF
@@ -682,7 +682,7 @@ SUBROUTINE SENSORS
      IF ( INSTRUMENT(J) .LT. 0 ) THEN
         WRITE(*,FMT=9133) CINSTRUMENTID(J)
  9133      FORMAT(' SENSORS: INSTRUMENT ',A,' not supported.')
-        CALL varAbort('SENSORS')
+        CALL utl_abort('SENSORS')
      ENDIF
      CHANOFFSET(J) = IOFFSET1B(INSTRUMENT(J))
   ENDDO
@@ -727,7 +727,7 @@ logical function tvs_Is_idburp_tovs(idatyp)
      inst_names="XXXXXX"
      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
      read(nulnam,nml=namtovsinst, iostat=ierr)
-     if (ierr.ne.0) call varAbort('tvs_Is_idburp_tovs: Error reading namelist')
+     if (ierr.ne.0) call utl_abort('tvs_Is_idburp_tovs: Error reading namelist')
      if (mpi_myid.eq.0) write(*,nml=namtovsinst)
      ierr = fclos(nulnam)
      do i=1, ninst
@@ -738,11 +738,11 @@ logical function tvs_Is_idburp_tovs(idatyp)
            list_inst(i) = codtyp_get_codtyp( inst_names(i) )
            if (list_inst(i) < 0) then
               Write(*,*) inst_names(i)
-              call varAbort('tvs_Is_idburp_tovs: unknown instrument in namtovsinst namelist')
+              call utl_abort('tvs_Is_idburp_tovs: unknown instrument in namtovsinst namelist')
            endif
         endif
      enddo
-     if ( ninst_tovs == 0 ) call varAbort('tvs_Is_idburp_tovs: Empty namtovsinst namelist')
+     if ( ninst_tovs == 0 ) call utl_abort('tvs_Is_idburp_tovs: Empty namtovsinst namelist')
      lfirst = .false.
   endif
 
@@ -852,7 +852,7 @@ logical function tvs_Is_Instrum_Hyperspectral(instrum)
      name_inst(:) = "XXXXXX"
      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
      read(nulnam,nml=namhyper, iostat=ierr)
-     if (ierr.ne.0) call varAbort('tvs_Is_Instrum_Hyperspectral: Error reading namelist')
+     if (ierr.ne.0) call utl_abort('tvs_Is_Instrum_Hyperspectral: Error reading namelist')
      if (mpi_myid.eq.0) write(*,nml=namhyper)
      ierr = fclos(nulnam)
      list_inst(:) = -1
@@ -861,7 +861,7 @@ logical function tvs_Is_Instrum_Hyperspectral(instrum)
         if (name_inst(i) /= "XXXXXX") then
            if (list_inst(i) == -1) then
               Write(*,*) i,name_inst(i)
-              call varAbort('tvs_Is_Instrum_Hyperspectral: Unknown instrument name')
+              call utl_abort('tvs_Is_Instrum_Hyperspectral: Unknown instrument name')
            endif
         else
            ninst_hir = i -1
@@ -907,7 +907,7 @@ logical function tvs_Is_Instrum_Geostationary(instrum)
      name_inst(:) = "XXXXXX"
      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
      read(nulnam,nml=namgeo, iostat=ierr)
-     if (ierr.ne.0) call varAbort('tvs_Is_Instrum_Geostationary: Error reading namelist')
+     if (ierr.ne.0) call utl_abort('tvs_Is_Instrum_Geostationary: Error reading namelist')
      if (mpi_myid.eq.0) write(*,nml=namgeo)
      ierr = fclos(nulnam)
      list_inst(:) = -1
@@ -916,7 +916,7 @@ logical function tvs_Is_Instrum_Geostationary(instrum)
         if (name_inst(i) /= "XXXXXX") then
            if (list_inst(i) == -1) then
               Write(*,*) i,name_inst(i)
-              call varAbort('tvs_Is_Instrum_Geostationary: Unknown instrument name')
+              call utl_abort('tvs_Is_Instrum_Geostationary: Unknown instrument name')
            endif
         else
            ninst_geo = i -1
@@ -938,5 +938,280 @@ logical function tvs_Is_Instrum_Geostationary(instrum)
 
 end function tvs_Is_Instrum_Geostationary
 
-End Module tovs_nl_mod
+      SUBROUTINE TVS_MAPINSTRUM(INSTRUMBURP,INSTRUM)
+!
+!**s/r TVS_MAPINSTRUM : Map burp satellite instrument (element #2019)
+!                    to RTTOV-10 instrument.
+!
+!Author  : J. Halle *CMDA/SMC May 2002
+!
+!Revision 001: J. Halle *CMDA/SMC Sept. 2005
+!              - add MHS.
+!         002: R Sarrazin CMDA, April 2008
+!              - comment on MTSAT imager instrument number
+!         003: R. McTaggart-Cowan *RPN  Mar 2012
+!	       - Use assumed-length declarations for string dummy args
+!         003: S. Macpherson ARMA, August 2011
+!              - add NPP/ATMS codtyp=192
+!         004: C. Cote Juillet 2015
+!              - Ajout Himawari-8/AHI codtyp=185
+!         005: S. Heilliette Novembre 2015
+!              - suppression des tables hardcodees
+!                lecture depuis une namelist
+!
+!
+!    -------------------
+!*    Purpose:  Map burp satellite instrument (element #2019)
+!               to RTTOV-7 instrument.
+!*              A negative value is returned, if no match in found.
+!
+!               Table of  RTTOV-7 instrument identifier
+!               ---------------------------------------
+!               Instrument        Instrument identifier  Sensor type
+!               ---------         ---------------------  -----------
+!               HIRS               0                     ir
+!               MSU                1                     mw
+!               SSU                2                     ir
+!               AMSUA              3                     mw
+!               AMSUB              4                     mw
+!               AVHRR              5                     ir
+!               SSMI               6                     mw
+!               VTPR1              7                     ir
+!               VTPR2              8                     ir
+!               TMI                9                     mw
+!               SSMIS             10                     mw
+!               AIRS              11                     ir
+!               MODIS             13                     ir
+!               ATSR              14                     ir
+!               MHS               15                     mw
+!               ATMS              19                     mw
+!               MVIRI             20                     ir
+!               SEVIRI            21                     ir
+!               GOESIMAGER        22                     ir
+!               GOESSOUNDER       23                     ir
+!               GMS/MTSAT IMAGER  24                     ir
+!               FY2-VISSR         25                     ir
+!               FY1-MVISR         26                     ir
+!               AHI               56                     ir
+!
+!Argumets:
+!     i : INSTRUMBURP : burp satellite instrument (element #2019)
+!     o : INSTRUM     : RTTOV-7 instrument ID numbers (e.g. 3 for  AMSUA)
+!
+      IMPLICIT NONE
+      INTEGER J,INSTRUMBURP,INSTRUM,numinstburp
+      INTEGER,parameter :: MXINSTRUMBURP   = 100
+      INTEGER,save ::   LISTBURP(MXINSTRUMBURP)
+      CHARACTER(len=8),save :: LISTINSTRUM(MXINSTRUMBURP)
+      NAMELIST /NAMINST/ LISTBURP, LISTINSTRUM
+      LOGICAL,SAVE :: LFIRST = .true.
+      INTEGER :: NULNAM, IER
+      integer ,external :: fnom, fclos
+!*************
+!      TESTING ONLY: burp 2047 is AIRS.
+!*************
+!
+!*            Table of BURP satellite sensor identifier element #002019
+!*            ----------------------------------------------------------
 
+!
+!
+!*    .  1.0 Find instrument
+!     .      ---------------------------
+
+      IF (LFIRST) THEN
+         ! set the default values
+         LISTBURP(:) = -1
+         LISTINSTRUM(:) = "XXXXXXXX"
+
+         ! read the namelist
+         NULNAM=0
+         IER=FNOM(NULNAM,'./flnml','FTN+SEQ+R/O',0)
+         IF (IER/=0) then
+            write(*,*) "Error while opening namelist file !"
+            call utl_abort("tvs_mapInstrum")
+         ENDIF
+         READ(NULNAM,NAMINST,iostat=ier)
+         IF (IER/=0) then
+            write(*,*) "Error while reading namelist file !"
+            call utl_abort("tvs_mapInstrum")
+         ENDIF
+         ier=FCLOS(NULNAM)
+
+         ! figure out how many valid elements in the lists
+         DO J=1, MXINSTRUMBURP
+           if(listburp(j).eq.-1) then
+             numinstburp = j - 1
+             exit
+           endif
+         enddo
+         if (numinstburp > MXINSTRUMBURP) then
+           call utl_abort('tvs_mapInstrum: exceeded maximum number of platforms')
+         endif
+         write(*,*) 'tvs_mapInstrum: number of satellites found in namelist = ',numinstburp
+         WRITE(*,*) 'tvs_mapInstrum: listburp   = ',listburp(1:numinstburp)
+         WRITE(*,*) 'tvs_mapInstrum: listinstrum    = ',listinstrum(1:numinstburp)
+         LFIRST=.FALSE.
+      ENDIF
+
+      INSTRUM = -1
+      DO J=1, MXINSTRUMBURP
+         IF ( INSTRUMBURP .EQ. LISTBURP(J) ) THEN
+            INSTRUM    = tvs_get_inst_id( LISTINSTRUM(J) )
+            EXIT
+         ENDIF
+      ENDDO
+
+    END subroutine TVS_MAPINSTRUM
+
+    SUBROUTINE TVS_MAPSAT(ISATBURP,IPLATFORM,ISAT)
+!
+!**s/r TVS_MAPSAT : Map burp satellite identifier (element #1007)
+!                to RTTOV-10 platform and satellite.
+!
+!Author  :       J. Halle *CMDA/SMC May 2002
+!
+!Revision 001  : J. Halle *CMDA/AES Jul 2005
+!                . add NOAA-18.
+!
+!Revision 002  : J. Halle *CMDA/AES May 2007
+!                . add METOP 1,2,3.
+!
+!Revision 003  : R. Sarrazin CMDA   Apr 2008
+!                  add MTSAT1, GOES13 and MSG2, modif to MSG1
+!
+!Revision 004  : C. Cote  mars 2009
+!                . add NOAA-19.
+!
+!Revision 005  : S. Macpherson *ARMA  Jul 2010
+!                . add SSMIS satellites DMSP17-18
+!
+!Revision 006  : S. Macpherson *ARMA  Feb 2013
+!                . add NPP/ATMS codtyp=192
+!
+!Revision 007  : J. Morneau CMDA    FEb 2014
+!                . add GOES15 and MTSAT-2
+!                . add GOES14
+!                . add MSG3 and MSG4
+!Revision 008 :  S. Heilliette    March 2014
+!                . Major Modification:
+!                . information is now read from namelist
+!                . instead of being hardcoded
+!
+!    -------------------
+!    Purpose:  Map burp satellite identifier (element #1007)
+!               to RTTOV-7 platform and satellite.
+!               Negative values are returned, if no match in found.
+!
+!               ---------------------------------------------
+!               Table of  RTTOV-7 platform identifier
+!               ---------------------------------------------
+!               Platform          RTTOV-7 platform identifier
+!               ---------         ---------------------------
+!               NOAA               1
+!               DMSP               2
+!               METEOSAT           3
+!               GOES               4
+!               GMS                5
+!               FY2                6
+!               TRMM               7
+!               ERS                8
+!               EOS                9
+!               METOP             10
+!               ENVISAT           11
+!               MSG               12
+!               FY1               13
+!               ADEOS             14
+!               MTSAT             15
+!               CORIOLIS          16
+!               NPP               17
+!               ---------------------------------------------
+!
+!               Example: NOAA15, which has a burp satellite identifier value of 206,
+!                        is mapped into the following:
+!                                RTTOV-7 platform  =  1,
+!                                RTTOV-7 satellite = 15.
+!
+!
+!
+!Arguments:
+!     i : ISATBURP      : BURP satellite identifier
+!     o : IPLATFORM     : RTTOV-7 platform ID numbers (e.g. 1 for  NOAA)
+!     o : ISAT          : RTTOV-7 satellite ID numbers (e.g. 15)
+!
+      IMPLICIT NONE
+
+      INTEGER J,ISATBURP,IPLATFORM,ISAT
+      INTEGER IER,NULNAM
+      LOGICAL ,SAVE :: LFIRST=.TRUE.
+      INTEGER ,EXTERNAL :: FNOM, FCLOS
+
+      integer, parameter :: mxsatburp = 100
+      INTEGER,SAVE :: NUMSATBURP
+
+      ! Table of BURP satellite identifier element #001007
+      INTEGER,SAVE :: LISTBURP(mxsatburp)
+      ! Table of RTTOV-7 platform identifier
+      CHARACTER(len=8),SAVE :: LISTPLAT(mxsatburp)
+      ! Table of RTTOV-7 satellite identifier
+      INTEGER,SAVE :: LISTSAT (mxsatburp)
+
+      NAMELIST /NAMSAT/ LISTBURP, LISTPLAT, LISTSAT
+
+!     Fill tables from namelist at the first call 
+!     -------------------------------------------
+!
+      IF (LFIRST) THEN
+         ! set the default values
+         LISTBURP(:) = -1
+         LISTSAT(:) = -1
+         LISTPLAT(:) = "XXXXXXXX"
+
+         ! read the namelist
+         NULNAM=0
+         IER=FNOM(NULNAM,'./flnml','FTN+SEQ+R/O',0)
+         IF (IER/=0) then
+            write(*,*) "Error while opening namelist file !"
+            call utl_abort("tvs_mapSat")
+         ENDIF
+         READ(NULNAM,NAMSAT,iostat=ier)
+         IF (IER/=0) then
+            write(*,*) "Error while reading namelist file !"
+            call utl_abort("tvs_mapSat")
+         ENDIF
+         ier=FCLOS(NULNAM)
+
+         ! figure out how many valid elements in the lists
+         DO J=1, MXSATBURP
+           if(listburp(j).eq.-1) then
+             numsatburp = j - 1
+             exit
+           endif
+         enddo
+         if(numsatburp.ge.mxsatburp) then
+           call utl_abort('tvs_mapSat: exceeded maximum number of platforms')
+         endif
+         write(*,*) 'tvs_mapSat: number of satellites found in namelist = ',numsatburp
+         WRITE(*,*) 'tvs_mapSat: listburp   = ',listburp(1:numsatburp)
+         WRITE(*,*) 'tvs_mapSat: listsat    = ',listsat(1:numsatburp)
+         WRITE(*,*) 'tvs_mapSat: listplat   = ',listplat(1:numsatburp)
+         LFIRST=.FALSE.
+      ENDIF
+
+
+!     .  Find platform and satellite
+!     .      ---------------------------
+!
+      IPLATFORM = -1
+      ISAT      = -1
+      DO J=1, NUMSATBURP
+         IF ( ISATBURP .EQ. LISTBURP(J) ) THEN
+            IPLATFORM = tvs_get_platform_id( LISTPLAT(J) )
+            ISAT      = LISTSAT (J)
+            EXIT
+         ENDIF
+      ENDDO
+
+      END SUBROUTINE TVS_MAPSAT
+
+    end module tovs_nl_mod

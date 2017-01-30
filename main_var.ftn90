@@ -340,13 +340,13 @@ contains
        ! Not all following fields required for some of the above families.
        if (.not.(gsv_varExist(varName='TT').and.gsv_varExist(varName='UU').and.gsv_varExist(varName='VV') &
             .and.gsv_varExist(varName='HU').and.gsv_varExist(varName='P0').and.gsv_varExist(varName='TG')) ) then
-          call varAbort(' preproc: One or more missing weather field in NAMSTATE')
+          call utl_abort(' preproc: One or more missing weather field in NAMSTATE')
        end if
     else if (obs_famExist(lobsSpaceData,'TO') .and. .not.gsv_varExist(varName='TT')) then
        ! Minimum requirement for 'TO' in the absence of assimilation of other weather-related families.
        ! This minimum requirement is for when only constituent (non-H2O) increments are to be produced
        ! when TO obs are provided.
-       call varAbort(' preproc: TT missing in NAMSTATE')
+       call utl_abort(' preproc: TT missing in NAMSTATE')
     end if
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 

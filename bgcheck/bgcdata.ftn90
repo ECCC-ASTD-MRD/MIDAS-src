@@ -45,6 +45,7 @@
       use bufr
       use obsSpaceData_mod
       use gps_mod
+      use utilities_mod
       IMPLICIT NONE
 !*
 !C NOTE 1: YSFERRWGT IN MODGPSZTD_MOD (FROM NML FILE) IS USED HERE FOR ERROR WEIGHTING
@@ -146,7 +147,7 @@
                     IF (ZOER .LT. 1.D-3 .AND. ITYP .NE. BUFR_NEZD) THEN
                       WRITE(*,*)' Problem for GP STNID ZOER= ' ,  &
                          obs_elem_c(lobsSpaceData,'STID',index_header),ZOER
-                      CALL varAbort('BGCDATA: PROBLEM WITH OER.')
+                      CALL utl_abort('BGCDATA: PROBLEM WITH OER.')
                     ENDIF
                     IF (ZFGE .LT. 1.D-3 ) THEN
                       WRITE(*,*)' Problem for GP STNID FGE= ',  &

@@ -33,6 +33,7 @@ subroutine tovs_allocate_transmission(ptransmission,knchannels,knlevels)
 !     knlevels     : number of levels
 !
 #endif
+  use utilities_mod
   use tovs_nl_mod ,only : transmission_type
 
   implicit none
@@ -49,7 +50,7 @@ subroutine tovs_allocate_transmission(ptransmission,knchannels,knlevels)
   if( any(istat /= 0) ) then
      write(*,*) ' tovs_allocate_transmission: istat = ', istat(:)
      write(*,'("  tovs_allocate_transmission: memory allocation error")')
-     call varAbort('tovs_allocate_transmission')
+     call utl_abort('tovs_allocate_transmission')
   end if
 
   ptransmission % tau_levels (:,:)=0.0D0

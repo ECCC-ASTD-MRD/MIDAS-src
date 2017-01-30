@@ -31,12 +31,7 @@ else
   echo
 fi
 
-if [ "${BASE_ARCH}" != "AIX-powerpc7" ] ; then
-    echo "Error: This code must be compiled on the IBM machine..."
-    exit 1
-fi
-
-echo " Compiling for an MPI executable (even if calcstats is not MPI capable)"
+echo " Compiling for an MPI executable"
 echo ""
 MPILIBDIR="-libpath /users/dor/arma/anl/userlibs/${BASE_ARCH}/xlf13" # JFC : Mesure temporaire pour avoir acces a
 MPILIB="_anl_rpn_comm_4051103"                                       #       la S-R RPN_COMM_adj_halo8 de M. Valin
@@ -62,19 +57,10 @@ echo "loading rpn/libs/15.2"
 echo "loading cmdn/vgrid/5.3.2/${COMP_ARCH}"
 . ssmuse-sh -d cmdn/vgrid/5.3.2/${COMP_ARCH}
 
-## for 'burplib'
-echo "loading cmda/base/201411/01/${COMP_ARCH}"
-. ssmuse-sh -d cmda/base/201411/01/${COMP_ARCH}
-
-## For RTTOV 10v1 package... 
-echo "loading arma/rttov/10v1"
-. ssmuse-sh -d arma/rttov/10v1
-
 ## For hpcsperf needed for TMG timings
 . ssmuse-sh -d hpcs/exp/aspgjdm/perftools
 
-VAR3D_VERSION="11.2.1"
-LIBAPPL="rttov10.2.0_coef_io rttov10.2.0_main rttov10.2.0_other burp_module descrip $MPILIB"
+LIBAPPL="descrip $MPILIB"
 
 LIBSYS="essl mass"
 LIBRMN="rmn"
@@ -96,11 +82,16 @@ if [ $mode == full ] ; then
   rm -f *.o *.mod *.cdk* *.h *.ftn* *.f *.f90
 
   # Create a local copy of the source code
-  trunkfiles="mpi_mod.ftn90 mpivar_mod.ftn90 varabort.ftn90 physicsfunctions_mod.ftn90 controlvector_mod.ftn90 \
-            globalspectraltransform_mod.ftn90 lamanalysisgrid_mod.ftn90 timecoord_mod.ftn90 \
-            gridstatevector_mod.ftn90 maincompileswitch.inc varnamelist_mod.ftn90 \
-            utils_3dvar.ftn lamspectraltransform_mod.ftn90 localizationfunction_mod.ftn90 \
-            verticalcoord_mod.ftn90 horizontalcoord_mod.ftn90 dsyev2.ftn filterresponsefunction_mod.ftn90"
+  sed "s!XXXXX!${revnum}!g" ${trunkdir}/toplevelcontrol_mod.ftn90_template > toplevelcontrol_mod.ftn90
+
+  # Create a local copy of the source code
+  trunkfiles="mpi_mod.ftn90 mpivar_mod.ftn90 physicsfunctions_mod.ftn90 controlvector_mod.ftn90 \
+            globalspectraltransform_mod.ftn90 lamanalysisgrid_mod.ftn90 localizationfunction_mod.ftn90 \
+            gridstatevector_mod.ftn90 maincompileswitch.inc varnamelist_mod.ftn90 lambmatrixhi_mod.ftn90 \
+            utilities_mod.ftn90 lamspectraltransform_mod.ftn90 bufr_mod.ftn90 \
+            verticalcoord_mod.ftn90 horizontalcoord_mod.ftn90 dsyev2.ftn timecoord_mod.ftn90 \
+            columndata_mod.ftn90 bmatrixensemble_mod.ftn90 bmatrixhi_mod.ftn90 bmatrix_mod.ftn90 \
+            randomnumber_mod.ftn90 variabletransforms_mod.ftn90 spectraltransform_mod.ftn90"
 
   cd ${trunkdir}
   cp -f calcstats/*.ftn90 ${compiledir}
@@ -111,13 +102,11 @@ if [ $mode == full ] ; then
   echo "STARTING COMPILATION AT:" 
   date
 
-  # Remove enkf_pturb.ftn main program from compilation directory
-  rm -f enkf_pturb.ftn
-
   # Compile the subroutines...
   echo "compiling low-level independent modules"
-  SRC0="mathphysconstants_mod.ftn90 earthconstants_mod.ftn90 obsspacedata_mod.ftn90 mpi_mod.ftn90 mpivar_mod.ftn90 timecoord_mod.ftn90"
-  SRC0="$SRC0 bufr_mod.ftn90 physicsfunctions_mod.ftn90 horizontalcoord_mod.ftn90 filterresponsefunction_mod.ftn90 localizationfunction_mod.ftn90"
+  SRC0="randomnumber_mod.ftn90 utilities_mod.ftn90 toplevelcontrol_mod.ftn90 bufr_mod.ftn90"
+  SRC0="$SRC0 mathphysconstants_mod.ftn90 earthconstants_mod.ftn90 mpi_mod.ftn90 mpivar_mod.ftn90"
+  SRC0="$SRC0 physicsfunctions_mod.ftn90 horizontalcoord_mod.ftn90 obsspacedata_mod.ftn90"
   s.compile $COMPF -src $SRC0 > listing0a 2>&1
   grep fail listing0a
   if [ $? = "0" ] ; then exit ; fi
@@ -129,10 +118,11 @@ if [ $mode == full ] ; then
   if [ $? = "0" ] ; then exit ; fi
 
   echo "compiling most of the new modules"
-  SRC1="controlvector_mod.ftn90 varnamelist_mod.ftn90"
+  SRC1="controlvector_mod.ftn90 varnamelist_mod.ftn90 timecoord_mod.ftn90 localizationfunction_mod.ftn90"
   SRC1="$SRC1 globalspectraltransform_mod.ftn90 verticalcoord_mod.ftn90"
   SRC1="$SRC1 lamspectraltransform_mod.ftn90 gridstatevector_mod.ftn90"
-  SRC1="$SRC1 calcbmatrix_glb_mod.ftn90 calcbmatrix_lam_mod.ftn90"
+  SRC1="$SRC1 columndata_mod.ftn90 lambmatrixhi_mod.ftn90 spectraltransform_mod.ftn90"
+  SRC1="$SRC1 calcstatsglb_mod.ftn90 calcstatslam_mod.ftn90"
   s.compile $COMPF -src $SRC1 > listing1 2>&1
   grep fail listing1
   if [ $? = "0" ] ; then exit ; fi

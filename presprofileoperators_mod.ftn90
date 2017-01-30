@@ -14,17 +14,17 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-module intavg_mod
+module presProfileOperators_mod
   implicit none
   save
   private
 
   ! public procedures
-  public :: intavg,intavgtl,intavgad
+  public :: ppo_intAvg, ppo_intAvgTl, ppo_intAvgAd, ppo_lintv
 
   contains
 
-    SUBROUTINE INTAVG (PVLEV,PVI,KNIDIM,KNI,KNPROF,KNO,PPO,PVO)
+    SUBROUTINE ppo_INTAVG (PVLEV,PVI,KNIDIM,KNI,KNPROF,KNO,PPO,PVO)
 !--------------------------------------------------------------------
 !
 !**s/r INTAVG   - Forward interpolator based on piecewise 
@@ -136,10 +136,10 @@ module intavg_mod
          ENDDO
       END DO
 
-    END SUBROUTINE INTAVG
+    END SUBROUTINE PPO_INTAVG
+    
 
-
-    SUBROUTINE INTAVGTL(PVLEV,dP_dPsfc,PVI,PVIG,PPS,KNIDIM,KNI,KNPROF,KNO,PPO,PVO)
+    SUBROUTINE ppo_INTAVGTL(PVLEV,dP_dPsfc,PVI,PVIG,PPS,KNIDIM,KNI,KNPROF,KNO,PPO,PVO)
 !--------------------------------------------------------------------
 !
 !!!s/r INTAVGTL - Application of tangent Linear of piecewise weighted averaging.
@@ -244,10 +244,10 @@ module intavg_mod
       CALL LAYERAVG2(KFLAG,ZLNPO,ZLNPI,pvig(1:kni,:),PVI(1:kni,:),KNO,  &
                      KNI,PPS,ZPVO,ZPZ,ZPS,ZPVOPS,knprof,pvo)
 
-    END SUBROUTINE INTAVGTL
+    END SUBROUTINE PPO_INTAVGTL
 
 
-    SUBROUTINE INTAVGAD(PVLEV,dP_dPsfc,PVI,PVIG,PPS,KNIDIM,KNI,KNPROF,KNO,PPO,PVO)
+    SUBROUTINE ppo_INTAVGAD(PVLEV,dP_dPsfc,PVI,PVIG,PPS,KNIDIM,KNI,KNPROF,KNO,PPO,PVO)
 !--------------------------------------------------------------------
 !
 !!!s/r INTAVGAD - Adjoint of piecewise weighted averaging.
@@ -352,7 +352,7 @@ module intavg_mod
       CALL LAYERAVG2(KFLAG,ZLNPO,ZLNPI,pvig(1:kni,:),pvi(1:kni,:),  &
                      KNO,KNI,PPS,PVO,ZPZ,ZPS,ZPZPS,knprof,zpvo)
 
-    END SUBROUTINE INTAVGAD
+    END SUBROUTINE PPO_INTAVGAD
 
 
     SUBROUTINE LAYERAVG(KFLAG,PX1,PX2,PY2,PY2INCR,KN1,KN2,KI,PPS,PMEAN,PZ,PZS,PZPS)
@@ -870,4 +870,162 @@ module intavg_mod
 
     END SUBROUTINE SUBLAYER 
 
-end module intavg_mod
+    SUBROUTINE PPO_LINTV (PVLEV,PVI,KNIDIM,KNI, KNPROF,KNO,PPO,PVO)
+
+      !*
+      !***s/r PPO_LINTV  - Linear interpolation and constant value extrapolation.
+      !*                Input pressure levels can vary for each profile.
+      !*
+      !*Arguments
+      !*     i   PVLEV(KNIDIM,KNPROF)    : Vertical levels, pressure (source)
+      !*     i   PVI(KNIDIM,KNPROF)      : Vector to be interpolated (source)
+      !*     i   KNIDIM                  : Dimension of input levels (source)
+      !*     i   KNI                     : Number of input levels (source)
+      !*     i   KNPROF                  : Number of profiles
+      !*     i   KNO                     : Number of output levels (destination)
+      !*     i   PPO(KNO)                : Vertical levels, pressure (destination)
+      !*     o   PVO(KNO,KNPROF)         : Interpolated profiles (destination)
+      !*
+      !!*    -------------------
+      !**    Purpose: Performs the vertical interpolation in log of pressure
+      !*              and constant value extrapolation of one-dimensional vectors.
+      
+      IMPLICIT NONE
+      
+      INTEGER  JI, JK, JO, JN, IK, IORDER
+      INTEGER  KNIDIM, KNI, KNO, KNPROF, ILEN, IERR
+      
+      REAL*8 PVLEV(KNIDIM,KNPROF)
+      REAL*8 PPO(KNO), PVO(KNO,KNPROF)
+      REAL*8 PVI(KNIDIM,KNPROF)
+      
+      REAL*8     ZPI (0:KNI+1,KNPROF)
+      REAL*8     ZPO (KNO    ,KNPROF)
+      REAL*8     ZPVI(0:KNI+1,KNPROF)
+      INTEGER  IL  (KNO    ,KNPROF)
+      
+      REAL*8 ZW1, ZW2
+      REAL*8 ZP, XI, ZRT, ZP1, ZP2
+      !
+      !**   0. Dynamic memory allocation for temporary vectors
+      !     .  -----------------------------------------------
+      !
+050   CONTINUE
+      !
+      !     ... removed and replaced by automatic arrays, jh feb 2003 ......
+      !
+      !**   1. Initialization for vertical extrapolation (extra dummy levels)
+      !     .  --------------------------------------------------------------
+      !
+100   CONTINUE
+      
+      ZPI(0,:)=2000.D0
+      ZPI(KNI+1,:)=2000.D0
+      
+      !
+      !**      1.1 Determine if input pressure levels are in ascending or
+      !     .      descending order.
+      !     .     -------------------------------------------------------
+      !
+      IF ( PVLEV(1,1) .LT. PVLEV(KNI,1) ) THEN
+         IORDER = 1
+      ELSE
+         IORDER = -1
+      ENDIF
+      !
+      !**   2. Compute pressure levels pressure
+      !     .  ------------------------------------------------
+      !
+200   CONTINUE
+      !
+      !**   2.1 Source levels
+      !     .   -------------
+      !
+      
+      DO JN = 1, KNPROF
+         DO JK = 1, KNI
+            ZPI(JK,JN) = PVLEV(JK,JN)
+         ENDDO
+      ENDDO
+      !
+      !**   2.2 Destination levels
+      !     .   ------------------
+      !
+      
+      DO JN = 1, KNPROF
+         DO JK = 1, KNO
+            ZPO(JK,JN) = PPO(JK)
+         ENDDO
+      ENDDO
+      !
+      !*    3.  Interpolate in log of pressure or extrapolate with constant value
+      !*    .   for each destination pressure level
+      !     .   -----------------------------------------------------------------
+      !
+300   CONTINUE
+      !
+      !
+      !*    .  3.1  Find the adjacent level below
+      !     .       -----------------------------
+      !
+310   CONTINUE
+      !
+      
+      IL(:,:)=0
+      !
+      DO JI=1,KNI
+         DO JN = 1, KNPROF
+            DO JO=1,KNO
+               ZRT = ZPO(JO,JN)
+               ZP = ZPI(JI,JN)
+               XI = SIGN(1.0D0,IORDER*(ZRT-ZP))
+               IL(JO,JN) = IL(JO,JN) + MAX(0.0D0,XI)
+            ENDDO
+         ENDDO
+      ENDDO
+      !
+      !
+      !*    .  3.2  Fill extra levels, for constant value extrapolation
+      !     .       ---------------------------------------------------
+      !
+320   CONTINUE
+      
+      DO JN = 1, KNPROF
+         DO JK = 1, KNI
+            ZPVI(JK,JN) = PVI(JK,JN)
+         ENDDO
+      ENDDO
+      DO JN = 1, KNPROF
+         ZPVI(0    ,JN) = PVI(1  ,JN)
+         ZPVI(KNI+1,JN) = PVI(KNI,JN)
+      ENDDO
+      !
+      !
+      !*    .  3.3  Interpolation/extrapolation
+      !     .       ---------------------------
+      !
+330   CONTINUE
+      
+      DO JN = 1, KNPROF
+         DO JO=1,KNO
+            IK = IL(JO,JN)
+            ZP = ZPO(JO,JN)
+            ZP1 = ZPI(IK  ,JN)
+            ZP2 = ZPI(IK+1,JN)
+            ZW1 = LOG(ZP/ZP2)/LOG(ZP1/ZP2)
+            ZW2 = 1.D0 - ZW1
+            PVO(JO,JN) = ZW1*ZPVI(IK,JN) +  ZW2*ZPVI(IK+1,JN)
+         ENDDO
+      ENDDO
+      !
+      !*    4.  Deallocate memory
+      !     .   -----------------
+      !
+400   CONTINUE
+      !
+      !     ... removed and replaced by automatic arrays, jh feb 2003 ......
+      !
+      
+    END SUBROUTINE PPO_LINTV
+    
+  end module presProfileOperators_mod

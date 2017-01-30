@@ -14,9 +14,9 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-program main_enkf_pturb
+program main_randomPert
   !
-  !**   main_enkf_pturb  - Program to prepare random perturbations for ENKF
+  !**   main_randomPert  - Program to generate an ensemble of random perturbations
   !
   use topLevelControl_mod
   use mpi_mod
@@ -30,6 +30,7 @@ program main_enkf_pturb
   use timeCoord_mod
   use LamAnalysisGrid_mod
   use randomNumber_mod
+  use utilities_mod
   IMPLICIT NONE
 
   type(struct_gsv) :: statevector
@@ -40,7 +41,7 @@ program main_enkf_pturb
   real(8), pointer :: field(:,:,:)
   
   integer :: fclos,fnom,newdate,nstamp
-  integer :: ierr,iseed,status
+  integer :: ierr,status
   integer :: jmem,i,j,k,nkgdim
   integer :: idate,itime,ndate,nulnam,cvDim_local
   integer :: get_max_rss
@@ -57,14 +58,14 @@ program main_enkf_pturb
   character(len=25) :: clfiname
   character(len=12) :: etiket
   
-  LOGICAL  :: LREMOVE_MEAN
-  INTEGER  :: NENKFMEM,NRANDSEED,NDATE_PTURB
-  NAMELIST /NAMENKF/NENKFMEM,NRANDSEED,NDATE_PTURB,LREMOVE_MEAN
+  LOGICAL  :: REMOVE_MEAN
+  INTEGER  :: NENS,SEED,DATE
+  NAMELIST /NAMENKF/NENS,SEED,DATE,REMOVE_MEAN
 
   write(*,'(/,' //                                            &
             '3(" *****************"),/,' //                   &
-            '14x,"-- START OF MAIN MAIN_ENKF_PTURB --",/,' //   &
-            '14x,"-- Generation of the isotropic perturbations --",/, ' //  &
+            '14x,"-- START OF MAIN MAIN_RANDOMPERT --",/,' //   &
+            '14x,"-- Generation of random perturbations --",/, ' //  &
             '14x,"-- VAR Revision number ",a," --",/,' //  &
             '3(" *****************"))') top_crevision
 
@@ -72,27 +73,27 @@ program main_enkf_pturb
   !- 0. MPI, tmg initialization
   !
   call mpi_initialize
-  call tmg_init(mpi_myid, 'TMG_ENKF-PTURB' )
+  call tmg_init(mpi_myid, 'TMG_RANDOMPERT' )
 
   !
   !- 1. Set/Read values for the namelist NAMENKF
   !
 
   !- 1.1 Setting default values
-  NENKFMEM     = 10
-  NRANDSEED    = 1
-  NDATE_PTURB  = 1900120100
-  LREMOVE_MEAN = .true.
+  NENS     = 10
+  SEED    = 1
+  DATE  = 1900120100
+  REMOVE_MEAN = .true.
 
   !- 1.2 Read the namelist
   nulnam=0
   ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
   read(nulnam,nml=namenkf,iostat=ierr)
-  if(ierr.ne.0) call varAbort('main_enkf_pturb: Error reading namelist')
+  if(ierr.ne.0) call utl_abort('main_randomPert: Error reading namelist')
   write(*,nml=namenkf)
   ierr=fclos(nulnam)
 
-  ndate   = NDATE_PTURB
+  ndate   = DATE
   write(cldate,'(I10)') ndate
 
   !
@@ -154,12 +155,12 @@ program main_enkf_pturb
   call gsv_setVco(statevector,vco_anl)
   call gsv_allocate(statevector,1,dateStamp=nstamp,mpi_local=.true.)
   nkgdim = statevector%nk
-  allocate(ensemble_r4(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim,nenkfmem))
+  allocate(ensemble_r4(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim,nEns))
 
   !- 3.2 Allocate auxillary variables
   allocate(gdmean(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim),STAT=status)
   if ( status /= 0 ) then
-     call varAbort('main_enkf_pturb: PROBLEM WITH ALLOCATING OF GDMEAN')
+     call utl_abort('main_randomPert: PROBLEM WITH ALLOCATING OF GDMEAN')
   endif
 
   allocate(cvm_vazx_global(cvm_nvadim_mpiglobal))
@@ -172,14 +173,13 @@ program main_enkf_pturb
   write(*,*) 'COMPUTE the mean of the random perturbations' &
               ,' of all the members'
 
-  iseed     = ABS(nrandseed)
-  call rng_setup(iseed)
+  call rng_setup(abs(seed))
 
   gdmean(:,:,:) = 0.0D0
   field => gsv_getField3d_r8(statevector)
 
   !- 4.1 Generate a (potentially) biased ensemble
-  do jmem = 1,NENKFMEM
+  do jmem = 1,NENS
 
      write(*,*) ' computing member number= ',jmem
 
@@ -218,13 +218,13 @@ program main_enkf_pturb
   call gsv_deallocate(statevector)
   
   !- 4.2 Remove the ensemble mean
-  if ( LREMOVE_MEAN ) then
+  if ( REMOVE_MEAN ) then
 !$OMP PARALLEL
 !$OMP DO PRIVATE (i,j,k)    
      do i = myLonBeg, myLonEnd
         do j = myLatBeg, myLatEnd
            do k = 1, nkgdim
-              gdmean(i,j,k) = gdmean(i,j,k) / real(NENKFMEM,8)
+              gdmean(i,j,k) = gdmean(i,j,k) / real(NENS,8)
            end do
         end do
      end do
@@ -234,7 +234,7 @@ program main_enkf_pturb
 !$OMP PARALLEL
 !$OMP DO PRIVATE (i,jmem,j,k)    
      do i = myLonBeg, myLonEnd
-        do jmem = 1, NENKFMEM
+        do jmem = 1, NENS
            do j = myLatBeg, myLatEnd
               do k = 1, nkgdim
                  ensemble_r4(i,j,k,jmem) = ensemble_r4(i,j,k,jmem) - &
@@ -248,7 +248,7 @@ program main_enkf_pturb
   end if
 
   !- 4.3 Write the perturbations
-  do jmem = 1,NENKFMEM
+  do jmem = 1,NENS
      write(*,*)
      write(*,*) ' pre-processing for writing member number= ',jmem
 
@@ -269,7 +269,7 @@ program main_enkf_pturb
 
      write(clmember,'(I3.3)') jmem
      clfiname = './ptbm_'//trim(cldate)//'_'//trim(clmember)
-     write(*,*)'MAIN_ENKF_PTURB: PROCESSING clfiname= ',clfiname
+     write(*,*)'MAIN_RANDOMPERT: PROCESSING clfiname= ',clfiname
 
      call gsv_writeToFileMpi(statevector,clfiname ,'RANDOM_PERT',      & ! IN
                              HUcontainsLQ=.true.,unitConversion=.true.)  ! IN
@@ -283,7 +283,7 @@ program main_enkf_pturb
   !
   deallocate(gdmean,STAT=status)
   if ( status /= 0 ) then
-     call varAbort('main_enkf_pturb: PROBLEM WITH DEALLOCATE OF GDMEAN')
+     call utl_abort('main_randomPert: PROBLEM WITH DEALLOCATE OF GDMEAN')
   endif
 
   deallocate(ensemble_r4)
@@ -292,14 +292,14 @@ program main_enkf_pturb
   !
   !- 6.  MPI, tmg finalize
   !  
-  call tmg_terminate(mpi_myid, 'TMG_ENKF-PTURB' )
+  call tmg_terminate(mpi_myid, 'TMG_RANDOMPERT' )
   CALL RPN_COMM_FINALIZE(ierr) 
 
   !
   !- 7.  Ending
   !
   write(*,*) ' --------------------------------'
-  write(*,*) ' MAIN_ENKF_PTURB ENDS'
+  write(*,*) ' MAIN_RANDOMPERT ENDS'
   write(*,*) ' --------------------------------'
 
-end program main_enkf_pturb
+end program main_randomPert

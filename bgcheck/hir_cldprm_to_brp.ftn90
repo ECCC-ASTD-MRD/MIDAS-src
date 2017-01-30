@@ -47,6 +47,7 @@ SUBROUTINE hir_cldprm_to_brp(lobsspacedata,brp_file)
   use burp_module
   use tovs_nl_mod
   use obsSpaceData_mod
+  use utilities_mod
   IMPLICIT NONE
 !implicits
   CHARACTER(LEN=128),intent(in)     :: BRP_FILE
@@ -184,7 +185,7 @@ SUBROUTINE hir_cldprm_to_brp(lobsspacedata,brp_file)
            enddo HEADER
            if (idata2 == -1) then
               Write(*,*) "datyp ",idatyp," not found in input file !"
-              call varAbort("hir_cldprm_to_brp")
+              call utl_abort("hir_cldprm_to_brp")
            endif
            idata3 = idata2
         endif
@@ -575,7 +576,7 @@ CONTAINS
     Call BURP_Free(File_in)
     Call BURP_Free(Rpt_in,Cp_rpt)
     Call BURP_Free(Block_in)
-    call varAbort(trim(errormessage))
+    call utl_abort(trim(errormessage))
   end subroutine handle_error
 
   subroutine Insert_into_burp_r8(r8val,pele,pval,pt)

@@ -43,7 +43,7 @@ revnum=$(git describe --always --dirty=_M 2>/dev/null || ssh pollux "cd $trunkdi
 echo "..."
 echo "... > Revision Number = '$revnum'"
 
-enkfpturbdir=$PWD
+randompertdir=$PWD
 trunkdir=$PWD/../
 
 ## for s.compile
@@ -75,8 +75,8 @@ COMPF_NOC="-openmp $MPIKEY -O"
 COMPF="$COMPF_NOC -debug DEBUG -optf=-C "
 
 # Create and Move to compilation directory
-mkdir -p ../../compiledir_enkf_pturb
-cd ../../compiledir_enkf_pturb
+mkdir -p ../../compiledir_randompert
+cd ../../compiledir_randompert
 compiledir=$PWD
 
 if [ $mode == full ] ; then
@@ -87,16 +87,16 @@ if [ $mode == full ] ; then
   sed "s!XXXXX!${revnum}!g" ${trunkdir}/toplevelcontrol_mod.ftn90_template > toplevelcontrol_mod.ftn90
 
   # Create a local copy of the source code
-  trunkfiles="mpi_mod.ftn90 mpivar_mod.ftn90 varabort.ftn90 physicsfunctions_mod.ftn90 controlvector_mod.ftn90 \
+  trunkfiles="mpi_mod.ftn90 mpivar_mod.ftn90 physicsfunctions_mod.ftn90 controlvector_mod.ftn90 \
             globalspectraltransform_mod.ftn90 lamanalysisgrid_mod.ftn90 localizationfunction_mod.ftn90 \
             gridstatevector_mod.ftn90 maincompileswitch.inc varnamelist_mod.ftn90 lambmatrixhi_mod.ftn90 \
-            utils_3dvar.ftn lamspectraltransform_mod.ftn90 \
+            utilities_mod.ftn90 lamspectraltransform_mod.ftn90 bufr_mod.ftn90 \
             verticalcoord_mod.ftn90 horizontalcoord_mod.ftn90 dsyev2.ftn timecoord_mod.ftn90 \
             columndata_mod.ftn90 bmatrixensemble_mod.ftn90 bmatrixhi_mod.ftn90 bmatrix_mod.ftn90 \
-            matsqrt.ftn getfldprm2.ftn randomnumber_mod.ftn90 variabletransforms_mod.ftn90 filterresponsefunction_mod.ftn90"
+            randomnumber_mod.ftn90 variabletransforms_mod.ftn90 spectraltransform_mod.ftn90"
 
   cd ${trunkdir}
-  cp -f enkf_pturb/main_enkf_pturb.ftn90 ${compiledir}
+  cp -f randompert/main_randompert.ftn90 ${compiledir}
   cp -f ${trunkfiles} ${compiledir}
   cd ${trunkdir}/shared; ls -1F | grep -v '/' | grep -v "*" | cpio -pl ${compiledir}
   cd ${compiledir}
@@ -106,9 +106,9 @@ if [ $mode == full ] ; then
 
   # Compile the subroutines...
   echo "compiling low-level independent modules"
-  SRC0="toplevelcontrol_mod.ftn90 randomnumber_mod.ftn90"
-  SRC0="$SRC0 mathphysconstants_mod.ftn90 earthconstants_mod.ftn90 mpi_mod.ftn90 mpivar_mod.ftn90 filterresponsefunction_mod.ftn90"
-  SRC0="$SRC0 bufr_mod.ftn90 physicsfunctions_mod.ftn90 horizontalcoord_mod.ftn90 obsspacedata_mod.ftn90"
+  SRC0="randomnumber_mod.ftn90 utilities_mod.ftn90 toplevelcontrol_mod.ftn90 bufr_mod.ftn90"
+  SRC0="$SRC0 mathphysconstants_mod.ftn90 earthconstants_mod.ftn90 mpi_mod.ftn90 mpivar_mod.ftn90"
+  SRC0="$SRC0 physicsfunctions_mod.ftn90 horizontalcoord_mod.ftn90 obsspacedata_mod.ftn90"
   s.compile $COMPF -src $SRC0 > listing0a 2>&1
   grep fail listing0a
   if [ $? = "0" ] ; then exit ; fi
@@ -123,7 +123,7 @@ if [ $mode == full ] ; then
   SRC1="localizationfunction_mod.ftn90 controlvector_mod.ftn90 varnamelist_mod.ftn90 timecoord_mod.ftn90"
   SRC1="$SRC1 globalspectraltransform_mod.ftn90 verticalcoord_mod.ftn90"
   SRC1="$SRC1 lamspectraltransform_mod.ftn90 gridstatevector_mod.ftn90"
-  SRC1="$SRC1 columndata_mod.ftn90 lambmatrixhi_mod.ftn90"
+  SRC1="$SRC1 columndata_mod.ftn90 lambmatrixhi_mod.ftn90 spectraltransform_mod.ftn90"
   SRC1="$SRC1 variabletransforms_mod.ftn90 bmatrixensemble_mod.ftn90 bmatrixhi_mod.ftn90"
   SRC1="$SRC1 bmatrix_mod.ftn90"
   s.compile $COMPF -src $SRC1 > listing1 2>&1
@@ -141,7 +141,7 @@ if [ $mode == full ] ; then
   if [ $? = "0" ] ; then exit ; fi
 
   echo "building the executable..."
-  s.compile $COMPF ${MPILIBDIR} -libappl $LIBAPPL $LIBEXTRA -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o enkf_pturb_p7.abs$ABSTAG > listing8 2>&1
+  s.compile $COMPF ${MPILIBDIR} -libappl $LIBAPPL $LIBEXTRA -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o randompert_p7.abs$ABSTAG > listing8 2>&1
 
   grep -i ERROR listing?
   if [ $? = "0" ] ; then echo "ERROR found: STOP" ; exit ; fi
@@ -153,22 +153,22 @@ if [ $mode == full ] ; then
 
 elif [ $mode == abs ] ; then
 
-  rm -f enkf_pturb_p7.abs$ABSTAG
+  rm -f randompert_p7.abs$ABSTAG
 
   echo
   echo "building the executable..."
   echo
-  s.compile $COMPF ${MPILIBDIR} -libappl $LIBAPPL $LIBEXTRA -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o enkf_pturb_p7.abs$ABSTAG
+  s.compile $COMPF ${MPILIBDIR} -libappl $LIBAPPL $LIBEXTRA -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o randompert_p7.abs$ABSTAG
 
 else
 
-  if [ -f $enkfpturbdir/$mode ] ; then
+  if [ -f $randompertdir/$mode ] ; then
     file=`basename $mode`
     rm -f $file
-    cp $enkfpturbdir/$mode .
+    cp $randompertdir/$mode .
     s.compile $COMPF -src $file
   else
-    echo "File $enkfpturbdir/$mode does NOT exist. Stop"
+    echo "File $randompertdir/$mode does NOT exist. Stop"
     exit 1
   fi
 

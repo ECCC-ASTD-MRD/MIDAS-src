@@ -17,7 +17,7 @@
 module codtyp_mod
  ! CODETYPES: (from https://wiki.cmc.ec.gc.ca/wiki/Description_exhaustive_du_format_BURP)
  ! now read from namelist
-
+ use utilities_mod
  private
  integer ,parameter :: codtyp_numbers = 256
  integer, parameter :: codtyp_name_length = 21
@@ -54,10 +54,10 @@ integer function codtyp_get_codtyp(name)
      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
      if (ierr.ne.0) then
          write(*,*) 'Error opening namelist file. Unit ',nulnam,'. Error no.',ierr
-         call varAbort('codtyp_get_codtyp: Error opening namelist file') 
+         call utl_abort('codtyp_get_codtyp: Error opening namelist file') 
      end if 
      read(nulnam,nml=namcodtyp, iostat=ierr)
-     if (ierr.ne.0) call varAbort('codtyp_get_codtyp: Error reading namelist')
+     if (ierr.ne.0) call utl_abort('codtyp_get_codtyp: Error reading namelist')
      if (mpi_myid.eq.0) write(*,nml=namcodtyp)
      ierr = fclos(nulnam)
      do i=1, codtyp_numbers
@@ -69,7 +69,7 @@ integer function codtyp_get_codtyp(name)
         call up2low(cnames(i)(1:ilen),ctempo(1:ilen))
         cnames(i)(1:ilen) = ctempo(1:ilen)
      enddo
-     if ( ncodtyp == 0 ) call varAbort('codtyp_get_codtyp: Empty namcodtyp namelist')
+     if ( ncodtyp == 0 ) call utl_abort('codtyp_get_codtyp: Empty namcodtyp namelist')
      lfirst = .false.
   endif
   if (name.ne.''.and.name.ne.'blank') then
@@ -106,7 +106,7 @@ character (len=codtyp_name_length) function codtyp_get_name(codtyp)
   i=codtyp_get_codtyp('blank')
   if (ncodtyp<=0.or.all(icod.lt.0)) then
      Write(*,*) "Problem with NAMCODTYP section of the namelist !"
-     call varAbort("codtyp_get_name")
+     call utl_abort("codtyp_get_name")
   endif
 
   codtyp_get_name='blank'
@@ -119,7 +119,7 @@ character (len=codtyp_name_length) function codtyp_get_name(codtyp)
 
   if (codtyp_get_name.eq.'blank') then
      write(*,*) "Codtyp ",codtyp," not found in the icod list of NAMCODTYP"
-     call varAbort("codtyp_get_name: codtyp not found")
+     call utl_abort("codtyp_get_name: codtyp not found")
   end if
  
 end function codtyp_get_name

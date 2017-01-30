@@ -19,6 +19,7 @@ Module tovs_lin_mod
      profile_type        ,&
      radiance_type 
   Use tovs_nl_mod, only : NOBTOV,nsensors,lsensor,coefs,opts,nchan,l_really_present,ichan,list_sensors
+  use utilities_mod
   implicit none
   save
   private
@@ -127,7 +128,7 @@ SUBROUTINE TOVS_LIN_SETUPALLO()
      WRITE(*,FMT=9201)
      WRITE(*,*) alloc_status(1:2)
 9201 FORMAT(' TOVS_LIN_SETUPALLO: Memory Allocation Error')
-     CALL varAbort('TOVS_LIN_SETUPALLO')
+     CALL utl_abort('TOVS_LIN_SETUPALLO')
   End If
 
   print *,"TOVS_LIN_SETUPALLO NOBTOV",NOBTOV
@@ -140,7 +141,7 @@ SUBROUTINE TOVS_LIN_SETUPALLO()
           opts(isens),asw,coefs=coefs(isens),init=.false. )
      if (errorstatus/=0) THEN
         Write(*,*) "Error in profiles_tl allocation",errorstatus
-        CALL varAbort('TOVS_LIN_SETUPALLO')
+        CALL utl_abort('TOVS_LIN_SETUPALLO')
      endif
 
      ! allocate model ad profiles atmospheric arrays with RTTOV levels dimension
@@ -148,7 +149,7 @@ SUBROUTINE TOVS_LIN_SETUPALLO()
           opts(isens),asw,coefs=coefs(isens),init=.false. )
      if (errorstatus/=0) THEN
         Write(*,*) "Error in profiles_ad allocation",errorstatus
-        CALL varAbort('TOVS_LIN_SETUPALLO')
+        CALL utl_abort('TOVS_LIN_SETUPALLO')
      endif
 
   end do
@@ -163,7 +164,7 @@ SUBROUTINE TOVS_LIN_SETUPALLO()
   If( any(alloc_status /= 0) ) then
      WRITE(*,FMT=9201)
      WRITE(*,*) alloc_status(1:2)
-     CALL varAbort('TOVS_LIN_SETUPALLO')
+     CALL utl_abort('TOVS_LIN_SETUPALLO')
   End If
 
   do jo = 1, NOBTOV
@@ -180,7 +181,7 @@ SUBROUTINE TOVS_LIN_SETUPALLO()
      If( any(alloc_status /= 0) ) then
          WRITE(*,FMT=9201)
          WRITE(*,*) alloc_status(1:2)
-         CALL varAbort('TOVS_LIN_SETUPALLO')
+         CALL utl_abort('TOVS_LIN_SETUPALLO')
      End If
   end do
 

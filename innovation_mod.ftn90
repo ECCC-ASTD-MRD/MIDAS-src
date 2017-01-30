@@ -258,7 +258,7 @@ contains
        inquire(file=trim(trialfile),exist=trialExists)
        if (.not.trialExists) then
           write(*,*) 'File missing=',trialfile
-          call varAbort('INN_SETUPBACKGROUNDCOLUMNS:DID NOT FIND A TRIAL FIELD FILE')
+          call utl_abort('INN_SETUPBACKGROUNDCOLUMNS:DID NOT FIND A TRIAL FIELD FILE')
        else
           ierr=fnom(nultrl(jstep),trim(trialfile),'RND+OLD+R/O',0)
           ierr=fstouv(nultrl(jstep),'RND+OLD')
@@ -282,9 +282,9 @@ contains
        if (mpi_myid.eq.0) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: Vcode_trl= ',Vcode_trl, &
             '  Vcode_anl= ',Vcode_anl
        if (Vcode_trl.ne.5002.and.Vcode_trl.ne.5005) &
-            call varAbort('INN_SETUPBACKGROUNDCOLUMNS: invalid vertical coord for background state!')
+            call utl_abort('INN_SETUPBACKGROUNDCOLUMNS: invalid vertical coord for background state!')
        if (Vcode_anl.ne.5002.and.Vcode_anl.ne.5005) &
-            call varAbort('INN_SETUPBACKGROUNDCOLUMNS: invalid vertical coord for analysis increment!')
+            call utl_abort('INN_SETUPBACKGROUNDCOLUMNS: invalid vertical coord for analysis increment!')
     else
        if (mpi_myid.eq.0) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: skipping vcode check because this is a 2D spatial configuration'
     end if
@@ -381,7 +381,7 @@ contains
             nultrl(:),ip1_pak_trl,ip1_vco_trl,tim_nStepObs,  &
             nultrl2)
        if (itrlnlev <= 0 ) then
-          call varAbort('INN_SETUPBACKGROUNDCOLUMNS:Problem with background file')
+          call utl_abort('INN_SETUPBACKGROUNDCOLUMNS:Problem with background file')
        end if
        ierr = ezgprm(itrlgid,clgrtyp,ini,inj,iig1,iig2,iig3,iig4)
 
@@ -938,7 +938,7 @@ contains
       if (key < 0) then
          write(6,*)
          write(6,*) 'INN_SETUPBACKGROUNDCOLUMNS: Unable to find trial field = ',varName
-         call varAbort('INN_SETUPBACKGROUNDCOLUMNS')
+         call utl_abort('INN_SETUPBACKGROUNDCOLUMNS')
       end if
 
       ierr = fstprm( key,                                              & ! IN
@@ -983,7 +983,7 @@ contains
                elseif (varLevel.eq.'SF') then
                   IIP1 = -1
                else
-                  call varAbort('INN_SETUPBACKGROUNDCOLUMNS: unknown varLevel')
+                  call utl_abort('INN_SETUPBACKGROUNDCOLUMNS: unknown varLevel')
                endif
 
                if (trim(varName).eq.'GZ'.and.present(noUpperGZ)) then
@@ -1003,7 +1003,7 @@ contains
 
                if (ierr.lt.0)then
                   write(*,2001) varName,iip1,idate(jstep),itime(jstep)
-                  call varAbort('INN_SETUPBACKGROUNDCOLUMNS: Problem with background file')
+                  call utl_abort('INN_SETUPBACKGROUNDCOLUMNS: Problem with background file')
                end if
 
                if (vnl_varKindFromVarname(varName).eq.'CH') &
@@ -1015,7 +1015,7 @@ contains
                        cltypvar,'VV')
                   if (ierr.lt.0)then
                      write(*,2001) 'VV',iip1,idate(jstep),itime(jstep)
-                     call varAbort('INN_SETUPBACKGROUNDCOLUMNS: Problem with background file')
+                     call utl_abort('INN_SETUPBACKGROUNDCOLUMNS: Problem with background file')
                   end if
                endif
 
@@ -1324,7 +1324,7 @@ contains
           IF(obs_bodyElem_i(lobsSpaceData,OBS_VNM,JDATA) .NE. BUFR_NEDZ ) THEN
              ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,JDATA)
           ELSE
-             call varAbort('vobslyr: ZLEV cannot be set, BUFR_NEDZ not supported!')
+             call utl_abort('vobslyr: ZLEV cannot be set, BUFR_NEDZ not supported!')
           ENDIF
           IOBS = obs_bodyElem_i(lobsSpaceData,OBS_HIND,JDATA)
           ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,JDATA)
@@ -1363,7 +1363,7 @@ contains
           IF(obs_bodyElem_i(lobsSpaceData,OBS_VNM,JDATA) .NE. BUFR_NEDZ ) THEN
              ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,JDATA)
           ELSE
-             call varAbort('vobslyr: ZLEV cannot be set, BUFR_NEDZ not supported!')
+             call utl_abort('vobslyr: ZLEV cannot be set, BUFR_NEDZ not supported!')
           ENDIF
           IOBS = obs_bodyElem_i(lobsSpaceData,OBS_HIND,JDATA)
           ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,JDATA)
@@ -1498,7 +1498,7 @@ contains
 
     if(Vcode_anl .ne. 5002 .and. &
          Vcode_anl .ne. 5005 ) then
-       call varAbort('subasic_obs: invalid vertical coord!')
+       call utl_abort('subasic_obs: invalid vertical coord!')
     endif
 
     ! initialize virtual temperature operator
@@ -1871,7 +1871,7 @@ contains
     case default
        write(*,*)
        write(*,*) 'ERROR unknown mpiStrategy: ', trim(mpiStrategy)
-       call varAbort('setObsMpiStrategy')
+       call utl_abort('setObsMpiStrategy')
     end select
 
   CONTAINS
