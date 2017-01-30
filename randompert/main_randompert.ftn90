@@ -80,8 +80,8 @@ program main_randomPert
   !
 
   !- 1.1 Setting default values
-  NENS     = 10
-  SEED    = 1
+  NENS  = 10
+  SEED  = 1
   DATE  = 1900120100
   REMOVE_MEAN = .true.
 
@@ -268,7 +268,7 @@ program main_randomPert
 !$OMP END PARALLEL
 
      write(clmember,'(I3.3)') jmem
-     clfiname = './ptbm_'//trim(cldate)//'_'//trim(clmember)
+     clfiname = './pert_'//trim(cldate)//'_'//trim(clmember)
      write(*,*)'MAIN_RANDOMPERT: PROCESSING clfiname= ',clfiname
 
      call gsv_writeToFileMpi(statevector,clfiname ,'RANDOM_PERT',      & ! IN

@@ -1368,11 +1368,13 @@ CONTAINS
 
          !- Checking version number
          read (ireslun) cl_version, i1gc
-         if (trim(cl_version) == 'V4') then
-            write(*,*) 'min_hessianIO: using single precision V4 Hessian'
+         if (trim(cl_version) == 'V5') then
+            write(*,*) 'min_hessianIO: using single precision V5 Hessian'
+         else if (trim(cl_version) == 'V4') then
+            write(*,*) 'min_hessianIO: using DEPRECIATED single precision V5 Hessian'
          else
             write(*,*)
-            write(*,*) 'min_hessianIO : Only V4 Hessian are supported, found ', trim(cl_version)
+            write(*,*) 'min_hessianIO : Only V5 Hessian are supported, found ', trim(cl_version)
             call utl_abort("min_hessianIO")
          endif
 
@@ -1389,7 +1391,7 @@ CONTAINS
          read(ireslun) ivamaj,iztrl_io
          if ((ivamaj.ne.nvamaj).or.(nvadim_mpiglobal.ne.ivadim)) then
             write(*,*) nvamaj,ivamaj,nvadim_mpiglobal,ivadim
-            call utl_abort("min_hessianIO : ERROR, size of V4 Hessian not consistent")
+            call utl_abort("min_hessianIO : ERROR, size of V5 Hessian not consistent")
          endif
 
       end if
@@ -1476,7 +1478,7 @@ CONTAINS
 
       !- Open the Hessian matrix file on processor 0 and write some metadata 
       if (mpi_myid == 0) ierr = fnom(ireslun,cfname, 'FTN+SEQ+UNF' , 0)
-      cl_version = 'V4'
+      cl_version = 'V5'
       itrunc=0
       iztrl_io(1: 5) = iztrl(:)
       iztrl_io(6:10) = 0 ! dummy values for hessian size legacy purposes

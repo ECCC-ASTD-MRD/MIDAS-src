@@ -117,12 +117,12 @@ program main_diagBmatrix
   hco_anl => hco_Get('Analysis')
 
   if ( .not. hco_anl % global ) then
-    !- Iniatilized the core (Non-Extended) analysis grid
-    call hco_SetupFromFile( './analysisgrid', 'COREGRID', 'AnalysisNonExt' ) ! IN
-    !- Setup the LAM analysis grid metrics
-    call lag_SetupFromHCO( 'Analysis', 'AnalysisNonExt' ) ! IN
+     !- Iniatilized the core (Non-Exteded) analysis grid
+     call hco_SetupFromFile( './analysisgrid', 'COREGRID', 'AnalysisCore' ) ! IN
+     !- Setup the LAM analysis grid metrics
+     call lag_SetupFromHCO( 'Analysis', 'AnalysisCore' ) ! IN
   end if
-
+  
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Initialize the vertical coordinate from the statistics file

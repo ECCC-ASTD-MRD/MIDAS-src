@@ -82,14 +82,14 @@ if [ $mode == full ] ; then
   rm -f *.o *.mod *.cdk* *.h *.ftn* *.f *.f90
 
   # Create a local copy of the source code
-  sed "s!XXXXX!${revnum}!g" ${trunkdir}/toplevelcontrol_mod.ftn90_template > toplevelcontrol_mod.ftn90
+  sed "s!XXXXX!${revnum}!g" ${trunkdir}/toplevelcontrol_mod_template.ftn90 > toplevelcontrol_mod.ftn90
 
   # Create a local copy of the source code
   trunkfiles="mpi_mod.ftn90 mpivar_mod.ftn90 physicsfunctions_mod.ftn90 controlvector_mod.ftn90 \
             globalspectraltransform_mod.ftn90 lamanalysisgrid_mod.ftn90 localizationfunction_mod.ftn90 \
             gridstatevector_mod.ftn90 maincompileswitch.inc varnamelist_mod.ftn90 lambmatrixhi_mod.ftn90 \
-            utilities_mod.ftn90 lamspectraltransform_mod.ftn90 bufr_mod.ftn90 \
-            verticalcoord_mod.ftn90 horizontalcoord_mod.ftn90 dsyev2.ftn timecoord_mod.ftn90 \
+            utilities_mod.ftn90 lamspectraltransform_mod.ftn90 \
+            verticalcoord_mod.ftn90 horizontalcoord_mod.ftn90 timecoord_mod.ftn90 \
             columndata_mod.ftn90 bmatrixensemble_mod.ftn90 bmatrixhi_mod.ftn90 bmatrix_mod.ftn90 \
             randomnumber_mod.ftn90 variabletransforms_mod.ftn90 spectraltransform_mod.ftn90"
 
@@ -128,10 +128,10 @@ if [ $mode == full ] ; then
   grep fail listing1
   if [ $? = "0" ] ; then exit ; fi
 
-  echo "compiling remaining ftn ftn90..."
+  echo "compiling remaining ftn90..."
   filelist=""
-  for i in *.ftn *.ftn90 ; do
-    xx=`echo $i |grep -v _mod.ftn` 
+  for i in *.ftn90 ; do
+    xx=`echo $i | grep -v _mod.ftn` 
     filelist="$filelist $xx"
   done
   s.compile $COMPF -src $filelist > listing4 2>&1

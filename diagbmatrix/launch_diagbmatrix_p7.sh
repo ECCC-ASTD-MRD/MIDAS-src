@@ -8,16 +8,16 @@
 #
 # User-defined options
 #
-flnml="namelist_glb_p7.nml"
+flnml="namelist_p7.nml"
 machine="hadar"
-gest="/users/dor/arma/gr3/data_gpfs/var/rdps_sdhloc/diag_bmatrix/ben_3D_test"
-bgcov=/home/dormrb02/modeles/ANAL_shared/stats/auto/__GEM25km_NMC_T399_stag5002_BgckStddev3d_800x400__/01
-analysisgrid=/home/dormrb02/modeles/ANAL_shared/datafiles/constants/arma/oavar/2.1.1/analysis_grid_prototypes/analysis_grid_prototype_glb_800x400_south-to-north
-abs=/users/dor/arma/gr3/home1/var/latest_trunk/compiledir_diag_bmatrix/diag_bmatrix_p7.abs
-npex=4
-npey=2
-openmp=4
-maxcputime=500
+gest="/users/dor/arma/gr3/data_gpfs/var/national_10km/test_scalingRandomPert/diagBmatrix/output"
+bgcov=/users/dor/armn/gr4/power7/var/national_10km/calcstats_r640m/national_24-48_v664_h633_t250_CORR_chi_mass/bgcov_tapered.fst
+analysisgrid=/users/dor/armn/gr4/power7/var/national_10km/calcstats_r640m/national_24-48_v664_h633_t250_CORR_chi_mass/analysisgrid
+abs=/users/dor/arma/gr3/home1/var/latest_trunk/compiledir_diagbmatrix/diagbmatrix_p7.abs
+npex=8
+npey=4
+openmp=8
+maxcputime=1800
 memory=3264M
 
 #
@@ -46,7 +46,7 @@ scp $bgcov ${machine}:${gest}/bgcov
 scp $abs ${machine}:${gest}/diag_bmatrix.abs
 ssh $machine ls -l $gest
 
-cat << EOF > $TMPDIR/go_diag_bmatrix.sh
+cat << EOF > $TMPDIR/go_diagbmatrix.sh
  echo "!!STARTING SCRIPT!!"
 . ssmuse-sh -d rpn/utils/15.2
  cd $gest
@@ -65,4 +65,4 @@ cat << EOF > $TMPDIR/ptopo_nml
 EOF
 scp $TMPDIR/ptopo_nml ${machine}:${gest}
 
-ord_soumet $TMPDIR/go_diag_bmatrix.sh -mach $machine -t $maxcputime -cpus ${npex}x${npey}x${openmp} -cm ${memory} -listing ${gest} -jn diag_bmatrix -waste
+ord_soumet $TMPDIR/go_diagbmatrix.sh -mach $machine -t $maxcputime -cpus ${npex}x${npey}x${openmp} -cm ${memory} -listing ${gest} -jn diagbmatrix -waste

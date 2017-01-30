@@ -1,21 +1,25 @@
  &NAMCONF
-   CMODE   = 'BHI'
+   MODE   = 'TOOLBOX'
 /
  &NAMSTATE
    CGNEED(1)   ='UU'
    CGNEED(2)   ='VV'
    CGNEED(3)   ='TT'
-   CGNEED(4)   ='LQ'
+   CGNEED(4)   ='HU'
    CGNEED(5)   ='P0'
    CGNEED(6)   ='TG'
 /
  &NAMENS
-   NENS=120
-   ENSFILEBASENAME='maritimes_'  
+   NENS=32
+   ENSFILEBASENAME='2014070118_006_'
+   IP2=6
 /
  &NAMCALCSTATS_LAM
-   NTRUNC    = 75
-   GRD_EXT_X = 52
-   GRD_EXT_Y = 39
-   NORMBYSTDDEV = .TRUE.
+   NTRUNC    = 125
+   GRD_EXT_X = 196
+   GRD_EXT_Y = 184
+   WindTransform = 'UV'
+/
+ &NAMTOOLBOX
+   TOOL    = 'STDDEV'
 /
