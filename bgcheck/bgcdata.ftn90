@@ -154,19 +154,19 @@
                          obs_elem_c(lobsSpaceData,'STID',index_header),ZFGE
                       ZFGE=1.D-3
                     ENDIF
-                  ELSE IF (CDFAM.NE.'CH') THEN
-                    IF ( ZFGE**2 + ZOER**2 .LT. 1.D-5)THEN
-                        WRITE(*,*)' Problem for STNID FGE ZOER=',  &
-                           obs_elem_c(lobsSpaceData,'STID',index_header),ZFGE,ZOER
-                        ZFGE=1.D-5
-                        ZOER=1.D-5
-                    ENDIF
-                  ELSE 
+                  ELSE IF (CDFAM.EQ.'CH') THEN
                     IF ( ZFGE**2 + ZOER**2 .LT. 1.D-60)THEN
                         WRITE(*,*)' Problem for STNID FGE ZOER=',  &
                            obs_elem_c(lobsSpaceData,'STID',index_header),ZFGE,ZOER
                         ZFGE=1.D-30
                         ZOER=1.D-30
+                    ENDIF
+                  ELSE
+                    IF ( ZFGE**2 + ZOER**2 .LT. 1.D-5)THEN
+                        WRITE(*,*)' Problem for STNID FGE ZOER=',  &
+                           obs_elem_c(lobsSpaceData,'STID',index_header),ZFGE,ZOER
+                        ZFGE=1.D-5
+                        ZOER=1.D-5
                     ENDIF
                   ENDIF
                   IF ( CDFAM .EQ. 'GP' .AND. ITYP .EQ. BUFR_NEZD ) THEN

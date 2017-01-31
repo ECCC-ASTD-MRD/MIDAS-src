@@ -2109,21 +2109,21 @@ contains
 
 
     subroutine oop_Hchm
-!
-!**s/r oop_Hchm- Compute simulated chemical constituents observations from profiled model
-!                increments, and returns Hdx in OBS_WORK
-!
-!*Author: M. Sitwell, ARQI/AQRD, Aug 2015
-!         - Reduced to a call of chm_observation_operators
-!           which contains much of the original version by Ping Du (CMDA/MSC) and
-!           Y. Rochon (ARQI/AQRD), Jan 2015 (partially based on corresponding
-!           pre-EnVar routine by Y.J. Rochon and Y. Yang, July 2005 to Feb 2013),
-!           with further original changes by Y. Rochon and M. Sitwell, 2015.
-!
-!**   Purpose: Compute simulated chemical constituents observations from profiled model
-!              increments, and returns Hdx in OBS_WORK
-!
-!-----------------------------------------------------------------------------------
+      !
+      !**s/r oop_Hchm- Compute simulated chemical constituents observations from profiled model
+      !                increments, and returns Hdx in OBS_WORK
+      !
+      !*Author: M. Sitwell, ARQI/AQRD, Aug 2015
+      !         - Reduced to a call of chm_observation_operators
+      !           which contains much of the original version by Ping Du (CMDA/MSC) and
+      !           Y. Rochon (ARQI/AQRD), Jan 2015 (partially based on corresponding
+      !           pre-EnVar routine by Y.J. Rochon and Y. Yang, July 2005 to Feb 2013),
+      !           with further original changes by Y. Rochon and M. Sitwell, 2015. 
+      !
+      !**   Purpose: Compute simulated chemical constituents observations from profiled model    
+      !              increments, and returns Hdx in OBS_WORK
+      !
+      !-----------------------------------------------------------------------------------
 
       use chem_interface_mod
 
@@ -2792,20 +2792,20 @@ contains
 
 
     subroutine oop_HTchm
-!*
-!***s/r  - oop_HTchm: Adjoint of TL routine oda_Hchm
-!*
-!*
-!*Author: M. Sitwell, ARQI/AQRD, Aug 2015
-!         - Reduced to a call of chm_observation_operators
-!           which contains much of the original version by Ping Du (CMDA/MSC) and
-!           Y. Rochon (ARQI/AQRD), Jan 2015 (partially based on corresponding
-!           pre-EnVar routine by Y.J. Rochon and Y. Yang, July 2005 to Feb 2013),
-!           with further original changes by Y. Rochon and M. Sitwell, 2015.
-!
-!**   Purpose: Compute H^T * R^-1 (OmP-Hdx) for all CH observations
-!
-!-----------------------------------------------------------------------------------
+      !*
+      !***s/r  - oop_HTchm: Adjoint of TL routine oda_Hchm
+      !*
+      !*
+      !*Author: M. Sitwell, ARQI/AQRD, Aug 2015
+      !         - Reduced to a call of chm_observation_operators
+      !           which contains much of the original version by Ping Du (CMDA/MSC) and
+      !           Y. Rochon (ARQI/AQRD), Jan 2015 (partially based on corresponding
+      !           pre-EnVar routine by Y.J. Rochon and Y. Yang, July 2005 to Feb 2013),
+      !           with further original changes by Y. Rochon and M. Sitwell, 2015.
+      !
+      !**   Purpose: Compute H^T * R^-1 (OmP-Hdx) for all CH observations  
+      !
+      !-----------------------------------------------------------------------------------
 
       use chem_interface_mod
 

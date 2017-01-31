@@ -2355,8 +2355,9 @@ CONTAINS
         elseif(vnl_varNameList(jvar) == 'TG  ') then
           ilev1 = nspositTG
         else
+          ! Cycle (instead of abort) to allow for non-NWP assimilation (e.g. chemical data assimilation)
 !          call utl_abort('bmatrixhi_mod: copyToStatevector: No covariances available for variable:' // vnl_varNameList(jvar))
-        cycle
+          cycle
         endif
         ilev2 = ilev1 - 1 + gsv_getNumLev(statevector,vnl_varLevelFromVarname(vnl_varNameList(jvar)))
 !!!$OMP PARALLEL DO PRIVATE(jlat,jlev,jlev2,jlon)
@@ -2398,6 +2399,7 @@ CONTAINS
         elseif(vnl_varNameList(jvar) == 'TG  ') then
           ilev1 = nspositTG
         else
+          ! Cycle (instead of abort) to allow for non-NWP assimilation (e.g. chemical data assimilation)
 !          call utl_abort('bmatrixhi_mod: copyFromStatevector: No covariances available for variable:' // vnl_varNameList(jvar))
           cycle
         endif
