@@ -9,7 +9,7 @@
    SEED=1
    DATE=2014070112
    REMOVE_MEAN=T
-   SMOOTH_VARIANCES=F
+   smoothVariances=F
 /
  &NAMTIME
   DSTEPOBS = 6.0d0
