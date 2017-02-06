@@ -19,6 +19,7 @@
 module burpFiles_mod
   use MathPhysConstants_mod
   use EarthConstants_mod
+  use utilities_mod
   use mpivar_mod
   use obsSpaceData_mod
   use burpread_mod
@@ -82,7 +83,7 @@ SUBROUTINE burp_setupfiles(datestamp)
   if (ier.eq.-1) then
      write(*,*) 'burp_setupfiles: Problem when getting the environment variable OAVAR_BURP_DIRECTORY'
      write(*,*) '                 The length of the variable ''burp_directory'' is too short to hold the complete value'
-     call abort3d("burp_setupfiles")
+     call utl_abort('burp_setupfiles')
   end if
   if (ier.gt.1) then
      write(*,*) 'burp_setupfiles: Problem when getting the environment variable OAVAR_BURP_DIRECTORY'

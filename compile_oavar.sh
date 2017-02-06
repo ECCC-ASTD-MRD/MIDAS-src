@@ -69,9 +69,9 @@ echo "... > Revision Number = '$revnum'"
 # Set compiledir
 compiledir_main=${COMPILEDIR_OAVAR_MAIN:-".."}
 compiledir_ID=${COMPILEDIR_OAVAR_ID:-$revnum}
-compiledir=${compiledir_main}/compiledir_${compiledir_ID}
-mkdir -p compiledir-${ORDENV_PLAT}
-cd compiledir-${ORDENV_PLAT}
+compiledir=${compiledir_main}/compiledir-${ORDENV_PLAT}_${compiledir_ID}
+mkdir -p $compiledir
+cd $compiledir
 compiledir=${PWD} # needed when compiledir_main = ".."
 
 echo "..."
@@ -101,6 +101,9 @@ else
     exit 1
 fi
 
+## for netcdf
+CDF_LIBS=netcdff
+
 varabs=oavar_${ORDENV_PLAT}${ABSTAG}
 
 ## for rmn, rpncomm
@@ -128,7 +131,7 @@ echo "loading eccc/mrd/rpn/anl/rttov/10v3.2/${COMP_ARCH}"
 
 #-----------------------------------------------------------------------------
 
-LIBAPPL="rttov10.2.0_coef_io rttov10.2.0_main rttov10.2.0_other burp_module descrip $MPILIB"
+LIBAPPL="${CDF_LIBS} rttov10.2.0_coef_io rttov10.2.0_main rttov10.2.0_emis_atlas rttov10.2.0_other burp_module descrip $MPILIB"
 LIBSYS="hpcoperf"
 
 LIBRMN=rmnMP
@@ -158,7 +161,7 @@ if [ "${mode}" == full ] ; then
   rm -f *.o *.mod *.cdk* *.h *.ftn* *.f *.f90
 
   # Create a local copy of the source code
-  sed "s!XXXXX!${revnum}!g" ${trunkdir}/toplevelcontrol_mod_template.ftn90 > toplevelcontrol_mod.ftn90
+  sed "s!XXXXX!${revnum}!g" ${trunkdir}/toplevelcontrol_mod.ftn90_template > toplevelcontrol_mod.ftn90
 
   cd ${trunkdir};          ls -1F | grep -v '/' | grep -v "*" | grep -v "@" | cpio -pl $compiledir ; cd $compiledir
   cd ${trunkdir}/bgcheck;  ls -1F | grep -v '/' | grep -v "*" | cpio -pl $compiledir ; cd $compiledir

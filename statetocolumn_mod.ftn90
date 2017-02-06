@@ -45,8 +45,6 @@ module stateToColumn_mod
   real(8), allocatable :: myTimeInterpWeight(:,:)
   real(8), pointer     :: fieldsWithHalo(:,:,:,:)
 
-  integer :: get_max_rss
-
 
 CONTAINS 
 
@@ -406,6 +404,7 @@ CONTAINS
       real(8) :: dldx, dldy, dlw1, dlw2, dlw3, dlw4
       real(8) :: xpos, ypos, lat, lon, latrot, lonrot
       real(8), pointer :: column_ptr(:,:), column_tile(:,:)
+      integer :: get_max_rss
 
       if (numHeaderColumn > 0) then
         column_ptr => col_getAllColumns(column)
