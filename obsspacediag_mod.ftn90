@@ -67,7 +67,7 @@ contains
     real*8, allocatable  :: my_innovStd(:,:,:),my_bmatHiStd(:,:,:),my_bmatEnStd(:,:,:)
     integer, allocatable :: my_counts(:,:,:)
     
-    integer :: ierr,nulinnov,nulBmatHi,nulBmatEn,nulcount,fnom,fclos,ivco,iseed,jj,jlev,jvar
+    integer :: ierr,nulinnov,nulBmatHi,nulBmatEn,nulcount,fnom,fclos,ivco,ivco_recv,iseed,jj,jlev,jvar
     integer :: dateprnt,timeprnt,newdate
     real*8,pointer :: cvBhi(:), cvBen(:), field(:,:,:,:)
     real*8,allocatable :: HxBhi(:), HxBen(:)
@@ -235,7 +235,8 @@ contains
           endif
         enddo BODY
 
-        call rpn_comm_allreduce(ivco,ivco,1,"MPI_INTEGER","MPI_MAX","GRID",ierr)
+        call rpn_comm_allreduce(ivco,ivco_recv,1,"MPI_INTEGER","MPI_MAX","GRID",ierr)
+        ivco = ivco_recv
 
         call rpn_comm_allreduce(my_counts,counts,maxLat*maxLon*maxVertical,"MPI_INTEGER","MPI_SUM","GRID",ierr)
         call rpn_comm_allreduce(my_innovStd,innovStd,maxLat*maxLon*maxVertical,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)

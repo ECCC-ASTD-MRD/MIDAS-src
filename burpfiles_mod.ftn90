@@ -37,7 +37,8 @@ module burpFiles_mod
   integer, parameter :: jpfiles=64
   integer :: burp_nfiles
   character(len=2)   :: burp_cfamtyp(jpfiles)
-  character(len=128) :: burp_cfilnam(jpfiles)
+  integer, parameter :: jmaxburpfilename=1060
+  character(len=jmaxburpfilename) :: burp_cfilnam(jpfiles)
 
 contains
 
@@ -53,10 +54,12 @@ SUBROUTINE burp_setupfiles(datestamp)
   CHARACTER(len=2) :: CFAMI(JPFILES)
   CHARACTER(len=4) :: cmyidx, cmyidy
   CHARACTER(len=9) :: cmyid
-  CHARACTER(len=128) :: burpin   
+  CHARACTER(len=jmaxburpfilename-(1+20+1+9)) :: burp_directory
+  CHARACTER(len=jmaxburpfilename) :: burpin   !! the length should be more than len(burp_directory)+1+len(clvalu)+1+len(cmyid)
+  integer :: length_burp_directory
   LOGICAL   isExist_L 
 
-  INTEGER KTIME,KDATE
+  INTEGER KTIME,KDATE,KDATE_RECV,KTIME_RECV
   INTEGER IHANDL,ILONG,DATESTAMP
   INTEGER ITIME,IFLGS,IDBURP,ILAT,ILON,IDX,IDY
   INTEGER IALT,IDELAY,IDATE,IRS,IRUNN,INBLK,ISUP,IXAUX
@@ -73,6 +76,28 @@ SUBROUTINE burp_setupfiles(datestamp)
   CHARACTER*9   CLSTNID
 
   EXTERNAL FCLOS,FNOM,MRFCLS,MRFOPN,MRFOPC,MRBHDR,MRFLOC,MRFGET,MRFMXL,NUMBLKS
+
+  ier = 0
+  call get_environment_variable('OAVAR_BURP_DIRECTORY',burp_directory,length_burp_directory,ier,.true.)
+  if (ier.eq.-1) then
+     write(*,*) 'burp_setupfiles: Problem when getting the environment variable OAVAR_BURP_DIRECTORY'
+     write(*,*) '                 The length of the variable ''burp_directory'' is too short to hold the complete value'
+     call abort3d("burp_setupfiles")
+  end if
+  if (ier.gt.1) then
+     write(*,*) 'burp_setupfiles: Problem when getting the environment variable OAVAR_BURP_DIRECTORY'
+     write(*,*) '                 Rely on defaut which is the current directory'
+     burp_directory = '.'
+  end if
+  if (ier.eq.1) then
+     write(*,*) 'burp_setupfiles: The environment variable OAVAR_BURP_DIRECTORY does not exist'
+     write(*,*) '                 Rely on defaut which is the current directory'
+     burp_directory = '.'
+  end if
+  if (ier.eq.0) then
+     write(*,*) 'burp_setupfiles: The environment variable OAVAR_BURP_DIRECTORY does exist'
+     write(*,*) '                 Retrieve it'
+  end if
 
   write(cmyidy,'(I4.4)') (mpi_npey-mpi_myidy)
   write(cmyidx,'(I4.4)') (mpi_myidx+1)
@@ -163,15 +188,16 @@ SUBROUTINE burp_setupfiles(datestamp)
   DO JJ=1,JPFILES 
     IF(CLVALU(JJ) == '') EXIT
     nulburp=0
-    burpin=trim(CLVALU(JJ))//'_'//trim(cmyid)
+    burpin=trim(burp_directory)//'/'//trim(CLVALU(JJ))//'_'//trim(cmyid)
+
     INQUIRE(FILE=trim(burpin),EXIST=isExist_L)
     IF (.NOT. isExist_L )THEN
-      burpin=trim(CLVALU(JJ))
+      burpin=trim(burp_directory)//'/'//trim(CLVALU(JJ))
       INQUIRE(FILE=trim(burpin),EXIST=isExist_L)
     END IF
     IF ( isExist_L )THEN
       IER=FNOM(nulburp,burpin,'RND+OLD',0)
-      WRITE(*,*)' Open File : ',burpin   
+      WRITE(*,*)' Open File : ',trim(burpin)
       IF ( IER .EQ. 0 ) THEN
         INBLKS= -1
         INBLKS=NUMBLKS(nulburp)
@@ -212,12 +238,15 @@ SUBROUTINE burp_setupfiles(datestamp)
   WRITE(*,*)'TYPE  NAME '
   WRITE(*,*)'----  ---- '
   DO JJ=1,burp_nfiles
-    WRITE(*,'(1X,A2,1X,A128)' ) burp_cfamtyp(JJ),burp_cfilnam(JJ)
+    WRITE(*,'(1X,A2,1X,A128)' ) burp_cfamtyp(JJ),trim(burp_cfilnam(JJ))
   END DO
 
   ! Make sure all mpi tasks have a valid date (important for split burp files)
-  call rpn_comm_allreduce(kdate,kdate,1,"MPI_INTEGER","MPI_MAX","GRID",ier)
-  call rpn_comm_allreduce(ktime,ktime,1,"MPI_INTEGER","MPI_MAX","GRID",ier)
+  call rpn_comm_allreduce(kdate,kdate_recv,1,"MPI_INTEGER","MPI_MAX","GRID",ier)
+  call rpn_comm_allreduce(ktime,ktime_recv,1,"MPI_INTEGER","MPI_MAX","GRID",ier)
+
+  kdate = kdate_recv
+  ktime = ktime_recv
 
   ier = newdate(istampobs,kdate,ktime,3)
   delhh = 3.0d0

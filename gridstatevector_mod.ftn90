@@ -1499,6 +1499,8 @@ MODULE gridStateVector_mod
     real(8) :: zwb, zwt
     real(8), pointer  :: pres_out(:,:,:), pres_in(:,:,:), field_out(:,:,:,:)
 
+    nullify(pres_out,pres_in,field_out)
+
     ! define pressures on input and output levels
     ! NOTE: order of arguments for pres_in/out is (lon,lat,lev)
     if(vnl_varLevelFromVarname(varName) == 'TH') then

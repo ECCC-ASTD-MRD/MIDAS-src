@@ -40,7 +40,7 @@ program main_var
 
   character(len=48) :: obsMpiStrategy
 
-  istamp = exdb('VAR','DEBUT','NON')
+  istamp = exdb('OAVAR','DEBUT','NON')
 
   write(*,'(/,' //                                            &
             '3(" *****************"),/,' //                   &
@@ -52,7 +52,7 @@ program main_var
   ! MPI initilization
   call mpi_initialize  
 
-  call tmg_init(mpi_myid, 'TMG_VAR' )
+  call tmg_init(mpi_myid, 'TMG_OAVAR' )
 
   call tmg_start(1,'MAIN')
 
@@ -183,7 +183,7 @@ program main_var
 
   ! 3. Job termination
 
-  istamp = exfin('VAR','FIN','NON')
+  istamp = exfin('OAVAR','FIN','NON')
 
   if(mpi_myid == 0) then
     clmsg = 'VAR3D_END'
@@ -192,7 +192,7 @@ program main_var
 
   call tmg_stop(1)
 
-  call tmg_terminate(mpi_myid, 'TMG_VAR' )
+  call tmg_terminate(mpi_myid, 'TMG_OAVAR' )
 
   call rpn_comm_finalize(ierr) 
 

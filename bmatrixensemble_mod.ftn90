@@ -167,6 +167,8 @@ CONTAINS
     integer        :: stamp_last,newdate,ndate,ntime
     character(len=256) :: ensFileName
     character(len=4)   :: ensNumber
+    integer        :: length_enspathname
+    character(len=256) :: enspathname_nml
 
     logical        :: TweakTG,diagnostic,lExists
 
@@ -178,7 +180,7 @@ CONTAINS
     call tmg_start(12,'BEN_SETUP')
 
     !
-    !- 1.  Read namelist-dependent options
+    !- 1.1  Read namelist-dependent options
     !
 
     ! parameters from namelist
@@ -214,6 +216,35 @@ CONTAINS
       initialized = .true.
       return
     endif
+
+    !
+    !- 1.2  Read environment variable for ensemble file path
+    !
+
+    ierr = 0
+    enspathname_nml = enspathname
+    call get_environment_variable('OAVAR_ENSPATHNAME',enspathname,length_enspathname,ierr,.true.)
+    if (ierr.eq.-1) then
+       write(*,*) 'ben_setup: Problem when getting the environment variable OAVAR_ENSPATHNAME'
+       write(*,*) '           The length of the variable ''enspathname'' is too short to hold the complete value'
+       call utl_abort('ben_setup')
+    end if
+    if (ierr.gt.1) then
+       write(*,*) 'ben_setup: Problem when getting the environment variable OAVAR_ENSPATHNAME'
+       write(*,*) '           Rely on the value in the namelist NAMBEN'
+       enspathname = enspathname_nml
+    end if
+    if (ierr.eq.1) then
+       write(*,*) 'ben_setup: The environment variable OAVAR_ENSPATHNAME does not exist'
+       write(*,*) '           Rely on the value in the namelist NAMBEN'
+       enspathname = enspathname_nml
+    end if
+    if (ierr.eq.0) then
+       write(*,*) 'ben_setup: The environment variable OAVAR_ENSPATHNAME does exist'
+       write(*,*) '           Retrieve it'
+    end if
+
+    write(*,*) 'ben_setup: enspathname = ', trim(enspathname)
 
     !
     !- 2.  Settings

@@ -1,4 +1,4 @@
-#!/bin/ksh
+#!/bin/bash
 
 set -e
 
@@ -30,43 +30,39 @@ fi
 if [ "$nompi" = "NOMPI" -o "$nompi" = "nompi" ] ; then
   echo "..."
   echo "... > Compiling for a NON-MPI executable"
-  MPILIBDIR=""
   MPILIB="rpn_commstubs rpn_comm"
   MPIKEY=""
   ABSTAG="_nompi"
 else
   echo "..."
   echo "... > Compiling for an MPI executable"
-  # JFC : Mesure temporaire pour avoir acces a la S-R RPN_COMM_adj_halo8 de M. Valin
-  if [ "${BASE_ARCH}" = "AIX-powerpc7" ] ; then
-      MPILIBDIR="-libpath /users/dor/arma/anl/userlibs/${BASE_ARCH}/xlf13"
-  elif [ "${BASE_ARCH}" = "Linux_x86-64" ] ; then
-      MPILIBDIR="-libpath /users/dor/arma/anl/userlibs/${BASE_ARCH}/intel13sp1u2"
-  else
-    echo "..."
-    echo "... !! This platform 'ARCH=${ARCH}' is not supported.  Only 'AIX-powerpc7' and 'Linux_x86-64' are !!"
-    exit 1
-  fi
-  MPILIB="_anl_rpn_comm_4051103"
-  # JFC : Mesure temporaire FIN
+  MPILIB="rpn_comm"
   MPIKEY="-mpi"
   ABSTAG=""
 fi
 
 trunkdir=$PWD
-if [ "${BASE_ARCH}" = "AIX-powerpc7" ];then
+
+if [ "${ORDENV_PLAT}" = sles-11-haswell-64-xc40 ];then
+    echo "Switching ORDENV_PLAT from '${ORDENV_PLAT}' to 'sles-11-broadwell-64-xc40'"
+    . r.env.dot --arch sles-11-broadwell-64-xc40
+    echo ORDENV_PLAT=${ORDENV_PLAT}
+fi
+
+if [ "${ORDENV_PLAT}" = ubuntu-14.04-amd64-64 ];then
     FOPTMIZ=2
-elif [ "${BASE_ARCH}" = "Linux_x86-64" ];then
-    FOPTMIZ=1
+elif [ "${ORDENV_PLAT}" = sles-11-amd64-64 ];then
+    FOPTMIZ=4
+elif [ "${ORDENV_PLAT}" = sles-11-broadwell-64-xc40 ];then
+    FOPTMIZ=4
 else
-    echo "..."
-    echo "... !! This platform 'ARCH=${ARCH}' is not supported.  Only 'AIX-powerpc7' and 'Linux_x86-64' are !!"
+    echo "This platform 'ORDENV_PLAT=${ORDENV_PLAT}' is not supported.  Only 'ubuntu-14.04-amd64-64' and 'ubuntu-14.04-amd64-64' are."
     exit 1
 fi
 
 # automatically set the global revision number in toplevelcontrol_mod.ftn90 by
 # replacing the string XXXXX with the actual revision number
-revnum=$(git describe --always --dirty=_M 2>/dev/null || ssh pollux "cd $trunkdir; git describe --always --dirty=_M" 2>/dev/null || echo unkown revision)
+revnum=$(git describe --always --dirty=_M 2>/dev/null || ssh eccc-ppp1 "cd $trunkdir; git describe --always --dirty=_M" 2>/dev/null || echo unkown revision)
 echo "..."
 echo "... > Revision Number = '$revnum'"
 
@@ -74,9 +70,8 @@ echo "... > Revision Number = '$revnum'"
 compiledir_main=${COMPILEDIR_OAVAR_MAIN:-".."}
 compiledir_ID=${COMPILEDIR_OAVAR_ID:-$revnum}
 compiledir=${compiledir_main}/compiledir_${compiledir_ID}
-
-mkdir -p $compiledir
-cd $compiledir
+mkdir -p compiledir-${ORDENV_PLAT}
+cd compiledir-${ORDENV_PLAT}
 compiledir=${PWD} # needed when compiledir_main = ".."
 
 echo "..."
@@ -87,101 +82,76 @@ if [ ${compiledir_main} != ".." ] ; then
     fi
 fi
 
-varabs=oavar_${BASE_ARCH}${ABSTAG}
 
 #----------------------------------------------------------------
 #  Set up dependent librarys and tools. 
 #---------------------------------------------------------------
-echo "..."
-echo "... > Setting the environement"
-# for s.compile
-echo "...   loading hpcs/201402/02/base"
-. ssmuse-sh -d hpcs/201402/02/base
+## for s.compile
+echo "loading hpco/tmp/eccc/201402/06/base"
+. ssmuse-sh -d hpco/tmp/eccc/201402/06/base
 ## for the compiler
-if [ "${BASE_ARCH}" = "AIX-powerpc7" ];then
-    echo "...   loading compiler hpcs/ext/xlf_13.1.0.10"
-    . ssmuse-sh -d hpcs/ext/xlf_13.1.0.10
-    # NetCDF for the IBM:
-    echo "...   loading netcdf"
-    export EC_LD_LIBRARY_PATH="/ssm/net/rpn/mfv/netcdf4/lib ${EC_LD_LIBRARY_PATH}"
-    export EC_INCLUDE_PATH="/ssm/net/rpn/mfv/netcdf4/include ${EC_INCLUDE_PATH}"
-    CDF_LIBS="netcdf netcdff hdf5 hdf5_hl sz z"
-elif [ "${BASE_ARCH}" = "Linux_x86-64" ];then
-    echo "...   loading compiler hpcs/201402/02/intel13sp1u2 (this includes the netcdf library)"
-    . ssmuse-sh -d hpcs/201402/02/intel13sp1u2
-    . s.ssmuse.dot dot
-    echo "...   EC_LD_LIBRARY_PATH=${EC_LD_LIBRARY_PATH}"
-    echo "...   EC_INCLUDE_PATH=${EC_INCLUDE_PATH}"
-    CDF_LIBS=netcdff
+if [ "${ORDENV_PLAT}" = ubuntu-14.04-amd64-64 ];then
+    echo "loading compiler main/opt/intelcomp/intelcomp-2016.1.156"
+    . ssmuse-sh -d main/opt/intelcomp/intelcomp-2016.1.156
+elif [ "${ORDENV_PLAT}" = sles-11-amd64-64 -o "${ORDENV_PLAT}" = sles-11-broadwell-64-xc40 ];then
+    echo "loading compiler PrgEnv-intel-5.2.82"
+    module load PrgEnv-intel/5.2.82
 else
-    echo "... !! This platform 'ARCH=${ARCH}' is not supported.  Only 'AIX-powerpc7' and 'Linux_x86-64' are !!"
+    echo "This platform 'ORDENV_PLAT=${ORDENV_PLAT}' is not supported.  Only 'ubuntu-14.04-amd64-64' and 'sles-11-amd64-64' are."
     exit 1
 fi
-## for rmn_015, rpncomm
-echo "...   loading rpn/libs/15.2"
-. ssmuse-sh -d rpn/libs/15.2
-## for 'vgrid'
-echo "...   loading cmdn/vgrid/5.3.2/${COMP_ARCH}"
-. ssmuse-sh -d cmdn/vgrid/5.3.2/${COMP_ARCH}
-## for 'burplib'
-echo "...   loading cmda/base/201411/01/${COMP_ARCH}"
-. ssmuse-sh -d cmda/base/201411/01/${COMP_ARCH}
 
-## For hpcsperf needed for TMG timings
-echo "...   loading hpcs/exp/aspgjdm/perftools"
-. ssmuse-sh -d hpcs/exp/aspgjdm/perftools
-# For RTTOV package...  
-echo "...   loading arma/rttov/10v4"
-. ssmuse-sh -d arma/rttov/10v4
+varabs=oavar_${ORDENV_PLAT}${ABSTAG}
+
+## for rmn, rpncomm
+echo "loading eccc/mrd/rpn/libs/16.1"
+. ssmuse-sh -d eccc/mrd/rpn/libs/16.1
+if [ "${ORDENV_PLAT}" = ubuntu-14.04-amd64-64 ];then
+    ## for openmpi
+    echo "loading main/opt/openmpi/openmpi-1.6.5/intelcomp-2016.1.156"
+    . ssmuse-sh -d main/opt/openmpi/openmpi-1.6.5/intelcomp-2016.1.156
+elif [ "${ORDENV_PLAT}" = sles-11-amd64-64 -o "${ORDENV_PLAT}" = sles-11-broadwell-64-xc40 ];then
+    true
+fi
+## for 'vgrid'
+echo "loading eccc/cmd/cmdn/vgrid/5.6.9/${COMP_ARCH}"
+. ssmuse-sh -d eccc/cmd/cmdn/vgrid/5.6.9/${COMP_ARCH}
+## for 'burplib'
+echo "loading eccc/cmd/cmda/libs/16.1-3/${COMP_ARCH}"
+. ssmuse-sh -d eccc/cmd/cmda/libs/16.1-3/${COMP_ARCH}
+## For hpcoperf needed for TMG timings
+echo "loading main/opt/perftools/perftools-2.0/${COMP_ARCH}"
+. ssmuse-sh -d main/opt/perftools/perftools-2.0/${COMP_ARCH}
+# For RTTOV 10v3 package...
+echo "loading eccc/mrd/rpn/anl/rttov/10v3.2/${COMP_ARCH}"
+. ssmuse-sh -d eccc/mrd/rpn/anl/rttov/10v3.2/${COMP_ARCH}
 
 #-----------------------------------------------------------------------------
 
-LIBAPPL="${CDF_LIBS} rttov10.2.0_coef_io rttov10.2.0_main rttov10.2.0_emis_atlas rttov10.2.0_other burp_module descrip $MPILIB"
-if [ "${BASE_ARCH}" = "AIX-powerpc7" ];then
-    LIBSYS="hpcsperf lapack-3.4.0 essl mass"
-elif [ "${BASE_ARCH}" = "Linux_x86-64" ];then
-    LIBSYS="hpcsperf lapack blas"
-else
-    echo "... !! This platform 'BASE_ARCH=${BASE_ARCH}' is not supported.  Only 'AIX-powerpc7' and 'Linux_x86-64' are !!"
-    exit 1
-fi
+LIBAPPL="rttov10.2.0_coef_io rttov10.2.0_main rttov10.2.0_other burp_module descrip $MPILIB"
+LIBSYS="hpcoperf"
 
-LIBRMN=rmn
+LIBRMN=rmnMP
 
 COMPF_GLOBAL="-openmp ${MPIKEY}"
-if [ "${BASE_ARCH}" = "AIX-powerpc7" ];then 
-    if [ "${COMPILE_OAVAR_REMOVE_DEBUG_OPTIONS}" = yes ]; then
-	COMPF=${COMPF_GLOBAL}
-	COMPF_NOC=${COMPF}
-	echo "..."
-	echo "... > Using fully optimized compilation"
-    else
-	COMPF_NOC="${COMPF_GLOBAL} -debug DEBUG"
-	COMPF="${COMPF_NOC} -optf =-C"
-	echo "..."
-	echo "... > !WARNING! You are compiling in DEBUG MODE"
-    fi
-elif [ "${BASE_ARCH}" = "Linux_x86-64" ];then
-    OPTF="=-mkl =-fp-model =source =-check =noarg_temp_created"
-    if [ "${COMPILE_OAVAR_REMOVE_DEBUG_OPTIONS}" = yes ]; then
-	COMPF="${COMPF_GLOBAL} -optf ${OPTF}"
-	COMPF_NOC=${COMPF}
-	echo "..."
-	echo "... > Using fully optimized compilation"
-    else
-	COMPF_NOC="${COMPF_GLOBAL} -debug DEBUG -optf ${OPTF}"
-	COMPF="${COMPF_NOC} =-C"
-	echo "..."
-	echo "... > !WARNING! You are compiling in DEBUG MODE"
-    fi
-else 
-    echo "..."
-    echo "... !! This platform 'BASE_ARCH=${BASE_ARCH}' is not supported.  Only 'AIX-powerpc7' and 'Linux_x86-64' are !!"
+OPTF="=-check =noarg_temp_created"
+if [ "${ORDENV_PLAT}" = ubuntu-14.04-amd64-64 ];then
+    OPTF="=-mkl ${OPTF}"
+elif [ "${ORDENV_PLAT}" = sles-11-amd64-64 -o "${ORDENV_PLAT}" = sles-11-broadwell-64-xc40 ];then
+    OPTF="${OPTF}"
+else
+    echo "This platform 'ORDENV_PLAT=${ORDENV_PLAT}' is not supported.  Only 'ubuntu-14.04-amd64-64' and 'sles-11-amd64-64' are."
     exit 1
 fi
 
-echo "..."
-echo "... > STARTING COMPILATION AT: $(date)"
+if [ "${COMPILE_OAVAR_ADD_DEBUG_OPTIONS:-no}" = yes ]; then
+    echo "Using debug options"
+    COMPF_NOC="${COMPF_GLOBAL} -debug DEBUG -optf ${OPTF}"
+    COMPF="${COMPF_NOC} =-C"
+else
+    COMPF="${COMPF_GLOBAL} -optf ${OPTF}"
+    COMPF_NOC=${COMPF}
+fi
 
 if [ "${mode}" == full ] ; then
 
@@ -329,7 +299,8 @@ elif [ "${mode}" == abs ] ; then
   echo "..."
   echo "... building the executable ${varabs}.Abs"
   echo "..."
-  s.compile $COMPF  -O ${FOPTMIZ} ${MPILIBDIR} -libappl $LIBAPPL $LIBEXTRA -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o ${varabs}.Abs
+  set -x
+  s.compile $COMPF  -O ${FOPTMIZ} -libappl $LIBAPPL $LIBEXTRA -librmn $LIBRMN -obj *.o -o ${varabs}.Abs
 
 else
     if [ -f $trunkdir/$mode ] ; then
