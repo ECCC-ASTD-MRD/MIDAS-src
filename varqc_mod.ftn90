@@ -671,8 +671,15 @@ module varqc_mod
 
                        ! CONVERT TO PERCENTAGE DIFFERENCE FROM THE FORECAST
 
-                       ZVAR=(ZVAR-ZFCST)/ZFCST*100.
-                       ZANA=(ZANA-ZFCST)/ZFCST*100.
+                       if (abs(ZFCST).lt.1.D-10*max(1.D-30,abs(ZVAR-ZFCST))) then
+                          write(*,*) 'vqc_listrej: WARNING for CH obs. BKGND and or OBSVD value out of bounds for output.'
+                          write(*,*) 'OBSVD and ANAL set to 0.0 below in addition to BKGND.'
+                          ZVAR=0.0D0
+                          ZANA=0.0D0
+                       else
+                          ZVAR=(ZVAR-ZFCST)/ZFCST*100.
+                          ZANA=(ZANA-ZFCST)/ZFCST*100.
+                       end if
                        ZFCST=0.0
                        CLDESC=vnl_varnameFromVarnum(ITYP,obs_headElem_i(lobsSpaceData,OBS_CHM,INDEX_HEADER))
                          

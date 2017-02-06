@@ -531,8 +531,8 @@ contains
     allocate(obsoper%obslev(nobslev))       ! Reference vertical levels
     allocate(obsoper%vlayertop(nobslev))    ! Layer tops for layer measurements
     allocate(obsoper%vlayerbottom(nobslev)) ! Layer bottoms for layer measurements
-    allocate(obsoper%lvl_top(nobslev))      ! Index of highest model level (lowest index) involved with obs element
-    allocate(obsoper%lvl_bot(nobslev))      ! Index of lowest model level (highest index) involved with obs element
+    allocate(obsoper%imodlev_top(nobslev))  ! Index of highest model level (lowest index) involved with obs element
+    allocate(obsoper%imodlev_bot(nobslev))  ! Index of lowest model level (highest index) involved with obs element
 
     allocate(obsoper%zh(nobslev,nmodlev))   ! Local model operator H (excluding conversion constants and horizontal interpolation)
     allocate(obsoper%zhp(nobslev,nmodlev))  ! Part of zh that excludes aspects related to vertical resolition
@@ -540,8 +540,8 @@ contains
     obsoper%vweights(:,:)=0.0D0            
     obsoper%zh(:,:)=0.0D0
     obsoper%zhp(:,:)=0.0D0
-    obsoper%lvl_top(:)=1
-    obsoper%lvl_bot(:)=nmodlev
+    obsoper%imodlev_top(:)=1
+    obsoper%imodlev_bot(:)=nmodlev
     obsoper%dtransform(:)=1.0D0
 
     if (.not.col_varExist('TT')) then
@@ -634,8 +634,8 @@ contains
     if (allocated(obsoper%vlayerbottom)) deallocate(obsoper%vlayerbottom)
     if (allocated(obsoper%zh))           deallocate(obsoper%zh)
     if (allocated(obsoper%zhp))          deallocate(obsoper%zhp)
-    if (allocated(obsoper%lvl_top))      deallocate(obsoper%lvl_top)
-    if (allocated(obsoper%lvl_bot))      deallocate(obsoper%lvl_bot)
+    if (allocated(obsoper%imodlev_top))  deallocate(obsoper%imodlev_top)
+    if (allocated(obsoper%imodlev_bot))  deallocate(obsoper%imodlev_bot)
 
   end subroutine chm_obsoper_dealloc
 
@@ -1392,7 +1392,7 @@ contains
 ! Author: M. Sitwell Nov 2016 (copied from subroutine vtr_setupTrials)
 !
 ! Purpose: Returns the trial statevector valid at the analysis time(s) on the analysis
-!          hortizonal and vertical grids.
+!          horizontal and vertical grids.
 !
 ! In
 !
