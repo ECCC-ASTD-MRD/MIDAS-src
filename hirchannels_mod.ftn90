@@ -1212,7 +1212,7 @@ contains
   end function hir_get_nchan_all
 
 
-  real (8)function hir_get_wavn(CINST,ICHAN)
+  real(8) function hir_get_wavn(CINST,ICHAN)
     implicit none
     character (len=*),intent(in) :: CINST
     integer,intent(in) :: ichan
