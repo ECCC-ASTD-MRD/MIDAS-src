@@ -114,7 +114,8 @@ if [ "${ORDENV_PLAT}" = ubuntu-14.04-amd64-64 ];then
     echo "loading main/opt/openmpi/openmpi-1.6.5/intelcomp-2016.1.156"
     . ssmuse-sh -d main/opt/openmpi/openmpi-1.6.5/intelcomp-2016.1.156
 elif [ "${ORDENV_PLAT}" = sles-11-amd64-64 -o "${ORDENV_PLAT}" = sles-11-broadwell-64-xc40 ];then
-    true
+    echo "loading cray-netcdf"
+    module load cray-netcdf
 fi
 ## for 'vgrid'
 echo "loading eccc/cmd/cmdn/vgrid/5.6.9/${COMP_ARCH}"
