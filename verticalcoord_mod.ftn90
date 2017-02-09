@@ -14,6 +14,13 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
+!--------------------------------------------------------------------------
+!! MODULE verticalcoord (prefix="vco")
+!!
+!! *Purpose*: Derived type and procedures related to the vertical levels including
+!!            a pointer to the associated VGRID descriptor
+!!
+!--------------------------------------------------------------------------
 module verticalCoord_mod
   use mpi_mod
   use MathPhysConstants_mod

@@ -14,6 +14,13 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
+!--------------------------------------------------------------------------
+!! MODULE obsSpaceDiag (prefix="osd")
+!!
+!! *Purpose*: Some experimental procedures for computing various diagnostics 
+!!            in observation space.
+!!
+!--------------------------------------------------------------------------
 module obsSpaceDiag_mod
   use topLevelControl_mod
   use mpivar_mod

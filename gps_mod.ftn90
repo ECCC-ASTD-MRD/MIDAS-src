@@ -13,7 +13,13 @@
 !if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
-!
+
+!--------------------------------------------------------------------------
+!! MODULE gps (prefix="gps", but not used for all public variables)
+!!
+!! *Purpose*: Code related to GPS-RO and ground-based GPS observation operators. 
+!!
+!--------------------------------------------------------------------------
 module gps_mod
   use mpi_mod
   use utilities_mod

@@ -15,31 +15,17 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-! MODULE BmatrixEnsemble (Background-error Covariance Matrix estimated
-!                         using ensemble members and spatial localization
-!                         prefix="ben")
-!
-! Purpose: Performs transformation from control vector to analysis increment 
-!          using the spatially localized ensemble covariance matrix
-!
-! Subroutines:
-!    ben_setup (public)
-!    ben_BSqrt (public)
-!    ben_BSqrtAd (public)
-!    setupLocalization
-!    setupEnsemble
-!    localizationSqrt
-!    localizationSqrtAd
-!    addEnsMember
-!    addEnsMemberAd
-!
-! Dependencies:
-!    globalSpectralTransform
+!! MODULE BmatrixEnsemble (prefix="ben")
+!!
+!! *Purpose*: Performs transformation from control vector to analysis increment 
+!!            using the spatially localized ensemble covariance matrix. This 
+!!            module works for both global and limited-area applications.
+!!
 !--------------------------------------------------------------------------
-MODULE BmatrixEnsemble
+MODULE BmatrixEnsemble_mod
   use mpivar_mod
   use gridStateVector_mod
-  use globalSpectralTransform
+  use globalSpectralTransform_mod
   use lamSpectralTransform_mod
   use horizontalCoord_mod
   use verticalCoord_mod
@@ -3872,4 +3858,4 @@ CONTAINS
 
   END SUBROUTINE EnsembleDiagnostic
 
-END MODULE BMatrixEnsemble
+END MODULE BMatrixEnsemble_mod

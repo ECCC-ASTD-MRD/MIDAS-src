@@ -13,24 +13,20 @@
 !if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
-!
+
+!--------------------------------------------------------------------------
+!! *Purpose*: Memory deallocation for derived type transmission
+!!
+!! @author j. halle *cmda/aes  june 7, 2005
+!!
+!! revision 001  : s. heilliette arma
+!!    changes for rttov 9.0 and 10.0
+!!
+!! arguments
+!!     -ptransmission: array of derived type transmission
+!!
+!--------------------------------------------------------------------------
 subroutine tovs_deallocate_transmission(ptransmission)
-#if defined (doc)
-!
-!**s/r tovs_deallocate_transmission  - Memory deallocation for derived type transmission
-!
-!
-!author        : j. halle *cmda/aes  june 7, 2005
-!
-!revision 001  : s. heilliette arma
-!   changes for rttov 9.0 and 10.0
-!    -------------------
-!     purpose:
-!
-!arguments
-!     ptransmission: array of derived type transmission
-!
-#endif
   use tovs_nl_mod,only : transmission_type
   use utilities_mod
   implicit none

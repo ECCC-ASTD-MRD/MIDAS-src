@@ -3,7 +3,7 @@ subroutine compute_HBHT_ensemble(columng,columnhr,obsSpaceData,active)
   use obsSpaceData_mod
   use columnData_mod
   use timeCoord_mod
-  use bMatrixEnsemble
+  use bMatrixEnsemble_mod
   use horizontalCoord_mod
   use gridStateVector_mod
   use stateToColumn_mod

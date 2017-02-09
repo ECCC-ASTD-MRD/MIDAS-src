@@ -14,9 +14,16 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
+!--------------------------------------------------------------------------
+!! MODULE codtyp (prefix="codtyp")
+!!
+!! *Purpose*: Reads a list of codtype definitions (codes that define various
+!!            types of observations) from the namelist and makes them avaiable
+!!            through functions.
+!!
+!! Definitions taken from: https://wiki.cmc.ec.gc.ca/wiki/Description_exhaustive_du_format_BURP
+!--------------------------------------------------------------------------
 module codtyp_mod
- ! CODETYPES: (from https://wiki.cmc.ec.gc.ca/wiki/Description_exhaustive_du_format_BURP)
- ! now read from namelist
  use utilities_mod
  private
  integer ,parameter :: codtyp_numbers = 256

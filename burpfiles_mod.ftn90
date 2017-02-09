@@ -16,6 +16,13 @@
 #include "maincompileswitch.inc"
 #include "compileswitches.inc"
 
+!--------------------------------------------------------------------------
+!! MODULE burpFiles (prefix="burp")
+!!
+!! *Purpose*: To store the filenames of the burp observation files and call
+!!            subroutines in readBurp to read and update burp files.
+!!
+!--------------------------------------------------------------------------
 module burpFiles_mod
   use MathPhysConstants_mod
   use EarthConstants_mod

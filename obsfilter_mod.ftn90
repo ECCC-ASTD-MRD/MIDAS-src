@@ -14,6 +14,13 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
+!--------------------------------------------------------------------------
+!! MODULE obsFilter (prefix="filt")
+!!
+!! *Purpose*: Various types of filters that are applied to the observations
+!!            mostly to reject them so they will not be assimilated.
+!!
+!--------------------------------------------------------------------------
 module obsFilter_mod
   use topLevelControl_mod
   use mpivar_mod

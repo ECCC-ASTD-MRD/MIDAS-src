@@ -14,24 +14,22 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-Module emissivities
-!************************************************************************
-!*
-!*       COMDECK EMISSIVITIES
-!*       --------------------
-!*
-!*       PURPOSE: VARIABLES FOR IR EMISSIVITIES COMPUTATION
-!*
-!*         SURFACE TYPE AND WATER FRACTION ARE FROM CERES DATA.
-!*     
-!*
-!*       AUTHOR:   A. BEAULNE (CMDA/SMC) February 2006
-!*
-!*       REVISION: A. BEAULNE (CMDA/SMC) July 2013
-!*                 Only keep information from Ceres,
-!*                 so removing albedo, ice and snow.
-!*
-!************************************************************************
+!--------------------------------------------------------------------------
+!! MODULE emissivities (prefix="emis")
+!!
+!!       *PURPOSE*: Variables for ir emissivities computation.
+!!
+!!                  Surface type and water fraction are from ceres data.
+!!     
+!!
+!!       @author A. BEAULNE (CMDA/SMC) February 2006
+!!
+!!       *REVISION*: A. BEAULNE (CMDA/SMC) July 2013
+!!                   Only keep information from Ceres,
+!!                   so removing albedo, ice and snow.
+!!
+!--------------------------------------------------------------------------
+Module emissivities_mod
   use tovs_nl_mod
   use multi_ir_bgck_mod
   use hirchannels_mod
@@ -1170,4 +1168,4 @@ contains
 
 
 
-End module emissivities
+End module emissivities_mod

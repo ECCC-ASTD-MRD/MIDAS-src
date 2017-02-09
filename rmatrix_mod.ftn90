@@ -14,10 +14,16 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-module rmatrix_mod
-  ! Module to handle non diagonal observation error covariances matrices for assimilation
-  ! of radiances
-  ! S. Heilliette ARMA August 2013
+!--------------------------------------------------------------------------
+!! MODULE rMatrix (prefix="rmat")
+!!
+!! *Purpose*: Module to handle non diagonal observation error covariance
+!!            matrices for assimilation of radiances
+!!
+!! @author S. Heilliette ARMA August 2013
+!!
+!--------------------------------------------------------------------------
+module rMatrix_mod
   use mpivar_mod,  only  : mpi_myid
   use rttov_const, only  : errorstatus_success
   use utilities_mod
@@ -300,4 +306,4 @@ module rmatrix_mod
 
   end subroutine rmat_sqrtRm1
 
-end module rmatrix_mod
+end module rMatrix_mod

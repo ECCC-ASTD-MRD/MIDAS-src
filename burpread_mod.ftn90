@@ -16,6 +16,13 @@
 
 #include "maincompileswitch.inc"
 #include "compileswitches.inc"
+!--------------------------------------------------------------------------
+!! MODULE burpRead (prefix= no standard prefix)
+!!
+!! *Purpose*: To read and update BURP observation files. Data is stored in 
+!!            obsSpaceData object.
+!!
+!--------------------------------------------------------------------------
 module  burpread_mod
 
 use burp_module

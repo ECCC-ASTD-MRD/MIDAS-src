@@ -13,26 +13,21 @@
 !if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
-!
+
+!--------------------------------------------------------------------------
+!! *Purpose*: Memory allocation for derived type transmission
+!!
+!! @author jj. halle *cmda/aes  june 7, 2005
+!!
+!!revision 001  :  S. Heilliette, December 2010
+!! modified for RTTOV 10.0
+!!
+!! arguments
+!!     -ptransmission: array of derived type transmission
+!!     -knchannels   : number of channels
+!!     -knlevels     : number of levels
+!--------------------------------------------------------------------------
 subroutine tovs_allocate_transmission(ptransmission,knchannels,knlevels)
-#if defined (doc)
-!
-!**s/r tovs_allocate_transmission  - Memory allocation for derived type transmission
-!
-!
-!author        : j. halle *cmda/aes  june 7, 2005
-!
-!revision 001  :  S. Heilliette, December 2010
-! modified for RTTOV 10.0
-!    -------------------
-!     purpose:
-!
-!arguments
-!     ptransmission: array of derived type transmission
-!     knchannels   : number of channels
-!     knlevels     : number of levels
-!
-#endif
   use utilities_mod
   use tovs_nl_mod ,only : transmission_type
 

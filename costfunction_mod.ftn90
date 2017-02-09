@@ -14,16 +14,11 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-
 !--------------------------------------------------------------------------
-! MODULE utilities_mod,(prefix="cfn")
-!
-! Purpose: To compute Jo term
-!
-! Subroutines:
-!
-! Dependencies:
-!    none
+!! MODULE utilities_mod,(prefix="cfn")
+!!
+!! *Purpose*: To compute Jo term
+!!
 !--------------------------------------------------------------------------
 module costfunction_mod
   use mpivar_mod

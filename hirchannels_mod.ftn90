@@ -14,30 +14,26 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
+!--------------------------------------------------------------------------
+!! MODULE hirchannels (prefix="hir")
+!!
+!! *PURPOSE*: HYPERSPECTRAL INFRARED CHANNEL PROPERTIES
+!!
+!! @author A. BEAULNE (CMDA/SMC) February 2006
+!!
+!!       REVISION: S. Heilliette transformation into a real module
+!!                  and addition of IASI and CrIS March 2013
+!!
+!!       METHODS:
+!!              - hir_get_nchan_selected : get the number of channels for the received subset
+!!              - hir_get_nchan_all : get the total number of channels
+!!              - hir_get_wavn : get channel wavenumbers (work only for the received subset)
+!!              - hir_get_chindx_fr_chn : get subset channel index from channel number
+!!              - hir_get_assim_chan : get assimilation flag from channel number
+!!              - hir_set_assim_chan : set a vector of  assimilation flags (1=assimilate)
+!!
+!--------------------------------------------------------------------------
 Module hirchannels_mod
-
-  !************************************************************************
-  !*
-  !*       Module hirchannels
-  !*       --------------
-  !*
-  !*       PURPOSE: HYPERSPECTRAL INFRARED CHANNEL PROPERTIES
-  !*
-  !*       AUTHOR:   A. BEAULNE (CMDA/SMC) February 2006
-  !*
-  !*       REVISION: S. Heilliette transformation into a real module
-  !*                  and addition of IASI and CrIS March 2013
-  !*
-  !*       METHODS:
-  !*              - hir_get_nchan_selected : get the number of channels for the received subset
-  !*              - hir_get_nchan_all : get the total number of channels
-  !*              - hir_get_wavn : get channel wavenumbers (work only for the received subset)
-  !*              - hir_get_chindx_fr_chn : get subset channel index from channel number
-  !*              - hir_get_assim_chan : get assimilation flag from channel number
-  !*              - hir_set_assim_chan : set a vector of  assimilation flags (1=assimilate)
-  !*
-  !*
-  !************************************************************************
   use utilities_mod
   implicit none
   save

@@ -13,12 +13,18 @@
 !if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
-!
+
+!--------------------------------------------------------------------------
+!! MODULE stateToColumn (prefix="s2c")
+!!
+!! *Purpose*: Tangent-linear and adjoint of bilinear interpolation to 
+!!            between a gridStateVector object and a columnData object.
+!!            This transformation has been optimized to improve MPI load
+!!            balancing when applying the observation operators.
+!!            (Replaces oda_L and oda_LT)
+!!
+!--------------------------------------------------------------------------
 module stateToColumn_mod
-  ! Note: this module replaces oda_L and oda_LT, while implementing the
-  !       the possibility of having the obs distributing arbitrarily over
-  !       the mpi tasks, while the increment is distributed by horizontal tiles
-  !
   use topLevelControl_mod
   use MathPhysConstants_mod
   use mpivar_mod 

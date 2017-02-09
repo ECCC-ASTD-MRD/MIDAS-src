@@ -7,7 +7,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
       use gridStateVector_mod
       use verticalCoord_mod
       use HorizontalCoord_mod
-      use bmatrixhi
+      use bmatrixhi_mod
       use gps_mod
       use utilities_mod
       IMPLICIT NONE

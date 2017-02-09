@@ -13,11 +13,15 @@
 !if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
-!
+
+!--------------------------------------------------------------------------
+!! MODULE obsOperators (prefix="oop")
+!!
+!! *Purpose*: All observation operators, including nonlinear, tangent-linear
+!!            and adjoint versions.
+!!
+!--------------------------------------------------------------------------
 module obsOperators_mod
-  !
-  ! Observation operators (OOP)
-  !
   use earthConstants_mod
   use mathPhysConstants_mod
   use obsSpaceData_mod
@@ -1117,6 +1121,7 @@ contains
 
   end subroutine oop_tovs_nl
 
+
   subroutine oop_Htl(lcolumn,lcolumng,lobsSpaceData,min_nsim)
     implicit none
     !
@@ -1170,7 +1175,6 @@ contains
     call tmg_start(47,'OBS_GPSGB_TLAD') !
     if (numGPSZTD > 0)  call oop_Hgp
     call tmg_stop (47)        !
-
 
   CONTAINS
 
@@ -2036,6 +2040,7 @@ contains
 
 
   end subroutine oop_Htl
+
 
   subroutine oop_Had(lcolumn,lcolumng,lobsSpaceData)
     implicit none

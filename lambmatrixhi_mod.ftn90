@@ -15,25 +15,12 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-! > MODULE LamBMatrixHI (prefix="lbhi")
-!
-! Purpose: Performs transformation from control vector to analysis increment 
-!          using the homogeneous and isotropic background error covariance 
-!          matrix
-!
-! - Subroutines
-!    lbhi_Setup        (public)
-!    lbhi_Bsqrt        (public)
-!    lbhi_BsqrtAdj     (public)
-!    lbhi_Finalize     (public)
-!    lbhi_expandToMPIglobal  (public)
-!    lbhi_reduceToMPIlocal   (public)
-!
-! - Public variables
-!    NONE
-!
-! - Dependencies
-!    lamspectraltransform
+!! MODULE LamBMatrixHI (prefix="lbhi")
+!!
+!! *Purpose*: Performs transformation from control vector to analysis increment 
+!!            using the homogeneous and isotropic background error covariance 
+!!            matrix.
+!!
 !--------------------------------------------------------------------------
 module LamBMatrixHI_mod
   use topLevelControl_mod

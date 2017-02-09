@@ -13,14 +13,12 @@
 !if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
-!
-subroutine tovs_rttov_tl(lobsSpaceData)
-#if defined (doc)
-!**s/r tovs_rttov_tl  - Tangent linear of computation of radiance with rttov_tl
-!                (adapted from part of code of lvtov)
-!
-!
-!author        : j. halle *cmda/aes  april 19, 2005
+
+!--------------------------------------------------------------------------
+!! *Purpose*: Tangent linear of computation of radiance with rttov_tl
+!!
+!! @author j. halle *cmda/aes  april 19, 2005
+!!
 !
 !revision 001  : a. beaulne *cmda/msc  june 2006
 !                  - addition of ozone and IR surface emissivities
@@ -32,12 +30,9 @@ subroutine tovs_rttov_tl(lobsSpaceData)
 !                  - adaptation to rttov 10.0 (october 2010)
 !revision 004  : s. macpherson  nov 2012
 !                  - remove #include "comtovst.cdk"
-!    -------------------
-!     purpose:
 !
-!arguments
-!
-#endif
+!--------------------------------------------------------------------------
+subroutine tovs_rttov_tl(lobsSpaceData)
   use MathPhysConstants_mod
   use tovs_nl_mod
   use tovs_lin_mod

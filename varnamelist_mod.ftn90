@@ -15,16 +15,13 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-! MODULE varNameList (prefix="vnl")
-!
-! Purpose: To store info related to GEM variables used in VAR
-!
-! Functions:
-!
-! Dependencies:
-!    bufr
+!! MODULE varNameList (prefix="vnl")
+!!
+!! *Purpose*: Contains a list of all possible variable names that can be used 
+!!            as analysis variables along with additional information for each and
+!!            procedures for accessing this information
+!!
 !--------------------------------------------------------------------------
-
 module varNameList_mod
   use bufr
   use utilities_mod

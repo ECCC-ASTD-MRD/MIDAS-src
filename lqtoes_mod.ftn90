@@ -14,6 +14,13 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
+!--------------------------------------------------------------------------
+!! MODULE LQtoES (prefix="LQtoES")
+!!
+!! *Purpose*: To compute dewpoint depression (ES) from log(humidity) (LQ) and
+!!            also tangent linear and adjoint versions of this operation.
+!!
+!--------------------------------------------------------------------------
 module LQtoES_mod
   use MathPhysConstants_mod
   use physicsFunctions_mod

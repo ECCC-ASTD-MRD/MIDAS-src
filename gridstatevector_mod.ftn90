@@ -15,22 +15,10 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-! MODULE gridStateVector (The grid-point state vector and related information.  prefix="gsv")
-!
-! Purpose: 
-!
-! Type definitions:
-!    struct_gsv
-!
-! Subroutines:
-!    (see "public" statements for publicly accessible subroutines and functions)
-!
-! Dependencies:
-!    varNameList_mod
-!    verticalCoord_mod
-!    MathPhysConstants_mod
-!    getStampList
-!
+!! MODULE gridStateVector (prefix="gsv")
+!!
+!! *Purpose*: The grid-point state vector and related information.
+!!
 !--------------------------------------------------------------------------
 MODULE gridStateVector_mod
   use topLevelControl_mod

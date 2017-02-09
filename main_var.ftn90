@@ -13,9 +13,14 @@
 !if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
-!
+
+!--------------------------------------------------------------------------
+!!
+!! *Purpose*: Main program for variational minimization and background check 
+!!            (depending on the mode selected in the namelist).
+!!
+!--------------------------------------------------------------------------
 program main_var
-  ! pgm main_var - Program controlling the job at its highest level (formerly cnt0.ftn90)
 
   use topLevelControl_mod
   use mpivar_mod
@@ -198,11 +203,11 @@ program main_var
 
 contains
 
+  !--------------------------------------------------------------------------
+  !! *Purpose*: Control of the preprocessing of the variational assimilation
+  !--------------------------------------------------------------------------
   subroutine var_setup(lcolumng,lcolumnhr,lobsSpaceData, &
        obsColumnMode, obsMpiStrategy)
-    !
-    !**s/r var_setup  - Control of the preprocessing of the variational assimilation
-    !
     use topLevelControl_mod
     use mpivar_mod
     use MathPhysConstants_mod

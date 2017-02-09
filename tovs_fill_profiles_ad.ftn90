@@ -13,28 +13,20 @@
 !if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
+
+!--------------------------------------------------------------------------
+!! *Purpose*: Adjoint of filling tangent linear profiles structure by interpolating 
+!!            contents of columnData to RTTOV space
+!!
+!! @author j. halle *cmda/aes  april 21, 2005
 !
+!revision 001  : j. halle  *cmda/smc  march 2007
+!                    -fix zvlev for hybrid coordinate
+!revision 002  : s. macpherson  nov 2012
+!                  - remove #include "comtovst.cdk"
+!
+!--------------------------------------------------------------------------
 subroutine tovs_fill_profiles_ad(column,columng)
-#if defined (doc)
-  !
-  !**s/r tovs_fill_profiles_ad  - adjoint of interpolation of obs.space to 43-level rttov space
-  !                          (adapted from part of code of avtov)
-  !
-  !
-  !author        : j. halle *cmda/aes  april 21, 2005
-  !
-  !revision 001  : j. halle  *cmda/smc  march 2007
-  !                    -fix zvlev for hybrid coordinate
-  !revision 002  : s. macpherson  nov 2012
-  !                  - remove #include "comtovst.cdk"
-  !
-  !    -------------------
-  !     purpose: fill tangent linear profiles structure with info from obs. space
-  !
-  !arguments
-  !
-  !
-#endif
   use MathPhysConstants_mod
   use tovs_nl_mod
   use tovs_lin_mod

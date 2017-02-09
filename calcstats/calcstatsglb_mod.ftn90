@@ -16,7 +16,7 @@
 
 module calcstatsglb_mod
   use gridStateVector_mod
-  use globalSpectralTransform
+  use globalSpectralTransform_mod
   use MathPhysConstants_mod
   use HorizontalCoord_mod
   use varNameList_mod

@@ -15,23 +15,13 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-! MODULE localizationFunction (prefix="loc")
-!
-! Purpose: To store various functions for horizontal and vertical 
-!          covariance localization. Lengtscale estimation for function available in
-!          this module is also possible through curve fitting using pre-computed optimal 
-!          separation-distance localization values.
-!
-! Subroutines:
-!    loc_setup       (public)
-!    loc_response    (public)
-!    loc_gradient
-!    loc_lengthscale (public)
-!    loc_curvefit
-!    loc_createBiPerFunction (public)
-!
-! Dependencies:
-!    none
+!! MODULE localizationFunction (prefix="loc")
+!!
+!! *Purpose*: To store various functions for horizontal and vertical 
+!!            covariance localization. Lengtscale estimation for function available in
+!!            this module is also possible through curve fitting using pre-computed optimal 
+!!            separation-distance localization values.
+!!
 !--------------------------------------------------------------------------
 MODULE localizationFunction_mod
   use utilities_mod

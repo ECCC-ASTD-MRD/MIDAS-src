@@ -13,43 +13,38 @@
 !if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
+
+!--------------------------------------------------------------------------
+!! *Purpose*: Fill profiles structure by interpolating contents of
+!!            columnData to RTTOV space 
+!!
+!! @author j. halle *cmda/aes  december 13, 2004
 !
+!revision 001  : a. beaulne *cmda/smc  june 2006
+!                    -add ozone from climatology to all sensors
+!                    -modifications for AIRS :
+!                       + addition of geopotential field to subr argument
+!                       + addition of latitude, longitude, height field,
+!                         sun zenith angle and cloud fraction 
+!                         to personnalized profile structure
+!
+!revision 002  : j. halle  *cmda/smc  march 2007
+!                    -fix zvlev for hybrid coordinate
+!revision 003  : C. Charette - ARMA et N.Wagneur - CMDA - Juillet 2011
+!                   . Ajout de la capacite de lire le champ d'essai de GEM Version 4 
+!                   . ayant une grille verticale decalee dite "STAGGERED"
+!revision 004  : s. macpherson  nov 2012
+!                  - remove #include "comtovst.cdk"
+!revision 005  : S. Heilliette october 2010
+!                    -adapt to rttov10
+!
+!--------------------------------------------------------------------------
 subroutine tovs_fill_profiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode)
-  !
-  !**s/r tovs_fill_profiles  - interpolation of obs. space to rttov space
-  !                      (adapted from part of code of dobstovs)
-  !
-  !
-  !author        : j. halle *cmda/aes  december 13, 2004
-  !
-  !revision 001  : a. beaulne *cmda/smc  june 2006
-  !                    -add ozone from climatology to all sensors
-  !                    -modifications for AIRS :
-  !                       + addition of geopotential field to subr argument
-  !                       + addition of latitude, longitude, height field,
-  !                         sun zenith angle and cloud fraction 
-  !                         to personnalized profile structure
-  !
-  !revision 002  : j. halle  *cmda/smc  march 2007
-  !                    -fix zvlev for hybrid coordinate
-  !revision 003  : C. Charette - ARMA et N.Wagneur - CMDA - Juillet 2011
-  !                   . Ajout de la capacite de lire le champ d'essai de GEM Version 4 
-  !                   . ayant une grille verticale decalee dite "STAGGERED"
-  !revision 004  : s. macpherson  nov 2012
-  !                  - remove #include "comtovst.cdk"
-  !revision 005  : S. Heilliette october 2010
-  !                    -adapt to rttov10
-  !
-  !    -------------------
-  !     purpose: fill profiles structure with info from obs. space
-  !
-  !arguments
-  !
   use EarthConstants_mod
   use MathPhysConstants_mod
   use tovs_nl_mod
   use multi_ir_bgck_mod
-  use ozoneclim
+  use ozoneclim_mod
   use obsSpaceData_mod
   use columnData_mod 
   use tovs_extrap_mod

@@ -14,16 +14,11 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-
 !--------------------------------------------------------------------------
-! MODULE utilities_mod,(prefix="utl")
-!
-! Purpose: A utlity routines docker
-!
-! Subroutines:
-!
-! Dependencies:
-!    none
+!! MODULE utilities_mod (prefix="utl")
+!!
+!! *Purpose*: A place to collect numerous simple utlity routines
+!!
 !--------------------------------------------------------------------------
 module utilities_mod
   implicit none
