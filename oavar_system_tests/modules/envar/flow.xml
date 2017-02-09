@@ -1,0 +1,43 @@
+<MODULE name="envar">
+  <SUBMITS sub_name="getObservations"/>
+  <SUBMITS sub_name="getTrials"/>
+  <SUBMITS sub_name="getEnsTrials"/>
+  <SUBMITS sub_name="getStats"/>
+
+  <TASK name="getObservations"/>
+  <TASK name="getStats"/>
+
+  <TASK name="getTrials">
+    <SUBMITS sub_name="Manip"/>
+  </TASK>
+
+  <TASK name="Manip">
+    <DEPENDS_ON dep_name="./getObservations"  status="end" type="node"/>
+    <DEPENDS_ON dep_name="./getTrials"        status="end" type="node"/>
+    <DEPENDS_ON dep_name="./interpEnsTrials"     status="end" type="node"/>
+    <DEPENDS_ON dep_name="./getStats"         status="end" type="node"/>
+
+    <SUBMITS sub_name="VAR"/>
+  </TASK>
+
+  <TASK name="VAR">
+    <SUBMITS sub_name="AddAnalInc"/>
+    <SUBMITS sub_name="postalt"/>
+  </TASK>
+
+  <TASK name="AddAnalInc">
+    <SUBMITS sub_name="Transfer"/>
+  </TASK>
+  <TASK name="postalt"/>
+
+  <TASK name="Transfer">
+    <DEPENDS_ON dep_name="./postalt"  status="end" type="node"/>
+  </TASK>
+
+  <TASK name="getEnsTrials">
+    <SUBMITS sub_name="interpEnsTrials"/>
+  </TASK>
+
+  <TASK name="interpEnsTrials"/>
+
+</MODULE>

@@ -750,7 +750,7 @@ CONTAINS
     etiket = ' '
 
     if ( hco_anl%global ) then
-       ni_expected = ni+1 ! based on the actual EnKF outputs
+       ni_expected = ni
        nj_expected = nj
        ni_transfer = ni
        nj_transfer = nj
@@ -795,7 +795,7 @@ CONTAINS
             if ( ikey < 0 ) then
                call utl_abort('ben_setupensemble: TG was not found. Cannot determine the horizontal grid size.')
             end if
-            if ( ni_fst /= ni_expected .or. nj_fst /= nj_expected ) then
+            if ( (ni_fst /= ni_expected .and. ni_fst /= ni_expected+1) .or. nj_fst /= nj_expected ) then
                write(*,*)
                write(*,*) 'ben_setupensemble: Invalid horizontal dimensions ...'
                write(*,*) 'Found ni,nj =', ni_fst, nj_fst
