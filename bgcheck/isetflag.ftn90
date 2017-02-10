@@ -14,24 +14,22 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
+!--------------------------------------------------------------------------
+!! *Purpose*:  Set BACKGROUND CHECK FLAGS According to values set in a table.
+!!             Original values in table come from ecmwf.
+!!
+!! @author P. Koclas *CMC/CMSV  September 1998
+!!
+!! Arguments:
+!!     -KVNAM= VARIABLE NAME ( BURP )
+!!     -KODTYP=BURP CODE TYPE
+!!     -CDFAM= FAMILY  NAME ( 'UA' , 'AI'   ...etc.. )
+!!     -ZLEV = LEVEL
+!!     -zbgchk=NORMALIZED BACKGROUND DEPARTURE
+!!     -lmodif1020=switch to activate special criteria for backound check (*ua 10-20 mb)
+!!
+!--------------------------------------------------------------------------
       function isetflag(cdfam,kodtyp,kvnam,zlev,zbgchk,lmodif1020)
-!*
-!***s/r isetflag  - SET BACKGROUND CHECK FLAGS
-!*
-!*Author  : P. Koclas *CMC/CMSV  September 1998
-!*
-!**    Purpose:  - Set BACKGROUND CHECK FLAGS According
-!*                 to values set in a table
-!*                 Original values in table come from ecmwf
-!*
-!*     Arguments:
-!*     KVNAM= VARIABLE NAME ( BURP )
-!*     KODTYP=BURP CODE TYPE
-!*     CDFAM= FAMILY  NAME ( 'UA' , 'AI'   ...etc.. )
-!*     ZLEV = LEVEL
-!*     zbgchk=NORMALIZED BACKGROUND DEPARTURE
-!*     lmodif1020=switch to activate special criteria for backound check (*ua 10-20 mb)
-!*
       use bufr
       IMPLICIT NONE
       integer isetflag

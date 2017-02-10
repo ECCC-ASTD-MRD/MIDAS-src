@@ -14,14 +14,12 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
+!--------------------------------------------------------------------------
+!!
+!! *Purpose*: Add cloud parameters to the burp file for infrared satellite radiances.
+!!
+!--------------------------------------------------------------------------
 subroutine add_cloudprms(lobsSpaceData)
-!*
-!***s/r add_cloudprms
-!*
-!*Author  : M. Buehner, June 2013
-!*
-!**    Purpose: Add cloud parameters to the burp file for infrared satellite radiances.
-!*
   use obsSpaceData_mod
   use mpivar_mod
   use tovs_nl_mod ,only : nsensors,platform,satellite,instrument

@@ -13,7 +13,13 @@
 !if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
-!
+
+!--------------------------------------------------------------------------
+!!
+!! *Purpose*: Main program for generating an ensemble of random perturbations
+!!            based on the B matrix (can be homogeneous/isotropic or ensemble-based).
+!!
+!--------------------------------------------------------------------------
 program main_randomPert
   !
   !**   main_randomPert  - Program to generate an ensemble of random perturbations

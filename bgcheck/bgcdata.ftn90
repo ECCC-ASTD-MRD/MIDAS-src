@@ -14,27 +14,26 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
+!--------------------------------------------------------------------------
+!! *Purpose*:  Calculate a background check for a data family
+!!             AND SET the appropriate quality control flags in
+!!             obsSpaceData
+!!
+!! @author P. Koclas *CMC/CMDA  January 1999
+!!
+!! Revisions:
+!!
+!!        -S. Macpherson *ARMA/MRD  9 October 2015
+!!           - Changed background check for GB-GPS ZTD observations:
+!!v               Changed
+!!v                  ZBGCHK=(ZOMP)**2/(ZFGE**2 + ZOER**2)
+!!v               to
+!!v                  ZBGCHK=(ZOMP**2)/(ZFGE**2) 
+!!v               where ZFGE = StdDev(O-P) estimated from ZWD and set in
+!!v               s/r SETERRGPSGB (stored in obsSpaceData col. OBS_HPHT).
+!!             
+!--------------------------------------------------------------------------
       SUBROUTINE BGCDATA(PJO,CDFAM,lobsSpaceData)
-!*
-!***s/r BGCDATA  - Computation OF BACKGROUND CHECK FLAGS
-!*
-!*Author  : P. Koclas *CMC/CMDA  January 1999
-!*
-!**    Purpose:  -Calculate a background check for a data family
-!*                AND SET the appropriate quality control flags in
-!*                the CMA
-!*
-!*Revisions:
-!*
-!*        S. Macpherson *ARMA/MRD  9 October 2015
-!*           - Changed background check for GB-GPS ZTD observations:
-!*               Changed
-!*                  ZBGCHK=(ZOMP)**2/(ZFGE**2 + ZOER**2)
-!*               to
-!*                  ZBGCHK=(ZOMP**2)/(ZFGE**2) 
-!*               where ZFGE = StdDev(O-P) estimated from ZWD and set in
-!*               s/r SETERRGPSGB (stored in obsSpaceData col. OBS_HPHT).
-!              
 
       use MathPhysConstants_mod
       use bufr

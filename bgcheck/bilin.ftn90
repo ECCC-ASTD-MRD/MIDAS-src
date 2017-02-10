@@ -14,20 +14,13 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
+!--------------------------------------------------------------------------
+!! *Purpose*: Horizontal interpolation of the model variables
+!!            in grid-point space to observation points.
+!!            Bilinear interpolation from the 4 nearest grid points.
+!!
+!--------------------------------------------------------------------------
 SUBROUTINE BILIN(lcolumn,statevector,lobsSpaceData)
-  !*
-  !***s/r BILIN  - Horizontal interpolation of the model variables
-  !*               in grid-point space to observation points.
-  !*               Bilinear interpolation from the 4 nearest grid points.
-  !*     .         (based on HOR4 from the ARPEGE/IFS model)
-  !*
-  !*Author  : J. Pailleux  ECMWF    90-01-11
-  !*     .    Luc Fillion  RPN/AES  Jan 1993
-  !
-  !**    Purpose:  Build GOMU, GOMV, GOMT, GOMGZ, GOMQ and GOMPS  with the model variables at the
-  !*               observation points from the model variables in grid-points
-  !*               space using bilinear interpolation.
-  !*
   use MathPhysConstants_mod
   use obsSpaceData_mod
   use columnData_mod

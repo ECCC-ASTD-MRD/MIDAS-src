@@ -14,18 +14,16 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
+!--------------------------------------------------------------------------
+!!    Purpose: Interpolate vertically the contents of "column" to
+!!             the levels of the observations (in meters). Then
+!!             compute THE FIRST GUESS ERROR VARIANCES
+!!             A linear interpolation in z is performed.
+!!
+!! @author J. St-James, CMDA/SMC November 2002
+!!
+!--------------------------------------------------------------------------
       SUBROUTINE SETFGEFAMZ(CDFAM,lcolumn,lcolumng,lobsSpaceData)
-!*
-!***s/r SETFGEFAMZ   - Interpolation of THE FIRST GUESS ERROR VARIANCES
-!*
-!*
-!*Author  :  J. St-James, CMDA/SMC November 2002
-!*
-!**    Purpose:  -Interpolate vertically the contents of commvo to
-!*                the levels of the observations (in meters). Then
-!*                compute THE FIRST GUESS ERROR VARIANCES
-!*                A linear interpolation in z is performed.
-!*
       use EarthConstants_mod
       use MathPhysConstants_mod
       use columnData_mod

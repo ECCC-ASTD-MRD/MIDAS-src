@@ -188,11 +188,15 @@ fi
 if [ "${UnitTest_compare_postalt}" = yes ]; then
     if [ "${ENVAR_postalt_output_mode:-one}" = "one" ]; then
 	check_result banco.postalt.${SHORT_DATE}_ ../input/postalt/${SHORT_DATE}_ ${UnitTest_burp_comp_method}
-        cmcarc -f ${outresults} -a banco.postalt.${SHORT_DATE}_
+        mkdir -p postalt_output
+        ln -s ${TASK_INPUT}/postalt/${SHORT_DATE}_ postalt_output/banco.postalt.${SHORT_DATE}_
+        cmcarc -f ${outresults} -a postalt_output/banco.postalt.${SHORT_DATE}_ --dereference -p
     else
 	for family in $(echo ${ENVAR_obstyp} | sed 's/,/ /g'); do
 	    check_result banco.postalt.${SHORT_DATE}_${family} ../input/postalt/${SHORT_DATE}_${family} ${UnitTest_burp_comp_method}
-            cmcarc -f ${outresults} -a banco.postalt.${SHORT_DATE}_${family}
+            mkdir -p postalt_output
+            ln -s ${TASK_INPUT}/postalt/${SHORT_DATE}_${family} postalt_output/banco.postalt.${SHORT_DATE}_${family}
+            cmcarc -f ${outresults} -a postalt_output/banco.postalt.${SHORT_DATE}_${family} --dereference -p
 	done
     fi
 else
