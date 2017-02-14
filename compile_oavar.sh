@@ -169,6 +169,16 @@ if [ "${mode}" == full ] ; then
   cd ${trunkdir}/shared;   ls -1F | grep -v '/' | grep -v "*" | cpio -pl $compiledir ; cd $compiledir
   rm -f *.ftn~ *.ftn90~
 
+  # Check for indented OPEN-MP directives - this is not allowed!
+  status=1
+  grep -i ' !$omp' *.ftn* || status=0
+  if [ "${status}" -ne 0 ] ; then
+      echo "... !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+      echo "... !! Compilation aborted: check the code for indented OPEN-MP directives !!"
+      echo "... !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+      exit 1
+  fi
+
   # Compile the subroutines...
   echo "... > Compiling low-level independent modules"
   echo "...   if aborting, check in ${PWD}/listing1"

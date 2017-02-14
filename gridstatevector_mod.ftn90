@@ -138,7 +138,8 @@ MODULE gridStateVector_mod
       integer :: fnom,fclos,nulnam,ierr
       CHARACTER(len=4) :: ANLVAR(VNL_NUMVARMAX)
       real*8 :: rhumin
-      NAMELIST /NAMSTATE/ANLVAR,rhumin,ANLTIME_BIN
+      logical          :: AddGZSfcOffset = .false. ! controls adding non-zero GZ offset to diag levels
+      NAMELIST /NAMSTATE/ANLVAR,rhumin,ANLTIME_BIN,AddGZSfcOffset
 
       if(mpi_myid.eq.0) write(*,*) 'gsv_setup: List of known (valid) variable names'
       if(mpi_myid.eq.0) write(*,*) 'gsv_setup: varNameList3D=',vnl_varNameList3D

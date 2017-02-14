@@ -25,6 +25,7 @@
 !--------------------------------------------------------------------------
 module columnData_mod
   use mpi_mod
+  use earthConstants_mod
   use varNameList_mod
   use verticalCoord_mod
   use MathPhysConstants_mod
@@ -40,7 +41,7 @@ module columnData_mod
   public :: col_setup, col_allocate, col_deallocate
   public :: col_varExist, col_getOffsetFromVarno
   public :: col_getNumLev, col_getNumCol
-  public :: col_getPressure, col_getPressureDeriv, col_calcPressure, col_vintProf, col_getHeight, col_getMountain, col_setMountain
+  public :: col_getPressure, col_getPressureDeriv, col_calcPressure, col_vintProf, col_getHeight, col_getGZsfc, col_setGZsfc
   public :: col_getLatLon, col_setLatLon, col_copyLatLon
   public :: col_zero, col_fillmvo, col_getAllColumns, col_getColumn, col_getElem, col_getVco, col_setVco
 
@@ -54,7 +55,7 @@ module columnData_mod
     logical           :: allocated=.false.
     logical           :: mpi_local
     real*8,pointer    :: all(:,:)
-    real*8,pointer    :: gz_T(:,:),gz_M(:,:)
+    real*8,pointer    :: gz_T(:,:),gz_M(:,:),gz_sfc(:)
     real*8,pointer    :: pressure_T(:,:),pressure_M(:,:)
     real*8,pointer    :: dP_dPsfc_T(:,:),dP_dPsfc_M(:,:)
     real*8,pointer    :: oltv(:,:,:)    ! Tangent linear operator of virtual temperature
@@ -69,6 +70,7 @@ module columnData_mod
   real*8 :: rhumin
   logical nmvoexist(vnl_numvarmax)
   integer :: nvo3d,nvo2d
+  logical :: AddGZSfcOffset = .false. ! controls adding non-zero GZ offset to diag levels
 
   contains
 
@@ -79,12 +81,12 @@ module columnData_mod
       integer :: fnom,fclos,nulnam,ierr
       CHARACTER(len=4) :: ANLVAR(VNL_NUMVARMAX)
       character(len=8) :: ANLTIME_BIN
-      NAMELIST /NAMSTATE/ANLVAR,rhumin,ANLTIME_BIN
+      NAMELIST /NAMSTATE/ANLVAR,rhumin,ANLTIME_BIN,AddGZSfcOffset
 
-      if(mpi_myid.eq.0) write(*,*) 'col_setup: List of known (valid) variable names'
-      if(mpi_myid.eq.0) write(*,*) 'col_setup: varNameList3D=',vnl_varNameList3D
-      if(mpi_myid.eq.0) write(*,*) 'col_setup: varNameList2D=',vnl_varNameList2D
-      if(mpi_myid.eq.0) write(*,*) 'col_setup: varNameList  =',vnl_varNameList
+      if(mpi_myid == 0) write(*,*) 'col_setup: List of known (valid) variable names'
+      if(mpi_myid == 0) write(*,*) 'col_setup: varNameList3D=',vnl_varNameList3D
+      if(mpi_myid == 0) write(*,*) 'col_setup: varNameList2D=',vnl_varNameList2D
+      if(mpi_myid == 0) write(*,*) 'col_setup: varNameList  =',vnl_varNameList
 
       ! Read NAMELIST NAMSTATE to find which fields are needed
 
@@ -96,7 +98,7 @@ module columnData_mod
       ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       read(nulnam,nml=namstate,iostat=ierr)
       if(ierr.ne.0) call utl_abort('col_setup: Error reading namelist')
-      if(mpi_myid.eq.0) write(*,nml=namstate)
+      if(mpi_myid == 0) write(*,nml=namstate)
       ierr=fclos(nulnam)
 
       nvo3d  = 0
@@ -122,11 +124,11 @@ module columnData_mod
         endif
       enddo
 
-      if(mpi_myid.eq.0) write(*,*) 'col_setup: nvo3d,nvo2d=',nvo3d,nvo2d
-      if(mpi_myid.eq.0) write(*,*) 'col_setup: nmvoexist =',nmvoexist
+      if(mpi_myid == 0) write(*,*) 'col_setup: nvo3d,nvo2d=',nvo3d,nvo2d
+      if(mpi_myid == 0) write(*,*) 'col_setup: nmvoexist =',nmvoexist
 
-      if(mpi_myid.eq.0) WRITE(*,*)' DIMENSIONS OF MODEL STATE ARRAYS:'
-      if(mpi_myid.eq.0) WRITE(*,FMT=9120) NVO3D,NVO2D
+      if(mpi_myid == 0) WRITE(*,*)' DIMENSIONS OF MODEL STATE ARRAYS:'
+      if(mpi_myid == 0) WRITE(*,FMT=9120) NVO3D,NVO2D
  9120 FORMAT(4X,'  NVO3D =',I6,' NVO2D    =',I6)
 
       CONTAINS
@@ -137,7 +139,7 @@ module columnData_mod
  
           varneed=.false.
           do jvar=1,VNL_NUMVARMAX
-            if (trim(varName).eq.trim(anlvar(jvar))) then
+            if (trim(varName) == trim(anlvar(jvar))) then
               varneed=.true.
             endif
           enddo
@@ -157,6 +159,7 @@ module columnData_mod
         column%pressure_T(:,:)=0.0d0
         column%gz_M(:,:)=0.0d0
         column%gz_T(:,:)=0.0d0
+        column%gz_sfc(:)=0.0d0
       endif
 
     END SUBROUTINE col_zero
@@ -177,7 +180,7 @@ module columnData_mod
         column%mpi_local=mpi_local
       else
         column%mpi_local=.true.
-        if(mpi_myid.eq.0) write(*,*) 'col_allocate: assuming columnData is mpi-local'
+        if(mpi_myid == 0) write(*,*) 'col_allocate: assuming columnData is mpi-local'
       endif
 
       if(.not.column%vco%initialized) then
@@ -215,8 +218,10 @@ module columnData_mod
 
         allocate(column%gz_T(col_getNumLev(column,'TH'),column%numCol))
         allocate(column%gz_M(col_getNumLev(column,'MM'),column%numCol))
+        allocate(column%gz_sfc(column%numCol))
         column%gz_T(:,:)=0.0d0
         column%gz_M(:,:)=0.0d0
+        column%gz_sfc(:)=0.0d0
 
         allocate(column%pressure_T(col_getNumLev(column,'TH'),column%numCol))
         allocate(column%pressure_M(col_getNumLev(column,'MM'),column%numCol))
@@ -246,9 +251,9 @@ module columnData_mod
 
       endif
  
-      if(mpi_myid.eq.0) write(*,*) 'col_allocate: nkgdimo = ',nkgdimo
-      if(mpi_myid.eq.0) write(*,*) 'col_allocate: varOffset=',column%varOffset
-      if(mpi_myid.eq.0) write(*,*) 'col_allocate: varNumLev=',column%varNumLev
+      if(mpi_myid == 0) write(*,*) 'col_allocate: nkgdimo = ',nkgdimo
+      if(mpi_myid == 0) write(*,*) 'col_allocate: varOffset=',column%varOffset
+      if(mpi_myid == 0) write(*,*) 'col_allocate: varNumLev=',column%varNumLev
 
       column%allocated=.true.
 
@@ -268,6 +273,7 @@ module columnData_mod
         deallocate(column%all)
         deallocate(column%gz_T)
         deallocate(column%gz_M)
+        deallocate(column%gz_sfc)
         deallocate(column%pressure_T)
         deallocate(column%pressure_M)
         deallocate(column%dP_dPsfc_T)
@@ -304,22 +310,27 @@ module columnData_mod
     character(len=*) :: varName
     character(len=*), optional :: varLevel
 
-    integer jobs,jlev
-    real*8, pointer :: column_ptr(:)
+    integer jobs, jlev, status, vcode, nlev_M, nlev_T
+    real(8), pointer :: column_ptr(:)
+    real :: gz_sfcOffset_r4
+
+    status = vgd_get(columnghr%vco%vgrid,key='ig_1 - vertical coord code',value=vcode)
+    nlev_M = col_getNumLev(columnghr,'MM')
+    nlev_T = col_getNumLev(columnghr,'TH')
 
     ! Pressure
     select case(trim(varName))
     case('PR')
       if(present(varLevel)) then
-        if(varLevel.eq.'TH') then
-          do jobs = 1,columnghr%numCol
-            do jlev = 1,col_getNumLev(columnghr,'TH')
+        if(varLevel == 'TH') then
+          do jobs = 1, columnghr%numCol
+            do jlev = 1, nlev_T
               columnghr%pressure_T(jlev,jobs) = pvar(jlev,jobs)
             enddo
           enddo
-        elseif(varLevel.eq.'MM') then
-          do jobs = 1,columnghr%numCol
-            do jlev = 1,col_getNumLev(columnghr,'MM')
+        elseif(varLevel == 'MM') then
+          do jobs = 1, columnghr%numCol
+            do jlev = 1, nlev_M
               columnghr%pressure_M(jlev,jobs) = pvar(jlev,jobs)
             enddo
           enddo
@@ -333,17 +344,37 @@ module columnData_mod
     ! Height
     case('GZ')
       if(present(varLevel)) then
-        if(varLevel.eq.'TH') then
-          do jobs = 1,columnghr%numCol
-            do jlev = 1, col_getNumLev(columnghr,'TH')
-              columnghr%gz_T(jlev,jobs)=pvar(jlev,jobs)
+        if(varLevel == 'TH') then
+          if(vcode == 5005 .and. AddGZSfcOffset) then
+            status = vgd_get(columnghr%vco%vgrid,key='DHT - height of the diagnostic level (t)',value=gz_sfcOffset_r4)
+          else
+            gz_sfcOffset_r4 = 0.0
+          endif
+          if(mpi_myid == 0) write(*,*) 'col_fillmvo: GZ offset for near-sfc thermo level is:   ', gz_sfcOffset_r4, ' metres'
+          do jobs = 1, columnghr%numCol
+            do jlev = 1, nlev_T
+              columnghr%gz_T(jlev,jobs) = pvar(jlev,jobs)
             enddo
+            ! set the surface GZ
+            columnghr%gz_sfc(jobs) = columnghr%gz_T(nlev_T,jobs)
+            ! adjust heights of near-surface GZ
+            columnghr%gz_T(nlev_T,jobs) = columnghr%gz_T(nlev_T,jobs) + real(gz_sfcOffset_r4,8) * RG
           enddo
-        elseif(varLevel.eq.'MM') then
-          do jobs = 1,columnghr%numCol
-            do jlev = 1, col_getNumLev(columnghr,'MM')
-              columnghr%gz_M(jlev,jobs)=pvar(jlev,jobs)
+        elseif(varLevel == 'MM') then
+          if(vcode == 5005 .and. AddGZSfcOffset) then
+            status = vgd_get(columnghr%vco%vgrid,key='DHM - height of the diagnostic level (m)',value=gz_sfcOffset_r4)
+          else
+            gz_sfcOffset_r4 = 0.0
+          endif
+          if(mpi_myid == 0) write(*,*) 'col_fillmvo: GZ offset for near-sfc momentum level is: ', gz_sfcOffset_r4, ' metres'
+          do jobs = 1, columnghr%numCol
+            do jlev = 1, nlev_M
+              columnghr%gz_M(jlev,jobs) = pvar(jlev,jobs)
             enddo
+            ! set the surface GZ
+            columnghr%gz_sfc(jobs) = columnghr%gz_M(nlev_M,jobs)
+            ! adjust heights of near-surface GZ
+            columnghr%gz_M(nlev_M,jobs) = columnghr%gz_M(nlev_M,jobs) + real(gz_sfcOffset_r4,8) * RG
           enddo
         else
           call utl_abort('col_fillmvo: must specify varLevel TH or MM for GZ! ' // varLevel)
@@ -355,10 +386,10 @@ module columnData_mod
     ! All the other variables that are stored in column%all
     case default
       if(col_varExist(trim(varName))) then
-        do jobs = 1,columnghr%numCol
+        do jobs = 1, columnghr%numCol
           column_ptr => col_getColumn(columnghr,jobs,varName)
           do jlev = 1, col_getNumLev(columnghr,vnl_varLevelFromVarname(varName))
-            column_ptr(jlev)=pvar(jlev,jobs) 
+            column_ptr(jlev) = pvar(jlev,jobs) 
           enddo
         enddo
 
@@ -378,7 +409,7 @@ module columnData_mod
       character(len=*), intent(in) :: varName
       logical                      :: varExist 
 
-      if(trim(varName).eq.'PR'.or.trim(varName).eq.'GZ') then
+      if(trim(varName) == 'PR' .or. trim(varName) == 'GZ') then
         ! pressure and height always available
         varExist = .true.
       elseif(nmvoexist(vnl_varListIndex(varName))) then
@@ -408,7 +439,9 @@ module columnData_mod
     real(kind=8), allocatable :: Psfc(:,:),zppobs2(:,:)
     real(kind=8), pointer     :: zppobs1(:,:,:) => null()
     real(kind=8), pointer     :: dP_dPsfc(:,:,:) => null()
-    integer :: jobs,status
+    integer :: jobs, status, vcode
+
+    status = vgd_get(column%vco%vgrid,key='ig_1 - vertical coord code',value=vcode)
 
     allocate(Psfc(1,col_getNumCol(column)))
     do jobs = 1,col_getNumCol(column)
@@ -438,12 +471,18 @@ module columnData_mod
     write(*,*) 'col_calcPressure: computing derivate of pressure wrt surface pressure'
 
     status = vgd_dpidpis(column%vco%vgrid,column%vco%ip1_M,dP_dPsfc,Psfc)
-    column%dP_dPsfc_M(:,:) = transpose(dP_dPsfc(1,:,:))
+    allocate(zppobs2(col_getNumLev(column,'MM'),col_getNumCol(column)))
+    zppobs2 = transpose(dP_dPsfc(1,:,:))
+    column%dP_dPsfc_M(:,:) = zppobs2(:,:)
     deallocate(dP_dPsfc)
+    deallocate(zppobs2)
 
     status = vgd_dpidpis(column%vco%vgrid,column%vco%ip1_T,dP_dPsfc,Psfc)
-    column%dP_dPsfc_T(:,:) = transpose(dP_dPsfc(1,:,:))
+    allocate(zppobs2(col_getNumLev(column,'TH'),col_getNumCol(column)))
+    zppobs2 = transpose(dP_dPsfc(1,:,:))
+    column%dP_dPsfc_T(:,:) = zppobs2(:,:)
     deallocate(dP_dPsfc)
+    deallocate(zppobs2)
 
     deallocate(Psfc)
 
@@ -516,9 +555,9 @@ module columnData_mod
     character(len=*), intent(in)        :: varLevel
     real*8                              :: pressure
 
-    if (varLevel .eq. 'TH') then
+    if (varLevel == 'TH') then
       pressure = column%pressure_t(ilev,headerIndex)
-    elseif (varLevel .eq. 'MM' ) then
+    elseif (varLevel == 'MM' ) then
       pressure = column%pressure_m(ilev,headerIndex)
     else
       call utl_abort('col_getPressure: Unknown variable type: ' // varLevel)
@@ -534,9 +573,9 @@ module columnData_mod
     character(len=*), intent(in)        :: varLevel
     real*8                              :: dP_dPsfc
 
-    if (varLevel .eq. 'TH') then
+    if (varLevel == 'TH') then
       dP_dPsfc = column%dP_dPsfc_t(ilev,headerIndex)
-    elseif (varLevel .eq. 'MM' ) then
+    elseif (varLevel == 'MM' ) then
       dP_dPsfc = column%dP_dPsfc_m(ilev,headerIndex)
     else
       call utl_abort('col_getPressureDeriv: Unknown variable type: ' // varLevel)
@@ -553,9 +592,9 @@ module columnData_mod
     real*8                              :: height
     integer                             :: ilev1
 
-    if (varLevel .eq. 'TH') then
+    if (varLevel == 'TH') then
       height = column%gz_t(ilev,headerIndex)
-    elseif (varLevel .eq. 'MM' ) then
+    elseif (varLevel == 'MM' ) then
       height = column%gz_m(ilev,headerIndex)
     else
       call utl_abort('col_getHeight: unknown varLevel! ' // varLevel)
@@ -564,27 +603,26 @@ module columnData_mod
   end function col_getHeight
 
 
-  function col_getMountain(column,headerIndex) result(height)
+  function col_getGZsfc(column,headerIndex) result(height)
     implicit none
     type(struct_columnData), intent(in) :: column
     integer, intent(in)                 :: headerIndex
     real*8                              :: height
 
-    height = column%gz_t(col_getNumLev(column,'TH'),headerIndex)
+    height = column%gz_sfc(headerIndex)
 
-  end function col_getMountain
+  end function col_getGZsfc
 
 
-  subroutine col_setMountain(column,headerIndex,height)
+  subroutine col_setGZsfc(column,headerIndex,height)
     implicit none
     type(struct_columnData)             :: column
     integer, intent(in)                 :: headerIndex
     real*8, intent(in)                  :: height
 
-    column%gz_t(col_getNumLev(column,'TH'),headerIndex) = height
-    column%gz_m(col_getNumLev(column,'MM'),headerIndex) = height
+    column%gz_sfc(headerIndex) = height
 
-  end subroutine col_setMountain
+  end subroutine col_setGZsfc
 
 
   subroutine col_getLatLon(column, headerIndex, Lat, Lon, &
@@ -653,7 +691,7 @@ module columnData_mod
 
     if ( column%numCol > 0 ) then
       if(present(varName)) then
-        if(trim(varName).eq.'GZ') then
+        if(trim(varName) == 'GZ') then
           call utl_abort('col_getAllColumns: Cannot call this for GZ!')
         elseif(col_varExist(varName)) then
           ilev1 = column%varOffset(vnl_varListIndex(varName))+1
@@ -687,9 +725,9 @@ module columnData_mod
         select case(trim(varName))
         case('PR')
           if(present(varLevel)) then 
-            if(varLevel.eq.'TH') then
+            if(varLevel == 'TH') then
               onecolumn => column%pressure_T(:,headerIndex)
-            elseif(varLevel.eq.'MM') then
+            elseif(varLevel == 'MM') then
               onecolumn => column%pressure_M(:,headerIndex)
             else
               call utl_abort('col_getColumn: varLevel must MM or TH for Pressure! ' // varLevel)         
@@ -700,9 +738,9 @@ module columnData_mod
 
         case('GZ')
           if(present(varLevel)) then 
-            if(varLevel.eq.'TH') then
+            if(varLevel == 'TH') then
               onecolumn => column%gz_T(:,headerIndex)
-            elseif(varLevel.eq.'MM') then
+            elseif(varLevel == 'MM') then
               onecolumn => column%gz_M(:,headerIndex)
             else
               call utl_abort('col_getColumn: varLevel must MM or TH for Height! ' // varLevel)         
@@ -736,8 +774,8 @@ module columnData_mod
     real*8                                 :: value
 
     if(present(varName)) then
-      if(trim(varName).eq.'GZ') call utl_abort('col_getElem: cannot call for GZ!')
-      if(trim(varName).eq.'PR') call utl_abort('col_getElem: cannot call for Pressure!')
+      if(trim(varName) == 'GZ') call utl_Abort('col_getElem: cannot call for GZ!')
+      if(trim(varName) == 'PR') call utl_Abort('col_getElem: cannot call for Pressure!')
       value = column%all(column%varOffset(vnl_varListIndex(varName))+ilev,headerIndex)
     else
       value = column%all(ilev,headerIndex)

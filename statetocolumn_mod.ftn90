@@ -416,7 +416,6 @@ CONTAINS
         column_ptr => col_getAllColumns(column)
         column_ptr(:,:) = 0.0d0
         numLev = size(column_ptr,1)
-        write(*,*) 'gd2mvo: total number of levels for all variables=',numLev
       else
         numLev = 1
         write(*,*) 'gd2mvo: numHeaderTile not positive, set numLev to 1'
@@ -424,7 +423,6 @@ CONTAINS
 
       if (numHeaderTile > 0) then
         allocate(column_tile(numLev,numHeaderTile))
-        write(*,*) 'gd2mvo: after allocate of column_tile'
         write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
         call flush(6)
       else
@@ -527,9 +525,6 @@ CONTAINS
 
       real(8), allocatable :: col_recv(:,:)
       integer :: headerIndex, headerIndex_local, headerIndex_recv, jlev, nsize, ierr
-
-      write(*,*) 'transpose_tileToColumn: STARTING'
-      call flush(6)
 
       call tmg_start(39,'INTERP_COMM')
 

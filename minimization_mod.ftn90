@@ -522,6 +522,8 @@ CONTAINS
 
       deallocate(dataptr_int)
 
+      call bmat_finalize(cvm_vazx)
+
   END SUBROUTINE quasiNewtonMinimization
 
   subroutine min_writeIncrement(incr_cv,columng)

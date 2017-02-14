@@ -171,9 +171,9 @@ subroutine tovs_fill_profiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode
   !     1.1   Number of threads and memory allocation
   !     .     ---------------------------------------
 
-  !$omp parallel 
+!$omp parallel 
   nthreads = omp_get_num_threads()
-  !$omp end parallel
+!$omp end parallel
 
   alloc_status(:) = 0
   allocate (ksurf     (jppf*nthreads)        ,stat= alloc_status(1) )
@@ -269,14 +269,14 @@ subroutine tovs_fill_profiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode
         !             required by tovs rt model
         !     .       ------------------------------------------
 
-        !$omp parallel private(istride)
+!$omp parallel private(istride)
         imodulo = mod(knpf,nthreads)
         if ( imodulo .eq. 0 ) then
            istride = max(1,(knpf/nthreads))
         else
            istride = max(1,(knpf/nthreads)+1)
         endif
-        !$omp do private(jn,ilen)
+!$omp do private(jn,ilen)
         do jn=1,knpf,istride
            ilen = min (knpf-jn+1,istride)
            if ( ilen .gt. 0) then
@@ -288,8 +288,8 @@ subroutine tovs_fill_profiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode
                    jpmolev,xpres(jpmotop:nlevels),zho(:,jn:jn+ilen-1))
            endif
         enddo
-        !$omp end do
-        !$omp end parallel
+!$omp end do
+!$omp end parallel
 
         !     .  2.2  Extrapolation of temperature profile above model top
         !     .       ----------------------------------------------------

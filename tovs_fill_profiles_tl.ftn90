@@ -121,9 +121,9 @@ subroutine tovs_fill_profiles_tl(column,columng)
   !     1.1   Number of threads and memory allocation
   !     .     ---------------------------------------
 
-  !$omp parallel 
+!$omp parallel 
   nthreads = omp_get_num_threads()
-  !$omp end parallel
+!$omp end parallel
 
   alloc_status(:) = 0
   allocate (iptobs    (jppf*nthreads)          ,stat= alloc_status(1) )
@@ -232,8 +232,7 @@ subroutine tovs_fill_profiles_tl(column,columng)
         else
            istride = max(1,(knpf/nthreads)+1)
         endif
-        !$omp parallel
-        !$omp do private(jn,ilen)
+!$omp parallel do private(jn,ilen)
         do jn=1,knpf,istride
            ilen = min (knpf-jn+1,istride)
            if ( ilen .gt. 0) then
@@ -247,8 +246,7 @@ subroutine tovs_fill_profiles_tl(column,columng)
 
            endif
         enddo
-        !$omp end do
-        !$omp end parallel
+!$omp end parallel do
 
         !     .  2.2  Extrapolation of temperature profile above 10mb
         !     .       -----------------------------------------------

@@ -33,6 +33,7 @@ module innovation_mod
   use topLevelControl_mod
   use EarthConstants_mod
   use MathPhysConstants_mod
+  use physicsFunctions_mod
   use mpivar_mod
   use horizontalCoord_mod
   use columnData_mod 
@@ -48,6 +49,7 @@ module innovation_mod
   use burpFiles_mod
   use randomNumber_mod
   use obsErrors_mod
+  use bufr
   implicit none
   save
   private
@@ -572,6 +574,18 @@ contains
           if (mpi_myid.eq.0) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: jlev, col_getPressure(COLUMNG,jlev,1,MM) = ',  &
                jlev,col_getPressure(COLUMNG,jlev,1,'MM')
        end do
+       do jlev = 1,col_getNumLev(columng,'TH')
+          if (mpi_myid.eq.0) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: jlev, col_getPressure(COLUMNG,jlev,1,TH) = ',  &
+               jlev,col_getPressure(COLUMNG,jlev,1,'TH')
+       end do
+       do jlev = 1,col_getNumLev(columng,'MM')
+         if (mpi_myid.eq.0) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: jlev, col_getPressureDeriv(COLUMNG,jlev,1,MM) = ',  &
+              jlev,col_getPressureDeriv(COLUMNG,jlev,1,'MM')
+       end do
+       do jlev = 1,col_getNumLev(columng,'TH')
+          if (mpi_myid.eq.0) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: jlev, col_getPressureDeriv(COLUMNG,jlev,1,TH) = ',  &
+              jlev,col_getPressureDeriv(COLUMNG,jlev,1,'TH')
+       end do
 
        !     Calculate profiles of pressure values at station location
 
@@ -741,7 +755,7 @@ contains
     !- Using T, q and PS to compute GZ for columng
     !
     do jobs = 1, col_getNumCol(columng)
-       call col_setMountain(columng ,jobs,col_getMountain(columnhr,jobs))
+       call col_setGZsfc(columng ,jobs, col_getGZsfc(columnhr, jobs))
     enddo
     if (top_spatialDimensions() /= '2D') call tt2phi(columng)
 
@@ -1205,11 +1219,6 @@ contains
     !      Find which model levels to use for the vertical interpolation
     !      of model fields to CMA data.
     !
-    use EarthConstants_mod
-    use MathPhysConstants_mod
-    use obsSpaceData_mod
-    use columnData_mod 
-    use bufr
     IMPLICIT NONE
     type(struct_columnData) :: lcolumnghr
     type(struct_obs) :: lobsSpaceData
@@ -1281,9 +1290,8 @@ contains
           ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,JDATA)
           varLevel = vnl_varLevelFromVarnum(ITYP)
           if(varLevel.eq.'SF') then
-             nlev=col_getNumLev(lcolumnghr,'TH')
              ZPT= col_getHeight(lcolumnghr,1,IOBS,'TH')/RG
-             ZPB= col_getHeight(lcolumnghr,NLEV,IOBS,'TH')/RG                 
+             ZPB= col_getGZsfc(lcolumnghr,IOBS)/RG                 
           else
              nlev=col_getNumLev(lcolumnghr,varLevel)
              ZPT= col_getHeight(lcolumnghr,1,IOBS,varLevel)/RG
@@ -1305,8 +1313,6 @@ contains
     !     2. FInd interpolation layer
     !        ------------------------
     !        (Model levels are assumed to be in increasing order in Mbs)
-    !        ...The SIGN and MAX intrinsincs are used for vectorization
-    !           purposes......
     !
     !     2.1  PPP Vertical coordinate
     !
@@ -1369,10 +1375,6 @@ contains
   END SUBROUTINE VOBSLYRS
 
   subroutine subasic_obs(lcolumng)
-
-    use MathPhysConstants_mod
-    use physicsFunctions_mod
-    use columnData_mod 
     implicit none
 
     ! s/r SUBASIC_OBS
@@ -1400,7 +1402,7 @@ contains
 
     ! initialize virtual temperature operator
 
-    !$OMP PARALLEL DO PRIVATE(jlev,jobs,zhu)
+!$OMP PARALLEL DO PRIVATE(jlev,jobs,zhu)
     do jlev = 1, nlev_T
        do jobs=1,col_getNumCol(lcolumng)
 
@@ -1411,7 +1413,7 @@ contains
 
        enddo
     enddo
-    !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
 
   end subroutine subasic_obs
 

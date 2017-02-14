@@ -46,7 +46,7 @@ contains
     type(struct_obs) :: lobsSpaceData 
     integer index_body,iass
 
-    !$OMP PARALLEL DO PRIVATE(index_body,iass)
+!$OMP PARALLEL DO PRIVATE(index_body,iass)
     do index_body=1,obs_numbody(lobsSpaceData)
        iass = obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body)
        if(iass.eq.1 .or. iass.eq.-1) then
@@ -55,7 +55,7 @@ contains
                -obs_bodyElem_r(lobsSpaceData,OBS_WORK,index_body))
        end if
     end do
-    !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
 
   END SUBROUTINE res_compute
 
@@ -68,7 +68,7 @@ contains
     type(struct_obs) :: obsSpaceData 
     integer index_body,iass
 
-    !$OMP PARALLEL DO PRIVATE(index_body,iass)
+!$OMP PARALLEL DO PRIVATE(index_body,iass)
     do index_body=1,obs_numbody(obsSpaceData)
        iass = obs_bodyElem_i(obsSpaceData,OBS_ASS,index_body)
        if(iass.eq.1 .or. iass.eq.-1) then
@@ -76,7 +76,7 @@ contains
                -obs_bodyElem_r(obsSpaceData,OBS_WORK,index_body))
        endif
     enddo
-    !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
 
   END SUBROUTINE res_computeAd
 

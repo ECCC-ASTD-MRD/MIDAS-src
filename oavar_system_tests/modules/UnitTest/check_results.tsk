@@ -168,6 +168,9 @@ fi
 
 outresults=${TASK_OUTPUT}/${SHORT_DATE}.ca
 
+nodelister -n ${SEQ_CONTAINER}/envar/VAR -d ${SEQ_DATE} > VAR.listing
+cmcarc -f $outresults -a VAR.listing
+
 if [ "${ENVAR_mode}" != "O-P" ]; then
     status=0
     cmcarc -f ${SHORT_DATE}.ca -t | grep "inc_hi" > list_inc_hi || status=1
