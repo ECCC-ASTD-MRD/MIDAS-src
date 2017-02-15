@@ -15,22 +15,10 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-! MODULE gridStateVector (The grid-point state vector and related information.  prefix="gsv")
-!
-! Purpose: 
-!
-! Type definitions:
-!    struct_gsv
-!
-! Subroutines:
-!    (see "public" statements for publicly accessible subroutines and functions)
-!
-! Dependencies:
-!    varNameList_mod
-!    verticalCoord_mod
-!    MathPhysConstants_mod
-!    getStampList
-!
+!! MODULE gridStateVector (prefix="gsv")
+!!
+!! *Purpose*: The grid-point state vector and related information.
+!!
 !--------------------------------------------------------------------------
 MODULE gridStateVector_mod
   use topLevelControl_mod
@@ -150,7 +138,8 @@ MODULE gridStateVector_mod
       integer :: fnom,fclos,nulnam,ierr
       CHARACTER(len=4) :: ANLVAR(VNL_NUMVARMAX)
       real*8 :: rhumin
-      NAMELIST /NAMSTATE/ANLVAR,rhumin,ANLTIME_BIN
+      logical          :: AddGZSfcOffset = .false. ! controls adding non-zero GZ offset to diag levels
+      NAMELIST /NAMSTATE/ANLVAR,rhumin,ANLTIME_BIN,AddGZSfcOffset
 
       if(mpi_myid.eq.0) write(*,*) 'gsv_setup: List of known (valid) variable names'
       if(mpi_myid.eq.0) write(*,*) 'gsv_setup: varNameList3D=',vnl_varNameList3D
@@ -1498,6 +1487,8 @@ MODULE gridStateVector_mod
     integer :: nlev_out, nlev_in, jlev_out, jlev_in, jlat, jlon, status, jlat2, jlon2
     real(8) :: zwb, zwt
     real(8), pointer  :: pres_out(:,:,:), pres_in(:,:,:), field_out(:,:,:,:)
+
+    nullify(pres_out,pres_in,field_out)
 
     ! define pressures on input and output levels
     ! NOTE: order of arguments for pres_in/out is (lon,lat,lev)

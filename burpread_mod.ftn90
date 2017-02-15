@@ -16,6 +16,13 @@
 
 #include "maincompileswitch.inc"
 #include "compileswitches.inc"
+!--------------------------------------------------------------------------
+!! MODULE burpRead (prefix= no standard prefix)
+!!
+!! *Purpose*: To read and update BURP observation files. Data is stored in 
+!!            obsSpaceData object.
+!!
+!--------------------------------------------------------------------------
 module  burpread_mod
 
 use burp_module
@@ -448,8 +455,11 @@ CONTAINS
       END DO
       write(*, *)  '  FILE = ',trim(brp_file),' OBS_START= ',OBS_START
 
-      ! create a new report
-      Call BURP_New(Cp_rpt, ALLOC_SPACE=10*LNMX, IOSTAT=error)
+      ! Create a new report.
+      ! The factor 12 before 'LNMX' is arbitrary.
+      ! We increase it from time to time as we encounter some
+      ! problems.
+      Call BURP_New(Cp_rpt, ALLOC_SPACE=12*LNMX, IOSTAT=error)
 
       ! LOOP ON REPORTS
       REPORTS: do kk = 1, count

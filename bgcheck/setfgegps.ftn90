@@ -14,42 +14,41 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
+!--------------------------------------------------------------------------
+!! *Purpose*: Set FGE for all GPS ZTD observations using
+!!            Jacobians from ZTD observation operator
+!!
+!! OPTION: Test ZTD operators (compares H(x+dx)-H(x) with (dH/dx)*dx
+!!         when LTESTOP = .true.)
+!!
+!! @author S. Macpherson *ARMA/MSC  December 2004
+!!
+!! Revisions:
+!!
+!!        -S. Macpherson *ARMA/MSC  18 March 2010
+!!           - add optional NL, TL and AD operator tests
+!!        -S. Macpherson *ARMA/MSC   August 2010
+!!           - use new GPS ZTD observation operator (from GPS-RO modules)
+!!        -S. Macpherson *ARMA/MSC   December 2012
+!!           - update from Rev189 to Rev213
+!!           - use new ZTD-specific GPS modules modgps04profilezd, modgps08ztdop
+!!           - LTESTOP option now set in 3dvar namelist
+!!           - if numGPSZTD=0, does nothing and returns
+!!        -S. Macpherson *ARMA/MSC   November 2014
+!!           - add surface pressure (P0) argument to call gps_structztd()
+!!
+!!v     *********************************************************************
+!!v     ****                   9 October 2015                            ****
+!!v     ****                                                             ****
+!!v     **** NOTE: Effective Rev644M, this routine is no longer used!    ****
+!!v     ****       FGE for ZTD is no longer needed for background check. ****
+!!v     ****       Routine is only called when LTESTOP=.true., in which  ****
+!!v     ****       case the operator test only is done.                  ****
+!!v     ****                                                             ****
+!!v     *********************************************************************
+!!
+!--------------------------------------------------------------------------
       SUBROUTINE SETFGEGPS(lcolumn,lcolumng,lobsSpaceData)
-!*
-!***s/r  -SETFGEGPS Sets first-guess error for all GB-GPS ZTD observations
-!*
-!*Author  : S. Macpherson *ARMA/MSC  December 2004
-!*
-!*Revisions:
-!*
-!*        S. Macpherson *ARMA/MSC  18 March 2010
-!*           - add optional NL, TL and AD operator tests
-!*        S. Macpherson *ARMA/MSC   August 2010
-!*           - use new GPS ZTD observation operator (from GPS-RO modules)
-!*        S. Macpherson *ARMA/MSC   December 2012
-!*           - update from Rev189 to Rev213
-!            - use new ZTD-specific GPS modules modgps04profilezd, modgps08ztdop
-!            - LTESTOP option now set in 3dvar namelist
-!            - if numGPSZTD=0, does nothing and returns
-!*        S. Macpherson *ARMA/MSC   November 2014
-!            - add surface pressure (P0) argument to call gps_structztd()
-!
-!     *********************************************************************
-!     ****                   9 October 2015                            ****
-!     ****                                                             ****
-!     **** NOTE: Effective Rev644M, this routine is no longer used!    ****
-!     ****       FGE for ZTD is no longer needed for background check. ****
-!     ****       Routine is only called when LTESTOP=.true., in which  ****
-!     ****       case the operator test only is done.                  ****
-!     ****                                                             ****
-!     *********************************************************************
-!
-!*    -------------------
-!**    Purpose: Set FGE for all GPS ZTD observations using
-!*                Jacobians from ZTD observation operator
-!       OPTION: Test ZTD operators (compares H(x+dx)-H(x) with (dH/dx)*dx
-!               when LTESTOP = .true.)
-!*
       use EarthConstants_mod
       use MathPhysConstants_mod
       use bufr

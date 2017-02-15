@@ -13,40 +13,32 @@
 !if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
-!
+
+!--------------------------------------------------------------------------
+!! *Purpose*: Computation of Jo and the residuals to the tovs observations
+!!
+!! @author j. halle *cmda/aes  december 14, 2004
+!!
+!!revision 001  : a. beaulne *cmda/smc  june 2006
+!!                  -modifications for AIRS (codtyp 183)
+!!
+!!revision 002  : r. sarrazin cmda  april 2008
+!!                  -modifications for CSR (codtyp 185)
+!!
+!!revision 003  : s. heilliette
+!!                  -modifications for IASI (codtyp 186)
+!!
+!!revision 004  : s. heilliette
+!!                  -modifications for RTTOV-10 (December 2010)
+!!
+!!revision 005  : s. macpherson
+!!                  -modifications for ATMS (codtyp 192)
+!!                  -modifications for CrIS (codtyp 193)
+!!revision 006  : s. macpherson  nov 2012
+!!                  - remove #include "comtovst.cdk"
+!!
+!--------------------------------------------------------------------------
 subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData,dest_obs)
-#if defined (doc)
-!
-!**s/r tovs_calc_jo  - computation of jo and the residuals to the tovs observations
-!                     (adapted from part of code of dobstovs)
-!
-!
-!author        : j. halle *cmda/aes  december 14, 2004
-!
-!revision 001  : a. beaulne *cmda/smc  june 2006
-!                  -modifications for AIRS (codtyp 183)
-!
-!revision 002  : r. sarrazin cmda  april 2008
-!                  -modifications for CSR (codtyp 185)
-!
-!revision 003  : s. heilliette
-!                  -modifications for IASI (codtyp 186)
-!
-!revision 004  : s. heilliette
-!                  -modifications for RTTOV-10 (December 2010)
-!
-!revision 005  : s. macpherson
-!                  -modifications for ATMS (codtyp 192)
-!                  -modifications for CrIS (codtyp 193)
-!revision 006  : s. macpherson  nov 2012
-!                  - remove #include "comtovst.cdk"
-!    -------------------
-!     purpose:
-!
-!arguments
-!     pjo: total value of jo for tovs
-!
-#endif
   use rmatrix_mod
   use tovs_nl_mod
   use obsSpaceData_mod

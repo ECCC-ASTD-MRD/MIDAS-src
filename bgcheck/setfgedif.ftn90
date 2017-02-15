@@ -13,19 +13,17 @@
 !if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
-!
+
+!--------------------------------------------------------------------------
+!! *Purpose*: Construct the FIRST GUESS ERROR VARIANCES from the
+!!            diff-calculated dependencies and the primary errors.
+!!
+!! @author J.M. Aparicio *MSC/ARMA Nov 2004
+!!
+!!          Adapted Nov 2012 for both refractivity and bending angle data
+!!
+!--------------------------------------------------------------------------
       SUBROUTINE SETFGEDIF(CDFAM,lcolumng,lobsSpaceData)
-!*
-!***s/r SETFGEDIF   - Interpolation of THE FIRST GUESS ERROR VARIANCES
-!*                    for data derived through the diff self-differencing variables
-!*
-!*
-!*Author  : J.M. Aparicio *MSC/ARMA Nov 2004
-!*          Adapted Nov 2012 for both refractivity and bending angle data
-!*
-!**    Purpose:  -Construct the FIRST GUESS ERROR VARIANCES from the
-!*                diff-calculated dependencies and the primary errors.
-!*
       use EarthConstants_mod
       use MathPhysConstants_mod
       use gps_mod

@@ -15,22 +15,11 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-! > MODULE LamAnalysisGrid (prefix="lag")
-!
-! Purpose: Performs horizontal grid-point variable transforms 
-!          for the limited-area computational analysis grids (extended and non-extended)
-!
-! - Subroutines
-!    lag_SetupFromHCO     (public)
-!    lag_PsiChiToUV       (public)
-!    lag_PsiChiTspsoUVAdj (public)
-!    lag_UVToVortDiv      (public)
-!    lag_mach             (public)
-!
-! - Public variables
-!
-! - Dependencies
-!   horizontalGrid_mod 
+!! MODULE LamAnalysisGrid (prefix="lag")
+!!
+!! *Purpose*: Performs horizontal grid-point variable transforms 
+!!            for the limited-area computational analysis grids (extended and non-extended).
+!!
 !--------------------------------------------------------------------------
 module LamAnalysisGrid_mod
   use earthconstants_mod, only : RA

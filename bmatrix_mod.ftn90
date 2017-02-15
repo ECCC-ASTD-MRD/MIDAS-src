@@ -14,16 +14,23 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
+!--------------------------------------------------------------------------
+!! MODULE bMatrix (prefix="bmat")
+!!
+!! *Purpose*: A higher-level module that takes care of calling subroutines 
+!!            in the lower-level modules bmatrixHI/lambmatrixHI and bmatrixEnsemble.
+!!
+!--------------------------------------------------------------------------
 MODULE BMatrix_mod
   use mpivar_mod
-  use bMatrixHI
-  use bMatrixEnsemble
+  use bMatrixHI_mod
+  use bMatrixEnsemble_mod
   use controlVector_mod
   use gridStateVector_mod
   use LAMbMatrixHI_mod
   use horizontalCoord_mod
   use timeCoord_mod
-  use globalSpectralTransform
+  use globalSpectralTransform_mod
   implicit none
   save
   private

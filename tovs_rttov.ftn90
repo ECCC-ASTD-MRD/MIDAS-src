@@ -13,15 +13,12 @@
 !if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
-!
-subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
-!
-!**s/r tovs_rttov  - Computation of forward radiance with rttov_direct
-!                   (adapted from part of code of dobstovs)
-!
-!
-!author        : j. halle *cmda/aes  april 19, 2005
-!
+
+!--------------------------------------------------------------------------
+!! *Purpose*: Computation of forward radiance with rttov_direct
+!!
+!! @author j. halle *cmda/aes  april 19, 2005
+!!
 !revision 001  : a. beaulne *cmda/msc  june 2006
 !                  - modifications for AIRS : store new variables and add bgcheck
 !                  - add new surface emissivities for IR sensors
@@ -33,16 +30,15 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
 !                 - adaptation to rttov 10.0 (october 2010)
 !revision 005  : s. macpherson  nov 2012
 !                  - remove #include "comtovst.cdk"
-!    -------------------
-!     purpose:
-!
+!--------------------------------------------------------------------------
+subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
   use MathPhysConstants_mod
   use tovs_nl_mod
   use mod_iratlas
   use multi_ir_bgck_mod
   use obsSpaceData_mod
   use columnData_mod
-  use emissivities
+  use emissivities_mod
   Use rttov_const, only : sensor_id_mw,gas_id_watervapour,surftype_land, &
        surftype_seaice
   use utilities_mod

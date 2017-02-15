@@ -15,30 +15,20 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-! MODULE bMatrixHI (Background-error Covariance Matrix estimated
-!                       using lagged forecast differences or ensemble 
-!                       members and based on horizontally homogeneous/isotropic
-!                       correlations.  prefix="bhi")
-!
-! Purpose: Performs transformation from control vector to analysis increment 
-!          using the spatially localized ensemble covariance matrix
-!
-! Subroutines:
-!    bhi_setup (public)
-!    bhi_BSqrt (public)
-!    bhi_BSqrtAd (public)
-!    cain
-!    cainAd
-!
-! Dependencies:
-!    globalSpectralTransform
+!! MODULE bMatrixHI (prefix="bhi")
+!!
+!! *Purpose*: Performs transformation from control vector to analysis increment 
+!!            using the background-error covariance matrix based on homogeneous
+!!            and isotropic correlations. This is the Global version. A separate 
+!!            module exists for limited-area applications.
+!!
 !--------------------------------------------------------------------------
-MODULE BmatrixHI
+MODULE BmatrixHI_mod
   use mpivar_mod
   use MathPhysConstants_mod
   use earthConstants_mod
   use gridStateVector_mod
-  use globalSpectralTransform
+  use globalSpectralTransform_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use varNameList_mod
@@ -3223,4 +3213,4 @@ CONTAINS
 
   END SUBROUTINE uvwi2uv
 
-END MODULE BmatrixHI
+END MODULE BmatrixHI_mod

@@ -14,16 +14,12 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-
 !--------------------------------------------------------------------------
-! MODULE spectralTransform_mod,(prefix="spt")
-!
-! Purpose:
-!
-! Subroutines:
-!
-! Dependencies:
-!    none
+!! MODULE spectralTransform_mod (prefix="spt")
+!!
+!! *Purpose*: The name of this module does not seem appropriate! It only has
+!!            a subroutine for computing spectral filter functions
+!!
 !--------------------------------------------------------------------------
 MODULE spectralTransform_mod
   implicit none

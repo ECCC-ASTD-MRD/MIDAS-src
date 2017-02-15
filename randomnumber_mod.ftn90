@@ -15,16 +15,10 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-! MODULE randumNumber_mod,(prefix="rng")
-!
-! Purpose: A random number generator (RNG) module
-!
-! Subroutines:
-!    rng_setup       (public)
-!    rng_gaussian    (public)
-!
-! Dependencies:
-!    none
+!! MODULE randumNumber_mod (prefix="rng")
+!!
+!! *Purpose*: A Gaussian random number generator (RNG) module
+!!
 !--------------------------------------------------------------------------
 module randomnumber_mod
   implicit none

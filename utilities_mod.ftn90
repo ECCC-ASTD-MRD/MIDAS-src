@@ -14,16 +14,11 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-
 !--------------------------------------------------------------------------
-! MODULE utilities_mod,(prefix="utl")
-!
-! Purpose: A utlity routines docker
-!
-! Subroutines:
-!
-! Dependencies:
-!    none
+!! MODULE utilities_mod (prefix="utl")
+!!
+!! *Purpose*: A place to collect numerous simple utlity routines
+!!
 !--------------------------------------------------------------------------
 module utilities_mod
   implicit none
@@ -354,15 +349,22 @@ contains
     INTEGER, intent(in) :: KN
     REAL(8), intent(inout) :: PA(KN,KN)
     REAL(8), intent(in) ::ZSIGN
-    LOGICAL, intent(in) :: print_information
+    LOGICAL, intent(in), optional :: print_information
     !
     ! Local variables
     !
+    LOGICAL :: print_information_local
     INTEGER JI, J, INFO, IER, IWORK
     REAL*8 size_zwork
     REAL*8, allocatable :: ZWORK(:), ZRESULT(:,:), ZEIGENV2(:,:), ZEIGEN(:,:), ZEIGENV(:)
 
-    if (print_information) then
+    if (present(print_information)) then
+       print_information_local = print_information
+    else
+       print_information_local = .false.
+    end if
+
+    if (print_information_local) then
        WRITE(*,*)' MATSQRT-Sqrt matrix of a symmetric matrix'
        WRITE(*,*)' zsign= ',zsign
        WRITE(*,*)'  -----------------------------------------------'
@@ -392,7 +394,7 @@ contains
     CALL DSYEV('V','U',KN, ZEIGEN,KN, ZEIGENV,ZWORK, IWORK, INFO )
     deallocate(zwork)
     !
-    if (print_information) then
+    if (print_information_local) then
        WRITE(*,'(1x,"ORIGINAL EIGEN VALUES: ")')
        WRITE(*,'(1x,10f7.3)') (ZEIGENV(JI),JI=1,KN)
     end if
@@ -408,12 +410,12 @@ contains
        ZEIGENV2(JI,JI)= ZEIGENV(JI)**(0.5d0*ZSIGN)
     END DO
     !
-    if (print_information) then
+    if (print_information_local) then
        WRITE(*,'(1x,"SQRT OF ORIGINAL EIGEN VALUES: ")')
        WRITE(*,'(1x,10f7.3)') (ZEIGENV2(JI,JI),JI=1,KN)
     end if
     !
-    IF (ZSIGN < 0. .and. print_information) THEN
+    IF (ZSIGN < 0. .and. print_information_local) THEN
        Write(*,'(A,1x,e14.6)') "Condition number:", &
             maxval(ZEIGENV)/minval(ZEIGENV)
     ENDIF
@@ -429,7 +431,7 @@ contains
     !
     deallocate(ZRESULT,ZEIGEN,ZEIGENV2,ZEIGENV)
 
-    if (print_information) then
+    if (print_information_local) then
        WRITE(*,*)'MATSQRT-----------Done--------------- '
        WRITE(*,*)' '
     end if

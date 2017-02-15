@@ -13,16 +13,12 @@
 !if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
-!
-subroutine tovs_rttov_ad(lobsSpaceData)
-#if defined (doc)
-!
-!**s/r tovs_rttov_ad  - Adjoint of computation of radiance with rttov_ad
-!                (adapted from part of code of avtov)
-!
-!
-!author        : j. halle *cmda/aes  april 19, 2005
-!
+
+!--------------------------------------------------------------------------
+!! *Purpose*: Adjoint of computation of radiance with rttov_ad
+!!
+!! @author j. halle *cmda/aes  april 19, 2005
+!!
 !revision 001  : a. beaulne *cmda/smc  june 2006
 !                  -addition of ozone and IR surface emissivities
 !revision 002  : r. sarrazin cmda  april 2008
@@ -33,12 +29,8 @@ subroutine tovs_rttov_ad(lobsSpaceData)
 !              - adaptation to rttov 10.0 (october 2010)
 !revision 004  : s. macpherson  nov 2012
 !                  - remove #include "comtovst.cdk"
-!    -------------------
-!     purpose:
-!
-!arguments
-!
-#endif
+!--------------------------------------------------------------------------
+subroutine tovs_rttov_ad(lobsSpaceData)
   use MathPhysConstants_mod
   use tovs_nl_mod
   use tovs_lin_mod

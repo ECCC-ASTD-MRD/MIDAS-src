@@ -14,6 +14,13 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
+!--------------------------------------------------------------------------
+!! MODULE obsFilter (prefix="filt")
+!!
+!! *Purpose*: Various types of filters that are applied to the observations
+!!            mostly to reject them so they will not be assimilated.
+!!
+!--------------------------------------------------------------------------
 module obsFilter_mod
   use topLevelControl_mod
   use mpivar_mod
@@ -209,7 +216,7 @@ contains
     type(struct_obs) :: obsSpaceData
     integer bodyIndex,headerIndex
     integer ipres,ivco,ierr,loopIndex
-    integer idburp,ivnm,iflg,ibad,iknt
+    integer idburp,ivnm,iflg,ibad,iknt,iknt_mpiglobal
     integer ilansea
     logical llok,llrej,llbogus
 
@@ -287,13 +294,13 @@ contains
 
     enddo body
 
-    call rpn_comm_allreduce(iknt,iknt,1,"MPI_INTEGER","MPI_SUM","GRID",ierr)
-    if(mpi_myid.eq.0) write(*,*) '  Number of data to be assimilated:',iknt
+    call rpn_comm_allreduce(iknt,iknt_mpiglobal,1,"MPI_INTEGER","MPI_SUM","GRID",ierr)
+    if(mpi_myid.eq.0) write(*,*) '  Number of data to be assimilated:',iknt_mpiglobal
 
     if(mpi_myid.eq.0) write(*,*) 'end of filt_suprep'
 
     ! abort if there is no data to be assimilated
-    if (iknt.eq.0 ) then
+    if (iknt_mpiglobal.eq.0 ) then
        call utl_abort('SUPREP. NO DATA TO BE ASSIMILATED')
     endif
 

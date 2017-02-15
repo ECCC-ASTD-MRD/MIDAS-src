@@ -14,20 +14,15 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-module ozoneclim
-
 !************************************************************************
-!*
-!*       MODULE OZONECLIM
-!*       -----------------
-!*
-!*       PURPOSE: CLIMATOLOGICAL OZONE (1998)
-!*
-!*       AUTHOR:   A. BEAULNE (CMDA/SMC) May 2006
-!*
-!*       REVISION:
-!*
+!! MODULE ozoneClim (prefix="ozo")
+!!
+!! *PURPOSE*: Climatological ozone (1998)
+!!
+!! @author A. BEAULNE (CMDA/SMC) May 2006
+!!
 !************************************************************************
+module ozoneClim_mod
   use obsSpaceData_mod
   use presProfileOperators_mod
   use utilities_mod
@@ -186,4 +181,4 @@ END SUBROUTINE OZO_READ_CLIMATOLOGY
 
 
 
-End module ozoneclim
+End module ozoneClim_mod

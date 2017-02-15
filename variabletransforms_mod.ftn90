@@ -15,17 +15,11 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-! MODULE variableTransforms,(prefix="vtr")
-!
-! Purpose: To store various functions for variable transforms using inputs from
-!          gridStateVector(s). Outputs are also placed in a GridStateVector
-!
-! Subroutines:
-!    vtr_setup       (public)
-!    vtr_Transform   (public)
-!
-! Dependencies:
-!    gridStateVector
+!! MODULE variableTransforms (prefix="vtr")
+!!
+!! *Purpose*: To store various functions for variable transforms using inputs from
+!!            gridStateVector(s). Outputs are also placed in a GridStateVector.
+!!
 !--------------------------------------------------------------------------
 MODULE variableTransforms_mod
   use mpivar_mod
@@ -216,7 +210,7 @@ CONTAINS
     lq_ptr => gsv_getField_r8(statevector,'HU')
 
     do indexStep = 1, statevector%numStep
- !$OMP PARALLEL DO PRIVATE(i,j,k)
+!$OMP PARALLEL DO PRIVATE(i,j,k)
        do k = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
           do j = statevector%myLatBeg, statevector%myLatEnd
              do i = statevector%myLonBeg, statevector%myLonEnd
@@ -224,7 +218,7 @@ CONTAINS
              end do
           end do
        end do
- !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
    end do
 
   end subroutine LQtoHU
@@ -244,7 +238,7 @@ CONTAINS
     lq_ptr   => gsv_getField_r8(statevector,'HU')
 
     do indexStep = 1, statevector%numStep
- !$OMP PARALLEL DO PRIVATE(i,j,k)
+!$OMP PARALLEL DO PRIVATE(i,j,k)
        do k = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
           do j = statevector%myLatBeg, statevector%myLatEnd
              do i = statevector%myLonBeg, statevector%myLonEnd
@@ -252,7 +246,7 @@ CONTAINS
              end do
           end do
        end do
- !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
     end do
 
   end subroutine HUtoLQ
@@ -310,7 +304,7 @@ CONTAINS
              end do
           end do
        end do
- !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
     end do
 
   end subroutine HUtoLQ_tlm

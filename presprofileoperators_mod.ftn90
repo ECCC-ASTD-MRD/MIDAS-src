@@ -13,7 +13,14 @@
 !if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
-!
+
+!--------------------------------------------------------------------------
+!! MODULE presProfileOperators (prefix="ppo")
+!!
+!! *Purpose*: Vertical interpolation subroutines, including the special routines
+!!            designed to interpolate to the (widely spaced) RTTOV pressure levels.
+!!
+!--------------------------------------------------------------------------
 module presProfileOperators_mod
   implicit none
   save

@@ -15,15 +15,10 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-! MODULE controlVector (The control vector and related information.  prefix="cvm")
-!
-! Purpose: 
-!
-! Subroutines:
-!    cvm_setup (public)
-!
-! Dependencies:
-!
+!! MODULE controlVector (prefix="cvm")
+!!
+!! *Purpose*: The control vector and related information.  
+!!
 !--------------------------------------------------------------------------
 MODULE ControlVector_mod
   use utilities_mod

@@ -15,20 +15,11 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-! > MODULE CalcStatsLam_mod (prefix="csl")
-!
-! Purpose: Compute homogeneous and isotropic background error covariances 
-!          from forecast error estimate in model variable space
-!
-! - Subroutines
-!    csl_Setup        (public)
-!    csl_computeStats (public)
-!
-! - Public variables
-!    NONE
-!
-! - Dependencies
-!    lamspectraltransform
+!! MODULE CalcStatsLam (prefix="csl")
+!!
+!! *Purpose*: Compute homogeneous and isotropic background error covariances 
+!!            from forecast error estimate in model variable space (limited-area version).
+!!
 !--------------------------------------------------------------------------
 module calcstatslam_mod
   use gridStateVector_mod

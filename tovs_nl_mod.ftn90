@@ -14,6 +14,13 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
+!--------------------------------------------------------------------------
+!! MODULE tovs_nl (prefix= no defined prefix)
+!!
+!! *Purpose*: Derived types, public variables and procedures related to the nonlinear
+!!            version of RTTOV
+!!
+!--------------------------------------------------------------------------
 Module tovs_nl_mod
   use mpi_mod
   Use rttov_types, only : &

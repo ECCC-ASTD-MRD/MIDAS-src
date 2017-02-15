@@ -15,16 +15,11 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-! > MODULE WindRotation (prefix="uvr")
-!
-! Purpose: To transform winds FROM the rotated spherical 
-!          coordinate system TO the non-rotated spherical coordinate system.
-!
-! - Subroutines
-!   uvr_Setup (public)
-!
-! - Dependencies
-!   horizontalcoord_mod 
+!! MODULE WindRotation (prefix="uvr")
+!!
+!! *Purpose*: To transform winds FROM the rotated spherical 
+!!            coordinate system TO the non-rotated spherical coordinate system.
+!!
 !--------------------------------------------------------------------------
 module WindRotation_mod
   use MathPhysConstants_mod, only: MPC_RADIANS_PER_DEGREE_R8,MPC_DEGREES_PER_RADIAN_R8, MPC_PI_R8

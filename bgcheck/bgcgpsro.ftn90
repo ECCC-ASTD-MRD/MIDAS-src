@@ -13,18 +13,17 @@
 !if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
-!
+
+!--------------------------------------------------------------------------
+!!  *Purpose*: Set background check flag on GPSRO data if ABS(O-P)/P is too large
+!!
+!!  @author P. KOCLAS. Mar 2008
+!!  Modified: 
+!!            -J.M. Aparicio, Dec 2012.
+!!                -Simplified and adapted to both refractivity and bending angle data
+!!
+!--------------------------------------------------------------------------
       SUBROUTINE BGCGPSRO(lcolumnhr,lobsSpaceData)
-!*
-!***s/r  BGCGPSRO - Set backcground check flags to the GPSRO observations
-!*
-!*Author  : P. KOCLAS. Mar 2008
-!*Modified: J.M. Aparicio, Dec 2012.
-!*          Simplified and adapted to both refractivity and bending angle data
-!*    -------------------
-!**    Purpose:
-!*   Set background check flag on GPSRO data if ABS(O-P)/P is too large
-!*
       use EarthConstants_mod
       use MathPhysConstants_mod
       use obsSpaceData_mod

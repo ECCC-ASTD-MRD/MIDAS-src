@@ -14,6 +14,13 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
+!--------------------------------------------------------------------------
+!! MODULE mpivar (prefix="mpivar")
+!!
+!! *Purpose*: Subroutine and public variables related to the mpi decomposition
+!!            specific to the OAVAR code. Depends on the more general mpi_mod module.
+!!
+!--------------------------------------------------------------------------
 module mpivar_mod
   use mpi_mod
   use utilities_mod

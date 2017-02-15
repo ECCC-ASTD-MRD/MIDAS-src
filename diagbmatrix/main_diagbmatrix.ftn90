@@ -14,10 +14,12 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
+!--------------------------------------------------------------------------
+!!
+!! *Purpose*: Main program for computing diagnostics of the B matrix
+!!
+!--------------------------------------------------------------------------
 program main_diagBmatrix
-  !
-  ! program: diagBmatrix  - Program to compute diagnostics of the B matrix
-  !
   use mpivar_mod
   use MathPhysConstants_mod
   use controlVector_mod

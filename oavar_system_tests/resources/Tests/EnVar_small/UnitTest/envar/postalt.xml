@@ -1,0 +1,3 @@
+<NODE_RESOURCES>
+  <BATCH machine="${BACKEND}" queue="xfer" wallclock="20" catchup="2" cpu="1"/>
+</NODE_RESOURCES>

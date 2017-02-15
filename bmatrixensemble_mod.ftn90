@@ -15,31 +15,17 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-! MODULE BmatrixEnsemble (Background-error Covariance Matrix estimated
-!                         using ensemble members and spatial localization
-!                         prefix="ben")
-!
-! Purpose: Performs transformation from control vector to analysis increment 
-!          using the spatially localized ensemble covariance matrix
-!
-! Subroutines:
-!    ben_setup (public)
-!    ben_BSqrt (public)
-!    ben_BSqrtAd (public)
-!    setupLocalization
-!    setupEnsemble
-!    localizationSqrt
-!    localizationSqrtAd
-!    addEnsMember
-!    addEnsMemberAd
-!
-! Dependencies:
-!    globalSpectralTransform
+!! MODULE BmatrixEnsemble (prefix="ben")
+!!
+!! *Purpose*: Performs transformation from control vector to analysis increment 
+!!            using the spatially localized ensemble covariance matrix. This 
+!!            module works for both global and limited-area applications.
+!!
 !--------------------------------------------------------------------------
-MODULE BmatrixEnsemble
+MODULE BmatrixEnsemble_mod
   use mpivar_mod
   use gridStateVector_mod
-  use globalSpectralTransform
+  use globalSpectralTransform_mod
   use lamSpectralTransform_mod
   use horizontalCoord_mod
   use verticalCoord_mod
@@ -61,34 +47,28 @@ MODULE BmatrixEnsemble
   logical             :: initialized = .false.
 
   integer,parameter   :: maxNumLevels=200
-  real(8)             :: scaleFactor(maxNumLevels)
-  real(8)             :: scaleFactorHumidity(maxNumLevels)
   real(8),allocatable :: scaleFactor_M(:), scaleFactor_T(:)
 
-  integer             :: ntrunc
   integer,allocatable :: nip1_M(:),nip1_T(:)
   integer             :: nj,ni,lonPerPE,myLonBeg,myLonEnd,latPerPE,myLatBeg,myLatEnd
   integer             :: nLevInc_M,nLevInc_T,nkgdimInc,nLevEns_M,nLevEns_T,nkgdimEns,topLevIndex_M,topLevIndex_T
   integer             :: mynBeg,mynEnd,mynSkip,mynCount
   integer             :: mymBeg,mymEnd,mymSkip,mymCount
   integer             :: nla_mpiglobal,nla_mpilocal,maxMyNla,nphase
-  integer             :: nEns,cvDim_mpilocal,cvDim_mpiglobal
+  integer             :: cvDim_mpilocal,cvDim_mpiglobal
   integer             :: numStep, numStepAmplitude
   integer             :: ngposituu,ngpositvv,ngposittt,ngpositq,ngpositps,ngposittg
   integer             :: gstID
   integer             :: ensembleFileExtLength
+  integer             :: numSubEns
   integer,allocatable :: dateStampList(:)
-
-  character(len=256)  :: enspathname,ensfilebasename
   character(len=8)    :: datestr_last
   character(len=2)    :: hourstr_last
 
   integer,external    :: get_max_rss
 
   ! Localizations
-  character(len=256)  :: LocalizationType
   integer, parameter  :: maxNumLocalLength = 20
-  integer             :: waveBandPeaks(maxNumLocalLength)
   integer             :: nWaveBand
   
   type :: struct_ensLoc
@@ -103,11 +83,11 @@ MODULE BmatrixEnsemble
   end type struct_ensPert
   type(struct_ensPert), pointer :: ensPerts(:,:)
 
-  type(struct_gsv)   :: statevector_ensMean
+  type(struct_gsv), pointer     :: statevector_ensMean(:)
 
   real(8), parameter :: rsq2 = sqrt(2.0d0)
 
-  character(len=2)   :: ctrlVarHumidity,inputVarHumidity
+  character(len=2)   :: inputVarHumidity
 
   logical            :: gsv_HUcontainsLQ
 
@@ -126,7 +106,6 @@ MODULE BmatrixEnsemble
   integer, pointer    :: ilaList_mpilocal(:)
 
   ! Amplitude advection
-  logical              :: advectAmplitude
   real(8)              :: advectAmplitudeFactor
   integer, allocatable :: lonIndexAdvect(:,:,:,:)
   integer, allocatable :: latIndexAdvect(:,:,:,:)
@@ -134,6 +113,22 @@ MODULE BmatrixEnsemble
   real(8), allocatable :: interpWeightAdvect_BR(:,:,:,:)
   real(8), allocatable :: interpWeightAdvect_TL(:,:,:,:)
   real(8), allocatable :: interpWeightAdvect_TR(:,:,:,:)
+
+  ! Namelist variables
+  integer             :: nEns ! number of ensemble members
+  real(8)             :: scaleFactor(maxNumLevels)
+  real(8)             :: scaleFactorHumidity(maxNumLevels)
+  integer             :: ntrunc
+  character(len=256)  :: enspathname,ensfilebasename
+  real(8)             :: hLocalize(maxNumLocalLength)
+  real(8)             :: vLocalize(maxNumLocalLength)
+  logical             :: TweakTG
+  character(len=256)  :: LocalizationType
+  integer             :: waveBandPeaks(maxNumLocalLength)
+  logical             :: diagnostic
+  character(len=2)    :: ctrlVarHumidity
+  logical             :: advectAmplitude
+  logical             :: removeSubEnsMeans
 
 CONTAINS
 
@@ -151,9 +146,6 @@ CONTAINS
 
     character(len=15) :: ben_mode
 
-    real(8)             :: hLocalize(maxNumLocalLength)
-    real(8)             :: vLocalize(maxNumLocalLength)
-
     real(8) :: zps, delhh
 
     real(8),allocatable :: pressureProfileEns_M(:)
@@ -167,18 +159,20 @@ CONTAINS
     integer        :: stamp_last,newdate,ndate,ntime
     character(len=256) :: ensFileName
     character(len=4)   :: ensNumber
+    integer        :: length_enspathname
+    character(len=256) :: enspathname_nml
 
-    logical        :: TweakTG,diagnostic,lExists
+    logical        :: lExists
 
     !namelist
     NAMELIST /NAMBEN/nEns,scaleFactor,scaleFactorHumidity,ntrunc,enspathname,ensfilebasename, &
-                     hLocalize,vLocalize,tweakTG,LocalizationType, &
-                     waveBandPeaks,diagnostic,ctrlVarHumidity,advectAmplitudeFactor
+                     hLocalize,vLocalize,tweakTG,LocalizationType,waveBandPeaks, &
+                     diagnostic,ctrlVarHumidity,advectAmplitudeFactor,removeSubEnsMeans
 
     call tmg_start(12,'BEN_SETUP')
 
     !
-    !- 1.  Read namelist-dependent options
+    !- 1.1  Read namelist-dependent options
     !
 
     ! parameters from namelist
@@ -198,6 +192,7 @@ CONTAINS
     tweakTG          = .false.
     ctrlVarHumidity  = 'LQ'
     advectAmplitudeFactor = 0.0D0
+    removeSubEnsMeans = .false.
     inputVarHumidity  = 'HU'
 
     nulnam = 0
@@ -214,6 +209,35 @@ CONTAINS
       initialized = .true.
       return
     endif
+
+    !
+    !- 1.2  Read environment variable for ensemble file path
+    !
+
+    ierr = 0
+    enspathname_nml = enspathname
+    call get_environment_variable('OAVAR_ENSPATHNAME',enspathname,length_enspathname,ierr,.true.)
+    if (ierr.eq.-1) then
+       write(*,*) 'ben_setup: Problem when getting the environment variable OAVAR_ENSPATHNAME'
+       write(*,*) '           The length of the variable ''enspathname'' is too short to hold the complete value'
+       call utl_abort('ben_setup')
+    end if
+    if (ierr.gt.1) then
+       write(*,*) 'ben_setup: Problem when getting the environment variable OAVAR_ENSPATHNAME'
+       write(*,*) '           Rely on the value in the namelist NAMBEN'
+       enspathname = enspathname_nml
+    end if
+    if (ierr.eq.1) then
+       write(*,*) 'ben_setup: The environment variable OAVAR_ENSPATHNAME does not exist'
+       write(*,*) '           Rely on the value in the namelist NAMBEN'
+       enspathname = enspathname_nml
+    end if
+    if (ierr.eq.0) then
+       write(*,*) 'ben_setup: The environment variable OAVAR_ENSPATHNAME does exist'
+       write(*,*) '           Retrieve it'
+    end if
+
+    write(*,*) 'ben_setup: enspathname = ', trim(enspathname)
 
     !
     !- 2.  Settings
@@ -456,7 +480,7 @@ CONTAINS
       allocate(pressureProfileEns_M(nLevEns_M),stat=ierr)
       pressureProfileEns_M(1:nLevEns_M) = pressureProfileInc_M(topLevIndex_M:nLevInc_M)
 
-      call setupLocalization(hLocalize, vLocalize, pressureProfileEns_M) ! IN
+      call setupLocalization(pressureProfileEns_M) ! IN
 
       deallocate(pressureProfileEns_M)
       deallocate(pressureProfileInc_M)
@@ -555,7 +579,7 @@ CONTAINS
 !--------------------------------------------------------------------------
   SUBROUTINE BEN_finalize()
     implicit none
-    integer :: memberIndex, waveBandIndex
+    integer :: memberIndex, waveBandIndex, subEnsIndex
 
     write(*,*) 'ben_finalize: deallocating B_ensemble arrays'
     do waveBandIndex = 1, nWaveBand
@@ -570,7 +594,9 @@ CONTAINS
        deallocate(ensLocal(waveBandIndex)%Vert)
     end do
     deallocate(ensLocal)
-    call gsv_deallocate(statevector_ensMean)
+    do subEnsIndex = 1, numSubEns
+      call gsv_deallocate(statevector_ensMean(subEnsIndex))
+    end do
 
   END SUBROUTINE BEN_finalize
 
@@ -618,16 +644,18 @@ CONTAINS
 
     real(8) :: dnens,multfactor,multfactor2
 
-    integer :: ji,jj,jstep,jk,jvar,memberIndex,waveBandIndex,jpe,jlonband,jlatband
+    integer :: ji,jj,jstep,jk,jvar,memberIndex,waveBandIndex,jpe,jlonband,jlatband,subEnsIndex
     integer :: memberIndex2,batchnum,nsize,status,pe_src,pe_dest
     integer :: yourid,youridx,youridy
     integer :: kulin
     integer :: readFilePE(1000)
     integer :: memberIndexOffset, totalEnsembleSize
+    integer, allocatable :: subEnsIndexList(:), nEnsSubEns(:)
 
     logical :: lExists
 
     character(len=32) :: envVariable
+    character(len=256), parameter :: subEnsIndexFileName = 'subEnsembleIndex.txt'
 
     integer :: length_envVariable
     integer :: ni_expected, nj_expected, ni_transfer, nj_transfer, nlev
@@ -733,7 +761,7 @@ CONTAINS
     etiket = ' '
 
     if ( hco_anl%global ) then
-       ni_expected = ni+1 ! based on the actual EnKF outputs
+       ni_expected = ni
        nj_expected = nj
        ni_transfer = ni
        nj_transfer = nj
@@ -778,7 +806,7 @@ CONTAINS
             if ( ikey < 0 ) then
                call utl_abort('ben_setupensemble: TG was not found. Cannot determine the horizontal grid size.')
             end if
-            if ( ni_fst /= ni_expected .or. nj_fst /= nj_expected ) then
+            if ( (ni_fst /= ni_expected .and. ni_fst /= ni_expected+1) .or. nj_fst /= nj_expected ) then
                write(*,*)
                write(*,*) 'ben_setupensemble: Invalid horizontal dimensions ...'
                write(*,*) 'Found ni,nj =', ni_fst, nj_fst
@@ -951,34 +979,67 @@ CONTAINS
     !- 3. From ensemble FORECASTS to ensemble PERTURBATIONS
     !
 
-    ! remove mean, normalize and apply scale factors
-    call gsv_setVco(statevector_ensMean,vco_ens)
-    call gsv_setHco(statevector_ensMean,hco_anl)
-    call gsv_allocate(statevector_ensMean,numStep,  &
-                      datestamp=tim_getDatestamp(),mpi_local=.true.)
-    call gsv_zero(statevector_ensMean)
+    ! read sub-ensemble index list from file, if it exists
+    allocate(subEnsIndexList(nEns))
+    if( removeSubEnsMeans ) then
+      write(*,*) 'checking in ensemble directory if file with sub-ensemble index list exists: ',subEnsIndexFileName
+      inquire(file=trim(enspathname) // trim(subEnsIndexFileName),exist=lexists)
+      if( lexists ) then
+        kulin = 0
+        ierr = fnom(kulin,trim(enspathname) // trim(subEnsIndexFileName),'FMT+SEQ+R/O',0)
+        do memberIndex = 1, nEns
+          read(kulin,*) memberIndex2, subEnsIndexList(memberIndex)
+          write(*,*) 'read from sub-ensemble index list: ',memberIndex, memberIndex2, subEnsIndexList(memberIndex)
+        end do
+        ierr   = fclos(kulin)
+      else
+        call utl_abort('ben_setupEnsemble: could not find file with sub-ensemble index list')
+      end if
+    else
+      subEnsIndexList(:) = 1
+    end if
+    numSubEns = maxval(subEnsIndexList(:))
+    allocate(nEnsSubEns(numSubEns))
+    nEnsSubEns(:) = 0
+    do memberIndex = 1, nEns
+      nEnsSubEns(subEnsIndexList(memberIndex)) = nEnsSubEns(subEnsIndexList(memberIndex)) + 1
+    enddo
+    write(*,*) 'number of sub-ensembles = ', numSubEns
+    write(*,*) 'number of members in each sub-ensemble = ', nensSubEns(:)
 
-    multfactor = 1.0d0/dble(nEns)
+    ! remove mean, normalize and apply scale factors
+    allocate(statevector_ensMean(numSubEns))
+    do subEnsIndex = 1, numSubEns
+      call gsv_setVco(statevector_ensMean(subEnsIndex), vco_ens)
+      call gsv_setHco(statevector_ensMean(subEnsIndex), hco_anl)
+      call gsv_allocate(statevector_ensMean(subEnsIndex), numStep,  &
+                        datestamp=tim_getDatestamp(), mpi_local=.true.)
+      call gsv_zero(statevector_ensMean(subEnsIndex))
+    end do
+
 !$OMP PARALLEL DO PRIVATE (jstep,jk,jvar,memberIndex,multfactor2,ptr4d_r4,ptr4d_r8)
     do jstep = 1, numStep
 
       ! compute mean
-      ptr4d_r8 => gsv_getField_r8(statevector_ensMean)
       do memberIndex = 1, nEns
+        ptr4d_r8 => gsv_getField_r8(statevector_ensMean(subEnsIndexList(memberIndex)))
         ptr4d_r4 => gsv_getField_r4(ensPerts(1,memberIndex)%statevector_r4)
         ptr4d_r8(:,:,:,jstep) = ptr4d_r8(:,:,:,jstep) + dble(ptr4d_r4(:,:,:,jstep))
       enddo
-      ptr4d_r8(:,:,:,jstep) = ptr4d_r8(:,:,:,jstep)*multFactor
+      do subEnsIndex = 1, numSubEns
+        ptr4d_r8 => gsv_getField_r8(statevector_ensMean(subEnsIndex))
+        ptr4d_r8(:,:,:,jstep) = ptr4d_r8(:,:,:,jstep)/dble(nEnsSubEns(subEnsIndex))
+      end do
  
       ! remove mean, normalize and apply scale factors
       do jvar = 1, vnl_numvarmax
         if ( .not. gsv_varExist(statevector_ensFcst_r4, vnl_varNameList(jvar)) ) cycle 
 
-        ptr4d_r8 => gsv_getField_r8(statevector_ensMean, vnl_varNameList(jvar))
         do memberIndex = 1, nEns
+          ptr4d_r8 => gsv_getField_r8(statevector_ensMean(subEnsIndexList(memberIndex)), vnl_varNameList(jvar))
           ptr4d_r4 => gsv_getField_r4(ensPerts(1,memberIndex)%statevector_r4, vnl_varNameList(jvar))
 
-          do jk = 1, gsv_getNumLev(statevector_ensMean, vnl_varLevelFromVarname(vnl_varNameList(jvar)))
+          do jk = 1, gsv_getNumLev(statevector_ensMean(1), vnl_varLevelFromVarname(vnl_varNameList(jvar)))
             if ( vnl_varLevelFromVarname(vnl_varNameList(jvar)) == 'MM' ) then
               multFactor2 = scaleFactor_M(jk)
             elseif ( vnl_varLevelFromVarname(vnl_varNameList(jvar)) == 'TH' ) then
@@ -987,7 +1048,7 @@ CONTAINS
               multFactor2 = scaleFactor_T(nLevEns_T)
             endif
 
-            multFactor2 = multFactor2/sqrt(1.0d0*dble(nEns-1))
+            multFactor2 = multFactor2/sqrt(1.0d0*dble(nEns-numSubEns))
 
             if (trim(vnl_varNameList(jvar)) == 'HU') then
               multFactor2 = multFactor2*scaleFactorHumidity(jk)
@@ -1671,10 +1732,10 @@ CONTAINS
 !--------------------------------------------------------------------------
 ! setupLocalization
 !--------------------------------------------------------------------------
-  SUBROUTINE setupLocalization(hLocalize,vLocalize,pressureProfile)
+  SUBROUTINE setupLocalization(pressureProfile)
     implicit none
 
-    real(8), intent(in) :: hLocalize(:),vLocalize(:),pressureProfile(:)
+    real(8), intent(in) :: pressureProfile(:)
 
     real(8)  :: zlc,zr,zpole,zcorr
 
@@ -2710,7 +2771,7 @@ CONTAINS
     do jstep = 1, numStep
       write(filenumber,'(i3.3)') jstep
       filename = './ensmean_' // filenumber // '.fst'
-      call gsv_writeToFileMPI(statevector_ensmean,filename,'ENSMEAN',indexStep_in=jstep)
+      call gsv_writeToFileMPI(statevector_ensmean(1),filename,'ENSMEAN',indexStep_in=jstep)
     enddo
 
     if(mpi_myid==0) write(*,*) 'setupAdvectAmplitude: starting'
@@ -2742,11 +2803,11 @@ CONTAINS
 
       ! gather the global winds for this level
       nsize = lonPerPE*latPerPE*numStep
-      ptr4d_r8 => gsv_getField_r8(statevector_ensMean,'UU')
+      ptr4d_r8 => gsv_getField_r8(statevector_ensMean(1),'UU')
       call rpn_comm_allgather(ptr4d_r8(:,:,jlev,:), nsize, "mpi_double_precision",  &
                               uu_mpiglobal_tiles(:,:,:,:),     nsize, "mpi_double_precision",  &
                               "GRID", ierr )
-      ptr4d_r8 => gsv_getField_r8(statevector_ensMean,'VV')
+      ptr4d_r8 => gsv_getField_r8(statevector_ensMean(1),'VV')
       call rpn_comm_allgather(ptr4d_r8(:,:,jlev,:), nsize, "mpi_double_precision",  &
                               vv_mpiglobal_tiles(:,:,:,:),     nsize, "mpi_double_precision",  &
                               "GRID", ierr )
@@ -2757,9 +2818,9 @@ CONTAINS
           procID = procIDx + procIDy*mpi_npex
 
           do jlat = 1, latPerPE
-            jlat_mpiglobal = jlat + statevector_ensMean%allLatBeg(procIDy+1) - 1
+            jlat_mpiglobal = jlat + statevector_ensMean(1)%allLatBeg(procIDy+1) - 1
             do jlon = 1, lonPerPE
-              jlon_mpiglobal = jlon + statevector_ensMean%allLonBeg(procIDx+1) - 1
+              jlon_mpiglobal = jlon + statevector_ensMean(1)%allLonBeg(procIDx+1) - 1
               uu_mpiglobal(jlon_mpiglobal, jlat_mpiglobal, :) = uu_mpiglobal_tiles(jlon, jlat, :, procID+1)
               vv_mpiglobal(jlon_mpiglobal, jlat_mpiglobal, :) = vv_mpiglobal_tiles(jlon, jlat, :, procID+1)
             enddo
@@ -3841,4 +3902,4 @@ CONTAINS
 
   END SUBROUTINE EnsembleDiagnostic
 
-END MODULE BMatrixEnsemble
+END MODULE BMatrixEnsemble_mod
