@@ -126,6 +126,7 @@ CONTAINS
     integer :: jm, jn, status, latPerPE, lonPerPE, Vcode_anl
     logical :: llfound, lExists
     real(8) :: zps
+    type(struct_vco),pointer :: vco_file
     character(len=8) :: bFileName = './bgcov'
     
     NAMELIST /NAMBHI/ntrunc,scaleFactor,scaleFactorLQ,scaleTG,numModeZero,squareSqrt,TweakTG,ReadWrite_sqrt,stddevMode
@@ -158,6 +159,13 @@ CONTAINS
       nLev_T_even = nLev_T
     endif
     if(mpi_myid == 0) write(*,*) 'BHI_setup: nLev_M, nLev_T, nLev_T_even=',nLev_M, nLev_T, nLev_T_even
+
+    ! check if analysisgrid and covariance file have the same vertical levels
+    call vco_SetupFromFile( vco_file,  & ! OUT
+                            bFileName )  ! IN
+    if (.not. vco_equal(vco_anl,vco_file)) then
+      call utl_abort('bmatrixHI: vco from analysisgrid and cov file do not match')
+    end if
 
     status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
     if(Vcode_anl .ne. 5002 .and. Vcode_anl .ne. 5005) then

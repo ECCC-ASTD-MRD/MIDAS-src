@@ -1061,6 +1061,11 @@ contains
     logical :: llprint,bgckMode
     character(len=2) :: option
 
+    if (.not.obs_famExist(obsSpaceData,'TO',local_mpi=.true.)) then
+       if (present(jobs_out)) jobs_out=0.0d0
+       return
+    end if
+
     ! 0. set default values if bgckMode, option and source/dest columns not specified
     !
 
@@ -1155,17 +1160,13 @@ contains
     call oop_Hsf              ! fill in OBS_WORK : Hdx
     call tmg_stop (43)
 
-    if ( top_spatialDimensions() /= '2D') then
-       call tmg_start(44,'OBS_TOV_TLAD') !
-       call oop_Hto              ! fill in OBS_WORK : Hdx
-       call tmg_stop (44)
-    end if
+    call tmg_start(44,'OBS_TOV_TLAD') !
+    call oop_Hto              ! fill in OBS_WORK : Hdx
+    call tmg_stop (44)
 
-    if ( top_spatialDimensions() /= '2D') then
-       call tmg_start(45,'OBS_GPSRO_TLAD') !
-       call oop_Hro
-       call tmg_stop (45)        !
-    end if
+    call tmg_start(45,'OBS_GPSRO_TLAD') !
+    call oop_Hro
+    call tmg_stop (45)        !
 
     call tmg_start(46,'OBS_ZZZ_TLAD') !
     call oop_Hzp
@@ -1400,6 +1401,8 @@ contains
       !
       implicit none
       integer :: datestamp
+
+      if (.not.obs_famExist(lobsSpaceData,'TO',local_mpi=.true.)) return
 
       !     1.   Prepare atmospheric profiles for all tovs observation points for use in rttov
       !     .    -----------------------------------------------------------------------------
@@ -2065,17 +2068,13 @@ contains
     call oop_HTzp
     call tmg_stop (46)
 
-    if ( top_spatialDimensions() /= '2D') then
-       call tmg_start(45,'OBS_GPSRO_TLAD') !
-       call oop_HTro
-       call tmg_stop (45)      !     !
-    end if
+    call tmg_start(45,'OBS_GPSRO_TLAD') !
+    call oop_HTro
+    call tmg_stop (45)      !     !
 
-    if ( top_spatialDimensions() /= '2D') then
-       call tmg_start(44,'OBS_TOV_TLAD') !
-       call oop_HTto
-       call tmg_stop (44)      !
-    end if
+    call tmg_start(44,'OBS_TOV_TLAD') !
+    call oop_HTto
+    call tmg_stop (44)      !
 
     call tmg_start(43,'OBS_SFC_TLAD')
     call oop_HTsf
@@ -2338,6 +2337,8 @@ contains
       !     purpose:
       !
       implicit none
+
+      if (.not.obs_famExist(lobsSpaceData,'TO',local_mpi=.true.)) return
 
       !     1.   Getting the adjoint of the residuals
       !     .    ----------------------------------

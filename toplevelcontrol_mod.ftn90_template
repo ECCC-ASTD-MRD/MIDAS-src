@@ -20,11 +20,9 @@ module topLevelControl_mod
   ! public procedures
   public :: top_setup, top_AnalysisMode, top_BgckIrMode, top_BgckConvMode, top_OmpMode
   public :: top_BurpSplit, top_BurpSplitMode
-  public :: top_spatialDimensions, top_AnalysisLevel2d
 
   character(len=len('XXXXX')),parameter :: top_crevision='XXXXX'
-  character(len=2) :: top_spatial_Dimensions
-  integer :: top_nconf, top_ip1
+  integer :: top_nconf
 
   character(len=256) :: burp_split_mode
   logical :: burp_split_L
@@ -36,18 +34,15 @@ module topLevelControl_mod
 !--------------------------------------------------------------------------
     subroutine top_setup
       implicit none
-      integer :: nconf, ip1
-      character(len=2) :: spatialDimensions
+      integer :: nconf
 
-      NAMELIST /NAMCT0/NCONF,spatialDimensions,ip1
+      NAMELIST /NAMCT0/NCONF
       integer nulnam,ierr,fnom,fclos 
 
       integer :: length_burp_split, status
 
       ! Set the default values
       nconf             = 141
-      spatialDimensions = '3D'   ! default value
-      ip1               = -1     ! default value
 
       ! Read the NAMELIST to modify these values
       nulnam=0
@@ -59,8 +54,6 @@ module topLevelControl_mod
       ierr=fclos(nulnam)
 
       top_nconf              = nconf
-      top_spatial_Dimensions = spatialDimensions
-      top_ip1                = ip1
 
       !
       !- Determine if the observation files are already split by subdomain
@@ -174,27 +167,5 @@ module topLevelControl_mod
       BurpSplit = burp_split_L
         
     end function top_BurpSplit
-
-!--------------------------------------------------------------------------
-! top_spatialDimensions
-!--------------------------------------------------------------------------
-    function top_spatialDimensions() result(spatialDimensions)
-      implicit none
-      character(len=2) :: spatialDimensions
-
-      spatialDimensions = top_spatial_Dimensions
-
-    end function top_spatialDimensions
-
-!--------------------------------------------------------------------------
-! top_AnalysisLevel2d
-!--------------------------------------------------------------------------
-    function top_AnalysisLevel2d() result(AnalysisLevel2d)
-      implicit none
-      integer :: AnalysisLevel2d(1)
-
-      AnalysisLevel2d = top_ip1
-
-    end function top_AnalysisLevel2d
 
 end module topLevelControl_mod

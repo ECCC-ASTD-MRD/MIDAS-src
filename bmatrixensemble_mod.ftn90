@@ -93,7 +93,7 @@ MODULE BmatrixEnsemble_mod
 
   ! Vertical grid
   type(struct_vco),pointer :: vco_anl, vco_ens
-  integer                  :: Vcode_anl
+  integer                  :: Vcode_anl, Vcode_ens
 
   ! Horizontal grid
   type(struct_hco), pointer :: hco_anl    ! Analysis horizontal grid parameters
@@ -312,8 +312,13 @@ CONTAINS
     !- 2.6 Vertical levels
 
     vco_anl => vco_in
+    call vco_SetupFromFile(vco_ens,ensFileName)
     status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
-    call vco_SetupFromFile(vco_ens,ensFileName,' ')
+    status = vgd_get(vco_ens%vgrid,key='ig_1 - vertical coord code',value=Vcode_ens)
+    if (Vcode_anl.ne.Vcode_ens) then
+      write(*,*) 'ben_setup: vcode_anl = ', vcode_anl, ', vcode_ens = ', vcode_ens
+      call utl_abort('ben_setup: vertical levels of ensemble not compatible with analysis grid')
+    endif
     nLevEns_M = vco_ens%nLev_M
     nLevEns_T = vco_ens%nLev_T
     nLevInc_M = vco_anl%nLev_M

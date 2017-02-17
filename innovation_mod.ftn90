@@ -243,19 +243,14 @@ contains
     nlv_T = vco_getNumLev(vco_trl,'TH')
     if (mpi_myid.eq.0) write(*,*)'INN_SETUPBACKGROUNDCOLUMNS:niv thermo:',nlv_T,' momentum',nlv_M
 
-    if ( top_spatialDimensions() /= '2D') then
-       status = vgd_get(vco_trl%vgrid,key='ig_1 - vertical coord code',value=Vcode_trl)
-       status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
-       if (mpi_myid.eq.0) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: Vcode_trl= ',Vcode_trl, &
-            '  Vcode_anl= ',Vcode_anl
-       if (Vcode_trl.ne.5002.and.Vcode_trl.ne.5005) &
-            call utl_abort('INN_SETUPBACKGROUNDCOLUMNS: invalid vertical coord for background state!')
-       if (Vcode_anl.ne.5002.and.Vcode_anl.ne.5005) &
-            call utl_abort('INN_SETUPBACKGROUNDCOLUMNS: invalid vertical coord for analysis increment!')
-    else
-       if (mpi_myid.eq.0) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: skipping vcode check because this is a 2D spatial configuration'
-    end if
-
+    status = vgd_get(vco_trl%vgrid,key='ig_1 - vertical coord code',value=Vcode_trl)
+    status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
+    if (mpi_myid.eq.0) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: Vcode_trl= ',Vcode_trl, &
+         '  Vcode_anl= ',Vcode_anl
+    if (Vcode_trl.ne.5002.and.Vcode_trl.ne.5005) &
+         call utl_abort('INN_SETUPBACKGROUNDCOLUMNS: invalid vertical coord for background state!')
+    if (Vcode_anl.ne.5002.and.Vcode_anl.ne.5005) &
+         call utl_abort('INN_SETUPBACKGROUNDCOLUMNS: invalid vertical coord for analysis increment!')
     !
     !     Compute the maximum number of columns over all processors (lat-lon tiles)
     !
@@ -566,7 +561,7 @@ contains
     !     levels, the hybrid coordinate parameters of the
     !     analysis increment and the surface pressure of the trial field
     !      
-    if (col_getNumCol(columng).gt.0 .and. top_spatialDimensions() /= '2D') then
+    if (col_getNumCol(columng).gt.0) then
 
        call col_calcPressure(columng)
 
@@ -708,12 +703,7 @@ contains
              enddo
 
              call col_fillmvo(columnhr,varInterphr_T,vnl_varNameList3D(jvar))
-             if (top_spatialDimensions() /= '2D') then
-                call col_vintprof(columnhr,columng,vnl_varNameList3D(jvar))
-             else
-                ! Do not try interpolate: In 2D mode trial and analysis are on the same level by construction
-                call col_vintprof(columnhr,columng,vnl_varNameList3D(jvar),noInterp=.true.)
-             end if
+             call col_vintprof(columnhr,columng,vnl_varNameList3D(jvar))
 
              if (vnl_varNameList3D(jvar).eq.'TT  ') then
                 ! conversion from Celcius to Kelvin
@@ -749,7 +739,7 @@ contains
     !
     !- Initialisation of TLM operators
     !
-    if (top_spatialDimensions() /= '2D') call subasic_obs(columng)
+    if (col_varExist('TT') .and. col_varExist('HU')) call subasic_obs(columng)
 
     !
     !- Using T, q and PS to compute GZ for columng
@@ -757,12 +747,12 @@ contains
     do jobs = 1, col_getNumCol(columng)
        call col_setGZsfc(columng ,jobs, col_getGZsfc(columnhr, jobs))
     enddo
-    if (top_spatialDimensions() /= '2D') call tt2phi(columng)
+    if (col_getNumLev(columng,'MM') > 1) call tt2phi(columng)
 
     !
     !- Using T, q and PS to compute GZ for columnhr
     !
-    if (noUpperGZ .and. top_spatialDimensions() /= '2D') then
+    if (noUpperGZ .and. (col_getNumLev(columnhr,'MM') > 1) ) then
        write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: No upper level GZ found, computing'
        call tt2phi(columnhr)
     endif
@@ -851,21 +841,16 @@ contains
       ! Check if too few GZ levels are in file, if so then just read surface
       !
       if (trim(varName).eq.'GZ' .and. present(noUpperGZ)) then
-         if ( top_spatialDimensions() /= '2D') then
-            ierr = fstinl(nultrl(1), ni, nj, nk, -1, ' ', -1, -1, -1, &
-                 ' ','GZ',keys, numkeys, maxnumkeys)
-            write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: nlevel =  ', nlevel, ', numkeys = ', numkeys
-            if (numkeys.lt.nlevel) then
-               write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: Too few GZ levels found, will only read surface'
-               noUpperGZ = .true.
-            else
-               write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: sufficient levels of GZ found, will read all'
-               noUpperGZ = .false.
-            endif
-         else
-            write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: In 2D spatial mode, we only read GZ at the surface'
+         ierr = fstinl(nultrl(1), ni, nj, nk, -1, ' ', -1, -1, -1, &
+              ' ','GZ',keys, numkeys, maxnumkeys)
+         write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: nlevel =  ', nlevel, ', numkeys = ', numkeys
+         if (numkeys.lt.nlevel) then
+            write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: Too few GZ levels found, will only read surface'
             noUpperGZ = .true.
-         end if
+         else
+            write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: sufficient levels of GZ found, will read all'
+            noUpperGZ = .false.
+         endif
       endif
 
       !
@@ -1100,7 +1085,7 @@ contains
     !
     !     Find interpolation layer in model profiles 
     !
-    if ( top_spatialDimensions() /= '2D') call vobslyrs(columnhr,obsSpaceData)
+    if ( col_getNumLev(columnhr,'MM') > 1 ) call vobslyrs(columnhr,obsSpaceData)
     !
     !
     !------ Calculate the innovations Y - H(Xb) and place
@@ -1203,7 +1188,7 @@ contains
     !
     !     Find interpolation layer in model profiles 
     !
-    if ( top_spatialDimensions() /= '2D') CALL VOBSLYRS(columng,obsSpaceData)
+    if ( col_getNumLev(columng,'MM') > 1 ) CALL VOBSLYRS(columng,obsSpaceData)
 
     write(*,*) 'TIM_TIMEBINNING: After filtering done in INN_COMPUTEINNOVATION'
     call tim_timeBinning(obsSpaceData,tim_nstepobs)

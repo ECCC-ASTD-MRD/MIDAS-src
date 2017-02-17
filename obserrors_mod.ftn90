@@ -74,12 +74,21 @@ contains
     !
     ! Read in the observation stddev errors for radiance data
     !
-    call read_obs_erreurs_tovs
+    if (obs_famexist(lobsSpaceData,'TO')) then
+       call read_obs_erreurs_tovs
+    else 
+       write(*,*) "oer_setObsErrors: No brightness temperature observations found."
+    end if
 
     !
     ! Read in the observation stddev errors for conventional data
     !
-    call read_obs_erreurs_conv
+    if (obs_famExist(lobsSpaceData,'UA').or.obs_famExist(lobsSpaceData,'AI').or.obs_famExist(lobsSpaceData,'SW').or. &
+       obs_famExist(lobsSpaceData,'SF').or.obs_famExist(lobsSpaceData,'SC').or.obs_famExist(lobsSpaceData,'PR') ) then
+       call read_obs_erreurs_conv
+    else
+       write(*,*) "oer_setObsErrors: No conventional weather observations found."
+    end if
 
     !
     ! Set obs error information in obsSpaceData object

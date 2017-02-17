@@ -439,9 +439,11 @@ module columnData_mod
     real(kind=8), allocatable :: Psfc(:,:),zppobs2(:,:)
     real(kind=8), pointer     :: zppobs1(:,:,:) => null()
     real(kind=8), pointer     :: dP_dPsfc(:,:,:) => null()
-    integer :: jobs, status, vcode
+    integer :: jobs, status
 
-    status = vgd_get(column%vco%vgrid,key='ig_1 - vertical coord code',value=vcode)
+    if (.not.col_varExist('P0')) then
+      call utl_abort('col_calcPressure: P0 must be present as an analysis variable!')
+    endif
 
     allocate(Psfc(1,col_getNumCol(column)))
     do jobs = 1,col_getNumCol(column)
@@ -489,61 +491,37 @@ module columnData_mod
   end subroutine col_calcPressure
 
 
-  subroutine col_vintprof(column_in,column_out,varName,noInterp)
+  subroutine col_vintprof(column_in,column_out,varName)
     implicit none
     type(struct_columnData), intent(inout) :: column_out
     type(struct_columnData), intent(in) :: column_in
     character(len=*) :: varName
-    logical, optional :: noInterp
 
     real(kind=8), pointer :: column_ptr_in(:),column_ptr_out(:)
     character(len=2) :: varLevel
     real(kind=8)     :: zwb,zwt
     integer          :: jlevo,jlevi,jprof
-    logical          :: skipInterp
 
     varLevel = vnl_varLevelFromVarname(varName)
 
-    skipInterp = .false.
-    if ( present(noInterp) ) then
-       if (noInterp) skipInterp = .true.
-    end if
-    
-    if (skipInterp) then
-
-       do jprof = 1, col_getNumCol(column_out)
-          column_ptr_in  => col_getColumn(column_in ,jprof,varName)
-          column_ptr_out => col_getColumn(column_out,jprof,varName)
-          if ( col_getNumLev(column_out,varLevel) /= col_getNumLev(column_in,varLevel) ) then
-             call utl_abort('col_vintprof: inconsistent number of levels')
-          end if
-          do jlevo = 1, col_getNumLev(column_out,varLevel)
-             column_ptr_out(jlevo) = column_ptr_in(jlevo)
-          end do
-       end do
-
-    else
-
-       do jprof = 1, col_getNumCol(column_out)
-          column_ptr_in  => col_getColumn(column_in ,jprof,varName)
-          column_ptr_out => col_getColumn(column_out,jprof,varName)
-          jlevi = 1
-          do jlevo = 1, col_getNumLev(column_out,varLevel)
+    do jprof = 1, col_getNumCol(column_out)
+       column_ptr_in  => col_getColumn(column_in ,jprof,varName)
+       column_ptr_out => col_getColumn(column_out,jprof,varName)
+       jlevi = 1
+       do jlevo = 1, col_getNumLev(column_out,varLevel)
+          jlevi = jlevi + 1
+          do while(col_getPressure(column_out,jlevo,jprof,varLevel) .gt.  &
+               col_getPressure(column_in ,jlevi,jprof,varLevel) .and. &
+               jlevi .lt. col_getNumLev(column_in,varLevel) )
              jlevi = jlevi + 1
-             do while(col_getPressure(column_out,jlevo,jprof,varLevel) .gt.  &
-                  col_getPressure(column_in ,jlevi,jprof,varLevel) .and. &
-                  jlevi .lt. col_getNumLev(column_in,varLevel) )
-                jlevi = jlevi + 1
-             enddo
-             jlevi = jlevi - 1
-             zwb = log(col_getPressure(column_out,jlevo,jprof,varLevel)/col_getPressure(column_in,jlevi,jprof,varLevel))/  &
-                  log(col_getPressure(column_in,jlevi+1,jprof,varLevel)/col_getPressure(column_in,jlevi,jprof,varLevel))
-             zwt = 1. - zwb
-             column_ptr_out(jlevo) = zwb*column_ptr_in(jlevi+1) + zwt*column_ptr_in(jlevi)
           enddo
+          jlevi = jlevi - 1
+          zwb = log(col_getPressure(column_out,jlevo,jprof,varLevel)/col_getPressure(column_in,jlevi,jprof,varLevel))/  &
+               log(col_getPressure(column_in,jlevi+1,jprof,varLevel)/col_getPressure(column_in,jlevi,jprof,varLevel))
+          zwt = 1. - zwb
+          column_ptr_out(jlevo) = zwb*column_ptr_in(jlevi+1) + zwt*column_ptr_in(jlevi)
        enddo
-
-    end if
+    enddo
 
   end subroutine col_vintprof
 
@@ -774,6 +752,7 @@ module columnData_mod
     real*8                                 :: value
 
     if(present(varName)) then
+      if(.not.col_varExist(varName)) call utl_Abort('col_getElem: Unknown variable name! ' // varName)
       if(trim(varName) == 'GZ') call utl_Abort('col_getElem: cannot call for GZ!')
       if(trim(varName) == 'PR') call utl_Abort('col_getElem: cannot call for Pressure!')
       value = column%all(column%varOffset(vnl_varListIndex(varName))+ilev,headerIndex)

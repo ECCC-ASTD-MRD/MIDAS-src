@@ -376,7 +376,7 @@ CONTAINS
     !
 
     !- 2.1 Mass fields (TT,PS,HU) to hydrostatic geopotential
-    if ( top_spatialDimensions() /= '2D') then
+    if (col_getNumLev(columng,'MM') > 1) then
        vco_anl => col_getVco(columng)
        status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
        call tmg_start(36,'INTERP_TT2PHI_TL')
@@ -660,7 +660,7 @@ CONTAINS
     end if
   
     !- 2.1 Mass fields (TT,PS,HU) to hydrostatic geopotential
-    if ( top_spatialDimensions() /= '2D') then
+    if (col_getNumLev(columng,'MM') > 1) then
        vco_anl => col_getVco(columng)
        status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
        call tmg_start(37,'INTERP_TT2PHI_AD')

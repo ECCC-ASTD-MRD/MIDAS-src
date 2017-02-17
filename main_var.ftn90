@@ -240,8 +240,6 @@ contains
 
     integer :: get_max_rss
 
-    character(len=12) :: etiket
-
     write(*,*) ''
     write(*,*) '-----------------------------------'
     write(*,*) '-- Starting subroutine var_setup --'
@@ -263,13 +261,8 @@ contains
     !
     if(mpi_myid.eq.0) write(*,*)''
     if(mpi_myid.eq.0) write(*,*)' preproc: Set vcoord parameters for trial grid'
-    if ( top_spatialDimensions() /= '2D') then
-       call vco_SetupFromFile( vco_trl,         & ! OUT
-            './trlm_01',' ')   ! IN
-    else  
-       call vco_SetupManual( vco_trl,                  & ! OUT
-            top_AnalysisLevel2d(), 1 )  ! IN 
-    end if
+    call vco_SetupFromFile( vco_trl,     & ! OUT
+                            './trlm_01')   ! IN
     call col_setVco(lcolumnhr,vco_trl)
 
     !
@@ -303,20 +296,10 @@ contains
     end if
 
     !     
-    !- Initialisation of the analysis grid vertical coordinate from !! in Bnmc file
+    !- Initialisation of the analysis grid vertical coordinate from analysisgrid file
     !
-    if ( top_spatialDimensions() /= '2D') then
-       if ( hco_anl % global ) then
-          etiket = 'BGCK_STDDEV'
-       else
-          etiket = 'STDDEV'
-       end if
-       call vco_SetupFromFile( vco_anl,         & ! OUT
-            './bgcov', etiket) ! IN
-    else
-       call vco_SetupManual( vco_anl,                  & ! OUT
-            top_AnalysisLevel2d(), 1 )  ! IN
-    end if
+    call vco_SetupFromFile( vco_anl,        & ! OUT
+                            './analysisgrid') ! IN
 
     call col_setVco(lcolumng,vco_anl)
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -360,7 +343,8 @@ contains
 
     !
     !- Set up the minimization module, now that the required parameters are known
-    !  NOTE: some global variables remain in minimization_mod that must be initialized before inn_setupBackgroundColumns
+    !  NOTE: some global variables remain in minimization_mod that must be initialized before 
+    !        inn_setupBackgroundColumns
     !
     if (top_AnalysisMode() ) then
        call min_setup( cvm_nvadim ) ! IN
