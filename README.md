@@ -1,3 +1,3 @@
 # OAVAR Fortran code documentation:
 
-* [Science branch](http://iweb.cmc.ec.gc.ca/~armabue/f90doc/science/index.html)
+* [Master branch](http://iweb.cmc.ec.gc.ca/~armabue/f90doc/master/index.html)
