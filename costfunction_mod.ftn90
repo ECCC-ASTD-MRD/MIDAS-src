@@ -234,13 +234,15 @@ contains
        write(*,'(a15,f25.17)') 'Jo(RO)   = ',dljogpsro
        write(*,'(a15,f25.17)') 'Jo(GP)   = ',dljogpsztd
        write(*,*) ' '
-       write(*,'(1x,a)') 'For TOVS decomposition by sensor:'
-       write(*,'(1x,a)') '#  plt sat ins    Jo'
-       do isens=1,NSENSORS
-          write(*,'(i2,1x,a,1x,a,1x,i2,1x,f25.17)') isens,inst_name(INSTRUMENT(isens)), &
-               platform_name(PLATFORM(isens)),SATELLITE(isens),dljotov_sensors(isens)
-       enddo
-       write(*,*) ' '
+       if(nsensors > 0) then
+          write(*,'(1x,a)') 'For TOVS decomposition by sensor:'
+          write(*,'(1x,a)') '#  plt sat ins    Jo'
+          do isens=1,NSENSORS
+             write(*,'(i2,1x,a,1x,a,1x,i2,1x,f25.17)') isens,inst_name(INSTRUMENT(isens)), &
+                  platform_name(PLATFORM(isens)),SATELLITE(isens),dljotov_sensors(isens)
+          enddo
+          write(*,*) ' '
+       endif
 
     endif
 

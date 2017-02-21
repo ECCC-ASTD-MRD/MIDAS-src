@@ -113,6 +113,10 @@ SUBROUTINE TOVS_LIN_SETUPALLO()
 
 !-----------------------------------------------------------------------
 
+  if (nsensors == 0) then
+    write(*,*) 'tovs_lin_setupallo: nsensors is zero, skipping setup'
+    return
+  endif
 
 !     1. Memory allocation for radiative tranfer model variables
 !     .  -----------------------------------------------------

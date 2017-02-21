@@ -140,9 +140,11 @@ contains
     !
     !- Memory allocation for TOVS processing
     !
-    call tovs_nl_setupallo(obsSpaceData)
-    if ( top_BgckIrMode() ) call BGCK_IR_SETUP(obsSpaceData)
-    if ( top_AnalysisMode() ) call tovs_lin_setupallo()
+    if (obs_famExist(obsSpaceData,'TO')) then
+       call tovs_nl_setupallo(obsSpaceData)
+       if ( top_BgckIrMode() ) call BGCK_IR_SETUP(obsSpaceData)
+       if ( top_AnalysisMode() ) call tovs_lin_setupallo()
+    end if
 
   END SUBROUTINE INN_SETUPOBS
 
