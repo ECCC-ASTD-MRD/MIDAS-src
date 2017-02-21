@@ -27,9 +27,9 @@ MODULE ControlVector_mod
   private
 
   ! public variables
-  public              :: cvm_vazx, cvm_nvadim, cvm_nvadim_mpiglobal
+  public              :: cvm_nvadim, cvm_nvadim_mpiglobal
   ! public procedures
-  public              :: cvm_Setup, cvm_deallocate, cvm_getSubVector, cvm_getSubVector_mpiglobal
+  public              :: cvm_Setup, cvm_getSubVector, cvm_getSubVector_mpiglobal
 
 
   logical             :: initialized = .false.
@@ -39,8 +39,6 @@ MODULE ControlVector_mod
   integer             :: cvm_dimBHI_mpiglobal
   integer             :: cvm_dimBEN_mpiglobal
   integer             :: cvm_nvadim_mpiglobal
-
-  real*8, allocatable,target :: cvm_vazx(:)
 
 CONTAINS
 
@@ -60,14 +58,6 @@ CONTAINS
 
     write(*,*) 'cvm_setup: subvector dimensions            =',cvm_dimbhi,cvm_dimben,cvm_nvadim
     write(*,*) 'cvm_setup: subvector dimensions (mpiglobal)=',cvm_dimbhi_mpiglobal,cvm_dimben_mpiglobal,cvm_nvadim_mpiglobal
-
-    allocate(cvm_vazx(cvm_nvadim),stat=ierr)
-    if(ierr.ne.0) then
-      write(*,*) 'controlVector: Problem allocating memory! id=1',ierr
-      call utl_abort('aborting in cvm_setup')
-    endif
-
-    cvm_vazx(:)=0.0d0
 
     initialized=.true.
 
@@ -119,20 +109,5 @@ CONTAINS
 
   END FUNCTION CVM_getSubVector_mpiglobal
 
-  SUBROUTINE CVM_deallocate
-    implicit none
-
-    integer :: ierr
-
-    if (allocated(cvm_vazx))then
-      deallocate(cvm_vazx,stat=ierr)
-      if(ierr.eq.0) then
-        write(*,*) 'CVM_VAZX checked and correct. IERR =',ierr
-      else
-        write(*,*) 'Problem detected in CVM_VAZX. IERR =',ierr
-      endif
-    end if
-
-  END SUBROUTINE CVM_deallocate
 
 END MODULE ControlVector_mod

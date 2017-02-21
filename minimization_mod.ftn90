@@ -308,8 +308,6 @@ CONTAINS
 
       ! initialize control vector related arrays to zero
       vazx(:)=0.0d0
-      ! extra mpilocal portion of control vector: NOT NEEDED?
-      !vazx(1:nvadim_mpilocal)=cvm_vazx(1:nvadim_mpilocal)
       dg_vbar(:)=0.0d0
       vazg(:)=0.0d0
       vatra(:)=0.0d0
@@ -478,11 +476,6 @@ CONTAINS
           if(mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
         endif
 
-        ! Put final control vector into control vector module for use elsewhere
-        call tmg_start(89,'MIN_COMM')
-        cvm_vazx(:) = vazx(1:nvadim_mpilocal)      
-        call tmg_stop(89)
-
         ! Print some contents of obsSpaceData to the listing
         do jdata = 1, min(1,obs_numHeader(obsSpaceData))
           call obs_prnthdr(obsSpaceData,jdata)
@@ -491,13 +484,13 @@ CONTAINS
 
         ! output the analysis increment
         call tmg_start(6,'MIN_WRITEINCR')
-        call min_writeIncrement(cvm_vazx,columng)
+        call min_writeIncrement(vazx,columng)
         call tmg_stop(6)
 
       else
 
         ! no analysis performed for ensemble mean, ensure mean increment is zero
-        cvm_vazx(:) = 0.0d0
+        vazx(:) = 0.0d0
         min_niter = 0
 
       endif ! if nitermax .gt. 0
@@ -515,14 +508,13 @@ CONTAINS
       if(lvarqc) call vqc_listrej(obsSpaceData)
 
       ! deallocate the control vector related arrays
+      call bmat_finalize(vazx)
       deallocate(vazx)
       deallocate(vazg)
       deallocate(vatra)
       deallocate(dg_vbar)
 
       deallocate(dataptr_int)
-
-      call bmat_finalize(cvm_vazx)
 
   END SUBROUTINE quasiNewtonMinimization
 

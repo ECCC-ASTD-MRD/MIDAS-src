@@ -64,6 +64,7 @@ contains
     type(struct_gsv) :: statevector
     type(struct_columnData) :: column
     type(struct_hco), pointer :: hco_anl
+    real*8, allocatable,target :: controlVector(:)
 
     logical :: nmlExists
     integer :: familyIndex,elementIndex,bodyIndex,headerIndex,latIndex,lonIndex,verticalIndex
@@ -124,16 +125,17 @@ contains
     ! compute random control vector
     iseed = abs(nrandseed)
     call rng_setup(iseed)
+    allocate(controlVector(cvm_nvadim))
     do jj = 1,cvm_nvadim
-      cvm_vazx(jj)=rng_gaussian()
+      controlVector(jj)=rng_gaussian()
     enddo
 
     ! set Ben contribution to zero
-    cvBen => cvm_getSubVector(cvm_vazx,2)
+    cvBen => cvm_getSubVector(controlVector,2)
     cvBen(:) = 0.0d0
 
     ! multiply vector by B^1/2
-    call bmat_sqrtB(cvm_vazx,cvm_nvadim,statevector)
+    call bmat_sqrtB(controlVector,cvm_nvadim,statevector)
     ! undo the scaleFactor (THIS IS NOT CORRECT FOR 2D VARIABLES!!!) 
     do jvar=1,vnl_numvarmax 
       if(gsv_varExist(statevector,vnl_varNameList(jvar))) then
@@ -158,15 +160,15 @@ contains
     iseed = abs(nrandseed)
     call rng_setup(iseed)
     do jj = 1,cvm_nvadim
-      cvm_vazx(jj)=rng_gaussian()
+      controlVector(jj)=rng_gaussian()
     enddo
 
     ! set Bhi contribution to zero
-    cvBhi => cvm_getSubVector(cvm_vazx,1)
+    cvBhi => cvm_getSubVector(controlVector,1)
     cvBhi(:) = 0.0d0
 
     ! multiply vector by B^1/2
-    call bmat_sqrtB(cvm_vazx,cvm_nvadim,statevector)
+    call bmat_sqrtB(controlVector,cvm_nvadim,statevector)
     ! undo the scaleFactor
     do jvar=1,vnl_numvarmax 
       if(gsv_varExist(statevector,vnl_varNameList(jvar))) then
@@ -185,6 +187,7 @@ contains
       HxBen(bodyIndex) = obs_bodyElem_r(obsSpaceData,OBS_WORK,bodyIndex)
     enddo
 
+    deallocate(controlVector)
     call col_deallocate(column)
     call gsv_deallocate(statevector)
 

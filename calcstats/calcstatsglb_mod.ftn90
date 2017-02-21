@@ -29,6 +29,7 @@ module calcstatsglb_mod
   use varNameList_mod
   use EarthConstants_mod, only: RA
   use utilities_mod
+  use spectralFilter_mod
   implicit none
   save
   private
@@ -1196,7 +1197,6 @@ module calcstatsglb_mod
 ! SPECTRALFILTER
 !--------------------------------------------------------------------------
   subroutine spectralFilter(ensPerturbations,nlev,waveBandIndex)
-    use spectraltransform_mod
     implicit none
     real*4,pointer :: ensPerturbations(:,:,:,:)
     integer, intent(in) :: nlev
@@ -1223,7 +1223,7 @@ module calcstatsglb_mod
        outfilename = "./ResponseFunction_"//wbnum//".txt"
        open (unit=99,file=outfilename,action="write",status="new")
        do jn = 0, ntrunc
-          ResponseFunction(jn) = spt_filterResponseFunction(dble(jn),waveBandIndex, waveBandPeaks, nWaveBand)
+          ResponseFunction(jn) = spf_filterResponseFunction(dble(jn),waveBandIndex, waveBandPeaks, nWaveBand)
           if ( jn /= 0) then
              waveLength=4.d0*asin(1.d0)*ra/dble(jn)
           else

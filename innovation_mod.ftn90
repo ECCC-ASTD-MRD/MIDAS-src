@@ -724,11 +724,11 @@ contains
                 do jobs=1,col_getNumCol(columng)
                    column_ptr => col_getColumn(columnhr,jobs,'HU')
                    do jlev=1,col_getNumLev(columnhr,'TH')
-                      column_ptr(jlev)=log(max(column_ptr(jlev),rhumin))
+                      column_ptr(jlev)=log(max(column_ptr(jlev),col_rhumin))
                    enddo
                    column_ptr => col_getColumn(columng,jobs,'HU')
                    do jlev=1,col_getNumLev(columng,'TH')
-                      column_ptr(jlev)=log(max(column_ptr(jlev),rhumin))
+                      column_ptr(jlev)=log(max(column_ptr(jlev),col_rhumin))
                    enddo
                 enddo
              endif

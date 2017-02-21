@@ -116,15 +116,15 @@ contains
 !--------------------------------------------------------------------------
 ! bmat_sqrtB
 !-------------------------------------------------------------------------- 
-  SUBROUTINE bmat_sqrtB(da_v,na_vdim,statevector)
+  SUBROUTINE bmat_sqrtB(controlVector,cvdim,statevector)
     implicit none
     !
     !- Purpose: Transforms model state from error covariance space
     !           to grid point space.
     !
-    integer         :: na_vdim
+    integer         :: cvdim
 
-    real(8)         :: da_v(na_vdim)
+    real(8)         :: controlVector(cvdim)
     real(8),pointer :: cvBhi(:), cvBen(:), field(:,:,:), field4d(:,:,:,:)
 
     type(struct_gsv) :: statevector, statevector_temp
@@ -147,7 +147,7 @@ contains
 
     !- 2.2 Compute 3D contribution to increment from BmatrixHI
     call tmg_start(50,'B_HI')
-    cvBhi => cvm_getSubVector(da_v,1)
+    cvBhi => cvm_getSubVector(controlVector,1)
 
     if ( associated(cvBhi) ) then
       if ( statevector%hco%global ) then
@@ -166,7 +166,7 @@ contains
 
     !- 2.3 compute 4D contribution to increment from BmatrixEnsemble
     call tmg_start(60,'B_ENS')
-    cvBen => cvm_getSubVector(da_v,2)
+    cvBen => cvm_getSubVector(controlVector,2)
 
     if ( associated(cvBen) ) call ben_bsqrt(cvBen, statevector_temp)
     call tmg_stop(60)
@@ -181,14 +181,14 @@ contains
 !--------------------------------------------------------------------------
 ! bmat_sqrtBT
 !--------------------------------------------------------------------------
-  SUBROUTINE bmat_sqrtBT(da_v,na_vdim,statevector)
+  SUBROUTINE bmat_sqrtBT(controlVector,cvdim,statevector)
     implicit none
     !
     !- Purpose: Transforms model state from grid point space 
     !           to error covariance space.
     !
-    integer :: na_vdim
-    real(8) :: da_v(na_vdim)
+    integer :: cvdim
+    real(8) :: controlVector(cvdim)
     real(8),pointer :: cvBhi(:),cvBen(:)
     type(struct_gsv) :: statevector
 
@@ -198,18 +198,18 @@ contains
     end if
 
     !- 1.2 set gradient to zero
-    da_v(:)=0.0d0
+    controlVector(:)=0.0d0
     
     !- 1.3 Add contribution to gradient from BmatrixEnsemble
     call tmg_start(61,'B_ENS_T')
-    cvBen=>cvm_getSubVector(da_v,2)
+    cvBen=>cvm_getSubVector(controlVector,2)
 
     if ( associated(cvBen) ) call ben_bsqrtad(statevector,cvBen)
     call tmg_stop(61)
 
     !- 1.4 add contribution to gradient from BmatrixHI
     call tmg_start(51,'B_HI_T')
-    cvBhi=>cvm_getSubVector(da_v,1)
+    cvBhi=>cvm_getSubVector(controlVector,1)
     if ( associated(cvBhi) ) then
       !- 1.4.1 adjoint of copy 3D increment to 4D increment
       call gsv_3dto4dAdj(statevector)
@@ -272,15 +272,15 @@ contains
 !--------------------------------------------------------------------------
 ! bmat_finalize
 !--------------------------------------------------------------------------
-  SUBROUTINE bmat_finalize(da_v)
+  SUBROUTINE bmat_finalize(controlVector)
     implicit none
-    real(8) :: da_v(:)
+    real(8) :: controlVector(:)
     !
     !- Purpose: Releases memory used by B matrices.
     !
     real(8), pointer :: cvBhi(:), cvBen(:)
 
-    cvBhi => cvm_getSubVector(da_v,1)
+    cvBhi => cvm_getSubVector(controlVector,1)
     if ( associated(cvBhi) ) then
       if ( hco_anl%global ) then
         call bhi_finalize()
@@ -289,7 +289,7 @@ contains
       end if
     end if
 
-    cvBen => cvm_getSubVector(da_v,2)
+    cvBen => cvm_getSubVector(controlVector,2)
     if ( associated(cvBen) ) call ben_finalize() 
 
   END SUBROUTINE bmat_finalize

@@ -37,7 +37,7 @@ module burpFiles_mod
   private
 
   ! public variables
-  public :: burp_nfiles,burp_cfamtyp,burp_cfilnam
+  public :: burp_nfiles,burp_cfilnam
   ! public procedures
   public :: burp_setupfiles, burp_readfiles, burp_updatefiles
 

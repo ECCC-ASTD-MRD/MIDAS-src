@@ -35,7 +35,7 @@ module columnData_mod
   private
 
   ! public variables and types
-  public :: rhumin, struct_columnData
+  public :: col_rhumin, struct_columnData
 
   ! public subroutines and functions
   public :: col_setup, col_allocate, col_deallocate
@@ -67,7 +67,7 @@ module columnData_mod
     integer,pointer   :: varOffset(:),varNumLev(:)
   end type struct_columnData
 
-  real*8 :: rhumin
+  real*8 :: rhumin, col_rhumin
   logical nmvoexist(vnl_numvarmax)
   integer :: nvo3d,nvo2d
   logical :: AddGZSfcOffset = .false. ! controls adding non-zero GZ offset to diag levels
@@ -101,10 +101,12 @@ module columnData_mod
       if(mpi_myid == 0) write(*,nml=namstate)
       ierr=fclos(nulnam)
 
-      nvo3d  = 0
-      nvo2d  = 0
+      col_rhumin = rhumin
 
       if(varneed('GZ')) call utl_abort('col_setup: GZ can no longer be included as a variable in columnData!')
+
+      nvo3d  = 0
+      nvo2d  = 0
 
       do jvar = 1, vnl_numvarmax3D
         if (varneed(vnl_varNameList3D(jvar))) then

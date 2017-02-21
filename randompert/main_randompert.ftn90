@@ -55,7 +55,7 @@ program main_randomPert
   integer :: LatPerPE, myLatBeg, myLatEnd
   integer :: LonPerPE, myLonBeg, myLonEnd
 
-  !real(8), allocatable :: cvm_vazx_global(:)
+  real(8), allocatable :: controlVector(:)
   real(8), allocatable :: gdmean(:,:,:)
   real(4), allocatable :: ensemble_r4(:,:,:,:)
   real(8), allocatable :: avg_pturb_var(:)
@@ -179,7 +179,7 @@ program main_randomPert
      call utl_abort('main_randomPert: PROBLEM WITH ALLOCATING OF GDMEAN')
   endif
 
-  !allocate(cvm_vazx_global(cvm_nvadim_mpiglobal))
+  allocate(controlVector(cvm_nvadim))
 
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
@@ -206,29 +206,21 @@ program main_randomPert
 
      call tmg_start(32,'RANDOM_GEN')
 
-     !- Global vector (same for each processors)
+     !- Local vector (different seed for each processor)
      do j = 1, cvm_nvadim
-        cvm_vazx(j) = rng_gaussian()
+        controlVector(j) = rng_gaussian()
      enddo
-     !do j = 1, cvm_nvadim_mpiglobal
-     !   cvm_vazx_global(j) = rng_gaussian()
-     !enddo
 
      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
      call tmg_stop(32)
      call tmg_start(33,'RANDOM_EXTRACT')
 
-     !- Extract only the subvector for this processor
-     !call bmat_reduceToMPILocal(cvm_vazx,        & ! OUT
-     !                           cvm_vazx_global, & ! IN
-     !                           cvDim_local )      ! OUT
-                                
      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
      call tmg_stop(33)
 
      !- 4.1.2 Transform to control variables in physical space
-     call bmat_sqrtB(cvm_vazx, cvm_nvadim, & ! IN
-                     statevector          )  ! OUT
+     call bmat_sqrtB(controlVector, cvm_nvadim, & ! IN
+                     statevector               )  ! OUT
 
      !- 4.1.3 Running ensemble sum
 !$OMP PARALLEL
@@ -414,7 +406,7 @@ program main_randomPert
   endif
 
   deallocate(ensemble_r4)
-  !deallocate(cvm_vazx_global)
+  deallocate(controlVector)  
 
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
