@@ -1238,9 +1238,9 @@ contains
     if (numGPSZTD > 0)  call oop_Hgp
     call tmg_stop (47)        !
 
-    call tmg_start(75,'OBS_CHM_TLAD') !
+    call tmg_start(126,'OBS_CHM_TL') !
     call oop_Hchm  ! calculate Hdx for constituents
-    call tmg_stop (75)        !
+    call tmg_stop (126)        !
 
 
   CONTAINS
