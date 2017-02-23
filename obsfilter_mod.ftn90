@@ -25,6 +25,7 @@ module obsFilter_mod
   use tovs_nl_mod ,only :  tvs_Is_idburp_tovs
   use gps_mod
   use utilities_mod
+  use chem_setup_mod, only: chm_config_select_str
   implicit none
   save
   private
@@ -1224,13 +1225,12 @@ contains
   SUBROUTINE filt_topoChm(columnhr,obsSpaceData)
     !
     ! Author: Y.J. Rochon Feb 2015
-    !          - Based on the subroutines filt_topo* in filterobs_mod.ftn90.
+    !          - Based on the subroutines filt_topo* in obsfilter_mod.ftn90.
     !            Adapted to chemical constituent data.
     !
     ! Revisions:  M. Sitwell Nov 2015
     !             - Removed call to subroutine chm_adj_model_bndry for consistency
     !               in the flagging of obs above/below the model done in vobslyrs
-    !               (routine also removed in chem_mod.ftn90)
     !             M. Sitwell Sept 2016
     !             - Added flagging of bit 4 in OBS_FLG set in set_scale_chm indicating
     !               mismatch of number of levels of mantissa and exponent.
@@ -1240,11 +1240,8 @@ contains
     !
     ! Comments:
     !   - Flagging of bit 4 in OBS_FLG done in filt_topoChm instead of set_scale_chm
-    !     since this subroutine is called after chm_setup, allowing use of chm_open_messagefile
+    !     since this subroutine is called after chm_setup, allowing use of utl_open_asciifile
     !
-
-    use chem_mod
-    use MathPhysConstants_mod
 
     implicit none
     type(struct_columnData) :: columnhr
@@ -1307,7 +1304,7 @@ contains
 
       ! Identify element index of stnid list for the CH family.
 
-      call chm_get_stringId(obs_elem_c(obsSpaceData,'STID',headerIndex),&
+      call utl_get_stringId(obs_elem_c(obsSpaceData,'STID',headerIndex),&
                nobslev,CstnidList_chm,Num_stnid_chm,Nmax,listIndex_stnid)
 
       warn_suspicious = .false.
@@ -1322,7 +1319,7 @@ contains
         if (ivnm.eq.08090) cycle BODY
 
         !  Identify element index of constituent ID list for the CH family.
-        if (icount.eq.0) call chm_get_Id(obs_headElem_i(obsSpaceData,OBS_CHM,headerIndex), &
+        if (icount.eq.0) call utl_get_Id(obs_headElem_i(obsSpaceData,OBS_CHM,headerIndex), &
                               iConstituentList,Num_chm,Nmax,listIndex)
         icount=icount+1
 
@@ -1382,7 +1379,7 @@ contains
       enddo BODY
 
       if (warn_suspicious) then
-         call chm_open_messagefile(unit)
+         call utl_open_asciifile(chm_config_select_str('message'),unit)
          write(unit,'(A)') "set_scale_chm: Number of levels mismatch between mantissa and exponent for observation"
          write(unit,'(14X,A,4X,I8,2X,I4)') obs_elem_c(obsSpaceData,'STID',headerIndex),obs_headElem_i(obsSpaceData,OBS_DAT,headerIndex),&
               obs_headElem_i(obsSpaceData,OBS_ETM,headerIndex)

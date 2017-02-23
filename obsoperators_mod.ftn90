@@ -38,6 +38,8 @@ module obsOperators_mod
   use tovs_nl_mod
   use utilities_mod
   use tovs_lin_mod
+  use chem_obsoperators_mod
+  
   implicit none
   save
   private
@@ -1163,8 +1165,6 @@ contains
     !
     !-----------------------------------------------------------------------------------
 
-    use chem_interface_mod
-
     implicit none
     
     type(struct_columnData) :: columnhr
@@ -2125,8 +2125,6 @@ contains
       !
       !-----------------------------------------------------------------------------------
 
-      use chem_interface_mod
-
       implicit none
 
       if (.not.obs_famExist(lobsSpaceData,'CH',local_mpi=.true.)) return
@@ -2806,8 +2804,6 @@ contains
       !**   Purpose: Compute H^T * R^-1 (OmP-Hdx) for all CH observations  
       !
       !-----------------------------------------------------------------------------------
-
-      use chem_interface_mod
 
       implicit none
       

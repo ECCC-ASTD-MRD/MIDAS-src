@@ -29,7 +29,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC_CHEM(lcolumng,lobsSpaceData,active)
   use verticalCoord_mod
   use HorizontalCoord_mod
   use bmatrixchem
-  use chem_interface_mod
+  use chem_obsoperators_mod
 
   implicit none
   

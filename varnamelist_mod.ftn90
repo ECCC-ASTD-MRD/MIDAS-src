@@ -47,7 +47,7 @@ module varNameList_mod
   ! public procedures
   public :: vnl_varListIndex3d, vnl_varListIndex2d, vnl_varListIndex, vnl_varnameFromVarnum
   public :: vnl_varLevelFromVarname, vnl_varLevelFromVarnum, vnl_varTypeFromVarname
-  public :: vnl_varKindFromVarname, vnl_IsAtmosConstituent
+  public :: vnl_varKindFromVarname, vnl_IsAtmosConstituent, vnl_varnumFromVarname
 
   integer, parameter          :: vnl_numvarmax3D=29, vnl_numvarmax2D=9
 
@@ -197,9 +197,9 @@ module varNameList_mod
       case(BUFR_NEDW)
         varName='DW'
       case default
-!
-!       Search for constituents. Identification depends on value and presence of second parameter.
-!
+        !
+        ! Search for constituents. Identification depends on value and presence of second parameter.
+        !
         if (present(varNumber_chm)) then 
            select case (varnumber_chm)
               case(BUFR_NECH_O3)
@@ -240,6 +240,113 @@ module varNameList_mod
 
     end function vnl_varnameFromVarnum
 
+    !--------------------------------------------------------------------------
+    ! vnl_varnumFromVarname
+    !
+    !   Author: Y.J. Rochon (ARQI), Jan. 2016
+    !
+    !   Revisions:
+    !          
+    !   Purpose: Identifies varNumber from varName for use in assimilating obs in the CH family.   
+    !  
+    !   Here, for weather variables, there is a 1-1 association between a variable name and an observation unit.
+    !   So one must provide the name directly associated to a single BUFR code.
+    !   As such, weather variable varNames may not necessarily be a member of the vnl_varNameList for this routine only.
+    !   
+    !   For constituents, the varNumber refers only to the field/variable and not units. As consequence,
+    !   there is a unique pairing of varNumbers with the varNames from vnl_VarNameList.
+    !   
+    !-------------------------------------------------------------------------- 
+    function vnl_varnumFromVarName(varName,kind) result(varNumber)
+
+      implicit none
+      character(len=*),  intent(in) :: varName
+      character(len=*),  intent(in), optional :: kind
+      integer    :: varNumber
+      
+      varNumber=0
+      select case (varName)
+      
+      ! Weather variables. Must provide name directly associated to a single BUFR code.
+      ! As such, the varName may not necessarily be a member of the vnl_varNameList for this routine only.
+
+      case('UU')
+        varNumber=BUFR_NEUU
+      case('US')
+        varNumber=BUFR_NEUS
+      case('VV')
+        varNumber=BUFR_NEVV
+      case('VS')
+        varNumber=BUFR_NEVS
+      case('TT')
+        varNumber=BUFR_NETT
+      case('TS')
+        varNumber=BUFR_NETS
+      case('RF')            
+        varNumber=BUFR_NERF
+      case('BD')
+        varNumber=BUFR_NEBD
+      case('ZD')
+        varNumber=BUFR_NEZD
+      case('GZ')
+        varNumber=BUFR_NEGZ
+      case('DZ')
+        varNumber=BUFR_NEDZ
+      case('HU')
+        if (present(kind)) then
+           if (kind.eq.'CH') then
+              varNumber=BUFR_NECH_H2O
+           else
+              varNumber=BUFR_NEHU
+           end if
+         else
+            varNumber=BUFR_NEHU
+         end if
+      case('HS')
+        varNumber=BUFR_NEHS
+      case('SS')
+        varNumber=BUFR_NESS
+      case('P0','PS')
+        varNumber=BUFR_NEPS
+      case('PN')
+        varNumber=BUFR_NEPN
+      case('DW')
+        varNumber=BUFR_NEDW
+
+      ! Atmospheric constituents other than HU
+              
+      case('TO3')
+        varNumber=BUFR_NECH_O3
+      case('TH2O')
+        varNumber=BUFR_NECH_H2O
+      case('TCH4')
+        varNumber=BUFR_NECH_CH4
+      case('TCO2')
+        varNumber=BUFR_NECH_CO2
+      case('TCO','ECO')
+        varNumber=BUFR_NECH_CO
+      case('TNO2','ENO2')
+        varNumber=BUFR_NECH_NO2
+      case('TN2O')
+        varNumber=BUFR_NECH_N2O
+      case('TNO')
+        varNumber=BUFR_NECH_NO
+      case('HCHO','THCH','EHCH')
+        varNumber=BUFR_NECH_HCHO
+      case('TSO2','ESO2')
+        varNumber=BUFR_NECH_HCHO
+      case('TNH3','ENH3')
+        varNumber=BUFR_NECH_NH3
+      case('AF')
+        varNumber=BUFR_NECH_PM25
+      case('AC')
+        varNumber=BUFR_NECH_PM10
+        
+      case default
+         call utl_abort('vnl_varnumFromVarName: Unknown variable name ' // trim(varName) )
+      end select
+      
+    end function vnl_varnumFromVarname
 
     !--------------------------------------------------------------------------
     ! vnl_varLevelFromVarname

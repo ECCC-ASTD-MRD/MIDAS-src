@@ -18,8 +18,7 @@ module obsErrors_mod
   use MathPhysConstants_mod
   use obsSpaceData_mod
   use tovs_nl_mod
-  use chem_mod
-  use chem_interface_mod
+  use chem_obserrors_mod
   use codtyp_mod
   use bufr
   use utilities_mod

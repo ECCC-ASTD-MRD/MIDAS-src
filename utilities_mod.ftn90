@@ -18,7 +18,7 @@
 !--------------------------------------------------------------------------
 ! MODULE utilities_mod,(prefix="utl")
 !
-! Purpose: A utlity routines docker
+! Purpose: A utility routines docker
 !
 ! Subroutines:
 !
@@ -34,6 +34,27 @@ module utilities_mod
   public :: utl_EZUVINT, utl_EZGDEF, utl_CXGAIG, utl_FSTLIR, utl_FSTECR
   public :: utl_EZSINT, utl_EZSINT2, utl_findArrayIndex, utl_matSqrt
   public :: utl_writeStatus, utl_getfldprm, utl_abort
+  public :: utl_open_asciifile, utl_stnid_equal, utl_resize, utl_str
+  public :: utl_get_stringId, utl_get_Id
+  public :: utl_readFstField
+
+  ! module interfaces
+  ! -----------------
+
+  ! interface for resizing arrays
+  interface utl_resize
+     module procedure utl_resize_1d_real
+     module procedure utl_resize_1d_int
+     module procedure utl_resize_1d_str
+     module procedure utl_resize_2d_real
+     module procedure utl_resize_3d_real
+  end interface utl_resize
+
+  ! interface for conversion to a left-justified string (useful for calls to utl_abort)
+  interface utl_str
+     module procedure utl_int2str
+     module procedure utl_float2str
+  end interface utl_str
 
 contains
 
@@ -454,6 +475,9 @@ contains
     
   end subroutine utl_writeStatus
 
+  !--------------------------------------------------------------------------
+  ! utl_getfldprm
+  !--------------------------------------------------------------------------
   subroutine utl_getfldprm(kip1s,kip2,kip3,knlev,cdetiket,cdtypvar,kgid, &
                            cdvar,kstampv,knmaxlev,kinmpg,kip1style,kip1kind, &
                            ktrials,koutmpg)
@@ -491,7 +515,7 @@ contains
     !     kgid            : handle of the field descriptor
     !     kip1style       : style in which ip1 is encoded (15 or 31 bits)
     !     kip1kind        : kind of vertical coord encoded in ip1
-    !     koutmpg         :  the unit which contains the selected records.  
+    !     koutmpg         : the unit which contains the selected records.  
     !
 
     integer fstinl,fstprm,ezqkdef,newdate
@@ -642,5 +666,697 @@ contains
     call mpi_abort( comm, 1, ierr )
 
   end subroutine utl_abort
+
+  !--------------------------------------------------------------------------
+  ! utl_open_asciifile
+  !--------------------------------------------------------------------------
+  subroutine utl_open_asciifile(filename,unit)
+  ! 
+  !  Purpose: Opens an ascii file for output 
+  !
+  !  Author: M. Sitwell, April 2016
+  !
+  !  Input
+  !  
+  !           filename      filename
+  !           unit          unit number to use or 0 to let fnom set value
+  !  Output
+  !           unit          unit number associated with file
+  !
+  !-------------------------------------------------------------------------------------------
+
+    implicit none
+
+    character(len=*), intent(in) :: filename
+    integer, intent(out) :: unit
+    logical :: file_exists
+    integer :: ier
+    integer, external :: fnom
+    character(len=20) :: mode
+    
+    inquire(file=trim(filename), exist=file_exists)
+    
+    if (file_exists) then
+       mode = 'FTN+APPEND+R/W'
+    else
+       mode = 'FTN+R/W'
+    end if
+
+    unit=0
+    
+    !ier = fnom(unit,trim(filename),trim(mode),0)
+    ier = utl_open_file(unit,trim(filename),trim(mode))
+
+    if (ier.ne.0) call utl_abort('utl_open_messagefile: Error associating unit number')
+
+  end subroutine utl_open_asciifile
+
+  !--------------------------------------------------------------------------
+  ! utl_open_file
+  !--------------------------------------------------------------------------
+  function utl_open_file(unit,filename,mode) result(ier)
+  ! 
+  ! Purpose: This is a temporary subroutine to open a file with fnom that is needed due to
+  !           a bug in fnom that does not allow an ascii file to be opened in 'APPEND' mode.  
+  !
+  !  Author: M. Sitwell, Aug 2016
+  !
+  !-------------------------------------------------------------------------------------------
+
+    implicit none
+
+    integer, intent(inout) :: unit
+    character(len=*) :: filename,mode
+    integer :: ier
+    character(len=10) :: position,action
+    integer, external :: fnom
+
+    if (index(mode,'APPEND').gt.0) then
+       position = 'APPEND'
+    else
+       position = 'ASIS'
+    end if
+    
+    if (index(mode,'R/W').gt.0) then
+       action = 'READWRITE'
+    else
+       action = 'READ'
+    end if
+
+    ier = fnom(unit,filename,mode,0)
+    
+    close(unit=unit)
+    open(unit=unit, file=filename, position=position, action=action)
+
+  end function utl_open_file
+    
+  !--------------------------------------------------------------------------
+  ! utl_stnid_equal
+  !--------------------------------------------------------------------------
+  function utl_stnid_equal(id1,id2) result(same)
+  !
+  ! Author  : Y. Rochon  Nov 2014
+  ! Revision: 
+  !           M. Sitwell, Feb 2015
+  !           - Code set as a function.
+  !           Y. Rochon, July 2015
+  !           - Accounted for ilen1>ilen2 with the additional characters being *
+  !           M. Sitwell, Aug 2015
+  !           - Made function symmetric so that * is treated as a wildcard
+  !             for both arguments
+  !
+  ! Purpose: Compares STNID values allowing for * as wildcards and trailing blanks 
+  !
+  ! Input
+  !          id1         reference stnid
+  !          id2         stnid being verified
+  !
+  ! Output
+  !
+  !          same        logical indicating if id1 and id2 match
+  !     
+  !-----------------------------------------------------------------------------------------    
+
+    implicit none
+
+    logical :: same
+    CHARACTER(len=*), intent(in) :: id1,id2
+    integer :: ilen1,ilen2,ji
+
+    same=.true.
+    ilen1=len_trim(id1)
+    ilen2=len_trim(id2)  
+              
+    do ji=1,min(ilen1,ilen2)
+       if ( id1(ji:ji).ne.'*' .and. id2(ji:ji).ne.'*' .and. id2(ji:ji).ne.id1(ji:ji) ) then
+          same = .false.
+          exit
+       end if
+    end do
+    
+    if (same.and.ilen1.gt.ilen2) then
+       do ji=ilen2+1,ilen1
+          if (id1(ji:ji).ne.'*') then
+              same=.false.
+              exit
+          end if
+       end do
+    else if (same.and.ilen2.gt.ilen1) then
+       do ji=ilen1+1,ilen2
+          if (id2(ji:ji).ne.'*') then
+              same=.false.
+              exit
+          end if
+       end do
+    end if
+        
+  end function utl_stnid_equal
+ 
+  !--------------------------------------------------------------------------
+  ! utl_int2str
+  !--------------------------------------------------------------------------
+  character(len=20) function utl_int2str(i)
+  !
+  ! Author  : M. Sitwell Oct 2015
+  !
+  ! Purpose: Function for integer to string conversion. Helpful when calling subroutine utl_abort. 
+  !
+  !-------------------------------------------------------------------------------------------
+
+    implicit none
+
+    integer, intent(in) :: i
+    
+    write(utl_int2str,*) i
+    utl_int2str = adjustl(utl_int2str)
+    
+  end function utl_int2str
+            
+  !--------------------------------------------------------------------------
+  ! utl_float2str
+  !--------------------------------------------------------------------------
+  character(len=20) function utl_float2str(x)
+  !
+  ! Author:  M. Sitwell April 2016 
+  !
+  ! Purpose: Function for integer to string conversion. Helpful when calling subroutine utl_abort.
+  !
+  !-------------------------------------------------------------------------------------------
+
+    implicit none
+
+    real(8), intent(in) :: x
+
+    write(utl_float2str,*) x
+    utl_float2str = adjustl(utl_float2str)
+
+  end function utl_float2str
+
+  !--------------------------------------------------------------------------
+  ! utl_resise_1d_real
+  !--------------------------------------------------------------------------
+  subroutine utl_resize_1d_real(arr,dim1)
+  !
+  ! Author  : M. Sitwell  April 2015
+  ! Revision:  
+  !
+  ! Purpose: Resize 1D array
+  !
+  !---------------------------------------------------------------------------------------
+    implicit none
+
+    real(8), pointer, intent(inout) :: arr(:)
+    integer, intent(in) :: dim1
+    real(8), pointer :: tmp(:)
+    integer :: dim1_in,d1
+
+    dim1_in = size(arr)
+    d1 = min(dim1_in, dim1)
+
+    allocate(tmp(dim1))
+    tmp(1:d1) = arr(1:d1)
+
+    if (dim1.gt.dim1_in) tmp(d1+1:dim1) = 0.0D0
+    
+    deallocate(arr)
+
+    arr => tmp
+    
+    nullify(tmp)
+
+  end subroutine utl_resize_1d_real
+
+  !--------------------------------------------------------------------------
+  ! utl_resise_1d_int
+  !--------------------------------------------------------------------------
+  subroutine utl_resize_1d_int(arr,dim1)
+  !
+  ! Author  : M. Sitwell  April 2015
+  !
+  ! Purpose: Resize 1D array 
+  !
+  !---------------------------------------------------------------------------------------
+     
+    implicit none
+
+    integer, pointer, intent(inout) :: arr(:)
+    integer, intent(in) :: dim1
+    integer, pointer :: tmp(:)
+    integer :: dim1_in,d1
+
+    dim1_in = size(arr)
+    d1 = min(dim1_in, dim1)
+
+    allocate(tmp(dim1))
+    tmp(1:d1) = arr(1:d1)
+
+    if (dim1.gt.dim1_in) tmp(d1+1:dim1) = 0
+    
+    deallocate(arr)
+
+    arr => tmp
+    
+    nullify(tmp)
+
+  end subroutine utl_resize_1d_int
+
+  !--------------------------------------------------------------------------
+  ! utl_resise_1d_str
+  !--------------------------------------------------------------------------  
+  subroutine utl_resize_1d_str(arr,dim1)
+  !
+  ! Author  : M. Sitwell  April 2016
+  !
+  ! Purpose: Resize 1D array
+  !
+  !---------------------------------------------------------------------------------------
+     
+    implicit none
+
+    character(len=*), pointer, intent(inout) :: arr(:)
+    integer, intent(in) :: dim1
+    character(len=len(arr(1))), pointer :: tmp(:)
+    integer :: dim1_in,d1
+
+    dim1_in = size(arr)
+    d1 = min(dim1_in, dim1)
+
+    allocate(tmp(dim1))
+    tmp(1:d1) = arr(1:d1)
+
+    if (dim1.gt.dim1_in) tmp(d1+1:dim1) = ""
+    
+    deallocate(arr)
+    arr => tmp
+    nullify(tmp)
+
+  end subroutine utl_resize_1d_str
+
+  !--------------------------------------------------------------------------
+  ! utl_resise_2d_real
+  !--------------------------------------------------------------------------
+  subroutine utl_resize_2d_real(arr,dim1,dim2)
+  !
+  ! Author  : M. Sitwell  April 2015
+  !
+  ! Purpose: Resize 2D array
+  !
+  ! Revision: 
+  !           Y. Rochon Feb 2016
+  !           - Added option to increase array sizes
+  !
+  !---------------------------------------------------------------------------------------
+
+    implicit none
+
+    real(8), pointer, intent(inout) :: arr(:,:)
+    integer, intent(in) :: dim1,dim2
+    real(8), pointer :: tmp(:,:)
+    integer :: dim1_in,dim2_in,d1,d2
+
+    dim1_in = size(arr,dim=1)
+    dim2_in = size(arr,dim=2)
+    d1 = min(dim1_in, dim1)
+    d2 = min(dim2_in, dim2)
+
+    allocate(tmp(dim1,dim2))
+    tmp(1:d1,1:d2) = arr(1:d1,1:d2)
+
+    if (dim1.gt.dim1_in) tmp(d1+1:dim1,:) = 0.0D0
+    if (dim2.gt.dim2_in) tmp(:,d2+1:dim2) = 0.0D0
+      
+    deallocate(arr)
+
+    arr => tmp
+    
+    nullify(tmp)
+
+  end subroutine utl_resize_2d_real
+
+  !--------------------------------------------------------------------------
+  ! utl_resise_3d_real
+  !--------------------------------------------------------------------------
+  subroutine utl_resize_3d_real(arr,dim1,dim2,dim3)
+  !
+  ! Author  : M. Sitwell  May 2015
+  ! Revision: 
+  !
+  ! Purpose: Resize 3D array
+  !
+  !---------------------------------------------------------------------------------------
+
+    implicit none
+
+    real(8), pointer, intent(inout) :: arr(:,:,:)
+    integer, intent(in) :: dim1,dim2,dim3
+    real(8), pointer :: tmp(:,:,:)
+    integer :: dim1_in,dim2_in,dim3_in,d1,d2,d3
+
+    dim1_in = size(arr,dim=1)
+    dim2_in = size(arr,dim=2)
+    dim3_in = size(arr,dim=3)
+    d1 = min(dim1_in, dim1)
+    d2 = min(dim2_in, dim2)
+    d3 = min(dim3_in, dim3)
+
+    allocate(tmp(dim1,dim2,dim3))
+    tmp(1:d1,1:d2,1:d3) = arr(1:d1,1:d2,1:d3)
+
+    if (dim1.gt.dim1_in) tmp(d1+1:dim1,:,:) = 0.0D0
+    if (dim2.gt.dim2_in) tmp(:,d2+1:dim2,:) = 0.0D0
+    if (dim3.gt.dim3_in) tmp(:,:,d3+1:dim3) = 0.0D0
+    
+    deallocate(arr)
+
+    arr => tmp
+    
+    nullify(tmp)
+
+  end subroutine utl_resize_3d_real
+
+  !--------------------------------------------------------------------------
+  ! utl_get_stringId
+  !--------------------------------------------------------------------------
+  subroutine utl_get_stringId(cstringin,nobslev,CList,NListSize,Nmax,elemId)
+
+  ! 
+  !   Purpose: Get element ID from a list of accumulating character 
+  !            strings (e.g. stnids). 
+  !
+  !            Called by filt_topoChm in filterobs_mod.ftn90
+  !
+  !   Author: Y.J. Rochon, ARQI/AQRD, Feb 2015
+  !    
+  !   Revisions:
+  !            Y.J. Rochon, ARQI/AQRD, July 2015
+  !            - Account for wildcards (use if utl_stnid_equal) when present.         
+  !
+  !   Input:
+  !
+  !       Nmax            Max allowed dimension.
+  !       NListSize       Input number of identified IDs (must be >=0 and <=Nmax)
+  !       CList           Input list of accumulated character strings
+  !                       for uni and multi-level data.
+  !       cstringin       Input character string
+  !       nobslev         Number of elements in profile associated to cstringin.
+  !
+  !   Output:
+  !
+  !       NListSize       Updated number of identified IDs
+  !       CList           Updated list of accumulated character strings
+  !       elemId          Index of cstringin within CList_chm
+  !        
+  !-------------------------------------------------------------------------------------------
+ 
+    implicit none
+
+    integer, intent(in)    :: Nmax,nobslev
+    integer, intent(inout) :: NListSize
+    integer, intent(out)   :: elemId
+    character(len=*), intent(in)     :: cstringin
+    character(len=*),  intent(inout) :: CList(Nmax)
   
+    integer :: i
+    character(len=120) :: cstring
+    
+    elemId=0
+    if (NListSize.gt.Nmax-1) then
+       call utl_abort('utl_get_stringId: Dimension error, NListSize > Nmax-1.')     
+    else if (NListSize.gt.0) then
+       if (nobslev.eq.1) then 
+          cstring=trim(cstringin)//'U'
+          do i=1,NListSize
+             if (trim(cstring).eq.trim(CList(i))) then
+                 elemId=i
+                 exit
+             end if
+          end do
+       else 
+          cstring=trim(cstringin)       
+          do i=1,NListSize
+             if (trim(cstring).eq.trim(CList(i))) then
+                 elemId=i
+                 exit
+             end if
+          end do
+       end if
+       
+       if (elemId.eq.0) then
+          do i=1,NListSize
+             if (utl_stnid_equal(trim(CList(i)),trim(cstring))) then
+                elemId=i
+                exit
+             end if
+          end do
+       end if
+    end if
+
+    if (elemID.eq.0) then
+        NListSize=NListSize+1
+        elemId=NListSize
+        if (nobslev.eq.1) then
+           CList(NListSize)=trim(cstringin)//'U'
+        else
+           CList(NListSize)=trim(cstringin)
+        end if
+    end if
+    
+  end subroutine utl_get_stringId
+
+  !--------------------------------------------------------------------------
+  ! utl_get_Id
+  !--------------------------------------------------------------------------
+  subroutine utl_get_Id(id,IdList,NListSize,Nmax,elemId)
+
+  ! 
+  !   Purpose: Get element ID from list of accumulating integer IDs.
+  !
+  !   Author: Y.J. Rochon, ARQI/AQRD, Feb 2015
+  !
+  !   Input:
+  !
+  !       Nmax         Max allowed dimension.
+  !       NListSize    Input number of IDs (must be >=0 and <=Nmax)
+  !       IdList       Input list of accumulated IDs.
+  !       id           Input id for individual obs 
+  !
+  !   Output:
+  !
+  !       NListSize    Updated number of IDs 
+  !       IdList       Updated list of accumulated IDs.
+  !       elemId       Index of id within List
+  !     
+  !-------------------------------------------------------------------------------------------
+ 
+    implicit none
+
+    integer, intent(in)    :: Nmax,id
+    integer, intent(inout) :: NListSize,IdList(Nmax)
+    integer, intent(out)   :: elemId
+  
+    integer :: i
+    
+    elemId=0
+    if (NListSize.gt.Nmax-1) then
+       call utl_abort('utl_get_Id: Dimension error, NListSize > Nmax-1.')     
+    else if (NListSize.gt.0) then
+       do i=1,NListSize
+          if (id.eq.IdList(i)) then
+              elemId=i
+              exit
+          end if
+       end do
+    end if
+
+    if (elemID.eq.0) then
+        NListSize=NListSize+1
+        elemId=NListSize
+        IdList(NListSize)=id
+    end if
+    
+    
+  end subroutine utl_get_Id
+  
+  !--------------------------------------------------------------------------
+  ! utl_radFstField
+  !------------------;-------------------------------------------------------
+  subroutine utl_readFstField(fname,varName,iip1,iip2,iip3,etiketi, &
+                               ni,nj,nkeys,array,xlat,xlong,lvls,kind)
+  !
+  ! Author  : Y. Rochon, ARQI/AQRD, Nov 2015
+  !
+  ! Revision: 
+  !
+  ! Purpose:  Read specified field from standard RPN/fst file. Could be one
+  !           to all levels depending on the input iip1,iip2,iip3 values
+  !
+  !           Currently assumes lat/long (or Gaussian) type grids.
+  !           See hco_SetupFromFile for example toward future generalizations.
+  !           Generalization would require having xlat and xlong being 2D.
+  !
+  ! IN
+  !
+  !     fname    input filename
+  !     varName  search nomvar
+  !     iip1     search ip1
+  !     iip2     search ip2
+  !     iip3     search ip3
+  !     etiketi  search etiket
+  !
+  ! OUT
+  !
+  !     ni,nj    ni,nj values
+  !     nkeys    number of records satisfying search criteria
+  !     array    (ni,nj,nkeys) data arrray
+  !     xlat     1D latitude array (optional)
+  !     xlong    1D longitude array (optional)
+  !     lvls     1D vertical coordinate array (optional)
+  !     kind     vertical coordinate type according to convip (optional)
+  !-----------------------------------------------------------------------------------------
+
+    implicit none
+
+    integer, intent(in) :: iip1,iip2,iip3
+    character(len=*), intent(in) :: varName,fname,etiketi
+    integer, intent(out) :: ni, nj, nkeys
+    integer, intent(out), optional :: kind
+    real(8), intent(out), allocatable :: array(:,:,:)
+    real(8), intent(out), allocatable, optional :: lvls(:), xlat(:),xlong(:)
+
+    integer, external :: fnom,fclos,fstouv,fstfrm,fstinl,fstlir,fstluk,fstprm
+    
+    real(4) :: lvl_r4
+    
+    logical :: Exists,levels
+    character(len=1) :: string
+     
+    integer, parameter :: iun=0
+    integer :: i,ier, kindi
+
+    integer, parameter :: maxkeys=1000
+    integer :: keys(maxkeys),ini,inj,nk
+    integer :: dateo, deet, npas, nbits, datyp
+    integer :: ip1, ip2, ip3, swa, lng, dltf, ubc
+    integer :: extra1, extra2, extra3
+    integer :: ig1, ig2, ig3, ig4  
+    character*1 clgrtyp
+    character*2 cltypvar
+    character*4 nomvar
+    character*12 cletiket
+    real(4), allocatable :: buffer(:,:)
+
+    real :: xlat1_4, xlon1_4, xlat2_4, xlon2_4
+    
+    ! Open file
+    
+    inquire(file=trim(fname),exist=Exists)
+    if(.not.Exists) then
+      write(*,*) 'File missing=',fname
+      call utl_abort('utl_read_fst_field: did not find file.')
+    else
+      ier=fnom(iun,trim(fname),'RND+OLD+R/O',0)
+      ier=fstouv(iun,'RND+OLD')
+    end if
+
+    ! Find reports in file for specified varName and iip*.
+
+    ier = fstinl(iun,ni,nj,nk,-1,etiketi,iip1,iip2,iip3,'',varName,keys,nkeys,maxkeys) 
+
+    if(ier.lt.0.or.nkeys.eq.0) then
+      write(*,*) 'Search field missing ',varName, ' from file ',fname
+      call utl_abort('utl_read_fst_field: did not find field.')
+    else if (nk.gt.1) then
+      write(*,*) 'Unexpected size nk ',nk,' for ',varName,' of file ',fname 
+      call utl_abort('utl_read_fst_field')      
+    end if
+
+    if (present(xlat).and.present(xlong)) then
+
+       !  Get lat and long if available.
+
+       if (allocated(xlat)) deallocate(xlat,xlong)
+       allocate(xlat(nj),xlong(ni),buffer(ni*nj,1))
+       xlat(:)=-999.
+       xlong(:)=-999.
+
+       ier = fstprm(keys(1),dateo, deet, npas, ni, nj, nk, nbits,    &         
+                    datyp, ip1, ip2, ip3, cltypvar, nomvar, cletiket, &
+                    clgrtyp, ig1, ig2, ig3,                           &
+                    ig4, swa, lng, dltf, ubc, extra1, extra2, extra3)  
+    
+       if (ni.gt.1) then
+          ier=fstlir(buffer,iun,ni,inj,nk,-1,'',ig1,ig2,ig3,'','>>')
+          if (ier.ge.0) xlong(:)=buffer(1:ni,1) 
+       end if
+       if (nj.gt.1) then
+          ier=fstlir(buffer,iun,ini,nj,nk,-1,'',ig1,ig2,ig3,'','^^')
+          if (ier.ge.0) xlat(:)=buffer(1:nj,1)     
+       end if
+       deallocate(buffer)
+
+       if ( trim(clgrtyp) == 'Z' ) then
+
+          ! Check for rotated grid
+
+          ier = fstprm(ier,                                         & ! IN
+                  dateo, deet, npas, ni, nj, nk, nbits,             & ! OUT
+                  datyp, ip1, ip2, ip3, cltypvar, nomvar, cletiket, & ! OUT
+                  clgrtyp, ig1, ig2, ig3,                           & ! OUT
+                  ig4, swa, lng, dltf, ubc, extra1, extra2, extra3 ) ! OUT
+
+          call cigaxg (clgrtyp,                                     & ! IN
+                     xlat1_4, xlon1_4, xlat2_4, xlon2_4,            & ! OUT
+                     ig1, ig2, ig3, ig4 ) ! IN
+
+          if ( xlat1_4 /= xlat2_4 .or. xlon1_4 /= xlon2_4 ) &
+             call utl_abort('utl_readFstField: Cannot currently handle rotated grid')
+          
+       else if (trim(clgrtyp) /= 'G') then
+
+         call utl_abort('utl_readFstField: Cannot currently handle grid type ' // trim(clgrtyp) )
+
+       end if
+       
+    end if 
+    
+    ! Get vertical coordinate
+    
+    if (present(lvls)) then
+       if (allocated(lvls)) deallocate(lvls)
+       allocate(lvls(nkeys))
+
+       do i=1,nkeys
+          ier = fstprm(keys(i),dateo, deet, npas, ni, nj, nk, nbits,    &         
+                    datyp, ip1, ip2, ip3, cltypvar, nomvar, cletiket, &
+                    clgrtyp, ig1, ig2, ig3,                           &
+                    ig4, swa, lng, dltf, ubc, extra1, extra2, extra3)  
+          call convip(ip1,lvl_r4,kindi,-1,string,.false.)
+          lvls(i)=lvl_r4
+       end do
+    end if
+     
+    if (present(kind)) then
+        if (present(lvls)) then         
+            kind=kindi
+        else
+            kind=-1
+        end if
+    end if
+
+    ! Get field
+    
+    allocate(array(ni,nj,nkeys),buffer(ni,nj))
+
+    do i=1,nkeys
+       ier=fstluk(buffer,keys(i),ni,nj,nk)
+       array(:,:,i)=buffer(:,:)
+    end do
+    
+    deallocate(buffer)
+    
+    ier=fstfrm(iun)  
+    ier=fclos(iun)  
+
+  end subroutine utl_readFstField
+ 
 end module utilities_mod

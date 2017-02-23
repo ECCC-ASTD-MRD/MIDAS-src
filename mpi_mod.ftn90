@@ -24,7 +24,7 @@ module mpi_mod
   public :: mpi_myid,mpi_nprocs,mpi_myidx,mpi_myidy,mpi_npex,mpi_npey
   ! public procedures
   public :: mpi_initialize,mpi_getptopo
-  public :: mpi_allreduce_sumreal8scalar
+  public :: mpi_allreduce_sumreal8scalar,mpi_allgather_string
 
   integer :: mpi_myid   = 0
   integer :: mpi_nprocs = 0
@@ -122,5 +122,52 @@ module mpi_mod
     call tmg_stop(16)
 
   end subroutine mpi_allreduce_sumreal8scalar
+ 
+  !-------------------------------------------------------------------------------------------
+  
+  subroutine mpi_allgather_string(str_list,str_list_all,nlist,nchar,nproc,comm,ierr)
+  ! 
+  !   Purpose: Performs the MPI 'allgather' routine for an array of strings
+  !
+  !   Author:  Y. Rochom, ARQI/AQRD, July 2015
+  !
+  !   Revisions:  M. Sitwell, ARQI/AQRD, Aug 2015
+  !               - Code set as a subroutine
+  !-------------------------------------------------------------------------------------------
+
+    implicit none
+
+    character(len=nchar), intent(in) :: str_list(nlist)
+    character(len=*), intent(in) :: comm
+    integer, intent(in) :: nlist,nchar,nproc
+    character(len=nchar), intent(out) :: str_list_all(nlist,nproc)
+    integer, intent(out) :: ierr
+
+    integer :: num_list(nlist*nchar),num_list_all(nlist*nchar,nproc)
+    integer :: ilist,ichar,iproc
+              
+    ! Convert strings to integer sequences
+
+    do ilist=1,nlist
+       do ichar=1,nchar
+          num_list((ilist-1)*nchar+ichar) = iachar(str_list(ilist)(ichar:ichar))
+       end do
+    end do
+
+    ! Perform allgather with converted integer sequences
+
+    call rpn_comm_allgather(num_list,nlist*nchar,"MPI_INTEGER",num_list_all,nlist*nchar,"MPI_INTEGER",comm,ierr)
+       
+    ! Convert integer sequences to stnid character strings
+          
+    do iproc=1,nproc
+       do ilist=1,nlist
+          do ichar=1,nchar
+             str_list_all(ilist,iproc)(ichar:ichar) = achar(num_list_all((ilist-1)*nchar+ichar,iproc))
+          end do
+       end do
+    end do
+
+  end subroutine mpi_allgather_string
 
 end module mpi_mod

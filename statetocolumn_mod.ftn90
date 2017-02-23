@@ -28,12 +28,13 @@ module stateToColumn_mod
   use timeCoord_mod
   use tt2phi_mod
   use utilities_mod
+  
   implicit none
   save
   private
   
   ! public routines
-  public :: s2c_tl, s2c_ad
+  public :: s2c_tl, s2c_ad, s2c_column_hbilin
 
   ! private module variables
   logical :: initialized = .false.
@@ -1207,5 +1208,117 @@ CONTAINS
 !$OMP END PARALLEL DO
 
   end subroutine commLatLonAd
+
+  !--------------------------------------------------------------------------
+  ! S2C_COLUMN_HBILIN  
+  !--------------------------------------------------------------------------
+  subroutine s2c_column_hbilin(field,vlev,nlong,nlat,nlev,xlong,xlat,plong,plat,vprof,vlevout,nlevout)
+  !
+  ! Author:  Y. Rochon, Nov 2015 
+  !
+  ! Purpose: Horizontal bilinear interpolation from a 3D field to a profile at (plong,plat).
+  !          Assumes vertical interpolation not needed or already done.
+  !
+  !          This version can be used with fields that are not part of the background state,
+  !          such as climatologies.
+  !
+  !          This version does not depend in column_data and gridstatevector modules.
+  !
+  ! Arguments:
+  !
+  !   Input
+  !      
+  !     field(nlong,nlat,nlev)  3D field
+  !     nlong         number or latitudes
+  !     nlat          number of longitudes
+  !     nlev          number of vertical levels
+  !     xlong         longitudes (radians)
+  !     xlat          latitudes (radians)
+  !     vlev          vertical levels of input field (in pressure)
+  !     plat          target latitude (radian)
+  !     plong         target longitude (radians) 
+  !     nlevout       Number of target vertical levels
+  !     vlevout       Target vertical levels (in pressure)
+  !
+  !   Output
+  !
+  !     vprof(nlev)   Profile at (plong,plat) 
+  !
+  !-------------------------------------------------------------------------------------------  
+
+    implicit none
+
+    integer, intent(in) :: nlong,nlat,nlev,nlevout
+    real(8), intent(in) :: field(nlong,nlat,nlev),vlev(nlev),xlong(nlong),xlat(nlat),plong,plat
+    real(8), intent(in) :: vlevout(nlevout)
+    real(8), intent(out) :: vprof(nlevout)
+    
+    real(8) :: lnvlev(nlev),lnvlevout(nlevout),plong2
+    integer :: ilev,ilon,ilat,i,j
+
+    real(8) :: DLDX, DLDY, DLDP, DLW1, DLW2, DLW3, DLW4
+
+    ! Find near lat/long grid points
+    
+    plong2=plong
+    if (plong2.lt.0.0) plong2=2.D0*MPC_PI_R8 + plong2
+    do ilon=2,nlong
+       if  (xlong(ilon-1).lt.xlong(ilon)) then
+           if (plong2.ge.xlong(ilon-1).and.plong2.le.xlong(ilon)) exit
+       else 
+           ! Assumes this is a transition between 360 to 0 (if it exists). Skip over.
+       end if
+    end do
+    ilon=ilon-1
+       
+    do ilat=2,nlat
+       if (plat.le.xlat(ilat)) exit
+    end do
+    ilat=ilat-1
+    
+    ! Set lat/long interpolation weights
+    
+    DLDX = (plong - xlong(ilon))/(xlong(ilon+1)-xlong(ilon))
+    DLDY = (plat - xlat(ilat))/(xlat(ilat+1)-xlat(ilat))
+
+    DLW1 = (1.d0-DLDX) * (1.d0-DLDY)
+    DLW2 =       DLDX  * (1.d0-DLDY)
+    DLW3 = (1.d0-DLDX) *       DLDY
+    DLW4 =       DLDX  *       DLDY
+
+    ! Set vertical interpolation weights (assumes pressure vertical coordinate)
+    
+    lnvlevout(:)=log(vlevout(:))    
+    lnvlev(:)=log(vlev(:))    
+!    lnvlev(:) = DLW1 * log(vlev(ilon,:,ilat)) &
+!               + DLW2 * log(vlev(ilon+1,:,ilat)) &
+!               + DLW3 * log(vlev(ilon,:,ilat+1)) &
+!               + DLW4 * log(vlev(ilon+1,:,ilat+1)) 
+         
+    ilev=1
+    do i = 1, nlevout
+       do j=ilev,nlev          
+          if (lnvlevout(i).lt.lnvlev(j)) exit    ! assumes both lnvlevout and lnvlev increase with increasing index value
+       end do
+       ilev=j-1
+       if (ilev.lt.1) then
+          ilev=1
+       else if (ilev.ge.nlev) then
+           ilev=nlev-1
+       end if
+       
+       DLDP = (lnvlev(ilev+1)-lnvlevout(i))/(lnvlev(ilev+1)-lnvlev(ilev))
+          
+       vprof(i) = DLDP* (DLW1 * field(ilon,ilev,ilat) &
+                       + DLW2 * field(ilon+1,ilev,ilat) &
+                       + DLW3 * field(ilon,ilev,ilat+1) &
+                       + DLW4 * field(ilon+1,ilev,ilat+1)) &
+         + (1.d0-DLDP)* (DLW1 * field(ilon,ilev+1,ilat) &
+                       + DLW2 * field(ilon+1,ilev+1,ilat) &
+                       + DLW3 * field(ilon,ilev+1,ilat+1) &
+                       + DLW4 * field(ilon+1,ilev+1,ilat+1))                               
+    end do
+        
+  end subroutine s2c_column_hbilin   
 
 end module stateToColumn_mod

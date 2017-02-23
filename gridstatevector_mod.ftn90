@@ -56,7 +56,7 @@ MODULE gridStateVector_mod
   public :: gsv_add, gsv_power, gsv_scale, gsv_scaleVertical, gsv_copy, gsv_stddev
   public :: gsv_getVco, gsv_setVco, gsv_getHco, gsv_setHco
   public :: gsv_commMPIGlobal, gsv_commMPIGlobal3D
-  public :: gsv_horizSubSample
+  public :: gsv_horizSubSample, gsv_readTrials, gsv_varKindExist
 
   ! public entities accessed through inheritance
   public :: struct_vco, vco_SetupFromFile
@@ -1987,6 +1987,131 @@ MODULE gridStateVector_mod
     endif
 
   END SUBROUTINE gsv_horizSubSample
+
+  !--------------------------------------------------------------------------
+  ! gsv_readTrials
+  !--------------------------------------------------------------------------
+  subroutine gsv_readTrials(hco_anl,vco_anl,statevector_trial)
+  !
+  ! Author: Y. Rochon, Feb 2017 (addition recommended by Mark Buehner)
+  !         Bulk of content originally in vtr_setupTrials.
+  ! 
+  !---------------------------------------------------------------------------
+    implicit none
+
+    type(struct_hco), pointer :: hco_anl
+    type(struct_vco), pointer :: vco_anl
+    type(struct_gsv), intent(out) :: statevector_trial
+
+    integer              :: fnom, fstouv, fclos, fstfrm, fstinf
+    integer              :: ierr, ikey, indexStep, indexTrial, numTrials, nulTrial
+    integer              :: ni_file, nj_file, nk_file, dateStamp
+    integer, allocatable :: dateStampList(:)
+
+    character(len=2)     :: fileNumber
+    character(len=30)    :: fileName
+
+    logical              :: fileExists
+
+    ! initialize statevector_trial
+    call gsv_setVco(statevector_trial,vco_anl)
+    call gsv_setHco(statevector_trial,hco_anl)
+    call gsv_allocate(statevector_trial,tim_nstepobsinc,dateStamp=tim_getDateStamp(),mpi_local=.true.)
+
+    ! initialize list of dates for the 4D analysis increment
+    allocate(datestamplist(tim_nStepObsInc))
+    call tim_getstamplist(datestamplist,tim_nStepObsInc,tim_getDatestamp())
+
+    ! check existence of all trial files
+    numTrials = 0
+    do 
+       write(fileNumber,'(I2.2)') numTrials+1
+       fileName = './trlm_' // trim(fileNumber)
+       inquire(file=trim(fileName),exist=fileExists)
+       if (fileExists) then
+          numTrials = numTrials + 1
+       elseif ( (.not. fileExists) .and. numTrials > 0 ) then
+          exit  
+       elseif ( (.not. fileExists) .and. numTrials == 0 ) then
+          call utl_abort('vtr_setupTrials: No trial files found')
+       endif
+    enddo
+
+    if (numTrials.ne.tim_nstepobs) then
+       write(*,*) 'numTrials, tim_nstepobs = ',numTrials, tim_nstepobs
+       call utl_abort('vtr_setupTrials: numTrials /= tim_nstepobs')
+    endif
+
+    ! loop over times for which increment is computed
+    do indexStep = 1, tim_nstepobsinc
+       dateStamp = dateStampList(indexStep)
+       if(mpi_myid.eq.0) write(*,*) 'vtr_setupTrials: reading background for time step: ',indexStep, dateStamp
+
+       ! identify which trial file corresponds with current datestamp
+       fileName = 'NOTFOUND'
+       do indexTrial = 1, numTrials
+          write(fileNumber,'(I2.2)') indexTrial
+          fileName = './trlm_' // trim(fileNumber)
+          nulTrial = 0
+          ierr = fnom(nulTrial,trim(fileName),'RND+OLD+R/O',0)
+          ierr = fstouv(nulTrial,'RND+OLD')
+          ikey = fstinf(nulTrial, ni_file, nj_file, nk_file,  &
+               dateStamp, ' ', -1, -1, -1, ' ', 'P0')
+          ierr = fstfrm(nulTrial)
+          ierr = fclos(nulTrial)
+          if(ikey.gt.0) exit
+       enddo
+
+       if (trim(fileName).eq.'NOTFOUND') then 
+          write(*,*) 'indexStep, dateStamp = ', indexStep, dateStamp
+          call utl_abort('vtr_setupTrials: trial file not found for this increment timestep')
+       endif
+
+      ! read the trial file for this timestep
+      call gsv_readFromFile(statevector_trial, fileName, ' ', 'P', 'TRIAL', indexStep)
+
+    enddo
+
+  end subroutine gsv_readTrials
+
+  !--------------------------------------------------------------------------
+  ! gsv_varKdinExist
+  !--------------------------------------------------------------------------
+  function gsv_varKindExist(varKind) result(KindFound)
+  !
+  ! Author: M. Sitwell Sept 2015
+  !
+  ! Purpose: Checks if any of the variables to be assimilated (i.e. specified in the
+  !          namelist NAMSTATE) are part of the specified variable kind
+  ! 
+  ! IN
+  ! 
+  !    varKind      Variable kind (e.g. MT or CH)
+  !  
+  ! OUT
+  !
+  !   KindFound     Logical indicating if var kind found 
+  !
+  !-------------------------------------------------------------------------
+
+    implicit none
+    character(len=*) :: varKind
+    logical :: KindFound
+    
+    integer :: jvar
+
+    KindFound = .false.
+
+    VARLIST: do jvar = 1, vnl_numvarmax
+       if (gsv_varExist(varName=vnl_varNameList(jvar))) then
+          if (vnl_varKindFromVarname(vnl_varNameList(jvar)).eq.varKind) then
+             KindFound = .true.
+             exit VARLIST 
+          end if
+       end if
+    end do VARLIST
+
+  end function gsv_varKindExist
 
 
 END MODULE gridStateVector_mod

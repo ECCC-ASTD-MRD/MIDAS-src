@@ -48,6 +48,8 @@ MODULE minimization_mod
   use innovation_mod
   use quasinewton_mod
   use utilities_mod
+  use chem_postproc_mod, only: chm_transform_final_increments
+
   implicit none
   save
   private
@@ -533,8 +535,6 @@ CONTAINS
 
   subroutine min_writeIncrement(incr_cv,columng)
 
-    use chem_interface_mod
-
     implicit none
 
     ! arguments
@@ -585,7 +585,7 @@ CONTAINS
 
     ! Adjust and or transform chemical consituent concentration increments as needed.
     ! This includes ensuring non-negative analysis values on the analysis/increment grid.
-    if (chm_assim()) call chm_transform_final_increments(statevector_incr,hco_anl,vco_anl)
+    if (gsv_varKindExist('CH')) call chm_transform_final_increments(statevector_incr,hco_anl,vco_anl)
 
     ! loop over times for which increment is computed
     do indexStep = 1, tim_nstepobsinc

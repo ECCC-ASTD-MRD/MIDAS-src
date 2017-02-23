@@ -147,7 +147,7 @@ contains
 !--------------------------------------------------------------------------
 ! bmat_sqrtB
 !-------------------------------------------------------------------------- 
-  SUBROUTINE bmat_sqrtB(da_v,na_vdim,statevector)
+  SUBROUTINE bmat_sqrtB(da_v,na_vdim,statevector,SubVectorId)
     implicit none
     !
     !- Purpose: Transforms model state from error covariance space
@@ -156,81 +156,116 @@ contains
     ! Revision:
     !           Ping Du, CMDA/MSC, July 2014
     !           - Additions for chemical constituents (see cvBchm and 
-    !             section 2.2chm)
+    !             section 2.1b)
+    !           Y. Rochon, Feb 2017
+    !           - Added optional SubVectorId
+    !           - Declaration of statevector_temp only if associated(cvBen)
     !
     ! Comments:
     !
+    ! LAM and Ensemble cases not done for constituents. TBD 
+    !
     integer         :: na_vdim
+    integer, intent(in), optional :: SubVectorId
 
     real(8)         :: da_v(na_vdim)
     real(8),pointer :: cvBhi(:), cvBen(:), field(:,:,:), field4d(:,:,:,:)
     real(8),pointer :: cvBchm(:)
 
     type(struct_gsv) :: statevector, statevector_temp
+    
+    integer :: SubVectorChoice
 
     !
     !- 1.  Set analysis increment to zero
     !
     call gsv_zero(statevector) 
 
+    if (present(SubVectorId)) then
+       if (SubVectorId.eq.1.or.SubVectorId.eq.3) then
+          SubVectorChoice=SubVectorId
+       else
+          SubVectorChoice=0
+       end if
+    else
+       SubVectorChoice=0
+    end if
+
     !
     !- 2.  Compute the analysis increment
     !
 
-    !- 2.1 Allocate and set to zero another temporary statevector
-    call gsv_setVco(statevector_temp, gsv_getVco(statevector))
-    call gsv_setHco(statevector_temp, hco_anl)
-    call gsv_allocate(statevector_temp,&
-                      statevector%numStep, mpi_local=.true.)
-    call gsv_zero(statevector_temp)
+    !- 2.1 Compute 3D contribution to increment from BmatrixHI
+    if (SubVectorChoice.eq.0.or.SubVectorChoice.eq.1) then
+    
+       call tmg_start(50,'B_HI')
+       cvBhi => cvm_getSubVector(da_v,1)
 
-    !- 2.2 Compute 3D contribution to increment from BmatrixHI
-    call tmg_start(50,'B_HI')
-    cvBhi => cvm_getSubVector(da_v,1)
+       if ( associated(cvBhi) ) then
+         if ( statevector%hco%global ) then
+           !- 2.1.1 Global mode 
+           call bhi_bsqrt( cvBhi,      & ! IN
+                           statevector ) ! OUT
+         else
+           !- 2.1.2 LAM mode
+           call lbhi_bSqrt( cvBhi,      & ! IN 
+                            statevector ) ! OUT
+         end if
+         !- copy 3D increment to other timesteps to create 4D increment
+         call gsv_3dto4d(statevector)
+       end if
+       call tmg_stop(50)
 
-    if ( associated(cvBhi) ) then
-      if ( statevector%hco%global ) then
-        !- 2.2.1 Global mode 
-        call bhi_bsqrt( cvBhi,      & ! IN
-                        statevector ) ! OUT
-      else
-        !- 2.2.2 LAM mode
-        call lbhi_bSqrt( cvBhi,      & ! IN 
-                         statevector ) ! OUT
-      end if
-      !- copy 3D increment to other timesteps to create 4D increment
-      call gsv_3dto4d(statevector)
+    end if 
+    
+    !- 2.1b  Compute 3D contribution to increment from BmatrixChem
+    if (SubVectorChoice.eq.0.or.SubVectorChoice.eq.3) then
+
+       call tmg_start(123,'B_CHM')
+       cvBchm => cvm_getSubVector(da_v,3)
+
+       if ( associated(cvBchm) ) then
+         if ( statevector % hco % global ) then
+           !- 2.1.1b Global mode
+           call bchm_bsqrt( cvBchm,      & ! IN
+                           statevector )   ! OUT
+         else
+           ! Done in lbhi_bsqrt (cvBHi)
+         end if
+         !- copy 3D increment to other timesteps to create 4D increment
+         call gsv_3dto4d(statevector)
+       end if
+       call tmg_stop(123)
+
     end if
-    call tmg_stop(50)
+    
+    !- Consider 4D contribution to increment from BmatrixEnsemble
+    if (SubVectorChoice.eq.0.or.SubVectorChoice.eq.1) then
 
-    !- 2.2chm  Compute 3D contribution to increment from BmatrixChem
-    call tmg_start(123,'B_CHM')
-    cvBchm => cvm_getSubVector(da_v,3)
+       call tmg_start(60,'B_ENS')
+       cvBen => cvm_getSubVector(da_v,2)
 
-    if ( associated(cvBchm) ) then
-      if ( statevector % hco % global ) then
-        !- 2.2.1 Global mode
-        call bchm_bsqrt( cvBchm,      & ! IN
-                        statevector )   ! OUT
-      else
-        ! Done in lbhi_bsqrt (cvBHi)
-      end if
-      !- copy 3D increment to other timesteps to create 4D increment
-      call gsv_3dto4d(statevector)
+       if ( associated(cvBen) ) then
+       
+          !- 2.2 Allocate and set to zero another temporary statevector
+          call gsv_setVco(statevector_temp, gsv_getVco(statevector))
+          call gsv_setHco(statevector_temp, hco_anl)
+          call gsv_allocate(statevector_temp,&
+                         statevector%numStep, mpi_local=.true.)
+          call gsv_zero(statevector_temp)
+   
+          !- 2.3 compute 4D contribution to increment from BmatrixEnsemble
+          call ben_bsqrt(cvBen, statevector_temp)
+ 
+          !- 2.4 Add the two contributions together, result in statevector
+          call gsv_add(statevector_temp,statevector)
+
+          call gsv_deallocate(statevector_temp)
+
+       end if
+       call tmg_stop(60)
+    
     end if
-    call tmg_stop(123)
-
-    !- 2.3 compute 4D contribution to increment from BmatrixEnsemble
-    call tmg_start(60,'B_ENS')
-    cvBen => cvm_getSubVector(da_v,2)
-
-    if ( associated(cvBen) ) call ben_bsqrt(cvBen, statevector_temp)
-    call tmg_stop(60)
-
-    !- 2.4 Add the two contributions together, result in statevector
-    call gsv_add(statevector_temp,statevector)
-
-    call gsv_deallocate(statevector_temp)
 
   END SUBROUTINE bmat_sqrtB
 

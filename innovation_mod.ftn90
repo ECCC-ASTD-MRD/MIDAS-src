@@ -48,7 +48,7 @@ module innovation_mod
   use tovs_nl_mod
   use tovs_lin_mod
   use multi_ir_bgck_mod
-  use chem_mod
+  use chem_setup_mod, only: chm_setup, chm_apply_2dfieldr4_transform
   use burpFiles_mod
   use randomNumber_mod
   use obsErrors_mod
@@ -183,7 +183,6 @@ contains
     !   Y. Rochon, Feb 2016
     !   - Additions introduced to allow variable transformations for constituent fields.
     !   - Addition of varnmamelist_mod and valvarkindfromvanamr
-    !   - Added 'use chem_mod' for added call to chm_apply_2dfieldr4_transform in readTrialField
     !
     implicit none
 
@@ -1007,7 +1006,7 @@ contains
                end if
 
                if (vnl_varKindFromVarname(varName).eq.'CH') &
-                    call chm_apply_2dfieldr4_transform(chm_varnumFromVarName(varName),varName,jlev,jstep,varTrial_r4)
+                    call chm_apply_2dfieldr4_transform(vnl_varnumFromVarName(varName),varName,jlev,jstep,varTrial_r4)
 
                if (varName.eq.'UU') then
                   ierr=fstlir(varTrial_VV_r4(:,:),nultrl(jstep),ni,nj,ink,  &
@@ -1299,7 +1298,7 @@ contains
 
     INTEGER :: JK,JDATA,NLEV
     REAL(8) :: ZLEV,ZPT,ZPB
-    INTEGER :: IOBS,IK,ITYP,ICHM
+    INTEGER :: IOBS,IK,ITYP
     LOGICAL :: LLOK
     CHARACTER(len=2) :: varLevel
     integer :: index_header, index_body
@@ -1329,11 +1328,11 @@ contains
           IOBS = obs_bodyElem_i(lobsSpaceData,OBS_HIND,JDATA)
           ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,JDATA)
           if (vnl_IsAtmosConstituent(ITYP)) then
-             ICHM = obs_headElem_i(lobsSpaceData,OBS_CHM,IOBS)
+             varLevel = vnl_varLevelFromVarnum(ITYP, &
+                        obs_headElem_i(lobsSpaceData,OBS_CHM,IOBS))
           else
-             ICHM=-1
+             varLevel = vnl_varLevelFromVarnum(ITYP)
           end if
-          varLevel = vnl_varLevelFromVarnum(ITYP,ICHM)
           ZPT= col_getPressure(LCOLUMNGHR,1,IOBS,varLevel)
           ZPB= col_getPressure(LCOLUMNGHR,COL_GETNUMLEV(LCOLUMNGHR,varLevel),IOBS,varLevel)
           IF ( ZLEV .LT. ZPT ) THEN
@@ -1368,11 +1367,11 @@ contains
           IOBS = obs_bodyElem_i(lobsSpaceData,OBS_HIND,JDATA)
           ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,JDATA)
           if (vnl_IsAtmosConstituent(ITYP)) then
-             ICHM = obs_headElem_i(lobsSpaceData,OBS_CHM,IOBS)
+             varLevel = vnl_varLevelFromVarnum(ITYP, &
+                        obs_headElem_i(lobsSpaceData,OBS_CHM,IOBS))
           else
-             ICHM=-1
+             varLevel = vnl_varLevelFromVarnum(ITYP)
           end if
-          varLevel = vnl_varLevelFromVarnum(ITYP,ICHM)
           if(varLevel.eq.'SF') then
              nlev=col_getNumLev(lcolumnghr,'TH')
              ZPT= col_getHeight(lcolumnghr,1,IOBS,'TH')/RG
@@ -1416,12 +1415,12 @@ contains
           ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,JDATA)
           ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,JDATA)
           if (vnl_IsAtmosConstituent(ITYP)) then
-             ICHM = obs_headElem_i(lobsSpaceData,OBS_CHM,IOBS)
+             varLevel = vnl_varLevelFromVarnum(ITYP, &
+                        obs_headElem_i(lobsSpaceData,OBS_CHM,IOBS))
           else
-             ICHM=-1
+             varLevel = vnl_varLevelFromVarnum(ITYP)
           end if
           IK = 1
-          varLevel = vnl_varLevelFromVarnum(ITYP,ICHM)
           nlev=COL_GETNUMLEV(LCOLUMNGHR,varLevel)
           DO JK = 2,NLEV - 1
              ZPT = col_getPressure(LCOLUMNGHR,JK,IOBS,varLevel)
@@ -1444,12 +1443,12 @@ contains
           ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,JDATA)
           ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,JDATA)
           if (vnl_IsAtmosConstituent(ITYP)) then
-             ICHM = obs_headElem_i(lobsSpaceData,OBS_CHM,IOBS)
+             varLevel = vnl_varLevelFromVarnum(ITYP, &
+                        obs_headElem_i(lobsSpaceData,OBS_CHM,IOBS))
           else
-             ICHM=-1
+             varLevel = vnl_varLevelFromVarnum(ITYP)
           end if
           IK = 1
-          varLevel = vnl_varLevelFromVarnum(ITYP,ICHM)
           nlev=COL_GETNUMLEV(LCOLUMNGHR,varLevel)
           DO JK = 2,NLEV - 1
              ZPT = col_getHeight(lcolumnghr,JK,IOBS,varLevel)/RG
