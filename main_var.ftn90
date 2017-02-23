@@ -81,8 +81,8 @@ program main_var
     obsMpiStrategy = 'LIKESPLITFILES'
 
     call var_setup(columng,columnhr,obsSpaceData,  &
-                 "ALL",                & ! obsColumnMode   
-                 trim(obsMpiStrategy))
+                   "ALL",                & ! obsColumnMode   
+                   trim(obsMpiStrategy))
 
     ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
     call inn_setupBackgroundColumns(columng,columnhr,obsSpaceData)
@@ -94,9 +94,9 @@ program main_var
     ! Do the background check and output the observation data files
     call bgcheck_conv(columng,columnhr,obsSpaceData)
 
- ! ---BGCHECK (AIRS, IASI, CrIS)--- !
+  ! ---BGCHECK (AIRS, IASI, CrIS)--- !
   elseif(top_BgckIrMode()) then
-     if(mpi_myid == 0) write(*,*) 'MAIN_VAR: HYPERSPECTRAL IR BGCHECK MODE'
+    if(mpi_myid == 0) write(*,*) 'MAIN_VAR: HYPERSPECTRAL IR BGCHECK MODE'
 
     ! Do initial set up
     call tmg_start(2,'PREMIN')
@@ -104,8 +104,8 @@ program main_var
     obsMpiStrategy = 'LIKESPLITFILES'
 
     call var_setup(columng,columnhr,obsSpaceData,  &
-                 "ALL",        &       ! obsColumnMode   
-                 trim(obsMpiStrategy)) ! obsMpiStrategy
+                   "ALL",        &       ! obsColumnMode   
+                   trim(obsMpiStrategy)) ! obsMpiStrategy
 
     ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
     call inn_setupBackgroundColumns(columng,columnhr,obsSpaceData)
@@ -128,8 +128,8 @@ program main_var
     obsMpiStrategy = 'LIKESPLITFILES'
 
     call var_setup(columng,columnhr,obsSpaceData,  &
-                 "VAR",        &         ! obsColumnMode
-                 trim(obsMpiStrategy))   ! obsMpiStrategy
+                   "VAR",        &         ! obsColumnMode
+                   trim(obsMpiStrategy))   ! obsMpiStrategy
 
     ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
     call inn_setupBackgroundColumns(columng,columnhr,obsSpaceData)
@@ -151,8 +151,8 @@ program main_var
     obsMpiStrategy = 'LATLONTILESBALANCED'
 
     call var_setup(columng,columnhr,obsSpaceData,  &
-                 "VAR",          &      ! obsColumnMode
-                 trim(obsMpiStrategy))  ! obsMpiStrategy
+                   "VAR",          &      ! obsColumnMode
+                   trim(obsMpiStrategy))  ! obsMpiStrategy
     call tmg_stop(2)
 
     ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
@@ -339,7 +339,9 @@ contains
     !
     ! - Initialize the gridded variable transform module
     !
-    call vtr_setup(hco_anl,vco_anl)
+    if ( top_AnalysisMode() ) then
+       call vtr_setup(hco_anl,vco_anl)
+    end if
 
     !
     !- Set up the minimization module, now that the required parameters are known
