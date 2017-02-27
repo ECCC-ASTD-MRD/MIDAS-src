@@ -16,7 +16,7 @@
 int main(int argc, char **argv) {
   int fd;
   char buffer[BUFFER_SIZE];
-  char rebm_done[BUFFER_SIZE];
+  char str_read[BUFFER_SIZE];
   pid_t pp=getppid();
 
   if(argc-1 != 2) {
@@ -33,13 +33,15 @@ int main(int argc, char **argv) {
     if( (fd=open(argv[1],O_RDONLY )) >= 0 ) {
       ssize_t bytes_read;
 
-      strcpy(rebm_done,"");
-      while(strcmp(rebm_done,REBM_DONE_STRING)!=0) {
-	bytes_read = read(fd, rebm_done, (size_t) BYTES_TO_READ);
+      strcpy(str_read,"");
+      while(strcmp(str_read,REBM_DONE_STRING)!=0) {
+	bytes_read = read(fd, str_read, (size_t) BYTES_TO_READ);
 	if (bytes_read!=BYTES_TO_READ) {
 	  fprintf(stderr,"Could only read %d bytes out of %d bytes in file '%s'\n",(int) bytes_read,BYTES_TO_READ,argv[1]);
 	  exit(1);
 	}
+	// printf("String read: '%s'\n", str_read);
+	// fflush(NULL);
 	sleep(2);
 	lseek(fd,(off_t) 0,SEEK_SET);
       }
