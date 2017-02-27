@@ -14,6 +14,13 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
+!--------------------------------------------------------------------------
+!! MODULE tovs_lin (prefix= no defined prefix)
+!!
+!! *Purpose*: Derived types, public variables and procedures related to the 
+!!            tangent-linear and adjoint versions of RTTOV
+!!
+!--------------------------------------------------------------------------
 Module tovs_lin_mod
   Use rttov_types, only : &
      profile_type        ,&
@@ -106,6 +113,10 @@ SUBROUTINE TOVS_LIN_SETUPALLO()
 
 !-----------------------------------------------------------------------
 
+  if (nsensors == 0) then
+    write(*,*) 'tovs_lin_setupallo: nsensors is zero, skipping setup'
+    return
+  endif
 
 !     1. Memory allocation for radiative tranfer model variables
 !     .  -----------------------------------------------------

@@ -14,16 +14,11 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-
 !--------------------------------------------------------------------------
-! MODULE utilities_mod,(prefix="cfn")
-!
-! Purpose: To compute Jo term
-!
-! Subroutines:
-!
-! Dependencies:
-!    none
+!! MODULE utilities_mod,(prefix="cfn")
+!!
+!! *Purpose*: To compute Jo term
+!!
 !--------------------------------------------------------------------------
 module costfunction_mod
   use mpivar_mod
@@ -127,7 +122,7 @@ contains
 
     INTEGER index_body
 
-    !$OMP PARALLEL DO PRIVATE(index_body)
+!$OMP PARALLEL DO PRIVATE(index_body)
     DO index_body=1,obs_numbody(lobsSpaceData)
        IF (obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body).eq.1) THEN
           call obs_bodySet_r(lobsSpaceData,OBS_JOBS,index_body, &
@@ -138,7 +133,7 @@ contains
           call obs_bodySet_r(lobsSpaceData,OBS_JOBS,index_body, 0.0d0)
        ENDIF
     END DO
-    !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
 
   END SUBROUTINE cfn_calcJo
 
@@ -249,13 +244,15 @@ contains
        write(*,'(a15,f25.17)') 'Jo(GP)   = ',dljogpsztd
        write(*,'(a15,f25.17)') 'Jo(CH)   = ',dljochm
        write(*,*) ' '
-       write(*,'(1x,a)') 'For TOVS decomposition by sensor:'
-       write(*,'(1x,a)') '#  plt sat ins    Jo'
-       do isens=1,NSENSORS
-          write(*,'(i2,1x,a,1x,a,1x,i2,1x,f25.17)') isens,inst_name(INSTRUMENT(isens)), &
-               platform_name(PLATFORM(isens)),SATELLITE(isens),dljotov_sensors(isens)
-       enddo
-       write(*,*) ' '
+       if(nsensors > 0) then
+          write(*,'(1x,a)') 'For TOVS decomposition by sensor:'
+          write(*,'(1x,a)') '#  plt sat ins    Jo'
+          do isens=1,NSENSORS
+             write(*,'(i2,1x,a,1x,a,1x,i2,1x,f25.17)') isens,inst_name(INSTRUMENT(isens)), &
+                  platform_name(PLATFORM(isens)),SATELLITE(isens),dljotov_sensors(isens)
+          enddo
+          write(*,*) ' '
+       endif
 
     endif
 

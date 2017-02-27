@@ -13,12 +13,18 @@
 !if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
-!
+
+!--------------------------------------------------------------------------
+!! MODULE stateToColumn (prefix="s2c")
+!!
+!! *Purpose*: Tangent-linear and adjoint of bilinear interpolation to 
+!!            between a gridStateVector object and a columnData object.
+!!            This transformation has been optimized to improve MPI load
+!!            balancing when applying the observation operators.
+!!            (Replaces oda_L and oda_LT)
+!!
+!--------------------------------------------------------------------------
 module stateToColumn_mod
-  ! Note: this module replaces oda_L and oda_LT, while implementing the
-  !       the possibility of having the obs distributing arbitrarily over
-  !       the mpi tasks, while the increment is distributed by horizontal tiles
-  !
   use topLevelControl_mod
   use MathPhysConstants_mod
   use mpivar_mod 
@@ -45,8 +51,6 @@ module stateToColumn_mod
   real(8), allocatable :: myLatTile(:), myLonTile(:)
   real(8), allocatable :: myTimeInterpWeight(:,:)
   real(8), pointer     :: fieldsWithHalo(:,:,:,:)
-
-  integer :: get_max_rss
 
 
 CONTAINS 
@@ -378,7 +382,7 @@ CONTAINS
     !
 
     !- 2.1 Mass fields (TT,PS,HU) to hydrostatic geopotential
-    if ( top_spatialDimensions() /= '2D' .and. gsv_varExist(statevector,'TT') .and. gsv_varExist(statevector,'HU') &
+    if (col_getNumLev(columng,'MM') > 1 .and. gsv_varExist(statevector,'TT') .and. gsv_varExist(statevector,'HU') &
         .and. gsv_varExist(statevector,'P0') ) then
        vco_anl => col_getVco(columng)
        status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
@@ -413,12 +417,12 @@ CONTAINS
       real(8) :: dldx, dldy, dlw1, dlw2, dlw3, dlw4
       real(8) :: xpos, ypos, lat, lon, latrot, lonrot
       real(8), pointer :: column_ptr(:,:), column_tile(:,:)
+      integer :: get_max_rss
 
       if (numHeaderColumn > 0) then
         column_ptr => col_getAllColumns(column)
         column_ptr(:,:) = 0.0d0
         numLev = size(column_ptr,1)
-        write(*,*) 'gd2mvo: total number of levels for all variables=',numLev
       else
         numLev = 1
         write(*,*) 'gd2mvo: numHeaderTile not positive, set numLev to 1'
@@ -426,7 +430,6 @@ CONTAINS
 
       if (numHeaderTile > 0) then
         allocate(column_tile(numLev,numHeaderTile))
-        write(*,*) 'gd2mvo: after allocate of column_tile'
         write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
         call flush(6)
       else
@@ -529,9 +532,6 @@ CONTAINS
 
       real(8), allocatable :: col_recv(:,:)
       integer :: headerIndex, headerIndex_local, headerIndex_recv, jlev, nsize, ierr
-
-      write(*,*) 'transpose_tileToColumn: STARTING'
-      call flush(6)
 
       call tmg_start(39,'INTERP_COMM')
 
@@ -672,7 +672,7 @@ CONTAINS
     end if
   
     !- 2.1 Mass fields (TT,PS,HU) to hydrostatic geopotential
-    if ( top_spatialDimensions() /= '2D' .and. gsv_varExist(statevector,'TT') .and. gsv_varExist(statevector,'HU') &
+    if (col_getNumLev(columng,'MM') > 1 .and. gsv_varExist(statevector,'TT') .and. gsv_varExist(statevector,'HU') &
         .and.gsv_varExist(statevector,'P0') ) then
        vco_anl => col_getVco(columng)
        status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)

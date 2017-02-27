@@ -15,25 +15,12 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-! > MODULE LamBMatrixHI (prefix="lbhi")
-!
-! Purpose: Performs transformation from control vector to analysis increment 
-!          using the homogeneous and isotropic background error covariance 
-!          matrix
-!
-! - Subroutines
-!    lbhi_Setup        (public)
-!    lbhi_Bsqrt        (public)
-!    lbhi_BsqrtAdj     (public)
-!    lbhi_Finalize     (public)
-!    lbhi_expandToMPIglobal  (public)
-!    lbhi_reduceToMPIlocal   (public)
-!
-! - Public variables
-!    NONE
-!
-! - Dependencies
-!    lamspectraltransform
+!! MODULE LamBMatrixHI (prefix="lbhi")
+!!
+!! *Purpose*: Performs transformation from control vector to analysis increment 
+!!            using the homogeneous and isotropic background error covariance 
+!!            matrix.
+!!
 !--------------------------------------------------------------------------
 module LamBMatrixHI_mod
   use topLevelControl_mod
@@ -204,18 +191,21 @@ contains
       allocate( ControlVariable(var)%GpStdDev (1:hco_bhi%ni, 1:hco_bhi%nj, 1:ControlVariable(var)%nlev) )
       allocate( ControlVariable(var)%ip1 (1:ControlVariable(var)%nlev) )
 
-      if ( top_spatialDimensions() /= '2D' ) then
-         if (ControlVariable(var)%nlev /= 1) then
-            if (ControlVariable(var)%GridType == 'TH') then
-               ControlVariable(var)%ip1(:) = vco_anl_in%ip1_T(:)
-            else
-               ControlVariable(var)%ip1(:) = vco_anl_in%ip1_M(:)
-            end if
-         else
+      ! NOTE: Temporarily patched up to work for true surface variables (P0,TG)
+      ! Need to introduce a gridtype 'SF' for true surface variables and for 
+      ! screen-level variables should use 'MM' or 'TH' as appropriate
+      if (ControlVariable(var)%GridType == 'TH') then
+         ControlVariable(var)%ip1(:) = vco_anl_in%ip1_T(:)
+      elseif (ControlVariable(var)%GridType == 'MM') then
+         ControlVariable(var)%ip1(:) = vco_anl_in%ip1_M(:)
+      elseif (ControlVariable(var)%GridType == 'NS') then
+         if (ControlVariable(var)%nomvar(cv_bhi) == 'P0' .or. ControlVariable(var)%nomvar(cv_bhi) == 'TG') then
             ControlVariable(var)%ip1(:) = 0
-         end if
+         else
+            ControlVariable(var)%ip1(:) = vco_anl_in%ip1_M(:)
+         endif
       else
-         ControlVariable(var)%ip1(:) = vco_anl_in%ip1_T(:) ! which is identical to ip1_M(:)
+         ControlVariable(var)%ip1(:) = 0
       end if
 
       ControlVariable(var)%kDimStart = nkgdim + 1

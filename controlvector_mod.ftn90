@@ -15,23 +15,16 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-! MODULE controlVector (The control vector and related information.  prefix="cvm")
-!
-! Purpose: 
-!
-! Subroutines:
-!    cvm_setup (public)
-!
-! Dependencies:
-!
-! Author: Mark Buehner
-! Revisions:
-!       Ping Du, June-Sept 2014
-!       - Introduced optional consideration of arrays/variables for
-!         constituents. See variables *Bchm*.
-!       M. Sitwell Aug 2015
-!       - Added cvm_numSubvector
-!
+!! MODULE controlVector (prefix="cvm")
+!!
+!! *Purpose*: The control vector and related information.  
+!!
+!! Revisions:
+!!       Ping Du, June-Sept 2014
+!!       - Introduced optional consideration of arrays/variables for
+!!         constituents. See variables *Bchm*.
+!!       M. Sitwell Aug 2015
+!!       - Added cvm_numSubvector
 !--------------------------------------------------------------------------
 MODULE ControlVector_mod
   use utilities_mod
@@ -40,21 +33,19 @@ MODULE ControlVector_mod
   private
 
   ! public variables
-  public              :: cvm_vazx, cvm_nvadim, cvm_nvadim_mpiglobal
+  public              :: cvm_nvadim, cvm_nvadim_mpiglobal
   ! public procedures
-  public              :: cvm_Setup, cvm_deallocate, cvm_getSubVector, cvm_getSubVector_mpiglobal
+  public              :: cvm_Setup, cvm_getSubVector, cvm_getSubVector_mpiglobal
 
 
   logical             :: initialized = .false.
   integer             :: cvm_dimBHI
   integer             :: cvm_dimBEN
   integer             :: cvm_nvadim
+  integer             :: cvm_dimBchm
   integer             :: cvm_dimBHI_mpiglobal
   integer             :: cvm_dimBEN_mpiglobal
   integer             :: cvm_nvadim_mpiglobal
-
-  ! Addition for constituents
-  integer             :: cvm_dimBchm
   integer             :: cvm_dimBchm_mpiglobal
 
   integer, parameter  :: cvm_numSubvector=3 ! total number of possible valid subvectors
@@ -84,14 +75,6 @@ CONTAINS
                                                               cvm_nvadim
     write(*,*) 'cvm_setup: subvector dimensions (mpiglobal)=',cvm_dimbhi_mpiglobal,cvm_dimben_mpiglobal,       & 
                           cvm_dimbchm_mpiglobal, cvm_nvadim_mpiglobal
-
-    allocate(cvm_vazx(cvm_nvadim),stat=ierr)
-    if(ierr.ne.0) then
-      write(*,*) 'controlVector: Problem allocating memory! id=1',ierr
-      call utl_abort('aborting in cvm_setup')
-    endif
-
-    cvm_vazx(:)=0.0d0
 
     initialized=.true.
 
@@ -149,20 +132,5 @@ CONTAINS
 
   END FUNCTION CVM_getSubVector_mpiglobal
 
-  SUBROUTINE CVM_deallocate
-    implicit none
-
-    integer :: ierr
-
-    if (allocated(cvm_vazx))then
-      deallocate(cvm_vazx,stat=ierr)
-      if(ierr.eq.0) then
-        write(*,*) 'CVM_VAZX checked and correct. IERR =',ierr
-      else
-        write(*,*) 'Problem detected in CVM_VAZX. IERR =',ierr
-      endif
-    end if
-
-  END SUBROUTINE CVM_deallocate
 
 END MODULE ControlVector_mod

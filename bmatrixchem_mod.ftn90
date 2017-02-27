@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-! MODULE bMatrixChem:  Contains routines involving preparation and application
+! MODULE bMatrixChem_mod:  Contains routines involving preparation and application
 !                      of background-error covariance matrix(ces). Matrix
 !                      based on horizontally homogeneous/isotropic
 !                      correlations.  prefix="bchm_" used for routines in 
@@ -96,13 +96,13 @@
 !    globalSpectralTransform, ....
 !
 !--------------------------------------------------------------------------
-MODULE BmatrixChem
+MODULE BmatrixChem_mod
   use topLevelControl_mod
   use mpivar_mod
   use MathPhysConstants_mod
   use earthConstants_mod
   use gridStateVector_mod
-  use globalSpectralTransform
+  use globalSpectralTransform_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use varNameList_mod
@@ -202,7 +202,7 @@ CONTAINS
     integer :: jlev, nulnam, ierr, fnom, fclos, jm, jn, status
     integer :: latPerPE, lonPerPE
     real(8) :: zps
-  
+
     integer :: jvar
     
     NAMELIST /NAMBCHM/ntrunc,rpor,rvloc,scaleFactor,numModeZero,ReadWrite_sqrt,stddevMode
@@ -249,7 +249,7 @@ CONTAINS
       nLev_T_even = nLev_T
     endif
     if(mpi_myid == 0) write(*,*) 'BCHM_setup: nLev_T, nLev_T_even=',nLev_T, nLev_T_even
-    
+
 !   Find the 3D variables (within NAMSTATE namelist)
 
     do jvar = 1, vnl_numvarmax3D    
@@ -2763,4 +2763,4 @@ CONTAINS
   end subroutine bchm_getsigma
 !-----------------------------------------------------------------------------------------------
   
-END MODULE BmatrixChem
+END MODULE BmatrixChem_mod

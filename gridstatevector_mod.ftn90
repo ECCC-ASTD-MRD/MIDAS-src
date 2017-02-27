@@ -15,22 +15,10 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-! MODULE gridStateVector (The grid-point state vector and related information.  prefix="gsv")
-!
-! Purpose: 
-!
-! Type definitions:
-!    struct_gsv
-!
-! Subroutines:
-!    (see "public" statements for publicly accessible subroutines and functions)
-!
-! Dependencies:
-!    varNameList_mod
-!    verticalCoord_mod
-!    MathPhysConstants_mod
-!    getStampList
-!
+!! MODULE gridStateVector (prefix="gsv")
+!!
+!! *Purpose*: The grid-point state vector and related information.
+!!
 !--------------------------------------------------------------------------
 MODULE gridStateVector_mod
   use topLevelControl_mod
@@ -150,7 +138,8 @@ MODULE gridStateVector_mod
       integer :: fnom,fclos,nulnam,ierr
       CHARACTER(len=4) :: ANLVAR(VNL_NUMVARMAX)
       real*8 :: rhumin
-      NAMELIST /NAMSTATE/ANLVAR,rhumin,ANLTIME_BIN
+      logical          :: AddGZSfcOffset = .false. ! controls adding non-zero GZ offset to diag levels
+      NAMELIST /NAMSTATE/ANLVAR,rhumin,ANLTIME_BIN,AddGZSfcOffset
 
       if(mpi_myid.eq.0) write(*,*) 'gsv_setup: List of known (valid) variable names'
       if(mpi_myid.eq.0) write(*,*) 'gsv_setup: varNameList3D=',vnl_varNameList3D
@@ -1183,12 +1172,7 @@ MODULE gridStateVector_mod
     endif
 
     ! set up vertical and horizontal coordinate for input file
-    if ( top_spatialDimensions() /= '2D') then
-       call vco_SetupFromFile(vco_file,trim(fileName),' ',beSilent=.true.)
-    else
-       call vco_SetupManual( vco_file,                 & ! OUT
-                             top_AnalysisLevel2d(), 1 )  ! IN
-    end if
+    call vco_SetupFromFile(vco_file,trim(fileName),beSilent=.true.)
     if(associated(hco_Get(gridName))) then
       write(*,*) 'gsv_readFromFile: horiz grid already defined with name: ', gridName
       hco_file => hco_Get(gridName)
@@ -1499,6 +1483,8 @@ MODULE gridStateVector_mod
     real(8) :: zwb, zwt
     real(8), pointer  :: pres_out(:,:,:), pres_in(:,:,:), field_out(:,:,:,:)
 
+    nullify(pres_out,pres_in,field_out)
+
     ! define pressures on input and output levels
     ! NOTE: order of arguments for pres_in/out is (lon,lat,lev)
     if(vnl_varLevelFromVarname(varName) == 'TH') then
@@ -1731,18 +1717,16 @@ MODULE gridStateVector_mod
           if (iDoWriting.and.jlev.le.nlev) then
 
             ! Set the ip1 value
-            if ( top_spatialDimensions() /= '2D') then
-               if (nlev /= 1) then
-                  if (vnl_varLevelFromVarname(vnl_varNameList(jvar)) == 'MM') then
-                     ip1 = statevector%vco%ip1_M(jlev)
-                  else
-                     ip1 = statevector%vco%ip1_T(jlev)
-                  end if
-               else
-                  ip1 = 0
-               end if
+            if (vnl_varLevelFromVarname(vnl_varNameList(jvar)) == 'MM') then
+               ip1 = statevector%vco%ip1_M(jlev)
+            elseif (vnl_varLevelFromVarname(vnl_varNameList(jvar)) == 'TH') then
+               ip1 = statevector%vco%ip1_T(jlev)
+            elseif (vnl_varLevelFromVarname(vnl_varNameList(jvar)) == 'SF') then
+               ip1 = 0
             else
-               ip1 = statevector%vco%ip1_T(1) ! same as ip1_M
+               write(*,*) 'gsv_writeToFileMpi: unknown type of vertical level: ',  &
+                          vnl_varLevelFromVarname(vnl_varNameList(jvar))
+               call utl_abort('gsv_writeToFileMpi')
             end if
 
             ! Set the output variable name

@@ -14,14 +14,13 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
+!--------------------------------------------------------------------------
+!! *Purpose*: Transfer resduals O-A to O-P for all observations.
+!!
+!! @author P. Koclas *CMC/CMDA  Nov 1998
+!!
+!--------------------------------------------------------------------------
       SUBROUTINE RESIDUALS(columng,columnhr,obsSpaceData)
-!*
-!***s/r RESIDUALS  - RESIDUALS
-!*
-!*Author  : P. Koclas *CMC/CMDA  Nov 1998
-!*
-!**    Purpose: TRANSFER resduals O-A to O-P for all observations.
-!*
       use obsSpaceData_mod
       use columnData_mod
       use burpFiles_mod

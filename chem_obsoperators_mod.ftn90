@@ -33,9 +33,9 @@ module chem_obsoperators_mod
   use utilities_mod
   use chem_setup_mod
   use obsSubSpaceData_mod
-  use bmatrixchem, ONLY : bchm_corvert, bchm_varnamelist, bchm_getsigma, &     
-                          bchm_corverti, bchm_invsum, bchm_varnamelist,  &
-                          bchm_corvert_mult
+  use bmatrixchem_mod, ONLY : bchm_corvert, bchm_varnamelist, bchm_getsigma, &     
+                              bchm_corverti, bchm_invsum, bchm_varnamelist,  &
+                              bchm_corvert_mult
   use physicsfunctions_mod
   use MathPhysConstants_mod
   use earthconstants_mod

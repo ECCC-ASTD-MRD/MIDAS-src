@@ -14,6 +14,14 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
+!--------------------------------------------------------------------------
+!!
+!! *Purpose*: Main program for fortran unit tests. Not sure it actually does 
+!!            anything at this point.
+!!
+!! @author Jeff Blezius
+!!
+!--------------------------------------------------------------------------
 program main
    use pFUnit
    implicit none

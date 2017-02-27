@@ -13,33 +13,25 @@
 !if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
+
+!--------------------------------------------------------------------------
+!! *Purpose*: Fill tangent linear profiles structure by interpolating 
+!!            contents of columnData to RTTOV space
+!!
+!! @author j. halle *cmda/aes  april 12, 2005
 !
+!revision 001  : a. beaulne *cmda/smc  june 2006
+!                 -add ozone from climatology to all sensors
+!
+!revision 002  : j. halle  *cmda/smc  march 2007
+!                 -fix zvlev for hybrid coordinate
+!revision 003  : S. Heilliette septembre 2011
+!                 -adapt to rttv-10
+!revision 004  : s. macpherson  nov 2012
+!                  - remove #include "comtovst.cdk"
+!
+!--------------------------------------------------------------------------
 subroutine tovs_fill_profiles_tl(column,columng)
-#if defined (doc)
-  !
-  !**s/r tovs_fill_profiles_tl  - tangent linear of interpolation of obs.space to rttov space
-  !                          (adapted from part of code of lvtov)
-  !
-  !
-  !author        : j. halle *cmda/aes  april 12, 2005
-  !
-  !revision 001  : a. beaulne *cmda/smc  june 2006
-  !                 -add ozone from climatology to all sensors
-  !
-  !revision 002  : j. halle  *cmda/smc  march 2007
-  !                 -fix zvlev for hybrid coordinate
-  !revision 003  : S. Heilliette septembre 2011
-  !                 -adapt to rttv-10
-  !revision 004  : s. macpherson  nov 2012
-  !                  - remove #include "comtovst.cdk"
-  !
-  !    -------------------
-  !     purpose: fill tangent linear profiles structure with info from obs. space
-  !
-  !arguments
-  !
-  !
-#endif
   use MathPhysConstants_mod
   use tovs_nl_mod
   use tovs_lin_mod
@@ -129,9 +121,9 @@ subroutine tovs_fill_profiles_tl(column,columng)
   !     1.1   Number of threads and memory allocation
   !     .     ---------------------------------------
 
-  !$omp parallel 
+!$omp parallel 
   nthreads = omp_get_num_threads()
-  !$omp end parallel
+!$omp end parallel
 
   alloc_status(:) = 0
   allocate (iptobs    (jppf*nthreads)          ,stat= alloc_status(1) )
@@ -240,8 +232,7 @@ subroutine tovs_fill_profiles_tl(column,columng)
         else
            istride = max(1,(knpf/nthreads)+1)
         endif
-        !$omp parallel
-        !$omp do private(jn,ilen)
+!$omp parallel do private(jn,ilen)
         do jn=1,knpf,istride
            ilen = min (knpf-jn+1,istride)
            if ( ilen .gt. 0) then
@@ -255,8 +246,7 @@ subroutine tovs_fill_profiles_tl(column,columng)
 
            endif
         enddo
-        !$omp end do
-        !$omp end parallel
+!$omp end parallel do
 
         !     .  2.2  Extrapolation of temperature profile above 10mb
         !     .       -----------------------------------------------

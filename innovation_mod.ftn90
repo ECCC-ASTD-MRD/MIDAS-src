@@ -14,16 +14,14 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-
 !--------------------------------------------------------------------------
-! MODULE innovation_mod,(prefix="inn")
-!
-! Purpose: 
-!
-! Subroutines:
-!
-! Dependencies:
-!    none
+!! MODULE innovation_mod (prefix="inn")
+!!
+!! *Purpose*: Several high-level subroutines used to compute the innovations,
+!!            that is, the observation-minus-background values. This includes
+!!            the subroutine that reads in the gridded high-res background state
+!!            from standard files.
+!!
 !--------------------------------------------------------------------------
 module innovation_mod
   use mpi_mod
@@ -35,6 +33,7 @@ module innovation_mod
   use topLevelControl_mod
   use EarthConstants_mod
   use MathPhysConstants_mod
+  use physicsFunctions_mod
   use mpivar_mod
   use horizontalCoord_mod
   use columnData_mod
@@ -52,6 +51,7 @@ module innovation_mod
   use burpFiles_mod
   use randomNumber_mod
   use obsErrors_mod
+  use bufr
   implicit none
   save
   private
@@ -275,19 +275,14 @@ contains
     nlv_T = vco_getNumLev(vco_trl,'TH')
     if (mpi_myid.eq.0) write(*,*)'INN_SETUPBACKGROUNDCOLUMNS:niv thermo:',nlv_T,' momentum',nlv_M
 
-    if ( top_spatialDimensions() /= '2D') then
-       status = vgd_get(vco_trl%vgrid,key='ig_1 - vertical coord code',value=Vcode_trl)
-       status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
-       if (mpi_myid.eq.0) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: Vcode_trl= ',Vcode_trl, &
-            '  Vcode_anl= ',Vcode_anl
-       if (Vcode_trl.ne.5002.and.Vcode_trl.ne.5005) &
-            call utl_abort('INN_SETUPBACKGROUNDCOLUMNS: invalid vertical coord for background state!')
-       if (Vcode_anl.ne.5002.and.Vcode_anl.ne.5005) &
-            call utl_abort('INN_SETUPBACKGROUNDCOLUMNS: invalid vertical coord for analysis increment!')
-    else
-       if (mpi_myid.eq.0) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: skipping vcode check because this is a 2D spatial configuration'
-    end if
-
+    status = vgd_get(vco_trl%vgrid,key='ig_1 - vertical coord code',value=Vcode_trl)
+    status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
+    if (mpi_myid.eq.0) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: Vcode_trl= ',Vcode_trl, &
+         '  Vcode_anl= ',Vcode_anl
+    if (Vcode_trl.ne.5002.and.Vcode_trl.ne.5005) &
+         call utl_abort('INN_SETUPBACKGROUNDCOLUMNS: invalid vertical coord for background state!')
+    if (Vcode_anl.ne.5002.and.Vcode_anl.ne.5005) &
+         call utl_abort('INN_SETUPBACKGROUNDCOLUMNS: invalid vertical coord for analysis increment!')
     !
     !     Compute the maximum number of columns over all processors (lat-lon tiles)
     !
@@ -598,13 +593,25 @@ contains
     !     levels, the hybrid coordinate parameters of the
     !     analysis increment and the surface pressure of the trial field
     !      
-    if (col_getNumCol(columng).gt.0 .and. top_spatialDimensions() /= '2D') then
+    if (col_getNumCol(columng).gt.0) then
 
        call col_calcPressure(columng)
 
        do jlev = 1,col_getNumLev(columng,'MM')
           if (mpi_myid.eq.0) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: jlev, col_getPressure(COLUMNG,jlev,1,MM) = ',  &
                jlev,col_getPressure(COLUMNG,jlev,1,'MM')
+       end do
+       do jlev = 1,col_getNumLev(columng,'TH')
+          if (mpi_myid.eq.0) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: jlev, col_getPressure(COLUMNG,jlev,1,TH) = ',  &
+               jlev,col_getPressure(COLUMNG,jlev,1,'TH')
+       end do
+       do jlev = 1,col_getNumLev(columng,'MM')
+         if (mpi_myid.eq.0) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: jlev, col_getPressureDeriv(COLUMNG,jlev,1,MM) = ',  &
+              jlev,col_getPressureDeriv(COLUMNG,jlev,1,'MM')
+       end do
+       do jlev = 1,col_getNumLev(columng,'TH')
+          if (mpi_myid.eq.0) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: jlev, col_getPressureDeriv(COLUMNG,jlev,1,TH) = ',  &
+              jlev,col_getPressureDeriv(COLUMNG,jlev,1,'TH')
        end do
 
        !     Calculate profiles of pressure values at station location
@@ -730,12 +737,7 @@ contains
              enddo
 
              call col_fillmvo(columnhr,varInterphr_T,vnl_varNameList3D(jvar))
-             if (top_spatialDimensions() /= '2D') then
-                call col_vintprof(columnhr,columng,vnl_varNameList3D(jvar))
-             else
-                ! Do not try interpolate: In 2D mode trial and analysis are on the same level by construction
-                call col_vintprof(columnhr,columng,vnl_varNameList3D(jvar),noInterp=.true.)
-             end if
+             call col_vintprof(columnhr,columng,vnl_varNameList3D(jvar))
 
              if (vnl_varNameList3D(jvar).eq.'TT  ') then
                 ! conversion from Celcius to Kelvin
@@ -754,11 +756,11 @@ contains
                 do jobs=1,col_getNumCol(columng)
                    column_ptr => col_getColumn(columnhr,jobs,'HU')
                    do jlev=1,col_getNumLev(columnhr,'TH')
-                      column_ptr(jlev)=log(max(column_ptr(jlev),rhumin))
+                      column_ptr(jlev)=log(max(column_ptr(jlev),col_rhumin))
                    enddo
                    column_ptr => col_getColumn(columng,jobs,'HU')
                    do jlev=1,col_getNumLev(columng,'TH')
-                      column_ptr(jlev)=log(max(column_ptr(jlev),rhumin))
+                      column_ptr(jlev)=log(max(column_ptr(jlev),col_rhumin))
                    enddo
                 enddo
              endif
@@ -787,25 +789,26 @@ contains
        end select
     enddo
 
-    if (gsv_varExist(varName='TT').and.gsv_varExist(varName='HU').and.gsv_varExist(varName='P0')) then
+    
+    if (col_varExist('TT') .and. col_varExist('HU') .and. col_varExist('P0')) then
 
        !
        !- Initialisation of TLM operators
        !
-       if (top_spatialDimensions() /= '2D') call subasic_obs(columng)
+       call subasic_obs(columng)
 
        !
        !- Using T, q and PS to compute GZ for columng
        !
        do jobs = 1, col_getNumCol(columng)
-          call col_setMountain(columng ,jobs,col_getMountain(columnhr,jobs))
+          call col_setGZsfc(columng ,jobs, col_getGZsfc(columnhr, jobs))
        enddo
-       if (top_spatialDimensions() /= '2D') call tt2phi(columng)
+       if (col_getNumLev(columng,'MM') > 1) call tt2phi(columng)
 
        !
        !- Using T, q and PS to compute GZ for columnhr
        !
-       if (noUpperGZ .and. top_spatialDimensions() /= '2D') then
+       if (noUpperGZ .and. (col_getNumLev(columnhr,'MM') > 1) ) then
           write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: No upper level GZ found, computing'
           call tt2phi(columnhr)
        endif
@@ -903,21 +906,16 @@ contains
       ! Check if too few GZ levels are in file, if so then just read surface
       !
       if (trim(varName).eq.'GZ' .and. present(noUpperGZ)) then
-         if ( top_spatialDimensions() /= '2D') then
-            ierr = fstinl(nultrl(1), ni, nj, nk, -1, ' ', -1, -1, -1, &
-                 ' ','GZ',keys, numkeys, maxnumkeys)
-            write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: nlevel =  ', nlevel, ', numkeys = ', numkeys
-            if (numkeys.lt.nlevel) then
-               write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: Too few GZ levels found, will only read surface'
-               noUpperGZ = .true.
-            else
-               write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: sufficient levels of GZ found, will read all'
-               noUpperGZ = .false.
-            endif
-         else
-            write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: In 2D spatial mode, we only read GZ at the surface'
+         ierr = fstinl(nultrl(1), ni, nj, nk, -1, ' ', -1, -1, -1, &
+              ' ','GZ',keys, numkeys, maxnumkeys)
+         write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: nlevel =  ', nlevel, ', numkeys = ', numkeys
+         if (numkeys.lt.nlevel) then
+            write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: Too few GZ levels found, will only read surface'
             noUpperGZ = .true.
-         end if
+         else
+            write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: sufficient levels of GZ found, will read all'
+            noUpperGZ = .false.
+         endif
       endif
 
       !
@@ -1155,7 +1153,7 @@ contains
     !
     !     Find interpolation layer in model profiles 
     !
-    if ( top_spatialDimensions() /= '2D') call vobslyrs(columnhr,obsSpaceData)
+    if ( col_getNumLev(columnhr,'MM') > 1 ) call vobslyrs(columnhr,obsSpaceData)
     !
     !
     !------ Calculate the innovations Y - H(Xb) and place
@@ -1270,7 +1268,7 @@ contains
     !
     !     Find interpolation layer in model profiles 
     !
-    if ( top_spatialDimensions() /= '2D') CALL VOBSLYRS(columng,obsSpaceData)
+    if ( col_getNumLev(columng,'MM') > 1 ) CALL VOBSLYRS(columng,obsSpaceData)
 
     write(*,*) 'TIM_TIMEBINNING: After filtering done in INN_COMPUTEINNOVATION'
     call tim_timeBinning(obsSpaceData,tim_nstepobs)
@@ -1286,12 +1284,6 @@ contains
     !      Find which model levels to use for the vertical interpolation
     !      of model fields to CMA data.
     !
-    use EarthConstants_mod
-    use MathPhysConstants_mod
-    use obsSpaceData_mod
-    use columnData_mod
-    use varNameList_mod
-    use bufr
     IMPLICIT NONE
     type(struct_columnData) :: lcolumnghr
     type(struct_obs) :: lobsSpaceData
@@ -1373,9 +1365,8 @@ contains
              varLevel = vnl_varLevelFromVarnum(ITYP)
           end if
           if(varLevel.eq.'SF') then
-             nlev=col_getNumLev(lcolumnghr,'TH')
              ZPT= col_getHeight(lcolumnghr,1,IOBS,'TH')/RG
-             ZPB= col_getHeight(lcolumnghr,NLEV,IOBS,'TH')/RG                 
+             ZPB= col_getGZsfc(lcolumnghr,IOBS)/RG                 
           else
              nlev=col_getNumLev(lcolumnghr,varLevel)
              ZPT= col_getHeight(lcolumnghr,1,IOBS,varLevel)/RG
@@ -1397,8 +1388,6 @@ contains
     !     2. FInd interpolation layer
     !        ------------------------
     !        (Model levels are assumed to be in increasing order in Mbs)
-    !        ...The SIGN and MAX intrinsincs are used for vectorization
-    !           purposes......
     !
     !     2.1  PPP Vertical coordinate
     !
@@ -1471,10 +1460,6 @@ contains
   END SUBROUTINE VOBSLYRS
 
   subroutine subasic_obs(lcolumng)
-
-    use MathPhysConstants_mod
-    use physicsFunctions_mod
-    use columnData_mod 
     implicit none
 
     ! s/r SUBASIC_OBS
@@ -1502,7 +1487,7 @@ contains
 
     ! initialize virtual temperature operator
 
-    !$OMP PARALLEL DO PRIVATE(jlev,jobs,zhu)
+!$OMP PARALLEL DO PRIVATE(jlev,jobs,zhu)
     do jlev = 1, nlev_T
        do jobs=1,col_getNumCol(lcolumng)
 
@@ -1513,7 +1498,7 @@ contains
 
        enddo
     enddo
-    !$OMP END PARALLEL DO
+!$OMP END PARALLEL DO
 
   end subroutine subasic_obs
 

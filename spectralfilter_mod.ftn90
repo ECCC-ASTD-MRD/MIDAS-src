@@ -14,31 +14,26 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-
 !--------------------------------------------------------------------------
-! MODULE spectralTransform_mod,(prefix="spt")
-!
-! Purpose:
-!
-! Subroutines:
-!
-! Dependencies:
-!    none
+!! MODULE spectralFilter_mod (prefix="spf")
+!!
+!! *Purpose*: This module contains a subroutine for computing spectral filter functions
+!!
 !--------------------------------------------------------------------------
-MODULE spectralTransform_mod
+MODULE spectralFilter_mod
   implicit none
   save
   private
 
   ! public procedures
-  public :: spt_FilterResponseFunction
+  public :: spf_FilterResponseFunction
 
 CONTAINS
 
 !--------------------------------------------------------------------------
-! spt_FilterResponseFunction
+! spf_FilterResponseFunction
 !--------------------------------------------------------------------------
-  function spt_FilterResponseFunction(totalWaveNumber, waveBandIndex, waveBandPeaks, nWaveBand ) result(ResponseFunction) 
+  function spf_FilterResponseFunction(totalWaveNumber, waveBandIndex, waveBandPeaks, nWaveBand ) result(ResponseFunction) 
     implicit none
 
     real(8) :: totalWaveNumber, ResponseFunction 
@@ -128,6 +123,6 @@ CONTAINS
 
     end if
 
-  end function spt_FilterResponseFunction
+  end function spf_FilterResponseFunction
 
-END MODULE SPECTRALTRANSFORM_MOD
+END MODULE SpectralFilter_mod

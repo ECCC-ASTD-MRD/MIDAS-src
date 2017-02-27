@@ -14,14 +14,12 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
+!--------------------------------------------------------------------------
+!!
+!! *Purpose*: Add cloud parameters to the burp file for infrared satellite radiances.
+!!
+!--------------------------------------------------------------------------
 subroutine add_cloudprms(lobsSpaceData)
-!*
-!***s/r add_cloudprms
-!*
-!*Author  : M. Buehner, June 2013
-!*
-!**    Purpose: Add cloud parameters to the burp file for infrared satellite radiances.
-!*
   use obsSpaceData_mod
   use mpivar_mod
   use tovs_nl_mod ,only : nsensors,platform,satellite,instrument
@@ -34,20 +32,20 @@ subroutine add_cloudprms(lobsSpaceData)
   integer length_burp_split, ier
 
   ier = 0
-  call get_environment_variable('ARMA_BURP_SPLIT',BURP_SPLIT_VAR,length_burp_split,ier,.true.)
+  call get_environment_variable('OAVAR_BURP_SPLIT',BURP_SPLIT_VAR,length_burp_split,ier,.true.)
   if (ier.gt.1) then
-     write(*,*) 'add_cloudprms: Problem when getting the environment variable ARMA_BURP_SPLIT'
+     write(*,*) 'add_cloudprms: Problem when getting the environment variable OAVAR_BURP_SPLIT'
   end if
   if (ier.eq.1) then
-     write(*,*) 'add_cloudprms: The environment variable ARMA_BURP_SPLIT has not been detected so we read global observation files'
+     write(*,*) 'add_cloudprms: The environment variable OAVAR_BURP_SPLIT has not been detected so we read global observation files'
      ! if files not split then modification of burp file is only done on processor 0
      IF(mpi_myid /= 0) RETURN
   else
-     write(*,*) 'add_cloudprms: The environment variable ARMA_BURP_SPLIT has been detected so we read splitted observation files'
+     write(*,*) 'add_cloudprms: The environment variable OAVAR_BURP_SPLIT has been detected so we read splitted observation files'
   end if
 
   do jfile=1,burp_nfiles
-     write(*,*) 'INPUT FILE TO  hir_cldprm_to_brp= ', burp_cfilnam(jfile)
+     write(*,*) 'INPUT FILE TO  hir_cldprm_to_brp= ', trim(burp_cfilnam(jfile))
      call hir_cldprm_to_brp(lobsspacedata,burp_cfilnam(jfile))
   enddo
 

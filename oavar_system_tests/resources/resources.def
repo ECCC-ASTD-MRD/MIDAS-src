@@ -1,0 +1,4 @@
+# Machine stuff
+FRONTEND=pollux
+BACKEND=hadar
+SEQ_DEFAULT_MACHINE=pollux

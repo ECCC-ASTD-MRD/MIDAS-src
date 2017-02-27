@@ -14,6 +14,13 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
+!--------------------------------------------------------------------------
+!! MODULE verticalcoord (prefix="vco")
+!!
+!! *Purpose*: Derived type and procedures related to the vertical levels including
+!!            a pointer to the associated VGRID descriptor
+!!
+!--------------------------------------------------------------------------
 module verticalCoord_mod
   use mpi_mod
   use MathPhysConstants_mod
@@ -100,14 +107,15 @@ module verticalCoord_mod
   end subroutine vco_SetupManual
 
 
-  subroutine vco_SetupFromFile(vco,templatefile,etiket,beSilent)
+  subroutine vco_SetupFromFile(vco,templatefile,etiket_in,beSilent)
     !  s/r vco_SetupFromFile - Initialize structure for a standard file using vgrid_descriptors library.
     implicit none
     type(struct_vco),pointer :: vco
     character(len=*) :: templatefile
-    character(len=*) :: etiket
+    character(len=*), optional :: etiket_in
     logical, optional :: beSilent
 
+    character(len=12) :: etiket
     integer :: Vcode,kind,jlev,jlev2,stat,sigdigits,nultemplate,ierr,ikey
     integer :: fnom,fstouv,fstfrm,fclos,fstinf,fstprm
     integer :: vgd_nlev_M, vgd_nlev_T
@@ -119,6 +127,14 @@ module verticalCoord_mod
     logical :: isExist_L, ip1_found
     integer :: ni,nj,nk
     character(len=4) :: nomvar_T, nomvar_M
+
+    nullify(vgd_ip1_M,vgd_ip1_T)
+
+    if(present(etiket_in)) then
+      etiket = etiket_in
+    else
+      etiket = ' '
+    endif
 
     if(present(beSilent)) then
       if( .not.beSilent ) then
@@ -196,16 +212,16 @@ module verticalCoord_mod
     ! Set the number of vertical levels and allocate vco arrays
 
     vco%nlev_T = 0
-    nomvar_T = 'TT  '
+    nomvar_T = 'TH  '
     do jlev = 1, vgd_nlev_T
       ikey = fstinf(nultemplate, ni, nj, nk, -1 ,etiket, vgd_ip1_T(jlev), -1, -1, ' ', nomvar_T)
       if(ikey.gt.0) vco%nlev_T = vco%nlev_T + 1
     enddo
     if(vco%nlev_T.eq.0) then
-      if(mpi_myid.eq.0 .and. .not.present(beSilent)) then 
-        write(*,*) 'vco: TT not found looking for UT to get nlev_T'
+      if(mpi_myid.eq.0 .and. .not.present(beSilent)) then
+        write(*,*) 'vco: TH not found looking for TT to get nlev_T'
       endif
-      nomvar_T = 'UT  '
+      nomvar_T = 'TT  '
       do jlev = 1, vgd_nlev_T
         ikey = fstinf(nultemplate, ni, nj, nk, -1 ,etiket, vgd_ip1_T(jlev), -1, -1, ' ', nomvar_T)
         if(ikey.gt.0) vco%nlev_T = vco%nlev_T + 1
@@ -219,26 +235,16 @@ module verticalCoord_mod
     endif
 
     vco%nlev_M = 0
-    nomvar_M = 'UU  '
+    nomvar_M = 'MM  '
     do jlev = 1, vgd_nlev_M
       ikey = fstinf(nultemplate, ni, nj, nk, -1 ,etiket, vgd_ip1_M(jlev), -1, -1, ' ', nomvar_M)
       if(ikey.gt.0) vco%nlev_M = vco%nlev_M + 1
     enddo
     if(vco%nlev_M.eq.0) then
       if(mpi_myid.eq.0 .and. .not.present(beSilent)) then
-        write(*,*) 'vco: UU not found looking for PP to get nlev_M'
+        write(*,*) 'vco: MM not found looking for UU to get nlev_M'
       endif
-      nomvar_M = 'PP  '
-      do jlev = 1, vgd_nlev_M
-        ikey = fstinf(nultemplate, ni, nj, nk, -1 ,etiket, vgd_ip1_M(jlev), -1, -1, ' ', nomvar_M)
-        if(ikey.gt.0) vco%nlev_M = vco%nlev_M + 1
-      enddo
-    endif
-    if(vco%nlev_M.eq.0) then
-      if(mpi_myid.eq.0 .and. .not.present(beSilent)) then
-        write(*,*) 'vco: PP not found looking for QR to get nlev_M'
-      endif
-      nomvar_M = 'QR  '
+      nomvar_M = 'UU  '
       do jlev = 1, vgd_nlev_M
         ikey = fstinf(nultemplate, ni, nj, nk, -1 ,etiket, vgd_ip1_M(jlev), -1, -1, ' ', nomvar_M)
         if(ikey.gt.0) vco%nlev_M = vco%nlev_M + 1
@@ -312,6 +318,8 @@ module verticalCoord_mod
     if(.not.ip1_found) then
       write(*,*) 'vco: Could not find IP1=',ip1_sfc
       call utl_abort('vco: No surface level found in Vgrid!!!')
+    else
+      if(mpi_myid.eq.0 .and. .not.present(beSilent)) write(*,*) 'vco: Set surface level IP1=',vco%ip1_sfc
     endif
 
     do jlev = 1, vco%nlev_M
@@ -369,35 +377,34 @@ module verticalCoord_mod
           write(*,*) 'vco_equal: vgrid not equal'
           return
        endif
-    else
-       ! At least one vco was manually setup where vgrid is not defined
-       equal = equal .and. (vco1%nlev_T == vco2%nlev_T)
-       if (.not. equal) then
-          write(*,*) 'vco_equal: nlev_T not equal', vco1%nlev_T, vco2%nlev_T
-          return
-       endif
-       equal = equal .and. (vco1%nlev_M == vco2%nlev_M)
-       if (.not. equal) then
-          write(*,*) 'vco_equal: nlev_M not equal', vco1%nlev_M, vco2%nlev_M
-          return
-       endif
-       equal = equal .and. all(vco1%ip1_T(:) == vco2%ip1_T(:))
-       if (.not. equal) then
-          write(*,*) 'vco_equal: ip1_T not equal'
-          return
-       endif
-       equal = equal .and. all(vco1%ip1_M(:) == vco2%ip1_M(:))
-       if (.not. equal) then
-          write(*,*) 'vco_equal: ip1_M not equal'
-          return
-       endif
-       equal = equal .and. (vco1%ip1_sfc == vco2%ip1_sfc)
-       if (.not. equal) then
-          write(*,*) 'vco_equal: ip1_sfc not equal'
-          return
-       endif
-
     end if
+
+    ! Even if vgrid defined, not enough just to compare vgrid, must compare everything
+    equal = equal .and. (vco1%nlev_T == vco2%nlev_T)
+    if (.not. equal) then
+       write(*,*) 'vco_equal: nlev_T not equal', vco1%nlev_T, vco2%nlev_T
+       return
+    endif
+    equal = equal .and. (vco1%nlev_M == vco2%nlev_M)
+    if (.not. equal) then
+       write(*,*) 'vco_equal: nlev_M not equal', vco1%nlev_M, vco2%nlev_M
+       return
+    endif
+    equal = equal .and. all(vco1%ip1_T(:) == vco2%ip1_T(:))
+    if (.not. equal) then
+       write(*,*) 'vco_equal: ip1_T not equal'
+       return
+    endif
+    equal = equal .and. all(vco1%ip1_M(:) == vco2%ip1_M(:))
+    if (.not. equal) then
+       write(*,*) 'vco_equal: ip1_M not equal'
+       return
+    endif
+    equal = equal .and. (vco1%ip1_sfc == vco2%ip1_sfc)
+    if (.not. equal) then
+       write(*,*) 'vco_equal: ip1_sfc not equal'
+       return
+    endif
 
   end function vco_equal
 

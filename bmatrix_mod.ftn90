@@ -14,10 +14,17 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
+!--------------------------------------------------------------------------
+!! MODULE bMatrix (prefix="bmat")
+!!
+!! *Purpose*: A higher-level module that takes care of calling subroutines 
+!!            in the lower-level modules bmatrixHI/lambmatrixHI and bmatrixEnsemble.
+!!
+!--------------------------------------------------------------------------
 MODULE BMatrix_mod
 !
 ! Revisions: Pind Du, CMDA, 2014
-!            - Added 'use bMatrixChem'
+!            - Added 'use bMatrixChem_mod'
 !            Y. Rochon, ARQI. July 2015
 !            - Added 'public bchm_getScaleFactor' for constituents. 
 !
@@ -28,15 +35,15 @@ MODULE BMatrix_mod
 !------------------------------------------------------------------------------------------
 !
   use mpivar_mod
-  use bMatrixHI
-  use bMatrixEnsemble
-  use bMatrixChem
+  use bMatrixHI_mod
+  use bMatrixEnsemble_mod
+  use bMatrixChem_mod
   use controlVector_mod
   use gridStateVector_mod
   use LAMbMatrixHI_mod
   use horizontalCoord_mod
   use timeCoord_mod
-  use globalSpectralTransform
+  use globalSpectralTransform_mod
   implicit none
   save
   private
@@ -147,7 +154,7 @@ contains
 !--------------------------------------------------------------------------
 ! bmat_sqrtB
 !-------------------------------------------------------------------------- 
-  SUBROUTINE bmat_sqrtB(da_v,na_vdim,statevector,SubVectorId)
+  SUBROUTINE bmat_sqrtB(controlVector,cvdim,statevector,SubVectorId)
     implicit none
     !
     !- Purpose: Transforms model state from error covariance space
@@ -165,10 +172,10 @@ contains
     !
     ! LAM and Ensemble cases not done for constituents. TBD 
     !
-    integer         :: na_vdim
+    integer         :: cvdim
     integer, intent(in), optional :: SubVectorId
 
-    real(8)         :: da_v(na_vdim)
+    real(8)         :: controlVector(cvdim)
     real(8),pointer :: cvBhi(:), cvBen(:), field(:,:,:), field4d(:,:,:,:)
     real(8),pointer :: cvBchm(:)
 
@@ -199,7 +206,7 @@ contains
     if (SubVectorChoice.eq.0.or.SubVectorChoice.eq.1) then
     
        call tmg_start(50,'B_HI')
-       cvBhi => cvm_getSubVector(da_v,1)
+       cvBhi => cvm_getSubVector(controlVector,1)
 
        if ( associated(cvBhi) ) then
          if ( statevector%hco%global ) then
@@ -222,7 +229,7 @@ contains
     if (SubVectorChoice.eq.0.or.SubVectorChoice.eq.3) then
 
        call tmg_start(123,'B_CHM')
-       cvBchm => cvm_getSubVector(da_v,3)
+       cvBchm => cvm_getSubVector(controlVector,3)
 
        if ( associated(cvBchm) ) then
          if ( statevector % hco % global ) then
@@ -243,7 +250,7 @@ contains
     if (SubVectorChoice.eq.0.or.SubVectorChoice.eq.1) then
 
        call tmg_start(60,'B_ENS')
-       cvBen => cvm_getSubVector(da_v,2)
+       cvBen => cvm_getSubVector(controlVector,2)
 
        if ( associated(cvBen) ) then
        
@@ -272,7 +279,7 @@ contains
 !--------------------------------------------------------------------------
 ! bmat_sqrtBT
 !--------------------------------------------------------------------------
-  SUBROUTINE bmat_sqrtBT(da_v,na_vdim,statevector)
+  SUBROUTINE bmat_sqrtBT(controlVector,cvdim,statevector)
     implicit none
     !
     !- Purpose: Transforms model state from grid point space 
@@ -285,8 +292,8 @@ contains
     !
     ! Comments:
     !
-    integer :: na_vdim
-    real(8) :: da_v(na_vdim)
+    integer :: cvdim
+    real(8) :: controlVector(cvdim)
     real(8),pointer :: cvBhi(:),cvBen(:),cvBchm(:)
     type(struct_gsv) :: statevector
 
@@ -296,11 +303,11 @@ contains
     end if
 
     !- 1.2 set gradient to zero
-    da_v(:)=0.0d0
-        
+    controlVector(:)=0.0d0
+    
     !- 1.3 Add contribution to gradient from BmatrixEnsemble
     call tmg_start(61,'B_ENS_T')
-    cvBen=>cvm_getSubVector(da_v,2)
+    cvBen=>cvm_getSubVector(controlVector,2)
 
     if ( associated(cvBen) ) call ben_bsqrtad(statevector,cvBen)
     call tmg_stop(61)
@@ -309,7 +316,7 @@ contains
 
     !- 1.4chm add contribution to gradient from BmatrixChem
     call tmg_start(62,'B_CHM_T')
-    cvBchm=>cvm_getSubVector(da_v,3)
+    cvBchm=>cvm_getSubVector(controlVector,3)
 
     if ( associated(cvBchm) ) then
       !- 1.4.1chm adjoint of copy 3D increment to 4D increment
@@ -329,7 +336,7 @@ contains
 
     !- 1.4 add contribution to gradient from BmatrixHI
     call tmg_start(51,'B_HI_T')
-    cvBhi=>cvm_getSubVector(da_v,1)
+    cvBhi=>cvm_getSubVector(controlVector,1)
     if ( associated(cvBhi) ) then
       !- 1.4.1 adjoint of copy 3D increment to 4D increment
 !      call gsv_3dto4dAdj(statevector)
@@ -393,7 +400,7 @@ contains
 !--------------------------------------------------------------------------
 ! bmat_finalize
 !--------------------------------------------------------------------------
-  SUBROUTINE bmat_finalize(da_v)
+  SUBROUTINE bmat_finalize(controlVector)
     !
     ! Revision:
     !           Ping Du, CMDA/MSC, July 2014
@@ -404,14 +411,14 @@ contains
     ! - LAM and ensemble components for constituents tbd.
     !
     implicit none
-    real(8) :: da_v(:)
+    real(8) :: controlVector(:)
     !
     !- Purpose: Releases memory used by B matrices.
     !
     real(8), pointer :: cvBhi(:), cvBen(:)
     real(8), pointer :: cvBchm(:)    
 
-    cvBhi => cvm_getSubVector(da_v,1)
+    cvBhi => cvm_getSubVector(controlVector,1)
     if ( associated(cvBhi) ) then
       if ( hco_anl%global ) then
         call bhi_finalize()
@@ -420,10 +427,10 @@ contains
       end if
     end if
 
-    cvBen => cvm_getSubVector(da_v,2)
+    cvBen => cvm_getSubVector(controlVector,2)
     if ( associated(cvBen) ) call ben_finalize()
 
-    cvBchm => cvm_getSubVector(da_v,3)  
+    cvBchm => cvm_getSubVector(controlVector,3)  
     if ( associated(cvBchm) ) then
       if ( hco_anl % global ) then
         call bchm_finalize()

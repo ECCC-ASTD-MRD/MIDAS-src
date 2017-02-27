@@ -13,23 +13,20 @@
 !if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
-!
+
+!--------------------------------------------------------------------------
+!! *Purpose*: Do background check on all conventionnal observations
+!!
+!! @author P. Koclas *CMC/CMDA  Nov 1998
+!!
+!! Revision:  M. Sitwell (ARQI/AQRD) May 2015, March 2016
+!!           - Added call to BGCDATA for chemical constituents
+!!           - Added loop over bgfam list
+!!           Y. Rochon (ARQI/AQRD) June 2016
+!!           - Added call to osd_ObsSpaceDiag
+!--------------------------------------------------------------------------
 SUBROUTINE BGCHECK_CONV(columng,columnhr,obsSpaceData)
-!
-!**s/r BGCHECK  - BACKGROUND CHECK
-!
-!
-!Author  : P. Koclas *CMC/CMDA  Nov 1998
-!
-!Revision:  M. Sitwell (ARQI/AQRD) May 2015, March 2016
-!           - Added call to BGCDATA for chemical constituents
-!           - Added loop over bgfam list
-!           Y. Rochon (ARQI/AQRD) June 2016
-!           - Added call to osd_ObsSpaceDiag
-!
-!    -------------------
-!*    Purpose: DO  a background check on all conventionnal observations
-!
+
   use mpivar_mod
   use obsSpaceData_mod
   use columnData_mod

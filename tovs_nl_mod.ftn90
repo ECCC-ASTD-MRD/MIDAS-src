@@ -14,6 +14,13 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
+!--------------------------------------------------------------------------
+!! MODULE tovs_nl (prefix= no defined prefix)
+!!
+!! *Purpose*: Derived types, public variables and procedures related to the nonlinear
+!!            version of RTTOV
+!!
+!--------------------------------------------------------------------------
 Module tovs_nl_mod
   use mpi_mod
   Use rttov_types, only : &
@@ -171,6 +178,8 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
   INTEGER ::  ICHN, NOSENSOR, INDXCHN
   INTEGER ::  ERRORSTATUS,ASW
   integer ::  index_header, index_body
+
+  if (nsensors == 0) return
 
 !     1. Determine the number of radiances to be assimilated.
 !        Construct a list of channels for each sensor.
@@ -466,7 +475,7 @@ SUBROUTINE TOVS_SETUP
   !     .  1.1 Default values
   !     .      --------------
 
-  NSENSORS   = 1
+  NSENSORS   = 0
   CSATID(:)  = '***UNDEFINED***'
   CINSTRUMENTID(:) = '***UNDEFINED***'
   CSATID(1)  = 'NOAA16'
@@ -489,6 +498,15 @@ SUBROUTINE TOVS_SETUP
   !     .   1.3 Validate namelist values
   !     .       ------------------------
 
+  if ( nsensors == 0 ) then
+     if(mpi_myid.eq.0) then 
+        write(*,*) ' ====================================================='
+        write(*,*) ' TOVS_SETUP: Number of sensors is zero, skipping setup'
+        write(*,*) ' ====================================================='
+     endif
+     return
+  endif
+
   IF ( CRTMODL .NE. 'RTTOV' ) THEN
      WRITE(*,FMT=9131)
   9131    FORMAT(' TOVS_SETUP: Invalid radiation model name')
@@ -502,18 +520,11 @@ SUBROUTINE TOVS_SETUP
      CALL utl_abort('TOVS_SETUP')
   ENDIF
 
-  if(mpi_myid.eq.0) WRITE(*,FMT=9140) LDBGTOV, LNLVTOV, luse_uwiremis,CRTMODL
-  if(mpi_myid.eq.0) WRITE(*,FMT=9143) NSENSORS
-
-  IF ( NSENSORS .LE. 0 ) THEN
-     if(mpi_myid.eq.0) WRITE(*,FMT=9133)
-  9133 FORMAT(' TOVS_SETUP: Skiping RTTOV initialization')
-     return
-  ENDIF
-
   !     .   1.4 Print the content of this NAMELIST
   !     .       ----------------------------------
 
+  if(mpi_myid.eq.0) WRITE(*,FMT=9140) LDBGTOV, LNLVTOV, luse_uwiremis,CRTMODL
+  if(mpi_myid.eq.0) WRITE(*,FMT=9143) NSENSORS
   if(mpi_myid.eq.0) WRITE(*,FMT=9145) (CSATID(JK), JK=1,NSENSORS)
   if(mpi_myid.eq.0) WRITE(*,FMT=9146) (CINSTRUMENTID(JK), JK=1,NSENSORS)
 
@@ -720,6 +731,13 @@ logical function tvs_Is_idburp_tovs(idatyp)
   integer, save :: list_inst(ninst)
   character (len=22) :: inst_names(ninst)
   namelist /namtovsinst/ inst_names
+
+  if (nsensors == 0) then
+    ! no tovs data will be read, therefore false
+    tvs_is_idburp_tovs = .false.
+    return
+  endif
+
   if (lfirst) then
      nulnam = 0
      ninst_tovs = 0

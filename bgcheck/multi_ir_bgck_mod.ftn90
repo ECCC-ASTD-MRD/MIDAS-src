@@ -14,22 +14,18 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
+!--------------------------------------------------------------------------
+!! MODULE multi_ir_bgcheck (prefix= no standard prefix)
+!!
+!! *Purpose*: VARIABLES FOR MULTISPECTRAL INFRARED BACKGROUND CHECK
+!!            AND QUALITY CONTROL.
+!!
+!! @author A. BEAULNE (CMDA/SMC) February 2006
+!!
+!! REVISION: adapted to IASI and CrIS by S. Heilliette
+!!
+!--------------------------------------------------------------------------
 Module multi_ir_bgck_mod
-
-!************************************************************************
-!*
-!*       MODULE MULTI_IR_BGCHECK
-!*       -------------------
-!*
-!*       PURPOSE: VARIABLES FOR MULTISPECTRAL INFRARED BACKGROUND CHECK
-!*                  AND QUALITY CONTROL
-!*
-!*       AUTHOR:   A. BEAULNE (CMDA/SMC) February 2006
-!*
-!*       REVISION: adapted to IASI and CrIS by S. Heilliette
-!*
-!*
-!************************************************************************
   Use tovs_nl_mod, only : jplev,rttov_coefs,transmission_Type,tvs_Is_idburp_tovs, &
       tvs_Is_idburp_inst, radiance_d,lsensor,coefs,nchan,NSENSORS,PLATFORM,SATELLITE, &
       INSTRUMENT,NOBTOV

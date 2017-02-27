@@ -17,6 +17,13 @@
 
 #include "maincompileswitch.inc"
 #include "compileswitches.inc"
+!--------------------------------------------------------------------------
+!! MODULE burpRead (prefix= no standard prefix)
+!!
+!! *Purpose*: To read and update BURP observation files. Data is stored in 
+!!            obsSpaceData object.
+!!
+!--------------------------------------------------------------------------
 module  burpread_mod
 
 use burp_module
@@ -504,8 +511,11 @@ CONTAINS
       END DO
       write(*, *)  '  FILE = ',trim(brp_file),' OBS_START= ',OBS_START
 
-      ! create a new report
-      Call BURP_New(Cp_rpt, ALLOC_SPACE=10*LNMX, IOSTAT=error)
+      ! Create a new report.
+      ! The factor 12 before 'LNMX' is arbitrary.
+      ! We increase it from time to time as we encounter some
+      ! problems.
+      Call BURP_New(Cp_rpt, ALLOC_SPACE=12*LNMX, IOSTAT=error)
 
       ! LOOP ON REPORTS
       REPORTS: do kk = 1, count
@@ -1571,8 +1581,8 @@ CONTAINS
     END SELECT
     LISTE_ELE    (1:NELE    )=BLISTELEMENTS(1:NELE)
     LISTE_ELE_SFC(1:NELE_SFC)=BLISTELEMENTS_SFC(1:NELE_SFC)
-    write(*,*) ' NELE NELEMS LISTE_ELE  =',NELE,NELEMS,LISTE_ELE
-    write(*,*) ' NELE_SFC LISTE_ELE_SFC =',NELE_SFC,LISTE_ELE_SFC(1:NELE_SFC)
+    if(NELE     .gt. 0)write(*,*)  ' LISTE_ELE =',LISTE_ELE
+    if(NELE_SFC .gt. 0)write(*,*)  ' LISTE_ELE_SFC =',LISTE_ELE_SFC(1:NELE_SFC)
     write(*,*) ' BNBITSON BNBITSOFF     =',BNBITSON,BNBITSOFF
 
     btyp_offset_uni=-999

@@ -14,18 +14,15 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
+!--------------------------------------------------------------------------
+!! *Purpose*: Interpolate vertically the contents of "column" to
+!!            the pressure levels of the observations.
+!!            A linear interpolation in ln(p) is performed.
+!!
+!! @author P. Koclas *CMC/AES  September 2000
+!!
+!--------------------------------------------------------------------------
       SUBROUTINE SETFGESURF(lcolumn,lcolumng,lobsSpaceData)
-!*
-!***s/r SURFC1DZ  - Computation of Jo and the residuals to the observations
-!*                 FOR SURFACE DATAFILES
-!*
-!*Author  : P. Koclas *CMC/AES  September 2000
-!*
-!**    Purpose:  -Interpolate vertically the contents of commvo to
-!*                the pressure levels of the observations. Then
-!*                compute Jo.
-!*                A linear interpolation in ln(p) is performed.
-!*
       use EarthConstants_mod
       use MathPhysConstants_mod
       use bufr

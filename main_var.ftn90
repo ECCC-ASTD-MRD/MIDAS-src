@@ -13,9 +13,14 @@
 !if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
-!
+
+!--------------------------------------------------------------------------
+!!
+!! *Purpose*: Main program for variational minimization and background check 
+!!            (depending on the mode selected in the namelist).
+!!
+!--------------------------------------------------------------------------
 program main_var
-  ! pgm main_var - Program controlling the job at its highest level (formerly cnt0.ftn90)
 
   use topLevelControl_mod
   use mpivar_mod
@@ -40,7 +45,7 @@ program main_var
 
   character(len=48) :: obsMpiStrategy
 
-  istamp = exdb('VAR','DEBUT','NON')
+  istamp = exdb('OAVAR','DEBUT','NON')
 
   write(*,'(/,' //                                            &
             '3(" *****************"),/,' //                   &
@@ -52,7 +57,7 @@ program main_var
   ! MPI initilization
   call mpi_initialize  
 
-  call tmg_init(mpi_myid, 'TMG_VAR' )
+  call tmg_init(mpi_myid, 'TMG_OAVAR' )
 
   call tmg_start(1,'MAIN')
 
@@ -184,7 +189,7 @@ program main_var
 
   ! 3. Job termination
 
-  istamp = exfin('VAR','FIN','NON')
+  istamp = exfin('OAVAR','FIN','NON')
 
   if(mpi_myid == 0) then
     clmsg = 'VAR3D_END'
@@ -193,22 +198,22 @@ program main_var
 
   call tmg_stop(1)
 
-  call tmg_terminate(mpi_myid, 'TMG_VAR' )
+  call tmg_terminate(mpi_myid, 'TMG_OAVAR' )
 
   call rpn_comm_finalize(ierr) 
 
 contains
 
+  !--------------------------------------------------------------------------
+  !! *Purpose*: Control of the preprocessing of the variational assimilation
+  !!
+  !! Revisions:
+  !!           Y.J. Rochon, Jan 2016
+  !!           - Addition of test on availability of input trial fields according
+  !!             to related observation families.
+  !--------------------------------------------------------------------------
   subroutine var_setup(lcolumng,lcolumnhr,lobsSpaceData, &
        obsColumnMode, obsMpiStrategy)
-    !
-    !**s/r var_setup  - Control of the preprocessing of the variational assimilation
-    !
-    ! Revisions:
-    !           Y.J. Rochon, Jan 2016
-    !           - Addition of test on availability of input trial fields according
-    !             to related observation families.
-    !
     use topLevelControl_mod
     use mpivar_mod
     use MathPhysConstants_mod
@@ -241,8 +246,6 @@ contains
 
     integer :: get_max_rss
 
-    character(len=12) :: etiket
-
     write(*,*) ''
     write(*,*) '-----------------------------------'
     write(*,*) '-- Starting subroutine var_setup --'
@@ -264,13 +267,8 @@ contains
     !
     if(mpi_myid.eq.0) write(*,*)''
     if(mpi_myid.eq.0) write(*,*)' preproc: Set vcoord parameters for trial grid'
-    if ( top_spatialDimensions() /= '2D') then
-       call vco_SetupFromFile( vco_trl,         & ! OUT
-            './trlm_01',' ')   ! IN
-    else  
-       call vco_SetupManual( vco_trl,                  & ! OUT
-            top_AnalysisLevel2d(), 1 )  ! IN 
-    end if
+    call vco_SetupFromFile( vco_trl,     & ! OUT
+                            './trlm_01')   ! IN
     call col_setVco(lcolumnhr,vco_trl)
 
     !
@@ -304,20 +302,10 @@ contains
     end if
 
     !     
-    !- Initialisation of the analysis grid vertical coordinate from !! in Bnmc file
+    !- Initialisation of the analysis grid vertical coordinate from analysisgrid file
     !
-    if ( top_spatialDimensions() /= '2D') then
-       if ( hco_anl % global ) then
-          etiket = 'BGCK_STDDEV'
-       else
-          etiket = 'STDDEV'
-       end if
-       call vco_SetupFromFile( vco_anl,         & ! OUT
-            './bgcov', etiket) ! IN
-    else
-       call vco_SetupManual( vco_anl,                  & ! OUT
-            top_AnalysisLevel2d(), 1 )  ! IN
-    end if
+    call vco_SetupFromFile( vco_anl,        & ! OUT
+                            './analysisgrid') ! IN
 
     call col_setVco(lcolumng,vco_anl)
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -383,7 +371,8 @@ contains
 
     !
     !- Set up the minimization module, now that the required parameters are known
-    !  NOTE: some global variables remain in minimization_mod that must be initialized before inn_setupBackgroundColumns
+    !  NOTE: some global variables remain in minimization_mod that must be initialized before 
+    !        inn_setupBackgroundColumns
     !
     if (top_AnalysisMode() ) then
        call min_setup( cvm_nvadim ) ! IN

@@ -15,19 +15,11 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-! > MODULE LamSpectralTransform (prefix="lst")
-!
-! - Subroutines
-!    lst_Setup        (public)
-!    lst_VarTransform (public)
-!    lst_Laplacian    (public)
-!    lst_ReshapeTrunc
-!
-! - Public variables
-!    struct_lst
-!
-! - Dependencies
-!    ffft8 and setfft8 routines in ARMNLIB
+!! MODULE LamSpectralTransform (prefix="lst")
+!! 
+!! *Purpose*: Bi-Fourier spectral transform for limited area applications.
+!!            Depends on ffft8 and setfft8 routines in ARMNLIB.
+!!
 !--------------------------------------------------------------------------
 module LamSpectralTransform_mod
   use mpivar_mod

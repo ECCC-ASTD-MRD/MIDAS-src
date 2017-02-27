@@ -14,10 +14,12 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
+!--------------------------------------------------------------------------
+!!
+!! *Purpose*: Main program for computing diagnostics of the B matrix
+!!
+!--------------------------------------------------------------------------
 program main_diagBmatrix
-  !
-  ! program: diagBmatrix  - Program to compute diagnostics of the B matrix
-  !
   use mpivar_mod
   use MathPhysConstants_mod
   use controlVector_mod
@@ -40,7 +42,7 @@ program main_diagBmatrix
   real(8), allocatable :: gdstddev(:,:,:)
   real(8), allocatable :: gdstddev_zm(:,:),gdstddev_zm2(:,:)
   real(8), allocatable :: gdstddev_dm(:,:),gdstddev_dm2(:,:)
-  real(8), allocatable :: cvm_vazx_global(:)
+  real(8), allocatable :: controlVector(:), controlVector_global(:)
   integer :: fclos, fnom, fstopc, newdate, get_max_rss
   integer :: ierr, nsize, iseed, cvDim_local
   integer :: jmem, jj, jlon, jlat, jlev, nkgdim
@@ -151,6 +153,8 @@ program main_diagBmatrix
   !
   if ( nlevs.ge.1 .and. nlons.ge.1 .and. nlats.ge.1 ) then
 
+     allocate(controlVector(cvm_nvadim))
+
      write(*,*) '********************************************'
      write(*,*) 'Compute columns of B matrix'
      write(*,*) '********************************************'
@@ -188,9 +192,9 @@ program main_diagBmatrix
                     endif
                  endif
 
-                 cvm_vazx(:)=0.0d0
-                 call bmat_sqrtBT(cvm_vazx,cvm_nvadim,statevector)
-                 call bmat_sqrtB(cvm_vazx,cvm_nvadim,statevector)
+                 controlVector(:)=0.0d0
+                 call bmat_sqrtBT(controlVector,cvm_nvadim,statevector)
+                 call bmat_sqrtB(controlVector,cvm_nvadim,statevector)
                  
                  write(*,*)'diagBmatrix: writing out the column of B, jlev,jlon,jlat=',jlev,jlon,jlat
                  call flush(6)
@@ -204,6 +208,8 @@ program main_diagBmatrix
         enddo
  
      enddo
+
+     deallocate(controlVector)
      
   endif ! if any oneobs selected
 
@@ -220,7 +226,8 @@ program main_diagBmatrix
      write(*,*) 'Compute the stddev from random perturbations'
      write(*,*) '********************************************'
 
-     allocate(cvm_vazx_global(cvm_nvadim_mpiglobal))
+     allocate(controlVector(cvm_nvadim))
+     allocate(controlVector_global(cvm_nvadim_mpiglobal))
 
      call gsv_zero(statevector)
      
@@ -243,16 +250,16 @@ program main_diagBmatrix
 
         !- Global vector (same for each processors)
         do jj = 1, cvm_nvadim_mpiglobal
-           cvm_vazx_global(jj) = rng_gaussian()
+           controlVector_global(jj) = rng_gaussian()
         enddo
         
         !- Extract only the subvector for this processor
-        call bmat_reduceToMPILocal(cvm_vazx,        & ! OUT
-                                   cvm_vazx_global, & ! IN
-                                   cvDim_local )      ! OUT
+        call bmat_reduceToMPILocal(controlVector,        & ! OUT
+                                   controlVector_global, & ! IN
+                                   cvDim_local )           ! OUT
 
         !- Transform to control variables in physical space
-        call bmat_sqrtB(cvm_vazx,cvm_nvadim,statevector)
+        call bmat_sqrtB(controlVector,cvm_nvadim,statevector)
 
 !$OMP PARALLEL DO PRIVATE (jlon,jlat,jlev)    
         do jlev = 1, nkgdim
@@ -440,6 +447,8 @@ program main_diagBmatrix
 !$OMP END PARALLEL DO
      deallocate(gdstddev_dm)
      deallocate(gdstddev_dm2)
+     deallocate(controlVector)
+     deallocate(controlVector_global)
  
      call gsv_writeToFileMpi(statevector,'stddev_' // datestr // '.fst','DM_STDDEV',  &
                              HUcontainsLQ=.true.,unitConversion=.true.)

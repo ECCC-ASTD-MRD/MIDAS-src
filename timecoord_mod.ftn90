@@ -14,6 +14,12 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
+!--------------------------------------------------------------------------
+!! MODULE timeCoord (prefix="tim")
+!!
+!! *Purpose*: To store public variables and procedures related to the time coordinate.
+!!
+!--------------------------------------------------------------------------
 MODULE timeCoord_mod
   use mpivar_mod
   use obsSpaceData_mod

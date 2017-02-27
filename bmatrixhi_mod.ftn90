@@ -15,30 +15,20 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-! MODULE bMatrixHI (Background-error Covariance Matrix estimated
-!                       using lagged forecast differences or ensemble 
-!                       members and based on horizontally homogeneous/isotropic
-!                       correlations.  prefix="bhi")
-!
-! Purpose: Performs transformation from control vector to analysis increment 
-!          using the spatially localized ensemble covariance matrix
-!
-! Subroutines:
-!    bhi_setup (public)
-!    bhi_BSqrt (public)
-!    bhi_BSqrtAd (public)
-!    cain
-!    cainAd
-!
-! Dependencies:
-!    globalSpectralTransform
+!! MODULE bMatrixHI (prefix="bhi")
+!!
+!! *Purpose*: Performs transformation from control vector to analysis increment 
+!!            using the background-error covariance matrix based on homogeneous
+!!            and isotropic correlations. This is the Global version. A separate 
+!!            module exists for limited-area applications.
+!!
 !--------------------------------------------------------------------------
-MODULE BmatrixHI
+MODULE BmatrixHI_mod
   use mpivar_mod
   use MathPhysConstants_mod
   use earthConstants_mod
   use gridStateVector_mod
-  use globalSpectralTransform
+  use globalSpectralTransform_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use varNameList_mod
@@ -136,6 +126,7 @@ CONTAINS
     integer :: jm, jn, status, latPerPE, lonPerPE, Vcode_anl
     logical :: llfound, lExists
     real(8) :: zps
+    type(struct_vco),pointer :: vco_file
     character(len=8) :: bFileName = './bgcov'
     
     NAMELIST /NAMBHI/ntrunc,scaleFactor,scaleFactorLQ,scaleTG,numModeZero,squareSqrt,TweakTG,ReadWrite_sqrt,stddevMode
@@ -168,6 +159,13 @@ CONTAINS
       nLev_T_even = nLev_T
     endif
     if(mpi_myid == 0) write(*,*) 'BHI_setup: nLev_M, nLev_T, nLev_T_even=',nLev_M, nLev_T, nLev_T_even
+
+    ! check if analysisgrid and covariance file have the same vertical levels
+    call vco_SetupFromFile( vco_file,  & ! OUT
+                            bFileName )  ! IN
+    if (.not. vco_equal(vco_anl,vco_file)) then
+      call utl_abort('bmatrixHI: vco from analysisgrid and cov file do not match')
+    end if
 
     status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
     if(Vcode_anl .ne. 5002 .and. Vcode_anl .ne. 5005) then
@@ -3230,4 +3228,4 @@ CONTAINS
 
   END SUBROUTINE uvwi2uv
 
-END MODULE BmatrixHI
+END MODULE BmatrixHI_mod

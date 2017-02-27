@@ -15,12 +15,13 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-! MODULE globalSpectralTransform (prefix = "gst")
-!
-! Purpose: Perform global spectral transform. 
-!
+!! MODULE globalSpectralTransform (prefix = "gst")
+!!
+!! *Purpose*: Perform global spectral transform (spherical harmonic transform
+!!            with grid-point field on a standard global Gaussian grid). 
+!!
 !--------------------------------------------------------------------------
-MODULE globalSpectralTransform
+MODULE globalSpectralTransform_mod
   use mpivar_mod
   use MathPhysConstants_mod
   use earthConstants_mod
@@ -2725,4 +2726,4 @@ CONTAINS
   END SUBROUTINE ngfft
 
 
-END MODULE globalSpectralTransform
+END MODULE globalSpectralTransform_mod
