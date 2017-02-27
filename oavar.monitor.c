@@ -11,7 +11,7 @@
 #define BYTES_TO_READ  23      /* length of string REBM_DONE_STRING */
 
 // On compile avec la commande
-//     gcc oavar_monitor_rebm.c -o oavar_monitor_rebm -Wall
+//     gcc oavar.monitor.c -o oavar.monitor.Abs -Wall
 
 int main(int argc, char **argv) {
   int fd;

@@ -1,6 +1,6 @@
 #!/bin/ksh
 
-## Ce script sert a tester le programme 'oavar_monitor_rebm'.
+## Ce script sert a tester le programme 'oavar.monitor.Abs'.
 
 set -ex
 
@@ -14,7 +14,7 @@ EOF
 chmod +x run_after_rebm_done.sh
 
 [ -f VAR3D_STATUS.dot ] && rm VAR3D_STATUS.dot
-./oavar_monitor_rebm VAR3D_STATUS.dot run_after_rebm_done.sh
+./oavar.monitor.Abs VAR3D_STATUS.dot run_after_rebm_done.sh
 
 sleep 10
 
