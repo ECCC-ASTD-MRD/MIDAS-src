@@ -8,6 +8,7 @@
 
 #define BUFFER_SIZE    32768
 #define REBM_DONE_STRING "VAR3D_STATUS=REBM_DONE\n"
+#define VAR3D_END_STRING "VAR3D_STATUS=VAR3D_END\n"
 #define BYTES_TO_READ  23      /* length of string REBM_DONE_STRING */
 
 // On compile avec la commande
@@ -34,7 +35,8 @@ int main(int argc, char **argv) {
       ssize_t bytes_read;
 
       strcpy(str_read,"");
-      while(strcmp(str_read,REBM_DONE_STRING)!=0) {
+      while(strcmp(str_read,REBM_DONE_STRING)!=0 &&
+	    strcmp(str_read,VAR3D_END_STRING)!=0) {
 	bytes_read = read(fd, str_read, (size_t) BYTES_TO_READ);
 	if (bytes_read!=BYTES_TO_READ) {
 	  fprintf(stderr,"Could only read %d bytes out of %d bytes in file '%s'\n",(int) bytes_read,BYTES_TO_READ,argv[1]);
