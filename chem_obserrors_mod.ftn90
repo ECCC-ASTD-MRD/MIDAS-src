@@ -17,22 +17,20 @@
 #include "maincompileswitch.inc"
 #include "compileswitches.inc"
 
+!--------------------------------------------------------------------------
+!! MODULE chem_obserrors_mod
+!!
+!! *Purpose*: Provides routines regarding observation error standard deviations.
+!!
+!! @author Mike Sitwell and Yves Rochon (ARQI/AQRD)
+!!
+!! Public routines:
+!!v       - "chm_read_obs_err_stddev,chm_get_obs_err_stddev,chm_dealloc_obs_err_stddev":
+!!v         Routines and strucure for setting of obs error std. dev. used in
+!!v        'obserrors_mod.ftn90'. 
+!--------------------------------------------------------------------------
 module chem_obserrors_mod
-!         
-! PURPOSE: Provides routines reqarding observation error std. dev..
-!          Used in obserrors_mod.ftn90
-!  
-! Module managers: Mike Sitwell and Yves Rochon (ARQI/AQRD)
-!
-! Revisions:  
-! 
-! Public routines:
-!
-!       - "chm_read_obs_err_stddev,chm_get_obs_err_stddev,chm_dealloc_obs_err_stddev":
-!         Routines and strucure for setting of obs error std. dev. used in
-!        'obserrors_mod.ftn90'. 
-!
-!----------------------------------------------------------------------------------------
+
   use utilities_mod
   use obsSubSpaceData_mod
   use burpFiles_mod    
@@ -107,19 +105,12 @@ module chem_obserrors_mod
 
 contains
 
-!-----------------------------------------------------------------------------------------
-!----------- Routines relevant to error std. dev. (observation_erreurs.ftn90) ------------
-
+!--------------------------------------------------------------------------
+!! *Purpose*: Read observation errors from ascii file and BURP file if specified in ascii file.
+!!
+!! @author M. Sitwell, March 2015
+!--------------------------------------------------------------------------
   subroutine chm_read_obs_err_stddev
-!
-! Author  : M. Sitwell, ARQI/AQRD, March 2015
-!
-!
-! Revision: 
-!
-! Purpose:  Read observation errors from ascii file and BURP file if specified in ascii file
-!
-!-----------------------------------------------------------------------------------------
 
     implicit none
 
@@ -145,19 +136,12 @@ contains
 
   end subroutine chm_read_obs_err_stddev
 
-!----------------------------------------------------------------------------------------
-
+!--------------------------------------------------------------------------
+!! *Purpose*:  Read and store observation error std. dev. as needed for CH family obs.
+!!
+!! @author Y. Rochon, Nov 2014
+!--------------------------------------------------------------------------
   subroutine chm_read_obs_err_stddev_ascii
-!
-! Author   : Y. Rochon, Nov 2014 
-!             (initial part follows the format of oer_read_obs_erreurs_conv)
-! Revisions: 
-!             M. Sitwell, Feb 2015
-!             - Content formed as a separate routine called in oer_read_obs_erreurs_chm.
-!          
-! Purpose: Read and store observation error std. dev. as needed for CH family obs.
-!
-!----------------------------------------------------------------------------------------
 
   implicit none
 
@@ -335,21 +319,12 @@ contains
 
   end subroutine chm_read_obs_err_stddev_ascii
 
-!-----------------------------------------------------------------------------------------
-
+!--------------------------------------------------------------------------
+!! *Purpose*: Returns the station ID and latitude indices corresponding to a measurement.
+!!
+!! @author M. Sitwell Feb 2015 
+!--------------------------------------------------------------------------
   subroutine chm_obs_err_stddev_index(CSTNID,NLEV,VARNO,ZLAT,ISTNID,JINT)
-!
-!  s/r chm_set_obs_err_stddev_index - Returns the station ID and latitude 
-!                                     indices corresponding to a measurement
-!
-!  Author: M. Sitwell Feb 2015 
-!            - Content moved from code originally in oer_fill_obs_erreurs.
-!             
-!  Revisions:
-!      M. Sitwell, May 2016
-!       - Added chm_std%brp = 2 option
-!
-!----------------------------------------------------------------------------------------
 
     implicit none
 
@@ -417,33 +392,25 @@ contains
 
   end subroutine chm_obs_err_stddev_index
 
-!----------------------------------------------------------------------------------------
-
+!--------------------------------------------------------------------------
+!! *Purpose*: Returns the observational error std for a CH family measurement
+!!
+!! @author Y. Rochon and M. Sitwell, Feb 2015
+!!
+!!  Input
+!!v    cstnid        station ID
+!!v    nlev          number of levels
+!!v    varno         BUFR number
+!!v    zlat          latitude (radians)
+!!v    zlon          longitude (radians)
+!!v    idate         date in YYYYMMDD format
+!!v    itime         time in HHMM format
+!!v    zval          observation values
+!!v    zlev          vertical coordinate value
+!!v    ilev          observation number in the profile
+!!v    ifirst        logical indicating if first call for a profile
+!--------------------------------------------------------------------------
   function chm_get_obs_err_stddev(CSTNID,NLEV,VARNO,ZLAT,ZLON,IDATE,ITIME,ZVAL,ZLEV,ILEV,IFIRST) result(obs_err_stddev) 
-!
-!  s/r chm_set_obs_err_stddev - Returns the observational error std for a CH family measurement
-!
-!  Author   : M. Sitwell, ARQI/AQRD, Feb 2015 
-!             - Content moved from code originally in oer_fill_obs_erreurs.
-!             Y. Rochon, ARQI/AQDRD, Aug 2016
-!             - Updated cases
-!
-!  Revisions:
-!
-!  Input
-!    cstnid        station ID
-!    nlev          number of levels
-!    varno         BUFR number
-!    zlat          latitude (radians)
-!    zlon          longitude (radians)
-!    idate         date in YYYYMMDD format
-!    itime         time in HHMM format
-!    zval          observation values
-!    zlev          vertical coordinate value
-!    ilev          observation number in the profile
-!    ifirst        logical indicating if first call for a profile
-!
-!----------------------------------------------------------------------------------------
 
     implicit none
    
@@ -561,16 +528,12 @@ contains
     
   end function chm_get_obs_err_stddev
 
-!-----------------------------------------------------------------------------------------
-
+!--------------------------------------------------------------------------
+!! *Purpose*: Deallocate temporary storage space used for observation errors for the CH family.
+!!
+!! @author Y. Rochon, Nov 2014
+!--------------------------------------------------------------------------
   subroutine chm_dealloc_obs_err_stddev
-!
-! Author  : Y. Rochon  Nov 2014
-! Revision: 
-!
-! Purpose: Deallocate temporary storage space used for observation errors for the CH family
-!
-!---------------------------------------------------------------------------------------
   
     implicit none
 
@@ -599,6 +562,5 @@ contains
     if (allocated(chm_std%lat))      deallocate(chm_std%lat)
 
   end subroutine chm_dealloc_obs_err_stddev
-!-------------------------------------------------------------------------------------------
 
 end module chem_obserrors_mod

@@ -20,20 +20,17 @@
 !! *Purpose*: A higher-level module that takes care of calling subroutines 
 !!            in the lower-level modules bmatrixHI/lambmatrixHI and bmatrixEnsemble.
 !!
+!! Revisions: Pind Du, CMDA, 2014
+!!v            - Added 'use bMatrixChem_mod'
+!!v            Y. Rochon, ARQI. July 2015
+!!v            - Added 'public bchm_getScaleFactor' for constituents. 
+!!
+!! Comments:
+!!v            - Considerations for ensemble-based and regional static covariances
+!!v              for constituents not yet included.
 !--------------------------------------------------------------------------
 MODULE BMatrix_mod
-!
-! Revisions: Pind Du, CMDA, 2014
-!            - Added 'use bMatrixChem_mod'
-!            Y. Rochon, ARQI. July 2015
-!            - Added 'public bchm_getScaleFactor' for constituents. 
-!
-! Comments:
-!            - Considerations for ensemble-based and regional static covariances
-!              for constituents not yet included.
-!
-!------------------------------------------------------------------------------------------
-!
+
   use mpivar_mod
   use bMatrixHI_mod
   use bMatrixEnsemble_mod
