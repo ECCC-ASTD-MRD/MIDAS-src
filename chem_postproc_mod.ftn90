@@ -17,18 +17,18 @@
 #include "maincompileswitch.inc"
 #include "compileswitches.inc"
 
+!--------------------------------------------------------------------------
+!! MODULE chem_postproc_mod
+!!
+!! *Purpose*: Provides post-analysis routines.
+!!
+!! @author Mike Sitwell and Yves Rochon (ARQI/AQRD)
+!!
+!! Public routines:
+!!v       - "chm_transform_final_increments" for any transformations or boundary
+!!v          values to apply to final increments.
+!--------------------------------------------------------------------------
 module chem_postproc_mod
-!
-! Module managers: Mike Sitwell and Yves Rochon (ARQI/AQRD)
-!
-! PURPOSE: Provides post-analysis routines
-!
-! Public routines:
-!
-!       - "chm_transform_final_increments" for any transformations or boundary
-!         values to apply to final increments.
-!
-!---------------------------------------------------------------------------------------
 
   use utilities_mod
   use chem_setup_mod, only: chm_var_maxnumber, chm_config_select_str, &
@@ -51,35 +51,30 @@ contains
 !--------------------------- MODEL and ANALYSIS SPACE POST-PROC --------------------
 !-----------------------------------------------------------------------------------
 
+!--------------------------------------------------------------------------
+!! *Purpose*: Apply any required adjustments and/or transformations to increments
+!!            prior to saving in rebm file.
+!!
+!! @author M. Sitwell Sept 2015
+!!
+!! InOut
+!!
+!!v     statevector_increment     statevector for the increment (with same resolution as the background)
+!!
+!! Comments
+!!v    - Possible adjustments/transformations:
+!!v        - Convert to dx when the analysis increments are in a different form (e.g. dlnx).
+!!v        - Checks for negative analysis values and if any negative values found will
+!!v          modify the increment so that the analysis  is reset to low_cutoff*background
+!!v          at these points. This check is done with fields of the same resolution as
+!!v          the increment. Correspondingly impose upper limits.
+!!
+!! Revisions
+!!v       Y. Rochon, Nov 2015
+!!v         - Added upper bound.
+!!v         - Use of col_varExist.
+!--------------------------------------------------------------------------
   subroutine chm_transform_final_increments(statevector_increment,hco_anl,vco_anl)
-!
-! Author: M. Sitwell Sept 2015
-!         - Originally as chm_check_negative
-!
-! Revisions:
-!            Y. Rochon, Nov 2015
-!            - Added upper bound.
-!            - Modified from chm_check_negative to chm_transform_final_inscrements.
-!            - Use of col_varExist
-!
-! Purpose: Apply any required adjustments and/or transformations to increments
-!          prior to saving in rebm file.
-!
-!          Possible adjustments/transformations:
-!
-!          - Convert to dx when the analysis increments are in a different form (e.g. dlnx).
-!
-!          - Checks for negative analysis values and if any negative values found will
-!          modify the increment so that the analysis  is reset to low_cutoff*background
-!          at these points. This check is done with fields of the same resolution as
-!          the increment. Correspondingly impose upper limits.
-!
-!
-! InOut
-!
-!   statevector_increment     statevector for the increment (with same resolution as the background)
-!
-!-----------------------------------------------------------------------------------
 
     implicit none
     
@@ -143,35 +138,30 @@ contains
 
   end subroutine chm_transform_final_increments
 
-!-----------------------------------------------------------------------------------
-
+!--------------------------------------------------------------------------
+!! *Purpose*: Apply transform (or its inverse) of 4D background field or increment field.
+!!
+!! @author Y. Rochon, Nov 2015
+!!
+!! Input
+!!
+!!v     varName          Field name (nomvar)
+!!v     l_reverse        Reverse/inverse transformation
+!!v     mode             selected sub-transformation type (defined for each transformation
+!!v                      given in chm_config_select_int('transform',*)
+!!
+!! InOut
+!!
+!!v     background       statevector for the background
+!!v     increment        statevector for the increment (with same resolution as the background)
+!!
+!! Revisions
+!!v        M. Sitwell, April 2016
+!!v          - Added input integer mode for selection of transform sub-type.
+!!v          - Create new sub-function log_matrix from previous code for handling
+!!v            negative values before taking the log. 
+!--------------------------------------------------------------------------
   subroutine chm_apply_transform(background,varName,l_reverse,mode,increment)
-!
-! Author: Y. Rochon, Nov 2015
-!
-! Purpose: Apply transform (or its inverse) of 4D background field or increment field.
-!
-! Revisions:
-!        M. Sitwell, April 2016
-!          - Added input integer mode for selection of transform sub-type.
-!          - Create new sub-function log_matrix from previous code for handling
-!            negative values before taking the log. 
-!
-! Arguments:
-!
-!   In
-!
-!     varName          Field name (nomvar)
-!     l_reverse        Reverse/inverse transformation
-!     mode             selected sub-transformation type (defined for each transformation
-!                      given in chm_config_select_int('transform',*)
-!
-!   InOut
-!
-!     background       statevector for the background
-!     increment        statevector for the increment (with same resolution as the background)
-!
-!-----------------------------------------------------------------------------------
 
     implicit none
 
@@ -298,32 +288,28 @@ contains
 
   end subroutine chm_apply_transform
 
-!-----------------------------------------------------------------------------------
-
+!--------------------------------------------------------------------------
+!! *Purpose*: Checks for negative analysis values and if any negative values found will
+!!            modify the increment so that the analysis  is reset to low_cutoff*background
+!!            at these points. This check is done with fields of the same resolution as
+!!            the increment. Also applies upper bound.
+!!
+!! @author M. Sitwell Sept 2015
+!!
+!! Input
+!!
+!!v    varName        Field name (nomvar)
+!!
+!! InOut
+!!
+!!v    background       statevector for the background
+!!v    increment        statevector for the increment (with same resolution as the background)
+!!
+!! Revisions
+!!v       Y. Rochon, Nov 2015
+!!v          - Modified to chm_apply_bounds
+!--------------------------------------------------------------------------
   subroutine chm_apply_bounds(background,increment,varName)
-!
-! Author: M. Sitwell Sept 2015
-!         - Originally as chm_check_negative
-!
-! Revisions:
-!            Y. Rochon, Nov 2015
-!            - Modified to chm_apply_bounds
-!
-! Purpose: Checks for negative analysis values and if any negative values found will
-!          modify the increment so that the analysis  is reset to low_cutoff*background
-!          at these points. This check is done with fields of the same resolution as
-!          the increment. Also applies upper bound.
-!
-! In
-!
-!    varName        Field name (nomvar)
-!
-! InOut
-!
-!   background       statevector for the background
-!   increment        statevector for the increment (with same resolution as the background)
-!
-!-----------------------------------------------------------------------------------
 
     implicit none
     

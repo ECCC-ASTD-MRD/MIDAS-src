@@ -21,7 +21,7 @@ module chem_setup_mod
 !         
 ! PURPOSE: Provides pre-processing (setup) routines and 
 !          related tools reqarding observation averaging kernels, 
-!          and std. (fst) gridded format files.          . 
+!          and std. (fst) gridded format files.
 !  
 !
 ! Module managers: Mike Sitwell and Yves Rochon (ARQI/AQRD)
