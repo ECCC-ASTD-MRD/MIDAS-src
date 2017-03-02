@@ -1621,57 +1621,37 @@ CONTAINS
     type(struct_obs), intent(inout) :: obsSpaceData
 
     type(struct_columnData) :: column
-    integer :: bodyIndex,iass,headerIndex,ierr
+    integer :: bodyIndex,headerIndex,ierr
     logical :: calc_OmA,calc_OmA_global
-
+    
+    ! Check for the presence of diagnostic only observations
     calc_OmA = .false.
-    
-    ! Temporarily switch OBS_ASS values of 1 with 4 and 3 with 1
     call obs_set_current_body_list(obsSpaceData)
-    BODY1: do
+    BODY: do
        bodyIndex = obs_getBodyIndex(obsSpaceData)
-       if (bodyIndex < 0) exit BODY1
-       iass = obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex)
-       if (iass.eq.1) then
-          call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,4)
-       else if (iass.eq.3) then
-          call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,1)
+       if (bodyIndex < 0) exit BODY
+       if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex).eq.3) then
           calc_OmA = .true.
+          exit BODY
        end if
-    end do BODY1
-    
+    end do BODY
+
     call rpn_comm_allreduce(calc_OmA,calc_OmA_global,1,"MPI_LOGICAL","MPI_LOR","GRID",ierr)
-
-    if (calc_OmA_global) then
+    if (.not.calc_OmA_global) return
        
-       ! Initialize columnData object for increment
-       call col_setVco(column,col_getVco(columng))
-       call col_allocate(column,col_getNumCol(columng),mpi_local=.true.)
-       call col_copyLatLon(columng,column)
-       
-       ! Put H_horiz dx in column
-       call s2c_tl(statevector_incr,column,columng,obsSpaceData)
-
-       ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
-       call oop_Htl(column,columng,obsSpaceData,min_nsim)
-       
-       ! Calculate OBS_OMA from OBS_WORK : d-Hdx
-       call res_compute(obsSpaceData)
-
-    end if
+    ! Initialize columnData object for increment
+    call col_setVco(column,col_getVco(columng))
+    call col_allocate(column,col_getNumCol(columng),mpi_local=.true.)
+    call col_copyLatLon(columng,column)
     
-    ! Switch OBS_ASS values back from 4 to 1 and 1 to 3
-    call obs_set_current_body_list(obsSpaceData)
-    BODY2: do
-       bodyIndex = obs_getBodyIndex(obsSpaceData)
-       if (bodyIndex < 0) exit BODY2
-       iass = obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex)
-       if (iass.eq.4) then
-          call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,1)
-       else if (iass.eq.1) then
-          call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,3)
-       end if
-    end do BODY2
+    ! Put H_horiz dx in column
+    call s2c_tl(statevector_incr,column,columng,obsSpaceData)
+    
+    ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
+    call oop_Htl(column,columng,obsSpaceData,min_nsim,obs_ass_flag=3)
+       
+    ! Calculate OBS_OMA from OBS_WORK : d-Hdx
+    call res_compute(obsSpaceData,obs_ass_flag=3)
 
   end subroutine min_calc_OmA_nonassim
 

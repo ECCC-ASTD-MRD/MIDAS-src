@@ -32,7 +32,7 @@ module chem_obsoperators_mod
   use utilities_mod
   use chem_setup_mod
   use obsSubSpaceData_mod
-  use bmatrixchem_mod, ONLY : bchm_corvert, bchm_varnamelist, bchm_getsigma, &     
+  use bmatrixchem_mod, only:  bchm_corvert, bchm_varnamelist, bchm_getsigma, &     
                               bchm_corverti, bchm_invsum, bchm_varnamelist,  &
                               bchm_corvert_mult
   use physicsfunctions_mod
@@ -81,7 +81,7 @@ contains
 !!
 !! @author M. Sitwell, Aug 2015
 !!
-!! Revision: 
+!! Revisions: 
 !!v          M. Sitwell, ARQI/AQRD Nov 2015
 !!v          - Modified the flagging of observations after chm_obsoperators is called
 !!v          M. Sitwell, ARQI/AQRD April 2016
@@ -149,7 +149,7 @@ contains
 !!v               ... obs_bodyElem_r(obsSpaceData, ... ,bodyIndex)   
 !!v            end do
 !--------------------------------------------------------------------------
-  subroutine chm_observation_operators(column_bkgrnd,obsSpaceData,kmode,column_inc,jobs)
+  subroutine chm_observation_operators(column_bkgrnd,obsSpaceData,kmode,column_inc,obs_ass_flag,jobs)
 
     implicit none
     
@@ -159,22 +159,23 @@ contains
     type(struct_columnData), intent(inout), optional :: column_inc
     type(struct_obs), intent(inout) :: obsSpaceData
     integer, intent(in) :: kmode
+    integer, intent(in), optional  :: obs_ass_flag
     real(8), intent(out), optional :: jobs
 
     ! Local variables
     
     real(8) :: zomp,zinc
-    integer :: unit,ier
+    integer :: unit,ier,obs_ass_val
     integer, external :: fclos
 
     ! Obs space local variables
 
     integer :: headerIndex,bodyIndex,bodyIndex_start,bodyIndex_end
-    integer :: icodtyp,iobslev,nobslev,varno,flag
+    integer :: icodtyp,iobslev,nobslev,varno
     character(len=12) :: stnid
 
-    integer, allocatable :: ixtr(:), iass(:)
-    logical, allocatable :: success(:),process_obs(:),diagn_only(:)
+    integer, allocatable :: ixtr(:),iass(:),flag(:)
+    logical, allocatable :: success(:),process_obs(:)
 
     ! Model space profile local variables
 
@@ -184,6 +185,12 @@ contains
     character(len=2), parameter :: varLevel = 'TH'
     
     type(struct_chm_obsoperators) :: obsoper
+
+    if (present(obs_ass_flag)) then
+       obs_ass_val = obs_ass_flag
+    else
+       obs_ass_val = 1
+    end if
 
     ! Open message file (file may be written to from routines in chem_obsdata_mod)
     unit=chm_config_select_int('message_unit')     ! Initialize unit
@@ -252,10 +259,8 @@ contains
          end if
       end do
 
-      
       ! Allocate memory for remaining profile data not in obsoper
-      allocate(obs_col(nobslev), success(nobslev), ixtr(nobslev), iass(nobslev), process_obs(nobslev))
-      if (kmode.eq.0) allocate(diagn_only(nobslev))
+      allocate(obs_col(nobslev),success(nobslev),ixtr(nobslev),iass(nobslev),process_obs(nobslev),flag(nobslev))
 
       ! Prepare for checking if any processing is needed according to initial flag values     
       iobslev=0
@@ -266,31 +271,15 @@ contains
 
             ixtr(iobslev) = obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) ! indicates if obs extends outside model profile vertical range
             iass(iobslev) = obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) ! indicates if obs is to be assimilated
-            flag          = obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex) ! observation integer flag
-
+            flag(iobslev) = obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex) ! observation integer flag
+               
             ! Indicates if this obs should be processed by chm_obsoperators
-            process_obs(iobslev) = ixtr(iobslev).eq.0
+            if (kmode.eq.1) then
+               process_obs(iobslev) = ixtr(iobslev).eq.0.and.(iass(iobslev).eq.obs_ass_val.or.iass(iobslev).eq.3)
+            else
+               process_obs(iobslev) = ixtr(iobslev).eq.0.and.iass(iobslev).eq.obs_ass_val
+            end if
 
-            select case(kmode)
-            case(0)
-
-               ! Indicates if diagnostics are to be calculated but observation not assimilated
-               diagn_only(iobslev) = chm_diagn_only(stnid,varno,nobslev,flag)
-
-               if ( (diagn_only(iobslev).and.iass(iobslev).eq.1) .or. btest(flag,16) ) then
-                  ! Set flag to be recognized at postmin diagnostics calc in routine chm_calc_OmA_nonassim.
-                  ! Bit 16 of OBS_FLG indicates if flagged in background check.
-                  call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,3)
-                  iass(iobslev) = 3
-               else
-                  process_obs(iobslev) = process_obs(iobslev) .and. iass(iobslev).eq.1
-               end if
-
-            case(1)
-               process_obs(iobslev) = process_obs(iobslev) .and. (iass(iobslev).eq.1.or.iass(iobslev).eq.3)
-            case(2,3)
-               process_obs(iobslev) = process_obs(iobslev) .and. iass(iobslev).eq.1
-            end select
          end if
       end do
 
@@ -427,11 +416,14 @@ contains
                             
                zomp = obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex) - obs_col(iobslev)
                call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex,zomp)
-               
-               if (present(jobs).and.iass(iobslev).eq.1.and..not.diagn_only(iobslev)) then
+
+               if (chm_diagn_only(stnid,varno,nobslev,flag(iobslev))) then
+                  ! Observation is for diagnostics and is not to be assimilated
+                  call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,3)
+               else if (present(jobs).and.iass(iobslev).eq.1) then
                   ! Add to Jo contribution (factor of 0.5 to be applied outside report loop)
                   zinc = zomp/obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
-                  jobs = jobs + zinc*zinc
+                  jobs = jobs + zinc**2
                end if
 
             case(1)
@@ -452,8 +444,7 @@ contains
       end if
 
       ! Deallocate profile data
-      deallocate(process_obs,success,ixtr,iass,obs_col)
-      if (kmode.eq.0) deallocate(diagn_only)
+      deallocate(process_obs,success,ixtr,iass,obs_col,flag)
       call chm_obsoper_dealloc(obsoper)
   
     enddo HEADER
@@ -697,7 +688,7 @@ contains
 !!
 !!v     success   Indicates if the observation was successfully assimilated
 !!
-!! Revisions
+!! Revisions:
 !!v           Y. Rochon, ARQI/AQRD, Feb. 2015
 !!v           - Modifications of adaptations and update of BUFR elements
 !!v           Ping Du, Mar 2015
@@ -1158,7 +1149,7 @@ contains
 !!
 !!v     chm_config_select_float('amu',*)  Molecular mass of constituent (g/mol).
 !!
-!! Revisions
+!! Revisions:
 !!v           Ping Du, CDMA,Jan 2015
 !!v           - Adapted for the EnVar
 !!v           Y. Rochon, ARQI/AQRD, Feb. 2015
@@ -1451,7 +1442,7 @@ contains
 !!v     success      success of integration
 !!v    ixtr         Modified ixtr as needed.
 !!
-!! Revisions
+!! Revisions:
 !!v           M. Sitwell, ARQI/AQRD, Mar 2015
 !!v           - Modified to calculate whole profile within a single call
 !!v           Y. Rochon ARQOI/AQRD, May 2015
@@ -1594,7 +1585,7 @@ contains
 !!v                                              taken at mid-layer values.
 !!v        obsoper%vweights(nmodlev,nmodlev)  -- Second order Lagrangian interp integration weights
 !!
-!! Comments
+!! Comments:
 !!v        - This subroutine does the following:
 !!v           - Setting of model layer boundaries
 !!v           - Determining integration weights associated to second order Lagrangian interpolation.
@@ -1692,7 +1683,7 @@ contains
 !!v        obsoper%zhp(obsoper%nobslev,obsoper%nmodlev) -- Part of innovation operator not 
 !!v                                                        related to resolution
 !!
-!! Revisions
+!! Revisions:
 !!v        Ping Du and Y. Rochon, Jan-Feb 2015
 !!v         - Adapted for the EnVar
 !!v        M. Sitwell, ARQI/AQRD, Mar 2015
@@ -1875,7 +1866,7 @@ contains
 !!
 !! @author M. Sitwell, March 2015 (based on ch_vprof from 3DVAR-CHEM by Y. Rochon July 2005)
 !!
-!! Revisions
+!! Revisions:
 !!v        Y. Rochon, May 2015
 !!v         - Added input and use of ixtr and iavgkern
 !!v        M. Sitwell, April 2015
@@ -1892,7 +1883,7 @@ contains
 !!v       success         success of interpolation
 !!v       ixtr            Modified ixtr as needed.
 !!
-!! Comments
+!! Comments:
 !!v      - Current implementation searches for index of nearest model level. This step
 !!v        is redundant since this information is already saved in obsSpaceData in OBS_LYR.
 !!v        This step is repeated so that the routines in chem_obsoperators_mod are more independent
@@ -2037,13 +2028,13 @@ contains
 !!v      obsoper%zh(obsoper%nmodlev)     a*w: Final innovation model array (other than conversion constants)
 !!v      obsoper%zhp(obsoper%nmodlev)    w (see comments section)
 !!
-!! Revisions
+!! Revisions:
 !!v         M. Sitwell, April 2016
 !!v          - Some input arguments moved into obsoper
 !!v         Y. Rochon, May 2016
 !!v          - Added weighting cases 
 !!
-!! Comments
+!! Comments:
 !!
 !!v     (1) This routine prepares an alternative innovation operator g, called
 !!v     the generalized innovation operator, to take the place of the
@@ -2356,7 +2347,7 @@ contains
 !!
 !!v    rmat_out(ndim1,ndim2)    output matrix/vector
 !!
-!! Comments
+!! Comments:
 !!
 !!v   - If rmat_in is a 1-D vector, then
 !!v        for cases +/- 2, one should have set ndim2=1 and ndim1=vector-length.

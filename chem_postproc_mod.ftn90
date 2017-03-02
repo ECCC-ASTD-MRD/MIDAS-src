@@ -61,7 +61,7 @@ contains
 !!
 !!v     statevector_increment     statevector for the increment (with same resolution as the background)
 !!
-!! Comments
+!! Comments:
 !!v    - Possible adjustments/transformations:
 !!v        - Convert to dx when the analysis increments are in a different form (e.g. dlnx).
 !!v        - Checks for negative analysis values and if any negative values found will
@@ -69,7 +69,7 @@ contains
 !!v          at these points. This check is done with fields of the same resolution as
 !!v          the increment. Correspondingly impose upper limits.
 !!
-!! Revisions
+!! Revisions:
 !!v       Y. Rochon, Nov 2015
 !!v         - Added upper bound.
 !!v         - Use of col_varExist.
@@ -155,7 +155,7 @@ contains
 !!v     background       statevector for the background
 !!v     increment        statevector for the increment (with same resolution as the background)
 !!
-!! Revisions
+!! Revisions:
 !!v        M. Sitwell, April 2016
 !!v          - Added input integer mode for selection of transform sub-type.
 !!v          - Create new sub-function log_matrix from previous code for handling
@@ -305,7 +305,7 @@ contains
 !!v    background       statevector for the background
 !!v    increment        statevector for the increment (with same resolution as the background)
 !!
-!! Revisions
+!! Revisions:
 !!v       Y. Rochon, Nov 2015
 !!v          - Modified to chm_apply_bounds
 !--------------------------------------------------------------------------

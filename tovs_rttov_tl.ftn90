@@ -31,8 +31,10 @@
 !revision 004  : s. macpherson  nov 2012
 !                  - remove #include "comtovst.cdk"
 !
+!revision 005  : M. Sitwell   March 2017
+!                  - addition of input argument assim_val
 !--------------------------------------------------------------------------
-subroutine tovs_rttov_tl(lobsSpaceData)
+subroutine tovs_rttov_tl(lobsSpaceData,assim_val)
   use MathPhysConstants_mod
   use tovs_nl_mod
   use tovs_lin_mod
@@ -49,6 +51,7 @@ subroutine tovs_rttov_tl(lobsSpaceData)
 #include "rttov_alloc_transmission.interface"
 
   type(struct_obs) :: lobsSpaceData
+  integer :: assim_val
 
   real*8  :: ctpmin, ctpmax
   integer :: joff,ilev
@@ -212,7 +215,7 @@ subroutine tovs_rttov_tl(lobsSpaceData)
           idata    = obs_headElem_i(lobsSpaceData,OBS_RLN,jo)
           idatend  = obs_headElem_i(lobsSpaceData,OBS_NLV,jo) + idata - 1
           do jdata = idata, idatend
-            if(obs_bodyElem_i(lobsSpaceData,OBS_ASS,jdata)==1) then
+            if(obs_bodyElem_i(lobsSpaceData,OBS_ASS,jdata)==assim_val) then
               ichn = nint(obs_bodyElem_r(lobsSpaceData,OBS_PPP,jdata))
               ichn = max(0,min(ichn,jpchmax+1))
               do nrank = 1, nchan(krtid)

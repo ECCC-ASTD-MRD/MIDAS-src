@@ -1182,15 +1182,20 @@ contains
 
   end subroutine oop_chm_nl
 
-
-  subroutine oop_Htl(lcolumn,lcolumng,lobsSpaceData,min_nsim)
+!--------------------------------------------------------------------------
+!! *Purpose*: Compute simulated observations from profiled model increments.
+!!            It returns Hdx in OBS_WORK. Calls the several linear observation operators.
+!!
+!! Input
+!!
+!!v     obs_ass_flag        value of OBS_ASS in obsSpaceData that Htl will be calculated for (optional, default = 1)
+!!
+!! Revisions
+!!v      M. Sitwell, Feb 2017
+!!v        - Added optional obs_ass_flag input argument
+!--------------------------------------------------------------------------
+  subroutine oop_Htl(lcolumn,lcolumng,lobsSpaceData,min_nsim,obs_ass_flag)
     implicit none
-    !
-    !Purpose:
-    !Compute simulated observations from profiled model
-    !increments.
-    !It returns Hdx in OBS_WORK
-    !Calls the several linear observation operators
 
     integer, save :: nl_ncall = 0
     real*8 :: dl_bidon
@@ -1200,47 +1205,56 @@ contains
     type(struct_vco), pointer :: vco_anl
 
     integer, intent(in) :: min_nsim
+    integer, intent(in), optional :: obs_ass_flag
+
+    integer :: obs_ass_val
 
     IF(mpi_myid == 0) THEN
        write(*,*)'OOP_Htl - Linearized observation operators'
     endif
 
+    if (present(obs_ass_flag)) then
+       obs_ass_val = obs_ass_flag
+    else
+       obs_ass_val = 1
+    end if
+
     vco_anl => col_getVco(lcolumng)
 
     nl_ncall = nl_ncall + 1
 
-    call tmg_start(42,'OBS_PPP_TLAD') !
-    call oop_Hpp              ! fill in OBS_WORK : Hdx
+    call tmg_start(42,'OBS_PPP_TLAD')
+    call oop_Hpp(obs_ass_val)           ! fill in OBS_WORK : Hdx
     call tmg_stop(42)
 
     call tmg_start(43,'OBS_SFC_TLAD')
-    call oop_Hsf              ! fill in OBS_WORK : Hdx
+    call oop_Hsf(obs_ass_val)           ! fill in OBS_WORK : Hdx
     call tmg_stop (43)
 
-    call tmg_start(44,'OBS_TOV_TLAD') !
-    call oop_Hto              ! fill in OBS_WORK : Hdx
+    call tmg_start(44,'OBS_TOV_TLAD')
+    call oop_Hto(obs_ass_val)           ! fill in OBS_WORK : Hdx
     call tmg_stop (44)
 
-    call tmg_start(45,'OBS_GPSRO_TLAD') !
-    call oop_Hro
-    call tmg_stop (45)        !
+    call tmg_start(45,'OBS_GPSRO_TLAD')
+    call oop_Hro(obs_ass_val)
+    call tmg_stop (45)
 
-    call tmg_start(46,'OBS_ZZZ_TLAD') !
-    call oop_Hzp
-    call tmg_stop (46)        !
+    call tmg_start(46,'OBS_ZZZ_TLAD')
+    call oop_Hzp(obs_ass_val)
+    call tmg_stop (46)
 
-    call tmg_start(47,'OBS_GPSGB_TLAD') !
-    if (numGPSZTD > 0)  call oop_Hgp
-    call tmg_stop (47)        !
+    call tmg_start(47,'OBS_GPSGB_TLAD')
+    if (numGPSZTD > 0)  call oop_Hgp(obs_ass_val)
+    call tmg_stop (47)
 
-    call tmg_start(126,'OBS_CHM_TL') !
-    call oop_Hchm  ! calculate Hdx for constituents
-    call tmg_stop (126)        !
+    call tmg_start(126,'OBS_CHM_TL')
+    call oop_Hchm(obs_ass_val)          ! fill in OBS_WORK : Hdx
+    call tmg_stop (126)
 
 
   CONTAINS
 
-    SUBROUTINE oop_Hpp
+    SUBROUTINE oop_Hpp(obs_ass_val)
       !*
       !* Purpose: Compute simulated Upper Air observations from profiled model
       !*          increments.
@@ -1250,7 +1264,11 @@ contains
       !*          A linear interpolation in ln(p) is performed.
       !*
       !*implicits
+
       implicit none
+
+      integer, intent(in) :: obs_ass_val
+
       INTEGER IPB,IPT
       INTEGER INDEX_HEADER,INDEX_FAMILY,IK
       INTEGER J,INDEX_BODY,ITYP,nlev_T
@@ -1274,7 +1292,7 @@ contains
             index_body = obs_getBodyIndex(lobsSpaceData)
             if (index_body < 0) exit BODY
 
-            llassim= (obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body) .EQ. 1) &
+            llassim= (obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body) .EQ. obs_ass_val) &
                  .AND. (obs_bodyElem_i(lobsSpaceData,OBS_XTR,index_body) .EQ. 0) &
                  .AND. (obs_bodyElem_i(lobsSpaceData,OBS_VCO,index_body) .EQ. 2)
             lldiag = (obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body) .EQ. -1) &
@@ -1337,13 +1355,15 @@ contains
     end subroutine oop_Hpp
 
 
-    SUBROUTINE oop_Hsf
+    SUBROUTINE oop_Hsf(obs_ass_val)
       !*
       !* Purpose: Compute simulated surface observations from profiled model
       !*          increments.
       !*          It returns Hdx in OBS_WORK
       !*
       IMPLICIT NONE
+
+      integer, intent(in) :: obs_ass_val
 
       INTEGER IPB,IPT,IXTR
       INTEGER INDEX_HEADER,IK
@@ -1378,7 +1398,7 @@ contains
             ityp = obs_bodyElem_i(lobsSpaceData,OBS_VNM,index_body)
             if ( ityp.eq.bufr_nezd ) cycle BODY
             if(    (obs_bodyElem_i(lobsSpaceData,OBS_VCO,index_body).eq.1) &
-                 .and. (obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body).eq.1) &
+                 .and. (obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body).eq.obs_ass_val) &
                  .and. (ityp.eq.bufr_nets .or. ityp.eq.bufr_neps  &
                  .or. ityp.eq.bufr_nepn .or. ityp.eq.bufr_ness  &
                  .or. ityp.eq.bufr_neus .or. ityp.eq.bufr_nevs  &
@@ -1444,7 +1464,7 @@ contains
 
     END subroutine oop_Hsf
 
-    subroutine oop_Hto
+    subroutine oop_Hto(obs_ass_val)
       !
       ! Purpose: Compute simulated radiances observations from profiled model
       !          increments.
@@ -1462,6 +1482,9 @@ contains
       !                    - call to oop_storeHdx_radiances instead computing Jo
       !
       implicit none
+
+      integer, intent(in) :: obs_ass_val
+
       integer :: datestamp
 
       if (.not.obs_famExist(lobsSpaceData,'TO',local_mpi=.true.)) return
@@ -1482,7 +1505,7 @@ contains
       !     3.   Compute radiance
       !     .    ----------------
       !
-      call tovs_rttov_tl(lobsSpaceData)
+      call tovs_rttov_tl(lobsSpaceData,obs_ass_val)
 
 
       call oop_storeHdx_radiances(lobsSpaceData)
@@ -1492,7 +1515,7 @@ contains
     end subroutine oop_Hto
 
 
-    SUBROUTINE oop_Hro
+    SUBROUTINE oop_Hro(obs_ass_val)
       !*
       !* Purpose: Compute the tangent operator for GPSRO observations.
       !*
@@ -1501,6 +1524,8 @@ contains
       !*    -------------------
       use IndexListDepot_mod, only : struct_index_list
       implicit none
+
+      integer, intent(in) :: obs_ass_val
 
       REAL*8 zLat, Lat, sLat
       REAL*8 zLon, Lon
@@ -1592,7 +1617,7 @@ contains
             BODY: do 
                index_body = obs_getBodyIndex(local_current_list)
                if (index_body < 0) exit BODY
-               IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY).EQ.1 ) THEN
+               IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY).EQ.obs_ass_val ) THEN
                   ASSIM = .TRUE.
                   NH = NH + 1
                ENDIF
@@ -1669,7 +1694,7 @@ contains
                   BODY_2: do 
                      INDEX_BODY = obs_getBodyIndex(local_current_list)
                      if (INDEX_BODY < 0) exit BODY_2
-                     IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY).EQ.1 ) THEN
+                     IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY).EQ.obs_ass_val ) THEN
                         NH1      = NH1 + 1
                         H(NH1)   = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
                         AZMV(NH1)= zAzm
@@ -1711,7 +1736,7 @@ contains
                BODY_3: do 
                   INDEX_BODY = obs_getBodyIndex(local_current_list)
                   if (INDEX_BODY < 0) exit BODY_3
-                  IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY).EQ.1 ) THEN
+                  IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY).EQ.obs_ass_val ) THEN
                      NH1 = NH1 + 1
                      !C
                      !C     *             Evaluate H(xb)DX
@@ -1753,7 +1778,7 @@ contains
     END subroutine oop_Hro
 
 
-    SUBROUTINE oop_Hzp
+    SUBROUTINE oop_Hzp(obs_ass_val)
       !*
       !* Purpose: Compute simulated profiler observations from profiled model
       !*          increments.
@@ -1765,6 +1790,9 @@ contains
       !*Author  :  J. St-James, CMDA/SMC July 2003
 
       implicit none
+
+      integer, intent(in) :: obs_ass_val
+
       INTEGER IPB,IPT
       INTEGER INDEX_HEADER,IK
       INTEGER J,INDEX_BODY,ITYP
@@ -1778,7 +1806,7 @@ contains
          index_body = obs_getBodyIndex(lobsSpaceData)
          if (index_body < 0) exit BODY
 
-         IF (   (obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) .EQ. 1) &
+         IF (   (obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) .EQ. obs_ass_val) &
               .AND. (obs_bodyElem_i(lobsSpaceData,OBS_XTR,INDEX_BODY) .EQ. 0) &
               .AND. (obs_bodyElem_i(lobsSpaceData,OBS_VCO,INDEX_BODY) .EQ. 1)  ) THEN
             INDEX_HEADER = obs_bodyElem_i(lobsSpaceData,OBS_HIND,INDEX_BODY)
@@ -1811,7 +1839,7 @@ contains
     END subroutine oop_Hzp
 
 
-    SUBROUTINE oop_Hgp
+    SUBROUTINE oop_Hgp(obs_ass_val)
       !*
       !***s/r  -oop_Hgp TL of DOBSGPSGB (Jo for GB-GPS ZTD observations)
       !*
@@ -1821,6 +1849,8 @@ contains
       !**    Purpose: Compute H'dx for all GPS ZTD observations
       !*
       implicit none
+
+      integer, intent(in) :: obs_ass_val
 
       REAL*8 ZLAT, Lat
       REAL*8 ZLON, Lon
@@ -1903,7 +1933,7 @@ contains
                if (index_body < 0) exit BODY_0
                if (   (obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER) .eq. 189) &
                     .and. (obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY) .EQ. BUFR_NEZD) &
-                    .and. (obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) .EQ. 1) ) then
+                    .and. (obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) .EQ. obs_ass_val) ) then
                   ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
                   ASSIM = .TRUE.
                endif
@@ -2040,7 +2070,7 @@ contains
 
             if (   (obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER) .eq. 189) &
                  .and. (obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY) .EQ. BUFR_NEZD) &
-                 .and. (obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) .EQ. 1) ) then
+                 .and. (obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) .EQ. obs_ass_val) ) then
                ASSIM = .TRUE.
             ENDIF
          ENDDO BODY
@@ -2078,7 +2108,7 @@ contains
 
                IF (   (obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER) .eq. 189) &
                     .and. (obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY) .EQ. BUFR_NEZD) &
-                    .and. (obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) .EQ. 1) ) then
+                    .and. (obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) .EQ. obs_ass_val) ) then
                   call obs_bodySet_r(lobsSpaceData,OBS_WORK,INDEX_BODY, ZHX)
                   icount = icount + 1
                   if ( icount .le. 3 .and. LTESTOP ) then
@@ -2104,7 +2134,7 @@ contains
     END subroutine oop_Hgp
 
 
-    subroutine oop_Hchm
+    subroutine oop_Hchm(obs_ass_val)
       !
       !**s/r oop_Hchm- Compute simulated chemical constituents observations from profiled model
       !                increments, and returns Hdx in OBS_WORK
@@ -2123,9 +2153,11 @@ contains
 
       implicit none
 
+      integer, intent(in) :: obs_ass_val
+
       if (.not.obs_famExist(lobsSpaceData,'CH',local_mpi=.true.)) return
       
-      call chm_observation_operators(lcolumng,lobsSpaceData,kmode=2,column_inc=lcolumn) ! kmode=2 for tangent linear operator
+      call chm_observation_operators(lcolumng,lobsSpaceData,kmode=2,column_inc=lcolumn,obs_ass_flag=obs_ass_val) ! kmode=2 for tangent linear operator
 
     end subroutine oop_Hchm
 

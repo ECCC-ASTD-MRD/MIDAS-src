@@ -2667,8 +2667,10 @@ CONTAINS
     real(8), intent(in) :: xlat,xlong 
     real(8), intent(out) :: rsig(:)
    
-    integer :: jvar,jlat,jlong,j,itype,nsize
-    real(8) :: rvar(ndim2,2),zc1,zc2,rlat1,rlat2,rlong1,rlong2,zd1,zd2
+    integer :: jvar,jlev1,jlev2,jlat,jlong,j,nsize
+    real(8) :: rvar(ndim2,2),zc1,zc2,rlat1,rlat2,rlong1,rlong2,zd1,zd2,rsig_max
+
+    integer, parameter :: itype=0
 
     if (.not.initialized) return
     
@@ -2679,7 +2681,10 @@ CONTAINS
     end do
     if  (jvar.gt.numvar3d+numvar2d) call utl_abort('BCHM_getsigma: Variable not found')
     
-    nsize=nsposit(jvar+1)-nsposit(jvar)
+    jlev1 = nsposit(jvar)
+    jlev2 = nsposit(jvar+1)-1
+
+    nsize=jlev2-jlev1+1
     if (nsize.ne.ndim2) then
         write(6,*) 'NSIZE, NDIM2: ',nsize,ndim2
         call utl_abort('BCHM_getsigma: Inconsistent size')
@@ -2697,8 +2702,8 @@ CONTAINS
     rlong2=rlong(jlong)
     rlong1=rlong(jlong-1)
     
-    zd1=(xlong-rlong1)/(rlong2-rlong1)
-    zd2=1.0-zd1
+    zd2=(xlong-rlong1)/(rlong2-rlong1)
+    zd1=1.0-zd2
      
 !   Determine reference latitude index (could alternatively use gst_getrlati)
 
@@ -2713,8 +2718,9 @@ CONTAINS
     rlat2=rlat(jlat)
     rlat1=rlat(jlat-1)
     
-    zc1=(xlat-rlat1)/(rlat2-rlat1)
-    zc2=1.0-zc1
+    zc2=(xlat-rlat1)/(rlat2-rlat1)
+    zc1=1.0-zc2
+
     if (xlat.le.rlat1) then
        zc1=1.0
        zc2=0.0
@@ -2725,37 +2731,37 @@ CONTAINS
         
 !   Apply interpolation
 
-    itype=0
     if (itype == 0) then
     
 !     Interpolation of variances and take square root
+
+       rvar(1:nsize,1) = zc1*rgsig(jlong-1,jlat-1,jlev1:jlev2)**2 + zc2*rgsig(jlong-1,jlat,jlev1:jlev2)**2
     
-       rvar(1:nsize,1) =rgsig(jlong,jlat,nsposit(jvar):nsposit(jvar+1)-1)*rgsig(jlong,jlat,nsposit(jvar):nsposit(jvar+1)-1)*zc2 &
-                    +rgsig(jlong,jlat-1,nsposit(jvar):nsposit(jvar+1)-1)*rgsig(jlong,jlat-1,nsposit(jvar):nsposit(jvar+1)-1)*zc1
-
-       rvar(1:nsize,2) =rgsig(jlong-1,jlat,nsposit(jvar):nsposit(jvar+1)-1)*rgsig(jlong-1,jlat,nsposit(jvar):nsposit(jvar+1)-1)*zc2 &
-                    +rgsig(jlong-1,jlat-1,nsposit(jvar):nsposit(jvar+1)-1)*rgsig(jlong-1,jlat-1,nsposit(jvar):nsposit(jvar+1)-1)*zc1
-
-       rsig(1:nsize) =sqrt(rvar(1:nsize,1)*zd2+rvar(1:nsize,2)*zd1)
+       rvar(1:nsize,2) = zc1*rgsig(jlong,jlat-1,jlev1:jlev2)**2 + zc2*rgsig(jlong,jlat,jlev1:jlev2)**2
+       
+       rsig(1:nsize) = sqrt( zd1*rvar(1:nsize,1) + zd2*rvar(1:nsize,2) )
     
     else 
 
 !      Interpolation of std. dev. (to reduce execution time)
 
-       rvar(1:nsize,1) =rgsig(jlong,jlat,nsposit(jvar):nsposit(jvar+1)-1)*zc2 &
-                       +rgsig(jlong,jlat-1,nsposit(jvar):nsposit(jvar+1)-1)*zc1
+       rvar(1:nsize,1) = zc1*rgsig(jlong-1,jlat-1,jlev1:jlev2) + zc2*rgsig(jlong-1,jlat,jlev1:jlev2)     
 
-       rvar(1:nsize,2) =rgsig(jlong-1,jlat,nsposit(jvar):nsposit(jvar+1)-1)*zc2 &
-                       +rgsig(jlong-1,jlat-1,nsposit(jvar):nsposit(jvar+1)-1)*zc1
+       rvar(1:nsize,2) = zc1*rgsig(jlong,jlat-1,jlev1:jlev2) + zc2*rgsig(jlong,jlat,jlev1:jlev2)
 
-       rsig(1:nsize) =rvar(1:nsize,1)*zd2+rvar(1:nsize,2)*zd1
+       rsig(1:nsize) = zd1*rvar(1:nsize,1) + zd2*rvar(1:nsize,2)
     
     end if
     
     do j=1,nsize
-       if (rsig(j).lt.0.0.or.rsig(j).gt.maxval(rgsig(:,:,nsposit(jvar)-1+j))) then
-          write(6,*) 'bchm_getsigma: Innterpolated sigma incorrect. ',jlong,jlat,xlong,xlat,j,rsig(j)
-          write(6,*) 'bchm_getsigma: Innterpolated sigma incorrect. ',rlong2,rlong1,rlat1,rlat2,zc1,zc2,zd1,zd2
+       rsig_max = maxval(rgsig(jlong-1:jlong,jlat-1:jlat,jlev1-1+j))
+       if (rsig(j).lt.0.0.or.rsig(j).gt.1.00001*rsig_max) then
+          write(6,*) 'bchm_getsigma: Interpolated sigma incorrect:'
+          write(6,*) 'bchm_getsigma:   zc1,zc2,zd1,zd2 = ',zc1,zc2,zd1,zd2
+          write(6,*) 'bchm_getsigma:   rgsig = ',rgsig(jlong-1,jlat-1,jlev1-1+j),rgsig(jlong,jlat-1,jlev1-1+j),rgsig(jlong-1,jlat,jlev1-1+j),rgsig(jlong,jlat,jlev1-1+j)
+          write(6,*) 'bchm_getsigma:   rsig,rsig_max = ',rsig(j),rsig_max
+          write(6,*) 'bchm_getsigma:   jlong,jlat,j,xlong,xlat = ',jlong,jlat,j,xlong,xlat
+          write(6,*) 'bchm_getsigma:   rlong2,rlong1,rlat1,rlat2 = ',rlong2,rlong1,rlat1,rlat2
           call utl_abort('bchm_getsigma')
        end if
     end do
