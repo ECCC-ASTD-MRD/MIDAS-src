@@ -202,7 +202,6 @@ CONTAINS
     if (sum(scaleFactor(1:max(nLev_M,nLev_T))) == 0.0d0 ) then
       if(mpi_myid == 0) write(*,*) 'bmatrixHI: scaleFactor=0, skipping rest of setup'
       cvdim_out = 0
-      initialized = .true.
       return
     else
        if (.not. (gsv_varExist(varName='TT').and.gsv_varExist(varName='UU').and.gsv_varExist(varName='VV').and. &
@@ -221,7 +220,6 @@ CONTAINS
     if ( trim(bhi_mode) == 'BackgroundCheck' ) then
        cvDim_out = 9999 ! Dummy value > 0 to indicate to the background check (s/r compute_HBHT_ensemble) 
                         ! that Bhi is used
-       initialized = .true.
        return
     end if
 
@@ -3174,16 +3172,18 @@ CONTAINS
   SUBROUTINE BHI_Finalize()
     implicit none
 
-    deallocate(pressureProfile_M)
-    deallocate(pressureProfile_T)
-    deallocate(PtoT)
-    deallocate(tantheta)
-    deallocate(rgsig)
-    deallocate(tgstdbg)
-    deallocate(rgsigtb)
-    deallocate(rgsigpsb)
-    deallocate(corns)
-    deallocate(rstddev)
+    if (initialized) then
+       deallocate(pressureProfile_M)
+       deallocate(pressureProfile_T)
+       deallocate(PtoT)
+       deallocate(tantheta)
+       deallocate(rgsig)
+       deallocate(tgstdbg)
+       deallocate(rgsigtb)
+       deallocate(rgsigpsb)
+       deallocate(corns)
+       deallocate(rstddev)
+    end if
 
   END SUBROUTINE BHI_Finalize
 

@@ -229,7 +229,7 @@ contains
        cvBchm => cvm_getSubVector(controlVector,3)
 
        if ( associated(cvBchm) ) then
-         if ( statevector % hco % global ) then
+         if ( statevector%hco%global ) then
            !- 2.1.1b Global mode
            call bchm_bsqrt( cvBchm,      & ! IN
                            statevector )   ! OUT
@@ -319,7 +319,7 @@ contains
       !- 1.4.1chm adjoint of copy 3D increment to 4D increment
 !      call gsv_3dto4dAdj(statevector)
 
-      if ( statevector % hco % global ) then
+      if ( statevector%hco%global ) then
         !- 1.4.2chm add contribution to gradient from GLOBAL BmatrixChem
         call bchm_bsqrtad( statevector, & ! IN
                           cvBchm )        ! OUT
@@ -397,7 +397,10 @@ contains
 !--------------------------------------------------------------------------
 ! bmat_finalize
 !--------------------------------------------------------------------------
-  SUBROUTINE bmat_finalize(controlVector)
+  SUBROUTINE bmat_finalize()
+    !
+    !- Purpose: Releases memory used by B matrices.
+    !
     !
     ! Revision:
     !           Ping Du, CMDA/MSC, July 2014
@@ -407,34 +410,12 @@ contains
     !
     ! - LAM and ensemble components for constituents tbd.
     !
-    implicit none
-    real(8) :: controlVector(:)
-    !
-    !- Purpose: Releases memory used by B matrices.
-    !
-    real(8), pointer :: cvBhi(:), cvBen(:)
-    real(8), pointer :: cvBchm(:)    
+    implicit none    
 
-    cvBhi => cvm_getSubVector(controlVector,1)
-    if ( associated(cvBhi) ) then
-      if ( hco_anl%global ) then
-        call bhi_finalize()
-      else
-        call lbhi_finalize
-      end if
-    end if
-
-    cvBen => cvm_getSubVector(controlVector,2)
-    if ( associated(cvBen) ) call ben_finalize()
-
-    cvBchm => cvm_getSubVector(controlVector,3)  
-    if ( associated(cvBchm) ) then
-      if ( hco_anl % global ) then
-        call bchm_finalize()
-      else
-        ! Done in lbhi_finalize
-      end if
-    end if
+    call bhi_finalize()
+    call ben_finalize()
+    call bchm_finalize()
+    call lbhi_finalize()
 
   END SUBROUTINE bmat_finalize
 

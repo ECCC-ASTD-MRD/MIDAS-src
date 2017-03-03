@@ -33,6 +33,7 @@ program main_var
   use burpFiles_mod
   use utilities_mod
   use innovation_mod
+  use bmatrix_mod
 
   implicit none
   integer :: istamp,exdb,exfin
@@ -169,6 +170,9 @@ program main_var
     ! Conduct obs-space post-processing diagnostic tasks (some diagnostic 
     ! computations controlled by NAMOSD namelist in flnml)
     call osd_ObsSpaceDiag(obsSpaceData,columng)
+
+    ! Deallocate memory related to B matrices
+    call bmat_finalize()
 
     if (mpi_myid == 0) then
        clmsg = 'REBM_DONE'
