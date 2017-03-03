@@ -95,10 +95,11 @@ module rMatrix_mod
     character (len=64) :: filename
     integer :: err
 
-    call rttov_coeffname (err, instrument, filename, "Cmat")
-
-    if (err== errorstatus_success) then
-      call rmat_readCMatrixByFileName(filename,C_inst(sensor_id), ichan )
+    call rttov_coeffname (err, instrument, coeffname=filename, filetype="Cmat")
+    
+    if (err == errorstatus_success) then
+       filename = trim(filename) // ".dat"
+       call rmat_readCMatrixByFileName(filename,C_inst(sensor_id), ichan )
     else
       write(*,*) "Unknown instrument ",instrument(:)
       call utl_abort("rmat_read_C_matrix")

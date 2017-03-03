@@ -22,9 +22,7 @@
 !!
 !--------------------------------------------------------------------------
 Module tovs_lin_mod
-  Use rttov_types, only : &
-     profile_type        ,&
-     radiance_type 
+  Use rttov_types, only : rttov_profile, rttov_radiance 
   Use tovs_nl_mod, only : NOBTOV,nsensors,lsensor,coefs,opts,nchan,l_really_present,ichan,list_sensors
   use utilities_mod
   implicit none
@@ -35,7 +33,7 @@ Module tovs_lin_mod
 
   ! public derived types
   ! public derived type through inheritance (from module rttov_types)
-  public :: radiance_type,profile_type
+  public :: rttov_radiance, rttov_profile
 
   ! public variables (parameters)
 
@@ -46,10 +44,10 @@ Module tovs_lin_mod
 
   ! Derived types
 
-  type( profile_Type ),     allocatable :: profiles_tl(:)    ! tl profiles, all profiles
-  type( profile_Type ),     allocatable :: profiles_ad(:)    ! ad profiles, all profiles
-  type(radiance_Type) ,     allocatable :: radiance_tl(:)    ! tl radiances organized by profile
-  type(radiance_Type) ,     allocatable :: radiance_ad(:)    ! tl radiances organized by profile
+  type( rttov_profile ) ,     allocatable :: profiles_tl(:)    ! tl profiles, all profiles
+  type( rttov_profile ) ,     allocatable :: profiles_ad(:)    ! ad profiles, all profiles
+  type( rttov_radiance ) ,    allocatable :: radiance_tl(:)    ! tl radiances organized by profile
+  type( rttov_radiance ) ,    allocatable :: radiance_ad(:)    ! tl radiances organized by profile
  
 contains
 
@@ -98,7 +96,6 @@ SUBROUTINE TOVS_LIN_SETUPALLO()
   use obsSpaceData_mod
 
   IMPLICIT NONE
-#include "rttov_setup.interface"
 #include "rttov_alloc_prof.interface"
 !implicits
 
@@ -143,7 +140,7 @@ SUBROUTINE TOVS_LIN_SETUPALLO()
   End If
 
   print *,"TOVS_LIN_SETUPALLO NOBTOV",NOBTOV
-  asw=1
+  asw=1 ! to allocate
   do jo = 1, NOBTOV
      isens = lsensor(jo)
      nl = coefs(isens)%coef % nlevels

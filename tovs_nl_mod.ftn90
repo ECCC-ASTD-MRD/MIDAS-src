@@ -26,10 +26,12 @@ Module tovs_nl_mod
   Use rttov_types, only : &
      rttov_coefs         ,&
      rttov_options       ,&
-     profile_type        ,&
-     radiance_type       ,&
-     transmission_Type   ,&
-     rttov_chanprof
+     rttov_profile       ,&
+     rttov_radiance      ,&
+     rttov_transmission  ,&
+     rttov_chanprof      ,&
+     rttov_emissivity
+
   Use rttov_const, only : &
        platform_name     ,&
        nplatforms        ,&
@@ -37,8 +39,10 @@ Module tovs_nl_mod
        ninst             ,&
        inst_id_goesim    ,&
        inst_id_gmsim     ,&
+       inst_id_mtsatim   ,&
        platform_id_jpss  ,&
-       platform_id_himawari
+       platform_id_himawari,&
+       errorstatus_success
   use codtyp_mod
   use mpi
   use utilities_mod
@@ -48,17 +52,17 @@ Module tovs_nl_mod
   private
 
   ! public derived type through inheritance (from module rttov_types)
-  public :: radiance_type,profile_type,rttov_chanprof,rttov_coefs,transmission_Type,rttov_options
+  public :: rttov_radiance, rttov_profile, rttov_chanprof, rttov_coefs, rttov_transmission, rttov_options, rttov_emissivity
 
   ! public variables (parameters)
-  public :: jppf, jpchmax, jpchus, jpnsatmax, jplev, mesosphere_lapse_rate
+  public :: jpchmax, jpchus, jpnsatmax, jplev, mesosphere_lapse_rate, q_mixratio_to_ppmv
   ! public variables (non-parameters)
   public :: nchan, ichan, lsensor, lobsno, ltovsno, JPMOTOP, JPMOLEV, nobtov
   public :: l_really_present,list_sensors,luse_uwiremis
   public :: NSENSORS, PLATFORM, SATELLITE, INSTRUMENT, CHANOFFSET
   public :: LDBGTOV, LNLVTOV, CSATID, CINSTRUMENTID, CRTMODL
   public :: platform_name, inst_name
-  public :: coefs, opts, profilesdata, profiles
+  public :: coefs, opts, profiles
   public :: radiance_d
 
   ! public procedures
@@ -66,7 +70,13 @@ Module tovs_nl_mod
   public :: tvs_get_inst_id, tvs_get_platform_id, tvs_mapSat, tvs_mapInstrum
   public ::  tvs_Is_Instrum_Geostationary,  tvs_Is_Instrum_HyperSpectral
   ! Module parameters
-  Integer, PARAMETER :: jppf      = 40       ! Max no. profiles per RTTOV call
+  ! units conversion from  mixing ratio to ppmv
+  Real(8), Parameter :: q_mixratio_to_ppmv  = 1.60771704e+6_8
+  Real(8), Parameter :: o3_mixratio_to_ppmv = 6.03504e+5_8
+  Real(8), Parameter :: co2_mixratio_to_ppmv= 6.58114e+5_8
+  Real(8), Parameter :: co_mixratio_to_ppmv = 1.0340699e+6_8
+  Real(8), Parameter :: n2o_mixratio_to_ppmv= 6.58090e+5_8
+  Real(8), Parameter :: ch4_mixratio_to_ppmv= 1.80548e+6_8
   Integer, PARAMETER :: jpchmax   = 8461     ! Max. no. of channels
   Integer, PARAMETER :: jpchus    = 1305     ! Max. no. of channels computed/call
   Integer, PARAMETER :: jpnsatmax = 40       ! Max no sensors to be used
@@ -75,7 +85,7 @@ Module tovs_nl_mod
 ! S. Heilliette this parameter was computed from the mean lapse rate between 50 km and 85 km
 ! of the US standard atmosphere from data contained in "AFGL Atmospheric Constituent Profiles (0-120km)"
 ! AFGL 1986, G.P. ANDERSON, J.H. CHETWYND, S.A. CLOUGH, E. P. SHETTLE and F.X. KNEIZYS
-  real*8, PARAMETER :: mesosphere_lapse_rate=16.2_8
+  real(8), PARAMETER :: mesosphere_lapse_rate=16.2_8
 ! unit is K/log(P), a positive value corresponds to decrease of temperature with height
 !**********************************************************
 
@@ -111,9 +121,8 @@ Module tovs_nl_mod
 
   type( rttov_coefs ) ,     allocatable :: coefs(:)          ! coefficients
   type( rttov_options ),    allocatable :: opts(:)           ! options
-  type( profile_Type ),     allocatable :: profilesdata(:)   ! profiles buffer used in rttov calls
-  type( profile_Type ),     allocatable :: profiles(:)       ! profiles, all profiles
-  type(radiance_Type) ,     allocatable :: radiance_d(:)     ! radiances organized by profile
+  type( rttov_profile ),    allocatable :: profiles(:)       ! profiles, all profiles
+  type( rttov_radiance ),   allocatable :: radiance_d(:)     ! radiances organized by profile
  
 contains
 
@@ -163,14 +172,13 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
 
   IMPLICIT NONE
 !implicits
-#include "rttov_setup.interface"
+#include "rttov_read_coefs.interface"
+#include "rttov_user_options_checkinput.interface"
 #include "rttov_alloc_prof.interface"
 
   type(struct_obs) :: lobsSpaceData
-  INTEGER :: VERBOSITY_LEVEL,ERR_UNIT=0
 
-  Integer :: alloc_status(8)
-  Integer :: setup_errorstatus ! setup return code
+  Integer :: alloc_status(6)
 
   INTEGER ::  ival, IPLATFORM, ISAT, INSTRUM, KRTID
 
@@ -196,7 +204,7 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
   If( any(alloc_status /= 0) ) then
 9201 FORMAT(' TOVS_NL_SETUPALLO: Memory Allocation Error')
      WRITE(*,FMT=9201)
-     WRITE(*,*) alloc_status(1:5)
+     WRITE(*,*) alloc_status(1:6)
      CALL utl_abort('TOVS_NL_SETUPALLO')
   End If
 
@@ -248,7 +256,10 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
      Write(*,*) "IPLATFORM,ISAT,INSTRUM ",IPLATFORM,ISAT,INSTRUM
      WRITE(*,FMT=9101)
 9101 FORMAT(' TOVS_NL_SETUPALLO: Invalid Sensor')
-     CALL utl_abort('TOVS_NL_SETUPALLO')
+     do KRTID = 1, NSENSORS
+	print *,krtid,PLATFORM  (KRTID),SATELLITE (KRTID),INSTRUMENT(KRTID)
+     enddo
+     CALL utl_Abort('TOVS_NL_SETUPALLO')
 
 110  lsensor(nobtov) = nosensor
      lobsno (nobtov) = index_header
@@ -310,61 +321,56 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
         CALL utl_abort('TOVS_NL_SETUPALLO')
      End If
 
-  ! The levels of verbosity are
-  !  0 = no error messages output
-  !  1 = FATAL errors only printed. these are errors which
-  !      mean that profile should be aborted (e.g. unphysical
-  !      profile input)
-  !  2 = WARNING errors only printed. Errors which can allow
-  !      the computation to continue but the results may be
-  !      suspect (e.g. profile outside basis profile limits)
-  !  3 = INFORMATION messages which inform the user about
-  !      the computation
-     VERBOSITY_LEVEL = 3
-
      DO JK=1,NSENSORS
         LIST_SENSORS(1,JK) = PLATFORM  (JK)
         LIST_SENSORS(2,JK) = SATELLITE (JK)
         LIST_SENSORS(3,JK) = INSTRUMENT(JK)
 
-        opts(JK)%ipcreg=-1         ! index of the required PC predictors... to see later
-        opts(JK)%addinterp=.false. !use of internal profile interpolator (rt calculation on model levels)
-        opts(JK)%addpc=.false.     ! to carry out principal component calculations 
-        opts(JK)%addradrec=.false. ! to reconstruct radiances from principal components
-        opts(JK)%addsolar=.false.  ! to model solar component in the near IR (2000 cm-1 et plus)
-        opts(JK)%addaerosl=.false. ! to account for scattering due to aerosols
-        opts(JK)%addclouds=.false. ! to account for scattering due to clouds
-        opts(JK)%switchrad=.true.  ! to use brightness temperature (true) or radiance (false) units in AD routine
-        opts(JK)%lgradp=.false.    ! allow tl/ad of user pressure levels
-        opts(JK)%use_q2m=.false.   ! if true use of surface humidity (false for compatibility with the way rttov 8.7 was compiled)
-        opts(JK)%apply_reg_limits=.false. ! if true application of profiles limits
-        opts(JK)%verbose_checkinput_warnings=.false. ! useful for debuging the code should be turned off later
-        opts(JK)%ozone_data=.true. ! profil d'ozone disponible
-        opts(JK)%clw_data=.false.  ! profil d'eau liquide pas disponible
-        opts(JK)%addrefrac=.false. ! to account for atmospheric refraction (useless???)
-        opts(JK)%do_checkinput=.true. ! to check if input profiles are within absolute and regression limits
-        opts(JK)%fastem_version=4  ! use fastem version 4 file (in the range 1-5 to force a specific version)
+        !< General configuration options
+        opts(JK)%config%apply_reg_limits=.false. ! if true application of profiles limits
+        opts(JK)%config%verbose=.true. ! verbose output
+        opts(JK)%config%do_checkinput=.true. ! to check if input profiles are within absolute and regression limits
+        !< General RT options
+        opts(JK)%rt_all%switchrad=.true.  ! to use brightness temperature (true) or radiance (false) units in AD routine
+        opts(JK)%rt_all%use_q2m=.false.   ! if true use of surface humidity (false for compatibility with the way rttov 8.7 was compiled)
+        opts(JK)%rt_all%addrefrac=.false. ! to account for atmospheric refraction (useless???)
+        !< VIS/IR RT options
+        opts(JK)%rt_ir%addsolar=.false.  ! to model solar component in the near IR (2000 cm-1 et plus)
+        opts(JK)%rt_ir%addaerosl=.false. ! to account for scattering due to aerosols
+        opts(JK)%rt_ir%addclouds=.false. ! to account for scattering due to clouds
+        opts(JK)%rt_ir%ir_sea_emis_model = 1 ! ISEM (ir_sea_emis_model 1) useful for GEORAD
+                                             ! 2 would select IREMIS which is more sophisticated (to try)
+        opts(JK)%rt_ir%pc%ipcreg=-1         ! index of the required PC predictors... to see later
+        opts(JK)%rt_ir%pc%addpc=.false.     ! to carry out principal component calculations 
+        opts(JK)%rt_ir%pc%addradrec=.false. ! to reconstruct radiances from principal components
+        !< MW RT options
+        opts(JK)%rt_mw%clw_data=.false.  ! profil d'eau liquide pas disponible
+        opts(JK)%rt_mw%fastem_version=4  ! use fastem version 4 file (in the range 1-6 to force a specific version)
+        !< Interpolation options
+        opts(JK)%interpolation%addinterp=.false. !use of internal profile interpolator (rt calculation on model levels)
+        opts(JK)%interpolation%lgradp=.false.    ! allow tl/ad of user pressure levels
 
-        setup_errorstatus = 0
-! read coefficients using the list of required channels.
-        CALL rttov_setup (&
-             & setup_errorstatus,  & ! out 
-             & err_unit,           & ! in
-             & verbosity_level,        & ! in
-             & opts(JK),               & ! in
-             & coefs(JK),              & ! out
-             & LIST_SENSORS(:,JK),     & ! in
-             & ICHAN(1:nchan(JK),JK)         ) !in (opt) 
-        if ( setup_errorstatus/=0 ) then
-           Write(*,*) "Error during RTTOV setup !",JK,LIST_SENSORS(1:3,JK)
+        errorstatus = errorstatus_success
+
+        CALL rttov_read_coefs(errorstatus, coefs(jk), opts(jk), channels=ICHAN(1:nchan(JK),JK), instrument = LIST_SENSORS(:,JK))
+        IF (errorstatus /= errorstatus_success) THEN
+           WRITE(*,*) 'rttov_read_coefs: fatal error reading coefficients',errorstatus,JK,LIST_SENSORS(1:3,JK)
            CALL utl_abort('TOVS_SETUPALLO')
-        endif
+        ENDIF
 
-        opts(JK)%co2_data = ( coefs(jk)%coef%nco2 > 0 )
-        opts(JK)%n2o_data = ( coefs(jk)%coef%nn2o > 0 )
-        opts(JK)%co_data  = ( coefs(jk)%coef%nco  > 0 )
-        opts(JK)%ch4_data = ( coefs(jk)%coef%nch4 > 0 )
+        opts(JK)%rt_ir%co2_data = .false.  !( coefs(jk)%coef%nco2 > 0 )
+        opts(JK)%rt_ir%n2o_data = .false.  !( coefs(jk)%coef%nn2o > 0 )
+        opts(JK)%rt_ir%co_data  = .false.  !( coefs(jk)%coef%nco  > 0 )
+        opts(JK)%rt_ir%ch4_data = .false.  !( coefs(jk)%coef%nch4 > 0 )
+        opts(JK)%rt_ir%ozone_data = ( coefs(jk)%coef%nozone > 0 ) ! profil d'ozone disponible
 
+! Ensure the options and coefficients are consistent
+        CALL rttov_user_options_checkinput(errorstatus, opts(jk), coefs(jk))
+        IF (errorstatus /= errorstatus_success) THEN
+           WRITE(*,*) 'error in rttov options',errorstatus
+           CALL utl_abort('TOVS_SETUPALLO')
+        ENDIF
+       
      ENDDO
     
      do jk = 1, nsensors
@@ -408,7 +414,7 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
      CALL utl_abort('TOVS_NL_SETUPALLO')
   End If
 
-  asw=1
+  asw=1 ! to allocate
   do jo = 1, NOBTOV
      isens = lsensor(jo)
      nl = coefs(isens)%coef % nlevels
@@ -913,7 +919,7 @@ logical function tvs_Is_Instrum_Geostationary(instrum)
   integer :: nulnam, ierr, i 
   integer ,save :: list_inst(maxsize), ninst_geo
   logical, save :: lfirst = .true.
-  character (len=6) :: name_inst(maxsize)
+  character (len=8) :: name_inst(maxsize)
   integer ,external :: fnom, fclos
 
   NAMELIST /NAMGEO/ name_inst
@@ -943,6 +949,7 @@ logical function tvs_Is_Instrum_Geostationary(instrum)
      if (ninst_geo == 0) then
         Write(*,*) "tvs_Is_Instrum_Geostationary: Warning : empty namgeo namelist !"
      endif
+     Write(*,*) "DEBUGX:",list_inst(1:ninst_geo)
   endif
   tvs_Is_Instrum_Geostationary = .false.
   do i=1, ninst_geo

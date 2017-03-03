@@ -41,61 +41,51 @@ subroutine tovs_rttov_ad(lobsSpaceData)
   use utilities_mod
   implicit none
 !implicits
-#include "rttov_ad2.interface"
+#include "rttov_parallel_ad.interface"
 #include "rttov_alloc_prof.interface"
 #include "rttov_alloc_rad.interface"
 #include "rttov_alloc_transmission.interface"
+#include "rttov_copy_prof.interface"
+#include "rttov_init_prof.interface"
+#include "rttov_init_rad.interface"
 
   type(struct_obs) :: lobsSpaceData
 
   integer :: joff, ilev
   integer :: isurface
   integer :: nlevels
-  integer :: nchannels
   integer :: len_nchannels
   integer :: nchannels_max
-  integer :: alloc_status(60)
+  integer :: alloc_status(6)
   integer :: rttov_err_stat                      ! rttov error return code
   integer :: omp_get_num_threads
-  integer :: nthreads, max_nthreads
+  integer :: nthreads,max_nthreads
   integer :: j, i, krtid, io, jf, iobs, iobs1, jch
-  integer :: ibegin, ibeginob, ilast, ilastob, jj
+  integer :: jj
   integer :: ival, iplatform, isat, knpf
-  integer :: jo, jdata, idata, idatend, idatyp
-  integer :: jk, jn, jl, ig
-  integer :: instrum, ilen, istride, ith
+  integer :: jo, jdata, idata, idatend
+  integer :: jn, jl, ig
+  integer :: instrum
   integer :: sensor_type   ! sensor type (1=infrared; 2=microwave; 3=high resolution, 4=polarimetric)
-  integer :: knpf_tot, ioffset, nrank, ichn
+  integer :: nrank, ichn
 
-  integer, allocatable :: ncan            (:)             ! number of channels for each profile
-  integer, allocatable :: knpf_th         (:) 
-  integer, allocatable :: iptobs          (:) 
-  integer, allocatable :: nchannels_th    (:) 
-  integer, allocatable :: errorstatus_th  (:) 
-  integer, allocatable :: iptobs_th       (:,:) 
+  integer, allocatable :: iptobs          (:)  
+  integer :: errorstatus 
 
-  real*8, allocatable :: surfem1_th       (:,:) 
-  real*8, allocatable :: emissivity_th    (:,:)
-  real*8, allocatable :: emissivity_ad_th (:,:)
-  real*8, allocatable :: emissivity_out_th    (:,:)
-  real*8, allocatable :: emissivity_out_ad_th (:,:)
-  real*8, allocatable :: cloudemissivity_th    (:,:)
-  real*8, allocatable :: cloudemissivity_ad_th (:,:)
-
-  type(radiance_type)    , allocatable :: radiancedata_d_th  (:)   ! radiances full structure buffer used in rttov calls
-  type(radiance_type)    , allocatable :: radiancedata_ad_th (:)   ! ad radiances full structure buffer used in rttov calls
-  type(transmission_type), allocatable :: transmission_th    (:)   ! transmission
-  type(transmission_type), allocatable :: transmission_ad_th (:)   ! transmission ad
-  type( profile_type )   , allocatable :: profilesdata_th    (:,:) ! profiles buffer used in rttov calls
-  type( profile_type )   , allocatable :: profilesdata_ad_th (:,:) ! ad profiles buffer used in rttov calls
-  type(rttov_chanprof)   , allocatable :: chanprof_th(:,:)
+  real*8, allocatable :: surfem1       (:) 
+  type (rttov_emissivity), allocatable :: emissivity_local (:)
+  type (rttov_emissivity), allocatable :: emissivity_ad (:)
+  type (rttov_transmission) :: transmission,transmission_ad
+  type (rttov_radiance) :: radiancedata_ad, radiancedata_d
+  
+  type(rttov_profile)   , allocatable :: profilesdata_ad (:) ! ad profiles buffer used in rttov calls
+  type(rttov_chanprof)  , allocatable :: chanprof(:)
   logical              :: init
   integer :: asw
-  logical, allocatable :: calcemis_th  (:,:)
-  real*8, allocatable  :: surfem1 (:)
+  logical, allocatable :: calcemis  (:)
   
          
-  if(NOBTOV==0) return                                           ! exit if there are not tovs data
+  if (NOBTOV == 0) return      ! exit if there are not tovs data
 
 !     1.  Get number of threads available and allocate memory for some variables
 !     .   ---------------------------------------------------------------------- 
@@ -105,25 +95,15 @@ subroutine tovs_rttov_ad(lobsSpaceData)
   max_nthreads = omp_get_num_threads()
 !$omp end parallel
 
-  alloc_status(:) = 0
-  allocate ( knpf_th        (max_nthreads)      ,stat=alloc_status(1))
-  allocate ( iptobs_th      (jppf,max_nthreads) ,stat=alloc_status(2)) 
-  allocate ( errorstatus_th (max_nthreads)      ,stat=alloc_status(3)) 
-  allocate ( nchannels_th   (max_nthreads)      ,stat=alloc_status(4)) 
-  allocate ( iptobs         (jppf*max_nthreads) ,stat=alloc_status(5)) 
- 
-  if( any(alloc_status /= 0) ) then
-     write(*,*) ' tovs_rttov_ad: alloc_status = ', alloc_status(:)
-     write(*,'(" tovs_rttov_ad: arrays #1 memory allocation error")')
-     call utl_abort('tovs_rttov_ad        ')
-  end if
+  allocate ( iptobs(NOBTOV) )
+
 !
 !     2.  Computation of adjoint hx for tovs data only
 !     .   --------------------------------------------
 
 ! Loop over all sensors specified by user
 
-  do  krtid = 1, nsensors
+  binst:do  krtid = 1, nsensors
 
      nlevels=coefs(krtid) %coef % nlevels
 
@@ -134,64 +114,45 @@ subroutine tovs_rttov_ad(lobsSpaceData)
      
 !  loop over all obs.
 
-   knpf = 0
-   bobs: do iobs = 1, NOBTOV
-      jo = lobsno(iobs)
+     knpf = 0
+     bobs: do iobs = 1, NOBTOV
 
 !    Currently processed sensor?
 
-      if ( lsensor(iobs) == krtid ) then
-         knpf = knpf + 1
-         iptobs(knpf) = iobs
-      endif
-      if ( knpf .le. 0                                        ) cycle bobs
-      if ( knpf .ne. jppf*max_nthreads .and. iobs .ne. NOBTOV ) cycle bobs
+        if ( lsensor(iobs) == krtid ) then
+           knpf = knpf + 1
+           iptobs(knpf) = iobs
+        endif
+     enddo bobs
 
-!     .  2.1  Separate profiles according to the number of threads and 
-!     .       calculate the actual number of threads which will be used.
+     if (knpf == 0) cycle binst
+
+
+!     .  2.1  Calculate the actual number of threads which will be used.
 !     .       ----------------------------------------------------------
 
-      ith = 0
-      knpf_th  (:)   = 0
-      iptobs_th(:,:) = 0
-      istride = min(knpf,jppf)
-      do jn = 1, knpf,istride
-         ilen = min (knpf-jn+1,istride)
-         ith = ith + 1
-         knpf_th(ith) =  ilen
-         do i = 1, ilen
-            iptobs_th(i,ith) = iptobs(jn+i-1)
-         enddo
-      enddo
-
-!     set nthreads to actual number of threads which will be used.
-
-      nthreads = min(max_nthreads,ith)
+      nthreads = min(max_nthreads, knpf )  
 
 !     .  2.2  Prepare all input variables required by rttov_ad.
-!             for the purposes of using openmp; an additional dimension
-!             is added to most input variables, corresponding
-!             to the number of threads.
 !     .       ---------------------------------------------------------
-
-      allocate (ncan(knpf),stat= alloc_status(1))
-
-      ncan(:) =  nchan(krtid)
+      alloc_status(:)=0
 
 !     compute max possible values for nchannels using knpf, i.e. maximum number of profiles.
 
-      nchannels_max=SUM(ncan(1:KNPF))
-      alloc_status(:)=0
-      allocate ( surfem1_th      (nchannels_max,nthreads)    ,stat=alloc_status(2))
-      allocate ( chanprof_th     (nchannels_max,nthreads)    ,stat=alloc_status(3))
-      allocate ( emissivity_th   (nchannels_max,nthreads)    ,stat=alloc_status(4))
-      allocate ( emissivity_ad_th(nchannels_max,nthreads)    ,stat=alloc_status(5))
-      allocate ( emissivity_out_th   (nchannels_max,nthreads),stat=alloc_status(6))
-      allocate ( emissivity_out_ad_th(nchannels_max,nthreads),stat=alloc_status(7))
-      allocate ( calcemis_th     (nchannels_max,nthreads)    ,stat=alloc_status(8))
-      allocate ( surfem1         (nchannels_max)             ,stat=alloc_status(9))
-      allocate ( cloudemissivity_th(nchannels_max,nthreads)  ,stat=alloc_status(10))
-      allocate ( cloudemissivity_ad_th(nchannels_max,nthreads),stat=alloc_status(11))
+      nchannels_max = knpf * nchan(krtid)
+      
+      allocate ( chanprof     (nchannels_max)    ,stat=alloc_status(1))
+      allocate ( emissivity_local (nchannels_max),stat=alloc_status(2))
+      allocate ( emissivity_ad(nchannels_max)    ,stat=alloc_status(3))
+      allocate ( calcemis     (nchannels_max)    ,stat=alloc_status(4))
+      allocate ( surfem1      (nchannels_max)    ,stat=alloc_status(5))
+      allocate ( profilesdata_ad(knpf)           ,stat=alloc_status(6))
+
+      if( any(alloc_status /= 0) ) then
+         write(*,*) ' tovs_rttov_ad: alloc_status = ', alloc_status(:)
+         write(*,'(" tovs_rttov_ad:  arrays #2 memory allocation error")')
+        call utl_abort('tovs_rttov_ad')
+      end if
 
 !     get Hyperspectral IR emissivities
       
@@ -215,457 +176,232 @@ subroutine tovs_rttov_ad(lobsSpaceData)
         end do
       end if
 
-
-!     loop on threads
-
-      knpf_tot = 0
-
-      do ith = 1, nthreads
-
 ! Build the list of channels/profiles indices
 
-         ichn = 0
-         Do j = 1 , knpf_th(ith)
-            DO  jch = 1,ncan(j)
-               ichn = ichn +1
-               chanprof_th(ichn,ith)%prof=j
-               chanprof_th(ichn,ith)%chan=jch
-            End Do
+      ichn = 0
+      Do j = 1 , knpf
+         DO  jch = 1,nchan(krtid)
+            ichn = ichn +1
+            chanprof(ichn)%prof=j
+            chanprof(ichn)%chan=jch
          End Do
-         nchannels_th(ith)=SUM(ncan(1:knpf_th(ith)))
+      End Do
 
-         knpf_tot = knpf_tot + knpf_th(ith)
-       
-         surfem1_th (:,ith) = 0.d0
-
-         len_nchannels = nchannels_th(ith)/knpf_th(ith)
-         ioffset=len_nchannels*(knpf_tot-knpf_th(ith))
-         do  j = 1 , knpf_th(ith)
-            joff=len_nchannels*(j-1)
-            isurface = profiles(iptobs_th(j,ith)) % skin % surftype 
-            if     (sensor_type == sensor_id_mw ) then
-               if ( isurface ==  surftype_land .or. &
-                    isurface ==  surftype_seaice     ) then
-                  calcemis_th(joff+1:joff+len_nchannels   ,ith) = .false.
-                  surfem1_th (joff+1:joff+len_nchannels,ith) = 0.75d0
-               else
-                  calcemis_th(joff+1:joff+len_nchannels   ,ith) = .true.
-                  surfem1_th (joff+1:joff+len_nchannels,ith) = 0.d0
-               endif
-            elseif ( tvs_Is_Instrum_Hyperspectral(instrum) ) then
-               calcemis_th(joff+1:joff+len_nchannels   ,ith) = .false. 
-               surfem1_th (joff+1:joff+len_nchannels   ,ith) = &         
-                    surfem1(joff+1+ioffset:joff+len_nchannels+ioffset)
-            elseif ( tvs_Is_Instrum_Geostationary(instrum) ) then
-               calcemis_th(joff+1:joff+len_nchannels   ,ith) = .true.
-               surfem1_th (joff+1:joff+len_nchannels,ith) = 0.d0
+      len_nchannels = nchan(krtid)
+      do  j = 1 , knpf
+         joff=len_nchannels*(j-1)
+         isurface = profiles(iptobs(j)) % skin % surftype 
+         if     (sensor_type == sensor_id_mw ) then
+            if ( isurface ==  surftype_land .or. &
+                 isurface ==  surftype_seaice     ) then
+               calcemis(joff+1:joff+len_nchannels ) = .false.
+               surfem1 (joff+1:joff+len_nchannels ) = 0.75d0
             else
-               call utl_abort('tovs_rttov_ad. invalid sensor type')
+               calcemis(joff+1:joff+len_nchannels ) = .true.
+               surfem1 (joff+1:joff+len_nchannels) = 0.d0
             endif
-         enddo
-
-         emissivity_th(:,ith) = surfem1_th(:,ith)
-         cloudemissivity_th(:,ith) =0.0d0
-         cloudemissivity_ad_th(:,ith) = 0.0d0
+         elseif ( tvs_Is_Instrum_Hyperspectral(instrum) ) then
+            calcemis(joff+1:joff+len_nchannels) = .false. 
+         elseif ( tvs_Is_Instrum_Geostationary(instrum) ) then
+            calcemis(joff+1:joff+len_nchannels ) = .true.
+            surfem1 (joff+1:joff+len_nchannels) = 0.d0
+         else
+            call utl_abort('tovs_rttov_ad. invalid sensor type')
+         endif
       enddo
 
-      allocate ( radiancedata_d_th(nthreads)         ,stat=alloc_status(12) )  ! radiances full structure buffer used in rttov calls
-      allocate ( radiancedata_ad_th(nthreads)        ,stat=alloc_status(13))  ! ad radiances full structure buffer used in rttov calls
-      allocate ( transmission_th  (nthreads)         ,stat=alloc_status(14))  ! transmission
-      allocate ( transmission_ad_th  (nthreads)      ,stat=alloc_status(15))  ! transmission ad
-      allocate ( profilesdata_th(istride,nthreads)   ,stat=alloc_status(16))  ! profilesdata
-      allocate ( profilesdata_ad_th(istride,nthreads),stat=alloc_status(17))  ! profilesdata ad
-
-      if( any(alloc_status /= 0) ) then
-         write(*,*) ' tovs_rttov_ad: alloc_status = ', alloc_status(:)
-         write(*,'(" tovs_rttov_ad:  arrays #2 memory allocation error")')
-         call utl_abort('tovs_rttov_ad ')
-      end if
-
-      do ith = 1, nthreads
-
-         ! allocate transmittance structures
-         asw=1
-         init=.true.
-         call rttov_alloc_transmission(rttov_err_stat,transmission_th(ith),nlayers=nlevels-1,      &
-              nchannels=nchannels_th(ith),asw=asw,init=init)
-         if (rttov_err_stat/=0) THEN
-            Write(*,*) "Error in transmittance allocation",rttov_err_stat
-            call utl_abort('tovs_rttov_ad        ')
-         endif
-         call rttov_alloc_transmission(rttov_err_stat,transmission_ad_th(ith),nlayers=nlevels-1,      &
-              nchannels=nchannels_th(ith),asw=asw,init=init)
-         if (rttov_err_stat/=0) THEN
-            Write(*,*) "Error in transmittance_ad allocation",rttov_err_stat
-            call utl_abort('tovs_rttov_ad        ')
-         endif
+      emissivity_local(:)%emis_in = surfem1(:)
+        
+     
+      ! allocate transmittance structures
+      asw=1
+      init=.true.
+      call rttov_alloc_transmission(rttov_err_stat,transmission,nlevels=nlevels,      &
+           nchanprof=nchannels_max,asw=asw,init=init)
+      if (rttov_err_stat/=0) THEN
+         Write(*,*) "Error in transmittance allocation",rttov_err_stat
+         call utl_abort('tovs_rttov_ad')
+      endif
+      call rttov_alloc_transmission(rttov_err_stat,transmission_ad,nlevels=nlevels,      &
+           nchanprof=nchannels_max,asw=asw,init=init)
+      if (rttov_err_stat/=0) THEN
+         Write(*,*) "Error in transmittance_ad allocation",rttov_err_stat
+         call utl_abort('tovs_rttov_ad')
+      endif
 
          ! allocate radiance structures
 
-         call rttov_alloc_rad (rttov_err_stat,nchannels_th(ith),radiancedata_d_th(ith),nlevels-1,asw)
-         if (rttov_err_stat/=0) THEN
-            Write(*,*) "Error in radiance allocation",rttov_err_stat
-            call utl_abort('tovs_rttov_ad        ')
-         endif
-         call rttov_alloc_rad (rttov_err_stat,nchannels_th(ith),radiancedata_ad_th(ith),nlevels-1,asw)
-         if (rttov_err_stat/=0) THEN
-            Write(*,*) "Error in radiance ad allocation",rttov_err_stat
-            call utl_abort('tovs_rttov_ad        ')
-         endif
+      call rttov_alloc_rad (rttov_err_stat,nchannels_max,radiancedata_d,nlevels,asw)
+      if (rttov_err_stat/=0) THEN
+         Write(*,*) "Error in radiance allocation",rttov_err_stat
+         call utl_abort('tovs_rttov_ad')
+      endif
+      call rttov_alloc_rad (rttov_err_stat,nchannels_max,radiancedata_ad,nlevels,asw)
+      if (rttov_err_stat/=0) THEN
+         Write(*,*) "Error in radiance ad allocation",rttov_err_stat
+         call utl_abort('tovs_rttov_ad')
+      endif
 
          ! allocate profile structures
          
-         call rttov_alloc_prof (rttov_err_stat,knpf_th(ith),profilesdata_th(:,ith),nlevels, &
-              opts(krtid),asw=asw,init=init)
-         if (rttov_err_stat/=0) THEN
-            Write(*,*) "Error in profiles allocation",rttov_err_stat
-            call utl_abort('tovs_rttov_ad        ')
-         endif
-         call rttov_alloc_prof (rttov_err_stat,knpf_th(ith),profilesdata_ad_th(:,ith),nlevels, &
-              opts(krtid),asw=asw,init=init)
-         if (rttov_err_stat/=0) THEN
-            Write(*,*) "Error in profiles ad allocation",rttov_err_stat
-            call utl_abort('tovs_rttov_ad        ')
-         endif
+      call rttov_alloc_prof (rttov_err_stat,knpf,profilesdata_ad,nlevels, &
+           opts(krtid),asw=asw,coefs=coefs(krtid),init=init)
+      if (rttov_err_stat/=0) THEN
+         Write(*,*) "Error in profiles ad allocation",rttov_err_stat
+         call utl_abort('tovs_rttov_ad')
+      endif
     
-         
-     !.. fill profilesdata arrays
-       do  j = 1 , knpf_th(ith)
-          jj=iptobs_th(j,ith)
-          profilesdata_th(j,ith) % nlevels          =  profiles(jj) % nlevels
-          profilesdata_th(j,ith) % nlayers          =  profiles(jj) % nlayers
-          profilesdata_th(j,ith) % id               =  profiles(jj) % id
-          profilesdata_th(j,ith) % date             =  profiles(jj) % date
-          profilesdata_th(j,ith) % time             =  profiles(jj) % time
-          profilesdata_th(j,ith) % p(:)             =  profiles(jj) % p(:)
-          profilesdata_th(j,ith) % t(:)             =  profiles(jj) % t(:) 
-          profilesdata_th(j,ith) % q(:)             =  profiles(jj) % q(:)  
-          profilesdata_th(j,ith) % o3(:)            =  profiles(jj) % o3(:)
-          if(coefs(krtid)%coef%nco2 > 0) then
-             profilesdata_th(j,ith) % co2(:)        =  profiles(jj) % co2(:)
-          endif
-          if(coefs(krtid)%coef%nn2o > 0) then
-             profilesdata_th(j,ith) % n2o(:)        =  profiles(jj) % n2o(:)
-          endif
-          if(coefs(krtid)%coef%nco > 0) then
-             profilesdata_th(j,ith) % co(:)         =  profiles(jj) % co(:)
-          endif
-          if(coefs(krtid)%coef%nch4 > 0) then
-             profilesdata_th(j,ith) % ch4(:)        =  profiles(jj) % ch4(:)
-          endif
-          profilesdata_th(j,ith) % ctp              =  profiles(jj) % ctp  
-          profilesdata_th(j,ith) % cfraction        =  profiles(jj) % cfraction    
-          profilesdata_th(j,ith) % zenangle         =  profiles(jj) % zenangle
-          profilesdata_th(j,ith) % azangle          =  profiles(jj) % azangle
-          profilesdata_th(j,ith) % sunzenangle      =  profiles(jj) % sunzenangle!
-          profilesdata_th(j,ith) % sunazangle       =  profiles(jj) % sunazangle!
-          profilesdata_th(j,ith) % latitude         =  profiles(jj) % latitude!
-          profilesdata_th(j,ith) % longitude        =  profiles(jj) % longitude!
-          profilesdata_th(j,ith) % elevation        =  profiles(jj) % elevation!
-          profilesdata_th(j,ith) % skin % surftype  =  profiles(jj) % skin % surftype 
-          profilesdata_th(j,ith) % skin % watertype =  profiles(jj) % skin % watertype
-          profilesdata_th(j,ith) % skin % t         =  profiles(jj) % skin % t       
-          profilesdata_th(j,ith) % skin % fastem(:) =  profiles(jj) % skin % fastem(:)
-          profilesdata_th(j,ith) % skin % salinity  =  profiles(jj) % skin % salinity
-          profilesdata_th(j,ith) % s2m % t          =  profiles(jj) % s2m % t
-          profilesdata_th(j,ith) % s2m % q          =  profiles(jj) % s2m % q 
-          profilesdata_th(j,ith) % s2m % p          =  profiles(jj) % s2m % p 
-          profilesdata_th(j,ith) % s2m % u          =  profiles(jj) % s2m % u 
-          profilesdata_th(j,ith) % s2m % v          =  profiles(jj) % s2m % v
- !          profilesdata_th(j,ith) % s2m % o          =  profiles(jj) % s2m % o !surface ozone not used
-          profilesdata_th(j,ith) % s2m % wfetc      =  profiles(jj) % s2m % wfetc!
-!          profilesdata_th(j,ith) % clw(:)           =  profiles(jj)% clw(:)
-          profilesdata_th(j,ith) % idg              =  profiles(jj)% idg
-          profilesdata_th(j,ith) % ish              =  profiles(jj)% ish
-          profilesdata_th(j,ith) % snow_frac        =  profiles(jj)% snow_frac
-          profilesdata_th(j,ith) % soil_moisture    =  profiles(jj)% soil_moisture
-          profilesdata_th(j,ith) % Be               =  profiles(jj)% Be
-          profilesdata_th(j,ith) % cosbk            =  profiles(jj)% cosbk
-       end do
-
-     !.. climatological moisture clip for profilesdata and profilesdata_tl arrays
-! Modifie par S.Heilliette
-! pour utiliser le bon profil min ou max pour chaque instrument
-! au lieu du premier (AIRS) habituellement en mode analyse
-! ne doit rien changer en mode background check
-          ig=coefs(krtid)%coef%fmv_gas_pos(gas_id_watervapour)
-          do  j = 1 , knpf_th(ith)
-             do  jl = 1 , nlevels
-                if     ( profiles(iptobs_th(j,ith)) % q(jl)  &
-                     .le.  coefs(krtid)%coef%lim_prfl_gmin(jl,ig)   ) then
-                   profilesdata_th(j,ith) % q(jl)  = coefs(krtid)%coef%lim_prfl_gmin(jl,ig)
-                elseif ( profiles(iptobs_th(j,ith)) % q(jl)  &
-                     .ge. coefs(krtid)%coef%lim_prfl_gmax(jl,ig)   ) then
-                   profilesdata_th(j,ith) % q(jl)  = coefs(krtid)%coef%lim_prfl_gmax(jl,ig)
-                endif
-             enddo
-          end do
-
-     !.. fill profilesdata_ad arrays
-
-       do  j = 1 , knpf_th(ith)
-          jj=iptobs_th(j,ith)
-          profilesdata_ad_th(j,ith) % nlevels          =  profiles(jj) % nlevels
-          profilesdata_ad_th(j,ith) % nlayers          =  profiles(jj) % nlayers
-!          profilesdata_ad_th(j,ith) % id               =  profiles(jj) % id
-!          profilesdata_ad_th(j,ith) % date             =  profiles(jj) % date
-!          profilesdata_ad_th(j,ith) % time             =  profiles(jj) % time
-          profilesdata_ad_th(j,ith) % p(:)             =  0.d0
-          profilesdata_ad_th(j,ith) % t(:)             =  0.d0
-          profilesdata_ad_th(j,ith) % q(:)             =  0.d0
-          profilesdata_ad_th(j,ith) % o3(:)            =  0.d0
-          if(coefs(krtid)%coef%nco2 > 0) then
-             profilesdata_ad_th(j,ith) % co2(:)        =  0.d0
-          end if
-          if(coefs(krtid)%coef%nn2o > 0) then
-             profilesdata_ad_th(j,ith) % n2o(:)        =  0.d0
-          endif
-          if(coefs(krtid)%coef%nco > 0) then
-             profilesdata_ad_th(j,ith) % co(:)         =  0.d0
-          endif
-          if(coefs(krtid)%coef%nch4 > 0) then
-             profilesdata_ad_th(j,ith) % ch4(:)        =  0.d0
-          endif
-          profilesdata_ad_th(j,ith) % ctp              =  0.d0
-          profilesdata_ad_th(j,ith) % cfraction        =  0.d0
-!          profilesdata_ad_th(j,ith) % zenangle         =  profiles(jj) % zenangle
-!          profilesdata_ad_th(j,ith) % azangle          =  profiles(jj) % azangle
-!          profilesdata_ad_th(j,ith) % sunzenangle      =  profiles(jj) % sunzenangle
-!          profilesdata_ad_th(j,ith) % sunazangle       =  profiles(jj) % sunazangle
-!          profilesdata_ad_th(j,ith) % latitude         =  profiles(jj) % latitude
-!          profilesdata_ad_th(j,ith) % longitude        =  profiles(jj) % longitude
-!          profilesdata_ad_th(j,ith) % elevation        =  profiles(jj) % elevation
-!          profilesdata_ad_th(j,ith) % skin % surftype  =  profiles(jj) % skin % surftype
-!          profilesdata_ad_th(j,ith) % skin % watertype =  profiles(jj) % skin % watertype
-          profilesdata_ad_th(j,ith) % skin % t         =  0.d0      
-          profilesdata_ad_th(j,ith) % skin % fastem(:) =  0.d0
-          profilesdata_ad_th(j,ith) % skin % salinity  =  0.d0
-          profilesdata_ad_th(j,ith) % s2m % t          =  0.d0
-          profilesdata_ad_th(j,ith) % s2m % q          =  0.d0
-          profilesdata_ad_th(j,ith) % s2m % p          =  0.d0
-          profilesdata_ad_th(j,ith) % s2m % u          =  0.d0
-          profilesdata_ad_th(j,ith) % s2m % v          =  0.d0
-          profilesdata_ad_th(j,ith) % s2m % wfetc      =  0.d0
-!          profilesdata_ad_th(j,ith) % clw(:)           =  profiles(jj) % clw(:)
-!          profilesdata_ad_th(j,ith) % idg              =  profiles(jj) % idg
-!          profilesdata_ad_th(j,ith) % ish              =  profiles(jj) % ish
-!          profilesdata_ad_th(j,ith) % snow_frac        =  profiles(jj) % snow_frac
-!          profilesdata_ad_th(j,ith) % soil_moisture    =  profiles(jj) % soil_moisture
-!          profilesdata_ad_th(j,ith) % Be               =  profiles(jj) % Be
-!          profilesdata_ad_th(j,ith) % cosbk            =  profiles(jj) % cosbk
-       end do
-    enddo
-
-    do ith = 1, nthreads
-
-       radiancedata_d_th(ith) % clear    (:)   = 0.d0
-       radiancedata_d_th(ith) % cloudy   (:)   = 0.d0
-       radiancedata_d_th(ith) % total    (:)   = 0.d0
-       radiancedata_d_th(ith) % bt       (:)   = 0.d0
-       radiancedata_d_th(ith) % bt_clear (:)   = 0.d0
-       radiancedata_d_th(ith) % upclear  (:)   = 0.d0
-       radiancedata_d_th(ith) % dnclear  (:)   = 0.d0
-       radiancedata_d_th(ith) % reflclear(:)   = 0.d0
-       radiancedata_d_th(ith) % overcast (:,:) = 0.d0
-       
-     !.. fill radiancedata_ad_th arrays
-
-       radiancedata_ad_th(ith) % clear    (:)   = 0.d0
-       radiancedata_ad_th(ith) % cloudy   (:)   = 0.d0
-       radiancedata_ad_th(ith) % total    (:)   = 0.d0
-       radiancedata_ad_th(ith) % bt       (:)   = 0.d0
-       radiancedata_ad_th(ith) % bt_clear (:)   = 0.d0
-       radiancedata_ad_th(ith) % upclear  (:)   = 0.d0
-       radiancedata_ad_th(ith) % dnclear  (:)   = 0.d0
-       radiancedata_ad_th(ith) % reflclear(:)   = 0.d0
-       radiancedata_ad_th(ith) % overcast (:,:) = 0.d0
-
-       do jn = 1, knpf_th(ith)
-          io = iptobs_th(jn,ith)
-          joff=nchannels_th(ith)/knpf_th(ith)*(jn-1)
-          radiancedata_ad_th(ith) % bt(joff+1:joff+nchannels_th(ith)/knpf_th(ith)) = radiance_ad(io) % bt(:)
-       enddo
-
-    enddo
-
-!     .  2.3  Compute ad radiance with rttov_ad2
-!     .       ---------------------------------
-
-      errorstatus_th  (:) = 0
-      emissivity_ad_th(:,:) = 0.0d0
-      emissivity_out_ad_th(:,:) = 0.0d0
-
-      call tmg_start(84,'rttov_ad')
-!$omp parallel
-!$omp do private(ith)
-      do ith = 1, nthreads
-          call rttov_ad2(                                     &
-               errorstatus_th(ith),                          & ! out
-               chanprof_th(1:nchannels_th(ith),ith),         & ! in
-               opts(krtid),                                  & ! in
-               profilesdata_th(1:knpf_th(ith),ith),          & ! in
-               profilesdata_ad_th(1:knpf_th(ith),ith),       & ! in
-               coefs(krtid),                                 & ! in
-               calcemis_th(1:nchannels_th(ith),ith),         & ! in
-               emissivity_th(1:nchannels_th(ith),ith),       & ! inout
-               emissivity_ad_th(1:nchannels_th(ith),ith),    & ! inout
-               emissivity_out_th(1:nchannels_th(ith),ith),   & ! inout
-               emissivity_out_ad_th(1:nchannels_th(ith),ith),& ! inout
-               cloudemissivity_th(1:nchannels_th(ith),ith),  & ! inout
-               cloudemissivity_ad_th(1:nchannels_th(ith),ith),&! inout
-               transmission_th(ith),                         & ! inout
-               transmission_ad_th(ith),                      & ! inout
-               radiancedata_d_th(ith),                       & ! inout
-               radiancedata_ad_th(ith)  )    ! inout
-
-       if (errorstatus_th(ith)/=0) then
-          Write(*,*) "Error in rttov_ad2",ith,errorstatus_th(ith)
-          call utl_abort('tovs_rttov_ad      ')
-       endif
-
-    enddo
-!$omp end do
-!$omp end parallel
-     call tmg_stop(84)
-
-     !.. store results from rttov_ad into profiles_ad
-
-      do ith = 1, nthreads
-       do  j = 1 , knpf_th(ith)
-          io = iptobs_th(j,ith)
-          profiles_ad(io) % t(:)      =  profilesdata_ad_th(j,ith) % t(:)
-          profiles_ad(io) % q(:)      =  profilesdata_ad_th(j,ith) % q(:)
-          profiles_ad(io) % skin % t  =  profilesdata_ad_th(j,ith) % skin % t 
-          profiles_ad(io) % s2m % t   =  profilesdata_ad_th(j,ith) % s2m % t
-          profiles_ad(io) % s2m % q   =  profilesdata_ad_th(j,ith) % s2m % q
-          profiles_ad(io) % s2m % p   =  profilesdata_ad_th(j,ith) % s2m % p
-          profiles_ad(io) % s2m % u   =  profilesdata_ad_th(j,ith) % s2m % u
-          profiles_ad(io) % s2m % v   =  profilesdata_ad_th(j,ith) % s2m % v
-       end do
-      enddo
-
-     !.. adjoint of climatological moisture clip for profilesdata arrays
+     !.. climatological moisture clip for profiles arrays
 ! Modifie par S.Heilliette
 ! pour utiliser le bon profil min ou max pour chaque instrument
 ! au lieu du premier (AIRS) habituellement en mode analyse
 ! ne doit rien changer en mode background check
       ig=coefs(krtid)%coef%fmv_gas_pos(gas_id_watervapour)
-      do ith = 1, nthreads
-         do  j = 1 , knpf_th(ith)
-            io = iptobs_th(j,ith)
-            do  jl = 1 , coefs(krtid) % coef%nlevels
-               if     ( profiles(iptobs_th(j,ith)) % q(jl)  &
-                    .le.  coefs(krtid)%coef%lim_prfl_gmin(jl,ig)   ) then
-                  profiles_ad(io) % q(jl)  = 0.0d0
-               elseif ( profiles(iptobs_th(j,ith)) % q(jl)  &
-                    .ge. coefs(krtid)%coef%lim_prfl_gmax(jl,ig)   ) then
-                  profiles_ad(io) % q(jl)  = 0.0d0
-               endif
-            enddo
-         end do
-      enddo
+      do  j = 1 , knpf
+         jj = iptobs(j)
+         do  jl = 1 , nlevels
+            if     ( profiles(jj) % q(jl)  &
+                 .le.  coefs(krtid)%coef%lim_prfl_gmin(jl,ig)   ) then
+               profiles(jj) % q(jl)  = coefs(krtid)%coef%lim_prfl_gmin(jl,ig)
+            elseif ( profiles(jj) % q(jl)  &
+                 .ge. coefs(krtid)%coef%lim_prfl_gmax(jl,ig)   ) then
+               profiles(jj) % q(jl)  = coefs(krtid)%coef%lim_prfl_gmax(jl,ig)
+            endif
+         enddo
+      end do
+
+      call rttov_init_prof(profilesdata_ad(1:knpf) )
+
+      call rttov_init_rad( radiancedata_d )
+     !.. fill radiancedata_ad_th arrays
+
+      call rttov_init_rad( radiancedata_ad )
+!
+
+!     .  2.3  Compute ad radiance with rttov_ad
+!     .       ---------------------------------
+
+      errorstatus  = 0
+      emissivity_ad(:)%emis_in = 0.0d0
+      emissivity_ad(:)%emis_out = 0.0d0
+
+      call tmg_start(84,'rttov_ad')
+
+      call rttov_parallel_ad(        &
+           errorstatus,              & ! out
+           chanprof,                 & ! in
+           opts(krtid),              & ! in
+           profiles(iptobs(1:knpf)), & ! in
+           profilesdata_ad,          & ! in
+           coefs(krtid),             & ! in
+           transmission,             & ! inout
+           transmission_ad,          & ! inout
+           radiancedata_d,           & ! inout
+           radiancedata_ad,          & ! inout
+           calcemis,                 & ! in
+           emissivity_local,         & ! inout
+           emissivity_ad,            & ! inout
+           nthreads = nthreads )
+
+      if (errorstatus /= 0) then
+         Write(*,*) "Error in rttov_parallel_ad", errorstatus
+         call utl_abort('tovs_rttov_ad')
+      endif
+
+     call tmg_stop(84)
+
+     !.. store results from rttov_ad into profiles_ad
+
+     do  j = 1 , knpf
+        io = iptobs(j)
+        profiles_ad(io) % t(:)      =  profilesdata_ad(j) % t(:)
+        profiles_ad(io) % q(:)      =  profilesdata_ad(j) % q(:)
+        profiles_ad(io) % skin % t  =  profilesdata_ad(j) % skin % t 
+        profiles_ad(io) % s2m % t   =  profilesdata_ad(j) % s2m % t
+        profiles_ad(io) % s2m % q   =  profilesdata_ad(j) % s2m % q
+        profiles_ad(io) % s2m % p   =  profilesdata_ad(j) % s2m % p
+        profiles_ad(io) % s2m % u   =  profilesdata_ad(j) % s2m % u
+        profiles_ad(io) % s2m % v   =  profilesdata_ad(j) % s2m % v
+     end do
+     
+
+     !.. adjoint of climatological moisture clip for profiles_ad arrays
+! Modifie par S.Heilliette
+! pour utiliser le bon profil min ou max pour chaque instrument
+! au lieu du premier (AIRS) habituellement en mode analyse
+     ! ne doit rien changer en mode background check
+     ig=coefs(krtid)%coef%fmv_gas_pos(gas_id_watervapour)
+     do  j = 1 , knpf
+        io = iptobs(j)
+        do  jl = 1 , coefs(krtid) % coef%nlevels
+           if     ( profiles(io) % q(jl)  &
+                .le.  coefs(krtid)%coef%lim_prfl_gmin(jl,ig)   ) then
+              profiles_ad(io) % q(jl)  = 0.0d0
+           elseif ( profiles(io) % q(jl)  &
+                .ge. coefs(krtid)%coef%lim_prfl_gmax(jl,ig)   ) then
+              profiles_ad(io) % q(jl)  = 0.0d0
+           endif
+        enddo
+     end do
 
 
 !     de-allocate memory
 
-      do ith = 1, nthreads
+     asw=0 ! 1 to allocate,0 to deallocate
 
-         asw=0 ! 1 to allocate,0 to deallocate
+     call rttov_alloc_transmission(rttov_err_stat,transmission,nlevels=nlevels,      &
+          nchanprof=nchannels_max,asw=asw)
+     if (rttov_err_stat/=0) THEN
+        Write(*,*) "Error in transmittance deallocation",rttov_err_stat
+        call utl_abort('tovs_rttov_ad')
+     endif
 
-         call rttov_alloc_transmission(rttov_err_stat,transmission_th(ith),nlayers=nlevels-1,      &
-              nchannels=nchannels_th(ith),asw=asw)
-         if (rttov_err_stat/=0) THEN
-            Write(*,*) "Error in transmittance deallocation",rttov_err_stat
-            call utl_abort('tovs_rttov_ad        ')
-         endif
-
-         call rttov_alloc_transmission(rttov_err_stat,transmission_ad_th(ith),nlayers=nlevels-1,   &
-              nchannels=nchannels_th(ith),asw=asw)
-         if (rttov_err_stat/=0) THEN
-            Write(*,*) "Error in transmittance ad allocation",rttov_err_stat
-            call utl_abort('tovs_rttov_ad        ')
-         endif
+     call rttov_alloc_transmission(rttov_err_stat,transmission_ad,nlevels=nlevels,   &
+          nchanprof=nchannels_max,asw=asw)
+     if (rttov_err_stat/=0) THEN
+        Write(*,*) "Error in transmittance ad allocation",rttov_err_stat
+        call utl_abort('tovs_rttov_ad')
+     endif
          
-         call rttov_alloc_rad (rttov_err_stat,nchannels_th(ith),radiancedata_d_th(ith),nlevels-1,asw)
-         if (rttov_err_stat/=0) THEN
-            Write(*,*) "Error in radiance deallocation",rttov_err_stat
-            call utl_abort('tovs_rttov_ad        ')
-         endif
+     call rttov_alloc_rad (rttov_err_stat,nchannels_max,radiancedata_d,nlevels,asw)
+     if (rttov_err_stat/=0) THEN
+        Write(*,*) "Error in radiance deallocation",rttov_err_stat
+        call utl_abort('tovs_rttov_ad')
+     endif
 
-         call rttov_alloc_rad (rttov_err_stat,nchannels_th(ith),radiancedata_ad_th(ith),nlevels-1,asw)
-         if (rttov_err_stat/=0) THEN
-            Write(*,*) "Error in radiance ad deallocation",rttov_err_stat
-            call utl_abort('tovs_rttov_ad        ')
-         endif
+     call rttov_alloc_rad (rttov_err_stat,nchannels_max,radiancedata_ad,nlevels,asw)
+     if (rttov_err_stat/=0) THEN
+        Write(*,*) "Error in radiance ad deallocation",rttov_err_stat
+        call utl_abort('tovs_rttov_ad')
+     endif
 
-         call rttov_alloc_prof (rttov_err_stat,knpf_th(ith),profilesdata_th(:,ith),nlevels, &
-              opts(krtid),asw=asw)
-         if (rttov_err_stat/=0) THEN
-            Write(*,*) "Error in profiles deallocation",rttov_err_stat
-            call utl_abort('tovs_rttov_ad        ')
-         endif
+     call rttov_alloc_prof (rttov_err_stat,knpf,profilesdata_ad,nlevels, &
+          opts(krtid),asw=asw)
+     if (rttov_err_stat/=0) THEN
+        Write(*,*) "Error in profiles ad deallocation",rttov_err_stat
+        call utl_abort('tovs_rttov_ad')
+     endif
 
-         call rttov_alloc_prof (rttov_err_stat,knpf_th(ith),profilesdata_ad_th(:,ith),nlevels, &
-              opts(krtid),asw=asw)
-         if (rttov_err_stat/=0) THEN
-            Write(*,*) "Error in profiles ad deallocation",rttov_err_stat
-            call utl_abort('tovs_rttov_ad        ')
-         endif
+     alloc_status(:) = 0
+     deallocate ( profilesdata_ad ,stat=alloc_status(1))
+     deallocate ( chanprof        ,stat=alloc_status(2))
+     deallocate ( emissivity_local,stat=alloc_status(3))
+     deallocate ( emissivity_ad   ,stat=alloc_status(4))
+     deallocate ( calcemis        ,stat=alloc_status(5))
+     deallocate ( surfem1         ,stat=alloc_status(6))
+     
+     if( any(alloc_status /= 0) ) then
+        write(*,*) ' tovs_rttov_ad: alloc_status = ', alloc_status(:)
+        write(*,'(" tovs_rttov_ad: arrays #2 memory deallocation error")')
+        call utl_abort('tovs_rttov_ad')
+     end if
 
-      enddo
 
-      alloc_status(:) = 0
-      deallocate ( profilesdata_th   ,stat=alloc_status(1) )
-      deallocate ( profilesdata_ad_th,stat=alloc_status(2) )
-      deallocate ( radiancedata_d_th ,stat=alloc_status(3) )      ! radiances full structure buffer used in rttov calls
-      deallocate ( radiancedata_ad_th,stat=alloc_status(4) )      ! ad radiances full structure buffer used in rttov calls
-      deallocate ( transmission_th   ,stat=alloc_status(5) )      ! transmission
-      deallocate ( transmission_ad_th,stat=alloc_status(6) )      ! transmission ad
-      deallocate ( ncan              ,stat=alloc_status(7) )
-      deallocate ( surfem1_th        ,stat=alloc_status(8) )
-      deallocate ( chanprof_th       ,stat=alloc_status(9) )
-      deallocate ( emissivity_th     ,stat=alloc_status(10))
-      deallocate ( emissivity_ad_th  ,stat=alloc_status(11))
-      deallocate ( emissivity_out_th ,stat=alloc_status(12))
-      deallocate ( emissivity_out_ad_th,stat=alloc_status(13))
-      deallocate ( calcemis_th       ,stat=alloc_status(14))
-      deallocate ( surfem1           ,stat=alloc_status(15))
-      deallocate ( cloudemissivity_th ,stat=alloc_status(16))
-      deallocate ( cloudemissivity_ad_th,stat=alloc_status(17))
-
-      if( any(alloc_status /= 0) ) then
-         write(*,*) ' tovs_rttov_ad: alloc_status = ', alloc_status(:)
-         write(*,'(" tovs_rttov_ad: arrays #2 memory deallocation error")')
-         call utl_abort('tovs_rttov_ad ')
-      end if
-
-!   next bunch !
-
-      knpf = 0
-
-   enddo bobs
-
-enddo
+  enddo binst
 
 !     3.  Close up
 !     .   --------
 
-
-! deallocate memory
-
-alloc_status(:) = 0
-deallocate ( knpf_th        ,stat=alloc_status(1))
-deallocate ( iptobs_th      ,stat=alloc_status(2)) 
-deallocate ( errorstatus_th ,stat=alloc_status(3)) 
-deallocate ( nchannels_th   ,stat=alloc_status(4)) 
-deallocate ( iptobs         ,stat=alloc_status(5)) 
-
-if( any(alloc_status /= 0) ) then
-   write(*,*) ' tovs_rttov_ad: alloc_status = ', alloc_status(:)
-   write(*,'(" tovs_rttov_ad: arrays #1 memory deallocation error")')
-   call utl_abort('tovs_rttov_ad        ')
-end if
-
-return
+deallocate ( iptobs )
 
 end subroutine tovs_rttov_ad

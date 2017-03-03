@@ -101,11 +101,11 @@ echo "...   loading hpcs/201402/02/base"
 if [ "${BASE_ARCH}" = "AIX-powerpc7" ];then
     echo "...   loading compiler hpcs/ext/xlf_13.1.0.10"
     . ssmuse-sh -d hpcs/ext/xlf_13.1.0.10
-    # NetCDF for the IBM:
-    echo "...   loading netcdf"
-    export EC_LD_LIBRARY_PATH="/ssm/net/rpn/mfv/netcdf4/lib ${EC_LD_LIBRARY_PATH}"
-    export EC_INCLUDE_PATH="/ssm/net/rpn/mfv/netcdf4/include ${EC_INCLUDE_PATH}"
-    CDF_LIBS="netcdf netcdff hdf5 hdf5_hl sz z"
+    # HDF5 for the IBM:
+    echo "...   loading hdf5"
+    export EC_LD_LIBRARY_PATH="/fs/dev/mrb/arma/armagr8/hdf5-1.8.11/hdf5/lib ${EC_LD_LIBRARY_PATH}"
+    export EC_INCLUDE_PATH="/fs/dev/mrb/arma/armagr8/hdf5-1.8.11/hdf5/include ${EC_INCLUDE_PATH}"
+    HDF5_LIBS="hdf5hl_fortran hdf5_hl hdf5_fortran hdf5 z"
 elif [ "${BASE_ARCH}" = "Linux_x86-64" ];then
     echo "...   loading compiler hpcs/201402/02/intel13sp1u2 (this includes the netcdf library)"
     . ssmuse-sh -d hpcs/201402/02/intel13sp1u2
@@ -131,12 +131,13 @@ echo "...   loading cmda/base/201411/01/${COMP_ARCH}"
 echo "...   loading hpcs/exp/aspgjdm/perftools"
 . ssmuse-sh -d hpcs/exp/aspgjdm/perftools
 # For RTTOV package...  
-echo "...   loading arma/rttov/10v4"
-. ssmuse-sh -d arma/rttov/10v4
+echo "...   loading arma/rttov/12v1"
+export EC_LD_LIBRARY_PATH="/users/dor/arma/gr8/home1/sylvain_ssm/rttov/12v1/rttovs-xlf13110_12v1_aix-7.1-ppc7-64/lib ${EC_LD_LIBRARY_PATH}"
+export EC_INCLUDE_PATH="/users/dor/arma/gr8/home1/sylvain_ssm/rttov/12v1/rttovs-xlf13110_12v1_aix-7.1-ppc7-64/include ${EC_INCLUDE_PATH}"
 
 #-----------------------------------------------------------------------------
 
-LIBAPPL="${CDF_LIBS} rttov10.2.0_coef_io rttov10.2.0_main rttov10.2.0_emis_atlas rttov10.2.0_other burp_module descrip $MPILIB"
+LIBAPPL="${HDF5_LIBS} rttov_coef_io rttov_main rttov_parallel rttov_emis_atlas rttov_other rttov_hdf burp_module descrip $MPILIB"
 if [ "${BASE_ARCH}" = "AIX-powerpc7" ];then
     LIBSYS="hpcsperf lapack-3.4.0 essl mass"
 elif [ "${BASE_ARCH}" = "Linux_x86-64" ];then
@@ -315,7 +316,7 @@ if [ "${mode}" == full ] ; then
   echo "... > Building the executable ${varabs}.Abs"
   rm -f ${varabs}.Abs
   echo "...   if aborting, check in ${PWD}/listing8"
-  s.compile $COMPF  -O ${FOPTMIZ} ${MPILIBDIR} -libappl $LIBAPPL $LIBEXTRA -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o ${varabs}.Abs > listing8 2>&1
+  s.compile $COMPF  -O ${FOPTMIZ} ${MPILIBDIR} /ssm/net/hpcs/exp/aspgjdm/perftools/aix-7.1-ppc7-64/lib -libappl $LIBAPPL $LIBEXTRA -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o ${varabs}.Abs > listing8 2>&1
   status=1
   grep fail listing8 || status=0
   if [ "${status}" -ne 0 ]; then
@@ -339,7 +340,7 @@ elif [ "${mode}" == abs ] ; then
   echo "..."
   echo "... building the executable ${varabs}.Abs"
   echo "..."
-  s.compile $COMPF  -O ${FOPTMIZ} ${MPILIBDIR} -libappl $LIBAPPL $LIBEXTRA -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o ${varabs}.Abs
+  s.compile $COMPF  -O ${FOPTMIZ} ${MPILIBDIR} /ssm/net/hpcs/exp/aspgjdm/perftools/aix-7.1-ppc7-64/lib -libappl $LIBAPPL $LIBEXTRA -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o ${varabs}.Abs
 
 else
     if [ -f $trunkdir/$mode ] ; then

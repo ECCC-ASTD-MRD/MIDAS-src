@@ -32,10 +32,9 @@ subroutine tovs_fill_profiles_ad(column,columng)
   use tovs_lin_mod
   use columnData_mod
   use obsSpaceData_mod
-  use tovs_extrap_mod
-  use rttov_const ,only : q_mixratio_to_ppmv
   use presProfileOperators_mod
   use utilities_mod
+  use tovs_extrap_mod
   implicit none
 
   type(struct_columnData) :: column,columng
@@ -44,36 +43,36 @@ subroutine tovs_fill_profiles_ad(column,columng)
   integer, allocatable :: iptobs    (:) 
   integer, allocatable :: iptobscma (:) 
 
-  integer :: alloc_status(40)
+  integer :: alloc_status(15)
   logical :: diagTtop,TopAt10hPa
   integer :: omp_get_num_threads, nthreads
   integer :: istride, ilen, imodulo
   integer :: nlevels,nobmax
   integer :: j, i, krtid, jf, iobs, jj, stat
   integer :: ilowlvl_T,ilowlvl_M,knpf,jo,nlv_M,nlv_T
-  integer :: jk, jn, jl
+  integer :: jn, jl
   integer :: status, Vcode
 
-  real*8, allocatable :: to_ad    (:,:)
-  real*8, allocatable :: lqo_ad   (:,:)
-  real*8, allocatable :: toext_ad (:,:)
-  real*8, allocatable :: qoext_ad (:,:)
-  real*8, allocatable :: zvlev    (:,:)
-  real*8, allocatable :: dPdPs    (:,:)
-  real*8, allocatable :: zt_ad    (:,:)
-  real*8, allocatable :: zlq_ad   (:,:)
-  real*8, allocatable :: zt       (:,:)
-  real*8, allocatable :: zlq      (:,:)
-  real*8, allocatable :: qoext    (:,:)
-  real*8, allocatable :: zps_ad   (:)
-  real*8, allocatable :: xpres    (:)
+  real(8), allocatable :: to_ad    (:,:)
+  real(8), allocatable :: lqo_ad   (:,:)
+  real(8), allocatable :: toext_ad (:,:)
+  real(8), allocatable :: qoext_ad (:,:)
+  real(8), allocatable :: zvlev    (:,:)
+  real(8), allocatable :: dPdPs    (:,:)
+  real(8), allocatable :: zt_ad    (:,:)
+  real(8), allocatable :: zlq_ad   (:,:)
+  real(8), allocatable :: zt       (:,:)
+  real(8), allocatable :: zlq      (:,:)
+  real(8), allocatable :: qoext    (:,:)
+  real(8), allocatable :: zps_ad   (:)
+  real(8), allocatable :: xpres    (:)
 
-  real*8 :: zptop, zptopmbs
+  real(8) :: zptop, zptopmbs
 
-  real*8, pointer :: uu_column(:),vv_column(:),tt_column(:),hu_column(:),ps_column(:),tg_column(:)
+  real(8), pointer :: uu_column(:),vv_column(:),tt_column(:),hu_column(:),ps_column(:),tg_column(:)
   real(8), pointer :: TTb(:), HUb(:), Pres(:)
-
-  if(NOBTOV.eq.0) return    ! exit if there are not tovs data
+         
+  if (NOBTOV == 0) return    ! exit if there are not tovs data
 
 
   !     1.    Set index for model's lowest level and model top
@@ -83,7 +82,7 @@ subroutine tovs_fill_profiles_ad(column,columng)
   nlv_M = col_getNumLev(columng,'MM')
   nlv_T = col_getNumLev(columng,'TH')
 
-  if (  col_getPressure(columng,1,1,'TH') .lt. col_getPressure(columng,nlv_T,1,'TH') ) then
+  if (  col_getPressure(columng,1,1,'TH') < col_getPressure(columng,nlv_T,1,'TH') ) then
      ilowlvl_M = nlv_M
      ilowlvl_T = nlv_T
   else
@@ -93,7 +92,7 @@ subroutine tovs_fill_profiles_ad(column,columng)
 
   vco_anl => col_getVco(columng)
   status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode)
-  diagTtop = (Vcode.eq.5002)
+  diagTtop = (Vcode==5002)
 
   nlevels=coefs(1) %coef%  nlevels
   allocate (xpres(nlevels))
@@ -108,8 +107,8 @@ subroutine tovs_fill_profiles_ad(column,columng)
 
   jpmotop = 1
   do jl = 2, nlevels
-     if ( zptopmbs .ge. xpres(jl-1) .and.       &
-          zptopmbs .lt. xpres(jl)        ) then
+     if ( zptopmbs >= xpres(jl-1) .and.       &
+          zptopmbs < xpres(jl)        ) then
         jpmotop = jl
         exit
      endif
@@ -124,46 +123,52 @@ subroutine tovs_fill_profiles_ad(column,columng)
   nthreads = omp_get_num_threads()
 !$omp end parallel
 
-  alloc_status(:) = 0
-  allocate (iptobs   (jppf*nthreads)        ,stat= alloc_status(1) )
-  allocate (iptobscma(jppf*nthreads)        ,stat= alloc_status(2) )
-  allocate (to_ad    (jpmolev,jppf*nthreads),stat= alloc_status(3) )
-  allocate (lqo_ad   (jpmolev,jppf*nthreads),stat= alloc_status(4) )
-  allocate (toext_ad (nlevels,jppf*nthreads),stat= alloc_status(5) )
-  allocate (qoext_ad (nlevels,jppf*nthreads),stat= alloc_status(6) )
-  allocate (zvlev    (nlv_T,jppf*nthreads)  ,stat= alloc_status(7) )
-  allocate (dPdPs    (nlv_T,jppf*nthreads)  ,stat= alloc_status(8) )
-  allocate (zt_ad    (nlv_T,jppf*nthreads)  ,stat= alloc_status(9) )
-  allocate (zlq_ad   (nlv_T,jppf*nthreads)  ,stat= alloc_status(10) )
-  allocate (zt       (nlv_T,jppf*nthreads)  ,stat= alloc_status(11))
-  allocate (zlq      (nlv_T,jppf*nthreads)  ,stat= alloc_status(12))
-  allocate (qoext    (nlevels,jppf*nthreads),stat= alloc_status(13))
 
-  allocate (zps_ad   (jppf*nthreads)        ,stat= alloc_status(14))
-
-  if( any(alloc_status /= 0) ) then
-     write(*,*) ' tovs_fill_profiles_ad : memory allocation error'
-     call utl_abort('tovs_fill_profiles_ad     ')
-  end if
-  !
-  !     2.  Adjoint of fill profiles structure
-  !     .   ----------------------------------
+  
+!
+!     2.  Adjoint of fill profiles structure
+!     .   ----------------------------------
 
   ! loop over all instruments
   binst: do krtid = 1, nsensors
      xpres(1:nlevels) = coefs(krtid)% coef % ref_prfl_p(1:nlevels)
      knpf = 0
 
-     bb: do iobs = NOBTOV,1,-1
-        if (lsensor(iobs)==krtid) then
-           NOBMAX=iobs
-           exit bb
-        endif
-     enddo bb
+     bobs1: do iobs = 1,NOBTOV
+        if (lsensor(iobs) /= krtid) cycle bobs1
+        NOBMAX = iobs
+        knpf = knpf + 1   
+     enddo bobs1
 
-     ! loop over all obs.
-     bobs: do iobs = 1, NOBTOV
-        if (lsensor(iobs)/=krtid) cycle bobs
+     if (knpf == 0) cycle binst
+
+     alloc_status(:) = 0
+     allocate (iptobs   (knpf)        ,stat= alloc_status(1) )
+     allocate (iptobscma(knpf)        ,stat= alloc_status(2) )
+     allocate (to_ad    (jpmolev,knpf),stat= alloc_status(3) )
+     allocate (lqo_ad   (jpmolev,knpf),stat= alloc_status(4) )
+     allocate (toext_ad (nlevels,knpf),stat= alloc_status(5) )
+     allocate (qoext_ad (nlevels,knpf),stat= alloc_status(6) )
+     allocate (zvlev    (nlv_T,knpf)  ,stat= alloc_status(7) )
+     allocate (dPdPs    (nlv_T,knpf)  ,stat= alloc_status(8) )
+     allocate (zt_ad    (nlv_T,knpf)  ,stat= alloc_status(9) )
+     allocate (zlq_ad   (nlv_T,knpf)  ,stat= alloc_status(10) )
+     allocate (zt       (nlv_T,knpf)  ,stat= alloc_status(11))
+     allocate (zlq      (nlv_T,knpf)  ,stat= alloc_status(12))
+     allocate (qoext    (nlevels,knpf),stat= alloc_status(13))
+     allocate (zps_ad   (knpf)        ,stat= alloc_status(14))
+
+     if( any(alloc_status /= 0) ) then
+        write(*,*) ' tovs_fill_profiles_ad : memory allocation error'
+        call utl_abort('tovs_fill_profiles_ad')
+     end if
+
+     knpf = 0 
+
+
+! loop over all obs.
+     bobs2: do iobs = 1, NOBMAX
+        if (lsensor(iobs)/=krtid) cycle bobs2
         jo = lobsno(iobs)
 
         knpf = knpf + 1
@@ -190,137 +195,137 @@ subroutine tovs_fill_profiles_ad(column,columng)
 
         iptobs   (knpf) = iobs
         iptobscma(knpf) = jo
-        if ( knpf .le. 0                                    ) cycle bobs
-        if ( knpf .ne. jppf*nthreads .and. iobs .ne. NOBMAX ) cycle bobs
+     enddo bobs2
 
-        !     .  2.4  Adjoint of filling profiles_ad structure
-        !     .       ----------------------------------------
-        do j = 1, knpf
-           qoext(:,j) =  profiles(iptobs(j)) % q(:) / q_mixratio_to_ppmv
-        enddo
+!     .  2.4  Adjoint of filling profiles_ad structure
+!     .       ----------------------------------------
+     do j = 1, knpf
+        qoext(:,j) =  profiles(iptobs(j)) % q(:) / q_mixratio_to_ppmv
+     enddo
 
-        do  j = 1 , knpf 
-           ps_column => col_getColumn(column,iptobscma(j),'P0')
-           tg_column => col_getColumn(column,iptobscma(j),'TG')
-           tt_column => col_getColumn(column,iptobscma(j),'TT')
-           hu_column => col_getColumn(column,iptobscma(j),'HU')
-           uu_column => col_getColumn(column,iptobscma(j),'UU')
-           vv_column => col_getColumn(column,iptobscma(j),'VV')
+     do  j = 1 , knpf 
+        ps_column => col_getColumn(column,iptobscma(j),'P0')
+        tg_column => col_getColumn(column,iptobscma(j),'TG')
+        tt_column => col_getColumn(column,iptobscma(j),'TT')
+        hu_column => col_getColumn(column,iptobscma(j),'HU')
+        uu_column => col_getColumn(column,iptobscma(j),'UU')
+        vv_column => col_getColumn(column,iptobscma(j),'VV')
 
-           toext_ad(:,j)      = profiles_ad(iptobs(j)) % t(:)
-           qoext_ad(:,j)      = profiles_ad(iptobs(j)) % q(:) * q_mixratio_to_ppmv
-           ps_column(1)       = profiles_ad(iptobs(j)) % s2m % p *MPC_MBAR_PER_PA_R8
-           tg_column(1)       = profiles_ad(iptobs(j)) % skin % t
-           tt_column(ilowlvl_T) = profiles_ad(iptobs(j)) % s2m % t
+        toext_ad(:,j)      = profiles_ad(iptobs(j)) % t(:)
+        qoext_ad(:,j)      = profiles_ad(iptobs(j)) % q(:) * q_mixratio_to_ppmv
+        ps_column(1)       = profiles_ad(iptobs(j)) % s2m % p *MPC_MBAR_PER_PA_R8
+        tg_column(1)       = profiles_ad(iptobs(j)) % skin % t
+        tt_column(ilowlvl_T) = profiles_ad(iptobs(j)) % s2m % t
 !!!        hu_column(ilowlvl_T) = qoext(ilowlvl_T,j) * profiles_ad(iptobs(j)) % s2m % q * q_mixratio_to_ppmv
 !!!        hu_column(ilowlvl_T) = qoext(ilowlvl_T,j) * profiles_ad(iptobs(j)) % s2m % q 
-           hu_column(ilowlvl_T) = 0.d0 
-           uu_column(ilowlvl_M) = profiles_ad(iptobs(j)) % s2m % u
-           vv_column(ilowlvl_M) = profiles_ad(iptobs(j)) % s2m % v
-        end do
+        hu_column(ilowlvl_T) = 0.d0 
+        uu_column(ilowlvl_M) = profiles_ad(iptobs(j)) % s2m % u
+        vv_column(ilowlvl_M) = profiles_ad(iptobs(j)) % s2m % v
+     end do
 
-        !     .  2.3  Adjoint of extrapolation of humidity profile (kg/kg)
-        !             above rlimlvhu (normally 300mbs or 70mbs)
-        !     .  
-        if ( TopAt10hPa ) then
-           if ( ldbgtov ) then
-              do jn = 1, knpf
-                 write(*,*)'qoext_ad*1000 avant aexthum4    = '
-                 write(*,9263)(qoext_ad(i,jn)*1000.d0,i=1,nlevels)
-                 write(*,*)' '
-              enddo
-           endif
-           call aexthum4 (knpf,nlevels,xpres(1:nlevels),qoext_ad,qoext)
-           if ( ldbgtov ) then
-              do jn = 1, knpf
-                 write(*,*)'qoext_ad*1000 apres aexthum4    = '
-                 write(*,9263)(qoext_ad(i,jn)*1000.d0,i=1,nlevels)
-                 write(*,*)' '
-              enddo
-           endif
+!     .  2.3  Adjoint of extrapolation of humidity profile (kg/kg)
+!             above rlimlvhu (normally 300mbs or 70mbs)
+!     .  
+     if ( TopAt10hPa ) then
+        if ( ldbgtov ) then
+           do jn = 1, knpf
+              write(*,*)'qoext_ad*1000 avant aexthum4    = '
+              write(*,9263)(qoext_ad(i,jn)*1000.d0,i=1,nlevels)
+              write(*,*)' '
+           enddo
         endif
+        call aexthum4 (knpf,nlevels,xpres(1:nlevels),qoext_ad,qoext)
+        if ( ldbgtov ) then
+           do jn = 1, knpf
+              write(*,*)'qoext_ad*1000 apres aexthum4    = '
+              write(*,9263)(qoext_ad(i,jn)*1000.d0,i=1,nlevels)
+              write(*,*)' '
+           enddo
+        endif
+9263       format(1x,10f8.4)
+     endif
 
         ! adjoint of conversion lnq --> q
-        lqo_ad(:,:) = 0.0d0
+     lqo_ad(:,:) = 0.0d0
+     do jn = 1, knpf
+        do jl = 1, jpmolev
+           lqo_ad(jl,jn) = qoext_ad(nlevels-jpmolev+jl,jn) * qoext(nlevels-jpmolev+jl,jn)
+        enddo
+     enddo
+
+!     .  2.2  Adjoint of extrapolation of temperature profile above 10mb
+!     .       ----------------------------------------------------------
+     to_ad(:,:) = 0.0d0
+     if ( .not. TopAt10hPa ) then
         do jn = 1, knpf
-           do jk = 1, jpmolev
-              lqo_ad(jk,jn) = qoext_ad(nlevels-jpmolev+jk,jn) * qoext(nlevels-jpmolev+jk,jn)
-           enddo
+           to_ad(1:jpmolev,jn)=to_ad(1:jpmolev,jn)+toext_ad(jpmotop:nlevels,jn)
         enddo
+     else
+        call aextrap (to_ad,toext_ad,jpmolev,nlevels,knpf)
+     endif
+ 
+!     .  2.1  Adjoint of vertical interpolation of model temperature and logarithm of
+!             specific humidity to pressure levels required by tovs rt model
+!     .       -----------------------------------------------------------------------
 
-        !     .  2.2  Adjoint of extrapolation of temperature profile above 10mb
-        !     .       ----------------------------------------------------------
-        to_ad(:,:) = 0.0d0
-        if ( .not. TopAt10hPa ) then
-           do jn = 1, knpf
-              to_ad(1:jpmolev,jn)=to_ad(1:jpmolev,jn)+toext_ad(jpmotop:nlevels,jn)
-           enddo
-        else
-           call aextrap (to_ad,toext_ad,jpmolev,nlevels,knpf)
+     zt_ad (:,:) = 0.0d0
+     zlq_ad(:,:) = 0.0d0
+     zps_ad(:)   = 0.0d0
+
+
+     imodulo = mod(knpf,nthreads)
+     if ( imodulo == 0 ) then
+        istride = max(1,(knpf/nthreads))
+     else
+        istride = max(1,(knpf/nthreads)+1)
+     endif
+     call tmg_start(75,'intavgad')
+!$omp parallel
+!$omp do private(jn,ilen)
+     do jn=1,knpf,istride
+        ilen = min (knpf-jn+1,istride)
+        if ( ilen > 0) then
+           
+           call ppo_IntAvgAd(zvlev(:,jn:jn+ilen-1),dPdPs(:,jn:jn+ilen-1),zt_ad(:,jn:jn+ilen-1),zt(:,jn:jn+ilen-1), &
+                zps_ad(jn:jn+ilen-1),nlv_T,nlv_T,ilen, &
+                jpmolev,xpres(jpmotop:nlevels),to_ad(:,jn:jn+ilen-1))
+           call ppo_IntAvgAd(zvlev(:,jn:jn+ilen-1),dPdPs(:,jn:jn+ilen-1),zlq_ad(:,jn:jn+ilen-1),zlq(:,jn:jn+ilen-1), &
+                zps_ad(jn:jn+ilen-1),nlv_T,nlv_T,ilen, &
+                jpmolev,xpres(jpmotop:nlevels),lqo_ad(:,jn:jn+ilen-1))
+
         endif
-
-        !     .  2.1  Adjoint of vertical interpolation of model temperature and logarithm of
-        !             specific humidity to pressure levels required by tovs rt model
-        !     .       -----------------------------------------------------------------------
-
-        zt_ad (:,:) = 0.0d0
-        zlq_ad(:,:) = 0.0d0
-        zps_ad(:)   = 0.0d0
-
-        imodulo = mod(knpf,nthreads)
-        if ( imodulo .eq. 0 ) then
-           istride = max(1,(knpf/nthreads))
-        else
-           istride = max(1,(knpf/nthreads)+1)
-        endif
-        call tmg_start(75,'intavgad')
-!$omp parallel do private(jn,ilen)
-        do jn=1,knpf,istride
-           ilen = min (knpf-jn+1,istride)
-           if ( ilen .gt. 0) then
-
-              call ppo_intAvgAd(zvlev(:,jn:jn+ilen-1),dPdPs(:,jn:jn+ilen-1),zt_ad(:,jn:jn+ilen-1),zt(:,jn:jn+ilen-1), &
-                   zps_ad(jn:jn+ilen-1),nlv_T,nlv_T,ilen, &
-                   jpmolev,xpres(jpmotop:nlevels),to_ad(:,jn:jn+ilen-1))
-              call ppo_intAvgAd(zvlev(:,jn:jn+ilen-1),dPdPs(:,jn:jn+ilen-1),zlq_ad(:,jn:jn+ilen-1),zlq(:,jn:jn+ilen-1), &
-                   zps_ad(jn:jn+ilen-1),nlv_T,nlv_T,ilen, &
-                   jpmolev,xpres(jpmotop:nlevels),lqo_ad(:,jn:jn+ilen-1))
-
-           endif
+     enddo
+!$omp end do
+!$omp end parallel
+     call tmg_stop(75)
+ 
+     ! Fix pour eviter probleme au toit avec GEM 4
+     ! (grosse varibilite temperature au dernier niveau thermo due 
+     !  a l'extrapolation utilisee)
+     if ( diagTtop ) then
+        do jn = 1, knpf
+           zt_ad (1,jn) = 0.d0
+           zlq_ad(1,jn) = 0.d0
         enddo
-!$omp end parallel do
-        call tmg_stop(75)
-
-        ! Fix pour eviter probleme au toit avec GEM 4
-        ! (grosse varibilite temperature au dernier niveau thermo due 
-        !  a l'extrapolation utilisee)
-        if ( diagTtop ) then
-           do jn = 1, knpf
-              zt_ad (1,jn) = 0.d0
-              zlq_ad(1,jn) = 0.d0
-           enddo
-        endif
+     endif
 
         !     .  2.1  Store adjoints in columnData object
         !     .       -----------------------------------
 
-        do  jn = 1 , knpf 
-           ps_column => col_getColumn(column,iptobscma(jn),'P0')
-           tt_column => col_getColumn(column,iptobscma(jn),'TT')
-           hu_column => col_getColumn(column,iptobscma(jn),'HU')
-
-           ps_column(1) = ps_column(1) + zps_ad  (jn) * MPC_MBAR_PER_PA_R8
-           do jl = 1, col_getNumLev(column,'TH')
-              tt_column(jl) = tt_column(jl) + zt_ad  (jl,jn)
-              hu_column(jl) = hu_column(jl) + zlq_ad (jl,jn)
-           enddo
+     do  jn = 1 , knpf 
+        ps_column => col_getColumn(column,iptobscma(jn),'P0')
+        tt_column => col_getColumn(column,iptobscma(jn),'TT')
+        hu_column => col_getColumn(column,iptobscma(jn),'HU')
+        
+        ps_column(1) = ps_column(1) + zps_ad  (jn) * MPC_MBAR_PER_PA_R8
+        do jl = 1, col_getNumLev(column,'TH')
+           tt_column(jl) = tt_column(jl) + zt_ad  (jl,jn)
+           hu_column(jl) = hu_column(jl) + zlq_ad (jl,jn)
         enddo
-
+     enddo
         !    next bunch !
 
-        knpf = 0
-
-     enddo bobs
+     knpf = 0
 
   enddo binst
 
@@ -343,10 +348,8 @@ subroutine tovs_fill_profiles_ad(column,columng)
 
   if( any(alloc_status /= 0) ) then
      write(*,*) ' tovs_fill_profiles_ad : memory deallocation error'
-     call utl_abort('tovs_fill_profiles_ad        ')
+     call utl_abort('tovs_fill_profiles_ad')
   end if
-
-9263 format(1x,10f8.4)
 
 
   !     3.  Close up
@@ -378,7 +381,7 @@ contains
     !     -------
     !          take top tropospheric mixing ratio (e.g. near 300 mb) and
     !          extrapolate with given fall off into lower stratosphere
-    !          (e.g. to 70 mb).  constrain mixing ratio to be .ge. zwmin
+    !          (e.g. to 70 mb).  constrain mixing ratio to be >= zwmin
     !          (e.g. 0.000003 kg/kg).   in upper strat, mixing ratio = zwmin.
     !
     !     externals.
@@ -391,31 +394,18 @@ contains
     IMPLICIT none
     !
     integer :: klapf,knpf
-    REAL*8 PPRES(*),PAV(KLAPF,*), PAV5(KLAPF,*)
+    REAL(8) PPRES(*),PAV(KLAPF,*), PAV5(KLAPF,*)
     !
-    REAL*8, ALLOCATABLE :: ZPRES3(:)
+    REAL(8) :: ZPRES3(KLAPF)
     !
-    real*8 ZP1,zwmix,zwb
-    integer :: inlvw,j,jnpf,ierr
-    DATA ZP1/70.0D0/         ! PRESS LIMITS (IN HPA) OF REGION
-    !                              ! to be extrapolated
-    !
-    !     -----------------------------------------------------------------
-    !
-    !**        0. Dynamic memory allocation for temporary vectors
-    !     .       -----------------------------------------------
-    !
-050 CONTINUE
-    !
-    ALLOCATE(ZPRES3(KLAPF))
-    !
-    !*         1.   extrapolate humidity profile.
-    !               ----------- -------- -------
-100 CONTINUE
+    real(8) zwmix,zwb
+    real(8),parameter ::  ZP1 = 70.0D0 ! PRESS LIMITS (IN HPA) OF REGION to be extrapolated
+    integer :: inlvw,j,jnpf
+    
     !
     !          find top level of given profile
     DO J=KLAPF,1,-1
-       IF (PPRES(J).LT.FILT_RLIMLVHU) THEN
+       IF (PPRES(J)<FILT_RLIMLVHU) THEN
           INLVW=J
           GOTO 120
        ENDIF
@@ -435,24 +425,15 @@ contains
        DO J=1,INLVW
           ZWMIX=PAV(J,JNPF)
           PAV(J,JNPF)=0.D0
-          IF (PPRES(J).GE.ZP1) THEN
-             IF (PAV5(J,JNPF).GT.MPC_MINIMUM_HU_R8) THEN
+          IF (PPRES(J)>=ZP1) THEN
+             IF (PAV5(J,JNPF)>MPC_MINIMUM_HU_R8) THEN
                 ZWB=ZWB+ZWMIX*ZPRES3(J)
              ENDIF
           ENDIF
        end do
        PAV(INLVW+1,JNPF)=PAV(INLVW+1,JNPF)+ZWB
     end do
-    !
-    !*    2.  Deallocate memory
-    !     .   -----------------
-    !
-200 CONTINUE
-    !
-    DEALLOCATE(ZPRES3)
-    !
-    !     -----------------------------------------------------------------
-    !
+   
 
   END SUBROUTINE AEXTHUM4
 

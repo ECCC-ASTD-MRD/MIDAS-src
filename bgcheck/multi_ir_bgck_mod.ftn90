@@ -26,7 +26,7 @@
 !!
 !--------------------------------------------------------------------------
 Module multi_ir_bgck_mod
-  Use tovs_nl_mod, only : jplev,rttov_coefs,transmission_Type,tvs_Is_idburp_tovs, &
+  Use tovs_nl_mod, only : jplev, rttov_coefs, rttov_transmission, rttov_emissivity, tvs_Is_idburp_tovs, &
       tvs_Is_idburp_inst, radiance_d,lsensor,coefs,nchan,NSENSORS,PLATFORM,SATELLITE, &
       INSTRUMENT,NOBTOV
   use hirChannels_mod
@@ -160,8 +160,8 @@ Module multi_ir_bgck_mod
 
   type(avhrr_bgck_iasi)  , allocatable :: avhrr_bgck(:)      ! avhrr parameters for IASI quality control
   type( prof_qc )     ,     allocatable :: profiles_qc(:)    ! profiles buffer used in airsqc call
-  type(transmission_Type) :: transmission                    ! transmissions full structure buffer used in rttov calls
-  type(transmission_Type) , allocatable :: transmission_d(:) ! transmissions organized by profile
+  type(rttov_transmission) :: transmission                    ! transmissions full structure buffer used in rttov calls
+  type(rttov_transmission) , allocatable :: transmission_d(:) ! transmissions organized by profile
   real(8) , allocatable :: emissivity(:,:)   ! surface emissivities organized by profiles and channels
 
 contains
@@ -2994,8 +2994,8 @@ subroutine tovs_rttov_AVHRR_for_IASI (iptobs,surfem1_avhrr,idiasi)
 #endif
   Use tovs_nl_mod 
   implicit none
-#include "rttov_setup.interface"
-#include "rttov_direct2.interface"
+#include "rttov_read_coefs.interface"
+#include "rttov_direct.interface"
 #include "rttov_alloc_rad.interface"
   integer ,intent(in) :: idiasi
   integer ,intent (in) :: iptobs(1)
@@ -3003,23 +3003,20 @@ subroutine tovs_rttov_AVHRR_for_IASI (iptobs,surfem1_avhrr,idiasi)
 !*********************************************************************
   type (rttov_options ),save :: opts_avhrr
   type (rttov_chanprof)  :: chanprof(3)
-  real(8) :: emissivity_out (3)
-  real(8) :: cloudemissivity (3)
   logical :: calcemis  (3)
   INTEGER ::  list_sensor (3),setup_errorstatus
   integer, save :: idiasi_old=-1
   integer :: ich,i,j,jn,ichn
-  integer :: VERBOSITY_LEVEL,ERR_UNIT=0
   integer :: ichan_avhrr (NIR)
   integer :: joff,ioffset
-  type ( transmission_Type )  :: transmission
-  type ( radiance_type )      :: radiancedata_d
+  type ( rttov_transmission )  :: transmission
+  type ( rttov_radiance )      :: radiancedata_d
+  type ( rttov_emissivity )    :: emissivity(3)
   integer :: nchannels
   integer :: asw,nlevels,errorstatus,io
 !***********************************************
   
   IF (IDIASI_OLD/=IDIASI) THEN
-     VERBOSITY_LEVEL = 3
      LIST_SENSOR(1)=10
      LIST_SENSOR(2)=idiasi
      LIST_SENSOR(3)=5
@@ -3027,23 +3024,28 @@ subroutine tovs_rttov_AVHRR_for_IASI (iptobs,surfem1_avhrr,idiasi)
         ICHAN_AVHRR(ICH)=ICH
      ENDDO
 
-     opts_avhrr%ipcreg=-1         ! index of the rquired PC predictors... to see later
-     opts_avhrr%addinterp=.false. ! 
-     opts_avhrr%addpc=.false.     ! to carry out principal component calculations 
-     opts_avhrr%addradrec=.false. ! to reconstruct radiances from principal components
-     opts_avhrr%addsolar=.false.  ! to model solar component in the near IR (2000 cm-1 et plus)
-     opts_avhrr%addaerosl=.false. ! to account for scattering due to aerosols
-     opts_avhrr%addclouds=.false. ! to account for scattering due to clouds
-     opts_avhrr%switchrad=.true.  ! to use brightness temperature (true) or radiance (false) units in AD routine
-     opts_avhrr%lgradp=.false.    ! allow tl/ad of user pressure levels 
-     opts_avhrr%use_q2m=.false.   ! if true use of surface humidity
-     opts_avhrr%apply_reg_limits=.false. ! if true application of profiles limits
-     opts_avhrr%verbose_checkinput_warnings=.false. ! useful for debuging the code should be turned off later
-     opts_avhrr%ozone_data=.true. ! profil d'ozone disponible
-     opts_avhrr%clw_data=.false.  ! profil d'eau liquide pas disponible
-     opts_avhrr%addrefrac=.false. ! to account for atmospheric refraction (useless)
-     opts_avhrr%do_checkinput=.true. ! to check if input profiles are within absolute and regression limits
+     opts_avhrr%config%apply_reg_limits=.false. ! if true application of profiles limits
+     opts_avhrr%config%verbose=.true. ! verbose output
+     opts_avhrr%config%do_checkinput=.true. ! to check if input profiles are within absolute and regression limits
 
+     opts_avhrr%rt_all%switchrad=.true.  ! to use brightness temperature (true) or radiance (false) units in AD routine
+     opts_avhrr%rt_all%use_q2m=.false.   ! if true use of surface humidity (false for compatibility with the way rttov 8.7 was compiled)
+     opts_avhrr%rt_all%addrefrac=.false. ! to account for atmospheric refraction (useless???)
+
+     opts_avhrr%rt_ir%addsolar=.false.  ! to model solar component in the near IR (2000 cm-1 et plus)
+     opts_avhrr%rt_ir%addaerosl=.false. ! to account for scattering due to aerosols
+     opts_avhrr%rt_ir%addclouds=.false. ! to account for scattering due to clouds
+     opts_avhrr%rt_ir%ozone_data=.true. ! profil d'ozone disponible
+     opts_avhrr%rt_ir%pc%ipcreg=-1         ! index of the required PC predictors... to see later
+     opts_avhrr%rt_ir%pc%addpc=.false.     ! to carry out principal component calculations 
+     opts_avhrr%rt_ir%pc%addradrec=.false. ! to reconstruct radiances from principal components
+
+     opts_avhrr%rt_mw%clw_data=.false.  ! profil d'eau liquide pas disponible
+     opts_avhrr%rt_mw%fastem_version=4  ! use fastem version 4 file (in the range 1-5 to force a specific version)
+
+     opts_avhrr%interpolation%addinterp=.false. !use of internal profile interpolator (rt calculation on model levels)
+     opts_avhrr%interpolation%lgradp=.false.    ! allow tl/ad of user pressure levels
+     
      setup_errorstatus=0
 
      if (IDIASI_OLD>0) then
@@ -3054,24 +3056,21 @@ subroutine tovs_rttov_AVHRR_for_IASI (iptobs,surfem1_avhrr,idiasi)
         endif
      endif
 
-     call rttov_setup (&
-          setup_errorstatus,&! out
-          err_unit,         &! in
-          verbosity_level,  &! in
-          opts_avhrr,       &! in
-          coefs_avhrr,      &! out
-          list_sensor,      &! in
-          ichan_avhrr  )     ! in Optional 
+     call rttov_read_coefs ( setup_errorstatus, &! out
+                             coefs_avhrr,       &! out
+                             opts_avhrr,        &! in
+                             channels = ichan_avhrr,  &! in Optional 
+                             instrument = list_sensor )  ! in Optional 
        
      if ( setup_errorstatus/=0) then
-        write(*,*) "Probleme dans rttov_setup!"
+        write(*,*) "Probleme dans rttov_read_coefs !"
         call utl_abort("tovs_rttov_AVHRR_for_IASI")
      endif
 
-     opts_avhrr%co2_data = ( coefs_avhrr%coef%nco2 > 0 )
-     opts_avhrr%n2o_data = ( coefs_avhrr%coef%nn2o > 0 )
-     opts_avhrr%co_data  = ( coefs_avhrr%coef%nco  > 0 )
-     opts_avhrr%ch4_data = ( coefs_avhrr%coef%nch4 > 0 )
+     opts_avhrr%rt_ir%co2_data = ( coefs_avhrr%coef%nco2 > 0 )
+     opts_avhrr%rt_ir%n2o_data = ( coefs_avhrr%coef%nn2o > 0 )
+     opts_avhrr%rt_ir%co_data  = ( coefs_avhrr%coef%nco  > 0 )
+     opts_avhrr%rt_ir%ch4_data = ( coefs_avhrr%coef%nch4 > 0 )
      
      IDIASI_OLD=IDIASI
    
@@ -3083,17 +3082,14 @@ subroutine tovs_rttov_AVHRR_for_IASI (iptobs,surfem1_avhrr,idiasi)
   nchannels=NIR
 
   calcemis(:)=.false.
-
+  emissivity(1:3)%emis_in = surfem1_avhrr(1:3)
   ! Build the list of channels/profiles indices
   ichn = 0
-  DO  ich = 1,NIR
+  DO  ich = 1, nchannels
      ichn = ichn +1
      chanprof(ichn)%prof=1
      chanprof(ichn)%chan=ich
   End Do
-
-
-  cloudemissivity(:) = 0._8
 
 ! allocate transmittance structure
 
@@ -3107,27 +3103,25 @@ subroutine tovs_rttov_AVHRR_for_IASI (iptobs,surfem1_avhrr,idiasi)
      Write(*,*) "Error in radiance allocation",errorstatus
      call utl_abort("tovs_rttov_AVHRR_for_IASI")
   ENDIF
-   
 
-  Call rttov_direct2(    &
-       errorstatus,      & ! out
-       chanprof,         & ! in
-       opts_avhrr,       & ! in
+
+  Call rttov_direct(        &
+       errorstatus,         & ! out
+       chanprof,            & ! in
+       opts_avhrr,          & ! in
        profiles(iptobs(:)), & ! in
-       coefs_avhrr,      & ! in
-       calcemis,         & ! in
-       surfem1_avhrr,    & ! inout
-       emissivity_out,   & ! out
-       cloudemissivity,  & ! inout
-       transmission,     & ! inout
-       radiancedata_d  )   ! inout
+       coefs_avhrr,         & ! in
+       transmission,        & ! inout
+       radiancedata_d,      & !out
+       calcemis=calcemis,   & ! in
+       emissivity=emissivity) ! inout
     
   io=iptobs(1)
   avhrr_bgck(io)% RADCLEARCALC(NVIS+1:NVIS+NIR) = radiancedata_d % clear(1:NIR)
   avhrr_bgck(io)% TBCLEARCALC(NVIS+1:NVIS+NIR)  = radiancedata_d % bt(1:NIR)
   avhrr_bgck(io)% RADOVCALC(1:nlevels-1,NVIS+1:NVIS+NIR) = radiancedata_d % overcast(1:nlevels-1,1:NIR)
   avhrr_bgck(io)% TRANSMCALC(1:nlevels,NVIS+1:NVIS+NIR) =  transmission % tau_levels(1:nlevels,1:NIR)
-  avhrr_bgck(io)% EMISS(NVIS+1:NVIS+NIR) = emissivity_out(1:NIR)
+  avhrr_bgck(io)% EMISS(NVIS+1:NVIS+NIR) = emissivity(1:NIR)%emis_out
   avhrr_bgck(io)% TRANSMSURF(NVIS+1:NVIS+NIR) = transmission% tau_total(1:NIR)
 
   call tovs_deallocate_transmission(transmission)

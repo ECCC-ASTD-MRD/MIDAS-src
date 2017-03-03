@@ -29,14 +29,14 @@
 !--------------------------------------------------------------------------
 subroutine tovs_allocate_transmission(ptransmission,knchannels,knlevels)
   use utilities_mod
-  use tovs_nl_mod ,only : transmission_type
+  use tovs_nl_mod ,only : rttov_transmission
 
   implicit none
 
   integer :: knchannels, knlevels
   integer :: istat(2)
 
-  type(transmission_type) :: ptransmission
+  type(rttov_transmission) :: ptransmission
 
   istat(:) = 0
   allocate( ptransmission % tau_levels     ( knlevels, knchannels ) ,stat= istat(1))

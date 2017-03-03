@@ -27,13 +27,13 @@
 !!
 !--------------------------------------------------------------------------
 subroutine tovs_deallocate_transmission(ptransmission)
-  use tovs_nl_mod,only : transmission_type
+  use tovs_nl_mod,only : rttov_transmission
   use utilities_mod
   implicit none
 
   integer :: istat(2)
 
-  type(transmission_type) :: ptransmission
+  type(rttov_transmission) :: ptransmission
 
   istat(:) = 0
   deallocate( ptransmission % tau_total    ,stat= istat(1))
