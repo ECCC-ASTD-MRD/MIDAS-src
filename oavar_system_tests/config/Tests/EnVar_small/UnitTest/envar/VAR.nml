@@ -128,7 +128,7 @@
    CINSTRUMENTID(28) = 'ATMS',
    CSATID(29)        = 'NPP',
    CINSTRUMENTID(29) = 'CRIS',
-   CSATID(30)        = 'HIMAWARI-8',
+   CSATID(30)        = 'HMWARI-8',
    CINSTRUMENTID(30) = 'AHI',
    LDBGTOV    = .FALSE.,
    CRTMODL    = 'RTTOV',
@@ -216,7 +216,7 @@
    LISTPLAT(27)="msg",
    LISTSAT(27)=004,
    LISTBURP(28)=173,! HMWARI-8
-   LISTPLAT(28)="himawari",
+   LISTPLAT(28)="hmwari",
    LISTSAT(28)=008,
 /
  &NAMINST

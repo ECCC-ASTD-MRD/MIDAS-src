@@ -37,7 +37,8 @@ Module tovs_nl_mod
        ninst             ,&
        inst_id_goesim    ,&
        inst_id_gmsim     ,&
-       platform_id_jpss
+       platform_id_jpss  ,&
+       platform_id_himawari
   use codtyp_mod
   use mpi
   use utilities_mod
@@ -635,16 +636,10 @@ SUBROUTINE SENSORS
         TEMPOCSATID = 'jpss0'
      ELSEIF ( CSATID(J) .EQ. 'JPSS'  ) THEN
         TEMPOCSATID = 'jpss0'
+     ELSEIF ( CSATID(J)(1:6) .EQ. 'HMWARI'  ) THEN
+        TEMPOCSATID = 'himawari' // trim(CSATID(J) (7:15))
      ELSE
         call up2low(CSATID(J),TEMPOCSATID)
-        IPOS1 = INDEX(TEMPOCSATID,"-")
-        if (ipos1 > 0 .and. ipos1<len(TEMPOCSATID)) then
-           do k=ipos1,len(TEMPOCSATID)-1
-              TEMPOCSATID(k:k)=TEMPOCSATID(k+1:k+1)
-           enddo
-           k = len(TEMPOCSATID)
-           TEMPOCSATID(k:k)=" "
-        endif
      ENDIF
      DO K = 1, nplatforms
         IPOS1 = LEN_TRIM(platform_name(K))
@@ -662,8 +657,10 @@ SUBROUTINE SENSORS
         IPOS1 = LEN_TRIM(platform_name(KINDEX))
         IPOS2 = LEN_TRIM(TEMPOCSATID)
         READ(TEMPOCSATID(IPOS1+1:IPOS2),*,IOSTAT=IERR) NUMEROSAT
+        NUMEROSAT = ABS ( NUMEROSAT )
         IF ( IERR .NE. 0) THEN
-           WRITE(*,FMT=9132) TEMPOCSATID
+           WRITE(*,'(A,1x,i6,1x,i3,1x,i3,1x,A15)') "Problem while reading satellite number", &
+                IERR, ipos1, ipos2, TEMPOCSATID
            CALL utl_abort('SENSORS')
         ELSE
            SATELLITE(J) = NUMEROSAT
@@ -804,6 +801,8 @@ integer function tvs_get_platform_id(name)
 
   if ( INDEX(tempo_name(1:ipos1),"npp") /=0 ) then
      tvs_get_platform_id = platform_id_jpss
+  elseif ( INDEX(tempo_name(1:ipos1),"hmwari") /=0 ) then
+     tvs_get_platform_id = platform_id_himawari
   else
      do i = 1, nplatforms
         ipos2 = INDEX(tempo_name(1:ipos1),trim(platform_name(i)))
