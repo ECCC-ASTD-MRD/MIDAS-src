@@ -31,8 +31,8 @@
 module chem_postproc_mod
 
   use utilities_mod
-  use chem_setup_mod, only: chm_var_maxnumber, chm_config_select_str, &
-                            chm_config_select_int, chm_config_select_float
+  use chem_setup_mod, only: chm_var_maxnumber, chm_setup_get_str, &
+                            chm_setup_get_int, chm_setup_get_float
   use gridStateVector_mod
   use verticalCoord_mod
   use HorizontalCoord_mod
@@ -105,7 +105,7 @@ contains
                 statevector_trial%varNumLev(vnl_varListIndex(varName)).ne.statevector_increment%varNumLev(vnl_varListIndex(varName)) .or. &
                 statevector_trial%numStep.ne.statevector_increment%numStep) then
 
-               call utl_open_asciifile(chm_config_select_str('message'),unit)
+               call utl_open_asciifile(chm_setup_get_str('message'),unit)
 
                write(unit,'(A)') "chm_transform_final_increments: Warning - background and increment field index boundaries not equal."
                write(unit,'(A)') "   index      background     increment"
@@ -148,7 +148,7 @@ contains
 !!v     varName          Field name (nomvar)
 !!v     l_reverse        Reverse/inverse transformation
 !!v     mode             selected sub-transformation type (defined for each transformation
-!!v                      given in chm_config_select_int('transform',*)
+!!v                      given in chm_setup_get_int('transform',*)
 !!
 !! InOut
 !!
@@ -180,7 +180,7 @@ contains
     iconstituent_id = vnl_varnumFromVarname(varName)
     if (iconstituent_id.lt.0.or.iconstituent_id.gt.chm_var_maxnumber()) return
     
-    select case(chm_config_select_int('transform',iconstituent_id))
+    select case(chm_setup_get_int('transform',iconstituent_id))
     case(0)
        write(*,'(A,A)') "chm_apply_transform: No transform to be applied for field ",trim(varName)
        return
@@ -240,7 +240,7 @@ contains
 
     case default
        write(*,'(A,I2,A)') "chm_apply_transform: transform selection ", &
-               chm_config_select_int('transform',iconstituent_id)," not currenly defined." 
+               chm_setup_get_int('transform',iconstituent_id)," not currenly defined." 
        call utl_abort("chm_apply_transform")
     end select
     
@@ -327,7 +327,7 @@ contains
     if (iconstituent_id.lt.0.or.iconstituent_id.gt.chm_var_maxnumber()) return
 
     ! Open output file
-    call utl_open_asciifile(chm_config_select_str('message'),unit)
+    call utl_open_asciifile(chm_setup_get_str('message'),unit)
 
     ! Get lat,lon,time,height index range, assumed the same for the background and increment
     lon1 = background%myLonBeg
@@ -343,7 +343,7 @@ contains
     background_field => gsv_getField_r8(background,varName)
     increment_field => gsv_getField_r8(increment,varName)
 
-    if (chm_config_select_float('low_cutoff',iconstituent_id).ge.0.) then
+    if (chm_setup_get_float('low_cutoff',iconstituent_id).ge.0.) then
 
        ! Check if both background and analysis are negative. If so set the increment to force an analysis of zero at these locations
 
@@ -396,16 +396,16 @@ contains
                    bkgrnd = background_field(jlon,jlat,jlev,jstep)
                    inc = increment_field(jlon,jlat,jlev,jstep)
 
-                   if (bkgrnd+inc.lt.chm_config_select_float('low_cutoff',iconstituent_id)*bkgrnd .and. bkgrnd.ge.0.) then
+                   if (bkgrnd+inc.lt.chm_setup_get_float('low_cutoff',iconstituent_id)*bkgrnd .and. bkgrnd.ge.0.) then
 
                       if (count.eq.0) then
                          write(unit,'(A,F4.1,A,A,A)') "chm_apply_bounds: Analysis values were found below the cut-off of ", &
-                              100*chm_config_select_float('low_cutoff',iconstituent_id),"% of the trial field for field ",trim(varName),"."
+                              100*chm_setup_get_float('low_cutoff',iconstituent_id),"% of the trial field for field ",trim(varName),"."
                           write(unit,'(A)') "Modifying the increment so the analysis is instead equal to the lower bound cut-off value at these locations."
                           write(unit,'(A)') "JLON JLEV JLAT TSTEP   Background  Init. incr.  New incr."
                       end if
 
-                      new_inc = (chm_config_select_float('low_cutoff',iconstituent_id)-1.)*bkgrnd
+                      new_inc = (chm_setup_get_float('low_cutoff',iconstituent_id)-1.)*bkgrnd
 
                       write(unit,'(4(I4,1X),3G12.2)') jlon,jlev,jlat,jstep,bkgrnd,inc,new_inc
 
@@ -428,7 +428,7 @@ contains
     end if
 
 
-    if (chm_config_select_float('high_cutoff',iconstituent_id).ge.0.) then
+    if (chm_setup_get_float('high_cutoff',iconstituent_id).ge.0.) then
 
        ! Check if the analysis is above the imposed upper bound. If so set analysis to this cut-off value at these locations.
 
@@ -442,16 +442,16 @@ contains
                    bkgrnd = background_field(jlon,jlat,jlev,jstep)
                    inc = increment_field(jlon,jlat,jlev,jstep)
 
-                   if (bkgrnd+inc.gt.chm_config_select_float('high_cutoff',iconstituent_id)*bkgrnd .and. bkgrnd.ge.0.) then
+                   if (bkgrnd+inc.gt.chm_setup_get_float('high_cutoff',iconstituent_id)*bkgrnd .and. bkgrnd.ge.0.) then
 
                       if (count.eq.0) then
                          write(unit,'(A,A,F4.1,A,A,A)') "chm_apply_bounds: Analysis values were found above the cut-off of ", &
-                              100*chm_config_select_float('high_cutoff',iconstituent_id)," times the trial field for field ",trim(varName),"."
+                              100*chm_setup_get_float('high_cutoff',iconstituent_id)," times the trial field for field ",trim(varName),"."
                          write(unit,'(A)') "Modifying the increment so the analysis is instead equal to the upper bound cut-off value at these locations."
                          write(unit,'(A)') "JLON JLEV JLAT TSTEP   Background  Init.-incr.  New-incr."
                       end if
 
-                      new_inc = (chm_config_select_float('high_cutoff',iconstituent_id)-1.)*bkgrnd
+                      new_inc = (chm_setup_get_float('high_cutoff',iconstituent_id)-1.)*bkgrnd
 
                       write(unit,'(4(I4,1X),3G12.2)') jlon,jlev,jlat,jstep,bkgrnd,inc,new_inc
 

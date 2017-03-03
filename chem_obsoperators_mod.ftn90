@@ -193,9 +193,9 @@ contains
     end if
 
     ! Open message file (file may be written to from routines in chem_obsdata_mod)
-    unit=chm_config_select_int('message_unit')     ! Initialize unit
-    call utl_open_asciifile(chm_config_select_str('message'),unit)
-    ier = chm_config_set_int('message_unit',unit)      ! Update unit
+    unit=chm_setup_get_int('message_unit')     ! Initialize unit
+    call utl_open_asciifile(chm_setup_get_str('message'),unit)
+    ier = chm_setup_set_int('message_unit',unit)      ! Update unit
 
     if ((kmode.eq.2.or.kmode.eq.3) .and. (.not.present(column_inc))) then
        write(*,*) "chm_observation_operators: column_inc must be specified for kmode = ",kmode
@@ -456,7 +456,7 @@ contains
     if (present(jobs)) jobs=0.5d0*jobs
 
     ! Close message file
-    ier=fclos(chm_config_select_int('message_unit'))
+    ier=fclos(chm_setup_get_int('message_unit'))
     
   end subroutine chm_observation_operators
 
@@ -587,7 +587,7 @@ contains
     
     ! If applicable, get column upper boundaries for use with total column measurements when the related increment profile
     ! is to be restricted to the lower atmosphere (e.g. troposphere or PBL; 
-    ! when m_config_select_int('tropo_bound',:)>0 )
+    ! when m_setup_get_int('tropo_bound',:)>0 )
     if (obsoper%vco.eq.4.and.nobslev.eq.1.and.kmode.ne.1) then
        if (kmode.eq.0) then
           
@@ -790,7 +790,7 @@ contains
 ! Indicate if the generalized innovation operator is to be applied.
 
   obsoper%apply_genoper=.false.
-  if (chm_config_select_int('genoper',obsoper%constituent_id).gt.0 .and. kmode.ne.1 .and. &
+  if (chm_setup_get_int('genoper',obsoper%constituent_id).gt.0 .and. kmode.ne.1 .and. &
        (obsoper%modelIndex.eq.3 .or. obsoper%modelIndex.eq.4)) then
        
       if (kmode.eq.0) then
@@ -1072,7 +1072,7 @@ contains
     logical :: comp_dtransform
 
     if (obsoper%constituent_id.lt.0) return
-    if (chm_config_select_int('transform',obsoper%constituent_id).eq.0.and.trim(obsoper%varname).ne.'HU') return
+    if (chm_setup_get_int('transform',obsoper%constituent_id).eq.0.and.trim(obsoper%varname).ne.'HU') return
     
     if (present(increment_col)) then
 
@@ -1099,14 +1099,14 @@ contains
           ! then from mass mixing ratio (rm) to volume mixing ratio (r) r = m_a/m_H2O rm
           obsoper%trial = obsoper%trial / (1.0-obsoper%trial) &
                * MPC_MOLAR_MASS_DRY_AIR_R8 &
-               /chm_config_select_float('amu',obsoper%constituent_id)
+               /chm_setup_get_float('amu',obsoper%constituent_id)
      
           ! For conversion of LQ increment (dlnq) to volume mixing ratio increment (dr) via mass mixing ratio (drm)
           ! drm = dq/(1-q)^2 = q*dlnq/(1-q)^2 = rm(rm+1) dlnq, dr = m_a/m_H2O drm = r(r*m_H2O/m_a + 1) dlnq
           if (comp_dtransform) obsoper%dtransform = obsoper%trial * &
-               (obsoper%trial*chm_config_select_float('amu',obsoper%constituent_id)/MPC_MOLAR_MASS_DRY_AIR_R8 + 1.0)
+               (obsoper%trial*chm_setup_get_float('amu',obsoper%constituent_id)/MPC_MOLAR_MASS_DRY_AIR_R8 + 1.0)
      
-       else if (chm_config_select_int('transform',obsoper%constituent_id).eq.1) then
+       else if (chm_setup_get_int('transform',obsoper%constituent_id).eq.1) then
 
           ! Transformations for ln(x) to x
           
@@ -1119,7 +1119,7 @@ contains
        else
           
           call utl_abort('chm_transform_profile: Transformation #' &
-               // trim(utl_str(chm_config_select_int('transform',obsoper%constituent_id))) // &
+               // trim(utl_str(chm_setup_get_int('transform',obsoper%constituent_id))) // &
                ' for constituent ' // trim(utl_str(obsoper%constituent_id)) // &
                " and variable name " // trim(obsoper%varname) // &
                ' is not defined.')
@@ -1147,7 +1147,7 @@ contains
 !!
 !! Other
 !!
-!!v     chm_config_select_float('amu',*)  Molecular mass of constituent (g/mol).
+!!v     chm_setup_get_float('amu',*)  Molecular mass of constituent (g/mol).
 !!
 !! Revisions:
 !!v           Ping Du, CDMA,Jan 2015
@@ -1249,7 +1249,7 @@ contains
        
        ! Conversion from vmr to ug/kg
        
-       zcoef = zcoef * 1.E9 * chm_config_select_float('amu',obsoper%constituent_id) &
+       zcoef = zcoef * 1.E9 * chm_setup_get_float('amu',obsoper%constituent_id) &
             /MPC_MOLAR_MASS_DRY_AIR_R8
 
     end if
@@ -1278,7 +1278,7 @@ contains
           !                        = - integral in P of mass mixing ratio * [1E5*m_air/m_gas/g/rho_stp]
           
           zcoef = zcoef * 1.E-4 * MPC_MOLAR_MASS_DRY_AIR_R8 &
-               /chm_config_select_float('amu',obsoper%constituent_id)/RG/rho_stp
+               /chm_setup_get_float('amu',obsoper%constituent_id)/RG/rho_stp
         
        case(15009,15012)
           
@@ -1289,7 +1289,7 @@ contains
           !                                 = - integral in P of Na*[rho(gas)/rho(air)]/g/m_air
         
           zcoef = zcoef * 1.E-6 * MPC_AVOGADRO_R8/RG &
-               /chm_config_select_float('amu',obsoper%constituent_id)
+               /chm_setup_get_float('amu',obsoper%constituent_id)
 
        case(15020,15021,15200) 
         
@@ -1325,7 +1325,7 @@ contains
           !                 = P * m_air/m_gas * mass mixing ratio
           
           zcoef = zcoef * 1.E-9 * MPC_MOLAR_MASS_DRY_AIR_R8 &
-               /chm_config_select_float('amu',obsoper%constituent_id)
+               /chm_setup_get_float('amu',obsoper%constituent_id)
           exp_P = exp_P+1 ! multiply by P
 
        case(15022)
@@ -1336,7 +1336,7 @@ contains
           !                       = Na * P/Rd/T * mass mixing ratio /m_gas
         
           zcoef = zcoef * 1.E-6 * MPC_AVOGADRO_R8/MPC_RGAS_DRY_AIR_R8 &
-               /chm_config_select_float('amu',obsoper%constituent_id)
+               /chm_setup_get_float('amu',obsoper%constituent_id)
           exp_T = exp_T-1 ! divide by T
           exp_P = exp_P+1 ! multiply by P
 
@@ -1348,7 +1348,7 @@ contains
           !                       = P/Rd/T * mass mixing ratio /m_gas
 
           zcoef = zcoef * 1.E-6 /MPC_RGAS_DRY_AIR_R8 &
-               /chm_config_select_float('amu',obsoper%constituent_id)
+               /chm_setup_get_float('amu',obsoper%constituent_id)
           exp_T = exp_T-1 ! divide by T
           exp_P = exp_P+1 ! multiply by P
 
@@ -1357,7 +1357,7 @@ contains
           ! For conversion from ug/kg to vmr
           
           zcoef = zcoef * 1.E-9 * MPC_MOLAR_MASS_DRY_AIR_R8 &
-               /chm_config_select_float('amu',obsoper%constituent_id)
+               /chm_setup_get_float('amu',obsoper%constituent_id)
 
        !case(15192,15011) 
            
@@ -1475,7 +1475,7 @@ contains
      
        if (obsoper%vlayerbottom(iobslev).lt.obsoper%vlayertop(iobslev)) then
           success(1:obsoper%nobslev)=.false.
-          write(chm_config_select_int('message_unit'),*) 'chm_layer_integ_operator: WARNING. Layer top/bot value problem.', &
+          write(chm_setup_get_int('message_unit'),*) 'chm_layer_integ_operator: WARNING. Layer top/bot value problem.', &
                obsoper%vlayertop(iobslev), obsoper%vlayerbottom(iobslev), &
                '. Entire profile skipped over.'
           return
@@ -1487,7 +1487,7 @@ contains
           else
              ixtr(iobslev)=2
           end if
-          write(chm_config_select_int('message_unit'),*) 'chm_layer_integ_operator: WARNING. Layer top/bot value problem.', &
+          write(chm_setup_get_int('message_unit'),*) 'chm_layer_integ_operator: WARNING. Layer top/bot value problem.', &
                obsoper%vlayertop(iobslev), obsoper%vlayerbottom(iobslev)
           cycle
        end if
@@ -1499,7 +1499,7 @@ contains
     ! Check for special treatment if tropo_mode>=1, kmode=2,3, and nobslev=1 for
     ! column observations (obsoper%vco=4)  that extend to the surface.
 
-    tropo_mode = chm_config_select_int('tropo_mode',obsoper%constituent_id)
+    tropo_mode = chm_setup_get_int('tropo_mode',obsoper%constituent_id)
     
     if (obsoper%nobslev.eq.1.and.kmode.ge.2.and.obsoper%vlayerbottom(1).gt.obsoper%pp(obsoper%nmodlev)*0.99.and. &
          obsoper%constituent_id.ge.0.and.obsoper%vco.eq.4) then
@@ -2173,7 +2173,7 @@ contains
        ! Set reference mass (mixing ratio) weighting profile
        
        rvalw(1:obsoper%nmodlev)=rvalr(1:obsoper%nmodlev)
-       if (chm_config_select_int('genoper',obsoper%constituent_id).gt.1) then
+       if (chm_setup_get_int('genoper',obsoper%constituent_id).gt.1) then
 
           ! Set reference mass weighting profile according to the difference between 
           ! an external reference (such as a climatology) and trial field profiles.
@@ -2425,9 +2425,9 @@ contains
     
     bound_press = -1.
     
-    if (chm_config_select_int('tropo_mode',iconstituent_id).eq.0) return
+    if (chm_setup_get_int('tropo_mode',iconstituent_id).eq.0) return
    
-    tropo_bound=chm_config_select_int('tropo_bound',iconstituent_id)
+    tropo_bound=chm_setup_get_int('tropo_bound',iconstituent_id)
     
     if (tropo_bound.gt.0) then
        if (.not.all(tt.lt.0.) .and. .not.all(gz.lt.0.) ) then
@@ -2465,7 +2465,7 @@ contains
       
     ! Use tropo_column_top value if tropo_bound=0 or model derived boundary was unsuccessful
     if (bound_press.lt.0.0) &
-         bound_press = chm_config_select_float('tropo_column_top',iconstituent_id)
+         bound_press = chm_setup_get_float('tropo_column_top',iconstituent_id)
       
   end function chm_get_col_boundary
        
@@ -2484,7 +2484,7 @@ contains
     
     integer obsdata_maxsize
     
-    obsdata_maxsize = chm_config_select_int('obsdata_maxsize')   
+    obsdata_maxsize = chm_setup_get_int('obsdata_maxsize')   
      
     if (.not.associated(chm_column_boundary%data1d)) then
        call oss_obsdata_alloc(chm_column_boundary,obsdata_maxsize, dim1=1)
@@ -2539,7 +2539,7 @@ contains
    
     integer :: obsdata_maxsize
     
-    obsdata_maxsize = chm_config_select_int('obsdata_maxsize')
+    obsdata_maxsize = chm_setup_get_int('obsdata_maxsize')
      
     if (.not.associated(chm_sigma_trial%data2d)) then
        call oss_obsdata_alloc(chm_sigma_trial, obsdata_maxsize, dim1=size(sigma,dim=1), dim2=max(4,size(sigma,dim=2)))

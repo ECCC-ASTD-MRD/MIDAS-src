@@ -54,8 +54,8 @@ module obsSpaceDiag_mod
   use randomNumber_mod
   use obsOperators_mod
   use utilities_mod
-  use chem_setup_mod, only: chm_add_efftemp_obsfile, chm_config_select_logical, &
-                            chm_config_select_float, chm_config_select_str, &
+  use chem_setup_mod, only: chm_add_efftemp_obsfile, chm_setup_get_logical, &
+                            chm_setup_get_float, chm_setup_get_str, &
                             chm_diagn_only
   use chem_obsoperators_mod
   use physicsfunctions_mod
@@ -789,9 +789,9 @@ contains
        codtyplist(1)=codtyp_get_codtyp('CHEMREMOTE')
        codtyplist(2)=codtyp_get_codtyp('CHEMINSITU')
     
-       pressmin=chm_config_select_float('pressmin')
-       filename=chm_config_select_str('obsspace_diagn')
-       save_diagn=chm_config_select_logical('diagn_save')
+       pressmin=chm_setup_get_float('pressmin')
+       filename=chm_setup_get_str('obsspace_diagn')
+       save_diagn=chm_setup_get_logical('diagn_save')
              
        call osd_obsDiagnostics(obsSpaceData,columng,'CH',codtyplist,trim(filename), &
                 save_diagn, date, deltaLat,deltaLon,deltaPressure,pressmin,anlm_mode)

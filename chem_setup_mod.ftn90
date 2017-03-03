@@ -56,11 +56,11 @@ module chem_setup_mod
 !       - "chm_get_ref_column" to extract and provide column from chm_ref_field 
 !          associated to code.
 !
-!       - "chm_config_select_*" allows access to desired parameter in object 
-!          chm_config
+!       - "chm_setup_get_*" allows access to desired private parameters, most
+!          of them provided via the NAMCHEM namelist
 !
-!       - "chm_config_set_int" allows setting of chm_config integer element 
-!         outside this module
+!       - "chm_setup_set_int" allows setting of some integer element(s) 
+!         specific to the CH family outside this module. 
 !
 !       - "chm_diagn_only": Identify if data is to be assimilated or only used
 !         for independent verifications.
@@ -88,9 +88,9 @@ module chem_setup_mod
   public :: chm_var_maxnumber, chm_diagn_only
   public :: chm_add_efftemp_obsfile, chm_add_efftemp_obsdata
   public :: chm_get_ref_column, chm_set_reference_obsdata
-  public :: chm_config_select_float, chm_config_select_str
-  public :: chm_config_select_logical, chm_config_select_int
-  public :: chm_config_set_int
+  public :: chm_setup_get_float, chm_setup_get_str
+  public :: chm_setup_get_logical, chm_setup_get_int
+  public :: chm_setup_set_int
   
 ! public types (for use in chm_obsoperators_mod.ftn90)
 ! ----------------------------------------------------
@@ -103,7 +103,8 @@ module chem_setup_mod
                                                    ! = max allowed value of "iconstituent_id" for Table 08046.
                                                    ! Value to be increased as needed up to a max of 6999 as values
                                                    ! > 7000 (and less 0) are assumed assigned to non-constituent fields  
-  integer, parameter :: chm_filename_size=50       ! Max size of *_filename in chm_config
+  integer, parameter :: chm_filename_size=50       ! Max size of *_filename 
+
 ! module structures
 ! -----------------
 
@@ -177,122 +178,6 @@ module chem_setup_mod
 
   end type struct_chm_obsoperators
 
-  type :: struct_config    ! Most parameters set in chm_setup of chem_setup_mod.ftn90
-     
-     !  Structure to store general config information.
-     !     
-     !  Variable               Description
-     !  --------               -----------
-     !  generalized_operator   Flag indicatting if generalized observation operator should be used 
-     !                         and selection of approach
-     !
-     !                            <=0: not applied
-     !                            1: use trial field xb for mass weighted increment distribution
-     !                            2: use a combination of the difference of an external reference xc 
-     !                               and the trial field xb, i.e. mass weighted increment distribution 
-     !                               as a(xc-xb) + b*xc where a and b depend on the size of 
-     !                               sum[(xc-xb)/sig(xb)]^2 over the profile.
-     !
-     !  assim_num              Number of combinations (stnid, bufr element, multi/uni-level) 
-     !                         identified for obs to be assimilated. All others will not
-     !                         be assimilated. OmP and OmA diagnostics and output
-     !                         will still be produced for non-assimilated (i.e. diagnostic-only) datasets.
-     !                         (see routines chm_diagn_only, and oop_chm_nl in obsoperators_mod.ftn90)
-     !
-     !                           <0:  all are to be assimilated
-     !                            0:  none are to be assimilated
-     !                           >0:  sets of (stnid,bufr,multi/uni-levels) to be assimilated
-     !
-     !  assim_varno            Bufr elements of obs sets for assimilation. A value of
-     !                         0 implies that all are to be used.
-     !
-     !  assim_stnid            Stnids of obs sets for assimilation. '*' denote wild cards
-     !       
-     !  assim_nlev             0:  multi-level and uni-level
-     !                         1:  uni_level
-     !                         >1: multi-level 
-     !
-     !  diagn_pressmin         Bottom of top layer for diagnostics (in Pa).
-     !
-     !  diagn_save             Logical indicating gridded diagnostics are to be saved
-     !                         in an ascii file in addition to overall diagnostics. 
-     !                         (see routine chm_obsspace_diagnostic)
-     !
-     !  diagn_flag             Array specifying bits for identifying diagnostic-only (non-assim) observations for
-     !                         observations that would otherwise be assimilated according to the assim_*
-     !                         arrays. Those not included as part assim_* are automatically classified as diagnostic-only 
-     !                         observations. This array allows screening of data specific to CH family observations 
-     !                         as oppose to common screening for all other families done through the NLIST
-     !                         array of the NAMFILT namelist (see file filterobs_mod.ftn90).
-     !
-     !  diagn_nflag            Number of bit flags to specify in diagn_flag array
-     !
-     !  amu                    Molecular mass of constituents in g/moles (needed for unit conversions)
-     !                         Array index refers to BUFR code element of Table 08046 (iconstituent_id)
-     !                         identifying the constituent.
-     !
-     !  tropo_mode             Integer indicating if special treatment is to be given to the troposphere
-     !                         when assimilating total column measurements. Values indicate
-     !                           0:  No special treatment given (default)
-     !                           1:  Values of the adjoint model above obsoper%column_bound set to zero.
-     !                               If specified, generalized innovation operator only applied below
-     !                               obsoper%column_bound in the tangent linear model.
-     !                           2:  Values of tangent linear model and adjoint model above 
-     !                               obsoper%column_bound set to zero.
-     !                         Array index refers to BUFR code element of Table 08046 (iconstituent_id)
-     !                         identifying the constituent. Relevant for total column measurements only.
-     !                         
-     !  tropo_bound            Integer indicating which column top value to use if tropo_mode is non-zero.
-     !                           0: Use fixed value of tropo_column_top
-     !                           1: Use model determination of tropopause
-     !                           2: Use model determination of PBL
-     !                         Options 1 and 2 will default to the value set in tropo_column_top if the model
-     !                         derived column top could not be determined. Relevant for total column measurements only.
-     !             
-     !  tropo_column_top       Default value to use for the column boundary (in Pa). Array index refers to BUFR code
-     !                         element of Table 08046 (obsoper%constituent_id) identifying the constituent. 
-     !                         Relevant for total column measurements only.
-     !
-     !  obsdata_maxsize        Max allowed size of work arrays (in terms of number of obs) associated to
-     !                         ordered observation indices
-     !
-     !  low_cutoff             min value allowed for increments prior to storage in rebm expressed as a fraction
-     !                         of the background field (generally < 1)
-     !
-     !  high_cutoff            max value allowed for increments prior to storage in rebm expressed as a multiple
-     !                         of the background field (generally > 1)
-     !
-     !  transform              Index specifying form of analysis increment (and related adjoint operation)
-     !                           -1: no transformation (dx given input trial field denoted as x)
-     !                          >=0: Ensure positive values. Provide warning if 
-     !                               non-positive values encountered.
-     !                            1: dlnx
-     !
-     !  message_filename       File name for file containing various messages and warnings related to chemical
-     !                         constituents that are not included in the listing file.
-     !
-     !  message_fileunit       File unit of 'message_filename'
-     !
-     !
-     !  obsspace_diagn_filename  File name for file containing obs space diagnostics related to chemical
-     !                           constituents.
-     !
-     !  obsspace_diagn_fileunit  File unit of 'obsspace_diagn_filename'
-     
-     logical :: diagn_save
-     integer :: generalized_operator(0:chm_constituents_size)
-     integer :: assim_num,tropo_mode(0:chm_constituents_size),tropo_bound(0:chm_constituents_size)
-     integer :: assim_varno(chm_cfg_size),assim_nlev(chm_cfg_size)
-     integer :: obsdata_maxsize,diagn_nflag,diagn_flag(chm_cfg_size)
-     integer :: transform(0:chm_constituents_size),message_fileunit,obsspace_diagn_fileunit
-     real(8) :: diagn_pressmin
-     real(8) :: amu(0:chm_constituents_size),tropo_column_top(0:chm_constituents_size)
-     real(8) :: low_cutoff(0:chm_constituents_size),high_cutoff(0:chm_constituents_size)
-     character(len=9) :: assim_stnid(chm_cfg_size)
-     character(len=50) :: message_filename,obsspace_diagn_filename 
-
-  end type struct_config
-
   type :: struct_chm_info
      !  Information arrays retrieved from file obsinfo_chm regarding vertical levels 
      !  or averaging kernels
@@ -359,7 +244,6 @@ module chem_setup_mod
 
   type(struct_chm_info) :: chm_layers
   type(struct_chm_info) :: chm_avgkern
-  type(struct_config)   :: chm_config
 
 ! Array of pointers to averaging kernels read from BURP file.
 ! Note: Ideally, these should be an element in the 'struct_chm_info' derived 
@@ -377,6 +261,21 @@ module chem_setup_mod
 ! associated to total column data. It will be stored in the observation file.
 
   type(struct_oss_obsdata) :: chm_efftemp
+
+! General config/setup information parameters 
+! See description list of NAMCHEM namelist parameters in routine chm_setup
+  
+  logical :: diagn_save,assim_all
+  integer :: generalized_operator(0:chm_constituents_size)   ! Same as genoper in NAMCHEM
+  integer :: tropo_mode(0:chm_constituents_size),tropo_bound(0:chm_constituents_size)
+  integer :: assim_num,assim_varno(chm_cfg_size),assim_nlev(chm_cfg_size)
+  integer :: obsdata_maxsize,diagn_nflag,diagn_flag(chm_cfg_size)
+  integer :: transform(0:chm_constituents_size),message_fileunit,obsspace_diagn_fileunit
+  real(8) :: diagn_pressmin
+  real(8) :: amu(0:chm_constituents_size),tropo_column_top(0:chm_constituents_size)
+  real(8) :: low_cutoff(0:chm_constituents_size),high_cutoff(0:chm_constituents_size)
+  character(len=9) :: assim_stnid(chm_cfg_size)
+  character(len=chm_filename_size) :: message_filename,obsspace_diagn_filename 
 
 contains
 
@@ -434,7 +333,7 @@ contains
 ! This is to ensure that rpn_comm_allgather will work in routine obsdata_MPIGather.
 
   if (.not.associated(chm_efftemp%data1d)) then
-      call oss_obsdata_alloc(chm_efftemp,chm_config%obsdata_maxsize,dim1=1)
+      call oss_obsdata_alloc(chm_efftemp,obsdata_maxsize,dim1=1)
       chm_efftemp%nrep=0
   end if
 
@@ -451,8 +350,6 @@ contains
 ! Purpose: Read and store miscellaneous flags and constants.
 !
 ! Revisions: 
-!            M. Sitwell, ARQI/AQRD, Aug 2015
-!            - Incorporated input fields in chm_config
 !            Y. Rochon, ARQI/AQRD, Sept 2015
 !            - Added reading of variables related to options for attributing only 
 !              tropospheric portion of the increment to total column observations
@@ -499,14 +396,16 @@ contains
 !
 !        diagn_nflag         Number of bit flags to specify in diagn_flag array
 !
+!        assim_all           Logical indicating if all assimilatable obs of the specified family
+!                            will be assimilated (default is .true.)
+!
 !        assim_num           Number combinations (stnid, bufr element, multi/uni-level) 
 !                            identified for assimilation. All others will not
 !                            be assimilated. OmP and OmA diagnostics and output
 !                            will still be produced for non-assimilated datasets.
 !                         
-!                            <0:  all are to be assimilated
 !                             0:  none are to be assimilated
-!                            >0:  sets of (stnid,bufr,multi/uni-levels) to be assimilated
+!                            >0:  sets of (stnid, bufr varno, multi/uni-levels) to be assimilated
 !
 !        assim_varno         Bufr elements of obs sets for assimilation. A value of
 !                            0 implies that all are to be used.
@@ -575,27 +474,20 @@ contains
   character(len=128) :: ligne  
   character(len=10)  :: namfile 
 
-  integer :: assim_num,diagn_num,diagn_nset,obsdata_maxsize,diagn_nflag
-  integer :: assim_varno(chm_cfg_size),assim_nlev(chm_cfg_size),diagn_flag(chm_cfg_size)
-  integer :: diagn_varno(chm_cfg_size),tropo_mode(0:chm_constituents_size),tropo_bound(0:chm_constituents_size)
-  character(len=9) :: assim_stnid(chm_cfg_size),diagn_stnid(chm_cfg_size)
-  logical :: diagn_save,diagn_all,diagn_unilev(chm_cfg_size)
-  real(8) :: diagn_pressmin,tropo_column_top(0:chm_constituents_size)
-  real(8) :: amu(0:chm_constituents_size)
-  real(8) :: low_cutoff(0:chm_constituents_size),high_cutoff(0:chm_constituents_size)
-  integer :: transform(0:chm_constituents_size)
-  character(len=50) :: message_filename,obsspace_diagn_filename
+  integer :: diagn_num,diagn_nset
+  integer :: diagn_varno(chm_cfg_size)
+  character(len=9) :: diagn_stnid(chm_cfg_size)
+  logical :: diagn_all,diagn_unilev(chm_cfg_size)
 
   EXTERNAL FNOM,FCLOS
 
-  namelist /namchem/ genoper, &
-                     assim_num,assim_stnid,assim_varno,assim_nlev,     &
-                     diagn_num,diagn_stnid,diagn_varno,diagn_unilev,   &
-                     diagn_save,diagn_all,diagn_nset,diagn_pressmin,   &
-                     diagn_nflag,diagn_flag,                           &
-                     tropo_mode,tropo_bound,tropo_column_top,amu,      &
-                     low_cutoff,high_cutoff,transform,obsdata_maxsize, &
-                     message_filename,obsspace_diagn_filename
+  namelist /namchem/ assim_all,assim_num,assim_stnid,assim_varno,assim_nlev, &
+                     diagn_num,diagn_stnid,diagn_varno,diagn_unilev,         &
+                     diagn_save,diagn_all,diagn_nset,diagn_pressmin,         &
+                     diagn_nflag,diagn_flag,                                 &
+                     tropo_mode,tropo_bound,tropo_column_top,amu,            &
+                     low_cutoff,high_cutoff,transform,obsdata_maxsize,       &
+                     message_filename,obsspace_diagn_filename,genoper
 
   
   ! Default NAMCHEM values
@@ -606,6 +498,7 @@ contains
   high_cutoff(:)=10.0
   transform(:)=0   ! At least ensure positive values and provide related warning as needed.
   
+  assim_all=.true.
   assim_num=-1  
   assim_stnid(:)='*********'
   assim_varno(:)=0
@@ -659,30 +552,8 @@ contains
   end if
   
   ierr=FCLOS(nulnam)      
-  
-  ! Set config values
 
-  chm_config%generalized_operator(:) = genoper(:)
-  chm_config%assim_num = assim_num
-  chm_config%assim_varno = assim_varno
-  chm_config%assim_stnid = assim_stnid
-  chm_config%assim_nlev = assim_nlev 
-  chm_config%diagn_pressmin = diagn_pressmin
-  chm_config%diagn_save = diagn_save
-  chm_config%diagn_nflag = diagn_nflag
-  chm_config%diagn_flag = diagn_flag
-  chm_config%tropo_mode = tropo_mode
-  chm_config%tropo_bound = tropo_bound
-  chm_config%tropo_column_top = tropo_column_top
-  chm_config%amu = amu
-  chm_config%obsdata_maxsize = obsdata_maxsize
-  chm_config%low_cutoff = low_cutoff
-  chm_config%high_cutoff = high_cutoff
-  chm_config%transform = transform
-  chm_config%message_filename = message_filename
-  chm_config%obsspace_diagn_filename = obsspace_diagn_filename
-  chm_config%message_fileunit = 0
-  chm_config%obsspace_diagn_fileunit = 0
+  generalized_operator(:) = genoper(:)
   
   ! Initialize oss_comboIDlist and add (stnid,varno) pairs from the namelist
 
@@ -1491,7 +1362,7 @@ contains
 !
 !   Output
 !
-!      chem_ref_obsdata        Reference profile structure
+!      chm_ref_trial           Reference profile object
 !
 !   Comments
 ! 
@@ -1510,7 +1381,7 @@ contains
 
     id=obsoper%constituent_id
     
-    if (chm_config%generalized_operator(id).le.1) return           
+    if (generalized_operator(id).le.1) return           
     if (chm_ref_fields(id,1)%nlat.eq.0) return
     
     ! Set vertical levels of reference.
@@ -1624,15 +1495,15 @@ contains
     ! ------- Save in chm_ref_trial ---------
        
     if (.not.associated(chm_ref_trial%data1d)) then
-       call oss_obsdata_alloc(chm_ref_trial, chm_config%obsdata_maxsize, dim1=obsoper%nmodlev)
+       call oss_obsdata_alloc(chm_ref_trial, obsdata_maxsize, dim1=obsoper%nmodlev)
        chm_ref_trial%nrep = 0
     end if
 
     ! Here, nrep will count the number of filled elements in the data arrays
     chm_ref_trial%nrep = chm_ref_trial%nrep+1 
 
-    if (chm_ref_trial%nrep.gt.chm_config%obsdata_maxsize) &
-         call utl_abort('chm_get_ref_obsdata: Reach max size of array ' // trim(utl_str(chm_config%obsdata_maxsize)) )
+    if (chm_ref_trial%nrep.gt.obsdata_maxsize) &
+         call utl_abort('chm_get_ref_obsdata: Reach max size of array ' // trim(utl_str(obsdata_maxsize)) )
   
     ! The obsoper%obs_index (header index) serves as the unique locator code 
     write(chm_ref_trial%code(chm_ref_trial%nrep),'(I22)') obsoper%obs_index
@@ -1739,20 +1610,20 @@ contains
   
     integer :: i,elemId
     
-    if (chm_config%assim_num.lt.0) then
+    if (assim_all) then
        ! assimilate all observations
        chm_diagn_only = .false.
-    else if (chm_config%assim_num.eq.0) then
+    else if (assim_num.le.0) then
        ! assimilate no observations
        chm_diagn_only = .true.
-    else
-       ! check if this observation is listed in the chm_config%assim_* arrays
+    else if (assim_num.gt.0) then
+       ! check if this observation is listed in the assim_* arrays
        elemId=0
-       do i=1,chm_config%assim_num
-          if (utl_stnid_equal(trim(chm_config%assim_stnid(i)),trim(cstnid))) then
-             if (chm_config%assim_varno(i).eq.0.or.chm_config%assim_varno(i).eq.varno) then
-                if (chm_config%assim_nlev(i).eq.0.or.(nobslev.eq.1.and.chm_config%assim_nlev(i).eq.1).or. &
-                     (nobslev.gt.1.and.chm_config%assim_nlev(i).gt.1)) then
+       do i=1,assim_num
+          if (utl_stnid_equal(trim(assim_stnid(i)),trim(cstnid))) then
+             if (assim_varno(i).eq.0.or.assim_varno(i).eq.varno) then
+                if (assim_nlev(i).eq.0.or.(nobslev.eq.1.and.assim_nlev(i).eq.1).or. &
+                     (nobslev.gt.1.and.assim_nlev(i).gt.1)) then
                    elemId=i
                    exit
                 end if
@@ -1764,10 +1635,10 @@ contains
     
     if (chm_diagn_only) return
 
-    ! check if the observation integer flag has a bit marked by chm_config%diagn_flag (same flagging as in filt_suprep)
-    if (chm_config%diagn_nflag.gt.0) then
-       do i=1,chm_config%diagn_nflag
-          if (btest(flag, 13 - chm_config%diagn_flag(i) )) then
+    ! check if the observation integer flag has a bit marked by diagn_flag (same flagging as in filt_suprep)
+    if (diagn_nflag.gt.0) then
+       do i=1,diagn_nflag
+          if (btest(flag, 13 - diagn_flag(i) )) then
              chm_diagn_only = .true.
              return
           end if
@@ -1823,7 +1694,7 @@ contains
     
     if (iconstituent_id.lt.0.or.iconstituent_id.gt.chm_constituents_size) return
     
-    if (chm_config%transform(iconstituent_id).lt.0) return
+    if (transform(iconstituent_id).lt.0) return
     
     if (present(l_reverse)) then
        lrev = l_reverse
@@ -1835,7 +1706,7 @@ contains
 
     if (.not.lrev) then
 
-       call utl_open_asciifile(chm_config%message_filename,unit)
+       call utl_open_asciifile(message_filename,unit)
 
        do j=1,size(field,2)
           valmin=minval(field(:,j),mask=field(:,j).gt.0.0)
@@ -1855,7 +1726,7 @@ contains
 
     ! Apply transformation
     
-    select case(chm_config%transform(iconstituent_id))
+    select case(transform(iconstituent_id))
     case(0)
        ! No tranformation
     case(1)
@@ -1904,13 +1775,13 @@ contains
 
 !----------------------------------------------------------------------------------------
     
-  function chm_config_select_str(stype) result(val) 
+  function chm_setup_get_str(stype) result(val) 
 !
 ! Author: Y. Rochon, ARQI/AQRD, Feb 2017
 !
 ! Revisions:
 !
-! Purpose: Pass on associated chm_config%'stype'_filename
+! Purpose: Pass on associated 'stype'_filename
 !
 ! In
 !
@@ -1924,24 +1795,24 @@ contains
     
     select case(trim(stype))    
     case('message')
-       val=chm_config%message_filename
+       val=message_filename
     case('obsspace_diagn')
-       val=chm_config%obsspace_diagn_filename
+       val=obsspace_diagn_filename
     case default
-       call utl_abort('chm_config_select_str: Selection not found ' // trim(stype))
+       call utl_abort('chm_setup_get_str: Selection not found ' // trim(stype))
     end select
     
-  end function chm_config_select_str
+  end function chm_setup_get_str
   
 !----------------------------------------------------------------------------------------
     
-  function chm_config_select_int(stype,index)  result(val)
+  function chm_setup_get_int(stype,index)  result(val)
 !
 ! Author: Y. Rochon, ARQI/AQRD, Feb 2017
 !
 ! Revisions:
 !
-! Purpose: Pass on associated chm_config%*'stype'*
+! Purpose: Pass on associated *'stype'*
 !
 ! In
 !
@@ -1957,48 +1828,48 @@ contains
     
     select case(trim(stype))    
     case('message_unit')
-       val=chm_config%message_fileunit
+       val=message_fileunit
     case('obsdata_maxsize')
-       val=chm_config%obsdata_maxsize
+       val=obsdata_maxsize
     case('genoper')
        if (present(index)) then
-          val=chm_config%generalized_operator(index)
+          val=generalized_operator(index)
        else
-          call utl_abort('chm_config_select_int: Missing index for ' // trim(stype))
+          call utl_abort('chm_setup_get_int: Missing index for ' // trim(stype))
        end if
     case('tropo_mode')
        if (present(index)) then
-          val=chm_config%tropo_mode(index)
+          val=tropo_mode(index)
        else
-          call utl_abort('chm_config_select_int: Missing index for ' // trim(stype))
+          call utl_abort('chm_setup_get_int: Missing index for ' // trim(stype))
        end if
     case('tropo_bound')
        if (present(index)) then
-          val=chm_config%tropo_bound(index)
+          val=tropo_bound(index)
        else
-          call utl_abort('chm_config_select_int: Missing index for ' // trim(stype))
+          call utl_abort('chm_setup_get_int: Missing index for ' // trim(stype))
        end if
     case('transform')
        if (present(index)) then
-          val=chm_config%transform(index)
+          val=transform(index)
        else
-          call utl_abort('chm_config_select_int: Missing index for ' // trim(stype))
+          call utl_abort('chm_setup_get_int: Missing index for ' // trim(stype))
        end if
     case default
-       call utl_abort('chm_config_select_int: Selection not found ' // trim(stype))
+       call utl_abort('chm_setup_get_int: Selection not found ' // trim(stype))
     end select
     
-  end function chm_config_select_int
+  end function chm_setup_get_int
 
 !----------------------------------------------------------------------------------------
     
-  function chm_config_set_int(stype,val)  result(ier)
+  function chm_setup_set_int(stype,val)  result(ier)
 !
 ! Author: Y. Rochon, ARQI/AQRD, Feb 2017
 !
 ! Revisions:
 !
-! Purpose: Assign value to chm_config%*'stype'*
+! Purpose: Assign value to *'stype'*
 !
 ! In
 !
@@ -2015,23 +1886,23 @@ contains
     ier=0
     select case(trim(stype))    
     case('message_unit')
-       chm_config%message_fileunit=val
+       message_fileunit=val
     case default
        ier=-1
-       call utl_abort('chm_config_select_int: Selection not found ' // trim(stype))
+       call utl_abort('chm_setup_set_int: Selection not found ' // trim(stype))
     end select
     
-  end function chm_config_set_int
+  end function chm_setup_set_int
 
 !----------------------------------------------------------------------------------------
     
-  function chm_config_select_float(stype,index)  result(val)
+  function chm_setup_get_float(stype,index)  result(val)
 !
 ! Author: Y. Rochon, ARQI/AQRD, Feb 2017
 !
 ! Revisions:
 !
-! Purpose: Pass on associated chm_config%*'stype'*
+! Purpose: Pass on associated *'stype'*
 !
 ! In
 !
@@ -2047,46 +1918,46 @@ contains
     
     select case(trim(stype))    
     case('pressmin')
-       val=chm_config%diagn_pressmin
+       val=diagn_pressmin
     case('amu')
        if (present(index)) then
-          val=chm_config%amu(index)
+          val=amu(index)
        else
-          call utl_abort('chm_config_select_int: Missing index for ' // trim(stype))
+          call utl_abort('chm_setup_get_float: Missing index for ' // trim(stype))
        end if
     case('tropo_column_top')
        if (present(index)) then
-          val=chm_config%tropo_column_top(index)
+          val=tropo_column_top(index)
        else
-          call utl_abort('chm_config_select_int: Missing index for ' // trim(stype))
+          call utl_abort('chm_setup_get_float: Missing index for ' // trim(stype))
        end if
     case('low_cutoff')
        if (present(index)) then
-          val=chm_config%low_cutoff(index)
+          val=low_cutoff(index)
        else
-          call utl_abort('chm_config_select_int: Missing index for ' // trim(stype))
+          call utl_abort('chm_setup_get_float: Missing index for ' // trim(stype))
        end if
     case('high_cutoff')
        if (present(index)) then
-          val=chm_config%high_cutoff(index)
+          val=high_cutoff(index)
        else
-          call utl_abort('chm_config_select_int: Missing index for ' // trim(stype))
+          call utl_abort('chm_setup_get_float: Missing index for ' // trim(stype))
        end if
     case default
-       call utl_abort('chm_config_select_float: Selection not found ' // trim(stype))
+       call utl_abort('chm_setup_get_float: Selection not found ' // trim(stype))
     end select
     
-  end function chm_config_select_float
+  end function chm_setup_get_float
 
 !----------------------------------------------------------------------------------------
     
-  function chm_config_select_logical(stype)  result(val)
+  function chm_setup_get_logical(stype)  result(val)
 !
 ! Author: Y. Rochon, ARQI/AQRD, Feb 2017
 !
 ! Revisions:
 !
-! Purpose: Pass on associated chm_config%*'stype'*
+! Purpose: Pass on associated *'stype'*
 !
 ! In
 !
@@ -2100,12 +1971,12 @@ contains
     
     select case(trim(stype))    
     case('diagn_save')
-       val=chm_config%diagn_save
+       val=diagn_save
     case default
-       call utl_abort('chm_config_select_logical: Selection not found ' // trim(stype))
+       call utl_abort('chm_setup_get_logical: Selection not found ' // trim(stype))
     end select
     
-  end function chm_config_select_logical
+  end function chm_setup_get_logical
 
 !-----------------------------------------------------------------------------------
 !------------------ Routines associated to chm_efftemp -----------------------------
@@ -2129,7 +2000,7 @@ contains
     character(len=*), intent(in) :: code
     real(8), intent(in) :: temp_eff(:)
 
-    call oss_obsdata_add_data1d(chm_efftemp,temp_eff,code,chm_config%obsdata_maxsize)
+    call oss_obsdata_add_data1d(chm_efftemp,temp_eff,code,obsdata_maxsize)
     
   end subroutine chm_add_efftemp_obsdata
    
