@@ -54,8 +54,7 @@ module obsSpaceDiag_mod
   use randomNumber_mod
   use obsOperators_mod
   use utilities_mod
-  use chem_setup_mod, only: chm_add_efftemp_obsfile, chm_setup_get_logical, &
-                            chm_setup_get_float, chm_setup_get_str, &
+  use chem_setup_mod, only: chm_add_efftemp_obsfile, &
                             chm_diagn_only
   use chem_obsoperators_mod
   use physicsfunctions_mod
@@ -119,13 +118,48 @@ module obsSpaceDiag_mod
   end type struct_osd_diagn
 
   ! namelist variables
+  integer, parameter :: max_famnum=20, max_cfg_size=100
   real*8 :: deltaLat,deltaLon,deltaPressure,deltaHeight
   integer :: numFamily
-  character(len=2) :: familyList(20)
+  character(len=2) :: familyList(max_famnum)
   integer :: numElement
-  integer :: elementList(20) 
+  integer :: elementList(max_famnum) 
   integer :: nrandseed
   logical :: lrandom  
+
+  !  Parameters identifying obs sets and related actions for diagnostic calcs of each family
+  ! 
+  !  diagn_num           Prescribed (starting) number of (stnid, bufr, nlev) for the diagnostics calc
+  !
+  !  diagn_stnid         Prescribed (starting) list of stnid (with *s as needed) for the diagnostics calc
+  !                      with '*' denoting wild cards  
+  !
+  !  diagn_varno         Prescribed (starting) list of bufr elments for the diagnostics calc  
+  !
+  !  diagn_unilev        Prescribed (starting) list of logicals indicating uni-level obs for the diagnostics calc
+  !
+  !  diagn_pressmin      Bottom of top layer for diagnostics (in Pa). 
+  !
+  !  diagn_save          Logical indicating gridded diagnostics are to be saved
+  !                      in an ascii file in addition to overall diagnostics. 
+  !
+  !  diagn_nset          Integer indicating grouping of diagnostics with
+  !                      1: group by stnid
+  !                      2: group by (stnid,bufr)
+  !                      3: group by (stnid,bufr,nlev)
+  ! 
+  !  diagn_all           Logical indicating if all combinations specified by diagn_nset are to be
+  !                      used in diagnostics or only those specified by the diagn_* arrays
+  ! 
+  !  obsspace_diagn_filename 
+  !                     File name for file containing obs space diagnostics related to chemical constituents.
+
+  integer :: diagn_num(max_famnum),diagn_nset(max_famnum)
+  integer :: diagn_varno(max_famnum,max_cfg_size)
+  character(len=9) :: diagn_stnid(max_famnum,max_cfg_size)
+  logical :: diagn_save(max_famnum),diagn_all(max_famnum),diagn_unilev(max_famnum,max_cfg_size)
+  real(8) :: diagn_pressmin(max_famnum)
+  character(len=100) :: obsspace_diagn_filename(max_famnum)
 
 contains
 
@@ -652,9 +686,11 @@ contains
     implicit none
     logical :: nmlExists
 
-    integer :: nulnam,ierr,fnom,fclos
+    integer :: nulnam,ierr,fnom,fclos,j
     namelist /namosd/nrandseed,deltaLat,deltaLon,deltaPressure,deltaHeight, &
-        numFamily,familyList,numElement,elementList,lrandom
+        numFamily,familyList,numElement,elementList,lrandom, &
+        diagn_save,diagn_all,diagn_num,diagn_stnid,diagn_varno,diagn_unilev,     &
+        diagn_nset,diagn_pressmin        
 
     ! set default values for namelist variables
     nrandseed = 999
@@ -688,6 +724,19 @@ contains
     elementList(10)= BUFR_NERF
     elementList(11)= BUFR_NEPS
 
+    diagn_save(:)=.false.
+    diagn_all(:)=.true. 
+    diagn_pressmin(:)=10.  !  0.1 hPa
+    diagn_nset(:)=2
+    diagn_num(:)=0
+    diagn_stnid(:,:)='*********'
+    diagn_varno(:,:)=0
+    diagn_unilev(:,:)=.false.
+    obsspace_diagn_filename(:)='obsspace_diag_'
+    do j=1,numFamily
+       obsspace_diagn_filename(j) ='obsspace_diag_'//familyList(j)//'_'
+    end do
+
     nulnam = 0
     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=namosd,iostat=ierr)
@@ -701,6 +750,11 @@ contains
     endif
     if(mpi_myid.eq.0) write(*,nml=namosd)
     ierr = fclos(nulnam)
+
+    do j=1,numFamily
+       obsspace_diagn_filename(j) ='obsspace_diag_'//familyList(j)//'_'
+       if (diagn_num(j).gt.max_cfg_size) call utl_abort('osd_setup: Number exceeds allowed size of max_cfg_size')
+    end do
 
   end subroutine osd_setup
   
@@ -768,9 +822,7 @@ contains
     logical, intent(in) :: anlm_mode
     
     integer, allocatable :: codtyplist(:)
-    real(8) :: pressmin 
-    character(len=50) :: filename
-    logical :: save_diagn
+    integer :: jelm,ifam
     
     if (mpi_myid.eq.0) then
        write(*,*)
@@ -781,23 +833,42 @@ contains
     ! Generate and output cost function, OmP, and OmA diagnostics 
 
     if (obs_famExist(obsSpaceData,'CH')) then
-
-       ! Diagnostics for retrievd chemical constituents (CH family)
-    
-       allocate(codtyplist(2))
-
-       codtyplist(1)=codtyp_get_codtyp('CHEMREMOTE')
-       codtyplist(2)=codtyp_get_codtyp('CHEMINSITU')
-    
-       pressmin=chm_setup_get_float('pressmin')
-       filename=chm_setup_get_str('obsspace_diagn')
-       save_diagn=chm_setup_get_logical('diagn_save')
-             
-       call osd_obsDiagnostics(obsSpaceData,columng,'CH',codtyplist,trim(filename), &
-                save_diagn, date, deltaLat,deltaLon,deltaPressure,pressmin,anlm_mode)
+  
+       ifam=0
+       do jelm=1,numFamily
+          if (familyList(jelm).eq.'CH') then
+             ifam=jelm
+             exit
+          end if
+       end do
+       if (ifam.eq.0) then
        
-       deallocate(codtyplist)
+          write(*,*) 'osd_obsPostProc: Warning - No post-processing requested for CH family.'
+                     
+       else
+         
+          ! Initialize oss_comboIDlist and add (stnid,varno) pairs from the namelist
+          ! Sets list of identifiers for observations to be processed in osd_obsDiagnostics within the CH family
+               
+          call oss_comboIdlist(initialize=.true., nset=diagn_nset(ifam), all_combos=diagn_all(ifam))
+          do jelm=1,diagn_num(ifam)
+             call oss_comboIdlist(stnid_add=diagn_stnid(ifam,jelm), varno_add=diagn_varno(ifam,jelm), unilev_add=diagn_unilev(ifam,jelm))
+          end do
 
+          ! Diagnostics for retrievd chemical constituents (CH family)
+    
+          allocate(codtyplist(2))
+
+          codtyplist(1)=codtyp_get_codtyp('CHEMREMOTE')
+          codtyplist(2)=codtyp_get_codtyp('CHEMINSITU')
+                       
+          call osd_obsDiagnostics(obsSpaceData,columng,'CH',codtyplist,trim(obsspace_diagn_filename(ifam)), &
+                      diagn_save(ifam),date,deltaLat,deltaLon,deltaPressure,diagn_pressmin(ifam),anlm_mode)
+       
+          deallocate(codtyplist)
+          
+       end if
+        
     end if
       
     ! Generate and output cost function, OmP, and OmA diagnostics for 
@@ -869,7 +940,7 @@ contains
     character(len=*) :: obsfam,filename
     integer, intent(in) :: date,codtyplist(:)
     real(8), intent(in) :: deltaLat,deltaLon,deltaPressure,pressmin
-    logical, intent(in) :: anlm_mode, save_diagn
+    logical, intent(in) :: anlm_mode,save_diagn
 
     type(struct_osd_diagn) :: obs_diagn
     integer :: headerIndex,bodyIndex,istnid,vco,nlev_obs,ilev_obs,nlev_mod,ilev_mod

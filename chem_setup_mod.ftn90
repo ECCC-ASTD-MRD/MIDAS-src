@@ -17,55 +17,57 @@
 #include "maincompileswitch.inc"
 #include "compileswitches.inc"
 
-module chem_setup_mod
-!         
-! PURPOSE: Provides pre-processing (setup) routines and 
-!          related tools reqarding observation averaging kernels, 
-!          and std. (fst) gridded format files.
-!  
-!
-! Module managers: Mike Sitwell and Yves Rochon (ARQI/AQRD)
-!
-! Revisions:  
-!   
-! Public routines:
-!
-!       - "chm_setup": Routines and structure for setting and assignment 
-!         of observation layer top and bottom levels (and averaging kernel matrices - tbc). 
-!         See 'preproc.ftn90' and 'chm_obsoperators'. 
-!
-!       - "chm_apply_2dfieldr4_transform" applied to 2D field variable transformation if requested.
-!
-!       - "chm_checkfor_integlayer" needed to determine if vertical
-!         integration required.
-!
-!       - "chm_find_avgkern" to find averaging kernel matrix associated to an obs
-!
-!       - "chm_get_layer_boundaries" to return layer boundaries for an observation. 
-!
-!       - "chm_get_avgkern" to return averaging kernel for an observation.
-!
-!       - "chm_var_maxnumber" to pass on value of chm_constituents_size
-!
-!       - "chm_add_efftemp_*" adds effective temperatures in obsfile and or 
-!          obsdata subspace
-!
-!        - "chm_set_reference_obsdata" determines and stores reference 
-!          profile at obs location if needed by the observation operators.
-!
-!       - "chm_get_ref_column" to extract and provide column from chm_ref_field 
-!          associated to code.
-!
-!       - "chm_setup_get_*" allows access to desired private parameters, most
-!          of them provided via the NAMCHEM namelist
-!
-!       - "chm_setup_set_int" allows setting of some integer element(s) 
-!         specific to the CH family outside this module. 
-!
-!       - "chm_diagn_only": Identify if data is to be assimilated or only used
-!         for independent verifications.
-!
+!-----------------------------------------------------------------------------
+!! MODULE chem_setup_mod
+!!         
+!! *Purpose*: Provides pre-processing (setup) routines and 
+!!v            related tools reqarding observation averaging kernels, 
+!!v            and std. (fst) gridded format files.
+!!  
+!!
+!! @author: Mike Sitwell and Yves Rochon (ARQI/AQRD)
+!!
+!! Revisions:  
+!!   
+!! Public routines:
+!!v
+!!v       - "chm_setup": Routines and structure for setting and assignment 
+!!v         of observation layer top and bottom levels (and averaging kernel matrices - tbc). 
+!!v         See 'preproc.ftn90' and 'chm_obsoperators'. 
+!!v
+!!v       - "chm_apply_2dfieldr4_transform" applied to 2D field variable transformation if requested.
+!!v
+!!v       - "chm_checkfor_integlayer" needed to determine if vertical
+!!v         integration required.
+!!v
+!!v       - "chm_find_avgkern" to find averaging kernel matrix associated to an obs
+!!v
+!!v       - "chm_get_layer_boundaries" to return layer boundaries for an observation. 
+!!v
+!!v       - "chm_get_avgkern" to return averaging kernel for an observation.
+!!v
+!!v       - "chm_var_maxnumber" to pass on value of chm_constituents_size
+!!v
+!!v       - "chm_add_efftemp_*" adds effective temperatures in obsfile and or 
+!!v          obsdata subspace
+!!v
+!!v        - "chm_set_reference_obsdata" determines and stores reference 
+!!v          profile at obs location if needed by the observation operators.
+!!v
+!!v       - "chm_get_ref_column" to extract and provide column from chm_ref_field 
+!!v          associated to code.
+!!v
+!!v       - "chm_setup_get_*" allows access to desired private parameters, most
+!!v          of them provided via the NAMCHEM namelist
+!!v
+!!v       - "chm_setup_set_int" allows setting of some integer element(s) 
+!!v         specific to the CH family outside this module. 
+!!v
+!!v       - "chm_diagn_only": Identify if data is to be assimilated or only used
+!!v         for independent verifications.
+!!v
 !----------------------------------------------------------------------------------------
+module chem_setup_mod
  
   use mpi_mod, only: mpi_myid, mpi_allgather_string
   use utilities_mod
@@ -88,8 +90,7 @@ module chem_setup_mod
   public :: chm_var_maxnumber, chm_diagn_only
   public :: chm_add_efftemp_obsfile, chm_add_efftemp_obsdata
   public :: chm_get_ref_column, chm_set_reference_obsdata
-  public :: chm_setup_get_float, chm_setup_get_str
-  public :: chm_setup_get_logical, chm_setup_get_int
+  public :: chm_setup_get_float, chm_setup_get_str, chm_setup_get_int
   public :: chm_setup_set_int
   
 ! public types (for use in chm_obsoperators_mod.ftn90)
@@ -265,36 +266,38 @@ module chem_setup_mod
 ! General config/setup information parameters 
 ! See description list of NAMCHEM namelist parameters in routine chm_setup
   
-  logical :: diagn_save,assim_all
+  logical :: assim_all
   integer :: generalized_operator(0:chm_constituents_size)   ! Same as genoper in NAMCHEM
   integer :: tropo_mode(0:chm_constituents_size),tropo_bound(0:chm_constituents_size)
   integer :: assim_num,assim_varno(chm_cfg_size),assim_nlev(chm_cfg_size)
-  integer :: obsdata_maxsize,diagn_nflag,diagn_flag(chm_cfg_size)
-  integer :: transform(0:chm_constituents_size),message_fileunit,obsspace_diagn_fileunit
-  real(8) :: diagn_pressmin
+  integer :: obsdata_maxsize,assim_exclude_nflag,assim_exclude_flag(chm_cfg_size)
+  integer :: transform(0:chm_constituents_size),message_fileunit
   real(8) :: amu(0:chm_constituents_size),tropo_column_top(0:chm_constituents_size)
   real(8) :: low_cutoff(0:chm_constituents_size),high_cutoff(0:chm_constituents_size)
   character(len=9) :: assim_stnid(chm_cfg_size)
-  character(len=chm_filename_size) :: message_filename,obsspace_diagn_filename 
+  character(len=chm_filename_size) :: message_filename 
 
 contains
 
-!---------------------------- Setup called from "preproc/suobs" -------------------------
+!----------------------------------- Setup -----------------------------------
+!---------------------------------------------------------------------------
 !
-  subroutine chm_setup(datestamp)
-!
-! Author   : Y. Rochon, Dec 2014 
-! 
-! Revisions: M. Sitwell, Feb 2015
-!            - Removed references to earlier structure
-!            Y. Rochon, Dec 2015
-!            - Added call to chm_read_ref_fields and related optional input
-!              'datestamp'
-!          
-! Purpose: Setup additional information required by constituent obs and not provided in
-!          lobsSpaceData.
-!
+! SUBROUTINE chm_setup
+!!
+!! *Purpose*: Setup additional information required by constituent obs and 
+!!            not provided in obsSpaceData.
+!!
+!! @author Y. Rochon, Dec 2014 
+!! 
+!! Revisions: 
+!!v            M. Sitwell, Feb 2015
+!!v            - Removed references to earlier structure
+!!v            Y. Rochon, Dec 2015
+!!v            - Added call to chm_read_ref_fields and related optional input
+!!v              'datestamp'
+!!v          
 !----------------------------------------------------------------------------------------
+  subroutine chm_setup(datestamp)
   
   implicit none
 
@@ -302,9 +305,9 @@ contains
 
   write(*,*) 'Begin chm_setup'
 
-! Read miscellaneous flags and constants 
+! Read NAMCHEM namelist and set related parameters
 
-  call chm_read_misc
+  call chm_read_namchem
       
 ! Read top and bottom layer boundaries of partial (or total) column meausurements
   
@@ -343,7 +346,7 @@ contains
 
 !------------------------------------------------------------------------------------
 
-  subroutine chm_read_misc
+  subroutine chm_read_namchem
 !
 ! Author   : Y. Rochon, ARQI/AQRD, Apr 2015 
 !
@@ -368,33 +371,12 @@ contains
 !                               as a(xc-xb) + b*xc where a and b depend on the size of 
 !                               sum[(xc-xb)/sig(xb)]^2 over the profile.
 !
-!        diagn_num           Prescribed (starting) number of (stnid, bufr, nlev) for the diagnostics calc
 !
-!        diagn_stnid         Prescribed (starting) list of stnid (with *s as needed) for the diagnostics calc
-!                            with '*' denoting wild cards
+!        assim_exclude_flag  Array specifying bits for identifying diagnostic-only observations for
+!                            observations that would otherwise be assimilated according to the other
+!                            assim_* arrays
 !
-!        diagn_varno         Prescribed (starting) list of bufr elments for the diagnostics calc
-!
-!        diagn_unilev        Prescribed (starting) list of logicals indicating uni-level obs for the diagnostics calc
-!
-!        diagn_pressmin      Bottom of top layer for diagnostics (in Pa).
-!
-!        diagn_save          Logical indicating gridded diagnostics are to be saved
-!                            in an ascii file in addition to overall diagnostics. 
-!
-!        diagn_nset          Integer indicating grouping of diagnostics with
-!                            1: group by stnid
-!                            2: group by (stnid,bufr)
-!                            3: group by (stnid,bufr,nlev)
-!
-!        diagn_all           Logical indicating if all combinations specified by diagn_nset are to be
-!                            used in diagnostics or only those specified by the diagn_* arrays
-!
-!        diagn_flag          Array specifying bits for identifying diagnostic-only observations for
-!                            observations that would otherwise be assimilated according to the assim_*
-!                            arrays
-!
-!        diagn_nflag         Number of bit flags to specify in diagn_flag array
+!        assim_exclude_nflag Number of bit flags to specify in assim_exclude_flag array
 !
 !        assim_all           Logical indicating if all assimilatable obs of the specified family
 !                            will be assimilated (default is .true.)
@@ -460,9 +442,6 @@ contains
 !       message_filename     File name for file containing various messages and warnings related to chemical
 !                            constituents that are not included in the listing file.
 !
-!       obsspace_diagn_filename 
-!                            File name for file containing obs space diagnostics related to chemical constituents.
-!
 !---------------------------------------------------------------------------------------- 
 
   implicit none
@@ -474,20 +453,13 @@ contains
   character(len=128) :: ligne  
   character(len=10)  :: namfile 
 
-  integer :: diagn_num,diagn_nset
-  integer :: diagn_varno(chm_cfg_size)
-  character(len=9) :: diagn_stnid(chm_cfg_size)
-  logical :: diagn_all,diagn_unilev(chm_cfg_size)
-
   EXTERNAL FNOM,FCLOS
 
   namelist /namchem/ assim_all,assim_num,assim_stnid,assim_varno,assim_nlev, &
-                     diagn_num,diagn_stnid,diagn_varno,diagn_unilev,         &
-                     diagn_save,diagn_all,diagn_nset,diagn_pressmin,         &
-                     diagn_nflag,diagn_flag,                                 &
+                     assim_exclude_nflag,assim_exclude_flag,                                 &
                      tropo_mode,tropo_bound,tropo_column_top,amu,            &
                      low_cutoff,high_cutoff,transform,obsdata_maxsize,       &
-                     message_filename,obsspace_diagn_filename,genoper
+                     message_filename,genoper
 
   
   ! Default NAMCHEM values
@@ -504,24 +476,15 @@ contains
   assim_varno(:)=0
   assim_nlev(:)=0
  
-  diagn_save=.false.
-  diagn_all=.true. 
-  diagn_pressmin=10.  !  0.1 hPa
-  diagn_nset=2
-  diagn_num=0
-  diagn_stnid(:)='*********'
-  diagn_varno(:)=0
-  diagn_unilev(:)=.false.
-  diagn_nflag=1
-  diagn_flag(1)=6  ! this is for the 'in reserve' bit for a BURP marker
-  diagn_flag(2:)=0
+  assim_exclude_nflag=1
+  assim_exclude_flag(1)=6  ! this is for the 'in reserve' bit for a BURP marker
+  assim_exclude_flag(2:)=0
 
   tropo_mode(:) = 0
   tropo_bound(:) = 0
   tropo_column_top(:) = 0.0
 
   message_filename = 'chem_message_'
-  obsspace_diagn_filename ='obsspace_diag_CH_'
   
   amu(:) = -1.0
   amu(0) = 48.0    ! Molecular mass in g/mole for O3
@@ -546,7 +509,7 @@ contains
 
   read(nulnam,nml=namchem,iostat=ios)
   if (ios.lt.-4.or.ios.gt.0) then 
-      call utl_abort('chm_read_misc: Error in reading NAMCHEM namelist. iostat = ' // trim(utl_str(ios)) )   
+      call utl_abort('chm_read_namchem: Error in reading NAMCHEM namelist. iostat = ' // trim(utl_str(ios)) )   
   else if (mpi_myid.eq.0) then
       write(*,nml=namchem)   
   end if
@@ -554,15 +517,8 @@ contains
   ierr=FCLOS(nulnam)      
 
   generalized_operator(:) = genoper(:)
-  
-  ! Initialize oss_comboIDlist and add (stnid,varno) pairs from the namelist
 
-  call oss_comboIdlist(initialize=.true., nset=diagn_nset, all_combos=diagn_all)
-  do jelm=1,diagn_num
-     call oss_comboIdlist(stnid_add=diagn_stnid(jelm), varno_add=diagn_varno(jelm), unilev_add=diagn_unilev(jelm))
-  end do
-
-  end subroutine chm_read_misc
+  end subroutine chm_read_namchem
 
 !-----------------------------------------------------------------------------------------
 !--------------------- Routines related to layer top & bottom levels----------------------
@@ -1635,10 +1591,10 @@ contains
     
     if (chm_diagn_only) return
 
-    ! check if the observation integer flag has a bit marked by diagn_flag (same flagging as in filt_suprep)
-    if (diagn_nflag.gt.0) then
-       do i=1,diagn_nflag
-          if (btest(flag, 13 - diagn_flag(i) )) then
+    ! check if the observation integer flag has a bit marked by assim_exclude_flag (same flagging as in filt_suprep)
+    if (assim_exclude_nflag.gt.0) then
+       do i=1,assim_exclude_nflag
+          if (btest(flag, 13 - assim_exclude_flag(i) )) then
              chm_diagn_only = .true.
              return
           end if
@@ -1796,8 +1752,6 @@ contains
     select case(trim(stype))    
     case('message')
        val=message_filename
-    case('obsspace_diagn')
-       val=obsspace_diagn_filename
     case default
        call utl_abort('chm_setup_get_str: Selection not found ' // trim(stype))
     end select
@@ -1917,8 +1871,6 @@ contains
     real(8) :: val
     
     select case(trim(stype))    
-    case('pressmin')
-       val=diagn_pressmin
     case('amu')
        if (present(index)) then
           val=amu(index)
@@ -1948,35 +1900,6 @@ contains
     end select
     
   end function chm_setup_get_float
-
-!----------------------------------------------------------------------------------------
-    
-  function chm_setup_get_logical(stype)  result(val)
-!
-! Author: Y. Rochon, ARQI/AQRD, Feb 2017
-!
-! Revisions:
-!
-! Purpose: Pass on associated *'stype'*
-!
-! In
-!
-!   stype     reference string for logical-based identifier/value
-!
-!----------------------------------------------------------------------------------------
-
-    implicit none
-    character(len=*), intent(in) :: stype
-    logical :: val
-    
-    select case(trim(stype))    
-    case('diagn_save')
-       val=diagn_save
-    case default
-       call utl_abort('chm_setup_get_logical: Selection not found ' // trim(stype))
-    end select
-    
-  end function chm_setup_get_logical
 
 !-----------------------------------------------------------------------------------
 !------------------ Routines associated to chm_efftemp -----------------------------

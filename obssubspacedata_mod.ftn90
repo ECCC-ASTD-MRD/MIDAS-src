@@ -42,7 +42,7 @@ module obsSubSpaceData_mod
 !
 !       - "oss_obsdata_code_len" to pass on oss_code_len value
 !
-!       - "oss_comboIdList" to orovide list of fixed or accumulated stnid, (stnid,varno) 
+!       - "oss_comboIdList" to provide list of fixed or accumulated stnid, (stnid,varno) 
 !          or (stnid,varno,multi/uni-level) combinations to be used in searches.
 !
 !       - "oss_get_comboIdList" uses the subroutine oss_comboIdlist to compile a unique list of stnid,  

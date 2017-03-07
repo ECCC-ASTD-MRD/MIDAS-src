@@ -186,7 +186,6 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
 !        Construct a list of channels for each sensor.
 !        Construct a list of sensor number for each profile
 !     .  ---------------------------------------------------
-  if (nsensors <= 0) return
   alloc_status(:) = 0
   allocate (nchan(nsensors),                       stat= alloc_status(1))
   allocate (ichan(jpchus,nsensors),                stat= alloc_status(2))

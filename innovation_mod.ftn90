@@ -99,14 +99,14 @@ contains
     !
     call obs_initialize(obsSpaceData,mpi_local=top_BurpSplit() )
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    
+
     !
     ! Set up the list of elements to be assimilated and flags for rejection
     !
     call filt_setup
 
     call tmg_start(11,'READ_BURP')
-    CALL burp_readFiles(obsSpaceData)
+    call burp_readFiles(obsSpaceData)
     call tmg_stop(11)
 
     !
@@ -116,6 +116,24 @@ contains
     call filt_sethind(obsSpaceData)
     call filt_suprep(obsSpaceData)
     call tmg_stop(14)
+
+    !
+    ! Read the NAMELIST NAMGGPSRO
+    !
+    if (obs_famExist(obsSpaceData,'RO')) call gps_setupro
+    !
+    ! Initialize GB-GPS processing (read NAMGPSGB in namelist file)
+    !
+    if (obs_famExist(obsSpaceData,'GP')) call gps_setupgb
+    !
+    ! Initialize TOVS processing
+    !
+    if (obs_famExist(obsSpaceData,'TO')) call tovs_setup
+    !
+    ! Read the NAMELIST NAMCHEM and set up additional constituent
+    ! obs related info not found in obsSpaceData.
+    !
+    if (obs_famExist(obsSpaceData,'CH')) call chm_setup
 
     !
     ! set OBS_IPC and OBS_IPT columns according to the chosen strategy
@@ -137,27 +155,6 @@ contains
        ! NOTE: not currently supported, but may be useful for future versions
        call obs_reduceToMpiLocal(obsSpaceData)
     end if
-
-    !
-    ! Read the NAMELIST NAMGGPSRO
-    !
-    if (obs_famExist(obsSpaceData,'RO')) call gps_setupro
-
-    !
-    ! Initialize GB-GPS processing (read NAMGPSGB in namelist file)
-    !
-    if (obs_famExist(obsSpaceData,'GP')) call gps_setupgb
-
-    !
-    ! Initialize TOVS processing
-    !
-    if (obs_famExist(obsSpaceData,'TO')) call tovs_setup
-
-    !
-    ! Read the NAMELIST NAMCHEM and set up additional constituent
-    ! obs related info not found in obsSpaceData.
-    !
-    if (obs_famExist(obsSpaceData,'CH')) call chm_setup
 
     !
     !- Initialization and memory allocation for TOVS processing
@@ -1898,7 +1895,6 @@ contains
          ! all non-radiance obs
          obsLoad = 1
       endif
-
     end function obsLoad
 
   end subroutine setObsMpiStrategy
