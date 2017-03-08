@@ -28,6 +28,7 @@
 !!v       - "chm_read_obs_err_stddev,chm_get_obs_err_stddev,chm_dealloc_obs_err_stddev":
 !!v         Routines and strucure for setting of obs error std. dev. used in
 !!v        'obserrors_mod.ftn90'. 
+!!
 !--------------------------------------------------------------------------
 module chem_obserrors_mod
 
@@ -105,10 +106,14 @@ module chem_obserrors_mod
 
 contains
 
-!--------------------------------------------------------------------------
+!-------------------------------------------------------------------------
+!
+! SUBROUTINE chem_read_obs_err_stddev
+!!
 !! *Purpose*: Read observation errors from ascii file and BURP file if specified in ascii file.
 !!
 !! @author M. Sitwell, March 2015
+!!
 !--------------------------------------------------------------------------
   subroutine chm_read_obs_err_stddev
 
@@ -136,10 +141,14 @@ contains
 
   end subroutine chm_read_obs_err_stddev
 
-!--------------------------------------------------------------------------
+!-------------------------------------------------------------------------
+!
+! SUBROUTINE chm_read_obs_err_stddev_ascii
+!!
 !! *Purpose*:  Read and store observation error std. dev. as needed for CH family obs.
 !!
 !! @author Y. Rochon, Nov 2014
+!!
 !--------------------------------------------------------------------------
   subroutine chm_read_obs_err_stddev_ascii
 
@@ -319,10 +328,14 @@ contains
 
   end subroutine chm_read_obs_err_stddev_ascii
 
-!--------------------------------------------------------------------------
+!-------------------------------------------------------------------------
+!
+! SUBROUTINE chm_obs_err_stddev_index(CSTNID,NLEV,VARNO,ZLAT,ISTNID,JINT)
+!! 
 !! *Purpose*: Returns the station ID and latitude indices corresponding to a measurement.
 !!
 !! @author M. Sitwell Feb 2015 
+!!
 !--------------------------------------------------------------------------
   subroutine chm_obs_err_stddev_index(CSTNID,NLEV,VARNO,ZLAT,ISTNID,JINT)
 
@@ -392,12 +405,15 @@ contains
 
   end subroutine chm_obs_err_stddev_index
 
-!--------------------------------------------------------------------------
+!-------------------------------------------------------------------------
+!
+! FUNCTION chm_get_obs_err_stddev(CSTNID,NLEV,VARNO,ZLAT,ZLON,IDATE,ITIME,ZVAL,ZLEV,ILEV,IFIRST) result(obs_err_stddev)
+!! 
 !! *Purpose*: Returns the observational error std for a CH family measurement
 !!
 !! @author Y. Rochon and M. Sitwell, Feb 2015
 !!
-!!  Input
+!! Input
 !!v    cstnid        station ID
 !!v    nlev          number of levels
 !!v    varno         BUFR number
@@ -409,6 +425,7 @@ contains
 !!v    zlev          vertical coordinate value
 !!v    ilev          observation number in the profile
 !!v    ifirst        logical indicating if first call for a profile
+!!
 !--------------------------------------------------------------------------
   function chm_get_obs_err_stddev(CSTNID,NLEV,VARNO,ZLAT,ZLON,IDATE,ITIME,ZVAL,ZLEV,ILEV,IFIRST) result(obs_err_stddev) 
 
@@ -528,10 +545,14 @@ contains
     
   end function chm_get_obs_err_stddev
 
-!--------------------------------------------------------------------------
+!-------------------------------------------------------------------------
+!
+!! SUBROUTINE chm_dealloc_obs_err_stddev
+!! 
 !! *Purpose*: Deallocate temporary storage space used for observation errors for the CH family.
 !!
 !! @author Y. Rochon, Nov 2014
+!!
 !--------------------------------------------------------------------------
   subroutine chm_dealloc_obs_err_stddev
   
