@@ -265,16 +265,21 @@ module chem_setup_mod
 
 ! General config/setup information parameters 
 ! See description list of NAMCHEM namelist parameters in routine chm_setup
+
+  integer, parameter :: chm_famnum=1
+  integer :: assim_famNum
+  logical :: assim_all(chm_famnum)
+  integer :: assim_num(chm_famnum),assim_varno(chm_famnum,chm_cfg_size),assim_nlev(chm_famnum,chm_cfg_size)
+  integer :: assim_exclude_nflag(chm_famnum),assim_exclude_flag(chm_famnum,chm_cfg_size)
+  character(len=9) :: assim_stnid(chm_famnum,chm_cfg_size)
+  character(len=2) :: assim_fam(chm_famnum)
   
-  logical :: assim_all
   integer :: generalized_operator(0:chm_constituents_size)   ! Same as genoper in NAMCHEM
   integer :: tropo_mode(0:chm_constituents_size),tropo_bound(0:chm_constituents_size)
-  integer :: assim_num,assim_varno(chm_cfg_size),assim_nlev(chm_cfg_size)
-  integer :: obsdata_maxsize,assim_exclude_nflag,assim_exclude_flag(chm_cfg_size)
+  integer :: obsdata_maxsize
   integer :: transform(0:chm_constituents_size),message_fileunit
   real(8) :: amu(0:chm_constituents_size),tropo_column_top(0:chm_constituents_size)
   real(8) :: low_cutoff(0:chm_constituents_size),high_cutoff(0:chm_constituents_size)
-  character(len=9) :: assim_stnid(chm_cfg_size)
   character(len=chm_filename_size) :: message_filename 
 
 contains
@@ -371,6 +376,7 @@ contains
 !!v                               as a(xc-xb) + b*xc where a and b depend on the size of 
 !!v                               sum[(xc-xb)/sig(xb)]^2 over the profile.
 !!v
+!!v        assim_fam           List of families to which filt_diagn_only is to apply.
 !!v
 !!v        assim_exclude_flag  Array specifying bits for identifying diagnostic-only observations for
 !!v                            observations that would otherwise be assimilated according to the other
@@ -456,8 +462,8 @@ contains
 
   EXTERNAL FNOM,FCLOS
 
-  namelist /namchem/ assim_all,assim_num,assim_stnid,assim_varno,assim_nlev, &
-                     assim_exclude_nflag,assim_exclude_flag,                                 &
+  namelist /namchem/ assim_fam,assim_all,assim_num,assim_stnid,assim_varno,assim_nlev, &
+                     assim_exclude_nflag,assim_exclude_flag,                 &
                      tropo_mode,tropo_bound,tropo_column_top,amu,            &
                      low_cutoff,high_cutoff,transform,obsdata_maxsize,       &
                      message_filename,genoper
@@ -471,15 +477,18 @@ contains
   high_cutoff(:)=10.0
   transform(:)=0   ! At least ensure positive values and provide related warning as needed.
   
-  assim_all=.true.
-  assim_num=-1  
-  assim_stnid(:)='*********'
-  assim_varno(:)=0
-  assim_nlev(:)=0
+  assim_fam(:)=''
+  assim_fam(1)='CH'
+  assim_famNum=1
+  assim_all(:)=.true.
+  assim_num(:)=0  
+  assim_stnid(:,:)='*********'
+  assim_varno(:,:)=0
+  assim_nlev(:,:)=0
  
-  assim_exclude_nflag=1
-  assim_exclude_flag(1)=6  ! this is for the 'in reserve' bit for a BURP marker
-  assim_exclude_flag(2:)=0
+  assim_exclude_nflag(:)=1
+  assim_exclude_flag(:,1)=6  ! this is for the 'in reserve' bit for a BURP marker
+  assim_exclude_flag(:,2:)=0
 
   tropo_mode(:) = 0
   tropo_bound(:) = 0
@@ -518,7 +527,11 @@ contains
   ierr=FCLOS(nulnam)      
 
   generalized_operator(:) = genoper(:)
-
+  do i=chm_famNum,1,-1
+     if (assim_fam(i).ne.'') exit
+  end do
+  assim_famnum=i
+  
   end subroutine chm_read_namchem
 
 !-----------------------------------------------------------------------------------------
@@ -1559,7 +1572,7 @@ contains
 
 ! ------------------------------------------------------------------------------------------
 !
-! LOGICAL FUNCTION chm_diagn_only(cstnid,varno,nobslev,flag)
+! LOGICAL FUNCTION chm_diagn_only(cfamName,cstnid,varno,nobslev,flag)
 !! 
 !! *Purpose*: Identify whether or not the obs set identified by 
 !!            the combination of (cstnidin, bufrin,nlevs) will
@@ -1571,6 +1584,7 @@ contains
 !!
 !! Input:
 !!v
+!!v       cfamName         Family name
 !!v       cstnid           Input station id
 !!v       varno            Obs BUFR number
 !!v       nobslev          Number of levels
@@ -1583,29 +1597,45 @@ contains
 !!v                         assimilation/minimization.
 !!v
 !-------------------------------------------------------------------------------------------
- logical function chm_diagn_only(cstnid,varno,nobslev,flag)
+ logical function chm_diagn_only(cfamName,cstnid,varno,nobslev,flag)
  
     implicit none
 
     integer, intent(in) :: varno,nobslev,flag
-    character(len=*), intent(in) :: cstnid
+    character(len=*), intent(in) :: cstnid,cfamName
   
-    integer :: i,elemId
+    integer :: i,elemId,ifam
     
-    if (assim_all) then
+    ifam=0
+    if (assim_famNum.gt.0) then
+       do i=1,assim_famNum
+          if (assim_fam(i).eq.cfamName) then
+             ifam=i
+             exit
+          end if
+       end do
+    end if
+
+    if (ifam.eq.0) then
        ! assimilate all observations
        chm_diagn_only = .false.
-    else if (assim_num.le.0) then
+       return    
+    end if
+    
+    if (assim_all(ifam)) then
+       ! assimilate all observations
+       chm_diagn_only = .false.
+    else if (assim_num(ifam).le.0) then
        ! assimilate no observations
        chm_diagn_only = .true.
-    else if (assim_num.gt.0) then
+    else if (assim_num(ifam).gt.0) then
        ! check if this observation is listed in the assim_* arrays
        elemId=0
-       do i=1,assim_num
-          if (utl_stnid_equal(trim(assim_stnid(i)),trim(cstnid))) then
-             if (assim_varno(i).eq.0.or.assim_varno(i).eq.varno) then
-                if (assim_nlev(i).eq.0.or.(nobslev.eq.1.and.assim_nlev(i).eq.1).or. &
-                     (nobslev.gt.1.and.assim_nlev(i).gt.1)) then
+       do i=1,assim_num(ifam)
+          if (utl_stnid_equal(trim(assim_stnid(ifam,i)),trim(cstnid))) then
+             if (assim_varno(ifam,i).eq.0.or.assim_varno(ifam,i).eq.varno) then
+                if (assim_nlev(ifam,i).eq.0.or.(nobslev.eq.1.and.assim_nlev(ifam,i).eq.1).or. &
+                     (nobslev.gt.1.and.assim_nlev(ifam,i).gt.1)) then
                    elemId=i
                    exit
                 end if
@@ -1618,9 +1648,9 @@ contains
     if (chm_diagn_only) return
 
     ! check if the observation integer flag has a bit marked by assim_exclude_flag (same flagging as in filt_suprep)
-    if (assim_exclude_nflag.gt.0) then
-       do i=1,assim_exclude_nflag
-          if (btest(flag, 13 - assim_exclude_flag(i) )) then
+    if (assim_exclude_nflag(ifam).gt.0) then
+       do i=1,assim_exclude_nflag(ifam)
+          if (btest(flag, 13 - assim_exclude_flag(ifam,i) )) then
              chm_diagn_only = .true.
              return
           end if

@@ -1055,11 +1055,7 @@ contains
              iass = obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex)
 
              ! Indicates if diagnostics are to be calculated but observation not assimilated
-             if (obsfam.eq.'CH') then
-                diagn_only = chm_diagn_only(stnid,varno,nlev_obs,obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex))
-             else
-                diagn_only = .false.
-             end if
+             diagn_only = chm_diagn_only(obsfam,stnid,varno,nlev_obs,obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex))
 
              assim_obs = ((.not.diagn_only).and.anlm_mode) .or. assim_obs
 

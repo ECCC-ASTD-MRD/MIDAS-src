@@ -13,88 +13,88 @@
 !if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
-!
-! MODULE bMatrixChem_mod:  Contains routines involving preparation and application
-!                      of background-error covariance matrix(ces). Matrix
-!                      based on horizontally homogeneous/isotropic
-!                      correlations.  prefix="bchm_" used for routines in 
-!                      this module ("chm_" in other modules).
-!
-! Purpose: Holds routines for (1) reading and preparing the static bacground 
-!          error covariance matrix (if reading of balance operators if any are
-!          eventually added) and (2) transformations from control 
-!          vector (spectral space) to analysis increments (and its adjoint) 
-!          using the background error covariance matrix (and the balance 
-!          operators when present).
-!
-!          Based on bmatrixHI_mod.ftn90. See bmatrix_mod.ftn90 for usage of public routines.
-!
-! Author: Ping Du (based on bMatrixHI_mod.ftn90 by Mark Buehner), July-Sept 2014
-!         - Code changes mainly pertain to the addition of all aspects related to
-!           O3 as constituent and the introduction of the variables *_chm
-!         - Partial removal of bMatrixHI_mod components related to standard weather
-!           incremental variables
-!
-! Revisions:
-!        Ping Du, Jan 2015
-!         - Change from btr/tr to bchm/chm prefixes/suffixes.
-!        Yves Rochon, October 2014 - Nov 2016
-!        - Addition and modification of comments.
-!        - Generalizations for any constituent or set of constituents.
-!        - Extended use of nsposit and numvar*d instead of nlev_* beyond
-!          bchm_setup.
-!        - Main revised routines: BCHM_setup, BCHM_copyToStatevector,
-!                 BCHM_copyFromStatevector, BCHM_readcorns2, BCHM_convol,
-!                 BCHM_rdspstd, BCHM_rdstsrtd_newfmt, BCHM_sucorns2, BCHM_finalize
-!        - Addition of bchm_corvert and bchm_corverti. 
-!        - Others
-!
-! Comments and  questions:
-!
-! (1) Covariances uncoupled from weather variable.
-!
-! (2) Currently assumes univariate constituent assimilation (constituent variables 
-!     currently uncorrelated). See routines BCHM_READCORNS2 and BCHM_SUCORNS2. These 
-!     routines would need to be modified if cross-correlations were included.
-!
-! (3) One could potentially make public the functions/routines which are identical to
-!     those in bmatrixhi_mod.ftn90 (except possibly in name) so that one copy is 
-!     present in the code. 
-!
-! (4) For multiple univariate variables (or univarite blocks of one to multiple variables), 
-!     one could alternatively have multiple sets of covariance matrices within this module
-!     instead of a single covariance matrix setup (similarly to what was done for bchm_corvert*).
-!
-! Public Subroutines (which call other internal routines/functions):
-!    BCHM_setup:      Must be called first. Sets of background covariance matrix
-!                     (and balance operators if any are eventually added)
-!                     calls BCHM_rdstats (BCHM_readcorns2, BCHM_rdstddev (BCHM_rdstd3d,
-!                                         BCHM_rdstd, BCHM_rdspstd_newfmt (BCHM_rdspstd)),
-!                                         BCHM_scalestd), 
-!                           BCHM_sucorns2 (gasparicohn, bchm_corvert_setup, dsyev, 
-!                                          rpn_comm_allreduce)
-!    BCHM_BSqrt:      Transformations from control vector to analysis increments 
-!                     in the minimization process.
-!                     calls BCHM_cain, BCHM_spa2gd (dgemul), BCHM_copytoStatevector 
-!    BCHM_BSqrtAd:    Adjoint of BCHM_BSqrt.
-!                     calls BCHM_copyFromStatvector, BCHM_spa2gdad (dgemul), BCHM_cainad
-!    BCHM_Finalize    Deallocate internal module arrays.
-!    BCHM_expandToMPIglobal
-!    BCHM_reduceToMPIlocal:  calls rpn_comm_*
-!    BCHM_getScaleFactor
-!    BCHM_corvert_mult: Multiple an input matrix/array with 'bchm_corvert' or 'bchm_corverti'
-!    BCHM_getsigma:   Obtain background error std. dev. profile at obs/specified
-!                     location. 
-!    BCHM_is_initialized: checks if B_chm has been intialized.
-!
-! Other subroutines/functions info:
-!    BCHM_readcorns2:        calls BCHM_convol (gst_zleginv, gst_zlegdir, gst_getzleg))
-!    BCHM_rdstddev:          calls BCHM_rdstd3d, BCHM_rdstd, BCHM_rdspstd_newfmt.
-!    BCHM_rdspstd_newfmt:    calls gst_zleginv, BCHM_rdspstd
-!
-! Dependencies:
-!    globalSpectralTransform, ....
-!
+!!
+!! MODULE bMatrixChem_mod:  Contains routines involving preparation and application
+!!                      of background-error covariance matrix(ces). Matrix
+!!                      based on horizontally homogeneous/isotropic
+!!                      correlations.  prefix="bchm_" used for routines in 
+!!                      this module ("chm_" in other modules).
+!!
+!! *Purpose*: Holds routines for (1) reading and preparing the static bacground 
+!!            error covariance matrix (if reading of balance operators if any are
+!!            eventually added) and (2) transformations from control 
+!!            vector (spectral space) to analysis increments (and its adjoint) 
+!!            using the background error covariance matrix (and the balance 
+!!            operators when present).
+!!
+!!          Based on bmatrixHI_mod.ftn90. See bmatrix_mod.ftn90 for usage of public routines.
+!!
+!! @author Ping Du (based on bMatrixHI_mod.ftn90 by Mark Buehner), July-Sept 2014
+!!v         - Code changes mainly pertain to the addition of all aspects related to
+!!v           O3 as constituent and the introduction of the variables *_chm
+!!v         - Partial removal of bMatrixHI_mod components related to standard weather
+!!v           incremental variables
+!!
+!! Revisions:
+!!        Ping Du, Jan 2015
+!!         - Change from btr/tr to bchm/chm prefixes/suffixes.
+!!        Yves Rochon, October 2014 - Nov 2016
+!!        - Addition and modification of comments.
+!!        - Generalizations for any constituent or set of constituents.
+!!        - Extended use of nsposit and numvar*d instead of nlev_* beyond
+!!          bchm_setup.
+!!        - Main revised routines: BCHM_setup, BCHM_copyToStatevector,
+!!                 BCHM_copyFromStatevector, BCHM_readcorns2, BCHM_convol,
+!!                 BCHM_rdspstd, BCHM_rdstsrtd_newfmt, BCHM_sucorns2, BCHM_finalize
+!!        - Addition of bchm_corvert and bchm_corverti. 
+!!        - Others
+!!
+!! Comments and  questions:
+!!
+!! (1) Covariances uncoupled from weather variable.
+!!
+!! (2) Currently assumes univariate constituent assimilation (constituent variables 
+!!     currently uncorrelated). See routines BCHM_READCORNS2 and BCHM_SUCORNS2. These 
+!!     routines would need to be modified if cross-correlations were included.
+!!
+!! (3) One could potentially make public the functions/routines which are identical to
+!!     those in bmatrixhi_mod.ftn90 (except possibly in name) so that one copy is 
+!!     present in the code. 
+!!
+!! (4) For multiple univariate variables (or univarite blocks of one to multiple variables), 
+!!     one could alternatively have multiple sets of covariance matrices within this module
+!!     instead of a single covariance matrix setup (similarly to what was done for bchm_corvert*).
+!!
+!! Public Subroutines (which call other internal routines/functions):
+!!    BCHM_setup:      Must be called first. Sets of background covariance matrix
+!!                     (and balance operators if any are eventually added)
+!!                     calls BCHM_rdstats (BCHM_readcorns2, BCHM_rdstddev (BCHM_rdstd3d,
+!!                                         BCHM_rdstd, BCHM_rdspstd_newfmt (BCHM_rdspstd)),
+!!                                         BCHM_scalestd), 
+!!                           BCHM_sucorns2 (gasparicohn, bchm_corvert_setup, dsyev, 
+!!                                          rpn_comm_allreduce)
+!!    BCHM_BSqrt:      Transformations from control vector to analysis increments 
+!!                     in the minimization process.
+!!                     calls BCHM_cain, BCHM_spa2gd (dgemul), BCHM_copytoStatevector 
+!!    BCHM_BSqrtAd:    Adjoint of BCHM_BSqrt.
+!!                     calls BCHM_copyFromStatvector, BCHM_spa2gdad (dgemul), BCHM_cainad
+!!    BCHM_Finalize    Deallocate internal module arrays.
+!!    BCHM_expandToMPIglobal
+!!    BCHM_reduceToMPIlocal:  calls rpn_comm_*
+!!    BCHM_getScaleFactor
+!!    BCHM_corvert_mult: Multiple an input matrix/array with 'bchm_corvert' or 'bchm_corverti'
+!!    BCHM_getsigma:   Obtain background error std. dev. profile at obs/specified
+!!                     location. 
+!!    BCHM_is_initialized: checks if B_chm has been intialized.
+!!
+!! Other subroutines/functions info:
+!!    BCHM_readcorns2:        calls BCHM_convol (gst_zleginv, gst_zlegdir, gst_getzleg))
+!!    BCHM_rdstddev:          calls BCHM_rdstd3d, BCHM_rdstd, BCHM_rdspstd_newfmt.
+!!    BCHM_rdspstd_newfmt:    calls gst_zleginv, BCHM_rdspstd
+!!
+!! Dependencies:
+!!    globalSpectralTransform, ....
+!!
 !--------------------------------------------------------------------------
 MODULE BmatrixChem_mod
   use topLevelControl_mod
@@ -190,8 +190,18 @@ MODULE BmatrixChem_mod
 CONTAINS
 
 !-------------------------------------------------------------------------------------------
-
+!!
+!! *Purpose*: Setup for constituents static background error covariances.
+!!
+!! @author Ping Du (2014) based on bhi_setup
+!! 
+!! Revisions:
+!!v          Y. Rochon 2014-2017 (ARQI/AQRD)
+!!v          - various
+!!
+!------------------------------------------------------------------------------------------
   SUBROUTINE BCHM_setup(hco_in,vco_in,CVDIM_OUT,mode)
+
     implicit none
 
     type(struct_hco),pointer :: hco_in
@@ -236,7 +246,7 @@ CONTAINS
 !   Identify if analysis mode (top_nconf=141) as this determines if all actions
 !   are needed or not. (could be used instead of 
 
-!!    analysisMode=top_AnalysisMode()
+!    analysisMode=top_AnalysisMode()
      
 !   Set vertical dimensions
 
@@ -395,28 +405,33 @@ CONTAINS
   END SUBROUTINE BCHM_setup
 
 !-----------------------------------------------------------------------------------------------
-
-  logical function BCHM_is_initialized()
-!
-! Author  : M. Sitwell, May 2015
-!
-! Purpose: Checks if B_chm has been initialized
+!!
+!! *Purpose*: Checks if B_chm has been initialized
+!!
+!! @author M. Sitwell, May 2015
 !
 !-----------------------------------------------------------------------------------------
+  logical function BCHM_is_initialized()
+
+    implicit none
 
     bchm_is_initialized = initialized
 
   end function BCHM_is_initialized
 
 !-----------------------------------------------------------------------------------------------
-
+!!
+!! *Purpose*: Set scaling factors for background error std. dev.
+!!
+!! @author Ping Du (2014) based on bhi_getScaleFactor
+!! 
+!! Revisions:
+!!v       Y.J. Rochon, ARQI/AQRD, Mar 2015
+!!v          - Changed from 1D to 2D arrays
+!!v          - Use of nsposit.
+!-----------------------------------------------------------------------------------------------
   subroutine BCHM_getScaleFactor(scaleFactor_out)
-!
-! Revisions: 
-!           Y.J. Rochon, ARQI/AQRD, Mar 2015
-!           - Changed from 1D to 2D arrays
-!           - Use of nsposit.
-!
+
     implicit none
     real(8) :: scaleFactor_out(:,:)
     integer :: jlev,jvar
@@ -430,15 +445,14 @@ CONTAINS
   end subroutine BCHM_getScaleFactor
 
 !-----------------------------------------------------------------------------------------------
-
-  SUBROUTINE BCHM_RDSTATS
-!
-! Author: Y.J. Rochon, Nov 2016
-!            - Based on BCHM_rdspstd_newfmt
-!
-! Purpose: Reads chemical constituents background stats file.
-!
+!!
+!! *Purpose*: Reads chemical constituents background stats file.
+!!
+!! @author Y.J. Rochon, Nov 2016
+!!v            - Based on BCHM_rdspstd_newfmt
+!!
 !-----------------------------------------------------------------------------------------
+  SUBROUTINE BCHM_RDSTATS
 
    implicit none
 
@@ -482,15 +496,16 @@ CONTAINS
   END SUBROUTINE BCHM_RDSTATS
 
 !-------------------------------------------------------------------------------------------
-
-  SUBROUTINE BCHM_scalestd
-!
-! Purpose: Scales error standard deviation values.
-!
-! Revisions: Y.J. Rochon
-!            - Converted from original of bhi_scalestd for 3D std. dev. 
-!
+!!
+!! *Purpose*: Scales error standard deviation values.
+!!
+!! @author Y.J. Rochon
+!!
+!! Revisions: Y.J. Rochon
+!!v            - Converted from original of bhi_scalestd for 3D std. dev. 
+!!
 !-----------------------------------------------------------------------------------------
+  SUBROUTINE BCHM_scalestd
 
     implicit none
 
@@ -513,14 +528,13 @@ CONTAINS
   END SUBROUTINE BCHM_scalestd
 
 !-------------------------------------------------------------------------------------------
-
-  SUBROUTINE BCHM_truncateCV(controlVector_inout,ntruncCut)
-!
-! Purpose: Sets to zero all coefficients with total wavenumber > ntruncCut
-!
-! Based on bhi_truncateCV.
-!
+!!
+!! *Purpose*: Sets to zero all coefficients with total wavenumber > ntruncCut
+!!
+!! Based on bhi_truncateCV.
+!!
 !-----------------------------------------------------------------------------------------
+  SUBROUTINE BCHM_truncateCV(controlVector_inout,ntruncCut)
 
     implicit none
 
@@ -564,14 +578,13 @@ CONTAINS
  end SUBROUTINE BCHM_truncateCV
 
 !-------------------------------------------------------------------------------------------
-
- SUBROUTINE BCHM_bSqrt(controlvector_in,statevector)
-!
-! Purpose: Applies B_CHM^1/2 to a control vector.
-!
-! Based on bhi_bsqrt
-!
+!!
+!! *Purpose*: Applies B_CHM^1/2 to a control vector.
+!!
+!! Based on bhi_bsqrt
+!!
 !-----------------------------------------------------------------------------------------
+ SUBROUTINE BCHM_bSqrt(controlvector_in,statevector)
   
    implicit none
 
@@ -604,6 +617,7 @@ CONTAINS
 !-----------------------------------------------------------------------------------------------
 
   SUBROUTINE BCHM_cain(controlVector_in,hiControlVector_out)
+!
     implicit none
 
     real(8) :: controlVector_in(cvDim_mpilocal)
@@ -665,14 +679,13 @@ CONTAINS
   END SUBROUTINE BCHM_copyToStatevector
 
 !-----------------------------------------------------------------------------------------------
-
-  SUBROUTINE BCHM_bSqrtAd(statevector,controlVector_out)
-!
-! Purpose: Applies adjoint of B_CHM^1/2 to a statevector.
-!
-! Based on bhi_bSqrtAd.
-!
+!!
+!! *Purpose*: Applies adjoint of B_CHM^1/2 to a statevector.
+!!
+!! Based on bhi_bSqrtAd.
+!!
 !-----------------------------------------------------------------------------------------
+  SUBROUTINE BCHM_bSqrtAd(statevector,controlVector_out)
 
     implicit none
 
@@ -734,21 +747,20 @@ CONTAINS
   END SUBROUTINE BCHM_copyFromStatevector
 
 !-----------------------------------------------------------------------------------------------
-
-  SUBROUTINE BCHM_READCORNS2
-!
-! Purpose: Reads correlation information and forms the correlation matrix.
-!
-! Based on bhi_readcorns2.
-!
-! Revisions: 
-!            Y.J. Rochon
-!            - Set for block diagonal matrices. Can be expanded later
-!              for cross-correlations.
-!
-! Notes: Currently assumes distinct block diagonal matrices (no cross-correlations)
-!
+!!
+!! *Purpose*: Reads correlation information and forms the correlation matrix.
+!!
+!! Based on bhi_readcorns2.
+!!
+!! Revisions: 
+!!v            Y.J. Rochon
+!!v            - Set for block diagonal matrices. Can be expanded later
+!!v              for cross-correlations.
+!!
+!! Notes: Currently assumes distinct block diagonal matrices (no cross-correlations)
+!!
 !-----------------------------------------------------------------------------------------
+  SUBROUTINE BCHM_READCORNS2
  
     implicit none
 
@@ -1010,15 +1022,14 @@ CONTAINS
   END SUBROUTINE BCHM_convol
 
 !-----------------------------------------------------------------------------------------------
-
-  SUBROUTINE BCHM_RDSTDDEV
-!
-!   Author: Y.J. Rochon, Nov 2016
-!           - Based on partial content of bhi_setup
-!
-!   Purpose: Reads stddev and set as 3D fields.
-!
+!!
+!! *Purpose*: Reads stddev and set as 3D fields.
+!!
+!! @author Y.J. Rochon, Nov 2016
+!!v           - Based on partial content of bhi_setup
+!!
 !-----------------------------------------------------------------------------------------------
+  SUBROUTINE BCHM_RDSTDDEV
 
     implicit none
 
@@ -1242,14 +1253,15 @@ CONTAINS
   END SUBROUTINE BCHM_RDSPSTD_NEWFMT
 
 !-----------------------------------------------------------------------------------------------
-
-  SUBROUTINE BCHM_RDSTD
-!
-!   Purpose: Reads 2D stddev and store as 3D
-!
-!   Author: Y.J. Rochon, Nov 2016
-!           - Based on BCHM_RDSTD3D in consideration of BHI_RDSTD
+!!
+!! *Purpose*: Reads 2D stddev and store as 3D
+!!
+!! @author Y.J. Rochon, Nov 2016
+!!v         - Based on BCHM_RDSTD3D in consideration of BHI_RDSTD
+!!
 !-----------------------------------------------------------------------------------------------
+  SUBROUTINE BCHM_RDSTD
+
     implicit none
 
     integer :: jvar,in
@@ -1310,14 +1322,15 @@ CONTAINS
   END SUBROUTINE BCHM_RDSTD
 
 !-----------------------------------------------------------------------------------------------
-
-  SUBROUTINE BCHM_RDSTD3D
-!
-!   Purpose: Reads 3D stddev.
-!
-!   Author: Y.J. Rochon, March/Nov 2016
-!           (originally based on BCHM_RDSPSTD_NEWFMT)
+!!
+!! *Purpose*: Reads 3D stddev.
+!!
+!! @author Y.J. Rochon, March/Nov 2016
+!!v         (originally based on BCHM_RDSPSTD_NEWFMT)
+!!
 !-----------------------------------------------------------------------------------------------
+  SUBROUTINE BCHM_RDSTD3D
+
     implicit none
 
     integer :: jvar
@@ -2194,21 +2207,21 @@ CONTAINS
   end SUBROUTINE BCHM_expandToMPIGlobal
 
 !-----------------------------------------------------------------------------------------------
-
-  SUBROUTINE BCHM_corvert_setup
-!
-! Purpose: Compute total vertical correlations (bchm_corvert) and its inverse (bchm_corverti; currently 
-!          for each block matrix).
-!
-! Author: Y.J. Rochon, ARQI/AQRD, Mar 2015
-!
-! Revisions:
-!
-! Comments:
-!
-! (A) Currently assumes no cross-correlations 
-!
+!!
+!! *Purpose*: Compute total vertical correlations (bchm_corvert) and its inverse (bchm_corverti; currently 
+!!          for each block matrix).
+!!
+!! @author Y.J. Rochon, ARQI/AQRD, Mar 2015
+!!
+!! Revisions:
+!!
+!! Comments:
+!!
+!! (A) Currently assumes no cross-correlations 
+!!
 !-----------------------------------------------------------------------------------------------
+  SUBROUTINE BCHM_corvert_setup
+
     implicit none
 
     real(8) :: eigenval(nkgdim), eigenvec(nkgdim,nkgdim),result(nkgdim,nkgdim)
@@ -2387,63 +2400,63 @@ CONTAINS
   END SUBROUTINE BCHM_corvert_setup
 
 !-----------------------------------------------------------------------------------------------
-
+!!
+!! *Purpose*: Multiplication with local matrix C=bchm_corvert (itype>0) or CI=bchm_corverti (itype<0).
+!!
+!!v          Given A=rmat_in (=input)
+!!v
+!!v          itype       Output
+!!v          -----       ------
+!!v            0          D(i,j)=A(i,j)/sum(C(1:n,i))
+!!v            1          A*C
+!!v            2          C*A
+!!v            3          A*C*A^T
+!!v           -1          A*CI
+!!v           -2          CI*A
+!!v           -3          A*CI*A^T
+!!v
+!! @author Y.J. Rochon, ARQI/AQRD, Mar 2015
+!!
+!! Revisions:
+!!
+!! Arguments:
+!!
+!!v  Input
+!!v
+!!v           varName              -- Variable name
+!!v           rmat_in(ndim1,ndim2) -- Input matrix/vector A (see comments sections)
+!!v           lvl_top(ndim1)       -- Top level of non-zero values in rmat_in
+!!v           lvl_bot(ndim1)       -- Bottom level of non-zero values in rmat_in
+!!v           ndim1,ndim2          -- Matrix dimensions
+!!v                                   ndim1 to be 1 one 1D input vectors
+!!v           ndim3                -- Expected output dimension.
+!!v                                   =ndim1 for itype= +/-3
+!!v                                   =ndim2 otherwise
+!!v           lrgsig               -- Logical indicating if rsig to be included as part of C or CI below.
+!!v           rsig                 -- Input error standard deviations.
+!!v                                   Required when lrgsig=.true.
+!!v           itype                -- Type of operator (see above).        
+!!v
+!!v  Output:
+!!v
+!!v           rmat_out(ndim1,ndim3) -- Output matrix/vector (see comments sections)
+!!v                                    ndim3 Output is actually rmat_out(ndim1,ndim1) for itype=3.
+!!v
+!! Comments:
+!!
+!!v (A) If rmat_in is a 1-D vector, then 
+!!v    
+!!v     for cases +/- 2, one should have set ndim2=1 and ndim1=vector-length.
+!!v     for cases +/- 1,3, one should have set ndim1=1 and ndim2=vector-length.
+!!v
+!!v (B) rmat_out assumed to be initialized prior to call to bchm_corvert_mult.
+!!v
+!!v (C) bchm_corverti is the inverse of bchm_corvert.
+!!
+!-----------------------------------------------------------------------------------------------
   Subroutine bchm_corvert_mult(varName,rmat_in,rmat_out,lvl_top,lvl_bot,ndim1,ndim2,ndim3, &
                                lrgsig,itype,rsig)
-!
-! Purpose: Multiplication with local matrix C=bchm_corvert (itype>0) or CI=bchm_corverti (itype<0).
-!
-!          Given A=rmat_in (=input)
-!
-!          itype       Output
-!          -----       ------
-!            0          D(i,j)=A(i,j)/sum(C(1:n,i))
-!            1          A*C
-!            2          C*A
-!            3          A*C*A^T
-!           -1          A*CI
-!           -2          CI*A
-!           -3          A*CI*A^T
-!
-! Author: Y.J. Rochon, ARQI/AQRD, Mar 2015
-!
-! Revisions:
-!
-! Arguments:
-!
-!  Input
-!
-!           varName              -- Variable name
-!           rmat_in(ndim1,ndim2) -- Input matrix/vector A (see comments sections)
-!           lvl_top(ndim1)       -- Top level of non-zero values in rmat_in
-!           lvl_bot(ndim1)       -- Bottom level of non-zero values in rmat_in
-!           ndim1,ndim2          -- Matrix dimensions
-!                                   ndim1 to be 1 one 1D input vectors
-!           ndim3                -- Expected output dimension.
-!                                   =ndim1 for itype= +/-3
-!                                   =ndim2 otherwise
-!           lrgsig               -- Logical indicating if rsig to be included as part of C or CI below.
-!           rsig                 -- Input error standard deviations.
-!                                   Required when lrgsig=.true.
-!           itype                -- Type of operator (see above).        
-!
-!  Output:
-!
-!           rmat_out(ndim1,ndim3) -- Output matrix/vector (see comments sections)
-!                                    ndim3 Output is actually rmat_out(ndim1,ndim1) for itype=3.
-!
-! Comments:
-!
-! (A) If rmat_in is a 1-D vector, then 
-!     
-!     for cases +/- 2, one should have set ndim2=1 and ndim1=vector-length.
-!     for cases +/- 1,3, one should have set ndim1=1 and ndim2=vector-length.
-!
-! (B) rmat_out assumed to be initialized prior to call to bchm_corvert_mult.
-!
-! (C) bchm_corverti is the inverse of bchm_corvert.
-!
-!-----------------------------------------------------------------------------------------------
+
     implicit none
     character(len=*), intent(in) :: varName
     integer, intent(in) :: ndim1,ndim2,ndim3,itype
@@ -2638,30 +2651,31 @@ CONTAINS
   end subroutine bchm_corvert_mult
 
 !-----------------------------------------------------------------------------------------------
-
-  Subroutine bchm_getsigma(varName,ndim2,xlat,xlong,rsig)
-!
-! Purpose: Interpolate error std. dev. to obs location.
-!
-! Author: Y.J. Rochon, ARQI/AQRD, Mar 2015
-!
-! Revisions:
-!
-! Arguments:
-!
-!  Input
-!
-!           varName        -- Variable name
-!           ndim2          -- Max array size
-!           xlat           -- Target latitude 
-!           xlong          -- Target longitude  
-!
-!  Output:
-!
-!           rsig(nsize)    -- Error std. dev.
-!
+!!
+!! *Purpose*: Interpolate error std. dev. to obs location.
+!!
+!! @author Y.J. Rochon, ARQI/AQRD, Mar 2015
+!!
+!! Revisions:
+!!
+!! Arguments:
+!!
+!!v  Input
+!!v
+!!v           varName        -- Variable name
+!!v           ndim2          -- Max array size
+!!v           xlat           -- Target latitude 
+!!v           xlong          -- Target longitude  
+!!v
+!!v  Output:
+!!v
+!!v           rsig(nsize)    -- Error std. dev.
+!!
 !-----------------------------------------------------------------------------------------------
+  subroutine bchm_getsigma(varName,ndim2,xlat,xlong,rsig)
+
     implicit none
+
     character(len=*), intent(in) :: varName
     integer, intent(in) :: ndim2
     real(8), intent(in) :: xlat,xlong 
@@ -2767,6 +2781,5 @@ CONTAINS
     end do
 
   end subroutine bchm_getsigma
-!-----------------------------------------------------------------------------------------------
   
 END MODULE BmatrixChem_mod

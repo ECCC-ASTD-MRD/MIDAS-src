@@ -417,7 +417,7 @@ contains
                zomp = obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex) - obs_col(iobslev)
                call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex,zomp)
 
-               if (chm_diagn_only(stnid,varno,nobslev,flag(iobslev))) then
+               if (chm_diagn_only('CH',stnid,varno,nobslev,flag(iobslev))) then
                   ! Observation is for diagnostics and is not to be assimilated
                   call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,3)
                else if (present(jobs).and.iass(iobslev).eq.1) then
