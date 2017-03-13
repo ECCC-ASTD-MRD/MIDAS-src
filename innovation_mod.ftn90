@@ -766,7 +766,7 @@ contains
 
        case default
 
-          call readTrialField(varInterphr_T,varInterphr_VV,vnl_varNameList3D(jvar),'TH')
+          call readTrialField(varInterphr_T,varInterphr_VV,vnl_varNameList3D(jvar),vnl_varLevelFromVarname(vnl_varNameList3D(jvar)))
 
           if(col_getNumCol(columng).gt.0) then
 
@@ -778,9 +778,6 @@ contains
              call col_fillmvo(columnhr,varInterphr_T,vnl_varNameList3D(jvar))
              call col_vintprof(columnhr,columng,vnl_varNameList3D(jvar))
 
-             do jobs=1,col_getNumCol(columng)
-                column_ptr => col_getColumn(columng,jobs,vnl_varNameList3D(jvar))
-             end do
           end if
 
        end select

@@ -42,11 +42,11 @@ module burpFiles_mod
   private
 
   ! public variables
-  public :: burp_nfiles,burp_cfamtyp,burp_cfilnam
+  public :: burp_nfiles,burp_cfilnam
 
   ! public procedures
   public :: burp_setupfiles, burp_readfiles, burp_updatefiles
-  public :: burp_read_all, burp_update_all
+  public :: burp_chem_read_all, burp_chem_update_all
 
 
   integer, parameter :: jpfiles=64
@@ -1702,46 +1702,42 @@ END SUBROUTINE burp_updateFiles
 !--------------------------------------------------------------------
     END SUBROUTINE SETASSFLG
 
-!-----------------------------------------------------------------------------------------
-
-  function burp_read_all(obsfam,stnid,varno,nlev,ndim,bkstp,block_type,match_nlev,codtyplist) result(burp_out)
-!
-! Author:   M. Sitwell, ARQI/AQRD, Sept 2016
-!
-! Revisions: Y. Rochon, ARQI/AQRD, Nov 2016
-!            - Added optional input argument codtyplist and option of varno <=0 (in burp_read)
-!
-! Purpose:  Retrieve information for observations from all chemical constituent BURP files.
-!           If the BURP files are not split, then the single BURP file is read. If the BURP files are
-!           split, then each split BURP file is read and the data combined into one struct_oss_obsdata
-!           object. See the function burp_read for more details.
-!
-! Arguments:
-!
-!  Input
-!
-!           stnid         station ID of observation
-!           varno         BUFR code 
-!                         If <=0, to search through all codes to obtain first
-!                         between 10000 and 16000.
-!           nlev          number of levels in the observation
-!           ndim          number of dimensions for the retrieved data in
-!                         each report (e.g. ndim=1 for std, ndim=2 for
-!                         averagine kernels) 
-!           bkstp         bkstp number of requested block
-!           block_type    block type indicated by the two rightmost bits
-!                         of bknat. Valid values are 'DATA', 'INFO', '3-D',
-!                         and 'MRQR'.
-!           match_nlev    determines if the report matching criteria includes checking
-!                         if the report number of levels is the same as the input
-!                         argument nlev
-!           codtyplist    optional CODTYP list for search (optional)
-!           obsfam        observation family name
-!
-!  Output 
-!           burp_out      struct_oss_obsdata object
-!
-!-----------------------------------------------------------------------------------------
+!--------------------------------------------------------------------------
+!! *Purpose*: Retrieves information for observations from all BURP files. Currently only used for
+!!            chemical constituent but can potentially be used for any family. If the BURP files
+!!            are not split, then the single BURP file is read. If the BURP files are split, then
+!!            each split BURP file is read and the data combined into one struct_oss_obsdata
+!!            object. See the function burp_chem_read for more details.
+!!
+!! @author M. Sitwell, ARQI/AQRD, Sept 2016
+!!
+!! Revisions:
+!!v       Y. Rochon, ARQI/AQRD, Nov 2016
+!!v         - Added optional input argument codtyplist and option of varno <=0 (in burp_chem_read)
+!!
+!! Input:
+!!v           stnid         station ID of observation
+!!v           varno         BUFR code 
+!!v                         If <=0, to search through all codes to obtain first
+!!v                         between 10000 and 16000.
+!!v           nlev          number of levels in the observation
+!!v           ndim          number of dimensions for the retrieved data in
+!!v                         each report (e.g. ndim=1 for std, ndim=2 for
+!!v                         averagine kernels) 
+!!v           bkstp         bkstp number of requested block
+!!v           block_type    block type indicated by the two rightmost bits
+!!v                         of bknat. Valid values are 'DATA', 'INFO', '3-D',
+!!v                         and 'MRQR'.
+!!v           match_nlev    determines if the report matching criteria includes checking
+!!v                         if the report number of levels is the same as the input
+!!v                         argument nlev
+!!v           codtyplist    optional CODTYP list for search (optional)
+!!v           obsfam        observation family name
+!!
+!! Output:
+!!v           burp_out      struct_oss_obsdata object
+!--------------------------------------------------------------------------
+  function burp_chem_read_all(obsfam,stnid,varno,nlev,ndim,bkstp,block_type,match_nlev,codtyplist) result(burp_out)
 
     implicit none
 
@@ -1761,86 +1757,80 @@ END SUBROUTINE burp_updateFiles
 
     if (found) then
        if (present(codtyplist)) then
-          burp_out = burp_read(filename,stnid,varno,nlev,ndim,bkstp,block_type,match_nlev, &
+          burp_out = burp_chem_read(filename,stnid,varno,nlev,ndim,bkstp,block_type,match_nlev, &
                                    codtyplist=codtyplist)
        else
-          burp_out = burp_read(filename,stnid,varno,nlev,ndim,bkstp,block_type,match_nlev)
+          burp_out = burp_chem_read(filename,stnid,varno,nlev,ndim,bkstp,block_type,match_nlev)
        end if
     else
        if (burp_split) then
           ! Must allocate burp_out so that it is available from ALL processors when
           ! requiring of rpn_comm_allgather via oss_obsdata_MPIallgather.
-          write(*,*) "burp_read_all: Could not find/open BURP file: ",trim(filename)
+          write(*,*) "burp_chem_read_all: Could not find/open BURP file: ",trim(filename)
           if (ndim.eq.1) then
              call oss_obsdata_alloc(burp_out,1,dim1=nlev)
           else
              call oss_obsdata_alloc(burp_out,1,dim1=nlev,dim2=nlev)
           end if
           burp_out%nrep=0
-          write(*,*) "burp_read_all: Number of reports set to ",burp_out%nrep
+          write(*,*) "burp_chem_read_all: Number of reports set to ",burp_out%nrep
        else
-          call utl_abort('burp_read_all: Could not find BURP file: ' // trim(filename))
+          call utl_abort('burp_chem_read_all: Could not find BURP file: ' // trim(filename))
        end if
     end if
 
     if (burp_split) call oss_obsdata_MPIallgather(burp_out)
 
-  end function burp_read_all
+  end function burp_chem_read_all
 
-!--------------------------------------------------------------------------------------------
-
-  function burp_read(filename,stnid,varno,nlev,ndim,bkstp,block_type,match_nlev,codtyplist) result(burp_out)
-!
-! Author:   M. Sitwell, ARQI/AQRD, March 2015
-!
-! Purpose:  Retrieve information from observation BURP file. Can retrieve
-!           either 1D or 2D data from a report.
-!
-!           Note: BUFR power 10 exponent element (i.e. data with BUFR number 8090) 
-!           will only be applied to 1D data if present.
-!
-! Revision:  M. Sitwell, ARQI/AQRD, May 2015
-!            - Modified to read both 1D and 2D data from a report
-!            Y. Rochon, ARQI/AQRD, May 2016
-!            - Updated to increment 'icount' only if varno is also found in addition
-!              stnid, nlev, block_type and bkstp
-!            M. Sitwell, ARQI/AQRD, June 2016
-!            - Added match_nlev input argument
-!            Y. Rochon, ARQI/AQRD, Oct 2016
-!            - Added optional codtyplist argument and option of input varno<=0.
-!
-! Arguments:
-!
-!  Input
-!           filename      BURP file name
-!           stnid         station ID of observation
-!           varno         BUFR code
-!                         If <=0, search through all codes to obtain first
-!                         between 10000 and 16000.
-!           nlev          number of levels in the observation
-!           ndim          number of dimensions for the retrieved data in
-!                         each report (e.g. ndim=1 for std, ndim=2 for
-!                         averagine kernels) 
-!           bkstp         bkstp number of requested block
-!           block_type    block type indicated by the two rightmost bits
-!                         of bknat. Valid values are 'DATA', 'INFO', '3-D',
-!                         and 'MRQR'.
-!           match_nlev    determines if the report matching criteria includes checking
-!                         if the report number of levels is the same as the input
-!                         argument nlev
-!           codtyplist    optional CODTYP list for search
-!
-!  Output 
-!           burp_out      struct_oss_obsdata object
-!
-!  Comments:
-!
-!  - As burp_out is for a specific input stnid, burp_out%code only contains the (lat/long and
-!    time coord.) with 22 characters.
-!
-!  - Exponent BUFR data (i.e. data with BUFR number 8090) will only be applied to 1D data.
-!
-!-----------------------------------------------------------------------------------------
+!--------------------------------------------------------------------------
+!! *Purpose*: Retrieve information from observation BURP file. Can retrieve
+!!            either 1D or 2D data from a report. Currently only used for
+!!            chemical constituent but can potentially be used for any family.
+!!
+!! @author M. Sitwell, ARQI/AQRD, March 2015
+!!
+!! Revision:
+!!v    M. Sitwell, ARQI/AQRD, May 2015
+!!v      - Modified to read both 1D and 2D data from a report
+!!v    Y. Rochon, ARQI/AQRD, May 2016
+!!v      - Updated to increment 'icount' only if varno is also found in addition
+!!v        stnid, nlev, block_type and bkstp
+!!v    M. Sitwell, ARQI/AQRD, June 2016
+!!v      - Added match_nlev input argument
+!!v    Y. Rochon, ARQI/AQRD, Oct 2016
+!!v      - Added optional codtyplist argument and option of input varno<=0.
+!!
+!! Input:
+!!v           filename      BURP file name
+!!v           stnid         station ID of observation
+!!v           varno         BUFR code
+!!v                         If <=0, search through all codes to obtain first
+!!v                         between 10000 and 16000.
+!!v           nlev          number of levels in the observation
+!!v           ndim          number of dimensions for the retrieved data in
+!!v                         each report (e.g. ndim=1 for std, ndim=2 for
+!!v                         averagine kernels) 
+!!v           bkstp         bkstp number of requested block
+!!v           block_type    block type indicated by the two rightmost bits
+!!v                         of bknat. Valid values are 'DATA', 'INFO', '3-D',
+!!v                         and 'MRQR'.
+!!v           match_nlev    determines if the report matching criteria includes checking
+!!v                         if the report number of levels is the same as the input
+!!v                         argument nlev
+!!v           codtyplist    optional CODTYP list for search
+!!
+!! Output: 
+!!v           burp_out      struct_oss_obsdata object
+!!
+!! Comments:
+!!v   - BUFR power 10 exponent element (i.e. data with BUFR number 8090) 
+!!v     will only be applied to 1D data if present.
+!!v   - As burp_out is for a specific input stnid, burp_out%code only contains the (lat/long and
+!!v     time coord.) with 22 characters.
+!!v   - Exponent BUFR data (i.e. data with BUFR number 8090) will only be applied to 1D data.
+!--------------------------------------------------------------------------
+  function burp_chem_read(filename,stnid,varno,nlev,ndim,bkstp,block_type,match_nlev,codtyplist) result(burp_out)
     
     implicit none
 
@@ -1870,12 +1860,12 @@ END SUBROUTINE burp_updateFiles
     call BURP_New(brp, FILENAME=filename, MODE=FILE_ACC_READ, IOSTAT=error)
     
     if (error.eq.0) then
-       write(*,*) "burp_read: Reading file " // trim(filename)
-       write(*,*) "burp_read: Selecting STNID = ",stnid," BUFR = ",varno," block type = ",block_type
-       write(*,*) "burp_read:           bkstp = ",bkstp," nlev = ",nlev," match_nlev = ",match_nlev
-       if (present(codtyplist)) write(*,*) "burp_read: CodeTypeList: ",codtyplist(:)
+       write(*,*) "burp_chem_read: Reading file " // trim(filename)
+       write(*,*) "burp_chem_read: Selecting STNID = ",stnid," BUFR = ",varno," block type = ",block_type
+       write(*,*) "burp_chem_read:           bkstp = ",bkstp," nlev = ",nlev," match_nlev = ",match_nlev
+       if (present(codtyplist)) write(*,*) "burp_chem_read: CodeTypeList: ",codtyplist(:)
     else
-       call utl_abort('burp_read: Could not find/open BURP file: ' // trim(filename))
+       call utl_abort('burp_chem_read: Could not find/open BURP file: ' // trim(filename))
     end if
 
     ! get number of reports in file
@@ -1927,12 +1917,12 @@ END SUBROUTINE burp_updateFiles
                 varno_ivar=BURP_Get_Element(blk, INDEX=ivar, IOSTAT=error)
                 if (varno_ivar.ge.10000.and.varno_ivar.lt.16000) exit
              end do
-             if (varno_ivar.lt.10000.or.varno_ivar.ge.16000) call utl_abort('burp_read: No valid element found for STNID ' // rep_stnid )
+             if (varno_ivar.lt.10000.or.varno_ivar.ge.16000) call utl_abort('burp_chem_read: No valid element found for STNID ' // rep_stnid )
           end if
 
           ! required block found if code reaches this point, retrieve data and store in burp_out
           
-          if (nval.gt.nlev) call utl_abort('burp_read: number of levels in the report (' // trim(utl_str(nval)) // &
+          if (nval.gt.nlev) call utl_abort('burp_chem_read: number of levels in the report (' // trim(utl_str(nval)) // &
                                          ') exceeds the specified maximum number of levels (' // trim(utl_str(nlev)) // &
                                          ') for STNID ' // rep_stnid )
 
@@ -1990,45 +1980,41 @@ END SUBROUTINE burp_updateFiles
 
     burp_out%nrep = icount
 
-    write(*,*) "burp_read: Reading of file complete. Number of reports found: ",burp_out%nrep
+    write(*,*) "burp_chem_read: Reading of file complete. Number of reports found: ",burp_out%nrep
     
     ! deallocate
     Call BURP_Free(brp,iostat=error)
     Call BURP_Free(rep,iostat=error)
     Call BURP_Free(blk,iostat=error)
     
-  end function burp_read
+  end function burp_chem_read
 
-!--------------------------------------------------------------------------------------------
-
-  function burp_update_all(obsfam,varno,bkstp,block_type,obsdata,multi) result(nrep_modified)
-!
-! Author:   M. Sitwell, ARQI/AQRD, Sept 2016
-!
-! Purpose:  Add or modify information from all BURP files. If BURP files are not split,
-!           a single files is updated. If BURP files are split, then each split file
-!           is updated. See the function burp_update for more details.
-!
-! Arguments:
-!
-!  Input
-!
-!           obsfam        observation family name
-!           varno         BUFR descriptors. Number of elements must be 
-!                         max(1,obsdata%dim2)
-!           bkstp         bkstp number of requested block
-!           block_type    block type indicated by the two rightmost bits
-!                         of bknat. Valid values are 'DATA', 'INFO', '3-D',
-!                         and 'MRQR'.
-!           obsdata       Input struct_oss_obsdata object for varno.
-!           multi         Indicates if intended report are for 'UNI' or 'MULTI' level data (optional)
-!           fname_prefix  filename prefix, e.g. brpua_ (optional)
-!
-!
-!  Output 
-!           nrep_modified Number of modified reports
-!
-!-----------------------------------------------------------------------------------------
+!--------------------------------------------------------------------------
+!! *Purpose*: Add or modify information from all BURP files. Currently only used for
+!!            chemical constituent but can potentially be used for any family.
+!!            If BURP files are not split, a single files is updated. If BURP files
+!!            are split, then each split file is updated. See the function burp_chem_update
+!!            for more details.
+!!
+!! @author M. Sitwell, ARQI/AQRD, Sept 2016
+!!
+!! Input:
+!!v           obsfam        observation family name
+!!v           varno         BUFR descriptors. Number of elements must be 
+!!v                         max(1,obsdata%dim2)
+!!v           bkstp         bkstp number of requested block
+!!v           block_type    block type indicated by the two rightmost bits
+!!v                         of bknat. Valid values are 'DATA', 'INFO', '3-D',
+!!v                         and 'MRQR'.
+!!v           obsdata       Input struct_oss_obsdata object for varno.
+!!v           multi         Indicates if intended report are for 'UNI' or 'MULTI' level data (optional)
+!!v           fname_prefix  filename prefix, e.g. brpua_ (optional)
+!!v
+!!
+!! Output: 
+!!v           nrep_modified Number of modified reports
+!--------------------------------------------------------------------------
+  function burp_chem_update_all(obsfam,varno,bkstp,block_type,obsdata,multi) result(nrep_modified)
 
     implicit none
 
@@ -2046,9 +2032,9 @@ END SUBROUTINE burp_updateFiles
 
     if (burp_split .or. mpi_myid.eq.0) then
        if (present(multi)) then
-          nrep_modified = burp_update(burp_get_filename(obsfam),varno,bkstp,block_type,obsdata,multi=multi)
+          nrep_modified = burp_chem_update(burp_get_filename(obsfam),varno,bkstp,block_type,obsdata,multi=multi)
        else
-          nrep_modified = burp_update(burp_get_filename(obsfam),varno,bkstp,block_type,obsdata)
+          nrep_modified = burp_chem_update(burp_get_filename(obsfam),varno,bkstp,block_type,obsdata)
        end if
     end if
 
@@ -2057,53 +2043,46 @@ END SUBROUTINE burp_updateFiles
        nrep_modified = nrep_modified_global
     end if
 
-  end function burp_update_all
+  end function burp_chem_update_all
 
-!-----------------------------------------------------------------------------------------
-
-  function burp_update(filename,varno,bkstp,block_type,obsdata,multi) result(nrep_modified)
-!
-! Author  : Y. Rochon, ARQI/AQRD, June 2016
-!           - Partly based on burp_read by M. Sitwell.
-!
-! Revision: 
-!          M. Sitwell, ARQI/AQRD, Aug 2016
-!          - Modified to preserve order of reports.
-!          Y. Rochon, ARQI/AQRD, Jan 2017
-!          - Added optional check for multi using 'DATA' when block_type='INFO'.
-!
-! Purpose:  Add or modify information from BURP file in existing block and
-!           for specified BUFR descriptor varno(s). 
-!           Provided data can be either 1D or 2D data.
-!
-! Arguments:
-!
-!  Input
-!           filename      BURP file name
-!           varno         BUFR descriptors. Number of elements must be 
-!                         max(1,obsdata%dim2)
-!           bkstp         bkstp number of requested block
-!           block_type    block type indicated by the two rightmost bits
-!                         of bknat. Valid values are 'DATA', 'INFO', '3-D',
-!                         and 'MRQR'.
-!           obsdata       Input struct_oss_obsdata object for varno.
-!           multi         Indicates if intended report are for 'UNI' or 'MULTI' level data (optional)
-!
-!
-!  Output 
-!           nrep_modified Number of modified reports
-!
-!  Comments:
-!
-!  - Currently assumes that all elements of varno(:) are distinct from each other.
-!  - In blocks with new data to be added/modified, if the varno already exists in the block, the
-!    new data will overwrite the existing varno data, otherwise will append the new data
-!    to the block.
-!  - The settings for BURP_Write_Block should have ENCODE_BLOCK and CONVERT_BLOCK set to
-!    .true. in all cases, including when the block has not been modified, due to problems
-!    that can occur when writing blocks containing negative integers with datyp=4.
-!
-!-----------------------------------------------------------------------------------------
+!--------------------------------------------------------------------------
+!! *Purpose*: Add or modify information from BURP file in existing block and
+!!            for specified BUFR descriptor varno(s). Provided data can be either
+!!            1D or 2D data. Currently only used for chemical constituent but can
+!!            potentially be used for any family.
+!!
+!! @author Y. Rochon, ARQI/AQRD, June 2016 (partly based on burp_chem_read by M. Sitwell)
+!!
+!! Revisions:
+!!v        M. Sitwell, ARQI/AQRD, Aug 2016
+!!v          - Modified to preserve order of reports.
+!!v        Y. Rochon, ARQI/AQRD, Jan 2017
+!!v          - Added optional check for multi using 'DATA' when block_type='INFO'.
+!!
+!! Input:
+!!v           filename      BURP file name
+!!v           varno         BUFR descriptors. Number of elements must be 
+!!v                         max(1,obsdata%dim2)
+!!v           bkstp         bkstp number of requested block
+!!v           block_type    block type indicated by the two rightmost bits
+!!v                         of bknat. Valid values are 'DATA', 'INFO', '3-D',
+!!v                         and 'MRQR'.
+!!v           obsdata       Input struct_oss_obsdata object for varno.
+!!v           multi         Indicates if intended report are for 'UNI' or 'MULTI' level data (optional)
+!!
+!! Output:
+!!v           nrep_modified Number of modified reports
+!!
+!! Comments:
+!!v  - Currently assumes that all elements of varno(:) are distinct from each other.
+!!v  - In blocks with new data to be added/modified, if the varno already exists in the block, the
+!!v    new data will overwrite the existing varno data, otherwise will append the new data
+!!v    to the block.
+!!v  - The settings for BURP_Write_Block should have ENCODE_BLOCK and CONVERT_BLOCK set to
+!!v    .true. in all cases, including when the block has not been modified, due to problems
+!!v    that can occur when writing blocks containing negative integers with datyp=4.
+!--------------------------------------------------------------------------
+  function burp_chem_update(filename,varno,bkstp,block_type,obsdata,multi) result(nrep_modified)
 
     implicit none
 
@@ -2132,7 +2111,7 @@ END SUBROUTINE burp_updateFiles
     
     ! Check presence of data to update
     if (obsdata%nrep.le.0) then
-       write(*,*) 'burp_update: Skipped due to absence of data to update.'
+       write(*,*) 'burp_chem_update: Skipped due to absence of data to update.'
        return
     end if
     
@@ -2145,10 +2124,10 @@ END SUBROUTINE burp_updateFiles
        dim2=obsdata%dim2
     end if
     
-    if (size(varno).lt.dim2) call utl_abort('burp_update: Number of BUFR elements not sufficient. ' // &
+    if (size(varno).lt.dim2) call utl_abort('burp_chem_update: Number of BUFR elements not sufficient. ' // &
                                           trim(utl_str(size(varno))) // ' vs ' // trim(utl_str(dim2)))
 
-    if (code_len.lt.oss_obsdata_code_len()) call utl_abort('burp_update: Length of code string' &
+    if (code_len.lt.oss_obsdata_code_len()) call utl_abort('burp_chem_update: Length of code string' &
                                           // ' needs to be increased to ' // trim(utl_str(oss_obsdata_code_len())))
      
     ! initialize burp file, report, and block system resources
@@ -2158,7 +2137,7 @@ END SUBROUTINE burp_updateFiles
 
     ! open the burp file in append mode (to replace or add data in a block)
     call BURP_New(brp, FILENAME=filename, MODE=FILE_ACC_APPEND, IOSTAT=error)
-    if (error.ne.0) call utl_abort('burp_update: Could not open BURP file: ' // trim(filename))
+    if (error.ne.0) call utl_abort('burp_chem_update: Could not open BURP file: ' // trim(filename))
 
     ! get number of reports in file
     call BURP_Get_Property(brp, NRPTS=nrep)
@@ -2281,29 +2260,24 @@ END SUBROUTINE burp_updateFiles
     Call BURP_Free(rep,R2=rep_new,iostat=error)
     Call BURP_Free(blk,iostat=error)
     
-  end function burp_update
+  end function burp_chem_update
 
-!--------------------------------------------------------------------------------------------
-
+!--------------------------------------------------------------------------
+!! *Purpose*: Returns the BURP file name assigned to the calling processor. If the
+!!            input family has more than one file, the first file found will be
+!!            returned. File names are assigned in the module burpFiles_mod.
+!!
+!! @author M. Sitwell  Sept 2016
+!!
+!! Input:
+!!v    obsfam            observation family name
+!!
+!! Output:
+!!v    burp_filename  file name of associated BURP file
+!!v    found          logical indicating if the BURP file could be found (optional)
+!--------------------------------------------------------------------------
   function burp_get_filename(obsfam,found) result(burp_filename)
-!
-! Author:   M. Sitwell  Sept 2016
-!
-! Purpose: Returns the BURP file name assigned to the calling processor. If the input family
-!          has more than one file, the first file found will be returned. File names are
-!          assigned in the module burpFiles_mod.
-!
-! In
-!
-!    obsfam            observation family name
-!
-! Output
-!
-!    burp_filename  file name of associated BURP file
-!    found          logical indicating if the BURP file could be found (optional)
-!
-!---------------------------------------------------------------------------------------
-    
+
     implicit none
 
     character(len=2), intent(in) :: obsfam
@@ -2329,7 +2303,5 @@ END SUBROUTINE burp_updateFiles
     if (present(found)) found = file_found
 
   end function burp_get_filename
-
-!--------------------------------------------------------------------------------------------
 
 end module burpFiles_mod

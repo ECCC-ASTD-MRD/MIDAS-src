@@ -838,7 +838,7 @@ contains
        if (chm_avgkern%brp(istnid).eq.1) then
           
           ! retrieve data from stats blocks (with bkstp=14 and block_type='DATA')
-          chm_burp_avgkern(istnid) = burp_read_all('CH',chm_avgkern%stnids(istnid), &
+          chm_burp_avgkern(istnid) = burp_chem_read_all('CH',chm_avgkern%stnids(istnid), &
                15044, chm_avgkern%n_lvl(istnid), 2, 14, 'DATA', match_nlev=.true.)
           
        end if
@@ -2012,7 +2012,7 @@ contains
     
     if (chm_efftemp%nrep.gt.0) then
         varno(1)=12001
-        nrep_modified = burp_update_all('CH',varno(1:max(1,chm_efftemp%dim2)),0,'INFO',chm_efftemp,multi='UNI') 
+        nrep_modified = burp_chem_update_all('CH',varno(1:max(1,chm_efftemp%dim2)),0,'INFO',chm_efftemp,multi='UNI') 
         write(*,*) 'chm_add_efftemp_obsfile: Added ',nrep_modified,' effective temperature values in the obs file.'
     end if 
 

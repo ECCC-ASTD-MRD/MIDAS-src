@@ -203,10 +203,11 @@ CONTAINS
       if(mpi_myid == 0) write(*,*) 'bmatrixHI: scaleFactor=0, skipping rest of setup'
       cvdim_out = 0
       return
-    else
-       if (.not. (gsv_varExist(varName='TT').and.gsv_varExist(varName='UU').and.gsv_varExist(varName='VV').and. &
-                  gsv_varExist(varName='HU').and.gsv_varExist(varName='P0').and.gsv_varExist(varName='TG')) ) &
-            call utl_abort('bmatrixHI: Some or all weather fields are missing. If it is desired to deactivate the weather assimilation, then all entries of the array SCALEFACTOR in the namelist NAMBHI should be set to zero.')
+    end if
+
+    if (.not. (gsv_varExist(varName='TT').and.gsv_varExist(varName='UU').and.gsv_varExist(varName='VV').and. &
+               gsv_varExist(varName='HU').and.gsv_varExist(varName='P0').and.gsv_varExist(varName='TG')) ) then
+       call utl_abort('bmatrixHI: Some or all weather fields are missing. If it is desired to deactivate the weather assimilation, then all entries of the array SCALEFACTOR in the namelist NAMBHI should be set to zero.')
     end if
 
     do jlev = 1, max(nLev_M,nLev_T)

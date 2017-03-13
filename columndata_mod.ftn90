@@ -435,7 +435,11 @@ module columnData_mod
       integer, intent(in), optional     :: varCHnumber
       integer                 :: offset
 
-      offset=column%varOffset(vnl_varListIndex(vnl_varnameFromVarnum(varnum,varCHnumber)))
+      if (present(varCHnumber)) then
+         offset=column%varOffset(vnl_varListIndex(vnl_varnameFromVarnum(varnum,varCHnumber)))
+      else
+         offset=column%varOffset(vnl_varListIndex(vnl_varnameFromVarnum(varnum)))
+      end if
 
     end function col_getOffsetFromVarno
 
