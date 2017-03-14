@@ -72,7 +72,7 @@ contains
     ! Revisions:
     !           Y. Rochon and M. Sitwell, Jan 2016
     !           - Use of obs_famExist and corresponding move of calls
-    !             to gps_setupro, gps_setupgb and tovs_setup after the call to selectb
+    !             to gps_setupro, gps_setupgb and tovs_setup after the call to burp_readFiles
     !             as initialization of family list in obs_famExist must follow
     !             saving of the obs in obsSpaceData.
     !           - Addition of call to chm_setup for inclusion of constituent data
@@ -110,14 +110,6 @@ contains
     call tmg_stop(11)
 
     !
-    ! Filter out data from CMA
-    !
-    call tmg_start(14,'SUPREP')
-    call filt_sethind(obsSpaceData)
-    call filt_suprep(obsSpaceData)
-    call tmg_stop(14)
-
-    !
     ! Read the NAMELIST NAMGGPSRO
     !
     if (obs_famExist(obsSpaceData,'RO')) call gps_setupro
@@ -134,6 +126,14 @@ contains
     ! obs related info not found in obsSpaceData.
     !
     if (obs_famExist(obsSpaceData,'CH')) call chm_setup
+
+    !
+    ! Filter out data from CMA
+    !
+    call tmg_start(14,'SUPREP')
+    call filt_sethind(obsSpaceData)
+    call filt_suprep(obsSpaceData)
+    call tmg_stop(14)
 
     !
     ! set OBS_IPC and OBS_IPT columns according to the chosen strategy
@@ -1502,10 +1502,6 @@ contains
     !  Header indices are distributed following the chosen strategy,
     !  current options: "LIKESPLITFILES", "ROUNDROBIN", "LATLONTILES" or "LATLONTILESBALANCED".
     !
-    ! Revisions:
-    !           Y. Rochon, ARQI, Dec 2016
-    !           - Added consideratoin of tovs_obsfam_exist
-    !
     implicit none
 
     type(struct_obs), intent(inout) :: lobsSpaceData
@@ -1533,7 +1529,6 @@ contains
     integer :: codtyp, numtovs(mpi_nprocs), numir(mpi_nprocs), numtovs_mpiglobal(mpi_nprocs), numir_mpiglobal(mpi_nprocs)
     integer :: totalObsLoad_mpilocal(mpi_nprocs), totalObsLoad_mpiglobal(mpi_nprocs)
     integer :: get_max_rss
-    logical :: tovs_obsfam_exist
     !
     !- 1.  Get some info
     !
@@ -1625,11 +1620,6 @@ contains
           call obs_headSet_i(lobsSpaceData,OBS_IPC,headerIndex,IP)
        end do
 
-       ! Identify presence of TO family obs regarding the necessity to
-       ! call tvs_Is_idburp_tovs which requires associated namelist input
-
-       tovs_obsfam_exist = obs_famExist(lobsSpaceData,'TO')
-
        ! make all of the IPT and obsLoad values visible on all processors
        nsize = maxval(numHeaderFile_mpiglobal(:))
        allocate(IPT_mpiglobal(nsize,mpi_nprocs))
@@ -1640,7 +1630,7 @@ contains
        obsLoad_mpilocal(:) = -1
        do headerIndex = 1, numHeaderFile
           IPT_mpilocal(headerIndex) = obs_headElem_i(lobsSpaceData,OBS_IPT,headerIndex)
-          obsLoad_mpilocal(headerIndex) = obsLoad(headerIndex,tovs_obsfam_exist)
+          obsLoad_mpilocal(headerIndex) = obsLoad(headerIndex)
        enddo
        call rpn_comm_allgather(IPT_mpilocal, nsize, "mpi_integer",  &
             IPT_mpiglobal, nsize, "mpi_integer", "GRID", ierr)
@@ -1664,9 +1654,9 @@ contains
        ! compute total load per PE on tiles
        obsLoadTile_mpilocal(:) = 0
        do headerIndex = 1, numHeaderFile
-          if(obsLoad(headerIndex,tovs_obsfam_exist).gt.0) then
+          if(obsLoad(headerIndex).gt.0) then
              IP = obs_headElem_i(lobsSpaceData,OBS_IPT,headerIndex)
-             obsLoadTile_mpilocal(IP+1) = obsLoadTile_mpilocal(IP+1) + obsLoad(headerIndex,tovs_obsfam_exist)
+             obsLoadTile_mpilocal(IP+1) = obsLoadTile_mpilocal(IP+1) + obsLoad(headerIndex)
           endif
        end do
        call rpn_comm_allreduce(obsLoadTile_mpilocal,obsLoadTile_mpiglobal,mpi_nprocs,  &
@@ -1734,7 +1724,7 @@ contains
        ! ** The rest is just diagnostics used when trying to improve the 
        ! ** formula for estimating the load - could be removed
 
-       if (tovs_obsfam_exist) then
+       if (obs_famExist(lobsSpaceData,'TO')) then
 
        ! count the number of tovs and IR observations for each file
        numtovs(:)=0
@@ -1746,7 +1736,7 @@ contains
           if(tvs_Is_idburp_inst(codtyp,"IASI") ) numir(mpi_myid+1)=numir(mpi_myid+1)+1
           if(tvs_Is_idburp_inst(codtyp,"AIRS") ) numir(mpi_myid+1)=numir(mpi_myid+1)+1
           if(tvs_Is_idburp_inst(codtyp,"CRIS") ) numir(mpi_myid+1)=numir(mpi_myid+1)+1
-          totalObsLoad_mpilocal(mpi_myid+1) = totalObsLoad_mpilocal(mpi_myid+1) + obsLoad(headerIndex,tovs_obsfam_exist)
+          totalObsLoad_mpilocal(mpi_myid+1) = totalObsLoad_mpilocal(mpi_myid+1) + obsLoad(headerIndex)
        enddo
        call rpn_comm_allreduce(numtovs,numtovs_mpiglobal,mpi_nprocs,  &
             "MPI_INTEGER","MPI_SUM","GRID",ierr)
@@ -1769,7 +1759,7 @@ contains
           if(tvs_Is_idburp_inst(codtyp,"IASI") ) numir(IP+1)=numir(IP+1)+1
           if(tvs_Is_idburp_inst(codtyp,"AIRS") ) numir(IP+1)=numir(IP+1)+1
           if(tvs_Is_idburp_inst(codtyp,"CRIS") ) numir(IP+1)=numir(IP+1)+1
-          totalObsLoad_mpilocal(IP+1) = totalObsLoad_mpilocal(IP+1) + obsLoad(headerIndex,tovs_obsfam_exist)
+          totalObsLoad_mpilocal(IP+1) = totalObsLoad_mpilocal(IP+1) + obsLoad(headerIndex)
        enddo
        call rpn_comm_allreduce(numtovs,numtovs_mpiglobal,mpi_nprocs,  &
             "MPI_INTEGER","MPI_SUM","GRID",ierr)
@@ -1792,7 +1782,7 @@ contains
           if(tvs_Is_idburp_inst(codtyp,"IASI") ) numir(IP+1)=numir(IP+1)+1
           if(tvs_Is_idburp_inst(codtyp,"AIRS") ) numir(IP+1)=numir(IP+1)+1
           if(tvs_Is_idburp_inst(codtyp,"CRIS") ) numir(IP+1)=numir(IP+1)+1
-          totalObsLoad_mpilocal(IP+1) = totalObsLoad_mpilocal(IP+1) + obsLoad(headerIndex,tovs_obsfam_exist)
+          totalObsLoad_mpilocal(IP+1) = totalObsLoad_mpilocal(IP+1) + obsLoad(headerIndex)
        enddo
        call rpn_comm_allreduce(numtovs,numtovs_mpiglobal,mpi_nprocs,  &
             "MPI_INTEGER","MPI_SUM","GRID",ierr)
@@ -1854,16 +1844,10 @@ contains
 
   CONTAINS
 
-    function obsLoad(headerIndex,tovs_obsfam_exist)
-      !
-      ! Revisions:
-      !           Y. Rochon, ARQI, Dec 2016
-      !           - Added consideratoin of tovs_obsfam_exist
-      !
+    function obsLoad(headerIndex)
       implicit none
       integer :: headerIndex, codtyp, obsLoad
       integer :: bodyIndexBeg, bodyIndexEnd, bodyIndex
-      logical, intent(in) :: tovs_obsfam_exist
 
       ! this is a very simple recipe for estimating the computational load 
       ! based only on the codtyp - it works better than more complicated 
@@ -1874,24 +1858,19 @@ contains
 
       codtyp = obs_headElem_i(lobsSpaceData,OBS_ITY,headerIndex)
 
-      if (tovs_obsfam_exist) then
-         if(tvs_Is_idburp_inst(codtyp,"IASI")) then
-            obsLoad = 100
-         elseif(tvs_Is_idburp_inst(codtyp,"AIRS")) then
-            obsLoad = 100
-         elseif(tvs_Is_idburp_inst(codtyp,"CRIS")) then
-            obsLoad = 100
-         elseif(tvs_Is_idburp_tovs(codtyp)) then
-            ! all other types of radiance obs
-            obsLoad = 10
-         else
-            ! all non-radiance obs
-            obsLoad = 1
-         end if
+      if(tvs_Is_idburp_inst(codtyp,"IASI")) then
+         obsLoad = 100
+      elseif(tvs_Is_idburp_inst(codtyp,"AIRS")) then
+         obsLoad = 100
+      elseif(tvs_Is_idburp_inst(codtyp,"CRIS")) then
+         obsLoad = 100
+      elseif(tvs_Is_idburp_tovs(codtyp)) then
+         ! all other types of radiance obs
+         obsLoad = 10
       else
          ! all non-radiance obs
          obsLoad = 1
-      endif
+      end if
     end function obsLoad
 
   end subroutine setObsMpiStrategy

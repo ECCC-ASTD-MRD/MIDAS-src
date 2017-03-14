@@ -40,7 +40,6 @@ contains
   ! cfn_RsqrtInverse
   !--------------------------------------------------------------------------
   subroutine cfn_RsqrtInverse(lobsSpaceData,elem_dest_i,elem_src_i)
-  
     use tovs_nl_mod, only : jpchmax,ltovsno,lsensor,tvs_Is_idburp_tovs
     implicit NONE
 
@@ -63,37 +62,33 @@ contains
        IDATEND = obs_headElem_i(lobsSpaceData,OBS_NLV,INDEX_HEADER) + IDATA - 1
        IDATYP  = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
 
-       if (rmat_lnondiagr) then
-    
-          ! Currently assumes being applicable to TO family only. Will/may abort otherwise
-        
-          if ( tvs_Is_idburp_tovs(idatyp) ) then
+       if ( tvs_Is_idburp_tovs(idatyp) .and. rmat_lnondiagr) then
+
+          count=0
+          do index_body=idata,idatend
+             iass = obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body)
+             if(iass.eq.1 .or. iass.eq.-1) then
+                ICHN = NINT(obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY))
+                ICHN = MAX(0,MIN(ICHN,JPCHMAX+1))
+                count=count+1
+                list_chan(count)=ichn
+                x(count)=obs_bodyElem_r(lobsSpaceData,elem_src_i,index_body)
+             endif
+          enddo
+
+          if (count>0) then
+             call rmat_sqrtRm1(lsensor(ltovsno(index_header)), count, x(1:count), y(1:count), list_chan(1:count), ltovsno(index_header) )
 
              count=0
              do index_body=idata,idatend
                 iass = obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body)
                 if(iass.eq.1 .or. iass.eq.-1) then
-                   ICHN = NINT(obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY))
-                   ICHN = MAX(0,MIN(ICHN,JPCHMAX+1))
                    count=count+1
-                   list_chan(count)=ichn
-                   x(count)=obs_bodyElem_r(lobsSpaceData,elem_src_i,index_body)
+                   call obs_bodySet_r(lobsSpaceData, elem_dest_i, index_body,y(count))
                 endif
              enddo
-             
-             if (count>0) then
-                call rmat_sqrtRm1(lsensor(ltovsno(index_header)), count, x(1:count), y(1:count), list_chan(1:count), ltovsno(index_header) )
-
-                count=0
-                do index_body=idata,idatend
-                   iass = obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body)
-                   if(iass.eq.1 .or. iass.eq.-1) then
-                      count=count+1
-                      call obs_bodySet_r(lobsSpaceData, elem_dest_i, index_body,y(count))
-                   endif
-                enddo
-             endif
           endif
+
        else
 
           do index_body=idata,idatend

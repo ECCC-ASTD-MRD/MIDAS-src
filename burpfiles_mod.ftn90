@@ -1736,6 +1736,12 @@ END SUBROUTINE burp_updateFiles
 !!
 !! Output:
 !!v           burp_out      struct_oss_obsdata object
+!!
+!! Comment:
+!!
+!!v   This routine is general enough to be used by observstion families
+!!v   other than 'CH', It should be renamed once used for other families.
+!!
 !--------------------------------------------------------------------------
   function burp_chem_read_all(obsfam,stnid,varno,nlev,ndim,bkstp,block_type,match_nlev,codtyplist) result(burp_out)
 
@@ -1824,11 +1830,15 @@ END SUBROUTINE burp_updateFiles
 !!v           burp_out      struct_oss_obsdata object
 !!
 !! Comments:
+!!
 !!v   - BUFR power 10 exponent element (i.e. data with BUFR number 8090) 
 !!v     will only be applied to 1D data if present.
 !!v   - As burp_out is for a specific input stnid, burp_out%code only contains the (lat/long and
 !!v     time coord.) with 22 characters.
 !!v   - Exponent BUFR data (i.e. data with BUFR number 8090) will only be applied to 1D data.
+!!v   - This routine is general enough to be used by observstion families
+!!v     other than 'CH', It should be renamed once used for other families.
+!!
 !--------------------------------------------------------------------------
   function burp_chem_read(filename,stnid,varno,nlev,ndim,bkstp,block_type,match_nlev,codtyplist) result(burp_out)
     
@@ -2013,6 +2023,12 @@ END SUBROUTINE burp_updateFiles
 !!
 !! Output: 
 !!v           nrep_modified Number of modified reports
+!
+!! Comment:
+!!
+!!v   This routine is general enough to be used by observstion families
+!!v   other than 'CH', It should be renamed once used for other families.
+!!
 !--------------------------------------------------------------------------
   function burp_chem_update_all(obsfam,varno,bkstp,block_type,obsdata,multi) result(nrep_modified)
 
@@ -2081,6 +2097,9 @@ END SUBROUTINE burp_updateFiles
 !!v  - The settings for BURP_Write_Block should have ENCODE_BLOCK and CONVERT_BLOCK set to
 !!v    .true. in all cases, including when the block has not been modified, due to problems
 !!v    that can occur when writing blocks containing negative integers with datyp=4.
+!!v  - This routine is general enough to be used by observstion families
+!!v    other than 'CH', It should be renamed once used for other families.
+!!
 !--------------------------------------------------------------------------
   function burp_chem_update(filename,varno,bkstp,block_type,obsdata,multi) result(nrep_modified)
 

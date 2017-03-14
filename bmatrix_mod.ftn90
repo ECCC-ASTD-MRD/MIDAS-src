@@ -284,7 +284,7 @@ contains
     if ( associated(cvBhi) .or. associated(cvBchm)) call gsv_3dto4dAdj(statevector)
 
     !- 1.5 add contribution to gradient from BmatrixChem
-    call tmg_start(62,'B_CHM_T')
+    call tmg_start(124,'B_CHM_T')
     if ( associated(cvBchm) ) then
       if ( statevector%hco%global ) then
         !- 1.5.1 add contribution to gradient from GLOBAL BmatrixChem
@@ -295,7 +295,7 @@ contains
         call utl_abort('bmat_sqrtBT: local routine currently unavailable for chemical constituents, to be available via lbhi_bSqrtAdj in the future')
       end if
     end if
-    call tmg_stop(62)
+    call tmg_stop(124)
 
     !- 1.6 add contribution to gradient from BmatrixHI
     call tmg_start(51,'B_HI_T')
