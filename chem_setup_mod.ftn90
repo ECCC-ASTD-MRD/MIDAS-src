@@ -280,6 +280,7 @@ module chem_setup_mod
   integer :: transform(0:chm_constituents_size),message_fileunit
   real(8) :: amu(0:chm_constituents_size),tropo_column_top(0:chm_constituents_size)
   real(8) :: low_cutoff(0:chm_constituents_size),high_cutoff(0:chm_constituents_size)
+  real(8) :: sigma_cutoff(0:chm_constituents_size)
   character(len=chm_filename_size) :: message_filename 
 
 contains
@@ -433,6 +434,10 @@ contains
 !!v       obsdata_maxsize      Max allowed size of work arrays (in terms of number of obs) associated to
 !!v                            ordered observation indices
 !!v
+!!v       sigma_cutoff         fractional value of background error std. dev. to apply to increment
+!!v                            sizes for setting them to zero prior to storage. Not applied if 
+!!v                            cutoff value is <= 0.0 or >0.1
+!!v
 !!v       low_cutoff           min value allowed for increments prior to storage in rebm expressed as a fraction
 !!v                            of the background field (generally < 1)
 !!v
@@ -463,9 +468,9 @@ contains
   EXTERNAL FNOM,FCLOS
 
   namelist /namchem/ assim_fam,assim_all,assim_num,assim_stnid,assim_varno,assim_nlev, &
-                     assim_exclude_nflag,assim_exclude_flag,                 &
-                     tropo_mode,tropo_bound,tropo_column_top,amu,            &
-                     low_cutoff,high_cutoff,transform,obsdata_maxsize,       &
+                     assim_exclude_nflag,assim_exclude_flag,                   &
+                     tropo_mode,tropo_bound,tropo_column_top,amu,sigma_cutoff, &
+                     low_cutoff,high_cutoff,transform,obsdata_maxsize,         &
                      message_filename,genoper
 
   
@@ -473,6 +478,7 @@ contains
   
   genoper(:)=0
   obsdata_maxsize=90000
+  sigma_cutoff(:)=0.01
   low_cutoff(:)=0.1
   high_cutoff(:)=10.0
   transform(:)=0   ! At least ensure positive values and provide related warning as needed.
@@ -1952,6 +1958,12 @@ contains
     case('high_cutoff')
        if (present(index)) then
           val=high_cutoff(index)
+       else
+          call utl_abort('chm_setup_get_float: Missing index for ' // trim(stype))
+       end if
+    case('sigma_cutoff')
+       if (present(index)) then
+          val=sigma_cutoff(index)
        else
           call utl_abort('chm_setup_get_float: Missing index for ' // trim(stype))
        end if

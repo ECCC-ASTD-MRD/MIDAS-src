@@ -85,6 +85,7 @@
 !!    BCHM_corvert_mult: Multiple an input matrix/array with 'bchm_corvert' or 'bchm_corverti'
 !!    BCHM_getsigma:   Obtain background error std. dev. profile at obs/specified
 !!                     location. 
+!!    BCHM_getBgSigma: Obtain background error std. dev. at specified grid point for specified field.
 !!    BCHM_is_initialized: checks if B_chm has been intialized.
 !!
 !! Other subroutines/functions info:
@@ -117,7 +118,7 @@ MODULE BmatrixChem_mod
   public :: bchm_Setup,bchm_BSqrt,bchm_BSqrtAd,bchm_Finalize
   public :: bchm_expandToMPIglobal,bchm_reduceToMPIlocal,bchm_getScaleFactor
   public :: bchm_corvert_mult, bchm_getsigma, bchm_is_initialized
-  public :: bchm_truncateCV
+  public :: bchm_truncateCV,bchm_getBgSigma
 
   ! public arrays
   public :: bchm_corvert, bchm_corverti, bchm_invsum, bchm_varnamelist 
@@ -2781,5 +2782,23 @@ CONTAINS
     end do
 
   end subroutine bchm_getsigma
+
+!-----------------------------------------------------------------------------------------------
+!!
+!! *Purpose*: Get error std. dev. a specified grid point and for specified field
+!!
+!! @author Y.J. Rochon Mar 2017 (ARQI/AQRD)
+!!
+!-----------------------------------------------------------------------------------------
+  real(8) function BCHM_getbgsigma(jlon,jlat,jlev,jvar)
+
+    implicit none
+
+    integer :: jlon, jlat, jvar, jlev
+
+    bchm_getbgsigma=rgsig(jlon,jlat,nsposit(jvar)-1+jlev)
+
+  end function BCHM_getbgsigma
+!-----------------------------------------------------------------------------------------------
   
 END MODULE BmatrixChem_mod

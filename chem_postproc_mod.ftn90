@@ -37,6 +37,7 @@ module chem_postproc_mod
   use verticalCoord_mod
   use HorizontalCoord_mod
   use varNameList_mod
+  use bmatrixchem_mod, only: bchm_getBgSigma
  
   implicit none
   private
@@ -306,7 +307,7 @@ contains
 !!v    increment        statevector for the increment (with same resolution as the background)
 !!
 !! Revisions:
-!!v       Y. Rochon, Nov 2015
+!!v       Y. Rochon, Nov 2015, Mar 2017
 !!v          - Modified to chm_apply_bounds
 !--------------------------------------------------------------------------
   subroutine chm_apply_bounds(background,increment,varName)
@@ -317,8 +318,8 @@ contains
     character(len=*), intent(in) :: varName
 
     real(8), pointer :: background_field(:,:,:,:),increment_field(:,:,:,:)
-    real(8) :: bkgrnd,inc,new_inc
-    integer :: iconstituent_id,count,ier,unit
+    real(8) :: bkgrnd,inc,new_inc,refval,bg_sigma
+    integer :: iconstituent_id,count,ier,unit,jvar
     integer :: jstep,jlon,jlev,jlat,lon1,lon2,lat1,lat2,step1,step2,lev1,lev2
 
     integer, external :: fclos
@@ -343,7 +344,61 @@ contains
     background_field => gsv_getField_r8(background,varName)
     increment_field => gsv_getField_r8(increment,varName)
 
-    if (chm_setup_get_float('low_cutoff',iconstituent_id).ge.0.) then
+    refval=chm_setup_get_float('sigma_cutoff',iconstituent_id)
+    if (refval.gt.0.0D0.and.refval.lt.0.11) then
+
+       ! Find the field index within the background error covariance matrix
+
+       jvar=0
+       ier=-1
+       do jstep = 1, vnl_numvarmax   
+          if(gsv_varExist(varName=vnl_varNameList(jstep))) then
+             if (vnl_varKindFromVarname(vnl_varNameList(jstep)) == 'CH') then
+                jvar=jvar+1
+                if (varName.eq.vnl_varNameList(jstep)) then
+                   ier=0
+                   exit
+                end if
+             end if
+          end if
+       end do
+       if (ier.ne.0) call utl_abort('chm_apply_bounds: Field name not recognized -' // trim(varName))
+
+       ! Check if increment size and background are less than the background error std. dev. scaled by refval.
+       ! If so, set increment to zero.
+
+       count = 0
+
+       do jstep=step1,step2
+          do jlev=lev1,lev2
+             do jlat=lat1,lat2
+                do jlon=lon1,lon2
+
+                   bkgrnd = background_field(jlon,jlat,jlev,jstep)
+                   inc = increment_field(jlon,jlat,jlev,jstep)
+                   bg_sigma = bchm_getBgSigma(jlon,jlat,jlev,jvar)
+
+                   if (abs(inc).lt.refval*bg_sigma .and. bkgrnd.lt.refval*bg_sigma) then
+                      increment_field(jlon,jlat,jlev,jstep) = 0.0
+                      count = count+1
+                   end if
+
+                end do
+             end do
+          end do
+       end do
+
+       if (count.gt.0) then
+          write(unit,*)
+          write(unit,'(A,I7,A,A,A)') "Total of ",count," for small increments set to zero for field ",trim(varName),"."
+          write(unit,*)
+       end if
+
+
+    end if
+
+    refval=chm_setup_get_float('low_cutoff',iconstituent_id)
+    if (refval.ge.0.) then
 
        ! Check if both background and analysis are negative. If so set the increment to force an analysis of zero at these locations
 
@@ -396,7 +451,7 @@ contains
                    bkgrnd = background_field(jlon,jlat,jlev,jstep)
                    inc = increment_field(jlon,jlat,jlev,jstep)
 
-                   if (bkgrnd+inc.lt.chm_setup_get_float('low_cutoff',iconstituent_id)*bkgrnd .and. bkgrnd.ge.0.) then
+                   if (bkgrnd+inc.lt.refval*bkgrnd .and. bkgrnd.ge.0.) then
 
                       if (count.eq.0) then
                          write(unit,'(A,F4.1,A,A,A)') "chm_apply_bounds: Analysis values were found below the cut-off of ", &
@@ -405,7 +460,7 @@ contains
                           write(unit,'(A)') "JLON JLEV JLAT TSTEP   Background  Init. incr.  New incr."
                       end if
 
-                      new_inc = (chm_setup_get_float('low_cutoff',iconstituent_id)-1.)*bkgrnd
+                      new_inc = (refval-1.)*bkgrnd
 
                       write(unit,'(4(I4,1X),3G12.2)') jlon,jlev,jlat,jstep,bkgrnd,inc,new_inc
 
@@ -427,8 +482,8 @@ contains
 
     end if
 
-
-    if (chm_setup_get_float('high_cutoff',iconstituent_id).ge.0.) then
+    refval=chm_setup_get_float('high_cutoff',iconstituent_id)
+    if (refval.ge.0.) then
 
        ! Check if the analysis is above the imposed upper bound. If so set analysis to this cut-off value at these locations.
 
@@ -442,7 +497,7 @@ contains
                    bkgrnd = background_field(jlon,jlat,jlev,jstep)
                    inc = increment_field(jlon,jlat,jlev,jstep)
 
-                   if (bkgrnd+inc.gt.chm_setup_get_float('high_cutoff',iconstituent_id)*bkgrnd .and. bkgrnd.ge.0.) then
+                   if (bkgrnd+inc.gt.refval*bkgrnd .and. bkgrnd.ge.0.) then
 
                       if (count.eq.0) then
                          write(unit,'(A,A,F4.1,A,A,A)') "chm_apply_bounds: Analysis values were found above the cut-off of ", &
@@ -451,7 +506,7 @@ contains
                          write(unit,'(A)') "JLON JLEV JLAT TSTEP   Background  Init.-incr.  New-incr."
                       end if
 
-                      new_inc = (chm_setup_get_float('high_cutoff',iconstituent_id)-1.)*bkgrnd
+                      new_inc = (refval-1.)*bkgrnd
 
                       write(unit,'(4(I4,1X),3G12.2)') jlon,jlev,jlat,jstep,bkgrnd,inc,new_inc
 

@@ -478,9 +478,9 @@ module varqc_mod
 
       WRITE(*,*) ' '
       IF (listFamily(JFAM) .NE. 'TO') THEN
-        WRITE(*,*) 'IDENT     TYPE DESCRIPTION     LAT   LONG    LEVEL  ITEM   OBSVD     BKGND     ANAL  POST PROB REPORT'
+        WRITE(*,*) 'IDENT     TYPE DESCRIPTION           LAT   LONG    LEVEL  ITEM   OBSVD     BKGND     ANAL  POST PROB REPORT'
       ELSE
-        WRITE(*,*) 'IDENT     TYPE DESCRIPTION     LAT   LONG    CHNL   ITEM   OBSVD     BKGND     ANAL  POST PROB REPORT'
+        WRITE(*,*) 'IDENT     TYPE DESCRIPTION           LAT   LONG    CHNL   ITEM   OBSVD     BKGND     ANAL  POST PROB REPORT'
       ENDIF
       ! loop over all header indices of the family
       call obs_set_current_header_list(lobsSpaceData,listFamily(jfam))
