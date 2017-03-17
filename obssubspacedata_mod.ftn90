@@ -53,6 +53,7 @@ module obsSubSpaceData_mod
   use utilities_mod    
   use MathPhysConstants_mod
   use mpi_mod, only: mpi_allgather_string
+  use bufr
   use obsSpaceData_mod  ! for use in oss_get_comboIdList 
    
   implicit none
@@ -819,13 +820,13 @@ contains
              cycle HEADER
           end if
           
-          ! Identify varno and nlev_obs (exclude 8090 elements)
+          ! Identify varno and nlev_obs (exclude BUFR_SCALE_EXPONENT elements)
           nlev_obs = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex)
           call obs_set_current_body_list(obsSpaceData,headerIndex)
           do
              bodyIndex = obs_getBodyIndex(obsSpaceData)
              if (bodyIndex < 0) exit
-             if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex).eq.8090) then
+             if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex).eq.BUFR_SCALE_EXPONENT) then
                 nlev_obs = nlev_obs-1
              else
                 varno=obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)

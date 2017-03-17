@@ -1005,12 +1005,12 @@ contains
           nlev_obs = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex)
           stnid = obs_elem_c(obsSpaceData,'STID',headerIndex)
 
-          ! Identify max number of profile points in the profile (exclude 8090 elements)
+          ! Identify max number of profile points in the profile (exclude BUFR_SCALE_EXPONENT elements)
           call obs_set_current_body_list(obsSpaceData,headerIndex)
           do
              bodyIndex = obs_getBodyIndex(obsSpaceData)
              if (bodyIndex < 0) exit
-             if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex).eq.8090) then
+             if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex).eq.BUFR_SCALE_EXPONENT) then
                 nlev_obs = nlev_obs-1
              else
                 varno=obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)

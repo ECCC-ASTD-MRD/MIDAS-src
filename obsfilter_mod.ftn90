@@ -1301,12 +1301,13 @@ contains
       zP0 = col_getElem(columnhr,1,headerIndex,'P0')
       zPtop = col_getPressure(columnhr,1,headerIndex,'MM')
 
-      ! Identify max number of profile points in the profile (exclude 8090 elements)
+      ! Identify max number of profile points in the profile (exclude BUFR_SCALE_EXPONENT elements)
 
       nobslev = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex)
       bodyIndex =obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
       do jl=0,obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex)-1
-          if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex+jl).eq.8090) nobslev = nobslev-1
+          if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex+jl).eq.BUFR_SCALE_EXPONENT) &
+             nobslev = nobslev-1
       end do
 
       ! Identify element index of stnid list for the CH family.
@@ -1323,7 +1324,7 @@ contains
         if (bodyIndex < 0) exit BODY
 
         ivnm = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
-        if (ivnm.eq.08090) cycle BODY
+        if (ivnm.eq.BUFR_SCALE_EXPONENT) cycle BODY
 
         !  Identify element index of constituent ID list for the CH family.
         if (icount.eq.0) call utl_get_Id(obs_headElem_i(obsSpaceData,OBS_CHM,headerIndex), &

@@ -38,6 +38,7 @@ module chem_obsoperators_mod
   use physicsfunctions_mod
   use MathPhysConstants_mod
   use earthconstants_mod
+  use bufr
 
   ! Following modules needed only by chm_observation_operators 
   ! and or chm_obsoper_init
@@ -245,15 +246,15 @@ contains
       bodyIndex_start = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
       bodyIndex_end = bodyIndex_start+obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex)-1
 
-      ! Set number of obs profile elements by removing count of 08090 elements
+      ! Set number of obs profile elements by removing count of BUFR_SCALE_EXPONENT elements
       nobslev = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex)  
       do bodyIndex=bodyIndex_start,bodyIndex_end
-         if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex).eq.8090) nobslev = nobslev-1
+         if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex).eq.BUFR_SCALE_EXPONENT) nobslev = nobslev-1
       end do
 
-      ! varno is expected to be the same for all profile points where OBS_VNM value .ne. 8090
+      ! varno is expected to be the same for all profile points where OBS_VNM value .ne. BUFR_SCALE_EXPONENT
       do bodyIndex=bodyIndex_start,bodyIndex_end
-         if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex).ne.8090) then
+         if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex).ne.BUFR_SCALE_EXPONENT) then
             varno = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
             exit
          end if
@@ -265,7 +266,7 @@ contains
       ! Prepare for checking if any processing is needed according to initial flag values     
       iobslev=0
       do bodyIndex=bodyIndex_start,bodyIndex_end
-         if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex).ne.8090) then
+         if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex).ne.BUFR_SCALE_EXPONENT) then
 
             iobslev=iobslev+1
 
@@ -326,9 +327,9 @@ contains
             bodyIndex = obs_getBodyIndex(obsSpaceData)
             if (bodyIndex < 0) exit BODY1
             
-            ! Get position in profile and skip over 08090 elements
+            ! Get position in profile and skip over BUFR_SCALE_EXPONENT elements
 
-            if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex).ne.08090) then
+            if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex).ne.BUFR_SCALE_EXPONENT) then
                iobslev=iobslev+1
             else
                cycle BODY1
@@ -381,8 +382,8 @@ contains
             bodyIndex = obs_getBodyIndex(obsSpaceData)
             if (bodyIndex < 0) exit BODY2
 
-            ! Get position in profile and skip over 08090 elements
-            if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex).ne.08090) then
+            ! Get position in profile and skip over BUFR_SCALE_EXPONENT elements
+            if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex).ne.BUFR_SCALE_EXPONENT) then
                iobslev=iobslev+1
             else
                cycle BODY2
@@ -767,7 +768,7 @@ contains
 ! Identify observation operator based on observation units and presence or
 ! not of layer boundaries
 
-  if (chm_checkfor_integlayer(obsoper%varno)) then
+  if (buf_IsIntegral(obsoper%varno)) then
      if (.not.obsoper%layer_identified) then
         write(*,*)   '----------------------------------------------------------'
         write(*,*)   'STNID, BUFR index, nobslev: ',obsoper%stnid,' ',obsoper%varno,obsoper%nobslev
@@ -1218,7 +1219,8 @@ contains
     if (obsoper%constituent_id.lt.0) return
     
     ! No conversion necessary for these BUFR numbers
-    if (any( obsoper%varno .eq. (/ 15024,15196,12001,15055,15062 /)  )) return
+    if (any( obsoper%varno .eq. (/ BUFR_UNIT_OptDepth,BUFR_UNIT_OptDepth2, &
+            BUFR_UNIT_OptDepth3, BUFR_UNIT_MR_NVaerosol, BUFR_NETT /)  )) return
     
     if (present(ppb)) then
        ppb_out = ppb
@@ -1236,8 +1238,12 @@ contains
 
        ! PM2.5 or PM10
        
-       if (any(obsoper%varno .eq. (/ 15198,15001,15005,15045,15009,15012,15199,15003,15010,15230, &
-            15022,15026,15008,15197,15208,1300 /) )) &
+       if (any(obsoper%varno .eq. (/ BUFR_UNIT_VMR, BUFR_UNIT_VMR2,  &
+                    BUFR_UNIT_MolePerMole, BUFR_UNIT_MolePerMole2,   &
+                    BUFR_UNIT_NumberDensity, BUFR_UNIT_MolarDensity, & 
+                    BUFR_UNIT_PartPress, BUFR_UNIT_PartPress2, BUFR_UNIT_PartPress3, &
+                    BUFR_UNIT_DU, BUFR_UNIT_DU2, BUFR_UNIT_DU3, BUFR_UNIT_DU4, &
+                    BUFR_UNIT_IntegND, BUFR_UNIT_IntegND2 /) )) &
             call utl_abort("chm_convert_units: BUFR # " // trim(utl_str(obsoper%varno)) // " is not valid for PM" )
        
        ! Conversion from ug/m^3 to ug/kg  (scaling by Rd*T/P)
@@ -1258,7 +1264,7 @@ contains
 
     if (.not.ppb_out) then
        select case (obsoper%varno)
-       case(15198,15001,15005,15045) 
+       case(BUFR_UNIT_DU, BUFR_UNIT_DU2, BUFR_UNIT_DU3, BUFR_UNIT_DU4) 
       
           ! For conversion of ppb*dP integral to DU
           ! (integral in dP introduced later by the observation operator)
@@ -1280,7 +1286,7 @@ contains
           zcoef = zcoef * 1.E-4 * MPC_MOLAR_MASS_DRY_AIR_R8 &
                /chm_setup_get_float('amu',obsoper%constituent_id)/RG/rho_stp
         
-       case(15009,15012)
+       case(BUFR_UNIT_IntegND, BUFR_UNIT_IntegND2)
           
           ! For conversion of ppb*dP integral to molecules/m^2
           ! (integral in dP introduced later by the observation operator)
@@ -1291,7 +1297,7 @@ contains
           zcoef = zcoef * 1.E-6 * MPC_AVOGADRO_R8/RG &
                /chm_setup_get_float('amu',obsoper%constituent_id)
 
-       case(15020,15021,15200) 
+       case(BUFR_UNIT_IntegDens, BUFR_UNIT_IntegDens2, BUFR_UNIT_IntegDens3) 
         
           ! For conversion of ppb*dP integral to kg/m^2
           ! (integral in dP introduced later by the observation operator)
@@ -1301,7 +1307,8 @@ contains
           
           zcoef = zcoef * 1.E-9 / RG
           
-       case(15023,15027,15194,15195,15223)
+       case(BUFR_UNIT_Density, BUFR_UNIT_Density2, BUFR_UNIT_Density3, &
+            BUFR_UNIT_AirDensity, BUFR_UNIT_PMDensity)
 
           ! For conversion from ug/kg to kg/m^3
           !
@@ -1311,13 +1318,13 @@ contains
           exp_T = exp_T-1 ! divide by T
           exp_P = exp_P+1 ! multiply by P
           
-       case(13001,13002) 
+       case(BUFR_UNIT_MMR, BUFR_UNIT_MMR2) 
 
           ! For conversion from ug/kg to kg/kg
      
           zcoef = zcoef * 1.E-9 
      
-       case(15199,15003,15010) 
+       case(BUFR_UNIT_PartPress, BUFR_UNIT_PartPress2, BUFR_UNIT_PartPress3) 
      
           ! For conversion from ug/kg to partial pressure (PA)
           !
@@ -1328,7 +1335,7 @@ contains
                /chm_setup_get_float('amu',obsoper%constituent_id)
           exp_P = exp_P+1 ! multiply by P
 
-       case(15022)
+       case(BUFR_UNIT_NumberDensity)
           
           ! For conversion from ug/kg to molecules/m^3
           !
@@ -1340,7 +1347,7 @@ contains
           exp_T = exp_T-1 ! divide by T
           exp_P = exp_P+1 ! multiply by P
 
-       case(15230)
+       case(BUFR_UNIT_MolarDensity)
           
           ! For conversion from ug/kg to mol/m^3
           !
@@ -1352,9 +1359,9 @@ contains
           exp_T = exp_T-1 ! divide by T
           exp_P = exp_P+1 ! multiply by P
 
-       case(15026,15008,15197,15208,1300)
+       case(BUFR_UNIT_VMR, BUFR_UNIT_VMR2, BUFR_UNIT_MolePerMole, BUFR_UNIT_MolePerMole2)
           
-          ! For conversion from ug/kg to vmr
+          ! For conversion from ug/kg to vmr (or mole/mole)
           
           zcoef = zcoef * 1.E-9 * MPC_MOLAR_MASS_DRY_AIR_R8 &
                /chm_setup_get_float('amu',obsoper%constituent_id)
@@ -1406,7 +1413,8 @@ contains
     case('TT')
  
        select case (varno)
-       case(15023,15027,15194,15195,15223,15230,15022)
+       case(BUFR_UNIT_Density,BUFR_UNIT_Density2,BUFR_UNIT_Density3,BUFR_UNIT_AirDensity, &
+            BUFR_UNIT_PMDensity,BUFR_UNIT_NumberDensity,BUFR_UNIT_MolarDensity)
           needed = .true.
        case default
           needed = .false.

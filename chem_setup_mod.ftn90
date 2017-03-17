@@ -37,9 +37,6 @@
 !!v
 !!v       - "chm_apply_2dfieldr4_transform" applied to 2D field variable transformation if requested.
 !!v
-!!v       - "chm_checkfor_integlayer" needed to determine if vertical
-!!v         integration required.
-!!v
 !!v       - "chm_find_avgkern" to find averaging kernel matrix associated to an obs
 !!v
 !!v       - "chm_get_layer_boundaries" to return layer boundaries for an observation. 
@@ -85,7 +82,7 @@ module chem_setup_mod
 ! public procedures
 ! -----------------
 
-  public :: chm_setup, chm_apply_2dfieldr4_transform, chm_checkfor_integlayer
+  public :: chm_setup, chm_apply_2dfieldr4_transform
   public :: chm_find_avgkern, chm_get_layer_boundaries, chm_get_avgkern
   public :: chm_var_maxnumber, chm_diagn_only
   public :: chm_add_efftemp_obsfile, chm_add_efftemp_obsdata
@@ -751,7 +748,7 @@ contains
        ! If integrated layer information not found, if a total column measurement
        ! set to defaults, else do nothing
 
-       if (chm_checkfor_integlayer(varno) .and. nlev.eq.1) then          
+       if (buf_IsIntegral(varno) .and. nlev.eq.1) then          
           lfound=.true.
           layertop(1) = default_top
           layerbottom(1) = default_bottom
@@ -766,33 +763,6 @@ contains
     END IF
 
   end subroutine chm_get_layer_boundaries
-
-!------------------------------------------------------------------------------------------
-!
-! LOGICAL FUNCTION chm_checkfor_integlayer
-!!
-!! *Purpose*: Identify if obs is a vertically integrated constituent measurement.
-!!
-!! @author Y. Rochon, ARQI/AQRD, Feb 2015
-!!
-!! Revision: 
-!!
-! ---------------------------------------------------------------------------------------
-  logical function chm_checkfor_integlayer(varno)
-  
-  implicit none
-  integer, intent(in) :: varno
- 
-  if (varno.eq.15198.or.varno.eq.15001.or.varno.eq.15005.or.varno.eq.15045.or. &
-      varno.eq.15020.or.varno.eq.15021.or.varno.eq.15200.or. &
-      varno.eq.15009.or.varno.eq.15012) then
-      
-      chm_checkfor_integlayer=.true.     
-  else
-      chm_checkfor_integlayer=.false.
-  end if
-  
-  end function chm_checkfor_integlayer
 
 !----------------------------------------------------------------------------------------
 !

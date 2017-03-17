@@ -25,8 +25,6 @@
 module varNameList_mod
 !
 ! Revisions: 
-!            Y.J. Rochon (ARQI/AQRD) Jan 2015
-!            - Added public vnl_IsAtmosConstituent
 !            M. Sitwell (ARQI/AQRD) Oct 2015
 !            - Added varKindList and vnl_varKindFromVarname to identify the kind of field
 !              where 'MT'=meteorological and 'CH'=chemical constituent
@@ -44,7 +42,7 @@ module varNameList_mod
   ! public procedures
   public :: vnl_varListIndex3d, vnl_varListIndex2d, vnl_varListIndex, vnl_varnameFromVarnum
   public :: vnl_varLevelFromVarname, vnl_varLevelFromVarnum, vnl_varTypeFromVarname
-  public :: vnl_varKindFromVarname, vnl_IsAtmosConstituent, vnl_varnumFromVarname
+  public :: vnl_varKindFromVarname, vnl_varnumFromVarname
 
   integer, parameter          :: vnl_numvarmax3D=29, vnl_numvarmax2D=9
 
@@ -391,39 +389,6 @@ module varNameList_mod
       varType = varTypeList(vnl_varListIndex(varName))
 
     end function vnl_varTypeFromVarname
-
-    function vnl_IsAtmosConstituent(varNumber) result(var_chm)
-!
-!   Purpose: Determine if 'varNumber' refers to constituent data
-!   from the CH family with recognized data units. 
-!
-!   Author: Y.J. Rochon (ARQI/AQRD) Jan 2015
-!           Following recommendation by M. Buehner.
-!
-!   Revisions:
-!
-!   ------------------------------------------------------------
-
-      implicit none
-
-      integer, intent(in)           :: varNumber
-      logical                       :: var_chm
-      integer                       :: i
-
-      integer, parameter            :: vnl_numunits_chm=23
-      integer, parameter            :: vnl_varunits_chm(vnl_numunits_chm)= &
-                  (/15198,15001,15003,15005,15008,15009,15010,15020,15021,15022,15023,15024, &
-                    15026,15027,15028,15029,15199,15200,15208,15223,15230,13001,13002/)
-                
-      var_chm=.false.
-      do i=1,vnl_numunits_chm
-         if (varNumber.eq.vnl_varunits_chm(i)) then
-            var_chm=.true.
-            exit
-         end if
-      end do
-
-    end function vnl_IsAtmosConstituent
 
 
     function vnl_varKindFromVarname(varName) result(varKind)

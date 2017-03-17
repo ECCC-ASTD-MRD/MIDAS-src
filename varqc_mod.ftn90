@@ -60,7 +60,7 @@ module varqc_mod
     !             . modified GPS ZTD parameters to increase QC-Var rejections
     !          Y.J. Rochon ARQI/AQRD, Feb 2015
     !             . Added ZACH and ZDCH for chemical constituents
-    !             . Added call to vnl_IsAtmosConstituent(ITYP)
+    !             . Added call to buf_IsAtmosConstituent(ITYP)
     !               with addition of 'use varNamelist_mod'
     !
     implicit none
@@ -262,7 +262,7 @@ module varqc_mod
                 !
                 call obs_bodySet_r(obsSpaceData,OBS_POB,JDATA,(ZAZD*  &
                     SQRT(2.d0*MPC_PI_R8))/((1.d0-ZAZD)*(2.d0*ZDZD)))
-             ELSEIF (vnl_IsAtmosConstituent(ITYP)) then
+             ELSEIF (buf_IsAtmosConstituent(ITYP)) then
                 !
                 ! INITIAL VALUE OF GAMMA FOR THE CH (constituents) family
                 !

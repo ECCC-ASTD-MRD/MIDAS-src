@@ -326,7 +326,7 @@ SUBROUTINE burp_readFiles(obsdat)
 !                      Bug fix: Put CALL SET_ERR_GBGPS *after* OBS_OER initialized to 0
 !         Dec 2014:    Ping Du, CMDA
 !                      - Addition of CH family consideration for scaling
-!                        via element 8090
+!                        via element BUFR_SCALE_EXPONENT
 !
 !     NOTE:
 !     BURP FILES ARE ASSUMED TO BE PRESENT IN CURRENT WORKING DIRECTORY
@@ -368,7 +368,7 @@ SUBROUTINE burp_readFiles(obsdat)
          DO JO=nstn1+1,nstn2
 	    call obs_headSet_i(obsdat,OBS_OTP,JO,J)
 	    call obs_setFamily(obsdat,trim(burp_cfamtyp(J)),JO)
-            ! For CH family, apply scaling from the element (8090) when present.
+            ! For CH family, apply scaling from the element BUFR_SCALE_EXPONENT when present.
             if (burp_chem) call set_scale_chm(obsdat,JO,forward=.true.)
 	 END DO
          !    initializations
@@ -414,7 +414,7 @@ subroutine burp_updateFiles(obsSpaceData)
 !       Revision:
 !                Ping Du, CMDA, Feb-Mar 2015
 !                - Added scaling for CH family data
-!                  from use of 8090 element when required.
+!                  from use of BUFR_SCALE_EXPONENT element when required.
 !
 !     NOTE:
 !     BURP FILES ARE ASSUMED TO BE PRESENT IN CURRENT WORKING DIRECTORY
@@ -627,7 +627,7 @@ END SUBROUTINE burp_updateFiles
 !--------------------------------------------------------------------------
 !! *Purpose*:  Apply or unapply scaling to CH observations  by multiplying
 !!             (or dividing) with 10^{exponent} where the exponent is from
-!!             element 8090 if provided.           
+!!             element BUFR_SCALE_EXPONENT if provided.           
 !!
 !! @author P. Du *CMC/CMDA Nov. 2014
 !!
@@ -638,7 +638,7 @@ END SUBROUTINE burp_updateFiles
 !!v         for all obs and in the same sequential order.
 !!v     Y. Rochon, ARQI/AQRD, March/April 2016
 !!v       - Added consideration of HBHT (HPHT)
-!!v       - Avoid abort when 8090 present but not the mantissa as it could 
+!!v       - Avoid abort when BUFR_SCALE_EXPONENT present but not the mantissa as it could 
 !!v         have been filtered in READBURP.
 !!v     M. Sitwell, ARQI/AQRD, March 2017
 !!v       - Modified to do scaling for a single profile (i.e. one headerIndex)
@@ -676,7 +676,7 @@ END SUBROUTINE burp_updateFiles
 
       nexp=0
       DO bodyIndex = RLN, NLV + RLN -1
-         if (obs_bodyElem_i(obsdat,OBS_VNM,bodyIndex).eq.8090) then
+         if (obs_bodyElem_i(obsdat,OBS_VNM,bodyIndex).eq.BUFR_SCALE_EXPONENT) then
             nexp=nexp+1
             expnt(nexp) = obs_bodyElem_r(obsdat,OBS_VAR,bodyIndex)
          end if
@@ -710,7 +710,7 @@ END SUBROUTINE burp_updateFiles
          
          iobs=0
          DO bodyIndex = RLN, NLV + RLN -1
-            IF (obs_bodyElem_i(obsdat,OBS_VNM,bodyIndex).ne.8090) THEN
+            IF (obs_bodyElem_i(obsdat,OBS_VNM,bodyIndex).ne.BUFR_SCALE_EXPONENT) THEN
                iobs=iobs+1
                obsv=obs_bodyElem_r(obsdat,OBS_VAR,bodyIndex)
                call obs_bodySet_r(obsdat,OBS_VAR,bodyIndex,obsv*10**(expnt(iobs)) )
@@ -726,7 +726,7 @@ END SUBROUTINE burp_updateFiles
          iobs=0
          iexp=0
          DO bodyIndex = RLN, NLV + RLN -1
-            if (obs_bodyElem_i(obsdat,OBS_VNM,bodyIndex).eq.8090) then
+            if (obs_bodyElem_i(obsdat,OBS_VNM,bodyIndex).eq.BUFR_SCALE_EXPONENT) then
                ! Store scaling exponents
                iexp=iexp+1
                call obs_bodySet_r(obsdat,OBS_OMP,bodyIndex,expnt(iexp))
@@ -1702,7 +1702,7 @@ END SUBROUTINE burp_updateFiles
 !!
 !! Comment:
 !!
-!!v   This routine is general enough to be used by observstion families
+!!v   This routine is general enough to be used by observation families
 !!v   other than 'CH', It should be renamed once used for other families.
 !!
 !--------------------------------------------------------------------------
@@ -1794,12 +1794,13 @@ END SUBROUTINE burp_updateFiles
 !!
 !! Comments:
 !!
-!!v   - BUFR power 10 exponent element (i.e. data with BUFR number 8090) 
+!!v   - BUFR power 10 exponent element (i.e. data with BUFR number BUFR_SCALE_EXPONENT) 
 !!v     will only be applied to 1D data if present.
 !!v   - As burp_out is for a specific input stnid, burp_out%code only contains the (lat/long and
 !!v     time coord.) with 22 characters.
-!!v   - Exponent BUFR data (i.e. data with BUFR number 8090) will only be applied to 1D data.
-!!v   - This routine is general enough to be used by observstion families
+!!v   - Exponent BUFR data (i.e. data with BUFR number BUFR_SCALE_EXPONENT) will only 
+!!v     be applied to 1D data.
+!!v   - This routine is general enough to be used by observation families
 !!v     other than 'CH', It should be renamed once used for other families.
 !!
 !--------------------------------------------------------------------------
@@ -1905,7 +1906,7 @@ END SUBROUTINE burp_updateFiles
           if (ndim.eq.1) then
              ! retrieve 1D data
 
-             iexp = BURP_Find_Element(blk, ELEMENT=8090, IOSTAT=error)
+             iexp = BURP_Find_Element(blk, ELEMENT=BUFR_SCALE_EXPONENT, IOSTAT=error)
                 
              if (iexp.lt.0) then
                 ! No exponent found in block
@@ -1989,7 +1990,7 @@ END SUBROUTINE burp_updateFiles
 !
 !! Comment:
 !!
-!!v   This routine is general enough to be used by observstion families
+!!v   This routine is general enough to be used by observation families
 !!v   other than 'CH', It should be renamed once used for other families.
 !!
 !--------------------------------------------------------------------------
@@ -2060,7 +2061,7 @@ END SUBROUTINE burp_updateFiles
 !!v  - The settings for BURP_Write_Block should have ENCODE_BLOCK and CONVERT_BLOCK set to
 !!v    .true. in all cases, including when the block has not been modified, due to problems
 !!v    that can occur when writing blocks containing negative integers with datyp=4.
-!!v  - This routine is general enough to be used by observstion families
+!!v  - This routine is general enough to be used by observation families
 !!v    other than 'CH', It should be renamed once used for other families.
 !!
 !--------------------------------------------------------------------------

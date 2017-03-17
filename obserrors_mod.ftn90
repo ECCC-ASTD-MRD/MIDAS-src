@@ -66,6 +66,9 @@ contains
     !
     ! Author  : S. Laroche  February 2014
     ! Revision: 
+    !          Y. Rochon, M. Sitwell and P. Du, March 2017
+    !          - Added calls to chm_read_obs_err_stddev and
+    !            chm_dealloc_obs_err_stddev
     !
     ! Purpose: read and set observation errors (from former sucovo subroutine).
     !
@@ -96,7 +99,7 @@ contains
     ! Read in the observation stddev error for constituent data
     !
     if (obs_famexist(lobsSpaceData,'CH')) then
-       call read_obs_erreurs_chm
+       call chm_read_obs_err_stddev
     else
        write(*,*) "oer_setObsErrors: No CH observations found."
     end if
@@ -549,26 +552,6 @@ contains
 
   !-----------------------------------------------------------------------------------------
 
-  subroutine read_obs_erreurs_chm
-    !
-    ! s/r read_obs_erreurs_chm - READ OBSERVATION ERROR OF CONSTITUENT DATA 
-    !
-    ! Author   : Y. Rochon and M. Sitwell, ARQI/AQRD, Nov 2014 - Feb 2015
-    !
-    ! Revisions: 
-    !          
-    ! Purpose: Read observation error std. dev. as needed for CH family obs. 
-    ! 
-    !----------------------------------------------------------------------------------------
-
-    implicit none
-
-    call chm_read_obs_err_stddev
-
-  end subroutine read_obs_erreurs_chm
-
-  !-----------------------------------------------------------------------------------------
-
   subroutine fill_obs_erreurs(lobsSpaceData)
     !
     ! s/r fill_obs_erreurs -FILL OBSERVATION ERRORS IN lobsSpaceData
@@ -879,7 +862,7 @@ contains
              ELSE IF ( CFAM .EQ. 'CH' ) THEN
 
                 !        Process only retrieved constituent data
-                !        Also, exclude 8090 element as a data value!
+                !        Also, exclude BUFR_SCALE_EXPONENT element as a data value!
                
                 if (idburp.eq.codtyp_get_codtyp('CHEMREMOTE').or.idburp.eq.codtyp_get_codtyp('CHEMINSITU')) then
 
@@ -887,9 +870,9 @@ contains
                   if (ifirst) then
                      header_prev = index_header
                  
-                     ! Subtract the number of occurences of code 8090 from number of levels
+                     ! Subtract the number of occurences of code BUFR_SCALE_EXPONENT from number of levels
                      do ji=0,nlev-1
-                        if (obs_bodyElem_i(lobsSpaceData,OBS_VNM,IDATA+ji).eq.8090) then
+                        if (obs_bodyElem_i(lobsSpaceData,OBS_VNM,IDATA+ji).eq.BUFR_SCALE_EXPONENT) then
                            nlev = nlev-1
                         end if
                      end do
@@ -899,7 +882,7 @@ contains
 
                   ilev = 0
                   do ji=IDATA,INDEX_BODY
-                     if (obs_bodyElem_i(lobsSpaceData,OBS_VNM,ji).ne.8090) ilev = ilev+1
+                     if (obs_bodyElem_i(lobsSpaceData,OBS_VNM,ji).ne.BUFR_SCALE_EXPONENT) ilev = ilev+1
                   end do
 
                   obs_err_stddev = chm_get_obs_err_stddev(CSTNID,NLEV,ITYP,ZLAT,ZLON,IDATE,ITIME,ZVAL,ZLEV,ILEV,IFIRST)
