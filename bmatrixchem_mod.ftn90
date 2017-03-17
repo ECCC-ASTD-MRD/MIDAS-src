@@ -1731,11 +1731,11 @@ CONTAINS
     enddo
 !$OMP END PARALLEL DO
 
-    call tmg_start(84,'BCHM_SPEREE')
+    call tmg_start(127,'BCHM_SPEREE')
     call gst_setID(gstID)
     call gst_speree(sp,gd)
     call gst_setID(gstID2)
-    call tmg_stop(84)
+    call tmg_stop(127)
 
     call tmg_start(85,'BCHM_SPA2GD2')
 
@@ -2107,10 +2107,10 @@ CONTAINS
     cv_maxmpilocal(:) = 0.0d0
     cv_maxmpilocal(1:cvDim_mpilocal) = cv_mpilocal(1:cvDim_mpilocal)
 
-    call tmg_start(87,'BCHM_COMM')
+    call tmg_start(128,'BCHM_COMM')
     call rpn_comm_gather(cv_maxmpilocal,    cvDim_maxmpilocal, "mpi_double_precision",  &
                          cv_allmaxmpilocal, cvDim_maxmpilocal, "mpi_double_precision", 0, "GRID", ierr )
-    call tmg_stop(87)
+    call tmg_stop(128)
 
     deallocate(cv_maxmpilocal)
 

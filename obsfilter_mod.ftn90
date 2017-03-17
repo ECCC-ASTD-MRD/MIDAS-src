@@ -1387,7 +1387,7 @@ contains
 
       if (warn_suspicious) then
          call utl_open_asciifile(chm_setup_get_str('message'),unit)
-         write(unit,'(A)') "set_scale_chm: Number of levels mismatch between mantissa and exponent for observation"
+         write(unit,'(A)') "filt_topoChm: Number of levels mismatch between mantissa and exponent for observation"
          write(unit,'(14X,A,4X,I8,2X,I4)') obs_elem_c(obsSpaceData,'STID',headerIndex),obs_headElem_i(obsSpaceData,OBS_DAT,headerIndex),&
               obs_headElem_i(obsSpaceData,OBS_ETM,headerIndex)
          write(unit,'(14X,A,F9.2,A,F9.2)') "lon = ",obs_headElem_r(obsSpaceData,OBS_LON,headerIndex)*MPC_DEGREES_PER_RADIAN_R8, &

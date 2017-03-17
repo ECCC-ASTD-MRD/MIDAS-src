@@ -94,7 +94,6 @@ contains
     !
     cvdimhi  = 0
     cvdimens = 0
-
     cvdimchm = 0
 
     !- 2.1 Time-Mean Homogeneous and Isotropic...

@@ -431,7 +431,7 @@ CONTAINS
             INDIC = 2
             call simvar(indic,nvadim_mpilocal,vazx,zjsp,vazg,dataptr_int(1))
           else
-            call utl_abort(" MINIMIZATION_MOD: qna_n1qn3 mode ne 4")
+            call utl_abort(" MINIMIZATION_MOD: qna_n1qn3 mode not equal to 1 or 4")
           endif
         endif
 

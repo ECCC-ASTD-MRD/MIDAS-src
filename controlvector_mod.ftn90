@@ -50,14 +50,13 @@ MODULE ControlVector_mod
 
   integer, parameter  :: cvm_numSubvector=3 ! total number of possible valid subvectors
 
-  real*8, allocatable,target :: cvm_vazx(:)
 
 CONTAINS
 
-  SUBROUTINE CVM_setup(DIMBHI_IN,DIMBEN_IN, DIMBCHM_IN)
+  SUBROUTINE CVM_setup(DIMBHI_IN,DIMBEN_IN,DIMBCHM_IN)
     implicit none
 
-    integer           :: dimBHI_in,dimBEN_in, dimBCHM_in
+    integer           :: dimBHI_in,dimBEN_in,dimBCHM_in
     integer           :: ierr
 
     cvm_dimbhi = dimbhi_in
@@ -86,7 +85,12 @@ CONTAINS
     real*8, pointer :: subVector(:)
     real*8, target  :: controlVector(:)
     integer         :: subVectorIndex
-    logical, save   :: firstCall(cvm_numSubvector+1)=.true. ! add extra element for all subVectorIndex>cvm_numSubvector
+    logical, save   :: firstCall(cvm_numSubvector)=.true.
+
+    if (subVectorIndex.lt.0.or.subVectorIndex.gt.cvm_numSubvector) then
+       write(*,*) 'CVM_getSubVector: subVectorIndex = ',subVectorIndex
+       call utl_abort('CVM_getSubVector: invalid value for subVectorIndex')
+    end if
 
     nullify(subVector)
 
@@ -95,12 +99,11 @@ CONTAINS
     elseif(subVectorIndex.eq.2 .and. cvm_dimben.gt.0) then
       subVector => controlVector((cvm_dimbhi+1):(cvm_dimbhi+cvm_dimben))
     elseif(subVectorIndex.eq.3 .and. cvm_dimbchm.gt.0) then
-      ! Addition for constituents
       subVector => controlVector((cvm_dimbhi+cvm_dimben+1):(cvm_dimbhi+cvm_dimben+cvm_dimbchm))
     else
-       if(firstCall(min(subVectorIndex,cvm_numSubvector+1))) then
+       if(firstCall(subVectorIndex)) then
           write(*,*) 'CVM_getSubVector: subVectorIndex ',subVectorIndex,' is not available'
-          firstCall(min(subVectorIndex,cvm_numSubvector+1))=.false.
+          firstCall(subVectorIndex)=.false.
        endif
     endif
 
@@ -112,7 +115,12 @@ CONTAINS
     real*8, pointer :: subVector(:)
     real*8,target   :: controlVector(:)
     integer         :: subVectorIndex
-    logical, save   :: firstCall(cvm_numSubvector+1)=.true. ! add extra element for all subVectorIndex>cvm_numSubvector
+    logical, save   :: firstCall(cvm_numSubvector)=.true.
+
+    if (subVectorIndex.lt.0.or.subVectorIndex.gt.cvm_numSubvector) then
+       write(*,*) 'CVM_getSubVector_mpiglobal: subVectorIndex = ',subVectorIndex
+       call utl_abort('CVM_getSubVector_mpiglobal: invalid value for subVectorIndex')
+    end if
 
     nullify(subVector)
 
@@ -121,12 +129,11 @@ CONTAINS
     elseif(subVectorIndex.eq.2 .and. cvm_dimben_mpiglobal.gt.0) then
       subVector => controlVector((cvm_dimbhi_mpiglobal+1):(cvm_dimbhi_mpiglobal+cvm_dimben_mpiglobal))
     elseif(subVectorIndex.eq.3 .and. cvm_dimbchm_mpiglobal.gt.0) then
-      ! Addition for constituents
       subVector => controlVector((cvm_dimbhi_mpiglobal+cvm_dimben_mpiglobal+1):(cvm_dimbhi_mpiglobal+cvm_dimben_mpiglobal+cvm_dimbchm_mpiglobal))
     else
-      if(firstCall(min(subVectorIndex,cvm_numSubvector+1))) then
+      if(firstCall(subVectorIndex)) then
         write(*,*) 'CVM_getSubVector_mpiglobal: subVectorIndex ',subVectorIndex,' is not available'
-        firstCall(min(subVectorIndex,cvm_numSubvector+1))=.false.
+        firstCall(subVectorIndex)=.false.
       endif
     endif
 
