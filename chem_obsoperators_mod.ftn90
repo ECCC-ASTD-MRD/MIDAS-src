@@ -768,7 +768,7 @@ contains
 ! Identify observation operator based on observation units and presence or
 ! not of layer boundaries
 
-  if (buf_IsIntegral(obsoper%varno)) then
+  if (bufr_IsIntegral(obsoper%varno)) then
      if (.not.obsoper%layer_identified) then
         write(*,*)   '----------------------------------------------------------'
         write(*,*)   'STNID, BUFR index, nobslev: ',obsoper%stnid,' ',obsoper%varno,obsoper%nobslev

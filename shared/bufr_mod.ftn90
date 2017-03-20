@@ -34,7 +34,7 @@
 !           - Removed BUFR_NEOZ
 !           - Removed BUFR_NECH
 !           - Added BUFR_SCALE_EXPONENT, BUFR_UNITS_*
-!           - Added public buf_IsAtmosConstituent, bufr_IsIntegral
+!           - Added public bufr_IsAtmosConstituent, bufr_IsIntegral
 !           M. Sitwell, ARQI/AQRD, Feb 2015
 !           - Replaced BUFR_NETR_* by BUFR_NECH_*  
 !       
@@ -158,7 +158,7 @@ contains
 
 !---------------------------------------------------------------
 ! 
-! FUNCTION buf_IsAtmosConstituent(varNumber) result(var_chm)
+! FUNCTION bufr_IsAtmosConstituent(varNumber) result(var_chm)
 !!
 !! *Purpose*: Determine if 'varNumber' refers to constituent data
 !!            from the CH family with recognized data units. 
@@ -173,7 +173,7 @@ contains
 !!v       varNumber     BUFR element number
 !!
 ! ------------------------------------------------------------
-  function buf_IsAtmosConstituent(varNumber) result(var_chm)
+  function bufr_IsAtmosConstituent(varNumber) result(var_chm)
   
       implicit none
 
@@ -195,11 +195,11 @@ contains
           var_chm=.false.
       end if
       
-  end function buf_IsAtmosConstituent
+  end function bufr_IsAtmosConstituent
 
 !------------------------------------------------------------------------------------------
 !
-! LOGICAL FUNCTION buf_IsIntegral(varNumber)
+! LOGICAL FUNCTION bufr_IsIntegral(varNumber)
 !!
 !! *Purpose*: Identify if obs is a vertically integrated constituent measurement.
 !!
@@ -212,7 +212,7 @@ contains
 !!v       varNumber     BUFR element number
 !!
 ! ---------------------------------------------------------------------------------------
-  logical function buf_IsIntegral(varNumber)
+  logical function bufr_IsIntegral(varNumber)
   
   implicit none
   integer, intent(in) :: varNumber
@@ -220,11 +220,11 @@ contains
   if (any(varNumber .eq. (/ BUFR_UNIT_DU, BUFR_UNIT_DU2, BUFR_UNIT_DU3, BUFR_UNIT_DU4, &
                             BUFR_UNIT_IntegND, BUFR_UNIT_IntegND2, BUFR_UNIT_IntegDens, &
                             BUFR_UNIT_IntegDens2, BUFR_UNIT_IntegDens3 /) )) then      
-      buf_IsIntegral=.true.     
+      bufr_IsIntegral=.true.     
   else
-      buf_IsIntegral=.false.
+      bufr_IsIntegral=.false.
   end if
   
-  end function buf_IsIntegral
+  end function bufr_IsIntegral
 
 end module bufr

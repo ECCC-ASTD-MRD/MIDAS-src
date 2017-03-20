@@ -748,7 +748,7 @@ contains
        ! If integrated layer information not found, if a total column measurement
        ! set to defaults, else do nothing
 
-       if (buf_IsIntegral(varno) .and. nlev.eq.1) then          
+       if (bufr_IsIntegral(varno) .and. nlev.eq.1) then          
           lfound=.true.
           layertop(1) = default_top
           layerbottom(1) = default_bottom

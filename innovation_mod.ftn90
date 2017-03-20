@@ -1313,7 +1313,7 @@ contains
           ENDIF
           IOBS = obs_bodyElem_i(lobsSpaceData,OBS_HIND,JDATA)
           ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,JDATA)
-          if (buf_IsAtmosConstituent(ITYP)) then
+          if (bufr_IsAtmosConstituent(ITYP)) then
              varLevel = vnl_varLevelFromVarnum(ITYP, &
                         obs_headElem_i(lobsSpaceData,OBS_CHM,IOBS))
           else
@@ -1352,7 +1352,7 @@ contains
           ENDIF
           IOBS = obs_bodyElem_i(lobsSpaceData,OBS_HIND,JDATA)
           ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,JDATA)
-          if (buf_IsAtmosConstituent(ITYP)) then
+          if (bufr_IsAtmosConstituent(ITYP)) then
              varLevel = vnl_varLevelFromVarnum(ITYP, &
                         obs_headElem_i(lobsSpaceData,OBS_CHM,IOBS))
           else
@@ -1397,7 +1397,7 @@ contains
           IOBS = obs_bodyElem_i(lobsSpaceData,OBS_HIND,JDATA)
           ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,JDATA)
           ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,JDATA)
-          if (buf_IsAtmosConstituent(ITYP)) then
+          if (bufr_IsAtmosConstituent(ITYP)) then
              varLevel = vnl_varLevelFromVarnum(ITYP, &
                         obs_headElem_i(lobsSpaceData,OBS_CHM,IOBS))
           else
@@ -1425,7 +1425,7 @@ contains
           IOBS = obs_bodyElem_i(lobsSpaceData,OBS_HIND,JDATA)
           ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,JDATA)
           ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,JDATA)
-          if (buf_IsAtmosConstituent(ITYP)) then
+          if (bufr_IsAtmosConstituent(ITYP)) then
              varLevel = vnl_varLevelFromVarnum(ITYP, &
                         obs_headElem_i(lobsSpaceData,OBS_CHM,IOBS))
           else
