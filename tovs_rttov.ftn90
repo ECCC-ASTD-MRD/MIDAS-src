@@ -87,8 +87,7 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
   integer              :: asw,imonth,ig
   logical, allocatable :: calcemis  (:)
   real*8, allocatable  :: surfem1 (:)
-  real*8, allocatable  :: surfem2 (:) !, emissivity_std(:)
-!  integer, allocatable :: emissivity_flg(:)
+  real*8, allocatable  :: surfem2 (:)
 !*****************************************************************
   
   write(*,*) "Entering tovs_rttov subroutine"
@@ -163,8 +162,6 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
      allocate ( calcemis         (nchannels_max) ,stat=alloc_status(5))
      if (luse_uwiremis) then
         allocate ( surfem2(nchannels_max)        ,stat=alloc_status(6) )
-        !           allocate ( emissivity_std(nchannels_max) ,stat=alloc_status(7) )
-        !           allocate ( emissivity_flg(nchannels_max) ,stat=alloc_status(8) )
      endif
      if( any(alloc_status /= 0) ) then
         write(*,*) ' tovs_rttov: alloc_status = ', alloc_status(:)
@@ -231,20 +228,21 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
 ! pour utiliser le bon profil min ou max pour chaque instrument
 ! au lieu du premier (AIRS) habituellement en mode analyse
 ! ne doit rien changer en mode background check
-     ig=coefs(krtid)%coef%fmv_gas_pos(gas_id_watervapour)
-     do  j = 1 , knpf
-        jj = iptobs(j)
-        do  jl = 1 , nlevels
-           if     ( profiles(jj) % q(jl)  &
-                .le. coefs(krtid)%coef%lim_prfl_gmin(jl,ig)   ) then
-              profiles(jj) % q(jl)  = coefs(krtid)%coef%lim_prfl_gmin(jl,ig)
-           elseif ( profiles(jj) % q(jl)  &
-                .ge. coefs(krtid)%coef%lim_prfl_gmax(jl,ig)  ) then
-              profiles(jj) % q(jl)  = coefs(krtid)%coef%lim_prfl_gmax(jl,ig)
-           endif
-        enddo
-        if (ldbgtov) call rttov_print_profile( profiles(jj) )
-     end do
+! Deplace (temporairement?) dans rttov: opts(JK)%config%apply_reg_limits=.true.
+!     ig=coefs(krtid)%coef%fmv_gas_pos(gas_id_watervapour)
+!     do  j = 1 , knpf
+!        jj = iptobs(j)
+!        do  jl = 1 , nlevels
+!           if     ( profiles(jj) % q(jl)  &
+!                .le. coefs(krtid)%coef%lim_prfl_gmin(jl,ig)   ) then
+!              profiles(jj) % q(jl)  = coefs(krtid)%coef%lim_prfl_gmin(jl,ig)
+!           elseif ( profiles(jj) % q(jl)  &
+!                .ge. coefs(krtid)%coef%lim_prfl_gmax(jl,ig)  ) then
+!              profiles(jj) % q(jl)  = coefs(krtid)%coef%lim_prfl_gmax(jl,ig)
+!           endif
+!        enddo
+!        if (ldbgtov) call rttov_print_profile( profiles(jj) )
+!     end do
        
      len_nchannels = nchan(krtid)
       
@@ -411,8 +409,6 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
         deallocate ( emissivity_local  ,stat=alloc_status(4) )
         if (luse_uwiremis) then
            deallocate ( surfem2         ,stat=alloc_status(5) )
-!           deallocate ( emissivity_std  ,stat=alloc_status(7) )
-!           deallocate ( emissivity_flg  ,stat=alloc_status(8) )
         endif
 
         if( any(alloc_status /= 0) ) then

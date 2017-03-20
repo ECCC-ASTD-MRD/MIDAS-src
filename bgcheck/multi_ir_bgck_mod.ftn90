@@ -480,14 +480,22 @@ contains
     allocate (xpres(NLEV))
     xpres(1:NLEV)=coefs(id)% coef% ref_prfl_p(1:NLEV)
 
-    iextr=0
-    if (nlev==44) iextr=1
-    if (nlev==51) iextr=2
-    if (nlev /= 43 .and. nlev/=44 .and. nlev/= 51) then
-       Write(*,*) "Attention: modification necessaire dans HIRQC"
+    select case(nlev)
+    case(43)
+       iextr=0
+    case(44)
+       iextr=1
+    case(51)
+       iextr=2
+    case(54)
+       iextr=4
+    case(101)
+       iextr=4
+    case default
+       Write(*,*) "Attention: modification necessaire dans HIRQC", nlev
        call utl_abort('hirqc')
-    endif
-    
+    end select
+   
     NLEVB=NLEV-iextr
 
     write(*,*) ' HIRQC - nchn ', nchn
@@ -3024,13 +3032,13 @@ subroutine tovs_rttov_AVHRR_for_IASI (iptobs,surfem1_avhrr,idiasi)
         ICHAN_AVHRR(ICH)=ICH
      ENDDO
 
-     opts_avhrr%config%apply_reg_limits=.false. ! if true application of profiles limits
-     opts_avhrr%config%verbose=.true. ! verbose output
+     opts_avhrr%config%apply_reg_limits=.true. ! if true application of profiles limits
+     opts_avhrr%config%verbose=.false. ! verbose output
      opts_avhrr%config%do_checkinput=.true. ! to check if input profiles are within absolute and regression limits
 
      opts_avhrr%rt_all%switchrad=.true.  ! to use brightness temperature (true) or radiance (false) units in AD routine
      opts_avhrr%rt_all%use_q2m=.false.   ! if true use of surface humidity (false for compatibility with the way rttov 8.7 was compiled)
-     opts_avhrr%rt_all%addrefrac=.false. ! to account for atmospheric refraction (useless???)
+     opts_avhrr%rt_all%addrefrac=.true. ! to account for atmospheric refraction (useless???)
 
      opts_avhrr%rt_ir%addsolar=.false.  ! to model solar component in the near IR (2000 cm-1 et plus)
      opts_avhrr%rt_ir%addaerosl=.false. ! to account for scattering due to aerosols
@@ -3039,9 +3047,15 @@ subroutine tovs_rttov_AVHRR_for_IASI (iptobs,surfem1_avhrr,idiasi)
      opts_avhrr%rt_ir%pc%ipcreg=-1         ! index of the required PC predictors... to see later
      opts_avhrr%rt_ir%pc%addpc=.false.     ! to carry out principal component calculations 
      opts_avhrr%rt_ir%pc%addradrec=.false. ! to reconstruct radiances from principal components
+     opts_avhrr%rt_ir%co2_data = .false.
+     opts_avhrr%rt_ir%n2o_data = .false.
+     opts_avhrr%rt_ir%co_data  = .false.
+     opts_avhrr%rt_ir%ch4_data = .false.
+     opts_avhrr%rt_ir%ir_sea_emis_model = 2 ! ISEM (ir_sea_emis_model 1) useful for GEORAD
+                                            ! 2 would select IREMIS which is more sophisticated (to try)
 
      opts_avhrr%rt_mw%clw_data=.false.  ! profil d'eau liquide pas disponible
-     opts_avhrr%rt_mw%fastem_version=4  ! use fastem version 4 file (in the range 1-5 to force a specific version)
+     opts_avhrr%rt_mw%fastem_version=6  ! use fastem version 6 (in the range 1-6 to force a specific version)
 
      opts_avhrr%interpolation%addinterp=.false. !use of internal profile interpolator (rt calculation on model levels)
      opts_avhrr%interpolation%lgradp=.false.    ! allow tl/ad of user pressure levels

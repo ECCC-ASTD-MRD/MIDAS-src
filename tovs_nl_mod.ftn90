@@ -42,7 +42,8 @@ Module tovs_nl_mod
        inst_id_mtsatim   ,&
        platform_id_jpss  ,&
        platform_id_himawari,&
-       errorstatus_success
+       errorstatus_success, &
+       mair, mh2o, mo3
   use codtyp_mod
   use mpi
   use utilities_mod
@@ -55,7 +56,7 @@ Module tovs_nl_mod
   public :: rttov_radiance, rttov_profile, rttov_chanprof, rttov_coefs, rttov_transmission, rttov_options, rttov_emissivity
 
   ! public variables (parameters)
-  public :: jpchmax, jpchus, jpnsatmax, jplev, mesosphere_lapse_rate, q_mixratio_to_ppmv
+  public :: jpchmax, jpchus, jpnsatmax, jplev, mesosphere_lapse_rate, q_mixratio_to_ppmv, o3_mixratio_to_ppmv
   ! public variables (non-parameters)
   public :: nchan, ichan, lsensor, lobsno, ltovsno, JPMOTOP, JPMOLEV, nobtov
   public :: l_really_present,list_sensors,luse_uwiremis
@@ -71,16 +72,16 @@ Module tovs_nl_mod
   public ::  tvs_Is_Instrum_Geostationary,  tvs_Is_Instrum_HyperSpectral
   ! Module parameters
   ! units conversion from  mixing ratio to ppmv
-  Real(8), Parameter :: q_mixratio_to_ppmv  = 1.60771704e+6_8
-  Real(8), Parameter :: o3_mixratio_to_ppmv = 6.03504e+5_8
-  Real(8), Parameter :: co2_mixratio_to_ppmv= 6.58114e+5_8
-  Real(8), Parameter :: co_mixratio_to_ppmv = 1.0340699e+6_8
-  Real(8), Parameter :: n2o_mixratio_to_ppmv= 6.58090e+5_8
-  Real(8), Parameter :: ch4_mixratio_to_ppmv= 1.80548e+6_8
+  Real(8), Parameter :: q_mixratio_to_ppmv  = (1000000.0_8 * mair) / mh2o
+  Real(8), Parameter :: o3_mixratio_to_ppmv = (1000000.0_8 * mair) / mo3
+!  Real(8), Parameter :: co2_mixratio_to_ppmv =  (1000000.0_8 * mair) / mco2
+!  Real(8), Parameter :: co_mixratio_to_ppmv =  (1000000.0_8 * mair) / mco
+!  Real(8), Parameter :: n2o_mixratio_to_ppmv = (1000000.0_8 * mair) / mn2o
+!  Real(8), Parameter :: ch4_mixratio_to_ppmv = (1000000.0_8 * mair) / mch4
   Integer, PARAMETER :: jpchmax   = 8461     ! Max. no. of channels
   Integer, PARAMETER :: jpchus    = 1305     ! Max. no. of channels computed/call
   Integer, PARAMETER :: jpnsatmax = 40       ! Max no sensors to be used
-  Integer, PARAMETER :: jplev     = 51       ! No. of pressure levels including "rttov top" at 0.005 hPa for rttov-10
+  Integer, PARAMETER :: jplev     = 54       ! No. of pressure levels including "rttov top" at 0.005 hPa for rttov-10
 !**********************************************************
 ! S. Heilliette this parameter was computed from the mean lapse rate between 50 km and 85 km
 ! of the US standard atmosphere from data contained in "AFGL Atmospheric Constituent Profiles (0-120km)"
@@ -194,6 +195,10 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
 !        Construct a list of channels for each sensor.
 !        Construct a list of sensor number for each profile
 !     .  ---------------------------------------------------
+
+  WRITE(*,*) "Entering TOVS_NL_SETUPALLO" ; call flush(6)
+
+
   alloc_status(:) = 0
   allocate (nchan(nsensors),                       stat= alloc_status(1))
   allocate (ichan(jpchus,nsensors),                stat= alloc_status(2))
@@ -327,27 +332,27 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
         LIST_SENSORS(3,JK) = INSTRUMENT(JK)
 
         !< General configuration options
-        opts(JK)%config%apply_reg_limits=.false. ! if true application of profiles limits
-        opts(JK)%config%verbose=.true. ! verbose output
+        opts(JK)%config%apply_reg_limits=.true. ! if true application of profiles limits
+        opts(JK)%config%verbose=.false. ! verbose output
         opts(JK)%config%do_checkinput=.true. ! to check if input profiles are within absolute and regression limits
         !< General RT options
         opts(JK)%rt_all%switchrad=.true.  ! to use brightness temperature (true) or radiance (false) units in AD routine
         opts(JK)%rt_all%use_q2m=.false.   ! if true use of surface humidity (false for compatibility with the way rttov 8.7 was compiled)
-        opts(JK)%rt_all%addrefrac=.false. ! to account for atmospheric refraction (useless???)
+        opts(JK)%rt_all%addrefrac=.true. ! to account for atmospheric refraction
         !< VIS/IR RT options
         opts(JK)%rt_ir%addsolar=.false.  ! to model solar component in the near IR (2000 cm-1 et plus)
         opts(JK)%rt_ir%addaerosl=.false. ! to account for scattering due to aerosols
         opts(JK)%rt_ir%addclouds=.false. ! to account for scattering due to clouds
-        opts(JK)%rt_ir%ir_sea_emis_model = 1 ! ISEM (ir_sea_emis_model 1) useful for GEORAD
+        opts(JK)%rt_ir%ir_sea_emis_model = 2 ! ISEM (ir_sea_emis_model 1) useful for GEORAD
                                              ! 2 would select IREMIS which is more sophisticated (to try)
         opts(JK)%rt_ir%pc%ipcreg=-1         ! index of the required PC predictors... to see later
         opts(JK)%rt_ir%pc%addpc=.false.     ! to carry out principal component calculations 
         opts(JK)%rt_ir%pc%addradrec=.false. ! to reconstruct radiances from principal components
         !< MW RT options
         opts(JK)%rt_mw%clw_data=.false.  ! profil d'eau liquide pas disponible
-        opts(JK)%rt_mw%fastem_version=4  ! use fastem version 4 file (in the range 1-6 to force a specific version)
+        opts(JK)%rt_mw%fastem_version=6  ! use fastem version 6 microwave sea surface emissivity model (1-6)
         !< Interpolation options
-        opts(JK)%interpolation%addinterp=.false. !use of internal profile interpolator (rt calculation on model levels)
+        opts(JK)%interpolation%addinterp=.false. ! use of internal profile interpolator (rt calculation on model levels)
         opts(JK)%interpolation%lgradp=.false.    ! allow tl/ad of user pressure levels
 
         errorstatus = errorstatus_success
@@ -357,11 +362,10 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
            WRITE(*,*) 'rttov_read_coefs: fatal error reading coefficients',errorstatus,JK,LIST_SENSORS(1:3,JK)
            CALL utl_abort('TOVS_SETUPALLO')
         ENDIF
-
-        opts(JK)%rt_ir%co2_data = .false.  !( coefs(jk)%coef%nco2 > 0 )
-        opts(JK)%rt_ir%n2o_data = .false.  !( coefs(jk)%coef%nn2o > 0 )
-        opts(JK)%rt_ir%co_data  = .false.  !( coefs(jk)%coef%nco  > 0 )
-        opts(JK)%rt_ir%ch4_data = .false.  !( coefs(jk)%coef%nch4 > 0 )
+        opts(JK)%rt_ir%co2_data = .false. 
+        opts(JK)%rt_ir%n2o_data = .false.
+        opts(JK)%rt_ir%co_data  = .false.
+        opts(JK)%rt_ir%ch4_data = .false.
         opts(JK)%rt_ir%ozone_data = ( coefs(jk)%coef%nozone > 0 ) ! profil d'ozone disponible
 
 ! Ensure the options and coefficients are consistent
@@ -397,7 +401,6 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
         endif
      enddo
 
-
   ENDIF
 
 !-----------------------------------------------------------------------
@@ -419,14 +422,12 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
      isens = lsensor(jo)
      nl = coefs(isens)%coef % nlevels
      ! allocate model profiles atmospheric arrays with RTTOV levels dimension
-
      call rttov_alloc_prof(errorstatus,1,profiles(jo),nl, &
           opts(isens),asw,coefs=coefs(isens),init=.false. )
      if (errorstatus/=0) THEN
         Write(*,*) "Error in profiles allocation",errorstatus
         CALL utl_abort('TOVS_NL_SETUPALLO')
      endif
-       
   end do
 
 !___ radiance by profile
@@ -457,6 +458,9 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
          CALL utl_abort('TOVS_NL_SETUPALLO')
      End If
   end do
+
+
+  WRITE(*,*) "Leaving TOVS_NL_SETUPALLO" ; call flush(6)
 
 END SUBROUTINE TOVS_NL_SETUPALLO
 

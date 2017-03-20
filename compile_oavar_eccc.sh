@@ -132,8 +132,8 @@ echo "...   loading hpcs/exp/aspgjdm/perftools"
 . ssmuse-sh -d hpcs/exp/aspgjdm/perftools
 # For RTTOV package...  
 echo "...   loading arma/rttov/12v1"
-export EC_LD_LIBRARY_PATH="/users/dor/arma/gr8/home1/sylvain_ssm/rttov/12v1/rttovs-xlf13110_12v1_aix-7.1-ppc7-64/lib ${EC_LD_LIBRARY_PATH}"
-export EC_INCLUDE_PATH="/users/dor/arma/gr8/home1/sylvain_ssm/rttov/12v1/rttovs-xlf13110_12v1_aix-7.1-ppc7-64/include ${EC_INCLUDE_PATH}"
+export EC_LD_LIBRARY_PATH="/fs/dev/mrb/arma/armagr8/rttov121_pour_IBM/aix-cmc/lib ${EC_LD_LIBRARY_PATH}"
+export EC_INCLUDE_PATH="/fs/dev/mrb/arma/armagr8/rttov121_pour_IBM/aix-cmc/includes ${EC_INCLUDE_PATH}"
 
 #-----------------------------------------------------------------------------
 

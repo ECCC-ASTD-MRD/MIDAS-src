@@ -257,21 +257,22 @@ subroutine tovs_rttov_tl(lobsSpaceData)
 ! pour utiliser le bon profil min ou max pour chaque instrument
 ! au lieu du premier (AIRS) habituellement en mode analyse
 ! ne doit rien changer en mode background check
-      ig=coefs(krtid)%coef%fmv_gas_pos(gas_id_watervapour)
-      do  j = 1 , knpf
-         jj = iptobs(j)
-         do  jl = 1 , coefs(krtid) %coef% nlevels
-            if     ( profiles(jj) % q(jl)  &
-                 .le. coefs(krtid)%coef%lim_prfl_gmin(jl,ig)  ) then
-               profiles(jj) % q(jl)    = coefs(krtid)%coef%lim_prfl_gmin(jl,ig)           
-               profilesdata_tl(j) % q(jl) = 0.0d0
-            elseif ( profiles(jj) % q(jl)  &
-                 .ge. coefs(krtid)%coef%lim_prfl_gmax(jl,ig)   ) then
-               profiles(jj) % q(jl)    =  coefs(krtid)%coef%lim_prfl_gmax(jl,ig)       
-               profilesdata_tl(j) % q(jl) = 0.0d0
-            endif
-         enddo
-      end do
+! Deplace (temporairement?) dans rttov: opts(JK)%config%apply_reg_limits=.true.
+!      ig=coefs(krtid)%coef%fmv_gas_pos(gas_id_watervapour)
+!      do  j = 1 , knpf
+!         jj = iptobs(j)
+!         do  jl = 1 , coefs(krtid) %coef% nlevels
+!            if     ( profiles(jj) % q(jl)  &
+!                 .le. coefs(krtid)%coef%lim_prfl_gmin(jl,ig)  ) then
+!               profiles(jj) % q(jl)    = coefs(krtid)%coef%lim_prfl_gmin(jl,ig)           
+!               profilesdata_tl(j) % q(jl) = 0.0d0
+!            elseif ( profiles(jj) % q(jl)  &
+!                 .ge. coefs(krtid)%coef%lim_prfl_gmax(jl,ig)   ) then
+!               profiles(jj) % q(jl)    =  coefs(krtid)%coef%lim_prfl_gmax(jl,ig)       
+!               profilesdata_tl(j) % q(jl) = 0.0d0
+!            endif
+!         enddo
+!      end do
  
 !     .  2.3  Compute tl radiance with rttov_tl
 !     .       ---------------------------------

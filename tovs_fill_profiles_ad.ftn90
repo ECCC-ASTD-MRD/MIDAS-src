@@ -200,7 +200,7 @@ subroutine tovs_fill_profiles_ad(column,columng)
 !     .  2.4  Adjoint of filling profiles_ad structure
 !     .       ----------------------------------------
      do j = 1, knpf
-        qoext(:,j) =  profiles(iptobs(j)) % q(:) / q_mixratio_to_ppmv
+        qoext(:,j) =  profiles(iptobs(j)) % q(:) !/ q_mixratio_to_ppmv
      enddo
 
      do  j = 1 , knpf 
@@ -212,7 +212,7 @@ subroutine tovs_fill_profiles_ad(column,columng)
         vv_column => col_getColumn(column,iptobscma(j),'VV')
 
         toext_ad(:,j)      = profiles_ad(iptobs(j)) % t(:)
-        qoext_ad(:,j)      = profiles_ad(iptobs(j)) % q(:) * q_mixratio_to_ppmv
+        qoext_ad(:,j)      = profiles_ad(iptobs(j)) % q(:) !* q_mixratio_to_ppmv
         ps_column(1)       = profiles_ad(iptobs(j)) % s2m % p *MPC_MBAR_PER_PA_R8
         tg_column(1)       = profiles_ad(iptobs(j)) % skin % t
         tt_column(ilowlvl_T) = profiles_ad(iptobs(j)) % s2m % t
