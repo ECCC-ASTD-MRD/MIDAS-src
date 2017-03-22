@@ -87,7 +87,7 @@ CONTAINS
     !                     and 15230 under LISTE_ELE for CASE('CH'). This
     !                     denotes the/a possible set of elements.
     !                  -- Modified 'vcord_type' to an array of dimension 10.
-    !                  -- Extended vcord_type from 1 to 7 elements for CH
+    !                  -- Extended vcord_type from 1 to 8 elements for CH
     !                  -- Setting of ELEVFACT to 1.0 for 7006 coordinate.
     !                 Y.J. Rochon (ARQI), May 2015
     !                  -- Made use of the existing WINDS logical to determine 
@@ -319,7 +319,9 @@ CONTAINS
         ADDSIZE=600000
       CASE('CH')
         BURP_TYP='multi'   ! Both 'multi' and 'uni' are possible for this family.
-        vcord_type(1:6) = (/7004,7204,7006,7007,2150,0/)  ! 0 must be at end.
+                           ! 'uni' level data are assumed not to have any accompanynig vertical 
+                           ! coordinate element in addition to having only one level.
+        vcord_type(1:8) = (/7004,7204,7006,7007,5042,2150,2071,0/)  ! 0 must be at end.
 
         LISTE_ELE_SFC(1:19) = (/15008,15009,15010,15020,15021,15022,15023,15024,15026,15027,15028, &
                                 15029,15198,15199,15200,15230,13001,13002,08090/)
@@ -1562,7 +1564,9 @@ CONTAINS
      CASE('CH')
 
         BURP_TYP='multi'  ! Both 'multi' and 'uni' are possible for this family.
-        vcord_type(1:6) = (/7004,7204,7006,7007,2150,0/) ! 0 must be at end.
+                          ! 'uni' level data are assumed not to have any accompanynig vertical 
+                          ! coordinate element in addition to having only one level.
+        vcord_type(1:8) = (/7004,7204,7006,7007,5042,2150,2071,0/) ! 0 must be at end.
         NELE_INFO=17
 
         UNI_FAMILYTYPE = 'CH'

@@ -127,13 +127,10 @@ module bufr
  integer, parameter :: BUFR_UNIT_Density3       = 15223   ! Concentration = Density (kg/m^3) 
  integer, parameter :: BUFR_UNIT_AirDensity     = 15194   ! Air density (kg/m^3) 
  integer, parameter :: BUFR_UNIT_PMDensity      = 15195   ! Density of PM2.5 (kg/m^3)  
- integer, parameter :: BUFR_UNIT_OptDepth       = 15024   ! Optical depth (unitless)
- integer, parameter :: BUFR_UNIT_OptDepth2      = 15196   ! Optical depth (unitless)
- integer, parameter :: BUFR_UNIT_OptDepth3      = 15062   ! Aerosol Optical depth (unitless)
- integer, parameter :: BUFR_UNIT_MR_NVaerosol   = 15055   ! Non-volatile aerosol mixing ratio (unitless)  
  integer, parameter :: BUFR_UNIT_PartPress      = 15010   ! Partial pressure in Pa
  integer, parameter :: BUFR_UNIT_PartPress2     = 15003   ! Ozone partial pressure in Pa (same as above)
  integer, parameter :: BUFR_UNIT_PartPress3     = 15199   ! Partial pressure in Pa (same as above)
+ integer, parameter :: BUFR_UNIT_MR_NVaerosol   = 15055   ! Non-volatile aerosol mixing ratio (unitless)  
  integer, parameter :: BUFR_UNIT_ExtinctCoef    = 15029   ! Extinction coefficient (1/m)
  
  ! The following elements are all vertically integrated quantities
@@ -147,6 +144,10 @@ module bufr
  integer, parameter :: BUFR_UNIT_IntegDens      = 15021   ! Integrated density (kg/m^2) - same as above
  integer, parameter :: BUFR_UNIT_IntegDens2     = 15020   ! Integrated density for ozone (kg/m^2; same as above) - applicable to all
  integer, parameter :: BUFR_UNIT_IntegDens3     = 15200   ! Integrated density (kg/m^2)
+
+ integer, parameter :: BUFR_UNIT_OptDepth       = 15024   ! Optical depth (unitless)
+ integer, parameter :: BUFR_UNIT_OptDepth2      = 15196   ! Optical depth (unitless)
+ integer, parameter :: BUFR_UNIT_OptDepth3      = 15062   ! Aerosol Optical depth (unitless)
 
  ! Additional elements associated to chemistry
  
@@ -202,8 +203,9 @@ contains
 ! LOGICAL FUNCTION bufr_IsIntegral(varNumber)
 !!
 !! *Purpose*: Identify if obs is a vertically integrated constituent measurement.
+!!            Excludes optical depths and photodissociation rates.
 !!
-!! @author Y. Rochon, ARQI/AQRD, Feb 2015
+!! @author Y. Rochon, ARQI/AQRD, Feb 2015, March 2017
 !!
 !! Revision: 
 !!
