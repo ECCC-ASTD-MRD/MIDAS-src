@@ -17,8 +17,17 @@
 !--------------------------------------------------------------------------
 !! *Purpose*: Compute background error stddev in observation space.
 !!
+!! Revision:   
+!!v            M. Sitwell (ARQI/AQRD)  May 2015
+!!v               - Added call to compute_HBHT_static_chem for computation
+!!v                 with B_chm for chemical constituents
+!!v            Y.J. Rochon (ARQI/AQDR) March 2016
+!!v               - Allowed static=ensemble=.false. when static_chm=.true.
+!!v               - Allowed possibility of static_chm=.true. and ensemble=.true.
+!!v                 with and without static=.true.
 !--------------------------------------------------------------------------
 subroutine compute_HBHT(columng,columnhr,obsSpaceData)
+
   use mpivar_mod
   use obsSpaceData_mod
   use columnData_mod
@@ -35,11 +44,13 @@ subroutine compute_HBHT(columng,columnhr,obsSpaceData)
 
   logical :: static   = .false.
   logical :: ensemble = .false.
+  logical :: static_chm = .false.
 
   integer :: index_body
   integer :: fnom, fclos, ierr, nulnam
 
   character(len=12) :: hybrid_mode
+  character(len=2)  :: fam
 
   !namelist
   NAMELIST /NAMHBHT/hybrid_mode
@@ -60,15 +71,20 @@ subroutine compute_HBHT(columng,columnhr,obsSpaceData)
                               obsSpaceData, & ! INOUT (HBensHT std. dev. outputted in OBS_WORK)
                               ensemble )      ! OUT   (Active if TRUE)
 
+  !- 1.3 HBHT from the B_static matrix for chemistry
+  call compute_HBHT_static_chem( columng,      & ! IN
+                                 obsSpaceData, & ! INOUT ( sqrt(diag(H*B*H^T)) with B_static_chm outputted in OBS_HPHT )
+                                 static_chm )    ! OUT   (Active if TRUE)
+
   !
   !- 2. Select/Blend HBHT
   !
-  if ( static .and. .not. ensemble ) then
+  if ( (static.or.static_chm) .and. .not. ensemble ) then
      ! Bnmc only
      write(*,*)
      write(*,*) 'compute_HBHT: Using B_static ONLY'
      ! HBnmcHT std. dev. already in OBS_HPHT
-  else if ( .not. static .and. ensemble ) then
+  else if ( .not. static .and. ensemble .and. .not. static_chm ) then
      write(*,*)
      write(*,*) 'compute_HBHT: Using B_ensemble ONLY'
      ! Transfer HBensHT std. dev. values in OBS_WORK to OBS_HPHT
@@ -76,7 +92,7 @@ subroutine compute_HBHT(columng,columnhr,obsSpaceData)
         HBHT_ensemble = obs_bodyElem_r(obsSpaceData,OBS_WORK,index_body)
         call obs_bodySet_r(obsSpaceData,OBS_HPHT,index_body, HBHT_ensemble)
      end do
-  else if ( static .and. ensemble ) then
+  else if ( (static.or.static_chm) .and. ensemble ) then
      ! Read Namelist first
      hybrid_mode = 'WEIGHTED_SUM' ! default value
      nulnam = 0
@@ -90,7 +106,12 @@ subroutine compute_HBHT(columng,columnhr,obsSpaceData)
      write(*,*) 'compute_HBHT: Using hybrid approach (blend of B_static and B_ensemble) in mode = ', trim(hybrid_mode)
 
      do index_body = 1, obs_numBody(obsSpaceData)
-        HBHT_static   = obs_bodyElem_r(obsSpaceData,OBS_HPHT,index_body)
+        fam = obs_getFamily(obsSpaceData,obs_bodyElem_i(obsSpaceData,OBS_HIND,index_body))
+        if ( (trim(fam).eq.'CH'.and..not.static_chm) .or. (trim(fam).ne.'CH'.and..not.static) ) then
+           HBHT_static = 0.0D0
+        else
+           HBHT_static = obs_bodyElem_r(obsSpaceData,OBS_HPHT,index_body)
+        end if
         HBHT_ensemble = obs_bodyElem_r(obsSpaceData,OBS_WORK,index_body)
         select case ( trim(hybrid_mode) )
         case ('WEIGHTED_SUM')

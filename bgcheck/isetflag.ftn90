@@ -30,6 +30,7 @@
 !!
 !--------------------------------------------------------------------------
       function isetflag(cdfam,kodtyp,kvnam,zlev,zbgchk,lmodif1020)
+
       use bufr
       IMPLICIT NONE
       integer isetflag
@@ -41,6 +42,7 @@
 
       real*8 zgzcrit(3),zttcrit(3),zuvcrit(3),zescrit(3),zdzcrit(3)
       real*8 zpscrit(3),zpncrit(3),ztscrit(3),zswcrit(3),zzdcrit(3)
+      real*8 zchcrit(3)
 
       isetflag=0
 
@@ -84,6 +86,10 @@
          zzdcrit(1) = 9.00D0
          zzdcrit(2) = 16.00D0
          zzdcrit(3) = 25.00D0
+
+         zchcrit(1) = 9.00D0
+         zchcrit(2) = 16.00D0
+         zchcrit(3) = 25.00D0
 
          if ( kodtyp .eq. 37 ) then
            zuvcrit(2)=25.D0
@@ -207,6 +213,18 @@
          else if ( zbgchk .gt. zzdcrit(2) .and. zbgchk .lt. zzdcrit(3) ) then
             isetflag=2
          else if ( zbgchk .ge. zzdcrit(3) )then
+              isetflag =3
+         endif
+      endif
+!C
+!C     SET FLAG FOR CHEMICAL CONSTITUENTS
+!C
+      if ( cdfam .eq. 'CH' ) then
+         if (      zbgchk .gt. zchcrit(1) .and. zbgchk .lt. zchcrit(2) ) then
+           isetflag=1
+         else if ( zbgchk .gt. zchcrit(2) .and. zbgchk .lt. zchcrit(3) ) then
+            isetflag=2
+         else if ( zbgchk .ge. zchcrit(3) )then
               isetflag =3
          endif
       endif

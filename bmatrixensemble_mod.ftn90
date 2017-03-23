@@ -206,7 +206,6 @@ CONTAINS
     if ( sum(scaleFactor(:)) == 0.0d0 ) then
       if (mpi_myid == 0) write(*,*) 'ben_setup: scaleFactor=0, skipping rest of setup'
       cvDim_out = 0
-      initialized = .true.
       return
     endif
 
@@ -586,22 +585,24 @@ CONTAINS
     implicit none
     integer :: memberIndex, waveBandIndex, subEnsIndex
 
-    write(*,*) 'ben_finalize: deallocating B_ensemble arrays'
-    do waveBandIndex = 1, nWaveBand
-       do memberIndex = 1, nEns
-          call gsv_deallocate(ensPerts(waveBandIndex,memberIndex)%statevector_r4)
+    if (initialized) then
+       write(*,*) 'ben_finalize: deallocating B_ensemble arrays'
+       do waveBandIndex = 1, nWaveBand
+          do memberIndex = 1, nEns
+             call gsv_deallocate(ensPerts(waveBandIndex,memberIndex)%statevector_r4)
+          end do
        end do
-    end do
-    deallocate(ensPerts)
+       deallocate(ensPerts)
     
-    do waveBandIndex = 1, nWaveBand
-       deallocate(ensLocal(waveBandIndex)%Horiz)
-       deallocate(ensLocal(waveBandIndex)%Vert)
-    end do
-    deallocate(ensLocal)
-    do subEnsIndex = 1, numSubEns
-      call gsv_deallocate(statevector_ensMean(subEnsIndex))
-    end do
+       do waveBandIndex = 1, nWaveBand
+          deallocate(ensLocal(waveBandIndex)%Horiz)
+          deallocate(ensLocal(waveBandIndex)%Vert)
+       end do
+       deallocate(ensLocal)
+       do subEnsIndex = 1, numSubEns
+          call gsv_deallocate(statevector_ensMean(subEnsIndex))
+       end do
+    end if
 
   END SUBROUTINE BEN_finalize
 

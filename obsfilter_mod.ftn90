@@ -32,6 +32,7 @@ module obsFilter_mod
   use tovs_nl_mod ,only :  tvs_Is_idburp_tovs
   use gps_mod
   use utilities_mod
+  use chem_setup_mod, only: chm_setup_get_str
   implicit none
   save
   private
@@ -93,7 +94,7 @@ contains
          'MASQUE TERRE-MER                  ', &
          'OROGRAPHIE                        ', &
          'REJECTED BY QCVAR                 ', &
-         'REJECTED BY BACKGROUND GCHECK     ', &
+         'REJECTED BY BACKGROUND CHECK      ', &
          'BACKGROUND CHECK  LEVEL 3         ', &
          'BACKGROUND CHECK  LEVEL 2         ', &
          'BACKGROUND GHECK  LEVEL 1         ', &
@@ -210,6 +211,13 @@ contains
     !
     !Author  : P. Koclas *CMC/AES  September 1994
     !
+    !Revisions:
+    !          S. Heilliette, ARMA/MRD, 2016
+    !          - Updates for TO family
+    !          Y. Rochon. ARQI/AQRD, June 2016
+    !          - Move of tvs_Is_idburp_tovs condition within brightness
+    !          temp conditional test.
+    !
     !*    Purpose: Select the data in the obsSpaceData which are to be assimilated
     !
     implicit none
@@ -235,6 +243,10 @@ contains
        do loopIndex =1,filt_nelems
           llok=( ivnm.eq.filt_nlist(loopIndex) ) .or. llok
        enddo
+       if (.not.llok) then
+          call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
+          cycle BODY
+       endif
        !
        ! Allow gz for bogus data only in analysis case 
        !
@@ -276,13 +288,13 @@ contains
        !
        ! Filter TOVS data: check for invalid land/sea/sea-ice flag
        !
-       if ( tvs_Is_idburp_tovs(idburp) .and. (ivnm .eq. BUFR_NBT1 .or.   &
-            ivnm .eq. BUFR_NBT2 .or.   &
-            ivnm .eq. BUFR_NBT3) ) then
-          ilansea  = obs_headElem_i(obsSpaceData,OBS_OFL,headerIndex)
-          if (ilansea .lt. 0 .or. ilansea .gt. 2  ) then
-             llok = .false.
-          endif
+       if (ivnm.eq.BUFR_NBT1.or.ivnm.eq.BUFR_NBT2.or.ivnm.eq.BUFR_NBT3) then
+         if (tvs_Is_idburp_tovs(idburp)) then
+            ilansea  = obs_headElem_i(obsSpaceData,OBS_OFL,headerIndex)
+            if (ilansea .lt. 0 .or. ilansea .gt. 2  ) then
+               llok = .false.
+            endif
+         endif
        endif
 
        if (llok .and. .not.llrej) then
@@ -308,6 +320,11 @@ contains
 
 
   subroutine filt_topo(columnhr,obsSpaceData)
+
+    ! Revisions:
+    !           Y.J. Rochon (ARQI/AQRD), Jan 2015
+    !           - Added call to filt_topoChm
+
     implicit none
 
     type(struct_columnData) :: columnhr
@@ -325,6 +342,7 @@ contains
        call filt_topoaisw(columnhr,obsSpaceData)
        call filt_topoprof(columnhr,obsSpaceData)
        call filt_topocsbt(columnhr,obsSpaceData)
+       call filt_topoChm(columnhr,obsSpaceData)
     else
        if(mpi_myid.eq.0) write(*,*)' *****************************************'
        if(mpi_myid.eq.0) write(*,*)' *    filt_topo:                         *'
@@ -1210,5 +1228,205 @@ contains
     WRITE(*,*)'EXIT FILTERGPSRO'
 
   END SUBROUTINE FILT_GPSRO
+
+  SUBROUTINE filt_topoChm(columnhr,obsSpaceData)
+    !
+    ! Author: Y.J. Rochon Feb 2015
+    !          - Based on the subroutines filt_topo* in obsfilter_mod.ftn90.
+    !            Adapted to chemical constituent data.
+    !
+    ! Revisions:  M. Sitwell Nov 2015
+    !             - Removed call to subroutine chm_adj_model_bndry for consistency
+    !               in the flagging of obs above/below the model done in vobslyrs
+    !             M. Sitwell Sept 2016
+    !             - Added flagging of bit 4 in OBS_FLG set in set_scale_chm indicating
+    !               mismatch of number of levels of mantissa and exponent.
+    !
+    ! Purpose: Rejects elements which are too far below the model surface
+    !          or above the model top.
+    !
+    ! Comments:
+    !   - Flagging of bit 4 in OBS_FLG done in filt_topoChm instead of set_scale_chm
+    !     since this subroutine is called after chm_setup, allowing use of utl_open_asciifile
+    !
+
+    implicit none
+    type(struct_columnData) :: columnhr
+    type(struct_obs) :: obsSpaceData
+
+    integer :: headerIndex, bodyIndex, listIndex, elemIndex, listIndex_stnid
+    integer :: ivnm, countAssim, jl, icount,unit,ier
+    real(8) :: zlev,zPtop,zP0
+    real(8) :: zStnAlt,zModAlt,zpb,zpt
+    logical :: list_is_empty,warn_suspicious
+
+    integer, parameter :: Nmax=100
+    integer :: Num_stnid_chm,nobslev,Num_chm,iconstituentid
+    character(len=13) :: CstnidList_chm(Nmax)
+    integer :: countAcc_stnid(Nmax),countRej_stnid(Nmax)
+    integer :: countRejflg_stnid(Nmax),countRejflg(Nmax)
+    integer :: countAcc(Nmax),countRej(Nmax),iConstituentList(Nmax)
+    integer, external :: fclos
+
+    if (.not.obs_famExist(obsSpaceData,'CH')) return
+
+    ! Set counters to zero
+    countAcc_stnid(:)=0
+    countRej_stnid(:)=0
+    countRejflg_stnid(:)=0
+    Num_stnid_chm=0
+
+    countAcc(:)=0
+    countRej(:)=0
+    countRejflg(:)=0
+    Num_chm=0
+
+    ! Loop over all header indices of the 'CH' family
+    call obs_set_current_header_list(obsSpaceData, 'CH')
+    HEADER: do
+      headerIndex = obs_getHeaderIndex(obsSpaceData)
+      if (headerIndex < 0) exit HEADER
+
+      ! Set the body list & start at the beginning of the list
+      call obs_set_current_body_list(obsSpaceData, headerIndex,list_is_empty)
+
+      if (list_is_empty) cycle HEADER ! Proceed to next HEADER
+
+      ! Set geopotential height and pressure boundaries.
+
+      zModAlt = col_getHeight(columnhr,col_getNumLev(columnhr,'MM'),headerIndex,'MM')/RG
+      zpb=zModAlt
+      zStnAlt = obs_headElem_r(obsSpaceData,OBS_ALT,headerIndex)
+      zpt = col_getHeight(columnhr,1,headerIndex,'MM')/RG
+      zP0 = col_getElem(columnhr,1,headerIndex,'P0')
+      zPtop = col_getPressure(columnhr,1,headerIndex,'MM')
+
+      ! Identify max number of profile points in the profile (exclude BUFR_SCALE_EXPONENT elements)
+
+      nobslev = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex)
+      bodyIndex =obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
+      do jl=0,obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex)-1
+          if (obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex+jl).eq.BUFR_SCALE_EXPONENT) &
+             nobslev = nobslev-1
+      end do
+
+      ! Identify element index of stnid list for the CH family.
+
+      call utl_get_stringId(obs_elem_c(obsSpaceData,'STID',headerIndex),&
+               nobslev,CstnidList_chm,Num_stnid_chm,Nmax,listIndex_stnid)
+
+      warn_suspicious = .false.
+
+      ! Loop over all body indices (still in the 'CH' family)
+      icount=0
+      BODY: do
+        bodyIndex = obs_getBodyIndex(obsSpaceData)
+        if (bodyIndex < 0) exit BODY
+
+        ivnm = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
+        if (ivnm.eq.BUFR_SCALE_EXPONENT) cycle BODY
+
+        !  Identify element index of constituent ID list for the CH family.
+        if (icount.eq.0) call utl_get_Id(obs_headElem_i(obsSpaceData,OBS_CHM,headerIndex), &
+                              iConstituentList,Num_chm,Nmax,listIndex)
+        icount=icount+1
+
+        ! Check for bit 4 of OBS_FLG, indicating a 'Suspicious element'
+        if (btest(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),4)) then
+           call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
+           warn_suspicious = .true.
+        end if
+
+        if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex).eq.0) then
+
+            ! Already rejected from input marker/flag.
+
+            countRej(listIndex)=countRej(listIndex)+1
+            countRej_stnid(listIndex_stnid)=countRej_stnid(listIndex_stnid)+1
+            countRejflg(listIndex)=countRejflg(listIndex)+1
+            countRejflg_stnid(listIndex_stnid)=countRejflg_stnid(listIndex_stnid)+1
+
+        else if (obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex).eq.1) then
+
+           ! Check as a function of altitude.
+
+           zlev = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
+           !write(*,*) 'rejected zzz ',obs_elem_c(obsSpaceData,'STID',headerIndex),zlev,zP0,zPtop
+           if( zlev.lt.zpb .or. zlev.gt.zpt ) then
+               call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
+                   ibset( obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 18 ))
+               call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
+               countRej(listIndex)=countRej(listIndex)+1
+               countRej_stnid(listIndex_stnid)=countRej_stnid(listIndex_stnid)+1
+           else
+               countAcc(listIndex)=countAcc(listIndex)+1
+               countAcc_stnid(listIndex_stnid)=countAcc_stnid(listIndex_stnid)+1
+           endif
+
+        else if (obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex).eq.2) then
+
+           ! Check as a function of pressure.
+
+           zlev = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
+
+           if ( zlev.gt.zP0 .or. zlev.lt.zPtop) then
+               call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
+               call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
+                 ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),18 ))
+               countRej(listIndex)=countRej(listIndex)+1
+               countRej_stnid(listIndex_stnid)=countRej_stnid(listIndex_stnid)+1
+           else
+               countAcc(listIndex)=countAcc(listIndex)+1
+               countAcc_stnid(listIndex_stnid)=countAcc_stnid(listIndex_stnid)+1
+           end if
+        else
+           countAcc(listIndex)=countAcc(listIndex)+1
+           countAcc_stnid(listIndex_stnid)=countAcc_stnid(listIndex_stnid)+1
+        end if
+
+      enddo BODY
+
+      if (warn_suspicious) then
+         call utl_open_asciifile(chm_setup_get_str('message'),unit)
+         write(unit,'(A)') "filt_topoChm: Number of levels mismatch between mantissa and exponent for observation"
+         write(unit,'(14X,A,4X,I8,2X,I4)') obs_elem_c(obsSpaceData,'STID',headerIndex),obs_headElem_i(obsSpaceData,OBS_DAT,headerIndex),&
+              obs_headElem_i(obsSpaceData,OBS_ETM,headerIndex)
+         write(unit,'(14X,A,F9.2,A,F9.2)') "lon = ",obs_headElem_r(obsSpaceData,OBS_LON,headerIndex)*MPC_DEGREES_PER_RADIAN_R8, &
+              " lat = ",obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex)*MPC_DEGREES_PER_RADIAN_R8
+         write(unit,*)
+         ier = fclos(unit)
+      end if
+
+    enddo HEADER
+
+    if (Num_stnid_chm.gt.0) then
+       write(*,*) ' '
+       write(*,*) '*****************************************************************'
+       write(*,*) ' SUBROUTINE filt_topoChm '
+       write(*,*) ' FAMILY = CH'
+       write(*,222) 'ELEMENTS for CH stnids',(CstnidList_chm(elemIndex),elemIndex=1,Num_stnid_chm)
+       write(*,223) 'ACCEPTED for CH stnids',(countAcc_stnid(elemIndex),elemIndex=1,Num_stnid_chm)
+       write(*,223) 'REJECTED for CH stnids',(countRej_stnid(elemIndex),elemIndex=1,Num_stnid_chm)
+       write(*,223) 'REJECTED due to marker',(countRejflg_stnid(elemIndex),elemIndex=1,Num_stnid_chm)
+       write(*,*) ' '
+       write(*,224) 'ELEMENTS for CH       ',(iConstituentList(elemIndex),elemIndex=1,Num_chm)
+       write(*,224) 'ACCEPTED for CH       ',(countAcc(elemIndex),elemIndex=1,Num_chm)
+       write(*,224) 'REJECTED for CH       ',(countRej(elemIndex),elemIndex=1,Num_chm)
+       write(*,223) 'REJECTED due to marker',(countRejflg(elemIndex),elemIndex=1,Num_stnid_chm)
+       write(*,*) '*****************************************************************'
+       write(*,*) ' '
+
+       countAssim=0
+       do bodyIndex=1,obs_numbody(obsSpaceData)
+          if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex).eq.1) countAssim=countAssim+1
+       enddo
+       write(*,'(1X," NUMBER OF DATA TO BE ASSIMILATED AFTER ADJUSTMENTS (after filter_topoChm):",i10)') countAssim
+       write(*,*) ' '
+    end if
+222 format(2x,a29,100(2x,a10))
+223 format(2x,a29,100(2x,i8,2x))
+224 format(2x,a29,100(2x,i6))
+
+  END SUBROUTINE filt_topoChm
 
 end module obsFilter_mod

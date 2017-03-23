@@ -142,7 +142,6 @@ contains
     if ( sum(scaleFactor(1:max(vco_anl_in%nlev_M,vco_anl_in%nlev_T))) == 0.0d0 ) then
       write(*,*) 'lambmatrixHI: scaleFactor=0, skipping rest of setup'
       cvDim_out   = 0
-      initialized = .true.
       return
     end if
 
@@ -766,7 +765,8 @@ contains
     integer :: iu_out = 90
 
     if ( .not. initialized ) then
-      call utl_abort('lbhi_bSqrt: LAM_bMatrixHI not initialized')
+      if(mpi_myid == 0) write(*,*) 'lbhi_bSqrt: LAM_bMatrixHI not initialized'
+      return
     endif
 
     write(*,*)
@@ -817,7 +817,8 @@ contains
     real(8), allocatable :: hiControlVector(:,:,:)
 
     if ( .not. initialized ) then
-      call utl_abort('lbhi_bSqrtAdj: LAM_bMatrixHI not initialized')
+      if(mpi_myid == 0) write(*,*) 'lbhi_bSqrtAdj: LAM_bMatrixHI not initialized'
+      return
     endif
 
     write(*,*)
@@ -1516,11 +1517,13 @@ contains
 
     integer :: var
 
-    deallocate(bsqrt)
-    do var = 1, nControlVariable
-      deallocate(ControlVariable(var)%GpStdDev)
-      deallocate(ControlVariable(var)%ip1     )
-    end do
+    if (initialized) then
+       deallocate(bsqrt)
+       do var = 1, nControlVariable
+          deallocate(ControlVariable(var)%GpStdDev)
+          deallocate(ControlVariable(var)%ip1     )
+       end do
+    end if
 
   end subroutine LBHI_Finalize
 

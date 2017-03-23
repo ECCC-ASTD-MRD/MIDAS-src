@@ -19,11 +19,18 @@
 !!
 !! @author P. Koclas *CMC/CMDA  Nov 1998
 !!
+!! Revision:  M. Sitwell (ARQI/AQRD) May 2015, March 2016
+!!           - Added call to BGCDATA for chemical constituents
+!!           - Added loop over bgfam list
+!!           Y. Rochon (ARQI/AQRD) June 2016
+!!           - Added call to osd_ObsSpaceDiag
 !--------------------------------------------------------------------------
 SUBROUTINE BGCHECK_CONV(columng,columnhr,obsSpaceData)
+
   use mpivar_mod
   use obsSpaceData_mod
   use columnData_mod
+  use obsSpaceDiag_mod
   use burpFiles_mod
   IMPLICIT NONE
 
@@ -33,6 +40,8 @@ SUBROUTINE BGCHECK_CONV(columng,columnhr,obsSpaceData)
 
   INTEGER J,JDATA
   REAL*8 ZJO
+
+  character(len=2), dimension(10) :: bgfam = (/ 'UA', 'AI', 'HU', 'SF', 'ST', 'SW', 'SC', 'PR', 'GP', 'CH' /)
       
 !
   call tmg_start(3,'BGCHECK_CONV')
@@ -51,17 +60,17 @@ SUBROUTINE BGCHECK_CONV(columng,columnhr,obsSpaceData)
 !
 !     DO A BACKGROUND CHECK ON ALL THE OBSERVATIONS
 !     ----------------------------------------------
-!
-  CALL BGCDATA(ZJO,'UA',obsSpaceData)
-  CALL BGCDATA(ZJO,'AI',obsSpaceData)
-  CALL BGCDATA(ZJO,'HU',obsSpaceData)
-  CALL BGCDATA(ZJO,'SF',obsSpaceData)
-  CALL BGCDATA(ZJO,'ST',obsSpaceData)
-  CALL BGCDATA(ZJO,'SW',obsSpaceData)
-  CALL BGCDATA(ZJO,'SC',obsSpaceData)
-  CALL BGCDATA(ZJO,'PR',obsSpaceData)
-  CALL BGCGPSRO(columnhr,obsSpaceData)
-  CALL BGCDATA(ZJO,'GP',obsSpaceData)
+
+  do j=1,size(bgfam)
+     if (obs_famExist(obsSpaceData,bgfam(j))) CALL BGCDATA(ZJO,bgfam(j),obsSpaceData)
+  end do
+
+  if (obs_famExist(obsSpaceData,'RO')) CALL BGCGPSRO(columnhr,obsSpaceData)
+
+! Conduct obs-space post-processing diagnostic tasks (some diagnostic 
+! computations controlled by NAMOSD namelist in flnml)
+
+  call osd_ObsSpaceDiag(obsSpaceData,columng,analysis_mode=.false.)
 
 !
 !     Write out contents of obsSpaceData into BURP files

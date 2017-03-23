@@ -149,7 +149,7 @@ contains
     integer :: index_body,itvs,isens,index_header,idata,idatend
 
     real*8 :: dljoraob,dljoairep,dljosatwind,dljoscat,dljosurfc,dljotov
-    real*8 :: dljoprof,dljogpsro,dljogpsztd,pjo_1
+    real*8 :: dljoprof,dljogpsro,dljogpsztd,dljochm,pjo_1
     real*8 :: dljotov_sensors(nsensors)
     integer :: ierr
 
@@ -164,6 +164,7 @@ contains
     dljotov = 0.d0
     dljogpsro = 0.d0
     dljoprof = 0.d0
+    dljochm = 0.d0
     dljotov_sensors(:) = 0.d0
 
     do index_body=1,obs_numbody(lobsSpaceData)
@@ -193,6 +194,8 @@ contains
           dljoprof    = dljoprof    + pjo_1
        case('GP')
           dljogpsztd  = dljogpsztd  + pjo_1
+       case('CH')
+          dljochm     = dljochm     + pjo_1
        end select
     enddo
 
@@ -219,6 +222,7 @@ contains
     call mpi_allreduce_sumreal8scalar(dljogpsro,"GRID")
     call mpi_allreduce_sumreal8scalar(dljoprof,"GRID")
     call mpi_allreduce_sumreal8scalar(dljogpsztd,"GRID")
+    call mpi_allreduce_sumreal8scalar(dljochm,"GRID")
     do isens = 1, nsensors
        call mpi_allreduce_sumreal8scalar(dljotov_sensors(isens),"GRID")
     enddo
@@ -233,6 +237,7 @@ contains
        write(*,'(a15,f25.17)') 'Jo(PR)   = ',dljoprof
        write(*,'(a15,f25.17)') 'Jo(RO)   = ',dljogpsro
        write(*,'(a15,f25.17)') 'Jo(GP)   = ',dljogpsztd
+       write(*,'(a15,f25.17)') 'Jo(CH)   = ',dljochm
        write(*,*) ' '
        if(nsensors > 0) then
           write(*,'(1x,a)') 'For TOVS decomposition by sensor:'

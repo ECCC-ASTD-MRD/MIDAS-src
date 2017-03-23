@@ -100,7 +100,7 @@ Module tovs_nl_mod
 !     CRTMODL            : TOVS radiation model used:
 !                             RTTOV, EUMETSAT NWP SAF radiation model
 !     LNLVTOV            : .T. if processing is to be non-linear
-  INTEGER NSENSORS
+  INTEGER :: NSENSORS=0
   INTEGER PLATFORM(JPNSATMAX), SATELLITE(JPNSATMAX)
   INTEGER INSTRUMENT(JPNSATMAX), CHANOFFSET(JPNSATMAX)
   LOGICAL LDBGTOV, LNLVTOV, luse_uwiremis
@@ -775,6 +775,12 @@ logical function tvs_Is_idburp_inst(idburp,cinst)
   implicit none
   integer ,intent(in) :: idburp
   character (len=*) ,intent(in) :: cinst
+
+  if (nsensors == 0) then
+    ! no tovs data will be read, therefore false
+    tvs_is_idburp_inst = .false.
+    return
+  endif
 
   tvs_Is_idburp_inst = ( idburp == codtyp_get_codtyp(cinst) )
 

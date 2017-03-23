@@ -31,6 +31,9 @@
 !!v                  ZBGCHK=(ZOMP**2)/(ZFGE**2) 
 !!v               where ZFGE = StdDev(O-P) estimated from ZWD and set in
 !!v               s/r SETERRGPSGB (stored in obsSpaceData col. OBS_HPHT).
+!!        -Y.J. Rochon *ARQD/ARQI March 2016
+!!          - Allow ZFGE**2 + ZOER**2 .LT. 1.D-5 for CDFAM='CH'
+!!          - Set output format 124 for 'CH'
 !!             
 !--------------------------------------------------------------------------
       SUBROUTINE BGCDATA(PJO,CDFAM,lobsSpaceData)
@@ -148,6 +151,13 @@
                          obs_elem_c(lobsSpaceData,'STID',index_header),ZFGE
                       ZFGE=1.D-3
                     ENDIF
+                  ELSE IF (CDFAM.EQ.'CH') THEN
+                    IF ( ZFGE**2 + ZOER**2 .LT. 1.D-60)THEN
+                        WRITE(*,*)' Problem for STNID FGE ZOER=',  &
+                           obs_elem_c(lobsSpaceData,'STID',index_header),ZFGE,ZOER
+                        ZFGE=1.D-30
+                        ZOER=1.D-30
+                    ENDIF
                   ELSE
                     IF ( ZFGE**2 + ZOER**2 .LT. 1.D-5)THEN
                         WRITE(*,*)' Problem for STNID FGE ZOER=',  &
@@ -189,10 +199,17 @@
                   ENDIF
 
                   IF (IFLAG .GE. 2 .OR. (LLZD .AND. LTESTOP)) THEN
-                    WRITE(*,122)  &
-                       obs_elem_c(lobsSpaceData,'STID',index_header),  &
-                       zlat,zlon,IDBURP,INAM,ZLEV,ZVAR,ZOER  &
-                       ,ZFGE,ZOMP,ZSOP,ZBGCHK,IFLAG
+                    IF (CDFAM.NE.'CH') THEN 
+                       WRITE(*,122)  &
+                          obs_elem_c(lobsSpaceData,'STID',index_header),  &
+                          zlat,zlon,IDBURP,INAM,ZLEV,ZVAR,ZOER  &
+                          ,ZFGE,ZOMP,ZSOP,ZBGCHK,IFLAG
+                    ELSE 
+                       WRITE(*,124)  &
+                          obs_elem_c(lobsSpaceData,'STID',index_header),  &
+                          zlat,zlon,IDBURP,INAM,ZLEV,ZVAR,ZOER  &
+                          ,ZFGE,ZOMP,ZSOP,ZBGCHK,IFLAG
+                    END IF
                     IF (IFLAG .GE. 2) INREJ = INREJ + 1
                     IF (IFLAG .GE. 2 .AND. CDFAM .EQ. 'GP') THEN
                       IF (ITYP .EQ. BUFR_NEZD) INZREJ = INZREJ+1
@@ -218,6 +235,7 @@
                   ENDIF
                ENDIF
          ENDDO BODY
+124   FORMAT(2x,a9,1x,f6.2,1x,f7.2,1x,I3,1x,I5,7(2x,G11.2),I3 )
 122   FORMAT(2x,a9,1x,f6.2,1x,f7.2,1x,I3,1x,I5,7(2x,F11.2),I3 )
 
       ENDDO HEADER

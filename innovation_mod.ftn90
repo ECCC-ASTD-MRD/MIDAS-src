@@ -36,7 +36,8 @@ module innovation_mod
   use physicsFunctions_mod
   use mpivar_mod
   use horizontalCoord_mod
-  use columnData_mod 
+  use columnData_mod
+  use varNameList_mod
   use gridStateVector_mod
   use WindRotation_mod
   use tt2phi_mod
@@ -46,6 +47,7 @@ module innovation_mod
   use tovs_nl_mod
   use tovs_lin_mod
   use multi_ir_bgck_mod
+  use chem_setup_mod, only: chm_setup, chm_apply_2dfieldr4_transform
   use burpFiles_mod
   use randomNumber_mod
   use obsErrors_mod
@@ -67,12 +69,22 @@ contains
     !
     !**s/r INN_SETUPOBS  - Initialisation of observation parameters and constants
     !
+    ! Revisions:
+    !           Y. Rochon and M. Sitwell, Jan 2016
+    !           - Use of obs_famExist and corresponding move of calls
+    !             to gps_setupro, gps_setupgb and tovs_setup after the call to burp_readFiles
+    !             as initialization of family list in obs_famExist must follow
+    !             saving of the obs in obsSpaceData.
+    !           - Addition of call to chm_setup for inclusion of constituent data
+    !             info not included in obsSpaceData_mod and reading of NAMCHEM.
+    !
     IMPLICIT NONE
 
     type(struct_obs) :: obsSpaceData
     character(len=*) :: obsMpiStrategy
     character(len=*) :: obsColumnMode
     integer :: get_max_rss
+    logical :: obs_init
 
     WRITE(*,FMT=9000)
 9000 FORMAT(/,1x,' INN_SETUPOBS - Initialisation of observations',/,1x,3('- -----------'))
@@ -87,26 +99,33 @@ contains
     !
     call obs_initialize(obsSpaceData,mpi_local=top_BurpSplit() )
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    !
-    ! Read the NAMELIST NAMGGPSRO
-    !
-    call gps_setupro
-    !
-    ! Initialize GB-GPS processing (read NAMGPSGB in namelist file)
-    !
-    call gps_setupgb
-    !
-    ! Initialize TOVS processing
-    !
-    call tovs_setup
+
     !
     ! Set up the list of elements to be assimilated and flags for rejection
     !
     call filt_setup
 
     call tmg_start(11,'READ_BURP')
-    CALL burp_readFiles(obsSpaceData)
+    call burp_readFiles(obsSpaceData)
     call tmg_stop(11)
+
+    !
+    ! Read the NAMELIST NAMGGPSRO
+    !
+    if (obs_famExist(obsSpaceData,'RO')) call gps_setupro
+    !
+    ! Initialize GB-GPS processing (read NAMGPSGB in namelist file)
+    !
+    if (obs_famExist(obsSpaceData,'GP')) call gps_setupgb
+    !
+    ! Initialize TOVS processing
+    !
+    if (obs_famExist(obsSpaceData,'TO')) call tovs_setup
+    !
+    ! Read the NAMELIST NAMCHEM and set up additional constituent
+    ! obs related info not found in obsSpaceData.
+    !
+    if (obs_famExist(obsSpaceData,'CH')) call chm_setup
 
     !
     ! Filter out data from CMA
@@ -138,7 +157,7 @@ contains
     end if
 
     !
-    !- Memory allocation for TOVS processing
+    !- Initialization and memory allocation for TOVS processing
     !
     if (obs_famExist(obsSpaceData,'TO')) then
        call tovs_nl_setupallo(obsSpaceData)
@@ -153,6 +172,14 @@ contains
     ! Purpose: Fill in COLUMNG and COLUMNHR with trial profiles
     !
     ! Arguments: COLUMNG, COLUMNHR
+    !
+    ! Revisions:
+    !   Ping Du, Oct. 2014
+    !   - Added input of constituents trial fields and related setting of trial profiles.
+    !     This was done by including the "case(default)" in the loop over 3D variables.
+    !   Y. Rochon, Feb 2016
+    !   - Additions introduced to allow variable transformations for constituent fields.
+    !   - Addition of varnmamelist_mod and valvarkindfromvanamr
     !
     implicit none
 
@@ -642,6 +669,8 @@ contains
 
        if (.not.gsv_varExist(varName=vnl_varNameList3D(jvar))) cycle
 
+       if (vnl_varNameList3D(jvar).eq.'VV') cycle  ! to avoid cycle for VV
+
        select case ( vnl_varNameList3D(jvar) )
           !
           !       Variables sur les niveaux momentum
@@ -735,29 +764,52 @@ contains
 
           endif
 
+       case default
+
+          call readTrialField(varInterphr_T,varInterphr_VV,vnl_varNameList3D(jvar),vnl_varLevelFromVarname(vnl_varNameList3D(jvar)))
+
+          if(col_getNumCol(columng).gt.0) then
+
+             if(mpi_myid.eq.0) write(*,*) 'inn_setupBackgroundColumns:',vnl_varNameList3D(jvar)
+             do jlev = 1,nlv_T
+                if(mpi_myid.eq.0) write(*,*) trim(vnl_varNameList3D(jvar)),',',jlev,varInterphr_T(jlev,1)
+             enddo
+             
+             call col_fillmvo(columnhr,varInterphr_T,vnl_varNameList3D(jvar))
+             call col_vintprof(columnhr,columng,vnl_varNameList3D(jvar))
+
+          end if
+
        end select
     enddo
 
-    !
-    !- Initialisation of TLM operators
-    !
-    if (col_varExist('TT') .and. col_varExist('HU')) call subasic_obs(columng)
+    
+    if (col_varExist('TT') .and. col_varExist('HU') .and. col_varExist('P0')) then
 
-    !
-    !- Using T, q and PS to compute GZ for columng
-    !
-    do jobs = 1, col_getNumCol(columng)
-       call col_setGZsfc(columng ,jobs, col_getGZsfc(columnhr, jobs))
-    enddo
-    if (col_getNumLev(columng,'MM') > 1) call tt2phi(columng)
+       !
+       !- Initialisation of TLM operators
+       !
+       call subasic_obs(columng)
 
-    !
-    !- Using T, q and PS to compute GZ for columnhr
-    !
-    if (noUpperGZ .and. (col_getNumLev(columnhr,'MM') > 1) ) then
-       write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: No upper level GZ found, computing'
-       call tt2phi(columnhr)
-    endif
+       !
+       !- Using T, q and PS to compute GZ for columng
+       !
+       do jobs = 1, col_getNumCol(columng)
+          call col_setGZsfc(columng ,jobs, col_getGZsfc(columnhr, jobs))
+       enddo
+       if (col_getNumLev(columng,'MM') > 1) call tt2phi(columng)
+
+       !
+       !- Using T, q and PS to compute GZ for columnhr
+       !
+       if (noUpperGZ .and. (col_getNumLev(columnhr,'MM') > 1) ) then
+          write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: No upper level GZ found, computing'
+          call tt2phi(columnhr)
+       endif
+
+    else
+       write(*,*) ':inn_setupBackgroundColumns  GZ TLM calcs not generated since TT, HU and P0 not all present'
+    end if
 
     !
     !- Close the files
@@ -804,6 +856,11 @@ contains
       !     Author  : M. Buehner, Dec 2012
       !
       !     Purpose: Read and interpolate all levels/time steps for a single variable of trial field
+      !
+      !     Revisions:
+      !               Y. Rochon, ARQI/AQRD, Feb 2016
+      !               - Added calls for constituent variable transformations
+      !                 (routine chm_apply_2dfieldr4_transform)
       !
       implicit none
       character(len=*) :: varName_in
@@ -940,6 +997,9 @@ contains
                   call utl_abort('INN_SETUPBACKGROUNDCOLUMNS: Problem with background file')
                end if
 
+               if (vnl_varKindFromVarname(varName).eq.'CH') &
+                    call chm_apply_2dfieldr4_transform(vnl_varnumFromVarName(varName),varName,jlev,jstep,varTrial_r4)
+
                if (varName.eq.'UU') then
                   ierr=fstlir(varTrial_VV_r4(:,:),nultrl(jstep),ni,nj,ink,  &
                        datestamplist(jstep) ,cletiket,iip1,-1,-1,  &
@@ -1063,7 +1123,7 @@ contains
 
     real*8 zjo,zjoraob,zjosatwind,zjosurfc
     real*8 zjosfcsf,zjosfcua,zjotov,zjoairep,zjosfcsc,zjoprof
-    real*8 zjogpsro,zjogpsgb,zjosfcgp
+    real*8 zjogpsro,zjogpsgb,zjosfcgp,zjochm
     integer :: ierr, get_max_rss
     logical lgpdata
 
@@ -1125,22 +1185,31 @@ contains
     !
     !        GPS - RADIO OCCULTATION
     !-------------------------------
-    CALL filt_gpsro(columnhr,obsSpaceData)
-    CALL oer_SETERRGPSRO(columnhr,obsSpaceData)
-    call oop_gpsro_nl(columnhr,obsSpaceData,ZJOGPSRO)
+    ZJOGPSRO=0.0D0
+    if (obs_famExist(obsSpaceData,'RO',local_mpi=.true.)) then
+       CALL filt_gpsro(columnhr,obsSpaceData)
+       CALL oer_SETERRGPSRO(columnhr,obsSpaceData)
+       call oop_gpsro_nl(columnhr,obsSpaceData,ZJOGPSRO)
+    end if
+    !
+    !        CH - CHEMICAL CONSTITUENTS
+    !-------------------------------
+    call oop_chm_nl(columnhr,obsSpaceData,zjochm)
     !
     !        GPS - GROUND-BASED ZENITH DELAY
     !-------------------------------
     !
     ZJOGPSGB=0.0D0
-    CALL oer_SETERRGPSGB(columnhr,obsSpaceData,lgpdata,top_AnalysisMode())
-    if (lgpdata) call oop_gpsgb_nl(columnhr,obsSpaceData,ZJOGPSGB,top_AnalysisMode())
+    if (obs_famExist(obsSpaceData,'GP',local_mpi=.true.)) then
+       CALL oer_SETERRGPSGB(columnhr,obsSpaceData,lgpdata,top_AnalysisMode())
+       if (lgpdata) call oop_gpsgb_nl(columnhr,obsSpaceData,ZJOGPSGB,top_AnalysisMode())
+    end if
 
     call tmg_stop(48)
     !
     !=======================================================================
     ZJO =  ZJORAOB + ZJOAIREP + ZJOSATWIND + &
-         ZJOSURFC + ZJOTOV + ZJOPROF + ZJOGPSRO + ZJOGPSGB
+         ZJOSURFC + ZJOTOV + ZJOPROF + ZJOGPSRO + ZJOGPSGB + ZJOCHM
     !=======================================================================
 
     write(*,*) 'Cost function values for this MPI task:'
@@ -1156,6 +1225,7 @@ contains
     write(*,'(a15,f30.16)') 'JOPROF   = ',ZJOPROF
     write(*,'(a15,f30.16)') 'JOGPSRO  = ',ZJOGPSRO
     write(*,'(a15,f30.16)') 'JOGPSGB  = ',ZJOGPSGB
+    write(*,'(a15,f30.16)') 'JOCHM    = ',ZJOCHM
     write(*,'(a15,f30.16)') 'Total Jo = ',ZJO
 
     call mpi_allreduce_sumreal8scalar(ZJORAOB,"GRID")
@@ -1170,6 +1240,7 @@ contains
     call mpi_allreduce_sumreal8scalar(ZJOPROF,"GRID")
     call mpi_allreduce_sumreal8scalar(ZJOGPSRO,"GRID")
     call mpi_allreduce_sumreal8scalar(ZJOGPSGB,"GRID")
+    call mpi_allreduce_sumreal8scalar(ZJOCHM,"GRID")
     call mpi_allreduce_sumreal8scalar(ZJO,"GRID")
 
     write(*,*) 'Cost function values summed for all MPI tasks:'
@@ -1185,6 +1256,7 @@ contains
     write(*,'(a15,f30.16)') 'JOPROF   = ',ZJOPROF
     write(*,'(a15,f30.16)') 'JOGPSRO  = ',ZJOGPSRO
     write(*,'(a15,f30.16)') 'JOGPSGB  = ',ZJOGPSGB
+    write(*,'(a15,f30.16)') 'JOCHM    = ',ZJOCHM
     write(*,'(a15,f30.16)') 'Total Jo = ',ZJO
 
     !
@@ -1241,7 +1313,12 @@ contains
           ENDIF
           IOBS = obs_bodyElem_i(lobsSpaceData,OBS_HIND,JDATA)
           ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,JDATA)
-          varLevel = vnl_varLevelFromVarnum(ITYP)
+          if (bufr_IsAtmosConstituent(ITYP)) then
+             varLevel = vnl_varLevelFromVarnum(ITYP, &
+                        obs_headElem_i(lobsSpaceData,OBS_CHM,IOBS))
+          else
+             varLevel = vnl_varLevelFromVarnum(ITYP)
+          end if
           ZPT= col_getPressure(LCOLUMNGHR,1,IOBS,varLevel)
           ZPB= col_getPressure(LCOLUMNGHR,COL_GETNUMLEV(LCOLUMNGHR,varLevel),IOBS,varLevel)
           IF ( ZLEV .LT. ZPT ) THEN
@@ -1275,7 +1352,12 @@ contains
           ENDIF
           IOBS = obs_bodyElem_i(lobsSpaceData,OBS_HIND,JDATA)
           ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,JDATA)
-          varLevel = vnl_varLevelFromVarnum(ITYP)
+          if (bufr_IsAtmosConstituent(ITYP)) then
+             varLevel = vnl_varLevelFromVarnum(ITYP, &
+                        obs_headElem_i(lobsSpaceData,OBS_CHM,IOBS))
+          else
+             varLevel = vnl_varLevelFromVarnum(ITYP)
+          end if
           if(varLevel.eq.'SF') then
              ZPT= col_getHeight(lcolumnghr,1,IOBS,'TH')/RG
              ZPB= col_getGZsfc(lcolumnghr,IOBS)/RG                 
@@ -1315,8 +1397,13 @@ contains
           IOBS = obs_bodyElem_i(lobsSpaceData,OBS_HIND,JDATA)
           ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,JDATA)
           ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,JDATA)
+          if (bufr_IsAtmosConstituent(ITYP)) then
+             varLevel = vnl_varLevelFromVarnum(ITYP, &
+                        obs_headElem_i(lobsSpaceData,OBS_CHM,IOBS))
+          else
+             varLevel = vnl_varLevelFromVarnum(ITYP)
+          end if
           IK = 1
-          varLevel = vnl_varLevelFromVarnum(ITYP)
           nlev=COL_GETNUMLEV(LCOLUMNGHR,varLevel)
           DO JK = 2,NLEV - 1
              ZPT = col_getPressure(LCOLUMNGHR,JK,IOBS,varLevel)
@@ -1338,8 +1425,13 @@ contains
           IOBS = obs_bodyElem_i(lobsSpaceData,OBS_HIND,JDATA)
           ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,JDATA)
           ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,JDATA)
+          if (bufr_IsAtmosConstituent(ITYP)) then
+             varLevel = vnl_varLevelFromVarnum(ITYP, &
+                        obs_headElem_i(lobsSpaceData,OBS_CHM,IOBS))
+          else
+             varLevel = vnl_varLevelFromVarnum(ITYP)
+          end if
           IK = 1
-          varLevel = vnl_varLevelFromVarnum(ITYP)
           nlev=COL_GETNUMLEV(LCOLUMNGHR,varLevel)
           DO JK = 2,NLEV - 1
              ZPT = col_getHeight(lcolumnghr,JK,IOBS,varLevel)/RG
@@ -1632,6 +1724,8 @@ contains
        ! ** The rest is just diagnostics used when trying to improve the 
        ! ** formula for estimating the load - could be removed
 
+       if (obs_famExist(lobsSpaceData,'TO')) then
+
        ! count the number of tovs and IR observations for each file
        numtovs(:)=0
        numir(:)=0
@@ -1740,6 +1834,8 @@ contains
             "MPI_INTEGER","MPI_SUM","GRID",ierr)
        write(*,*) 'setObsMpiStrategy: number of COLS headers for SSMIS     = ',numtovs_mpiglobal(:)
 
+      end if
+
     case default
        write(*,*)
        write(*,*) 'ERROR unknown mpiStrategy: ', trim(mpiStrategy)
@@ -1774,8 +1870,7 @@ contains
       else
          ! all non-radiance obs
          obsLoad = 1
-      endif
-
+      end if
     end function obsLoad
 
   end subroutine setObsMpiStrategy

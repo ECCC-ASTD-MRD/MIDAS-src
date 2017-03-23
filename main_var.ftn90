@@ -33,6 +33,7 @@ program main_var
   use burpFiles_mod
   use utilities_mod
   use innovation_mod
+  use bmatrix_mod
 
   implicit none
   integer :: istamp,exdb,exfin
@@ -166,8 +167,12 @@ program main_var
     ! Do minimization of cost function
     call min_minimize(columng,obsSpaceData)
 
-    ! Compute obs-space diagnostics (only does computation if NAMOSD present in flnml)
-    call osd_calcInflation(obsSpaceData,columng)
+    ! Conduct obs-space post-processing diagnostic tasks (some diagnostic 
+    ! computations controlled by NAMOSD namelist in flnml)
+    call osd_ObsSpaceDiag(obsSpaceData,columng)
+
+    ! Deallocate memory related to B matrices
+    call bmat_finalize()
 
     if (mpi_myid == 0) then
        clmsg = 'REBM_DONE'
@@ -205,6 +210,11 @@ contains
 
   !--------------------------------------------------------------------------
   !! *Purpose*: Control of the preprocessing of the variational assimilation
+  !!
+  !! Revisions:
+  !!           Y.J. Rochon, Jan 2016
+  !!           - Addition of test on availability of input trial fields according
+  !!             to related observation families.
   !--------------------------------------------------------------------------
   subroutine var_setup(lcolumng,lcolumnhr,lobsSpaceData, &
        obsColumnMode, obsMpiStrategy)
@@ -308,6 +318,28 @@ contains
     !- Setup and read observations
     !
     call inn_setupObs(lobsSpaceData,obsColumnMode,obsMpiStrategy)
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+    !
+    !- Test availability of all "minimum" required model weather fields given
+    !  presented observation families. 'P0' must always be present
+    !  and an abort would have occured prior to this point if it was not present.
+    !  Requirements beyond the minimum set to be tested where needed.
+    !
+    if ( obs_famExist(lobsSpaceData,'UA').or.obs_famExist(lobsSpaceData,'AI').or.obs_famExist(lobsSpaceData,'SW').or. &
+         obs_famExist(lobsSpaceData,'SF').or.obs_famExist(lobsSpaceData,'RO').or.obs_famExist(lobsSpaceData,'SC').or. &
+         obs_famExist(lobsSpaceData,'GP').or.obs_famExist(lobsSpaceData,'PR') ) then
+       ! Not all following fields required for some of the above families.
+       if (.not.(gsv_varExist(varName='TT').and.gsv_varExist(varName='UU').and.gsv_varExist(varName='VV') &
+            .and.gsv_varExist(varName='HU').and.gsv_varExist(varName='P0').and.gsv_varExist(varName='TG')) ) then
+          call utl_abort(' preproc: One or more missing weather field in NAMSTATE')
+       end if
+    else if (obs_famExist(lobsSpaceData,'TO') .and. .not.gsv_varExist(varName='TT')) then
+       ! Minimum requirement for 'TO' in the absence of assimilation of other weather-related families.
+       ! This minimum requirement is for when only constituent (non-H2O) increments are to be produced
+       ! when TO obs are provided.
+       call utl_abort(' preproc: TT missing in NAMSTATE')
+    end if
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     !
