@@ -38,8 +38,6 @@ subroutine tovs_rttov_tl(lobsSpaceData)
   use tovs_lin_mod
   use obsSpaceData_mod
   use columnData_mod
-  Use rttov_const, only : sensor_id_mw,gas_id_watervapour,surftype_land, &
-       surftype_seaice
   use utilities_mod
   implicit none
 !implicits
@@ -51,23 +49,19 @@ subroutine tovs_rttov_tl(lobsSpaceData)
 
   type(struct_obs) :: lobsSpaceData
 
-  integer :: joff,ilev
   integer :: isurface
   integer :: nlevels
-  integer :: len_nchannels
-  integer :: nchannels_max
+  integer :: count_tb
   integer :: alloc_status(6)
   integer :: rttov_err_stat                          ! rttov error return code
   integer,external :: omp_get_num_threads
   integer :: nthreads, max_nthreads
-  integer :: j, i, krtid, io, jf, iobs, iobs1, jch
-  integer :: jj
-  integer :: ival, iplatform, isat, knpf
-  integer :: jo, jdata, idata, idatend, idatyp
-  integer :: jn, jl, ig
+  integer :: sensor_id, iobs
+  integer :: count_profile
+  integer :: profile_index, index_tb
   integer :: instrum
   integer :: sensor_type   ! sensor type (1=infrared; 2=microwave; 3=high resolution, 4=polarimetric)
-  integer :: nrank, ichn
+  integer :: channel_index
 
   integer :: errorstatus
   integer,allocatable :: iptobs  (:) 
@@ -77,20 +71,21 @@ subroutine tovs_rttov_tl(lobsSpaceData)
   type(rttov_emissivity), allocatable :: emissivity_tl (:)
  
 
-  type(rttov_radiance)    :: radiancedata_d     ! radiances full structure buffer used in rttov calls
-  type(rttov_radiance)    :: radiancedata_tl    ! tl radiances full structure buffer used in rttov calls
+  type(rttov_radiance) :: radiancedata_d     ! radiances full structure buffer used in rttov calls
+  type(rttov_radiance) :: radiancedata_tl    ! tl radiances full structure buffer used in rttov calls
   type(rttov_transmission) :: transmission       ! transmission
   type(rttov_transmission) :: transmission_tl    ! transmission tl
-  type(rttov_profile)   , allocatable :: profilesdata_tl (:) ! tl profiles buffer used in rttov calls
+  type(rttov_profile)  , allocatable :: profilesdata_tl (:) ! tl profiles buffer used in rttov calls
   type(rttov_chanprof) , allocatable :: chanprof (:)
   logical ,save        :: first=.true.
   logical              :: init
 
   logical, allocatable :: calcemis  (:)
   integer ::  asw
-
          
-  if (NOBTOV == 0) return       ! exit if there are not tovs data
+  if (TVS_NOBTOV == 0) return       ! exit if there are not tovs data
+  write(*,*) "tovs_rttov_tl Debut"
+
 
 !     1.  Get number of threads available and allocate memory for some variables
 !     .   ---------------------------------------------------------------------- 
@@ -100,7 +95,7 @@ subroutine tovs_rttov_tl(lobsSpaceData)
   max_nthreads = omp_get_num_threads()
 !$omp end parallel
   alloc_status(1)=0
-  allocate ( iptobs(NOBTOV),stat=alloc_status(1) )
+  allocate ( iptobs(TVS_NOBTOV),stat=alloc_status(1) )
 
 !
 !     2.  Computation of hx for tovs data only
@@ -109,47 +104,47 @@ subroutine tovs_rttov_tl(lobsSpaceData)
 
 ! Loop over all sensors specified by user
 
-  binst:  do krtid = 1, nsensors
+  sensor_loop:  do sensor_id = 1, tvs_nsensors
 
-     nlevels=coefs(krtid)%coef % nlevels
+     nlevels=coefs(sensor_id)%coef % nlevels
      
-     sensor_type = coefs(krtid) % coef % id_sensor
-     iplatform = coefs(krtid) % coef % id_platform
-     isat = coefs(krtid) % coef % id_sat
-     instrum = coefs(krtid) % coef % id_inst
+     sensor_type = coefs(sensor_id) % coef % id_sensor
+     instrum = coefs(sensor_id) % coef % id_inst
 !  loop over all obs.
 
-     knpf = 0
-     bobs: do iobs = 1, NOBTOV
+     count_profile = 0
+     obs_loop: do iobs = 1, TVS_NOBTOV
 
 !    Currently processed sensor?
 
-        if ( lsensor(iobs) == krtid ) then
-           knpf = knpf + 1
-           iptobs(knpf) = iobs
+        if ( tvs_lsensor(iobs) == sensor_id ) then
+           count_profile = count_profile + 1
+           iptobs(count_profile) = iobs
         endif
-     enddo bobs
+     enddo obs_loop
 
-     if (knpf == 0) cycle binst
+     if (count_profile == 0) cycle sensor_loop
 
 !     set nthreads to actual number of threads which will be used.
 
-     nthreads = min(max_nthreads, knpf)  
+     nthreads = min(max_nthreads, count_profile)  
 
 !     .  2.2  Prepare all input variables required by rttov.
 !     .       ---------------------------------------------------------
+     
+
+!     compute max possible values for nchannels
+     count_tb = TVS_COUNT_RADIANCES(iptobs, count_profile, lobsSpaceData)
+     
+     if ( count_tb == 0 ) cycle  sensor_loop
+
      alloc_status(:)=0
-
-!     compute max possible values for nchannels using knpf, i.e. maximum number of profiles.
-     nchannels_max = knpf * nchan(krtid)
-
-     allocate ( surfem1      (nchannels_max)      ,stat=alloc_status(1))
-     allocate ( chanprof     (nchannels_max)      ,stat=alloc_status(2))
-     allocate ( emissivity_local (nchannels_max)  ,stat=alloc_status(3))
-     allocate ( emissivity_tl(nchannels_max)      ,stat=alloc_status(4))
-     allocate ( calcemis     (nchannels_max)      ,stat=alloc_status(5))
-     allocate ( profilesdata_tl(knpf)             ,stat=alloc_status(6))  ! profilesdata tl
-
+     allocate ( surfem1      (count_tb)       ,stat=alloc_status(1))
+     allocate ( chanprof     (count_tb)       ,stat=alloc_status(2))
+     allocate ( emissivity_local (count_tb)   ,stat=alloc_status(3))
+     allocate ( emissivity_tl(count_tb)       ,stat=alloc_status(4))
+     allocate ( calcemis     (count_tb)       ,stat=alloc_status(5))
+     allocate ( profilesdata_tl(count_profile),stat=alloc_status(6))  ! profilesdata tl
      if( any(alloc_status /= 0) ) then
         write(*,*) ' tovs_rttov_tl: alloc_status = ', alloc_status(:)
         write(*,'(" tovs_rttov_tl:  arrays #2 memory allocation error")')
@@ -157,91 +152,46 @@ subroutine tovs_rttov_tl(lobsSpaceData)
      end if
 !     get Hyperspecral IR emissivities
       
-     if ( tvs_Is_Instrum_Hyperspectral(instrum) ) then
-        surfem1(:) = 0.98d0
-        do jn = 1, knpf
-           iobs1 = iptobs(jn)
-           jo = lobsno(iobs1)
-           idata    = obs_headElem_i(lobsSpaceData,OBS_RLN,jo)
-           idatend  = obs_headElem_i(lobsSpaceData,OBS_NLV,jo) + idata - 1
-           do jdata = idata, idatend
-              if(obs_bodyElem_i(lobsSpaceData,OBS_ASS,jdata)==1) then
-                 ichn = nint(obs_bodyElem_r(lobsSpaceData,OBS_PPP,jdata))
-                 ichn = max(0,min(ichn,jpchmax+1))
-                 do nrank = 1, nchan(krtid)
-                    if ( ichn == ichan(nrank,krtid) ) exit
-                 end do
-                 surfem1 ( nrank + (jn-1)*nchan(krtid) ) = obs_bodyElem_r(lobsSpaceData,OBS_SEM,jdata)
-              end if
-           end do
-        end do
-     end if
+     if ( tvs_Is_Instrum_Hyperspectral(instrum) ) call TVS_GetHIREmissivities(sensor_id, iptobs, count_profile, lobsSpaceData, surfem1)
 
-     ichn = 0
-     Do j = 1 , knpf
-        DO  jch = 1,nchan(krtid)
-           ichn = ichn +1
-           chanprof(ichn)%prof=j
-           chanprof(ichn)%chan=jch
-        End Do
-     End Do
+     call TVS_GET_CHANPROF(sensor_id, iptobs, count_profile, lobsSpaceData, chanprof)
 
      init=.true.
      asw=1 ! 1 to allocate,0 to deallocate
-         ! allocate transmitance structure
+           ! allocate transmitance structure
       call rttov_alloc_transmission(rttov_err_stat,transmission,nlevels=nlevels,      &
-           nchanprof=nchannels_max,asw=asw,init=init )
+           nchanprof=count_tb,asw=asw,init=init )
       if (rttov_err_stat/=0) THEN
          Write(*,*) "Error in transmittance allocation",rttov_err_stat
          call utl_abort('tovs_rttov_tl')
       endif
       call rttov_alloc_transmission(rttov_err_stat,transmission_tl,nlevels=nlevels,   &
-           nchanprof=nchannels_max,asw=asw,init=init )
+           nchanprof=count_tb,asw=asw,init=init )
       if (rttov_err_stat/=0) THEN
          Write(*,*) "Error in transmittance tl allocation",rttov_err_stat
          call utl_abort('tovs_rttov_tl')
       endif
      ! allocate radiance structures
-      call rttov_alloc_rad ( rttov_err_stat, nchannels_max, radiancedata_d,nlevels,asw,init=init)
+      call rttov_alloc_rad ( rttov_err_stat, count_tb, radiancedata_d,nlevels,asw,init=init)
       if (rttov_err_stat/=0) THEN
          Write(*,*) "Error in radiance allocation",rttov_err_stat
          call utl_abort('tovs_rttov_tl')
       endif
-      call rttov_alloc_rad ( rttov_err_stat,nchannels_max,radiancedata_tl,nlevels,asw,init=init)
+      call rttov_alloc_rad ( rttov_err_stat,count_tb,radiancedata_tl,nlevels,asw,init=init)
       if (rttov_err_stat/=0) THEN
          Write(*,*) "Error in radiance tl allocation",rttov_err_stat
          call utl_abort('tovs_rttov_tl')
       endif
 
-      len_nchannels = nchan(krtid)
-      do  j = 1 , knpf
-         joff=len_nchannels*(j-1)
-         isurface = profiles(iptobs(j)) % skin % surftype 
-         if     (sensor_type == sensor_id_mw ) then
-            if ( isurface == surftype_land .or. &
-                 isurface == surftype_seaice     ) then
-               calcemis(joff+1:joff+len_nchannels ) = .false.
-               surfem1 (joff+1:joff+len_nchannels ) = 0.75d0
-            else
-               calcemis(joff+1:joff+len_nchannels ) = .true.
-               surfem1 (joff+1:joff+len_nchannels ) = 0.d0
-            endif
-         elseif ( tvs_Is_Instrum_Hyperspectral(instrum) ) then
-            calcemis(joff+1:joff+len_nchannels ) = .false. 
-         elseif ( tvs_Is_Instrum_Geostationary(instrum) ) then
-            calcemis(joff+1:joff+len_nchannels ) = .true.
-            surfem1 (joff+1:joff+len_nchannels ) = 0.d0
-         else
-            call utl_abort('tovs_rttov_tl. invalid sensor type')
-         endif
-      enddo
-      ! Build the list of channels/profiles indices
+
+      call TVS_GetOtherEmissivities(chanprof, iptobs, count_tb, sensor_type, instrum, surfem1, calcemis)
+
       emissivity_local(:)%emis_in = surfem1(:)
        
       ! allocate profiledata_tl structures
      
-      call rttov_alloc_prof (rttov_err_stat,knpf,profilesdata_tl,nlevels, &
-           opts(krtid),asw=asw,coefs=coefs(krtid),init=init)
+      call rttov_alloc_prof (rttov_err_stat,count_profile,profilesdata_tl,nlevels, &
+           opts(sensor_id),asw=asw,coefs=coefs(sensor_id),init=init)
       if (rttov_err_stat/=0) THEN
          Write(*,*) "Error in profiles tl allocation",rttov_err_stat
          call utl_abort('tovs_rttov_tl')
@@ -249,30 +199,7 @@ subroutine tovs_rttov_tl(lobsSpaceData)
 
      !.. fill profilesdata_tl arrays
 
-      call rttov_copy_prof( profilesdata_tl(1:knpf), profiles_tl( iptobs(1:knpf) ) )
-
-     !.. climatological moisture clip for profilesdata and profilesdata_tl arrays
-
-! Modifie par S.Heilliette
-! pour utiliser le bon profil min ou max pour chaque instrument
-! au lieu du premier (AIRS) habituellement en mode analyse
-! ne doit rien changer en mode background check
-! Deplace (temporairement?) dans rttov: opts(JK)%config%apply_reg_limits=.true.
-!      ig=coefs(krtid)%coef%fmv_gas_pos(gas_id_watervapour)
-!      do  j = 1 , knpf
-!         jj = iptobs(j)
-!         do  jl = 1 , coefs(krtid) %coef% nlevels
-!            if     ( profiles(jj) % q(jl)  &
-!                 .le. coefs(krtid)%coef%lim_prfl_gmin(jl,ig)  ) then
-!               profiles(jj) % q(jl)    = coefs(krtid)%coef%lim_prfl_gmin(jl,ig)           
-!               profilesdata_tl(j) % q(jl) = 0.0d0
-!            elseif ( profiles(jj) % q(jl)  &
-!                 .ge. coefs(krtid)%coef%lim_prfl_gmax(jl,ig)   ) then
-!               profiles(jj) % q(jl)    =  coefs(krtid)%coef%lim_prfl_gmax(jl,ig)       
-!               profilesdata_tl(j) % q(jl) = 0.0d0
-!            endif
-!         enddo
-!      end do
+      call rttov_copy_prof( profilesdata_tl(1:count_profile), profiles_tl( iptobs(1:count_profile) ) )
  
 !     .  2.3  Compute tl radiance with rttov_tl
 !     .       ---------------------------------
@@ -283,10 +210,10 @@ subroutine tovs_rttov_tl(lobsSpaceData)
     call rttov_parallel_tl(         &
          errorstatus,               & ! out
          chanprof,                  & ! in
-         opts(krtid),               & ! in
-         profiles(iptobs(1:knpf)),  & ! in
+         opts(sensor_id),           & ! in
+         profiles(iptobs(1:count_profile)),  & ! in
          profilesdata_tl,           & ! inout
-         coefs(krtid),              & ! in
+         coefs(sensor_id),          & ! in
          transmission,              & ! inout
          transmission_tl,           & ! inout
          radiancedata_d,            & ! inout
@@ -307,44 +234,45 @@ subroutine tovs_rttov_tl(lobsSpaceData)
 
 !     .  2.4  Store hx in the structure radiance_tl
 !     .       ------------------------------------
- 
-    do jn = 1, knpf
-       io = iptobs(jn)
-       joff=nchan(krtid)*(jn-1)
-       radiance_tl(io) % bt(:) = radiancedata_tl % bt(joff+1:joff+nchan(krtid))
+    do index_tb = 1, count_tb
+       profile_index = chanprof(index_tb)%prof
+       channel_index = chanprof(index_tb)%chan
+       iobs = iptobs(profile_index)
+       radiance_tl(iobs) % bt(channel_index) =  radiancedata_tl % bt(index_tb)
     enddo
+
 !     de-allocate memory
 
     asw=0 ! 1 to allocate,0 to deallocate
     ! deallocate transmitance structures
     call rttov_alloc_transmission(rttov_err_stat,transmission,nlevels=nlevels,      &
-         nchanprof=nchannels_max,asw=asw )
+         nchanprof=count_tb,asw=asw )
     if (rttov_err_stat/=0) THEN
        Write(*,*) "Error in transmittance deallocation",rttov_err_stat
        call utl_abort('tovs_rttov_tl')
     endif
 
     call rttov_alloc_transmission(rttov_err_stat,transmission_tl,nlevels=nlevels,   &
-         nchanprof=nchannels_max,asw=asw )
+         nchanprof=count_tb,asw=asw )
     if (rttov_err_stat/=0) THEN
        Write(*,*) "Error in transmittance tl deallocation",rttov_err_stat
        call utl_abort('tovs_rttov_tl')
     endif
     ! deallocate radiance structures
-    call rttov_alloc_rad (rttov_err_stat,nchannels_max,radiancedata_d,nlevels,asw)
+    call rttov_alloc_rad (rttov_err_stat,count_tb,radiancedata_d,nlevels,asw)
     if (rttov_err_stat/=0) THEN
        Write(*,*) "Error in radiance deallocation",rttov_err_stat
        call utl_abort('tovs_rttov_tl')
     endif
-    call rttov_alloc_rad (rttov_err_stat,nchannels_max,radiancedata_tl,nlevels,asw)
+    call rttov_alloc_rad (rttov_err_stat,count_tb,radiancedata_tl,nlevels,asw)
     if (rttov_err_stat/=0) THEN
        Write(*,*) "Error in radiance tl deallocation",rttov_err_stat
        call utl_abort('tovs_rttov_tl')
     endif
  ! deallocate profilesdatat_tl structure
     
-    call rttov_alloc_prof (rttov_err_stat,knpf,profilesdata_tl,nlevels, &
-         opts(krtid),asw=asw)
+    call rttov_alloc_prof (rttov_err_stat,count_profile,profilesdata_tl,nlevels, &
+         opts(sensor_id),asw=asw)
     if (rttov_err_stat/=0) THEN
        Write(*,*) "Error in profiles tl deallocation",rttov_err_stat
        call utl_abort('tovs_rttov_tl')
@@ -365,8 +293,9 @@ subroutine tovs_rttov_tl(lobsSpaceData)
        call utl_abort('tovs_rttov_tl ')
     end if
 
- end do binst
+ end do sensor_loop
 
  deallocate ( iptobs )
+
 
 end subroutine tovs_rttov_tl

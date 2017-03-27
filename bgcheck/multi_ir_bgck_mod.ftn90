@@ -27,8 +27,8 @@
 !--------------------------------------------------------------------------
 Module multi_ir_bgck_mod
   Use tovs_nl_mod, only : jplev, rttov_coefs, rttov_transmission, rttov_emissivity, tvs_Is_idburp_tovs, &
-      tvs_Is_idburp_inst, radiance_d,lsensor,coefs,nchan,NSENSORS,PLATFORM,SATELLITE, &
-      INSTRUMENT,NOBTOV
+      tvs_Is_idburp_inst, radiance_d,tvs_lsensor,coefs,tvs_nchan,TVS_NSENSORS,PLATFORM,SATELLITE, &
+      INSTRUMENT,TVS_NOBTOV,tvs_ltovsno
   use hirChannels_mod
   Use rttov_const, only : inst_id_iasi
   use utilities_mod
@@ -215,15 +215,15 @@ contains
 !     Memory allocation for background check related variables
 !     .  -----------------------------------------------------
 
-    allocate(profiles_qc(NOBTOV) , stat= alloc_status(1))
+    allocate(profiles_qc(TVS_NOBTOV) , stat= alloc_status(1))
     If( alloc_status(1) /= 0) then
        WRITE(*,FMT=9201)
 9201   FORMAT(' BGCK_IR_SETUP: Memory Allocation Error')
        CALL utl_abort('BGCK_IR_SETUP')
     End If
 
-    do jo = 1, NOBTOV
-       isens = lsensor(jo)
+    do jo = 1, TVS_NOBTOV
+       isens = tvs_lsensor(jo)
        nl = coefs(isens)%coef % nlevels
        allocate( profiles_qc(jo) % z  ( nl ) ,stat= alloc_status(1))
        
@@ -238,9 +238,9 @@ contains
     alloc_status(:) = 0
 
 
-    do jo = 1, NOBTOV
-       isens = lsensor(jo)
-       nc = nchan(isens)
+    do jo = 1, TVS_NOBTOV
+       isens = tvs_lsensor(jo)
+       nc = tvs_nchan(isens)
        nl = coefs(isens) % coef % nlevels
 
        allocate( radiance_d(jo)  % overcast  (nl-1,nc) ,stat= alloc_status(1))
@@ -255,11 +255,11 @@ contains
 !___ transmission by profile
 
     alloc_status(:) = 0
-    allocate( transmission_d(NOBTOV),stat= alloc_status(1))
+    allocate( transmission_d(TVS_NOBTOV),stat= alloc_status(1))
 
-    do jo = 1, NOBTOV
-       isens = lsensor(jo)
-       nc = nchan(isens)
+    do jo = 1, TVS_NOBTOV
+       isens = tvs_lsensor(jo)
+       nc = tvs_nchan(isens)
        nl = coefs(isens) % coef % nlevels
 
      !! allocate transmittance from surface and from pressure levels
@@ -276,24 +276,24 @@ contains
 
     ncmax = 1
 
-    do jo = 1, NOBTOV
-       isens = lsensor(jo)
-       nc = nchan(isens)
+    do jo = 1, TVS_NOBTOV
+       isens = tvs_lsensor(jo)
+       nc = tvs_nchan(isens)
        if (nc>ncmax) ncmax=nc
     end do
 
-    allocate( emissivity (ncmax,NOBTOV) ,stat=alloc_status(1))
+    allocate( emissivity (ncmax,TVS_NOBTOV) ,stat=alloc_status(1))
        
     If( alloc_status(1) /= 0 ) then
        WRITE(*,FMT=9201)
        CALL utl_abort('BGCK_IR_SETUP')
     End If
 
-    DO KRTID = 1, NSENSORS
+    DO KRTID = 1, TVS_NSENSORS
 
        IF ( INSTRUMENT(KRTID) == inst_id_iasi ) THEN
 
-          allocate ( avhrr_bgck(NOBTOV), stat= alloc_status(1))
+          allocate ( avhrr_bgck(TVS_NOBTOV), stat= alloc_status(1))
 
           If( alloc_status(1)/=0 ) then
              WRITE(*,FMT=9201)
@@ -443,7 +443,7 @@ contains
     else
 ! ** find sensor number corresponding to the desired instrument
        ID =-1
-       DO KRTID = 1, NSENSORS
+       DO KRTID = 1, TVS_NSENSORS
           IF ( trim(CINSTRUMENTID(KRTID)) == TRIM(CINST)) THEN
              ID = KRTID
              EXIT
@@ -462,7 +462,7 @@ contains
        if (index_header < 0) exit HEADER
        
        IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
-       IF ( tvs_Is_idburp_inst(IDATYP,CINST) .and. lsensor(ltovsno (index_header))==id ) THEN
+       IF ( tvs_Is_idburp_inst(IDATYP,CINST) .and. tvs_lsensor(tvs_ltovsno (index_header))==id ) THEN
           count = count + 1
        END IF
     END DO HEADER
@@ -591,7 +591,7 @@ contains
   CO2MIN=minloc( abs( ZVLEV(:) - pco2min ) )
   CO2MAX=minloc( abs( ZVLEV(:) - pco2max ) )
 
-  NOBTOV = 0
+  TVS_NOBTOV = 0
 
   ! loop over all header indices of the 'TO' family
   call obs_set_current_header_list(lobsSpaceData,'TO')
@@ -601,9 +601,9 @@ contains
 
      IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
 
-     IF ( tvs_Is_idburp_tovs(idatyp) ) NOBTOV = NOBTOV + 1
+     IF ( tvs_Is_idburp_tovs(idatyp) ) TVS_NOBTOV = TVS_NOBTOV + 1
 
-     IF ( tvs_Is_idburp_inst(IDATYP,CINST) .and. lsensor(ltovsno (index_header))==id) THEN
+     IF ( tvs_Is_idburp_inst(IDATYP,CINST) .and. tvs_lsensor(tvs_ltovsno (index_header))==id) THEN
         BTOBS(:)    = -1._8
         BTCALC(:)   = -1._8
         RCAL_CLR(:) = -1._8
@@ -678,30 +678,30 @@ contains
         END DO
 
         DO JC = 1, NCHN
-           ICHN = ichan(JC,ID)
+           ICHN = tvs_ichan(JC,ID)
            chan_indx=hir_get_chindx_fr_chn(CINST,ichn)
-           BTCALC(chan_indx) = radiance_d(nobtov)%bt(jc)
-           RCAL_CLR(chan_indx) = radiance_d(nobtov)%clear(jc)
-           SFCTAU(chan_indx) = transmission_d(nobtov)%tau_total(jc)
+           BTCALC(chan_indx) = radiance_d(tvs_nobtov)%bt(jc)
+           RCAL_CLR(chan_indx) = radiance_d(tvs_nobtov)%clear(jc)
+           SFCTAU(chan_indx) = transmission_d(tvs_nobtov)%tau_total(jc)
            DO JL = 1, NLEVB
-              RCLD(chan_indx,JL) = radiance_d(nobtov)%overcast(jl+iextr-1,jc)
-              TRANSM(chan_indx,JL) = transmission_d(nobtov)%tau_levels(jl+iextr,jc)
+              RCLD(chan_indx,JL) = radiance_d(tvs_nobtov)%overcast(jl+iextr-1,jc)
+              TRANSM(chan_indx,JL) = transmission_d(tvs_nobtov)%tau_levels(jl+iextr,jc)
            END DO
-           EMI_SFC(chan_indx) = emissivity(JC,NOBTOV)
+           EMI_SFC(chan_indx) = emissivity(JC,TVS_NOBTOV)
 ! *** Gross check on computed BTs ***
            IF (BTCALC(chan_indx)<150._8) REJFLAG(chan_indx,9) = 1
            IF (BTCALC(chan_indx)>350._8) REJFLAG(chan_indx,9) = 1
         END DO
 
 
-        KSURF = profiles(nobtov)%skin%surftype
+        KSURF = profiles(tvs_nobtov)%skin%surftype
 !Test pour detecter le isatzen manquant (-1) ou anormal
 ! (angle negatif ou superieur a 75 degres )
         isatzen= obs_headElem_i(lobsSpaceData,OBS_SZA,INDEX_HEADER)
         if ( isatzen < 9000 .or. &
              isatzen > 16500 ) then
            DO JC = 1, NCHN
-              ICHN = ichan(JC,ID)
+              ICHN = tvs_ichan(JC,ID)
               chan_indx=hir_get_chindx_fr_chn(CINST,ichn)
               REJFLAG(chan_indx,9) = 1
            ENDDO
@@ -711,28 +711,28 @@ contains
         if (lairs) CLFR = obs_headElem_i(lobsSpaceData,OBS_CLF,INDEX_HEADER)
 
         DO JL = 1, NLEVB
-           TOEXT(JL) = profiles(nobtov)%t(jl+iextr)
-           ZHOEXT(JL) = profiles_qc(nobtov)%z(jl+iextr)
+           TOEXT(JL) = profiles(tvs_nobtov)%t(jl+iextr)
+           ZHOEXT(JL) = profiles_qc(tvs_nobtov)%z(jl+iextr)
         END DO
 
-        SUNZA = profiles_qc(nobtov)%sunza
+        SUNZA = profiles_qc(tvs_nobtov)%sunza
         if (liasi) then
-           SATAZIM = profiles(nobtov)%azangle 
-           SATZEN = profiles(nobtov)%zenangle
+           SATAZIM = profiles(tvs_nobtov)%azangle 
+           SATZEN = profiles(tvs_nobtov)%zenangle
         endif
-        ALBEDO = profiles_qc(nobtov)%albedo
-        ICE = profiles_qc(nobtov)%ice
-        LTYPE = profiles_qc(nobtov)%ltype
+        ALBEDO = profiles_qc(tvs_nobtov)%albedo
+        ICE = profiles_qc(tvs_nobtov)%ice
+        LTYPE = profiles_qc(tvs_nobtov)%ltype
         IF (LTYPE==20) KSURF=2
-        PCNT_WAT = profiles_qc(nobtov)%pcnt_wat
-        PCNT_REG = profiles_qc(nobtov)%pcnt_reg
+        PCNT_WAT = profiles_qc(tvs_nobtov)%pcnt_wat
+        PCNT_REG = profiles_qc(tvs_nobtov)%pcnt_reg
            
 ! ** find TOA radiances converted from observed BT's
 
         ROBS(:) = -1._8
         
         channels: DO JC = 1, NCHN
-           ICHN = ichan(JC,ID)
+           ICHN = tvs_ichan(JC,ID)
            chan_indx=hir_get_chindx_fr_chn(CINST,ichn)
            IF ( REJFLAG(chan_indx,9) == 1 ) CYCLE channels
            t_effective =  coefs(id)%coef%ff_bco(jc) &
@@ -2294,7 +2294,7 @@ SUBROUTINE ESTIM_TS(TS, tg,emi,rcal,radobs,sfctau,cldflag, &
 
 
   DO JC=  1, NCHNKEPT
-     ptc(JC)=hir_get_chindx_fr_chn(CINST,ichan(JC,SATID))
+     ptc(JC)=hir_get_chindx_fr_chn(CINST,tvs_ichan(JC,SATID))
   END DO
 
 

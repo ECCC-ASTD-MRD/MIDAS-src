@@ -55,8 +55,8 @@ subroutine tovs_fill_profiles_tl(column,columng)
   integer :: omp_get_num_threads, nthreads
   integer :: istride, ilen, imodulo
   integer :: nlevels,nobmax
-  integer :: j, i, krtid, jf, iobs, jj, stat
-  integer :: ilowlvl_M,ilowlvl_T,knpf,jo,nlv_M,nlv_T
+  integer :: j, i, sensor_id, iobs, jj, stat
+  integer :: ilowlvl_M,ilowlvl_T,count_profile,header_index,nlv_M,nlv_T
   integer :: jk, jn, jl
   integer :: status, Vcode
 
@@ -77,8 +77,8 @@ subroutine tovs_fill_profiles_tl(column,columng)
   real(8) :: zptop, zptopmbs
   real(8), pointer :: delTT(:), delLQ(:), TTb(:), HUb(:), Pres(:)
 
-  if(NOBTOV==0) return    ! exit if there are not tovs data
-
+  if(TVS_NOBTOV==0) return    ! exit if there are not tovs data
+  write(*,*) "Debut de tovs_fill_profiles_tl "
 
   !     1.    Set index for model's lowest level and model top
   !     .     ------------------------------------------------
@@ -126,46 +126,44 @@ subroutine tovs_fill_profiles_tl(column,columng)
   nthreads = omp_get_num_threads()
 !$omp end parallel
 
-  
-
 !
 !     2.  Fill profiles structure
 !     .   -----------------------
 ! loop over all instruments
-  binst: do krtid=1,nsensors
+  sensor_loop: do sensor_id=1,tvs_nsensors
      ! loop over all obs.
-     knpf = 0
-     xpres(1:nlevels) = coefs(krtid)% coef % ref_prfl_p(1:nlevels)
+     count_profile = 0
+     xpres(1:nlevels) = coefs(sensor_id)% coef % ref_prfl_p(1:nlevels)
 
-     bobs1: do iobs = 1,NOBTOV
-        if (lsensor(iobs)/=krtid) cycle bobs1
+     obs_loop1: do iobs = 1,TVS_NOBTOV
+        if (tvs_lsensor(iobs)/=sensor_id) cycle obs_loop1
         NOBMAX=iobs
-        knpf =knpf +1
-     enddo bobs1
+        count_profile =count_profile +1
+     enddo obs_loop1
 
-     if (knpf == 0) cycle binst
+     if (count_profile == 0) cycle sensor_loop
 
      alloc_status(:) = 0
-     allocate (iptobs    (knpf)          ,stat= alloc_status(1) )
-     allocate (iptobscma (knpf)          ,stat= alloc_status(2) )
-     allocate (to_tl     (jpmolev,knpf)  ,stat= alloc_status(3) )
-     allocate (lqo_tl    (jpmolev,knpf)  ,stat= alloc_status(4) )
-     allocate (toext_tl  (nlevels  ,knpf),stat= alloc_status(5) )
-     allocate (qoext_tl  (nlevels  ,knpf),stat= alloc_status(6) )
-     allocate (zvlev     (nlv_T,knpf)    ,stat= alloc_status(7) )
-     allocate (dPdPs     (nlv_T,knpf)    ,stat= alloc_status(8) )
-     allocate (zt_tl     (nlv_T,knpf)    ,stat= alloc_status(9) )
-     allocate (zlq_tl    (nlv_T,knpf)    ,stat= alloc_status(10))
-     allocate (zt        (nlv_T,knpf)    ,stat= alloc_status(11))
-     allocate (zlq       (nlv_T,knpf)    ,stat= alloc_status(12))
-     allocate (qoext     (nlevels,knpf)  ,stat= alloc_status(13))
-     allocate (zps_tl    (knpf)          ,stat= alloc_status(14))
+     allocate (iptobs    (count_profile)          ,stat= alloc_status(1) )
+     allocate (iptobscma (count_profile)          ,stat= alloc_status(2) )
+     allocate (to_tl     (jpmolev,count_profile)  ,stat= alloc_status(3) )
+     allocate (lqo_tl    (jpmolev,count_profile)  ,stat= alloc_status(4) )
+     allocate (toext_tl  (nlevels  ,count_profile),stat= alloc_status(5) )
+     allocate (qoext_tl  (nlevels  ,count_profile),stat= alloc_status(6) )
+     allocate (zvlev     (nlv_T,count_profile)    ,stat= alloc_status(7) )
+     allocate (dPdPs     (nlv_T,count_profile)    ,stat= alloc_status(8) )
+     allocate (zt_tl     (nlv_T,count_profile)    ,stat= alloc_status(9) )
+     allocate (zlq_tl    (nlv_T,count_profile)    ,stat= alloc_status(10))
+     allocate (zt        (nlv_T,count_profile)    ,stat= alloc_status(11))
+     allocate (zlq       (nlv_T,count_profile)    ,stat= alloc_status(12))
+     allocate (qoext     (nlevels,count_profile)  ,stat= alloc_status(13))
+     allocate (zps_tl    (count_profile)          ,stat= alloc_status(14))
 
      if( any(alloc_status /= 0) ) then
         write(*,*) ' tovs_fill_profiles_tl : memory allocation error'
         call utl_abort('tovs_fill_profiles_tl')
      end if
-
+    
      iptobs   (:) = 0 
      iptobscma(:) = 0 
      toext_tl (:,:) = 0.0d0
@@ -180,67 +178,67 @@ subroutine tovs_fill_profiles_tl(column,columng)
      to_tl    (:,:) = 0.0d0
      lqo_tl   (:,:) = 0.0d0
 
-     knpf = 0
+     count_profile = 0
 
-     bobs2: do iobs = 1, NOBMAX
-        if (lsensor(iobs)/=krtid) cycle bobs2
+     obs_loop2: do iobs = 1, NOBMAX
+        if (tvs_lsensor(iobs)/=sensor_id) cycle obs_loop2
 
-        jo = lobsno(iobs)
+        header_index = tvs_lobsno(iobs)
 
-        knpf = knpf + 1
+        count_profile = count_profile + 1
 
-        zps_tl  (knpf) = col_getElem(column,1,jo,'P0')*MPC_MBAR_PER_PA_R8
-        delTT => col_getColumn(column,jo,'TT')
-        delLQ => col_getColumn(column,jo,'HU')
-        TTb => col_getColumn(columng,jo,'TT')
-        HUb => col_getColumn(columng,jo,'HU')
-        Pres => col_getColumn(columng,jo,'PR','TH')
+        zps_tl  (count_profile) = col_getElem(column,1,header_index,'P0')*MPC_MBAR_PER_PA_R8
+        delTT => col_getColumn(column,header_index,'TT')
+        delLQ => col_getColumn(column,header_index,'HU')
+        TTb => col_getColumn(columng,header_index,'TT')
+        HUb => col_getColumn(columng,header_index,'HU')
+        Pres => col_getColumn(columng,header_index,'PR','TH')
         do jl = 1, nlv_T
-           zt_tl (jl,knpf) = delTT(jl)
-           zlq_tl(jl,knpf) = delLQ(jl)
-           zt   (jl,knpf)  = TTb(jl)
-           zlq  (jl,knpf)  = HUb(jl)
-           zvlev(jl,knpf)  = Pres(jl) *MPC_MBAR_PER_PA_R8
-           dPdPs(jl,knpf)  = col_getPressureDeriv(columng,jl,jo,'TH')
+           zt_tl (jl,count_profile) = delTT(jl)
+           zlq_tl(jl,count_profile) = delLQ(jl)
+           zt   (jl,count_profile)  = TTb(jl)
+           zlq  (jl,count_profile)  = HUb(jl)
+           zvlev(jl,count_profile)  = Pres(jl) *MPC_MBAR_PER_PA_R8
+           dPdPs(jl,count_profile)  = col_getPressureDeriv(columng,jl,header_index,'TH')
         enddo
 
         ! Fix pour eviter probleme au toit avec GEM 4
         ! (grosse varibilite temperature au dernier niveau thermo due 
         !  a l'extrapolation utilisee)
         if ( diagTtop ) then
-           zt_tl   (1,knpf) =  0.d0
-           zlq_tl  (1,knpf) =  0.d0
-           zt   (1,knpf) =  zt   (2,knpf) + mesosphere_lapse_rate *  &
-                log( col_getPressure(columng,1,jo,'TH') /  &
-                col_getPressure(columng,2,jo,'TH') )
-           zlq  (1,knpf) =  zlq  (2,knpf)
+           zt_tl   (1,count_profile) =  0.d0
+           zlq_tl  (1,count_profile) =  0.d0
+           zt   (1,count_profile) =  zt   (2,count_profile) + mesosphere_lapse_rate *  &
+                log( col_getPressure(columng,1,header_index,'TH') /  &
+                col_getPressure(columng,2,header_index,'TH') )
+           zlq  (1,count_profile) =  zlq  (2,count_profile)
         endif
 
-        iptobs   (knpf) = iobs
-        iptobscma(knpf) = jo
+        iptobs   (count_profile) = iobs
+        iptobscma(count_profile) = header_index
 
 
-     enddo bobs2
+     enddo obs_loop2
  
 !     .  2.1  Vertical interpolation of model temperature and logarithm of
 !             specific humidity to pressure levels required by tovs rt model
 !     .       --------------------------------------------------------------
 
-     do jn = 1, knpf
+     do jn = 1, count_profile
         qoext(1:nlevels,jn) =  profiles(iptobs(jn)) % q(1:nlevels) !/ q_mixratio_to_ppmv
      enddo
   
      to_tl (:,:) = 0.0d0
      lqo_tl(:,:) = 0.0d0
-     imodulo = mod(knpf,nthreads)
+     imodulo = mod(count_profile,nthreads)
      if ( imodulo == 0 ) then
-        istride = max(1,(knpf/nthreads))
+        istride = max(1,(count_profile/nthreads))
      else
-        istride = max(1,(knpf/nthreads)+1)
+        istride = max(1,(count_profile/nthreads)+1)
      endif
 !$omp parallel do private(jn,ilen)
-     do jn=1,knpf,istride
-        ilen = min (knpf-jn+1,istride)
+     do jn=1,count_profile,istride
+        ilen = min (count_profile-jn+1,istride)
         if ( ilen .gt. 0) then
 
            call ppo_IntAvgTl(zvlev(:,jn:jn+ilen-1),dPdPs(:,jn:jn+ilen-1),zt_tl(:,jn:jn+ilen-1),zt(:,jn:jn+ilen-1), &
@@ -258,12 +256,12 @@ subroutine tovs_fill_profiles_tl(column,columng)
 !     .       -----------------------------------------------
      toext_tl(:,:) = 0.0d0
      if ( .not. TopAt10hPa ) then
-        do jn = 1, knpf
+        do jn = 1, count_profile
            toext_tl(jpmotop:nlevels,jn)=to_tl(1:jpmolev,jn)
            toext_tl(1:jpmotop-1,jn)=0.d0
         enddo
      else
-        call lextrap (to_tl,toext_tl,jpmolev,nlevels,knpf)
+        call lextrap (to_tl,toext_tl,jpmolev,nlevels,count_profile)
      endif
      
 
@@ -274,7 +272,7 @@ subroutine tovs_fill_profiles_tl(column,columng)
 
      qoext_tl(:,:) = 0.0d0
      
-     do jn = 1, knpf
+     do jn = 1, count_profile
         do jk = 1, jpmotop-1
            qoext_tl(jk,jn) = 0.d0
         enddo
@@ -285,15 +283,15 @@ subroutine tovs_fill_profiles_tl(column,columng)
      
      if ( TopAt10hPa ) then
         if ( ldbgtov ) then
-           do jn = 1, knpf
+           do jn = 1, count_profile
               write(*,*)'qoext_tl*1000 avant exthum4    = '
               write(*,9263)(qoext_tl(i,jn)*1000.d0,i=1,nlevels)
               write(*,*)' '
            enddo
         endif
-        call lexthum4 (knpf,nlevels,xpres(1:nlevels),qoext_tl,qoext)
+        call lexthum4 (count_profile,nlevels,xpres(1:nlevels),qoext_tl,qoext)
         if ( ldbgtov ) then
-           do jn = 1, knpf
+           do jn = 1, count_profile
               write(*,*)'qoext_tl*1000 apres exthum4    = '
               write(*,9263)(qoext_tl(i,jn)*1000.d0,i=1,nlevels)
               write(*,*)' '
@@ -305,13 +303,12 @@ subroutine tovs_fill_profiles_tl(column,columng)
         !     .  2.4  Fill profiles_tl structure
         !     .       --------------------------
 
-     do  j = 1 , knpf
+     do  j = 1 , count_profile
         jj=iptobs(j)
-!        profiles_tl(jj) % gas_units       =  0
         profiles_tl(jj) % gas_units       = gas_unit_specconc ! all gas profiles are supposed to be provided in kg/kg
         profiles_tl(jj) % nlevels         =  nlevels
         profiles_tl(jj) % nlayers         =  nlevels - 1
-        if(coefs(krtid)%coef%nozone > 0) then
+        if(coefs(sensor_id)%coef%nozone > 0) then
            profiles_tl(jj) % o3(:)        =  0.d0
         endif
         profiles_tl(jj) % ctp             = 0.0d0
@@ -363,14 +360,13 @@ subroutine tovs_fill_profiles_tl(column,columng)
         call utl_abort('tovs_fill_profiles_tl')
      end if
 
-  enddo binst
+  enddo sensor_loop
 
   deallocate (xpres     ,stat= alloc_status(1))
   if( alloc_status(1) /= 0)  then
      write(*,*) ' tovs_fill_profiles_tl : memory deallocation error'
      call utl_abort('tovs_fill_profiles_tl        ')
   end if
-
 
   !     3.  Close up
   !     .   --------

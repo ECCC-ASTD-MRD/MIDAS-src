@@ -3,7 +3,7 @@
 !                     version 3; Last Modified: May 7, 2008.
 !This is free but copyrighted software; you can use/redistribute/modify it under the terms
 !of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
-!version 3 or (at your option) any later version that should be found at:
+!version 3 or (at your option) any lanter version that should be found at:
 !http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
 !
 !This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
@@ -48,9 +48,9 @@ subroutine tovs_fill_profiles_ad(column,columng)
   integer :: omp_get_num_threads, nthreads
   integer :: istride, ilen, imodulo
   integer :: nlevels,nobmax
-  integer :: j, i, krtid, jf, iobs, jj, stat
-  integer :: ilowlvl_T,ilowlvl_M,knpf,jo,nlv_M,nlv_T
-  integer :: jn, jl
+  integer :: sensor_id, iobs, stat
+  integer :: ilowlvl_T,ilowlvl_M,count_profile,header_index,nlv_M,nlv_T
+  integer :: profile_index, level_index, rttov_index
   integer :: status, Vcode
 
   real(8), allocatable :: to_ad    (:,:)
@@ -72,12 +72,12 @@ subroutine tovs_fill_profiles_ad(column,columng)
   real(8), pointer :: uu_column(:),vv_column(:),tt_column(:),hu_column(:),ps_column(:),tg_column(:)
   real(8), pointer :: TTb(:), HUb(:), Pres(:)
          
-  if (NOBTOV == 0) return    ! exit if there are not tovs data
+  if (TVS_NOBTOV == 0) return    ! exit if there are not tovs data
 
 
   !     1.    Set index for model's lowest level and model top
   !     .     ------------------------------------------------
-
+  write(*,*) "tovs_fill_profiles_ad Debut"
 
   nlv_M = col_getNumLev(columng,'MM')
   nlv_T = col_getNumLev(columng,'TH')
@@ -106,10 +106,10 @@ subroutine tovs_fill_profiles_ad(column,columng)
   TopAt10hPa = ( abs( zptopmbs - 10.0d0 ) <= .1d0 )
 
   jpmotop = 1
-  do jl = 2, nlevels
-     if ( zptopmbs >= xpres(jl-1) .and.       &
-          zptopmbs < xpres(jl)        ) then
-        jpmotop = jl
+  do level_index = 2, nlevels
+     if ( zptopmbs >= xpres(level_index-1) .and.       &
+          zptopmbs < xpres(level_index)        ) then
+        jpmotop = level_index
         exit
      endif
   enddo
@@ -122,105 +122,104 @@ subroutine tovs_fill_profiles_ad(column,columng)
 !$omp parallel 
   nthreads = omp_get_num_threads()
 !$omp end parallel
-
-
   
 !
 !     2.  Adjoint of fill profiles structure
 !     .   ----------------------------------
 
   ! loop over all instruments
-  binst: do krtid = 1, nsensors
-     xpres(1:nlevels) = coefs(krtid)% coef % ref_prfl_p(1:nlevels)
-     knpf = 0
+  sensor_loop: do sensor_id = 1, tvs_nsensors
+     xpres(1:nlevels) = coefs(sensor_id)% coef % ref_prfl_p(1:nlevels)
+     count_profile = 0
 
-     bobs1: do iobs = 1,NOBTOV
-        if (lsensor(iobs) /= krtid) cycle bobs1
+     bobs1: do iobs = 1,TVS_NOBTOV
+        if (tvs_lsensor(iobs) /= sensor_id) cycle bobs1
         NOBMAX = iobs
-        knpf = knpf + 1   
+        count_profile = count_profile + 1   
      enddo bobs1
 
-     if (knpf == 0) cycle binst
+     if (count_profile == 0) cycle sensor_loop
 
      alloc_status(:) = 0
-     allocate (iptobs   (knpf)        ,stat= alloc_status(1) )
-     allocate (iptobscma(knpf)        ,stat= alloc_status(2) )
-     allocate (to_ad    (jpmolev,knpf),stat= alloc_status(3) )
-     allocate (lqo_ad   (jpmolev,knpf),stat= alloc_status(4) )
-     allocate (toext_ad (nlevels,knpf),stat= alloc_status(5) )
-     allocate (qoext_ad (nlevels,knpf),stat= alloc_status(6) )
-     allocate (zvlev    (nlv_T,knpf)  ,stat= alloc_status(7) )
-     allocate (dPdPs    (nlv_T,knpf)  ,stat= alloc_status(8) )
-     allocate (zt_ad    (nlv_T,knpf)  ,stat= alloc_status(9) )
-     allocate (zlq_ad   (nlv_T,knpf)  ,stat= alloc_status(10) )
-     allocate (zt       (nlv_T,knpf)  ,stat= alloc_status(11))
-     allocate (zlq      (nlv_T,knpf)  ,stat= alloc_status(12))
-     allocate (qoext    (nlevels,knpf),stat= alloc_status(13))
-     allocate (zps_ad   (knpf)        ,stat= alloc_status(14))
-
+     allocate (iptobs   (count_profile)        ,stat= alloc_status(1) )
+     allocate (iptobscma(count_profile)        ,stat= alloc_status(2) )
+     allocate (to_ad    (jpmolev,count_profile),stat= alloc_status(3) )
+     allocate (lqo_ad   (jpmolev,count_profile),stat= alloc_status(4) )
+     allocate (toext_ad (nlevels,count_profile),stat= alloc_status(5) )
+     allocate (qoext_ad (nlevels,count_profile),stat= alloc_status(6) )
+     allocate (zvlev    (nlv_T,count_profile)  ,stat= alloc_status(7) )
+     allocate (dPdPs    (nlv_T,count_profile)  ,stat= alloc_status(8) )
+     allocate (zt_ad    (nlv_T,count_profile)  ,stat= alloc_status(9) )
+     allocate (zlq_ad   (nlv_T,count_profile)  ,stat= alloc_status(10) )
+     allocate (zt       (nlv_T,count_profile)  ,stat= alloc_status(11))
+     allocate (zlq      (nlv_T,count_profile)  ,stat= alloc_status(12))
+     allocate (qoext    (nlevels,count_profile),stat= alloc_status(13))
+     allocate (zps_ad   (count_profile)        ,stat= alloc_status(14))
+    
      if( any(alloc_status /= 0) ) then
-        write(*,*) ' tovs_fill_profiles_ad : memory allocation error'
+        write(*,*) 'tovs_fill_profiles_ad : memory allocation error',alloc_status(1:14)
         call utl_abort('tovs_fill_profiles_ad')
      end if
 
-     knpf = 0 
-
+     count_profile = 0 
 
 ! loop over all obs.
      bobs2: do iobs = 1, NOBMAX
-        if (lsensor(iobs)/=krtid) cycle bobs2
-        jo = lobsno(iobs)
+        if (tvs_lsensor(iobs)/=sensor_id) cycle bobs2
+        header_index = tvs_lobsno(iobs)
 
-        knpf = knpf + 1
+        count_profile = count_profile + 1
 
-        TTb => col_getColumn(columng,jo,'TT')
-        HUb => col_getColumn(columng,jo,'HU')
-        Pres => col_getColumn(columng,jo,'PR','TH')
-        do jl = 1, nlv_T
-           zt   (jl,knpf) = TTb(jl)
-           zlq  (jl,knpf) = HUb(jl)
-           zvlev(jl,knpf) = Pres(jl) *MPC_MBAR_PER_PA_R8
-           dPdPs(jl,knpf) = col_getPressureDeriv(columng,jl,jo,'TH')
+        TTb => col_getColumn(columng,header_index,'TT')
+        HUb => col_getColumn(columng,header_index,'HU')
+        Pres => col_getColumn(columng,header_index,'PR','TH')
+        do level_index = 1, nlv_T
+           zt   (level_index,count_profile) = TTb(level_index)
+           zlq  (level_index,count_profile) = HUb(level_index)
+           zvlev(level_index,count_profile) = Pres(level_index) *MPC_MBAR_PER_PA_R8
+           dPdPs(level_index,count_profile) = col_getPressureDeriv(columng,level_index,header_index,'TH')
         enddo
 
         ! Fix pour eviter probleme au toit avec GEM 4
         ! (grosse variabilite de la temperature au dernier niveau thermo due 
         !  a l'extrapolation utilisee)
         if (diagTtop) then
-           zt   (1,knpf) =  zt   (2,knpf) + mesosphere_lapse_rate *  &
-                log( col_getPressure(columng,1,jo,'TH') /  &
-                col_getPressure(columng,2,jo,'TH') )
-           zlq  (1,knpf) =  zlq  (2,knpf)
+           zt   (1,count_profile) =  zt   (2,count_profile) + mesosphere_lapse_rate *  &
+                log( col_getPressure(columng,1,header_index,'TH') /  &
+                col_getPressure(columng,2,header_index,'TH') )
+           zlq  (1,count_profile) =  zlq  (2,count_profile)
         endif
 
-        iptobs   (knpf) = iobs
-        iptobscma(knpf) = jo
+        iptobs   (count_profile) = iobs
+        iptobscma(count_profile) = header_index
      enddo bobs2
 
 !     .  2.4  Adjoint of filling profiles_ad structure
 !     .       ----------------------------------------
-     do j = 1, knpf
-        qoext(:,j) =  profiles(iptobs(j)) % q(:) !/ q_mixratio_to_ppmv
+     do profile_index = 1, count_profile
+        qoext(:,profile_index) =  profiles(iptobs(profile_index)) % q(:) !/ q_mixratio_to_ppmv
      enddo
 
-     do  j = 1 , knpf 
-        ps_column => col_getColumn(column,iptobscma(j),'P0')
-        tg_column => col_getColumn(column,iptobscma(j),'TG')
-        tt_column => col_getColumn(column,iptobscma(j),'TT')
-        hu_column => col_getColumn(column,iptobscma(j),'HU')
-        uu_column => col_getColumn(column,iptobscma(j),'UU')
-        vv_column => col_getColumn(column,iptobscma(j),'VV')
+     do  profile_index =  1, count_profile
+        header_index = iptobscma(profile_index)
+        rttov_index = iptobs(profile_index)
+        ps_column => col_getColumn(column,header_index,'P0')
+        tg_column => col_getColumn(column,header_index,'TG')
+        tt_column => col_getColumn(column,header_index,'TT')
+        hu_column => col_getColumn(column,header_index,'HU')
+        uu_column => col_getColumn(column,header_index,'UU')
+        vv_column => col_getColumn(column,header_index,'VV')
 
-        toext_ad(:,j)      = profiles_ad(iptobs(j)) % t(:)
-        qoext_ad(:,j)      = profiles_ad(iptobs(j)) % q(:) !* q_mixratio_to_ppmv
-        ps_column(1)       = profiles_ad(iptobs(j)) % s2m % p *MPC_MBAR_PER_PA_R8
-        tg_column(1)       = profiles_ad(iptobs(j)) % skin % t
-        tt_column(ilowlvl_T) = profiles_ad(iptobs(j)) % s2m % t
-!!!        hu_column(ilowlvl_T) = qoext(ilowlvl_T,j) * profiles_ad(iptobs(j)) % s2m % q * q_mixratio_to_ppmv
-!!!        hu_column(ilowlvl_T) = qoext(ilowlvl_T,j) * profiles_ad(iptobs(j)) % s2m % q 
+        toext_ad(:,profile_index)      = profiles_ad(rttov_index) % t(:)
+        qoext_ad(:,profile_index)      = profiles_ad(rttov_index) % q(:) 
+        ps_column(1)       = profiles_ad(rttov_index) % s2m % p *MPC_MBAR_PER_PA_R8
+        tg_column(1)       = profiles_ad(rttov_index) % skin % t
+        tt_column(ilowlvl_T) = profiles_ad(rttov_index) % s2m % t
+!!!        hu_column(ilowlvl_T) = qoext(ilowlvl_T,profile_index) * profiles_ad(rttov_index) % s2m % q * q_mixratio_to_ppmv
+!!!        hu_column(ilowlvl_T) = qoext(ilowlvl_T,profikle_index) * profiles_ad(rttov_index) % s2m % q 
         hu_column(ilowlvl_T) = 0.d0 
-        uu_column(ilowlvl_M) = profiles_ad(iptobs(j)) % s2m % u
-        vv_column(ilowlvl_M) = profiles_ad(iptobs(j)) % s2m % v
+        uu_column(ilowlvl_M) = profiles_ad(rttov_index) % s2m % u
+        vv_column(ilowlvl_M) = profiles_ad(rttov_index) % s2m % v
      end do
 
 !     .  2.3  Adjoint of extrapolation of humidity profile (kg/kg)
@@ -228,17 +227,17 @@ subroutine tovs_fill_profiles_ad(column,columng)
 !     .  
      if ( TopAt10hPa ) then
         if ( ldbgtov ) then
-           do jn = 1, knpf
+           do profile_index = 1, count_profile
               write(*,*)'qoext_ad*1000 avant aexthum4    = '
-              write(*,9263)(qoext_ad(i,jn)*1000.d0,i=1,nlevels)
+              write(*,9263)(qoext_ad(level_index,profile_index)*1000.d0,level_index=1,nlevels)
               write(*,*)' '
            enddo
         endif
-        call aexthum4 (knpf,nlevels,xpres(1:nlevels),qoext_ad,qoext)
+        call aexthum4 (count_profile,nlevels,xpres(1:nlevels),qoext_ad,qoext)
         if ( ldbgtov ) then
-           do jn = 1, knpf
+           do profile_index = 1, count_profile
               write(*,*)'qoext_ad*1000 apres aexthum4    = '
-              write(*,9263)(qoext_ad(i,jn)*1000.d0,i=1,nlevels)
+              write(*,9263)(qoext_ad(level_index,profile_index)*1000.d0,level_index=1,nlevels)
               write(*,*)' '
            enddo
         endif
@@ -247,9 +246,9 @@ subroutine tovs_fill_profiles_ad(column,columng)
 
         ! adjoint of conversion lnq --> q
      lqo_ad(:,:) = 0.0d0
-     do jn = 1, knpf
-        do jl = 1, jpmolev
-           lqo_ad(jl,jn) = qoext_ad(nlevels-jpmolev+jl,jn) * qoext(nlevels-jpmolev+jl,jn)
+     do profile_index = 1, count_profile
+        do level_index = 1, jpmolev
+           lqo_ad(level_index,profile_index) = qoext_ad(nlevels-jpmolev+level_index,profile_index) * qoext(nlevels-jpmolev+level_index,profile_index)
         enddo
      enddo
 
@@ -257,11 +256,11 @@ subroutine tovs_fill_profiles_ad(column,columng)
 !     .       ----------------------------------------------------------
      to_ad(:,:) = 0.0d0
      if ( .not. TopAt10hPa ) then
-        do jn = 1, knpf
-           to_ad(1:jpmolev,jn)=to_ad(1:jpmolev,jn)+toext_ad(jpmotop:nlevels,jn)
+        do profile_index = 1, count_profile
+           to_ad(1:jpmolev,profile_index)=to_ad(1:jpmolev,profile_index)+toext_ad(jpmotop:nlevels,profile_index)
         enddo
      else
-        call aextrap (to_ad,toext_ad,jpmolev,nlevels,knpf)
+        call aextrap (to_ad,toext_ad,jpmolev,nlevels,count_profile)
      endif
  
 !     .  2.1  Adjoint of vertical interpolation of model temperature and logarithm of
@@ -273,25 +272,27 @@ subroutine tovs_fill_profiles_ad(column,columng)
      zps_ad(:)   = 0.0d0
 
 
-     imodulo = mod(knpf,nthreads)
+     imodulo = mod(count_profile,nthreads)
      if ( imodulo == 0 ) then
-        istride = max(1,(knpf/nthreads))
+        istride = max(1,(count_profile/nthreads))
      else
-        istride = max(1,(knpf/nthreads)+1)
+        istride = max(1,(count_profile/nthreads)+1)
      endif
      call tmg_start(75,'intavgad')
 !$omp parallel
-!$omp do private(jn,ilen)
-     do jn=1,knpf,istride
-        ilen = min (knpf-jn+1,istride)
+!$omp do private(profile_index,ilen)
+     do profile_index=1,count_profile,istride
+        ilen = min (count_profile-profile_index+1,istride)
         if ( ilen > 0) then
            
-           call ppo_IntAvgAd(zvlev(:,jn:jn+ilen-1),dPdPs(:,jn:jn+ilen-1),zt_ad(:,jn:jn+ilen-1),zt(:,jn:jn+ilen-1), &
-                zps_ad(jn:jn+ilen-1),nlv_T,nlv_T,ilen, &
-                jpmolev,xpres(jpmotop:nlevels),to_ad(:,jn:jn+ilen-1))
-           call ppo_IntAvgAd(zvlev(:,jn:jn+ilen-1),dPdPs(:,jn:jn+ilen-1),zlq_ad(:,jn:jn+ilen-1),zlq(:,jn:jn+ilen-1), &
-                zps_ad(jn:jn+ilen-1),nlv_T,nlv_T,ilen, &
-                jpmolev,xpres(jpmotop:nlevels),lqo_ad(:,jn:jn+ilen-1))
+           call ppo_IntAvgAd(zvlev(:,profile_index:profile_index+ilen-1), dPdPs(:,profile_index:profile_index+ilen-1), &
+                zt_ad(:,profile_index:profile_index+ilen-1), zt(:,profile_index:profile_index+ilen-1), &
+                zps_ad(profile_index:profile_index+ilen-1), nlv_T,nlv_T,ilen, &
+                jpmolev,xpres(jpmotop:nlevels),to_ad(:,profile_index:profile_index+ilen-1))
+           call ppo_IntAvgAd(zvlev(:,profile_index:profile_index+ilen-1),dPdPs(:,profile_index:profile_index+ilen-1), &
+                zlq_ad(:,profile_index:profile_index+ilen-1), zlq(:,profile_index:profile_index+ilen-1), &
+                zps_ad(profile_index:profile_index+ilen-1), nlv_T,nlv_T,ilen, &
+                jpmolev,xpres(jpmotop:nlevels), lqo_ad(:,profile_index:profile_index+ilen-1))
 
         endif
      enddo
@@ -300,58 +301,65 @@ subroutine tovs_fill_profiles_ad(column,columng)
      call tmg_stop(75)
  
      ! Fix pour eviter probleme au toit avec GEM 4
-     ! (grosse varibilite temperature au dernier niveau thermo due 
+     ! (grosse variabilite temperature au dernier niveau thermo due 
      !  a l'extrapolation utilisee)
      if ( diagTtop ) then
-        do jn = 1, knpf
-           zt_ad (1,jn) = 0.d0
-           zlq_ad(1,jn) = 0.d0
+        do profile_index = 1, count_profile
+           zt_ad (1,profile_index) = 0.d0
+           zlq_ad(1,profile_index) = 0.d0
         enddo
      endif
 
         !     .  2.1  Store adjoints in columnData object
         !     .       -----------------------------------
 
-     do  jn = 1 , knpf 
-        ps_column => col_getColumn(column,iptobscma(jn),'P0')
-        tt_column => col_getColumn(column,iptobscma(jn),'TT')
-        hu_column => col_getColumn(column,iptobscma(jn),'HU')
+     do  profile_index = 1 , count_profile 
+        ps_column => col_getColumn(column,iptobscma(profile_index),'P0')
+        tt_column => col_getColumn(column,iptobscma(profile_index),'TT')
+        hu_column => col_getColumn(column,iptobscma(profile_index),'HU')
         
-        ps_column(1) = ps_column(1) + zps_ad  (jn) * MPC_MBAR_PER_PA_R8
-        do jl = 1, col_getNumLev(column,'TH')
-           tt_column(jl) = tt_column(jl) + zt_ad  (jl,jn)
-           hu_column(jl) = hu_column(jl) + zlq_ad (jl,jn)
+        ps_column(1) = ps_column(1) + zps_ad  (profile_index) * MPC_MBAR_PER_PA_R8
+        do level_index = 1, col_getNumLev(column,'TH')
+           tt_column(level_index) = tt_column(level_index) + zt_ad  (level_index,profile_index)
+           hu_column(level_index) = hu_column(level_index) + zlq_ad (level_index,profile_index)
         enddo
      enddo
+
+     alloc_status(:) = 0
+     deallocate (iptobs   ,stat= alloc_status(1) )
+     deallocate (iptobscma,stat= alloc_status(2) )
+     deallocate (to_ad    ,stat= alloc_status(3) )
+     deallocate (lqo_ad   ,stat= alloc_status(4) )
+     deallocate (toext_ad ,stat= alloc_status(5) )
+     deallocate (qoext_ad ,stat= alloc_status(6) )
+     deallocate (zvlev    ,stat= alloc_status(7) )
+     deallocate (dPdPs    ,stat= alloc_status(8) )
+     deallocate (zt_ad    ,stat= alloc_status(9) )
+     deallocate (zlq_ad   ,stat= alloc_status(10))
+     deallocate (zt       ,stat= alloc_status(11))
+     deallocate (zlq      ,stat= alloc_status(12))
+     deallocate (qoext    ,stat= alloc_status(13))
+     deallocate (zps_ad   ,stat= alloc_status(14))
+     if( any(alloc_status /= 0) ) then
+        write(*,*) ' tovs_fill_profiles_ad : memory deallocation error'
+        call utl_abort('tovs_fill_profiles_ad')
+     end if
+
         !    next bunch !
 
-     knpf = 0
+     count_profile = 0
 
-  enddo binst
+  enddo sensor_loop
 
-  alloc_status(:) = 0
-  deallocate (iptobs   ,stat= alloc_status(1) )
-  deallocate (iptobscma,stat= alloc_status(2) )
-  deallocate (to_ad    ,stat= alloc_status(3) )
-  deallocate (lqo_ad   ,stat= alloc_status(4) )
-  deallocate (toext_ad ,stat= alloc_status(5) )
-  deallocate (qoext_ad ,stat= alloc_status(6) )
-  deallocate (zvlev    ,stat= alloc_status(7) )
-  deallocate (dPdPs    ,stat= alloc_status(8) )
-  deallocate (zt_ad    ,stat= alloc_status(9) )
-  deallocate (zlq_ad   ,stat= alloc_status(10) )
-  deallocate (zt       ,stat= alloc_status(11))
-  deallocate (zlq      ,stat= alloc_status(12))
-  deallocate (qoext    ,stat= alloc_status(13))
-  deallocate (zps_ad   ,stat= alloc_status(14))
-  deallocate (xpres    ,stat= alloc_status(15))
+  
+  deallocate (xpres    ,stat= alloc_status(1))
 
-  if( any(alloc_status /= 0) ) then
-     write(*,*) ' tovs_fill_profiles_ad : memory deallocation error'
+  if( alloc_status(1) /= 0 ) then
+     write(*,*) ' tovs_fill_profiles_ad : memory deallocation error 2'
      call utl_abort('tovs_fill_profiles_ad')
   end if
 
-
+  write(*,*) "tovs_fill_profiles_ad Fin"
   !     3.  Close up
   !     .   --------
 

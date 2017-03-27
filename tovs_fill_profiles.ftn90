@@ -72,8 +72,8 @@ subroutine tovs_fill_profiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode
   integer :: nthreads
   integer :: istride, ilen, imodulo
   integer :: nlevels,nobmax
-  integer :: j, i, krtid, jf, iobs, jj
-  integer :: knpf, jo
+  integer :: j, i, krtid, iobs, jj
+  integer :: count_profile, header_index
   integer :: jn, jl
   integer :: ilowlvl_M,ilowlvl_T,ig,nlv_M,nlv_T
   integer :: status, Vcode
@@ -105,12 +105,11 @@ subroutine tovs_fill_profiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode
  
   real(8)  :: zlon
   real(8) :: zptop, zptopmbs
-
  
 
   write(*,*) "Entering tovs_fill_profiles subroutine"
-
-  if(NOBTOV.eq.0) return    ! exit if there are no tovs data
+  
+  if(TVS_NOBTOV.eq.0) return    ! exit if there are no tovs data
 
   !
   !     1.    Set index for model's lowest level and model top
@@ -184,57 +183,56 @@ subroutine tovs_fill_profiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode
 !     .   -----------------------
 
 ! loop over all instruments
-  binst: do krtid=1,nsensors
+  sensor_loop: do krtid=1,tvs_nsensors
      xpres(1:nlevels) = coefs(krtid)% coef % ref_prfl_p(1:nlevels)
     
 ! first loop over all obs.
-     knpf = 0
-     bobs1: do iobs = 1, NOBTOV
-        if (lsensor(iobs)==krtid) then
-           knpf = knpf + 1
+     count_profile = 0
+     bobs1: do iobs = 1, TVS_NOBTOV
+        if (tvs_lsensor(iobs)==krtid) then
+           count_profile = count_profile + 1
            NOBMAX=iobs
         endif
      enddo bobs1
 
-     if (knpf ==0) cycle binst
+     if (count_profile ==0) cycle sensor_loop
 
      alloc_status(:) = 0
-     allocate (iptobs    (knpf)        ,stat= alloc_status(1) )
-     allocate (iptobscma (knpf)        ,stat= alloc_status(2) )
-     allocate (zlat      (knpf)        ,stat= alloc_status(3) )
-     allocate (ozo       (nlevels,knpf),stat= alloc_status(4)) 
-     allocate (to        (jpmolev,knpf),stat= alloc_status(5))
-     allocate (lqo       (jpmolev,knpf),stat= alloc_status(6))
-     allocate (zho       (jpmolev,knpf),stat= alloc_status(7))
-     allocate (toext     (nlevels  ,knpf),stat= alloc_status(8))
-     allocate (qoext     (nlevels  ,knpf),stat= alloc_status(9))
-     allocate (zhoext    (nlevels  ,knpf),stat= alloc_status(10))
-     allocate (zvlev     (nlv_T,knpf),stat= alloc_status(11))
-     allocate (zt        (nlv_T,knpf),stat= alloc_status(12))
-     allocate (zlq       (nlv_T,knpf),stat= alloc_status(13))
-     allocate (zht       (nlv_T,knpf),stat= alloc_status(14))
+     allocate (iptobs    (count_profile)        ,stat= alloc_status(1) )
+     allocate (iptobscma (count_profile)        ,stat= alloc_status(2) )
+     allocate (zlat      (count_profile)        ,stat= alloc_status(3) )
+     allocate (ozo       (nlevels,count_profile),stat= alloc_status(4)) 
+     allocate (to        (jpmolev,count_profile),stat= alloc_status(5))
+     allocate (lqo       (jpmolev,count_profile),stat= alloc_status(6))
+     allocate (zho       (jpmolev,count_profile),stat= alloc_status(7))
+     allocate (toext     (nlevels  ,count_profile),stat= alloc_status(8))
+     allocate (qoext     (nlevels  ,count_profile),stat= alloc_status(9))
+     allocate (zhoext    (nlevels  ,count_profile),stat= alloc_status(10))
+     allocate (zvlev     (nlv_T,count_profile),stat= alloc_status(11))
+     allocate (zt        (nlv_T,count_profile),stat= alloc_status(12))
+     allocate (zlq       (nlv_T,count_profile),stat= alloc_status(13))
+     allocate (zht       (nlv_T,count_profile),stat= alloc_status(14))
 
      if( any(alloc_status /= 0) ) then
         write(*,*) ' tovs_fill_profiles : memory allocation error'
         call utl_abort('tovs_fill_profiles')
      end if
-    
-     knpf = 0
+     count_profile = 0
 
 ! second loop over all obs.
      bobs2: do iobs = 1, NOBMAX
-        if (lsensor(iobs)/=krtid) cycle bobs2
-        knpf = knpf + 1
-        iptobs(knpf) = iobs
-        jo = lobsno(iobs)
-        iptobscma(knpf) = jo
+        if (tvs_lsensor(iobs)/=krtid) cycle bobs2
+        count_profile = count_profile + 1
+        iptobs(count_profile) = iobs
+        header_index = tvs_lobsno(iobs)
+        iptobscma(count_profile) = header_index
 !    extract land/sea/sea-ice flag (0=land, 1=sea, 2=sea-ice)
-        ksurf = obs_headElem_i(lobsSpaceData,OBS_OFL,jo)
+        ksurf = obs_headElem_i(lobsSpaceData,OBS_OFL,header_index)
         profiles(iobs) % skin % surftype = ksurf
 !    extract satellite zenith and azimuth angle, 
 !    sun zenith angle, cloud fraction, latitude and longitude
 
-        isatzen = obs_headElem_i(lobsSpaceData,OBS_SZA,jo)
+        isatzen = obs_headElem_i(lobsSpaceData,OBS_SZA,header_index)
         profiles(iobs) % zenangle   = (isatzen-9000)/100.0
         !pour ne pas faire planter RTTOV dans le cas (rare) ou isatzen n'est pas defini ou invalide         
         if (profiles(iobs) % zenangle <0.0d0 .or. &
@@ -246,8 +244,8 @@ subroutine tovs_fill_profiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode
            profiles(iobs) % zenangle=0.d0
         endif
         !**********************************************************  
-        isatazim = obs_headElem_i(lobsSpaceData,OBS_AZA,jo) ! Satellite Azimuth Angle
-        isunazim = obs_headElem_i(lobsSpaceData,OBS_SAZ,jo) ! Sun Azimuth Angle
+        isatazim = obs_headElem_i(lobsSpaceData,OBS_AZA,header_index) ! Satellite Azimuth Angle
+        isunazim = obs_headElem_i(lobsSpaceData,OBS_SAZ,header_index) ! Sun Azimuth Angle
         profiles(iobs) % azangle   = ( isatazim/100.0d0 )
         profiles(iobs) % sunazangle  =  ( isunazim/100.0d0 )! necessaire pour radiation solaire
         iplatform = coefs(krtid) % coef % id_platform
@@ -257,26 +255,26 @@ subroutine tovs_fill_profiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode
            profiles(iobs) % azangle   = (isatazim + isunazim)/100.d0
            if ( profiles(iobs) % azangle > 360.d0 ) profiles(iobs) % azangle=profiles(iobs) % azangle - 360.d0
         endif
-        isunza = obs_headElem_i(lobsSpaceData,OBS_SUN,jo)
+        isunza = obs_headElem_i(lobsSpaceData,OBS_SUN,header_index)
         profiles(iobs) % sunzenangle = (isunza-9000)/100.0d0
-        zlat(knpf) = obs_headElem_r(lobsSpaceData,OBS_LAT,jo) *MPC_DEGREES_PER_RADIAN_R8
-        zlon = obs_headElem_r(lobsSpaceData,OBS_LON,jo) *MPC_DEGREES_PER_RADIAN_R8
+        zlat(count_profile) = obs_headElem_r(lobsSpaceData,OBS_LAT,header_index) *MPC_DEGREES_PER_RADIAN_R8
+        zlon = obs_headElem_r(lobsSpaceData,OBS_LON,header_index) *MPC_DEGREES_PER_RADIAN_R8
         profiles(iobs) % longitude = zlon
         do jl = 1, nlv_T
-           zt   (jl,knpf) = col_getElem(columnghr,jl,jo,'TT')
-           zlq  (jl,knpf) = col_getElem(columnghr,jl,jo,'HU')
-           zvlev(jl,knpf) = col_getPressure(columnghr,jl,jo,'TH') * MPC_MBAR_PER_PA_R8
-           zht  (jl,knpf) = col_getHeight(columnghr,jl,jo,'TH') / rg
+           zt   (jl,count_profile) = col_getElem(columnghr,jl,header_index,'TT')
+           zlq  (jl,count_profile) = col_getElem(columnghr,jl,header_index,'HU')
+           zvlev(jl,count_profile) = col_getPressure(columnghr,jl,header_index,'TH') * MPC_MBAR_PER_PA_R8
+           zht  (jl,count_profile) = col_getHeight(columnghr,jl,header_index,'TH') / rg
         enddo
 
         if (diagTtop) then
 !!! Fix temporaire (?) pour eviter probleme au toit avec GEM 4: on ne veut pas utiliser
 !!! le premier niveau de GEM qui est disgnostique (extrapole a partir des deux niveaux plus bas)
 !!! (grosse varibilite de la temperature au dernier niveau thermo due a l'extrapolation utilisee)
-           zt   (1,knpf) =  zt   (2,knpf) + mesosphere_lapse_rate *  &
-                log( col_getPressure(columnghr,1,jo,'TH') /  &
-                col_getPressure(columnghr,2,jo,'TH') )
-           zlq  (1,knpf) =  zlq  (2,knpf)         ! extrapolation valeur constante pour H2O peu important a cette hauteur
+           zt   (1,count_profile) =  zt   (2,count_profile) + mesosphere_lapse_rate *  &
+                log( col_getPressure(columnghr,1,header_index,'TH') /  &
+                col_getPressure(columnghr,2,header_index,'TH') )
+           zlq  (1,count_profile) =  zlq  (2,count_profile)         ! extrapolation valeur constante pour H2O peu important a cette hauteur
 !!!!
         ENDIF
         
@@ -289,15 +287,15 @@ subroutine tovs_fill_profiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode
 
 
 !$omp parallel private(istride)
-     imodulo = mod(knpf,nthreads)
+     imodulo = mod(count_profile,nthreads)
      if ( imodulo .eq. 0 ) then
-        istride = max(1,(knpf/nthreads))
+        istride = max(1,(count_profile/nthreads))
      else
-        istride = max(1,(knpf/nthreads)+1)
+        istride = max(1,(count_profile/nthreads)+1)
      endif
 !$omp do private(jn,ilen)
-     do jn=1,knpf,istride
-        ilen = min (knpf-jn+1,istride)
+     do jn=1,count_profile,istride
+        ilen = min (count_profile-jn+1,istride)
         if ( ilen > 0) then
            call ppo_IntAvg (zvlev(:,jn:jn+ilen-1),zt(:,jn:jn+ilen-1),nlv_T,nlv_T,ilen, &
                 jpmolev,xpres(jpmotop:nlevels),to(:,jn:jn+ilen-1))
@@ -315,7 +313,7 @@ subroutine tovs_fill_profiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode
 !     .       ----------------------------------------------------
      toext(:,:) = 0.0d0
      if ( .not. TopAt10hPa) then ! si le toit n'est pas a 10. hPa 
-        do jn=1,knpf
+        do jn=1,count_profile
            toext(jpmotop:nlevels,jn) = to(1:jpmolev,jn)
               ! New approach based on a specified lapse rate
            do jl=1,jpmotop-1
@@ -326,13 +324,13 @@ subroutine tovs_fill_profiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode
         enddo
      else
         ! old code for temperature profile extrapolation (only apropriate if model top at 10 hPa)
-        call extrap (to,toext,jpmolev,nlevels,knpf)
+        call extrap (to,toext,jpmolev,nlevels,count_profile)
      endif
 
 !     .  2.3  Extrapolation of height profile above model top
 !     .       -----------------------------------------------
      zhoext(:,:) = 0.0d0
-     call htextrap (zhoext,zho,xpres(1:nlevels),nlevels,jpmolev,jpmotop,knpf)
+     call htextrap (zhoext,zho,xpres(1:nlevels),nlevels,jpmolev,jpmotop,count_profile)
 
 !     .  2.4  Extrapolation of humidity profile (kg/kg)
 !             above rlimlvhu (normally 300mbs or 70mbs)
@@ -340,25 +338,25 @@ subroutine tovs_fill_profiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode
 
      qoext(:,:) = 0.0d0
      
-     do jn = 1, knpf
+     do jn = 1, count_profile
         do jl = 1, jpmolev
            qoext(nlevels-jpmolev+jl,jn) = exp(lqo(jl,jn)) 
         enddo
      enddo
 
      if ( .not. TopAt10hPa ) then ! if model top not at 10. hPa
-        qoext(1:jpmotop,1:knpf) = MPC_MINIMUM_HU_R8 ! to replace with LIMLVHU ?
+        qoext(1:jpmotop,1:count_profile) = MPC_MINIMUM_HU_R8 ! to replace with LIMLVHU ?
      else                    
         if ( ldbgtov ) then
-           do jn = 1, knpf
+           do jn = 1, count_profile
               write(*,*)'qoext*1000 avant exthum4    = '
               write(*,9263)(qoext(i,jn)*1000.d0,i=1,nlevels)
               write(*,*)' '
            enddo
         endif
-        call exthum4 (knpf,nlevels,xpres(1:nlevels),qoext,LIMLVHU)
+        call exthum4 (count_profile,nlevels,xpres(1:nlevels),qoext,LIMLVHU)
         if ( ldbgtov ) then
-           do jn = 1, knpf
+           do jn = 1, count_profile
               write(*,*)'qoext*1000 apres exthum4    = '
               write(*,9263)(qoext(i,jn)*1000.d0,i=1,nlevels)
               write(*,*)' '
@@ -371,24 +369,23 @@ subroutine tovs_fill_profiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode
 !     .  2.5  Get ozone profiles (ppmv)
 !     .       -------------------------
      if (coefs(krtid) %coef %nozone > 0) then
-        allocate ( toto3obs(knpf) )     
+        allocate ( toto3obs(count_profile) )     
         toto3obs(:) = 0.d0
-        allocate( PP(nlevels,knpf) )
-        DO J=1,knpf
+        allocate( PP(nlevels,count_profile) )
+        DO J=1,count_profile
            PP(1:nlevels,J)=xpres(1:nlevels)
         ENDDO
-        call ozo_get_profile (ozo,toto3obs,zlat,pp,nlevels,knpf,datestamp)
+        call ozo_get_profile (ozo,toto3obs,zlat,pp,nlevels,count_profile,datestamp)
         deallocate( PP )
         deallocate ( toto3obs )
-!     else
-!        ozo(:,:) = 0.0_8
      endif
+
 
         !     .  2.6  Fill profiles structure
         !     .       -----------------------
 
 
-     do  j = 1 , knpf 
+     do  j = 1 , count_profile 
         jj=iptobs(j)
         profiles(jj) % gas_units       = gas_unit_specconc ! all gas profiles are supposed to be provided in kg/kg (specific humidity, i.e. mass mixing ratio [kg/kg] over wet air)
         profiles(jj) % id              = "" ! profile id, up to 128 characters, to consider for use
@@ -464,10 +461,12 @@ subroutine tovs_fill_profiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode
         call utl_abort('tovs_fill_profiles')
      end if
 
-  enddo binst
+  enddo sensor_loop
 
 
   deallocate (xpres     ,stat= alloc_status(1))
+
+
 contains
 
   SUBROUTINE EXTHUM4(KNPF,KLAPF,PPRES,PAV,LIMLVHU)

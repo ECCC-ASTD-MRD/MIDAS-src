@@ -43,7 +43,8 @@ Module tovs_nl_mod
        platform_id_jpss  ,&
        platform_id_himawari,&
        errorstatus_success, &
-       mair, mh2o, mo3
+       mair, mh2o, mo3,   &
+       surftype_land, surftype_seaice, sensor_id_mw
   use codtyp_mod
   use mpi
   use utilities_mod
@@ -58,9 +59,9 @@ Module tovs_nl_mod
   ! public variables (parameters)
   public :: jpchmax, jpchus, jpnsatmax, jplev, mesosphere_lapse_rate, q_mixratio_to_ppmv, o3_mixratio_to_ppmv
   ! public variables (non-parameters)
-  public :: nchan, ichan, lsensor, lobsno, ltovsno, JPMOTOP, JPMOLEV, nobtov
-  public :: l_really_present,list_sensors,luse_uwiremis
-  public :: NSENSORS, PLATFORM, SATELLITE, INSTRUMENT, CHANOFFSET
+  public :: tvs_nchan, tvs_ichan, tvs_lsensor, tvs_lobsno, tvs_ltovsno, JPMOTOP, JPMOLEV, tvs_nobtov
+  public :: tvs_l_really_present,tvs_list_sensors,luse_uwiremis
+  public :: TVS_NSENSORS, PLATFORM, SATELLITE, INSTRUMENT, CHANOFFSET
   public :: LDBGTOV, LNLVTOV, CSATID, CINSTRUMENTID, CRTMODL
   public :: platform_name, inst_name
   public :: coefs, opts, profiles
@@ -69,7 +70,8 @@ Module tovs_nl_mod
   ! public procedures
   public :: TOVS_NL_SETUPALLO,TOVS_SETUP, tvs_Is_idburp_tovs, tvs_Is_idburp_inst
   public :: tvs_get_inst_id, tvs_get_platform_id, tvs_mapSat, tvs_mapInstrum
-  public ::  tvs_Is_Instrum_Geostationary,  tvs_Is_Instrum_HyperSpectral
+  public ::  tvs_Is_Instrum_Geostationary,  tvs_Is_Instrum_HyperSpectral, TVS_GET_CHANPROF, &
+       TVS_COUNT_RADIANCES, TVS_GetHIREmissivities, TVS_GetOtherEmissivities
   ! Module parameters
   ! units conversion from  mixing ratio to ppmv
   Real(8), Parameter :: q_mixratio_to_ppmv  = (1000000.0_8 * mair) / mh2o
@@ -91,17 +93,17 @@ Module tovs_nl_mod
 !**********************************************************
 
   ! Module variables
-  Integer, allocatable :: nchan(:)              ! number of channels per instrument
-  Integer, allocatable :: ichan(:,:)            ! list of channels per instrument
-  Integer, allocatable :: lsensor(:)            ! sensor number for each profile
-  Integer, allocatable :: lobsno (:)            ! observation number in cma for each profile
-  Integer, allocatable :: ltovsno (:)           ! index in TOVS structures for each observation in cma
-  Logical, allocatable :: l_really_present(:)   ! logical flag to identify instruments really assimilated
-  Integer, allocatable :: list_sensors(:,:)     ! sensor list
-  Integer JPMOTOP, JPMOLEV, nobtov
+  Integer, allocatable :: tvs_nchan(:)              ! number of channels per instrument
+  Integer, allocatable :: tvs_ichan(:,:)            ! list of channels per instrument
+  Integer, allocatable :: tvs_lsensor(:)            ! sensor number for each profile
+  Integer, allocatable :: tvs_lobsno (:)            ! observation number in cma for each profile
+  Integer, allocatable :: tvs_ltovsno (:)           ! index in TOVS structures for each observation in cma
+  Logical, allocatable :: tvs_l_really_present(:)   ! logical flag to identify instruments really assimilated
+  Integer, allocatable :: tvs_list_sensors(:,:)     ! sensor list
+  Integer JPMOTOP, JPMOLEV, tvs_nobtov
 
   ! Variables from comtov.cdk
-!     NSENSORS           : number of individual sensors.
+!     TVS_NSENSORS           : number of individual sensors.
 !     PLATFORM(MXPLATFORM)  : platform ID's (e.g., 1=NOAA; 2=DMSP; ...)
 !     SATELLITE(JPNSATMAX)  : satellite ID's (e.g., 1 to 16 for NOAA; ...)
 !     INSTRUMENT(JPNSATMAX) : instrument ID's (e.g., 3=AMSU-A; 4=AMSU-B; 6=SSMI; ...)
@@ -111,7 +113,7 @@ Module tovs_nl_mod
 !     CRTMODL            : TOVS radiation model used:
 !                             RTTOV, EUMETSAT NWP SAF radiation model
 !     LNLVTOV            : .T. if processing is to be non-linear
-  INTEGER NSENSORS
+  INTEGER TVS_NSENSORS
   INTEGER PLATFORM(JPNSATMAX), SATELLITE(JPNSATMAX)
   INTEGER INSTRUMENT(JPNSATMAX), CHANOFFSET(JPNSATMAX)
   LOGICAL LDBGTOV, LNLVTOV, luse_uwiremis
@@ -189,7 +191,7 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
   INTEGER ::  ERRORSTATUS,ASW
   integer ::  index_header, index_body
 
-  if (nsensors == 0) return
+  if (tvs_nsensors == 0) return
 
 !     1. Determine the number of radiances to be assimilated.
 !        Construct a list of channels for each sensor.
@@ -200,12 +202,12 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
 
 
   alloc_status(:) = 0
-  allocate (nchan(nsensors),                       stat= alloc_status(1))
-  allocate (ichan(jpchus,nsensors),                stat= alloc_status(2))
-  allocate (lsensor(obs_numheader(lobsSpaceData)), stat= alloc_status(3))
-  allocate (lobsno (obs_numheader(lobsSpaceData)), stat= alloc_status(4))
-  allocate (ltovsno(obs_numheader(lobsSpaceData)), stat= alloc_status(5))
-  allocate (l_really_present(nsensors),            stat= alloc_status(6))
+  allocate (tvs_nchan(tvs_nsensors),                       stat= alloc_status(1))
+  allocate (tvs_ichan(jpchus,tvs_nsensors),                stat= alloc_status(2))
+  allocate (tvs_lsensor(obs_numheader(lobsSpaceData)), stat= alloc_status(3))
+  allocate (tvs_lobsno (obs_numheader(lobsSpaceData)), stat= alloc_status(4))
+  allocate (tvs_ltovsno(obs_numheader(lobsSpaceData)), stat= alloc_status(5))
+  allocate (tvs_l_really_present(tvs_nsensors),            stat= alloc_status(6))
   If( any(alloc_status /= 0) ) then
 9201 FORMAT(' TOVS_NL_SETUPALLO: Memory Allocation Error')
      WRITE(*,FMT=9201)
@@ -213,12 +215,12 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
      CALL utl_abort('TOVS_NL_SETUPALLO')
   End If
 
-  nchan(:)   = 0 
-  ichan(:,:) = 0
-  ltovsno(:) = 0
-  l_really_present(:) = .true.
+  tvs_nchan(:)   = 0 
+  tvs_ichan(:,:) = 0
+  tvs_ltovsno(:) = 0
+  tvs_l_really_present(:) = .true.
 
-  NOBTOV = 0
+  TVS_NOBTOV = 0
 
   ! loop over all header indices of the 'TO' family
                                         ! Set the header list
@@ -232,7 +234,7 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
 
      IF ( .not.  tvs_Is_idburp_tovs(IDATYP) ) cycle HEADER   ! Proceed to the next header_index
 
-     NOBTOV = NOBTOV + 1
+     TVS_NOBTOV = TVS_NOBTOV + 1
      
 !    Construct list of channels for each sensor:
 !          map burp satellite info to RTTOV platform and satellite.
@@ -250,7 +252,7 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
         CALL utl_abort('TOVS_NL_SETUPALLO')
      endif
 !    find sensor number for this obs.
-     DO KRTID = 1, NSENSORS
+     DO KRTID = 1, TVS_NSENSORS
         IF ( IPLATFORM .EQ. PLATFORM  (KRTID) .AND. &
              ISAT      .EQ. SATELLITE (KRTID) .AND. &
              INSTRUM   .EQ. INSTRUMENT(KRTID)      ) THEN
@@ -261,14 +263,14 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
      Write(*,*) "IPLATFORM,ISAT,INSTRUM ",IPLATFORM,ISAT,INSTRUM
      WRITE(*,FMT=9101)
 9101 FORMAT(' TOVS_NL_SETUPALLO: Invalid Sensor')
-     do KRTID = 1, NSENSORS
+     do KRTID = 1, TVS_NSENSORS
 	print *,krtid,PLATFORM  (KRTID),SATELLITE (KRTID),INSTRUMENT(KRTID)
      enddo
      CALL utl_Abort('TOVS_NL_SETUPALLO')
 
-110  lsensor(nobtov) = nosensor
-     lobsno (nobtov) = index_header
-     ltovsno (index_header)    = nobtov
+110  tvs_lsensor(tvs_nobtov) = nosensor
+     tvs_lobsno (tvs_nobtov) = index_header
+     tvs_ltovsno (index_header)    = tvs_nobtov
 
      ! loop over all body indices (still in the 'TO' family)
                                         ! Set the body list
@@ -284,10 +286,10 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
 
            ICHN=ICHN-CHANOFFSET(NOSENSOR)
 
-           INDXCHN = utl_findArrayIndex(ichan(:,nosensor),nchan(nosensor),ichn)
+           INDXCHN = utl_findArrayIndex(tvs_ichan(:,nosensor),tvs_nchan(nosensor),ichn)
            if ( indxchn .eq. 0 ) then
-              nchan(nosensor) = nchan(nosensor) + 1
-              ichan(nchan(nosensor),nosensor) = ichn
+              tvs_nchan(nosensor) = tvs_nchan(nosensor) + 1
+              tvs_ichan(tvs_nchan(nosensor),nosensor) = ichn
            endif
         ENDIF
      ENDDO BODY
@@ -295,16 +297,16 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
 
 ! Sort list of channels in ascending order.Also force at least one channel, if none are found.
 
-  do ji = 1, nsensors
-    call isort(ichan(:,ji),nchan(ji))
-    if ( nchan(ji) .eq. 0 ) then
-       l_really_present ( ji ) =.false.
-       nchan(ji) = 1
-       ichan(1,ji) = 1
+  do ji = 1, tvs_nsensors
+    call isort(tvs_ichan(:,ji),tvs_nchan(ji))
+    if ( tvs_nchan(ji) .eq. 0 ) then
+       tvs_l_really_present ( ji ) =.false.
+       tvs_nchan(ji) = 1
+       tvs_ichan(1,ji) = 1
     endif
   enddo
 
-  write(*,*) ' TOVS_NL_SETUPALLO: nobtov = ', nobtov
+  write(*,*) ' TOVS_NL_SETUPALLO: tvs_nobtov = ', tvs_nobtov
 
 !-----------------------------------------------------------------------
 
@@ -317,19 +319,19 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
   9300    FORMAT(//,10x,"-rttov_setup: initializing the TOVS radiative " &
                    ,"transfer model" )
      alloc_status(:) = 0
-     allocate (coefs(nsensors)              ,stat= alloc_status(1))
-     allocate (list_sensors (3,nsensors)    ,stat= alloc_status(2))
-     allocate (opts (nsensors)              ,stat= alloc_status(3))
+     allocate (coefs(tvs_nsensors)              ,stat= alloc_status(1))
+     allocate (tvs_list_sensors (3,tvs_nsensors)    ,stat= alloc_status(2))
+     allocate (opts (tvs_nsensors)              ,stat= alloc_status(3))
      If( any(alloc_status /= 0) ) then
         WRITE(*,FMT=9201)
         WRITE(*,*) alloc_status(1:3)
         CALL utl_abort('TOVS_NL_SETUPALLO')
      End If
 
-     DO JK=1,NSENSORS
-        LIST_SENSORS(1,JK) = PLATFORM  (JK)
-        LIST_SENSORS(2,JK) = SATELLITE (JK)
-        LIST_SENSORS(3,JK) = INSTRUMENT(JK)
+     DO JK=1,TVS_NSENSORS
+        TVS_LIST_SENSORS(1,JK) = PLATFORM  (JK)
+        TVS_LIST_SENSORS(2,JK) = SATELLITE (JK)
+        TVS_LIST_SENSORS(3,JK) = INSTRUMENT(JK)
 
         !< General configuration options
         opts(JK)%config%apply_reg_limits=.true. ! if true application of profiles limits
@@ -357,9 +359,9 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
 
         errorstatus = errorstatus_success
 
-        CALL rttov_read_coefs(errorstatus, coefs(jk), opts(jk), channels=ICHAN(1:nchan(JK),JK), instrument = LIST_SENSORS(:,JK))
+        CALL rttov_read_coefs(errorstatus, coefs(jk), opts(jk), channels=TVS_ICHAN(1:tvs_nchan(JK),JK), instrument = TVS_LIST_SENSORS(:,JK))
         IF (errorstatus /= errorstatus_success) THEN
-           WRITE(*,*) 'rttov_read_coefs: fatal error reading coefficients',errorstatus,JK,LIST_SENSORS(1:3,JK)
+           WRITE(*,*) 'rttov_read_coefs: fatal error reading coefficients',errorstatus,JK,TVS_LIST_SENSORS(1:3,JK)
            CALL utl_abort('TOVS_SETUPALLO')
         ENDIF
         opts(JK)%rt_ir%co2_data = .false. 
@@ -377,11 +379,11 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
        
      ENDDO
     
-     do jk = 1, nsensors
+     do jk = 1, tvs_nsensors
        if ( instrument(jk) /= 20 ) then
-        nchan(jk) = coefs(jk)% coef %fmv_chn
-        do j = 1,nchan(jk)
-           ichan(j,jk) = coefs(jk)% coef %ff_ori_chn(j)
+        tvs_nchan(jk) = coefs(jk)% coef %fmv_chn
+        do j = 1,tvs_nchan(jk)
+           tvs_ichan(j,jk) = coefs(jk)% coef %ff_ori_chn(j)
         enddo
        end if
      enddo
@@ -392,7 +394,7 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
 !   Verify that all coefficient files have the same number of levels, since
 !   the rest of the processing assumes this!
 
-     do jk = 1, nsensors
+     do jk = 1, tvs_nsensors
         if ( coefs(jk)% coef %nlevels .ne. coefs(1)%coef%nlevels ) then
            WRITE(*,FMT=9311)
   9311     FORMAT(' TOVS_SETUPALLO: Number of levels not', &
@@ -411,15 +413,15 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
 
 !___ profiles
 
-  allocate(profiles(NOBTOV)         , stat= alloc_status(1) )
+  allocate(profiles(TVS_NOBTOV)         , stat= alloc_status(1) )
   If( alloc_status(1) /= 0 ) then
      WRITE(*,FMT=9201)
      CALL utl_abort('TOVS_NL_SETUPALLO')
   End If
 
   asw=1 ! to allocate
-  do jo = 1, NOBTOV
-     isens = lsensor(jo)
+  do jo = 1, TVS_NOBTOV
+     isens = tvs_lsensor(jo)
      nl = coefs(isens)%coef % nlevels
      ! allocate model profiles atmospheric arrays with RTTOV levels dimension
      call rttov_alloc_prof(errorstatus,1,profiles(jo),nl, &
@@ -433,14 +435,14 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
 !___ radiance by profile
 
   alloc_status(:) = 0
-  allocate( radiance_d(NOBTOV) ,stat= alloc_status(1))
+  allocate( radiance_d(TVS_NOBTOV) ,stat= alloc_status(1))
   If( alloc_status(1) /= 0 ) then
      WRITE(*,FMT=9201)
      CALL utl_abort('TOVS_NL_SETUPALLO')
   End If
-  do jo = 1, NOBTOV
-     isens = lsensor(jo)
-     nc = nchan(isens)
+  do jo = 1, TVS_NOBTOV
+     isens = tvs_lsensor(jo)
+     nc = tvs_nchan(isens)
      nl = coefs(isens) % coef % nlevels
      !! allocate BT equivalent to total direct, tl and ad radiance output
      alloc_status(:) = 0
@@ -477,7 +479,7 @@ SUBROUTINE TOVS_SETUP
 
   INTEGER  JK, IERR, nulnam
   integer ,external :: fclos, fnom
-  NAMELIST /NAMTOV/NSENSORS, CSATID, CINSTRUMENTID
+  NAMELIST /NAMTOV/TVS_NSENSORS, CSATID, CINSTRUMENTID
   NAMELIST /NAMTOV/LDBGTOV 
   NAMELIST /NAMTOV/LNLVTOV,luse_uwiremis, CRTMODL
 
@@ -485,7 +487,7 @@ SUBROUTINE TOVS_SETUP
   !     .  1.1 Default values
   !     .      --------------
 
-  NSENSORS   = 0
+  TVS_NSENSORS   = 0
   CSATID(:)  = '***UNDEFINED***'
   CINSTRUMENTID(:) = '***UNDEFINED***'
   CSATID(1)  = 'NOAA16'
@@ -508,7 +510,7 @@ SUBROUTINE TOVS_SETUP
   !     .   1.3 Validate namelist values
   !     .       ------------------------
 
-  if ( nsensors == 0 ) then
+  if ( tvs_nsensors == 0 ) then
      if(mpi_myid.eq.0) then 
         write(*,*) ' ====================================================='
         write(*,*) ' TOVS_SETUP: Number of sensors is zero, skipping setup'
@@ -523,9 +525,9 @@ SUBROUTINE TOVS_SETUP
      CALL utl_abort('TOVS_SETUP')
   ENDIF
 
-  IF ( NSENSORS .GT. JPNSATMAX ) THEN
+  IF ( TVS_NSENSORS .GT. JPNSATMAX ) THEN
      WRITE(*,FMT=9132)
-  9132    FORMAT(' TOVS_SETUP: Number of sensors (NSENSORS)', &
+  9132    FORMAT(' TOVS_SETUP: Number of sensors (TVS_NSENSORS)', &
             ' is greater than maximum allowed (JPNSATMAX)')
      CALL utl_abort('TOVS_SETUP')
   ENDIF
@@ -534,9 +536,9 @@ SUBROUTINE TOVS_SETUP
   !     .       ----------------------------------
 
   if(mpi_myid.eq.0) WRITE(*,FMT=9140) LDBGTOV, LNLVTOV, luse_uwiremis,CRTMODL
-  if(mpi_myid.eq.0) WRITE(*,FMT=9143) NSENSORS
-  if(mpi_myid.eq.0) WRITE(*,FMT=9145) (CSATID(JK), JK=1,NSENSORS)
-  if(mpi_myid.eq.0) WRITE(*,FMT=9146) (CINSTRUMENTID(JK), JK=1,NSENSORS)
+  if(mpi_myid.eq.0) WRITE(*,FMT=9143) TVS_NSENSORS
+  if(mpi_myid.eq.0) WRITE(*,FMT=9145) (CSATID(JK), JK=1,TVS_NSENSORS)
+  if(mpi_myid.eq.0) WRITE(*,FMT=9146) (CINSTRUMENTID(JK), JK=1,TVS_NSENSORS)
 
 
   9140 FORMAT(/,3X,'- Parameters used for TOVS processing' &
@@ -573,7 +575,7 @@ SUBROUTINE SENSORS
   !*              platform, satellite and instrument ID's.
   !*
   !*Variables:
-  !*     i : NSENSORS      : number of sensors
+  !*     i : TVS_NSENSORS      : number of sensors
   !*     i : CSATID        : satellite ID (e.g. 'NOAA15')
   !*     i : CINSTRUMENTID : instrument ID (e.g. 'AMSUA')
   !*     o : PLATFORM      : RTTOV platform ID numbers (e.g. 1 for  NOAA)
@@ -597,7 +599,7 @@ SUBROUTINE SENSORS
 !*    .  1.0 Go through sensors and set RTTOV-10 variables
 !     .      --------------------------------------------
 
-  DO J=1, NSENSORS
+  DO J=1, TVS_NSENSORS
      PLATFORM  (J) = -1
      SATELLITE (J) = -1
      INSTRUMENT(J) = -1
@@ -636,7 +638,7 @@ SUBROUTINE SENSORS
 !**       TERRA  to  EOS1
 !**       AQUA   to  EOS2
 !**       NPP    to  NPP0
-  DO J = 1, NSENSORS
+  DO J = 1, TVS_NSENSORS
      IF    ( CSATID(J) .EQ. 'TERRA' ) THEN
         TEMPOCSATID = 'eos1'
      ELSEIF ( CSATID(J) .EQ. 'AQUA'  ) THEN
@@ -683,7 +685,7 @@ SUBROUTINE SENSORS
 !     .      RTTOV-10.
 !     .      --------------------------------------------------------------------
 
-  DO J = 1, NSENSORS
+  DO J = 1, TVS_NSENSORS
      if ( CSATID(J)(1:4) == "GOES") then !cas particulier
         INSTRUMENT(J) = inst_id_goesim
      else if ( CSATID(J)(1:5) == "MTSAT") then !autre cas particulier
@@ -708,11 +710,11 @@ SUBROUTINE SENSORS
 !C     .       -----------------------------------
 
   if(mpi_myid.eq.0) WRITE(*,FMT=9140)
-  if(mpi_myid.eq.0) WRITE(*,FMT=9143) NSENSORS
-  if(mpi_myid.eq.0) WRITE(*,FMT=9145) (PLATFORM(J), J=1,NSENSORS)
-  if(mpi_myid.eq.0) WRITE(*,FMT=9146) (SATELLITE(J), J=1,NSENSORS)
-  if(mpi_myid.eq.0) WRITE(*,FMT=9147) (INSTRUMENT(J), J=1,NSENSORS)
-  if(mpi_myid.eq.0) WRITE(*,FMT=9148) (CHANOFFSET(J), J=1,NSENSORS)
+  if(mpi_myid.eq.0) WRITE(*,FMT=9143) TVS_NSENSORS
+  if(mpi_myid.eq.0) WRITE(*,FMT=9145) (PLATFORM(J), J=1,TVS_NSENSORS)
+  if(mpi_myid.eq.0) WRITE(*,FMT=9146) (SATELLITE(J), J=1,TVS_NSENSORS)
+  if(mpi_myid.eq.0) WRITE(*,FMT=9147) (INSTRUMENT(J), J=1,TVS_NSENSORS)
+  if(mpi_myid.eq.0) WRITE(*,FMT=9148) (CHANOFFSET(J), J=1,TVS_NSENSORS)
 
 
  9140 FORMAT(/,3X,'- SENSORS. Variables prepared for RTTOV-10:'  &
@@ -738,7 +740,7 @@ logical function tvs_Is_idburp_tovs(idatyp)
   character (len=22) :: inst_names(ninst)
   namelist /namtovsinst/ inst_names
 
-  if (nsensors == 0) then
+  if (tvs_nsensors == 0) then
     ! no tovs data will be read, therefore false
     tvs_is_idburp_tovs = .false.
     return
@@ -1241,4 +1243,124 @@ end function tvs_Is_Instrum_Geostationary
 
       END SUBROUTINE TVS_MAPSAT
 
-    end module tovs_nl_mod
+      SUBROUTINE TVS_GET_CHANPROF(sensor_id, iptobs, nprofiles, ObsSpaceData, chanprof)
+         use obsSpaceData_mod
+         implicit none
+         integer ,intent(in) :: nprofiles, sensor_id, iptobs(:)
+         type(struct_obs) :: ObsSpaceData
+         type(rttov_chanprof) :: chanprof(:)
+!******************************************************************************
+         integer :: count, profile_index, header_index, start, end, body_index, ichn, nrank, iobs
+!******************************************************************************
+         ! Build the list of channels/profiles indices
+         count = 0
+         
+         do profile_index = 1,  nprofiles
+            iobs = iptobs(profile_index)
+            header_index = tvs_lobsno(iobs)
+            start    = obs_headElem_i(ObsSpaceData,OBS_RLN,header_index)
+            end  = obs_headElem_i(ObsSpaceData,OBS_NLV,header_index) + start - 1
+            do body_index = start, end
+               if(obs_bodyElem_i(ObsSpaceData,OBS_ASS,body_index)==1) then
+                  ichn = nint(obs_bodyElem_r(ObsSpaceData,OBS_PPP,body_index))
+                  ichn = max(0,min(ichn,jpchmax+1))
+                  ICHN = ICHN - CHANOFFSET(sensor_id)
+                  do nrank = 1, tvs_nchan(sensor_id)
+                     if ( ichn == tvs_ichan(nrank,sensor_id) ) exit
+                  end do
+                  if (nrank/=tvs_nchan(sensor_id)+1) then
+                     count =  count + 1
+                     chanprof(count)%prof = profile_index
+                     chanprof(count)%chan = nrank
+                  else
+                     print *,"strange channel number",ichn
+                  endif
+               end if
+            end do
+         end do
+
+      end SUBROUTINE TVS_GET_CHANPROF
+
+      integer function TVS_COUNT_RADIANCES(iptobs, nprofiles, ObsSpaceData)
+         use obsSpaceData_mod
+         implicit none
+         integer ,intent(in) :: nprofiles, iptobs(:)
+         type(struct_obs) :: ObsSpaceData
+!******************************************************************************
+         integer :: profile_index, header_index, start, end, body_index, iobs
+
+         TVS_COUNT_RADIANCES = 0
+         do profile_index = 1, nprofiles
+           iobs = iptobs(profile_index)
+           header_index = tvs_lobsno(iobs)
+           start    = obs_headElem_i(ObsSpaceData,OBS_RLN,header_index)
+           end  = obs_headElem_i(ObsSpaceData,OBS_NLV,header_index) + start - 1
+           do body_index = start, end
+              if(obs_bodyElem_i(ObsSpaceData,OBS_ASS,body_index)==1) TVS_COUNT_RADIANCES  = TVS_COUNT_RADIANCES + 1
+           end do
+        end do
+        
+     end function TVS_COUNT_RADIANCES
+
+     SUBROUTINE TVS_GetHIREmissivities(sensor_id, iptobs, nprofiles, ObsSpaceData, surfem)
+        use obsSpaceData_mod
+        implicit none
+        integer ,intent(in) :: nprofiles, sensor_id, iptobs(:)
+        type(struct_obs) :: ObsSpaceData
+        Real(8), intent(out) :: surfem(:)
+!***************************************************************************
+        integer :: count, profile_index, iobs, start, end, index_body, index_header
+!***************************************************************************
+        count = 0 
+        surfem(:) = 0.98d0
+        do profile_index = 1, nprofiles
+           iobs = iptobs(profile_index)
+           index_header = tvs_lobsno(iobs)
+           start = obs_headElem_i(ObsSpaceData,OBS_RLN,index_header)
+           end = obs_headElem_i(ObsSpaceData,OBS_NLV,index_header) + start - 1
+           do index_body = start, end
+              if(obs_bodyElem_i(ObsSpaceData,OBS_ASS,index_body)==1) then
+                 count = count + 1
+                 surfem ( count ) = obs_bodyElem_r(ObsSpaceData,OBS_SEM,index_body)
+              end if
+           end do
+        end do
+
+     end SUBROUTINE TVS_GetHIREmissivities
+
+     SUBROUTINE TVS_GetOtherEmissivities(chanprof, iptobs, nradiances, sensor_type, instrument, surfem, calcemis)
+        implicit none
+        integer ,intent(in) :: nradiances, iptobs(:),sensor_type, instrument
+        Real(8), intent(out) :: surfem(:)
+        Logical, intent(out) :: calcemis(:)
+        type(rttov_chanprof),intent(in) :: chanprof(:)
+!*******************************************************************************************************
+        integer :: radiance_index, profile_index, iobs, surface_type
+!*******************************************************************************************************
+        do radiance_index = 1, nradiances
+           profile_index = chanprof(radiance_index)%prof
+           iobs = iptobs(profile_index)
+           surface_type = profiles(iobs) % skin % surftype
+           if     (sensor_type == sensor_id_mw ) then
+              if ( surface_type == surftype_land .or. &
+                   surface_type == surftype_seaice     ) then
+                 calcemis(radiance_index) = .false.
+                 surfem (radiance_index) = 0.75d0
+              else
+                 calcemis(radiance_index) = .true.
+                 surfem (radiance_index) = 0.d0
+              endif
+           elseif ( tvs_Is_Instrum_Hyperspectral(instrument) ) then
+              calcemis(radiance_index) = .false. 
+           elseif ( tvs_Is_Instrum_Geostationary(instrument) ) then
+              calcemis(radiance_index) = .true.
+              surfem (radiance_index) = 0.d0
+           else
+              Write(*,*) sensor_type,instrument
+              call utl_abort('TVS_GetOtherEmissivities. invalid sensor type')
+           endif
+        enddo
+
+     end SUBROUTINE TVS_GetOtherEmissivities
+
+end module tovs_nl_mod

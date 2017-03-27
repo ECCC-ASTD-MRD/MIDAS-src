@@ -465,21 +465,21 @@ contains
     IF ( INSTRUMENT(KRTID) == 11 ) THEN !! --AIRS--
 
        DO JC = 1, NCHN
-          ICHN = ICHAN(JC,KRTID)
+          ICHN = TVS_ICHAN(JC,KRTID)
           WAVEN(JC) = hir_get_wavn("AIRS",ICHN)
        END DO
 
     ELSE IF ( INSTRUMENT(KRTID) == 16 ) THEN !! --IASI--
 
        DO JC = 1, NCHN
-          ICHN = ICHAN(JC,KRTID)
+          ICHN = TVS_ICHAN(JC,KRTID)
           WAVEN(JC) =  hir_get_wavn("IASI",ICHN)
        END DO
 
     ELSE IF ( INSTRUMENT(KRTID) == 27 ) THEN !! --CrIS--
 
        DO JC = 1, NCHN
-          ICHN = ICHAN(JC,KRTID)
+          ICHN = TVS_ICHAN(JC,KRTID)
           WAVEN(JC) =  hir_get_wavn("CRIS",ICHN)
        END DO
 

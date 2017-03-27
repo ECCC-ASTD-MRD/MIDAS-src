@@ -186,7 +186,7 @@ contains
        ENDDO
     ENDDO
 
-    if (nobtov==0) return
+    if (tvs_nobtov==0) return
 
     !
     !     2. Open the file
@@ -266,7 +266,7 @@ contains
     !
     WRITE(*,'(5X,"read_obs_erreurs_tovs: Fill error array TOVERRST: "//)')
     DO JM= 1, INUMSAT
-       DO JL = 1, NSENSORS
+       DO JL = 1, TVS_NSENSORS
           IF ( PLATFORM (JL) .EQ. IPLATFORM(JM) .AND. SATELLITE(JL) .EQ. ISATID(JM) ) THEN
              IF ( INSTRUMENT (JL) .EQ. IINSTRUMENT(JM) ) THEN
                 NUMCHN(JL)=NUMCHNIN(JM)
@@ -284,7 +284,7 @@ contains
     !  Check that oberservation error statistics have been defined for
     !  all the satellites specified in the namelist.
     !
-    DO JL = 1, NSENSORS
+    DO JL = 1, TVS_NSENSORS
        IPLF = utl_findArrayIndex( IPLATFORM  , INUMSAT, PLATFORM  (JL) )
        ISAT =  utl_findArrayIndex( ISATID     , INUMSAT, SATELLITE (JL) )
        IF ( IPLF .EQ. 0 .OR. ISAT .EQ. 0 ) THEN
@@ -325,7 +325,7 @@ contains
     IF(MPI_MYID.eq.0) THEN
        WRITE(*,'(//1X,"Radiance observation errors read from file")')
        WRITE(*,'(  1X,"------------------------------------------")')
-       DO JL = 1, NSENSORS
+       DO JL = 1, TVS_NSENSORS
           WRITE(*,'(/1X,"SENSOR #",I2,". Platform: ",A,"Instrument: ",A)') &
                JL, CSATID(JL), CINSTRUMENTID(JL)
           WRITE(*,'(1X,"Channel",5X,"  error   ")')
@@ -605,7 +605,7 @@ contains
                    CALL tvs_mapSat(IPLATF,IPLATFORM,ISAT)
                    CALL tvs_mapInstrum(INSTR,INSTRUM)
 
-                   DO JN = 1, NSENSORS
+                   DO JN = 1, TVS_NSENSORS
                       IF ( IPLATFORM .EQ.   PLATFORM(JN) .AND. &
                            ISAT .EQ.  SATELLITE(JN) .AND. &
                            INSTRUM .EQ. INSTRUMENT(JN)      ) THEN
