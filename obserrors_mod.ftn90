@@ -40,7 +40,7 @@ module obsErrors_mod
   ! TOVS OBS ERRORS
   ! ---------------
 
-  real(8) :: toverrst(jpchmax,jpnsatmax)
+  real(8) :: toverrst(tvs_MaxChannelNumber,tvs_MaxNumberOfSensors)
 
   !
   ! CONVENTIONAL OBS ERRORS
@@ -152,12 +152,12 @@ contains
 
     integer,external  :: FNOM, FCLOS
     integer  :: IER, ILUTOV, JI, JJ, JK, JL, JM, I, IPOS1, IPOS2, INUMSAT, ISAT, IPLF
-    integer, dimension(JPNSATMAX)         :: IPLATFORM, ISATID, IINSTRUMENT, NUMCHN, NUMCHNIN
-    integer, dimension(JPCHMAX,JPNSATMAX) :: IUTILST, ICHN, ICHNIN
+    integer, dimension(TVS_MAXNUMBEROFSENSORS)         :: IPLATFORM, ISATID, IINSTRUMENT, NUMCHN, NUMCHNIN
+    integer, dimension(TVS_MAXCHANNELNUMBER,TVS_MAXNUMBEROFSENSORS) :: IUTILST, ICHN, ICHNIN
 
     real :: ZDUM
 
-    real(8), dimension(JPCHMAX,2,JPNSATMAX) :: TOVERRIN
+    real(8), dimension(TVS_MAXCHANNELNUMBER,2,TVS_MAXNUMBEROFSENSORS) :: TOVERRIN
 
     character (len=132) :: CLDUM,CPLATF,CINSTR
 
@@ -167,8 +167,8 @@ contains
     !    1. Initialize
     !       ----------
     !
-    DO JL = 1, JPNSATMAX  
-       DO JI = 1, JPCHMAX
+    DO JL = 1, TVS_MAXNUMBEROFSENSORS  
+       DO JI = 1, TVS_MAXCHANNELNUMBER
           TOVERRST(JI,JL) = 0.0D0
           TOVERRIN(JI,1,JL) = 0.0D0
           TOVERRIN(JI,2,JL) = 0.0D0
@@ -176,11 +176,11 @@ contains
        ENDDO
     ENDDO
 
-    DO JL = 1, JPNSATMAX
+    DO JL = 1, TVS_MAXNUMBEROFSENSORS
        IPLATFORM(JL) = 0
        NUMCHN(JL) = 0
        NUMCHNIN(JL) = 0
-       DO JI = 1, JPCHMAX
+       DO JI = 1, TVS_MAXCHANNELNUMBER
           ICHN(JI,JL) = 0
           ICHNIN(JI,JL) = 0
        ENDDO
@@ -267,14 +267,14 @@ contains
     WRITE(*,'(5X,"read_obs_erreurs_tovs: Fill error array TOVERRST: "//)')
     DO JM= 1, INUMSAT
        DO JL = 1, TVS_NSENSORS
-          IF ( PLATFORM (JL) .EQ. IPLATFORM(JM) .AND. SATELLITE(JL) .EQ. ISATID(JM) ) THEN
-             IF ( INSTRUMENT (JL) .EQ. IINSTRUMENT(JM) ) THEN
+          IF ( TVS_PLATFORMS (JL) .EQ. IPLATFORM(JM) .AND. TVS_SATELLITES(JL) .EQ. ISATID(JM) ) THEN
+             IF ( TVS_INSTRUMENTS (JL) .EQ. IINSTRUMENT(JM) ) THEN
                 NUMCHN(JL)=NUMCHNIN(JM)
-                DO JI = 1, JPCHMAX
+                DO JI = 1, TVS_MAXCHANNELNUMBER
                    TOVERRST(JI,JL) = TOVERRIN(JI,JJ,JM)
                    ICHN(JI,JL) = ICHNIN(JI,JM)
                 ENDDO
-                IF (top_AnalysisMode().and.rmat_lnondiagr) call rmat_setFullRMatrix ( TOVERRST(:,JL), JL, chanoffset(JL) )
+                IF (top_AnalysisMode().and.rmat_lnondiagr) call rmat_setFullRMatrix ( TOVERRST(:,JL), JL, tvs_channelOffset(JL) )
              ENDIF
           ENDIF
        ENDDO
@@ -285,8 +285,8 @@ contains
     !  all the satellites specified in the namelist.
     !
     DO JL = 1, TVS_NSENSORS
-       IPLF = utl_findArrayIndex( IPLATFORM  , INUMSAT, PLATFORM  (JL) )
-       ISAT =  utl_findArrayIndex( ISATID     , INUMSAT, SATELLITE (JL) )
+       IPLF = utl_findArrayIndex( IPLATFORM  , INUMSAT, TVS_PLATFORMS  (JL) )
+       ISAT =  utl_findArrayIndex( ISATID     , INUMSAT, TVS_SATELLITES (JL) )
        IF ( IPLF .EQ. 0 .OR. ISAT .EQ. 0 ) THEN
           WRITE ( *, '(" read_obs_erreurs_tovs: Observation errors not ","defined for sensor # ", I3)' ) JL
           CALL utl_abort ('read_obs_erreurs_tovs')
@@ -327,7 +327,7 @@ contains
        WRITE(*,'(  1X,"------------------------------------------")')
        DO JL = 1, TVS_NSENSORS
           WRITE(*,'(/1X,"SENSOR #",I2,". Platform: ",A,"Instrument: ",A)') &
-               JL, CSATID(JL), CINSTRUMENTID(JL)
+               JL, TVS_SATELLITENAME(JL), TVS_INSTRUMENTNAME(JL)
           WRITE(*,'(1X,"Channel",5X,"  error   ")')
           DO JI = 1, NUMCHN(JL)
              WRITE (*,'(1X,I7,1(5X,F10.5))') ICHN(JI,JL),TOVERRST(ICHN(JI,JL),JL)
@@ -606,9 +606,9 @@ contains
                    CALL tvs_mapInstrum(INSTR,INSTRUM)
 
                    DO JN = 1, TVS_NSENSORS
-                      IF ( IPLATFORM .EQ.   PLATFORM(JN) .AND. &
-                           ISAT .EQ.  SATELLITE(JN) .AND. &
-                           INSTRUM .EQ. INSTRUMENT(JN)      ) THEN
+                      IF ( IPLATFORM .EQ.   TVS_PLATFORMS(JN) .AND. &
+                           ISAT .EQ.  TVS_SATELLITES(JN) .AND. &
+                           INSTRUM .EQ. TVS_INSTRUMENTS(JN)      ) THEN
                          call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,TOVERRST(ICHN,JN))
                       ENDIF
                    ENDDO

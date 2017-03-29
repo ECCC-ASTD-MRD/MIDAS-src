@@ -25,8 +25,8 @@ module costfunction_mod
   use obsSpaceData_mod
   use rmatrix_mod ,only : rmat_sqrtRm1, rmat_lnondiagr
   use rttov_const, only : nplatforms, ninst,inst_name, platform_name
-  use tovs_nl_mod, only : jpchmax,tvs_ltovsno,tvs_lsensor,tvs_Is_idburp_tovs,tvs_nobtov, &
-       tvs_nsensors,tvs_lobsno, instrument, platform, satellite
+  use tovs_nl_mod, only : tvs_MaxChannelNumber,tvs_ltovsno,tvs_lsensor,tvs_Is_idburp_tovs,tvs_nobtov, &
+       tvs_nsensors,tvs_lobsno, tvs_instruments, tvs_platforms, tvs_satellites
   implicit none
   save
   private
@@ -51,8 +51,8 @@ contains
     !
     INTEGER index_body,iass,index_header
     integer :: idata,idatend,idatyp,count,ichn
-    real (8) :: x(jpchmax),y(jpchmax)
-    integer :: list_chan(jpchmax)
+    real (8) :: x(tvs_MaxChannelNumber),y(tvs_MaxChannelNumber)
+    integer :: list_chan(tvs_MaxChannelNumber)
 
     ! NOTE I tried using openMP on this loop, but it increased the cost from 4sec to 80sec!!!
     do index_header =1, obs_numHeader(lobsSpaceData)
@@ -68,7 +68,7 @@ contains
              iass = obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body)
              if(iass.eq.1 .or. iass.eq.-1) then
                 ICHN = NINT(obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY))
-                ICHN = MAX(0,MIN(ICHN,JPCHMAX+1))
+                ICHN = MAX(0,MIN(ICHN,TVS_MAXCHANNELNUMBER+1))
                 count=count+1
                 list_chan(count)=ichn
                 x(count)=obs_bodyElem_r(lobsSpaceData,elem_src_i,index_body)
@@ -237,8 +237,8 @@ contains
           write(*,'(1x,a)') 'For TOVS decomposition by sensor:'
           write(*,'(1x,a)') '#  plt sat ins    Jo'
           do isens=1,TVS_NSENSORS
-             write(*,'(i2,1x,a,1x,a,1x,i2,1x,f25.17)') isens,inst_name(INSTRUMENT(isens)), &
-                  platform_name(PLATFORM(isens)),SATELLITE(isens),dljotov_sensors(isens)
+             write(*,'(i2,1x,a,1x,a,1x,i2,1x,f25.17)') isens,inst_name(TVS_INSTRUMENTS(isens)), &
+                  platform_name(TVS_PLATFORMS(isens)),TVS_SATELLITES(isens),dljotov_sensors(isens)
           enddo
           write(*,*) ' '
        endif

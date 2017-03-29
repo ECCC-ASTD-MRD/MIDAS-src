@@ -64,7 +64,7 @@ subroutine tovs_fill_profiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode
 
   logical :: diagTtop,TopAt10hPa
 
-  integer :: ksurf 
+  integer :: ksurf, jpmotop, jpmolev
   integer :: isatzen 
   integer :: isatazim, instrum, iplatform
   integer :: isunazim
@@ -72,13 +72,13 @@ subroutine tovs_fill_profiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode
   integer :: nthreads
   integer :: istride, ilen, imodulo
   integer :: nlevels,nobmax
-  integer :: j, i, krtid, iobs, jj
+  integer :: j, i, sensor_id, iobs, jj
   integer :: count_profile, header_index
   integer :: jn, jl
-  integer :: ilowlvl_M,ilowlvl_T,ig,nlv_M,nlv_T
+  integer :: ilowlvl_M,ilowlvl_T,nlv_M,nlv_T
   integer :: status, Vcode
   integer :: ier,day,month,year,ijour,itime
-  integer :: alloc_status(14)
+  integer :: alloc_status(15)
 
   integer,external ::  omp_get_num_threads
   integer,external ::  newdate
@@ -131,9 +131,7 @@ subroutine tovs_fill_profiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode
   diagTtop = (Vcode.eq.5002)
   write(*,*) 'tovs_fill_profiles: diagTtop=',diagTtop 
 
-  nlevels=coefs(1) %coef% nlevels
-  allocate ( xpres (nlevels) )
-  xpres(1:nlevels) = coefs(1)% coef % ref_prfl_p(1:nlevels)
+ 
 
   ! find model level top, within 0.000001 mbs.
   zptop    = col_getPressure(columnghr,1,1,'TH')
@@ -142,18 +140,6 @@ subroutine tovs_fill_profiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode
   write(*,*) 'tovs_fill_profiles: zptopmbs=',zptopmbs
 
   TopAt10hPa = ( abs( zptopmbs - 10.0d0 ) <= .1d0 )
-
-  jpmotop = 1
-  do jl = 2, nlevels
-     if ( zptopmbs >= xpres(jl-1) .and.       &
-          zptopmbs < xpres(jl)        ) then 
-        jpmotop = jl
-        exit
-     endif
-  enddo
-  write(*,*) 'tovs_fill_profiles: jpmotop=',jpmotop
-  jpmolev = (nlevels-jpmotop+1)
-
 
   ier = newdate(datestamp,ijour,itime,-3)
   if (ier<0) then
@@ -183,19 +169,32 @@ subroutine tovs_fill_profiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode
 !     .   -----------------------
 
 ! loop over all instruments
-  sensor_loop: do krtid=1,tvs_nsensors
-     xpres(1:nlevels) = coefs(krtid)% coef % ref_prfl_p(1:nlevels)
-    
+  sensor_loop: do sensor_id=1,tvs_nsensors
+
 ! first loop over all obs.
      count_profile = 0
      bobs1: do iobs = 1, TVS_NOBTOV
-        if (tvs_lsensor(iobs)==krtid) then
+        if (tvs_lsensor(iobs)==sensor_id) then
            count_profile = count_profile + 1
            NOBMAX=iobs
         endif
      enddo bobs1
 
      if (count_profile ==0) cycle sensor_loop
+
+     nlevels=tvs_coefs(sensor_id) %coef% nlevels
+     allocate ( xpres (nlevels) )
+     xpres = tvs_coefs(1)% coef % ref_prfl_p
+     jpmotop = 1
+     do jl = 2, nlevels
+        if ( zptopmbs >= xpres(jl-1) .and.       &
+             zptopmbs < xpres(jl)        ) then 
+           jpmotop = jl
+           exit
+        endif
+     enddo
+     write(*,*) 'tovs_fill_profiles: jpmotop=', sensor_id, jpmotop
+     jpmolev = (nlevels-jpmotop+1)
 
      alloc_status(:) = 0
      allocate (iptobs    (count_profile)        ,stat= alloc_status(1) )
@@ -212,54 +211,51 @@ subroutine tovs_fill_profiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode
      allocate (zt        (nlv_T,count_profile),stat= alloc_status(12))
      allocate (zlq       (nlv_T,count_profile),stat= alloc_status(13))
      allocate (zht       (nlv_T,count_profile),stat= alloc_status(14))
-
-     if( any(alloc_status /= 0) ) then
-        write(*,*) ' tovs_fill_profiles : memory allocation error'
-        call utl_abort('tovs_fill_profiles')
-     end if
+     call utl_checkAllocationStatus(alloc_status, " tovs_fill_profiles")
+    
      count_profile = 0
 
 ! second loop over all obs.
      bobs2: do iobs = 1, NOBMAX
-        if (tvs_lsensor(iobs)/=krtid) cycle bobs2
+        if (tvs_lsensor(iobs)/=sensor_id) cycle bobs2
         count_profile = count_profile + 1
         iptobs(count_profile) = iobs
         header_index = tvs_lobsno(iobs)
         iptobscma(count_profile) = header_index
 !    extract land/sea/sea-ice flag (0=land, 1=sea, 2=sea-ice)
         ksurf = obs_headElem_i(lobsSpaceData,OBS_OFL,header_index)
-        profiles(iobs) % skin % surftype = ksurf
+        tvs_profiles(iobs) % skin % surftype = ksurf
 !    extract satellite zenith and azimuth angle, 
 !    sun zenith angle, cloud fraction, latitude and longitude
 
         isatzen = obs_headElem_i(lobsSpaceData,OBS_SZA,header_index)
-        profiles(iobs) % zenangle   = (isatzen-9000)/100.0
+        tvs_profiles(iobs) % zenangle   = (isatzen-9000)/100.0
         !pour ne pas faire planter RTTOV dans le cas (rare) ou isatzen n'est pas defini ou invalide         
-        if (profiles(iobs) % zenangle <0.0d0 .or. &
-             profiles(iobs) % zenangle > zenmax ) then
+        if (tvs_profiles(iobs) % zenangle <0.0d0 .or. &
+             tvs_profiles(iobs) % zenangle > zenmax ) then
            write(*,*) "!!! WARNING !!!"
            write(*,*) "INVALID ZENITH ANGLE"
-           write(*,*) "angle, profile number, sensor", profiles(iobs) % zenangle, iobs, krtid
+           write(*,*) "angle, profile number, sensor", tvs_profiles(iobs) % zenangle, iobs, sensor_id
            write(*,*) "replaced by 0.0 !!!"
-           profiles(iobs) % zenangle=0.d0
+           tvs_profiles(iobs) % zenangle=0.d0
         endif
         !**********************************************************  
         isatazim = obs_headElem_i(lobsSpaceData,OBS_AZA,header_index) ! Satellite Azimuth Angle
         isunazim = obs_headElem_i(lobsSpaceData,OBS_SAZ,header_index) ! Sun Azimuth Angle
-        profiles(iobs) % azangle   = ( isatazim/100.0d0 )
-        profiles(iobs) % sunazangle  =  ( isunazim/100.0d0 )! necessaire pour radiation solaire
-        iplatform = coefs(krtid) % coef % id_platform
-        instrum = coefs(krtid) % coef % id_inst
+        tvs_profiles(iobs) % azangle   = ( isatazim/100.0d0 )
+        tvs_profiles(iobs) % sunazangle  =  ( isunazim/100.0d0 )! necessaire pour radiation solaire
+        iplatform = tvs_coefs(sensor_id) % coef % id_platform
+        instrum = tvs_coefs(sensor_id) % coef % id_inst
         if ( (instrum==inst_id_amsua .or. instrum ==inst_id_mhs) .and. iplatform/=platform_id_eos )then
 !Correction a valider
-           profiles(iobs) % azangle   = (isatazim + isunazim)/100.d0
-           if ( profiles(iobs) % azangle > 360.d0 ) profiles(iobs) % azangle=profiles(iobs) % azangle - 360.d0
+           tvs_profiles(iobs) % azangle   = (isatazim + isunazim)/100.d0
+           if ( tvs_profiles(iobs) % azangle > 360.d0 ) tvs_profiles(iobs) % azangle=tvs_profiles(iobs) % azangle - 360.d0
         endif
         isunza = obs_headElem_i(lobsSpaceData,OBS_SUN,header_index)
-        profiles(iobs) % sunzenangle = (isunza-9000)/100.0d0
+        tvs_profiles(iobs) % sunzenangle = (isunza-9000)/100.0d0
         zlat(count_profile) = obs_headElem_r(lobsSpaceData,OBS_LAT,header_index) *MPC_DEGREES_PER_RADIAN_R8
         zlon = obs_headElem_r(lobsSpaceData,OBS_LON,header_index) *MPC_DEGREES_PER_RADIAN_R8
-        profiles(iobs) % longitude = zlon
+        tvs_profiles(iobs) % longitude = zlon
         do jl = 1, nlv_T
            zt   (jl,count_profile) = col_getElem(columnghr,jl,header_index,'TT')
            zlq  (jl,count_profile) = col_getElem(columnghr,jl,header_index,'HU')
@@ -271,7 +267,7 @@ subroutine tovs_fill_profiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode
 !!! Fix temporaire (?) pour eviter probleme au toit avec GEM 4: on ne veut pas utiliser
 !!! le premier niveau de GEM qui est disgnostique (extrapole a partir des deux niveaux plus bas)
 !!! (grosse varibilite de la temperature au dernier niveau thermo due a l'extrapolation utilisee)
-           zt   (1,count_profile) =  zt   (2,count_profile) + mesosphere_lapse_rate *  &
+           zt   (1,count_profile) =  zt   (2,count_profile) + tvs_MesosphereLapseRate *  &
                 log( col_getPressure(columnghr,1,header_index,'TH') /  &
                 col_getPressure(columnghr,2,header_index,'TH') )
            zlq  (1,count_profile) =  zlq  (2,count_profile)         ! extrapolation valeur constante pour H2O peu important a cette hauteur
@@ -318,7 +314,7 @@ subroutine tovs_fill_profiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode
               ! New approach based on a specified lapse rate
            do jl=1,jpmotop-1
               toext(jl,jn) = toext(jpmotop,jn)  + &
-                   ( log(xpres(jl)/xpres(jpmotop)) * mesosphere_lapse_rate )
+                   ( log(xpres(jl)/xpres(jpmotop)) * tvs_MesosphereLapseRate )
            enddo
 
         enddo
@@ -347,28 +343,27 @@ subroutine tovs_fill_profiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode
      if ( .not. TopAt10hPa ) then ! if model top not at 10. hPa
         qoext(1:jpmotop,1:count_profile) = MPC_MINIMUM_HU_R8 ! to replace with LIMLVHU ?
      else                    
-        if ( ldbgtov ) then
+        if ( tvs_debug ) then
            do jn = 1, count_profile
               write(*,*)'qoext*1000 avant exthum4    = '
-              write(*,9263)(qoext(i,jn)*1000.d0,i=1,nlevels)
+              write(*,'(1x,10f8.4)')(qoext(i,jn)*1000.d0,i=1,nlevels)
               write(*,*)' '
            enddo
         endif
         call exthum4 (count_profile,nlevels,xpres(1:nlevels),qoext,LIMLVHU)
-        if ( ldbgtov ) then
+        if ( tvs_debug ) then
            do jn = 1, count_profile
               write(*,*)'qoext*1000 apres exthum4    = '
-              write(*,9263)(qoext(i,jn)*1000.d0,i=1,nlevels)
+              write(*,'(1x,10f8.4)')(qoext(i,jn)*1000.d0,i=1,nlevels)
               write(*,*)' '
            enddo
         endif
-9263       format(1x,10f8.4)
      endif
 
 
 !     .  2.5  Get ozone profiles (ppmv)
 !     .       -------------------------
-     if (coefs(krtid) %coef %nozone > 0) then
+     if (tvs_coefs(sensor_id) %coef %nozone > 0) then
         allocate ( toto3obs(count_profile) )     
         toto3obs(:) = 0.d0
         allocate( PP(nlevels,count_profile) )
@@ -387,56 +382,56 @@ subroutine tovs_fill_profiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode
 
      do  j = 1 , count_profile 
         jj=iptobs(j)
-        profiles(jj) % gas_units       = gas_unit_specconc ! all gas profiles are supposed to be provided in kg/kg (specific humidity, i.e. mass mixing ratio [kg/kg] over wet air)
-        profiles(jj) % id              = "" ! profile id, up to 128 characters, to consider for use
-        profiles(jj) % nlevels         = nlevels
-        profiles(jj) % nlayers         = nlevels - 1
+        tvs_profiles(jj) % gas_units       = gas_unit_specconc ! all gas profiles are supposed to be provided in kg/kg (specific humidity, i.e. mass mixing ratio [kg/kg] over wet air)
+        tvs_profiles(jj) % id              = "" ! profile id, up to 128 characters, to consider for use
+        tvs_profiles(jj) % nlevels         = nlevels
+        tvs_profiles(jj) % nlayers         = nlevels - 1
         
-        profiles(jj) % date(1)         = year
-        profiles(jj) % date(2)         = month
-        profiles(jj) % date(3)         = day
+        tvs_profiles(jj) % date(1)         = year
+        tvs_profiles(jj) % date(2)         = month
+        tvs_profiles(jj) % date(3)         = day
        
         
-        profiles(jj) % latitude        = zlat(j)
+        tvs_profiles(jj) % latitude        = zlat(j)
         
-        profiles(jj) % elevation       = 0.001d0*zht(ilowlvl_T,j) ! unite km
+        tvs_profiles(jj) % elevation       = 0.001d0*zht(ilowlvl_T,j) ! unite km
 
-        profiles(jj) % skin % watertype= 1 !utilise pour calcul rayonnement solaire reflechi seulement
-        profiles(jj) % skin % t        = col_getElem(columnghr,1,iptobscma(j),'TG')
-        profiles(jj) % skin % salinity = 35.d0 ! for FASTEM-4 only to revise (practical salinity units)
-        profiles(jj) % skin % fastem(:)= 0.0d0
-        profiles(jj) % skin % snow_fraction  = 0.d0 ! Surface coverage snow fraction(0-1), used only by IR emissivity atlas
-        profiles(jj) % skin % soil_moisture  = 0.d0 ! soil moisure (m**3/m**3) not yet used
+        tvs_profiles(jj) % skin % watertype= 1 !utilise pour calcul rayonnement solaire reflechi seulement
+        tvs_profiles(jj) % skin % t        = col_getElem(columnghr,1,iptobscma(j),'TG')
+        tvs_profiles(jj) % skin % salinity = 35.d0 ! for FASTEM-4 only to revise (practical salinity units)
+        tvs_profiles(jj) % skin % fastem(:)= 0.0d0
+        tvs_profiles(jj) % skin % snow_fraction  = 0.d0 ! Surface coverage snow fraction(0-1), used only by IR emissivity atlas
+        tvs_profiles(jj) % skin % soil_moisture  = 0.d0 ! soil moisure (m**3/m**3) not yet used
 !
-        profiles(jj) % s2m % t         = col_getElem(columnghr,ilowlvl_T,iptobscma(j),'TT')
-!!!        profiles(jj) % s2m % q         = exp(col_getElem(columnghr,ilowlvl_T,iptobscma(j),'HU')) * q_mixratio_to_ppmv
-        profiles(jj) % s2m % q         = 0.3D6  !! new a value between 0 and 0.6d6 so that RTTOV will not complain
-        profiles(jj) % s2m % p         = col_getElem(columnghr,1      ,iptobscma(j),'P0')*MPC_MBAR_PER_PA_R8
-        profiles(jj) % s2m % u         = col_getElem(columnghr,ilowlvl_M,iptobscma(j),'UU')
-        profiles(jj) % s2m % v         = col_getElem(columnghr,ilowlvl_M,iptobscma(j),'VV')
-        profiles(jj) % s2m % o         = 0.0d0 !surface ozone never used
-        profiles(jj) % s2m % wfetc     = 100000.0d0 ! Wind fetch (in meter for rttov10 ?) used to calculate reflection of solar radiation by sea surface
+        tvs_profiles(jj) % s2m % t         = col_getElem(columnghr,ilowlvl_T,iptobscma(j),'TT')
+!!!        tvs_profiles(jj) % s2m % q         = exp(col_getElem(columnghr,ilowlvl_T,iptobscma(j),'HU')) * tvs_qMixratio2ppmv
+        tvs_profiles(jj) % s2m % q         = 0.3D6  !! new a value between 0 and 0.6d6 so that RTTOV will not complain
+        tvs_profiles(jj) % s2m % p         = col_getElem(columnghr,1      ,iptobscma(j),'P0')*MPC_MBAR_PER_PA_R8
+        tvs_profiles(jj) % s2m % u         = col_getElem(columnghr,ilowlvl_M,iptobscma(j),'UU')
+        tvs_profiles(jj) % s2m % v         = col_getElem(columnghr,ilowlvl_M,iptobscma(j),'VV')
+        tvs_profiles(jj) % s2m % o         = 0.0d0 !surface ozone never used
+        tvs_profiles(jj) % s2m % wfetc     = 100000.0d0 ! Wind fetch (in meter for rttov10 ?) used to calculate reflection of solar radiation by sea surface
 !
-        profiles(jj) % idg             = 0
+        tvs_profiles(jj) % idg             = 0
         
-        profiles(jj) % Be              = 0.4d0 ! earth magnetic field strength (gauss) (must be non zero)
-        profiles(jj) % cosbk           = 0.0d0 ! cosine of the angle between the earth magnetic field and wave propagation direction
+        tvs_profiles(jj) % Be              = 0.4d0 ! earth magnetic field strength (gauss) (must be non zero)
+        tvs_profiles(jj) % cosbk           = 0.0d0 ! cosine of the angle between the earth magnetic field and wave propagation direction
         
         if ( bgckMode ) then
-           profiles_qc(jj) % lat   = profiles(jj) % latitude
-           profiles_qc(jj) % lon   = profiles(jj) % longitude
-           profiles_qc(jj) % sunza = profiles(jj) % sunzenangle
+           profiles_qc(jj) % lat   = tvs_profiles(jj) % latitude
+           profiles_qc(jj) % lon   = tvs_profiles(jj) % longitude
+           profiles_qc(jj) % sunza = tvs_profiles(jj) % sunzenangle
            profiles_qc(jj) % z(:)  = zhoext(:,j)
         endif
   
-        profiles(jj) % p(:)            = coefs(krtid) %coef% ref_prfl_p(:)
-        profiles(jj) % t(:)            = toext(:,j)
+        tvs_profiles(jj) % p(:)            = tvs_coefs(sensor_id) %coef% ref_prfl_p(:)
+        tvs_profiles(jj) % t(:)            = toext(:,j)
 
-        if (coefs(krtid) %coef %nozone > 0)  profiles(jj) % o3(:) = ozo(:,j) /  o3_mixratio_to_ppmv ! Climatology output is ppmv (over dry or wet air? not sure but this conversion is only approximate but it should not matter
-                                                                                                    ! because atmosphere is very dry where there is significant absorption by ozone)
-        profiles(jj) % q(:)            = qoext(:,j)
-        profiles(jj) % ctp = 1013.25d0
-        profiles(jj) % cfraction = 0.d0
+        if (tvs_coefs(sensor_id) %coef %nozone > 0) tvs_profiles(jj) % o3(:) = ozo(:,j) / tvs_o3Mixratio2ppmv ! Climatology output is ppmv (over dry or wet air? not sure but this conversion is only approximate but it should not matter
+                                                                                                              ! because atmosphere is very dry where there is significant absorption by ozone)
+        tvs_profiles(jj) % q(:)            = qoext(:,j)
+        tvs_profiles(jj) % ctp = 1013.25d0
+        tvs_profiles(jj) % cfraction = 0.d0
         
      end do
 
@@ -455,17 +450,10 @@ subroutine tovs_fill_profiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode
      deallocate (zt        ,stat= alloc_status(12))
      deallocate (zlq       ,stat= alloc_status(13))
      deallocate (zht       ,stat= alloc_status(14))
-
-     if( any(alloc_status /= 0) ) then
-        write(*,*) ' tovs_fill_profiles : memory deallocation error'
-        call utl_abort('tovs_fill_profiles')
-     end if
-
+     deallocate (xpres     ,stat= alloc_status(15))
+     call utl_checkAllocationStatus(alloc_status, " tovs_fill_profiles", .false.)
+     
   enddo sensor_loop
-
-
-  deallocate (xpres     ,stat= alloc_status(1))
-
 
 contains
 

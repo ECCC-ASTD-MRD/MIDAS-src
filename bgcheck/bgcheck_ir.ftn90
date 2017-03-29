@@ -74,7 +74,7 @@ SUBROUTINE BGCHECK_IR(columng,columnhr,obsSpaceData)
   do j=1, ninst
      IF (NOBIR(j) > 0) THEN
         do krtid=1,tvs_nsensors
-           if (INSTRUMENT(krtid) ==  tvs_get_inst_id(inst(j)) ) THEN
+           if (TVS_INSTRUMENTS(krtid) ==  tvs_get_inst_id(inst(j)) ) THEN
               call HIRQC (columnhr, obsSpaceData, INST(J), krtid)
            endif
         ENDDO

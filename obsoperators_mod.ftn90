@@ -2744,8 +2744,8 @@ contains
 
           if ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body).eq.1 ) then
              ichn = nint(obs_bodyElem_r(lobsSpaceData,OBS_PPP,index_body))
-             ichn = max(0,min(ichn,jpchmax+1))
-             ichn=ichn-chanoffset(isens)
+             ichn = max(0,min(ichn,tvs_MaxChannelNumber+1))
+             ichn=ichn-tvs_channelOffset(isens)
              indxchn = utl_findArrayIndex(tvs_ichan(:,isens),tvs_nchan(isens),ichn)
              if ( indxchn .eq. 0 ) then
                 write(*,fmt=9202)
@@ -2822,8 +2822,8 @@ contains
 
           if ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body).eq.1 ) then
              ichn = nint(obs_bodyElem_r(lobsSpaceData,OBS_PPP,index_body))
-             ichn    = max(0,min(ichn,jpchmax+1))
-             ichn=ichn-chanoffset(isens)
+             ichn    = max(0,min(ichn,tvs_MaxChannelNumber+1))
+             ichn=ichn-tvs_channelOffset(isens)
              indxchn = utl_findArrayIndex(tvs_ichan(:,isens),tvs_nchan(isens),ichn)
              if ( indxchn .eq. 0 ) then
                 write(*,fmt=9202)
@@ -2832,7 +2832,7 @@ contains
              endif
              call obs_bodySet_r(lobsSpaceData,OBS_WORK,index_body, &
                   radiance_tl (indxtovs) % bt(indxchn))
-             if ( ldbgtov ) then
+             if ( tvs_debug ) then
                 write(*,'(a,i4,2f8.2)') ' ichn,sim,obs= ', &
                      ichn,  radiance_tl (indxtovs) % bt(indxchn), &
                      obs_bodyElem_r(lobsSpaceData,OBS_OMP,index_body)

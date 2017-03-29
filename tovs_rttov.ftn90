@@ -59,9 +59,8 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
   integer :: isurface
   integer :: nlevels
   integer :: count_tb
-  integer :: alloc_status(9)
-  integer :: errorstatus                     ! rttov error return code
-  integer :: rttov_err_stat
+  integer :: alloc_status(6)
+  integer :: rttov_err_stat ! rttov error return code
   integer ,external :: omp_get_num_threads
   integer :: nthreads,max_nthreads
   integer :: sensor_id, obs_index
@@ -95,14 +94,10 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
 !$omp parallel
   max_nthreads = omp_get_num_threads()
 !$omp end parallel
-
+  alloc_status(1) = 0
   allocate(iptobs(TVS_NOBTOV),stat=alloc_status(1))
+  call utl_checkAllocationStatus(alloc_status(1:1), " tovs_rttov iptobs")
 
-  if( alloc_status(1)/=0 ) then
-     write(*,*) ' tovs_rttov: alloc_status = ', alloc_status(:)
-     write(*,'(" tovs_rttov: arrays #1 memory allocation error")')
-     call utl_abort('tovs_rttov')
-  end if
 
 !     1.1   Read surface information
 !     .     ------------------------
@@ -118,10 +113,9 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
 
   sensor_loop:do sensor_id = 1, tvs_nsensors
    
-     nlevels=coefs(sensor_id)% coef % nlevels
-  
-     sensor_type = coefs(sensor_id) % coef % id_sensor
-     instrum = coefs(sensor_id) % coef % id_inst
+     nlevels=tvs_coefs(sensor_id)% coef % nlevels
+     sensor_type = tvs_coefs(sensor_id) % coef % id_sensor
+     instrum = tvs_coefs(sensor_id) % coef % id_inst
     
 !  loop over all obs.
 
@@ -159,14 +153,11 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
      allocate ( chanprof         (count_tb) ,stat=alloc_status(3))
      allocate ( emissivity_local (count_tb) ,stat=alloc_status(4))
      allocate ( calcemis         (count_tb) ,stat=alloc_status(5))
-     if (luse_uwiremis) then
+     if (tvs_useUofWIREmiss) then
         allocate ( surfem2(count_tb)        ,stat=alloc_status(6) )
      endif
-     if( any(alloc_status /= 0) ) then
-        write(*,*) ' tovs_rttov: alloc_status = ', alloc_status(:)
-        write(*,'(" tovs_rttov: arrays #2 memory allocation error")')
-        call utl_abort('tovs_rttov')
-     endif
+     call utl_checkAllocationStatus(alloc_status, " tovs_rttov")
+    
 
 !     get Hyperspectral IR emissivities
 
@@ -193,36 +184,31 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
      endif
 
      asw=1 ! 1 to allocate,0 to deallocate
-       ! allocate transmitance structure
+! allocate transmitance structure
 
-     call rttov_alloc_transmission(rttov_err_stat,transmission,nlevels=nlevels,      &
-          nchanprof=count_tb,asw=asw,init=.true. )
-     if (rttov_err_stat/=0) THEN
-        Write(*,*) "Error in transmittance allocation",rttov_err_stat
-        call utl_abort('tovs_rttov')
-     ENDIF
+     call rttov_alloc_transmission(alloc_status(1), transmission, nlevels=nlevels,      &
+          nchanprof=count_tb, asw=asw, init=.true. )
+     call utl_checkAllocationStatus(alloc_status, " tovs_rttov transmittances")
+     
+! allocate radiance structure
 
-       ! allocate radiance structure
-
-     call rttov_alloc_rad (rttov_err_stat,count_tb, radiancedata_d,nlevels,asw,init=.true.)
-     if (rttov_err_stat/=0) THEN
-        Write(*,*) "Error in radiance allocation",rttov_err_stat
-        call utl_abort('tovs_rttov')
-     ENDIF
+     call rttov_alloc_rad (alloc_status(1),count_tb, radiancedata_d,nlevels,asw,init=.true.)
+     call utl_checkAllocationStatus(alloc_status, " tovs_rttov radiances")
+     
       
      call TVS_GetOtherEmissivities(chanprof, iptobs, count_tb, sensor_type, instrum, surfem1, calcemis)
 
-     if (luse_uwiremis .and. tvs_Is_Instrum_Hyperspectral(instrum) .and. bgckMode) then
+     if (tvs_useUofWIREmiss .and. tvs_Is_Instrum_Hyperspectral(instrum) .and. bgckMode) then
         if (first) then
            if (.not. allocated (Atlas)) allocate(Atlas(tvs_nsensors))
            call rttov_setup_emis_atlas( rttov_err_stat,       &! out
-                      opts(sensor_id),                        &! in
-                      profiles(1)%date(2) ,                   &! in
+                      tvs_opts(sensor_id),                    &! in
+                      tvs_profiles(1)%date(2) ,               &! in
                       atlas_type_ir,                          &! in
                       atlas(sensor_id),                       &! in
                       ir_atlas_ang_corr = .false.,            &! in
                       ir_atlas_read_std = .false.,            &! in
-                      coefs = coefs(sensor_id)  )
+                      coefs = tvs_coefs(sensor_id)  )
            if (rttov_err_stat/=0) THEN
               Write(*,*) "Error in rttov_atlas_setup ",rttov_err_stat
               call utl_abort('tovs_rttov')
@@ -230,16 +216,16 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
            first=.false.
         endif
 
-        call rttov_get_emis( rttov_err_stat    , &   ! out
-             opts(sensor_id)                   , &   ! in
-             chanprof(1:count_tb)              , &   ! in
-             profiles(iptobs(1:count_profile)) , &   ! in
-             coefs(sensor_id)                  , &   ! in
-             Atlas(sensor_id)                  , &   ! in
+        call rttov_get_emis( rttov_err_stat        , &   ! out
+             tvs_opts(sensor_id)                   , &   ! in
+             chanprof(1:count_tb)                  , &   ! in
+             tvs_profiles(iptobs(1:count_profile)) , &   ! in
+             tvs_coefs(sensor_id)                  , &   ! in
+             Atlas(sensor_id)                      , &   ! in
              surfem2(1:count_tb)     ) ! out
        
 
-           if (rttov_err_stat/=0) THEN
+           if (rttov_err_stat /= 0) THEN
               Write(*,*) "Error in rttov_get_emis ",rttov_err_stat
               call utl_abort('tovs_rttov')
            ENDIF
@@ -262,7 +248,7 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
                    ! other information that could be useful for quality control can be found in the in the profile_qc structure
                    ! Now we have the "traditionnal" emissivity in surfem1(:)
                    ! and University of Wisconsin emissivity in surfem2(:)
-                    if (profiles(jj)% skin % surftype == 0 .and. &
+                    if (tvs_profiles(jj)% skin % surftype == 0 .and. &
                          surfem2(tb_index)>0.5 ) then
                        emissivity_local(tb_index)%emis_in = surfem2(tb_index)
                     else
@@ -278,39 +264,39 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
 !     .  2.3  Compute radiance with rttov direct
 !     .       ----------------------------------
 
-        errorstatus = 0 
+        rttov_err_stat = 0 
      
         call rttov_parallel_direct(       &
-             errorstatus,                 & ! out
+             rttov_err_stat,              & ! out
              chanprof,                    & ! in
-             opts(sensor_id),             & ! in
-             profiles(iptobs(1:count_profile)),  & ! in
-             coefs(sensor_id),            & ! in
+             tvs_opts(sensor_id),         & ! in
+             tvs_profiles(iptobs(1:count_profile)),  & ! in
+             tvs_coefs(sensor_id),        & ! in
              transmission,                & ! inout
              radiancedata_d,              & ! inout
              calcemis=calcemis,           & ! in
              emissivity=emissivity_local, & ! inout
              nthreads=nthreads      )   
 
-        if (errorstatus /= 0) then
-           Write(*,*) "Error in rttov_parallel_direct",errorstatus
+        if (rttov_err_stat /= 0) then
+           Write(*,*) "Error in rttov_parallel_direct",rttov_err_stat
            call utl_abort('tovs_rttov')
         endif
                                                        
-!     .  2.4  Store hx in the structure radiance_d
+!     .  2.4  Store hx in the structure tvs_radiance
 !     .       ------------------------------------
 
         do tb_index = 1, count_tb
            profile_index = chanprof(tb_index)%prof
            ichn = chanprof(tb_index)%chan
            obs_index = iptobs(profile_index)
-           radiance_d(obs_index) % bt(ichn) =        &
+           tvs_radiance(obs_index) % bt(ichn) =        &
                 radiancedata_d % bt(tb_index)
-           radiance_d(obs_index) % clear(ichn) =  &
+           tvs_radiance(obs_index) % clear(ichn) =  &
                 radiancedata_d %clear(tb_index)
            if ( bgckMode ) then
               do level_index = 1, nlevels - 1
-                 radiance_d(obs_index) % overcast(level_index,ichn) =   &
+                 tvs_radiance(obs_index) % overcast(level_index,ichn) =   &
                       radiancedata_d % overcast(level_index,tb_index)
               enddo
               do level_index = 1, nlevels
@@ -330,19 +316,15 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
       
   
         asw=0 ! 1 to allocate,0 to deallocate
-        ! transmittance deallocation
-        call rttov_alloc_transmission(rttov_err_stat,transmission,nlevels=nlevels,      &
-             nchanprof=count_tb,asw=asw )
-        if (rttov_err_stat/=0) THEN
-           Write(*,*) "Error in transmittance deallocation",rttov_err_stat
-           call utl_abort('tovs_rttov')
-        ENDIF
-        ! radiance deallocation       
-        call rttov_alloc_rad (rttov_err_stat,count_tb,radiancedata_d,nlevels,asw)
-        if (rttov_err_stat/=0) THEN
-           Write(*,*) "Error in radiance deallocation",rttov_err_stat
-           call utl_abort('tovs_rttov')
-        ENDIF
+! transmittance deallocation
+        call rttov_alloc_transmission(alloc_status(1),transmission,nlevels=nlevels,  &
+             nchanprof=count_tb, asw=asw )
+        call utl_checkAllocationStatus(alloc_status, " tovs_rttov transmittances", .false.)
+        
+! radiance deallocation       
+        call rttov_alloc_rad (alloc_status(1), count_tb, radiancedata_d, nlevels, asw)
+        call utl_checkAllocationStatus(alloc_status, " tovs_rttov radiances", .false.)
+        
         
         alloc_status(:) = 0
         
@@ -350,15 +332,11 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
         deallocate ( chanprof          ,stat=alloc_status(2) )
         deallocate ( calcemis          ,stat=alloc_status(3) )
         deallocate ( emissivity_local  ,stat=alloc_status(4) )
-        if (luse_uwiremis) then
+        if (tvs_useUofWIREmiss) then
            deallocate ( surfem2         ,stat=alloc_status(5) )
         endif
-
-        if( any(alloc_status /= 0) ) then
-           write(*,*) ' tovs_rttov: alloc_status = ', alloc_status(:)
-           write(*,'(" tovs_rttov: arrays #2 memory deallocation error")')
-           call utl_abort('tovs_rttov')
-        end if
+        call utl_checkAllocationStatus(alloc_status, " tovs_rttov", .false.)
+        
 
      enddo sensor_loop
 

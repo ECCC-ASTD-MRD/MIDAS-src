@@ -23,7 +23,7 @@
 !--------------------------------------------------------------------------
 Module tovs_lin_mod
   Use rttov_types, only : rttov_profile, rttov_radiance 
-  Use tovs_nl_mod, only : TVS_NOBTOV,tvs_nsensors,tvs_lsensor,coefs,opts,tvs_nchan,tvs_l_really_present,tvs_ichan,tvs_list_sensors
+  Use tovs_nl_mod, only : TVS_NOBTOV,tvs_nsensors,tvs_lsensor,tvs_coefs,tvs_opts,tvs_nchan,tvs_l_really_present,tvs_ichan,tvs_list_sensors
   use utilities_mod
   implicit none
   save
@@ -143,10 +143,10 @@ SUBROUTINE TOVS_LIN_SETUPALLO()
   asw=1 ! to allocate
   do jo = 1, TVS_NOBTOV
      isens = tvs_lsensor(jo)
-     nl = coefs(isens)%coef % nlevels
+     nl = tvs_coefs(isens)%coef % nlevels
      ! allocate model tl profiles atmospheric arrays with RTTOV levels dimension
      call rttov_alloc_prof(errorstatus,1,profiles_tl(jo),nl, &
-          opts(isens),asw,coefs=coefs(isens),init=.false. )
+          tvs_opts(isens),asw,coefs=tvs_coefs(isens),init=.false. )
      if (errorstatus/=0) THEN
         Write(*,*) "Error in profiles_tl allocation",errorstatus
         CALL utl_abort('TOVS_LIN_SETUPALLO')
@@ -154,7 +154,7 @@ SUBROUTINE TOVS_LIN_SETUPALLO()
 
      ! allocate model ad profiles atmospheric arrays with RTTOV levels dimension
      call rttov_alloc_prof(errorstatus,1,profiles_ad(jo),nl, &
-          opts(isens),asw,coefs=coefs(isens),init=.true. )
+          tvs_opts(isens),asw,coefs=tvs_coefs(isens),init=.true. )
      if (errorstatus/=0) THEN
         Write(*,*) "Error in profiles_ad allocation",errorstatus
         CALL utl_abort('TOVS_LIN_SETUPALLO')
@@ -178,7 +178,7 @@ SUBROUTINE TOVS_LIN_SETUPALLO()
   do jo = 1, TVS_NOBTOV
      isens = tvs_lsensor(jo)
      nc = tvs_nchan(isens)
-     nl = coefs(isens) % coef % nlevels
+     nl = tvs_coefs(isens) % coef % nlevels
      !! allocate BT equivalent to tl and ad radiance output
      alloc_status(:) = 0
      allocate( radiance_tl(jo) % bt  ( nc ) ,stat= alloc_status(1))

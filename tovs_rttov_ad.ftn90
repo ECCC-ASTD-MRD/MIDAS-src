@@ -96,9 +96,9 @@ subroutine tovs_rttov_ad(lobsSpaceData)
 
   sensor_loop:do  sensor_id = 1, tvs_nsensors
 
-     nlevels=coefs(sensor_id) %coef % nlevels
-     sensor_type = coefs(sensor_id) % coef% id_sensor
-     instrum = coefs(sensor_id) % coef% id_inst
+     nlevels=tvs_coefs(sensor_id) %coef % nlevels
+     sensor_type = tvs_coefs(sensor_id) % coef% id_sensor
+     instrum = tvs_coefs(sensor_id) % coef% id_inst
      
 !  loop over all obs.
 
@@ -115,7 +115,6 @@ subroutine tovs_rttov_ad(lobsSpaceData)
 
      if (count_profile == 0) cycle sensor_loop
 
-
 !     .  2.1  Calculate the actual number of threads which will be used.
 !     .       ----------------------------------------------------------
 
@@ -131,19 +130,14 @@ subroutine tovs_rttov_ad(lobsSpaceData)
       if (count_tb == 0) cycle sensor_loop
 
       alloc_status(:)=0
-      allocate ( chanprof     (count_tb)    ,stat=alloc_status(1))
-      allocate ( emissivity_local (count_tb),stat=alloc_status(2))
-      allocate ( emissivity_ad(count_tb)    ,stat=alloc_status(3))
-      allocate ( calcemis     (count_tb)    ,stat=alloc_status(4))
-      allocate ( surfem1      (count_tb)    ,stat=alloc_status(5))
-      allocate ( profilesdata_ad(count_profile)           ,stat=alloc_status(6))
-
-      if( any(alloc_status /= 0) ) then
-         write(*,*) ' tovs_rttov_ad: alloc_status = ', alloc_status(:)
-         write(*,'(" tovs_rttov_ad:  arrays #2 memory allocation error")')
-        call utl_abort('tovs_rttov_ad')
-      end if
-
+      allocate ( chanprof     (count_tb)        ,stat=alloc_status(1))
+      allocate ( emissivity_local (count_tb)    ,stat=alloc_status(2))
+      allocate ( emissivity_ad(count_tb)        ,stat=alloc_status(3))
+      allocate ( calcemis     (count_tb)        ,stat=alloc_status(4))
+      allocate ( surfem1      (count_tb)        ,stat=alloc_status(5))
+      allocate ( profilesdata_ad(count_profile) ,stat=alloc_status(6))
+      call utl_checkAllocationStatus(alloc_status, " tovs_rttov_ad")
+      
 !     get Hyperspectral IR emissivities
       
       if ( tvs_Is_Instrum_Hyperspectral(instrum) )  call TVS_GetHIREmissivities(sensor_id, iptobs, count_profile, lobsSpaceData, surfem1)
@@ -159,40 +153,27 @@ subroutine tovs_rttov_ad(lobsSpaceData)
       ! allocate transmittance structures
       asw=1
       init=.true.
-      call rttov_alloc_transmission(rttov_err_stat,transmission,nlevels=nlevels,      &
-           nchanprof=count_tb,asw=asw,init=init)
-      if (rttov_err_stat/=0) THEN
-         Write(*,*) "Error in transmittance allocation",rttov_err_stat
-         call utl_abort('tovs_rttov_ad')
-      endif
-      call rttov_alloc_transmission(rttov_err_stat,transmission_ad,nlevels=nlevels,      &
-           nchanprof=count_tb,asw=asw,init=init)
-      if (rttov_err_stat/=0) THEN
-         Write(*,*) "Error in transmittance_ad allocation",rttov_err_stat
-         call utl_abort('tovs_rttov_ad')
-      endif
+      call rttov_alloc_transmission(alloc_status(1), transmission, nlevels=nlevels,      &
+           nchanprof=count_tb, asw=asw, init=init)
+      call utl_checkAllocationStatus(alloc_status, " tovs_rttov_ad transmittances")
+
+      call rttov_alloc_transmission(alloc_status(1), transmission_ad, nlevels=nlevels,   &
+           nchanprof=count_tb, asw=asw, init=init)
+      call utl_checkAllocationStatus(alloc_status, " tovs_rttov_ad transmittances ad")
+      
 
          ! allocate radiance structures
 
-      call rttov_alloc_rad (rttov_err_stat,count_tb,radiancedata_d,nlevels,asw)
-      if (rttov_err_stat/=0) THEN
-         Write(*,*) "Error in radiance allocation",rttov_err_stat
-         call utl_abort('tovs_rttov_ad')
-      endif
-      call rttov_alloc_rad (rttov_err_stat,count_tb,radiancedata_ad,nlevels,asw)
-      if (rttov_err_stat/=0) THEN
-         Write(*,*) "Error in radiance ad allocation",rttov_err_stat
-         call utl_abort('tovs_rttov_ad')
-      endif
+      call rttov_alloc_rad (alloc_status(1), count_tb, radiancedata_d, nlevels, asw)
+      call utl_checkAllocationStatus(alloc_status, " tovs_rttov_ad radiances")
+      call rttov_alloc_rad (alloc_status(1), count_tb, radiancedata_ad, nlevels, asw)
+      call utl_checkAllocationStatus(alloc_status, " tovs_rttov_ad radiances ad")
 
          ! allocate profile structures
          
-      call rttov_alloc_prof (rttov_err_stat,count_profile,profilesdata_ad,nlevels, &
-           opts(sensor_id),asw=asw,coefs=coefs(sensor_id),init=init)
-      if (rttov_err_stat/=0) THEN
-         Write(*,*) "Error in profiles ad allocation",rttov_err_stat
-         call utl_abort('tovs_rttov_ad')
-      endif
+      call rttov_alloc_prof (alloc_status(1), count_profile, profilesdata_ad, nlevels, &
+           tvs_opts(sensor_id), asw=asw, coefs=tvs_coefs(sensor_id), init=init)
+      call utl_checkAllocationStatus(alloc_status, " tovs_rttov_ad radiances ad")
 
       call rttov_init_prof(profilesdata_ad(1:count_profile) )
 
@@ -213,10 +194,10 @@ subroutine tovs_rttov_ad(lobsSpaceData)
       call rttov_parallel_ad(        &
            errorstatus,              & ! out
            chanprof,                 & ! in
-           opts(sensor_id),              & ! in
-           profiles(iptobs(1:count_profile)), & ! in
+           tvs_opts(sensor_id),      & ! in
+           tvs_profiles(iptobs(1:count_profile)), & ! in
            profilesdata_ad,          & ! in
-           coefs(sensor_id),             & ! in
+           tvs_coefs(sensor_id),     & ! in
            transmission,             & ! inout
            transmission_ad,          & ! inout
            radiancedata_d,           & ! inout
@@ -253,38 +234,23 @@ subroutine tovs_rttov_ad(lobsSpaceData)
 
      asw=0 ! 1 to allocate,0 to deallocate
 
-     call rttov_alloc_transmission(rttov_err_stat,transmission,nlevels=nlevels,      &
-          nchanprof=count_tb,asw=asw)
-     if (rttov_err_stat/=0) THEN
-        Write(*,*) "Error in transmittance deallocation",rttov_err_stat
-        call utl_abort('tovs_rttov_ad')
-     endif
+     call rttov_alloc_transmission(alloc_status(1), transmission, nlevels=nlevels,      &
+          nchanprof=count_tb, asw=asw)
+     call utl_checkAllocationStatus(alloc_status, " tovs_rttov_ad transmittances", .false.)
 
-     call rttov_alloc_transmission(rttov_err_stat,transmission_ad,nlevels=nlevels,   &
-          nchanprof=count_tb,asw=asw)
-     if (rttov_err_stat/=0) THEN
-        Write(*,*) "Error in transmittance ad allocation",rttov_err_stat
-        call utl_abort('tovs_rttov_ad')
-     endif
+     call rttov_alloc_transmission(alloc_status(1), transmission_ad, nlevels=nlevels,   &
+          nchanprof=count_tb, asw=asw)
+     call utl_checkAllocationStatus(alloc_status, " tovs_rttov_ad transmittances ad", .false.)
          
-     call rttov_alloc_rad (rttov_err_stat,count_tb,radiancedata_d,nlevels,asw)
-     if (rttov_err_stat/=0) THEN
-        Write(*,*) "Error in radiance deallocation",rttov_err_stat
-        call utl_abort('tovs_rttov_ad')
-     endif
+     call rttov_alloc_rad (alloc_status(1), count_tb, radiancedata_d, nlevels, asw)
+     call utl_checkAllocationStatus(alloc_status, " tovs_rttov_ad radiances", .false.)
 
-     call rttov_alloc_rad (rttov_err_stat,count_tb,radiancedata_ad,nlevels,asw)
-     if (rttov_err_stat/=0) THEN
-        Write(*,*) "Error in radiance ad deallocation",rttov_err_stat
-        call utl_abort('tovs_rttov_ad')
-     endif
+     call rttov_alloc_rad (alloc_status(1), count_tb, radiancedata_ad, nlevels, asw)
+     call utl_checkAllocationStatus(alloc_status, " tovs_rttov_ad radiances ad", .false.)
 
-     call rttov_alloc_prof (rttov_err_stat,count_profile,profilesdata_ad,nlevels, &
-          opts(sensor_id),asw=asw)
-     if (rttov_err_stat/=0) THEN
-        Write(*,*) "Error in profiles ad deallocation",rttov_err_stat
-        call utl_abort('tovs_rttov_ad')
-     endif
+     call rttov_alloc_prof (alloc_status(1), count_profile, profilesdata_ad, nlevels, &
+          tvs_opts(sensor_id), asw=asw)
+     call utl_checkAllocationStatus(alloc_status, " tovs_rttov_ad radiances ad", .false.)
 
      alloc_status(:) = 0
      deallocate ( profilesdata_ad ,stat=alloc_status(1))
@@ -293,14 +259,8 @@ subroutine tovs_rttov_ad(lobsSpaceData)
      deallocate ( emissivity_ad   ,stat=alloc_status(4))
      deallocate ( calcemis        ,stat=alloc_status(5))
      deallocate ( surfem1         ,stat=alloc_status(6))
-     
-     if( any(alloc_status /= 0) ) then
-        write(*,*) ' tovs_rttov_ad: alloc_status = ', alloc_status(:)
-        write(*,'(" tovs_rttov_ad: arrays #2 memory deallocation error")')
-        call utl_abort('tovs_rttov_ad')
-     end if
-
-
+     call utl_checkAllocationStatus(alloc_status, " tovs_rttov_ad", .false.)
+    
   enddo sensor_loop
 
 !     3.  Close up

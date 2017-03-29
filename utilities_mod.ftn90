@@ -28,7 +28,7 @@ module utilities_mod
   ! public procedures
   public :: utl_EZUVINT, utl_EZGDEF, utl_CXGAIG, utl_FSTLIR, utl_FSTECR
   public :: utl_EZSINT, utl_EZSINT2, utl_findArrayIndex, utl_matSqrt
-  public :: utl_writeStatus, utl_getfldprm, utl_abort
+  public :: utl_writeStatus, utl_getfldprm, utl_abort, utl_checkAllocationStatus
 
 contains
 
@@ -644,5 +644,35 @@ contains
     call mpi_abort( comm, 1, ierr )
 
   end subroutine utl_abort
+
+  subroutine utl_checkAllocationStatus(status, message, alloc)
+    
+    implicit none
+    character(len=*),intent(in) :: message
+    integer, intent(in) :: status(:)
+    logical, optional, intent(in) :: alloc 
+    !**************************************************
+    logical :: flag
+
+    if ( present(alloc) ) then
+       flag = alloc
+    else
+       flag = .true.
+    endif
+
+    if (any(status /= 0)) then
+       if (flag) then
+          Write(6,'(A)') "Memory allocation failure !"
+       else
+          Write(6,'(A)') "Memory deallocation failure !"
+       endif
+       Write(6,'(64(i8,1x))') status
+       call utl_abort(message)
+    endif
+
+ end subroutine utl_checkAllocationStatus
+
+
+
   
 end module utilities_mod

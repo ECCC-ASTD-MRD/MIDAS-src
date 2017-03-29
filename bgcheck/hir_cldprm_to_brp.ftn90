@@ -413,7 +413,7 @@ SUBROUTINE hir_cldprm_to_brp(lobsspacedata,brp_file)
                     do j = IDATA,IDATEND
                        emisfc=100.d0*obs_bodyElem_r(lobsspacedata,OBS_SEM,j)
                        ICHN = NINT(obs_bodyElem_r(lobsSpaceData,OBS_PPP,j))
-                       ICHN = MAX(0,MIN(ICHN,JPCHMAX+1))
+                       ICHN = MAX(0,MIN(ICHN,TVS_MAXCHANNELNUMBER+1))
                        bl: do l=1,nvale
                           ichnb=BURP_Get_Tblval(Block_in, &
                                NELE_IND = indchan, &
