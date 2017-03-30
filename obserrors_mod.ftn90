@@ -152,12 +152,12 @@ contains
 
     integer,external  :: FNOM, FCLOS
     integer  :: IER, ILUTOV, JI, JJ, JK, JL, JM, I, IPOS1, IPOS2, INUMSAT, ISAT, IPLF
-    integer, dimension(TVS_MAXNUMBEROFSENSORS)         :: IPLATFORM, ISATID, IINSTRUMENT, NUMCHN, NUMCHNIN
-    integer, dimension(tvs_maxChannelNumber,TVS_MAXNUMBEROFSENSORS) :: IUTILST, ICHN, ICHNIN
+    integer, dimension(tvs_maxNumberOfSensors)         :: IPLATFORM, ISATID, IINSTRUMENT, NUMCHN, NUMCHNIN
+    integer, dimension(tvs_maxChannelNumber,tvs_maxNumberOfSensors) :: IUTILST, ICHN, ICHNIN
 
     real :: ZDUM
 
-    real(8), dimension(tvs_maxChannelNumber,2,TVS_MAXNUMBEROFSENSORS) :: TOVERRIN
+    real(8), dimension(tvs_maxChannelNumber,2,tvs_maxNumberOfSensors) :: TOVERRIN
 
     character (len=132) :: CLDUM,CPLATF,CINSTR
 
@@ -167,7 +167,7 @@ contains
     !    1. Initialize
     !       ----------
     !
-    DO JL = 1, TVS_MAXNUMBEROFSENSORS  
+    DO JL = 1, tvs_maxNumberOfSensors  
        DO JI = 1, tvs_maxChannelNumber
           TOVERRST(JI,JL) = 0.0D0
           TOVERRIN(JI,1,JL) = 0.0D0
@@ -176,7 +176,7 @@ contains
        ENDDO
     ENDDO
 
-    DO JL = 1, TVS_MAXNUMBEROFSENSORS
+    DO JL = 1, tvs_maxNumberOfSensors
        IPLATFORM(JL) = 0
        NUMCHN(JL) = 0
        NUMCHNIN(JL) = 0

@@ -105,18 +105,18 @@ Module tovs_nl_mod
 !   Variables from comtov.cdk
 !     tvs_nsensors           : number of individual sensors.
 !     tvs_platforms(MXPLATFORM)  : platform ID's (e.g., 1=NOAA; 2=DMSP; ...)
-!     tvs_satellites(TVS_MAXNUMBEROFSENSORS)  : satellite ID's (e.g., 1 to 16 for NOAA; ...)
-!     tvs_instruments(TVS_MAXNUMBEROFSENSORS) : instrument ID's (e.g., 3=AMSU-A; 4=AMSU-B; 6=SSMI; ...)
-!     tvs_channelOffset(TVS_MAXNUMBEROFSENSORS) : BURP to RTTOV channel mapping offset
+!     tvs_satellites(tvs_maxNumberOfSensors)  : satellite ID's (e.g., 1 to 16 for NOAA; ...)
+!     tvs_instruments(tvs_maxNumberOfSensors) : instrument ID's (e.g., 3=AMSU-A; 4=AMSU-B; 6=SSMI; ...)
+!     tvs_channelOffset(tvs_maxNumberOfSensors) : BURP to RTTOV channel mapping offset
 !     tvs_debug            : logical key controlling statements to be
 !     .                    executed while debugging TOVS only
 !     tvs_radiativeTransferCode            : TOVS radiation model used:
 !                             RTTOV, EUMETSAT NWP SAF radiation model
   INTEGER tvs_nsensors
-  INTEGER tvs_platforms(TVS_MAXNUMBEROFSENSORS), tvs_satellites(TVS_MAXNUMBEROFSENSORS)
-  INTEGER tvs_instruments(TVS_MAXNUMBEROFSENSORS), tvs_channelOffset(TVS_MAXNUMBEROFSENSORS)
+  INTEGER tvs_platforms(tvs_maxNumberOfSensors), tvs_satellites(tvs_maxNumberOfSensors)
+  INTEGER tvs_instruments(tvs_maxNumberOfSensors), tvs_channelOffset(tvs_maxNumberOfSensors)
   LOGICAL tvs_debug, tvs_useUofWIREmiss
-  CHARACTER*15 tvs_satelliteName(TVS_MAXNUMBEROFSENSORS), tvs_instrumentName(TVS_MAXNUMBEROFSENSORS)
+  CHARACTER*15 tvs_satelliteName(tvs_maxNumberOfSensors), tvs_instrumentName(tvs_maxNumberOfSensors)
   CHARACTER*8 tvs_radiativeTransferCode
 
   ! Derived types
@@ -201,12 +201,12 @@ SUBROUTINE tvs_setupAlloc(lobsSpaceData)
 
 
   alloc_status = 0
-  allocate (tvs_nchan(tvs_nsensors),                       stat= alloc_status(1))
-  allocate (tvs_ichan(tvs_maxNumberOfChannels,tvs_nsensors),                stat= alloc_status(2))
-  allocate (tvs_lsensor(obs_numheader(lobsSpaceData)), stat= alloc_status(3))
-  allocate (tvs_lobsno (obs_numheader(lobsSpaceData)), stat= alloc_status(4))
-  allocate (tvs_ltovsno(obs_numheader(lobsSpaceData)), stat= alloc_status(5))
-  allocate (tvs_isReallyPresent(tvs_nsensors),            stat= alloc_status(6))
+  allocate (tvs_nchan(tvs_nsensors),                         stat= alloc_status(1))
+  allocate (tvs_ichan(tvs_maxNumberOfChannels,tvs_nsensors), stat= alloc_status(2))
+  allocate (tvs_lsensor(obs_numheader(lobsSpaceData)),       stat= alloc_status(3))
+  allocate (tvs_lobsno (obs_numheader(lobsSpaceData)),       stat= alloc_status(4))
+  allocate (tvs_ltovsno(obs_numheader(lobsSpaceData)),       stat= alloc_status(5))
+  allocate (tvs_isReallyPresent(tvs_nsensors),               stat= alloc_status(6))
 
   call utl_checkAllocationStatus(alloc_status, " tvs_setupAlloc")
   
@@ -312,10 +312,9 @@ SUBROUTINE tvs_setupAlloc(lobsSpaceData)
 
      WRITE(*,'(//,10x,A)') "-rttov_setup: initializing the TOVS radiative transfer model"
 
-     alloc_status(:) = 0
-     allocate (tvs_coefs(tvs_nsensors)              ,stat= alloc_status(1))
+     allocate (tvs_coefs(tvs_nsensors)             ,stat= alloc_status(1))
      allocate (tvs_listSensors (3,tvs_nsensors)    ,stat= alloc_status(2))
-     allocate (tvs_opts (tvs_nsensors)              ,stat= alloc_status(3))
+     allocate (tvs_opts (tvs_nsensors)             ,stat= alloc_status(3))
 
      call utl_checkAllocationStatus(alloc_status(1:3), " tvs_setupAlloc before rttov initialization")
 
@@ -420,7 +419,6 @@ SUBROUTINE tvs_setupAlloc(lobsSpaceData)
 
 !___ radiance by profile
 
-  alloc_status(:) = 0
   allocate( tvs_radiance(tvs_nobtov) ,stat= alloc_status(1))
 
   call utl_checkAllocationStatus(alloc_status(1:1), " tvs_setupAlloc radiances 1")
@@ -430,7 +428,6 @@ SUBROUTINE tvs_setupAlloc(lobsSpaceData)
      nc = tvs_nchan(isens)
      nl = tvs_coefs(isens) % coef % nlevels
      !! allocate BT equivalent to total direct, tl and ad radiance output
-     alloc_status(:) = 0
      allocate( tvs_radiance(jo)  % bt  ( nc ) ,stat= alloc_status(1))
      
      tvs_radiance(jo)  % bt  ( : ) = 0.d0
@@ -505,8 +502,8 @@ SUBROUTINE tvs_setup
      CALL utl_abort('tvs_setup')
   ENDIF
 
-  IF ( tvs_nsensors > TVS_MAXNUMBEROFSENSORS ) THEN
-     WRITE(*,'(A)') ' Number of sensors (tvs_nsensors) is greater than maximum allowed (TVS_MAXNUMBEROFSENSORS)'
+  IF ( tvs_nsensors > tvs_maxNumberOfSensors ) THEN
+     WRITE(*,'(A)') ' Number of sensors (tvs_nsensors) is greater than maximum allowed (tvs_maxNumberOfSensors)'
      CALL utl_abort('tvs_setup')
   ENDIF
 
