@@ -52,23 +52,23 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData,dest_obs)
 
   integer :: isens, indxchn, indxtovs
   real*8 dlsum, zdtb, zjon,zgami,zqcarg
-  real*8 zjoch  (0:tvs_MaxChannelNumber,tvs_MaxNumberOfSensors)
-  real*8 zavgnrm(0:tvs_MaxChannelNumber,tvs_MaxNumberOfSensors)
+  real*8 zjoch  (0:tvs_maxChannelNumber,tvs_maxNumberOfSensors)
+  real*8 zavgnrm(0:tvs_maxChannelNumber,tvs_maxNumberOfSensors)
   integer j, i, krtid, nchanperline, indxs, indxe
   integer inobsjo, incanjo
   integer idatyp
   integer ichn, ichOBS_A, jl
-  integer inobsch(0:tvs_MaxChannelNumber,tvs_MaxNumberOfSensors)
-  integer lcanjo(tvs_MaxChannelNumber)
+  integer inobsch(0:tvs_maxChannelNumber,tvs_maxNumberOfSensors)
+  integer lcanjo(tvs_maxChannelNumber)
   integer :: index_header, index_body
  
-  real (8) :: x(tvs_MaxChannelNumber),y(tvs_MaxChannelNumber)
-  integer :: list_chan(tvs_MaxChannelNumber)
+  real (8) :: x(tvs_maxChannelNumber),y(tvs_maxChannelNumber)
+  integer :: list_chan(tvs_maxChannelNumber)
   integer :: count
 
   write(*,*) "Entering tovs_calc_jo subroutine"
 
-  if(TVS_NOBTOV.eq.0) return    ! exit if there are not tovs data
+  if(tvs_nobtov.eq.0) return    ! exit if there are not tovs data
 
   ! 1.  Computation of (hx - z)/sigma for tovs data only
   !     ------------------------------------------------
@@ -76,7 +76,7 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData,dest_obs)
   dlsum    = 0.D0
   inobsjo  = 0
   do j = 1, tvs_nsensors
-     do i = 0, tvs_MaxChannelNumber
+     do i = 0, tvs_maxChannelNumber
         inobsch(i,j) = 0
         zjoch  (i,j) = 0.0D0
         zavgnrm(i,j) = 0.0D0
@@ -94,12 +94,11 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData,dest_obs)
 
      ! process only radiance data to be assimilated?
      idatyp = obs_headElem_i(lobsSpaceData,OBS_ITY,index_header)
-     if ( .not. tvs_Is_idburp_tovs(idatyp) ) cycle HEADER
+     if ( .not. tvs_isIdBurpTovs(idatyp) ) cycle HEADER
 
      indxtovs = tvs_ltovsno(index_header)
      if ( indxtovs .eq. 0 ) then
-        write(*,fmt=9203)
-9203    format(' tovs_calc_jo: error with indxtovs')
+        write(*,'(A)') ' tovs_calc_jo: error with indxtovs'
         call utl_abort('tovs_calc_jo')
      endif
 
@@ -123,13 +122,12 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData,dest_obs)
         if ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body).ne.1 ) cycle BODY                
 
         ichn = nint(obs_bodyElem_r(lobsSpaceData,OBS_PPP,index_body))
-        ichn = max(0,min(ichn,tvs_MaxChannelNumber+1))
-        ichOBS_A = max(0,min(ichn,tvs_MaxChannelNumber+1))
+        ichn = max(0,min(ichn,tvs_maxChannelNumber+1))
+        ichOBS_A = max(0,min(ichn,tvs_maxChannelNumber+1))
         ichn=ichn-tvs_channelOffset(isens)
         indxchn = utl_findArrayIndex(tvs_ichan(:,isens),tvs_nchan(isens),ichn)
         if ( indxchn .eq. 0 ) then
-           write(*,fmt=9202)
-9202       format(' tovs_calc_jo: error with channel number')
+           write(*,'(A)') ' tovs_calc_jo: error with channel number'
            call utl_abort('tovs_calc_jo')
         endif
 
@@ -194,7 +192,7 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData,dest_obs)
      write(*,'(10x,A)') "-tovs_calc_jo: computing jo and residuals to tovs  observations"
 
      do krtid = 1, tvs_nsensors
-        do i = 1, tvs_MaxChannelNumber
+        do i = 1, tvs_maxChannelNumber
            inobsch(0,krtid) = inobsch(0,krtid) + &
                               inobsch(i,krtid)
            zjoch(0,krtid)   = zjoch(0,krtid) + &
@@ -206,7 +204,7 @@ subroutine tovs_calc_jo(pjo,llprint,lobsSpaceData,dest_obs)
 
      do jl = 1, tvs_nsensors
         incanjo = 0
-        do i = 0, tvs_MaxChannelNumber
+        do i = 0, tvs_maxChannelNumber
            if ( inobsch(i,jl) .ne. 0 ) then
               incanjo = incanjo + 1
               lcanjo(incanjo) = i

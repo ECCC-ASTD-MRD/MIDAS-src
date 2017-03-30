@@ -433,10 +433,10 @@ contains
     DO JN = 1, NPRF
        ZLAT(JN)    = PROFILES_QC(IPTOBS(JN))%LAT
        ZLON(JN)    = PROFILES_QC(IPTOBS(JN))%LON
-       KSURF(JN)   = TVS_PROFILES(IPTOBS(JN))%SKIN%SURFTYPE
-       UWIND(JN)   = TVS_PROFILES(IPTOBS(JN))%S2M%U
-       VWIND(JN)   = TVS_PROFILES(IPTOBS(JN))%S2M%V
-       SATZANG(JN) = TVS_PROFILES(IPTOBS(JN))%ZENANGLE
+       KSURF(JN)   = tvs_profiles(IPTOBS(JN))%SKIN%SURFTYPE
+       UWIND(JN)   = tvs_profiles(IPTOBS(JN))%S2M%U
+       VWIND(JN)   = tvs_profiles(IPTOBS(JN))%S2M%V
+       SATZANG(JN) = tvs_profiles(IPTOBS(JN))%ZENANGLE
     END DO
 
 !     assign surface properties from grid to profiles
@@ -462,24 +462,24 @@ contains
 
     ALLOCATE(WAVEN(NCHN))
 
-    IF ( TVS_INSTRUMENTS(KRTID) == 11 ) THEN !! --AIRS--
+    IF ( tvs_instruments(KRTID) == 11 ) THEN !! --AIRS--
 
        DO JC = 1, NCHN
-          ICHN = TVS_ICHAN(JC,KRTID)
+          ICHN = tvs_ichan(JC,KRTID)
           WAVEN(JC) = hir_get_wavn("AIRS",ICHN)
        END DO
 
-    ELSE IF ( TVS_INSTRUMENTS(KRTID) == 16 ) THEN !! --IASI--
+    ELSE IF ( tvs_instruments(KRTID) == 16 ) THEN !! --IASI--
 
        DO JC = 1, NCHN
-          ICHN = TVS_ICHAN(JC,KRTID)
+          ICHN = tvs_ichan(JC,KRTID)
           WAVEN(JC) =  hir_get_wavn("IASI",ICHN)
        END DO
 
-    ELSE IF ( TVS_INSTRUMENTS(KRTID) == 27 ) THEN !! --CrIS--
+    ELSE IF ( tvs_instruments(KRTID) == 27 ) THEN !! --CrIS--
 
        DO JC = 1, NCHN
-          ICHN = TVS_ICHAN(JC,KRTID)
+          ICHN = tvs_ichan(JC,KRTID)
           WAVEN(JC) =  hir_get_wavn("CRIS",ICHN)
        END DO
 

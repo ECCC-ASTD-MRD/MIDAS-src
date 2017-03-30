@@ -23,7 +23,7 @@
 !--------------------------------------------------------------------------
 Module tovs_lin_mod
   Use rttov_types, only : rttov_profile, rttov_radiance 
-  Use tovs_nl_mod, only : TVS_NOBTOV,tvs_nsensors,tvs_lsensor,tvs_coefs,tvs_opts,tvs_nchan,tvs_l_really_present,tvs_ichan,tvs_list_sensors
+  Use tovs_nl_mod, only : tvs_nobtov,tvs_nsensors,tvs_lsensor,tvs_coefs,tvs_opts,tvs_nchan,tvs_isReallyPresent,tvs_ichan,tvs_listSensors
   use utilities_mod
   implicit none
   save
@@ -100,13 +100,11 @@ SUBROUTINE TOVS_LIN_SETUPALLO()
 !implicits
 
   Integer :: alloc_status(2)
-  Integer :: setup_errorstatus ! setup return code
-
   INTEGER ::  ival, IPLATFORM, ISAT, INSTRUM
 
   INTEGER ::  JO
   INTEGER ::  ISENS, NC, NL
-  INTEGER ::  ERRORSTATUS,ASW
+  INTEGER ::  ASW
 
 !-----------------------------------------------------------------------
 
@@ -124,73 +122,50 @@ SUBROUTINE TOVS_LIN_SETUPALLO()
   call rmat_init(tvs_nsensors,tvs_nobtov)
   if (rmat_lnondiagr) then
      do isens = 1, tvs_nsensors
-        if (tvs_l_really_present(isens) ) call rmat_readCMatrix(TVS_LIST_SENSORS(:,isens), isens, tvs_ichan(1:tvs_nchan(isens),isens)  )
+        if (tvs_isReallyPresent(isens) ) call rmat_readCMatrix(tvs_listSensors(:,isens), isens, tvs_ichan(1:tvs_nchan(isens),isens)  )
      enddo
   endif
-  alloc_status(:) = 0
 
-  allocate(profiles_tl(TVS_NOBTOV)      , stat= alloc_status(1))
-  allocate(profiles_ad(TVS_NOBTOV)      , stat= alloc_status(2))
+  alloc_status = 0
+  allocate(profiles_tl(tvs_nobtov)      , stat= alloc_status(1))
+  allocate(profiles_ad(tvs_nobtov)      , stat= alloc_status(2))
+  call utl_checkAllocationStatus(alloc_status, " TOVS_LIN_SETUPALLO")
   
-  If( any(alloc_status /= 0) ) then
-     WRITE(*,FMT=9201)
-     WRITE(*,*) alloc_status(1:2)
-9201 FORMAT(' TOVS_LIN_SETUPALLO: Memory Allocation Error')
-     CALL utl_abort('TOVS_LIN_SETUPALLO')
-  End If
-
-  print *,"TOVS_LIN_SETUPALLO TVS_NOBTOV",TVS_NOBTOV
+  print *,"TOVS_LIN_SETUPALLO tvs_nobtov",tvs_nobtov
   asw=1 ! to allocate
-  do jo = 1, TVS_NOBTOV
+  do jo = 1, tvs_nobtov
      isens = tvs_lsensor(jo)
      nl = tvs_coefs(isens)%coef % nlevels
      ! allocate model tl profiles atmospheric arrays with RTTOV levels dimension
-     call rttov_alloc_prof(errorstatus,1,profiles_tl(jo),nl, &
+     call rttov_alloc_prof(alloc_status(1),1,profiles_tl(jo),nl, &
           tvs_opts(isens),asw,coefs=tvs_coefs(isens),init=.false. )
-     if (errorstatus/=0) THEN
-        Write(*,*) "Error in profiles_tl allocation",errorstatus
-        CALL utl_abort('TOVS_LIN_SETUPALLO')
-     endif
-
+     call utl_checkAllocationStatus(alloc_status, " TOVS_LIN_SETUPALLO profiles_tl")
+     
      ! allocate model ad profiles atmospheric arrays with RTTOV levels dimension
-     call rttov_alloc_prof(errorstatus,1,profiles_ad(jo),nl, &
+     call rttov_alloc_prof(alloc_status(1),1,profiles_ad(jo),nl, &
           tvs_opts(isens),asw,coefs=tvs_coefs(isens),init=.true. )
-     if (errorstatus/=0) THEN
-        Write(*,*) "Error in profiles_ad allocation",errorstatus
-        CALL utl_abort('TOVS_LIN_SETUPALLO')
-     endif
-
+     call utl_checkAllocationStatus(alloc_status, " TOVS_LIN_SETUPALLO profiles_ad")
+     
   end do
 
 !___ radiance by profile
 
-  alloc_status(:) = 0
-  
-  allocate( radiance_tl(TVS_NOBTOV),stat= alloc_status(1))
-  allocate( radiance_ad(TVS_NOBTOV),stat= alloc_status(2))
-
-  If( any(alloc_status /= 0) ) then
-     WRITE(*,FMT=9201)
-     WRITE(*,*) alloc_status(1:2)
-     CALL utl_abort('TOVS_LIN_SETUPALLO')
-  End If
-
-  do jo = 1, TVS_NOBTOV
+  allocate( radiance_tl(tvs_nobtov),stat= alloc_status(1))
+  allocate( radiance_ad(tvs_nobtov),stat= alloc_status(2))
+  call utl_checkAllocationStatus(alloc_status, " TOVS_LIN_SETUPALLO radiances")
+ 
+  do jo = 1, tvs_nobtov
      isens = tvs_lsensor(jo)
      nc = tvs_nchan(isens)
      nl = tvs_coefs(isens) % coef % nlevels
      !! allocate BT equivalent to tl and ad radiance output
-     alloc_status(:) = 0
      allocate( radiance_tl(jo) % bt  ( nc ) ,stat= alloc_status(1))
      allocate( radiance_ad(jo) % bt  ( nc ) ,stat= alloc_status(2))
+     call utl_checkAllocationStatus(alloc_status, " TOVS_LIN_SETUPALLO radiances%bt")
+
      radiance_tl(jo) % bt  ( : ) = 0.d0
      radiance_ad(jo) % bt  ( : ) = 0.d0
      
-     If( any(alloc_status /= 0) ) then
-         WRITE(*,FMT=9201)
-         WRITE(*,*) alloc_status(1:2)
-         CALL utl_abort('TOVS_LIN_SETUPALLO')
-     End If
   end do
 
 END SUBROUTINE TOVS_LIN_SETUPALLO

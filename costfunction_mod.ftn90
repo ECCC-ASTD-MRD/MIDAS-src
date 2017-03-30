@@ -25,7 +25,7 @@ module costfunction_mod
   use obsSpaceData_mod
   use rmatrix_mod ,only : rmat_sqrtRm1, rmat_lnondiagr
   use rttov_const, only : nplatforms, ninst,inst_name, platform_name
-  use tovs_nl_mod, only : tvs_MaxChannelNumber,tvs_ltovsno,tvs_lsensor,tvs_Is_idburp_tovs,tvs_nobtov, &
+  use tovs_nl_mod, only : tvs_maxChannelNumber,tvs_ltovsno,tvs_lsensor,tvs_isIdBurpTovs,tvs_nobtov, &
        tvs_nsensors,tvs_lobsno, tvs_instruments, tvs_platforms, tvs_satellites
   implicit none
   save
@@ -51,8 +51,8 @@ contains
     !
     INTEGER index_body,iass,index_header
     integer :: idata,idatend,idatyp,count,ichn
-    real (8) :: x(tvs_MaxChannelNumber),y(tvs_MaxChannelNumber)
-    integer :: list_chan(tvs_MaxChannelNumber)
+    real (8) :: x(tvs_maxChannelNumber),y(tvs_maxChannelNumber)
+    integer :: list_chan(tvs_maxChannelNumber)
 
     ! NOTE I tried using openMP on this loop, but it increased the cost from 4sec to 80sec!!!
     do index_header =1, obs_numHeader(lobsSpaceData)
@@ -61,14 +61,14 @@ contains
        IDATEND = obs_headElem_i(lobsSpaceData,OBS_NLV,INDEX_HEADER) + IDATA - 1
        IDATYP  = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
 
-       if ( tvs_Is_idburp_tovs(idatyp) .and. rmat_lnondiagr) then
+       if ( tvs_isIdBurpTovs(idatyp) .and. rmat_lnondiagr) then
 
           count=0
           do index_body=idata,idatend
              iass = obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body)
              if(iass.eq.1 .or. iass.eq.-1) then
                 ICHN = NINT(obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY))
-                ICHN = MAX(0,MIN(ICHN,TVS_MAXCHANNELNUMBER+1))
+                ICHN = MAX(0,MIN(ICHN,tvs_maxChannelNumber+1))
                 count=count+1
                 list_chan(count)=ichn
                 x(count)=obs_bodyElem_r(lobsSpaceData,elem_src_i,index_body)
@@ -195,7 +195,7 @@ contains
        end select
     enddo
 
-    do itvs =1,TVS_NOBTOV
+    do itvs =1,tvs_nobtov
        index_header=tvs_lobsno(itvs)
        if (index_header > 0 ) then
           IDATA   = obs_headElem_i(lobsSpaceData,OBS_RLN,INDEX_HEADER)
@@ -236,9 +236,9 @@ contains
        if(tvs_nsensors > 0) then
           write(*,'(1x,a)') 'For TOVS decomposition by sensor:'
           write(*,'(1x,a)') '#  plt sat ins    Jo'
-          do isens=1,TVS_NSENSORS
-             write(*,'(i2,1x,a,1x,a,1x,i2,1x,f25.17)') isens,inst_name(TVS_INSTRUMENTS(isens)), &
-                  platform_name(TVS_PLATFORMS(isens)),TVS_SATELLITES(isens),dljotov_sensors(isens)
+          do isens=1,tvs_nsensors
+             write(*,'(i2,1x,a,1x,a,1x,i2,1x,f25.17)') isens,inst_name(tvs_instruments(isens)), &
+                  platform_name(tvs_platforms(isens)),tvs_satellites(isens),dljotov_sensors(isens)
           enddo
           write(*,*) ' '
        endif

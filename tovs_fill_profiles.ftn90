@@ -109,7 +109,7 @@ subroutine tovs_fill_profiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode
 
   write(*,*) "Entering tovs_fill_profiles subroutine"
   
-  if(TVS_NOBTOV.eq.0) return    ! exit if there are no tovs data
+  if(tvs_nobtov.eq.0) return    ! exit if there are no tovs data
 
   !
   !     1.    Set index for model's lowest level and model top
@@ -173,7 +173,7 @@ subroutine tovs_fill_profiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode
 
 ! first loop over all obs.
      count_profile = 0
-     bobs1: do iobs = 1, TVS_NOBTOV
+     bobs1: do iobs = 1, tvs_nobtov
         if (tvs_lsensor(iobs)==sensor_id) then
            count_profile = count_profile + 1
            NOBMAX=iobs
@@ -267,7 +267,7 @@ subroutine tovs_fill_profiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode
 !!! Fix temporaire (?) pour eviter probleme au toit avec GEM 4: on ne veut pas utiliser
 !!! le premier niveau de GEM qui est disgnostique (extrapole a partir des deux niveaux plus bas)
 !!! (grosse varibilite de la temperature au dernier niveau thermo due a l'extrapolation utilisee)
-           zt   (1,count_profile) =  zt   (2,count_profile) + tvs_MesosphereLapseRate *  &
+           zt   (1,count_profile) =  zt   (2,count_profile) + tvs_mesosphereLapseRate *  &
                 log( col_getPressure(columnghr,1,header_index,'TH') /  &
                 col_getPressure(columnghr,2,header_index,'TH') )
            zlq  (1,count_profile) =  zlq  (2,count_profile)         ! extrapolation valeur constante pour H2O peu important a cette hauteur
@@ -314,7 +314,7 @@ subroutine tovs_fill_profiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode
               ! New approach based on a specified lapse rate
            do jl=1,jpmotop-1
               toext(jl,jn) = toext(jpmotop,jn)  + &
-                   ( log(xpres(jl)/xpres(jpmotop)) * tvs_MesosphereLapseRate )
+                   ( log(xpres(jl)/xpres(jpmotop)) * tvs_mesosphereLapseRate )
            enddo
 
         enddo

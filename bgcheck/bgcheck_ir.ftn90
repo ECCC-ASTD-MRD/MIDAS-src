@@ -44,7 +44,7 @@ SUBROUTINE BGCHECK_IR(columng,columnhr,obsSpaceData)
 !     ---------------------------
 !
 
-  TVS_NOBTOV=0
+  tvs_nobtov=0
   call multi_ir_init()
   allocate (NOBIR(ninst))
   NOBIR = 0
@@ -59,11 +59,11 @@ SUBROUTINE BGCHECK_IR(columng,columnhr,obsSpaceData)
 
      IDATYP = obs_headElem_i(obsSpaceData,OBS_ITY,index_header)
 
-     IF ( .not.  tvs_Is_idburp_tovs(IDATYP) ) cycle HEADER   ! Proceed to the next header_index
+     IF ( .not.  tvs_isIdBurpTovs(IDATYP) ) cycle HEADER   ! Proceed to the next header_index
 
-     TVS_NOBTOV = TVS_NOBTOV + 1
+     tvs_nobtov = tvs_nobtov + 1
      do j=1, ninst
-        IF ( tvs_Is_idburp_inst(IDATYP,INST(J)) ) then
+        IF ( tvs_isIdBurpInst(IDATYP,INST(J)) ) then
            NOBIR(J) = NOBIR(J) + 1
            exit
         end if
@@ -74,7 +74,7 @@ SUBROUTINE BGCHECK_IR(columng,columnhr,obsSpaceData)
   do j=1, ninst
      IF (NOBIR(j) > 0) THEN
         do krtid=1,tvs_nsensors
-           if (TVS_INSTRUMENTS(krtid) ==  tvs_get_inst_id(inst(j)) ) THEN
+           if (tvs_instruments(krtid) ==  tvs_getInstrumentId(inst(j)) ) THEN
               call HIRQC (columnhr, obsSpaceData, INST(J), krtid)
            endif
         ENDDO

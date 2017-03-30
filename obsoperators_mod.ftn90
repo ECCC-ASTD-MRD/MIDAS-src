@@ -2662,13 +2662,13 @@ contains
                     .and. (obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY).EQ.BUFR_NEZD) &
                     .and. (obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY).EQ.1) ) then
                   ZINC = obs_bodyElem_r(lobsSpaceData,OBS_WORK,INDEX_BODY)
-                  !C     *       Accumulate the gradient of the observation cost function
+!     *       Accumulate the gradient of the observation cost function
                   DPJO0(1:2*NFLEV+1) = ZINC * vGPSZTD_Jacobian(iztd,:)
                endif
             ENDDO BODY_2
-            !c
-            !C      *   Store Ht*grad(Index_header) in COMMVO
-            !c
+!
+!      *   Store Ht*grad(Index_header) in COMMVO
+!
             tt_column => col_getColumn(lcolumn,index_header,'TT')
             hu_column => col_getColumn(lcolumn,index_header,'HU')
             ps_column => col_getColumn(lcolumn,index_header,'P0')
@@ -2705,7 +2705,7 @@ contains
     integer ichn
     integer :: index_header, index_body
 
-    if(TVS_NOBTOV.eq.0) return    ! exit if there are no tovs data
+    if(tvs_nobtov.eq.0) return    ! exit if there are no tovs data
 
     ! loop over all header indices of the 'TO' family
     ! Set the header list
@@ -2721,17 +2721,16 @@ contains
        !      (data type=[164,168,180,181,182,183,185,186])
        idatyp = obs_headElem_i(lobsSpaceData,OBS_ITY,index_header)
 
-       if ( .not. tvs_Is_idburp_tovs(idatyp) ) cycle HEADER ! Proceed to the next index
+       if ( .not. tvs_isIdBurpTovs(idatyp) ) cycle HEADER ! Proceed to the next index
 
        indxtovs = tvs_ltovsno(index_header)
        if ( indxtovs .eq. 0 ) then
-          write(*,fmt=9203)
-9203      format(' tovs_calc_jo_ad: error with indxtovs')
+          write(*,'(A)') ' error with indxtovs'
           call utl_abort('tovs_calc_jo_ad ')
        endif
 
        radiance_ad (indxtovs) % bt(:) = 0.d0
-       !      if (rttov_errorstatus(indxtovs) .lt. 20   ) then
+
        isens = tvs_lsensor(indxtovs)
 
        ! loop over all body indices (still in the 'TO' family)
@@ -2744,12 +2743,11 @@ contains
 
           if ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body).eq.1 ) then
              ichn = nint(obs_bodyElem_r(lobsSpaceData,OBS_PPP,index_body))
-             ichn = max(0,min(ichn,tvs_MaxChannelNumber+1))
+             ichn = max(0,min(ichn,tvs_maxChannelNumber+1))
              ichn=ichn-tvs_channelOffset(isens)
              indxchn = utl_findArrayIndex(tvs_ichan(:,isens),tvs_nchan(isens),ichn)
              if ( indxchn .eq. 0 ) then
-                write(*,fmt=9202)
-9202            format(' tovs_calc_jo_ad: error with channel number')
+                write(*,'(A)') ' error with channel number'
                 call utl_abort('tovs_calc_jo_ad  ')
              endif
              zres = obs_bodyElem_r(lobsSpaceData,OBS_WORK,index_body)
@@ -2773,16 +2771,13 @@ contains
     integer j, i
     integer jdata, idatyp
     integer ichn
-    !  integer kfailtot
 
     integer :: index_header, index_body
 
-    if(TVS_NOBTOV.eq.0) return    ! exit if there are no tovs data
+    if(tvs_nobtov.eq.0) return    ! exit if there are no tovs data
 
     !     1.  Computation of (hx - z)/sigma for tovs data only
     !     .   ------------------------------------------------
-
-    !kfailtot = 0
 
     ! loop over all header indices of the 'TO' family
     ! Set the header list
@@ -2799,17 +2794,15 @@ contains
        !      (data type=[164,168,180,181,182,183,185,186])
 
        idatyp = obs_headElem_i(lobsSpaceData,OBS_ITY,index_header)
-       if ( .not. tvs_Is_idburp_tovs(idatyp) ) cycle HEADER  ! Proceed to the next HEADER
+       if ( .not. tvs_isIdBurpTovs(idatyp) ) cycle HEADER  ! Proceed to the next HEADER
 
 
        indxtovs = tvs_ltovsno(index_header)
        if ( indxtovs .eq. 0 ) then
-          write(*,fmt=9203)
-9203      format(' tovs_calc_jo_tl: error with indxtovs')
+          write(*,'(A)') ' error with indxtovs'
           call utl_abort('tovs_calc_jo_tl ')
        endif
 
-       !     if (rttov_errorstatus(indxtovs) .lt. 20   ) then
        isens = tvs_lsensor(indxtovs)
 
        ! loop over all body indices (still in the 'TO' family)
@@ -2822,12 +2815,11 @@ contains
 
           if ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body).eq.1 ) then
              ichn = nint(obs_bodyElem_r(lobsSpaceData,OBS_PPP,index_body))
-             ichn    = max(0,min(ichn,tvs_MaxChannelNumber+1))
+             ichn    = max(0,min(ichn,tvs_maxChannelNumber+1))
              ichn=ichn-tvs_channelOffset(isens)
              indxchn = utl_findArrayIndex(tvs_ichan(:,isens),tvs_nchan(isens),ichn)
              if ( indxchn .eq. 0 ) then
-                write(*,fmt=9202)
-9202            format(' tovs_calc_jo_tl: error with channel number')
+                write(*,'(A)') ' error with channel number'
                 call utl_abort('tovs_calc_jo_tl  ')
              endif
              call obs_bodySet_r(lobsSpaceData,OBS_WORK,index_body, &
@@ -2840,9 +2832,7 @@ contains
 
           endif
        enddo BODY
-       !     else
-       !        kfailtot = kfailtot + 1
-       !     endif ! rttov_errorstatus
+       
     enddo HEADER
 
   end subroutine oop_storeHdx_radiances

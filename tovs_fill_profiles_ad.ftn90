@@ -73,7 +73,7 @@ subroutine tovs_fill_profiles_ad(column,columng)
   real(8), pointer :: uu_column(:),vv_column(:),tt_column(:),hu_column(:),ps_column(:),tg_column(:)
   real(8), pointer :: TTb(:), HUb(:), Pres(:)
          
-  if (TVS_NOBTOV == 0) return    ! exit if there are not tovs data
+  if (tvs_nobtov == 0) return    ! exit if there are not tovs data
 
 
   !     1.    Set index for model's lowest level and model top
@@ -118,7 +118,7 @@ subroutine tovs_fill_profiles_ad(column,columng)
 
      count_profile = 0
 
-     bobs1: do iobs = 1,TVS_NOBTOV
+     bobs1: do iobs = 1,tvs_nobtov
         if (tvs_lsensor(iobs) /= sensor_id) cycle bobs1
         NOBMAX = iobs
         count_profile = count_profile + 1   
@@ -181,7 +181,7 @@ subroutine tovs_fill_profiles_ad(column,columng)
         ! (grosse variabilite de la temperature au dernier niveau thermo due 
         !  a l'extrapolation utilisee)
         if (diagTtop) then
-           zt   (1,count_profile) =  zt   (2,count_profile) + tvs_MesosphereLapseRate *  &
+           zt   (1,count_profile) =  zt   (2,count_profile) + tvs_mesosphereLapseRate *  &
                 log( col_getPressure(columng,1,header_index,'TH') /  &
                 col_getPressure(columng,2,header_index,'TH') )
            zlq  (1,count_profile) =  zlq  (2,count_profile)

@@ -57,21 +57,21 @@ Module tovs_nl_mod
   public :: rttov_radiance, rttov_profile, rttov_chanprof, rttov_coefs, rttov_transmission, rttov_options, rttov_emissivity
 
   ! public variables (parameters)
-  public :: tvs_MaxChannelNumber, tvs_MaxNumberOfChannels, tvs_MaxNumberOfSensors,  tvs_nlevels, tvs_MesosphereLapseRate, tvs_qMixratio2ppmv, tvs_o3Mixratio2ppmv
+  public :: tvs_maxChannelNumber, tvs_maxNumberOfChannels, tvs_maxNumberOfSensors,  tvs_nlevels, tvs_mesosphereLapseRate, tvs_qMixratio2ppmv, tvs_o3Mixratio2ppmv
   ! public variables (non-parameters)
   public :: tvs_nchan, tvs_ichan, tvs_lsensor, tvs_lobsno, tvs_ltovsno, tvs_nobtov
-  public :: tvs_l_really_present,tvs_list_sensors,tvs_useUofWIREmiss
-  public :: TVS_NSENSORS, TVS_PLATFORMS, TVS_SATELLITES, TVS_INSTRUMENTS, tvs_channelOffset
-  public :: TVS_DEBUG, TVS_SATELLITENAME, TVS_INSTRUMENTNAME, TVS_RADIATIVETRANSFERCODE
+  public :: tvs_isReallyPresent,tvs_listSensors,tvs_useUofWIREmiss
+  public :: tvs_nsensors, tvs_platforms, tvs_satellites, tvs_instruments, tvs_channelOffset
+  public :: tvs_debug, tvs_satelliteName, tvs_instrumentName, tvs_radiativeTransferCode
   public :: platform_name, inst_name
   public :: tvs_coefs, tvs_opts, tvs_profiles
   public :: tvs_radiance
 
   ! public procedures
-  public :: TOVS_NL_SETUPALLO,TOVS_SETUP, tvs_Is_idburp_tovs, tvs_Is_idburp_inst
-  public :: tvs_get_inst_id, tvs_get_platform_id, tvs_mapSat, tvs_mapInstrum
-  public ::  tvs_Is_Instrum_Geostationary,  tvs_Is_Instrum_HyperSpectral, TVS_GET_CHANPROF, &
-       TVS_COUNT_RADIANCES, TVS_GetHIREmissivities, TVS_GetOtherEmissivities
+  public :: tvs_setupAlloc,tvs_setup, tvs_isIdBurpTovs, tvs_isIdBurpInst
+  public :: tvs_getInstrumentId, tvs_getPlatformId, tvs_mapSat, tvs_mapInstrum
+  public ::  tvs_isInstrumGeostationary,  tvs_isInstrumHyperSpectral, TVS_getChanprof, &
+       tvs_countRadiances, tvs_getHIREmissivities, tvs_getOtherEmissivities
   ! Module parameters
   ! units conversion from  mixing ratio to ppmv
   Real(8), Parameter :: tvs_qMixratio2ppmv  = (1000000.0_8 * mair) / mh2o
@@ -80,15 +80,15 @@ Module tovs_nl_mod
 !  Real(8), Parameter :: tvs_coMixratio2ppmv =  (1000000.0_8 * mair) / mco
 !  Real(8), Parameter :: tvs_n2oMixratio2ppmv = (1000000.0_8 * mair) / mn2o
 !  Real(8), Parameter :: tvs_ch4Mixratio2ppmv = (1000000.0_8 * mair) / mch4
-  Integer, PARAMETER :: tvs_MaxChannelNumber   = 8461     ! Max. value for channel number
-  Integer, PARAMETER :: tvs_MaxNumberOfChannels = 1305     ! Max. no. of channels (for one profile/spectra)
-  Integer, PARAMETER :: tvs_MaxNumberOfSensors  = 40       ! Max no sensors to be used
+  Integer, PARAMETER :: tvs_maxChannelNumber   = 8461     ! Max. value for channel number
+  Integer, PARAMETER :: tvs_maxNumberOfChannels = 1305     ! Max. no. of channels (for one profile/spectra)
+  Integer, PARAMETER :: tvs_maxNumberOfSensors  = 40       ! Max no sensors to be used
   Integer, PARAMETER :: tvs_nlevels     = 54       ! No. of RTTOV pressure levels including "rttov top" at 0.005 hPa
 !**********************************************************
 ! S. Heilliette this parameter was computed from the mean lapse rate between 50 km and 85 km
 ! of the US standard atmosphere from data contained in "AFGL Atmospheric Constituent Profiles (0-120km)"
 ! AFGL 1986, G.P. ANDERSON, J.H. CHETWYND, S.A. CLOUGH, E. P. SHETTLE and F.X. KNEIZYS
-  real(8), PARAMETER :: tvs_MesosphereLapseRate=16.2_8
+  real(8), PARAMETER :: tvs_mesosphereLapseRate=16.2_8
 ! unit is K/log(P), a positive value corresponds to decrease of temperature with height
 !**********************************************************
 
@@ -98,26 +98,26 @@ Module tovs_nl_mod
   Integer, allocatable :: tvs_lsensor(:)            ! sensor number for each profile
   Integer, allocatable :: tvs_lobsno (:)            ! observation number in cma for each profile
   Integer, allocatable :: tvs_ltovsno (:)           ! index in TOVS structures for each observation in cma
-  Logical, allocatable :: tvs_l_really_present(:)   ! logical flag to identify instruments really assimilated
-  Integer, allocatable :: tvs_list_sensors(:,:)     ! sensor list
+  Logical, allocatable :: tvs_isReallyPresent(:)   ! logical flag to identify instruments really assimilated
+  Integer, allocatable :: tvs_listSensors(:,:)     ! sensor list
   Integer tvs_nobtov
 
 !   Variables from comtov.cdk
-!     TVS_NSENSORS           : number of individual sensors.
-!     TVS_PLATFORMS(MXPLATFORM)  : platform ID's (e.g., 1=NOAA; 2=DMSP; ...)
-!     TVS_SATELLITES(TVS_MAXNUMBEROFSENSORS)  : satellite ID's (e.g., 1 to 16 for NOAA; ...)
-!     TVS_INSTRUMENTS(TVS_MAXNUMBEROFSENSORS) : instrument ID's (e.g., 3=AMSU-A; 4=AMSU-B; 6=SSMI; ...)
+!     tvs_nsensors           : number of individual sensors.
+!     tvs_platforms(MXPLATFORM)  : platform ID's (e.g., 1=NOAA; 2=DMSP; ...)
+!     tvs_satellites(TVS_MAXNUMBEROFSENSORS)  : satellite ID's (e.g., 1 to 16 for NOAA; ...)
+!     tvs_instruments(TVS_MAXNUMBEROFSENSORS) : instrument ID's (e.g., 3=AMSU-A; 4=AMSU-B; 6=SSMI; ...)
 !     tvs_channelOffset(TVS_MAXNUMBEROFSENSORS) : BURP to RTTOV channel mapping offset
-!     TVS_DEBUG            : logical key controlling statements to be
+!     tvs_debug            : logical key controlling statements to be
 !     .                    executed while debugging TOVS only
-!     TVS_RADIATIVETRANSFERCODE            : TOVS radiation model used:
+!     tvs_radiativeTransferCode            : TOVS radiation model used:
 !                             RTTOV, EUMETSAT NWP SAF radiation model
-  INTEGER TVS_NSENSORS
-  INTEGER TVS_PLATFORMS(TVS_MAXNUMBEROFSENSORS), TVS_SATELLITES(TVS_MAXNUMBEROFSENSORS)
-  INTEGER TVS_INSTRUMENTS(TVS_MAXNUMBEROFSENSORS), tvs_channelOffset(TVS_MAXNUMBEROFSENSORS)
-  LOGICAL TVS_DEBUG, tvs_useUofWIREmiss
-  CHARACTER*15 TVS_SATELLITENAME(TVS_MAXNUMBEROFSENSORS), TVS_INSTRUMENTNAME(TVS_MAXNUMBEROFSENSORS)
-  CHARACTER*8 TVS_RADIATIVETRANSFERCODE
+  INTEGER tvs_nsensors
+  INTEGER tvs_platforms(TVS_MAXNUMBEROFSENSORS), tvs_satellites(TVS_MAXNUMBEROFSENSORS)
+  INTEGER tvs_instruments(TVS_MAXNUMBEROFSENSORS), tvs_channelOffset(TVS_MAXNUMBEROFSENSORS)
+  LOGICAL tvs_debug, tvs_useUofWIREmiss
+  CHARACTER*15 tvs_satelliteName(TVS_MAXNUMBEROFSENSORS), tvs_instrumentName(TVS_MAXNUMBEROFSENSORS)
+  CHARACTER*8 tvs_radiativeTransferCode
 
   ! Derived types
 
@@ -129,10 +129,10 @@ Module tovs_nl_mod
 contains
 
 
-SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
+SUBROUTINE tvs_setupAlloc(lobsSpaceData)
 #if defined (DOC)
 !
-!  s/r TOVS_NL_SETUPALLO : Memory allocation for the non linear radiative transfer model
+!  s/r tvs_setupAlloc : Memory allocation for the non linear radiative transfer model
 !                 variables.
 !          (original name of routine: sutovalo)
 !
@@ -197,25 +197,25 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
 !        Construct a list of sensor number for each profile
 !     .  ---------------------------------------------------
 
-  WRITE(*,*) "Entering TOVS_NL_SETUPALLO" 
+  WRITE(*,*) "Entering tvs_setupAlloc" 
 
 
   alloc_status = 0
   allocate (tvs_nchan(tvs_nsensors),                       stat= alloc_status(1))
-  allocate (tvs_ichan(tvs_MaxNumberOfChannels,tvs_nsensors),                stat= alloc_status(2))
+  allocate (tvs_ichan(tvs_maxNumberOfChannels,tvs_nsensors),                stat= alloc_status(2))
   allocate (tvs_lsensor(obs_numheader(lobsSpaceData)), stat= alloc_status(3))
   allocate (tvs_lobsno (obs_numheader(lobsSpaceData)), stat= alloc_status(4))
   allocate (tvs_ltovsno(obs_numheader(lobsSpaceData)), stat= alloc_status(5))
-  allocate (tvs_l_really_present(tvs_nsensors),            stat= alloc_status(6))
+  allocate (tvs_isReallyPresent(tvs_nsensors),            stat= alloc_status(6))
 
-  call utl_checkAllocationStatus(alloc_status, " TOVS_NL_SETUPALLO")
+  call utl_checkAllocationStatus(alloc_status, " tvs_setupAlloc")
   
   tvs_nchan(:)   = 0 
   tvs_ichan(:,:) = 0
   tvs_ltovsno(:) = 0
-  tvs_l_really_present(:) = .true.
+  tvs_isReallyPresent(:) = .true.
 
-  TVS_NOBTOV = 0
+  tvs_nobtov = 0
 
   ! loop over all header indices of the 'TO' family
                                         ! Set the header list
@@ -227,40 +227,40 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
 
      IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,index_header)
 
-     IF ( .not.  tvs_Is_idburp_tovs(IDATYP) ) cycle HEADER   ! Proceed to the next header_index
+     IF ( .not.  tvs_isIdBurpTovs(IDATYP) ) cycle HEADER   ! Proceed to the next header_index
 
-     TVS_NOBTOV = TVS_NOBTOV + 1
+     tvs_nobtov = tvs_nobtov + 1
      
 !    Construct list of channels for each sensor:
 !          map burp satellite info to RTTOV platform and satellite.
      IVAL = obs_headElem_i(lobsSpaceData,OBS_SAT,index_header)
-     CALL TVS_MAPSAT(IVAL,IPLATFORM,ISAT)
+     CALL tvs_mapSat(IVAL,IPLATFORM,ISAT)
      if (IPLATFORM==-1) then
         Write(*,*) "Unknown OBS_SAT !",IVAL
-        CALL utl_abort('TOVS_NL_SETUPALLO')
+        CALL utl_abort('tvs_setupAlloc')
      endif
 !    map burp instrument info to RTTOV instrument.
      IVAL = obs_headElem_i(lobsSpaceData,OBS_INS,index_header)
-     CALL TVS_MAPINSTRUM(IVAL,INSTRUM)
+     CALL tvs_mapInstrum(IVAL,INSTRUM)
      if (INSTRUM==-1) then
         Write(*,*) "Unknown OBS_INS !",IVAL
-        CALL utl_abort('TOVS_NL_SETUPALLO')
+        CALL utl_abort('tvs_setupAlloc')
      endif
 !    find sensor number for this obs.
-     DO KRTID = 1, TVS_NSENSORS
-        IF ( IPLATFORM == TVS_PLATFORMS  (KRTID) .AND. &
-             ISAT      == TVS_SATELLITES (KRTID) .AND. &
-             INSTRUM   == TVS_INSTRUMENTS(KRTID)      ) THEN
+     DO KRTID = 1, tvs_nsensors
+        IF ( IPLATFORM == tvs_platforms  (KRTID) .AND. &
+             ISAT      == tvs_satellites (KRTID) .AND. &
+             INSTRUM   == tvs_instruments(KRTID)      ) THEN
            NOSENSOR = KRTID
            GO TO 110
         ENDIF
      ENDDO
      Write(*,*) "IPLATFORM,ISAT,INSTRUM ",IPLATFORM,ISAT,INSTRUM
-     WRITE(*,'(A)') ' TOVS_NL_SETUPALLO: Invalid Sensor'
-     do KRTID = 1, TVS_NSENSORS
-        print *,krtid,TVS_PLATFORMS  (KRTID),TVS_SATELLITES (KRTID),TVS_INSTRUMENTS(KRTID)
+     WRITE(*,'(A)') ' tvs_setupAlloc: Invalid Sensor'
+     do KRTID = 1, tvs_nsensors
+        print *,krtid,tvs_platforms  (KRTID),tvs_satellites (KRTID),tvs_instruments(KRTID)
      enddo
-     CALL utl_Abort('TOVS_NL_SETUPALLO')
+     CALL utl_Abort('tvs_setupAlloc')
 
 110  tvs_lsensor(tvs_nobtov) = nosensor
      tvs_lobsno (tvs_nobtov) = index_header
@@ -276,7 +276,7 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
 
         IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body)==1 ) THEN
            ICHN = NINT(obs_bodyElem_r(lobsSpaceData,OBS_PPP,index_body))
-           ICHN = MAX(0,MIN(ICHN,TVS_MAXCHANNELNUMBER+1))
+           ICHN = MAX(0,MIN(ICHN,tvs_maxChannelNumber+1))
 
            ICHN=ICHN-tvs_channelOffset(NOSENSOR)
 
@@ -294,13 +294,13 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
   do ji = 1, tvs_nsensors
     call isort(tvs_ichan(:,ji),tvs_nchan(ji))
     if ( tvs_nchan(ji) == 0 ) then
-       tvs_l_really_present ( ji ) =.false.
+       tvs_isReallyPresent ( ji ) =.false.
        tvs_nchan(ji) = 1
        tvs_ichan(1,ji) = 1
     endif
   enddo
 
-  write(*,*) ' TOVS_NL_SETUPALLO: tvs_nobtov = ', tvs_nobtov
+  write(*,*) ' tvs_setupAlloc: tvs_nobtov = ', tvs_nobtov
 
 !-----------------------------------------------------------------------
 
@@ -308,21 +308,21 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
 !     3. Initialize TOVS radiance transfer model
 !     .  ---------------------------------------
 
-  IF     ( TVS_RADIATIVETRANSFERCODE == 'RTTOV' ) THEN
+  IF     ( tvs_radiativeTransferCode == 'RTTOV' ) THEN
 
      WRITE(*,'(//,10x,A)') "-rttov_setup: initializing the TOVS radiative transfer model"
 
      alloc_status(:) = 0
      allocate (tvs_coefs(tvs_nsensors)              ,stat= alloc_status(1))
-     allocate (tvs_list_sensors (3,tvs_nsensors)    ,stat= alloc_status(2))
+     allocate (tvs_listSensors (3,tvs_nsensors)    ,stat= alloc_status(2))
      allocate (tvs_opts (tvs_nsensors)              ,stat= alloc_status(3))
 
-     call utl_checkAllocationStatus(alloc_status(1:3), " TOVS_NL_SETUPALLO before rttov initialization")
+     call utl_checkAllocationStatus(alloc_status(1:3), " tvs_setupAlloc before rttov initialization")
 
-     DO JK=1,TVS_NSENSORS
-        TVS_LIST_SENSORS(1,JK) = TVS_PLATFORMS  (JK)
-        TVS_LIST_SENSORS(2,JK) = TVS_SATELLITES (JK)
-        TVS_LIST_SENSORS(3,JK) = TVS_INSTRUMENTS(JK)
+     DO JK=1,tvs_nsensors
+        tvs_listSensors(1,JK) = tvs_platforms  (JK)
+        tvs_listSensors(2,JK) = tvs_satellites (JK)
+        tvs_listSensors(3,JK) = tvs_instruments(JK)
 
         !< General configuration options
         tvs_opts(JK)%config%apply_reg_limits=.true. ! if true application of profiles limits
@@ -350,10 +350,10 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
 
         errorstatus = errorstatus_success
 
-        CALL rttov_read_coefs(errorstatus(1), tvs_coefs(jk), tvs_opts(jk), channels=TVS_ICHAN(1:tvs_nchan(JK),JK), instrument = TVS_LIST_SENSORS(:,JK))
+        CALL rttov_read_coefs(errorstatus(1), tvs_coefs(jk), tvs_opts(jk), channels=tvs_ichan(1:tvs_nchan(JK),JK), instrument = tvs_listSensors(:,JK))
         IF (errorstatus(1) /= errorstatus_success) THEN
-           WRITE(*,*) 'rttov_read_coefs: fatal error reading coefficients',errorstatus,JK,TVS_LIST_SENSORS(1:3,JK)
-           CALL utl_abort('TOVS_SETUPALLO')
+           WRITE(*,*) 'rttov_read_coefs: fatal error reading coefficients',errorstatus,JK,tvs_listSensors(1:3,JK)
+           CALL utl_abort('tvs_setupAlloc')
         ENDIF
         tvs_opts(JK)%rt_ir%co2_data = .false. 
         tvs_opts(JK)%rt_ir%n2o_data = .false.
@@ -365,7 +365,7 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
         CALL rttov_user_options_checkinput(errorstatus(1), tvs_opts(jk), tvs_coefs(jk))
         IF (errorstatus(1) /= errorstatus_success) THEN
            WRITE(*,*) 'error in rttov options',errorstatus
-           CALL utl_abort('TOVS_SETUPALLO')
+           CALL utl_abort('tvs_setupAlloc')
         ENDIF
        
      ENDDO
@@ -388,7 +388,7 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
      do jk = 1, tvs_nsensors
         if ( tvs_coefs(jk)% coef %nlevels /= tvs_coefs(1)%coef%nlevels ) then
            WRITE(*,'(A)') ' Number of levels not identical in all coef files'
-           CALL utl_abort('TOVS_SETUPALLO')
+           CALL utl_abort('tvs_setupAlloc')
         endif
      enddo
 
@@ -402,30 +402,30 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
 
 !___ profiles
 
-  allocate(tvs_profiles(TVS_NOBTOV)         , stat= alloc_status(1) )
-  call utl_checkAllocationStatus(alloc_status(1:1), " TOVS_NL_SETUPALLO tvs_profiles 1")
+  allocate(tvs_profiles(tvs_nobtov)         , stat= alloc_status(1) )
+  call utl_checkAllocationStatus(alloc_status(1:1), " tvs_setupAlloc tvs_profiles 1")
  
 
   asw=1 ! to allocate
-  do jo = 1, TVS_NOBTOV
+  do jo = 1, tvs_nobtov
      isens = tvs_lsensor(jo)
      nl = tvs_coefs(isens)%coef % nlevels
      ! allocate model profiles atmospheric arrays with RTTOV levels dimension
      call rttov_alloc_prof(errorstatus(1),1,tvs_profiles(jo),nl, &
           tvs_opts(isens),asw,coefs=tvs_coefs(isens),init=.false. )
 
-     call utl_checkAllocationStatus(errorstatus(1:1), " TOVS_NL_SETUPALLO tvs_profiles 2")
+     call utl_checkAllocationStatus(errorstatus(1:1), " tvs_setupAlloc tvs_profiles 2")
      
   end do
 
 !___ radiance by profile
 
   alloc_status(:) = 0
-  allocate( tvs_radiance(TVS_NOBTOV) ,stat= alloc_status(1))
+  allocate( tvs_radiance(tvs_nobtov) ,stat= alloc_status(1))
 
-  call utl_checkAllocationStatus(alloc_status(1:1), " TOVS_NL_SETUPALLO radiances 1")
+  call utl_checkAllocationStatus(alloc_status(1:1), " tvs_setupAlloc radiances 1")
   
-  do jo = 1, TVS_NOBTOV
+  do jo = 1, tvs_nobtov
      isens = tvs_lsensor(jo)
      nc = tvs_nchan(isens)
      nl = tvs_coefs(isens) % coef % nlevels
@@ -439,19 +439,19 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
      allocate( tvs_radiance(jo)  % clear  ( nc ) ,stat= alloc_status(2) )
      tvs_radiance(jo)  % clear  ( : ) = 0.d0
 
-    call utl_checkAllocationStatus(alloc_status(1:2), " TOVS_NL_SETUPALLO radiances 2")
+    call utl_checkAllocationStatus(alloc_status(1:2), " tvs_setupAlloc radiances 2")
      
   end do
 
 
-  WRITE(*,*) "Leaving TOVS_NL_SETUPALLO"
+  WRITE(*,*) "Leaving tvs_setupAlloc"
 
-END SUBROUTINE TOVS_NL_SETUPALLO
+END SUBROUTINE tvs_setupAlloc
 
 
-SUBROUTINE TOVS_SETUP
+SUBROUTINE tvs_setup
   !
-  !  s/r TOVS_SETUP : Initialisation of the TOVS processing and radiative
+  !  s/r tvs_setup : Initialisation of the TOVS processing and radiative
   !     .        transfer model.
   !    -------------------
   !     Purpose: to read namelist NAMTOV, initialize the observation error covariance
@@ -461,21 +461,21 @@ SUBROUTINE TOVS_SETUP
 
   INTEGER  JK, IERR, nulnam
   integer ,external :: fclos, fnom
-  NAMELIST /NAMTOV/ TVS_NSENSORS, TVS_SATELLITENAME, TVS_INSTRUMENTNAME
-  NAMELIST /NAMTOV/ TVS_DEBUG 
-  NAMELIST /NAMTOV/ tvs_useUofWIREmiss, TVS_RADIATIVETRANSFERCODE
+  NAMELIST /NAMTOV/ tvs_nsensors, tvs_satelliteName, tvs_instrumentName
+  NAMELIST /NAMTOV/ tvs_debug 
+  NAMELIST /NAMTOV/ tvs_useUofWIREmiss, tvs_radiativeTransferCode
 
  
   !     .  1.1 Default values
   !     .      --------------
 
-  TVS_NSENSORS   = 0
-  TVS_SATELLITENAME(:)  = '***UNDEFINED***'
-  TVS_INSTRUMENTNAME(:) = '***UNDEFINED***'
-  TVS_SATELLITENAME(1)  = 'NOAA16'
-  TVS_INSTRUMENTNAME(1) = 'AMSUA'
-  TVS_DEBUG   = .FALSE.
-  TVS_RADIATIVETRANSFERCODE   = 'RTTOV'
+  tvs_nsensors   = 0
+  tvs_satelliteName(:)  = '***UNDEFINED***'
+  tvs_instrumentName(:) = '***UNDEFINED***'
+  tvs_satelliteName(1)  = 'NOAA16'
+  tvs_instrumentName(1) = 'AMSUA'
+  tvs_debug   = .FALSE.
+  tvs_radiativeTransferCode   = 'RTTOV'
   tvs_useUofWIREmiss=.false.
 
   !     .   1.2 Read the NAMELIST NAMTOV to modify them
@@ -494,20 +494,20 @@ SUBROUTINE TOVS_SETUP
   if ( tvs_nsensors == 0 ) then
      if(mpi_myid==0) then 
         write(*,*) ' ====================================================='
-        write(*,*) ' TOVS_SETUP: Number of sensors is zero, skipping setup'
+        write(*,*) ' tvs_setup: Number of sensors is zero, skipping setup'
         write(*,*) ' ====================================================='
      endif
      return
   endif
 
-  IF ( TVS_RADIATIVETRANSFERCODE /= 'RTTOV' ) THEN
+  IF ( tvs_radiativeTransferCode /= 'RTTOV' ) THEN
      WRITE(*,'(A)') ' Invalid radiation model name'
-     CALL utl_abort('TOVS_SETUP')
+     CALL utl_abort('tvs_setup')
   ENDIF
 
-  IF ( TVS_NSENSORS > TVS_MAXNUMBEROFSENSORS ) THEN
-     WRITE(*,'(A)') ' Number of sensors (TVS_NSENSORS) is greater than maximum allowed (TVS_MAXNUMBEROFSENSORS)'
-     CALL utl_abort('TOVS_SETUP')
+  IF ( tvs_nsensors > TVS_MAXNUMBEROFSENSORS ) THEN
+     WRITE(*,'(A)') ' Number of sensors (tvs_nsensors) is greater than maximum allowed (TVS_MAXNUMBEROFSENSORS)'
+     CALL utl_abort('tvs_setup')
   ENDIF
 
   !     .   1.4 Print the content of this NAMELIST
@@ -517,12 +517,12 @@ SUBROUTINE TOVS_SETUP
      WRITE(*,'(A)') 
      WRITE(*,'(3X,A)') '- Parameters used for TOVS processing (read in NAMTOV)'
      WRITE(*,'(3X,A)') '  ----------------------------------------------------'
-     WRITE(*,'(6X,A,2X,L1)') 'TOVS debug                           : ', TVS_DEBUG
+     WRITE(*,'(6X,A,2X,L1)') 'TOVS debug                           : ', tvs_debug
      WRITE(*,'(6X,A,2X,L1)') 'Use of UW IR land emissivity atlases : ', tvs_useUofWIREmiss
-     WRITE(*,'(6X,A,2X,A)')  'Radiative transfer model             : ', TVS_RADIATIVETRANSFERCODE
-     WRITE(*,'(6X,A,2X,I3)') 'Number of sensors                    : ', TVS_NSENSORS
-     WRITE(*,'(6X,A,2X,10A10)') "Satellite id's                       : ", (TVS_SATELLITENAME(JK), JK=1,TVS_NSENSORS)
-     WRITE(*,'(6X,A,2X,10A10)') "Instrument id's                      : ", (TVS_INSTRUMENTNAME(JK), JK=1,TVS_NSENSORS)
+     WRITE(*,'(6X,A,2X,A)')  'Radiative transfer model             : ', tvs_radiativeTransferCode
+     WRITE(*,'(6X,A,2X,I3)') 'Number of sensors                    : ', tvs_nsensors
+     WRITE(*,'(6X,A,2X,10A10)') "Satellite id's                       : ", (tvs_satelliteName(JK), JK=1,tvs_nsensors)
+     WRITE(*,'(6X,A,2X,10A10)') "Instrument id's                      : ", (tvs_instrumentName(JK), JK=1,tvs_nsensors)
      WRITE(*,'(A)') 
      WRITE(*,'(A)') 
      WRITE(*,'(A)') 
@@ -535,7 +535,7 @@ SUBROUTINE TOVS_SETUP
 
   CALL SENSORS
 
-END SUBROUTINE TOVS_SETUP
+END SUBROUTINE tvs_setup
 
 SUBROUTINE SENSORS
 !*
@@ -548,10 +548,10 @@ SUBROUTINE SENSORS
 !*              platform, satellite and instrument ID's.
 !*
 !*Variables:
-!*     i : TVS_NSENSORS      : number of sensors
-!*     i : TVS_SATELLITENAME        : satellite ID (e.g. 'NOAA15')
-!*     i : TVS_INSTRUMENTNAME : instrument ID (e.g. 'AMSUA')
-!*     o : TVS_PLATFORMS      : RTTOV platform ID numbers (e.g. 1 for  NOAA)
+!*     i : tvs_nsensors      : number of sensors
+!*     i : tvs_satelliteName        : satellite ID (e.g. 'NOAA15')
+!*     i : tvs_instrumentName : instrument ID (e.g. 'AMSUA')
+!*     o : tvs_platforms      : RTTOV platform ID numbers (e.g. 1 for  NOAA)
 !*     o : SATELLITE     : RTTOV satellite ID numbers (e.g. 15)
 !*     o : INSTRUMENT    : RTTOV instrument ID numbers (e.g. 3 for AMSUA)
 !*     o : tvs_channelOffset    : BURP to RTTOV channel mapping offset
@@ -572,10 +572,10 @@ SUBROUTINE SENSORS
 !*    .  1.0 Go through sensors and set RTTOV-10 variables
 !     .      --------------------------------------------
 
-  DO J=1, TVS_NSENSORS
-     TVS_PLATFORMS  (J) = -1
-     TVS_SATELLITES (J) = -1
-     TVS_INSTRUMENTS(J) = -1
+  DO J=1, tvs_nsensors
+     tvs_platforms  (J) = -1
+     tvs_satellites (J) = -1
+     tvs_instruments(J) = -1
      tvs_channelOffset(J) = -1
   ENDDO
 
@@ -596,7 +596,7 @@ SUBROUTINE SENSORS
      ENDIF
      do j=0, ninst-1
         if ( LISTINSTRUM(j) /= "XXXXXXXX" ) then
-         IOFFSET1B( tvs_get_inst_id( LISTINSTRUM(j) ) )  = LISTOFFSET(j)
+         IOFFSET1B( tvs_getInstrumentId( LISTINSTRUM(j) ) )  = LISTOFFSET(j)
         endif
      enddo
      ierr=FCLOS(NULNAM)
@@ -611,29 +611,29 @@ SUBROUTINE SENSORS
 !**       TERRA  to  EOS1
 !**       AQUA   to  EOS2
 !**       NPP    to  NPP0
-  DO J = 1, TVS_NSENSORS
-     IF    ( TVS_SATELLITENAME(J) == 'TERRA' ) THEN
+  DO J = 1, tvs_nsensors
+     IF    ( tvs_satelliteName(J) == 'TERRA' ) THEN
         TEMPOCSATID = 'eos1'
-     ELSEIF ( TVS_SATELLITENAME(J) == 'AQUA'  ) THEN
+     ELSEIF ( tvs_satelliteName(J) == 'AQUA'  ) THEN
         TEMPOCSATID = 'eos2'
-     ELSEIF ( TVS_SATELLITENAME(J) == 'NPP'  ) THEN
+     ELSEIF ( tvs_satelliteName(J) == 'NPP'  ) THEN
         TEMPOCSATID = 'jpss0'
-     ELSEIF ( TVS_SATELLITENAME(J) == 'JPSS'  ) THEN
+     ELSEIF ( tvs_satelliteName(J) == 'JPSS'  ) THEN
         TEMPOCSATID = 'jpss0'
-     ELSEIF ( TVS_SATELLITENAME(J)(1:6) == 'HMWARI'  ) THEN
-        TEMPOCSATID = 'himawari' // trim(TVS_SATELLITENAME(J) (7:15))
+     ELSEIF ( tvs_satelliteName(J)(1:6) == 'HMWARI'  ) THEN
+        TEMPOCSATID = 'himawari' // trim(tvs_satelliteName(J) (7:15))
      ELSE
-        call up2low(TVS_SATELLITENAME(J),TEMPOCSATID)
+        call up2low(tvs_satelliteName(J),TEMPOCSATID)
      ENDIF
      DO K = 1, nplatforms
         IPOS1 = LEN_TRIM(platform_name(K))
         IPOS2 = INDEX(TEMPOCSATID,platform_name(K)(1:IPOS1))
         IF ( IPOS2 == 1 ) THEN
-           TVS_PLATFORMS(J) = K
+           tvs_platforms(J) = K
            KINDEX = K
         ENDIF
      ENDDO
-     IF ( TVS_PLATFORMS(J) < 0 ) THEN
+     IF ( tvs_platforms(J) < 0 ) THEN
         WRITE(*,'(A)') ' Satellite ' // trim(TEMPOCSATID) // ' not supported.'
         CALL utl_abort('SENSORS')
      ELSE
@@ -646,7 +646,7 @@ SUBROUTINE SENSORS
                 IERR, ipos1, ipos2, TEMPOCSATID
            CALL utl_abort('SENSORS')
         ELSE
-           TVS_SATELLITES(J) = NUMEROSAT
+           tvs_satellites(J) = NUMEROSAT
         ENDIF
      ENDIF
   ENDDO
@@ -657,24 +657,24 @@ SUBROUTINE SENSORS
 !     .      RTTOV-10.
 !     .      --------------------------------------------------------------------
 
-  DO J = 1, TVS_NSENSORS
-     if ( TVS_SATELLITENAME(J)(1:4) == "GOES") then !cas particulier
-        TVS_INSTRUMENTS(J) = inst_id_goesim
-     else if ( TVS_SATELLITENAME(J)(1:5) == "MTSAT") then !autre cas particulier
-        TVS_INSTRUMENTS(J) = inst_id_gmsim
+  DO J = 1, tvs_nsensors
+     if ( tvs_satelliteName(J)(1:4) == "GOES") then !cas particulier
+        tvs_instruments(J) = inst_id_goesim
+     else if ( tvs_satelliteName(J)(1:5) == "MTSAT") then !autre cas particulier
+        tvs_instruments(J) = inst_id_gmsim
      else 
-        call up2low(TVS_INSTRUMENTNAME(J),tempo_inst)
+        call up2low(tvs_instrumentName(J),tempo_inst)
         DO K = 0, ninst -1 
            IF ( trim(tempo_inst) == trim(inst_name(K))) THEN
-              TVS_INSTRUMENTS(J) = K
+              tvs_instruments(J) = K
            ENDIF
         ENDDO
      endif
-     IF ( TVS_INSTRUMENTS(J) .LT. 0 ) THEN
-        WRITE(*,'(A)') ' INSTRUMENT '// trim( TVS_INSTRUMENTNAME(J)) // ' not supported.'
+     IF ( tvs_instruments(J) .LT. 0 ) THEN
+        WRITE(*,'(A)') ' INSTRUMENT '// trim( tvs_instrumentName(J)) // ' not supported.'
         CALL utl_abort('SENSORS')
      ENDIF
-     tvs_channelOffset(J) = IOFFSET1B(TVS_INSTRUMENTS(J))
+     tvs_channelOffset(J) = IOFFSET1B(tvs_instruments(J))
   ENDDO
 
 !*    .   1.3 Print the RTTOV-10 related variables
@@ -685,16 +685,16 @@ SUBROUTINE SENSORS
      WRITE(*,'(3X,A)') '- SENSORS. Variables prepared for RTTOV-10:'
      WRITE(*,'(3X,A)') '  ----------------------------------------'
      WRITE(*,*)
-     WRITE(*,'(6X,A,I3)')   "Number of sensors       : ", TVS_NSENSORS
-     WRITE(*,'(6X,A,10I3)') "Platform numbers        : ",  (TVS_PLATFORMS(J), J=1,TVS_NSENSORS)
-     WRITE(*,'(6X,A,10I3)') "Satellite numbers       : ",  (TVS_SATELLITES(J), J=1,TVS_NSENSORS)
-     WRITE(*,'(6X,A,10I3)') "Instrument numbers      : ",  (TVS_INSTRUMENTS(J), J=1,TVS_NSENSORS)
-     WRITE(*,'(6X,A,10I3)') "Channel mapping offsets : ",  (tvs_channelOffset(J), J=1,TVS_NSENSORS)
+     WRITE(*,'(6X,A,I3)')   "Number of sensors       : ", tvs_nsensors
+     WRITE(*,'(6X,A,10I3)') "Platform numbers        : ",  (tvs_platforms(J), J=1,tvs_nsensors)
+     WRITE(*,'(6X,A,10I3)') "Satellite numbers       : ",  (tvs_satellites(J), J=1,tvs_nsensors)
+     WRITE(*,'(6X,A,10I3)') "Instrument numbers      : ",  (tvs_instruments(J), J=1,tvs_nsensors)
+     WRITE(*,'(6X,A,10I3)') "Channel mapping offsets : ",  (tvs_channelOffset(J), J=1,tvs_nsensors)
   endif
 
 END subroutine sensors
 
-logical function tvs_Is_idburp_tovs(idatyp)
+logical function tvs_isIdBurpTovs(idatyp)
   implicit none
   integer ,intent(in) :: idatyp
 !*********************************************
@@ -708,7 +708,7 @@ logical function tvs_Is_idburp_tovs(idatyp)
 
   if (tvs_nsensors == 0) then
     ! no tovs data will be read, therefore false
-    tvs_is_idburp_tovs = .false.
+    tvs_isIdBurpTovs = .false.
     return
   endif
 
@@ -719,7 +719,7 @@ logical function tvs_Is_idburp_tovs(idatyp)
      inst_names="XXXXXX"
      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
      read(nulnam,nml=namtovsinst, iostat=ierr)
-     if (ierr/=0) call utl_abort('tvs_Is_idburp_tovs: Error reading namelist')
+     if (ierr/=0) call utl_abort('tvs_isIdBurpTovs: Error reading namelist')
      if (mpi_myid==0) write(*,nml=namtovsinst)
      ierr = fclos(nulnam)
      do i=1, ninst
@@ -730,35 +730,35 @@ logical function tvs_Is_idburp_tovs(idatyp)
            list_inst(i) = codtyp_get_codtyp( inst_names(i) )
            if (list_inst(i) < 0) then
               Write(*,*) inst_names(i)
-              call utl_abort('tvs_Is_idburp_tovs: unknown instrument in namtovsinst namelist')
+              call utl_abort('tvs_isIdBurpTovs: unknown instrument in namtovsinst namelist')
            endif
         endif
      enddo
-     if ( ninst_tovs == 0 ) call utl_abort('tvs_Is_idburp_tovs: Empty namtovsinst namelist')
+     if ( ninst_tovs == 0 ) call utl_abort('tvs_isIdBurpTovs: Empty namtovsinst namelist')
      lfirst = .false.
   endif
 
-  tvs_Is_idburp_tovs = .false.
+  tvs_isIdBurpTovs = .false.
 
   do i=1, ninst_tovs
      if (idatyp == list_inst(i) ) then
-        tvs_Is_idburp_tovs = .true.
+        tvs_isIdBurpTovs = .true.
         exit
      endif
   enddo
 
-end function tvs_Is_idburp_tovs
+end function tvs_isIdBurpTovs
 
-logical function tvs_Is_idburp_inst(idburp,cinst)
+logical function tvs_isIdBurpInst(idburp,cinst)
   implicit none
   integer ,intent(in) :: idburp
   character (len=*) ,intent(in) :: cinst
 
-  tvs_Is_idburp_inst = ( idburp == codtyp_get_codtyp(cinst) )
+  tvs_isIdBurpInst = ( idburp == codtyp_get_codtyp(cinst) )
 
-end function tvs_Is_idburp_inst
+end function tvs_isIdBurpInst
 
-integer function tvs_get_platform_id(name)
+integer function tvs_getPlatformId(name)
 !******************************************
 ! S. Heilliette November 2015
 ! return RTTOV platform id (>0) from
@@ -772,27 +772,27 @@ integer function tvs_get_platform_id(name)
   character(len=64) :: tempo_name
 !*************************************
 
-  tvs_get_platform_id = -1
+  tvs_getPlatformId = -1
   ipos1 = LEN_TRIM(name)
   call up2low(name(1:ipos1),tempo_name(1:ipos1))
 
   if ( INDEX(tempo_name(1:ipos1),"npp") /=0 ) then
-     tvs_get_platform_id = platform_id_jpss
+     tvs_getPlatformId = platform_id_jpss
   elseif ( INDEX(tempo_name(1:ipos1),"hmwari") /=0 ) then
-     tvs_get_platform_id = platform_id_himawari
+     tvs_getPlatformId = platform_id_himawari
   else
      do i = 1, nplatforms
         ipos2 = INDEX(tempo_name(1:ipos1),trim(platform_name(i)))
         if ( ipos2 == 1) then
-           tvs_get_platform_id = i
+           tvs_getPlatformId = i
            exit
         endif
      enddo
   endif
 
-end function tvs_get_platform_id
+end function tvs_getPlatformId
 
-integer function tvs_get_inst_id(name)
+integer function tvs_getInstrumentId(name)
 !******************************************
 ! S. Heilliette November 2015
 ! return RTTOV instrument id from
@@ -805,24 +805,24 @@ integer function tvs_get_inst_id(name)
   integer :: i, ipos1
   character(len=64) :: tempo_name
 !***********************************
-  tvs_get_inst_id = -1
+  tvs_getInstrumentId = -1
   ipos1 = LEN_TRIM(name)
   call up2low(name(1:ipos1),tempo_name(1:ipos1))
   if ( trim(tempo_name(1:ipos1)) == "goesim" ) then
-     tvs_get_inst_id = inst_id_goesim
+     tvs_getInstrumentId = inst_id_goesim
   elseif ( trim(tempo_name(1:ipos1)) == "gmsim" ) then
-     tvs_get_inst_id = inst_id_gmsim
+     tvs_getInstrumentId = inst_id_gmsim
   else
      do i = 0, ninst-1
         if (trim(inst_name(i)) == tempo_name(1:ipos1) ) then
-           tvs_get_inst_id = i
+           tvs_getInstrumentId = i
            exit
         endif
      enddo
   endif
-end function tvs_get_inst_id
+end function tvs_getInstrumentId
 
-logical function tvs_Is_Instrum_Hyperspectral(instrum)
+logical function tvs_isInstrumHyperSpectral(instrum)
 !******************************************
 ! S. Heilliette November 2015
 ! given an RTTOV instrument code
@@ -846,16 +846,16 @@ logical function tvs_Is_Instrum_Hyperspectral(instrum)
      name_inst(:) = "XXXXXX"
      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
      read(nulnam,nml=namhyper, iostat=ierr)
-     if (ierr/=0) call utl_abort('tvs_Is_Instrum_Hyperspectral: Error reading namelist')
+     if (ierr/=0) call utl_abort('tvs_isInstrumHyperSpectral: Error reading namelist')
      if (mpi_myid==0) write(*,nml=namhyper)
      ierr = fclos(nulnam)
      list_inst(:) = -1
      do i=1, maxsize
-        list_inst(i) = tvs_get_inst_id( name_inst(i) )
+        list_inst(i) = tvs_getInstrumentId( name_inst(i) )
         if (name_inst(i) /= "XXXXXX") then
            if (list_inst(i) == -1) then
               Write(*,*) i,name_inst(i)
-              call utl_abort('tvs_Is_Instrum_Hyperspectral: Unknown instrument name')
+              call utl_abort('tvs_isInstrumHyperSpectral: Unknown instrument name')
            endif
         else
            ninst_hir = i -1
@@ -864,20 +864,20 @@ logical function tvs_Is_Instrum_Hyperspectral(instrum)
      enddo
      lfirst = .false.
      if (ninst_hir == 0) then
-        Write(*,*) "tvs_Is_Instrum_Hyperspectral: Warning : empty namhyper namelist !"
+        Write(*,*) "tvs_isInstrumHyperSpectral: Warning : empty namhyper namelist !"
      endif
   endif
-  tvs_Is_Instrum_Hyperspectral = .false.
+  tvs_isInstrumHyperSpectral = .false.
   do i=1, ninst_hir
      if ( instrum == list_inst(i)) then
-        tvs_Is_Instrum_Hyperspectral =.true.
+        tvs_isInstrumHyperSpectral =.true.
         exit
      endif
   enddo
 
-end function tvs_Is_Instrum_Hyperspectral
+end function tvs_isInstrumHyperSpectral
 
-logical function tvs_Is_Instrum_Geostationary(instrum)
+logical function tvs_isInstrumGeostationary(instrum)
 !******************************************
 ! S. Heilliette November 2015
 ! given an RTTOV instrument code
@@ -901,16 +901,16 @@ logical function tvs_Is_Instrum_Geostationary(instrum)
      name_inst(:) = "XXXXXX"
      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
      read(nulnam,nml=namgeo, iostat=ierr)
-     if (ierr/=0) call utl_abort('tvs_Is_Instrum_Geostationary: Error reading namelist')
+     if (ierr/=0) call utl_abort('tvs_isInstrumGeostationary: Error reading namelist')
      if (mpi_myid==0) write(*,nml=namgeo)
      ierr = fclos(nulnam)
      list_inst(:) = -1
      do i=1, maxsize
-        list_inst(i) = tvs_get_inst_id( name_inst(i) )
+        list_inst(i) = tvs_getInstrumentId( name_inst(i) )
         if (name_inst(i) /= "XXXXXX") then
            if (list_inst(i) == -1) then
               Write(*,*) i,name_inst(i)
-              call utl_abort('tvs_Is_Instrum_Geostationary: Unknown instrument name')
+              call utl_abort('tvs_isInstrumGeostationary: Unknown instrument name')
            endif
         else
            ninst_geo = i -1
@@ -919,23 +919,23 @@ logical function tvs_Is_Instrum_Geostationary(instrum)
      enddo
      lfirst = .false.
      if (ninst_geo == 0) then
-        Write(*,*) "tvs_Is_Instrum_Geostationary: Warning : empty namgeo namelist !"
+        Write(*,*) "tvs_isInstrumGeostationary: Warning : empty namgeo namelist !"
      endif
      Write(*,*) "DEBUGX:",list_inst(1:ninst_geo)
   endif
-  tvs_Is_Instrum_Geostationary = .false.
+  tvs_isInstrumGeostationary = .false.
   do i=1, ninst_geo
      if ( instrum == list_inst(i)) then
-        tvs_Is_Instrum_Geostationary =.true.
+        tvs_isInstrumGeostationary =.true.
         exit
      endif
   enddo
 
-end function tvs_Is_Instrum_Geostationary
+end function tvs_isInstrumGeostationary
 
-SUBROUTINE TVS_MAPINSTRUM(INSTRUMBURP,INSTRUM)
+SUBROUTINE tvs_mapInstrum(INSTRUMBURP,INSTRUM)
 !
-!**s/r TVS_MAPINSTRUM : Map burp satellite instrument (element #2019)
+!**s/r tvs_mapInstrum : Map burp satellite instrument (element #2019)
 !                    to RTTOV-10 instrument.
 !
 !Author  : J. Halle *CMDA/SMC May 2002
@@ -1052,16 +1052,16 @@ SUBROUTINE TVS_MAPINSTRUM(INSTRUMBURP,INSTRUM)
    INSTRUM = -1
    DO J=1, MXINSTRUMBURP
       IF ( INSTRUMBURP == LISTBURP(J) ) THEN
-         INSTRUM    = tvs_get_inst_id( LISTINSTRUM(J) )
+         INSTRUM    = tvs_getInstrumentId( LISTINSTRUM(J) )
          EXIT
       ENDIF
    ENDDO
 
-END subroutine TVS_MAPINSTRUM
+END subroutine tvs_mapInstrum
 
-SUBROUTINE TVS_MAPSAT(ISATBURP,IPLATFORM,ISAT)
+SUBROUTINE tvs_mapSat(ISATBURP,IPLATFORM,ISAT)
 !
-!**s/r TVS_MAPSAT : Map burp satellite identifier (element #1007)
+!**s/r tvs_mapSat : Map burp satellite identifier (element #1007)
 !                to RTTOV-10 platform and satellite.
 !
 !Author  :       J. Halle *CMDA/SMC May 2002
@@ -1200,15 +1200,15 @@ SUBROUTINE TVS_MAPSAT(ISATBURP,IPLATFORM,ISAT)
    ISAT      = -1
    DO J=1, NUMSATBURP
       IF ( ISATBURP == LISTBURP(J) ) THEN
-         IPLATFORM = tvs_get_platform_id( LISTPLAT(J) )
+         IPLATFORM = tvs_getPlatformId( LISTPLAT(J) )
          ISAT      = LISTSAT (J)
          EXIT
       ENDIF
    ENDDO
 
-END SUBROUTINE TVS_MAPSAT
+END SUBROUTINE tvs_mapSat
 
-SUBROUTINE TVS_GET_CHANPROF(sensor_id, iptobs, nprofiles, ObsSpaceData, chanprof)
+SUBROUTINE TVS_getChanprof(sensor_id, iptobs, nprofiles, ObsSpaceData, chanprof)
    use obsSpaceData_mod
    implicit none
    integer ,intent(in) :: nprofiles, sensor_id, iptobs(:)
@@ -1228,7 +1228,7 @@ SUBROUTINE TVS_GET_CHANPROF(sensor_id, iptobs, nprofiles, ObsSpaceData, chanprof
       do body_index = start, end
          if(obs_bodyElem_i(ObsSpaceData,OBS_ASS,body_index)==1) then
             ichn = nint(obs_bodyElem_r(ObsSpaceData,OBS_PPP,body_index))
-            ichn = max(0,min(ichn,tvs_MaxChannelNumber+1))
+            ichn = max(0,min(ichn,tvs_maxChannelNumber+1))
             ICHN = ICHN - tvs_channelOffset(sensor_id)
             do nrank = 1, tvs_nchan(sensor_id)
                if ( ichn == tvs_ichan(nrank,sensor_id) ) exit
@@ -1244,9 +1244,9 @@ SUBROUTINE TVS_GET_CHANPROF(sensor_id, iptobs, nprofiles, ObsSpaceData, chanprof
       end do
    end do
 
-end SUBROUTINE TVS_GET_CHANPROF
+end SUBROUTINE TVS_getChanprof
 
-integer function TVS_COUNT_RADIANCES(iptobs, nprofiles, ObsSpaceData)
+integer function tvs_countRadiances(iptobs, nprofiles, ObsSpaceData)
    use obsSpaceData_mod
    implicit none
    integer ,intent(in) :: nprofiles, iptobs(:)
@@ -1254,20 +1254,20 @@ integer function TVS_COUNT_RADIANCES(iptobs, nprofiles, ObsSpaceData)
 !******************************************************************************
    integer :: profile_index, header_index, start, end, body_index, iobs
 
-   TVS_COUNT_RADIANCES = 0
+   tvs_countRadiances = 0
    do profile_index = 1, nprofiles
       iobs = iptobs(profile_index)
       header_index = tvs_lobsno(iobs)
       start = obs_headElem_i(ObsSpaceData,OBS_RLN,header_index)
       end = obs_headElem_i(ObsSpaceData,OBS_NLV,header_index) + start - 1
       do body_index = start, end
-         if(obs_bodyElem_i(ObsSpaceData,OBS_ASS,body_index)==1) TVS_COUNT_RADIANCES  = TVS_COUNT_RADIANCES + 1
+         if(obs_bodyElem_i(ObsSpaceData,OBS_ASS,body_index)==1) tvs_countRadiances  = tvs_countRadiances + 1
       end do
    end do
 
-end function TVS_COUNT_RADIANCES
+end function tvs_countRadiances
 
-SUBROUTINE TVS_GetHIREmissivities(sensor_id, iptobs, nprofiles, ObsSpaceData, surfem)
+SUBROUTINE tvs_getHIREmissivities(sensor_id, iptobs, nprofiles, ObsSpaceData, surfem)
    use obsSpaceData_mod
    implicit none
    integer ,intent(in) :: nprofiles, sensor_id, iptobs(:)
@@ -1291,9 +1291,9 @@ SUBROUTINE TVS_GetHIREmissivities(sensor_id, iptobs, nprofiles, ObsSpaceData, su
       end do
    end do
 
-end SUBROUTINE TVS_GetHIREmissivities
+end SUBROUTINE tvs_getHIREmissivities
 
-SUBROUTINE TVS_GetOtherEmissivities(chanprof, iptobs, nradiances, sensor_type, instrument, surfem, calcemis)
+SUBROUTINE tvs_getOtherEmissivities(chanprof, iptobs, nradiances, sensor_type, instrument, surfem, calcemis)
    implicit none
    integer ,intent(in) :: nradiances, iptobs(:),sensor_type, instrument
    Real(8), intent(out) :: surfem(:)
@@ -1315,17 +1315,17 @@ SUBROUTINE TVS_GetOtherEmissivities(chanprof, iptobs, nradiances, sensor_type, i
             calcemis(radiance_index) = .true.
             surfem (radiance_index) = 0.d0
          endif
-      elseif ( tvs_Is_Instrum_Hyperspectral(instrument) ) then
+      elseif ( tvs_isInstrumHyperSpectral(instrument) ) then
          calcemis(radiance_index) = .false. 
-      elseif ( tvs_Is_Instrum_Geostationary(instrument) ) then
+      elseif ( tvs_isInstrumGeostationary(instrument) ) then
          calcemis(radiance_index) = .true.
          surfem (radiance_index) = 0.d0
       else
          Write(*,*) sensor_type,instrument
-         call utl_abort('TVS_GetOtherEmissivities. invalid sensor type')
+         call utl_abort('tvs_getOtherEmissivities. invalid sensor type')
       endif
    enddo
    
-end SUBROUTINE TVS_GetOtherEmissivities
+end SUBROUTINE tvs_getOtherEmissivities
 
 end module tovs_nl_mod

@@ -86,7 +86,7 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
   
   write(*,*) "Entering tovs_rttov subroutine"
 
-  if (TVS_NOBTOV == 0) return                  ! exit if there are not tovs data
+  if (tvs_nobtov == 0) return                  ! exit if there are not tovs data
 
 !     1.  Get number of threads available and allocate memory for some variables
 !     .   ---------------------------------------------------------------------- 
@@ -95,7 +95,7 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
   max_nthreads = omp_get_num_threads()
 !$omp end parallel
   alloc_status(1) = 0
-  allocate(iptobs(TVS_NOBTOV),stat=alloc_status(1))
+  allocate(iptobs(tvs_nobtov),stat=alloc_status(1))
   call utl_checkAllocationStatus(alloc_status(1:1), " tovs_rttov iptobs")
 
 
@@ -120,7 +120,7 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
 !  loop over all obs.
 
      count_profile = 0
-     obs_loop: do obs_index = 1, TVS_NOBTOV
+     obs_loop: do obs_index = 1, tvs_nobtov
 
 !    Currently processed sensor?
 
@@ -140,10 +140,10 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
 !     .  2.2  Prepare all input variables required by rttov.
 !     .       ---------------------------------------------------------
 
-     if (  bgckMode .and. tvs_Is_Instrum_Hyperspectral(instrum) ) then
+     if (  bgckMode .and. tvs_isInstrumHyperSpectral(instrum) ) then
         count_tb = count_profile * tvs_nchan(sensor_id)
      else
-        count_tb = TVS_COUNT_RADIANCES(iptobs, count_profile, lobsSpaceData)
+        count_tb = tvs_countRadiances(iptobs, count_profile, lobsSpaceData)
      endif
 
      if ( count_tb == 0 ) cycle  sensor_loop
@@ -161,16 +161,16 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
 
 !     get Hyperspectral IR emissivities
 
-     if ( tvs_Is_Instrum_Hyperspectral(instrum) ) then
+     if ( tvs_isInstrumHyperSpectral(instrum) ) then
         surfem1(:) = 0.
         if ( bgckMode ) then
            call EMIS_GET_IR_EMISSIVITY (SURFEM1,tvs_nchan(sensor_id),sensor_id,count_profile,count_tb,iptobs)
         else
-           call TVS_GetHIREmissivities(sensor_id, iptobs, count_profile, lobsSpaceData, surfem1)
+           call tvs_getHIREmissivities(sensor_id, iptobs, count_profile, lobsSpaceData, surfem1)
         end if
      end if
 
-     if (  bgckMode .and. tvs_Is_Instrum_Hyperspectral(instrum) ) then
+     if (  bgckMode .and. tvs_isInstrumHyperSpectral(instrum) ) then
         ichn = 0
         Do profile_index = 1 , count_profile
            DO  channel_index = 1,tvs_nchan(sensor_id)
@@ -180,7 +180,7 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
            End Do
         End Do
      else
-        call TVS_GET_CHANPROF(sensor_id, iptobs, count_profile, lobsSpaceData, chanprof)
+        call TVS_getChanprof(sensor_id, iptobs, count_profile, lobsSpaceData, chanprof)
      endif
 
      asw=1 ! 1 to allocate,0 to deallocate
@@ -196,9 +196,9 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
      call utl_checkAllocationStatus(alloc_status, " tovs_rttov radiances")
      
       
-     call TVS_GetOtherEmissivities(chanprof, iptobs, count_tb, sensor_type, instrum, surfem1, calcemis)
+     call tvs_getOtherEmissivities(chanprof, iptobs, count_tb, sensor_type, instrum, surfem1, calcemis)
 
-     if (tvs_useUofWIREmiss .and. tvs_Is_Instrum_Hyperspectral(instrum) .and. bgckMode) then
+     if (tvs_useUofWIREmiss .and. tvs_isInstrumHyperSpectral(instrum) .and. bgckMode) then
         if (first) then
            if (.not. allocated (Atlas)) allocate(Atlas(tvs_nsensors))
            call rttov_setup_emis_atlas( rttov_err_stat,       &! out
