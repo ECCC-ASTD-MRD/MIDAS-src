@@ -1098,11 +1098,11 @@ contains
 
     ! 1.   Prepare atmospheric profiles for all tovs observation points for use in rttov
     ! .    -----------------------------------------------------------------------------
-    call tovs_fill_profiles(columnghr,obsSpaceData,datestamp,limlvhu,bgckMode)
+    call tvs_fillProfiles(columnghr,obsSpaceData,datestamp,limlvhu,bgckMode)
 
     ! 2.   Compute radiance
     ! .    ----------------
-    call tovs_rttov(columnghr,obsSpaceData,bgckMode)
+    call tvs_rttov(columnghr,obsSpaceData,bgckMode)
 
     ! 3.   Compute Jobs and the residuals
     ! .    ----------------------------
@@ -1409,7 +1409,7 @@ contains
       !
       if (min_nsim == 1) then
          datestamp = tim_getDatestamp()
-         call tovs_fill_profiles(lcolumng,lobsSpaceData,datestamp,filt_rlimlvhu,top_bgckIrMode())
+         call tvs_fillProfiles(lcolumng,lobsSpaceData,datestamp,filt_rlimlvhu,top_bgckIrMode())
       endif
 
       !     2.   Prepare atmospheric tl profiles for all tovs observation points for use in rttov

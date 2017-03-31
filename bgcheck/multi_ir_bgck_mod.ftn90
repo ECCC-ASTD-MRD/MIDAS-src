@@ -26,9 +26,7 @@
 !!
 !--------------------------------------------------------------------------
 Module multi_ir_bgck_mod
-  Use tovs_nl_mod, only :  tvs_nlevels, rttov_coefs, rttov_transmission, rttov_emissivity, tvs_isIdBurpTovs, &
-      tvs_isIdBurpInst, tvs_radiance,tvs_lsensor,tvs_coefs,tvs_nchan,tvs_nsensors,tvs_satellites, &
-      tvs_instruments,tvs_nobtov,tvs_ltovsno
+  Use tovs_nl_mod
   use hirChannels_mod
   Use rttov_const, only : inst_id_iasi
   use utilities_mod
@@ -38,12 +36,9 @@ Module multi_ir_bgck_mod
 ! Public functions (methods)
   public :: hirqc,BGCK_IR_SETUP,multi_ir_init
 ! Public  parameters (constants)
-  public :: NCLASSAVHRR,NIR,NVIS,NCHANAVHRR,NCO2,BITFLAG
+  public :: NCLASSAVHRR,NIR,NVIS,NCHANAVHRR,NCO2
 ! Public variables ("global")
-  public ::coefs_avhrr,avhrr_bgck,profiles_qc,transmission,transmission_d, emissivity
   public :: INST, NINST
-!public types
-  public :: avhrr_bgck_iasi,prof_qc
 
   INTEGER ,PARAMETER :: NCLASSAVHRR=7
   INTEGER ,PARAMETER :: NIR=3,NVIS=3
@@ -144,25 +139,7 @@ Module multi_ir_bgck_mod
      REAL(8)              :: EMISS(NVIS+1:NVIS+NIR)
   END TYPE avhrr_bgck_iasi
 
-  TYPE prof_qc
-     SEQUENCE
-     REAL(8)              :: LAT      ! latitude (-90 to 90)
-     REAL(8)              :: LON      ! longitude (0 to 360)
-     REAL(8), POINTER     :: Z(:)     ! height field (m)
-     REAL(8)              :: SUNZA    ! sun zenith angle (deg)
-     REAL(8)              :: ALBEDO   ! surface albedo (0-1)
-     REAL(8)              :: ICE      ! ice cover (0-1) 
-     REAL(8)              :: SNOW     ! snow cover (0-1)
-     REAL(8)              :: PCNT_WAT ! water percentage in pixel containing profile (0-1)
-     REAL(8)              :: PCNT_REG ! water percentage in an area around profile (0-1)
-     INTEGER              :: LTYPE    ! surface type (1,...,20)
-  END TYPE prof_qc
-
   type(avhrr_bgck_iasi)  , allocatable :: avhrr_bgck(:)      ! avhrr parameters for IASI quality control
-  type( prof_qc )     ,     allocatable :: profiles_qc(:)    ! profiles buffer used in airsqc call
-  type(rttov_transmission) :: transmission                    ! transmissions full structure buffer used in rttov calls
-  type(rttov_transmission) , allocatable :: transmission_d(:) ! transmissions organized by profile
-  real(8) , allocatable :: emissivity(:,:)   ! surface emissivities organized by profiles and channels
 
 contains
 
@@ -214,62 +191,35 @@ contains
 
 !     Memory allocation for background check related variables
 !     .  -----------------------------------------------------
-
-    allocate(profiles_qc(tvs_nobtov) , stat= alloc_status(1))
-    If( alloc_status(1) /= 0) then
-       WRITE(*,FMT=9201)
-9201   FORMAT(' BGCK_IR_SETUP: Memory Allocation Error')
-       CALL utl_abort('BGCK_IR_SETUP')
-    End If
-
-    do jo = 1, tvs_nobtov
-       isens = tvs_lsensor(jo)
-       nl = tvs_coefs(isens)%coef % nlevels
-       allocate( profiles_qc(jo) % z  ( nl ) ,stat= alloc_status(1))
-       
-       If( alloc_status(1)/=0 ) then
-          WRITE(*,FMT=9201)
-          CALL utl_abort('BGCK_IR_SETUP')
-       End If
-    end do
+    alloc_status(:) = 0
+    allocate( tvs_surfaceParameters(tvs_nobtov) , stat= alloc_status(1))
+    call utl_checkAllocationStatus(alloc_status(1:1), " BGCK_IR_SETUP")
 
 !___ radiance by profile
-
-    alloc_status(:) = 0
-
 
     do jo = 1, tvs_nobtov
        isens = tvs_lsensor(jo)
        nc = tvs_nchan(isens)
        nl = tvs_coefs(isens) % coef % nlevels
-
        allocate( tvs_radiance(jo)  % overcast  (nl-1,nc) ,stat= alloc_status(1))
+       call utl_checkAllocationStatus(alloc_status(1:1), " BGCK_IR_SETUP")
        tvs_radiance(jo)  % overcast  (:,:) = 0._8
-     
-       If( alloc_status(1) /= 0 ) then
-          WRITE(*,FMT=9201)
-          CALL utl_abort('BGCK_IR_SETUP')
-       End If
     end do
 
 !___ transmission by profile
 
     alloc_status(:) = 0
-    allocate( transmission_d(tvs_nobtov),stat= alloc_status(1))
+    allocate( tvs_transmission(tvs_nobtov),stat= alloc_status(1))
+    call utl_checkAllocationStatus(alloc_status(1:1), " BGCK_IR_SETUP")
 
     do jo = 1, tvs_nobtov
        isens = tvs_lsensor(jo)
        nc = tvs_nchan(isens)
        nl = tvs_coefs(isens) % coef % nlevels
-
-     !! allocate transmittance from surface and from pressure levels
-       allocate( transmission_d(jo)  % tau_total ( nc ) ,stat= alloc_status(1))
-       allocate( transmission_d(jo)  % tau_levels(nl,nc) ,stat= alloc_status(2))
-
-       If( any(alloc_status /= 0) ) then
-          WRITE(*,FMT=9201)
-          CALL utl_abort('BGCK_IR_SETUP')
-       End If
+! allocate transmittance from surface and from pressure levels
+       allocate( tvs_transmission(jo)  % tau_total ( nc ) ,stat= alloc_status(1))
+       allocate( tvs_transmission(jo)  % tau_levels(nl,nc) ,stat= alloc_status(2))
+       call utl_checkAllocationStatus(alloc_status, " BGCK_IR_SETUP")
     end do
 
 !___ emissivity by profile
@@ -282,26 +232,15 @@ contains
        if (nc>ncmax) ncmax=nc
     end do
 
-    allocate( emissivity (ncmax,tvs_nobtov) ,stat=alloc_status(1))
-       
-    If( alloc_status(1) /= 0 ) then
-       WRITE(*,FMT=9201)
-       CALL utl_abort('BGCK_IR_SETUP')
-    End If
-
+    allocate( tvs_emissivity (ncmax,tvs_nobtov) ,stat=alloc_status(1))
+    call utl_checkAllocationStatus(alloc_status(1:1), " BGCK_IR_SETUP")
+    
     DO KRTID = 1, tvs_nsensors
 
        IF ( tvs_instruments(KRTID) == inst_id_iasi ) THEN
-
           allocate ( avhrr_bgck(tvs_nobtov), stat= alloc_status(1))
-
-          If( alloc_status(1)/=0 ) then
-             WRITE(*,FMT=9201)
-             CALL utl_abort('BGCK_IR_SETUP')
-          End If
-
+          call utl_checkAllocationStatus(alloc_status(1:1), " BGCK_IR_SETUP")
           EXIT
-
        END IF
 
     END DO
@@ -361,6 +300,7 @@ contains
     use columnData_mod
     use obsSpaceData_mod
     use verticalCoord_mod
+    use presProfileOperators_mod
     IMPLICIT NONE
     integer,intent(in),optional :: id_in
     type(struct_columnData),intent(in) :: lcolumnhr
@@ -375,14 +315,14 @@ contains
     INTEGER ,SAVE :: IMODTOP
     INTEGER       :: count
     REAL(8)       :: T_EFFECTIVE
-    integer       :: alloc_status(30)
+    integer       :: alloc_status(28)
 
     real(8) :: ZTG,ZPS,ZTS,ptop_T
-    real(8), allocatable :: ZT(:),ZHT(:),ZLQ(:),ZVLEV(:)
-    real(8), allocatable :: ZLEVMOD(:)
+    real(8), allocatable :: ZT(:),ZHT(:,:),ZLQ(:),ZVLEV(:)
+    real(8), allocatable :: ZLEVMOD(:,:)
     real(8), allocatable :: BTOBSERR(:),BTOBS(:),BTCALC(:),RCAL_CLR(:),SFCTAU(:)
     real(8), allocatable :: ROBS(:),RCLD(:,:),TRANSM(:,:),EMI_SFC(:) 
-    real(8), allocatable :: TOEXT(:),ZHOEXT(:)
+    real(8), allocatable :: TOEXT(:),ZHOEXT(:,:)
     real(8), allocatable :: PTOP_BT(:),PTOP_RD(:)
     real(8), allocatable :: PMIN(:),DTAUDP1(:),MAXWF(:)
     real(8), allocatable :: RCLD_AVHRR(:,:)
@@ -544,7 +484,7 @@ contains
   allocate ( TRANSM(nch_sel,NLEVB),     stat= alloc_status(7))
   allocate ( EMI_SFC(nch_sel),          stat= alloc_status(8))
   allocate ( TOEXT(NLEVB),              stat= alloc_status(9))
-  allocate ( ZHOEXT(NLEVB),             stat= alloc_status(10))
+  allocate ( ZHOEXT(NLEVB,1),           stat= alloc_status(10))
   allocate ( ROBS(nch_sel),             stat= alloc_status(11))
   allocate ( REJFLAG(nch_sel,0:BITFLAG),stat= alloc_status(12))
   allocate ( NTOP_BT(nch_sel),          stat= alloc_status(13))
@@ -558,14 +498,11 @@ contains
   if (liasi) allocate ( RCLD_AVHRR(NIR,NLEVB), stat= alloc_status(21))
   allocate ( maxwf(nch_sel),            stat= alloc_status(22))
   allocate ( ZVLEV(NLEVB),              stat= alloc_status(23))
-  allocate ( ZLEVMOD(nlv_T),            stat= alloc_status(24))
+  allocate ( ZLEVMOD(nlv_T,1),          stat= alloc_status(24))
   allocate ( ZT(nlv_T),                 stat= alloc_status(25))
-  allocate ( ZHT(nlv_T),                stat= alloc_status(26))
+  allocate ( ZHT(nlv_T,1),              stat= alloc_status(26))
   allocate ( ZLQ(nlv_T),                stat= alloc_status(27))
-  if( any(alloc_status /= 0) ) then
-     write(*,*) ' hirqc : memory allocation error'
-     call utl_abort('hirqc')
-  end if
+  call utl_checkAllocationStatus(alloc_status, " hirqc")
 
   DO JL = 1, NLEVB
      ZVLEV(JL) = XPRES(JL+iextr)
@@ -648,10 +585,13 @@ contains
 
         DO JL = 1, nlv_T
            ZT(JL) = col_getElem(lcolumnhr,JL,INDEX_HEADER,'TT')
-           ZHT(JL) = col_getHeight(lcolumnhr,JL,INDEX_HEADER,'TH') / RG
+           ZHT(JL,1) = col_getHeight(lcolumnhr,JL,INDEX_HEADER,'TH') / RG
            ZLQ(JL) = col_getElem(lcolumnhr,JL,INDEX_HEADER,'HU')
-           ZLEVMOD(JL)= col_getPressure(lcolumnhr,JL,INDEX_HEADER,'TH') * MPC_MBAR_PER_PA_R8
+           ZLEVMOD(JL,1)= col_getPressure(lcolumnhr,JL,INDEX_HEADER,'TH') * MPC_MBAR_PER_PA_R8
         END DO
+
+        call ppo_lintv (zlevmod(:,1:1),zht(:,1:1),nlv_T,nlv_T,1, &
+             nlevb,zvlev,zhoext(:,1:1))
 
         IDATA   = obs_headElem_i(lobsSpaceData,OBS_RLN,index_header)
         IDATEND = obs_headElem_i(lobsSpaceData,OBS_NLV,index_header) + IDATA - 1
@@ -682,12 +622,12 @@ contains
            chan_indx=hir_get_chindx_fr_chn(CINST,ichn)
            BTCALC(chan_indx) = tvs_radiance(tvs_nobtov)%bt(jc)
            RCAL_CLR(chan_indx) = tvs_radiance(tvs_nobtov)%clear(jc)
-           SFCTAU(chan_indx) = transmission_d(tvs_nobtov)%tau_total(jc)
+           SFCTAU(chan_indx) = tvs_transmission(tvs_nobtov)%tau_total(jc)
            DO JL = 1, NLEVB
               RCLD(chan_indx,JL) = tvs_radiance(tvs_nobtov)%overcast(jl+iextr-1,jc)
-              TRANSM(chan_indx,JL) = transmission_d(tvs_nobtov)%tau_levels(jl+iextr,jc)
+              TRANSM(chan_indx,JL) = tvs_transmission(tvs_nobtov)%tau_levels(jl+iextr,jc)
            END DO
-           EMI_SFC(chan_indx) = emissivity(JC,tvs_nobtov)
+           EMI_SFC(chan_indx) = tvs_emissivity(JC,tvs_nobtov)
 ! *** Gross check on computed BTs ***
            IF (BTCALC(chan_indx)<150._8) REJFLAG(chan_indx,9) = 1
            IF (BTCALC(chan_indx)>350._8) REJFLAG(chan_indx,9) = 1
@@ -712,20 +652,19 @@ contains
 
         DO JL = 1, NLEVB
            TOEXT(JL) = tvs_profiles(tvs_nobtov)%t(jl+iextr)
-           ZHOEXT(JL) = profiles_qc(tvs_nobtov)%z(jl+iextr)
         END DO
 
-        SUNZA = profiles_qc(tvs_nobtov)%sunza
+        SUNZA = tvs_profiles(tvs_nobtov) % sunzenangle
         if (liasi) then
            SATAZIM = tvs_profiles(tvs_nobtov)%azangle 
            SATZEN = tvs_profiles(tvs_nobtov)%zenangle
         endif
-        ALBEDO = profiles_qc(tvs_nobtov)%albedo
-        ICE = profiles_qc(tvs_nobtov)%ice
-        LTYPE = profiles_qc(tvs_nobtov)%ltype
+        ALBEDO =  tvs_surfaceParameters(tvs_nobtov)%albedo
+        ICE =  tvs_surfaceParameters(tvs_nobtov)%ice
+        LTYPE =  tvs_surfaceParameters(tvs_nobtov)%ltype
         IF (LTYPE==20) KSURF=2
-        PCNT_WAT = profiles_qc(tvs_nobtov)%pcnt_wat
-        PCNT_REG = profiles_qc(tvs_nobtov)%pcnt_reg
+        PCNT_WAT =  tvs_surfaceParameters(tvs_nobtov)%pcnt_wat
+        PCNT_REG =  tvs_surfaceParameters(tvs_nobtov)%pcnt_reg
            
 ! ** find TOA radiances converted from observed BT's
 
@@ -744,10 +683,10 @@ contains
 ! ** set height fields to 'height above ground' fields
 
         DO JL = 1, NLEVB
-           ZHOEXT(JL) = ZHOEXT(JL) - ZHT(nlv_T)
+           ZHOEXT(JL,1) = ZHOEXT(JL,1) - ZHT(nlv_T,1)
         END DO
         DO JL = 1, nlv_T
-           ZHT(JL) = ZHT(JL) - ZHT(nlv_T)
+           ZHT(JL,1) = ZHT(JL,1) - ZHT(nlv_T,1)
         END DO
 !**********************************************************************************************
 !* ///// ---------------------------------------------------- /////
@@ -783,11 +722,11 @@ contains
 
 !iopt2=1 : calcul de la hauteur en hPa PTOP_MB et du NTOP_MB correspondant
         CALL CLOUD_HEIGHT (PTOP_MB,NTOP_MB, btobs,cldflag,zt, &
-             zht,zps,zlevmod,nlv_T,nch_sel,ichref,lev_start,iopt2)
+             zht(:,1),zps,zlevmod(:,1),nlv_T,nch_sel,ichref,lev_start,iopt2)
 
 !iopt1=2 : calcul de la hauteur em metres PTOP_EQ et du NTOP_EQ correspondant
         CALL CLOUD_HEIGHT (PTOP_EQ,NTOP_EQ, btobs,cldflag,zt, &
-             zht,zps,zlevmod,nlv_T,nch_sel,ichref,lev_start,iopt1)
+             zht(:,1),zps,zlevmod(:,1),nlv_T,nch_sel,ichref,lev_start,iopt1)
 
         if (liasi) then
 ! appel de RTTOV pour calculer les radiances des 3 canaux IR (3b, 4 et 5) de AVHRR 3
@@ -797,7 +736,7 @@ contains
            call tovs_rttov_AVHRR_for_IASI(indx,avhrr_surfem1,tvs_satellites(id))
                  
            IOBS=INDX(1)
-           call convert_avhrr(profiles_qc(IOBS)%sunza, avhrr_bgck(IOBS) )
+           call convert_avhrr(sunza, avhrr_bgck(IOBS) )
            call stat_avhrr(avhrr_bgck(IOBS))
      
            LEV_START_AVHRR(:) = 0
@@ -823,7 +762,7 @@ contains
               ENDIF
 
               CALL CLOUD_HEIGHT (PTOP_EQ_AVHRR(JC),NTOP_EQ_AVHRR(JC), btobs_avhrr(:,JC),cldflag_avhrr(JC),zt, &
-                   zht,zps,zvlev,nlv_T,NIR,ichref_avhrr(JC),lev_start_avhrr(JC),iopt1)
+                   zht(:,1),zps,zvlev,nlv_T,NIR,ichref_avhrr(JC),lev_start_avhrr(JC),iopt1)
            ENDDO
          
         end if
@@ -831,12 +770,12 @@ contains
 !* -- CLEAR/CLOUDY PROFILE DETECTION USING THE GARAND & NADON ALGORITHM
 
         CALL GARAND1998NADON (CLDFLAG, btobs,ztg,zt, &
-             zht,nlv_T,nch_sel,ptop_eq,ntop_eq,ichref)
+             zht(:,1),nlv_T,nch_sel,ptop_eq,ntop_eq,ichref)
 
         if (liasi) then
            DO JC=1,NCLASSAVHRR
               CALL GARAND1998NADON (CLDFLAG_AVHRR(jC), btobs_avhrr(:,JC),ztg,zt, &
-                   zht,nlv_T,NIR,ptop_eq_avhrr(JC),ntop_eq_avhrr(JC),ichref_avhrr(JC))
+                   zht(:,1),nlv_T,NIR,ptop_eq_avhrr(JC),ntop_eq_avhrr(JC),ichref_avhrr(JC))
            ENDDO
         end if
 
@@ -978,7 +917,7 @@ contains
         END DO
               
         CALL CLOUD_TOP ( PTOP_BT,PTOP_RD,NTOP_BT,NTOP_RD, &
-             btobs,toext,zhoext,rcal_clr,zps,robs,rcld,zvlev,nlevb, &
+             btobs,toext,zhoext(:,1),rcal_clr,zps,robs,rcld,zvlev,nlevb, &
              nch_sel,cldflag,rejflag,lev_start,iopt2,ihgt,ichref,nch_he,ilist_he)
 
         if (liasi) then
@@ -986,7 +925,7 @@ contains
 
            DO JC=1,NCLASSAVHRR
               CALL CLOUD_TOP_AVHRR ( PTOP_BT_AVHRR(:,JC),PTOP_RD_AVHRR(:,JC),NTOP_BT_AVHRR(:,JC),NTOP_RD_AVHRR(:,JC), &
-                   btobs_avhrr(:,JC),toext,zhoext,rcal_clr_avhrr,zps,robs_avhrr(:,JC),rcld_avhrr,zvlev,nlevb, &
+                   btobs_avhrr(:,JC),toext,zhoext(:,1),rcal_clr_avhrr,zps,robs_avhrr(:,JC),rcld_avhrr,zvlev,nlevb, &
                    NIR,cldflag_avhrr(jc),lev_start_avhrr(JC),iopt2,ihgt,nn,ilist_avhrr)
            ENDDO
         endif
@@ -1278,10 +1217,7 @@ contains
   deallocate ( ZT,        stat= alloc_status(26))
   deallocate ( ZHT,       stat= alloc_status(27))
   deallocate ( ZLQ,       stat= alloc_status(28))
-  if( any(alloc_status /= 0) ) then
-     write(*,*) ' hirqc : memory deallocation error'
-     call utl_abort('hirqc        ')
-  end if
+  call utl_checkAllocationStatus(alloc_status, " HIRQC", .false.)
         
 end SUBROUTINE HIRQC
 
