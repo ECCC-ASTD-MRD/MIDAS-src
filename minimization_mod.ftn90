@@ -770,6 +770,8 @@ CONTAINS
 
     if(status.eq.0) then
 
+    call tmg_start(86,'MIN_READ_HESS')
+
       ierr = fnom(ireslun,cfname,'FTN+SEQ+UNF+OLD+R/O',0)
 
       ! Checking version number
@@ -876,7 +878,12 @@ CONTAINS
       !*     Write Hessian
       !*     -------------
 
+      call tmg_stop(86)
+
     elseif(status.eq.1) then
+
+       call tmg_start(87,'MIN_WRITE_HESS')
+
       if(mpi_myid.eq.0) ierr = fnom(ireslun,cfname, 'FTN+SEQ+UNF' , 0)
       cl_version = 'V4'
       itrunc=0
@@ -911,6 +918,8 @@ CONTAINS
       deallocate(vazx_mpiglobal)
 
       if(mpi_myid.eq.0) ierr = fclos(ireslun)
+
+      call tmg_stop(87)
     else
       call abort3d(" RW_VATRA: status not valid ")
     endif
