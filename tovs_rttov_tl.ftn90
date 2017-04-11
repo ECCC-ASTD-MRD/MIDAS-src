@@ -84,8 +84,6 @@ subroutine tovs_rttov_tl(lobsSpaceData)
   integer ::  asw
          
   if (tvs_nobtov == 0) return       ! exit if there are not tovs data
-  write(*,*) "tovs_rttov_tl Debut"
-
 
 !     1.  Get number of threads available and allocate memory for some variables
 !     .   ---------------------------------------------------------------------- 

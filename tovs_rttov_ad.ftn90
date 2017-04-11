@@ -88,6 +88,9 @@ subroutine tovs_rttov_ad(lobsSpaceData)
 
   allocate ( iptobs(tvs_nobtov) )
 
+
+  call rttov_init_prof(profiles_ad )
+
 !
 !     2.  Computation of adjoint hx for tovs data only
 !     .   --------------------------------------------
@@ -178,9 +181,16 @@ subroutine tovs_rttov_ad(lobsSpaceData)
       call rttov_init_prof(profilesdata_ad(1:count_profile) )
 
       call rttov_init_rad( radiancedata_d )
-     !.. fill radiancedata_ad_th arrays
 
-      call rttov_init_rad( radiancedata_ad )
+     !.. fill radiancedata_ad arrays
+      call rttov_init_rad( radiancedata_ad ) ! set irrrelevant fields to zero
+
+      do tb_index = 1, count_tb
+         profile_index = chanprof(tb_index)%prof
+         iobs = iptobs(profile_index)
+         radiancedata_ad % bt( tb_index ) = radiance_ad(iobs) % bt(chanprof( tb_index)%chan )
+      enddo
+
 !
 
 !     .  2.3  Compute ad radiance with rttov_ad

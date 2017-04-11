@@ -79,7 +79,6 @@ subroutine tovs_fill_profiles_tl(column,columng)
   real(8), pointer :: delTT(:), delLQ(:), TTb(:), HUb(:), Pres(:)
 
   if(tvs_nobtov==0) return    ! exit if there are not tovs data
-  write(*,*) "Debut de tovs_fill_profiles_tl "
 
   !     1.    Set index for model's lowest level and model top
   !     .     ------------------------------------------------

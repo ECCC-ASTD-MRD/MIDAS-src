@@ -1399,7 +1399,6 @@ subroutine tvs_fillProfiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode)
   real(8), allocatable :: zho   (:,:)
   real(8), allocatable :: toext (:,:)
   real(8), allocatable :: qoext (:,:)
-!  real(8), allocatable :: zhoext(:,:)
   real(8), allocatable :: zvlev (:,:)
   real(8), allocatable :: zt    (:,:)
   real(8), allocatable :: zlq   (:,:)
@@ -1512,7 +1511,6 @@ subroutine tvs_fillProfiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode)
      allocate (zho       (jpmolev,count_profile),stat= alloc_status(7))
      allocate (toext     (nlevels  ,count_profile),stat= alloc_status(8))
      allocate (qoext     (nlevels  ,count_profile),stat= alloc_status(9))
-!     allocate (zhoext    (nlevels  ,count_profile),stat= alloc_status(10))
      allocate (zvlev     (nlv_T,count_profile),stat= alloc_status(11))
      allocate (zt        (nlv_T,count_profile),stat= alloc_status(12))
      allocate (zlq       (nlv_T,count_profile),stat= alloc_status(13))
@@ -1629,11 +1627,6 @@ subroutine tvs_fillProfiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode)
         call extrap (to,toext,jpmolev,nlevels,count_profile)
      endif
 
-!     .  2.3  Extrapolation of height profile above model top
-!     .       -----------------------------------------------
-!     zhoext(:,:) = 0.0d0
-!     call htextrap (zhoext,zho,xpres(1:nlevels),nlevels,jpmolev,jpmotop,count_profile)
-
 !     .  2.4  Extrapolation of humidity profile (kg/kg)
 !             above rlimlvhu (normally 300mbs or 70mbs)
 !     .       -----------------------------------------
@@ -1744,7 +1737,6 @@ subroutine tvs_fillProfiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode)
      deallocate (zho       ,stat= alloc_status(7))
      deallocate (toext     ,stat= alloc_status(8))
      deallocate (qoext     ,stat= alloc_status(9))
-!     deallocate (zhoext    ,stat= alloc_status(10))
      deallocate (zvlev     ,stat= alloc_status(11))
      deallocate (zt        ,stat= alloc_status(12))
      deallocate (zlq       ,stat= alloc_status(13))

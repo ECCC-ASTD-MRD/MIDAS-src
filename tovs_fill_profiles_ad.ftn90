@@ -78,7 +78,6 @@ subroutine tovs_fill_profiles_ad(column,columng)
 
   !     1.    Set index for model's lowest level and model top
   !     .     ------------------------------------------------
-  write(*,*) "tovs_fill_profiles_ad Debut"
 
   nlv_M = col_getNumLev(columng,'MM')
   nlv_T = col_getNumLev(columng,'TH')
@@ -346,7 +345,6 @@ subroutine tovs_fill_profiles_ad(column,columng)
 
   enddo sensor_loop
 
-  write(*,*) "tovs_fill_profiles_ad Fin"
   !     3.  Close up
   !     .   --------
 
