@@ -22,7 +22,6 @@ program cnt0
   use obsSpaceData_mod
   use columnData_mod  
   use obsSpaceDiag_mod
-  use writeIncrement_mod
   use controlVector_mod
   use filterObs_mod  
 
@@ -33,8 +32,6 @@ program cnt0
   logical :: isControlAnalysis, isLastAnalysis
   type(struct_obs),target :: obsSpaceData, obsSpaceData_out
   type(struct_columnData),target :: columng,columnhr
-  type(struct_vco),pointer :: vco_anl => NULL()
-  type(struct_vco),pointer :: vco_trl => NULL()
 
   character(len=48) :: obsMpiStrategy
 
@@ -204,12 +201,7 @@ program cnt0
       if(.not.isControlAnalysis) call perturbObs(obsSpaceData,numAnalyses,indexAnalysis)
 
       ! Do minimization of cost function
-      call minimize(columng,obsSpaceData,isControlAnalysis)
-
-      ! Calculate and write out the resulting analysis increment
-      vco_anl => col_getVco(columng)
-      vco_trl => col_getVco(columnhr)
-      call calcWriteIncrement(vco_anl,vco_trl,indexAnalysis,isLastAnalysis)
+      call minimize(columng,columnhr,obsSpaceData,isControlAnalysis)
 
       ! Set the QC flags to be consistent with VAR-QC if control analysis
       if(isControlAnalysis) then
@@ -235,11 +227,6 @@ program cnt0
 
     ! Compute obs-space diagnostics (only does computation if NAMOSD present in flnml)
     call osd_calcInflation(obsSpaceData_out,columng)
-
-    if (mpi_myid == 0) then
-       clmsg = 'REBM_DONE'
-       call wrstatus(clmsg)
-    end if
 
     ! Now write out the observation data files
     call update_burpfiles(obsSpaceData_out)

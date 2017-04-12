@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !
-subroutine minimize(lcolumng,lobsSpaceData,isControlAnalysis)
+subroutine minimize(lcolumng,lcolumnhr,lobsSpaceData,isControlAnalysis)
   use minimization_mod
   use obsSpaceData_mod
   use columnData_mod
@@ -30,7 +30,7 @@ subroutine minimize(lcolumng,lobsSpaceData,isControlAnalysis)
   !                                    in 1-Obs case.
   !Local declarations
   type(struct_obs) :: lobsSpaceData
-  type(struct_columnData) :: lcolumn,lcolumng
+  type(struct_columnData) :: lcolumn,lcolumng,lcolumnhr
   logical :: isControlAnalysis
   integer :: indic,ierr
 
@@ -47,7 +47,7 @@ subroutine minimize(lcolumng,lobsSpaceData,isControlAnalysis)
   call prdatabin(lobsSpaceData,tim_nstepobsinc)
   call tim_sutimeinterp(lobsSpaceData)
 
-  call min_minvar(lcolumn,lcolumng,lobsSpaceData,isControlAnalysis)
+  call min_minvar(lcolumn,lcolumng,lcolumnhr,lobsSpaceData,isControlAnalysis)
 
   DO INDIC =1,1
      if(obs_numHeader(lobsSpaceData).ge.indic) then 

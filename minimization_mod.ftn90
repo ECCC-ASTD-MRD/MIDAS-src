@@ -137,14 +137,15 @@ CONTAINS
   END SUBROUTINE min_setup
 
 
-  SUBROUTINE min_minvar(lcolumn,lcolumng,lobsSpaceData,isControlAnalysis)
+  SUBROUTINE min_minvar(lcolumn,lcolumng,lcolumnhr,lobsSpaceData,isControlAnalysis)
+      use writeIncrement_mod
     !
     ! Purpose:
     ! 3D/En VAR minimization
     !
       IMPLICIT NONE
 
-      type(struct_columnData),target :: lcolumn,lcolumng
+      type(struct_columnData),target :: lcolumn,lcolumng,lcolumnhr
       type(struct_obs),target :: lobsSpaceData
       logical :: isControlAnalysis
       type(struct_dataptr) :: dataptr 
@@ -176,6 +177,10 @@ CONTAINS
       integer :: iterdone_000,isimdone_000
       character(len=128) :: clfname
  
+      type(struct_vco), pointer :: vco_anl => NULL()
+      type(struct_vco), pointer :: vco_trl => NULL()
+      character(len=9) :: clmsg
+
       min_nsim=0 
 
       if(mpi_myid.eq.0) then
@@ -416,6 +421,15 @@ CONTAINS
       do jdata = 1, nvadim_mpilocal
         dg_vbar(jdata) = vazx(jdata) + dg_vbar(jdata)
       enddo
+
+      ! Calculate and write out the resulting analysis increment
+      vco_anl => col_getVco(lcolumng)
+      vco_trl => col_getVco(lcolumnhr)
+      call calcWriteIncrement(vco_anl,vco_trl,0,.true.)
+      if (mpi_myid == 0) then
+         clmsg = 'REBM_DONE'
+         call wrstatus(clmsg)
+      end if
 
       ! Write out the Hessian to file (only control member writes when nCycleHessMode is not 1)
       if(lwrthess .and. (isControlAnalysis .or. nCycleHessMode.eq.1) ) then
