@@ -17,7 +17,7 @@
 !--------------------------------------------------------------------------
 !! MODULE obsOperators (prefix="oop")
 !!
-!! *Purpose*: All observation operators, including nonlinear, tangent-linear
+!! *Purpose*: All observation operators, including nonlineatovs_lin_mod.ftn90r, tangent-linear
 !!            and adjoint versions.
 !!
 !--------------------------------------------------------------------------
@@ -1415,12 +1415,12 @@ contains
       !     2.   Prepare atmospheric tl profiles for all tovs observation points for use in rttov
       !     .    --------------------------------------------------------------------------------
       !
-      call tovs_fill_profiles_tl(lcolumn,lcolumng,top_bgckIrMode())
+      call tvslin_fill_profiles_tl(lcolumn,lcolumng)
 
       !     3.   Compute radiance
       !     .    ----------------
       !
-      call tovs_rttov_tl(lobsSpaceData)
+      call tvslin_rttov_tl(lobsSpaceData)
 
 
       call oop_storeHdx_radiances(lobsSpaceData)
@@ -2348,13 +2348,13 @@ contains
       !     2.   Adjoint of computing radiance
       !     .    -----------------------------
       !
-      call tovs_rttov_ad(lobsSpaceData)
+      call tvslin_rttov_ad(lobsSpaceData)
 
 
       !     3.   Adjoint of preparation of atmospheric profiles
       !     .    ----------------------------------------------
       !
-      call tovs_fill_profiles_ad(lcolumn,lcolumng)
+      call tvslin_fill_profiles_ad(lcolumn,lcolumng)
 
     end subroutine oop_HTto
 

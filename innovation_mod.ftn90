@@ -143,7 +143,7 @@ contains
     if (obs_famExist(obsSpaceData,'TO')) then
        call tvs_setupAlloc(obsSpaceData)
        if ( top_BgckIrMode() ) call BGCK_IR_SETUP(obsSpaceData)
-       if ( top_AnalysisMode() ) call tovs_lin_setupallo()
+       if ( top_AnalysisMode() ) call tvslin_setupallo()
     end if
 
   END SUBROUTINE INN_SETUPOBS

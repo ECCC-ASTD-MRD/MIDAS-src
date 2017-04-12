@@ -249,7 +249,7 @@ if [ "${mode}" == full ] ; then
   echo "...   if aborting, check in ${PWD}/listing3"
   SRC1="controlvector_mod.ftn90 rmatrix_mod.ftn90 hirchannels_mod.ftn90 "
   SRC1="$SRC1 varnamelist_mod.ftn90 columndata_mod.ftn90 ozoneclim_mod.ftn90 tovs_nl_mod.ftn90 multi_ir_bgck_mod.ftn90"
-  SRC1="$SRC1 tovs_lin_mod.ftn90  globalspectraltransform_mod.ftn90 tt2phi_mod.ftn90"
+  SRC1="$SRC1 globalspectraltransform_mod.ftn90 tt2phi_mod.ftn90"
   SRC1="$SRC1 lamspectraltransform_mod.ftn90 gridstatevector_mod.ftn90 statetocolumn_mod.ftn90 variabletransforms_mod.ftn90"
   SRC1="$SRC1 bmatrixensemble_mod.ftn90 bmatrixhi_mod.ftn90 lambmatrixhi_mod.ftn90"
   SRC1="$SRC1 bmatrix_mod.ftn90 residual_mod.ftn90 costfunction_mod.ftn90"
@@ -286,7 +286,7 @@ if [ "${mode}" == full ] ; then
 
   echo "... > Compiling some more modules..."
   echo "...   if aborting, check in ${PWD}/listing6"
-  SRC2="obserrors_mod.ftn90 varqc_mod.ftn90 obsfilter_mod.ftn90 obsoperators_mod.ftn90 obsspacediag_mod.ftn90 burpfiles_mod.ftn90 innovation_mod.ftn90"
+  SRC2="obserrors_mod.ftn90 varqc_mod.ftn90 obsfilter_mod.ftn90 tovs_lin_mod.ftn90 obsoperators_mod.ftn90 obsspacediag_mod.ftn90 burpfiles_mod.ftn90 innovation_mod.ftn90"
   SRC2="$SRC2 minimization_mod.ftn90"
   s.compile $COMPF  -O ${FOPTMIZ} -src $SRC2 > listing6 2>&1
   status=1
