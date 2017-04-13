@@ -307,7 +307,7 @@ elif [ "${mode}" == abs ] ; then
   echo "building the executable..."
   echo
   set -x
-  s.compile $COMPF  -O ${FOPTMIZ} -libappl $LIBAPPL $LIBEXTRA -librmn $LIBRMN -obj *.o -o ${varabs}.Abs
+  s.compile $COMPF  -O ${FOPTMIZ} -libappl $LIBAPPL $LIBEXTRA -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o ${varabs}.Abs
 
 else
     if [ -f $trunkdir/$mode ] ; then
