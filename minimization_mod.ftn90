@@ -829,8 +829,11 @@ CONTAINS
         allocate(vatravec_r8_mpiglobal(nvadim_mpiglobal))
         ! set to zero, except 1 for "diag" (first vector) for overdimensioned elements
         do jvec = 1, ictrlvec
-          read(ireslun) vatravec_r4_mpiglobal
-          vatravec_r8_mpiglobal(:)=real(vatravec_r4_mpiglobal(:),8)
+          if(mpi_myid.eq.0) then
+             read(ireslun) vatravec_r4_mpiglobal
+             vatravec_r8_mpiglobal(:)=real(vatravec_r4_mpiglobal(:),8)
+          end if
+          call rpn_comm_bcast(vatravec_r8_mpiglobal,nvadim_mpiglobal,"mpi_double_precision",0,"world",ierr)
           call bmat_reduceToMPILocal(  &
             vatra(((jvec-1)*nvadim_mpilocal+1):jvec*nvadim_mpilocal),  &
             vatravec_r8_mpiglobal,cvDim_return)
