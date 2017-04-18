@@ -131,7 +131,7 @@ LIBSYS="hpcoperf"
 
 LIBRMN=rmnMP
 
-COMPF_GLOBAL="-openmp ${MPIKEY}"
+COMPF_GLOBAL="${COMPILE_OAVAR_OPTIONS} -openmp ${MPIKEY}"
 OPTF="=-check =noarg_temp_created"
 if [ "${ORDENV_PLAT}" = ubuntu-14.04-amd64-64 ];then
     OPTF="=-mkl ${OPTF}"
