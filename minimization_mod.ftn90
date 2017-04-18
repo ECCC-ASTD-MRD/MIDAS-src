@@ -422,6 +422,11 @@ CONTAINS
         dg_vbar(jdata) = vazx(jdata) + dg_vbar(jdata)
       enddo
 
+      ! Put final control vector into control vector module for use elsewhere
+      call tmg_start(89,'MIN_COMM')
+      cvm_vazx(:)=vazx(1:nvadim_mpilocal)
+      call tmg_stop(89)
+
       ! Calculate and write out the resulting analysis increment
       vco_anl => col_getVco(lcolumng)
       vco_trl => col_getVco(lcolumnhr)
@@ -439,11 +444,6 @@ CONTAINS
           iztrl,vatra,dg_vbar,vazx,.true.,llvazx,n1gc,imode)
         if(mpi_myid.eq.0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
       endif
-
-      ! Put final control vector into control vector module for use elsewhere
-      call tmg_start(89,'MIN_COMM')
-      cvm_vazx(:)=vazx(1:nvadim_mpilocal)      
-      call tmg_stop(89)
 
       ! deallocate the control vector related arrays
       deallocate(vazx)
