@@ -486,7 +486,7 @@ subroutine tvslin_fill_profiles_tl(column,columng)
   enddo sensor_loop
 
   !     3.  Close up
-  !     .   --------
+  !     .   -------
 end subroutine tvslin_fill_profiles_tl
 
 SUBROUTINE LEXTHUM4(KNPF,KLAPF,PPRES,PAV,PAV5)
@@ -615,7 +615,7 @@ subroutine tvslin_rttov_tl(lobsSpaceData)
   integer :: isurface
   integer :: nlevels
   integer :: count_tb
-  integer :: alloc_status(6)
+  integer :: alloc_status(7)
   integer :: rttov_err_stat                      ! rttov error return code
   integer,external :: omp_get_num_threads
   integer :: nthreads, max_nthreads
@@ -627,7 +627,8 @@ subroutine tvslin_rttov_tl(lobsSpaceData)
   integer :: channel_index
 
   integer :: errorstatus
-  integer,allocatable :: iptobs  (:) 
+  integer,allocatable :: iptobs  (:)
+  integer,allocatable :: iptobs_cma  (:)
 
   real*8, allocatable :: surfem1       (:) 
   type(rttov_emissivity), allocatable :: emissivity_local (:)
@@ -704,13 +705,14 @@ subroutine tvslin_rttov_tl(lobsSpaceData)
      allocate ( emissivity_tl(count_tb)       ,stat=alloc_status(4))
      allocate ( calcemis     (count_tb)       ,stat=alloc_status(5))
      allocate ( profilesdata_tl(count_profile),stat=alloc_status(6))  ! profilesdata tl
+     allocate ( iptobs_cma   (count_tb)       ,stat=alloc_status(7))
      call utl_checkAllocationStatus(alloc_status, " tovs_rtttov_tl")
     
 !     get Hyperspecral IR emissivities
       
      if ( tvs_isInstrumHyperSpectral(instrum) ) call tvs_getHIREmissivities(sensor_id, iptobs, count_profile, lobsSpaceData, surfem1)
 
-     call TVS_getChanprof(sensor_id, iptobs, count_profile, lobsSpaceData, chanprof)
+     call TVS_getChanprof(sensor_id, iptobs, count_profile, lobsSpaceData, chanprof, iptobs_cma)
 
      init=.true.
      asw=1 ! 1 to allocate,0 to deallocate
@@ -775,29 +777,18 @@ subroutine tvslin_rttov_tl(lobsSpaceData)
 
 !     .  2.4  Store hx in obsSpaceData,OBS_WORK
 !     .       ------------------------------------
-!Could this loop be optimized ?
+
      tb_loop :do index_tb = 1, count_tb
-        profile_index = chanprof(index_tb)%prof
-        channel_index = chanprof(index_tb)%chan
-        iobs = iptobs(profile_index)
-        headerIndex = tvs_lobsno(iobs)
-        istart = obs_headElem_i(lObsSpaceData,OBS_RLN,headerIndex)
-        iend = obs_headElem_i(lObsSpaceData,OBS_NLV,headerIndex) + istart - 1
-        do bodyIndex = istart, iend
-           ichn = nint(obs_bodyElem_r(lobsSpaceData,OBS_PPP,bodyIndex))
-           ichn = max(0,min(ichn,tvs_maxChannelNumber+1))
-           ichn = ichn - tvs_channelOffset(sensor_id)
-           if (ichn == tvs_ichan(channel_index,sensor_id) ) then
-              call obs_bodySet_r(lobsSpaceData,OBS_WORK,bodyIndex, &
-                   radiancedata_tl % bt(index_tb) )
-              if ( tvs_debug ) then
-                 write(*,'(a,i4,2f8.2)') ' ichn,sim,obs= ', &
-                      channel_index,   radiancedata_tl % bt(index_tb), &
-                      obs_bodyElem_r(lobsSpaceData,OBS_OMP,bodyIndex)
-              endif
-              cycle tb_loop
-           endif
-        end do
+
+        bodyIndex = iptobs_cma(index_tb)
+        call obs_bodySet_r(lobsSpaceData,OBS_WORK,bodyIndex, &
+             radiancedata_tl % bt(index_tb) )
+        if ( tvs_debug ) then
+           write(*,'(a,i4,2f8.2)') ' ichn,sim,obs= ', &
+                chanprof(index_tb)%chan,   radiancedata_tl % bt(index_tb), &
+                obs_bodyElem_r(lobsSpaceData,OBS_OMP,bodyIndex)
+        endif
+
      enddo tb_loop
 
  
@@ -835,12 +826,12 @@ subroutine tvslin_rttov_tl(lobsSpaceData)
      deallocate ( emissivity_tl   ,stat=alloc_status(4) )
      deallocate ( calcemis        ,stat=alloc_status(5) )
      deallocate ( profilesdata_tl ,stat=alloc_status(6) )
+     deallocate ( iptobs_cma      ,stat=alloc_status(7) )
      call utl_checkAllocationStatus(alloc_status, " tvslin_rtttov_tl", .false.)
     
   end do sensor_loop
 
   deallocate ( iptobs )
-
 
 end subroutine tvslin_rttov_tl
 
@@ -882,7 +873,7 @@ subroutine tvslin_rttov_ad(lobsSpaceData)
 
   integer :: nlevels
   integer :: count_tb
-  integer :: alloc_status(6)
+  integer :: alloc_status(7)
   integer :: rttov_err_stat                      ! rttov error return code
   integer :: omp_get_num_threads
   integer :: nthreads,max_nthreads
@@ -891,7 +882,8 @@ subroutine tvslin_rttov_ad(lobsSpaceData)
   integer :: profile_index, tb_index, istart, iend, ichn, channel_index, headerIndex, bodyIndex
   integer :: sensor_type   ! sensor type (1=infrared; 2=microwave; 3=high resolution, 4=polarimetric)
 
-  integer, allocatable :: iptobs          (:)  
+  integer, allocatable :: iptobs          (:)
+  integer, allocatable :: iptobs_cma      (:)
   integer :: errorstatus 
 
   real*8, allocatable :: surfem1       (:) 
@@ -970,6 +962,7 @@ subroutine tvslin_rttov_ad(lobsSpaceData)
      allocate ( calcemis     (count_tb)        ,stat=alloc_status(4))
      allocate ( surfem1      (count_tb)        ,stat=alloc_status(5))
      allocate ( profilesdata_ad(count_profile) ,stat=alloc_status(6))
+     allocate ( iptobs_cma   (count_tb)        ,stat=alloc_status(7))
      call utl_checkAllocationStatus(alloc_status, " tvslin_rttov_ad")
       
 !     get Hyperspectral IR emissivities
@@ -978,7 +971,7 @@ subroutine tvslin_rttov_ad(lobsSpaceData)
 
 ! Build the list of channels/profiles indices
 
-     call TVS_getChanprof(sensor_id, iptobs, count_profile, lobsSpaceData, chanprof)
+     call TVS_getChanprof(sensor_id, iptobs, count_profile, lobsSpaceData, chanprof, iptobs_cma)
 !     get non Hyperspectral IR emissivities
      call tvs_getOtherEmissivities(chanprof, iptobs, count_tb, sensor_type, instrum, surfem1, calcemis)
 
@@ -1015,23 +1008,10 @@ subroutine tvslin_rttov_ad(lobsSpaceData)
 
 !.. fill radiancedata_ad arrays
      call rttov_init_rad( radiancedata_ad ) ! set irrrelevant fields to zero
-!Could this loop be optimized ?
+
      tb_loop:   do tb_index = 1, count_tb
-        profile_index = chanprof(tb_index)%prof
-        channel_index = chanprof(tb_index)%chan
-        iobs = iptobs(profile_index)
-        headerIndex = tvs_lobsno(iobs)
-        istart = obs_headElem_i(lObsSpaceData,OBS_RLN,headerIndex)
-        iend = obs_headElem_i(lObsSpaceData,OBS_NLV,headerIndex) + istart - 1
-        do bodyIndex = istart, iend
-           ichn = nint(obs_bodyElem_r(lobsSpaceData,OBS_PPP,bodyIndex))
-           ichn = max(0,min(ichn,tvs_maxChannelNumber+1))
-           ichn = ichn - tvs_channelOffset(sensor_id)
-           if ( ichn == tvs_ichan(channel_index,sensor_id) ) then
-              radiancedata_ad % bt( tb_index ) = obs_bodyElem_r(lobsSpaceData,OBS_WORK,bodyIndex)
-              cycle tb_loop
-           endif
-        enddo
+        bodyIndex = iptobs_cma(tb_index)
+        radiancedata_ad % bt( tb_index ) = obs_bodyElem_r(lobsSpaceData,OBS_WORK,bodyIndex)
      enddo tb_loop
 
 !
@@ -1112,6 +1092,7 @@ subroutine tvslin_rttov_ad(lobsSpaceData)
      deallocate ( emissivity_ad   ,stat=alloc_status(4))
      deallocate ( calcemis        ,stat=alloc_status(5))
      deallocate ( surfem1         ,stat=alloc_status(6))
+     deallocate ( iptobs_cma      ,stat=alloc_status(7))
      call utl_checkAllocationStatus(alloc_status, " tvslin_rttov_ad", .false.)
      
   enddo sensor_loop

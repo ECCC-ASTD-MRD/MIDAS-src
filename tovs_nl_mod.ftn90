@@ -1228,10 +1228,11 @@ SUBROUTINE tvs_mapSat(ISATBURP,IPLATFORM,ISAT)
 
 END SUBROUTINE tvs_mapSat
 
-SUBROUTINE TVS_getChanprof(sensor_id, iptobs, nprofiles, ObsSpaceData, chanprof)
+SUBROUTINE TVS_getChanprof(sensor_id, iptobs, nprofiles, ObsSpaceData, chanprof, iptobs_cma)
    use obsSpaceData_mod
    implicit none
    integer ,intent(in) :: nprofiles, sensor_id, iptobs(:)
+   integer ,intent(out),optional :: iptobs_cma(:)
    type(struct_obs) :: ObsSpaceData
    type(rttov_chanprof) :: chanprof(:)
 !******************************************************************************
@@ -1257,6 +1258,7 @@ SUBROUTINE TVS_getChanprof(sensor_id, iptobs, nprofiles, ObsSpaceData, chanprof)
                count =  count + 1
                chanprof(count)%prof = profile_index
                chanprof(count)%chan = nrank
+               if (present(iptobs_cma)) iptobs_cma(count) = body_index
             else
                print *,"strange channel number",ichn
             endif
