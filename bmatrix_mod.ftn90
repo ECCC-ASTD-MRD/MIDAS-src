@@ -184,10 +184,8 @@ contains
     !
 
     !- 2.1 Allocate and set to zero another temporary statevector
-    call gsv_setVco(statevector_temp, gsv_getVco(statevector))
-    call gsv_setHco(statevector_temp, hco_anl)
-    call gsv_allocate(statevector_temp,&
-                      statevector%numStep, mpi_local=.true.)
+    call gsv_allocate(statevector_temp, statevector%numStep, hco_anl, gsv_getVco(statevector), &
+                      mpi_local=.true.)
     call gsv_zero(statevector_temp)
 
     !- 2.2 Compute 3D contribution to increment from BmatrixHI
@@ -323,7 +321,7 @@ contains
     implicit none
     type(struct_gsv) :: statevector
 
-    integer :: jlev,jlat,jlon,lon1,lon2,lat1,lat2,jstep,jvar
+    integer :: jlev,jlat,jlon,lon1,lon2,lat1,lat2,k1,k2,jstep,jvar
 
     real(8), allocatable :: rwtinv(:)
 
@@ -333,6 +331,8 @@ contains
     lon2 = statevector%myLonEnd
     lat1 = statevector%myLatBeg
     lat2 = statevector%myLatEnd
+    k1 = statevector%mykBeg
+    k2 = statevector%mykEnd
 
     allocate(rwtinv(lat1:lat2))
     do jlat = lat1, lat2
@@ -341,7 +341,7 @@ contains
 
     ptr => gsv_getField_r8(statevector)
 !$OMP PARALLEL DO PRIVATE (jlat,jstep,jlev,jlon)
-    do jlev = 1, statevector%nk
+    do jlev = k1, k2
       do jstep = 1, statevector%numStep
         do jlat = lat1, lat2
           do jlon = lon1, lon2

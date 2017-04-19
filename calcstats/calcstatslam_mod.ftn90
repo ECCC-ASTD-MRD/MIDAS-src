@@ -24,7 +24,7 @@
 module calcstatslam_mod
   use gridStateVector_mod
   use LamSpectralTransform_mod
-  use LamAnalysisGrid_mod
+  use analysisGrid_mod
   use HorizontalCoord_mod
   use localizationFunction_mod
   use utilities_mod
@@ -193,7 +193,7 @@ module calcstatslam_mod
     hco_bhi => hco_Get('BHI')
 
     !- 3.3 Setup the LAM analysis grid metrics
-    call lag_SetupFromHCO( 'BHI', 'Ensemble' ) ! IN
+    call agd_SetupFromHCO( 'BHI', 'Ensemble' ) ! IN
 
     !- 3.4 Setup the LAM spectral transform
     call lst_Setup( lst_bhi,                & ! OUT
@@ -1242,7 +1242,7 @@ module calcstatslam_mod
       vwind_3d(:,:,:) = real(ensPerturbations(:,:,kStart_v:kEnd_v,ens),8)
 
       !- U-wind,V-wind -> Vorticity,Divergence
-      call lag_UVToVortDiv(CtrlVar1_3d, CtrlVar2_3d, & ! OUT
+      call agd_UVToVortDiv(CtrlVar1_3d, CtrlVar2_3d, & ! OUT
                            uwind_3d   , vwind_3d   , & ! IN
                            nlev                      ) ! IN
 
@@ -2151,7 +2151,7 @@ module calcstatslam_mod
 
         work3d(:,:,:) = real(ensPerturbations(:,:,:,ens),8)
 
-        call lag_mach(work3d,                             & ! INOUT
+        call agd_mach(work3d,                             & ! INOUT
                       hco_bhi%ni, hco_bhi%nj, nkgdim)   ! IN
 
         ensPerturbations(:,:,:,ens) = real(work3d(:,:,:),4)

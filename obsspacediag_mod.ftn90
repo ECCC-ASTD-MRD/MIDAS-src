@@ -43,6 +43,7 @@ module obsSpaceDiag_mod
   use EarthConstants_mod
   use MathPhysConstants_mod
   use horizontalCoord_mod
+  use analysisGrid_mod
   use timeCoord_mod
   use controlVector_mod
   use obsSpaceData_mod
@@ -254,6 +255,7 @@ contains
     type(struct_gsv) :: statevector
     type(struct_columnData) :: column
     type(struct_hco), pointer :: hco_anl
+    type(struct_vco), pointer :: vco_anl
     real*8, allocatable,target :: controlVector(:)
 
     logical :: nmlExists
@@ -296,10 +298,9 @@ contains
     call col_copyLatLon(columng,column)
 
     ! initialize gridStateVector object for increment
-    call gsv_setVco(statevector,col_getVco(columng))
-    hco_anl => hco_get('Analysis')
-    call gsv_setHco(statevector,hco_anl)
-    call gsv_allocate(statevector,tim_nstepobsinc,mpi_local=.true.)
+    hco_anl => agd_getHco('Analysis')
+    vco_anl => col_getVco(columng)
+    call gsv_allocate(statevector, tim_nstepobsinc, hco_anl, vco_anl, mpi_local=.true.)
 
     nlev_max=max(col_getNumLev(columng,'MM'),col_getNumLev(columng,'TH'))
 

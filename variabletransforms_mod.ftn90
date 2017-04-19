@@ -26,7 +26,7 @@ MODULE variableTransforms_mod
   use timeCoord_mod
   use gridStateVector_mod
   use lamSpectralTransform_mod
-  use lamAnalysisGrid_mod
+  use analysisGrid_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use utilities_mod
@@ -268,7 +268,7 @@ CONTAINS
 
        do indexStep = 1, statevector%numStep
           
-          call lag_UVToVortDiv(qr_ptr(:,:,:,indexStep), dd_ptr(:,:,:,indexStep), & ! OUT
+          call agd_UVToVortDiv(qr_ptr(:,:,:,indexStep), dd_ptr(:,:,:,indexStep), & ! OUT
                                uu_ptr(:,:,:,indexStep), vv_ptr(:,:,:,indexStep), & ! IN
                                nlev_M )      ! IN
           

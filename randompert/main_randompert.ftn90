@@ -33,8 +33,8 @@ program main_randomPert
   use bmatrix_mod
   use verticalCoord_mod
   use horizontalCoord_mod
+  use analysisGrid_mod
   use timeCoord_mod
-  use LamAnalysisGrid_mod
   use randomNumber_mod
   use utilities_mod
   IMPLICIT NONE
@@ -43,6 +43,7 @@ program main_randomPert
 
   type(struct_vco), pointer :: vco_anl => null()
   type(struct_hco), pointer :: hco_anl => null()
+  type(struct_hco), pointer :: hco_core => null()
 
   real(8), pointer :: field(:,:,:)
   
@@ -134,14 +135,15 @@ program main_randomPert
   !- 2.3 Initialize the Analysis grid
   if (mpi_myid == 0) write(*,*)''
   if (mpi_myid == 0) write(*,*)' preproc: Set hco parameters for analysis grid'
-  call hco_SetupFromFile( './analysisgrid', 'ANALYSIS', 'Analysis' ) ! IN
-  hco_anl => hco_Get('Analysis')
+  call hco_SetupFromFile(hco_anl, './analysisgrid', 'ANALYSIS', 'Analysis' ) ! IN
 
-  if ( .not. hco_anl % global ) then
+  if ( hco_anl % global ) then
+     call agd_SetupFromHCO( hco_anl ) ! IN
+  else
      !- Iniatilized the core (Non-Exteded) analysis grid
-     call hco_SetupFromFile( './analysisgrid', 'COREGRID', 'AnalysisNonExt' ) ! IN
+     call hco_SetupFromFile( hco_core, './analysisgrid', 'COREGRID', 'AnalysisCore' ) ! IN
      !- Setup the LAM analysis grid metrics
-     call lag_SetupFromHCO( 'Analysis', 'AnalysisNonExt' ) ! IN
+     call agd_SetupFromHCO( hco_anl, hco_core ) ! IN
   end if
 
   call mpivar_setup_latbands(hco_anl % nj,                & ! IN
@@ -167,9 +169,8 @@ program main_randomPert
   !
 
   !- 3.1 Allocate the statevector
-  call gsv_setHco(statevector,hco_anl)
-  call gsv_setVco(statevector,vco_anl)
-  call gsv_allocate(statevector,1,dateStamp=nstamp,mpi_local=.true.)
+  call gsv_allocate(statevector, 1, hco_anl, vco_anl, &
+                    dateStamp=nstamp,mpi_local=.true.)
   nkgdim = statevector%nk
   allocate(ensemble_r4(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim,nEns))
 
@@ -369,7 +370,8 @@ program main_randomPert
      write(*,*)
      write(*,*) ' pre-processing for writing member number= ',jmem
 
-     call gsv_allocate(statevector,1,dateStamp=nstamp,mpi_local=.true.)
+     call gsv_allocate(statevector, 1, hco_anl, vco_anl, &
+                       dateStamp=nstamp,mpi_local=.true.)
      field => gsv_getField3d_r8(statevector)
 
 !$OMP PARALLEL

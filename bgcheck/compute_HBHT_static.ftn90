@@ -27,7 +27,8 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
       use columnData_mod
       use gridStateVector_mod
       use verticalCoord_mod
-      use HorizontalCoord_mod
+      use horizontalCoord_mod
+      use analysisGrid_mod
       use bmatrixhi_mod
       use gps_mod
       use utilities_mod
@@ -66,7 +67,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
       logical             :: is_staggered
 
       !- Get the appropriate Horizontal and Vertical Coordinate
-      hco_anl => hco_Get('Analysis')
+      hco_anl => agd_getHco('Analysis')
       vco_anl => col_getVco(lcolumng)
 
       call bhi_setup( hco_anl,vco_anl, &  ! IN
@@ -108,9 +109,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
 
       allocate(ZBUFFER(HCO_ANL%NI,HCO_ANL%NJ))
 
-      call gsv_setVco(statevector,col_getVco(lcolumng))
-      call gsv_setHco(statevector,hco_anl)
-      call gsv_allocate(statevector,1)
+      call gsv_allocate(statevector, 1, hco_anl, vco_anl)
       call gsv_zero(statevector)
 
       call col_setVco(lcolumn,col_getVco(lcolumng))

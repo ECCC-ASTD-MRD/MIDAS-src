@@ -235,7 +235,7 @@ if [ "${mode}" == full ] ; then
 
   echo "... > Compiling analysis grid modules"
   echo "...   if aborting, check in ${PWD}/listing2"
-  SRC0="windrotation_mod.ftn90 lamanalysisgrid_mod.ftn90"
+  SRC0="windrotation_mod.ftn90 analysisgrid_mod.ftn90"
   s.compile $COMPF  -O ${FOPTMIZ} -src $SRC0 > listing2 2>&1
   status=1
   grep fail listing2 || status=0

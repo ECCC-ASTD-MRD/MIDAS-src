@@ -28,6 +28,7 @@ MODULE BmatrixEnsemble_mod
   use globalSpectralTransform_mod
   use lamSpectralTransform_mod
   use horizontalCoord_mod
+  use analysisGrid_mod
   use verticalCoord_mod
   use timeCoord_mod
   use localizationFunction_mod
@@ -42,7 +43,7 @@ MODULE BmatrixEnsemble_mod
 
   ! public procedures
   public :: ben_Setup,ben_BSqrt,ben_BSqrtAd,ben_reduceToMPILocal,ben_expandToMPIGlobal,ben_Finalize
-  public :: ben_getScaleFactor, ben_getnEns, ben_getPerturbation
+  public :: ben_getScaleFactor, ben_getnEns, ben_getPerturbation, ben_getEnsMean
 
   logical             :: initialized = .false.
 
@@ -638,7 +639,6 @@ CONTAINS
 ! setupEnsemble
 !--------------------------------------------------------------------------
   SUBROUTINE setupEnsemble()
-    use lamAnalysisGrid_mod
     implicit none
  
     real(4), allocatable :: gd3d_r4(:,:,:)
@@ -704,17 +704,13 @@ CONTAINS
     endif
     do waveBandIndex = 1, nWaveBand
       do memberIndex = 1, nEns
-        call gsv_setVco(ensPerts(waveBandIndex,memberIndex)%statevector_r4,vco_ens)
-        call gsv_setHco(ensPerts(waveBandIndex,memberIndex)%statevector_r4,hco_anl)
-        call gsv_allocate(ensPerts(waveBandIndex,memberIndex)%statevector_r4,numStep,  &
-                          datestamp=tim_getDatestamp(),mpi_local=.true.,dataKind_in=4)
+        call gsv_allocate(ensPerts(waveBandIndex,memberIndex)%statevector_r4, numStep, hco_anl, vco_ens, &
+                          datestamp=tim_getDatestamp(), mpi_local=.true., dataKind_in=4)
       enddo
     enddo
 
-    call gsv_setVco(statevector_ensFcst_r4,vco_ens)
-    call gsv_setHco(statevector_ensFcst_r4,hco_anl)
-    call gsv_allocate(statevector_ensFcst_r4,1,  &
-                      datestamp=tim_getDatestamp(),mpi_local=.false.,dataKind_in=4)
+    call gsv_allocate(statevector_ensFcst_r4, 1, hco_anl, vco_ens,  &
+                      datestamp=tim_getDatestamp(), mpi_local=.false., dataKind_in=4)
     call gsv_zero(statevector_ensFcst_r4)
 
     ptr3d_r4 => gsv_getField3D_r4(statevector_ensFcst_r4)
@@ -772,7 +768,7 @@ CONTAINS
        ni_transfer = ni
        nj_transfer = nj
     else
-       hco_coregrid => hco_Get('AnalysisCore')
+       hco_coregrid => agd_getHco('AnalysisCore')
        ni_expected = hco_coregrid%ni
        nj_expected = hco_coregrid%nj
        ni_transfer = ni_expected
@@ -921,7 +917,7 @@ CONTAINS
 
             !  Create bi-periodic forecasts when using scale-dependent localization in LAM mode
             if ( .not. hco_anl%global .and. trim(LocalizationType) == 'ScaleDependent' ) then
-               call lag_mach_r4(ptr3d_r4,    & ! INOUT
+               call agd_mach_r4(ptr3d_r4,    & ! INOUT
                                 ni, nj, nlev)  ! IN
             end if
 
@@ -1016,9 +1012,7 @@ CONTAINS
     ! remove mean, normalize and apply scale factors
     allocate(statevector_ensMean(numSubEns))
     do subEnsIndex = 1, numSubEns
-      call gsv_setVco(statevector_ensMean(subEnsIndex), vco_ens)
-      call gsv_setHco(statevector_ensMean(subEnsIndex), hco_anl)
-      call gsv_allocate(statevector_ensMean(subEnsIndex), numStep,  &
+      call gsv_allocate(statevector_ensMean(subEnsIndex), numStep, hco_anl, vco_ens,  &
                         datestamp=tim_getDatestamp(), mpi_local=.true.)
       call gsv_zero(statevector_ensMean(subEnsIndex))
     end do
@@ -1225,10 +1219,84 @@ CONTAINS
   END SUBROUTINE ben_getPerturbation
 
 !--------------------------------------------------------------------------
+! ben_getEnsMean
+!--------------------------------------------------------------------------
+  SUBROUTINE ben_getEnsMean(statevector, upwardExtrapolationMethod)
+    implicit none
+
+    type(struct_gsv) :: statevector
+    character(len=*), intent(in) :: upwardExtrapolationMethod
+
+    real(8), pointer :: ptr4d_out(:,:,:,:)
+    real(8), pointer :: ptr4d_mean(:,:,:,:)
+
+    integer :: ji,jj,jvar,jstep,jk,jkInc,topLevOffset
+
+    if (.not. initialized) then
+      if (mpi_myid == 0) write(*,*) 'ben_getEnsMean: bMatrixEnsemble not initialized, returning zero vector'
+      call gsv_zero(statevector)
+      return
+    endif
+
+    if ( trim(upwardExtrapolationMethod) /= "ConstantValue" ) then
+       call utl_abort('ben_getEnsMean : Invalid value for upwardExtrapolationMethod')
+    end if
+
+    do jvar = 1, vnl_numvarmax 
+      if (.not. gsv_varExist(statevector, vnl_varNameList(jvar))) cycle
+
+      ptr4d_out => gsv_getField_r8(statevector, vnl_varNameList(jvar))
+      ptr4d_mean => gsv_getField_r8(statevector_ensMean(1), vnl_varNameList(jvar))
+
+!$OMP PARALLEL DO PRIVATE(jstep,jk,topLevOffset,jkInc,jj,ji)
+      do jstep = 1, numStep
+
+        ! Select the corresponding ensemble perturbations
+        do jk = 1, gsv_getNumLev(statevector_ensMean(1),  &
+                                 vnl_varLevelFromVarname(vnl_varNameList(jvar)))
+
+          if ( vnl_varLevelFromVarname(vnl_varNameList(jvar)) == 'MM' ) then
+            topLevOffset = topLevIndex_M - 1
+          elseif ( vnl_varLevelFromVarname(vnl_varNameList(jvar)) == 'TH' ) then
+            topLevOffset = topLevIndex_T - 1
+          else ! SF
+            topLevOffset = 0
+          endif
+
+          jkInc = jk + topLevOffset
+
+          do jj = myLatBeg, myLatEnd
+            do ji = myLonBeg, myLonEnd
+              ptr4d_out(ji,jj,jkInc,jstep) = ptr4d_mean(ji,jj,jk,jstep)
+            enddo
+          enddo
+        enddo ! jk
+
+        if ( topLevOffset > 0 ) then
+          ! Fill the gap between the ensemble lid and the analysis lid
+
+          do jkInc = 1, topLevOffset
+            ! using a constant value
+            do jj = myLatBeg, myLatEnd
+              do ji = myLonBeg, myLonEnd
+                ptr4d_out(ji,jj,jkInc,jstep) = ptr4d_mean(ji,jj,1,jstep)
+              end do
+            end do
+          end do
+
+        end if ! topLevOffset > 0
+
+      end do ! jstep
+!$OMP END PARALLEL DO
+
+    enddo ! jvar
+
+  END SUBROUTINE ben_getEnsMean
+
+!--------------------------------------------------------------------------
 ! AdjustTGOverOpenWater
 !--------------------------------------------------------------------------
   SUBROUTINE AdjustTGOverOpenWater()
-    use timeCoord_mod
     implicit none
 
     real(4), allocatable :: TrialLandSeaMask(:,:), TrialSeaIceMask(:,:)
@@ -2580,9 +2648,8 @@ CONTAINS
     if (mpi_myid == 0) write(*,*) 'ben_bsqrt: starting'
     if (mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-    call gsv_setVco(statevector_ensAmp,vco_ens)
-    call gsv_setHco(statevector_ensAmp,hco_anl)
-    call gsv_allocate(statevector_ensAmp,numStepAmplitude,datestamp=tim_getDatestamp(),mpi_local=.true.,horizSubSample=1,varName='ALFA')
+    call gsv_allocate(statevector_ensAmp, numStepAmplitude, hco_anl, vco_ens, &
+                      datestamp=tim_getDatestamp(), mpi_local=.true., horizSubSample=1, varName='ALFA')
     ensAmplitude1 => gsv_getField3D_r8(statevector_ensAmp,indexStep_in=1)
 
     call gsv_zero(statevector)
@@ -2684,9 +2751,8 @@ CONTAINS
     if (mpi_myid == 0) write(*,*) 'ben_bsqrtad: starting'
     if (mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-    call gsv_setVco(statevector_ensAmp,vco_ens)
-    call gsv_setHco(statevector_ensAmp,hco_anl)
-    call gsv_allocate(statevector_ensAmp,numStepAmplitude,datestamp=tim_getDatestamp(),mpi_local=.true.,horizSubSample=1,varName='ALFA')
+    call gsv_allocate(statevector_ensAmp, numStepAmplitude, hco_anl, vco_ens, &
+                      datestamp=tim_getDatestamp(), mpi_local=.true., horizSubSample=1, varName='ALFA')
     ensAmplitude1 => gsv_getField3D_r8(statevector_ensAmp,indexStep_in=1)
 
     !
@@ -3807,7 +3873,6 @@ CONTAINS
   ! EnsembleDiagnostic
   !--------------------------------------------------------------------------
   SUBROUTINE EnsembleDiagnostic(mode)
-    use timeCoord_mod
     implicit none
 
     character(len=*), intent(in) :: mode
@@ -3834,10 +3899,6 @@ CONTAINS
     if ( mpi_myid == 0 ) write(*,*)
     if ( mpi_myid == 0 ) write(*,*) 'EnsembleDiagnostic in mode: ', mode
 
-    !- Setup a gridstatevector working array
-    call gsv_setVco(statevector,vco_anl)
-    call gsv_setHco(statevector,hco_anl)
-
     !
     !- Write each wave band for a selected member
     !
@@ -3847,7 +3908,8 @@ CONTAINS
        dnens2 = sqrt(1.0d0*dble(nEns-1))
        do waveBandIndex = 1, nWaveBandToDiagnose
           if ( mpi_myid == 0 ) write(*,*) '     waveBandIndex = ', waveBandIndex
-          call gsv_allocate(statevector,tim_nstepobsinc,datestamp=tim_getDatestamp(),mpi_local=.true.)
+          call gsv_allocate(statevector, tim_nstepobsinc, hco_anl, vco_anl, &
+                            datestamp=tim_getDatestamp(), mpi_local=.true.)
           call ben_getPerturbation( statevector,    & ! OUT
                                     memberIndex,    & ! IN
                                     'ConstantValue', waveBandIndex ) ! IN
@@ -3867,13 +3929,12 @@ CONTAINS
     !- Compute the standard deviations for each wave band
     !
     if ( mpi_myid == 0 ) write(*,*) '   computing Std.Dev.'
-    call gsv_setVco(statevector_temp,vco_anl)
-    call gsv_setHco(statevector_temp,hco_anl)
-    call gsv_allocate(statevector_temp,tim_nstepobsinc,mpi_local=.true.)
+    call gsv_allocate(statevector_temp, tim_nstepobsinc, hco_anl, vco_anl, mpi_local=.true.)
 
     do waveBandIndex = 1, nWaveBandToDiagnose
        if ( mpi_myid == 0 ) write(*,*) '     waveBandIndex = ', waveBandIndex
-       call gsv_allocate(statevector,tim_nstepobsinc,datestamp=tim_getDatestamp(),mpi_local=.true.)
+       call gsv_allocate(statevector, tim_nstepobsinc, hco_anl, vco_anl, &
+                         datestamp=tim_getDatestamp(), mpi_local=.true.)
        call gsv_zero(statevector)
        do memberIndex = 1, nEns
           !- Get normalized perturbations

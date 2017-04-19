@@ -23,27 +23,35 @@
 program main_var
 
   use topLevelControl_mod
+  use utilities_mod
   use mpivar_mod
+  use MathPhysConstants_mod
+  use horizontalCoord_mod
+  use verticalCoord_mod
+  use timeCoord_mod
   use obsSpaceData_mod
   use columnData_mod  
+  use gridStateVector_mod
   use obsSpaceDiag_mod
   use controlVector_mod
+  use burpFiles_mod
   use obsFilter_mod  
   use minimization_mod
-  use burpFiles_mod
-  use utilities_mod
   use innovation_mod
+  use WindRotation_mod
+  use minimization_mod
+  use analysisGrid_mod
   use bmatrix_mod
-
+  use tovs_nl_mod
+  use obserrors_mod
+  use variableTransforms_mod
   implicit none
+
   integer :: istamp,exdb,exfin
   character(len=9) :: clmsg
   integer :: ierr
   type(struct_obs),target :: obsSpaceData
   type(struct_columnData),target :: columng,columnhr
-  type(struct_vco),pointer :: vco_anl => NULL()
-  type(struct_vco),pointer :: vco_trl => NULL()
-
   character(len=48) :: obsMpiStrategy
 
   istamp = exdb('OAVAR','DEBUT','NON')
@@ -218,35 +226,17 @@ contains
   !--------------------------------------------------------------------------
   subroutine var_setup(lcolumng,lcolumnhr,lobsSpaceData, &
        obsColumnMode, obsMpiStrategy)
-    use topLevelControl_mod
-    use mpivar_mod
-    use MathPhysConstants_mod
-    use horizontalCoord_mod
-    use timeCoord_mod
-    use WindRotation_mod
-    use obsSpaceData_mod
-    use controlVector_mod
-    use gridStateVector_mod
-    use minimization_mod
-    use columndata_mod
-    use LamAnalysisGrid_mod
-    use bmatrix_mod
-    use tovs_nl_mod
-    use burpFiles_mod
-    use obserrors_mod
-    use variableTransforms_mod
-    use verticalCoord_mod
-    IMPLICIT NONE
+    implicit none
 
     type(struct_obs) :: lobsSpaceData
     type(struct_columnData) :: lcolumng,lcolumnhr
     character (len=*) :: obsColumnMode
     character (len=*) :: obsMpiStrategy
     integer :: datestamp
-
-    type(struct_vco), pointer :: vco_anl => null()
-    type(struct_vco), pointer :: vco_trl => null()
-    type(struct_hco), pointer  :: hco_anl
+    type(struct_vco),pointer :: vco_anl => null()
+    type(struct_vco),pointer :: vco_trl => null()
+    type(struct_hco),pointer :: hco_anl => null()
+    type(struct_hco),pointer :: hco_core => null()
 
     integer :: get_max_rss
 
@@ -291,14 +281,15 @@ contains
     !
     if(mpi_myid.eq.0) write(*,*)''
     if(mpi_myid.eq.0) write(*,*)' preproc: Set hco parameters for analysis grid'
-    call hco_SetupFromFile( './analysisgrid', 'ANALYSIS', 'Analysis' ) ! IN
-    hco_anl => hco_Get('Analysis')
+    call hco_SetupFromFile(hco_anl, './analysisgrid', 'ANALYSIS', 'Analysis' ) ! IN
 
-    if ( .not. hco_anl % global ) then
+    if ( hco_anl % global ) then
+       call agd_SetupFromHCO( hco_anl ) ! IN
+    else
        !- Iniatilized the core (Non-Exteded) analysis grid
-       call hco_SetupFromFile( './analysisgrid', 'COREGRID', 'AnalysisCore' ) ! IN
+       call hco_SetupFromFile( hco_core, './analysisgrid', 'COREGRID', 'AnalysisCore' ) ! IN
        !- Setup the LAM analysis grid metrics
-       call lag_SetupFromHCO( 'Analysis', 'AnalysisCore' ) ! IN
+       call agd_SetupFromHCO( hco_anl, hco_core ) ! IN
     end if
 
     if ( hco_anl % rotated ) then

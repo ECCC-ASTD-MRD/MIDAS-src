@@ -6663,12 +6663,6 @@ contains
         local = .false.
      end if
      
-     if (local) then
-        call tmg_start(101,'FAMEXISTL')
-     else
-        call tmg_start(102,'FAMEXISTG')
-     end if
-
      famExist = .false.
 
      ! check if family exists in local MPI process
@@ -6685,12 +6679,6 @@ contains
      else
         ! return MPI global value
         call rpn_comm_allreduce(famExist,obs_famExist,1,"MPI_LOGICAL","MPI_LOR","GRID",ierr)
-     end if
-
-     if (local) then
-        call tmg_stop(101)
-     else
-        call tmg_stop(102)
      end if
 
    end function obs_famExist

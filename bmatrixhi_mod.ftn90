@@ -2284,9 +2284,6 @@ CONTAINS
 
     deallocate(gd_out)
 
-    !    Conversion of wind images to physical winds
-    call uvwi2uv(statevector)
-
     if(mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     if(mpi_myid == 0) write(*,*) 'bhi_bsqrt: done'
 
@@ -2309,9 +2306,6 @@ CONTAINS
 
     if(mpi_myid == 0) write(*,*) 'bhi_bsqrtad: starting'
     if(mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-    !- Conversion of physical winds to wind images
-    call uvwi2uv(statevector) ! INOUT
 
     allocate(gd_in(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim))
 
@@ -3188,45 +3182,5 @@ CONTAINS
 
   END SUBROUTINE BHI_Finalize
 
-  !--------------------------------------------------------------------------
-  ! uvwi2uv
-  !--------------------------------------------------------------------------
-  subroutine uvwi2uv(statevector)
-    !
-    ! s/r uvwi2uv: conversion of wind images to physical winds
-    ! (Remark: this subroutine is self-adjoint)
-    !
-    implicit none
-    type(struct_gsv) :: statevector
-
-    integer :: jstep, jlev, jlat, jlon, lon1, lon2, lat1, lat2, nlev_gsv
-
-    real(8) :: conphy
-    real(8), pointer :: uu_ptr(:,:,:,:),vv_ptr(:,:,:,:)
-    
-    uu_ptr => gsv_getField_r8(statevector,'UU')
-    vv_ptr => gsv_getField_r8(statevector,'VV')
-    
-    lon1 = statevector%myLonBeg
-    lon2 = statevector%myLonEnd
-    lat1 = statevector%myLatBeg
-    lat2 = statevector%myLatEnd
-    nlev_gsv = gsv_getNumLev(statevector,'MM')
-
-!$OMP PARALLEL DO PRIVATE (jlat,jstep,jlev,jlon,conphy)
-    do jlev = 1, nlev_gsv
-      do jstep = 1, statevector%numStep
-        do jlat = lat1, lat2
-          conphy = ra*gst_getr1qm2(jlat,gstID)
-          do jlon = lon1, lon2
-            uu_ptr(jlon,jlat,jlev,jstep) = conphy * uu_ptr(jlon,jlat,jlev,jstep)
-            vv_ptr(jlon,jlat,jlev,jstep) = conphy * vv_ptr(jlon,jlat,jlev,jstep)
-          end do
-        end do
-      end do
-    end do
-!$OMP END PARALLEL DO
-
-  END SUBROUTINE uvwi2uv
 
 END MODULE BmatrixHI_mod

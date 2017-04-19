@@ -218,7 +218,7 @@ CONTAINS
     
     NAMELIST /NAMBCHM/ntrunc,rpor,rvloc,scaleFactor,numModeZero,ReadWrite_sqrt,stddevMode
 
-    call tmg_start(90,'BCHM_SETUP')
+    call tmg_start(120,'BCHM_SETUP')
 
     numvar3d=0
     numvar2d=0
@@ -295,7 +295,7 @@ CONTAINS
            write(*,*) 'No chemical assimilation to be performed.'
            write(*,*) 'END OF BCHM_SETUP'
        end if
-       call tmg_stop(90)
+       call tmg_stop(120)
        return
     else if (mpi_myid == 0) then
        if (numvar3d.gt.0) &

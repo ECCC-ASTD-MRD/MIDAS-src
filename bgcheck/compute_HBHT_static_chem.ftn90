@@ -27,7 +27,8 @@ SUBROUTINE COMPUTE_HBHT_STATIC_CHEM(lcolumng,lobsSpaceData,active)
   use obsSpaceData_mod
   use columnData_mod
   use verticalCoord_mod
-  use HorizontalCoord_mod
+  use horizontalCoord_mod
+  use analysisGrid_mod
   use bmatrixchem_mod
   use chem_obsoperators_mod
 
@@ -43,7 +44,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC_CHEM(lcolumng,lobsSpaceData,active)
 
   
   !- Get the appropriate Horizontal and Vertical Coordinate
-  hco_anl => hco_Get('Analysis')
+  hco_anl => agd_getHco('Analysis')
   vco_anl => col_getVco(lcolumng)
   
   call bchm_setup( hco_anl,vco_anl, &  ! IN

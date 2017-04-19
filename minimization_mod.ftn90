@@ -28,7 +28,8 @@ MODULE minimization_mod
   use obsSpaceData_mod
   use controlVector_mod
   use mpivar_mod
-  use HorizontalCoord_mod
+  use horizontalCoord_mod
+  use analysisGrid_mod
   use gridStateVector_mod
   use bmatrix_mod
   use stateToColumn_mod
@@ -545,12 +546,11 @@ CONTAINS
     type(struct_vco), pointer :: vco_anl
 
     ! initialize statevector_incr
-    hco_anl => hco_get('Analysis')
+    hco_anl => agd_getHco('Analysis')
     vco_anl => col_getVco(columng)
 
-    call gsv_setVco(statevector_incr,vco_anl)
-    call gsv_setHco(statevector_incr,hco_anl)
-    call gsv_allocate(statevector_incr,tim_nstepobsinc,datestamp=tim_getDatestamp(),mpi_local=.true.)
+    call gsv_allocate(statevector_incr, tim_nstepobsinc, hco_anl, vco_anl, &
+                      datestamp=tim_getDatestamp(), mpi_local=.true.)
 
     ! compute increment from control vector (multiply by B^1/2)
     call bmat_sqrtB(incr_cv, nvadim_mpilocal, statevector_incr)
@@ -630,6 +630,7 @@ CONTAINS
     type(struct_gsv) :: statevector_ens(numAnalyses)
     type(struct_gsv) :: statevector_mean, statevector_incr, statevector_incr_perturbed, statevector_randpert
     type(struct_hco), pointer :: hco_anl
+    type(struct_vco), pointer :: vco_anl
     real(8), allocatable :: incr_cv(:)
     real(8)           :: scalefactor
     integer :: indexAnalysis,indexStep,cvdim_mpilocal
@@ -654,23 +655,20 @@ CONTAINS
     endif
 
     ! initialization
-    hco_anl => hco_get('Analysis')
+    hco_anl => agd_getHco('Analysis')
+    vco_anl => col_getVco(columng)
 
-    call gsv_setVco(statevector_mean,col_getVco(columng))
-    call gsv_setHco(statevector_mean,hco_anl)
-    call gsv_allocate(statevector_mean,tim_nstepobsinc,datestamp=tim_getDatestamp(),mpi_local=.true.)
+    call gsv_allocate(statevector_mean, tim_nstepobsinc, hco_anl, vco_anl, &
+                      datestamp=tim_getDatestamp(), mpi_local=.true.)
 
-    call gsv_setVco(statevector_incr,col_getVco(columng))
-    call gsv_setHco(statevector_incr,hco_anl)
-    call gsv_allocate(statevector_incr,tim_nstepobsinc,datestamp=tim_getDatestamp(),mpi_local=.true.)
+    call gsv_allocate(statevector_incr, tim_nstepobsinc, hco_anl, vco_anl, &
+                      datestamp=tim_getDatestamp(), mpi_local=.true.)
 
-    call gsv_setVco(statevector_incr_perturbed,col_getVco(columng))
-    call gsv_setHco(statevector_incr_perturbed,hco_anl)
-    call gsv_allocate(statevector_incr_perturbed,tim_nstepobsinc,datestamp=tim_getDatestamp(),mpi_local=.true.)
+    call gsv_allocate(statevector_incr_perturbed, tim_nstepobsinc, hco_anl, vco_anl, &
+                      datestamp=tim_getDatestamp(), mpi_local=.true.)
 
-    call gsv_setVco(statevector_randpert,col_getVco(columng))
-    call gsv_setHco(statevector_randpert,hco_anl)
-    call gsv_allocate(statevector_randpert,tim_nstepobsinc,datestamp=tim_getDatestamp(),mpi_local=.true.)
+    call gsv_allocate(statevector_randpert, tim_nstepobsinc, hco_anl, vco_anl, &
+                      datestamp=tim_getDatestamp(), mpi_local=.true.)
 
     ! allocate local arrays
     allocate(incr_cv(nvadim_mpilocal))
@@ -689,16 +687,14 @@ CONTAINS
       if(mpi_myid == 0) write(*,*) 'min_analysisPert: reading member #', indexAnalysis
       if(mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-      call gsv_setVco(statevector_ens(indexAnalysis),col_getVco(columng))
-      hco_anl => hco_get('Analysis')
-      call gsv_setHco(statevector_ens(indexAnalysis),hco_anl)
-      call gsv_allocate(statevector_ens(indexAnalysis),tim_nstepobsinc,datestamp=tim_getDatestamp(),mpi_local=.true.)
+      call gsv_allocate(statevector_ens(indexAnalysis), tim_nstepobsinc, hco_anl, vco_anl, &
+                        datestamp=tim_getDatestamp(), mpi_local=.true.)
 
       write(censnumber,'(i4.4)') indexAnalysis + (envar_loop-1)*numAnalyses
       fileName = trim(ensPathName) // '/' // datestr_last // hourstr_last // '_006_' // trim(censnumber)
       if(mpi_myid == 0) write(*,*) 'Reading from file: ', fileName
       do indexStep = 1, statevector_ens(indexAnalysis)%numStep
-        call gsv_readFromFile(statevector_ens(indexAnalysis),fileName,' ','P','ENSMEMBER',indexStep_in=indexStep)
+        call gsv_readFromFile(statevector_ens(indexAnalysis),fileName,' ','P',indexStep_in=indexStep)
       enddo
 
     enddo
@@ -709,7 +705,7 @@ CONTAINS
     do indexStep = 1, statevector_mean%numStep
       write(trialTimeIndex_str,'(i2.2)') indexStep
       fileName = './trlm_' // trim(trialTimeIndex_str)
-      call gsv_readFromFile(statevector_mean,fileName,' ','P','ENSMEMBER',indexStep_in=indexStep)
+      call gsv_readFromFile(statevector_mean,fileName,' ','P',indexStep_in=indexStep)
     enddo
 
     ! remove mean
@@ -1072,6 +1068,7 @@ CONTAINS
     type(struct_obs),pointer :: obsSpaceData
     type(struct_columnData),pointer :: column,columng
     type(struct_hco), pointer :: hco_anl
+    type(struct_vco), pointer :: vco_anl
 
     ! Convert the integer array dataptr_int back into a pointer to the obsSpaceData
     dataptr=transfer(dataptr_int(1:dataptr_int_size),dataptr)
@@ -1100,10 +1097,10 @@ CONTAINS
        call mpi_allreduce_sumreal8scalar(dl_Jb,"GRID")
        call tmg_stop(89)
 
-       call gsv_setVco(statevector,col_getVco(columng))
-       hco_anl => hco_get('Analysis')
-       call gsv_setHco(statevector,hco_anl)
-       call gsv_allocate(statevector,tim_nstepobsinc,mpi_local=.true.)
+       hco_anl => agd_getHco('Analysis')
+       vco_anl => col_getVco(columng)
+       call gsv_allocate(statevector, tim_nstepobsinc, hco_anl, vco_anl, &
+                         mpi_local=.true.)
 
        call bmat_sqrtB(da_v,nvadim_mpilocal,statevector)
 

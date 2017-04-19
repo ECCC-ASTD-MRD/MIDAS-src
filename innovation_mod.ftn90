@@ -38,6 +38,7 @@ module innovation_mod
   use horizontalCoord_mod
   use columnData_mod
   use varNameList_mod
+  use analysisGrid_mod
   use gridStateVector_mod
   use WindRotation_mod
   use tt2phi_mod
@@ -331,7 +332,7 @@ contains
     !
     !-    Get the Analysis Grid structure
     !
-    hco_anl => hco_Get('Analysis')
+    hco_anl => agd_getHco('Analysis')
 
     if ( hco_anl % global ) then
        xposLowerBoundAnl_r4 = - huge(1.0) ! no limit since grid is global (periodic)
@@ -1534,7 +1535,7 @@ contains
     !
 
     !- 1.1 Get the horizontal coordinate of the analysis grid
-    hco_anl => hco_Get('Analysis')
+    hco_anl => agd_getHco('Analysis')
 
     !
     !- 2.  Determine obs_ipc (column) and obs_ipt (tile) according to distribution strategy
