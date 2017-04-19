@@ -38,16 +38,12 @@ Module tovs_lin_mod
   ! public variables (parameters)
 
   ! public variables (non-parameters)
-  
-  public :: radiance_tl, radiance_ad
 
   ! Derived types
 
   type( rttov_profile ) ,     allocatable :: profiles_tl(:)    ! tl profiles, all profiles
   type( rttov_profile ) ,     allocatable :: profiles_ad(:)    ! ad profiles, all profiles
-  type( rttov_radiance ) ,    allocatable :: radiance_tl(:)    ! tl radiances organized by profile
-  type( rttov_radiance ) ,    allocatable :: radiance_ad(:)    ! tl radiances organized by profile
- 
+
 contains
 
 
@@ -147,25 +143,6 @@ SUBROUTINE tvslin_SETUPALLO()
      
   end do
 
-!___ radiance by profile
-
-  allocate( radiance_tl(tvs_nobtov),stat= alloc_status(1))
-  allocate( radiance_ad(tvs_nobtov),stat= alloc_status(2))
-  call utl_checkAllocationStatus(alloc_status, " tvslin_SETUPALLO radiances")
- 
-  do jo = 1, tvs_nobtov
-     isens = tvs_lsensor(jo)
-     nc = tvs_nchan(isens)
-     nl = tvs_coefs(isens) % coef % nlevels
-     !! allocate BT equivalent to tl and ad radiance output
-     allocate( radiance_tl(jo) % bt  ( nc ) ,stat= alloc_status(1))
-     allocate( radiance_ad(jo) % bt  ( nc ) ,stat= alloc_status(2))
-     call utl_checkAllocationStatus(alloc_status, " tvslin_SETUPALLO radiances%bt")
-
-     radiance_tl(jo) % bt  ( : ) = 0.d0
-     radiance_ad(jo) % bt  ( : ) = 0.d0
-     
-  end do
 
 END SUBROUTINE tvslin_SETUPALLO
 
@@ -211,7 +188,7 @@ subroutine tvslin_fill_profiles_tl(column,columng)
   integer :: istride, ilen, imodulo
   integer :: nlevels,nobmax
   integer :: j, i, sensor_id, iobs, jj, stat
-  integer :: ilowlvl_M,ilowlvl_T,count_profile,header_index,nlv_M,nlv_T
+  integer :: ilowlvl_M,ilowlvl_T,count_profile,headerIndex,nlv_M,nlv_T
   integer :: jk, jn, jl
   integer :: status, Vcode
   integer :: jpmotop, jpmolev
@@ -334,23 +311,23 @@ subroutine tvslin_fill_profiles_tl(column,columng)
      obs_loop2: do iobs = 1, NOBMAX
         if (tvs_lsensor(iobs)/=sensor_id) cycle obs_loop2
 
-        header_index = tvs_lobsno(iobs)
+        headerIndex = tvs_lobsno(iobs)
 
         count_profile = count_profile + 1
 
-        zps_tl  (count_profile) = col_getElem(column,1,header_index,'P0')*MPC_MBAR_PER_PA_R8
-        delTT => col_getColumn(column,header_index,'TT')
-        delLQ => col_getColumn(column,header_index,'HU')
-        TTb => col_getColumn(columng,header_index,'TT')
-        HUb => col_getColumn(columng,header_index,'HU')
-        Pres => col_getColumn(columng,header_index,'PR','TH')
+        zps_tl  (count_profile) = col_getElem(column,1,headerIndex,'P0')*MPC_MBAR_PER_PA_R8
+        delTT => col_getColumn(column,headerIndex,'TT')
+        delLQ => col_getColumn(column,headerIndex,'HU')
+        TTb => col_getColumn(columng,headerIndex,'TT')
+        HUb => col_getColumn(columng,headerIndex,'HU')
+        Pres => col_getColumn(columng,headerIndex,'PR','TH')
         do jl = 1, nlv_T
            zt_tl (jl,count_profile) = delTT(jl)
            zlq_tl(jl,count_profile) = delLQ(jl)
            zt   (jl,count_profile)  = TTb(jl)
            zlq  (jl,count_profile)  = HUb(jl)
            zvlev(jl,count_profile)  = Pres(jl) *MPC_MBAR_PER_PA_R8
-           dPdPs(jl,count_profile)  = col_getPressureDeriv(columng,jl,header_index,'TH')
+           dPdPs(jl,count_profile)  = col_getPressureDeriv(columng,jl,headerIndex,'TH')
         enddo
 
         ! Fix pour eviter probleme au toit avec GEM 4
@@ -360,13 +337,13 @@ subroutine tvslin_fill_profiles_tl(column,columng)
            zt_tl   (1,count_profile) =  0.d0
            zlq_tl  (1,count_profile) =  0.d0
            zt   (1,count_profile) =  zt   (2,count_profile) + tvs_mesosphereLapseRate *  &
-                log( col_getPressure(columng,1,header_index,'TH') /  &
-                col_getPressure(columng,2,header_index,'TH') )
+                log( col_getPressure(columng,1,headerIndex,'TH') /  &
+                col_getPressure(columng,2,headerIndex,'TH') )
            zlq  (1,count_profile) =  zlq  (2,count_profile)
         endif
 
         iptobs   (count_profile) = iobs
-        iptobscma(count_profile) = header_index
+        iptobscma(count_profile) = headerIndex
 
 
      enddo obs_loop2
@@ -644,7 +621,7 @@ subroutine tvslin_rttov_tl(lobsSpaceData)
   integer :: nthreads, max_nthreads
   integer :: sensor_id, iobs
   integer :: count_profile
-  integer :: profile_index, index_tb
+  integer :: profile_index, index_tb, bodyIndex, headerIndex, ichn, istart, iend
   integer :: instrum
   integer :: sensor_type   ! sensor type (1=infrared; 2=microwave; 3=high resolution, 4=polarimetric)
   integer :: channel_index
@@ -796,15 +773,34 @@ subroutine tvslin_rttov_tl(lobsSpaceData)
 
      call tmg_stop(87)
 
-!     .  2.4  Store hx in the structure radiance_tl
+!     .  2.4  Store hx in obsSpaceData,OBS_WORK
 !     .       ------------------------------------
-     do index_tb = 1, count_tb
+!Could this loop be optimized ?
+     tb_loop :do index_tb = 1, count_tb
         profile_index = chanprof(index_tb)%prof
         channel_index = chanprof(index_tb)%chan
         iobs = iptobs(profile_index)
-        radiance_tl(iobs) % bt(channel_index) =  radiancedata_tl % bt(index_tb)
-     enddo
+        headerIndex = tvs_lobsno(iobs)
+        istart = obs_headElem_i(lObsSpaceData,OBS_RLN,headerIndex)
+        iend = obs_headElem_i(lObsSpaceData,OBS_NLV,headerIndex) + istart - 1
+        do bodyIndex = istart, iend
+           ichn = nint(obs_bodyElem_r(lobsSpaceData,OBS_PPP,bodyIndex))
+           ichn = max(0,min(ichn,tvs_maxChannelNumber+1))
+           ichn = ichn - tvs_channelOffset(sensor_id)
+           if (ichn == tvs_ichan(channel_index,sensor_id) ) then
+              call obs_bodySet_r(lobsSpaceData,OBS_WORK,bodyIndex, &
+                   radiancedata_tl % bt(index_tb) )
+              if ( tvs_debug ) then
+                 write(*,'(a,i4,2f8.2)') ' ichn,sim,obs= ', &
+                      channel_index,   radiancedata_tl % bt(index_tb), &
+                      obs_bodyElem_r(lobsSpaceData,OBS_OMP,bodyIndex)
+              endif
+              cycle tb_loop
+           endif
+        end do
+     enddo tb_loop
 
+ 
 !     de-allocate memory
 
      asw=0 ! 1 to allocate,0 to deallocate
@@ -892,7 +888,7 @@ subroutine tvslin_rttov_ad(lobsSpaceData)
   integer :: nthreads,max_nthreads
   integer :: sensor_id, iobs
   integer :: instrum, count_profile
-  integer :: profile_index, tb_index
+  integer :: profile_index, tb_index, istart, iend, ichn, channel_index, headerIndex, bodyIndex
   integer :: sensor_type   ! sensor type (1=infrared; 2=microwave; 3=high resolution, 4=polarimetric)
 
   integer, allocatable :: iptobs          (:)  
@@ -1019,12 +1015,24 @@ subroutine tvslin_rttov_ad(lobsSpaceData)
 
 !.. fill radiancedata_ad arrays
      call rttov_init_rad( radiancedata_ad ) ! set irrrelevant fields to zero
-
-     do tb_index = 1, count_tb
+!Could this loop be optimized ?
+     tb_loop:   do tb_index = 1, count_tb
         profile_index = chanprof(tb_index)%prof
+        channel_index = chanprof(tb_index)%chan
         iobs = iptobs(profile_index)
-        radiancedata_ad % bt( tb_index ) = radiance_ad(iobs) % bt(chanprof( tb_index)%chan )
-     enddo
+        headerIndex = tvs_lobsno(iobs)
+        istart = obs_headElem_i(lObsSpaceData,OBS_RLN,headerIndex)
+        iend = obs_headElem_i(lObsSpaceData,OBS_NLV,headerIndex) + istart - 1
+        do bodyIndex = istart, iend
+           ichn = nint(obs_bodyElem_r(lobsSpaceData,OBS_PPP,bodyIndex))
+           ichn = max(0,min(ichn,tvs_maxChannelNumber+1))
+           ichn = ichn - tvs_channelOffset(sensor_id)
+           if ( ichn == tvs_ichan(channel_index,sensor_id) ) then
+              radiancedata_ad % bt( tb_index ) = obs_bodyElem_r(lobsSpaceData,OBS_WORK,bodyIndex)
+              cycle tb_loop
+           endif
+        enddo
+     enddo tb_loop
 
 !
 
@@ -1150,7 +1158,7 @@ subroutine tvslin_fill_profiles_ad(column,columng)
   integer :: istride, ilen, imodulo
   integer :: nlevels,nobmax
   integer :: sensor_id, iobs, stat
-  integer :: ilowlvl_T,ilowlvl_M,count_profile,header_index,nlv_M,nlv_T
+  integer :: ilowlvl_T,ilowlvl_M,count_profile,headerIndex,nlv_M,nlv_T
   integer :: profile_index, level_index, rttov_index
   integer :: status, Vcode
   integer :: jpmotop, jpmolev
@@ -1263,18 +1271,18 @@ subroutine tvslin_fill_profiles_ad(column,columng)
 ! loop over all obs.
      bobs2: do iobs = 1, NOBMAX
         if (tvs_lsensor(iobs)/=sensor_id) cycle bobs2
-        header_index = tvs_lobsno(iobs)
+        headerIndex = tvs_lobsno(iobs)
           
         count_profile = count_profile + 1
 
-        TTb => col_getColumn(columng,header_index,'TT')
-        HUb => col_getColumn(columng,header_index,'HU')
-        Pres => col_getColumn(columng,header_index,'PR','TH')
+        TTb => col_getColumn(columng,headerIndex,'TT')
+        HUb => col_getColumn(columng,headerIndex,'HU')
+        Pres => col_getColumn(columng,headerIndex,'PR','TH')
         do level_index = 1, nlv_T
            zt   (level_index,count_profile) = TTb(level_index)
            zlq  (level_index,count_profile) = HUb(level_index)
            zvlev(level_index,count_profile) = Pres(level_index) *MPC_MBAR_PER_PA_R8
-           dPdPs(level_index,count_profile) = col_getPressureDeriv(columng,level_index,header_index,'TH')
+           dPdPs(level_index,count_profile) = col_getPressureDeriv(columng,level_index,headerIndex,'TH')
         enddo
 
 ! Fix pour eviter probleme au toit avec GEM 4
@@ -1282,13 +1290,13 @@ subroutine tvslin_fill_profiles_ad(column,columng)
 !  a l'extrapolation utilisee)
         if (diagTtop) then
            zt   (1,count_profile) =  zt   (2,count_profile) + tvs_mesosphereLapseRate *  &
-                log( col_getPressure(columng,1,header_index,'TH') /  &
-                col_getPressure(columng,2,header_index,'TH') )
+                log( col_getPressure(columng,1,headerIndex,'TH') /  &
+                col_getPressure(columng,2,headerIndex,'TH') )
            zlq  (1,count_profile) =  zlq  (2,count_profile)
         endif
 
         iptobs   (count_profile) = iobs
-        iptobscma(count_profile) = header_index
+        iptobscma(count_profile) = headerIndex
      enddo bobs2
 
 !     .  2.4  Adjoint of filling profiles_ad structure
@@ -1298,14 +1306,14 @@ subroutine tvslin_fill_profiles_ad(column,columng)
      enddo
 
      do  profile_index =  1, count_profile
-        header_index = iptobscma(profile_index)
+        headerIndex = iptobscma(profile_index)
         rttov_index = iptobs(profile_index)
-        ps_column => col_getColumn(column,header_index,'P0')
-        tg_column => col_getColumn(column,header_index,'TG')
-        tt_column => col_getColumn(column,header_index,'TT')
-        hu_column => col_getColumn(column,header_index,'HU')
-        uu_column => col_getColumn(column,header_index,'UU')
-        vv_column => col_getColumn(column,header_index,'VV')
+        ps_column => col_getColumn(column,headerIndex,'P0')
+        tg_column => col_getColumn(column,headerIndex,'TG')
+        tt_column => col_getColumn(column,headerIndex,'TT')
+        hu_column => col_getColumn(column,headerIndex,'HU')
+        uu_column => col_getColumn(column,headerIndex,'UU')
+        vv_column => col_getColumn(column,headerIndex,'VV')
 
         toext_ad(:,profile_index)      = profiles_ad(rttov_index) % t(:)
         qoext_ad(:,profile_index)      = profiles_ad(rttov_index) % q(:) 

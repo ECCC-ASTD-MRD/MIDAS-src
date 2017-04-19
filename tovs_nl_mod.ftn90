@@ -820,19 +820,21 @@ integer function tvs_getInstrumentId(name)
   implicit none
   character(len=*),intent(in) :: name
 !************************************
-  integer :: i, ipos1
+  integer :: i, length
   character(len=64) :: tempo_name
 !***********************************
   tvs_getInstrumentId = -1
-  ipos1 = LEN_TRIM(name)
-  call up2low(name(1:ipos1),tempo_name(1:ipos1))
-  if ( trim(tempo_name(1:ipos1)) == "goesim" ) then
+  length = LEN_TRIM(name)
+  call up2low(name(1:length),tempo_name(1:length))
+  if ( trim(tempo_name(1:length)) == "goesim" ) then
      tvs_getInstrumentId = inst_id_goesim
-  elseif ( trim(tempo_name(1:ipos1)) == "gmsim" ) then
+  elseif ( trim(tempo_name(1:length)) == "gmsim" ) then
      tvs_getInstrumentId = inst_id_gmsim
+  elseif ( trim(tempo_name(1:length)) == "mtsatim" ) then
+     tvs_getInstrumentId = inst_id_mtsatim
   else
      do i = 0, ninst-1
-        if (trim(inst_name(i)) == tempo_name(1:ipos1) ) then
+        if (trim(inst_name(i)) == tempo_name(1:length) ) then
            tvs_getInstrumentId = i
            exit
         endif
@@ -1340,7 +1342,7 @@ SUBROUTINE tvs_getOtherEmissivities(chanprof, iptobs, nradiances, sensor_type, i
          surfem (radiance_index) = 0.d0
       else
          Write(*,*) sensor_type,instrument
-         call utl_abort('tvs_getOtherEmissivities. invalid sensor type')
+         call utl_abort('tvs_getOtherEmissivities. invalid sensor type or unknown IR instrument')
       endif
    enddo
    
