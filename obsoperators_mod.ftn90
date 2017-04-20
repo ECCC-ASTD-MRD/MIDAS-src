@@ -1415,12 +1415,10 @@ contains
       !     2.   Prepare atmospheric tl profiles for all tovs observation points for use in rttov
       !     .    --------------------------------------------------------------------------------
       !
-      call tvslin_fill_profiles_tl(lcolumn,lcolumng)
-
       !     3.   Compute radiance
       !     .    ----------------
       !
-      call tvslin_rttov_tl(lobsSpaceData)
+      call tvslin_rttov_tl(lcolumn, lcolumng, lobsSpaceData)
 
 
     end subroutine oop_Hto
