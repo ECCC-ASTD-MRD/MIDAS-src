@@ -44,7 +44,6 @@ module innovation_mod
   use obsFilter_mod  
   use gps_mod
   use tovs_nl_mod
-  use tovs_lin_mod
   use multi_ir_bgck_mod
   use burpFiles_mod
   use randomNumber_mod
@@ -143,7 +142,8 @@ contains
     if (obs_famExist(obsSpaceData,'TO')) then
        call tvs_setupAlloc(obsSpaceData)
        if ( top_BgckIrMode() ) call BGCK_IR_SETUP(obsSpaceData)
-       if ( top_AnalysisMode() ) call tvslin_setupallo()
+       ! Initialize non diagonal observation error matrices
+       if ( top_AnalysisMode() ) call oer_setInterchanCorr()
     end if
 
   END SUBROUTINE INN_SETUPOBS

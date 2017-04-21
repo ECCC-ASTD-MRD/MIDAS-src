@@ -2340,13 +2340,8 @@ contains
       !     2.   Adjoint of computing radiance
       !     .    -----------------------------
       !
-      call tvslin_rttov_ad(lobsSpaceData)
+      call tvslin_rttov_ad(lcolumn,lcolumng,lobsSpaceData)
 
-
-      !     3.   Adjoint of preparation of atmospheric profiles
-      !     .    ----------------------------------------------
-      !
-      call tvslin_fill_profiles_ad(lcolumn,lcolumng)
 
     end subroutine oop_HTto
 

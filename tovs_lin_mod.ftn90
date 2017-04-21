@@ -29,116 +29,14 @@ Module tovs_lin_mod
   save
   private
 
-  public :: tvslin_setupallo, tvslin_rttov_tl, tvslin_fill_profiles_ad, tvslin_rttov_ad
+  public :: tvslin_rttov_tl, tvslin_rttov_ad
 
   ! public derived types
   ! public derived type through inheritance (from module rttov_types)
   public :: rttov_radiance
 
-  ! public variables (parameters)
-
-  ! public variables (non-parameters)
-
-  ! Derived types
-
-  type( rttov_profile ) ,     allocatable :: profiles_ad(:)    ! ad profiles, all profiles
 
 contains
-
-
-SUBROUTINE tvslin_SETUPALLO()
-#if defined (DOC)
-!
-!  s/r tvslin_SETUPALLO : Memory allocation for the lineraized radiative transfer model
-!                 variables.
-!          (original name of routine: sutovalo)
-!
-!Author  : J. Halle *CMDA/AES Oct 1999
-!    -------------------
-!     Purpose: to allocate memory for the radiative transfer model variables.
-!
-! Revision:
-!           S. Pellerin *ARMA/SMC May 2000
-!            - Fix for F90 conversion
-!           C. Chouinard *ARMA/SMC Aug 2000
-!            - remove reference to nincrem in memory allocation
-!           JM Belanger *CMDA/SMC!  aug 2000
-!            - 32 bits conversion
-!           J. Halle *CMDA/AES  dec 2000
-!            - adapt to TOVS level 1b.
-!           J. Halle CMDA/SMC May 2002
-!            - adapt to RTTOV-7 code
-!           J. Halle CMDA/SMC Feb 2003
-!            - add codtyp for AMSUB (=181).
-!           J. Halle CMDA/SMC Nov 2004
-!            - adapt to RTTOV-8;
-!            - convert to Fortran 90.
-!           A. Beaulne CMDA/SMC June 2006
-!            - modifications for AIRS
-!            - allocation of ozone profiles
-!           R. Sarrazin  CMDA   April 2008
-!            - adapt to CSR
-!           S. Heilliette
-!            - adapt to IASI
-!            - adapt to rttov 10.0 (october 2010)
-!           S. Macpherson
-!            - adapt to ATMS (codtyp 192)
-!           S.  Heilliette
-!            - adapt to CrIS (codtyp 193)
-#endif
-  Use rmatrix_mod
-  use obsSpaceData_mod
-
-  IMPLICIT NONE
-#include "rttov_alloc_prof.interface"
-!implicits
-
-  Integer :: alloc_status(2)
-  INTEGER ::  ival, IPLATFORM, ISAT, INSTRUM
-
-  INTEGER ::  JO
-  INTEGER ::  ISENS, NC, NL
-  INTEGER ::  ASW
-
-!-----------------------------------------------------------------------
-
-  if (tvs_nsensors == 0) then
-    write(*,*) 'tvslin_setupallo: tvs_nsensors is zero, skipping setup'
-    return
-  endif
-
-!     1. Memory allocation for radiative tranfer model variables
-!     .  -----------------------------------------------------
-
-!___ profiles
-
-! Initialization of the correlation matrices
-  call rmat_init(tvs_nsensors,tvs_nobtov)
-  if (rmat_lnondiagr) then
-     do isens = 1, tvs_nsensors
-        if (tvs_isReallyPresent(isens) ) call rmat_readCMatrix(tvs_listSensors(:,isens), isens, tvs_ichan(1:tvs_nchan(isens),isens)  )
-     enddo
-  endif
-
-  alloc_status = 0
-  allocate(profiles_ad(tvs_nobtov)      , stat= alloc_status(2))
-  call utl_checkAllocationStatus(alloc_status, " tvslin_SETUPALLO")
-  
-  print *,"tvslin_SETUPALLO tvs_nobtov",tvs_nobtov
-  asw=1 ! to allocate
-  do jo = 1, tvs_nobtov
-     isens = tvs_lsensor(jo)
-     nl = tvs_coefs(isens)%coef % nlevels
-     
-     ! allocate model ad profiles atmospheric arrays with RTTOV levels dimension
-     call rttov_alloc_prof(alloc_status(1),1,profiles_ad(jo),nl, &
-          tvs_opts(isens),asw,coefs=tvs_coefs(isens),init=.true. )
-     call utl_checkAllocationStatus(alloc_status, " tvslin_SETUPALLO profiles_ad")
-     
-  end do
-
-
-END SUBROUTINE tvslin_SETUPALLO
 
 SUBROUTINE LEXTHUM4(KNPF,KLAPF,PPRES,PAV,PAV5)
 !
@@ -303,7 +201,6 @@ subroutine tvslin_rttov_tl(column, columng, lobsSpaceData)
   integer :: isurface
   integer :: nlevels
   integer :: count_tb
-  integer :: rttov_err_stat                      ! rttov error return code
   integer,external :: omp_get_num_threads
   integer :: nthreads, max_nthreads
   integer :: profile_index, index_tb, bodyIndex, ichn, istart, iend
@@ -733,7 +630,7 @@ subroutine tvslin_rttov_tl(column, columng, lobsSpaceData)
 end subroutine tvslin_rttov_tl
 
 
-subroutine tvslin_rttov_ad(lobsSpaceData)
+subroutine tvslin_rttov_ad(column,columng,lobsSpaceData)
 !--------------------------------------------------------------------------
 !! *Purpose*: Adjoint of computation of radiance with rttov_ad
 !!
@@ -755,6 +652,9 @@ subroutine tvslin_rttov_ad(lobsSpaceData)
   use obsSpaceData_mod
   use columnData_mod
   use utilities_mod
+  use presProfileOperators_mod
+  use tovs_extrap_mod
+
   implicit none
 !implicits
 #include "rttov_parallel_ad.interface"
@@ -765,20 +665,49 @@ subroutine tvslin_rttov_ad(lobsSpaceData)
 #include "rttov_init_prof.interface"
 #include "rttov_init_rad.interface"
 
+  type(struct_columnData) :: column,columng
+
+  type(struct_vco), pointer :: vco_anl
+  integer, allocatable :: iptobs    (:) 
+  integer, allocatable :: iptobs_header (:) 
+
+  integer :: alloc_status(14)
+  logical :: diagTtop,TopAt10hPa
+  integer :: omp_get_num_threads, nthreads
+  integer :: nlevels,nobmax
+  integer :: sensor_id, iobs, stat
+  integer :: ilowlvl_T,ilowlvl_M,count_profile,headerIndex,nlv_M,nlv_T
+  integer :: profile_index, level_index, rttov_index
+  integer :: status, Vcode
+  integer :: jpmotop, jpmolev
+
+  real(8), allocatable :: to_ad    (:,:)
+  real(8), allocatable :: lqo_ad   (:,:)
+  real(8), allocatable :: toext_ad (:,:)
+  real(8), allocatable :: qoext_ad (:,:)
+  real(8), allocatable :: zvlev    (:,:)
+  real(8), allocatable :: dPdPs    (:,:)
+  real(8), allocatable :: zt_ad    (:,:)
+  real(8), allocatable :: zlq_ad   (:,:)
+  real(8), allocatable :: zt       (:,:)
+  real(8), allocatable :: zlq      (:,:)
+  real(8), allocatable :: qoext    (:,:)
+  real(8), allocatable :: zps_ad   (:)
+  real(8), allocatable :: xpres    (:)
+
+  real(8) :: zptop, zptopmbs
+
+  real(8), pointer :: uu_column(:),vv_column(:),tt_column(:),hu_column(:),ps_column(:),tg_column(:)
+  real(8), pointer :: TTb(:), HUb(:), Pres(:)
+
   type(struct_obs) :: lobsSpaceData
 
-  integer :: nlevels
   integer :: count_tb
-  integer :: alloc_status(7)
-  integer :: rttov_err_stat                      ! rttov error return code
-  integer :: omp_get_num_threads
-  integer :: nthreads,max_nthreads
-  integer :: sensor_id, iobs
-  integer :: instrum, count_profile
-  integer :: profile_index, tb_index, istart, iend, ichn, channel_index, headerIndex, bodyIndex
+  integer :: max_nthreads
+  integer :: instrum
+  integer :: tb_index, istart, iend, ichn, channel_index, bodyIndex
   integer :: sensor_type   ! sensor type (1=infrared; 2=microwave; 3=high resolution, 4=polarimetric)
 
-  integer, allocatable :: iptobs          (:)
   integer, allocatable :: iptobs_body      (:)
   integer :: errorstatus 
 
@@ -797,6 +726,32 @@ subroutine tvslin_rttov_ad(lobsSpaceData)
   if (tvs_nobtov == 0) return      ! exit if there are not tovs data
 
 
+!     1.    Set index for model's lowest level and model top
+!     .     ------------------------------------------------
+
+  nlv_M = col_getNumLev(columng,'MM')
+  nlv_T = col_getNumLev(columng,'TH')
+
+  if (  col_getPressure(columng,1,1,'TH') < col_getPressure(columng,nlv_T,1,'TH') ) then
+     ilowlvl_M = nlv_M
+     ilowlvl_T = nlv_T
+  else
+     ilowlvl_M = 1
+     ilowlvl_T = 1
+  endif
+
+  vco_anl => col_getVco(columng)
+  status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode)
+  diagTtop = (Vcode==5002)
+
+! find model level top, within 0.000001 mbs.
+  zptop    = col_getPressure(columng,1,1,'TH')
+  zptopmbs = zptop/100.d0
+  zptopmbs = zptopmbs - 0.000001d0
+
+  TopAt10hPa = ( abs( zptopmbs - 10.0d0 ) <= .1d0 )
+
+
 !     1.  Get number of threads available and allocate memory for some variables
 !     .   ---------------------------------------------------------------------- 
 !          
@@ -806,9 +761,6 @@ subroutine tvslin_rttov_ad(lobsSpaceData)
 !$omp end parallel
 
   allocate ( iptobs(tvs_nobtov) )
-
-
-  call rttov_init_prof(profiles_ad )
 
 !
 !     2.  Computation of adjoint hx for tovs data only
@@ -821,21 +773,88 @@ subroutine tvslin_rttov_ad(lobsSpaceData)
      nlevels=tvs_coefs(sensor_id) %coef % nlevels
      sensor_type = tvs_coefs(sensor_id) % coef% id_sensor
      instrum = tvs_coefs(sensor_id) % coef% id_inst
-     
-!  loop over all obs.
 
      count_profile = 0
-     obs_loop: do iobs = 1, tvs_nobtov
-
+     do iobs = 1, tvs_nobtov
 !    Currently processed sensor?
-
         if ( tvs_lsensor(iobs) == sensor_id ) then
            count_profile = count_profile + 1
            iptobs(count_profile) = iobs
         endif
-     enddo obs_loop
+     enddo 
 
      if (count_profile == 0) cycle sensor_loop
+
+     NOBMAX = iptobs(count_profile)
+
+!     compute the number of radiances/tbs to be calculated
+     count_tb = tvs_countRadiances(iptobs, count_profile, lobsSpaceData)
+
+     if (count_tb == 0) cycle sensor_loop
+
+     
+     allocate (xpres(nlevels))
+     xpres = tvs_coefs(sensor_id)% coef % ref_prfl_p
+     jpmotop = 1
+     do level_index = 2, nlevels
+        if ( zptopmbs >= xpres(level_index-1) .and.       &
+             zptopmbs < xpres(level_index)        ) then
+           jpmotop = level_index
+           exit
+        endif
+     enddo
+
+     jpmolev = (nlevels-jpmotop+1)
+     
+     alloc_status(:) = 0
+     allocate (iptobs_header(count_profile)    ,stat= alloc_status(1) )
+     allocate (to_ad    (jpmolev,count_profile),stat= alloc_status(2) )
+     allocate (lqo_ad   (jpmolev,count_profile),stat= alloc_status(3) )
+     allocate (toext_ad (nlevels,count_profile),stat= alloc_status(4) )
+     allocate (qoext_ad (nlevels,count_profile),stat= alloc_status(5) )
+     allocate (zvlev    (nlv_T,count_profile)  ,stat= alloc_status(6) )
+     allocate (dPdPs    (nlv_T,count_profile)  ,stat= alloc_status(7) )
+     allocate (zt_ad    (nlv_T,count_profile)  ,stat= alloc_status(8) )
+     allocate (zlq_ad   (nlv_T,count_profile)  ,stat= alloc_status(9))
+     allocate (zt       (nlv_T,count_profile)  ,stat= alloc_status(10))
+     allocate (zlq      (nlv_T,count_profile)  ,stat= alloc_status(11))
+     allocate (qoext    (nlevels,count_profile),stat= alloc_status(12))
+     allocate (zps_ad   (count_profile)        ,stat= alloc_status(13))
+
+     call utl_checkAllocationStatus(alloc_status, " tvslin_fill_profiles_ad")
+!  loop over all obs.
+     count_profile = 0 
+
+! loop over all obs.
+     bobs2: do iobs = 1, NOBMAX
+        if (tvs_lsensor(iobs)/=sensor_id) cycle bobs2
+        headerIndex = tvs_lobsno(iobs)
+          
+        count_profile = count_profile + 1
+
+        TTb => col_getColumn(columng,headerIndex,'TT')
+        HUb => col_getColumn(columng,headerIndex,'HU')
+        Pres => col_getColumn(columng,headerIndex,'PR','TH')
+        do level_index = 1, nlv_T
+           zt   (level_index,count_profile) = TTb(level_index)
+           zlq  (level_index,count_profile) = HUb(level_index)
+           zvlev(level_index,count_profile) = Pres(level_index) *MPC_MBAR_PER_PA_R8
+           dPdPs(level_index,count_profile) = col_getPressureDeriv(columng,level_index,headerIndex,'TH')
+        enddo
+
+! Fix pour eviter probleme au toit avec GEM 4
+! (grosse variabilite de la temperature au dernier niveau thermo due 
+!  a l'extrapolation utilisee)
+        if (diagTtop) then
+           zt   (1,count_profile) =  zt   (2,count_profile) + tvs_mesosphereLapseRate *  &
+                log( col_getPressure(columng,1,headerIndex,'TH') /  &
+                col_getPressure(columng,2,headerIndex,'TH') )
+           zlq  (1,count_profile) =  zlq  (2,count_profile)
+        endif
+
+        iptobs_header(count_profile) = headerIndex
+     enddo bobs2
+     
 
 !     .  2.1  Calculate the actual number of threads which will be used.
 !     .       ----------------------------------------------------------
@@ -845,21 +864,14 @@ subroutine tvslin_rttov_ad(lobsSpaceData)
 !     .  2.2  Prepare all input variables required by rttov_ad.
 !     .       ---------------------------------------------------------
      
-
-!     compute the number of radiances/tbs to be calculated
-     count_tb = tvs_countRadiances(iptobs, count_profile, lobsSpaceData)
-
-     if (count_tb == 0) cycle sensor_loop
-
-     alloc_status(:)=0
      allocate ( chanprof     (count_tb)        ,stat=alloc_status(1))
      allocate ( emissivity_local (count_tb)    ,stat=alloc_status(2))
      allocate ( emissivity_ad(count_tb)        ,stat=alloc_status(3))
      allocate ( calcemis     (count_tb)        ,stat=alloc_status(4))
      allocate ( surfem1      (count_tb)        ,stat=alloc_status(5))
      allocate ( profilesdata_ad(count_profile) ,stat=alloc_status(6))
-     allocate ( iptobs_body   (count_tb)        ,stat=alloc_status(7))
-     call utl_checkAllocationStatus(alloc_status, " tvslin_rttov_ad")
+     allocate ( iptobs_body   (count_tb)       ,stat=alloc_status(7))
+     call utl_checkAllocationStatus(alloc_status(1:7), " tvslin_rttov_ad")
       
 !     get Hyperspectral IR emissivities
       
@@ -878,37 +890,37 @@ subroutine tvslin_rttov_ad(lobsSpaceData)
      init=.true.
      call rttov_alloc_transmission(alloc_status(1), transmission, nlevels=nlevels,      &
           nchanprof=count_tb, asw=asw, init=init)
-     call utl_checkAllocationStatus(alloc_status, " tvslin_rttov_ad transmittances")
+     call utl_checkAllocationStatus(alloc_status(1:1), " tvslin_rttov_ad transmittances")
 
      call rttov_alloc_transmission(alloc_status(1), transmission_ad, nlevels=nlevels,   &
           nchanprof=count_tb, asw=asw, init=init)
-     call utl_checkAllocationStatus(alloc_status, " tvslin_rttov_ad transmittances ad")
+     call utl_checkAllocationStatus(alloc_status(1:1), " tvslin_rttov_ad transmittances ad")
       
 
 ! allocate radiance structures
 
      call rttov_alloc_rad (alloc_status(1), count_tb, radiancedata_d, nlevels, asw)
-     call utl_checkAllocationStatus(alloc_status, " tvslin_rttov_ad radiances")
+     call utl_checkAllocationStatus(alloc_status(1:1), " tvslin_rttov_ad radiances")
      call rttov_alloc_rad (alloc_status(1), count_tb, radiancedata_ad, nlevels, asw)
-     call utl_checkAllocationStatus(alloc_status, " tvslin_rttov_ad radiances ad")
+     call utl_checkAllocationStatus(alloc_status(1:1), " tvslin_rttov_ad radiances ad")
 
 ! allocate profile structures
          
      call rttov_alloc_prof (alloc_status(1), count_profile, profilesdata_ad, nlevels, &
           tvs_opts(sensor_id), asw=asw, coefs=tvs_coefs(sensor_id), init=init)
-     call utl_checkAllocationStatus(alloc_status, " tvslin_rttov_ad radiances ad")
+     call utl_checkAllocationStatus(alloc_status(1:1), " tvslin_rttov_ad radiances ad")
 
-     call rttov_init_prof(profilesdata_ad(1:count_profile) )
+!     call rttov_init_prof(profilesdata_ad(1:count_profile) )
 
      call rttov_init_rad( radiancedata_d )
 
 !.. fill radiancedata_ad arrays
      call rttov_init_rad( radiancedata_ad ) ! set irrrelevant fields to zero
 
-     tb_loop:   do tb_index = 1, count_tb
+     do tb_index = 1, count_tb
         bodyIndex = iptobs_body(tb_index)
         radiancedata_ad % bt( tb_index ) = obs_bodyElem_r(lobsSpaceData,OBS_WORK,bodyIndex)
-     enddo tb_loop
+     enddo
 
 !
 
@@ -945,246 +957,15 @@ subroutine tvslin_rttov_ad(lobsSpaceData)
 
 !.. store results from rttov_ad into profiles_ad
 
+
+     toext_ad = 0.d0
+     qoext_ad = 0.d0
+
      do tb_index = 1, count_tb
+
         profile_index = chanprof(tb_index)%prof
-        iobs = iptobs(profile_index)
-        profiles_ad(iobs) % t(:)      =  profilesdata_ad(profile_index) % t(:)
-        profiles_ad(iobs) % q(:)      =  profilesdata_ad(profile_index) % q(:)
-        profiles_ad(iobs) % skin % t  =  profilesdata_ad(profile_index) % skin % t 
-        profiles_ad(iobs) % s2m % t   =  profilesdata_ad(profile_index) % s2m % t
-        profiles_ad(iobs) % s2m % q   =  profilesdata_ad(profile_index) % s2m % q
-        profiles_ad(iobs) % s2m % p   =  profilesdata_ad(profile_index) % s2m % p
-        profiles_ad(iobs) % s2m % u   =  profilesdata_ad(profile_index) % s2m % u
-        profiles_ad(iobs) % s2m % v   =  profilesdata_ad(profile_index) % s2m % v
-     enddo
-
-    
-!     de-allocate memory
-
-     asw=0 ! 1 to allocate,0 to deallocate
-
-     call rttov_alloc_transmission(alloc_status(1), transmission, nlevels=nlevels,      &
-          nchanprof=count_tb, asw=asw)
-     call utl_checkAllocationStatus(alloc_status, " tvslin_rttov_ad transmittances", .false.)
-
-     call rttov_alloc_transmission(alloc_status(1), transmission_ad, nlevels=nlevels,   &
-          nchanprof=count_tb, asw=asw)
-     call utl_checkAllocationStatus(alloc_status, " tvslin_rttov_ad transmittances ad", .false.)
-         
-     call rttov_alloc_rad (alloc_status(1), count_tb, radiancedata_d, nlevels, asw)
-     call utl_checkAllocationStatus(alloc_status, " tvslin_rttov_ad radiances", .false.)
-
-     call rttov_alloc_rad (alloc_status(1), count_tb, radiancedata_ad, nlevels, asw)
-     call utl_checkAllocationStatus(alloc_status, " tvslin_rttov_ad radiances ad", .false.)
-
-     call rttov_alloc_prof (alloc_status(1), count_profile, profilesdata_ad, nlevels, &
-          tvs_opts(sensor_id), asw=asw)
-     call utl_checkAllocationStatus(alloc_status, " tvslin_rttov_ad radiances ad", .false.)
-
-     alloc_status(:) = 0
-     deallocate ( profilesdata_ad ,stat=alloc_status(1))
-     deallocate ( chanprof        ,stat=alloc_status(2))
-     deallocate ( emissivity_local,stat=alloc_status(3))
-     deallocate ( emissivity_ad   ,stat=alloc_status(4))
-     deallocate ( calcemis        ,stat=alloc_status(5))
-     deallocate ( surfem1         ,stat=alloc_status(6))
-     deallocate ( iptobs_body      ,stat=alloc_status(7))
-     call utl_checkAllocationStatus(alloc_status, " tvslin_rttov_ad", .false.)
-     
-  enddo sensor_loop
-
-!     3.  Close up
-!     .   --------
-
-  deallocate ( iptobs )
-
-end subroutine tvslin_rttov_ad
-
-
-subroutine tvslin_fill_profiles_ad(column,columng)
-!--------------------------------------------------------------------------
-!! *Purpose*: Adjoint of filling tangent linear profiles structure by interpolating 
-!!            contents of columnData to RTTOV space
-!!
-!! @author j. halle *cmda/aes  april 21, 2005
-!
-!revision 001  : j. halle  *cmda/smc  march 2007
-!                    -fix zvlev for hybrid coordinate
-!revision 002  : s. macpherson  nov 2012
-!                  - remove #include "comtovst.cdk"
-!
-!--------------------------------------------------------------------------
-  use MathPhysConstants_mod
-  use tovs_nl_mod
-  use columnData_mod
-  use obsSpaceData_mod
-  use presProfileOperators_mod
-  use utilities_mod
-  use tovs_extrap_mod
-  implicit none
-
-  type(struct_columnData) :: column,columng
-
-  type(struct_vco), pointer :: vco_anl
-  integer, allocatable :: iptobs    (:) 
-  integer, allocatable :: iptobs_header (:) 
-
-  integer :: alloc_status(15)
-  logical :: diagTtop,TopAt10hPa
-  integer :: omp_get_num_threads, nthreads
-  integer :: istride, ilen, imodulo
-  integer :: nlevels,nobmax
-  integer :: sensor_id, iobs, stat
-  integer :: ilowlvl_T,ilowlvl_M,count_profile,headerIndex,nlv_M,nlv_T
-  integer :: profile_index, level_index, rttov_index
-  integer :: status, Vcode
-  integer :: jpmotop, jpmolev
-
-  real(8), allocatable :: to_ad    (:,:)
-  real(8), allocatable :: lqo_ad   (:,:)
-  real(8), allocatable :: toext_ad (:,:)
-  real(8), allocatable :: qoext_ad (:,:)
-  real(8), allocatable :: zvlev    (:,:)
-  real(8), allocatable :: dPdPs    (:,:)
-  real(8), allocatable :: zt_ad    (:,:)
-  real(8), allocatable :: zlq_ad   (:,:)
-  real(8), allocatable :: zt       (:,:)
-  real(8), allocatable :: zlq      (:,:)
-  real(8), allocatable :: qoext    (:,:)
-  real(8), allocatable :: zps_ad   (:)
-  real(8), allocatable :: xpres    (:)
-
-  real(8) :: zptop, zptopmbs
-
-  real(8), pointer :: uu_column(:),vv_column(:),tt_column(:),hu_column(:),ps_column(:),tg_column(:)
-  real(8), pointer :: TTb(:), HUb(:), Pres(:)
-         
-  if (tvs_nobtov == 0) return    ! exit if there are not tovs data
-
-
-!     1.    Set index for model's lowest level and model top
-!     .     ------------------------------------------------
-
-  nlv_M = col_getNumLev(columng,'MM')
-  nlv_T = col_getNumLev(columng,'TH')
-
-  if (  col_getPressure(columng,1,1,'TH') < col_getPressure(columng,nlv_T,1,'TH') ) then
-     ilowlvl_M = nlv_M
-     ilowlvl_T = nlv_T
-  else
-     ilowlvl_M = 1
-     ilowlvl_T = 1
-  endif
-
-  vco_anl => col_getVco(columng)
-  status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode)
-  diagTtop = (Vcode==5002)
-
-! find model level top, within 0.000001 mbs.
-  zptop    = col_getPressure(columng,1,1,'TH')
-  zptopmbs = zptop/100.d0
-  zptopmbs = zptopmbs - 0.000001d0
-
-  TopAt10hPa = ( abs( zptopmbs - 10.0d0 ) <= .1d0 )
-
-!     1.1   Number of threads and memory allocation
-!     .     ---------------------------------------
-
-!$omp parallel 
-  nthreads = omp_get_num_threads()
-!$omp end parallel
-  
-!
-!     2.  Adjoint of fill profiles structure
-!     .   ----------------------------------
-
-! loop over all instruments
-  sensor_loop: do sensor_id = 1, tvs_nsensors
-
-     count_profile = 0
-
-     bobs1: do iobs = 1,tvs_nobtov
-        if (tvs_lsensor(iobs) /= sensor_id) cycle bobs1
-        NOBMAX = iobs
-        count_profile = count_profile + 1   
-     enddo bobs1
-
-     if (count_profile == 0) cycle sensor_loop
-
-     nlevels=tvs_coefs(sensor_id) %coef%  nlevels
-     allocate (xpres(nlevels))
-     xpres = tvs_coefs(sensor_id)% coef % ref_prfl_p
-     jpmotop = 1
-     do level_index = 2, nlevels
-        if ( zptopmbs >= xpres(level_index-1) .and.       &
-             zptopmbs < xpres(level_index)        ) then
-           jpmotop = level_index
-           exit
-        endif
-     enddo
-
-     jpmolev = (nlevels-jpmotop+1)
-     
-     alloc_status(:) = 0
-     allocate (iptobs   (count_profile)        ,stat= alloc_status(1) )
-     allocate (iptobs_header(count_profile)        ,stat= alloc_status(2) )
-     allocate (to_ad    (jpmolev,count_profile),stat= alloc_status(3) )
-     allocate (lqo_ad   (jpmolev,count_profile),stat= alloc_status(4) )
-     allocate (toext_ad (nlevels,count_profile),stat= alloc_status(5) )
-     allocate (qoext_ad (nlevels,count_profile),stat= alloc_status(6) )
-     allocate (zvlev    (nlv_T,count_profile)  ,stat= alloc_status(7) )
-     allocate (dPdPs    (nlv_T,count_profile)  ,stat= alloc_status(8) )
-     allocate (zt_ad    (nlv_T,count_profile)  ,stat= alloc_status(9) )
-     allocate (zlq_ad   (nlv_T,count_profile)  ,stat= alloc_status(10))
-     allocate (zt       (nlv_T,count_profile)  ,stat= alloc_status(11))
-     allocate (zlq      (nlv_T,count_profile)  ,stat= alloc_status(12))
-     allocate (qoext    (nlevels,count_profile),stat= alloc_status(13))
-     allocate (zps_ad   (count_profile)        ,stat= alloc_status(14))
-
-     call utl_checkAllocationStatus(alloc_status, " tvslin_fill_profiles_ad")
-
-     count_profile = 0 
-
-! loop over all obs.
-     bobs2: do iobs = 1, NOBMAX
-        if (tvs_lsensor(iobs)/=sensor_id) cycle bobs2
-        headerIndex = tvs_lobsno(iobs)
-          
-        count_profile = count_profile + 1
-
-        TTb => col_getColumn(columng,headerIndex,'TT')
-        HUb => col_getColumn(columng,headerIndex,'HU')
-        Pres => col_getColumn(columng,headerIndex,'PR','TH')
-        do level_index = 1, nlv_T
-           zt   (level_index,count_profile) = TTb(level_index)
-           zlq  (level_index,count_profile) = HUb(level_index)
-           zvlev(level_index,count_profile) = Pres(level_index) *MPC_MBAR_PER_PA_R8
-           dPdPs(level_index,count_profile) = col_getPressureDeriv(columng,level_index,headerIndex,'TH')
-        enddo
-
-! Fix pour eviter probleme au toit avec GEM 4
-! (grosse variabilite de la temperature au dernier niveau thermo due 
-!  a l'extrapolation utilisee)
-        if (diagTtop) then
-           zt   (1,count_profile) =  zt   (2,count_profile) + tvs_mesosphereLapseRate *  &
-                log( col_getPressure(columng,1,headerIndex,'TH') /  &
-                col_getPressure(columng,2,headerIndex,'TH') )
-           zlq  (1,count_profile) =  zlq  (2,count_profile)
-        endif
-
-        iptobs   (count_profile) = iobs
-        iptobs_header(count_profile) = headerIndex
-     enddo bobs2
-
-!     .  2.4  Adjoint of filling profiles_ad structure
-!     .       ----------------------------------------
-     do profile_index = 1, count_profile
-        qoext(:,profile_index) =  tvs_profiles(iptobs(profile_index)) % q(:) !/ tvs_qMixratio2ppmv
-     enddo
-
-     do  profile_index =  1, count_profile
         headerIndex = iptobs_header(profile_index)
-        rttov_index = iptobs(profile_index)
+
         ps_column => col_getColumn(column,headerIndex,'P0')
         tg_column => col_getColumn(column,headerIndex,'TG')
         tt_column => col_getColumn(column,headerIndex,'TT')
@@ -1192,18 +973,24 @@ subroutine tvslin_fill_profiles_ad(column,columng)
         uu_column => col_getColumn(column,headerIndex,'UU')
         vv_column => col_getColumn(column,headerIndex,'VV')
 
-        toext_ad(:,profile_index)      = profiles_ad(rttov_index) % t(:)
-        qoext_ad(:,profile_index)      = profiles_ad(rttov_index) % q(:) 
-        ps_column(1)       = profiles_ad(rttov_index) % s2m % p *MPC_MBAR_PER_PA_R8
-        tg_column(1)       = profiles_ad(rttov_index) % skin % t
-        tt_column(ilowlvl_T) = profiles_ad(rttov_index) % s2m % t
-!!!        hu_column(ilowlvl_T) = qoext(ilowlvl_T,profile_index) * profiles_ad(rttov_index) % s2m % q * tvs_qMixratio2ppmv
-!!!        hu_column(ilowlvl_T) = qoext(ilowlvl_T,profikle_index) * profiles_ad(rttov_index) % s2m % q 
-        hu_column(ilowlvl_T) = 0.d0 
-        uu_column(ilowlvl_M) = profiles_ad(rttov_index) % s2m % u
-        vv_column(ilowlvl_M) = profiles_ad(rttov_index) % s2m % v
-     end do
+        toext_ad(:,profile_index)   =  profilesdata_ad(profile_index) % t(:)
+        qoext_ad(:,profile_index)   =  profilesdata_ad(profile_index) % q(:)
+        tg_column(1)                =  profilesdata_ad(profile_index) % skin % t 
+        tt_column(ilowlvl_T)        =  profilesdata_ad(profile_index) % s2m % t
+        ps_column(1)                =  profilesdata_ad(profile_index) % s2m % p * MPC_MBAR_PER_PA_R8
+        hu_column(ilowlvl_T)        =  0.d0 
+        uu_column(ilowlvl_M)        =  profilesdata_ad(profile_index) % s2m % u
+        vv_column(ilowlvl_M)        =  profilesdata_ad(profile_index) % s2m % v
+     enddo
 
+!
+!     .  2.4  Adjoint of filling profiles_ad structure
+!     .       ----------------------------------------
+     do profile_index = 1, count_profile
+        qoext(:,profile_index) =  tvs_profiles(iptobs(profile_index)) % q(:)
+     enddo
+
+    
 !     .  2.3  Adjoint of extrapolation of humidity profile (kg/kg)
 !             above rlimlvhu (normally 300mbs or 70mbs)
 !     .  
@@ -1252,30 +1039,21 @@ subroutine tvslin_fill_profiles_ad(column,columng)
      zlq_ad(:,:) = 0.0d0
      zps_ad(:)   = 0.0d0
 
-
-     imodulo = mod(count_profile,nthreads)
-     if ( imodulo == 0 ) then
-        istride = max(1,(count_profile/nthreads))
-     else
-        istride = max(1,(count_profile/nthreads)+1)
-     endif
      call tmg_start(75,'intavgad')
 !$omp parallel
-!$omp do private(profile_index,ilen)
-     do profile_index=1,count_profile,istride
-        ilen = min (count_profile-profile_index+1,istride)
-        if ( ilen > 0) then
+!$omp do private(profile_index)
+     do profile_index=1,count_profile
            
-           call ppo_IntAvgAd(zvlev(:,profile_index:profile_index+ilen-1), dPdPs(:,profile_index:profile_index+ilen-1), &
-                zt_ad(:,profile_index:profile_index+ilen-1), zt(:,profile_index:profile_index+ilen-1), &
-                zps_ad(profile_index:profile_index+ilen-1), nlv_T,nlv_T,ilen, &
-                jpmolev,xpres(jpmotop:nlevels),to_ad(:,profile_index:profile_index+ilen-1))
-           call ppo_IntAvgAd(zvlev(:,profile_index:profile_index+ilen-1),dPdPs(:,profile_index:profile_index+ilen-1), &
-                zlq_ad(:,profile_index:profile_index+ilen-1), zlq(:,profile_index:profile_index+ilen-1), &
-                zps_ad(profile_index:profile_index+ilen-1), nlv_T,nlv_T,ilen, &
-                jpmolev,xpres(jpmotop:nlevels), lqo_ad(:,profile_index:profile_index+ilen-1))
+           call ppo_IntAvgAd(zvlev(:,profile_index:profile_index), dPdPs(:,profile_index:profile_index), &
+                zt_ad(:,profile_index:profile_index), zt(:,profile_index:profile_index), &
+                zps_ad(profile_index:profile_index), nlv_T,nlv_T,1, &
+                jpmolev,xpres(jpmotop:nlevels),to_ad(:,profile_index:profile_index))
 
-        endif
+           call ppo_IntAvgAd(zvlev(:,profile_index:profile_index),dPdPs(:,profile_index:profile_index), &
+                zlq_ad(:,profile_index:profile_index), zlq(:,profile_index:profile_index), &
+                zps_ad(profile_index:profile_index), nlv_T,nlv_T,1, &
+                jpmolev,xpres(jpmotop:nlevels), lqo_ad(:,profile_index:profile_index))
+        
      enddo
 !$omp end do
 !$omp end parallel
@@ -1306,33 +1084,62 @@ subroutine tvslin_fill_profiles_ad(column,columng)
         enddo
      enddo
 
-     alloc_status(:) = 0
-     deallocate (iptobs   ,stat= alloc_status(1) )
-     deallocate (iptobs_header,stat= alloc_status(2) )
-     deallocate (to_ad    ,stat= alloc_status(3) )
-     deallocate (lqo_ad   ,stat= alloc_status(4) )
-     deallocate (toext_ad ,stat= alloc_status(5) )
-     deallocate (qoext_ad ,stat= alloc_status(6) )
-     deallocate (zvlev    ,stat= alloc_status(7) )
-     deallocate (dPdPs    ,stat= alloc_status(8) )
-     deallocate (zt_ad    ,stat= alloc_status(9) )
-     deallocate (zlq_ad   ,stat= alloc_status(10))
-     deallocate (zt       ,stat= alloc_status(11))
-     deallocate (zlq      ,stat= alloc_status(12))
-     deallocate (qoext    ,stat= alloc_status(13))
-     deallocate (zps_ad   ,stat= alloc_status(14))
-     deallocate (xpres    ,stat= alloc_status(15))
+     deallocate (iptobs_header,stat= alloc_status(1) )
+     deallocate (to_ad    ,stat= alloc_status(2) )
+     deallocate (lqo_ad   ,stat= alloc_status(3) )
+     deallocate (toext_ad ,stat= alloc_status(4) )
+     deallocate (qoext_ad ,stat= alloc_status(5) )
+     deallocate (zvlev    ,stat= alloc_status(6) )
+     deallocate (dPdPs    ,stat= alloc_status(7) )
+     deallocate (zt_ad    ,stat= alloc_status(8) )
+     deallocate (zlq_ad   ,stat= alloc_status(9))
+     deallocate (zt       ,stat= alloc_status(10))
+     deallocate (zlq      ,stat= alloc_status(11))
+     deallocate (qoext    ,stat= alloc_status(12))
+     deallocate (zps_ad   ,stat= alloc_status(13))
+     deallocate (xpres    ,stat= alloc_status(14))
 
      call utl_checkAllocationStatus(alloc_status, " tvslin_fill_profiles_ad", .false.)
+    
+!     de-allocate memory
 
-!    next bunch !
+     asw=0 ! 1 to allocate,0 to deallocate
 
-     count_profile = 0
+     call rttov_alloc_transmission(alloc_status(1), transmission, nlevels=nlevels,      &
+          nchanprof=count_tb, asw=asw)
+     call utl_checkAllocationStatus(alloc_status(1:1), " tvslin_rttov_ad transmittances", .false.)
 
+     call rttov_alloc_transmission(alloc_status(1), transmission_ad, nlevels=nlevels,   &
+          nchanprof=count_tb, asw=asw)
+     call utl_checkAllocationStatus(alloc_status(1:1), " tvslin_rttov_ad transmittances ad", .false.)
+         
+     call rttov_alloc_rad (alloc_status(1), count_tb, radiancedata_d, nlevels, asw)
+     call utl_checkAllocationStatus(alloc_status(1:1), " tvslin_rttov_ad radiances", .false.)
+
+     call rttov_alloc_rad (alloc_status(1), count_tb, radiancedata_ad, nlevels, asw)
+     call utl_checkAllocationStatus(alloc_status(1:1), " tvslin_rttov_ad radiances ad", .false.)
+
+     call rttov_alloc_prof (alloc_status(1), count_profile, profilesdata_ad, nlevels, &
+          tvs_opts(sensor_id), asw=asw)
+     call utl_checkAllocationStatus(alloc_status(1:1), " tvslin_rttov_ad radiances ad", .false.)
+
+     deallocate ( profilesdata_ad ,stat=alloc_status(1))
+     deallocate ( chanprof        ,stat=alloc_status(2))
+     deallocate ( emissivity_local,stat=alloc_status(3))
+     deallocate ( emissivity_ad   ,stat=alloc_status(4))
+     deallocate ( calcemis        ,stat=alloc_status(5))
+     deallocate ( surfem1         ,stat=alloc_status(6))
+     deallocate ( iptobs_body     ,stat=alloc_status(7))
+     call utl_checkAllocationStatus(alloc_status(1:7), " tvslin_rttov_ad", .false.)
+     
   enddo sensor_loop
 
-end subroutine tvslin_fill_profiles_ad
+!     3.  Close up
+!     .   --------
 
+  deallocate ( iptobs )
+
+end subroutine tvslin_rttov_ad
 
 
 SUBROUTINE AEXTHUM4(KNPF,KLAPF,PPRES,PAV,PAV5)
