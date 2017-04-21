@@ -2948,7 +2948,7 @@ subroutine tovs_rttov_AVHRR_for_IASI (iptobs,surfem1_avhrr,idiasi)
   type (rttov_options ),save :: opts_avhrr
   type (rttov_chanprof)  :: chanprof(3)
   logical :: calcemis  (3)
-  INTEGER ::  list_sensor (3),setup_errorstatus
+  INTEGER ::  list_sensor (3),setup_errorstatus,alloc_status(2)
   integer, save :: idiasi_old=-1
   integer :: ich,i,j,jn,ichn
   integer :: ichan_avhrr (NIR)
@@ -2957,7 +2957,7 @@ subroutine tovs_rttov_AVHRR_for_IASI (iptobs,surfem1_avhrr,idiasi)
   type ( rttov_radiance )      :: radiancedata_d
   type ( rttov_emissivity )    :: emissivity(3)
   integer :: nchannels
-  integer :: asw,nlevels,errorstatus,io
+  integer :: asw,nlevels,io
 !***********************************************
   
   IF (IDIASI_OLD/=IDIASI) THEN
@@ -3042,19 +3042,19 @@ subroutine tovs_rttov_AVHRR_for_IASI (iptobs,surfem1_avhrr,idiasi)
   End Do
 
 ! allocate transmittance structure
-
-  call tovs_allocate_transmission(transmission,nchannels,nlevels)
-
+  alloc_status = 0
+!  call tovs_allocate_transmission(transmission,nchannels,nlevels)
+  allocate( transmission % tau_levels     ( nlevels, nchannels ) ,stat= alloc_status(1))
+  allocate( transmission % tau_total      ( nchannels )          ,stat= alloc_status(2))
+  call utl_checkAllocationStatus(alloc_status, " tovs_rttov_AVHRR_for_IASI transmission")
+  transmission % tau_levels (:,:)=0.0D0
+  transmission % tau_total (:)=0.0D0
 ! allocate radiance structure
 
   asw=1 ! 1 to allocate,0 to deallocate
-  call rttov_alloc_rad (errorstatus,nchannels,radiancedata_d,nlevels-1,asw)
-  if (errorstatus/=0) THEN
-     Write(*,*) "Error in radiance allocation",errorstatus
-     call utl_abort("tovs_rttov_AVHRR_for_IASI")
-  ENDIF
-
-
+  call rttov_alloc_rad (alloc_status(1:1),nchannels,radiancedata_d,nlevels-1,asw)
+  call utl_checkAllocationStatus(alloc_status(1:1), " tovs_rttov_AVHRR_for_IASI radiances")
+ 
   Call rttov_direct(        &
        errorstatus,         & ! out
        chanprof,            & ! in
@@ -3074,14 +3074,15 @@ subroutine tovs_rttov_AVHRR_for_IASI (iptobs,surfem1_avhrr,idiasi)
   avhrr_bgck(io)% EMISS(NVIS+1:NVIS+NIR) = emissivity(1:NIR)%emis_out
   avhrr_bgck(io)% TRANSMSURF(NVIS+1:NVIS+NIR) = transmission% tau_total(1:NIR)
 
-  call tovs_deallocate_transmission(transmission)
-  asw=0 ! 1 to allocate,0 to deallocate
-  call rttov_alloc_rad (errorstatus,nchannels,radiancedata_d,nlevels-1,asw)
-  if (errorstatus/=0) THEN
-     Write(*,*) "Erreur in radiance deallocation: ",errorstatus
-     call utl_abort("tovs_rttov_AVHRR_for_IASI")
-  ENDIF
 
+  deallocate( transmission % tau_total    ,stat= alloc_status(1))
+  deallocate( transmission % tau_levels   ,stat= alloc_status(2))
+  call utl_checkAllocationStatus(alloc_status, " tovs_rttov_AVHRR_for_IASI transmission", .false.)
+
+  asw=0 ! 1 to allocate,0 to deallocate
+  call rttov_alloc_rad (alloc_status(1),nchannels,radiancedata_d,nlevels-1,asw)
+  call utl_checkAllocationStatus(alloc_status(1:1), " tovs_rttov_AVHRR_for_IASI radiances",.false.)
+  
 end subroutine tovs_rttov_AVHRR_for_IASI
 
 SUBROUTINE  COR_ALBEDO  ( DEL, SCOS )
