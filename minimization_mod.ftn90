@@ -224,8 +224,8 @@ CONTAINS
       integer              :: impres
       INTEGER              :: NGRANGE = 10 ! range of powers of 10 used for gradient test
 
-      INTEGER IZS(1),IZTRL(5)
-      REAL ZZSUNUSED(1)
+      integer :: izs(1),iztrl(5)
+      real    :: zzsunused(1)
 
       real*8,allocatable :: vazg(:)
       real*8,allocatable :: vazx(:)
@@ -248,6 +248,7 @@ CONTAINS
       real*8 :: zeps0_000,zdf1_000
       integer :: iterdone_000,isimdone_000
       character(len=128) :: clfname
+      character(len=9) :: clmsg
 
       if (lvarqc) call vqc_setup(obsSpaceData)
 
@@ -474,15 +475,6 @@ CONTAINS
           dg_vbar(jdata) = vazx(jdata) + dg_vbar(jdata)
         enddo
 
-        ! Write out the Hessian to file
-        if(lwrthess) then
-          if(mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-          call hessianIO (preconFileNameOut,1,  &
-            min_nsim,tim_getDatestamp(),zeps1,zdf1,itertot,isimtot,  &
-            iztrl,vatra,dg_vbar,vazx,.true.,llvazx,n1gc,imode)
-          if(mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-        endif
-
         ! Print some contents of obsSpaceData to the listing
         do jdata = 1, min(1,obs_numHeader(obsSpaceData))
           call obs_prnthdr(obsSpaceData,jdata)
@@ -497,10 +489,24 @@ CONTAINS
         call min_writeIncrement(statevector_incr)
         call tmg_stop(6)
         
+        if (mpi_myid == 0) then
+          clmsg = 'REBM_DONE'
+          call utl_writeStatus(clmsg)
+        end if
+
         ! calculate OBS_OMA for diagnostic (i.e. non-assimilated) observations
         call calc_OmA_diagnostic(statevector_incr,columng,obsSpaceData)
 
         call gsv_deallocate(statevector_incr)
+
+        ! Write out the Hessian to file
+        if(lwrthess) then
+          if(mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+          call hessianIO (preconFileNameOut,1,  &
+            min_nsim,tim_getDatestamp(),zeps1,zdf1,itertot,isimtot,  &
+            iztrl,vatra,dg_vbar,vazx,.true.,llvazx,n1gc,imode)
+          if(mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+        endif
 
       else
 

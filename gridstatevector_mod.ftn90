@@ -39,7 +39,8 @@ MODULE gridStateVector_mod
   ! public subroutines and functions
   public :: gsv_setup, gsv_allocate, gsv_deallocate, gsv_zero, gsv_3dto4d, gsv_3dto4dAdj
   public :: gsv_getOffsetFromVarName, gsv_getLevFromK, gsv_getVarNameFromK
-  public :: gsv_writeToFileMpi, gsv_readFromFile, gsv_readTrials
+  public :: gsv_writeToFileMpi, gsv_readFromFile, gsv_readTrials, gsv_readFile
+  public :: gsv_hInterpolate, gsv_vInterpolate
   public :: gsv_getField_r8, gsv_getField3D_r8, gsv_getField_r4, gsv_getField3D_r4
   public :: gsv_getDateStamp, gsv_getNumLev
   public :: gsv_add, gsv_power, gsv_scale, gsv_scaleVertical, gsv_copy, gsv_stddev
@@ -359,7 +360,6 @@ MODULE gridStateVector_mod
       call mpivar_setup_lonbands(statevector%ni,statevector%lonPerPE,statevector%myLonBeg, &
                                  statevector%myLonEnd)
     else
-      statevector%mpi_local=.false.
       statevector%latPerPE = statevector%nj
       statevector%myLatBeg = 1
       statevector%myLatEnd = statevector%nj
@@ -546,32 +546,68 @@ MODULE gridStateVector_mod
     k1=statevector_in%mykBeg
     k2=statevector_in%mykEnd
 
-    if(present(scaleFactor)) then
+    if( statevector_inout%dataKind == 8 .and. statevector_in%dataKind == 8 ) then
+
+      if(present(scaleFactor)) then
 !$OMP PARALLEL DO PRIVATE (jstep,jlat,jlev,jlon)    
-      do jlev = k1, k2
-        do jstep = 1, statevector_inout%numStep
-          do jlat = lat1, lat2
-            do jlon = lon1, lon2
-              statevector_inout%gd_r8(jlon,jlat,jlev,jstep) = statevector_inout%gd_r8(jlon,jlat,jlev,jstep) +  &
-                                             scaleFactor * statevector_in%gd_r8(jlon,jlat,jlev,jstep)
+        do jlev = k1, k2
+          do jstep = 1, statevector_inout%numStep
+            do jlat = lat1, lat2
+              do jlon = lon1, lon2
+                statevector_inout%gd_r8(jlon,jlat,jlev,jstep) = statevector_inout%gd_r8(jlon,jlat,jlev,jstep) +  &
+                                                  scaleFactor * statevector_in%gd_r8(jlon,jlat,jlev,jstep)
+              enddo
             enddo
           enddo
         enddo
-      enddo
 !$OMP END PARALLEL DO
+      else
+!$OMP PARALLEL DO PRIVATE (jstep,jlat,jlev,jlon)    
+        do jlev = k1, k2
+          do jstep = 1, statevector_inout%numStep
+            do jlat = lat1, lat2
+              do jlon = lon1, lon2
+                statevector_inout%gd_r8(jlon,jlat,jlev,jstep) = statevector_inout%gd_r8(jlon,jlat,jlev,jstep) +  &
+                                                                statevector_in%gd_r8(jlon,jlat,jlev,jstep)
+              enddo
+            enddo
+          enddo
+        enddo
+!$OMP END PARALLEL DO
+      endif
+
+    elseif( statevector_inout%dataKind == 4 .and. statevector_in%dataKind == 4 ) then
+
+      if(present(scaleFactor)) then
+!$OMP PARALLEL DO PRIVATE (jstep,jlat,jlev,jlon)    
+        do jlev = k1, k2
+          do jstep = 1, statevector_inout%numStep
+            do jlat = lat1, lat2
+              do jlon = lon1, lon2
+                statevector_inout%gd_r4(jlon,jlat,jlev,jstep) = statevector_inout%gd_r4(jlon,jlat,jlev,jstep) +  &
+                                          real(scaleFactor,4) * statevector_in%gd_r4(jlon,jlat,jlev,jstep)
+              enddo
+            enddo
+          enddo
+        enddo
+!$OMP END PARALLEL DO
+      else
+!$OMP PARALLEL DO PRIVATE (jstep,jlat,jlev,jlon)    
+        do jlev = k1, k2
+          do jstep = 1, statevector_inout%numStep
+            do jlat = lat1, lat2
+              do jlon = lon1, lon2
+                statevector_inout%gd_r4(jlon,jlat,jlev,jstep) = statevector_inout%gd_r4(jlon,jlat,jlev,jstep) +  &
+                                                                statevector_in%gd_r4(jlon,jlat,jlev,jstep)
+              enddo
+            enddo
+          enddo
+        enddo
+!$OMP END PARALLEL DO
+      endif
+
     else
-!$OMP PARALLEL DO PRIVATE (jstep,jlat,jlev,jlon)    
-      do jlev = k1, k2
-        do jstep = 1, statevector_inout%numStep
-          do jlat = lat1, lat2
-            do jlon = lon1, lon2
-              statevector_inout%gd_r8(jlon,jlat,jlev,jstep) = statevector_inout%gd_r8(jlon,jlat,jlev,jstep) +  &
-                                                           statevector_in%gd_r8(jlon,jlat,jlev,jstep)
-            enddo
-          enddo
-        enddo
-      enddo
-!$OMP END PARALLEL DO
+      call utl_abort('gsv_add: Data type must be the same for both statevectors')
     endif
 
   END SUBROUTINE GSV_add
@@ -579,10 +615,9 @@ MODULE gridStateVector_mod
   !--------------------------------------------------------------------------
   ! GSV_copy
   !--------------------------------------------------------------------------
-  SUBROUTINE GSV_copy(statevector_in,statevector_out,indexStep_in)
+  SUBROUTINE GSV_copy(statevector_in,statevector_out)
     implicit none
     type(struct_gsv)  :: statevector_in,statevector_out
-    integer, optional :: indexStep_in
     integer           :: jstep,jlon,jlev,jlat,lon1,lon2,lat1,lat2,k1,k2
 
     if(.not.statevector_in%allocated) then
@@ -599,65 +634,36 @@ MODULE gridStateVector_mod
     k1=statevector_in%mykBeg
     k2=statevector_in%mykEnd
 
-    ! NOTE: The step index should only be specified when copying 4D into 3D
-    if(present(indexStep_in)) then
+    if( statevector_out%dataKind == 8 .and. statevector_in%dataKind == 8 ) then
 
-      ! adjust the datestamp to be consistent with the date of the specified step index
-      statevector_out%dateStampList(1) = statevector_in%dateStampList(indexStep_in)
-
-      if( statevector_out%dataKind == 8 .and. statevector_in%dataKind == 8 ) then
-!$OMP PARALLEL DO PRIVATE (jlat,jlev,jlon)    
-        do jlev = k1, k2
+!$OMP PARALLEL DO PRIVATE (jstep,jlat,jlev,jlon)    
+      do jlev = k1, k2
+        do jstep = 1, statevector_out%numStep
           do jlat = lat1, lat2
             do jlon = lon1, lon2
-              statevector_out%gd_r8(jlon,jlat,jlev,1) = statevector_in%gd_r8(jlon,jlat,jlev,indexStep_in)
+              statevector_out%gd_r8(jlon,jlat,jlev,jstep) = statevector_in%gd_r8(jlon,jlat,jlev,jstep)
             enddo
           enddo
         enddo
+      enddo
 !$OMP END PARALLEL DO
-      elseif( statevector_out%dataKind == 4 .and. statevector_in%dataKind == 4 ) then
-!$OMP PARALLEL DO PRIVATE (jlat,jlev,jlon)    
-        do jlev = k1, k2
+
+    elseif( statevector_out%dataKind == 4 .and. statevector_in%dataKind == 4 ) then
+
+!$OMP PARALLEL DO PRIVATE (jstep,jlat,jlev,jlon)    
+      do jlev = k1, k2
+        do jstep = 1, statevector_out%numStep
           do jlat = lat1, lat2
             do jlon = lon1, lon2
-              statevector_out%gd_r4(jlon,jlat,jlev,1) = statevector_in%gd_r4(jlon,jlat,jlev,indexStep_in)
+              statevector_out%gd_r4(jlon,jlat,jlev,jstep) = statevector_in%gd_r4(jlon,jlat,jlev,jstep)
             enddo
           enddo
         enddo
+      enddo
 !$OMP END PARALLEL DO
-      else
-        call utl_abort('gsv_copy: Data type must be the same both statevectors')
-      endif
 
     else
-
-      if( statevector_out%dataKind == 8 .and. statevector_in%dataKind == 8 ) then
-!$OMP PARALLEL DO PRIVATE (jstep,jlat,jlev,jlon)    
-        do jlev = k1, k2
-          do jstep = 1, statevector_out%numStep
-            do jlat = lat1, lat2
-              do jlon = lon1, lon2
-                statevector_out%gd_r8(jlon,jlat,jlev,jstep) = statevector_in%gd_r8(jlon,jlat,jlev,jstep)
-              enddo
-            enddo
-          enddo
-        enddo
-!$OMP END PARALLEL DO
-      elseif( statevector_out%dataKind == 4 .and. statevector_in%dataKind == 4 ) then
-!$OMP PARALLEL DO PRIVATE (jstep,jlat,jlev,jlon)    
-        do jlev = k1, k2
-          do jstep = 1, statevector_out%numStep
-            do jlat = lat1, lat2
-              do jlon = lon1, lon2
-                statevector_out%gd_r4(jlon,jlat,jlev,jstep) = statevector_in%gd_r4(jlon,jlat,jlev,jstep)
-              enddo
-            enddo
-          enddo
-        enddo
-!$OMP END PARALLEL DO
-      else
-        call utl_abort('gsv_copy: Data type must be the same both statevectors')
-      endif
+      call utl_abort('gsv_copy: Data type must be the same for both statevectors')
     endif
 
   END SUBROUTINE GSV_copy
@@ -683,32 +689,66 @@ MODULE gridStateVector_mod
     k1=statevector_inout%mykBeg
     k2=statevector_inout%mykEnd
 
-    if(present(scaleFactor)) then
+    if( statevector_inout%dataKind == 8 ) then
+
+      if(present(scaleFactor)) then
 !$OMP PARALLEL DO PRIVATE (jstep,jlat,jlev,jlon)    
-      do jlev = k1, k2
-        do jstep = 1, statevector_inout%numStep
-          do jlat = lat1, lat2
-            do jlon = lon1, lon2
-              statevector_inout%gd_r8(jlon,jlat,jlev,jstep) = &
-                   scaleFactor * (statevector_inout%gd_r8(jlon,jlat,jlev,jstep))**power
+        do jlev = k1, k2
+          do jstep = 1, statevector_inout%numStep
+            do jlat = lat1, lat2
+              do jlon = lon1, lon2
+                statevector_inout%gd_r8(jlon,jlat,jlev,jstep) = &
+                     scaleFactor * (statevector_inout%gd_r8(jlon,jlat,jlev,jstep))**power
+              enddo
             enddo
           enddo
         enddo
-      enddo
 !$OMP END PARALLEL DO
-    else
+      else
 !$OMP PARALLEL DO PRIVATE (jstep,jlat,jlev,jlon)    
-      do jlev = k1, k2
-        do jstep = 1, statevector_inout%numStep
-          do jlat = lat1, lat2
-            do jlon = lon1, lon2
-              statevector_inout%gd_r8(jlon,jlat,jlev,jstep) = &
-                   (statevector_inout%gd_r8(jlon,jlat,jlev,jstep))**power
+        do jlev = k1, k2
+          do jstep = 1, statevector_inout%numStep
+            do jlat = lat1, lat2
+              do jlon = lon1, lon2
+                statevector_inout%gd_r8(jlon,jlat,jlev,jstep) = &
+                     (statevector_inout%gd_r8(jlon,jlat,jlev,jstep))**power
+              enddo
             enddo
           enddo
         enddo
-      enddo
 !$OMP END PARALLEL DO
+      endif
+
+    elseif( statevector_inout%dataKind == 4 ) then
+
+      if(present(scaleFactor)) then
+!$OMP PARALLEL DO PRIVATE (jstep,jlat,jlev,jlon)    
+        do jlev = k1, k2
+          do jstep = 1, statevector_inout%numStep
+            do jlat = lat1, lat2
+              do jlon = lon1, lon2
+                statevector_inout%gd_r4(jlon,jlat,jlev,jstep) = &
+                     real(scaleFactor,4) * (statevector_inout%gd_r4(jlon,jlat,jlev,jstep))**power
+              enddo
+            enddo
+          enddo
+        enddo
+!$OMP END PARALLEL DO
+      else
+!$OMP PARALLEL DO PRIVATE (jstep,jlat,jlev,jlon)    
+        do jlev = k1, k2
+          do jstep = 1, statevector_inout%numStep
+            do jlat = lat1, lat2
+              do jlon = lon1, lon2
+                statevector_inout%gd_r4(jlon,jlat,jlev,jstep) = &
+                     (statevector_inout%gd_r4(jlon,jlat,jlev,jstep))**power
+              enddo
+            enddo
+          enddo
+        enddo
+!$OMP END PARALLEL DO
+      endif
+
     endif
 
   END SUBROUTINE GSV_power
@@ -738,7 +778,11 @@ MODULE gridStateVector_mod
       do jlat = lat1, lat2
         do jstep = 1, statevector_in%numStep
           do jlon = lon1, lon2
-            stddev(jlev) = stddev(jlev) + statevector_in%gd_r8(jlon,jlat,jlev,jstep)**2
+            if( statevector_in%dataKind == 8 ) then
+              stddev(jlev) = stddev(jlev) + statevector_in%gd_r8(jlon,jlat,jlev,jstep)**2
+            else
+              stddev(jlev) = stddev(jlev) + real(statevector_in%gd_r4(jlon,jlat,jlev,jstep),8)**2
+            endif
           enddo
         enddo
       enddo
@@ -770,18 +814,38 @@ MODULE gridStateVector_mod
     k1=statevector_inout%mykBeg
     k2=statevector_inout%mykEnd
 
+    if( statevector_inout%dataKind == 8 ) then
+
 !$OMP PARALLEL DO PRIVATE (jstep,jlat,jlev,jlon)    
-    do jlev = k1, k2
-      do jstep = 1, statevector_inout%numStep
-        do jlat = lat1, lat2
-          do jlon = lon1, lon2
-            statevector_inout%gd_r8(jlon,jlat,jlev,jstep) = &
-                 scaleFactor * statevector_inout%gd_r8(jlon,jlat,jlev,jstep)
+      do jlev = k1, k2
+        do jstep = 1, statevector_inout%numStep
+          do jlat = lat1, lat2
+            do jlon = lon1, lon2
+              statevector_inout%gd_r8(jlon,jlat,jlev,jstep) = &
+                   scaleFactor * statevector_inout%gd_r8(jlon,jlat,jlev,jstep)
+            enddo
           enddo
         enddo
       enddo
-    enddo
 !$OMP END PARALLEL DO
+
+    else
+
+!$OMP PARALLEL DO PRIVATE (jstep,jlat,jlev,jlon)    
+      do jlev = k1, k2
+        do jstep = 1, statevector_inout%numStep
+          do jlat = lat1, lat2
+            do jlon = lon1, lon2
+              statevector_inout%gd_r4(jlon,jlat,jlev,jstep) = &
+                   real(scaleFactor,4) * statevector_inout%gd_r4(jlon,jlat,jlev,jstep)
+            enddo
+          enddo
+        enddo
+      enddo
+!$OMP END PARALLEL DO
+
+    endif
+
 
   END SUBROUTINE GSV_scale
 
@@ -805,99 +869,163 @@ MODULE gridStateVector_mod
     k1=statevector_inout%mykBeg
     k2=statevector_inout%mykEnd
 
+    if( statevector_inout%dataKind == 8 ) then
+
 !$OMP PARALLEL DO PRIVATE (jstep,jlat,jlev,jlon)    
-    do jlev = k1, k2
-      do jstep = 1, statevector_inout%numStep
-        do jlat = lat1, lat2
-          do jlon = lon1, lon2
-            statevector_inout%gd_r8(jlon,jlat,jlev,jstep) = &
-                 scaleFactor(jlev) * statevector_inout%gd_r8(jlon,jlat,jlev,jstep)
+      do jlev = k1, k2
+        do jstep = 1, statevector_inout%numStep
+          do jlat = lat1, lat2
+            do jlon = lon1, lon2
+              statevector_inout%gd_r8(jlon,jlat,jlev,jstep) = &
+                   scaleFactor(jlev) * statevector_inout%gd_r8(jlon,jlat,jlev,jstep)
+            enddo
           enddo
         enddo
       enddo
-    enddo
 !$OMP END PARALLEL DO
+
+    else
+
+!$OMP PARALLEL DO PRIVATE (jstep,jlat,jlev,jlon)    
+      do jlev = k1, k2
+        do jstep = 1, statevector_inout%numStep
+          do jlat = lat1, lat2
+            do jlon = lon1, lon2
+              statevector_inout%gd_r4(jlon,jlat,jlev,jstep) = &
+                   real(scaleFactor(jlev),4) * statevector_inout%gd_r4(jlon,jlat,jlev,jstep)
+            enddo
+          enddo
+        enddo
+      enddo
+!$OMP END PARALLEL DO
+
+    endif
 
   END SUBROUTINE GSV_scaleVertical
 
 
-  SUBROUTINE GSV_3dto4d(statevector)
+  SUBROUTINE GSV_3dto4d(statevector_inout)
     implicit none
-    type(struct_gsv) :: statevector
+    type(struct_gsv) :: statevector_inout
     integer          :: jstep,jlon,jlev,jlat,lon1,lon2,lat1,lat2,k1,k2
 
-    if(.not.statevector%allocated) then
-      call utl_abort('gridStateVector not yet allocated! Aborting.')
+    if(.not.statevector_inout%allocated) then
+      call utl_abort('gsv_3dto4d: statevector not yet allocated! Aborting.')
     endif
 
-    lon1=statevector%myLonBeg
-    lon2=statevector%myLonEnd
-    lat1=statevector%myLatBeg
-    lat2=statevector%myLatEnd
-    k1=statevector%mykBeg
-    k2=statevector%mykEnd
+    lon1=statevector_inout%myLonBeg
+    lon2=statevector_inout%myLonEnd
+    lat1=statevector_inout%myLatBeg
+    lat2=statevector_inout%myLatEnd
+    k1=statevector_inout%mykBeg
+    k2=statevector_inout%mykEnd
 
-    if(statevector%numStep.eq.1) return
+    if(statevector_inout%numStep.eq.1) return
+
+    if( statevector_inout%dataKind == 8 ) then
 
 !$OMP PARALLEL DO PRIVATE (jstep,jlat,jlev,jlon)    
-    do jlev = k1, k2
-      do jstep = 1, statevector%numStep
-        if(jstep.ne.statevector%anltime) then
-          do jlat = lat1, lat2
-            do jlon = lon1, lon2
-              statevector%gd_r8(jlon,jlat,jlev,jstep) = statevector%gd3d_r8(jlon,jlat,jlev)
+      do jlev = k1, k2
+        do jstep = 1, statevector_inout%numStep
+          if(jstep.ne.statevector_inout%anltime) then
+            do jlat = lat1, lat2
+              do jlon = lon1, lon2
+                statevector_inout%gd_r8(jlon,jlat,jlev,jstep) = statevector_inout%gd3d_r8(jlon,jlat,jlev)
+              enddo
             enddo
-          enddo
-        endif
+          endif
+        enddo
       enddo
-    enddo
 !$OMP END PARALLEL DO
+
+    else
+
+!$OMP PARALLEL DO PRIVATE (jstep,jlat,jlev,jlon)    
+      do jlev = k1, k2
+        do jstep = 1, statevector_inout%numStep
+          if(jstep.ne.statevector_inout%anltime) then
+            do jlat = lat1, lat2
+              do jlon = lon1, lon2
+                statevector_inout%gd_r4(jlon,jlat,jlev,jstep) = statevector_inout%gd3d_r4(jlon,jlat,jlev)
+              enddo
+            enddo
+          endif
+        enddo
+      enddo
+!$OMP END PARALLEL DO
+
+    endif
 
   END SUBROUTINE GSV_3dto4d
 
 
-  SUBROUTINE GSV_3dto4dAdj(statevector)
+  SUBROUTINE GSV_3dto4dAdj(statevector_inout)
     implicit none
-    type(struct_gsv) :: statevector
+    type(struct_gsv) :: statevector_inout
     integer          :: jstep,jlon,jlev,jlat,lon1,lon2,lat1,lat2,k1,k2
-    real(8)          :: gd2d_tmp(statevector%myLonBeg:statevector%myLonEnd,  &
-                                 statevector%myLatBeg:statevector%myLatEnd)
+    real(4), allocatable :: gd2d_tmp_r4(:,:)
+    real(8), allocatable :: gd2d_tmp(:,:)
 
-    if(.not.statevector%allocated) then
-      call utl_abort('gridStateVector not yet allocated! Aborting.')
+    if(.not.statevector_inout%allocated) then
+      call utl_abort('gsv_3dto4dAdj: statevector not yet allocated! Aborting.')
     endif
 
-    lon1=statevector%myLonBeg
-    lon2=statevector%myLonEnd
-    lat1=statevector%myLatBeg
-    lat2=statevector%myLatEnd
-    k1=statevector%mykBeg
-    k2=statevector%mykEnd
+    lon1=statevector_inout%myLonBeg
+    lon2=statevector_inout%myLonEnd
+    lat1=statevector_inout%myLatBeg
+    lat2=statevector_inout%myLatEnd
+    k1=statevector_inout%mykBeg
+    k2=statevector_inout%mykEnd
 
-    if(statevector%numStep.eq.1) return
+    if(statevector_inout%numStep.eq.1) return
 
+    if( statevector_inout%dataKind == 8 ) then
+
+      allocate(gd2d_tmp(lon1:lon2,lat1:lat2))
 !$OMP PARALLEL DO PRIVATE (jlat,jlev,jlon,jstep,gd2d_tmp)
-    do jlev = k1, k2
-      do jlat = lat1, lat2
-        do jlon = lon1, lon2
-          gd2d_tmp(jlon,jlat) = 0.0d0
+      do jlev = k1, k2
+        gd2d_tmp(:,:) = 0.0d0
+        do jstep = 1, statevector_inout%numStep
+          do jlat = lat1, lat2
+            do jlon = lon1, lon2
+              gd2d_tmp(jlon,jlat) = gd2d_tmp(jlon,jlat) +   &
+                                    statevector_inout%gd_r8(jlon,jlat,jlev,jstep)
+            enddo
+          enddo
         enddo
-      enddo
-      do jstep = 1, statevector%numStep
         do jlat = lat1, lat2
           do jlon = lon1, lon2
-            gd2d_tmp(jlon,jlat) = gd2d_tmp(jlon,jlat) +   &
-                                  statevector%gd_r8(jlon,jlat,jlev,jstep)
+            statevector_inout%gd3d_r8(jlon,jlat,jlev) = gd2d_tmp(jlon,jlat)
           enddo
         enddo
       enddo
-      do jlat = lat1, lat2
-        do jlon = lon1, lon2
-          statevector%gd3d_r8(jlon,jlat,jlev) = gd2d_tmp(jlon,jlat)
+!$OMP END PARALLEL DO
+      deallocate(gd2d_tmp)
+
+    else
+
+      allocate(gd2d_tmp_r4(lon1:lon2,lat1:lat2))
+!$OMP PARALLEL DO PRIVATE (jlat,jlev,jlon,jstep,gd2d_tmp)
+      do jlev = k1, k2
+        gd2d_tmp_r4(:,:) = 0.0d0
+        do jstep = 1, statevector_inout%numStep
+          do jlat = lat1, lat2
+            do jlon = lon1, lon2
+              gd2d_tmp_r4(jlon,jlat) = gd2d_tmp_r4(jlon,jlat) +   &
+                                       statevector_inout%gd_r4(jlon,jlat,jlev,jstep)
+            enddo
+          enddo
+        enddo
+        do jlat = lat1, lat2
+          do jlon = lon1, lon2
+            statevector_inout%gd3d_r4(jlon,jlat,jlev) = gd2d_tmp_r4(jlon,jlat)
+          enddo
         enddo
       enddo
-    enddo
 !$OMP END PARALLEL DO
+      deallocate(gd2d_tmp_r4)
+
+    endif
 
   END SUBROUTINE GSV_3dto4dAdj
 
@@ -1167,7 +1295,7 @@ MODULE gridStateVector_mod
     real(4) :: factor_r4
     integer :: jk, jlon, jlev, jlat, jvar, indexStep
     character(len=4) :: varName
-    logical :: doHorizInterp, doVertInterp, unitconversion2, HUcontainsLQ2
+    logical :: doHorizInterp, doVertInterp, unitconversion2, HUcontainsLQ2, HUcontainsLQinFile
     type(struct_vco), pointer :: vco_file => null()
     type(struct_hco), pointer :: hco_file => null()
 
@@ -1186,6 +1314,12 @@ MODULE gridStateVector_mod
       unitConversion2 = .true.
     endif
 
+    if(present(HUcontainsLQ)) then
+      HUcontainsLQ2 = HUcontainsLQ
+    else
+      HUcontainsLQ2 = .true.
+    endif
+
     ! set up vertical and horizontal coordinate for input file
     call vco_SetupFromFile(vco_file,trim(fileName),beSilent=.true.)
     call hco_SetupFromFile(hco_file,trim(fileName), ' ','FILEGRID')
@@ -1202,12 +1336,7 @@ MODULE gridStateVector_mod
                       dateStamp=statevector_out%datestamplist(indexStep), &
                       mpi_local=.true., mpi_distribution='VarsLevs', dataKind_in=4)
 
-    if( present(HUcontainsLQ) ) then
-      HUcontainsLQ2 = HUcontainsLQ
-    else
-      HUcontainsLQ2 = .false.
-    endif
-    call gsv_readFile(statevector_file, filename, etiket_in, typvar_in, 1, HUcontainsLQ2)
+    call gsv_readFile(statevector_file, filename, etiket_in, typvar_in, HUcontainsLQinFile)
 
     !-- 2.0 Horizontal Interpolation
 
@@ -1216,18 +1345,14 @@ MODULE gridStateVector_mod
                       dateStamp=statevector_out%datestamplist(indexStep), &
                       mpi_local=.true., mpi_distribution='VarsLevs', dataKind_in=4)
 
-    if(doHorizInterp) then
-      call gsv_hint(statevector_file, statevector_hinterp, 1)
-    else
-      call gsv_copy(statevector_file, statevector_hinterp)
-    endif
+    call gsv_hInterpolate(statevector_file, statevector_hinterp)
 
     call gsv_deallocate(statevector_file)
 
     !-- 3.0 Scale factor and unit conversion
 
     field3d_r4_ptr => gsv_getField3D_r4(statevector_hinterp)
-    K_LOOP3: do jk = statevector_hinterp%mykBeg, statevector_hinterp%mykEnd
+    K_LOOP: do jk = statevector_hinterp%mykBeg, statevector_hinterp%mykEnd
       varName = gsv_getVarNameFromK(statevector_hinterp,jk)
 
       if ( unitConversion2 ) then
@@ -1243,7 +1368,7 @@ MODULE gridStateVector_mod
       end if
       field3d_r4_ptr(:,:,jk) = factor_r4 * field3d_r4_ptr(:,:,jk)
 
-    enddo K_LOOP3
+    enddo K_LOOP
 
     !-- 4.0 MPI communication from vars/levels to lat/lon tiles
 
@@ -1263,11 +1388,7 @@ MODULE gridStateVector_mod
                       dateStamp=statevector_out%datestamplist(indexStep), &
                       mpi_local=.true., mpi_distribution='Tiles', dataKind_in=8)
 
-    if (doVertInterp) then
-      call gsv_vint(statevector_tiles,statevector_vinterp,1)
-    else
-      call gsv_copy(statevector_tiles, statevector_vinterp)
-    endif
+    call gsv_vInterpolate(statevector_tiles,statevector_vinterp)
 
     call gsv_deallocate(statevector_tiles)
 
@@ -1278,7 +1399,7 @@ MODULE gridStateVector_mod
       field_in_ptr => gsv_getField_r8(statevector_vinterp, vnl_varNameList(jvar))
       field_out_ptr => gsv_getField_r8(statevector_out, vnl_varNameList(jvar))
 
-      if( trim(vnl_varNameList(jvar)) == 'HU' .and. .not. HUcontainsLQ ) then
+      if( trim(vnl_varNameList(jvar)) == 'HU' .and. HUcontainsLQ2 .and. .not. HUcontainsLQinFile ) then
 !$OMP PARALLEL DO PRIVATE (jlat,jlev,jlon)
         do jlat = statevector_out%myLatBeg, statevector_out%myLatEnd
           do jlev = 1, statevector_out%varNumLev(jvar)
@@ -1312,7 +1433,7 @@ MODULE gridStateVector_mod
   !--------------------------------------------------------------------------
   ! gsv_readFile
   !--------------------------------------------------------------------------
-  subroutine gsv_readFile(statevector, filename, etiket_in, typvar_in, indexStep, HUcontainsLQ)
+  subroutine gsv_readFile(statevector, filename, etiket_in, typvar_in, HUcontainsLQinFile)
     implicit none
 
     ! arguments
@@ -1320,11 +1441,10 @@ MODULE gridStateVector_mod
     character(len=*), intent(in)  :: fileName
     character(len=*), intent(in)  :: etiket_in
     character(len=*), intent(in)  :: typvar_in
-    integer :: indexStep
-    logical :: HUcontainsLQ
+    logical :: HUcontainsLQinFile
 
     ! locals
-    integer :: nulfile, ierr, ini, inj, ink, ip1, jk, jlev
+    integer :: nulfile, ierr, ini, inj, ink, ip1, jk, jlev, indexStep
     integer :: fnom, fstouv, fclos, fstfrm, fstlir
     real(4), pointer :: field_r4_ptr(:,:,:,:)
     character(len=4)  :: varName
@@ -1351,48 +1471,51 @@ MODULE gridStateVector_mod
 
     ! Read all fields needed for this MPI task
     field_r4_ptr => gsv_getField_r4(statevector)
-    K_LOOP: do jk = statevector%mykBeg, statevector%mykEnd
-      varName = gsv_getVarNameFromK(statevector,jk)
-      jlev = gsv_getLevFromK(statevector,jk)
+    do indexStep = 1, statevector%numStep
+      K_LOOP: do jk = statevector%mykBeg, statevector%mykEnd
+        varName = gsv_getVarNameFromK(statevector,jk)
+        jlev = gsv_getLevFromK(statevector,jk)
 
-      ! do not try to read diagnostic variables
-      if ( trim(vnl_varTypeFromVarname(varName)) == 'DIAG') cycle K_LOOP
+        ! do not try to read diagnostic variables
+        if ( trim(vnl_varTypeFromVarname(varName)) == 'DIAG') cycle K_LOOP
 
-      if (.not.gsv_varExist(statevector,varName)) cycle K_LOOP
+        if (.not.gsv_varExist(statevector,varName)) cycle K_LOOP
 
-      varLevel = vnl_varLevelFromVarname(varName)
-      if(varLevel == 'MM') then
-        ip1 = vco_file%ip1_M(jlev)
-      elseif(varLevel == 'TH') then
-        ip1 = vco_file%ip1_T(jlev)
-      elseif(varLevel == 'SF') then
-        ip1 = -1
-      else
-        call utl_abort('gsv_readFromFile: unknown varLevel')
-      endif
+        varLevel = vnl_varLevelFromVarname(varName)
+        if(varLevel == 'MM') then
+          ip1 = vco_file%ip1_M(jlev)
+        elseif(varLevel == 'TH') then
+          ip1 = vco_file%ip1_T(jlev)
+        elseif(varLevel == 'SF') then
+          ip1 = -1
+        else
+          call utl_abort('gsv_readFromFile: unknown varLevel')
+        endif
 
-      ierr=fstlir(field_r4_ptr(:,:,jk,indexStep),nulfile,ini,inj,ink,  &
-                  statevector%datestamplist(1),etiket_in,ip1,-1,-1,  &
-                  typvar_in,varName)
-      HUcontainsLQ = .false.
+        ierr=fstlir(field_r4_ptr(:,:,jk,indexStep),nulfile,ini,inj,ink,  &
+                    statevector%datestamplist(indexStep),etiket_in,ip1,-1,-1,  &
+                    typvar_in,varName)
+        HUcontainsLQinFile = .false.
 
-      if(ierr.lt.0)then
-        if(varName == 'HU') then
-          ierr=fstlir(field_r4_ptr(:,:,jk,indexStep),nulfile,ini,inj,ink,  &
-                      statevector%datestamplist(1),etiket_in,ip1,-1,-1,  &
-                      typvar_in,'LQ')
-          HUcontainsLQ = .true.
-          if(ierr.lt.0)then
-            write(*,*) 'LQ',ip1,statevector%datestamplist(1)
+        if(ierr.lt.0)then
+          if(varName == 'HU') then
+            ! HU variable not found in file, try reading LQ
+            ierr=fstlir(field_r4_ptr(:,:,jk,indexStep),nulfile,ini,inj,ink,  &
+                        statevector%datestamplist(indexstep),etiket_in,ip1,-1,-1,  &
+                        typvar_in,'LQ')
+            HUcontainsLQinFile = .true.
+            if(ierr.lt.0)then
+              write(*,*) 'LQ',ip1,statevector%datestamplist(indexStep)
+              call utl_abort('gsv_readFromFile: Problem with background file')
+            endif
+          else
+            write(*,*) varName,ip1,statevector%datestamplist(indexStep)
             call utl_abort('gsv_readFromFile: Problem with background file')
           endif
-        else
-          write(*,*) varName,ip1,statevector%datestamplist(1)
-          call utl_abort('gsv_readFromFile: Problem with background file')
-        endif
-      end if
+        end if
 
-    enddo K_LOOP
+      enddo K_LOOP
+    enddo
 
     ierr = fstfrm(nulfile)
     ierr = fclos(nulfile)        
@@ -1677,285 +1800,361 @@ MODULE gridStateVector_mod
   end subroutine gsv_transposeLatLonToVarsLevs
 
   !--------------------------------------------------------------------------
-  ! gsv_hint
+  ! gsv_hInterpolate
   !--------------------------------------------------------------------------
-  subroutine gsv_hint(statevector_in,statevector_out,indexStep)
-    ! s/r gsv_hint  - Horizontal interpolation of pressure defined fields
+  subroutine gsv_hInterpolate(statevector_in,statevector_out)
+    ! s/r gsv_hInterpolate  - Horizontal interpolation of pressure defined fields
     implicit none
 
     ! arguments
     type(struct_gsv) :: statevector_in
     type(struct_gsv) :: statevector_out
-    integer :: indexStep
 
     ! locals
-    integer :: k1, k2, jk1, jk2, jk, jlev1, jlev2, jproc1, jproc2
+    integer :: k1, k2, jk1, jk2, jk, jvar, jlev, nlev, jlev1, jlev2, jproc1, jproc2, jstep
     integer :: status, ierr, nsize
     real(4), pointer :: field_in_r4_ptr(:,:,:,:), field_out_r4_ptr(:,:,:,:)
+    real(4), pointer :: fieldUU_in_r4_ptr(:,:,:,:), fieldUU_out_r4_ptr(:,:,:,:)
+    real(4), pointer :: fieldVV_in_r4_ptr(:,:,:,:), fieldVV_out_r4_ptr(:,:,:,:)
     real(4), allocatable :: field3dUU_in_r4(:,:,:), field3dUU_out_r4(:,:,:)
     real(4), allocatable :: field3dVV_in_r4(:,:,:), field3dVV_out_r4(:,:,:)
     character(len=4) :: varName, varName1, varName2
     integer :: ezdefset, ezsint, ezuvint, ezqkdef, ezgprm, ezsetopt
     integer, allocatable :: kLocalUV(:)
 
-    if( .not. vco_equal(gsv_getVco(statevector_in), gsv_getVco(statevector_out)) ) then
-      call utl_abort('gsv_hint: The input and output statevectors are not on the same vertical levels.')
+    if( hco_equal(statevector_in%hco,statevector_out%hco) ) then
+      write(*,*) 'gsv_hInterpolate: The input and output statevectors are already on same horizontal grids'
+      call gsv_copy(statevector_in, statevector_out)
+      return
     endif
 
-    ! First send UU and VV levels to MPI task with UU or VV levels. 
-    !   This is slower than previous implementation, since when using many mpi tasks, each
-    !   level of UU and VV will be interpolated twice, to simplify the mpi communication.
-    !   If all winds on a mpi task, interpolation only done once.
+    if( .not. vco_equal(statevector_in%vco, statevector_out%vco) ) then
+      call utl_abort('gsv_hInterpolate: The input and output statevectors are not on the same vertical levels.')
+    endif
 
-    ! Allocate vector for UU and VV for levels needed locally
-    k1 = 0
-    k2 = 0
-    do jk = statevector_in%mykBeg, statevector_in%mykEnd
-      varName = gsv_getVarNameFromK(statevector_in,jk)
-      if( varName == 'UU' ) then
-        if( k1 == 0 ) k1 = jk
-        k2 = jk
-      endif
-    enddo
-    allocate( field3dVV_in_r4(statevector_in%ni, statevector_in%nj, k1:k2) )
-    allocate( field3dVV_out_r4(statevector_out%ni, statevector_out%nj, k1:k2) )
-    k1 = 0
-    k2 = 0
-    do jk = statevector_in%mykBeg, statevector_in%mykEnd
-      varName = gsv_getVarNameFromK(statevector_in,jk)
-      if( varName == 'VV' ) then
-        if( k1 == 0 ) k1 = jk
-        k2 = jk
-      endif
-    enddo
-    allocate( field3dUU_in_r4(statevector_in%ni, statevector_in%nj, k1:k2) )
-    allocate( field3dUU_out_r4(statevector_out%ni, statevector_out%nj, k1:k2) )
+    if( .not.statevector_in%mpi_local .and. .not.statevector_out%mpi_local ) then
 
-    allocate(kLocalUV(statevector_in%mykBeg:statevector_in%mykEnd))
-    kLocalUV(:) = 0
-    field_in_r4_ptr => gsv_getField_r4(statevector_in)
-    do jproc1 = 1, mpi_nprocs
-      do jk1 = statevector_in%allkBeg(jproc1), statevector_in%allkEnd(jproc1)
-        varName1 = gsv_getVarNameFromK(statevector_in,jk1)
-        jlev1 = gsv_getLevFromK(statevector_in,jk1)
+      write(*,*) 'gsv_hInterpolate: before interpolation (no mpi)'
+      call flush(6)
 
-        ! look for a UU level
-        if( varName1 == 'UU' ) then
+      do jstep = 1, statevector_out%numStep
+        ! Do horizontal interpolation for mpi global statevectors
+        VAR_LOOP: do jvar = 1, vnl_numvarmax
+          varName = vnl_varNameList(jvar)
+          if( .not. gsv_varExist(statevector_in,varName) ) cycle VAR_LOOP
+          if( trim(varName) == 'VV' ) cycle VAR_LOOP
 
-          ! look for VV with the same level and send/copy it from proc2 to proc1
-          do jproc2 = 1, mpi_nprocs
-            do jk2 = statevector_in%allkBeg(jproc2), statevector_in%allkEnd(jproc2)
-              varName2 = gsv_getVarNameFromK(statevector_in,jk2)
-              jlev2 = gsv_getLevFromK(statevector_in,jk2)
-              if( (varName2 == 'VV') .and. (jlev1 == jlev2) ) then
-                if( jproc1 == jproc2 ) then
-                  ! simple copy for the task with the data
-                  if( mpi_myid == (jproc1-1) ) then 
-                    field3dVV_in_r4(:,:,jk1) = field_in_r4_ptr(:,:,jk2,indexStep)
-                    kLocalUV(jk1) = jk2 ! store k value of corresponding VV when local
-                  endif
-                else
-                  ! mpi send and recv involving only two tasks
-                  nsize = statevector_in%latPerPE * statevector_in%lonPerPE
-                  if( mpi_myid == (jproc2-1) ) then
-                    call rpn_comm_send(field_in_r4_ptr(:,:,jk2,indexStep),nsize, &
-                                       "mpi_real4",jproc1-1,mpi_myid*500+(jproc1-1),  &
-                                       "GRID",ierr)
-                  elseif( mpi_myid == (jproc1-1) ) then
-                    call rpn_comm_recv(field3dVV_in_r4(:,:,jk1),nsize, &
-                                       "mpi_real4",jproc2-1,(jproc2-1)*500+mpi_myid,  &
-                                       "GRID",status,ierr)
-                  endif
-                endif  
-              endif
+          nlev = statevector_out%varNumLev(jvar)
+
+          ! horizontal interpolation
+          ierr = ezsetopt('INTERP_DEGREE', 'LINEAR')
+          ierr = ezdefset(statevector_out%hco%EZscintID, statevector_in%hco%EZscintID)
+
+          if( trim(varName) == 'UU' ) then
+            ! interpolate both wind components and keep both UU and VV
+            fieldUU_in_r4_ptr => gsv_getField_r4(statevector_in,'UU')
+            fieldUU_out_r4_ptr => gsv_getField_r4(statevector_out,'UU')
+            fieldVV_in_r4_ptr => gsv_getField_r4(statevector_in,'VV')
+            fieldVV_out_r4_ptr => gsv_getField_r4(statevector_out,'VV')
+            do jlev = 1, nlev
+              ierr = ezuvint( fieldUU_out_r4_ptr(:,:,jlev,jstep), fieldVV_out_r4_ptr(:,:,jlev,jstep),   &
+                              fieldUU_in_r4_ptr(:,:,jlev,jstep),  fieldVV_in_r4_ptr(:,:,jlev,jstep) ) 
+              !fieldUU_out_r4_ptr(:,:,jlev,jstep) = fieldUU_in_r4_ptr(1:statevector_out%ni,1:statevector_out%nj,jlev,jstep)
+              !fieldVV_out_r4_ptr(:,:,jlev,jstep) = fieldVV_in_r4_ptr(1:statevector_out%ni,1:statevector_out%nj,jlev,jstep)
             enddo
-          enddo
-
-        endif ! look for a UU level
-
-        ! look for a VV level
-        if( varName1 == 'VV' ) then
-
-          ! look for UU with the same level and send/copy it from proc2 to proc1
-          do jproc2 = 1, mpi_nprocs
-            do jk2 = statevector_in%allkBeg(jproc2), statevector_in%allkEnd(jproc2)
-              varName2 = gsv_getVarNameFromK(statevector_in,jk2)
-              jlev2 = gsv_getLevFromK(statevector_in,jk2)
-              if( (varName2 == 'UU') .and. (jlev1 == jlev2) ) then
-                if( jproc1 == jproc2 ) then
-                  ! simple copy for the task with the data
-                  if(mpi_myid == (jproc1-1)) then
-                    field3dUU_in_r4(:,:,jk1) = field_in_r4_ptr(:,:,jk2,indexStep)
-                    kLocalUV(jk1) = jk2 ! store k value of corresponding UU when local
-                  endif
-                else
-                  ! mpi send and recv involving only two tasks
-                  nsize = statevector_in%latPerPE * statevector_in%lonPerPE
-                  if( mpi_myid == (jproc2-1) ) then
-                    call rpn_comm_send(field_in_r4_ptr(:,:,jk2,indexStep),nsize, &
-                                       "mpi_real4",jproc1-1,mpi_myid*500+(jproc1-1),  &
-                                       "GRID",ierr)
-                  elseif( mpi_myid == (jproc1-1) ) then
-                    call rpn_comm_recv(field3dUU_in_r4(:,:,jk1),nsize, &
-                                       "mpi_real4",jproc2-1,(jproc2-1)*500+mpi_myid,  &
-                                       "GRID",status,ierr)
-                  endif
-                endif  
-              endif
+          else
+            ! interpolate scalar variable
+            field_in_r4_ptr => gsv_getField_r4(statevector_in, varName)
+            field_out_r4_ptr => gsv_getField_r4(statevector_out, varName)
+            do jlev = 1, nlev
+              ierr = ezsint( field_out_r4_ptr(:,:,jlev,jStep), field_in_r4_ptr(:,:,jlev,jStep) )
+              !field_out_r4_ptr(:,:,jlev,jstep) = field_in_r4_ptr(1:statevector_out%ni,1:statevector_out%nj,jlev,jstep)
             enddo
-          enddo
+          endif
+        enddo VAR_LOOP
 
-        endif ! look for a VV level
+      enddo ! jstep
 
+    else
+
+      field_in_r4_ptr => gsv_getField_r4(statevector_in)
+      field_out_r4_ptr => gsv_getField_r4(statevector_out)
+
+      ! First send UU and VV levels to MPI task with UU or VV levels. 
+      !   This is slower than previous implementation, since when using many mpi tasks, each
+      !   level of UU and VV will be interpolated twice, to simplify the mpi communication.
+      !   If all winds on a mpi task, interpolation only done once.
+
+      ! Allocate vector for UU and VV for levels needed locally
+      k1 = 0
+      k2 = 0
+      do jk = statevector_in%mykBeg, statevector_in%mykEnd
+        varName = gsv_getVarNameFromK(statevector_in,jk)
+        if( varName == 'UU' ) then
+          if( k1 == 0 ) k1 = jk
+          k2 = jk
+        endif
       enddo
-    enddo
-
-    ! Do horizontal interpolation
-    field_in_r4_ptr => gsv_getField_r4(statevector_in)
-    field_out_r4_ptr => gsv_getField_r4(statevector_out)
-    K_LOOP2: do jk = statevector_in%mykBeg, statevector_in%mykEnd
-      varName = gsv_getVarNameFromK(statevector_in,jk)
-
-      ! horizontal interpolation
-      ierr = ezdefset(statevector_out%hco%EZscintID, statevector_in%hco%EZscintID)
-      ierr = ezsetopt('INTERP_DEGREE', 'LINEAR')
-
-      if( trim(varName) == 'UU' ) then
-        if( kLocalUV(jk) == 0 ) then
-          ! interpolate both wind components and keep only UU (VV not local)
-          ierr = ezuvint(field_out_r4_ptr(:,:,jk,indexStep), field3dVV_out_r4(:,:,jk),   &
-                         field_in_r4_ptr(:,:,jk,indexStep),  field3dVV_in_r4(:,:,jk)) 
-        else
-          ! interpolate both wind components and keep both UU and VV
-          ierr = ezuvint(field_out_r4_ptr(:,:,jk,indexStep), field_out_r4_ptr(:,:,kLocalUV(jk),indexStep),   &
-                         field_in_r4_ptr(:,:,jk,indexStep),  field_in_r4_ptr(:,:,kLocalUV(jk),indexStep)) 
+      allocate( field3dVV_in_r4(statevector_in%ni, statevector_in%nj, k1:k2) )
+      allocate( field3dVV_out_r4(statevector_out%ni, statevector_out%nj, k1:k2) )
+      k1 = 0
+      k2 = 0
+      do jk = statevector_in%mykBeg, statevector_in%mykEnd
+        varName = gsv_getVarNameFromK(statevector_in,jk)
+        if( varName == 'VV' ) then
+          if( k1 == 0 ) k1 = jk
+          k2 = jk
         endif
-      elseif( trim(varName) == 'VV' ) then
-        if( kLocalUV(jk) == 0 ) then
-          ! interpolate both wind components and keep only VV (UU not local)
-          ierr = ezuvint(field3dUU_out_r4(:,:,jk), field_out_r4_ptr(:,:,jk,indexStep),   &
-                         field3dUU_in_r4(:,:,jk),  field_in_r4_ptr(:,:,jk,indexStep)) 
-        endif
-      else
-        ! interpolate scalar variable
-        ierr = ezsint( field_out_r4_ptr(:,:,jk,indexStep), field_in_r4_ptr(:,:,jk,indexStep) )
-      endif
-    enddo K_LOOP2
+      enddo
+      allocate( field3dUU_in_r4(statevector_in%ni, statevector_in%nj, k1:k2) )
+      allocate( field3dUU_out_r4(statevector_out%ni, statevector_out%nj, k1:k2) )
 
-    deallocate( field3dUU_in_r4 )
-    deallocate( field3dUU_out_r4 )
-    deallocate( field3dVV_in_r4 )
-    deallocate( field3dVV_out_r4 )
-    deallocate( kLocalUV )
+      allocate(kLocalUV(statevector_in%mykBeg:statevector_in%mykEnd))
+      kLocalUV(:) = 0
 
-  end subroutine gsv_hint
+      do jstep = 1, statevector_out%numStep
+
+        ! do mpi communication necessary for UU and VV
+        do jproc1 = 1, mpi_nprocs
+          do jk1 = statevector_in%allkBeg(jproc1), statevector_in%allkEnd(jproc1)
+            varName1 = gsv_getVarNameFromK(statevector_in,jk1)
+            jlev1 = gsv_getLevFromK(statevector_in,jk1)
+
+            ! look for a UU level
+            if( varName1 == 'UU' ) then
+  
+              ! look for VV with the same level and send/copy it from proc2 to proc1
+              do jproc2 = 1, mpi_nprocs
+                do jk2 = statevector_in%allkBeg(jproc2), statevector_in%allkEnd(jproc2)
+                  varName2 = gsv_getVarNameFromK(statevector_in,jk2)
+                  jlev2 = gsv_getLevFromK(statevector_in,jk2)
+                  if( (varName2 == 'VV') .and. (jlev1 == jlev2) ) then
+                    if( jproc1 == jproc2 ) then
+                      ! simple copy for the task with the data
+                      if( mpi_myid == (jproc1-1) ) then 
+                        field3dVV_in_r4(:,:,jk1) = field_in_r4_ptr(:,:,jk2,jStep)
+                        kLocalUV(jk1) = jk2 ! store k value of corresponding VV when local
+                      endif
+                    else
+                      ! mpi send and recv involving only two tasks
+                      nsize = statevector_in%latPerPE * statevector_in%lonPerPE
+                      if( mpi_myid == (jproc2-1) ) then
+                        call rpn_comm_send(field_in_r4_ptr(:,:,jk2,jStep),nsize, &
+                                           "mpi_real4",jproc1-1,mpi_myid*500+(jproc1-1),  &
+                                           "GRID",ierr)
+                      elseif( mpi_myid == (jproc1-1) ) then
+                        call rpn_comm_recv(field3dVV_in_r4(:,:,jk1),nsize, &
+                                           "mpi_real4",jproc2-1,(jproc2-1)*500+mpi_myid,  &
+                                           "GRID",status,ierr)
+                      endif
+                    endif  
+                  endif
+                enddo
+              enddo
+
+            endif ! look for a UU level
+
+            ! look for a VV level
+            if( varName1 == 'VV' ) then
+
+              ! look for UU with the same level and send/copy it from proc2 to proc1
+              do jproc2 = 1, mpi_nprocs
+                do jk2 = statevector_in%allkBeg(jproc2), statevector_in%allkEnd(jproc2)
+                  varName2 = gsv_getVarNameFromK(statevector_in,jk2)
+                  jlev2 = gsv_getLevFromK(statevector_in,jk2)
+                  if( (varName2 == 'UU') .and. (jlev1 == jlev2) ) then
+                    if( jproc1 == jproc2 ) then
+                      ! simple copy for the task with the data
+                      if(mpi_myid == (jproc1-1)) then
+                        field3dUU_in_r4(:,:,jk1) = field_in_r4_ptr(:,:,jk2,jStep)
+                        kLocalUV(jk1) = jk2 ! store k value of corresponding UU when local
+                      endif
+                    else
+                      ! mpi send and recv involving only two tasks
+                      nsize = statevector_in%latPerPE * statevector_in%lonPerPE
+                      if( mpi_myid == (jproc2-1) ) then
+                        call rpn_comm_send(field_in_r4_ptr(:,:,jk2,jStep),nsize, &
+                                           "mpi_real4",jproc1-1,mpi_myid*500+(jproc1-1),  &
+                                           "GRID",ierr)
+                      elseif( mpi_myid == (jproc1-1) ) then
+                        call rpn_comm_recv(field3dUU_in_r4(:,:,jk1),nsize, &
+                                           "mpi_real4",jproc2-1,(jproc2-1)*500+mpi_myid,  &
+                                           "GRID",status,ierr)
+                      endif
+                    endif  
+                  endif
+                enddo
+              enddo
+
+            endif ! look for a VV level
+
+          enddo
+        enddo
+
+        write(*,*) 'gsv_hInterpolate: before interpolation'
+        call flush(6)
+
+        ! Do horizontal interpolation
+        K_LOOP2: do jk = statevector_in%mykBeg, statevector_in%mykEnd
+          varName = gsv_getVarNameFromK(statevector_in,jk)
+  
+          ! horizontal interpolation
+          ierr = ezsetopt('INTERP_DEGREE', 'LINEAR')
+          ierr = ezdefset(statevector_out%hco%EZscintID, statevector_in%hco%EZscintID)
+
+          if( trim(varName) == 'UU' ) then
+            if( kLocalUV(jk) == 0 ) then
+              ! interpolate both wind components and keep only UU (VV not local)
+              ierr = ezuvint(field_out_r4_ptr(:,:,jk,jStep), field3dVV_out_r4(:,:,jk),   &
+                             field_in_r4_ptr(:,:,jk,jStep),  field3dVV_in_r4(:,:,jk)) 
+            else
+              ! interpolate both wind components and keep both UU and VV
+              ierr = ezuvint(field_out_r4_ptr(:,:,jk,jStep), field_out_r4_ptr(:,:,kLocalUV(jk),jStep),   &
+                             field_in_r4_ptr(:,:,jk,jStep),  field_in_r4_ptr(:,:,kLocalUV(jk),jStep)) 
+            endif
+          elseif( trim(varName) == 'VV' ) then
+            if( kLocalUV(jk) == 0 ) then
+              ! interpolate both wind components and keep only VV (UU not local)
+              ierr = ezuvint(field3dUU_out_r4(:,:,jk), field_out_r4_ptr(:,:,jk,jStep),   &
+                             field3dUU_in_r4(:,:,jk),  field_in_r4_ptr(:,:,jk,jStep)) 
+            endif
+          else
+            ! interpolate scalar variable
+            ierr = ezsint( field_out_r4_ptr(:,:,jk,jStep), field_in_r4_ptr(:,:,jk,jStep) )
+          endif
+        enddo K_LOOP2
+
+      enddo ! jstep
+
+      deallocate( field3dUU_in_r4 )
+      deallocate( field3dUU_out_r4 )
+      deallocate( field3dVV_in_r4 )
+      deallocate( field3dVV_out_r4 )
+      deallocate( kLocalUV )
+
+    endif
+
+    write(*,*) 'gsv_hInterpolate: END'
+    call flush(6)
+
+  end subroutine gsv_hInterpolate
 
   !--------------------------------------------------------------------------
-  ! gsv_vint
+  ! gsv_vInterpolate
   !--------------------------------------------------------------------------
-  subroutine gsv_vint(statevector_in,statevector_out,indexStep)
-    ! s/r gsv_vint  - Vertical interpolation of pressure defined fields
+  subroutine gsv_vInterpolate(statevector_in,statevector_out)
+    ! s/r gsv_vInterpolate  - Vertical interpolation of pressure defined fields
     implicit none
 
     ! arguments
     type(struct_gsv) :: statevector_in
     type(struct_gsv) :: statevector_out
-    integer :: indexStep
 
     ! locals
     character(len=4) :: varName
     type(struct_vco), pointer :: vco_in, vco_out
-    integer :: nlev_out, nlev_in, jlev_out, jlev_in, jlat, jlon, status, jlat2, jlon2, jvar
+    integer :: nlev_out, nlev_in, jlev_out, jlev_in, jlat, jlon, status, jlat2, jlon2, jvar, jstep
     real(8) :: zwb, zwt
     real(8), pointer  :: pres_out(:,:,:), pres_in(:,:,:), field_out(:,:,:,:), field_in(:,:,:,:)
     real(8) :: psfc_in(statevector_in%myLonBeg:statevector_in%myLonEnd, &
                        statevector_in%myLatBeg:statevector_in%myLatEnd)
 
+    if( vco_equal(statevector_in%vco, statevector_out%vco) ) then
+      write(*,*) 'gsv_vInterpolate: The input and output statevectors are already on same vertical levels'
+      call gsv_copy(statevector_in, statevector_out)
+      return
+    endif
+
     if( .not. hco_equal(statevector_in%hco, statevector_out%hco) ) then
-      call utl_abort('gsv_vint: The input and output statevectors are not on the same horizontal grid.')
+      call utl_abort('gsv_vInterpolate: The input and output statevectors are not on the same horizontal grid.')
     endif
 
     vco_in => gsv_getVco(statevector_in)
     vco_out => gsv_getVco(statevector_out)
 
     field_in => gsv_getField_r8(statevector_in,'P0')
-    psfc_in(:,:) = field_in(:,:,1,indexStep)
 
-    VAR_LOOP: do jvar = 1, vnl_numvarmax
-      varName = vnl_varNameList(jvar)
-      if( .not. gsv_varExist(statevector_in,varName) ) cycle VAR_LOOP
+    do jstep = 1, statevector_out%numStep
 
-      nlev_in  = vco_getNumLev(vco_in,  vnl_varLevelFromVarname(varName))
-      nlev_out = vco_getNumLev(vco_out, vnl_varLevelFromVarname(varName))
+      psfc_in(:,:) = field_in(:,:,1,jstep)
 
-      field_in  => gsv_getField_r8(statevector_in ,varName)
-      field_out => gsv_getField_r8(statevector_out,varName)
+      VAR_LOOP: do jvar = 1, vnl_numvarmax
+        varName = vnl_varNameList(jvar)
+        if( .not. gsv_varExist(statevector_in,varName) ) cycle VAR_LOOP
 
-      ! for 2D fields, just copy and cycle to next variable
-      if( nlev_in == 1 .and. nlev_out == 1 ) then
-        field_out(:,:,:,indexStep) = field_in(:,:,:,indexStep)
-        cycle VAR_LOOP
-      endif
+        nlev_in  = statevector_in%varNumLev(jvar)
+        nlev_out = statevector_out%varNumLev(jvar)
 
-      nullify(pres_out,pres_in)
+        field_in  => gsv_getField_r8(statevector_in ,varName)
+        field_out => gsv_getField_r8(statevector_out,varName)
 
-      ! define pressures on input and output levels
-      if(vnl_varLevelFromVarname(varName) == 'TH') then
-        status=vgd_levels(vco_in%vgrid,           &
-                          ip1_list=vco_in%ip1_T,  &
-                          levels=pres_in,         &
-                          sfc_field=psfc_in,      &
-                          in_log=.false.)
-        status=vgd_levels(vco_out%vgrid,           &
-                          ip1_list=vco_out%ip1_T,  &
-                          levels=pres_out,         &
-                          sfc_field=psfc_in,       &
-                          in_log=.false.)
-      else
-        status=vgd_levels(vco_in%vgrid,           &
-                          ip1_list=vco_in%ip1_M,  &
-                          levels=pres_in,         &
-                          sfc_field=psfc_in,      &
-                          in_log=.false.)
-        status=vgd_levels(vco_out%vgrid,           &
-                          ip1_list=vco_out%ip1_M,  &
-                          levels=pres_out,         &
-                          sfc_field=psfc_in,       &
-                          in_log=.false.)
-      endif
+        ! for 2D fields, just copy and cycle to next variable
+        if( nlev_in == 1 .and. nlev_out == 1 ) then
+          field_out(:,:,:,jstep) = field_in(:,:,:,jstep)
+          cycle VAR_LOOP
+        endif
 
-      ! do the vertical interpolation
-      field_out(:,:,:,indexStep) = 0.0d0
+        nullify(pres_out,pres_in)
+
+        ! define pressures on input and output levels
+        if(vnl_varLevelFromVarname(varName) == 'TH') then
+          status=vgd_levels(vco_in%vgrid,           &
+                            ip1_list=vco_in%ip1_T,  &
+                            levels=pres_in,         &
+                            sfc_field=psfc_in,      &
+                            in_log=.false.)
+          status=vgd_levels(vco_out%vgrid,           &
+                            ip1_list=vco_out%ip1_T,  &
+                            levels=pres_out,         &
+                            sfc_field=psfc_in,       &
+                            in_log=.false.)
+        else
+          status=vgd_levels(vco_in%vgrid,           &
+                            ip1_list=vco_in%ip1_M,  &
+                            levels=pres_in,         &
+                            sfc_field=psfc_in,      &
+                            in_log=.false.)
+          status=vgd_levels(vco_out%vgrid,           &
+                            ip1_list=vco_out%ip1_M,  &
+                            levels=pres_out,         &
+                            sfc_field=psfc_in,       &
+                            in_log=.false.)
+        endif
+
+        ! do the vertical interpolation
+        field_out(:,:,:,jstep) = 0.0d0
 !$OMP PARALLEL DO PRIVATE(jlat,jlat2,jlon,jlon2,jlev_in,jlev_out,zwb,zwt)
-      do jlat = statevector_out%myLatBeg, statevector_out%myLatEnd
-        jlat2 = jlat - statevector_out%myLatBeg + 1
-        do jlon = statevector_out%myLonBeg, statevector_out%myLonEnd
-          jlon2 = jlon - statevector_out%myLonBeg + 1
-          jlev_in = 1
-          do jlev_out = 1, nlev_out
-            jlev_in = jlev_in + 1
-            do while(pres_out(jlon2,jlat2,jlev_out).gt.pres_in(jlon2,jlat2,jlev_in)  &
-                     .and.jlev_in.lt.nlev_in)
+        do jlat = statevector_out%myLatBeg, statevector_out%myLatEnd
+          jlat2 = jlat - statevector_out%myLatBeg + 1
+          do jlon = statevector_out%myLonBeg, statevector_out%myLonEnd
+            jlon2 = jlon - statevector_out%myLonBeg + 1
+            jlev_in = 1
+            do jlev_out = 1, nlev_out
               jlev_in = jlev_in + 1
+              do while(pres_out(jlon2,jlat2,jlev_out).gt.pres_in(jlon2,jlat2,jlev_in)  &
+                       .and.jlev_in.lt.nlev_in)
+                jlev_in = jlev_in + 1
+              enddo
+              jlev_in = jlev_in - 1
+              zwb = log(pres_out(jlon2,jlat2,jlev_out)/pres_in(jlon2,jlat2,jlev_in))  &
+                   /log(pres_in(jlon2,jlat2,jlev_in+1)/pres_in(jlon2,jlat2,jlev_in))
+              zwt = 1.d0 - zwb
+              field_out(jlon,jlat,jlev_out,jstep) =   &
+                                 zwb*field_in(jlon,jlat,jlev_in+1,jstep) &
+                               + zwt*field_in(jlon,jlat,jlev_in,jstep)
             enddo
-            jlev_in = jlev_in - 1
-            zwb = log(pres_out(jlon2,jlat2,jlev_out)/pres_in(jlon2,jlat2,jlev_in))  &
-                 /log(pres_in(jlon2,jlat2,jlev_in+1)/pres_in(jlon2,jlat2,jlev_in))
-            zwt = 1.d0 - zwb
-            field_out(jlon,jlat,jlev_out,indexStep) =   &
-                               zwb*field_in(jlon,jlat,jlev_in+1,indexStep) &
-                             + zwt*field_in(jlon,jlat,jlev_in,indexStep)
           enddo
         enddo
-      enddo
 !$OMP END PARALLEL DO
 
-      deallocate(pres_out)
-      deallocate(pres_in)
+        deallocate(pres_out)
+        deallocate(pres_in)
 
-    enddo VAR_LOOP
+      enddo VAR_LOOP
 
-  end subroutine gsv_vint
+    enddo ! jstep
+
+  end subroutine gsv_vInterpolate
 
   !--------------------------------------------------------------------------
   ! gsv_writeToFileMpi
@@ -2085,7 +2284,7 @@ MODULE gridStateVector_mod
       if (gsv_varExist(statevector,vnl_varNameList(jvar)) ) then
         field => gsv_getField_r8(statevector,vnl_varNameList(jvar))
 
-        nlev = gsv_getNumLev(statevector,vnl_varLevelFromVarname(vnl_varNameList(jvar)))
+        nlev = statevector%varNumLev(jvar)
 
         allocate(work3d(statevector%myLonBeg:statevector%myLonEnd, &
                         statevector%myLatBeg:statevector%myLatEnd,nlev))
@@ -2426,13 +2625,13 @@ MODULE gridStateVector_mod
        elseif ( (.not. fileExists) .and. numTrials > 0 ) then
           exit  
        elseif ( (.not. fileExists) .and. numTrials == 0 ) then
-          call utl_abort('vtr_setupTrials: No trial files found')
+          call utl_abort('gsv_readTrials: No trial files found')
        endif
     enddo
 
     if (numTrials.ne.tim_nstepobs) then
        write(*,*) 'numTrials, tim_nstepobs = ',numTrials, tim_nstepobs
-       call utl_abort('vtr_setupTrials: numTrials /= tim_nstepobs')
+       call utl_abort('gsv_readTrials: numTrials /= tim_nstepobs')
     endif
 
     ! loop over times for which increment is computed
@@ -2457,7 +2656,7 @@ MODULE gridStateVector_mod
 
        if (ikey.le.0) then 
           write(*,*) 'indexStep, dateStamp = ', indexStep, dateStamp
-          call utl_abort('vtr_setupTrials: trial file not found for this increment timestep')
+          call utl_abort('gsv_readTrials: trial file not found for this increment timestep')
        endif
 
        ! read the trial file for this timestep

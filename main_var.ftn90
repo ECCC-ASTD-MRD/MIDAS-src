@@ -182,11 +182,6 @@ program main_var
     ! Deallocate memory related to B matrices
     call bmat_finalize()
 
-    if (mpi_myid == 0) then
-       clmsg = 'REBM_DONE'
-       call utl_writeStatus(clmsg)
-    end if
-
     ! Now write out the observation data files
     if(min_niter.gt.0) call burp_updateFiles(obsSpaceData)
 

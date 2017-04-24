@@ -201,7 +201,7 @@ contains
     character*12 cletiket
     real*8, allocatable :: varInterphr_T(:,:),varInterphr_M(:,:),varInterphr_VV(:,:)
     integer ip1_pak_trl,ip1_vco_trl
-    integer nlv_T,nlv_M
+    integer nlevtrl_T,nlevtrl_M
     integer, parameter :: jpnflev = 200
     integer itrlgid,iip1s(jpnflev),iip2,iip3
     integer, allocatable :: idate(:),itime(:)
@@ -269,9 +269,9 @@ contains
     !
     vco_anl => col_getVco(columng)
     vco_trl => col_getVco(columnhr)
-    nlv_M = vco_getNumLev(vco_trl,'MM')
-    nlv_T = vco_getNumLev(vco_trl,'TH')
-    if (mpi_myid.eq.0) write(*,*)'INN_SETUPBACKGROUNDCOLUMNS:niv thermo:',nlv_T,' momentum',nlv_M
+    nlevtrl_M = vco_getNumLev(vco_trl,'MM')
+    nlevtrl_T = vco_getNumLev(vco_trl,'TH')
+    if (mpi_myid.eq.0) write(*,*)'INN_SETUPBACKGROUNDCOLUMNS:niv thermo:',nlevtrl_T,' momentum',nlevtrl_M
 
     status = vgd_get(vco_trl%vgrid,key='ig_1 - vertical coord code',value=Vcode_trl)
     status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
@@ -292,9 +292,9 @@ contains
     !
     if (col_getNumCol(columng).gt.0) then
        allocate(notag(col_getNumCol(columng),tim_nStepObs))
-       allocate(varInterphr_T(nlv_T,col_getNumCol(columng)))
-       allocate(varInterphr_M(nlv_M,col_getNumCol(columng)))
-       allocate(varInterphr_VV(nlv_M,col_getNumCol(columng)))
+       allocate(varInterphr_T(nlevtrl_T,col_getNumCol(columng)))
+       allocate(varInterphr_M(nlevtrl_M,col_getNumCol(columng)))
+       allocate(varInterphr_VV(nlevtrl_M,col_getNumCol(columng)))
        varInterphr_T(:,:)=0.0d0
        varInterphr_M(:,:)=0.0d0
        varInterphr_VV(:,:)=0.0d0
@@ -644,7 +644,7 @@ contains
        varInterphr_M(:,:)=varInterphr_M(:,:)*10.0d0*RG
        call col_fillmvo(columnhr,varInterphr_M,'GZ  ','MM')
        if (mpi_myid.eq.0) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS:GZ_M'
-       do jlev = 1,nlv_M
+       do jlev = 1,nlevtrl_M
           if (mpi_myid.eq.0) write(*,*) 'GZ,',jlev,varInterphr_M(jlev,1)
        enddo
     endif
@@ -658,7 +658,7 @@ contains
        varInterphr_T(:,:)=varInterphr_T(:,:)*10.0d0*RG
        call col_fillmvo(columnhr,varInterphr_T,'GZ  ','TH')
        if (mpi_myid.eq.0) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS:GZ_TH'
-       do jlev = 1,nlv_T
+       do jlev = 1,nlevtrl_T
           if (mpi_myid.eq.0) write(*,*)'GZ,',jlev,varInterphr_T(jlev,1)
        enddo
     endif
@@ -683,12 +683,12 @@ contains
 
           if (col_getNumCol(columng).gt.0) then       
 
-             if (mpi_myid.eq.0) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: UU ,nlev= ',nlv_M
-             do jlev = 1,nlv_M
+             if (mpi_myid.eq.0) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: UU ,nlev= ',nlevtrl_M
+             do jlev = 1,nlevtrl_M
                 if (mpi_myid.eq.0) write(*,*) 'UU',jvar,jlev,varInterphr_M(jlev,1)
              enddo
-             if (mpi_myid.eq.0) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: VV ,nlev= ',nlv_M
-             do jlev = 1,nlv_M
+             if (mpi_myid.eq.0) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: VV ,nlev= ',nlevtrl_M
+             do jlev = 1,nlevtrl_M
                 if (mpi_myid.eq.0) write(*,*) 'VV',jvar,jlev,varInterphr_VV(jlev,1)
              enddo
 
@@ -730,7 +730,7 @@ contains
           if (col_getNumCol(columng).gt.0) then       
 
              if (mpi_myid.eq.0) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS:',vnl_varNameList3D(jvar)
-             do jlev = 1,nlv_T
+             do jlev = 1,nlevtrl_T
                 if (mpi_myid.eq.0) write(*,*) trim(vnl_varNameList3D(jvar)),',',jlev,varInterphr_T(jlev,1)
              enddo
 
@@ -772,7 +772,7 @@ contains
           if(col_getNumCol(columng).gt.0) then
 
              if(mpi_myid.eq.0) write(*,*) 'inn_setupBackgroundColumns:',vnl_varNameList3D(jvar)
-             do jlev = 1,nlv_T
+             do jlev = 1,nlevtrl_T
                 if(mpi_myid.eq.0) write(*,*) trim(vnl_varNameList3D(jvar)),',',jlev,varInterphr_T(jlev,1)
              enddo
              
