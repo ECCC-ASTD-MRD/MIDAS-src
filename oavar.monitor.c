@@ -39,8 +39,7 @@ int main(int argc, char **argv) {
 	    strcmp(str_read,VAR3D_END_STRING)!=0) {
 	bytes_read = read(fd, str_read, (size_t) BYTES_TO_READ);
 	if (bytes_read!=BYTES_TO_READ) {
-	  fprintf(stderr,"Could only read %d bytes out of %d bytes in file '%s'\n",(int) bytes_read,BYTES_TO_READ,argv[1]);
-	  exit(1);
+	  fprintf(stderr,"Could only read %d bytes out of %d bytes in file '%s'\nContinue...\n",(int) bytes_read,BYTES_TO_READ,argv[1]);
 	}
 	// printf("String read: '%s'\n", str_read);
 	// fflush(NULL);

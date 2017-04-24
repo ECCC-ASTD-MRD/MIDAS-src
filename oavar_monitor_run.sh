@@ -21,6 +21,22 @@ sleep 10
 cat > VAR3D_STATUS.dot <<EOF
 VAR3D_STATUS=VAR3D_BEG
 EOF
+sleep 10
+
+cat > VAR3D_STATUS.dot <<EOF
+EOF
+
+sleep 10
+
+cat > VAR3D_STATUS.dot <<EOF
+VAR3D_STAT
+EOF
+
+sleep 10
+
+cat > VAR3D_STATUS.dot <<EOF
+VAR3D_STATUS=REBM_DON
+EOF
 
 sleep 10
 
