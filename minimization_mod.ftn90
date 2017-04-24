@@ -137,14 +137,15 @@ CONTAINS
   END SUBROUTINE min_setup
 
 
-  SUBROUTINE min_minvar(lcolumn,lcolumng,lobsSpaceData,isControlAnalysis)
+  SUBROUTINE min_minvar(lcolumn,lcolumng,lcolumnhr,lobsSpaceData,isControlAnalysis)
+      use writeIncrement_mod
     !
     ! Purpose:
     ! 3D/En VAR minimization
     !
       IMPLICIT NONE
 
-      type(struct_columnData),target :: lcolumn,lcolumng
+      type(struct_columnData),target :: lcolumn,lcolumng,lcolumnhr
       type(struct_obs),target :: lobsSpaceData
       logical :: isControlAnalysis
       type(struct_dataptr) :: dataptr 
@@ -176,6 +177,10 @@ CONTAINS
       integer :: iterdone_000,isimdone_000
       character(len=128) :: clfname
  
+      type(struct_vco), pointer :: vco_anl => NULL()
+      type(struct_vco), pointer :: vco_trl => NULL()
+      character(len=9) :: clmsg
+
       min_nsim=0 
 
       if(mpi_myid.eq.0) then
@@ -417,6 +422,20 @@ CONTAINS
         dg_vbar(jdata) = vazx(jdata) + dg_vbar(jdata)
       enddo
 
+      ! Put final control vector into control vector module for use elsewhere
+      call tmg_start(89,'MIN_COMM')
+      cvm_vazx(:)=vazx(1:nvadim_mpilocal)
+      call tmg_stop(89)
+
+      ! Calculate and write out the resulting analysis increment
+      vco_anl => col_getVco(lcolumng)
+      vco_trl => col_getVco(lcolumnhr)
+      call calcWriteIncrement(vco_anl,vco_trl,0,.true.)
+      if (mpi_myid == 0) then
+         clmsg = 'REBM_DONE'
+         call wrstatus(clmsg)
+      end if
+
       ! Write out the Hessian to file (only control member writes when nCycleHessMode is not 1)
       if(lwrthess .and. (isControlAnalysis .or. nCycleHessMode.eq.1) ) then
         if(mpi_myid.eq.0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -425,11 +444,6 @@ CONTAINS
           iztrl,vatra,dg_vbar,vazx,.true.,llvazx,n1gc,imode)
         if(mpi_myid.eq.0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
       endif
-
-      ! Put final control vector into control vector module for use elsewhere
-      call tmg_start(89,'MIN_COMM')
-      cvm_vazx(:)=vazx(1:nvadim_mpilocal)      
-      call tmg_stop(89)
 
       ! deallocate the control vector related arrays
       deallocate(vazx)
@@ -770,6 +784,8 @@ CONTAINS
 
     if(status.eq.0) then
 
+    call tmg_start(86,'MIN_READ_HESS')
+
       ierr = fnom(ireslun,cfname,'FTN+SEQ+UNF+OLD+R/O',0)
 
       ! Checking version number
@@ -827,8 +843,11 @@ CONTAINS
         allocate(vatravec_r8_mpiglobal(nvadim_mpiglobal))
         ! set to zero, except 1 for "diag" (first vector) for overdimensioned elements
         do jvec = 1, ictrlvec
-          read(ireslun) vatravec_r4_mpiglobal
-          vatravec_r8_mpiglobal(:)=real(vatravec_r4_mpiglobal(:),8)
+          if(mpi_myid.eq.0) then
+             read(ireslun) vatravec_r4_mpiglobal
+             vatravec_r8_mpiglobal(:)=real(vatravec_r4_mpiglobal(:),8)
+          end if
+          call rpn_comm_bcast(vatravec_r8_mpiglobal,nvadim_mpiglobal,"mpi_double_precision",0,"world",ierr)
           call bmat_reduceToMPILocal(  &
             vatra(((jvec-1)*nvadim_mpilocal+1):jvec*nvadim_mpilocal),  &
             vatravec_r8_mpiglobal,cvDim_return)
@@ -876,7 +895,12 @@ CONTAINS
       !*     Write Hessian
       !*     -------------
 
+      call tmg_stop(86)
+
     elseif(status.eq.1) then
+
+       call tmg_start(87,'MIN_WRITE_HESS')
+
       if(mpi_myid.eq.0) ierr = fnom(ireslun,cfname, 'FTN+SEQ+UNF' , 0)
       cl_version = 'V4'
       itrunc=0
@@ -911,6 +935,8 @@ CONTAINS
       deallocate(vazx_mpiglobal)
 
       if(mpi_myid.eq.0) ierr = fclos(ireslun)
+
+      call tmg_stop(87)
     else
       call abort3d(" RW_VATRA: status not valid ")
     endif
