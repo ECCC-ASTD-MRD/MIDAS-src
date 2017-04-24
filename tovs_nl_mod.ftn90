@@ -1379,8 +1379,6 @@ subroutine tvs_fillProfiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode)
   integer :: isatazim, instrum, iplatform
   integer :: isunazim
   integer :: isunza
-  integer :: nthreads
-  integer :: istride, ilen, imodulo
   integer :: nlevels,nobmax
   integer :: j, i, sensor_id, iobs, jj
   integer :: count_profile, header_index
@@ -1420,9 +1418,9 @@ subroutine tvs_fillProfiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode)
   
   if(tvs_nobtov.eq.0) return    ! exit if there are no tovs data
 
-  !
-  !     1.    Set index for model's lowest level and model top
-  !     .     ------------------------------------------------
+!
+!     1.    Set index for model's lowest level and model top
+!     .     ------------------------------------------------
 
   nlv_M = col_getNumLev(columnghr,'MM')
   nlv_T = col_getNumLev(columnghr,'TH')
@@ -1442,7 +1440,7 @@ subroutine tvs_fillProfiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode)
 
  
 
-  ! find model level top, within 0.000001 mbs.
+! find model level top, within 0.000001 mbs.
   zptop    = col_getPressure(columnghr,1,1,'TH')
   zptopmbs = zptop/100.d0
   zptopmbs = zptopmbs - 0.000001d0
@@ -1458,15 +1456,6 @@ subroutine tvs_fillProfiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode)
   year= ijour / 10000
   MONTH = MOD(ijour/100,100)
   DAY = MOD(ijour,100)
-
-
-!     1.1   Number of threads and memory allocation
-!     .     ---------------------------------------
-
-!$omp parallel 
-  nthreads = omp_get_num_threads()
-!$omp end parallel
-
 
 !     1.2   Read ozone climatology
 !     .     ----------------------
@@ -1590,24 +1579,13 @@ subroutine tvs_fillProfiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode)
 !     .       ------------------------------------------
 
 
-!$omp parallel private(istride)
-     imodulo = mod(count_profile,nthreads)
-     if ( imodulo .eq. 0 ) then
-        istride = max(1,(count_profile/nthreads))
-     else
-        istride = max(1,(count_profile/nthreads)+1)
-     endif
-!$omp do private(jn,ilen)
-     do jn=1,count_profile,istride
-        ilen = min (count_profile-jn+1,istride)
-        if ( ilen > 0) then
-           call ppo_IntAvg (zvlev(:,jn:jn+ilen-1),zt(:,jn:jn+ilen-1),nlv_T,nlv_T,ilen, &
-                jpmolev,xpres(jpmotop:nlevels),to(:,jn:jn+ilen-1))
-           call ppo_IntAvg (zvlev(:,jn:jn+ilen-1),zlq(:,jn:jn+ilen-1),nlv_T,nlv_T,ilen, &
-                jpmolev,xpres(jpmotop:nlevels),lqo(:,jn:jn+ilen-1))
-!           call ppo_lintv (zvlev(:,jn:jn+ilen-1),zht(:,jn:jn+ilen-1),nlv_T,nlv_T,ilen, &
-!                jpmolev,xpres(jpmotop:nlevels),zho(:,jn:jn+ilen-1))
-        endif
+!$omp parallel
+!$omp do private(jn)
+     do jn=1,count_profile
+        call ppo_IntAvg (zvlev(:,jn:jn),zt(:,jn:jn),nlv_T,nlv_T,1, &
+             jpmolev,xpres(jpmotop:nlevels),to(:,jn:jn))
+        call ppo_IntAvg (zvlev(:,jn:jn),zlq(:,jn:jn),nlv_T,nlv_T,1, &
+             jpmolev,xpres(jpmotop:nlevels),lqo(:,jn:jn))
      enddo
 !$omp end do
 !$omp end parallel
