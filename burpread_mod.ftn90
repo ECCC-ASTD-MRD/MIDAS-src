@@ -14,6 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
+
 #include "maincompileswitch.inc"
 #include "compileswitches.inc"
 !--------------------------------------------------------------------------
@@ -29,8 +30,10 @@ use burp_module
 use ObsSpaceData_mod
 use MathPhysConstants_mod
 use earthconstants_mod
+use utilities_mod
 implicit none
 save
+
 private
 
 ! public variables (parameters)
@@ -73,10 +76,37 @@ CONTAINS
     !                  -- Fix for the Burp 24 bit header markers of the UA4D
     !                 P. KOCLAS (CMDA/SMC)) Oct 2014
     !                  -- CHANGE ADDSIZE FOR SW ( GROUPED SATWINDS)
+    !                 Ping Du (CMDA), Nov/Dec 2014
+    !                  -- Added CASE('CH') option with intitial settings.
+    !                  -- Added use of FAMILYTYPE2 and the 'namburp_chm_sfc' and 
+    !                     'namburp_chm' namelists for the CH family 
+    !                 Y.J. Rochon (ARQI), Dec 2014
+    !                  -- Added 08046 (constituent code table) in LISTE_INFO.
+    !                     Corresponds to new ObsSpaceData integer-header element OBS_CHM.
+    !                  -- Added 15008,15011,15012,15020,15024,15026-29,15199,
+    !                     and 15230 under LISTE_ELE for CASE('CH'). This
+    !                     denotes the/a possible set of elements.
+    !                  -- Modified 'vcord_type' to an array of dimension 10.
+    !                  -- Extended vcord_type from 1 to 8 elements for CH
+    !                  -- Setting of ELEVFACT to 1.0 for 7006 coordinate.
+    !                 Y.J. Rochon (ARQI), May 2015
+    !                  -- Made use of the existing WINDS logical to determine 
+    !                     when the wind-related fields are to be included in
+    !                     the reports with uni-level data blocks.
     !                 P. KOCLAS (CMDA/SMC)) May 2015
     !                  -- CHANGES  for GROUPED scatterometres or surface obs
     !                 P. KOCLAS (CMDA/SMC)) Jan 2016
     !                  -- bug fix for GROUPED scatterometres or surface obs(element doubling)
+    !                 Y.J. Rochon (ARQI), March 2016
+    !                  -- Account for pre-existing FGE and OER blocks. See LBLOCK_OER_CP
+    !                     ,NBLOCK_OER_CP, LBLOCK_FGE_CP and BLOKC_FGE_CP. The OER block
+    !                     may contain additional data such as averaging kernel matrices 
+    !                     and obs error correlation matrices at least for the CH family.
+    !                     As well, the FGE values are not calculated at the analysis phase
+    !                     so would not be available if requested as output.
+    !                 M. Sitwell (ARQI), Aug 2016
+    !                  -- Modified update of resume record so that it is written once instead
+    !                     of twice.
     !
     !       OBJECT: UPDATE CMC BURP FILE 
     !
@@ -118,11 +148,11 @@ CONTAINS
 
     INTEGER                :: NBELE,NVALE,NTE
     INTEGER                :: I,J,JJ,K,KK,KI,IL,Jo,ERROR,OBSN,KOBSN,ITEM,IER
-    INTEGER                :: info_elepos,IND_ELE,IND_VCOORD,IND_VCOORD2,IND_QCFLAG
+    INTEGER                :: info_elepos,IND_ELE,IND_VCOORD,IND_QCFLAG
     INTEGER                :: IND_ELE_MAR,IND_ELEU,IND_ELEF,IND_ELE_stat
     INTEGER                :: IND_LAT,IND_LON,IND_TIME
 
-    INTEGER                :: vcord_type,vcord_type2,FLAG,SUM
+    INTEGER                :: vcord_type(10),FLAG,SUM
     REAL                   :: RELEV,ELEVFACT
     REAL                   :: XLAT,XLON,XTIME
     INTEGER                :: status ,idtyp,lati,long,dx,dy,elev, &
@@ -148,15 +178,19 @@ CONTAINS
     INTEGER                :: new_bktyp,post_bit,STATUS_HIRES,BIT_STATUS,FILEN
     LOGICAL                :: REGRUP,WINDS,OMA_SFC_EXIST,OMA_ALT_EXIST
 
-    INTEGER                :: LISTE_INFO(16),LISTE_ELE(15),LISTE_ELE_SFC(15),is_in_list
+    INTEGER                :: LISTE_INFO(17),LISTE_ELE(20),LISTE_ELE_SFC(20),is_in_list
     INTEGER                :: ADDSIZE,SIZE_DATA_BK
 
+    LOGICAL                :: LBLOCK_OER_CP, LBLOCK_FGE_CP
+    TYPE(BURP_BLOCK)       :: BLOCK_OER_CP, BLOCK_FGE_CP
 
     DATA LISTE_INFO  &
-       /1007,002019,007024,007025 ,005021, 005022, 008012, 013039,020010,2048,2022,33060,33062,33039,10035,10036/
+       /1007,002019,007024,007025 ,005021, 005022, 008012, 013039,020010,2048,2022,33060, &
+        33062,33039,10035,10036,08046/
 
     FAMILYTYPE2= 'SCRAP'
-    vcord_type2=-1
+    vcord_type(:)=-1
+    vcord_type(1)=0
     NELE_INFO=1
     NELE_SFC=0
     NELE=0
@@ -169,18 +203,20 @@ CONTAINS
     ENFORCE_CLASSIC_SONDES=.false.
     ADDSIZE=100000
     LNMX=100000
+    LISTE_ELE_SFC(:)=-1
+    LISTE_ELE(:)=-1
     SELECT CASE(trim(FAMILYTYPE))
       CASE('UA')
         BURP_TYP='multi'
-        vcord_type=7004
+        vcord_type(1)=7004
 
-        LISTE_ELE_SFC = (/12004,11011,11012,10051,10004,12203,-1,-1,-1,-1,-1,-1,-1,-1,-1/)
+        LISTE_ELE_SFC(1:6) = (/12004,11011,11012,10051,10004,12203/)
         NELE_SFC=6
         CALL BRPACMA_NML('namburp_sfc')
         NELE_SFC=NELEMS_SFC
 
         FAMILYTYPE2= 'UA'
-        LISTE_ELE = (/12001,11001,11002,12192,10194,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1/)
+        LISTE_ELE(1:5) = (/12001,11001,11002,12192,10194/)
         NELE=5
         ENFORCE_CLASSIC_SONDES=.false.
         CALL BRPACMA_NML('namburp_conv')
@@ -189,9 +225,9 @@ CONTAINS
         ADDSIZE=10000
       CASE('AI')
         BURP_TYP='uni'
-        vcord_type=7004
+        vcord_type(1)=7004
 
-        LISTE_ELE = (/12001,12192,11001,11002,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1/)
+        LISTE_ELE(1:4) = (/12001,12192,11001,11002/)
         NELE=4
         CALL BRPACMA_NML('namburp_conv')
         NELE=NELEMS
@@ -199,22 +235,22 @@ CONTAINS
         ADDSIZE=5000
       CASE('SW')
         BURP_TYP='uni'
-        vcord_type=7004
+        vcord_type(1)=7004
 
-        LISTE_ELE = (/11001,11002,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1/)
+        LISTE_ELE(1:2) = (/11001,11002/)
         NELE=2
         CALL BRPACMA_NML('namburp_conv')
         NELE=NELEMS
         WINDS=.TRUE.
-        vcord_type2=-1
+        vcord_type(2)=-1
 !       ADDSIZE=5000
 !       ' AMVS-> ADDSIZE 600000 oct 2014 pik'
         ADDSIZE=600000
       CASE('SF','GP')
         BURP_TYP='uni'
-        vcord_type=0
+        vcord_type(1)=0
         NELE_SFC=7
-        LISTE_ELE_SFC = (/12004,11011,11012,10051,10004,12203,15031,-1,-1,-1,-1,-1,-1,-1,-1/)
+        LISTE_ELE_SFC(1:7) = (/12004,11011,11012,10051,10004,12203,15031/)
 
         CALL BRPACMA_NML('namburp_sfc')
         NELE_SFC=NELEMS_SFC
@@ -228,7 +264,7 @@ CONTAINS
         ADDSIZE=5000
       CASE('SC')
         BURP_TYP='uni'
-        LISTE_ELE_SFC = (/11012,11011,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1/)
+        LISTE_ELE_SFC(1:2) = (/11012,11011/)
         NELE=2
         CALL BRPACMA_NML('namburp_conv')
         NELE=NELEMS
@@ -241,10 +277,10 @@ CONTAINS
         ADDSIZE=5000
       CASE('PR')
         BURP_TYP='multi'
-        vcord_type=7006
+        vcord_type(1)=7006
         ELEVFACT=1.
 
-        LISTE_ELE = (/11001,11002,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1/)
+        LISTE_ELE(1:2) = (/11001,11002/)
         NELE=2
 
         CALL BRPACMA_NML('namburp_conv')
@@ -253,10 +289,10 @@ CONTAINS
         ADDSIZE=10000
       CASE('RO')
         BURP_TYP='multi'
-        vcord_type=7007
-        vcord_type2=7040
+        vcord_type(1)=7007
+        vcord_type(2)=7040
 
-        LISTE_ELE = (/15036,15037,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1/)
+        LISTE_ELE(1:2) = (/15036,15037/)
         NELE=2
 
         CALL BRPACMA_NML('namburp_conv')
@@ -269,10 +305,10 @@ CONTAINS
         NELE_INFO=16
       CASE('GO','MI','TO')
         BURP_TYP='multi'
-        vcord_type=5042
-        vcord_type2=2150
-
-        LISTE_ELE = (/12163,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1/)
+        vcord_type(1)=5042
+        vcord_type(2)=2150
+        
+        LISTE_ELE(1:1) = (/12163/)
         NELE=1
 
         CALL BRPACMA_NML('namburp_tovs')
@@ -281,6 +317,26 @@ CONTAINS
         NELE_INFO=16
         WINDS=.FALSE.
         ADDSIZE=600000
+      CASE('CH')
+        BURP_TYP='multi'   ! Both 'multi' and 'uni' are possible for this family.
+                           ! 'uni' level data are assumed not to have any accompanynig vertical 
+                           ! coordinate element in addition to having only one level.
+        vcord_type(1:8) = (/7004,7204,7006,7007,5042,2150,2071,0/)  ! 0 must be at end.
+
+        LISTE_ELE_SFC(1:19) = (/15008,15009,15010,15020,15021,15022,15023,15024,15026,15027,15028, &
+                                15029,15198,15199,15200,15230,13001,13002,08090/)
+        NELE_SFC=19
+        CALL BRPACMA_NML('namburp_chm_sfc')
+        NELE_SFC=NELEMS_SFC
+        WINDS=.FALSE.
+        ADDSIZE=10000
+
+        FAMILYTYPE2='CH'
+        LISTE_ELE(1:19) = (/15008,15009,15010,15020,15021,15022,15023,15024,15026,15027,15028, &
+                                15029,15198,15199,15200,15230,13001,13002,08090/)
+        NELE=19
+        CALL BRPACMA_NML('namburp_chm')
+        NELE=NELEMS
     END SELECT
     LISTE_ELE    (1:NELE    )=BLISTELEMENTS(1:NELE)
     LISTE_ELE_SFC(1:NELE_SFC)=BLISTELEMENTS_SFC(1:NELE_SFC)
@@ -318,7 +374,9 @@ CONTAINS
       btyp_offset_uni= 256 +32
     elseif ( TRIM(FAMILYTYPE2) .eq. 'UA') then
       btyp_offset_uni= 256 +32
-    else 
+    elseif ( TRIM(FAMILYTYPE2) .eq. 'CH') then
+      btyp_offset_uni= 256
+    else
       btyp_offset_uni= -999 !set to -999 when not used
     endif
 
@@ -475,14 +533,12 @@ CONTAINS
                ,OARS =oars,RUNN=runn ,IOSTAT=error)
 
         IF ( stnid(1:2) == ">>" ) THEN
-          Call BURP_Set_Property(Rpt_in ,STNID =">>"//TYPE_RESUME)
-          Call BURP_Write_Report(File_in,Rpt_in,UPDATE =.TRUE.,IOSTAT= error)
           write(*,*)  ' RESUME RECORD POSITION IN BURP FILE =',stnid,kk
           Call BURP_Copy_Header(TO=Cp_rpt,FROM=Rpt_in)
           Call BURP_Init_Report_Write(File_in,Cp_Rpt, IOSTAT=error)
+          Call BURP_Set_Property(Cp_Rpt,STNID =">>"//TYPE_RESUME)
           Call BURP_Delete_Report(File_in,Rpt_in, IOSTAT=error)
           Call BURP_Write_Report(File_in,Cp_rpt, IOSTAT=error)
-
           cycle REPORTS
         ELSE
           !write(*,*) ' UPDATING STN IN BURP FILE =',  TRIM(FAMILYTYPE),KK,stnid,lati,LONG,dx,DY,elev,idtyp
@@ -494,6 +550,8 @@ CONTAINS
 
         ref_blk = 0
 
+        LBLOCK_OER_CP=.false.
+        LBLOCK_FGE_CP=.false.
         HIRES=.FALSE.
         REGRUP=.false.
         NDATA_SF=-1
@@ -540,6 +598,13 @@ CONTAINS
           else
             !WRITE(*, *)' POUR STATION bloc NON CONNU: ',STNID,ref_blk,bfam,familytype
           endif
+          if (bfam.eq.10.and.bkstp.eq.14) then
+              LBLOCK_OER_CP=.true.
+              BLOCK_OER_CP=BLOCK_IN
+          else  if (bfam.eq.10.and.bkstp.eq.15) then
+              LBLOCK_FGE_CP=.true.
+              BLOCK_FGE_CP=BLOCK_IN
+          end if
         end do BLOCKS0
         if ( TYPE_RESUME == 'POSTALT' .or. TYPE_RESUME == 'BGCKALT') THEN
           post_bit=2
@@ -588,64 +653,81 @@ CONTAINS
               Call BURP_Set_Property(BLOCK_MAR_SFC_CP ,BKTYP =new_bktyp)
             endif
 
-            il_index=1
-            IND_eleu  = BURP_Find_Element(Block_in, ELEMENT=11215, IOSTAT=error)
-            IND_elef  = BURP_Find_Element(Block_in, ELEMENT=11011, IOSTAT=error)
+            il_index=0
+             
             !Call BURP_Delete_BLOCK(Rpt_in,BLOCK=Block_in)
 
-            Call BURP_New(BLOCK_OMA_SFC,NELE =NBELE+2,NVAL=nvale,NT=NTE,bfam=12,BKNAT=BKNAT,BKTYP=new_bktyp,BKSTP=10 &
-					           ,IOSTAT = error) 
-            Call BURP_New(BLOCK_OMP_SFC,NELE =NBELE+2,NVAL =nvale,NT=NTE,bfam=14,BKNAT=BKNAT,BKTYP=new_bktyp,BKSTP=10 &
-					           ,IOSTAT = error) 
-            Call BURP_New(BLOCK_OER_SFC, NELE =NBELE+2, NVAL =nvale,NT=NTE,bfam=10,BKNAT=BKNAT,BKTYP=new_bktyp,BKSTP=14 &
-					           ,IOSTAT = error) 
-            Call BURP_New(BLOCK_FGE_SFC, NELE =NBELE+2, NVAL =nvale,NT=NTE,bfam=10,BKNAT=BKNAT,BKTYP=new_bktyp,BKSTP=15 &
-					           ,IOSTAT = error) 
             OMA_SFC_EXIST=.true.
-            ILEMU=11215
-            ILEMV=11216
-            call BURP_Set_Element( BLOCK_OMA_SFC,NELE_IND = 1,ElEMENT=ILEMU,IOSTAT=error) 
-            call BURP_Set_Element( BLOCK_OMA_SFC,NELE_IND = 2,ElEMENT=ILEMV,IOSTAT=error) 
 
-            call BURP_Set_Element( BLOCK_OMP_SFC,NELE_IND = 1,ElEMENT=ILEMU,IOSTAT=error) 
-            call BURP_Set_Element( BLOCK_OMP_SFC,NELE_IND = 2,ElEMENT=ILEMV,IOSTAT=error) 
+            if (.not.WINDS) then
 
-            call BURP_Set_Element( BLOCK_OER_SFC,NELE_IND = 1,ElEMENT=ILEMU,IOSTAT=error) 
-            call BURP_Set_Element( BLOCK_OER_SFC,NELE_IND = 2,ElEMENT=ILEMV,IOSTAT=error) 
+               Call BURP_New(BLOCK_OMA_SFC,NELE =NBELE,NVAL=nvale,NT=NTE,bfam=12,BKNAT=BKNAT,BKTYP=new_bktyp,BKSTP=10 &
+					           ,IOSTAT = error) 
+               Call BURP_New(BLOCK_OMP_SFC,NELE =NBELE,NVAL =nvale,NT=NTE,bfam=14,BKNAT=BKNAT,BKTYP=new_bktyp,BKSTP=10 &
+					           ,IOSTAT = error) 
+               Call BURP_New(BLOCK_OER_SFC, NELE =NBELE, NVAL =nvale,NT=NTE,bfam=10,BKNAT=BKNAT,BKTYP=new_bktyp,BKSTP=14 &
+	   				           ,IOSTAT = error) 
+               Call BURP_New(BLOCK_FGE_SFC, NELE =NBELE, NVAL =nvale,NT=NTE,bfam=10,BKNAT=BKNAT,BKTYP=new_bktyp,BKSTP=15 &
+					           ,IOSTAT = error) 
+            else
 
-            call BURP_Set_Element( BLOCK_FGE_SFC,NELE_IND = 1,ElEMENT=ILEMU,IOSTAT=error) 
-            call BURP_Set_Element( BLOCK_FGE_SFC,NELE_IND = 2,ElEMENT=ILEMV,IOSTAT=error) 
-            do k =1,nte
-              Call BURP_Set_Rval(Block_OMA_SFC,NELE_IND =1,NVAL_IND =1,NT_IND = k,RVAL = PPMIS ) 
-              Call BURP_Set_Rval(Block_OMA_SFC,NELE_IND =2,NVAL_IND =1,NT_IND = k,RVAL = PPMIS ) 
-              Call BURP_Set_Rval(Block_OMP_SFC,NELE_IND =1,NVAL_IND =1,NT_IND = k,RVAL = PPMIS ) 
-              Call BURP_Set_Rval(Block_OMP_SFC,NELE_IND =2,NVAL_IND =1,NT_IND = k,RVAL = PPMIS ) 
-              Call BURP_Set_Rval(Block_OER_SFC,NELE_IND =1,NVAL_IND =1,NT_IND = k,RVAL = PPMIS ) 
-              Call BURP_Set_Rval(Block_OER_SFC,NELE_IND =2,NVAL_IND =1,NT_IND = k,RVAL = PPMIS ) 
-              Call BURP_Set_Rval(Block_FGE_SFC,NELE_IND =1,NVAL_IND =1,NT_IND = k,RVAL = PPMIS ) 
-              Call BURP_Set_Rval(Block_FGE_SFC,NELE_IND =2,NVAL_IND =1,NT_IND = k,RVAL = PPMIS ) 
-            end do
-            il_index=2
+               IND_eleu  = BURP_Find_Element(Block_in, ELEMENT=11215, IOSTAT=error)
+               IND_elef  = BURP_Find_Element(Block_in, ELEMENT=11011, IOSTAT=error)
 
-            IF (WINDS .and. IND_eleu .lt. 0 .and. IND_elef .gt. 0) THEN
-              Call BURP_RESIZE_BLOCK(BLOCK_OBS_SFC_CP,ADD_NELE = 2 ,IOSTAT=error) 
-              call BURP_Set_Element( BLOCK_OBS_SFC_CP,NELE_IND = nbele+1,ElEMENT=ILEMU,IOSTAT=error) 
-              call BURP_Set_Element( BLOCK_OBS_SFC_CP,NELE_IND = nbele+2,ElEMENT=ILEMV,IOSTAT=error) 
-              do k =1,nte
-                Call BURP_Set_Rval(Block_OBS_SFC_CP,NELE_IND =nbele+1,NVAL_IND =1,NT_IND = k,RVAL = PPMIS ) 
-                Call BURP_Set_Rval(Block_OBS_SFC_CP,NELE_IND =nbele+2,NVAL_IND =1,NT_IND = k,RVAL = PPMIS ) 
-              end do
+               Call BURP_New(BLOCK_OMA_SFC,NELE =NBELE+2,NVAL=nvale,NT=NTE,bfam=12,BKNAT=BKNAT,BKTYP=new_bktyp,BKSTP=10 &
+					           ,IOSTAT = error) 
+               Call BURP_New(BLOCK_OMP_SFC,NELE =NBELE+2,NVAL =nvale,NT=NTE,bfam=14,BKNAT=BKNAT,BKTYP=new_bktyp,BKSTP=10 &
+	   				           ,IOSTAT = error) 
+               Call BURP_New(BLOCK_OER_SFC, NELE =NBELE+2, NVAL =nvale,NT=NTE,bfam=10,BKNAT=BKNAT,BKTYP=new_bktyp,BKSTP=14 &
+					           ,IOSTAT = error) 
+               Call BURP_New(BLOCK_FGE_SFC, NELE =NBELE+2, NVAL =nvale,NT=NTE,bfam=10,BKNAT=BKNAT,BKTYP=new_bktyp,BKSTP=15 &
+					           ,IOSTAT = error) 
+               ILEMU=11215
+               ILEMV=11216
+               call BURP_Set_Element( BLOCK_OMA_SFC,NELE_IND = 1,ElEMENT=ILEMU,IOSTAT=error) 
+               call BURP_Set_Element( BLOCK_OMA_SFC,NELE_IND = 2,ElEMENT=ILEMV,IOSTAT=error) 
 
-              Call BURP_RESIZE_BLOCK(BLOCK_MAR_SFC_CP,ADD_NELE = 2 ,IOSTAT=error) 
-              call BURP_Set_Element( BLOCK_MAR_SFC_CP,NELE_IND = nbele+1,ElEMENT=ILEMU+200000,IOSTAT=error) 
-              call BURP_Set_Element( BLOCK_MAR_SFC_CP,NELE_IND = nbele+2,ElEMENT=ILEMV+200000,IOSTAT=error) 
-              do k =1,nte
-                Call BURP_Set_tblval(Block_MAR_SFC_CP,NELE_IND =nbele+1,NVAL_IND =1,NT_IND = k,tblval = 0 ) 
-                Call BURP_Set_tblval(Block_MAR_SFC_CP,NELE_IND =nbele+2,NVAL_IND =1,NT_IND = k,tblval = 0 ) 
-              end do
-              il_index=2
-              nbele=nbele +2
-            endif
+               call BURP_Set_Element( BLOCK_OMP_SFC,NELE_IND = 1,ElEMENT=ILEMU,IOSTAT=error) 
+               call BURP_Set_Element( BLOCK_OMP_SFC,NELE_IND = 2,ElEMENT=ILEMV,IOSTAT=error) 
+   
+               call BURP_Set_Element( BLOCK_OER_SFC,NELE_IND = 1,ElEMENT=ILEMU,IOSTAT=error) 
+               call BURP_Set_Element( BLOCK_OER_SFC,NELE_IND = 2,ElEMENT=ILEMV,IOSTAT=error) 
+
+               call BURP_Set_Element( BLOCK_FGE_SFC,NELE_IND = 1,ElEMENT=ILEMU,IOSTAT=error) 
+               call BURP_Set_Element( BLOCK_FGE_SFC,NELE_IND = 2,ElEMENT=ILEMV,IOSTAT=error) 
+               do k =1,nte
+                 Call BURP_Set_Rval(Block_OMA_SFC,NELE_IND =1,NVAL_IND =1,NT_IND = k,RVAL = PPMIS ) 
+                 Call BURP_Set_Rval(Block_OMA_SFC,NELE_IND =2,NVAL_IND =1,NT_IND = k,RVAL = PPMIS ) 
+                 Call BURP_Set_Rval(Block_OMP_SFC,NELE_IND =1,NVAL_IND =1,NT_IND = k,RVAL = PPMIS ) 
+                 Call BURP_Set_Rval(Block_OMP_SFC,NELE_IND =2,NVAL_IND =1,NT_IND = k,RVAL = PPMIS ) 
+                 Call BURP_Set_Rval(Block_OER_SFC,NELE_IND =1,NVAL_IND =1,NT_IND = k,RVAL = PPMIS ) 
+                 Call BURP_Set_Rval(Block_OER_SFC,NELE_IND =2,NVAL_IND =1,NT_IND = k,RVAL = PPMIS ) 
+                 Call BURP_Set_Rval(Block_FGE_SFC,NELE_IND =1,NVAL_IND =1,NT_IND = k,RVAL = PPMIS ) 
+                 Call BURP_Set_Rval(Block_FGE_SFC,NELE_IND =2,NVAL_IND =1,NT_IND = k,RVAL = PPMIS ) 
+               end do
+               il_index=2
+
+               IF (IND_eleu .lt. 0 .and. IND_elef .gt. 0) THEN
+                 Call BURP_RESIZE_BLOCK(BLOCK_OBS_SFC_CP,ADD_NELE = 2 ,IOSTAT=error) 
+                 call BURP_Set_Element( BLOCK_OBS_SFC_CP,NELE_IND = nbele+1,ElEMENT=ILEMU,IOSTAT=error) 
+                 call BURP_Set_Element( BLOCK_OBS_SFC_CP,NELE_IND = nbele+2,ElEMENT=ILEMV,IOSTAT=error) 
+                 do k =1,nte
+                   Call BURP_Set_Rval(Block_OBS_SFC_CP,NELE_IND =nbele+1,NVAL_IND =1,NT_IND = k,RVAL = PPMIS ) 
+                   Call BURP_Set_Rval(Block_OBS_SFC_CP,NELE_IND =nbele+2,NVAL_IND =1,NT_IND = k,RVAL = PPMIS ) 
+                 end do
+
+                 Call BURP_RESIZE_BLOCK(BLOCK_MAR_SFC_CP,ADD_NELE = 2 ,IOSTAT=error) 
+                 call BURP_Set_Element( BLOCK_MAR_SFC_CP,NELE_IND = nbele+1,ElEMENT=ILEMU+200000,IOSTAT=error) 
+                 call BURP_Set_Element( BLOCK_MAR_SFC_CP,NELE_IND = nbele+2,ElEMENT=ILEMV+200000,IOSTAT=error) 
+                 do k =1,nte
+                   Call BURP_Set_tblval(Block_MAR_SFC_CP,NELE_IND =nbele+1,NVAL_IND =1,NT_IND = k,tblval = 0 ) 
+                   Call BURP_Set_tblval(Block_MAR_SFC_CP,NELE_IND =nbele+2,NVAL_IND =1,NT_IND = k,tblval = 0 ) 
+                 end do
+                 il_index=2
+                 nbele=nbele +2
+               endif
+
+            end if
 
 !=========================================
             REGRUP_SFC: do k=1,nte
@@ -762,15 +844,27 @@ CONTAINS
                 cycle
               endif
               if ( BITEMLIST(item) .eq. 'OER') then
-                Call BURP_Reduce_Block(BLOCK_OER_SFC, NEW_NELE =il_index )
-                Call BURP_Write_Block( CP_RPT, BLOCK_OER_SFC,&
-                ENCODE_BLOCK = .TRUE., CONVERT_BLOCK = .TRUE., IOSTAT= error) 
+                if (.not.LBLOCK_OER_CP) then
+                   Call BURP_Reduce_Block(BLOCK_OER_SFC, NEW_NELE =il_index )
+                   Call BURP_Write_Block( CP_RPT, BLOCK_OER_SFC,&
+                   ENCODE_BLOCK = .TRUE., CONVERT_BLOCK = .TRUE., IOSTAT= error) 
+                else
+                   Call BURP_Set_Property(BLOCK_OER_CP ,BKTYP =new_bktyp)
+                   Call BURP_Write_Block( CP_RPT, BLOCK_OER_CP,&
+                        ENCODE_BLOCK = .FALSE., CONVERT_BLOCK = .FALSE., IOSTAT= error)                 
+                end if
                 cycle
               endif
               if ( BITEMLIST(item) .eq. 'FGE') then
-                Call BURP_Reduce_Block(BLOCK_FGE_SFC, NEW_NELE =il_index )
-                Call BURP_Write_Block( CP_RPT, BLOCK_FGE_SFC,&
-                ENCODE_BLOCK = .TRUE., CONVERT_BLOCK = .TRUE., IOSTAT= error) 
+                if (.not.LBLOCK_FGE_CP) then
+                   Call BURP_Reduce_Block(BLOCK_FGE_SFC, NEW_NELE =il_index )
+                   Call BURP_Write_Block( CP_RPT, BLOCK_FGE_SFC,&
+                   ENCODE_BLOCK = .TRUE., CONVERT_BLOCK = .TRUE., IOSTAT= error) 
+                else
+                   Call BURP_Set_Property(BLOCK_FGE_CP ,BKTYP =new_bktyp)
+                   Call BURP_Write_Block( CP_RPT, BLOCK_FGE_CP,&
+                        ENCODE_BLOCK = .FALSE., CONVERT_BLOCK = .FALSE., IOSTAT= error)                 
+                end if
                 cycle
               endif
 
@@ -823,24 +917,23 @@ CONTAINS
                   ,IOSTAT = error) 
 
             VCOORD_POS=0
-            IND_VCOORD  = BURP_Find_Element(BLOCK_OBS_MUL_CP, ELEMENT=vcord_type,   IOSTAT=error)
+            k=0
+            IND_VCOORD=-1
+            do while (vcord_type(k+1) /= -1 .and. IND_VCOORD == -1)
+               k=k+1 
+               IND_VCOORD  = BURP_Find_Element(BLOCK_OBS_MUL_CP, ELEMENT=vcord_type(k),IOSTAT=error)
+            end do
             IF ( IND_VCOORD .gt. 0 ) then
-              call BURP_Set_Element(BLOCK_OMA,NELE_IND= 1,ElEMENT=vcord_type,IOSTAT=error) 
-              call BURP_Set_Element(BLOCK_OMP,NELE_IND= 1,ElEMENT=vcord_type,IOSTAT=error) 
-              call BURP_Set_Element(BLOCK_OER,NELE_IND= 1,ElEMENT=vcord_type,IOSTAT=error) 
-              call BURP_Set_Element(BLOCK_FGE,NELE_IND= 1,ElEMENT=vcord_type,IOSTAT=error) 
+              IF (trim(FAMILYTYPE) == trim('CH')) THEN
+                 ELEVFACT=0.0
+                 IF (vcord_type(k) == 7006) ELEVFACT=1.0
+              END IF
+              call BURP_Set_Element(BLOCK_OMA,NELE_IND= 1,ElEMENT=vcord_type(k),IOSTAT=error) 
+              call BURP_Set_Element(BLOCK_OMP,NELE_IND= 1,ElEMENT=vcord_type(k),IOSTAT=error) 
+              call BURP_Set_Element(BLOCK_OER,NELE_IND= 1,ElEMENT=vcord_type(k),IOSTAT=error) 
+              call BURP_Set_Element(BLOCK_FGE,NELE_IND= 1,ElEMENT=vcord_type(k),IOSTAT=error) 
               VCOORD_POS=1
-            ENDIF
-            IND_VCOORD2  = BURP_Find_Element(BLOCK_OBS_MUL_CP, ELEMENT=vcord_type2,   IOSTAT=error)
-            IF ( IND_VCOORD2 .gt. 0 ) then
-              call BURP_Set_Element(BLOCK_OMA,NELE_IND= 1,ElEMENT=vcord_type2,IOSTAT=error) 
-              call BURP_Set_Element(BLOCK_OMP,NELE_IND= 1,ElEMENT=vcord_type2,IOSTAT=error) 
-              call BURP_Set_Element(BLOCK_OER,NELE_IND= 1,ElEMENT=vcord_type2,IOSTAT=error) 
-              call BURP_Set_Element(BLOCK_FGE,NELE_IND= 1,ElEMENT=vcord_type2,IOSTAT=error) 
-              VCOORD_POS=1
-              IND_VCOORD=IND_VCOORD2
-            ENDIF
-            if (IND_VCOORD == -1 .and. IND_VCOORD2 == -1) then
+            ELSE IF (IND_VCOORD == -1) then
               !WRITE(*,*) '  PAS DE COORDONNEE VERTICALE famille ',trim(FAMILYTYPE)
               il_index=0
             endif
@@ -1112,12 +1205,24 @@ CONTAINS
                           ENCODE_BLOCK = .TRUE., CONVERT_BLOCK = .TRUE., IOSTAT= error) 
               endif
               if ( BITEMLIST(item) .eq. 'OER') then
-                Call BURP_Write_Block( CP_RPT, BLOCK_OER,&
+                if (.not.LBLOCK_OER_CP) then
+                   Call BURP_Write_Block( CP_RPT, BLOCK_OER,&
                           ENCODE_BLOCK = .TRUE., CONVERT_BLOCK = .TRUE., IOSTAT= error) 
+                else
+                   Call BURP_Set_Property(BLOCK_OER_CP ,BKTYP =new_bktyp)
+                   Call BURP_Write_Block( CP_RPT, BLOCK_OER_CP,&
+                        ENCODE_BLOCK = .FALSE., CONVERT_BLOCK = .FALSE., IOSTAT= error) 
+                  end if
               endif
               if ( BITEMLIST(item) .eq. 'FGE') then
-                Call BURP_Write_Block( CP_RPT, BLOCK_FGE,&
+                if (.not.LBLOCK_FGE_CP) then
+                   Call BURP_Write_Block( CP_RPT, BLOCK_FGE,&
                           ENCODE_BLOCK = .TRUE., CONVERT_BLOCK = .TRUE., IOSTAT= error) 
+                else
+                   Call BURP_Set_Property(BLOCK_FGE_CP ,BKTYP =new_bktyp)
+                   Call BURP_Write_Block( CP_RPT, BLOCK_FGE_CP,&
+                        ENCODE_BLOCK = .FALSE., CONVERT_BLOCK = .FALSE., IOSTAT= error) 
+                  end if
               endif
 
             end do
@@ -1187,6 +1292,18 @@ CONTAINS
 
   SUBROUTINE BRPACMA_NML(NML_SECTION)
 
+    !******************************************************************************** 
+    !
+    !       REVISION:
+    !                 Ping Du (CMDA), Nov 2014 
+    !                  -- Added NAMBURP_FILTER_CHM and NAMBURP_FILTER_CHM_SFC namelists
+    !                  -- Added CASE('namburp_chm') and CASE('namburp_chm_sfc')
+    !
+    !
+    !****************************************************************************
+
+
+
     INTEGER*4          :: NULNAM,IER,FNOM,FCLOS
     CHARACTER *256     :: NAMFILE
     CHARACTER(len = *) :: NML_SECTION
@@ -1194,6 +1311,8 @@ CONTAINS
     NAMELIST /NAMBURP_FILTER_CONV/NELEMS,    BLISTELEMENTS,    BNBITSOFF,BBITOFF,BNBITSON,BBITON,ENFORCE_CLASSIC_SONDES
     NAMELIST /NAMBURP_FILTER_SFC/ NELEMS_SFC,BLISTELEMENTS_SFC,BNBITSOFF,BBITOFF,BNBITSON,BBITON
     NAMELIST /NAMBURP_FILTER_TOVS/NELEMS,BLISTELEMENTS,BNBITSOFF,BBITOFF,BNBITSON,BBITON
+    NAMELIST /NAMBURP_FILTER_CHM_SFC/NELEMS_SFC,BLISTELEMENTS_SFC,BNBITSOFF,BBITOFF,BNBITSON,BBITON
+    NAMELIST /NAMBURP_FILTER_CHM/NELEMS,BLISTELEMENTS,BNBITSOFF,BBITOFF,BNBITSON,BBITON
     NAMELIST /NAMBURP_UPDATE/BN_ITEMS, BITEMLIST,TYPE_RESUME
 
 
@@ -1209,6 +1328,10 @@ CONTAINS
         READ(NULNAM,NML=NAMBURP_FILTER_CONV)
       CASE( 'namburp_tovs')
         READ(NULNAM,NML=NAMBURP_FILTER_TOVS)
+      CASE( 'namburp_chm_sfc')
+        READ(NULNAM,NML=NAMBURP_FILTER_CHM_SFC)
+      CASE( 'namburp_chm')
+        READ(NULNAM,NML=NAMBURP_FILTER_CHM)
       CASE( 'namburp_update')
         READ(NULNAM,NML=NAMBURP_UPDATE)
     END SELECT
@@ -1231,6 +1354,26 @@ CONTAINS
     !                 P. KOCLAS (CMDA) Oct 2014
     !                  -- Changed VCOORD Dimensions 
     !                  -- add VCORD array  to allow grouped SW or AI
+    !                 Ping Du (CMDA) Nov/Dec 2014 
+    !                  -- Added initial CASE('CH') section with addition of 'namburp_chm_sfc'
+    !                     and 'namburp_chm' namelists
+    !                  -- Added UNI_FAMILYTYPE.
+    !                  -- Replaced "NDATA_SF= WRITE_BODY(*" to use UNI_FAMILYTYPE
+    !                  -- Added use of FAMILYTYPE2 for the CH family.
+    !                 Y.J. Rochon (ARQI) Dec 2014 - May 2016
+    !                  -- Added 08046 (constituent code table) in LISTE_INFO.
+    !                     Corresponds to new ObsSpaceData integer-header element OBS_CHM.
+    !                  -- Added 15008,15011,15012,15020,15024,15026-29,15199,
+    !                     and 15230 under LISTE_ELE for CASE('CH') - even if not used.
+    !                  -- Modified 'vcord_type' to an array of dimension 10.
+    !                  -- Extended 'vcord_type' from 1 to 7 elements for TR
+    !                  -- Addition/use of 'vcoord_type'. Added 'vcoord_type' 
+    !                     argument to WRITE_BODY.
+    !                  -- Added flag_passage*=1 for btyp10*_uni cases.
+    !                     Needed when only *_uni data being read to avoid
+    !                     incorrect output error message.
+    !                  -- Added consideration of NDATA_SF for calling WRITE_INFO
+    !                     accompanied by initialization of NDATA_SF and NDATA to zero.
     !
     !       OBJECT: READ CMC BURP FILE 
     !
@@ -1250,6 +1393,7 @@ CONTAINS
     CHARACTER(LEN=128)     :: BRP_FILE
     INTEGER                :: FILENUMB
     CHARACTER *2           :: FAMILYTYPE
+    CHARACTER *2           :: UNI_FAMILYTYPE
     
     type (struct_obs), intent(inout) :: obsdat
     
@@ -1287,7 +1431,7 @@ CONTAINS
 
     REAL(OBS_REAL), ALLOCATABLE :: RADMOY(:,:,:)
     REAL(OBS_REAL), ALLOCATABLE :: radstd(:,:,:)
-    INTEGER                :: LISTE_INFO(16),LISTE_ELE(15),LISTE_ELE_SFC(15)
+    INTEGER                :: LISTE_INFO(17),LISTE_ELE(20),LISTE_ELE_SFC(20)
 
     INTEGER                :: NBELE,NVALE,NTE
     INTEGER                :: I,J,JJ,K,KK,KL,IL,ERROR,OBSN
@@ -1296,8 +1440,8 @@ CONTAINS
     INTEGER                :: IND_LAT,IND_LON,IND_TIME,IND_EMIS
     INTEGER                :: FLAG_PASSAGE1,FLAG_PASSAGE2,FLAG_PASSAGE3,FLAG_PASSAGE4
 
-    INTEGER                :: vcord_type,vcord_type2,FLAG,SUM
-    REAL(OBS_REAL)         :: RELEV,XLAT,XLON
+    INTEGER                :: vcord_type(10),FLAG,SUM,vcoord_type
+    REAL(OBS_REAL)         :: RELEV,XLAT,XLON,RELEV2
     REAL                   :: XTIME,SECONDS
     INTEGER                :: status ,idtyp,lati,long,dx,dy,elev, &
                                drnd,date_h,hhmm_h,oars,runn,YMD_DATE,HM,kstamp,kstamp2,HM_SFC,YMD_DATE_SFC
@@ -1312,65 +1456,70 @@ CONTAINS
     REAL                   :: RAD_MOY,RAD_STD
     INTEGER                :: iclass,NCHANAVHRR,NCLASSAVHRR,ichan,iobs,inorm
     INTEGER                :: infot
-
+    
     DATA LISTE_INFO  &
        /1007,002019,007024,007025 ,005021, 005022, 008012, &
-        013039,020010,2048,2022,33060,33062,33039,10035,10036/
+        013039,020010,2048,2022,33060,33062,33039,10035,10036,08046/
 
+    RELEV2=0.0
     FAMILYTYPE2= 'SCRAP'
-    vcord_type2=-1
+    vcord_type(:)=-1
+    vcord_type(1)=0
     NELE_INFO=1
     NELE_SFC=0
     NELE=0
     BNBITSOFF=0
     BNBITSON=0
     ENFORCE_CLASSIC_SONDES=.false.
+    UNI_FAMILYTYPE = 'SF'
+    LISTE_ELE_SFC(:)=-1
+    LISTE_ELE(:)=-1
     SELECT CASE(trim(FAMILYTYPE))
       CASE('UA')
         BURP_TYP='multi'
-        vcord_type=7004
+        vcord_type(1)=7004
 
-        LISTE_ELE_SFC = (/12004,11011,11012,10051,10004,12203,-1,-1,-1,-1,-1,-1,-1,-1,-1/)
+        LISTE_ELE_SFC(1:6) = (/12004,11011,11012,10051,10004,12203/)
         NELE_SFC=6
         CALL BRPACMA_NML('namburp_sfc')
         NELE_SFC=NELEMS_SFC
 
         FAMILYTYPE2= 'UA'
-        LISTE_ELE = (/12001,11001,11002,12192,10194,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1/)
+        LISTE_ELE(1:5) = (/12001,11001,11002,12192,10194/)
         NELE=5
         ENFORCE_CLASSIC_SONDES=.false.
         CALL BRPACMA_NML('namburp_conv')
         NELE=NELEMS
       CASE('AI')
         BURP_TYP='uni'
-        vcord_type=7004
+        vcord_type(1)=7004
 
-        LISTE_ELE = (/12001,12192,11001,11002,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1/)
+        LISTE_ELE(1:4) = (/12001,12192,11001,11002/)
         NELE=4
         CALL BRPACMA_NML('namburp_conv')
         NELE=NELEMS
       CASE('SW')
         BURP_TYP='uni'
-        vcord_type=7004
+        vcord_type(1)=7004
 
-        LISTE_ELE = (/11001,11002,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1/)
+        LISTE_ELE(1:2) = (/11001,11002/)
         NELE=2
         CALL BRPACMA_NML('namburp_conv')
         NELE=NELEMS
       CASE('SF','GP')
         BURP_TYP='uni'
-        vcord_type=0
+        vcord_type(1)=0
         NELE_SFC=7
-        LISTE_ELE_SFC = (/12004,11011,11012,10051,10004,12203,15031,-1,-1,-1,-1,-1,-1,-1,-1/)
+        LISTE_ELE_SFC(1:7) = (/12004,11011,11012,10051,10004,12203,15031/)
 
         CALL BRPACMA_NML('namburp_sfc')
         NELE_SFC=NELEMS_SFC
 
         FAMILYTYPE2= 'SFC'
       CASE('SC')
-        vcord_type=0
+        vcord_type(1)=0
         BURP_TYP='uni'
-        LISTE_ELE_SFC = (/11012,11011,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1/)
+        LISTE_ELE_SFC(1:2) = (/11012,11011/)
         NELE=2
         CALL BRPACMA_NML('namburp_conv')
         NELE=NELEMS
@@ -1378,19 +1527,19 @@ CONTAINS
         FAMILYTYPE2= 'UASFC2'
       CASE('PR')
         BURP_TYP='multi'
-        vcord_type=7006
+        vcord_type(1)=7006
 
-        LISTE_ELE = (/11001,11002,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1/)
+        LISTE_ELE(1:2) = (/11001,11002/)
         NELE=2
 
         CALL BRPACMA_NML('namburp_conv')
         NELE=NELEMS
       CASE('RO')
         BURP_TYP='multi'
-        vcord_type=7007
-        vcord_type2=7040
+        vcord_type(1)=7007
+        vcord_type(2)=7040
 
-        LISTE_ELE = (/15036,15037,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1/)
+        LISTE_ELE(1:2) = (/15036,15037/)
         NELE=2
 
         CALL BRPACMA_NML('namburp_conv')
@@ -1402,16 +1551,37 @@ CONTAINS
         NELE_INFO=16
       CASE('GO','MI','TO')
         BURP_TYP='multi'
-        vcord_type=5042
-        vcord_type2=2150
+        vcord_type(1)=5042
+        vcord_type(2)=2150
 
-        LISTE_ELE = (/12163,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1/)
+        LISTE_ELE(1:1) = (/12163/)
         NELE=1
 
         CALL BRPACMA_NML('namburp_tovs')
         NELE=NELEMS
 
         NELE_INFO=16
+     CASE('CH')
+
+        BURP_TYP='multi'  ! Both 'multi' and 'uni' are possible for this family.
+                          ! 'uni' level data are assumed not to have any accompanynig vertical 
+                          ! coordinate element in addition to having only one level.
+        vcord_type(1:8) = (/7004,7204,7006,7007,5042,2150,2071,0/) ! 0 must be at end.
+        NELE_INFO=17
+
+        UNI_FAMILYTYPE = 'CH'
+        LISTE_ELE_SFC(1:19) = (/15008,15009,15010,15020,15021,15022,15023,15024,15026,15027,15028, &
+                          15029,15198,15199,15200,15230,13001,13002,08090/)
+        NELE_SFC=19
+        CALL BRPACMA_NML('namburp_chm_sfc')
+        NELE_SFC=NELEMS_SFC
+
+        FAMILYTYPE2='CH'
+        LISTE_ELE(1:19) = (/15008,15009,15010,15020,15021,15022,15023,15024,15026,15027,15028, &
+                          15029,15198,15199,15200,15230,13001,13002,08090/)
+        NELE=19
+        CALL BRPACMA_NML('namburp_chm')
+        NELE=NELEMS 
     END SELECT
     LISTE_ELE    (1:NELE    )=BLISTELEMENTS(1:NELE)
     LISTE_ELE_SFC(1:NELE_SFC)=BLISTELEMENTS_SFC(1:NELE_SFC)
@@ -1432,6 +1602,8 @@ CONTAINS
       btyp_offset_uni= 256 +32
     elseif ( TRIM(FAMILYTYPE2) .eq. 'UA') then
       btyp_offset_uni= 256 +32
+    elseif (TRIM(FAMILYTYPE2) .eq. 'CH') then
+      btyp_offset_uni= 256
     else
       btyp_offset_uni= -999 ! set to -999 when not used
     endif
@@ -1583,11 +1755,14 @@ CONTAINS
           btyp10    = ishft(btyp,-5)
           if ( btyp10 - btyp10obs_uni == 0 .and. bkstp <= 4 ) then
 
+            flag_passage3 = 1
+
             ALLOCATE(obsvalue_sfc(NELE_SFC,1,nte))
             ALLOCATE(  OBSERV_SFC(NELE_SFC,1) )
 
             ALLOCATE( vcoord_sfc(1))
 
+            vcoord_type=0
             vcoord_SFC(:)       = 0
             obsvalue_sfc(:,:,:) = PPMIS
             IND_LAT   = BURP_Find_Element(Block_in, ELEMENT=5001, IOSTAT=error)
@@ -1603,6 +1778,7 @@ CONTAINS
                                          & NT_IND   = k)
                 HLON_SFC(k) =BURP_Get_Rval(Block_in, &
                                          & NELE_IND = IND_LON, &
+        
                                          & NVAL_IND = 1, &
                                          & NT_IND   = k)
                 HTIME_SFC(k)=BURP_Get_Rval(Block_in, &
@@ -1626,10 +1802,11 @@ CONTAINS
               end do
 
             end do
-
           endif
 
           if ( btyp10 - btyp10flg_uni == 0 .and. bkstp <= 4 ) then
+
+            flag_passage4 = 1
 
             ALLOCATE( qcflag_sfc (NELE_SFC,1,nte))
             ALLOCATE( qcflags_SFC(NELE_SFC,1) )
@@ -1644,7 +1821,7 @@ CONTAINS
                                          & NELE_IND = IND_QCFLAG, &
                                          & NVAL_IND = 1, &
                                          & NT_IND   = k)
-                SUM = SUM +1
+                SUM = SUM +1                
               END DO
             end do
           endif
@@ -1663,8 +1840,14 @@ CONTAINS
             VCOORD  (:,:)   = 0.
             VCORD   (:)     = 0.
 
-            IND_VCOORD  = BURP_Find_Element(Block_in, ELEMENT=vcord_type,   IOSTAT=error)
-            if (IND_VCOORD <= 0)IND_VCOORD  = BURP_Find_Element(Block_in, ELEMENT=vcord_type2, IOSTAT=error)
+            k=0
+            IND_VCOORD=-1
+            do while (vcord_type(k+1) /= -1 .and. IND_VCOORD == -1)
+               k=k+1 
+               IND_VCOORD  = BURP_Find_Element(Block_in, ELEMENT=vcord_type(k),IOSTAT=error)
+            end do
+            vcoord_type=0
+            IF (IND_VCOORD > 0) vcoord_type=vcord_type(k)
             !if (IND_VCOORD == -1)write(*,*) 'PAS DE COORDONNEE VERTICALE STNID=',STNID,trim(FAMILYTYPE)
 
             ! LAT LON TIME IN DATA BLOCK
@@ -1773,7 +1956,7 @@ CONTAINS
                                  & ELEMENT  = LISTE_INFO(kl), &
                                  & IOSTAT   = error)
               if (  info_elepos .ge.  0 )then
-
+                
                 do k =1 , nte
                   RINFO(kl,k)= BURP_Get_rval(Block_in, &
                               &   NELE_IND = info_elepos, &
@@ -1923,6 +2106,8 @@ CONTAINS
 
             if (allocated(EMIS))     SURF_EMIS(1:NVAL)    =EMIS      (1:NVAL,k)
 
+            NDATA   =0
+            NDATA_SF=0
             IF ( allocated(obsvalue_sfc) ) THEN
               OBSERV_SFC(1:NELE_SFC,1:1)=obsvalue_sfc(1:NELE_SFC,1:1,k)
               QCFLAGS_sfc(1:NELE_SFC,1:1)=qcflag_sfc  (1:NELE_SFC,1:1,k)
@@ -1940,7 +2125,7 @@ CONTAINS
                 HM_SFC=time2
               ENDIF
 
-              NDATA_SF= WRITE_BODY(obsdat,'SF',RELEV,vcoord_sfc ,OBSERV_sfc,qcflags_sfc,NELE_SFC,1,LISTE_ELE_SFC)
+              NDATA_SF= WRITE_BODY(obsdat,UNI_FAMILYTYPE,RELEV,vcoord_sfc,vcoord_type,OBSERV_sfc,qcflags_sfc,NELE_SFC,1,LISTE_ELE_SFC)
               IF ( NDATA_SF .GT. 0) THEN
                 call WRITE_HEADER(obsdat,STNID,XLAT,XLON,YMD_DATE_SFC,HM_SFC,idtyp,STATUS,RELEV,FILENUMB)
                 OBSN=obs_numHeader(obsdat)
@@ -1973,8 +2158,9 @@ CONTAINS
 
                 time2=time_sonde/10000
 
-		VCORD(1)=VCOORD(jj,k)
-                NDATA= WRITE_BODY(obsdat,familytype,RELEV,VCORD, OBSERV,qcflags,NELE,1,LISTE_ELE,SURF_EMIS)
+                VCORD(1)=VCOORD(jj,k)
+                NDATA= WRITE_BODY(obsdat,familytype,RELEV,VCORD,vcoord_type,OBSERV,qcflags,NELE,1,LISTE_ELE,SURF_EMIS)
+
                 IF (NDATA .gt. 0) THEN
                   call WRITE_HEADER(obsdat,STNID,XLAT,XLON,date2,time2,idtyp,STATUS,RELEV,FILENUMB)
                   OBSN=obs_numHeader(obsdat)
@@ -2017,7 +2203,8 @@ CONTAINS
 
               OBSERV_SFC (1:NELE_SFC,1:1)=obsvalue_sfc(1:NELE_SFC,1:1,k)
               QCFLAGS_sfc(1:NELE_SFC,1:1)=qcflag_sfc  (1:NELE_SFC,1:1,k)
-              NDATA_SF= WRITE_BODY(obsdat,'SF',RELEV,vcoord_sfc ,OBSERV_sfc,qcflags_sfc,NELE_SFC,1,LISTE_ELE_SFC)
+
+              NDATA_SF= WRITE_BODY(obsdat,UNI_FAMILYTYPE,RELEV,vcoord_sfc,vcoord_type,OBSERV_sfc,qcflags_sfc,NELE_SFC,1,LISTE_ELE_SFC)
               IF ( NDATA_SF .GT. 0) THEN
                 call WRITE_HEADER(obsdat,STNID,XLAT,XLON,YMD_DATE,HM,idtyp,STATUS,RELEV,FILENUMB)
                 OBSN=obs_numHeader(obsdat) 
@@ -2038,7 +2225,7 @@ CONTAINS
               OBSERV(1:NELE,1:NVAL)    =obsvalue(1:NELE,1:NVAL,k)
               QCFLAGS(1:NELE,1:NVAL)   =qcflag  (1:NELE,1:NVAL,k)
               VCORD(1:NVAL)            =VCOORD  (1:NVAL,k)
-              NDATA= WRITE_BODY(obsdat,familytype,RELEV,VCORD,OBSERV,qcflags,NELE,NVAL,LISTE_ELE,SURF_EMIS)
+              NDATA= WRITE_BODY(obsdat,familytype,RELEV,VCORD,vcoord_type,OBSERV,qcflags,NELE,NVAL,LISTE_ELE,SURF_EMIS)
 
               IF (NDATA .gt. 0) THEN
 
@@ -2106,7 +2293,7 @@ CONTAINS
           ENDIF
 
           if (allocated(TRINFO))  then
-            IF ( NDATA  .gt. 0 ) then
+            IF ( NDATA.gt.0.or.NDATA_SF.gt.0 ) then
               call WRITE_INFO(obsdat,familytype, TRINFO,LISTE_INFO,NELE_INFO  )
             ENDIF
           endif
@@ -2238,12 +2425,24 @@ CONTAINS
   end function cvt_burp_instrum
 
 
-  FUNCTION WRITE_BODY(obsdat,FAMTYP, ELEV,VERTCOORD &
-                             ,obsvalue,qcflag,NELE,NVAL,LISTE_ELE,SURF_EMIS)
+  FUNCTION WRITE_BODY(obsdat,FAMTYP, ELEV,VERTCOORD,VCOORD_TYPE, &
+                      obsvalue,qcflag,NELE,NVAL,LISTE_ELE,SURF_EMIS)
+
+    !******************************************************************************** 
+    !
+    !       REVISION:
+    !                 Ping Du (CMDA), Nov 2014
+    !                  -- Added  CASE ('CH') with VCO=4 
+    !                 Y.J. Rochon (ARQI) and M. Sitwell (ARQI), Dec 2014, Feb 2015, June 2015
+    !                  -- Added VCOORD_TYPE as input argument and applied in function.
+    !                  -- Added new VCO cases for the CH family.
+    !                  -- Added abort statement if constituent vertical coordinate not recognized.
+    !
+    !****************************************************************************
 
     type (struct_obs), intent(inout) :: obsdat
 
-    INTEGER ::  WRITE_BODY
+    INTEGER ::  WRITE_BODY,VCOORD_TYPE
     REAL   , allocatable          ::   OBSVALUE(:,:)
     REAL   , allocatable,optional ::   SURF_EMIS(:)
     INTEGER, allocatable          ::     QCFLAG(:,:)
@@ -2266,7 +2465,7 @@ CONTAINS
     INTEGER     ::   NONELEV
     REAL        ::   ZEMFACT
     LOGICAL     ::   L_EMISS
-
+    
     if(present(SURF_EMIS)) then
       L_EMISS=.true.
     else
@@ -2315,6 +2514,34 @@ CONTAINS
         VCO=1 ! HEIGHT COORD
       CASE ( 'TO'  )
         VCO=3 ! CHANNEL NUMBER
+      CASE ( 'CH'  ) ! CONSTITUENTS (consider different possibilities)
+        IF (VCOORD_TYPE == 7006 .OR. VCOORD_TYPE == 7007) THEN
+           VCO=1
+           IF (VCOORD_TYPE == 7006) ELEVFACT=1.0
+        ELSE IF (VCOORD_TYPE == 7004 .OR. VCOORD_TYPE == 7204) THEN
+           VCO=2
+        ELSE IF (VCOORD_TYPE == 2150) THEN
+           VCO=3
+        ELSE            
+           ! Vertical coordinate not provided or not recognized.
+           IF (NVAL.EQ.1) THEN
+              VCO=5 ! Initializes as surface point measurement
+              DO il = 1, NELE
+                 if ( obsvalue(il,1) .ne. PPMIS) then
+                    if (liste_ele(il).EQ.15198.OR.liste_ele(il).EQ.15009.OR. &
+                        liste_ele(il).EQ.15020.OR.liste_ele(il).EQ.15021.OR. &
+                        liste_ele(il).EQ.15024.OR.liste_ele(il).EQ.15200.OR. &
+                        liste_ele(il).EQ.15001.OR.liste_ele(il).EQ.15005) then
+                        
+                        VCO=4  ! Assumes this is a total column measurement
+                        exit
+                    end if
+                 end if
+              END DO
+           ELSE   
+              call utl_abort('write_body: Invalid BURP vertical coordinate type.')
+           END IF
+        END IF
     END SELECT
 
     !-------------------SPECIAL CASES--------------
@@ -2350,7 +2577,7 @@ CONTAINS
           if ( REMIS .ne. PPMIS .and. FAMTYP .eq. 'TO') THEN
             call obs_bodySet_r(obsdat,OBS_SEM,count,REMIS)
           else
-             if ( FAMTYP .eq. 'TO') then
+            if ( FAMTYP .eq. 'TO') then
                 emmissivite=0.95
                 call obs_bodySet_r(obsdat,OBS_SEM,count,emmissivite)
              else
@@ -2470,6 +2697,15 @@ CONTAINS
 
   subroutine WRITE_INFO(obsdat,FAMTYP, RINFO,LISTE_INFO,NELE_INFO  )
 
+    !******************************************************************************** 
+    !
+    !       REVISION:
+    !                 Y.J. Rochon (ARQI), Dec 2014
+    !                  -- Added consideraton of 08046 for the CH family.
+    !                     (see *CONSTITUENT*)
+    !
+    !****************************************************************************
+
     type (struct_obs), intent(inout) :: obsdat
 
     !REAL   , allocatable  ::      RINFO(:)
@@ -2483,12 +2719,12 @@ CONTAINS
     INTEGER     ::   CODTYP
 
     INTEGER     ::   IL,J,NOBS
-    INTEGER     ::   SENSOR,ID_SAT,INSTRUMENT,LAND_SEA
+    INTEGER     ::   SENSOR,ID_SAT,INSTRUMENT,LAND_SEA,CONSTITUENT_TYPE
     INTEGER     ::   TERRAIN_TYPE,ZENITH,SOLAR_ZENITH,AZIMUTH,CLOUD_COVER,SOLAR_AZIMUTH
     INTEGER     ::   IGQISFLAGQUAL,IGQISQUALINDEXLOC,ITANGENT_RADIUS,IGEOID,IRO_QCFLAG
 
     REAL        ::   RSOLAR_ZENITH,RCLOUD_COVER,RZENITH,RAZIMUTH,RSOLAR_AZIMUTH
-    REAL        ::   RIGQISFLAGQUAL,RIGQISQUALINDEXLOC
+    REAL        ::   RIGQISFLAGQUAL,RIGQISQUALINDEXLOC,RCONSTITUENT
     REAL        ::   RTERRAIN_TYPE,RLAND_SEA,RID_SAT,RSENSOR,RINSTRUMENT,RRO_QCFLAG
     REAL(OBS_REAL)        ::   RTANGENT_RADIUS,RGEOID
 
@@ -2509,6 +2745,7 @@ CONTAINS
     RGEOID=PPMIS
     TERRAIN_TYPE=99
     !CLOUD_COVER = 0
+    CONSTITUENT_TYPE = -99
 
     !if ( allocated(rinfo) ) then
 
@@ -2612,6 +2849,15 @@ CONTAINS
           ELSE
             IRO_QCFLAG=NINT ( RRO_QCFLAG )
           ENDIF
+        CASE( 08046)          
+          IF (trim(FAMTYP) == 'CH') THEN
+             RCONSTITUENT=INFOV
+             IF (RCONSTITUENT .eq. PPMIS) THEN
+                call utl_abort('WRITE_INFO: Missing 08046 element for the CH family.')
+             ELSE
+                CONSTITUENT_TYPE=NINT(RCONSTITUENT)
+             END IF
+          END IF
       END SELECT
     end do
 
@@ -2656,7 +2902,11 @@ CONTAINS
     call obs_headSet_i(obsdat,OBS_ROQF,nobs,IRO_QCFLAG)
     call obs_headSet_r(obsdat,OBS_TRAD,nobs,RTANGENT_RADIUS)
     call obs_headSet_r(obsdat,OBS_GEOI,nobs,RGEOID)
-
+    if (trim(FAMTYP) .eq. trim('CH')) then
+        call obs_headSet_i(obsdat,OBS_CHM,nobs,CONSTITUENT_TYPE)
+    else
+        call obs_headSet_i(obsdat,OBS_CHM,nobs,-1)
+    end if
 
   END SUBROUTINE  WRITE_INFO
 

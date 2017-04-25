@@ -23,10 +23,11 @@
 !--------------------------------------------------------------------------
 MODULE variableTransforms_mod
   use mpivar_mod
+  use mathPhysConstants_mod
   use timeCoord_mod
   use gridStateVector_mod
   use lamSpectralTransform_mod
-  use lamAnalysisGrid_mod
+  use analysisGrid_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use utilities_mod
@@ -72,77 +73,10 @@ CONTAINS
     implicit none
 
     type(struct_hco), pointer :: hco_anl
-    type(struct_vco), pointer :: vco_anl
-
-    integer              :: fnom, fstouv, fclos, fstfrm, fstinf
-    integer              :: ierr, ikey, indexStep, indexTrial, numTrials, nulTrial
-    integer              :: ni_file, nj_file, nk_file, dateStamp
-    integer, allocatable :: dateStampList(:)
-
-    character(len=2)     :: fileNumber
-    character(len=30)    :: fileName
-
-    logical              :: fileExists
-
-    ! initialize statevector_trial
-    call gsv_setVco(statevector_trial,vco_anl)
-    call gsv_setHco(statevector_trial,hco_anl)
-    call gsv_allocate(statevector_trial,tim_nstepobsinc,dateStamp=tim_getDateStamp(),mpi_local=.true.)
-
-    ! initialize list of dates for the 4D analysis increment
-    allocate(datestamplist(tim_nStepObsInc))
-    call tim_getstamplist(datestamplist,tim_nStepObsInc,tim_getDatestamp())
-
-    ! check existence of all trial files
-    numTrials = 0
-    do 
-       write(fileNumber,'(I2.2)') numTrials+1
-       fileName = './trlm_' // trim(fileNumber)
-       inquire(file=trim(fileName),exist=fileExists)
-       if (fileExists) then
-          numTrials = numTrials + 1
-       elseif ( (.not. fileExists) .and. numTrials > 0 ) then
-          exit  
-       elseif ( (.not. fileExists) .and. numTrials == 0 ) then
-          call utl_abort('vtr_setupTrials: No trial files found')
-       endif
-    enddo
-
-    if (numTrials.ne.tim_nstepobs) then
-       write(*,*) 'numTrials, tim_nstepobs = ',numTrials, tim_nstepobs
-       call utl_abort('vtr_setupTrials: numTrials /= tim_nstepobs')
-    endif
-
-    ! loop over times for which increment is computed
-    do indexStep = 1, tim_nstepobsinc
-       dateStamp = dateStampList(indexStep)
-       if(mpi_myid.eq.0) write(*,*) 'vtr_setupTrials: reading background for time step: ',indexStep, dateStamp
-
-       ! identify which trial file corresponds with current datestamp
-       fileName = 'NOTFOUND'
-       do indexTrial = 1, numTrials
-          write(fileNumber,'(I2.2)') indexTrial
-          fileName = './trlm_' // trim(fileNumber)
-          nulTrial = 0
-          ierr = fnom(nulTrial,trim(fileName),'RND+OLD+R/O',0)
-          ierr = fstouv(nulTrial,'RND+OLD')
-          ikey = fstinf(nulTrial, ni_file, nj_file, nk_file,  &
-               dateStamp, ' ', -1, -1, -1, ' ', 'P0')
-          ierr = fstfrm(nulTrial)
-          ierr = fclos(nulTrial)
-          if(ikey.gt.0) exit
-       enddo
-
-       if (trim(fileName).eq.'NOTFOUND') then 
-          write(*,*) 'indexStep, dateStamp = ', indexStep, dateStamp
-          call utl_abort('vtr_setupTrials: trial file not found for this increment timestep')
-       endif
-
-      ! read the trial file for this timestep
-      call gsv_readFromFile(statevector_trial, fileName, ' ', 'P', 'TRIAL', indexStep)
-
-    enddo
-
+    type(struct_vco), pointer :: vco_anl    
+ 
+    call gsv_readTrials(hco_anl,vco_anl,statevector_trial)
+    
   end subroutine vtr_setupTrials
 
   !--------------------------------------------------------------------------
@@ -180,9 +114,9 @@ CONTAINS
        end if
        call VortDivToPsiChi(statevector)
     case ('LQtoHU')
-       call LQtoHU_tlm(statevector)
+       call LQtoHU(statevector)
     case ('HUtoLQ')
-       call HUtoLQ_tlm(statevector)
+       call HUtoLQ(statevector)
     case ('LQtoHU_tlm')
        call LQtoHU_tlm(statevector)
     case ('HUtoLQ_tlm')
@@ -242,7 +176,7 @@ CONTAINS
        do k = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
           do j = statevector%myLatBeg, statevector%myLatEnd
              do i = statevector%myLonBeg, statevector%myLonEnd
-                lq_ptr(i,j,k,indexStep) = log(hu_ptr(i,j,k,indexStep))
+                lq_ptr(i,j,k,indexStep) = log(max(hu_ptr(i,j,k,indexStep),MPC_MINIMUM_HU_R8))
              end do
           end do
        end do
@@ -335,7 +269,7 @@ CONTAINS
 
        do indexStep = 1, statevector%numStep
           
-          call lag_UVToVortDiv(qr_ptr(:,:,:,indexStep), dd_ptr(:,:,:,indexStep), & ! OUT
+          call agd_UVToVortDiv(qr_ptr(:,:,:,indexStep), dd_ptr(:,:,:,indexStep), & ! OUT
                                uu_ptr(:,:,:,indexStep), vv_ptr(:,:,:,indexStep), & ! IN
                                nlev_M )      ! IN
           

@@ -26,9 +26,9 @@ program main_diagBmatrix
   use gridStateVector_mod
   use bmatrix_mod
   use horizontalCoord_mod
+  use analysisGrid_mod
   use verticalCoord_mod
   use timeCoord_mod
-  use LamAnalysisGrid_mod
   use randomNumber_mod
   use utilities_mod
   IMPLICIT NONE
@@ -116,13 +116,13 @@ program main_diagBmatrix
   
   ! Initialize the Analysis horizontal grid
   call hco_SetupFromFile( './analysisgrid', 'ANALYSIS', 'Analysis' ) ! IN
-  hco_anl => hco_Get('Analysis')
+  hco_anl => agd_getHco('Analysis')
 
   if ( .not. hco_anl % global ) then
      !- Iniatilized the core (Non-Exteded) analysis grid
      call hco_SetupFromFile( './analysisgrid', 'COREGRID', 'AnalysisCore' ) ! IN
      !- Setup the LAM analysis grid metrics
-     call lag_SetupFromHCO( 'Analysis', 'AnalysisCore' ) ! IN
+     call agd_SetupFromHCO( 'Analysis', 'AnalysisCore' ) ! IN
   end if
   
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -136,9 +136,8 @@ program main_diagBmatrix
   call vco_SetupFromFile(vco_anl,'./bgcov',etiket)
 
   ! Allocate the statevector
-  call gsv_setVco(statevector,vco_anl)
-  call gsv_setHco(statevector,hco_anl)
-  call gsv_allocate(statevector,tim_nstepobsinc,datestamp=tim_getDatestamp(),mpi_local=.true.)
+  call gsv_allocate(statevector, tim_nstepobsinc, hco_anl, vco_anl, &
+                    datestamp=tim_getDatestamp(),mpi_local=.true.)
   nkgdim = statevector%nk
 
   ! Setup the B matrix

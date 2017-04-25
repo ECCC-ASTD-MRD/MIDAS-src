@@ -30,6 +30,7 @@ module varqc_mod
   use obsSpaceData_mod
   use columnData_mod
   use rmatrix_mod ,only : rmat_lnondiagr
+  use varNameList_mod
   implicit none
   save
   private
@@ -57,6 +58,10 @@ module varqc_mod
     !             . add parameters for GB-GPS ZTD
     !          S. Macpherson ARMA/CMC March 2013
     !             . modified GPS ZTD parameters to increase QC-Var rejections
+    !          Y.J. Rochon ARQI/AQRD, Feb 2015
+    !             . Added ZACH and ZDCH for chemical constituents
+    !             . Added call to bufr_IsAtmosConstituent(ITYP)
+    !               with addition of 'use varNamelist_mod'
     !
     implicit none
     type(struct_obs) :: obsSpaceData
@@ -64,7 +69,7 @@ module varqc_mod
     integer jdata,kindic,iter,jjo,idata,idatend,idburp
     integer ityp,iass,ifld,iother,jj,istyp,ilev
     real(8) zagz,zahu,zatt,zduv,zdgz,zdtt,zdhu,zauv,zslev,zapn,zdpn
-    real(8) zabt,zdbt,zabtb,zdbtb
+    real(8) zabt,zdbt,zabtb,zdbtb,zach,zdch
     real(8) zlev,zjo,zval,zspdo,zspdf,zofcst,zoval,zdiff,zaasym,zoer
     real(8) zfcst,zlat,zlon,zprior,zaps,zdps,zauvra,zattra,zattsym
     logical llok
@@ -92,6 +97,7 @@ module varqc_mod
     zabtb  = 1.0d-1
     zattsym = 1.d-1
     zazd = 2.0d-2
+    zach = 1.0d-3
     zduv = 5.d0
     zdgz = 5.d0
     zdtt = 5.d0
@@ -101,6 +107,7 @@ module varqc_mod
     zdbt = 3.d0
     zdbtb = 3.d0
     zdzd = 3.d0
+    zdch = 10.d0
 
     DO JJO = 1, obs_numheader(obsSpaceData)
        IDATA = obs_headElem_i(obsSpaceData,OBS_RLN,JJO)
@@ -255,6 +262,12 @@ module varqc_mod
                 !
                 call obs_bodySet_r(obsSpaceData,OBS_POB,JDATA,(ZAZD*  &
                     SQRT(2.d0*MPC_PI_R8))/((1.d0-ZAZD)*(2.d0*ZDZD)))
+             ELSEIF (bufr_IsAtmosConstituent(ITYP)) then
+                !
+                ! INITIAL VALUE OF GAMMA FOR THE CH (constituents) family
+                !
+                  call obs_bodySet_r(obsSpaceData,OBS_POB,JDATA,(ZACH* &
+                       SQRT(2.d0*MPC_PI_R8))/((1.d0-ZAHU)*(2.d0*ZDCH)))
              ELSE
                 !
                 ! INITIAL VALUE OF GAMMA FOR QCVAR (OTHERS)
@@ -412,11 +425,22 @@ module varqc_mod
     !
     !AUTHOR: B. BRASNETT (CMDA/MSC) MARCH 2000
     !
+    !*REVISION: Y.J. Rochon ARQI Jan 2015
+    !          - Additions of CH families with CODTYP=195 (remote sounding)
+    !            and 196 (in-situ). 
+    !          - Changed meters to hectometers (hm) for CH output
+    !          - Output ZVAR, ZFCST and ZANA as percent difference relative to 
+    !            ZFCST for CH constituents 
+    !          - Extended output of obs_headElem_i(lobsSpaceData,OBS_ONM,INDEX_HEADER)
+    !            from I5 to I7.
+    !          Y. Rochon and M. Sitwell, June 2016
+    !          - Introduction of codtypname to prevent recursive write error and 
+    !            change of A16 to A21,1X, for consistency with max codtyp_get_name. 
     implicit none
     type(struct_obs) :: lobsSpaceData
-    INTEGER, parameter :: numFamily = 9
-    CHARACTER(len=2), parameter :: listFamily(numFamily) = (/'UA','AI','SF','SW','PR','RO','GP','SC','TO'/)
-    INTEGER, parameter :: NUMITEM=13
+    INTEGER, parameter :: numFamily = 10
+    CHARACTER(len=2), parameter :: listFamily(numFamily) = (/'UA','AI','SF','SW','PR','RO','GP','SC','TO','CH'/)
+    INTEGER, parameter :: NUMITEM=14
     INTEGER ICOUNT(NUMITEM,numFamily)
 
     INTEGER JFAM,JITEM,INDEX_HEADER
@@ -427,6 +451,7 @@ module varqc_mod
     REAL*8    SPD,DEG,ZLEV,ZSLEV,ZCUT
     CHARACTER *4 CLITM(NUMITEM),CLDESC
     CHARACTER *2 CLUNITS
+    CHARACTER *21 CODTYPNAME
     LOGICAL LLOK,LLELREJ
     !
     !  ------NOTE----------
@@ -437,7 +462,8 @@ module varqc_mod
            /'WND',    'WND',    'HGT',    'TMP',    'DPD',   'STNP'/
     DATA CLITM(7), CLITM(8), CLITM(9), CLITM(10), CLITM(11), CLITM(12)  &
           /'MSLP',   'TSFC',   'SDPD',   'SWND',   'SWND',   'BTMP'/
-    DATA CLITM(13) /'ZTD'/
+    DATA CLITM(13),CLITM(14) /'ZTD', 'CHM'/
+
 
     DO JFAM=1,numFamily
       DO JITEM=1,NUMITEM
@@ -452,9 +478,9 @@ module varqc_mod
 
       WRITE(*,*) ' '
       IF (listFamily(JFAM) .NE. 'TO') THEN
-        WRITE(*,*) 'IDENT     TYPE DESCRIPTION     LAT   LONG    LEVEL  ITEM   OBSVD     BKGND     ANAL  POST PROB REPORT'
+        WRITE(*,*) 'IDENT     TYPE DESCRIPTION           LAT   LONG    LEVEL  ITEM   OBSVD     BKGND     ANAL  POST PROB REPORT'
       ELSE
-        WRITE(*,*) 'IDENT     TYPE DESCRIPTION     LAT   LONG    CHNL   ITEM   OBSVD     BKGND     ANAL  POST PROB REPORT'
+        WRITE(*,*) 'IDENT     TYPE DESCRIPTION           LAT   LONG    CHNL   ITEM   OBSVD     BKGND     ANAL  POST PROB REPORT'
       ENDIF
       ! loop over all header indices of the family
       call obs_set_current_header_list(lobsSpaceData,listFamily(jfam))
@@ -490,18 +516,23 @@ module varqc_mod
              IF (obs_bodyElem_i(lobsSpaceData,OBS_VCO,INDEX_BODY) .EQ. 2) THEN
                ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)*MPC_MBAR_PER_PA_R8
                CLUNITS = 'MB'
-             ENDIF
-             IF (obs_bodyElem_i(lobsSpaceData,OBS_VCO,INDEX_BODY) .EQ. 1) THEN
+             ELSE IF (obs_bodyElem_i(lobsSpaceData,OBS_VCO,INDEX_BODY) .EQ. 1) THEN
                !
                ! VERTICAL COORDINATE IS HEIGHT
                !
                ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
                CLUNITS = ' M'
-             ENDIF
-             IF (obs_bodyElem_i(lobsSpaceData,OBS_VCO,INDEX_BODY) .EQ. -1) THEN
+               IF (listFamily(JFAM).EQ.'CH') THEN
+                  ZLEV = ZLEV*0.01
+                  CLUNITS = 'HM'
+               END IF
+             ELSE IF (obs_bodyElem_i(lobsSpaceData,OBS_VCO,INDEX_BODY) .EQ. -1) THEN
                !
                ! TOVS CHANNEL NUMBER
                !
+               ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
+               CLUNITS = '  '
+             ELSE 
                ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
                CLUNITS = '  '
              ENDIF
@@ -625,12 +656,13 @@ module varqc_mod
                    IF (ITYP .EQ. BUFR_NEUS .OR. ITYP .EQ. BUFR_NEVS) THEN
                      ICOUNT(10,JFAM) = ICOUNT(10,JFAM) + 1
                    ENDIF
+                   codtypname=codtyp_get_name(IDBURP)
                    WRITE(*,620) obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER),  &
-                     IDBURP,codtyp_get_name(IDBURP),ZLAT,ZLON,  &
+                     IDBURP,codtypname,ZLAT,ZLON,  &
                      ILEV,CLUNITS,IDIRO,ISPDO,IDIRF,ISPDF,IDIRA,  &
                      ISPDA,ZPOST,obs_headElem_i(lobsSpaceData,OBS_ONM,  &
                      INDEX_HEADER)
- 620               FORMAT(A9,1X,i3,1x,A16,F5.1,2X,F5.1,2X,I4,A2,2X,  &
+ 620               FORMAT(A9,1X,i3,1x,A21,1X,F5.1,2X,F5.1,2X,I4,A2,2X,  &
                      'WND',3X,I3,'/',I3,3X,I3,'/',I3,3X,I3,  &
                      '/',I3,2X,F7.4,1X,I8)
 
@@ -640,7 +672,35 @@ module varqc_mod
                ILEV = NINT(ZLEV)
                IF (ZPOST .GT. ZCUT) THEN
                  LLELREJ = .TRUE.
-                 IF (ITYP .EQ. BUFR_NEGZ) THEN
+                 IF (listFamily(JFAM).EQ.'CH') THEN
+                    ICOUNT(14,JFAM)=ICOUNT(14,JFAM)+1
+                    CLDESC=CLITM(14)
+                    if (obs_headElem_i(lobsSpaceData,OBS_CHM,INDEX_HEADER).ge.0) then
+
+                       ! CONVERT TO PERCENTAGE DIFFERENCE FROM THE FORECAST
+
+                       if (abs(ZFCST).lt.1.D-10*max(1.D-30,abs(ZVAR-ZFCST))) then
+                          write(*,*) 'vqc_listrej: WARNING for CH obs. BKGND and or OBSVD value out of bounds for output.'
+                          write(*,*) 'OBSVD and ANAL set to 0.0 below in addition to BKGND.'
+                          ZVAR=0.0D0
+                          ZANA=0.0D0
+                       else
+                          ZVAR=(ZVAR-ZFCST)/ZFCST*100.
+                          ZANA=(ZANA-ZFCST)/ZFCST*100.
+                       end if
+                       ZFCST=0.0
+                       CLDESC=vnl_varnameFromVarnum(ITYP,obs_headElem_i(lobsSpaceData,OBS_CHM,INDEX_HEADER))
+                         
+                    else if (ITYP .EQ. BUFR_NETT) THEN
+
+                       ! CONVERT FROM KELVIN TO CELCIUS
+
+                       CLDESC = CLITM(4)
+                       ZVAR = ZVAR - MPC_K_C_DEGREE_OFFSET_R8
+                       ZFCST = ZFCST - MPC_K_C_DEGREE_OFFSET_R8
+                       ZANA  = ZANA - MPC_K_C_DEGREE_OFFSET_R8
+                    end if
+                 ELSE IF (ITYP .EQ. BUFR_NEGZ) THEN
                    CLDESC = CLITM(3)
                    ICOUNT(3,JFAM) = ICOUNT(3,JFAM) + 1
                    !
@@ -649,8 +709,7 @@ module varqc_mod
                    ZVAR = ZVAR/RG
                    ZFCST = ZFCST/RG
                    ZANA  = ZANA/RG
-                 ENDIF
-                 IF (ITYP .EQ. BUFR_NETT) THEN
+                 ElSE IF (ITYP .EQ. BUFR_NETT) THEN
                    CLDESC = CLITM(4)
                    ICOUNT(4,JFAM) = ICOUNT(4,JFAM) + 1
                    !
@@ -659,12 +718,10 @@ module varqc_mod
                    ZVAR = ZVAR - MPC_K_C_DEGREE_OFFSET_R8
                    ZFCST = ZFCST - MPC_K_C_DEGREE_OFFSET_R8
                    ZANA  = ZANA - MPC_K_C_DEGREE_OFFSET_R8
-                 ENDIF
-                 IF (ITYP .EQ. BUFR_NEES) THEN
+                 ELSE IF (ITYP .EQ. BUFR_NEES) THEN
                    CLDESC = CLITM(5)
                    ICOUNT(5,JFAM) = ICOUNT(5,JFAM) + 1
-                 ENDIF
-                 IF (ITYP .EQ. BUFR_NEPS) THEN
+                 ELSE IF (ITYP .EQ. BUFR_NEPS) THEN
                    CLDESC = CLITM(6)
                    ICOUNT(6,JFAM) = ICOUNT(6,JFAM) + 1
                    !
@@ -673,8 +730,7 @@ module varqc_mod
                    ZVAR = ZVAR*MPC_MBAR_PER_PA_R8
                    ZANA = ZANA*MPC_MBAR_PER_PA_R8
                    ZFCST = ZFCST*MPC_MBAR_PER_PA_R8
-                 ENDIF
-                 IF (ITYP .EQ. BUFR_NEPN) THEN
+                 ELSE IF (ITYP .EQ. BUFR_NEPN) THEN
                    CLDESC = CLITM(7)
                    ICOUNT(7,JFAM) = ICOUNT(7,JFAM) + 1
                    !
@@ -683,8 +739,7 @@ module varqc_mod
                    ZVAR = ZVAR*MPC_MBAR_PER_PA_R8
                    ZANA = ZANA*MPC_MBAR_PER_PA_R8
                    ZFCST = ZFCST*MPC_MBAR_PER_PA_R8
-                 ENDIF
-                 IF (ITYP .EQ. BUFR_NETS) THEN
+                 ELSE IF (ITYP .EQ. BUFR_NETS) THEN
                    CLDESC = CLITM(8)
                    ICOUNT(8,JFAM) = ICOUNT(8,JFAM) + 1
                    !
@@ -693,17 +748,14 @@ module varqc_mod
                    ZVAR = ZVAR - MPC_K_C_DEGREE_OFFSET_R8
                    ZFCST = ZFCST - MPC_K_C_DEGREE_OFFSET_R8
                    ZANA  = ZANA - MPC_K_C_DEGREE_OFFSET_R8
-                 ENDIF
-                 IF (ITYP .EQ. BUFR_NESS) THEN
+                 ELSE IF (ITYP .EQ. BUFR_NESS) THEN
                    CLDESC = CLITM(9)
                    ICOUNT(9,JFAM) = ICOUNT(9,JFAM) + 1
-                 ENDIF
-                 IF ( ITYP.EQ.BUFR_NBT1 .OR. ITYP.EQ.BUFR_NBT2 .OR.  &
+                 ELSE IF ( ITYP.EQ.BUFR_NBT1 .OR. ITYP.EQ.BUFR_NBT2 .OR.  &
                       ITYP.EQ.BUFR_NBT3      ) THEN
                    CLDESC = CLITM(12)
                    ICOUNT(12,JFAM) = ICOUNT(12,JFAM) + 1
-                 ENDIF
-                 IF (ITYP .EQ. BUFR_NEZD) THEN
+                 ELSE IF (ITYP .EQ. BUFR_NEZD) THEN
                    CLDESC = CLITM(13)
                    ICOUNT(13,JFAM) = ICOUNT(13,JFAM) + 1
                    !
@@ -718,10 +770,11 @@ module varqc_mod
                    IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY),9))
                  call obs_bodySet_i(lobsSpaceData,OBS_FLG,INDEX_BODY,  &
                    IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY),17))
+                 codtypname=codtyp_get_name(IDBURP)
                  WRITE(*,630) obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER),IDBURP,  &
-                   codtyp_get_name(IDBURP),ZLAT,ZLON,ILEV,CLUNITS,CLDESC, &
+                   codtypname,ZLAT,ZLON,ILEV,CLUNITS,CLDESC, &
                    ZVAR,ZFCST,ZANA,ZPOST,obs_headElem_i(lobsSpaceData,OBS_ONM,INDEX_HEADER)
- 630               FORMAT(A9,1X,I3,1X,A16,F5.1,2X,F5.1,2X,I4,A2,2X,  &
+ 630               FORMAT(A9,1X,I3,1X,A21,1X,F5.1,2X,F5.1,2X,I4,A2,2X,  &
                     A4,2X,F7.1,3X,F7.1,3X,F7.1,2X,F7.4,1X,I8,1X)
                ENDIF
              ENDIF

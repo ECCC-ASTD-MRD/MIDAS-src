@@ -28,11 +28,13 @@ MODULE minimization_mod
   use obsSpaceData_mod
   use controlVector_mod
   use mpivar_mod
-  use HorizontalCoord_mod
+  use horizontalCoord_mod
+  use analysisGrid_mod
   use gridStateVector_mod
   use bmatrix_mod
   use stateToColumn_mod
   use variableTransforms_mod
+  use varNameList_mod
   use varqc_mod
   use randomNumber_mod
   use rmatrix_mod
@@ -42,6 +44,8 @@ MODULE minimization_mod
   use innovation_mod
   use quasinewton_mod
   use utilities_mod
+  use chem_postproc_mod, only: chm_transform_final_increments
+
   implicit none
   save
   private
@@ -220,8 +224,8 @@ CONTAINS
       integer              :: impres
       INTEGER              :: NGRANGE = 10 ! range of powers of 10 used for gradient test
 
-      INTEGER IZS(1),IZTRL(5)
-      REAL ZZSUNUSED(1)
+      integer :: izs(1),iztrl(5)
+      real    :: zzsunused(1)
 
       real*8,allocatable :: vazg(:)
       real*8,allocatable :: vazx(:)
@@ -236,12 +240,15 @@ CONTAINS
       real*8 :: zjsp, zxmin, zdf1, zeps0, zeps1
       real*8 :: dlgnorm, dlxnorm, zjotov
 
+      type(struct_gsv) :: statevector_incr
+
       integer fnom,fclos, remove_c
       external fnom,fclos
 
       real*8 :: zeps0_000,zdf1_000
       integer :: iterdone_000,isimdone_000
       character(len=128) :: clfname
+      character(len=9) :: clmsg
 
       if (lvarqc) call vqc_setup(obsSpaceData)
 
@@ -421,12 +428,12 @@ CONTAINS
           zeps0 = zeps1
           lvarqc = .true.
 
-          if (imode == 4 .and. itertot < itermax) then
+          if ((imode == 4 .or. imode == 1) .and. itertot < itermax) then
             imode = 2
             INDIC = 2
             call simvar(indic,nvadim_mpilocal,vazx,zjsp,vazg,dataptr_int(1))
           else
-            call utl_abort(" MINIMIZATION_MOD: qna_n1qn3 mode ne 4")
+            call utl_abort(" MINIMIZATION_MOD: qna_n1qn3 mode not equal to 1 or 4")
           endif
         endif
 
@@ -443,6 +450,7 @@ CONTAINS
         isimtot = isimtot + isimmax
 
         zeps1 = zeps0/zeps1
+
 
         WRITE(*,FMT=9500) imode,iterdone,itertot-iterdone,itertot,isimdone,isimtot-isimdone,isimtot
  9500   FORMAT(//,20X,20('*'),2X    &
@@ -467,6 +475,30 @@ CONTAINS
           dg_vbar(jdata) = vazx(jdata) + dg_vbar(jdata)
         enddo
 
+        ! Print some contents of obsSpaceData to the listing
+        do jdata = 1, min(1,obs_numHeader(obsSpaceData))
+          call obs_prnthdr(obsSpaceData,jdata)
+          call obs_prntbdy(obsSpaceData,jdata)
+        end do
+
+        ! get final increment
+        call min_getIncrement(vazx,columng,statevector_incr)
+
+        ! output the analysis increment
+        call tmg_start(6,'MIN_WRITEINCR')
+        call min_writeIncrement(statevector_incr)
+        call tmg_stop(6)
+        
+        if (mpi_myid == 0) then
+          clmsg = 'REBM_DONE'
+          call utl_writeStatus(clmsg)
+        end if
+
+        ! calculate OBS_OMA for diagnostic (i.e. non-assimilated) observations
+        call calc_OmA_diagnostic(statevector_incr,columng,obsSpaceData)
+
+        call gsv_deallocate(statevector_incr)
+
         ! Write out the Hessian to file
         if(lwrthess) then
           if(mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -475,17 +507,6 @@ CONTAINS
             iztrl,vatra,dg_vbar,vazx,.true.,llvazx,n1gc,imode)
           if(mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
         endif
-
-        ! Print some contents of obsSpaceData to the listing
-        do jdata = 1, min(1,obs_numHeader(obsSpaceData))
-          call obs_prnthdr(obsSpaceData,jdata)
-          call obs_prntbdy(obsSpaceData,jdata)
-        end do
-
-        ! output the analysis increment
-        call tmg_start(6,'MIN_WRITEINCR')
-        call min_writeIncrement(vazx,columng)
-        call tmg_stop(6)
 
       else
 
@@ -508,7 +529,6 @@ CONTAINS
       if(lvarqc) call vqc_listrej(obsSpaceData)
 
       ! deallocate the control vector related arrays
-      call bmat_finalize(vazx)
       deallocate(vazx)
       deallocate(vazg)
       deallocate(vatra)
@@ -518,29 +538,25 @@ CONTAINS
 
   END SUBROUTINE quasiNewtonMinimization
 
-  subroutine min_writeIncrement(incr_cv,columng)
+
+  subroutine min_getIncrement(incr_cv,columng,statevector_incr)
+
     implicit none
 
     ! arguments
-    real(8)                        :: incr_cv(:)
-    type(struct_columnData),target :: columng
+    real(8) :: incr_cv(:)
+    type(struct_columnData), target :: columng
+    type(struct_gsv) :: statevector_incr
     ! locals
-    integer              :: indexStep, dateStamp
-    real(8)              :: deltaHours
-    character(len=4)     :: coffset
-    character(len=2)     :: flnum
-    character(len=30)    :: fileName
-    type(struct_gsv)     :: statevector_incr
     type(struct_hco), pointer :: hco_anl
-
-    if(mpi_myid == 0) write(*,*) 'min_writeIncrement: STARTING'
+    type(struct_vco), pointer :: vco_anl
 
     ! initialize statevector_incr
-    hco_anl => hco_get('Analysis')
+    hco_anl => agd_getHco('Analysis')
+    vco_anl => col_getVco(columng)
 
-    call gsv_setVco(statevector_incr,col_getVco(columng))
-    call gsv_setHco(statevector_incr,hco_anl)
-    call gsv_allocate(statevector_incr,tim_nstepobsinc,datestamp=tim_getDatestamp(),mpi_local=.true.)
+    call gsv_allocate(statevector_incr, tim_nstepobsinc, hco_anl, vco_anl, &
+                      datestamp=tim_getDatestamp(), mpi_local=.true.)
 
     ! compute increment from control vector (multiply by B^1/2)
     call bmat_sqrtB(incr_cv, nvadim_mpilocal, statevector_incr)
@@ -565,6 +581,27 @@ CONTAINS
                           'LQtoHU_tlm' )       ! IN
     end if
 
+    ! Adjust and or transform chemical consituent concentration increments as needed.
+    ! This includes ensuring non-negative analysis values on the analysis/increment grid.
+    if (gsv_varKindExist('CH')) call chm_transform_final_increments(statevector_incr,hco_anl,vco_anl)
+
+  end subroutine min_getIncrement
+
+  subroutine min_writeIncrement(statevector_incr)
+
+    implicit none
+
+    ! arguments
+    type(struct_gsv)     :: statevector_incr
+    ! locals
+    integer              :: indexStep, dateStamp
+    real(8)              :: deltaHours
+    character(len=4)     :: coffset
+    character(len=2)     :: flnum
+    character(len=30)    :: fileName
+    
+    if(mpi_myid == 0) write(*,*) 'min_writeIncrement: STARTING'
+
     ! loop over times for which increment is computed
     do indexStep = 1, tim_nstepobsinc
 
@@ -583,8 +620,6 @@ CONTAINS
 
     enddo
 
-    call gsv_deallocate(statevector_incr)
-
   end subroutine min_writeIncrement
 
 
@@ -601,6 +636,7 @@ CONTAINS
     type(struct_gsv) :: statevector_ens(numAnalyses)
     type(struct_gsv) :: statevector_mean, statevector_incr, statevector_incr_perturbed, statevector_randpert
     type(struct_hco), pointer :: hco_anl
+    type(struct_vco), pointer :: vco_anl
     real(8), allocatable :: incr_cv(:)
     real(8)           :: scalefactor
     integer :: indexAnalysis,indexStep,cvdim_mpilocal
@@ -625,23 +661,20 @@ CONTAINS
     endif
 
     ! initialization
-    hco_anl => hco_get('Analysis')
+    hco_anl => agd_getHco('Analysis')
+    vco_anl => col_getVco(columng)
 
-    call gsv_setVco(statevector_mean,col_getVco(columng))
-    call gsv_setHco(statevector_mean,hco_anl)
-    call gsv_allocate(statevector_mean,tim_nstepobsinc,datestamp=tim_getDatestamp(),mpi_local=.true.)
+    call gsv_allocate(statevector_mean, tim_nstepobsinc, hco_anl, vco_anl, &
+                      datestamp=tim_getDatestamp(), mpi_local=.true.)
 
-    call gsv_setVco(statevector_incr,col_getVco(columng))
-    call gsv_setHco(statevector_incr,hco_anl)
-    call gsv_allocate(statevector_incr,tim_nstepobsinc,datestamp=tim_getDatestamp(),mpi_local=.true.)
+    call gsv_allocate(statevector_incr, tim_nstepobsinc, hco_anl, vco_anl, &
+                      datestamp=tim_getDatestamp(), mpi_local=.true.)
 
-    call gsv_setVco(statevector_incr_perturbed,col_getVco(columng))
-    call gsv_setHco(statevector_incr_perturbed,hco_anl)
-    call gsv_allocate(statevector_incr_perturbed,tim_nstepobsinc,datestamp=tim_getDatestamp(),mpi_local=.true.)
+    call gsv_allocate(statevector_incr_perturbed, tim_nstepobsinc, hco_anl, vco_anl, &
+                      datestamp=tim_getDatestamp(), mpi_local=.true.)
 
-    call gsv_setVco(statevector_randpert,col_getVco(columng))
-    call gsv_setHco(statevector_randpert,hco_anl)
-    call gsv_allocate(statevector_randpert,tim_nstepobsinc,datestamp=tim_getDatestamp(),mpi_local=.true.)
+    call gsv_allocate(statevector_randpert, tim_nstepobsinc, hco_anl, vco_anl, &
+                      datestamp=tim_getDatestamp(), mpi_local=.true.)
 
     ! allocate local arrays
     allocate(incr_cv(nvadim_mpilocal))
@@ -660,16 +693,14 @@ CONTAINS
       if(mpi_myid == 0) write(*,*) 'min_analysisPert: reading member #', indexAnalysis
       if(mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-      call gsv_setVco(statevector_ens(indexAnalysis),col_getVco(columng))
-      hco_anl => hco_get('Analysis')
-      call gsv_setHco(statevector_ens(indexAnalysis),hco_anl)
-      call gsv_allocate(statevector_ens(indexAnalysis),tim_nstepobsinc,datestamp=tim_getDatestamp(),mpi_local=.true.)
+      call gsv_allocate(statevector_ens(indexAnalysis), tim_nstepobsinc, hco_anl, vco_anl, &
+                        datestamp=tim_getDatestamp(), mpi_local=.true.)
 
       write(censnumber,'(i4.4)') indexAnalysis + (envar_loop-1)*numAnalyses
       fileName = trim(ensPathName) // '/' // datestr_last // hourstr_last // '_006_' // trim(censnumber)
       if(mpi_myid == 0) write(*,*) 'Reading from file: ', fileName
       do indexStep = 1, statevector_ens(indexAnalysis)%numStep
-        call gsv_readFromFile(statevector_ens(indexAnalysis),fileName,' ','P','ENSMEMBER',indexStep_in=indexStep)
+        call gsv_readFromFile(statevector_ens(indexAnalysis),fileName,' ','P',indexStep_in=indexStep)
       enddo
 
     enddo
@@ -680,7 +711,7 @@ CONTAINS
     do indexStep = 1, statevector_mean%numStep
       write(trialTimeIndex_str,'(i2.2)') indexStep
       fileName = './trlm_' // trim(trialTimeIndex_str)
-      call gsv_readFromFile(statevector_mean,fileName,' ','P','ENSMEMBER',indexStep_in=indexStep)
+      call gsv_readFromFile(statevector_mean,fileName,' ','P',indexStep_in=indexStep)
     enddo
 
     ! remove mean
@@ -845,6 +876,16 @@ CONTAINS
 
 
   subroutine calcRandomPert(statevector_randpert,numAnalyses,indexAnalysis)
+    !
+    ! Author:
+    ! Revisions:
+    !           Y. Rochon, ARQI, Oct 2016
+    !           - Added consideration of constituent fields (kind 'CH') without 
+    !             adding a new logical pertBchmOnly
+    !           - Loop over all fields instead of over 3D and 2D fields separately.
+    !             Prevents necessity of 2D fields being ordered after 3D fields for
+    !             constituents (i.e. related to icount index).
+    ! 
     implicit none
     type(struct_gsv) :: statevector_randpert
     integer :: numAnalyses, indexAnalysis
@@ -852,12 +893,13 @@ CONTAINS
     integer :: iseed,jj,nlev_T,nlev_M,jvar,jlev,indexAnalysis2
     real(8), allocatable :: cv_pert_mpiglobal(:), cv_pert_mpilocal(:)
     real(8), pointer :: cv_pert_bens_mpilocal(:), cv_pert_bhi_mpilocal(:), field(:,:,:,:)
-    real(8), allocatable :: scaleFactorBhi(:), stddev_orig(:), stddev_trunc(:)
+    real(8), pointer :: cv_pert_bchm_mpilocal(:)
+    real(8), allocatable :: scaleFactorBhi(:), stddev_orig(:), stddev_trunc(:),scaleFactorBchm(:,:)
     integer, allocatable :: countTrunc(:)
     logical, save :: firstTime = .true.
     real(8), allocatable, save :: scaleFactorTrunc(:)
     real(8), allocatable, save :: cv_pert_mean_mpilocal(:)
-    integer :: lon1, lon2, lat1, lat2
+    integer :: lon1, lon2, lat1, lat2, icount, nlev, nlevmax
 
     allocate(cv_pert_mpiglobal(cvm_nvadim_mpiglobal))
     allocate(cv_pert_mpilocal(cvm_nvadim))
@@ -906,8 +948,14 @@ CONTAINS
 
     ! do spectral truncation of control vector
     if(ntrunc_pert.gt.0) then
+      ! Check for weather field static covariances
       cv_pert_bhi_mpilocal => cvm_getSubVector(cv_pert_mpilocal,1)
-      call bhi_truncateCV(cv_pert_bhi_mpilocal,ntrunc_pert)
+      if (associated(cv_pert_bhi_mpilocal)) call bhi_truncateCV(cv_pert_bhi_mpilocal,ntrunc_pert)
+
+      ! Check for constituent field static covariances
+      cv_pert_bchm_mpilocal => cvm_getSubVector(cv_pert_mpilocal,3)
+      if (associated(cv_pert_bchm_mpilocal)) call bchm_truncateCV(cv_pert_bchm_mpilocal,ntrunc_pert)
+
     endif
 
     call bmat_sqrtB(cv_pert_mpilocal,cvm_nvadim,statevector_randpert)
@@ -924,35 +972,54 @@ CONTAINS
     lat1=statevector_randpert%myLatBeg
     lat2=statevector_randpert%myLatEnd
 
-    ! undo the Bhi scaleFactor
+    ! undo the Bhi (and Bchm) scaleFactor(s)
     if(pertBhiOnly) then
       nlev_T = gsv_getNumLev(statevector_randpert,'TH')
       nlev_M = gsv_getNumLev(statevector_randpert,'MM')
-      allocate(scaleFactorBhi(max(nLev_M,nLev_T)))
+      nlevmax=max(nlev_T,nlev_M)
+      allocate(scaleFactorBhi(nlevmax))
       call bhi_getScaleFactor(scaleFactorBhi)
-      ! for 3D variables
-      do jvar=1,vnl_numvarmax3D 
-        if(gsv_varExist(statevector_randpert,vnl_varNameList3D(jvar))) then
-          write(*,*) 'min_calcRandomPert: undo Bhi scaleFactor varname= ',vnl_varNameList3D(jvar)
-          field => gsv_getField_r8(statevector_randpert,vnl_varNameList3D(jvar))
-          do jlev = 1, gsv_getNumLev(statevector_randpert,vnl_varLevelFromVarname(vnl_varNameList3D(jvar)))   
-            if(scaleFactorBhi(jlev).gt.0.0d0) then
-              field(lon1:lon2,lat1:lat2,jlev,:)=field(lon1:lon2,lat1:lat2,jlev,:)/scaleFactorBhi(jlev)
-            endif
-          enddo
-        endif
-      enddo
-      ! for 2D variables
-      do jvar=1,vnl_numvarmax2D 
-        if(gsv_varExist(statevector_randpert,vnl_varNameList2D(jvar))) then
-          field => gsv_getField_r8(statevector_randpert,vnl_varNameList2D(jvar))
-          jlev = max(nLev_M,nLev_T)
-          if(scaleFactorBhi(jlev).gt.0.0d0) then
-            field(lon1:lon2,lat1:lat2,1,:)=field(lon1:lon2,lat1:lat2,1,:)/scaleFactorBhi(jlev)
-          endif
+      icount=0
+      do jvar=1,vnl_numvarmax 
+        if(gsv_varExist(statevector_randpert,vnl_varNameList(jvar))) then
+           field => gsv_getField_r8(statevector_randpert,vnl_varNameList(jvar))
+           nlev=gsv_getNumLev(statevector_randpert,vnl_varLevelFromVarname(vnl_varNameList(jvar))) 
+           if (vnl_varKindFromVarname(vnl_varNameList(jvar)).eq.'MT') then
+             write(*,*) 'min_calcRandomPert: undo Bhi scaleFactor varname= ',vnl_varNameList(jvar)
+             if (nlev.gt.1) then 
+                do jlev = 1,nlev 
+                  if(scaleFactorBhi(jlev).gt.0.0d0) then
+                    field(lon1:lon2,lat1:lat2,jlev,:)=field(lon1:lon2,lat1:lat2,jlev,:)/scaleFactorBhi(jlev)
+                  endif
+                enddo
+             else
+                if(scaleFactorBhi(nlevmax).gt.0.0d0) then
+                  field(lon1:lon2,lat1:lat2,1,:)=field(lon1:lon2,lat1:lat2,1,:)/scaleFactorBhi(nlevmax)
+                endif
+             end if
+           else if (vnl_varKindFromVarname(vnl_varNameList(jvar)).eq.'CH') then
+             if (icount.eq.0) then
+                allocate(scaleFactorBchm(nlevmax,100))
+                call bchm_getScaleFactor(scaleFactorBchm)
+             end if
+             icount=icount+1
+             write(*,*) 'min_calcRandomPert: undo Bchm scaleFactor varname= ',vnl_varNameList(jvar)
+             if (nlev.gt.1) then 
+                do jlev = 1,nlev  
+                  if(scaleFactorBchm(jlev,icount).gt.0.0d0) then
+                    field(lon1:lon2,lat1:lat2,jlev,:)=field(lon1:lon2,lat1:lat2,jlev,:)/scaleFactorBChm(jlev,icount)
+                  endif
+                enddo
+             else 
+                if(scaleFactorBchm(1,icount).gt.0.0d0) then
+                   field(lon1:lon2,lat1:lat2,1,:)=field(lon1:lon2,lat1:lat2,1,:)/scaleFactorBChm(1,icount)
+                endif
+             end if
+           endif
         endif
       enddo
       deallocate(scaleFactorBhi)
+      if (icount.gt.0) deallocate(scaleFactorBchm)
     endif
 
     ! apply additional scaling of random perturbation (initially only for UU, VV)
@@ -1007,6 +1074,7 @@ CONTAINS
     type(struct_obs),pointer :: obsSpaceData
     type(struct_columnData),pointer :: column,columng
     type(struct_hco), pointer :: hco_anl
+    type(struct_vco), pointer :: vco_anl
 
     ! Convert the integer array dataptr_int back into a pointer to the obsSpaceData
     dataptr=transfer(dataptr_int(1:dataptr_int_size),dataptr)
@@ -1035,10 +1103,10 @@ CONTAINS
        call mpi_allreduce_sumreal8scalar(dl_Jb,"GRID")
        call tmg_stop(89)
 
-       call gsv_setVco(statevector,col_getVco(columng))
-       hco_anl => hco_get('Analysis')
-       call gsv_setHco(statevector,hco_anl)
-       call gsv_allocate(statevector,tim_nstepobsinc,mpi_local=.true.)
+       hco_anl => agd_getHco('Analysis')
+       vco_anl => col_getVco(columng)
+       call gsv_allocate(statevector, tim_nstepobsinc, hco_anl, vco_anl, &
+                         mpi_local=.true.)
 
        call bmat_sqrtB(da_v,nvadim_mpilocal,statevector)
 
@@ -1539,6 +1607,55 @@ CONTAINS
 9201 format(2X,'GRTEST: step',2X,I3,4X,G23.16,4X,G23.16,4X,&
           G23.16)
   return
-end subroutine grtest2
+  end subroutine grtest2
+
+!--------------------------------------------------------------------------
+!! *Purpose*: Calculates the OmA for diagnostic (i.e. valid but non-assimilated)
+!!            observations.
+!!
+!! @author M. Sitwell Sept 2015
+!--------------------------------------------------------------------------
+  subroutine calc_OmA_diagnostic(statevector_incr,columng,obsSpaceData)
+    
+    implicit none
+    
+    type(struct_gsv), intent(inout) :: statevector_incr
+    type(struct_columnData), intent(inout) :: columng
+    type(struct_obs), intent(inout) :: obsSpaceData
+
+    type(struct_columnData) :: column
+    integer :: bodyIndex,headerIndex,ierr
+    logical :: calc_OmA,calc_OmA_global
+    
+    ! Check for the presence of diagnostic only observations
+    calc_OmA = .false.
+    call obs_set_current_body_list(obsSpaceData)
+    BODY: do
+       bodyIndex = obs_getBodyIndex(obsSpaceData)
+       if (bodyIndex < 0) exit BODY
+       if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex).eq.3) then
+          calc_OmA = .true.
+          exit BODY
+       end if
+    end do BODY
+
+    call rpn_comm_allreduce(calc_OmA,calc_OmA_global,1,"MPI_LOGICAL","MPI_LOR","GRID",ierr)
+    if (.not.calc_OmA_global) return
+       
+    ! Initialize columnData object for increment
+    call col_setVco(column,col_getVco(columng))
+    call col_allocate(column,col_getNumCol(columng),mpi_local=.true.)
+    call col_copyLatLon(columng,column)
+    
+    ! Put H_horiz dx in column
+    call s2c_tl(statevector_incr,column,columng,obsSpaceData)
+    
+    ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
+    call oop_Htl(column,columng,obsSpaceData,min_nsim,obs_ass_flag=3)
+       
+    ! Calculate OBS_OMA from OBS_WORK : d-Hdx
+    call res_compute(obsSpaceData,obs_ass_flag=3)
+
+  end subroutine calc_OmA_diagnostic
 
 END MODULE minimization_mod

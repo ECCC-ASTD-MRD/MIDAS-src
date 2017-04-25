@@ -32,7 +32,7 @@ module HorizontalCoord_mod
   public :: struct_hco
 
   ! Public Subroutines
-  public :: hco_SetupFromFile, hco_Get, hco_equal
+  public :: hco_SetupFromFile, hco_equal
 
 
   type :: struct_hco
@@ -58,19 +58,15 @@ module HorizontalCoord_mod
      real(8)              :: xlon2
   end type struct_hco
 
-  integer, parameter :: nMaxGrid = 10
-  type(struct_hco), target :: hco(nMaxGrid)
-
-  integer :: nGrid = 0
-
   contains
 
 !--------------------------------------------------------------------------
 ! hco_SetupFromFile
 !--------------------------------------------------------------------------
-  subroutine hco_SetupFromFile(TemplateFile, EtiketName, GridName)
+  subroutine hco_SetupFromFile(hco, TemplateFile, EtiketName, GridName)
     implicit none
 
+    type(struct_hco), pointer    :: hco
     character(len=*), intent(in) :: TemplateFile
     character(len=*), intent(in) :: EtiketName
     character(len=*), intent(in) :: GridName
@@ -100,13 +96,15 @@ module HorizontalCoord_mod
     character(len=1 ) :: grtyp, grtyp_tictac
     character(len=12) :: etiket
 
-    nGrid = nGrid + 1
+    if( .not.associated(hco) ) then
+      allocate(hco)
+    endif
 
-    if ( nGrid > nMaxGrid ) then
-      write(*,*)
-      write(*,*) 'hco_SetupFromFile: Too many grid coordinates!', nMaxGrid
-      call utl_abort('hco_setupFromFile')
-    end if
+    if( hco%initialized ) then
+      write(*,*) 'hco_setupFromFile: this hco object already initialized, first deallocating it.'
+      call hco_deallocate( hco )
+      allocate(hco)
+    endif
 
     !
     !- 1.  Open/Check template file
@@ -318,29 +316,29 @@ module HorizontalCoord_mod
     !
     !- 3.  Initialized Horizontal Grid Structure
     !
-    allocate(hco(nGrid) % lat(1:nj))
-    allocate(hco(nGrid) % lon(1:ni))
+    allocate(hco % lat(1:nj))
+    allocate(hco % lon(1:ni))
 
-    hco(nGrid) % gridname     = trim(gridname)
-    hco(nGrid) % ni           = ni
-    hco(nGrid) % nj           = nj
-    hco(nGrid) % grtyp        = trim(grtyp) 
-    hco(nGrid) % ig1          = ig1
-    hco(nGrid) % ig2          = ig2
-    hco(nGrid) % ig3          = ig3
-    hco(nGrid) % ig4          = ig4
-    hco(nGrid) % EZscintID    = EZscintID
-    hco(nGrid) % lon(:)       = lon_8(:) * MPC_RADIANS_PER_DEGREE_R8
-    hco(nGrid) % lat(:)       = lat_8(:) * MPC_RADIANS_PER_DEGREE_R8
-    hco(nGrid) % dlon         = (lon_8(2) - lon_8(1)) * MPC_RADIANS_PER_DEGREE_R8
-    hco(nGrid) % dlat         = (lat_8(2) - lat_8(1)) * MPC_RADIANS_PER_DEGREE_R8
-    hco(nGrid) % global       = global
-    hco(nGrid) % rotated      = rotated
-    hco(nGrid) % xlat1        = real(xlat1_4,8)
-    hco(nGrid) % xlon1        = real(xlon1_4,8)
-    hco(nGrid) % xlat2        = real(xlat2_4,8)
-    hco(nGrid) % xlon2        = real(xlon2_4,8)
-    hco(nGrid) % initialized  = .true.
+    hco % gridname     = trim(gridname)
+    hco % ni           = ni
+    hco % nj           = nj
+    hco % grtyp        = trim(grtyp) 
+    hco % ig1          = ig1
+    hco % ig2          = ig2
+    hco % ig3          = ig3
+    hco % ig4          = ig4
+    hco % EZscintID    = EZscintID
+    hco % lon(:)       = lon_8(:) * MPC_RADIANS_PER_DEGREE_R8
+    hco % lat(:)       = lat_8(:) * MPC_RADIANS_PER_DEGREE_R8
+    hco % dlon         = (lon_8(2) - lon_8(1)) * MPC_RADIANS_PER_DEGREE_R8
+    hco % dlat         = (lat_8(2) - lat_8(1)) * MPC_RADIANS_PER_DEGREE_R8
+    hco % global       = global
+    hco % rotated      = rotated
+    hco % xlat1        = real(xlat1_4,8)
+    hco % xlon1        = real(xlon1_4,8)
+    hco % xlat2        = real(xlat2_4,8)
+    hco % xlon2        = real(xlon2_4,8)
+    hco % initialized  = .true.
 
     deallocate(lat_8)
     deallocate(lon_8)
@@ -352,62 +350,6 @@ module HorizontalCoord_mod
     ier = fclos (iu_template)
 
   end subroutine hco_SetupFromFile
-
-!--------------------------------------------------------------------------
-! hco_Get
-!--------------------------------------------------------------------------
-  function hco_Get(gridname) result(hco_ptr)
-    implicit none
-
-    type(struct_hco), pointer     :: hco_ptr
-    character(len=*), intent(in)  :: gridname
-
-    integer :: id, gridid
-
-    call hco_GetGridIndex(gridid, gridname)
-
-    if(gridid.lt.0) then
-      hco_ptr => null()
-    else 
-      hco_ptr => hco(gridid)
-    endif
-
-  end function hco_Get
-
-!--------------------------------------------------------------------------
-! hco_GetGridIndex
-!--------------------------------------------------------------------------
-  subroutine hco_GetGridIndex(GridIndex, gridname)
-    implicit none
-
-    integer,          intent(out) :: gridindex
-    character(len=*), intent(in)  :: gridname
-
-    integer :: id, gridid
-
-    if ( nGrid == 0 ) then
-      write(*,*)
-      write(*,*) 'hco_GetGridIndex: no grids defined yet, returning -1'
-      gridindex = -1
-    endif
-
-    gridid = -1
-    do id = 1, nGrid
-      if ( trim(hco(id) % gridname) == trim(gridname) ) then
-        gridid = id
-        exit
-      end if
-    end do
-
-    if ( gridid /= -1 ) then
-      gridindex = gridid
-    else
-      write(*,*)
-      write(*,*) 'hco_GetGridIndex: Unknown Grid ', trim(gridname), ' returning -1'
-      gridindex = -1
-    end if
-
-  end subroutine hco_GetGridIndex
 
 !--------------------------------------------------------------------------
 ! Global_or_lam
@@ -450,6 +392,7 @@ module HorizontalCoord_mod
     end if
 
   end subroutine global_or_lam
+
 
   function hco_equal(hco1, hco2) result(equal)
     implicit none
@@ -503,5 +446,17 @@ module HorizontalCoord_mod
     endif
 
   end function hco_equal
+
+
+  subroutine hco_deallocate( hco )
+    implicit none
+    type(struct_hco), pointer :: hco
+
+    deallocate(hco % lat)
+    deallocate(hco % lon)
+    deallocate(hco)
+    nullify(hco)
+
+  end subroutine hco_deallocate
 
 end module HorizontalCoord_mod

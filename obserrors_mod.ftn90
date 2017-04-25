@@ -24,6 +24,8 @@ module obsErrors_mod
   use MathPhysConstants_mod
   use obsSpaceData_mod
   use tovs_nl_mod
+  use chem_obserrors_mod
+  use codtyp_mod
   use bufr
   use utilities_mod
   use EarthConstants_mod
@@ -95,6 +97,9 @@ contains
     !
     ! Author  : S. Laroche  February 2014
     ! Revision: 
+    !          Y. Rochon, M. Sitwell and P. Du, March 2017
+    !          - Added calls to chm_read_obs_err_stddev and
+    !            chm_dealloc_obs_err_stddev
     !
     ! Purpose: read and set observation errors (from former sucovo subroutine).
     !
@@ -122,10 +127,23 @@ contains
     end if
 
     !
+    ! Read in the observation stddev error for constituent data
+    !
+    if (obs_famexist(lobsSpaceData,'CH')) then
+       call chm_read_obs_err_stddev
+    else
+       write(*,*) "oer_setObsErrors: No CH observations found."
+    end if
+  
+    !
     ! Set obs error information in obsSpaceData object
     !
     call fill_obs_erreurs(lobsSpaceData)
 
+    !
+    ! Deallocate temporary storage
+    !
+    if (obs_famExist(lobsspaceData,'CH')) call chm_dealloc_obs_err_stddev
 
   end subroutine oer_setObsErrors
 
@@ -571,12 +589,18 @@ contains
     ! s/r fill_obs_erreurs -FILL OBSERVATION ERRORS IN lobsSpaceData
     !
     ! Author  : S. Laroche  February 2014
-    ! Revision: 
-    !          
     !
+    ! Revision: 
+    !           Y. Rochon and M. Sitwell, ARQI/AQRD, Nov 2014 - Feb 2015
+    !           - Added consideration of 'CH' family
+    !           - Removal of 'OZ' family
+    !           - Added availability of CSTNID, obs_err_stddev
+    !           M. Sitwell, ARQI/AQRD, Apr 2015 
+    !           - Added IDATE and ITIME
+    !         
     ! Purpose: read observation errors (modification of former readcovo subroutine).
     !
-    !
+    !--------------------------------------------------------------------------------------
 
     implicit none
 
@@ -584,10 +608,13 @@ contains
 
     integer :: JN, JI, INDEX_BODY, INDEX_HEADER, ITYP, IFLG, IASS, IDATA, IDATEND, IDBURP
     integer :: ISAT, ICHN, IPLATF, INSTR, IPLATFORM, INSTRUM
-    integer :: ielem,icodtyp
-    real(8) :: ZLAT, ZLON, ZLEV, ZVAL, zwb, zwt
+    integer :: ILEV,ISTNID,JINT,NLEV,IDATE,ITIME
+    integer :: ielem,icodtyp,header_prev
+    real(8) :: ZLAT, ZLON, ZLEV, ZVAL, zwb, zwt, obs_err_stddev
+    logical :: IFIRST
 
     CHARACTER(len=2) :: CFAM
+    CHARACTER(len=12) :: CSTNID
 
     !
     !     ========================================================================== 
@@ -612,7 +639,12 @@ contains
        IDBURP  = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
        IPLATF  = obs_headElem_i(lobsSpaceData,OBS_SAT,INDEX_HEADER)
        INSTR   = obs_headElem_i(lobsSpaceData,OBS_INS,INDEX_HEADER)
-
+       CSTNID  = obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER)
+       IDATE  = obs_headElem_i(lobsSpaceData,OBS_DAT,INDEX_HEADER) 
+       ITIME  = obs_headElem_i(lobsSpaceData,OBS_ETM,INDEX_HEADER)
+       
+       NLEV = IDATEND-IDATA+1
+       
        DO INDEX_BODY  = IDATA, IDATEND
 
           ITYP  = obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
@@ -637,9 +669,9 @@ contains
                    CALL tvs_mapInstrum(INSTR,INSTRUM)
 
                    DO JN = 1, tvs_nsensors
-                      IF ( IPLATFORM .EQ.   tvs_platforms(JN) .AND. &
-                           ISAT .EQ.  tvs_satellites(JN) .AND. &
-                           INSTRUM .EQ. tvs_instruments(JN)      ) THEN
+                      IF ( IPLATFORM ==  tvs_platforms(JN)  .AND. &
+                           ISAT      ==  tvs_satellites(JN) .AND. &
+                           INSTRUM   == tvs_instruments(JN)      ) THEN
                          call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,TOVERRST(ICHN,JN))
                       ENDIF
                    ENDDO
@@ -838,16 +870,12 @@ contains
                 ENDIF
 
                 !***********************************************************************
-                !        SCATTEROMETER, OZONE, WIND PROFILER DATA
+                !        SCATTEROMETER, WIND PROFILER DATA
                 !***********************************************************************
 
              ELSE IF ( CFAM .EQ. 'SC' ) THEN
 
                 call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,xstd_sc(1))
-
-             ELSE IF ( CFAM .EQ. 'OZ' ) THEN
-
-                call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,0.6D0*obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY))
 
              ELSE IF ( CFAM .EQ. 'PR' ) THEN
 
@@ -858,6 +886,41 @@ contains
                 ELSE
                    call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,xstd_pr(1))
                 ENDIF
+              
+                !***********************************************************************
+                !               CONSTITUENT DATA (OZONE AND OTHER CHEMICALS)
+                !***********************************************************************
+
+             ELSE IF ( CFAM .EQ. 'CH' ) THEN
+
+                !        Process only retrieved constituent data
+                !        Also, exclude BUFR_SCALE_EXPONENT element as a data value!
+               
+                if (idburp.eq.codtyp_get_codtyp('CHEMREMOTE').or.idburp.eq.codtyp_get_codtyp('CHEMINSITU')) then
+
+                  ifirst = index_header.ne.header_prev
+                  if (ifirst) then
+                     header_prev = index_header
+                 
+                     ! Subtract the number of occurences of code BUFR_SCALE_EXPONENT from number of levels
+                     do ji=0,nlev-1
+                        if (obs_bodyElem_i(lobsSpaceData,OBS_VNM,IDATA+ji).eq.BUFR_SCALE_EXPONENT) then
+                           nlev = nlev-1
+                        end if
+                     end do
+                  end if
+              
+                  ZLEV   = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
+
+                  ilev = 0
+                  do ji=IDATA,INDEX_BODY
+                     if (obs_bodyElem_i(lobsSpaceData,OBS_VNM,ji).ne.BUFR_SCALE_EXPONENT) ilev = ilev+1
+                  end do
+
+                  obs_err_stddev = chm_get_obs_err_stddev(CSTNID,NLEV,ITYP,ZLAT,ZLON,IDATE,ITIME,ZVAL,ZLEV,ILEV,IFIRST)
+                  call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY, obs_err_stddev)
+              
+                end if
 
              ELSE
 

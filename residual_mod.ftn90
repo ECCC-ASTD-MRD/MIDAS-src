@@ -31,47 +31,72 @@ module residual_mod
 
 contains
 
-  !--------------------------------------------------------------------------
-  ! res_compute
-  !--------------------------------------------------------------------------
-  SUBROUTINE res_compute(lobsSpaceData)
+!--------------------------------------------------------------------------
+!! *Purpose*: Computes residual of observation - analysis from Hdx.
+!!
+!! Input
+!!
+!!v     OBS_WORK        observation increment Hdx
+!!v     OBS_OMP         innovation
+!!
+!! Output
+!!
+!!v     OBS_OMA         observation - analysis
+!!
+!! Revisions:
+!!v      M. Sitwell, March 2017
+!!v        - Added optional input argument obs_ass_flag
+!--------------------------------------------------------------------------
+  SUBROUTINE res_compute(obsSpaceData,obs_ass_flag)
     use obsSpaceData_mod
     implicit none
-    !
-    !Compute residuals to observations for assimilated and diagnosed data
-    !  Calculate the residuals from Hdx :
-    !    OBS_WORK contains Hdx as input
-    !    OBS_OMA contains the residuals as output
 
-    type(struct_obs) :: lobsSpaceData 
-    integer index_body,iass
+    type(struct_obs) :: obsSpaceData 
+    integer, intent(in), optional :: obs_ass_flag
+    integer index_body,obs_ass_val
 
-!$OMP PARALLEL DO PRIVATE(index_body,iass)
-    do index_body=1,obs_numbody(lobsSpaceData)
-       iass = obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body)
-       if(iass.eq.1 .or. iass.eq.-1) then
-          call obs_bodySet_r(lobsSpaceData,OBS_OMA,index_body, &
-               obs_bodyElem_r(lobsSpaceData,OBS_OMP,index_body) &
-               -obs_bodyElem_r(lobsSpaceData,OBS_WORK,index_body))
+    if (present(obs_ass_flag)) then
+       obs_ass_val = obs_ass_flag
+    else
+       obs_ass_val = 1
+    end if
+
+!$OMP PARALLEL DO PRIVATE(index_body)
+    do index_body=1,obs_numbody(obsSpaceData)
+       if(obs_bodyElem_i(obsSpaceData,OBS_ASS,index_body).eq.obs_ass_val) then
+          call obs_bodySet_r(obsSpaceData,OBS_OMA,index_body, &
+               obs_bodyElem_r(obsSpaceData,OBS_OMP,index_body) &
+               -obs_bodyElem_r(obsSpaceData,OBS_WORK,index_body))
        end if
     end do
 !$OMP END PARALLEL DO
 
   END SUBROUTINE res_compute
 
-  SUBROUTINE res_computeAd(obsSpaceData)
+!--------------------------------------------------------------------------
+!! *Purpose*: Adjoint of computing residuals to observations.
+!!            OBS_WORK contains input and output.
+!!
+!! Revisions:
+!!v      M. Sitwell, March 2017
+!!v        - Added optional input argument obs_ass_flag
+!--------------------------------------------------------------------------
+  SUBROUTINE res_computeAd(obsSpaceData,obs_ass_flag)
     implicit none
 
-    !Adjoint of computing residuals to observations for assimilated and diagnosed data
-    !    OBS_WORK contains input and output
+    type(struct_obs) :: obsSpaceData
+    integer, intent(in), optional :: obs_ass_flag
+    integer index_body,obs_ass_val
+    
+    if (present(obs_ass_flag)) then
+       obs_ass_val = obs_ass_flag
+    else
+       obs_ass_val = 1
+    end if
 
-    type(struct_obs) :: obsSpaceData 
-    integer index_body,iass
-
-!$OMP PARALLEL DO PRIVATE(index_body,iass)
+!$OMP PARALLEL DO PRIVATE(index_body)
     do index_body=1,obs_numbody(obsSpaceData)
-       iass = obs_bodyElem_i(obsSpaceData,OBS_ASS,index_body)
-       if(iass.eq.1 .or. iass.eq.-1) then
+       if(obs_bodyElem_i(obsSpaceData,OBS_ASS,index_body).eq.obs_ass_val) then
           call obs_bodySet_r(obsSpaceData,OBS_WORK,index_body, &
                -obs_bodyElem_r(obsSpaceData,OBS_WORK,index_body))
        endif

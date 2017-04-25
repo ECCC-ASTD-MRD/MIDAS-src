@@ -182,7 +182,7 @@ if [ "${mode}" == full ] ; then
   # Compile the subroutines...
   echo "... > Compiling low-level independent modules"
   echo "...   if aborting, check in ${PWD}/listing1"
-  SRC0="utilities_mod.ftn90 toplevelcontrol_mod.ftn90 randomnumber_mod.ftn90"
+  SRC0="tovs_extrap_mod.ftn90 utilities_mod.ftn90 toplevelcontrol_mod.ftn90 randomnumber_mod.ftn90"
   SRC0="$SRC0 mathphysconstants_mod.ftn90 earthconstants_mod.ftn90 mpi_mod.ftn90 mpivar_mod.ftn90 bufr_mod.ftn90 codtyp_mod.ftn90"
   SRC0="$SRC0 physicsfunctions_mod.ftn90 obsspacedata_mod.ftn90 localizationfunction_mod.ftn90"
   SRC0="$SRC0 horizontalcoord_mod.ftn90 timecoord_mod.ftn90 verticalcoord_mod.ftn90"
@@ -209,7 +209,7 @@ if [ "${mode}" == full ] ; then
 
   echo "... > Compiling analysis grid modules"
   echo "...   if aborting, check in ${PWD}/listing2"
-  SRC0="windrotation_mod.ftn90 lamanalysisgrid_mod.ftn90"
+  SRC0="windrotation_mod.ftn90 analysisgrid_mod.ftn90"
   s.compile $COMPF  -O ${FOPTMIZ} -src $SRC0 > listing2 2>&1
   status=1
   grep fail listing2 || status=0
@@ -220,13 +220,12 @@ if [ "${mode}" == full ] ; then
 
   echo "... > Compiling most of the new modules"
   echo "...   if aborting, check in ${PWD}/listing3"
-  SRC1="controlvector_mod.ftn90 rmatrix_mod.ftn90 hirchannels_mod.ftn90 tovs_nl_mod.ftn90"
-  SRC1="$SRC1 tovs_lin_mod.ftn90 varnamelist_mod.ftn90 columndata_mod.ftn90 multi_ir_bgck_mod.ftn90"
+  SRC1="obssubspacedata_mod.ftn90 controlvector_mod.ftn90 rmatrix_mod.ftn90 hirchannels_mod.ftn90 "
+  SRC1="$SRC1 varnamelist_mod.ftn90 columndata_mod.ftn90 ozoneclim_mod.ftn90 tovs_nl_mod.ftn90 multi_ir_bgck_mod.ftn90"
   SRC1="$SRC1 globalspectraltransform_mod.ftn90 tt2phi_mod.ftn90"
   SRC1="$SRC1 lamspectraltransform_mod.ftn90 gridstatevector_mod.ftn90 statetocolumn_mod.ftn90 variabletransforms_mod.ftn90"
-  SRC1="$SRC1 bmatrixensemble_mod.ftn90 bmatrixhi_mod.ftn90 lambmatrixhi_mod.ftn90"
+  SRC1="$SRC1 bmatrixchem_mod.ftn90 bmatrixensemble_mod.ftn90 bmatrixhi_mod.ftn90 lambmatrixhi_mod.ftn90"
   SRC1="$SRC1 bmatrix_mod.ftn90 residual_mod.ftn90 costfunction_mod.ftn90"
-  SRC1="$SRC1 ozoneclim_mod.ftn90 tovs_extrap_mod.ftn90"
 
   s.compile $COMPF  -O ${FOPTMIZ} -src $SRC1 > listing3 2>&1
   status=1
@@ -260,8 +259,8 @@ if [ "${mode}" == full ] ; then
 
   echo "... > Compiling some more modules..."
   echo "...   if aborting, check in ${PWD}/listing6"
-  SRC2="obserrors_mod.ftn90 varqc_mod.ftn90 obsfilter_mod.ftn90 obsoperators_mod.ftn90 obsspacediag_mod.ftn90 burpfiles_mod.ftn90 innovation_mod.ftn90"
-  SRC2="$SRC2 minimization_mod.ftn90"
+  SRC2="burpfiles_mod.ftn90 chem_obserrors_mod.ftn90 obserrors_mod.ftn90 varqc_mod.ftn90 chem_setup_mod.ftn90 obsfilter_mod.ftn90 tovs_lin_mod.ftn90 chem_obsoperators_mod.ftn90 obsoperators_mod.ftn90 obsspacediag_mod.ftn90  innovation_mod.ftn90"
+  SRC2="$SRC2 chem_postproc_mod.ftn90 minimization_mod.ftn90"
   s.compile $COMPF  -O ${FOPTMIZ} -src $SRC2 > listing6 2>&1
   status=1
   grep fail listing6 || status=0

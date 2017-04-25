@@ -23,26 +23,35 @@
 program main_var
 
   use topLevelControl_mod
+  use utilities_mod
   use mpivar_mod
+  use MathPhysConstants_mod
+  use horizontalCoord_mod
+  use verticalCoord_mod
+  use timeCoord_mod
   use obsSpaceData_mod
   use columnData_mod  
+  use gridStateVector_mod
   use obsSpaceDiag_mod
   use controlVector_mod
+  use burpFiles_mod
   use obsFilter_mod  
   use minimization_mod
-  use burpFiles_mod
-  use utilities_mod
   use innovation_mod
-
+  use WindRotation_mod
+  use minimization_mod
+  use analysisGrid_mod
+  use bmatrix_mod
+  use tovs_nl_mod
+  use obserrors_mod
+  use variableTransforms_mod
   implicit none
+
   integer :: istamp,exdb,exfin
   character(len=9) :: clmsg
   integer :: ierr
   type(struct_obs),target :: obsSpaceData
   type(struct_columnData),target :: columng,columnhr
-  type(struct_vco),pointer :: vco_anl => NULL()
-  type(struct_vco),pointer :: vco_trl => NULL()
-
   character(len=48) :: obsMpiStrategy
 
   istamp = exdb('OAVAR','DEBUT','NON')
@@ -166,13 +175,12 @@ program main_var
     ! Do minimization of cost function
     call min_minimize(columng,obsSpaceData)
 
-    ! Compute obs-space diagnostics (only does computation if NAMOSD present in flnml)
-    call osd_calcInflation(obsSpaceData,columng)
+    ! Conduct obs-space post-processing diagnostic tasks (some diagnostic 
+    ! computations controlled by NAMOSD namelist in flnml)
+    call osd_ObsSpaceDiag(obsSpaceData,columng)
 
-    if (mpi_myid == 0) then
-       clmsg = 'REBM_DONE'
-       call utl_writeStatus(clmsg)
-    end if
+    ! Deallocate memory related to B matrices
+    call bmat_finalize()
 
     ! Now write out the observation data files
     if(min_niter.gt.0) call burp_updateFiles(obsSpaceData)
@@ -205,38 +213,25 @@ contains
 
   !--------------------------------------------------------------------------
   !! *Purpose*: Control of the preprocessing of the variational assimilation
+  !!
+  !! Revisions:
+  !!           Y.J. Rochon, Jan 2016
+  !!           - Addition of test on availability of input trial fields according
+  !!             to related observation families.
   !--------------------------------------------------------------------------
   subroutine var_setup(lcolumng,lcolumnhr,lobsSpaceData, &
        obsColumnMode, obsMpiStrategy)
-    use topLevelControl_mod
-    use mpivar_mod
-    use MathPhysConstants_mod
-    use horizontalCoord_mod
-    use timeCoord_mod
-    use WindRotation_mod
-    use obsSpaceData_mod
-    use controlVector_mod
-    use gridStateVector_mod
-    use minimization_mod
-    use columndata_mod
-    use LamAnalysisGrid_mod
-    use bmatrix_mod
-    use tovs_nl_mod
-    use burpFiles_mod
-    use obserrors_mod
-    use variableTransforms_mod
-    use verticalCoord_mod
-    IMPLICIT NONE
+    implicit none
 
     type(struct_obs) :: lobsSpaceData
     type(struct_columnData) :: lcolumng,lcolumnhr
     character (len=*) :: obsColumnMode
     character (len=*) :: obsMpiStrategy
     integer :: datestamp
-
-    type(struct_vco), pointer :: vco_anl => null()
-    type(struct_vco), pointer :: vco_trl => null()
-    type(struct_hco), pointer  :: hco_anl
+    type(struct_vco),pointer :: vco_anl => null()
+    type(struct_vco),pointer :: vco_trl => null()
+    type(struct_hco),pointer :: hco_anl => null()
+    type(struct_hco),pointer :: hco_core => null()
 
     integer :: get_max_rss
 
@@ -281,14 +276,15 @@ contains
     !
     if(mpi_myid.eq.0) write(*,*)''
     if(mpi_myid.eq.0) write(*,*)' preproc: Set hco parameters for analysis grid'
-    call hco_SetupFromFile( './analysisgrid', 'ANALYSIS', 'Analysis' ) ! IN
-    hco_anl => hco_Get('Analysis')
+    call hco_SetupFromFile(hco_anl, './analysisgrid', 'ANALYSIS', 'Analysis' ) ! IN
 
-    if ( .not. hco_anl % global ) then
+    if ( hco_anl % global ) then
+       call agd_SetupFromHCO( hco_anl ) ! IN
+    else
        !- Iniatilized the core (Non-Exteded) analysis grid
-       call hco_SetupFromFile( './analysisgrid', 'COREGRID', 'AnalysisCore' ) ! IN
+       call hco_SetupFromFile( hco_core, './analysisgrid', 'COREGRID', 'AnalysisCore' ) ! IN
        !- Setup the LAM analysis grid metrics
-       call lag_SetupFromHCO( 'Analysis', 'AnalysisCore' ) ! IN
+       call agd_SetupFromHCO( hco_anl, hco_core ) ! IN
     end if
 
     if ( hco_anl % rotated ) then
@@ -308,6 +304,28 @@ contains
     !- Setup and read observations
     !
     call inn_setupObs(lobsSpaceData,obsColumnMode,obsMpiStrategy)
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+    !
+    !- Test availability of all "minimum" required model weather fields given
+    !  presented observation families. 'P0' must always be present
+    !  and an abort would have occured prior to this point if it was not present.
+    !  Requirements beyond the minimum set to be tested where needed.
+    !
+    if ( obs_famExist(lobsSpaceData,'UA').or.obs_famExist(lobsSpaceData,'AI').or.obs_famExist(lobsSpaceData,'SW').or. &
+         obs_famExist(lobsSpaceData,'SF').or.obs_famExist(lobsSpaceData,'RO').or.obs_famExist(lobsSpaceData,'SC').or. &
+         obs_famExist(lobsSpaceData,'GP').or.obs_famExist(lobsSpaceData,'PR') ) then
+       ! Not all following fields required for some of the above families.
+       if (.not.(gsv_varExist(varName='TT').and.gsv_varExist(varName='UU').and.gsv_varExist(varName='VV') &
+            .and.gsv_varExist(varName='HU').and.gsv_varExist(varName='P0').and.gsv_varExist(varName='TG')) ) then
+          call utl_abort(' preproc: One or more missing weather field in NAMSTATE')
+       end if
+    else if (obs_famExist(lobsSpaceData,'TO') .and. .not.gsv_varExist(varName='TT')) then
+       ! Minimum requirement for 'TO' in the absence of assimilation of other weather-related families.
+       ! This minimum requirement is for when only constituent (non-H2O) increments are to be produced
+       ! when TO obs are provided.
+       call utl_abort(' preproc: TT missing in NAMSTATE')
+    end if
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     !

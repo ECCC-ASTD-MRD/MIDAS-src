@@ -38,7 +38,7 @@ MODULE globalSpectralTransform_mod
             gst_ilaList_mpilocal, gst_ilaList_mpiglobal, gst_nList_mpilocal
   ! public functions
   public :: gst_getRmu, gst_getRwt, gst_getnind, gst_getrlati, gst_getr1qm2, gst_getrsqm2, &
-            gst_getrnnp1, gst_getr1snp1
+            gst_getrnnp1, gst_getr1snp1, gst_getzleg, gst_getNla
 
 
   type  :: T_gst
@@ -120,6 +120,23 @@ CONTAINS
     gstID = gstIdDefault
 
   END SUBROUTINE GST_setToDefaultID
+
+
+  integer FUNCTION GST_getNla(gstID_in)
+    implicit none
+
+    integer :: gstID_l
+    integer,optional :: gstID_in
+
+    if(present(gstID_in)) then
+      gstID_l = gstID_in
+    else
+      gstID_l = gstIdDefault
+    endif
+
+    gst_getNla = gst(gstID_l)%myNla
+
+  END FUNCTION GST_getNla
 
 
   real(8) FUNCTION GST_getRmu(latIndex,gstID_in)
@@ -271,6 +288,24 @@ CONTAINS
     gst_getRsqm2 = gst(gstID_l)%rsqm2(latIndex2)
 
   END FUNCTION GST_getRsqm2
+
+
+  real(8) FUNCTION GST_getzleg(legendreIndex,latIndex,gstID_in)
+    ! 
+    ! Purpose: Pass on Legendre polynomial element 
+    !
+    ! Author: Y. Rochon, ARQI/AQRD, Aug 2016.
+    !
+    ! Revisions:
+    !
+    !------------------------------------------------------------------ 
+    implicit none
+ 
+    integer :: legendreIndex,latIndex,gstID_in
+       
+    gst_getzleg=gst(gstID_in)%zleg(legendreIndex,latIndex)
+
+  END FUNCTION GST_getzleg
 
 
   subroutine GST_ilaList_mpiglobal(ilaList,myNla,maxMyNla,gstID_in,mymBeg,mymEnd,mymSkip,mynBeg,mynEnd,mynSkip)
@@ -441,7 +476,7 @@ CONTAINS
     if(mpi_myid.eq.0) write(*,*) 'gst_setup: allocating comleg...'
     call allocate_comleg
     if(mpi_myid.eq.0) write(*,*) 'gst_setup: calling suleg...'
-    call suleg
+    call suleg(.false.)
     if(mpi_myid.eq.0) write(*,*) 'gst_setup: calling sualp...'
     call sualp
 
@@ -1171,34 +1206,61 @@ CONTAINS
   END SUBROUTINE GST_SPGD
 
 
-  ! NO MPI MODIFICATIONS YET
-  SUBROUTINE GST_GDSP(SP,GD,NFLEV)
+  ! FIRST ATTEMPT AT MODIFICATIONS FOR MPI
+  SUBROUTINE GST_GDSP(PSP,PGD,NFLEV)
     implicit none
 
     integer :: nflev
-    real(8) :: sp(gst(gstID)%nla,2,gst(gstID)%nk)
-    real(8) :: gd(gst(gstID)%ni,gst(gstID)%nj,gst(gstID)%nk)
+    real(8) :: psp(gst(gstID)%myNla,2,gst(gstID)%nk)
+    real(8) :: pgd(gst(gstID)%myLonBeg:gst(gstID)%myLonEnd,gst(gstID)%myLatBeg:gst(gstID)%myLatEnd,gst(gstID)%nk)
 
+    real(8), allocatable :: psp2(:,:,:),pgd2(:,:,:),pgd3(:,:,:)
     integer :: jlat, jk, jlon
-    real(8) :: zfm(gst(gstID)%ni,gst(gstID)%nj,gst(gstID)%nk)
 
-!$OMP PARALLEL DO PRIVATE (JLAT,JLON,JK)
-    do jk = 1, gst(gstID)%nk
-      do jlat = 1, gst(gstID)%nj
-        do jlon = 1, gst(gstID)%ni
-          zfm(jlon,jlat,jk) = gd(jlon,jlat,jk)
-        enddo
-      enddo
-    enddo
-!$OMP END PARALLEL DO
+    ! check if this mpi task will deal with winds during Legendre transform
+    if(gst(gstID)%myLevBeg.le.2*nflev) then
+      ! ensure that the number of levels on this mpi task is even to allow interleaving of u and v
+      if(mod(gst(gstID)%myLevCount,2).ne.0) then
+        write(*,*) 'GST_GDSP: myLevCount = ',gst(gstID)%myLevCount
+        call utl_abort('GST_GDSP: Number of levels on this mpi task must be even!')
+      endif
+    endif
+
+    allocate(psp2(gst(gstID)%nla, 2, gst(gstID)%myLevBeg:gst(gstID)%myLevEnd))
+    allocate(pgd2(2*gst(gstID)%maxmcount, gst(gstID)%nj, gst(gstID)%myLevBeg:gst(gstID)%myLevEnd))
+    allocate(pgd3(gst(gstID)%ni, gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, gst(gstID)%myLevBeg:gst(gstID)%myLevEnd))
+
+    ! 1.0 First reorder wind components to have u and v for same level on same mpi task
+    call tmg_start(29,'GST_INTERLEAVE')
+    call interleaveWinds_gd(pgd,nflev)
+    call tmg_stop(29)
+
+    ! Transpose data along npex from Longitudes to Levels
+    call transpose2d_LontoLev(pgd,pgd3)
 
     ! 1. Fourier transform all fields for all latitudes
     call tmg_start(24,'GST_FFT')
-    call fft3dvar(zfm,-1)
+    call fft3dvar(pgd3,-1)
     call tmg_stop(24)
 
+    ! Transpose data along npey from Latitudes to M
+    call transpose2d_LattoM(pgd3,pgd2)
+    deallocate(pgd3)
+
     ! 2. Direct Legendre transform including wind transformations
-    call gdsppar(sp,zfm,gst(gstID)%nk,nflev)
+    call tmg_start(23,'GST_LT')
+    call gdsppar_mpi2d(psp2,pgd2,nflev)
+    call tmg_stop(23)
+    deallocate(pgd2)
+
+    ! Transpose data along npex from Levels to N
+    call transpose2d_LevtoN(psp2,psp)
+    deallocate(psp2)
+
+    ! 2.4 Now undo reordering of wind components 
+    call tmg_start(29,'GST_INTERLEAVE')
+    call unInterleaveWinds_sp(psp,nflev)
+    call tmg_stop(29)
 
   END SUBROUTINE GST_GDSP
 
@@ -1214,7 +1276,7 @@ CONTAINS
     ! local variables
     integer :: jj, jj2, jm, jn, ilonr, iloni, jk, jk2, ila, inm
 
-    real(8) :: zjm
+    real(8) :: zjm, factor
     real(8) :: dlalp(0:gst(gstID)%ntrunc,gst(gstID)%njlath)
     real(8) :: dldalp(0:gst(gstID)%ntrunc,gst(gstID)%njlath)
     real(8) :: zfms(gst(gstID)%njlath+1,2,gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
@@ -1285,7 +1347,6 @@ CONTAINS
                    pgd2(ilonr,jj2,jk2) = -zjm*(zfms(jj,2,jk)  + zfma(jj,2,jk))
                    pgd2(iloni,jj2,jk2) =  zjm*(zfms(jj,1,jk)  + zfma(jj,1,jk))
                 else
-                   ! Vector fields: Note that u and v are interleaved in mode 5!
                    pgd2(ilonr,jj2,jk)  = -zjm*(zfms(jj2,2,jk2) - zfma(jj2,2,jk2))
                    pgd2(iloni,jj2,jk)  =  zjm*(zfms(jj2,1,jk2) - zfma(jj2,1,jk2))
                    pgd2(ilonr,jj2,jk2) = -zjm*(zfms(jj2,2,jk)  - zfma(jj2,2,jk))
@@ -1303,34 +1364,35 @@ CONTAINS
              jk2 = jk + 1
              do jj = 1, gst(gstID)%nj
                 jj2 = gst(gstID)%nj - jj + 1
+                factor = ra / cos(gst(gstID)%rlati(jj))
                 if(jj.ne.jj2) then
                    ! For latitudes not exactly at equator
                    if(jj.le.gst(gstID)%njlath) then
                       ! northern latitudes
                       ! u component
-                      pgd2(ilonr,jj2,jk)  = pgd2(ilonr,jj2,jk)  - (zfms(jj,1,jk)  + zfma(jj,1,jk))
-                      pgd2(iloni,jj2,jk)  = pgd2(iloni,jj2,jk)  - (zfms(jj,2,jk)  + zfma(jj,2,jk))
+                      pgd2(ilonr,jj2,jk)  = factor * ( pgd2(ilonr,jj2,jk)  - (zfms(jj,1,jk)  + zfma(jj,1,jk)) )
+                      pgd2(iloni,jj2,jk)  = factor * ( pgd2(iloni,jj2,jk)  - (zfms(jj,2,jk)  + zfma(jj,2,jk)) )
                       ! v component
-                      pgd2(ilonr,jj2,jk2) = pgd2(ilonr,jj2,jk2) + (zfms(jj,1,jk2) + zfma(jj,1,jk2))
-                      pgd2(iloni,jj2,jk2) = pgd2(iloni,jj2,jk2) + (zfms(jj,2,jk2) + zfma(jj,2,jk2))
+                      pgd2(ilonr,jj2,jk2) = factor * ( pgd2(ilonr,jj2,jk2) + (zfms(jj,1,jk2) + zfma(jj,1,jk2)) )
+                      pgd2(iloni,jj2,jk2) = factor * ( pgd2(iloni,jj2,jk2) + (zfms(jj,2,jk2) + zfma(jj,2,jk2)) )
                    else
                       ! southern latitudes
                       ! u component
-                      pgd2(ilonr,jj2,jk ) = pgd2(ilonr,jj2,jk ) -(zfms(jj2,1,jk ) - zfma(jj2,1,jk ))
-                      pgd2(iloni,jj2,jk ) = pgd2(iloni,jj2,jk ) -(zfms(jj2,2,jk ) - zfma(jj2,2,jk ))
+                      pgd2(ilonr,jj2,jk ) = factor * ( pgd2(ilonr,jj2,jk ) -(zfms(jj2,1,jk ) - zfma(jj2,1,jk )) )
+                      pgd2(iloni,jj2,jk ) = factor * ( pgd2(iloni,jj2,jk ) -(zfms(jj2,2,jk ) - zfma(jj2,2,jk )) )
                       ! v component
-                      pgd2(ilonr,jj2,jk2) = pgd2(ilonr,jj2,jk2) +(zfms(jj2,1,jk2) - zfma(jj2,1,jk2))
-                      pgd2(iloni,jj2,jk2) = pgd2(iloni,jj2,jk2) +(zfms(jj2,2,jk2) - zfma(jj2,2,jk2))
+                      pgd2(ilonr,jj2,jk2) = factor * ( pgd2(ilonr,jj2,jk2) +(zfms(jj2,1,jk2) - zfma(jj2,1,jk2)) )
+                      pgd2(iloni,jj2,jk2) = factor * ( pgd2(iloni,jj2,jk2) +(zfms(jj2,2,jk2) - zfma(jj2,2,jk2)) )
                    endif
                 else
                    ! Special case for the equator (jj.eq.jj2)
                    write(*,*) 'SPGDPAR: special case of jj.eq.jj2!!!'
                    ! u component
-                   pgd2(ilonr,jj2,jk ) = pgd2(ilonr,jj2,jk ) -(zfms(jj,1,jk ) + zfma(jj,1,jk ))
-                   pgd2(iloni,jj2,jk ) = pgd2(iloni,jj2,jk ) -(zfms(jj,2,jk ) + zfma(jj,2,jk ))
+                   pgd2(ilonr,jj2,jk ) = factor * ( pgd2(ilonr,jj2,jk ) -(zfms(jj,1,jk ) + zfma(jj,1,jk )) )
+                   pgd2(iloni,jj2,jk ) = factor * ( pgd2(iloni,jj2,jk ) -(zfms(jj,2,jk ) + zfma(jj,2,jk )) )
                    ! v component
-                   pgd2(ilonr,jj2,jk2) = pgd2(ilonr,jj2,jk2) +(zfms(jj,1,jk2) + zfma(jj,1,jk2))
-                   pgd2(iloni,jj2,jk2) = pgd2(iloni,jj2,jk2) +(zfms(jj,2,jk2) + zfma(jj,2,jk2))
+                   pgd2(ilonr,jj2,jk2) = factor * ( pgd2(ilonr,jj2,jk2) +(zfms(jj,1,jk2) + zfma(jj,1,jk2)) )
+                   pgd2(iloni,jj2,jk2) = factor * ( pgd2(iloni,jj2,jk2) +(zfms(jj,2,jk2) + zfma(jj,2,jk2)) )
                 endif
              enddo ! jj
           endif
@@ -1341,126 +1403,140 @@ CONTAINS
   END SUBROUTINE SPGDPAR_MPI2D
 
 
-  ! NO MPI MODIFICATIONS YET
-  SUBROUTINE GDSPPAR(SP,PGD2,KFIELD,NFLEV)
+  SUBROUTINE GDSPPAR_MPI2D(PSP,PGD2,NFLEV)
     implicit none
 
-    INTEGER :: kfield,nflev
-    real(8) :: sp(gst(gstID)%nla,2,kfield)
-    real(8) :: pgd2(gst(gstID)%ni,gst(gstID)%nj,kfield)
+    integer :: nflev
+    real(8) :: psp(gst(gstID)%nla,2,gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+    real(8) :: pgd2(2*gst(gstID)%maxmcount,gst(gstID)%nj,gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
 
-    integer :: jj, jj2, jk, ilonr, iloni, jm ,ila, inm, jn, jm0, ins, jns
-    integer :: njlath,nj,ntrunc
+    integer :: jj, jj2, jk, jk2, ilonr, iloni, jm ,ila, inm, jn
+    real(8) :: zjm, dlrwt(gst(gstID)%nj), dlrwocs(gst(gstID)%nj)
     real(8) :: dlalp(0:gst(gstID)%ntrunc,gst(gstID)%njlath)
     real(8) :: dldalp(0:gst(gstID)%ntrunc,gst(gstID)%njlath)
-    real(8) :: zfms(gst(gstID)%njlath+1,2,kfield)
-    real(8) :: zfma(gst(gstID)%njlath+1,2,kfield)
-    real(8) :: dlsp(0:gst(gstID)%ntrunc,2,kfield)
-    real(8) :: dlsp2(0:gst(gstID)%ntrunc,2,2*nflev)
-    real(8) :: zjm, dlrwt(gst(gstID)%nj), dlrwocs(gst(gstID)%nj)
+    real(8) :: dlsp(0:gst(gstID)%ntrunc,2,gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+    real(8) :: dlsp2(0:gst(gstID)%ntrunc,2,gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+    real(8) :: zfms(gst(gstID)%njlath+1,2,gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
+    real(8) :: zfma(gst(gstID)%njlath+1,2,gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
 
     ! 1. Adjustment needed when an odd number of latitudes is considered
-    nj = gst(gstID)%nj
-    njlath = gst(gstID)%njlath
-    ntrunc = gst(gstID)%ntrunc
     dlrwt(:)   = gst(gstID)%rwt(:)
-    dlrwocs(:) = gst(gstID)%rwocs(:)
-    if (mod(nj,2).ne.0) then
-       dlrwt(njlath)   = dlrwt(njlath)/2.d0
-       dlrwocs(njlath) = dlrwocs(njlath)/2.d0
+    !dlrwocs(:) = gst(gstID)%rwocs(:)
+    do jj = 1, gst(gstID)%nj
+      dlrwocs(jj) = gst(gstID)%rwt(jj)/(ra*cos(gst(gstID)%rlati(jj)))
+    enddo
+    if (mod(gst(gstID)%nj,2).ne.0) then
+       dlrwt(gst(gstID)%njlath)   = dlrwt(gst(gstID)%njlath)/2.d0
+       dlrwocs(gst(gstID)%njlath) = dlrwocs(gst(gstID)%njlath)/2.d0
     end if
 
-!$OMP PARALLEL DO PRIVATE(DLALP,DLDALP,JM0,DLSP,DLSP2,ZFMS,ZFMA, &
-!$OMP INM,ILA,JM,JN,JK,JJ,JJ2,ZJM,JNS,INS,ILONR,ILONI)
-    do jm0 = 0, ntrunc/2
-       ins = 1
-       if(jm0.eq.ntrunc-jm0) ins = 0
-       do jns = 0,ins
-          jm = (1-jns)*jm0 + jns*(ntrunc - jm0)
-          ilonr = 2 * jm + 1
-          iloni = ilonr + 1
-          zjm   = real(jm,8)
+!$OMP PARALLEL DO PRIVATE(DLALP,DLDALP,DLSP,DLSP2,ZFMS,ZFMA, &
+!$OMP INM,ILA,JM,JN,JK,JK2,JJ,JJ2,ZJM,ILONR,ILONI)
+    do jm = gst(gstID)%mymBeg, gst(gstID)%mymEnd, gst(gstID)%mymSkip
 
-          ! 2.1 Fetch the Legendre functions and their derivatives for this choice of "m"
-          call getalp(dlalp,dldalp,njlath,ntrunc,ntrunc,jm)
+       ilonr = 2*gst(gstID)%mymIndex(jm)-1
+       iloni = 2*gst(gstID)%mymIndex(jm)
+       zjm   = real(jm,8)
 
-          ! 2.2  Build the symmetric and anti-symmetric Fourier coefficients including
-          !      the appropriate quadrature weights (see scientific notes)
-          do jj = 1, njlath
-             jj2 = nj - jj + 1
+       ! 2.1 Fetch the Legendre functions and their derivatives for this choice of "m"
+       call getalp(dlalp,dldalp,gst(gstID)%njlath,gst(gstID)%ntrunc,gst(gstID)%ntrunc,jm)
 
-             ! 2.2.1  Coefficients for scalar fields
-             do jk = 2*nflev+1, kfield
+       do jk = gst(gstID)%myLevBeg, gst(gstID)%myLevEnd
+          do jj = 1, gst(gstID)%njlath
+             zfms(jj,1,jk) = 0.0d0
+             zfms(jj,2,jk) = 0.0d0
+             zfma(jj,1,jk) = 0.0d0
+             zfma(jj,2,jk) = 0.0d0
+          enddo
+       enddo
+
+       ! 2.2  Build the symmetric and anti-symmetric Fourier coefficients including
+       !      the appropriate quadrature weights (see scientific notes)
+       do jj = 1, gst(gstID)%njlath
+          jj2 = gst(gstID)%nj - jj + 1
+
+          ! 2.2.1  Coefficients for scalar fields
+          do jk = gst(gstID)%myLevBeg, gst(gstID)%myLevEnd
+             if(jk .gt. 2*nflev) then
                 ! symmetric coefficients
                 zfms(jj,1,jk) = dlrwt(jj)*(pgd2(ilonr,jj2,jk) + pgd2(ilonr,jj,jk))
                 zfms(jj,2,jk) = dlrwt(jj)*(pgd2(iloni,jj2,jk) + pgd2(iloni,jj,jk))
                 ! antisymmetric coefficients
                 zfma(jj,1,jk) = dlrwt(jj)*(pgd2(ilonr,jj2,jk) - pgd2(ilonr,jj,jk))
                 zfma(jj,2,jk) = dlrwt(jj)*(pgd2(iloni,jj2,jk) - pgd2(iloni,jj,jk))
-             enddo
-
-             ! 2.2.2 Coefficients associated with the wind fields
-             do jk = 1, nflev
-                ! vorticity: symmetric coefficients
-                zfms(jj,1,jk) = -zjm*dlrwocs(jj)*(pgd2(iloni,jj2,jk+nflev)+pgd2(iloni,jj,jk+nflev))
-                zfms(jj,2,jk) = zjm*dlrwocs(jj) *(pgd2(ilonr,jj2,jk+nflev)+pgd2(ilonr,jj,jk+nflev))
-                ! vorticity: antisymmetric coefficients
-                zfma(jj,1,jk) = -zjm*dlrwocs(jj)*(pgd2(iloni,jj2,jk+nflev)- pgd2(iloni,jj,jk+nflev))
-                zfma(jj,2,jk) = zjm*dlrwocs(jj) *(pgd2(ilonr,jj2,jk+nflev)- pgd2(ilonr,jj,jk+nflev))
-                ! divergence: symmetric coefficients
-                zfms(jj,1,jk+nflev) = -zjm*dlrwocs(jj)*(pgd2(iloni,jj2,jk)+ pgd2(iloni,jj,jk))
-                zfms(jj,2,jk+nflev) = zjm*dlrwocs(jj) *(pgd2(ilonr,jj2,jk)+ pgd2(ilonr,jj,jk))
-                ! divergence: antisymmetric coefficients
-                zfma(jj,1,jk+nflev) = -zjm*dlrwocs(jj)*(pgd2(iloni,jj2,jk)- pgd2(iloni,jj,jk))
-                zfma(jj,2,jk+nflev) = zjm*dlrwocs(jj) *(pgd2(ilonr,jj2,jk)- pgd2(ilonr,jj,jk))
-             enddo
+             endif
           enddo
 
-          ! 2.3 First one with ALP for all scalar fields and for half the terms
-          !     required to define the divergence and vorticity
-          call legdir3 (jm, zfms,zfma,dlsp,dlalp,kfield,njlath,ntrunc,ntrunc)
-     
-          ! 2.4  Second transform with DALP to complete the construction of the
-          !      vorticity and divergence fields
-          do jj = 1, njlath
-             jj2 = nj - jj + 1
-             do jk = 1, nflev
+          ! 2.2.2 Coefficients associated with the wind fields
+          do jk = gst(gstID)%myLevBeg, gst(gstID)%myLevEnd, 2
+             if(jk .le. 2*nflev) then
+                jk2 = jk + 1  ! jk is u, jk2 is v
+                ! vorticity: symmetric coefficients
+                zfms(jj,1,jk) = -zjm*dlrwocs(jj)*(pgd2(iloni,jj2,jk2) + pgd2(iloni,jj,jk2))
+                zfms(jj,2,jk) =  zjm*dlrwocs(jj)*(pgd2(ilonr,jj2,jk2) + pgd2(ilonr,jj,jk2))
+                ! vorticity: antisymmetric coefficients
+                zfma(jj,1,jk) = -zjm*dlrwocs(jj)*(pgd2(iloni,jj2,jk2) - pgd2(iloni,jj,jk2))
+                zfma(jj,2,jk) =  zjm*dlrwocs(jj)*(pgd2(ilonr,jj2,jk2) - pgd2(ilonr,jj,jk2))
+                ! divergence: symmetric coefficients
+                zfms(jj,1,jk2) = -zjm*dlrwocs(jj)*(pgd2(iloni,jj2,jk) + pgd2(iloni,jj,jk))
+                zfms(jj,2,jk2) =  zjm*dlrwocs(jj)*(pgd2(ilonr,jj2,jk) + pgd2(ilonr,jj,jk))
+                ! divergence: antisymmetric coefficients
+                zfma(jj,1,jk2) = -zjm*dlrwocs(jj)*(pgd2(iloni,jj2,jk) - pgd2(iloni,jj,jk))
+                zfma(jj,2,jk2) =  zjm*dlrwocs(jj)*(pgd2(ilonr,jj2,jk) - pgd2(ilonr,jj,jk))
+             endif
+          enddo
+       enddo
+
+       ! 2.3 First one with ALP for all scalar fields and for half the terms
+       !     required to define the divergence and vorticity
+       call legdir2d(jm,zfms,zfma,dlsp,dlalp,gst(gstID)%njlath,gst(gstID)%ntrunc,gst(gstID)%ntrunc)
+  
+       ! 2.4  Second transform with DALP to complete the construction of the
+       !      vorticity and divergence fields
+       do jj = 1, gst(gstID)%njlath
+          jj2 = gst(gstID)%nj - jj + 1
+          do jk = gst(gstID)%myLevBeg, gst(gstID)%myLevEnd, 2
+             if(jk <= 2*nflev) then ! only for winds
+                jk2 = jk + 1
+
                 ! symmetric coefficients for zonal wind
                 zfms(jj,1,jk) = dlrwocs(jj)*(pgd2(ilonr,jj2,jk) + pgd2(ilonr,jj,jk))
                 zfms(jj,2,jk) = dlrwocs(jj)*(pgd2(iloni,jj2,jk) + pgd2(iloni,jj,jk))
                 ! antisymmetric coefficients for zonal wind
                 zfma(jj,1,jk) = dlrwocs(jj)*(pgd2(ilonr,jj2,jk) - pgd2(ilonr,jj,jk))
                 zfma(jj,2,jk) = dlrwocs(jj)*(pgd2(iloni,jj2,jk) - pgd2(iloni,jj,jk))
-             enddo
-             do jk = nflev+1, 2*nflev
-                ! symmetric coefficients for zonal wind
-                zfms(jj,1,jk) = -dlrwocs(jj)*(pgd2(ilonr,jj2,jk) + pgd2(ilonr,jj,jk))
-                zfms(jj,2,jk) = -dlrwocs(jj)*(pgd2(iloni,jj2,jk) + pgd2(iloni,jj,jk))
-                ! antisymmetric coefficients for zonal wind
-                zfma(jj,1,jk) = -dlrwocs(jj)*(pgd2(ilonr,jj2,jk) - pgd2(ilonr,jj,jk))
-                zfma(jj,2,jk) = -dlrwocs(jj)*(pgd2(iloni,jj2,jk) - pgd2(iloni,jj,jk))
-             enddo
-          enddo
-          call legdir3(jm,zfma,zfms,dlsp2,dldalp,2*nflev,njlath,ntrunc,ntrunc)
 
-          ! 2.5  Transfer the result in the global state
-          do jn = jm, ntrunc
-             ila = gst(gstid)%nind(jm) + jn - jm
-             inm = jn - jm
-             do jk = 1, 2*nflev
-                sp(ila,1,jk) = dlsp(inm,1,jk) + dlsp2(inm,1,jk)
-                sp(ila,2,jk) = dlsp(inm,2,jk) + dlsp2(inm,2,jk)
-             enddo
-             do jk = 2*nflev+1,kfield
-                sp(ila,1,jk) = dlsp(inm,1,jk)
-                sp(ila,2,jk) = dlsp(inm,2,jk)
-             enddo
+                ! symmetric coefficients for zonal wind
+                zfms(jj,1,jk2) = -dlrwocs(jj)*(pgd2(ilonr,jj2,jk2) + pgd2(ilonr,jj,jk2))
+                zfms(jj,2,jk2) = -dlrwocs(jj)*(pgd2(iloni,jj2,jk2) + pgd2(iloni,jj,jk2))
+                ! antisymmetric coefficients for zonal wind
+                zfma(jj,1,jk2) = -dlrwocs(jj)*(pgd2(ilonr,jj2,jk2) - pgd2(ilonr,jj,jk2))
+                zfma(jj,2,jk2) = -dlrwocs(jj)*(pgd2(iloni,jj2,jk2) - pgd2(iloni,jj,jk2))
+
+             endif
           enddo
-       ! End of loop on zonal wavenumbers
        enddo
-    enddo
+
+       call legdir2d(jm,zfma,zfms,dlsp2,dldalp,gst(gstID)%njlath,gst(gstID)%ntrunc,gst(gstID)%ntrunc)
+
+       ! 2.5  Transfer the result in the global state
+       do jn = jm, gst(gstID)%ntrunc
+          ila = gst(gstid)%nind(jm) + jn - jm
+          inm = jn - jm
+          do jk = gst(gstID)%myLevBeg, gst(gstID)%myLevEnd
+             if(jk <= 2*nflev) then ! for winds
+                psp(ila,1,jk) = dlsp(inm,1,jk) + dlsp2(inm,1,jk)
+                psp(ila,2,jk) = dlsp(inm,2,jk) + dlsp2(inm,2,jk)
+             else ! for scalar fields
+                psp(ila,1,jk) = dlsp(inm,1,jk)
+                psp(ila,2,jk) = dlsp(inm,2,jk)
+             endif
+          enddo
+       enddo
+
+    enddo ! jm
 !$OMP END PARALLEL DO
-  END SUBROUTINE GDSPPAR
+  END SUBROUTINE GDSPPAR_MPI2D
 
 
   SUBROUTINE GST_SPGDA(PSP,PGD,NFLEV)
@@ -1477,8 +1553,8 @@ CONTAINS
     if(gst(gstID)%myLevBeg.le.2*nflev) then
       ! ensure that the number of levels on this mpi task is even to allow interleaving of u and v
       if(mod(gst(gstID)%myLevCount,2).ne.0) then
-        write(*,*) 'GST_SPGD: myLevCount = ',gst(gstID)%myLevCount
-        call utl_abort('GST_SPGD: Number of levels on this mpi task must be even!')
+        write(*,*) 'GST_SPGDA: myLevCount = ',gst(gstID)%myLevCount
+        call utl_abort('GST_SPGDA: Number of levels on this mpi task must be even!')
       endif
     endif
 
@@ -1529,7 +1605,7 @@ CONTAINS
     real(8) :: pgd2(2*gst(gstID)%maxmCount,gst(gstID)%nj,gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
 
     integer :: jj, jj2, jk, jk2, ilonr, iloni, jm ,ila, inm, jn
-    real(8) :: zjm,dlrwt(gst(gstID)%nj)
+    real(8) :: zjm,factor,dlrwt(gst(gstID)%nj)
     real(8) :: dlalp(0:gst(gstID)%ntrunc,gst(gstID)%njlath)
     real(8) :: dldalp(0:gst(gstID)%ntrunc,gst(gstID)%njlath)
     real(8) :: dlsp(0:gst(gstID)%ntrunc,2,gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
@@ -1637,10 +1713,11 @@ CONTAINS
              enddo
              if(jk .le. 2*nflev) then
                 do jj = 1, gst(gstID)%njlath
-                   zfms(jj,1,jk) = zjm*zfms(jj,1,jk)
-                   zfms(jj,2,jk) = zjm*zfms(jj,2,jk)
-                   zfma(jj,1,jk) = zjm*zfma(jj,1,jk)
-                   zfma(jj,2,jk) = zjm*zfma(jj,2,jk)
+                   factor = ra / cos(gst(gstID)%rlati(jj))
+                   zfms(jj,1,jk) = factor*zjm*zfms(jj,1,jk)
+                   zfms(jj,2,jk) = factor*zjm*zfms(jj,2,jk)
+                   zfma(jj,1,jk) = factor*zjm*zfma(jj,1,jk)
+                   zfma(jj,2,jk) = factor*zjm*zfma(jj,2,jk)
                 enddo
              endif
           enddo ! jk
@@ -1703,10 +1780,11 @@ CONTAINS
           do jk = gst(gstID)%myLevBeg, gst(gstID)%myLevEnd
              if(jk .le. 2*nflev) then
                 do jj = 1, gst(gstID)%njlath
-                   zfms(jj,1,jk) = dlrwt(jj)*zfms(jj,1,jk)
-                   zfms(jj,2,jk) = dlrwt(jj)*zfms(jj,2,jk)
-                   zfma(jj,1,jk) = dlrwt(jj)*zfma(jj,1,jk)
-                   zfma(jj,2,jk) = dlrwt(jj)*zfma(jj,2,jk)
+                   factor = ra / cos(gst(gstID)%rlati(jj))
+                   zfms(jj,1,jk) = factor*dlrwt(jj)*zfms(jj,1,jk)
+                   zfms(jj,2,jk) = factor*dlrwt(jj)*zfms(jj,2,jk)
+                   zfma(jj,1,jk) = factor*dlrwt(jj)*zfma(jj,1,jk)
+                   zfma(jj,2,jk) = factor*dlrwt(jj)*zfma(jj,2,jk)
                 enddo
              endif
           enddo
@@ -2153,6 +2231,12 @@ CONTAINS
     real(8) :: zpisu2
     external gauss
 
+    ! Some explanation:
+    ! rmu = sin(latitude)
+    ! colat = pi/2 - latitude
+    ! rwt = gauss weight (complicated)
+    ! rwocs = rwt / cos(latitude)^2
+
     if(present(lverbose_in)) then
       lverbose = lverbose_in
     else
@@ -2350,7 +2434,6 @@ CONTAINS
     integer :: ilarh,ila,ilatbd,ierr
     real(8) :: dlalp(gst(gstID)%nlarh,nlatbd)
     real(8) :: dldalp(gst(gstID)%nlarh,nlatbd)
-    real(8) :: dldelalp(gst(gstID)%nlarh,nlatbd)
     !     
     !     Memory allocation for Legendre polynomials
     !     

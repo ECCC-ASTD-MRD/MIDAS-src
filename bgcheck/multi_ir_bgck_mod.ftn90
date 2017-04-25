@@ -2948,7 +2948,7 @@ subroutine tovs_rttov_AVHRR_for_IASI (iptobs,surfem1_avhrr,idiasi)
   type (rttov_options ),save :: opts_avhrr
   type (rttov_chanprof)  :: chanprof(3)
   logical :: calcemis  (3)
-  INTEGER ::  list_sensor (3),setup_errorstatus,alloc_status(2)
+  INTEGER ::  list_sensor (3),errorstatus,alloc_status(2)
   integer, save :: idiasi_old=-1
   integer :: ich,i,j,jn,ichn
   integer :: ichan_avhrr (NIR)
@@ -2996,23 +2996,23 @@ subroutine tovs_rttov_AVHRR_for_IASI (iptobs,surfem1_avhrr,idiasi)
      opts_avhrr%interpolation%addinterp=.false. !use of internal profile interpolator (rt calculation on model levels)
      opts_avhrr%interpolation%lgradp=.false.    ! allow tl/ad of user pressure levels
      
-     setup_errorstatus=0
+     errorstatus=0
 
      if (IDIASI_OLD>0) then
-        call rttov_dealloc_coefs(setup_errorstatus, coefs_avhrr )
-        if ( setup_errorstatus/=0) then
+        call rttov_dealloc_coefs(errorstatus, coefs_avhrr )
+        if ( errorstatus/=0) then
            write(*,*) "Probleme dans rttov_dealloc_coefs !"
            call utl_abort("tovs_rttov_AVHRR_for_IASI")
         endif
      endif
 
-     call rttov_read_coefs ( setup_errorstatus, &! out
+     call rttov_read_coefs ( errorstatus, &! out
                              coefs_avhrr,       &! out
                              opts_avhrr,        &! in
                              channels = ichan_avhrr,  &! in Optional 
                              instrument = list_sensor )  ! in Optional 
        
-     if ( setup_errorstatus/=0) then
+     if ( errorstatus/=0) then
         write(*,*) "Probleme dans rttov_read_coefs !"
         call utl_abort("tovs_rttov_AVHRR_for_IASI")
      endif
@@ -3052,7 +3052,7 @@ subroutine tovs_rttov_AVHRR_for_IASI (iptobs,surfem1_avhrr,idiasi)
 ! allocate radiance structure
 
   asw=1 ! 1 to allocate,0 to deallocate
-  call rttov_alloc_rad (alloc_status(1:1),nchannels,radiancedata_d,nlevels-1,asw)
+  call rttov_alloc_rad (alloc_status(1),nchannels,radiancedata_d,nlevels-1,asw)
   call utl_checkAllocationStatus(alloc_status(1:1), " tovs_rttov_AVHRR_for_IASI radiances")
  
   Call rttov_direct(        &

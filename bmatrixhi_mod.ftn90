@@ -202,8 +202,12 @@ CONTAINS
     if (sum(scaleFactor(1:max(nLev_M,nLev_T))) == 0.0d0 ) then
       if(mpi_myid == 0) write(*,*) 'bmatrixHI: scaleFactor=0, skipping rest of setup'
       cvdim_out = 0
-      initialized = .true.
       return
+    end if
+
+    if (.not. (gsv_varExist(varName='TT').and.gsv_varExist(varName='UU').and.gsv_varExist(varName='VV').and. &
+               gsv_varExist(varName='HU').and.gsv_varExist(varName='P0').and.gsv_varExist(varName='TG')) ) then
+       call utl_abort('bmatrixHI: Some or all weather fields are missing. If it is desired to deactivate the weather assimilation, then all entries of the array SCALEFACTOR in the namelist NAMBHI should be set to zero.')
     end if
 
     do jlev = 1, max(nLev_M,nLev_T)
@@ -217,7 +221,6 @@ CONTAINS
     if ( trim(bhi_mode) == 'BackgroundCheck' ) then
        cvDim_out = 9999 ! Dummy value > 0 to indicate to the background check (s/r compute_HBHT_ensemble) 
                         ! that Bhi is used
-       initialized = .true.
        return
     end if
 
@@ -1678,7 +1681,7 @@ CONTAINS
 
     ! Apply convolution to RSTDDEV correlations
 
-    call BHI_convol
+    call BHI_convol 
 
     do jn = 0, ntrunc
 
@@ -2275,15 +2278,11 @@ CONTAINS
     allocate(gd_out(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim))
 
     call bhi_cain(controlVector_in,hiControlVector)
-
     call bhi_spa2gd(hiControlVector,gd_out)
 
     call copyToStatevector(statevector,gd_out)
 
     deallocate(gd_out)
-
-    !    Conversion of wind images to physical winds
-    call uvwi2uv(statevector)
 
     if(mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     if(mpi_myid == 0) write(*,*) 'bhi_bsqrt: done'
@@ -2307,9 +2306,6 @@ CONTAINS
 
     if(mpi_myid == 0) write(*,*) 'bhi_bsqrtad: starting'
     if(mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-    !- Conversion of physical winds to wind images
-    call uvwi2uv(statevector) ! INOUT
 
     allocate(gd_in(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim))
 
@@ -2350,7 +2346,9 @@ CONTAINS
         elseif(vnl_varNameList(jvar) == 'TG  ') then
           ilev1 = nspositTG
         else
-          call utl_abort('bmatrixhi_mod: copyToStatevector: No covariances available for variable:' // vnl_varNameList(jvar))
+          ! Cycle (instead of abort) to allow for non-NWP assimilation (e.g. chemical data assimilation)
+!          call utl_abort('bmatrixhi_mod: copyToStatevector: No covariances available for variable:' // vnl_varNameList(jvar))
+          cycle
         endif
         ilev2 = ilev1 - 1 + gsv_getNumLev(statevector,vnl_varLevelFromVarname(vnl_varNameList(jvar)))
 !!!$OMP PARALLEL DO PRIVATE(jlat,jlev,jlev2,jlon)
@@ -2392,7 +2390,9 @@ CONTAINS
         elseif(vnl_varNameList(jvar) == 'TG  ') then
           ilev1 = nspositTG
         else
-          call utl_abort('bmatrixhi_mod: copyFromStatevector: No covariances available for variable:' // vnl_varNameList(jvar))
+          ! Cycle (instead of abort) to allow for non-NWP assimilation (e.g. chemical data assimilation)
+!          call utl_abort('bmatrixhi_mod: copyFromStatevector: No covariances available for variable:' // vnl_varNameList(jvar))
+          cycle
         endif
         ilev2 = ilev1 - 1 + gsv_getNumLev(statevector,vnl_varLevelFromVarname(vnl_varNameList(jvar)))
 !!!$OMP PARALLEL DO PRIVATE(jlat,jlev,jlev2,jlon)
@@ -3167,58 +3167,20 @@ CONTAINS
   SUBROUTINE BHI_Finalize()
     implicit none
 
-    deallocate(pressureProfile_M)
-    deallocate(pressureProfile_T)
-    deallocate(PtoT)
-    deallocate(tantheta)
-    deallocate(rgsig)
-    deallocate(tgstdbg)
-    deallocate(rgsigtb)
-    deallocate(rgsigpsb)
-    deallocate(corns)
-    deallocate(rstddev)
+    if (initialized) then
+       deallocate(pressureProfile_M)
+       deallocate(pressureProfile_T)
+       deallocate(PtoT)
+       deallocate(tantheta)
+       deallocate(rgsig)
+       deallocate(tgstdbg)
+       deallocate(rgsigtb)
+       deallocate(rgsigpsb)
+       deallocate(corns)
+       deallocate(rstddev)
+    end if
 
   END SUBROUTINE BHI_Finalize
 
-  !--------------------------------------------------------------------------
-  ! uvwi2uv
-  !--------------------------------------------------------------------------
-  subroutine uvwi2uv(statevector)
-    !
-    ! s/r uvwi2uv: conversion of wind images to physical winds
-    ! (Remark: this subroutine is self-adjoint)
-    !
-    implicit none
-    type(struct_gsv) :: statevector
-
-    integer :: jstep, jlev, jlat, jlon, lon1, lon2, lat1, lat2, nlev_gsv
-
-    real(8) :: conphy
-    real(8), pointer :: uu_ptr(:,:,:,:),vv_ptr(:,:,:,:)
-    
-    uu_ptr => gsv_getField_r8(statevector,'UU')
-    vv_ptr => gsv_getField_r8(statevector,'VV')
-    
-    lon1 = statevector%myLonBeg
-    lon2 = statevector%myLonEnd
-    lat1 = statevector%myLatBeg
-    lat2 = statevector%myLatEnd
-    nlev_gsv = gsv_getNumLev(statevector,'MM')
-
-!$OMP PARALLEL DO PRIVATE (jlat,jstep,jlev,jlon,conphy)
-    do jlev = 1, nlev_gsv
-      do jstep = 1, statevector%numStep
-        do jlat = lat1, lat2
-          conphy = ra*gst_getr1qm2(jlat,gstID)
-          do jlon = lon1, lon2
-            uu_ptr(jlon,jlat,jlev,jstep) = conphy * uu_ptr(jlon,jlat,jlev,jstep)
-            vv_ptr(jlon,jlat,jlev,jstep) = conphy * vv_ptr(jlon,jlat,jlev,jstep)
-          end do
-        end do
-      end do
-    end do
-!$OMP END PARALLEL DO
-
-  END SUBROUTINE uvwi2uv
 
 END MODULE BmatrixHI_mod

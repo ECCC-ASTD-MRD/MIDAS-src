@@ -394,7 +394,7 @@ module calcstatsglb_mod
           write(6,*)
        end if
 
-       call readEnsemble(ensPerturbations,windImages=.false.) ! OUT
+       call readEnsemble(ensPerturbations) ! OUT
        write(6,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
        call removeMean(ensPerturbations) ! INOUT
@@ -462,7 +462,7 @@ module calcstatsglb_mod
     allocate(ensPerturbations(ni,nj,nkgdimEns,nens))
     allocate(powerspec(nkgdimEns,0:ntrunc))
 
-    call readEnsemble(ensPerturbations,windImages=.false.) ! OUT, IN
+    call readEnsemble(ensPerturbations) ! OUT, IN
     write(6,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     call removeMean(ensPerturbations) ! INOUT
@@ -1738,193 +1738,8 @@ module calcstatsglb_mod
 !--------------------------------------------------------------------------
 ! READENSEMBLE
 !--------------------------------------------------------------------------
-  subroutine readEnsemble1(ensPerturbations,windImages)
+  subroutine readEnsemble(ensPerturbations)
     implicit none
-
-    logical, optional, intent(in) :: windImages
-
-    integer :: stamp_in
-    real*8 :: gd2d(ni,nj)
-    real*4 :: ensPerturbations(:,:,:,:)
-    real*8 :: rmsknt,rmbtpa,r1sa,conima
-    real*8 :: rhumin = 2.5d-6
-    integer :: jlon,jlat,jlev,jens
-    integer :: nulens
-    integer :: ngposituu,ngpositvv,ngposittt,ngpositq,ngpositps,ngposittg
-
-    logical :: convertToWindImages
-
-    ! standard file variables
-    integer ini,inj,ink,ip1,ip2,ip3,ierr,idateo,ikey
-    character(len=2)   :: cltypvar
-    character(len=1)   :: clgrtyp
-    character(len=4)   :: clnomvar
-    character(len=12)  :: cletiket
-    integer :: fstfrm,fclos,fnom,fstouv
-
-
-    ! this should come from state vector object
-    ngposituu=1
-    ngpositvv=1+1*nLevEns_M
-    ngposittt=1+2*nLevEns_M
-    ngpositq =1+2*nLevEns_M+1*nLevEns_T
-    ngpositps=1+2*nLevEns_M+2*nLevEns_T
-    ngposittg=2+2*nLevEns_M+2*nLevEns_T
-
-    ! some physical constants
-    rmsknt = 1.d0/1.94246d0
-    rmbtpa = 1.0d2
-    r1sa=1.d0/6371229.d0
-
-    if ( present(windImages)) then
-       convertToWindImages = windImages
-    else
-       convertToWindImages = .true. ! default value
-    end if
-
-    if ( convertToWindImages ) then
-       write(6,*) 'WIND components will be converted to WIND IMAGES'
-    end if
-
-    ! read in raw ensemble (UU,VV,TT,P0,LQ (convert HU to LQ) - covariances)
-    ip2 = 6
-!    ip2 = -1
-    ip3=-1
-    idateo = -1
-    cltypvar = ' '
-    cletiket = ' '
-
-    do jens=1,nens
-        write(6,*) 'Reading ensemble member:',trim(cflensin(jens))
-        write(6,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-        call flush(6)
-
-        nulens=0
-        ierr = fnom(nulens,cflensin(jens),'RND+OLD+R/O',0)
-        ierr = fstouv(nulens,'RND+OLD')
-        write(6,*) 'reading member:',jens
-        call flush(6)
-
-          clnomvar = 'P0' 
-          ikey = utl_fstlir(gd2d,nulens,ini,inj,ink,idateo,cletiket,-1,ip2,ip3,cltypvar,clnomvar)
-          if(ikey.lt.0) call utl_abort('readEnsemble1: Problem with P0 ENS')
-          do jlat=1,nj
-            do jlon=1,ni
-              ensPerturbations(jlon,jlat,ngpositps,jens)= gd2d(jlon,jlat)*rmbtpa
-            enddo
-          enddo
-
-          do jlev=1,nLevEns_T
-            clnomvar = 'TT'
-            ikey = utl_fstlir(gd2d,nulens,ini,inj,ink,idateo,cletiket,nip1_T(jlev),ip2,ip3,cltypvar,clnomvar)
-            if(ikey.lt.0) then
-              write(6,*) idateo,cletiket,nip1_T(jlev),ip2,ip3,cltypvar,clnomvar
-              call utl_abort('readEnsemble1: Problem with TT ENS')
-            endif
-            call flush(6)
-            do jlat=1,nj
-              do jlon=1,ni
-                ensPerturbations(jlon,jlat,jlev-1+ngposittt,jens)= gd2d(jlon,jlat)
-              enddo
-            enddo
-          enddo
-
-          do jlev=1,nLevEns_T
-            clnomvar = 'HU' 
-            ikey = utl_fstlir(gd2d,nulens,ini,inj,ink,idateo,cletiket,nip1_T(jlev),ip2,ip3,cltypvar,clnomvar)
-            if(ikey.lt.0) then
-              clnomvar = 'LQ' 
-              ikey = utl_fstlir(gd2d,nulens,ini,inj,ink,idateo,cletiket,nip1_T(jlev),ip2,ip3,cltypvar,clnomvar)
-              if(ikey.lt.0) then
-                write(6,*) idateo,cletiket,nip1_T(jlev),ip2,ip3,cltypvar,clnomvar
-                call utl_abort('readEnsemble1: Problem with HU and LQ ENS')
-              else
-                do jlat=1,nj
-                  do jlon=1,ni
-                    ensPerturbations(jlon,jlat,jlev-1+ngpositq,jens)= gd2d(jlon,jlat)
-                  enddo
-                enddo
-              endif
-            else
-              do jlat=1,nj
-                do jlon=1,ni
-                  ensPerturbations(jlon,jlat,jlev-1+ngpositq,jens)= log(max(gd2d(jlon,jlat),rhumin))
-                enddo
-              enddo
-            endif
-          enddo
-
-          do jlev=1,nLevEns_M
-            clnomvar = 'UU' 
-            ikey = utl_fstlir(gd2d,nulens,ini,inj,ink,idateo,cletiket,nip1_M(jlev),ip2,ip3,cltypvar,clnomvar)
-            if(ikey.lt.0) then
-              write(6,*) idateo,cletiket,nip1_M(jlev),ip2,ip3,cltypvar,clnomvar
-              call utl_abort('readEnsemble1: Problem with UU ENS')
-            endif
-            do jlat=1,nj
-              if ( convertToWindImages ) then
-                 conima=r1sa*gst_getRSQM2(jlat,gstID_nkgdimEns)
-              else
-                 conima=1.d0
-              end if
-              do jlon=1,ni
-                ensPerturbations(jlon,jlat,jlev-1+ngposituu,jens)= gd2d(jlon,jlat)*rmsknt*conima
-              enddo
-            enddo
-          enddo
-
-          do jlev=1,nLevEns_M
-            clnomvar = 'VV' 
-            ikey = utl_fstlir(gd2d,nulens,ini,inj,ink,idateo,cletiket,nip1_M(jlev),ip2,ip3,cltypvar,clnomvar)
-            if(ikey.lt.0) then
-              write(6,*) idateo,cletiket,nip1_M(jlev),ip2,ip3,cltypvar,clnomvar
-              call utl_abort('readEnsemble1: Problem with VV ENS')
-            endif
-            do jlat=1,nj
-              if ( convertToWindImages ) then
-                 conima=r1sa*gst_getRSQM2(jlat,gstID_nkgdimEns)
-              else
-                 conima=1.d0
-              end if
-              do jlon=1,ni
-                ensPerturbations(jlon,jlat,jlev-1+ngpositvv,jens)= gd2d(jlon,jlat)*rmsknt*conima
-              enddo
-            enddo
-          enddo
-
-!          clnomvar = 'TG' 
-!          ikey = utl_fstlir(gd2d,nulens,ini,inj,ink,idateo,cletiket,-1,ip2,ip3,cltypvar,clnomvar)
-!          if(ikey.lt.0)  then
-!            write(6,*) idateo,cletiket,ip2,ip3,cltypvar,clnomvar
-!            call utl_abort('readEnsemble1: Problem with TG ENS')
-!          else
-!            do jlat=1,nj
-!              do jlon=1,ni
-!                ensPerturbations(jlon,jlat,ngposittg,jens)= gd2d(jlon,jlat)
-!              enddo
-!            enddo
-!          endif
-
-        ierr =  fstfrm(nulens)
-        ierr =  fclos (nulens)
-
-        write(6,*) 'done reading member ',jens
-        call flush(6)
-
-    enddo
-
-    write(6,*) 'finished reading ensemble members...'
-    call flush(6)
-
-  end subroutine readEnsemble1
-
-!--------------------------------------------------------------------------
-! READENSEMBLE
-!--------------------------------------------------------------------------
-  subroutine readEnsemble(ensPerturbations,windImages)
-    implicit none
-
-    logical, optional, intent(in) :: windImages
 
     real*4 :: ensPerturbations(:,:,:,:)
 
@@ -1945,7 +1760,7 @@ module calcstatsglb_mod
     do jens = 1, nens
         write(6,*) 'Reading ensemble member:',trim(cflensin(jens))
         call flush(6)
-        call readEnsembleMember(ensPerturbations,nulens,jens,windImages)
+        call readEnsembleMember(ensPerturbations,nulens,jens)
         write(6,*) 'done reading member ',jens
         call flush(6)
     end do
@@ -1968,24 +1783,20 @@ module calcstatsglb_mod
 !--------------------------------------------------------------------------
 ! READENSEMBLEMEMBER
 !--------------------------------------------------------------------------
-  subroutine readEnsembleMember(ensPerturbations,nulens,jens,windImages)
+  subroutine readEnsembleMember(ensPerturbations,nulens,jens)
     implicit none
 
     real*4 :: ensPerturbations(:,:,:,:)
     integer, intent(in) :: jens
     integer, intent(in) :: nulens(nens)
-    logical, optional, intent(in) :: windImages
-    
     
     integer :: stamp_in
     real*4 :: gd2d(ni,nj)
-    real*8 :: rmsknt,rmbtpa,r1sa,conima
+    real*8 :: rmsknt,rmbtpa,r1sa
     real*8 :: rhumin = 2.5d-6
     integer :: jlon,jlat,jlev
     integer :: fstlir
     integer :: ngposituu,ngpositvv,ngposittt,ngpositq,ngpositps,ngposittg
-
-    logical :: convertToWindImages
 
     ! standard file variables
     integer ini,inj,ink,ip1,ip2,ip3,ierr,idateo,ikey
@@ -2006,16 +1817,6 @@ module calcstatsglb_mod
     rmsknt = 1.d0/1.94246d0
     rmbtpa = 1.0d2
     r1sa=1.d0/6371229.d0
-
-    if ( present(windImages)) then
-       convertToWindImages = windImages
-    else
-       convertToWindImages = .true. ! default value
-    end if
-
-    if ( convertToWindImages ) then
-       write(6,*) 'WIND components will be converted to WIND IMAGES'
-    end if
 
     ! read in raw ensemble (UU,VV,TT,P0,LQ (convert HU to LQ) - covariances)
     ip2 = 6
@@ -2082,13 +1883,8 @@ module calcstatsglb_mod
           call utl_abort('readEnsembleMember: Problem with UU ENS')
        endif
        do jlat=1,nj
-          if ( convertToWindImages ) then
-             conima=r1sa*gst_getRSQM2(jlat,gstID_nkgdimEns)
-          else
-             conima=1.d0
-          end if
           do jlon=1,ni
-             ensPerturbations(jlon,jlat,jlev-1+ngposituu,jens)= gd2d(jlon,jlat)*rmsknt*conima
+             ensPerturbations(jlon,jlat,jlev-1+ngposituu,jens)= gd2d(jlon,jlat)*rmsknt
           enddo
        enddo
     enddo
@@ -2101,13 +1897,8 @@ module calcstatsglb_mod
           call utl_abort('readEnsembleMember: Problem with VV ENS')
        endif
        do jlat=1,nj
-          if ( convertToWindImages ) then
-             conima=r1sa*gst_getRSQM2(jlat,gstID_nkgdimEns)
-          else
-             conima=1.d0
-          end if
           do jlon=1,ni
-             ensPerturbations(jlon,jlat,jlev-1+ngpositvv,jens)= gd2d(jlon,jlat)*rmsknt*conima
+             ensPerturbations(jlon,jlat,jlev-1+ngpositvv,jens)= gd2d(jlon,jlat)*rmsknt
           enddo
        enddo
     enddo
