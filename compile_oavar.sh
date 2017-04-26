@@ -229,9 +229,9 @@ if [ "${mode}" == full ] ; then
   SRC1="controlvector_mod.ftn90 rmatrix_mod.ftn90 hirchannels_mod.ftn90 tovs_nl_mod.ftn90"
   SRC1="$SRC1 tovs_lin_mod.ftn90 varnamelist_mod.ftn90 columndata_mod.ftn90 multi_ir_bgck_mod.ftn90"
   SRC1="$SRC1 emissivities_mod.ftn90 globalspectraltransform_mod.ftn90 tt2phi_mod.ftn90"
-  SRC1="$SRC1 lamspectraltransform_mod.ftn90 gridstatevector_mod.ftn90 statetocolumn_mod.ftn90 variabletransforms_mod.ftn90"
-  SRC1="$SRC1 bmatrixensemble_mod.ftn90 bmatrixhi_mod.ftn90 lambmatrixhi_mod.ftn90 bmatrixchem_mod.ftn90"
-  SRC1="$SRC1 bmatrix_mod.ftn90 residual_mod.ftn90 costfunction_mod.ftn90"
+  SRC1="$SRC1 lamspectraltransform_mod.ftn90 gridstatevector_mod.ftn90 ensemblestatevector_mod.ftn90 statetocolumn_mod.ftn90"
+  SRC1="$SRC1 variabletransforms_mod.ftn90 bmatrixensemble_mod.ftn90 bmatrixhi_mod.ftn90 lambmatrixhi_mod.ftn90"
+  SRC1="$SRC1 bmatrixchem_mod.ftn90 bmatrix_mod.ftn90 residual_mod.ftn90 costfunction_mod.ftn90"
   SRC1="$SRC1 ozoneclim_mod.ftn90 tovs_extrap_mod.ftn90"
 
   s.compile $COMPF  -O ${FOPTMIZ} -src $SRC1 > listing3 2>&1

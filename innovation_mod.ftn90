@@ -1018,13 +1018,13 @@ contains
                      if (trim(varName).eq.'UU') then
 
                         ierr = utl_ezuvint(varInterp(1:nobs_mpiglobal(jstep,jlatlontile),jlev,jlatlontile),  &
-                             varInterp_VV(1:nobs_mpiglobal(jstep,jlatlontile),jlev,jlatlontile),  &
-                             varTrial_r4,varTrial_zero_r4,  &
-                             nobs_mpiglobal(jstep,jlatlontile),ni*nj)
+                                           varInterp_VV(1:nobs_mpiglobal(jstep,jlatlontile),jlev,jlatlontile),  &
+                                           varTrial_r4,varTrial_zero_r4,  &
+                                           nobs_mpiglobal(jstep,jlatlontile),ni*nj)
                         ierr = utl_ezuvint(varInterp2(1:nobs_mpiglobal(jstep,jlatlontile)),  &
-                             varInterp2_VV(1:nobs_mpiglobal(jstep,jlatlontile)),  &
-                             varTrial_zero_r4,varTrial_VV_r4,  &
-                             nobs_mpiglobal(jstep,jlatlontile),ni*nj)
+                                           varInterp2_VV(1:nobs_mpiglobal(jstep,jlatlontile)),  &
+                                           varTrial_zero_r4,varTrial_VV_r4,  &
+                                           nobs_mpiglobal(jstep,jlatlontile),ni*nj)
 
                         varInterp(1:nobs_mpiglobal(jstep,jlatlontile),jlev,jlatlontile) =  &
                              varInterp(1:nobs_mpiglobal(jstep,jlatlontile),jlev,jlatlontile) +  &
@@ -1033,10 +1033,15 @@ contains
                              varInterp_VV(1:nobs_mpiglobal(jstep,jlatlontile),jlev,jlatlontile) +  &
                              varInterp2_VV(1:nobs_mpiglobal(jstep,jlatlontile))
 
+                        ! This could replace the code above, but results are changed, so more testing needed
+                        !ierr = utl_ezuvint(varInterp(1:nobs_mpiglobal(jstep,jlatlontile),jlev,jlatlontile),  &
+                        !                   varInterp_VV(1:nobs_mpiglobal(jstep,jlatlontile),jlev,jlatlontile),  &
+                        !                   varTrial_r4,varTrial_VV_r4,  &
+                        !                   nobs_mpiglobal(jstep,jlatlontile),ni*nj)
                      else
                         ierr = utl_ezsint2(varInterp(1:nobs_mpiglobal(jstep,jlatlontile),jlev,jlatlontile),  &
-                             varTrial_r4,  &
-                             nobs_mpiglobal(jstep,jlatlontile),1,1,ni,nj,1)
+                                           varTrial_r4,  &
+                                           nobs_mpiglobal(jstep,jlatlontile),1,1,ni,nj,1)
                      endif
                   endif
                enddo
