@@ -259,8 +259,8 @@ contains
 
       implicit none
 
-      real(8), intent(in) :: field(lon1:lon2,lev1:lev2,lat1:lat2,step1:step2)
       integer, intent(in) :: lon1,lon2,lev1,lev2,lat1,lat2,step1,step2
+      real(8), intent(in) :: field(lon1:lon2,lev1:lev2,lat1:lat2,step1:step2)
       real(8) :: log_field(lon1:lon2,lev1:lev2,lat1:lat2,step1:step2)
 
       integer :: jstep,jlon,jlev,jlat
