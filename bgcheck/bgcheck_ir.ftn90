@@ -20,7 +20,7 @@
 !! @author P. Koclas *CMC/CMDA  Nov 1998
 !!
 !--------------------------------------------------------------------------
-SUBROUTINE BGCHECK_IR(columng,columnhr,obsSpaceData)
+SUBROUTINE BGCHECK_IR(columnhr,obsSpaceData)
   use obsSpaceData_mod
   use columnData_mod
   use tovs_nl_mod
@@ -31,7 +31,7 @@ SUBROUTINE BGCHECK_IR(columng,columnhr,obsSpaceData)
   IMPLICIT NONE
 
   type(struct_obs) :: obsSpaceData
-  type(struct_columnData) :: columng,columnhr
+  type(struct_columnData) :: columnhr
   INTEGER J
   INTEGER,allocatable :: NOBIR(:)
   INTEGER :: index_header,idatyp,krtid

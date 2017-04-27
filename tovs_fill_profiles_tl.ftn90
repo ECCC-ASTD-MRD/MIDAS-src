@@ -189,7 +189,7 @@ subroutine tovs_fill_profiles_tl(column,columng)
         delLQ => col_getColumn(column,jo,'HU')
         TTb => col_getColumn(columng,jo,'TT')
         HUb => col_getColumn(columng,jo,'HU')
-        Pres => col_getColumn(columng,jo,'PR','TH')
+        Pres => col_getColumn(columng,jo,'PRES','TH')
         do jl = 1, nlv_T
            zt_tl (jl,knpf) = delTT(jl)
            zlq_tl(jl,knpf) = delLQ(jl)

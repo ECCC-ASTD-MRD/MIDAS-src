@@ -170,7 +170,7 @@ subroutine tovs_fill_profiles_ad(column,columng)
 
         TTb => col_getColumn(columng,jo,'TT')
         HUb => col_getColumn(columng,jo,'HU')
-        Pres => col_getColumn(columng,jo,'PR','TH')
+        Pres => col_getColumn(columng,jo,'PRES','TH')
         do jl = 1, nlv_T
            zt   (jl,knpf) = TTb(jl)
            zlq  (jl,knpf) = HUb(jl)

@@ -191,6 +191,9 @@ module verticalCoord_mod
     if(stat.ne.VGD_OK) then
       call utl_abort('vco: problem with vgd_get: key= ig_1 - vertical coord code')
     endif
+    if (Vcode /= 5002 .and. Vcode /= 5005) then
+      call utl_abort('vco_setupFromFile: Invalid Vcode. Currently only 5002 and 5005 supported.')
+    endif
 
     ! Get vgrid values for ip1
     stat = 0

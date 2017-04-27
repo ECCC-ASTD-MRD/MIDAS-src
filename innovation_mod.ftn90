@@ -59,14 +59,14 @@ module innovation_mod
 
   ! public procedures
   public :: inn_setupObs, inn_setupBackgroundColumns, inn_computeInnovation
-  public :: inn_perturbObs
+  public :: inn_perturbObs, inn_setupBackgroundColumnsAnl
 
 contains
 
   !--------------------------------------------------------------------------
   ! inn_setupObs
   !--------------------------------------------------------------------------
-  SUBROUTINE INN_SETUPOBS(obsSpaceData,obsColumnMode,obsMpiStrategy)
+  subroutine inn_setupobs(obsSpaceData,obsColumnMode,obsMpiStrategy)
     !
     !**s/r INN_SETUPOBS  - Initialisation of observation parameters and constants
     !
@@ -166,13 +166,115 @@ contains
        if ( top_AnalysisMode() ) call tovs_lin_setupallo()
     end if
 
-  END SUBROUTINE INN_SETUPOBS
+  end subroutine inn_setupobs
 
-  subroutine inn_setupBackgroundColumns(columng,columnhr,lobsSpaceData)
+
+  subroutine inn_setupBackgroundColumnsAnl(columnhr,columng)
+    implicit none
+
+    ! arguments
+    type(struct_columnData) :: columng,columnhr
+
+    ! locals
+    integer :: jvar, jlev, columnIndex
+    real(8), pointer :: columng_ptr(:), columnhr_ptr(:)
+
+    call tmg_start(10,'INN_SETUPBACKGROUNDCOLUMNS')
+
+    ! copy Lat/Lon and positions needed for interpolation
+    call col_copyLatLon(columnhr,columng)
+
+    ! copy 2D surface variables
+    do jvar = 1, vnl_numvarmax2D
+       if ( .not. col_varExist(vnl_varNameList2D(jvar)) ) cycle
+       if ( col_getNumCol(columng) > 0 ) then       
+          do columnIndex = 1, col_getNumCol(columng)
+             columng_ptr  => col_getColumn( columng , columnIndex, vnl_varNameList2D(jvar) )
+             columnhr_ptr => col_getColumn( columnhr, columnIndex, vnl_varNameList2D(jvar) )
+             columng_ptr(:) = columnhr_ptr(:)
+          enddo
+       endif
+    enddo
+
+    ! calculate pressure profiles on analysis levels
+    if (col_getNumCol(columng) > 0) then
+       call col_calcPressure(columng)
+       do jlev = 1,col_getNumLev(columng,'MM')
+          if (mpi_myid.eq.0) write(*,*) 'inn_setupBackgroundColumnsAnl: jlev, col_getPressure(COLUMNG,jlev,1,MM) = ',  &
+               jlev,col_getPressure(columng,jlev,1,'MM')
+       end do
+       do jlev = 1,col_getNumLev(columng,'TH')
+          if (mpi_myid.eq.0) write(*,*) 'inn_setupBackgroundColumnsAnl: jlev, col_getPressure(COLUMNG,jlev,1,TH) = ',  &
+               jlev,col_getPressure(columng,jlev,1,'TH')
+       end do
+       do jlev = 1,col_getNumLev(columng,'MM')
+         if (mpi_myid.eq.0) write(*,*) 'inn_setupBackgroundColumnsAnl: jlev, col_getPressureDeriv(COLUMNG,jlev,1,MM) = ',  &
+              jlev,col_getPressureDeriv(columng,jlev,1,'MM')
+       end do
+       do jlev = 1,col_getNumLev(columng,'TH')
+          if (mpi_myid.eq.0) write(*,*) 'inn_setupBackgroundColumnsAnl: jlev, col_getPressureDeriv(COLUMNG,jlev,1,TH) = ',  &
+              jlev,col_getPressureDeriv(columng,jlev,1,'TH')
+       end do
+    endif
+
+    ! vertical interpolation of 3D surface variables
+    do jvar = 1, vnl_numvarmax3D
+       if ( .not. col_varExist( vnl_varNameList3D(jvar) ) ) cycle
+       if ( vnl_varNameList3D(jvar) == 'GZ  ') cycle
+
+       ! do extra manipulation of HU to obtain results closer to previous 
+       ! version of code that did vertical interpolation before converting HU->LQ
+       if ( vnl_varNameList3D(jvar).eq.'HU  ' ) then
+          ! conversion from log(humidity) to specific humidity 
+          do columnIndex = 1, col_getNumCol(columng)
+             columnhr_ptr => col_getColumn(columnhr,columnIndex,'HU')
+             do jlev=1,col_getNumLev(columnhr,'TH')
+                columnhr_ptr(jlev)=exp(columnhr_ptr(jlev))
+             enddo
+          enddo
+       endif
+
+       call col_vintprof( columnhr, columng, vnl_varNameList3D(jvar) )
+
+       if ( vnl_varNameList3D(jvar).eq.'HU  ' ) then
+          ! conversion from specific humidity to log(humidity)
+          do columnIndex = 1, col_getNumCol(columng)
+             columng_ptr  => col_getColumn(columng ,columnIndex,'HU')
+             columnhr_ptr => col_getColumn(columnhr,columnIndex,'HU')
+             do jlev=1,col_getNumLev(columnhr,'TH')
+                columnhr_ptr(jlev) = log(max(columnhr_ptr(jlev),col_rhumin))
+                columng_ptr(jlev) = log(max(columng_ptr(jlev),col_rhumin))
+             enddo
+          enddo
+       endif
+    enddo
+
+    if (col_varExist('TT') .and. col_varExist('HU') .and. col_varExist('P0')) then
+       !
+       !- Initialisation of TLM operators
+       !
+       call subasic_obs(columng)
+       !
+       !- Using T, q and PS to compute GZ for columng
+       !
+       do columnIndex = 1, col_getNumCol(columng)
+          call col_setGZsfc(columng ,columnIndex, col_getGZsfc(columnhr, columnIndex))
+       enddo
+       if (col_getNumLev(columng,'MM') > 1) call tt2phi(columng)
+    else
+       write(*,*) ':inn_setupBackgroundColumnsAnl  GZ TLM calcs not generated since TT, HU and P0 not all present'
+    end if
+
+    call tmg_stop(10)
+
+  end subroutine inn_setupBackgroundColumnsAnl
+
+
+  subroutine inn_setupBackgroundColumns(columnhr,obsSpaceData)
     !
-    ! Purpose: Fill in COLUMNG and COLUMNHR with trial profiles
+    ! Purpose: Fill in COLUMNHR with trial profiles
     !
-    ! Arguments: COLUMNG, COLUMNHR
+    ! Arguments: COLUMNHR, OBSSPACEDATA
     !
     ! Revisions:
     !   Ping Du, Oct. 2014
@@ -180,67 +282,58 @@ contains
     !     This was done by including the "case(default)" in the loop over 3D variables.
     !   Y. Rochon, Feb 2016
     !   - Additions introduced to allow variable transformations for constituent fields.
-    !   - Addition of varnmamelist_mod and valvarkindfromvanamr
+    !   - Addition of varnamelist_mod and valvarkindfromvarname
     !
     implicit none
 
-    type(struct_columnData) :: columng,columnhr
-    type(struct_obs) :: lobsSpaceData
-    type(struct_vco), pointer :: vco_anl, vco_trl
+    ! arguments
+    type(struct_columnData) :: columnhr
+    type(struct_obs) :: obsSpaceData
+
+    ! locals
+    type(struct_vco), pointer :: vco_trl
     type(struct_hco), pointer :: hco_anl
-
-    integer ezgprm,fnom,fclos,fstouv,fstfrm
-    integer ezsetopt,gdxyfll, gdllfxy
-    integer jlev,jobs,ierr,iset,jstep,jlatlontile
-    integer ini, inj,ink,iig1,iig2,iig3,iig4,jvar
-    integer itrlnlev
-    integer idata,idatend,jdata
-
-    character*1 clgrtyp
-    character*2 cltypvar
-    character*12 cletiket
-    real*8, allocatable :: varInterphr_T(:,:),varInterphr_M(:,:),varInterphr_VV(:,:)
-    integer ip1_pak_trl,ip1_vco_trl
-    integer nlevtrl_T,nlevtrl_M
-    integer, parameter :: jpnflev = 200
-    integer itrlgid,iip1s(jpnflev),iip2,iip3
-    integer, allocatable :: idate(:),itime(:)
-    integer :: newdate,nstepanltime
+    integer, allocatable :: nultrl(:)
+    integer              :: jlev, jobs, jvar, ierr, status, iset, jstep, jlatlontile
+    integer              :: ini, inj, ink, iig1, iig2, iig3, iig4, itrlnlev
+    integer              :: ig1obs,ig2obs,ig3obs,ig4obs
+    integer              :: idata, idatend, jdata
+    integer              :: ip1_pak_trl, ip1_vco_trl, nultrl2
+    integer              :: nlevtrl_T, nlevtrl_M, numColumns, numColumn_maxmpiglobal
+    integer, parameter   :: maxLevels = 200
+    integer              :: itrlgid, iip1s(maxLevels), iip2, iip3
+    integer, allocatable :: idate(:), itime(:)
     integer, allocatable :: nobsgid(:) ! (nstepobs) grid id for ezscint corresponding to stepobs bin
     integer, allocatable :: notag(:,:) ! (nobtot,nstepobs) obs tag associated to observations of each bin
-    integer, allocatable :: nobs(:),nobs_maxmpiglobal(:) ! number of headers for each stepobs bin
-    integer, allocatable :: nobsgid_mpiglobal(:,:),nobs_mpiglobal(:,:)
+    integer, allocatable :: nobs(:), nobs_maxmpiglobal(:) ! number of headers for each stepobs bin
+    integer, allocatable :: nobsgid_mpiglobal(:,:), nobs_mpiglobal(:,:)
     integer, allocatable :: datestamplist(:)
-    integer :: numColumn_maxmpiglobal
+    real(8), allocatable :: varInterphr_T(:,:), varInterphr_M(:,:), varInterphr_VV(:,:)
+    real(4)              :: lat_r4, lon_r4, lat_deg_r4, lon_deg_r4, xpos_r4, ypos_r4
+    real(4)              :: xposLowerBoundAnl_r4, xposUpperBoundAnl_r4
+    real(8)              :: lat_r8, lon_r8, ypos_r8, xpos_r8, lat_rot, lon_rot
+    real(8)              :: zig1,zig2,zig3,zig4,stepObsIndex
+    real(8), allocatable :: dlonfld(:), dlatfld(:)
+    real(8), allocatable :: dlonfld_mpiglobal(:,:), dlatfld_mpiglobal(:,:)
+    real(8), pointer     :: column_ptr(:) => null()
+    logical              :: trialExists, noUpperGZ
+    character(len=1)     :: clgrtyp
+    character(len=2)     :: cltypvar
+    character(len=12)    :: cletiket
+    character(len=2)     :: flnum
+    character(len=128)   :: trialfile
+    character(len=4)     :: varnameForGetfldprm2
 
-    real :: lat_r4, lon_r4, lat_deg_r4, lon_deg_r4, xpos_r4, ypos_r4, xposLowerBoundAnl_r4, xposUpperBoundAnl_r4
-    real*8 :: lat_r8,lon_r8, ypos_r8, xpos_r8, lat_rot, lon_rot
-
-    character(len=2) :: flnum
-    character(len=128) :: trialfile
-    character(len=4) :: varnameForGetfldprm2
-
-    integer, allocatable :: nultrl(:)
-    integer :: nultrl2
-
-    logical :: trialExists, noUpperGZ
-
-    real*8  :: zig1,zig2,zig3,zig4,stepObsIndex
-    real*8, allocatable ::  dlonfld(:), dlatfld(:)
-    real*8, allocatable ::  dlonfld_mpiglobal(:,:), dlatfld_mpiglobal(:,:)
-
-    integer :: ig1obs,ig2obs,ig3obs,ig4obs
-    integer :: status,Vcode_trl,Vcode_anl
-
-    real*8, pointer :: column_ptr(:) => null()
-    integer :: get_max_rss
+    ! external functions
+    integer :: get_max_rss, newdate
+    integer :: ezgprm, ezsetopt, gdxyfll, gdllfxy
+    integer :: fnom, fclos, fstouv, fstfrm
 
     write(*,*) ' '
     write(*,*) '-------- ENTERING INN_SETUPBACKGROUNDCOLUMNS ---------'
     write(*,*) ' '
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-    if (mpi_myid.eq.0) write(*,*) 'nstepobs=',tim_nstepobs
     call tmg_start(10,'INN_SETUPBACKGROUNDCOLUMNS')
 
     !
@@ -267,34 +360,26 @@ contains
     !
     !     Vertical coordinate parameters 
     !
-    vco_anl => col_getVco(columng)
     vco_trl => col_getVco(columnhr)
     nlevtrl_M = vco_getNumLev(vco_trl,'MM')
     nlevtrl_T = vco_getNumLev(vco_trl,'TH')
     if (mpi_myid.eq.0) write(*,*)'INN_SETUPBACKGROUNDCOLUMNS:niv thermo:',nlevtrl_T,' momentum',nlevtrl_M
 
-    status = vgd_get(vco_trl%vgrid,key='ig_1 - vertical coord code',value=Vcode_trl)
-    status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
-    if (mpi_myid.eq.0) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: Vcode_trl= ',Vcode_trl, &
-         '  Vcode_anl= ',Vcode_anl
-    if (Vcode_trl.ne.5002.and.Vcode_trl.ne.5005) &
-         call utl_abort('INN_SETUPBACKGROUNDCOLUMNS: invalid vertical coord for background state!')
-    if (Vcode_anl.ne.5002.and.Vcode_anl.ne.5005) &
-         call utl_abort('INN_SETUPBACKGROUNDCOLUMNS: invalid vertical coord for analysis increment!')
     !
     !     Compute the maximum number of columns over all processors (lat-lon tiles)
     !
-    call rpn_comm_allreduce(col_getNumCol(columng),numColumn_maxmpiglobal,1,  &
+    numColumns = col_getNumCol(columnhr)
+    call rpn_comm_allreduce(numColumns,numColumn_maxmpiglobal,1,  &
          "MPI_INTEGER","MPI_MAX","GRID",ierr)
 
     !
     !     Allocate trial field column object and other local arrays
     !
-    if (col_getNumCol(columng).gt.0) then
-       allocate(notag(col_getNumCol(columng),tim_nStepObs))
-       allocate(varInterphr_T(nlevtrl_T,col_getNumCol(columng)))
-       allocate(varInterphr_M(nlevtrl_M,col_getNumCol(columng)))
-       allocate(varInterphr_VV(nlevtrl_M,col_getNumCol(columng)))
+    if (numColumns.gt.0) then
+       allocate(notag(numColumns,tim_nStepObs))
+       allocate(varInterphr_T(nlevtrl_T,numColumns))
+       allocate(varInterphr_M(nlevtrl_M,numColumns))
+       allocate(varInterphr_VV(nlevtrl_M,numColumns))
        varInterphr_T(:,:)=0.0d0
        varInterphr_M(:,:)=0.0d0
        varInterphr_VV(:,:)=0.0d0
@@ -320,7 +405,6 @@ contains
     do jstep = 1,tim_nStepObs
        ierr = newdate(datestamplist(jstep),idate(jstep),itime(jstep),-3)
        if (mpi_myid.eq.0) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: datestamplist=',jstep,datestamplist(jstep)
-       if (datestamplist(jstep) == tim_getDatestamp()) nstepanltime = jstep
     end do
 
     !
@@ -369,7 +453,7 @@ contains
        !- Get horizontal grid parameters to be used to test grid bounds
        !
        call utl_getfldprm(IIP1S,IIP2,IIP3,ITRLNLEV,CLETIKET,CLTYPVAR,  &
-            ITRLGID,trim(varnameForGetfldprm2),datestamplist(jstep),jpnflev,  &
+            ITRLGID,trim(varnameForGetfldprm2),datestamplist(jstep),maxLevels,  &
             nultrl(:),ip1_pak_trl,ip1_vco_trl,tim_nStepObs,  &
             nultrl2)
        if (itrlnlev <= 0 ) then
@@ -380,29 +464,29 @@ contains
        dlonfld(:)=0.0d0
        dlatfld(:)=0.0d0
 
-       do jobs=1, obs_numheader(lobsSpaceData)
+       do jobs=1, obs_numheader(obsSpaceData)
 
           call tim_getStepObsIndex(stepObsIndex,tim_getDatestamp(),  &
-               obs_headElem_i(lobsSpaceData,OBS_DAT,jobs),  &
-               obs_headElem_i(lobsSpaceData,OBS_ETM,jobs),tim_nstepobs)
+               obs_headElem_i(obsSpaceData,OBS_DAT,jobs),  &
+               obs_headElem_i(obsSpaceData,OBS_ETM,jobs),tim_nstepobs)
 
           ! check if obs is outside of assimilation window when jstep = 1
           if (jstep.eq.1 .and.  &
                (stepobsIndex.lt.1.0 .or. stepObsIndex.gt.real(tim_nstepobs,8)) ) then
              write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: Observation time outside assimilation window: ',  &
-                  obs_headElem_i(lobsSpaceData,OBS_DAT,jobs),obs_headElem_i(lobsSpaceData,OBS_ETM,jobs)
+                  obs_headElem_i(obsSpaceData,OBS_DAT,jobs),obs_headElem_i(obsSpaceData,OBS_ETM,jobs)
 
              ! put the obs in the first time bin (it has to go somewhere!)
              stepObsIndex=1.0d0
 
              ! flag it as out of time domain and turn off its assimilation flag
-             idata = obs_headElem_i(lobsSpaceData,OBS_RLN,jobs)
-             idatend = obs_headElem_i(lobsSpaceData,OBS_NLV,jobs) + idata -1
+             idata = obs_headElem_i(obsSpaceData,OBS_RLN,jobs)
+             idatend = obs_headElem_i(obsSpaceData,OBS_NLV,jobs) + idata -1
              do jdata = idata, idatend
-                call obs_bodySet_i(lobsSpaceData,OBS_ASS,JDATA, 0)
+                call obs_bodySet_i(obsSpaceData,OBS_ASS,JDATA, 0)
              end do
-             call obs_headSet_i(lobsSpaceData,OBS_ST1,jobs,  &
-                  ibset( obs_headElem_i(lobsSpaceData,OBS_ST1,jobs), 05))
+             call obs_headSet_i(obsSpaceData,OBS_ST1,jobs,  &
+                  ibset( obs_headElem_i(obsSpaceData,OBS_ST1,jobs), 05))
           end if
 
           if ( nint(stepObsIndex) == jstep ) then
@@ -411,8 +495,8 @@ contains
              notag(nobs(jstep),jstep) = jobs
 
              !- Get LatLon of observation location
-             lat_r8=obs_headElem_r(lobsSpaceData,OBS_LAT,jobs)
-             lon_r8=obs_headElem_r(lobsSpaceData,OBS_LON,jobs)
+             lat_r8=obs_headElem_r(obsSpaceData,OBS_LAT,jobs)
+             lon_r8=obs_headElem_r(obsSpaceData,OBS_LON,jobs)
              lat_r4=real(lat_r8)
              lon_r4=real(lon_r8)
              if (lon_r4.lt.0.0         ) lon_r4 = lon_r4 + 2.0*MPC_PI_R4
@@ -451,8 +535,8 @@ contains
 
                    lat_r8 = real(lat_deg_r4,8) * MPC_RADIANS_PER_DEGREE_R8
                    lon_r8 = real(lon_deg_r4,8) * MPC_RADIANS_PER_DEGREE_R8
-                   call obs_headSet_r(lobsSpaceData,OBS_LAT,jobs, lat_r8) ! IN
-                   call obs_headSet_r(lobsSpaceData,OBS_LON,jobs, lon_r8) ! IN
+                   call obs_headSet_r(obsSpaceData,OBS_LAT,jobs, lat_r8) ! IN
+                   call obs_headSet_r(obsSpaceData,OBS_LON,jobs, lon_r8) ! IN
 
                 else
                    ! The observation is outside the domain
@@ -460,13 +544,13 @@ contains
                    write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: Rejecting OBS outside the LAM ANALYSIS grid domain, ', jobs
                    write(*,*) '  position : ', lat_deg_r4, lon_deg_r4, ypos_r4, xpos_r4
 
-                   idata   = obs_headElem_i(lobsSpaceData,OBS_RLN,jobs)
-                   idatend = obs_headElem_i(lobsSpaceData,OBS_NLV,jobs) + idata -1
+                   idata   = obs_headElem_i(obsSpaceData,OBS_RLN,jobs)
+                   idatend = obs_headElem_i(obsSpaceData,OBS_NLV,jobs) + idata -1
                    do jdata = idata, idatend
-                      call obs_bodySet_i(lobsSpaceData,OBS_ASS,JDATA, 0)
+                      call obs_bodySet_i(obsSpaceData,OBS_ASS,JDATA, 0)
                    end do
-                   call obs_headSet_i(lobsSpaceData,OBS_ST1,jobs,  &
-                        ibset( obs_headElem_i(lobsSpaceData,OBS_ST1,jobs), 05))
+                   call obs_headSet_i(obsSpaceData,OBS_ST1,jobs,  &
+                        ibset( obs_headElem_i(obsSpaceData,OBS_ST1,jobs), 05))
                 end if
 
              end if
@@ -485,8 +569,6 @@ contains
              !- Store the above 3 pairs of values in column structure
              ypos_r8 = real(ypos_r4,8)
              xpos_r8 = real(xpos_r4,8)
-             call col_setLatLon( columng , jobs, lat_r8, lon_r8,   & ! IN
-                  ypos_r8, xpos_r8, lat_rot, lon_rot ) ! IN
              call col_setLatLon( columnhr, jobs, lat_r8, lon_r8,   & ! IN
                   ypos_r8, xpos_r8, lat_rot, lon_rot ) ! IN
 
@@ -515,13 +597,13 @@ contains
                 write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: Rejecting OBS outside the TRIAL field domain, ', jobs
                 write(*,*) '  position : ', lat_deg_r4, lon_deg_r4, ypos_r4, xpos_r4
 
-                idata   = obs_headElem_i(lobsSpaceData,OBS_RLN,jobs)
-                idatend = obs_headElem_i(lobsSpaceData,OBS_NLV,jobs) + idata -1
+                idata   = obs_headElem_i(obsSpaceData,OBS_RLN,jobs)
+                idatend = obs_headElem_i(obsSpaceData,OBS_NLV,jobs) + idata -1
                 do jdata = idata, idatend
-                   call obs_bodySet_i(lobsSpaceData,OBS_ASS,JDATA, 0)
+                   call obs_bodySet_i(obsSpaceData,OBS_ASS,JDATA, 0)
                 end do
-                call obs_headSet_i(lobsSpaceData,OBS_ST1,jobs,  &
-                     ibset( obs_headElem_i(lobsSpaceData,OBS_ST1,jobs), 05))
+                call obs_headSet_i(obsSpaceData,OBS_ST1,jobs,  &
+                     ibset( obs_headElem_i(obsSpaceData,OBS_ST1,jobs), 05))
 
                 ! However, we must assigned a realistic lat-lon to this point
                 ! to avoid problem later in Hx computation.
@@ -576,46 +658,19 @@ contains
 
        call readTrialField(varInterphr_M,varInterphr_VV,vnl_varNameList2D(jvar),'SF')
 
-       if (col_getNumCol(columng).gt.0) then       
+       if (numColumns.gt.0) then       
           if (vnl_varNameList2D(jvar).eq.'P0  ') then
              varInterphr_M(:,:)=varInterphr_M(:,:)*MPC_PA_PER_MBAR_R8
           endif
-          call col_fillmvo(columng ,varInterphr_M,vnl_varNameList2D(jvar))
           call col_fillmvo(columnhr,varInterphr_M,vnl_varNameList2D(jvar))
        endif
 
     enddo
 
     !
-    !     Derive the pressure fields at observation points from the hybrid
-    !     levels, the hybrid coordinate parameters of the
-    !     analysis increment and the surface pressure of the trial field
+    !     Derive the pressure fields at observation points
     !      
-    if (col_getNumCol(columng).gt.0) then
-
-       call col_calcPressure(columng)
-
-       do jlev = 1,col_getNumLev(columng,'MM')
-          if (mpi_myid.eq.0) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: jlev, col_getPressure(COLUMNG,jlev,1,MM) = ',  &
-               jlev,col_getPressure(COLUMNG,jlev,1,'MM')
-       end do
-       do jlev = 1,col_getNumLev(columng,'TH')
-          if (mpi_myid.eq.0) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: jlev, col_getPressure(COLUMNG,jlev,1,TH) = ',  &
-               jlev,col_getPressure(COLUMNG,jlev,1,'TH')
-       end do
-       do jlev = 1,col_getNumLev(columng,'MM')
-         if (mpi_myid.eq.0) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: jlev, col_getPressureDeriv(COLUMNG,jlev,1,MM) = ',  &
-              jlev,col_getPressureDeriv(COLUMNG,jlev,1,'MM')
-       end do
-       do jlev = 1,col_getNumLev(columng,'TH')
-          if (mpi_myid.eq.0) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: jlev, col_getPressureDeriv(COLUMNG,jlev,1,TH) = ',  &
-              jlev,col_getPressureDeriv(COLUMNG,jlev,1,'TH')
-       end do
-
-       !     Calculate profiles of pressure values at station location
-
-
-       !     Compute Pressure fields at desired trial field levels
+    if (numColumns.gt.0) then
        call col_calcPressure(columnhr)
 
        do jlev = 1,col_getNumLev(columnhr,'MM')
@@ -640,7 +695,7 @@ contains
     !
     call readTrialField(varInterphr_M,varInterphr_VV,'GZ  ','MM',noUpperGZ)
 
-    if (col_getNumCol(columng).gt.0) then       
+    if (numColumns.gt.0) then       
        varInterphr_M(:,:)=varInterphr_M(:,:)*10.0d0*RG
        call col_fillmvo(columnhr,varInterphr_M,'GZ  ','MM')
        if (mpi_myid.eq.0) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS:GZ_M'
@@ -654,7 +709,7 @@ contains
     !
     call readTrialField(varInterphr_T,varInterphr_VV,'GZ  ','TH',noUpperGZ)
 
-    if (col_getNumCol(columng).gt.0) then       
+    if (numColumns.gt.0) then       
        varInterphr_T(:,:)=varInterphr_T(:,:)*10.0d0*RG
        call col_fillmvo(columnhr,varInterphr_T,'GZ  ','TH')
        if (mpi_myid.eq.0) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS:GZ_TH'
@@ -681,7 +736,7 @@ contains
 
           call readTrialField(varInterphr_M,varInterphr_VV,'UV  ','MM')
 
-          if (col_getNumCol(columng).gt.0) then       
+          if (numColumns.gt.0) then       
 
              if (mpi_myid.eq.0) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: UU ,nlev= ',nlevtrl_M
              do jlev = 1,nlevtrl_M
@@ -694,25 +749,15 @@ contains
 
              call col_fillmvo(columnhr,varInterphr_M,'UU  ')
              call col_fillmvo(columnhr,varInterphr_VV,'VV  ')
-             call col_vintprof(columnhr,columng,'UU')
-             call col_vintprof(columnhr,columng,'VV')
 
              ! conversion from knots to m/s
-             do jobs=1,col_getNumCol(columng)
+             do jobs=1,numColumns
                 column_ptr => col_getColumn(columnhr,jobs,'UU')
                 do jlev=1,col_getNumLev(columnhr,'MM')
                    column_ptr(jlev)=column_ptr(jlev)*MPC_M_PER_S_PER_KNOT_R8
                 enddo
                 column_ptr => col_getColumn(columnhr,jobs,'VV')
                 do jlev=1,col_getNumLev(columnhr,'MM')
-                   column_ptr(jlev)=column_ptr(jlev)*MPC_M_PER_S_PER_KNOT_R8
-                enddo
-                column_ptr => col_getColumn(columng,jobs,'UU')
-                do jlev=1,col_getNumLev(columng,'MM')
-                   column_ptr(jlev)=column_ptr(jlev)*MPC_M_PER_S_PER_KNOT_R8
-                enddo
-                column_ptr => col_getColumn(columng,jobs,'VV')
-                do jlev=1,col_getNumLev(columng,'MM')
                    column_ptr(jlev)=column_ptr(jlev)*MPC_M_PER_S_PER_KNOT_R8
                 enddo
              enddo
@@ -727,7 +772,7 @@ contains
 
           call readTrialField(varInterphr_T,varInterphr_VV,vnl_varNameList3D(jvar),'TH')
 
-          if (col_getNumCol(columng).gt.0) then       
+          if (numColumns.gt.0) then       
 
              if (mpi_myid.eq.0) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS:',vnl_varNameList3D(jvar)
              do jlev = 1,nlevtrl_T
@@ -735,29 +780,20 @@ contains
              enddo
 
              call col_fillmvo(columnhr,varInterphr_T,vnl_varNameList3D(jvar))
-             call col_vintprof(columnhr,columng,vnl_varNameList3D(jvar))
 
              if (vnl_varNameList3D(jvar).eq.'TT  ') then
                 ! conversion from Celcius to Kelvin
-                do jobs=1,col_getNumCol(columng)
+                do jobs=1,numColumns
                    column_ptr => col_getColumn(columnhr,jobs,'TT')
                    do jlev=1,col_getNumLev(columnhr,'TH')
-                      column_ptr(jlev)=column_ptr(jlev)+MPC_K_C_DEGREE_OFFSET_R8
-                   enddo
-                   column_ptr => col_getColumn(columng,jobs,'TT')
-                   do jlev=1,col_getNumLev(columng,'TH')
                       column_ptr(jlev)=column_ptr(jlev)+MPC_K_C_DEGREE_OFFSET_R8
                    enddo
                 enddo
              elseif (vnl_varNameList3D(jvar).eq.'HU  ') then
                 ! conversion from specific humidity to log(humidity)
-                do jobs=1,col_getNumCol(columng)
+                do jobs=1,numColumns
                    column_ptr => col_getColumn(columnhr,jobs,'HU')
                    do jlev=1,col_getNumLev(columnhr,'TH')
-                      column_ptr(jlev)=log(max(column_ptr(jlev),col_rhumin))
-                   enddo
-                   column_ptr => col_getColumn(columng,jobs,'HU')
-                   do jlev=1,col_getNumLev(columng,'TH')
                       column_ptr(jlev)=log(max(column_ptr(jlev),col_rhumin))
                    enddo
                 enddo
@@ -769,7 +805,7 @@ contains
 
           call readTrialField(varInterphr_T,varInterphr_VV,vnl_varNameList3D(jvar),vnl_varLevelFromVarname(vnl_varNameList3D(jvar)))
 
-          if(col_getNumCol(columng).gt.0) then
+          if(numColumns.gt.0) then
 
              if(mpi_myid.eq.0) write(*,*) 'inn_setupBackgroundColumns:',vnl_varNameList3D(jvar)
              do jlev = 1,nlevtrl_T
@@ -777,29 +813,13 @@ contains
              enddo
              
              call col_fillmvo(columnhr,varInterphr_T,vnl_varNameList3D(jvar))
-             call col_vintprof(columnhr,columng,vnl_varNameList3D(jvar))
 
           end if
 
        end select
     enddo
 
-    
     if (col_varExist('TT') .and. col_varExist('HU') .and. col_varExist('P0')) then
-
-       !
-       !- Initialisation of TLM operators
-       !
-       call subasic_obs(columng)
-
-       !
-       !- Using T, q and PS to compute GZ for columng
-       !
-       do jobs = 1, col_getNumCol(columng)
-          call col_setGZsfc(columng ,jobs, col_getGZsfc(columnhr, jobs))
-       enddo
-       if (col_getNumLev(columng,'MM') > 1) call tt2phi(columng)
-
        !
        !- Using T, q and PS to compute GZ for columnhr
        !
@@ -807,7 +827,6 @@ contains
           write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: No upper level GZ found, computing'
           call tt2phi(columnhr)
        endif
-
     else
        write(*,*) ':inn_setupBackgroundColumns  GZ TLM calcs not generated since TT, HU and P0 not all present'
     end if
@@ -823,7 +842,7 @@ contains
     !
     !- Deallocate the local arrays
     !
-    if (col_getNumCol(columng).gt.0) then       
+    if (numColumns.gt.0) then       
        deallocate(notag)
        deallocate(varInterphr_T)
        deallocate(varInterphr_M)
@@ -1118,13 +1137,14 @@ contains
 
   end subroutine inn_setupBackgroundColumns
 
-  subroutine inn_computeInnovation(columng,columnhr,obsSpaceData)
+
+  subroutine inn_computeInnovation(columnhr,obsSpaceData)
     !
     ! Initialise Observation Innovations using the nonlinear H
     !
     implicit none
 
-    type(struct_columnData) :: columnhr,columng
+    type(struct_columnData) :: columnhr
     type(struct_obs) :: obsSpaceData
 
     real*8 zjo,zjoraob,zjosatwind,zjosurfc
@@ -1153,7 +1173,7 @@ contains
     !
     !     Find interpolation layer in model profiles 
     !
-    if ( col_getNumLev(columnhr,'MM') > 1 ) call vobslyrs(columnhr,obsSpaceData)
+    if ( col_getNumLev(columnhr,'MM') > 1 ) call oop_vobslyrs(columnhr,obsSpaceData)
     !
     !
     !------ Calculate the innovations Y - H(Xb) and place
@@ -1265,11 +1285,6 @@ contains
     write(*,'(a15,f30.16)') 'JOCHM    = ',ZJOCHM
     write(*,'(a15,f30.16)') 'Total Jo = ',ZJO
 
-    !
-    !     Find interpolation layer in model profiles 
-    !
-    if ( col_getNumLev(columng,'MM') > 1 ) CALL VOBSLYRS(columng,obsSpaceData)
-
     write(*,*) 'TIM_TIMEBINNING: After filtering done in INN_COMPUTEINNOVATION'
     call tim_timeBinning(obsSpaceData,tim_nstepobs)
 
@@ -1278,186 +1293,6 @@ contains
 
   end subroutine inn_computeInnovation
 
-  SUBROUTINE VOBSLYRS(lcolumnghr,lobsSpaceData)
-
-    !*    Purpose:
-    !      Find which model levels to use for the vertical interpolation
-    !      of model fields to CMA data.
-    !
-    IMPLICIT NONE
-    type(struct_columnData) :: lcolumnghr
-    type(struct_obs) :: lobsSpaceData
-
-    INTEGER :: JK,JDATA,NLEV
-    REAL(8) :: ZLEV,ZPT,ZPB
-    INTEGER :: IOBS,IK,ITYP
-    LOGICAL :: LLOK
-    CHARACTER(len=2) :: varLevel
-    integer :: index_header, index_body
-    !
-    !-----------------------------------------------------------------------
-    !         --------
-    !           ETA
-    !         --------
-    !
-    !     1. Find where extrapolation is needed
-    !        ----------------------------------
-    !
-    !     1.1 PPP Vertical coordinate
-    !
-    Write(*,*) "Entering subroutine VOBSLYRS"
-
-    DO JDATA= 1,obs_numbody(lobsSpaceData)
-       LLOK = ( (obs_bodyElem_i(lobsSpaceData,OBS_ASS,JDATA) .EQ. 1     .OR. &
-            obs_bodyElem_i(lobsSpaceData,OBS_ASS,JDATA) .EQ. -1) .AND. &
-            obs_bodyElem_i(lobsSpaceData,OBS_VCO,JDATA) .EQ. 2 )
-       IF ( LLOK ) THEN
-          IF(obs_bodyElem_i(lobsSpaceData,OBS_VNM,JDATA) .NE. BUFR_NEDZ ) THEN
-             ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,JDATA)
-          ELSE
-             call utl_abort('vobslyr: ZLEV cannot be set, BUFR_NEDZ not supported!')
-          ENDIF
-          IOBS = obs_bodyElem_i(lobsSpaceData,OBS_HIND,JDATA)
-          ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,JDATA)
-          if (bufr_IsAtmosConstituent(ITYP)) then
-             varLevel = vnl_varLevelFromVarnum(ITYP, &
-                        obs_headElem_i(lobsSpaceData,OBS_CHM,IOBS))
-          else
-             varLevel = vnl_varLevelFromVarnum(ITYP)
-          end if
-          ZPT= col_getPressure(LCOLUMNGHR,1,IOBS,varLevel)
-          ZPB= col_getPressure(LCOLUMNGHR,COL_GETNUMLEV(LCOLUMNGHR,varLevel),IOBS,varLevel)
-          IF ( ZLEV .LT. ZPT ) THEN
-             call obs_bodySet_i(lobsSpaceData,OBS_XTR,JDATA,1)
-             !
-             !- !!! WARNING !!! This obs is above the model lid. 
-             !  We must turn off its assimilation flag  because the
-             !  current obs operators cannot deal with this situation (JFC)                  
-             if(varLevel.ne.'SF') then
-                write(*,*) "vobslyrs: Rejecting OBS above model lid, pressure = ", ZLEV," < ",ZPT
-                call obs_bodySet_i(lobsSpaceData,OBS_ASS,JDATA, 0)
-             endif
-          ELSE IF ( ZLEV .GT. ZPB ) THEN
-             call obs_bodySet_i(lobsSpaceData,OBS_XTR,JDATA,2)
-          ELSE
-             call obs_bodySet_i(lobsSpaceData,OBS_XTR,JDATA,0)
-          ENDIF
-       ENDIF
-    END DO
-    !
-    !     1.2 ZZZ Vertical coordinate
-    !
-    DO JDATA= 1,obs_numbody(lobsSpaceData)
-       LLOK = (obs_bodyElem_i(lobsSpaceData,OBS_ASS,JDATA) .EQ. 1 .AND. &
-            obs_bodyElem_i(lobsSpaceData,OBS_VCO,JDATA) .EQ. 1 )
-       IF ( LLOK ) THEN
-          IF(obs_bodyElem_i(lobsSpaceData,OBS_VNM,JDATA) .NE. BUFR_NEDZ ) THEN
-             ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,JDATA)
-          ELSE
-             call utl_abort('vobslyr: ZLEV cannot be set, BUFR_NEDZ not supported!')
-          ENDIF
-          IOBS = obs_bodyElem_i(lobsSpaceData,OBS_HIND,JDATA)
-          ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,JDATA)
-          if (bufr_IsAtmosConstituent(ITYP)) then
-             varLevel = vnl_varLevelFromVarnum(ITYP, &
-                        obs_headElem_i(lobsSpaceData,OBS_CHM,IOBS))
-          else
-             varLevel = vnl_varLevelFromVarnum(ITYP)
-          end if
-          if(varLevel.eq.'SF') then
-             ZPT= col_getHeight(lcolumnghr,1,IOBS,'TH')/RG
-             ZPB= col_getGZsfc(lcolumnghr,IOBS)/RG                 
-          else
-             nlev=col_getNumLev(lcolumnghr,varLevel)
-             ZPT= col_getHeight(lcolumnghr,1,IOBS,varLevel)/RG
-             ZPB= col_getHeight(lcolumnghr,NLEV,IOBS,varLevel)/RG
-          endif
-          IF ( ZLEV .GT. ZPT ) THEN
-             call obs_bodySet_i(lobsSpaceData,OBS_XTR,JDATA,1)
-             write(*,*) "vobslyrs: Rejecting OBS above model lid, height =", ZLEV," > ",ZPT
-             call obs_bodySet_i(lobsSpaceData,OBS_ASS,JDATA, 0)
-          ELSE IF ( ZLEV .LT. ZPB ) THEN
-             call obs_bodySet_i(lobsSpaceData,OBS_XTR,JDATA,2)
-          ELSE
-             call obs_bodySet_i(lobsSpaceData,OBS_XTR,JDATA,0)
-          ENDIF
-       ENDIF
-    END DO
-    !
-    !
-    !     2. FInd interpolation layer
-    !        ------------------------
-    !        (Model levels are assumed to be in increasing order in Mbs)
-    !
-    !     2.1  PPP Vertical coordinate
-    !
-    DO JDATA=1,obs_numbody(lobsSpaceData)
-       call obs_bodySet_i(lobsSpaceData,OBS_LYR,JDATA,0)
-    END DO
-    !
-    DO JDATA= 1,obs_numbody(lobsSpaceData)
-       LLOK = ( (obs_bodyElem_i(lobsSpaceData,OBS_ASS,JDATA) .EQ. 1     .OR. &
-            obs_bodyElem_i(lobsSpaceData,OBS_ASS,JDATA) .EQ. -1) .AND. &
-            obs_bodyElem_i(lobsSpaceData,OBS_VCO,JDATA) .EQ. 2 )
-       IF ( LLOK ) THEN
-          IOBS = obs_bodyElem_i(lobsSpaceData,OBS_HIND,JDATA)
-          ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,JDATA)
-          ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,JDATA)
-          if (bufr_IsAtmosConstituent(ITYP)) then
-             varLevel = vnl_varLevelFromVarnum(ITYP, &
-                        obs_headElem_i(lobsSpaceData,OBS_CHM,IOBS))
-          else
-             varLevel = vnl_varLevelFromVarnum(ITYP)
-          end if
-          IK = 1
-          nlev=COL_GETNUMLEV(LCOLUMNGHR,varLevel)
-          DO JK = 2,NLEV - 1
-             ZPT = col_getPressure(LCOLUMNGHR,JK,IOBS,varLevel)
-             IF( ZLEV .GT. ZPT ) IK = JK
-          END DO
-          ZPT = col_getPressure(LCOLUMNGHR,IK,IOBS,varLevel)
-          ZPB = col_getPressure(LCOLUMNGHR,IK+1,IOBS,varLevel) 
-          call obs_bodySet_i(lobsSpaceData,OBS_LYR,JDATA, IK)
-       ENDIF
-    END DO
-    !
-    !     2.2  ZZZ Vertical coordinate and surface observations
-    !
-    DO JDATA= 1,obs_numbody(lobsSpaceData)
-       LLOK = ( (obs_bodyElem_i(lobsSpaceData,OBS_ASS,JDATA) .EQ. 1     .OR. &
-            obs_bodyElem_i(lobsSpaceData,OBS_ASS,JDATA) .EQ. -1) .AND. &
-            obs_bodyElem_i(lobsSpaceData,OBS_VCO,JDATA) .EQ. 1 )
-       IF ( LLOK ) THEN
-          IOBS = obs_bodyElem_i(lobsSpaceData,OBS_HIND,JDATA)
-          ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,JDATA)
-          ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,JDATA)
-          if (bufr_IsAtmosConstituent(ITYP)) then
-             varLevel = vnl_varLevelFromVarnum(ITYP, &
-                        obs_headElem_i(lobsSpaceData,OBS_CHM,IOBS))
-          else
-             varLevel = vnl_varLevelFromVarnum(ITYP)
-          end if
-          IK = 1
-          nlev=COL_GETNUMLEV(LCOLUMNGHR,varLevel)
-          DO JK = 2,NLEV - 1
-             ZPT = col_getHeight(lcolumnghr,JK,IOBS,varLevel)/RG
-             IF( ZLEV .LT. ZPT ) IK = JK
-          END DO
-          IF ( ITYP.EQ.BUFR_NEPS .or. ITYP.EQ.BUFR_NEPN .or. &
-               ITYP.EQ.BUFR_NEZD ) THEN
-             ! for surface observations associated with surface analysis variables
-             IK = 0
-          ELSEIF ( ITYP.EQ.BUFR_NETS .or. ityp.eq.BUFR_NESS .OR. &
-               ITYP.EQ.BUFR_NEUS .or. ityp.eq.BUFR_NEVS .OR. &
-               ITYP.EQ.BUFR_NEHS) THEN
-             ! for surface observations associated with NON-surface analysis variables
-             IK = nlev - 1
-          ENDIF
-          call obs_bodySet_i(lobsSpaceData,OBS_LYR,JDATA, IK)
-       ENDIF
-    END DO
-    !
-  END SUBROUTINE VOBSLYRS
 
   subroutine subasic_obs(lcolumng)
     implicit none
@@ -1480,8 +1315,7 @@ contains
     nlev_T = col_getNumLev(lcolumng,'TH')
     status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
 
-    if(Vcode_anl .ne. 5002 .and. &
-         Vcode_anl .ne. 5005 ) then
+    if( Vcode_anl .ne. 5002 .and. Vcode_anl .ne. 5005 ) then
        call utl_abort('subasic_obs: invalid vertical coord!')
     endif
 
@@ -1502,7 +1336,8 @@ contains
 
   end subroutine subasic_obs
 
-  subroutine setObsMpiStrategy(lobsSpaceData, mpiStrategy)
+
+  subroutine setObsMpiStrategy(obsSpaceData, mpiStrategy)
     !
     ! PURPOSE:
     !  Header indices are distributed following the chosen strategy,
@@ -1510,7 +1345,7 @@ contains
     !
     implicit none
 
-    type(struct_obs), intent(inout) :: lobsSpaceData
+    type(struct_obs), intent(inout) :: obsSpaceData
     character(len=*), intent(in)    :: mpiStrategy
 
     type(struct_hco), pointer :: hco_anl
@@ -1546,40 +1381,40 @@ contains
     !- 2.  Determine obs_ipc (column) and obs_ipt (tile) according to distribution strategy
     !
     write(*,*)
-    numHeaderFile = obs_numheader(lobsSpaceData)
+    numHeaderFile = obs_numheader(obsSpaceData)
     write(*,*) 'setObsMpiStrategy: numHeader after reading files = ',numHeaderFile
     write(*,*) 'setObsMpiStrategy: strategy = ',trim(mpiStrategy)
 
     ! make sure old PE index is not used (set to -1)
     do headerIndex = 1, numHeaderFile
-       call obs_headSet_i(lobsSpaceData,OBS_IP,headerIndex,-1)
+       call obs_headSet_i(obsSpaceData,OBS_IP,headerIndex,-1)
     end do
 
     ! set PE index for the file (where reading and updating was/will be done)
     do headerIndex = 1, numHeaderFile
-       call obs_headSet_i(lobsSpaceData,OBS_IPF,headerIndex,mpi_myid)
+       call obs_headSet_i(obsSpaceData,OBS_IPF,headerIndex,mpi_myid)
     end do
 
     select case (trim(mpiStrategy))
     case ('LIKESPLITFILES')
        !- 2.1 Keep distribution exactly as it is in the split files:
        do headerIndex = 1, numHeaderFile
-          call obs_headSet_i(lobsSpaceData,OBS_IPC,headerIndex, mpi_myid)
-          call obs_headSet_i(lobsSpaceData,OBS_IPT,headerIndex, mpi_myid)
+          call obs_headSet_i(obsSpaceData,OBS_IPC,headerIndex, mpi_myid)
+          call obs_headSet_i(obsSpaceData,OBS_IPT,headerIndex, mpi_myid)
        end do
     case ('ROUNDROBIN')
        !- 2.2 Distribute by a round-robin strategy for both obs_ipc and obs_ipt:
        !      (Only use if files already not split by round robin)
        do headerIndex = 1, numHeaderFile
           IP = mod((headerIndex-1),mpi_nprocs)
-          call obs_headSet_i(lobsSpaceData,OBS_IPC,headerIndex, IP)
-          call obs_headSet_i(lobsSpaceData,OBS_IPT,headerIndex, IP)
+          call obs_headSet_i(obsSpaceData,OBS_IPC,headerIndex, IP)
+          call obs_headSet_i(obsSpaceData,OBS_IPT,headerIndex, IP)
        end do
     case ('LATLONTILES')
        !- 2.3 Distribute by latitude/longitude tiles for both obs_ipc and obs_ipt:
        do headerIndex = 1, numHeaderFile
-          lat_r8 = obs_headElem_r(lobsSpaceData,OBS_LAT,headerIndex)
-          lon_r8 = obs_headElem_r(lobsSpaceData,OBS_LON,headerIndex)
+          lat_r8 = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex)
+          lon_r8 = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex)
           lat_r4 = real(lat_r8) * MPC_DEGREES_PER_RADIAN_R4
           lon_r4 = real(lon_r8) * MPC_DEGREES_PER_RADIAN_R4
           ierr = gdxyfll( hco_anl%EZscintID,   & ! IN 
@@ -1590,8 +1425,8 @@ contains
           IP_y = ( mpi_npey * (latIndex-1) ) / hco_anl%nj
           IP_x = ( mpi_npex * (lonIndex-1) ) / hco_anl%ni
           IP = IP_x + IP_y*mpi_npex
-          call obs_headSet_i(lobsSpaceData,OBS_IPC,headerIndex, IP)
-          call obs_headSet_i(lobsSpaceData,OBS_IPT,headerIndex, IP)
+          call obs_headSet_i(obsSpaceData,OBS_IPC,headerIndex, IP)
+          call obs_headSet_i(obsSpaceData,OBS_IPT,headerIndex, IP)
        end do
 
     case ('LATLONTILESBALANCED')
@@ -1603,8 +1438,8 @@ contains
 
        ! set PE index for the tile (where interpolation will be done)
        do headerIndex = 1, numHeaderFile
-          lat_r8 = obs_headElem_r(lobsSpaceData,OBS_LAT,headerIndex)
-          lon_r8 = obs_headElem_r(lobsSpaceData,OBS_LON,headerIndex)
+          lat_r8 = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex)
+          lon_r8 = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex)
           lat_r4 = real(lat_r8) * MPC_DEGREES_PER_RADIAN_R4
           lon_r4 = real(lon_r8) * MPC_DEGREES_PER_RADIAN_R4
           ierr = gdxyfll( hco_anl%EZscintID,   & ! IN 
@@ -1615,15 +1450,15 @@ contains
           IP_y = ( mpi_npey * (latIndex-1) ) / hco_anl%nj
           IP_x = ( mpi_npex * (lonIndex-1) ) / hco_anl%ni
           IP = IP_x + IP_y*mpi_npex
-          call obs_headSet_i(lobsSpaceData,OBS_IPT,headerIndex,IP)
+          call obs_headSet_i(obsSpaceData,OBS_IPT,headerIndex,IP)
        end do
 
        ! set PE index for the column (where the obs operator will be done)
 
        ! initialize IPC = IPT
        do headerIndex = 1, numHeaderFile
-          IP = obs_headElem_i(lobsSpaceData,OBS_IPT,headerIndex)
-          call obs_headSet_i(lobsSpaceData,OBS_IPC,headerIndex,IP)
+          IP = obs_headElem_i(obsSpaceData,OBS_IPT,headerIndex)
+          call obs_headSet_i(obsSpaceData,OBS_IPC,headerIndex,IP)
        end do
 
        ! make all of the IPT and obsLoad values visible on all processors
@@ -1635,7 +1470,7 @@ contains
        IPT_mpilocal(:) = -1
        obsLoad_mpilocal(:) = -1
        do headerIndex = 1, numHeaderFile
-          IPT_mpilocal(headerIndex) = obs_headElem_i(lobsSpaceData,OBS_IPT,headerIndex)
+          IPT_mpilocal(headerIndex) = obs_headElem_i(obsSpaceData,OBS_IPT,headerIndex)
           obsLoad_mpilocal(headerIndex) = obsLoad(headerIndex)
        enddo
        call rpn_comm_allgather(IPT_mpilocal, nsize, "mpi_integer",  &
@@ -1650,7 +1485,7 @@ contains
        ! compute total number of headers per PE on tiles
        numHeaderTile_mpilocal(:) = 0
        do headerIndex = 1, numHeaderFile
-          IP = obs_headElem_i(lobsSpaceData,OBS_IPT,headerIndex)
+          IP = obs_headElem_i(obsSpaceData,OBS_IPT,headerIndex)
           numHeaderTile_mpilocal(IP+1) = numHeaderTile_mpilocal(IP+1) + 1
        end do
        call rpn_comm_allreduce(numHeaderTile_mpilocal,numHeaderTile_mpiglobal,mpi_nprocs,  &
@@ -1661,7 +1496,7 @@ contains
        obsLoadTile_mpilocal(:) = 0
        do headerIndex = 1, numHeaderFile
           if(obsLoad(headerIndex).gt.0) then
-             IP = obs_headElem_i(lobsSpaceData,OBS_IPT,headerIndex)
+             IP = obs_headElem_i(obsSpaceData,OBS_IPT,headerIndex)
              obsLoadTile_mpilocal(IP+1) = obsLoadTile_mpilocal(IP+1) + obsLoad(headerIndex)
           endif
        end do
@@ -1713,8 +1548,8 @@ contains
                       if(mpi_myid.eq.IP2) then
                          ! header to send is currently on my PE
                          !write(*,*) 'setObsMpiStrategy: changing obs_ipc from ', &
-                         !           obs_headElem_i(lobsSpaceData,OBS_IPC,headerIndex),' to ',PE_receiver
-                         call obs_headSet_i(lobsSpaceData,OBS_IPC,headerIndex,PE_receiver)
+                         !           obs_headElem_i(obsSpaceData,OBS_IPC,headerIndex),' to ',PE_receiver
+                         call obs_headSet_i(obsSpaceData,OBS_IPC,headerIndex,PE_receiver)
                       endif
                    endif
                 enddo
@@ -1730,14 +1565,14 @@ contains
        ! ** The rest is just diagnostics used when trying to improve the 
        ! ** formula for estimating the load - could be removed
 
-       if (obs_famExist(lobsSpaceData,'TO')) then
+       if (obs_famExist(obsSpaceData,'TO')) then
 
        ! count the number of tovs and IR observations for each file
        numtovs(:)=0
        numir(:)=0
        totalObsLoad_mpilocal(:)=0
        do headerIndex = 1, numHeaderFile
-          codtyp = obs_headElem_i(lobsSpaceData,OBS_ITY,headerIndex)
+          codtyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
           if(tvs_Is_idburp_tovs(codtyp) ) numtovs(mpi_myid+1)=numtovs(mpi_myid+1)+1
           if(tvs_Is_idburp_inst(codtyp,"IASI") ) numir(mpi_myid+1)=numir(mpi_myid+1)+1
           if(tvs_Is_idburp_inst(codtyp,"AIRS") ) numir(mpi_myid+1)=numir(mpi_myid+1)+1
@@ -1759,8 +1594,8 @@ contains
        numir(:)=0
        totalObsLoad_mpilocal(:)=0
        do headerIndex = 1, numHeaderFile
-          IP = obs_headElem_i(lobsSpaceData,OBS_IPT,headerIndex)
-          codtyp = obs_headElem_i(lobsSpaceData,OBS_ITY,headerIndex)
+          IP = obs_headElem_i(obsSpaceData,OBS_IPT,headerIndex)
+          codtyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
           if(tvs_Is_idburp_tovs(codtyp) ) numtovs(IP+1)=numtovs(IP+1)+1
           if(tvs_Is_idburp_inst(codtyp,"IASI") ) numir(IP+1)=numir(IP+1)+1
           if(tvs_Is_idburp_inst(codtyp,"AIRS") ) numir(IP+1)=numir(IP+1)+1
@@ -1782,8 +1617,8 @@ contains
        numir(:)=0
        totalObsLoad_mpilocal(:)=0
        do headerIndex = 1, numHeaderFile
-          IP = obs_headElem_i(lobsSpaceData,OBS_IPC,headerIndex)
-          codtyp = obs_headElem_i(lobsSpaceData,OBS_ITY,headerIndex)
+          IP = obs_headElem_i(obsSpaceData,OBS_IPC,headerIndex)
+          codtyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
           if(tvs_Is_idburp_tovs(codtyp) ) numtovs(IP+1)=numtovs(IP+1)+1
           if(tvs_Is_idburp_inst(codtyp,"IASI") ) numir(IP+1)=numir(IP+1)+1
           if(tvs_Is_idburp_inst(codtyp,"AIRS") ) numir(IP+1)=numir(IP+1)+1
@@ -1802,8 +1637,8 @@ contains
 
        numtovs(:)=0
        do headerIndex = 1, numHeaderFile
-          IP = obs_headElem_i(lobsSpaceData,OBS_IPC,headerIndex)
-          codtyp = obs_headElem_i(lobsSpaceData,OBS_ITY,headerIndex)
+          IP = obs_headElem_i(obsSpaceData,OBS_IPC,headerIndex)
+          codtyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
           if(tvs_Is_idburp_inst(codtyp,"AMSUA")) numtovs(IP+1)=numtovs(IP+1)+1
        enddo
        call rpn_comm_allreduce(numtovs,numtovs_mpiglobal,mpi_nprocs,  &
@@ -1812,8 +1647,8 @@ contains
 
        numtovs(:)=0
        do headerIndex = 1, numHeaderFile
-          IP = obs_headElem_i(lobsSpaceData,OBS_IPC,headerIndex)
-          codtyp = obs_headElem_i(lobsSpaceData,OBS_ITY,headerIndex)
+          IP = obs_headElem_i(obsSpaceData,OBS_IPC,headerIndex)
+          codtyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
           if(tvs_Is_idburp_inst(codtyp,"AMSUB") .or. tvs_Is_idburp_inst(codtyp,"MHS")) numtovs(IP+1)=numtovs(IP+1)+1
        enddo
        call rpn_comm_allreduce(numtovs,numtovs_mpiglobal,mpi_nprocs,  &
@@ -1822,8 +1657,8 @@ contains
 
        numtovs(:)=0
        do headerIndex = 1, numHeaderFile
-          IP = obs_headElem_i(lobsSpaceData,OBS_IPC,headerIndex)
-          codtyp = obs_headElem_i(lobsSpaceData,OBS_ITY,headerIndex)
+          IP = obs_headElem_i(obsSpaceData,OBS_IPC,headerIndex)
+          codtyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
           if(tvs_Is_idburp_inst(codtyp,"METEOSAT") .or. tvs_Is_idburp_inst(codtyp,"GOES")) numtovs(IP+1)=numtovs(IP+1)+1
        enddo
        call rpn_comm_allreduce(numtovs,numtovs_mpiglobal,mpi_nprocs,  &
@@ -1832,8 +1667,8 @@ contains
 
        numtovs(:)=0
        do headerIndex = 1, numHeaderFile
-          IP = obs_headElem_i(lobsSpaceData,OBS_IPC,headerIndex)
-          codtyp = obs_headElem_i(lobsSpaceData,OBS_ITY,headerIndex)
+          IP = obs_headElem_i(obsSpaceData,OBS_IPC,headerIndex)
+          codtyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
           if(tvs_Is_idburp_inst(codtyp,"SSMIS")) numtovs(IP+1)=numtovs(IP+1)+1
        enddo
        call rpn_comm_allreduce(numtovs,numtovs_mpiglobal,mpi_nprocs,  &
@@ -1862,7 +1697,7 @@ contains
       ! of RTTOV predictors for each type of radiance - probably should write
       ! a separate program to do a more objective evalution of this
 
-      codtyp = obs_headElem_i(lobsSpaceData,OBS_ITY,headerIndex)
+      codtyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
 
       if(tvs_Is_idburp_inst(codtyp,"IASI")) then
          obsLoad = 100
@@ -1880,6 +1715,7 @@ contains
     end function obsLoad
 
   end subroutine setObsMpiStrategy
+
 
   subroutine inn_perturbObs(obsSpaceData,numAnalyses,indexAnalysis,indexBatch,obs_column_index_src,obs_column_index_dest)
     !
