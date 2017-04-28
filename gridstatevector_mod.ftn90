@@ -1906,7 +1906,7 @@ MODULE gridStateVector_mod
     type(struct_gsv) :: statevector_out
 
     ! locals
-    integer :: jk, jvar, jlev, nlev, jstep, ierr
+    integer :: jk, jvar, jlev, nlev, jstep, ierr, lon1, lon2
     real(4), pointer :: field_in_r4_ptr(:,:,:,:), field_out_r4_ptr(:,:,:,:)
     real(4), pointer :: fieldUU_in_r4_ptr(:,:,:,:), fieldUU_out_r4_ptr(:,:,:,:)
     real(4), pointer :: fieldVV_in_r4_ptr(:,:,:,:), fieldVV_out_r4_ptr(:,:,:,:)
@@ -1926,6 +1926,25 @@ MODULE gridStateVector_mod
 
     if( statevector_in%dataKind /= 4 .or. statevector_out%dataKind /= 4 ) then
       call utl_abort('gsv_hInterpolate: Incorrect value for dataKind. Only compatible with dataKind=4')
+    endif
+
+    if( statevector_in%hco%global ) then
+      ! check if input is on a Z grid that is equivalent to output Gaussian grid
+      if( statevector_in%hco%grtyp == 'Z' .and. statevector_out%hco%grtyp == 'G' .and. &
+          statevector_in%hco%ni == (statevector_out%hco%ni + 1) ) then
+
+        write(*,*) 'gsv_hInterpolate: skipping interpolation, copying from grtyp Z to G grids.'
+
+        field_in_r4_ptr => gsv_getField_r4(statevector_in)
+        field_out_r4_ptr => gsv_getField_r4(statevector_out)
+        lon1 = statevector_out%myLonBeg
+        lon2 = statevector_out%myLonEnd
+        do jstep = 1, statevector_out%numStep
+          field_out_r4_ptr(lon1:lon2,:,:,jstep) = field_in_r4_ptr(lon1:lon2,:,:,jstep)
+        enddo
+        return ! skip the normal interpolation
+
+      endif
     endif
 
     if( .not.statevector_in%mpi_local .and. .not.statevector_out%mpi_local ) then
