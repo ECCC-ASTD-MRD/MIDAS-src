@@ -87,7 +87,7 @@ if [ ${compiledir_main} != ".." ] ; then
     fi
 fi
 
-varabs=oavar_${BASE_ARCH}${ABSTAG}
+varabs=oavar_${BASE_ARCH}${ABSTAG}-${revnum}.Abs
 
 #----------------------------------------------------------------
 #  Set up dependent librarys and tools. 
@@ -314,10 +314,10 @@ if [ "${mode}" == full ] ; then
       exit 1
   fi
 
-  echo "... > Building the executable ${varabs}.Abs"
-  rm -f ${varabs}.Abs
+  echo "... > Building the executable ${varabs}"
+  rm -f ${varabs}
   echo "...   if aborting, check in ${PWD}/listing8"
-  s.compile $COMPF  -O ${FOPTMIZ} ${MPILIBDIR} -libappl $LIBAPPL $LIBEXTRA -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o ${varabs}.Abs > listing8 2>&1
+  s.compile $COMPF  -O ${FOPTMIZ} ${MPILIBDIR} -libappl $LIBAPPL $LIBEXTRA -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o ${varabs} > listing8 2>&1
   status=1
   grep fail listing8 || status=0
   if [ "${status}" -ne 0 ]; then
@@ -336,12 +336,12 @@ if [ "${mode}" == full ] ; then
 
 elif [ "${mode}" == abs ] ; then
 
-  rm -f ${varabs}.Abs
+  rm -f ${varabs}
 
   echo "..."
-  echo "... building the executable ${varabs}.Abs"
+  echo "... building the executable ${varabs}"
   echo "..."
-  s.compile $COMPF  -O ${FOPTMIZ} ${MPILIBDIR} -libappl $LIBAPPL $LIBEXTRA -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o ${varabs}.Abs
+  s.compile $COMPF  -O ${FOPTMIZ} ${MPILIBDIR} -libappl $LIBAPPL $LIBEXTRA -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o ${varabs}
 
 else
     if [ -f $trunkdir/$mode ] ; then
@@ -363,7 +363,7 @@ echo "..."
 echo "... > FINISHED COMPILATION AT: $(date)"
 if [ "${mode}" == full -o "${mode}" == abs ] ; then
     echo "..."
-    echo "... The program can be found here: ${PWD}/${varabs}.Abs"
+    echo "... The program can be found here: ${PWD}/${varabs}"
     echo "..."
 else
     echo "..."
