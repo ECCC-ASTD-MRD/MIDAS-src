@@ -32,7 +32,7 @@ module HorizontalCoord_mod
   public :: struct_hco
 
   ! Public Subroutines
-  public :: hco_SetupFromFile, hco_equal
+  public :: hco_SetupFromFile, hco_equal, hco_deallocate
 
 
   type :: struct_hco

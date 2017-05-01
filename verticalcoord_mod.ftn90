@@ -32,7 +32,7 @@ module verticalCoord_mod
   ! public derived type
   public :: struct_vco
   ! public procedures
-  public :: vco_SetupFromFile, vco_SetupManual, vco_getNumLev, vco_equal
+  public :: vco_SetupFromFile, vco_SetupManual, vco_getNumLev, vco_equal, vco_deallocate
   ! public entities accessed through inheritance
   public :: vgd_get,vgd_levels,vgd_ok,vgd_dpidpis,vgd_write
 
@@ -346,6 +346,20 @@ module verticalCoord_mod
     ierr =  fclos (nultemplate)
 
   end subroutine vco_SetupFromFile
+
+
+  subroutine vco_deallocate(vco)
+    implicit none
+    type(struct_vco), pointer :: vco
+    integer :: stat
+
+    deallocate (vco%ip1_M)
+    deallocate (vco%ip1_T)
+    stat = vgd_free(vco%vgrid)
+   
+    nullify(vco)
+
+  end subroutine vco_deallocate
 
 
   function vco_getNumLev(vco,varLevel) result(nlev)

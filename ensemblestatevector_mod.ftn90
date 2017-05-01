@@ -483,6 +483,14 @@ CONTAINS
     horizontalInterpNeeded = (.not. hco_equal(hco_ens, hco_file))
     verticalInterpNeeded = (.not. vco_equal(vco_ens, vco_file))
 
+    ! More efficient handling of common case where input is on Z grid, analysis in on G grid
+    if ( hco_file%grtyp == 'Z' .and. hco_ens%grtyp == 'G' ) then
+      if ( hco_file%ni == (hco_ens%ni+1) ) then
+        write(*,*) 'ens_readEnsemble: no interpolation done for equivalent Gaussian grid stored as a Z grid'
+        horizontalInterpNeeded = .false.
+      endif
+    endif
+
     if (mpi_myid == 0) write(*,*) 'ens_readEnsemble: dateStampList=',dateStampList(1:numStep)
 
     !
@@ -493,12 +501,17 @@ CONTAINS
     do stepIndex = 1, numStep
       write(*,*) 'ens_readEnsemble: starting to read time level ', stepIndex
 
+      ! allocate the needed statevector objects
+      call gsv_allocate(statevector_member_r4, 1, hco_ens, vco_ens,  &
+                        datestamp=dateStampList(stepIndex), mpi_local=.false., dataKind_in=4)
       if(horizontalInterpNeeded .or. verticalInterpNeeded) then
         call gsv_allocate(statevector_file_r4, 1, hco_file, vco_file,  &
                           datestamp=dateStampList(stepIndex), mpi_local=.false., dataKind_in=4)
       endif
-      call gsv_allocate(statevector_member_r4, 1, hco_ens, vco_ens,  &
-                        datestamp=dateStampList(stepIndex), mpi_local=.false., dataKind_in=4)
+      if(verticalInterpNeeded) then
+        call gsv_allocate(statevector_hint_r4, 1, hco_ens, vco_file,  &
+                          datestamp=dateStampList(stepIndex), mpi_local=.false., dataKind_in=4)
+      endif
 
       do memberIndex = 1, ens%numMembers
 
@@ -516,10 +529,6 @@ CONTAINS
           endif
 
           ! do any required interpolation
-          if(verticalInterpNeeded) then
-            call gsv_allocate(statevector_hint_r4, 1, hco_ens, vco_file,  &
-                              datestamp=dateStampList(stepIndex), mpi_local=.false., dataKind_in=4)
-          endif
           if(horizontalInterpNeeded .and. verticalInterpNeeded) then
             call gsv_hInterpolate(statevector_file_r4, statevector_hint_r4)
             call gsv_vInterpolate(statevector_hint_r4, statevector_member_r4)
@@ -532,7 +541,6 @@ CONTAINS
             call gsv_vInterpolate(statevector_hint_r4, statevector_member_r4)
 
           endif
-          if(verticalInterpNeeded) call gsv_deallocate(statevector_hint_r4)
 
           ! unit conversion
           VAR_LOOP: do jvar = 1, vnl_numvarmax
@@ -605,12 +613,18 @@ CONTAINS
 
       enddo ! memberIndex
 
+      ! deallocate the needed statevector objects
       call gsv_deallocate(statevector_member_r4)
       if(horizontalInterpNeeded .or. verticalInterpNeeded) call gsv_deallocate(statevector_file_r4)
+      if(verticalInterpNeeded) call gsv_deallocate(statevector_hint_r4)
+
     enddo ! time
 
     deallocate(gd_send_r4)
     deallocate(gd_recv_r4)
+    deallocate(datestamplist)
+    call hco_deallocate(hco_file)
+    call vco_deallocate(vco_file)
 
     write(*,*) 'ens_readEnsemble: finished reading and communicating ensemble members...'
 
