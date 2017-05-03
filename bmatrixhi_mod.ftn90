@@ -126,7 +126,7 @@ CONTAINS
     integer :: jm, jn, status, latPerPE, lonPerPE, Vcode_anl
     logical :: llfound, lExists
     real(8) :: zps
-    type(struct_vco),pointer :: vco_file
+    type(struct_vco),pointer :: vco_file => null()
     character(len=8) :: bFileName = './bgcov'
     
     NAMELIST /NAMBHI/ntrunc,scaleFactor,scaleFactorLQ,scaleTG,numModeZero,squareSqrt,TweakTG,ReadWrite_sqrt,stddevMode

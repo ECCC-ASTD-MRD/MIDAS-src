@@ -81,7 +81,7 @@ MODULE BmatrixEnsemble_mod
   logical            :: HUcontainsLQ_gsv
 
   ! Vertical grid
-  type(struct_vco),pointer :: vco_anl, vco_ens, vco_file
+  type(struct_vco),pointer :: vco_anl, vco_ens, vco_file => null()
   integer                  :: Vcode_anl, Vcode_ens
 
   ! Horizontal grid
@@ -266,7 +266,11 @@ CONTAINS
 
     !- 2.4 Vertical levels
     vco_anl => vco_anl_in
-    call ens_fileName(ensFileName, ensPathName, ensFileBaseName, 1)
+    if ( mpi_myid == 0 ) then
+      ! assume that processor 0 has access to first ensemble member file    
+      call ens_fileName(ensFileName, ensPathName, ensFileBaseName, 1)
+    endif
+    call rpn_comm_bcastc(ensFileName, len(ensFileName), "MPI_CHARACTER", 0, "GRID", ierr)
     call vco_SetupFromFile(vco_file,ensFileName) 
     vco_ens => vco_file ! IMPORTANT: assumes file is on correct vertical levels
     status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)

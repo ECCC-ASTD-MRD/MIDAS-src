@@ -311,6 +311,7 @@ if [ "${mode}" == full ] ; then
       echo "... !! ERROR found: STOP; check listing in ${PWD} !!"
       exit 1
   fi
+  cp ${varabs} ~/ords/oavar_abs/
 
   #### rm -f *.ftn* *.f *.f90
 
@@ -319,10 +320,10 @@ elif [ "${mode}" == abs ] ; then
   rm -f ${varabs}
 
   echo "..."
-  echo "... building the executable ${varabs}"
+  echo "... > Building the executable ${varabs}"
   echo "..."
-  set -x
-  s.compile $COMPF  -O ${FOPTMIZ} -libappl $LIBAPPL $LIBEXTRA -librmn $LIBRMN -obj *.o -o ${varabs}
+  s.compile $COMPF  -O ${FOPTMIZ} ${MPILIBDIR} -libappl $LIBAPPL $LIBEXTRA -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o ${varabs}
+  cp ${varabs} ~/ords/oavar_abs/
 
 else
     if [ -f $trunkdir/$mode ] ; then
