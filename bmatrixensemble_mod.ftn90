@@ -266,9 +266,11 @@ CONTAINS
 
     !- 2.4 Vertical levels
     vco_anl => vco_anl_in
-    ! assume that processor k has access to the k-th member file    
-    call ens_fileName(ensFileName, ensPathName, ensFileBaseName, mpi_myid+1)
-    call vco_SetupFromFile(vco_file,ensFileName) 
+    if ( mpi_myid == 0 ) then
+      call ens_fileName(ensFileName, ensPathName, ensFileBaseName, 1)
+      call vco_SetupFromFile(vco_file, ensFileName) 
+    endif
+    call vco_mpiBcast(vco_file)
     vco_ens => vco_file ! IMPORTANT: assumes file is on correct vertical levels
     status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
     status = vgd_get(vco_ens%vgrid,key='ig_1 - vertical coord code',value=Vcode_ens)

@@ -22,6 +22,7 @@
 !!
 !--------------------------------------------------------------------------
 module HorizontalCoord_mod
+  use mpivar_mod
   use MathPhysConstants_mod
   use utilities_mod
   implicit none
@@ -32,7 +33,7 @@ module HorizontalCoord_mod
   public :: struct_hco
 
   ! Public Subroutines
-  public :: hco_SetupFromFile, hco_equal, hco_deallocate
+  public :: hco_SetupFromFile, hco_equal, hco_deallocate, hco_mpiBcast
 
 
   type :: struct_hco
@@ -393,7 +394,71 @@ module HorizontalCoord_mod
 
   end subroutine global_or_lam
 
+!--------------------------------------------------------------------------
+! mpiBcast
+!--------------------------------------------------------------------------
+  subroutine hco_mpiBcast(hco)
+    implicit none
+    type(struct_hco), pointer :: hco
+    integer :: ierr
+    integer, external :: ezgprm, ezqkdef
 
+    write(*,*) 'hco_mpiBcast: starting'
+    call flush(6)
+
+    if ( mpi_myid > 0 ) then
+      if( .not.associated(hco) ) then
+        allocate(hco)
+      endif
+
+      if( hco%initialized ) then
+        write(*,*) 'hco_mpiBcast: this hco object already initialized, first deallocating it.'
+        call hco_deallocate( hco )
+        allocate(hco)
+      endif
+    endif
+
+    call rpn_comm_bcastc(hco%gridname, len(hco%gridname), 'MPI_CHARACTER', 0, 'GRID', ierr)
+    call rpn_comm_bcast(hco%initialized, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
+    call rpn_comm_bcast(hco%ni, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+    call rpn_comm_bcast(hco%nj, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+    call rpn_comm_bcastc(hco%grtyp, len(hco%grtyp), 'MPI_CHARACTER', 0, 'GRID', ierr)
+    call rpn_comm_bcast(hco%ig1, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+    call rpn_comm_bcast(hco%ig2, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+    call rpn_comm_bcast(hco%ig3, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+    call rpn_comm_bcast(hco%ig4, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+    if ( mpi_myid > 0 ) then
+      allocate(hco % lat(1:hco%nj))
+      allocate(hco % lon(1:hco%ni))
+    endif
+    call rpn_comm_bcast(hco%lat, size(hco%lat), 'MPI_REAL8', 0, 'GRID', ierr)
+    call rpn_comm_bcast(hco%lon, size(hco%lon), 'MPI_REAL8', 0, 'GRID', ierr)
+    call rpn_comm_bcast(hco%dlat, 1, 'MPI_REAL8', 0, 'GRID', ierr)
+    call rpn_comm_bcast(hco%dlon, 1, 'MPI_REAL8', 0, 'GRID', ierr)
+    call rpn_comm_bcast(hco%global, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
+    call rpn_comm_bcast(hco%rotated, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
+    call rpn_comm_bcast(hco%xlat1, 1, 'MPI_REAL8', 0, 'GRID', ierr)
+    call rpn_comm_bcast(hco%xlon1, 1, 'MPI_REAL8', 0, 'GRID', ierr)
+    call rpn_comm_bcast(hco%xlat2, 1, 'MPI_REAL8', 0, 'GRID', ierr)
+    call rpn_comm_bcast(hco%xlon2, 1, 'MPI_REAL8', 0, 'GRID', ierr)
+
+    if ( mpi_myid > 0 ) then
+      if ( hco%grtyp == 'G' ) then
+        hco%EZscintID  = ezqkdef( hco%ni, hco%nj, hco%grtyp, hco%ig1, hco%ig2, hco%ig3, hco%ig4, 0 )
+      else
+        write(*,*) 'hco_mpiBcast: Warning! Grid ID for EZSCINT not set for grtyp = ',hco%grtyp
+        hco%EZscintID  = -1
+      endif
+    endif
+
+    write(*,*) 'hco_mpiBcast: done'
+    call flush(6)
+
+  end subroutine hco_mpiBcast
+
+!--------------------------------------------------------------------------
+! Equal ?
+!--------------------------------------------------------------------------
   function hco_equal(hco1, hco2) result(equal)
     implicit none
     type(struct_hco), pointer :: hco1, hco2

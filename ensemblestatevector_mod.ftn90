@@ -474,9 +474,13 @@ CONTAINS
       write(*,*) 'totalEnsembleSize = ',totalEnsembleSize
     endif
 
-    call ens_fileName(ensFileName, ensPathName, ensFileBaseName, 1+mpi_myid)
-    call hco_SetupFromFile(hco_file, ensFileName, ' ', 'ENSFILEGRID')
-    call vco_SetupFromFile(vco_file, ensFileName) 
+    if ( mpi_myid == 0 ) then
+      call ens_fileName(ensFileName, ensPathName, ensFileBaseName, 1)
+      call hco_SetupFromFile(hco_file, ensFileName, ' ', 'ENSFILEGRID')
+      call vco_SetupFromFile(vco_file, ensFileName) 
+    endif
+    call hco_mpiBcast(hco_file)
+    call vco_mpiBcast(vco_file)
     hco_ens => gsv_getHco(ens%statevector(1))
     vco_ens => gsv_getVco(ens%statevector(1))
     horizontalInterpNeeded = (.not. hco_equal(hco_ens, hco_file))
@@ -570,7 +574,7 @@ CONTAINS
                              ni, nj, statevector_member_r4%nk)  ! IN
           end if
 
-        endif
+        endif ! locally read one member
 
         !  MPI communication: from 1 ensemble member per process to 1 lat-lon tile per process  
         if (readFilePE(memberIndex) == (mpi_nprocs-1) .or. memberIndex == ens%numMembers) then
@@ -608,7 +612,9 @@ CONTAINS
 
           call tmg_stop(13)
 
+          write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
         endif ! MPI communication
+
 
       enddo ! memberIndex
 
