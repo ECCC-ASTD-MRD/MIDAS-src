@@ -905,6 +905,7 @@ contains
       integer :: extra1, extra2, extra3
       integer :: ig1, ig2, ig3, ig4
 
+      call tmg_start(91,'READTRIAL')
       !
       ! Determine the type and number of vertical levels
       !
@@ -1067,6 +1068,7 @@ contains
 
             enddo
 
+            call tmg_start(92,'READTRIALMPI')
             do jlatlontile = 1,mpi_nprocs
                if (nobs_mpiglobal(jstep,jlatlontile).gt.0) then
                   do jlev = 1,nlevel
@@ -1119,6 +1121,7 @@ contains
                   endif
                enddo
             enddo
+            call tmg_stop(92)
 
          endif !nobs>0
 
@@ -1132,6 +1135,8 @@ contains
 
 2001  format(1x,'INN_SETUPBACKGROUNDCOLUMNS: Problem finding variable',1x,a4,1x,'at level',  &
            i10,1x,', on',1x,i8,1x,'at',1x,i8.8,1x,'HHMMSSss')
+
+      call tmg_stop(91)
 
     end subroutine readTrialField
 

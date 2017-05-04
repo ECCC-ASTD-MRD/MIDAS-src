@@ -474,12 +474,7 @@ CONTAINS
       write(*,*) 'totalEnsembleSize = ',totalEnsembleSize
     endif
 
-    ! 
-    if ( mpi_myid == 0 ) then
-      ! assume that processor 0 has access to first ensemble member file
-      call ens_fileName(ensFileName, ensPathName, ensFileBaseName, 1)
-    endif
-    call rpn_comm_bcastc(ensFileName, len(ensFileName), "MPI_CHARACTER", 0, "GRID", ierr)
+    call ens_fileName(ensFileName, ensPathName, ensFileBaseName, 1+mpi_myid)
     call hco_SetupFromFile(hco_file, ensFileName, ' ', 'ENSFILEGRID')
     call vco_SetupFromFile(vco_file, ensFileName) 
     hco_ens => gsv_getHco(ens%statevector(1))

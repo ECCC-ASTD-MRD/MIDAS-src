@@ -347,6 +347,7 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
 
         setup_errorstatus = 0
 ! read coefficients using the list of required channels.
+  call tmg_start(83,'RTTOV_SETUP')
         CALL rttov_setup (&
              & setup_errorstatus,  & ! out 
              & err_unit,           & ! in
@@ -355,6 +356,7 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
              & coefs(JK),              & ! out
              & LIST_SENSORS(:,JK),     & ! in
              & ICHAN(1:nchan(JK),JK)         ) !in (opt) 
+  call tmg_stop(83)
         if ( setup_errorstatus/=0 ) then
            Write(*,*) "Error during RTTOV setup !",JK,LIST_SENSORS(1:3,JK)
            CALL utl_abort('TOVS_SETUPALLO')
