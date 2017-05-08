@@ -115,8 +115,8 @@ CDF_LIBS=netcdff
 varabs=oavar_${ORDENV_PLAT}${ABSTAG}-${revnum}.Abs
 
 ## for rmn, rpncomm
-echo "... loading eccc/mrd/rpn/libs/16.1"
-. ssmuse-sh -d eccc/mrd/rpn/libs/16.1
+echo "... loading eccc/mrd/rpn/libs/16.2"
+. ssmuse-sh -d eccc/mrd/rpn/libs/16.2
 if [ "${ORDENV_PLAT}" = ubuntu-14.04-amd64-64 ];then
     ## for openmpi
     echo "... loading main/opt/openmpi/openmpi-1.6.5/intelcomp-2016.1.156"
@@ -129,8 +129,8 @@ fi
 echo "... loading eccc/cmd/cmdn/vgrid/5.6.9/${COMP_ARCH}"
 . ssmuse-sh -d eccc/cmd/cmdn/vgrid/5.6.9/${COMP_ARCH}
 ## for 'burplib'
-echo "... loading eccc/cmd/cmda/libs/16.1-3/${COMP_ARCH}"
-. ssmuse-sh -d eccc/cmd/cmda/libs/16.1-3/${COMP_ARCH}
+echo "... loading eccc/cmd/cmda/libs/16.2-4/${COMP_ARCH}"
+. ssmuse-sh -d eccc/cmd/cmda/libs/16.2-4/${COMP_ARCH}
 ## For hpcoperf needed for TMG timings
 echo "... loading main/opt/perftools/perftools-2.0/${COMP_ARCH}"
 . ssmuse-sh -d main/opt/perftools/perftools-2.0/${COMP_ARCH}
