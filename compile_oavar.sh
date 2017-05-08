@@ -347,7 +347,7 @@ echo "..."
 echo "... > FINISHED COMPILATION AT: $(date)"
 if [ "${mode}" == full -o "${mode}" == abs ] ; then
     echo "..."
-    echo "... The program can be found here: ${PWD}/${varabs}"
+    echo "... The program can be found here: ${HOME}/ords/oavar_abs/${varabs}"
     echo "..."
 else
     echo "..."
