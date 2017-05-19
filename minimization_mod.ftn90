@@ -754,7 +754,7 @@ CONTAINS
     real*8, allocatable :: vatravec_r8_mpiglobal(:)
     real*8, allocatable :: vazxbar_mpiglobal(:),vazx_mpiglobal(:)
 
-    integer ibrpstamp,ireslun, ierr, fnom, fclos
+    integer :: ibrpstamp,ireslun, ierr, fnom, fclos
     integer :: nvadim_mpiglobal,nmtra_mpiglobal
     integer :: cvDim_return
     integer :: ivadim, itrunc
@@ -784,76 +784,99 @@ CONTAINS
 
     if(status.eq.0) then
 
-    call tmg_start(86,'MIN_READ_HESS')
+      call tmg_start(86,'MIN_READ_HESS')
 
-      ierr = fnom(ireslun,cfname,'FTN+SEQ+UNF+OLD+R/O',0)
+      if(mpi_myid.eq.0) ierr = fnom(ireslun,cfname,'FTN+SEQ+UNF+OLD+R/O',0)
+
+      cl_version = 'UND'
 
       ! Checking version number
-      read (ireslun) cl_version,i1gc
-      if(trim(cl_version) /= 'V2') then
-        if(trim(cl_version) == 'V3') then
-          if(mpi_myid.eq.0) write(*,*) 'RW_VATRA: using single precision V3 Hessian'
-        elseif(trim(cl_version) == 'V4') then
-          if(mpi_myid.eq.0) write(*,*) 'RW_VATRA: using single precision V4 Hessian'
-        else
-          call abort3d(" RW_VATRA: invalid Hessian version")
-        endif
-      endif
-      if (i1gc == 3 .and. i1gc == k1gc) then
-        if(mpi_myid.eq.0) write(*,*) trim(cl_version),' M1QN3'
-      else
-        write(*,*) 'Version, n1gc =',trim(cl_version),i1gc
-        call abort3d(" RW_VATRA: Inconsistant input hessian")
-      endif
+      if(mpi_myid.eq.0) then
+         read (ireslun) cl_version,i1gc
+         if(trim(cl_version) /= 'V2') then
+            if(trim(cl_version) == 'V3') then
+               if(mpi_myid.eq.0) write(*,*) 'RW_VATRA: using single precision V3 Hessian'
+            elseif(trim(cl_version) == 'V4') then
+               if(mpi_myid.eq.0) write(*,*) 'RW_VATRA: using single precision V4 Hessian'
+            else
+               call abort3d(" RW_VATRA: invalid Hessian version")
+            endif
+         endif
+         if (i1gc == 3 .and. i1gc == k1gc) then
+            if(mpi_myid.eq.0) write(*,*) trim(cl_version),' M1QN3'
+         else
+            write(*,*) 'Version, n1gc =',trim(cl_version),i1gc
+            call abort3d(" RW_VATRA: Inconsistant input hessian")
+         endif
 
-      rewind (ireslun)
+         rewind (ireslun)
 
-      read(ireslun) cl_version,i1gc,nsim,ibrpstamp,zeps1,zdf1,itertot,isimtot,ivadim,itrunc
-      if(trim(cl_version) == 'V4') then
-        read(ireslun) ivamaj,iztrl
-        if((ivamaj.ne.nvamaj).or.(nvadim_mpiglobal.ne.ivadim)) then
-          write(*,*) nvamaj,ivamaj,nvadim_mpiglobal,ivadim
-          call abort3d(" RW_VATRA : ERROR, size of V4 Hessian not consistent")
-        endif
-      else
-        read(ireslun) imtra,iztrl
-        if(.not.(nmtra_mpiglobal.eq.imtra.or.(nmtra_mpiglobal+nvamaj).eq.imtra).or.nvadim_mpiglobal.ne.ivadim) then
-          write(*,*) nmtra_mpiglobal,imtra,nvadim_mpiglobal,ivadim
-          write(*,*) ' RW_VATRA : ERROR, size of Hessian not consistent, but not stopping!'
-!          call abort3d(" RW_VATRA : ERROR, size of Hessian not consistent")
-        endif
+         read(ireslun) cl_version,i1gc,nsim,ibrpstamp,zeps1,zdf1,itertot,isimtot,ivadim,itrunc
+         if(trim(cl_version) == 'V4') then
+            read(ireslun) ivamaj,iztrl
+            if((ivamaj.ne.nvamaj).or.(nvadim_mpiglobal.ne.ivadim)) then
+               write(*,*) nvamaj,ivamaj,nvadim_mpiglobal,ivadim
+               call abort3d(" RW_VATRA : ERROR, size of V4 Hessian not consistent")
+            endif
+         else
+            read(ireslun) imtra,iztrl
+            if(.not.(nmtra_mpiglobal.eq.imtra.or.(nmtra_mpiglobal+nvamaj).eq.imtra).or.nvadim_mpiglobal.ne.ivadim) then
+               write(*,*) nmtra_mpiglobal,imtra,nvadim_mpiglobal,ivadim
+               write(*,*) ' RW_VATRA : ERROR, size of Hessian not consistent, but not stopping!'
+               !          call abort3d(" RW_VATRA : ERROR, size of Hessian not consistent")
+            endif
+         endif
       endif
 
       if(k1gc.eq.3) ictrlvec = 2*nvamaj+1
 
+      call rpn_comm_bcastc(cl_version,3,"mpi_character",0,"world",ierr)
+      call rpn_comm_bcast(i1gc,1,"mpi_integer",0,"world",ierr)
+      call rpn_comm_bcast(nsim,1,"mpi_integer",0,"world",ierr)
+      call rpn_comm_bcast(ibrpstamp,1,"mpi_integer",0,"world",ierr)
+      call rpn_comm_bcast(zeps1,1,"mpi_double_precision",0,"world",ierr)
+      call rpn_comm_bcast(zdf1,1,"mpi_double_precision",0,"world",ierr)
+      call rpn_comm_bcast(itertot,1,"mpi_integer",0,"world",ierr)
+      call rpn_comm_bcast(isimtot,1,"mpi_integer",0,"world",ierr)
+      call rpn_comm_bcast(ivadim,1,"mpi_integer",0,"world",ierr)
+      call rpn_comm_bcast(itrunc,1,"mpi_integer",0,"world",ierr)
+      call rpn_comm_bcast(iztrl,10,"mpi_integer",0,"world",ierr)
+      if(trim(cl_version) == 'V4') then
+         call rpn_comm_bcast(ivamaj,1,"mpi_integer",0,"world",ierr)
+      else
+         call rpn_comm_bcast(imtra,1,"mpi_integer",0,"world",ierr)
+      endif
+
       ! here the mpiglobal vectors are read in and only the mpilocal 
       ! portion is copied from vatravec into vatra
       if(mpi_myid.eq.0) write(*,*) 'RW_VATRA : reading Hessian'
+
       if(trim(cl_version) == 'V2') then
-        allocate(vatravec_r8_mpiglobal(nvadim_mpiglobal))
-        do jvec = 1, ictrlvec
-          read(ireslun) vatravec_r8_mpiglobal
-          call bmat_reduceToMPILocal(  &
-            vatra(((jvec-1)*nvadim_mpilocal+1):jvec*nvadim_mpilocal),  &
-            vatravec_r8_mpiglobal,cvDim_return)
-        enddo
-        deallocate(vatravec_r8_mpiglobal)       
+         allocate(vatravec_r8_mpiglobal(nvadim_mpiglobal))
+         do jvec = 1, ictrlvec
+            if(mpi_myid.eq.0) read(ireslun) vatravec_r8_mpiglobal
+            call rpn_comm_bcast(vatravec_r8_mpiglobal,nvadim_mpiglobal,"mpi_double_precision",0,"world",ierr)
+            call bmat_reduceToMPILocal(  &
+                 vatra(((jvec-1)*nvadim_mpilocal+1):jvec*nvadim_mpilocal),  &
+                 vatravec_r8_mpiglobal,cvDim_return)
+         enddo
+         deallocate(vatravec_r8_mpiglobal)
       elseif(trim(cl_version) == 'V3' .or. trim(cl_version) == 'V4') then
-        allocate(vatravec_r4_mpiglobal(nvadim_mpiglobal))
-        allocate(vatravec_r8_mpiglobal(nvadim_mpiglobal))
-        ! set to zero, except 1 for "diag" (first vector) for overdimensioned elements
-        do jvec = 1, ictrlvec
-          if(mpi_myid.eq.0) then
-             read(ireslun) vatravec_r4_mpiglobal
-             vatravec_r8_mpiglobal(:)=real(vatravec_r4_mpiglobal(:),8)
-          end if
-          call rpn_comm_bcast(vatravec_r8_mpiglobal,nvadim_mpiglobal,"mpi_double_precision",0,"world",ierr)
-          call bmat_reduceToMPILocal(  &
-            vatra(((jvec-1)*nvadim_mpilocal+1):jvec*nvadim_mpilocal),  &
-            vatravec_r8_mpiglobal,cvDim_return)
-        enddo
-        deallocate(vatravec_r4_mpiglobal)       
-        deallocate(vatravec_r8_mpiglobal)       
+         allocate(vatravec_r4_mpiglobal(nvadim_mpiglobal))
+         allocate(vatravec_r8_mpiglobal(nvadim_mpiglobal))
+         ! set to zero, except 1 for "diag" (first vector) for overdimensioned elements
+         do jvec = 1, ictrlvec
+            if(mpi_myid.eq.0) then
+               read(ireslun) vatravec_r4_mpiglobal
+            end if
+            call rpn_comm_bcast(vatravec_r4_mpiglobal,nvadim_mpiglobal,"mpi_real",0,"world",ierr)
+            vatravec_r8_mpiglobal(:)=real(vatravec_r4_mpiglobal(:),8)
+            call bmat_reduceToMPILocal(  &
+                 vatra(((jvec-1)*nvadim_mpilocal+1):jvec*nvadim_mpilocal),  &
+                 vatravec_r8_mpiglobal,cvDim_return)
+         enddo
+         deallocate(vatravec_r4_mpiglobal)
+         deallocate(vatravec_r8_mpiglobal)
       endif
 
       imode = 2
@@ -890,7 +913,7 @@ CONTAINS
         kbrpstamp = ibrpstamp
       endif
 
-      ierr = fclos(ireslun)
+      if(mpi_myid.eq.0) ierr = fclos(ireslun)
 
       !*     Write Hessian
       !*     -------------
