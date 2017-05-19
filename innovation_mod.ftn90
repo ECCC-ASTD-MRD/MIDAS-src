@@ -295,13 +295,13 @@ contains
     type(struct_hco), pointer :: hco_anl
     integer, allocatable :: nultrl(:)
     integer              :: jlev, jobs, jvar, ierr, status, iset, jstep, jlatlontile
-    integer              :: ini, inj, ink, iig1, iig2, iig3, iig4, itrlnlev
+    integer              :: ni_trl, nj_trl, nk_trl, nultrl_forEZ
     integer              :: ig1obs,ig2obs,ig3obs,ig4obs
     integer              :: idata, idatend, jdata
     integer              :: ip1_pak_trl, ip1_vco_trl, nultrl2
     integer              :: nlevtrl_T, nlevtrl_M, numColumns, numColumn_maxmpiglobal
     integer, parameter   :: maxLevels = 200
-    integer              :: itrlgid, iip1s(maxLevels), iip2, iip3
+    integer              :: EZscintID_trl, iip1s(maxLevels), iip2, iip3
     integer, allocatable :: idate(:), itime(:)
     integer, allocatable :: nobsgid(:) ! (nstepobs) grid id for ezscint corresponding to stepobs bin
     integer, allocatable :: notag(:,:) ! (nobtot,nstepobs) obs tag associated to observations of each bin
@@ -321,13 +321,17 @@ contains
     character(len=2)     :: cltypvar
     character(len=12)    :: cletiket
     character(len=2)     :: flnum
-    character(len=128)   :: trialfile
-    character(len=4)     :: varnameForGetfldprm2
+    character(len=128)   :: trialfile(100), trialfile_forEZ
+    character(len=4)     :: varnameForEZ
+    integer :: key, dateo, deet, npas, nbits, datyp
+    integer :: ip1, ip2, ip3, swa, lng, dltf, ubc
+    integer :: extra1, extra2, extra3
+    integer :: ig1, ig2, ig3, ig4
 
     ! external functions
     integer :: get_max_rss, newdate
-    integer :: ezgprm, ezsetopt, gdxyfll, gdllfxy
-    integer :: fnom, fclos, fstouv, fstfrm
+    integer :: ezgprm, ezsetopt, ezqkdef, gdxyfll, gdllfxy
+    integer :: fnom, fclos, fstouv, fstfrm, fstinf, fstprm
 
     write(*,*) ' '
     write(*,*) '-------- ENTERING INN_SETUPBACKGROUNDCOLUMNS ---------'
@@ -342,17 +346,19 @@ contains
     !
     allocate(nultrl(tim_nStepObs))
     nultrl(:)=0
-    do jstep = 1, tim_nStepObs
+    trialfile(:) = 'NOT_DEFINED'
+    do jstep = (1+mpi_myid), tim_nStepObs, mpi_nprocs
        write(flnum,'(I2.2)') jstep
-       trialfile='./trlm_'//trim(flnum)
-       inquire(file=trim(trialfile),exist=trialExists)
+       trialfile(jstep)='trlm_'//trim(flnum)
+       trialfile(jstep) = top_fullWorkingPath(trialfile(jstep))
+       inquire(file=trim(trialfile(jstep)),exist=trialExists)
        if (.not.trialExists) then
-          write(*,*) 'File missing=',trialfile
+          write(*,*) 'File missing=',trialfile(jstep)
           call utl_abort('INN_SETUPBACKGROUNDCOLUMNS:DID NOT FIND A TRIAL FIELD FILE')
        else
-          ierr=fnom(nultrl(jstep),trim(trialfile),'RND+OLD+R/O',0)
+          ierr=fnom(nultrl(jstep),trim(trialfile(jstep)),'RND+OLD+R/O',0)
           ierr=fstouv(nultrl(jstep),'RND+OLD')
-          write(*,*) 'ITRIAL - File :', trialfile
+          write(*,*) 'ITRIAL - File :', trialfile(jstep)
           write(*,*) ' opened as unit file ',nultrl(jstep)
        end if
     enddo
@@ -427,39 +433,65 @@ contains
     end if
 
     !
-    !     The following code replaces the subroutine suobsgid
+    !- Get horizontal grid parameters to be used to test grid bounds
     !
-    nobs(:) = 0
-    varnameForGetfldprm2='NONE'
+    varnameForEZ='NONE'
     do jvar=1,vnl_numvarmax2D
        if (gsv_varExist(varName=vnl_varNameList2D(jvar))) then
-          varnameForGetfldprm2=vnl_varNameList2D(jvar)
+          varnameForEZ=vnl_varNameList2D(jvar)
           exit
        end if
     end do
-    if (trim(varnameForGetfldprm2) == 'NONE' ) then
+    if (trim(varnameForEZ) == 'NONE' ) then
        do jvar=1,vnl_numvarmax3D
           if (gsv_varExist(varName=vnl_varNameList3D(jvar))) then
-             varnameForGetfldprm2=vnl_varNameList3D(jvar)
+             varnameForEZ=vnl_varNameList3D(jvar)
              exit
           end if
        end do
     end if
+    if (mpi_myid.eq.0) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: varname for determining grid =',trim(varnameForEZ)
 
-    if (mpi_myid.eq.0) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: varname for getfldprm2 =',trim(varnameForGetfldprm2)
+    if ( (1+mpi_myid) <= tim_nStepObs ) then
+      ! already open (possibly on ram disk)
+      nultrl_forEZ = nultrl(1+mpi_myid)
+    else
+      ! get from working directory (disk)
+      trialfile_forEZ = 'trlm_01'
+      trialfile_forEZ = top_fullWorkingPath(trialfile_forEZ)
+      nultrl_forEZ = 0
+      ierr = fnom(nultrl_forEZ, trim(trialfile_forEZ),'RND+OLD+R/O',0)
+      ierr = fstouv(nultrl_forEZ,'RND+OLD')
+    endif
+
+    dateo  = -1
+    cletiket = ' '
+    ip1    = -1
+    ip2    = -1
+    ip3    = -1
+    cltypvar = ' '
+    key = fstinf( nultrl_forEZ,                                          & ! IN
+                  ni_trl, nj_trl, nk_trl,                                & ! OUT
+                  dateo, cletiket, ip1, ip2, ip3, cltypvar, varnameForEZ ) ! IN
+
+    if (key < 0) then
+       write(*,*)
+       write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: nultrl_forEZ = ',nultrl_forEZ
+       write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: Unable to find trial field = ',varnameForEZ
+       call utl_abort('INN_SETUPBACKGROUNDCOLUMNS')
+    end if
+
+    ierr = fstprm( key,                                                     & ! IN
+                   dateo, deet, npas, ni_trl, nj_trl, nk_trl, nbits,        & ! OUT
+                   datyp, ip1, ip2, ip3, cltypvar, varnameForEZ, cletiket,  & ! OUT
+                   clgrtyp, ig1, ig2, ig3,                                  & ! OUT
+                   ig4, swa, lng, dltf, ubc, extra1, extra2, extra3 )         ! OUT
+
+    EZscintID_trl = ezqkdef(ni_trl,nj_trl,clgrtyp,ig1,ig2,ig3,ig4,nultrl_forEZ)
+
+    nobs(:) = 0
 
     do jstep = 1,tim_nStepObs
-       !
-       !- Get horizontal grid parameters to be used to test grid bounds
-       !
-       call utl_getfldprm(IIP1S,IIP2,IIP3,ITRLNLEV,CLETIKET,CLTYPVAR,  &
-            ITRLGID,trim(varnameForGetfldprm2),datestamplist(jstep),maxLevels,  &
-            nultrl(:),ip1_pak_trl,ip1_vco_trl,tim_nStepObs,  &
-            nultrl2)
-       if (itrlnlev <= 0 ) then
-          call utl_abort('INN_SETUPBACKGROUNDCOLUMNS:Problem with background file')
-       end if
-       ierr = ezgprm(itrlgid,clgrtyp,ini,inj,iig1,iig2,iig3,iig4)
 
        dlonfld(:)=0.0d0
        dlatfld(:)=0.0d0
@@ -575,10 +607,10 @@ contains
              !
              !- Find the position in the trial field grid
              !
-             ierr=gdxyfll(itrlgid, xpos_r4, ypos_r4, lat_deg_r4, lon_deg_r4, 1)
+             ierr=gdxyfll(EZscintID_trl, xpos_r4, ypos_r4, lat_deg_r4, lon_deg_r4, 1)
 
-             if ( xpos_r4 >= 1.0 .and. xpos_r4 <= real(ini) .and.  &
-                  ypos_r4 >= 1.0 .and. ypos_r4 <= real(inj) ) then
+             if ( xpos_r4 >= 1.0 .and. xpos_r4 <= real(ni_trl) .and.  &
+                  ypos_r4 >= 1.0 .and. ypos_r4 <= real(nj_trl) ) then
 
                 dlonfld(nobs(jstep)) = lon_r8
                 dlatfld(nobs(jstep)) = lat_r8
@@ -607,8 +639,8 @@ contains
 
                 ! However, we must assigned a realistic lat-lon to this point
                 ! to avoid problem later in Hx computation.
-                ierr=gdllfxy(itrlgid, lat_deg_r4, lon_deg_r4, real(ini)/2.0,  &
-                     real(inj)/2.0, 1) ! Middle of the domain
+                ierr=gdllfxy(EZscintID_trl, lat_deg_r4, lon_deg_r4, real(ni_trl)/2.0,  &
+                     real(nj_trl)/2.0, 1) ! Middle of the domain
                 dlonfld(nobs(jstep)) = real(lon_deg_r4,8)
                 dlatfld(nobs(jstep)) = real(lat_deg_r4,8)
              end if
@@ -834,9 +866,10 @@ contains
     !
     !- Close the files
     !
-    do jstep=1,tim_nStepObs
+    do jstep = (1+mpi_myid), tim_nStepObs, mpi_nprocs
        ierr=fstfrm(nultrl(jstep))  
        ierr=fclos(nultrl(jstep))  
+       ierr = top_ramDiskRemove(trialfile(jstep))
     enddo
 
     !
@@ -890,11 +923,11 @@ contains
       real*8 :: varInterphr_MT(:,:),varInterphr_VV(:,:)
       real*4, allocatable :: varTrial_r4(:,:),varTrial_VV_r4(:,:)
       real*4, allocatable :: varTrial_zero_r4(:,:)
-      real*8, allocatable :: varInterp(:,:,:),varInterp_VV(:,:,:)
-      real*8, allocatable :: varInterp2(:),varInterp2_VV(:)
-      real*8, allocatable :: varInterp_recv(:,:),varInterp_recv_VV(:,:)
+      real*4, allocatable :: varInterp_r4(:,:,:),varInterp_VV_r4(:,:,:)
+      real*4, allocatable :: varInterp2_r4(:),varInterp2_VV_r4(:)
+      real*4, allocatable :: varInterp_recv_r4(:,:),varInterp_recv_VV_r4(:,:)
       integer :: nlevel,nsize,iip1,pe_send,pe_recv,tag,tag2
-      integer :: fstlir,ezdefset
+      integer :: fstlir,ezdefset, ezuvint, ezsint
 
       integer, parameter :: maxnumkeys = 500
       integer :: numkeys, keys(maxnumkeys)
@@ -905,7 +938,8 @@ contains
       integer :: extra1, extra2, extra3
       integer :: ig1, ig2, ig3, ig4
 
-      call tmg_start(91,'READTRIAL')
+      call rpn_comm_barrier("GRID",ierr)
+      call tmg_start(91,'READTRIALFIELD')
       !
       ! Determine the type and number of vertical levels
       !
@@ -917,11 +951,23 @@ contains
 
       nlevel = col_getNumLev(columnhr,varLevel)
 
+      if ( (1+mpi_myid) <= tim_nStepObs ) then
+        ! already open (possibly on ram disk)
+        nultrl_forEZ = nultrl(1+mpi_myid)
+      else
+        ! get from working directory (disk)
+        trialfile_forEZ = 'trlm_01'
+        trialfile_forEZ = top_fullWorkingPath(trialfile_forEZ)
+        nultrl_forEZ = 0
+        ierr = fnom(nultrl_forEZ, trim(trialfile_forEZ),'RND+OLD+R/O',0)
+        ierr = fstouv(nultrl_forEZ,'RND+OLD')
+      endif
+
       !
       ! Check if too few GZ levels are in file, if so then just read surface
       !
       if (trim(varName).eq.'GZ' .and. present(noUpperGZ)) then
-         ierr = fstinl(nultrl(1), ni, nj, nk, -1, ' ', -1, -1, -1, &
+         ierr = fstinl(nultrl_forEZ, ni, nj, nk, -1, ' ', -1, -1, -1, &
               ' ','GZ',keys, numkeys, maxnumkeys)
          write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: nlevel =  ', nlevel, ', numkeys = ', numkeys
          if (numkeys.lt.nlevel) then
@@ -943,7 +989,7 @@ contains
       ip3    = -1
       cltypvar = ' '
 
-      key = fstinf( nultrl(1),                                        & ! IN
+      key = fstinf( nultrl_forEZ,                            & ! IN
            ni, nj, nk,                                       & ! OUT
            dateo, cletiket, ip1, ip2, ip3, cltypvar, varName ) ! IN
 
@@ -959,179 +1005,175 @@ contains
            clgrtyp, ig1, ig2, ig3,                            & ! OUT
            ig4, swa, lng, dltf, ubc, extra1, extra2, extra3 )   ! OUT
 
-      EZscintID  = ezqkdef( ni, nj, clgrtyp, ig1, ig2, ig3, ig4, nultrl(1) )   ! IN
+      EZscintID  = ezqkdef( ni, nj, clgrtyp, ig1, ig2, ig3, ig4, nultrl_forEZ )   ! IN
 
       allocate(varTrial_r4(ni,nj))
       allocate(varTrial_VV_r4(ni,nj))
       allocate(varTrial_zero_r4(ni,nj))
-      allocate(varInterp(maxval(nobs_mpiglobal),nlevel,mpi_nprocs))
-      allocate(varInterp_VV(maxval(nobs_mpiglobal),nlevel,mpi_nprocs))
-      allocate(varInterp2(maxval(nobs_mpiglobal)))
-      allocate(varInterp2_VV(maxval(nobs_mpiglobal)))
-      allocate(varInterp_recv(maxval(nobs_mpiglobal),nlevel))
-      allocate(varInterp_recv_VV(maxval(nobs_mpiglobal),nlevel))
+      allocate(varInterp_r4(maxval(nobs_mpiglobal),tim_nStepObs,mpi_nprocs))
+      allocate(varInterp_VV_r4(maxval(nobs_mpiglobal),tim_nStepObs,mpi_nprocs))
+      allocate(varInterp2_r4(maxval(nobs_mpiglobal)))
+      allocate(varInterp2_VV_r4(maxval(nobs_mpiglobal)))
+      allocate(varInterp_recv_r4(maxval(nobs_mpiglobal),tim_nStepObs))
+      allocate(varInterp_recv_VV_r4(maxval(nobs_mpiglobal),tim_nStepObs))
       varTrial_zero_r4(:,:) = 0.0
 
       ! in the case that not all variable have the same etiket or typvar
       ! (this is necessary for extra 3d-var done before gen_coeff)
       cletiket='            '
       cltypvar='  '
+      
+      LEV_LOOP: do jlev = 1, nlevel
 
-      do jstep = 1,tim_nStepObs
+         STEP_LOOP1: do jstep = (1+mpi_myid), tim_nStepObs, mpi_nprocs
 
-         if (nobs_maxmpiglobal(jstep) > 0) then
+            if (nobs_maxmpiglobal(jstep) <= 0) cycle STEP_LOOP1
 
-            call rpn_comm_barrier("GRID",ierr)
+            if (trim(varName).eq.'GZ'.and.jlev.eq.nlevel) then
+               ! use surface level IP1 for GZ (essential for Vcode=5005)
+               IIP1 = vco_trl%ip1_sfc
+            elseif (varLevel.eq.'MM') then
+               IIP1 = vco_trl%ip1_M(jlev)
+            elseif (varLevel.eq.'TH') then
+               IIP1 = vco_trl%ip1_T(jlev)
+            elseif (varLevel.eq.'SF') then
+               IIP1 = -1
+            else
+               call utl_abort('INN_SETUPBACKGROUNDCOLUMNS: unknown varLevel')
+            endif
 
-            do jlev = (1+mpi_myid),nlevel,mpi_nprocs
-
-               if (trim(varName).eq.'GZ'.and.jlev.eq.nlevel) then
-                  ! use surface level IP1 for GZ (essential for Vcode=5005)
-                  IIP1 = vco_trl%ip1_sfc
-               elseif (varLevel.eq.'MM') then
-                  IIP1 = vco_trl%ip1_M(jlev)
-               elseif (varLevel.eq.'TH') then
-                  IIP1 = vco_trl%ip1_T(jlev)
-               elseif (varLevel.eq.'SF') then
-                  IIP1 = -1
+            if (trim(varName).eq.'GZ'.and.present(noUpperGZ)) then
+               if (noUpperGZ.and.jlev.ne.nlevel) then
+                  ! do not try to read GZ above surface if it does not exist
+                  varTrial_r4(:,:) = 0.0
                else
-                  call utl_abort('INN_SETUPBACKGROUNDCOLUMNS: unknown varLevel')
-               endif
-
-               if (trim(varName).eq.'GZ'.and.present(noUpperGZ)) then
-                  if (noUpperGZ.and.jlev.ne.nlevel) then
-                     ! do not try to read GZ above surface if it does not exist
-                     varTrial_r4(:,:) = 0.0
-                  else
-                     ierr=fstlir(varTrial_r4(:,:),nultrl(jstep),ni,nj,ink,  &
-                          datestamplist(jstep) ,cletiket,iip1,-1,-1,  &
-                          cltypvar,varName)
-                  endif
-               else
-                  ierr=fstlir(varTrial_r4(:,:),nultrl(jstep),ni,nj,ink,  &
+                  ierr=fstlir(varTrial_r4(:,:),nultrl(jstep),ni,nj,nk,  &
                        datestamplist(jstep) ,cletiket,iip1,-1,-1,  &
                        cltypvar,varName)
                endif
+            else
+               ierr=fstlir(varTrial_r4(:,:),nultrl(jstep),ni,nj,nk,  &
+                    datestamplist(jstep) ,cletiket,iip1,-1,-1,  &
+                    cltypvar,varName)
+            endif
 
+            if (ierr.lt.0)then
+               write(*,2001) varName,iip1,idate(jstep),itime(jstep)
+               call utl_abort('INN_SETUPBACKGROUNDCOLUMNS: Problem with background file')
+            end if
+
+            if (vnl_varKindFromVarname(varName).eq.'CH') &
+                 call chm_apply_2dfieldr4_transform(vnl_varnumFromVarName(varName),varName,jlev,jstep,varTrial_r4)
+
+            if (varName.eq.'UU') then
+               ierr=fstlir(varTrial_VV_r4(:,:),nultrl(jstep),ni,nj,nk,  &
+                    datestamplist(jstep) ,cletiket,iip1,-1,-1,  &
+                    cltypvar,'VV')
                if (ierr.lt.0)then
-                  write(*,2001) varName,iip1,idate(jstep),itime(jstep)
+                  write(*,2001) 'VV',iip1,idate(jstep),itime(jstep)
                   call utl_abort('INN_SETUPBACKGROUNDCOLUMNS: Problem with background file')
                end if
+            endif
 
-               if (vnl_varKindFromVarname(varName).eq.'CH') &
-                    call chm_apply_2dfieldr4_transform(vnl_varnumFromVarName(varName),varName,jlev,jstep,varTrial_r4)
-
-               if (varName.eq.'UU') then
-                  ierr=fstlir(varTrial_VV_r4(:,:),nultrl(jstep),ni,nj,ink,  &
-                       datestamplist(jstep) ,cletiket,iip1,-1,-1,  &
-                       cltypvar,'VV')
-                  if (ierr.lt.0)then
-                     write(*,2001) 'VV',iip1,idate(jstep),itime(jstep)
-                     call utl_abort('INN_SETUPBACKGROUNDCOLUMNS: Problem with background file')
-                  end if
-               endif
-
-               ! Interpolate to mpiglobal set of columns for a subset of levels
-               do jlatlontile = 1,mpi_nprocs
-                  if (nobs_mpiglobal(jstep,jlatlontile).gt.0) then
-                     iset = ezdefset(nobsgid_mpiglobal(jstep,jlatlontile),EZscintID)
-                     if (trim(varName).eq.'UU') then
-
-                        ierr = utl_ezuvint(varInterp(1:nobs_mpiglobal(jstep,jlatlontile),jlev,jlatlontile),  &
-                                           varInterp_VV(1:nobs_mpiglobal(jstep,jlatlontile),jlev,jlatlontile),  &
-                                           varTrial_r4,varTrial_zero_r4,  &
-                                           nobs_mpiglobal(jstep,jlatlontile),ni*nj)
-                        ierr = utl_ezuvint(varInterp2(1:nobs_mpiglobal(jstep,jlatlontile)),  &
-                                           varInterp2_VV(1:nobs_mpiglobal(jstep,jlatlontile)),  &
-                                           varTrial_zero_r4,varTrial_VV_r4,  &
-                                           nobs_mpiglobal(jstep,jlatlontile),ni*nj)
-
-                        varInterp(1:nobs_mpiglobal(jstep,jlatlontile),jlev,jlatlontile) =  &
-                             varInterp(1:nobs_mpiglobal(jstep,jlatlontile),jlev,jlatlontile) +  &
-                             varInterp2(1:nobs_mpiglobal(jstep,jlatlontile))
-                        varInterp_VV(1:nobs_mpiglobal(jstep,jlatlontile),jlev,jlatlontile) =  &
-                             varInterp_VV(1:nobs_mpiglobal(jstep,jlatlontile),jlev,jlatlontile) +  &
-                             varInterp2_VV(1:nobs_mpiglobal(jstep,jlatlontile))
-
-                        ! This could replace the code above, but results are changed, so more testing needed
-                        !ierr = utl_ezuvint(varInterp(1:nobs_mpiglobal(jstep,jlatlontile),jlev,jlatlontile),  &
-                        !                   varInterp_VV(1:nobs_mpiglobal(jstep,jlatlontile),jlev,jlatlontile),  &
-                        !                   varTrial_r4,varTrial_VV_r4,  &
-                        !                   nobs_mpiglobal(jstep,jlatlontile),ni*nj)
-                     else
-                        ierr = utl_ezsint2(varInterp(1:nobs_mpiglobal(jstep,jlatlontile),jlev,jlatlontile),  &
-                                           varTrial_r4,  &
-                                           nobs_mpiglobal(jstep,jlatlontile),1,1,ni,nj,1)
-                     endif
-                  endif
-               enddo
-
-            enddo
-
-            call tmg_start(92,'READTRIALMPI')
+            ! Interpolate to mpiglobal set of columns for a subset of levels
             do jlatlontile = 1,mpi_nprocs
                if (nobs_mpiglobal(jstep,jlatlontile).gt.0) then
-                  do jlev = 1,nlevel
+                  iset = ezdefset(nobsgid_mpiglobal(jstep,jlatlontile),EZscintID)
+                  if (trim(varName).eq.'UU') then
 
-                     pe_send = mod(jlev-1,mpi_nprocs)
-                     pe_recv = jlatlontile-1
-                     tag  = pe_recv*500 + pe_send
-                     tag2 = pe_recv*500 + pe_send + 1000000
+                     ierr = ezuvint(varInterp_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile),  &
+                                    varInterp_VV_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile),  &
+                                    varTrial_r4,varTrial_zero_r4)
+                     ierr = ezuvint(varInterp2_r4(1:nobs_mpiglobal(jstep,jlatlontile)),  &
+                                    varInterp2_VV_r4(1:nobs_mpiglobal(jstep,jlatlontile)),  &
+                                    varTrial_zero_r4,varTrial_VV_r4)
 
-                     if (pe_send.eq.pe_recv) then
-                        if (mpi_myid.eq.pe_send) then
-                           varInterp_recv(1:nobs_mpiglobal(jstep,jlatlontile),jlev) =  &
-                                varInterp(1:nobs_mpiglobal(jstep,jlatlontile),jlev,jlatlontile)
-                           if (trim(varName).eq.'UU') then
-                              varInterp_recv_VV(1:nobs_mpiglobal(jstep,jlatlontile),jlev) =  &
-                                   varInterp_VV(1:nobs_mpiglobal(jstep,jlatlontile),jlev,jlatlontile)
-                           endif
-                        endif
-                     else
-                        if (mpi_myid.eq.pe_send) then
-                           nsize=nobs_mpiglobal(jstep,jlatlontile)
-                           call rpn_comm_send(varInterp(1:nobs_mpiglobal(jstep,jlatlontile),jlev,jlatlontile), &
-                                nsize,"mpi_double_precision",pe_recv,tag,"GRID",ierr)
-                           if (trim(varName).eq.'UU') then
-                              call rpn_comm_send(varInterp_VV(1:nobs_mpiglobal(jstep,jlatlontile),jlev,jlatlontile), &
-                                   nsize,"mpi_double_precision",pe_recv,tag2,"GRID",ierr)
-                           endif
-                        endif
+                     varInterp_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile) =  &
+                          real(varInterp_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile),8) +  &
+                          real(varInterp2_r4(1:nobs_mpiglobal(jstep,jlatlontile)),8)
+                     varInterp_VV_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile) =  &
+                          real(varInterp_VV_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile),8) +  &
+                          real(varInterp2_VV_r4(1:nobs_mpiglobal(jstep,jlatlontile)),8)
 
-                        if (mpi_myid.eq.pe_recv) then
-                           nsize=nobs_mpiglobal(jstep,jlatlontile)
-                           call rpn_comm_recv(varInterp_recv(1:nobs_mpiglobal(jstep,jlatlontile),jlev), &
-                                nsize,"mpi_double_precision",pe_send,tag,"GRID",status,ierr)
-                           if (trim(varName).eq.'UU') then
-                              call rpn_comm_recv(varInterp_recv_VV(1:nobs_mpiglobal(jstep,jlatlontile),jlev), &
-                                   nsize,"mpi_double_precision",pe_send,tag2,"GRID",status,ierr)
-                           endif
-                        endif
-                     endif
-
-                  enddo
+                     ! This could replace the code above, but results are changed, so more testing needed
+                     !ierr = utl_ezuvint(varInterp(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile),  &
+                     !                   varInterp_VV(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile),  &
+                     !                   varTrial_r4,varTrial_VV_r4,  &
+                     !                   nobs_mpiglobal(jstep,jlatlontile),ni*nj)
+                  else
+                     ierr = ezsint(varInterp_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile),  &
+                                   varTrial_r4)
+                  endif
                endif
             enddo
 
-            do jlev = 1,nlevel
-               do jobs = 1, nobs(jstep)
-                  varInterphr_MT(jlev,notag(jobs,jstep)) = varInterp_recv(jobs,jlev)
-                  if (trim(varName).eq.'UU') then
-                     varInterphr_VV(jlev,notag(jobs,jstep)) = varInterp_recv_VV(jobs,jlev)
+         enddo STEP_LOOP1
+
+         TILE_LOOP: do jlatlontile = 1,mpi_nprocs
+            STEP_LOOP2: do jstep = 1, tim_nStepObs
+
+               pe_send = mod(jstep-1,mpi_nprocs)
+               pe_recv = jlatlontile-1
+               tag  = pe_recv*500 + pe_send
+               tag2 = pe_recv*500 + pe_send + 1000000
+
+               if ( mpi_myid == pe_recv ) then
+                  varInterp_recv_r4(:,jstep) = 0.0
+                  varInterp_recv_VV_r4(:,jstep) = 0.0
+               endif
+
+               if ( nobs_mpiglobal(jstep,jlatlontile) <= 0 ) cycle STEP_LOOP2
+
+               if (pe_send == pe_recv) then
+                  if (mpi_myid == pe_send) then
+                     varInterp_recv_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep) =  &
+                          varInterp_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile)
+                     if (trim(varName) == 'UU') then
+                        varInterp_recv_VV_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep) =  &
+                             varInterp_VV_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile)
+                     endif
                   endif
-               enddo
+               else
+                  if (mpi_myid == pe_send) then
+                     nsize=nobs_mpiglobal(jstep,jlatlontile)
+                     call rpn_comm_send(varInterp_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile), &
+                          nsize,"mpi_real4",pe_recv,tag,"GRID",ierr)
+                     if (trim(varName).eq.'UU') then
+                        call rpn_comm_send(varInterp_VV_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile), &
+                             nsize,"mpi_real4",pe_recv,tag2,"GRID",ierr)
+                     endif
+                  endif
+
+                  if (mpi_myid == pe_recv) then
+                     nsize=nobs_mpiglobal(jstep,jlatlontile)
+                     call rpn_comm_recv(varInterp_recv_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep), &
+                          nsize,"mpi_real4",pe_send,tag,"GRID",status,ierr)
+                     if (trim(varName) == 'UU') then
+                        call rpn_comm_recv(varInterp_recv_VV_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep), &
+                             nsize,"mpi_real4",pe_send,tag2,"GRID",status,ierr)
+                     endif
+                  endif
+               endif
+
+            enddo STEP_LOOP2
+         enddo TILE_LOOP
+
+         do jstep = 1, tim_nStepObs
+            do jobs = 1, nobs(jstep)
+               varInterphr_MT(jlev,notag(jobs,jstep)) = varInterp_recv_r4(jobs,jstep)
+               if (trim(varName).eq.'UU') then
+                  varInterphr_VV(jlev,notag(jobs,jstep)) = varInterp_recv_VV_r4(jobs,jstep)
+               endif
             enddo
-            call tmg_stop(92)
+         enddo
 
-         endif !nobs>0
-
-      enddo !jstep
+      enddo LEV_LOOP
 
       deallocate(varTrial_r4,varTrial_VV_r4)
       deallocate(varTrial_zero_r4)
-      deallocate(varInterp,varInterp_VV)
-      deallocate(varInterp_recv,varInterp_recv_VV)
-      deallocate(varInterp2,varInterp2_VV)
+      deallocate(varInterp_r4,varInterp_VV_r4)
+      deallocate(varInterp_recv_r4,varInterp_recv_VV_r4)
+      deallocate(varInterp2_r4,varInterp2_VV_r4)
 
 2001  format(1x,'INN_SETUPBACKGROUNDCOLUMNS: Problem finding variable',1x,a4,1x,'at level',  &
            i10,1x,', on',1x,i8,1x,'at',1x,i8.8,1x,'HHMMSSss')
@@ -1495,7 +1537,7 @@ contains
        end do
        call rpn_comm_allreduce(numHeaderTile_mpilocal,numHeaderTile_mpiglobal,mpi_nprocs,  &
             "MPI_INTEGER","MPI_SUM","GRID",ierr)
-       write(*,*) 'setObsMpiStrategy: original numHeaderTile_mpiglobal     =',numHeaderTile_mpiglobal(:)
+       if(mpi_myid == 0) write(*,*) 'setObsMpiStrategy: original numHeaderTile_mpiglobal     =',numHeaderTile_mpiglobal(:)
 
        ! compute total load per PE on tiles
        obsLoadTile_mpilocal(:) = 0
@@ -1507,13 +1549,13 @@ contains
        end do
        call rpn_comm_allreduce(obsLoadTile_mpilocal,obsLoadTile_mpiglobal,mpi_nprocs,  &
             "MPI_INTEGER","MPI_SUM","GRID",ierr)
-       write(*,*) 'setObsMpiStrategy: original obsLoadTile_mpiglobal     =',obsLoadTile_mpiglobal(:)
+       if(mpi_myid == 0) write(*,*) 'setObsMpiStrategy: original obsLoadTile_mpiglobal     =',obsLoadTile_mpiglobal(:)
 
        ! set obsLoad to zero if only 1 header on the tile to avoid sending it
        do IP = 0, mpi_nprocs-1
           if(numHeaderTile_mpiglobal(IP+1)==1) then
              obsLoadTile_mpiglobal(IP+1) = 0
-             write(*,*) 'setObsMpiStrategy: setting the obsLoad to zero, ', & 
+             if(mpi_myid == 0) write(*,*) 'setObsMpiStrategy: setting the obsLoad to zero, ', & 
                   'since only 1 header index on the tile with myid = ',IP
           endif
        enddo
@@ -1530,8 +1572,8 @@ contains
           enddo
           obsLoadTile_mpiglobal_tmp(PE_sorted(IP+1)+1) = -1
        enddo
-       write(*,*) 'setObsMpiStrategy: sorted obsLoadTile_mpiglobal       =',obsLoadTile_sorted(:)
-       write(*,*) 'setObsMpiStrategy: corresponding sorted PE_mpiglobal  =',PE_sorted(:)
+       if(mpi_myid == 0) write(*,*) 'setObsMpiStrategy: sorted obsLoadTile_mpiglobal       =',obsLoadTile_sorted(:)
+       if(mpi_myid == 0) write(*,*) 'setObsMpiStrategy: corresponding sorted PE_mpiglobal  =',PE_sorted(:)
 
        ! modify IPC for headers that need to be sent to balance load
        do IP = 0, (mpi_nprocs/2)-1
@@ -1539,7 +1581,7 @@ contains
           PE_receiver=PE_sorted(mpi_nprocs-IP);
           load_to_send=floor(0.5*(obsLoadTile_mpiglobal(PE_sender+1) -  &
                obsLoadTile_mpiglobal(PE_receiver+1)))
-          write(*,*) 'setObsMpiStrategy: PE_sender, PE_receiver, load_to_send = ', PE_sender, PE_receiver, load_to_send
+          if(mpi_myid == 0) write(*,*) 'setObsMpiStrategy: PE_sender, PE_receiver, load_to_send = ', PE_sender, PE_receiver, load_to_send
 
           ! modify IPC value from PE_sender to PE_receiver for headers whose load adds up to load_to_send
           loadSent=0
@@ -1590,9 +1632,9 @@ contains
             "MPI_INTEGER","MPI_SUM","GRID",ierr)
        call rpn_comm_allreduce(totalObsLoad_mpilocal,totalObsLoad_mpiglobal,mpi_nprocs,  &
             "MPI_INTEGER","MPI_SUM","GRID",ierr)
-       write(*,*) 'setObsMpiStrategy: number of FILE headers for all TOVS = ',numtovs_mpiglobal(:)
-       write(*,*) '                   number of FILE headers for only IR  = ',numir_mpiglobal(:)
-       write(*,*) '                   estimated total obsLoad             = ',totalObsLoad_mpiglobal(:)
+       if(mpi_myid == 0) write(*,*) 'setObsMpiStrategy: number of FILE headers for all TOVS = ',numtovs_mpiglobal(:)
+       if(mpi_myid == 0) write(*,*) '                   number of FILE headers for only IR  = ',numir_mpiglobal(:)
+       if(mpi_myid == 0) write(*,*) '                   estimated total obsLoad             = ',totalObsLoad_mpiglobal(:)
 
        ! count the number of tovs and IR observations for each tile
        numtovs(:)=0
@@ -1613,9 +1655,9 @@ contains
             "MPI_INTEGER","MPI_SUM","GRID",ierr)
        call rpn_comm_allreduce(totalObsLoad_mpilocal,totalObsLoad_mpiglobal,mpi_nprocs,  &
             "MPI_INTEGER","MPI_SUM","GRID",ierr)
-       write(*,*) 'setObsMpiStrategy: number of TILE headers for all TOVS = ',numtovs_mpiglobal(:)
-       write(*,*) '                   number of TILE headers for only IR  = ',numir_mpiglobal(:)
-       write(*,*) '                   estimated total obsLoad             = ',totalObsLoad_mpiglobal(:)
+       if(mpi_myid == 0) write(*,*) 'setObsMpiStrategy: number of TILE headers for all TOVS = ',numtovs_mpiglobal(:)
+       if(mpi_myid == 0) write(*,*) '                   number of TILE headers for only IR  = ',numir_mpiglobal(:)
+       if(mpi_myid == 0) write(*,*) '                   estimated total obsLoad             = ',totalObsLoad_mpiglobal(:)
 
        ! count the number of tovs and IR observations for columns
        numtovs(:)=0
@@ -1636,9 +1678,9 @@ contains
             "MPI_INTEGER","MPI_SUM","GRID",ierr)
        call rpn_comm_allreduce(totalObsLoad_mpilocal,totalObsLoad_mpiglobal,mpi_nprocs,  &
             "MPI_INTEGER","MPI_SUM","GRID",ierr)
-       write(*,*) 'setObsMpiStrategy: number of COLS headers for all TOVS = ',numtovs_mpiglobal(:)
-       write(*,*) '                   number of COLS headers for only IR  = ',numir_mpiglobal(:)
-       write(*,*) '                   estimated total obsLoad             = ',totalObsLoad_mpiglobal(:)
+       if(mpi_myid == 0) write(*,*) 'setObsMpiStrategy: number of COLS headers for all TOVS = ',numtovs_mpiglobal(:)
+       if(mpi_myid == 0) write(*,*) '                   number of COLS headers for only IR  = ',numir_mpiglobal(:)
+       if(mpi_myid == 0) write(*,*) '                   estimated total obsLoad             = ',totalObsLoad_mpiglobal(:)
 
        numtovs(:)=0
        do headerIndex = 1, numHeaderFile
@@ -1648,7 +1690,7 @@ contains
        enddo
        call rpn_comm_allreduce(numtovs,numtovs_mpiglobal,mpi_nprocs,  &
             "MPI_INTEGER","MPI_SUM","GRID",ierr)
-       write(*,*) 'setObsMpiStrategy: number of COLS headers for AMSUA     = ',numtovs_mpiglobal(:)
+       if(mpi_myid == 0) write(*,*) 'setObsMpiStrategy: number of COLS headers for AMSUA     = ',numtovs_mpiglobal(:)
 
        numtovs(:)=0
        do headerIndex = 1, numHeaderFile
@@ -1658,7 +1700,7 @@ contains
        enddo
        call rpn_comm_allreduce(numtovs,numtovs_mpiglobal,mpi_nprocs,  &
             "MPI_INTEGER","MPI_SUM","GRID",ierr)
-       write(*,*) 'setObsMpiStrategy: number of COLS headers for AMSUB/MHS = ',numtovs_mpiglobal(:)
+       if(mpi_myid == 0) write(*,*) 'setObsMpiStrategy: number of COLS headers for AMSUB/MHS = ',numtovs_mpiglobal(:)
 
        numtovs(:)=0
        do headerIndex = 1, numHeaderFile
@@ -1668,7 +1710,7 @@ contains
        enddo
        call rpn_comm_allreduce(numtovs,numtovs_mpiglobal,mpi_nprocs,  &
             "MPI_INTEGER","MPI_SUM","GRID",ierr)
-       write(*,*) 'setObsMpiStrategy: number of COLS headers for GEORAD    = ',numtovs_mpiglobal(:)
+       if(mpi_myid == 0) write(*,*) 'setObsMpiStrategy: number of COLS headers for GEORAD    = ',numtovs_mpiglobal(:)
 
        numtovs(:)=0
        do headerIndex = 1, numHeaderFile
@@ -1678,7 +1720,7 @@ contains
        enddo
        call rpn_comm_allreduce(numtovs,numtovs_mpiglobal,mpi_nprocs,  &
             "MPI_INTEGER","MPI_SUM","GRID",ierr)
-       write(*,*) 'setObsMpiStrategy: number of COLS headers for SSMIS     = ',numtovs_mpiglobal(:)
+       if(mpi_myid == 0) write(*,*) 'setObsMpiStrategy: number of COLS headers for SSMIS     = ',numtovs_mpiglobal(:)
 
       end if
 

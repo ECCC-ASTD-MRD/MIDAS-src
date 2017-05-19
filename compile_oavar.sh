@@ -88,6 +88,8 @@ if [ ${compiledir_main} != ".." ] ; then
     fi
 fi
 
+absdir=${compiledir_main}/abs
+mkdir -p ${absdir}
 
 #----------------------------------------------------------------
 #  Set up dependent librarys and tools. 
@@ -311,7 +313,7 @@ if [ "${mode}" == full ] ; then
       echo "... !! ERROR found: STOP; check listing in ${PWD} !!"
       exit 1
   fi
-  cp ${varabs} ~/ords/oavar_abs/
+  cp ${varabs} ${absdir}/
 
   #### rm -f *.ftn* *.f *.f90
 
@@ -323,7 +325,7 @@ elif [ "${mode}" == abs ] ; then
   echo "... > Building the executable ${varabs}"
   echo "..."
   s.compile $COMPF  -O ${FOPTMIZ} ${MPILIBDIR} -libappl $LIBAPPL $LIBEXTRA -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o ${varabs}
-  cp ${varabs} ~/ords/oavar_abs/
+  cp ${varabs} ${absdir}/
 
 else
     if [ -f $trunkdir/$mode ] ; then

@@ -132,6 +132,8 @@ CONTAINS
     NAMELIST /NAMBHI/ntrunc,scaleFactor,scaleFactorLQ,scaleTG,numModeZero,squareSqrt,TweakTG,ReadWrite_sqrt,stddevMode
 
     call tmg_start(15,'BHI_SETUP')
+    if(mpi_myid == 0) write(*,*) 'bhi_setup: starting'
+    if(mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     if ( present(mode) ) then
        if ( trim(mode) == 'Analysis' .or. trim(mode) == 'BackgroundCheck') then
@@ -295,6 +297,8 @@ CONTAINS
     allocate(corns(nkgdim2,nkgdim2,0:ntrunc))
     allocate(rstddev(nkgdim2,0:ntrunc))
 
+    if(mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
     zps = 101000.D0
     status = vgd_levels( vco_anl%vgrid, ip1_list=vco_anl%ip1_M, levels=pressureProfile_M, &
                          sfc_field=zps, in_log=.false.)
@@ -323,6 +327,7 @@ CONTAINS
     call BHI_rdspPtoT
 
     call BHI_readcorns2
+    if(mpi_myid == 0) write(*,*) 'Memory Used (after readcorns2): ',get_max_rss()/1024,'Mb'
 
     call BHI_sutg
 
@@ -337,6 +342,7 @@ CONTAINS
     call BHI_scalestd
 
     call BHI_sucorns2
+    if(mpi_myid == 0) write(*,*) 'Memory Used (after sucorns2): ',get_max_rss()/1024,'Mb'
 
     ierr = fstfrm(nulbgst)
     ierr = fclos(nulbgst)

@@ -41,7 +41,8 @@ module verticalCoord_mod
      integer :: nlev_T= 0
      integer :: nlev_M= 0
      integer :: ip1_sfc  ! ip1 value for the surface (Vcode=5005)
-     integer,pointer,dimension(:) :: ip1_T,ip1_M   ! encoded IP1 levels (Thermo/Moment)
+     integer,pointer,dimension(:) :: ip1_T => null()
+     integer,pointer,dimension(:) :: ip1_M => null()  ! encoded IP1 levels (Thermo/Moment)
      type(vgrid_descriptor) :: vgrid
      character(len=8) :: setuptype
   end type struct_vco
@@ -84,7 +85,11 @@ module verticalCoord_mod
     write(*,*) '                   number of level = ', numLev
     write(*,*) '                   ip1             = ', ip1
 
-    if (.not.associated(vco)) allocate(vco)
+    if ( associated(vco) ) then
+      call utl_abort('vco_setupManual: the supplied vco pointer is not null!')
+    endif
+
+    allocate(vco)
 
     vco%setupType = 'Manual'
  
@@ -119,7 +124,7 @@ module verticalCoord_mod
     integer :: Vcode,kind,jlev,jlev2,stat,sigdigits,nultemplate,ierr,ikey
     integer :: fnom,fstouv,fstfrm,fclos,fstinf,fstprm
     integer :: vgd_nlev_M, vgd_nlev_T
-    integer,   pointer :: vgd_ip1_M(:),vgd_ip1_T(:)
+    integer,   pointer :: vgd_ip1_M(:), vgd_ip1_T(:)
     integer :: ip1_sfc
     real    :: hyb_r4
     real*8  :: zterm
@@ -128,7 +133,13 @@ module verticalCoord_mod
     integer :: ni,nj,nk
     character(len=4) :: nomvar_T, nomvar_M
 
-    nullify(vgd_ip1_M,vgd_ip1_T)
+    nullify(vgd_ip1_M, vgd_ip1_T)
+
+    if ( associated(vco) ) then
+      call utl_abort('vco_setupFromFile: the supplied vco pointer is not null!')
+    endif
+
+    allocate(vco)
 
     if(present(etiket_in)) then
       etiket = etiket_in
@@ -162,8 +173,6 @@ module verticalCoord_mod
     else
       call utl_abort('vco_SetupFromFile: CANNOT FIND TEMPLATE FILE!')
     endif
-
-    if(.not.associated(vco)) allocate(vco)
 
     vco%setupType='FromFile'
 
@@ -325,18 +334,18 @@ module verticalCoord_mod
       if(mpi_myid.eq.0 .and. .not.present(beSilent)) write(*,*) 'vco: Set surface level IP1=',vco%ip1_sfc
     endif
 
-    do jlev = 1, vco%nlev_M
-      if(mpi_myid.eq.0 .and. .not.present(beSilent)) then
-        write(*,*) 'vco: jlev,nk,ip1(moment)= ',   & 
-             jlev,vco%nlev_M,vco%ip1_M(jlev)
-      endif
-    enddo
-    do jlev = 1,vco%nlev_T
-      if(mpi_myid.eq.0 .and. .not.present(beSilent)) then
-        write(*,*) 'vco: jlev,nk,ip1(thermo)= ',  &
-             jlev,vco%nlev_T,vco%ip1_T(jlev)
-      endif
-    enddo
+    !do jlev = 1, vco%nlev_M
+    !  if(mpi_myid.eq.0 .and. .not.present(beSilent)) then
+    !    write(*,*) 'vco: jlev,nk,ip1(moment)= ',   & 
+    !         jlev,vco%nlev_M,vco%ip1_M(jlev)
+    !  endif
+    !enddo
+    !do jlev = 1,vco%nlev_T
+    !  if(mpi_myid.eq.0 .and. .not.present(beSilent)) then
+    !    write(*,*) 'vco: jlev,nk,ip1(thermo)= ',  &
+    !         jlev,vco%nlev_T,vco%ip1_T(jlev)
+    !  endif
+    !enddo
 
     !==========================================================================
 
@@ -392,6 +401,8 @@ module verticalCoord_mod
     integer :: vgdtable_dim1, vgdtable_dim2, vgdtable_dim3
     character(len=12) :: vgdetik
     real(8), pointer :: vgdtable(:,:,:)
+
+    nullify(vgdtable)
 
     write(*,*) 'vco_mpiBcast: starting'
     call flush(6)

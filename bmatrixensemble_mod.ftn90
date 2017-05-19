@@ -118,6 +118,7 @@ MODULE BmatrixEnsemble_mod
   character(len=2)    :: ctrlVarHumidity
   logical             :: advectAmplitude
   logical             :: removeSubEnsMeans
+  logical             :: convertToInteger
 
 CONTAINS
 
@@ -146,15 +147,14 @@ CONTAINS
     integer        :: waveBandIndex
     integer        :: stamp_last,newdate,ndate,ntime
     character(len=256) :: ensFileName
-    integer        :: length_enspathname
-    character(len=256) :: enspathname_nml
 
     logical        :: lExists
 
     !namelist
     NAMELIST /NAMBEN/nEns,scaleFactor,scaleFactorHumidity,ntrunc,enspathname,ensfilebasename, &
                      hLocalize,vLocalize,tweakTG,LocalizationType,waveBandPeaks, &
-                     diagnostic,ctrlVarHumidity,advectAmplitudeFactor,removeSubEnsMeans
+                     diagnostic,ctrlVarHumidity,advectAmplitudeFactor,removeSubEnsMeans, &
+                     convertToInteger
 
     call tmg_start(12,'BEN_SETUP')
 
@@ -167,7 +167,7 @@ CONTAINS
     scaleFactorHumidity(:) = 1.0d0
     nEns             = 10
     ntrunc           = 30
-    enspathname      = '***NOT_DEFINED***'
+    enspathname      = 'ensemble'
     ensfilebasename  = ''
     LocalizationType = 'LevelDependent'
     waveBandPeaks(:) =   -1.0d0
@@ -180,6 +180,7 @@ CONTAINS
     ctrlVarHumidity  = 'LQ'
     advectAmplitudeFactor = 0.0D0
     removeSubEnsMeans = .false.
+    convertToInteger  = .false.
 
     nulnam = 0
     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -194,33 +195,6 @@ CONTAINS
       cvDim_out = 0
       return
     endif
-
-    !
-    !- 1.2  Read environment variable for ensemble file path
-    !
-
-    ierr = 0
-    enspathname_nml = enspathname
-    call get_environment_variable('OAVAR_ENSPATHNAME',enspathname,length_enspathname,ierr,.true.)
-    if (ierr.eq.-1) then
-       write(*,*) 'ben_setup: Problem when getting the environment variable OAVAR_ENSPATHNAME'
-       write(*,*) '           The length of the variable ''enspathname'' is too short to hold the complete value'
-       call utl_abort('ben_setup')
-    end if
-    if (ierr.gt.1) then
-       write(*,*) 'ben_setup: Problem when getting the environment variable OAVAR_ENSPATHNAME'
-       write(*,*) '           Rely on the value in the namelist NAMBEN'
-       enspathname = enspathname_nml
-    end if
-    if (ierr.eq.1) then
-       write(*,*) 'ben_setup: The environment variable OAVAR_ENSPATHNAME does not exist'
-       write(*,*) '           Rely on the value in the namelist NAMBEN'
-       enspathname = enspathname_nml
-    end if
-    if (ierr.eq.0) then
-       write(*,*) 'ben_setup: The environment variable OAVAR_ENSPATHNAME does exist'
-       write(*,*) '           Retrieve it'
-    end if
 
     write(*,*) 'ben_setup: enspathname = ', trim(enspathname)
 
@@ -521,14 +495,24 @@ CONTAINS
       else
         cvDim_mpiglobal = lst_ben%nlaGlobal * nphase * nLevEns_M * nEns
         cvDim_mpilocal  = nla_mpilocal      * nphase * nLevens_M * nEns
-        print*,'cvDim_mpiglobal ', cvDim_mpiglobal, lst_ben%nlaGlobal, nphase, nLevEns_M, nEns
-        print*,'cvDim_mpilocal  ', cvDim_mpilocal, nla_mpilocal, nphase, nLevEns_M, nEns
+        write(*,*) 'cvDim_mpiglobal ', cvDim_mpiglobal, lst_ben%nlaGlobal, nphase, nLevEns_M, nEns
+        write(*,*) 'cvDim_mpilocal  ', cvDim_mpilocal, nla_mpilocal, nphase, nLevEns_M, nEns
       endif
       cvDim_out = cvDim_mpilocal
     else
       cvDim_out = 9999 ! Dummy value > 0 to indicate to the background check (s/r compute_HBHT_ensemble) 
                        ! that Bens is used
     end if
+
+    if ( cvDim_out == 0 ) then
+      !write(*,*) 'ben_setup: WARNING! This mpi task has zero dimension for the control vector.'
+      write(*,*) 'ben_setup: =========================================================='
+      write(*,*) 'ben_setup: ERROR: This mpi task has zero dimension for the control vector.'
+      write(*,*) 'ben_setup: This is probably because the number of mpi tasks is too large'
+      write(*,*) 'ben_setup: relative to NTRUNC. Should be ok with NTRUNC >= 2*(npex or npex)'
+      write(*,*) 'ben_setup: =========================================================='
+      call utl_abort('ben_setup: ERROR! This mpi task has zero dimension for the control vector.')
+    endif
 
     !
     !- 4.  Ending
@@ -659,6 +643,12 @@ CONTAINS
     !  ptr4d_r4 => ens_getField_r4(ensPerts(1),memberIndex)
     !  ptr4d_r4(:,:,:,:) = 1.0/sqrt(real(nEns))
     !enddo
+
+    ! convert to 16-bit integers
+    if ( convertToInteger ) then
+      if( mpi_myid == 0 ) write(*,*) 'ben_setupEnsemble: converting ensemble to 16 bits'
+      call ens_convertToInteger( ensPerts(1) )
+    endif
 
     write(*,*) 'ben_setupEnsemble: finished adjusting ensemble members...'
  
@@ -2221,6 +2211,10 @@ CONTAINS
 
     character(len=19)   :: kind
 
+    call tmg_start(67,'BEN_BARR')
+    call rpn_comm_barrier("GRID",ierr)
+    call tmg_stop(67)
+
     if (.not. initialized) then
       if (mpi_myid == 0) write(*,*) 'bMatrixEnsemble not initialized'
       return
@@ -2262,9 +2256,6 @@ CONTAINS
       do memberIndex = 1, nEns ! loop over all members
 
         ! now transform amplitude to grid-point space
-        call tmg_start(67,'BEN_BARR')
-        call rpn_comm_barrier("GRID",ierr)
-        call tmg_stop(67)
 
         call tmg_start(64,'BEN_SPECTRAL')
 
@@ -2329,6 +2320,10 @@ CONTAINS
 
     character(len=19)   :: kind
 
+    call tmg_start(67,'BEN_BARR')
+    call rpn_comm_barrier("GRID",ierr)
+    call tmg_stop(67)
+
     if (.not. initialized) then
       if (mpi_myid == 0) write(*,*) 'bMatrixEnsemble not initialized'
       return
@@ -2365,9 +2360,6 @@ CONTAINS
         if(advectAmplitude) call advectAmplitude_ad( statevector_ensAmp )
 
         zsp1(:,:,:) = 0.0d0 ! needed, not everything is set
-        call tmg_start(67,'BEN_BARR')
-        call rpn_comm_barrier("GRID",ierr)
-        call tmg_stop(67)
 
         call tmg_start(64,'BEN_SPECTRAL')
 
@@ -2937,6 +2929,8 @@ CONTAINS
     real(8), target     :: ensAmplitude_T(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nLevEns_T,numStepAmplitude)
     real(8), pointer    :: increment_out(:,:,:,:)
     real(4), pointer    :: ensMember_r4(:,:,:,:)
+    integer(2), pointer :: ensMember_i2(:,:,:,:)
+    real(8), pointer    :: intOffset(:,:), intMultFactor(:,:)
 
     integer     :: jvar, jlev, jlev2, jstep, jstep_amp, jj, ji, numVar, topLevOffset, numLev
 
@@ -2983,48 +2977,83 @@ CONTAINS
 
     if (Vcode_anl == 5002 .or. Vcode_anl == 5005) then
 
-      do jstep = 1, numStep
-        if(advectAmplitude) then
-          jstep_amp = jstep
+      do jvar = 1, vnl_numvarmax 
+        if (.not. gsv_varExist(statevector_out, vnl_varNameList(jvar))) cycle
+        increment_out => gsv_getField_r8(statevector_out, vnl_varNameList(jvar))
+        if ( convertToInteger ) then
+          ensMember_i2 => ens_getField_i2(ensPerts(waveBandIndex),memberIndex, &
+                                          vnl_varNameList(jvar))
+          intOffset => ens_getIntOffset(ensPerts(waveBandIndex),memberIndex, &
+                                        vnl_varNameList(jvar))
+          intMultFactor => ens_getIntMultFactor(ensPerts(waveBandIndex),memberIndex, &
+                                                vnl_varNameList(jvar))
         else
-          jstep_amp = 1
-        endif
-
-        do jvar = 1, vnl_numvarmax 
-          if (.not. gsv_varExist(statevector_out, vnl_varNameList(jvar))) cycle
-          increment_out => gsv_getField_r8(statevector_out, vnl_varNameList(jvar))
           ensMember_r4 => ens_getField_r4(ensPerts(waveBandIndex),memberIndex, &
                                           vnl_varNameList(jvar))
-          if (vnl_varLevelFromVarname(vnl_varNameList(jvar)) == 'SF') then
-            numLev = 1
-            topLevOffset = 1
-            ensAmplitude_MT(myLonBeg:, myLatBeg:, 1:        , 1:) =>   &
-             ensAmplitude_M(myLonBeg:, myLatBeg:, nLevEns_M:, 1:)
-          elseif (vnl_varLevelFromVarname(vnl_varNameList(jvar)) == 'MM') then
-            numLev = nlevEns_M
-            topLevOffset = topLevIndex_M
-            ensAmplitude_MT => ensAmplitude_M
-          else
-            numLev = nlevEns_T
-            topLevOffset = topLevIndex_T
-            ensAmplitude_MT => ensAmplitude_T
-          endif
+        endif
+        if (vnl_varLevelFromVarname(vnl_varNameList(jvar)) == 'SF') then
+          numLev = 1
+          topLevOffset = 1
+          ensAmplitude_MT(myLonBeg:, myLatBeg:, 1:        , 1:) =>   &
+           ensAmplitude_M(myLonBeg:, myLatBeg:, nLevEns_M:, 1:)
+        elseif (vnl_varLevelFromVarname(vnl_varNameList(jvar)) == 'MM') then
+          numLev = nlevEns_M
+          topLevOffset = topLevIndex_M
+          ensAmplitude_MT => ensAmplitude_M
+        else
+          numLev = nlevEns_T
+          topLevOffset = topLevIndex_T
+          ensAmplitude_MT => ensAmplitude_T
+        endif
 
+        call tmg_start(77,'ADDMEM_INNER')
+        if ( convertToInteger ) then
+
+          do jstep = 1, numStep
+            if(advectAmplitude) then
+              jstep_amp = jstep
+            else
+              jstep_amp = 1
+            endif
 !$OMP PARALLEL DO PRIVATE (jlev,jlev2,jj,ji)
-          do jlev = 1, numLev                 ! levels for the amplitude and ensemble member
-            jlev2 = jlev - 1 + topLevOffset   ! levels for the 1 variable increment field
-
-            do jj = myLatBeg, myLatEnd
-              do ji = myLonBeg, myLonEnd
-                increment_out(ji,jj,jlev2,jstep) = increment_out(ji,jj,jlev2,jstep) +   &
-                  ensAmplitude_MT(ji,jj,jlev,jstep_amp) * dble(ensMember_r4(ji,jj,jlev,jstep))
+            do jlev = 1, numLev                 ! levels for the amplitude and ensemble member
+              jlev2 = jlev - 1 + topLevOffset   ! levels for the 1 variable increment field
+              do jj = myLatBeg, myLatEnd
+                do ji = myLonBeg, myLonEnd
+                  increment_out(ji,jj,jlev2,jstep) = increment_out(ji,jj,jlev2,jstep) +   &
+                    ensAmplitude_MT(ji,jj,jlev,jstep_amp) * ( dble(ensMember_i2(ji,jj,jlev,jstep)) *  &
+                                                              intMultFactor(jlev,jstep) + intOffset(jlev,jstep) )
+                enddo
               enddo
             enddo
-          enddo
 !$OMP END PARALLEL DO
-        enddo ! jvar
+          enddo ! jstep
 
-      enddo ! jstep
+        else ! convertToInteger
+
+          do jstep = 1, numStep
+            if(advectAmplitude) then
+              jstep_amp = jstep
+            else
+              jstep_amp = 1
+            endif
+!$OMP PARALLEL DO PRIVATE (jlev,jlev2,jj,ji)
+            do jlev = 1, numLev                 ! levels for the amplitude and ensemble member
+              jlev2 = jlev - 1 + topLevOffset   ! levels for the 1 variable increment field
+              do jj = myLatBeg, myLatEnd
+                do ji = myLonBeg, myLonEnd
+                  increment_out(ji,jj,jlev2,jstep) = increment_out(ji,jj,jlev2,jstep) +   &
+                    ensAmplitude_MT(ji,jj,jlev,jstep_amp) * dble(ensMember_r4(ji,jj,jlev,jstep))
+                enddo
+              enddo
+            enddo
+!$OMP END PARALLEL DO
+          enddo ! jstep
+
+        endif ! convertToInteger
+        call tmg_stop(77)
+
+      enddo ! jvar
 
     else ! other Vcode
 
@@ -3054,10 +3083,12 @@ CONTAINS
     real(8), target  :: ensAmplitude_T(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nLevEns_T,numStepAmplitude)
     real(8), pointer :: increment_in(:,:,:,:)
     real(4), pointer :: ensMember_r4(:,:,:,:)
+    integer(2), pointer :: ensMember_i2(:,:,:,:)
+    real(8), pointer    :: intOffset(:,:), intMultFactor(:,:)
 
     integer     :: jvar, jlev, jlev2, jstep, jstep_amp, jj, ji, numVar, topLevOffset, numLev
 
-    call tmg_start(62,'ADDMEM')
+    call tmg_start(63,'ADDMEMAD')
 
     ensAmplitude_M => gsv_getField_r8(statevector_ensAmp)
 
@@ -3066,49 +3097,86 @@ CONTAINS
 
     if (Vcode_anl == 5002 .or. Vcode_anl == 5005) then
 
-      do jstep = 1, numStep
-        if(advectAmplitude) then
-          jstep_amp = jstep
-        else
-          jstep_amp = 1
-        endif
 
-        do jvar = 1, vnl_numvarmax
-          if (.not. gsv_varExist(statevector_in, vnl_varNameList(jvar))) cycle
-          increment_in => gsv_getField_r8(statevector_in, vnl_varNameList(jvar))
+      do jvar = 1, vnl_numvarmax
+        if (.not. gsv_varExist(statevector_in, vnl_varNameList(jvar))) cycle
+        increment_in => gsv_getField_r8(statevector_in, vnl_varNameList(jvar))
+        if ( convertToInteger ) then
+          ensMember_i2 => ens_getField_i2(ensPerts(waveBandIndex),memberIndex, &
+                                          vnl_varNameList(jvar))
+          intOffset => ens_getIntOffset(ensPerts(waveBandIndex),memberIndex, &
+                                        vnl_varNameList(jvar))
+          intMultFactor => ens_getIntMultFactor(ensPerts(waveBandIndex),memberIndex, &
+                                                vnl_varNameList(jvar))
+        else
           ensMember_r4 => ens_getField_r4(ensPerts(waveBandIndex),memberIndex, &
                                           vnl_varNameList(jvar))
+        endif
 
-          if (vnl_varLevelFromVarname(vnl_varNameList(jvar)) == 'SF') then
-            numLev = 1
-            topLevOffset = 1
-            ensAmplitude_MT(myLonBeg:, myLatBeg:, 1:        , 1:) =>   &
-             ensAmplitude_M(myLonBeg:, myLatBeg:, nLevEns_M:, 1:)
-          elseif (vnl_varLevelFromVarname(vnl_varNameList(jvar)) == 'MM') then
-            numLev = nlevEns_M
-            topLevOffset = topLevIndex_M
-            ensAmplitude_MT => ensAmplitude_M
-          else
-            numLev = nlevEns_T
-            topLevOffset = topLevIndex_T
-            ensAmplitude_MT => ensAmplitude_T
-          endif
+        if (vnl_varLevelFromVarname(vnl_varNameList(jvar)) == 'SF') then
+          numLev = 1
+          topLevOffset = 1
+          ensAmplitude_MT(myLonBeg:, myLatBeg:, 1:        , 1:) =>   &
+           ensAmplitude_M(myLonBeg:, myLatBeg:, nLevEns_M:, 1:)
+        elseif (vnl_varLevelFromVarname(vnl_varNameList(jvar)) == 'MM') then
+          numLev = nlevEns_M
+          topLevOffset = topLevIndex_M
+          ensAmplitude_MT => ensAmplitude_M
+        else
+          numLev = nlevEns_T
+          topLevOffset = topLevIndex_T
+          ensAmplitude_MT => ensAmplitude_T
+        endif
 
+        call tmg_start(78,'ADDMEMAD_INNER')
+        if ( convertToInteger ) then
+
+          do jstep = 1, numStep
+            if(advectAmplitude) then
+              jstep_amp = jstep
+            else
+              jstep_amp = 1
+            endif
 !$OMP PARALLEL DO PRIVATE (jlev,jlev2,jj,ji)
-          do jlev = 1, numLev                 ! levels for the amplitude and ensemble member
-            jlev2 = jlev - 1 + topLevOffset   ! levels for the 1 variable increment field
+            do jlev = 1, numLev                 ! levels for the amplitude and ensemble member
+              jlev2 = jlev - 1 + topLevOffset   ! levels for the 1 variable increment field
 
-            do jj = myLatBeg, myLatEnd
-              do ji = myLonBeg, myLonEnd
-                ensAmplitude_MT(ji,jj,jlev,jstep_amp) = ensAmplitude_MT(ji,jj,jlev,jstep_amp) +   &
-                  increment_in(ji,jj,jlev2,jstep) * dble(ensMember_r4(ji,jj,jlev,jstep))
+              do jj = myLatBeg, myLatEnd
+                do ji = myLonBeg, myLonEnd
+                  ensAmplitude_MT(ji,jj,jlev,jstep_amp) = ensAmplitude_MT(ji,jj,jlev,jstep_amp) +   &
+                    increment_in(ji,jj,jlev2,jstep) * ( dble(ensMember_i2(ji,jj,jlev,jstep)) *  &
+                                                        intMultFactor(jlev,jstep) + intOffset(jlev,jstep) )
+                enddo
               enddo
             enddo
-          enddo
 !$OMP END PARALLEL DO
-        enddo ! jvar
+          enddo ! jstep
 
-      enddo ! jstep
+        else ! convertToInteger
+
+          do jstep = 1, numStep
+            if(advectAmplitude) then
+              jstep_amp = jstep
+            else
+              jstep_amp = 1
+            endif
+!$OMP PARALLEL DO PRIVATE (jlev,jlev2,jj,ji)
+            do jlev = 1, numLev                 ! levels for the amplitude and ensemble member
+              jlev2 = jlev - 1 + topLevOffset   ! levels for the 1 variable increment field
+              do jj = myLatBeg, myLatEnd
+                do ji = myLonBeg, myLonEnd
+                  ensAmplitude_MT(ji,jj,jlev,jstep_amp) = ensAmplitude_MT(ji,jj,jlev,jstep_amp) +   &
+                    increment_in(ji,jj,jlev2,jstep) * dble(ensMember_r4(ji,jj,jlev,jstep))
+                enddo
+              enddo
+            enddo
+!$OMP END PARALLEL DO
+          enddo ! jstep
+
+        endif ! convertToInteger
+        call tmg_stop(78)
+
+      enddo ! jvar
 
     else ! other Vcode
 
@@ -3164,7 +3232,7 @@ CONTAINS
 
     endif
 
-    call tmg_stop(62)
+    call tmg_stop(63)
 
   END SUBROUTINE addEnsMemberAd
 
@@ -3196,7 +3264,6 @@ CONTAINS
     !- 2.  Vertical localization
     !
     allocate(zsp(nla_mpilocal,nphase,nLevEns_M,nEns)) 
-    call tmg_start(63,'BEN_VLOC')
 
 !$OMP PARALLEL DO PRIVATE (memberIndex,jlev1,jlev2,p,jla)
     do memberIndex = 1, nEns
@@ -3214,7 +3281,6 @@ CONTAINS
     enddo
 !$OMP END PARALLEL DO
 
-    call tmg_stop(63)
     zsp_all(:,:,:,:) = zsp(:,:,:,:)
     deallocate(zsp)
 
@@ -3231,8 +3297,6 @@ CONTAINS
     real(8), intent(out) :: zsp_all(nla_mpilocal,nphase,nLevEns_M,nEns)
 
     integer :: jlev, jm, jn, ila_mpilocal, ila_mpiglobal, jdim, memberIndex 
-
-    call tmg_start(65,'BEN_HLOC')
 
     jdim = 0
 
@@ -3270,8 +3334,6 @@ CONTAINS
 
     enddo
 
-    call tmg_stop(65)
-
   END SUBROUTINE GlobalHLoc
 
 !--------------------------------------------------------------------------
@@ -3293,7 +3355,6 @@ CONTAINS
 
     do memberIndex = 1, nEns
 
-       call tmg_start(65,'BEN_HLOC')
        do jlev = 1, nLevEns_M
          do jla = 1, nla_mpilocal
             do p = 1, nphase
@@ -3308,7 +3369,6 @@ CONTAINS
           write(*,*) 'BEN: LamHLoc: jdim > cvDim! ',jdim,memberIndex,cvDim_mpilocal
           call utl_abort('aborted in LamHLoc')
        endif
-       call tmg_stop(65)
 
     enddo
 
@@ -3332,8 +3392,6 @@ CONTAINS
     !
     allocate(zsp(nla_mpilocal,nphase,nLevEns_M,nEns) ) 
 
-    call tmg_start(63,'BEN_VLOC')
-
 !$OMP PARALLEL DO PRIVATE (memberIndex,jlev1,jlev2,p,jla)
     do memberIndex = 1, nEns
       zsp(:,:,:,memberIndex) = 0.0d0
@@ -3349,8 +3407,6 @@ CONTAINS
       enddo
     enddo
 !$OMP END PARALLEL DO
-
-    call tmg_stop(63)
 
     !
     !- 1.  Horizontal Localization
@@ -3377,8 +3433,6 @@ CONTAINS
     real(8), intent(in)    :: zsp_all(nla_mpilocal,nphase,nLevEns_M,nEns)
 
     integer :: jlev, jm, jn, ila_mpilocal, ila_mpiglobal, jdim, memberIndex 
-
-    call tmg_start(65,'BEN_HLOC')
 
     jdim = 0
 
@@ -3418,8 +3472,6 @@ CONTAINS
     
     enddo
 
-    call tmg_stop(65)
-
   END SUBROUTINE GlobalHLocAd
 
 !--------------------------------------------------------------------------
@@ -3441,7 +3493,6 @@ CONTAINS
 
     do memberIndex = 1, nEns
 
-       call tmg_start(65,'BEN_HLOC')
        do jlev = 1, nLevEns_M
          do jla = 1, nla_mpilocal
            do p = 1, nphase
@@ -3457,7 +3508,6 @@ CONTAINS
           write(*,*) 'BEN: LamHLocAD: jdim > cvDim! ',jdim, memberIndex, cvDim_mpilocal
           call utl_abort('aborted in LamHLocAd')
        endif
-       call tmg_stop(65)
 
     enddo
 

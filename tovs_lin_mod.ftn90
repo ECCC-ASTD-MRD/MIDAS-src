@@ -98,7 +98,6 @@ SUBROUTINE TOVS_LIN_SETUPALLO()
   use obsSpaceData_mod
 
   IMPLICIT NONE
-#include "rttov_setup.interface"
 #include "rttov_alloc_prof.interface"
 !implicits
 

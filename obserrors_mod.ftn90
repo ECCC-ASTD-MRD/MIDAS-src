@@ -89,7 +89,8 @@ contains
     ! Read in the observation stddev errors for conventional data
     !
     if (obs_famExist(lobsSpaceData,'UA').or.obs_famExist(lobsSpaceData,'AI').or.obs_famExist(lobsSpaceData,'SW').or. &
-       obs_famExist(lobsSpaceData,'SF').or.obs_famExist(lobsSpaceData,'SC').or.obs_famExist(lobsSpaceData,'PR') ) then
+       obs_famExist(lobsSpaceData,'SF').or.obs_famExist(lobsSpaceData,'GP').or.obs_famExist(lobsSpaceData,'SC').or. &
+       obs_famExist(lobsSpaceData,'PR') ) then
        call read_obs_erreurs_conv
     else
        write(*,*) "oer_setObsErrors: No conventional weather observations found."

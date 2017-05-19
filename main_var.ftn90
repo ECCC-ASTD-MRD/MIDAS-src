@@ -237,6 +237,11 @@ contains
     write(*,*) '-- Starting subroutine var_setup --'
     write(*,*) '-----------------------------------'
 
+    !
+    !- Initialize the Temporal grid
+    !
+    call tim_setup
+
     !     
     !- Initialize burp file names and set datestamp
     !
@@ -262,11 +267,6 @@ contains
     !
     call gsv_setup
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-    !
-    !- Initialize the Temporal grid
-    !
-    call tim_setup
 
     !
     !- Initialize the Analysis grid

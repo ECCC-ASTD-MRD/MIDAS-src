@@ -2994,7 +2994,6 @@ subroutine tovs_rttov_AVHRR_for_IASI (iptobs,surfem1_avhrr,idiasi)
 #endif
   Use tovs_nl_mod 
   implicit none
-#include "rttov_setup.interface"
 #include "rttov_direct2.interface"
 #include "rttov_alloc_rad.interface"
   integer ,intent(in) :: idiasi
@@ -3054,7 +3053,7 @@ subroutine tovs_rttov_AVHRR_for_IASI (iptobs,surfem1_avhrr,idiasi)
         endif
      endif
 
-     call rttov_setup (&
+     call tvs_rttov_setup (&
           setup_errorstatus,&! out
           err_unit,         &! in
           verbosity_level,  &! in

@@ -37,8 +37,13 @@ Module tovs_nl_mod
        ninst             ,&
        inst_id_goesim    ,&
        inst_id_gmsim     ,&
+       inst_id_mtsatim   ,&
+       sensor_id_mw      ,&
+       sensor_id_po      ,&
        platform_id_jpss  ,&
-       platform_id_himawari
+       platform_id_himawari,&
+       ngases_max        ,&
+       gas_id_mixed
   use codtyp_mod
   use mpi
   use utilities_mod
@@ -64,7 +69,7 @@ Module tovs_nl_mod
   ! public procedures
   public :: TOVS_NL_SETUPALLO,TOVS_SETUP, tvs_Is_idburp_tovs, tvs_Is_idburp_inst
   public :: tvs_get_inst_id, tvs_get_platform_id, tvs_mapSat, tvs_mapInstrum
-  public ::  tvs_Is_Instrum_Geostationary,  tvs_Is_Instrum_HyperSpectral
+  public ::  tvs_Is_Instrum_Geostationary,  tvs_Is_Instrum_HyperSpectral, tvs_rttov_setup
   ! Module parameters
   Integer, PARAMETER :: jppf      = 40       ! Max no. profiles per RTTOV call
   Integer, PARAMETER :: jpchmax   = 8461     ! Max. no. of channels
@@ -162,10 +167,8 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
   use obsSpaceData_mod
 
   IMPLICIT NONE
-!implicits
-#include "rttov_setup.interface"
 #include "rttov_alloc_prof.interface"
-
+!implicits
   type(struct_obs) :: lobsSpaceData
   INTEGER :: VERBOSITY_LEVEL,ERR_UNIT=0
 
@@ -174,8 +177,8 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
 
   INTEGER ::  ival, IPLATFORM, ISAT, INSTRUM, KRTID
 
-  INTEGER ::  JO, IDATYP, J, JI, JK
-  INTEGER ::  ISENS, NC, NL
+  INTEGER ::  JO, IDATYP, J, JI, JK,ierr
+  INTEGER ::  ISENS, NC, NL, NCHANMAX, ICHANMAX
   INTEGER ::  ICHN, NOSENSOR, INDXCHN
   INTEGER ::  ERRORSTATUS,ASW
   integer ::  index_header, index_body
@@ -281,7 +284,7 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
 
   do ji = 1, nsensors
     call isort(ichan(:,ji),nchan(ji))
-    if ( nchan(ji) .eq. 0 ) then
+    if ( nchan(ji) == 0 ) then
        l_really_present ( ji ) =.false.
        nchan(ji) = 1
        ichan(1,ji) = 1
@@ -348,7 +351,7 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
         setup_errorstatus = 0
 ! read coefficients using the list of required channels.
   call tmg_start(83,'RTTOV_SETUP')
-        CALL rttov_setup (&
+        CALL tvs_rttov_setup (&
              & setup_errorstatus,  & ! out 
              & err_unit,           & ! in
              & verbosity_level,        & ! in
@@ -369,14 +372,14 @@ SUBROUTINE TOVS_NL_SETUPALLO(lobsSpaceData)
 
      ENDDO
     
-     do jk = 1, nsensors
-       if ( instrument(jk) /= 20 ) then
-        nchan(jk) = coefs(jk)% coef %fmv_chn
-        do j = 1,nchan(jk)
-           ichan(j,jk) = coefs(jk)% coef %ff_ori_chn(j)
-        enddo
-       end if
-     enddo
+!     do jk = 1, nsensors
+!       if ( instrument(jk) /= 20 ) then
+!        nchan(jk) = coefs(jk)% coef %fmv_chn
+!        do j = 1,nchan(jk)
+!           ichan(j,jk) = coefs(jk)% coef %ff_ori_chn(j)
+!        enddo
+!       end if
+!     enddo
 
 !    .   3.1 Validate RTTOV dimensions
 !     .       -------------------------
@@ -842,6 +845,8 @@ integer function tvs_get_inst_id(name)
      tvs_get_inst_id = inst_id_goesim
   elseif ( trim(tempo_name(1:ipos1)) == "gmsim" ) then
      tvs_get_inst_id = inst_id_gmsim
+  elseif ( trim(tempo_name(1:ipos1)) == "mtsatim" ) then
+     tvs_get_inst_id = inst_id_mtsatim
   else
      do i = 0, ninst-1
         if (trim(inst_name(i)) == tempo_name(1:ipos1) ) then
@@ -921,14 +926,14 @@ logical function tvs_Is_Instrum_Geostationary(instrum)
   integer :: nulnam, ierr, i 
   integer ,save :: list_inst(maxsize), ninst_geo
   logical, save :: lfirst = .true.
-  character (len=6) :: name_inst(maxsize)
+  character (len=7) :: name_inst(maxsize)
   integer ,external :: fnom, fclos
 
   NAMELIST /NAMGEO/ name_inst
   if (lfirst) then
      nulnam = 0
      ninst_geo = 0
-     name_inst(:) = "XXXXXX"
+     name_inst(:) = "XXXXXXX"
      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
      read(nulnam,nml=namgeo, iostat=ierr)
      if (ierr.ne.0) call utl_abort('tvs_Is_Instrum_Geostationary: Error reading namelist')
@@ -937,7 +942,7 @@ logical function tvs_Is_Instrum_Geostationary(instrum)
      list_inst(:) = -1
      do i=1, maxsize
         list_inst(i) = tvs_get_inst_id( name_inst(i) )
-        if (name_inst(i) /= "XXXXXX") then
+        if (name_inst(i) /= "XXXXXXX") then
            if (list_inst(i) == -1) then
               Write(*,*) i,name_inst(i)
               call utl_abort('tvs_Is_Instrum_Geostationary: Unknown instrument name')
@@ -962,7 +967,7 @@ logical function tvs_Is_Instrum_Geostationary(instrum)
 
 end function tvs_Is_Instrum_Geostationary
 
-      SUBROUTINE TVS_MAPINSTRUM(INSTRUMBURP,INSTRUM)
+SUBROUTINE TVS_MAPINSTRUM(INSTRUMBURP,INSTRUM)
 !
 !**s/r TVS_MAPINSTRUM : Map burp satellite instrument (element #2019)
 !                    to RTTOV-10 instrument.
@@ -1022,15 +1027,15 @@ end function tvs_Is_Instrum_Geostationary
 !     i : INSTRUMBURP : burp satellite instrument (element #2019)
 !     o : INSTRUM     : RTTOV-7 instrument ID numbers (e.g. 3 for  AMSUA)
 !
-      IMPLICIT NONE
-      INTEGER J,INSTRUMBURP,INSTRUM,numinstburp
-      INTEGER,parameter :: MXINSTRUMBURP   = 100
-      INTEGER,save ::   LISTBURP(MXINSTRUMBURP)
-      CHARACTER(len=8),save :: LISTINSTRUM(MXINSTRUMBURP)
-      NAMELIST /NAMINST/ LISTBURP, LISTINSTRUM
-      LOGICAL,SAVE :: LFIRST = .true.
-      INTEGER :: NULNAM, IER
-      integer ,external :: fnom, fclos
+   IMPLICIT NONE
+   INTEGER J,INSTRUMBURP,INSTRUM,numinstburp
+   INTEGER,parameter :: MXINSTRUMBURP   = 100
+   INTEGER,save ::   LISTBURP(MXINSTRUMBURP)
+   CHARACTER(len=8),save :: LISTINSTRUM(MXINSTRUMBURP)
+   NAMELIST /NAMINST/ LISTBURP, LISTINSTRUM
+   LOGICAL,SAVE :: LFIRST = .true.
+   INTEGER :: NULNAM, IER
+   integer ,external :: fnom, fclos
 !*************
 !      TESTING ONLY: burp 2047 is AIRS.
 !*************
@@ -1043,52 +1048,52 @@ end function tvs_Is_Instrum_Geostationary
 !*    .  1.0 Find instrument
 !     .      ---------------------------
 
-      IF (LFIRST) THEN
-         ! set the default values
-         LISTBURP(:) = -1
-         LISTINSTRUM(:) = "XXXXXXXX"
+   IF (LFIRST) THEN
+      ! set the default values
+      LISTBURP(:) = -1
+      LISTINSTRUM(:) = "XXXXXXXX"
 
-         ! read the namelist
-         NULNAM=0
-         IER=FNOM(NULNAM,'./flnml','FTN+SEQ+R/O',0)
-         IF (IER/=0) then
-            write(*,*) "Error while opening namelist file !"
-            call utl_abort("tvs_mapInstrum")
-         ENDIF
-         READ(NULNAM,NAMINST,iostat=ier)
-         IF (IER/=0) then
-            write(*,*) "Error while reading namelist file !"
-            call utl_abort("tvs_mapInstrum")
-         ENDIF
-         ier=FCLOS(NULNAM)
-
-         ! figure out how many valid elements in the lists
-         DO J=1, MXINSTRUMBURP
-           if(listburp(j).eq.-1) then
-             numinstburp = j - 1
-             exit
-           endif
-         enddo
-         if (numinstburp > MXINSTRUMBURP) then
-           call utl_abort('tvs_mapInstrum: exceeded maximum number of platforms')
-         endif
-         write(*,*) 'tvs_mapInstrum: number of satellites found in namelist = ',numinstburp
-         WRITE(*,*) 'tvs_mapInstrum: listburp   = ',listburp(1:numinstburp)
-         WRITE(*,*) 'tvs_mapInstrum: listinstrum    = ',listinstrum(1:numinstburp)
-         LFIRST=.FALSE.
+      ! read the namelist
+      NULNAM=0
+      IER=FNOM(NULNAM,'./flnml','FTN+SEQ+R/O',0)
+      IF (IER/=0) then
+         write(*,*) "Error while opening namelist file !"
+         call utl_abort("tvs_mapInstrum")
       ENDIF
+      READ(NULNAM,NAMINST,iostat=ier)
+      IF (IER/=0) then
+         write(*,*) "Error while reading namelist file !"
+         call utl_abort("tvs_mapInstrum")
+      ENDIF
+      ier=FCLOS(NULNAM)
 
-      INSTRUM = -1
+      ! figure out how many valid elements in the lists
       DO J=1, MXINSTRUMBURP
-         IF ( INSTRUMBURP .EQ. LISTBURP(J) ) THEN
-            INSTRUM    = tvs_get_inst_id( LISTINSTRUM(J) )
-            EXIT
-         ENDIF
-      ENDDO
+         if(listburp(j).eq.-1) then
+            numinstburp = j - 1
+            exit
+         endif
+      enddo
+      if (numinstburp > MXINSTRUMBURP) then
+         call utl_abort('tvs_mapInstrum: exceeded maximum number of platforms')
+      endif
+      write(*,*) 'tvs_mapInstrum: number of satellites found in namelist = ',numinstburp
+      WRITE(*,*) 'tvs_mapInstrum: listburp   = ',listburp(1:numinstburp)
+      WRITE(*,*) 'tvs_mapInstrum: listinstrum    = ',listinstrum(1:numinstburp)
+      LFIRST=.FALSE.
+   ENDIF
 
-    END subroutine TVS_MAPINSTRUM
+   INSTRUM = -1
+   DO J=1, MXINSTRUMBURP
+      IF ( INSTRUMBURP .EQ. LISTBURP(J) ) THEN
+         INSTRUM    = tvs_get_inst_id( LISTINSTRUM(J) )
+         EXIT
+      ENDIF
+   ENDDO
 
-    SUBROUTINE TVS_MAPSAT(ISATBURP,IPLATFORM,ISAT)
+END subroutine TVS_MAPINSTRUM
+
+SUBROUTINE TVS_MAPSAT(ISATBURP,IPLATFORM,ISAT)
 !
 !**s/r TVS_MAPSAT : Map burp satellite identifier (element #1007)
 !                to RTTOV-10 platform and satellite.
@@ -1163,79 +1168,612 @@ end function tvs_Is_Instrum_Geostationary
 !     o : IPLATFORM     : RTTOV-7 platform ID numbers (e.g. 1 for  NOAA)
 !     o : ISAT          : RTTOV-7 satellite ID numbers (e.g. 15)
 !
-      IMPLICIT NONE
+   IMPLICIT NONE
 
-      INTEGER J,ISATBURP,IPLATFORM,ISAT
-      INTEGER IER,NULNAM
-      LOGICAL ,SAVE :: LFIRST=.TRUE.
-      INTEGER ,EXTERNAL :: FNOM, FCLOS
+   INTEGER J,ISATBURP,IPLATFORM,ISAT
+   INTEGER IER,NULNAM
+   LOGICAL ,SAVE :: LFIRST=.TRUE.
+   INTEGER ,EXTERNAL :: FNOM, FCLOS
+   
+   integer, parameter :: mxsatburp = 100
+   INTEGER,SAVE :: NUMSATBURP
 
-      integer, parameter :: mxsatburp = 100
-      INTEGER,SAVE :: NUMSATBURP
+   ! Table of BURP satellite identifier element #001007
+   INTEGER,SAVE :: LISTBURP(mxsatburp)
+   ! Table of RTTOV-7 platform identifier
+   CHARACTER(len=8),SAVE :: LISTPLAT(mxsatburp)
+   ! Table of RTTOV-7 satellite identifier
+   INTEGER,SAVE :: LISTSAT (mxsatburp)
 
-      ! Table of BURP satellite identifier element #001007
-      INTEGER,SAVE :: LISTBURP(mxsatburp)
-      ! Table of RTTOV-7 platform identifier
-      CHARACTER(len=8),SAVE :: LISTPLAT(mxsatburp)
-      ! Table of RTTOV-7 satellite identifier
-      INTEGER,SAVE :: LISTSAT (mxsatburp)
-
-      NAMELIST /NAMSAT/ LISTBURP, LISTPLAT, LISTSAT
+   NAMELIST /NAMSAT/ LISTBURP, LISTPLAT, LISTSAT
 
 !     Fill tables from namelist at the first call 
 !     -------------------------------------------
 !
-      IF (LFIRST) THEN
-         ! set the default values
-         LISTBURP(:) = -1
-         LISTSAT(:) = -1
-         LISTPLAT(:) = "XXXXXXXX"
+   IF (LFIRST) THEN
+      ! set the default values
+      LISTBURP(:) = -1
+      LISTSAT(:) = -1
+      LISTPLAT(:) = "XXXXXXXX"
 
-         ! read the namelist
-         NULNAM=0
-         IER=FNOM(NULNAM,'./flnml','FTN+SEQ+R/O',0)
-         IF (IER/=0) then
-            write(*,*) "Error while opening namelist file !"
-            call utl_abort("tvs_mapSat")
-         ENDIF
-         READ(NULNAM,NAMSAT,iostat=ier)
-         IF (IER/=0) then
-            write(*,*) "Error while reading namelist file !"
-            call utl_abort("tvs_mapSat")
-         ENDIF
-         ier=FCLOS(NULNAM)
-
-         ! figure out how many valid elements in the lists
-         DO J=1, MXSATBURP
-           if(listburp(j).eq.-1) then
-             numsatburp = j - 1
-             exit
-           endif
-         enddo
-         if(numsatburp.ge.mxsatburp) then
-           call utl_abort('tvs_mapSat: exceeded maximum number of platforms')
-         endif
-         write(*,*) 'tvs_mapSat: number of satellites found in namelist = ',numsatburp
-         WRITE(*,*) 'tvs_mapSat: listburp   = ',listburp(1:numsatburp)
-         WRITE(*,*) 'tvs_mapSat: listsat    = ',listsat(1:numsatburp)
-         WRITE(*,*) 'tvs_mapSat: listplat   = ',listplat(1:numsatburp)
-         LFIRST=.FALSE.
+      ! read the namelist
+      NULNAM=0
+      IER=FNOM(NULNAM,'./flnml','FTN+SEQ+R/O',0)
+      IF (IER/=0) then
+         write(*,*) "Error while opening namelist file !"
+         call utl_abort("tvs_mapSat")
       ENDIF
+      READ(NULNAM,NAMSAT,iostat=ier)
+      IF (IER/=0) then
+         write(*,*) "Error while reading namelist file !"
+         call utl_abort("tvs_mapSat")
+      ENDIF
+      ier=FCLOS(NULNAM)
+
+      ! figure out how many valid elements in the lists
+      DO J=1, MXSATBURP
+         if(listburp(j).eq.-1) then
+            numsatburp = j - 1
+            exit
+         endif
+      enddo
+      if(numsatburp.ge.mxsatburp) then
+         call utl_abort('tvs_mapSat: exceeded maximum number of platforms')
+      endif
+      write(*,*) 'tvs_mapSat: number of satellites found in namelist = ',numsatburp
+      WRITE(*,*) 'tvs_mapSat: listburp   = ',listburp(1:numsatburp)
+      WRITE(*,*) 'tvs_mapSat: listsat    = ',listsat(1:numsatburp)
+      WRITE(*,*) 'tvs_mapSat: listplat   = ',listplat(1:numsatburp)
+      LFIRST=.FALSE.
+   ENDIF
 
 
 !     .  Find platform and satellite
 !     .      ---------------------------
 !
-      IPLATFORM = -1
-      ISAT      = -1
-      DO J=1, NUMSATBURP
-         IF ( ISATBURP .EQ. LISTBURP(J) ) THEN
-            IPLATFORM = tvs_get_platform_id( LISTPLAT(J) )
-            ISAT      = LISTSAT (J)
-            EXIT
-         ENDIF
-      ENDDO
+   IPLATFORM = -1
+   ISAT      = -1
+   DO J=1, NUMSATBURP
+      IF ( ISATBURP .EQ. LISTBURP(J) ) THEN
+         IPLATFORM = tvs_get_platform_id( LISTPLAT(J) )
+         ISAT      = LISTSAT (J)
+         EXIT
+      ENDIF
+   ENDDO
 
-      END SUBROUTINE TVS_MAPSAT
+END SUBROUTINE TVS_MAPSAT
 
-    end module tovs_nl_mod
+
+!--------------------------------------------------------------------------
+!! SUBROUTINE  tvs_rttov_setup 
+!!
+!! *Purpose*: MPI wrapper for rttov_setup
+!!            the coefficient files are read by MPI task 0
+!!            and then broadcasted to the other tasks according to the selected
+!!            channels. Argument channels is mandatory (it is optional in rttov_setup)
+!!            optional argument channels_rec was removed (it is useful only in principal component mode)
+!!            also this subroutine will work only for clear sky radiance computations
+!!            if somebody wants to do realistic cloud or aerosol affected radiance simulations
+!!            some changes are needed. Ask me in that case. (S. Heilliette) 
+!! It is implicitely assumed that the options are the same for all MPI tasks for a given instrument
+!! No check will be done (options for task 0 will be used for all tasks). Only differences in channel lists are accounted for.
+!! S. Heilliette May 2017
+!--------------------------------------------------------------------------
+subroutine tvs_rttov_setup (&
+     ERR,                   &! out
+     Err_unit,              &! in
+     verbosity_level,       &! in
+     opts,                  &
+     coefs,                 &
+     instrument,            &! in
+     channels  )             ! in
+
+   ! Imported Type Definitions:
+   Use rttov_types, Only : &
+        rttov_coefs,       &
+        rttov_options
+
+   Use parkind1, Only : jpim
+   use mpi_mod
+   Implicit None
+#include "rttov_setup.interface"
+#include "rttov_errorhandling.interface"
+
+   !
+   ! Subroutine arguments
+   !   Arguments with intent(in):
+   type(rttov_options), intent(in) :: opts
+   integer(kind=jpim), intent (in) :: Err_Unit        ! Logical error unit (<0 for default) 
+   integer(kind=jpim), intent (in) :: verbosity_level ! (<0 for default)
+   integer(kind=jpim), intent (in) :: instrument(3) ! Instrument triplet
+         ! first dimension  : (platform, satellite identification, instrument) number
+         ! second dimension : nsat
+   integer(kind=jpim), intent (in) :: channels    (:)   ! list of channels to extract (channels,msat) mandatory
+
+   ! Arguments with intent(out):
+   integer(kind=jpim),  intent (out) :: ERR
+   type( rttov_coefs ), intent (out) :: coefs
+
+   integer ,allocatable :: listGlobal(:)
+   integer :: i, j, ierr, nChannelsFull, countUniqueChannel, indexchan(size(channels)),channelsb(jpchus), listAll(jpchus)
+   logical :: found, associated0
+
+   if (size(channels) > jpchus) then
+      write(*,*) 'You need to increase jpchus in tovs_nl_mod !',size(channels), jpchus
+      call utl_abort("tvs_rttov_setup")
+   endif
+
+   ! First step: we should determine a common set of channels among MPI tasks
+   if (mpi_myid ==0) then
+      allocate(listGlobal(mpi_nprocs*jpchus))
+   else
+      allocate(listGlobal(1))
+   endif
+   listGlobal = 0
+   channelsb = 0
+   channelsb(1:size(channels)) = channels(:)
+
+   call rpn_comm_gather(channelsb, jpchus, 'MPI_INTEGER', listGlobal, jpchus, 'MPI_INTEGER', 0, 'GRID', ierr) 
+  
+   if ( mpi_myid == 0 ) then
+      countUniqueChannel = 0
+      call isort(listGlobal, mpi_nprocs*jpchus)
+      do i=1,  mpi_nprocs*jpchus
+         if (listGlobal(i) >0) then
+            found = .false.
+            LOOPJ: do j=countUniqueChannel,1,-1
+               if (listGlobal(i) == listAll(j) ) then
+                  found =.true.
+                  exit LOOPJ
+               endif
+            enddo LOOPJ
+            if (.not.found) then
+               countUniqueChannel = countUniqueChannel + 1
+               listAll(countUniqueChannel) = listGlobal(i)
+            endif
+         endif
+      enddo
+   endif
+   deallocate(listGlobal)
+   
+   call rpn_comm_bcast(countUniqueChannel, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+   call rpn_comm_bcast(listAll(1:countUniqueChannel), countUniqueChannel, 'MPI_INTEGER', 0, 'GRID', ierr) 
+  
+   ! Second step: mpi task 0 will do the job
+   if ( mpi_myid == 0 ) then
+      call rttov_setup (    &
+           ERR,             &! out
+           Err_unit,        &! in
+           verbosity_level, &! in
+           opts,            &
+           coefs,           &
+           instrument,      &! in
+           listAll(1:countUniqueChannel)  )     ! in option
+
+   else
+      call rttov_errorhandling(Err_Unit, verbosity_level)
+   endif
+
+   ! Third step: common (i.e. independent from the channel list) parameters are simply broadcasted to other processors
+   ! Scalar and fixed size arrays and  strings first
+   call rpn_comm_bcast(coefs%coef%id_platform, 1, 'MPI_INTEGER', 0, 'GRID', ierr) 
+   call rpn_comm_bcast(coefs%coef%id_sat, 1, 'MPI_INTEGER', 0, 'GRID', ierr) 
+   call rpn_comm_bcast(coefs%coef%id_inst, 1, 'MPI_INTEGER', 0, 'GRID', ierr)  
+   call rpn_comm_bcast(coefs%coef%id_sensor, 1, 'MPI_INTEGER', 0, 'GRID', ierr) 
+   call rpn_comm_bcast(coefs%coef%id_comp_lvl, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+   call rpn_comm_bcast(coefs%coef%id_comp_pc, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+   
+   call rpn_comm_bcast(coefs%coef%fmv_model_ver, 1, 'MPI_INTEGER', 0, 'GRID', ierr) 
+   call rpn_comm_bcast(coefs%coef%fmv_chn, 1, 'MPI_INTEGER', 0, 'GRID', ierr) 
+   call rpn_comm_bcast(coefs%coef%fmv_gas, 1, 'MPI_INTEGER', 0, 'GRID', ierr) 
+
+   call rpn_comm_bcast(coefs%coef%nmixed, 1, 'MPI_INTEGER', 0, 'GRID', ierr)          ! number of variables/predictors for Mixed Gases
+   call rpn_comm_bcast(coefs%coef%nwater, 1, 'MPI_INTEGER', 0, 'GRID', ierr)          ! number of variables/predictors for Water Vapour
+   call rpn_comm_bcast(coefs%coef%nozone, 1, 'MPI_INTEGER', 0, 'GRID', ierr)          ! number of variables/predictors for Ozone
+   call rpn_comm_bcast(coefs%coef%nwvcont, 1, 'MPI_INTEGER', 0, 'GRID', ierr)         ! number of variables/predictors for WV continuum
+   call rpn_comm_bcast(coefs%coef%nco2, 1, 'MPI_INTEGER', 0, 'GRID', ierr)            ! number of variables/predictors for CO2
+   call rpn_comm_bcast(coefs%coef%nn2o , 1, 'MPI_INTEGER', 0, 'GRID', ierr)           ! number of variables/predictors for N2O
+   call rpn_comm_bcast(coefs%coef%nco, 1, 'MPI_INTEGER', 0, 'GRID', ierr)             ! number of variables/predictors for CO
+   call rpn_comm_bcast(coefs%coef%nch4, 1, 'MPI_INTEGER', 0, 'GRID', ierr)            ! number of variables/predictors for CH4
+   call rpn_comm_bcast(coefs%coef%nlevels, 1, 'MPI_INTEGER', 0, 'GRID', ierr)         ! number of levels(pres/absorber) same for all gases
+   call rpn_comm_bcast(coefs%coef%nlayers, 1, 'MPI_INTEGER', 0, 'GRID', ierr)         ! number of layers(pres/absorber) nlevels-1
+   call rpn_comm_bcast(coefs%coef%IncZeeman, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)       ! Flag to include Zeeman effect for this sensor
+   call rpn_comm_bcast(coefs%coef%ncmixed, 1, 'MPI_INTEGER', 0, 'GRID', ierr)         ! number of coefficients for Mixed Gases
+   call rpn_comm_bcast(coefs%coef%ncwater, 1, 'MPI_INTEGER', 0, 'GRID', ierr)         ! number of coefficients for Water Vapour
+   call rpn_comm_bcast(coefs%coef%ncozone, 1, 'MPI_INTEGER', 0, 'GRID', ierr)         ! number of coefficients for Ozone
+   call rpn_comm_bcast(coefs%coef%ncwvcont, 1, 'MPI_INTEGER', 0, 'GRID', ierr)        ! number of coefficients for WV continuum
+   call rpn_comm_bcast(coefs%coef%ncco2, 1, 'MPI_INTEGER', 0, 'GRID', ierr)           ! number of coefficients for CO2
+   call rpn_comm_bcast(coefs%coef%ncn2o, 1, 'MPI_INTEGER', 0, 'GRID', ierr)           ! number of coefficients for N2O
+   call rpn_comm_bcast(coefs%coef%ncco , 1, 'MPI_INTEGER', 0, 'GRID', ierr)           ! number of coefficients for CO
+   call rpn_comm_bcast(coefs%coef%ncch4, 1, 'MPI_INTEGER', 0, 'GRID', ierr)           ! number of coefficients for CH4
+   call rpn_comm_bcast(coefs%coef%nintmixed, 1, 'MPI_INTEGER', 0, 'GRID', ierr) 
+   call rpn_comm_bcast(coefs%coef%nintwater, 1, 'MPI_INTEGER', 0, 'GRID', ierr) 
+   call rpn_comm_bcast(coefs%coef%nintozone, 1, 'MPI_INTEGER', 0, 'GRID', ierr) 
+   call rpn_comm_bcast(coefs%coef%nintwvcont, 1, 'MPI_INTEGER', 0, 'GRID', ierr) 
+   call rpn_comm_bcast(coefs%coef%nintco2, 1, 'MPI_INTEGER', 0, 'GRID', ierr) 
+   call rpn_comm_bcast(coefs%coef%nintn2o, 1, 'MPI_INTEGER', 0, 'GRID', ierr) 
+   call rpn_comm_bcast(coefs%coef%nintco, 1, 'MPI_INTEGER', 0, 'GRID', ierr) 
+   call rpn_comm_bcast(coefs%coef%nintch4, 1, 'MPI_INTEGER', 0, 'GRID', ierr) 
+
+   call rpn_comm_bcast(coefs%coef%ws_nomega, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+
+   call rpn_comm_bcast(coefs%coef%id_creation_date, 3, 'MPI_INTEGER', 0, 'GRID', ierr) 
+   call rpn_comm_bcastc(coefs%coef%id_creation, 80, 'MPI_CHARACTER', 0, 'GRID', ierr) 
+   call rpn_comm_bcastc(coefs%coef%id_Common_name, 32, 'MPI_CHARACTER', 0, 'GRID', ierr) 
+   do i=1, 20
+      call rpn_comm_bcastc(coefs%coef%line_by_line(i), 80, 'MPI_CHARACTER', 0, 'GRID', ierr)
+   enddo
+   call rpn_comm_bcastc(coefs%coef%fmv_model_def, 32, 'MPI_CHARACTER', 0, 'GRID', ierr) 
+   call rpn_comm_bcast(coefs%coef%fc_speedl, 1, 'MPI_REAL8', 0, 'GRID', ierr)    ! speed of light (cm/s)
+   call rpn_comm_bcast(coefs%coef%fc_planck_c1, 1, 'MPI_REAL8', 0, 'GRID', ierr) ! first radiation constant (mW/(m2*sr*cm-4))
+   call rpn_comm_bcast(coefs%coef%fc_planck_c2, 1, 'MPI_REAL8', 0, 'GRID', ierr) !second radiation constant (mW/(m2*sr*cm-4))
+   call rpn_comm_bcast(coefs%coef%fc_sat_height, 1, 'MPI_REAL8', 0, 'GRID', ierr)! satellite nominal altitude (km)
+  
+   ! FASTEM section
+   call rpn_comm_bcast(coefs%coef%fastem_ver, 1, 'MPI_INTEGER', 0, 'GRID', ierr) 
+   call rpn_comm_bcast(coefs%coef%ssirem_ver, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+   call rpn_comm_bcast(coefs%coef%ratoe, 1, 'MPI_REAL8', 0, 'GRID', ierr) 
+   call rpn_comm_bcast(coefs%coef%mwcldtop, 1, 'MPI_INTEGER', 0, 'GRID', ierr) 
+
+   ! then variable size vectors
+   ! this one must be done first because it is used to dimension other ones ....
+   if (mpi_myid>0) allocate( coefs%coef%fmv_lvl(coefs%coef%fmv_gas))
+   call rpn_comm_bcast(coefs%coef%fmv_lvl, coefs%coef%fmv_gas, 'MPI_INTEGER', 0, 'GRID', ierr)
+
+   if (mpi_myid>0) then
+      allocate( coefs%coef%fmv_gas_id(coefs%coef%fmv_gas))
+      allocate( coefs%coef%fmv_gas_pos(ngases_max)) !size is from rttov consts
+      allocate( coefs%coef%fmv_var(coefs%coef%fmv_gas))
+      allocate( coefs%coef%fmv_coe(coefs%coef%fmv_gas))
+      allocate( coefs%coef%fmv_int(coefs%coef%fmv_gas))
+      allocate( coefs%coef%gaz_units(coefs%coef%fmv_gas))
+      allocate( coefs%coef%ws_npoint(coefs%coef%ws_nomega) )
+      allocate( coefs%coef%ws_k_omega(coefs%coef%ws_nomega) )
+      allocate( coefs%coef%ref_prfl_p(coefs%coef%fmv_lvl(gas_id_mixed) ) )
+      allocate( coefs% coef % ref_prfl_t ( coefs%coef % fmv_lvl(gas_id_mixed), coefs%coef % fmv_gas ) )
+      allocate( coefs% coef % ref_prfl_mr ( coefs%coef % fmv_lvl(gas_id_mixed), coefs%coef % fmv_gas ) )
+      allocate( coefs%coef%lim_prfl_p( coefs%coef%fmv_lvl(gas_id_mixed) ) )
+      allocate( coefs%coef%lim_prfl_tmax( coefs%coef%fmv_lvl(gas_id_mixed) ) )
+      allocate( coefs%coef%lim_prfl_tmin( coefs%coef%fmv_lvl(gas_id_mixed) ) )
+      allocate( coefs%coef%lim_prfl_gmax( coefs%coef%fmv_lvl(gas_id_mixed), coefs%coef % fmv_gas ) )
+      allocate( coefs%coef%lim_prfl_gmin( coefs%coef%fmv_lvl(gas_id_mixed), coefs%coef % fmv_gas ) )
+      allocate( coefs%coef%mixedgasint(2, coefs%coef % nintmixed) )
+      allocate( coefs%coef%watervapourint(2, coefs%coef % nintwater) )
+      allocate( coefs%coef%ozoneint(2, coefs%coef % nintozone) )
+      allocate( coefs%coef%wvcontint(2, coefs%coef % nintwvcont) )
+      allocate( coefs%coef%co2int(2, coefs%coef % nintco2) )
+      allocate( coefs%coef%n2oint(2, coefs%coef % nintn2o) )
+      allocate( coefs%coef%coint(2, coefs%coef % nintco) )
+      allocate( coefs%coef%ch4int(2, coefs%coef % nintch4) )
+      allocate( coefs%coef%dpp(0:coefs%coef%nlayers) )
+      allocate( coefs%coef%dp(coefs%coef%nlayers) )
+      allocate( coefs%coef%tstar(coefs%coef%nlayers) )
+      allocate( coefs%coef%wstar(coefs%coef%nlayers) )
+   endif
+   
+   associated0=associated(coefs%coef%fmv_gas_id)
+   call rpn_comm_bcast(associated0, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
+   if(associated0) call rpn_comm_bcast(coefs%coef%fmv_gas_id, coefs%coef%fmv_gas, 'MPI_INTEGER', 0, 'GRID', ierr) 
+
+   associated0=associated(coefs%coef%fmv_gas_pos)
+   call rpn_comm_bcast(associated0, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
+   if(associated0) call rpn_comm_bcast(coefs%coef%fmv_gas_pos, ngases_max, 'MPI_INTEGER', 0, 'GRID', ierr) 
+
+   associated0=associated(coefs%coef%fmv_var)
+   call rpn_comm_bcast(associated0, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
+   if(associated0) call rpn_comm_bcast(coefs%coef%fmv_var, coefs%coef%fmv_gas, 'MPI_INTEGER', 0, 'GRID', ierr) 
+
+   associated0=associated(coefs%coef%fmv_coe)
+   call rpn_comm_bcast(associated0, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
+   if(associated0) call rpn_comm_bcast(coefs%coef%fmv_coe, coefs%coef%fmv_gas, 'MPI_INTEGER', 0, 'GRID', ierr) 
+
+   associated0=associated(coefs%coef%fmv_int)
+   call rpn_comm_bcast(associated0, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
+   if(associated0) call rpn_comm_bcast(coefs%coef%fmv_int, coefs%coef%fmv_gas, 'MPI_INTEGER', 0, 'GRID', ierr)
+  
+   associated0=associated(coefs%coef%gaz_units)
+   call rpn_comm_bcast(associated0, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
+   if(associated0) call rpn_comm_bcast(coefs%coef%gaz_units, coefs%coef%fmv_gas, 'MPI_INTEGER', 0, 'GRID', ierr) 
+
+   associated0=associated(coefs%coef%ws_npoint)
+   call rpn_comm_bcast(associated0, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
+   if(associated0) call rpn_comm_bcast(coefs%coef%ws_npoint, coefs%coef%ws_nomega, 'MPI_REAL8', 0, 'GRID', ierr)
+  
+   associated0=associated(coefs%coef%ws_k_omega)
+   call rpn_comm_bcast(associated0, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
+   if(associated0) call rpn_comm_bcast(coefs%coef%ws_k_omega, coefs%coef%ws_nomega, 'MPI_REAL8', 0, 'GRID', ierr) 
+
+   associated0=associated(coefs%coef%ref_prfl_p)
+   call rpn_comm_bcast(associated0, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
+   if(associated0) call rpn_comm_bcast(coefs%coef%ref_prfl_p, size(coefs%coef%ref_prfl_p) , 'MPI_REAL8', 0, 'GRID', ierr) 
+
+   associated0=associated(coefs%coef%ref_prfl_t)
+   call rpn_comm_bcast(associated0, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
+   if(associated0) call rpn_comm_bcast(coefs%coef%ref_prfl_t, size(coefs%coef%ref_prfl_t) , 'MPI_REAL8', 0, 'GRID', ierr) 
+
+   associated0=associated(coefs%coef%ref_prfl_mr)
+   call rpn_comm_bcast(associated0, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
+   if(associated0) call rpn_comm_bcast(coefs%coef%ref_prfl_mr, size(coefs%coef%ref_prfl_t) , 'MPI_REAL8', 0, 'GRID', ierr) 
+   
+   associated0=associated(coefs%coef%lim_prfl_p)
+   call rpn_comm_bcast(associated0, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
+   if(associated0) call rpn_comm_bcast(coefs%coef%lim_prfl_p, size(coefs%coef%lim_prfl_p) , 'MPI_REAL8', 0, 'GRID', ierr) 
+
+   associated0=associated(coefs%coef%lim_prfl_tmax)
+   call rpn_comm_bcast(associated0, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
+   if(associated0) call rpn_comm_bcast(coefs%coef%lim_prfl_tmax, size(coefs%coef%lim_prfl_tmax) , 'MPI_REAL8', 0, 'GRID', ierr)
+
+   associated0=associated(coefs%coef%lim_prfl_tmin)
+   call rpn_comm_bcast(associated0, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
+   if(associated0) call rpn_comm_bcast(coefs%coef%lim_prfl_tmin, size(coefs%coef%lim_prfl_tmin) , 'MPI_REAL8', 0, 'GRID', ierr)
+
+   associated0=associated(coefs%coef%lim_prfl_gmax)
+   call rpn_comm_bcast(associated0, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
+   if(associated0) call rpn_comm_bcast(coefs%coef%lim_prfl_gmax, size(coefs%coef%lim_prfl_gmax) , 'MPI_REAL8', 0, 'GRID', ierr)
+
+   associated0=associated(coefs%coef%lim_prfl_gmin)
+   call rpn_comm_bcast(associated0, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
+   if(associated0) call rpn_comm_bcast(coefs%coef%lim_prfl_gmin, size(coefs%coef%lim_prfl_gmin) , 'MPI_REAL8', 0, 'GRID', ierr) 
+   
+   associated0=associated(coefs%coef%mixedgasint)
+   call rpn_comm_bcast(associated0, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
+   if(associated0) call rpn_comm_bcast(coefs%coef%mixedgasint, size(coefs%coef%mixedgasint), 'MPI_REAL8', 0, 'GRID', ierr) 
+
+   associated0=associated(coefs%coef%watervapourint)
+   call rpn_comm_bcast(associated0, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
+   if(associated0) call rpn_comm_bcast(coefs%coef%watervapourint, size(coefs%coef%watervapourint), 'MPI_REAL8', 0, 'GRID', ierr) 
+
+   associated0=associated(coefs%coef%ozoneint)
+   call rpn_comm_bcast(associated0, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
+   if(associated0) call rpn_comm_bcast(coefs%coef%ozoneint, size(coefs%coef%ozoneint), 'MPI_REAL8', 0, 'GRID', ierr)
+
+   associated0=associated(coefs%coef%wvcontint)
+   call rpn_comm_bcast(associated0, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
+   if(associated0) call rpn_comm_bcast(coefs%coef%wvcontint, size(coefs%coef%wvcontint), 'MPI_REAL8', 0, 'GRID', ierr) 
+
+   associated0=associated(coefs%coef%co2int)
+   call rpn_comm_bcast(associated0, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
+   if(associated0) call rpn_comm_bcast(coefs%coef%co2int, size(coefs%coef%co2int), 'MPI_REAL8', 0, 'GRID', ierr) 
+
+   associated0=associated(coefs%coef%n2oint)
+   call rpn_comm_bcast(associated0, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
+   if(associated0) call rpn_comm_bcast(coefs%coef%n2oint, size(coefs%coef%n2oint), 'MPI_REAL8', 0, 'GRID', ierr) 
+
+   associated0=associated(coefs%coef%coint)
+   call rpn_comm_bcast(associated0, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
+   if(associated0) call rpn_comm_bcast(coefs%coef%coint, size(coefs%coef%coint), 'MPI_REAL8', 0, 'GRID', ierr) 
+
+   associated0=associated(coefs%coef%ch4int)
+   call rpn_comm_bcast(associated0, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
+   if(associated0) call rpn_comm_bcast(coefs%coef%ch4int, size(coefs%coef%ch4int), 'MPI_REAL8', 0, 'GRID', ierr) 
+
+   associated0=associated(coefs%coef%dp)
+   call rpn_comm_bcast(associated0, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
+   if(associated0) call rpn_comm_bcast(coefs%coef%dp, size(coefs%coef%dp) , 'MPI_REAL8', 0, 'GRID', ierr) ; !dp
+
+   associated0=associated(coefs%coef%dpp)
+   call rpn_comm_bcast(associated0, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
+   if(associated0) call rpn_comm_bcast(coefs%coef%dpp, size(coefs%coef%dpp) , 'MPI_REAL8', 0, 'GRID', ierr) ; !dpp       
+
+   associated0=associated(coefs%coef%tstar)
+   call rpn_comm_bcast(associated0, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
+   if(associated0) call rpn_comm_bcast(coefs%coef%tstar, size(coefs%coef%tstar) , 'MPI_REAL8', 0, 'GRID', ierr) ; !tstar  
+
+   associated0=associated(coefs%coef%wstar)
+   call rpn_comm_bcast(associated0, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
+   if(associated0) call rpn_comm_bcast(coefs%coef%wstar, size(coefs%coef%wstar) , 'MPI_REAL8', 0, 'GRID', ierr) ; !wstar   
+
+   if (coefs%coef%nozone > 0) then
+      if (mpi_myid>0) then
+         allocate( coefs%coef%to3star(coefs%coef%nlayers) )
+         allocate( coefs%coef%ostar(coefs%coef%nlayers) )
+      endif
+      call rpn_comm_bcast(coefs%coef%to3star, size(coefs%coef%to3star) , 'MPI_REAL8', 0, 'GRID', ierr) ; !to3star 
+      call rpn_comm_bcast(coefs%coef%ostar, size(coefs%coef%ostar) , 'MPI_REAL8', 0, 'GRID', ierr) ; !ostar  
+   endif
+   if (coefs%coef%nco2 > 0) then
+      if (mpi_myid>0) allocate( coefs%coef%co2star(coefs%coef%nlayers) )
+      call rpn_comm_bcast(coefs%coef%co2star, size(coefs%coef%co2star) , 'MPI_REAL8', 0, 'GRID', ierr) ; !co2star
+   end if
+   if (coefs%coef%fmv_model_ver == 9) then
+      if (mpi_myid>0) then
+         allocate( coefs%coef%n2ostar(coefs%coef%nlayers) )
+         allocate( coefs%coef%costar(coefs%coef%nlayers) )
+         allocate( coefs%coef%ch4star(coefs%coef%nlayers) )
+      endif
+      call rpn_comm_bcast(coefs%coef%n2ostar, size(coefs%coef%n2ostar) , 'MPI_REAL8', 0, 'GRID', ierr) ; !n2ostar
+      call rpn_comm_bcast(coefs%coef%costar, size(coefs%coef%costar) , 'MPI_REAL8', 0, 'GRID', ierr) ; !costar  
+      call rpn_comm_bcast(coefs%coef%ch4star, size(coefs%coef%ch4star) , 'MPI_REAL8', 0, 'GRID', ierr) ; !ch4star  
+   endif
+
+   ! Fourth step: channel dependent parameters are extracted according to the channel list and sent to each MPI task
+   coefs%coef%fmv_chn = size( channels )
+
+   if (mpi_myid==0) deallocate ( coefs%coef%ff_ori_chn)
+   allocate ( coefs%coef%ff_ori_chn(coefs%coef%fmv_chn) )
+   coefs%coef%ff_ori_chn =  channels
+
+   do i=1,  coefs%coef%fmv_chn
+      loopj2:do j=1, countUniqueChannel
+         if (listAll(j)==channels(i)) then
+            indexchan(i) = j
+            exit loopj2
+         endif
+      enddo loopj2
+   enddo
+   ! 1D arrays first
+   call resizeI41dArray(coefs%coef%ff_val_chn, countUniqueChannel,indexchan)
+   call resizeR81dArray(coefs%coef%ff_cwn, countUniqueChannel,indexchan)
+   call resizeR81dArray(coefs%coef%ff_bco, countUniqueChannel,indexchan)
+   call resizeR81dArray(coefs%coef%ff_bcs, countUniqueChannel,indexchan) 
+   call resizeR81dArray(coefs%coef%ff_gam, countUniqueChannel,indexchan)
+   call resizeI41dArray(coefs%coef%tt_chn, countUniqueChannel,indexchan)
+   call resizeI41dArray(coefs%coef%tt_val_chn, countUniqueChannel,indexchan) 
+   call resizeR81dArray(coefs%coef%tt_cwn, countUniqueChannel,indexchan) 
+   call resizeR81dArray(coefs%coef%tt_a0, countUniqueChannel,indexchan) 
+   call resizeR81dArray(coefs%coef%tt_a1, countUniqueChannel,indexchan)
+   call resizeI41dArray(coefs%coef%ss_chn, countUniqueChannel,indexchan) 
+   call resizeI41dArray(coefs%coef%ss_val_chn, countUniqueChannel,indexchan)
+   call resizeR81dArray(coefs%coef%ss_cwn, countUniqueChannel,indexchan) 
+   call resizeR81dArray(coefs%coef%ss_solar_spectrum, countUniqueChannel,indexchan) 
+   call resizeI41dArray(coefs%coef%woc_chn, countUniqueChannel,indexchan)
+   call resizeR81dArray(coefs%coef%woc_cwn, countUniqueChannel,indexchan)
+   call resizeCmplx81dArray(coefs%coef%woc_waopc_ow, countUniqueChannel, indexchan) 
+   call resizeCmplx81dArray(coefs%coef%woc_waopc_fw, countUniqueChannel, indexchan)
+  
+   call resizeI41dArray(coefs%coef%fastem_polar, countUniqueChannel,indexchan)
+   call resizeI41dArray(coefs%coef%ssirem_chn, countUniqueChannel,indexchan)
+   call resizeR81dArray(coefs%coef%ssirem_a0, countUniqueChannel,indexchan)
+   call resizeR81dArray(coefs%coef%ssirem_a1, countUniqueChannel,indexchan)
+   call resizeR81dArray(coefs%coef%ssirem_a2, countUniqueChannel,indexchan)
+   call resizeR81dArray(coefs%coef%ssirem_xzn1, countUniqueChannel,indexchan)
+   call resizeR81dArray(coefs%coef%ssirem_xzn2, countUniqueChannel,indexchan)
+
+   call resizeR81dArray(coefs%coef%planck1, countUniqueChannel,indexchan)
+   call resizeR81dArray(coefs%coef%planck2, countUniqueChannel,indexchan)
+   IF (coefs%coef%id_sensor == sensor_id_mw .OR. coefs%coef%id_sensor == sensor_id_po) &
+        call resizeR81dArray(coefs%coef%frequency_ghz, countUniqueChannel,indexchan)
+   ! then 3D arrays   
+   call resizeR83dArray(coefs%coef%mixedgas, coefs%coef % nlayers, countUniqueChannel, coefs%coef % ncmixed, indexchan)
+   call resizeR83dArray(coefs%coef%watervapour, coefs%coef % nlayers, countUniqueChannel, coefs%coef % ncwater, indexchan)
+   call resizeR83dArray(coefs%coef%ozone, coefs%coef % nlayers, countUniqueChannel, coefs%coef % ncozone, indexchan)
+   call resizeR83dArray(coefs%coef%wvcont, coefs%coef % nlayers, countUniqueChannel, coefs%coef % ncwvcont, indexchan)
+   call resizeR83dArray(coefs%coef%co2, coefs%coef % nlayers, countUniqueChannel, coefs%coef % ncco2, indexchan)
+   call resizeR83dArray(coefs%coef%n2o, coefs%coef % nlayers, countUniqueChannel, coefs%coef % ncn2o, indexchan)
+   call resizeR83dArray(coefs%coef%co, coefs%coef % nlayers, countUniqueChannel, coefs%coef % ncco, indexchan)
+   call resizeR83dArray(coefs%coef%ch4, coefs%coef % nlayers, countUniqueChannel, coefs%coef % ncch4, indexchan)
+ 
+end subroutine tvs_rttov_setup
+
+subroutine resizeI41dArray(array,oldSize,index)
+   implicit none
+   Integer ,Pointer :: array(:)
+   integer ,intent(in) :: oldSize, index(:)
+
+   integer :: newSize, tmpI41d(oldSize), ierr, trueSize
+
+
+   if (mpi_myid == 0) then
+      if (associated(array)) then
+         trueSize = size(array)
+      else
+         trueSize = 0
+      endif
+   endif
+   call rpn_comm_bcast(trueSize, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+   if (trueSize < 1) return
+
+   if (trueSize /= oldSize) then
+      Write(*,*) "resizeI41dArray: should not happen ", trueSize, oldSize
+   endif
+
+   newSize = size( index )
+
+   if (mpi_myid>0) allocate( array(oldSize))
+   call rpn_comm_bcast(array, oldSize, 'MPI_INTEGER', 0, 'GRID', ierr)
+   tmpI41d = array
+   deallocate( array )
+   allocate( array(newSize))
+   array( : ) =  tmpI41d( index(:) )
+end subroutine resizeI41dArray
+
+
+subroutine resizeR81dArray(array,oldSize,index)
+   implicit none
+   Real(8) ,Pointer :: array(:)
+   integer ,intent(in) :: oldSize, index(:)
+
+   integer :: newSize, ierr, trueSize
+   Real(8) :: tmpR81d(oldSize)
+
+   if (mpi_myid == 0) then
+      if (associated(array)) then
+         trueSize = size(array)
+      else
+         trueSize = 0
+      endif
+   endif
+   call rpn_comm_bcast(trueSize, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+   if (trueSize < 1) return
+
+   if (trueSize /= oldSize) then
+      Write(*,*) "resizeR81dArray: should not happen ", trueSize, oldSize
+   endif
+
+   newSize = size( index )
+
+   if (mpi_myid>0) allocate( array(oldSize))
+   call rpn_comm_bcast(array, oldSize, 'MPI_REAL8', 0, 'GRID', ierr)
+   tmpR81d = array
+   deallocate( array )
+   allocate( array(newSize))
+   array( : ) =  tmpR81d( index(:) )
+end subroutine resizeR81dArray
+
+subroutine resizeCmplx81dArray(array,oldSize,index)
+   implicit none
+   complex(kind=8) ,pointer :: array(:)
+   integer ,intent(in) :: oldSize, index(:)
+
+   integer :: newSize, ierr, trueSize
+   complex(kind=8) :: tmpCx81d(oldSize)
+
+   if (mpi_myid == 0) then
+      if (associated(array)) then
+         trueSize = size(array)
+      else
+         trueSize = 0
+      endif
+   endif
+   call rpn_comm_bcast(trueSize, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+   if (trueSize < 1) return
+
+   if (trueSize /= oldSize) then
+      Write(*,*) "resizeCmplx81dArray: should not happen ", trueSize, oldSize
+   endif
+
+   newSize = size( index )
+
+   if (mpi_myid>0) allocate( array(oldSize))
+   call rpn_comm_bcast(array, oldSize, 'MPI_COMPLEX8', 0, 'GRID', ierr)
+   tmpCx81d = array
+   deallocate( array )
+   allocate( array(newSize))
+   array( : ) =  tmpCx81d( index(:) )
+end subroutine resizeCmplx81dArray
+
+subroutine resizeR83dArray(array,olddim1,oldDim2,oldDim3,index)
+   ! channel dimension is the middle one
+   implicit none
+   Real(8) ,Pointer :: array(:,:,:)
+   integer ,intent(in) :: olddim1,oldDim2,oldDim3, index(:)
+
+   integer :: newSize, ierr, trueSize
+   Real(8) :: tmpR81d(oldDim1,oldDim2,oldDim3)
+
+   if (mpi_myid == 0) then
+      if (associated(array)) then
+         trueSize = size(array)
+      else
+         trueSize = 0
+      endif
+   endif
+   call rpn_comm_bcast(trueSize, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+   if (trueSize < 1) return
+
+   if (trueSize /= oldDim1 * oldDim2 * oldDim3 ) then
+      Write(*,*) "resizeR83dArray: should not happen ", trueSize, oldDim1 * oldDim2 * oldDim3
+   endif
+
+   newSize = size( index )
+   
+   if (mpi_myid>0) allocate( array(oldDim1,oldDim2,oldDim3) )
+   call rpn_comm_bcast(array, oldDim1 * oldDim2 * oldDim3, 'MPI_REAL8', 0, 'GRID', ierr)
+   tmpR81d = array
+   deallocate( array )
+   allocate( array(oldDim1,newSize,oldDim3))
+   array(:,:,:) =  tmpR81d(:, index(:), : )
+
+end subroutine resizeR83dArray
+
+end module tovs_nl_mod

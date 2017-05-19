@@ -22,6 +22,7 @@
 !!
 !--------------------------------------------------------------------------
 MODULE ensembleStateVector_mod
+  use topLevelControl_mod
   use mpivar_mod
   use gridStateVector_mod
   use horizontalCoord_mod
@@ -37,8 +38,10 @@ MODULE ensembleStateVector_mod
   ! public procedures
   public :: struct_ens, ens_allocate, ens_deallocate, ens_readEnsemble, ens_fileName
   public :: ens_getField_r4, ens_getField_r8, ens_getFieldMean_r4, ens_getFieldMean_r8
+  public :: ens_getField_i2
   public :: ens_varExist, ens_getNumLev
   public :: ens_computeMean, ens_removeMean, ens_copyEnsMean
+  public :: ens_convertToInteger, ens_getIntOffset, ens_getIntMultFactor
 
   integer,external   :: get_max_rss
 
@@ -195,6 +198,31 @@ CONTAINS
   end function ens_getField_r4
 
 
+  function ens_getField_i2(ens,memberIndex,varName) result(field)
+    implicit none
+
+    ! arguments
+    type(struct_ens)                       :: ens
+    integer                                :: memberIndex
+    character(len=*), intent(in), optional :: varName
+    integer(2), pointer                    :: field(:,:,:,:)
+
+    ! locals
+    integer                                :: lon1,lat1,k1
+
+    lon1 = ens%statevector(memberIndex)%myLonBeg
+    lat1 = ens%statevector(memberIndex)%myLatBeg
+    k1 = ens%statevector(memberIndex)%mykBeg
+
+    if(present(varName)) then
+      field(lon1:,lat1:,k1:,1:) => gsv_getField_i2(ens%statevector(memberIndex), varName)
+    else
+      field(lon1:,lat1:,k1:,1:) => gsv_getField_i2(ens%statevector(memberIndex))
+    endif
+
+  end function ens_getField_i2
+
+
   function ens_getFieldMean_r8(ens,subEnsIndex,varName) result(field)
     implicit none
 
@@ -243,6 +271,64 @@ CONTAINS
     endif
 
   end function ens_getFieldMean_r4
+
+
+  subroutine ens_convertToInteger(ens)
+    implicit none
+    type(struct_ens)  :: ens
+    integer           :: memberIndex
+
+    do memberIndex = 1, ens%numMembers
+      call gsv_convertToInteger( ens%statevector(memberIndex) )
+    end do
+
+  end subroutine ens_convertToInteger
+
+
+  function ens_getIntOffset(ens, memberIndex, varName) result(offset)
+    implicit none
+
+    ! arguments
+    type(struct_ens)           :: ens
+    integer                    :: memberIndex
+    character(len=*), optional :: varName
+    real(8), pointer           :: offset(:,:)
+
+    ! locals
+    integer                    :: k1
+
+    k1 = ens%statevector(memberIndex)%mykBeg
+
+    if(present(varName)) then
+      offset(k1:,1:) => gsv_getIntOffset(ens%statevector(memberIndex), varName)
+    else
+      offset(k1:,1:) => gsv_getIntOffset(ens%statevector(memberIndex))
+    endif
+
+  end function ens_getIntOffset
+
+
+  function ens_getIntMultFactor(ens, memberIndex, varName) result(multFactor)
+    implicit none
+
+    ! arguments
+    type(struct_ens)           :: ens
+    integer                    :: memberIndex
+    character(len=*), optional :: varName
+    real(8), pointer           :: multFactor(:,:)
+
+    ! locals
+    integer                    :: k1
+
+    k1 = ens%statevector(memberIndex)%mykBeg
+
+    if(present(varName)) then
+      multFactor(k1:,1:) => gsv_getIntMultFactor(ens%statevector(memberIndex), varName)
+    else
+      multFactor(k1:,1:) => gsv_getIntMultFactor(ens%statevector(memberIndex))
+    endif
+
+  end function ens_getIntMultFactor
 
 
   subroutine ens_copyEnsMean(ens, statevector, subEnsIndex)
@@ -411,8 +497,8 @@ CONTAINS
     integer :: readFilePE(1000)
     integer :: memberIndexOffset, totalEnsembleSize
     integer :: length_envVariable
-    integer :: lonPerPE, latPerPE, ni, nj, nk, numStep
-    integer :: memberIndex, memberIndex2, fileMemberIndex, stepIndex, jvar
+    integer :: lonPerPE, latPerPE, ni, nj, nk, numStep, numlevelstosend, numlevelstosend2
+    integer :: memberIndex, memberIndex2, fileMemberIndex, stepIndex, jvar, jk, jk2
     integer :: ensembleFileExtLength
     character(len=256) :: ensFileName
     character(len=32)  :: envVariable
@@ -420,6 +506,9 @@ CONTAINS
     character(len=12)  :: etiket
     character(len=4)   :: varName
     logical            :: verticalInterpNeeded, horizontalInterpNeeded, HUcontainsLQinFile
+
+    write(*,*) 'ens_readEnsemble: starting'
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     if( .not. ens%allocated ) then
       call utl_abort('ens_readEnsemble: ensemble object not allocated!')
@@ -437,8 +526,9 @@ CONTAINS
     ens%ensPathName = trim(ensPathName)
 
     ! Memory allocation
-    allocate(gd_send_r4(lonPerPE,latPerPE,nk,mpi_nprocs))
-    allocate(gd_recv_r4(lonPerPE,latPerPE,nk,mpi_nprocs))
+    numLevelsToSend = 10
+    allocate(gd_send_r4(lonPerPE,latPerPE,numLevelsToSend,mpi_nprocs))
+    allocate(gd_recv_r4(lonPerPE,latPerPE,numLevelsToSend,mpi_nprocs))
 
     allocate(dateStampList(numStep))
     call tim_getstamplist(dateStampList,numStep,tim_getDatestamp())
@@ -520,7 +610,9 @@ CONTAINS
 
         if (mpi_myid == readFilePE(memberIndex)) then
 
-          !  2.1.1 open the file
+          write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+          !  Read the file
           fileMemberIndex = 1+mod(memberIndex+memberIndexOffset-1, totalEnsembleSize)
           call ens_fileName(ensFileName, ensPathName, ensFileBaseName, fileMemberIndex)
           typvar = ' '
@@ -529,6 +621,9 @@ CONTAINS
             call gsv_readFile(statevector_member_r4, ensFileName, etiket, typvar, HUcontainsLQinFile)
           else
             call gsv_readFile(statevector_file_r4, ensFileName, etiket, typvar, HUcontainsLQinFile)
+          endif
+          if(stepIndex == numStep) then
+            ierr = top_ramDiskRemove(ensFileName)
           endif
 
           ! do any required interpolation
@@ -576,43 +671,48 @@ CONTAINS
 
         endif ! locally read one member
 
+
         !  MPI communication: from 1 ensemble member per process to 1 lat-lon tile per process  
         if (readFilePE(memberIndex) == (mpi_nprocs-1) .or. memberIndex == ens%numMembers) then
 
           call tmg_start(13,'PRE_SUENS_COMM')
           batchnum = ceiling(dble(memberIndex)/dble(mpi_nprocs))
 
-          ptr3d_r4 => gsv_getField3D_r4(statevector_member_r4)
+          do jk = 1, nk, numLevelsToSend
+            jk2 = min(nk,jk+numLevelsToSend-1)
+            numLevelsToSend2 = jk2 - jk + 1
+
+            ptr3d_r4 => gsv_getField3D_r4(statevector_member_r4)
 !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
-          do youridy = 0, (mpi_npey-1)
-            do youridx = 0, (mpi_npex-1)
-              yourid = youridx + youridy*mpi_npex
-              gd_send_r4(:,:,:,yourid+1) =  &
-                ptr3d_r4(ens%statevector(1)%allLonBeg(youridx+1):ens%statevector(1)%allLonEnd(youridx+1),  &
-                         ens%statevector(1)%allLatBeg(youridy+1):ens%statevector(1)%allLatEnd(youridy+1),:)
+            do youridy = 0, (mpi_npey-1)
+              do youridx = 0, (mpi_npex-1)
+                yourid = youridx + youridy*mpi_npex
+                gd_send_r4(:,:,1:numLevelsToSend2,yourid+1) =  &
+                  ptr3d_r4(ens%statevector(1)%allLonBeg(youridx+1):ens%statevector(1)%allLonEnd(youridx+1),  &
+                           ens%statevector(1)%allLatBeg(youridy+1):ens%statevector(1)%allLatEnd(youridy+1),jk:jk2)
+              enddo
             enddo
-          enddo
 !$OMP END PARALLEL DO
 
-          nsize = lonPerPE*latPerPE*nk
-          if (mpi_nprocs.gt.1) then
-            call rpn_comm_alltoall(gd_send_r4,nsize,"mpi_real4",  &
-                                   gd_recv_r4,nsize,"mpi_real4","GRID",ierr)
-          else
-            gd_recv_r4(:,:,:,1) = gd_send_r4(:,:,:,1)
-          endif
+            nsize = lonPerPE*latPerPE*numLevelsToSend2
+            if (mpi_nprocs.gt.1) then
+              call rpn_comm_alltoall(gd_send_r4(:,:,1:numLevelsToSend2,:),nsize,"mpi_real4",  &
+                                     gd_recv_r4(:,:,1:numLevelsToSend2,:),nsize,"mpi_real4","GRID",ierr)
+            else
+              gd_recv_r4(:,:,1:numLevelsToSend2,1) = gd_send_r4(:,:,1:numLevelsToSend2,1)
+            endif
 
 !$OMP PARALLEL DO PRIVATE(memberIndex2,yourid,ptr4d_r4)
-          do memberIndex2 = 1+(batchnum-1)*mpi_nprocs, memberIndex
-            yourid = readFilePE(memberIndex2)
-            ptr4d_r4 => gsv_getField_r4(ens%statevector(memberIndex2))
-            ptr4d_r4(:,:,:,stepIndex) = gd_recv_r4(:,:,:,yourid+1)
-          enddo
+            do memberIndex2 = 1+(batchnum-1)*mpi_nprocs, memberIndex
+              yourid = readFilePE(memberIndex2)
+              ptr4d_r4 => gsv_getField_r4(ens%statevector(memberIndex2))
+              ptr4d_r4(:,:,jk:jk2,stepIndex) = gd_recv_r4(:,:,1:numLevelsToSend2,yourid+1)
+            enddo
 !$OMP END PARALLEL DO
 
+          enddo ! jk
           call tmg_stop(13)
 
-          write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
         endif ! MPI communication
 
 
@@ -631,6 +731,7 @@ CONTAINS
     call hco_deallocate(hco_file)
     call vco_deallocate(vco_file)
 
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     write(*,*) 'ens_readEnsemble: finished reading and communicating ensemble members...'
 
   end subroutine ens_readEnsemble
@@ -693,6 +794,8 @@ CONTAINS
                       trim(datestr_last) // trim(hourstr_last) // '_006_' // trim(ensNumber)
       endif
     endif
+
+    ensFileName = top_fullWorkingPath(ensFileName)
 
   end subroutine ens_fileName
 

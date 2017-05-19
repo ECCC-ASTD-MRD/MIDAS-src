@@ -5399,6 +5399,8 @@ contains
       integer,          allocatable :: intcfamily_send(:,:,:), intcfamily_recv(:,:,:)
       real(OBS_REAL),   allocatable :: real_send(:,:,:), real_recv(:,:,:)
       integer,          allocatable :: int_send(:,:,:), int_recv(:,:,:), message_onm(:,:)
+      real(OBS_REAL),   allocatable :: real_send_2d(:,:), real_recv_2d(:,:)
+      integer,          allocatable :: int_send_2d(:,:), int_recv_2d(:,:)
       integer :: numHeader_in, numBody_in
       integer :: numHeader_out, numBody_out
       integer :: numHeader_mpimessage, numBody_mpimessage
@@ -5406,7 +5408,9 @@ contains
       integer :: bodyIndexBeg, bodyIndexEnd
       integer :: nprocs_mpi, myid_mpi, ierr, nsize, target_ip
       logical :: needToRedistribute, needToRedistribute_mpiglobal
+      integer :: get_max_rss
 
+      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
       write(*,*) '============= Enter obs_MpiRedistribute =============='
       write(*,*) 'redistribute data according to mpi task ID stored in column :', &
                  ocn_ColumnNameList_IH(target_ip_index)
@@ -5461,10 +5465,10 @@ contains
                               "MPI_INTEGER","MPI_MAX","GRID",ierr)
       call rpn_comm_allreduce(numBodyPE_mpilocal,numBodyPE_mpiglobal,nprocs_mpi,  &
                               "MPI_INTEGER","MPI_MAX","GRID",ierr)
-      write(*,*) 'obs_MpiRedistribute: num mpi header messages =', numHeaderPE_mpilocal
-      write(*,*) 'obs_MpiRedistribute: num mpi body messages =', numBodyPE_mpilocal
-      write(*,*) 'obs_MpiRedistribute: num mpi header messages (max) =', numHeaderPE_mpiglobal
-      write(*,*) 'obs_MpiRedistribute: num mpi body messages (max) =', numBodyPE_mpiglobal
+      if(myid_mpi == 0) write(*,*) 'obs_MpiRedistribute: num mpi header messages =', numHeaderPE_mpilocal
+      if(myid_mpi == 0) write(*,*) 'obs_MpiRedistribute: num mpi body messages =', numBodyPE_mpilocal
+      if(myid_mpi == 0) write(*,*) 'obs_MpiRedistribute: num mpi header messages (max) =', numHeaderPE_mpiglobal
+      if(myid_mpi == 0) write(*,*) 'obs_MpiRedistribute: num mpi body messages (max) =', numBodyPE_mpiglobal
       numHeader_mpimessage = maxval(numHeaderPE_mpiglobal(:))
       numBody_mpimessage   = maxval(numBodyPE_mpiglobal(:))
 
@@ -5610,116 +5614,147 @@ contains
       deallocate(int_send)
       deallocate(int_recv)
 
+      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-      ! allocate temporary arrays to hold body-level data for mpi communication
-      allocate(real_send(odc_numActiveColumn(obsdat_inout%realBodies), &
-                         numBody_mpimessage,nprocs_mpi))
-      allocate(real_recv(odc_numActiveColumn(obsdat_inout%realBodies), &
-                         numBody_mpimessage,nprocs_mpi))
-      allocate(int_send(odc_numActiveColumn(obsdat_inout%intBodies), &
-                        numBody_mpimessage,nprocs_mpi))
-      allocate(int_recv(odc_numActiveColumn(obsdat_inout%intBodies), &
-                        numBody_mpimessage,nprocs_mpi))
+      ! First do REAL body columns
 
-      ! copy the data to temporary arrays: body-level data
-      numBodyPE_mpilocal(:) = 0
-      int_send(:,:,:) = -99999
-      do bodyIndex=1,numBody_in
-         headerIndex = obs_bodyElem_i(obsdat_inout,OBS_HIND,bodyIndex)
-         target_ip = obs_headElem_i(obsdat_inout,target_ip_index,headerIndex)
-         numBodyPE_mpilocal(1+target_ip) = numBodyPE_mpilocal(1+target_ip) + 1
+      allocate(real_send_2d(numBody_mpimessage,nprocs_mpi))
+      allocate(real_recv_2d(numBody_mpimessage,nprocs_mpi))
 
-         do activeIndex=1,odc_numActiveColumn(obsdat_inout%realBodies)
-            columnIndex=odc_columnIndexFromActiveIndex(obsdat_inout%realBodies%odc_flavour, &
-                                                       activeIndex)
-            real_send(activeIndex,numBodyPE_mpilocal(1+target_ip),1+target_ip)= &
+      do activeIndex=1,odc_numActiveColumn(obsdat_inout%realBodies)
+         columnIndex=odc_columnIndexFromActiveIndex(obsdat_inout%realBodies%odc_flavour, &
+                                                    activeIndex)
+
+         ! copy the data to temporary arrays: body-level data
+         numBodyPE_mpilocal(:) = 0
+         real_send_2d(:,:) = -99999.0d0
+         do bodyIndex=1,numBody_in
+            headerIndex = obs_bodyElem_i(obsdat_inout,OBS_HIND,bodyIndex)
+            target_ip = obs_headElem_i(obsdat_inout,target_ip_index,headerIndex)
+            numBodyPE_mpilocal(1+target_ip) = numBodyPE_mpilocal(1+target_ip) + 1
+            real_send_2d(numBodyPE_mpilocal(1+target_ip),1+target_ip)= &
                obs_bodyElem_r(obsdat_inout, columnIndex, bodyIndex)
          enddo
 
-         do activeIndex=1,odc_numActiveColumn(obsdat_inout%intBodies)
-            columnIndex=odc_columnIndexFromActiveIndex(obsdat_inout%intBodies%odc_flavour, &
-                                                       activeIndex)
-            int_send(activeIndex,numBodyPE_mpilocal(1+target_ip),1+target_ip)= &
+         ! do mpi communication: body-level data
+         if(nprocs_mpi.gt.1) then
+           nsize = numBody_mpimessage
+           call rpn_comm_alltoall(real_send_2d,nsize,"mpi_double_precision",  &
+                                  real_recv_2d,nsize,"mpi_double_precision","GRID",ierr)
+         else
+           real_recv_2d(:,1)       = real_send_2d(:,1)
+         endif
+
+         ! copy the data from temporary arrays: body-level data
+         if(target_ip_index.eq.OBS_IPF) then
+
+            ! copy the data in the same order as in the original files
+            do procIndex = 1, nprocs_mpi
+               bodyIndex = 0
+               do headerIndex=1,numHeader_mpimessage
+                  headerIndex_out = message_onm(headerIndex,procIndex)
+                  if(headerIndex_out.ne.-99999) then
+                     bodyIndexBeg = obs_headElem_i(obsdat_tmp,OBS_RLN,headerIndex_out)
+                     bodyIndexEnd = obs_headElem_i(obsdat_tmp,OBS_NLV,headerIndex_out) + bodyIndexBeg - 1
+                     do bodyIndex_out = bodyIndexBeg, bodyIndexEnd
+                        bodyIndex = bodyIndex + 1
+                        obsdat_tmp%realBodies%columns(columnIndex)%value_r(bodyIndex_out)= &
+                           real_recv_2d(bodyIndex,procIndex)
+                     enddo
+                  endif
+               enddo
+            enddo
+
+         else
+
+            ! copy the data in sequential order
+            bodyIndex_out = 0
+            do procIndex = 1, nprocs_mpi
+               do bodyIndex=1,numBody_mpimessage
+                  if(real_recv_2d(bodyIndex,procIndex).ne.-99999.0d0) then
+                     bodyIndex_out = bodyIndex_out + 1
+                     obsdat_tmp%realBodies%columns(columnIndex)%value_r(bodyIndex_out)= &
+                        real_recv_2d(bodyIndex,procIndex)
+                  endif
+               enddo
+            enddo
+
+         endif
+
+      enddo ! activeIndex
+
+      deallocate(real_send_2d)
+      deallocate(real_recv_2d)
+
+      ! Now do INTEGER body columns
+
+      allocate(int_send_2d(numBody_mpimessage,nprocs_mpi))
+      allocate(int_recv_2d(numBody_mpimessage,nprocs_mpi))
+
+      do activeIndex=1,odc_numActiveColumn(obsdat_inout%intBodies)
+         columnIndex=odc_columnIndexFromActiveIndex(obsdat_inout%intBodies%odc_flavour, &
+                                                    activeIndex)
+
+         ! copy the data to temporary arrays: body-level data
+         numBodyPE_mpilocal(:) = 0
+         int_send_2d(:,:) = -99999
+         do bodyIndex=1,numBody_in
+            headerIndex = obs_bodyElem_i(obsdat_inout,OBS_HIND,bodyIndex)
+            target_ip = obs_headElem_i(obsdat_inout,target_ip_index,headerIndex)
+            numBodyPE_mpilocal(1+target_ip) = numBodyPE_mpilocal(1+target_ip) + 1
+            int_send_2d(numBodyPE_mpilocal(1+target_ip),1+target_ip)= &
                obs_bodyElem_i(obsdat_inout, columnIndex, bodyIndex)
          enddo
 
-      enddo
+         ! do mpi communication: body-level data
+         if(nprocs_mpi.gt.1) then
+           nsize = numBody_mpimessage
+           call rpn_comm_alltoall(int_send_2d,nsize,"mpi_integer",  &
+                                  int_recv_2d,nsize,"mpi_integer","GRID",ierr)
+         else
+           int_recv_2d(:,1)        = int_send_2d(:,1)
+         endif
 
-      ! do mpi communication: body-level data
-      if(nprocs_mpi.gt.1) then
-        nsize = numBody_mpimessage*odc_numActiveColumn(obsdat_inout%realBodies)
-        call rpn_comm_alltoall(real_send,nsize,"mpi_double_precision",  &
-                               real_recv,nsize,"mpi_double_precision","GRID",ierr)
+         ! copy the data from temporary arrays: body-level data
+         if(target_ip_index.eq.OBS_IPF) then
 
-        nsize = numBody_mpimessage*odc_numActiveColumn(obsdat_inout%intBodies)
-        call rpn_comm_alltoall(int_send,nsize,"mpi_integer",  &
-                               int_recv,nsize,"mpi_integer","GRID",ierr)
-      else
-        real_recv(:,:,1)       = real_send(:,:,1)
-        int_recv(:,:,1)        = int_send(:,:,1)
-      endif
-
-      ! copy the data from temporary arrays: body-level data
-      if(target_ip_index.eq.OBS_IPF) then
-
-         ! copy the data in the same order as in the original files
-         do procIndex = 1, nprocs_mpi
-            bodyIndex = 0
-            do headerIndex=1,numHeader_mpimessage
-               headerIndex_out = message_onm(headerIndex,procIndex)
-               if(headerIndex_out.ne.-99999) then
-                  bodyIndexBeg = obs_headElem_i(obsdat_tmp,OBS_RLN,headerIndex_out)
-                  bodyIndexEnd = obs_headElem_i(obsdat_tmp,OBS_NLV,headerIndex_out) + bodyIndexBeg - 1
-                  do bodyIndex_out = bodyIndexBeg, bodyIndexEnd
-                     bodyIndex = bodyIndex + 1
-
-                     do activeIndex=1,odc_numActiveColumn(obsdat_inout%realBodies)
-                        columnIndex=odc_columnIndexFromActiveIndex(obsdat_inout%realBodies%odc_flavour, &
-                                                                   activeIndex)
-                        obsdat_tmp%realBodies%columns(columnIndex)%value_r(bodyIndex_out)= &
-                           real_recv(activeIndex,bodyIndex,procIndex)
-                     enddo
-
-                     do activeIndex=1,odc_numActiveColumn(obsdat_inout%intBodies)
-                        columnIndex=odc_columnIndexFromActiveIndex(obsdat_inout%intBodies%odc_flavour, &
-                                                                   activeIndex)
+            ! copy the data in the same order as in the original files
+            do procIndex = 1, nprocs_mpi
+               bodyIndex = 0
+               do headerIndex=1,numHeader_mpimessage
+                  headerIndex_out = message_onm(headerIndex,procIndex)
+                  if(headerIndex_out.ne.-99999) then
+                     bodyIndexBeg = obs_headElem_i(obsdat_tmp,OBS_RLN,headerIndex_out)
+                     bodyIndexEnd = obs_headElem_i(obsdat_tmp,OBS_NLV,headerIndex_out) + bodyIndexBeg - 1
+                     do bodyIndex_out = bodyIndexBeg, bodyIndexEnd
+                        bodyIndex = bodyIndex + 1
                         obsdat_tmp%intBodies%columns(columnIndex)%value_i(bodyIndex_out)= &
-                           int_recv(activeIndex,bodyIndex,procIndex)
+                           int_recv_2d(bodyIndex,procIndex)
                      enddo
-
-                  enddo
-               endif
+                  endif
+               enddo
             enddo
-         enddo
 
-      else
+         else
 
-         ! copy the data in sequential order
-         bodyIndex_out = 0
-         do procIndex = 1, nprocs_mpi
-            do bodyIndex=1,numBody_mpimessage
-               if(int_recv(1,bodyIndex,procIndex).ne.-99999) then
-                  bodyIndex_out = bodyIndex_out + 1
-
-                  do activeIndex=1,odc_numActiveColumn(obsdat_inout%realBodies)
-                     columnIndex=odc_columnIndexFromActiveIndex(obsdat_inout%realBodies%odc_flavour, &
-                                                                activeIndex)
-                     obsdat_tmp%realBodies%columns(columnIndex)%value_r(bodyIndex_out)= &
-                        real_recv(activeIndex,bodyIndex,procIndex)
-                  enddo
-
-                  do activeIndex=1,odc_numActiveColumn(obsdat_inout%intBodies)
-                     columnIndex=odc_columnIndexFromActiveIndex(obsdat_inout%intBodies%odc_flavour, &
-                                                                activeIndex)
+            ! copy the data in sequential order
+            bodyIndex_out = 0
+            do procIndex = 1, nprocs_mpi
+               do bodyIndex=1,numBody_mpimessage
+                  if(int_recv_2d(bodyIndex,procIndex).ne.-99999) then
+                     bodyIndex_out = bodyIndex_out + 1
                      obsdat_tmp%intBodies%columns(columnIndex)%value_i(bodyIndex_out)= &
-                        int_recv(activeIndex,bodyIndex,procIndex)
-                  enddo
-
-               endif
+                        int_recv_2d(bodyIndex,procIndex)
+                  endif
+               enddo
             enddo
-         enddo
 
-      endif
+         endif
+
+      enddo ! activeIndex
+
+      deallocate(int_send_2d)
+      deallocate(int_recv_2d)
 
       ! reset the headerIndex within the body
       do headerIndex = 1, obs_numheader(obsdat_tmp)
@@ -5730,16 +5765,14 @@ contains
         enddo
       enddo
 
-      deallocate(real_send)
-      deallocate(real_recv)
-      deallocate(int_send)
-      deallocate(int_recv)
       deallocate(message_onm)
 
       deallocate(numHeaderPE_mpilocal)
       deallocate(numHeaderPE_mpiglobal)
       deallocate(numBodyPE_mpilocal)
       deallocate(numBodyPE_mpiglobal)
+
+      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
       ! reallocate obsdat_inout to the new size and copy over redistributed data
       call obs_deallocate(obsdat_inout)
@@ -5748,6 +5781,7 @@ contains
       call obs_finalize(obsdat_tmp)
 
       write(*,*) '============= Leave obs_MpiRedistribute =============='
+      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
       return
    end subroutine obs_MpiRedistribute
