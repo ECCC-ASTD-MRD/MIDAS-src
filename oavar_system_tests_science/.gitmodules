@@ -1,3 +1,0 @@
-[submodule "modules/envar"]
-	path = modules/envar
-	url = git@gitlab.science.gc.ca:atmospheric-data-assimilation/envar_maestro_module.git
