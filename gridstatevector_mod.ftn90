@@ -39,7 +39,7 @@ module gridStateVector_mod
   ! public subroutines and functions
   public :: gsv_setup, gsv_allocate, gsv_deallocate, gsv_zero, gsv_3dto4d, gsv_3dto4dAdj
   public :: gsv_getOffsetFromVarName, gsv_getLevFromK, gsv_getVarNameFromK
-  public :: gsv_writeToFileMpi, gsv_readFromFile, gsv_readTrials, gsv_readFile
+  public :: gsv_writeToFileMpi, gsv_writeToFile, gsv_readFromFile, gsv_readTrials, gsv_readFile
   public :: gsv_hInterpolate, gsv_vInterpolate
   public :: gsv_getField_r8, gsv_getField3D_r8, gsv_getField_r4, gsv_getField3D_r4
   public :: gsv_getField_i2, gsv_getField3D_i2, gsv_convertToInteger
@@ -684,9 +684,9 @@ module gridStateVector_mod
     if( statevector_inout%dataKind == 8 .and. statevector_in%dataKind == 8 ) then
 
       if(present(scaleFactor)) then
-!$OMP PARALLEL DO PRIVATE (jstep,jlat,jlev,jlon)    
-        do jlev = k1, k2
-          do jstep = 1, statevector_inout%numStep
+        do jstep = 1, statevector_inout%numStep
+!$OMP PARALLEL DO PRIVATE (jlat,jlev,jlon)    
+          do jlev = k1, k2
             do jlat = lat1, lat2
               do jlon = lon1, lon2
                 statevector_inout%gd_r8(jlon,jlat,jlev,jstep) = statevector_inout%gd_r8(jlon,jlat,jlev,jstep) +  &
@@ -694,12 +694,12 @@ module gridStateVector_mod
               enddo
             enddo
           enddo
-        enddo
 !$OMP END PARALLEL DO
+        enddo
       else
-!$OMP PARALLEL DO PRIVATE (jstep,jlat,jlev,jlon)    
-        do jlev = k1, k2
-          do jstep = 1, statevector_inout%numStep
+        do jstep = 1, statevector_inout%numStep
+!$OMP PARALLEL DO PRIVATE (jlat,jlev,jlon)    
+          do jlev = k1, k2
             do jlat = lat1, lat2
               do jlon = lon1, lon2
                 statevector_inout%gd_r8(jlon,jlat,jlev,jstep) = statevector_inout%gd_r8(jlon,jlat,jlev,jstep) +  &
@@ -707,8 +707,8 @@ module gridStateVector_mod
               enddo
             enddo
           enddo
-        enddo
 !$OMP END PARALLEL DO
+        enddo
       endif
 
     elseif( statevector_inout%dataKind == 4 .and. statevector_in%dataKind == 4 ) then
@@ -2745,6 +2745,227 @@ module gridStateVector_mod
     write(*,*) 'gsv_writeToFileMpi: END'
 
   end subroutine gsv_writeToFileMpi
+
+  !--------------------------------------------------------------------------
+  ! gsv_writeToFile
+  !--------------------------------------------------------------------------
+  subroutine gsv_writeToFile(statevector, fileName, etiket_in, scaleFactor, ip3_in, &
+       indexStep_in, HUcontainsLQ, unitconversion)
+    implicit none
+
+    ! arguments
+    type(struct_gsv)             :: statevector
+    character(len=*), intent(in) :: fileName
+    character(len=*), intent(in) :: etiket_in
+    real(8), optional,intent(in) :: scaleFactor
+    integer, optional,intent(in) :: ip3_in, indexStep_in
+    logical, optional,intent(in) :: HUcontainsLQ
+    logical, optional,intent(in) :: unitconversion
+
+    ! locals
+    integer :: fclos, fnom, fstouv, fstfrm
+    integer :: nulfile, indexStep
+    real(4), allocatable :: work2d_r4(:,:), gd_send_r4(:,:), gd_recv_r4(:,:,:)
+    real(4)   :: factor_r4, work_r4
+    integer   :: ierr, fstecr
+    integer   :: var, k, kgdim
+    integer :: ni, nj, nk
+    integer :: dateo, npak, ji, jj, jlev, jlev_last, nlev, jvar
+    integer :: ip1, ip2, ip3, deet, npas, datyp
+    integer :: ig1 ,ig2 ,ig3 ,ig4
+    integer :: batchnum, jlev2, yourid, nsize, youridy, youridx
+    character(len=1)  :: grtyp
+    character(len=4)  :: nomvar
+    character(len=2)  :: typvar
+    character(len=12) :: etiket
+    logical :: iDoWriting,unitconversion2
+    real(8), pointer :: field(:,:,:,:),field_ref(:,:,:,:)
+
+    write(*,*) 'gsv_writeToFile: START'
+
+    if ( .not. statevector%mpi_local ) then
+      call utl_abort('gsv_writeToFile: cannot use this subroutine for mpiglobal data!')
+    endif
+
+    call tmg_start(5,'WRITETOFILE')
+
+    if(present(ip3_in)) then
+      ip3 = ip3_in
+    else
+      ip3 = 0
+    endif
+
+    if(present(unitConversion)) then
+      unitConversion2 = unitConversion
+    else
+      unitConversion2 = .true.
+    endif
+
+    ! if step index not specified, choose anltime (usually center of window)
+    if(present(indexStep_in)) then
+      indexStep = indexStep_in
+    else
+      indexStep = statevector%anltime
+    endif
+
+    ! initialization of parameters for writing to file
+    npak   = -32
+    dateo  = statevector%dateStampList(indexStep)
+    deet   = 0
+    npas   = 0
+    ni     = statevector%ni
+    nj     = statevector%nj
+    nk     = 1
+    ip2    = 0
+    typvar = 'R'
+    etiket = trim(Etiket_in)
+    grtyp  = statevector%hco%grtyp
+    ig1    = statevector%hco%ig1
+    ig2    = statevector%hco%ig2
+    ig3    = statevector%hco%ig3
+    ig4    = statevector%hco%ig4
+    datyp  = 1
+
+    nlev = max(gsv_getNumLev(statevector,'MM'),gsv_getNumLev(statevector,'TH'))
+
+    ! only proc 0 does writing
+    iDoWriting = (mpi_myid == 0)
+
+    !
+    !- Write the global StateVector
+    !
+    if (iDoWriting) then
+
+      !- Open output field
+      nulfile = 0
+      write(*,*) 'gsv_writeToFile: file name = ',trim(fileName)
+      ierr = fnom(nulfile,trim(fileName),'RND',0)
+       
+      if ( ierr >= 0 ) then
+        write(*,*)'gsv_writeToFile: file opened with unit number ',nulfile
+        ierr  =  fstouv(nulfile,'RND')
+      else
+        call utl_abort('gsv_writeToFile: problem opening output file, aborting!')
+      end if
+
+      if (nulfile == 0 ) then
+        call utl_abort('gsv_writeToFile: unit number for output file not valid!')
+      endif
+
+      !- Write TicTacToc
+      if(mpi_myid == 0) call WriteTicTacToc(statevector,nulfile) ! IN
+
+    endif
+
+    allocate(gd_send_r4(statevector%lonPerPE,statevector%latPerPE))
+    if( mpi_myid == 0 ) then
+      allocate(gd_recv_r4(statevector%lonPerPE,statevector%latPerPE,mpi_nprocs))
+      allocate(work2d_r4(statevector%ni,statevector%nj))
+    else
+      allocate(gd_recv_r4(1,1,1))
+      allocate(work2d_r4(1,1))
+    endif
+
+    do jvar = 1, vnl_numvarmax 
+ 
+      if (gsv_varExist(statevector,vnl_varNameList(jvar)) ) then
+        field => gsv_getField_r8(statevector,vnl_varNameList(jvar))
+
+        nlev = statevector%varNumLev(jvar)
+
+        do jlev = 1, nlev
+
+          gd_send_r4(:,:) =  &
+              real(field(statevector%myLonBeg:statevector%myLonEnd, &
+                            statevector%myLatBeg:statevector%myLatEnd,jlev,indexStep),4)
+
+          nsize = statevector%lonPerPE*statevector%latPerPE
+          if(mpi_nprocs.gt.1) then
+            call rpn_comm_gather(gd_send_r4, nsize, "mpi_real4",  &
+                                 gd_recv_r4, nsize, "mpi_real4", 0, "GRID", ierr )
+          else
+            gd_recv_r4(:,:,1) = gd_send_r4(:,:)
+          endif
+
+          if( mpi_myid == 0 ) then
+!$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
+            do youridy = 0, (mpi_npey-1)
+              do youridx = 0, (mpi_npex-1)
+                yourid = youridx + youridy*mpi_npex
+                  work2d_r4(statevector%allLonBeg(youridx+1):statevector%allLonEnd(youridx+1),  &
+                            statevector%allLatBeg(youridy+1):statevector%allLatEnd(youridy+1)) = &
+                    gd_recv_r4(:,:,yourid+1)
+              enddo
+            enddo
+!$OMP END PARALLEL DO
+          endif
+
+          ! now do writing
+          if (iDoWriting) then
+
+            ! Set the ip1 value
+            if (vnl_varLevelFromVarname(vnl_varNameList(jvar)) == 'MM') then
+               ip1 = statevector%vco%ip1_M(jlev)
+            elseif (vnl_varLevelFromVarname(vnl_varNameList(jvar)) == 'TH') then
+               ip1 = statevector%vco%ip1_T(jlev)
+            elseif (vnl_varLevelFromVarname(vnl_varNameList(jvar)) == 'SF') then
+               ip1 = 0
+            else
+               write(*,*) 'gsv_writeToFile: unknown type of vertical level: ',  &
+                          vnl_varLevelFromVarname(vnl_varNameList(jvar))
+               call utl_abort('gsv_writeToFile')
+            end if
+
+            ! Set the output variable name
+            nomvar = trim(vnl_varNameList(jvar))
+            if ( trim(nomvar) == 'HU' .and. present(HUcontainsLQ) ) then
+               if ( HUcontainsLQ ) nomvar = 'LQ'
+            end if
+
+            ! Set the conversion factor
+            if ( unitConversion2 ) then
+              if ( trim(nomvar) == 'UU' .or. trim(nomvar) == 'VV') then
+                factor_r4 = MPC_KNOTS_PER_M_PER_S_R4 ! m/s -> knots
+              else if ( trim(nomvar) == 'P0' ) then
+                factor_r4 = 0.01 ! Pa -> hPa
+              else
+                factor_r4 = 1.0
+              end if
+            else
+              factor_r4 = 1.0
+            end if
+
+            if (present(scaleFactor)) factor_r4 = factor_r4 * real(scaleFactor,4)
+
+            !- Scale
+            work2d_r4(:,:) = factor_r4 * work2d_r4(:,:)
+
+            !- Writing to file
+            ierr = fstecr(work2d_r4, work_r4, npak, nulfile, dateo, deet, npas, ni, nj, &
+                          nk, ip1, ip2, ip3, typvar, nomvar, etiket, grtyp,      &
+                          ig1, ig2, ig3, ig4, datyp, .true.)
+
+          endif ! iDoWriting
+
+        enddo ! jlev
+
+      end if ! varExist
+
+    enddo ! jvar
+
+    deallocate(work2d_r4)
+    deallocate(gd_send_r4)
+    deallocate(gd_recv_r4)
+
+    if(iDoWriting) then
+      ierr = fstfrm(nulfile)
+      ierr = fclos(nulfile)        
+    endif
+       
+    call tmg_stop(5)
+    write(*,*) 'gsv_writeToFile: END'
+
+  end subroutine gsv_writeToFile
 
   !--------------------------------------------------------------------------
   ! WriteTicTacToc

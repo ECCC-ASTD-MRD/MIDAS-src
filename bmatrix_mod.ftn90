@@ -48,7 +48,7 @@ MODULE BMatrix_mod
   
   ! public procedures
   public :: bmat_setup, bmat_finalize, bmat_sqrtB, bmat_sqrtBT
-  public :: bmat_reduceToMPILocal, bmat_expandToMPIGlobal
+  public :: bmat_reduceToMPILocal, bmat_reduceToMPILocal_r4, bmat_expandToMPIGlobal, bmat_expandToMPIGlobal_r4
   ! public procedures through inheritance
   public :: bhi_getScaleFactor,bhi_truncateCV,ben_getScaleFactor,ben_getnEns,ben_getPerturbation
   public :: bchm_getScaleFactor,bchm_truncateCV
@@ -445,6 +445,73 @@ contains
   END SUBROUTINE BMAT_reduceToMPILocal
 
 !--------------------------------------------------------------------------
+! BMAT_reduceToMPILocal_r4
+!--------------------------------------------------------------------------
+  SUBROUTINE BMAT_reduceToMPILocal_r4(cv_mpilocal,cv_mpiglobal,cvDim_mpilocal_out)
+    !
+    ! Revision:
+    !           Ping Du, CMDA/MSC, Dec 2014
+    !           - Additions for chemical constituents (see cv*Bchm*)
+    !
+    ! Comments:
+    !
+    ! - LAM and ensemble components for constituents tbd.
+    !
+    implicit none
+    real(4), intent(out) :: cv_mpilocal(:)
+    real(4), intent(in)  :: cv_mpiglobal(:)
+    integer, intent(out) :: cvDim_mpilocal_out
+
+    integer :: cvDim_Bhi_mpilocal,cvDim_Ben_mpilocal,cvDim_Bchm_mpilocal
+
+    real(4),pointer :: cvBhi_mpilocal(:) ,cvBen_mpilocal(:),cvBchm_mpilocal(:)
+    real(4),pointer :: cvBhi_mpiglobal(:),cvBen_mpiglobal(:),cvBchm_mpiglobal(:)
+
+    cvBhi_mpilocal =>cvm_getSubVector_r4(cv_mpilocal,1)
+    if (mpi_myid == 0) then
+       cvBhi_mpiglobal=>cvm_getSubVector_mpiglobal_r4(cv_mpiglobal,1)
+    else
+       cvBhi_mpiglobal=>null()
+    end if
+    if(associated(cvBhi_mpilocal)) then
+      if ( hco_anl%global ) then 
+         call bhi_reduceToMPILocal_r4 (cvBhi_mpilocal,cvBhi_mpiglobal,cvDim_Bhi_mpilocal)
+      else
+         call lbhi_reduceToMPILocal_r4(cvBhi_mpilocal,cvBhi_mpiglobal,cvDim_Bhi_mpilocal)
+      end if
+    endif
+
+    cvBen_mpilocal =>cvm_getSubVector_r4(cv_mpilocal,2)
+    if (mpi_myid == 0) then
+       cvBen_mpiglobal=>cvm_getSubVector_mpiglobal_r4(cv_mpiglobal,2)
+    else
+       cvBen_mpiglobal=>null()
+    end  if
+    if(associated(cvBen_mpilocal)) then
+       call ben_reduceToMPILocal_r4(cvBen_mpilocal,cvBen_mpiglobal,cvDim_Ben_mpilocal)
+    end if
+
+    cvBchm_mpilocal =>cvm_getSubVector_r4(cv_mpilocal,3)
+    if (mpi_myid == 0) then
+       cvBchm_mpiglobal=>cvm_getSubVector_mpiglobal_r4(cv_mpiglobal,3)
+    else
+       cvBchm_mpiglobal=>null()
+    end if
+    if(associated(cvBchm_mpilocal)) then
+      if ( hco_anl%global ) then 
+         call bchm_reduceToMPILocal_r4(cvBchm_mpilocal,cvBchm_mpiglobal,cvDim_Bchm_mpilocal)
+      else
+!         Done in lbhi_reducetoMPILocal
+      end if
+    end if
+
+
+    cvDim_mpilocal_out = cvDim_Bhi_mpilocal + cvDim_Ben_mpilocal + &
+                         cvDim_Bchm_mpilocal
+
+  END SUBROUTINE BMAT_reduceToMPILocal_r4
+
+!--------------------------------------------------------------------------
 ! BMAT_expandToMPIGlobal
 !--------------------------------------------------------------------------
   SUBROUTINE BMAT_expandToMPIGlobal(cv_mpilocal,cv_mpiglobal,cvDim_mpiglobal_out)
@@ -508,6 +575,76 @@ contains
       end if
     endif
 
+    cvDim_mpiglobal_out = 0 ! not used
+
   end SUBROUTINE BMAT_expandToMPIGlobal
+
+!--------------------------------------------------------------------------
+! BMAT_expandToMPIGlobal_r4
+!--------------------------------------------------------------------------
+  SUBROUTINE BMAT_expandToMPIGlobal_r4(cv_mpilocal,cv_mpiglobal,cvDim_mpiglobal_out)
+    !
+    ! Revision:
+    !           Ping Du, CMDA/MSC, July 2014
+    !           - Additions for chemical constituents (see cvBchm*)
+    !
+    ! Comments:
+    !
+    ! - LAM and ensemble components for constituents tbd.
+    !
+    implicit none
+
+    real(4), intent(in)  :: cv_mpilocal(:)
+    real(4), intent(out) :: cv_mpiglobal(:)
+    integer, intent(out) :: cvDim_mpiglobal_out
+
+    integer :: cvDim_Bhi_mpiglobal,cvDim_Ben_mpiglobal,cvDim_Bchm_mpiglobal
+
+    real(4), pointer :: cvBhi_mpilocal(:) ,cvBen_mpilocal(:), cvBchm_mpilocal(:)
+    real(4), pointer :: cvBhi_mpiglobal(:),cvBen_mpiglobal(:),cvBchm_mpiglobal(:)
+
+    cvBhi_mpilocal =>cvm_getSubVector_r4(cv_mpilocal,1)
+    if (mpi_myid == 0) then
+       cvBhi_mpiglobal=>cvm_getSubVector_mpiglobal_r4(cv_mpiglobal,1)
+    else
+       cvBhi_mpiglobal=>null()
+    end if
+    if(associated(cvBhi_mpilocal)) then
+      if ( hco_anl%global ) then
+         call bhi_expandToMPIGlobal_r4 (cvBhi_mpilocal,cvBhi_mpiglobal,cvDim_Bhi_mpiglobal)
+      else
+         call lbhi_expandToMPIGlobal_r4(cvBhi_mpilocal,cvBhi_mpiglobal,cvDim_Bhi_mpiglobal)
+      end if
+    endif
+
+    cvDim_Ben_mpiglobal = 0
+
+    cvBen_mpilocal =>cvm_getSubVector_r4(cv_mpilocal,2)
+    if (mpi_myid == 0) then
+       cvBen_mpiglobal=>cvm_getSubVector_mpiglobal_r4(cv_mpiglobal,2)
+    else
+       cvBen_mpiglobal=>null()
+    end if
+    if(associated(cvBen_mpilocal)) then
+       call ben_expandToMPIGlobal_r4(cvBen_mpilocal,cvBen_mpiglobal,cvDim_Ben_mpiglobal)
+    endif
+
+    cvBchm_mpilocal =>cvm_getSubVector_r4(cv_mpilocal,3) 
+    if (mpi_myid == 0) then
+       cvBchm_mpiglobal=>cvm_getSubVector_mpiglobal_r4(cv_mpiglobal,3)
+    else
+       cvBchm_mpiglobal=>null()
+    end if
+    if(associated(cvBchm_mpilocal)) then
+      if ( hco_anl%global ) then
+         call bchm_expandToMPIGlobal_r4(cvBchm_mpilocal,cvBchm_mpiglobal,cvDim_Bchm_mpiglobal)
+      else
+!         Done in lbhi_expandToMPIGlobal
+      end if
+    endif
+
+    cvDim_mpiglobal_out = 0 ! not used
+
+  end SUBROUTINE BMAT_expandToMPIGlobal_r4
 
 END MODULE BMatrix_mod

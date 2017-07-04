@@ -90,6 +90,7 @@ fi
 
 absdir=${compiledir_main}/abs
 mkdir -p ${absdir}
+cd $absdir ; absdir=$PWD ; cd -
 
 #----------------------------------------------------------------
 #  Set up dependent librarys and tools. 
@@ -347,7 +348,7 @@ echo "..."
 echo "... > FINISHED COMPILATION AT: $(date)"
 if [ "${mode}" == full -o "${mode}" == abs ] ; then
     echo "..."
-    echo "... The program can be found here: ${HOME}/ords/oavar_abs/${varabs}"
+    echo "... The program can be found here: ${absdir}/${varabs}"
     echo "..."
 else
     echo "..."

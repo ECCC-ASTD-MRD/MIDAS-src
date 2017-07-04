@@ -80,7 +80,7 @@ module HorizontalCoord_mod
 
     real    :: xlat1_4, xlon1_4, xlat2_4, xlon2_4
 
-    integer :: iu_template = 0
+    integer :: iu_template
     integer :: fnom, fstouv, fstfrm, fclos, ezqkdef
     integer :: key, fstinf, fstprm, ier, fstinl, EZscintID
     integer :: ni, nj, ni_t, nj_t, nlev_t, i, j, gdll
@@ -113,6 +113,7 @@ module HorizontalCoord_mod
     inquire(file=trim(TemplateFile), exist=FileExist)
 
     if ( FileExist ) then
+      iu_template = 0
       ier = fnom(iu_template,trim(TemplateFile),'RND+OLD+R/O',0)
       if ( ier == 0 ) then
         write(*,*)
@@ -404,7 +405,6 @@ module HorizontalCoord_mod
     integer, external :: ezgprm, ezqkdef
 
     write(*,*) 'hco_mpiBcast: starting'
-    call flush(6)
 
     if ( mpi_myid > 0 ) then
       if( .not.associated(hco) ) then
@@ -452,7 +452,6 @@ module HorizontalCoord_mod
     endif
 
     write(*,*) 'hco_mpiBcast: done'
-    call flush(6)
 
   end subroutine hco_mpiBcast
 

@@ -183,7 +183,6 @@ CONTAINS
         enddo
 
         write(*,*) 's2c_setup: headerIndex2, numToSend_mpiglobal(mpi_myid+1)=',headerIndex2, numToSend_mpiglobal(mpi_myid+1)
-        call flush(6)
 
         ! receive lat-lon, etc from receiver
         nsize = numHeaderTile-numHeaderColumn
@@ -265,7 +264,6 @@ CONTAINS
             endif
           enddo
           write(*,*) 's2c_setup: headerIndex2, nsize=',headerIndex2, nsize
-          call flush(6)
           call rpn_comm_send(myYPosToSend,nsize, &
                              "mpi_double_precision",PE_sender,mpi_myid*2000+PE_sender,  &
                              "GRID",ierr)
@@ -355,6 +353,10 @@ CONTAINS
 
     integer :: ilev, ierr, myLonEndP1, myLatEndP1
 
+    call tmg_start(101,'INTERP_BARR_TL')
+    if(mpi_doBarrier) call rpn_comm_barrier("GRID",ierr)
+    call tmg_stop(101)
+
     if(.not.initialized) call s2c_setup(statevector,column,obsSpaceData)
 
     myLonEndP1 = statevector%myLonEnd + 1
@@ -366,9 +368,6 @@ CONTAINS
     if(mpi_myid==0) write(*,*) 's2c_tl - Horizontal interpolation StateVector --> ColumnData'
 
     !- 1.1 Communicate extra latitude needed for interpolation  
-    call tmg_start(38,'INTERP_BARR')
-    call rpn_comm_barrier("GRID",ierr)
-    call tmg_stop(38)
     call tmg_start(39,'INTERP_COMM')
     call commLatLon(statevector)
     call tmg_stop(39)
@@ -427,7 +426,6 @@ CONTAINS
       if (numHeaderTile > 0) then
         allocate(column_tile(numLev,numHeaderTile))
         write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-        call flush(6)
       else
         allocate(column_tile(numLev,1))
         write(*,*) 'gd2mvo: numHeaderTile not positive: ',numHeaderTile
@@ -510,9 +508,10 @@ CONTAINS
 
       enddo ! stepIndex
 
-      call tmg_start(38,'INTERP_BARR')
-      call rpn_comm_barrier("GRID",ierr)
-      call tmg_stop(38)
+      call tmg_start(102,'INTERP_BARR_TL2')
+      if(mpi_doBarrier) call rpn_comm_barrier("GRID",ierr)
+      call tmg_stop(102)
+
       call transpose_tileToColumn(column_tile,column_ptr,numLev)
       deallocate(column_tile)
 
@@ -650,6 +649,10 @@ CONTAINS
 
     integer :: ierr, myLonEndP1, myLatEndP1
 
+    call tmg_start(103,'INTERP_BARR_AD')
+    if(mpi_doBarrier) call rpn_comm_barrier("GRID",ierr)
+    call tmg_stop(103)
+
     if(.not.initialized) call s2c_setup(statevector,column,obsSpaceData)
 
     myLonEndP1 = statevector%myLonEnd + 1
@@ -682,9 +685,6 @@ CONTAINS
     call gd2mvoad
 
     !- 1.1 Communicate extra latitude needed for interpolation
-    call tmg_start(38,'INTERP_BARR')
-    call rpn_comm_barrier("GRID",ierr)
-    call tmg_stop(38)
     call tmg_start(39,'INTERP_COMM')
     call commLatLonAd(statevector)
     call tmg_stop(39)
@@ -725,9 +725,9 @@ CONTAINS
       end if
       column_tile(:,:) = 0.0d0
 
-      call tmg_start(38,'INTERP_BARR')
-      call rpn_comm_barrier("GRID",ierr)
-      call tmg_stop(38)
+      call tmg_start(104,'INTERP_BARR_AD2')
+      if(mpi_doBarrier) call rpn_comm_barrier("GRID",ierr)
+      call tmg_stop(104)
 
       call transpose_columnToTile(column_tile,column_ptr,numLev)
 

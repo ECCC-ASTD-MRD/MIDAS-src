@@ -621,7 +621,6 @@ contains
     deallocate(HxBen)
 
     write(*,*) 'osd_calcInflation: Finished'
-    flush(6) 
 
   end subroutine osd_calcInflation
 
@@ -981,7 +980,6 @@ contains
 
     ! Loop over all pairs in *_elemID lists
    
-    call flush(6)
     do elemID=1,num_elemID
 
        ! Initialize the diagnostic arrays
@@ -1155,7 +1153,6 @@ contains
        if (mpi_myid.eq.0) call osd_obsspace_diagn_print(obs_diagn,filename, save_diagn, &
                               'stats', pressmin, status_hpht, label=label, openfile=.true.)
  
-       call flush(6)
     end do
     
     ! Output diagnostics summary (over all CH observations)
@@ -1798,8 +1795,6 @@ contains
        if (present(openfile)) then
           if (openfile) ierr=fclos(unit)     
        end if
-             
-       call flush(6)
              
     case('summary','SUMMARY')
 

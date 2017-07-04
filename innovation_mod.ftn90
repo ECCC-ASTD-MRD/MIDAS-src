@@ -938,7 +938,7 @@ contains
       integer :: extra1, extra2, extra3
       integer :: ig1, ig2, ig3, ig4
 
-      call rpn_comm_barrier("GRID",ierr)
+      if(mpi_doBarrier) call rpn_comm_barrier("GRID",ierr)
       call tmg_start(91,'READTRIALFIELD')
       !
       ! Determine the type and number of vertical levels
@@ -1747,14 +1747,14 @@ contains
       codtyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
 
       if(tvs_Is_idburp_inst(codtyp,"IASI")) then
-         obsLoad = 100
+         obsLoad = 200
       elseif(tvs_Is_idburp_inst(codtyp,"AIRS")) then
-         obsLoad = 100
+         obsLoad = 200
       elseif(tvs_Is_idburp_inst(codtyp,"CRIS")) then
-         obsLoad = 100
+         obsLoad = 150
       elseif(tvs_Is_idburp_tovs(codtyp)) then
          ! all other types of radiance obs
-         obsLoad = 10
+         obsLoad = 5
       else
          ! all non-radiance obs
          obsLoad = 1

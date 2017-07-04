@@ -618,7 +618,7 @@ CONTAINS
         write(coffset,'(I3.3)') nint(deltaHours*60.0d0)
       endif
       fileName = './rebm_' // trim(coffset) // 'm'
-      call gsv_writeToFileMpi(statevector_incr, fileName, cetikinc, 1.0d0, 0, indexStep)
+      call gsv_writeToFile(statevector_incr, fileName, cetikinc, 1.0d0, 0, indexStep)
 
     enddo
 
@@ -1093,7 +1093,6 @@ CONTAINS
        if(mpi_myid == 0) then
          write(*,*) 'Entering simvar for simulation ',min_nsim
          write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-         call flush(6)
        endif
 
        ! note: dg_vbar = sum(v) of previous outer-loops
@@ -1341,6 +1340,7 @@ CONTAINS
     real*8, dimension(nvadim_mpilocal), target :: vazxbar, vazx
     real*8, dimension(nmtra), target :: vatra
     real*4, allocatable :: vatravec_r4_mpiglobal(:)
+    real*4, allocatable :: vatra_r4(:)
     real*8, allocatable :: vatravec_r8_mpiglobal(:)
     real*8, allocatable :: vazxbar_mpiglobal(:),vazx_mpiglobal(:)
 
@@ -1355,11 +1355,12 @@ CONTAINS
     character(len=*) :: cfname
     character(len=3) :: cl_version
 
-    call tmg_start(88,'MIN_RWHESS')
     if (status == 0) then
       if (mpi_myid == 0) write(*,*) 'Read  Hessian in min_hessianIO from file ', cfname
+      call tmg_start(88,'MIN_READHESS')
     elseif (status == 1) then
       if (mpi_myid == 0) write(*,*) 'Write Hessian in min_hessianIO to file ', cfname
+      call tmg_start(94,'MIN_WRITEHESS')
     else
       call utl_abort("min_hessianIO: status not valid ")
     endif
@@ -1379,7 +1380,9 @@ CONTAINS
          ierr = fnom(ireslun,cfname,'FTN+SEQ+UNF+OLD+R/O',0)
 
          !- Checking version number
+         call tmg_start(98,'MIN_READHESS_IO')
          read (ireslun) cl_version, i1gc
+         call tmg_stop(98)
          if (trim(cl_version) == 'V5') then
             write(*,*) 'min_hessianIO: using single precision V5 Hessian'
          else if (trim(cl_version) == 'V4') then
@@ -1397,10 +1400,12 @@ CONTAINS
             call utl_abort("min_hessianIO: Inconsistant input hessian")
          endif
 
+         call tmg_start(98,'MIN_READHESS_IO')
          rewind (ireslun)
 
          read(ireslun) cl_version,i1gc,nsim,ibrpstamp,zeps1,zdf1,itertot,isimtot,ivadim,itrunc
          read(ireslun) ivamaj,iztrl_io
+         call tmg_stop(98)
          if ((ivamaj.ne.nvamaj).or.(nvadim_mpiglobal.ne.ivadim)) then
             write(*,*) nvamaj,ivamaj,nvadim_mpiglobal,ivadim
             call utl_abort("min_hessianIO : ERROR, size of V5 Hessian not consistent")
@@ -1416,26 +1421,33 @@ CONTAINS
       if(mpi_myid == 0) then 
          write(*,*) 'min_hessianIO : reading Hessian'
          allocate(vatravec_r4_mpiglobal(nvadim_mpiglobal))
-         allocate(vatravec_r8_mpiglobal(nvadim_mpiglobal))
-      else
-         allocate(vatravec_r8_mpiglobal(1))
       end if
+      allocate(vatra_r4(nvadim_mpilocal))
 
       if (k1gc == 3) ictrlvec = 2*nvamaj+1
       do jvec = 1, ictrlvec
  
          if (mpi_myid == 0) then
+            call tmg_start(98,'MIN_READHESS_IO')
             read(ireslun) vatravec_r4_mpiglobal
-            vatravec_r8_mpiglobal(:)=real(vatravec_r4_mpiglobal(:),8)
+            call tmg_stop(98)
          end if
 
-         call bmat_reduceToMPILocal( vatra(((jvec-1)*nvadim_mpilocal+1):jvec*nvadim_mpilocal), & ! OUT
-                                     vatravec_r8_mpiglobal, & ! IN (contains data only on proc 0)
-                                     cvDim_return )           ! OUT
+         call tmg_start(119,'MIN_READHESS_REDUCE')
+         call bmat_reduceToMPILocal_r4( vatra_r4,              & ! OUT
+                                        vatravec_r4_mpiglobal, & ! IN (contains data only on proc 0)
+                                        cvDim_return )           ! OUT
+         call tmg_stop(119)
+!$OMP PARALLEL DO PRIVATE(ii)
+         do ii = 1, nvadim_mpilocal
+           vatra((jvec-1)*nvadim_mpilocal+ii) = real(vatra_r4(ii),8)
+         enddo
+!$OMP END PARALLEL DO
+
       end do
 
       if(mpi_myid == 0) deallocate(vatravec_r4_mpiglobal)       
-      deallocate(vatravec_r8_mpiglobal)       
+      deallocate(vatra_r4)       
 
       imode = 2
       iztrl(:) = iztrl_io(1:5)
@@ -1452,7 +1464,9 @@ CONTAINS
          if (mpi_myid == 0) then 
             write(*,*) 'min_hessianIO : reading vazxbar'
             allocate(vazxbar_mpiglobal(nvadim_mpiglobal))
+            call tmg_start(98,'MIN_READHESS_IO')
             read(ireslun) vazxbar_mpiglobal
+            call tmg_stop(98)
          else
             allocate(vazxbar_mpiglobal(1))
          end if
@@ -1467,7 +1481,9 @@ CONTAINS
          if (mpi_myid == 0) then 
             write(*,*) 'min_hessianIO : reading vazx'
             allocate(vazx_mpiglobal(nvadim_mpiglobal))
+            call tmg_start(98,'MIN_READHESS_IO')
             read(ireslun) vazx_mpiglobal
+            call tmg_stop(98)
          else
             allocate(vazx_mpiglobal(1))
          end if
@@ -1494,26 +1510,34 @@ CONTAINS
       itrunc=0
       iztrl_io(1: 5) = iztrl(:)
       iztrl_io(6:10) = 0 ! dummy values for hessian size legacy purposes
+      call tmg_start(76,'MIN_WRITEHESS_IO')
       if(mpi_myid == 0) write(ireslun) cl_version,k1gc,nsim,kbrpstamp,zeps1,zdf1,itertot,isimtot,nvadim_mpiglobal,itrunc
       if(mpi_myid == 0) write(ireslun) nvamaj,iztrl_io
+      call tmg_stop(76)
 
       !- Write the Hessian
       if (mpi_myid == 0) then
          allocate(vatravec_r4_mpiglobal(nvadim_mpiglobal))
-         allocate(vatravec_r8_mpiglobal(nvadim_mpiglobal))
       else
-         allocate(vatravec_r8_mpiglobal(1)) ! dummy
-      end if
+         allocate(vatravec_r4_mpiglobal(1))
+      endif
+      allocate(vatra_r4(nvadim_mpilocal))
 
       if (k1gc == 3) ictrlvec = 2*nvamaj+1
       do jvec = 1, ictrlvec
-        call bmat_expandToMPIGlobal( vatra(((jvec-1)*nvadim_mpilocal+1):jvec*nvadim_mpilocal),  & ! IN
-                                     vatravec_r8_mpiglobal, cvDim_return )                        ! OUT
-        if (mpi_myid == 0) vatravec_r4_mpiglobal(:) = real(vatravec_r8_mpiglobal(:),4)
+!$OMP PARALLEL DO PRIVATE(ii)
+        do ii = 1, nvadim_mpilocal
+          vatra_r4(ii) = vatra((jvec-1)*nvadim_mpilocal+ii)
+        enddo
+!$OMP END PARALLEL DO
+        call bmat_expandToMPIGlobal_r4( vatra_r4,                              & ! IN
+                                        vatravec_r4_mpiglobal, cvDim_return )    ! OUT
+        call tmg_start(76,'MIN_WRITEHESS_IO')
         if (mpi_myid == 0) write(ireslun) vatravec_r4_mpiglobal
+        call tmg_stop(76)
       enddo
-      if (mpi_myid == 0) deallocate(vatravec_r4_mpiglobal)
-      deallocate(vatravec_r8_mpiglobal)
+      deallocate(vatravec_r4_mpiglobal)
+      deallocate(vatra_r4)
 
       !- Write VAZXBAR
       if (mpi_myid == 0) then
@@ -1523,7 +1547,9 @@ CONTAINS
       end if
       call bmat_expandToMPIGlobal( vazxbar,                        & ! IN
                                    vazxbar_mpiglobal, cvDim_return ) ! OUT
+      call tmg_start(76,'MIN_WRITEHESS_IO')
       if (mpi_myid == 0) write(ireslun) vazxbar_mpiglobal(1:nvadim_mpiglobal)
+      call tmg_stop(76)
       deallocate(vazxbar_mpiglobal)
 
       !- Write VAZX
@@ -1534,7 +1560,9 @@ CONTAINS
       end if
       call bmat_expandToMPIGlobal( vazx,                        & ! IN
                                    vazx_mpiglobal, cvDim_return ) ! OUT
+      call tmg_start(76,'MIN_WRITEHESS_IO')
       if (mpi_myid == 0) write(ireslun) vazx_mpiglobal(1:nvadim_mpiglobal)
+      call tmg_stop(76)
       deallocate(vazx_mpiglobal)
 
       !- Close the Hessian matrix file
@@ -1543,9 +1571,12 @@ CONTAINS
       call utl_abort("min_hessianIO: status not valid")
     endif
 
-    call tmg_stop(88)
+    if (status == 0) then
+      call tmg_stop(88)
+    elseif (status == 1) then
+      call tmg_stop(94)
+    endif
 
-    return
   END SUBROUTINE hessianIO
 
   subroutine grtest2(simul,na_dim,da_x0,na_range,dataptr)

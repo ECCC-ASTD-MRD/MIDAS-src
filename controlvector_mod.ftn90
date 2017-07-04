@@ -36,6 +36,7 @@ MODULE ControlVector_mod
   public              :: cvm_nvadim, cvm_nvadim_mpiglobal
   ! public procedures
   public              :: cvm_Setup, cvm_getSubVector, cvm_getSubVector_mpiglobal
+  public              :: cvm_getSubVector_r4, cvm_getSubVector_mpiglobal_r4
 
 
   logical             :: initialized = .false.
@@ -109,11 +110,41 @@ CONTAINS
 
   END FUNCTION CVM_getSubVector
 
+  FUNCTION CVM_getSubVector_r4(controlVector,subVectorIndex) RESULT(subVector)
+    implicit none
+
+    real*4, pointer :: subVector(:)
+    real*4, target  :: controlVector(:)
+    integer         :: subVectorIndex
+    logical, save   :: firstCall(cvm_numSubvector)=.true.
+
+    if (subVectorIndex.lt.0.or.subVectorIndex.gt.cvm_numSubvector) then
+       write(*,*) 'CVM_getSubVector: subVectorIndex = ',subVectorIndex
+       call utl_abort('CVM_getSubVector: invalid value for subVectorIndex')
+    end if
+
+    nullify(subVector)
+
+    if(subVectorIndex.eq.1 .and. cvm_dimbhi.gt.0) then
+      subVector => controlVector(1:cvm_dimbhi)
+    elseif(subVectorIndex.eq.2 .and. cvm_dimben.gt.0) then
+      subVector => controlVector((cvm_dimbhi+1):(cvm_dimbhi+cvm_dimben))
+    elseif(subVectorIndex.eq.3 .and. cvm_dimbchm.gt.0) then
+      subVector => controlVector((cvm_dimbhi+cvm_dimben+1):(cvm_dimbhi+cvm_dimben+cvm_dimbchm))
+    else
+       if(firstCall(subVectorIndex)) then
+          write(*,*) 'CVM_getSubVector: subVectorIndex ',subVectorIndex,' is not available'
+          firstCall(subVectorIndex)=.false.
+       endif
+    endif
+
+  END FUNCTION CVM_getSubVector_r4
+
   FUNCTION CVM_getSubVector_mpiglobal(controlVector,subVectorIndex) RESULT(subVector)
     implicit none
 
     real*8, pointer :: subVector(:)
-    real*8,target   :: controlVector(:)
+    real*8, target  :: controlVector(:)
     integer         :: subVectorIndex
     logical, save   :: firstCall(cvm_numSubvector)=.true.
 
@@ -139,5 +170,34 @@ CONTAINS
 
   END FUNCTION CVM_getSubVector_mpiglobal
 
+  FUNCTION CVM_getSubVector_mpiglobal_r4(controlVector,subVectorIndex) RESULT(subVector)
+    implicit none
+
+    real*4, pointer :: subVector(:)
+    real*4, target  :: controlVector(:)
+    integer         :: subVectorIndex
+    logical, save   :: firstCall(cvm_numSubvector)=.true.
+
+    if (subVectorIndex.lt.0.or.subVectorIndex.gt.cvm_numSubvector) then
+       write(*,*) 'CVM_getSubVector_mpiglobal: subVectorIndex = ',subVectorIndex
+       call utl_abort('CVM_getSubVector_mpiglobal: invalid value for subVectorIndex')
+    end if
+
+    nullify(subVector)
+
+    if(subVectorIndex.eq.1 .and. cvm_dimbhi_mpiglobal.gt.0) then
+      subVector => controlVector(1:cvm_dimbhi_mpiglobal)
+    elseif(subVectorIndex.eq.2 .and. cvm_dimben_mpiglobal.gt.0) then
+      subVector => controlVector((cvm_dimbhi_mpiglobal+1):(cvm_dimbhi_mpiglobal+cvm_dimben_mpiglobal))
+    elseif(subVectorIndex.eq.3 .and. cvm_dimbchm_mpiglobal.gt.0) then
+      subVector => controlVector((cvm_dimbhi_mpiglobal+cvm_dimben_mpiglobal+1):(cvm_dimbhi_mpiglobal+cvm_dimben_mpiglobal+cvm_dimbchm_mpiglobal))
+    else
+      if(firstCall(subVectorIndex)) then
+        write(*,*) 'CVM_getSubVector_mpiglobal: subVectorIndex ',subVectorIndex,' is not available'
+        firstCall(subVectorIndex)=.false.
+      endif
+    endif
+
+  END FUNCTION CVM_getSubVector_mpiglobal_r4
 
 END MODULE ControlVector_mod

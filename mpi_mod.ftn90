@@ -28,6 +28,7 @@ module mpi_mod
 
   ! public variables
   public :: mpi_myid,mpi_nprocs,mpi_myidx,mpi_myidy,mpi_npex,mpi_npey
+  public :: mpi_comm_EW, mpi_comm_NS, mpi_comm_GRID, mpi_doBarrier
   ! public procedures
   public :: mpi_initialize,mpi_getptopo
   public :: mpi_allreduce_sumreal8scalar,mpi_allgather_string
@@ -39,12 +40,17 @@ module mpi_mod
   integer :: mpi_npex   = 0
   integer :: mpi_npey   = 0
 
+  integer :: mpi_comm_EW, mpi_comm_NS, mpi_comm_GRID
+
+  logical :: mpi_doBarrier = .true.
+
   contains
 
   subroutine mpi_initialize()
     implicit none
     integer :: mythread,numthread,omp_get_thread_num,omp_get_num_threads,rpn_comm_mype
     integer :: npex,npey,ierr
+    integer :: rpn_comm_comm
 
     ! Initilize MPI
     npex=0
@@ -70,6 +76,20 @@ module mpi_mod
     numthread=omp_get_num_threads()
     if(mythread.eq.0) write(*,*) 'mpi_initialize: NUMBER OF THREADS=',numthread     
 !$OMP END PARALLEL
+
+    ! create standard mpi handles to rpn_comm mpi communicators to facilitate 
+    ! use of standard mpi routines
+    mpi_comm_EW = rpn_comm_comm('EW')
+    mpi_comm_NS = rpn_comm_comm('NS')
+    mpi_comm_GRID = rpn_comm_comm('GRID')
+
+    write(*,*) ' '
+    if(mpi_doBarrier) then
+      write(*,*) 'mpi_initialize: MPI_BARRIERs will be done to help with interpretation of timings'
+    else
+      write(*,*) 'mpi_initialize: no MPI_BARRIERs will be done'
+    endif
+    write(*,*) ' '
 
   end subroutine mpi_initialize
 
@@ -105,7 +125,9 @@ module mpi_mod
     real(8), allocatable :: allvalues(:)
 
     ! do a barrier so that timing on reduce operation is accurate
-    call rpn_comm_barrier(com,ierr)
+    call tmg_start(109,'MPI_SUMSCA_BARR')
+    if(mpi_doBarrier) call rpn_comm_barrier(com,ierr)
+    call tmg_stop(109)
 
     call tmg_start(16,'allreduce_sum8')
 

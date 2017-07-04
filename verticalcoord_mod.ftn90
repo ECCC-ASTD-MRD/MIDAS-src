@@ -405,7 +405,6 @@ module verticalCoord_mod
     nullify(vgdtable)
 
     write(*,*) 'vco_mpiBcast: starting'
-    call flush(6)
 
     if ( mpi_myid > 0 ) then
       if( .not.associated(vco) ) then
@@ -487,7 +486,6 @@ module verticalCoord_mod
     deallocate(vgdtable) 
 
     write(*,*) 'vco_mpiBcast: done'
-    call flush(6)
 
   end subroutine vco_mpiBcast
 
