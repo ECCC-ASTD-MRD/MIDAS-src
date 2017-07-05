@@ -83,12 +83,12 @@ compiledir=${PWD} # needed when compiledir_main = ".."
 echo "..."
 echo "... > Compiledir set to $compiledir"
 if [ ${compiledir_main} != ".." ] ; then
-    if [ ! -d  ${trunkdir}/../compiledir_${compiledir_ID} ] ; then
-	ln -s ${compiledir_main}/compiledir_${compiledir_ID} ${trunkdir}/../compiledir_${compiledir_ID}
+    if [ ! -d  ${trunkdir}/../compiledir-${ORDENV_PLAT}_${compiledir_ID} ] ; then
+	ln -s ${compiledir_main}/compiledir-${ORDENV_PLAT}_${compiledir_ID} ${trunkdir}/../compiledir-${ORDENV_PLAT}_${compiledir_ID}
     fi
 fi
 
-absdir=${compiledir_main}/abs
+absdir=${compiledir_main}/oavar_abs
 mkdir -p ${absdir}
 cd $absdir ; absdir=$PWD ; cd -
 
@@ -173,9 +173,9 @@ if [ "${mode}" == full ] ; then
   # Create a local copy of the source code
   sed "s!XXXXX!${revnum}!g" ${trunkdir}/toplevelcontrol_mod.ftn90_template > toplevelcontrol_mod.ftn90
 
-  cd ${trunkdir};          ls -1F | grep -v '/' | grep -v "*" | grep -v "@" | cpio -pl $compiledir ; cd $compiledir
-  cd ${trunkdir}/bgcheck;  ls -1F | grep -v '/' | grep -v "*" | cpio -pl $compiledir ; cd $compiledir
-  cd ${trunkdir}/shared;   ls -1F | grep -v '/' | grep -v "*" | cpio -pl $compiledir ; cd $compiledir
+  cd ${trunkdir};          ls -1F | grep -v '/' | grep -v "*" | grep -v "@" | cpio --quiet -p $compiledir ; cd $compiledir
+  cd ${trunkdir}/bgcheck;  ls -1F | grep -v '/' | grep -v "*" | cpio --quiet -p $compiledir ; cd $compiledir
+  cd ${trunkdir}/shared;   ls -1F | grep -v '/' | grep -v "*" | cpio --quiet -p $compiledir ; cd $compiledir
   rm -f *.ftn~ *.ftn90~
 
   # Check for indented OPEN-MP directives - this is not allowed!
@@ -190,28 +190,28 @@ if [ "${mode}" == full ] ; then
 
   # Compile the subroutines...
   echo "... > Compiling low-level independent modules"
-  echo "...   if aborting, check in ${PWD}/listing1"
+  echo "...   if aborting, check in ${PWD}/listing0"
   SRC0="mathphysconstants_mod.ftn90 earthconstants_mod.ftn90 utilities_mod.ftn90"
   SRC0="$SRC0 toplevelcontrol_mod.ftn90 randomnumber_mod.ftn90 mpi_mod.ftn90 mpivar_mod.ftn90 bufr_mod.ftn90 codtyp_mod.ftn90"
   SRC0="$SRC0 physicsfunctions_mod.ftn90 obsspacedata_mod.ftn90 localizationfunction_mod.ftn90"
   SRC0="$SRC0 horizontalcoord_mod.ftn90 timecoord_mod.ftn90 verticalcoord_mod.ftn90"
   SRC0="$SRC0 lqtoes_mod.ftn90 presprofileoperators_mod.ftn90 spectralfilter_mod.ftn90"
-  s.compile $COMPF -O ${FOPTMIZ} -src $SRC0 > listing1 2>&1
+  s.compile $COMPF -O ${FOPTMIZ} -src $SRC0 > listing0 2>&1
   status=1
-  grep fail listing1 || status=0
+  grep fail listing0 || status=0
   if [ "${status}" -ne 0 ] ; then
-      echo "... !! Compilation aborted: check in ${PWD}/listing1 !!"
+      echo "... !! Compilation aborted: check in ${PWD}/listing0 !!"
       exit 1
   fi
 
   echo "... > Compiling quasi-newton module"
-  echo "...   if aborting, check in ${PWD}/listing0"
+  echo "...   if aborting, check in ${PWD}/listing1"
   SRC0="quasinewton_mod.ftn"
-  s.compile $COMPF_NOC  -O ${FOPTMIZ} -src $SRC0 > listing0 2>&1
+  s.compile $COMPF_NOC  -O ${FOPTMIZ} -src $SRC0 > listing1 2>&1
   status=1
-  grep fail listing0 || status=0
+  grep fail listing1 || status=0
   if [ "${status}" -ne 0 ]; then
-      echo "... !! Compilation aborted: check in ${PWD}/listing0 !!"
+      echo "... !! Compilation aborted: check in ${PWD}/listing1 !!"
       exit 1
   fi
   rm -f $SRC0
