@@ -471,10 +471,11 @@ contains
 ! ** find number of channels and RTTOV levels
 
     NCHN = coefs(id)%coef%fmv_chn
-    if (NCHN/=hir_get_nchan_selected(CINST)) then
-       write(*,*) "HIRQC: Skipping ... Invalid NCHN: ",NCHN,hir_get_nchan_selected(CINST),CINST
+    nch_sel= hir_get_nchan_selected(cinst)
+    if (NCHN/=nch_sel) then
+       write(*,*) "HIRQC: Skipping ... Invalid NCHN: ",NCHN,nch_sel,CINST
        return
-    endif 
+    endif
 
     NLEV = coefs(id)%coef%nlevels 
     allocate (xpres(NLEV))
@@ -493,7 +494,7 @@ contains
     write(*,*) ' HIRQC - nchn ', nchn
   
     nlv_T= col_getNumLev(lcolumnhr,'TH')
-    nch_sel= hir_get_nchan_selected(cinst)
+   
 
 ! information to extract (transvidage)
 ! ------------------------------------
@@ -503,14 +504,14 @@ contains
 ! ZT(nlv_T) -- temperature profiles on NWP model levels (deg K)
 ! ZHT(nlv_T) -- height profiles on NWP model levels (m)
 ! ZLQ(nlv_T) -- surface specific humidity in ln q (kg/kg)
-! BTOBSERR(nch_sel) -- observation error standard deviation
-! BTOBS(nch_sel) -- observed brightness temperatures (deg K)
-! BTCALC(nch_sel) -- computed brightness temperatures (deg K)
-! RCAL_CLR(nch_sel) -- computed clear radiances (mw/m2/sr/cm-1)
-! SFCTAU(nch_sel) -- surface to space transmittances (0-1)
-! RCLD(nch_sel,NLEV) -- overcast cloudy radiances (mw/m2/sr/cm-1)
-! TRANSM(nch_sel,NLEV) -- layer to space transmittances (0-1)
-! EMI_SFC(nch_sel) -- surface emissivities (0-1)
+! BTOBSERR(nchn) -- observation error standard deviation
+! BTOBS(nchn) -- observed brightness temperatures (deg K)
+! BTCALC(nchn) -- computed brightness temperatures (deg K)
+! RCAL_CLR(nchn) -- computed clear radiances (mw/m2/sr/cm-1)
+! SFCTAU(nchn) -- surface to space transmittances (0-1)
+! RCLD(nchn,NLEV) -- overcast cloudy radiances (mw/m2/sr/cm-1)
+! TRANSM(nchn,NLEV) -- layer to space transmittances (0-1)
+! EMI_SFC(nchn) -- surface emissivities (0-1)
 ! KSURF -- surface type in obs file (0, 1)
 ! CLFR -- cloud fraction (%)
 ! TOEXT(NLEV) -- temperature profiles on RT model levels (deg K)
@@ -523,32 +524,32 @@ contains
 ! LTYPE -- surface type (1,...,20)
 ! PCNT_WAT -- water fraction (0-1)
 ! PCNT_REG -- water fraction in the area (0-1)
-! ROBS(nch_sel) -- observed radiances (mW/m2/sr/cm-1)
+! ROBS(nchn) -- observed radiances (mW/m2/sr/cm-1)
 
   alloc_status(:) = 0
  
-  allocate ( BTOBSERR(nch_sel),         stat= alloc_status(1))
-  allocate ( BTOBS(nch_sel),            stat= alloc_status(2))
-  allocate ( BTCALC(nch_sel),           stat= alloc_status(3))
-  allocate ( RCAL_CLR(nch_sel),         stat= alloc_status(4))
-  allocate ( SFCTAU(nch_sel),           stat= alloc_status(5))
-  allocate ( RCLD(nch_sel,NLEVB),       stat= alloc_status(6))
-  allocate ( TRANSM(nch_sel,NLEVB),     stat= alloc_status(7))
-  allocate ( EMI_SFC(nch_sel),          stat= alloc_status(8))
+  allocate ( BTOBSERR(nchn),         stat= alloc_status(1))
+  allocate ( BTOBS(nchn),            stat= alloc_status(2))
+  allocate ( BTCALC(nchn),           stat= alloc_status(3))
+  allocate ( RCAL_CLR(nchn),         stat= alloc_status(4))
+  allocate ( SFCTAU(nchn),           stat= alloc_status(5))
+  allocate ( RCLD(nchn,NLEVB),       stat= alloc_status(6))
+  allocate ( TRANSM(nchn,NLEVB),     stat= alloc_status(7))
+  allocate ( EMI_SFC(nchn),          stat= alloc_status(8))
   allocate ( TOEXT(NLEVB),              stat= alloc_status(9))
   allocate ( ZHOEXT(NLEVB),             stat= alloc_status(10))
-  allocate ( ROBS(nch_sel),             stat= alloc_status(11))
-  allocate ( REJFLAG(nch_sel,0:BITFLAG),stat= alloc_status(12))
-  allocate ( NTOP_BT(nch_sel),          stat= alloc_status(13))
-  allocate ( NTOP_RD(nch_sel),          stat= alloc_status(14))
-  allocate ( PTOP_BT(nch_sel),          stat= alloc_status(15))
-  allocate ( PTOP_RD(nch_sel),          stat= alloc_status(16))
-  allocate ( MINP(nch_sel),             stat= alloc_status(17))
-  allocate ( PMIN(nch_sel),             stat= alloc_status(18))
-  allocate ( DTAUDP1(nch_sel),          stat= alloc_status(19))
-  allocate ( FATE(nch_sel),             stat= alloc_status(20))
+  allocate ( ROBS(nchn),             stat= alloc_status(11))
+  allocate ( REJFLAG(nchn,0:BITFLAG),stat= alloc_status(12))
+  allocate ( NTOP_BT(nchn),          stat= alloc_status(13))
+  allocate ( NTOP_RD(nchn),          stat= alloc_status(14))
+  allocate ( PTOP_BT(nchn),          stat= alloc_status(15))
+  allocate ( PTOP_RD(nchn),          stat= alloc_status(16))
+  allocate ( MINP(nchn),             stat= alloc_status(17))
+  allocate ( PMIN(nchn),             stat= alloc_status(18))
+  allocate ( DTAUDP1(nchn),          stat= alloc_status(19))
+  allocate ( FATE(nchn),             stat= alloc_status(20))
   if (liasi) allocate ( RCLD_AVHRR(NIR,NLEVB), stat= alloc_status(21))
-  allocate ( maxwf(nch_sel),            stat= alloc_status(22))
+  allocate ( maxwf(nchn),            stat= alloc_status(22))
   allocate ( ZVLEV(NLEVB),              stat= alloc_status(23))
   allocate ( ZLEVMOD(nlv_T),            stat= alloc_status(24))
   allocate ( ZT(nlv_T),                 stat= alloc_status(25))
@@ -775,11 +776,11 @@ contains
 
 !iopt2=1 : calcul de la hauteur en hPa PTOP_MB et du NTOP_MB correspondant
         CALL CLOUD_HEIGHT (PTOP_MB,NTOP_MB, btobs,cldflag,zt, &
-             zht,zps,zlevmod,nlv_T,nch_sel,ichref,lev_start,iopt2)
+             zht,zps,zlevmod,nlv_T,nchn,ichref,lev_start,iopt2)
 
 !iopt1=2 : calcul de la hauteur em metres PTOP_EQ et du NTOP_EQ correspondant
         CALL CLOUD_HEIGHT (PTOP_EQ,NTOP_EQ, btobs,cldflag,zt, &
-             zht,zps,zlevmod,nlv_T,nch_sel,ichref,lev_start,iopt1)
+             zht,zps,zlevmod,nlv_T,nchn,ichref,lev_start,iopt1)
 
         if (liasi) then
 ! appel de RTTOV pour calculer les radiances des 3 canaux IR (3b, 4 et 5) de AVHRR 3
@@ -823,7 +824,7 @@ contains
 !* -- CLEAR/CLOUDY PROFILE DETECTION USING THE GARAND & NADON ALGORITHM
 
         CALL GARAND1998NADON (CLDFLAG, btobs,ztg,zt, &
-             zht,nlv_T,nch_sel,ptop_eq,ntop_eq,ichref)
+             zht,nlv_T,nchn,ptop_eq,ntop_eq,ichref)
 
         if (liasi) then
            DO JC=1,NCLASSAVHRR
@@ -845,9 +846,10 @@ contains
 ! *** TEST # B ***
 ! *** Set cloudy if temperature difference between guess (ZTG)     ***
 ! *** and estimated true (ZTS) skin temperatures is over threshold ***
+        
 
-        CALL ESTIM_TS(ZTS, ztg,emi_sfc,rcal_clr,robs, &
-             sfctau,cldflag,ichref,nch_sel,nchn,id,CINST)
+        CALL ESTIM_TS(ZTS, ztg, emi_sfc, rcal_clr, robs, &
+             sfctau, cldflag, ichref, nchn, coefs(id) )
 
         IF ( CLDFLAG == 0 .AND. KSURF == 1 &
              .AND. ABS(ZTS-ZTG) > DTW ) CLDFLAG = 1 
@@ -858,8 +860,8 @@ contains
         if (liasi) then
 
            DO JC=1,NCLASSAVHRR
-              CALL ESTIM_TS_AVHRR(ZTS_AVHRR(JC), ztg,emi_sfc_avhrr,rcal_clr_avhrr,robs_avhrr(:,JC), &
-                   sfctau_avhrr,CLDFLAG_AVHRR(jC),ichref_avhrr(JC),NIR)
+              CALL ESTIM_TS(ZTS_AVHRR(JC), ztg,emi_sfc_avhrr,rcal_clr_avhrr,robs_avhrr(:,JC), &
+                   sfctau_avhrr,CLDFLAG_AVHRR(JC),ichref_avhrr(JC),NIR, coefs_avhrr)
            ENDDO
 
            DO JC=1,NCLASSAVHRR
@@ -971,7 +973,7 @@ contains
               
         CALL CLOUD_TOP ( PTOP_BT,PTOP_RD,NTOP_BT,NTOP_RD, &
              btobs,toext,zhoext,rcal_clr,zps,robs,rcld,zvlev,nlevb, &
-             nch_sel,cldflag,rejflag,lev_start,iopt2,ihgt,ichref,nch_he,ilist_he)
+             nchn,cldflag,rejflag,lev_start,iopt2,ihgt,ichref,nch_he,ilist_he)
 
         if (liasi) then
            LEV_START_AVHRR(:) = 0
@@ -1018,7 +1020,7 @@ contains
         LEV_START = MAX( MIN(LEV_START,CO2MAX(1)), CO2MIN(1) )
               
         CALL CO2_SLICING ( PTOP_CO2,NTOP_CO2,FCLOUD_CO2, &
-             rcal_clr,rcld,robs,zps,zvlev,nlevb,nch_sel,cldflag,rejflag, &
+             rcal_clr,rcld,robs,zps,zvlev,nlevb,nchn,cldflag,rejflag, &
              lev_start,ichref,ilist_co2,ilist_co2_pair)
 
 
@@ -1079,7 +1081,7 @@ contains
 
 !* -- FIND MINIMUM LEVEL OF SENSITIVITY FOR CHANNEL ASSIMILATION NOT SENSIBLE TO CLOUDS
         
-        CALL MIN_PRES_new (MAXWF, MINP,PMIN,DTAUDP1, zps,transm,zvlev,cldflag,nlevb,nch_sel,imodtop )
+        CALL MIN_PRES_new (MAXWF, MINP,PMIN,DTAUDP1, zps,transm,zvlev,cldflag,nlevb,nchn,imodtop )
 
 !* -- ASSIMILATION OF OBSERVATIONS WHEN CLOUDY PROFILES
 
@@ -1089,7 +1091,7 @@ contains
 
         TAMPON = MAX(50._8, 2._8*VTOP)                                                          
 
-        DO JC = 1, nch_sel        
+        DO JC = 1, nchn        
            IF ( REJFLAG(JC,11) == 1 .AND. REJFLAG(JC,23) == 1 .and. ETOP - TAMPON > PMIN(JC) ) THEN
               REJFLAG(JC,11) = 0
               REJFLAG(JC,23) = 0
@@ -1105,7 +1107,7 @@ contains
 
         ILIST_SUN= hir_get_chindx_fr_chn(CINST,ICHN_SUN(QCID))
 
-        DO JC = 1, nch_sel
+        DO JC = 1, nchn
 
            IF ( FATE(JC) == 0 ) THEN
 
@@ -1197,7 +1199,7 @@ contains
         ASSIM_ALL = .true.
         FATE(:) = SUM(REJFLAG(:,:),DIM=2)            
         
-        chn: DO JC = 1, nch_sel
+        chn: DO JC = 1, nchn
            IF ( REJFLAG(JC,8) == 0 ) THEN
               IF ( FATE(JC) /= 0 ) THEN
                  ASSIM_ALL = .false.
@@ -2221,7 +2223,7 @@ SUBROUTINE MONOTONIC_INVERSION (NINVR, ptg,ptt,pgz,npr,lvl)
 END SUBROUTINE MONOTONIC_INVERSION
 
 SUBROUTINE ESTIM_TS(TS, tg,emi,rcal,radobs,sfctau,cldflag, &
-     ichref,nchn,nchnkept,satid,CINST)
+     ichref,nchnkept,myCoefs)
 
 !
 !**ID ESTIM_TS -- GET AN ESTIMATED SKIN TEMPERATURE
@@ -2244,16 +2246,13 @@ SUBROUTINE ESTIM_TS(TS, tg,emi,rcal,radobs,sfctau,cldflag, &
 !       ARGUMENTS:
 !          INPUT:
 !            -TG          : GUESS SKIN TEMPERATURE (DEG K)
-!            -EMI(NCHN)    : SURFACE EMISSIVITIES FROM WINDOW CHANNEL (0.-1.)
-!            -RCAL(NCHN)   : COMPUTED CLEAR RADIANCES (MW/M2/SR/CM-1)
-!            -RADOBS(NCHN) : OBSERVED RADIANCES (")
-!            -SFCTAU(NCHN) : SURFACE TO SPACE TRANSMITTANCES (0.-1.)
+!            -EMI(NCHNKEPT)    : SURFACE EMISSIVITIES FROM WINDOW CHANNEL (0.-1.)
+!            -RCAL(NCHNKEPT)   : COMPUTED CLEAR RADIANCES (MW/M2/SR/CM-1)
+!            -RADOBS(NCHNKEPT) : OBSERVED RADIANCES (")
+!            -SFCTAU(NCHNKEPT) : SURFACE TO SPACE TRANSMITTANCES (0.-1.)
 !            -CLDFLAG     : CLEAR(0), CLOUDY(1) OR UNDEFINED(-1) PROFILES
 !            -ICHREF      : REFERENCE SURFACE CHANNEL (SUBSET VALUES)
-!            -NCHN              : NUMBER OF CHANNELS
 !            -NCHNKEPT          : NUMBER OF CHANNELS KEPT IN CMA
-!            -SATID             : SATELLITE IDENTYFIER
-!            -CINST             : INTRUMENT CrIS, IASI or AIRS
 !
 !          OUTPUT:
 !            -TS          : RETRIEVED SKIN TEMPERATURE (-1. FOR MISSING)
@@ -2261,157 +2260,59 @@ SUBROUTINE ESTIM_TS(TS, tg,emi,rcal,radobs,sfctau,cldflag, &
   use tovs_nl_mod
 
   IMPLICIT NONE
-  integer ,intent(in) :: NCHN,NCHNKEPT,satid
+  integer ,intent(in) :: NCHNKEPT
   integer ,intent(in) :: ICHREF,CLDFLAG
-  REAL(8) ,intent(in) :: TG,EMI(NCHN),RCAL(NCHN),RADOBS(NCHN)
-  REAL(8) ,intent(in) :: SFCTAU(NCHN)
-  CHARACTER (LEN=*)  ,intent(in) :: CINST
+  REAL(8) ,intent(in) :: TG,EMI(NCHNKEPT),RCAL(NCHNKEPT),RADOBS(NCHNKEPT)
+  REAL(8) ,intent(in) :: SFCTAU(NCHNKEPT)
+  logical ,intent(in) :: debug
   REAL(8) ,intent(out):: TS
+  type( rttov_coefs ) ,intent(in) :: myCoefs
 !************************************************************************************
-  INTEGER    :: JC
-  INTEGER    :: ICHN,INDX
-  REAL(8)    :: RTG,RADTG(NCHN)
-  REAL(8)    :: RADTS,TS1(NCHN),tstore,t_effective
-  integer    :: ptc(NCHNKEPT)
 
+  REAL(8)    :: RTG,RADTG
+  REAL(8)    :: RADTS,tstore,t_effective
 
-  TS1(:) = -1._8
   TS = -1._8
-  RADTG(:) = -1._8
 
-  if (NCHNKEPT/=hir_get_nchan_selected(CINST)) then
-     Write(*,*) "Invalid NCHNKEPT: ",NCHNKEPT,hir_get_nchan_selected(CINST),CINST
-     call utl_abort("estim_ts")
-  endif
-
-
-  DO JC=  1, NCHNKEPT
-     ptc(JC)=hir_get_chindx_fr_chn(CINST,ichan(JC,SATID))
-  END DO
+  IF ( CLDFLAG /= 0 ) RETURN
+  IF ( ichref==-1 ) RETURN
 
 
 !*    transform guess skin temperature to plank radiances 
 
-  IF ( CLDFLAG /= -1 ) THEN
-     DO JC = 1, NCHNKEPT
-        t_effective =  coefs(satid)%coef%ff_bco(jc) + coefs(satid)%coef%ff_bcs(jc) * TG
-        
-        indx=ptc(jc)
-        
-        RADTG(indx) =  coefs(satid)%coef%planck1(jc) / &
-             ( Exp( coefs(satid)%coef%planck2(jc)/t_effective ) - 1.0_8 )
-     END DO
-  ENDIF
-      
+  t_effective =  myCoefs%coef%ff_bco(ichref) + myCoefs%coef%ff_bcs(ichref) * TG
 
-  IF ( CLDFLAG /= 0 ) RETURN
+  RADTG =  myCoefs%coef%planck1(ichref) / &
+       ( Exp( myCoefs%coef%planck2(ichref)/t_effective ) - 1.0_8 )
+
 
 !*   compute TOA planck radiances due to guess skin planck radiances
 
-  RTG =   RADTG(ICHREF)*EMI(ICHREF)*SFCTAU(ICHREF)
+  RTG =   RADTG*EMI(ICHREF)*SFCTAU(ICHREF)
+
 
 !*   compute true skin planck radiances due to TOA true planck radiances
 
   RADTS = ( RADOBS(ICHREF) + RTG - RCAL(ICHREF) ) / &
        ( EMI(ICHREF) * SFCTAU(ICHREF) )
+
+  if (RADTS<=0._8) then
+     Write(*,'(A25,1x,8e14.6)') "Warning, negative radts", RADOBS(ICHREF), RTG, RCAL(ICHREF), EMI(ICHREF), SFCTAU(ICHREF), &
+          ( RADOBS(ICHREF) + RTG - RCAL(ICHREF) ), ( EMI(ICHREF) * SFCTAU(ICHREF) ), RADTS
+     Write(*,*) "Skipping tskin retrieval."
+     return
+  endif
+
     
 !*   transform true skin planck radiances to true skin temperatures
 
-  DO JC = 1, NCHNKEPT
-     tstore = coefs(satid)%coef%planck2(jc) / Log( 1+coefs(satid)%coef%planck1(jc)/RADTS )
-     indx=ptc(jc)
-     TS1(indx) = ( tstore-coefs(satid)%coef%ff_bco(jc) ) / coefs(satid)%coef%ff_bcs(jc)
-  END DO
-    
-  TS = TS1(ichref)
+  tstore = myCoefs%coef%planck2(ichref) / Log( 1.0_8 + myCoefs%coef%planck1(ichref)/RADTS )
 
+  TS = ( tstore-myCoefs%coef%ff_bco(ichref) ) / myCoefs%coef%ff_bcs(ichref)
+    
 
 END SUBROUTINE ESTIM_TS
 
-SUBROUTINE ESTIM_TS_AVHRR(TS, tg,emi,rcal,radobs,sfctau,cldflag, &
-     ichref,nchn)
-!
-!**ID ESTIM_TS -- GET AN ESTIMATED SKIN TEMPERATURE
-!
-!       AUTHOR:   L. GARAND                   May 2004
-!                 A. BEAULNE (CMDA/SMC)     March 2006  (ADAPT TO 3DVAR)                 
-!
-!       REVISION:
-!
-!       OBJECT:   GET AN ESTIMATED SKIN TEMPERATURE BY INVERSION OF
-!          RADIATIVE TRANSFER EQUATION ASSUMING GUESS T AND Q PROFILES
-!          ARE PERFECT. DESIGNED FOR A SINGLE CHANNEL ICHREF AND NPRF
-!          PROFILES. ASSUMES A REAL TG (GUESS) OVER OCEANS AND A TG 
-!          WITH HYPOTHESIS OF UNITY EMISSIVITY OVER LAND.
-!      
-!          USES:  RCAL = B(TG)*EMI*SFCTAU + ATMOS_PART
-!             TS = B(TS)*EMI*SFCTAU + ATMOS_PART
-!          SOLVES FOR TS
-!
-!       ARGUMENTS:
-!          INPUT:
-!            -TG          : GUESS SKIN TEMPERATURE (DEG K)
-!            -EMI(NCHN)    : SURFACE EMISSIVITIES FROM WINDOW CHANNEL (0.-1.)
-!            -RCAL(NCHN)   : COMPUTED CLEAR RADIANCES (MW/M2/SR/CM-1)
-!            -RADOBS(NCHN) : OBSERVED RADIANCES (")
-!            -SFCTAU(NCHN) : SURFACE TO SPACE TRANSMITTANCES (0.-1.)
-!            -CLDFLAG     : CLEAR(0), CLOUDY(1) OR UNDEFINED(-1) PROFILES
-!            -ICHREF      : REFERENCE SURFACE CHANNEL (SUBSET VALUES)
-!            -NCHN              : NUMBER OF CHANNELS
-!
-!          OUTPUT:
-!            -TS          : RETRIEVED SKIN TEMPERATURE (-1. FOR MISSING)
-!
-!
-
-  IMPLICIT NONE
-  integer ,intent(in) :: nchn
-  integer ,intent(in) :: ichref,CLDFLAG
-  REAL(8) ,intent(in) :: TG,EMI(NCHN),RCAL(NCHN),RADOBS(NCHN)
-  REAL(8) ,intent(in) :: SFCTAU(NCHN)
-  REAL(8) ,intent(out):: TS
-!***************************************
-  INTEGER    :: JC
-  INTEGER    :: ICHN
-  REAL(8)    :: RTG,RADTG(NCHN)
-  REAL(8)    :: RADTS,TS1(NCHN),tstore,t_effective
-
-  TS1(:) = -1._8
-  TS = -1._8
-  RADTG(:) = -1._8
-
-!*    transform guess skin temperature to plank radiances 
-
-
-  IF ( CLDFLAG /= -1 ) THEN
-
-     DO JC = 1, NCHN
-        t_effective =  coefs_avhrr%coef%ff_bco(jc) + coefs_avhrr%coef%ff_bcs(jc) * TG
-        RADTG(JC) =  coefs_avhrr%coef%planck1(jc) / &
-             ( Exp( coefs_avhrr%coef%planck2(jc)/t_effective ) - 1.0_8 )
-     END DO
-  ENDIF
-
-  IF ( CLDFLAG /= 0 ) RETURN
-
-!*   compute TOA planck radiances due to guess skin planck radiances
-
-  RTG =   RADTG(ICHREF)*EMI(ICHREF)*SFCTAU(ICHREF)
-       
-!*   compute true skin planck radiances due to TOA true planck radiances
-
-  RADTS = ( RADOBS(ICHREF) + RTG - RCAL(ICHREF) ) / &
-       ( EMI(ICHREF) * SFCTAU(ICHREF) )
-
-!*   transform true skin planck radiances to true skin temperatures
-
-  DO JC = 1, NCHN
-     tstore = coefs_avhrr%coef%planck2(jc) / Log( 1+coefs_avhrr%coef%planck1(jc)/RADTS )
-     TS1(JC) = ( tstore-coefs_avhrr%coef%ff_bco(jc) ) / coefs_avhrr%coef%ff_bcs(jc)
-  END DO
-  TS = TS1(ichref)
-    
-END SUBROUTINE ESTIM_TS_AVHRR
 
 SUBROUTINE CLOUD_TOP ( PTOP_BT,PTOP_RD,NTOP_BT,NTOP_RD,  &
      btobs,tt,gz,rcal,ps,robs,rcld,plev,nlev,nchn, &
