@@ -26,7 +26,7 @@ module utilities_mod
   private
 
   ! public procedures
-  public :: utl_EZUVINT, utl_EZGDEF, utl_CXGAIG, utl_FSTLIR, utl_FSTECR
+  public :: utl_EZUVINT, utl_EZUVINT2, utl_EZGDEF, utl_CXGAIG, utl_FSTLIR, utl_FSTECR
   public :: utl_EZSINT, utl_EZSINT2, utl_findArrayIndex, utl_matSqrt
   public :: utl_writeStatus, utl_getfldprm, utl_abort
   public :: utl_open_asciifile, utl_stnid_equal, utl_resize, utl_str
@@ -54,13 +54,44 @@ module utilities_mod
 contains
 
   !--------------------------------------------------------------------------
+  ! utl_EZUVINT2
+  !--------------------------------------------------------------------------
+  function utl_EZUVINT2(duuout, dvvout, duuin, dvvin, nio, nii) result(ierr)
+    IMPLICIT NONE
+
+    real*8 duuout(nio), dvvout(nio)
+    real*4 duuin(nii) , dvvin(nii)
+    integer iun, nio, nii
+
+    integer ikey, ierr, ileni, ileno, jk1
+    real, allocatable :: bufuuout4(:), bufvvout4(:)
+
+    integer ezuvint
+    external ezuvint
+
+    allocate(bufuuout4(nio))
+    allocate(bufvvout4(nio))
+
+    ierr = ezuvint(bufuuout4, bufvvout4, duuin, dvvin)
+
+    do jk1 = 1,nio
+       duuout(jk1) = bufuuout4(jk1)
+       dvvout(jk1) = bufvvout4(jk1)
+    enddo
+
+    deallocate(bufuuout4)
+    deallocate(bufvvout4)
+
+  end function utl_EZUVINT2
+
+  !--------------------------------------------------------------------------
   ! utl_EZUVINT
   !--------------------------------------------------------------------------
   function utl_EZUVINT(duuout, dvvout, duuin, dvvin, nio, nii) result(ierr)
     IMPLICIT NONE
 
     real*8 duuout(nio), dvvout(nio)
-    real*4 duuin(nii) , dvvin(nii)
+    real*8 duuin(nii) , dvvin(nii)
     integer iun, nio, nii
 
     integer ikey, ierr, ileni, ileno, jk1

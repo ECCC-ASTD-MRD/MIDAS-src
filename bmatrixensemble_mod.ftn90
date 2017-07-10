@@ -119,6 +119,7 @@ MODULE BmatrixEnsemble_mod
   character(len=2)    :: ctrlVarHumidity
   logical             :: advectAmplitude
   logical             :: removeSubEnsMeans
+  logical             :: EnsTopMatchesAnlTop
 
 CONTAINS
 
@@ -153,7 +154,7 @@ CONTAINS
     !namelist
     NAMELIST /NAMBEN/nEns,scaleFactor,scaleFactorHumidity,ntrunc,enspathname,ensfilebasename, &
                      hLocalize,vLocalize,tweakTG,LocalizationType,waveBandPeaks, &
-                     diagnostic,ctrlVarHumidity,advectAmplitudeFactor,removeSubEnsMeans
+                     diagnostic,ctrlVarHumidity,advectAmplitudeFactor,removeSubEnsMeans,EnsTopMatchesAnlTop
 
     call tmg_start(12,'BEN_SETUP')
 
@@ -179,6 +180,7 @@ CONTAINS
     ctrlVarHumidity  = 'LQ'
     advectAmplitudeFactor = 0.0D0
     removeSubEnsMeans = .false.
+    EnsTopMatchesAnlTop = .false.
 
     nulnam = 0
     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -240,10 +242,16 @@ CONTAINS
     vco_anl => vco_anl_in
     if ( mpi_myid == 0 ) then
       call ens_fileName(ensFileName, ensPathName, ensFileBaseName, 1)
-      call vco_SetupFromFile(vco_file, ensFileName) 
+      call vco_SetupFromFile(vco_file, ensFileName)
     endif
     call vco_mpiBcast(vco_file)
-    vco_ens => vco_file ! IMPORTANT: assumes file is on correct vertical levels
+    if( EnsTopMatchesAnlTop ) then
+      vco_ens => vco_anl  ! IMPORTANT: top levels DO match, therefore safe
+                          ! to force members to be on analysis vertical levels
+    else
+      vco_ens => vco_file ! IMPORTANT: top levels do not match, therefore must
+                          ! assume file is already on correct vertical levels
+    endif
     status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
     status = vgd_get(vco_ens%vgrid,key='ig_1 - vertical coord code',value=Vcode_ens)
     if (Vcode_anl.ne.Vcode_ens) then
