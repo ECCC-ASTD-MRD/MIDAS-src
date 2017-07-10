@@ -2264,7 +2264,6 @@ SUBROUTINE ESTIM_TS(TS, tg,emi,rcal,radobs,sfctau,cldflag, &
   integer ,intent(in) :: ICHREF,CLDFLAG
   REAL(8) ,intent(in) :: TG,EMI(NCHNKEPT),RCAL(NCHNKEPT),RADOBS(NCHNKEPT)
   REAL(8) ,intent(in) :: SFCTAU(NCHNKEPT)
-  logical ,intent(in) :: debug
   REAL(8) ,intent(out):: TS
   type( rttov_coefs ) ,intent(in) :: myCoefs
 !************************************************************************************
