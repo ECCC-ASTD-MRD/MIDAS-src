@@ -2736,8 +2736,6 @@ module gridStateVector_mod
                             in_log=.false.)
         endif
 
-        !write(*,*) 'pres_in, pres_out, psfc_in=', maxval(pres_in),maxval(pres_out),maxval(psfc_in)
-
         ! do the vertical interpolation
         field_out(:,:,:,jstep) = 0.0
 !$OMP PARALLEL DO PRIVATE(jlat,jlat2,jlon,jlon2,jlev_in,jlev_out,zwb,zwt)
@@ -3153,12 +3151,10 @@ module gridStateVector_mod
                 real(field_r8(statevector%myLonBeg:statevector%myLonEnd, &
                               statevector%myLatBeg:statevector%myLatEnd,jlev,indexStep),4)
           else
-            !write(*,*) 'gsv_writeToFile maxval input=',maxval(statevector%gd_r4)
             field_r4 => gsv_getField_r4(statevector,vnl_varNameList(jvar))
             gd_send_r4(:,:) =  &
                 field_r4(statevector%myLonBeg:statevector%myLonEnd, &
                          statevector%myLatBeg:statevector%myLatEnd,jlev,indexStep)
-            !write(*,*) 'gsv_writeToFile maxval send=',maxval(gd_send_r4)
           endif
 
           nsize = statevector%lonPerPE*statevector%latPerPE
@@ -3169,7 +3165,6 @@ module gridStateVector_mod
             ! just copy when either nprocs is 1 or data is global
             gd_recv_r4(:,:,1) = gd_send_r4(:,:)
           endif
-          !write(*,*) 'gsv_writeToFile maxval recv=',maxval(gd_recv_r4)
 
           if( mpi_myid == 0 .and. statevector%mpi_local ) then
 !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
@@ -3185,7 +3180,6 @@ module gridStateVector_mod
           elseif( .not. statevector%mpi_local ) then
             work2d_r4(:,:) = gd_recv_r4(:,:,1)
           endif
-          !write(*,*) 'gsv_writeToFile maxval work=',maxval(work2d_r4)
 
           ! now do writing
           if (iDoWriting) then

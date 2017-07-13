@@ -575,8 +575,8 @@ CONTAINS
     call ens_fileName(ensFileName, ensPathName, ensFileBaseName, 1)
     nullify(hco_file)
     call hco_SetupFromFile(hco_file, ensFileName, ' ', 'ENSFILEGRID')
+    nullify(vco_file)
     if ( mpi_myid == 0 ) then
-      nullify(vco_file)
       call vco_SetupFromFile(vco_file, ensFileName) 
     endif
     call vco_mpiBcast(vco_file)

@@ -119,7 +119,6 @@ MODULE BmatrixEnsemble_mod
   character(len=2)    :: ctrlVarHumidity
   logical             :: advectAmplitude
   logical             :: removeSubEnsMeans
-  logical             :: EnsTopMatchesAnlTop
 
 CONTAINS
 
@@ -139,8 +138,7 @@ CONTAINS
 
     real(8) :: zps
 
-    real(8),allocatable :: pressureProfileEns_M(:)
-    real(8),pointer :: pressureProfileInc_M(:)
+    real(8),pointer :: pressureProfileEns_M(:), pressureProfileFile_M(:), pressureProfileInc_M(:)
 
     integer        :: cvDim_out
     integer        :: jlev,jn,jm,jvar,ila,return_code,status
@@ -149,12 +147,13 @@ CONTAINS
     integer        :: stamp_last,newdate,ndate,ntime
     character(len=256) :: ensFileName
 
+    logical        :: EnsTopMatchesAnlTop
     logical        :: lExists
 
     !namelist
     NAMELIST /NAMBEN/nEns,scaleFactor,scaleFactorHumidity,ntrunc,enspathname,ensfilebasename, &
                      hLocalize,vLocalize,tweakTG,LocalizationType,waveBandPeaks, &
-                     diagnostic,ctrlVarHumidity,advectAmplitudeFactor,removeSubEnsMeans,EnsTopMatchesAnlTop
+                     diagnostic,ctrlVarHumidity,advectAmplitudeFactor,removeSubEnsMeans
 
     call tmg_start(12,'BEN_SETUP')
 
@@ -180,7 +179,6 @@ CONTAINS
     ctrlVarHumidity  = 'LQ'
     advectAmplitudeFactor = 0.0D0
     removeSubEnsMeans = .false.
-    EnsTopMatchesAnlTop = .false.
 
     nulnam = 0
     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -245,10 +243,30 @@ CONTAINS
       call vco_SetupFromFile(vco_file, ensFileName)
     endif
     call vco_mpiBcast(vco_file)
+
+    zps = 101000.D0
+    nullify(pressureProfileInc_M)
+    status = vgd_levels( vco_anl%vgrid, ip1_list=vco_anl%ip1_M, levels=pressureProfileInc_M, &
+                         sfc_field=zps, in_log=.false.)
+    if (status /= VGD_OK) call utl_abort('ben_setup: ERROR from vgd_levels')
+    nullify(pressureProfileFile_M)
+    status = vgd_levels( vco_file%vgrid, ip1_list=vco_file%ip1_M, levels=pressureProfileFile_M, &
+                         sfc_field=zps, in_log=.false.)
+    if (status /= VGD_OK) call utl_abort('ben_setup: ERROR from vgd_levels')
+
+    EnsTopMatchesAnlTop = abs( log(pressureProfileFile_M(1)) - log(pressureProfileInc_M(1)) ) < 0.1d0
+    write(*,*) 'EnsTopMatchesAnlTop: EnsTopMatchesAnlTop, presEns, presInc = ', &
+               EnsTopMatchesAnlTop, pressureProfileFile_M(1), pressureProfileInc_M(1)
+    deallocate(pressureProfileFile_M)
+    deallocate(pressureProfileInc_M)
+
     if( EnsTopMatchesAnlTop ) then
+      if( mpi_myid == 0 ) write(*,*) 'ben_setup: top level of ensemble member and analysis grid match'
       vco_ens => vco_anl  ! IMPORTANT: top levels DO match, therefore safe
                           ! to force members to be on analysis vertical levels
     else
+      if( mpi_myid == 0 ) write(*,*) 'ben_setup: top level of ensemble member and analysis grid are different, therefore'
+      if( mpi_myid == 0 ) write(*,*) '           assume member is already be on correct levels - NO CHECKING IS DONE'
       vco_ens => vco_file ! IMPORTANT: top levels do not match, therefore must
                           ! assume file is already on correct vertical levels
     endif
@@ -421,6 +439,7 @@ CONTAINS
       endif
 
       zps = 101000.D0
+      nullify(pressureProfileInc_M)
       status = vgd_levels( vco_anl%vgrid, ip1_list=vco_anl%ip1_M, levels=pressureProfileInc_M, &
                            sfc_field=zps, in_log=.false.)
       if (status /= VGD_OK)then
@@ -514,15 +533,6 @@ CONTAINS
       cvDim_out = 9999 ! Dummy value > 0 to indicate to the background check (s/r compute_HBHT_ensemble) 
                        ! that Bens is used
     end if
-
-    if ( cvDim_out == 0 ) then
-      write(*,*) 'ben_setup: =========================================================='
-      write(*,*) 'ben_setup: ERROR: This mpi task has zero dimension for the control vector.'
-      write(*,*) 'ben_setup: This is probably because the number of mpi tasks is too large'
-      write(*,*) 'ben_setup: relative to NTRUNC. Should be ok with NTRUNC >= 2*(npex or npex)'
-      write(*,*) 'ben_setup: =========================================================='
-      call utl_abort('ben_setup: ERROR! This mpi task has zero dimension for the control vector.')
-    endif
 
     !
     !- 4.  Ending
@@ -2659,33 +2669,40 @@ CONTAINS
   SUBROUTINE BEN_BSqrt(controlVector_in,statevector)
     implicit none
 
-    real(8)    :: controlVector_in(cvDim_mpilocal) 
+    real(8)          :: controlVector_in(cvDim_mpilocal) 
     type(struct_gsv) :: statevector
 
     real(8)    :: zsp_all(nla_mpilocal,nphase,nLevEns_M,nEns)
     real(8)    :: zsp1(nla_mpilocal,nphase,nEnsOverDimension)
     real(8), pointer :: ensAmplitudeAll_M(:,:,:,:,:)
     integer   :: ierr, jlev, jlat, memberIndex, waveBandIndex
-    character(len=19)   :: kind
+    character(len=19) :: kind
+    logical   :: immediateReturn
 
     call tmg_start(67,'BEN_BARR')
-    if(mpi_doBarrier) call rpn_comm_barrier("GRID",ierr)
+    if(mpi_doBarrier) call rpn_comm_barrier('GRID',ierr)
     call tmg_stop(67)
 
     if (.not. initialized) then
-      if (mpi_myid == 0) write(*,*) 'bMatrixEnsemble not initialized'
+      if (mpi_myid == 0) write(*,*) 'ben_bsqrt: bMatrixEnsemble not initialized'
       return
     endif
 
     if (sum(scaleFactor) == 0.0d0) then
-      if (mpi_myid == 0) write(*,*) 'bMatrixEnsemble: scaleFactor=0, skipping bSqrt'
+      if (mpi_myid == 0) write(*,*) 'ben_bsqrt: scaleFactor=0, skipping bSqrt'
       return
     endif
 
-    if (maxval(controlVector_in) == 0.0d0 .and. minval(controlVector_in) == 0.0d0) then
-      if (mpi_myid == 0) write(*,*) 'bMatrixEnsemble: controlVector=0, skipping bSqrt'
-      return
-    endif
+    ! only check controlVector on proc 0, since may be zero-length on some procs
+    if (mpi_myid == 0) then
+      immediateReturn = .false.
+      if (maxval(controlVector_in) == 0.0d0 .and. minval(controlVector_in) == 0.0d0) then
+        write(*,*) 'ben_bsqrt: controlVector=0, skipping bSqrt'
+        immediateReturn = .true.
+      end if
+    end if
+    call rpn_comm_bcast(immediateReturn, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
+    if (immediateReturn) return
 
     if (mpi_myid == 0) write(*,*) 'ben_bsqrt: starting'
     if (mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -2779,26 +2796,26 @@ CONTAINS
   SUBROUTINE BEN_BSqrtAd(statevector,controlVector_out)
     implicit none
 
-    real(8)    :: controlVector_out(cvDim_mpilocal) 
-    type(struct_gsv) :: statevector
+    real(8)           :: controlVector_out(cvDim_mpilocal) 
+    type(struct_gsv)  :: statevector
 
-    real(8)    :: zsp_all(nla_mpilocal,nphase,nLevEns_M,nEns)
-    real(8)    :: zsp1(nla_mpilocal,nphase,nEnsOverDimension)
-    real(8), pointer :: ensAmplitudeAll_M(:,:,:,:,:)
-    integer   :: ierr, jlev, jlat, memberIndex, waveBandIndex
-    character(len=19)   :: kind
+    real(8)           :: zsp_all(nla_mpilocal,nphase,nLevEns_M,nEns)
+    real(8)           :: zsp1(nla_mpilocal,nphase,nEnsOverDimension)
+    real(8), pointer  :: ensAmplitudeAll_M(:,:,:,:,:)
+    integer           :: ierr, jlev, jlat, memberIndex, waveBandIndex
+    character(len=19) :: kind
 
     call tmg_start(67,'BEN_BARR')
-    if(mpi_doBarrier) call rpn_comm_barrier("GRID",ierr)
+    if(mpi_doBarrier) call rpn_comm_barrier('GRID',ierr)
     call tmg_stop(67)
 
     if (.not. initialized) then
-      if (mpi_myid == 0) write(*,*) 'bMatrixEnsemble not initialized'
+      if (mpi_myid == 0) write(*,*) 'ben_bsqrtad: bMatrixEnsemble not initialized'
       return
     endif
 
     if (sum(scaleFactor) == 0.0d0) then
-      if (mpi_myid == 0) write(*,*) 'bMatrixEnsemble: scaleFactor=0, skipping bSqrtAd'
+      if (mpi_myid == 0) write(*,*) 'ben_bsqrtad: scaleFactor=0, skipping bSqrtAd'
       return
     endif
 

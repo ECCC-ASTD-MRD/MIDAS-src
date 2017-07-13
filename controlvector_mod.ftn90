@@ -26,7 +26,7 @@
 !!       M. Sitwell Aug 2015
 !!       - Added cvm_numSubvector
 !--------------------------------------------------------------------------
-MODULE ControlVector_mod
+module controlVector_mod
   use utilities_mod
   implicit none
   save
@@ -34,9 +34,11 @@ MODULE ControlVector_mod
 
   ! public variables
   public              :: cvm_nvadim, cvm_nvadim_mpiglobal
+  public              :: cvm_BHI, cvm_BEN, cvm_BCHM
   ! public procedures
   public              :: cvm_Setup, cvm_getSubVector, cvm_getSubVector_mpiglobal
   public              :: cvm_getSubVector_r4, cvm_getSubVector_mpiglobal_r4
+  public              :: cvm_subVectorExists
 
 
   logical             :: initialized = .false.
@@ -50,11 +52,13 @@ MODULE ControlVector_mod
   integer             :: cvm_dimBchm_mpiglobal
 
   integer, parameter  :: cvm_numSubvector=3 ! total number of possible valid subvectors
+  integer, parameter  :: cvm_BHI  = 1
+  integer, parameter  :: cvm_BEN  = 2
+  integer, parameter  :: cvm_BCHM = 3
 
+contains
 
-CONTAINS
-
-  SUBROUTINE CVM_setup(DIMBHI_IN,DIMBEN_IN,DIMBCHM_IN)
+  subroutine cvm_setup(dimBhi_in,dimBen_in,dimBchm_in)
     implicit none
 
     integer           :: dimBHI_in,dimBEN_in,dimBCHM_in
@@ -78,9 +82,34 @@ CONTAINS
 
     initialized=.true.
 
-  END SUBROUTINE CVM_setup
+  end subroutine cvm_setup
 
-  FUNCTION CVM_getSubVector(controlVector,subVectorIndex) RESULT(subVector)
+
+  function cvm_subVectorExists(subVectorIndex) RESULT(exists)
+    implicit none
+
+    integer :: subVectorIndex
+    logical :: exists
+
+    if( subVectorIndex < 0 .or. subVectorIndex > cvm_numSubvector ) then
+      write(*,*) 'cvm_getSubVector: subVectorIndex = ',subVectorIndex
+      call utl_abort('cvm_getSubVector: invalid value for subVectorIndex')
+    endif
+
+    exists = .false.
+
+    if( subVectorIndex == cvm_BHI .and. cvm_dimbhi_mpiglobal > 0 ) then
+      exists = .true.
+    elseif( subVectorIndex == cvm_BEN .and. cvm_dimben_mpiglobal > 0 ) then
+      exists = .true.
+    elseif( subVectorIndex == cvm_BCHM .and. cvm_dimbchm_mpiglobal > 0 ) then
+      exists = .true.
+    endif
+
+  end function cvm_subVectorExists
+
+
+  function cvm_getSubVector(controlVector,subVectorIndex) RESULT(subVector)
     implicit none
 
     real*8, pointer :: subVector(:)
@@ -88,29 +117,27 @@ CONTAINS
     integer         :: subVectorIndex
     logical, save   :: firstCall(cvm_numSubvector)=.true.
 
-    if (subVectorIndex.lt.0.or.subVectorIndex.gt.cvm_numSubvector) then
-       write(*,*) 'CVM_getSubVector: subVectorIndex = ',subVectorIndex
-       call utl_abort('CVM_getSubVector: invalid value for subVectorIndex')
+    if( subVectorIndex < 0 .or. subVectorIndex > cvm_numSubvector ) then
+       write(*,*) 'cvm_getSubVector: subVectorIndex = ',subVectorIndex
+       call utl_abort('cvm_getSubVector: invalid value for subVectorIndex')
     end if
 
     nullify(subVector)
 
-    if(subVectorIndex.eq.1 .and. cvm_dimbhi.gt.0) then
+    if( subVectorIndex == cvm_BHI ) then
       subVector => controlVector(1:cvm_dimbhi)
-    elseif(subVectorIndex.eq.2 .and. cvm_dimben.gt.0) then
+    elseif( subVectorIndex == cvm_BEN ) then
       subVector => controlVector((cvm_dimbhi+1):(cvm_dimbhi+cvm_dimben))
-    elseif(subVectorIndex.eq.3 .and. cvm_dimbchm.gt.0) then
+    elseif( subVectorIndex == cvm_BCHM ) then
       subVector => controlVector((cvm_dimbhi+cvm_dimben+1):(cvm_dimbhi+cvm_dimben+cvm_dimbchm))
     else
-       if(firstCall(subVectorIndex)) then
-          write(*,*) 'CVM_getSubVector: subVectorIndex ',subVectorIndex,' is not available'
-          firstCall(subVectorIndex)=.false.
-       endif
+      call utl_abort('cvm_getSubVector: unknown subVectorIndex!')
     endif
 
-  END FUNCTION CVM_getSubVector
+  end function cvm_getSubVector
 
-  FUNCTION CVM_getSubVector_r4(controlVector,subVectorIndex) RESULT(subVector)
+
+  function cvm_getSubVector_r4(controlVector,subVectorIndex) RESULT(subVector)
     implicit none
 
     real*4, pointer :: subVector(:)
@@ -118,29 +145,27 @@ CONTAINS
     integer         :: subVectorIndex
     logical, save   :: firstCall(cvm_numSubvector)=.true.
 
-    if (subVectorIndex.lt.0.or.subVectorIndex.gt.cvm_numSubvector) then
-       write(*,*) 'CVM_getSubVector: subVectorIndex = ',subVectorIndex
-       call utl_abort('CVM_getSubVector: invalid value for subVectorIndex')
+    if( subVectorIndex < 0 .or. subVectorIndex > cvm_numSubvector ) then
+       write(*,*) 'cvm_getSubVector_r4: subVectorIndex = ',subVectorIndex
+       call utl_abort('cvm_getSubVector_r4: invalid value for subVectorIndex')
     end if
 
     nullify(subVector)
 
-    if(subVectorIndex.eq.1 .and. cvm_dimbhi.gt.0) then
+    if( subVectorIndex == cvm_BHI ) then
       subVector => controlVector(1:cvm_dimbhi)
-    elseif(subVectorIndex.eq.2 .and. cvm_dimben.gt.0) then
+    elseif( subVectorIndex == cvm_BEN ) then
       subVector => controlVector((cvm_dimbhi+1):(cvm_dimbhi+cvm_dimben))
-    elseif(subVectorIndex.eq.3 .and. cvm_dimbchm.gt.0) then
+    elseif( subVectorIndex == cvm_BCHM ) then
       subVector => controlVector((cvm_dimbhi+cvm_dimben+1):(cvm_dimbhi+cvm_dimben+cvm_dimbchm))
     else
-       if(firstCall(subVectorIndex)) then
-          write(*,*) 'CVM_getSubVector: subVectorIndex ',subVectorIndex,' is not available'
-          firstCall(subVectorIndex)=.false.
-       endif
+      call utl_abort('cvm_getSubVector_r4: unknown subVectorIndex!')
     endif
 
-  END FUNCTION CVM_getSubVector_r4
+  end function cvm_getSubVector_r4
 
-  FUNCTION CVM_getSubVector_mpiglobal(controlVector,subVectorIndex) RESULT(subVector)
+
+  function cvm_getSubVector_mpiglobal(controlVector,subVectorIndex) RESULT(subVector)
     implicit none
 
     real*8, pointer :: subVector(:)
@@ -148,29 +173,27 @@ CONTAINS
     integer         :: subVectorIndex
     logical, save   :: firstCall(cvm_numSubvector)=.true.
 
-    if (subVectorIndex.lt.0.or.subVectorIndex.gt.cvm_numSubvector) then
-       write(*,*) 'CVM_getSubVector_mpiglobal: subVectorIndex = ',subVectorIndex
-       call utl_abort('CVM_getSubVector_mpiglobal: invalid value for subVectorIndex')
+    if( subVectorIndex < 0 .or. subVectorIndex > cvm_numSubvector ) then
+       write(*,*) 'cvm_getSubVector_mpiglobal: subVectorIndex = ',subVectorIndex
+       call utl_abort('cvm_getSubVector_mpiglobal: invalid value for subVectorIndex')
     end if
 
     nullify(subVector)
 
-    if(subVectorIndex.eq.1 .and. cvm_dimbhi_mpiglobal.gt.0) then
+    if( subVectorIndex == cvm_BHI ) then
       subVector => controlVector(1:cvm_dimbhi_mpiglobal)
-    elseif(subVectorIndex.eq.2 .and. cvm_dimben_mpiglobal.gt.0) then
+    elseif( subVectorIndex == cvm_BEN ) then
       subVector => controlVector((cvm_dimbhi_mpiglobal+1):(cvm_dimbhi_mpiglobal+cvm_dimben_mpiglobal))
-    elseif(subVectorIndex.eq.3 .and. cvm_dimbchm_mpiglobal.gt.0) then
+    elseif( subVectorIndex == cvm_BCHM ) then
       subVector => controlVector((cvm_dimbhi_mpiglobal+cvm_dimben_mpiglobal+1):(cvm_dimbhi_mpiglobal+cvm_dimben_mpiglobal+cvm_dimbchm_mpiglobal))
     else
-      if(firstCall(subVectorIndex)) then
-        write(*,*) 'CVM_getSubVector_mpiglobal: subVectorIndex ',subVectorIndex,' is not available'
-        firstCall(subVectorIndex)=.false.
-      endif
+      call utl_abort('cvm_getSubVector_mpiglobal: unknown subVectorIndex!')
     endif
 
-  END FUNCTION CVM_getSubVector_mpiglobal
+  end function cvm_getSubVector_mpiglobal
 
-  FUNCTION CVM_getSubVector_mpiglobal_r4(controlVector,subVectorIndex) RESULT(subVector)
+
+  function cvm_getSubVector_mpiglobal_r4(controlVector,subVectorIndex) RESULT(subVector)
     implicit none
 
     real*4, pointer :: subVector(:)
@@ -178,26 +201,23 @@ CONTAINS
     integer         :: subVectorIndex
     logical, save   :: firstCall(cvm_numSubvector)=.true.
 
-    if (subVectorIndex.lt.0.or.subVectorIndex.gt.cvm_numSubvector) then
-       write(*,*) 'CVM_getSubVector_mpiglobal: subVectorIndex = ',subVectorIndex
-       call utl_abort('CVM_getSubVector_mpiglobal: invalid value for subVectorIndex')
+    if( subVectorIndex < 0 .or. subVectorIndex > cvm_numSubvector ) then
+       write(*,*) 'cvm_getSubVector_mpiglobal_r4: subVectorIndex = ',subVectorIndex
+       call utl_abort('cvm_getSubVector_mpiglobal_r4: invalid value for subVectorIndex')
     end if
 
     nullify(subVector)
 
-    if(subVectorIndex.eq.1 .and. cvm_dimbhi_mpiglobal.gt.0) then
+    if( subVectorIndex == cvm_BHI ) then
       subVector => controlVector(1:cvm_dimbhi_mpiglobal)
-    elseif(subVectorIndex.eq.2 .and. cvm_dimben_mpiglobal.gt.0) then
+    elseif( subVectorIndex == cvm_BEN ) then
       subVector => controlVector((cvm_dimbhi_mpiglobal+1):(cvm_dimbhi_mpiglobal+cvm_dimben_mpiglobal))
-    elseif(subVectorIndex.eq.3 .and. cvm_dimbchm_mpiglobal.gt.0) then
+    elseif( subVectorIndex == cvm_BCHM ) then
       subVector => controlVector((cvm_dimbhi_mpiglobal+cvm_dimben_mpiglobal+1):(cvm_dimbhi_mpiglobal+cvm_dimben_mpiglobal+cvm_dimbchm_mpiglobal))
     else
-      if(firstCall(subVectorIndex)) then
-        write(*,*) 'CVM_getSubVector_mpiglobal: subVectorIndex ',subVectorIndex,' is not available'
-        firstCall(subVectorIndex)=.false.
-      endif
+      call utl_abort('cvm_getSubVector_mpiglobal_r4: unknown subVectorIndex!')
     endif
 
-  END FUNCTION CVM_getSubVector_mpiglobal_r4
+  end function cvm_getSubVector_mpiglobal_r4
 
-END MODULE ControlVector_mod
+end module controlVector_mod
