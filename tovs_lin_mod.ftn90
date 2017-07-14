@@ -277,7 +277,6 @@ subroutine tvslin_rttov_tl(column, columng, lobsSpaceData, obs_ass_val)
      sensor_type = tvs_coefs(sensor_id) % coef % id_sensor
      instrum = tvs_coefs(sensor_id) % coef % id_inst
 !  loop over all obs.
-
      count_profile = 0
      do iobs = 1, tvs_nobtov
 !    Currently processed sensor?
@@ -344,8 +343,8 @@ subroutine tvslin_rttov_tl(column, columng, lobsSpaceData, obs_ass_val)
 
      count_profile = 0
 
-     obs_loop2: do iobs = 1, NOBMAX
-        if (tvs_lsensor(iobs)/=sensor_id) cycle obs_loop2
+     obs_loop: do iobs = 1, NOBMAX
+        if (tvs_lsensor(iobs)/=sensor_id) cycle obs_loop
 
         headerIndex = tvs_lobsno(iobs)
         count_profile = count_profile + 1
@@ -379,7 +378,7 @@ subroutine tvslin_rttov_tl(column, columng, lobsSpaceData, obs_ass_val)
 
         iptobs_header(count_profile) = headerIndex
 
-     enddo obs_loop2
+     enddo obs_loop
 
 !     .  2.1  Vertical interpolation of model temperature and logarithm of
 !             specific humidity to pressure levels required by tovs rt model
@@ -453,9 +452,8 @@ subroutine tvslin_rttov_tl(column, columng, lobsSpaceData, obs_ass_val)
         profilesdata_tl(j) % gas_units       = gas_unit_specconc ! all gas profiles are supposed to be provided in kg/kg
         profilesdata_tl(j) % nlevels         =  nlevels
         profilesdata_tl(j) % nlayers         =  nlevels - 1
-        if(tvs_coefs(sensor_id)%coef%nozone > 0) then
-           profilesdata_tl(j) % o3(:)        =  0.d0
-        endif
+        if (tvs_coefs(sensor_id)%coef%nozone > 0) profilesdata_tl(j) % o3(:) =  0.d0
+
         profilesdata_tl(j) % ctp             = 0.0d0
         profilesdata_tl(j) % cfraction       = 0.0d0
         profilesdata_tl(j) % zenangle        = 0.0d0

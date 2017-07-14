@@ -609,7 +609,6 @@ contains
            IF (BTCALC(chan_indx)>350._8) REJFLAG(chan_indx,9) = 1
         END DO
 
-
         KSURF = tvs_profiles(tvs_nobtov)%skin%surftype
 !Test pour detecter le isatzen manquant (-1) ou anormal
 ! (angle negatif ou superieur a 75 degres )

@@ -1630,7 +1630,6 @@ subroutine tvs_fillProfiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode)
               toext(jl,jn) = toext(jpmotop,jn)  + &
                    ( log(xpres(jl)/xpres(jpmotop)) * tvs_mesosphereLapseRate )
            enddo
-
         enddo
      else
         ! old code for temperature profile extrapolation (only apropriate if model top at 10 hPa)
@@ -1713,7 +1712,7 @@ subroutine tvs_fillProfiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode)
 !
         tvs_profiles(jj) % s2m % t         = col_getElem(columnghr,ilowlvl_T,iptobscma(j),'TT')
 !!!        tvs_profiles(jj) % s2m % q         = exp(col_getElem(columnghr,ilowlvl_T,iptobscma(j),'HU')) * tvs_qMixratio2ppmv
-        tvs_profiles(jj) % s2m % q         = 0.3D6  !! new a value between 0 and 0.6d6 so that RTTOV will not complain
+        tvs_profiles(jj) % s2m % q         = 0.3D6  !! a value between 0 and 0.6d6 so that RTTOV will not complain; not used
         tvs_profiles(jj) % s2m % p         = col_getElem(columnghr,1      ,iptobscma(j),'P0')*MPC_MBAR_PER_PA_R8
         tvs_profiles(jj) % s2m % u         = col_getElem(columnghr,ilowlvl_M,iptobscma(j),'UU')
         tvs_profiles(jj) % s2m % v         = col_getElem(columnghr,ilowlvl_M,iptobscma(j),'VV')
@@ -2210,7 +2209,7 @@ subroutine tvs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
              nchanprof=count_tb, asw=asw )
         call utl_checkAllocationStatus(alloc_status, " tvs_rttov transmittances", .false.)
         
-! radiance deallocation       
+! radiance deallocation      
         call rttov_alloc_rad (alloc_status(1), count_tb, radiancedata_d, nlevels, asw)
         call utl_checkAllocationStatus(alloc_status, " tvs_rttov radiances", .false.)
 
