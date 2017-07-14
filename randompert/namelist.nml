@@ -1,15 +1,14 @@
  &NAMBHI
-  NTRUNC = 250
-  SCALEFACTOR=100*1.0
+  NTRUNC = 180
 /
  &NAMBEN
 /
  &NAMENKF
-   NENS=256
+   NENS=128
    SEED=1
    DATE=2014070112
    REMOVE_MEAN=T
-   smoothVariances=F
+   WRITE_MPI=F
 /
  &NAMTIME
   DSTEPOBS = 6.0d0
@@ -23,8 +22,5 @@
    ANLVAR(5)   ='P0'
    ANLVAR(6)   ='TG'
 /
- &NAMDIAG
-/
- &NAMSPECTRAL
-   KREFTYPE = 'max' 
-/
+
+
