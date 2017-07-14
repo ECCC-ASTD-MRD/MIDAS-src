@@ -1,0 +1,127 @@
+<MODULE name="Tests">
+  <SUBMITS sub_name="EnVar_gbc_oma"/>
+  <SUBMITS sub_name="EnVar_evalalt"/>
+  <SUBMITS sub_name="Var3D_gbc"/>
+  <SUBMITS sub_name="EnVar_atms-cris"/>
+  <SUBMITS sub_name="EnVar_gdps_5p1"/>
+  <SUBMITS sub_name="rdps"/>
+  <SUBMITS sub_name="Var3D_splitobs"/>
+  <SUBMITS sub_name="EnVar_96mem_ppp"/>
+  <SUBMITS sub_name="Var3D_splitobs_ppp"/>
+  <SUBMITS sub_name="EnVar_256mem_ppp"/>
+  <SUBMITS sub_name="bgck_o-p"/>
+  <SUBMITS sub_name="bgck_conv"/>
+  <SUBMITS sub_name="bgck_hyperir"/>
+  <SUBMITS sub_name="EnVar_missing_all"/>
+  <SUBMITS sub_name="EnVar_missing_much"/>
+  <SUBMITS sub_name="EnVar_missing_some"/>
+  <SUBMITS sub_name="relaunch_tests"/>
+
+  <FAMILY  name="EnVar_gbc_oma">
+    <SUBMITS sub_name="UnitTest"/>
+    <MODULE  name="UnitTest"/>
+  </FAMILY>
+
+  <FAMILY  name="EnVar_evalalt">
+    <SUBMITS sub_name="UnitTest"/>
+    <MODULE  name="UnitTest"/>
+  </FAMILY>
+
+  <FAMILY  name="Var3D_gbc">
+    <SUBMITS sub_name="UnitTest"/>
+    <MODULE  name="UnitTest"/>
+  </FAMILY>
+
+  <FAMILY  name="EnVar_atms-cris">
+    <SUBMITS sub_name="UnitTest"/>
+    <MODULE  name="UnitTest"/>
+  </FAMILY>
+
+  <FAMILY  name="EnVar_gdps_5p1">
+    <!-- <DEPENDS_ON dep_name="./EnVar_atms-cris"  status="end" type="node"/> -->
+
+    <SUBMITS sub_name="UnitTest"/>
+    <MODULE  name="UnitTest"/>
+  </FAMILY>
+
+  <FAMILY  name="rdps">
+    <SUBMITS sub_name="UnitTest"/>
+    <MODULE  name="UnitTest"/>
+  </FAMILY>
+
+  <FAMILY  name="Var3D_splitobs">
+    <SUBMITS sub_name="UnitTest"/>
+    <MODULE  name="UnitTest"/>
+  </FAMILY>
+
+  <FAMILY  name="EnVar_96mem_ppp">
+    <SUBMITS sub_name="UnitTest"/>
+    <MODULE  name="UnitTest"/>
+  </FAMILY>
+
+  <FAMILY  name="Var3D_splitobs_ppp">
+    <SUBMITS sub_name="UnitTest"/>
+    <MODULE  name="UnitTest"/>
+  </FAMILY>
+
+  <FAMILY  name="EnVar_256mem_ppp">
+    <SUBMITS sub_name="UnitTest"/>
+    <MODULE  name="UnitTest"/>
+  </FAMILY>
+
+  <FAMILY  name="bgck_o-p">
+    <SUBMITS sub_name="UnitTest"/>
+    <MODULE  name="UnitTest"/>
+  </FAMILY>
+
+  <FAMILY  name="bgck_conv">
+    <SUBMITS sub_name="UnitTest"/>
+    <MODULE  name="UnitTest"/>
+  </FAMILY>
+
+  <FAMILY  name="bgck_hyperir">
+    <SUBMITS sub_name="UnitTest"/>
+    <MODULE  name="UnitTest"/>
+  </FAMILY>
+
+  <FAMILY  name="EnVar_missing_all">
+    <!-- <DEPENDS_ON dep_name="./EnVar_gdps_5p1"  status="end" type="node"/> -->
+
+    <SUBMITS sub_name="UnitTest"/>
+    <MODULE  name="UnitTest"/>
+  </FAMILY>
+
+  <FAMILY  name="EnVar_missing_much">
+    <!-- <DEPENDS_ON dep_name="./EnVar_gdps_5p1"  status="end" type="node"/> -->s
+
+    <SUBMITS sub_name="UnitTest"/>
+    <MODULE  name="UnitTest"/>
+  </FAMILY>
+
+  <FAMILY  name="EnVar_missing_some">
+    <!-- <DEPENDS_ON dep_name="./EnVar_missing_much"  status="end" type="node"/> -->
+
+    <SUBMITS sub_name="UnitTest"/>
+    <MODULE  name="UnitTest"/>
+  </FAMILY>
+
+  <TASK name="relaunch_tests">
+    <DEPENDS_ON dep_name="./EnVar_gbc_oma" status="end" type="node"/>
+    <DEPENDS_ON dep_name="./EnVar_evalalt" status="end" type="node"/>
+    <DEPENDS_ON dep_name="./Var3D_gbc" status="end" type="node"/>
+    <DEPENDS_ON dep_name="./EnVar_atms-cris" status="end" type="node"/>
+    <DEPENDS_ON dep_name="./EnVar_gdps_5p1" status="end" type="node"/>
+    <DEPENDS_ON dep_name="./rdps" status="end" type="node"/>
+    <DEPENDS_ON dep_name="./Var3D_splitobs" status="end" type="node"/>
+    <DEPENDS_ON dep_name="./EnVar_96mem_ppp" status="end" type="node"/>
+    <DEPENDS_ON dep_name="./Var3D_splitobs_ppp" status="end" type="node"/>
+    <DEPENDS_ON dep_name="./EnVar_256mem_ppp" status="end" type="node"/>
+    <DEPENDS_ON dep_name="./bgck_o-p" status="end" type="node"/>
+    <DEPENDS_ON dep_name="./bgck_conv" status="end" type="node"/>
+    <DEPENDS_ON dep_name="./bgck_hyperir" status="end" type="node"/>
+    <DEPENDS_ON dep_name="./EnVar_missing_all" status="end" type="node"/>
+    <DEPENDS_ON dep_name="./EnVar_missing_much" status="end" type="node"/>
+    <DEPENDS_ON dep_name="./EnVar_missing_some" status="end" type="node"/>
+  </TASK>
+
+</MODULE>
