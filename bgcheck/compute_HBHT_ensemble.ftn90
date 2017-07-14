@@ -60,8 +60,6 @@ subroutine compute_HBHT_ensemble(columng,columnhr,obsSpaceData,active)
   !- 1.2 Initialize/Read the flow-dependent ensemble perturbations
   call ben_Setup( hco_anl,             & ! IN
                   vco_anl,             & ! IN
-                  tim_nstepobsinc,     & ! IN
-                  tim_getDatestamp(),  & ! IN
                   cvdim,               & ! OUT
                   'BackgroundCheck' )    ! IN
 

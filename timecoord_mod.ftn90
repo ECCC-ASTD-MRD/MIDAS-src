@@ -43,6 +43,7 @@ MODULE timeCoord_mod
   integer, parameter :: mxstepobs=9 
   real*8,pointer     :: timeInterpWeight(:,:) => NULL() ! weights for linear temporal interpolation of increment to obs times
   integer            :: datestamp      ! window centre of analysis validity
+  logical            :: initialized = .false.
 
 contains
 
@@ -75,13 +76,14 @@ contains
   !
     implicit none
     
-    integer :: nulnam,ierr,fnom,fclos
+    integer :: nulnam,ierr,fnom,fclos,newdate,imode,prntdate,prnttime
     real*8  :: dstepobs,dstepobsinc,dwindowsize
-    NAMELIST /NAMTIME/dstepobs,dstepobsinc,dwindowsize
+    NAMELIST /NAMTIME/dstepobs,dstepobsinc,dwindowsize,datestamp
 
     dstepobs    = 6.0d0
     dstepobsinc = 6.0d0      
     dwindowsize = 6.0d0     
+    datestamp   = 0
 
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -90,6 +92,19 @@ contains
     if(mpi_myid.eq.0) write(*,nml=namtime)
     ierr=fclos(nulnam)
 
+    if ( datestamp /= 0 ) then
+      write(*,*) 'tim_setup: ====================================================='
+      write(*,*) 'tim_setup: WARNING! DATESTAMP has been set by value in namelist!'
+      write(*,*) 'tim_setup: ====================================================='
+      imode = 3 ! printable to stamp
+      prntdate = datestamp/100
+      prnttime = (datestamp - prntdate*100) * 10000
+      write(*,*) 'tim_setup: printable = ',datestamp
+      write(*,*) 'tim_setup: printdate = ',prntdate
+      write(*,*) 'tim_setup: printtime = ',prnttime
+      ierr = newdate(datestamp, prntdate, prnttime, imode)
+      write(*,*) 'tim_setup: datestamp = ',datestamp
+    endif
     tim_dstepobs    = dstepobs
     tim_dstepobsinc = dstepobsinc
     tim_windowsize = dwindowsize
@@ -111,6 +126,8 @@ contains
     if(mpi_myid.eq.0) write(*,*) 'tim_setup: dstepobsinc=',tim_dstepobsinc
     if(mpi_myid.eq.0) write(*,*) 'tim_setup: nstepobsinc=',tim_nstepobsinc
 
+    initialized = .true.
+
   end subroutine tim_setup
 
   subroutine tim_timeBinning(lobsSpaceData,nstepobs)
@@ -125,6 +142,8 @@ contains
     character*2 :: familylist(nfamily)
     character*256 :: formatspec,formatspec2
     real*8 :: stepObsIndex
+
+    if (.not. initialized) call utl_abort('tim_timeBinning: module not initialized')
 
     allocate(idataass(nfamily,nStepObs+1))
     allocate(my_idataass(nfamily,nStepObs+1))
@@ -172,9 +191,9 @@ contains
 
     formatspec='(1X,A6,":"'
     do jstep=1,nStepObs
-       formatspec=trim(formatspec)//',1X,I6' ! this is for each time bin
+       formatspec=trim(formatspec)//',1X,I7' ! this is for each time bin
     enddo
-    formatspec=trim(formatspec)//',1X,I8' ! this is for the total
+    formatspec=trim(formatspec)//',1X,I9' ! this is for the total
     formatspec=trim(formatspec)//')'
 
     formatspec2='(1X,A6,":"'
@@ -240,6 +259,8 @@ contains
     type(struct_obs) :: lobsSpaceData
     integer :: jobs,jstep
     real*8 :: stepObsIndex
+
+    if (.not. initialized) call utl_abort('tim_suTimeInterp: module not initialized')
 
     if(mpi_myid.eq.0) write(*,*) ' '
     if(mpi_myid.eq.0) write(*,*) '-------- ENTERING TIM_SUTIMEINTERP ---------'
@@ -308,6 +329,8 @@ contains
     implicit none
     integer, intent(in) :: datestamp_in
 
+    if (.not. initialized) call utl_abort('tim_setDateStamp: module not initialized')
+
     datestamp = datestamp_in
 
   end subroutine tim_setDatestamp
@@ -320,6 +343,8 @@ contains
 
     implicit none
     integer :: datestamp_out
+
+    if (.not. initialized) call utl_abort('tim_getDateStamp: module not initialized')
 
     datestamp_out = datestamp
 
@@ -347,6 +372,8 @@ contains
     real*8 :: dldelt
     real*8 :: dtstep ! Del Time in hours between step obs
 
+    if (.not. initialized) call utl_abort('tim_getStampList: module not initialized')
+
     if(kstep.gt.1) then
       dtstep = tim_windowsize/(real(kstep-1,8))
     else
@@ -355,7 +382,7 @@ contains
 
     do jstep = 1,kstep
       dldelt = (jstep - ((kstep-1)/2+1)) * dtstep
-      call incdatr (datestamplist(jstep),ksystamp, dldelt)
+      call incdatr(datestamplist(jstep),ksystamp, dldelt)
     enddo
 
   end subroutine tim_getStampList
@@ -386,7 +413,7 @@ contains
     integer :: itobs     ! Obs time HHMMSShh
     real*8  :: dlhours   ! Del time from synop time
 
-    ! ----------------------- CODE ---------------------------------------------
+    if (.not. initialized) call utl_abort('tim_getStepObsIndex: module not initialized')
 
     ! Building observation stamp
     imode = 3 ! printable to stamp

@@ -267,7 +267,7 @@ module varqc_mod
                 ! INITIAL VALUE OF GAMMA FOR THE CH (constituents) family
                 !
                   call obs_bodySet_r(obsSpaceData,OBS_POB,JDATA,(ZACH* &
-                       SQRT(2.d0*MPC_PI_R8))/((1.d0-ZAHU)*(2.d0*ZDCH)))
+                       SQRT(2.d0*MPC_PI_R8))/((1.d0-ZACH)*(2.d0*ZDCH)))
              ELSE
                 !
                 ! INITIAL VALUE OF GAMMA FOR QCVAR (OTHERS)

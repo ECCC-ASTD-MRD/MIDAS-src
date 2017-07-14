@@ -117,8 +117,6 @@ contains
     write(*,*) 'Setting up the modular ENSEMBLE covariances...'
     call ben_Setup( hco_anl,             & ! IN
                     vco_anl_in,          & ! IN
-                    tim_nstepobsinc,     & ! IN
-                    tim_getDatestamp(),  & ! IN
                     cvdimens )             ! OUT
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'

@@ -83,9 +83,9 @@ SUBROUTINE burp_setupfiles(datestamp)
   CHARACTER(len=2) :: CFAMI(JPFILES)
   CHARACTER(len=4) :: cmyidx, cmyidy
   CHARACTER(len=9) :: cmyid
-  CHARACTER(len=jmaxburpfilename-(1+20+1+9)) :: burp_directory
+  CHARACTER(len=256) :: burp_directory
   CHARACTER(len=jmaxburpfilename) :: burpin   !! the length should be more than len(burp_directory)+1+len(clvalu)+1+len(cmyid)
-  integer :: length_burp_directory
+  character(len=256)              :: burpinfull
   LOGICAL   isExist_L 
 
   INTEGER KTIME,KDATE,KDATE_RECV,KTIME_RECV
@@ -105,28 +105,6 @@ SUBROUTINE burp_setupfiles(datestamp)
   CHARACTER*9   CLSTNID
 
   EXTERNAL FCLOS,FNOM,MRFCLS,MRFOPN,MRFOPC,MRBHDR,MRFLOC,MRFGET,MRFMXL,NUMBLKS
-
-  ier = 0
-  call get_environment_variable('OAVAR_BURP_DIRECTORY',burp_directory,length_burp_directory,ier,.true.)
-  if (ier.eq.-1) then
-     write(*,*) 'burp_setupfiles: Problem when getting the environment variable OAVAR_BURP_DIRECTORY'
-     write(*,*) '                 The length of the variable ''burp_directory'' is too short to hold the complete value'
-     call utl_abort('burp_setupfiles')
-  end if
-  if (ier.gt.1) then
-     write(*,*) 'burp_setupfiles: Problem when getting the environment variable OAVAR_BURP_DIRECTORY'
-     write(*,*) '                 Rely on defaut which is the current directory'
-     burp_directory = '.'
-  end if
-  if (ier.eq.1) then
-     write(*,*) 'burp_setupfiles: The environment variable OAVAR_BURP_DIRECTORY does not exist'
-     write(*,*) '                 Rely on defaut which is the current directory'
-     burp_directory = '.'
-  end if
-  if (ier.eq.0) then
-     write(*,*) 'burp_setupfiles: The environment variable OAVAR_BURP_DIRECTORY does exist'
-     write(*,*) '                 Retrieve it'
-  end if
 
   write(cmyidy,'(I4.4)') (mpi_npey-mpi_myidy)
   write(cmyidx,'(I4.4)') (mpi_myidx+1)
@@ -207,6 +185,8 @@ SUBROUTINE burp_setupfiles(datestamp)
 
   IER =MRFOPC('MSGLVL','FATAL')
 
+  burp_directory = 'obs'
+
   IVALS=8
   KDATE=-9999
   KTIME=-9999
@@ -216,15 +196,17 @@ SUBROUTINE burp_setupfiles(datestamp)
     IF(CLVALU(JJ) == '') EXIT
     nulburp=0
     burpin=trim(burp_directory)//'/'//trim(CLVALU(JJ))//'_'//trim(cmyid)
+    burpinFull = top_fullWorkingPath(burpin,noAbort=.true.)
 
-    INQUIRE(FILE=trim(burpin),EXIST=isExist_L)
+    INQUIRE(FILE=trim(burpinFull),EXIST=isExist_L)
     IF (.NOT. isExist_L )THEN
       burpin=trim(burp_directory)//'/'//trim(CLVALU(JJ))
-      INQUIRE(FILE=trim(burpin),EXIST=isExist_L)
+      burpinFull = top_fullWorkingPath(burpin,noAbort=.true.)
+      INQUIRE(FILE=trim(burpinFull),EXIST=isExist_L)
     END IF
     IF ( isExist_L )THEN
-      IER=FNOM(nulburp,burpin,'RND+OLD',0)
-      WRITE(*,*)' Open File : ',trim(burpin)
+      IER=FNOM(nulburp,burpinFull,'RND+OLD',0)
+      WRITE(*,*)' Open File : ',trim(burpinFull)
       IF ( IER .EQ. 0 ) THEN
         INBLKS= -1
         INBLKS=NUMBLKS(nulburp)
@@ -243,7 +225,7 @@ SUBROUTINE burp_setupfiles(datestamp)
             WRITE(*,*) 'AUCUN ENREGISTREMENT VALIDE DANS LE FICHIER BURP'
           ELSE
             burp_nfiles=burp_nfiles + 1
-            burp_cfilnam(burp_nfiles)=burpin
+            burp_cfilnam(burp_nfiles)=burpinFull
             burp_cfamtyp(burp_nfiles)=CFAMI(JJ)
             if ((kdate.lt.0.and.ktime.lt.0).or.nresume.eq.1) then 
                INSUP=0
@@ -307,6 +289,7 @@ SUBROUTINE burp_setupfiles(datestamp)
     
   WRITE(*, *)' BURP FILES VALID DATE (YYYYMMDD) : ',kdate
   WRITE(*, *)' BURP FILES VALID TIME     (HHMM) : ',ktime
+  write(*, *)' BURP FILES DATESTAMP             : ',datestamp
 
 END SUBROUTINE burp_setupfiles
 
@@ -426,8 +409,7 @@ subroutine burp_updateFiles(obsSpaceData)
       INTEGER FILENUMB,IBRP1,IER,INRECS,ISTAT,LNMX
       INTEGER  FNOM,FCLOS,MRFCLS,MRFOPN,MRFMXL
       EXTERNAL FNOM,FCLOS,MRFCLS,MRFOPN,MRFMXL
-      character(len=256) :: BURP_SPLIT_VAR
-      integer length_burp_split,nstn1,nstn2,headerIndex
+      integer nstn1,nstn2,headerIndex
 
       call tmg_start(93,'POST_UPDATEBRP')
 

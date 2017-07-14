@@ -476,10 +476,12 @@ CONTAINS
         enddo
 
         ! Print some contents of obsSpaceData to the listing
-        do jdata = 1, min(1,obs_numHeader(obsSpaceData))
-          call obs_prnthdr(obsSpaceData,jdata)
-          call obs_prntbdy(obsSpaceData,jdata)
-        end do
+        if(mpi_myid == 0) then
+          do jdata = 1, min(1,obs_numHeader(obsSpaceData))
+            call obs_prnthdr(obsSpaceData,jdata)
+            call obs_prntbdy(obsSpaceData,jdata)
+          end do
+        endif
 
         ! get final increment
         call min_getIncrement(vazx,columng,statevector_incr)

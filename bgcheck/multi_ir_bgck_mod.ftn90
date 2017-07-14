@@ -186,46 +186,23 @@ contains
     INTEGER :: KRTID
     INTEGER ::  JO,NCMAX
     INTEGER ::  ISENS, NC, NL
-    INTEGER ::  ICHN
 
 
 !     Memory allocation for background check related variables
 !     .  -----------------------------------------------------
     alloc_status(:) = 0
     allocate( tvs_surfaceParameters(tvs_nobtov) , stat= alloc_status(1))
-    call utl_checkAllocationStatus(alloc_status(1:1), " BGCK_IR_SETUP")
-
-!___ radiance by profile
-
-    do jo = 1, tvs_nobtov
-       isens = tvs_lsensor(jo)
-       nc = tvs_nchan(isens)
-       nl = tvs_coefs(isens) % coef % nlevels
-       allocate( tvs_radiance(jo)  % overcast  (nl-1,nc) ,stat= alloc_status(1))
-       call utl_checkAllocationStatus(alloc_status(1:1), " BGCK_IR_SETUP")
-       tvs_radiance(jo)  % overcast  (:,:) = 0._8
-    end do
+    call utl_checkAllocationStatus(alloc_status(1:1), " BGCK_IR_SETUP tvs_surfaceParameters")
 
 !___ transmission by profile
 
     alloc_status(:) = 0
     allocate( tvs_transmission(tvs_nobtov),stat= alloc_status(1))
-    call utl_checkAllocationStatus(alloc_status(1:1), " BGCK_IR_SETUP")
-
-    do jo = 1, tvs_nobtov
-       isens = tvs_lsensor(jo)
-       nc = tvs_nchan(isens)
-       nl = tvs_coefs(isens) % coef % nlevels
-! allocate transmittance from surface and from pressure levels
-       allocate( tvs_transmission(jo)  % tau_total ( nc ) ,stat= alloc_status(1))
-       allocate( tvs_transmission(jo)  % tau_levels(nl,nc) ,stat= alloc_status(2))
-       call utl_checkAllocationStatus(alloc_status, " BGCK_IR_SETUP")
-    end do
+    call utl_checkAllocationStatus(alloc_status(1:1), " BGCK_IR_SETUP tvs_transmission")
 
 !___ emissivity by profile
 
     ncmax = 1
-
     do jo = 1, tvs_nobtov
        isens = tvs_lsensor(jo)
        nc = tvs_nchan(isens)
@@ -233,13 +210,13 @@ contains
     end do
 
     allocate( tvs_emissivity (ncmax,tvs_nobtov) ,stat=alloc_status(1))
-    call utl_checkAllocationStatus(alloc_status(1:1), " BGCK_IR_SETUP")
+    call utl_checkAllocationStatus(alloc_status(1:1), " BGCK_IR_SETUP tvs_emissivity")
     
     DO KRTID = 1, tvs_nsensors
 
        IF ( tvs_instruments(KRTID) == inst_id_iasi ) THEN
           allocate ( avhrr_bgck(tvs_nobtov), stat= alloc_status(1))
-          call utl_checkAllocationStatus(alloc_status(1:1), " BGCK_IR_SETUP")
+          call utl_checkAllocationStatus(alloc_status(1:1), " BGCK_IR_SETUP avhrr_bgck")
           EXIT
        END IF
 
@@ -311,14 +288,14 @@ contains
     INTEGER       :: IWINDO,IWINDO_ALT
     INTEGER       :: INDEX_BODY,IDATA,IDATEND,INDEX_HEADER
     INTEGER       :: IDATYP
-    INTEGER       :: DIFFTOP_MIN
-    INTEGER ,SAVE :: IMODTOP
+    REAL(8)       :: DIFFTOP_MIN
+    INTEGER       :: IMODTOP
     INTEGER       :: count
     REAL(8)       :: T_EFFECTIVE
-    integer       :: alloc_status(28)
+    integer       :: alloc_status(27)
 
-    real(8) :: ZTG,ZPS,ZTS,ptop_T
-    real(8), allocatable :: ZT(:),ZHT(:,:),ZLQ(:),ZVLEV(:)
+    real(8) :: ZTG,ZPS,ZTS,ptop_T,ZLQS
+    real(8), allocatable :: ZT(:),ZHT(:,:),ZVLEV(:)
     real(8), allocatable :: ZLEVMOD(:,:)
     real(8), allocatable :: BTOBSERR(:),BTOBS(:),BTCALC(:),RCAL_CLR(:),SFCTAU(:)
     real(8), allocatable :: ROBS(:),RCLD(:,:),TRANSM(:,:),EMI_SFC(:) 
@@ -349,8 +326,8 @@ contains
     integer :: GNCLDFLAG
     integer :: ICHREF,INDX(1)
     integer :: NTOP_EQ,NTOP_MB
-    integer  :: NGOOD
-    integer  :: NTOP_CO2(NCO2)
+    integer :: NGOOD
+    integer :: NTOP_CO2(NCO2)
     integer :: CLDFLAG_AVHRR(NCLASSAVHRR),LEV_START_AVHRR(NCLASSAVHRR),ICHREF_AVHRR(NCLASSAVHRR),NTOP_RD_AVHRR(NIR,NCLASSAVHRR)
     integer :: NTOP_BT_AVHRR(NIR,NCLASSAVHRR),NTOP_EQ_AVHRR(NCLASSAVHRR)
     integer :: ICL
@@ -371,7 +348,7 @@ contains
     integer :: nlv_T,nch_sel,id,KRTID, QCID
     logical :: liasi,lairs,lcris
 !****************************************
-
+    print *,"Entering HIRQC"
     liasi= ( trim(cinst)=="IASI" .or.  trim(cinst)=="iasi")
     lairs= ( trim(cinst)=="AIRS" .or.  trim(cinst)=="airs")
     lcris= ( trim(cinst)=="CRIS" .or.  trim(cinst)=="cris")
@@ -395,7 +372,7 @@ contains
 ! ** find number of profiles 
     count = 0
 
-  ! loop over all header indices of the 'TO' family
+! loop over all header indices of the 'TO' family
     call obs_set_current_header_list(lobsSpaceData,'TO')
     HEADER: do
        index_header = obs_getHeaderIndex(lobsSpaceData)
@@ -449,8 +426,8 @@ contains
 ! ZTG -- guess skin temperatures (deg K)
 ! ZPS(NPRF) -- surface pressure (hPa)
 ! ZT(nlv_T) -- temperature profiles on NWP model levels (deg K)
-! ZHT(nlv_T) -- height profiles on NWP model levels (m)
-! ZLQ(nlv_T) -- surface specific humidity in ln q (kg/kg)
+! ZHT(nlv_T,1) -- height profiles on NWP model levels (m)
+! ZLQS -- surface specific humidity in ln q (kg/kg)
 ! BTOBSERR(nch_sel) -- observation error standard deviation
 ! BTOBS(nch_sel) -- observed brightness temperatures (deg K)
 ! BTCALC(nch_sel) -- computed brightness temperatures (deg K)
@@ -501,8 +478,7 @@ contains
   allocate ( ZLEVMOD(nlv_T,1),          stat= alloc_status(24))
   allocate ( ZT(nlv_T),                 stat= alloc_status(25))
   allocate ( ZHT(nlv_T,1),              stat= alloc_status(26))
-  allocate ( ZLQ(nlv_T),                stat= alloc_status(27))
-  call utl_checkAllocationStatus(alloc_status, " hirqc")
+  call utl_checkAllocationStatus(alloc_status, " hirqc 1")
 
   DO JL = 1, NLEVB
      ZVLEV(JL) = XPRES(JL+iextr)
@@ -586,9 +562,9 @@ contains
         DO JL = 1, nlv_T
            ZT(JL) = col_getElem(lcolumnhr,JL,INDEX_HEADER,'TT')
            ZHT(JL,1) = col_getHeight(lcolumnhr,JL,INDEX_HEADER,'TH') / RG
-           ZLQ(JL) = col_getElem(lcolumnhr,JL,INDEX_HEADER,'HU')
            ZLEVMOD(JL,1)= col_getPressure(lcolumnhr,JL,INDEX_HEADER,'TH') * MPC_MBAR_PER_PA_R8
         END DO
+        ZLQS = col_getElem(lcolumnhr,nlv_T,INDEX_HEADER,'HU')
 
         call ppo_lintv (zlevmod(:,1:1),zht(:,1:1),nlv_T,nlv_T,1, &
              nlevb,zvlev,zhoext(:,1:1))
@@ -600,7 +576,7 @@ contains
              obs_headElem_i(lobsSpaceData,OBS_GQL,index_header) /=0)
         if (liasi) BAD=( obs_headElem_i(lobsSpaceData,OBS_GQF,index_header)/=0 .or. &
              obs_headElem_i(lobsSpaceData,OBS_GQL,index_header) >1) 
-   
+
         DO INDEX_BODY= IDATA, IDATEND
            IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY)==1 ) THEN
               ICHN = NINT(obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY))
@@ -747,7 +723,7 @@ contains
               RCAL_CLR_AVHRR(:) = avhrr_bgck(IOBS) % RADCLEARCALC(:)
               EMI_SFC_AVHRR(:) = avhrr_bgck(IOBS) % EMISS(:)
               SFCTAU_AVHRR(:) = avhrr_bgck(IOBS) % TRANSMSURF(:)
-        
+
               DO JL=1,NLEVB
                  RCLD_AVHRR(:,JL) = avhrr_bgck(IOBS) % RADOVCALC(JL+iextr-1,:)
               ENDDO
@@ -898,7 +874,7 @@ contains
            REJFLAG(:,11) = 1
            REJFLAG(:,23) = 1
         endif
-             
+
 ! *** TEST # 2 ***
 ! *** Gross check on valid BTs ***
 
@@ -915,7 +891,7 @@ contains
         DO JCH = 1, NCH_HE
            ILIST_HE(JCH) = hir_get_chindx_fr_chn(CINST,ILIST1(QCID,JCH))
         END DO
-              
+
         CALL CLOUD_TOP ( PTOP_BT,PTOP_RD,NTOP_BT,NTOP_RD, &
              btobs,toext,zhoext(:,1),rcal_clr,zps,robs,rcld,zvlev,nlevb, &
              nch_sel,cldflag,rejflag,lev_start,iopt2,ihgt,ichref,nch_he,ilist_he)
@@ -960,14 +936,13 @@ contains
         IF (ICHREF==IWINDO_ALT) HEFF = PTOP_RD( hir_get_chindx_fr_chn(CINST,ILIST1(QCID,3)) )
               
 !* -- CLOUD TOP BASED ON CO2 SLICING 
-              
-              
+
+
         LEV_START = MAX( MIN(LEV_START,CO2MAX(1)), CO2MIN(1) )
-              
+
         CALL CO2_SLICING ( PTOP_CO2,NTOP_CO2,FCLOUD_CO2, &
              rcal_clr,rcld,robs,zps,zvlev,nlevb,nch_sel,cldflag,rejflag, &
              lev_start,ichref,ilist_co2,ilist_co2_pair)
-
 
 !* -- FIND CONSENSUS CLOUD TOP AND FRACTION
  
@@ -1027,7 +1002,6 @@ contains
 !* -- FIND MINIMUM LEVEL OF SENSITIVITY FOR CHANNEL ASSIMILATION NOT SENSIBLE TO CLOUDS
         
         CALL MIN_PRES_new (MAXWF, MINP,PMIN,DTAUDP1, zps,transm,zvlev,cldflag,nlevb,nch_sel,imodtop )
-
 !* -- ASSIMILATION OF OBSERVATIONS WHEN CLOUDY PROFILES
 
 ! *** TEST # 3 ***
@@ -1168,7 +1142,7 @@ contains
         call obs_headSet_i(lobsSpaceData, OBS_NCO2, index_header, NGOOD)
         call obs_headSet_r(lobsSpaceData, OBS_ZTM,  index_header, ZT(nlv_T) )
         call obs_headSet_r(lobsSpaceData, OBS_ZTGM, index_header, ZTG )
-        call obs_headSet_r(lobsSpaceData, OBS_ZLQM, index_header, EXP(ZLQ(nlv_T)) )
+        call obs_headSet_r(lobsSpaceData, OBS_ZLQM, index_header, EXP(ZLQS) )
         call obs_headSet_r(lobsSpaceData, OBS_ZPS,  index_header, 100._8*ZPS )
         call obs_headSet_i(lobsSpaceData, OBS_STYP, index_header, KSURF )
 
@@ -1182,7 +1156,7 @@ contains
                    call obs_bodySet_i(lobsSpaceData,OBS_FLG,INDEX_BODY,IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY),NFLG))
            END DO
         END DO
-              
+
      END IF
 
   END DO HEADER_2
@@ -1216,7 +1190,6 @@ contains
   deallocate ( XPRES,     stat= alloc_status(25))
   deallocate ( ZT,        stat= alloc_status(26))
   deallocate ( ZHT,       stat= alloc_status(27))
-  deallocate ( ZLQ,       stat= alloc_status(28))
   call utl_checkAllocationStatus(alloc_status, " HIRQC", .false.)
         
 end SUBROUTINE HIRQC
@@ -1850,6 +1823,8 @@ SUBROUTINE MIN_PRES_new(MAXHEIGHT,MINP,PMIN,DT1, ps,tau,plev,cldflag,nlev,nchn,i
   PMIN(:) = -1._8
   DT1(:)  = -1._8
 
+  IF ( CLDFLAG == -1 ) RETURN
+
   DO J = 1, NLEV-1
      RAP(J) = LOG( PLEV(J+1) / PLEV(J) )
   ENDDO
@@ -1858,15 +1833,13 @@ SUBROUTINE MIN_PRES_new(MAXHEIGHT,MINP,PMIN,DT1, ps,tau,plev,cldflag,nlev,nchn,i
 
 !**       profile not assimilated if data from 2 windows channels bad
 !**       and/or if data from 2 reference co2 channels bad
-     IF ( CLDFLAG == -1 ) RETURN
-
+    
      DO J = 1, NLEV
         IF ( TAU(JC,J) < 0._8) CYCLE channels
      END DO
 
      MINP(JC) = NLEV
      PMIN(JC) = MIN(PLEV(NLEV),PS)
-
 
 !*        COMPUTE ENTIRE ARRAY OF dTAU/dlog(P)
           
@@ -2213,7 +2186,7 @@ SUBROUTINE ESTIM_TS(TS, tg,emi,rcal,radobs,sfctau,cldflag, &
   REAL(8) ,intent(out):: TS
 !************************************************************************************
   INTEGER    :: JC
-  INTEGER    :: ICHN,INDX
+  INTEGER    :: INDX
   REAL(8)    :: RTG,RADTG(NCHN)
   REAL(8)    :: RADTS,TS1(NCHN),tstore,t_effective
   integer    :: ptc(NCHNKEPT)
@@ -2316,7 +2289,6 @@ SUBROUTINE ESTIM_TS_AVHRR(TS, tg,emi,rcal,radobs,sfctau,cldflag, &
   REAL(8) ,intent(out):: TS
 !***************************************
   INTEGER    :: JC
-  INTEGER    :: ICHN
   REAL(8)    :: RTG,RADTG(NCHN)
   REAL(8)    :: RADTS,TS1(NCHN),tstore,t_effective
 
@@ -2926,6 +2898,8 @@ subroutine tovs_rttov_AVHRR_for_IASI (iptobs,surfem1_avhrr,idiasi)
 !
 !revision 001  : s. heilliette october 2010
 !                  - adaptation to rttov 10.0
+!revision 002  : s. heilliette may 2017
+!                  - adaptation to rttov 12.1
 !    -------------------
 !     purpose:
 !
@@ -2938,21 +2912,18 @@ subroutine tovs_rttov_AVHRR_for_IASI (iptobs,surfem1_avhrr,idiasi)
 #endif
   Use tovs_nl_mod 
   implicit none
-#include "rttov_read_coefs.interface"
 #include "rttov_direct.interface"
 #include "rttov_alloc_rad.interface"
   integer ,intent(in) :: idiasi
   integer ,intent (in) :: iptobs(1)
   real (8) , intent (in) :: surfem1_avhrr(3)
 !*********************************************************************
-  type (rttov_options ),save :: opts_avhrr
   type (rttov_chanprof)  :: chanprof(3)
   logical :: calcemis  (3)
   INTEGER ::  list_sensor (3),errorstatus,alloc_status(2)
   integer, save :: idiasi_old=-1
-  integer :: ich,i,j,jn,ichn
+  integer :: ich,i,j,jn
   integer :: ichan_avhrr (NIR)
-  integer :: joff,ioffset
   type ( rttov_transmission )  :: transmission
   type ( rttov_radiance )      :: radiancedata_d
   type ( rttov_emissivity )    :: emissivity(3)
@@ -2967,35 +2938,7 @@ subroutine tovs_rttov_AVHRR_for_IASI (iptobs,surfem1_avhrr,idiasi)
      DO ICH=1,NIR
         ICHAN_AVHRR(ICH)=ICH
      ENDDO
-
-     opts_avhrr%config%apply_reg_limits=.true. ! if true application of profiles limits
-     opts_avhrr%config%verbose=.false. ! verbose output
-     opts_avhrr%config%do_checkinput=.true. ! to check if input profiles are within absolute and regression limits
-
-     opts_avhrr%rt_all%switchrad=.true.  ! to use brightness temperature (true) or radiance (false) units in AD routine
-     opts_avhrr%rt_all%use_q2m=.false.   ! if true use of surface humidity (false for compatibility with the way rttov 8.7 was compiled)
-     opts_avhrr%rt_all%addrefrac=.true. ! to account for atmospheric refraction (useless???)
-
-     opts_avhrr%rt_ir%addsolar=.false.  ! to model solar component in the near IR (2000 cm-1 et plus)
-     opts_avhrr%rt_ir%addaerosl=.false. ! to account for scattering due to aerosols
-     opts_avhrr%rt_ir%addclouds=.false. ! to account for scattering due to clouds
-     opts_avhrr%rt_ir%ozone_data=.true. ! profil d'ozone disponible
-     opts_avhrr%rt_ir%pc%ipcreg=-1         ! index of the required PC predictors... to see later
-     opts_avhrr%rt_ir%pc%addpc=.false.     ! to carry out principal component calculations 
-     opts_avhrr%rt_ir%pc%addradrec=.false. ! to reconstruct radiances from principal components
-     opts_avhrr%rt_ir%co2_data = .false.
-     opts_avhrr%rt_ir%n2o_data = .false.
-     opts_avhrr%rt_ir%co_data  = .false.
-     opts_avhrr%rt_ir%ch4_data = .false.
-     opts_avhrr%rt_ir%ir_sea_emis_model = 2 ! ISEM (ir_sea_emis_model 1) useful for GEORAD
-                                            ! 2 would select IREMIS which is more sophisticated (to try)
-
-     opts_avhrr%rt_mw%clw_data=.false.  ! profil d'eau liquide pas disponible
-     opts_avhrr%rt_mw%fastem_version=6  ! use fastem version 6 (in the range 1-6 to force a specific version)
-
-     opts_avhrr%interpolation%addinterp=.false. !use of internal profile interpolator (rt calculation on model levels)
-     opts_avhrr%interpolation%lgradp=.false.    ! allow tl/ad of user pressure levels
-     
+    
      errorstatus=0
 
      if (IDIASI_OLD>0) then
@@ -3006,21 +2949,16 @@ subroutine tovs_rttov_AVHRR_for_IASI (iptobs,surfem1_avhrr,idiasi)
         endif
      endif
 
-     call rttov_read_coefs ( errorstatus, &! out
-                             coefs_avhrr,       &! out
-                             opts_avhrr,        &! in
-                             channels = ichan_avhrr,  &! in Optional 
-                             instrument = list_sensor )  ! in Optional 
+     call tvs_rttov_read_coefs ( errorstatus,         &! out
+                             coefs_avhrr,             &! out
+                             tvs_opts(1),             &! in
+                             ichan_avhrr,  &! in 
+                             list_sensor )! in
        
      if ( errorstatus/=0) then
         write(*,*) "Probleme dans rttov_read_coefs !"
         call utl_abort("tovs_rttov_AVHRR_for_IASI")
      endif
-
-     opts_avhrr%rt_ir%co2_data = ( coefs_avhrr%coef%nco2 > 0 )
-     opts_avhrr%rt_ir%n2o_data = ( coefs_avhrr%coef%nn2o > 0 )
-     opts_avhrr%rt_ir%co_data  = ( coefs_avhrr%coef%nco  > 0 )
-     opts_avhrr%rt_ir%ch4_data = ( coefs_avhrr%coef%nch4 > 0 )
      
      IDIASI_OLD=IDIASI
    
@@ -3034,16 +2972,14 @@ subroutine tovs_rttov_AVHRR_for_IASI (iptobs,surfem1_avhrr,idiasi)
   calcemis(:)=.false.
   emissivity(1:3)%emis_in = surfem1_avhrr(1:3)
   ! Build the list of channels/profiles indices
-  ichn = 0
+
   DO  ich = 1, nchannels
-     ichn = ichn +1
-     chanprof(ichn)%prof=1
-     chanprof(ichn)%chan=ich
+     chanprof(ich)%prof=1
+     chanprof(ich)%chan=ich
   End Do
 
 ! allocate transmittance structure
   alloc_status = 0
-!  call tovs_allocate_transmission(transmission,nchannels,nlevels)
   allocate( transmission % tau_levels     ( nlevels, nchannels ) ,stat= alloc_status(1))
   allocate( transmission % tau_total      ( nchannels )          ,stat= alloc_status(2))
   call utl_checkAllocationStatus(alloc_status, " tovs_rttov_AVHRR_for_IASI transmission")
@@ -3055,16 +2991,16 @@ subroutine tovs_rttov_AVHRR_for_IASI (iptobs,surfem1_avhrr,idiasi)
   call rttov_alloc_rad (alloc_status(1),nchannels,radiancedata_d,nlevels-1,asw)
   call utl_checkAllocationStatus(alloc_status(1:1), " tovs_rttov_AVHRR_for_IASI radiances")
  
-  Call rttov_direct(        &
-       errorstatus,         & ! out
-       chanprof,            & ! in
-       opts_avhrr,          & ! in
+  Call rttov_direct(            &
+       errorstatus,             & ! out
+       chanprof,                & ! in
+       tvs_opts(1),             & ! in
        tvs_profiles(iptobs(:)), & ! in
-       coefs_avhrr,         & ! in
-       transmission,        & ! inout
-       radiancedata_d,      & !out
-       calcemis=calcemis,   & ! in
-       emissivity=emissivity) ! inout
+       coefs_avhrr,             & ! in
+       transmission,            & ! inout
+       radiancedata_d,          & ! out
+       calcemis=calcemis,       & ! in
+       emissivity=emissivity)     ! inout
     
   io=iptobs(1)
   avhrr_bgck(io)% RADCLEARCALC(NVIS+1:NVIS+NIR) = radiancedata_d % clear(1:NIR)

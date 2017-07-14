@@ -259,7 +259,6 @@ module columnData_mod
 
       column%allocated=.true.
 
-      RETURN
     END SUBROUTINE col_allocate
 
 
@@ -291,7 +290,6 @@ module columnData_mod
 
       column%allocated=.false.
 
-      RETURN
     END SUBROUTINE col_deallocate
 
 
@@ -322,7 +320,7 @@ module columnData_mod
 
     ! Pressure
     select case(trim(varName))
-    case('PR')
+    case('PRES')
       if(present(varLevel)) then
         if(varLevel == 'TH') then
           do jobs = 1, columnghr%numCol
@@ -402,7 +400,6 @@ module columnData_mod
 
     end select
 
-    return
     END SUBROUTINE col_fillmvo
 
 
@@ -411,7 +408,7 @@ module columnData_mod
       character(len=*), intent(in) :: varName
       logical                      :: varExist 
 
-      if(trim(varName) == 'PR' .or. trim(varName) == 'GZ') then
+      if(trim(varName) == 'GZ' .or. trim(varName) == 'PRES') then
         ! pressure and height always available
         varExist = .true.
       elseif(nmvoexist(vnl_varListIndex(varName))) then
@@ -469,7 +466,7 @@ module columnData_mod
     if(status.ne.VGD_OK) call utl_abort('ERROR with vgd_levels')
     allocate(zppobs2(col_getNumLev(column,'MM'),col_getNumCol(column)))
     zppobs2 = transpose(zppobs1(1,:,:))
-    call col_fillmvo(column,zppobs2,'PR','MM')
+    call col_fillmvo(column,zppobs2,'PRES','MM')
     if (associated(zppobs1))  deallocate(zppobs1)
     deallocate(zppobs2)
 
@@ -478,7 +475,7 @@ module columnData_mod
     if(status.ne.VGD_OK) call utl_abort('ERROR with vgd_levels')
     allocate(zppobs2(col_getNumLev(column,'TH'),col_getNumCol(column)))
     zppobs2 = transpose(zppobs1(1,:,:))
-    call col_fillmvo(column,zppobs2,'PR','TH')
+    call col_fillmvo(column,zppobs2,'PRES','TH')
     if (associated(zppobs1)) deallocate(zppobs1)
     deallocate(zppobs2)
 
@@ -713,7 +710,7 @@ module columnData_mod
       if(col_varExist(varName)) then
 
         select case(trim(varName))
-        case('PR')
+        case('PRES')
           if(present(varLevel)) then 
             if(varLevel == 'TH') then
               onecolumn => column%pressure_T(:,headerIndex)
@@ -766,7 +763,7 @@ module columnData_mod
     if(present(varName)) then
       if(.not.col_varExist(varName)) call utl_Abort('col_getElem: Unknown variable name! ' // varName)
       if(trim(varName) == 'GZ') call utl_Abort('col_getElem: cannot call for GZ!')
-      if(trim(varName) == 'PR') call utl_Abort('col_getElem: cannot call for Pressure!')
+      if(trim(varName) == 'PRES') call utl_Abort('col_getElem: cannot call for Pressure!')
       value = column%all(column%varOffset(vnl_varListIndex(varName))+ilev,headerIndex)
     else
       value = column%all(ilev,headerIndex)

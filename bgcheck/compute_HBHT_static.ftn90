@@ -30,6 +30,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
       use horizontalCoord_mod
       use analysisGrid_mod
       use bmatrixhi_mod
+      use obsOperators_mod
       use gps_mod
       use utilities_mod
       IMPLICIT NONE
@@ -115,6 +116,10 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
       call col_setVco(lcolumn,col_getVco(lcolumng))
       call col_allocate(lcolumn,col_getNumCol(lcolumng))
       call col_copyLatLon(lcolumng,lcolumn)
+!
+!     Set the value of OBS_LYR required by setfge routines
+!
+      call oop_vobslyrs(lcolumng,lobsSpaceData)
 !
 !     1. Opening the statistics file
 !

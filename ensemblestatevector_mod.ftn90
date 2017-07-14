@@ -1,0 +1,802 @@
+!--------------------------------------- LICENCE BEGIN -----------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+
+!--------------------------------------------------------------------------
+!! MODULE ensembleStateVector (prefix="ens")
+!!
+!! *Purpose*: Store and manipulate ensemble of state vectors and 
+!!            the ensemble mean.
+!!
+!--------------------------------------------------------------------------
+MODULE ensembleStateVector_mod
+  use topLevelControl_mod
+  use mpivar_mod
+  use gridStateVector_mod
+  use horizontalCoord_mod
+  use verticalCoord_mod
+  use analysisGrid_mod
+  use timeCoord_mod
+  use mathPhysConstants_mod
+  use utilities_mod
+  implicit none
+  save
+  private
+
+  ! public procedures
+  public :: struct_ens, ens_allocate, ens_deallocate, ens_readEnsemble, ens_fileName
+  public :: ens_getField_r4, ens_getField_r8, ens_getFieldMean_r4, ens_getFieldMean_r8
+  public :: ens_getField_i2
+  public :: ens_varExist, ens_getNumLev
+  public :: ens_computeMean, ens_removeMean, ens_copyEnsMean
+  public :: ens_convertToInteger, ens_getIntOffset, ens_getIntMultFactor
+
+  integer,external   :: get_max_rss
+
+  type :: struct_ens
+    private
+    logical                       :: allocated = .false.
+    integer                       :: numMembers
+    integer                       :: dataKind
+    type(struct_gsv), allocatable :: statevector(:)
+    type(struct_gsv), allocatable :: statevector_ensMean(:)
+    logical                       :: meanIsComputed
+    integer, allocatable          :: subEnsIndexList(:), nEnsSubEns(:)
+    integer                       :: numSubEns
+    character(len=256)            :: enspathname
+  end type struct_ens
+
+CONTAINS
+
+  subroutine ens_allocate(ens,numMembers,numStep,hco_ens,vco_ens)
+    implicit none
+
+    ! arguments
+    type(struct_ens) :: ens
+    integer :: numMembers, numStep
+    type(struct_hco), pointer :: hco_ens
+    type(struct_vco), pointer :: vco_ens
+
+    ! locals
+    integer :: memberIndex, ierr
+
+    if( ens%allocated ) then
+      write(*,*) 'ens_allocate: this object is already allocated, deallocating first.'
+      call ens_deallocate( ens )
+    endif
+
+    allocate( ens%statevector(numMembers), stat=ierr )
+    if( ierr /= 0 ) then
+      call utl_abort('ens_allocate: Problem allocating memory')
+    endif
+    do memberIndex = 1, numMembers
+      call gsv_allocate( ens%statevector(memberIndex), &
+                         numStep, hco_ens, vco_ens,  &
+                         datestamp=tim_getDatestamp(), mpi_local=.true., dataKind_in=4 )
+    enddo
+
+    ens%allocated = .true.
+    ens%numMembers = numMembers
+    ens%dataKind = 4
+
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+  end subroutine ens_allocate
+
+
+  subroutine ens_allocateMean(ens)
+    implicit none
+
+    ! arguments
+    type(struct_ens) :: ens
+
+    ! locals
+    integer :: subEnsIndex, ierr
+
+    allocate( ens%statevector_ensMean(ens%numSubEns) )
+    do subEnsIndex = 1, ens%numSubEns
+      call gsv_allocate( ens%statevector_ensMean(subEnsIndex), &
+                         ens%statevector(1)%numStep, ens%statevector(1)%hco, ens%statevector(1)%vco,  &
+                         datestamp=tim_getDatestamp(), mpi_local=.true., dataKind_in=8 )
+      call gsv_zero( ens%statevector_ensMean(subEnsIndex) )
+    enddo
+
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+  end subroutine ens_allocateMean
+
+
+  subroutine ens_deallocate( ens )
+    implicit none
+
+    ! arguments
+    type(struct_ens) :: ens
+
+    ! locals
+    integer :: memberIndex, subEnsIndex
+
+    if( .not. ens%allocated ) return
+
+    do memberIndex = 1, ens%numMembers
+      call gsv_deallocate( ens%statevector(memberIndex) )
+    end do
+    deallocate( ens%statevector )
+
+    if(ens%meanIsComputed) then
+      do subEnsIndex = 1, ens%numSubEns
+        call gsv_deallocate(ens%statevector_ensMean(subEnsIndex))
+      end do
+      deallocate( ens%statevector_ensMean )
+      deallocate( ens%subEnsIndexList )
+      deallocate( ens%nEnsSubEns )
+    endif
+
+    ens%allocated = .false.
+
+  end subroutine ens_deallocate
+
+
+  function ens_getField_r8(ens,memberIndex,varName) result(field)
+    implicit none
+
+    ! arguments
+    type(struct_ens)                       :: ens
+    integer                                :: memberIndex
+    character(len=*), intent(in), optional :: varName
+    real(8),pointer                        :: field(:,:,:,:)
+
+    ! locals
+    integer                                :: lon1,lat1,k1
+
+    lon1 = ens%statevector(memberIndex)%myLonBeg
+    lat1 = ens%statevector(memberIndex)%myLatBeg
+    k1 = ens%statevector(memberIndex)%mykBeg
+
+    if(present(varName)) then
+      field(lon1:,lat1:,k1:,1:) => gsv_getField_r8(ens%statevector(memberIndex), varName)
+    else
+      field(lon1:,lat1:,k1:,1:) => gsv_getField_r8(ens%statevector(memberIndex))
+    endif
+
+  end function ens_getField_r8
+
+
+  function ens_getField_r4(ens,memberIndex,varName) result(field)
+    implicit none
+
+    ! arguments
+    type(struct_ens)                       :: ens
+    integer                                :: memberIndex
+    character(len=*), intent(in), optional :: varName
+    real(4),pointer                        :: field(:,:,:,:)
+
+    ! locals
+    integer                                :: lon1,lat1,k1
+
+    lon1 = ens%statevector(memberIndex)%myLonBeg
+    lat1 = ens%statevector(memberIndex)%myLatBeg
+    k1 = ens%statevector(memberIndex)%mykBeg
+
+    if(present(varName)) then
+      field(lon1:,lat1:,k1:,1:) => gsv_getField_r4(ens%statevector(memberIndex), varName)
+    else
+      field(lon1:,lat1:,k1:,1:) => gsv_getField_r4(ens%statevector(memberIndex))
+    endif
+
+  end function ens_getField_r4
+
+
+  function ens_getField_i2(ens,memberIndex,varName) result(field)
+    implicit none
+
+    ! arguments
+    type(struct_ens)                       :: ens
+    integer                                :: memberIndex
+    character(len=*), intent(in), optional :: varName
+    integer(2), pointer                    :: field(:,:,:,:)
+
+    ! locals
+    integer                                :: lon1,lat1,k1
+
+    lon1 = ens%statevector(memberIndex)%myLonBeg
+    lat1 = ens%statevector(memberIndex)%myLatBeg
+    k1 = ens%statevector(memberIndex)%mykBeg
+
+    if(present(varName)) then
+      field(lon1:,lat1:,k1:,1:) => gsv_getField_i2(ens%statevector(memberIndex), varName)
+    else
+      field(lon1:,lat1:,k1:,1:) => gsv_getField_i2(ens%statevector(memberIndex))
+    endif
+
+  end function ens_getField_i2
+
+
+  function ens_getFieldMean_r8(ens,subEnsIndex,varName) result(field)
+    implicit none
+
+    ! arguments
+    type(struct_ens)                       :: ens
+    integer                                :: subEnsIndex
+    character(len=*), intent(in), optional :: varName
+    real(8),pointer                        :: field(:,:,:,:)
+
+    ! locals
+    integer                                :: lon1,lat1,k1
+
+    lon1 = ens%statevector_ensMean(subEnsIndex)%myLonBeg
+    lat1 = ens%statevector_ensMean(subEnsIndex)%myLatBeg
+    k1 = ens%statevector_ensMean(subEnsIndex)%mykBeg
+
+    if(present(varName)) then
+      field(lon1:,lat1:,k1:,1:) => gsv_getField_r8(ens%statevector_ensMean(subEnsIndex), varName)
+    else
+      field(lon1:,lat1:,k1:,1:) => gsv_getField_r8(ens%statevector_ensMean(subEnsIndex))
+    endif
+
+  end function ens_getFieldMean_r8
+
+
+  function ens_getFieldMean_r4(ens,subEnsIndex,varName) result(field)
+    implicit none
+
+    ! arguments
+    type(struct_ens)                       :: ens
+    integer                                :: subEnsIndex
+    character(len=*), intent(in), optional :: varName
+    real(4),pointer                        :: field(:,:,:,:)
+
+    ! locals
+    integer                                :: lon1,lat1,k1
+
+    lon1 = ens%statevector_ensMean(subEnsIndex)%myLonBeg
+    lat1 = ens%statevector_ensMean(subEnsIndex)%myLatBeg
+    k1 = ens%statevector_ensMean(subEnsIndex)%mykBeg
+
+    if(present(varName)) then
+      field(lon1:,lat1:,k1:,1:) => gsv_getField_r4(ens%statevector_ensMean(subEnsIndex), varName)
+    else
+      field(lon1:,lat1:,k1:,1:) => gsv_getField_r4(ens%statevector_ensMean(subEnsIndex))
+    endif
+
+  end function ens_getFieldMean_r4
+
+
+  subroutine ens_convertToInteger(ens)
+    implicit none
+    type(struct_ens)  :: ens
+    integer           :: memberIndex
+
+    do memberIndex = 1, ens%numMembers
+      call gsv_convertToInteger( ens%statevector(memberIndex) )
+    end do
+
+  end subroutine ens_convertToInteger
+
+
+  function ens_getIntOffset(ens, memberIndex, varName) result(offset)
+    implicit none
+
+    ! arguments
+    type(struct_ens)           :: ens
+    integer                    :: memberIndex
+    character(len=*), optional :: varName
+    real(8), pointer           :: offset(:,:)
+
+    ! locals
+    integer                    :: k1
+
+    k1 = ens%statevector(memberIndex)%mykBeg
+
+    if(present(varName)) then
+      offset(k1:,1:) => gsv_getIntOffset(ens%statevector(memberIndex), varName)
+    else
+      offset(k1:,1:) => gsv_getIntOffset(ens%statevector(memberIndex))
+    endif
+
+  end function ens_getIntOffset
+
+
+  function ens_getIntMultFactor(ens, memberIndex, varName) result(multFactor)
+    implicit none
+
+    ! arguments
+    type(struct_ens)           :: ens
+    integer                    :: memberIndex
+    character(len=*), optional :: varName
+    real(8), pointer           :: multFactor(:,:)
+
+    ! locals
+    integer                    :: k1
+
+    k1 = ens%statevector(memberIndex)%mykBeg
+
+    if(present(varName)) then
+      multFactor(k1:,1:) => gsv_getIntMultFactor(ens%statevector(memberIndex), varName)
+    else
+      multFactor(k1:,1:) => gsv_getIntMultFactor(ens%statevector(memberIndex))
+    endif
+
+  end function ens_getIntMultFactor
+
+
+  subroutine ens_copyEnsMean(ens, statevector, subEnsIndex)
+    implicit none
+
+    ! arguments
+    type(struct_ens) :: ens
+    type(struct_gsv) :: statevector
+    integer          :: subEnsIndex
+
+    call gsv_allocate(statevector, ens%statevector(1)%numStep,  &
+                      ens%statevector(1)%hco, ens%statevector(1)%vco,  &
+                      datestamp=tim_getDatestamp(), mpi_local=.true., dataKind_in=8 )
+    call gsv_copy(ens%statevector_ensMean(subEnsIndex), statevector)
+
+  end subroutine ens_copyEnsMean
+
+
+  function ens_varExist(ens,varName) result(varExist)
+    implicit none
+
+    ! arguments
+    type(struct_ens)             :: ens
+    character(len=*), intent(in) :: varName
+    logical                      :: varExist 
+
+    varExist = gsv_varExist(ens%statevector(1), varName)
+
+  end function ens_varExist
+
+
+  function ens_getNumLev(ens,varLevel) result(nlev)
+    implicit none
+
+    ! arguments
+    type(struct_ens), intent(in)  :: ens
+    character(len=*), intent(in)  :: varLevel
+    integer                       :: nlev
+
+    nlev = vco_getNumLev(ens%statevector(1)%vco,varLevel)
+
+  end function ens_getNumLev
+
+
+  subroutine ens_computeMean(ens, computeSubEnsMeans, numSubEns)
+    implicit none
+
+    ! arguments
+    type(struct_ens)  :: ens
+    logical, optional :: computeSubEnsMeans
+    integer, optional :: numSubEns
+
+    ! locals
+    logical           :: computeSubEnsMeans2, lExists
+    character(len=256), parameter :: subEnsIndexFileName = 'subEnsembleIndex.txt'
+    integer           :: kulin, ierr, memberIndex, memberIndex2, stepIndex, subEnsIndex
+    integer           :: fnom, fclos
+    real(4), pointer  :: ptr4d_r4(:,:,:,:)
+    real(8), pointer  :: ptr4d_r8(:,:,:,:)
+
+    if(present(computeSubEnsMeans)) then
+      computeSubEnsMeans2 = computeSubEnsMeans
+    else
+      computeSubEnsMeans2 = .false.
+    endif
+
+    ! Read sub-ensemble index list from file, if it exists
+    allocate(ens%subEnsIndexList(ens%numMembers))
+    if( computeSubEnsMeans2 ) then
+      write(*,*) 'ens_computeMean: checking in ensemble directory if file with sub-ensemble index list exists: ',subEnsIndexFileName
+      inquire(file=trim(ens%enspathname) // trim(subEnsIndexFileName),exist=lExists)
+      if( lExists ) then
+        kulin = 0
+        ierr = fnom(kulin,trim(ens%enspathname) // trim(subEnsIndexFileName),'FMT+SEQ+R/O',0)
+        do memberIndex = 1, ens%numMembers
+          read(kulin,*) memberIndex2, ens%subEnsIndexList(memberIndex)
+          write(*,*) 'read from sub-ensemble index list: ',memberIndex, memberIndex2, ens%subEnsIndexList(memberIndex)
+        end do
+        ierr   = fclos(kulin)
+      else
+        call utl_abort('ens_computeMean: could not find file with sub-ensemble index list')
+      end if
+    else
+      ens%subEnsIndexList(:) = 1
+    end if
+    ens%numSubEns = maxval(ens%subEnsIndexList(:))
+    allocate(ens%nEnsSubEns(ens%numSubEns))
+    ens%nEnsSubEns(:) = 0
+    do memberIndex = 1, ens%numMembers
+      ens%nEnsSubEns(ens%subEnsIndexList(memberIndex)) = ens%nEnsSubEns(ens%subEnsIndexList(memberIndex)) + 1
+    enddo
+    write(*,*) 'ens_computeMean: number of sub-ensembles = ', ens%numSubEns
+    write(*,*) 'ens_computeMean: number of members in each sub-ensemble = ', ens%nensSubEns(:)
+
+    call ens_allocateMean(ens)
+
+    ! Compute ensemble mean(s)
+!$OMP PARALLEL DO PRIVATE (stepIndex,memberIndex,ptr4d_r4,ptr4d_r8)
+    do stepIndex = 1, ens%statevector(1)%numStep
+      do memberIndex = 1, ens%numMembers
+        ptr4d_r8 => gsv_getField_r8(ens%statevector_ensMean(ens%subEnsIndexList(memberIndex)))
+        ptr4d_r4 => ens_getField_r4(ens,memberIndex)
+        ptr4d_r8(:,:,:,stepIndex) = ptr4d_r8(:,:,:,stepIndex) + dble(ptr4d_r4(:,:,:,stepIndex))
+      enddo
+      do subEnsIndex = 1, ens%numSubEns
+        ptr4d_r8 => gsv_getField_r8(ens%statevector_ensMean(subEnsIndex))
+        ptr4d_r8(:,:,:,stepIndex) = ptr4d_r8(:,:,:,stepIndex)/dble(ens%nEnsSubEns(subEnsIndex))
+      enddo
+    enddo
+!$OMP END PARALLEL DO
+
+    ! provide output argument value
+    if( present(numSubEns) ) numSubEns = ens%numSubEns
+
+  end subroutine ens_computeMean
+
+
+  subroutine ens_removeMean(ens)
+    implicit none
+
+    ! arguments
+    type(struct_ens) :: ens
+
+    ! locals
+    integer :: stepIndex, memberIndex
+    real(4), pointer  :: ptr4d_r4(:,:,:,:)
+    real(8), pointer  :: ptr4d_r8(:,:,:,:)
+
+!$OMP PARALLEL DO PRIVATE (stepIndex,memberIndex,ptr4d_r4,ptr4d_r8)
+    do stepIndex = 1, ens%statevector(1)%numStep
+
+      do memberIndex = 1, ens%numMembers
+        ptr4d_r8 => gsv_getField_r8(ens%statevector_ensMean(ens%subEnsIndexList(memberIndex)))
+        ptr4d_r4 => ens_getField_r4(ens, memberIndex)
+        ptr4d_r4(:,:,:,stepIndex) =  &
+          real( (real(ptr4d_r4(:,:,:,stepIndex),8) - ptr4d_r8(:,:,:,stepIndex)), 4 )
+      enddo 
+
+    enddo
+!$OMP END PARALLEL DO
+
+  end subroutine ens_removeMean
+
+
+  subroutine ens_readEnsemble(ens, ensPathName, ensFileBaseName, biPeriodic, ctrlVarHumidity)
+    implicit none
+
+    ! arguments
+    type(struct_ens) :: ens
+    character(len=*) :: ensPathName
+    character(len=*) :: ensFileBaseName
+    logical          :: biPeriodic
+    character(len=*) :: ctrlVarHumidity
+
+    ! locals
+    type(struct_gsv) :: statevector_file_r4, statevector_hint_r4, statevector_member_r4
+    type(struct_hco), pointer :: hco_file => null(), hco_ens
+    type(struct_vco), pointer :: vco_file => null(), vco_ens
+    real(4), allocatable :: gd_send_r4(:,:,:,:)
+    real(4), allocatable :: gd_recv_r4(:,:,:,:)
+    real(4), pointer     :: ptr3d_r4(:,:,:), ptr4d_r4(:,:,:,:)
+    real(8)              :: multFactor
+    integer,allocatable :: dateStampList(:)
+    integer :: batchnum,nsize,status,ierr, pe_src,pe_dest
+    integer :: yourid,youridx,youridy
+    integer :: readFilePE(1000)
+    integer :: memberIndexOffset, totalEnsembleSize
+    integer :: length_envVariable
+    integer :: lonPerPE, latPerPE, ni, nj, nk, numStep, numlevelstosend, numlevelstosend2
+    integer :: memberIndex, memberIndex2, fileMemberIndex, stepIndex, jvar, jk, jk2
+    integer :: ensembleFileExtLength
+    character(len=256) :: ensFileName
+    character(len=32)  :: envVariable
+    character(len=2)   :: typvar
+    character(len=12)  :: etiket
+    character(len=4)   :: varName
+    logical            :: verticalInterpNeeded, horizontalInterpNeeded, HUcontainsLQinFile
+
+    write(*,*) 'ens_readEnsemble: starting'
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+    if( .not. ens%allocated ) then
+      call utl_abort('ens_readEnsemble: ensemble object not allocated!')
+    endif
+
+    !- 1. Initial setup
+
+    lonPerPE = ens%statevector(1)%lonPerPE
+    latPerPE = ens%statevector(1)%latPerPE
+    ni       = ens%statevector(1)%ni
+    nj       = ens%statevector(1)%nj
+    nk       = ens%statevector(1)%nk
+    numStep  = ens%statevector(1)%numStep
+
+    ens%ensPathName = trim(ensPathName)
+
+    ! Memory allocation
+    numLevelsToSend = 10
+    allocate(gd_send_r4(lonPerPE,latPerPE,numLevelsToSend,mpi_nprocs))
+    allocate(gd_recv_r4(lonPerPE,latPerPE,numLevelsToSend,mpi_nprocs))
+
+    allocate(dateStampList(numStep))
+    call tim_getstamplist(dateStampList,numStep,tim_getDatestamp())
+
+    do memberIndex = 1, ens%numMembers
+      readFilePE(memberIndex) = mod(memberIndex-1,mpi_nprocs)
+    enddo
+
+    ! Retrieve environment variables related to doing an ensemble of perturbed analyses
+    status = 0
+    call get_environment_variable('envar_memberIndexOffset',envVariable,length_envVariable,status,.true.)
+    if (status.gt.1) then
+      write(*,*) 'ens_readEnsemble: Problem when getting the environment variable envar_memberIndexOffset'
+      memberIndexOffset = 0
+    elseif (status == 1) then
+      memberIndexOffset = 0
+    else
+      write(*,*) 'ens_readEnsemble: The environment variable envar_memberIndexOffset has been detected: ',envVariable
+      read(envVariable,'(i8)') memberIndexOffset
+      write(*,*) 'memberIndexOffset = ',memberIndexOffset
+    endif
+
+    status = 0
+    call get_environment_variable('envar_totalEnsembleSize',envVariable,length_envVariable,status,.true.)
+    if (status.gt.1) then
+      write(*,*) 'ens_readEnsemble: Problem when getting the environment variable envar_totalEnsembleSize'
+      totalEnsembleSize = ens%numMembers
+    elseif (status == 1) then
+      totalEnsembleSize = ens%numMembers
+    else
+      write(*,*) 'ens_readEnsemble: The environment variable envar_totalEnsembleSize has been detected: ',envVariable
+      read(envVariable,'(i8)') totalEnsembleSize
+      write(*,*) 'totalEnsembleSize = ',totalEnsembleSize
+    endif
+
+    if ( mpi_myid == 0 ) then
+      call ens_fileName(ensFileName, ensPathName, ensFileBaseName, 1)
+      call hco_SetupFromFile(hco_file, ensFileName, ' ', 'ENSFILEGRID')
+      call vco_SetupFromFile(vco_file, ensFileName) 
+    endif
+    call hco_mpiBcast(hco_file)
+    call vco_mpiBcast(vco_file)
+    hco_ens => gsv_getHco(ens%statevector(1))
+    vco_ens => gsv_getVco(ens%statevector(1))
+    horizontalInterpNeeded = (.not. hco_equal(hco_ens, hco_file))
+    verticalInterpNeeded = (.not. vco_equal(vco_ens, vco_file))
+
+    ! More efficient handling of common case where input is on Z grid, analysis in on G grid
+    if ( hco_file%grtyp == 'Z' .and. hco_ens%grtyp == 'G' ) then
+      if ( hco_file%ni == (hco_ens%ni+1) ) then
+        write(*,*) 'ens_readEnsemble: no interpolation done for equivalent Gaussian grid stored as a Z grid'
+        horizontalInterpNeeded = .false.
+      endif
+    endif
+
+    if (mpi_myid == 0) write(*,*) 'ens_readEnsemble: dateStampList=',dateStampList(1:numStep)
+
+    !
+    !- 2.  Ensemble forecasts reading loop
+    !
+
+    !- 2.1 Loop on time, ensemble member, variable, level
+    do stepIndex = 1, numStep
+      write(*,*) 'ens_readEnsemble: starting to read time level ', stepIndex
+
+      ! allocate the needed statevector objects
+      call gsv_allocate(statevector_member_r4, 1, hco_ens, vco_ens,  &
+                        datestamp=dateStampList(stepIndex), mpi_local=.false., dataKind_in=4)
+      if(horizontalInterpNeeded .or. verticalInterpNeeded) then
+        call gsv_allocate(statevector_file_r4, 1, hco_file, vco_file,  &
+                          datestamp=dateStampList(stepIndex), mpi_local=.false., dataKind_in=4)
+      endif
+      if(verticalInterpNeeded) then
+        call gsv_allocate(statevector_hint_r4, 1, hco_ens, vco_file,  &
+                          datestamp=dateStampList(stepIndex), mpi_local=.false., dataKind_in=4)
+      endif
+
+      do memberIndex = 1, ens%numMembers
+
+        if (mpi_myid == readFilePE(memberIndex)) then
+
+          write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+          !  Read the file
+          fileMemberIndex = 1+mod(memberIndex+memberIndexOffset-1, totalEnsembleSize)
+          call ens_fileName(ensFileName, ensPathName, ensFileBaseName, fileMemberIndex)
+          typvar = ' '
+          etiket = ' '
+          if(.not. horizontalInterpNeeded .and. .not. verticalInterpNeeded) then
+            call gsv_readFile(statevector_member_r4, ensFileName, etiket, typvar, HUcontainsLQinFile)
+          else
+            call gsv_readFile(statevector_file_r4, ensFileName, etiket, typvar, HUcontainsLQinFile)
+          endif
+          if(stepIndex == numStep) then
+            ierr = top_ramDiskRemove(ensFileName)
+          endif
+
+          ! do any required interpolation
+          if(horizontalInterpNeeded .and. verticalInterpNeeded) then
+            call gsv_hInterpolate(statevector_file_r4, statevector_hint_r4)
+            call gsv_vInterpolate(statevector_hint_r4, statevector_member_r4)
+
+          elseif(horizontalInterpNeeded .and. .not. verticalInterpNeeded) then
+            call gsv_hInterpolate(statevector_file_r4, statevector_member_r4)
+
+          elseif(.not. horizontalInterpNeeded .and. verticalInterpNeeded) then
+            call gsv_copy(statevector_file_r4, statevector_hint_r4)
+            call gsv_vInterpolate(statevector_hint_r4, statevector_member_r4)
+
+          endif
+
+          ! unit conversion
+          VAR_LOOP: do jvar = 1, vnl_numvarmax
+            varName = vnl_varNameList(jvar)
+            if( .not. gsv_varExist(statevector_member_r4, varName) ) cycle VAR_LOOP
+            ptr3d_r4 => gsv_getField3D_r4(statevector_member_r4, varName)
+
+            if ( trim(varName) == 'UU' .or. trim(varName) == 'VV') then
+              multFactor = MPC_M_PER_S_PER_KNOT_R8 ! knots -> m/s
+            else if ( trim(varName) == 'P0' ) then
+              multFactor = MPC_PA_PER_MBAR_R8 ! hPa -> Pa
+            else
+              multFactor = 1.0D0 ! no conversion
+            end if
+            ptr3d_r4(:,:,:) = real( multFactor * ptr3d_r4(:,:,:), 4 )
+
+            if (trim(varName) == 'HU' .and. ctrlVarHumidity == 'LQ' .and. .not. HUcontainsLQinFile ) then
+              ptr3d_r4(:,:,:) = sngl(log(max(real(ptr3d_r4(:,:,:),8),MPC_MINIMUM_HU_R8)))
+            else if (trim(varName) == 'HU' .and. ctrlVarHumidity == 'HU' .and. .not. HUcontainsLQinFile ) then
+              ptr3d_r4(:,:,:) = sngl(max(real(ptr3d_r4(:,:,:),8),MPC_MINIMUM_HU_R8))
+            endif
+          enddo VAR_LOOP
+
+          !  Create bi-periodic forecasts when using scale-dependent localization in LAM mode
+          if ( .not. hco_ens%global .and. biperiodic ) then
+            ptr3d_r4 => gsv_getField3D_r4(statevector_member_r4)
+            call agd_mach_r4(ptr3d_r4,    & ! INOUT
+                             ni, nj, statevector_member_r4%nk)  ! IN
+          end if
+
+        endif ! locally read one member
+
+
+        !  MPI communication: from 1 ensemble member per process to 1 lat-lon tile per process  
+        if (readFilePE(memberIndex) == (mpi_nprocs-1) .or. memberIndex == ens%numMembers) then
+
+          call tmg_start(13,'PRE_SUENS_COMM')
+          batchnum = ceiling(dble(memberIndex)/dble(mpi_nprocs))
+
+          do jk = 1, nk, numLevelsToSend
+            jk2 = min(nk,jk+numLevelsToSend-1)
+            numLevelsToSend2 = jk2 - jk + 1
+
+            ptr3d_r4 => gsv_getField3D_r4(statevector_member_r4)
+!$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
+            do youridy = 0, (mpi_npey-1)
+              do youridx = 0, (mpi_npex-1)
+                yourid = youridx + youridy*mpi_npex
+                gd_send_r4(:,:,1:numLevelsToSend2,yourid+1) =  &
+                  ptr3d_r4(ens%statevector(1)%allLonBeg(youridx+1):ens%statevector(1)%allLonEnd(youridx+1),  &
+                           ens%statevector(1)%allLatBeg(youridy+1):ens%statevector(1)%allLatEnd(youridy+1),jk:jk2)
+              enddo
+            enddo
+!$OMP END PARALLEL DO
+
+            nsize = lonPerPE*latPerPE*numLevelsToSend2
+            if (mpi_nprocs.gt.1) then
+              call rpn_comm_alltoall(gd_send_r4(:,:,1:numLevelsToSend2,:),nsize,"mpi_real4",  &
+                                     gd_recv_r4(:,:,1:numLevelsToSend2,:),nsize,"mpi_real4","GRID",ierr)
+            else
+              gd_recv_r4(:,:,1:numLevelsToSend2,1) = gd_send_r4(:,:,1:numLevelsToSend2,1)
+            endif
+
+!$OMP PARALLEL DO PRIVATE(memberIndex2,yourid,ptr4d_r4)
+            do memberIndex2 = 1+(batchnum-1)*mpi_nprocs, memberIndex
+              yourid = readFilePE(memberIndex2)
+              ptr4d_r4 => gsv_getField_r4(ens%statevector(memberIndex2))
+              ptr4d_r4(:,:,jk:jk2,stepIndex) = gd_recv_r4(:,:,1:numLevelsToSend2,yourid+1)
+            enddo
+!$OMP END PARALLEL DO
+
+          enddo ! jk
+          call tmg_stop(13)
+
+        endif ! MPI communication
+
+
+      enddo ! memberIndex
+
+      ! deallocate the needed statevector objects
+      call gsv_deallocate(statevector_member_r4)
+      if(horizontalInterpNeeded .or. verticalInterpNeeded) call gsv_deallocate(statevector_file_r4)
+      if(verticalInterpNeeded) call gsv_deallocate(statevector_hint_r4)
+
+    enddo ! time
+
+    deallocate(gd_send_r4)
+    deallocate(gd_recv_r4)
+    deallocate(datestamplist)
+    call hco_deallocate(hco_file)
+    call vco_deallocate(vco_file)
+
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    write(*,*) 'ens_readEnsemble: finished reading and communicating ensemble members...'
+
+  end subroutine ens_readEnsemble
+
+
+  subroutine ens_fileName(ensFileName, ensPathName, ensFileBaseName, memberIndex)
+    implicit none
+
+    ! arguments
+    character(len=*) :: ensFileName
+    character(len=*) :: ensPathName, ensFileBaseName
+    integer :: memberIndex
+
+    ! locals
+    real(8)          :: delhh
+    integer          :: stamp_last, ndate, ntime, ierr, newdate
+    character(len=8) :: datestr_last
+    character(len=2) :: hourstr_last
+    character(len=4) :: ensNumber
+    logical          :: lExists
+    logical, save    :: firstTime = .true.
+    integer, save    :: ensembleFileExtLength = 4
+
+    ! Initialize dates for ensemble files
+    delhh = -tim_windowsize
+    call incdatr(stamp_last,tim_getDatestamp(),delhh)
+    ierr = newdate(stamp_last,ndate,ntime,-3)
+    write(datestr_last,'(i8.8)') ndate
+    write(hourstr_last,'(i2.2)') ntime/1000000
+    if (mpi_myid == 0) write(*,*) 'ens_fileName: DATE,TIME=',ndate,'  ,',ntime
+
+    ! Determine file name extension length for ensemble files (3 or 4)
+    if(firstTime) then
+      write(ensNumber,'(i4.4)') memberIndex
+      ensFileName = trim(enspathname) // '/' // trim(ensfilebasename) // &
+                    trim(datestr_last) // trim(hourstr_last) // '_006_' // trim(ensNumber)
+      inquire(file=ensFileName,exist=lExists)
+      if (lExists) then
+        ensembleFileExtLength = 4
+      else
+        write(ensNumber,'(i3.3)') memberIndex
+        ensFileName = trim(enspathname) // '/' // trim(ensfilebasename) // &
+                      trim(datestr_last) // trim(hourstr_last) // '_006_' // trim(ensNumber)
+        inquire(file=ensFileName,exist=lExists)
+        if (lExists) then
+          ensembleFileExtLength = 4
+        else 
+          call utl_abort('ens_fileName: could not determine file extension length')
+        endif
+      endif
+      firstTime = .false.
+    else
+      if(ensembleFileExtLength == 4) then
+        write(ensNumber,'(i4.4)') memberIndex
+        ensFileName = trim(enspathname) // '/' // trim(ensfilebasename) // &
+                      trim(datestr_last) // trim(hourstr_last) // '_006_' // trim(ensNumber)
+      else
+        write(ensNumber,'(i3.3)') memberIndex
+        ensFileName = trim(enspathname) // '/' // trim(ensfilebasename) // &
+                      trim(datestr_last) // trim(hourstr_last) // '_006_' // trim(ensNumber)
+      endif
+    endif
+
+    ensFileName = top_fullWorkingPath(ensFileName)
+
+  end subroutine ens_fileName
+
+end module ensembleStateVector_mod

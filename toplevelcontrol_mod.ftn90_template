@@ -20,12 +20,15 @@ module topLevelControl_mod
   ! public procedures
   public :: top_setup, top_AnalysisMode, top_BgckIrMode, top_BgckConvMode, top_OmpMode
   public :: top_BurpSplit, top_BurpSplitMode
+  public :: top_fullWorkingPath, top_ramDiskRemove
 
   character(len=len('XXXXX')),parameter :: top_crevision='XXXXX'
   integer :: top_nconf
 
   character(len=256) :: burp_split_mode
   logical :: burp_split_L
+  character(len=256) :: ram_disk_dir
+  logical :: ram_disk_dir_exists
 
   contains
 
@@ -39,7 +42,7 @@ module topLevelControl_mod
       NAMELIST /NAMCT0/NCONF
       integer nulnam,ierr,fnom,fclos 
 
-      integer :: length_burp_split, status
+      integer :: length_burp_split, length_ram_disk_dir, status
 
       ! Set the default values
       nconf             = 141
@@ -98,6 +101,27 @@ module topLevelControl_mod
            write(*,*) 'top_setup: Unknown burp_split_mode ', trim(burp_split_mode)
            call utl_abort('top_setup')
         end select
+      end if
+
+      !
+      !- Determine the ramdisk directory, if available
+      !
+      status = 0
+      call get_environment_variable('OAVAR_RAM_DISK_DIR',ram_disk_dir,length_ram_disk_dir,status,.true.)
+
+      if (status.gt.1) then
+        write(*,*) 'top_setup: Problem when getting the environment variable OAVAR_RAM_DISK_DIR'
+      end if
+      if (status.eq.1) then
+        write(*,*) 'top_setup: The environment variable OAVAR_RAM_DISK_DIR has not been detected!'
+	write(*,*) '           Assume all files in current working directory'
+	ram_disk_dir_exists = .false.  
+	ram_disk_dir = 'DOES_NOT_EXIST'
+      else
+        write(*,*)
+        write(*,*) 'top_setup: The environment variable OAVAR_RAM_DISK_DIR has correctly been detected'
+        write(*,*) 'top_setup: Files will first be opened from directory: ', trim(ram_disk_dir)
+	ram_disk_dir_exists = .true.
       end if
 
     end subroutine top_setup
@@ -167,5 +191,88 @@ module topLevelControl_mod
       BurpSplit = burp_split_L
         
     end function top_BurpSplit
+
+!--------------------------------------------------------------------------
+! top_fullWorkingPath - given a filename, return the full path by either
+!                       adding the current working directory or the ram disk
+!                       directory
+!--------------------------------------------------------------------------
+    function top_fullWorkingPath(fileName, noAbort) result(fullWorkingPath)
+      implicit none
+      character(len=512) :: fullWorkingPath
+      logical, optional  :: noAbort
+      character(len=*)   :: fileName
+
+      logical            :: fileExists, noAbort2
+      character(len=256) :: fileName2
+
+      if ( present(noAbort) ) then
+        noAbort2 = noAbort
+      else
+        noAbort2 = .false.
+      endif
+
+      ! this should make it safe for calls where input and output are the same variable
+      fileName2 = trim(fileName)
+
+      ! first look for file in the ram disk directory
+      fullWorkingPath = trim(ram_disk_dir) // '/' // trim(fileName2)
+      inquire(file=trim(fullWorkingPath),exist=fileExists)
+
+      if ( fileExists ) then
+        write(*,*) 'top_fullWorkingPath: this file found on ram disk: ', trim(fileName2)
+      else
+        ! now look in working directory
+        fullWorkingPath = './' // trim(fileName2)
+        inquire(file=trim(fullWorkingPath),exist=fileExists)
+
+        if ( .not. fileExists ) then
+          if ( noAbort2 ) then
+            fullWorkingPath = ' '
+          else
+            write(*,*) 'top_fullWorkingPath: file name          = ', trim(fileName2)
+            write(*,*) 'top_fullWorkingPath: ram disk directory = ', trim(ram_disk_dir)
+            call utl_abort('top_fullWorkingPath: this file cannot be found.')
+          endif
+        endif
+
+      endif
+       
+    end function top_fullWorkingPath
+
+
+!--------------------------------------------------------------------------
+! top_ramDiskRemove - given the full path+filename, remove the file only if 
+!                     it is located on the ram disk (to free up memory)
+!--------------------------------------------------------------------------
+    function top_ramDiskRemove(fullWorkingPath) result(returnCode)
+      implicit none
+#include <clib_interface.cdk>
+      character(len=*) :: fullWorkingPath
+      integer          :: returnCode
+      logical          :: fileExists
+
+      inquire(file=trim(fullWorkingPath),exist=fileExists)
+      if ( .not. fileExists) then
+        write(*,*) 'top_ramDiskRemove: file does not exist: ',trim(fullWorkingPath)
+        returnCode = 0
+        return
+      endif
+
+      if ( .not. ram_disk_dir_exists ) then
+        write(*,*) 'top_ramDiskRemove: no ram disk in use.'
+        returnCode = 0
+        return
+      endif
+
+      if ( index(trim(fullWorkingPath), trim(ram_disk_dir)) == 1 ) then
+        write(*,*) 'top_ramDiskRemove: removing file that is on the ram disk: ', trim(fullWorkingPath)
+        returnCode = clib_remove(fullWorkingPath)
+      else
+        write(*,*) 'top_ramDiskRemove: this file not on ram disk: ', trim(fullWorkingPath)
+        returnCode = 0
+      endif
+
+    end function top_ramDiskRemove
 
 end module topLevelControl_mod

@@ -75,7 +75,9 @@ CONTAINS
     type(struct_hco), pointer :: hco_anl
     type(struct_vco), pointer :: vco_anl    
  
+    call tmg_start(92,'VTR_READTRIALS')
     call gsv_readTrials(hco_anl,vco_anl,statevector_trial)
+    call tmg_stop(92)
     
   end subroutine vtr_setupTrials
 

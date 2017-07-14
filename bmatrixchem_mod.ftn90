@@ -75,9 +75,9 @@
 !!                                          rpn_comm_allreduce)
 !!    BCHM_BSqrt:      Transformations from control vector to analysis increments 
 !!                     in the minimization process.
-!!                     calls BCHM_cain, BCHM_spa2gd (dgemul), BCHM_copytoStatevector 
+!!                     calls BCHM_cain, BCHM_spa2gd (dgemm), BCHM_copytoStatevector 
 !!    BCHM_BSqrtAd:    Adjoint of BCHM_BSqrt.
-!!                     calls BCHM_copyFromStatvector, BCHM_spa2gdad (dgemul), BCHM_cainad
+!!                     calls BCHM_copyFromStatvector, BCHM_spa2gdad (dgemm), BCHM_cainad
 !!    BCHM_Finalize    Deallocate internal module arrays.
 !!    BCHM_expandToMPIglobal
 !!    BCHM_reduceToMPIlocal:  calls rpn_comm_*
@@ -150,7 +150,7 @@ MODULE BmatrixChem_mod
   character(len=15) :: bchm_mode
   logical :: analysisMode
                             
-  integer             :: get_max_rss
+  integer, external   :: get_max_rss
   integer             :: nulbgst=0
 
 ! Bacgkround error covariance matrix elements.
@@ -1684,7 +1684,8 @@ CONTAINS
       enddo
       if(icount.gt.0) then
 
-        CALL DGEMUL(corns(1,1,jn),nkgdim,'N',zsp(1,1,1),nkgdim,'N',zsp2(1,1,1),nkgdim,nkgdim,nkgdim,2*icount)
+        CALL DGEMM('N','N',nkgdim,2*icount,nkgdim,1.0d0,corns(1,1,jn),nkgdim,zsp(1,1,1),nkgdim,0.0d0,zsp2(1,1,1),nkgdim)
+!        CALL DGEMUL(corns(1,1,jn),nkgdim,'N',zsp(1,1,1),nkgdim,'N',zsp2(1,1,1),nkgdim,nkgdim,nkgdim,2*icount)
 
         icount = 0
         do jm = mymBeg, mymEnd, mymSkip
@@ -1836,7 +1837,8 @@ CONTAINS
 
       if(icount.gt.0) then
 
-        CALL DGEMUL(corns(1,1,jn),nkgdim,'T',zsp2(1,1,1),nkgdim,'N',zsp(1,1,1),nkgdim,nkgdim,nkgdim,2*icount)
+        CALL DGEMM('T','N',nkgdim,2*icount,nkgdim,1.0d0,corns(1,1,jn),nkgdim,zsp2(1,1,1),nkgdim,0.0d0,zsp(1,1,1),nkgdim)
+        ! CALL DGEMUL(corns(1,1,jn),nkgdim,'T',zsp2(1,1,1),nkgdim,'N',zsp(1,1,1),nkgdim,nkgdim,nkgdim,2*icount)
 
         icount = 0
         do jm = mymBeg, jn, mymSkip

@@ -89,15 +89,16 @@ program main_var
 
     obsMpiStrategy = 'LIKESPLITFILES'
 
-    call var_setup(columng,columnhr,obsSpaceData,  &
-                   "ALL",                & ! obsColumnMode   
-                   trim(obsMpiStrategy))
+    call var_setup('ALL') ! obsColumnMode   
 
     ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
-    call inn_setupBackgroundColumns(columng,columnhr,obsSpaceData)
+    call inn_setupBackgroundColumns(columnhr,obsSpaceData)
+
+    ! Interpolate trial columns to analysis levels and setup for linearized H
+    call inn_setupBackgroundColumnsAnl(columnhr,columng)
 
     ! Compute observation innovations and prepare obsSpaceData for minimization
-    call inn_computeInnovation(columng,columnhr,obsSpaceData)
+    call inn_computeInnovation(columnhr,obsSpaceData)
     call tmg_stop(2)
 
     ! Do the background check and output the observation data files
@@ -112,19 +113,17 @@ program main_var
 
     obsMpiStrategy = 'LIKESPLITFILES'
 
-    call var_setup(columng,columnhr,obsSpaceData,  &
-                   "ALL",        &       ! obsColumnMode   
-                   trim(obsMpiStrategy)) ! obsMpiStrategy
+    call var_setup('ALL') ! obsColumnMode   
 
     ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
-    call inn_setupBackgroundColumns(columng,columnhr,obsSpaceData)
+    call inn_setupBackgroundColumns(columnhr,obsSpaceData)
 
     ! Compute observation innovations and prepare obsSpaceData for minimization
-    call inn_computeInnovation(columng,columnhr,obsSpaceData)
+    call inn_computeInnovation(columnhr,obsSpaceData)
     call tmg_stop(2)
 
     ! Do the background check and output the observation data files
-    call bgcheck_ir(columng,columnhr,obsSpaceData)
+    call bgcheck_ir(columnhr,obsSpaceData)
 
 
   ! ---COMPUTE O-P (for AMSU, GEORAD et SSMIS)--- !
@@ -136,16 +135,17 @@ program main_var
 
     obsMpiStrategy = 'LIKESPLITFILES'
 
-    call var_setup(columng,columnhr,obsSpaceData,  &
-                   "VAR",        &         ! obsColumnMode
-                   trim(obsMpiStrategy))   ! obsMpiStrategy
+    call var_setup('VAR') ! obsColumnMode
 
     ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
-    call inn_setupBackgroundColumns(columng,columnhr,obsSpaceData)
+    call inn_setupBackgroundColumns(columnhr,obsSpaceData)
 
     ! Compute observation innovations and prepare obsSpaceData for minimization
-    call inn_computeInnovation(columng,columnhr,obsSpaceData)
+    call inn_computeInnovation(columnhr,obsSpaceData)
     call tmg_stop(2)
+
+    ! Interpolate trial columns to analysis levels and setup for linearized H
+    call inn_setupBackgroundColumnsAnl(columnhr,columng)
 
     ! Compute OER and update the observation data files
     call residuals(columng,columnhr,obsSpaceData)
@@ -159,17 +159,18 @@ program main_var
 
     obsMpiStrategy = 'LATLONTILESBALANCED'
 
-    call var_setup(columng,columnhr,obsSpaceData,  &
-                   "VAR",          &      ! obsColumnMode
-                   trim(obsMpiStrategy))  ! obsMpiStrategy
+    call var_setup('VAR') ! obsColumnMode
     call tmg_stop(2)
 
     ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
     call tmg_start(2,'PREMIN')
-    call inn_setupBackgroundColumns(columng,columnhr,obsSpaceData)
+    call inn_setupBackgroundColumns(columnhr,obsSpaceData)
+
+    ! Interpolate trial columns to analysis levels and setup for linearized H
+    call inn_setupBackgroundColumnsAnl(columnhr,columng)
 
     ! Compute observation innovations and prepare obsSpaceData for minimization
-    call inn_computeInnovation(columng,columnhr,obsSpaceData)
+    call inn_computeInnovation(columnhr,obsSpaceData)
     call tmg_stop(2)
 
     ! Do minimization of cost function
@@ -219,14 +220,10 @@ contains
   !!           - Addition of test on availability of input trial fields according
   !!             to related observation families.
   !--------------------------------------------------------------------------
-  subroutine var_setup(lcolumng,lcolumnhr,lobsSpaceData, &
-       obsColumnMode, obsMpiStrategy)
+  subroutine var_setup(obsColumnMode)
     implicit none
 
-    type(struct_obs) :: lobsSpaceData
-    type(struct_columnData) :: lcolumng,lcolumnhr
     character (len=*) :: obsColumnMode
-    character (len=*) :: obsMpiStrategy
     integer :: datestamp
     type(struct_vco),pointer :: vco_anl => null()
     type(struct_vco),pointer :: vco_trl => null()
@@ -239,6 +236,11 @@ contains
     write(*,*) '-----------------------------------'
     write(*,*) '-- Starting subroutine var_setup --'
     write(*,*) '-----------------------------------'
+
+    !
+    !- Initialize the Temporal grid
+    !
+    call tim_setup
 
     !     
     !- Initialize burp file names and set datestamp
@@ -258,18 +260,13 @@ contains
     if(mpi_myid.eq.0) write(*,*)' preproc: Set vcoord parameters for trial grid'
     call vco_SetupFromFile( vco_trl,     & ! OUT
                             './trlm_01')   ! IN
-    call col_setVco(lcolumnhr,vco_trl)
+    call col_setVco(columnhr,vco_trl)
 
     !
     !- Initialize variables of the model states
     !
     call gsv_setup
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-    !
-    !- Initialize the Temporal grid
-    !
-    call tim_setup
 
     !
     !- Initialize the Analysis grid
@@ -297,13 +294,13 @@ contains
     call vco_SetupFromFile( vco_anl,        & ! OUT
                             './analysisgrid') ! IN
 
-    call col_setVco(lcolumng,vco_anl)
+    call col_setVco(columng,vco_anl)
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     !
     !- Setup and read observations
     !
-    call inn_setupObs(lobsSpaceData,obsColumnMode,obsMpiStrategy)
+    call inn_setupObs(obsSpaceData,obsColumnMode,obsMpiStrategy)
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     !
@@ -312,15 +309,15 @@ contains
     !  and an abort would have occured prior to this point if it was not present.
     !  Requirements beyond the minimum set to be tested where needed.
     !
-    if ( obs_famExist(lobsSpaceData,'UA').or.obs_famExist(lobsSpaceData,'AI').or.obs_famExist(lobsSpaceData,'SW').or. &
-         obs_famExist(lobsSpaceData,'SF').or.obs_famExist(lobsSpaceData,'RO').or.obs_famExist(lobsSpaceData,'SC').or. &
-         obs_famExist(lobsSpaceData,'GP').or.obs_famExist(lobsSpaceData,'PR') ) then
+    if ( obs_famExist(obsSpaceData,'UA').or.obs_famExist(obsSpaceData,'AI').or.obs_famExist(obsSpaceData,'SW').or. &
+         obs_famExist(obsSpaceData,'SF').or.obs_famExist(obsSpaceData,'RO').or.obs_famExist(obsSpaceData,'SC').or. &
+         obs_famExist(obsSpaceData,'GP').or.obs_famExist(obsSpaceData,'PR') ) then
        ! Not all following fields required for some of the above families.
        if (.not.(gsv_varExist(varName='TT').and.gsv_varExist(varName='UU').and.gsv_varExist(varName='VV') &
             .and.gsv_varExist(varName='HU').and.gsv_varExist(varName='P0').and.gsv_varExist(varName='TG')) ) then
           call utl_abort(' preproc: One or more missing weather field in NAMSTATE')
        end if
-    else if (obs_famExist(lobsSpaceData,'TO') .and. .not.gsv_varExist(varName='TT')) then
+    else if (obs_famExist(obsSpaceData,'TO') .and. .not.gsv_varExist(varName='TT')) then
        ! Minimum requirement for 'TO' in the absence of assimilation of other weather-related families.
        ! This minimum requirement is for when only constituent (non-H2O) increments are to be produced
        ! when TO obs are provided.
@@ -337,13 +334,13 @@ contains
     !
     !- Memory allocation for background column data
     !
-    call col_allocate(lcolumng, obs_numheader(lobsSpaceData),mpi_local=.true.)
-    call col_allocate(lcolumnhr,obs_numheader(lobsSpaceData),mpi_local=.true.)
+    call col_allocate(columng, obs_numheader(obsSpaceData),mpi_local=.true.)
+    call col_allocate(columnhr,obs_numheader(obsSpaceData),mpi_local=.true.)
 
     !
     !- Initialize the observation error covariances
     !
-    call oer_setObsErrors(lobsSpaceData)
+    call oer_setObsErrors(obsSpaceData)
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     !

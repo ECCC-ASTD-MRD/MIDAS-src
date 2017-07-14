@@ -168,7 +168,6 @@ subroutine tvslin_rttov_tl(column, columng, lobsSpaceData, obs_ass_val)
   type(struct_obs) :: lobsSpaceData
   type(struct_columnData) :: column,columng
   integer ,intent(in) :: obs_ass_val
-
   type(struct_vco), pointer :: vco_anl
   integer, allocatable :: iptobs    (:) 
   integer, allocatable :: iptobs_header (:) 
@@ -349,7 +348,6 @@ subroutine tvslin_rttov_tl(column, columng, lobsSpaceData, obs_ass_val)
         if (tvs_lsensor(iobs)/=sensor_id) cycle obs_loop2
 
         headerIndex = tvs_lobsno(iobs)
-
         count_profile = count_profile + 1
 
         zps_tl  (count_profile) = col_getElem(column,1,headerIndex,'P0')*MPC_MBAR_PER_PA_R8
@@ -379,7 +377,6 @@ subroutine tvslin_rttov_tl(column, columng, lobsSpaceData, obs_ass_val)
            zlq  (1,count_profile) =  zlq  (2,count_profile)
         endif
 
-!        iptobs   (count_profile) = iobs
         iptobs_header(count_profile) = headerIndex
 
      enddo obs_loop2
@@ -424,8 +421,6 @@ subroutine tvslin_rttov_tl(column, columng, lobsSpaceData, obs_ass_val)
         !     .  2.3  Extrapolation of humidity profile (kg/kg)
         !             above rlimlvhu (normally 300mbs or 70mbs)
         !     .       -----------------------------------------
-
-     qoext_tl(:,:) = 0.0d0
      
      do jn = 1, count_profile
         do jk = 1, jpmotop-1
@@ -827,10 +822,9 @@ subroutine tvslin_rttov_ad(column,columng,lobsSpaceData)
      count_profile = 0 
 
 ! loop over all obs.
-     bobs2: do iobs = 1, NOBMAX
-        if (tvs_lsensor(iobs)/=sensor_id) cycle bobs2
+     obs_loop: do iobs = 1, NOBMAX
+        if (tvs_lsensor(iobs)/=sensor_id) cycle obs_loop
         headerIndex = tvs_lobsno(iobs)
-          
         count_profile = count_profile + 1
 
         TTb => col_getColumn(columng,headerIndex,'TT')
@@ -854,9 +848,8 @@ subroutine tvslin_rttov_ad(column,columng,lobsSpaceData)
         endif
 
         iptobs_header(count_profile) = headerIndex
-     enddo bobs2
+     enddo obs_loop
      
-
 !     .  2.1  Calculate the actual number of threads which will be used.
 !     .       ----------------------------------------------------------
 
@@ -875,7 +868,7 @@ subroutine tvslin_rttov_ad(column,columng,lobsSpaceData)
      call utl_checkAllocationStatus(alloc_status(1:7), " tvslin_rttov_ad")
       
 !     get Hyperspectral IR emissivities
-      
+     
      if ( tvs_isInstrumHyperSpectral(instrum) )  call tvs_getHIREmissivities(sensor_id, iptobs, count_profile, lobsSpaceData, surfem1)
 
 ! Build the list of channels/profiles indices
@@ -910,8 +903,6 @@ subroutine tvslin_rttov_ad(column,columng,lobsSpaceData)
      call rttov_alloc_prof (alloc_status(1), count_profile, profilesdata_ad, nlevels, &
           tvs_opts(sensor_id), asw=asw, coefs=tvs_coefs(sensor_id), init=init)
      call utl_checkAllocationStatus(alloc_status(1:1), " tvslin_rttov_ad radiances ad")
-
-!     call rttov_init_prof(profilesdata_ad(1:count_profile) )
 
      call rttov_init_rad( radiancedata_d )
 

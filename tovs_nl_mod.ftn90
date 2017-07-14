@@ -40,11 +40,15 @@ Module tovs_nl_mod
        inst_id_goesim    ,&
        inst_id_gmsim     ,&
        inst_id_mtsatim   ,&
+       sensor_id_mw      ,&
+       sensor_id_po      ,&
        platform_id_jpss  ,&
        platform_id_himawari,&
        errorstatus_success, &
        mair, mh2o, mo3,   &
-       surftype_land, surftype_seaice, sensor_id_mw
+       surftype_land, &
+       surftype_seaice, &
+       ngases_max, gas_id_mixed
   use codtyp_mod
   use mpi
   use utilities_mod
@@ -82,7 +86,7 @@ Module tovs_nl_mod
   public :: tvs_setupAlloc,tvs_setup, tvs_isIdBurpTovs, tvs_isIdBurpInst
   public :: tvs_getInstrumentId, tvs_getPlatformId, tvs_mapSat, tvs_mapInstrum
   public ::  tvs_isInstrumGeostationary,  tvs_isInstrumHyperSpectral, TVS_getChanprof, &
-       tvs_countRadiances, tvs_getHIREmissivities, tvs_getOtherEmissivities
+       tvs_countRadiances, tvs_getHIREmissivities, tvs_getOtherEmissivities, tvs_rttov_read_coefs
   ! Module parameters
   ! units conversion from  mixing ratio to ppmv
   Real(8), Parameter :: tvs_qMixratio2ppmv  = (1000000.0_8 * mair) / mh2o
@@ -195,7 +199,7 @@ SUBROUTINE tvs_setupAlloc(lobsSpaceData)
 
   IMPLICIT NONE
 !implicits
-#include "rttov_read_coefs.interface"
+
 #include "rttov_user_options_checkinput.interface"
 #include "rttov_alloc_prof.interface"
 
@@ -370,11 +374,13 @@ SUBROUTINE tvs_setupAlloc(lobsSpaceData)
 
         errorstatus = errorstatus_success
 
-        CALL rttov_read_coefs(errorstatus(1), tvs_coefs(jk), tvs_opts(jk), channels=tvs_ichan(1:tvs_nchan(JK),JK), instrument = tvs_listSensors(:,JK))
+        call tmg_start(83,'RTTOV_SETUP')
+        CALL tvs_rttov_read_coefs(errorstatus(1), tvs_coefs(jk), tvs_opts(jk), tvs_ichan(1:tvs_nchan(JK),JK), tvs_listSensors(:,JK))
         IF (errorstatus(1) /= errorstatus_success) THEN
-           WRITE(*,*) 'rttov_read_coefs: fatal error reading coefficients',errorstatus,JK,tvs_listSensors(1:3,JK)
+           WRITE(*,*) 'tvs_rttov_read_coefs: fatal error reading coefficients',errorstatus,JK,tvs_listSensors(1:3,JK)
            CALL utl_abort('tvs_setupAlloc')
         ENDIF
+        call tmg_stop(83)
         tvs_opts(JK)%rt_ir%co2_data = .false. 
         tvs_opts(JK)%rt_ir%n2o_data = .false.
         tvs_opts(JK)%rt_ir%co_data  = .false.
@@ -390,14 +396,14 @@ SUBROUTINE tvs_setupAlloc(lobsSpaceData)
        
      ENDDO
     
-     do jk = 1, tvs_nsensors
-       if ( tvs_instruments(jk) /= 20 ) then
-        tvs_nchan(jk) = tvs_coefs(jk)% coef %fmv_chn
-        do j = 1,tvs_nchan(jk)
-           tvs_ichan(j,jk) = tvs_coefs(jk)% coef %ff_ori_chn(j)
-        enddo
-       end if
-     enddo
+!     do jk = 1, tvs_nsensors
+!       if ( tvs_instruments(jk) /= 20 ) then
+!        tvs_nchan(jk) = tvs_coefs(jk)% coef %fmv_chn
+!        do j = 1,tvs_nchan(jk)
+!           tvs_ichan(j,jk) = tvs_coefs(jk)% coef %ff_ori_chn(j)
+!        enddo
+!       end if
+!     enddo
 
 !    .   3.1 Validate RTTOV dimensions
 !     .       -------------------------
@@ -453,7 +459,7 @@ SUBROUTINE tvs_setupAlloc(lobsSpaceData)
      
      tvs_radiance(jo)  % bt  ( : ) = 0.d0
     
-     !! allocate clear/cloudy sky radiance/BT output and overcast radiance at given cloud top
+     !! allocate clear sky radiance/BT output
      allocate( tvs_radiance(jo)  % clear  ( nc ) ,stat= alloc_status(2) )
      tvs_radiance(jo)  % clear  ( : ) = 0.d0
 
@@ -502,7 +508,7 @@ SUBROUTINE tvs_setup
   nulnam=0
   ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
   read(nulnam,nml=namtov,iostat=ierr)
-  if(ierr/=0) call utl_abort('tov_setup: Error reading namelist')
+  if(ierr/=0) call utl_abort('tvs_setup: Error reading namelist')
   if(mpi_myid==0) write(*,nml=namtov)
   ierr=fclos(nulnam)
 
@@ -539,8 +545,8 @@ SUBROUTINE tvs_setup
      WRITE(*,'(6X,A,2X,L1)') 'Use of UW IR land emissivity atlases : ', tvs_useUofWIREmiss
      WRITE(*,'(6X,A,2X,A)')  'Radiative transfer model             : ', tvs_radiativeTransferCode
      WRITE(*,'(6X,A,2X,I3)') 'Number of sensors                    : ', tvs_nsensors
-     WRITE(*,'(6X,A,2X,10A10)') "Satellite id's                       : ", (tvs_satelliteName(JK), JK=1,tvs_nsensors)
-     WRITE(*,'(6X,A,2X,10A10)') "Instrument id's                      : ", (tvs_instrumentName(JK), JK=1,tvs_nsensors)
+     WRITE(*,'(6X,"Satellite ids          : ",10A10)') (tvs_satelliteName(JK), JK=1,tvs_nsensors)
+     WRITE(*,'(6X,"Instrument ids         : ",10A10)') (tvs_instrumentName(JK), JK=1,tvs_nsensors)
      WRITE(*,'(A)') 
      WRITE(*,'(A)') 
      WRITE(*,'(A)') 
@@ -700,14 +706,14 @@ SUBROUTINE SENSORS
 
   if(mpi_myid == 0) then
      WRITE(*,*)
-     WRITE(*,'(3X,A)') '- SENSORS. Variables prepared for RTTOV-10:'
+     WRITE(*,'(3X,A)') '- SENSORS. Variables prepared for RTTOV-12:'
      WRITE(*,'(3X,A)') '  ----------------------------------------'
      WRITE(*,*)
      WRITE(*,'(6X,A,I3)')   "Number of sensors       : ", tvs_nsensors
-     WRITE(*,'(6X,A,10I3)') "Platform numbers        : ",  (tvs_platforms(J), J=1,tvs_nsensors)
-     WRITE(*,'(6X,A,10I3)') "Satellite numbers       : ",  (tvs_satellites(J), J=1,tvs_nsensors)
-     WRITE(*,'(6X,A,10I3)') "Instrument numbers      : ",  (tvs_instruments(J), J=1,tvs_nsensors)
-     WRITE(*,'(6X,A,10I3)') "Channel mapping offsets : ",  (tvs_channelOffset(J), J=1,tvs_nsensors)
+     WRITE(*,'("Platform numbers        : ",6X,10I3)')  (tvs_platforms(J), J=1,tvs_nsensors)
+     WRITE(*,'("Satellite numbers       : ",6X,10I3)')  (tvs_satellites(J), J=1,tvs_nsensors)
+     WRITE(*,'("Instrument numbers      : ",6X,10I3)')  (tvs_instruments(J), J=1,tvs_nsensors)
+     WRITE(*,'("Channel mapping offsets : ",6X,10I3)')  (tvs_channelOffset(J), J=1,tvs_nsensors)
   endif
 
 END subroutine sensors
@@ -941,7 +947,6 @@ logical function tvs_isInstrumGeostationary(instrum)
      if (ninst_geo == 0) then
         Write(*,*) "tvs_isInstrumGeostationary: Warning : empty namgeo namelist !"
      endif
-     Write(*,*) "DEBUGX:",list_inst(1:ninst_geo)
   endif
   tvs_isInstrumGeostationary = .false.
   do i=1, ninst_geo
@@ -1433,7 +1438,7 @@ subroutine tvs_fillProfiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode)
   real(8), allocatable :: toto3obs(:),PP(:,:) 
   real(8), allocatable :: ozo     (:,:)
  
-  real(8)  :: zlon
+  real(8) :: zlon
   real(8) :: zptop, zptopmbs
  
 
@@ -1532,7 +1537,7 @@ subroutine tvs_fillProfiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode)
      allocate (zlq       (nlv_T,count_profile),stat= alloc_status(13))
      allocate (zht       (nlv_T,count_profile),stat= alloc_status(14))
      call utl_checkAllocationStatus(alloc_status, " tvs_fillProfiles")
-    
+
      count_profile = 0
 
 ! second loop over all obs.
@@ -1683,7 +1688,6 @@ subroutine tvs_fillProfiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode)
         !     .  2.6  Fill profiles structure
         !     .       -----------------------
 
-
      do  j = 1 , count_profile 
         jj=iptobs(j)
         tvs_profiles(jj) % gas_units       = gas_unit_specconc ! all gas profiles are supposed to be provided in kg/kg (specific humidity, i.e. mass mixing ratio [kg/kg] over wet air)
@@ -1698,7 +1702,7 @@ subroutine tvs_fillProfiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode)
         
         tvs_profiles(jj) % latitude        = zlat(j)
         
-        tvs_profiles(jj) % elevation       = 0.001d0*zht(ilowlvl_T,j) ! unite km
+        tvs_profiles(jj) % elevation       = 0.001d0 * zht(ilowlvl_T,j) ! unite km
 
         tvs_profiles(jj) % skin % watertype= 1 !utilise pour calcul rayonnement solaire reflechi seulement
         tvs_profiles(jj) % skin % t        = col_getElem(columnghr,1,iptobscma(j),'TG')
@@ -1723,16 +1727,13 @@ subroutine tvs_fillProfiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode)
           
         tvs_profiles(jj) % p(:)            = tvs_coefs(sensor_id) %coef% ref_prfl_p(:)
         tvs_profiles(jj) % t(:)            = toext(:,j)
-
-        if (tvs_coefs(sensor_id) %coef %nozone > 0) tvs_profiles(jj) % o3(:) = ozo(:,j) / tvs_o3Mixratio2ppmv ! Climatology output is ppmv (over dry or wet air? not sure but this conversion is only approximate but it should not matter
-                                                                                                              ! because atmosphere is very dry where there is significant absorption by ozone)
+        if (tvs_coefs(sensor_id) %coef %nozone > 0) tvs_profiles(jj) % o3(:) = ozo(:,j) / tvs_o3Mixratio2ppmv ! Climatology output is ppmv (over dry or wet air? not sure but this conversion is only approximate but it should not matter                                                                                                             ! because atmosphere is very dry where there is significant absorption by ozone)
         tvs_profiles(jj) % q(:)            = qoext(:,j)
         tvs_profiles(jj) % ctp = 1013.25d0
         tvs_profiles(jj) % cfraction = 0.d0
         
      end do
 
-     alloc_status(:) = 0
      deallocate (iptobs    ,stat= alloc_status(1))
      deallocate (iptobscma ,stat= alloc_status(2))
      deallocate (zlat      ,stat= alloc_status(3))
@@ -1943,7 +1944,6 @@ subroutine tvs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
   type(struct_obs) :: lobsSpaceData
   type(struct_columnData) :: lcolumnhr
   logical :: bgckMode
-
   
   integer :: ichn
   integer :: isurface
@@ -2155,7 +2155,7 @@ subroutine tvs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
 !     .       ----------------------------------
 
         rttov_err_stat = 0 
-     
+
         call rttov_parallel_direct(       &
              rttov_err_stat,              & ! out
              chanprof,                    & ! in
@@ -2172,7 +2172,7 @@ subroutine tvs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
            Write(*,*) "Error in rttov_parallel_direct",rttov_err_stat
            call utl_abort('tvs_rttov')
         endif
-                                                       
+                                        
 !     .  2.4  Store hx in the structure tvs_radiance
 !     .       ------------------------------------
 
@@ -2180,7 +2180,7 @@ subroutine tvs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
            profile_index = chanprof(tb_index)%prof
            ichn = chanprof(tb_index)%chan
            obs_index = iptobs(profile_index)
-           tvs_radiance(obs_index) % bt(ichn) =        &
+           tvs_radiance(obs_index) % bt(ichn) =     &
                 radiancedata_d % bt(tb_index)
            tvs_radiance(obs_index) % clear(ichn) =  &
                 radiancedata_d %clear(tb_index)
@@ -2203,8 +2203,7 @@ subroutine tvs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
         enddo
 
 !     de-allocate memory
-      
-  
+     
         asw=0 ! 1 to allocate,0 to deallocate
 ! transmittance deallocation
         call rttov_alloc_transmission(alloc_status(1),transmission,nlevels=nlevels,  &
@@ -2214,10 +2213,7 @@ subroutine tvs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
 ! radiance deallocation       
         call rttov_alloc_rad (alloc_status(1), count_tb, radiancedata_d, nlevels, asw)
         call utl_checkAllocationStatus(alloc_status, " tvs_rttov radiances", .false.)
-        
-        
-        alloc_status(:) = 0
-        
+
         deallocate ( surfem1           ,stat=alloc_status(1) )
         deallocate ( chanprof          ,stat=alloc_status(2) )
         deallocate ( calcemis          ,stat=alloc_status(3) )
@@ -2229,11 +2225,6 @@ subroutine tvs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
         
 
      enddo sensor_loop
-
-!     2.5. AIRS, IASI and quality controls
-!     .    ------------------------------
-
-    ! moved to bgcheck.ftn90
 
      deallocate(iptobs)
 
@@ -2550,7 +2541,7 @@ SUBROUTINE COMP_IR_EMISS (EMISS, wind,angle,nchn,np,mchannel)
 
     INTEGER            :: NISF,NJSF,NKSF
     INTEGER            :: NIWA,NJWA,NKWA
-    CHARACTER(len=100) :: CFILE
+    CHARACTER(len=20)  :: CFILE
     INTEGER,EXTERNAL   :: FNOM,FSTOUV,FSTFRM,FCLOS,FSTLIR
 
     integer            :: isftest
@@ -2617,13 +2608,10 @@ SUBROUTINE COMP_IR_EMISS (EMISS, wind,angle,nchn,np,mchannel)
 !****************************************************
 
     INTEGER :: JC,JN,ICHN
-    INTEGER :: KSURF(NPRF), LTYPE(NPRF)
     INTEGER :: ILAT(NPRF), ILON(NPRF)
-    REAL(8) :: ALBEDO(NPRF), ICE(NPRF), SNOW(NPRF), PCNT_WAT(NPRF)
-    REAL(8) :: ZLAT(NPRF), ZLON(NPRF), UWIND(NPRF), VWIND(NPRF), SATZANG(NPRF)
+    REAL(8) :: ZLAT(NPRF), ZLON(NPRF), SATZANG(NPRF)
       
-    REAL (8) :: WIND_SFC(NPRF), F_LOW(NPRF)
-    REAL (8),ALLOCATABLE :: EM_OC(:,:),EMI_SFC(:,:),EMI_MAT(:,:),WAVEN(:)
+    REAL (8) :: WIND_SFC(NPRF), F_LOW(NPRF), WAVEN(NCHN), EM_OC(NCHN,NPRF), EMI_MAT(NCHN,20)
 
 
 !* information to extract (transvidage)
@@ -2631,42 +2619,20 @@ SUBROUTINE COMP_IR_EMISS (EMISS, wind,angle,nchn,np,mchannel)
 !
 ! ZLAT(NPRF) -- latitude (-90 to 90)
 ! ZLON(NPRF) -- longitude (0 to 360)
-! KSURF(NPRF) -- surface type (0, 1)
-! UWIND(NPRF) -- surface u-component wind vector (m/s)
-! VWIND(NPRF) -- surface v-component wind vector (m/s)
 ! SATZANG(NPRF) -- satellite zenith angle (deg)
 
     DO JN = 1, NPRF
        ZLAT(JN)    = tvs_profiles(IPTOBS(JN))% latitude
        ZLON(JN)    = tvs_profiles(IPTOBS(JN))% longitude
-       KSURF(JN)   = tvs_profiles(IPTOBS(JN))%SKIN%SURFTYPE
-       UWIND(JN)   = tvs_profiles(IPTOBS(JN))%S2M%U
-       VWIND(JN)   = tvs_profiles(IPTOBS(JN))%S2M%V
-       SATZANG(JN) = tvs_profiles(IPTOBS(JN))%ZENANGLE
+       SATZANG(JN) = tvs_profiles(IPTOBS(JN))% ZENANGLE
     END DO
 
 !     assign surface properties from grid to profiles
 
     CALL INTERP_SFC(ILAT,ILON, nprf,zlat,zlon,iptobs)
 
-! ALBEDO(NPRF) -- surface albedo (0-1)
-! ICE(NPRF) -- ice cover (0-1)
-! SNOW(NPRF) -- snow cover (0-1)
-! LTYPE(NPRF) -- surface type (1,...,20)
-! PCNT_WAT(NPRF) -- water percentage in pixel containing profile (0-1) 
-
-    DO JN = 1, NPRF
-       ALBEDO(JN) = tvs_surfaceParameters(IPTOBS(JN))%ALBEDO
-       ICE(JN) = tvs_surfaceParameters(IPTOBS(JN))%ICE
-       SNOW(JN) = tvs_surfaceParameters(IPTOBS(JN))%SNOW
-       LTYPE(JN) = tvs_surfaceParameters(IPTOBS(JN))%LTYPE
-       PCNT_WAT(JN) = tvs_surfaceParameters(IPTOBS(JN))%PCNT_WAT
-    END DO
-
 
 !* find the sensor bands (central) wavenumbers
-
-    ALLOCATE(WAVEN(NCHN))
 
     IF ( tvs_instruments(KRTID) == 11 ) THEN !! --AIRS--
 
@@ -2695,20 +2661,20 @@ SUBROUTINE COMP_IR_EMISS (EMISS, wind,angle,nchn,np,mchannel)
 
 !* get the CERES emissivity matrix for all sensor wavenumbers and surface types
 
-    ALLOCATE(EMI_MAT(NCHN,20))
+    
 
     CALL CERES_EMATRIX(EMI_MAT, waven,nchn)
 
 
 !* refine water emissivities
 
-    ALLOCATE(EM_OC(NCHN,NPRF))
+    
 
     DO JN = 1, NPRF
 
 !       find surface wind
 
-       WIND_SFC(JN) = MIN(SQRT(UWIND(JN)**2 + VWIND(JN)**2 + 1.d-12),15.d0)
+       WIND_SFC(JN) = MIN(SQRT(tvs_profiles(IPTOBS(JN))%S2M%U**2 + tvs_profiles(IPTOBS(JN))%S2M%V**2 + 1.d-12),15.d0)
  
 
     END DO
@@ -2724,49 +2690,33 @@ SUBROUTINE COMP_IR_EMISS (EMISS, wind,angle,nchn,np,mchannel)
 
 !* get surface emissivities
 
-    ALLOCATE(EMI_SFC(NCHN,NPRF))
-
     DO JN = 1, NPRF
 
 !       set albedo to 0.6 where snow is present
 
-       IF ( KSURF(JN) == 0 .AND. SNOW(JN) > 0.999 ) ALBEDO(JN) = 0.6
+       IF ( tvs_profiles(IPTOBS(JN))%SKIN%SURFTYPE == 0 .AND. tvs_surfaceParameters(IPTOBS(JN))%SNOW > 0.999 ) tvs_surfaceParameters(IPTOBS(JN))%ALBEDO = 0.6
 
 !       if albedo too high no water
 
-       IF ( ALBEDO(JN) >= 0.55 ) PCNT_WAT(JN) = 0.
+       IF ( tvs_surfaceParameters(IPTOBS(JN))%ALBEDO >= 0.55 ) tvs_surfaceParameters(IPTOBS(JN))%PCNT_WAT = 0.
 
 !       if water and CMC ice present then sea ice
 
-       IF ( KSURF(JN) == 1 .and. ICE(JN) > 0.001 ) LTYPE(JN) = 20
+       IF ( tvs_profiles(IPTOBS(JN))%SKIN%SURFTYPE == 1 .and. tvs_surfaceParameters(IPTOBS(JN))%ICE > 0.001 ) tvs_surfaceParameters(IPTOBS(JN))%LTYPE = 20
 
 !       if land and CMC snow present then snow
 
-       IF ( KSURF(JN) == 0 .and. SNOW(JN) > 0.999 ) LTYPE(JN) = 15
+       IF ( tvs_profiles(IPTOBS(JN))%SKIN%SURFTYPE == 0 .and. tvs_surfaceParameters(IPTOBS(JN))%SNOW > 0.999 ) tvs_surfaceParameters(IPTOBS(JN))%LTYPE = 15
 
        DO JC=1,NCHN
 
-          EMI_SFC(JC,JN) = PCNT_WAT(JN)          * EM_OC(JC,JN)          +   &
-               ( 1. - PCNT_WAT(JN) ) * EMI_MAT(JC,LTYPE(JN))
-
-          SURFEM1((JN-1)*NCHN+JC) = EMI_SFC(JC,JN)
+          SURFEM1((JN-1)*NCHN+JC) =  tvs_surfaceParameters(IPTOBS(JN))%PCNT_WAT * EM_OC(JC,JN)  +   &
+               ( 1.d0 - tvs_surfaceParameters(IPTOBS(JN))%PCNT_WAT ) * EMI_MAT(JC,tvs_surfaceParameters(IPTOBS(JN))%LTYPE)
 
        END DO
 
     END DO
 
-    DEALLOCATE (WAVEN,EMI_MAT,EM_OC,EMI_SFC)
-
-
-!* update profiles
-
-    DO JN = 1, NPRF
-       tvs_surfaceParameters(IPTOBS(JN))%ALBEDO = ALBEDO(JN)
-       tvs_surfaceParameters(IPTOBS(JN))%PCNT_WAT = PCNT_WAT(JN)
-       tvs_surfaceParameters(IPTOBS(JN))%LTYPE = LTYPE(JN)
-    END DO
-
- 
 !* find the regional water fraction (here in a 15x15 pixel box centered on profile)
 
     CALL PCNT_BOX (F_LOW, waterf,nprf,ilat,ilon,kslat,kslon,7)
@@ -2810,7 +2760,7 @@ SUBROUTINE COMP_IR_EMISS (EMISS, wind,angle,nchn,np,mchannel)
     REAL(8),intent(in) :: ZLAT(NPRF), ZLON(NPRF)
     INTEGER,intent(out):: ILAT(NPRF), ILON(NPRF)
 !**********************************************************
-    CHARACTER(len=100) :: CFILE3,CFILE5
+    CHARACTER(len=20)  :: CFILE3,CFILE5
     INTEGER            :: iun3,iun5
     INTEGER            ::                     IV6,IV7
     INTEGER            :: IX1,IX2,IX3,IX4,IX5,        IX8,IX9,IX10,IX11,IX12
@@ -3371,6 +3321,803 @@ SUBROUTINE COMP_IR_EMISS (EMISS, wind,angle,nchn,np,mchannel)
 
 
   END SUBROUTINE EMI_SEA
+
+!--------------------------------------------------------------------------
+!! SUBROUTINE  tvs_rttov_read_coefs
+!!
+!! *Purpose*: MPI wrapper for rttov_read_coefs
+!!            the coefficient files are read by MPI task 0
+!!            and then broadcasted to the other tasks according to the selected
+!!            channels. Argument channels is mandatory (it is optional in rttov_setup)
+!!            optional argument channels_rec was removed (it is useful only in principal component mode)
+!!            other optionnal arguments were removed :
+!!                            form_coef,         & !to specify format
+!!                            form_scaer,        &
+!!                            form_sccld,        &
+!!                            form_pccoef,       &
+!!                            file_coef,         & !to specify filename
+!!                            file_scaer,        &
+!!                            file_sccld,        &
+!!                            file_pccoef,       &
+!!                            file_id_coef,      & !to specify fortran unit number
+!!                            file_id_scaer,     &
+!!                            file_id_sccld,     &
+!!                            file_id_pccoef,    &
+!!                            path                 ! to specify the path to look for coefficient files
+!!            if necessary these arguments could be  added (ask S. Heilliette)
+!!            also this subroutine will work only for clear sky radiance computations
+!!            if somebody wants to do realistic cloud or aerosol affected radiance simulations
+!!            some changes are needed. Ask me in that case. (S. Heilliette) 
+!! It is implicitely assumed that the options are the same for all MPI tasks for a given instrument
+!! No check will be done (options for task 0 will be used for all tasks). Only differences in channel lists are accounted for.
+!! S. Heilliette May 2017
+!--------------------------------------------------------------------------
+
+SUBROUTINE tvs_rttov_read_coefs(err, coefs, opts,  &
+                            channels,              &
+                            instrument )
+
+  USE rttov_types, ONLY : rttov_coefs, rttov_options
+  USE parkind1, ONLY : jpim, jplm
+  USE rttov_fast_coef_utils_mod, ONLY: set_pointers, set_fastcoef_level_bounds
+
+  IMPLICIT NONE
+
+  INTEGER(KIND=jpim), INTENT(OUT) :: err
+  TYPE(rttov_coefs),  INTENT(OUT) :: coefs
+  TYPE(rttov_options),INTENT(IN)  :: opts
+  INTEGER(KIND=jpim), INTENT(IN)  :: channels(:)
+  INTEGER(KIND=jpim), INTENT(IN)  :: instrument(3)
+
+
+#include "rttov_read_coefs.interface"
+#include "rttov_nullify_coef.interface"
+
+  integer ,allocatable :: listGlobal(:)
+  Real(8) ,allocatable :: bigArray(:,:,:,:)
+  integer :: i, j, k, l, ichan,igas,ierr, nChannelsFull, countUniqueChannel, indexchan(size(channels)),channelsb(tvs_maxChannelNumber), listAll(tvs_maxChannelNumber)
+  logical :: found, associated0
+  integer :: nlte_count, nlte_start,isol,isat,nlte_file_nchan
+  integer ,allocatable :: nlte_chans(:) 
+  if (size(channels) > tvs_maxChannelNumber) then
+     write(*,*) 'You need to increase tvs_maxChannelNumber in tovs_nl_mod !',size(channels), tvs_maxChannelNumber
+     call utl_abort("tvs_rttov_setup")
+  endif
+
+  ! First step: we should determine a common set of channels among MPI tasks
+  if (mpi_myid ==0) then
+     allocate(listGlobal(mpi_nprocs*tvs_maxChannelNumber))
+  else
+     allocate(listGlobal(1))
+  endif
+  listGlobal = 0
+  channelsb = 0
+  channelsb(1:size(channels)) = channels(:)
+
+  call rpn_comm_gather(channelsb, tvs_maxChannelNumber, 'MPI_INTEGER', listGlobal, tvs_maxChannelNumber, 'MPI_INTEGER', 0, 'GRID', ierr) 
+  
+  if ( mpi_myid == 0 ) then
+     countUniqueChannel = 0
+     call isort(listGlobal, mpi_nprocs*tvs_maxChannelNumber)
+     do i=1,  mpi_nprocs*tvs_maxChannelNumber
+        if (listGlobal(i) >0) then
+           found = .false.
+           LOOPJ: do j=countUniqueChannel,1,-1
+              if (listGlobal(i) == listAll(j) ) then
+                 found =.true.
+                 exit LOOPJ
+              endif
+           enddo LOOPJ
+           if (.not.found) then
+              countUniqueChannel = countUniqueChannel + 1
+              listAll(countUniqueChannel) = listGlobal(i)
+           endif
+        endif
+     enddo
+  endif
+  deallocate(listGlobal)
+   
+  call rpn_comm_bcast(countUniqueChannel, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+  call rpn_comm_bcast(listAll(1:countUniqueChannel), countUniqueChannel, 'MPI_INTEGER', 0, 'GRID', ierr) 
+
+  ! Second step: mpi task 0 will do the job
+  if ( mpi_myid == 0 ) then
+     call rttov_read_coefs (    &
+          ERR,             &! out
+          coefs,           &
+          opts,            &
+          instrument=instrument,      &! in
+          channels=listAll(1:countUniqueChannel)  )     ! in option
+  else
+     call rttov_nullify_coef(coefs%coef)
+  endif
+
+  ! Third step: common (i.e. independent from the channel list) parameters are simply broadcasted to other processors
+  ! Scalar and fixed size arrays and  strings first
+
+  call rpn_comm_bcast(coefs%initialised, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)       ! Logical flag for initialization
+
+  call rpn_comm_bcast(coefs%coef%id_platform, 1, 'MPI_INTEGER', 0, 'GRID', ierr) !ok
+  call rpn_comm_bcast(coefs%coef%id_sat, 1, 'MPI_INTEGER', 0, 'GRID', ierr)  !ok
+  call rpn_comm_bcast(coefs%coef%id_inst, 1, 'MPI_INTEGER', 0, 'GRID', ierr)  !ok
+  call rpn_comm_bcast(coefs%coef%id_sensor, 1, 'MPI_INTEGER', 0, 'GRID', ierr) !ok
+  call rpn_comm_bcast(coefs%coef%id_comp_lvl, 1, 'MPI_INTEGER', 0, 'GRID', ierr)!ok
+  call rpn_comm_bcast(coefs%coef%id_comp_pc, 1, 'MPI_INTEGER', 0, 'GRID', ierr)!ok
+  call rpn_comm_bcast(coefs%coef%fmv_model_ver, 1, 'MPI_INTEGER', 0, 'GRID', ierr) !ok
+  call rpn_comm_bcast(coefs%coef%fmv_chn, 1, 'MPI_INTEGER', 0, 'GRID', ierr) !ok
+  call rpn_comm_bcast(coefs%coef%fmv_gas, 1, 'MPI_INTEGER', 0, 'GRID', ierr) !ok
+  call rpn_comm_bcast(coefs%coef%fmv_ori_nchn, 1, 'MPI_INTEGER', 0, 'GRID', ierr) !ok
+  call rpn_comm_bcast(coefs%coef%nmixed, 1, 'MPI_INTEGER', 0, 'GRID', ierr)          ! number of variables/predictors for Mixed Gases
+  call rpn_comm_bcast(coefs%coef%nwater, 1, 'MPI_INTEGER', 0, 'GRID', ierr)          ! number of variables/predictors for Water Vapour
+  call rpn_comm_bcast(coefs%coef%nozone, 1, 'MPI_INTEGER', 0, 'GRID', ierr)          ! number of variables/predictors for Ozone
+  call rpn_comm_bcast(coefs%coef%nwvcont, 1, 'MPI_INTEGER', 0, 'GRID', ierr)         ! number of variables/predictors for WV continuum
+  call rpn_comm_bcast(coefs%coef%nco2, 1, 'MPI_INTEGER', 0, 'GRID', ierr)            ! number of variables/predictors for CO2
+  call rpn_comm_bcast(coefs%coef%nn2o , 1, 'MPI_INTEGER', 0, 'GRID', ierr)           ! number of variables/predictors for N2O
+  call rpn_comm_bcast(coefs%coef%nco, 1, 'MPI_INTEGER', 0, 'GRID', ierr)             ! number of variables/predictors for CO
+  call rpn_comm_bcast(coefs%coef%nch4, 1, 'MPI_INTEGER', 0, 'GRID', ierr)            ! number of variables/predictors for CH4
+  call rpn_comm_bcast(coefs%coef%nlevels, 1, 'MPI_INTEGER', 0, 'GRID', ierr)         ! number of levels(pres/absorber) same for all gases
+  call rpn_comm_bcast(coefs%coef%nlayers, 1, 'MPI_INTEGER', 0, 'GRID', ierr)         ! number of layers(pres/absorber) nlevels-1
+  call rpn_comm_bcast(coefs%coef%pmc_nlay, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+  call rpn_comm_bcast(coefs%coef%pmc_nvar, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+  call rpn_comm_bcast(coefs%coef%IncZeeman, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)       ! Flag to include Zeeman effect for this sensor
+  call rpn_comm_bcast(coefs%coef%solarcoef, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)       ! Flag to include solar reflection
+  call rpn_comm_bcast(coefs%coef%nltecoef, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)        ! Flag to include nlte corrections
+  call rpn_comm_bcast(coefs%coef%pmc_shift, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
+  call rpn_comm_bcast(coefs%coef%ff_val_bc, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
+  call rpn_comm_bcast(coefs%coef%ff_val_gam, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
+
+  call rpn_comm_bcast(coefs%coef%ncmixed, 1, 'MPI_INTEGER', 0, 'GRID', ierr)         ! number of coefficients for Mixed Gases
+  call rpn_comm_bcast(coefs%coef%ncwater, 1, 'MPI_INTEGER', 0, 'GRID', ierr)         ! number of coefficients for Water Vapour
+  call rpn_comm_bcast(coefs%coef%ncozone, 1, 'MPI_INTEGER', 0, 'GRID', ierr)         ! number of coefficients for Ozone
+  call rpn_comm_bcast(coefs%coef%ncwvcont, 1, 'MPI_INTEGER', 0, 'GRID', ierr)        ! number of coefficients for WV continuum
+  call rpn_comm_bcast(coefs%coef%ncco2, 1, 'MPI_INTEGER', 0, 'GRID', ierr)           ! number of coefficients for CO2
+  call rpn_comm_bcast(coefs%coef%ncn2o, 1, 'MPI_INTEGER', 0, 'GRID', ierr)           ! number of coefficients for N2O
+  call rpn_comm_bcast(coefs%coef%ncco , 1, 'MPI_INTEGER', 0, 'GRID', ierr)           ! number of coefficients for CO
+  call rpn_comm_bcast(coefs%coef%ncch4, 1, 'MPI_INTEGER', 0, 'GRID', ierr)           ! number of coefficients for CH4
+  
+  call rpn_comm_bcast(coefs%coef%ws_nomega, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+
+  call rpn_comm_bcast(coefs%coef%id_creation_date, 3, 'MPI_INTEGER', 0, 'GRID', ierr) 
+  call rpn_comm_bcastc(coefs%coef%id_creation, 80, 'MPI_CHARACTER', 0, 'GRID', ierr) 
+  call rpn_comm_bcastc(coefs%coef%id_Common_name, 32, 'MPI_CHARACTER', 0, 'GRID', ierr) 
+  do i=1, 100
+     call rpn_comm_bcastc(coefs%coef%line_by_line(i), 132, 'MPI_CHARACTER', 0, 'GRID', ierr) !ok
+     call rpn_comm_bcastc(coefs%coef%readme_srf(i), 132, 'MPI_CHARACTER', 0, 'GRID', ierr) !ok
+  enddo
+  call rpn_comm_bcastc(coefs%coef%fmv_model_def, 32, 'MPI_CHARACTER', 0, 'GRID', ierr)  !ok 
+  call rpn_comm_bcast(coefs%coef%fc_planck_c1, 1, 'MPI_REAL8', 0, 'GRID', ierr) ! first radiation constant (mW/(m2*sr*cm-4)) !ok
+  call rpn_comm_bcast(coefs%coef%fc_planck_c2, 1, 'MPI_REAL8', 0, 'GRID', ierr) !second radiation constant (mW/(m2*sr*cm-4)) !ok
+  call rpn_comm_bcast(coefs%coef%fc_sat_height, 1, 'MPI_REAL8', 0, 'GRID', ierr)! satellite nominal altitude (km) !ok
+  
+  call rpn_comm_bcast(coefs%coef%pmc_lengthcell, 1, 'MPI_REAL8', 0, 'GRID', ierr)
+  call rpn_comm_bcast(coefs%coef%pmc_tempcell, 1, 'MPI_REAL8', 0, 'GRID', ierr)
+  call rpn_comm_bcast(coefs%coef%pmc_betaplus1, 1, 'MPI_REAL8', 0, 'GRID', ierr)
+  ! FASTEM section
+  call rpn_comm_bcast(coefs%coef%ssirem_ver, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+  call rpn_comm_bcast(coefs%coef%iremis_version, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+  call rpn_comm_bcast(coefs%coef%iremis_ncoef, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+  call rpn_comm_bcast(coefs%coef%iremis_angle0, 1, 'MPI_REAL8', 0, 'GRID', ierr)
+  call rpn_comm_bcast(coefs%coef%iremis_tskin0, 1, 'MPI_REAL8', 0, 'GRID', ierr)
+  call rpn_comm_bcast(coefs%coef%ratoe, 1, 'MPI_REAL8', 0, 'GRID', ierr) 
+  call rpn_comm_bcast(coefs%coef%mwcldtop, 1, 'MPI_INTEGER', 0, 'GRID', ierr) 
+  ! then variable size vectors
+  ! this one must be done first because it is used to dimension other ones ....
+  if (mpi_myid>0) allocate( coefs%coef%fmv_lvl(coefs%coef%fmv_gas))
+  call rpn_comm_bcast(coefs%coef%fmv_lvl, coefs%coef%fmv_gas, 'MPI_INTEGER', 0, 'GRID', ierr)
+  if (mpi_myid>0) then
+     if (coefs%coef%nltecoef) allocate( coefs%coef%nlte_coef)
+     allocate( coefs%coef%fmv_gas_id(coefs%coef%fmv_gas))
+     allocate( coefs%coef%fmv_gas_pos(ngases_max)) !size is from rttov consts
+     allocate( coefs%coef%fmv_var(coefs%coef%fmv_gas))
+     allocate( coefs%coef%fmv_coe(coefs%coef%fmv_gas)) ! number of coefficients by gas (fmv_gas)
+     allocate( coefs%coef%ws_npoint(coefs%coef%ws_nomega) )
+     allocate( coefs%coef%ws_k_omega(coefs%coef%ws_nomega) )
+     allocate( coefs%coef%ref_prfl_p(coefs%coef%fmv_lvl(gas_id_mixed) ) )
+     allocate( coefs% coef % ref_prfl_t ( coefs%coef % fmv_lvl(gas_id_mixed), coefs%coef % fmv_gas ) )
+     allocate( coefs% coef % ref_prfl_mr ( coefs%coef % fmv_lvl(gas_id_mixed), coefs%coef % fmv_gas ) )
+     allocate( coefs% coef % bkg_prfl_mr ( coefs%coef % fmv_lvl(gas_id_mixed), coefs%coef % fmv_gas ) )
+     allocate( coefs%coef%lim_prfl_p( coefs%coef%fmv_lvl(gas_id_mixed) ) )
+     allocate( coefs%coef%lim_prfl_tmax( coefs%coef%fmv_lvl(gas_id_mixed) ) )
+     allocate( coefs%coef%lim_prfl_tmin( coefs%coef%fmv_lvl(gas_id_mixed) ) )
+     allocate( coefs%coef%lim_prfl_gmax( coefs%coef%fmv_lvl(gas_id_mixed), coefs%coef % fmv_gas ) )
+     allocate( coefs%coef%lim_prfl_gmin( coefs%coef%fmv_lvl(gas_id_mixed), coefs%coef % fmv_gas ) )
+     allocate( coefs%coef%env_prfl_tmax( coefs%coef%fmv_lvl(gas_id_mixed) ) )
+     allocate( coefs%coef%env_prfl_tmin( coefs%coef%fmv_lvl(gas_id_mixed) ) )
+     allocate( coefs%coef%env_prfl_gmax( coefs%coef%fmv_lvl(gas_id_mixed), coefs%coef % fmv_gas ) )
+     allocate( coefs%coef%env_prfl_gmin( coefs%coef%fmv_lvl(gas_id_mixed), coefs%coef % fmv_gas ) )
+     allocate( coefs%coef%dpp(0:coefs%coef%nlayers) )
+     allocate( coefs%coef%dp(coefs%coef%nlayers) )
+     allocate( coefs%coef%tstar(coefs%coef%nlayers) )
+     allocate( coefs%coef%wstar(coefs%coef%nlayers) )
+  endif
+
+
+  call broadcastI41dArray( coefs%coef%fmv_gas_id )
+  call broadcastI41dArray( coefs%coef%fmv_gas_pos )
+  call broadcastI41dArray( coefs%coef%fmv_var )
+  call broadcastI41dArray( coefs%coef%fmv_coe )
+  call broadcastR81dArray( coefs%coef%ws_npoint )
+  call broadcastR81dArray( coefs%coef%ws_k_omega )
+  call broadcastR81dArray( coefs%coef%ref_prfl_p )
+  call broadcastR82dArray( coefs%coef%ref_prfl_t )
+  call broadcastR82dArray( coefs%coef%ref_prfl_mr )
+  call broadcastR82dArray( coefs%coef%bkg_prfl_mr )
+  call broadcastR81dArray( coefs%coef%lim_prfl_p )
+  call broadcastR81dArray( coefs%coef%lim_prfl_tmax )
+  call broadcastR81dArray( coefs%coef%lim_prfl_tmin )
+  call broadcastR82dArray(coefs%coef%lim_prfl_gmax)
+  call broadcastR82dArray(coefs%coef%lim_prfl_gmin)
+  call broadcastR81dArray( coefs%coef%env_prfl_tmax )
+  call broadcastR81dArray( coefs%coef%env_prfl_tmin )
+  call broadcastR82dArray(coefs%coef%env_prfl_gmax)
+  call broadcastR82dArray(coefs%coef%env_prfl_gmin)
+  call broadcastR81dArray( coefs%coef%dp )
+  call broadcastR81dArray( coefs%coef%dpp )
+  call broadcastR81dArray( coefs%coef%tstar ) 
+  call broadcastR81dArray( coefs%coef%wstar )
+
+  if (coefs%coef%nozone > 0) then
+     if (mpi_myid>0) then
+        allocate( coefs%coef%to3star(coefs%coef%nlayers) )
+        allocate( coefs%coef%ostar(coefs%coef%nlayers) )
+     endif
+     call rpn_comm_bcast(coefs%coef%to3star, size(coefs%coef%to3star) , 'MPI_REAL8', 0, 'GRID', ierr) 
+     call rpn_comm_bcast(coefs%coef%ostar, size(coefs%coef%ostar) , 'MPI_REAL8', 0, 'GRID', ierr)
+  endif
+  if (coefs%coef%nco2 > 0) then
+     if (mpi_myid>0) allocate( coefs%coef%co2star(coefs%coef%nlayers) )
+     call rpn_comm_bcast(coefs%coef%co2star, size(coefs%coef%co2star) , 'MPI_REAL8', 0, 'GRID', ierr) 
+  end if
+  if (coefs%coef%nso2 > 0) then
+     if (mpi_myid>0) allocate( coefs%coef%so2star(coefs%coef%nlayers) )
+     call rpn_comm_bcast(coefs%coef%so2star, size(coefs%coef%so2star) , 'MPI_REAL8', 0, 'GRID', ierr)
+  end if
+
+  if (coefs%coef%fmv_model_ver == 9) then
+     if (mpi_myid>0) then
+        allocate( coefs%coef%n2ostar(coefs%coef%nlayers) )
+        allocate( coefs%coef%costar(coefs%coef%nlayers) )
+        allocate( coefs%coef%ch4star(coefs%coef%nlayers) )
+     endif
+     call rpn_comm_bcast(coefs%coef%n2ostar, size(coefs%coef%n2ostar) , 'MPI_REAL8', 0, 'GRID', ierr)
+     call rpn_comm_bcast(coefs%coef%costar, size(coefs%coef%costar) , 'MPI_REAL8', 0, 'GRID', ierr) 
+     call rpn_comm_bcast(coefs%coef%ch4star, size(coefs%coef%ch4star) , 'MPI_REAL8', 0, 'GRID', ierr) 
+  endif
+
+  ! Fourth step: channel dependent parameters are extracted according to the channel list and sent to each MPI task
+  coefs%coef%fmv_chn = size( channels )
+
+  if (mpi_myid==0) deallocate ( coefs%coef%ff_ori_chn)
+  allocate ( coefs%coef%ff_ori_chn(coefs%coef%fmv_chn) )
+  coefs%coef%ff_ori_chn =  channels
+
+  do i=1,  coefs%coef%fmv_chn
+     loopj2:do j=1, countUniqueChannel
+        if (listAll(j)==channels(i)) then
+           indexchan(i) = j
+           exit loopj2
+        endif
+     enddo loopj2
+  enddo
+
+  ! 1D arrays first
+  call extractI41dArray(coefs%coef%pw_val_chn, countUniqueChannel,indexchan)
+  call extractI41dArray(coefs%coef%ff_val_chn, countUniqueChannel,indexchan)
+  call extractR81dArray(coefs%coef%ff_cwn, countUniqueChannel,indexchan)
+  call extractR81dArray(coefs%coef%ff_bco, countUniqueChannel,indexchan)
+  call extractR81dArray(coefs%coef%ff_bcs, countUniqueChannel,indexchan) 
+  call extractR81dArray(coefs%coef%ff_gam, countUniqueChannel,indexchan)
+  call extractI41dArray(coefs%coef%tt_val_chn, countUniqueChannel,indexchan) 
+  call extractR81dArray(coefs%coef%tt_a0, countUniqueChannel,indexchan) 
+  call extractR81dArray(coefs%coef%tt_a1, countUniqueChannel,indexchan) 
+  call extractI41dArray(coefs%coef%ss_val_chn, countUniqueChannel,indexchan) 
+  call extractR81dArray(coefs%coef%ss_solar_spectrum, countUniqueChannel,indexchan) 
+  call extractR81dArray(coefs%coef%refl_visnir_fw, countUniqueChannel,indexchan)
+  call extractR81dArray(coefs%coef%refl_visnir_ow, countUniqueChannel,indexchan)
+  call extractCmplx81dArray(coefs%coef%woc_waopc_ow, countUniqueChannel, indexchan) 
+  call extractCmplx81dArray(coefs%coef%woc_waopc_fw, countUniqueChannel, indexchan)
+  
+  call extractI41dArray(coefs%coef%fastem_polar, countUniqueChannel,indexchan)
+  call extractR81dArray(coefs%coef%ssirem_a0, countUniqueChannel,indexchan)
+  call extractR81dArray(coefs%coef%ssirem_a1, countUniqueChannel,indexchan)
+  call extractR81dArray(coefs%coef%ssirem_a2, countUniqueChannel,indexchan)
+  call extractR81dArray(coefs%coef%ssirem_xzn1, countUniqueChannel,indexchan)
+  call extractR81dArray(coefs%coef%ssirem_xzn2, countUniqueChannel,indexchan)
+
+  call extractR81dArray(coefs%coef%planck1, countUniqueChannel,indexchan)
+  call extractR81dArray(coefs%coef%planck2, countUniqueChannel,indexchan)
+  IF (coefs%coef%id_sensor == sensor_id_mw .OR. coefs%coef%id_sensor == sensor_id_po) &
+       call extractR81dArray(coefs%coef%frequency_ghz, countUniqueChannel,indexchan)
+
+  call extractR81dArray(coefs%coef%pmc_pnominal, countUniqueChannel,indexchan)
+  call extractR81dArray(coefs%coef%pmc_ppmc, countUniqueChannel,indexchan)
+
+  ! 2D arrays
+  call extractR82dArray(coefs%coef%iremis_coef,coefs%coef%iremis_ncoef,countUniqueChannel,indexchan)
+  ! 3D arrays
+  call extractR83dArray(coefs%coef%pmc_coef,coefs%coef%pmc_nlay,countUniqueChannel,coefs%coef%pmc_nvar,indexchan)
+
+  ! then coefficients. It is more complicated with RTTOV12
+
+  if (mpi_myid>0) then
+     ALLOCATE (coefs%coef%thermal(countUniqueChannel) )
+     DO ichan = 1, countUniqueChannel
+        ALLOCATE (coefs%coef%thermal(ichan)%gasarray(coefs%coef%fmv_gas) )
+        NULLIFY (coefs%coef%thermal(ichan)%mixedgas)
+        NULLIFY (coefs%coef%thermal(ichan)%watervapour)
+        NULLIFY (coefs%coef%thermal(ichan)%ozone)
+        NULLIFY (coefs%coef%thermal(ichan)%wvcont)
+        NULLIFY (coefs%coef%thermal(ichan)%co2)
+        NULLIFY (coefs%coef%thermal(ichan)%n2o)
+        NULLIFY (coefs%coef%thermal(ichan)%co)
+        NULLIFY (coefs%coef%thermal(ichan)%ch4)
+        NULLIFY (coefs%coef%thermal(ichan)%so2)
+        DO igas = 1, coefs%coef%fmv_gas
+           ALLOCATE (coefs%coef%thermal(ichan)%gasarray(igas)%coef( coefs%coef%fmv_coe(igas), coefs%coef%nlayers) )
+        enddo
+     ENDDO
+  endif
+
+  DO ichan = 1, countUniqueChannel
+     DO igas = 1, coefs%coef%fmv_gas
+        call broadcastR82dArray( coefs%coef%thermal(ichan)%gasarray(igas)%coef )
+     enddo
+  ENDDO
+
+  IF (coefs%coef%solarcoef) THEN
+     if (mpi_myid>0) then
+        ALLOCATE (coefs%coef%solar(countUniqueChannel) )
+        DO ichan = 1, countUniqueChannel
+           ALLOCATE (coefs%coef%solar(ichan)%gasarray(coefs%coef%fmv_gas) )
+           NULLIFY (coefs%coef%solar(ichan)%mixedgas)
+           NULLIFY (coefs%coef%solar(ichan)%watervapour)
+           NULLIFY (coefs%coef%solar(ichan)%ozone)
+           NULLIFY (coefs%coef%solar(ichan)%wvcont)
+           NULLIFY (coefs%coef%solar(ichan)%co2)
+           NULLIFY (coefs%coef%solar(ichan)%n2o)
+           NULLIFY (coefs%coef%solar(ichan)%co)
+           NULLIFY (coefs%coef%solar(ichan)%ch4)
+           NULLIFY (coefs%coef%solar(ichan)%so2)
+           DO igas = 1, coefs%coef%fmv_gas
+              ALLOCATE (coefs%coef%solar(ichan)%gasarray(igas)%coef( coefs%coef%fmv_coe(igas), coefs%coef%nlayers) )
+           enddo
+        ENDDO
+     endif
+
+     DO ichan = 1, countUniqueChannel
+        DO igas = 1, coefs%coef%fmv_gas
+           call broadcastR82dArray( coefs%coef%solar(ichan)%gasarray(igas)%coef )
+        enddo
+     ENDDO
+  ENDIF
+
+  allocate(bigArray(countUniqueChannel,maxval(coefs%coef%fmv_coe),coefs%coef%fmv_gas,coefs%coef%nlayers) )
+
+  Do ichan = 1, countUniqueChannel  
+     Do igas = 1, coefs%coef%fmv_gas
+        associated0 = associated( coefs%coef%thermal(ichan)%gasarray(igas)%coef )
+        call rpn_comm_bcast(associated0, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
+        if (associated0) then
+           Do l=1,coefs%coef%nlayers
+              Do k=1,coefs%coef%fmv_coe(igas)
+                 bigArray(ichan,k,igas,l) = coefs%coef%thermal(ichan)%gasarray(igas)%coef(k,l)
+              end Do
+           end Do
+        else
+           bigArray(ichan,:,igas,:) = 0.0_8
+        endif
+     end Do
+  end Do
+  
+  DO ichan = 1, countUniqueChannel
+     DO igas = 1, coefs%coef%fmv_gas
+        associated0 = associated(coefs%coef%thermal(ichan)%gasarray(igas)%coef)
+        IF (ASSOCIATED0) DEALLOCATE(coefs%coef%thermal(ichan)%gasarray(igas)%coef)
+     ENDDO
+     DEALLOCATE(coefs%coef%thermal(ichan)%gasarray)
+  ENDDO
+  DEALLOCATE(coefs%coef%thermal)
+ 
+  ALLOCATE (coefs%coef%thermal(coefs%coef%fmv_chn) )
+  DO ichan = 1, coefs%coef%fmv_chn
+     ALLOCATE (coefs%coef%thermal(ichan)%gasarray(coefs%coef%fmv_gas) )
+
+     NULLIFY (coefs%coef%thermal(ichan)%mixedgas)
+     NULLIFY (coefs%coef%thermal(ichan)%watervapour)
+     NULLIFY (coefs%coef%thermal(ichan)%ozone)
+     NULLIFY (coefs%coef%thermal(ichan)%wvcont)
+     NULLIFY (coefs%coef%thermal(ichan)%co2)
+     NULLIFY (coefs%coef%thermal(ichan)%n2o)
+     NULLIFY (coefs%coef%thermal(ichan)%co)
+     NULLIFY (coefs%coef%thermal(ichan)%ch4)
+     NULLIFY (coefs%coef%thermal(ichan)%so2)
+
+     Do igas = 1, coefs%coef%fmv_gas
+        if (any( bigArray(indexchan(ichan),:,igas,:)/=0.) ) then
+           ALLOCATE (coefs%coef%thermal(ichan)%gasarray(igas)%coef( coefs%coef%fmv_coe(igas), coefs%coef%nlayers) )
+           Do l=1,coefs%coef%nlayers
+              Do k=1,coefs%coef%fmv_coe(igas)
+                 coefs%coef%thermal(ichan)%gasarray(igas)%coef(k,l)  = bigArray(indexchan(ichan),k,igas,l)
+              enddo
+           enddo
+        endif
+        CALL set_pointers(coefs%coef%thermal(ichan), igas, coefs%coef%fmv_gas_id(igas))
+     enddo
+  ENDDO
+
+  IF (coefs%coef%solarcoef) THEN
+
+     Do ichan = 1, countUniqueChannel  
+        Do igas = 1, coefs%coef%fmv_gas
+           associated0 = associated( coefs%coef%solar(ichan)%gasarray(igas)%coef )
+           call rpn_comm_bcast(associated0, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
+           if (associated0) then
+              Do l=1,coefs%coef%nlayers
+                 Do k=1,coefs%coef%fmv_coe(igas)
+                    bigArray(ichan,k,igas,l) = coefs%coef%solar(ichan)%gasarray(igas)%coef(k,l)
+                 end Do
+              end Do
+           else
+              bigArray(ichan,:,igas,:) = 0.0_8
+           endif
+        end Do
+     end Do
+  
+     DO ichan = 1, countUniqueChannel
+        DO igas = 1, coefs%coef%fmv_gas
+           associated0 = ASSOCIATED(coefs%coef%solar(ichan)%gasarray(igas)%coef)
+           IF (ASSOCIATED0) DEALLOCATE(coefs%coef%solar(ichan)%gasarray(igas)%coef)
+        ENDDO
+        DEALLOCATE(coefs%coef%solar(ichan)%gasarray)   
+     ENDDO
+     DEALLOCATE(coefs%coef%solar)
+     
+     ALLOCATE (coefs%coef%solar(coefs%coef%fmv_chn) )
+     DO ichan = 1, coefs%coef%fmv_chn
+        ALLOCATE (coefs%coef%solar(ichan)%gasarray(coefs%coef%fmv_gas) )
+        NULLIFY (coefs%coef%solar(ichan)%mixedgas)
+        NULLIFY (coefs%coef%solar(ichan)%watervapour)
+        NULLIFY (coefs%coef%solar(ichan)%ozone)
+        NULLIFY (coefs%coef%solar(ichan)%wvcont)
+        NULLIFY (coefs%coef%solar(ichan)%co2)
+        NULLIFY (coefs%coef%solar(ichan)%n2o)
+        NULLIFY (coefs%coef%solar(ichan)%co)
+        NULLIFY (coefs%coef%solar(ichan)%ch4)
+        NULLIFY (coefs%coef%solar(ichan)%so2)
+        Do igas = 1, coefs%coef%fmv_gas
+           if (any( bigArray(indexchan(ichan),:,igas,:)/=0.) ) then
+              ALLOCATE (coefs%coef%solar(ichan)%gasarray(igas)%coef( coefs%coef%fmv_coe(igas), coefs%coef%nlayers) )
+              Do l=1,coefs%coef%nlayers
+                 Do k=1,coefs%coef%fmv_coe(igas)
+                    coefs%coef%solar(ichan)%gasarray(igas)%coef(k,l)  = bigArray(indexchan(ichan),k,igas,l)
+                 enddo
+              enddo
+           endif
+           CALL set_pointers(coefs%coef%solar(ichan), igas, coefs%coef%fmv_gas_id(igas))
+        enddo
+     ENDDO
+  END IF
+
+  Deallocate(bigArray)
+ 
+  if (mpi_myid==0 .and. associated(coefs%coef%bounds) )  DEALLOCATE(coefs%coef%bounds)
+  
+
+!Allocate bounds array to store opdep calculation layer limits
+!1st dim: upper boundary layer [ub](above which coefs all zeros), lower boundary layer [lb]
+!4th dim: thermal layer limits, solar layer limits
+  ALLOCATE(coefs%coef%bounds(2, coefs%coef%fmv_gas, coefs%coef%fmv_chn, 2))
+  CALL set_fastcoef_level_bounds(coefs%coef, coefs%coef%thermal, thermal = .TRUE._jplm)
+! If the SOLAR_FAST_COEFFICIENTS section is not present then point the solar coefs to the thermal coefs
+   
+  IF (coefs%coef%solarcoef) THEN
+     CALL set_fastcoef_level_bounds(coefs%coef, coefs%coef%solar, thermal = .FALSE._jplm)
+  ELSE
+     coefs%coef%solar => coefs%coef%thermal
+     coefs%coef%bounds(:,:,:,2) = coefs%coef%bounds(:,:,:,1)
+  ENDIF
+
+
+  if (coefs%coef%nltecoef) then
+
+     call rpn_comm_bcast(coefs%coef%nlte_coef%ncoef, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+     call rpn_comm_bcast(coefs%coef%nlte_coef%nsol, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+     call rpn_comm_bcast(coefs%coef%nlte_coef%nsat, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+     call rpn_comm_bcast(coefs%coef%nlte_coef%nchan, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+     call rpn_comm_bcast(coefs%coef%nlte_coef%start_chan, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+
+     ALLOCATE(nlte_chans(coefs%coef%fmv_chn)) ! Index of selected channels in nlte_coefs array in the file
+     nlte_count = 0  ! Number of NLTE channels being read in
+     nlte_start = 0  ! Index (in input channel list) of first NLTE channel being read in
+     DO i = 1, coefs%coef%fmv_chn
+        IF (channels(i) >= coefs%coef%nlte_coef%start_chan .AND. &
+             channels(i) < coefs%coef%nlte_coef%start_chan + coefs%coef%nlte_coef%nchan) THEN
+           nlte_count = nlte_count + 1
+           nlte_chans(nlte_count) = channels(i) - coefs%coef%nlte_coef%start_chan + 1
+           IF (nlte_count == 1) nlte_start = i
+        ENDIF
+     ENDDO
+           
+     IF (nlte_count > 0) THEN
+        ! Reset NLTE channel variables according to input channel list
+        nlte_file_nchan                  = coefs%coef%nlte_coef%nchan
+        coefs%coef%nlte_coef%start_chan  = nlte_start
+        coefs%coef%nlte_coef%nchan      = nlte_count
+     ELSE
+        ! No NLTE channels selected so no need for NLTE coef section
+        coefs%coef%nlte_coef%start_chan = 0_jpim
+        coefs%coef%nlte_coef%nchan = 0_jpim
+        DEALLOCATE(coefs%coef%nlte_coef, nlte_chans)
+        coefs%coef%nltecoef = .FALSE.
+     ENDIF
+
+     IF (coefs%coef%nltecoef) THEN
+        if (mpi_myid>0) then
+           allocate (coefs%coef%nlte_coef%sec_sat(coefs%coef%nlte_coef%nsat) )
+           allocate (coefs%coef%nlte_coef%sol_zen_angle(coefs%coef%nlte_coef%nsol) )
+        endif
+        call rpn_comm_bcast(coefs%coef%nlte_coef%sec_sat, size(coefs%coef%nlte_coef%sec_sat), 'MPI_REAL8', 0, 'GRID', ierr)
+        call rpn_comm_bcast(coefs%coef%nlte_coef%sol_zen_angle, size(coefs%coef%nlte_coef%sol_zen_angle), 'MPI_REAL8', 0, 'GRID', ierr)
+     
+        ALLOCATE(bigArray(coefs%coef%nlte_coef%ncoef, coefs%coef%nlte_coef%nsat, &
+             coefs%coef%nlte_coef%nsol, nlte_file_nchan) )
+
+        if (mpi_myid==0) then
+           DO ichan = 1, nlte_file_nchan
+              DO isol = 1, coefs%coef%nlte_coef%nsol
+                 DO isat = 1, coefs%coef%nlte_coef%nsat
+                    DO I=1, coefs%coef%nlte_coef%ncoef
+                       bigArray(i, isat, isol, ichan) = coefs%coef%nlte_coef%coef(i,isat,isol,ichan)
+                    ENDDO
+                 ENDDO
+              ENDDO
+           ENDDO
+           DeALLOCATE(  coefs%coef%nlte_coef%coef )
+        endif
+
+        call rpn_comm_bcast(coefs%coef%nlte_coef%coef, size(coefs%coef%nlte_coef%coef), 'MPI_REAL8', 0, 'GRID', ierr)
+       
+        ALLOCATE(coefs%coef%nlte_coef%coef(coefs%coef%nlte_coef%ncoef, coefs%coef%nlte_coef%nsat, &
+             coefs%coef%nlte_coef%nsol, coefs%coef%nlte_coef%nchan) )
+        coefs%coef%nlte_coef%coef(:,:,:,:) = bigArray(:,:,:,nlte_chans(1:nlte_count))
+        DEALLOCATE(nlte_chans, bigArray)
+       
+     ENDIF
+   
+  endif
+ 
+end subroutine tvs_rttov_read_coefs
+
+subroutine extractI41dArray(array,oldSize,index)
+   implicit none
+   Integer ,Pointer :: array(:)
+   integer ,intent(in) :: oldSize, index(:)
+
+   integer :: newSize, tmpI41d(oldSize), ierr, trueSize
+
+
+   if (mpi_myid == 0) then
+      if (associated(array)) then
+         trueSize = size(array)
+      else
+         trueSize = 0
+      endif
+   endif
+   call rpn_comm_bcast(trueSize, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+   if (trueSize < 1) return
+
+   if (trueSize /= oldSize) then
+      Write(*,*) "extractI41dArray: should not happen ", trueSize, oldSize
+   endif
+
+   newSize = size( index )
+
+   if (mpi_myid>0) allocate( array(oldSize))
+   call rpn_comm_bcast(array, oldSize, 'MPI_INTEGER', 0, 'GRID', ierr)
+   tmpI41d = array
+   deallocate( array )
+   allocate( array(newSize))
+   array( : ) =  tmpI41d( index(:) )
+end subroutine extractI41dArray
+
+subroutine extractR81dArray(array,oldSize,index)
+   implicit none
+   Real(8) ,Pointer :: array(:)
+   integer ,intent(in) :: oldSize, index(:)
+
+   integer :: newSize, ierr, trueSize
+   Real(8) :: tmpR81d(oldSize)
+
+   if (mpi_myid == 0) then
+      if (associated(array)) then
+         trueSize = size(array)
+      else
+         trueSize = 0
+      endif
+   endif
+   call rpn_comm_bcast(trueSize, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+   if (trueSize < 1) return
+
+   if (trueSize /= oldSize) then
+      Write(*,*) "extractR81dArray: should not happen ", trueSize, oldSize
+   endif
+
+   newSize = size( index )
+
+   if (mpi_myid>0) allocate( array(oldSize))
+   call rpn_comm_bcast(array, oldSize, 'MPI_REAL8', 0, 'GRID', ierr)
+   tmpR81d = array
+   deallocate( array )
+   allocate( array(newSize))
+   array( : ) =  tmpR81d( index(:) )
+end subroutine extractR81dArray
+
+subroutine extractR82dArray(array,oldSize1,oldSize2,index)
+!second dimension is for channels
+   implicit none
+   Real(8) ,Pointer :: array(:,:)
+   integer ,intent(in) :: oldSize1, oldSize2,index(:)
+
+   integer :: newSize, ierr, trueSize,i
+   Real(8) :: tmpR82d(oldSize1,oldsize2)
+
+   if (mpi_myid == 0) then
+      if (associated(array)) then
+         trueSize = size(array)
+      else
+         trueSize = 0
+      endif
+   endif
+   call rpn_comm_bcast(trueSize, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+   if (trueSize < 1) return
+
+   if (trueSize /= oldSize1*oldSize2) then
+      Write(*,*) "extractR82dArray: should not happen ", trueSize, oldSize1, oldSize2
+   endif
+
+   newSize = size( index )
+
+   if (mpi_myid>0) allocate( array(oldSize1,oldSize2) )
+   call rpn_comm_bcast(array, oldSize1*oldSize2, 'MPI_REAL8', 0, 'GRID', ierr)
+   tmpR82d = array
+   deallocate( array )
+   allocate( array(oldSize1,newSize))
+   do i=1, newSize
+      array( :,i) =  tmpR82d(:, index(i) )
+   enddo
+end subroutine extractR82dArray
+
+subroutine extractR83dArray(array,oldSize1,oldSize2,oldSize3,index)
+!second dimension is for channels
+   implicit none
+   Real(8) ,Pointer :: array(:,:,:)
+   integer ,intent(in) :: oldSize1, oldSize2,oldSize3,index(:)
+
+   integer :: newSize, ierr, trueSize,i
+   Real(8) :: tmpR83d(oldSize1,oldSize2,oldSize3)
+
+   if (mpi_myid == 0) then
+      if (associated(array)) then
+         trueSize = size(array)
+      else
+         trueSize = 0
+      endif
+   endif
+   call rpn_comm_bcast(trueSize, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+   if (trueSize < 1) return
+
+   if (trueSize /= oldSize1*oldSize2*oldSize3) then
+      Write(*,*) "extractR83dArray: should not happen ", trueSize, oldSize1, oldSize2, oldSize3
+   endif
+
+   newSize = size( index )
+
+   if (mpi_myid>0) allocate( array(oldSize1,oldSize2, oldSIze3) )
+   call rpn_comm_bcast(array, oldSize1*oldSize2*oldSize3, 'MPI_REAL8', 0, 'GRID', ierr)
+   tmpR83d = array
+   deallocate( array )
+   allocate( array(oldSize1,newSize,oldSize3))
+   do i=1, newSize
+      array( :,i,:) =  tmpR83d(:, index(i),: )
+   enddo
+end subroutine extractR83dArray
+
+subroutine extractCmplx81dArray(array,oldSize,index)
+   implicit none
+   complex(kind=8) ,pointer :: array(:)
+   integer ,intent(in) :: oldSize, index(:)
+
+   integer :: newSize, ierr, trueSize
+   complex(kind=8) :: tmpCx81d(oldSize)
+
+   if (mpi_myid == 0) then
+      if (associated(array)) then
+         trueSize = size(array)
+      else
+         trueSize = 0
+      endif
+   endif
+   call rpn_comm_bcast(trueSize, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+   if (trueSize < 1) return
+
+   if (trueSize /= oldSize) then
+      Write(*,*) "extractCmplx81dArray: should not happen ", trueSize, oldSize
+   endif
+
+   newSize = size( index )
+
+   if (mpi_myid>0) allocate( array(oldSize))
+   call rpn_comm_bcast(array, oldSize, 'MPI_COMPLEX8', 0, 'GRID', ierr)
+   tmpCx81d = array
+   deallocate( array )
+   allocate( array(newSize))
+   array( : ) =  tmpCx81d( index(:) )
+end subroutine extractCmplx81dArray
+
+
+subroutine broadcastR82dArray(array)
+   implicit none
+   Real(kind=8) ,pointer :: array(:,:)
+   logical :: associated0
+   integer :: ierr
+
+   associated0 = associated(array)
+   call rpn_comm_bcast(associated0, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
+   if (ierr/=0) then
+      Write(*,*) "error 1 in rpn_comm_bcast", ierr, associated0
+      call utl_abort("broadcastR82dArray")
+   endif
+   ierr = 0
+   if(associated0) call rpn_comm_bcast(array, size(array) , 'MPI_REAL8', 0, 'GRID', ierr)
+   if (ierr/=0) then
+      Write(*,*) "error 2 in rpn_comm_bcast", ierr, size(array,dim=1), size(array,dim=2)
+      call utl_abort("broadcastR82dArray")
+   endif
+   
+end subroutine broadcastR82dArray
+
+subroutine broadcastR81dArray(array)
+   implicit none
+   Real(kind=8) ,pointer :: array(:)
+   logical :: associated0
+   integer :: ierr
+
+   associated0 = associated(array)
+   call rpn_comm_bcast(associated0, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
+   if (ierr/=0) then
+      Write(*,*) "error 1 in rpn_comm_bcast", ierr, associated0
+      call utl_abort("broadcastR81dArray")
+   endif
+   ierr = 0
+   if(associated0) call rpn_comm_bcast(array, size(array) , 'MPI_REAL8', 0, 'GRID', ierr)
+   if (ierr/=0) then
+      Write(*,*) "error 2 in rpn_comm_bcast", ierr, size(array)
+      call utl_abort("broadcastR81dArray")
+   endif
+
+end subroutine broadcastR81dArray
+
+
+subroutine broadcastI41dArray(array)
+   implicit none
+   Integer(kind=4) ,pointer :: array(:)
+   logical :: associated0
+   integer :: ierr
+
+   associated0 = associated(array)
+   call rpn_comm_bcast(associated0, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
+   if (ierr/=0) then
+      Write(*,*) "error 1 in rpn_comm_bcast", ierr, associated0
+      call utl_abort("broadcastI41dArray")
+   endif
+   ierr = 0
+   if(associated0) call rpn_comm_bcast(array, size(array) , 'MPI_INTEGER', 0, 'GRID', ierr)
+   if (ierr/=0) then
+      Write(*,*) "error 2 in rpn_comm_bcast", ierr, size(array)
+      call utl_abort("broadcastI41dArray")
+   endif
+
+end subroutine broadcastI41dArray
 
 
 end module tovs_nl_mod
