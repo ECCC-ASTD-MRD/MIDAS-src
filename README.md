@@ -21,3 +21,13 @@ You can change to the binary just just compiled by changing the variable `ENVAR_
 ```bash
 ENVAR_abs=${HOME}/data_maestro/ords/oavar_abs/oavar_${ORDENV_PLAT}-${OAVAR_version}.Abs
 ```
+
+# Updating the results
+
+When changed introduced modifies the result, then one must update the results to that the tests pass.  After checking carefully the listing and the results obtained, you can update them with the command:
+```bash
+oavar_system_tests_science/update_results.sh
+```
+
+You can give as argument a single test but by default it collects the results for all the tests.  It also saves the listing.
+
