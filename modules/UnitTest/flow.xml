@@ -1,0 +1,18 @@
+<MODULE name="UnitTest">
+  <SUBMITS sub_name="getInputs"/>
+  <SUBMITS sub_name="check_results"/>
+
+  <TASK  name="getInputs">
+    <SUBMITS sub_name="envar"/>
+  </TASK>
+
+  <MODULE  name="envar"/>
+
+  <TASK name="check_results">
+    <DEPENDS_ON dep_name="./envar" status="end" type="node"/>
+    
+    <SUBMITS sub_name="clean_test"/>
+  </TASK>
+
+  <TASK name="clean_test"/>
+</MODULE>

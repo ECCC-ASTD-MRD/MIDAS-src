@@ -1,0 +1,50 @@
+#!/bin/ksh
+
+set -ex
+
+typeset -Z3 version base_version
+
+ddate=${1}
+UnitTest_name=${2}
+base_version=${3}
+testresults=${SEQ_EXP_HOME}/hub/${FRONTEND:-eccc-ppp1}/${UnitTest_name}
+
+let version=base_version+1
+
+if [ -d ${UnitTest_name}_v${version}/results ]; then
+    echo "Le repertoire '${UnitTest_name}_v${version}/results' existe deja!!!"
+    exit 1
+fi
+
+mkdir -pv ${UnitTest_name}_v${version}/results
+cd ${UnitTest_name}_v${version}/results
+ln -svi ../${UnitTest_name}_v${base_version}/inputs ..
+ls -al ../inputs
+ls -al ../inputs/ || true
+
+if [ -f ${testresults}/gridpt/anal/hyb/${ddate}_000_nosfc ]; then
+    ln -svi ${testresults}/gridpt/anal/hyb/${ddate}_000_nosfc anal.anl.model.${ddate}_000_nosfc
+fi
+
+if [ -f ${testresults}/gridpt/anal/hyb/${ddate}_inc_lo ]; then
+    ln -svi ${testresults}/gridpt/anal/hyb/${ddate}_inc_lo anal.inc.lo.model.${ddate}_000
+fi
+
+for file in ${testresults}/gridpt/anal/hyb/${ddate}*_inc_hi; do
+    [ -f "${file}" ] && ln -svi ${file} anal.inc.hi.model.$(basename $file)
+done
+
+for file in ${testresults}/banco/postalt/${ddate}*; do
+    [ -f "${file}" ] && ln -svi ${file} banco.postalt.$(basename ${file})
+done
+
+cmcarc -f ${ddate}.ca --dereference -v -a *
+
+cmcarc -f ../../${UnitTest_name}_v${base_version}/results/${ddate}.ca -t | sort > list_files
+cmcarc -f ${ddate}.ca -t | sort | diff list_files -
+
+chmod -wx ${ddate}.ca
+
+ls -al
+ls -alL
+pwd
