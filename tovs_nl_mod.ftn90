@@ -3874,7 +3874,7 @@ SUBROUTINE tvs_rttov_read_coefs(err, coefs, opts,  &
            DeALLOCATE(  coefs%coef%nlte_coef%coef )
         endif
 
-        call rpn_comm_bcast(coefs%coef%nlte_coef%coef, size(coefs%coef%nlte_coef%coef), 'MPI_REAL8', 0, 'GRID', ierr)
+        call rpn_comm_bcast(bigArray, size(bigArray), 'MPI_REAL8', 0, 'GRID', ierr)
        
         ALLOCATE(coefs%coef%nlte_coef%coef(coefs%coef%nlte_coef%ncoef, coefs%coef%nlte_coef%nsat, &
              coefs%coef%nlte_coef%nsol, coefs%coef%nlte_coef%nchan) )
