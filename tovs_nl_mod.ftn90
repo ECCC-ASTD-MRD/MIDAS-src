@@ -3544,12 +3544,12 @@ SUBROUTINE tvs_rttov_read_coefs(err, coefs, opts,  &
   call broadcastR81dArray( coefs%coef%lim_prfl_p )
   call broadcastR81dArray( coefs%coef%lim_prfl_tmax )
   call broadcastR81dArray( coefs%coef%lim_prfl_tmin )
-  call broadcastR82dArray(coefs%coef%lim_prfl_gmax)
-  call broadcastR82dArray(coefs%coef%lim_prfl_gmin)
+  call broadcastR82dArray( coefs%coef%lim_prfl_gmax)
+  call broadcastR82dArray( coefs%coef%lim_prfl_gmin)
   call broadcastR81dArray( coefs%coef%env_prfl_tmax )
   call broadcastR81dArray( coefs%coef%env_prfl_tmin )
-  call broadcastR82dArray(coefs%coef%env_prfl_gmax)
-  call broadcastR82dArray(coefs%coef%env_prfl_gmin)
+  call broadcastR82dArray( coefs%coef%env_prfl_gmax )
+  call broadcastR82dArray( coefs%coef%env_prfl_gmin )
   call broadcastR81dArray( coefs%coef%dp )
   call broadcastR81dArray( coefs%coef%dpp )
   call broadcastR81dArray( coefs%coef%tstar ) 
@@ -3641,7 +3641,7 @@ SUBROUTINE tvs_rttov_read_coefs(err, coefs, opts,  &
   if (mpi_myid>0) then
      ALLOCATE (coefs%coef%thermal(countUniqueChannel) )
      DO ichan = 1, countUniqueChannel
-        ALLOCATE (coefs%coef%thermal(ichan)%gasarray(coefs%coef%fmv_gas) )
+        ALLOCATE(coefs%coef%thermal(ichan)%gasarray(coefs%coef%fmv_gas) )
         NULLIFY (coefs%coef%thermal(ichan)%mixedgas)
         NULLIFY (coefs%coef%thermal(ichan)%watervapour)
         NULLIFY (coefs%coef%thermal(ichan)%ozone)
@@ -3691,6 +3691,7 @@ SUBROUTINE tvs_rttov_read_coefs(err, coefs, opts,  &
   ENDIF
 
   allocate(bigArray(countUniqueChannel,maxval(coefs%coef%fmv_coe),coefs%coef%fmv_gas,coefs%coef%nlayers) )
+  bigArray(:,:,:,:) = 0.0_8
 
   Do ichan = 1, countUniqueChannel  
      Do igas = 1, coefs%coef%fmv_gas
@@ -3702,8 +3703,6 @@ SUBROUTINE tvs_rttov_read_coefs(err, coefs, opts,  &
                  bigArray(ichan,k,igas,l) = coefs%coef%thermal(ichan)%gasarray(igas)%coef(k,l)
               end Do
            end Do
-        else
-           bigArray(ichan,:,igas,:) = 0.0_8
         endif
      end Do
   end Do
@@ -3745,7 +3744,7 @@ SUBROUTINE tvs_rttov_read_coefs(err, coefs, opts,  &
   ENDDO
 
   IF (coefs%coef%solarcoef) THEN
-
+     bigArray(:,:,:,:) = 0.0_8
      Do ichan = 1, countUniqueChannel  
         Do igas = 1, coefs%coef%fmv_gas
            associated0 = associated( coefs%coef%solar(ichan)%gasarray(igas)%coef )
@@ -3756,8 +3755,6 @@ SUBROUTINE tvs_rttov_read_coefs(err, coefs, opts,  &
                     bigArray(ichan,k,igas,l) = coefs%coef%solar(ichan)%gasarray(igas)%coef(k,l)
                  end Do
               end Do
-           else
-              bigArray(ichan,:,igas,:) = 0.0_8
            endif
         end Do
      end Do

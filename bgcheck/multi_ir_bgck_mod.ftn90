@@ -133,7 +133,7 @@ Module multi_ir_bgck_mod
      REAL(8)              :: ALBSTD_PIXELIASI(1:NVIS)
      REAL(8)              :: RADCLEARCALC(NVIS+1:NVIS+NIR)
      REAL(8)              :: TBCLEARCALC(NVIS+1:NVIS+NIR)
-     REAL(8)              :: RADOVCALC( tvs_nlevels,NVIS+1:NVIS+NIR)
+     REAL(8)              :: RADOVCALC( tvs_nlevels-1,NVIS+1:NVIS+NIR)
      REAL(8)              :: TRANSMCALC( tvs_nlevels,NVIS+1:NVIS+NIR)
      REAL(8)              :: TRANSMSURF(NVIS+1:NVIS+NIR)
      REAL(8)              :: EMISS(NVIS+1:NVIS+NIR)
@@ -3008,7 +3008,7 @@ subroutine tovs_rttov_AVHRR_for_IASI (iptobs,surfem1_avhrr,idiasi)
 ! allocate radiance structure
 
   asw=1 ! 1 to allocate,0 to deallocate
-  call rttov_alloc_rad (alloc_status(1),nchannels,radiancedata_d,nlevels-1,asw)
+  call rttov_alloc_rad (alloc_status(1),nchannels,radiancedata_d,nlevels,asw)
   call utl_checkAllocationStatus(alloc_status(1:1), " tovs_rttov_AVHRR_for_IASI radiances")
  
   Call rttov_direct(            &
@@ -3036,7 +3036,7 @@ subroutine tovs_rttov_AVHRR_for_IASI (iptobs,surfem1_avhrr,idiasi)
   call utl_checkAllocationStatus(alloc_status, " tovs_rttov_AVHRR_for_IASI transmission", .false.)
 
   asw=0 ! 1 to allocate,0 to deallocate
-  call rttov_alloc_rad (alloc_status(1),nchannels,radiancedata_d,nlevels-1,asw)
+  call rttov_alloc_rad (alloc_status(1),nchannels,radiancedata_d,nlevels,asw)
   call utl_checkAllocationStatus(alloc_status(1:1), " tovs_rttov_AVHRR_for_IASI radiances",.false.)
   
 end subroutine tovs_rttov_AVHRR_for_IASI
