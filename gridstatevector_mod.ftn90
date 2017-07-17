@@ -2873,7 +2873,7 @@ module gridStateVector_mod
       write(charProcId,'(i3.3)') mpi_myid
       fileName_full = trim(fileName)//'_proc'//charProcId
       write(*,*) 'gsv_writeToFileMpi: file name = ',trim(fileName_full)
-      ierr = fnom(nulfile,trim(fileName_full),'RND',0)
+      ierr = fnom(nulfile,trim(fileName_full),'RND+APPEND',0)
        
       if ( ierr >= 0 ) then
         write(*,*)'gsv_writeToFileMpi: file opened with unit number ',nulfile
@@ -2989,7 +2989,7 @@ module gridStateVector_mod
             !- Writing to file
             ierr = fstecr(work2d_r4, work_r4, npak, nulfile, dateo, deet, npas, ni, nj, &
                           nk, ip1, ip2, ip3, typvar, nomvar, etiket, grtyp,      &
-                          ig1, ig2, ig3, ig4, datyp, .true.)
+                          ig1, ig2, ig3, ig4, datyp, .false.)
 
           endif ! iDoWriting
 
@@ -3110,7 +3110,7 @@ module gridStateVector_mod
       !- Open output field
       nulfile = 0
       write(*,*) 'gsv_writeToFile: file name = ',trim(fileName)
-      ierr = fnom(nulfile,trim(fileName),'RND',0)
+      ierr = fnom(nulfile,trim(fileName),'RND+APPEND',0)
        
       if ( ierr >= 0 ) then
         write(*,*)'gsv_writeToFile: file opened with unit number ',nulfile
@@ -3224,7 +3224,7 @@ module gridStateVector_mod
             !- Writing to file
             ierr = fstecr(work2d_r4, work_r4, npak, nulfile, dateo, deet, npas, ni, nj, &
                           nk, ip1, ip2, ip3, typvar, nomvar, etiket, grtyp,      &
-                          ig1, ig2, ig3, ig4, datyp, .true.)
+                          ig1, ig2, ig3, ig4, datyp, .false.)
 
           endif ! iDoWriting
 
