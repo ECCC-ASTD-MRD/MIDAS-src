@@ -354,7 +354,7 @@ subroutine tvslin_rttov_tl(column, columng, lobsSpaceData, obs_ass_val)
         delLQ => col_getColumn(column,headerIndex,'HU')
         TTb => col_getColumn(columng,headerIndex,'TT')
         HUb => col_getColumn(columng,headerIndex,'HU')
-        Pres => col_getColumn(columng,headerIndex,'PR','TH')
+        Pres => col_getColumn(columng,headerIndex,'PRES','TH')
         do jl = 1, nlv_T
            zt_tl (jl,count_profile) = delTT(jl)
            zlq_tl(jl,count_profile) = delLQ(jl)
@@ -827,7 +827,7 @@ subroutine tvslin_rttov_ad(column,columng,lobsSpaceData)
 
         TTb => col_getColumn(columng,headerIndex,'TT')
         HUb => col_getColumn(columng,headerIndex,'HU')
-        Pres => col_getColumn(columng,headerIndex,'PR','TH')
+        Pres => col_getColumn(columng,headerIndex,'PRES','TH')
         do level_index = 1, nlv_T
            zt   (level_index,count_profile) = TTb(level_index)
            zlq  (level_index,count_profile) = HUb(level_index)
