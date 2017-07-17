@@ -99,12 +99,8 @@ module HorizontalCoord_mod
 
     if( .not.associated(hco) ) then
       allocate(hco)
-    endif
-
-    if( hco%initialized ) then
-      write(*,*) 'hco_setupFromFile: this hco object already initialized, first deallocating it.'
-      call hco_deallocate( hco )
-      allocate(hco)
+    else
+      call utl_abort('hco_setupFromFile: supplied hco must be null')
     endif
 
     !
@@ -409,12 +405,8 @@ module HorizontalCoord_mod
     if ( mpi_myid > 0 ) then
       if( .not.associated(hco) ) then
         allocate(hco)
-      endif
-
-      if( hco%initialized ) then
-        write(*,*) 'hco_mpiBcast: this hco object already initialized, first deallocating it.'
-        call hco_deallocate( hco )
-        allocate(hco)
+      else
+        call utl_abort('hco_mpiBcast: hco must be nullified for mpi task id > 0')
       endif
     endif
 

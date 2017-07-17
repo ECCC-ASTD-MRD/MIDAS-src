@@ -904,11 +904,10 @@ CONTAINS
 
     allocate(zcornssrc(nkgdim2,nkgdim2))
 
+    write(*,*) 'READCORNS_SQRT: looking for CORNS_SQRT with NTRUNC =', ntrunc
     do jn = 0, ntrunc
 
       ! Looking for FST record parameters..
-
-      write(*,*) 'READCORNS_SQRT: looking for CORNS_SQRT with NTRUNC =', ntrunc
       idateo = -1
       cletiket = 'CORNS_SQRT'
       ip1 = -1
@@ -918,13 +917,15 @@ CONTAINS
       clnomvar = 'ZZ'
       icornskey = utl_fstlir(ZCORNSSRC,nulbgst,INI,INJ,INK,idateo,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
 
-      if(icornskey .lt.0 ) then
-        write(*,*) 'READCORNS_SQRT: CORNS_SQRT not found in stats file, use computed sqrt'
-        lfound_sqrt = .false.
-        return
-      else
-        write(*,*) 'READCORNS_SQRT: CORNS_SQRT found in stats file, will use it instead of computed sqrt'
-        lfound_sqrt = .true.
+      if( jn == 0 ) then
+        if(icornskey .lt.0 ) then
+          write(*,*) 'READCORNS_SQRT: CORNS_SQRT not found in stats file, use computed sqrt'
+          lfound_sqrt = .false.
+          return
+        else
+          write(*,*) 'READCORNS_SQRT: CORNS_SQRT found in stats file, will use it instead of computed sqrt'
+          lfound_sqrt = .true.
+        endif
       endif
 
       if (ini .ne. nkgdim2 .or. inj .ne. nkgdim2) then
