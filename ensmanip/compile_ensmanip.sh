@@ -66,7 +66,7 @@ varabs=${program}_${ORDENV_PLAT}-${revnum}.Abs
 
 #-----------------------------------------------------------------------------
 
-LIBAPPL="descrip $MPILIB"
+LIBAPPL="netcdff rttov10.2.0_coef_io rttov10.2.0_main rttov10.2.0_emis_atlas rttov10.2.0_other burp_module descrip $MPILIB"
 LIBSYS="hpcoperf"
 LIBRMN=rmnMP
 
@@ -78,19 +78,12 @@ if [ $mode == full ] ; then
   sed "s!XXXXX!${revnum}!g" ${trunkdir}/toplevelcontrol_mod.ftn90_template > toplevelcontrol_mod.ftn90
 
   # Create a local copy of the source code
-  trunkfiles="mpi_mod.ftn90 mpivar_mod.ftn90 physicsfunctions_mod.ftn90 controlvector_mod.ftn90 \
-            globalspectraltransform_mod.ftn90 analysisgrid_mod.ftn90 localizationfunction_mod.ftn90 \
-            gridstatevector_mod.ftn90 maincompileswitch.inc varnamelist_mod.ftn90 lambmatrixhi_mod.ftn90 \
-            utilities_mod.ftn90 lamspectraltransform_mod.ftn90 spectralfilter_mod.ftn90 \
-            verticalcoord_mod.ftn90 horizontalcoord_mod.ftn90 timecoord_mod.ftn90 \
-            columndata_mod.ftn90 bmatrixensemble_mod.ftn90 bmatrixhi_mod.ftn90 bmatrixchem_mod.ftn90 bmatrix_mod.ftn90 \
-            randomnumber_mod.ftn90 variabletransforms_mod.ftn90 ensemblestatevector_mod.ftn90"
-
-  cd ${trunkdir}
-  cp -f ${program}/main_${program}.ftn90 ${compiledir}/
-  cp -f ${trunkfiles} ${compiledir}/
-  cp -f shared/*.ftn90 ${compiledir}/
-  cp -f shared/*.inc ${compiledir}/
+  cp -f ${trunkdir}/${program}/main_${program}.ftn90 ${compiledir}/
+  cp -f ${trunkdir}/*.ftn* ${compiledir}/
+  cp -f ${trunkdir}/*.inc ${compiledir}/
+  cp -f ${trunkdir}/shared/*.ftn90 ${compiledir}/
+  cp -f ${trunkdir}/shared/*.inc ${compiledir}/
+  cp -f ${trunkdir}/bgcheck/*.ftn90 ${compiledir}/
 
   cd ${compiledir}
 
