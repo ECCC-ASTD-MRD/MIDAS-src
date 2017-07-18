@@ -1,0 +1,4 @@
+<?xml version="1.0" ?>
+<NODE_RESOURCES>
+     <BATCH machine="${FRONTEND}" queue="${FRONTEND_DEFAULT_Q}"/>
+</NODE_RESOURCES>

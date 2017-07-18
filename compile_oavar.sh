@@ -45,7 +45,7 @@ trunkdir=$PWD
 
 # automatically set the global revision number in toplevelcontrol_mod.ftn90 by
 # replacing the string XXXXX with the actual revision number
-revnum=$(git describe --always --dirty=_M 2>/dev/null || ssh eccc-ppp1 "cd $trunkdir; git describe --always --dirty=_M" 2>/dev/null || echo unkown revision)
+revnum=$(git describe --abbrev=7 --always --dirty=_M 2>/dev/null || ssh eccc-ppp1 "cd $trunkdir; git describe --abbrev=7 --always --dirty=_M" 2>/dev/null || echo unkown revision)
 echo "..."
 echo "... > Revision Number = '$revnum'"
 

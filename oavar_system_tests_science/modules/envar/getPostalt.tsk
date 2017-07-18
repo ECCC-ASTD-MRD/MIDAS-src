@@ -1,0 +1,61 @@
+#!/bin/ksh
+#.*****************************************************************************
+#.
+#.     JOB NAME - getPostalt
+#.
+#.     STATUS - OPERATIONAL - ESSENTIAL
+#.
+#.     DESCRIPTION - This task get the output of 'VAR' regarding BURP files, precon and other outputs
+#.
+#.*****************************************************************************
+
+if [ "${output}" = TASK_OUTPUT ]; then
+    output=${TASK_OUTPUT}
+fi
+
+if [ "${is_postalt_job_local}" = yes ]; then
+    mkdir ${output}/brpfiles
+    cp ${TASK_INPUT}/brpfiles/brp* ${output}/brpfiles
+else
+    ## The variable 'do_ssh_as_remote_copy' is obtained in the function 'check_do_ssh_as_remote_copy' in the 'getPostalt.cfg'.
+    ## The variable 'output' is obtained in the function 'prepare_destination_directory' in 'getPostalt.cfg'.
+    ssh ${postalt_host} mkdir ${output##*:}/brpfiles
+    if [ "${do_ssh_as_remote_copy}" = yes ]; then
+	ssh ${postalt_host} ${TASK_INPUT}/brpfiles/brp* ${output##*:}/brpfiles
+    else
+	${TASK_BIN}/remote_copy ${TASK_INPUT}/brpfiles/brp* ${output}/brpfiles
+    fi
+fi
+
+if [ -L ${TASK_INPUT}/precon ]; then
+    if [ "${is_postalt_job_local}" = yes ]; then
+	cp ${TASK_INPUT}/precon ${output}/precon
+    else
+	file=$(${TASK_BIN}/read_link ${TASK_INPUT}/precon)
+	if [ "${do_ssh_as_remote_copy}" = yes ]; then
+	    ssh ${getVARresources_host} cp ${file} ${output##*:}/precon
+	else
+	    ${TASK_BIN}/remote_copy ${file} ${output}/precon
+	fi
+    fi
+fi
+
+if [ -L ${TASK_INPUT}/other ]; then
+    if [ "${is_postalt_job_local}" = yes ]; then
+	mkdir ${output}/other
+    else
+	ssh ${postalt_host} mkdir ${output##*:}/other
+    fi
+    for prefix in ${ENVAR_other_output_list}; do
+	if [ "${is_postalt_job_local}" = yes ]; then
+	    cp ${TASK_INPUT}/other/${prefix}* ${output}/other
+	else
+	    file=$(${TASK_BIN}/read_link ${TASK_INPUT}/other)
+	    if [ "${do_ssh_as_remote_copy}" = yes ]; then
+		ssh ${getVARresources_host} cp ${file}/${prefix}* ${output##*:}/other
+	    else
+		${TASK_BIN}/remote_copy ${file}/${prefix}* ${output}/other
+	    fi
+	fi
+    done
+fi

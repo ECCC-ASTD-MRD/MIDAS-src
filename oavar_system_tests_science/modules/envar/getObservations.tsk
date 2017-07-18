@@ -1,0 +1,117 @@
+#!/bin/ksh
+#.*****************************************************************************
+#.
+#.     JOB NAME - getObservations
+#.
+#.     STATUS - OPERATIONAL - ESSENTIAL
+#.
+#.     DESCRIPTION - This tasks gets the observations bgckalt files needed to do the analysis
+#.                   It may also split the files across the MPI topology of the VAR job.  
+#.
+#.*****************************************************************************
+
+is_local=no
+
+obs_mach_dir=$(${TASK_BIN}/readlink ${TASK_INPUT}/observations)
+obs_mach=${obs_mach_dir%%:*}
+obs_dir=${obs_mach_dir##*:}
+if [ "${obs_mach}" = "${obs_dir}" -o "${obs_mach}" = "${TRUE_HOST}" ]; then
+    is_local=yes
+    obs_mach_dir=${obs_dir}
+else
+    obs_mach_dir=${obs_mach}:${obs_dir}
+fi
+
+for family in $(echo ${ENVAR_obstyp} | sed 's/,/ /g'); do
+    echo $family
+    case $family in
+	sf) finalfile=brpsfc;;
+	## to_amsu?|ssmis|airs|iasi|csr) finalfile=brptov;;
+	## airs|iasi|csr) finalfile=brpto_${family};;
+	*) finalfile=brp${family};;
+    esac
+
+    file=${ENVAR_observations_prefix}${ENVAR_DATE}_${family}${ENVAR_observations_suffix}
+    file_present="no"
+    if [ "${is_local}" = yes ]; then
+	if [ -f ${obs_dir}/${file} ]; then
+	    file_present=yes
+	fi
+    else
+	file_present=$(ssh -q ${obs_mach} "if [ -f ${obs_dir}/${file} ]; then echo yes; fi")
+    fi
+
+    if [ "${file_present}" = "yes" ]; then
+	$SEQ_BIN/nodelogger -n $SEQ_NODE -s infox -m  "get observations file: ${obs_mach_dir}/${file}"
+	if [ "${is_local}" = yes ]; then
+	    cp ${obs_mach_dir}/${file} ${file}
+	else
+	    ${TASK_BIN}/remote_copy ${obs_mach_dir}/${file} ${file}
+	fi
+
+	if [ ! -f "${finalfile}" ]; then
+	    mv ${file} ${finalfile}
+	else
+	    ${TASK_BIN}/editbrp -s ${file} -d ${finalfile} -i 0
+	    rm ${file}
+	fi
+    else
+	$SEQ_BIN/nodelogger -n $SEQ_NODE -s info -m  "Family ${family} is missing"
+    fi
+done
+
+if [ "${ENVAR_mode}" != 'O-P' -o "${ENVAR_mpi_mode}" = 'mpi' ]; then
+    if [ "${ENVAR_observations_brptov_grouping}" = yes ]; then
+	if [ -f brpto_amsua -o -f brpto_amsub -o -f brpairs -o -f brpssmis -o -f brpiasi -o \
+	     -f brpcsr -o -f brpatms -o -f brpcris ]; then
+            ## Those files in brptov have to be exactly in the same order, always!!!
+	    $SEQ_BIN/nodelogger -n $SEQ_NODE -s infox -m  "Building the 'brptov' file"
+	    for family in ssmis airs to_amsua to_amsub csr iasi atms cris; do
+		${TASK_BIN}/editbrp -s brp${family} -d brptov -i 0
+		rm -f brp${family}
+	    done
+	fi
+    fi
+fi
+
+if [ -f brpua ]; then
+    echo "
+C  -----------------
+C  FAMILLE UPPER_AIR et BOGUS
+C  -----------------
+ DESIRE( '*********',[12000,@,18000],-1 ,-1 ,[150,151,152,153],-1,-1,-1,-1)
+ DESIRE( '>>*******',-1 ,-1 ,-1 ,-1,-1,-1,-1,-1)
+ DESIRE( '*********',[12000,@,18000],-1 ,-1 ,[132,135,136,137,138],-1,-1,-1,-1)
+ DESIRE( '*********',[12000,@,18000],-1 ,-1 ,[139,140,141,142],-1,-1,-1,-1)
+ DESIRE( '*********',[12000,@,18000],-1 ,-1,[32,33,34,35,36,37,38],-1,-1,-1,-1)
+ DESIRE( '*********',[12000,@,18000],-1 ,-1 ,[159,160,161,162],-1,-1,-1,-1)
+ BRPCOPI('brpua','brpuan')
+ DESIRE( '*********',[00000,@,11999],-1 ,-1 ,[150,151,152,153],-1,-1,-1,-1)
+ DESIRE( '>>*******',-1 ,-1 ,-1 ,-1,-1,-1,-1,-1)
+ DESIRE( '*********',[00000,@,11999],-1 ,-1 ,[132,135,136,137,138],-1,-1,-1,-1)
+ DESIRE( '*********',[00000,@,11999],-1 ,-1 ,[139,140,141,142],-1,-1,-1,-1)
+ DESIRE( '*********',[00000,@,11999],-1 ,-1,[32,33,34,35,36,37,38],-1,-1,-1,-1)
+ DESIRE( '*********',[00000,@,11999],-1 ,-1 ,[159,160,161,162],-1,-1,-1,-1)
+ BRPCOPI('brpua','brpuas')
+" > dir_brp
+
+    ${TASK_BIN}/editbrp -i dir_brp -s brpua    
+    rm -f brpua
+fi
+
+## On va chercher la machine de la tache 'VAR'
+##     getVARresources_host
+getVARresources host
+
+if [ "${getVARresources_host}" = "${TRUE_HOST}" ]; then
+    mv brp* ${TASK_OUTPUT}
+else
+    prepare_destination_directory
+
+    check_do_ssh_as_remote_copy
+    if [ "${do_ssh_as_remote_copy}" = yes ]; then
+	time ssh ${getVARresources_host} cp ${PWD}/brp* ${SEQ_EXP_HOME}/hub/${getVARresources_host}/work/${SEQ_DATE}/${SEQ_NODE}/output
+    else
+	${TASK_BIN}/remote_copy brp* ${getVARresources_host}:${SEQ_EXP_HOME}/hub/${getVARresources_host}/work/${SEQ_DATE}/${SEQ_NODE}/output
+    fi
+fi
