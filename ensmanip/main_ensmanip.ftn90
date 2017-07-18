@@ -44,13 +44,17 @@ program main_ensManip
   integer :: memberIndex, lonIndex, latIndex, levIndex, stepIndex, numStep
   integer :: idate, itime, nulnam
   integer :: get_max_rss
-
   integer :: latPerPE, myLatBeg, myLatEnd
   integer :: lonPerPE, myLonBeg, myLonEnd
+  integer :: stamp_last 
 
+  character(len=2)    :: hourstr_last
+  character(len=8)    :: datestr_last
   character(len=256)  :: ensFileName
 
   logical :: makeBiPeriodic
+
+  real(8) :: delhh
   
   ! namelist variables
   character(len=2)   :: ctrlVarHumidity
@@ -168,12 +172,21 @@ program main_ensManip
   if( output_mean ) then
     call tmg_start(4,'OUTPUT_MEAN')
     call ens_copyEnsMean( ensemble, statevector_mean )
+
+    ! Filename for ensemble mean
+    delhh = -tim_windowsize
+    call incdatr( stamp_last, tim_getDatestamp(), delhh )
+    ierr = newdate( stamp_last, idate, itime, -3 )
+    write(datestr_last,'(i8.8)') idate
+    write(hourstr_last,'(i2.2)') itime/1000000
+    ensFileName = './' // trim(ensfilebasename) // &
+                  trim(datestr_last) // trim(hourstr_last) // '_006_ensmean'
+
     do stepIndex = 1, numStep
-      call gsv_writeToFile( statevector_mean, 'ensMean.fst', 'ENSMEAN', indexStep_in = stepIndex, typvar_in = 'P' )
+      call gsv_writeToFile( statevector_mean, ensFileName, 'ENSMEAN', indexStep_in = stepIndex, typvar_in = 'P' )
     end do
     call tmg_stop(4)
   end if
-
 
   !
   !- 6.  MPI, tmg finalize

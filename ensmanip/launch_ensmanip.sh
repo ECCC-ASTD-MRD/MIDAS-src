@@ -7,8 +7,8 @@
 flnml="namelist.nml"
 machine=hare
 #machine=eccc-ppp2
-abs="${HOME}/data_maestro/ords/oavar_abs/ensmanip_sles-11-broadwell-64-xc40-m_2.2.2-9-gde91d3a_M.Abs"
-#abs="${HOME}/data_maestro/ords/oavar_abs/ensmanip_ubuntu-14.04-amd64-64-m_2.2.2-9-gde91d3a_M.Abs"
+abs="${HOME}/data_maestro/ords/oavar_abs/ensmanip_sles-11-broadwell-64-xc40-m_2.2.2-10-g763480e_M.Abs"
+#abs="${HOME}/data_maestro/ords/oavar_abs/ensmanip_ubuntu-14.04-amd64-64-m_2.2.2-10-g763480e_M.Abs"
 gest="${HOME}/data_maestro/${machine}/ensmanip/test/"
 #ensdir="/home/mab001/data_maestro/hare/ensmanip/ensemble/"
 #ensdir="/home/mab001/sitestore1/maestro_archives/Tests/EnVar_small_v001/inputs/ensemble/"
