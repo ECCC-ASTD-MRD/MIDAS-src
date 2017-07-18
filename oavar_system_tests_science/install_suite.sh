@@ -94,7 +94,7 @@ if [[ ${OAVAR_TESTS_SUITE} = */* ]]; then
 fi
 
 ln -s $PWD ~/.suites/${OAVAR_TESTS_SUITE}
-MAKE_LINKS_START_DATE=$(date +%Y%m%d000000) ~/maestro_utilities/make_links/make_links ${OAVAR_TESTS_SUITE}
+MAKE_LINKS_START_DATE=$(date +%Y%m%d000000) ~erv000/maestro_utilities/make_links/make_links ${OAVAR_TESTS_SUITE}
 
 echo "ABS_DIR=\${COMPILEDIR_OAVAR_MAIN:-$(dirname $(dirname ${PWD}))/abs}" > abs.dot
 echo "OAVAR_version=\$(cd ${PWD}/..; git describe --abbrev=7 --always --dirty=_M 2>/dev/null || ssh eccc-ppp1 'cd ${PWD}/..; git describe --abbrev=7 --always --dirty=_M' 2>/dev/null || echo unkown revision)" >> abs.dot
