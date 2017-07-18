@@ -29,7 +29,6 @@ program main_ensManip
   use ensembleStateVector_mod
   use verticalCoord_mod
   use horizontalCoord_mod
-  use analysisGrid_mod
   use timeCoord_mod
   use utilities_mod
   implicit none
@@ -170,7 +169,7 @@ program main_ensManip
     call tmg_start(4,'OUTPUT_MEAN')
     call ens_copyEnsMean( ensemble, statevector_mean )
     do stepIndex = 1, numStep
-      call gsv_writeToFile( statevector_mean, 'ensMean.fst', 'ENSMEAN', indexStep_in = stepIndex )
+      call gsv_writeToFile( statevector_mean, 'ensMean.fst', 'ENSMEAN', indexStep_in = stepIndex, typvar_in = 'P' )
     end do
     call tmg_stop(4)
   end if

@@ -2775,7 +2775,7 @@ module gridStateVector_mod
   ! gsv_writeToFileMpi
   !--------------------------------------------------------------------------
   subroutine gsv_writeToFileMpi(statevector, fileName, etiket_in, scaleFactor, ip3_in, &
-       indexStep_in, HUcontainsLQ, unitconversion)
+       indexStep_in, typvar_in, HUcontainsLQ, unitconversion)
     implicit none
 
     ! arguments
@@ -2784,6 +2784,7 @@ module gridStateVector_mod
     character(len=*), intent(in) :: etiket_in
     real(8), optional,intent(in) :: scaleFactor
     integer, optional,intent(in) :: ip3_in, indexStep_in
+    character(len=*), optional, intent(in) :: typvar_in
     logical, optional,intent(in) :: HUcontainsLQ
     logical, optional,intent(in) :: unitconversion
 
@@ -2847,7 +2848,11 @@ module gridStateVector_mod
     nj     = statevector%nj
     nk     = 1
     ip2    = 0
-    typvar = 'R'
+    if( present(typvar_in) ) then
+      typvar = trim(typvar_in)
+    else
+      typvar = 'R'
+    end if
     etiket = trim(Etiket_in)
     grtyp  = statevector%hco%grtyp
     ig1    = statevector%hco%ig1
@@ -3019,7 +3024,7 @@ module gridStateVector_mod
   ! gsv_writeToFile
   !--------------------------------------------------------------------------
   subroutine gsv_writeToFile(statevector, fileName, etiket_in, scaleFactor, ip3_in, &
-       indexStep_in, HUcontainsLQ, unitconversion)
+       indexStep_in, typvar_in, HUcontainsLQ, unitconversion)
     implicit none
 
     ! arguments
@@ -3028,6 +3033,7 @@ module gridStateVector_mod
     character(len=*), intent(in) :: etiket_in
     real(8), optional,intent(in) :: scaleFactor
     integer, optional,intent(in) :: ip3_in, indexStep_in
+    character(len=*), optional, intent(in) :: typvar_in
     logical, optional,intent(in) :: HUcontainsLQ
     logical, optional,intent(in) :: unitconversion
 
@@ -3087,7 +3093,11 @@ module gridStateVector_mod
     nj     = statevector%nj
     nk     = 1
     ip2    = 0
-    typvar = 'R'
+    if( present(typvar_in) ) then
+      typvar = trim(typvar_in)
+    else
+      typvar = 'R'
+    end if
     etiket = trim(Etiket_in)
     grtyp  = statevector%hco%grtyp
     ig1    = statevector%hco%ig1
@@ -3261,7 +3271,7 @@ module gridStateVector_mod
 
     integer :: ier
 
-    integer :: dateo,npak, status
+    integer :: dateo, npak, status, fstecr
     integer :: ip1,ip2,ip3,deet,npas,datyp,ig1,ig2,ig3,ig4
     integer :: ig1_tictac,ig2_tictac,ig3_tictac,ig4_tictac
 
@@ -3304,6 +3314,14 @@ module gridStateVector_mod
                         iun, dateo, deet, npas, 1, statevector%nj, 1, ip1,    &
                         ip2, ip3, typvar, '^^', etiket, grtyp, ig1,          &
                         ig2, ig3, ig4, datyp, .true.)
+
+    else if( statevector % hco % grtyp == 'U' ) then
+      etiket   = 'TICTICTACTAC'
+      npak     = -32
+      ier = fstecr(statevector%hco%tictacU, statevector%hco%tictacU, npak, iun, 0, 0, 0, size(statevector%hco%tictacU), 1, 1  , &
+                   statevector%hco%ig1, statevector%hco%ig2,  statevector%hco%ig3, 'E', '^>', etiket, &
+                   'F', 1, 0, 0, 0, 5, .false.)
+
     end if
 
     !

@@ -6,15 +6,17 @@
 #
 flnml="namelist.nml"
 machine=hare
-#machine=eccc-ppp1
-abs="${HOME}/data_maestro/ords/oavar_abs/ensmanip_sles-11-broadwell-64-xc40-m_2.2.2-1-ge252ae0_M.Abs"
-#abs="${HOME}/data_maestro/ords/oavar_abs/ensmanip_ubuntu-14.04-amd64-64-m_2.2.2-1-ge252ae0_M.Abs"
+#machine=eccc-ppp2
+abs="${HOME}/data_maestro/ords/oavar_abs/ensmanip_sles-11-broadwell-64-xc40-m_2.2.2-9-gde91d3a_M.Abs"
+#abs="${HOME}/data_maestro/ords/oavar_abs/ensmanip_ubuntu-14.04-amd64-64-m_2.2.2-9-gde91d3a_M.Abs"
 gest="${HOME}/data_maestro/${machine}/ensmanip/test/"
-ensdir="/home/mab001/data_maestro/hare/ensmanip/ensemble/"
+#ensdir="/home/mab001/data_maestro/hare/ensmanip/ensemble/"
 #ensdir="/home/mab001/sitestore1/maestro_archives/Tests/EnVar_small_v001/inputs/ensemble/"
-npex=10
-npey=10
-openmp=1
+ensdir="/home/mab001/data_maestro/hare/ensmanip/kal557/"
+#ensdir="/home/skal001/data_maestro/eccc-ppp2/exp/archive_trial/kal557/"
+npex=1
+npey=267
+openmp=2
 maxcputime=300
 run_in_parallel="/fs/ssm/eccc/mrd/rpn/utils/16.2/all/bin/r.run_in_parallel_1.1.28c"
 
