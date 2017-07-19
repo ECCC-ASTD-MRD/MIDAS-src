@@ -240,13 +240,19 @@ CONTAINS
     implicit none
 
     ! arguments
-    type(struct_ens) :: ens
-    type(struct_gsv) :: statevector
-    integer          :: subEnsIndex
+    type(struct_ens)  :: ens
+    type(struct_gsv)  :: statevector
+    integer, optional :: subEnsIndex
 
     ! locals
     real(8), pointer :: ptr4d_r8(:,:,:,:)
-    integer          :: k1, k2, jk, stepIndex, numStep
+    integer          :: k1, k2, jk, stepIndex, numStep, subEnsIndex2
+
+    if( present(subEnsIndex) ) then
+      subEnsIndex2 = subEnsIndex
+    else
+      subEnsIndex2 = 1
+    endif
 
     k1 = ens%statevector_work%mykBeg
     k2 = ens%statevector_work%mykEnd
@@ -259,7 +265,7 @@ CONTAINS
     ptr4d_r8 => gsv_getField_r8(statevector)
     do stepIndex = 1, numStep
       do jk = k1, k2
-        ptr4d_r8(:,:,jk,stepIndex) = ens%repack_ensMean_r8(jk)%onelevel(subEnsIndex,stepIndex,:,:)
+        ptr4d_r8(:,:,jk,stepIndex) = ens%repack_ensMean_r8(jk)%onelevel(subEnsIndex2,stepIndex,:,:)
       enddo
     enddo
 

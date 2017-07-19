@@ -1,0 +1,209 @@
+!-------------------------------------- LICENCE BEGIN ------------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
+!
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+
+!--------------------------------------------------------------------------
+!!
+!! *Purpose*: Main program for manipulating ensembles of states. Possible operations
+!!            are: CALCMEAN, CALCSTDDEV, CALCENSPERT.
+!!
+!--------------------------------------------------------------------------
+program main_ensManip
+  use topLevelControl_mod
+  use mpi_mod
+  use mpivar_mod
+  use mathPhysConstants_mod
+  use gridStateVector_mod
+  use ensembleStateVector_mod
+  use verticalCoord_mod
+  use horizontalCoord_mod
+  use timeCoord_mod
+  use utilities_mod
+  implicit none
+
+  type(struct_gsv) :: statevector_mean
+
+  type(struct_vco), pointer :: vco_ens => null()
+  type(struct_hco), pointer :: hco_ens => null()
+  type(struct_hco), pointer :: hco_ens_core => null()
+  type(struct_ens)          :: ensemble
+
+  integer :: fclos, fnom, fstopc, newdate, nstamp, ierr
+  integer :: memberIndex, lonIndex, latIndex, levIndex, stepIndex, numStep
+  integer :: idate, itime, nulnam
+  integer :: get_max_rss
+  integer :: latPerPE, myLatBeg, myLatEnd
+  integer :: lonPerPE, myLonBeg, myLonEnd
+  integer :: stamp_last 
+
+  character(len=2)    :: hourstr_last
+  character(len=8)    :: datestr_last
+  character(len=256)  :: ensFileName
+
+  logical :: makeBiPeriodic
+
+  real(8) :: delhh
+  
+  ! namelist variables
+  character(len=2)   :: ctrlVarHumidity
+  character(len=256) :: ensPathName, ensFileBaseName
+  logical  :: write_mpi, output_mean
+  integer  :: nEns, date
+  NAMELIST /NAMENSMANIP/nEns, date, ensPathName, ensFileBaseName, ctrlVarHumidity, write_mpi,  &
+                        output_mean
+
+  write(*,'(/,' //  &
+        '3(" *****************"),/,' //                   &
+        '14x,"-- START OF MAIN_ENSMANIP             --",/,' //   &
+        '14x,"-- Program for general manipulation of ensembles --",/, ' //  &
+        '14x,"-- Revision number ",a," --",/,' //  &
+        '3(" *****************"))') top_crevision
+
+  !
+  !- 0. MPI, tmg initialization
+  !
+  call mpi_initialize
+  call tmg_init(mpi_myid, 'TMG_ENSMANIP' )
+
+  call tmg_start(1,'MAIN')
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+  ierr = fstopc('MSGLVL','ERRORS',0)
+
+  ! Setup the ramdisk directory (if supplied)
+  call top_setup
+
+  !
+  !- 1. Set/Read values for the namelist NAMENSMANIP
+  !
+  
+  !- 1.1 Setting default values
+  nEns  = 10
+  date  = 1900120100
+  write_mpi = .false.
+  output_mean = .true.
+  ensPathName      = 'ensemble'
+  ensFileBaseName  = ''
+  ctrlVarHumidity = 'HU'
+
+  !- 1.2 Read the namelist
+  nulnam=0
+  ierr=fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
+  read(nulnam, nml=namensmanip, iostat=ierr)
+  if(ierr.ne.0) call utl_abort('main_ensManip: Error reading namelist')
+  if( mpi_myid == 0 ) write(*,nml=namensmanip)
+  ierr=fclos(nulnam)
+
+  write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+
+  !
+  !- 2.  Initialization
+  !
+
+  !- 2.1 Decompose date(yyyymmddhh) into idate(YYYYMMDD) itime(HHMMSShh)
+  !      calculate date-time stamp for postproc.ftn 
+  idate   = date/100
+  itime   = (date-idate*100)*1000000
+  ierr    = newdate(nstamp, idate, itime, 3)
+  if( mpi_myid == 0 ) write(*,*)' idate= ', idate, ' time= ', itime
+  if( mpi_myid == 0 ) write(*,*)' date= ', date, ' stamp= ', nstamp
+
+  !- 2.2 Initialize variables of the model states
+  call gsv_setup
+
+  !
+  !- Initialize the Temporal grid
+  !
+  call tim_setup
+  call tim_setDatestamp(nstamp)
+  numstep = tim_nstepobsinc
+
+  !- 2.3 Initialize the Ensemble grid
+  if (mpi_myid == 0) write(*,*)''
+  if (mpi_myid == 0) write(*,*)' Set hco parameters for ensemble grid'
+
+  call ens_fileName(ensFileName, ensPathName, ensFileBaseName, 1)
+  call hco_SetupFromFile( hco_ens, ensFileName, ' ', 'ENSFILEGRID')
+  call vco_setupFromFile( vco_ens, ensFileName )
+
+  ! not sure this is needed ... only of agd_mach?
+  if ( hco_ens % global ) then
+    !call agd_setupFromHCO( hco_ens ) ! IN
+  else
+    call utl_abort('main_ensManip: not sure what to do about grids for LAM!')
+    !- Iniatilized the core (Non-Extended) analysis grid
+    !call hco_setupFromFile( hco_ens_core, ensFileName, 'COREGRID', 'AnalysisCore' ) ! IN
+    !- Setup the LAM analysis grid metrics
+    !call agd_setupFromHCO( hco_ens, hco_ens_core ) ! IN
+  end if
+
+  call mpivar_setup_latbands(hco_ens % nj,                & ! IN
+                             latPerPE, myLatBeg, myLatEnd ) ! OUT
+  call mpivar_setup_lonbands(hco_ens % ni,                & ! IN
+                             lonPerPE, myLonBeg, myLonEnd ) ! OUT
+
+  !- 2.4 Initialize the vertical coordinate from the statistics file
+ 
+  write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+
+  !- 2.5 Setup the ensemble
+  call tmg_start(2,'READ_ENSEMBLE')
+  call ens_allocate(ensemble, nEns, numStep, hco_ens, vco_ens)
+  makeBiPeriodic = .false.
+  call ens_readEnsemble( ensemble, ensPathName, ensFileBaseName, makeBiPeriodic, ctrlVarHumidity )
+  call tmg_stop(2)
+
+  call tmg_start(3,'COMPUTE_MEAN')
+  call ens_computeMean( ensemble )
+  call tmg_stop(3)
+
+  if( output_mean ) then
+    call tmg_start(4,'OUTPUT_MEAN')
+    call ens_copyEnsMean( ensemble, statevector_mean )
+
+    ! Filename for ensemble mean
+    delhh = -tim_windowsize
+    call incdatr( stamp_last, tim_getDatestamp(), delhh )
+    ierr = newdate( stamp_last, idate, itime, -3 )
+    write(datestr_last,'(i8.8)') idate
+    write(hourstr_last,'(i2.2)') itime/1000000
+    ensFileName = './' // trim(ensfilebasename) // &
+                  trim(datestr_last) // trim(hourstr_last) // '_006_ensmean'
+
+    do stepIndex = 1, numStep
+      call gsv_writeToFile( statevector_mean, ensFileName, 'ENSMEAN', indexStep_in = stepIndex, typvar_in = 'P' )
+    end do
+    call tmg_stop(4)
+  end if
+
+  !
+  !- 6.  MPI, tmg finalize
+  !  
+  write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+  call tmg_stop(1)
+
+  call tmg_terminate(mpi_myid, 'TMG_ENSMANIP' )
+  call rpn_comm_finalize(ierr) 
+
+  write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+
+  !
+  !- 7.  Ending
+  !
+  if( mpi_myid == 0 ) write(*,*) ' --------------------------------'
+  if( mpi_myid == 0 ) write(*,*) ' MAIN_ENSMANIP ENDS'
+  if( mpi_myid == 0 ) write(*,*) ' --------------------------------'
+
+end program main_ensManip
