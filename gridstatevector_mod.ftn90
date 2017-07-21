@@ -38,7 +38,7 @@ module gridStateVector_mod
 
   ! public subroutines and functions
   public :: gsv_setup, gsv_allocate, gsv_deallocate, gsv_zero, gsv_3dto4d, gsv_3dto4dAdj
-  public :: gsv_getOffsetFromVarName, gsv_getLevFromK, gsv_getVarNameFromK
+  public :: gsv_getOffsetFromVarName, gsv_getLevFromK, gsv_getVarNameFromK, gsv_hPad
   public :: gsv_writeToFileMpi, gsv_writeToFile, gsv_readFromFile, gsv_readTrials, gsv_readFile
   public :: gsv_hInterpolate, gsv_hInterpolate_r4, gsv_vInterpolate, gsv_vInterpolate_r4
   public :: gsv_getField_r8, gsv_getField3D_r8, gsv_getField_r4, gsv_getField3D_r4
@@ -806,6 +806,88 @@ module gridStateVector_mod
     endif
 
   end subroutine gsv_copy
+
+  !--------------------------------------------------------------------------
+  ! GSV_hPad
+  !--------------------------------------------------------------------------
+  subroutine gsv_hPad(statevector_in,statevector_out)
+    implicit none
+    type(struct_gsv)  :: statevector_in,statevector_out
+    integer           :: jstep,jlon,jlev,jlat
+    integer           :: lonBeg_in, lonEnd_in, latBeg_in, latEnd_in, kBeg, kEnd
+
+    if(.not.statevector_in%allocated) then
+      call utl_abort('gsv_hPad: gridStateVector_in not yet allocated! Aborting.')
+    endif
+    if(.not.statevector_out%allocated) then
+      call utl_abort('gsv_hPad: gridStateVector_out not yet allocated! Aborting.')
+    endif
+    if(statevector_in%mpi_local .or. statevector_out%mpi_local) then
+       call utl_abort('gsv_hPad: both gridStateVectors must be NO MPI! Aborting.')
+    end if
+
+    lonBeg_in=statevector_in%myLonBeg
+    lonEnd_in=statevector_in%myLonEnd
+    latBeg_in=statevector_in%myLatBeg
+    latEnd_in=statevector_in%myLatEnd
+    kBeg=statevector_in%mykBeg
+    kEnd=statevector_in%mykEnd
+
+    if(lonBeg_in > statevector_out%myLonBeg .or. &
+       lonEnd_in > statevector_out%myLonEnd .or. &
+       latBeg_in > statevector_out%myLatBeg .or. &
+       latEnd_in > statevector_out%myLatEnd ) then
+      call utl_abort('gsv_hPad: StateVector_out is SMALLER than StateVector_in! Aborting.')
+    endif
+    if( kBeg /= statevector_out%mykBeg .or. kEnd /= statevector_out%mykEnd) then
+      call utl_abort('gsv_hPad: Vertical levels are not compatible! Aborting.')
+    endif
+
+    if( statevector_out%dataKind == 8 .and. statevector_in%dataKind == 8 ) then
+
+      statevector_out%gzSfc(:,:) = 0.d0
+      if ( associated(statevector_in%gzSfc) .and. associated(statevector_out%gzSfc) ) then
+        statevector_out%gzSfc(lonBeg_in:lonEnd_in,latBeg_in:latEnd_in) = statevector_in%gzSfc(:,:)
+      end if
+
+!$OMP PARALLEL DO PRIVATE (jstep,jlat,jlev,jlon)    
+      do jlev = kBeg, kEnd
+        do jstep = 1, statevector_out%numStep
+          statevector_out%gd_r8(:,:,jlev,jstep) = 0.d0
+          do jlat = latBeg_in, latEnd_in
+            do jlon = lonBeg_in, lonEnd_in
+              statevector_out%gd_r8(jlon,jlat,jlev,jstep) = statevector_in%gd_r8(jlon,jlat,jlev,jstep)
+            end do
+          end do
+        end do
+      end do
+!$OMP END PARALLEL DO
+
+    elseif( statevector_out%dataKind == 4 .and. statevector_in%dataKind == 4 ) then
+
+      statevector_out%gzSfc(:,:) = 0.0
+      if ( associated(statevector_in%gzSfc) .and. associated(statevector_out%gzSfc) ) then
+        statevector_out%gzSfc(lonBeg_in:lonEnd_in,latBeg_in:latEnd_in) = statevector_in%gzSfc(:,:)
+      end if
+
+!$OMP PARALLEL DO PRIVATE (jstep,jlat,jlev,jlon)    
+      do jlev = kBeg, kEnd
+        do jstep = 1, statevector_out%numStep
+          statevector_out%gd_r4(:,:,jlev,jstep) = 0.0
+          do jlat = latBeg_in, latEnd_in
+            do jlon = lonBeg_in, lonEnd_in
+              statevector_out%gd_r4(jlon,jlat,jlev,jstep) = statevector_in%gd_r4(jlon,jlat,jlev,jstep)
+            end do
+          end do
+        end do
+      end do
+!$OMP END PARALLEL DO
+
+    else
+      call utl_abort('gsv_hPad: Data type must be the same for both statevectors')
+    end if
+
+  end subroutine gsv_hPad
 
   !--------------------------------------------------------------------------
   ! GSV_power

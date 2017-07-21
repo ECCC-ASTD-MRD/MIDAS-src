@@ -6,4 +6,9 @@
     <MODULE  name="UnitTest"/>
   </FAMILY>
 
+  <FAMILY  name="EnVar_biFourrier_xc40">
+    <SUBMITS sub_name="UnitTest"/>
+    <MODULE  name="UnitTest"/>
+  </FAMILY>
+
 </MODULE>

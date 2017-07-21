@@ -22,6 +22,7 @@
 !!
 !--------------------------------------------------------------------------
 module LamSpectralTransform_mod
+  use mpi
   use mpivar_mod
   use MathPhysConstants_mod, only: MPC_RADIANS_PER_DEGREE_R8, MPC_PI_R8
   use earthconstants_mod,    only: RA
@@ -67,9 +68,10 @@ module LamSpectralTransform_mod
      integer                         :: mmax, nmax
      integer                         :: ktrunc
      integer                         :: nla
+     integer                         :: maxnla
      integer                         :: nlaGlobal
-     integer                         :: mymBeg, mymEnd, mymSkip, mymCount, maxmCount
-     integer                         :: mynBeg, mynEnd, mynSkip, mynCount, maxnCount
+     integer                         :: mymBeg, mymEnd, mymSkip, mymCount, mymActiveCount,maxmActiveCount
+     integer                         :: mynBeg, mynEnd, mynSkip, mynCount
      integer, allocatable            :: nla_Index(:,:)
      real(8), allocatable            :: lapxy(:)
      real(8), allocatable            :: ilapxy(:)
@@ -84,7 +86,11 @@ module LamSpectralTransform_mod
      integer, allocatable            :: allLatBeg(:), allLatEnd(:)
      integer, allocatable            :: allLonBeg(:), allLonEnd(:)
      integer, allocatable            :: allLevBeg(:), allLevEnd(:)
+     integer, allocatable            :: KfromMNglb(:,:)
      character(len=10)               :: MpiMode
+     character(len=3)                :: gridDataOrder ! Ordering the gridded data: 'ijk' or 'kij'
+     integer                         :: sendType_LevToLon, recvType_LevToLon
+     integer                         :: sendType_LonToLev, recvType_LonToLev
   end type struct_lst_local
 
   integer,parameter      :: nMaxLst = 10
@@ -99,13 +105,15 @@ module LamSpectralTransform_mod
                                                  !                     c) sin(m)cos(n)
                                                  !                     d) cos(m)sin(n)
 
+  logical, parameter :: verbose = .false.
+
 contains
 
 !--------------------------------------------------------------------------
 ! LST_SETUP
 !--------------------------------------------------------------------------
   subroutine lst_Setup( lst_out, ni_in, nj_in, dlon_in, ktrunc_in,    &
-                        MpiMode, maxlevels_in )
+                        MpiMode, maxlevels_in, gridDataOrder )
     implicit none
 
     integer,          intent(in)    :: ni_in, nj_in    
@@ -118,13 +126,14 @@ contains
                                      ! Spectral Truncation (global)
     integer, intent(in), optional   :: maxlevels_in
                                      ! Number of levels; Only needed when MpiMode = LatLev
+    character(len=*), intent(in), optional :: gridDataOrder
+                                     ! 'ijk' or 'kij'
     type(struct_lst), intent(out)   :: lst_out
                                      ! Parameters available to the outside world
 
     real(8), allocatable            :: Kr8fromMN(:,:)
 
     integer, allocatable            :: KfromMN(:,:)
-    integer, allocatable            :: KfromMNglb(:,:)
     integer, allocatable            :: my_KfromMNglb(:,:)
     integer                         :: kref, mref, nref, id
     integer                         :: m, n, k, ila, nfact
@@ -134,25 +143,18 @@ contains
     real(8)                         :: NormFactor1, NormFactor2, NormFactor3
     real(8)                         :: NormFactorAd1, NormFactorAd2, NormFactorAd3
     real(8)                         :: factor, factorAd
-    !integer                         :: nulnam, ierr, fnom, fclos
     character(len=60)               :: kreftype
 
-    !NAMELIST /NAMSPECTRAL/kreftype
-
-    !
-    !- 0. Read namelist
-    !
-    kreftype = 'MAX' ! default value
-
-    !nulnam = 0
-    !ierr   = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-    !read (nulnam,nml=NAMSPECTRAL)
-    !write(*     ,nml=NAMSPECTRAL)
-    !ierr=fclos(nulnam)
+    integer(kind=MPI_ADDRESS_KIND) :: lowerBound, extent
+    integer :: realSize, sendType, recvType, ierr
 
     !
     !- 1.  Set variables needed by the LAM Spectral Transform in VAR
     !
+    if (verbose) write(*,*) 'Entering lst_Setup'
+
+    kreftype = 'MAX' ! hardwired
+
     nLstAlreadyAllocated = nLstAlreadyAllocated + 1
     if (nLstAlreadyAllocated <= nMaxLst) then
        id = nLstAlreadyAllocated
@@ -297,36 +299,7 @@ contains
        if ( .not.present(maxlevels_in) ) then
           call utl_abort('lst_setup: ERROR, number of levels must be specified with MpiMode LatLonMN')
        end if
-            ! 2D MPI decomposition: split levels across npex
-       call mpivar_setup_levels_npex( maxlevels_in,                                        & ! IN
-                                      lst(id)%myLevBeg,lst(id)%myLevEnd,lst(id)%myLevCount ) ! OUT
-
-       case ('LatLonMLev')
-       !- 1.4.3 MPI 2D: Distribution of lon/lat tiles (gridpoint space) and levels/m (spectral space)
-
-       ! range of LONS handled by this processor in GRIDPOINT SPACE
-       call mpivar_setup_lonbands( lst(id)%ni,                                       & ! IN
-                                   lst(id)%lonPerPE,lst(id)%myLonBeg,lst(id)%myLonEnd) ! OUT
-
-       ! range of LATS handled by this processor in GRIDPOINT SPACE
-       call mpivar_setup_latbands( lst(id)%nj,                                       & ! IN
-                                   lst(id)%latPerPE,lst(id)%myLatBeg,lst(id)%myLatEnd) ! OUT
-
-       ! range of M handled by this processor in SPECTRAL SPACE
-       call mpivar_setup_m( lst(id)%mmax,                                                     & ! IN
-                            lst(id)%mymBeg, lst(id)%mymEnd, lst(id)%mymSkip, lst(id)%mymCount ) ! OUT
-
-       ! range of N handled by this processor (ALL) in SPECTRAL SPACE 
-       lst(id)%mynBeg     = 0
-       lst(id)%mynEnd     = lst(id)%nmax
-       lst(id)%mynSkip    = 1
-       lst(id)%mynCount   = lst(id)%nmax + 1
-
-       ! range of LEVELS handled by this processor in SPECTRAL SPACE
-       if ( .not.present(maxlevels_in) ) then
-          call utl_abort('lst_setup: ERROR, number of levels must be specified with MpiMode LatLonMLev')
-       end if
-            ! 2D MPI decomposition: split levels across npex
+       ! 2D MPI decomposition: split levels across npex
        call mpivar_setup_levels_npex( maxlevels_in,                                        & ! IN
                                       lst(id)%myLevBeg,lst(id)%myLevEnd,lst(id)%myLevCount ) ! OUT
 
@@ -345,27 +318,23 @@ contains
     ! Set M index
     allocate(lst(id)%mymIndex(lst(id)%mymBeg:lst(id)%mymEnd))
     lst(id)%mymIndex(:)=0
-    !write(*,*)
     do m = lst(id)%mymBeg, lst(id)%mymEnd, lst(id)%mymSkip
       if (m == lst(id)%mymBeg ) then
         lst(id)%mymIndex(m) = 1
       else
         lst(id)%mymIndex(m) = lst(id)%mymIndex(m-lst(id)%mymSkip) + 1
       end if
-      !write(*,*) 'lst_setup: mymIndex(',m,')=',lst(id)%mymIndex(m)
     end do
     
     ! Set N index
     allocate(lst(id)%mynIndex(lst(id)%mynBeg:lst(id)%mynEnd))
     lst(id)%mynIndex(:)=0
-    !write(*,*)
     do n = lst(id)%mynBeg, lst(id)%mynEnd, lst(id)%mynSkip
       if (n == lst(id)%mynBeg ) then
         lst(id)%mynIndex(n) = 1
       else
         lst(id)%mynIndex(n) = lst(id)%mynIndex(n-lst(id)%mynSkip) + 1
       end if
-      !write(*,*) 'lst_setup: mynIndex(',n,')=',lst(id)%mynIndex(n)
     end do
 
     if ( trim(lst(id)%MpiMode) /= 'NoMpi') then
@@ -393,10 +362,6 @@ contains
       if ( mpi_myid == 0 ) write(*,*) 'AllLatEnd =', lst(id)%allLatEnd(:)
 
       ! Gathering with respect to M
-      call rpn_comm_allreduce(lst(id)%mymCount,lst(id)%maxmCount, &
-                                1,"MPI_INTEGER","MPI_MAX","GRID",ier)
-      if ( mpi_myid == 0 ) write(*,*) 'MaxmCount =',lst(id)%maxmCount
-
       allocate(lst(id)%allmBeg(mpi_npey))
       call rpn_comm_allgather(lst(id)%mymBeg ,1,"mpi_integer",       &
                               lst(id)%allmBeg,1,"mpi_integer","NS",ier)
@@ -411,11 +376,6 @@ contains
       call rpn_comm_allgather(lst(id)%mymSkip ,1,"mpi_integer",       &
                               lst(id)%allmSkip,1,"mpi_integer","NS",ier)
       if ( mpi_myid == 0 ) write(*,*) 'allmSkip = ', lst(id)%allmSkip(:)
-
-      ! Gathering with respect to N
-      call rpn_comm_allreduce(lst(id)%mynCount,lst(id)%maxnCount, &
-                                1,"MPI_INTEGER","MPI_MAX","GRID",ier)
-      if ( mpi_myid == 0 ) write(*,*) 'MaxnCount =',lst(id)%maxnCount
 
       allocate(lst(id)%allnBeg(mpi_npex))
       call rpn_comm_allgather(lst(id)%mynBeg ,1,"mpi_integer",       &
@@ -446,7 +406,43 @@ contains
       call rpn_comm_allgather(lst(id)%myLevEnd ,1,"mpi_integer",       &
                               lst(id)%allLevEnd,1,"mpi_integer","EW",ier)
       if ( mpi_myid == 0 ) write(*,*) 'AllLevEnd =', lst(id)%allLevEnd(:)
-    end if
+
+      ! Setup mpi derived types used in transposes
+      ! ... mpi_type_vector(count, blocklength, stride, ...)
+      ! ... mpi_type_create_resized(oldtype, lowerbound, extent(in bytes), newtype, ierr)
+   
+      call mpi_type_size(MPI_REAL8, realSize, ierr)
+      lowerBound = 0
+
+      ! create the send type for LevToLon
+      extent = lst(id)%maxLevCount * lst(id)%lonPerPE * realSize
+      call mpi_type_vector(lst(id)%latPerPE, lst(id)%maxLevCount * lst(id)%lonPerPE,  &
+           lst(id)%maxLevCount * lst(id)%ni, MPI_REAL8, sendtype, ierr)
+      call mpi_type_create_resized(sendtype, lowerBound , extent, lst(id)%sendType_LevToLon, ierr);
+      call mpi_type_commit(lst(id)%sendType_LevToLon,ierr)
+
+      ! create the receive type for LevToLon
+      extent = lst(id)%maxLevCount * realSize
+      call mpi_type_vector(lst(id)%lonPerPE * lst(id)%latPerPE , lst(id)%maxLevCount,  &
+           maxlevels_in, MPI_REAL8, recvtype, ierr);
+      call mpi_type_create_resized(recvtype, lowerBound, extent, lst(id)%recvType_LevToLon, ierr);
+      call mpi_type_commit(lst(id)%recvType_LevToLon, ierr)
+
+      ! create the send type for LonToLev
+      extent = lst(id)%maxLevCount * realSize
+      call mpi_type_vector(lst(id)%lonPerPE * lst(id)%latPerPE , lst(id)%maxLevCount,  &
+           maxlevels_in, MPI_REAL8, sendtype, ierr);
+      call mpi_type_create_resized(sendtype, lowerBound, extent, lst(id)%sendType_LonToLev, ierr);
+      call mpi_type_commit(lst(id)%sendType_LonToLev, ierr)
+      
+      ! create the recv type for LonToLev
+      extent = lst(id)%maxLevCount * lst(id)%lonPerPE * realSize
+      call mpi_type_vector(lst(id)%latPerPE, lst(id)%maxLevCount * lst(id)%lonPerPE,  &
+           lst(id)%maxLevCount * lst(id)%ni, MPI_REAL8, recvtype, ierr)
+      call mpi_type_create_resized(recvtype, lowerBound , extent, lst(id)%recvType_LonToLev, ierr);
+      call mpi_type_commit(lst(id)%recvType_LonToLev,ierr)
+      
+     end if
 
     !- 1.5 Compute the Total Wavenumber associated with weach m,n pairs and
     !      the number of spectral element in the VAR array (nla) 
@@ -505,16 +501,31 @@ contains
     end if
     lst(id)%nla = ila
     lst_out%nla = lst(id)%nla ! Number of spectral element per phase in the VAR array
+    if ( trim(lst(id)%MpiMode) /= 'NoMpi') then
+       call rpn_comm_allreduce(lst(id)%nla,lst(id)%maxnla, &
+            1,"MPI_INTEGER","MPI_MAX","GRID",ier)
+       if ( mpi_myid == 0 ) write(*,*) 'MaxNLA =',lst(id)%maxnla
+    end if
 
-    allocate( KfromMNglb(0:lst(id)%mmax,0:lst(id)%nmax) )
+    allocate( lst(id)%KfromMNglb(0:lst(id)%mmax,0:lst(id)%nmax) )
     allocate( my_KfromMNglb(0:lst(id)%mmax,0:lst(id)%nmax) )
     my_KfromMNglb = 0
     my_KFromMNglb(:,:) = KFromMN(:,:)
     if ( trim(lst(id)%MpiMode) /= 'NoMpi') then
-      call rpn_comm_allreduce(my_KFromMNglb,KFromMNglb, &
+      call rpn_comm_allreduce(my_KFromMNglb,lst(id)%KFromMNglb, &
                                 (lst(id)%mmax+1)*(lst(id)%nmax+1),"MPI_INTEGER","MPI_MAX","GRID",ier)
     end if
     deallocate(my_KfromMNglb) 
+
+    lst(id)%mymActiveCount=0
+    do m = lst(id)%mymBeg, lst(id)%mymEnd, lst(id)%mymSkip
+      if ( KfromMN(m,0) /= -1 ) lst(id)%mymActiveCount = lst(id)%mymActiveCount + 1
+    end do
+    if ( trim(lst(id)%MpiMode) /= 'NoMpi') then
+       call rpn_comm_allreduce(lst(id)%mymActiveCount,lst(id)%maxmActiveCount, &
+                               1,"MPI_INTEGER","MPI_MAX","GRID",ier)
+       if ( mpi_myid == 0 ) write(*,*) 'MaxmActiveCount =',lst(id)%maxmActiveCount
+    end if
 
     !- 1.6 VAR spectral element ordering &
     !      Total Wavenumbers and Weights associated with each spectral element
@@ -540,7 +551,7 @@ contains
        do m = 0, lst(id)%mmax
         k    = KfromMN(m,n)
 
-        if ( KfromMNglb(m,n) /= -1 ) ilaglb = ilaglb + 1 ! Global Index
+        if ( lst(id)%KfromMNglb(m,n) /= -1 ) ilaglb = ilaglb + 1 ! Global Index
 
         if ( k /= -1 ) then
           ila = ila+1
@@ -575,10 +586,27 @@ contains
 
     deallocate( Kr8fromMN )
     deallocate( KfromMN )
-    deallocate( KfromMNglb )
+
+    !- 1.7 Gridded data ordering (input/output)
+    if (present(gridDataOrder)) then
+       lst(id)%gridDataOrder = trim(gridDataOrder)
+    else
+       lst(id)%gridDataOrder = 'ijk' ! default value
+    end if
+
+    select case ( trim(lst(id)%gridDataOrder) )
+    case ('ijk')
+       write(*,*) 'lst_setup: gridded data ordering = IJK' 
+    case ('kij')
+       write(*,*) 'lst_setup: gridded data ordering = KIJ'
+    case default
+       write(*,*)
+       write(*,*) 'Error: gridDataOrder Unknown ', trim(gridDataOrder)
+       call utl_abort('lst_setup')
+    end select
 
     !
-    !- 3.  Set factors for parseval identity
+    !- 2.  Set factors for parseval identity
     !
     allocate( lst_out%NormFactor  (lst(id)%nla,nphase))
     allocate( lst_out%NormFactorAd(lst(id)%nla,nphase))
@@ -676,6 +704,45 @@ contains
     character(len=*), intent(in)    :: TransformDirection
                                      ! SpectralToGridPoint or
                                      ! GridPointToSpectral
+    real(8),          intent(inout) :: GridState(:,:,:)
+                                     ! 3D field in grid point space
+    real(8),          intent(inout) :: SpectralStateVar(:,:,:)
+                                     ! 3D spectral coefficients
+
+    !
+    !- 0. Some tests...
+    !
+    if (verbose) write(*,*) 'Entering lst_varTransform'
+
+    call idcheck(id)
+
+    !
+    !- 1. Call the appropriate transform
+    !
+    if ( trim(lst(id)%gridDataOrder) == 'ijk' ) then
+       call lst_VarTransform_ijk( id, SpectralStateVar, GridState, &
+                                  TransformDirection, nk)
+    else
+       call lst_VarTransform_kij( id, SpectralStateVar, GridState, &
+                                  TransformDirection, nk)
+    end if
+
+  end subroutine lst_VarTransform
+
+!--------------------------------------------------------------------------
+! LST_VARTRANSFORM_IJK
+!--------------------------------------------------------------------------
+  subroutine lst_VarTransform_ijk( id, SpectralStateVar, GridState,        &
+                                   TransformDirection, nk)
+    implicit none
+
+    integer,          intent(in)    :: id
+                                     ! LST ID
+    integer,          intent(in)    :: nk
+                                     ! Grid point data dimensions
+    character(len=*), intent(in)    :: TransformDirection
+                                     ! SpectralToGridPoint or
+                                     ! GridPointToSpectral
     real(8),          intent(inout) :: GridState(lst(id)%myLonBeg:lst(id)%myLonEnd,lst(id)%myLatBeg:lst(id)%myLatEnd,nk)
                                      ! 3D field in grid point space
     real(8),          intent(inout) :: SpectralStateVar(:,:,:)
@@ -694,17 +761,13 @@ contains
     character(len=1)                :: TransformAxe
 
     !
-    !- 0. Some tests...
-    !
-    call idcheck(id)
-
-    !
     !- 1. Data pre-processing (Input -> Step0)
     !
+    if (verbose) write(*,*) 'Entering lst_varTransform_ijk'
 
     !- 1.1 Settings and Data Selection
-    select case ( trim(TransformDirection) )
-    case ('GridPointToSpectral')
+
+    if ( trim(TransformDirection) == 'GridPointToSpectral' ) then
        iStart = 1 
        iEnd   = lst(id)%ni
        jStart = lst(id)%myLatBeg
@@ -716,32 +779,7 @@ contains
          kStart= lst(id)%myLevBeg
          kEnd  = lst(id)%myLevEnd
        end if
-    case ('SpectralToGridPoint')
-       iStart = 1
-       iEnd   = 2*lst(id)%mymCount
-       jStart = 1
-       jEnd   = 2*lst(id)%mynCount
-       if (trim(lst(id)%MpiMode) == 'LatLonMLev') then
-         kStart= lst(id)%myLevBeg
-         kEnd  = lst(id)%myLevEnd
-       else
-         kStart= 1
-         kEnd  = nk
-       end if
-    case default
-       write(*,*)
-       write(*,*) 'Error: TranformDirection Unknown ', trim(TransformDirection)
-       call utl_abort('lst_VarTransform')
-    end select
-
-    allocate( Step0(iStart:iEnd,jStart:jEnd,kStart:kEnd) )
-    Step0(:,:,:) = 0.d0
-
-    if ( trim(TransformDirection) == 'SpectralToGridPoint' ) then
-       call lst_ReshapeTrunc( Step0,                       & ! OUT
-                              SpectralStateVar,            & ! IN
-                              'ToRPN', kStart, kEnd, id )    ! IN
-    else
+       allocate( Step0(iStart:iEnd,jStart:jEnd,kStart:kEnd) )
        if ( trim(lst(id)%MpiMode) == 'NoMpi') then
          Step0(:,:,:) = GridState(:,:,:)
        else
@@ -789,21 +827,21 @@ contains
     end select
 
     allocate( Step1(ni_l+nip_l,nj_l+njp_l,kStart:kEnd) )
-    Step1(:,:,:) = 0.d0
 
     !- 1.2 Spectral transform
     if ( trim(TransformDirection) == 'SpectralToGridPoint' ) then
-       if ( trim(lst(id)%MpiMode) == 'NoMpi' .or. trim(lst(id)%MpiMode) == 'LatLonMLev') then
-         Step1(:,:,:) = Step0(:,:,:)
+       if ( trim(lst(id)%MpiMode) == 'NoMpi' ) then
+         call lst_ReshapeTrunc( Step1,                       & ! OUT
+                                SpectralStateVar,            & ! IN
+                                'ToRPN', kStart, kEnd, id )    ! IN
        else
-         call transpose2d_NToLev( Step1,        & ! OUT
-                                  Step0, nk, id ) ! IN
+         call transpose2d_NToLev( Step1,                   & ! OUT
+                                  SpectralStateVar, nk, id ) ! IN
        end if
     else
        Step1(1:lst(id)%ni,1:lst(id)%latPerPE,:) = Step0(1:lst(id)%ni,lst(id)%myLatBeg:lst(id)%myLatEnd,:)
+       deallocate( Step0 )
     end if
-
-    deallocate( Step0 )
 
     call lst_transform1d( Step1,                       & ! INOUT
                           TransformDirection,          & ! IN
@@ -845,7 +883,6 @@ contains
     end if
 
     allocate( Step2(ni_l+nip_l,nj_l+njp_l,kStart:kEnd) )
-    Step2(:,:,:) = 0.d0
 
     !- 2.2 Communication between processors
     
@@ -884,13 +921,8 @@ contains
        iEnd   = 2*lst(id)%mymCount
        jStart = 1
        jEnd   = 2*lst(id)%mynCount
-       if (trim(lst(id)%MpiMode) == 'LatLonMLev') then
-         kStart= lst(id)%myLevBeg
-         kEnd  = lst(id)%myLevEnd
-       else
-         kStart= 1
-         kEnd  = nk
-       end if
+       kStart= 1
+       kEnd  = nk
     case ('SpectralToGridPoint')
        iStart = 1
        iEnd   = lst(id)%lonPerPE
@@ -904,24 +936,21 @@ contains
        call utl_abort('lst_VarTransform')
     end select
 
-    allocate( Step3(iStart:iEnd,jStart:jEnd,kStart:kEnd) )
-    Step3(:,:,:) = 0.d0
-
     if ( trim(TransformDirection) == 'GridPointToSpectral' ) then
 
-       ! Communication between processors
-       if ( trim(lst(id)%MpiMode) == 'NoMpi' .or. trim(lst(id)%MpiMode) == 'LatLonMLev') then
-         Step3(:,:,:) = Step2(:,:,:)
+       ! Communication between processors (Truncation (if applicable) will occur in this step)
+       if ( trim(lst(id)%MpiMode) == 'NoMpi' ) then
+         call lst_ReshapeTrunc( Step2,             &  ! IN
+                                SpectralStateVar,  &  ! OUT
+                                'ToVAR', kStart, kEnd, id )     ! IN
        else
-         call transpose2d_LevToN( Step3,        & ! OUT
-                                  Step2, nk, id ) ! IN
+         call transpose2d_LevToN(SpectralStateVar, & ! OUT
+                                 Step2, nk, id )     ! IN
        end if
 
-       ! Truncation (if applicable) will occur in this step
-       call lst_ReshapeTrunc( Step3,             &  ! IN
-                              SpectralStateVar,  &  ! OUT
-                              'ToVAR', kStart, kEnd, id )     ! IN
     else
+
+       allocate( Step3(iStart:iEnd,jStart:jEnd,kStart:kEnd) )
 
        ! Communication between processors
        if ( trim(lst(id)%MpiMode) == 'NoMpi') then
@@ -933,11 +962,254 @@ contains
 
        GridState(lst(id)%myLonBeg:lst(id)%myLonEnd,lst(id)%myLatBeg:lst(id)%myLatEnd,:) = Step3(1:lst(id)%lonPerPE,1:lst(id)%latPerPE,:)
 
+       deallocate(Step3)
+
     end if
 
-    deallocate( Step2, Step3 )
+    deallocate(Step2)
 
-  end subroutine lst_VarTransform
+  end subroutine lst_VarTransform_ijk
+
+!--------------------------------------------------------------------------
+! LST_VARTRANSFORM_KIJ
+!--------------------------------------------------------------------------
+  subroutine lst_VarTransform_kij( id, SpectralStateVar, GridState,        &
+                                   TransformDirection, nk)
+    implicit none
+
+    integer,          intent(in)    :: id
+                                     ! LST ID
+    integer,          intent(in)    :: nk
+                                     ! Grid point data dimensions
+    character(len=*), intent(in)    :: TransformDirection
+                                     ! SpectralToGridPoint or
+                                     ! GridPointToSpectral
+    real(8),          intent(inout) :: GridState(nk,lst(id)%myLonBeg:lst(id)%myLonEnd,lst(id)%myLatBeg:lst(id)%myLatEnd)
+                                     ! 3D field in grid point space
+    real(8),          intent(inout) :: SpectralStateVar(:,:,:)
+                                     ! 3D spectral coefficients
+
+    integer                         :: m, n, k, ni_l, nj_l, nip_l, njp_l
+    integer                         :: iStart, iEnd, jStart, jEnd, kStart, kEnd
+
+    integer                         :: i, j
+
+    real(8), allocatable            :: Step0(:,:,:)
+    real(8), allocatable            :: Step1(:,:,:)
+    real(8), allocatable            :: Step2(:,:,:)
+    real(8), allocatable            :: Step3(:,:,:)
+
+    character(len=1)                :: TransformAxe
+
+    !
+    !- 1. Data pre-processing (Input -> Step0)
+    !
+    if (verbose) write(*,*) 'Entering lst_varTransform_kij'
+
+    !- 1.1 Settings and Data Selection
+
+    if ( trim(TransformDirection) == 'GridPointToSpectral' ) then
+       iStart = 1 
+       iEnd   = lst(id)%ni
+       jStart = lst(id)%myLatBeg
+       jEnd   = lst(id)%myLatEnd
+       if ( trim(lst(id)%MpiMode) == 'NoMpi') then
+         kStart= 1
+         kEnd  = nk
+       else
+         kStart= lst(id)%myLevBeg
+         kEnd  = lst(id)%myLevEnd
+       end if
+       allocate( Step0(kStart:kEnd,iStart:iEnd,jStart:jEnd) )
+       if ( trim(lst(id)%MpiMode) == 'NoMpi') then
+         Step0(:,:,:) = GridState(:,:,:)
+       else
+         call transpose2d_LonToLev_kij( Step0,            & ! OUT
+                                        GridState, nk, id ) ! IN
+       end if
+    end if
+
+    !
+    !- 1.  First pass (Step0 -> Step1)
+    !
+
+    !- 1.1 Settings and Data Selection
+    select case ( trim(TransformDirection) )
+    case ('GridPointToSpectral')
+       TransformAxe = 'i'
+       ni_l  = lst(id)%ni
+       nip_l = nip
+       nj_l  = lst(id)%latPerPE
+       njp_l = 0
+       if ( trim(lst(id)%MpiMode) == 'NoMpi') then
+         kStart= 1
+         kEnd  = nk
+       else
+         kStart= lst(id)%myLevBeg
+         kEnd  = lst(id)%myLevEnd
+       end if
+    case ('SpectralToGridPoint')
+       TransformAxe = 'j'
+       ni_l  = 2*lst(id)%mymCount
+       nip_l = 0
+       nj_l  = lst(id)%nj
+       njp_l = njp
+       if ( trim(lst(id)%MpiMode) == 'NoMpi') then
+         kStart= 1
+         kEnd  = nk
+       else
+         kStart= lst(id)%myLevBeg
+         kEnd  = lst(id)%myLevEnd
+       end if
+    case default
+       write(*,*)
+       write(*,*) 'Error: TranformDirection Unknown ', trim(TransformDirection)
+       call utl_abort('lst_VarTransform')
+    end select
+
+    allocate( Step1(kStart:kEnd,ni_l+nip_l,nj_l+njp_l) )
+
+    !- 1.2 Spectral transform
+    if ( trim(TransformDirection) == 'SpectralToGridPoint' ) then
+       if ( trim(lst(id)%MpiMode) == 'NoMpi' ) then
+         call lst_ReshapeTrunc_kij( Step1,                       & ! OUT
+                                    SpectralStateVar,            & ! IN
+                                    'ToRPN', kStart, kEnd, id )    ! IN
+       else
+         call transpose2d_NToLev_kij( Step1,                   & ! OUT
+                                      SpectralStateVar, nk, id ) ! IN
+       end if
+    else
+       Step1(:,1:lst(id)%ni,1:lst(id)%latPerPE) = Step0(:,1:lst(id)%ni,lst(id)%myLatBeg:lst(id)%myLatEnd)
+       deallocate( Step0 )
+    end if
+
+    call lst_transform1d_kij( Step1,                       & ! INOUT
+                              TransformDirection,          & ! IN
+                              TransformAxe,                & ! IN
+                              ni_l, nj_l, nip_l, njp_l,    & ! IN
+                              kStart, kEnd )                 ! IN
+
+    !
+    !- 2.0 Second pass (Step1 -> Step2)
+    !   
+
+    !- 2.1 Settings
+    if ( trim(TransformDirection) == 'GridPointToSpectral' ) then
+       TransformAxe = 'j'
+       ni_l  = 2*lst(id)%mymCount
+       nip_l = 0
+       nj_l  = lst(id)%nj
+       njp_l = njp
+       if ( trim(lst(id)%MpiMode) == 'NoMpi') then
+         kStart= 1
+         kEnd  = nk
+       else
+         kStart= lst(id)%myLevBeg
+         kEnd  = lst(id)%myLevEnd
+       end if
+    else
+       TransformAxe = 'i'
+       ni_l  = lst(id)%ni
+       nip_l = nip
+       nj_l  = lst(id)%latPerPE
+       njp_l = 0
+       if ( trim(lst(id)%MpiMode) == 'NoMpi') then
+         kStart= 1
+         kEnd  = nk
+       else
+         kStart= lst(id)%myLevBeg
+         kEnd  = lst(id)%myLevEnd
+       end if
+    end if
+
+    allocate( Step2(kStart:kEnd,ni_l+nip_l,nj_l+njp_l) )
+
+    !- 2.2 Communication between processors
+    
+    if ( trim(TransformDirection) == 'GridPointToSpectral' ) then
+       if      ( trim(lst(id)%MpiMode) == 'NoMpi') then
+         Step2(:,1:lst(id)%nj,:) = Step1(:,1:lst(id)%nj,:)
+       else
+         call transpose2d_LatToM_kij( Step2,    & ! OUT
+                                      Step1, id ) ! IN
+       end if
+    else
+       if      ( trim(lst(id)%MpiMode) == 'NoMpi') then
+         Step2(:,1:lst(id)%nj,:) = Step1(:,1:lst(id)%nj,:)
+       else
+          call transpose2d_MToLat_kij( Step2,    & ! OUT
+                                       Step1, id ) ! IN
+       end if
+    end if
+
+    deallocate( Step1 )
+
+    !- 2.3 Spectral Transform
+    call lst_transform1d_kij( Step2,                      & ! INOUT
+                              TransformDirection,         & ! IN
+                              TransformAxe,               & ! IN
+                              ni_l, nj_l, nip_l, njp_l,   & ! IN
+                              kStart, kEnd )                ! IN
+
+    !
+    !- 3.0 Post-processing (Step2 -> Step3 -> Output)
+    ! 
+
+    select case ( trim(TransformDirection) )
+    case ('GridPointToSpectral')
+       iStart = 1 
+       iEnd   = 2*lst(id)%mymCount
+       jStart = 1
+       jEnd   = 2*lst(id)%mynCount
+       kStart= 1
+       kEnd  = nk
+    case ('SpectralToGridPoint')
+       iStart = 1
+       iEnd   = lst(id)%lonPerPE
+       jStart = 1
+       jEnd   = lst(id)%latPerPE
+       kStart = 1
+       kEnd   = nk
+    case default
+       write(*,*)
+       write(*,*) 'Error: TranformDirection Unknown ', trim(TransformDirection)
+       call utl_abort('lst_VarTransform')
+    end select
+
+    if ( trim(TransformDirection) == 'GridPointToSpectral' ) then
+
+       ! Communication between processors (Truncation (if applicable) will occur in this step)
+       if ( trim(lst(id)%MpiMode) == 'NoMpi' ) then
+         call lst_ReshapeTrunc_kij( Step2,             &  ! IN
+                                    SpectralStateVar,  &  ! OUT
+                                    'ToVAR', kStart, kEnd, id )     ! IN
+       else
+         call transpose2d_LevToN_kij(SpectralStateVar, & ! OUT
+                                     Step2, nk, id )     ! IN
+       end if
+
+    else
+
+       allocate( Step3(kStart:kEnd,iStart:iEnd,jStart:jEnd) )
+
+       ! Communication between processors
+       if ( trim(lst(id)%MpiMode) == 'NoMpi') then
+         Step3(:,:,:) = Step2(:,1:lst(id)%ni,:)
+       else
+         call transpose2d_LevToLon_kij( Step3,                          & ! OUT
+                                        Step2(:,1:lst(id)%ni,:), nk, id ) ! IN
+       end if
+
+       GridState(:,lst(id)%myLonBeg:lst(id)%myLonEnd,lst(id)%myLatBeg:lst(id)%myLatEnd) = Step3(:,1:lst(id)%lonPerPE,1:lst(id)%latPerPE)
+
+       deallocate(Step3)
+
+    end if
+
+    deallocate(Step2)
+
+  end subroutine lst_VarTransform_kij
 
 !--------------------------------------------------------------------------
 ! LST_TRANSFORM1D
@@ -968,6 +1240,8 @@ contains
     !
     !- 1.  Set some options
     !
+    if (verbose) write(*,*) 'Entering lst_transform1d'
+    call tmg_start(24,'LST_FFT')
 
     !- 1.1 Transform Direction
     select case ( trim(TransformDirection) )
@@ -1039,40 +1313,143 @@ contains
     !*     isign  = +1 for transform from spectral to gridpoint
     !*            = -1 for transform from gridpoint to spectral
 
+    call tmg_stop(24)
+
   end subroutine lst_transform1d
+
+!--------------------------------------------------------------------------
+! LST_TRANSFORM1D_KIJ
+!--------------------------------------------------------------------------
+  subroutine lst_transform1d_kij( Field3d,            &
+                                  TransformDirection, &
+                                  TransformAxe,       &
+                                  ni_l, nj_l, nip_l, njp_l, kStart, kEnd)
+    implicit none
+
+    integer,          intent(in)        :: ni_l, nj_l, kStart, kEnd
+                                         ! Grid point data dimensions
+    integer,          intent(in)        :: nip_l, njp_l
+                                         ! Extra point in spectral space
+    character(len=*), intent(in)        :: TransformDirection
+                                         ! SpectralToGridPoint or
+                                         ! GridPointToSpectral
+    character(len=*), intent(in)        :: TransformAxe
+                                         ! 'i' or 'j'
+    real(8),          intent(inout)     :: Field3d(kStart:kEnd,1:ni_l+nip_l,1:nj_l+njp_l)  
+                                         ! InOut 3D field
+
+    integer :: nit, njt
+    integer :: way, type
+    integer :: maxsize
+    integer :: axe, n, nlot, nfact, np, lot, nk, k
+
+    !
+    !- 1.  Set some options
+    !
+    if (verbose) write(*,*) 'Entering lst_transform1d_kij'
+    call tmg_start(24,'LST_FFT')
+
+    !- 1.1 Transform Direction
+    select case ( trim(TransformDirection) )
+    case ('GridPointToSpectral')
+       way = -1
+    case ('SpectralToGridPoint')
+       way = +1
+    case default
+       write(*,*)
+       write(*,*) 'Error: TranformDirection Unknown ', trim(TransformDirection)
+       call utl_abort('lst_VarTransform')
+    end select
+
+    nk = kEnd - kStart + 1
+
+    !
+    !- 2.  Do the transforms in one direction
+    !
+    select case ( trim(TransformAxe) )
+    case ('i')
+       !- 2.1 First pass  --> Along INDEX "I"
+       axe = 0
+       n   = ni_l
+       np  = nip_l
+       nlot= nj_l
+    case ('j')
+       !- 2.2 Second pass --> Along INDEX "J"
+       axe = 1
+       n   = nj_l
+       np  = njp_l
+       nlot= ni_l
+    case default
+       write(*,*)
+       write(*,*) 'Error: TranformAxe Unknown ', trim(TransformAxe)
+       call utl_abort('lst_VarTransform')
+    end select
+
+    !- 1.2 Fast or Slow Fourier Transform ?
+    nfact = n
+    call ngfft( nfact ) ! INOUT
+
+    if (nfact == n ) then
+       call setfft8( n ) ! IN
+    else
+       call utl_abort('lst_VarTransform: This module can only handle fast sin&cos FFT')
+    end if
+
+    select case ( trim(TransformAxe) )
+    case ('i')
+!$OMP PARALLEL DO PRIVATE(lot,k)
+       do lot = 1, nlot
+          call ffft8(Field3d(:,:,lot), nk, 1, nk, way)
+       end do
+!$OMP END PARALLEL DO
+    case ('j')
+!$OMP PARALLEL DO PRIVATE(lot,k)
+       do lot = 1, nlot
+          call ffft8(Field3d(:,lot,:), nk, 1, nk, way)
+       end do
+!$OMP END PARALLEL DO
+    end select
+
+    !*     subroutine ffft8( a, inc, jump, lot, isign )
+    !*     a      is the array containing input & output data
+    !*     inc    is the increment within each data 'vector'
+    !*            (e.g. inc=1 for consecutively stored data)
+    !*     jump   is the increment between the start of each data vector
+    !*     lot    is the number of data vectors
+    !*     isign  = +1 for transform from spectral to gridpoint
+    !*            = -1 for transform from gridpoint to spectral
+
+    call tmg_stop(24)
+
+  end subroutine lst_transform1d_kij
 
 !--------------------------------------------------------------------------
 ! LST_Transpose2d_LonToLev
 !--------------------------------------------------------------------------
-  SUBROUTINE transpose2d_LonToLev(pgd_out, pgd_in, nk, id)
+  SUBROUTINE transpose2d_LonToLev(gd_out, gd_in, nk, id)
     implicit none
 
     integer, intent(in) :: nk, id
 
-    real(8), intent(in) :: pgd_in(lst(id)%myLonBeg:lst(id)%myLonEnd, lst(id)%myLatBeg:lst(id)%myLatEnd, nk)
-    real(8), intent(out):: pgd_out(lst(id)%ni, lst(id)%myLatBeg:lst(id)%myLatEnd, lst(id)%myLevBeg:lst(id)%myLevEnd)
+    real(8), intent(in) :: gd_in(lst(id)%myLonBeg:lst(id)%myLonEnd, lst(id)%myLatBeg:lst(id)%myLatEnd, nk)
+    real(8), intent(out):: gd_out(lst(id)%ni, lst(id)%myLatBeg:lst(id)%myLatEnd, lst(id)%myLevBeg:lst(id)%myLevEnd)
 
-    real(8) :: gd_send(lst(id)%lonPerPE, lst(id)%maxLevCount, lst(id)%latPerPE, mpi_npex)
-    real(8) :: gd_recv(lst(id)%lonPerPE, lst(id)%maxLevCount, lst(id)%latPerPE, mpi_npex)
+    real(8) :: gd_send(lst(id)%lonPerPE, lst(id)%latPerPE, lst(id)%maxLevCount, mpi_npex)
+    real(8) :: gd_recv(lst(id)%lonPerPE, lst(id)%latPerPE, lst(id)%maxLevCount, mpi_npex)
 
-    integer :: yourid, nsize, ierr, jlev, jlev2, jlat, jlat2, jlon, jlon2
+    integer :: yourid, nsize, ierr, levIndex, levIndex2, latIndex, latIndex2, lonIndex, lonIndex2
 
-    if(mpi_doBarrier) call rpn_comm_barrier("GRID",ierr)
+    if (verbose) write(*,*) 'Entering transpose2d_LonToLev'
+    call rpn_comm_barrier("GRID",ierr)
 
     call tmg_start(28,'TRANSP_2D_LEVtoLON')
 
-!$OMP PARALLEL DO PRIVATE(yourid,jlat,jlat2,jlev,jlev2,jlon,jlon2)
+!$OMP PARALLEL DO PRIVATE(yourid,levIndex,levIndex2)
     do yourid = 0, (mpi_npex-1)
-      do jlat = lst(id)%myLatBeg, lst(id)%myLatEnd
-        jlat2 = jlat - lst(id)%myLatBeg + 1
-        do jlev = lst(id)%allLevBeg(yourid+1), lst(id)%allLevEnd(yourid+1)
-          jlev2 = jlev-lst(id)%allLevBeg(yourid+1)+1
-          do jlon = lst(id)%myLonBeg, lst(id)%myLonEnd
-            jlon2 = jlon - lst(id)%myLonBeg + 1
-            gd_send(jlon2,jlev2,jlat2,yourid+1) = pgd_in(jlon,jlat,jlev)
-          end do
-        end do
-      end do
+       do levIndex = lst(id)%allLevBeg(yourid+1), lst(id)%allLevEnd(yourid+1)
+          levIndex2 = levIndex-lst(id)%allLevBeg(yourid+1)+1
+          gd_send(:,:,levIndex2,yourid+1) = gd_in(:,:,levIndex)
+       end do
     end do
 !$OMP END PARALLEL DO
 
@@ -1084,18 +1461,12 @@ contains
       gd_recv(:,:,:,1) = gd_send(:,:,:,1)
     end if
 
-!$OMP PARALLEL DO PRIVATE(yourid,jlat,jlat2,jlev,jlev2,jlon,jlon2)
-    do yourid = 0, (mpi_npex-1)
-      do jlat = lst(id)%myLatBeg, lst(id)%myLatEnd
-        jlat2 = jlat - lst(id)%myLatBeg + 1
-        do jlev = lst(id)%myLevBeg, lst(id)%myLevEnd
-          jlev2 = jlev - lst(id)%myLevBeg + 1
-          do jlon = lst(id)%allLonBeg(yourid+1), lst(id)%allLonEnd(yourid+1)
-            jlon2 = jlon - lst(id)%allLonBeg(yourid+1) + 1
-            pgd_out(jlon,jlat,jlev) = gd_recv(jlon2,jlev2,jlat2,yourid+1)
-          end do
-        end do
-      end do
+!$OMP PARALLEL DO PRIVATE(yourid,levIndex,levIndex2)
+    do levIndex = lst(id)%myLevBeg, lst(id)%myLevEnd
+       levIndex2 = levIndex - lst(id)%myLevBeg + 1
+       do yourid = 0, (mpi_npex-1)
+          gd_out(lst(id)%allLonBeg(yourid+1):lst(id)%allLonEnd(yourid+1),:,levIndex) = gd_recv(:,:,levIndex2,yourid+1)
+       end do
     end do
 !$OMP END PARALLEL DO
 
@@ -1104,37 +1475,98 @@ contains
   END SUBROUTINE transpose2d_LonToLev
 
 !--------------------------------------------------------------------------
-! LST_Transpose2d_LevToLon
+! LST_Transpose2d_LonToLev_kij
 !--------------------------------------------------------------------------
-  SUBROUTINE transpose2d_LevToLon(pgd_out,pgd_in,nk,id)
+  SUBROUTINE transpose2d_LonToLev_kij(gd_out, gd_in, nk, id)
     implicit none
 
     integer, intent(in) :: nk, id
 
-    real(8), intent(out):: pgd_out(lst(id)%myLonBeg:lst(id)%myLonEnd, lst(id)%myLatBeg:lst(id)%myLatEnd, nk)
-    real(8), intent(in) :: pgd_in(lst(id)%ni, lst(id)%myLatBeg:lst(id)%myLatEnd, lst(id)%myLevBeg:lst(id)%myLevEnd)
+    real(8), intent(in) :: gd_in (nk,lst(id)%myLonBeg:lst(id)%myLonEnd, lst(id)%myLatBeg:lst(id)%myLatEnd)
+    real(8), intent(out):: gd_out(lst(id)%myLevBeg:lst(id)%myLevEnd,lst(id)%ni, lst(id)%myLatBeg:lst(id)%myLatEnd)
 
-    real(8) :: gd_send(lst(id)%lonPerPE, lst(id)%maxLevCount, lst(id)%latPerPE, mpi_npex)
-    real(8) :: gd_recv(lst(id)%lonPerPE, lst(id)%maxLevCount, lst(id)%latPerPE, mpi_npex)
+    !real(8) :: gd_send(lst(id)%maxLevCount,lst(id)%lonPerPE, lst(id)%latPerPE, mpi_npex)
+    !real(8) :: gd_recv(lst(id)%maxLevCount,lst(id)%lonPerPE, lst(id)%latPerPE, mpi_npex)
 
-    integer :: yourid, nsize, ierr, jlev, jlev2, jlat, jlat2, jlon, jlon2
+    integer :: yourid, nsize, ierr, levIndex, levIndex2, latIndex, latIndex2, lonIndex, lonIndex2
 
-    if(mpi_doBarrier) call rpn_comm_barrier("GRID",ierr)
+    if (verbose) write(*,*) 'Entering transpose2d_LonToLev_kij'
+    call rpn_comm_barrier("GRID",ierr)
 
     call tmg_start(28,'TRANSP_2D_LEVtoLON')
 
-!$OMP PARALLEL DO PRIVATE(yourid,jlat,jlat2,jlev,jlev2,jlon,jlon2)
-    do yourid = 0, (mpi_npex-1)
-      do jlat = lst(id)%myLatBeg, lst(id)%myLatEnd
-        jlat2 = jlat - lst(id)%myLatBeg + 1
-        do jlev = lst(id)%myLevBeg, lst(id)%myLevEnd
-          jlev2 = jlev - lst(id)%myLevBeg + 1
-          do jlon = lst(id)%allLonBeg(yourid+1), lst(id)%allLonEnd(yourid+1)
-            jlon2 = jlon - lst(id)%allLonBeg(yourid+1) + 1
-            gd_send(jlon2,jlev2,jlat2,yourid+1) = pgd_in(jlon,jlat,jlev)
-          end do
+!!$!$OMP PARALLEL DO PRIVATE(yourid,latIndex,latIndex2,levIndex,levIndex2,lonIndex,lonIndex2)
+!!$    do yourid = 0, (mpi_npex-1)
+!!$       do latIndex = lst(id)%myLatBeg, lst(id)%myLatEnd
+!!$          latIndex2 = latIndex - lst(id)%myLatBeg + 1
+!!$          do lonIndex = lst(id)%myLonBeg, lst(id)%myLonEnd
+!!$             lonIndex2 = lonIndex - lst(id)%myLonBeg + 1
+!!$             do levIndex = lst(id)%allLevBeg(yourid+1), lst(id)%allLevEnd(yourid+1)
+!!$                levIndex2 = levIndex-lst(id)%allLevBeg(yourid+1)+1
+!!$                gd_send(levIndex2,lonIndex2,latIndex2,yourid+1) = gd_in(levIndex,lonIndex,latIndex)
+!!$             end do
+!!$          end do
+!!$       end do
+!!$    end do
+!!$!$OMP END PARALLEL DO
+
+    nsize = lst(id)%lonPerPE*lst(id)%maxLevCount*lst(id)%latPerPE
+    if ( mpi_npex > 1 ) then
+      !call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
+      !                       gd_recv,nsize,"mpi_double_precision","EW",ierr)
+      call mpi_alltoall(gd_in,      1, lst(id)%sendType_LonToLev,  &
+                        gd_out,     1, lst(id)%recvType_LonToLev, mpi_comm_EW, ierr)
+    else
+      !gd_recv(:,:,:,1) = gd_send(:,:,:,1)
+       gd_out(:,:,:) = gd_in(:,:,:)
+    end if
+
+!!$!$OMP PARALLEL DO PRIVATE(yourid,levIndex,levIndex2,lonIndex,lonIndex2,latIndex,latIndex2)
+!!$    do yourid = 0, (mpi_npex-1)
+!!$       do latIndex = lst(id)%myLatBeg, lst(id)%myLatEnd
+!!$          latIndex2 = latIndex - lst(id)%myLatBeg + 1
+!!$          do lonIndex = lst(id)%allLonBeg(yourid+1), lst(id)%allLonEnd(yourid+1)
+!!$             lonIndex2 = lonIndex - lst(id)%allLonBeg(yourid+1) + 1
+!!$             do levIndex = lst(id)%myLevBeg, lst(id)%myLevEnd
+!!$                levIndex2 = levIndex - lst(id)%myLevBeg + 1
+!!$                gd_out(levIndex,lonIndex,latIndex) = gd_recv(levIndex2,lonIndex2,latIndex2,yourid+1)
+!!$             end do
+!!$          end do
+!!$       end do
+!!$    end do
+!!$!$OMP END PARALLEL DO
+
+    call tmg_stop(28)
+
+  END SUBROUTINE transpose2d_LonToLev_kij
+
+!--------------------------------------------------------------------------
+! LST_Transpose2d_LevToLon
+!--------------------------------------------------------------------------
+  SUBROUTINE transpose2d_LevToLon(gd_out,gd_in,nk,id)
+    implicit none
+
+    integer, intent(in) :: nk, id
+
+    real(8), intent(out):: gd_out(lst(id)%myLonBeg:lst(id)%myLonEnd, lst(id)%myLatBeg:lst(id)%myLatEnd, nk)
+    real(8), intent(in) :: gd_in(lst(id)%ni, lst(id)%myLatBeg:lst(id)%myLatEnd, lst(id)%myLevBeg:lst(id)%myLevEnd)
+
+    real(8) :: gd_send(lst(id)%lonPerPE, lst(id)%latPerPE, lst(id)%maxLevCount, mpi_npex)
+    real(8) :: gd_recv(lst(id)%lonPerPE, lst(id)%latPerPE, lst(id)%maxLevCount, mpi_npex)
+
+    integer :: yourid, nsize, ierr, levIndex, levIndex2, latIndex, latIndex2, lonIndex, lonIndex2
+
+    if (verbose) write(*,*) 'Entering transpose2d_LevToLon'
+    call rpn_comm_barrier("GRID",ierr)
+
+    call tmg_start(28,'TRANSP_2D_LEVtoLON')
+
+!$OMP PARALLEL DO PRIVATE(yourid,levIndex,levIndex2)
+    do levIndex = lst(id)%myLevBeg, lst(id)%myLevEnd
+       levIndex2 = levIndex - lst(id)%myLevBeg + 1
+       do yourid = 0, (mpi_npex-1)
+          gd_send(:,:,levIndex2,yourid+1) = gd_in(lst(id)%allLonBeg(yourid+1):lst(id)%allLonEnd(yourid+1),:,levIndex)
         end do
-      end do
     end do
 !$OMP END PARALLEL DO
 
@@ -1146,18 +1578,12 @@ contains
       gd_recv(:,:,:,1) = gd_send(:,:,:,1)
     end if
 
-!$OMP PARALLEL DO PRIVATE(yourid,jlat,jlat2,jlev,jlev2,jlon,jlon2)
+!$OMP PARALLEL DO PRIVATE(yourid,levIndex,levIndex2)
     do yourid = 0, (mpi_npex-1)
-      do jlat = lst(id)%myLatBeg, lst(id)%myLatEnd
-        jlat2 = jlat - lst(id)%myLatBeg + 1
-        do jlev=lst(id)%allLevBeg(yourid+1),lst(id)%allLevEnd(yourid+1)
-          jlev2=jlev-lst(id)%allLevBeg(yourid+1)+1
-          do jlon = lst(id)%myLonBeg, lst(id)%myLonEnd
-            jlon2 = jlon - lst(id)%myLonBeg + 1
-            pgd_out(jlon,jlat,jlev) = gd_recv(jlon2,jlev2,jlat2,yourid+1)
-          end do
-        end do
-      end do
+       do levIndex=lst(id)%allLevBeg(yourid+1),lst(id)%allLevEnd(yourid+1)
+          levIndex2=levIndex-lst(id)%allLevBeg(yourid+1)+1
+          gd_out(:,:,levIndex) = gd_recv(:,:,levIndex2,yourid+1)
+       end do
     end do
 !$OMP END PARALLEL DO
 
@@ -1166,42 +1592,112 @@ contains
   END SUBROUTINE transpose2d_LevtoLon
 
 !--------------------------------------------------------------------------
+! LST_Transpose2d_LevToLon_kij
+!--------------------------------------------------------------------------
+  SUBROUTINE transpose2d_LevToLon_kij(gd_out,gd_in,nk,id)
+    implicit none
+
+    integer, intent(in) :: nk, id
+
+    real(8), intent(out):: gd_out(nk,lst(id)%myLonBeg:lst(id)%myLonEnd, lst(id)%myLatBeg:lst(id)%myLatEnd)
+    real(8), intent(in) :: gd_in(lst(id)%myLevBeg:lst(id)%myLevEnd,lst(id)%ni, lst(id)%myLatBeg:lst(id)%myLatEnd)
+
+  !  real(8) :: gd_send(lst(id)%maxLevCount, lst(id)%lonPerPE, lst(id)%latPerPE, mpi_npex)
+  !  real(8) :: gd_recv(lst(id)%maxLevCount, lst(id)%lonPerPE, lst(id)%latPerPE, mpi_npex)
+
+    integer :: yourid, nsize, ierr, levIndex, levIndex2, latIndex, latIndex2, lonIndex, lonIndex2
+
+    if (verbose) write(*,*) 'Entering transpose2d_LevToLon_kij'
+    call rpn_comm_barrier("GRID",ierr)
+
+    call tmg_start(28,'TRANSP_2D_LEVtoLON')
+
+!!$!$OMP PARALLEL DO PRIVATE(yourid,levIndex,levIndex2,lonIndex,lonIndex2,latIndex,latIndex2)
+!!$    do yourid = 0, (mpi_npex-1)
+!!$       do latIndex = lst(id)%myLatBeg, lst(id)%myLatEnd
+!!$          latIndex2 = latIndex - lst(id)%myLatBeg + 1
+!!$          do lonIndex = lst(id)%allLonBeg(yourid+1), lst(id)%allLonEnd(yourid+1)
+!!$             lonIndex2 = lonIndex - lst(id)%allLonBeg(yourid+1) + 1
+!!$             do levIndex = lst(id)%myLevBeg, lst(id)%myLevEnd
+!!$                levIndex2 = levIndex - lst(id)%myLevBeg + 1
+!!$                gd_send(levIndex2,lonIndex2,latIndex2,yourid+1) = gd_in(levIndex,lonIndex,latIndex)
+!!$             end do
+!!$          end do
+!!$       end do
+!!$    end do
+!!$!$OMP END PARALLEL DO
+
+    nsize = lst(id)%lonPerPE*lst(id)%maxLevCount*lst(id)%latPerPE
+    if ( mpi_npex > 1 ) then
+      !call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
+      !                       gd_recv,nsize,"mpi_double_precision","EW",ierr)
+       call mpi_alltoall(gd_in,      1, lst(id)%sendType_LevToLon,  &
+                         gd_out,     1, lst(id)%recvType_LevToLon, mpi_comm_EW, ierr) 
+    else
+      !gd_recv(:,:,:,1) = gd_send(:,:,:,1)
+      gd_out(:,:,:) = gd_in(:,:,:)
+    end if
+
+!!$!$OMP PARALLEL DO PRIVATE(yourid,latIndex,latIndex2,levIndex,levIndex2,lonIndex,lonIndex2)
+!!$    do yourid = 0, (mpi_npex-1)
+!!$       do latIndex = lst(id)%myLatBeg, lst(id)%myLatEnd
+!!$          latIndex2 = latIndex - lst(id)%myLatBeg + 1
+!!$          do lonIndex = lst(id)%myLonBeg, lst(id)%myLonEnd
+!!$             lonIndex2 = lonIndex - lst(id)%myLonBeg + 1
+!!$             do levIndex=lst(id)%allLevBeg(yourid+1),lst(id)%allLevEnd(yourid+1)
+!!$                levIndex2=levIndex-lst(id)%allLevBeg(yourid+1)+1
+!!$                gd_out(levIndex,lonIndex,latIndex) = gd_recv(levIndex2,lonIndex2,latIndex2,yourid+1)
+!!$             end do
+!!$          end do
+!!$       end do
+!!$    end do
+!!$!$OMP END PARALLEL DO
+
+    call tmg_stop(28)
+
+  END SUBROUTINE transpose2d_LevtoLon_kij
+
+!--------------------------------------------------------------------------
 ! LST_Transpose2d_LatToM
 !--------------------------------------------------------------------------
-  SUBROUTINE transpose2d_LatToM(pgd_out, pgd_in, id)
+  SUBROUTINE transpose2d_LatToM(gd_out, gd_in, id)
     implicit none
 
     integer, intent(in)  :: id
 
-    real(8), intent(out) :: pgd_out(2*lst(id)%mymCount,lst(id)%nj+njp  ,lst(id)%myLevBeg:lst(id)%myLevEnd)
-    real(8), intent(in)  :: pgd_in (lst(id)%ni+nip    ,lst(id)%latPerPE,lst(id)%myLevBeg:lst(id)%myLevEnd)
+    real(8), intent(out) :: gd_out(2*lst(id)%mymCount,lst(id)%nj+njp  ,lst(id)%myLevBeg:lst(id)%myLevEnd)
+    real(8), intent(in)  :: gd_in (lst(id)%ni+nip    ,lst(id)%latPerPE,lst(id)%myLevBeg:lst(id)%myLevEnd)
 
-    real(8) :: gd_recv(lst(id)%maxmCount,2,lst(id)%maxLevCount,lst(id)%latPerPE, mpi_npey)
-    real(8) :: gd_send(lst(id)%maxmCount,2,lst(id)%maxLevCount,lst(id)%latPerPE, mpi_npey)
+    real(8) :: gd_recv(lst(id)%maxmActiveCount,2,lst(id)%latPerPE, lst(id)%maxLevCount, mpi_npey)
+    real(8) :: gd_send(lst(id)%maxmActiveCount,2,lst(id)%latPerPE, lst(id)%maxLevCount, mpi_npey)
 
-    integer :: yourid, jm, icount, nsize, ierr, jlev, jlev2, jlat, jlat2
+    integer :: yourid, mIndex, icount, nsize, ierr, levIndex, levIndex2, latIndex, latIndex2
 
-    if(mpi_doBarrier) call rpn_comm_barrier("GRID",ierr)
+    if (verbose) write(*,*) 'Entering transpose2d_LatToM'
+    call rpn_comm_barrier("GRID",ierr)
 
     call tmg_start(27,'TRANSP_2D_MtoLAT')
 
-!$OMP PARALLEL DO PRIVATE(yourid,jlat,jlev,jlev2,icount,jm)
+!$OMP PARALLEL DO PRIVATE(yourid,latIndex,levIndex,levIndex2,icount,mIndex)
     do yourid = 0, (mpi_npey-1)
-      do jlat = 1, lst(id)%latPerPE
-        do jlev = lst(id)%myLevBeg, lst(id)%myLevEnd
-          jlev2 = jlev - lst(id)%myLevBeg + 1  
-          icount = 0
-          do jm = lst(id)%allmBeg(yourid+1), lst(id)%allmEnd(yourid+1), lst(id)%allmSkip(yourid+1)
-            icount = icount + 1
-            gd_send(icount,1,jlev2,jlat,yourid+1) = pgd_in(2*jm+1, jlat, jlev)
-            gd_send(icount,2,jlev2,jlat,yourid+1) = pgd_in(2*jm+2, jlat, jlev)
+       do levIndex = lst(id)%myLevBeg, lst(id)%myLevEnd
+          levIndex2 = levIndex - lst(id)%myLevBeg + 1 
+          do latIndex = 1, lst(id)%latPerPE
+             gd_send(:,:,latIndex,levIndex2,yourid+1) = 0.d0
+             icount = 0
+             do mIndex = lst(id)%allmBeg(yourid+1), lst(id)%allmEnd(yourid+1), lst(id)%allmSkip(yourid+1)
+                if ( lst(id)%KfromMNglb(mIndex,0) /= -1 ) then
+                   icount = icount + 1
+                   gd_send(icount,1,latIndex,levIndex2,yourid+1) = gd_in(2*mIndex+1, latIndex, levIndex)
+                   gd_send(icount,2,latIndex,levIndex2,yourid+1) = gd_in(2*mIndex+2, latIndex, levIndex)
+                end if
+             end do
           end do
-        end do
-      end do
+       end do
     end do
 !$OMP END PARALLEL DO
 
-    nsize = lst(id)%maxmCount*2*lst(id)%maxLevCount*lst(id)%latPerPE
+    nsize = lst(id)%maxmActiveCount*2*lst(id)%maxLevCount*lst(id)%latPerPE
     if ( mpi_npey > 1 ) then
       call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
                              gd_recv,nsize,"mpi_double_precision","NS",ierr)
@@ -1209,20 +1705,25 @@ contains
       gd_recv(:,:,:,:,1) = gd_send(:,:,:,:,1)
     end if
 
-!$OMP PARALLEL DO PRIVATE(yourid,jlat,jlat2,jlev,jlev2,icount,jm)
+!$OMP PARALLEL DO PRIVATE(yourid,latIndex,latIndex2,levIndex,levIndex2,icount,mIndex)
     do yourid = 0, (mpi_npey-1)
-      do jlat = lst(id)%allLatBeg(yourid+1), lst(id)%allLatEnd(yourid+1)
-        jlat2 = jlat - lst(id)%allLatBeg(yourid+1) + 1
-        do jlev = lst(id)%myLevBeg, lst(id)%myLevEnd
-          jlev2 = jlev - lst(id)%myLevBeg + 1
-          icount = 0
-          do jm = lst(id)%mymBeg, lst(id)%mymEnd, lst(id)%mymSkip
-            icount = icount + 1
-            pgd_out(2*lst(id)%mymIndex(jm)-1,jlat,jlev) = gd_recv(icount,1,jlev2,jlat2,yourid+1)
-            pgd_out(2*lst(id)%mymIndex(jm)  ,jlat,jlev) = gd_recv(icount,2,jlev2,jlat2,yourid+1)
+       do levIndex = lst(id)%myLevBeg, lst(id)%myLevEnd
+          levIndex2 = levIndex - lst(id)%myLevBeg + 1
+          do latIndex = lst(id)%allLatBeg(yourid+1), lst(id)%allLatEnd(yourid+1)
+             latIndex2 = latIndex - lst(id)%allLatBeg(yourid+1) + 1
+             icount = 0
+             do mIndex = lst(id)%mymBeg, lst(id)%mymEnd, lst(id)%mymSkip
+                if ( lst(id)%KfromMNglb(mIndex,0) /= -1 ) then
+                   icount = icount + 1
+                   gd_out(2*lst(id)%mymIndex(mIndex)-1,latIndex,levIndex) = gd_recv(icount,1,latIndex2,levIndex2,yourid+1)
+                   gd_out(2*lst(id)%mymIndex(mIndex)  ,latIndex,levIndex) = gd_recv(icount,2,latIndex2,levIndex2,yourid+1)
+                else
+                   gd_out(2*lst(id)%mymIndex(mIndex)-1,latIndex,levIndex) = 0.d0
+                   gd_out(2*lst(id)%mymIndex(mIndex)  ,latIndex,levIndex) = 0.d0
+                end if
+             end do
           end do
-        end do
-      end do
+       end do
     end do
 !$OMP END PARALLEL DO
 
@@ -1231,43 +1732,46 @@ contains
   END SUBROUTINE transpose2d_LatToM
 
 !--------------------------------------------------------------------------
-! Transpose2d_MToLat
+! LST_Transpose2d_LatToM_kij
 !--------------------------------------------------------------------------
-  SUBROUTINE transpose2d_MtoLat(pgd_out, pgd_in, id)
+  SUBROUTINE transpose2d_LatToM_kij(gd_out, gd_in, id)
     implicit none
 
     integer, intent(in)  :: id
 
-    real(8), intent(in)   :: pgd_in (2*lst(id)%mymCount,lst(id)%nj+njp  ,lst(id)%myLevBeg:lst(id)%myLevEnd)
-    real(8), intent(out)  :: pgd_out(lst(id)%ni+nip    ,lst(id)%latPerPE,lst(id)%myLevBeg:lst(id)%myLevEnd)
+    real(8), intent(out) :: gd_out(lst(id)%myLevBeg:lst(id)%myLevEnd,2*lst(id)%mymCount,lst(id)%nj+njp  )
+    real(8), intent(in)  :: gd_in (lst(id)%myLevBeg:lst(id)%myLevEnd,lst(id)%ni+nip    ,lst(id)%latPerPE)
 
-    real(8) :: gd_recv(lst(id)%maxmCount,2,lst(id)%maxLevCount,lst(id)%latPerPE, mpi_npey)
-    real(8) :: gd_send(lst(id)%maxmCount,2,lst(id)%maxLevCount,lst(id)%latPerPE, mpi_npey)
+    real(8) :: gd_recv(lst(id)%maxLevCount,lst(id)%maxmActiveCount,2,lst(id)%latPerPE, mpi_npey)
+    real(8) :: gd_send(lst(id)%maxLevCount,lst(id)%maxmActiveCount,2,lst(id)%latPerPE, mpi_npey)
 
-    integer :: yourid, jm, icount, nsize, ierr, jlev, jlev2, jlat, jlat2
+    integer :: yourid, mIndex, icount, nsize, ierr, levIndex, levIndex2, latIndex, latIndex2
 
-    if(mpi_doBarrier) call rpn_comm_barrier("GRID",ierr)
+    if (verbose) write(*,*) 'Entering transpose2d_LatToM_kij'
+    call rpn_comm_barrier("GRID",ierr)
 
     call tmg_start(27,'TRANSP_2D_MtoLAT')
 
-!$OMP PARALLEL DO PRIVATE(yourid,jlat,jlat2,jlev,jlev2,icount,jm)
+!$OMP PARALLEL DO PRIVATE(yourid,latIndex,levIndex,levIndex2,icount,mIndex)
     do yourid = 0, (mpi_npey-1)
-      do jlat = lst(id)%allLatBeg(yourid+1), lst(id)%allLatEnd(yourid+1)
-        jlat2 = jlat - lst(id)%allLatBeg(yourid+1) + 1
-        do jlev = lst(id)%myLevBeg, lst(id)%myLevEnd
-          jlev2 = jlev - lst(id)%myLevBeg + 1
+       do latIndex = 1, lst(id)%latPerPE
+          gd_send(:,:,:,latIndex,yourid+1) = 0.d0
           icount = 0
-          do jm = lst(id)%mymBeg, lst(id)%mymEnd, lst(id)%mymSkip
-            icount = icount+1
-            gd_send(icount,1,jlev2,jlat2,yourid+1) = pgd_in(2*lst(id)%mymIndex(jm)-1,jlat,jlev)
-            gd_send(icount,2,jlev2,jlat2,yourid+1) = pgd_in(2*lst(id)%mymIndex(jm)  ,jlat,jlev)
+          do mIndex = lst(id)%allmBeg(yourid+1), lst(id)%allmEnd(yourid+1), lst(id)%allmSkip(yourid+1)
+             if ( lst(id)%KfromMNglb(mIndex,0) /= -1 ) then
+                icount = icount + 1
+                do levIndex = lst(id)%myLevBeg, lst(id)%myLevEnd
+                   levIndex2 = levIndex - lst(id)%myLevBeg + 1
+                   gd_send(levIndex2,icount,1,latIndex,yourid+1) = gd_in(levIndex,2*mIndex+1, latIndex)
+                   gd_send(levIndex2,icount,2,latIndex,yourid+1) = gd_in(levIndex,2*mIndex+2, latIndex)
+                end do
+             end if
           end do
-        end do
-      end do
+       end do
     end do
 !$OMP END PARALLEL DO
 
-    nsize = lst(id)%maxmCount*2*lst(id)%maxLevCount*lst(id)%latPerPE
+    nsize = lst(id)%maxmActiveCount*2*lst(id)%maxLevCount*lst(id)%latPerPE
     if ( mpi_npey > 1 ) then
       call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
                              gd_recv,nsize,"mpi_double_precision","NS",ierr)
@@ -1275,19 +1779,99 @@ contains
       gd_recv(:,:,:,:,1) = gd_send(:,:,:,:,1)
     end if
 
-!$OMP PARALLEL DO PRIVATE(yourid,jlat,jlev,jlev2,icount,jm)
+!$OMP PARALLEL DO PRIVATE(yourid,latIndex,latIndex2,levIndex,levIndex2,icount,mIndex)
     do yourid = 0, (mpi_npey-1)
-      do jlat = 1, lst(id)%latPerPE
-        do jlev = lst(id)%myLevBeg, lst(id)%myLevEnd
-          jlev2 = jlev - lst(id)%myLevBeg + 1
+       do latIndex = lst(id)%allLatBeg(yourid+1), lst(id)%allLatEnd(yourid+1)
+          latIndex2 = latIndex - lst(id)%allLatBeg(yourid+1) + 1
           icount = 0
-          do jm = lst(id)%allmBeg(yourid+1), lst(id)%allmEnd(yourid+1), lst(id)%allmSkip(yourid+1)
-            icount = icount+1
-            pgd_out(2*jm+1,jlat,jlev) = gd_recv(icount,1,jlev2,jlat,yourid+1)
-            pgd_out(2*jm+2,jlat,jlev) = gd_recv(icount,2,jlev2,jlat,yourid+1)
+          do mIndex = lst(id)%mymBeg, lst(id)%mymEnd, lst(id)%mymSkip
+             if ( lst(id)%KfromMNglb(mIndex,0) /= -1 ) then
+                icount = icount + 1
+                do levIndex = lst(id)%myLevBeg, lst(id)%myLevEnd
+                   levIndex2 = levIndex - lst(id)%myLevBeg + 1
+                   gd_out(levIndex,2*lst(id)%mymIndex(mIndex)-1,latIndex) = gd_recv(levIndex2,icount,1,latIndex2,yourid+1)
+                   gd_out(levIndex,2*lst(id)%mymIndex(mIndex)  ,latIndex) = gd_recv(levIndex2,icount,2,latIndex2,yourid+1)
+                end do
+             else
+                gd_out(:,2*lst(id)%mymIndex(mIndex)-1,latIndex) = 0.d0
+                gd_out(:,2*lst(id)%mymIndex(mIndex)  ,latIndex) = 0.d0
+             end if
           end do
-        end do
-      end do
+       end do
+    end do
+!$OMP END PARALLEL DO
+
+    call tmg_stop(27)
+
+  END SUBROUTINE transpose2d_LatToM_kij
+
+!--------------------------------------------------------------------------
+! Transpose2d_MToLat
+!--------------------------------------------------------------------------
+  SUBROUTINE transpose2d_MtoLat(gd_out, gd_in, id)
+    implicit none
+
+    integer, intent(in)  :: id
+
+    real(8), intent(in)   :: gd_in (2*lst(id)%mymCount,lst(id)%nj+njp  ,lst(id)%myLevBeg:lst(id)%myLevEnd)
+    real(8), intent(out)  :: gd_out(lst(id)%ni+nip    ,lst(id)%latPerPE,lst(id)%myLevBeg:lst(id)%myLevEnd)
+
+    real(8) :: gd_recv(lst(id)%maxmActiveCount,2,lst(id)%latPerPE,lst(id)%maxLevCount, mpi_npey)
+    real(8) :: gd_send(lst(id)%maxmActiveCount,2,lst(id)%latPerPE,lst(id)%maxLevCount, mpi_npey)
+
+    integer :: yourid, mIndex, icount, nsize, ierr, levIndex, levIndex2, latIndex, latIndex2
+
+    if (verbose) write(*,*) 'Entering transpose2d_MToLat'
+    call rpn_comm_barrier("GRID",ierr)
+
+    call tmg_start(27,'TRANSP_2D_MtoLAT')
+
+!$OMP PARALLEL DO PRIVATE(yourid,latIndex,latIndex2,levIndex,levIndex2,icount,mIndex)
+    do yourid = 0, (mpi_npey-1)
+       do levIndex = lst(id)%myLevBeg, lst(id)%myLevEnd
+          levIndex2 = levIndex - lst(id)%myLevBeg + 1
+          do latIndex = lst(id)%allLatBeg(yourid+1), lst(id)%allLatEnd(yourid+1)
+             latIndex2 = latIndex - lst(id)%allLatBeg(yourid+1) + 1
+             gd_send(:,:,latIndex2,levIndex2,yourid+1) = 0.d0
+             icount = 0
+             do mIndex = lst(id)%mymBeg, lst(id)%mymEnd, lst(id)%mymSkip
+                if ( lst(id)%KfromMNglb(mIndex,0) /= -1 ) then
+                   icount = icount+1
+                   gd_send(icount,1,latIndex2,levIndex2,yourid+1) = gd_in(2*lst(id)%mymIndex(mIndex)-1,latIndex,levIndex)
+                   gd_send(icount,2,latIndex2,levIndex2,yourid+1) = gd_in(2*lst(id)%mymIndex(mIndex)  ,latIndex,levIndex)
+                end if
+             end do
+          end do
+       end do
+    end do
+!$OMP END PARALLEL DO
+
+    nsize = lst(id)%maxmActiveCount*2*lst(id)%maxLevCount*lst(id)%latPerPE
+    if ( mpi_npey > 1 ) then
+      call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
+                             gd_recv,nsize,"mpi_double_precision","NS",ierr)
+    else
+      gd_recv(:,:,:,:,1) = gd_send(:,:,:,:,1)
+    end if
+
+!$OMP PARALLEL DO PRIVATE(yourid,latIndex,levIndex,levIndex2,icount,mIndex)
+    do yourid = 0, (mpi_npey-1)
+       do levIndex = lst(id)%myLevBeg, lst(id)%myLevEnd
+          levIndex2 = levIndex - lst(id)%myLevBeg + 1
+          do latIndex = 1, lst(id)%latPerPE
+             icount = 0
+             do mIndex = lst(id)%allmBeg(yourid+1), lst(id)%allmEnd(yourid+1), lst(id)%allmSkip(yourid+1)
+                if ( lst(id)%KfromMNglb(mIndex,0) /= -1 ) then
+                   icount = icount+1
+                   gd_out(2*mIndex+1,latIndex,levIndex) = gd_recv(icount,1,latIndex,levIndex2,yourid+1)
+                   gd_out(2*mIndex+2,latIndex,levIndex) = gd_recv(icount,2,latIndex,levIndex2,yourid+1)
+                else
+                   gd_out(2*mIndex+1,latIndex,levIndex) = 0.d0
+                   gd_out(2*mIndex+2,latIndex,levIndex) = 0.d0
+                end if
+             end do
+          end do
+       end do
     end do
 !$OMP END PARALLEL DO
 
@@ -1296,66 +1880,134 @@ contains
   END SUBROUTINE transpose2d_MtoLat
 
 !--------------------------------------------------------------------------
-! LST_Transpose2d_LevToN
+! Transpose2d_MToLat_kij
 !--------------------------------------------------------------------------
-  SUBROUTINE transpose2d_LevToN(pgd_out, pgd_in, nk, id)
+  SUBROUTINE transpose2d_MtoLat_kij(gd_out, gd_in, id)
     implicit none
 
-    integer, intent(in) :: nk, id
+    integer, intent(in)  :: id
 
-    real(8), intent(out):: pgd_out(2*lst(id)%mymCount, 2*lst(id)%mynCount, nk)
-    real(8), intent(in) :: pgd_in (2*lst(id)%mymCount, lst(id)%nj+njp    , lst(id)%myLevBeg:lst(id)%myLevEnd)
+    real(8), intent(in)   :: gd_in (lst(id)%myLevBeg:lst(id)%myLevEnd,2*lst(id)%mymCount,lst(id)%nj+njp  )
+    real(8), intent(out)  :: gd_out(lst(id)%myLevBeg:lst(id)%myLevEnd,lst(id)%ni+nip    ,lst(id)%latPerPE)
 
-    real(8) :: gd_send(lst(id)%maxncount, 4, lst(id)%maxLevCount, lst(id)%maxmcount, mpi_npex)
-    real(8) :: gd_recv(lst(id)%maxncount, 4, lst(id)%maxLevCount, lst(id)%maxmcount, mpi_npex)
+    real(8) :: gd_recv(lst(id)%maxLevCount,lst(id)%maxmActiveCount,2,lst(id)%latPerPE, mpi_npey)
+    real(8) :: gd_send(lst(id)%maxLevCount,lst(id)%maxmActiveCount,2,lst(id)%latPerPE, mpi_npey)
 
-    integer :: yourid, nsize, ierr, jlev, jlev2, jn, jm, icount
+    integer :: yourid, mIndex, icount, nsize, ierr, levIndex, levIndex2, latIndex, latIndex2
 
-    if(mpi_doBarrier) call rpn_comm_barrier("GRID",ierr)
+    if (verbose) write(*,*) 'Entering transpose2d_MToLat_kij'
+    call rpn_comm_barrier("GRID",ierr)
 
-    call tmg_start(26,'TRANSP_2D_LEVtoN')
+    call tmg_start(27,'TRANSP_2D_MtoLAT')
 
-!$OMP PARALLEL DO PRIVATE(yourid,jm,jlev,jlev2,jn,icount)
-    do yourid = 0, (mpi_npex-1)
-      do jm = lst(id)%mymBeg, lst(id)%mymEnd, lst(id)%mymSkip
-        do jlev = lst(id)%myLevBeg, lst(id)%myLevEnd
-          jlev2 = jlev - lst(id)%myLevBeg + 1
+!$OMP PARALLEL DO PRIVATE(yourid,latIndex,latIndex2,levIndex,levIndex2,icount,mIndex)
+    do yourid = 0, (mpi_npey-1)
+       do latIndex = lst(id)%allLatBeg(yourid+1), lst(id)%allLatEnd(yourid+1)
+          latIndex2 = latIndex - lst(id)%allLatBeg(yourid+1) + 1
+          gd_send(:,:,:,latIndex2,yourid+1) = 0.d0
           icount = 0
-          do jn = lst(id)%allnBeg(yourid+1), lst(id)%allnEnd(yourid+1), lst(id)%allnSkip(yourid+1)
-            icount = icount + 1
-            gd_send(icount,1,jlev2,lst(id)%mymIndex(jm),yourid+1) = pgd_in(2*lst(id)%mymIndex(jm)-1,2*jn+1,jlev)
-            gd_send(icount,2,jlev2,lst(id)%mymIndex(jm),yourid+1) = pgd_in(2*lst(id)%mymIndex(jm)-1,2*jn+2,jlev)
-            gd_send(icount,3,jlev2,lst(id)%mymIndex(jm),yourid+1) = pgd_in(2*lst(id)%mymIndex(jm)  ,2*jn+1,jlev)
-            gd_send(icount,4,jlev2,lst(id)%mymIndex(jm),yourid+1) = pgd_in(2*lst(id)%mymIndex(jm)  ,2*jn+2,jlev)
+          do mIndex = lst(id)%mymBeg, lst(id)%mymEnd, lst(id)%mymSkip
+             if ( lst(id)%KfromMNglb(mIndex,0) /= -1 ) then
+                icount = icount+1
+                do levIndex = lst(id)%myLevBeg, lst(id)%myLevEnd
+                   levIndex2 = levIndex - lst(id)%myLevBeg + 1
+                   gd_send(levIndex2,icount,1,latIndex2,yourid+1) = gd_in(levIndex,2*lst(id)%mymIndex(mIndex)-1,latIndex)
+                   gd_send(levIndex2,icount,2,latIndex2,yourid+1) = gd_in(levIndex,2*lst(id)%mymIndex(mIndex)  ,latIndex)
+                end do
+             end if
           end do
-        end do
-      end do
+       end do
     end do
 !$OMP END PARALLEL DO
 
-    nsize = lst(id)%maxncount*4*lst(id)%maxLevCount*lst(id)%maxmcount
-    if ( mpi_npex > 1 ) then
+    nsize = lst(id)%maxmActiveCount*2*lst(id)%maxLevCount*lst(id)%latPerPE
+    if ( mpi_npey > 1 ) then
       call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
-                             gd_recv,nsize,"mpi_double_precision","EW",ierr)
+                             gd_recv,nsize,"mpi_double_precision","NS",ierr)
     else
       gd_recv(:,:,:,:,1) = gd_send(:,:,:,:,1)
     end if
 
-!$OMP PARALLEL DO PRIVATE(yourid,jn,jlev,jlev2,jm,icount)
-    do yourid = 0, (mpi_npex-1)
-      do jm = lst(id)%mymBeg, lst(id)%mymEnd, lst(id)%mymSkip
-        do jlev = lst(id)%allLevBeg(yourid+1), lst(id)%allLevEnd(yourid+1)
-          jlev2 = jlev - lst(id)%allLevBeg(yourid+1) + 1
+!$OMP PARALLEL DO PRIVATE(yourid,latIndex,levIndex,levIndex2,icount,mIndex)
+    do yourid = 0, (mpi_npey-1)
+       do latIndex = 1, lst(id)%latPerPE
           icount = 0
-          do jn = lst(id)%mynBeg, lst(id)%mynEnd, lst(id)%mynSkip
-            icount = icount + 1
-            pgd_out(2*lst(id)%mymIndex(jm)-1,2*lst(id)%mynIndex(jn)-1,jlev) = gd_recv(icount,1,jlev2,lst(id)%mymIndex(jm),yourid+1)
-            pgd_out(2*lst(id)%mymIndex(jm)-1,2*lst(id)%mynIndex(jn)  ,jlev) = gd_recv(icount,2,jlev2,lst(id)%mymIndex(jm),yourid+1)
-            pgd_out(2*lst(id)%mymIndex(jm)  ,2*lst(id)%mynIndex(jn)-1,jlev) = gd_recv(icount,3,jlev2,lst(id)%mymIndex(jm),yourid+1)
-            pgd_out(2*lst(id)%mymIndex(jm)  ,2*lst(id)%mynIndex(jn)  ,jlev) = gd_recv(icount,4,jlev2,lst(id)%mymIndex(jm),yourid+1)
+          do mIndex = lst(id)%allmBeg(yourid+1), lst(id)%allmEnd(yourid+1), lst(id)%allmSkip(yourid+1)
+             if ( lst(id)%KfromMNglb(mIndex,0) /= -1 ) then
+                icount = icount+1
+                do levIndex = lst(id)%myLevBeg, lst(id)%myLevEnd
+                   levIndex2 = levIndex - lst(id)%myLevBeg + 1
+                   gd_out(levIndex,2*mIndex+1,latIndex) = gd_recv(levIndex2,icount,1,latIndex,yourid+1)
+                   gd_out(levIndex,2*mIndex+2,latIndex) = gd_recv(levIndex2,icount,2,latIndex,yourid+1)
+                end do
+             else
+                gd_out(:,2*mIndex+1,latIndex) = 0.d0
+                gd_out(:,2*mIndex+2,latIndex) = 0.d0
+             end if
           end do
-        end do
-      end do
+       end do
+    end do
+!$OMP END PARALLEL DO
+
+    call tmg_stop(27)
+
+  END SUBROUTINE transpose2d_MtoLat_kij
+
+!--------------------------------------------------------------------------
+! LST_Transpose2d_LevToN
+!--------------------------------------------------------------------------
+  SUBROUTINE transpose2d_LevToN(SpectralStateVar, gd_in, nk, id)
+    implicit none
+
+    integer, intent(in) :: nk, id
+    real(8), intent(out):: SpectralStateVar(lst(id)%nla,nphase,nk)
+    real(8), intent(in) :: gd_in (2*lst(id)%mymCount, lst(id)%nj+njp, lst(id)%myLevBeg:lst(id)%myLevEnd)
+
+    real(8) :: gd_send(lst(id)%maxnla, 4, lst(id)%maxLevCount, mpi_npex)
+    real(8) :: gd_recv(lst(id)%maxnla, 4, lst(id)%maxLevCount, mpi_npex)
+
+    integer :: yourid, nsize, ierr, levIndex, levIndex2, nIndex, mIndex, icount, ila
+
+    if (verbose) write(*,*) 'Entering transpose2d_LevToN'
+    call rpn_comm_barrier("GRID",ierr)
+
+    call tmg_start(26,'TRANSP_2D_LEVtoN')
+
+!$OMP PARALLEL DO PRIVATE(yourid,mIndex,levIndex,levIndex2,nIndex,icount)
+    do yourid = 0, (mpi_npex-1)
+       do levIndex = lst(id)%myLevBeg, lst(id)%myLevEnd
+          levIndex2 = levIndex - lst(id)%myLevBeg + 1
+          gd_send(:,:,levIndex2,yourid+1) = 0.d0
+          icount = 0
+          do nIndex = lst(id)%allnBeg(yourid+1), lst(id)%allnEnd(yourid+1), lst(id)%allnSkip(yourid+1)
+             do mIndex = lst(id)%mymBeg, lst(id)%mymEnd, lst(id)%mymSkip 
+                if ( lst(id)%KfromMNglb(mIndex,nIndex) /= -1 ) then
+                   icount = icount + 1
+                   gd_send(icount,1,levIndex2,yourid+1) = gd_in(2*lst(id)%mymIndex(mIndex)-1,2*nIndex+1,levIndex)
+                   gd_send(icount,2,levIndex2,yourid+1) = gd_in(2*lst(id)%mymIndex(mIndex)-1,2*nIndex+2,levIndex)
+                   gd_send(icount,3,levIndex2,yourid+1) = gd_in(2*lst(id)%mymIndex(mIndex)  ,2*nIndex+1,levIndex)
+                   gd_send(icount,4,levIndex2,yourid+1) = gd_in(2*lst(id)%mymIndex(mIndex)  ,2*nIndex+2,levIndex)
+                end if
+             end do
+          end do
+       end do
+    end do
+!$OMP END PARALLEL DO
+
+    nsize = lst(id)%maxnla*4*lst(id)%maxLevCount
+    if ( mpi_npex > 1 ) then
+      call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
+                             gd_recv,nsize,"mpi_double_precision","EW",ierr)
+    else
+      gd_recv(:,:,:,1) = gd_send(:,:,:,1)
+    end if
+
+!$OMP PARALLEL DO PRIVATE(yourid,levIndex,levIndex2)
+    do yourid = 0, (mpi_npex-1)
+       do levIndex = lst(id)%allLevBeg(yourid+1), lst(id)%allLevEnd(yourid+1)
+          levIndex2 = levIndex - lst(id)%allLevBeg(yourid+1) + 1
+             SpectralStateVar(:,:,levIndex) = gd_recv(1:lst(id)%nla,:,levIndex2,yourid+1)
+       end do
     end do
 !$OMP END PARALLEL DO
 
@@ -1364,72 +2016,202 @@ contains
   END SUBROUTINE transpose2d_LevToN
 
 !--------------------------------------------------------------------------
-! LST_Transpose2d_LevToN
+! LST_Transpose2d_LevToN_kij
 !--------------------------------------------------------------------------
-  SUBROUTINE transpose2d_NToLev(pgd_out, pgd_in, nk, id)
+  SUBROUTINE transpose2d_LevToN_kij(SpectralStateVar, gd_in, nk, id)
     implicit none
 
     integer, intent(in) :: nk, id
+    real(8), intent(out):: SpectralStateVar(lst(id)%nla,nphase,nk)
+    real(8), intent(in) :: gd_in (lst(id)%myLevBeg:lst(id)%myLevEnd,2*lst(id)%mymCount, lst(id)%nj+njp)
 
-    real(8), intent(in) :: pgd_in (2*lst(id)%mymCount, 2*lst(id)%mynCount, nk)
-    real(8), intent(out):: pgd_out(2*lst(id)%mymCount, lst(id)%nj+njp    , lst(id)%myLevBeg:lst(id)%myLevEnd)
+    real(8) :: gd_send(lst(id)%maxnla, 4, lst(id)%maxLevCount, mpi_npex)
+    real(8) :: gd_recv(lst(id)%maxnla, 4, lst(id)%maxLevCount, mpi_npex)
 
-    real(8) :: gd_send(lst(id)%maxncount, 4, lst(id)%maxLevCount, lst(id)%maxmcount, mpi_npex)
-    real(8) :: gd_recv(lst(id)%maxncount, 4, lst(id)%maxLevCount, lst(id)%maxmcount, mpi_npex)
+    integer :: yourid, nsize, ierr, levIndex, levIndex2, nIndex, mIndex, icount, ila
 
-    integer :: yourid, nsize, ierr, jlev, jlev2, jn, jm, icount
-
-    if(mpi_doBarrier) call rpn_comm_barrier("GRID",ierr)
+    if (verbose) write(*,*) 'Entering transpose2d_LevToN_kij'
+    call rpn_comm_barrier("GRID",ierr)
 
     call tmg_start(26,'TRANSP_2D_LEVtoN')
 
-!$OMP PARALLEL DO PRIVATE(yourid,jm,jlev,jlev2,jn,icount)
+!$OMP PARALLEL DO PRIVATE(yourid,mIndex,levIndex,levIndex2,nIndex,icount)
     do yourid = 0, (mpi_npex-1)
-      do jm = lst(id)%mymBeg, lst(id)%mymEnd, lst(id)%mymSkip
-        do jlev = lst(id)%allLevBeg(yourid+1), lst(id)%allLevEnd(yourid+1)
-          jlev2 = jlev - lst(id)%allLevBeg(yourid+1) + 1
+       do levIndex = lst(id)%myLevBeg, lst(id)%myLevEnd
+          levIndex2 = levIndex - lst(id)%myLevBeg + 1
+          gd_send(:,:,levIndex2,yourid+1) = 0.d0
           icount = 0
-          do jn = lst(id)%mynBeg, lst(id)%mynEnd, lst(id)%mynSkip
-            icount = icount + 1
-            gd_send(icount,1,jlev2,lst(id)%mymIndex(jm),yourid+1) = pgd_in(2*lst(id)%mymIndex(jm)-1,2*lst(id)%mynIndex(jn)-1,jlev)
-            gd_send(icount,2,jlev2,lst(id)%mymIndex(jm),yourid+1) = pgd_in(2*lst(id)%mymIndex(jm)-1,2*lst(id)%mynIndex(jn)  ,jlev)
-            gd_send(icount,3,jlev2,lst(id)%mymIndex(jm),yourid+1) = pgd_in(2*lst(id)%mymIndex(jm)  ,2*lst(id)%mynIndex(jn)-1,jlev)
-            gd_send(icount,4,jlev2,lst(id)%mymIndex(jm),yourid+1) = pgd_in(2*lst(id)%mymIndex(jm)  ,2*lst(id)%mynIndex(jn)  ,jlev)
+          do nIndex = lst(id)%allnBeg(yourid+1), lst(id)%allnEnd(yourid+1), lst(id)%allnSkip(yourid+1)
+             do mIndex = lst(id)%mymBeg, lst(id)%mymEnd, lst(id)%mymSkip 
+                if ( lst(id)%KfromMNglb(mIndex,nIndex) /= -1 ) then
+                   icount = icount + 1
+                   gd_send(icount,1,levIndex2,yourid+1) = gd_in(levIndex,2*lst(id)%mymIndex(mIndex)-1,2*nIndex+1)
+                   gd_send(icount,2,levIndex2,yourid+1) = gd_in(levIndex,2*lst(id)%mymIndex(mIndex)-1,2*nIndex+2)
+                   gd_send(icount,3,levIndex2,yourid+1) = gd_in(levIndex,2*lst(id)%mymIndex(mIndex)  ,2*nIndex+1)
+                   gd_send(icount,4,levIndex2,yourid+1) = gd_in(levIndex,2*lst(id)%mymIndex(mIndex)  ,2*nIndex+2)
+                end if
+             end do
           end do
-        end do
-      end do
+       end do
     end do
 !$OMP END PARALLEL DO
 
-    nsize = lst(id)%maxncount*4*lst(id)%maxLevCount*lst(id)%maxmcount
+    nsize = lst(id)%maxnla*4*lst(id)%maxLevCount
     if ( mpi_npex > 1 ) then
       call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
                              gd_recv,nsize,"mpi_double_precision","EW",ierr)
     else
-      gd_recv(:,:,:,:,1) = gd_send(:,:,:,:,1)
+      gd_recv(:,:,:,1) = gd_send(:,:,:,1)
     end if
 
-!$OMP PARALLEL DO PRIVATE(yourid,jn,jlev,jlev2,jm,icount)
+!$OMP PARALLEL DO PRIVATE(yourid,levIndex,levIndex2)
     do yourid = 0, (mpi_npex-1)
-      do jm = lst(id)%mymBeg, lst(id)%mymEnd, lst(id)%mymSkip
-        do jlev = lst(id)%myLevBeg, lst(id)%myLevEnd
-          jlev2 = jlev - lst(id)%myLevBeg + 1
-          icount = 0
-          do jn = lst(id)%allnBeg(yourid+1), lst(id)%allnEnd(yourid+1), lst(id)%allnSkip(yourid+1)
-            icount = icount + 1
-            pgd_out(2*lst(id)%mymIndex(jm)-1,2*jn+1,jlev) = gd_recv(icount,1,jlev2,lst(id)%mymIndex(jm),yourid+1)
-            pgd_out(2*lst(id)%mymIndex(jm)-1,2*jn+2,jlev) = gd_recv(icount,2,jlev2,lst(id)%mymIndex(jm),yourid+1)
-            pgd_out(2*lst(id)%mymIndex(jm)  ,2*jn+1,jlev) = gd_recv(icount,3,jlev2,lst(id)%mymIndex(jm),yourid+1)
-            pgd_out(2*lst(id)%mymIndex(jm)  ,2*jn+2,jlev) = gd_recv(icount,4,jlev2,lst(id)%mymIndex(jm),yourid+1)
-          end do
-        end do
-      end do
+       do levIndex = lst(id)%allLevBeg(yourid+1), lst(id)%allLevEnd(yourid+1)
+          levIndex2 = levIndex - lst(id)%allLevBeg(yourid+1) + 1
+             SpectralStateVar(:,:,levIndex) = gd_recv(1:lst(id)%nla,:,levIndex2,yourid+1)
+       end do
     end do
 !$OMP END PARALLEL DO
 
     call tmg_stop(26)
 
-  END SUBROUTINE transpose2d_NtoLev
+  END SUBROUTINE transpose2d_LevToN_kij
+
+!--------------------------------------------------------------------------
+! LST_Transpose2d_NToLev
+!--------------------------------------------------------------------------
+  SUBROUTINE transpose2d_NToLev(gd_out, SpectralStateVar, nk, id)
+    implicit none
+
+    integer, intent(in) :: nk, id
+
+    real(8), intent(in):: SpectralStateVar(lst(id)%nla,nphase,nk)
+    real(8), intent(out):: gd_out(2*lst(id)%mymCount, lst(id)%nj+njp    , lst(id)%myLevBeg:lst(id)%myLevEnd)
+
+    real(8) :: gd_send(lst(id)%maxnla, 4, lst(id)%maxLevCount, mpi_npex)
+    real(8) :: gd_recv(lst(id)%maxnla, 4, lst(id)%maxLevCount, mpi_npex)
+
+    integer :: yourid, nsize, ierr, levIndex, levIndex2, nIndex, mIndex, icount,ila
+
+    if (verbose) write(*,*) 'Entering transpose2d_NToLev'
+    call rpn_comm_barrier("GRID",ierr)
+
+    call tmg_start(26,'TRANSP_2D_LEVtoN')
+
+!$OMP PARALLEL DO PRIVATE(yourid,levIndex,levIndex2)
+    do yourid = 0, (mpi_npex-1)
+       do levIndex = lst(id)%allLevBeg(yourid+1), lst(id)%allLevEnd(yourid+1)
+          levIndex2 = levIndex - lst(id)%allLevBeg(yourid+1) + 1
+             gd_send(1:lst(id)%nla,:,levIndex2,yourid+1) = SpectralStateVar(:,:,levIndex)
+             if (lst(id)%nla < lst(id)%maxnla) gd_send(lst(id)%nla+1:lst(id)%maxnla,:,levIndex2,yourid+1) = 0.d0
+       end do
+    end do
+!$OMP END PARALLEL DO
+
+    nsize = lst(id)%maxnla*4*lst(id)%maxLevCount
+    if ( mpi_npex > 1 ) then
+      call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
+                             gd_recv,nsize,"mpi_double_precision","EW",ierr)
+    else
+      gd_recv(:,:,:,1) = gd_send(:,:,:,1)
+    end if
+
+!$OMP PARALLEL DO PRIVATE(yourid,nIndex,levIndex,levIndex2,mIndex,icount)
+    do yourid = 0, (mpi_npex-1)
+       do levIndex = lst(id)%myLevBeg, lst(id)%myLevEnd
+          levIndex2 = levIndex - lst(id)%myLevBeg + 1
+          icount = 0
+          do nIndex = lst(id)%allnBeg(yourid+1), lst(id)%allnEnd(yourid+1), lst(id)%allnSkip(yourid+1)
+             do mIndex = lst(id)%mymBeg, lst(id)%mymEnd, lst(id)%mymSkip
+                if ( lst(id)%KfromMNglb(mIndex,nIndex) /= -1 ) then
+                   icount = icount + 1
+                   gd_out(2*lst(id)%mymIndex(mIndex)-1,2*nIndex+1,levIndex) = gd_recv(icount,1,levIndex2,yourid+1)
+                   gd_out(2*lst(id)%mymIndex(mIndex)-1,2*nIndex+2,levIndex) = gd_recv(icount,2,levIndex2,yourid+1)
+                   gd_out(2*lst(id)%mymIndex(mIndex)  ,2*nIndex+1,levIndex) = gd_recv(icount,3,levIndex2,yourid+1)
+                   gd_out(2*lst(id)%mymIndex(mIndex)  ,2*nIndex+2,levIndex) = gd_recv(icount,4,levIndex2,yourid+1)
+                else
+                   gd_out(2*lst(id)%mymIndex(mIndex)-1,2*nIndex+1,levIndex) = 0.d0
+                   gd_out(2*lst(id)%mymIndex(mIndex)-1,2*nIndex+2,levIndex) = 0.d0
+                   gd_out(2*lst(id)%mymIndex(mIndex)  ,2*nIndex+1,levIndex) = 0.d0
+                   gd_out(2*lst(id)%mymIndex(mIndex)  ,2*nIndex+2,levIndex) = 0.d0
+                end if
+             end do
+          end do
+       end do
+    end do
+!$OMP END PARALLEL DO
+
+    call tmg_stop(26)
+
+  END SUBROUTINE transpose2d_NToLev
+
+!--------------------------------------------------------------------------
+! LST_Transpose2d_NToLev_kij
+!--------------------------------------------------------------------------
+  SUBROUTINE transpose2d_NToLev_kij(gd_out, SpectralStateVar, nk, id)
+    implicit none
+
+    integer, intent(in) :: nk, id
+
+    real(8), intent(in):: SpectralStateVar(lst(id)%nla,nphase,nk)
+    real(8), intent(out):: gd_out(lst(id)%myLevBeg:lst(id)%myLevEnd,2*lst(id)%mymCount, lst(id)%nj+njp)
+
+    real(8) :: gd_send(lst(id)%maxnla, 4, lst(id)%maxLevCount, mpi_npex)
+    real(8) :: gd_recv(lst(id)%maxnla, 4, lst(id)%maxLevCount, mpi_npex)
+
+    integer :: yourid, nsize, ierr, levIndex, levIndex2, nIndex, mIndex, icount,ila
+
+    if (verbose) write(*,*) 'Entering transpose2d_NToLev_kij'
+    call rpn_comm_barrier("GRID",ierr)
+
+    call tmg_start(26,'TRANSP_2D_LEVtoN')
+
+!$OMP PARALLEL DO PRIVATE(yourid,levIndex,levIndex2)
+    do yourid = 0, (mpi_npex-1)
+       do levIndex = lst(id)%allLevBeg(yourid+1), lst(id)%allLevEnd(yourid+1)
+          levIndex2 = levIndex - lst(id)%allLevBeg(yourid+1) + 1
+             gd_send(1:lst(id)%nla,:,levIndex2,yourid+1) = SpectralStateVar(:,:,levIndex)
+             if (lst(id)%nla < lst(id)%maxnla) gd_send(lst(id)%nla+1:lst(id)%maxnla,:,levIndex2,yourid+1) = 0.d0
+       end do
+    end do
+!$OMP END PARALLEL DO
+
+    nsize = lst(id)%maxnla*4*lst(id)%maxLevCount
+    if ( mpi_npex > 1 ) then
+      call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
+                             gd_recv,nsize,"mpi_double_precision","EW",ierr)
+    else
+      gd_recv(:,:,:,1) = gd_send(:,:,:,1)
+    end if
+
+!$OMP PARALLEL DO PRIVATE(yourid,nIndex,levIndex,levIndex2,mIndex,icount)
+    do yourid = 0, (mpi_npex-1)
+       do levIndex = lst(id)%myLevBeg, lst(id)%myLevEnd
+          levIndex2 = levIndex - lst(id)%myLevBeg + 1
+          icount = 0
+          do nIndex = lst(id)%allnBeg(yourid+1), lst(id)%allnEnd(yourid+1), lst(id)%allnSkip(yourid+1)
+             do mIndex = lst(id)%mymBeg, lst(id)%mymEnd, lst(id)%mymSkip
+                if ( lst(id)%KfromMNglb(mIndex,nIndex) /= -1 ) then
+                   icount = icount + 1
+                   gd_out(levIndex,2*lst(id)%mymIndex(mIndex)-1,2*nIndex+1) = gd_recv(icount,1,levIndex2,yourid+1)
+                   gd_out(levIndex,2*lst(id)%mymIndex(mIndex)-1,2*nIndex+2) = gd_recv(icount,2,levIndex2,yourid+1)
+                   gd_out(levIndex,2*lst(id)%mymIndex(mIndex)  ,2*nIndex+1) = gd_recv(icount,3,levIndex2,yourid+1)
+                   gd_out(levIndex,2*lst(id)%mymIndex(mIndex)  ,2*nIndex+2) = gd_recv(icount,4,levIndex2,yourid+1)
+                else
+                   gd_out(levIndex,2*lst(id)%mymIndex(mIndex)-1,2*nIndex+1) = 0.d0
+                   gd_out(levIndex,2*lst(id)%mymIndex(mIndex)-1,2*nIndex+2) = 0.d0
+                   gd_out(levIndex,2*lst(id)%mymIndex(mIndex)  ,2*nIndex+1) = 0.d0
+                   gd_out(levIndex,2*lst(id)%mymIndex(mIndex)  ,2*nIndex+2) = 0.d0
+                end if
+             end do
+          end do
+       end do
+    end do
+!$OMP END PARALLEL DO
+
+    call tmg_stop(26)
+
+  END SUBROUTINE transpose2d_NToLev_kij
 
 !--------------------------------------------------------------------------
 ! LST_ReshapeTrunc
@@ -1445,11 +2227,12 @@ contains
 
     integer k, m, n, ila
 
+    if (verbose) write(*,*) 'Entering lst_ReshapeTrunc'
+
     select case ( trim(Direction) )
     case ('ToVAR')
       ! Truncation (if applicable) will be applied here
-!$OMP PARALLEL
-!$OMP DO PRIVATE (n,m,ila,k) 
+!$OMP PARALLEL DO PRIVATE (n,m,ila,k) 
       do n = lst(id)%mynBeg, lst(id)%mynEnd, lst(id)%mynSkip
         do m = lst(id)%mymBeg, lst(id)%mymEnd, lst(id)%mymSkip
           ila = lst(id)%nla_Index(m,n)
@@ -1463,13 +2246,11 @@ contains
           end if
         end do
       end do
-!$OMP END DO
-!$OMP END PARALLEL
+!$OMP END PARALLEL DO
 
     case ('ToRPN')
       SpectralStateRpn(:,:,:) = 0.0d0
-!$OMP PARALLEL
-!$OMP DO PRIVATE (n,m,ila,k)
+!$OMP PARALLEL DO PRIVATE (n,m,ila,k)
       do n = lst(id)%mynBeg, lst(id)%mynEnd, lst(id)%mynSkip
         do m = lst(id)%mymBeg, lst(id)%mymEnd, lst(id)%mymSkip
           ila = lst(id)%nla_Index(m,n)
@@ -1483,8 +2264,7 @@ contains
           end if
         end do
       end do
-!$OMP END DO
-!$OMP END PARALLEL
+!$OMP END PARALLEL DO
 
     case default
       write(6,*)
@@ -1493,6 +2273,67 @@ contains
     end select
 
   end subroutine lst_ReshapeTrunc
+
+!--------------------------------------------------------------------------
+! LST_ReshapeTrunc_kij
+!--------------------------------------------------------------------------
+  subroutine lst_ReshapeTrunc_kij( SpectralStateRpn, SpectralStateVar,  &
+                                   Direction, kStart, kEnd, id )
+    implicit none
+
+    integer,          intent(in)    :: id, kStart, kEnd
+    character(len=*), intent(in)    :: Direction ! ToVAR or ToRPN
+    real(8),          intent(inout) :: SpectralStateRpn(kStart:kEnd,2*lst(id)%mymCount,2*lst(id)%mynCount)
+    real(8),          intent(inout) :: SpectralStateVar(lst(id)%nla     ,nphase,kStart:kEnd)
+
+    integer k, m, n, ila
+
+    if (verbose) write(*,*) 'Entering lst_ReshapeTrunc_kij'
+
+    select case ( trim(Direction) )
+    case ('ToVAR')
+      ! Truncation (if applicable) will be applied here
+!$OMP PARALLEL DO PRIVATE (n,m,ila,k) 
+      do n = lst(id)%mynBeg, lst(id)%mynEnd, lst(id)%mynSkip
+        do m = lst(id)%mymBeg, lst(id)%mymEnd, lst(id)%mymSkip
+          ila = lst(id)%nla_Index(m,n)
+          if ( ila /= -1 ) then
+            do k = kStart, kEnd 
+              SpectralStateVar(ila,1,k) = SpectralStateRpn(k,2*lst(id)%mymIndex(m)-1,2*lst(id)%mynIndex(n)-1)
+              SpectralStateVar(ila,2,k) = SpectralStateRpn(k,2*lst(id)%mymIndex(m)-1,2*lst(id)%mynIndex(n)  )
+              SpectralStateVar(ila,3,k) = SpectralStateRpn(k,2*lst(id)%mymIndex(m)  ,2*lst(id)%mynIndex(n)-1)
+              SpectralStateVar(ila,4,k) = SpectralStateRpn(k,2*lst(id)%mymIndex(m)  ,2*lst(id)%mynIndex(n)  )
+            end do
+          end if
+        end do
+      end do
+!$OMP END PARALLEL DO
+
+    case ('ToRPN')
+      SpectralStateRpn(:,:,:) = 0.0d0
+!$OMP PARALLEL DO PRIVATE (n,m,ila,k)
+      do n = lst(id)%mynBeg, lst(id)%mynEnd, lst(id)%mynSkip
+        do m = lst(id)%mymBeg, lst(id)%mymEnd, lst(id)%mymSkip
+          ila = lst(id)%nla_Index(m,n)
+          if ( ila /= -1 ) then
+            do k = kStart, kEnd
+              SpectralStateRpn(k,2*lst(id)%mymIndex(m)-1,2*lst(id)%mynIndex(n)-1) = SpectralStateVar(ila,1,k)
+              SpectralStateRpn(k,2*lst(id)%mymIndex(m)-1,2*lst(id)%mynIndex(n)  ) = SpectralStateVar(ila,2,k)
+              SpectralStateRpn(k,2*lst(id)%mymIndex(m)  ,2*lst(id)%mynIndex(n)-1) = SpectralStateVar(ila,3,k)
+              SpectralStateRpn(k,2*lst(id)%mymIndex(m)  ,2*lst(id)%mynIndex(n)  ) = SpectralStateVar(ila,4,k)
+            end do
+          end if
+        end do
+      end do
+!$OMP END PARALLEL DO
+
+    case default
+      write(6,*)
+      write(6,*) 'lst_ReshapeTrunc_kij: Unknown Direction', trim(Direction)
+      call utl_abort('lst_ReshapeTrunc_kij')
+    end select
+
+  end subroutine lst_ReshapeTrunc_kij
 
 !--------------------------------------------------------------------------
 ! LST_Laplacian
@@ -1515,6 +2356,8 @@ contains
     integer :: k, ila, p
 
     character(len=24)   :: kind
+
+    if (verbose) write(*,*) 'Entering lst_Laplacian'
 
     allocate( SpectralStateVar(lst(id)%nla,nphase,nk) )
     allocate( factor(lst(id)%nla) )
@@ -1547,8 +2390,7 @@ contains
     !
     !- 3. Laplacian (forward or inverse) Transform
     !
-!$OMP PARALLEL
-!$OMP DO PRIVATE (k,ila,p)
+!$OMP PARALLEL DO PRIVATE (k,ila,p)
     do k = 1, nk
       do ila = 1, lst(id)%nla
         do p = 1, nphase
@@ -1556,8 +2398,7 @@ contains
         end do
       end do
     end do
-!$OMP END DO
-!$OMP END PARALLEL
+!$OMP END PARALLEL DO
 
     !
     !- 4. Spectral Space -> Grid Point Space

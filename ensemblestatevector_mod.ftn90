@@ -82,10 +82,10 @@ CONTAINS
     integer :: memberIndex, ierr
     integer :: jk, lon1, lon2, lat1, lat2, k1, k2
 
-    if( ens%allocated ) then
+    if ( ens%allocated ) then
       write(*,*) 'ens_allocate: this object is already allocated, deallocating first.'
       call ens_deallocate( ens )
-    endif
+    end if
 
     call gsv_allocate( ens%statevector_work, &
                        numStep, hco_ens, vco_ens,  &
@@ -101,7 +101,7 @@ CONTAINS
     allocate( ens%repack_r4(k1:k2) )
     do jk = k1, k2
       allocate( ens%repack_r4(jk)%onelevel(numMembers,numStep,lon1:lon2,lat1:lat2) )
-    enddo
+    end do
 
     ens%allocated = .true.
     ens%numMembers = numMembers
@@ -133,7 +133,7 @@ CONTAINS
     do jk = k1, k2
       allocate( ens%repack_ensMean_r8(jk)%onelevel(ens%numSubEns,numStep,lon1:lon2,lat1:lat2) )
       ens%repack_ensMean_r8(jk)%onelevel(:,:,:,:) = 0.0d0
-    enddo
+    end do
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
@@ -149,24 +149,24 @@ CONTAINS
     ! locals
     integer :: memberIndex, subEnsIndex, k1, k2, jk
 
-    if( .not. ens%allocated ) return
+    if ( .not. ens%allocated ) return
 
     k1 = ens%statevector_work%mykBeg
     k2 = ens%statevector_work%mykEnd
 
     do jk = k1, k2
       deallocate( ens%repack_r4(jk)%onelevel )
-    enddo
+    end do
     deallocate( ens%repack_r4 )
 
-    if(ens%meanIsComputed) then
+    if (ens%meanIsComputed) then
       do jk = k1, k2
         deallocate( ens%repack_ensMean_r8(jk)%onelevel )
       end do
       deallocate( ens%repack_ensMean_r8 )
       deallocate( ens%subEnsIndexList )
       deallocate( ens%nEnsSubEns )
-    endif
+    end if
 
     ens%allocated = .false.
 
@@ -192,8 +192,8 @@ CONTAINS
     do stepIndex = 1, numStep
       do jk = k1, k2
         ptr4d_r4(:,:,jk,stepIndex) = ens%repack_r4(jk)%onelevel(memberIndex,stepIndex,:,:) 
-      enddo
-    enddo
+      end do
+    end do
 
   end subroutine ens_copyToStateWork
 
@@ -260,8 +260,8 @@ CONTAINS
     do stepIndex = 1, numStep
       do jk = k1, k2
         ptr4d_r8(:,:,jk,stepIndex) = ens%repack_ensMean_r8(jk)%onelevel(subEnsIndex,stepIndex,:,:)
-      enddo
-    enddo
+      end do
+    end do
 
   end subroutine ens_copyEnsMean
 
@@ -372,18 +372,18 @@ CONTAINS
     real(4), pointer  :: ptr_repack_r4(:,:,:,:)
     real(8), pointer  :: ptr4d_r8(:,:,:,:)
 
-    if(present(computeSubEnsMeans)) then
+    if (present(computeSubEnsMeans)) then
       computeSubEnsMeans2 = computeSubEnsMeans
     else
       computeSubEnsMeans2 = .false.
-    endif
+    end if
 
     ! Read sub-ensemble index list from file, if it exists
     allocate(ens%subEnsIndexList(ens%numMembers))
-    if( computeSubEnsMeans2 ) then
+    if ( computeSubEnsMeans2 ) then
       write(*,*) 'ens_computeMean: checking in ensemble directory if file with sub-ensemble index list exists: ',subEnsIndexFileName
       inquire(file=trim(ens%enspathname) // trim(subEnsIndexFileName),exist=lExists)
-      if( lExists ) then
+      if ( lExists ) then
         kulin = 0
         ierr = fnom(kulin,trim(ens%enspathname) // trim(subEnsIndexFileName),'FMT+SEQ+R/O',0)
         do memberIndex = 1, ens%numMembers
@@ -402,7 +402,7 @@ CONTAINS
     ens%nEnsSubEns(:) = 0
     do memberIndex = 1, ens%numMembers
       ens%nEnsSubEns(ens%subEnsIndexList(memberIndex)) = ens%nEnsSubEns(ens%subEnsIndexList(memberIndex)) + 1
-    enddo
+    end do
     write(*,*) 'ens_computeMean: number of sub-ensembles = ', ens%numSubEns
     write(*,*) 'ens_computeMean: number of members in each sub-ensemble = ', ens%nensSubEns(:)
 
@@ -425,20 +425,20 @@ CONTAINS
               ens%repack_ensMean_r8(jk)%onelevel(ens%subEnsIndexList(memberIndex),stepIndex,ji,jj) = &
                 ens%repack_ensMean_r8(jk)%onelevel(ens%subEnsIndexList(memberIndex),stepIndex,ji,jj) + &
                 dble(ens%repack_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj))
-            enddo
+            end do
             do subEnsIndex = 1, ens%numSubEns
               ens%repack_ensMean_r8(jk)%onelevel(subEnsIndex,stepIndex,ji,jj) = &
                 ens%repack_ensMean_r8(jk)%onelevel(subEnsIndex,stepIndex,ji,jj) /  &
                 dble(ens%nEnsSubEns(subEnsIndex))
-            enddo
-          enddo
-        enddo
-      enddo
-    enddo
+            end do
+          end do
+        end do
+      end do
+    end do
 !$OMP END PARALLEL DO
 
     ! provide output argument value
-    if( present(numSubEns) ) numSubEns = ens%numSubEns
+    if ( present(numSubEns) ) numSubEns = ens%numSubEns
 
   end subroutine ens_computeMean
 
@@ -470,11 +470,11 @@ CONTAINS
               ens%repack_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj) =  &
                 real( (real(ens%repack_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj),8) -  &
                       ens%repack_ensMean_r8(jk)%onelevel(ens%subEnsIndexList(memberIndex),stepIndex,ji,jj)), 4 )
-            enddo
-          enddo
-        enddo
-      enddo 
-    enddo
+            end do
+          end do
+        end do
+      end do 
+    end do
 !$OMP END PARALLEL DO
 
   end subroutine ens_removeMean
@@ -512,14 +512,18 @@ CONTAINS
     character(len=2)   :: typvar
     character(len=12)  :: etiket
     character(len=4)   :: varName
-    logical            :: verticalInterpNeeded, horizontalInterpNeeded, HUcontainsLQinFile
+    logical            :: verticalInterpNeeded, horizontalInterpNeeded, horizontalPaddingNeeded
+    logical :: HUcontainsLQinFile
+
+    ! stucture
+    type(struct_hco), pointer  :: hco_coregrid
 
     write(*,*) 'ens_readEnsemble: starting'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-    if( .not. ens%allocated ) then
+    if ( .not. ens%allocated ) then
       call utl_abort('ens_readEnsemble: ensemble object not allocated!')
-    endif
+    end if
 
     !- 1. Initial setup
 
@@ -542,7 +546,7 @@ CONTAINS
 
     do memberIndex = 1, ens%numMembers
       readFilePE(memberIndex) = mod(memberIndex-1,mpi_nprocs)
-    enddo
+    end do
 
     ! Retrieve environment variables related to doing an ensemble of perturbed analyses
     status = 0
@@ -550,26 +554,26 @@ CONTAINS
     if (status.gt.1) then
       write(*,*) 'ens_readEnsemble: Problem when getting the environment variable envar_memberIndexOffset'
       memberIndexOffset = 0
-    elseif (status == 1) then
+    else if (status == 1) then
       memberIndexOffset = 0
     else
       write(*,*) 'ens_readEnsemble: The environment variable envar_memberIndexOffset has been detected: ',envVariable
       read(envVariable,'(i8)') memberIndexOffset
       write(*,*) 'memberIndexOffset = ',memberIndexOffset
-    endif
+    end if
 
     status = 0
     call get_environment_variable('envar_totalEnsembleSize',envVariable,length_envVariable,status,.true.)
     if (status.gt.1) then
       write(*,*) 'ens_readEnsemble: Problem when getting the environment variable envar_totalEnsembleSize'
       totalEnsembleSize = ens%numMembers
-    elseif (status == 1) then
+    else if (status == 1) then
       totalEnsembleSize = ens%numMembers
     else
       write(*,*) 'ens_readEnsemble: The environment variable envar_totalEnsembleSize has been detected: ',envVariable
       read(envVariable,'(i8)') totalEnsembleSize
       write(*,*) 'totalEnsembleSize = ',totalEnsembleSize
-    endif
+    end if
 
     ! Set up hco and vco for ensemble files (use member 1)
     call ens_fileName(ensFileName, ensPathName, ensFileBaseName, 1)
@@ -578,7 +582,7 @@ CONTAINS
     nullify(vco_file)
     if ( mpi_myid == 0 ) then
       call vco_SetupFromFile(vco_file, ensFileName) 
-    endif
+    end if
     call vco_mpiBcast(vco_file)
     hco_ens => gsv_getHco(ens%statevector_work)
     vco_ens => gsv_getVco(ens%statevector_work)
@@ -590,10 +594,27 @@ CONTAINS
       if ( hco_file%ni == (hco_ens%ni+1) ) then
         write(*,*) 'ens_readEnsemble: no interpolation done for equivalent Gaussian grid stored as a Z grid'
         horizontalInterpNeeded = .false.
-      endif
-    endif
+      end if
+    end if
+    ! In limited-area mode, avoid horizontal interpolation when the ensemble is on the coregrid
+    horizontalPaddingNeeded = .false.
+    if ( .not. hco_file%global ) then
+       hco_coregrid => agd_getHco('AnalysisCore')
+       if ( hco_file%ni == hco_coregrid%ni .and. hco_file%nj == hco_coregrid%nj  ) then
+          if (mpi_myid == 0) write(*,*) 'ens_readEnsemble: no interpolation needed for ensemble on the limited-area coregrid'
+          horizontalInterpNeeded = .false.
+          horizontalPaddingNeeded = .true.
+       end if
+    end if
 
-    if (mpi_myid == 0) write(*,*) 'ens_readEnsemble: dateStampList=',dateStampList(1:numStep)
+    if (mpi_myid == 0) then
+       write(*,*)
+       write(*,*) 'ens_readEnsemble: dateStampList=',dateStampList(1:numStep)
+       write(*,*)
+       if (horizontalInterpNeeded )  write(*,*) 'ens_readEnsemble: HORIZONTAL interpolation is needed'
+       if (verticalInterpNeeded   )  write(*,*) 'ens_readEnsemble: VERTICAL   interpolation is needed'
+       if (horizontalPaddingNeeded)  write(*,*) 'ens_readEnsemble: HORIZONTAL padding       is needed'
+    end if
 
     !
     !- 2.  Ensemble forecasts reading loop
@@ -606,14 +627,14 @@ CONTAINS
       ! allocate the needed statevector objects
       call gsv_allocate(statevector_member_r4, 1, hco_ens, vco_ens,  &
                         datestamp=dateStampList(stepIndex), mpi_local=.false., dataKind_in=4)
-      if(horizontalInterpNeeded .or. verticalInterpNeeded) then
+      if (horizontalInterpNeeded .or. verticalInterpNeeded .or. horizontalPaddingNeeded) then
         call gsv_allocate(statevector_file_r4, 1, hco_file, vco_file,  &
                           datestamp=dateStampList(stepIndex), mpi_local=.false., dataKind_in=4)
-      endif
-      if(verticalInterpNeeded) then
+      end if
+      if (verticalInterpNeeded) then
         call gsv_allocate(statevector_hint_r4, 1, hco_ens, vco_file,  &
                           datestamp=dateStampList(stepIndex), mpi_local=.false., dataKind_in=4)
-      endif
+      end if
 
       do memberIndex = 1, ens%numMembers
 
@@ -626,33 +647,41 @@ CONTAINS
           call ens_fileName(ensFileName, ensPathName, ensFileBaseName, fileMemberIndex)
           typvar = ' '
           etiket = ' '
-          if(.not. horizontalInterpNeeded .and. .not. verticalInterpNeeded) then
+          if (.not. horizontalInterpNeeded  .and. &
+             .not. verticalInterpNeeded    .and. &
+             .not. horizontalPaddingNeeded ) then
             call gsv_readFile(statevector_member_r4, ensFileName, etiket, typvar, HUcontainsLQinFile)
           else
             call gsv_readFile(statevector_file_r4, ensFileName, etiket, typvar, HUcontainsLQinFile)
-          endif
-          if(stepIndex == numStep) then
+          end if
+          if (stepIndex == numStep) then
             ierr = top_ramDiskRemove(ensFileName)
-          endif
+          end if
 
           ! do any required interpolation
-          if(horizontalInterpNeeded .and. verticalInterpNeeded) then
+          if (horizontalInterpNeeded .and. verticalInterpNeeded) then
             call gsv_hInterpolate_r4(statevector_file_r4, statevector_hint_r4)
             call gsv_vInterpolate_r4(statevector_hint_r4, statevector_member_r4, Ps_in_hPa=.true.)
 
-          elseif(horizontalInterpNeeded .and. .not. verticalInterpNeeded) then
+          else if (horizontalInterpNeeded .and. .not. verticalInterpNeeded) then
             call gsv_hInterpolate_r4(statevector_file_r4, statevector_member_r4)
 
-          elseif(.not. horizontalInterpNeeded .and. verticalInterpNeeded) then
-            call gsv_copy(statevector_file_r4, statevector_hint_r4)
+          else if (.not. horizontalInterpNeeded .and. verticalInterpNeeded) then
+            if (horizontalPaddingNeeded) then
+               call gsv_hPad(statevector_file_r4, statevector_hint_r4)
+            else
+               call gsv_copy(statevector_file_r4, statevector_hint_r4)
+            end if
             call gsv_vInterpolate_r4(statevector_hint_r4, statevector_member_r4, Ps_in_hPa=.true.)
 
-          endif
+          else if (horizontalPaddingNeeded) then
+             call gsv_hPad(statevector_file_r4, statevector_member_r4)
+          end if
 
           ! unit conversion
           VAR_LOOP: do jvar = 1, vnl_numvarmax
             varName = vnl_varNameList(jvar)
-            if( .not. gsv_varExist(statevector_member_r4, varName) ) cycle VAR_LOOP
+            if ( .not. gsv_varExist(statevector_member_r4, varName) ) cycle VAR_LOOP
             ptr3d_r4 => gsv_getField3D_r4(statevector_member_r4, varName)
 
             if ( trim(varName) == 'UU' .or. trim(varName) == 'VV') then
@@ -668,8 +697,8 @@ CONTAINS
               ptr3d_r4(:,:,:) = sngl(log(max(real(ptr3d_r4(:,:,:),8),MPC_MINIMUM_HU_R8)))
             else if (trim(varName) == 'HU' .and. ctrlVarHumidity == 'HU' .and. .not. HUcontainsLQinFile ) then
               ptr3d_r4(:,:,:) = sngl(max(real(ptr3d_r4(:,:,:),8),MPC_MINIMUM_HU_R8))
-            endif
-          enddo VAR_LOOP
+            end if
+          end do VAR_LOOP
 
           !  Create bi-periodic forecasts when using scale-dependent localization in LAM mode
           if ( .not. hco_ens%global .and. biperiodic ) then
@@ -678,7 +707,7 @@ CONTAINS
                              ni, nj, statevector_member_r4%nk)  ! IN
           end if
 
-        endif ! locally read one member
+        end if ! locally read one member
 
 
         !  MPI communication: from 1 ensemble member per process to 1 lat-lon tile per process  
@@ -699,8 +728,8 @@ CONTAINS
                 gd_send_r4(:,:,1:numLevelsToSend2,yourid+1) =  &
                   ptr3d_r4(ens%statevector_work%allLonBeg(youridx+1):ens%statevector_work%allLonEnd(youridx+1),  &
                            ens%statevector_work%allLatBeg(youridy+1):ens%statevector_work%allLatEnd(youridy+1),jk:jk2)
-              enddo
-            enddo
+              end do
+            end do
 !$OMP END PARALLEL DO
 
             nsize = lonPerPE*latPerPE*numLevelsToSend2
@@ -709,7 +738,7 @@ CONTAINS
                                      gd_recv_r4(:,:,1:numLevelsToSend2,:),nsize,"mpi_real4","GRID",ierr)
             else
               gd_recv_r4(:,:,1:numLevelsToSend2,1) = gd_send_r4(:,:,1:numLevelsToSend2,1)
-            endif
+            end if
 
             call tmg_start(110,'ENS_TO_REPACK')
 !$OMP PARALLEL DO PRIVATE(jk3,memberIndex2,yourid)
@@ -717,25 +746,25 @@ CONTAINS
               do memberIndex2 = 1+(batchnum-1)*mpi_nprocs, memberIndex
                 yourid = readFilePE(memberIndex2)
                 ens%repack_r4(jk3+jk-1)%onelevel(memberIndex2,stepIndex,:,:) = gd_recv_r4(:,:,jk3,yourid+1)
-              enddo
-            enddo
+              end do
+            end do
 !$OMP END PARALLEL DO
             call tmg_stop(110)
 
-          enddo ! jk
+          end do ! jk
           call tmg_stop(13)
 
-        endif ! MPI communication
+        end if ! MPI communication
 
 
-      enddo ! memberIndex
+      end do ! memberIndex
 
       ! deallocate the needed statevector objects
       call gsv_deallocate(statevector_member_r4)
-      if(horizontalInterpNeeded .or. verticalInterpNeeded) call gsv_deallocate(statevector_file_r4)
-      if(verticalInterpNeeded) call gsv_deallocate(statevector_hint_r4)
+      if (horizontalInterpNeeded .or. verticalInterpNeeded) call gsv_deallocate(statevector_file_r4)
+      if (verticalInterpNeeded) call gsv_deallocate(statevector_hint_r4)
 
-    enddo ! time
+    end do ! time
 
     deallocate(gd_send_r4)
     deallocate(gd_recv_r4)
@@ -776,7 +805,7 @@ CONTAINS
     if (mpi_myid == 0) write(*,*) 'ens_fileName: DATE,TIME=',ndate,'  ,',ntime
 
     ! Determine file name extension length for ensemble files (3 or 4)
-    if(firstTime) then
+    if (firstTime) then
       write(ensNumber,'(i4.4)') memberIndex
       ensFileName = trim(enspathname) // '/' // trim(ensfilebasename) // &
                     trim(datestr_last) // trim(hourstr_last) // '_006_' // trim(ensNumber)
@@ -792,11 +821,11 @@ CONTAINS
           ensembleFileExtLength = 4
         else 
           call utl_abort('ens_fileName: could not determine file extension length')
-        endif
-      endif
+        end if
+      end if
       firstTime = .false.
     else
-      if(ensembleFileExtLength == 4) then
+      if (ensembleFileExtLength == 4) then
         write(ensNumber,'(i4.4)') memberIndex
         ensFileName = trim(enspathname) // '/' // trim(ensfilebasename) // &
                       trim(datestr_last) // trim(hourstr_last) // '_006_' // trim(ensNumber)
@@ -804,8 +833,8 @@ CONTAINS
         write(ensNumber,'(i3.3)') memberIndex
         ensFileName = trim(enspathname) // '/' // trim(ensfilebasename) // &
                       trim(datestr_last) // trim(hourstr_last) // '_006_' // trim(ensNumber)
-      endif
-    endif
+      end if
+    end if
 
     ensFileName = top_fullWorkingPath(ensFileName)
 
