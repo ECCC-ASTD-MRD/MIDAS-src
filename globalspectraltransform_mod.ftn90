@@ -3262,7 +3262,6 @@ CONTAINS
     kfield = size(pgd,1)
     ni = size(pgd,2)
     nj = size(pgd,3)
-    ijump = ni + 2
 
     i = ni
     call ngfft( i )

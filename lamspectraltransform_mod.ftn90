@@ -496,9 +496,10 @@ contains
     if ( ila == 0 ) then
        write(*,*)
        write(*,*) 'There are no spectral elements associated to this mpi task!'
-       write(*,*) 'Your options: decrease the number of mpi tasks and/or increase the truncation'
-       call utl_abort('lst_setup')
+    !   write(*,*) 'Your options: decrease the number of mpi tasks and/or increase the truncation'
+    !   call utl_abort('lst_setup')
     end if
+
     lst(id)%nla = ila
     lst_out%nla = lst(id)%nla ! Number of spectral element per phase in the VAR array
     if ( trim(lst(id)%MpiMode) /= 'NoMpi') then

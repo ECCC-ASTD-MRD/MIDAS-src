@@ -42,7 +42,7 @@ MODULE BmatrixEnsemble_mod
   private
 
   ! public procedures
-  public :: ben_Setup, ben_BSqrt, ben_BSqrtAd,
+  public :: ben_Setup, ben_BSqrt, ben_BSqrtAd
   public :: ben_reduceToMPILocal, ben_reduceToMPILocal_r4, ben_expandToMPIGlobal, ben_expandToMPIGlobal_r4
   public :: ben_getScaleFactor, ben_getnEns, ben_getPerturbation, ben_getEnsMean, ben_Finalize
 
@@ -3841,8 +3841,6 @@ CONTAINS
     allocate(sp_vhLoc(nla_mpilocal,nphase,nLevEns_M,nEnsOverDimension))
     allocate(sp_hLoc (nla_mpilocal,nphase,nLevEns_M,nEns             ))
 
-    write(*,*) 'entering the NEW spectralLocalizationSqrt'
-
     !
     !- 1.  Horizontal Localization
     !
@@ -4013,8 +4011,6 @@ CONTAINS
     character(len=19) :: kind
 
     real(8) ,allocatable :: sp_hLoc(:,:,:,:),sp_vhLoc(:,:,:,:)
-
-    write(*,*) 'entering the NEW spectralLocalizationSqrtAd'
 
     allocate(sp_vhLoc(nla_mpilocal,nphase,nLevEns_M,nEnsOverDimension))
     allocate(sp_hLoc (nla_mpilocal,nphase,nLevEns_M,nEns             ))
