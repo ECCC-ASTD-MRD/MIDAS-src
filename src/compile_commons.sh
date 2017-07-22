@@ -2,9 +2,8 @@
 
 # This script contains general configuration and should be dotted in other compile scripts
 
-echo "...             |=====================================|"
-echo "... ------------|  compile_commons.sh script STARTING |------------"
-echo "...             |=====================================|"
+echo
+echo "... compile_commons.sh script"
 
 if [ "${ORDENV_PLAT}" = sles-11-haswell-64-xc40 ];then
     echo "... Switching ORDENV_PLAT from '${ORDENV_PLAT}' to 'sles-11-broadwell-64-xc40'"
@@ -94,4 +93,3 @@ else
     COMPF="${COMPF_GLOBAL} -optf ${OPTF}"
     COMPF_NOC=${COMPF}
 fi
-
