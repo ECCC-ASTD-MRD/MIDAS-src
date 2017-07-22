@@ -4,6 +4,7 @@
   <SUBMITS sub_name="Var3D_gbc"/>
   <SUBMITS sub_name="EnVar_gdps_5p1"/>
   <SUBMITS sub_name="rdps"/>
+  <SUBMITS sub_name="EnVar_biFourrier_xc40"/>
   <SUBMITS sub_name="Var3D_splitobs"/>
   <SUBMITS sub_name="EnVar_96mem_ppp"/>
   <SUBMITS sub_name="Var3D_splitobs_ppp"/>
@@ -32,6 +33,11 @@
   </FAMILY>
 
   <FAMILY  name="rdps">
+    <SUBMITS sub_name="UnitTest"/>
+    <MODULE  name="UnitTest"/>
+  </FAMILY>
+
+  <FAMILY  name="EnVar_biFourrier_xc40">
     <SUBMITS sub_name="UnitTest"/>
     <MODULE  name="UnitTest"/>
   </FAMILY>
