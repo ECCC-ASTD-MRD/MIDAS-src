@@ -13,7 +13,7 @@ echo "... ------------| Compilation script STARTING for program: ${program} |---
 echo "...             |=====================================================|"
 
 if [ "$mode" == "" ] ; then
-  echo "... "
+  echo "..."
   echo "... !WARNING! no compilation mode specified, assuming 'full'"
   mode=full
 fi
@@ -38,12 +38,12 @@ trunkdir=$PWD/../
 
 # automatically set the global revision number in toplevelcontrol_mod.ftn90 by
 # replacing the string XXXXX with the actual revision number
-revnum=$(git describe --always --dirty=_M 2>/dev/null || ssh eccc-ppp1 "cd $trunkdir; git describe --always --dirty=_M" 2>/dev/null || echo unkown revision)
+revnum=$(git describe --abbrev=7 --always --dirty=_M 2>/dev/null || ssh eccc-ppp1 "cd $trunkdir; git describe --abbrev=7 --always --dirty=_M" 2>/dev/null || echo unkown revision)
 echo "..."
 echo "... > Revision Number = '$revnum'"
 
 # Set compiledir
-compiledir_main=${COMPILEDIR_OAVAR_MAIN:-".."}
+compiledir_main=${COMPILEDIR_OAVAR_MAIN:-"../../compiledir"}
 compiledir_ID=${COMPILEDIR_OAVAR_ID:-$revnum}
 compiledir=${compiledir_main}/compiledir-${program}-${ORDENV_PLAT}_${compiledir_ID}
 mkdir -p $compiledir
@@ -52,9 +52,13 @@ compiledir=${PWD} # needed when compiledir_main = ".."
 
 echo "..."
 echo "... > Compiledir set to ${compiledir}"
-if [ ${compiledir_main} != ".." ] ; then
-    if [ ! -d  ${trunkdir}/../compiledir-${program}-${ORDENV_PLAT}_${compiledir_ID} ] ; then
-	ln -s ${compiledir_main}/compiledir-${program}-${ORDENV_PLAT}_${compiledir_ID} ${trunkdir}/../compiledir-${program}-${ORDENV_PLAT}_${compiledir_ID}
+
+if [ ${compiledir_main} != "../../compiledir" ] ; then
+    if [ ! -d  ${trunkdir}/../compiledir/compiledir-${program}-${ORDENV_PLAT}_${compiledir_ID} ] ; then
+	if [ ! -d  ${trunkdir}/../compiledir ] ; then
+	    mkdir -p ${trunkdir}/../compiledir
+	fi
+	ln -s ${compiledir_main}/compiledir-${program}-${ORDENV_PLAT}_${compiledir_ID} ${trunkdir}/../compiledir/compiledir-${program}-${ORDENV_PLAT}_${compiledir_ID}
     fi
 fi
 
@@ -66,7 +70,7 @@ varabs=${program}_${ORDENV_PLAT}-${revnum}.Abs
 
 #-----------------------------------------------------------------------------
 
-LIBAPPL="netcdff rttov10.2.0_coef_io rttov10.2.0_main rttov10.2.0_emis_atlas rttov10.2.0_other burp_module descrip $MPILIB"
+# LIBAPPL defined in "src_files" script
 LIBSYS="hpcoperf"
 LIBRMN=rmnMP
 
@@ -93,7 +97,7 @@ if [ $mode == full ] ; then
 
   echo "... > Compiling all modules and subroutines ..."
   echo "...   if aborting, check in ${PWD}/listing"
-  . ${codesubdir}/src_files_ensmanip.sh
+  . ${codesubdir}/src_files_${program}.sh
 
   s.compile $COMPF -O ${FOPTMIZ} -src $SRC_FILES > listing 2>&1
   status=1
