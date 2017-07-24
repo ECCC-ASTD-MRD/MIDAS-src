@@ -4,18 +4,18 @@
 #
 # User-defined options
 #
-machine=hare
-#machine=eccc-ppp2
-abs="${HOME}/data_maestro/ords/oavar_abs/ensmanip_sles-11-broadwell-64-xc40-m_2.2.2-10-g763480e_M.Abs"
-#abs="${HOME}/data_maestro/ords/oavar_abs/ensmanip_ubuntu-14.04-amd64-64-m_2.2.2-10-g763480e_M.Abs"
+#machine=hare
+machine=eccc-ppp2
+#abs="${HOME}/data_maestro/ords/oavar_abs/ensmanip_sles-11-broadwell-64-xc40-m_2.2.2-34-ga7bac3c_M.Abs"
+abs="${HOME}/data_maestro/ords/oavar_abs/ensmanip_ubuntu-14.04-amd64-64-m_2.2.2-34-ga7bac3c_M.Abs"
 #ensdir="/home/mab001/data_maestro/hare/ensmanip/ensemble/"
 #ensdir="/home/mab001/sitestore1/maestro_archives/Tests/EnVar_small_v001/inputs/ensemble/"
-ensdir="/home/mab001/data_maestro/hare/ensmanip/kal557/"
-#ensdir="/home/skal001/data_maestro/eccc-ppp2/exp/archive_trial/kal557/"
+#ensdir="/home/mab001/data_maestro/hare/ensmanip/kal557/"
+ensdir="/home/skal001/data_maestro/eccc-ppp2/exp/archive_trial/kal557/"
 npex=1
 npey=267
-openmp=2
-maxcputime=300
+openmp=1
+maxcputime=600
 run_in_parallel="/fs/ssm/eccc/mrd/rpn/utils/16.2/all/bin/r.run_in_parallel_1.1.28c"
 
 #
@@ -39,9 +39,11 @@ cat << EOF > $TMPDIR/flnml
  &NAMCT0
 /
  &NAMENSMANIP
-   OUTPUT_MEAN = T
-   NENS = 256
+   OUTPUT_ENSEMBLE_MEAN = T
+   OUTPUT_ENSEMBLE_PERTURBATIONS = T
+   NENS = 8
    DATE = ${ensdate}
+   WRITE_MPI = F
 /
  &NAMTIME
   DSTEPOBSINC = 1.0d0

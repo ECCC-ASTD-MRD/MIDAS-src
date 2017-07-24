@@ -39,7 +39,7 @@ MODULE ensembleStateVector_mod
   public :: struct_ens, ens_allocate, ens_deallocate, ens_readEnsemble, ens_fileName
   public :: ens_copyToStateWork, ens_getRepackMean_r8
   public :: ens_varExist, ens_getNumLev
-  public :: ens_computeMean, ens_removeMean, ens_copyEnsMean
+  public :: ens_computeMean, ens_removeMean, ens_copyEnsMean, ens_copyMember
   public :: ens_getRepack_r4
   public :: ens_getOffsetFromVarName, ens_getLevFromK, ens_getVarNameFromK, ens_getNumK, ens_getKFromLevVarName
 
@@ -270,6 +270,36 @@ CONTAINS
     enddo
 
   end subroutine ens_copyEnsMean
+
+
+  subroutine ens_copyMember(ens, statevector, memberIndex)
+    implicit none
+
+    ! arguments
+    type(struct_ens)  :: ens
+    type(struct_gsv)  :: statevector
+    integer           :: memberIndex
+
+    ! locals
+    real(4), pointer :: ptr4d_r4(:,:,:,:)
+    integer          :: k1, k2, jk, stepIndex, numStep
+
+    k1 = ens%statevector_work%mykBeg
+    k2 = ens%statevector_work%mykEnd
+    numStep = ens%statevector_work%numStep
+
+    call gsv_allocate( statevector, numStep,  &
+                       ens%statevector_work%hco, ens%statevector_work%vco,  &
+                       datestamp=tim_getDatestamp(), mpi_local=.true., dataKind_in=4 )
+
+    ptr4d_r4 => gsv_getField_r4(statevector)
+    do stepIndex = 1, numStep
+      do jk = k1, k2
+        ptr4d_r4(:,:,jk,stepIndex) = ens%repack_r4(jk)%onelevel(memberIndex,stepIndex,:,:)
+      end do
+    end do
+
+  end subroutine ens_copyMember
 
 
   function ens_varExist(ens,varName) result(varExist)
@@ -784,13 +814,14 @@ CONTAINS
   end subroutine ens_readEnsemble
 
 
-  subroutine ens_fileName(ensFileName, ensPathName, ensFileBaseName, memberIndex)
+  subroutine ens_fileName(ensFileName, ensPathName, ensFileBaseName, memberIndex, shouldExist)
     implicit none
 
     ! arguments
-    character(len=*) :: ensFileName
-    character(len=*) :: ensPathName, ensFileBaseName
-    integer :: memberIndex
+    character(len=*)  :: ensFileName
+    character(len=*)  :: ensPathName, ensFileBaseName
+    integer           :: memberIndex
+    logical, optional :: shouldExist
 
     ! locals
     real(8)          :: delhh
@@ -799,8 +830,15 @@ CONTAINS
     character(len=2) :: hourstr_last
     character(len=4) :: ensNumber
     logical          :: lExists
+    logical          :: shouldExist2
     logical, save    :: firstTime = .true.
     integer, save    :: ensembleFileExtLength = 4
+
+    if ( present(shouldExist) ) then
+      shouldExist2 = shouldExist
+    else
+      shouldExist2 = .true.
+    end if
 
     ! Initialize dates for ensemble files
     delhh = -tim_windowsize
@@ -811,7 +849,7 @@ CONTAINS
     if (mpi_myid == 0) write(*,*) 'ens_fileName: DATE,TIME=',ndate,'  ,',ntime
 
     ! Determine file name extension length for ensemble files (3 or 4)
-    if (firstTime) then
+    if ( firstTime .and. shouldExist2 ) then
       write(ensNumber,'(i4.4)') memberIndex
       ensFileName = trim(enspathname) // '/' // trim(ensfilebasename) // &
                     trim(datestr_last) // trim(hourstr_last) // '_006_' // trim(ensNumber)
@@ -830,8 +868,10 @@ CONTAINS
         end if
       end if
       firstTime = .false.
+    else if ( firstTime .and. .not.shouldExist2 ) then
+      call utl_abort('ens_fileName: cannot determine file extension length!')
     else
-      if (ensembleFileExtLength == 4) then
+      if ( ensembleFileExtLength == 4 ) then
         write(ensNumber,'(i4.4)') memberIndex
         ensFileName = trim(enspathname) // '/' // trim(ensfilebasename) // &
                       trim(datestr_last) // trim(hourstr_last) // '_006_' // trim(ensNumber)
@@ -842,7 +882,7 @@ CONTAINS
       end if
     end if
 
-    ensFileName = top_fullWorkingPath(ensFileName)
+    if ( shouldExist2 ) ensFileName = top_fullWorkingPath(ensFileName)
 
   end subroutine ens_fileName
 

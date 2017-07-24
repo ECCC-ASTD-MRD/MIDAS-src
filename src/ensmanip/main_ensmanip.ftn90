@@ -17,7 +17,32 @@
 !--------------------------------------------------------------------------
 !!
 !! *Purpose*: Main program for manipulating ensembles of states. Possible operations
-!!            are: CALCMEAN, CALCSTDDEV, CALCENSPERT.
+!!            are (generally, all start with reading supplied ensemble):
+!!            1. output_ensemble_mean
+!!               - compute mean of input ensemble and write it out
+!!            2. output_ensemble_perturbations
+!!               - compute mean of input ensemble, subtract from
+!!                 ensemble, and write out resulting ensemble perturbations
+!!            3. output_recentered_ensemble
+!!               - compute mean of input ensemble, subtract from 
+!!                 ensemble, add supplied ensemble mean, and write out resulting ensemble
+!!            4. output_ssensrf_iau_deterministic
+!!               - compute mean of input background ensemble, subtract from 
+!!                 ensemble, multiply by (1-tilde(K)), add random perturbations,
+!!                 add supplied ensemble mean increment, and output resulting
+!!                 analysis ensemble perturbations
+!!               - result used as IAU increments added to deterministic background state
+!!               - requires specification of sigma_obs for computing tilde(K)
+!!            5. output_ssensrf_iau_ensemble
+!!               - compute mean of input background ensemble, subtract from 
+!!                 ensemble, multiply by (-tilde(K)), add random perturbations,
+!!                 add ensemble mean increment with recentering (supplied mean 
+!!                 analysis minus background ensemble mean)
+!!               - result used as IAU increments added to ensemble of background states
+!!               - requires specification of sigma_obs for computing tilde(K)
+!!
+!!            Should also add capability of adjusting analyses or analysis perturbations 
+!!            to remove super-saturation, to avoid need of running AddAnalInc on each member
 !!
 !--------------------------------------------------------------------------
 program main_ensManip
@@ -33,36 +58,35 @@ program main_ensManip
   use utilities_mod
   implicit none
 
-  type(struct_gsv) :: statevector_mean
+  type(struct_gsv) :: statevector_mean, statevector_member
 
   type(struct_vco), pointer :: vco_ens => null()
   type(struct_hco), pointer :: hco_ens => null()
   type(struct_hco), pointer :: hco_ens_core => null()
   type(struct_ens)          :: ensemble
 
-  integer :: fclos, fnom, fstopc, newdate, nstamp, ierr
-  integer :: memberIndex, lonIndex, latIndex, levIndex, stepIndex, numStep
-  integer :: idate, itime, nulnam
-  integer :: get_max_rss
-  integer :: latPerPE, myLatBeg, myLatEnd
-  integer :: lonPerPE, myLonBeg, myLonEnd
-  integer :: stamp_last 
+  integer             :: fclos, fnom, fstopc, newdate, ierr
+  integer             :: memberIndex, stepIndex, numStep
+  integer             :: idate, itime, nulnam
+  integer             :: dateStamp, dateStamp_last 
+  integer             :: get_max_rss
 
-  character(len=2)    :: hourstr_last
-  character(len=8)    :: datestr_last
+  character(len=2)    :: hourstr, hourstr_last
+  character(len=8)    :: datestr, datestr_last
   character(len=256)  :: ensFileName
 
-  logical :: makeBiPeriodic
+  logical             :: makeBiPeriodic
 
-  real(8) :: delhh
-  
+  real(8)             :: delhh
+  real(4), pointer    :: ensOneLevel(:,:,:,:)
+
   ! namelist variables
   character(len=2)   :: ctrlVarHumidity
   character(len=256) :: ensPathName, ensFileBaseName
-  logical  :: write_mpi, output_mean
+  logical  :: write_mpi, output_ensemble_mean, output_ensemble_perturbations
   integer  :: nEns, date
   NAMELIST /NAMENSMANIP/nEns, date, ensPathName, ensFileBaseName, ctrlVarHumidity, write_mpi,  &
-                        output_mean
+                        output_ensemble_mean, output_ensemble_perturbations
 
   write(*,'(/,' //  &
         '3(" *****************"),/,' //                   &
@@ -72,7 +96,7 @@ program main_ensManip
         '3(" *****************"))') top_crevision
 
   !
-  !- 0. MPI, tmg initialization
+  !- 0. MPI, TMG initialization
   !
   call mpi_initialize
   call tmg_init(mpi_myid, 'TMG_ENSMANIP' )
@@ -80,6 +104,7 @@ program main_ensManip
   call tmg_start(1,'MAIN')
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
+  ! Avoid printing lots of stuff to listing for std file I/O
   ierr = fstopc('MSGLVL','ERRORS',0)
 
   ! Setup the ramdisk directory (if supplied)
@@ -90,21 +115,22 @@ program main_ensManip
   !
   
   !- 1.1 Setting default values
-  nEns  = 10
-  date  = 1900120100
-  write_mpi = .false.
-  output_mean = .true.
-  ensPathName      = 'ensemble'
-  ensFileBaseName  = ''
-  ctrlVarHumidity = 'HU'
+  nEns                          = 10
+  date                          = 1900120100
+  write_mpi                     = .false.
+  ensPathName                   = 'ensemble'
+  ensFileBaseName               = ''
+  ctrlVarHumidity               = 'HU'
+  output_ensemble_mean          = .false.
+  output_ensemble_perturbations = .false.
 
   !- 1.2 Read the namelist
-  nulnam=0
-  ierr=fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
+  nulnam = 0
+  ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
   read(nulnam, nml=namensmanip, iostat=ierr)
-  if(ierr.ne.0) call utl_abort('main_ensManip: Error reading namelist')
-  if( mpi_myid == 0 ) write(*,nml=namensmanip)
-  ierr=fclos(nulnam)
+  if ( ierr \= 0) call utl_abort('main_ensManip: Error reading namelist')
+  if ( mpi_myid == 0 ) write(*,nml=namensmanip)
+  ierr = fclos(nulnam)
 
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
@@ -112,80 +138,97 @@ program main_ensManip
   !- 2.  Initialization
   !
 
-  !- 2.1 Decompose date(yyyymmddhh) into idate(YYYYMMDD) itime(HHMMSShh)
-  !      calculate date-time stamp for postproc.ftn 
+  !- 2.1 Initialize the dates
+
+  ! Analysis time
   idate   = date/100
   itime   = (date-idate*100)*1000000
-  ierr    = newdate(nstamp, idate, itime, 3)
-  if( mpi_myid == 0 ) write(*,*)' idate= ', idate, ' time= ', itime
-  if( mpi_myid == 0 ) write(*,*)' date= ', date, ' stamp= ', nstamp
+  ierr    = newdate(dateStamp, idate, itime, 3)
+  write(datestr,'(i8.8)') idate
+  write(hourstr,'(i2.2)') itime/1000000
+  if ( mpi_myid == 0 ) write(*,*)' datestr= ', datestr, ' hourstr= ', hourstr
+  if ( mpi_myid == 0 ) write(*,*)' dateStamp= ', dateStamp
 
-  !- 2.2 Initialize variables of the model states
-  call gsv_setup
-
-  !
-  !- Initialize the Temporal grid
-  !
+  ! Setup timeCoord module
   call tim_setup
-  call tim_setDatestamp(nstamp)
+  call tim_setDatestamp(dateStamp)
   numstep = tim_nstepobsinc
 
-  !- 2.3 Initialize the Ensemble grid
+  ! Previous analysis time
+  delhh = -tim_windowsize
+  call incdatr( dateStamp_last, tim_getDatestamp(), delhh )
+  ierr = newdate( dateStamp_last, idate, itime, -3 )
+  write(datestr_last,'(i8.8)') idate
+  write(hourstr_last,'(i2.2)') itime/1000000
+  if ( mpi_myid == 0 ) write(*,*)' datestr_last= ', datestr_last, ' hourstr_last= ', hourstr_last
+  if ( mpi_myid == 0 ) write(*,*)' dateStamp= ', dateStamp_last
+
+  !- 2.3 Initialize variables of the model states
+  call gsv_setup
+
+  !- 2.4 Initialize the Ensemble grid
   if (mpi_myid == 0) write(*,*)''
   if (mpi_myid == 0) write(*,*)' Set hco parameters for ensemble grid'
-
-  call ens_fileName(ensFileName, ensPathName, ensFileBaseName, 1)
+  ! Use the first ensemble member to initialize the grid
+  call ens_fileName( ensFileName, ensPathName, ensFileBaseName, 1 )
   call hco_SetupFromFile( hco_ens, ensFileName, ' ', 'ENSFILEGRID')
   call vco_setupFromFile( vco_ens, ensFileName )
 
-  ! not sure this is needed ... only of agd_mach?
-  if ( hco_ens % global ) then
-    !call agd_setupFromHCO( hco_ens ) ! IN
-  else
-    call utl_abort('main_ensManip: not sure what to do about grids for LAM!')
-    !- Iniatilized the core (Non-Extended) analysis grid
-    !call hco_setupFromFile( hco_ens_core, ensFileName, 'COREGRID', 'AnalysisCore' ) ! IN
-    !- Setup the LAM analysis grid metrics
-    !call agd_setupFromHCO( hco_ens, hco_ens_core ) ! IN
-  end if
-
-  call mpivar_setup_latbands(hco_ens % nj,                & ! IN
-                             latPerPE, myLatBeg, myLatEnd ) ! OUT
-  call mpivar_setup_lonbands(hco_ens % ni,                & ! IN
-                             lonPerPE, myLonBeg, myLonEnd ) ! OUT
-
-  !- 2.4 Initialize the vertical coordinate from the statistics file
- 
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
-  !- 2.5 Setup the ensemble
+  !- 2.5 Setup and read the background ensemble
   call tmg_start(2,'READ_ENSEMBLE')
   call ens_allocate(ensemble, nEns, numStep, hco_ens, vco_ens)
   makeBiPeriodic = .false.
   call ens_readEnsemble( ensemble, ensPathName, ensFileBaseName, makeBiPeriodic, ctrlVarHumidity )
   call tmg_stop(2)
 
+  !- 2.6 Compute ensemble mean and subtract it from ensemble
   call tmg_start(3,'COMPUTE_MEAN')
   call ens_computeMean( ensemble )
+  call ens_removeMean( ensemble )
   call tmg_stop(3)
 
-  if( output_mean ) then
+  !- 3.0 Output the background ensemble mean, if requested
+  if ( output_ensemble_mean ) then
     call tmg_start(4,'OUTPUT_MEAN')
     call ens_copyEnsMean( ensemble, statevector_mean )
 
-    ! Filename for ensemble mean
-    delhh = -tim_windowsize
-    call incdatr( stamp_last, tim_getDatestamp(), delhh )
-    ierr = newdate( stamp_last, idate, itime, -3 )
-    write(datestr_last,'(i8.8)') idate
-    write(hourstr_last,'(i2.2)') itime/1000000
+    ! Filename for background ensemble mean
     ensFileName = './' // trim(ensfilebasename) // &
                   trim(datestr_last) // trim(hourstr_last) // '_006_ensmean'
 
     do stepIndex = 1, numStep
-      call gsv_writeToFile( statevector_mean, ensFileName, 'ENSMEAN', indexStep_in = stepIndex, typvar_in = 'P' )
+      if ( mpi_myid == 0 ) write(*,*) 'main_ensManip: writing time step ', stepIndex
+      if ( write_mpi ) then
+        call gsv_writeToFileMPI( statevector_mean, ensFileName, 'ENSMEAN', indexStep_in = stepIndex, typvar_in = 'P' )
+      else
+        call gsv_writeToFile( statevector_mean, ensFileName, 'ENSMEAN', indexStep_in = stepIndex, typvar_in = 'P' )
+      end if
     end do
+
     call tmg_stop(4)
+  end if
+
+  !- 4.0 Output the background ensemble perturbations, if requested
+  if ( output_ensemble_perturbations ) then
+    call tmg_start(8,'OUTPUT_PERTURBATIONS')
+
+    do memberIndex = 1, nEns
+      call ens_copyMember( ensemble, statevector_member, memberIndex )
+      call ens_fileName( ensFileName, './', 'pert_' // ensFileBaseName, memberIndex, shouldExist = .false. )
+      do stepIndex = 1, numStep
+        if ( mpi_myid == 0 ) write(*,*) 'main_ensManip: writing time step ', stepIndex
+        if ( write_mpi ) then
+          call gsv_writeToFileMPI( statevector_member, ensFileName, 'ENSPERT', indexStep_in = stepIndex, typvar_in = 'P' )
+        else
+          call gsv_writeToFile( statevector_member, ensFileName, 'ENSPERT', indexStep_in = stepIndex, typvar_in = 'P' )
+        end if
+      end do
+      call gsv_deallocate( statevector_member ) 
+    end do
+
+    call tmg_stop(8)
   end if
 
   !
@@ -202,8 +245,8 @@ program main_ensManip
   !
   !- 7.  Ending
   !
-  if( mpi_myid == 0 ) write(*,*) ' --------------------------------'
-  if( mpi_myid == 0 ) write(*,*) ' MAIN_ENSMANIP ENDS'
-  if( mpi_myid == 0 ) write(*,*) ' --------------------------------'
+  if ( mpi_myid == 0 ) write(*,*) ' --------------------------------'
+  if ( mpi_myid == 0 ) write(*,*) ' MAIN_ENSMANIP ENDS'
+  if ( mpi_myid == 0 ) write(*,*) ' --------------------------------'
 
 end program main_ensManip
