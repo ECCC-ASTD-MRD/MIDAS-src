@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE localizationFunction (prefix="loc")
+!! MODULE localizationFunction (prefix="lfn")
 !!
 !! *Purpose*: To store various functions for horizontal and vertical 
 !!            covariance localization. Lengtscale estimation for function available in
@@ -30,7 +30,7 @@ MODULE localizationFunction_mod
   private
 
   ! public procedures
-  public :: loc_Setup, loc_Response, loc_lengthscale, loc_createBiPerFunction
+  public :: lfn_Setup, lfn_Response, lfn_lengthscale, lfn_createBiPerFunction
 
   logical             :: initialized = .false.
 
@@ -39,9 +39,9 @@ MODULE localizationFunction_mod
 CONTAINS
 
   !--------------------------------------------------------------------------
-  ! loc_Setup
+  ! lfn_Setup
   !--------------------------------------------------------------------------
-  subroutine loc_Setup(LocFunctionWanted)
+  subroutine lfn_Setup(LocFunctionWanted)
     implicit none
     
     character(len=*), intent(in) :: LocFunctionWanted
@@ -49,22 +49,22 @@ CONTAINS
     select case(trim(LocFunctionWanted))
     case ('FifthOrder')
        write(*,*)
-       write(*,*) 'loc_setup: Using Gaspari and Cohn 5th order piecewise rationale function'
+       write(*,*) 'lfn_setup: Using Gaspari and Cohn 5th order piecewise rationale function'
        LocFunction='FifthOrder'
     case default
        write(*,*)
        write(*,*) 'Unsupported HORIZONTAL localization function : ', trim(LocFunctionWanted)
-       call utl_abort('loc_setup')
+       call utl_abort('lfn_setup')
     end select
 
     initialized  = .true.
 
-  end subroutine loc_Setup
+  end subroutine lfn_Setup
 
   !--------------------------------------------------------------------------
-  ! loc_Response
+  ! lfn_Response
   !--------------------------------------------------------------------------
-  function loc_Response(distance,lengthscale) result(correlation)
+  function lfn_Response(distance,lengthscale) result(correlation)
     implicit none
     
     real(8) :: distance, lengthscale
@@ -73,24 +73,24 @@ CONTAINS
     if ( .not. initialized ) then
       write(*,*)
       write(*,*) 'The localixation function module was NOT initialized'
-      call utl_abort('loc_horizResponse')
+      call utl_abort('lfn_horizResponse')
     endif
 
     select case(trim(LocFunction))
     case ('FifthOrder')
-       correlation=loc_FifthOrderFunction(distance,lengthscale)
+       correlation=lfn_FifthOrderFunction(distance,lengthscale)
     case default
        write(*,*)
        write(*,*) 'Unsupported localization function : ', trim(LocFunction)
-       call utl_abort('loc_Response')
+       call utl_abort('lfn_Response')
     end select
 
-  end function loc_Response
+  end function lfn_Response
 
   !--------------------------------------------------------------------------
-  ! loc_gradient
+  ! lfn_gradient
   !--------------------------------------------------------------------------
-  function loc_gradient(distance,lengthscale) result(gradient)
+  function lfn_gradient(distance,lengthscale) result(gradient)
     implicit none
     
     real(8) :: distance, lengthscale
@@ -99,24 +99,24 @@ CONTAINS
     if ( .not. initialized ) then
       write(*,*)
       write(*,*) 'The localixation function module was NOT initialized'
-      call utl_abort('loc_gradient')
+      call utl_abort('lfn_gradient')
     endif
 
     select case(trim(LocFunction))
     case ('FifthOrder')
-       gradient=loc_FifthOrderFunctionGradient(distance,lengthscale)
+       gradient=lfn_FifthOrderFunctionGradient(distance,lengthscale)
     case default
        write(*,*)
        write(*,*) 'Unsupported localization function : ', trim(LocFunction)
-       call utl_abort('loc_gradient')
+       call utl_abort('lfn_gradient')
     end select
 
-  end function loc_gradient
+  end function lfn_gradient
 
   !--------------------------------------------------------------------------
-  ! loc_FifthOrderFunction
+  ! lfn_FifthOrderFunction
   !--------------------------------------------------------------------------
-  function loc_FifthOrderFunction(distance,lengthscale) result(correlation)
+  function lfn_FifthOrderFunction(distance,lengthscale) result(correlation)
     implicit none
     
     real(8) :: distance, lengthscale, halflength
@@ -142,12 +142,12 @@ CONTAINS
        correlation = 0.d0
     endif
 
-  end function loc_FifthOrderFunction
+  end function lfn_FifthOrderFunction
 
   !--------------------------------------------------------------------------
-  ! loc_FifthOrderFunctionGradient
+  ! lfn_FifthOrderFunctionGradient
   !--------------------------------------------------------------------------
-  function loc_FifthOrderFunctionGradient(distance,lengthscale) result(gradient)
+  function lfn_FifthOrderFunctionGradient(distance,lengthscale) result(gradient)
     implicit none
 
     real(8) :: distance, lengthscale, halflength
@@ -175,12 +175,12 @@ CONTAINS
     ! Compute df/dlengthscale (= df/dhalflength * dhalflength/dlengthscale)
     gradient = gradient / 2.d0
 
-  end function loc_FifthOrderFunctionGradient
+  end function lfn_FifthOrderFunctionGradient
 
 !--------------------------------------------------------------------------
-! loc_CreateBiPerFunction
+! lfn_CreateBiPerFunction
 !--------------------------------------------------------------------------
-  SUBROUTINE  loc_CreateBiPerFunction(gridpoint,CorrelLength,dlon,ni,nj,nk)
+  SUBROUTINE  lfn_CreateBiPerFunction(gridpoint,CorrelLength,dlon,ni,nj,nk)
     use earthConstants_mod, only: RA
     implicit none
 
@@ -208,7 +208,7 @@ CONTAINS
        do i = 1, ni
           distance = distance_ref * sqrt( real((i-iref)**2 + (j-jref)**2,8) )
           do k = 1, nk
-             gridpoint(i,j,k) = gridpoint(i,j,k) + loc_response(distance,1000.d0*CorrelLength(k)) 
+             gridpoint(i,j,k) = gridpoint(i,j,k) + lfn_response(distance,1000.d0*CorrelLength(k)) 
           enddo
        enddo
     enddo
@@ -220,7 +220,7 @@ CONTAINS
        do i = 1, ni
           distance = distance_ref * sqrt( real((i-iref)**2 + (j-jref)**2,8) )
           do k = 1, nk
-             gridpoint(i,j,k) = gridpoint(i,j,k) + loc_response(distance,1000.d0*CorrelLength(k)) 
+             gridpoint(i,j,k) = gridpoint(i,j,k) + lfn_response(distance,1000.d0*CorrelLength(k)) 
           enddo
        enddo
     enddo
@@ -232,7 +232,7 @@ CONTAINS
        do i = 1, ni
           distance = distance_ref * sqrt( real((i-iref)**2 + (j-jref)**2,8) )
           do k = 1, nk
-             gridpoint(i,j,k) = gridpoint(i,j,k) + loc_response(distance,1000.d0*CorrelLength(k)) 
+             gridpoint(i,j,k) = gridpoint(i,j,k) + lfn_response(distance,1000.d0*CorrelLength(k)) 
           enddo
        enddo
     enddo
@@ -244,17 +244,17 @@ CONTAINS
        do i = 1, ni
           distance = distance_ref * sqrt( real((i-iref)**2 + (j-jref)**2,8) )
           do k = 1, nk
-             gridpoint(i,j,k) = gridpoint(i,j,k) + loc_response(distance,1000.d0*CorrelLength(k)) 
+             gridpoint(i,j,k) = gridpoint(i,j,k) + lfn_response(distance,1000.d0*CorrelLength(k)) 
           enddo
        enddo
     enddo
 
-  END SUBROUTINE Loc_CreateBiPerFunction
+  END SUBROUTINE Lfn_CreateBiPerFunction
 
   !--------------------------------------------------------------------------
-  ! LOC_LENGTHSCALE
+  ! LFN_LENGTHSCALE
   !--------------------------------------------------------------------------
-  subroutine loc_lengthscale(lengthscale, rmse, localizationValues, &
+  subroutine lfn_lengthscale(lengthscale, rmse, localizationValues, &
        distance, weight, numbins)
     implicit none
 
@@ -275,7 +275,7 @@ CONTAINS
     minv        = 0.01
 
     ! 2.  Apply Curve fitting algorithm
-    call loc_curveFit(numBins, distance,      & ! IN
+    call lfn_curveFit(numBins, distance,      & ! IN
                       localizationValues,     & ! IN
                       weight, numBins,        & ! IN
                       lengthscale,            & ! INOUT
@@ -286,12 +286,12 @@ CONTAINS
     ! 3.  root mean squared deviation output as 'degree of fit'
     rmse = sqrt(fit)
 
-  end subroutine loc_lengthscale
+  end subroutine lfn_lengthscale
 
   !--------------------------------------------------------------------------
-  ! LOC_CURVEFIT
+  ! LFN_CURVEFIT
   !--------------------------------------------------------------------------
-  SUBROUTINE loc_curveFit(Nn, x, y, w, nmax, param, minv, ilist, ierr, ssq)
+  SUBROUTINE lfn_curveFit(Nn, x, y, w, nmax, param, minv, ilist, ierr, ssq)
     IMPLICIT NONE
 
     ! Purpose: This subroutine compute the lenghtscale (sl, here: param) of a
@@ -329,7 +329,7 @@ CONTAINS
     INTEGER           :: iter,nbis,i                     ! Loop counters.
     
     CHARACTER(LEN=60) :: FMT1
-    CHARACTER(LEN=12), PARAMETER :: RoutineName = 'loc_curveFit'
+    CHARACTER(LEN=12), PARAMETER :: RoutineName = 'lfn_curveFit'
     
     !-------------------------------------------------------------------------------
     
@@ -354,7 +354,7 @@ CONTAINS
        !      square of the residuals
        ssq = 0.d0
        DO i = 1, nmax
-          d(i) = y(i) - loc_response(x(i), param)
+          d(i) = y(i) - lfn_response(x(i), param)
           ssq = ssq + d(i)**2 * w(i)
        END DO
        rootmsq = sqrt(ssq)
@@ -368,7 +368,7 @@ CONTAINS
           
           ! 2.2.1  Form matrix G
           DO i = 1, nmax
-             g(i)=loc_gradient(x(i), param) ! curve derivative wrt to param
+             g(i)=lfn_gradient(x(i), param) ! curve derivative wrt to param
           END DO
           
           ! 2.2.2  Form matrix GTD
@@ -387,11 +387,11 @@ CONTAINS
           if (gtg /= 0.d0) then
              gtginv = 1.d0 / gtg
           else
-             write(*,*) 'Loc_Curvefit: gtg = 0 !'
+             write(*,*) 'Lfn_Curvefit: gtg = 0 !'
              DO i = 1, nmax
                 write(*,*) g(i), w(i), x(i), param 
              END DO
-             call utl_abort('Loc_Curvefit')
+             call utl_abort('Lfn_Curvefit')
           end if
           
           ! 2.2.5  Find vector M (i.e. increment of PARAM)
@@ -429,12 +429,12 @@ CONTAINS
     ssq = 0.d0
     w_t = 0.d0
     DO i = 1, nmax
-       d(i) = y(i) - loc_response(x(i), param)
+       d(i) = y(i) - lfn_response(x(i), param)
        w_t = w_t + w(i)
        ssq = ssq + w(i) * d(i)**2
     END DO
     ssq = ssq / w_t
     
-  end SUBROUTINE Loc_Curvefit
+  end SUBROUTINE Lfn_Curvefit
 
 END MODULE LocalizationFunction_mod
