@@ -36,10 +36,11 @@ MODULE ensembleStateVector_mod
   private
 
   ! public procedures
-  public :: struct_ens, ens_allocate, ens_deallocate, ens_readEnsemble, ens_fileName
+  public :: struct_ens, ens_allocate, ens_deallocate
+  public :: ens_readEnsemble, ens_writeEnsemble, ens_fileName
   public :: ens_copyToStateWork, ens_getRepackMean_r8
   public :: ens_varExist, ens_getNumLev
-  public :: ens_computeMean, ens_removeMean, ens_copyEnsMean
+  public :: ens_computeMean, ens_removeMean, ens_copyEnsMean, ens_copyMember
   public :: ens_getRepack_r4
   public :: ens_getOffsetFromVarName, ens_getLevFromK, ens_getVarNameFromK, ens_getNumK, ens_getKFromLevVarName
 
@@ -272,6 +273,36 @@ CONTAINS
   end subroutine ens_copyEnsMean
 
 
+  subroutine ens_copyMember(ens, statevector, memberIndex)
+    implicit none
+
+    ! arguments
+    type(struct_ens)  :: ens
+    type(struct_gsv)  :: statevector
+    integer           :: memberIndex
+
+    ! locals
+    real(4), pointer :: ptr4d_r4(:,:,:,:)
+    integer          :: k1, k2, jk, stepIndex, numStep
+
+    k1 = ens%statevector_work%mykBeg
+    k2 = ens%statevector_work%mykEnd
+    numStep = ens%statevector_work%numStep
+
+    call gsv_allocate( statevector, numStep,  &
+                       ens%statevector_work%hco, ens%statevector_work%vco,  &
+                       datestamp=tim_getDatestamp(), mpi_local=.true., dataKind_in=4 )
+
+    ptr4d_r4 => gsv_getField_r4(statevector)
+    do stepIndex = 1, numStep
+      do jk = k1, k2
+        ptr4d_r4(:,:,jk,stepIndex) = ens%repack_r4(jk)%onelevel(memberIndex,stepIndex,:,:)
+      end do
+    end do
+
+  end subroutine ens_copyMember
+
+
   function ens_varExist(ens,varName) result(varExist)
     implicit none
 
@@ -498,21 +529,20 @@ CONTAINS
 
     ! locals
     type(struct_gsv) :: statevector_file_r4, statevector_hint_r4, statevector_member_r4
-    type(struct_hco), pointer :: hco_file, hco_ens
+    type(struct_hco), pointer :: hco_file, hco_ens, hco_coregrid
     type(struct_vco), pointer :: vco_file, vco_ens
     real(4), allocatable :: gd_send_r4(:,:,:,:)
     real(4), allocatable :: gd_recv_r4(:,:,:,:)
     real(4), pointer     :: ptr3d_r4(:,:,:), ptr4d_r4(:,:,:,:)
     real(8)              :: multFactor
     integer,allocatable :: dateStampList(:)
-    integer :: batchnum,nsize,status,ierr, pe_src,pe_dest
-    integer :: yourid,youridx,youridy
+    integer :: batchnum, nsize, status, ierr
+    integer :: yourid, youridx, youridy
     integer :: readFilePE(1000)
     integer :: memberIndexOffset, totalEnsembleSize
     integer :: length_envVariable
     integer :: lonPerPE, latPerPE, ni, nj, nk, numStep, numlevelstosend, numlevelstosend2
     integer :: memberIndex, memberIndex2, fileMemberIndex, stepIndex, jvar, jk, jk2, jk3
-    integer :: ensembleFileExtLength
     character(len=256) :: ensFileName
     character(len=32)  :: envVariable
     character(len=2)   :: typvar
@@ -520,9 +550,6 @@ CONTAINS
     character(len=4)   :: varName
     logical            :: verticalInterpNeeded, horizontalInterpNeeded, horizontalPaddingNeeded
     logical :: HUcontainsLQinFile
-
-    ! stucture
-    type(struct_hco), pointer  :: hco_coregrid
 
     write(*,*) 'ens_readEnsemble: starting'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -628,6 +655,7 @@ CONTAINS
 
     !- 2.1 Loop on time, ensemble member, variable, level
     do stepIndex = 1, numStep
+      write(*,*) ' '
       write(*,*) 'ens_readEnsemble: starting to read time level ', stepIndex
 
       ! allocate the needed statevector objects
@@ -784,13 +812,179 @@ CONTAINS
   end subroutine ens_readEnsemble
 
 
-  subroutine ens_fileName(ensFileName, ensPathName, ensFileBaseName, memberIndex)
+  subroutine ens_writeEnsemble(ens, ensPathName, ensFileBaseName, ctrlVarHumidity, etiket, typvar, ip3_in)
     implicit none
 
     ! arguments
-    character(len=*) :: ensFileName
-    character(len=*) :: ensPathName, ensFileBaseName
-    integer :: memberIndex
+    type(struct_ens)  :: ens
+    character(len=*)  :: ensPathName
+    character(len=*)  :: ensFileBaseName
+    character(len=*)  :: ctrlVarHumidity
+    character(len=*)  :: etiket
+    character(len=*)  :: typvar
+    integer, optional :: ip3_in
+
+    ! locals
+    type(struct_gsv) :: statevector_member_r4
+    type(struct_hco), pointer :: hco_ens
+    type(struct_vco), pointer :: vco_ens
+    real(4), allocatable :: gd_send_r4(:,:,:,:)
+    real(4), allocatable :: gd_recv_r4(:,:,:,:)
+    real(4), pointer     :: ptr3d_r4(:,:,:), ptr4d_r4(:,:,:,:)
+    real(8)              :: multFactor
+    integer, allocatable :: dateStampList(:)
+    integer :: batchnum, nsize, status, ierr
+    integer :: yourid, youridx, youridy
+    integer :: writeFilePE(1000)
+    integer :: lonPerPE, latPerPE, ni, nj, nk, numStep, numlevelstosend, numlevelstosend2
+    integer :: memberIndex, memberIndex2, stepIndex, jvar, jk, jk2, jk3, ip3
+    character(len=256) :: ensFileName
+    character(len=4)   :: varName
+
+    write(*,*) 'ens_writeEnsemble: starting'
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+    if ( .not. ens%allocated ) then
+      call utl_abort('ens_writeEnsemble: ensemble object not allocated!')
+    end if
+
+    !- 1. Initial setup
+
+    if (present(ip3_in)) then
+      ip3 = ip3_in
+    else
+      ip3 = 0
+    end if
+
+    lonPerPE = ens%statevector_work%lonPerPE
+    latPerPE = ens%statevector_work%latPerPE
+    ni       = ens%statevector_work%ni
+    nj       = ens%statevector_work%nj
+    nk       = ens%statevector_work%nk
+    numStep  = ens%statevector_work%numStep
+
+    ens%ensPathName = trim(ensPathName)
+
+    ! Memory allocation
+    numLevelsToSend = 10
+    allocate(gd_send_r4(lonPerPE,latPerPE,numLevelsToSend,mpi_nprocs))
+    allocate(gd_recv_r4(lonPerPE,latPerPE,numLevelsToSend,mpi_nprocs))
+    gd_send_r4(:,:,:,:) = 0.0
+    gd_recv_r4(:,:,:,:) = 0.0
+
+    allocate(dateStampList(numStep))
+    call tim_getstamplist(dateStampList,numStep,tim_getDatestamp())
+
+    do memberIndex = 1, ens%numMembers
+      writeFilePE(memberIndex) = mod(memberIndex-1,mpi_nprocs)
+    end do
+
+    hco_ens => gsv_getHco(ens%statevector_work)
+    vco_ens => gsv_getVco(ens%statevector_work)
+
+    if (mpi_myid == 0) then
+       write(*,*)
+       write(*,*) 'ens_writeEnsemble: dateStampList=',dateStampList(1:numStep)
+       write(*,*)
+    end if
+
+    !
+    !- 2.  Ensemble forecasts writing loop
+    !
+
+    !- 2.1 Loop on time, ensemble member, variable, level
+    do stepIndex = 1, numStep
+      write(*,*) ' '
+      write(*,*) 'ens_writeEnsemble: starting to write time level ', stepIndex
+
+      ! allocate the needed statevector objects
+      call gsv_allocate(statevector_member_r4, 1, hco_ens, vco_ens,  &
+                        datestamp=dateStampList(stepIndex), mpi_local=.false., dataKind_in=4)
+
+      do memberIndex = 1, ens%numMembers
+
+
+        !  MPI communication: from 1 lat-lon tile per process to 1 ensemble member per process
+        if (writeFilePE(memberIndex) == 0) then
+
+          call tmg_start(13,'PRE_SUENS_COMM')
+          batchnum = ceiling(dble(memberIndex + mpi_nprocs - 1)/dble(mpi_nprocs))
+
+          do jk = 1, nk, numLevelsToSend
+            jk2 = min(nk,jk+numLevelsToSend-1)
+            numLevelsToSend2 = jk2 - jk + 1
+
+!$OMP PARALLEL DO PRIVATE(jk3,memberIndex2,yourid)
+            do jk3 = 1, numLevelsToSend2
+              do memberIndex2 = 1+(batchnum-1)*mpi_nprocs, min(ens%numMembers, batchnum*mpi_nprocs)
+                yourid = writeFilePE(memberIndex2)
+                gd_send_r4(:,:,jk3,yourid+1) = ens%repack_r4(jk3+jk-1)%onelevel(memberIndex2,stepIndex,:,:)
+              end do
+            end do
+!$OMP END PARALLEL DO
+
+            nsize = lonPerPE*latPerPE*numLevelsToSend2
+            if (mpi_nprocs > 1) then
+              call rpn_comm_alltoall(gd_send_r4(:,:,1:numLevelsToSend2,:),nsize,"mpi_real4",  &
+                                     gd_recv_r4(:,:,1:numLevelsToSend2,:),nsize,"mpi_real4","GRID",ierr)
+            else
+              gd_recv_r4(:,:,1:numLevelsToSend2,1) = gd_send_r4(:,:,1:numLevelsToSend2,1)
+            end if
+
+            ptr3d_r4 => gsv_getField3D_r4(statevector_member_r4)
+!$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
+            do youridy = 0, (mpi_npey-1)
+              do youridx = 0, (mpi_npex-1)
+                yourid = youridx + youridy*mpi_npex
+                ptr3d_r4(ens%statevector_work%allLonBeg(youridx+1):ens%statevector_work%allLonEnd(youridx+1),  &
+                         ens%statevector_work%allLatBeg(youridy+1):ens%statevector_work%allLatEnd(youridy+1),jk:jk2) = &
+                    gd_recv_r4(:,:,1:numLevelsToSend2,yourid+1)
+
+              end do
+            end do
+!$OMP END PARALLEL DO
+
+          end do ! jk
+          call tmg_stop(13)
+
+        end if ! MPI communication
+
+
+        if (mpi_myid == writeFilePE(memberIndex)) then
+
+          write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+          !  Write the file
+          call ens_fileName( ensFileName, ensPathName, ensFileBaseName, memberIndex, shouldExist = .false. )
+          call gsv_writeToFile( statevector_member_r4, ensFileName, etiket, ip3_in = ip3, typvar_in = typvar )
+        end if ! locally written one member
+
+
+      end do ! memberIndex
+
+      ! deallocate the needed statevector objects
+      call gsv_deallocate(statevector_member_r4)
+
+    end do ! time
+
+    deallocate(gd_send_r4)
+    deallocate(gd_recv_r4)
+    deallocate(datestamplist)
+
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    write(*,*) 'ens_writeEnsemble: finished communicating and writing ensemble members...'
+
+  end subroutine ens_writeEnsemble
+
+
+  subroutine ens_fileName(ensFileName, ensPathName, ensFileBaseName, memberIndex, shouldExist)
+    implicit none
+
+    ! arguments
+    character(len=*)  :: ensFileName
+    character(len=*)  :: ensPathName, ensFileBaseName
+    integer           :: memberIndex
+    logical, optional :: shouldExist
 
     ! locals
     real(8)          :: delhh
@@ -799,8 +993,15 @@ CONTAINS
     character(len=2) :: hourstr_last
     character(len=4) :: ensNumber
     logical          :: lExists
+    logical          :: shouldExist2
     logical, save    :: firstTime = .true.
     integer, save    :: ensembleFileExtLength = 4
+
+    if ( present(shouldExist) ) then
+      shouldExist2 = shouldExist
+    else
+      shouldExist2 = .true.
+    end if
 
     ! Initialize dates for ensemble files
     delhh = -tim_windowsize
@@ -811,7 +1012,7 @@ CONTAINS
     if (mpi_myid == 0) write(*,*) 'ens_fileName: DATE,TIME=',ndate,'  ,',ntime
 
     ! Determine file name extension length for ensemble files (3 or 4)
-    if (firstTime) then
+    if ( firstTime .and. shouldExist2 ) then
       write(ensNumber,'(i4.4)') memberIndex
       ensFileName = trim(enspathname) // '/' // trim(ensfilebasename) // &
                     trim(datestr_last) // trim(hourstr_last) // '_006_' // trim(ensNumber)
@@ -830,8 +1031,10 @@ CONTAINS
         end if
       end if
       firstTime = .false.
+    else if ( firstTime .and. .not.shouldExist2 ) then
+      call utl_abort('ens_fileName: cannot determine file extension length!')
     else
-      if (ensembleFileExtLength == 4) then
+      if ( ensembleFileExtLength == 4 ) then
         write(ensNumber,'(i4.4)') memberIndex
         ensFileName = trim(enspathname) // '/' // trim(ensfilebasename) // &
                       trim(datestr_last) // trim(hourstr_last) // '_006_' // trim(ensNumber)
@@ -842,7 +1045,7 @@ CONTAINS
       end if
     end if
 
-    ensFileName = top_fullWorkingPath(ensFileName)
+    if ( shouldExist2 ) ensFileName = top_fullWorkingPath(ensFileName)
 
   end subroutine ens_fileName
 

@@ -307,7 +307,6 @@ module gridStateVector_mod
     if( statevector%allocated ) then
       if(mpi_myid.eq.0) write(*,*) 'gridStateVector already allocated! Deallocating first.'
       call gsv_deallocate(statevector)
-      statevector%allocated=.false.
     end if
 
     if( present(dataKind_in) ) statevector%dataKind = dataKind_in
