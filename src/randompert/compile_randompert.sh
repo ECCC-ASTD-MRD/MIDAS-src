@@ -73,6 +73,7 @@ varabs=${program}_${ORDENV_PLAT}-${revnum}.Abs
 # LIBAPPL defined in "src_files" script
 LIBSYS="hpcoperf"
 LIBRMN=rmnMP
+. ${codesubdir}/src_files_${program}.sh
 
 if [ $mode == full ] ; then
 
@@ -97,7 +98,6 @@ if [ $mode == full ] ; then
 
   echo "... > Compiling all modules and subroutines ..."
   echo "...   if aborting, check in ${PWD}/listing"
-  . ${codesubdir}/src_files_${program}.sh
 
   s.compile $COMPF -O ${FOPTMIZ} -src $SRC_FILES > listing 2>&1
   status=1
