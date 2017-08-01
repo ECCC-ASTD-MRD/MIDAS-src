@@ -23,7 +23,6 @@
 !!
 !--------------------------------------------------------------------------
 module LamBMatrixHI_mod
-  use topLevelControl_mod
   use mpivar_mod
   use horizontalCoord_mod
   use verticalCoord_mod

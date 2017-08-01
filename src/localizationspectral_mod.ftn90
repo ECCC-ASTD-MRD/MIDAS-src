@@ -79,7 +79,7 @@ CONTAINS
 !--------------------------------------------------------------------------
   SUBROUTINE lsp_setup(hco_loc, nEns, nLev, pressureProfile, ntrunc, locType, &
                        locMode, horizLengthScale1, horizLengthScale2, vertLengthScale, &
-                       cvDim_out, id_out)
+                       cvDim_out, id_out, nEnsOverDimension_out)
     implicit none
   
     type(struct_hco), pointer, intent(in) :: hco_loc
@@ -97,6 +97,7 @@ CONTAINS
 
     integer, intent(out) :: cvDim_out
     integer, intent(out) :: id_out
+    integer, intent(out) :: nEnsOverDimension_out
 
     integer :: latPerPE, lonPerPE, mymCount, mynCount, mIndex, nIndex, id, maxMyNla
     integer :: myMemberBeg, myMemberEnd, myMemberCount, maxMyMemberCount, ierr
@@ -157,7 +158,8 @@ CONTAINS
     call mpivar_setup_levels_npex(lsp(id)%nEns,myMemberBeg,myMemberEnd,myMemberCount)
     call rpn_comm_allreduce(myMemberCount, maxMyMemberCount, &
                               1,"MPI_INTEGER","mpi_max","GRID",ierr)
-    lsp(id)%nEnsOverDimension = mpi_npex * maxMyMemberCount
+    nEnsOverDimension_out     = mpi_npex * maxMyMemberCount
+    lsp(id)%nEnsOverDimension = nEnsOverDimension_out
 
     if (lsp(id)%global) then
        ! Global Mode

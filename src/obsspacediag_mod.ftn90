@@ -35,8 +35,6 @@ module obsSpaceDiag_mod
 !
 !
 !-------------------------------------------------------------------------------------------
-
-  use topLevelControl_mod
   use mpivar_mod
   use bufr
   use codtyp_mod

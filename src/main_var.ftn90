@@ -23,6 +23,7 @@
 program main_var
 
   use topLevelControl_mod
+  use ramDisk_mod
   use utilities_mod
   use mpivar_mod
   use MathPhysConstants_mod
@@ -77,6 +78,7 @@ program main_var
 
   ! 1. Top Level Control setup (read NCONF from namelist)
   call top_setup
+  call ram_setup
 
   ! 2. Decide on configuration of job
 

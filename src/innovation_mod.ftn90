@@ -26,6 +26,7 @@
 module innovation_mod
   use mpi_mod
   use topLevelControl_mod
+  use ramDisk_mod
   use obsSpaceData_mod
   use columnData_mod
   use timeCoord_mod
@@ -350,7 +351,7 @@ contains
     do jstep = (1+mpi_myid), tim_nStepObs, mpi_nprocs
        write(flnum,'(I2.2)') jstep
        trialfile(jstep)='trlm_'//trim(flnum)
-       trialfile(jstep) = top_fullWorkingPath(trialfile(jstep))
+       trialfile(jstep) = ram_fullWorkingPath(trialfile(jstep))
        inquire(file=trim(trialfile(jstep)),exist=trialExists)
        if (.not.trialExists) then
           write(*,*) 'File missing=',trialfile(jstep)
@@ -458,7 +459,7 @@ contains
     else
       ! get from working directory (disk)
       trialfile_forEZ = 'trlm_01'
-      trialfile_forEZ = top_fullWorkingPath(trialfile_forEZ)
+      trialfile_forEZ = ram_fullWorkingPath(trialfile_forEZ)
       nultrl_forEZ = 0
       ierr = fnom(nultrl_forEZ, trim(trialfile_forEZ),'RND+OLD+R/O',0)
       ierr = fstouv(nultrl_forEZ,'RND+OLD')
@@ -869,7 +870,7 @@ contains
     do jstep = (1+mpi_myid), tim_nStepObs, mpi_nprocs
        ierr=fstfrm(nultrl(jstep))  
        ierr=fclos(nultrl(jstep))  
-       ierr = top_ramDiskRemove(trialfile(jstep))
+       ierr = ram_remove(trialfile(jstep))
     enddo
 
     !
@@ -957,7 +958,7 @@ contains
       else
         ! get from working directory (disk)
         trialfile_forEZ = 'trlm_01'
-        trialfile_forEZ = top_fullWorkingPath(trialfile_forEZ)
+        trialfile_forEZ = ram_fullWorkingPath(trialfile_forEZ)
         nultrl_forEZ = 0
         ierr = fnom(nultrl_forEZ, trim(trialfile_forEZ),'RND+OLD+R/O',0)
         ierr = fstouv(nultrl_forEZ,'RND+OLD')
