@@ -31,6 +31,7 @@ module burpFiles_mod
   use obsSpaceData_mod
   use burpread_mod
   use topLevelControl_mod
+  use ramDisk_mod
   use bufr
   use utilities_mod
   use obsSubSpaceData_mod
@@ -196,12 +197,12 @@ SUBROUTINE burp_setupfiles(datestamp)
     IF(CLVALU(JJ) == '') EXIT
     nulburp=0
     burpin=trim(burp_directory)//'/'//trim(CLVALU(JJ))//'_'//trim(cmyid)
-    burpinFull = top_fullWorkingPath(burpin,noAbort=.true.)
+    burpinFull = ram_fullWorkingPath(burpin,noAbort=.true.)
 
     INQUIRE(FILE=trim(burpinFull),EXIST=isExist_L)
     IF (.NOT. isExist_L )THEN
       burpin=trim(burp_directory)//'/'//trim(CLVALU(JJ))
-      burpinFull = top_fullWorkingPath(burpin,noAbort=.true.)
+      burpinFull = ram_fullWorkingPath(burpin,noAbort=.true.)
       INQUIRE(FILE=trim(burpinFull),EXIST=isExist_L)
     END IF
     IF ( isExist_L )THEN

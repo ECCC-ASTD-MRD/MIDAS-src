@@ -22,7 +22,7 @@
 !!
 !--------------------------------------------------------------------------
 MODULE ensembleStateVector_mod
-  use topLevelControl_mod
+  use ramDisk_mod
   use mpivar_mod
   use gridStateVector_mod
   use horizontalCoord_mod
@@ -70,7 +70,7 @@ MODULE ensembleStateVector_mod
 
 CONTAINS
 
-  subroutine ens_allocate(ens,numMembers,numStep,hco_ens,vco_ens)
+  subroutine ens_allocate(ens,numMembers,numStep,hco_ens,vco_ens, varName)
     implicit none
 
     ! arguments
@@ -78,6 +78,7 @@ CONTAINS
     integer :: numMembers, numStep
     type(struct_hco), pointer :: hco_ens
     type(struct_vco), pointer :: vco_ens
+    character(len=*), optional :: varName  ! allow specification of a single variable
 
     ! locals
     integer :: memberIndex, ierr
@@ -88,9 +89,16 @@ CONTAINS
       call ens_deallocate( ens )
     end if
 
-    call gsv_allocate( ens%statevector_work, &
-                       numStep, hco_ens, vco_ens,  &
-                       datestamp=tim_getDatestamp(), mpi_local=.true., dataKind_in=4 )
+    if ( present(varName) ) then
+      call gsv_allocate( ens%statevector_work, &
+                         numStep, hco_ens, vco_ens,  &
+                         datestamp=tim_getDatestamp(), mpi_local=.true., &
+                         varName=VarName, dataKind_in=4 )
+    else
+      call gsv_allocate( ens%statevector_work, &
+                         numStep, hco_ens, vco_ens,  &
+                         datestamp=tim_getDatestamp(), mpi_local=.true., dataKind_in=4 )
+    end if
 
     lon1 = ens%statevector_work%myLonBeg
     lon2 = ens%statevector_work%myLonEnd
@@ -111,7 +119,6 @@ CONTAINS
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   end subroutine ens_allocate
-
 
   subroutine ens_allocateMean(ens)
     implicit none
@@ -689,7 +696,7 @@ CONTAINS
             call gsv_readFile(statevector_file_r4, ensFileName, etiket, typvar, HUcontainsLQinFile)
           end if
           if (stepIndex == numStep) then
-            ierr = top_ramDiskRemove(ensFileName)
+            ierr = ram_remove(ensFileName)
           end if
 
           ! do any required interpolation
@@ -812,7 +819,8 @@ CONTAINS
   end subroutine ens_readEnsemble
 
 
-  subroutine ens_writeEnsemble(ens, ensPathName, ensFileBaseName, ctrlVarHumidity, etiket, typvar, ip3_in)
+  subroutine ens_writeEnsemble(ens, ensPathName, ensFileBaseName, ctrlVarHumidity, etiket, &
+       typvar, varName, ip3_in)
     implicit none
 
     ! arguments
@@ -822,6 +830,7 @@ CONTAINS
     character(len=*)  :: ctrlVarHumidity
     character(len=*)  :: etiket
     character(len=*)  :: typvar
+    character(len=*), optional :: varName  ! allow specification of a single variable
     integer, optional :: ip3_in
 
     ! locals
@@ -839,7 +848,6 @@ CONTAINS
     integer :: lonPerPE, latPerPE, ni, nj, nk, numStep, numlevelstosend, numlevelstosend2
     integer :: memberIndex, memberIndex2, stepIndex, jvar, jk, jk2, jk3, ip3
     character(len=256) :: ensFileName
-    character(len=4)   :: varName
 
     write(*,*) 'ens_writeEnsemble: starting'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -898,8 +906,14 @@ CONTAINS
       write(*,*) 'ens_writeEnsemble: starting to write time level ', stepIndex
 
       ! allocate the needed statevector objects
-      call gsv_allocate(statevector_member_r4, 1, hco_ens, vco_ens,  &
-                        datestamp=dateStampList(stepIndex), mpi_local=.false., dataKind_in=4)
+      if ( present(varName) ) then
+        call gsv_allocate(statevector_member_r4, 1, hco_ens, vco_ens,  &
+                          datestamp=dateStampList(stepIndex), mpi_local=.false., &
+                          varName=VarName, dataKind_in=4)
+      else
+        call gsv_allocate(statevector_member_r4, 1, hco_ens, vco_ens,  &
+                          datestamp=dateStampList(stepIndex), mpi_local=.false., dataKind_in=4)
+      end if
 
       do memberIndex = 1, ens%numMembers
 
@@ -1045,7 +1059,7 @@ CONTAINS
       end if
     end if
 
-    if ( shouldExist2 ) ensFileName = top_fullWorkingPath(ensFileName)
+    if ( shouldExist2 ) ensFileName = ram_fullWorkingPath(ensFileName)
 
   end subroutine ens_fileName
 

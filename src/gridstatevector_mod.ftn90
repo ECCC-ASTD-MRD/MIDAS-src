@@ -21,7 +21,6 @@
 !!
 !--------------------------------------------------------------------------
 module gridStateVector_mod
-  use topLevelControl_mod
   use mpivar_mod
   use varNameList_mod
   use verticalCoord_mod

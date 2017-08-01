@@ -42,7 +42,7 @@ MODULE BmatrixEnsemble_mod
   private
 
   ! public procedures
-  public :: ben_Setup, ben_BSqrt, ben_BSqrtAd
+  public :: ben_Setup, ben_BSqrt, ben_BSqrtAd, ben_writeAmplitude
   public :: ben_reduceToMPILocal, ben_reduceToMPILocal_r4, ben_expandToMPIGlobal, ben_expandToMPIGlobal_r4
   public :: ben_getScaleFactor, ben_getnEns, ben_getPerturbation, ben_getEnsMean, ben_Finalize
 
@@ -69,6 +69,9 @@ MODULE BmatrixEnsemble_mod
 
   ! Ensemble perturbations
   type(struct_ens), allocatable :: ensPerts(:)
+
+  ! Ensemble amplitude (only used in diagnostic mode)
+  type(struct_ens)    :: ensAmplitudeStorage
 
   ! Localization
   integer, allocatable :: locIDs(:)
@@ -108,6 +111,7 @@ MODULE BmatrixEnsemble_mod
   character(len=2)    :: ctrlVarHumidity
   logical             :: advectAmplitude
   logical             :: removeSubEnsMeans
+  logical             :: keepAmplitude
 
 CONTAINS
 
@@ -142,7 +146,8 @@ CONTAINS
     !namelist
     NAMELIST /NAMBEN/nEns,scaleFactor,scaleFactorHumidity,ntrunc,enspathname,ensfilebasename, &
                      hLocalize,vLocalize,tweakTG,LocalizationType,waveBandPeaks, &
-                     diagnostic,ctrlVarHumidity,advectAmplitudeFactor,removeSubEnsMeans
+                     diagnostic,ctrlVarHumidity,advectAmplitudeFactor,removeSubEnsMeans, &
+                     keepAmplitude
 
     call tmg_start(12,'BEN_SETUP')
 
@@ -167,7 +172,8 @@ CONTAINS
     tweakTG          = .false.
     ctrlVarHumidity  = 'LQ'
     advectAmplitudeFactor = 0.0D0
-    removeSubEnsMeans = .false.
+    removeSubEnsMeans= .false.
+    keepAmplitude    = .false. 
 
     nulnam = 0
     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -398,9 +404,9 @@ CONTAINS
       allocate(pressureProfileEns_M(nLevEns_M))
       pressureProfileEns_M(1:nLevEns_M) = pressureProfileInc_M(topLevIndex_M:nLevInc_M)
 
-      allocate( locIDs(nWaveBand))
-      do  waveBandIndex = 1, nWaveBand
-         call loc_setup(hco_ens,nEns, nLevEns_M, pressureProfileEns_M, nTrunc, 'spectral',      & ! IN
+      allocate(locIDs(nWaveBand))
+      do waveBandIndex = 1, nWaveBand
+         call loc_setup(hco_ens, vco_ens, nEns, pressureProfileEns_M, nTrunc, 'spectral',       & ! IN
                         LocalizationType, hLocalize(waveBandIndex), hLocalize(waveBandIndex+1), & ! IN
                         vLocalize(waveBandIndex),                                               & ! IN
                         cvDim_mpilocal, locID)                                                    ! OUT
@@ -467,6 +473,14 @@ CONTAINS
                        ! that Bens is used
     end if
 
+    !- Setup en ensGridStateVector to store the amplitude fields (for writing)
+    if (keepAmplitude) then
+      write(*,*)
+      write(*,*) 'ben_setup: ensAmplitude fields will be store for potential write to file'
+      call ens_allocate(ensAmplitudeStorage, nEns, numStepAmplitude, hco_ens, vco_ens, &
+                        varName='ALFA')
+    end if
+
     !
     !- 4.  Ending
     !
@@ -490,6 +504,7 @@ CONTAINS
          call loc_finalize(locIDs(waveBandIndex))
        end do
        deallocate(ensPerts)
+       if (keepAmplitude) call ens_deallocate(ensAmplitudeStorage)
     end if
 
   END SUBROUTINE ben_finalize
@@ -1432,6 +1447,8 @@ CONTAINS
 
       ! 2.2 Advect the initial time amplitudes
       if ( advectAmplitude ) call advectAmplitude_tl( ensAmplitudeAll_M ) ! INOUT
+
+      if ( keepAmplitude .and. waveBandIndex == 1 ) call copyAmplitude(ensAmplitudeAll_M) ! IN
 
       ! 2.3 Compute increment by multiplying amplitudes by member perturbations
       call addEnsMember_repack( ensAmplitudeAll_M, statevector,  & ! INOUT 
@@ -2530,9 +2547,9 @@ CONTAINS
 
   END SUBROUTINE addEnsMemberAd_repack
 
-  !--------------------------------------------------------------------------
-  ! EnsembleDiagnostic
-  !--------------------------------------------------------------------------
+!--------------------------------------------------------------------------
+! EnsembleDiagnostic
+!--------------------------------------------------------------------------
   SUBROUTINE EnsembleDiagnostic(mode)
     implicit none
 
@@ -2629,5 +2646,54 @@ CONTAINS
     call gsv_deallocate(statevector_temp)
 
   END SUBROUTINE EnsembleDiagnostic
+
+!--------------------------------------------------------------------------
+! copyAmplitude
+!--------------------------------------------------------------------------
+  SUBROUTINE copyAmplitude(ensAmplitude)
+    implicit none
+
+    real(8), intent(in) :: ensAmplitude(nEnsOverDimension,numStepAmplitude,myLonBeg:myLonEnd,myLatBeg:myLatEnd,nLevEns_M)
+
+    integer :: ensIndex, stepIndex, lonIndex, latIndex, levIndex
+
+    real(4), pointer :: ensAmpAll_r4(:,:,:,:)
+
+    do levIndex = 1, nLevEns_M
+      ensAmpAll_r4 => ens_getRepack_r4(ensAmplitudeStorage,levIndex)
+!$OMP PARALLEL DO PRIVATE(ensIndex, latIndex,lonIndex,stepIndex)
+      do latIndex = myLatBeg, myLatEnd
+        do lonIndex = myLonBeg, myLonEnd
+          do stepIndex = 1, numStepAmplitude
+            do ensIndex = 1, nEns
+              ensAmpAll_r4(ensIndex,stepIndex,lonIndex,latIndex) = &
+                   real(ensAmplitude(ensIndex,stepIndex,lonIndex,latIndex,levIndex),4)  
+            end do
+          end do
+        end do
+      end do
+!$OMP END PARALLEL DO
+    end do
+
+  END SUBROUTINE copyAmplitude
+
+!--------------------------------------------------------------------------
+! ben_writeAmplitude
+!--------------------------------------------------------------------------
+  SUBROUTINE ben_writeAmplitude(ensPathName, ensFileBaseName, ip3)
+    implicit none
+
+    character(len=*), intent(in) :: ensPathName
+    character(len=*), intent(in) :: ensFileBaseName
+    integer,          intent(in) :: ip3
+
+    if (initialized .and. keepAmplitude) then
+      if ( mpi_myid == 0 ) write(*,*)
+      if ( mpi_myid == 0 ) write(*,*) 'bmatrixEnsemble_mod: Writing the amplitude field'
+      call ens_writeEnsemble(ensAmplitudeStorage, ensPathName, ensFileBaseName, &
+                             'LQ', 'FROM_BENS', 'R',varName='ALFA', ip3_in=ip3)
+    end if
+
+  END SUBROUTINE ben_writeAmplitude
 
 END MODULE BMatrixEnsemble_mod

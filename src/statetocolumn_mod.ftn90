@@ -25,7 +25,6 @@
 !!
 !--------------------------------------------------------------------------
 module stateToColumn_mod
-  use topLevelControl_mod
   use MathPhysConstants_mod
   use mpivar_mod 
   use gridstatevector_mod
