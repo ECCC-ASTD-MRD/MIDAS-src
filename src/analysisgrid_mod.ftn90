@@ -971,7 +971,6 @@ module analysisGrid_mod
 
   end subroutine agd_UVToVortDiv
 
-
 !--------------------------------------------------------------------------
 ! agd_getHco
 !--------------------------------------------------------------------------
@@ -981,9 +980,9 @@ module analysisGrid_mod
     type(struct_hco), pointer    :: hco_ptr
     character(len=*), intent(in) :: gridname
 
-    if( gridname == 'Analysis' ) then
+    if( gridname == 'ComputationalGrid' ) then
       hco_ptr => hco_ext
-    elseif( gridname == 'AnalysisCore' ) then
+    elseif( gridname == 'CoreGrid' ) then
       hco_ptr => hco_core
     else
       call utl_abort('agd_getHco: unknown grid name: ' // gridname)

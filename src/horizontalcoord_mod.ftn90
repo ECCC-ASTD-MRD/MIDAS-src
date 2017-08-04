@@ -71,7 +71,7 @@ module HorizontalCoord_mod
     type(struct_hco), pointer    :: hco
     character(len=*), intent(in) :: TemplateFile
     character(len=*), intent(in) :: EtiketName
-    character(len=*), intent(in) :: GridName
+    character(len=*), intent(in), optional :: GridName
 
     real, allocatable :: lat2d_4(:,:)
     real, allocatable :: lon2d_4(:,:)
@@ -349,7 +349,11 @@ module HorizontalCoord_mod
     allocate(hco % lat(1:nj))
     allocate(hco % lon(1:ni))
 
-    hco % gridname     = trim(gridname)
+    if ( present(gridName) ) then
+      hco % gridname     = trim(gridName)
+    else
+      hco % gridname     = 'UNDEFINED'
+    end if
     hco % ni           = ni
     hco % nj           = nj
     hco % grtyp        = trim(grtyp) 

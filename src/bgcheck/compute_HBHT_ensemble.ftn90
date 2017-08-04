@@ -55,7 +55,7 @@ subroutine compute_HBHT_ensemble(columng,columnhr,obsSpaceData,active)
 
   !- 1.1 Get vertical and horizontal analysis grid attributes
   vco_anl => col_getVco(columng)
-  hco_anl => agd_getHco('Analysis')
+  hco_anl => agd_getHco('ComputationalGrid')
 
   !- 1.2 Initialize/Read the flow-dependent ensemble perturbations
   call ben_Setup( hco_anl,             & ! IN

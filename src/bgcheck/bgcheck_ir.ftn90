@@ -25,7 +25,6 @@ SUBROUTINE BGCHECK_IR(columnhr,obsSpaceData)
   use columnData_mod
   use tovs_nl_mod
   use multi_ir_bgck_mod
-  use topLevelControl_mod, only: top_BurpSplit
   use mpivar_mod, only: mpi_myid
   use burpFiles_mod
   IMPLICIT NONE

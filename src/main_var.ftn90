@@ -127,31 +127,6 @@ program main_var
     ! Do the background check and output the observation data files
     call bgcheck_ir(columnhr,obsSpaceData)
 
-
-  ! ---COMPUTE O-P (for AMSU, GEORAD et SSMIS)--- !
-  elseif(top_OmpMode()) then
-    write(*,*) 'MAIN_VAR: RESIDUAL MODE (i.e. O-P)'
-
-    ! Do initial set up
-    call tmg_start(2,'PREMIN')
-
-    obsMpiStrategy = 'LIKESPLITFILES'
-
-    call var_setup('VAR') ! obsColumnMode
-
-    ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
-    call inn_setupBackgroundColumns(columnhr,obsSpaceData)
-
-    ! Compute observation innovations and prepare obsSpaceData for minimization
-    call inn_computeInnovation(columnhr,obsSpaceData)
-    call tmg_stop(2)
-
-    ! Interpolate trial columns to analysis levels and setup for linearized H
-    call inn_setupBackgroundColumnsAnl(columnhr,columng)
-
-    ! Compute OER and update the observation data files
-    call residuals(columng,columnhr,obsSpaceData)
-
   ! ---ANALYSIS MODE--- !
   elseif(top_AnalysisMode()) then
     write(*,*) 'MAIN_VAR: ANALYSIS MODE'
@@ -303,28 +278,6 @@ contains
     !- Setup and read observations
     !
     call inn_setupObs(obsSpaceData,obsColumnMode,obsMpiStrategy)
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-    !
-    !- Test availability of all "minimum" required model weather fields given
-    !  presented observation families. 'P0' must always be present
-    !  and an abort would have occured prior to this point if it was not present.
-    !  Requirements beyond the minimum set to be tested where needed.
-    !
-    if ( obs_famExist(obsSpaceData,'UA').or.obs_famExist(obsSpaceData,'AI').or.obs_famExist(obsSpaceData,'SW').or. &
-         obs_famExist(obsSpaceData,'SF').or.obs_famExist(obsSpaceData,'RO').or.obs_famExist(obsSpaceData,'SC').or. &
-         obs_famExist(obsSpaceData,'GP').or.obs_famExist(obsSpaceData,'PR') ) then
-       ! Not all following fields required for some of the above families.
-       if (.not.(gsv_varExist(varName='TT').and.gsv_varExist(varName='UU').and.gsv_varExist(varName='VV') &
-            .and.gsv_varExist(varName='HU').and.gsv_varExist(varName='P0').and.gsv_varExist(varName='TG')) ) then
-          call utl_abort(' preproc: One or more missing weather field in NAMSTATE')
-       end if
-    else if (obs_famExist(obsSpaceData,'TO') .and. .not.gsv_varExist(varName='TT')) then
-       ! Minimum requirement for 'TO' in the absence of assimilation of other weather-related families.
-       ! This minimum requirement is for when only constituent (non-H2O) increments are to be produced
-       ! when TO obs are provided.
-       call utl_abort(' preproc: TT missing in NAMSTATE')
-    end if
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     !
