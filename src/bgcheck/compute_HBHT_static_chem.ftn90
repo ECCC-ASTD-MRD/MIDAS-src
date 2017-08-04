@@ -44,7 +44,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC_CHEM(lcolumng,lobsSpaceData,active)
 
   
   !- Get the appropriate Horizontal and Vertical Coordinate
-  hco_anl => agd_getHco('Analysis')
+  hco_anl => agd_getHco('ComputationalGrid')
   vco_anl => col_getVco(lcolumng)
   
   call bchm_setup( hco_anl,vco_anl, &  ! IN

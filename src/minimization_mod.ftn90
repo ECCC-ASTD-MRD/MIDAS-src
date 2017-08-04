@@ -554,7 +554,7 @@ CONTAINS
     type(struct_vco), pointer :: vco_anl
 
     ! initialize statevector_incr
-    hco_anl => agd_getHco('Analysis')
+    hco_anl => agd_getHco('ComputationalGrid')
     vco_anl => col_getVco(columng)
 
     call gsv_allocate(statevector_incr, tim_nstepobsinc, hco_anl, vco_anl, &
@@ -663,7 +663,7 @@ CONTAINS
     endif
 
     ! initialization
-    hco_anl => agd_getHco('Analysis')
+    hco_anl => agd_getHco('ComputationalGrid')
     vco_anl => col_getVco(columng)
 
     call gsv_allocate(statevector_mean, tim_nstepobsinc, hco_anl, vco_anl, &
@@ -1110,7 +1110,7 @@ CONTAINS
        call mpi_allreduce_sumreal8scalar(dl_Jb,"GRID")
        call tmg_stop(89)
 
-       hco_anl => agd_getHco('Analysis')
+       hco_anl => agd_getHco('ComputationalGrid')
        vco_anl => col_getVco(columng)
        call gsv_allocate(statevector, tim_nstepobsinc, hco_anl, vco_anl, &
                          mpi_local=.true.)

@@ -639,7 +639,7 @@ CONTAINS
     ! In limited-area mode, avoid horizontal interpolation when the ensemble is on the coregrid
     horizontalPaddingNeeded = .false.
     if ( .not. hco_file%global ) then
-       hco_coregrid => agd_getHco('AnalysisCore')
+       hco_coregrid => agd_getHco('CoreGrid')
        if ( hco_file%ni == hco_coregrid%ni .and. hco_file%nj == hco_coregrid%nj  ) then
           if (mpi_myid == 0) write(*,*) 'ens_readEnsemble: no interpolation needed for ensemble on the limited-area coregrid'
           horizontalInterpNeeded = .false.

@@ -99,7 +99,7 @@ contains
     !
     ! Allocate memory for observation arrays
     !
-    call obs_initialize(obsSpaceData,mpi_local=top_BurpSplit() )
+    call obs_initialize(obsSpaceData,mpi_local=burp_split() )
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     !
@@ -147,7 +147,7 @@ contains
     !
     ! Check env variable ARMA_BURP_SPLIT to know if burp files already split
     !
-    if ( top_BurpSplit() ) then 
+    if ( burp_split() ) then 
        ! local observations files, so just do reallocation to reduce memory used
        call obs_squeeze(obsSpaceData)
        call obs_MpiRedistribute(obsSpaceData,OBS_IPC)
@@ -423,7 +423,7 @@ contains
     !
     !-    Get the Analysis Grid structure
     !
-    hco_anl => agd_getHco('Analysis')
+    hco_anl => agd_getHco('CoreGrid')
 
     if ( hco_anl % global ) then
        xposLowerBoundAnl_r4 = - huge(1.0) ! no limit since grid is global (periodic)
@@ -591,9 +591,9 @@ contains
              !- Convert to rotated grid if needed
              if (hco_anl % rotated) then
                 call uvr_RotateLatLon( lat_rot, lon_rot,       & ! OUT (radians)
-                     lat_r8,                 & ! IN  (radians)
-                     lon_r8,                 & ! IN  (radians)
-                     'ToLatLonRot')            ! IN
+                                       lat_r8,                 & ! IN  (radians)
+                                       lon_r8,                 & ! IN  (radians)
+                                       'ToLatLonRot')            ! IN
              else
                 lat_rot = lat_r8
                 lon_rot = lon_r8
@@ -1423,7 +1423,7 @@ contains
     !
 
     !- 1.1 Get the horizontal coordinate of the analysis grid
-    hco_anl => agd_getHco('Analysis')
+    hco_anl => agd_getHco('ComputationalGrid')
 
     !
     !- 2.  Determine obs_ipc (column) and obs_ipt (tile) according to distribution strategy

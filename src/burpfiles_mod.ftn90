@@ -43,259 +43,324 @@ module burpFiles_mod
   private
 
   ! public variables
-  public :: burp_nfiles,burp_cfilnam
+  public :: burp_nfiles, burp_cfilnam
 
   ! public procedures
   public :: burp_setupfiles, burp_readfiles, burp_updatefiles
-  public :: burp_chem_read_all, burp_chem_update_all
-
+  public :: burp_chem_read_all, burp_chem_update_all, burp_split, burp_splitMode
 
   integer, parameter :: jpfiles=64
   integer :: burp_nfiles
-  character(len=2)   :: burp_cfamtyp(jpfiles)
   integer, parameter :: jmaxburpfilename=1060
+
   character(len=jmaxburpfilename) :: burp_cfilnam(jpfiles)
+  character(len=2)   :: burp_cfamtyp(jpfiles)
+  character(len=256) :: burp_split_mode
+
+  logical :: burp_split_L
 
 contains
 
+  SUBROUTINE burp_setupfiles(datestamp)
+    implicit none
+    !s/r  burp_setupfiles -INITIALZE BURP FILE NAMES and return datestamp
+    !
+    !Revisions:
+    !          Ping Du (Fall 2014)
+    !          -- Added CVALUE for brpch and CFAMI for CH.
+    !          Yves Rochon (Jan 2015)
+    !          -- Removed CVALUEs for brpo3 and brpoz
+    !          -- Removed CFAMIs for OZ
+    !          Mike Sitwell (Jan 2015)
+    !          -- Initialized CVALUEs and CFAMI to ''. This prevents 
+    !             the possibility of related issues with statements such as
+    !                  IF (CVALUE(JJ) == '') EXIT
+    !          Y. Rochon ARQI/AQRD, July 2016
+    !          -- Allows nearest reference time to differ from synoptic hour when the
+    !             resume record is present.
+    !             The resume record first encountered must contain the desired reference time.
+    !             
+    INTEGER IER,INBLKS,nulburp,JJ
+    INTEGER FNOM,FCLOS,NUMBLKS
+    CHARACTER(len=20) :: CLVALU(JPFILES)
+    CHARACTER(len=2) :: CFAMI(JPFILES)
+    CHARACTER(len=4) :: cmyidx, cmyidy
+    CHARACTER(len=9) :: cmyid
+    CHARACTER(len=256) :: burp_directory
+    CHARACTER(len=jmaxburpfilename) :: burpin   !! the length should be more than len(burp_directory)+1+len(clvalu)+1+len(cmyid)
+    character(len=256)              :: burpinfull
+    LOGICAL   isExist_L 
 
-SUBROUTINE burp_setupfiles(datestamp)
-  implicit none
-!s/r  burp_setupfiles -INITIALZE BURP FILE NAMES and return datestamp
-!
-!Revisions:
-!          Ping Du (Fall 2014)
-!          -- Added CVALUE for brpch and CFAMI for CH.
-!          Yves Rochon (Jan 2015)
-!          -- Removed CVALUEs for brpo3 and brpoz
-!          -- Removed CFAMIs for OZ
-!          Mike Sitwell (Jan 2015)
-!          -- Initialized CVALUEs and CFAMI to ''. This prevents 
-!             the possibility of related issues with statements such as
-!                  IF (CVALUE(JJ) == '') EXIT
-!          Y. Rochon ARQI/AQRD, July 2016
-!          -- Allows nearest reference time to differ from synoptic hour when the
-!             resume record is present.
-!             The resume record first encountered must contain the desired reference time.
-!             
-  INTEGER IER,INBLKS,nulburp,JJ
-  INTEGER FNOM,FCLOS,NUMBLKS
-  CHARACTER(len=20) :: CLVALU(JPFILES)
-  CHARACTER(len=2) :: CFAMI(JPFILES)
-  CHARACTER(len=4) :: cmyidx, cmyidy
-  CHARACTER(len=9) :: cmyid
-  CHARACTER(len=256) :: burp_directory
-  CHARACTER(len=jmaxburpfilename) :: burpin   !! the length should be more than len(burp_directory)+1+len(clvalu)+1+len(cmyid)
-  character(len=256)              :: burpinfull
-  LOGICAL   isExist_L 
+    INTEGER KTIME,KDATE,KDATE_RECV,KTIME_RECV
+    INTEGER IHANDL,ILONG,DATESTAMP
+    INTEGER ITIME,IFLGS,IDBURP,ILAT,ILON,IDX,IDY
+    INTEGER IALT,IDELAY,IDATE,IRS,IRUNN,INBLK,ISUP,IXAUX
+    INTEGER INSUP,INXAUX
 
-  INTEGER KTIME,KDATE,KDATE_RECV,KTIME_RECV
-  INTEGER IHANDL,ILONG,DATESTAMP
-  INTEGER ITIME,IFLGS,IDBURP,ILAT,ILON,IDX,IDY
-  INTEGER IALT,IDELAY,IDATE,IRS,IRUNN,INBLK,ISUP,IXAUX
-  INTEGER INSUP,INXAUX
+    INTEGER, ALLOCATABLE :: IBUF(:)
+    INTEGER INRECS
+    INTEGER MRFCLS,MRFOPN,MRFOPC,MRBHDR,MRFLOC,MRFGET
+    INTEGER MRFMXL, status, length_burp_split
 
-  INTEGER, ALLOCATABLE :: IBUF(:)
-  INTEGER INRECS
-  INTEGER MRFCLS,MRFOPN,MRFOPC,MRBHDR,MRFLOC,MRFGET
-  INTEGER MRFMXL
+    INTEGER ISTAMPOBS,INEWHH,NEWDATE,nresume
+    REAL*8 DELHH
+    INTEGER       IVALS
+    CHARACTER*9   CLSTNID
 
-  INTEGER ISTAMPOBS,INEWHH,NEWDATE,nresume
-  REAL*8 DELHH
-  INTEGER       IVALS
-  CHARACTER*9   CLSTNID
+    EXTERNAL FCLOS,FNOM,MRFCLS,MRFOPN,MRFOPC,MRBHDR,MRFLOC,MRFGET,MRFMXL,NUMBLKS
 
-  EXTERNAL FCLOS,FNOM,MRFCLS,MRFOPN,MRFOPC,MRBHDR,MRFLOC,MRFGET,MRFMXL,NUMBLKS
+    !
+    !- Determine if the observation files are already split by subdomain
+    !
+    status = 0
+    call get_environment_variable('OAVAR_BURP_SPLIT',burp_split_mode,length_burp_split,status,.true.)
 
-  write(cmyidy,'(I4.4)') (mpi_npey-mpi_myidy)
-  write(cmyidx,'(I4.4)') (mpi_myidx+1)
-  cmyid  = trim(cmyidx)//'_'//trim(cmyidy)
-
-  CLVALU(:)=''
-  CLVALU( 1) = 'brpuan'  
-  CLVALU( 2) = 'brpuas'  
-  CLVALU( 3) = 'brpai'  
-  CLVALU( 4) = 'brpain'  
-  CLVALU( 5) = 'brpais'  
-  CLVALU( 6) = 'brpaie'  
-  CLVALU( 7) = 'brpaiw'  
-  CLVALU( 8) = 'brpsfc'  
-  CLVALU( 9) = 'brpsf'  
-  CLVALU(10) = 'brptov'  
-  CLVALU(11) = 'brpssmis'
-  CLVALU(12) = 'brpairs'
-  CLVALU(13) = 'brpto_amsua'
-  CLVALU(14) = 'brpto_amsub'
-  CLVALU(15) = 'brpcsr'
-  CLVALU(16) = 'brpiasi'
-  CLVALU(17) = 'brpatms'
-  CLVALU(18) = 'brpcris'
-  CLVALU(19) = 'brpsw'  
-  CLVALU(20) = 'brpswgoes9'  
-  CLVALU(21) = 'brpswgoese'  
-  CLVALU(22) = 'brpswgoesw'  
-  CLVALU(23) = 'brpswmodis'  
-  CLVALU(24) = 'brpswmtsate'  
-  CLVALU(25) = 'brpswmtsatw'  
-  CLVALU(26) = 'brpgo'  
-  CLVALU(27) = 'brpsc'  
-  CLVALU(28) = 'brppr'  
-  CLVALU(29) = 'brpro'  
-  CLVALU(30) = 'brphum'  
-  CLVALU(31) = 'brpsat'  
-  CLVALU(32) = 'brpssm'  
-  CLVALU(33) = 'brpgp'  
-  CLVALU(34) = 'brpch' 
-  
-
-  CFAMI(:)   = ''
-  CFAMI( 1)  = 'UA' 
-  CFAMI( 2)  = 'UA' 
-  CFAMI( 3)  = 'AI' 
-  CFAMI( 4)  = 'AI' 
-  CFAMI( 5)  = 'AI'
-  CFAMI( 6)  = 'AI'
-  CFAMI( 7)  = 'AI'
-  CFAMI( 8)  = 'SF' 
-  CFAMI( 9)  = 'SF' 
-  CFAMI(10)  = 'TO' 
-  CFAMI(11)  = 'TO' 
-  CFAMI(12)  = 'TO' 
-  CFAMI(13)  = 'TO' 
-  CFAMI(14)  = 'TO' 
-  CFAMI(15)  = 'TO' 
-  CFAMI(16)  = 'TO' 
-  CFAMI(17)  = 'TO' 
-  CFAMI(18)  = 'TO' 
-  CFAMI(19)  = 'SW' 
-  CFAMI(20)  = 'SW' 
-  CFAMI(21)  = 'SW' 
-  CFAMI(22)  = 'SW' 
-  CFAMI(23)  = 'SW' 
-  CFAMI(24)  = 'SW' 
-  CFAMI(25)  = 'SW' 
-  CFAMI(26)  = 'GO' 
-  CFAMI(27)  = 'SC' 
-  CFAMI(28)  = 'PR' 
-  CFAMI(29)  = 'RO' 
-  CFAMI(30)  = 'HU' 
-  CFAMI(31)  = 'ST' 
-  CFAMI(32)  = 'MI' 
-  CFAMI(33)  = 'GP' 
-  CFAMI(34)  = 'CH' 
-
-  IER =MRFOPC('MSGLVL','FATAL')
-
-  burp_directory = 'obs'
-
-  IVALS=8
-  KDATE=-9999
-  KTIME=-9999
-  nresume=0
-  burp_nfiles=0
-  DO JJ=1,JPFILES 
-    IF(CLVALU(JJ) == '') EXIT
-    nulburp=0
-    burpin=trim(burp_directory)//'/'//trim(CLVALU(JJ))//'_'//trim(cmyid)
-    burpinFull = ram_fullWorkingPath(burpin,noAbort=.true.)
-
-    INQUIRE(FILE=trim(burpinFull),EXIST=isExist_L)
-    IF (.NOT. isExist_L )THEN
-      burpin=trim(burp_directory)//'/'//trim(CLVALU(JJ))
-      burpinFull = ram_fullWorkingPath(burpin,noAbort=.true.)
-      INQUIRE(FILE=trim(burpinFull),EXIST=isExist_L)
-    END IF
-    IF ( isExist_L )THEN
-      IER=FNOM(nulburp,burpinFull,'RND+OLD',0)
-      WRITE(*,*)' Open File : ',trim(burpinFull)
-      IF ( IER .EQ. 0 ) THEN
-        INBLKS= -1
-        INBLKS=NUMBLKS(nulburp)
-        IF ( INBLKS .GT. 0 ) THEN
-          INRECS=MRFOPN(NULBURP,'READ')
-          ILONG =MRFMXL(NULBURP)
-          ALLOCATE(IBUF(ILONG + 20))
-          IBUF(1)=ILONG + 20
-          IHANDL  =MRFLOC(NULBURP,0,'>>*******',-1,-1,-1,-1,-1,-1,0)
-          IF ( IHANDL .LT. 0 ) THEN
-            IHANDL=MRFLOC(NULBURP,0,'*********',-1,-1,-1,-1,-1,-1,0)
-          ELSE
-            nresume=nresume+1
-          ENDIF
-          IF ( IHANDL .LT. 0 ) THEN
-            WRITE(*,*) 'AUCUN ENREGISTREMENT VALIDE DANS LE FICHIER BURP'
-          ELSE
-            burp_nfiles=burp_nfiles + 1
-            burp_cfilnam(burp_nfiles)=burpinFull
-            burp_cfamtyp(burp_nfiles)=CFAMI(JJ)
-            if ((kdate.lt.0.and.ktime.lt.0).or.nresume.eq.1) then 
-               INSUP=0
-               INXAUX=0
-               IER=MRFGET(IHANDL,IBUF)
-               IER=MRBHDR(IBUF,ITIME,IFLGS,CLSTNID,IDBURP,ILAT,   &
-                 ILON,IDX,IDY, IALT,IDELAY,IDATE,IRS,IRUNN,INBLK, &
-                 ISUP,INSUP,IXAUX,INXAUX)
-               KTIME=ITIME
-               KDATE=IDATE
-               if (nresume.eq.1) nresume=2
-             end if
-          ENDIF
-          DEALLOCATE(IBUF)
-          IER=MRFCLS(NULBURP)
-        ENDIF
-      ENDIF
-      IER= FCLOS(nulburp)
-    ENDIF
-  END DO
-
-  WRITE(*,*) ' '
-  WRITE(*,*)' NUMBER OF BURP FILES IS :',burp_nfiles
-  WRITE(*,*)'TYPE  NAME '
-  WRITE(*,*)'----  ---- '
-  DO JJ=1,burp_nfiles
-    WRITE(*,'(1X,A2,1X,A128)' ) burp_cfamtyp(JJ),trim(burp_cfilnam(JJ))
-  END DO
-
-  ! Make sure all mpi tasks have a valid date (important for split burp files)
-  call rpn_comm_allreduce(kdate,kdate_recv,1,"MPI_INTEGER","MPI_MAX","GRID",ier)
-  call rpn_comm_allreduce(ktime,ktime_recv,1,"MPI_INTEGER","MPI_MAX","GRID",ier)
-
-  kdate = kdate_recv
-  ktime = ktime_recv
-
-  ! Set reference datestamp
-
-  if (nresume.ge.1) then  
-    ier = newdate(datestamp,kdate,ktime*10000,3)
-  else
-    ! Assumes 6-hour windows with reference times being synoptic times.
-    ! Does not require kdate and ktime to be from a resume record.
-    ier = newdate(istampobs,kdate,ktime*10000,3)
-    delhh = 3.0d0
-    call INCDATR (datestamp, istampobs, delhh)
-    ier = newdate(datestamp,kdate,inewhh,-3)
-    ktime=KTIME/100
-    if (ktime .ge. 21 .or. ktime .lt. 3) then
-       ktime = 0
-    elseif(ktime .ge. 3 .and. ktime .lt. 9) then
-       ktime = 6
-    elseif(ktime .ge. 9 .and. ktime .lt. 15) then
-       ktime = 12
+    if (status.eq.1) then
+      write(*,*) 'burp_setupfiles: The environment variable OAVAR_BURP_SPLIT has not been detected!'
+      write(*,*) '                 The observation files are NOT split'
+      burp_split_L = .false.  
+      burp_split_mode = 'DEFAULT'
+      ! At this point the code only supports split files
+      write(*,*) 'burp_setupfiles: Expecting split burp files!'
+      call utl_abort('burp_setupfiles')
     else
-       ktime = 18
-    endif
-    ier = newdate(datestamp,kdate,ktime*1000000,3)
-    ktime=ktime*100
-  end if
-    
-  WRITE(*, *)' BURP FILES VALID DATE (YYYYMMDD) : ',kdate
-  WRITE(*, *)' BURP FILES VALID TIME     (HHMM) : ',ktime
-  write(*, *)' BURP FILES DATESTAMP             : ',datestamp
+      write(*,*)
+      write(*,*) 'top_setup: The environment variable OAVAR_BURP_SPLIT has correctly been detected'
+      select case ( trim(burp_split_mode) )
+      case ('yes')
+        write(*,*) 'burp_setupfiles: The observation files ARE split. Assuming ROUNDROBIN strategy'
+        burp_split_L = .true.
+        burp_split_mode = 'ROUNDROBIN'
+      case ('no')
+        write(*,*) 'burp_setupfiles: The observation files are NOT split'
+        burp_split_L = .false.
+        burp_split_mode = 'DEFAULT'
+        ! At this point the code only supports split files
+        write(*,*) 'burp_setupfiles: Expecting split burp files!'
+        call utl_abort('burp_setupfiles')
+      case ('ROUNDROBIN')
+        write(*,*) 'burp_setupfiles: The observation files ARE split using the ROUNDROBIN strategy'
+        burp_split_L = .true.
+      case ('LATLONTILES')
+        write(*,*) 'burp_setupfiles: The observation files ARE split by LAT-LON tiles'
+        write(*,*) 'burp_setupfiles: LAT-LON TILES NO LONGER PERMITTED, USE ROUND ROBIN!'
+        call utl_abort('burp_setupfiles')
+      case default
+        write(*,*) 'burp_setupfiles: Unknown burp_split_mode ', trim(burp_split_mode)
+        call utl_abort('burp_setupfiles')
+      end select
+    end if
 
-END SUBROUTINE burp_setupfiles
+    write(cmyidy,'(I4.4)') (mpi_npey-mpi_myidy)
+    write(cmyidx,'(I4.4)') (mpi_myidx+1)
+    cmyid  = trim(cmyidx)//'_'//trim(cmyidy)
+
+    CLVALU(:)=''
+    CLVALU( 1) = 'brpuan'  
+    CLVALU( 2) = 'brpuas'  
+    CLVALU( 3) = 'brpai'  
+    CLVALU( 4) = 'brpain'  
+    CLVALU( 5) = 'brpais'  
+    CLVALU( 6) = 'brpaie'  
+    CLVALU( 7) = 'brpaiw'  
+    CLVALU( 8) = 'brpsfc'  
+    CLVALU( 9) = 'brpsf'  
+    CLVALU(10) = 'brptov'  
+    CLVALU(11) = 'brpssmis'
+    CLVALU(12) = 'brpairs'
+    CLVALU(13) = 'brpto_amsua'
+    CLVALU(14) = 'brpto_amsub'
+    CLVALU(15) = 'brpcsr'
+    CLVALU(16) = 'brpiasi'
+    CLVALU(17) = 'brpatms'
+    CLVALU(18) = 'brpcris'
+    CLVALU(19) = 'brpsw'  
+    CLVALU(20) = 'brpswgoes9'  
+    CLVALU(21) = 'brpswgoese'  
+    CLVALU(22) = 'brpswgoesw'  
+    CLVALU(23) = 'brpswmodis'  
+    CLVALU(24) = 'brpswmtsate'  
+    CLVALU(25) = 'brpswmtsatw'  
+    CLVALU(26) = 'brpgo'  
+    CLVALU(27) = 'brpsc'  
+    CLVALU(28) = 'brppr'  
+    CLVALU(29) = 'brpro'  
+    CLVALU(30) = 'brphum'  
+    CLVALU(31) = 'brpsat'  
+    CLVALU(32) = 'brpssm'  
+    CLVALU(33) = 'brpgp'  
+    CLVALU(34) = 'brpch' 
 
 
-SUBROUTINE burp_readFiles(obsdat)
+    CFAMI(:)   = ''
+    CFAMI( 1)  = 'UA' 
+    CFAMI( 2)  = 'UA' 
+    CFAMI( 3)  = 'AI' 
+    CFAMI( 4)  = 'AI' 
+    CFAMI( 5)  = 'AI'
+    CFAMI( 6)  = 'AI'
+    CFAMI( 7)  = 'AI'
+    CFAMI( 8)  = 'SF' 
+    CFAMI( 9)  = 'SF' 
+    CFAMI(10)  = 'TO' 
+    CFAMI(11)  = 'TO' 
+    CFAMI(12)  = 'TO' 
+    CFAMI(13)  = 'TO' 
+    CFAMI(14)  = 'TO' 
+    CFAMI(15)  = 'TO' 
+    CFAMI(16)  = 'TO' 
+    CFAMI(17)  = 'TO' 
+    CFAMI(18)  = 'TO' 
+    CFAMI(19)  = 'SW' 
+    CFAMI(20)  = 'SW' 
+    CFAMI(21)  = 'SW' 
+    CFAMI(22)  = 'SW' 
+    CFAMI(23)  = 'SW' 
+    CFAMI(24)  = 'SW' 
+    CFAMI(25)  = 'SW' 
+    CFAMI(26)  = 'GO' 
+    CFAMI(27)  = 'SC' 
+    CFAMI(28)  = 'PR' 
+    CFAMI(29)  = 'RO' 
+    CFAMI(30)  = 'HU' 
+    CFAMI(31)  = 'ST' 
+    CFAMI(32)  = 'MI' 
+    CFAMI(33)  = 'GP' 
+    CFAMI(34)  = 'CH' 
+
+    IER =MRFOPC('MSGLVL','FATAL')
+
+    burp_directory = 'obs'
+
+    IVALS=8
+    KDATE=-9999
+    KTIME=-9999
+    nresume=0
+    burp_nfiles=0
+    DO JJ=1,JPFILES 
+      IF(CLVALU(JJ) == '') EXIT
+      nulburp=0
+      burpin=trim(burp_directory)//'/'//trim(CLVALU(JJ))//'_'//trim(cmyid)
+      burpinFull = ram_fullWorkingPath(burpin,noAbort=.true.)
+
+      INQUIRE(FILE=trim(burpinFull),EXIST=isExist_L)
+      IF (.NOT. isExist_L )THEN
+        burpin=trim(burp_directory)//'/'//trim(CLVALU(JJ))
+        burpinFull = ram_fullWorkingPath(burpin,noAbort=.true.)
+        INQUIRE(FILE=trim(burpinFull),EXIST=isExist_L)
+      END IF
+      IF ( isExist_L )THEN
+        IER=FNOM(nulburp,burpinFull,'RND+OLD',0)
+        WRITE(*,*)' Open File : ',trim(burpinFull)
+        IF ( IER .EQ. 0 ) THEN
+          INBLKS= -1
+          INBLKS=NUMBLKS(nulburp)
+          IF ( INBLKS .GT. 0 ) THEN
+            INRECS=MRFOPN(NULBURP,'READ')
+            ILONG =MRFMXL(NULBURP)
+            ALLOCATE(IBUF(ILONG + 20))
+            IBUF(1)=ILONG + 20
+            IHANDL  =MRFLOC(NULBURP,0,'>>*******',-1,-1,-1,-1,-1,-1,0)
+            IF ( IHANDL .LT. 0 ) THEN
+              IHANDL=MRFLOC(NULBURP,0,'*********',-1,-1,-1,-1,-1,-1,0)
+            ELSE
+              nresume=nresume+1
+            ENDIF
+            IF ( IHANDL .LT. 0 ) THEN
+              WRITE(*,*) 'AUCUN ENREGISTREMENT VALIDE DANS LE FICHIER BURP'
+            ELSE
+              burp_nfiles=burp_nfiles + 1
+              burp_cfilnam(burp_nfiles)=burpinFull
+              burp_cfamtyp(burp_nfiles)=CFAMI(JJ)
+              if ((kdate.lt.0.and.ktime.lt.0).or.nresume.eq.1) then 
+                INSUP=0
+                INXAUX=0
+                IER=MRFGET(IHANDL,IBUF)
+                IER=MRBHDR(IBUF,ITIME,IFLGS,CLSTNID,IDBURP,ILAT,   &
+                     ILON,IDX,IDY, IALT,IDELAY,IDATE,IRS,IRUNN,INBLK, &
+                     ISUP,INSUP,IXAUX,INXAUX)
+                KTIME=ITIME
+                KDATE=IDATE
+                if (nresume.eq.1) nresume=2
+              end if
+            ENDIF
+            DEALLOCATE(IBUF)
+            IER=MRFCLS(NULBURP)
+          ENDIF
+        ENDIF
+        IER= FCLOS(nulburp)
+      ENDIF
+    END DO
+
+    WRITE(*,*) ' '
+    WRITE(*,*)' NUMBER OF BURP FILES IS :',burp_nfiles
+    WRITE(*,*)'TYPE  NAME '
+    WRITE(*,*)'----  ---- '
+    DO JJ=1,burp_nfiles
+      WRITE(*,'(1X,A2,1X,A128)' ) burp_cfamtyp(JJ),trim(burp_cfilnam(JJ))
+    END DO
+
+    ! Make sure all mpi tasks have a valid date (important for split burp files)
+    call rpn_comm_allreduce(kdate,kdate_recv,1,"MPI_INTEGER","MPI_MAX","GRID",ier)
+    call rpn_comm_allreduce(ktime,ktime_recv,1,"MPI_INTEGER","MPI_MAX","GRID",ier)
+
+    kdate = kdate_recv
+    ktime = ktime_recv
+
+    ! Set reference datestamp
+
+    if (nresume.ge.1) then  
+      ier = newdate(datestamp,kdate,ktime*10000,3)
+    else
+      ! Assumes 6-hour windows with reference times being synoptic times.
+      ! Does not require kdate and ktime to be from a resume record.
+      ier = newdate(istampobs,kdate,ktime*10000,3)
+      delhh = 3.0d0
+      call INCDATR (datestamp, istampobs, delhh)
+      ier = newdate(datestamp,kdate,inewhh,-3)
+      ktime=KTIME/100
+      if (ktime .ge. 21 .or. ktime .lt. 3) then
+        ktime = 0
+      elseif(ktime .ge. 3 .and. ktime .lt. 9) then
+        ktime = 6
+      elseif(ktime .ge. 9 .and. ktime .lt. 15) then
+        ktime = 12
+      else
+        ktime = 18
+      endif
+      ier = newdate(datestamp,kdate,ktime*1000000,3)
+      ktime=ktime*100
+    end if
+
+    WRITE(*, *)' BURP FILES VALID DATE (YYYYMMDD) : ',kdate
+    WRITE(*, *)' BURP FILES VALID TIME     (HHMM) : ',ktime
+    write(*, *)' BURP FILES DATESTAMP             : ',datestamp
+
+  END SUBROUTINE burp_setupfiles
+
+!--------------------------------------------------------------------------
+! burp_splitMode
+!--------------------------------------------------------------------------
+    function burp_SplitMode() result(BurpSplitMode)
+      implicit none
+      character(len=48) :: BurpSplitMode
+
+      BurpSplitMode = trim(burp_split_mode)
+        
+    end function burp_SplitMode
+
+!--------------------------------------------------------------------------
+! burp_split
+!--------------------------------------------------------------------------
+    function burp_split() result(BurpSplit)
+      implicit none
+      logical :: BurpSplit
+
+      BurpSplit = burp_split_L
+        
+    end function burp_split
+
+    SUBROUTINE burp_readFiles(obsdat)
 !
 !---------------------------------------------------------------------------------
 !      PURPOSE: READ CMC BURP FILES FILL UP OBSSPACE DATA FILE
@@ -430,7 +495,7 @@ subroutine burp_updateFiles(obsSpaceData)
       WRITE(*,*)'================================================='
       WRITE(*,*)' '
 
-      if ( .not. top_BurpSplit() ) then 
+      if ( .not. burp_split_L ) then 
          write(*,*) 'burp_updateFiles: We read/write global observation files'
          CALL obs_expandToMpiGlobal(obsSpaceData)
          IF(mpi_myid /= 0) then
@@ -1702,10 +1767,9 @@ END SUBROUTINE burp_updateFiles
     type(struct_oss_obsdata) :: burp_out
 
     character(len=500) :: filename
-    logical :: found,burp_split
+    logical :: found
 
     filename = burp_get_filename(obsfam,found)
-    burp_split = top_BurpSplit()
 
     if (found) then
        if (present(codtyplist)) then
@@ -1715,7 +1779,7 @@ END SUBROUTINE burp_updateFiles
           burp_out = burp_chem_read(filename,stnid,varno,nlev,ndim,bkstp,block_type,match_nlev)
        end if
     else
-       if (burp_split) then
+       if (burp_split_L) then
           ! Must allocate burp_out so that it is available from ALL processors when
           ! requiring of rpn_comm_allgather via oss_obsdata_MPIallgather.
           write(*,*) "burp_chem_read_all: Could not find/open BURP file: ",trim(filename)
@@ -1731,7 +1795,7 @@ END SUBROUTINE burp_updateFiles
        end if
     end if
 
-    if (burp_split) call oss_obsdata_MPIallgather(burp_out)
+    if (burp_split_L) call oss_obsdata_MPIallgather(burp_out)
 
   end function burp_chem_read_all
 
@@ -1988,12 +2052,9 @@ END SUBROUTINE burp_updateFiles
     character(len=*), intent(in), optional :: multi
     integer :: nrep_modified
 
-    logical :: burp_split
     integer :: ierr,nrep_modified_global
 
-    burp_split = top_BurpSplit()
-
-    if (burp_split .or. mpi_myid.eq.0) then
+    if (burp_split_L .or. mpi_myid.eq.0) then
        if (present(multi)) then
           nrep_modified = burp_chem_update(burp_get_filename(obsfam),varno,bkstp,block_type,obsdata,multi=multi)
        else
@@ -2001,7 +2062,7 @@ END SUBROUTINE burp_updateFiles
        end if
     end if
 
-    if (burp_split) then
+    if (burp_split_L) then
        call rpn_comm_allreduce(nrep_modified,nrep_modified_global,1,"MPI_INTEGER","MPI_SUM","GRID",ierr)
        nrep_modified = nrep_modified_global
     end if

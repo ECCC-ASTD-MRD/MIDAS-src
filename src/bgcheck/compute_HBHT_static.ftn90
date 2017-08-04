@@ -68,7 +68,7 @@ SUBROUTINE COMPUTE_HBHT_STATIC(lcolumng,lcolumnhr,lobsSpaceData,active)
       logical             :: is_staggered
 
       !- Get the appropriate Horizontal and Vertical Coordinate
-      hco_anl => agd_getHco('Analysis')
+      hco_anl => agd_getHco('ComputationalGrid')
       vco_anl => col_getVco(lcolumng)
 
       call bhi_setup( hco_anl,vco_anl, &  ! IN
