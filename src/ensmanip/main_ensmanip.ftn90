@@ -46,7 +46,6 @@
 !!
 !--------------------------------------------------------------------------
 program main_ensManip
-  use topLevelControl_mod
   use mpi_mod
   use mpivar_mod
   use mathPhysConstants_mod
@@ -56,6 +55,7 @@ program main_ensManip
   use horizontalCoord_mod
   use timeCoord_mod
   use utilities_mod
+  use ramDisk_mod
   implicit none
 
   type(struct_gsv) :: statevector_mean, statevector_member
@@ -93,7 +93,7 @@ program main_ensManip
         '14x,"-- START OF MAIN_ENSMANIP             --",/,' //   &
         '14x,"-- Program for general manipulation of ensembles --",/, ' //  &
         '14x,"-- Revision number ",a," --",/,' //  &
-        '3(" *****************"))') top_crevision
+        '3(" *****************"))') 'GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE'
 
   !
   !- 0. MPI, TMG initialization
@@ -108,7 +108,7 @@ program main_ensManip
   ierr = fstopc('MSGLVL','ERRORS',0)
 
   ! Setup the ramdisk directory (if supplied)
-  call top_setup
+  call ram_setup
 
   !
   !- 1. Set/Read values for the namelist NAMENSMANIP

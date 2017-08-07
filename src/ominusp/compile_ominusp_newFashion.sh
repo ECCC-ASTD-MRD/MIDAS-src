@@ -36,8 +36,7 @@ MPILIB="rpn_comm"
 codesubdir=$PWD
 trunkdir=$PWD/../
 
-# automatically set the global revision number in toplevelcontrol_mod.ftn90 by
-# replacing the string XXXXX with the actual revision number
+# Get revision number
 revnum=$(git describe --abbrev=7 --always --dirty=_M 2>/dev/null || ssh eccc-ppp1 "cd $trunkdir; git describe --abbrev=7 --always --dirty=_M" 2>/dev/null || echo unkown revision)
 echo "..."
 echo "... > Revision Number = '$revnum'"
@@ -78,9 +77,6 @@ LIBRMN=rmnMP
 if [ $mode == full ] ; then
 
   rm -f *.o *.mod *.cdk* *.h *.ftn* *.f *.f90
-
-  # Create a local copy of the source code
-  sed "s!XXXXX!${revnum}!g" ${trunkdir}/toplevelcontrol_mod.ftn90_template > toplevelcontrol_mod.ftn90
 
   # Create a local copy of the source code
   cp -f ${trunkdir}/${program}/main_${program}.ftn90 ${compiledir}/

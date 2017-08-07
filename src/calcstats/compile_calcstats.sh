@@ -82,9 +82,6 @@ if [ $mode == full ] ; then
   rm -f *.o *.mod *.cdk* *.h *.ftn* *.f *.f90
 
   # Create a local copy of the source code
-  sed "s!XXXXX!${revnum}!g" ${trunkdir}/toplevelcontrol_mod_template.ftn90 > toplevelcontrol_mod.ftn90
-
-  # Create a local copy of the source code
   trunkfiles="mpi_mod.ftn90 mpivar_mod.ftn90 physicsfunctions_mod.ftn90 controlvector_mod.ftn90 \
             globalspectraltransform_mod.ftn90 lamanalysisgrid_mod.ftn90 localizationfunction_mod.ftn90 \
             gridstatevector_mod.ftn90 maincompileswitch.inc varnamelist_mod.ftn90 lambmatrixhi_mod.ftn90 \
@@ -104,7 +101,7 @@ if [ $mode == full ] ; then
 
   # Compile the subroutines...
   echo "compiling low-level independent modules"
-  SRC0="randomnumber_mod.ftn90 utilities_mod.ftn90 toplevelcontrol_mod.ftn90 bufr_mod.ftn90"
+  SRC0="randomnumber_mod.ftn90 utilities_mod.ftn90 bufr_mod.ftn90"
   SRC0="$SRC0 mathphysconstants_mod.ftn90 earthconstants_mod.ftn90 mpi_mod.ftn90 mpivar_mod.ftn90"
   SRC0="$SRC0 physicsfunctions_mod.ftn90 horizontalcoord_mod.ftn90 obsspacedata_mod.ftn90"
   s.compile $COMPF -src $SRC0 > listing0a 2>&1

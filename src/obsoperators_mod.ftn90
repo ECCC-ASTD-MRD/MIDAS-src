@@ -31,7 +31,6 @@ module obsOperators_mod
   use lqtoes_mod
   use gps_mod
   use mpivar_mod
-  use topLevelControl_mod
   use timeCoord_mod
   use obsFilter_mod
   use lqtoes_mod
@@ -45,10 +44,20 @@ module obsOperators_mod
   private
 
   ! public procedures
+  public :: oop_setup
   public :: oop_ppp_nl, oop_sfc_nl, oop_zzz_nl, oop_gpsro_nl, oop_gpsgb_nl, oop_tovs_nl, oop_chm_nl
   public :: oop_Htl, oop_Had, oop_vobslyrs
 
+  character(len=48) :: obsoperMode
+
 contains
+
+  subroutine oop_setup(obsoperMode_in)
+    character(len=*), intent(in) :: obsoperMode_in
+
+    obsoperMode = obsoperMode_in
+
+  end subroutine oop_setup
 
   subroutine oop_vobslyrs(columnghr,obsSpaceData)
 
@@ -1681,13 +1690,21 @@ contains
       !
       if (min_nsim == 1) then
          datestamp = tim_getDatestamp()
-         call tovs_fill_profiles(columng,obsSpaceData,datestamp,filt_rlimlvhu,top_bgckIrMode())
+         if ( trim(obsoperMode) == 'bgckIR') then
+           call tovs_fill_profiles(columng,obsSpaceData,datestamp,filt_rlimlvhu,.true.)
+         else
+           call tovs_fill_profiles(columng,obsSpaceData,datestamp,filt_rlimlvhu,.false.)
+         end if
       endif
 
       !     2.   Prepare atmospheric tl profiles for all tovs observation points for use in rttov
       !     .    --------------------------------------------------------------------------------
       !
-      call tovs_fill_profiles_tl(column,columng,top_bgckIrMode())
+      if ( trim(obsoperMode) == 'bgckIR') then
+        call tovs_fill_profiles_tl(column,columng,.true.)
+      else
+        call tovs_fill_profiles_tl(column,columng,.false.)
+      end if
 
       !     3.   Compute radiance
       !     .    ----------------
