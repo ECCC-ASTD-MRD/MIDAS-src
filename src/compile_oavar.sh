@@ -88,10 +88,10 @@ if [ "${mode}" == full ] ; then
   cd ${trunkdir};          ls -1F | grep -v '/' | grep -v "*" | grep -v "@" | cpio --quiet -p $compiledir ; cd $compiledir
   cd ${trunkdir}/bgcheck;  ls -1F | grep -v '/' | grep -v "*" | cpio --quiet -p $compiledir ; cd $compiledir
   cd ${trunkdir}/shared;   ls -1F | grep -v '/' | grep -v "*" | cpio --quiet -p $compiledir ; cd $compiledir
-  rm -f *.ftn~ *.ftn90~
+  rm -f *.f*90~
 
   # Add revision number to the main routine
-  sed -i "s|GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE|${revnum}|g" main_var.ftn90
+  sed -i "s|GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE|${revnum}|g" main_var.f90
 
   # Check for indented OPEN-MP directives - this is not allowed!
   status=1
@@ -106,11 +106,11 @@ if [ "${mode}" == full ] ; then
   # Compile the subroutines...
   echo "... > Compiling low-level independent modules"
   echo "...   if aborting, check in ${PWD}/listing0"
-  SRC0="mathphysconstants_mod.ftn90 earthconstants_mod.ftn90 utilities_mod.ftn90 ramdisk_mod.ftn90"
-  SRC0="$SRC0 randomnumber_mod.ftn90 mpi_mod.ftn90 mpivar_mod.ftn90 bufr_mod.ftn90 codtyp_mod.ftn90"
-  SRC0="$SRC0 physicsfunctions_mod.ftn90 obsspacedata_mod.ftn90 localizationfunction_mod.ftn90"
-  SRC0="$SRC0 horizontalcoord_mod.ftn90 timecoord_mod.ftn90 verticalcoord_mod.ftn90"
-  SRC0="$SRC0 lqtoes_mod.ftn90 presprofileoperators_mod.ftn90 spectralfilter_mod.ftn90"
+  SRC0="mathphysconstants_mod.f90 earthconstants_mod.f90 utilities_mod.f90 ramdisk_mod.ftn90"
+  SRC0="$SRC0 randomnumber_mod.f90 mpi_mod.f90 mpivar_mod.f90 bufr_mod.f90 codtyp_mod.f90"
+  SRC0="$SRC0 physicsfunctions_mod.f90 obsspacedata_mod.ftn90 localizationfunction_mod.f90"
+  SRC0="$SRC0 horizontalcoord_mod.f90 timecoord_mod.f90 verticalcoord_mod.f90"
+  SRC0="$SRC0 lqtoes_mod.f90 presprofileoperators_mod.f90 spectralfilter_mod.f90"
   s.compile $COMPF -O ${FOPTMIZ} -src $SRC0 > listing0 2>&1
   status=1
   grep fail listing0 || status=0
@@ -121,7 +121,7 @@ if [ "${mode}" == full ] ; then
 
   echo "... > Compiling quasi-newton module"
   echo "...   if aborting, check in ${PWD}/listing1"
-  SRC0="quasinewton_mod.ftn"
+  SRC0="quasinewton_mod.f"
   s.compile $COMPF_NOC  -O ${FOPTMIZ} -src $SRC0 > listing1 2>&1
   status=1
   grep fail listing1 || status=0
@@ -133,7 +133,7 @@ if [ "${mode}" == full ] ; then
 
   echo "... > Compiling analysis grid modules"
   echo "...   if aborting, check in ${PWD}/listing2"
-  SRC0="windrotation_mod.ftn90 analysisgrid_mod.ftn90"
+  SRC0="windrotation_mod.f90 analysisgrid_mod.f90"
   s.compile $COMPF  -O ${FOPTMIZ} -src $SRC0 > listing2 2>&1
   status=1
   grep fail listing2 || status=0
@@ -144,14 +144,14 @@ if [ "${mode}" == full ] ; then
 
   echo "... > Compiling most of the new modules"
   echo "...   if aborting, check in ${PWD}/listing3"
-  SRC1="controlvector_mod.ftn90 rmatrix_mod.ftn90 hirchannels_mod.ftn90 tovs_nl_mod.ftn90"
-  SRC1="$SRC1 tovs_lin_mod.ftn90 varnamelist_mod.ftn90 columndata_mod.ftn90 multi_ir_bgck_mod.ftn90"
-  SRC1="$SRC1 emissivities_mod.ftn90 globalspectraltransform_mod.ftn90 tt2phi_mod.ftn90"
-  SRC1="$SRC1 lamspectraltransform_mod.ftn90 gridstatevector_mod.ftn90 ensemblestatevector_mod.ftn90 statetocolumn_mod.ftn90"
-  SRC1="$SRC1 variabletransforms_mod.ftn90 localizationspectral_mod.ftn90 localization_mod.ftn90"
-  SRC1="$SRC1 bmatrixensemble_mod.ftn90 bmatrixhi_mod.ftn90 lambmatrixhi_mod.ftn90"
-  SRC1="$SRC1 bmatrixchem_mod.ftn90 bmatrix_mod.ftn90 residual_mod.ftn90 costfunction_mod.ftn90"
-  SRC1="$SRC1 ozoneclim_mod.ftn90 tovs_extrap_mod.ftn90"
+  SRC1="controlvector_mod.f90 rmatrix_mod.ftn90 hirchannels_mod.f90 tovs_nl_mod.ftn90"
+  SRC1="$SRC1 tovs_lin_mod.ftn90 varnamelist_mod.f90 columndata_mod.f90 multi_ir_bgck_mod.ftn90"
+  SRC1="$SRC1 emissivities_mod.f90 globalspectraltransform_mod.f90 tt2phi_mod.f90"
+  SRC1="$SRC1 lamspectraltransform_mod.f90 gridstatevector_mod.f90 ensemblestatevector_mod.f90 statetocolumn_mod.f90"
+  SRC1="$SRC1 variabletransforms_mod.f90 localizationspectral_mod.f90 localization_mod.f90"
+  SRC1="$SRC1 bmatrixensemble_mod.f90 bmatrixhi_mod.f90 lambmatrixhi_mod.f90"
+  SRC1="$SRC1 bmatrixchem_mod.f90 bmatrix_mod.f90 residual_mod.f90 costfunction_mod.f90"
+  SRC1="$SRC1 ozoneclim_mod.f90 tovs_extrap_mod.f90"
 
   s.compile $COMPF  -O ${FOPTMIZ} -src $SRC1 > listing3 2>&1
   status=1
@@ -174,7 +174,7 @@ if [ "${mode}" == full ] ; then
   
   echo "... > Compiling the GPS module ..."
   echo "...   if aborting, check in ${PWD}/listing5"
-  SRC2="gps_mod.ftn90"
+  SRC2="gps_mod.f90"
   s.compile $COMPF  -O ${FOPTMIZ} -src $SRC2 > listing5 2>&1
   status=1
   grep fail listing5 || status=0
@@ -187,8 +187,8 @@ if [ "${mode}" == full ] ; then
   echo "...   if aborting, check in ${PWD}/listing6"
   SRC2="obssubspacedata_mod.ftn90 burpfiles_mod.ftn90 chem_setup_mod.ftn90 chem_obserrors_mod.ftn90"
   SRC2="$SRC2 chem_obsoperators_mod.ftn90 chem_postproc_mod.ftn90"
-  SRC2="$SRC2 obserrors_mod.ftn90 varqc_mod.ftn90 obsfilter_mod.ftn90 obsoperators_mod.ftn90 obsspacediag_mod.ftn90"
-  SRC2="$SRC2 innovation_mod.ftn90 minimization_mod.ftn90"
+  SRC2="$SRC2 obserrors_mod.f90 varqc_mod.f90 obsfilter_mod.f90 obsoperators_mod.f90 obsspacediag_mod.f90"
+  SRC2="$SRC2 innovation_mod.f90 minimization_mod.f90"
   s.compile $COMPF  -O ${FOPTMIZ} -src $SRC2 > listing6 2>&1
   status=1
   grep fail listing6 || status=0
@@ -197,10 +197,10 @@ if [ "${mode}" == full ] ; then
       exit 1
   fi
 
-  echo "... > Compiling remaining ftn ftn90..."
+  echo "... > Compiling remaining .f*90..."
   echo "...   if aborting, check in ${PWD}/listing7"
   filelist=""
-  for i in *.ftn90 ; do
+  for i in *.*90 ; do
       if [[ "${i}" != *_mod.ftn* ]]; then
 	  filelist="$filelist ${i}"
       fi
@@ -231,8 +231,6 @@ if [ "${mode}" == full ] ; then
       exit 1
   fi
   cp ${varabs} ${absdir}/
-
-  #### rm -f *.ftn* *.f *.f90
 
 elif [ "${mode}" == abs ] ; then
 
