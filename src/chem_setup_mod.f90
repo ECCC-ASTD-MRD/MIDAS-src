@@ -14,9 +14,6 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-#include "maincompileswitch.inc"
-#include "compileswitches.inc"
-
 !-----------------------------------------------------------------------------
 !! MODULE chem_setup_mod
 !!         

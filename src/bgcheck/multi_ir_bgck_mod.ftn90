@@ -185,7 +185,6 @@ contains
 
 
   SUBROUTINE BGCK_IR_SETUP(lobsSpaceData)
-#if defined (DOC)
 !
 !  s/r BGCK_IR_SETUP : Memory allocation for the Hyperspectral Infrared
 !                background check variables
@@ -195,7 +194,6 @@ contains
 
 !           S.  Heilliette
 !            - creation from tovs_setup_allo  December 2013
-#endif
 
     use obsSpaceData_mod
 
@@ -2168,7 +2166,6 @@ END SUBROUTINE GARAND1998NADON
 
 SUBROUTINE MONOTONIC_INVERSION (NINVR, ptg,ptt,pgz,npr,lvl)
 
-#if defined (DOC)
 !***********************************************************************
 !
 !**ID MONOTONIC_INVERSION -- DETECT TEMPERATURE INVERSION
@@ -2197,8 +2194,6 @@ SUBROUTINE MONOTONIC_INVERSION (NINVR, ptg,ptt,pgz,npr,lvl)
 !
 !
 !***********************************************************************
-#endif
-
 
   IMPLICIT NONE
   integer ,intent (in) :: npr
@@ -2672,7 +2667,6 @@ END SUBROUTINE CLOUD_TOP_AVHRR
 
 SUBROUTINE GET_TOP (HT,NHT, bt,tt,pp,nlev,lev_start,iopt)
 
-#if defined (DOC)
 !**************************************************************************
 !
 !**ID GET_TOP -- CLOUD TOP HEIGHT COMPUTATION
@@ -2703,7 +2697,6 @@ SUBROUTINE GET_TOP (HT,NHT, bt,tt,pp,nlev,lev_start,iopt)
 !            -NHT       : NUMBER OF POSSIBLE CLOUD HEIGHT SOLUTIONS
 !
 !***************************************************************************
-#endif
 
   IMPLICIT NONE
   integer ,intent   (in) :: NLEV,IOPT
@@ -2799,7 +2792,6 @@ END SUBROUTINE GET_TOP
 
 SUBROUTINE FMIN ( IMIN, f, ndim )
 
-#if defined (DOC)
 !***********************************************************************
 !
 !**ID FMIN -- SEARCH MINIMUM VALUE OF VECTOR
@@ -2821,7 +2813,6 @@ SUBROUTINE FMIN ( IMIN, f, ndim )
 !
 !
 !***********************************************************************
-#endif
 
   integer,intent (in) :: ndim
   REAL(8),intent (in) :: f(ndim)
@@ -2872,7 +2863,7 @@ subroutine get_avhrr_emiss(iasi_surfem1,freqiasi,nchaniasi,avhrr_surfem1)
 end subroutine get_avhrr_emiss
  
 subroutine tovs_rttov_AVHRR_for_IASI (iptobs,surfem1_avhrr,idiasi)
-#if defined (doc)
+
 !
 !**s/r tovs_rttov_AVHRR_for_IASI  - Computation of forward radiance with rttov_direct
 !                   (for AVHRR)
@@ -2891,7 +2882,6 @@ subroutine tovs_rttov_AVHRR_for_IASI (iptobs,surfem1_avhrr,idiasi)
 ! appel de RTTOV pour le calcul des radiances AVHRR
 ! (non assimilees mais necessaires au background check IASI)
 
-#endif
   Use tovs_nl_mod 
   implicit none
 #include "rttov_direct2.interface"
