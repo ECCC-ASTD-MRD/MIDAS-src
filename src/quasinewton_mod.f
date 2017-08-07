@@ -409,7 +409,8 @@ c
      /     5x,"maximal number of simulations (nsim):",i6/
      /     5x,"printing level (impres):",i4)
       if (n.le.0.or.niter.le.0.or.nsim.le.0.or.dxmin.le.0.d+0.or.
-     &     epsg.le.0.d+0.or.epsg.gt.1.d+0.or.mode.lt.0.or.mode.gt.3) then
+     &     epsg.le.0.d+0.or.epsg.gt.1.d+0.or.mode.lt.0.or. 
+     &     mode.gt.3) then
          mode=2
          if (impres.ge.1) write (io,901)
  901     format (/" >>> n1qn3: inconsistent call")
@@ -562,8 +563,9 @@ c
 c
       logical sscale,cold,warm
       integer i,itmax,moderl,isim,jcour,indic,ierr,impresmax
-      double precision d1,t,tmin,tmin_mpiglobal,tmax,gnorm,eps1,ff,preco,precos,ys,den,
-     &    dk,dk1,ps,ps2,hp0
+      double precision d1,t,tmin,tmin_mpiglobal,tmax,gnorm,eps1,ff,
+     &     preco,precos,ys,den,
+     &     dk,dk1,ps,ps2,hp0
 c
 !         parametres
 c
@@ -735,7 +737,8 @@ c
           tmin=max(tmin,dabs(d(i)))
 200   continue
       call tmg_start(79,'QN_COMM')
-      call rpn_comm_allreduce(tmin,tmin_mpiglobal,1,"mpi_double_precision",
+      call rpn_comm_allreduce(tmin,tmin_mpiglobal,1,
+     &                        "mpi_double_precision",
      &                        "mpi_max","GRID",ierr)
       tmin = tmin_mpiglobal
       call tmg_stop(79)
@@ -1042,7 +1045,6 @@ c
 
       call tmg_stop(73)
 
-     ! return
       end subroutine n1qn3a
 
       subroutine nlis0 (n,simul,prosca,xn,fn,fpn,t,tmin,tmax,d,g,
