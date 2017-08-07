@@ -1,3 +1,0 @@
-<NODE_RESOURCES>
-  <BATCH machine="${BACKEND}" wallclock="10" catchup="2" mpi="1" cpu="32" />
-</NODE_RESOURCES>

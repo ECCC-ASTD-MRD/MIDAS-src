@@ -43,8 +43,7 @@ fi
 
 trunkdir=$PWD
 
-# automatically set the global revision number in toplevelcontrol_mod.ftn90 by
-# replacing the string XXXXX with the actual revision number
+# Find the revision number
 revnum=$(git describe --abbrev=7 --always --dirty=_M 2>/dev/null || ssh eccc-ppp1 "cd $trunkdir; git describe --abbrev=7 --always --dirty=_M" 2>/dev/null || echo unkown revision)
 echo "..."
 echo "... > Revision Number = '$revnum'"
@@ -86,12 +85,13 @@ if [ "${mode}" == full ] ; then
   rm -f *.o *.mod *.cdk* *.h *.ftn* *.f *.f90
 
   # Create a local copy of the source code
-  sed "s!XXXXX!${revnum}!g" ${trunkdir}/toplevelcontrol_mod.ftn90_template > toplevelcontrol_mod.ftn90
-
   cd ${trunkdir};          ls -1F | grep -v '/' | grep -v "*" | grep -v "@" | cpio --quiet -p $compiledir ; cd $compiledir
   cd ${trunkdir}/bgcheck;  ls -1F | grep -v '/' | grep -v "*" | cpio --quiet -p $compiledir ; cd $compiledir
   cd ${trunkdir}/shared;   ls -1F | grep -v '/' | grep -v "*" | cpio --quiet -p $compiledir ; cd $compiledir
   rm -f *.ftn~ *.ftn90~
+
+  # Add revision number to the main routine
+  sed -i "s|GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE|${revnum}|g" main_var.ftn90
 
   # Check for indented OPEN-MP directives - this is not allowed!
   status=1
@@ -107,7 +107,7 @@ if [ "${mode}" == full ] ; then
   echo "... > Compiling low-level independent modules"
   echo "...   if aborting, check in ${PWD}/listing0"
   SRC0="mathphysconstants_mod.ftn90 earthconstants_mod.ftn90 utilities_mod.ftn90 ramdisk_mod.ftn90"
-  SRC0="$SRC0 toplevelcontrol_mod.ftn90 randomnumber_mod.ftn90 mpi_mod.ftn90 mpivar_mod.ftn90 bufr_mod.ftn90 codtyp_mod.ftn90"
+  SRC0="$SRC0 randomnumber_mod.ftn90 mpi_mod.ftn90 mpivar_mod.ftn90 bufr_mod.ftn90 codtyp_mod.ftn90"
   SRC0="$SRC0 physicsfunctions_mod.ftn90 obsspacedata_mod.ftn90 localizationfunction_mod.ftn90"
   SRC0="$SRC0 horizontalcoord_mod.ftn90 timecoord_mod.ftn90 verticalcoord_mod.ftn90"
   SRC0="$SRC0 lqtoes_mod.ftn90 presprofileoperators_mod.ftn90 spectralfilter_mod.ftn90"

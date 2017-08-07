@@ -24,7 +24,6 @@ program main_randomPert
   !
   !**   main_randomPert  - Program to generate an ensemble of random perturbations
   !
-  use topLevelControl_mod
   use mpi_mod
   use mpivar_mod
   use mathPhysConstants_mod
@@ -76,7 +75,7 @@ program main_randomPert
         '14x,"-- START OF MAIN_RANDOMPERT           --",/,' //   &
         '14x,"-- Generation of random perturbations --",/, ' //  &
         '14x,"-- VAR Revision number ",a," --",/,' //  &
-        '3(" *****************"))') top_crevision
+        '3(" *****************"))') 'GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE'
 
   !
   !- 0. MPI, tmg initialization

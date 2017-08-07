@@ -25,13 +25,11 @@
 !--------------------------------------------------------------------------
 module innovation_mod
   use mpi_mod
-  use topLevelControl_mod
   use ramDisk_mod
   use obsSpaceData_mod
   use columnData_mod
   use timeCoord_mod
   use obsOperators_mod
-  use topLevelControl_mod
   use EarthConstants_mod
   use MathPhysConstants_mod
   use physicsFunctions_mod
@@ -62,12 +60,15 @@ module innovation_mod
   public :: inn_setupObs, inn_setupBackgroundColumns, inn_computeInnovation
   public :: inn_perturbObs, inn_setupBackgroundColumnsAnl
 
+  character(len=48) :: innovationMode
+
 contains
 
   !--------------------------------------------------------------------------
   ! inn_setupObs
   !--------------------------------------------------------------------------
-  subroutine inn_setupobs(obsSpaceData,obsColumnMode,obsMpiStrategy)
+  subroutine inn_setupobs(obsSpaceData, obsColumnMode, obsMpiStrategy, &
+       innovationMode_in)
     !
     !**s/r INN_SETUPOBS  - Initialisation of observation parameters and constants
     !
@@ -85,11 +86,17 @@ contains
     type(struct_obs) :: obsSpaceData
     character(len=*) :: obsMpiStrategy
     character(len=*) :: obsColumnMode
+    character(len=*), intent(in) :: innovationMode_in
     integer :: get_max_rss
     logical :: obs_init
 
     WRITE(*,FMT=9000)
 9000 FORMAT(/,1x,' INN_SETUPOBS - Initialisation of observations',/,1x,3('- -----------'))
+
+    !
+    ! Setup de the mode
+    !
+    innovationMode = innovationMode_in
 
     !
     ! Specify the active observation-array columns
@@ -105,7 +112,7 @@ contains
     !
     ! Set up the list of elements to be assimilated and flags for rejection
     !
-    call filt_setup
+    call filt_setup(innovationMode) ! IN
 
     call tmg_start(11,'READ_BURP')
     call burp_readFiles(obsSpaceData)
@@ -163,8 +170,8 @@ contains
     !
     if (obs_famExist(obsSpaceData,'TO')) then
        call tovs_nl_setupallo(obsSpaceData)
-       if ( top_BgckIrMode() ) call BGCK_IR_SETUP(obsSpaceData)
-       if ( top_AnalysisMode() ) call tovs_lin_setupallo()
+       if (trim(innovationMode) == 'bgckIR'  ) call BGCK_IR_SETUP(obsSpaceData)
+       if (trim(innovationMode) == 'analysis') call tovs_lin_setupallo()
     end if
 
   end subroutine inn_setupobs
@@ -1217,7 +1224,7 @@ contains
     !
     !     Remove surface station wind observations
     !
-    IF ( top_AnalysisMode() ) CALL filt_surfaceWind(obsSpaceData)
+    IF (trim(innovationMode) == 'analysis') CALL filt_surfaceWind(obsSpaceData)
     !
     !     Find interpolation layer in model profiles 
     !
@@ -1251,7 +1258,11 @@ contains
     !
     !        TOVS - RADIANCE
     !-------------------------------
-    call oop_tovs_nl(columnhr,obsSpaceData,tim_getDatestamp(),filt_rlimlvhu,top_BgckIrMode(),ZJOTOV)
+    if (trim(innovationMode) == 'bgckIR'  ) then
+      call oop_tovs_nl(columnhr,obsSpaceData,tim_getDatestamp(),filt_rlimlvhu,.true. ,ZJOTOV)
+    else
+      call oop_tovs_nl(columnhr,obsSpaceData,tim_getDatestamp(),filt_rlimlvhu,.false.,ZJOTOV)
+    end if
     !
     !        PROFILER
     !------------------------------
@@ -1275,8 +1286,13 @@ contains
     !
     ZJOGPSGB=0.0D0
     if (obs_famExist(obsSpaceData,'GP',local_mpi=.true.)) then
-       CALL oer_SETERRGPSGB(columnhr,obsSpaceData,lgpdata,top_AnalysisMode())
-       if (lgpdata) call oop_gpsgb_nl(columnhr,obsSpaceData,ZJOGPSGB,top_AnalysisMode())
+      if (trim(innovationMode) == 'analysis') then
+        CALL oer_SETERRGPSGB(columnhr,obsSpaceData,lgpdata,.true.)
+        if (lgpdata) call oop_gpsgb_nl(columnhr,obsSpaceData,ZJOGPSGB,.true.)
+      else
+        CALL oer_SETERRGPSGB(columnhr,obsSpaceData,lgpdata,.false.)
+        if (lgpdata) call oop_gpsgb_nl(columnhr,obsSpaceData,ZJOGPSGB,.false.)
+      end if
     end if
 
     call tmg_stop(48)

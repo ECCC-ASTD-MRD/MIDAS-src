@@ -20,11 +20,10 @@
 !!
 !--------------------------------------------------------------------------
 program main_ominusp
-  use topLevelControl_mod
   use ramDisk_mod
   use utilities_mod
-  use mpivar_mod
-  use MathPhysConstants_mod
+  use mpiVar_mod
+  use mathPhysConstants_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use timeCoord_mod
@@ -34,15 +33,16 @@ program main_ominusp
   use burpFiles_mod
   use obsFilter_mod  
   use innovation_mod
-  use WindRotation_mod
+  use windRotation_mod
   use analysisGrid_mod
   use tovs_nl_mod
-  use obserrors_mod
+  use obsErrors_mod
+  use obsOperators_mod
   implicit none
 
   type(struct_obs),       target  :: obsSpaceData
-  type(struct_columnData),target  :: column_anl
-  type(struct_columnData),target  :: column_trl
+  type(struct_columnData),target  :: trlColumnOnAnlLev
+  type(struct_columnData),target  :: trlColumnOnTrlLev
   type(struct_vco),       pointer :: vco_anl  => null()
   type(struct_vco),       pointer :: vco_trl  => null()
   type(struct_hco),       pointer :: hco_anl  => null()
@@ -91,15 +91,14 @@ program main_ominusp
   call tmg_init(mpi_myid, 'TMG_OMINUSP' )
   call tmg_start(1,'MAIN')
 
-  !- 1.3 Top level control setup
-  call top_setup
+  !- 1.3 RAM disk usage
   call ram_setup
 
   !- 1.4 Temporal grid
   call tim_setup
 
   !- 1.5 Burp file names and set datestamp
-  call burp_setupFiles(datestamp)
+  call burp_setupFiles(datestamp,'OminusP')
   call tim_setDatestamp(datestamp)
 
   !- 1.6 Constants
@@ -110,7 +109,7 @@ program main_ominusp
   if (mpi_myid == 0) write(*,*)' set vcoord parameters for background grid'
   call vco_SetupFromFile( vco_trl,     & ! OUT
                           './trlm_01')   ! IN
-  call col_setVco(column_trl,vco_trl)
+  call col_setVco(trlColumnOnTrlLev,vco_trl)
 
   !- 1.8 Variables of the model states
   call gsv_setup
@@ -139,30 +138,33 @@ program main_ominusp
   if ( addHBHT ) then
     call vco_SetupFromFile(vco_anl,        & ! OUT
                            './analysisgrid') ! IN
-    call col_setVco(column_anl,vco_anl)
+    call col_setVco(trlColumnOnAnlLev,vco_anl)
   end if
 
   !- 1.11 Setup and read observations
-  call inn_setupObs(obsSpaceData,obsColumnMode,obsMpiStrategy)
+  call inn_setupObs(obsSpaceData, obsColumnMode, obsMpiStrategy, 'OminusP') ! IN
 
-  !- 1.12 Basic setup of columnData module
+  !- 1.12 Setup observation operators
+  call oop_setup('OminusP') ! IN
+
+  !- 1.13 Basic setup of columnData module
   call col_setup
 
-  !- 1.13 Memory allocation for background column data
-  call col_allocate(column_trl,obs_numheader(obsSpaceData),mpi_local=.true.)
+  !- 1.14 Memory allocation for background column data
+  call col_allocate(trlColumnOnTrlLev,obs_numheader(obsSpaceData),mpi_local=.true.)
   if ( addHBHT ) then
-    call col_allocate(column_anl, obs_numheader(obsSpaceData),mpi_local=.true.)
+    call col_allocate(trlColumnOnAnlLev, obs_numheader(obsSpaceData),mpi_local=.true.)
   end if
 
   if ( addSigmaO ) then
-    !- 1.14 Initialize the observation error covariances
+    !- 1.15 Initialize the observation error covariances
     write(*,*)
     write(*,*) '> main_OminusP: Adding sigma_O'
-    call oer_setObsErrors(obsSpaceData)
+    call oer_setObsErrors(obsSpaceData, 'OminusP')
   end if
 
-  !- 1.15 Reading, horizontal interpolation and unit conversions of the 3D background fields
-  call inn_setupBackgroundColumns(column_trl,obsSpaceData)
+  !- 1.16 Reading, horizontal interpolation and unit conversions of the 3D background fields
+  call inn_setupBackgroundColumns(trlColumnOnTrlLev,obsSpaceData)
 
   write(*,*)
   write(*,*) '> main_OminusP: setup - END'
@@ -175,16 +177,16 @@ program main_ominusp
   !- 2.1 Compute observation innovations
   write(*,*)
   write(*,*) '> main_OminusP: compute innovation'
-  call inn_computeInnovation(column_trl,obsSpaceData)
+  call inn_computeInnovation(trlColumnOnTrlLev,obsSpaceData)
 
   if ( addHBHT ) then
     write(*,*)
     write(*,*) '> main_OminusP: Adding HBH^T'
     !- 2.2 Interpolate background columns to analysis levels and setup for linearized H
-    call inn_setupBackgroundColumnsAnl(column_trl,column_anl)
+    call inn_setupBackgroundColumnsAnl(trlColumnOnTrlLev,trlColumnOnAnlLev)
 
     ! 2.3 Compute the background errors in observation space
-    call compute_HBHT(column_anl,column_trl,obsSpaceData)
+    call compute_HBHT(trlColumnOnAnlLev,trlColumnOnTrlLev,obsSpaceData)
   end if
 
   ! 2.4 Write the results

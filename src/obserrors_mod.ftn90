@@ -54,13 +54,15 @@ module obsErrors_mod
   real(8) :: xstd_sc(1)
 
   save
+  character(len=48) :: obserrorMode
+
 contains
 
   !-----------------------------------------------------------------------------------------
   !-----------------------------------------------------------------------------------------
   !-----------------------------------------------------------------------------------------
 
-  subroutine oer_setObsErrors(lobsSpaceData)
+  subroutine oer_setObsErrors(lobsSpaceData, obserrorMode_in)
     !
     ! s/r set_obsErrors -SET OBSERVATION ERROR FOR ALL DATA 
     !
@@ -75,6 +77,12 @@ contains
     !
 
     type(struct_obs) :: lobsSpaceData
+    character(len=*), intent(in) :: obserrorMode_in
+
+    !
+    ! Setup Mode
+    !
+    obserrorMode = obserrorMode_in
 
     !
     ! Read in the observation stddev errors for radiance data
@@ -162,7 +170,6 @@ contains
     !             resides on an ASCII file and is read using a free format.
 
 
-    use topLevelControl_mod
     use hirchannels_mod
     use mpivar_mod
     use tovs_nl_mod
@@ -274,7 +281,7 @@ contains
     !   Select input error to use: if ANAL mode, use ERRANAL (JJ=2);
     !   otherwise use ERRBGCK (JJ=1)
     !
-    IF ( top_AnalysisMode() ) THEN
+    IF ( trim(obserrorMode) == 'analysis' ) THEN
        JJ = 2
     ELSE
        JJ = 1
@@ -293,7 +300,9 @@ contains
                    TOVERRST(JI,JL) = TOVERRIN(JI,JJ,JM)
                    ICHN(JI,JL) = ICHNIN(JI,JM)
                 ENDDO
-                IF (top_AnalysisMode().and.rmat_lnondiagr) call rmat_setFullRMatrix ( TOVERRST(:,JL), JL, chanoffset(JL) )
+                IF (trim(obserrorMode) == 'analysis' .and. rmat_lnondiagr) then
+                  call rmat_setFullRMatrix ( TOVERRST(:,JL), JL, chanoffset(JL) )
+                end if
              ENDIF
           ENDIF
        ENDDO
@@ -319,7 +328,7 @@ contains
     !
     !   Utilization flag for AIRS,IASI and CrIS channels (bgck mode only)
     !
-    IF ( top_BgckIrMode() ) THEN
+    IF ( trim(obserrorMode) == 'bgckIR' ) THEN
        DO JM= 1, INUMSAT
           IF (   IPLATFORM(JM) .EQ. 9  .AND. &
                IINSTRUMENT(JM) .EQ. 11 ) THEN

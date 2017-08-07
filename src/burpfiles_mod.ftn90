@@ -30,7 +30,6 @@ module burpFiles_mod
   use mpivar_mod
   use obsSpaceData_mod
   use burpread_mod
-  use topLevelControl_mod
   use ramDisk_mod
   use bufr
   use utilities_mod
@@ -56,12 +55,13 @@ module burpFiles_mod
   character(len=jmaxburpfilename) :: burp_cfilnam(jpfiles)
   character(len=2)   :: burp_cfamtyp(jpfiles)
   character(len=256) :: burp_split_mode
+  character(len=48)  :: burpFileMode
 
   logical :: burp_split_L
 
 contains
 
-  SUBROUTINE burp_setupfiles(datestamp)
+  SUBROUTINE burp_setupfiles(datestamp, burpFileMode_in)
     implicit none
     !s/r  burp_setupfiles -INITIALZE BURP FILE NAMES and return datestamp
     !
@@ -80,6 +80,9 @@ contains
     !             resume record is present.
     !             The resume record first encountered must contain the desired reference time.
     !             
+
+    character(len=*), intent(in) :: burpFileMode_in
+
     INTEGER IER,INBLKS,nulburp,JJ
     INTEGER FNOM,FCLOS,NUMBLKS
     CHARACTER(len=20) :: CLVALU(JPFILES)
@@ -110,6 +113,11 @@ contains
     EXTERNAL FCLOS,FNOM,MRFCLS,MRFOPN,MRFOPC,MRBHDR,MRFLOC,MRFGET,MRFMXL,NUMBLKS
 
     !
+    !- Setup the mode
+    !
+    burpFileMode = burpFileMode_in
+
+    !
     !- Determine if the observation files are already split by subdomain
     !
     status = 0
@@ -125,7 +133,7 @@ contains
       call utl_abort('burp_setupfiles')
     else
       write(*,*)
-      write(*,*) 'top_setup: The environment variable OAVAR_BURP_SPLIT has correctly been detected'
+      write(*,*) 'burp_setupfiles: The environment variable OAVAR_BURP_SPLIT has correctly been detected'
       select case ( trim(burp_split_mode) )
       case ('yes')
         write(*,*) 'burp_setupfiles: The observation files ARE split. Assuming ROUNDROBIN strategy'
@@ -479,9 +487,9 @@ subroutine burp_updateFiles(obsSpaceData)
 
       call tmg_start(93,'POST_UPDATEBRP')
 
-      if(top_AnalysisMode()) call vint3dfd(obs_oma,obsSpaceData)
+      if (trim(burpFileMode) == 'analysis') call vint3dfd(obs_oma,obsSpaceData)
       call vint3dfd(obs_omp,obsSpaceData)
-      if(top_AnalysisMode()) call setassflg(obsSpaceData)
+      if (trim(burpFileMode) == 'analysis') call setassflg(obsSpaceData)
       call flaguvtofd_obsdat(obsSpaceData)
 !
 !  ------NOTE----------

@@ -21,8 +21,6 @@
 !!
 !--------------------------------------------------------------------------
 program main_var
-
-  use topLevelControl_mod
   use ramDisk_mod
   use utilities_mod
   use mpivar_mod
@@ -44,25 +42,32 @@ program main_var
   use analysisGrid_mod
   use bmatrix_mod
   use tovs_nl_mod
-  use obserrors_mod
+  use obsErrors_mod
   use variableTransforms_mod
+  use obsOperators_mod
   implicit none
 
   integer :: istamp,exdb,exfin
+  integer :: ierr,nconf
+
+  type(struct_obs),       target :: obsSpaceData
+  type(struct_columnData),target :: trlColumnOnAnlLev
+  type(struct_columnData),target :: trlColumnOnTrlLev
+
   character(len=9) :: clmsg
-  integer :: ierr
-  type(struct_obs),target :: obsSpaceData
-  type(struct_columnData),target :: columng,columnhr
-  character(len=48) :: obsMpiStrategy
+  character(len=48) :: obsMpiStrategy, oavarMode
+
+  NAMELIST /NAMCT0/NCONF
+  integer nulnam, fnom, fclos 
 
   istamp = exdb('OAVAR','DEBUT','NON')
 
-  write(*,'(/,' //                                            &
-            '3(" *****************"),/,' //                   &
+  write(*,'(/,' //                                                &
+            '3(" *****************"),/,' //                       &
             '14x,"-- START OF MAIN PROGRAM MAIN_VAR: --",/,' //   &
-            '14x,"-- VARIATIONAL ASSIMILATION          --",/, ' //  &
-            '14x,"-- VAR Revision number   ",a," --",/,' //  &
-            '3(" *****************"))') top_crevision
+            '14x,"-- VARIATIONAL ASSIMILATION          --",/, ' //&
+            '14x,"-- VAR Revision number   ",a," --",/,' //       &
+            '3(" *****************"))') 'GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE'
 
   ! MPI initilization
   call mpi_initialize  
@@ -76,14 +81,42 @@ program main_var
     call utl_writeStatus(clmsg)
   endif 
 
-  ! 1. Top Level Control setup (read NCONF from namelist)
-  call top_setup
+  ! 1. Top level setup
+  nconf             = 141
+
+  nulnam=0
+  ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+  if(ierr.ne.0) call utl_abort('main_var: Error opening file flnml')
+  read(nulnam,nml=namct0,iostat=ierr)
+  if(ierr.ne.0) call utl_abort('main_var: Error reading namelist')
+  write(*,nml=namct0)
+  ierr=fclos(nulnam)
+
+  select case(nconf)
+  case (141)
+    write(*,*)
+    write(*,*) 'main_var: Analysis mode selected'
+    oavarMode='analysis'
+  case (111)
+    write(*,*)
+    write(*,*) 'main_var: Background check for IR sat. data mode selected'
+    oavarMode='bgckIR'
+  case (101)
+    write(*,*)
+    write(*,*) 'main_var: Background check for conventional obs mode selected'
+    oavarMode='bgckConv'
+  case default
+    write(*,*)
+    write(*,*) 'main_var: Unknown mode ', nconf
+    call utl_abort('main_var')
+  end select
+
   call ram_setup
 
   ! 2. Decide on configuration of job
 
   ! ---BGCHECK (conventional obs)--- !
-  if(top_BgckConvMode()) then
+  if ( trim(oavarMode) == 'bgckConv' ) then
     if(mpi_myid == 0) write(*,*) 'MAIN_VAR: CONVENTIONNAL BGCHECK MODE'
 
     ! Do initial set up
@@ -94,20 +127,20 @@ program main_var
     call var_setup('ALL') ! obsColumnMode   
 
     ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
-    call inn_setupBackgroundColumns(columnhr,obsSpaceData)
+    call inn_setupBackgroundColumns(trlColumnOnTrlLev,obsSpaceData)
 
     ! Interpolate trial columns to analysis levels and setup for linearized H
-    call inn_setupBackgroundColumnsAnl(columnhr,columng)
+    call inn_setupBackgroundColumnsAnl(trlColumnOnTrlLev,trlColumnOnAnlLev)
 
     ! Compute observation innovations and prepare obsSpaceData for minimization
-    call inn_computeInnovation(columnhr,obsSpaceData)
+    call inn_computeInnovation(trlColumnOnTrlLev,obsSpaceData)
     call tmg_stop(2)
 
     ! Do the background check and output the observation data files
-    call bgcheck_conv(columng,columnhr,obsSpaceData)
+    call bgcheck_conv(trlColumnOnAnlLev,trlColumnOnTrlLev,obsSpaceData)
 
   ! ---BGCHECK (AIRS, IASI, CrIS)--- !
-  elseif(top_BgckIrMode()) then
+  else if ( trim(oavarMode) == 'bgckIR' ) then
     if(mpi_myid == 0) write(*,*) 'MAIN_VAR: HYPERSPECTRAL IR BGCHECK MODE'
 
     ! Do initial set up
@@ -118,17 +151,17 @@ program main_var
     call var_setup('ALL') ! obsColumnMode   
 
     ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
-    call inn_setupBackgroundColumns(columnhr,obsSpaceData)
+    call inn_setupBackgroundColumns(trlColumnOnTrlLev,obsSpaceData)
 
     ! Compute observation innovations and prepare obsSpaceData for minimization
-    call inn_computeInnovation(columnhr,obsSpaceData)
+    call inn_computeInnovation(trlColumnOnTrlLev,obsSpaceData)
     call tmg_stop(2)
 
     ! Do the background check and output the observation data files
-    call bgcheck_ir(columnhr,obsSpaceData)
+    call bgcheck_ir(trlColumnOnTrlLev,obsSpaceData)
 
   ! ---ANALYSIS MODE--- !
-  elseif(top_AnalysisMode()) then
+  else if ( trim(oavarMode) == 'analysis' ) then
     write(*,*) 'MAIN_VAR: ANALYSIS MODE'
 
     ! Do initial set up
@@ -141,21 +174,21 @@ program main_var
 
     ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
     call tmg_start(2,'PREMIN')
-    call inn_setupBackgroundColumns(columnhr,obsSpaceData)
+    call inn_setupBackgroundColumns(trlColumnOnTrlLev,obsSpaceData)
 
     ! Interpolate trial columns to analysis levels and setup for linearized H
-    call inn_setupBackgroundColumnsAnl(columnhr,columng)
+    call inn_setupBackgroundColumnsAnl(trlColumnOnTrlLev,trlColumnOnAnlLev)
 
     ! Compute observation innovations and prepare obsSpaceData for minimization
-    call inn_computeInnovation(columnhr,obsSpaceData)
+    call inn_computeInnovation(trlColumnOnTrlLev,obsSpaceData)
     call tmg_stop(2)
 
     ! Do minimization of cost function
-    call min_minimize(columng,obsSpaceData)
+    call min_minimize(trlColumnOnAnlLev,obsSpaceData)
 
     ! Conduct obs-space post-processing diagnostic tasks (some diagnostic 
     ! computations controlled by NAMOSD namelist in flnml)
-    call osd_ObsSpaceDiag(obsSpaceData,columng)
+    call osd_ObsSpaceDiag(obsSpaceData,trlColumnOnAnlLev)
 
     ! Deallocate memory related to B matrices
     call bmat_finalize()
@@ -222,8 +255,8 @@ contains
     !     
     !- Initialize burp file names and set datestamp
     !
-    call burp_setupFiles(datestamp)
-    call tim_setDatestamp(datestamp)
+    call burp_setupFiles (datestamp, oavarMode) ! IN
+    call tim_setDatestamp(datestamp)            ! IN
 
     !
     !- Initialize constants
@@ -237,7 +270,7 @@ contains
     if(mpi_myid.eq.0) write(*,*)' preproc: Set vcoord parameters for trial grid'
     call vco_SetupFromFile( vco_trl,     & ! OUT
                             './trlm_01')   ! IN
-    call col_setVco(columnhr,vco_trl)
+    call col_setVco(trlColumnOnTrlLev,vco_trl)
 
     !
     !- Initialize variables of the model states
@@ -271,14 +304,19 @@ contains
     call vco_SetupFromFile( vco_anl,        & ! OUT
                             './analysisgrid') ! IN
 
-    call col_setVco(columng,vco_anl)
+    call col_setVco(trlColumnOnAnlLev,vco_anl)
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     !
     !- Setup and read observations
     !
-    call inn_setupObs(obsSpaceData,obsColumnMode,obsMpiStrategy)
+    call inn_setupObs(obsSpaceData, obsColumnMode, obsMpiStrategy, oavarMode) ! IN
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+    !
+    !- Setup observation operators
+    !
+    call oop_setup(oavarMode) ! IN
 
     !
     !- Basic setup of columnData module
@@ -289,19 +327,19 @@ contains
     !
     !- Memory allocation for background column data
     !
-    call col_allocate(columng, obs_numheader(obsSpaceData),mpi_local=.true.)
-    call col_allocate(columnhr,obs_numheader(obsSpaceData),mpi_local=.true.)
+    call col_allocate(trlColumnOnAnlLev,obs_numheader(obsSpaceData),mpi_local=.true.)
+    call col_allocate(trlColumnOnTrlLev,obs_numheader(obsSpaceData),mpi_local=.true.)
 
     !
     !- Initialize the observation error covariances
     !
-    call oer_setObsErrors(obsSpaceData)
+    call oer_setObsErrors(obsSpaceData, oavarMode) ! IN
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     !
     !- Initialize the background-error covariance, also sets up control vector module (cvm)
     !
-    if ( top_AnalysisMode() ) then
+    if ( trim(oavarMode) == 'analysis' ) then
        call bmat_setup(hco_anl,vco_anl)
        write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     end if
@@ -309,7 +347,7 @@ contains
     !
     ! - Initialize the gridded variable transform module
     !
-    if ( top_AnalysisMode() ) then
+    if ( trim(oavarMode) == 'analysis' ) then
        call vtr_setup(hco_anl,vco_anl)
     end if
 
@@ -318,7 +356,7 @@ contains
     !  NOTE: some global variables remain in minimization_mod that must be initialized before 
     !        inn_setupBackgroundColumns
     !
-    if (top_AnalysisMode() ) then
+    if ( trim(oavarMode) == 'analysis' ) then
        call min_setup( cvm_nvadim ) ! IN
        write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     end if
