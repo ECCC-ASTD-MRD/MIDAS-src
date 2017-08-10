@@ -142,11 +142,13 @@ module analysisGrid_mod
     ext_i  = ni_ext - ni_core
     ext_j  = nj_ext - nj_core
 
-    if ( (ext_i < 10) .or. (ext_j < 10) ) then
+    if ( ext_i == 0 .and. ext_j == 0 ) then
       write(*,*)
-      write(*,*) 'agd_SetupFromHCO: Domain extension is less than 10 gridpoints'
+      write(*,*) 'agd_SetupFromHCO: LAM core and extended grids are identical'
+    else if ( ext_i < 10 .or. ext_j < 10 ) then
+      write(*,*)
+      write(*,*) 'agd_SetupFromHCO: LAM domain extension is less than 10 gridpoints'
       write(*,*) ' ext_i = ', ext_i,' ext_j = ', ext_j
-      call utl_abort('agd_SetupFromHCO')
     end if
 
     ni_ext_per = ni_ext + 1  ! Fields will be periodic (i = 1 repeated) at ni_ext+1
