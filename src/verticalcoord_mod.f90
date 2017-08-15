@@ -120,6 +120,7 @@ module verticalCoord_mod
     character(len=*), optional :: etiket_in
     logical, optional :: beSilent
 
+    logical           :: beSilent2
     character(len=12) :: etiket
     integer :: Vcode,kind,jlev,jlev2,stat,sigdigits,nultemplate,ierr,ikey
     integer :: fnom,fstouv,fstfrm,fclos,fstinf,fstprm
@@ -148,14 +149,12 @@ module verticalCoord_mod
     endif
 
     if(present(beSilent)) then
-      if( .not.beSilent ) then
-        write(*,*) 'vco_setupFromFile: WARNING: you specified "beSilent=.false."'
-        write(*,*) '                   but this s/r only checks the presence of beSilent'
-        write(*,*) '                   and not its value, so it will be silent!'
-      endif
+      beSilent2 = beSilent
+    else
+      beSilent2 = .false.
     endif
 
-    if(mpi_myid.eq.0 .and. .not.present(beSilent)) then
+    if(mpi_myid.eq.0 .and. .not.beSilent2) then
       write(*,*) 'vco_setupFromFile: TEMPLATEFILE=', templatefile
     endif
     inquire(file=templatefile,exist=isExist_L)
@@ -163,7 +162,7 @@ module verticalCoord_mod
       nultemplate=0
       ierr=fnom(nultemplate,templatefile,'RND+OLD+R/O',0)
       if( ierr .eq. 0 ) then
-        if(mpi_myid.eq.0 .and. .not.present(beSilent)) then
+        if(mpi_myid.eq.0 .and. .not.beSilent2) then
           write(*,*) ' opened as unit file ',nultemplate
         endif
         ierr =  fstouv(nultemplate,'RND+OLD')
@@ -185,7 +184,7 @@ module verticalCoord_mod
     endif
 
     ! Print out vertical structure 
-    if(mpi_myid.eq.0 .and. .not.present(beSilent)) then
+    if(mpi_myid.eq.0 .and. .not.beSilent2) then
       stat = vgd_print(vco%vgrid)
       if(stat.ne.VGD_OK)then
         call utl_abort('ERROR with vgd_print')
@@ -230,7 +229,7 @@ module verticalCoord_mod
       if(ikey.gt.0) vco%nlev_T = vco%nlev_T + 1
     enddo
     if(vco%nlev_T.eq.0) then
-      if(mpi_myid.eq.0 .and. .not.present(beSilent)) then
+      if(mpi_myid.eq.0 .and. .not.beSilent2) then
         write(*,*) 'vco: TH not found looking for TT to get nlev_T'
       endif
       nomvar_T = 'TT  '
@@ -253,7 +252,7 @@ module verticalCoord_mod
       if(ikey.gt.0) vco%nlev_M = vco%nlev_M + 1
     enddo
     if(vco%nlev_M.eq.0) then
-      if(mpi_myid.eq.0 .and. .not.present(beSilent)) then
+      if(mpi_myid.eq.0 .and. .not.beSilent2) then
         write(*,*) 'vco: MM not found looking for UU to get nlev_M'
       endif
       nomvar_M = 'UU  '
@@ -269,7 +268,7 @@ module verticalCoord_mod
       call utl_abort('vco_setupfromfile: Could not find a valid momentum variable in the template file!')
     endif
 
-    if(mpi_myid.eq.0 .and. .not.present(beSilent)) then
+    if(mpi_myid.eq.0 .and. .not.beSilent2) then
       write(*,*) 'vco: nlev_M, nlev_T=',vco%nlev_M,vco%nlev_T
     endif
     
@@ -288,10 +287,6 @@ module verticalCoord_mod
           call utl_abort('vco: Problem with consistency between vgrid descriptor and template file (momentum)')
         endif
         vco%ip1_M(jlev2) = vgd_ip1_M(jlev)
-      else
-        if(mpi_myid.eq.0 .and. .not.present(beSilent)) then
-          write(*,*) 'vco: did not find a momentum level in the template file, ip1 =',vgd_ip1_M(jlev)
-        endif
       endif
     enddo
 
@@ -308,10 +303,6 @@ module verticalCoord_mod
           call utl_abort('vco: Problem with consistency between vgrid descriptor and template file (thermo)')
         endif
         vco%ip1_T(jlev2) = vgd_ip1_T(jlev)
-      else
-        if(mpi_myid.eq.0 .and. .not.present(beSilent)) then
-          write(*,*) 'vco: did not find a thermo level in the template file, ip1 =',vgd_ip1_T(jlev)
-        endif
       endif
     enddo
 
@@ -331,17 +322,17 @@ module verticalCoord_mod
       write(*,*) 'vco: Could not find IP1=',ip1_sfc
       call utl_abort('vco: No surface level found in Vgrid!!!')
     else
-      if(mpi_myid.eq.0 .and. .not.present(beSilent)) write(*,*) 'vco: Set surface level IP1=',vco%ip1_sfc
+      if(mpi_myid.eq.0 .and. .not.beSilent2) write(*,*) 'vco: Set surface level IP1=',vco%ip1_sfc
     endif
 
     !do jlev = 1, vco%nlev_M
-    !  if(mpi_myid.eq.0 .and. .not.present(beSilent)) then
+    !  if(mpi_myid.eq.0 .and. .not.beSilent2) then
     !    write(*,*) 'vco: jlev,nk,ip1(moment)= ',   & 
     !         jlev,vco%nlev_M,vco%ip1_M(jlev)
     !  endif
     !enddo
     !do jlev = 1,vco%nlev_T
-    !  if(mpi_myid.eq.0 .and. .not.present(beSilent)) then
+    !  if(mpi_myid.eq.0 .and. .not.beSilent2) then
     !    write(*,*) 'vco: jlev,nk,ip1(thermo)= ',  &
     !         jlev,vco%nlev_T,vco%ip1_T(jlev)
     !  endif
