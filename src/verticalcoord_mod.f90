@@ -65,7 +65,7 @@ module verticalCoord_mod
     stat = stat + nl_stat
 
     if(stat .ne. 0 ) then
-       call utl_abort(' vco: problem with allocate in vco ')
+       call utl_abort('vco_allocate: problem with allocate in vco ')
     endif
 
   end subroutine vco_allocate
@@ -122,7 +122,7 @@ module verticalCoord_mod
 
     logical           :: beSilent2
     character(len=12) :: etiket
-    integer :: Vcode,kind,jlev,jlev2,stat,sigdigits,nultemplate,ierr,ikey
+    integer :: Vcode,kind,jlev,nlevMatched,stat,sigdigits,nultemplate,ierr,ikey
     integer :: fnom,fstouv,fstfrm,fclos,fstinf,fstprm
     integer :: vgd_nlev_M, vgd_nlev_T
     integer,   pointer :: vgd_ip1_M(:), vgd_ip1_T(:)
@@ -180,14 +180,14 @@ module verticalCoord_mod
   
     stat = vgd_new(vco%vgrid,unit=nultemplate,format="fst",ip1=-1,ip2=-1)
     if(stat.ne.VGD_OK)then
-      call utl_abort('ERROR with vgd_new')
+      call utl_abort('vco_setupFromFile: ERROR with vgd_new')
     endif
 
     ! Print out vertical structure 
     if(mpi_myid.eq.0 .and. .not.beSilent2) then
       stat = vgd_print(vco%vgrid)
       if(stat.ne.VGD_OK)then
-        call utl_abort('ERROR with vgd_print')
+        call utl_abort('vco_setupFromFile: ERROR with vgd_print')
       endif
     endif
 
@@ -197,7 +197,7 @@ module verticalCoord_mod
     stat = 0
     stat = vgd_get(vco%vgrid,key='ig_1 - vertical coord code',value=Vcode)
     if(stat.ne.VGD_OK) then
-      call utl_abort('vco: problem with vgd_get: key= ig_1 - vertical coord code')
+      call utl_abort('vco_setupFromFile: problem with vgd_get: key= ig_1 - vertical coord code')
     endif
     if (Vcode /= 5002 .and. Vcode /= 5005) then
       call utl_abort('vco_setupFromFile: Invalid Vcode. Currently only 5002 and 5005 supported.')
@@ -213,7 +213,7 @@ module verticalCoord_mod
     stat = stat + VGD_OK
 
     if(stat.ne.0) then
-      call utl_abort('vco: problem with vgd_get')
+      call utl_abort('vco_setupFromFile: problem with vgd_get')
     endif
 
     vgd_nlev_M = size(vgd_ip1_M)
@@ -230,7 +230,7 @@ module verticalCoord_mod
     enddo
     if(vco%nlev_T.eq.0) then
       if(mpi_myid.eq.0 .and. .not.beSilent2) then
-        write(*,*) 'vco: TH not found looking for TT to get nlev_T'
+        write(*,*) 'vco_setupFromFile: TH not found looking for TT to get nlev_T'
       endif
       nomvar_T = 'TT  '
       do jlev = 1, vgd_nlev_T
@@ -253,7 +253,7 @@ module verticalCoord_mod
     enddo
     if(vco%nlev_M.eq.0) then
       if(mpi_myid.eq.0 .and. .not.beSilent2) then
-        write(*,*) 'vco: MM not found looking for UU to get nlev_M'
+        write(*,*) 'vco_setupFromFile: MM not found looking for UU to get nlev_M'
       endif
       nomvar_M = 'UU  '
       do jlev = 1, vgd_nlev_M
@@ -269,7 +269,7 @@ module verticalCoord_mod
     endif
 
     if(mpi_myid.eq.0 .and. .not.beSilent2) then
-      write(*,*) 'vco: nlev_M, nlev_T=',vco%nlev_M,vco%nlev_T
+      write(*,*) 'vco_setupFromFile: nlev_M, nlev_T=',vco%nlev_M,vco%nlev_T
     endif
     
     call vco_allocate(vco)
@@ -278,33 +278,41 @@ module verticalCoord_mod
     ! Define levels ip1 for momentum levels
 
     ! Match up ip1 values from file and vgrid
-    jlev2 = 0
+    nlevMatched = 0
     do jlev = 1, vgd_nlev_M
       ikey = fstinf(nultemplate, ni, nj, nk, -1 ,etiket, vgd_ip1_M(jlev), -1, -1, ' ', nomvar_M)
       if(ikey.gt.0) then
-        jlev2 = jlev2 + 1
-        if(jlev2.gt.vco%nlev_M) then
-          call utl_abort('vco: Problem with consistency between vgrid descriptor and template file (momentum)')
+        nlevMatched = nlevMatched + 1
+        if(nlevMatched.gt.vco%nlev_M) then
+          call utl_abort('vco_setupFromFile: Problem with consistency between vgrid descriptor and template file (momentum)')
         endif
-        vco%ip1_M(jlev2) = vgd_ip1_M(jlev)
+        vco%ip1_M(nlevMatched) = vgd_ip1_M(jlev)
       endif
     enddo
+    if(nlevMatched /= vco%nlev_M) then
+      write(*,*) 'vco_setupFromFile: nlevMatched = ', nlevMatched, ', nlev_M = ', vco%nlev_M
+      call utl_abort('vco_setupFromFile: Problem with consistency between vgrid descriptor and template file (momentum)')
+    endif
 
     !==========================================================================
     ! Define levels ip1 for thermo levels
 
     ! Match up ip1 values from file and vgrid
-    jlev2 = 0
+    nlevMatched = 0
     do jlev = 1, vgd_nlev_T
       ikey = fstinf(nultemplate, ni, nj, nk, -1 ,etiket, vgd_ip1_T(jlev), -1, -1, ' ', nomvar_T)
       if(ikey.gt.0) then
-        jlev2 = jlev2 + 1
-        if(jlev2.gt.vco%nlev_T) then
-          call utl_abort('vco: Problem with consistency between vgrid descriptor and template file (thermo)')
+        nlevMatched = nlevMatched + 1
+        if(nlevMatched.gt.vco%nlev_T) then
+          call utl_abort('vco_setupFromFile: Problem with consistency between vgrid descriptor and template file (thermo)')
         endif
-        vco%ip1_T(jlev2) = vgd_ip1_T(jlev)
+        vco%ip1_T(nlevMatched) = vgd_ip1_T(jlev)
       endif
     enddo
+    if(nlevMatched /= vco%nlev_T) then
+      write(*,*) 'vco_setupFromFile: nlevMatched = ', nlevMatched, ', nlev_T = ', vco%nlev_T
+      call utl_abort('vco_setupFromFile: Problem with consistency between vgrid descriptor and template file (thermo)')
+    endif
 
     !==========================================================================
     ! Define level ip1 for surface (only used for Vcode=5005)
@@ -312,31 +320,18 @@ module verticalCoord_mod
     ! determine IP1 of sfc (hyb=1.0)
     call convip(ip1_sfc, 1.0, 5, 2, blk_s, .false.) 
     ip1_found = .false.
-    do jlev2 = 1, vgd_nlev_T
-      if(ip1_sfc .eq. vgd_ip1_T(jlev2)) then
+    do jlev = 1, vgd_nlev_T
+      if(ip1_sfc .eq. vgd_ip1_T(jlev)) then
         ip1_found = .true.
-        vco%ip1_sfc = vgd_ip1_T(jlev2)
+        vco%ip1_sfc = vgd_ip1_T(jlev)
       endif
     enddo
     if(.not.ip1_found) then
-      write(*,*) 'vco: Could not find IP1=',ip1_sfc
-      call utl_abort('vco: No surface level found in Vgrid!!!')
+      write(*,*) 'vco_setupFromFile: Could not find IP1=',ip1_sfc
+      call utl_abort('vco_setupFromFile: No surface level found in Vgrid!!!')
     else
-      if(mpi_myid.eq.0 .and. .not.beSilent2) write(*,*) 'vco: Set surface level IP1=',vco%ip1_sfc
+      if(mpi_myid.eq.0 .and. .not.beSilent2) write(*,*) 'vco_setupFromFile: Set surface level IP1=',vco%ip1_sfc
     endif
-
-    !do jlev = 1, vco%nlev_M
-    !  if(mpi_myid.eq.0 .and. .not.beSilent2) then
-    !    write(*,*) 'vco: jlev,nk,ip1(moment)= ',   & 
-    !         jlev,vco%nlev_M,vco%ip1_M(jlev)
-    !  endif
-    !enddo
-    !do jlev = 1,vco%nlev_T
-    !  if(mpi_myid.eq.0 .and. .not.beSilent2) then
-    !    write(*,*) 'vco: jlev,nk,ip1(thermo)= ',  &
-    !         jlev,vco%nlev_T,vco%ip1_T(jlev)
-    !  endif
-    !enddo
 
     !==========================================================================
 

@@ -87,7 +87,7 @@ CONTAINS
 
     integer :: id, nEnsOverDimension
 
-    call tmg_start(125,'LOC_SETUP')
+    call tmg_start(130,'LOC_SETUP')
 
     if (verbose) write(*,*) 'Entering loc_Setup'
 
@@ -133,7 +133,7 @@ CONTAINS
     !
     loc(id)%initialized = .true.
 
-    call tmg_stop(125)
+    call tmg_stop(130)
 
   end subroutine loc_setup
 
