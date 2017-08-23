@@ -1249,7 +1249,7 @@ contains
       iobs = iptobs(profile_index)
       header_index = tvs_lobsno(iobs)
       istart = obs_headElem_i(ObsSpaceData,OBS_RLN,header_index)
-      iend= obs_headElem_i(ObsSpaceData,OBS_NLV,header_index) + start - 1
+      iend= obs_headElem_i(ObsSpaceData,OBS_NLV,header_index) + istart - 1
       do body_index = istart, iend
         if (obs_bodyElem_i(ObsSpaceData,OBS_ASS,body_index)==assim_flag_val2) then
           ichn = nint(obs_bodyElem_r(ObsSpaceData,OBS_PPP,body_index))
@@ -1292,7 +1292,7 @@ contains
       iobs = iptobs(profile_index)
       header_index = tvs_lobsno(iobs)
       istart = obs_headElem_i(ObsSpaceData,OBS_RLN,header_index)
-      iend= obs_headElem_i(ObsSpaceData,OBS_NLV,header_index) + start - 1
+      iend= obs_headElem_i(ObsSpaceData,OBS_NLV,header_index) + istart - 1
       do body_index = istart, iend
         if(obs_bodyElem_i(ObsSpaceData,OBS_ASS,body_index)==assim_flag_val2) tvs_countRadiances  = tvs_countRadiances + 1
       end do
@@ -1323,7 +1323,7 @@ contains
       iobs = iptobs(profile_index)
       index_header = tvs_lobsno(iobs)
       istart = obs_headElem_i(ObsSpaceData,OBS_RLN,index_header)
-      iend = obs_headElem_i(ObsSpaceData,OBS_NLV,index_header) + start - 1
+      iend = obs_headElem_i(ObsSpaceData,OBS_NLV,index_header) + istart - 1
       do index_body = istart, iend
         if(obs_bodyElem_i(ObsSpaceData,OBS_ASS,index_body)==assim_flag_val2) then
           count = count + 1
@@ -2546,7 +2546,7 @@ SUBROUTINE EXTHUM4(KNPF,KLAPF,PPRES,PAV,LIMLVHU)
     IV5 = FSTFRM(ISFTEST)
     IV6 = FCLOS(ISFTEST)
 
-    if (iv1 < 0 .or .iv2 < 0 .or. iv3 < 0 .or. iv4 < 0 .or. iv5 < 0 .or. iv6 < 0) then
+    if (iv1 < 0 .or. iv2 < 0 .or. iv3 < 0 .or. iv4 < 0 .or. iv5 < 0 .or. iv6 < 0) then
       write(*,*) 'LES IV DE CERES ',iv1,iv2,iv3,iv4,iv5,iv6
       write(*,*) 'THESE NUMBER SHOULD NOT BE NEGATIVE WHEN DOING AIRS BACKGROUND CHECK'
       call utl_abort('Problem with file ceres_global.std in emis_read_climatology ')
