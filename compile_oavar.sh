@@ -121,6 +121,8 @@ if [ "${ORDENV_PLAT}" = ubuntu-14.04-amd64-64 ];then
     ## for openmpi
     echo "... loading main/opt/openmpi/openmpi-1.6.5/intelcomp-2016.1.156"
     . ssmuse-sh -d main/opt/openmpi/openmpi-1.6.5/intelcomp-2016.1.156
+    echo "loading hdf5"
+    . ssmuse-sh -x /fs/site1/dev/ssc/hpco/alk001/ssm/install_space/hdf5/hdf5_1.10.0-patch1-intel-serial-2016.1.156
 elif [ "${ORDENV_PLAT}" = sles-11-amd64-64 -o "${ORDENV_PLAT}" = sles-11-broadwell-64-xc40 ];then
     echo "loading cray-hdf5"
     module load cray-hdf5
@@ -162,13 +164,20 @@ else
 fi
 
 echo "...   loading arma/rttov/12v1"
-export LD_LIBRARY_PATH="/home/syh074/data_maestro/eccc-ppp2/rttov12/lib:${LD_LIBRARY_PATH}"
-export MY_INCLUDE_PATH="/home/syh074/data_maestro/eccc-ppp2/rttov12/includes ${MY_INCLUDE_PATH}"
 if [ "${ORDENV_PLAT}" = ubuntu-14.04-amd64-64 ];then
-    echo "...   loading hdf5"
-    export LD_LIBRARY_PATH="/home/syh074/data_maestro/eccc-ppp2/hdf5-1.8.17/hdf5/lib:${LD_LIBRARY_PATH}"
-    export MY_INCLUDE_PATH="/home/syh074/data_maestro/eccc-ppp2/hdf5-1.8.17/hdf5/include ${MY_INCLUDE_PATH}"
+   export LD_LIBRARY_PATH="/home/syh074/data_maestro/eccc-ppp2/rttov12/official_serial/lib:${LD_LIBRARY_PATH}"
+   export MY_INCLUDE_PATH="/home/syh074/data_maestro/eccc-ppp2/rttov12/official_serial/include /home/syh074/data_maestro/eccc-ppp2/rttov12/official_serial/mod ${MY_INCLUDE_PATH}" 
+elif [ "${ORDENV_PLAT}" = sles-11-amd64-64 -o "${ORDENV_PLAT}" = sles-11-broadwell-64-xc40 ];then
+   export LD_LIBRARY_PATH="/home/syh074/data_maestro/brooks/rttov12/lib:${LD_LIBRARY_PATH}"
+   export MY_INCLUDE_PATH="/home/syh074/data_maestro/brooks/rttov12/includes ${MY_INCLUDE_PATH}"
 fi
+
+#if [ "${ORDENV_PLAT}" = ubuntu-14.04-amd64-64 ];then
+#    echo "...   loading hdf5"
+#    export LD_LIBRARY_PATH="/home/syh074/data_maestro/eccc-ppp2/hdf5-1.8.17/hdf5/lib:${LD_LIBRARY_PATH}"
+#    export MY_INCLUDE_PATH="/home/syh074/data_maestro/eccc-ppp2/hdf5-1.8.17/hdf5/include ${MY_INCLUDE_PATH}"
+#fi
+
 
 if [ "${mode}" == full ] ; then
 
