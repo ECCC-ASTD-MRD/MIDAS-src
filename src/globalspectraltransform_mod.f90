@@ -39,8 +39,8 @@ MODULE globalSpectralTransform_mod
 
   ! public subroutines
   public :: gst_setup,  &
-            gst_speree, gst_speree_kij, gst_reespe, gst_reespe_kij, gst_spgd, gst_spgda, gst_gdsp,  &
-            gst_zleginv, gst_zlegdir,  &
+            gst_speree, gst_speree_ad, gst_speree_kij, gst_speree_kij_ad, gst_reespe, gst_reespe_kij, &
+            gst_spgd, gst_spgda, gst_gdsp, gst_zleginv, gst_zlegdir,  &
             gst_setID, gst_setDefaultID, gst_setToDefaultID,  &
             gst_ilaList_mpilocal, gst_ilaList_mpiglobal, gst_nList_mpilocal
   ! public functions
@@ -1706,6 +1706,9 @@ CONTAINS
     integer :: jk, jlon, jlat
     real(8), allocatable :: psp2(:,:,:),pgd2(:,:,:),pgd3(:,:,:)
 
+    integer :: lat1, lat2, lon1, lon2
+    real(8) :: rwtinv(gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+
     ! check if this mpi task will deal with winds during Legendre transform
     if(gst(gstID)%myLevBeg.le.2*nflev) then
       ! ensure that the number of levels on this mpi task is even to allow interleaving of u and v
@@ -1718,6 +1721,8 @@ CONTAINS
     allocate(psp2(gst(gstID)%nla, 2, gst(gstID)%myLevBeg:gst(gstID)%myLevEnd))
     allocate(pgd2(2*gst(gstID)%maxmcount, gst(gstID)%nj,  gst(gstID)%myLevBeg:gst(gstID)%myLevEnd))
     allocate(pgd3(gst(gstID)%ni, gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, gst(gstID)%myLevBeg:gst(gstID)%myLevEnd))
+
+    call adjnorm(pgd)
 
     ! First reorder wind components to have u and v for same level on same mpi task
     call tmg_start(29,'GST_INTERLEAVE')
@@ -2045,8 +2050,8 @@ CONTAINS
     call tmg_start(23,'GST_LT')
     call tmg_start(122,'GST_SPEREEPAR_KIJ')
     call spereepar_kij(psp2,pgd2)
-     call tmg_stop(122)
-   call tmg_stop(23)
+    call tmg_stop(122)
+    call tmg_stop(23)
     deallocate(psp2)
 
     ! 1.2 Transpose data along npey from M to Latitudes
@@ -2078,6 +2083,22 @@ CONTAINS
     call tmg_stop(106)
 
   END SUBROUTINE GST_SPEREE_KIJ
+
+  SUBROUTINE GST_SPEREE_AD(PSP,PGD)
+    implicit none
+ 
+    real(8) :: psp(gst(gstID)%myNla, 2, gst(gstID)%nk)
+    real(8) :: pgd(gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, gst(gstID)%nk)
+
+    integer :: jlat, jk, jlon
+    integer :: lat1, lat2, lon1, lon2
+    real(8) :: rwtinv(gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+
+    call adjnorm(pgd)
+
+    call gst_reespe(psp,pgd)
+
+  END SUBROUTINE GST_SPEREE_AD
 
 
   SUBROUTINE GST_REESPE(PSP,PGD)
@@ -2127,6 +2148,9 @@ CONTAINS
     real(8), allocatable :: psp2(:,:,:),pgd2(:,:,:),pgd3(:,:,:)
     integer :: jlat, jk, jlon, ierr
 
+    !integer :: lat1, lat2, lon1, lon2
+    !real(8) :: rwtinv(gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+
     call tmg_start(107,'BARR_REESPE_KIJ_START')
     if(mpi_doBarrier) call rpn_comm_barrier("GRID",ierr)
     call tmg_stop(107)
@@ -2165,6 +2189,86 @@ CONTAINS
 
   END SUBROUTINE GST_REESPE_KIJ
 
+  SUBROUTINE GST_SPEREE_KIJ_AD(PSP,PGD)
+    implicit none
+
+    real(8) :: psp(gst(gstID)%myNla, 2, gst(gstID)%nk)
+    real(8) :: pgd(gst(gstID)%nk, gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+
+    integer :: jlat, jk, jlon, ierr
+    integer :: lat1, lat2, lon1, lon2
+    real(8) :: rwtinv(gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+
+    !call tmg_start(107,'BARR_SPEREE_KIJ_AD_START')
+    !if(mpi_doBarrier) call rpn_comm_barrier("GRID",ierr)
+    !call tmg_stop(107)
+
+    call adjnorm_kij(pgd)
+
+    call gst_reespe_kij(psp,pgd)
+
+  END SUBROUTINE GST_SPEREE_KIJ_AD
+
+  SUBROUTINE adjnorm(pgd)
+    implicit none
+  
+    real(8) :: pgd(gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, gst(gstID)%nk)
+
+    integer :: jk, jlon, jlat
+    integer :: lat1, lat2, lon1, lon2
+    real(8) :: rwtinv(gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+
+    !DPP Adjnorm stays here:
+    lat1 = gst(gstID)%myLatBeg
+    lat2 = gst(gstID)%myLatEnd
+    lon1 = gst(gstID)%myLonBeg
+    lon2 = gst(gstID)%myLonEnd
+
+    do jlat = lat1, lat2
+      rwtinv(jlat) = real(gst(gstID)%ni,8) / gst_getRWT(jlat)
+    enddo
+
+!$OMP PARALLEL DO PRIVATE (jk,jlat,jlon)
+    do jk = 1, gst(gstID)%nk
+        do jlat = lat1, lat2
+          do jlon = lon1, lon2
+            pgd(jlon,jlat,jk) = rwtinv(jlat) * pgd(jlon,jlat,jk)
+          end do
+        end do
+    end do
+!$OMP END PARALLEL DO
+
+  END SUBROUTINE adjnorm
+
+  SUBROUTINE adjnorm_kij(pgd)
+    implicit none
+  
+    real(8) :: pgd(gst(gstID)%nk, gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+    integer :: jk, jlon, jlat
+    integer :: lat1, lat2, lon1, lon2
+    real(8) :: rwtinv(gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+
+    !DPP Adjnorm stays here:
+    lat1 = gst(gstID)%myLatBeg
+    lat2 = gst(gstID)%myLatEnd
+    lon1 = gst(gstID)%myLonBeg
+    lon2 = gst(gstID)%myLonEnd
+
+    do jlat = lat1, lat2
+      rwtinv(jlat) = real(gst(gstID)%ni,8) / gst_getRWT(jlat)
+    enddo
+
+!$OMP PARALLEL DO PRIVATE (jlat,jlon,jk)
+    do jlat = lat1, lat2
+       do jlon = lon1, lon2
+         do jk = 1, gst(gstID)%nk
+            pgd(jk,jlon,jlat) = rwtinv(jlat) * pgd(jk,jlon,jlat)
+         end do
+       end do
+    end do
+!$OMP END PARALLEL DO
+
+  END SUBROUTINE adjnorm_kij
 
   SUBROUTINE SPEREEPAR(PSP,PGD2)
     !**s/r SPEREEPAR  - Inverse spectral transform(MPI PARALLEL LOOP)
