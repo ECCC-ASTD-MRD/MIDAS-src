@@ -255,49 +255,44 @@ contains
     real(8),pointer :: cvBhi(:),cvBen(:),cvBchm(:)
     type(struct_gsv) :: statevector
 
-    if ( statevector%hco%global ) then
-      !- 1.1 Adjoint of the identity (change of norm)
-      call adjnorm(statevector)
-    end if
-
-    !- 1.2 set gradient to zero
+    !- 1.1 set gradient to zero
     controlVector(:)=0.0d0
     
-    !- 1.3 Add contribution to gradient from BmatrixEnsemble
+    !- 1.2 Add contribution to gradient from BmatrixEnsemble
     call tmg_start(61,'B_ENS_T')
     cvBen=>cvm_getSubVector(controlVector,cvm_BEN)
 
     if ( associated(cvBen) ) call ben_bsqrtad(statevector,cvBen)
     call tmg_stop(61)
 
-    !- 1.4 adjoint of copy 3D increment to 4D increment
+    !- 1.3 adjoint of copy 3D increment to 4D increment
     if ( cvm_subVectorExists(cvm_BHI) .or. cvm_subVectorExists(cvm_BCHM)) call gsv_3dto4dAdj(statevector)
 
-    !- 1.5 add contribution to gradient from BmatrixChem
+    !- 1.4 add contribution to gradient from BmatrixChem
     call tmg_start(124,'B_CHM_T')
     if ( cvm_subVectorExists(cvm_BCHM) ) then
       cvBchm=>cvm_getSubVector(controlVector,cvm_BCHM)
       if ( statevector%hco%global ) then
-        !- 1.5.1 add contribution to gradient from GLOBAL BmatrixChem
+        !- 1.4.1 add contribution to gradient from GLOBAL BmatrixChem
         call bchm_bsqrtad( statevector, & ! IN
                           cvBchm )        ! OUT
       else
-        !- 1.5.2 add contribution to gradient from LAM BmatrixChem
+        !- 1.4.2 add contribution to gradient from LAM BmatrixChem
         call utl_abort('bmat_sqrtBT: local routine currently unavailable for chemical constituents, to be available via lbhi_bSqrtAdj in the future')
       end if
     end if
     call tmg_stop(124)
 
-    !- 1.6 add contribution to gradient from BmatrixHI
+    !- 1.5 add contribution to gradient from BmatrixHI
     call tmg_start(51,'B_HI_T')
     if ( cvm_subVectorExists(cvm_BHI) ) then
       cvBhi=>cvm_getSubVector(controlVector,cvm_BHI)
       if ( statevector%hco%global ) then
-        !- 1.6.1 add contribution to gradient from GLOBAL BmatrixHI
+        !- 1.5.1 add contribution to gradient from GLOBAL BmatrixHI
         call bhi_bsqrtad( statevector, & ! IN
                           cvBhi )        ! OUT
       else
-        !- 1.6.2 add contribution to gradient from LAM BmatrixHI
+        !- 1.5.2 add contribution to gradient from LAM BmatrixHI
         call lbhi_bSqrtAdj( statevector, & ! IN
                             cvBhi )        ! OUT
       end if
@@ -305,49 +300,6 @@ contains
     call tmg_stop(51)
 
   END SUBROUTINE bmat_sqrtBT
-
-!--------------------------------------------------------------------------
-! adjnorm
-!--------------------------------------------------------------------------
-  subroutine adjnorm(statevector)
-    !
-    !- Adjoint of the identity (change of norm)
-    !
-    implicit none
-    type(struct_gsv) :: statevector
-
-    integer :: jlev,jlat,jlon,lon1,lon2,lat1,lat2,k1,k2,jstep,jvar
-
-    real(8), allocatable :: rwtinv(:)
-
-    real(8), pointer :: ptr(:,:,:,:)
-    
-    lon1 = statevector%myLonBeg
-    lon2 = statevector%myLonEnd
-    lat1 = statevector%myLatBeg
-    lat2 = statevector%myLatEnd
-    k1 = statevector%mykBeg
-    k2 = statevector%mykEnd
-
-    allocate(rwtinv(lat1:lat2))
-    do jlat = lat1, lat2
-      rwtinv(jlat) = real(statevector%ni,8) / gst_getRWT(jlat)
-    enddo
-
-    ptr => gsv_getField_r8(statevector)
-!$OMP PARALLEL DO PRIVATE (jlat,jstep,jlev,jlon)
-    do jlev = k1, k2
-      do jstep = 1, statevector%numStep
-        do jlat = lat1, lat2
-          do jlon = lon1, lon2
-            ptr(jlon,jlat,jlev,jstep) = rwtinv(jlat) * ptr(jlon,jlat,jlev,jstep)
-          end do
-        end do
-      end do
-    end do
-!$OMP END PARALLEL DO
-
-  END SUBROUTINE adjnorm
 
 !--------------------------------------------------------------------------
 ! bmat_finalize
