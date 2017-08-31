@@ -794,7 +794,7 @@ CONTAINS
 
        if (lsp(id)%global) then
           call gst_setID(lsp(id)%gstID)
-          call gst_reespe_kij(sp_vhLoc(:,:,levIndex,:),ensAmplitude(:,:,:,levIndex))
+          call gst_speree_kij_ad(sp_vhLoc(:,:,levIndex,:),ensAmplitude(:,:,:,levIndex))
        else
           kind = 'GridPointToSpectral'
           call lst_VarTransform( lsp(id)%lst%id,                 & ! IN

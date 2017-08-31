@@ -1808,7 +1808,7 @@ CONTAINS
 
     call tmg_start(86,'BCHM_REESPE')
     call gst_setID(gstID)
-    call gst_reespe(sp,gd)
+    call gst_speree_ad(sp,gd)
     call tmg_stop(86)
 
     call tmg_start(82,'BCHM_SPA2GD1')
