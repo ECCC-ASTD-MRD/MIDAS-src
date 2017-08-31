@@ -2206,7 +2206,7 @@ CONTAINS
     lon2 = gst(gstID)%myLonEnd
 
     do jlat = lat1, lat2
-      rwtinv(jlat) = real(gst(gstID)%ni,8) / gst_getRWT(jlat)
+      rwtinv(jlat) = real(gst(gstID)%ni,8) / gst_getRWT(jlat, gstID)
     enddo
 
 !$OMP PARALLEL DO PRIVATE (jk,jlat,jlon)
@@ -2235,7 +2235,7 @@ CONTAINS
     lon2 = gst(gstID)%myLonEnd
 
     do jlat = lat1, lat2
-      rwtinv(jlat) = real(gst(gstID)%ni,8) / gst_getRWT(jlat)
+      rwtinv(jlat) = real(gst(gstID)%ni,8) / gst_getRWT(jlat, gstID)
     enddo
 
 !$OMP PARALLEL DO PRIVATE (jlat,jlon,jk)
