@@ -1706,9 +1706,6 @@ CONTAINS
     integer :: jk, jlon, jlat
     real(8), allocatable :: psp2(:,:,:),pgd2(:,:,:),pgd3(:,:,:)
 
-    integer :: lat1, lat2, lon1, lon2
-    real(8) :: rwtinv(gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
-
     ! check if this mpi task will deal with winds during Legendre transform
     if(gst(gstID)%myLevBeg.le.2*nflev) then
       ! ensure that the number of levels on this mpi task is even to allow interleaving of u and v
@@ -2090,10 +2087,6 @@ CONTAINS
     real(8) :: psp(gst(gstID)%myNla, 2, gst(gstID)%nk)
     real(8) :: pgd(gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, gst(gstID)%myLatBeg:gst(gstID)%myLatEnd, gst(gstID)%nk)
 
-    integer :: jlat, jk, jlon
-    integer :: lat1, lat2, lon1, lon2
-    real(8) :: rwtinv(gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
-
     call adjnorm(pgd)
 
     call gst_reespe(psp,pgd)
@@ -2148,9 +2141,6 @@ CONTAINS
     real(8), allocatable :: psp2(:,:,:),pgd2(:,:,:),pgd3(:,:,:)
     integer :: jlat, jk, jlon, ierr
 
-    !integer :: lat1, lat2, lon1, lon2
-    !real(8) :: rwtinv(gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
-
     call tmg_start(107,'BARR_REESPE_KIJ_START')
     if(mpi_doBarrier) call rpn_comm_barrier("GRID",ierr)
     call tmg_stop(107)
@@ -2195,14 +2185,6 @@ CONTAINS
     real(8) :: psp(gst(gstID)%myNla, 2, gst(gstID)%nk)
     real(8) :: pgd(gst(gstID)%nk, gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
 
-    integer :: jlat, jk, jlon, ierr
-    integer :: lat1, lat2, lon1, lon2
-    real(8) :: rwtinv(gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
-
-    !call tmg_start(107,'BARR_SPEREE_KIJ_AD_START')
-    !if(mpi_doBarrier) call rpn_comm_barrier("GRID",ierr)
-    !call tmg_stop(107)
-
     call adjnorm_kij(pgd)
 
     call gst_reespe_kij(psp,pgd)
@@ -2218,7 +2200,6 @@ CONTAINS
     integer :: lat1, lat2, lon1, lon2
     real(8) :: rwtinv(gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
 
-    !DPP Adjnorm stays here:
     lat1 = gst(gstID)%myLatBeg
     lat2 = gst(gstID)%myLatEnd
     lon1 = gst(gstID)%myLonBeg
@@ -2248,7 +2229,6 @@ CONTAINS
     integer :: lat1, lat2, lon1, lon2
     real(8) :: rwtinv(gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
 
-    !DPP Adjnorm stays here:
     lat1 = gst(gstID)%myLatBeg
     lat2 = gst(gstID)%myLatEnd
     lon1 = gst(gstID)%myLonBeg
