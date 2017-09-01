@@ -52,6 +52,7 @@ MODULE BMatrix_mod
   ! public procedures through inheritance
   public :: bhi_getScaleFactor,bhi_truncateCV,ben_getScaleFactor,ben_getnEns,ben_getPerturbation
   public :: bchm_getScaleFactor,bchm_truncateCV
+  public :: ben_setFsoLeadTime
 
 
   type(struct_hco), pointer :: hco_anl
@@ -149,7 +150,7 @@ contains
 !--------------------------------------------------------------------------
 ! bmat_sqrtB
 !-------------------------------------------------------------------------- 
-  SUBROUTINE bmat_sqrtB(controlVector,cvdim,statevector)
+  SUBROUTINE bmat_sqrtB(controlVector,cvdim,statevector,useForecast)
     implicit none
     !
     !- Purpose: Transforms model state from error covariance space
@@ -168,6 +169,7 @@ contains
     real(8)         :: controlVector(cvdim)
     real(8),pointer :: cvBhi(:), cvBen(:), field(:,:,:), field4d(:,:,:,:)
     real(8),pointer :: cvBchm(:)
+    logical,optional :: useForecast
 
     type(struct_gsv) :: statevector, statevector_temp
 
@@ -223,7 +225,11 @@ contains
     call tmg_start(60,'B_ENS')
     if ( cvm_subVectorExists(cvm_BEN) ) then
       cvBen => cvm_getSubVector(controlVector,cvm_BEN)
-      call ben_bsqrt(cvBen, statevector_temp)
+      if( present(useForecast) ) then
+        call ben_bsqrt(cvBen, statevector_temp, useForecast)
+      else
+        call ben_bsqrt(cvBen, statevector_temp)
+      endif
     endif
     call tmg_stop(60)
 
@@ -237,7 +243,7 @@ contains
 !--------------------------------------------------------------------------
 ! bmat_sqrtBT
 !--------------------------------------------------------------------------
-  SUBROUTINE bmat_sqrtBT(controlVector,cvdim,statevector)
+  SUBROUTINE bmat_sqrtBT(controlVector,cvdim,statevector,useForecast)
     implicit none
     !
     !- Purpose: Transforms model state from grid point space 
@@ -254,6 +260,7 @@ contains
     real(8) :: controlVector(cvdim)
     real(8),pointer :: cvBhi(:),cvBen(:),cvBchm(:)
     type(struct_gsv) :: statevector
+    logical,optional :: useForecast
 
     !- 1.1 set gradient to zero
     controlVector(:)=0.0d0
@@ -262,7 +269,13 @@ contains
     call tmg_start(61,'B_ENS_T')
     cvBen=>cvm_getSubVector(controlVector,cvm_BEN)
 
-    if ( associated(cvBen) ) call ben_bsqrtad(statevector,cvBen)
+    if ( associated(cvBen) ) then
+      if( present(useForecast) ) then
+        call ben_bsqrtad(statevector,cvBen,useForecast)
+      else
+        call ben_bsqrtad(statevector,cvBen)
+      endif
+    endif
     call tmg_stop(61)
 
     !- 1.3 adjoint of copy 3D increment to 4D increment
