@@ -133,8 +133,8 @@ CONTAINS
 
     TYPE(BURP_FILE)        :: FILE_IN
     TYPE(BURP_RPT)         :: RPT_IN,CP_RPT
-    TYPE(BURP_BLOCK)       :: BLOCK_IN,BLOCK_OMA,BLOCK_OMP,BLOCK_OER,BLOCK_FGE,BLOCK_FLG
-    TYPE(BURP_BLOCK)       :: BLOCK_OMA_SFC,BLOCK_OMP_SFC,BLOCK_OER_SFC,BLOCK_FGE_SFC,BLOCK_FLG_SFC
+    TYPE(BURP_BLOCK)       :: BLOCK_IN,BLOCK_OMA,BLOCK_OMP,BLOCK_OER,BLOCK_FGE,BLOCK_FLG,BLOCK_FSO
+    TYPE(BURP_BLOCK)       :: BLOCK_OMA_SFC,BLOCK_OMP_SFC,BLOCK_OER_SFC,BLOCK_FGE_SFC,BLOCK_FLG_SFC,BLOCK_FSO_SFC
     TYPE(BURP_BLOCK)       :: Block_FLG_CP,BLOCK_OBS_MUL_CP,BLOCK_MAR_MUL_CP,BLOCK_OBS_SFC_CP,BLOCK_MAR_SFC_CP
 
     CHARACTER(LEN=5)       :: FAMILYTYPE2
@@ -170,7 +170,7 @@ CONTAINS
 
     INTEGER                :: OBS_START,SAVE_OBS,OBS_HIRES,ASSIM
     INTEGER                :: IL_INDEX,IRLN,INLV,LK,VNM
-    REAL                   :: PPP,OBS,OMA,OMP,OER,FGE,OBSVA,CONVFACT
+    REAL                   :: PPP,OBS,OMA,OMP,OER,FSO,FGE,OBSVA,CONVFACT
     INTEGER                :: FLG,TIME,ILEMU,ILEMV,ILEMD,VCOORD_POS
 
     INTEGER                :: BLOCK_LIST(NBLOC_LIST),bl
@@ -412,10 +412,12 @@ CONTAINS
     Call BURP_Init(BLOCK_OMP    ,IOSTAT=error)
     Call BURP_Init(BLOCK_OER    ,IOSTAT=error)
     Call BURP_Init(BLOCK_FGE    ,IOSTAT=error)
+    Call BURP_Init(BLOCK_FSO    ,IOSTAT=error)
     Call BURP_Init(BLOCK_OMA_SFC,IOSTAT=error)
     Call BURP_Init(BLOCK_OMP_SFC,IOSTAT=error)
     Call BURP_Init(BLOCK_OER_SFC,IOSTAT=error)
     Call BURP_Init(BLOCK_FGE_SFC,IOSTAT=error)
+    Call BURP_Init(BLOCK_FSO_SFC,IOSTAT=error)
     Call BURP_Init(BLOCK_FLG_SFC,IOSTAT=error)
 
     Call BURP_Init(BLOCK_FLG    ,IOSTAT=error)
@@ -670,6 +672,8 @@ CONTAINS
 	   				           ,IOSTAT = error) 
                Call BURP_New(BLOCK_FGE_SFC, NELE =NBELE, NVAL =nvale,NT=NTE,bfam=10,BKNAT=BKNAT,BKTYP=new_bktyp,BKSTP=15 &
 					           ,IOSTAT = error) 
+              Call BURP_New(BLOCK_FSO_SFC, NELE =NBELE, NVAL =nvale,NT=NTE,bfam=1,BKNAT=BKNAT,BKTYP=new_bktyp,BKSTP=2 &
+                                                   ,IOSTAT = error)
             else
 
                IND_eleu  = BURP_Find_Element(Block_in, ELEMENT=11215, IOSTAT=error)
@@ -683,6 +687,8 @@ CONTAINS
 					           ,IOSTAT = error) 
                Call BURP_New(BLOCK_FGE_SFC, NELE =NBELE+2, NVAL =nvale,NT=NTE,bfam=10,BKNAT=BKNAT,BKTYP=new_bktyp,BKSTP=15 &
 					           ,IOSTAT = error) 
+               Call BURP_New(BLOCK_FSO_SFC, NELE =NBELE+2, NVAL =nvale,NT=NTE,bfam=1,BKNAT=BKNAT,BKTYP=new_bktyp,BKSTP=2 &
+                                                   ,IOSTAT = error)
                ILEMU=11215
                ILEMV=11216
                call BURP_Set_Element( BLOCK_OMA_SFC,NELE_IND = 1,ElEMENT=ILEMU,IOSTAT=error) 
@@ -696,6 +702,10 @@ CONTAINS
 
                call BURP_Set_Element( BLOCK_FGE_SFC,NELE_IND = 1,ElEMENT=ILEMU,IOSTAT=error) 
                call BURP_Set_Element( BLOCK_FGE_SFC,NELE_IND = 2,ElEMENT=ILEMV,IOSTAT=error) 
+
+               call BURP_Set_Element( BLOCK_FSO_SFC,NELE_IND = 1,ElEMENT=ILEMU,IOSTAT=error)
+               call BURP_Set_Element( BLOCK_FSO_SFC,NELE_IND = 2,ElEMENT=ILEMV,IOSTAT=error)
+
                do k =1,nte
                  Call BURP_Set_Rval(Block_OMA_SFC,NELE_IND =1,NVAL_IND =1,NT_IND = k,RVAL = PPMIS ) 
                  Call BURP_Set_Rval(Block_OMA_SFC,NELE_IND =2,NVAL_IND =1,NT_IND = k,RVAL = PPMIS ) 
@@ -705,6 +715,8 @@ CONTAINS
                  Call BURP_Set_Rval(Block_OER_SFC,NELE_IND =2,NVAL_IND =1,NT_IND = k,RVAL = PPMIS ) 
                  Call BURP_Set_Rval(Block_FGE_SFC,NELE_IND =1,NVAL_IND =1,NT_IND = k,RVAL = PPMIS ) 
                  Call BURP_Set_Rval(Block_FGE_SFC,NELE_IND =2,NVAL_IND =1,NT_IND = k,RVAL = PPMIS ) 
+                 Call BURP_Set_Rval(Block_FSO_SFC,NELE_IND =1,NVAL_IND =1,NT_IND = k,RVAL = PPMIS )
+                 Call BURP_Set_Rval(Block_FSO_SFC,NELE_IND =2,NVAL_IND =1,NT_IND = k,RVAL = PPMIS )
                end do
                il_index=2
 
@@ -755,6 +767,7 @@ CONTAINS
                         Call BURP_Set_Element (BLOCK_OMP_SFC,NELE_IND= il_index,ElEMENT=iele,IOSTAT=error)
                         Call BURP_Set_Element (BLOCK_OER_SFC,NELE_IND= il_index,ElEMENT=iele,IOSTAT=error)
                         Call BURP_Set_Element (BLOCK_FGE_SFC,NELE_IND= il_index,ElEMENT=iele,IOSTAT=error)
+                        Call BURP_Set_Element (BLOCK_FSO_SFC,NELE_IND= il_index,ElEMENT=iele,IOSTAT=error)
                       endif
                     endif
                  endif
@@ -767,6 +780,7 @@ CONTAINS
                     Call BURP_Set_Rval(Block_OMP_SFC, NELE_IND =IND_ELE_stat ,NVAL_IND =1 , NT_IND  = k , RVAL = PPMIS)
                     Call BURP_Set_Rval(Block_OER_SFC, NELE_IND =IND_ELE_stat ,NVAL_IND =1 , NT_IND  = k , RVAL = PPMIS)
                     Call BURP_Set_Rval(Block_FGE_SFC, NELE_IND =IND_ELE_stat ,NVAL_IND =1 , NT_IND  = k , RVAL = PPMIS) 
+                    Call BURP_Set_Rval(Block_FSO_SFC, NELE_IND =IND_ELE_stat ,NVAL_IND =1 , NT_IND  = k , RVAL = PPMIS) 
 
                     IFLAG =  BURP_Get_Tblval(Block_MAR_SFC_CP,NELE_IND = IND_ele_mar,NVAL_IND = 1, NT_IND = k)
                     OBSVA =  BURP_Get_Rval  (Block_OBS_SFC_CP,NELE_IND = IND_ele    ,NVAL_IND = 1, NT_IND = k)
@@ -792,17 +806,22 @@ CONTAINS
                         OMP=obs_bodyElem_r(obsdat,OBS_OMP ,LK)
                         OER=obs_bodyElem_r(obsdat,OBS_OER ,LK)
                         FGE=obs_bodyElem_r(obsdat,OBS_HPHT,LK)
+                        FSO=obs_bodyElem_r(obsdat,OBS_FSO,LK)
                         FLG=obs_bodyElem_i(obsdat,OBS_FLG ,LK)
                         KOBSN= KOBSN + 1
                         SUM=SUM +1
                         Call BURP_Set_Rval( Block_OER_SFC, NELE_IND =IND_ele_stat ,NVAL_IND =1,NT_IND = k , RVAL = OER   ) 
                         Call BURP_Set_Rval( Block_FGE_SFC, NELE_IND =IND_ele_stat ,NVAL_IND =1,NT_IND = k , RVAL = FGE  ) 
+                        Call BURP_Set_Rval( Block_FSO_SFC, NELE_IND =IND_ele_stat ,NVAL_IND =1,NT_IND = k , RVAL = FSO  )
 
                         IND_ELE_stat  = BURP_Find_Element(BLOCK_OMA_SFC, ELEMENT=iele, IOSTAT=error)
                         Call BURP_Set_Rval( Block_OMA_SFC, NELE_IND =IND_ele_stat ,NVAL_IND =1,NT_IND = k , RVAL = OMA)
 
                         IND_ELE_stat  = BURP_Find_Element(BLOCK_OMP_SFC, ELEMENT=iele, IOSTAT=error)
                         Call BURP_Set_Rval( Block_OMP_SFC, NELE_IND =IND_ele_stat ,NVAL_IND =1,NT_IND = k , RVAL = OMP)
+
+                        IND_ELE_stat  = BURP_Find_Element(BLOCK_FSO_SFC, ELEMENT=iele, IOSTAT=error)
+                        Call BURP_Set_Rval( Block_FSO_SFC, NELE_IND =IND_ele_stat ,NVAL_IND =1,NT_IND = k , RVAL = FSO)
    
                         Call BURP_Set_tblval(Block_MAR_SFC_CP,NELE_IND =IND_ele_mar,NVAL_IND =1,NT_IND = k ,TBLVAL= FLG) 
    
@@ -869,6 +888,13 @@ CONTAINS
                 cycle
               endif
 
+              if ( BITEMLIST(item) .eq. 'FSO') then
+                   Call BURP_Reduce_Block(BLOCK_FSO_SFC, NEW_NELE =il_index )
+                   Call BURP_Write_Block( CP_RPT, BLOCK_FSO_SFC,&
+                   ENCODE_BLOCK = .TRUE., CONVERT_BLOCK = .TRUE., IOSTAT= error)
+                cycle
+              endif
+
             end do
 
             Call BURP_Set_Property(BLOCK_OBS_SFC_CP ,BFAM =0)
@@ -916,7 +942,9 @@ CONTAINS
                   ,IOSTAT = error) 
             Call BURP_New(BLOCK_FGE, NELE =1, NVAL =nvale,NT=NTE,bfam=10,BKNAT=BKNAT,BKTYP=new_bktyp,BKSTP=15 &
                   ,IOSTAT = error) 
-
+            Call BURP_New(BLOCK_FSO, NELE =1, NVAL =nvale,NT=NTE,bfam=1,BKNAT=BKNAT,BKTYP=new_bktyp,BKSTP=2  &
+                  ,IOSTAT = error)
+            
             VCOORD_POS=0
             k=0
             IND_VCOORD=-1
@@ -933,6 +961,7 @@ CONTAINS
               call BURP_Set_Element(BLOCK_OMP,NELE_IND= 1,ElEMENT=vcord_type(k),IOSTAT=error) 
               call BURP_Set_Element(BLOCK_OER,NELE_IND= 1,ElEMENT=vcord_type(k),IOSTAT=error) 
               call BURP_Set_Element(BLOCK_FGE,NELE_IND= 1,ElEMENT=vcord_type(k),IOSTAT=error) 
+              call BURP_Set_Element(BLOCK_FSO,NELE_IND= 1,ElEMENT=vcord_type(k),IOSTAT=error)
               VCOORD_POS=1
             ELSE IF (IND_VCOORD == -1) then
               !WRITE(*,*) '  PAS DE COORDONNEE VERTICALE famille ',trim(FAMILYTYPE)
@@ -962,6 +991,10 @@ CONTAINS
               call BURP_Set_Element( BLOCK_FGE,NELE_IND = VCOORD_POS+1,ElEMENT=ILEMU,IOSTAT=error) 
               call BURP_Set_Element( BLOCK_FGE,NELE_IND = VCOORD_POS+2,ElEMENT=ILEMV,IOSTAT=error) 
 
+              Call BURP_RESIZE_BLOCK(BLOCK_FSO,ADD_NELE = 2 ,IOSTAT=error)
+              call BURP_Set_Element( BLOCK_FSO,NELE_IND = VCOORD_POS+1,ElEMENT=ILEMU,IOSTAT=error)
+              call BURP_Set_Element( BLOCK_FSO,NELE_IND = VCOORD_POS+2,ElEMENT=ILEMV,IOSTAT=error)
+
               Call BURP_RESIZE_BLOCK(BLOCK_OBS_MUL_CP,ADD_NELE = 2 ,IOSTAT=error) 
               call BURP_Set_Element( BLOCK_OBS_MUL_CP,NELE_IND = nbele+1,ElEMENT=ILEMU,IOSTAT=error) 
               call BURP_Set_Element( BLOCK_OBS_MUL_CP,NELE_IND = nbele+2,ElEMENT=ILEMV,IOSTAT=error) 
@@ -980,6 +1013,8 @@ CONTAINS
                   Call BURP_Set_Rval( Block_OER,  NELE_IND =VCOORD_POS+2 ,NVAL_IND =jj , NT_IND  = k , RVAL = PPMIS  ) 
                   Call BURP_Set_Rval( Block_FGE,  NELE_IND =VCOORD_POS+1 ,NVAL_IND =jj , NT_IND  = k , RVAL = PPMIS  ) 
                   Call BURP_Set_Rval( Block_FGE,  NELE_IND =VCOORD_POS+2 ,NVAL_IND =jj , NT_IND  = k , RVAL = PPMIS  ) 
+                  Call BURP_Set_Rval( Block_FSO,  NELE_IND =VCOORD_POS+1 ,NVAL_IND =jj , NT_IND  = k , RVAL = PPMIS  )
+                  Call BURP_Set_Rval( Block_FSO,  NELE_IND =VCOORD_POS+2 ,NVAL_IND =jj , NT_IND  = k , RVAL = PPMIS  )
 
                   Call BURP_Set_Rval(  BLOCK_OBS_MUL_CP, NELE_IND =nbele+1 ,NVAL_IND =jj , NT_IND  = k , RVAL = PPMIS) 
                   Call BURP_Set_Rval(  BLOCK_OBS_MUL_CP, NELE_IND =nbele+2 ,NVAL_IND =jj , NT_IND  = k , RVAL = PPMIS) 
@@ -1044,12 +1079,16 @@ CONTAINS
                   Call BURP_RESIZE_BLOCK(BLOCK_FGE,ADD_NELE = 1 ,IOSTAT=error) 
                   call BURP_Set_Element (BLOCK_FGE,NELE_IND = il_index,ElEMENT=iele,IOSTAT=error)
 
+                  Call BURP_RESIZE_BLOCK(BLOCK_FSO,ADD_NELE = 1 ,IOSTAT=error)
+                  call BURP_Set_Element (BLOCK_FSO,NELE_IND = il_index,ElEMENT=iele,IOSTAT=error)
+
                   do ki=1,nte
                     do jj=1,nvale
                       Call BURP_Set_Rval( Block_OMA, NELE_IND =il_index ,NVAL_IND =jj , NT_IND  = ki, RVAL = PPMIS ) 
                       Call BURP_Set_Rval( Block_OMP, NELE_IND =il_index ,NVAL_IND =jj , NT_IND  = ki, RVAL = PPMIS ) 
                       Call BURP_Set_Rval( Block_OER, NELE_IND =il_index ,NVAL_IND =jj , NT_IND  = ki, RVAL = PPMIS ) 
                       Call BURP_Set_Rval( Block_FGE, NELE_IND =il_index ,NVAL_IND =jj , NT_IND  = ki, RVAL = PPMIS ) 
+                      Call BURP_Set_Rval( Block_FSO, NELE_IND =il_index ,NVAL_IND =jj , NT_IND  = ki, RVAL = PPMIS )
                     end do
                   end do
                 endif
@@ -1062,6 +1101,7 @@ CONTAINS
                   Call BURP_Set_Rval( Block_OMP, NELE_IND =1 ,NVAL_IND =j , NT_IND  = k , RVAL = VCOORD  ) 
                   Call BURP_Set_Rval( Block_OER, NELE_IND =1 ,NVAL_IND =j , NT_IND  = k , RVAL = VCOORD  ) 
                   Call BURP_Set_Rval( Block_FGE, NELE_IND =1 ,NVAL_IND =j , NT_IND  = k , RVAL = VCOORD  ) 
+                  Call BURP_Set_Rval( Block_FSO, NELE_IND =1 ,NVAL_IND =j , NT_IND  = k , RVAL = VCOORD  )
                 ENDIF
 
                 IND_ele       = BURP_Find_Element(BLOCK_OBS_MUL_CP, ELEMENT=iele, IOSTAT=error)
@@ -1105,6 +1145,7 @@ CONTAINS
                       OMP=obs_bodyElem_r(obsdat,OBS_OMP,LK)
                       OER=obs_bodyElem_r(obsdat,OBS_OER,LK)
                       FGE=obs_bodyElem_r(obsdat,OBS_HPHT,LK)
+                      FSO=obs_bodyElem_r(obsdat,OBS_FSO,LK)
                       FLG=obs_bodyElem_i(obsdat,OBS_FLG,LK)
                       KOBSN= KOBSN + 1
                       IND_ELE_stat  = BURP_Find_Element(BLOCK_OMA, ELEMENT=iele, IOSTAT=error)
@@ -1124,6 +1165,8 @@ CONTAINS
                       Call BURP_Set_Rval(  Block_OER,  NELE_IND =IND_ele_stat ,NVAL_IND =j , NT_IND  = k , RVAL = OER  ) 
 
                       Call BURP_Set_Rval(  Block_FGE,  NELE_IND =IND_ele_stat ,NVAL_IND =j , NT_IND  = k , RVAL = FGE ) 
+
+                      Call BURP_Set_Rval(  Block_FSO,  NELE_IND =IND_ele_stat ,NVAL_IND =j , NT_IND  = k , RVAL = FSO )
 
                       IND_ele_mar  = BURP_Find_Element(Block_MAR_MUL_CP, ELEMENT=iele+200000, IOSTAT=error)
                       Call BURP_Set_tblval(Block_MAR_MUL_CP,NELE_IND =IND_ELE_MAR ,NVAL_IND =j  , NT_IND  = k,TBLVAL = FLG )
@@ -1187,6 +1230,7 @@ CONTAINS
             Call BURP_Reduce_Block(BLOCK_OMP, NEW_NELE =il_index )
             Call BURP_Reduce_Block(BLOCK_OER, NEW_NELE =il_index )
             Call BURP_Reduce_Block(BLOCK_FGE, NEW_NELE =il_index )
+            Call BURP_Reduce_Block(BLOCK_FSO, NEW_NELE =il_index )
 
             Call BURP_Set_Property(BLOCK_OBS_MUL_CP ,BFAM =0)
             Call BURP_Set_Property(BLOCK_MAR_MUL_CP ,BFAM =0)
@@ -1224,6 +1268,10 @@ CONTAINS
                    Call BURP_Write_Block( CP_RPT, BLOCK_FGE_CP,&
                         ENCODE_BLOCK = .FALSE., CONVERT_BLOCK = .FALSE., IOSTAT= error) 
                   end if
+              endif
+              if ( BITEMLIST(item) .eq. 'FSO') then
+                 Call BURP_Write_Block( CP_RPT, BLOCK_FSO,&
+                        ENCODE_BLOCK = .TRUE., CONVERT_BLOCK = .TRUE., IOSTAT= error)
               endif
 
             end do
@@ -1273,10 +1321,12 @@ CONTAINS
     Call BURP_Free(Block_OMP,    IOSTAT=error)
     Call BURP_Free(Block_OER,    IOSTAT=error)
     Call BURP_Free(Block_FGE,    IOSTAT=error)
+    Call BURP_Free(Block_FSO,    IOSTAT=error)
     Call BURP_Free(Block_OMA_SFC,IOSTAT=error)
     Call BURP_Free(Block_OMP_SFC,IOSTAT=error)
     Call BURP_Free(Block_OER_SFC,IOSTAT=error)
     Call BURP_Free(Block_FGE_SFC,IOSTAT=error)
+    Call BURP_Free(Block_FSO_SFC,IOSTAT=error)
     Call BURP_Free(Block_FLG_SFC,IOSTAT=error)
     Call BURP_Free(Block_FLG    ,IOSTAT=error)
     Call BURP_Free(Block_FLG_CP ,IOSTAT=error)
