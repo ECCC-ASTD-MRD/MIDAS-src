@@ -45,6 +45,7 @@ program main_var
   use obsErrors_mod
   use variableTransforms_mod
   use obsOperators_mod
+  use fso_mod
   implicit none
 
   integer :: istamp,exdb,exfin
@@ -105,6 +106,10 @@ program main_var
     write(*,*)
     write(*,*) 'main_var: Background check for conventional obs mode selected'
     oavarMode='bgckConv'
+  case (201)
+    write(*,*)
+    write(*,*) 'main_var: FSO mode selected'
+    oavarMode='FSO'
   case default
     write(*,*)
     write(*,*) 'main_var: Unknown mode ', nconf
@@ -195,6 +200,38 @@ program main_var
 
     ! Now write out the observation data files
     if(min_niter.gt.0) call burp_updateFiles(obsSpaceData)
+
+    ! Deallocate copied obsSpaceData
+    call obs_finalize(obsSpaceData)
+
+else if ( trim(oavarMode) == 'FSO' ) then
+    write(*,*) 'MAIN_VAR: FSO MODE'
+
+    ! Do initial set up
+    call tmg_start(2,'PREMIN')
+    call fso_setup
+    
+    obsMpiStrategy = 'LATLONTILESBALANCED'
+
+    call var_setup('VAR') ! obsColumnMode
+    call tmg_stop(2)
+
+    ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
+    call tmg_start(2,'PREMIN')
+    call inn_setupBackgroundColumns(trlColumnOnTrlLev,obsSpaceData)
+
+    ! Interpolate trial columns to analysis levels and setup for linearized H
+    call inn_setupBackgroundColumnsAnl(trlColumnOnTrlLev,trlColumnOnAnlLev)
+
+    ! Compute observation innovations and prepare obsSpaceData for minimization
+    call inn_computeInnovation(trlColumnOnTrlLev,obsSpaceData)
+    call tmg_stop(2)
+
+    ! Perform forecast sensitivity to observation calculation using ensemble approach 
+    call fso_ensemble(trlColumnOnAnlLev,obsSpaceData)
+
+    ! Now write out the observation data files
+    call burp_updateFiles(obsSpaceData)
 
     ! Deallocate copied obsSpaceData
     call obs_finalize(obsSpaceData)
@@ -339,7 +376,7 @@ contains
     !
     !- Initialize the background-error covariance, also sets up control vector module (cvm)
     !
-    if ( trim(oavarMode) == 'analysis' ) then
+    if ( trim(oavarMode) == 'analysis' .or. trim(oavarMode) == 'FSO' ) then
        call bmat_setup(hco_anl,vco_anl)
        write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     end if
@@ -347,7 +384,7 @@ contains
     !
     ! - Initialize the gridded variable transform module
     !
-    if ( trim(oavarMode) == 'analysis' ) then
+    if ( trim(oavarMode) == 'analysis' .or. trim(oavarMode) == 'FSO' ) then
        call vtr_setup(hco_anl,vco_anl)
     end if
 
