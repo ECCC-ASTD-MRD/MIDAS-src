@@ -489,7 +489,7 @@ subroutine burp_updateFiles(obsSpaceData)
 
       if (trim(burpFileMode) == 'analysis') call vint3dfd(obs_oma,obsSpaceData)
       call vint3dfd(obs_omp,obsSpaceData)
-      if (trim(burpFileMode) == 'analysis') call setassflg(obsSpaceData)
+      if (trim(burpFileMode) == 'analysis' .or. trim(burpFileMode) == 'FSO') call setassflg(obsSpaceData)
       call flaguvtofd_obsdat(obsSpaceData)
 !
 !  ------NOTE----------
