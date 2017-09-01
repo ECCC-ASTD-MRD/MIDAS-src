@@ -281,7 +281,7 @@ contains
     !   Select input error to use: if ANAL mode, use ERRANAL (JJ=2);
     !   otherwise use ERRBGCK (JJ=1)
     !
-    IF ( trim(obserrorMode) == 'analysis' ) THEN
+    IF ( trim(obserrorMode) == 'analysis' .or. trim(obserrorMode) == 'FSO' ) THEN
        JJ = 2
     ELSE
        JJ = 1
@@ -300,7 +300,7 @@ contains
                    TOVERRST(JI,JL) = TOVERRIN(JI,JJ,JM)
                    ICHN(JI,JL) = ICHNIN(JI,JM)
                 ENDDO
-                IF (trim(obserrorMode) == 'analysis' .and. rmat_lnondiagr) then
+                IF ( (trim(obserrorMode) == 'analysis' .or. trim(obserrorMode) == 'FSO') .and. rmat_lnondiagr) then
                   call rmat_setFullRMatrix ( TOVERRST(:,JL), JL, chanoffset(JL) )
                 end if
              ENDIF
