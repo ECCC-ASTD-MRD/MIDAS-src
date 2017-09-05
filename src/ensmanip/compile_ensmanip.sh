@@ -79,17 +79,17 @@ if [ $mode == full ] ; then
   rm -f *.o *.mod *.cdk* *.h *.ftn* *.f *.f90
 
   # Create a local copy of the source code
-  cp -f ${trunkdir}/${program}/main_${program}.ftn90 ${compiledir}/
-  cp -f ${trunkdir}/*.ftn* ${compiledir}/
+  cp -f ${trunkdir}/${program}/main_${program}.f90 ${compiledir}/
+  cp -f ${trunkdir}/*.f*90 ${compiledir}/
   cp -f ${trunkdir}/*.inc ${compiledir}/
-  cp -f ${trunkdir}/shared/*.ftn90 ${compiledir}/
+  cp -f ${trunkdir}/shared/*.f*90 ${compiledir}/
   cp -f ${trunkdir}/shared/*.inc ${compiledir}/
-  cp -f ${trunkdir}/bgcheck/*.ftn90 ${compiledir}/
+  cp -f ${trunkdir}/bgcheck/*.f*90 ${compiledir}/
 
   cd ${compiledir}
 
   # Add revision number to the main routine
-  sed -i "s|GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE|${revnum}|g" main_${program}.ftn90
+  sed -i "s|GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE|${revnum}|g" main_${program}.f90
 
   echo "..."
   echo "... > STARTING COMPILATION AT: $(date)"
@@ -108,7 +108,7 @@ if [ $mode == full ] ; then
 
   echo "... > Compiling main program..."
   echo "...   if aborting, check in ${PWD}/listing_main"
-  s.compile $COMPF -O ${FOPTMIZ} -src main_${program}.ftn90 > listing_main 2>&1
+  s.compile $COMPF -O ${FOPTMIZ} -src main_${program}.f90 > listing_main 2>&1
   status=1
   grep fail listing_main || status=0
   if [ "${status}" -ne 0 ]; then
