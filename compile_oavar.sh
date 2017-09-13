@@ -164,13 +164,7 @@ else
 fi
 
 echo "...   loading arma/rttov/12v1"
-if [ "${ORDENV_PLAT}" = ubuntu-14.04-amd64-64 ];then
-   export LD_LIBRARY_PATH="/home/syh074/data_maestro/eccc-ppp2/rttov12/official_serial/lib:${LD_LIBRARY_PATH}"
-   export MY_INCLUDE_PATH="/home/syh074/data_maestro/eccc-ppp2/rttov12/official_serial/include /home/syh074/data_maestro/eccc-ppp2/rttov12/official_serial/mod ${MY_INCLUDE_PATH}" 
-elif [ "${ORDENV_PLAT}" = sles-11-amd64-64 -o "${ORDENV_PLAT}" = sles-11-broadwell-64-xc40 ];then
-   export LD_LIBRARY_PATH="/home/syh074/data_maestro/brooks/rttov12/lib:${LD_LIBRARY_PATH}"
-   export MY_INCLUDE_PATH="/home/syh074/data_maestro/brooks/rttov12/includes ${MY_INCLUDE_PATH}"
-fi
+. ssmuse-sh -d /home/erv000/SSM/arma/rttov_test2/12v1.0/${COMP_ARCH}
 
 if [ "${mode}" == full ] ; then
 
@@ -242,7 +236,7 @@ if [ "${mode}" == full ] ; then
   SRC1="$SRC1 bmatrixchem_mod.ftn90 bmatrixensemble_mod.ftn90 bmatrixhi_mod.ftn90 lambmatrixhi_mod.ftn90"
   SRC1="$SRC1 bmatrix_mod.ftn90 residual_mod.ftn90 costfunction_mod.ftn90"
 
-  s.compile -includes $MY_INCLUDE_PATH $COMPF  -O ${FOPTMIZ} -src $SRC1  > listing3 2>&1
+  s.compile $COMPF  -O ${FOPTMIZ} -src $SRC1  > listing3 2>&1
   status=1
   grep fail listing3 || status=0
   if [ "${status}" -ne 0 ]; then
@@ -276,7 +270,7 @@ if [ "${mode}" == full ] ; then
   echo "...   if aborting, check in ${PWD}/listing6"
   SRC2="burpfiles_mod.ftn90 chem_obserrors_mod.ftn90 obserrors_mod.ftn90 varqc_mod.ftn90 chem_setup_mod.ftn90 obsfilter_mod.ftn90 tovs_lin_mod.ftn90 chem_obsoperators_mod.ftn90 obsoperators_mod.ftn90 obsspacediag_mod.ftn90  innovation_mod.ftn90"
   SRC2="$SRC2 chem_postproc_mod.ftn90 minimization_mod.ftn90"
-  s.compile -includes $MY_INCLUDE_PATH $COMPF  -O ${FOPTMIZ} -src $SRC2 > listing6 2>&1
+  s.compile $COMPF  -O ${FOPTMIZ} -src $SRC2 > listing6 2>&1
   status=1
   grep fail listing6 || status=0
   if [ "${status}" -ne 0 ]; then
@@ -292,7 +286,7 @@ if [ "${mode}" == full ] ; then
 	  filelist="$filelist ${i}"
       fi
   done
-  s.compile -includes $MY_INCLUDE_PATH $COMPF  -O ${FOPTMIZ} -src $filelist  > listing7 2>&1
+  s.compile $COMPF  -O ${FOPTMIZ} -src $filelist  > listing7 2>&1
   status=1
   grep fail listing7 || status=0
   if [ "${status}" -ne 0 ]; then
@@ -339,7 +333,7 @@ else
 	echo "..."
 	echo "... compiling $mode"
 	echo "..."
-	s.compile -includes $MY_INCLUDE_PATH $COMPF  -O ${FOPTMIZ} -src $file
+	s.compile $COMPF  -O ${FOPTMIZ} -src $file
     else
 	echo "..."
 	echo "... !! File $trunkdir/$mode does NOT exist. Stop !!"
