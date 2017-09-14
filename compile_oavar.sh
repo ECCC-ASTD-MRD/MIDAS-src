@@ -164,7 +164,8 @@ else
 fi
 
 echo "...   loading arma/rttov/12v1"
-. ssmuse-sh -d /home/erv000/SSM/arma/rttov_test2/12v1.0/${COMP_ARCH}
+. ssmuse-sh -d eccc/mrd/rpn/anl/rttov/12v1.0-rc1/${COMP_ARCH}
+
 
 if [ "${mode}" == full ] ; then
 
