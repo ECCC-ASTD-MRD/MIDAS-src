@@ -939,7 +939,7 @@ contains
       integer :: extra1, extra2, extra3
       integer :: ig1, ig2, ig3, ig4
 
-      call rpn_comm_barrier("GRID",ierr)
+      if(mpi_doBarrier) call rpn_comm_barrier("GRID",ierr)
       call tmg_start(91,'READTRIALFIELD')
       !
       ! Determine the type and number of vertical levels
@@ -1097,10 +1097,10 @@ contains
                           real(varInterp2_VV_r4(1:nobs_mpiglobal(jstep,jlatlontile)),8)
 
                      ! This could replace the code above, but results are changed, so more testing needed
-                     !ierr = utl_ezuvint(varInterp(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile),  &
-                     !                   varInterp_VV(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile),  &
-                     !                   varTrial_r4,varTrial_VV_r4,  &
-                     !                   nobs_mpiglobal(jstep,jlatlontile),ni*nj)
+                     !ierr = utl_ezuvint2(varInterp(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile),  &
+                     !                    varInterp_VV(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile),  &
+                     !                    varTrial_r4,varTrial_VV_r4,  &
+                     !                    nobs_mpiglobal(jstep,jlatlontile),ni*nj)
                   else
                      ierr = ezsint(varInterp_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile),  &
                                    varTrial_r4)
@@ -1748,14 +1748,14 @@ contains
       codtyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
 
       if(tvs_isIdBurpInst(codtyp,"IASI")) then
-         obsLoad = 100
+         obsLoad = 200
       elseif(tvs_isIdBurpInst(codtyp,"AIRS")) then
-         obsLoad = 100
+         obsLoad = 200
       elseif(tvs_isIdBurpInst(codtyp,"CRIS")) then
-         obsLoad = 100
+         obsLoad = 150
       elseif(tvs_isIdBurpTovs(codtyp)) then
          ! all other types of radiance obs
-         obsLoad = 10
+         obsLoad = 5
       else
          ! all non-radiance obs
          obsLoad = 1

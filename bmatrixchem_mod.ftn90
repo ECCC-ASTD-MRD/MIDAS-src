@@ -116,7 +116,7 @@ MODULE BmatrixChem_mod
 
   ! public procedures
   public :: bchm_Setup,bchm_BSqrt,bchm_BSqrtAd,bchm_Finalize
-  public :: bchm_expandToMPIglobal,bchm_reduceToMPIlocal,bchm_getScaleFactor
+  public :: bchm_expandToMPIglobal,bchm_expandToMPIglobal_r4,bchm_reduceToMPIlocal,bchm_reduceToMPIlocal_r4,bchm_getScaleFactor
   public :: bchm_corvert_mult, bchm_getsigma, bchm_is_initialized
   public :: bchm_truncateCV,bchm_getBgSigma
 
@@ -2081,6 +2081,160 @@ CONTAINS
 
 !-----------------------------------------------------------------------------------------------
 
+  SUBROUTINE BCHM_reduceToMPILocal_r4(cv_mpilocal,cv_mpiglobal,cvDim_mpilocal_out)
+    implicit none
+    real(4), intent(out) :: cv_mpilocal(cvDim_mpilocal)
+    real(4), intent(in)  :: cv_mpiglobal(:)
+    integer, intent(out) :: cvDim_mpilocal_out
+
+    real(4), allocatable :: cv_allMaxMpilocal(:,:)
+
+    integer, allocatable :: cvDim_allMpilocal(:), displs(:)
+    integer, allocatable :: allnBeg(:),allnEnd(:),allnSkip(:)
+    integer, allocatable :: allmBeg(:),allmEnd(:),allmSkip(:)
+
+    integer :: jproc,cvDim_maxmpilocal,ierr
+    integer :: jlev,jn,jm,ila_mpilocal,ila_mpiglobal,jdim_mpilocal,jdim_mpiglobal
+
+    if (.not.initialized) return
+
+    cvDim_mpilocal_out = cvDim_mpilocal
+
+    call rpn_comm_allreduce(cvDim_mpilocal, cvDim_maxmpilocal, &
+                            1,"MPI_INTEGER","MPI_MAX","GRID",ierr)
+
+    if(mpi_myid == 0) then
+       allocate(cvDim_allMpiLocal(mpi_nprocs))
+    else
+       allocate(cvDim_allMpiLocal(1))
+    end if
+
+    call rpn_comm_gather(cvDim_mpiLocal   ,1,"mpi_integer",       &
+                         cvDim_allMpiLocal,1,"mpi_integer",0,"GRID",ierr)
+
+    if(mpi_myid == 0) then
+       allocate(allnBeg(mpi_nprocs))
+       allocate(allnEnd(mpi_nprocs))
+       allocate(allnSkip(mpi_nprocs))
+       allocate(allmBeg(mpi_nprocs))
+       allocate(allmEnd(mpi_nprocs))
+       allocate(allmSkip(mpi_nprocs))
+    else
+       allocate(allnBeg(1))
+       allocate(allnEnd(1))
+       allocate(allnSkip(1))
+       allocate(allmBeg(1))
+       allocate(allmEnd(1))
+       allocate(allmSkip(1))
+    end if
+
+    call rpn_comm_gather(mynBeg  ,1,"mpi_integer",       &
+                         allnBeg ,1,"mpi_integer",0,"GRID",ierr)
+    call rpn_comm_gather(mynEnd  ,1,"mpi_integer",       &
+                         allnEnd ,1,"mpi_integer",0,"GRID",ierr)
+    call rpn_comm_gather(mynSkip ,1,"mpi_integer",       &
+                         allnSkip,1,"mpi_integer",0,"GRID",ierr)
+
+    call rpn_comm_gather(mymBeg  ,1,"mpi_integer",       &
+                         allmBeg ,1,"mpi_integer",0,"GRID",ierr)
+    call rpn_comm_gather(mymEnd  ,1,"mpi_integer",       &
+                         allmEnd ,1,"mpi_integer",0,"GRID",ierr)
+    call rpn_comm_gather(mymSkip ,1,"mpi_integer",       &
+                         allmSkip,1,"mpi_integer",0,"GRID",ierr)
+
+    ! Prepare to data to be distributed
+    if (mpi_myid == 0) then
+
+       allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mpi_nprocs))
+
+!$OMP PARALLEL DO PRIVATE(jproc,jdim_mpilocal,jlev,jm,jn,ila_mpiglobal,jdim_mpiglobal)
+       do jproc = 0, (mpi_nprocs-1)
+          cv_allmaxmpilocal(:,jproc+1) = 0.d0
+          jdim_mpilocal = 0
+
+          do jlev = 1, nkgdim
+             do jm = allmBeg(jproc+1), allmEnd(jproc+1), allmSkip(jproc+1)
+                do jn = allnBeg(jproc+1), allnEnd(jproc+1), allnSkip(jproc+1)
+
+                   if(jm.le.jn) then
+                      
+                      ila_mpiglobal = gst_getNIND(jm,gstID) + jn - jm
+                      
+                      ! figure out index into global control vector
+                      if(jm == 0) then
+                         ! for jm=0 only real part
+                         jdim_mpiglobal = ila_mpiglobal
+                      else
+                         ! for jm>0 both real and imaginary part
+                         jdim_mpiglobal = 2*ila_mpiglobal-1 - (ntrunc+1)
+                      endif
+                      ! add offset for level
+                      jdim_mpiglobal = jdim_mpiglobal + (jlev-1) * (ntrunc+1)*(ntrunc+1)
+                      
+                      ! index into local control vector computer as in cain
+                      if(jm == 0) then
+                         ! only real component for jm=0
+                         jdim_mpilocal = jdim_mpilocal + 1
+                         cv_allmaxmpilocal(jdim_mpilocal,jproc+1) = cv_mpiglobal(jdim_mpiglobal)
+                      else
+                         ! both real and imaginary components for jm>0
+                         jdim_mpilocal = jdim_mpilocal + 1
+                         cv_allmaxmpilocal(jdim_mpilocal,jproc+1) = cv_mpiglobal(jdim_mpiglobal)
+                         jdim_mpilocal = jdim_mpilocal + 1
+                         cv_allmaxmpilocal(jdim_mpilocal,jproc+1) = cv_mpiglobal(jdim_mpiglobal+1)
+                      endif
+                      
+                      if (jdim_mpilocal > cvDim_allMpiLocal(jproc+1)) then
+                         write(*,*)
+                         write(*,*) 'ERROR: jdim_mpilocal > cvDim_allMpiLocal(jproc+1)', jdim_mpilocal, cvDim_mpilocal
+                         write(*,*) '       proc, jlev, jn, jm = ',jproc, jlev, jn, jm
+                         call utl_abort('bhi_reduceToMPILocal')
+                      end if
+                      if (jdim_mpiglobal > cvDim_mpiglobal) then
+                         write(*,*)
+                         write(*,*) 'ERROR: jdim_mpiglobal > cvDim_mpiglobal', jdim_mpiglobal, cvDim_mpiglobal
+                         write(*,*) '       proc, jlev, jn, jm = ',jproc, jlev, jn, jm
+                         call utl_abort('bhi_reduceToMPILocal')
+                      end if
+
+                   endif
+                enddo
+             enddo
+          enddo
+ 
+       end do ! jproc
+!$OMP END PARALLEL DO
+
+    else
+       allocate(cv_allmaxmpilocal(1,1))
+    end if
+
+    !- Distribute
+    allocate(displs(mpi_nprocs))
+    do jproc = 0, (mpi_nprocs-1)
+       displs(jproc+1) = jproc*cvDim_maxMpiLocal ! displacement wrt cv_allMaxMpiLocal from which
+                                                 ! to take the outgoing data to process jproc
+    end do
+
+    call rpn_comm_scatterv(cv_allMaxMpiLocal, cvDim_allMpiLocal, displs, "mpi_real4", &
+                           cv_mpiLocal, cvDim_mpiLocal, "mpi_real4", &
+                           0, "GRID", ierr)
+
+    !- End
+    deallocate(displs)
+    deallocate(cv_allMaxMpiLocal)
+    deallocate(cvDim_allMpiLocal)
+    deallocate(allnBeg)
+    deallocate(allnEnd)
+    deallocate(allnSkip)
+    deallocate(allmBeg)
+    deallocate(allmEnd)
+    deallocate(allmSkip)
+
+  END SUBROUTINE BCHM_reduceToMPILocal_r4
+
+!-----------------------------------------------------------------------------------------------
+
   SUBROUTINE BCHM_expandToMPIGlobal(cv_mpilocal,cv_mpiglobal,cvDim_mpiglobal_out)
     implicit none
     real(8), intent(in)  :: cv_mpilocal(cvDim_mpilocal)
@@ -2208,6 +2362,136 @@ CONTAINS
     if (mpi_myid == 0) deallocate(cv_allmaxmpilocal)
 
   end SUBROUTINE BCHM_expandToMPIGlobal
+
+!-----------------------------------------------------------------------------------------------
+
+  SUBROUTINE BCHM_expandToMPIGlobal_r4(cv_mpilocal,cv_mpiglobal,cvDim_mpiglobal_out)
+    implicit none
+    real(4), intent(in)  :: cv_mpilocal(cvDim_mpilocal)
+    real(4), intent(out) :: cv_mpiglobal(:)
+    integer, intent(out) :: cvDim_mpiglobal_out
+
+    real(4), allocatable :: cv_maxmpilocal(:)
+    real(4), pointer :: cv_allmaxmpilocal(:,:) => null()
+    integer, allocatable :: allnBeg(:),allnEnd(:),allnSkip(:)
+    integer, allocatable :: allmBeg(:),allmEnd(:),allmSkip(:)
+    integer :: jlev, jn, jm, jproc, ila_mpiglobal, jdim_mpilocal, jdim_mpiglobal, ierr, cvDim_maxmpilocal
+
+    if (.not.initialized) return
+
+    cvDim_mpiglobal_out = cvDim_mpiglobal
+
+    !
+    !- 1.  Gather all local control vectors onto mpi task 0
+    !
+    call rpn_comm_allreduce(cvDim_mpilocal,cvDim_maxmpilocal,1,"mpi_integer","mpi_max","GRID",ierr)
+
+    allocate(cv_maxmpilocal(cvDim_maxmpilocal))
+
+    if(mpi_myid == 0) allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mpi_nprocs))
+
+    cv_maxmpilocal(:) = 0.0d0
+    cv_maxmpilocal(1:cvDim_mpilocal) = cv_mpilocal(1:cvDim_mpilocal)
+
+    call tmg_start(128,'BCHM_COMM')
+    call rpn_comm_gather(cv_maxmpilocal,    cvDim_maxmpilocal, "mpi_real4",  &
+                         cv_allmaxmpilocal, cvDim_maxmpilocal, "mpi_real4", 0, "GRID", ierr )
+    call tmg_stop(128)
+
+    deallocate(cv_maxmpilocal)
+
+    !
+    !- 2.  Reorganize gathered mpilocal control vectors into the mpiglobal control vector
+    !
+    if(mpi_myid == 0) then
+       allocate(allnBeg(mpi_nprocs))
+       allocate(allnEnd(mpi_nprocs))
+       allocate(allnSkip(mpi_nprocs))
+       allocate(allmBeg(mpi_nprocs))
+       allocate(allmEnd(mpi_nprocs))
+       allocate(allmSkip(mpi_nprocs))
+    else
+       allocate(allnBeg(1))
+       allocate(allnEnd(1))
+       allocate(allnSkip(1))
+       allocate(allmBeg(1))
+       allocate(allmEnd(1))
+       allocate(allmSkip(1))
+    end if
+
+    call rpn_comm_gather(mynBeg  ,1,"mpi_integer",       &
+                         allnBeg ,1,"mpi_integer",0,"GRID",ierr)
+    call rpn_comm_gather(mynEnd  ,1,"mpi_integer",       &
+                         allnEnd ,1,"mpi_integer",0,"GRID",ierr)
+    call rpn_comm_gather(mynSkip ,1,"mpi_integer",       &
+                         allnSkip,1,"mpi_integer",0,"GRID",ierr)
+
+    call rpn_comm_gather(mymBeg  ,1,"mpi_integer",       &
+                         allmBeg ,1,"mpi_integer",0,"GRID",ierr)
+    call rpn_comm_gather(mymEnd  ,1,"mpi_integer",       &
+                         allmEnd ,1,"mpi_integer",0,"GRID",ierr)
+    call rpn_comm_gather(mymSkip ,1,"mpi_integer",       &
+                         allmSkip,1,"mpi_integer",0,"GRID",ierr)
+
+    if(mpi_myid == 0) then
+      cv_mpiglobal(:) = 0.0d0
+
+!$OMP PARALLEL DO PRIVATE(jproc,jdim_mpilocal,jlev,jm,jn,ila_mpiglobal,jdim_mpiglobal)
+      do jproc = 0, (mpi_nprocs-1)
+        jdim_mpilocal = 0
+
+        do jlev = 1, nkgdim
+          do jm = allmBeg(jproc+1), allmEnd(jproc+1), allmSkip(jproc+1)
+            do jn = allnBeg(jproc+1), allnEnd(jproc+1), allnSkip(jproc+1)
+              if(jm.le.jn) then
+
+                ila_mpiglobal = gst_getNIND(jm,gstID) + jn - jm
+
+                ! figure out index into global control vector
+                if(jm == 0) then
+                  ! for jm=0 only real part
+                  jdim_mpiglobal = ila_mpiglobal
+                else
+                  ! for jm>0 both real and imaginary part
+                  jdim_mpiglobal = 2*ila_mpiglobal-1 - (ntrunc+1)
+                endif
+                ! add offset for level
+                jdim_mpiglobal = jdim_mpiglobal + (jlev-1) * (ntrunc+1)*(ntrunc+1)
+
+                ! index into local control vector
+                if(jm == 0) then
+                  ! only real component for jm=0
+                  jdim_mpilocal = jdim_mpilocal + 1
+                  cv_mpiglobal(jdim_mpiglobal) = cv_allmaxmpilocal(jdim_mpilocal,jproc+1)
+                else
+                  ! both real and imaginary components for jm>0
+                  jdim_mpilocal = jdim_mpilocal + 1
+                  cv_mpiglobal(jdim_mpiglobal) = cv_allmaxmpilocal(jdim_mpilocal,jproc+1)
+                  jdim_mpilocal = jdim_mpilocal + 1
+                  cv_mpiglobal(jdim_mpiglobal+1) = cv_allmaxmpilocal(jdim_mpilocal,jproc+1)
+                endif
+
+                if(jdim_mpiglobal.gt.cvDim_mpiglobal)   &
+                  write(*,*) 'ERROR: jdim,cvDim,mpiglobal=',jdim_mpiglobal,cvDim_mpiglobal,jlev,jn,jm
+
+              endif
+            enddo
+          enddo
+        enddo
+      enddo ! jproc
+!$OMP END PARALLEL DO
+
+    endif ! myid == 0 
+
+    deallocate(allnBeg)
+    deallocate(allnEnd)
+    deallocate(allnSkip)
+    deallocate(allmBeg)
+    deallocate(allmEnd)
+    deallocate(allmSkip)
+    if (mpi_myid == 0) deallocate(cv_allmaxmpilocal)
+
+  end SUBROUTINE BCHM_expandToMPIGlobal_r4
 
 !-----------------------------------------------------------------------------------------------
 !!

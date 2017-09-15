@@ -32,7 +32,7 @@ module verticalCoord_mod
   ! public derived type
   public :: struct_vco
   ! public procedures
-  public :: vco_SetupFromFile, vco_SetupManual, vco_getNumLev, vco_equal, vco_deallocate, vco_mpiBcast
+  public :: vco_setupFromFile, vco_setupManual, vco_getNumLev, vco_equal, vco_deallocate, vco_mpiBcast
   ! public entities accessed through inheritance
   public :: vgd_get,vgd_levels,vgd_ok,vgd_dpidpis,vgd_write
 
@@ -71,7 +71,7 @@ module verticalCoord_mod
   end subroutine vco_allocate
 
 
-  subroutine vco_SetupManual(vco,ip1,numLev)
+  subroutine vco_setupManual(vco,ip1,numLev)
     implicit none
     type(struct_vco), pointer :: vco
     integer, intent(in) :: numLev
@@ -81,7 +81,7 @@ module verticalCoord_mod
     character(len=10) :: blk_S
 
     write(*,*) 
-    write(*,*) 'vco_SetupManual: Creating an adhoc verticalgrid using'
+    write(*,*) 'vco_setupManual: Creating an adhoc verticalgrid using'
     write(*,*) '                   number of level = ', numLev
     write(*,*) '                   ip1             = ', ip1
 
@@ -149,14 +149,14 @@ module verticalCoord_mod
 
     if(present(beSilent)) then
       if( .not.beSilent ) then
-        write(*,*) 'vco_SetupFromFile: WARNING: you specified "beSilent=.false."'
+        write(*,*) 'vco_setupFromFile: WARNING: you specified "beSilent=.false."'
         write(*,*) '                   but this s/r only checks the presence of beSilent'
         write(*,*) '                   and not its value, so it will be silent!'
       endif
     endif
 
     if(mpi_myid.eq.0 .and. .not.present(beSilent)) then
-      write(*,*) 'vco_SetupFromFile: TEMPLATEFILE=', templatefile
+      write(*,*) 'vco_setupFromFile: TEMPLATEFILE=', templatefile
     endif
     inquire(file=templatefile,exist=isExist_L)
     if( isExist_L )then
@@ -168,10 +168,10 @@ module verticalCoord_mod
         endif
         ierr =  fstouv(nultemplate,'RND+OLD')
       else
-        call utl_abort('vco_SetupFromFile: CANNOT OPEN TEMPLATE FILE!')
+        call utl_abort('vco_setupFromFile: CANNOT OPEN TEMPLATE FILE!')
       endif
     else
-      call utl_abort('vco_SetupFromFile: CANNOT FIND TEMPLATE FILE!')
+      call utl_abort('vco_setupFromFile: CANNOT FIND TEMPLATE FILE!')
     endif
 
     vco%setupType='FromFile'
@@ -354,7 +354,7 @@ module verticalCoord_mod
     ierr =  fstfrm(nultemplate)
     ierr =  fclos (nultemplate)
 
-  end subroutine vco_SetupFromFile
+  end subroutine vco_setupFromFile
 
 
   subroutine vco_deallocate(vco)
@@ -405,17 +405,12 @@ module verticalCoord_mod
     nullify(vgdtable)
 
     write(*,*) 'vco_mpiBcast: starting'
-    call flush(6)
 
     if ( mpi_myid > 0 ) then
       if( .not.associated(vco) ) then
         allocate(vco)
-      endif
-
-      if( vco%initialized ) then
-        write(*,*) 'vco_mpiBcast: this vco object already initialized, first deallocating it.'
-        call vco_deallocate( vco )
-        allocate(vco)
+      else 
+        call utl_abort('vco_mpiBcast: vco must be nullified for mpi task id > 0')
       endif
     endif
 
@@ -487,7 +482,6 @@ module verticalCoord_mod
     deallocate(vgdtable) 
 
     write(*,*) 'vco_mpiBcast: done'
-    call flush(6)
 
   end subroutine vco_mpiBcast
 
