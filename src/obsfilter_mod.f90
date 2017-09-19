@@ -255,7 +255,7 @@ contains
        ! Allow gz for bogus data only in analysis case 
        !
        llbogus=( idburp.eq.150 .or. idburp.eq.151 .or. idburp.eq.152 .or. idburp.eq.153 )
-       if  ( filterMode == 'analysis' .and. llok .and. ivnm.eq.BUFR_NEGZ .and. .not.llbogus ) then
+       if  ( (filterMode == 'analysis' .or. filterMode == 'FSO') .and. llok .and. ivnm.eq.BUFR_NEGZ .and. .not.llbogus ) then
           llok=.false.
        endif
        !

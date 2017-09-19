@@ -3688,7 +3688,7 @@ module gridStateVector_mod
     real(8), pointer     :: Press_M(:,:,:) => null()
     real(8), allocatable :: Psfc_ref(:,:)
     real(8), parameter   :: T_r = 280.0D0
-    real(8), parameter   :: Psfc_r = 100000.0D0 !the unit pa
+    real(8), parameter   :: Psfc_r = 100000.0D0 ! unit Pa
 
     if(mpi_myid.eq.0) write(*,*) 'gsv_multEnergyNorm: START'
 
@@ -3728,7 +3728,7 @@ module gridStateVector_mod
     field_VV => gsv_getField_r8(statevector_inout,'VV')
     sumeu = 0.0D0
     sumev = 0.0D0
-    sumScale = 0.0D0  !total volume
+    sumScale = 0.0D0  
     do jlev = 1, nLev_M
       do jstep = 1, statevector_inout%numStep
        do jlat = statevector_inout%myLatBeg, statevector_inout%myLatEnd
@@ -3740,9 +3740,8 @@ module gridStateVector_mod
                jlon2 = jlon - statevector_inout%myLonBeg + 1
                ! do all thermo levels for which there is a momentum level above and below
                if( jlev .eq. nLev_M) then
-                 scaleFactorLev = 0.0D0
-               elseif( Press_T(jlon2, jlat2, jlev) .lt. 10000.0D0 .or.  &
-                       Press_T(jlon2, jlat2, jlev) .gt. 25000.0D0 ) then
+                 scaleFactorLev = Press_M(jlon2, jlat2, nLev_M)-Press_T(jlon2, jlat2, nLev_T-1) 
+               elseif( Press_T(jlon2, jlat2, jlev) .lt. 10000.0D0) then 
                  scaleFactorLev = 0.0D0
                else
                  scaleFactorLev = Press_T(jlon2, jlat2, jlev+1) -  Press_T(jlon2, jlat2, jlev)
@@ -3795,11 +3794,10 @@ module gridStateVector_mod
                jlon2 = jlon - statevector_inout%myLonBeg + 1
 
                 if (jlev .eq. nLev_T) then  !surface
-                  scaleFactorLev = 0.0D0
+                  scaleFactorLev =  Press_T(jlon2, jlat2, nLev_T)-Press_T(jlon2, jlat2, nLev_T-1) 
                 elseif (jlev .eq. 1)  then  ! top
                   scaleFactorLev = 0.0D0
-                elseif( Press_M(jlon2, jlat2, jlev-1) .lt. 10000.0D0 .or. &
-                        Press_M(jlon2, jlat2, jlev-1) .gt. 25000.0D0 ) then
+                elseif( Press_M(jlon2, jlat2, jlev-1) .lt. 10000.0D0) then 
                   scaleFactorLev = 0.0D0
                 else
                   scaleFactorLev = Press_M(jlon2, jlat2, jlev ) - Press_M(jlon2, jlat2, jlev-1)
@@ -3835,11 +3833,11 @@ module gridStateVector_mod
            do jlon = statevector_inout%myLonBeg, statevector_inout%myLonEnd
               jlon2 = jlon - statevector_inout%myLonBeg + 1
               if( jlev .eq. nLev_T) then !surface
-                scaleFactorLev = 0.0D0
+                scaleFactorLev =  Press_T(jlon2, jlat2, nLev_T) -  &
+                                   Press_T(jlon2, jlat2, nLev_T-1)
               elseif (jlev .eq. 1)  then  ! top
                 scaleFactorLev = 0.0D0
-              elseif( Press_M(jlon2, jlat2, jlev-1) .lt. 10000.0D0 .or. &
-                      Press_M(jlon2, jlat2, jlev-1) .gt. 25000.0D0   ) then
+              elseif( Press_M(jlon2, jlat2, jlev-1) .lt. 10000.0D0) then 
                 scaleFactorLev = 0.0D0
               else
                 scaleFactorLev = Press_M(jlon2, jlat2, jlev ) - Press_M(jlon2, jlat2, jlev-1)
@@ -3860,7 +3858,6 @@ module gridStateVector_mod
     enddo ! jlat
     call mpi_allreduce_sumreal8scalar(sumScale,"GRID")
     field_LQ(:,:,:,:) = field_LQ(:,:,:,:)/sumScale*0.0
-    write(*,*) 'LQ-check-DPP',maxval(field_LQ), minval(field_LQ), size(Press_M), size(Press_T)
 
     ! surface pressure
     field_Psfc => gsv_getField_r8(statevector_inout,'P0')
@@ -3871,8 +3868,7 @@ module gridStateVector_mod
      do jlat = statevector_inout%myLatBeg, statevector_inout%myLatEnd
          scaleFactorLat = cos(statevector_inout%hco%lat(jlat))
           do jlon = statevector_inout%myLonBeg, statevector_inout%myLonEnd
-            !scaleFactor = scaleFactorConst * scaleFactorLat
-            scaleFactor = 0.0D0
+            scaleFactor = scaleFactorConst * scaleFactorLat
             sumScale = sumScale + scaleFactor
             sumep = sumep + 0.5 * pfac * &
                     field_Psfc(jlon,jlat,1,jstep) * field_Psfc(jlon,jlat,1,jstep) * scaleFactor
@@ -3885,15 +3881,11 @@ module gridStateVector_mod
     call mpi_allreduce_sumreal8scalar(sumep,"GRID")
     call mpi_allreduce_sumreal8scalar(sumScale,"GRID")
 
-    if (sumScale .ne. 0.0D0) then
-     sumep = sumep/sumScale
-    endif
+    sumep = sumep/sumScale
 
     if(mpi_myid == 0)  write(*,*) 'energy for Ps=', sumep
 
-    ! field_Psfc(:,:,:,:) =  field_Psfc(:,:,:,:)/sumScale
-    field_Psfc(:,:,:,:) =  field_Psfc(:,:,:,:) !just for top lay
-    write(*,*) 'Psfc-check-DPP',maxval(field_Psfc), minval(field_Psfc)
+    field_Psfc(:,:,:,:) =  field_Psfc(:,:,:,:)/sumScale
 
     ! skin temperature (set to zero for now)
     field_TG => gsv_getField_r8(statevector_inout,'TG')
@@ -3915,7 +3907,6 @@ module gridStateVector_mod
     call mpi_allreduce_sumreal8scalar(sumScale,"GRID")
 
     field_TG(:,:,:,:) = field_TG(:,:,:,:)/sumScale * 0.0
-    write(*,*) 'TG-check-DPP',maxval(field_TG), minval(field_TG)
     if(mpi_myid == 0) write(*,*) 'energy for total=', sumeu + sumev + sumet + sumep
 
     deallocate(Press_T,Press_M)

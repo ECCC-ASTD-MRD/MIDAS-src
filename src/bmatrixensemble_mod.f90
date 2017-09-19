@@ -227,7 +227,7 @@ CONTAINS
       call utl_abort('ben_setup: Invalid value for numStep (choose 1 or 3 or 5 or 7)!')
     end if
 
-    ! FSO
+    !- for FSO
     numStepAnlWindow = numStep
     if (fsoLeadTime .gt. 0.0D0) then
       numStep = numStep + 1
@@ -241,7 +241,6 @@ CONTAINS
     else
       call tim_getstamplist(dateStampList,numStep,tim_getDatestamp())
     endif
-    write(*,*) 'DPPBen-setup',dateStampList
 
     !- 2.3 Horizontal grid
     hco_anl => hco_anl_in
@@ -1622,7 +1621,6 @@ CONTAINS
     fileName = ram_fullWorkingPath(FileName)
     inquire(file=trim(fileName),exist=AdvectFileExists)
     write(*,*) 'AdvectFileExists', AdvectFileExists
-    write(*,*) 'DPP', fileName
 
     do stepIndex = 1, numStepAdvect
       call incdatr(dateStamp_fcst, tim_getDatestamp(), real(stepIndex-1,8)*fsoLeadTime/real(numStepAdvect-1,8))
@@ -1663,12 +1661,12 @@ CONTAINS
        ! gather the global winds for this level
        nsize = lonPerPE*latPerPE
  
-       ptr3d_r8 => ens_getRepackMean_r8(ensPerts(1),1,levIndex + ens_getOffsetFromVarName(ensPerts(1),'UU'))
-       call rpn_comm_allgather(ptr3d_r8(:,:,:), nsize, "mpi_double_precision",  &
+       ptr3d_r8 => gsv_getField3D_r8(statevector_advect(stepIndex),'UU')
+       call rpn_comm_allgather(ptr3d_r8(:,:,levIndex), nsize, "mpi_double_precision",  &
                               uu_mpiglobal_tiles(stepIndex,:,:,:),     nsize, "mpi_double_precision",  &
                               "GRID", ierr )
-       ptr3d_r8 => ens_getRepackMean_r8(ensPerts(1),1,levIndex + ens_getOffsetFromVarName(ensPerts(1),'VV'))
-       call rpn_comm_allgather(ptr3d_r8(:,:,:), nsize, "mpi_double_precision",  &
+       ptr3d_r8 => gsv_getField3D_r8(statevector_advect(stepIndex),'VV')
+       call rpn_comm_allgather(ptr3d_r8(:,:,levIndex), nsize, "mpi_double_precision",  &
                               vv_mpiglobal_tiles(stepIndex,:,:,:),     nsize, "mpi_double_precision",  &
                               "GRID", ierr )
       enddo
@@ -2031,7 +2029,6 @@ CONTAINS
     do levIndex = 1, nLevEns_M
       ensAmplitude1_mpiglobal(:,:,:) = 0.0d0
 
-!$OMP PARALLEL DO PRIVATE (latIndex,lonIndex,latIndex2,lonIndex2,latIndex2_p1,lonIndex2_p1)
       do latIndex = myLatBeg, myLatEnd
         do lonIndex = myLonBeg, myLonEnd
           ! this is the bottom-left grid point
@@ -2039,6 +2036,7 @@ CONTAINS
           latIndex2 = latIndexAdvect(lonIndex,latIndex,levIndex)
           lonIndex2_p1 = mod(lonIndex2,ni)+1 ! assume periodic
           latIndex2_p1 = min(latIndex2+1,nj)
+!$OMP PARALLEL DO PRIVATE(memberIndex)
           do memberIndex = 1, nEns
             ensAmplitude1_mpiglobal(memberIndex, lonIndex2   ,latIndex2) = ensAmplitude1_mpiglobal(memberIndex, lonIndex2   ,latIndex2) +  &
               interpWeightAdvect_BL(lonIndex,latIndex,levIndex)*ensAmplitudeAll_M(memberIndex,2,lonIndex,latIndex,levIndex)
@@ -2048,13 +2046,13 @@ CONTAINS
               interpWeightAdvect_TL(lonIndex,latIndex,levIndex)*ensAmplitudeAll_M(memberIndex,2,lonIndex,latIndex,levIndex)
             ensAmplitude1_mpiglobal(memberIndex, lonIndex2_p1,latIndex2_p1) = ensAmplitude1_mpiglobal(memberIndex, lonIndex2_p1,latIndex2_p1) +  &
               interpWeightAdvect_TR(lonIndex,latIndex,levIndex)*ensAmplitudeAll_M(memberIndex,2,lonIndex,latIndex,levIndex)
-            end do ! memberIndex
+          end do ! memberIndex
+!$OMP END PARALLEL DO
         end do ! lonIndex
       end do ! latIndex
-!$OMP END PARALLEL DO
 
       ! redistribute the global initial time field across mpi tasks by tiles
-!$OMP PARALLEL DO PRIVATE(procIDy,procIDx,procID,levIndex,latIndex,latIndex_mpiglobal,lonIndex,lonIndex_mpiglobal)
+!$OMP PARALLEL DO PRIVATE(procIDy,procIDx,procID,latIndex,latIndex_mpiglobal,lonIndex,lonIndex_mpiglobal,memberIndex)
       do procIDy = 0, (mpi_npey-1)
         do procIDx = 0, (mpi_npex-1)
           procID = procIDx + procIDy*mpi_npex
@@ -2081,7 +2079,7 @@ CONTAINS
       end if
 
       do procID = 0, (mpi_nprocs-1)
-!$OMP PARALLEL DO PRIVATE(levIndex,latIndex,latIndex2,lonIndex,lonIndex2)
+!$OMP PARALLEL DO PRIVATE(latIndex,latIndex2,lonIndex,lonIndex2,memberIndex)
         do latIndex = 1, latPerPE
           latIndex2= latIndex + myLatBeg - 1
           do lonIndex = 1, lonPerPE
@@ -2317,7 +2315,7 @@ CONTAINS
       call tmg_start(77,'ADDMEM_INNER')
 
       ensMemberAll_r4 => ens_getRepack_r4(ensPerts(waveBandIndex),levIndex)
-!$OMP PARALLEL DO PRIVATE (latIndex,lonIndex,stepIndex,stepIndex_amp,memberIndex)
+!$OMP PARALLEL DO PRIVATE (latIndex,lonIndex,stepIndex,stepIndex2,stepIndex_amp,memberIndex)
       do latIndex = myLatBeg, myLatEnd
         do lonIndex = myLonBeg, myLonEnd
           !do stepIndex = 1, numStep
@@ -2351,7 +2349,7 @@ CONTAINS
       lev2 = lev - 1 + topLevOffset
 
       increment_out => gsv_getField_r8(statevector_out, varName)
-!$OMP PARALLEL DO PRIVATE (stepIndex)
+!$OMP PARALLEL DO PRIVATE (stepIndex, stepIndex2)
       !do stepIndex = 1, numStep
       do stepIndex = StepBeg, StepEnd
         stepIndex2 = stepIndex - StepBeg + 1
@@ -2572,8 +2570,7 @@ CONTAINS
 
       call tmg_start(65,'ADDMEMAD_SHUFFLE')
       increment_in => gsv_getField_r8(statevector_in, varName)
-!$OMP PARALLEL DO PRIVATE (stepIndex)
-      !do stepIndex = 1, numStep
+!$OMP PARALLEL DO PRIVATE (stepIndex, stepIndex2)
       do stepIndex = stepBeg, stepEnd
         stepIndex2 = stepIndex - stepBeg + 1
         increment_in2(stepIndex2,:,:) = increment_in(:,:,lev2,stepIndex2)
@@ -2583,13 +2580,12 @@ CONTAINS
 
       !ensAmpZeroed(:,:,:) = .false.
       ensMemberAll_r4 => ens_getRepack_r4(ensPerts(waveBandIndex),levIndex)
-!$OMP PARALLEL DO PRIVATE (latIndex,lonIndex,stepIndex,stepIndex_amp,memberIndex,ensAmplitudeAll_MT)
+!$OMP PARALLEL DO PRIVATE (latIndex,lonIndex,stepIndex, stepIndex2, stepIndex_amp,memberIndex,ensAmplitudeAll_MT)
       do latIndex = myLatBeg, myLatEnd
         do lonIndex = myLonBeg, myLonEnd
 
           if(omp_get_thread_num() == 0) call tmg_start(78,'ADDMEMAD_INNER')
           ensAmplitudeAll_MT(:,:) = 0.0d0
-          !do stepIndex = 1, numStep
           do stepIndex = StepBeg, StepEnd
             stepIndex2 = stepIndex-StepBeg+1
             if(advectAmplitude .and. useForecast2) then
@@ -2804,7 +2800,6 @@ CONTAINS
     real(8)  :: fsoLeadTime_in
 
     fsoLeadTime = fsoLeadTime_in
-    write(*,*) 'DPP', fsoLeadTime
 
   END SUBROUTINE BEN_setFsoLeadTime
 

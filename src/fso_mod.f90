@@ -123,7 +123,7 @@ CONTAINS
     type(struct_dataptr)            :: dataptr 
     integer,allocatable             :: dataptr_int(:) ! obs array used to transmit pointer
     type(struct_gsv)                :: statevector_fa, statevector_fb, statevector_a, statevector_fso
-    type(struct_gsv)                :: statevector_tempfa, statevector_tempfb !DPP
+    type(struct_gsv)                :: statevector_tempfa, statevector_tempfb 
     type(struct_hco), pointer       :: hco_anl
     type(struct_vco), pointer       :: vco_anl
     integer                         :: nulout = 6
@@ -192,12 +192,10 @@ CONTAINS
       fileName_fa = trim(forecastPath) // '/forecast_a'
       inquire(file=trim(fileName_fa),exist=faExists)
       write(*,*) 'faExists', faExists
-      write(*,*) 'DPP', fileName_fa
       call gsv_allocate(statevector_fa, 1, hco_anl, vco_anl, &
                         datestamp=datestamp_fcst, mpi_local=.true.)
       call gsv_readFromFile(statevector_fa, fileName_fa, ' ', 'P')
 
-      !DPP for statevector_tempfa and statevector_tempfb
       !for statevecotr_tempfa
       call gsv_allocate(statevector_tempfa, 1, hco_anl, vco_anl, &
                         datestamp=datestamp_fcst, mpi_local=.true.)
@@ -222,8 +220,6 @@ CONTAINS
       call gsv_add(statevector_a, statevector_fa, -1.0d0)
       call gsv_add(statevector_a, statevector_fb, -1.0d0)
 
-
-  !DPP
       call gsv_copy(statevector_fa,statevector_tempfa)
       call gsv_copy(statevector_fb,statevector_tempfb)
       call gsv_multEnergyNorm(statevector_tempfa, statevector_a) ! use analysis as reference state
@@ -237,10 +233,8 @@ CONTAINS
       ! compute vhat = B_t^T/2 * C * (error_t^fa + error_t^fb)  
       call bmat_sqrtBT(vhat, nvadim_mpilocal, statevector_fb, useForecast = .true.) 
 
-     
-      write(*,*) 'DPP-vhat',maxval(vhat),minval(vhat) 
-   
- 
+      if(mpi_myid==0) write(*,*) maxval(vhat),minval(vhat) 
+
       ! ------------------------------------------------------
       ! Compute zhat by performing variational minimization
       ! ------------------------------------------------------    
@@ -312,7 +306,7 @@ CONTAINS
 
       call bmat_sqrtB(ahat, nvadim_mpilocal, statevector_fso) 
       call s2c_tl(statevector_fso,column,columng,obsSpaceData)  ! put in column H_horiz B^1/2 ahat
-      call oop_Htl(column,columng,obsSpaceData,1) !DPP  ! Save as OBS_WORK: H_vert H_horiz B^1/2 vhat = H B^1/2 ahat
+      call oop_Htl(column,columng,obsSpaceData,1)          ! Save as OBS_WORK: H_vert H_horiz B^1/2 vhat = H B^1/2 ahat
       call cfn_RsqrtInverse(obsSpaceData,OBS_FSO,OBS_WORK) ! Save as OBS_FSO : R**-1/2 H B^1/2 ahat
       call cfn_RsqrtInverse(obsSpaceData,OBS_FSO,OBS_FSO)  ! Save as OBS_FSO : R**-1 H B^1/2 ahat\
 
