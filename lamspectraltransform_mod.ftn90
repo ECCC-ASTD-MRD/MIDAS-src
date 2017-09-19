@@ -1057,7 +1057,7 @@ contains
 
     integer :: yourid, nsize, ierr, jlev, jlev2, jlat, jlat2, jlon, jlon2
 
-    call rpn_comm_barrier("GRID",ierr)
+    if(mpi_doBarrier) call rpn_comm_barrier("GRID",ierr)
 
     call tmg_start(28,'TRANSP_2D_LEVtoLON')
 
@@ -1119,7 +1119,7 @@ contains
 
     integer :: yourid, nsize, ierr, jlev, jlev2, jlat, jlat2, jlon, jlon2
 
-    call rpn_comm_barrier("GRID",ierr)
+    if(mpi_doBarrier) call rpn_comm_barrier("GRID",ierr)
 
     call tmg_start(28,'TRANSP_2D_LEVtoLON')
 
@@ -1181,7 +1181,7 @@ contains
 
     integer :: yourid, jm, icount, nsize, ierr, jlev, jlev2, jlat, jlat2
 
-    call rpn_comm_barrier("GRID",ierr)
+    if(mpi_doBarrier) call rpn_comm_barrier("GRID",ierr)
 
     call tmg_start(27,'TRANSP_2D_MtoLAT')
 
@@ -1246,7 +1246,7 @@ contains
 
     integer :: yourid, jm, icount, nsize, ierr, jlev, jlev2, jlat, jlat2
 
-    call rpn_comm_barrier("GRID",ierr)
+    if(mpi_doBarrier) call rpn_comm_barrier("GRID",ierr)
 
     call tmg_start(27,'TRANSP_2D_MtoLAT')
 
@@ -1311,7 +1311,7 @@ contains
 
     integer :: yourid, nsize, ierr, jlev, jlev2, jn, jm, icount
 
-    call rpn_comm_barrier("GRID",ierr)
+    if(mpi_doBarrier) call rpn_comm_barrier("GRID",ierr)
 
     call tmg_start(26,'TRANSP_2D_LEVtoN')
 
@@ -1379,7 +1379,7 @@ contains
 
     integer :: yourid, nsize, ierr, jlev, jlev2, jn, jm, icount
 
-    call rpn_comm_barrier("GRID",ierr)
+    if(mpi_doBarrier) call rpn_comm_barrier("GRID",ierr)
 
     call tmg_start(26,'TRANSP_2D_LEVtoN')
 

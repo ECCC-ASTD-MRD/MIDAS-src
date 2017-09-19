@@ -83,13 +83,14 @@ compiledir=${PWD} # needed when compiledir_main = ".."
 echo "..."
 echo "... > Compiledir set to $compiledir"
 if [ ${compiledir_main} != ".." ] ; then
-    if [ ! -d  ${trunkdir}/../compiledir_${compiledir_ID} ] ; then
-	ln -s ${compiledir_main}/compiledir_${compiledir_ID} ${trunkdir}/../compiledir_${compiledir_ID}
+    if [ ! -d  ${trunkdir}/../compiledir-${ORDENV_PLAT}_${compiledir_ID} ] ; then
+	ln -s ${compiledir_main}/compiledir-${ORDENV_PLAT}_${compiledir_ID} ${trunkdir}/../compiledir-${ORDENV_PLAT}_${compiledir_ID}
     fi
 fi
 
-absdir=${compiledir_main}/abs
+absdir=${compiledir_main}/oavar_abs
 mkdir -p ${absdir}
+cd $absdir ; absdir=$PWD ; cd -
 
 #----------------------------------------------------------------
 #  Set up dependent librarys and tools. 
@@ -115,10 +116,10 @@ HDF5_LIBS="hdf5hl_fortran hdf5_hl hdf5_fortran hdf5 z"
 varabs=oavar_${ORDENV_PLAT}${ABSTAG}-${revnum}.Abs
 
 ## for rmn, rpncomm
-echo "... loading eccc/mrd/rpn/libs/16.1"
-. ssmuse-sh -d eccc/mrd/rpn/libs/16.1
+echo "... loading eccc/mrd/rpn/libs/16.2"
+. ssmuse-sh -d eccc/mrd/rpn/libs/16.2
 if [ "${ORDENV_PLAT}" = ubuntu-14.04-amd64-64 ];then
-    ## for openmpi
+     ## for openmpi
     echo "... loading main/opt/openmpi/openmpi-1.6.5/intelcomp-2016.1.156"
     . ssmuse-sh -d main/opt/openmpi/openmpi-1.6.5/intelcomp-2016.1.156
     echo "loading hdf5"
@@ -131,8 +132,8 @@ fi
 echo "... loading eccc/cmd/cmdn/vgrid/5.6.9/${COMP_ARCH}"
 . ssmuse-sh -d eccc/cmd/cmdn/vgrid/5.6.9/${COMP_ARCH}
 ## for 'burplib'
-echo "... loading eccc/cmd/cmda/libs/16.1-3/${COMP_ARCH}"
-. ssmuse-sh -d eccc/cmd/cmda/libs/16.1-3/${COMP_ARCH}
+echo "... loading eccc/cmd/cmda/libs/16.2-4/${COMP_ARCH}"
+. ssmuse-sh -d eccc/cmd/cmda/libs/16.2-4/${COMP_ARCH}
 ## For hpcoperf needed for TMG timings
 echo "... loading main/opt/perftools/perftools-2.0/${COMP_ARCH}"
 . ssmuse-sh -d main/opt/perftools/perftools-2.0/${COMP_ARCH}
@@ -174,9 +175,9 @@ if [ "${mode}" == full ] ; then
   # Create a local copy of the source code
   sed "s!XXXXX!${revnum}!g" ${trunkdir}/toplevelcontrol_mod.ftn90_template > toplevelcontrol_mod.ftn90
 
-  cd ${trunkdir};          ls -1F | grep -v '/' | grep -v "*" | grep -v "@" | cpio -pl $compiledir ; cd $compiledir
-  cd ${trunkdir}/bgcheck;  ls -1F | grep -v '/' | grep -v "*" | cpio -pl $compiledir ; cd $compiledir
-  cd ${trunkdir}/shared;   ls -1F | grep -v '/' | grep -v "*" | cpio -pl $compiledir ; cd $compiledir
+  cd ${trunkdir};          ls -1F | grep -v '/' | grep -v "*" | grep -v "@" | cpio --quiet -p $compiledir ; cd $compiledir
+  cd ${trunkdir}/bgcheck;  ls -1F | grep -v '/' | grep -v "*" | cpio --quiet -p $compiledir ; cd $compiledir
+  cd ${trunkdir}/shared;   ls -1F | grep -v '/' | grep -v "*" | cpio --quiet -p $compiledir ; cd $compiledir
   rm -f *.ftn~ *.ftn90~
 
   # Check for indented OPEN-MP directives - this is not allowed!
@@ -191,28 +192,28 @@ if [ "${mode}" == full ] ; then
 
   # Compile the subroutines...
   echo "... > Compiling low-level independent modules"
-  echo "...   if aborting, check in ${PWD}/listing1"
+  echo "...   if aborting, check in ${PWD}/listing0"
   SRC0="tovs_extrap_mod.ftn90 utilities_mod.ftn90 toplevelcontrol_mod.ftn90 randomnumber_mod.ftn90"
   SRC0="$SRC0 mathphysconstants_mod.ftn90 earthconstants_mod.ftn90 mpi_mod.ftn90 mpivar_mod.ftn90 bufr_mod.ftn90 codtyp_mod.ftn90"
   SRC0="$SRC0 physicsfunctions_mod.ftn90 obsspacedata_mod.ftn90 localizationfunction_mod.ftn90"
   SRC0="$SRC0 horizontalcoord_mod.ftn90 timecoord_mod.ftn90 verticalcoord_mod.ftn90"
   SRC0="$SRC0 lqtoes_mod.ftn90 presprofileoperators_mod.ftn90 spectralfilter_mod.ftn90"
-  s.compile $COMPF -O ${FOPTMIZ} -src $SRC0 > listing1 2>&1
+  s.compile $COMPF -O ${FOPTMIZ} -src $SRC0 > listing0 2>&1
   status=1
-  grep fail listing1 || status=0
+  grep fail listing0 || status=0
   if [ "${status}" -ne 0 ] ; then
-      echo "... !! Compilation aborted: check in ${PWD}/listing1 !!"
+      echo "... !! Compilation aborted: check in ${PWD}/listing0 !!"
       exit 1
   fi
 
   echo "... > Compiling quasi-newton module"
-  echo "...   if aborting, check in ${PWD}/listing0"
+  echo "...   if aborting, check in ${PWD}/listing1"
   SRC0="quasinewton_mod.ftn"
-  s.compile $COMPF_NOC  -O ${FOPTMIZ} -src $SRC0 > listing0 2>&1
+  s.compile $COMPF_NOC  -O ${FOPTMIZ} -src $SRC0 > listing1 2>&1
   status=1
-  grep fail listing0 || status=0
+  grep fail listing1 || status=0
   if [ "${status}" -ne 0 ]; then
-      echo "... !! Compilation aborted: check in ${PWD}/listing0 !!"
+      echo "... !! Compilation aborted: check in ${PWD}/listing1 !!"
       exit 1
   fi
   rm -f $SRC0
@@ -269,8 +270,10 @@ if [ "${mode}" == full ] ; then
 
   echo "... > Compiling some more modules..."
   echo "...   if aborting, check in ${PWD}/listing6"
-  SRC2="burpfiles_mod.ftn90 chem_obserrors_mod.ftn90 obserrors_mod.ftn90 varqc_mod.ftn90 chem_setup_mod.ftn90 obsfilter_mod.ftn90 tovs_lin_mod.ftn90 chem_obsoperators_mod.ftn90 obsoperators_mod.ftn90 obsspacediag_mod.ftn90  innovation_mod.ftn90"
-  SRC2="$SRC2 chem_postproc_mod.ftn90 minimization_mod.ftn90"
+  SRC2="obssubspacedata_mod.ftn90 burpfiles_mod.ftn90 chem_setup_mod.ftn90 chem_obserrors_mod.ftn90"
+  SRC2="$SRC2 chem_obsoperators_mod.ftn90 chem_postproc_mod.ftn90"
+  SRC2="$SRC2 obserrors_mod.ftn90 varqc_mod.ftn90 obsfilter_mod.ftn90 tovs_lin_mod.ftn90 obsoperators_mod.ftn90 obsspacediag_mod.ftn90"
+  SRC2="$SRC2 innovation_mod.ftn90 minimization_mod.ftn90"
   s.compile $COMPF  -O ${FOPTMIZ} -src $SRC2 > listing6 2>&1
   status=1
   grep fail listing6 || status=0
@@ -346,7 +349,7 @@ echo "..."
 echo "... > FINISHED COMPILATION AT: $(date)"
 if [ "${mode}" == full -o "${mode}" == abs ] ; then
     echo "..."
-    echo "... The program can be found here: ${PWD}/${varabs}"
+    echo "... The program can be found here: ${absdir}/${varabs}"
     echo "..."
 else
     echo "..."

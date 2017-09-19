@@ -79,15 +79,15 @@ contains
       if (tvs_nsensors == 0) then
          write(*,*) 'oer_setInterchanCorr: tvs_nsensors is zero, skipping setup'
          return
-      endif
+      end if
 
 ! Initialization of the correlation matrices
       call rmat_init(tvs_nsensors,tvs_nobtov)
       if (rmat_lnondiagr) then
          do isens = 1, tvs_nsensors
             if (tvs_isReallyPresent(isens) ) call rmat_readCMatrix(tvs_listSensors(:,isens), isens, tvs_ichan(1:tvs_nchan(isens),isens)  )
-         enddo
-      endif
+         end do
+      end if
 
    END SUBROUTINE oer_setInterchanCorr
 

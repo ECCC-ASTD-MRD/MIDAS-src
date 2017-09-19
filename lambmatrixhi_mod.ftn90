@@ -37,7 +37,7 @@ module LamBMatrixHI_mod
 
   ! public procedures
   public :: lbhi_Setup, lbhi_bSqrt, lbhi_bSqrtAdj, lbhi_Finalize
-  public :: lbhi_expandToMPIglobal, lbhi_reduceToMPIlocal
+  public :: lbhi_expandToMPIglobal, lbhi_expandToMPIglobal_r4, lbhi_reduceToMPIlocal, lbhi_reduceToMPIlocal_r4
 
   integer, parameter :: cv_model = 1
   integer, parameter :: cv_bhi   = 2
@@ -1386,6 +1386,128 @@ contains
   END SUBROUTINE LBHI_reduceToMPILocal
 
 !--------------------------------------------------------------------------
+! LBHI_reduceToMPILocal_r4
+!--------------------------------------------------------------------------
+  SUBROUTINE LBHI_reduceToMPILocal_r4(cv_mpilocal,cv_mpiglobal,cvDim_mpilocal_out)
+    implicit none
+    real(4), intent(out) :: cv_mpilocal(cvDim)
+    real(4), intent(in)  :: cv_mpiglobal(:)
+    integer, intent(out) :: cvDim_mpilocal_out
+
+    real(4), allocatable :: cv_allmaxmpilocal(:,:)
+
+    integer, allocatable :: cvDim_allMpilocal(:), displs(:)    
+    integer, allocatable :: ilaGlobal(:), allnlaLocal(:)
+    integer, allocatable :: allilaGlobal(:,:)
+
+    integer :: k, ila, p, ila_mpiglobal, jdim_mpilocal, jdim_mpiglobal
+    integer :: ier, nlaMax, cvDim_maxmpilocal, jproc
+
+    cvDim_mpilocal_out = cvDim
+
+    call rpn_comm_allreduce(cvDim, cvDim_maxmpilocal, &
+         1,"MPI_INTEGER","MPI_MAX","GRID",ier)
+
+    allocate(cvDim_allMpiLocal(mpi_nprocs))
+
+    call rpn_comm_allgather(cvDim   ,1,"mpi_integer",       &
+                            cvDim_allMpiLocal,1,"mpi_integer","GRID",ier)
+
+    call rpn_comm_allreduce(lst_bhi%nla,nlaMax,1,"mpi_integer","mpi_max","GRID",ier)
+
+    if (mpi_myid == 0) then
+       allocate(allnlaLocal(mpi_nprocs))
+       allocate(allilaGlobal(nlaMax,mpi_nprocs))
+    else
+       allocate(allnlaLocal(1))
+       allocate(allilaGlobal(1,1))
+    end if
+    
+    allocate(ilaGlobal(nlaMax))
+    ilaGlobal(:)             = -1
+    ilaGlobal(1:lst_bhi%nla) = lst_bhi%ilaGlobal(:)
+    
+    call rpn_comm_gather(lst_bhi%nla, 1, "mpi_integer",       &
+                         allnlaLocal, 1, "mpi_integer", 0, "GRID", ier)
+    call rpn_comm_gather(ilaGlobal   , nlaMax, "mpi_integer",       &
+                         allilaGlobal, nlaMax, "mpi_integer",0 ,"GRID", ier)
+
+    deallocate(ilaGlobal)
+
+    ! assign part of mpiglobal vector from current mpi process
+    if (mpi_myid == 0) then
+
+       allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mpi_nprocs))
+
+!$OMP PARALLEL DO PRIVATE(jproc,jdim_mpilocal,k,ila,p,ila_mpiglobal,jdim_mpiglobal)
+       do jproc = 0, (mpi_nprocs-1)
+          cv_allmaxmpilocal(:,jproc+1) = 0.d0
+          
+          do k = 1, nksdim
+             do ila = 1, allnlaLocal(jproc+1)
+                do p = 1, lst_bhi%nphase
+
+                   jdim_mpilocal = ( (k-1) * allnlaLocal(jproc+1) * lst_bhi%nphase ) + &
+                                                        ( (ila-1) * lst_bhi%nphase ) + p
+
+                   ila_mpiglobal = allilaGlobal(ila,jproc+1)
+                   if ( ila_mpiglobal <= 0 ) then 
+                      write(*,*) 'LBHI_reduceToMPILocal: invalid ila_mpiglobal index ', ila_mpiglobal
+                      call utl_abort('LBHI_reduceToMPILocal')
+                   end if
+
+                   jdim_mpiglobal = ( (k-1) * lst_bhi%nlaGlobal * lst_bhi%nphase ) + &
+                                            ( (ila_mpiglobal-1) * lst_bhi%nphase ) + p
+  
+                   if (jdim_mpilocal > cvDim_allMpiLocal(jproc+1)) then
+                      write(*,*)
+                      write(*,*) 'ERROR: jdim_mpilocal > cvDim_allMpiLocal(jproc+1)', jdim_mpilocal, cvDim_allMpiLocal(jproc+1) 
+                      write(*,*) '       proc, k, ila, p = ',jproc,k,ila,p
+                      call utl_abort('LBHI_reduceToMPILocal')
+                   end if
+                   if (jdim_mpiglobal > cvDim_mpiglobal) then
+                      write(*,*)
+                      write(*,*) 'ERROR: jdim_mpiglobal > cvDim_mpiglobal', jdim_mpiglobal, cvDim_mpiglobal
+                      write(*,*) '       proc, k, ila, p = ',jproc,k,ila,p
+                      call utl_abort('LBHI_reduceToMPILocal')
+                   end if
+                   
+                   cv_allmaxmpilocal(jdim_mpilocal,jproc+1) = cv_mpiglobal(jdim_mpiglobal)
+                   
+                end do
+             end do
+          end do
+       end do
+!$OMP END PARALLEL DO
+
+    else
+       allocate(cv_allmaxmpilocal(1,1))
+    end if
+
+    deallocate(allnlaLocal)
+    deallocate(allilaGlobal)
+
+    !- Distribute
+    allocate(displs(mpi_nprocs))
+!$OMP PARALLEL DO PRIVATE(jproc)
+    do jproc = 0, (mpi_nprocs-1)
+       displs(jproc+1) = jproc*cvDim_maxMpiLocal ! displacement wrt cv_allMaxMpiLocal from which
+                                                 ! to take the outgoing data to process jproc
+    end do
+!$OMP END PARALLEL DO
+
+    call rpn_comm_scatterv(cv_allMaxMpiLocal, cvDim_allMpiLocal, displs, "mpi_real4", &
+                           cv_mpiLocal      , cvDim , "mpi_real4", &
+                           0, "GRID", ier)
+
+   deallocate(displs) 
+   deallocate(cv_allMaxMpiLocal)
+   deallocate(cvDim_allMpiLocal)
+
+
+  END SUBROUTINE LBHI_reduceToMPILocal_r4
+
+!--------------------------------------------------------------------------
 ! LBHI_expandToMPIGlobal
 !--------------------------------------------------------------------------
   SUBROUTINE LBHI_expandToMPIGlobal(cv_mpilocal,cv_mpiglobal,cvDim_mpiglobal_out)
@@ -1508,6 +1630,130 @@ contains
     deallocate(cvDim_allMpiLocal)
 
   end SUBROUTINE LBHI_expandToMPIGlobal
+
+!--------------------------------------------------------------------------
+! LBHI_expandToMPIGlobal_r4
+!--------------------------------------------------------------------------
+  SUBROUTINE LBHI_expandToMPIGlobal_r4(cv_mpilocal,cv_mpiglobal,cvDim_mpiglobal_out)
+    implicit none
+    real(4), intent(in)  :: cv_mpilocal(cvDim)
+    real(4), intent(out) :: cv_mpiglobal(:)
+    integer, intent(out) :: cvDim_mpiglobal_out
+
+    real(4), allocatable :: cv_maxmpilocal(:)
+    real(4), pointer     :: cv_allmaxmpilocal(:,:) => null()
+
+    integer, allocatable :: cvDim_allMpilocal(:)
+
+    integer, allocatable :: ilaGlobal(:), allnlaLocal(:)
+    integer, allocatable :: allilaGlobal(:,:)
+
+    integer :: k, ila, p, ila_mpiglobal, jdim_mpilocal, jdim_mpiglobal
+    integer :: ier, nlaMax, cvDim_maxmpilocal, jproc
+
+    cvDim_mpiglobal_out = cvDim_mpiglobal
+
+    !
+    !- 1.  Gather all local control vectors onto mpi task 0
+    !
+    allocate(cvDim_allMpiLocal(mpi_nprocs))
+    call rpn_comm_allgather(cvDim            ,1,"mpi_integer",       &
+                            cvDim_allMpiLocal,1,"mpi_integer","GRID",ier)
+
+    call rpn_comm_allreduce(cvDim,cvDim_maxmpilocal,1,"mpi_integer","mpi_max","GRID",ier)
+
+    allocate(cv_maxmpilocal(cvDim_maxmpilocal))
+
+    cv_maxmpilocal(:) = 0.0d0
+    cv_maxmpilocal(1:cvDim) = cv_mpilocal(1:cvDim)
+
+    nullify(cv_allmaxmpilocal)
+    if (mpi_myid == 0) then
+       allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mpi_nprocs))
+    else
+       allocate(cv_allmaxmpilocal(1,1))
+    end if
+
+    call rpn_comm_gather(cv_maxmpilocal,    cvDim_maxmpilocal, "mpi_real4",  &
+                         cv_allmaxmpilocal, cvDim_maxmpilocal, "mpi_real4", 0, "GRID", ier )
+
+    deallocate(cv_maxmpilocal)
+
+    !
+    !- 2.  Reorganize gathered mpilocal control vectors into the mpiglobal control vector
+    !
+
+    call rpn_comm_allreduce(lst_bhi%nla,nlaMax,1,"mpi_integer","mpi_max","GRID",ier)
+
+    if (mpi_myid == 0) then
+       allocate(allnlaLocal(mpi_nprocs))
+       allocate(allilaGlobal(nlaMax,mpi_nprocs))
+    else
+       allocate(allnlaLocal(1))
+       allocate(allilaGlobal(1,1))
+    end if
+    
+    allocate(ilaGlobal(nlaMax))
+    ilaGlobal(:)             = -1
+    ilaGlobal(1:lst_bhi%nla) = lst_bhi%ilaGlobal(:)
+
+    call rpn_comm_gather(lst_bhi%nla, 1, "mpi_integer",       &
+                         allnlaLocal, 1, "mpi_integer", 0, "GRID", ier)
+    call rpn_comm_gather(ilaGlobal   , nlaMax, "mpi_integer",       &
+                         allilaGlobal, nlaMax, "mpi_integer",0 ,"GRID", ier)
+
+    deallocate(ilaGlobal)
+
+    if (mpi_myid == 0) then
+       cv_mpiglobal(:) = 0.0d0
+
+!$OMP PARALLEL DO PRIVATE(jproc,jdim_mpilocal,k,ila,p,ila_mpiglobal,jdim_mpiglobal)
+       do jproc = 0, (mpi_nprocs-1)
+          do k = 1, nksdim
+             do ila = 1, allnlaLocal(jproc+1)
+                do p = 1, lst_bhi%nphase
+
+                   jdim_mpilocal = ( (k-1) * allnlaLocal(jproc+1) * lst_bhi%nphase ) + &
+                                                        ( (ila-1) * lst_bhi%nphase ) + p
+
+                   ila_mpiglobal = allilaGlobal(ila,jproc+1)
+                   if ( ila_mpiglobal <= 0 ) then 
+                      write(*,*) 'LBHI_expandToMPIGlobal: invalid ila_mpiglobal index ', ila_mpiglobal
+                      call utl_abort('LBHI_expandToMPIGlobal')
+                   end if
+
+                   jdim_mpiglobal = ( (k-1) * lst_bhi%nlaGlobal * lst_bhi%nphase ) + &
+                                            ( (ila_mpiglobal-1) * lst_bhi%nphase ) + p
+  
+                   if (jdim_mpilocal > cvDim_allMpiLocal(jproc+1)) then
+                      write(*,*)
+                      write(*,*) 'ERROR: jdim_mpilocal > cvDim_allMpiLocal(jproc+1)', jdim_mpilocal, cvDim_allMpiLocal(jproc+1) 
+                      write(*,*) '       proc, k, ila, p = ',jproc,k,ila,p
+                      call utl_abort('LBHI_expandToMPIGlobal')
+                   end if
+                   if (jdim_mpiglobal > cvDim_mpiglobal) then
+                      write(*,*)
+                      write(*,*) 'ERROR: jdim_mpiglobal > cvDim_mpiglobal', jdim_mpiglobal, cvDim_mpiglobal
+                      write(*,*) '       proc, k, ila, p = ',jproc,k,ila,p
+                      call utl_abort('LBHI_expandToMPIGlobal')
+                   end if
+                   
+                   cv_mpiglobal(jdim_mpiglobal) = cv_allmaxmpilocal(jdim_mpilocal,jproc+1)
+
+                end do
+             end do
+          end do
+       end do
+!$OMP END PARALLEL DO
+
+    end if
+
+    deallocate(allnlaLocal)
+    deallocate(allilaGlobal)
+    deallocate(cv_allmaxmpilocal)
+    deallocate(cvDim_allMpiLocal)
+
+  end SUBROUTINE LBHI_expandToMPIGlobal_r4
 
 !--------------------------------------------------------------------------
 ! LBHI_Finalize

@@ -52,7 +52,7 @@ module obsSubSpaceData_mod
 
   use utilities_mod    
   use MathPhysConstants_mod
-  use mpi_mod, only: mpi_allgather_string
+  use mpi_mod, only: mpi_allgather_string, mpi_doBarrier
   use bufr
   use obsSpaceData_mod  ! for use in oss_get_comboIdList 
    
@@ -987,7 +987,7 @@ contains
           if (iset.ge.2) varno_unique_all(:,:) = 0
           if (iset.ge.3) unilev_unique_all(:,:) = .false.
           
-          call rpn_comm_barrier("GRID",ierr)
+          if(mpi_doBarrier) call rpn_comm_barrier("GRID",ierr)
 
           call rpn_comm_allgather(num_unique,1,"MPI_INTEGER",num_unique_all,1,"MPI_INTEGER","GRID",ierr)
           call mpi_allgather_string(stnid_unique,stnid_unique_all,nmax,stnid_len,nproc,"GRID",ierr)

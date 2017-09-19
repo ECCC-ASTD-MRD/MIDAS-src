@@ -313,10 +313,10 @@ contains
     if (all(familyList(1:numFamily).eq.'CH')) then
        cvBhi => null()
     else
-       cvBhi => cvm_getSubVector(controlVector,1)
+       cvBhi => cvm_getSubVector(controlVector,cvm_BHI)
     end if
     if (any(familyList(1:numFamily).eq.'CH').and.obs_famExist(obsSpaceData,'CH')) then
-       cvBChm => cvm_getSubVector(controlVector,3)
+       cvBChm => cvm_getSubVector(controlVector,cvm_BCHM)
     else
        cvBChm => null()
     end if
@@ -326,13 +326,13 @@ contains
     iseed = abs(nrandseed)
     call rng_setup(iseed)
 
-    if (associated(cvBhi).or.associated(cvBChm)) then
+    if (cvm_subVectorExists(cvm_BHI).or. cvm_subVectorExists(cvm_BCHM)) then
        
        ! compute random control vector
 
        controlVector(:) = 0.0d0
 
-       if (associated(cvBhi)) then
+       if (cvm_subVectorExists(cvm_BHI)) then
           do jj = 1,size(cvBhi)
              cvBhi(jj)=rng_gaussian()
           enddo
@@ -342,7 +342,7 @@ contains
           scaleFactor(:)=1.0      
        end if
 
-       if (associated(cvBChm)) then
+       if (cvm_subVectorExists(cvm_BCHM)) then
           do jj = 1,size(cvBChm)
              cvBChm(jj)=rng_gaussian()
           enddo
@@ -388,11 +388,11 @@ contains
    
     ! COMPUTE BMATRIX PERTURBATION FOR THE ENSEMBLE COVARIANCES CASE; from Ben
 
-    cvBen => cvm_getSubVector(controlVector,2)
+    cvBen => cvm_getSubVector(controlVector,cvm_BEN)
    
     HxBen(:) = 0.0d0
 
-    if (associated(cvBen)) then
+    if (cvm_subVectorExists(cvm_BEN)) then
 
        ! compute random control vector
 
@@ -465,11 +465,11 @@ contains
         lpert_ens=.false.
         
         if (familyList(familyIndex).ne.'CH') then
-           if (associated(cvBhi)) lpert_static=.true.
+           if (cvm_subVectorExists(cvm_BHI)) lpert_static=.true.
         else        
-           if (associated(cvBChm)) lpert_static=.true.
+           if (cvm_subVectorExists(cvm_BCHM)) lpert_static=.true.
         end if
-        if (associated(cvBen)) lpert_ens=.true.
+        if (cvm_subVectorExists(cvm_BEN)) lpert_ens=.true.
       
         ivco = -999
         my_innovStd(:,:,:) = 0.0d0
@@ -621,7 +621,6 @@ contains
     deallocate(HxBen)
 
     write(*,*) 'osd_calcInflation: Finished'
-    flush(6) 
 
   end subroutine osd_calcInflation
 
@@ -981,7 +980,6 @@ contains
 
     ! Loop over all pairs in *_elemID lists
    
-    call flush(6)
     do elemID=1,num_elemID
 
        ! Initialize the diagnostic arrays
@@ -1155,7 +1153,6 @@ contains
        if (mpi_myid.eq.0) call osd_obsspace_diagn_print(obs_diagn,filename, save_diagn, &
                               'stats', pressmin, status_hpht, label=label, openfile=.true.)
  
-       call flush(6)
     end do
     
     ! Output diagnostics summary (over all CH observations)
@@ -1798,8 +1795,6 @@ contains
        if (present(openfile)) then
           if (openfile) ierr=fclos(unit)     
        end if
-             
-       call flush(6)
              
     case('summary','SUMMARY')
 

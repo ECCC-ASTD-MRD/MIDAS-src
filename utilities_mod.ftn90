@@ -26,7 +26,7 @@ module utilities_mod
   private
 
   ! public procedures
-  public :: utl_EZUVINT, utl_EZGDEF, utl_CXGAIG, utl_FSTLIR, utl_FSTECR
+  public :: utl_EZUVINT, utl_EZUVINT2, utl_EZGDEF, utl_CXGAIG, utl_FSTLIR, utl_FSTECR
   public :: utl_EZSINT, utl_EZSINT2, utl_findArrayIndex, utl_matSqrt
   public :: utl_writeStatus, utl_getfldprm, utl_abort, utl_checkAllocationStatus
   public :: utl_open_asciifile, utl_stnid_equal, utl_resize, utl_str
@@ -54,13 +54,44 @@ module utilities_mod
 contains
 
   !--------------------------------------------------------------------------
+  ! utl_EZUVINT2
+  !--------------------------------------------------------------------------
+  function utl_EZUVINT2(duuout, dvvout, duuin, dvvin, nio, nii) result(ierr)
+    IMPLICIT NONE
+
+    real*8 duuout(nio), dvvout(nio)
+    real*4 duuin(nii) , dvvin(nii)
+    integer iun, nio, nii
+
+    integer ikey, ierr, ileni, ileno, jk1
+    real, allocatable :: bufuuout4(:), bufvvout4(:)
+
+    integer ezuvint
+    external ezuvint
+
+    allocate(bufuuout4(nio))
+    allocate(bufvvout4(nio))
+
+    ierr = ezuvint(bufuuout4, bufvvout4, duuin, dvvin)
+
+    do jk1 = 1,nio
+       duuout(jk1) = bufuuout4(jk1)
+       dvvout(jk1) = bufvvout4(jk1)
+    enddo
+
+    deallocate(bufuuout4)
+    deallocate(bufvvout4)
+
+  end function utl_EZUVINT2
+
+  !--------------------------------------------------------------------------
   ! utl_EZUVINT
   !--------------------------------------------------------------------------
   function utl_EZUVINT(duuout, dvvout, duuin, dvvin, nio, nii) result(ierr)
     IMPLICIT NONE
 
     real*8 duuout(nio), dvvout(nio)
-    real*4 duuin(nii) , dvvin(nii)
+    real*8 duuin(nii) , dvvin(nii)
     integer iun, nio, nii
 
     integer ikey, ierr, ileni, ileno, jk1
@@ -1077,7 +1108,7 @@ contains
     integer, intent(out)   :: elemId
     character(len=*), intent(in)     :: cstringin
     character(len=*),  intent(inout) :: CList(Nmax)
-  
+
     integer :: i
     character(len=120) :: cstring
     
@@ -1180,7 +1211,7 @@ contains
   end subroutine utl_get_Id
   
   !--------------------------------------------------------------------------
-  ! utl_radFstField
+  ! utl_readFstField
   !------------------;-------------------------------------------------------
   subroutine utl_readFstField(fname,varName,iip1,iip2,iip3,etiketi, &
                                ni,nj,nkeys,array,xlat,xlong,lvls,kind)
@@ -1377,21 +1408,21 @@ contains
        flag = alloc
     else
        flag = .true.
-    endif
+    end if
 
     if (any(status /= 0)) then
        if (flag) then
           Write(6,'(A)') "Memory allocation failure !"
        else
           Write(6,'(A)') "Memory deallocation failure !"
-       endif
+       end if
        Write(6,'(64(i8,1x))') status
        call utl_abort(message)
-    endif
+    end if
 
  end subroutine utl_checkAllocationStatus
 
 
 
-  
+
 end module utilities_mod

@@ -769,7 +769,13 @@ contains
     integer ,intent(in) :: idburp
     character (len=*) ,intent(in) :: cinst
 
-    tvs_isIdBurpInst = ( idburp == codtyp_get_codtyp(cinst) )
+  if (tvs_nsensors == 0) then
+    ! no tovs data will be read, therefore false
+    tvs_isIdBurpInst = .false.
+    return
+  endif
+
+  tvs_isIdBurpInst = ( idburp == codtyp_get_codtyp(cinst) )
 
   end function tvs_isIdBurpInst
 
@@ -1162,9 +1168,9 @@ contains
 
 ! Table of BURP satellite identifier element #001007
     INTEGER,SAVE :: LISTBURP(mxsatburp)
-! Table of RTTOV-7 platform identifier
+! Table of RTTOV platform identifier
     CHARACTER(len=8),SAVE :: LISTPLAT(mxsatburp)
-! Table of RTTOV-7 satellite identifier
+! Table of RTTOV satellite identifier
     INTEGER,SAVE :: LISTSAT (mxsatburp)
 
     NAMELIST /NAMSAT/ LISTBURP, LISTPLAT, LISTSAT
