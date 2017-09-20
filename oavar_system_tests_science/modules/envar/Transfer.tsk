@@ -1,0 +1,272 @@
+#!/bin/ksh
+#.*****************************************************************************
+#.
+#.     JOB NAME - Transfer
+#.
+#.     STATUS - OPERATIONAL - ESSENTIAL
+#.
+#.     DESCRIPTION - This task send all the outputs from the module outside
+#.                   its the working space.  
+#.
+#.*****************************************************************************
+
+for file in $(ls -1d ${TASK_INPUT}/*); do
+    target=$(basename ${file})
+    destination=$(${TASK_BIN}/readlink ${TASK_OUTPUT}/ENVAR_output)
+
+    ## check if local
+    local=yes
+    if [[ "${destination}" != /* ]]; then
+    ## alors '${destination}' est de la forme 'host:/a/path/to/a/remote/directory' et on verifie si host=${destination%%:*}=${TRUE_HOST} et c'est local si c'est le cas.
+       if [ "${destination%%:*}" != "${TRUE_HOST}" ]; then
+          local=no
+       fi
+    fi
+
+    if [ "${local}" = yes ]; then
+        destination=${destination#*:}
+    fi
+    
+    if [ "${target}" = postalt ]; then
+	if [ "${local}" = "yes" ]; then
+	    $SEQ_BIN/nodelogger -n $SEQ_NODE -s infox -m  "Put ${target} in ${destination} (local copy)"
+	    mkdir -p ${destination}
+	    if [ "${ENVAR_output_mode}" = tree ]; then
+		mkdir -p ${destination}/${ENVAR_output_banco_name}/postalt
+	    fi
+	    if [ -f ${TASK_INPUT}/${target} ]; then
+		outputfile=${ENVAR_DATE}_
+		true_subfile=$(${TASK_BIN}/true_path ${TASK_INPUT}/${target})
+		if [ "${ENVAR_output_mode}" = tree ]; then
+		    rm -f ${destination}/${ENVAR_output_banco_name}/postalt/${outputfile}
+		    cp ${true_subfile} ${destination}/${ENVAR_output_banco_name}/postalt/${outputfile}
+		elif [ "${ENVAR_output_mode}" = flat ]; then
+		    rm -f ${destination}/${ENVAR_output_banco_name}.postalt.${outputfile}
+		    cp ${true_subfile} ${destination}/${ENVAR_output_banco_name}.postalt.${outputfile}
+		fi
+	    else
+		for subfile in ${TASK_INPUT}/${target}/*; do
+		    subfile_ext=$(basename ${subfile} | cut -c4-)
+		    if [ "${subfile_ext}" = sfc ]; then
+			subfile_ext=sf
+		    fi
+		    outputfile=${ENVAR_DATE}_${subfile_ext}
+		    true_subfile=$(${TASK_BIN}/true_path ${subfile})
+		    if [ "${ENVAR_output_mode}" = tree ]; then
+			rm -f ${destination}/${ENVAR_output_banco_name}/postalt/${outputfile}
+			cp ${true_subfile} ${destination}/${ENVAR_output_banco_name}/postalt/${outputfile}
+		    elif [ "${ENVAR_output_mode}" = flat ]; then
+			rm -f ${destination}/${ENVAR_output_banco_name}/postalt/${outputfile}
+			cp ${true_subfile} ${destination}/${ENVAR_output_banco_name}.postalt.${outputfile}
+		    fi
+		done
+	    fi ## Fin du 'else' relie au 'if [ -f ${TASK_INPUT}/${target} ]'
+	else
+	    $SEQ_BIN/nodelogger -n $SEQ_NODE -s infox -m  "Put ${target} in ${destination} (remote copy)"
+	    ssh ${destination%%:*} mkdir -p ${destination##*:}
+	    if [ "${ENVAR_output_mode}" = tree ]; then
+		ssh ${destination%%:*} mkdir -p ${destination##*:}/${ENVAR_output_banco_name}/postalt
+	    fi
+	    if [ -f ${TASK_INPUT}/${target} ]; then
+		outputfile=${ENVAR_DATE}_
+		subfile=${TASK_INPUT}/${target}
+		if [ "${ENVAR_output_mode}" = tree ]; then
+		    ${TASK_BIN}/remote_copy ${subfile} ${destination}/${ENVAR_output_banco_name}/postalt/${outputfile}
+		elif [ "${ENVAR_output_mode}" = flat ]; then
+		    ${TASK_BIN}/remote_copy ${subfile} ${destination}/${ENVAR_output_banco_name}.postalt.${outputfile}
+		fi
+	    else
+		for subfile in ${TASK_INPUT}/${target}/*; do
+		    subfile_ext=$(basename ${subfile} | cut -c4-)
+		    if [ "${subfile_ext}" = sfc ]; then
+			subfile_ext=sf
+		    fi
+		    outputfile=${ENVAR_DATE}_${subfile_ext}
+		    if [ "${ENVAR_output_mode}" = tree ]; then
+			${TASK_BIN}/remote_copy ${subfile} ${destination}/${ENVAR_output_banco_name}/postalt/${outputfile}
+		    elif [ "${ENVAR_output_mode}" = flat ]; then
+			${TASK_BIN}/remote_copy ${subfile} ${destination}/${ENVAR_output_banco_name}.postalt.${outputfile}
+		    fi
+		done
+	    fi ## Fin du 'else' relie au 'if [ -f ${TASK_INPUT}/${target}'
+	fi
+    elif [ "${target}" = other ]; then
+	[ -z "${ENVAR_other_output_list}" ] && continue
+
+	if [ "${local}" = "yes" ]; then
+	    $SEQ_BIN/nodelogger -n $SEQ_NODE -s infox -m  "Put ${target} in ${destination} (local copy)"
+	    mkdir -p ${destination}/
+	    if [ "${ENVAR_output_mode}" = tree ]; then
+		mkdir -p ${destination}/${ENVAR_output_gridpt_name}/anal/other
+	    fi
+	    for prefix in ${ENVAR_other_output_list}; do
+		eval pattern=${prefix}
+		for subfile in ${TASK_INPUT}/${target}/*; do
+		    if [[ $(basename ${subfile}) = ${pattern} ]]; then
+			if [ -f "${subfile}" ]; then
+			    true_subfile=$(${TASK_BIN}/true_path ${subfile})
+			    if [ "${ENVAR_output_mode}" = tree ]; then
+				rm -f ${destination}/${ENVAR_output_gridpt_name}/anal/other/$(basename ${true_subfile})
+				cp ${true_subfile} ${destination}/${ENVAR_output_gridpt_name}/anal/other
+			    elif [ "${ENVAR_output_mode}" = flat ]; then
+				rm -f ${destination}/$(basename ${true_subfile})
+				cp ${true_subfile} ${destination}
+			    fi
+			fi
+		    fi
+		done
+	    done
+	else
+	    $SEQ_BIN/nodelogger -n $SEQ_NODE -s infox -m  "Put ${target} in ${destination} (remote copy)"
+	    ssh ${destination%%:*} mkdir -p ${destination##*:}
+	    if [ "${ENVAR_output_mode}" = tree ]; then
+		ssh ${destination%%:*} mkdir -p ${destination##*:}/${ENVAR_output_gridpt_name}/anal/other
+	    fi
+	    for prefix in ${ENVAR_other_output_list}; do
+		pattern=
+		for subfile in ${TASK_INPUT}/${target}/${prefix}*; do
+		    ${TASK_BIN}/remote_copy ${subfile} ${destination}
+		    if [ -f "${subfile}" ]; then
+			if [ "${ENVAR_output_mode}" = tree ]; then
+			    ${TASK_BIN}/remote_copy ${subfile} ${destination}/${ENVAR_output_gridpt_name}/anal/other
+			elif [ "${ENVAR_output_mode}" = flat ]; then
+			    ${TASK_BIN}/remote_copy ${subfile} ${destination}
+			fi
+		    fi
+		done
+	    done
+	fi
+    else
+	if [ -e ${TASK_INPUT}/${target} ]; then
+	    if [ "${target}" = analysis ]; then
+		if [[ "${ENVAR_analysis_output_mode}" = center ]]; then
+		    filename=${ENVAR_DATE}_000_nosfc
+		elif [[ "${ENVAR_analysis_output_mode}" = all ]]; then
+		    filename=${ENVAR_DATE}_ext2change_nosfc
+		else
+		    echo "La variable '\${ENVAR_analysis_output_mode}' doit etre 'center' ou bien 'all'"
+		    exit 1
+		fi
+	    elif [ "${target}" = increments_low ]; then
+		filename=${ENVAR_DATE}_inc_lo
+	    elif [ "${target}" = increments_high ]; then
+		if [ "${ENVAR_increment_highres_output_mode}" = 'yes' ]; then
+		    if [ -d ${TASK_INPUT}/${target} ]; then
+			filename=${ENVAR_DATE}_ext2change_inc_hi
+		    else
+			filename=${ENVAR_DATE}_inc_hi
+		    fi
+		else
+		    continue
+		fi
+	    elif [ "${target}" = precon ]; then
+		filename=${ENVAR_DATE}_precon
+	    else
+		echo "Unkown target '${target}' !!!"
+		exit 1
+	    fi
+
+	    final_filename=${ENVAR_output_gridpt_name}/anal/hyb/${filename}
+	    if [ "${local}" = "yes" ]; then
+		$SEQ_BIN/nodelogger -n $SEQ_NODE -s infox -m  "Put ${target} in ${destination} (local copy)"
+		if [ "${ENVAR_output_mode}" = tree ]; then
+		    mkdir -p $(dirname ${destination}/${final_filename})
+		    if [ -d ${TASK_INPUT}/${target} ]; then
+			for ffile in ${TASK_INPUT}/${target}/*; do
+			    ext=$(basename ${ffile})
+			    if [[ "${target}" = analysis && "${ext}" != 000m && "${ext}" != rebm && "${ENVAR_analysis_output_mode}" = center ]]; then
+				continue
+			    fi
+			    if [[ "${target}" = analysis && "${ext}" = 000m ]]; then
+				ext=000
+			    fi
+			    ffile_final=$(echo ${final_filename} | sed "s/ext2change/${ext}/")
+			    rm -f ${destination}/${ffile_final}
+			    true_ffile=$(${TASK_BIN}/true_path ${ffile})
+			    cp ${true_ffile} ${destination}/${ffile_final}
+			done
+		    else
+			rm -rf ${destination}/${final_filename}
+			true_target=$(${TASK_BIN}/true_path ${TASK_INPUT}/${target})
+			cp ${true_target} ${destination}/${final_filename}
+		    fi
+		elif [ "${ENVAR_output_mode}" = flat ]; then
+		    if [ -d ${TASK_INPUT}/${target} ]; then
+			for ffile in ${TASK_INPUT}/${target}/*; do
+			    ext=$(basename ${ffile})
+			    if [[ "${target}" = analysis && "${ext}" = 000m ]]; then
+				ext=000
+			    fi
+			    ffile_final=$(echo ${final_filename} | sed "s/ext2change/${ext}/" | sed 's!/!\.!g')
+			    rm -f ${destination}/${ffile_final}
+			    true_ffile=$(${TASK_BIN}/true_path ${ffile})
+			    cp ${true_ffile} ${destination}/${ffile_final}
+			done
+		    else
+			finalfinal_filename=${destination}/$(echo ${final_filename} | sed 's!/!\.!g')
+			rm -rf ${finalfinal_filename}
+			true_target=$(${TASK_BIN}/true_path ${TASK_INPUT}/${target})
+			cp ${true_target} ${finalfinal_filename}
+		    fi
+		fi
+	    else
+		$SEQ_BIN/nodelogger -n $SEQ_NODE -s infox -m  "Put ${target} in ${destination} (remote copy)"
+		if [ "${ENVAR_output_mode}" = tree ]; then
+		    if [ -d ${TASK_INPUT}/${target} ]; then
+			for ffile in ${TASK_INPUT}/${target}/*; do
+			    ext=$(basename ${ffile})
+			    if [[ "${target}" = analysis && "${ext}" != 000m && "${ENVAR_analysis_output_mode}" = center ]]; then
+				continue
+			    fi
+			    if [[ "${target}" = analysis && "${ext}" = 000m ]]; then
+				ext=000
+			    fi
+			    ffile_final=$(echo ${final_filename} | sed "s/ext2change/${ext}/")
+			    ssh ${destination%%:*} mkdir -p $(dirname ${destination##*:}/${ffile_final})
+			    ssh ${destination%%:*} rm -rf ${destination##*:}/${ffile_final}
+			    ${TASK_BIN}/remote_copy -r ${ffile} ${destination}/${ffile_final}
+			done
+		    else
+			ssh ${destination%%:*} mkdir -p $(dirname ${destination##*:}/${final_filename})
+			ssh ${destination%%:*} rm -rf ${destination}/${final_filename}
+			${TASK_BIN}/remote_copy -r ${TASK_INPUT}/${target} ${destination}/${final_filename}
+		    fi
+		elif [ "${ENVAR_output_mode}" = flat ]; then
+		    if [ -d ${TASK_INPUT}/${target} ]; then
+			for ffile in ${TASK_INPUT}/${target}/*; do
+			    ext=$(basename ${ffile})
+			    if [[ "${target}" = analysis && "${ext}" != 000m && "${ENVAR_analysis_output_mode}" = center ]]; then
+				continue
+			    fi
+			    if [[ "${target}" = analysis && "${ext}" = 000m ]]; then
+				ext=000
+			    fi
+			    ffile_final=$(echo ${final_filename} | sed "s/ext2change/${ext}/" | sed 's!/!\.!g')
+			    ssh ${destination%%:*} rm -rf ${destination##*:}/${ffile_final}
+			    ${TASK_BIN}/remote_copy -r ${ffile} ${destination}/${ffile_final}
+			done
+		    else
+			ssh ${destination%%:*} rm -rf ${destination##*:}/$(echo ${final_filename} | sed 's!/!\.!g')
+			${TASK_BIN}/remote_copy -r ${TASK_INPUT}/${target} ${destination}/$(echo ${final_filename} | sed 's!/!\.!g')
+		    fi
+		fi
+	    fi
+        else
+            $SEQ_BIN/nodelogger -n $SEQ_NODE -s abort -m  "Target ${target} does not exist"
+            exit 1
+	fi
+    fi
+
+done
+
+cd ${TMPDIR}
+
+if [ "${ENVAR_Clean_WorkDir}" = yes -a "${SEQ_NAME}" = Transfer ]; then
+    rm -rf ${SEQ_WORKBASE}/${SEQ_CONTAINER}
+    ## On va chercher la machine de la tache 'VAR'
+    getVARresources host
+
+    if [ "${getVARresources_host}" != "${TRUE_HOST}" ]; then
+	ssh ${getVARresources_host} rm -rf ${SEQ_EXP_HOME}/hub/${getVARresources_host}/work/${SEQ_DATE}/${SEQ_CONTAINER}
+    fi
+fi

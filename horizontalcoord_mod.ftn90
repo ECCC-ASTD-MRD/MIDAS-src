@@ -57,6 +57,7 @@ module HorizontalCoord_mod
      real(8)              :: xlon1
      real(8)              :: xlat2
      real(8)              :: xlon2
+     real(4), allocatable :: tictacU(:)
   end type struct_hco
 
   contains
@@ -81,9 +82,9 @@ module HorizontalCoord_mod
     real    :: xlat1_4, xlon1_4, xlat2_4, xlon2_4
 
     integer :: iu_template
-    integer :: fnom, fstouv, fstfrm, fclos, ezqkdef
+    integer :: fnom, fstlir, fstouv, fstfrm, fclos, ezqkdef
     integer :: key, fstinf, fstprm, ier, fstinl, EZscintID
-    integer :: ni, nj, ni_t, nj_t, nlev_t, i, j, gdll
+    integer :: ni, nj, ni_tictacU, ni_t, nj_t, nlev_t, i, j, gdll
     integer :: dateo, deet, npas, nk, nbits, datyp
     integer :: ip1, ip2, ip3, swa, lng, dltf, ubc
     integer :: extra1, extra2, extra3
@@ -290,6 +291,37 @@ module HorizontalCoord_mod
 
     !- 2.4 Universal Grid (Yin-Yang) - not fully supported: use at own risk!
     elseif ( trim(grtyp) == 'U' ) then
+
+      !-  2.4.1 Read the tic-tac vector
+      dateo  = -1
+      etiket = ' '
+      ip1    = ig1
+      ip2    = ig2
+      ip3    = ig3
+      typvar = 'X'
+      nomvar = '^>'
+
+      ni_tictacU = 5 + 2 * (10 + ni + nj/2)
+      allocate(hco%tictacU(ni_tictacU))
+      ier = fstlir( hco%tictacU,                                 & ! OUT 
+                    iu_template,                                 & ! IN
+                    ni_t, nj_t, nlev_t,                          & ! OUT
+                    dateo, etiket, ip1, ip2, ip3, typvar, nomvar)  ! IN
+
+      if (ier < 0) then
+        write(*,*)
+        write(*,*) 'hco_SetupFromFile: Unable to find ^> grid descriptors'
+        call utl_abort('hco_setupFromFile')
+      end if
+
+      !  Test if the dimensions are compatible with the grid
+      if ( ni_t /= ni_tictacU .or. nj_t /= 1 ) then
+        write(*,*)
+        write(*,*) 'hco_SetupFromFile: Incompatible ^> grid descriptors !'
+        write(*,*) 'Found     :', ni_t, nj_t
+        write(*,*) 'Should be :', ni_tictacU, 1
+        call utl_abort('hco_setupFromFile')
+      end if
 
       !-  2.4.1 Initialize latitudes and longitudes to dummy values - should not be used!
       lon_8(:) = -999.999d0
