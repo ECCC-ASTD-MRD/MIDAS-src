@@ -66,10 +66,11 @@ program main_randomPert
   character(len=3)  :: clmember
   character(len=25) :: clfiname
   character(len=12) :: etiket
+  character(len=12) :: out_etiket
   
   logical  :: remove_mean, smoothVariances, write_mpi
   integer  :: nens, seed, date
-  NAMELIST /NAMENKF/nens, seed, date, remove_mean, smoothVariances, write_mpi
+  NAMELIST /NAMENKF/nens, seed, date, out_etiket,remove_mean, smoothVariances, write_mpi
 
   write(*,'(/,' //  &
         '3(" *****************"),/,' //                   &
@@ -98,6 +99,7 @@ program main_randomPert
   seed  = 1
   date  = 1900120100
   remove_mean = .true.
+  out_etiket='RANDOM_PERT' 
   smoothVariances = .false.
   write_mpi = .false.
 
@@ -373,10 +375,10 @@ program main_randomPert
     if( mpi_myid == 0 ) write(*,*)'MAIN_RANDOMPERT: PROCESSING clfiname= ', clfiname
 
     if( write_mpi ) then
-      call gsv_writeToFileMPI(statevector, clfiname, 'RANDOM_PERT',      & ! IN
+      call gsv_writeToFileMPI(statevector, clfiname, out_etiket,      & ! IN
                               HUcontainsLQ=.true., unitConversion=.true.)  ! IN
     else
-      call gsv_writeToFile(statevector, clfiname, 'RANDOM_PERT',      & ! IN
+      call gsv_writeToFile(statevector, clfiname, out_etiket,      & ! IN
                            HUcontainsLQ=.true., unitConversion=.true.)  ! IN
     end if
 
