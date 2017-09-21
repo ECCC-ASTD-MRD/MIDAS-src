@@ -79,7 +79,7 @@ if [ $mode == full ] ; then
   rm -f *.o *.mod *.cdk* *.h *.ftn* *.f *.f90
 
   # Create a local copy of the source code
-  cp -f ${trunkdir}/${program}/main_${program}.f90 ${compiledir}/
+  cp -f ${trunkdir}/${program}/*.f*90 ${compiledir}/
   cp -f ${trunkdir}/*.f*90 ${compiledir}/
   cp -f ${trunkdir}/*.inc ${compiledir}/
   cp -f ${trunkdir}/shared/*.f*90 ${compiledir}/

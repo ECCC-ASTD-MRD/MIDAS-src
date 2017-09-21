@@ -30,7 +30,7 @@ program main_calcstats
   implicit none
 
   type(struct_vco), pointer :: vco_ens => null()
-  type(struct_hco), pointer :: hco_ens
+  type(struct_hco), pointer :: hco_ens => null()
 
   character(len=256), parameter :: enspathname = './ensemble'
   character(len=4)   :: censnumber
@@ -83,8 +83,7 @@ program main_calcstats
   end do
 
   !- 1.3 Initialize the horizontal grid
-  call hco_SetupFromFile( cflensin(1), ' ', 'Ensemble' ) ! IN
-  hco_ens => hco_Get('Ensemble')
+  call hco_SetupFromFile(hco_ens, trim(cflensin(1)), ' ', 'Ensemble' ) ! IN
 
   !- 1.4 Initialize the vertical grid
   select case(trim(spatialDimensions))
