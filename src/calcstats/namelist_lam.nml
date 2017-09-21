@@ -1,5 +1,5 @@
  &NAMCONF
-   CMODE   = 'BHI'
+   MODE   = 'BHI'
 /
  &NAMSTATE
    CGNEED(1)   ='UU'
@@ -7,10 +7,10 @@
    CGNEED(3)   ='TT'
    CGNEED(4)   ='HU'
    CGNEED(5)   ='P0'
-   CGNEED(6)   ='TG'
+!   CGNEED(6)   ='TG'
 /
  &NAMENS
-   NENS=117
+   NENS=128
    ENSFILEBASENAME='national_'
    IP2=6
 /

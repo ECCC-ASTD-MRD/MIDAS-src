@@ -2754,7 +2754,7 @@ module calcstatsglb_mod
     allocate(distanceBinMean(numBins))
     allocate(distanceBinWeight(numBins))
 
-    call loc_setup('FifthOrder') ! IN
+    call lfn_setup('FifthOrder') ! IN
 
     localizationRadii(:,:) = 2000.d0*1000.d0 ! First Guess (meter)
     distanceBinWeight(:)   = 1.d0            ! Even weight
@@ -2772,7 +2772,7 @@ module calcstatsglb_mod
 !$OMP PARALLEL DO PRIVATE (k,rmse)
        do k =  1, nkgdimEns
           write(6,*) '         ----- EnsLev : ', k
-          call loc_lengthscale( localizationRadii(f,k),       & ! INOUT
+          call lfn_lengthscale( localizationRadii(f,k),       & ! INOUT
                                 rmse,                         & ! OUT
                                 localizationFunctions(f,:,k), & ! IN
                                 distanceBinMean,              & ! IN
@@ -3133,7 +3133,7 @@ module calcstatsglb_mod
 !!$    allocate(distanceBinMean(numBins))
 !!$    allocate(distanceBinWeight(numBins))
 !!$
-!!$    call loc_setup('FifthOrder') ! IN
+!!$    call lfn_setup('FifthOrder') ! IN
 !!$
 !!$    localizationRadii(:,:) = 2000.d0*1000.d0 ! First Guess (meter)
 !!$    distanceBinWeight(:)   = 1.d0            ! Even weight
@@ -3152,7 +3152,7 @@ module calcstatsglb_mod
 !!$!$OMP DO PRIVATE (k,rmse)
 !!$       do k =  1, nkgdimEns
 !!$          write(6,*) '         ----- EnsLev : ', k
-!!$          call loc_lengthscale( localizationRadii(f,k),       & ! INOUT
+!!$          call lfn_lengthscale( localizationRadii(f,k),       & ! INOUT
 !!$                                rmse,                         & ! OUT
 !!$                                localizationFunctions(f,:,k), & ! IN
 !!$                                distanceBinMean,              & ! IN
@@ -3551,7 +3551,7 @@ module calcstatsglb_mod
     allocate(localizationRadii(numFunctions,nkgdimEns))
     allocate(distanceBinWeight(numBins))
 
-    call loc_setup('FifthOrder') ! IN
+    call lfn_setup('FifthOrder') ! IN
 
     localizationRadii(:,:) = 2.d0 ! First Guess (in ln(p) distance)
     distanceBinWeight(:)   = 1.d0 ! Even weight
@@ -3577,7 +3577,7 @@ module calcstatsglb_mod
           do k =  nLevStart, nLevEnd
              kens = k-nLevStart+1
              write(6,*) '         ----- EnsLev : ', k
-             call loc_lengthscale( localizationRadii(f,k),       & ! INOUT
+             call lfn_lengthscale( localizationRadii(f,k),       & ! INOUT
                                    rmse,                         & ! OUT
                                    localizationFunctions(f,1:nLevEns,k), & ! IN
                                    distanceBinInLnP(kens,:),        & ! IN

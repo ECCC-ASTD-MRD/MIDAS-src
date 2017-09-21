@@ -1,169 +1,179 @@
-#!/bin/ksh
+#!/bin/bash
+
+set -e
 
 mode=$1
+program="calcstats"
+
+. ./compile_commons.sh
+
+echo "..."
+echo "...             |=====================================================|"
+echo "... ------------| Compilation script STARTING for program: ${program} |------------"
+echo "...             |=====================================================|"
 
 if [ "$mode" == "" ] ; then
-  echo " "
-  echo "------------------------------------------------------- "
-  echo "WARNING: no compilation mode specified, assuming 'full'"
-  echo "------------------------------------------------------- "
-  echo " "
+  echo "..."
+  echo "... !WARNING! no compilation mode specified, assuming 'full'"
   mode=full
 fi
 
 if [ $mode == full ] ; then
-  echo
-  echo "----------------------------------------"
-  echo " >>> Full Compilation"
-  echo "----------------------------------------"
-  echo
+  echo "..."
+  echo "... > Full Compilation"
 elif [ $mode == abs ] ; then
-  echo
-  echo "----------------------------------------"
-  echo " >>> Building the Executable only"
-  echo "----------------------------------------"
-  echo
+  echo "..."
+  echo "... > Building the Executable only"
 else
-  echo
-  echo "----------------------------------------"
-  echo " >>> Compiling only routine : $1"
-  echo "----------------------------------------"
-  echo
+  echo "..."
+  echo "... > Compiling only routine : $1"
 fi
 
-echo " Compiling for an MPI executable"
-echo ""
-MPILIBDIR="-libpath /users/dor/arma/anl/userlibs/${BASE_ARCH}/xlf13" # JFC : Mesure temporaire pour avoir acces a
-MPILIB="_anl_rpn_comm_4051103"                                       #       la S-R RPN_COMM_adj_halo8 de M. Valin
-MPIKEY="-mpi"
-ABSTAG=""
+echo "..."
+echo "... > Compiling for an MPI executable"
+MPILIB="rpn_comm"
 
-calcstatsdir=$PWD
+codesubdir=$PWD
 trunkdir=$PWD/../
 
-## for s.compile
-echo "loading hpcs/201402/02/base"
-. ssmuse-sh -d hpcs/201402/02/base
+# Get revision number
+revnum=$(git describe --abbrev=7 --always --dirty=_M 2>/dev/null || ssh eccc-ppp1 "cd $trunkdir; git describe --abbrev=7 --always --dirty=_M" 2>/dev/null || echo unkown revision)
+echo "..."
+echo "... > Revision Number = '$revnum'"
 
-## for the compiler
-echo "loading compiler hpcs/ext/xlf_13.1.0.10"
-. ssmuse-sh -d hpcs/ext/xlf_13.1.0.10
-
-## for rmn, lapack_3.4.0, rpncomm
-echo "loading rpn/libs/15.2"
-. ssmuse-sh -d rpn/libs/15.2
-
-## for 'vgrid'
-echo "loading cmdn/vgrid/5.3.2/${COMP_ARCH}"
-. ssmuse-sh -d cmdn/vgrid/5.3.2/${COMP_ARCH}
-
-## For hpcsperf needed for TMG timings
-. ssmuse-sh -d hpcs/exp/aspgjdm/perftools
-
-LIBAPPL="descrip $MPILIB"
-
-LIBSYS="essl mass"
-LIBRMN="rmn"
-LIBEXTRA="hpcsperf lapack-3.4.0"
-COMPF_NOC="-openmp $MPIKEY -O"
-#COMPF="$COMPF_NOC"
-COMPF="$COMPF_NOC -debug DEBUG -optf=-C "
-
-# Create and Move to compilation directory
-compiledir="../../compiledir_calcstats"
-echo "COMPILEDIR IS SET TO: $compiledir"
+# Set compiledir
+compiledir_main=${COMPILEDIR_OAVAR_MAIN:-"../../compiledir"}
+compiledir_ID=${COMPILEDIR_OAVAR_ID:-$revnum}
+compiledir=${compiledir_main}/compiledir-${program}-${ORDENV_PLAT}_${compiledir_ID}
 mkdir -p $compiledir
 cd $compiledir
+compiledir=${PWD} # needed when compiledir_main = ".."
 
-compiledir=$PWD
+echo "..."
+echo "... > Compiledir set to ${compiledir}"
+
+if [ ${compiledir_main} != "../../compiledir" ] ; then
+    if [ ! -d  ${trunkdir}/../compiledir/compiledir-${program}-${ORDENV_PLAT}_${compiledir_ID} ] ; then
+	if [ ! -d  ${trunkdir}/../compiledir ] ; then
+	    mkdir -p ${trunkdir}/../compiledir
+	fi
+	ln -s ${compiledir_main}/compiledir-${program}-${ORDENV_PLAT}_${compiledir_ID} ${trunkdir}/../compiledir/compiledir-${program}-${ORDENV_PLAT}_${compiledir_ID}
+    fi
+fi
+
+absdir=${compiledir_main}/oavar_abs
+mkdir -p ${absdir}
+cd $absdir ; absdir=$PWD ; cd - >/dev/null
+
+varabs=${program}_${ORDENV_PLAT}-${revnum}.Abs
+
+#-----------------------------------------------------------------------------
+
+# LIBAPPL defined in "src_files" script
+LIBSYS="hpcoperf"
+LIBRMN=rmnMP
+. ${codesubdir}/src_files_${program}.sh
 
 if [ $mode == full ] ; then
 
   rm -f *.o *.mod *.cdk* *.h *.ftn* *.f *.f90
 
   # Create a local copy of the source code
-  trunkfiles="mpi_mod.ftn90 mpivar_mod.ftn90 physicsfunctions_mod.ftn90 controlvector_mod.ftn90 \
-            globalspectraltransform_mod.ftn90 lamanalysisgrid_mod.ftn90 localizationfunction_mod.ftn90 \
-            gridstatevector_mod.ftn90 maincompileswitch.inc varnamelist_mod.ftn90 lambmatrixhi_mod.ftn90 \
-            utilities_mod.ftn90 lamspectraltransform_mod.ftn90 \
-            verticalcoord_mod.ftn90 horizontalcoord_mod.ftn90 timecoord_mod.ftn90 \
-            columndata_mod.ftn90 bmatrixensemble_mod.ftn90 bmatrixhi_mod.ftn90 bmatrix_mod.ftn90 \
-            randomnumber_mod.ftn90 variabletransforms_mod.ftn90 spectraltransform_mod.ftn90"
+  cp -f ${trunkdir}/${program}/*.f*90 ${compiledir}/
+  cp -f ${trunkdir}/*.f*90 ${compiledir}/
+  cp -f ${trunkdir}/*.inc ${compiledir}/
+  cp -f ${trunkdir}/shared/*.f*90 ${compiledir}/
+  cp -f ${trunkdir}/shared/*.inc ${compiledir}/
+  cp -f ${trunkdir}/bgcheck/*.f*90 ${compiledir}/
 
-  cd ${trunkdir}
-  cp -f calcstats/*.ftn90 ${compiledir}
-  cp -f ${trunkfiles} ${compiledir}
-  cd ${trunkdir}/shared; ls -1F | grep -v '/' | grep -v "*" | cpio -pl ${compiledir}
   cd ${compiledir}
 
-  echo "STARTING COMPILATION AT:" 
-  date
+  # Add revision number to the main routine
+  sed -i "s|GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE|${revnum}|g" main_${program}.f90
 
-  # Compile the subroutines...
-  echo "compiling low-level independent modules"
-  SRC0="randomnumber_mod.ftn90 utilities_mod.ftn90 bufr_mod.ftn90"
-  SRC0="$SRC0 mathphysconstants_mod.ftn90 earthconstants_mod.ftn90 mpi_mod.ftn90 mpivar_mod.ftn90"
-  SRC0="$SRC0 physicsfunctions_mod.ftn90 horizontalcoord_mod.ftn90 obsspacedata_mod.ftn90"
-  s.compile $COMPF -src $SRC0 > listing0a 2>&1
-  grep fail listing0a
-  if [ $? = "0" ] ; then exit ; fi
+  echo "..."
+  echo "... > STARTING COMPILATION AT: $(date)"
+  echo "..."
 
-  echo "compiling analysis grid modules"
-  SRC0="lamanalysisgrid_mod.ftn90"
-  s.compile $COMPF -src $SRC0 > listing0b 2>&1
-  grep fail listing0b
-  if [ $? = "0" ] ; then exit ; fi
+  echo "... > Compiling all modules and subroutines ..."
+  echo "...   if aborting, check in ${PWD}/listing"
 
-  echo "compiling most of the new modules"
-  SRC1="controlvector_mod.ftn90 varnamelist_mod.ftn90 timecoord_mod.ftn90 localizationfunction_mod.ftn90"
-  SRC1="$SRC1 globalspectraltransform_mod.ftn90 verticalcoord_mod.ftn90"
-  SRC1="$SRC1 lamspectraltransform_mod.ftn90 gridstatevector_mod.ftn90"
-  SRC1="$SRC1 columndata_mod.ftn90 lambmatrixhi_mod.ftn90 spectraltransform_mod.ftn90"
-  SRC1="$SRC1 calcstatsglb_mod.ftn90 calcstatslam_mod.ftn90"
-  s.compile $COMPF -src $SRC1 > listing1 2>&1
-  grep fail listing1
-  if [ $? = "0" ] ; then exit ; fi
+  s.compile $COMPF -O ${FOPTMIZ} -src $SRC_FILES > listing 2>&1
+  status=1
+  grep fail listing || status=0
+  if [ "${status}" -ne 0 ] ; then
+      echo "... !! Compilation aborted: check in ${PWD}/listing !!"
+      exit 1
+  fi
 
-  echo "compiling remaining ftn ftn90..."
-  filelist=""
-  for i in *.ftn90 ; do
-    xx=`echo $i |grep -v _mod.ftn` 
-    filelist="$filelist $xx"
-  done
-  s.compile $COMPF -src $filelist > listing4 2>&1
-  grep fail listing4
-  if [ $? = "0" ] ; then exit ; fi
+  echo "... > Compiling main program..."
+  echo "...   if aborting, check in ${PWD}/listing_main"
+  s.compile $COMPF -O ${FOPTMIZ} -src main_${program}.f90 > listing_main 2>&1
+  status=1
+  grep fail listing_main || status=0
+  if [ "${status}" -ne 0 ]; then
+      echo "... !! Compilation aborted: check in ${PWD}/listing_main !!"
+      exit 1
+  fi
 
-  echo "building the executable..."
-  s.compile $COMPF ${MPILIBDIR} -libappl $LIBAPPL $LIBEXTRA -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o calcstats_p7.abs$ABSTAG > listing5 2>&1
+  echo "... > Building the executable ${varabs}"
+  rm -f ${varabs}
+  echo "...   if aborting, check in ${PWD}/listing_abs"
+  s.compile $COMPF  -O ${FOPTMIZ} ${MPILIBDIR} -libappl $LIBAPPL -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o ${varabs} > listing_abs 2>&1
+  status=1
+  grep fail listing_abs || status=0
+  if [ "${status}" -ne 0 ]; then
+      echo "... !! Compilation aborted: check in ${PWD}/listing_abs !!"
+      exit 1
+  fi
 
-  grep -i ERROR listing?
-  if [ $? = "0" ] ; then exit; echo "ERROR found: STOP" ; fi
-
-  rm -f *.ftn* 
-
-  echo "FINISHED COMPILATION AT:"
-  date
+  status=1
+  grep -i " ERROR " listing* || status=0
+  if [ "${status}" -ne 0 ] ; then
+      echo "... !! ERROR found: STOP; check listing in ${PWD} !!"
+      exit 1
+  fi
+  cp ${varabs} ${absdir}/
 
 elif [ $mode == abs ] ; then
 
-  rm -f calc_stats_p7.abs$ABSTAG
+  rm -f ${varabs}
 
-  echo
-  echo "building the executable..."
-  echo
-  s.compile $COMPF ${MPILIBDIR} -libappl $LIBAPPL $LIBEXTRA -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o calcstats_p7.abs$ABSTAG
+  echo "..."
+  echo "... > Building the executable ${varabs}"
+  echo "..."
+  s.compile $COMPF  -O ${FOPTMIZ} ${MPILIBDIR} -libappl $LIBAPPL -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o ${varabs}
+  cp ${varabs} ${absdir}/
 
 else
 
-  if [ -f $calcstatsdir/$mode ] ; then
+  if [ -f $codesubdir/$mode ] ; then
     file=`basename $mode`
     rm -f $file
-    cp $calcstatsdir/$mode .
-    s.compile $COMPF -src $file
+    cp $codesubdir/$mode .
+    echo "..."
+    echo "... compiling $mode"
+    echo "..."
+    s.compile $COMPF  -O ${FOPTMIZ} -src $file
   else
-    echo "File $calcstatsdir/$mode does NOT exist. Stop"
+    echo "..."
+    echo "... !! File $codesubdir/$mode does NOT exist. Stop !!"
     exit 1
   fi
 
 fi
+
+echo "..."
+echo "... > FINISHED COMPILATION AT: $(date)"
+if [ "${mode}" == full -o "${mode}" == abs ] ; then
+    echo "..."
+    echo "... The program can be found here: ${absdir}/${varabs}"
+    echo "..."
+else
+    echo "..."
+fi
+
+echo "...             |==================================================|"
+echo "... ------------| Compilation script ENDING for program ${program} |------------"
+echo "...             |==================================================|"
+echo ""

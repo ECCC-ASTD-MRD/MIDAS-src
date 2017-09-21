@@ -6,7 +6,7 @@
 #
 machine=hare
 #machine=eccc-ppp2
-abs="${HOME}/data_maestro/ords/oavar_abs/ensmanip_sles-11-broadwell-64-xc40-m_2.2.2-35-gebdbcba_M.Abs"
+abs="/home/bed666/bin/var/compiledir-ensmanip-sles-11-broadwell-64-xc40_m_2.2.2-61-g4e18e02_M/ensmanip_sles-11-broadwell-64-xc40-m_2.2.2-61-g4e18e02_M.Abs"
 #abs="${HOME}/data_maestro/ords/oavar_abs/ensmanip_ubuntu-14.04-amd64-64-m_2.2.2-35-gebdbcba_M.Abs"
 #ensdir="/home/mab001/data_maestro/hare/ensmanip/ensemble/"
 #ensdir="/home/mab001/sitestore1/maestro_archives/Tests/EnVar_small_v001/inputs/ensemble/"

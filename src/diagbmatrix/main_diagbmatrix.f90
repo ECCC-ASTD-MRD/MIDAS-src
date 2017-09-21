@@ -151,12 +151,8 @@ program main_diagBmatrix
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Initialize the vertical coordinate from the statistics file
-  if ( hco_anl % global ) then
-    etiket = 'BGCK_STDDEV'
-  else
-    etiket = 'STDDEV'
-  end if
-  call vco_SetupFromFile(vco_anl,'./bgcov',etiket)
+  call vco_SetupFromFile( vco_anl,        & ! OUT
+                          './analysisgrid') ! IN
 
   ! Allocate the statevector
   call gsv_allocate(statevector, tim_nstepobsinc, hco_anl, vco_anl, &
