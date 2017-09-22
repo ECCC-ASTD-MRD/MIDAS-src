@@ -49,7 +49,7 @@ echo "..."
 echo "... > Revision Number = '$revnum'"
 
 # Set compiledir
-compiledir_main=${COMPILEDIR_OAVAR_MAIN:-"../compiledir"}
+compiledir_main=${COMPILEDIR_OAVAR_MAIN:-"../../compiledir"}
 compiledir_ID=${COMPILEDIR_OAVAR_ID:-$revnum}
 compiledir=${compiledir_main}/compiledir-${ORDENV_PLAT}_${compiledir_ID}
 mkdir -p $compiledir
@@ -59,7 +59,7 @@ compiledir=${PWD} # needed when compiledir_main = ".."
 echo "..."
 echo "... > Compiledir set to $compiledir"
 
-if [ ${compiledir_main} != "../compiledir" ] ; then
+if [ ${compiledir_main} != "../../compiledir" ] ; then
     if [ ! -d  ${trunkdir}/../compiledir/compiledir-${ORDENV_PLAT}_${compiledir_ID} ] ; then
 	if [ ! -d  ${trunkdir}/../compiledir ] ; then
 	    mkdir -p ${trunkdir}/../compiledir
