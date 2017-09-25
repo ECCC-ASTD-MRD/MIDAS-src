@@ -38,6 +38,10 @@ module physicsFunctions_mod
   public :: FOEFQPSA, fottva, folnqva
   public :: phf_convert_z_to_pressure,phf_convert_z_to_gz
   public :: phf_get_tropopause, phf_get_pbl
+  public :: tetens_coefs_switch
+
+  LOGICAL :: initialized = .false.
+  LOGICAL :: NEW_TETENS_COEFS
 
 !**s/r physicsFunctions  - REAL*8 thermodyanmic statement functions.
 !
@@ -49,14 +53,45 @@ module physicsFunctions_mod
 !                     over water (FOEW8_CMAM) and over ice (FOEI8_CMAM),
 !                     resultant sat. specific humidity (FOQST8_CMAM), and
 !                     others.
-!               Yves Rocho, ARQI/AQRD, Feb 2017
+!                Yves Rochon, ARQI/AQRD, Feb 2017
 !                   - Added phf_convert* and phf_get_*
+!
+!                Stephane Laroche, Sept 2017
+!                   - Added AERK thermodynamic fonctions
 !
 !     REAL*8 version of thermodynamic functions based on
 !     fintern.cdk in the physics library.
 !
 
   contains
+
+!
+! ==============================================================================
+!
+
+     subroutine tetens_coefs_switch
+
+      INTEGER*4      :: NULNAM,IER,FNOM,FCLOS
+      CHARACTER *256 :: NAMFILE
+
+      NEW_TETENS_COEFS = .false.
+      NAMELIST /NAMPHY/NEW_TETENS_COEFS
+      NAMFILE=trim("flnml")
+      nulnam=0
+      IER=FNOM(NULNAM,NAMFILE,'R/O',0)
+
+      READ(NULNAM,NML=NAMPHY,IOSTAT=IER)
+      if(IER.ne.0) then
+        write(*,*) 'No valid namelist NAMPHY found'
+      endif
+
+      iER=FCLOS(NULNAM)
+
+      write(*,*) 'new_tetens_coefs = ',new_tetens_coefs
+      initialized = .true.
+
+     end subroutine tetens_coefs_switch
+
 !
 ! ==============================================================================
 !
@@ -177,8 +212,16 @@ module physicsFunctions_mod
       real*8 function FOTW8(EEE) 
         implicit none
         real*8 EEE
-        FOTW8=(35.86D0*LOG(EEE/610.78D0)-17.269D0*MPC_TRIPLE_POINT_R8)/ &
-             (LOG(EEE/610.78D0)-17.269D0)
+!stl
+       if(.not.initialized) call tetens_coefs_switch
+       if(new_tetens_coefs) then
+         FOTW8=(30.11D0*LOG(EEE/610.94D0)-17.625D0*MPC_TRIPLE_POINT_R8)/ &
+              (LOG(EEE/610.94D0)-17.625D0)
+        else
+         FOTW8=(35.86D0*LOG(EEE/610.78D0)-17.269D0*MPC_TRIPLE_POINT_R8)/ &
+              (LOG(EEE/610.78D0)-17.269D0)
+        endif
+!stl         
       end function FOTW8
 !
 !     FONCTION DE LA TEMPERATURE EN FONCTION DE LA TENSION DE VAPEUR
@@ -195,7 +238,14 @@ module physicsFunctions_mod
       real*8 function FODTW8(TTT,EEE) 
         implicit none
         real*8 TTT,EEE
-        FODTW8=(35.86D0-TTT)/EEE/(LOG(EEE/610.78D0)-17.269D0)
+!stl
+        if(.not.initialized) call tetens_coefs_switch
+        if(new_tetens_coefs) then
+         FODTW8=(30.11D0-TTT)/EEE/(LOG(EEE/610.94D0)-17.625D0)
+        else
+         FODTW8=(35.86D0-TTT)/EEE/(LOG(EEE/610.78D0)-17.269D0)
+        endif
+!stl
       end function FODTW8
 !
 !     FONCTION DE LA DERIVE DE LA TEMPERATURE EN FONCTION DE LA TENSION DE

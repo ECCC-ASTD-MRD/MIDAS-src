@@ -41,7 +41,11 @@ SUBROUTINE BGCHECK_CONV(columng,columnhr,obsSpaceData)
   INTEGER J,JDATA
   REAL*8 ZJO
 
-  character(len=2), dimension(10) :: bgfam = (/ 'UA', 'AI', 'HU', 'SF', 'ST', 'SW', 'SC', 'PR', 'GP', 'CH' /)
+  INTEGER*4      :: NULNAM,IER,FNOM,FCLOS
+  CHARACTER *256 :: NAMFILE
+  LOGICAL        :: NEW_BGCK_SW
+
+  character(len=2), dimension(9) :: bgfam = (/ 'UA', 'AI', 'HU', 'SF', 'ST', 'SC', 'PR', 'GP', 'CH' /)
       
 !
   call tmg_start(3,'BGCHECK_CONV')
@@ -49,7 +53,25 @@ SUBROUTINE BGCHECK_CONV(columng,columnhr,obsSpaceData)
   WRITE(*,FMT=9000)
 9000 FORMAT(//,3(" **********"),/," BEGIN CONVENTIONNAL BACKGROUND CHECK",/,3(" **********"),/)
 
-!
+!stl
+  NEW_BGCK_SW = .false.
+
+  NAMELIST /NAMBGCKCONV/NEW_BGCK_SW
+  NAMFILE=trim("flnml")
+  nulnam=0
+  IER=FNOM(NULNAM,NAMFILE,'R/O',0)
+
+  READ(NULNAM,NML=NAMBGCKCONV,IOSTAT=IER)
+  if(IER.ne.0) then
+    write(*,*) 'selectb: No valid namelist NAMBGCKCONV found'
+  endif
+
+  iER=FCLOS(NULNAM)
+
+  write(*,*) 'new_bgck_sw = ',new_bgck_sw
+!stl
+
+
 !     CALCULATE HBHT (sigma_B in observation space)
 !     ----------------------------------------------
 !
@@ -66,6 +88,16 @@ SUBROUTINE BGCHECK_CONV(columng,columnhr,obsSpaceData)
   end do
 
   if (obs_famExist(obsSpaceData,'RO')) CALL BGCGPSRO(columnhr,obsSpaceData)
+
+!stl
+  if (obs_famExist(obsSpaceData,'SW')) then
+    if(new_bgck_sw) then
+      CALL BGCDATA(ZJO,'SX',obsSpaceData)
+    else
+      CALL BGCDATA(ZJO,'SW',obsSpaceData)
+    endif
+  endif
+!stl
 
 ! Conduct obs-space post-processing diagnostic tasks (some diagnostic 
 ! computations controlled by NAMOSD namelist in flnml)

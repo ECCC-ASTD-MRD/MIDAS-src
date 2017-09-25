@@ -63,6 +63,10 @@
       REAL*8 ZOER,ZOMP,ZFGE,ZBGCHK,ZVAR,ZLEV,ZLAT,ZLON,ZSOP
       LOGICAL LLOK, LLZD, LMODIF1020
 
+      INTEGER i_ass,i_vco,i_vnm,i_oth,istyp,index_body_u,index_body_v,index_body_start
+      REAL*8 uu_d,uu_r,uu_f,vv_d,vv_r,vv_f,duv2,duv2_lim,zslev
+      LOGICAL found_u,found_v
+
       lmodif1020=.false.
 
       WRITE(*,*)' '
@@ -95,6 +99,8 @@
         INTREJ=0
         INDREJ=0
       ENDIF
+
+      IF (CDFAM .NE. 'SX') THEN
 
       ! loop over all header indices of the CDFAM family
       call obs_set_current_header_list(lobsSpaceData,CDFAM)
@@ -239,6 +245,119 @@
 122   FORMAT(2x,a9,1x,f6.2,1x,f7.2,1x,I3,1x,I5,7(2x,F11.2),I3 )
 
       ENDDO HEADER
+
+
+!stl
+      ELSE !IF (CDFAM .NE. 'SX') THEN
+
+
+       call obs_set_current_body_list(lobsSpaceData, 'SW')
+       bodyuv: do
+         index_body = obs_getBodyIndex(lobsSpaceData)
+         if (index_body < 0) exit bodyuv
+
+         ! Only process pressure level observations flagged to be assimilated
+         i_ass=obs_bodyElem_i (lobsSpaceData,OBS_ASS,index_body)
+         i_vco=obs_bodyElem_i (lobsSpaceData,OBS_VCO,index_body)
+
+         if(i_ass.ne.1 .or. i_vco.ne.2) cycle bodyuv
+ 
+         index_header     = obs_bodyElem_i(lobsSpaceData,OBS_HIND,index_body)
+         index_body_start = obs_headElem_i(lobsSpaceData,OBS_RLN,index_header)
+
+         i_vnm = obs_bodyElem_i(lobsSpaceData,OBS_VNM,index_body)
+         zlev  = obs_bodyElem_r(lobsSpaceData,OBS_PPP,index_body)
+
+         found_u = .false.
+         found_v = .false.
+
+         if (i_vnm .EQ. BUFR_NEUU) then
+      
+          index_body_u = index_body
+          found_u = .true.
+
+          DO i_oth =index_body_start,index_body
+           istyp = obs_bodyElem_i(lobsSpaceData,OBS_VNM,i_oth)
+           zslev = obs_bodyElem_r(lobsSpaceData,OBS_PPP,i_oth)
+           IF ( istyp .EQ. BUFR_NEVV  .AND. zslev .EQ. zlev ) THEN
+            index_body_v = i_oth
+            found_v = .true.
+           ENDIF
+          ENDDO
+
+         else ! i_vnm
+
+          index_body_v = index_body
+          found_v = .true.
+ 
+          DO i_oth =index_body_start,index_body
+           istyp = obs_bodyElem_i(lobsSpaceData,OBS_VNM,i_oth)
+           zslev = obs_bodyElem_r(lobsSpaceData,OBS_PPP,i_oth)
+           IF ( istyp .EQ. BUFR_NEUU .AND. zslev .EQ. zlev ) THEN
+            index_body_u = i_oth
+            found_u = .true.
+           ENDIF
+          ENDDO
+
+         endif !i_vnm
+
+         if(found_u .and. found_v) then
+
+          uu_d = obs_bodyElem_r(lobsSpaceData,OBS_OMP,index_body_u)
+          vv_d = obs_bodyElem_r(lobsSpaceData,OBS_OMP,index_body_v)
+          uu_r = obs_bodyElem_r(lobsSpaceData,OBS_OER,index_body_u)
+          vv_r = obs_bodyElem_r(lobsSpaceData,OBS_OER,index_body_v)
+          uu_f = obs_bodyElem_r(lobsSpaceData,OBS_HPHT,index_body_u)
+          vv_f = obs_bodyElem_r(lobsSpaceData,OBS_HPHT,index_body_v)
+
+          duv2 = uu_d**2 + vv_d**2
+
+          IFLAG = 0
+          duv2_lim = (uu_r**2 + uu_f**2 + vv_r**2 + vv_f**2)*1
+          if(duv2 > duv2_lim) then
+            IFLAG = 1
+          endif
+          duv2_lim = (uu_r**2 + uu_f**2 + vv_r**2 + vv_f**2)*2
+          if(duv2 > duv2_lim) then
+            IFLAG = 2
+          endif
+          duv2_lim = (uu_r**2 + uu_f**2 + vv_r**2 + vv_f**2)*4
+          if(duv2 > duv2_lim) then
+            IFLAG = 3
+          endif
+
+          INOBS = INOBS + 2
+          IF (IFLAG .GE. 2) INREJ = INREJ + 2
+
+          IF ( IFLAG .EQ. 1 ) THEN
+            call obs_bodySet_i(lobsSpaceData,OBS_FLG,index_body_u,IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,index_body_u),13))
+            call obs_bodySet_i(lobsSpaceData,OBS_FLG,index_body_v,IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,index_body_v),13))
+
+          ELSEIF ( IFLAG .EQ. 2 ) THEN
+            call obs_bodySet_i(lobsSpaceData,OBS_FLG,index_body_u,IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,index_body_u),14))
+            call obs_bodySet_i(lobsSpaceData,OBS_FLG,index_body_u,IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,index_body_u),16))
+            call obs_bodySet_i(lobsSpaceData,OBS_FLG,index_body_u,IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,index_body_u),09))
+            call obs_bodySet_i(lobsSpaceData,OBS_FLG,index_body_v,IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,index_body_v),14))
+            call obs_bodySet_i(lobsSpaceData,OBS_FLG,index_body_v,IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,index_body_v),16))
+            call obs_bodySet_i(lobsSpaceData,OBS_FLG,index_body_v,IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,index_body_v),09))
+            call obs_headSet_i(lobsSpaceData,OBS_ST1,index_header,ibset(obs_headElem_i(lobsSpaceData,OBS_ST1,index_header),06))
+
+          ELSEIF ( IFLAG .EQ. 3 ) THEN
+            call obs_bodySet_i(lobsSpaceData,OBS_FLG,index_body_u,IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,index_body_u),15))
+            call obs_bodySet_i(lobsSpaceData,OBS_FLG,index_body_u,IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,index_body_u),16))
+            call obs_bodySet_i(lobsSpaceData,OBS_FLG,index_body_u,IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,index_body_u),09))
+            call obs_bodySet_i(lobsSpaceData,OBS_FLG,index_body_v,IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,index_body_v),15))
+            call obs_bodySet_i(lobsSpaceData,OBS_FLG,index_body_v,IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,index_body_v),16))
+            call obs_bodySet_i(lobsSpaceData,OBS_FLG,index_body_v,IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,index_body_v),09))
+            call obs_headSet_i(lobsSpaceData,OBS_ST1,index_header,ibset(obs_headElem_i(lobsSpaceData,OBS_ST1,index_header),06))
+          ENDIF
+
+         endif !if(found_u .and. found_v) then
+
+       enddo bodyuv
+
+      ENDIF !IF (CDFAM .NE. 'SX') THEN
+!stl
 
       IF ( INOBS .GT. 0 ) THEN
         WRITE(*,*)' '

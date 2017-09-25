@@ -37,7 +37,7 @@ module obsErrors_mod
   ! public procedures
   ! -----------------
 
-  public :: oer_setObsErrors, oer_SETERRGPSGB, oer_SETERRGPSRO
+  public :: oer_setObsErrors, oer_SETERRGPSGB, oer_SETERRGPSRO, oer_sw
 
   ! TOVS OBS ERRORS
   ! ---------------
@@ -52,6 +52,15 @@ module obsErrors_mod
   real(8) :: xstd_sf(9,4)
   real(8) :: xstd_pr(2)
   real(8) :: xstd_sc(1)
+  real(8) :: LVLVALUE(9), HGT_ERR(200,9)
+
+  integer :: n_sat_type, n_categorie
+  integer :: tbl_m(200), tbl_h(200), tbl_t(200), tbl_g(200)
+
+  character(len=9) :: SAT_AMV(200,10), SAT_LIST(200), MET_LIST(200)
+  character(len=9) :: HTM_LIST(200), TMG_LIST(200), NSW_LIST(200)
+
+  logical :: new_oer_sw
 
   save
   character(len=48) :: obserrorMode
@@ -473,7 +482,9 @@ contains
     ! s/r read_obs_erreurs_conv -READ OBSERVATION ERROR OF CONVENTIONAL DATA 
     !
     ! Author  : S. Laroche  February 2014
-    ! Revision: 
+    !
+    ! Revision: S. Laroche Sept. 2017
+    !           - add height assignment errors
     !          
     ! Purpose: read observation errors (modification of former readcovo subroutine).
     !
@@ -481,12 +492,34 @@ contains
     implicit none
 
     integer :: FNOM, FCLOS
-    integer :: IERR, JLEV, JELM, icodtyp, nulstat
+    integer :: IERR, jlev, jelm, jcat, icodtyp, nulstat
     logical :: LnewExists
 
     character (len=128) :: ligne
 
     EXTERNAL FNOM,FCLOS
+
+    INTEGER*4      :: NULNAM,IER
+    CHARACTER *256 :: NAMFILE
+
+    !------------------------------------------------------------------------
+ 
+    NEW_OER_SW = .false.
+
+    NAMELIST /NAMOER/NEW_OER_SW
+    NAMFILE=trim("flnml")
+    nulnam=0
+    IER=FNOM(NULNAM,NAMFILE,'R/O',0)
+
+    READ(NULNAM,NML=NAMOER,IOSTAT=IER)
+    if(IER.ne.0) then
+      write(*,*) 'No valid namelist NAMOER found'
+    endif
+
+    iER=FCLOS(NULNAM)
+
+    write(*,*) 'new_oer_sw = ',new_oer_sw
+
     !
     !     CHECK THE EXISTENCE OF THE NEW FILE WITH STATISTICS
     !     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -552,6 +585,59 @@ contains
        read(nulstat, * ) (xstd_sf(icodtyp,jelm), jelm=1,4)
        write(*, '(f6.2,2f6.1,f8.3)' )  (xstd_sf(icodtyp,jelm), jelm=1,4)
     enddo
+
+    !
+    !     Read height assignment errors
+    !     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !
+
+    if(new_oer_sw) then
+
+      do jlev = 1,5
+        read(nulstat, '(A)') ligne
+        write(*, '(A)') ligne
+      enddo
+
+      read(nulstat, * ) (LVLVALUE(jelm), jelm=1,9)
+      write(*, '(9f6.1)' )  (LVLVALUE(jelm), jelm=1,9)
+
+      do jlev = 1,2
+        read(nulstat, '(A)') ligne
+        write(*, '(A)') ligne
+      enddo
+
+      read(nulstat, '(i10)' ) n_sat_type
+      write(*,'(i10)') n_sat_type
+      do jlev = 1,n_sat_type
+        read(nulstat, '(10A10)') (SAT_AMV(jlev,jelm), jelm=1,10)
+        write(*, '(10A10)') (SAT_AMV(jlev,jelm), jelm=1,10)
+      enddo
+
+      read(nulstat, '(A)') ligne
+      write(*, '(A)') ligne
+
+      tbl_m(:) = 0
+      tbl_h(:) = 0
+      tbl_t(:) = 0
+      tbl_g(:) = 0
+      read(nulstat, '(i10)' ) n_categorie
+      write(*,'(i10)') n_categorie
+      do jcat = 1,n_categorie
+        read(nulstat, *) SAT_LIST(jcat),MET_LIST(jcat),HTM_LIST(jcat),TMG_LIST(jcat),NSW_LIST(jcat),(HGT_ERR(jcat,jelm), jelm=1,9)
+        write(*, '(5A10,9f6.1)') SAT_LIST(jcat),MET_LIST(jcat),HTM_LIST(jcat),TMG_LIST(jcat),NSW_LIST(jcat),(HGT_ERR(jcat,jelm), jelm=1,9)
+        if(trim(MET_LIST(jcat)) == 'ir')   tbl_m(jcat) = 1
+        if(trim(MET_LIST(jcat)) == 'vis')  tbl_m(jcat) = 2
+        if(trim(MET_LIST(jcat)) == 'wv')   tbl_m(jcat) = 3
+        if(trim(HTM_LIST(jcat)) == 'ebbt') tbl_h(jcat) = 1
+        if(trim(HTM_LIST(jcat)) == 'co2')  tbl_h(jcat) = 4
+        if(trim(TMG_LIST(jcat)) == 'sea')  tbl_t(jcat) = 1
+        if(trim(TMG_LIST(jcat)) == 'land') tbl_t(jcat) = 2 
+        if(trim(TMG_LIST(jcat)) == 'ice')  tbl_t(jcat) = 3
+        if(trim(NSW_LIST(jcat)) == 'NH')   tbl_g(jcat) = 1
+        if(trim(NSW_LIST(jcat)) == 'SH')   tbl_g(jcat) = 2
+      enddo
+
+    endif
 
     write(*, '(A)') ' '
 
@@ -940,6 +1026,217 @@ contains
     WRITE(*,'(10X,"---------------",/)')
 
   end subroutine fill_obs_erreurs
+
+
+  subroutine oer_sw(columnhr,obsSpaceData)
+    !
+    !**s/r oer_sw
+    !
+    !*    Purpose: Calculate observation errors for AMVs according to the Met-Office 
+    !              situation dependant approach.
+    !
+    !Arguments
+    !
+    use earthConstants_mod
+    use mathPhysConstants_mod
+    use obsSpaceData_mod
+    use columnData_mod 
+    use bufr
+    implicit none
+    type(struct_columnData) :: columnhr
+    type(struct_obs) :: obsSpaceData
+
+    integer :: headerIndex,bodyIndex,ilyr,jlev
+    integer :: iass,ixtr,ivco,ivnm,iqiv,imet,ilsv,igav,ihav,itrn,IOTP,J_SAT
+    real(8) :: zvar,zoer
+    real(8) :: zwb,zwt,zexp,ZOTR,ZMOD
+    real(8) :: zlat,zlon,zlev,zpt,zpb,zpc,zomp
+    real(8) :: columnVarB,columnVarT
+    real(8) :: SP_WGH,TO_WGH,TO_DSP,E_VHGT,E_DRIFT,E_HEIGHT
+    character(4) :: varName
+    character(2) :: varLevel
+    character(9) :: cstnid
+
+    real(8), pointer :: col_ptr(:),col_ptr_uv(:)
+
+    logical :: passe_once, valeurs_defaut, print_debug
+
+
+    if(new_oer_sw) then
+
+     valeurs_defaut = .false.
+     passe_once     = .true.
+     print_debug    = .false.
+
+     Write(*,*) "Entering subroutine oer_sw"
+
+     call obs_set_current_body_list(obsSpaceData, 'SW')
+     BODY: do
+       bodyIndex = obs_getBodyIndex(obsSpaceData)
+       if (bodyIndex < 0) exit BODY
+       
+       ! Only process pressure level observations flagged to be assimilated
+       iass=obs_bodyElem_i (obsSpaceData,OBS_ASS,bodyIndex)
+       ivco=obs_bodyElem_i (obsSpaceData,OBS_VCO,bodyIndex)
+
+       if(iass.ne.1 .or. ivco.ne.2) cycle BODY
+
+       ixtr=obs_bodyElem_i (obsSpaceData,OBS_XTR,bodyIndex)
+       ivnm=obs_bodyElem_i (obsSpaceData,OBS_VNM,bodyIndex)
+       zvar=obs_bodyElem_r (obsSpaceData,OBS_VAR,bodyIndex)
+       zlev=obs_bodyElem_r (obsSpaceData,OBS_PPP,bodyIndex)
+       zoer=obs_bodyElem_r (obsSpaceData,OBS_OER,bodyIndex)
+       headerIndex = obs_bodyElem_i (obsSpaceData,OBS_HIND,bodyIndex)
+
+       IOTP=obs_headElem_i (obsSpaceData,OBS_OTP,headerIndex)
+       iqiv=obs_headElem_i (obsSpaceData,OBS_SZA,headerIndex)
+       imet=obs_headElem_i (obsSpaceData,OBS_TEC,headerIndex)
+       ilsv=obs_headElem_i (obsSpaceData,OBS_AZA,headerIndex)
+       igav=obs_headElem_i (obsSpaceData,OBS_SUN,headerIndex)
+       ihav=obs_headElem_i (obsSpaceData,OBS_CLF,headerIndex)
+       zlat=obs_headElem_r (obsSpaceData,OBS_LAT,headerIndex)*MPC_DEGREES_PER_RADIAN_R8
+       zlon=obs_headElem_r (obsSpaceData,OBS_LON,headerIndex)*MPC_DEGREES_PER_RADIAN_R8
+       cstnid = obs_elem_c (obsSpaceData,'STID' ,headerIndex)
+
+       itrn = ilsv
+       if(igav == 1) itrn = 2
+       if(imet >  3) imet = 3
+       if(ihav /= 4) ihav = 1
+
+       if(valeurs_defaut) then
+         E_DRIFT  = 2.5
+         E_HEIGHT = 8000.0
+       else
+         E_DRIFT = 7.5 - 0.05*iqiv
+         call get_height_error(cstnid,imet,itrn,ihav,zlat,zlon,zlev,E_HEIGHT,J_SAT)
+       endif
+
+       varLevel = vnl_varLevelFromVarnum(ivnm)
+       varName  = vnl_varnameFromVarnum(ivnm)
+
+       col_ptr_uv=>col_getColumn(columnhr,headerIndex,varName)
+       ilyr = obs_bodyElem_i (obsSpaceData,OBS_LYR,bodyIndex)
+       ZPT  = col_getPressure(columnhr,ilyr  ,headerIndex,varLevel)
+       ZPB  = col_getPressure(columnhr,ilyr+1,headerIndex,varLevel)
+       ZWB  = LOG(ZLEV/ZPT)/LOG(ZPB/ZPT)
+       ZWT  = 1. - ZWB
+
+       ZMOD = ZWB*col_ptr_uv(ilyr+1) + ZWT*col_ptr_uv(ilyr)
+
+       TO_WGH = 0.0D0
+       TO_DSP = 0.0D0
+       if(ZLEV > 20000. .and. ZLEV < 30000. .and. passe_once .and. print_debug ) then
+         write(*,'(3a10,2i10,4f12.3)') 'stlchka',cstnid,varName,iqiv,imet,ZLEV,ZMOD,ZVAR,E_DRIFT
+       endif
+       do jlev = 2, col_getNumLev(columnhr,'MM') - 1
+         ZPT= col_getPressure(columnhr,jlev-1,headerIndex,varLevel)
+         ZPC= col_getPressure(columnhr,jlev  ,headerIndex,varLevel)
+         ZPB= col_getPressure(columnhr,jlev+1,headerIndex,varLevel)
+         ZOTR = col_ptr_uv(jlev)
+         SP_WGH = exp( -0.5*((ZPC - ZLEV)**2)/(E_HEIGHT**2) )*((ZPB - ZPT)/2)
+         TO_DSP = TO_DSP + SP_WGH*((ZOTR - ZMOD)**2)
+         TO_WGH = TO_WGH + SP_WGH 
+         if(ZLEV > 20000. .and. ZLEV < 30000. .and. passe_once) then
+           write(*,'(a10,i10,4f12.3)') 'stlchk',jlev,ZPT,ZPC,ZPB,ZOTR
+         endif
+
+       enddo
+
+       E_VHGT = sqrt(TO_DSP/TO_WGH)
+         zoer = sqrt(E_VHGT**2 + E_DRIFT**2)
+       
+       if(ZLEV > 20000. .and. ZLEV < 30000. .and. passe_once .and. print_debug ) then
+         write(*,'(a10,4f10.2)') 'stlchkb',zoer,E_VHGT,E_DRIFT,E_HEIGHT
+         passe_once = .false.
+       endif
+
+       call obs_bodySet_r(obsSpaceData,OBS_OER,bodyIndex,zoer)
+
+       if( print_debug ) write(*,'(2a10,6f12.3,4i10)') 'hgterr',cstnid,zlat,zlon,zlev/100.,E_HEIGHT/100.0,E_DRIFT,zoer,imet,itrn,ihav,J_SAT
+
+     enddo body
+
+   endif !new_oer_sw
+
+  end subroutine oer_sw
+
+
+  subroutine get_height_error(stnid,methode,terrain,htasmet,zlat,zlon,zlev,E_HEIGHT,J_SAT)
+
+    character(len=9), intent(in)     :: stnid
+    integer,          intent(in)     :: methode,terrain,htasmet
+    integer,          intent(out)    :: J_SAT 
+    real(8),          intent(in)     :: zlat,zlon,zlev
+    real(8),          intent(out)    :: E_HEIGHT
+
+    integer, parameter :: NLVLVALUE=9
+
+    integer :: i_lyr, I_HGT, jelm, jlev, jcat, i_typ, hemisphere
+    real(8) :: zlev_hpa, ZWB, ZWT
+
+    logical :: interpole
+
+    if(zlat >= 0) hemisphere = 1
+    if(zlat <  0) hemisphere = 2
+
+
+    J_SAT = 1 ! default value
+
+             i_typ = 0
+list1: do jlev = 1,n_sat_type
+         do jelm = 2, 10
+           if( trim(stnid(2:9)) == trim(SAT_AMV(jlev,jelm)) ) then
+             i_typ = jlev
+             exit list1
+           endif
+         enddo
+       enddo list1
+
+       if (i_typ /= 0) then
+list2:   do jcat = 1,n_categorie
+           if( trim(SAT_AMV(i_typ,1)) == trim(SAT_LIST(jcat)) ) then
+             if( tbl_m(jcat) == 0 .or. tbl_m(jcat) == methode    ) then
+               if( tbl_h(jcat) == 0 .or. tbl_h(jcat) == htasmet    ) then
+                 if( tbl_t(jcat) == 0 .or. tbl_t(jcat) == terrain+1  ) then
+                   if( tbl_g(jcat) == 0 .or. tbl_g(jcat) == hemisphere ) then
+                     J_SAT = jcat
+                     exit list2
+                   endif
+                 endif
+               endif
+             endif
+           endif   
+         enddo list2
+       endif
+
+    zlev_hpa  = zlev/100.
+    interpole = .true.
+    do I_HGT=1,NLVLVALUE
+       if( zlev_hpa >= LVLVALUE(I_HGT) ) exit
+    enddo
+    if(I_HGT == 1 )            interpole = .false.
+    if(I_HGT == NLVLVALUE + 1) interpole = .false.
+    if(I_HGT == NLVLVALUE + 1) I_HGT     = NLVLVALUE
+
+    if(interpole) then
+
+      ZWB      = LOG(zlev_hpa/LVLVALUE(I_HGT-1))/LOG(LVLVALUE(I_HGT)/LVLVALUE(I_HGT-1))
+      ZWT      = 1. - ZWB
+      E_HEIGHT = ZWT*HGT_ERR(J_SAT,I_HGT-1) + ZWB*HGT_ERR(J_SAT,I_HGT)
+
+    else
+
+      E_HEIGHT = HGT_ERR(J_SAT,I_HGT)
+
+    endif
+
+!
+!   Retourne l'erreur en (Pa)
+!
+    E_HEIGHT = E_HEIGHT*100.0
+
+  end subroutine get_height_error
+
 
   SUBROUTINE oer_SETERRGPSRO(lcolumnhr,lobsSpaceData)
 
