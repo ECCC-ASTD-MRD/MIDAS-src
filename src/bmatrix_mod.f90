@@ -150,7 +150,7 @@ contains
 !--------------------------------------------------------------------------
 ! bmat_sqrtB
 !-------------------------------------------------------------------------- 
-  SUBROUTINE bmat_sqrtB(controlVector,cvdim,statevector,useForecast)
+  SUBROUTINE bmat_sqrtB(controlVector,cvdim,statevector,useForecast_opt)
     implicit none
     !
     !- Purpose: Transforms model state from error covariance space
@@ -169,7 +169,7 @@ contains
     real(8)         :: controlVector(cvdim)
     real(8),pointer :: cvBhi(:), cvBen(:), field(:,:,:), field4d(:,:,:,:)
     real(8),pointer :: cvBchm(:)
-    logical,optional :: useForecast
+    logical,optional :: useForecast_opt
 
     type(struct_gsv) :: statevector, statevector_temp
 
@@ -225,12 +225,12 @@ contains
     call tmg_start(60,'B_ENS')
     if ( cvm_subVectorExists(cvm_BEN) ) then
       cvBen => cvm_getSubVector(controlVector,cvm_BEN)
-      if( present(useForecast) ) then
-        call ben_bsqrt(cvBen, statevector_temp, useForecast)
+      if( present(useForecast_opt) ) then
+        call ben_bsqrt(cvBen, statevector_temp, useForecast_opt)
       else
         call ben_bsqrt(cvBen, statevector_temp)
-      endif
-    endif
+      end if
+    end if
     call tmg_stop(60)
 
     !- 2.6 Add the two contributions together, result in statevector
@@ -243,7 +243,7 @@ contains
 !--------------------------------------------------------------------------
 ! bmat_sqrtBT
 !--------------------------------------------------------------------------
-  SUBROUTINE bmat_sqrtBT(controlVector,cvdim,statevector,useForecast)
+  SUBROUTINE bmat_sqrtBT(controlVector,cvdim,statevector,useForecast_opt)
     implicit none
     !
     !- Purpose: Transforms model state from grid point space 
@@ -260,22 +260,21 @@ contains
     real(8) :: controlVector(cvdim)
     real(8),pointer :: cvBhi(:),cvBen(:),cvBchm(:)
     type(struct_gsv) :: statevector
-    logical,optional :: useForecast
+    logical,optional :: useForecast_opt
 
     !- 1.1 set gradient to zero
     controlVector(:)=0.0d0
     
     !- 1.2 Add contribution to gradient from BmatrixEnsemble
     call tmg_start(61,'B_ENS_T')
-    cvBen=>cvm_getSubVector(controlVector,cvm_BEN)
-
-    if ( associated(cvBen) ) then
-      if( present(useForecast) ) then
-        call ben_bsqrtad(statevector,cvBen,useForecast)
+    if ( cvm_subVectorExists(cvm_BEN) ) then
+      cvBen=>cvm_getSubVector(controlVector,cvm_BEN)
+      if ( present(useForecast_opt) ) then
+        call ben_bsqrtad(statevector,cvBen,useForecast_opt)
       else
         call ben_bsqrtad(statevector,cvBen)
-      endif
-    endif
+      end if
+    end if
     call tmg_stop(61)
 
     !- 1.3 adjoint of copy 3D increment to 4D increment
@@ -376,7 +375,7 @@ contains
       else
          call lbhi_reduceToMPILocal(cvBhi_mpilocal,cvBhi_mpiglobal,cvDim_Bhi_mpilocal)
       end if
-    endif
+    end if
 
     cvDim_Ben_mpilocal = 0
     if(cvm_subVectorExists(cvm_BEN)) then
@@ -446,7 +445,7 @@ contains
       else
          call lbhi_reduceToMPILocal_r4(cvBhi_mpilocal,cvBhi_mpiglobal,cvDim_Bhi_mpilocal)
       end if
-    endif
+    end if
 
     cvDim_Ben_mpilocal = 0
     if(cvm_subVectorExists(cvm_BEN)) then
@@ -517,7 +516,7 @@ contains
       else
          call lbhi_expandToMPIGlobal(cvBhi_mpilocal,cvBhi_mpiglobal,cvDim_Bhi_mpiglobal)
       end if
-    endif
+    end if
 
     cvDim_Ben_mpiglobal = 0
     if(cvm_subVectorExists(cvm_BEN)) then
@@ -528,7 +527,7 @@ contains
           cvBen_mpiglobal=>null()
        end if
        call ben_expandToMPIGlobal(cvBen_mpilocal,cvBen_mpiglobal,cvDim_Ben_mpiglobal)
-    endif
+    end if
 
     cvDim_Bchm_mpiglobal = 0
     if(cvm_subVectorExists(cvm_BCHM)) then
@@ -543,7 +542,7 @@ contains
       else
 !         Done in lbhi_expandToMPIGlobal
       end if
-    endif
+    end if
 
     cvDim_mpiglobal_out = cvDim_Bhi_mpiglobal + cvDim_Ben_mpiglobal + cvDim_Bchm_mpiglobal
 
@@ -586,7 +585,7 @@ contains
       else
          call lbhi_expandToMPIGlobal_r4(cvBhi_mpilocal,cvBhi_mpiglobal,cvDim_Bhi_mpiglobal)
       end if
-    endif
+    end if
 
     cvDim_Ben_mpiglobal = 0
     if(cvm_subVectorExists(cvm_BEN)) then
@@ -597,7 +596,7 @@ contains
           cvBen_mpiglobal => null()
        end if
        call ben_expandToMPIGlobal_r4(cvBen_mpilocal,cvBen_mpiglobal,cvDim_Ben_mpiglobal)
-    endif
+    end if
 
     cvDim_Bchm_mpiglobal = 0
     if(cvm_subVectorExists(cvm_BCHM)) then
@@ -612,7 +611,7 @@ contains
       else
 !         Done in lbhi_expandToMPIGlobal
       end if
-    endif
+    end if
 
     cvDim_mpiglobal_out = cvDim_Bhi_mpiglobal + cvDim_Ben_mpiglobal + cvDim_Bchm_mpiglobal
 
