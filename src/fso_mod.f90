@@ -91,7 +91,7 @@ CONTAINS
     nulnam = 0
     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=namfso,iostat=ierr)
-    if(ierr.ne.0) call utl_abort('fso_setup: Error reading namelist')
+    if(ierr /= 0) call utl_abort('fso_setup: Error reading namelist')
     write(*,nml=namfso)
     ierr = fclos(nulnam)
 
@@ -283,8 +283,8 @@ CONTAINS
       IDATA   = obs_headElem_i(obsSpaceData,OBS_RLN,INDEX_HEADER)
       IDATEND = obs_headElem_i(obsSpaceData,OBS_NLV,INDEX_HEADER) + IDATA - 1
       do index_body=idata,idatend
-         fso_ori = obs_bodyElem_r(obsSpaceData,OBS_FSO,index_body)
-         call obs_bodySet_r(obsSpaceData,OBS_FSO,index_body, fso_ori*1e6)
+        fso_ori = obs_bodyElem_r(obsSpaceData,OBS_FSO,index_body)
+        call obs_bodySet_r(obsSpaceData,OBS_FSO,index_body, fso_ori*1e6)
       end do
     end do
 

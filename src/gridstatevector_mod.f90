@@ -3895,7 +3895,7 @@ module gridStateVector_mod
           scaleFactor = scaleFactorConst * scaleFactorLat
           sumScale = sumScale + scaleFactor
           field_TG(jlon,jlat,1,jstep) = &
-                  field_TG(jlon,jlat,1,jstep) * 0.5 *scaleFactor * 0.0
+                  field_TG(jlon,jlat,1,jstep) * 0.5 * scaleFactor * 0.0
         end do
       end do ! jlat
     end do ! jstep

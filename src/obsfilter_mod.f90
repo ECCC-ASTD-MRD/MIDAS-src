@@ -71,11 +71,11 @@ contains
     listIndex = -1
     do elemIndex=1,numElem
        if(varNum.eq.elemList(elemIndex)) listIndex = elemIndex
-    enddo
+    end do
 
     if(listIndex.eq.-1) then
        write(*,*) 'filterobs_mod-findElemIndex: WARNING: varNum value not found: ',varNum
-    endif
+    end if
 
   end function findElemIndex
 
@@ -121,7 +121,7 @@ contains
     ! set default values for namelist variables
     do jelem = 1, 30
        nlist(jelem) = 0
-    enddo
+    end do
     nelems = 6
     nlist(1)=11003
     nlist(2)=11004
@@ -131,7 +131,7 @@ contains
     nlist(6)=12063
     do jflag = 1, 15
        nlistflg(jflag) = 0
-    enddo
+    end do
     nflags=6
     nlistflg(1)=2
     nlistflg(2)=4
@@ -163,8 +163,8 @@ contains
           nlist(jelem2) = ielem
        else 
           if(mpi_myid.eq.0) write(*,*) 'ELEMENT NOT FOUND IN NVNUMB LIST:',nlist(jelem2)
-       endif
-    enddo
+       end if
+    end do
 
     filt_rlimlvhu    = rlimlvhu
     filt_nelems      = nelems
@@ -178,16 +178,16 @@ contains
        write(*,'(1X,"***********************************")')
        do jelem=1,filt_nelems
           write(*,'(15X,I5)') filt_nlist(jelem)
-       enddo
+       end do
        write(*,'(1X,"***********************************")')
        write(*,*) ' REJECT ELEMENTS WITH REJECT FLAG '
        write(*,*)'           BIT :  '
        do jflag=1,filt_nflags
           ibit= filt_nlistflg(jflag)
           write(*,*) ibit,' ',creason(ibit)
-       enddo
+       end do
        write(*,'(1X,"***********************************")')
-    endif
+    end if
 
   end subroutine filt_setup
 
@@ -206,8 +206,8 @@ contains
        do bodyIndex= idata, idatend
           ij   = ij+1
           call obs_bodySet_i(obsSpaceData,OBS_HIND,IJ, headerIndex)
-       enddo
-    enddo
+       end do
+    end do
   end subroutine filt_sethind
 
 
@@ -246,18 +246,18 @@ contains
        llok = .false.
        do loopIndex =1,filt_nelems
           llok=( ivnm.eq.filt_nlist(loopIndex) ) .or. llok
-       enddo
+       end do
        if (.not.llok) then
           call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
           cycle BODY
-       endif
+       end if
        !
        ! Allow gz for bogus data only in analysis case 
        !
        llbogus=( idburp.eq.150 .or. idburp.eq.151 .or. idburp.eq.152 .or. idburp.eq.153 )
        if  ( (filterMode == 'analysis' .or. filterMode == 'FSO') .and. llok .and. ivnm.eq.BUFR_NEGZ .and. .not.llbogus ) then
           llok=.false.
-       endif
+       end if
        !
        ! Ground-based GPS (GP) data (codtyp 189)
        ! LLOK = .TRUE. DY DEFAULT IF ELEMENT IS IN NLIST
@@ -269,8 +269,8 @@ contains
                ivnm .eq. BUFR_NETS .or.  &
                ivnm .eq. BUFR_NESS)) then
              llok = .false.
-          endif
-       endif
+          end if
+       end if
        !
        ! Exclude T-Td above level RLIMLVHU (mbs)
        !
@@ -279,7 +279,7 @@ contains
        if ( (ivco .eq. 2) .and. (ivnm .eq. BUFR_NEES) .and.  &
             (ipres .lt. nint(filt_rlimlvhu*100.0d0)) ) then
           llok=.false.
-       endif
+       end if
        !
        ! Bad data with quality control flags via bit list specified in NLISTFLG
        !
@@ -288,7 +288,7 @@ contains
        do loopIndex=1,filt_nflags
           ibad= 13-filt_nlistflg(loopIndex)
           llrej=( btest(iflg,ibad) ) .or. llrej
-       enddo
+       end do
        !
        ! Filter TOVS data: check for invalid land/sea/sea-ice flag
        !
@@ -297,18 +297,18 @@ contains
             ilansea  = obs_headElem_i(obsSpaceData,OBS_OFL,headerIndex)
             if (ilansea .lt. 0 .or. ilansea .gt. 2  ) then
                llok = .false.
-            endif
-         endif
-       endif
+            end if
+         end if
+       end if
 
        if (llok .and. .not.llrej) then
           call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,1)
           iknt= iknt + 1
        else
           call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
-       endif
+       end if
 
-    enddo body
+    end do body
 
     call rpn_comm_allreduce(iknt,iknt_mpiglobal,1,"MPI_INTEGER","MPI_SUM","GRID",ierr)
     if(mpi_myid.eq.0) write(*,*) '  Number of data to be assimilated:',iknt_mpiglobal
@@ -318,7 +318,7 @@ contains
     ! abort if there is no data to be assimilated
     if (iknt_mpiglobal.eq.0 ) then
        call utl_abort('SUPREP. NO DATA TO BE ASSIMILATED')
-    endif
+    end if
 
   end subroutine filt_suprep
 
@@ -354,7 +354,7 @@ contains
        if(mpi_myid.eq.0) write(*,*)' * NO FILTER OF OBS DUE TO TOPOGRAPHY    *'
        if(mpi_myid.eq.0) write(*,*)' *                                       *'
        if(mpi_myid.eq.0) write(*,*)' *****************************************'
-    endif
+    end if
   end subroutine filt_topo
 
 
@@ -451,9 +451,9 @@ contains
                      ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),18) )
                 call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
                 countRej(elemIndex) = countRej(elemIndex)+1
-             endif
-          enddo BODY
-       enddo HEADER
+             end if
+          end do BODY
+       end do HEADER
 
        write(*,*) ' '
        write(*,*) '*****************************************************'
@@ -466,12 +466,12 @@ contains
 222    format(2x,a29,16(2x,i5))
 223    format(2x,a29,16(2x,f5.0))
 
-    enddo FAMILY
+    end do FAMILY
 
     countAssim=0
     do bodyIndex=1,obs_numbody(obsSpaceData)
        if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) .eq. 1) countAssim=countAssim+1
-    enddo
+    end do
     write(*,'(1X," NUMBER OF DATA TO BE ASSIMILATED AFTER ADJUSTMENTS: ",i10)') countAssim
     write(*,* ) ' '
 
@@ -559,8 +559,8 @@ contains
              call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
              itotrej(listIndex) = itotrej(listIndex)+1
              igzrej(listIndex) = igzrej(listIndex)+1
-          endif
-       enddo BODY
+          end if
+       end do BODY
        !
        !   REJECT ELEMENTS OF U,V,T-TD,T BELOW THE MODEL SURFACE
        !   AND THOSE NON SURFACE ELEMENTS PRESENT IN THE SURFACE
@@ -604,7 +604,7 @@ contains
           if (zdifalt .gt. 0.0d0) then
              zdelp = zdifalt * 100.d0 / 8.0d0
              zpt   = zpb - (zdelp + bndryCritPres)
-          endif
+          end if
 
           if(abs(zdifalt).le.heightCrit(listIndex)) then
              !--Model surface and station altitude are very close
@@ -612,22 +612,22 @@ contains
              !  of the trial field
              zpb = col_getElem(columnhr,1,headerIndex,'P0')
              zpt = col_getPressure(columnhr,col_getNumLev(columnhr,'MM')-1,headerIndex,'MM')
-          endif
+          end if
           if(zlev .gt. zpb ) then
              call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
                   ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 18 ))
              call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
              itotrej(listIndex) = itotrej(listIndex) + 1
              ibndrej(listIndex) = ibndrej(listIndex) + 1
-          elseif(zlev.le.zpb .and. zlev.gt.zpt ) then
+          else if(zlev.le.zpb .and. zlev.gt.zpt ) then
              call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
                   ibset( obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 18 ))
              call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
              itotrej(listIndex) = itotrej(listIndex) + 1
              isblrej(listIndex) = isblrej(listIndex) + 1
-          endif
-       enddo BODY2
-    enddo HEADER
+          end if
+       end do BODY2
+    end do HEADER
 
     write(*,*) ' '
     write(*,*) '***************************************'
@@ -648,7 +648,7 @@ contains
     countAssim=0
     do bodyIndex=1,obs_numbody(obsSpaceData)
        if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) .eq. 1) countAssim=countAssim+1
-    enddo
+    end do
     write(*,'(1X," NUMBER OF DATA TO BE ASSIMILATED AFTER ADJUSTMENTS:",i10)') countAssim
     write(*,*) ' '
 
@@ -714,8 +714,8 @@ contains
              countRej(listIndex)=countRej(listIndex)+1
              call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
                   ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),18 ))
-          endif
-       enddo BODY
+          end if
+       end do BODY
 
        write(*,*) ' '
        write(*,*) '*****************************************************************'
@@ -725,12 +725,12 @@ contains
        write(*,*) '*****************************************************************'
        write(*,*) ' '
 
-    enddo FAMILY
+    end do FAMILY
 
     countAssim=0
     do bodyIndex=1,obs_numbody(obsSpaceData)
        if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex).eq.1) countAssim=countAssim+1
-    enddo
+    end do
     write(*,'(1X," NUMBER OF DATA TO BE ASSIMILATED AFTER ADJUSTMENTS:",i10)') countAssim
     write(*,*) ' '
 
@@ -826,29 +826,29 @@ contains
              zpt = zStnAlt + bndryCritHeight
           else
              zpt = zModAlt + bndryCritHeight
-          endif
+          end if
           if(abs(zStnAlt-zModAlt).le.heightCrit(listIndex)) then
              !----Model surface and station altitude are very close
              !    Accept observation if zlev is within the domain
              !    of the trial field
              zpb = zModAlt
              zpt = col_getHeight(columnhr,col_getNumLev(columnhr,'MM')-1,headerIndex,'MM')/RG
-          endif
+          end if
           if(zlev.lt.zpb ) then
              call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
                   ibset( obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 18 ))
              call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
              itotrej(listIndex)=itotrej(listIndex)+1
              ibndrej(listIndex)=ibndrej(listIndex)+1
-          elseif(zlev.ge.zpb .and. zlev.lt.zpt ) then
+          else if(zlev.ge.zpb .and. zlev.lt.zpt ) then
              call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,  &
                   ibset( obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 18 ))
              call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,0)
              itotrej(listIndex)=itotrej(listIndex)+1
              isblrej(listIndex)=isblrej(listIndex)+1
-          endif
-       enddo BODY
-    enddo HEADER
+          end if
+       end do BODY
+    end do HEADER
 
     write(*,*) ' '
     write(*,*) '***************************************'
@@ -866,7 +866,7 @@ contains
     countAssim=0
     do bodyIndex=1,obs_numbody(obsSpaceData)
        if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex).eq.1) countAssim=countAssim+1
-    enddo
+    end do
     write(*,'(1X," NUMBER OF DATA TO BE ASSIMILATED AFTER ADJUSTMENTS:",i10)') countAssim
     write(*,*) ' '
 
@@ -929,10 +929,10 @@ contains
                   ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),9))
              call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex, &
                   ibset(obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex),18))
-          endif
+          end if
 
-       enddo BODY
-    enddo HEADER
+       end do BODY
+    end do HEADER
 
     write(*,*) ' '
     write(*,*) '*****************************************************************'
@@ -947,7 +947,7 @@ contains
     countAssim=0
     do bodyIndex=1,obs_numbody(obsSpaceData)
        if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) .EQ. 1) countAssim=countAssim+1
-    enddo
+    end do
     write(*,'(1X," NUMBER OF DATA TO BE ASSIMILATED AFTER ADJUSTMENTS:",i10)') countAssim
     write(*,* ) ' '
 
@@ -1036,18 +1036,18 @@ contains
                       DO J = 1, JPINEL
                          IF(ITYP .EQ.ILISTEL(J)) THEN
                             IKOUNTREJ(J)=IKOUNTREJ(J)+1
-                         ENDIF
-                      ENDDO
+                         END IF
+                      END DO
                       IF(LLPRINT) THEN
                          WRITE(*,225) 'Rej sfc wind lnd',INDEX_HEADER,ITYP &
                               ,obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER),IDBURP &
                               ,obs_headElem_r(lobsSpaceData,OBS_LAT,INDEX_HEADER) &
                               ,obs_headElem_r(lobsSpaceData,OBS_LON,INDEX_HEADER) &
                               ,obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY),ZDIFF
-                      ENDIF
-                   ENDIF
-                ENDDO
-             ENDIF ! BUFR_NEUS or BUFR_NEVS
+                      END IF
+                   END IF
+                END DO
+             END IF ! BUFR_NEUS or BUFR_NEVS
           END DO BODY
        END DO HEADER
        !
@@ -1128,10 +1128,10 @@ contains
              LSAT = .FALSE.
              DO I=1,NUMGPSSATS
                 LSAT=( LSAT .OR. (ISAT.EQ.IGPSSAT(I)) )
-             ENDDO
+             END DO
           ELSE
              LSAT = .TRUE.
-          ENDIF
+          END IF
           !
           JL  = col_getNumLev(LCOLUMNHR,'TH')
           ZMT = col_getHeight(lcolumnhr,JL,INDEX_HEADER,'TH')/RG
@@ -1147,8 +1147,8 @@ contains
           IF ( NUMGPSSATS .GE. 1 ) THEN
              IF ( ISAT.EQ.3 .OR. ISAT.EQ.4 .OR. ISAT.EQ.5 ) THEN
                 IF (HSF .LT. 10000.d0) HSF=10000.d0
-             ENDIF
-          ENDIF
+             END IF
+          END IF
           !
           !     *     Min/max altitudes:
           !
@@ -1180,7 +1180,7 @@ contains
                 ZREF = 0.025d0*exp(-HNH1/6500.d0)
              ELSE
                 ZREF = 300.d0*exp(-HNH1/6500.d0)
-             ENDIF
+             END IF
              !
              !     *        Positively verify that the altitude is within bounds:
              !
@@ -1195,12 +1195,12 @@ contains
              IF ( .NOT.LLEV .OR. .NOT.LOBS .OR. IAZM.LT.0 .OR. .NOT.LNOM .OR. .NOT.LSAT) THEN
                 call obs_bodySet_i(lobsSpaceData,OBS_ASS,INDEX_BODY, 0)
                 call obs_bodySet_i(lobsSpaceData,OBS_FLG,INDEX_BODY, IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY),11))
-             ENDIF
-          ENDDO BODY
+             END IF
+          END DO BODY
 
-       ENDIF
+       END IF
 
-    ENDDO HEADER
+    END DO HEADER
 
     IF (gps_numROProfiles.GT.0) THEN
        if(.not.allocated(gps_vRO_IndexPrf)) allocate(gps_vRO_IndexPrf(gps_numROProfiles))
@@ -1224,10 +1224,10 @@ contains
              zLon = obs_headElem_r(lobsSpaceData,OBS_LON,INDEX_HEADER)
              Lat  = zLat * MPC_DEGREES_PER_RADIAN_R8
              Lon  = zLon * MPC_DEGREES_PER_RADIAN_R8
-          ENDIF
-       ENDDO HEADER2
+          END IF
+       END DO HEADER2
 
-    ENDIF
+    END IF
 
     WRITE(*,*)'EXIT FILTERGPSRO'
 
@@ -1365,7 +1365,7 @@ contains
            else
                countAcc(listIndex)=countAcc(listIndex)+1
                countAcc_stnid(listIndex_stnid)=countAcc_stnid(listIndex_stnid)+1
-           endif
+           end if 
 
         else if (obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex).eq.2) then
 
@@ -1388,7 +1388,7 @@ contains
            countAcc_stnid(listIndex_stnid)=countAcc_stnid(listIndex_stnid)+1
         end if
 
-      enddo BODY
+      end do BODY
 
       if (warn_suspicious) then
          call utl_open_asciifile(chm_setup_get_str('message'),unit)
@@ -1401,7 +1401,7 @@ contains
          ier = fclos(unit)
       end if
 
-    enddo HEADER
+    end do HEADER
 
     if (Num_stnid_chm.gt.0) then
        write(*,*) ' '
@@ -1423,7 +1423,7 @@ contains
        countAssim=0
        do bodyIndex=1,obs_numbody(obsSpaceData)
           if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex).eq.1) countAssim=countAssim+1
-       enddo
+       end do
        write(*,'(1X," NUMBER OF DATA TO BE ASSIMILATED AFTER ADJUSTMENTS (after filter_topoChm):",i10)') countAssim
        write(*,*) ' '
     end if

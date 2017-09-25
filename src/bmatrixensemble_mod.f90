@@ -1894,7 +1894,7 @@ CONTAINS
             lonIndexAdvect(lonIndex0,latIndex0,levIndex) = lonIndex
             latIndexAdvect(lonIndex0,latIndex0,levIndex) = latIndex
 
-            if(mpi_myid ==0 .and. verbose) &
+            if(mpi_myid == 0 .and. verbose) &
             write(*,*) 'final, initial lonIndex,latIndex', lonIndex0,latIndex0,lonIndex,latIndex
 
             delx = real(xpos_r4,8) - real(lonIndex,8)
@@ -2791,14 +2791,14 @@ CONTAINS
   END SUBROUTINE ben_writeAmplitude
 
 !--------------------------------------------------------------------------
-! BEN_setFsoLeadTime
+! ben_setFsoLeadTime
 !--------------------------------------------------------------------------
-  SUBROUTINE BEN_setFsoLeadTime(fsoLeadTime_in)
+  SUBROUTINE ben_setFsoLeadTime(fsoLeadTime_in)
     implicit none
     real(8)  :: fsoLeadTime_in
 
     fsoLeadTime = fsoLeadTime_in
 
-  END SUBROUTINE BEN_setFsoLeadTime
+  END SUBROUTINE ben_setFsoLeadTime
 
 END MODULE BMatrixEnsemble_mod
