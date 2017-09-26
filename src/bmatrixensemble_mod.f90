@@ -1419,17 +1419,17 @@ CONTAINS
 !--------------------------------------------------------------------------
 ! ben_BSqrt
 !--------------------------------------------------------------------------
-  SUBROUTINE ben_BSqrt(controlVector_in,statevector,useForecast_opt)
+  SUBROUTINE ben_BSqrt(controlVector_in,statevector,useFSOFcst_opt)
     implicit none
 
     real(8)          :: controlVector_in(cvDim_mpilocal) 
     type(struct_gsv) :: statevector
-    logical,optional :: useForecast_opt
+    logical,optional :: useFSOFcst_opt
 
     real(8), pointer :: ensAmplitudeAll_M(:,:,:,:,:)
     integer   :: ierr, levIndex, latIndex, memberIndex, waveBandIndex
     logical   :: immediateReturn
-    logical   :: useForecast
+    logical   :: useFSOFcst
 
     call tmg_start(67,'BEN_BARR')
     if(mpi_doBarrier) call rpn_comm_barrier('GRID',ierr)
@@ -1462,10 +1462,10 @@ CONTAINS
     if (mpi_myid == 0) write(*,*) 'ben_bsqrt: starting'
     if (mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-    if(present(useForecast_opt)) then
-      useForecast = useForecast_opt
+    if(present(useFSOFcst_opt)) then
+      useFSOFcst = useFSOFcst_opt
     else
-      useForecast = .false.
+      useFSOFcst = .false.
     end if
 
     !
@@ -1481,13 +1481,13 @@ CONTAINS
                       ensAmplitudeAll_M(:,1,:,:,:) )            ! OUT
 
       ! 2.2 Advect the initial time amplitudes
-      if ( advectAmplitude .and. useForecast ) call advectAmplitude_tl( ensAmplitudeAll_M ) ! INOUT
+      if ( advectAmplitude .and. useFSOFcst ) call advectAmplitude_tl( ensAmplitudeAll_M ) ! INOUT
 
       if ( keepAmplitude .and. waveBandIndex == 1 ) call copyAmplitude(ensAmplitudeAll_M) ! IN
 
       ! 2.3 Compute increment by multiplying amplitudes by member perturbations
       call addEnsMember_repack( ensAmplitudeAll_M, statevector,  & ! INOUT 
-                                waveBandIndex, useForecast )        ! IN
+                                waveBandIndex, useFSOFcst )        ! IN
 
     end do ! Loop on WaveBand
 
@@ -1510,16 +1510,16 @@ CONTAINS
 !--------------------------------------------------------------------------
 ! ben_BSqrtAd
 !--------------------------------------------------------------------------
-  SUBROUTINE ben_BSqrtAd(statevector,controlVector_out,useForecast_opt)
+  SUBROUTINE ben_BSqrtAd(statevector,controlVector_out,useFSOFcst_opt)
     implicit none
 
     real(8)           :: controlVector_out(cvDim_mpilocal) 
     type(struct_gsv)  :: statevector
-    logical, optional :: useForecast_opt
+    logical, optional :: useFSOFcst_opt
 
     real(8), pointer  :: ensAmplitudeAll_M(:,:,:,:,:)
     integer           :: ierr, levIndex, latIndex, memberIndex, waveBandIndex
-    logical           :: useForecast
+    logical           :: useFSOFcst
 
     !
     !- 1.  Tests
@@ -1541,10 +1541,10 @@ CONTAINS
     if (mpi_myid == 0) write(*,*) 'ben_bsqrtad: starting'
     if (mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-    if(present(useForecast_opt)) then
-      useForecast = useForecast_opt
+    if(present(useFSOFcst_opt)) then
+      useFSOFcst = useFSOFcst_opt
     else
-      useForecast = .false.
+      useFSOFcst = .false.
     end if
 
     allocate(ensAmplitudeAll_M(nEnsOverDimension,numStepAmplitude,myLonBeg:myLonEnd,myLatBeg:myLatEnd,nLevEns_M))
@@ -1567,9 +1567,9 @@ CONTAINS
 
       ! 2.3 Compute increment by multiplying amplitudes by member perturbations
       call addEnsMemberAd_repack( statevector, ensAmplitudeAll_M,  & ! INOUT
-                                  waveBandIndex, useForecast)                    ! IN
+                                  waveBandIndex, useFSOFcst)                    ! IN
       ! 2.2 Advect the initial time amplitudes
-      if ( advectAmplitude .and. useForecast) call advectAmplitude_ad( ensAmplitudeAll_M ) ! INOUT
+      if ( advectAmplitude .and. useFSOFcst) call advectAmplitude_ad( ensAmplitudeAll_M ) ! INOUT
 
       ! 2.1 Compute the ensemble amplitudes
       call loc_LsqrtAd( locIDs(waveBandIndex),ensAmplitudeAll_M(:,1,:,:,:), & ! IN
@@ -2229,13 +2229,13 @@ CONTAINS
 ! addEnsMember_repack
 !--------------------------------------------------------------------------
   SUBROUTINE addEnsMember_repack(ensAmplitudeAll_M, statevector_out, &
-                                 waveBandIndex, useForecast_opt)
+                                 waveBandIndex, useFSOFcst_opt)
     implicit none
 
     real(8), target    :: ensAmplitudeAll_M(nEnsOverDimension,numStepAmplitude,myLonBeg:myLonEnd,myLatBeg:myLatEnd,nLevEns_M)
     type(struct_gsv)    :: statevector_out
     integer, intent(in) :: waveBandIndex
-    logical, optional   :: useForecast_opt
+    logical, optional   :: useFSOFcst_opt
 
     real(8), allocatable, target :: ensAmplitudeAll_MT(:,:,:,:)
     real(8), pointer     :: ensAmplitudeAll_MT_ptr(:,:,:,:)
@@ -2245,19 +2245,19 @@ CONTAINS
     integer     :: lev, lev2, levIndex, stepIndex, stepIndex_amp, latIndex, lonIndex, topLevOffset, numLev, memberIndex
     character(len=4)     :: varName
 
-    logical             :: useForecast
+    logical             :: useFSOFcst
     integer             :: stepIndex2, stepBeg, stepEnd
 
     if (Vcode_anl /= 5002) call utl_abort('addEnsMember_repack: Only 5002 supported for now!')
 
     call tmg_start(62,'ADDMEM')
 
-    if(present(useForecast_opt)) then
-      useForecast = useForecast_opt
+    if(present(useFSOFcst_opt)) then
+      useFSOFcst = useFSOFcst_opt
     else
-      useForecast = .false.
+      useFSOFcst = .false.
     end if
-    if(useForecast .and. fsoLeadTime > 0.0d0) then
+    if(useFSOFcst .and. fsoLeadTime > 0.0d0) then
       stepBeg = numStep
       stepEnd = stepBeg
       if(mpi_myid == 0) write(*,*) 'ben_bsqrtad: using forecast ensemble stored at timestep ',stepEnd
@@ -2320,7 +2320,7 @@ CONTAINS
         do lonIndex = myLonBeg, myLonEnd
           do stepIndex = StepBeg, StepEnd
             stepIndex2 = stepIndex - stepBeg + 1
-            if(advectAmplitude .and. useForecast) then
+            if(advectAmplitude .and. useFSOFcst) then
               stepIndex_amp = 2 
             else
               stepIndex_amp = 1
@@ -2501,13 +2501,13 @@ CONTAINS
 ! addEnsMemberAd_repack
 !--------------------------------------------------------------------------
   SUBROUTINE addEnsMemberAd_repack(statevector_in, ensAmplitudeAll_M, &
-                                   waveBandIndex, useForecast_opt)
+                                   waveBandIndex, useFSOFcst_opt)
     implicit none
 
     real(8)            :: ensAmplitudeAll_M(nEnsOverDimension,numStepAmplitude,myLonBeg:myLonEnd,myLatBeg:myLatEnd,nLevEns_M)
     type(struct_gsv)   :: statevector_in
     integer,intent(in) :: waveBandIndex
-    logical,optional   :: useForecast_opt
+    logical,optional   :: useFSOFcst_opt
 
     real(8), allocatable :: ensAmplitudeAll_MT(:,:)
     real(8), pointer :: increment_in(:,:,:,:)
@@ -2516,7 +2516,7 @@ CONTAINS
     integer          :: levIndex, lev, lev2, stepIndex, stepIndex_amp, latIndex, lonIndex, topLevOffset, numLev, memberIndex
     character(len=4)     :: varName
     integer     ::  stepBeg, stepEnd, stepIndex2
-    logical          :: useForecast
+    logical          :: useFSOFcst
 
     !logical :: ensAmpZeroed(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nLevEns_M)
 
@@ -2524,13 +2524,13 @@ CONTAINS
 
     call tmg_start(63,'ADDMEMAD')
 
-    if(present(useForecast_opt)) then
-      useForecast = useForecast_opt
+    if(present(useFSOFcst_opt)) then
+      useFSOFcst = useFSOFcst_opt
     else
-      useForecast = .false.
+      useFSOFcst = .false.
     end if
 
-    if(useForecast .and. fsoLeadTime > 0.0d0) then
+    if(useFSOFcst .and. fsoLeadTime > 0.0d0) then
       stepBeg = numStep
       stepEnd = stepBeg
       if(mpi_myid == 0) write(*,*) 'ben_bsqrtad: using forecast ensemble stored at timestep ',stepEnd
@@ -2586,7 +2586,7 @@ CONTAINS
           ensAmplitudeAll_MT(:,:) = 0.0d0
           do stepIndex = StepBeg, StepEnd
             stepIndex2 = stepIndex-StepBeg+1
-            if(advectAmplitude .and. useForecast) then
+            if(advectAmplitude .and. useFSOFcst) then
               stepIndex_amp = 2 
             else
               stepIndex_amp = 1

@@ -3937,13 +3937,13 @@ module gridStateVector_mod
     k2 = statevector_a%mykEnd
 
     dotsum = 0.0D0
-    do jlev = k1,k2
-      do jstep = 1, statevector_a%numStep
+    do jstep = 1, statevector_a%numStep
+      do jlev = k1,k2
         do jlat = lat1, lat2
           do jlon = lon1, lon2
             dotsum = dotsum + statevector_a%gd_r8(jlon,jlat,jlev,jstep) * &
                               statevector_b%gd_r8(jlon,jlat,jlev,jstep)
-          end do
+          end do 
         end do
       end do
     end do

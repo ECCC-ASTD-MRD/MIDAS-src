@@ -150,7 +150,7 @@ contains
 !--------------------------------------------------------------------------
 ! bmat_sqrtB
 !-------------------------------------------------------------------------- 
-  SUBROUTINE bmat_sqrtB(controlVector,cvdim,statevector,useForecast_opt)
+  SUBROUTINE bmat_sqrtB(controlVector,cvdim,statevector,useFSOFcst_opt)
     implicit none
     !
     !- Purpose: Transforms model state from error covariance space
@@ -169,7 +169,7 @@ contains
     real(8)         :: controlVector(cvdim)
     real(8),pointer :: cvBhi(:), cvBen(:), field(:,:,:), field4d(:,:,:,:)
     real(8),pointer :: cvBchm(:)
-    logical,optional :: useForecast_opt
+    logical,optional :: useFSOFcst_opt
 
     type(struct_gsv) :: statevector, statevector_temp
 
@@ -225,8 +225,8 @@ contains
     call tmg_start(60,'B_ENS')
     if ( cvm_subVectorExists(cvm_BEN) ) then
       cvBen => cvm_getSubVector(controlVector,cvm_BEN)
-      if( present(useForecast_opt) ) then
-        call ben_bsqrt(cvBen, statevector_temp, useForecast_opt)
+      if( present(useFSOFcst_opt) ) then
+        call ben_bsqrt(cvBen, statevector_temp, useFSOFcst_opt)
       else
         call ben_bsqrt(cvBen, statevector_temp)
       end if
@@ -243,7 +243,7 @@ contains
 !--------------------------------------------------------------------------
 ! bmat_sqrtBT
 !--------------------------------------------------------------------------
-  SUBROUTINE bmat_sqrtBT(controlVector,cvdim,statevector,useForecast_opt)
+  SUBROUTINE bmat_sqrtBT(controlVector,cvdim,statevector,useFSOFcst_opt)
     implicit none
     !
     !- Purpose: Transforms model state from grid point space 
@@ -260,7 +260,7 @@ contains
     real(8) :: controlVector(cvdim)
     real(8),pointer :: cvBhi(:),cvBen(:),cvBchm(:)
     type(struct_gsv) :: statevector
-    logical,optional :: useForecast_opt
+    logical,optional :: useFSOFcst_opt
 
     !- 1.1 set gradient to zero
     controlVector(:)=0.0d0
@@ -269,8 +269,8 @@ contains
     call tmg_start(61,'B_ENS_T')
     if ( cvm_subVectorExists(cvm_BEN) ) then
       cvBen=>cvm_getSubVector(controlVector,cvm_BEN)
-      if ( present(useForecast_opt) ) then
-        call ben_bsqrtad(statevector,cvBen,useForecast_opt)
+      if ( present(useFSOFcst_opt) ) then
+        call ben_bsqrtad(statevector,cvBen,useFSOFcst_opt)
       else
         call ben_bsqrtad(statevector,cvBen)
       end if

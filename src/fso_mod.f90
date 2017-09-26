@@ -215,7 +215,7 @@ CONTAINS
     call gsv_multEnergyNorm(statevector_fb, statevector_a) ! use analysis as reference state
 
     ! compute vhat = B_t^T/2 * C * (error_t^fa + error_t^fb)  
-    call bmat_sqrtBT(vhat, nvadim_mpilocal, statevector_fb, useForecast_opt = .true.) 
+    call bmat_sqrtBT(vhat, nvadim_mpilocal, statevector_fb, useFSOFcst_opt = .true.) 
 
     if(mpi_myid == 0) write(*,*) maxval(vhat),minval(vhat) 
 
