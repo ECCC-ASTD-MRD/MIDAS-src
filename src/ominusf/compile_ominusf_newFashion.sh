@@ -1,9 +1,9 @@
 #!/bin/bash
 
-set -e
+set -e #x
 
 mode=$1
-program="ominusp"
+program="ominusf"
 
 . ./compile_commons.sh
 
@@ -79,12 +79,15 @@ if [ $mode == full ] ; then
   rm -f *.o *.mod *.cdk* *.h *.ftn* *.f *.f90
 
   # Create a local copy of the source code
-  cp -f ${trunkdir}/${program}/main_${program}.ftn90 ${compiledir}/
+  cp -f ${trunkdir}/${program}/main_${program}.f90 ${compiledir}/
   cp -f ${trunkdir}/*.ftn* ${compiledir}/
+  cp -f ${trunkdir}/*.f90 ${compiledir}/
   cp -f ${trunkdir}/*.inc ${compiledir}/
   cp -f ${trunkdir}/shared/*.ftn90 ${compiledir}/
+  cp -f ${trunkdir}/shared/*.f90 ${compiledir}/
   cp -f ${trunkdir}/shared/*.inc ${compiledir}/
   cp -f ${trunkdir}/bgcheck/*.ftn90 ${compiledir}/
+  cp -f ${trunkdir}/bgcheck/*.f90 ${compiledir}/
 
   cd ${compiledir}
 
@@ -105,7 +108,7 @@ if [ $mode == full ] ; then
 
   echo "... > Compiling main program..."
   echo "...   if aborting, check in ${PWD}/listing_main"
-  s.compile $COMPF -O ${FOPTMIZ} -src main_${program}.ftn90 > listing_main 2>&1
+  s.compile $COMPF -O ${FOPTMIZ} -src main_${program}.f90 > listing_main 2>&1
   status=1
   grep fail listing_main || status=0
   if [ "${status}" -ne 0 ]; then

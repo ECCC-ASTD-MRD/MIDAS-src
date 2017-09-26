@@ -9,7 +9,7 @@ nompi=$2
 
 echo "..."
 echo "...             |======================================|"
-echo "... ------------|  OMINUSP compilation script STARTING |------------"
+echo "... ------------|  OMINUSF compilation script STARTING |------------"
 echo "...             |======================================|"
 
 if [ "$mode" == "" ] ; then
@@ -72,7 +72,7 @@ absdir=${compiledir_main}/oavar_abs
 mkdir -p ${absdir}
 cd $absdir ; absdir=$PWD ; cd - >/dev/null
 
-ominuspabs=ominusp_${ORDENV_PLAT}${ABSTAG}-${revnum}.Abs
+ominusfabs=ominusf_${ORDENV_PLAT}${ABSTAG}-${revnum}.Abs
 
 #-----------------------------------------------------------------------------
 
@@ -84,7 +84,7 @@ if [ "${mode}" == full ] ; then
 
   rm -f *.o *.mod *.cdk* *.h *.ftn* *.f *.f90
 
-  cp -f ${trunkdir}/ominusp/main_ominusp.f90 ${compiledir}/
+  cp -f ${trunkdir}/ominusf/main_ominusf.f90 ${compiledir}/
   cd ${trunkdir};          ls -1F | grep -v '/' | grep -v "*" | grep -v "@" | cpio --quiet -p $compiledir ; cd $compiledir
   cd ${trunkdir}/bgcheck;  ls -1F | grep -v '/' | grep -v "*" | cpio --quiet -p $compiledir ; cd $compiledir
   cd ${trunkdir}/shared;   ls -1F | grep -v '/' | grep -v "*" | cpio --quiet -p $compiledir ; cd $compiledir
@@ -210,10 +210,10 @@ if [ "${mode}" == full ] ; then
       exit 1
   fi
 
-  echo "... > Building the executable ${ominuspabs}"
-  rm -f ${ominuspabs}
+  echo "... > Building the executable ${ominusfabs}"
+  rm -f ${ominusfabs}
   echo "...   if aborting, check in ${PWD}/listing8"
-  s.compile $COMPF  -O ${FOPTMIZ} ${MPILIBDIR} -libappl $LIBAPPL -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o ${ominuspabs} > listing8 2>&1
+  s.compile $COMPF  -O ${FOPTMIZ} ${MPILIBDIR} -libappl $LIBAPPL -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o ${ominusfabs} > listing8 2>&1
   status=1
   grep fail listing8 || status=0
   if [ "${status}" -ne 0 ]; then
@@ -227,19 +227,19 @@ if [ "${mode}" == full ] ; then
       echo "... !! ERROR found: STOP; check listing in ${PWD} !!"
       exit 1
   fi
-  cp ${ominuspabs} ${absdir}/
+  cp ${ominusfabs} ${absdir}/
 
   #### rm -f *.ftn* *.f *.f90
 
 elif [ "${mode}" == abs ] ; then
 
-  rm -f ${ominuspabs}
+  rm -f ${ominusfabs}
 
   echo "..."
-  echo "... > Building the executable ${ominuspabs}"
+  echo "... > Building the executable ${ominusfabs}"
   echo "..."
-  s.compile $COMPF  -O ${FOPTMIZ} ${MPILIBDIR} -libappl $LIBAPPL -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o ${ominuspabs}
-  cp ${ominuspabs} ${absdir}/
+  s.compile $COMPF  -O ${FOPTMIZ} ${MPILIBDIR} -libappl $LIBAPPL -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o ${ominusfabs}
+  cp ${ominusfabs} ${absdir}/
 
 else
     if [ -f $trunkdir/$mode ] ; then
@@ -261,12 +261,12 @@ echo "..."
 echo "... > FINISHED COMPILATION AT: $(date)"
 if [ "${mode}" == full -o "${mode}" == abs ] ; then
     echo "..."
-    echo "... The program can be found here: ${absdir}/${ominuspabs}"
+    echo "... The program can be found here: ${absdir}/${ominusfabs}"
     echo "..."
 else
     echo "..."
 fi
 
 echo "...             |======================================|"
-echo "... ------------|  OMINUSP compilation script ENDING   |------------"
+echo "... ------------|  OMINUSF compilation script ENDING   |------------"
 echo "...             |======================================|"
