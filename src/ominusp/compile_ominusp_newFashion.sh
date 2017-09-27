@@ -3,7 +3,7 @@
 set -e
 
 mode=$1
-program="randompert"
+program="ominusp"
 
 . ./compile_commons.sh
 
@@ -87,9 +87,6 @@ if [ $mode == full ] ; then
   cp -f ${trunkdir}/bgcheck/*.ftn90 ${compiledir}/
 
   cd ${compiledir}
-
-  # Add revision number to the main routine
-  sed -i "s|GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE|${revnum}|g" main_${program}.ftn90
 
   echo "..."
   echo "... > STARTING COMPILATION AT: $(date)"

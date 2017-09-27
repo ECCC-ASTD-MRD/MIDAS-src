@@ -8,9 +8,9 @@ nompi=$2
 . ./compile_commons.sh
 
 echo "..."
-echo "...             |==================================|"
-echo "... ------------|  VAR compilation script STARTING |------------"
-echo "...             |==================================|"
+echo "...             |======================================|"
+echo "... ------------|  OMINUSP compilation script STARTING |------------"
+echo "...             |======================================|"
 
 if [ "$mode" == "" ] ; then
   echo "..."
@@ -41,9 +41,9 @@ else
   ABSTAG=""
 fi
 
-trunkdir=$PWD
+trunkdir=$PWD/../
 
-# Find the revision number
+# Get revision number
 revnum=$(git describe --abbrev=7 --always --dirty=_M 2>/dev/null || ssh eccc-ppp1 "cd $trunkdir; git describe --abbrev=7 --always --dirty=_M" 2>/dev/null || echo unkown revision)
 echo "..."
 echo "... > Revision Number = '$revnum'"
@@ -72,10 +72,11 @@ absdir=${compiledir_main}/oavar_abs
 mkdir -p ${absdir}
 cd $absdir ; absdir=$PWD ; cd - >/dev/null
 
-varabs=oavar_${ORDENV_PLAT}${ABSTAG}-${revnum}.Abs
+ominuspabs=ominusp_${ORDENV_PLAT}${ABSTAG}-${revnum}.Abs
 
 #-----------------------------------------------------------------------------
-LIBAPPL="rttov_coef_io rttov_hdf rttov_parallel  rttov_main rttov_emis_atlas rttov_other ${HDF5_LIBS} burp_module descrip $MPILIB"
+
+LIBAPPL="netcdff rttov10.2.0_coef_io rttov10.2.0_main rttov10.2.0_emis_atlas rttov10.2.0_other burp_module descrip $MPILIB"
 LIBSYS="hpcoperf"
 LIBRMN=rmnMP
 
@@ -83,14 +84,11 @@ if [ "${mode}" == full ] ; then
 
   rm -f *.o *.mod *.cdk* *.h *.ftn* *.f *.f90
 
-  # Create a local copy of the source code
+  cp -f ${trunkdir}/ominusp/main_ominusp.f90 ${compiledir}/
   cd ${trunkdir};          ls -1F | grep -v '/' | grep -v "*" | grep -v "@" | cpio --quiet -p $compiledir ; cd $compiledir
   cd ${trunkdir}/bgcheck;  ls -1F | grep -v '/' | grep -v "*" | cpio --quiet -p $compiledir ; cd $compiledir
   cd ${trunkdir}/shared;   ls -1F | grep -v '/' | grep -v "*" | cpio --quiet -p $compiledir ; cd $compiledir
-  rm -f *.f*90~
-
-  # Add revision number to the main routine
-  sed -i "s|GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE|${revnum}|g" main_var.f90
+  rm -f *.f*~
 
   # Check for indented OPEN-MP directives - this is not allowed!
   status=1
@@ -105,12 +103,11 @@ if [ "${mode}" == full ] ; then
   # Compile the subroutines...
   echo "... > Compiling low-level independent modules"
   echo "...   if aborting, check in ${PWD}/listing0"
-  SRC0="tovs_extrap_mod.f90 utilities_mod.f90 ramdisk_mod.ftn90 randomnumber_mod.f90"
-  SRC0="$SRC0 mathphysconstants_mod.f90 earthconstants_mod.f90 mpi_mod.f90 mpivar_mod.f90 bufr_mod.f90 codtyp_mod.f90"
+  SRC0="mathphysconstants_mod.f90 earthconstants_mod.f90 utilities_mod.f90 ramdisk_mod.ftn90"
+  SRC0="$SRC0 randomnumber_mod.f90 mpi_mod.f90 mpivar_mod.f90 bufr_mod.f90 codtyp_mod.f90"
   SRC0="$SRC0 physicsfunctions_mod.f90 obsspacedata_mod.ftn90 localizationfunction_mod.f90"
   SRC0="$SRC0 horizontalcoord_mod.f90 timecoord_mod.f90 verticalcoord_mod.f90"
   SRC0="$SRC0 lqtoes_mod.f90 presprofileoperators_mod.f90 spectralfilter_mod.f90"
-
   s.compile $COMPF -O ${FOPTMIZ} -src $SRC0 > listing0 2>&1
   status=1
   grep fail listing0 || status=0
@@ -144,16 +141,16 @@ if [ "${mode}" == full ] ; then
 
   echo "... > Compiling most of the new modules"
   echo "...   if aborting, check in ${PWD}/listing3"
+  SRC1="controlvector_mod.f90 rmatrix_mod.ftn90 hirchannels_mod.f90 tovs_nl_mod.ftn90"
+  SRC1="$SRC1 tovs_lin_mod.ftn90 varnamelist_mod.f90 columndata_mod.f90 multi_ir_bgck_mod.ftn90"
+  SRC1="$SRC1 emissivities_mod.f90 globalspectraltransform_mod.f90 tt2phi_mod.f90"
+  SRC1="$SRC1 lamspectraltransform_mod.f90 gridstatevector_mod.f90 ensemblestatevector_mod.f90 statetocolumn_mod.f90"
+  SRC1="$SRC1 variabletransforms_mod.f90 localizationspectral_mod.f90 localization_mod.f90"
+  SRC1="$SRC1 bmatrixensemble_mod.f90 bmatrixhi_mod.f90 lambmatrixhi_mod.f90"
+  SRC1="$SRC1 bmatrixchem_mod.f90 bmatrix_mod.f90 residual_mod.f90 costfunction_mod.f90"
+  SRC1="$SRC1 ozoneclim_mod.f90 tovs_extrap_mod.f90"
 
-  SRC1="obssubspacedata_mod.ftn90 controlvector_mod.f90 rmatrix_mod.ftn90 hirchannels_mod.f90 "
-  SRC1="$SRC1 varnamelist_mod.f90 columndata_mod.f90 ozoneclim_mod.f90 tovs_nl_mod.ftn90"
-  SRC1="$SRC1 globalspectraltransform_mod.f90 tt2phi_mod.f90"
-  SRC1="$SRC1 lamspectraltransform_mod.f90 gridstatevector_mod.f90 ensemblestatevector_mod.f90 statetocolumn_mod.f90 variabletransforms_mod.f90"
-  SRC1="$SRC1 bmatrixchem_mod.f90 localizationspectral_mod.f90 localization_mod.f90 bmatrixensemble_mod.f90 bmatrixhi_mod.f90 lambmatrixhi_mod.f90"
-  SRC1="$SRC1 bmatrix_mod.f90 residual_mod.f90 costfunction_mod.f90"
-
-  s.compile $COMPF  -O ${FOPTMIZ} -src $SRC1  > listing3 2>&1
-
+  s.compile $COMPF  -O ${FOPTMIZ} -src $SRC1 > listing3 2>&1
   status=1
   grep fail listing3 || status=0
   if [ "${status}" -ne 0 ]; then
@@ -185,12 +182,10 @@ if [ "${mode}" == full ] ; then
 
   echo "... > Compiling some more modules..."
   echo "...   if aborting, check in ${PWD}/listing6"
-
-  SRC2="obssubspacedata_mod.ftn90 burpfiles_mod.ftn90 multi_ir_bgck_mod.ftn90 chem_setup_mod.f90 chem_obserrors_mod.f90"
+  SRC2="obssubspacedata_mod.ftn90 burpfiles_mod.ftn90 chem_setup_mod.f90 chem_obserrors_mod.f90"
   SRC2="$SRC2 chem_obsoperators_mod.f90 chem_postproc_mod.f90"
-  SRC2="$SRC2 obserrors_mod.f90 varqc_mod.f90 obsfilter_mod.f90 tovs_lin_mod.ftn90 obsoperators_mod.f90 obsspacediag_mod.f90"
+  SRC2="$SRC2 obserrors_mod.f90 varqc_mod.f90 obsfilter_mod.f90 obsoperators_mod.f90 obsspacediag_mod.f90"
   SRC2="$SRC2 innovation_mod.f90 minimization_mod.f90"
-
   s.compile $COMPF  -O ${FOPTMIZ} -src $SRC2 > listing6 2>&1
   status=1
   grep fail listing6 || status=0
@@ -203,7 +198,7 @@ if [ "${mode}" == full ] ; then
   echo "...   if aborting, check in ${PWD}/listing7"
   filelist=""
   for i in *.*90 ; do
-      if [[ "${i}" != *_mod.ftn* ]]; then
+      if [[ "${i}" != *_mod.f* ]] && [[ "${i}" != main_var.f90* ]] ; then
 	  filelist="$filelist ${i}"
       fi
   done
@@ -215,10 +210,10 @@ if [ "${mode}" == full ] ; then
       exit 1
   fi
 
-  echo "... > Building the executable ${varabs}"
-  rm -f ${varabs}
+  echo "... > Building the executable ${ominuspabs}"
+  rm -f ${ominuspabs}
   echo "...   if aborting, check in ${PWD}/listing8"
-  s.compile $COMPF  -O ${FOPTMIZ} ${MPILIBDIR} -libappl $LIBAPPL -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o ${varabs} > listing8 2>&1
+  s.compile $COMPF  -O ${FOPTMIZ} ${MPILIBDIR} -libappl $LIBAPPL -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o ${ominuspabs} > listing8 2>&1
   status=1
   grep fail listing8 || status=0
   if [ "${status}" -ne 0 ]; then
@@ -232,17 +227,19 @@ if [ "${mode}" == full ] ; then
       echo "... !! ERROR found: STOP; check listing in ${PWD} !!"
       exit 1
   fi
-  cp ${varabs} ${absdir}/
+  cp ${ominuspabs} ${absdir}/
+
+  #### rm -f *.ftn* *.f *.f90
 
 elif [ "${mode}" == abs ] ; then
 
-  rm -f ${varabs}
+  rm -f ${ominuspabs}
 
   echo "..."
-  echo "... > Building the executable ${varabs}"
+  echo "... > Building the executable ${ominuspabs}"
   echo "..."
-  s.compile $COMPF  -O ${FOPTMIZ} ${MPILIBDIR} -libappl $LIBAPPL -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o ${varabs}
-  cp ${varabs} ${absdir}/
+  s.compile $COMPF  -O ${FOPTMIZ} ${MPILIBDIR} -libappl $LIBAPPL -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o ${ominuspabs}
+  cp ${ominuspabs} ${absdir}/
 
 else
     if [ -f $trunkdir/$mode ] ; then
@@ -264,12 +261,12 @@ echo "..."
 echo "... > FINISHED COMPILATION AT: $(date)"
 if [ "${mode}" == full -o "${mode}" == abs ] ; then
     echo "..."
-    echo "... The program can be found here: ${absdir}/${varabs}"
+    echo "... The program can be found here: ${absdir}/${ominuspabs}"
     echo "..."
 else
     echo "..."
 fi
 
-echo "...             |==================================|"
-echo "... ------------|  VAR compilation script ENDING   |------------"
-echo "...             |==================================|"
+echo "...             |======================================|"
+echo "... ------------|  OMINUSP compilation script ENDING   |------------"
+echo "...             |======================================|"
