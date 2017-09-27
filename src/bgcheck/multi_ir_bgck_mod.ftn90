@@ -283,7 +283,7 @@ contains
       
       IDATYP = obs_headElem_i(obsSpaceData,OBS_ITY,index_header)
 
-      if ( .not.  tvs_isIdBurpTovs(IDATYP) ) cycle HEADER   ! Proceed to the next header_index
+      if ( .not. tvs_isIdBurpTovs(IDATYP) ) cycle HEADER   ! Proceed to the next header_index
 
       tvs_nobtov = tvs_nobtov + 1
       do j=1, ninst
@@ -299,7 +299,7 @@ contains
         do krtid=1,tvs_nsensors
           if (tvs_instruments(krtid) ==  tvs_getInstrumentId(inst(j)) ) then
             call irbg_doQualityControl (columnhr, obsSpaceData, INST(j), krtid)
-          endif
+          end if
         end do
       end if
     end do
@@ -348,12 +348,12 @@ contains
     do jfile=1,burp_nfiles
       write(*,*) 'INPUT FILE TO  hir_cldprm_to_brp= ', trim(burp_cfilnam(jfile))
       call hir_cldprm_to_brp(lobsspacedata,burp_cfilnam(jfile))
-    enddo
+    end do
 
   end subroutine add_cloudprms
 
 
-  SUBROUTINE hir_cldprm_to_brp(lobsspacedata,brp_file)
+  subroutine hir_cldprm_to_brp(lobsspacedata,brp_file)
     use burp_module
     IMPLICIT NONE
     !implicits
@@ -385,9 +385,9 @@ contains
     REAL                   :: VAL_OPTION_R4
     CHARACTER(LEN=9)       :: station_id
     
-    WRITE(*,*) '---------------------------------------'
-    WRITE(*,*) '------- BEGIN hir_cldprm_to_brp -------'
-    WRITE(*,*) '---------------------------------------'
+    write(*,*) '---------------------------------------'
+    write(*,*) '------- BEGIN hir_cldprm_to_brp -------'
+    write(*,*) '---------------------------------------'
 
 
     ! initialisation
@@ -402,14 +402,14 @@ contains
     opt_missing = 'MISSING'
     val_option_r4  = -7777.77
 
-    Call BURP_Set_Options( &
+    call BURP_Set_Options( &
          REAL_OPTNAME       = opt_missing, &
          REAL_OPTNAME_VALUE = val_option_r4, &
          IOSTAT             = error )
 
-    Call BURP_Init(File_in,IOSTAT=error)
-    Call BURP_Init(Rpt_in,Cp_rpt,IOSTAT=error)
-    Call BURP_Init(Block_in,IOSTAT=error)
+    call BURP_Init(File_in,IOSTAT=error)
+    call BURP_Init(Rpt_in,Cp_rpt,IOSTAT=error)
+    call BURP_Init(Block_in,IOSTAT=error)
 
 
     ! opening file
@@ -417,7 +417,7 @@ contains
 
     write(*,*) 'OPENED FILE = ', trim(brp_file)
 
-    Call BURP_New(File_in, &
+    call BURP_New(File_in, &
          FILENAME = brp_file, &
          MODE     = FILE_ACC_APPEND, &
          IOSTAT   = error )
@@ -426,13 +426,13 @@ contains
     ! obtain input burp file number of reports
     ! ----------------------------------------
 
-    Call BURP_Get_Property(File_in, NRPTS=nb_rpts)
+    call BURP_Get_Property(File_in, NRPTS=nb_rpts)
 
 
     ! scan input burp file to get all reports address
     ! -----------------------------------------------
 
-    Allocate(address(nb_rpts))
+    allocate(address(nb_rpts))
     address(:) = 0
     count = 0
     ref_rpt = 0
@@ -444,41 +444,41 @@ contains
            IOSTAT      = error)
       if (ref_rpt < 0) Exit
 
-      Call BURP_Get_Property(Rpt_in,STNID =station_id)
+      call BURP_Get_Property(Rpt_in,STNID =station_id)
       if (station_id(1:2)==">>") cycle
 
       count = count + 1
       address(count) = ref_rpt
     end do
 
-    WRITE(*,*) 
-    WRITE(*,*) 'NUMBER OF REPORTS WITH OBSERVATIONS = ',count
-    WRITE(*,*) 
+    write(*,*) 
+    write(*,*) 'NUMBER OF REPORTS WITH OBSERVATIONS = ',count
+    write(*,*) 
     
     if ( count > 0 ) then
 
       ! create a new report
       ! ------------------
       
-      !pik  Call BURP_New(Cp_rpt, ALLOC_SPACE=10000000, IOSTAT=error)
-      Call BURP_New(Cp_rpt, ALLOC_SPACE=20000000, IOSTAT=error)
+      !pik  call BURP_New(Cp_rpt, ALLOC_SPACE=10000000, IOSTAT=error)
+      call BURP_New(Cp_rpt, ALLOC_SPACE=20000000, IOSTAT=error)
       if (error/=burp_noerr) then
         Write(*,*) "Error creating new directory ",error 
         call handle_error('hir_cldprm_to_brp')
-      endif
+      end if
 
       ! LOOP ON REPORTS
       ! ---------------
 
       REPORTS: do kk = 1, count
 
-        Call BURP_Get_Report(File_in, &
+        call BURP_Get_Report(File_in, &
              REPORT    = Rpt_in, &
              REF       = address(kk), &
              IOSTAT    = error)
         
         if (kk == 1) then
-          Call BURP_Get_Property(Rpt_in, IDTYP = IDATYP)
+          call BURP_Get_Property(Rpt_in, IDTYP = IDATYP)
           Write(*,*) "hir_cldprm_to_brp idatyp ", IDATYP
           idata2 = -1
           call obs_set_current_header_list(lobsSpaceData,'TO')
@@ -488,14 +488,14 @@ contains
             if  ( obs_headElem_i(lobsSpaceData,OBS_ITY,i) == idatyp) then
               idata2 = i
               exit HEADER
-            endif
-          enddo HEADER
+            end if
+          end do HEADER
           if (idata2 == -1) then
             Write(*,*) "datyp ",idatyp," not found in input file !"
             call utl_abort("hir_cldprm_to_brp")
-          endif
+          end if
           idata3 = idata2
-        endif
+        end if
 
         ! FIRST LOOP ON BLOCKS
         ! --------------------
@@ -515,7 +515,7 @@ contains
 
           if (ref_blk < 0) EXIT BLOCKS1
 
-          Call BURP_Get_Property(Block_in, &
+          call BURP_Get_Property(Block_in, &
                NELE   = nbele, &
                NVAL   = nvale, &
                NT     = nte,   &
@@ -552,17 +552,17 @@ contains
         end do BLOCKS1
 
 
-        Call BURP_Copy_Header(TO=Cp_rpt,FROM=Rpt_in)
+        call BURP_Copy_Header(TO=Cp_rpt,FROM=Rpt_in)
         IF (error /= BURP_NOERR) then
           Write(*,*) "Error= ",error
           call handle_error("Erreur dans BURP_Copy_Header")
-        endif
+        end if
 
-        Call BURP_Init_Report_Write(File_in,Cp_Rpt, IOSTAT=error)
+        call BURP_Init_Report_Write(File_in,Cp_Rpt, IOSTAT=error)
         IF (error /= BURP_NOERR) then
           Write(*,*) "Error= ",error
           call handle_error("Erreur dans BURP_Init_Report_Write")
-        endif
+        end if
 
         ! SECOND LOOP ON BLOCKS
         ! ---------------------
@@ -587,7 +587,7 @@ contains
           
           if (ref_blk < 0) EXIT BLOCKS2
 
-          Call BURP_Get_Property(Block_in, &
+          call BURP_Get_Property(Block_in, &
                NELE   = nbele, &
                NVAL   = nvale, &
                NT     = nte, &
@@ -623,7 +623,7 @@ contains
             end do
 
             do k = 1, nte
-              Call BURP_Set_Tblval(Block_in, &
+              call BURP_Set_Tblval(Block_in, &
                    NELE_IND = ind055200, &
                    NVAL_IND = 1, &
                    NT_IND   = k, &
@@ -645,21 +645,21 @@ contains
 
             flag_passage2 = 1
 
-            Call BURP_Resize_Block(Block_in, ADD_NELE=11, IOSTAT=error)
+            call BURP_Resize_Block(Block_in, ADD_NELE=11, IOSTAT=error)
             if (error/=burp_noerr) then
               call handle_error("Erreur dans BURP_Resize_Block info")
-            endif
-            Call BURP_Set_Element(Block_in, NELE_IND=nbele+ 1, ELEMENT=014213, IOSTAT=error)
-            Call BURP_Set_Element(Block_in, NELE_IND=nbele+ 2, ELEMENT=014214, IOSTAT=error)
-            Call BURP_Set_Element(Block_in, NELE_IND=nbele+ 3, ELEMENT=014215, IOSTAT=error)
-            Call BURP_Set_Element(Block_in, NELE_IND=nbele+ 4, ELEMENT=014216, IOSTAT=error)
-            Call BURP_Set_Element(Block_in, NELE_IND=nbele+ 5, ELEMENT=014217, IOSTAT=error)
-            Call BURP_Set_Element(Block_in, NELE_IND=nbele+ 6, ELEMENT=014218, IOSTAT=error)
-            Call BURP_Set_Element(Block_in, NELE_IND=nbele+ 7, ELEMENT=014219, IOSTAT=error)
-            Call BURP_Set_Element(Block_in, NELE_IND=nbele+ 8, ELEMENT=014220, IOSTAT=error)
-            Call BURP_Set_Element(Block_in, NELE_IND=nbele+ 9, ELEMENT=014221, IOSTAT=error)
-            Call BURP_Set_Element(Block_in, NELE_IND=nbele+10, ELEMENT=013214, IOSTAT=error)
-            Call BURP_Set_Element(Block_in, NELE_IND=nbele+11, ELEMENT=059182, IOSTAT=error)
+            end if
+            call BURP_Set_Element(Block_in, NELE_IND=nbele+ 1, ELEMENT=014213, IOSTAT=error)
+            call BURP_Set_Element(Block_in, NELE_IND=nbele+ 2, ELEMENT=014214, IOSTAT=error)
+            call BURP_Set_Element(Block_in, NELE_IND=nbele+ 3, ELEMENT=014215, IOSTAT=error)
+            call BURP_Set_Element(Block_in, NELE_IND=nbele+ 4, ELEMENT=014216, IOSTAT=error)
+            call BURP_Set_Element(Block_in, NELE_IND=nbele+ 5, ELEMENT=014217, IOSTAT=error)
+            call BURP_Set_Element(Block_in, NELE_IND=nbele+ 6, ELEMENT=014218, IOSTAT=error)
+            call BURP_Set_Element(Block_in, NELE_IND=nbele+ 7, ELEMENT=014219, IOSTAT=error)
+            call BURP_Set_Element(Block_in, NELE_IND=nbele+ 8, ELEMENT=014220, IOSTAT=error)
+            call BURP_Set_Element(Block_in, NELE_IND=nbele+ 9, ELEMENT=014221, IOSTAT=error)
+            call BURP_Set_Element(Block_in, NELE_IND=nbele+10, ELEMENT=013214, IOSTAT=error)
+            call BURP_Set_Element(Block_in, NELE_IND=nbele+11, ELEMENT=059182, IOSTAT=error)
             
             ind008012 = BURP_Find_Element(Block_in, &
                  ELEMENT  = 008012, &
@@ -718,11 +718,11 @@ contains
           if ( btyp10 - btyp10obs == 0 .and. bfam == 0 ) then
             flag_passage3 = 1
 
-            Call BURP_Resize_Block(Block_in, ADD_NELE=1, IOSTAT=error)
+            call BURP_Resize_Block(Block_in, ADD_NELE=1, IOSTAT=error)
             if (error/=burp_noerr) then
               call handle_error("Erreur dans BURP_Resize_Block data")
-            endif
-            Call BURP_Set_Element(Block_in, NELE_IND=nbele+1, ELEMENT=055043, IOSTAT=error)
+            end if
+            call BURP_Set_Element(Block_in, NELE_IND=nbele+1, ELEMENT=055043, IOSTAT=error)
             indchan  = BURP_Find_Element(Block_in, ELEMENT=005042, IOSTAT=error)
             do k = 1, nte
               do j = 1, nvale
@@ -745,8 +745,8 @@ contains
                     if (ichn==ichnb) then
                       call Insert_into_burp_r8(emisfc,nbele+1,l,k)
                       exit bl
-                    endif
-                  enddo bl
+                    end if
+                  end do bl
                   
                 end do
                     
@@ -767,15 +767,15 @@ contains
           if ( btyp10 - btyp10flg == 0 ) then
             flag_passage4 = 1
             
-            Call BURP_Resize_Block(Block_in, ADD_NELE=1, IOSTAT=error)
+            call BURP_Resize_Block(Block_in, ADD_NELE=1, IOSTAT=error)
             if (error/=burp_noerr) then
               call handle_error("Erreur dans BURP_Resize_Block marqueur")
-            endif
-            Call BURP_Set_Element(Block_in, NELE_IND=nbele+1, ELEMENT=255043, IOSTAT=error)
+            end if
+            call BURP_Set_Element(Block_in, NELE_IND=nbele+1, ELEMENT=255043, IOSTAT=error)
             
             do k = 1, nte
               do j = 1, nvale
-                Call BURP_Set_Tblval(Block_in, &
+                call BURP_Set_Tblval(Block_in, &
                      NELE_IND = nbele+1, &
                      NVAL_IND = j, &
                      NT_IND   = k, &
@@ -794,11 +794,11 @@ contains
           if ( btyp10 - btyp10omp == 0 .and. bfam == 14 ) then
             flag_passage5 = 1
               
-            Call BURP_Resize_Block(Block_in, ADD_NELE=1, IOSTAT=error)
+            call BURP_Resize_Block(Block_in, ADD_NELE=1, IOSTAT=error)
             if (error/=burp_noerr) then
               call handle_error("Erreur dans BURP_Resize_Block O-P")
-            endif
-            Call BURP_Set_Element(Block_in, NELE_IND=nbele+1, ELEMENT=055043, IOSTAT=error)
+            end if
+            call BURP_Set_Element(Block_in, NELE_IND=nbele+1, ELEMENT=055043, IOSTAT=error)
                 
             do k = 1, nte
               do j = 1, nvale
@@ -812,11 +812,11 @@ contains
           ! -------------------------
 
           if ( btyp == 5120 ) then
-            Call BURP_Write_Block(Cp_rpt, Block_in, &
+            call BURP_Write_Block(Cp_rpt, Block_in, &
                  ENCODE_BLOCK  = .true., &
                  IOSTAT        = error)
           else
-            Call BURP_Write_Block(Cp_rpt, Block_in, &
+            call BURP_Write_Block(Cp_rpt, Block_in, &
                  ENCODE_BLOCK  = .true., &
                  CONVERT_BLOCK = .true., &
                  IOSTAT        = error)
@@ -824,7 +824,7 @@ contains
           if (error/=burp_noerr) then
             write(*,*)"Btyp= ",btyp
             call handle_error("Erreur dans BURP_Write_Block")
-          endif
+          end if
         end do BLOCKS2
 
 
@@ -836,8 +836,8 @@ contains
         ! write new report into file
         ! --------------------------
         
-        Call BURP_Delete_Report(File_in,Rpt_in, IOSTAT=error)
-        Call BURP_Write_Report(File_in,Cp_rpt, IOSTAT=error)
+        call BURP_Delete_Report(File_in,Rpt_in, IOSTAT=error)
+        call BURP_Write_Report(File_in,Cp_rpt, IOSTAT=error)
       end do REPORTS
 
       if ( flag_passage1 == 0 ) then
@@ -863,13 +863,13 @@ contains
           
     end if !! End of 'if ( count > 0 )'
 
-    Deallocate(address)
+    deallocate(address)
 
-    Call BURP_Free(File_in,IOSTAT=error)
-    Call BURP_Free(Rpt_in,Cp_rpt,IOSTAT=error)
-    Call BURP_Free(Block_in,IOSTAT=error)
+    call BURP_Free(File_in,IOSTAT=error)
+    call BURP_Free(Rpt_in,Cp_rpt,IOSTAT=error)
+    call BURP_Free(Block_in,IOSTAT=error)
 
-  CONTAINS
+  contains
 
     !------------------------------------- HANDLE_ERROR -----
   
@@ -878,11 +878,11 @@ contains
       character (len=*) :: errormessage
       write(*,*) BURP_STR_ERROR()
       write(*,*) "history"
-      Call BURP_STR_ERROR_HISTORY()
-      if (allocated(address)) Deallocate(address)
-      Call BURP_Free(File_in)
-      Call BURP_Free(Rpt_in,Cp_rpt)
-      Call BURP_Free(Block_in)
+      call BURP_STR_ERROR_HISTORY()
+      if (allocated(address)) deallocate(address)
+      call BURP_Free(File_in)
+      call BURP_Free(Rpt_in,Cp_rpt)
+      call BURP_Free(Block_in)
       call utl_abort(trim(errormessage))
     end subroutine handle_error
 
@@ -893,14 +893,14 @@ contains
       integer :: error
       
       if ( r8val >= 0.d0 ) then
-        Call BURP_Set_Rval(Block_in, &
+        call BURP_Set_Rval(Block_in, &
              NELE_IND = pele, &
              NVAL_IND = pval, &
              NT_IND   = pt, &
              RVAL     = sngl(r8val), &
              IOSTAT   = error)
       else
-        Call BURP_Set_Rval(Block_in, &
+        call BURP_Set_Rval(Block_in, &
              NELE_IND = pele, &
              NVAL_IND = pval, &
              NT_IND   = pt, &
@@ -910,7 +910,7 @@ contains
       if (error/=burp_noerr) then
         Write(*,*) "r8val,pele,pval,pt",r8val,pele,pval,pt
         call handle_error("Insert_into_burp_r8")
-      endif
+      end if
 
     end subroutine Insert_into_burp_r8
 
@@ -921,14 +921,14 @@ contains
       integer :: error
       
       if ( ival >= 0 ) then
-        Call BURP_Set_Rval(Block_in, &
+        call BURP_Set_Rval(Block_in, &
              NELE_IND = pele, &
              NVAL_IND = pval, &
              NT_IND   = pt, &
              RVAL   = real(ival), &
              IOSTAT   = error)
       else
-        Call BURP_Set_Rval(Block_in, &
+        call BURP_Set_Rval(Block_in, &
              NELE_IND = pele, &
              NVAL_IND = pval, &
              NT_IND   = pt, &
@@ -939,11 +939,11 @@ contains
       if (error/=burp_noerr) then
         Write(*,*) "ival,pele,pval,pt",ival,pele,pval,pt
         call handle_error("Insert_into_burp_i")
-      endif
+      end if
     end subroutine Insert_into_burp_i
 
 
-  END SUBROUTINE HIR_CLDPRM_TO_BRP
+  END subroutine HIR_CLDPRM_TO_BRP
 
 
   subroutine BGCK_GET_QCID(CINSTR,QCID)
@@ -1881,34 +1881,34 @@ contains
       end if
 
     end do HEADER_2
- 
-    deallocate ( BTOBSERR,  stat= alloc_status(1) )
-    deallocate ( BTOBS,     stat= alloc_status(2) )
-    deallocate ( BTCALC,    stat= alloc_status(3) )
-    deallocate ( RCAL_CLR,  stat= alloc_status(4) )
-    deallocate ( SFCTAU,    stat= alloc_status(5))
-    deallocate ( RCLD,      stat= alloc_status(6))
-    deallocate ( TRANSM,    stat= alloc_status(7))
-    deallocate ( EMI_SFC,   stat= alloc_status(8))
-    deallocate ( TOEXT,     stat= alloc_status(9))
-    deallocate ( ZHOEXT,    stat= alloc_status(10))
-    deallocate ( ROBS,      stat= alloc_status(11))
-    deallocate ( REJFLAG,   stat= alloc_status(12))
-    deallocate ( NTOP_BT,   stat= alloc_status(13))
-    deallocate ( NTOP_RD,   stat= alloc_status(14))
-    deallocate ( PTOP_BT,   stat= alloc_status(15))
-    deallocate ( PTOP_RD,   stat= alloc_status(16))
-    deallocate ( MINP,      stat= alloc_status(17))
-    deallocate ( PMIN,      stat= alloc_status(18))
-    deallocate ( DTAUDP1,   stat= alloc_status(19))
-    deallocate ( FATE,      stat= alloc_status(20))
-    if (liasi) deallocate ( RCLD_AVHRR , stat= alloc_status(21))
-    deallocate ( maxwf,     stat= alloc_status(22))
-    deallocate ( ZVLEV,     stat= alloc_status(23))
-    deallocate ( ZLEVMOD,   stat= alloc_status(24))
-    deallocate ( XPRES,     stat= alloc_status(25))
-    deallocate ( ZT,        stat= alloc_status(26))
-    deallocate ( ZHT,       stat= alloc_status(27))
+
+    deallocate ( ZHT,       stat= alloc_status(1))
+    deallocate ( ZT,        stat= alloc_status(2))
+    deallocate ( ZLEVMOD,   stat= alloc_status(3))
+    deallocate ( ZVLEV,     stat= alloc_status(4))
+    deallocate ( maxwf,     stat= alloc_status(5))
+    if (liasi) deallocate ( RCLD_AVHRR , stat= alloc_status(6))
+    deallocate ( FATE,      stat= alloc_status(7))
+    deallocate ( DTAUDP1,   stat= alloc_status(8))
+    deallocate ( PMIN,      stat= alloc_status(9))
+    deallocate ( MINP,      stat= alloc_status(10))
+    deallocate ( PTOP_RD,   stat= alloc_status(11))
+    deallocate ( PTOP_BT,   stat= alloc_status(12))
+    deallocate ( NTOP_RD,   stat= alloc_status(13))
+    deallocate ( NTOP_BT,   stat= alloc_status(14))
+    deallocate ( REJFLAG,   stat= alloc_status(15))
+    deallocate ( ROBS,      stat= alloc_status(16))
+    deallocate ( ZHOEXT,    stat= alloc_status(17))
+    deallocate ( TOEXT,     stat= alloc_status(18))
+    deallocate ( EMI_SFC,   stat= alloc_status(19))
+    deallocate ( TRANSM,    stat= alloc_status(20))
+    deallocate ( RCLD,      stat= alloc_status(21))
+    deallocate ( SFCTAU,    stat= alloc_status(22))
+    deallocate ( RCAL_CLR,  stat= alloc_status(23))
+    deallocate ( BTCALC,    stat= alloc_status(24))
+    deallocate ( BTOBS,     stat= alloc_status(25))
+    deallocate ( BTOBSERR,  stat= alloc_status(26))
+    deallocate ( XPRES,     stat= alloc_status(27))
     call utl_checkAllocationStatus(alloc_status, " irbg_doQualityControl", .false.)
         
   end subroutine irbg_doQualityControl
