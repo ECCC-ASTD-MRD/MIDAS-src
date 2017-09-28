@@ -64,6 +64,10 @@ program main_ominusf
   write(*,*) " ---  Computation of the innovation  ---"
   write(*,*) " ---------------------------------------"
 
+  if ( mpi_myid == 0 ) then
+    call utl_writeStatus('VAR3D_BEG')
+  endif
+
   !
   !- 1.  Settings and module initializations
   !
@@ -214,5 +218,9 @@ program main_ominusf
   call tmg_terminate(mpi_myid, 'TMG_OMINUSF' )
 
   call rpn_comm_finalize(ierr) 
+
+  if ( mpi_myid == 0 ) then
+    call utl_writeStatus('VAR3D_END')
+  endif
 
 end program main_ominusf
