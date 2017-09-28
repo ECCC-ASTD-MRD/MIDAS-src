@@ -2211,14 +2211,14 @@ contains
           EMI_RATIO = 1.0_8
         end if
 !-------------------------------------------------------------------------------
-	  
+
         FC(JC,:) = RCAL(JC) - RCLD(JC,:)
 
 !**       gross check failure
 
         if ( REJFLAG(JC,9) == 1 ) cycle channels
         if ( REJFLAG(JC_PAIR,9) == 1 ) cycle channels
-	  
+
         if ( abs( RCAL(JC_PAIR) - ROBS(JC_PAIR) ) > EPS ) then
           RAPG = (RCAL(JC) - ROBS(JC)) / (RCAL(JC_PAIR) - ROBS(JC_PAIR))
         else
@@ -2283,11 +2283,11 @@ contains
         end if
       
         if ( J <= LEV_START .or. DRAP(JCH,J) > 9000._8 ) then
-          !           if ( ITER == 1) then
+          !if ( ITER == 1) then
           PTOP(JCH) = -1._8
           NTOP(JCH) = -1
           FCLOUD(JCH) = -1._8
-          !	   end if
+          !end if
           cycle channels
         end if
         
@@ -2311,7 +2311,7 @@ contains
 
         FCLOUD(JCH) = min ( FCLOUD(JCH),  1.5_8 )
         FCLOUD(JCH) = max ( FCLOUD(JCH), -0.5_8 )
-	  
+
         if (FCLOUD(JCH) < 0.0_8 .or. FCLOUD(JCH) > 1.0_8 )  cycle channels
       
       end do iteration
@@ -2476,11 +2476,11 @@ contains
         
       call IPSORT(index,H,NN)
 
-      if (mod(NN,2) == 0) then		! N - pair
+      if (mod(NN,2) == 0) then ! N - pair
         i = index(NN / 2)
         CTP = Hin(i)
         CFR = Fin(i)
-      else				! N - impair
+      else                     ! N - impair
         i = index(1 + NN / 2)
         CTP = Hin(i)
         CFR = Fin(i)

@@ -966,7 +966,7 @@ contains
 !         002: R Sarrazin CMDA, April 2008
 !              - comment on MTSAT imager instrument number
 !         003: R. McTaggart-Cowan *RPN  Mar 2012
-!	       - Use assumed-length declarations for string dummy args
+!              - Use assumed-length declarations for string dummy args
 !         003: S. Macpherson ARMA, August 2011
 !              - add NPP/ATMS codtyp=192
 !         004: C. Cote Juillet 2015
@@ -2275,7 +2275,7 @@ contains
     real (8)    ,intent(in) :: Wind(NP),Angle(NP)
     integer ,intent(in) :: Mchannel(Nchn)
 !***********************************************
-    integer ,parameter :: MaxWn = 19	
+    integer ,parameter :: MaxWn = 19
     integer ,parameter :: Nparm=3
     integer ,parameter :: MaxChan=19
 
@@ -2283,8 +2283,8 @@ contains
     real (8) C(Nparm,2,MaxWn)
     real (8) A(MaxChan),B(MaxChan),CC(MaxChan)  ! local variable
     real (8) WW
-    integer Index,Ichan,IP	
-	
+    integer Index,Ichan,IP
+
     data Theta /                    &
          1700.381d0, 25.28534d0, 144.1023d0,  &
          1738.149d0, 25.67787d0, 146.6139d0,  &
@@ -2306,7 +2306,7 @@ contains
          1610.696d0, 26.48602d0, 142.2768d0,  &
          1503.969d0, 24.97931d0, 133.4392d0 /
 
-    data C /	                             &
+    data C /                                            &
          0.9715104043561414d0,-1.2034233230944147D-06,  &
          -5.8742655960993913D-07,  &
          0.9263932848727608d0,-9.4908630939690859D-04,  &

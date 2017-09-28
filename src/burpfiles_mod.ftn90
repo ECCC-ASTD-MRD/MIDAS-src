@@ -417,17 +417,17 @@ contains
 
          burp_chem = trim(burp_cfamtyp(J)).eq.'CH'
 
-	 IF ( trim(burp_cfamtyp(J)) .ne. 'TO' .and. .not.burp_chem) THEN
+         IF ( trim(burp_cfamtyp(J)) .ne. 'TO' .and. .not.burp_chem) THEN
             call FDTOUV_OBSDAT(  obsdat,Nstn1+1,Nstn2,PPMIS)
             call ADJUST_HUM_GZ(  obsdat,Nstn1+1,Nstn2)
             call ADJUST_SFVCOORD(obsdat,Nstn1+1,Nstn2)
-	 ENDIF
+         ENDIF
          DO JO=nstn1+1,nstn2
-	    call obs_headSet_i(obsdat,OBS_OTP,JO,J)
-	    call obs_setFamily(obsdat,trim(burp_cfamtyp(J)),JO)
+           call obs_headSet_i(obsdat,OBS_OTP,JO,J)
+           call obs_setFamily(obsdat,trim(burp_cfamtyp(J)),JO)
             ! For CH family, apply scaling from the element BUFR_SCALE_EXPONENT when present.
             if (burp_chem) call set_scale_chm(obsdat,JO,forward=.true.)
-	 END DO
+         END DO
          !    initializations
          DO JO=IBEG,IEND
             call obs_bodySet_r(obsdat,OBS_OMA ,JO,MISG)
@@ -581,10 +581,10 @@ END SUBROUTINE burp_updateFiles
       DO JO=START,END
         RLN=obs_headElem_i(obsdat,OBS_RLN,JO)
         NLV=obs_headElem_i(obsdat,OBS_NLV,JO)
-	!=================================
-	! DATA LOOP
-	!=================================
-	DO J = RLN, NLV + RLN -1
+        !=================================
+        ! DATA LOOP
+        !=================================
+        DO J = RLN, NLV + RLN -1
 
           VARNO=obs_bodyElem_i(obsdat,OBS_VNM,j)
           SELECT CASE(VARNO)
@@ -597,11 +597,11 @@ END SUBROUTINE burp_updateFiles
             CASE(BUFR_NEGZ)
              OBSV=obs_bodyElem_r(obsdat,OBS_VAR,j)
              GZ=OBSV*GRAV
-	     call obs_bodySet_r(obsdat,OBS_VAR,j,GZ )
+             call obs_bodySet_r(obsdat,OBS_VAR,j,GZ )
           END SELECT
 !
         END DO
-	!=================================
+        !=================================
 !
       END DO
 !-----------------------------------
@@ -648,30 +648,30 @@ END SUBROUTINE burp_updateFiles
       DO JO=START,END
         RLN=obs_headElem_i(obsdat,OBS_RLN,JO)
         NLV=obs_headElem_i(obsdat,OBS_NLV,JO)
-	!=================================
-	! DATA LOOP
-	!=================================
-	OBSV=MISG
-	DO J = RLN, NLV + RLN -1
+        !=================================
+        ! DATA LOOP
+        !=================================
+        OBSV=MISG
+        DO J = RLN, NLV + RLN -1
 
           VARNO=obs_bodyElem_i(obsdat,OBS_VNM,j)
-	  IF ( VARNO .eq. 15032 ) THEN
+          IF ( VARNO .eq. 15032 ) THEN
              OBSV=obs_bodyElem_r(obsdat,OBS_VAR,j)
              call obs_bodySet_i(obsdat,OBS_VNM,j,999 )
              EXIT
           ENDIF
 !
         END DO
-	DO J = RLN, NLV + RLN -1
+        DO J = RLN, NLV + RLN -1
 
           VARNO=obs_bodyElem_i(obsdat,OBS_VNM,j)
-	  IF ( VARNO .eq. 15031 .and. OBSV .ne. MISG ) THEN
+          IF ( VARNO .eq. 15031 .and. OBSV .ne. MISG ) THEN
              call obs_bodySet_r(obsdat,OBS_OER,j,OBSV )
              EXIT
           ENDIF
 !
         END DO
-	!=================================
+        !=================================
 !
       END DO
 !-----------------------------------
@@ -851,12 +851,12 @@ END SUBROUTINE burp_updateFiles
         RLN=obs_headElem_i(obsdat,OBS_RLN,JO)
         NLV=obs_headElem_i(obsdat,OBS_NLV,JO)
         ITY=obs_headElem_i(obsdat,OBS_ITY,JO)
-	CODTYP = ITY
-	!=================================
-	! DATA LOOP
-	!=================================
+        CODTYP = ITY
+        !=================================
+        ! DATA LOOP
+        !=================================
         ELEV=obs_headElem_r(obsdat,OBS_ALT,JO)
-	DO J = RLN, NLV + RLN -1
+        DO J = RLN, NLV + RLN -1
 
           VARNO=obs_bodyElem_i(obsdat,OBS_VNM,j)
           SELECT CASE(VARNO)
@@ -875,7 +875,7 @@ END SUBROUTINE burp_updateFiles
              ENDIF
           END SELECT
         END DO
-	!=================================
+        !=================================
 !
       END DO
 !-----------------------------------
@@ -1203,277 +1203,277 @@ END SUBROUTINE burp_updateFiles
    HEADER1: do JO=START,END
         
 
-        RLN=obs_headElem_i(obsdat,OBS_RLN,JO)
-        NLV=obs_headElem_i(obsdat,OBS_NLV,JO)
-	!--------------------------------
-	! TOP DATA LOOP
-	!--------------------------------
-	DO J = RLN, NLV + RLN -1
-	DD=PPMIS
-	FF=PPMIS
+     RLN=obs_headElem_i(obsdat,OBS_RLN,JO)
+     NLV=obs_headElem_i(obsdat,OBS_NLV,JO)
+     !--------------------------------
+     ! TOP DATA LOOP
+     !--------------------------------
+     DO J = RLN, NLV + RLN -1
+       DD=PPMIS
+       FF=PPMIS
 
-        VARNO=obs_bodyElem_i(obsdat,OBS_VNM,j)
-	LLMISDD =.true.
+       VARNO=obs_bodyElem_i(obsdat,OBS_VNM,j)
+       LLMISDD =.true.
 
-	!++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-        SELECT case (VARNO)
-	!++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+       SELECT case (VARNO)
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-	case (BUFR_NEDD,BUFR_NEDS)
-	 IF( VARNO .eq. BUFR_NEDS) then
-	   ILEMF=BUFR_NEFS
-	   ILEMU=BUFR_NEUS
-	   ILEMV=BUFR_NEVS
-	  ELSE
-	   ILEMF=BUFR_NEFF
-	   ILEMU=BUFR_NEUU
-	   ILEMV=BUFR_NEVV
-	 ENDIF
-
-          DD      =obs_bodyElem_r(obsdat,OBS_VAR,j)
-          DDFLAG  =obs_bodyElem_i(obsdat,OBS_FLG,j)
-          LEVEL_dd=obs_bodyElem_r(obsdat,OBS_PPP,j)
-
-          LLU_misg=.false.
-          LLV_misg=.false.
-          LLU_PRESENT=.false.
-          LLV_PRESENT=.false.
-	  INDUM=-1
-	  INDVM=-1
-	  ! FIND IF  U AND V ARE ALREADY IN CMA
-	  !-------------------------------------
-	  uvinobsdat: do J4 =J, NLV + RLN -1
-	  !-------------------------------------
-            LEVEL4=obs_bodyElem_r(obsdat, OBS_PPP,j4)
-	    IF (LEVEL4 .eq. LEVEL_dd) then
+       case (BUFR_NEDD,BUFR_NEDS)
+         IF( VARNO .eq. BUFR_NEDS) then
+           ILEMF=BUFR_NEFS
+           ILEMU=BUFR_NEUS
+           ILEMV=BUFR_NEVS
+         ELSE
+           ILEMF=BUFR_NEFF
+           ILEMU=BUFR_NEUU
+           ILEMV=BUFR_NEVV
+         ENDIF
+         
+         DD      =obs_bodyElem_r(obsdat,OBS_VAR,j)
+         DDFLAG  =obs_bodyElem_i(obsdat,OBS_FLG,j)
+         LEVEL_dd=obs_bodyElem_r(obsdat,OBS_PPP,j)
+         
+         LLU_misg=.false.
+         LLV_misg=.false.
+         LLU_PRESENT=.false.
+         LLV_PRESENT=.false.
+         INDUM=-1
+         INDVM=-1
+         ! FIND IF  U AND V ARE ALREADY IN CMA
+         !-------------------------------------
+         uvinobsdat: do J4 =J, NLV + RLN -1
+           !-------------------------------------
+           LEVEL4=obs_bodyElem_r(obsdat, OBS_PPP,j4)
+           IF (LEVEL4 .eq. LEVEL_dd) then
              VARNO4=obs_bodyElem_i(obsdat, OBS_VNM,j4)
              SELECT case (VARNO4)
              case (11003,11004,11002,11001,11215,11216,11011,11012)
+               
+               OBSUV =obs_bodyElem_r(obsdat, OBS_VAR,j4)
+               IF (  (VARNO4 .eq. ILEMU)     .and.  (obsuv .ne. PPMIS) ) THEN
+                 LLU_PRESENT=.true.
+                 INDUM=J4
+               ELSE IF ( (VARNO4 .eq. ILEMV) .and. (obsuv .ne. PPMIS) ) THEN
+                 LLV_PRESENT=.true.
+                 INDVM=J4
+               ENDIF
 
-              OBSUV =obs_bodyElem_r(obsdat, OBS_VAR,j4)
-              IF (  (VARNO4 .eq. ILEMU)     .and.  (obsuv .ne. PPMIS) ) THEN
-	        LLU_PRESENT=.true.
-                INDUM=J4
-              ELSE IF ( (VARNO4 .eq. ILEMV) .and. (obsuv .ne. PPMIS) ) THEN
-	        LLV_PRESENT=.true.
-                INDVM=J4
-	      ENDIF
+               IF (  (VARNO4 .eq. ILEMU)     .and. (obsuv .eq. PPMIS) ) THEN
+                 LLU_misg=.true.
+                 INDU_MISG=J4
+               ELSEIF ( (VARNO4 .eq. ILEMV)  .and. (obsuv .eq. PPMIS) ) THEN
+                 LLV_misg=.true.
+                 INDV_MISG=J4
+               ENDIF
+               
+             END SELECT
+           ENDIF
 
-              IF (  (VARNO4 .eq. ILEMU)     .and. (obsuv .eq. PPMIS) ) THEN
-	        LLU_misg=.true.
-                INDU_MISG=J4
-              ELSEIF ( (VARNO4 .eq. ILEMV)  .and. (obsuv .eq. PPMIS) ) THEN
-	        LLV_misg=.true.
-                INDV_MISG=J4
-	      ENDIF
-
-	  END SELECT
-	    ENDIF
-
-	  !-------------------------------------
-	  end do uvinobsdat
-	  !-------------------------------------
+           !-------------------------------------
+         end do uvinobsdat
+         !-------------------------------------
 
           LLUV_misg= (LLU_misg .and. LLV_misg)
           LLUV_PRESENT= (LLU_PRESENT .and. LLV_PRESENT)
 
-!      *******************************
-	  IF (   LLUV_misg) THEN
-!      *******************************
+          !      *******************************
+          IF (   LLUV_misg) THEN
+            !      *******************************
 
-          !---------------------------------
-	  calcuv: do J2 =J, NLV + RLN -1
-          !---------------------------------
+            !---------------------------------
+            calcuv: do J2 =J, NLV + RLN -1
+              !---------------------------------
 
-	    LLMISFF =.true.
-	    LLMISDD =.true.
-	    LLMIS   =.true.
-            LEVEL=obs_bodyElem_r(obsdat,OBS_PPP,j2)
-	    if ( LEVEL .ne. LEVEL_dd) cycle
-            VARNO2=obs_bodyElem_i(obsdat,OBS_VNM,j2)
-	    !==VARNO2=============================================
-            IF (  (VARNO2)  .eq. ILEMF ) THEN
+              LLMISFF =.true.
+              LLMISDD =.true.
+              LLMIS   =.true.
+              LEVEL=obs_bodyElem_r(obsdat,OBS_PPP,j2)
+              if ( LEVEL .ne. LEVEL_dd) cycle
+              VARNO2=obs_bodyElem_i(obsdat,OBS_VNM,j2)
+              !==VARNO2=============================================
+              IF (  (VARNO2)  .eq. ILEMF ) THEN
 
-              FF   =obs_bodyElem_r(obsdat,OBS_VAR,j2)
-              FFFLAG=obs_bodyElem_i(obsdat,OBS_FLG,j2)
-              IF (  (DD .EQ. 0.  .AND. FF .GT. 0.) .or. ( DD .GT. 360. .OR. DD .LT.0.) ) THEN
+                FF   =obs_bodyElem_r(obsdat,OBS_VAR,j2)
+                FFFLAG=obs_bodyElem_i(obsdat,OBS_FLG,j2)
+                IF (  (DD .EQ. 0.  .AND. FF .GT. 0.) .or. ( DD .GT. 360. .OR. DD .LT.0.) ) THEN
                   LLMISDD =.true.
                   LLMISFF =.true.
-              ELSE IF ( DD .eq. PPMIS .OR. FF .eq. PPMIS)  THEN
+                ELSE IF ( DD .eq. PPMIS .OR. FF .eq. PPMIS)  THEN
                   LLMISDD =.true.
                   LLMISFF =.true.
-	       ELSE
+                ELSE
                   LLMISDD=.false.
                   LLMISFF=.false.
-              ENDIF
-!
-!             IF SPEED = 0 CALM WIND IS ASSUMED.
-!             ==================================
+                ENDIF
+                !
+                !             IF SPEED = 0 CALM WIND IS ASSUMED.
+                !             ==================================
                    IF (FF .EQ. 0.0) THEN
                      DD = 0.
                    ENDIF
-!
+                   
                    DD=DD + 180.
                    IF ( DD .GT. 360.) DD=DD-360.
                    DD=DD*MPC_RADIANS_PER_DEGREE_R8
 
-!                U,V COMPONENTS ARE
-!==============================================
+                   !                U,V COMPONENTS ARE
+                   !==============================================
                    UU =FF*SIN(DD)
                    VV =FF*COS(DD)
-!==============================================
-              if  ( ( llmisdd .eqv. .true.) .or. ( llmisff .eqv. .true. ) ) then
-                   llmis=.true.
-	           if ( INDU_MISG .GT. 0 .or. INDV_MISG .GT. 0 ) then
-                      call obs_bodySet_i(obsdat,OBS_VNM,INDU_MISG,-1)
-                      call obs_bodySet_i(obsdat,OBS_VNM,INDV_MISG,-1)
-	           endif
-              else
-                   llmis=.false.
-              endif
+                   !==============================================
+                   if  ( ( llmisdd .eqv. .true.) .or. ( llmisff .eqv. .true. ) ) then
+                     llmis=.true.
+                     if ( INDU_MISG .GT. 0 .or. INDV_MISG .GT. 0 ) then
+                       call obs_bodySet_i(obsdat,OBS_VNM,INDU_MISG,-1)
+                       call obs_bodySet_i(obsdat,OBS_VNM,INDV_MISG,-1)
+                     endif
+                   else
+                     llmis=.false.
+                   endif
 
-            ENDIF
-            NEWFLAG = IOR(DDFLAG,FFFLAG)
+                 ENDIF
+                 NEWFLAG = IOR(DDFLAG,FFFLAG)
 
-	    if ( INDUM .GT. 0 .or. INDVM .GT. 0 ) then
-               call obs_bodySet_i(obsdat,OBS_VNM,INDU_MISG,-1)
-               call obs_bodySet_i(obsdat,OBS_VNM,INDV_MISG,-1)
-	    endif
-	    IF (llmis .eqv. .true.) THEN
-	       if ( INDUM .GT. 0 .or. INDVM .GT. 0 ) then
-                  call obs_bodySet_i(obsdat,OBS_FLG,induM,NEWFLAG)
-                  call obs_bodySet_i(obsdat,OBS_FLG,indvM,NEWFLAG)
-	       endif
-	    ELSE IF (llmis .eqv. .false.) THEN
-               call obs_bodySet_r(obsdat,OBS_VAR,INDU_MISG,UU)
-               call obs_bodySet_i(obsdat,OBS_FLG,INDU_MISG,NEWFLAG)
-
-               call obs_bodySet_r(obsdat,OBS_VAR,INDV_MISG,VV)
-               call obs_bodySet_i(obsdat,OBS_FLG,INDV_MISG,NEWFLAG)
-            ENDIF
+                 if ( INDUM .GT. 0 .or. INDVM .GT. 0 ) then
+                   call obs_bodySet_i(obsdat,OBS_VNM,INDU_MISG,-1)
+                   call obs_bodySet_i(obsdat,OBS_VNM,INDV_MISG,-1)
+                 endif
+                 IF (llmis .eqv. .true.) THEN
+                   if ( INDUM .GT. 0 .or. INDVM .GT. 0 ) then
+                     call obs_bodySet_i(obsdat,OBS_FLG,induM,NEWFLAG)
+                     call obs_bodySet_i(obsdat,OBS_FLG,indvM,NEWFLAG)
+                   endif
+                 ELSE IF (llmis .eqv. .false.) THEN
+                   call obs_bodySet_r(obsdat,OBS_VAR,INDU_MISG,UU)
+                   call obs_bodySet_i(obsdat,OBS_FLG,INDU_MISG,NEWFLAG)
+                   
+                   call obs_bodySet_r(obsdat,OBS_VAR,INDV_MISG,VV)
+                   call obs_bodySet_i(obsdat,OBS_FLG,INDV_MISG,NEWFLAG)
+                 ENDIF
 !
 !---------------------
-          END DO calcuv
+               END DO calcuv
 !---------------------
 !      *******************************
-	  ELSE                       
+             ELSE                       
 !      *******************************
-            IF ( LLUV_PRESENT .eqv. .true. )  THEN
-               call obs_bodySet_i(obsdat,OBS_VNM,INDU_MISG,-1)
-               call obs_bodySet_i(obsdat,OBS_VNM,INDV_MISG,-1)
-            ELSE
-	       if (indum .gt. 0) then
-                  call obs_bodySet_i(obsdat,OBS_VNM,indum,-1)
-	       endif
-	       if (indvm .gt. 0) then
-                  call obs_bodySet_i(obsdat,OBS_VNM,indvm,-1)
-	       endif
-            ENDIF
+               IF ( LLUV_PRESENT .eqv. .true. )  THEN
+                 call obs_bodySet_i(obsdat,OBS_VNM,INDU_MISG,-1)
+                 call obs_bodySet_i(obsdat,OBS_VNM,INDV_MISG,-1)
+               ELSE
+                 if (indum .gt. 0) then
+                   call obs_bodySet_i(obsdat,OBS_VNM,indum,-1)
+                 endif
+                 if (indvm .gt. 0) then
+                   call obs_bodySet_i(obsdat,OBS_VNM,indvm,-1)
+                 endif
+               ENDIF
 !      *******************************
-	  ENDIF
+             ENDIF
 !      *******************************
 
 !---------------------
 
-	!++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-	END SELECT
-	!++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+           END SELECT
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 !--------------------------------
 ! END TOP DATA LOOP
 !--------------------------------
-        end do
+         end do
 
-   enddo HEADER1
+       enddo HEADER1
 
-!==========================================================================================
-!  do JO=1,obs_numHeader(obsdat)
-   do JO=START,END
+       !==========================================================================================
+       !  do JO=1,obs_numHeader(obsdat)
+       do JO=START,END
 
-        RLN=obs_headElem_i(obsdat,OBS_RLN,JO)
-        NLV=obs_headElem_i(obsdat,OBS_NLV,JO)
-	!--------------------------------
-	!  DATA LOOP
-	!--------------------------------
-	DO J = RLN, NLV + RLN -1
+         RLN=obs_headElem_i(obsdat,OBS_RLN,JO)
+         NLV=obs_headElem_i(obsdat,OBS_NLV,JO)
+         !--------------------------------
+         !  DATA LOOP
+         !--------------------------------
+         DO J = RLN, NLV + RLN -1
 
-	LLMISDD =.true.
-        VARNO=obs_bodyElem_i(obsdat,OBS_VNM,J)
-        LEVEL=obs_bodyElem_r(obsdat,OBS_PPP,J)
+           LLMISDD =.true.
+           VARNO=obs_bodyElem_i(obsdat,OBS_VNM,J)
+           LEVEL=obs_bodyElem_r(obsdat,OBS_PPP,J)
 
-	!++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-        SELECT case (VARNO)
-	!++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+           !++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+           SELECT case (VARNO)
+             !++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-	  case (BUFR_NEUU)
-	   ILEM=BUFR_NEVV
-          case (BUFR_NEUS)
-	   ILEM=BUFR_NEVS
+           case (BUFR_NEUU)
+             ILEM=BUFR_NEVV
+           case (BUFR_NEUS)
+             ILEM=BUFR_NEVS
 
-!         case (BUFR_NEVV)
-!   ILEM=BUFR_NEUU
-!         case (BUFR_NEVS)
-!   ILEM=BUFR_NEUS
-          case default
-	   cycle
-	   Jpos=0
-	!++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-	END SELECT
-	!++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+             !         case (BUFR_NEVV)
+             !   ILEM=BUFR_NEUU
+             !         case (BUFR_NEVS)
+             !   ILEM=BUFR_NEUS
+           case default
+             cycle
+             Jpos=0
+             !++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+           END SELECT
+           !++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-	Jpos=-1
-	!---------------------------------------------------------------------
-	!TRANSFER THE FLAG BITS  FROM ONE WIND COMPONENT TO THE OTHER
-	!---------------------------------------------------------------------
-	DO J4 = RLN, NLV + RLN -1
-          UU      =obs_bodyElem_r(obsdat,OBS_VAR,J4)
-          LEVEL_UU=obs_bodyElem_r(obsdat,OBS_PPP,J4)
-	  Jpos=-1
+           Jpos=-1
+           !---------------------------------------------------------------------
+           !TRANSFER THE FLAG BITS  FROM ONE WIND COMPONENT TO THE OTHER
+           !---------------------------------------------------------------------
+           DO J4 = RLN, NLV + RLN -1
+             UU      =obs_bodyElem_r(obsdat,OBS_VAR,J4)
+             LEVEL_UU=obs_bodyElem_r(obsdat,OBS_PPP,J4)
+             Jpos=-1
 
-!
-	  if ( LEVEL_UU .eq. LEVEL .and. UU .eq. PPMIS ) then
-            call obs_bodySet_i(obsdat,OBS_VNM,J4,-1)
-	  endif
-!
+             
+             if ( LEVEL_UU .eq. LEVEL .and. UU .eq. PPMIS ) then
+               call obs_bodySet_i(obsdat,OBS_VNM,J4,-1)
+             endif
+             
 
-	  if ( LEVEL_UU .eq. LEVEL .and. UU .ne. PPMIS ) then
-             UUFLAG  =obs_bodyElem_i(obsdat,OBS_FLG,J4)
-             VARNO2  =obs_bodyElem_i(obsdat,OBS_VNM,J4)
-!            SELECT case (VARNO2)
-!              case (BUFR_NEUU,BUFR_NEUS,BUFR_NEVV,BUFR_NEVS)
-!============================================================
+             if ( LEVEL_UU .eq. LEVEL .and. UU .ne. PPMIS ) then
+               UUFLAG  =obs_bodyElem_i(obsdat,OBS_FLG,J4)
+               VARNO2  =obs_bodyElem_i(obsdat,OBS_VNM,J4)
+               !            SELECT case (VARNO2)
+               !              case (BUFR_NEUU,BUFR_NEUS,BUFR_NEVV,BUFR_NEVS)
+               !============================================================
                IF ( (ILEM .eq. VARNO2)  ) THEN
                  VVFLAG  =obs_bodyElem_i(obsdat,OBS_FLG,J)
                  NEWFLAG =IOR(UUFLAG,VVFLAG)
                  call obs_bodySet_i(obsdat,OBS_FLG,J, NEWFLAG)
                  call obs_bodySet_i(obsdat,OBS_FLG,J4,NEWFLAG)
-	         Jpos=J4
-	         exit
-	       ENDIF
-!============================================================
-!            END SELECT
+                 Jpos=J4
+                 exit
+               ENDIF
+               !============================================================
+               !            END SELECT
 
-	  endif
-	!----------------------------------------------------------------
-	END DO !J4
-	!----------------------------------------------------------------
+             endif
+             !----------------------------------------------------------------
+           END DO !J4
+           !----------------------------------------------------------------
 
-	!---------------------------------------------------------------------
-	!ELIMINATE ENTRIES WHERE ONE COMPONENT OF WIND (UU OR VV) IS MISSING
-	!---------------------------------------------------------------------
-	if (Jpos .lt. 0) then
-           WRITE(*,*) ' eliminate winds for station : ',obs_elem_c(obsdat,'STID',JO),obs_bodyElem_i (obsdat,OBS_VNM,J),obs_bodyElem_r(obsdat,OBS_PPP,J)
-           call obs_bodySet_i(obsdat,OBS_VNM,J,-1)
-	endif
+           !---------------------------------------------------------------------
+           !ELIMINATE ENTRIES WHERE ONE COMPONENT OF WIND (UU OR VV) IS MISSING
+           !---------------------------------------------------------------------
+           if (Jpos .lt. 0) then
+             WRITE(*,*) ' eliminate winds for station : ',obs_elem_c(obsdat,'STID',JO),obs_bodyElem_i (obsdat,OBS_VNM,J),obs_bodyElem_r(obsdat,OBS_PPP,J)
+             call obs_bodySet_i(obsdat,OBS_VNM,J,-1)
+           endif
 
-	!--------------------------------
-        END DO !J
-	!--------------------------------
+           !--------------------------------
+         END DO !J
+         !--------------------------------
 
-        END DO !JO
+       END DO !JO
 !==========================================================================================
-
-  END SUBROUTINE FDTOUV_OBSDAT
+       
+     END SUBROUTINE FDTOUV_OBSDAT
 
 
   SUBROUTINE FLAGUVTOFD_OBSDAT(obsSpaceData)
@@ -1519,13 +1519,13 @@ END SUBROUTINE burp_updateFiles
             LLOK= ( obs_bodyElem_i(obsSpaceData,OBS_VNM,INDEX_BODY) .EQ. IUU)
 
              FLAGU=-1
-	    !----------------
+    !----------------
             IF ( LLOK ) THEN
-	    !----------------
+    !----------------
                INDEX_HEADER = obs_bodyElem_i(obsSpaceData,OBS_HIND,INDEX_BODY)
                ISTART       = obs_headElem_i(obsSpaceData,OBS_RLN,INDEX_HEADER)
                IEND=obs_headElem_i(obsSpaceData,OBS_NLV,INDEX_HEADER) +ISTART-1
-	       STID=obs_elem_c(obsSpaceData,'STID',INDEX_HEADER)
+       STID=obs_elem_c(obsSpaceData,'STID',INDEX_HEADER)
 
 
                ZLEVU = obs_bodyElem_r(obsSpaceData,OBS_PPP,INDEX_BODY)
@@ -1534,7 +1534,7 @@ END SUBROUTINE burp_updateFiles
 !  GET FLAG OF U COMPONENT
 !***********************************************************************
 !
-	       FLAGU=obs_bodyElem_i(obsSpaceData,OBS_FLG,INDEX_BODY)
+       FLAGU=obs_bodyElem_i(obsSpaceData,OBS_FLG,INDEX_BODY)
 
                BODY_2: DO INDEX_BODY2=ISTART,IEND
                   IF ( ( obs_bodyElem_i(obsSpaceData,OBS_VNM,INDEX_BODY2) .EQ. IVV) &
@@ -1555,7 +1555,7 @@ END SUBROUTINE burp_updateFiles
 !***********************************************************************
 !
                BODY_2_2: DO INDEX_BODY2=ISTART,IEND
-	       !===============================================
+       !===============================================
                   IF ((obs_bodyElem_i(obsSpaceData,OBS_VNM,INDEX_BODY2).EQ.IDD) &
                  .AND. obs_bodyElem_r(obsSpaceData,OBS_PPP,INDEX_BODY2) .EQ. ZLEVU ) THEN
 
@@ -1563,21 +1563,21 @@ END SUBROUTINE burp_updateFiles
                      call obs_bodySet_i(obsSpaceData, OBS_FLG, INDEX_BODY2, NEWFLAG) 
 
                   ENDIF
-	       !===============================================
+       !===============================================
 
-	       !===============================================
+       !===============================================
                   IF ((obs_bodyElem_i(obsSpaceData,OBS_VNM,INDEX_BODY2).EQ.IFF) &
                  .AND. obs_bodyElem_r(obsSpaceData,OBS_PPP,INDEX_BODY2) .EQ. ZLEVU ) THEN
 
                      NEWFLAG =IOR(FLAGU,FLAGV)
                      call obs_bodySet_i(obsSpaceData,OBS_FLG,INDEX_BODY2, NEWFLAG)
                   ENDIF
-	       !===============================================
+       !===============================================
                ENDDO BODY_2_2
 
-	    !----------------
+    !----------------
             ENDIF
-	    !----------------
+    !----------------
 
          ENDDO BODY
 

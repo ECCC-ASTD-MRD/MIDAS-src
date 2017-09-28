@@ -663,28 +663,28 @@ CONTAINS
             if (.not.WINDS) then
 
                Call BURP_New(BLOCK_OMA_SFC,NELE =NBELE,NVAL=nvale,NT=NTE,bfam=12,BKNAT=BKNAT,BKTYP=new_bktyp,BKSTP=10 &
-					           ,IOSTAT = error) 
+                             ,IOSTAT = error) 
                Call BURP_New(BLOCK_OMP_SFC,NELE =NBELE,NVAL =nvale,NT=NTE,bfam=14,BKNAT=BKNAT,BKTYP=new_bktyp,BKSTP=10 &
-					           ,IOSTAT = error) 
+                             ,IOSTAT = error) 
                Call BURP_New(BLOCK_OER_SFC, NELE =NBELE, NVAL =nvale,NT=NTE,bfam=10,BKNAT=BKNAT,BKTYP=new_bktyp,BKSTP=14 &
-	   				           ,IOSTAT = error) 
+                             ,IOSTAT = error) 
                Call BURP_New(BLOCK_FGE_SFC, NELE =NBELE, NVAL =nvale,NT=NTE,bfam=10,BKNAT=BKNAT,BKTYP=new_bktyp,BKSTP=15 &
-					           ,IOSTAT = error) 
+                             ,IOSTAT = error) 
             else
 
                IND_eleu  = BURP_Find_Element(Block_in, ELEMENT=11215, IOSTAT=error)
                IND_elef  = BURP_Find_Element(Block_in, ELEMENT=11011, IOSTAT=error)
 
                Call BURP_New(BLOCK_OMA_SFC,NELE =NBELE+2,NVAL=nvale,NT=NTE,bfam=12,BKNAT=BKNAT,BKTYP=new_bktyp,BKSTP=10 &
-					           ,IOSTAT = error) 
+                             ,IOSTAT = error) 
                Call BURP_New(BLOCK_OMP_SFC,NELE =NBELE+2,NVAL =nvale,NT=NTE,bfam=14,BKNAT=BKNAT,BKTYP=new_bktyp,BKSTP=10 &
-	   				           ,IOSTAT = error) 
+                             ,IOSTAT = error) 
                Call BURP_New(BLOCK_OER_SFC, NELE =NBELE+2, NVAL =nvale,NT=NTE,bfam=10,BKNAT=BKNAT,BKTYP=new_bktyp,BKSTP=14 &
-					           ,IOSTAT = error) 
+                             ,IOSTAT = error) 
                Call BURP_New(BLOCK_FGE_SFC, NELE =NBELE+2, NVAL =nvale,NT=NTE,bfam=10,BKNAT=BKNAT,BKTYP=new_bktyp,BKSTP=15 &
-					           ,IOSTAT = error) 
-               ILEMU=11215
-               ILEMV=11216
+                             ,IOSTAT = error) 
+               ILEMU = 11215
+               ILEMV = 11216
                call BURP_Set_Element( BLOCK_OMA_SFC,NELE_IND = 1,ElEMENT=ILEMU,IOSTAT=error) 
                call BURP_Set_Element( BLOCK_OMA_SFC,NELE_IND = 2,ElEMENT=ILEMV,IOSTAT=error) 
 
@@ -2116,11 +2116,11 @@ CONTAINS
                 XLAT=HLAT_SFC(k);XLON=HLON_SFC(k);XTIME=HTIME_SFC(k)
                 IF ( XLON  .LT. 0. ) XLON  = 360. + XLON
                 ier= NEWDATE(kstamp2,YMD_DATE,HM*10000,3)
-       	        XLAT=XLAT*MPC_RADIANS_PER_DEGREE_R8
-       	        XLON=XLON*MPC_RADIANS_PER_DEGREE_R8
+                XLAT=XLAT*MPC_RADIANS_PER_DEGREE_R8
+                XLON=XLON*MPC_RADIANS_PER_DEGREE_R8
 
-       	        CALL INCDATR(kstamp, kstamp2, XTIME/60.d0  )
-       	        IER=newdate(kstamp,date2,time_sonde,-3)
+                CALL INCDATR(kstamp, kstamp2, XTIME/60.d0  )
+                IER=newdate(kstamp,date2,time_sonde,-3)
                 time2=time_sonde/10000
                 YMD_DATE_SFC=date2
                 HM_SFC=time2
@@ -2188,19 +2188,19 @@ CONTAINS
             NDATA   =0
             NDATA_SF=0
             IF ( allocated(obsvalue_sfc) ) THEN
-       	      IF ( HIRES_SFC) THEN
+              IF ( HIRES_SFC) THEN
                 XLAT=HLAT_SFC(k);XLON=HLON_SFC(k);XTIME=HTIME_SFC(k)
                 IF ( XLON  .LT. 0. ) XLON  = 360. + XLON
                 ier= NEWDATE(kstamp2,YMD_DATE,HM*10000,3)
-       	        XLAT=XLAT*MPC_RADIANS_PER_DEGREE_R8
-       	        XLON=XLON*MPC_RADIANS_PER_DEGREE_R8
+                XLAT=XLAT*MPC_RADIANS_PER_DEGREE_R8
+                XLON=XLON*MPC_RADIANS_PER_DEGREE_R8
 
-       	        CALL INCDATR(kstamp, kstamp2, XTIME/60.d0  )
-       	        IER=newdate(kstamp,date2,time_sonde,-3)
+                CALL INCDATR(kstamp, kstamp2, XTIME/60.d0  )
+                IER=newdate(kstamp,date2,time_sonde,-3)
                 time2=time_sonde/10000
-       	        YMD_DATE=date2
-       	        HM=time2
-       	      ENDIF
+                YMD_DATE=date2
+                HM=time2
+              ENDIF
 
               OBSERV_SFC (1:NELE_SFC,1:1)=obsvalue_sfc(1:NELE_SFC,1:1,k)
               QCFLAGS_sfc(1:NELE_SFC,1:1)=qcflag_sfc  (1:NELE_SFC,1:1,k)
@@ -2232,10 +2232,10 @@ CONTAINS
 
                 IF (NDATA_SF .eq. 0) THEN
                   call WRITE_HEADER(obsdat,STNID,XLAT,XLON,YMD_DATE,HM,idtyp,STATUS,RELEV,FILENUMB)
-       	          OBSN=obs_numHeader(obsdat) 
+                  OBSN=obs_numHeader(obsdat) 
                   call obs_setFamily(obsdat,trim(FAMILYTYPE), OBSN )
                 ENDIF
-       	        OBSN=obs_numHeader(obsdat) 
+                OBSN=obs_numHeader(obsdat) 
                 call obs_headSet_i(obsdat,OBS_NLV,OBSN,NDATA+NDATA_SF)
                 IF (OBSN   .GT. 1 ) THEN
                   LN= obs_headElem_i(obsdat,OBS_RLN,OBSN-1) + obs_headElem_i(obsdat,OBS_NLV,OBSN-1)
@@ -2245,7 +2245,7 @@ CONTAINS
                   call obs_headSet_i(obsdat,OBS_RLN,OBSN,1)
                   !call obs_headSet_i(obsdat,OBS_IDO,OBSN,kk)
                 ENDIF
-			
+
               ENDIF
 
             ENDIF
@@ -2312,7 +2312,7 @@ CONTAINS
           DEALLOCATE (EMIS,SURF_EMIS)
         end if
 
-	!---------SURFACE-----------------------------
+        !---------SURFACE-----------------------------
         if ( allocated(obsvalue_sfc) ) then
           DEALLOCATE(obsvalue_sfc,vcoord_sfc,OBSERV_SFC)
         endif
