@@ -2047,10 +2047,8 @@ CONTAINS
     call tmg_start(23,'GST_LT')
     call tmg_start(122,'GST_SPEREEPAR_KIJ')
     call spereepar_kij(psp2,pgd2)
-
     call tmg_stop(122)
     call tmg_stop(23)
-
     deallocate(psp2)
 
     ! 1.2 Transpose data along npey from M to Latitudes
@@ -2083,7 +2081,6 @@ CONTAINS
 
   END SUBROUTINE GST_SPEREE_KIJ
 
-
   SUBROUTINE GST_SPEREE_AD(PSP,PGD)
     implicit none
  
@@ -2096,7 +2093,6 @@ CONTAINS
 
   END SUBROUTINE GST_SPEREE_AD
 
->>>>>>> 10230cc7199bf1804fdf11b6367d54c202bcab37:src/globalspectraltransform_mod.f90
 
   SUBROUTINE GST_REESPE(PSP,PGD)
     implicit none
@@ -2183,7 +2179,6 @@ CONTAINS
 
   END SUBROUTINE GST_REESPE_KIJ
 
-
   SUBROUTINE GST_SPEREE_KIJ_AD(PSP,PGD)
     implicit none
 
@@ -2254,7 +2249,6 @@ CONTAINS
 !$OMP END PARALLEL DO
 
   END SUBROUTINE adjnorm_kij
->>>>>>> 10230cc7199bf1804fdf11b6367d54c202bcab37:src/globalspectraltransform_mod.f90
 
   SUBROUTINE SPEREEPAR(PSP,PGD2)
     !**s/r SPEREEPAR  - Inverse spectral transform(MPI PARALLEL LOOP)
@@ -2544,7 +2538,6 @@ CONTAINS
           zfma(jk,jj,2) = dlrwt(jj)*zfma(jk,jj,2)
         enddo
       enddo
-<<<<<<< HEAD:globalspectraltransform_mod.ftn90
 
 
       ! 2.3 First one with ALP for all scalar fields and for half the terms
@@ -2565,26 +2558,6 @@ CONTAINS
     enddo
 !$OMP END PARALLEL DO
 
-
-      ! 2.3 First one with ALP for all scalar fields and for half the terms
-      !     required to define the divergence and vorticity
-      call legdir2d_kij(jm,zfms,zfma,dlsp,dlalp,gst(gstID)%njlath,gst(gstID)%ntrunc,gst(gstID)%ntrunc)
-
-      ! 2.4 Transfer the result in the global state
-      do jn = jm, gst(gstID)%ntrunc
-        ila = gst(gstID)%nind(jm) + jn - jm
-        inm = jn - jm
-        do jk = 1, gst(gstID)%myLevCount
-          psp(ila,1,jk) = dlsp(jk,inm,1)
-          psp(ila,2,jk) = dlsp(jk,inm,2)
-        enddo
-      enddo
-
-    ! End of loop on zonal wavenumbers
-    enddo
-!$OMP END PARALLEL DO
-
->>>>>>> 10230cc7199bf1804fdf11b6367d54c202bcab37:src/globalspectraltransform_mod.f90
   END SUBROUTINE REESPEPAR_KIJ
 
 

@@ -224,7 +224,7 @@ contains
     if ( cvm_subVectorExists(cvm_BEN) ) then
       cvBen => cvm_getSubVector(controlVector,cvm_BEN)
       call ben_bsqrt(cvBen, statevector_temp)
-    endif
+    end if
     call tmg_stop(60)
 
     !- 2.6 Add the two contributions together, result in statevector
@@ -365,7 +365,7 @@ contains
       else
          call lbhi_reduceToMPILocal(cvBhi_mpilocal,cvBhi_mpiglobal,cvDim_Bhi_mpilocal)
       end if
-    endif
+    end if
 
     cvDim_Ben_mpilocal = 0
     if(cvm_subVectorExists(cvm_BEN)) then
@@ -435,7 +435,7 @@ contains
       else
          call lbhi_reduceToMPILocal_r4(cvBhi_mpilocal,cvBhi_mpiglobal,cvDim_Bhi_mpilocal)
       end if
-    endif
+    end if
 
     cvDim_Ben_mpilocal = 0
     if(cvm_subVectorExists(cvm_BEN)) then
@@ -506,7 +506,7 @@ contains
       else
          call lbhi_expandToMPIGlobal(cvBhi_mpilocal,cvBhi_mpiglobal,cvDim_Bhi_mpiglobal)
       end if
-    endif
+    end if
 
     cvDim_Ben_mpiglobal = 0
     if(cvm_subVectorExists(cvm_BEN)) then
@@ -517,7 +517,7 @@ contains
           cvBen_mpiglobal=>null()
        end if
        call ben_expandToMPIGlobal(cvBen_mpilocal,cvBen_mpiglobal,cvDim_Ben_mpiglobal)
-    endif
+    end if
 
     cvDim_Bchm_mpiglobal = 0
     if(cvm_subVectorExists(cvm_BCHM)) then
@@ -575,7 +575,7 @@ contains
       else
          call lbhi_expandToMPIGlobal_r4(cvBhi_mpilocal,cvBhi_mpiglobal,cvDim_Bhi_mpiglobal)
       end if
-    endif
+    end if
 
     cvDim_Ben_mpiglobal = 0
     if(cvm_subVectorExists(cvm_BEN)) then
@@ -586,7 +586,7 @@ contains
           cvBen_mpiglobal => null()
        end if
        call ben_expandToMPIGlobal_r4(cvBen_mpilocal,cvBen_mpiglobal,cvDim_Ben_mpiglobal)
-    endif
+    end if
 
     cvDim_Bchm_mpiglobal = 0
     if(cvm_subVectorExists(cvm_BCHM)) then
@@ -601,7 +601,7 @@ contains
       else
 !         Done in lbhi_expandToMPIGlobal
       end if
-    endif
+    end if
 
     cvDim_mpiglobal_out = cvDim_Bhi_mpiglobal + cvDim_Ben_mpiglobal + cvDim_Bchm_mpiglobal
 

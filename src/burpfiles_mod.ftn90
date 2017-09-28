@@ -273,7 +273,7 @@ contains
               IHANDL=MRFLOC(NULBURP,0,'*********',-1,-1,-1,-1,-1,-1,0)
             ELSE
               nresume=nresume+1
-            ENDIF
+            END IF
             IF ( IHANDL .LT. 0 ) THEN
               WRITE(*,*) 'AUCUN ENREGISTREMENT VALIDE DANS LE FICHIER BURP'
             ELSE
@@ -291,13 +291,13 @@ contains
                 KDATE=IDATE
                 if (nresume.eq.1) nresume=2
               end if
-            ENDIF
+            END IF
             DEALLOCATE(IBUF)
             IER=MRFCLS(NULBURP)
-          ENDIF
-        ENDIF
+          END IF
+        END IF
         IER= FCLOS(nulburp)
-      ENDIF
+      END IF
     END DO
 
     WRITE(*,*) ' '
@@ -329,13 +329,13 @@ contains
       ktime=KTIME/100
       if (ktime .ge. 21 .or. ktime .lt. 3) then
         ktime = 0
-      elseif(ktime .ge. 3 .and. ktime .lt. 9) then
+      else if(ktime .ge. 3 .and. ktime .lt. 9) then
         ktime = 6
-      elseif(ktime .ge. 9 .and. ktime .lt. 15) then
+      else if(ktime .ge. 9 .and. ktime .lt. 15) then
         ktime = 12
       else
         ktime = 18
-      endif
+      end if
       ier = newdate(datestamp,kdate,ktime*1000000,3)
       ktime=ktime*100
     end if
@@ -421,7 +421,7 @@ contains
             call FDTOUV_OBSDAT(  obsdat,Nstn1+1,Nstn2,PPMIS)
             call ADJUST_HUM_GZ(  obsdat,Nstn1+1,Nstn2)
             call ADJUST_SFVCOORD(obsdat,Nstn1+1,Nstn2)
-         ENDIF
+         END IF
          DO JO=nstn1+1,nstn2
            call obs_headSet_i(obsdat,OBS_OTP,JO,J)
            call obs_setFamily(obsdat,trim(burp_cfamtyp(J)),JO)
@@ -442,7 +442,7 @@ contains
          IF ( trim(burp_cfamtyp(J)) .eq. 'GP') THEN
            print * ,' Initializing OBS_OER for GB-GPS ZTD to formal error (ele 15032)'
            CALL SET_ERR_GBGPS(obsdat,Nstn1+1,Nstn2)
-         ENDIF
+         END IF
 
       END DO
 
@@ -509,7 +509,7 @@ subroutine burp_updateFiles(obsSpaceData)
          IF(mpi_myid /= 0) then
            call tmg_stop(93)
            return
-         endif
+         end if
       else
          ! redistribute obs data to how it was just after reading the files
          call obs_MpiRedistribute(obsSpaceData,OBS_IPF)
@@ -523,7 +523,7 @@ subroutine burp_updateFiles(obsSpaceData)
          headerIndex = obs_getHeaderIndex(obsSpaceData)
          if (headerIndex < 0) exit HEADER
          call set_scale_chm(obsSpaceData,headerIndex,forward=.false.)
-      enddo HEADER
+      end do HEADER
 
       do J =1,burp_nfiles
          call update_burp(obsSpaceData,burp_cfamtyp(J),burp_cfilnam(J),J)
@@ -592,7 +592,7 @@ END SUBROUTINE burp_updateFiles
              OBSV=obs_bodyElem_r(obsdat,OBS_VAR,j)
              IF ( OBSV .GT. ZESMAX) THEN
                 OBSV=ZESMAX
-             ENDIF
+             END IF
              call obs_bodySet_r(obsdat,OBS_VAR,j, OBSV )
             CASE(BUFR_NEGZ)
              OBSV=obs_bodyElem_r(obsdat,OBS_VAR,j)
@@ -659,7 +659,7 @@ END SUBROUTINE burp_updateFiles
              OBSV=obs_bodyElem_r(obsdat,OBS_VAR,j)
              call obs_bodySet_i(obsdat,OBS_VNM,j,999 )
              EXIT
-          ENDIF
+          END IF
 !
         END DO
         DO J = RLN, NLV + RLN -1
@@ -668,7 +668,7 @@ END SUBROUTINE burp_updateFiles
           IF ( VARNO .eq. 15031 .and. OBSV .ne. MISG ) THEN
              call obs_bodySet_r(obsdat,OBS_OER,j,OBSV )
              EXIT
-          ENDIF
+          END IF
 !
         END DO
         !=================================
@@ -872,7 +872,7 @@ END SUBROUTINE burp_updateFiles
                  PPP=0.
                 call obs_bodySet_r(obsdat,OBS_PPP,j,PPP)
                 call obs_bodySet_i(obsdat,OBS_VCO,j,1)
-             ENDIF
+             END IF
           END SELECT
         END DO
         !=================================
@@ -1228,7 +1228,7 @@ END SUBROUTINE burp_updateFiles
            ILEMF=BUFR_NEFF
            ILEMU=BUFR_NEUU
            ILEMV=BUFR_NEVV
-         ENDIF
+         END IF
          
          DD      =obs_bodyElem_r(obsdat,OBS_VAR,j)
          DDFLAG  =obs_bodyElem_i(obsdat,OBS_FLG,j)
@@ -1262,13 +1262,13 @@ END SUBROUTINE burp_updateFiles
                IF (  (VARNO4 .eq. ILEMU)     .and. (obsuv .eq. PPMIS) ) THEN
                  LLU_misg=.true.
                  INDU_MISG=J4
-               ELSEIF ( (VARNO4 .eq. ILEMV)  .and. (obsuv .eq. PPMIS) ) THEN
+               ELSE IF ( (VARNO4 .eq. ILEMV)  .and. (obsuv .eq. PPMIS) ) THEN
                  LLV_misg=.true.
                  INDV_MISG=J4
-               ENDIF
+               END IF
                
              END SELECT
-           ENDIF
+           END IF
 
            !-------------------------------------
          end do uvinobsdat
@@ -1510,7 +1510,7 @@ END SUBROUTINE burp_updateFiles
             IVV=BUFR_NEVS
             IDD=BUFR_NEDS
             IFF=BUFR_NEFS
-         endif
+         end if
 !
 !
 !
@@ -1547,8 +1547,8 @@ END SUBROUTINE burp_updateFiles
                      FLAGV= obs_bodyElem_i(obsSpaceData,OBS_FLG,INDEX_BODY2)
                      NEWFLAG =IOR(FLAGU,FLAGV)
 !   
-                  ENDIF
-               ENDDO BODY_2
+                  END IF
+               END DO BODY_2
 !
 !***********************************************************************
 !                UPDATE FLAGS OF DIRECTION AN SPEED
@@ -1562,8 +1562,8 @@ END SUBROUTINE burp_updateFiles
                      NEWFLAG =IOR(FLAGU,FLAGV)
                      call obs_bodySet_i(obsSpaceData, OBS_FLG, INDEX_BODY2, NEWFLAG) 
 
-                  ENDIF
-       !===============================================
+                  END IF
+	       !===============================================
 
        !===============================================
                   IF ((obs_bodyElem_i(obsSpaceData,OBS_VNM,INDEX_BODY2).EQ.IFF) &
@@ -1571,17 +1571,17 @@ END SUBROUTINE burp_updateFiles
 
                      NEWFLAG =IOR(FLAGU,FLAGV)
                      call obs_bodySet_i(obsSpaceData,OBS_FLG,INDEX_BODY2, NEWFLAG)
-                  ENDIF
-       !===============================================
-               ENDDO BODY_2_2
+                  END IF
+	       !===============================================
+               END DO BODY_2_2
 
-    !----------------
-            ENDIF
-    !----------------
+	    !----------------
+            END IF
+	    !----------------
 
-         ENDDO BODY
+         END DO BODY
 
-      ENDDO WIND_TYPE
+      END DO WIND_TYPE
 
       RETURN
   END SUBROUTINE FLAGUVTOFD_OBSDAT
@@ -1624,7 +1624,7 @@ END SUBROUTINE burp_updateFiles
             IVV=BUFR_NEVS
             IDD=BUFR_NEDS
             IFF=BUFR_NEFS
-         endif
+         end if
 
          ! Process all data within the domain of the model
 
@@ -1657,10 +1657,10 @@ END SUBROUTINE burp_updateFiles
 
                         IF (ANG.GT.360.0D0) ANG=ANG-360.0D0
                         IF (ANG.LE.0.0D0)   ANG=ANG+360.0D0
-                     ENDIF
+                     END IF
    
-                  ENDIF
-               ENDDO BODY_2
+                  END IF
+               END DO BODY_2
 
                ! insert resduals into obsSpaceData
 
@@ -1684,7 +1684,7 @@ END SUBROUTINE burp_updateFiles
                       call obs_bodySet_r(obsSpaceData,OBS_OER,INDEX_BODY2,1.0d0)
                       call obs_bodySet_i(obsSpaceData,OBS_ASS,INDEX_BODY2, 1)
                       call obs_bodySet_i(obsSpaceData,OBS_FLG,INDEX_BODY2, 0)
-                  ENDIF
+                  END IF
                   IF ((obs_bodyElem_i(obsSpaceData,OBS_VNM,INDEX_BODY2).EQ.IFF)  &
                  .AND. obs_bodyElem_r(obsSpaceData,OBS_PPP,INDEX_BODY2) .EQ. ZLEVU ) THEN
                      call obs_bodySet_r(obsSpaceData,elem_i, INDEX_BODY2,   &
@@ -1692,13 +1692,13 @@ END SUBROUTINE burp_updateFiles
                      call obs_bodySet_r(obsSpaceData,OBS_OER,INDEX_BODY2,1.0d0)
                      call obs_bodySet_i(obsSpaceData,OBS_ASS,INDEX_BODY2, 1)
                      call obs_bodySet_i(obsSpaceData,OBS_FLG,INDEX_BODY2, 0)
-                  ENDIF
-               ENDDO BODY_2_2
-            ENDIF
+                  END IF
+               END DO BODY_2_2
+            END IF
 
-         ENDDO BODY
+         END DO BODY
 
-      ENDDO WIND_TYPE
+      END DO WIND_TYPE
 
   END SUBROUTINE VINT3DFD
 
@@ -1716,7 +1716,7 @@ END SUBROUTINE burp_updateFiles
       DO INDEX_BODY=1,obs_numBody(lobsSpaceData)
          IF (obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) .EQ. 1)  THEN
             call obs_bodySet_i(lobsSpaceData,OBS_FLG,INDEX_BODY,ibset( obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY), 12 ))
-         ENDIF
+         END IF
       END DO
 !--------------------------------------------------------------------
     END SUBROUTINE SETASSFLG

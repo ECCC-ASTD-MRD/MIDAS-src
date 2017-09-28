@@ -25,8 +25,7 @@ module costfunction_mod
   use obsSpaceData_mod
   use rmatrix_mod ,only : rmat_sqrtRm1, rmat_lnondiagr
   use rttov_const, only : nplatforms, ninst,inst_name, platform_name
-  use tovs_nl_mod, only : tvs_maxChannelNumber,tvs_ltovsno,tvs_lsensor,tvs_isIdBurpTovs,tvs_nobtov, &
-       tvs_nsensors,tvs_lobsno, tvs_instruments, tvs_platforms, tvs_satellites
+  use tovs_nl_mod
   implicit none
   save
   private
