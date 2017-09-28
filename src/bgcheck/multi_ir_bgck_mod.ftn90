@@ -108,9 +108,9 @@ module multi_ir_bgck_mod
                                                             9.0,10.0,10.0, &
                                                             18.0,16.0,10.0 /),(/3,3/) )
   
-  real(8) :: seuilbt_homog(NVIS+1:NVIS+NIR,0:2,1:2)= reshape( (/5._8, 4._8, 4._8, 4._8, 3._8, 3._8, &
-                                                                5._8, 4._8, 4._8, 5._8, 5._8, 5._8, &
-                                                                4._8, 3._8, 3._8, 5._8, 5._8, 5._8/), (/3,3,2/) )
+  real(8) :: seuilbt_homog(NVIS+1:NVIS+NIR,0:2,1:2)= reshape( (/5.d0, 4.d0, 4.d0, 4.d0, 3.d0, 3.d0, &
+                                                                5.d0, 4.d0, 4.d0, 5.d0, 5.d0, 5.d0, &
+                                                                4.d0, 3.d0, 3.d0, 5.d0, 5.d0, 5.d0/), (/3,3,2/) )
 
   namelist /NAMBGCKIR/ NINST, INST, IWINDOW, IWINDOW_ALT, ILIST1, ILIST2, ILIST2_PAIR, ICHN_SUN
   namelist /NAMBGCKIR/ DTW, DTL, PCO2MIN, PCO2MAX, NIGHT_ANG
@@ -195,7 +195,7 @@ contains
       nl = tvs_coefs(isens) % coef % nlevels
       allocate( tvs_radiance(jo)  % overcast  (nl - 1,nc), stat=alloc_status(1))
       call utl_checkAllocationStatus(alloc_status(1:1), " irbg_setup")
-      tvs_radiance(jo)  % overcast  (:,:) = 0._8
+      tvs_radiance(jo)  % overcast  (:,:) = 0.d0
     end do
 
 
@@ -1059,7 +1059,7 @@ contains
     integer ,parameter :: ilist_avhrr(nn)=(/ 2 ,3 /)
     integer :: cpt,iclass
     logical :: bad
-    real(8),parameter :: sunzenmax=87.12_8
+    real(8),parameter :: sunzenmax=87.12d0
     real(8) :: minpavhrr(2:3)
     real(8) :: anisot,zlamb,zcloud,scos,del,deltaphi
     integer :: ier,ijour,iloc(2:3),co2min(1),co2max(1),iobs
@@ -1208,19 +1208,19 @@ contains
     end do
 
   
-    DIFFTOP_MIN = 100000._8
+    DIFFTOP_MIN = 100000.d0
     IMODTOP = 1
 
     ptop_T = col_getPressure(lcolumnhr,1,1,'TH')
     do JL = 1, NLEVB
-      if ( abs(ptop_T - 100._8 * ZVLEV(JL)) < DIFFTOP_MIN ) then
-        DIFFTOP_MIN = abs(ptop_T - 100._8 * ZVLEV(JL))
+      if ( abs(ptop_T - 100.d0 * ZVLEV(JL)) < DIFFTOP_MIN ) then
+        DIFFTOP_MIN = abs(ptop_T - 100.d0 * ZVLEV(JL))
         IMODTOP = JL
       end if
     end do
 !* -- FIND RADIATIVE TRANSFER MODEL LEVEL NEAREST TO TRIAL TOP (only compute one time)
     write(*,*) 'TOIT DU MODELE (MB)'
-    write(*,*) 0.01_8 * ptop_T
+    write(*,*) 0.01d0 * ptop_T
     write(*,*) 'NIVEAU DU MODELE DE TRANSFERT RADIATIF LE PLUS PRES DU TOIT DU MODELE'
     write(*,*) IMODTOP
 
@@ -1240,13 +1240,13 @@ contains
       if ( tvs_isIdBurpTovs(idatyp) ) tvs_nobtov = tvs_nobtov + 1
 
       if ( tvs_isIdBurpInst(IDATYP,CINST) .and. tvs_lsensor(tvs_ltovsno (index_header)) == id) then
-        BTOBS(:)    = -1._8
-        BTCALC(:)   = -1._8
-        RCAL_CLR(:) = -1._8
-        SFCTAU(:)   = -1._8
-        RCLD(:,:)   = -1._8
-        TRANSM(:,:) = -1._8
-        EMI_SFC(:)  = -1._8
+        BTOBS(:)    = -1.d0
+        BTCALC(:)   = -1.d0
+        RCAL_CLR(:) = -1.d0
+        SFCTAU(:)   = -1.d0
+        RCLD(:,:)   = -1.d0
+        TRANSM(:,:) = -1.d0
+        EMI_SFC(:)  = -1.d0
         REJFLAG(:,:) = 0
 
         if (liasi) then
@@ -1276,7 +1276,7 @@ contains
               iclass = iclass + 1
             end if
           end do
-          SUNAZIM = 0.01_8 * obs_headElem_i(lobsSpaceData,OBS_SAZ,index_header)
+          SUNAZIM = 0.01d0 * obs_headElem_i(lobsSpaceData,OBS_SAZ,index_header)
         end if
 
         ZTG = col_getElem(lcolumnhr,1,INDEX_HEADER,'TG')
@@ -1313,8 +1313,8 @@ contains
             if (BAD) REJFLAG(chan_indx,9) = 1
 
               ! *** Gross check on observed BTs ***
-            if (BTOBS(chan_indx)<150._8) REJFLAG(chan_indx,9) = 1
-            if (BTOBS(chan_indx)>350._8) REJFLAG(chan_indx,9) = 1
+            if (BTOBS(chan_indx)<150.d0) REJFLAG(chan_indx,9) = 1
+            if (BTOBS(chan_indx)>350.d0) REJFLAG(chan_indx,9) = 1
           end if
         end do
 
@@ -1330,8 +1330,8 @@ contains
           end do
           EMI_SFC(chan_indx) = tvs_emissivity(JC,tvs_nobtov)
 ! *** Gross check on computed BTs ***
-          if (BTCALC(chan_indx) < 150._8) REJFLAG(chan_indx,9) = 1
-          if (BTCALC(chan_indx) > 350._8) REJFLAG(chan_indx,9) = 1
+          if (BTCALC(chan_indx) < 150.d0) REJFLAG(chan_indx,9) = 1
+          if (BTCALC(chan_indx) > 350.d0) REJFLAG(chan_indx,9) = 1
         end do
 
         KSURF = tvs_profiles(tvs_nobtov) % skin % surftype
@@ -1368,7 +1368,7 @@ contains
            
 ! ** find TOA radiances converted from observed BT's
 
-        ROBS(:) = -1._8
+        ROBS(:) = -1.d0
         
         channels: do JC = 1, NCHN
           ICHN = tvs_ichan(JC,ID)
@@ -1377,7 +1377,7 @@ contains
           t_effective =  tvs_coefs(id) % coef % ff_bco(jc) &
                + tvs_coefs(id) % coef % ff_bcs(jc) * BTOBS(chan_indx)
           ROBS(chan_indx) =  tvs_coefs(id) % coef % planck1(jc) / &
-               ( exp( tvs_coefs(id) % coef % planck2(jc) / t_effective ) - 1._8 )
+               ( exp( tvs_coefs(id) % coef % planck2(jc) / t_effective ) - 1.d0 )
         end do channels
 
 ! ** set height fields to 'height above ground' fields
@@ -1451,9 +1451,9 @@ contains
               RCLD_AVHRR(:,JL) = avhrr_bgck(IOBS) % RADOVCALC(JL + iextr - 1,:)
             end do
            
-            if (btobs_avhrr(2,JC) > 100._8 ) then
+            if (btobs_avhrr(2,JC) > 100.d0 ) then
               ichref_avhrr(JC) = 2
-            else if (btobs_avhrr(3,JC) > 100._8 ) then
+            else if (btobs_avhrr(3,JC) > 100.d0 ) then
               ichref_avhrr(JC) = 3
             else
               ichref_avhrr(JC) = -1
@@ -1481,11 +1481,11 @@ contains
 !* -- FURTHER TESTS TO REMOVE POTENTIAL CLOUDY PROFILES
 ! *** TEST # A ***
 ! *** In daytime, set cloudy if cloud fraction over 5% ***
-        CFSUB = -1._8
+        CFSUB = -1.d0
         if (lairs) then
-          if ( CLDFLAG == 0 .and. CLFR > 5._8 .and. SUNZA < 90._8 ) then
+          if ( CLDFLAG == 0 .and. CLFR > 5.d0 .and. SUNZA < 90.d0 ) then
             CLDFLAG = 1
-            CFSUB = 0.01_8 * CLFR !conversion % -> 0-1
+            CFSUB = 0.01d0 * CLFR !conversion % -> 0-1
           end if
         end if
 ! *** TEST # B ***
@@ -1519,19 +1519,19 @@ contains
 
 !criteres AVHRR utilisant les canaux visibles (de jour seulement)
           if (sunza < sunzenmax) then 
-            ANISOT = 1._8
+            ANISOT = 1.d0
             deltaphi = abs(SATAZIM - SUNAZIM )
            
-            if (deltaphi > 180._8) deltaphi = 360._8 - deltaphi
+            if (deltaphi > 180.d0) deltaphi = 360.d0 - deltaphi
             
-            if (ALBEDO < 0.17_8) then               
+            if (ALBEDO < 0.17d0) then               
               call VISOCN(sunza,satzen,deltaphi,ANISOT,ZLAMB,ZCLOUD,IER)
-              SEUIL_ALBED = 10._8 * max(1._8,ANISOT) 
+              SEUIL_ALBED = 10.d0 * max(1.d0,ANISOT) 
             else
-              SEUIL_ALBED = 100._8 * ALBEDO + 10._8
+              SEUIL_ALBED = 100.d0 * ALBEDO + 10.d0
             end if
               
-            if (ANISOT < 1.5_8) then !to avoid sun glint
+            if (ANISOT < 1.5d0) then !to avoid sun glint
               SCOS = cos ( sunza * MPC_DEGREES_PER_RADIAN_R8 )
               call  cor_albedo ( DEL, SCOS )
               SEUIL_ALBED = SEUIL_ALBED * DEL
@@ -1552,21 +1552,21 @@ contains
 
 !Calcul de la pseudo fraction nuageuse AVHRR
 
-          CFRAC_AVHRR = 0._8
+          CFRAC_AVHRR = 0.d0
           do JC=1,nClassAVHRR
             if (CLDFLAG_AVHRR(JC) == 1) CFRAC_AVHRR = CFRAC_AVHRR + avhrr_bgck(IOBS) % CFRAC(JC)
           end do
 
-          CFSUB = -1.0_8
-          if ( CLDFLAG == 0 .and. CFRAC_AVHRR > 5._8 ) then
+          CFSUB = -1.0d0
+          if ( CLDFLAG == 0 .and. CFRAC_AVHRR > 5.d0 ) then
             CLDFLAG = 1
-            CFSUB = 0.01_8 * min(CFRAC_AVHRR,100._8) !conversion % -> 0-1 avec seuil car parfois CFRAC_AVHRR=101
+            CFSUB = 0.01d0 * min(CFRAC_AVHRR,100.d0) !conversion % -> 0-1 avec seuil car parfois CFRAC_AVHRR=101
           end if
 
 !AVHRR Homogeneity criteria
           if (CLDFLAG == 0) then
             IJOUR = 1
-            if (SUNZA < 90._8) IJOUR=2
+            if (SUNZA < 90.d0) IJOUR=2
             ! 1 NUIT
             ! 2 JOUR
             if (IJOUR == 2) then
@@ -1679,7 +1679,7 @@ contains
           minpavhrr(2:3) = 12200
           ILOC(2:3) = -1      ! pour eviter les catastrophes...
           do JC=1,nClassAVHRR
-            if (avhrr_bgck(IOBS)%CFRAC(JC) > 0._8) then
+            if (avhrr_bgck(IOBS)%CFRAC(JC) > 0.d0) then
               if (PTOP_RD_AVHRR(2,JC) < minpavhrr(2)) then
                 ILOC(2) = JC
                 minpavhrr(2) = PTOP_RD_AVHRR(2,JC)
@@ -1696,26 +1696,26 @@ contains
             if ( ILOC(2) == ILOC(3) .and. &
                  minpavhrr(2) < ETOP .and. &
                  minpavhrr(3) < ETOP .and. &
-                 abs(minpavhrr(2)- minpavhrr(3)) < 25._8 .and. &
+                 abs(minpavhrr(2)- minpavhrr(3)) < 25.d0 .and. &
                  CLDFLAG_AVHRR(ILOC(2)) /= -1 .and. CLDFLAG_AVHRR(ILOC(3)) /= -1) then
               
-              if (ECF == 0._8 .and. CLDFLAG == 1) then
+              if (ECF == 0.d0 .and. CLDFLAG == 1) then
                 ! cas predetermine nuageux mais ramene a clair 
-                ECF = 0.01_8 * min(100._8,CFRAC_AVHRR)
+                ECF = 0.01d0 * min(100.d0,CFRAC_AVHRR)
                 ! cette ligne peut generer des fractions nuageuses inferieures a 20 %.
-                ETOP = 0.5_8 * (minpavhrr(2) + minpavhrr(3))
+                ETOP = 0.5d0 * (minpavhrr(2) + minpavhrr(3))
               end if
 
-              if (ECF > 0._8 .and. CLDFLAG == 1) then
+              if (ECF > 0.d0 .and. CLDFLAG == 1) then
                 !cas predetermine nuageux pas ramene clair (==normal)
-                ETOP = 0.5_8 * ( minpavhrr(2) + minpavhrr(3))
+                ETOP = 0.5d0 * ( minpavhrr(2) + minpavhrr(3))
               end if
 
               if (CLDFLAG == 0) then
                 !cas predetermine clair ... que faire
                 CLDFLAG = 1
-                ETOP = 0.5_8 * (minpavhrr(2) + minpavhrr(3))
-                ECF = 0.01_8 * min(100._8,CFRAC_AVHRR)
+                ETOP = 0.5d0 * (minpavhrr(2) + minpavhrr(3))
+                ECF = 0.01d0 * min(100.d0,CFRAC_AVHRR)
               end if
             end if
           end if
@@ -1729,7 +1729,7 @@ contains
 ! *** Assimilation above clouds (refinement of test 1)             ***
 ! *** Set security margin to 2x the std on height from CO2-slicing *** 
 
-        TAMPON = max(50._8, 2._8*VTOP)                                                          
+        TAMPON = max(50.d0, 2.d0*VTOP)                                                          
 
         do JC = 1, nch_sel        
           if ( REJFLAG(JC,11) == 1 .and. REJFLAG(JC,23) == 1 .and. ETOP - TAMPON > PMIN(JC) ) then
@@ -1754,7 +1754,7 @@ contains
 ! *** TEST # 4 ***
 ! *** Background check, do not assimilate if O-P > 3sigma ***
 
-            if ( abs(BTOBS(JC) - BTCALC(JC)) > 3._8 * BTOBSERR(JC) ) then
+            if ( abs(BTOBS(JC) - BTCALC(JC)) > 3.d0 * BTOBSERR(JC) ) then
               REJFLAG(JC,9) = 1
               REJFLAG(JC,16) = 1
             end if
@@ -1770,11 +1770,11 @@ contains
 ! *** TEST # 6 ***
 ! *** Do not assimilate surface channels over land ***
 
-            if ( MINP(JC) == NLEVB .or. ZPS-PMIN(JC) < 100._8 ) then
+            if ( MINP(JC) == NLEVB .or. ZPS-PMIN(JC) < 100.d0 ) then
               if ( KSURF == 0 ) then
                 REJFLAG(JC,11) = 1    !!! comment this line if assimilation under conditions
                 REJFLAG(JC,19) = 1    !!! comment this line if assimilation under conditions
-                if ( PCNT_WAT > 0.01_8 .or. PCNT_REG > 0.1_8 .or. EMI_SFC(JC) < 0.97_8 ) then
+                if ( PCNT_WAT > 0.01d0 .or. PCNT_REG > 0.1d0 .or. EMI_SFC(JC) < 0.97d0 ) then
                   REJFLAG(JC,11) = 1
                   REJFLAG(JC,19) = 1
                 end if
@@ -1783,8 +1783,8 @@ contains
 ! *** Do not assimilate surface channels over water under conditions ***
 
               else if ( KSURF == 1 ) then
-                if ( PCNT_WAT < 0.99_8 .or. PCNT_REG < 0.97_8 .or. &
-                     ICE > 0.001_8 .or. ALBEDO >= 0.17_8 .or. EMI_SFC(JC) < 0.9_8 ) then
+                if ( PCNT_WAT < 0.99d0 .or. PCNT_REG < 0.97d0 .or. &
+                     ICE > 0.001d0 .or. ALBEDO >= 0.17d0 .or. EMI_SFC(JC) < 0.9d0 ) then
                   REJFLAG(JC,11) = 1   
                   REJFLAG(JC,19) = 1   
                 end if
@@ -1805,7 +1805,7 @@ contains
 
 ! Condition valid if model top at 10mb or lower only
           if ( nint(ptop_T) >= 1000 ) then
-            if ( REJFLAG(JC,9) /= 1 .and. DTAUDP1(JC) > 0.50_8 ) then
+            if ( REJFLAG(JC,9) /= 1 .and. DTAUDP1(JC) > 0.50d0 ) then
               REJFLAG(JC,11) = 1
               REJFLAG(JC,21) = 1
             end if
@@ -1813,7 +1813,7 @@ contains
         
 ! Condition valid if model top at 10mb or lower only
           if ( nint(ptop_T) >= 1000 ) then
-            if ( REJFLAG(JC,9) /= 1 .and. TRANSM(JC,1) < 0.99_8 ) then
+            if ( REJFLAG(JC,9) /= 1 .and. TRANSM(JC,1) < 0.99d0 ) then
               REJFLAG(JC,11) = 1
               REJFLAG(JC,21) = 1 
             end if
@@ -1821,7 +1821,7 @@ contains
 
 ! Condition valid if model top is higher than 10 mb
           if ( nint(ptop_T) < 1000 ) then
-            if ( REJFLAG(JC,9) /= 1 .and. TRANSM(JC,1) < 0.95_8 ) then
+            if ( REJFLAG(JC,9) /= 1 .and. TRANSM(JC,1) < 0.95d0 ) then
               REJFLAG(JC,11) = 1
               REJFLAG(JC,21) = 1 
             end if
@@ -1856,15 +1856,15 @@ contains
 
         call obs_headSet_r(lobsSpaceData, OBS_ETOP, index_header, ETOP )
         call obs_headSet_r(lobsSpaceData, OBS_VTOP, index_header, VTOP )
-        call obs_headSet_r(lobsSpaceData, OBS_ECF,  index_header, 100._8 * ECF )
-        call obs_headSet_r(lobsSpaceData, OBS_VCF,  index_header, 100._8 * VCF )
+        call obs_headSet_r(lobsSpaceData, OBS_ECF,  index_header, 100.d0 * ECF )
+        call obs_headSet_r(lobsSpaceData, OBS_VCF,  index_header, 100.d0 * VCF )
         call obs_headSet_r(lobsSpaceData, OBS_HE,   index_header, HEFF )
         call obs_headSet_r(lobsSpaceData, OBS_ZTSR, index_header, ZTS )
         call obs_headSet_i(lobsSpaceData, OBS_NCO2, index_header, NGOOD)
         call obs_headSet_r(lobsSpaceData, OBS_ZTM,  index_header, ZT(nlv_T) )
         call obs_headSet_r(lobsSpaceData, OBS_ZTGM, index_header, ZTG )
         call obs_headSet_r(lobsSpaceData, OBS_ZLQM, index_header, exp(ZLQS) )
-        call obs_headSet_r(lobsSpaceData, OBS_ZPS,  index_header, 100._8 * ZPS )
+        call obs_headSet_r(lobsSpaceData, OBS_ZPS,  index_header, 100.d0 * ZPS )
         call obs_headSet_i(lobsSpaceData, OBS_STYP, index_header, KSURF )
 
         do INDEX_BODY= IDATA, IDATEND
@@ -1949,7 +1949,7 @@ contains
     real (8) , intent(out),dimension(nvis) :: reflect ! reflectivite en %
     !************
     real (8) ,DIMENSION(NVIS) :: SOLAR_FILTERED_IRRADIANCE
-    data SOLAR_FILTERED_IRRADIANCE /139.873215_8,232.919556_8,14.016470_8/
+    data SOLAR_FILTERED_IRRADIANCE /139.873215d0,232.919556d0,14.016470d0/
 !# equivalent widths, integrated solar irradiance,  effective central wavelength
 !0.084877,139.873215,0.632815
 !0.229421,232.919556,0.841679
@@ -1960,10 +1960,10 @@ contains
     !**************************************************************
 
     do i = 1, nvis
-      if (rad(i) >= 0.0_8 ) then
-        radb = rad(i) / 1000.0_8
+      if (rad(i) >= 0.0d0 ) then
+        radb = rad(i) / 1000.0d0
         reflect(i) = (MPC_PI_R8 * radb) / SOLAR_FILTERED_IRRADIANCE(I)
-        if (sunzen < 90.0_8 ) reflect(i) = reflect(i) / cos(sunzen * MPC_RADIANS_PER_DEGREE_R8)
+        if (sunzen < 90.0d0 ) reflect(i) = reflect(i) / cos(sunzen * MPC_RADIANS_PER_DEGREE_R8)
       else
         reflect(i) = -1
       end if
@@ -1975,7 +1975,7 @@ contains
     implicit none
     integer,parameter  :: nchan=3
     real(8) ,parameter :: c1= 1.19106590D-05   ! first planck constant
-    real(8) ,parameter :: c2= 1.438833_8     ! second planck constant 
+    real(8) ,parameter :: c2= 1.438833d0     ! second planck constant 
     real (8) , intent(in) ,dimension(nchan) :: rad,freq,offset,slope
     real (8) , intent(out) ,dimension(nchan) :: tb,dtbsdrad
     !************
@@ -1986,7 +1986,7 @@ contains
       if (rad(i) > 1.d-20) then
         planck2 = c2 * freq(I)
         planck1 = c1 * ( freq(I) ** 3 ) 
-        tstore = planck2 / log( 1.0_8 + planck1 / rad(i) )
+        tstore = planck2 / log( 1.0d0 + planck1 / rad(i) )
         tb(i) = ( tstore - offset(i) ) / slope(i)
         
         radtotal = rad(i)
@@ -1996,8 +1996,8 @@ contains
         dtbsdrad(i) = dtbsdrad(i) / slope(i)
         
       else
-        tb(i) = 0._8
-        dtbsdrad(i) = 0._8
+        tb(i) = 0.d0
+        dtbsdrad(i) = 0.d0
       end if
       
     end do
@@ -2011,17 +2011,17 @@ contains
     implicit none
     real (8),intent(in) :: nu,t,offset,slope
     real (8) :: nu0,tt
-    real (8) ,parameter :: c=299792458._8
+    real (8) ,parameter :: c=299792458.d0
     real (8) ,parameter :: k=1.3806505D-23
     real (8) ,parameter :: h=6.62606876D-34
-    real (8) ,parameter :: scale=100._8
+    real (8) ,parameter :: scale=100.d0
    
-    dplanck = -1._8
+    dplanck = -1.d0
 
-    if (t > 0._8) then
+    if (t > 0.d0) then
       nu0 = nu * scale
       tt = t * slope + offset
-      dplanck = scale * 2._8 * h * c**2 * nu0**3/(exp(h * c / k * nu0 / tt) - 1._8)
+      dplanck = scale * 2.d0 * h * c**2 * nu0**3/(exp(h * c / k * nu0 / tt) - 1.d0)
     end if
     
   end function dplanck
@@ -2036,23 +2036,23 @@ contains
     real (8) :: SUMALB(1:NVIS),SUMALB2(1:NVIS)
     !******************************************
     
-    SUMFRAC(:) = 0._8
-    SUMTB(:) = 0._8
-    SUMTB2(:) = 0._8
-    SUMALB(:) = 0._8
-    SUMALB2(:) = 0._8
+    SUMFRAC(:) = 0.d0
+    SUMTB(:) = 0.d0
+    SUMTB2(:) = 0.d0
+    SUMALB(:) = 0.d0
+    SUMALB2(:) = 0.d0
     
     do ICL=1,nClassAVHRR
-      if (avhrr%CFRAC(ICL) > 0._8 ) then
+      if (avhrr%CFRAC(ICL) > 0.d0 ) then
         do ICH=1,NVIS
-          if (avhrr%ALBEDMOY(ICL,ICH) >= 0._8 ) then
+          if (avhrr%ALBEDMOY(ICL,ICH) >= 0.d0 ) then
             SUMFRAC(ICH) = SUMFRAC(ICH) + avhrr%CFRAC(ICL)
             SUMALB(ICH) = SUMALB(ICH) + avhrr%CFRAC(ICL) * avhrr%ALBEDMOY(ICL,ICH)
             SUMALB2(ICH) = SUMALB2(ICH) + avhrr%CFRAC(ICL) * ( avhrr%ALBEDMOY(ICL,ICH)**2 + avhrr%ALBEDSTD(ICL,ICH)**2)
           end if
         end do
         do ICH=1+NVIS,NVIS+NIR
-          if (avhrr%TBMOY(ICL,ICH) > 0._8 ) then
+          if (avhrr%TBMOY(ICL,ICH) > 0.d0 ) then
             SUMFRAC(ICH) = SUMFRAC(ICH) + avhrr%CFRAC(ICL)
             SUMTB(ICH) = SUMTB(ICH) + avhrr%CFRAC(ICL) * avhrr%TBMOY(ICL,ICH)
             SUMTB2(ICH) = SUMTB2(ICH) + avhrr%CFRAC(ICL) * (avhrr%TBMOY(ICL,ICH)**2 + avhrr%TBSTD(ICL,ICH)**2 )
@@ -2062,25 +2062,25 @@ contains
     end do
       
     do ICH=1,NVIS
-      if (SUMFRAC(ICH) > 0._8 ) then
+      if (SUMFRAC(ICH) > 0.d0 ) then
         SUMALB(ICH) = SUMALB(ICH) / SUMFRAC(ICH)
         SUMALB2(ICH) = SUMALB2(ICH)/SUMFRAC(ICH) - SUMALB(ICH)**2
-        if (SUMALB2(ICH) > 0._8) then
+        if (SUMALB2(ICH) > 0.d0) then
           SUMALB2(ICH) = sqrt( SUMALB2(ICH) )
         else
-          SUMALB2(ICH) = 0._8
+          SUMALB2(ICH) = 0.d0
         end if
       end if
     end do
       
     do ICH=NVIS+1,NVIS+NIR
-      if (SUMFRAC(ICH) > 0._8 ) then
+      if (SUMFRAC(ICH) > 0.d0 ) then
         SUMTB(ICH) = SUMTB(ICH) / SUMFRAC(ICH)
         SUMTB2(ICH) = SUMTB2(ICH)/SUMFRAC(ICH) - SUMTB(ICH)**2
-        if (SUMTB2(ICH) > 0._8) then
+        if (SUMTB2(ICH) > 0.d0) then
           SUMTB2(ICH)= sqrt ( SUMTB2(ICH) )
         else
-          SUMTB2(ICH) = 0._8
+          SUMTB2(ICH) = 0.d0
         end if
       end if
     end do
@@ -2152,9 +2152,9 @@ contains
       
     EPS = 1.D-12
     
-    PTOP(:) = -1._8
+    PTOP(:) = -1.d0
     NTOP(:) = -1
-    FCLOUD(:) = -1._8
+    FCLOUD(:) = -1.d0
 
 
     !**     profile not assimilated if data from 2 windows channels bad
@@ -2184,7 +2184,7 @@ contains
     if ( SUMREJ == 0 ) then
       PTOP(:) = PS
       NTOP(:) = JPMAX
-      FCLOUD(:) = 0._8
+      FCLOUD(:) = 0.d0
       return
     end if
 
@@ -2197,18 +2197,18 @@ contains
       if ( JCH > 13) NITER = 2 
      
       iteration: do ITER = 1, NITER
-        DRAP(JCH,:)   = 9999._8
+        DRAP(JCH,:)   = 9999.d0
         NTOP(JCH) = -1
         !-------------------------------------------------------------------------------
         !         calcul EMI_RATIO
         if (JCH > 13) then       
           if ( ITER == 1 ) then
-            EMI_RATIO = 1.0376_8
+            EMI_RATIO = 1.0376d0
           else
-            EMI_RATIO = 1.09961_8 - 0.09082_8 * FCLOUD(JCH)
+            EMI_RATIO = 1.09961d0 - 0.09082d0 * FCLOUD(JCH)
           end if
         else
-          EMI_RATIO = 1.0_8
+          EMI_RATIO = 1.0d0
         end if
 !-------------------------------------------------------------------------------
 
@@ -2222,11 +2222,11 @@ contains
         if ( abs( RCAL(JC_PAIR) - ROBS(JC_PAIR) ) > EPS ) then
           RAPG = (RCAL(JC) - ROBS(JC)) / (RCAL(JC_PAIR) - ROBS(JC_PAIR))
         else
-          RAPG = 0.0_8
+          RAPG = 0.0d0
         end if
 
         do J = LEV_START, JPMAX
-          if ( FC(JC,J) > 0._8 .and. FC(JC_PAIR,J) > 0._8 )  &
+          if ( FC(JC,J) > 0.d0 .and. FC(JC_PAIR,J) > 0.d0 )  &
                DRAP(JCH,J) = RAPG - (FC(JC,J) / FC(JC_PAIR,J)) * EMI_RATIO
         end do
 
@@ -2236,7 +2236,7 @@ contains
 
           !**         do not allow fc negative (i.e. drap(jch,j) = 9999.)
 
-          if ( DRAP(JCH,J) > 9000._8 .and. &
+          if ( DRAP(JCH,J) > 9000.d0 .and. &
                A_DRAP(J-1) < EPS .and. &
                A_DRAP(J+1) < EPS ) cycle channels
 
@@ -2244,7 +2244,7 @@ contains
 
 !**         find first, hopefully unique, zero crossing
 
-          if ( VAL < 0._8 ) then
+          if ( VAL < 0.d0 ) then
 
 !**         conditions near zero crossing of isolated minimum need monotonically
 !**         decreasing drap from j-3 to j-1 as well increasing from j to j+1
@@ -2253,12 +2253,12 @@ contains
             VAL2 = DRAP(JCH,J - 3) / DRAP(JCH,J - 1)
             VAL3 = DRAP(JCH,J) / DRAP(JCH,J + 1)
 
-            if ( VAL1 > 0._8 .and.  & 
-                 VAL2 > 0._8 .and.  & 
-                 VAL3 > 0._8 .and.  &
+            if ( VAL1 > 0.d0 .and.  & 
+                 VAL2 > 0.d0 .and.  & 
+                 VAL3 > 0.d0 .and.  &
                  A_DRAP(J-2) > A_DRAP(J-1) .and.  &
                  A_DRAP(J-3) > A_DRAP(J-2) .and.  &
-                 A_DRAP(J)   < 9000._8     .and.  &
+                 A_DRAP(J)   < 9000.d0     .and.  &
                  A_DRAP(J+1) > A_DRAP(J) )        &
                  then
               PTOP(JCH) = PLEV(J)
@@ -2276,22 +2276,22 @@ contains
 !**       special cases of no determination
 
         if ( J < 1) then
-          PTOP(JCH)   = -1._8
+          PTOP(JCH)   = -1.d0
           NTOP(JCH)   = -1
-          FCLOUD(JCH) = -1._8
+          FCLOUD(JCH) = -1.d0
           cycle channels
         end if
       
-        if ( J <= LEV_START .or. DRAP(JCH,J) > 9000._8 ) then
+        if ( J <= LEV_START .or. DRAP(JCH,J) > 9000.d0 ) then
           !if ( ITER == 1) then
-          PTOP(JCH) = -1._8
+          PTOP(JCH) = -1.d0
           NTOP(JCH) = -1
-          FCLOUD(JCH) = -1._8
+          FCLOUD(JCH) = -1.d0
           !end if
           cycle channels
         end if
         
-        if ( abs( RCLD(JC,J) - RCAL(JC) ) > 0._8 )  &
+        if ( abs( RCLD(JC,J) - RCAL(JC) ) > 0.d0 )  &
              FCLOUD(JCH) = (ROBS(JC) - RCAL(JC)) /    &
              (RCLD(JC,J) - RCAL(JC))
 
@@ -2306,13 +2306,13 @@ contains
 
         !**       find cloud fraction based on exact cloud top
 
-        if ( abs(FCINT) > 0._8 )             &
+        if ( abs(FCINT) > 0.d0 )             &
              FCLOUD(JCH) = ( RCAL(JC) - ROBS(JC) ) / FCINT
 
-        FCLOUD(JCH) = min ( FCLOUD(JCH),  1.5_8 )
-        FCLOUD(JCH) = max ( FCLOUD(JCH), -0.5_8 )
+        FCLOUD(JCH) = min ( FCLOUD(JCH),  1.5d0 )
+        FCLOUD(JCH) = max ( FCLOUD(JCH), -0.5d0 )
 
-        if (FCLOUD(JCH) < 0.0_8 .or. FCLOUD(JCH) > 1.0_8 )  cycle channels
+        if (FCLOUD(JCH) < 0.0d0 .or. FCLOUD(JCH) > 1.0d0 )  cycle channels
       
       end do iteration
      
@@ -2362,10 +2362,10 @@ contains
     real(8)    :: H(NCO2),F(NCO2)
 
 
-    ETOP = -1._8
-    VTOP = -1._8
-    ECF  = -1._8
-    VCF  = -1._8
+    ETOP = -1.d0
+    VTOP = -1.d0
+    ECF  = -1.d0
+    VCF  = -1.d0
     NGOOD = 0
 
     !**     profile not assimilated if data from 2 windows channels bad
@@ -2373,17 +2373,17 @@ contains
     if ( CLDFLAG == -1 ) return
 
     N = 0
-    H(:) = 0._8
-    F(:) = 0._8
+    H(:) = 0.d0
+    F(:) = 0.d0
 
     do JCH = 1, NCO2
 
       !*        CHECK FOR ZERO CLOUD FRACTION
 
-      if ( CF(JCH) > -0.9_8 .and. CF(JCH) < 1.D-6 ) then
+      if ( CF(JCH) > -0.9d0 .and. CF(JCH) < 1.D-6 ) then
         N = N + 1
         H(N) = PS
-        F(N) = 0._8
+        F(N) = 0.d0
       else
 
 
@@ -2394,12 +2394,12 @@ contains
         !         CO2-SLICING NOT ALLOWED TO GIVE ESTIMATES BELOW HE, WHICH HAPPENS
         !         FOR CLOUD FRACTION CF > 1.0.
 
-        if ( HT(JCH) > 0.0_8 ) then
+        if ( HT(JCH) > 0.0d0 ) then
           N = N + 1
           H(N) = HT(JCH)
-          F(N) = min(CF(JCH), 1.0_8)
-          F(N) = max(F(N), 0._8)
-          if ( CF(JCH) > 1.0_8 ) H(N) = HE
+          F(N) = min(CF(JCH), 1.0d0)
+          F(N) = max(F(N), 0.d0)
+          if ( CF(JCH) > 1.0d0 ) H(N) = HE
         end if
       end if
 
@@ -2421,8 +2421,8 @@ contains
       VCF  = sqrt ( sum((F(1:N) - ECF)**2) / N )         
 
       if ( N == 1 ) then
-        VTOP = 50._8
-        VCF  = 0.20_8
+        VTOP = 50.d0
+        VCF  = 0.20d0
       end if
        
     else
@@ -2432,22 +2432,22 @@ contains
       !*      HOWEVER IF HE IS VERY CLOSE TO SURFACE PRESSURE PS, ASSUME CLEAR.
 
       ETOP = HE
-      ECF  = 1.0_8
-      if (CFSUB >= 0.05_8) then
+      ECF  = 1.0d0
+      if (CFSUB >= 0.05d0) then
         ECF = CFSUB
-        ETOP = min( min(HE,PTOP_MB) , PS - 50.0_8)
+        ETOP = min( min(HE,PTOP_MB) , PS - 50.0d0)
       end if
-      VTOP = 50._8
-      VCF  = 0.30_8
-      if ( HE > (PS - 10._8) ) ECF = 0._8
+      VTOP = 50.d0
+      VCF  = 0.30d0
+      if ( HE > (PS - 10.d0) ) ECF = 0.d0
       if ( GNCLDFLAG == 0 ) then
-        ECF = 0.0_8
+        ECF = 0.0d0
         ETOP = PS
       end if
     end if
 
-    if ( ECF < 0.05_8 ) then
-      ECF = 0.0_8
+    if ( ECF < 0.05d0 ) then
+      ECF = 0.0d0
       ETOP = PS
     end if
   
@@ -2534,8 +2534,8 @@ contains
     real(8)   :: WFUNC(NLEV-1),RAP(NLEV-1)
 
     MINP(:) = -1
-    PMIN(:) = -1._8
-    DT1(:)  = -1._8
+    PMIN(:) = -1.d0
+    DT1(:)  = -1.d0
 
     if ( CLDFLAG == -1 ) return
 
@@ -2549,7 +2549,7 @@ contains
 !**       and/or if data from 2 reference co2 channels bad
     
       do J = 1, NLEV
-        if ( TAU(JC,J) < 0._8) cycle channels
+        if ( TAU(JC,J) < 0.d0) cycle channels
       end do
 
       MINP(JC) = NLEV
@@ -2565,20 +2565,20 @@ contains
 
 !*        IF CHANNEL SEES THE SURFACE, DON'T RECALCULATE MINP AND PMIN
 
-      if ( TAU(JC,NLEV) > 0.01_8 ) cycle channels
+      if ( TAU(JC,NLEV) > 0.01d0 ) cycle channels
 
       ! Recherche du maximum
       IPOS = maxloc( WFUNC(:) )
       ! Calcul de la valeur du maximum
       MAXWF = WFUNC(IPOS(1))
       ! maximum entre les 2 niveaux puisque WF calculee pour une couche finie ( discutable ?)
-      MAXHEIGHT(JC)= 0.5_8 * ( PLEV(IPOS(1)) +  PLEV(IPOS(1) + 1)  )
+      MAXHEIGHT(JC)= 0.5d0 * ( PLEV(IPOS(1)) +  PLEV(IPOS(1) + 1)  )
 
       !*        IF CHANNEL DOESN'T SEE THE SURFACE, SEE WHERE dTAU/dlog(PLEV) BECOMES IMPORTANT
       !*        FOR RECOMPUTATION OF MINP AND PMIN.
 
       do J = NLEV - 1, IPOS(1), -1
-        if ( ( WFUNC(J)/ MAXWF ) > 0.01_8) then
+        if ( ( WFUNC(J)/ MAXWF ) > 0.01d0) then
           MINP(JC) = J + 1
           PMIN(JC) = min(PLEV(J + 1),PS)
           exit
@@ -2658,7 +2658,7 @@ contains
 
     else if ( IOPT == 2 ) then
       
-      PTOP = 0._8
+      PTOP = 0.d0
       NTOP = 1      
 
       if ( CLDFLAG == -1 ) return
@@ -2667,7 +2667,7 @@ contains
 
       ITOP = 1
       if ( NHT >= 2 ) ITOP = 2
-      PTOP = max ( HT(ITOP), 0._8 )
+      PTOP = max ( HT(ITOP), 0.d0 )
       NTOP = NHT
        
     end if
@@ -2714,19 +2714,19 @@ contains
     real(8)    :: LEV(2)
 
       
-    LEV(1) = 222._8
-    LEV(2) = 428._8
+    LEV(1) = 222.d0
+    LEV(2) = 428.d0
 
 
     if ( CLDFLAG == -1 ) return
 
-    if ( BTOBS(ICHREF) >= TG - 3._8 .and. BTOBS(ICHREF) <= TG + 3._8 ) then
+    if ( BTOBS(ICHREF) >= TG - 3.d0 .and. BTOBS(ICHREF) <= TG + 3.d0 ) then
       CLDFLAG = 0
       return
     end if
 
-    if ( BTOBS(ICHREF) >= TG - 4._8 .and. BTOBS(ICHREF) <= TG - 3._8 ) then
-      if ( PTOP_EQ > 1100._8 ) then
+    if ( BTOBS(ICHREF) >= TG - 4.d0 .and. BTOBS(ICHREF) <= TG - 3.d0 ) then
+      if ( PTOP_EQ > 1100.d0 ) then
         CLDFLAG = 1
         return
       else
@@ -2735,14 +2735,14 @@ contains
       end if
     end if
     
-    if ( PTOP_EQ > 728._8 ) then
+    if ( PTOP_EQ > 728.d0 ) then
       CLDFLAG = 1
       return
     end if
 
-    if ( TG - BTOBS(ICHREF) > 8._8 ) then 
+    if ( TG - BTOBS(ICHREF) > 8.d0 ) then 
       if ( NTOP_EQ >= 3 ) then
-        if ( PTOP_EQ > 73._8 ) then
+        if ( PTOP_EQ > 73.d0 ) then
           CLDFLAG=1
           return
         else
@@ -2752,7 +2752,7 @@ contains
       else
         call MONOTONIC_INVERSION (NINV, tg,tt,gz,nlev,lev(1))
         if ( NINV == 1 ) then
-          if ( PTOP_EQ > 222._8 ) then
+          if ( PTOP_EQ > 222.d0 ) then
             CLDFLAG = 1
             return
           else
@@ -2766,9 +2766,9 @@ contains
       end if
     end if
     
-    if ( TG - BTOBS(ICHREF) > 5._8 ) then
+    if ( TG - BTOBS(ICHREF) > 5.d0 ) then
       if ( NTOP_EQ >= 3 ) then
-        if ( PTOP_EQ > 222._8 ) then
+        if ( PTOP_EQ > 222.d0 ) then
           CLDFLAG = 1
           return
         else
@@ -2778,7 +2778,7 @@ contains
       else
         call MONOTONIC_INVERSION (NINV, tg,tt,gz,nlev,lev(2))
         if ( NINV == 1) then
-          if( PTOP_EQ > 428._8 ) then
+          if( PTOP_EQ > 428.d0 ) then
             CLDFLAG = 1
             return
           else
@@ -2834,11 +2834,11 @@ contains
     integer   :: NL
 
     NINVR = 0
-    if ( PTG - PTT(NPR) < 0._8 ) then
+    if ( PTG - PTT(NPR) < 0.d0 ) then
       NINVR = 1
       do NL = NPR - 1, 1, -1
         if ( PGZ(NL) > LVL ) exit
-        if ( PTT(NL+1) - PTT(NL) > 0._8 ) then
+        if ( PTT(NL+1) - PTT(NL) > 0.d0 ) then
           NINVR = 0
           exit
         end if
@@ -2895,7 +2895,7 @@ contains
     real(8)    :: RTG,RADTG
     real(8)    :: RADTS,tstore,t_effective
   
-    TS = -1._8
+    TS = -1.d0
 
     if ( CLDFLAG /= 0 ) return
     if ( ichref == -1 ) return
@@ -2906,7 +2906,7 @@ contains
     t_effective =  myCoefs % coef % ff_bco(ichref) + myCoefs % coef % ff_bcs(ichref) * TG
 
     RADTG =  myCoefs % coef % planck1(ichref) / &
-         ( exp( myCoefs % coef % planck2(ichref) / t_effective ) - 1.0_8 )
+         ( exp( myCoefs % coef % planck2(ichref) / t_effective ) - 1.0d0 )
 
 
     !*   compute TOA planck radiances due to guess skin planck radiances
@@ -2919,7 +2919,7 @@ contains
     RADTS = ( RADOBS(ICHREF) + RTG - RCAL(ICHREF) ) / &
          ( EMI(ICHREF) * SFCTAU(ICHREF) )
 
-    if (RADTS <= 0._8) then
+    if (RADTS <= 0.d0) then
       Write(*,'(A25,1x,8e14.6)') "Warning, negative radts", RADOBS(ICHREF), RTG, RCAL(ICHREF), EMI(ICHREF), SFCTAU(ICHREF), &
            ( RADOBS(ICHREF) + RTG - RCAL(ICHREF) ), ( EMI(ICHREF) * SFCTAU(ICHREF) ), RADTS
       Write(*,*) "Skipping tskin retrieval."
@@ -2929,7 +2929,7 @@ contains
     
     !*   transform true skin planck radiances to true skin temperatures
 
-    tstore = myCoefs % coef % planck2(ichref) / log( 1.0_8 + myCoefs % coef % planck1(ichref) / RADTS )
+    tstore = myCoefs % coef % planck2(ichref) / log( 1.0d0 + myCoefs % coef % planck1(ichref) / RADTS )
 
     TS = ( tstore - myCoefs % coef % ff_bco(ichref) ) / myCoefs % coef % ff_bcs(ichref)
     
@@ -3002,17 +3002,17 @@ contains
       
     i10=1
     do I=2,NLEV
-      if (plev(i - 1) <= 100._8 .and. plev(i) > 100._8) then
+      if (plev(i - 1) <= 100.d0 .and. plev(i) > 100.d0) then
         I10 = I
         exit
       end if
     end do
 
-    PTOP_BT(:) = -10._8
-    PTOP_RD(:) = -10._8
+    PTOP_BT(:) = -10.d0
+    PTOP_RD(:) = -10.d0
 
-    NTOP_BT(:) = 0._8
-    NTOP_RD(:) = 0._8
+    NTOP_BT(:) = 0.d0
+    NTOP_RD(:) = 0.d0
 
     !**     profile not assimilated if data from 2 windows channels bad
 
@@ -3028,8 +3028,8 @@ contains
         PTOP_BT(:) = min ( PLEV(NLEV), PS )
         PTOP_RD(:) = min ( PLEV(NLEV), PS )
       else if ( IOPT == 2 ) then
-        PTOP_BT(:) = 0._8
-        PTOP_RD(:) = 0._8
+        PTOP_BT(:) = 0.d0
+        PTOP_RD(:) = 0.d0
       end if
      
       NTOP_BT(:) = 1
@@ -3058,8 +3058,8 @@ contains
           PTOP_BT(JC) = min ( PLEV(NLEV), PS )
           PTOP_RD(JC) = min ( PLEV(NLEV), PS )
         else if ( IOPT == 2 ) then
-          PTOP_BT(JC) = 0._8
-          PTOP_RD(JC) = 0._8
+          PTOP_BT(JC) = 0.d0
+          PTOP_RD(JC) = 0.d0
         end if
       
         NTOP_BT(JC) = 1
@@ -3097,7 +3097,7 @@ contains
             call GET_TOP ( HT,NHT, btobs(jc),tt,gz,nlev,lev_start,iopt) 
             ITOP = 1
             if ( NHT >= 2 ) ITOP = 2
-            PTOP_BT(JC) = max ( HT(ITOP), 0._8 )
+            PTOP_BT(JC) = max ( HT(ITOP), 0.d0 )
             NTOP_BT(JC) = NHT
           end if
           
@@ -3105,7 +3105,7 @@ contains
             call GET_TOP ( HT,NHT, robs(jc),rcld(jc,:),gz,nlev,lev_start,iopt)
             ITOP = 1
             if ( NHT >= 2 ) ITOP = 2
-            PTOP_RD(JC) = max ( HT(ITOP), 0._8 )
+            PTOP_RD(JC) = max ( HT(ITOP), 0.d0 )
             NTOP_RD(JC) = NHT
           end if
           
@@ -3180,17 +3180,17 @@ contains
      
     i10 = 1
     do I=2,NLEV
-      if (plev(i - 1) <= 100._8 .and. plev(i) > 100._8) then
+      if (plev(i - 1) <= 100.d0 .and. plev(i) > 100.d0) then
         I10 = I
         exit
       end if
     end do
     
-    PTOP_BT(:) = -10._8
-    PTOP_RD(:) = -10._8
+    PTOP_BT(:) = -10.d0
+    PTOP_RD(:) = -10.d0
 
-    NTOP_BT(:) = 0._8
-    NTOP_RD(:) = 0._8
+    NTOP_BT(:) = 0.d0
+    NTOP_RD(:) = 0.d0
 
 
     !**     profile not assimilated if data from 2 windows channels bad
@@ -3206,8 +3206,8 @@ contains
         PTOP_BT(:) = min ( PLEV(NLEV), PS )
         PTOP_RD(:) = min ( PLEV(NLEV), PS )
       else if ( IOPT == 2 ) then
-        PTOP_BT(:) = 0._8
-        PTOP_RD(:) = 0._8
+        PTOP_BT(:) = 0.d0
+        PTOP_RD(:) = 0.d0
       end if
       
       NTOP_BT(:) = 1
@@ -3225,7 +3225,7 @@ contains
 
       !**       gross check failure
       
-      if ( BTOBS(JC) < 150._8 .or. BTOBS(JC) > 350._8) cycle channels
+      if ( BTOBS(JC) < 150.d0 .or. BTOBS(JC) > 350.d0) cycle channels
 
       !**       no clouds if observed radiance warmer than clear estimate
       
@@ -3235,8 +3235,8 @@ contains
           PTOP_BT(JC) = min ( PLEV(NLEV), PS )
           PTOP_RD(JC) = min ( PLEV(NLEV), PS )
         else if ( IOPT == 2 ) then
-          PTOP_BT(JC) = 0._8
-          PTOP_RD(JC) = 0._8
+          PTOP_BT(JC) = 0.d0
+          PTOP_RD(JC) = 0.d0
         end if
         
         NTOP_BT(JC) = 1
@@ -3274,7 +3274,7 @@ contains
             call GET_TOP ( HT,NHT, btobs(jc),tt,gz,nlev,lev_start,iopt) 
             ITOP = 1
             if ( NHT >= 2 ) ITOP = 2
-            PTOP_BT(JC) = max ( HT(ITOP), 0._8 )
+            PTOP_BT(JC) = max ( HT(ITOP), 0.d0 )
             NTOP_BT(JC) = NHT
           end if
           
@@ -3282,7 +3282,7 @@ contains
             call GET_TOP ( HT,NHT, robs(jc),rcld(jc,:),gz,nlev,lev_start,iopt)
             ITOP = 1
             if ( NHT >= 2 ) ITOP = 2
-            PTOP_RD(JC) = max ( HT(ITOP), 0._8 )
+            PTOP_RD(JC) = max ( HT(ITOP), 0.d0 )
             NTOP_RD(JC) = NHT
           end if
               
@@ -3355,7 +3355,7 @@ contains
   
       i10 = -1
       do I=2,NLEV
-        if (pp(i-1) <= 100._8 .and. pp(i) > 100._8) then
+        if (pp(i-1) <= 100.d0 .and. pp(i) > 100.d0) then
           I10 = I
           exit
         end if
@@ -3655,9 +3655,9 @@ contains
     real(8)  x1, x2, g1, g2, a, b
     real(8)  S(11)
  
-    data  S / 00.00_8, 18.19_8, 31.79_8, 41.41_8, 49.46_8, 56.63_8, 63.26_8, 69.51_8, 75.52_8, 81.37_8, 87.13_8 /
+    data  S / 00.00d0, 18.19d0, 31.79d0, 41.41d0, 49.46d0, 56.63d0, 63.26d0, 69.51d0, 75.52d0, 81.37d0, 87.13d0 /
  
-    I1  = 12 -( SCOS + 0.05_8) * 10._8 
+    I1  = 12 -( SCOS + 0.05d0) * 10.d0 
     I2  = I1 + 1 
     I1  = min(I1,11)
     I2  = min(I2,11)
@@ -3746,8 +3746,8 @@ contains
     
     real(8)  DRF(11) 
     
-    data  DRF / 1.000_8, 1.002_8, 1.042_8, 1.092_8, 1.178_8, 1.286_8, &
-         1.420_8, 1.546_8, 1.710_8, 1.870_8, 2.050_8  / 
+    data  DRF / 1.000d0, 1.002d0, 1.042d0, 1.092d0, 1.178d0, 1.286d0, &
+         1.420d0, 1.546d0, 1.710d0, 1.870d0, 2.050d0  / 
 
     DRCLD = DRF (IZ)
     
@@ -3797,191 +3797,191 @@ contains
     real(8) g1, g2
     real(8) VNORM(11,10,13),S(11),V(10),R(13),DA(2),DD(2) 
 
-    data S/0.0_8,18.19_8,31.79_8,41.41_8,49.46_8,56.63_8,63.26_8,69.51_8,75.52_8,81.37_8,87.13_8/ 
+    data S/0.0d0,18.19d0,31.79d0,41.41d0,49.46d0,56.63d0,63.26d0,69.51d0,75.52d0,81.37d0,87.13d0/ 
     
-    data R/0.0_8,15.0_8,30.0_8,45.0_8,60.0_8,75.0_8,90.0_8,105.0_8,120.0_8,135.0_8,150.0_8,165.0_8,180.0_8/ 
+    data R/0.0d0,15.0d0,30.0d0,45.0d0,60.0d0,75.0d0,90.0d0,105.0d0,120.0d0,135.0d0,150.0d0,165.0d0,180.0d0/ 
 
-    data V/0.0_8,10.0_8,20.0_8,30.0_8,40.0_8,50.0_8,60.0_8,70.0_8,80.0_8,90.0_8/
+    data V/0.0d0,10.0d0,20.0d0,30.0d0,40.0d0,50.0d0,60.0d0,70.0d0,80.0d0,90.0d0/
 
     data ((VNORM(1,J,K),J=1,10),K=1,13)/  &
-         2.668_8,2.210_8,1.105_8,0.979_8,0.810_8,0.735_8,0.785_8,0.979_8,1.092_8,1.174_8, &
-         2.668_8,2.210_8,1.105_8,0.979_8,0.810_8,0.735_8,0.785_8,0.979_8,1.092_8,1.174_8, &
-         2.668_8,2.210_8,1.105_8,0.979_8,0.810_8,0.735_8,0.785_8,0.979_8,1.092_8,1.174_8, &
-         2.668_8,2.210_8,1.105_8,0.979_8,0.810_8,0.735_8,0.785_8,0.979_8,1.092_8,1.174_8, &
-         2.668_8,2.210_8,1.105_8,0.979_8,0.810_8,0.735_8,0.785_8,0.979_8,1.092_8,1.174_8, &
-         2.668_8,2.210_8,1.105_8,0.979_8,0.810_8,0.735_8,0.785_8,0.979_8,1.092_8,1.174_8, &
-         2.668_8,2.210_8,1.105_8,0.979_8,0.810_8,0.735_8,0.785_8,0.979_8,1.092_8,1.174_8, &
-         2.668_8,2.210_8,1.105_8,0.979_8,0.810_8,0.735_8,0.785_8,0.979_8,1.092_8,1.174_8, &
-         2.668_8,2.210_8,1.105_8,0.979_8,0.810_8,0.735_8,0.785_8,0.979_8,1.092_8,1.174_8, &
-         2.668_8,2.210_8,1.105_8,0.979_8,0.810_8,0.735_8,0.785_8,0.979_8,1.092_8,1.174_8, &
-         2.668_8,2.210_8,1.105_8,0.979_8,0.810_8,0.735_8,0.785_8,0.979_8,1.092_8,1.174_8, &
-         2.668_8,2.210_8,1.105_8,0.979_8,0.810_8,0.735_8,0.785_8,0.979_8,1.092_8,1.174_8, &
-         2.668_8,2.210_8,1.105_8,0.979_8,0.810_8,0.735_8,0.785_8,0.979_8,1.092_8,1.174_8/ 
+         2.668d0,2.210d0,1.105d0,0.979d0,0.810d0,0.735d0,0.785d0,0.979d0,1.092d0,1.174d0, &
+         2.668d0,2.210d0,1.105d0,0.979d0,0.810d0,0.735d0,0.785d0,0.979d0,1.092d0,1.174d0, &
+         2.668d0,2.210d0,1.105d0,0.979d0,0.810d0,0.735d0,0.785d0,0.979d0,1.092d0,1.174d0, &
+         2.668d0,2.210d0,1.105d0,0.979d0,0.810d0,0.735d0,0.785d0,0.979d0,1.092d0,1.174d0, &
+         2.668d0,2.210d0,1.105d0,0.979d0,0.810d0,0.735d0,0.785d0,0.979d0,1.092d0,1.174d0, &
+         2.668d0,2.210d0,1.105d0,0.979d0,0.810d0,0.735d0,0.785d0,0.979d0,1.092d0,1.174d0, &
+         2.668d0,2.210d0,1.105d0,0.979d0,0.810d0,0.735d0,0.785d0,0.979d0,1.092d0,1.174d0, &
+         2.668d0,2.210d0,1.105d0,0.979d0,0.810d0,0.735d0,0.785d0,0.979d0,1.092d0,1.174d0, &
+         2.668d0,2.210d0,1.105d0,0.979d0,0.810d0,0.735d0,0.785d0,0.979d0,1.092d0,1.174d0, &
+         2.668d0,2.210d0,1.105d0,0.979d0,0.810d0,0.735d0,0.785d0,0.979d0,1.092d0,1.174d0, &
+         2.668d0,2.210d0,1.105d0,0.979d0,0.810d0,0.735d0,0.785d0,0.979d0,1.092d0,1.174d0, &
+         2.668d0,2.210d0,1.105d0,0.979d0,0.810d0,0.735d0,0.785d0,0.979d0,1.092d0,1.174d0, &
+         2.668d0,2.210d0,1.105d0,0.979d0,0.810d0,0.735d0,0.785d0,0.979d0,1.092d0,1.174d0/ 
     
     data ((VNORM(2,J,K),J=1,10),K=1,13)/  &
-         1.154_8, .960_8, .896_8, .818_8, .748_8, .825_8, .922_8,1.018_8,1.179_8,1.334_8, &
-         1.154_8, .954_8, .838_8, .799_8, .735_8, .786_8, .883_8, .960_8,1.128_8,1.250_8, &
-         1.514_8, .973_8, .825_8, .786_8, .722_8, .754_8,0.838_8,0.922_8,1.063_8,1.160_8, &
-         1.514_8,0.967_8,0.864_8,0.818_8,0.715_8,0.728_8,0.793_8,0.876_8,1.005_8,1.102_8, &
-         1.514_8,0.967_8,0.896_8,0.889_8,0.702_8,0.696_8,0.773_8,0.851_8,0.954_8,1.038_8, &
-         1.514_8,1.070_8,0.986_8,0.922_8,0.677_8,0.696_8,0.754_8,0.838_8,0.922_8,1.012_8, &
-         1.514_8,1.270_8,0.967_8,0.870_8,0.677_8,0.664_8,0.709_8,0.773_8,0.857_8,0.954_8, &
-         1.514_8,1.495_8,1.166_8,0.960_8,0.683_8,0.690_8,0.728_8,0.806_8,0.896_8,0.999_8, &
-         1.514_8,1.959_8,1.534_8,1.025_8,0.973_8,0.709_8,0.754_8,0.857_8,0.954_8,1.050_8, &
-         1.514_8,2.165_8,2.165_8,1.270_8,1.038_8,0.760_8,0.812_8,0.902_8,1.012_8,1.115_8, &
-         1.514_8,2.275_8,2.262_8,1.688_8,1.115_8,0.780_8,0.857_8,0.954_8,1.070_8,1.173_8, &
-         1.514_8,2.326_8,2.520_8,2.172_8,1.257_8,0.812_8,0.883_8,1.005_8,1.108_8,1.212_8, &
-         1.514_8,2.359_8,2.951_8,2.255_8,1.411_8,0.980_8,0.915_8,1.050_8,1.160_8,1.295_8/ 
+         1.154d0, .960d0, .896d0, .818d0, .748d0, .825d0, .922d0,1.018d0,1.179d0,1.334d0, &
+         1.154d0, .954d0, .838d0, .799d0, .735d0, .786d0, .883d0, .960d0,1.128d0,1.250d0, &
+         1.514d0, .973d0, .825d0, .786d0, .722d0, .754d0,0.838d0,0.922d0,1.063d0,1.160d0, &
+         1.514d0,0.967d0,0.864d0,0.818d0,0.715d0,0.728d0,0.793d0,0.876d0,1.005d0,1.102d0, &
+         1.514d0,0.967d0,0.896d0,0.889d0,0.702d0,0.696d0,0.773d0,0.851d0,0.954d0,1.038d0, &
+         1.514d0,1.070d0,0.986d0,0.922d0,0.677d0,0.696d0,0.754d0,0.838d0,0.922d0,1.012d0, &
+         1.514d0,1.270d0,0.967d0,0.870d0,0.677d0,0.664d0,0.709d0,0.773d0,0.857d0,0.954d0, &
+         1.514d0,1.495d0,1.166d0,0.960d0,0.683d0,0.690d0,0.728d0,0.806d0,0.896d0,0.999d0, &
+         1.514d0,1.959d0,1.534d0,1.025d0,0.973d0,0.709d0,0.754d0,0.857d0,0.954d0,1.050d0, &
+         1.514d0,2.165d0,2.165d0,1.270d0,1.038d0,0.760d0,0.812d0,0.902d0,1.012d0,1.115d0, &
+         1.514d0,2.275d0,2.262d0,1.688d0,1.115d0,0.780d0,0.857d0,0.954d0,1.070d0,1.173d0, &
+         1.514d0,2.326d0,2.520d0,2.172d0,1.257d0,0.812d0,0.883d0,1.005d0,1.108d0,1.212d0, &
+         1.514d0,2.359d0,2.951d0,2.255d0,1.411d0,0.980d0,0.915d0,1.050d0,1.160d0,1.295d0/ 
 
     data ((VNORM(3,J,K),J=1,10),K=1,13)/   &
-         0.897_8,0.792_8,0.765_8,0.765_8,0.778_8,0.897_8,0.996_8,1.095_8,1.306_8,1.431_8, &
-         0.897_8,0.712_8,0.739_8,0.745_8,0.765_8,0.891_8,0.970_8,1.069_8,1.214_8,1.359_8, &
-         0.897_8,0.666_8,0.699_8,0.745_8,0.759_8,0.811_8,0.917_8,1.042_8,1.148_8,1.306_8, &
-         0.897_8,0.646_8,0.693_8,0.739_8,0.693_8,0.752_8,0.858_8,0.989_8,1.102_8,1.234_8, &
-         0.897_8,0.686_8,0.679_8,0.726_8,0.679_8,0.693_8,0.792_8,0.924_8,1.049_8,1.154_8, &
-         0.897_8,0.660_8,0.673_8,0.693_8,0.646_8,0.660_8,0.759_8,0.858_8,1.003_8,1.102_8, &
-         0.897_8,0.673_8,0.765_8,0.792_8,0.712_8,0.600_8,0.699_8,0.811_8,0.963_8,1.055_8, &
-         0.897_8,0.706_8,0.772_8,0.917_8,0.904_8,0.613_8,0.726_8,0.858_8,1.055_8,1.121_8, &
-         0.897_8,0.825_8,0.924_8,0.996_8,0.989_8,0.686_8,0.778_8,0.937_8,1.115_8,1.181_8, &
-         0.897_8,1.036_8,1.253_8,1.286_8,1.260_8,0.778_8,0.858_8,0.996_8,1.181_8,1.260_8, &
-         0.897_8,1.201_8,1.788_8,1.986_8,1.827_8,0.884_8,0.851_8,1.062_8,1.227_8,1.333_8, &
-         0.897_8,1.530_8,2.249_8,2.546_8,2.381_8,1.352_8,0.891_8,1.108_8,1.286_8,1.405_8, &
-         0.897_8,1.854_8,2.401_8,3.325_8,2.559_8,1.590_8,0.937_8,1.168_8,1.214_8,1.425_8/ 
+         0.897d0,0.792d0,0.765d0,0.765d0,0.778d0,0.897d0,0.996d0,1.095d0,1.306d0,1.431d0, &
+         0.897d0,0.712d0,0.739d0,0.745d0,0.765d0,0.891d0,0.970d0,1.069d0,1.214d0,1.359d0, &
+         0.897d0,0.666d0,0.699d0,0.745d0,0.759d0,0.811d0,0.917d0,1.042d0,1.148d0,1.306d0, &
+         0.897d0,0.646d0,0.693d0,0.739d0,0.693d0,0.752d0,0.858d0,0.989d0,1.102d0,1.234d0, &
+         0.897d0,0.686d0,0.679d0,0.726d0,0.679d0,0.693d0,0.792d0,0.924d0,1.049d0,1.154d0, &
+         0.897d0,0.660d0,0.673d0,0.693d0,0.646d0,0.660d0,0.759d0,0.858d0,1.003d0,1.102d0, &
+         0.897d0,0.673d0,0.765d0,0.792d0,0.712d0,0.600d0,0.699d0,0.811d0,0.963d0,1.055d0, &
+         0.897d0,0.706d0,0.772d0,0.917d0,0.904d0,0.613d0,0.726d0,0.858d0,1.055d0,1.121d0, &
+         0.897d0,0.825d0,0.924d0,0.996d0,0.989d0,0.686d0,0.778d0,0.937d0,1.115d0,1.181d0, &
+         0.897d0,1.036d0,1.253d0,1.286d0,1.260d0,0.778d0,0.858d0,0.996d0,1.181d0,1.260d0, &
+         0.897d0,1.201d0,1.788d0,1.986d0,1.827d0,0.884d0,0.851d0,1.062d0,1.227d0,1.333d0, &
+         0.897d0,1.530d0,2.249d0,2.546d0,2.381d0,1.352d0,0.891d0,1.108d0,1.286d0,1.405d0, &
+         0.897d0,1.854d0,2.401d0,3.325d0,2.559d0,1.590d0,0.937d0,1.168d0,1.214d0,1.425d0/ 
 
     data ((VNORM(4,J,K),J=1,10),K=1,13)/  &
-         0.752_8,0.800_8,0.745_8,0.717_8,0.759_8,0.891_8,1.149_8,1.309_8,1.469_8,1.650_8, &
-         0.752_8,0.773_8,0.717_8,0.703_8,0.752_8,0.835_8,1.065_8,1.246_8,1.406_8,1.552_8, &
-         0.752_8,0.731_8,0.689_8,0.703_8,0.745_8,0.814_8,0.988_8,1.176_8,1.323_8,1.476_8, &
-         0.752_8,0.689_8,0.675_8,0.654_8,0.696_8,0.752_8,0.940_8,1.100_8,1.246_8,1.378_8, &
-         0.752_8,0.675_8,0.661_8,0.633_8,0.668_8,0.717_8,0.877_8,1.030_8,1.176_8,1.309_8, &
-         0.752_8,0.647_8,0.640_8,0.620_8,0.613_8,0.682_8,0.814_8,0.947_8,1.107_8,1.232_8, &
-         0.752_8,0.633_8,0.620_8,0.613_8,0.606_8,0.640_8,0.773_8,0.898_8,1.044_8,1.162_8, &
-         0.752_8,0.626_8,0.626_8,0.626_8,0.620_8,0.654_8,0.821_8,0.947_8,1.128_8,1.225_8, &
-         0.752_8,0.633_8,0.633_8,0.633_8,0.647_8,0.675_8,0.877_8,1.009_8,1.183_8,1.274_8, &
-         0.752_8,0.682_8,0.717_8,0.961_8,1.023_8,0.968_8,0.940_8,1.142_8,1.274_8,1.413_8, &
-         0.752_8,0.856_8,1.037_8,1.434_8,1.594_8,1.441_8,1.044_8,1.225_8,1.323_8,1.545_8, &
-         0.752_8,1.044_8,1.295_8,2.207_8,1.610_8,2.311_8,1.385_8,1.274_8,1.441_8,1.636_8, &
-         0.752_8,1.079_8,1.524_8,2.541_8,3.564_8,3.014_8,1.942_8,1.462_8,1.552_8,1.726_8/ 
+         0.752d0,0.800d0,0.745d0,0.717d0,0.759d0,0.891d0,1.149d0,1.309d0,1.469d0,1.650d0, &
+         0.752d0,0.773d0,0.717d0,0.703d0,0.752d0,0.835d0,1.065d0,1.246d0,1.406d0,1.552d0, &
+         0.752d0,0.731d0,0.689d0,0.703d0,0.745d0,0.814d0,0.988d0,1.176d0,1.323d0,1.476d0, &
+         0.752d0,0.689d0,0.675d0,0.654d0,0.696d0,0.752d0,0.940d0,1.100d0,1.246d0,1.378d0, &
+         0.752d0,0.675d0,0.661d0,0.633d0,0.668d0,0.717d0,0.877d0,1.030d0,1.176d0,1.309d0, &
+         0.752d0,0.647d0,0.640d0,0.620d0,0.613d0,0.682d0,0.814d0,0.947d0,1.107d0,1.232d0, &
+         0.752d0,0.633d0,0.620d0,0.613d0,0.606d0,0.640d0,0.773d0,0.898d0,1.044d0,1.162d0, &
+         0.752d0,0.626d0,0.626d0,0.626d0,0.620d0,0.654d0,0.821d0,0.947d0,1.128d0,1.225d0, &
+         0.752d0,0.633d0,0.633d0,0.633d0,0.647d0,0.675d0,0.877d0,1.009d0,1.183d0,1.274d0, &
+         0.752d0,0.682d0,0.717d0,0.961d0,1.023d0,0.968d0,0.940d0,1.142d0,1.274d0,1.413d0, &
+         0.752d0,0.856d0,1.037d0,1.434d0,1.594d0,1.441d0,1.044d0,1.225d0,1.323d0,1.545d0, &
+         0.752d0,1.044d0,1.295d0,2.207d0,1.610d0,2.311d0,1.385d0,1.274d0,1.441d0,1.636d0, &
+         0.752d0,1.079d0,1.524d0,2.541d0,3.564d0,3.014d0,1.942d0,1.462d0,1.552d0,1.726d0/ 
 
     data ((VNORM(5,J,K),J=1,10),K=1,13)/  &
-         0.552_8,0.588_8,0.617_8,0.638_8,0.724_8,0.860_8,1.133_8,1.362_8,1.556_8,1.678_8, &
-         0.552_8,0.581_8,0.602_8,0.617_8,0.652_8,0.803_8,1.075_8,1.326_8,1.484_8,1.592_8, &
-         0.552_8,0.559_8,0.588_8,0.595_8,0.617_8,0.731_8,1.018_8,1.283_8,1.412_8,1.527_8, &
-         0.552_8,0.531_8,0.538_8,0.574_8,0.595_8,0.710_8,0.946_8,1.240_8,1.341_8,1.463_8, &
-         0.552_8,0.516_8,0.523_8,0.552_8,0.559_8,0.695_8,0.911_8,1.226_8,1.291_8,1.412_8, &
-         0.552_8,0.516_8,0.523_8,0.538_8,0.538_8,0.652_8,0.882_8,1.154_8,1.240_8,1.348_8, &
-         0.552_8,0.516_8,0.523_8,0.538_8,0.523_8,0.595_8,0.774_8,1.075_8,1.169_8,1.269_8, &
-         0.552_8,0.531_8,0.545_8,0.552_8,0.566_8,0.609_8,0.817_8,1.140_8,1.248_8,1.369_8, &
-         0.552_8,0.538_8,0.545_8,0.566_8,0.581_8,0.645_8,0.911_8,1.240_8,1.319_8,1.441_8, &
-         0.552_8,0.566_8,0.552_8,0.574_8,0.710_8,0.839_8,0.982_8,1.298_8,1.391_8,2.323_8, &
-         0.552_8,0.566_8,0.559_8,0.710_8,1.147_8,1.176_8,1.040_8,1.348_8,1.671_8,2.674_8, &
-         0.552_8,0.588_8,1.133_8,1.355_8,2.194_8,2.803_8,2.201_8,2.459_8,2.904_8,3.126_8, &
-         0.552_8,0.710_8,1.341_8,1.757_8,3.026_8,3.900_8,4.445_8,4.503_8,4.445_8,4.503_8/ 
+         0.552d0,0.588d0,0.617d0,0.638d0,0.724d0,0.860d0,1.133d0,1.362d0,1.556d0,1.678d0, &
+         0.552d0,0.581d0,0.602d0,0.617d0,0.652d0,0.803d0,1.075d0,1.326d0,1.484d0,1.592d0, &
+         0.552d0,0.559d0,0.588d0,0.595d0,0.617d0,0.731d0,1.018d0,1.283d0,1.412d0,1.527d0, &
+         0.552d0,0.531d0,0.538d0,0.574d0,0.595d0,0.710d0,0.946d0,1.240d0,1.341d0,1.463d0, &
+         0.552d0,0.516d0,0.523d0,0.552d0,0.559d0,0.695d0,0.911d0,1.226d0,1.291d0,1.412d0, &
+         0.552d0,0.516d0,0.523d0,0.538d0,0.538d0,0.652d0,0.882d0,1.154d0,1.240d0,1.348d0, &
+         0.552d0,0.516d0,0.523d0,0.538d0,0.523d0,0.595d0,0.774d0,1.075d0,1.169d0,1.269d0, &
+         0.552d0,0.531d0,0.545d0,0.552d0,0.566d0,0.609d0,0.817d0,1.140d0,1.248d0,1.369d0, &
+         0.552d0,0.538d0,0.545d0,0.566d0,0.581d0,0.645d0,0.911d0,1.240d0,1.319d0,1.441d0, &
+         0.552d0,0.566d0,0.552d0,0.574d0,0.710d0,0.839d0,0.982d0,1.298d0,1.391d0,2.323d0, &
+         0.552d0,0.566d0,0.559d0,0.710d0,1.147d0,1.176d0,1.040d0,1.348d0,1.671d0,2.674d0, &
+         0.552d0,0.588d0,1.133d0,1.355d0,2.194d0,2.803d0,2.201d0,2.459d0,2.904d0,3.126d0, &
+         0.552d0,0.710d0,1.341d0,1.757d0,3.026d0,3.900d0,4.445d0,4.503d0,4.445d0,4.503d0/ 
 
     data ((VNORM(6,J,K),J=1,10),K=1,13)/  &
-         0.551_8,0.627_8,0.665_8,0.734_8,0.826_8,0.971_8,1.231_8,1.537_8,1.721_8,1.866_8, &
-         0.551_8,0.604_8,0.619_8,0.665_8,0.765_8,0.895_8,1.185_8,1.476_8,1.568_8,1.652_8, &
-         0.551_8,0.597_8,0.604_8,0.619_8,0.734_8,0.849_8,1.101_8,1.346_8,1.453_8,1.568_8, &
-         0.551_8,0.581_8,0.589_8,0.597_8,0.665_8,0.795_8,1.032_8,1.262_8,1.346_8,1.445_8, &
-         0.551_8,0.558_8,0.558_8,0.566_8,0.612_8,0.727_8,0.987_8,1.201_8,1.262_8,1.399_8, &
-         0.551_8,0.505_8,0.505_8,0.512_8,0.566_8,0.696_8,0.925_8,1.117_8,1.185_8,1.308_8, &
-         0.551_8,0.474_8,0.497_8,0.512_8,0.535_8,0.673_8,0.864_8,1.048_8,1.124_8,1.216_8, &
-         0.551_8,0.497_8,0.505_8,0.520_8,0.551_8,0.681_8,0.902_8,1.124_8,1.201_8,1.323_8, &
-         0.551_8,0.535_8,0.535_8,0.551_8,0.566_8,0.711_8,1.017_8,1.201_8,1.269_8,1.422_8, &
-         0.551_8,0.535_8,0.543_8,0.558_8,0.704_8,1.193_8,1.247_8,1.285_8,1.346_8,1.950_8, &
-         0.551_8,0.543_8,0.551_8,0.581_8,0.994_8,1.545_8,1.583_8,1.354_8,2.019_8,2.883_8, &
-         0.551_8,0.566_8,0.612_8,0.788_8,1.468_8,2.233_8,2.340_8,2.531_8,2.983_8,3.365_8, &
-         0.551_8,0.658_8,0.665_8,1.101_8,2.134_8,3.120_8,4.221_8,4.856_8,4.956_8,5.613_8/ 
+         0.551d0,0.627d0,0.665d0,0.734d0,0.826d0,0.971d0,1.231d0,1.537d0,1.721d0,1.866d0, &
+         0.551d0,0.604d0,0.619d0,0.665d0,0.765d0,0.895d0,1.185d0,1.476d0,1.568d0,1.652d0, &
+         0.551d0,0.597d0,0.604d0,0.619d0,0.734d0,0.849d0,1.101d0,1.346d0,1.453d0,1.568d0, &
+         0.551d0,0.581d0,0.589d0,0.597d0,0.665d0,0.795d0,1.032d0,1.262d0,1.346d0,1.445d0, &
+         0.551d0,0.558d0,0.558d0,0.566d0,0.612d0,0.727d0,0.987d0,1.201d0,1.262d0,1.399d0, &
+         0.551d0,0.505d0,0.505d0,0.512d0,0.566d0,0.696d0,0.925d0,1.117d0,1.185d0,1.308d0, &
+         0.551d0,0.474d0,0.497d0,0.512d0,0.535d0,0.673d0,0.864d0,1.048d0,1.124d0,1.216d0, &
+         0.551d0,0.497d0,0.505d0,0.520d0,0.551d0,0.681d0,0.902d0,1.124d0,1.201d0,1.323d0, &
+         0.551d0,0.535d0,0.535d0,0.551d0,0.566d0,0.711d0,1.017d0,1.201d0,1.269d0,1.422d0, &
+         0.551d0,0.535d0,0.543d0,0.558d0,0.704d0,1.193d0,1.247d0,1.285d0,1.346d0,1.950d0, &
+         0.551d0,0.543d0,0.551d0,0.581d0,0.994d0,1.545d0,1.583d0,1.354d0,2.019d0,2.883d0, &
+         0.551d0,0.566d0,0.612d0,0.788d0,1.468d0,2.233d0,2.340d0,2.531d0,2.983d0,3.365d0, &
+         0.551d0,0.658d0,0.665d0,1.101d0,2.134d0,3.120d0,4.221d0,4.856d0,4.956d0,5.613d0/ 
 
     data ((VNORM(7,J,K),J=1,10),K=1,13)/  &
-         0.545_8,0.606_8,0.683_8,0.744_8,0.798_8,0.990_8,1.228_8,1.704_8,1.850_8,2.049_8, &
-         0.545_8,0.576_8,0.583_8,0.714_8,0.783_8,0.952_8,1.144_8,1.573_8,1.758_8,1.888_8, &
-         0.545_8,0.560_8,0.568_8,0.629_8,0.744_8,0.875_8,1.105_8,1.504_8,1.642_8,1.788_8, &
-         0.545_8,0.553_8,0.560_8,0.599_8,0.629_8,0.791_8,1.028_8,1.420_8,1.527_8,1.696_8, &
-         0.545_8,0.545_8,0.553_8,0.599_8,0.606_8,0.714_8,0.990_8,1.335_8,1.451_8,1.581_8, &
-         0.545_8,0.530_8,0.537_8,0.568_8,0.583_8,0.683_8,0.890_8,1.243_8,1.351_8,1.489_8, &
-         0.545_8,0.491_8,0.499_8,0.507_8,0.576_8,0.622_8,0.791_8,1.182_8,1.282_8,1.389_8, &
-         0.545_8,0.507_8,0.514_8,0.507_8,0.576_8,0.675_8,0.890_8,1.197_8,1.328_8,1.451_8, &
-         0.545_8,0.522_8,0.537_8,0.522_8,0.591_8,0.760_8,0.944_8,1.259_8,1.389_8,1.527_8, &
-         0.545_8,0.537_8,0.545_8,0.553_8,0.614_8,0.906_8,1.028_8,1.389_8,1.504_8,2.533_8, &
-         0.545_8,0.553_8,0.553_8,0.576_8,0.637_8,1.036_8,1.550_8,1.658_8,1.934_8,3.277_8, &
-         0.545_8,0.560_8,0.568_8,0.606_8,1.174_8,1.781_8,2.563_8,3.170_8,3.791_8,4.966_8, &
-         0.545_8,0.591_8,0.614_8,1.259_8,2.065_8,2.824_8,3.761_8,4.498_8,5.902_8,6.148_8/ 
+         0.545d0,0.606d0,0.683d0,0.744d0,0.798d0,0.990d0,1.228d0,1.704d0,1.850d0,2.049d0, &
+         0.545d0,0.576d0,0.583d0,0.714d0,0.783d0,0.952d0,1.144d0,1.573d0,1.758d0,1.888d0, &
+         0.545d0,0.560d0,0.568d0,0.629d0,0.744d0,0.875d0,1.105d0,1.504d0,1.642d0,1.788d0, &
+         0.545d0,0.553d0,0.560d0,0.599d0,0.629d0,0.791d0,1.028d0,1.420d0,1.527d0,1.696d0, &
+         0.545d0,0.545d0,0.553d0,0.599d0,0.606d0,0.714d0,0.990d0,1.335d0,1.451d0,1.581d0, &
+         0.545d0,0.530d0,0.537d0,0.568d0,0.583d0,0.683d0,0.890d0,1.243d0,1.351d0,1.489d0, &
+         0.545d0,0.491d0,0.499d0,0.507d0,0.576d0,0.622d0,0.791d0,1.182d0,1.282d0,1.389d0, &
+         0.545d0,0.507d0,0.514d0,0.507d0,0.576d0,0.675d0,0.890d0,1.197d0,1.328d0,1.451d0, &
+         0.545d0,0.522d0,0.537d0,0.522d0,0.591d0,0.760d0,0.944d0,1.259d0,1.389d0,1.527d0, &
+         0.545d0,0.537d0,0.545d0,0.553d0,0.614d0,0.906d0,1.028d0,1.389d0,1.504d0,2.533d0, &
+         0.545d0,0.553d0,0.553d0,0.576d0,0.637d0,1.036d0,1.550d0,1.658d0,1.934d0,3.277d0, &
+         0.545d0,0.560d0,0.568d0,0.606d0,1.174d0,1.781d0,2.563d0,3.170d0,3.791d0,4.966d0, &
+         0.545d0,0.591d0,0.614d0,1.259d0,2.065d0,2.824d0,3.761d0,4.498d0,5.902d0,6.148d0/ 
 
     data ((VNORM(8,J,K),J=1,10),K=1,13)/  &
-         0.514_8,0.539_8,0.596_8,0.694_8,0.832_8,1.004_8,1.444_8,1.869_8,2.203_8,2.538_8, &
-         0.514_8,0.539_8,0.571_8,0.645_8,0.751_8,0.906_8,1.387_8,1.779_8,2.056_8,2.317_8, &
-         0.514_8,0.547_8,0.555_8,0.612_8,0.702_8,0.824_8,1.281_8,1.681_8,1.934_8,2.203_8, &
-         0.514_8,0.539_8,0.555_8,0.588_8,0.653_8,0.743_8,1.028_8,1.404_8,1.624_8,2.024_8, &
-         0.514_8,0.539_8,0.547_8,0.555_8,0.588_8,0.710_8,0.889_8,1.191_8,1.420_8,1.820_8, &
-         0.514_8,0.522_8,0.522_8,0.539_8,0.563_8,0.710_8,0.849_8,1.044_8,1.208_8,1.534_8, &
-         0.514_8,0.481_8,0.506_8,0.514_8,0.539_8,0.694_8,0.824_8,1.028_8,1.200_8,1.371_8, &
-         0.514_8,0.481_8,0.514_8,0.547_8,0.563_8,0.702_8,0.898_8,1.134_8,1.297_8,1.501_8, &
-         0.514_8,0.490_8,0.514_8,0.555_8,0.588_8,0.726_8,0.955_8,1.265_8,1.379_8,1.648_8, &
-         0.514_8,0.547_8,0.547_8,0.571_8,0.604_8,0.767_8,1.036_8,1.355_8,1.550_8,3.142_8, &
-         0.514_8,0.563_8,0.579_8,0.604_8,0.612_8,0.832_8,1.909_8,2.848_8,3.917_8,4.790_8, &
-         0.514_8,0.522_8,0.563_8,0.677_8,0.767_8,1.420_8,2.040_8,3.158_8,4.863_8,6.291_8, &
-         0.514_8,0.588_8,0.588_8,0.612_8,0.824_8,2.032_8,3.109_8,4.969_8,6.846_8,7.695_8/ 
+         0.514d0,0.539d0,0.596d0,0.694d0,0.832d0,1.004d0,1.444d0,1.869d0,2.203d0,2.538d0, &
+         0.514d0,0.539d0,0.571d0,0.645d0,0.751d0,0.906d0,1.387d0,1.779d0,2.056d0,2.317d0, &
+         0.514d0,0.547d0,0.555d0,0.612d0,0.702d0,0.824d0,1.281d0,1.681d0,1.934d0,2.203d0, &
+         0.514d0,0.539d0,0.555d0,0.588d0,0.653d0,0.743d0,1.028d0,1.404d0,1.624d0,2.024d0, &
+         0.514d0,0.539d0,0.547d0,0.555d0,0.588d0,0.710d0,0.889d0,1.191d0,1.420d0,1.820d0, &
+         0.514d0,0.522d0,0.522d0,0.539d0,0.563d0,0.710d0,0.849d0,1.044d0,1.208d0,1.534d0, &
+         0.514d0,0.481d0,0.506d0,0.514d0,0.539d0,0.694d0,0.824d0,1.028d0,1.200d0,1.371d0, &
+         0.514d0,0.481d0,0.514d0,0.547d0,0.563d0,0.702d0,0.898d0,1.134d0,1.297d0,1.501d0, &
+         0.514d0,0.490d0,0.514d0,0.555d0,0.588d0,0.726d0,0.955d0,1.265d0,1.379d0,1.648d0, &
+         0.514d0,0.547d0,0.547d0,0.571d0,0.604d0,0.767d0,1.036d0,1.355d0,1.550d0,3.142d0, &
+         0.514d0,0.563d0,0.579d0,0.604d0,0.612d0,0.832d0,1.909d0,2.848d0,3.917d0,4.790d0, &
+         0.514d0,0.522d0,0.563d0,0.677d0,0.767d0,1.420d0,2.040d0,3.158d0,4.863d0,6.291d0, &
+         0.514d0,0.588d0,0.588d0,0.612d0,0.824d0,2.032d0,3.109d0,4.969d0,6.846d0,7.695d0/ 
 
     data ((VNORM(9,J,K),J=1,10),K=1,13)/  &
-         0.572_8,0.608_8,0.679_8,0.751_8,0.831_8,1.001_8,1.377_8,1.913_8,2.512_8,2.879_8, &
-         0.572_8,0.572_8,0.608_8,0.679_8,0.760_8,0.930_8,1.243_8,1.707_8,2.369_8,2.700_8, &
-         0.572_8,0.563_8,0.590_8,0.644_8,0.706_8,0.831_8,1.171_8,1.618_8,2.190_8,2.378_8, &
-         0.572_8,0.554_8,0.563_8,0.599_8,0.662_8,0.760_8,1.010_8,1.502_8,2.011_8,2.235_8, &
-         0.572_8,0.545_8,0.563_8,0.590_8,0.626_8,0.715_8,0.885_8,1.323_8,1.815_8,2.119_8, &
-         0.572_8,0.527_8,0.554_8,0.572_8,0.608_8,0.670_8,0.724_8,1.144_8,1.618_8,1.868_8, &
-         0.572_8,0.545_8,0.572_8,0.572_8,0.599_8,0.662_8,0.724_8,1.117_8,1.484_8,1.761_8, &
-         0.572_8,0.554_8,0.590_8,0.599_8,0.608_8,0.679_8,0.760_8,1.216_8,1.582_8,1.922_8, &
-         0.572_8,0.572_8,0.599_8,0.608_8,0.635_8,0.715_8,0.822_8,1.377_8,1.707_8,2.056_8, &
-         0.572_8,0.590_8,0.608_8,0.635_8,0.662_8,0.742_8,0.912_8,1.529_8,3.075_8,4.693_8, &
-         0.572_8,0.590_8,0.626_8,0.644_8,0.670_8,0.760_8,1.109_8,1.564_8,3.111_8,4.702_8, &
-         0.572_8,0.599_8,0.644_8,0.662_8,0.688_8,0.822_8,1.788_8,2.816_8,5.346_8,7.295_8, &
-         0.572_8,0.608_8,0.662_8,0.670_8,0.715_8,1.851_8,3.227_8,4.810_8,6.669_8,9.557_8/ 
+         0.572d0,0.608d0,0.679d0,0.751d0,0.831d0,1.001d0,1.377d0,1.913d0,2.512d0,2.879d0, &
+         0.572d0,0.572d0,0.608d0,0.679d0,0.760d0,0.930d0,1.243d0,1.707d0,2.369d0,2.700d0, &
+         0.572d0,0.563d0,0.590d0,0.644d0,0.706d0,0.831d0,1.171d0,1.618d0,2.190d0,2.378d0, &
+         0.572d0,0.554d0,0.563d0,0.599d0,0.662d0,0.760d0,1.010d0,1.502d0,2.011d0,2.235d0, &
+         0.572d0,0.545d0,0.563d0,0.590d0,0.626d0,0.715d0,0.885d0,1.323d0,1.815d0,2.119d0, &
+         0.572d0,0.527d0,0.554d0,0.572d0,0.608d0,0.670d0,0.724d0,1.144d0,1.618d0,1.868d0, &
+         0.572d0,0.545d0,0.572d0,0.572d0,0.599d0,0.662d0,0.724d0,1.117d0,1.484d0,1.761d0, &
+         0.572d0,0.554d0,0.590d0,0.599d0,0.608d0,0.679d0,0.760d0,1.216d0,1.582d0,1.922d0, &
+         0.572d0,0.572d0,0.599d0,0.608d0,0.635d0,0.715d0,0.822d0,1.377d0,1.707d0,2.056d0, &
+         0.572d0,0.590d0,0.608d0,0.635d0,0.662d0,0.742d0,0.912d0,1.529d0,3.075d0,4.693d0, &
+         0.572d0,0.590d0,0.626d0,0.644d0,0.670d0,0.760d0,1.109d0,1.564d0,3.111d0,4.702d0, &
+         0.572d0,0.599d0,0.644d0,0.662d0,0.688d0,0.822d0,1.788d0,2.816d0,5.346d0,7.295d0, &
+         0.572d0,0.608d0,0.662d0,0.670d0,0.715d0,1.851d0,3.227d0,4.810d0,6.669d0,9.557d0/ 
     
     data ((VNORM(10,J,K),J=1,10),K=1,13)/   &
-         0.552_8,0.606_8,0.639_8,0.671_8,0.704_8,0.899_8,1.223_8,2.479_8,3.194_8,3.573_8, &
-         0.552_8,0.574_8,0.606_8,0.628_8,0.682_8,0.855_8,1.148_8,2.339_8,2.642_8,3.378_8, &
-         0.552_8,0.563_8,0.552_8,0.595_8,0.639_8,0.834_8,1.061_8,2.014_8,2.404_8,2.891_8, &
-         0.552_8,0.563_8,0.509_8,0.552_8,0.628_8,0.801_8,0.985_8,1.689_8,2.176_8,2.653_8, &
-         0.552_8,0.574_8,0.509_8,0.520_8,0.585_8,0.747_8,0.888_8,1.332_8,1.970_8,2.458_8, &
-         0.552_8,0.531_8,0.509_8,0.509_8,0.531_8,0.682_8,0.801_8,1.191_8,1.819_8,2.425_8, &
-         0.552_8,0.498_8,0.498_8,0.498_8,0.520_8,0.639_8,0.747_8,1.126_8,1.711_8,2.317_8, &
-         0.552_8,0.498_8,0.509_8,0.509_8,0.541_8,0.671_8,0.780_8,1.278_8,1.862_8,2.598_8, &
-         0.552_8,0.498_8,0.509_8,0.520_8,0.574_8,0.693_8,0.812_8,1.602_8,2.035_8,2.793_8, &
-         0.552_8,0.520_8,0.520_8,0.531_8,0.595_8,0.725_8,0.844_8,1.916_8,2.588_8,3.768_8, &
-         0.552_8,0.531_8,0.541_8,0.574_8,0.628_8,0.780_8,1.039_8,2.349_8,3.313_8,5.652_8, &
-         0.552_8,0.574_8,0.563_8,0.606_8,0.660_8,0.812_8,1.797_8,3.010_8,5.478_8,7.492_8, &
-         0.552_8,0.650_8,0.671_8,0.704_8,0.801_8,1.029_8,2.436_8,3.465_8,7.828_8,10.578_8/
+         0.552d0,0.606d0,0.639d0,0.671d0,0.704d0,0.899d0,1.223d0,2.479d0,3.194d0,3.573d0, &
+         0.552d0,0.574d0,0.606d0,0.628d0,0.682d0,0.855d0,1.148d0,2.339d0,2.642d0,3.378d0, &
+         0.552d0,0.563d0,0.552d0,0.595d0,0.639d0,0.834d0,1.061d0,2.014d0,2.404d0,2.891d0, &
+         0.552d0,0.563d0,0.509d0,0.552d0,0.628d0,0.801d0,0.985d0,1.689d0,2.176d0,2.653d0, &
+         0.552d0,0.574d0,0.509d0,0.520d0,0.585d0,0.747d0,0.888d0,1.332d0,1.970d0,2.458d0, &
+         0.552d0,0.531d0,0.509d0,0.509d0,0.531d0,0.682d0,0.801d0,1.191d0,1.819d0,2.425d0, &
+         0.552d0,0.498d0,0.498d0,0.498d0,0.520d0,0.639d0,0.747d0,1.126d0,1.711d0,2.317d0, &
+         0.552d0,0.498d0,0.509d0,0.509d0,0.541d0,0.671d0,0.780d0,1.278d0,1.862d0,2.598d0, &
+         0.552d0,0.498d0,0.509d0,0.520d0,0.574d0,0.693d0,0.812d0,1.602d0,2.035d0,2.793d0, &
+         0.552d0,0.520d0,0.520d0,0.531d0,0.595d0,0.725d0,0.844d0,1.916d0,2.588d0,3.768d0, &
+         0.552d0,0.531d0,0.541d0,0.574d0,0.628d0,0.780d0,1.039d0,2.349d0,3.313d0,5.652d0, &
+         0.552d0,0.574d0,0.563d0,0.606d0,0.660d0,0.812d0,1.797d0,3.010d0,5.478d0,7.492d0, &
+         0.552d0,0.650d0,0.671d0,0.704d0,0.801d0,1.029d0,2.436d0,3.465d0,7.828d0,10.578d0/
 
     data ((VNORM(11,J,K),J=1,10),K=1,13)/   &
-         0.518_8,0.576_8,0.605_8,0.633_8,0.662_8,0.864_8,1.238_8,2.620_8,3.455_8,3.887_8, &
-         0.518_8,0.547_8,0.576_8,0.576_8,0.633_8,0.835_8,1.123_8,2.447_8,2.821_8,3.656_8, &
-         0.518_8,0.518_8,0.518_8,0.547_8,0.605_8,0.806_8,1.036_8,2.102_8,2.533_8,3.080_8, &
-         0.518_8,0.518_8,0.461_8,0.518_8,0.576_8,0.777_8,0.950_8,1.727_8,2.274_8,2.821_8, &
-         0.518_8,0.547_8,0.461_8,0.489_8,0.547_8,0.720_8,0.864_8,1.353_8,2.044_8,2.591_8, &
-         0.518_8,0.489_8,0.461_8,0.461_8,0.489_8,0.662_8,0.777_8,1.180_8,1.871_8,2.562_8, &
-         0.518_8,0.461_8,0.461_8,0.461_8,0.489_8,0.605_8,0.720_8,1.123_8,1.756_8,2.418_8, &
-         0.518_8,0.461_8,0.461_8,0.461_8,0.518_8,0.633_8,0.749_8,1.296_8,1.929_8,2.764_8, &
-         0.518_8,0.461_8,0.461_8,0.489_8,0.547_8,0.662_8,0.777_8,1.641_8,2.130_8,2.994_8, &
-         0.518_8,0.489_8,0.489_8,0.489_8,0.547_8,0.691_8,0.806_8,1.986_8,2.735_8,4.117_8, &
-         0.518_8,0.489_8,0.489_8,0.547_8,0.576_8,0.749_8,1.008_8,2.476_8,3.599_8,6.334_8, &
-         0.518_8,0.547_8,0.518_8,0.576_8,0.633_8,0.777_8,1.842_8,3.224_8,6.132_8,8.550_8, &
-         0.518_8,0.605_8,0.633_8,0.662_8,0.777_8,1.008_8,2.562_8,3.771_8,8.953_8,12.293_8/
+         0.518d0,0.576d0,0.605d0,0.633d0,0.662d0,0.864d0,1.238d0,2.620d0,3.455d0,3.887d0, &
+         0.518d0,0.547d0,0.576d0,0.576d0,0.633d0,0.835d0,1.123d0,2.447d0,2.821d0,3.656d0, &
+         0.518d0,0.518d0,0.518d0,0.547d0,0.605d0,0.806d0,1.036d0,2.102d0,2.533d0,3.080d0, &
+         0.518d0,0.518d0,0.461d0,0.518d0,0.576d0,0.777d0,0.950d0,1.727d0,2.274d0,2.821d0, &
+         0.518d0,0.547d0,0.461d0,0.489d0,0.547d0,0.720d0,0.864d0,1.353d0,2.044d0,2.591d0, &
+         0.518d0,0.489d0,0.461d0,0.461d0,0.489d0,0.662d0,0.777d0,1.180d0,1.871d0,2.562d0, &
+         0.518d0,0.461d0,0.461d0,0.461d0,0.489d0,0.605d0,0.720d0,1.123d0,1.756d0,2.418d0, &
+         0.518d0,0.461d0,0.461d0,0.461d0,0.518d0,0.633d0,0.749d0,1.296d0,1.929d0,2.764d0, &
+         0.518d0,0.461d0,0.461d0,0.489d0,0.547d0,0.662d0,0.777d0,1.641d0,2.130d0,2.994d0, &
+         0.518d0,0.489d0,0.489d0,0.489d0,0.547d0,0.691d0,0.806d0,1.986d0,2.735d0,4.117d0, &
+         0.518d0,0.489d0,0.489d0,0.547d0,0.576d0,0.749d0,1.008d0,2.476d0,3.599d0,6.334d0, &
+         0.518d0,0.547d0,0.518d0,0.576d0,0.633d0,0.777d0,1.842d0,3.224d0,6.132d0,8.550d0, &
+         0.518d0,0.605d0,0.633d0,0.662d0,0.777d0,1.008d0,2.562d0,3.771d0,8.953d0,12.293d0/
  
     !   COMPUTE SUN ZENITH BIN
     CC  = cos( SZ * MPC_RADIANS_PER_DEGREE_R8)
-    I1  = 12._8 - (CC + 0.05_8) * 10._8
+    I1  = 12.d0 - (CC + 0.05d0) * 10.d0
     I2  = I1 + 1 
     if (I1 >= 11) I1 = 11 
     if (I1 == 11) I2 = I1 
 
     !  COMPUTE SAT ZENITH BIN 
-    J1  = int(SATZ / 10._8) + 1 
+    J1  = int(SATZ / 10.d0) + 1 
     J2  = J1 + 1 
     if (J1 == 10) J2 = J1 
 
     !  COMPUTE RELATIVE AZIMUTH BIN 
-    K1  = RZ / 15._8 + 1._8
+    K1  = RZ / 15.d0 + 1.d0
     K2  = K1 + 1 
     if (K1 == 13) K2 = K1 
 
@@ -4034,7 +4034,7 @@ contains
     
     if (ANISOT < 0.) then 
       IER = -1
-      ANISOT = 1._8 
+      ANISOT = 1.d0 
       ZLAMB  = DRM(I1) 
       ZCLOUD = DRCLD(I1)
     end if
@@ -4072,7 +4072,7 @@ contains
      
     ierr = 0
     
-    if ( (XX2 - XX1) == 0._8) then 
+    if ( (XX2 - XX1) == 0.d0) then 
       IERR = -1
       return
     end if
@@ -4106,8 +4106,8 @@ contains
 
     real(8)  DRF(11)
 
-    data DRF /1._8,1.0255_8,1.1197_8,1.2026_8,1.3472_8,1.4926_8,1.8180_8,2.1980_8, &
-         2.8180_8,3.8615_8,4.3555_8/
+    data DRF /1.d0,1.0255d0,1.1197d0,1.2026d0,1.3472d0,1.4926d0,1.8180d0,2.1980d0, &
+         2.8180d0,3.8615d0,4.3555d0/
 
     DRM = DRF(IZ) 
   

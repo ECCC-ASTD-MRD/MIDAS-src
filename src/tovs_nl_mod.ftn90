@@ -89,12 +89,12 @@ module tovs_nl_mod
        tvs_countRadiances, tvs_getHIREmissivities, tvs_getOtherEmissivities, tvs_rttov_read_coefs
   ! Module parameters
   ! units conversion from  mixing ratio to ppmv
-  real(8), Parameter :: tvs_qMixratio2ppmv  = (1000000.0_8 * mair) / mh2o
-  real(8), Parameter :: tvs_o3Mixratio2ppmv = (1000000.0_8 * mair) / mo3
-!  real(8), Parameter :: tvs_co2Mixratio2ppmv =  (1000000.0_8 * mair) / mco2
-!  real(8), Parameter :: tvs_coMixratio2ppmv =  (1000000.0_8 * mair) / mco
-!  real(8), Parameter :: tvs_n2oMixratio2ppmv = (1000000.0_8 * mair) / mn2o
-!  real(8), Parameter :: tvs_ch4Mixratio2ppmv = (1000000.0_8 * mair) / mch4
+  real(8), Parameter :: tvs_qMixratio2ppmv  = (1000000.0d0 * mair) / mh2o
+  real(8), Parameter :: tvs_o3Mixratio2ppmv = (1000000.0d0 * mair) / mo3
+!  real(8), Parameter :: tvs_co2Mixratio2ppmv =  (1000000.0d0 * mair) / mco2
+!  real(8), Parameter :: tvs_coMixratio2ppmv =  (1000000.0d0 * mair) / mco
+!  real(8), Parameter :: tvs_n2oMixratio2ppmv = (1000000.0d0 * mair) / mn2o
+!  real(8), Parameter :: tvs_ch4Mixratio2ppmv = (1000000.0d0 * mair) / mch4
   integer, parameter :: tvs_maxChannelNumber   = 8461   ! Max. value for channel number
   integer, parameter :: tvs_maxNumberOfChannels = 1305  ! Max. no. of channels (for one profile/spectra)
   integer, parameter :: tvs_maxNumberOfSensors  = 40    ! Max no sensors to be used
@@ -103,7 +103,7 @@ module tovs_nl_mod
 ! S. Heilliette this parameter was computed from the mean lapse rate between 50 km and 85 km
 ! of the US standard atmosphere from data contained in "AFGL Atmospheric Constituent Profiles (0-120km)"
 ! AFGL 1986, G.P. ANDERSON, J.H. CHETWYND, S.A. CLOUGH, E. P. SHETTLE and F.X. KNEIZYS
-  real(8), parameter :: tvs_mesosphereLapseRate=16.2_8
+  real(8), parameter :: tvs_mesosphereLapseRate=16.2d0
 ! unit is K/log(P), a positive value corresponds to decrease of temperature with height
 !**********************************************************
 
@@ -3630,7 +3630,7 @@ contains
     end if
   
     allocate(bigArray(countUniqueChannel,maxval(coefs%coef%fmv_coe),coefs%coef%fmv_gas,coefs%coef%nlayers) )
-    bigArray(:,:,:,:) = 0.0_8
+    bigArray(:,:,:,:) = 0.0d0
 
     do ichan = 1, countUniqueChannel  
       do igas = 1, coefs%coef%fmv_gas
@@ -3683,7 +3683,7 @@ contains
     end do
 
     if (coefs % coef % solarcoef) THEN
-      bigArray(:,:,:,:) = 0.0_8
+      bigArray(:,:,:,:) = 0.0d0
       do ichan = 1, countUniqueChannel  
         do igas = 1, coefs%coef%fmv_gas
           associated0 = associated( coefs%coef%solar(ichan)%gasarray(igas)%coef )
