@@ -1,6 +1,0 @@
-#!/bin/ksh
-
-if [ "${TESTS_relaunch_tests:-no}" = yes ]; then
-    newdate=$(${TASK_BIN}/r.date ${SEQ_DATE} +1 | cut -c-14)
-    ${TASK_BIN}/expbegin -d ${newdate}
-fi
