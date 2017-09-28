@@ -172,7 +172,7 @@ contains
        call tvs_setupAlloc(obsSpaceData)
        if (trim(innovationMode) == 'bgckIR' ) call irbg_setup(obsSpaceData)
        ! Initialize non diagonal observation error matrices
-       if ( trim(innovationMode) == 'analysis' ) call oer_setInterchanCorr()
+       if ( trim(innovationMode) == 'analysis' .or. trim(innovationMode) == 'FSO') call oer_setInterchanCorr()
     end if
 
   end subroutine inn_setupobs
@@ -1225,7 +1225,7 @@ contains
     !
     !     Remove surface station wind observations
     !
-    IF (trim(innovationMode) == 'analysis') CALL filt_surfaceWind(obsSpaceData)
+    IF (trim(innovationMode) == 'analysis' .or. trim(innovationMode) == 'FSO') CALL filt_surfaceWind(obsSpaceData)
     !
     !     Find interpolation layer in model profiles 
     !
@@ -1287,7 +1287,7 @@ contains
     !
     ZJOGPSGB=0.0D0
     if (obs_famExist(obsSpaceData,'GP',local_mpi=.true.)) then
-      if (trim(innovationMode) == 'analysis') then
+      if (trim(innovationMode) == 'analysis' .or. trim(innovationMode) == 'FSO') then
         CALL oer_SETERRGPSGB(columnhr,obsSpaceData,lgpdata,.true.)
         if (lgpdata) call oop_gpsgb_nl(columnhr,obsSpaceData,ZJOGPSGB,.true.)
       else
@@ -1763,16 +1763,20 @@ contains
       ! a separate program to do a more objective evalution of this
 
       codtyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
-
-      if(tvs_isIdBurpInst(codtyp,"IASI")) then
-         obsLoad = 200
-      elseif(tvs_isIdBurpInst(codtyp,"AIRS")) then
-         obsLoad = 200
-      elseif(tvs_isIdBurpInst(codtyp,"CRIS")) then
-         obsLoad = 150
-      elseif(tvs_isIdBurpTovs(codtyp)) then
+!Is it really what we want ?
+      if(tvs_Is_idburp_inst(codtyp,"IASI")) then
+         !obsLoad = 200
+         obsLoad = 100
+      elseif(tvs_Is_idburp_inst(codtyp,"AIRS")) then
+         !obsLoad = 200
+         obsLoad = 100
+      elseif(tvs_Is_idburp_inst(codtyp,"CRIS")) then
+         !obsLoad = 150
+         obsLoad = 100
+      elseif(tvs_Is_idburp_tovs(codtyp)) then
          ! all other types of radiance obs
-         obsLoad = 5
+         !obsLoad = 5
+         obsLoad = 10
       else
          ! all non-radiance obs
          obsLoad = 1

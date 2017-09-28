@@ -36,9 +36,9 @@ module calcstatslam_mod
   public :: csl_setup, csl_computeStats
   public :: csl_toolbox
 
-  type(struct_hco), pointer :: hco_ens ! Ensemble horizontal grid parameters
-  type(struct_hco), pointer :: hco_bhi ! B matrix horizontal grid parameters
-  type(struct_vco), pointer :: vco_bhi ! B matrix vertical grid parameters
+  type(struct_hco), pointer :: hco_ens => null() ! Ensemble horizontal grid parameters
+  type(struct_hco), pointer :: hco_bhi => null() ! B matrix horizontal grid parameters
+  type(struct_vco), pointer :: vco_bhi => null() ! B matrix vertical grid parameters
   type(struct_lst)          :: lst_bhi ! Spectral transform Parameters
 
   character(len=256), allocatable :: cflensin(:)
@@ -189,12 +189,10 @@ module calcstatslam_mod
     call CreateLamTemplateGrids('./analysisgrid',grd_ext_x,grd_ext_y) ! IN
 
     !- 3.2 Setup the Extended B_HI grid
-    call hco_SetupFromFile( './analysisgrid', 'ANALYSIS', 'BHI' ) ! IN
-    hco_bhi => hco_Get('BHI')
+    call hco_SetupFromFile( hco_bhi,'./analysisgrid', 'ANALYSIS', 'BHI' ) ! IN
 
     !- 3.3 Setup the LAM analysis grid metrics
-    call agd_SetupFromHCO( 'BHI', 'Ensemble' ) ! IN
-
+    call agd_SetupFromHCO( hco_bhi, hco_ens ) ! IN
     !- 3.4 Setup the LAM spectral transform
     call lst_Setup( lst_bhi,                & ! OUT
                     hco_bhi%ni, hco_bhi%nj, & ! IN
@@ -1472,7 +1470,7 @@ module calcstatslam_mod
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
 !$OMP PARALLEL
-!$OMP DO PRIVATE (ens, kgdim, j, i)
+!$OMP DO PRIVATE (ens, kgdim, j, i, fact)
     do kgdim = 1, nkgdim
       do j = 1, hco_bhi%nj
          do i = 1, hco_bhi%ni
@@ -2391,8 +2389,8 @@ module calcstatslam_mod
 
     end do
 
-    call loc_setup('FifthOrder') ! IN
-    call loc_CreateBiPerFunction( GridStateLoc,                  & ! OUT
+    call lfn_setup('FifthOrder') ! IN
+    call lfn_CreateBiPerFunction( GridStateLoc,                  & ! OUT
                                   local_length, hco_bhi%dlon,    & ! IN
                                   hco_bhi%ni, hco_bhi%nj, nkgdim)  ! IN
 
@@ -2473,7 +2471,7 @@ module calcstatslam_mod
     !
     !- 1.  Select the localization function
     !
-    call loc_setup('FifthOrder') ! IN 
+    call lfn_setup('FifthOrder') ! IN 
 
     !
     !- 2.  Apply localization to the spectral vertical correlations
@@ -2552,7 +2550,7 @@ module calcstatslam_mod
 
                 !- 2.5 Compute the localization factor
                 dist = abs(log(pres2) - log(pres1))
-                fact = loc_response(dist,vLocalize)
+                fact = lfn_response(dist,vLocalize)
 
                 !- 2.6 Localize each total wavenumber (not scale-dependent!)
                 do totwvnb = 0, ntrunc

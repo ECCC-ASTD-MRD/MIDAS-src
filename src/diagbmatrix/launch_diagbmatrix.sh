@@ -4,17 +4,32 @@
 #
 # User-defined options
 #
-flnml="namelist.nml"
 machine=brooks
-abs="/home/jfc425/bin/var/oavar_abs/diagbmatrix_sles-11-broadwell-64-xc40-m_2.2.2-39-ge51de4a_M.Abs"
-ensdir="/home/jfc425/data_maestro/brooks/maestro/oavar_system_tests_science/work/20170724000000/Tests/EnVar_24mem_xc40/UnitTest/envar/interpEnsTrials/output/"
-gest="${HOME}/data_maestro/${machine}/diagbmatrix/test/"
-analysisgrid="/home/sanl000/ANAL_shared/datafiles/constants/arma/oavar/2.1.2/analysis_grid_prototype_glb_1080x540_south-to-north_80L_vcode5002"
-bgcov="/home/sanl000/ANAL_shared/datafiles/constants/arma/oavar/2.1.1/__GEM25km_NMC_T399_stag5002_BgckStddev3d_corns_sqrt_800x400__/01"
-npex=12
-npey=12
+ensbase="N-NMC"
+abs="/home/bed666/code/new_oavar/compiledir/compiledir-diagbmatrix-sles-11-broadwell-64-xc40_m_2.2.2-61-g4e18e02_M/diagbmatrix_sles-11-broadwell-64-xc40-m_2.2.2-61-g4e18e02_M.Abs"
+gest="${HOME}/data_maestro/${machine}/diagbmatrix/${ensbase}_test/"
+if [ "${ensbase}" = "G-NMC" ]; then
+  flnml="namelist.nml_${ensbase}"
+  analysisgrid="/home/sanl000/ANAL_shared/datafiles/constants/arma/oavar/2.1.1/analysis_grid_prototypes/analysis_grid_prototype_glb_800x400_south-to-north_80L_vcode5002"
+  bgcov="/home/sanl000/ANAL_shared/datafiles/constants/arma/oavar/2.1.1/__GEM25km_NMC_T399_stag5002_BgckStddev3d_corns_sqrt_800x400__/07"
+  ensdir="/home/bed666/brooks/diagbmatrix/ensemble/G-EnKF/"
+  npey=10
+  npex=16
+else
+  if [ "${ensbase}" = "N-NMC" ]; then
+    flnml="namelist.nml_${ensbase}"
+    ensdir="/home/bed666/brooks/diagbmatrix/ensemble/G-EnKF/"
+  else
+    flnml="namelist.nml_ens"
+    ensdir="/home/bed666/brooks/diagbmatrix/ensemble/${ensbase}/"
+  fi
+  analysisgrid="/home/jfc425/data/ords/oavarGridTemplate/analysisgrid_national10km_80L_vcode5002.fst"
+  bgcov="/home/bed666/ss2/cetus/hadar/national_10km/calcstats_r640m/national_24-48_v664_h633_t250_CORR_LQ/07"
+  npey=12
+  npex=12
+fi
 openmp=1
-maxcputime=600
+maxcputime=300
 run_in_parallel="/fs/ssm/eccc/mrd/rpn/utils/16.2/all/bin/r.run_in_parallel_1.1.28c"
 
 #
@@ -39,8 +54,8 @@ ssh $machine mkdir -p $gest
 ssh $machine ln -s ${ensdir} ${gest}/ensemble
 scp $flnml ${machine}:${gest}/flnml
 scp $analysisgrid ${machine}:${gest}/analysisgrid
-scp $bgcov ${machine}:${gest}/bgcov
 scp $abs ${machine}:${gest}/diagbmatrix.abs
+scp $bgcov ${machine}:${gest}/bgcov
 ssh $machine ls -l $gest
 
 cat << EOF > $TMPDIR/go_diagbmatrix.sh

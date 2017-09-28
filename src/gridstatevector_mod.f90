@@ -49,6 +49,7 @@ module gridStateVector_mod
   public :: gsv_getVco, gsv_getHco
   public :: gsv_horizSubSample
   public :: gsv_varKindExist, gsv_varExist
+  public :: gsv_multEnergyNorm, gsv_dotProduct
 
   ! public entities accessed through inheritance
   public :: struct_vco, vco_SetupFromFile
@@ -276,7 +277,7 @@ module gridStateVector_mod
   end subroutine gsv_setup
 
 
-  subroutine gsv_allocate(statevector, numStep, hco_ptr, vco_ptr, dateStamp,  &
+  subroutine gsv_allocate(statevector, numStep, hco_ptr, vco_ptr, dateStamp, dateStampList,  &
                           mpi_local, mpi_distribution, horizSubSample, varName, dataKind_in, allocGZsfc)
     implicit none
 
@@ -286,6 +287,7 @@ module gridStateVector_mod
     type(struct_hco), pointer  :: hco_ptr
     type(struct_vco), pointer  :: vco_ptr
     integer, optional          :: dateStamp
+    integer, optional          :: dateStampList(:)
     logical, optional          :: mpi_local
     character(len=*), optional :: mpi_distribution
     integer, optional          :: horizSubSample
@@ -468,7 +470,15 @@ module gridStateVector_mod
        statevector%anltime=numStep
     end select          
 
-    if(present(dateStamp)) then
+    if(present(dateStamp) .and. present(dateStampList)) then
+      call utl_abort('gsv_allocate: Either dateStamp or dateStampList should be presented but not both')
+    elseif(present(dateStampList)) then
+      allocate(statevector%dateStampList(numStep))
+      do stepIndex = 1, numStep
+       statevector%dateStampList(stepIndex)= dateStampList(stepIndex)
+      end do
+      statevector%dateStamp3d => statevector%dateStampList(statevector%anltime)
+    elseif(present(dateStamp)) then
       allocate(statevector%dateStampList(numStep))
       call tim_getstamplist(statevector%dateStampList,numStep,dateStamp)
       statevector%dateStamp3d => statevector%dateStampList(statevector%anltime)
@@ -3662,5 +3672,284 @@ module gridStateVector_mod
 
   end function gsv_varKindExist
 
+  !--------------------------------------------------------------------------
+  ! gsv_multEnergyNorm
+  !--------------------------------------------------------------------------
+  SUBROUTINE gsv_multEnergyNorm(statevector_inout, statevector_ref )
+    implicit none
+    type(struct_gsv)     :: statevector_inout, statevector_ref
+    integer              :: jstep, jlon, jlev, jlat, jlon2, jlat2, status, nLev_M, nLev_T
+    real(8)              :: scaleFactor, scaleFactorConst, scaleFactorLat, scaleFactorLon, scaleFactorLev
+    real(8)              :: pfac, tfac, qfac
+    real(8)              :: sumScale , sumeu, sumev, sumep, sumet, sumeq
+    real(8), pointer     :: field_UU(:,:,:,:), field_VV(:,:,:,:), field_T(:,:,:,:), field_LQ(:,:,:,:)
+    real(8), pointer     :: field_Psfc(:,:,:,:), field_TG(:,:,:,:),Psfc_ptr(:,:,:)
+    real(8), pointer     :: Press_T(:,:,:) 
+    real(8), pointer     :: Press_M(:,:,:)
+    real(8), allocatable :: Psfc_ref(:,:)
+    real(8), parameter   :: T_r = 280.0D0
+    real(8), parameter   :: Psfc_r = 100000.0D0 ! unit Pa
+
+    if(mpi_myid == 0) write(*,*) 'gsv_multEnergyNorm: START'
+    nullify(Press_T,Press_M)
+
+    ! the factors for TT, HU and Ps (for wind is 1)
+    tfac = MPC_CP_DRY_AIR_R8/T_r                                 ! temperature factor (c_p/T_r)
+    qfac = MPC_HEAT_CONDENS_WATER_R8**2/(MPC_CP_DRY_AIR_R8*T_r)  ! humidity factor ( (l_p*l_p)/(c_p*T_r) )
+    pfac = MPC_RGAS_DRY_AIR_R8*T_r/(Psfc_r**2)                   ! surface pressure factor (R*T_r/Psfc_r^2)
+
+    if(.not.statevector_inout%allocated) then
+      call utl_abort('gsv_multEnergyNorm: gridStateVector_inout not yet allocated! Aborting.')
+    end if
+
+    nLev_M = gsv_getNumLev(statevector_inout,'MM')
+    nLev_T = gsv_getNumLev(statevector_inout,'TH')
+
+    ! compute 3D log pressure fields
+    Psfc_ptr => gsv_getField3D_r8(statevector_ref,'P0')
+    allocate(Psfc_ref(statevector_inout%lonPerPE,statevector_inout%latPerPE))
+    Psfc_ref(:,:) =  &
+                  Psfc_ptr(statevector_inout%myLonBeg:statevector_inout%myLonEnd,  &
+                  statevector_inout%myLatBeg:statevector_inout%myLatEnd, 1)
+    status = vgd_levels(statevector_inout%vco%vgrid, &
+                        ip1_list=statevector_inout%vco%ip1_T,  &
+                        levels=Press_T,   &
+                        sfc_field=Psfc_ref,      &
+                        in_log=.false.)
+    status = vgd_levels(statevector_inout%vco%vgrid, &
+                        ip1_list=statevector_inout%vco%ip1_M,  &
+                        levels=Press_M,   &
+                        sfc_field=Psfc_ref,      &
+                        in_log=.false.)
+    ! dlat * dlon
+    scaleFactorConst = statevector_inout%hco%dlat*statevector_inout%hco%dlon
+
+    ! for wind components
+    field_UU => gsv_getField_r8(statevector_inout,'UU')
+    field_VV => gsv_getField_r8(statevector_inout,'VV')
+    sumeu = 0.0D0
+    sumev = 0.0D0
+    sumScale = 0.0D0  
+    do jlev = 1, nLev_M
+      do jstep = 1, statevector_inout%numStep
+        do jlat = statevector_inout%myLatBeg, statevector_inout%myLatEnd
+          jlat2 = jlat - statevector_inout%myLatBeg + 1
+          scaleFactorLat = cos(statevector_inout%hco%lat(jlat))
+
+          do jlon = statevector_inout%myLonBeg, statevector_inout%myLonEnd
+            jlon2 = jlon - statevector_inout%myLonBeg + 1
+            ! do all thermo levels for which there is a momentum level above and below
+            if( jlev  ==  nLev_M) then
+              scaleFactorLev = Press_M(jlon2, jlat2, nLev_M)-Press_T(jlon2, jlat2, nLev_T-1) 
+            else if( Press_T(jlon2, jlat2, jlev) < 10000.0D0) then 
+              scaleFactorLev = 0.0D0
+            else
+              scaleFactorLev = Press_T(jlon2, jlat2, jlev+1) -  Press_T(jlon2, jlat2, jlev)
+            end if
+
+              scaleFactor = scaleFactorConst * scaleFactorLat * scaleFactorLev
+              sumScale = sumScale + scaleFactor
+
+              sumeu = sumeu + &
+                      0.5 * field_UU(jlon,jlat,jlev,jstep) * field_UU(jlon,jlat,jlev,jstep) * scaleFactor
+              sumev = sumev + &
+                      0.5 * field_VV(jlon,jlat,jlev,jstep) * field_VV(jlon,jlat,jlev,jstep) * scaleFactor
+
+              field_UU(jlon,jlat,jlev,jstep) = &
+                   field_UU(jlon,jlat,jlev,jstep) * 0.5 * scaleFactor
+              field_VV(jlon,jlat,jlev,jstep) = &
+                   field_VV(jlon,jlat,jlev,jstep) * 0.5 * scaleFactor
+          end do !jlon
+        end do !jlat
+      end do ! jstep
+    end do ! jlev
+
+    call mpi_allreduce_sumreal8scalar(sumeu,"GRID")
+    call mpi_allreduce_sumreal8scalar(sumev,"GRID")
+    call mpi_allreduce_sumreal8scalar(sumScale,"GRID")
+
+    sumeu = sumeu/sumScale
+    sumev = sumev/sumScale
+
+    if(mpi_myid == 0)  write(*,*) 'energy for UU=', sumeu
+    if(mpi_myid == 0)  write(*,*) 'energy for VV=', sumev
+
+    field_UU(:,:,:,:) = field_UU(:,:,:,:)/sumScale
+    field_VV(:,:,:,:) = field_VV(:,:,:,:)/sumScale
+
+    ! for Temperature
+    field_T => gsv_getField_r8(statevector_inout,'TT')
+    sumScale = 0.0D0
+    sumet = 0.0D0
+
+    do jlev = 1, nLev_T
+      do jstep = 1, statevector_inout%numStep
+        do jlat = statevector_inout%myLatBeg, statevector_inout%myLatEnd
+          jlat2 = jlat - statevector_inout%myLatBeg + 1
+          scaleFactorLat = cos(statevector_inout%hco%lat(jlat))
+
+          ! do all thermo levels for which there is a momentum level above and below
+          do jlon = statevector_inout%myLonBeg, statevector_inout%myLonEnd
+            jlon2 = jlon - statevector_inout%myLonBeg + 1
+
+            if (jlev == nLev_T) then  !surface
+              scaleFactorLev =  Press_T(jlon2, jlat2, nLev_T)-Press_T(jlon2, jlat2, nLev_T-1) 
+            else if (jlev == 1)  then  ! top
+              scaleFactorLev = 0.0D0
+            else if( Press_M(jlon2, jlat2, jlev-1) < 10000.0D0) then 
+              scaleFactorLev = 0.0D0
+            else
+              scaleFactorLev = Press_M(jlon2, jlat2, jlev ) - Press_M(jlon2, jlat2, jlev-1)
+            end if
+              scaleFactor = scaleFactorConst * scaleFactorLat * scaleFactorLev
+              sumet = sumet + &
+                   0.5 * tfac * field_T(jlon,jlat,jlev,jstep) * field_T(jlon,jlat,jlev,jstep) * scaleFactor
+              sumScale = sumScale + scaleFactor
+              field_T(jlon,jlat,jlev,jstep) = &
+                           field_T(jlon,jlat,jlev,jstep) * 0.5 * tfac * scaleFactor
+          end do
+        end do
+      end do ! jstep
+    end do ! jlev
+    call mpi_allreduce_sumreal8scalar(sumet,"GRID")
+    call mpi_allreduce_sumreal8scalar(sumScale,"GRID")
+    sumet = sumet/sumScale
+    if(mpi_myid == 0)  write(*,*) 'energy for TT=', sumet
+    field_T(:,:,:,:) = field_T(:,:,:,:)/sumScale
+
+    ! humidity (set to zero, for now)
+    field_LQ => gsv_getField_r8(statevector_inout,'HU')
+    sumScale = 0.0D0
+    sumeq = 0.0D0
+
+    do jlev = 1, nLev_T
+      do jstep = 1, statevector_inout%numStep
+        do jlat = statevector_inout%myLatBeg, statevector_inout%myLatEnd
+          jlat2 = jlat - statevector_inout%myLatBeg + 1
+          scaleFactorLat = cos(statevector_inout%hco%lat(jlat))
+          ! do all thermo levels for which there is a momentum level above and below
+          do jlon = statevector_inout%myLonBeg, statevector_inout%myLonEnd
+            jlon2 = jlon - statevector_inout%myLonBeg + 1
+
+            if( jlev == nLev_T) then !surface
+              scaleFactorLev =  Press_T(jlon2, jlat2, nLev_T) - Press_T(jlon2, jlat2, nLev_T-1) 
+            else if (jlev == 1)  then  ! top
+              scaleFactorLev = 0.0D0
+            else if( Press_M(jlon2, jlat2, jlev-1) < 10000.0D0) then 
+              scaleFactorLev = 0.0D0
+            else
+              scaleFactorLev = Press_M(jlon2, jlat2, jlev ) - Press_M(jlon2, jlat2, jlev-1)
+            end if
+
+            scaleFactor = scaleFactorConst * scaleFactorLat * scaleFactorLev
+            sumScale = sumScale + scaleFactor
+
+            sumeq = sumeq + 0.5 * qfac * &
+                    field_LQ(jlon,jlat,jlev,jstep) * field_LQ(jlon,jlat,jlev,jstep) * scaleFactor
+
+            field_LQ(jlon,jlat,jlev,jstep) = &
+                       field_LQ(jlon,jlat,jlev,jstep) * 0.5 * scaleFactor * qfac * 0.0
+
+          end do
+        end do
+      end do ! jstep
+    end do ! jlat
+    call mpi_allreduce_sumreal8scalar(sumScale,"GRID")
+    field_LQ(:,:,:,:) = field_LQ(:,:,:,:)/sumScale*0.0
+
+    ! surface pressure
+    field_Psfc => gsv_getField_r8(statevector_inout,'P0')
+    sumScale = 0.0D0
+    sumep = 0.0
+
+    do jstep = 1, statevector_inout%numStep
+      do jlat = statevector_inout%myLatBeg, statevector_inout%myLatEnd
+        scaleFactorLat = cos(statevector_inout%hco%lat(jlat))
+        do jlon = statevector_inout%myLonBeg, statevector_inout%myLonEnd
+          scaleFactor = scaleFactorConst * scaleFactorLat
+          sumScale = sumScale + scaleFactor
+          sumep = sumep + 0.5 * pfac * &
+                  field_Psfc(jlon,jlat,1,jstep) * field_Psfc(jlon,jlat,1,jstep) * scaleFactor
+          field_Psfc(jlon,jlat,1,jstep) = &
+            field_Psfc(jlon,jlat,1,jstep) * 0.5 * scaleFactor * pfac
+        end do
+      end do ! jlat
+    end do ! jstep
+
+    call mpi_allreduce_sumreal8scalar(sumep,"GRID")
+    call mpi_allreduce_sumreal8scalar(sumScale,"GRID")
+
+    sumep = sumep/sumScale
+
+    if(mpi_myid == 0)  write(*,*) 'energy for Ps=', sumep
+
+    field_Psfc(:,:,:,:) =  field_Psfc(:,:,:,:)/sumScale
+
+    ! skin temperature (set to zero for now)
+    field_TG => gsv_getField_r8(statevector_inout,'TG')
+    sumScale = 0.0D0
+    do jstep = 1, statevector_inout%numStep
+      do jlat = statevector_inout%myLatBeg, statevector_inout%myLatEnd
+        scaleFactorLat = cos(statevector_inout%hco%lat(jlat))
+        do jlon = statevector_inout%myLonBeg, statevector_inout%myLonEnd
+          scaleFactor = scaleFactorConst * scaleFactorLat
+          sumScale = sumScale + scaleFactor
+          field_TG(jlon,jlat,1,jstep) = &
+                  field_TG(jlon,jlat,1,jstep) * 0.5 * scaleFactor * 0.0
+        end do
+      end do ! jlat
+    end do ! jstep
+
+    call mpi_allreduce_sumreal8scalar(sumScale,"GRID")
+
+    field_TG(:,:,:,:) = field_TG(:,:,:,:)/sumScale * 0.0
+    if(mpi_myid == 0) write(*,*) 'energy for total=', sumeu + sumev + sumet + sumep
+
+    deallocate(Press_T,Press_M)
+    deallocate(Psfc_ref)
+
+    if(mpi_myid == 0) write(*,*) 'gsv_multEnergyNorm: END'
+
+  END SUBROUTINE gsv_multEnergyNorm
+  !--------------------------------------------------------------------------
+  ! gsv_dotProduct
+  !--------------------------------------------------------------------------
+  SUBROUTINE gsv_dotProduct(statevector_a,statevector_b,dotsum)
+    implicit none
+
+    type(struct_gsv) :: statevector_a,statevector_b
+    real(8)          :: dotsum
+    integer          :: jstep,jlon,jlev,jlat,lon1,lon2,lat1,lat2
+    integer          :: k1,k2
+
+    if(.not.statevector_a%allocated) then
+      call utl_abort('gridStateVector_in not yet allocated! Aborting.')
+    end if
+    if(.not.statevector_b%allocated) then
+      call utl_abort('gridStateVector_inout not yet allocated! Aborting.')
+    end if
+
+    lon1 = statevector_a%myLonBeg
+    lon2 = statevector_a%myLonEnd
+    lat1 = statevector_a%myLatBeg
+    lat2 = statevector_a%myLatEnd
+    k1 = statevector_a%mykBeg
+    k2 = statevector_a%mykEnd
+
+    dotsum = 0.0D0
+    do jstep = 1, statevector_a%numStep
+      do jlev = k1,k2
+        do jlat = lat1, lat2
+          do jlon = lon1, lon2
+            dotsum = dotsum + statevector_a%gd_r8(jlon,jlat,jlev,jstep) * &
+                              statevector_b%gd_r8(jlon,jlat,jlev,jstep)
+          end do 
+        end do
+      end do
+    end do
+
+    call mpi_allreduce_sumreal8scalar(dotsum,"GRID")
+
+  END SUBROUTINE gsv_dotProduct
 
 end module gridStateVector_mod

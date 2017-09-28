@@ -16,10 +16,10 @@
 
 !--------------------------------------------------------------------------
 !!
-!! *Purpose*: Main program for O-P computation
+!! *Purpose*: Main program for O-F computation
 !!
 !--------------------------------------------------------------------------
-program main_ominusp
+program main_ominusf
   use ramDisk_mod
   use utilities_mod
   use mpiVar_mod
@@ -60,7 +60,7 @@ program main_ominusp
   NAMELIST /NAMOMP/addHBHT,addSigmaO
 
   write(*,*) " ---------------------------------------"
-  write(*,*) " ---  START OF MAIN PROGRAM OminusP  ---"
+  write(*,*) " ---  START OF MAIN PROGRAM OminusF  ---"
   write(*,*) " ---  Computation of the innovation  ---"
   write(*,*) " ---------------------------------------"
 
@@ -68,7 +68,7 @@ program main_ominusp
   !- 1.  Settings and module initializations
   !
   write(*,*)
-  write(*,*) '> main_OminusP: setup - START'
+  write(*,*) '> main_OminusF: setup - START'
 
   obsMpiStrategy = 'LIKESPLITFILES'
   obsColumnMode  = 'VAR'
@@ -80,7 +80,7 @@ program main_ominusp
   nulnam = 0
   ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
   read(nulnam,nml=namomp,iostat=ierr)
-  if (ierr /= 0) call utl_abort('main_OminusP: Error reading namelist')
+  if (ierr /= 0) call utl_abort('main_OminusF: Error reading namelist')
   if (mpi_myid == 0) write(*,nml=namomp)
   ierr = fclos(nulnam)
 
@@ -88,7 +88,7 @@ program main_ominusp
   call mpi_initialize  
 
   !- 1.2 timings
-  call tmg_init(mpi_myid, 'TMG_OMINUSP' )
+  call tmg_init(mpi_myid, 'TMG_OMINUSF' )
   call tmg_start(1,'MAIN')
 
   !- 1.3 RAM disk usage
@@ -98,7 +98,7 @@ program main_ominusp
   call tim_setup
 
   !- 1.5 Burp file names and set datestamp
-  call burp_setupFiles(datestamp,'OminusP')
+  call burp_setupFiles(datestamp,'OminusF')
   call tim_setDatestamp(datestamp)
 
   !- 1.6 Constants
@@ -142,10 +142,10 @@ program main_ominusp
   end if
 
   !- 1.11 Setup and read observations
-  call inn_setupObs(obsSpaceData, obsColumnMode, obsMpiStrategy, 'OminusP') ! IN
+  call inn_setupObs(obsSpaceData, obsColumnMode, obsMpiStrategy, 'OminusF') ! IN
 
   !- 1.12 Setup observation operators
-  call oop_setup('OminusP') ! IN
+  call oop_setup('OminusF') ! IN
 
   !- 1.13 Basic setup of columnData module
   call col_setup
@@ -159,15 +159,15 @@ program main_ominusp
   if ( addSigmaO ) then
     !- 1.15 Initialize the observation error covariances
     write(*,*)
-    write(*,*) '> main_OminusP: Adding sigma_O'
-    call oer_setObsErrors(obsSpaceData, 'OminusP')
+    write(*,*) '> main_OminusF: Adding sigma_O'
+    call oer_setObsErrors(obsSpaceData, 'OminusF')
   end if
 
   !- 1.16 Reading, horizontal interpolation and unit conversions of the 3D background fields
   call inn_setupBackgroundColumns(trlColumnOnTrlLev,obsSpaceData)
 
   write(*,*)
-  write(*,*) '> main_OminusP: setup - END'
+  write(*,*) '> main_OminusF: setup - END'
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   !
@@ -176,12 +176,12 @@ program main_ominusp
  
   !- 2.1 Compute observation innovations
   write(*,*)
-  write(*,*) '> main_OminusP: compute innovation'
+  write(*,*) '> main_OminusF: compute innovation'
   call inn_computeInnovation(trlColumnOnTrlLev,obsSpaceData)
 
   if ( addHBHT ) then
     write(*,*)
-    write(*,*) '> main_OminusP: Adding HBH^T'
+    write(*,*) '> main_OminusF: Adding HBH^T'
     !- 2.2 Interpolate background columns to analysis levels and setup for linearized H
     call inn_setupBackgroundColumnsAnl(trlColumnOnTrlLev,trlColumnOnAnlLev)
 
@@ -193,26 +193,26 @@ program main_ominusp
 
   ! 2.4.1 Into the listings
   write(*,*)
-  write(*,*) '> main_OminusP: printing the FIRST header and body'
+  write(*,*) '> main_OminusF: printing the FIRST header and body'
   do headerIndex = 1, min(1,obs_numHeader(obsSpaceData))
     call obs_prnthdr(obsSpaceData,headerIndex)
     call obs_prntbdy(obsSpaceData,headerIndex)
   end do
   ! 2.4.2 Into burp files
   write(*,*)
-  write(*,*) '> main_OminusP: writing to file'
+  write(*,*) '> main_OminusF: writing to file'
   call burp_updateFiles(obsSpaceData)
 
   !
   !- 3.  Ending
   !
   write(*,*)
-  write(*,*) '> main_OminusP: Ending'
+  write(*,*) '> main_OminusF: Ending'
   call obs_finalize(obsSpaceData) ! deallocate obsSpaceData
 
   call tmg_stop(1)
-  call tmg_terminate(mpi_myid, 'TMG_OMINUSP' )
+  call tmg_terminate(mpi_myid, 'TMG_OMINUSF' )
 
   call rpn_comm_finalize(ierr) 
 
-end program main_ominusp
+end program main_ominusf
