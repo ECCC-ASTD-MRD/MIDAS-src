@@ -1,0 +1,248 @@
+#!/bin/ksh
+#.*****************************************************************************
+#.
+#.     JOB NAME - AddAnalInc
+#.
+#.     STATUS - OPERATIONAL - ESSENTIAL
+#.
+#.     DESCRIPTION - This task produces the analyses (anlm) from the analysis increments (inc_lo)
+#.                   produced by the job 'VAR' and the trials (trlm).  It is also producing analysis
+#.                   increments at the trial resolution (inc_hi).  
+#.
+#.*****************************************************************************
+
+if [ "${ENVAR_mode}" != 'O-P' ]; then
+
+flnml=$(${TASK_BIN}/readlink ${TASK_INPUT}/flnml)
+if [ -f "${flnml}" ]; then
+    cp ${flnml} flnml
+else
+    ${TASK_BIN}/remote_copy ${flnml} flnml
+fi
+
+rtcoef=$(${TASK_BIN}/readlink ${TASK_INPUT}/rtcoef)
+if [ -f "${rtcoef}" ]; then
+    cp ${rtcoef} $(basename ${ENVAR_addanalinc_limits})
+else
+    ${TASK_BIN}/remote_copy ${rtcoef} $(basename ${ENVAR_addanalinc_limits})
+fi
+
+if [[ "${ENVAR_AAI_compression}" = 'yes' ]]; then
+    # activate efficient compression method for fstd files
+    export FST_OPTIONS="DATATYPE_REMAP=1,134 2,130 4,132 5,133"
+fi
+
+((NPROCS=SEQ_NPEX*SEQ_NPEY))
+tot_rebm=$(ls -1 ../input/rebm/rebm* | wc -l)
+if [[ "${tot_rebm}" -eq 1 ]];then
+    batchsize=${NPROCS}
+else
+    #if [ -z "${ENVAR_AAI_mpi_tasks}" ]; then
+    #   echo "Several files have to be processed so you have to specify '\${ENVAR_AAI_mpi_tasks}' in ${ENVAR_CFG}"
+	# echo "to indicate how much mpi tasks are needed for each AddAnalInc execution"
+	# exit 1
+    #fi
+    if [ -n "${ENVAR_AAI_mpi_tasks}" ]; then
+	batchsize=${ENVAR_AAI_mpi_tasks}
+    else
+	batchsize=${NPROCS}
+    fi
+fi
+if [[ "$(((SEQ_NPEX*SEQ_NPEY)%batchsize))" -ne 0 ]]; then
+    echo "The MPI ressources for this task are '${SEQ_NPEX}x${SEQ_NPEY}' and it is not divisible by batchsize=${batchsize}"
+    exit 1
+fi
+NUMBER_OF_MPI_TASK_FOR_AAI=$((SEQ_NPEX*SEQ_NPEY/batchsize))
+
+# Topologie definie pour AddAnalInc
+cat > ptopoAAI_nml <<EOF
+ &ptopo
+  npex=1
+  npey=${batchsize}
+/
+EOF
+
+jobnum=1
+for increment_file in ../input/rebm/rebm*; do
+    increment_fileb=$(basename ${increment_file})
+    rebm_num=$(echo ${increment_fileb} |cut -d '_' -f 2)
+    echo "increment_fileb=${increment_fileb}"
+    echo "rebm_num=${rebm_num}"
+
+    #Get valid date from the analysis increment file
+    dateinc='MISSING'
+    dateinc=`${TASK_BIN}/r.fstliste -izfst ../input/rebm/${increment_fileb} -typvar 'R' -col 11`
+    if [ -z "${dateinc}" -o "${dateinc}" = "MISSING" ]; then
+        $SEQ_BIN/nodelogger -n $SEQ_NODE -s infox -m  "DATE not found in file rebm=${increment_fileb}"
+        exit 1
+    fi
+
+    listwkdir[$jobnum]=$increment_fileb
+    mkdir ${increment_fileb}
+    
+    cd ${increment_fileb}
+    ln -s ../ptopoAAI_nml ptopoAAI_nml
+    ln -s ../${increment_file} rebm
+    ln -s ../flnml
+    ln -s ../$(basename ${ENVAR_addanalinc_limits}) $(basename ${ENVAR_addanalinc_limits})
+
+    cat > findTrial <<EOF
+#!/bin/ksh93
+
+set -ex
+
+touch abort.findTrial
+
+#Find the trial field file with the same valid date as $dateinc
+lfound=FALSE
+for trial in ../../input/trial/*; do
+    if [[ "\${lfound}" = "FALSE" ]]; then
+        diffdate=\$(r.date \$(${TASK_BIN}/r.fstliste -izfst \${trial} -typvar 'P' -col 11) ${dateinc})
+        if [[ "\${diffdate}" = "0" ]]; then
+            ln -sf \$trial trlm_AAI
+            lfound=TRUE
+            break
+        fi
+    fi
+done
+if [[ "\${lfound}" = "FALSE" ]]; then
+    $SEQ_BIN/nodelogger -n $SEQ_NODE -s infox -m  "No trial file includes the date '${dateinc}'"
+    exit 1
+fi
+
+rm abort.findTrial
+
+EOF
+    chmod +x findTrial
+    ./findTrial 1 > findTrial.listing 2>&1 &
+
+    cat > execAAI <<EOF
+#!/bin/ksh93
+
+set -ex
+
+touch abort.execAAI.\${MP_CHILD}
+
+((MP_DVD=MP_CHILD%${batchsize}))
+
+# Execution de AddAnalInc qui ajoute les increments d'analyse au trial
+${TASK_BIN}/AddAnalInc ## -idelxa rebm -ixb trlm -inml flnml -oxa anlm
+
+if [[ "\${MP_DVD}" -eq 0 ]]; then
+   ## must redefine a local TMPDIR if not, editbrp will abort because all threads are using the same directory
+   [ -d \${TMPDIR}/\${MP_CHILD} ] && rm -rf \${TMPDIR}/\${MP_CHILD}
+   mkdir \${TMPDIR}/\${MP_CHILD}
+   export TMPDIR=\${TMPDIR}/\${MP_CHILD}
+
+   # Agglomerate anlm_PE files
+   anlm_list=\$(ls anlm_*)
+   for anlm_PE in \${anlm_list}; do
+       ${TASK_BIN}/editfst -e -i 0 -s \${anlm_PE} -d anlm_${rebm_num}
+       [[ \$? -eq 0 ]] && rm -f \${anlm_PE}
+   done
+
+   # Agglomerate rehm_PE files
+   rehm_list=\$(ls rehm_*)
+   for rehm_PE in \${rehm_list}; do
+       ${TASK_BIN}/editfst -e -i 0 -s \${rehm_PE} -d rehm_${rebm_num}
+       [[ \$? -eq 0 ]] && rm -f \${rehm_PE}
+   done
+
+   ${TASK_BIN}/editfst -s anlm_${rebm_num} -d rehm_${rebm_num} -i <<EDIT_END
+ desire(-1,'P0')
+EDIT_END
+fi
+
+rm abort.execAAI.\${MP_CHILD}
+
+EOF
+    chmod +x execAAI
+
+    cd ..
+    let jobnum=jobnum+1
+done ## Loop incrementalfile
+
+## on attend que tous les scripts 'findTrial' aient termine
+SECONDS=0
+wait
+echo "We waited ${SECONDS} seconds for the 'wait' command'"
+
+did_findTrial_aborted=1
+/bin/ls rebm_*/abort.findTrial || did_findTrial_aborted=0
+if [ "${did_findTrial_aborted}" -ne 0 ]; then
+    $SEQ_BIN/nodelogger -n $SEQ_NODE -s infox -m  "One of date was not found in the trial files"
+    exit 1
+else
+    echo "All the dates were found in the trial files... continue job"
+fi
+
+jobnum=1
+while [ "${jobnum}" -le "${tot_rebm}" ]; do
+    localjobnum=1
+    distributwork=
+    while [ "${localjobnum}" -le "${NUMBER_OF_MPI_TASK_FOR_AAI}" ]; do
+	ipe_start=$(((localjobnum-1)*batchsize))
+	ipe_end=$(((localjobnum*batchsize)-1))
+        subwkdir=${PWD}/${listwkdir[$jobnum]}
+	if [ "${jobnum}" -le "${tot_rebm}" ]; then
+	    executeAAI=${PWD}/${listwkdir[$jobnum]}/execAAI
+	else
+	    mkdir ${PWD}/aai_dummy_task_${jobnum}
+	    ## On doit lancer un AddAnalInc meme s'il ne sert a rien sinon la job en parallele ne fonctionne pas!
+	    cp ${PWD}/${listwkdir[1]}/* ${PWD}/aai_dummy_task_${jobnum}
+	    cat > ${PWD}/aai_dummy_task_${jobnum}/execAAI <<EOF
+#!/bin/ksh93
+set -e
+((MP_DVD=MP_CHILD%${batchsize}))
+${TASK_BIN}/AddAnalInc 1> /dev/null 2>&1 || true  ## I am not interested in the listing of that job
+echo just exit 0 for MP_CHILD=\${MP_CHILD} MP_DVD=\${MP_DVD} jobnum=${jobnum} localjobnum=${localjobnum} pwd=\${PWD}
+EOF
+	    chmod +x ${PWD}/aai_dummy_task_${jobnum}/execAAI
+	    subwkdir=${PWD}/aai_dummy_task_${jobnum}
+	    executeAAI=${PWD}/aai_dummy_task_${jobnum}/execAAI
+	fi
+
+	distributwork="${distributwork} ${subwkdir} ${executeAAI} ${ipe_start} 1 ${ipe_end}"
+
+	let localjobnum=localjobnum+1
+	let jobnum=jobnum+1
+    done
+
+    ## Lauching this batch of task
+    ${TASK_BIN}/oavar.mpirun "Launching $(true_path ${TASK_BIN}/AddAnalInc)" "${ENVAR_mpi_ssm}" ${ENVAR_OMP_STACKSIZE} ${TASK_BIN}/r.run_in_parallel -pgm ${distributwork}
+done
+
+set +e
+aborts=$(ls -1 rebm*/abort.execAAI* | head -1)
+set -e
+if [[ -n "${aborts}" ]]; then
+    echo "At least one of the AddAnalInc execution aborted"
+    exit 1
+fi
+
+# move the 'rehm' files
+nb_rehm=$(/bin/ls -1 rebm*/rehm* | wc -l)
+
+if [ "${nb_rehm}" -eq 1 ]; then
+    ## S'il n'y a qu'un seul fichier alors il est le 000m
+    mv rebm*/rehm* ${TASK_OUTPUT}/rehm
+else
+    mkdir ${TASK_OUTPUT}/rehm
+    for rehm in rebm*/rehm*; do
+	ext=$(basename ${rehm} | cut -d_ -f2)
+	mv ${rehm} ${TASK_OUTPUT}/rehm/${ext}
+    done
+fi
+
+## move the 'rebm' files
+rm -f combined_rebm
+$TASK_BIN/editfst -i 0 -s rebm*/rebm  -d combined_rebm
+mv combined_rebm ${TASK_OUTPUT}/rebm_all
+## move the 'anlm' file
+mkdir ${TASK_OUTPUT}/anlm
+for anlm in rebm*/anlm_*; do
+    ext=$(basename ${anlm} | cut -d_ -f2)
+    mv ${anlm} ${TASK_OUTPUT}/anlm/${ext}
+done
+
+fi ## fin du 'if [ "${ENVAR_mode}" != 'O-P' ]'

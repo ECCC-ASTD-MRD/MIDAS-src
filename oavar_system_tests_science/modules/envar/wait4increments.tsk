@@ -1,0 +1,224 @@
+#!/bin/ksh
+#.*****************************************************************************
+#.
+#.     JOB NAME - wait4increments
+#.
+#.     STATUS - OPERATIONAL - ESSENTIAL
+#.
+#.     DESCRIPTION - This task for analysis increments in the VAR workdir directory
+#.
+#.*****************************************************************************
+
+if [ -L ${TASK_INPUT}/VAR_workdir ]; then
+
+    var_workdir=$(${TASK_BIN}/readlink ${TASK_INPUT}/VAR_workdir)
+    oavar_workdir=${var_workdir}/oavar_exec
+
+    ## Si oavar.monitor.Abs existe dans l'environnement alors cela
+    ## signifie que l'on a utilise cet outil pour lancer
+    ## 'wait4increments' et donc on sait, par construction, que les
+    ## increments sont bien disponibles.
+    if [ -n "$(which oavar.monitor.Abs || true)" ]; then
+	REBM_FOUND=yes
+    else
+	wallclock=$(${SEQ_BIN}/nodeinfo -n ${SEQ_NODE} -f res | awk -F= '/^node\.wallclock/ {print $2}')
+
+	if [ "${wallclock}" -gt "${ENVAR_wait4increment_offset_minutes}" ]; then
+	    let maximum_seconds=wallclock-${ENVAR_wait4increment_offset_minutes}
+            ## maximum_seconds est en minutes alors on convertit en secondes
+	    let maximum_seconds=maximum_seconds*60
+	else
+	    ${SEQ_BIN}/nodelogger -n $SEQ_NODE -s info -m "Please put a wallclock time greater than ${ENVAR_wait4increment_offset_minutes}=${ENVAR_wait4increment_offset_minutes} minutes"
+	    exit 1
+	fi
+
+	SECONDS=0
+	REBM_FOUND=no
+	while [ 1 ]; do
+	    if [ -z "${var_status}" ]; then
+		if [ "${is_rebm_local}" = yes ]; then
+		    var_status=$(/bin/ls -1 ${var_workdir}/oavar_*/VAR3D_STATUS.dot || true)
+		    if [ -n "${var_status}" ]; then
+			oavar_workdir=$(dirname ${var_status})
+		    fi
+		else
+		    var_status=$(ssh ${var_workdir%%:*} /bin/ls -1 ${var_workdir##*:}/oavar_*/VAR3D_STATUS.dot || true)
+		    if [ -n "${var_status}" ]; then
+			oavar_workdir=${var_workdir%%:*}:$(dirname ${var_status})
+		    fi
+		fi
+	    fi
+	    if [ -n "${var_status}" -a -n "${oavar_workdir}" ]; then
+		if [ "${is_rebm_local}" != yes ]; then
+		    ## ${TASK_BIN}/remote_copy ${var_workdir}/oavar_*/VAR3D_STATUS.dot VAR3D_STATUS.dot
+		    ssh ${var_workdir%%:*} cp ${var_workdir##*:}/oavar_*/VAR3D_STATUS.dot ${PWD}/VAR3D_STATUS.dot
+		    var_status=./VAR3D_STATUS.dot
+		fi
+		. ${var_status}
+		if [ "${VAR3D_STATUS}" = VAR3D_END -o "${VAR3D_STATUS}" = REBM_DONE ]; then
+		    REBM_FOUND=yes
+		    break
+		fi
+	    fi
+
+	    last_message=$(${TASK_BIN}/nodehistory -n ${SEQ_CONTAINER}/VAR -edate ${SEQ_DATE} | grep -v '^$' | tail -1)
+	    ## Si la job 'VAR' a plante, alors on sort tout de suite.
+	    if [ -n "$(echo ${last_message} | grep 'MESSAGE=abort ABORTED'|| true)" ]; then
+		${SEQ_BIN}/nodelogger -n $SEQ_NODE -s info -m "${SEQ_CONTAINER}/VAR aborted so this task does the same"
+		exit 1
+	    fi
+
+	    ## Si on est a l'interieur d'un delai '${ENVAR_wait4increment_offset_minutes}' de la
+	    ## fin de la tache alors regarde si on doit resoumettre la
+	    ## tache 'wait4increments'.
+	    if [ "${SECONDS}" -gt "${maximum_seconds}" ]; then
+		last_message=$(${TASK_BIN}/nodehistory -n ${SEQ_CONTAINER}/VAR -edate ${SEQ_DATE} | grep -v '^$' | tail -1)
+		if [ -z "$(echo ${last_message} | grep 'MESSAGE=abort ABORTED'|| true)" ]; then
+		    ## Si la tache 'VAR' n'a plante alors on resoumet 'wait4increments'.
+		    ${SEQ_BIN}/nodelogger -n $SEQ_NODE -s info -m "This task is approaching time limit so we relaunch it"
+		    ${SEQ_BIN}/maestro -s submit -n ${SEQ_NODE}
+		fi
+		break
+	    fi
+	    sleep 10
+	done ## Fin du 'while [ 1 ]'
+    fi ## Fin du 'else' relie au 'if [ -n "$(which oavar.monitor.Abs || true)"'
+
+    if [ "${REBM_FOUND}" = yes ]; then
+
+	${SEQ_BIN}/nodelogger -n $SEQ_NODE -s infox -m "Increments found"
+
+	aai_host=$(${SEQ_BIN}/nodeinfo -n ${SEQ_CONTAINER}/AddAnalInc -f res | grep node\.machine | cut -d'=' -f2)
+	if [ "${aai_host}" != "${TRUE_HOST}" ]; then
+	    output=${SEQ_EXP_HOME}/hub/${aai_host}/work/${SEQ_DATE}/${SEQ_NODE}/output
+	    if [ -d ${SEQ_EXP_HOME}/hub/${aai_host}/work/${SEQ_DATE} ]; then
+		is_aai_local=yes
+		[ -d "${output}" ] && rm -rf ${output}
+		mkdir -p ${output}
+	    else
+		is_aai_local=no
+		ssh ${aai_host} "[ -d '${output}' ] && rm -rf ${output}; mkdir -p ${output}"
+	    fi
+	else
+	    is_aai_local=yes
+	    output=${TASK_OUTPUT}
+	fi
+
+	if [ "${is_rebm_local}" = yes ]; then
+	    status=0
+	    if [ "${is_aai_local}" = yes ]; then
+		cp ${oavar_workdir}/rebm* ${output} || status=1
+	    else
+		${TASK_BIN}/remote_copy ${oavar_workdir}/rebm* ${output} || status=1
+	    fi
+	    if [ "${status}" -eq 0 ]; then
+		if [ "${ENVAR_wait4increment_md5sum_rebm}" = yes ]; then
+		    for file in ${oavar_workdir}/rebm*; do
+			bfile=$(basename $file)
+			(cd ${oavar_workdir}; md5sum ${bfile}) > ${bfile}.md5sum &
+		    done
+		fi
+	    else
+		status=0
+		if [ "${is_aai_local}" = yes ]; then
+		    cp ${var_workdir}/rebm* ${output} || status=1
+		else
+		    ${TASK_BIN}/remote_copy ${var_workdir}/rebm* ${output} || status=1
+		fi
+		if [ "${status}" -eq 0 ]; then
+		    if [ "${ENVAR_wait4increment_md5sum_rebm}" = yes ]; then
+			for file in ${var_workdir}/rebm*; do
+			    bfile=$(basename $file)
+			    (cd ${var_workdir}; md5sum ${bfile}) > ${bfile}.md5sum &
+			done
+		    fi
+		else
+		    echo "The copy aborted"
+		    exit 1
+		fi
+	    fi
+	else
+	    check_do_ssh_as_remote_copy
+	    mkdir local_rebm_dir
+	    if [ "${do_ssh_as_remote_copy}" = yes ]; then
+		status=0
+		ssh ${getVARresources_host} cp ${oavar_workdir##*:}/rebm* ${PWD}/local_rebm_dir || status=1
+		if [ "${status}" -eq 0 ]; then
+		    OAVAR_WORKDIR=${oavar_workdir}
+		else
+		    status=0
+		    ssh ${getVARresources_host} cp ${var_workdir##*:}/rebm* ${PWD}/local_rebm_dir || status=1
+		    OAVAR_WORKDIR=${var_workdir}
+		    if [ "${status}" -ne 0 ]; then
+			echo "The copy aborted"
+			exit 1
+		    fi
+		fi
+		if [ "${ENVAR_wait4increment_md5sum_rebm}" = yes ]; then
+		    for file in ${PWD}/local_rebm_dir/rebm*; do
+			bfile=$(basename $file)
+			ssh ${getVARresources_host} "cd ${OAVAR_WORKDIR##*:}; md5sum ${bfile}" > ${bfile}.md5sum &
+		    done
+		fi
+	    else
+		status=0
+		${TASK_BIN}/remote_copy ${oavar_workdir}/rebm* ${PWD}/local_rebm_dir || status=1
+		if [ "${status}" -eq 0 ]; then
+		    OAVAR_WORKDIR=${oavar_workdir}
+		else
+		    status=0
+		    ${TASK_BIN}/remote_copy ${var_workdir}/rebm* ${PWD}/local_rebm_dir || status=1
+		    if [ "${status}" -eq 0 ]; then
+			OAVAR_WORKDIR=${var_workdir}
+		    else
+			echo "The copy aborted"
+			exit 1
+		    fi
+		fi
+		if [ "${ENVAR_wait4increment_md5sum_rebm}" = yes ]; then
+		    for file in ${PWD}/local_rebm_dir/rebm*; do
+			bfile=$(basename $file)
+			ssh ${getVARresources_host} "cd ${OAVAR_WORKDIR##*:}; md5sum ${bfile}" > ${bfile}.md5sum &
+		    done
+		fi
+	    fi
+
+	    if [ "${is_aai_local}" = yes ]; then
+		cp ${PWD}/local_rebm_dir/rebm* ${output}
+	    else
+		${TASK_BIN}/remote_copy ${PWD}/local_rebm_dir/rebm* ${output}
+	    fi
+	fi
+
+	if [ "${ENVAR_wait4increment_md5sum_rebm}" = yes ]; then
+	    ## wait for all the md5sum to finish
+	    wait
+
+	    if [ "${is_aai_local}" = yes ]; then
+		cd ${output}
+		for file in ${TASK_WORK}/rebm*.md5sum; do
+		    md5sum --check ${file} || touch $(basename ${file}).abort &
+		done
+		wait
+	    else
+		for file in ${PWD}/local_rebm_dir/rebm*; do
+		    bfile=$(basename $file)
+		    ssh ${output%%:*} "cd ${output##*:}; md5sum ${bfile}" > ${bfile}.md5sum.remote &
+		done
+		wait
+		for file in rebm*.md5sum; do
+		    diff ${file} ${file}.remote || touch ${file}.abort
+		done
+	    fi
+
+	    if [ -n "$(/bin/ls rebm*.md5sum.abort || true)" ]; then
+		${SEQ_BIN}/nodelogger -n $SEQ_NODE -s info -m "Checksums of downloaded increments do not match!  Rerun this task to download again the files"
+		exit 1
+	    fi
+	fi
+    else
+	${SEQ_BIN}/nodelogger -n $SEQ_NODE -s infox -m "Increments NOT found"
+	## We stop the flow at this point
+	export SEQ_XFER=stop
+    fi
+fi ## Fin du 'if [ -L ${TASK_INPUT}/rebm ]'
