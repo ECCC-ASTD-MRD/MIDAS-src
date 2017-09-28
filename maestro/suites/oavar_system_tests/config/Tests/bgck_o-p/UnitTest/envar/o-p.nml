@@ -1,7 +1,7 @@
  &NAMCT0
    NCONF  = 121,
 /
- &NAMOMP
+ &NAMOMF
    ADDSIGMAO = .FALSE.
    ADDHBHT   = .FALSE.
 /

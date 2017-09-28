@@ -16,7 +16,7 @@
 
 !--------------------------------------------------------------------------
 !!
-!! *Purpose*: Main program for O-F computation
+!! *Purpose*: Main program for Observation minus Forecast (O-F) computation
 !!
 !--------------------------------------------------------------------------
 program main_ominusf
@@ -57,7 +57,7 @@ program main_ominusf
   ! Namelist
   logical :: addHBHT  
   logical :: addSigmaO
-  NAMELIST /NAMOMP/addHBHT,addSigmaO
+  NAMELIST /NAMOMF/addHBHT,addSigmaO
 
   write(*,*) " ---------------------------------------"
   write(*,*) " ---  START OF MAIN PROGRAM OminusF  ---"
@@ -79,9 +79,9 @@ program main_ominusf
 
   nulnam = 0
   ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-  read(nulnam,nml=namomp,iostat=ierr)
+  read(nulnam,nml=namomf,iostat=ierr)
   if (ierr /= 0) call utl_abort('main_OminusF: Error reading namelist')
-  if (mpi_myid == 0) write(*,nml=namomp)
+  if (mpi_myid == 0) write(*,nml=namomf)
   ierr = fclos(nulnam)
 
   !- 1.1 mpi
