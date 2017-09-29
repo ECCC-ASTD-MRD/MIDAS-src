@@ -70,7 +70,8 @@ MODULE ensembleStateVector_mod
 
 CONTAINS
 
-  subroutine ens_allocate(ens,numMembers,numStep,hco_ens,vco_ens,dateStampList, varName)
+  subroutine ens_allocate(ens, numMembers, numStep, hco_ens, vco_ens, &
+                          dateStampList, varName)
     implicit none
 
     ! arguments
