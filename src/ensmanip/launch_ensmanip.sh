@@ -4,14 +4,9 @@
 #
 # User-defined options
 #
-machine=hare
-#machine=eccc-ppp2
-abs="/home/bed666/bin/var/compiledir-ensmanip-sles-11-broadwell-64-xc40_m_2.2.2-61-g4e18e02_M/ensmanip_sles-11-broadwell-64-xc40-m_2.2.2-61-g4e18e02_M.Abs"
-#abs="${HOME}/data_maestro/ords/oavar_abs/ensmanip_ubuntu-14.04-amd64-64-m_2.2.2-35-gebdbcba_M.Abs"
-#ensdir="/home/mab001/data_maestro/hare/ensmanip/ensemble/"
-#ensdir="/home/mab001/sitestore1/maestro_archives/Tests/EnVar_small_v001/inputs/ensemble/"
-ensdir="/home/mab001/data_maestro/hare/ensmanip/kal557/"
-#ensdir="/home/skal001/data_maestro/eccc-ppp2/exp/archive_trial/kal557/"
+machine=brooks
+abs="${HOME}/data_maestro/ords/oavar_abs/ensmanip_sles-11-broadwell-64-xc40-m_2.2.3_M.Abs"
+ensdir="/home/mab001/data_maestro/brooks/kal569/"
 npex=1
 npey=267
 openmp=2
@@ -22,7 +17,8 @@ run_in_parallel="/fs/ssm/eccc/mrd/rpn/utils/16.2/all/bin/r.run_in_parallel_1.1.2
 # Don't modify below ...
 #
 
-ensdate=$1
+#ensdate=$1
+ensdate=2017010100
 if [ "${ensdate}" = "" ]; then
   echo ""
   echo " *************************************************"

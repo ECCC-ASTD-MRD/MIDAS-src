@@ -22,7 +22,7 @@ Then, you have to compile the programs used in the tests suite.
 This can be done with the commands
 ```bash
 ssh eccc-ppp2
-cd ${WHERE YOU CODE IS}
+cd ${WHERE YOUR CODE IS}
 cd src
 ./compile_oavar.sh
 cd ominusf
@@ -31,7 +31,7 @@ cd ominusf
 and
 ```bash
 ssh brooks
-cd ${WHERE YOU CODE IS}
+cd ${WHERE YOUR CODE IS}
 cd src
 ./compile_oavar.sh
 ```
