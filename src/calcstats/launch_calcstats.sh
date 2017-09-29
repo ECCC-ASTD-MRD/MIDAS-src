@@ -5,20 +5,17 @@
 # User-defined options
 #
 flnml="namelist_lam.nml"
-machine=ppp2
-abs="/home/bed666/bin/var/compiledir-calcstats-ubuntu-14.04-amd64-64_m_2.2.2-61-g4e18e02_M/calcstats_ubuntu-14.04-amd64-64-m_2.2.2-61-g4e18e02_M.Abs"
-#ensbase="old_R-EnKF"
-#ensdir="/home/bed666/ss2/cetus/training_data/differences_national_EnKF_2014_national_old_pturb"
-#gest="${HOME}/data_maestro/${machine}/calcstats/${ensbase}/"
-ensbase="G-EnKF"
-ensdir="/home/bed666/ss2/cetus/poorman/results/${ensbase}/2014070918"
-gest="${HOME}/data_maestro/${machine}/calcstats/${ensbase}_test_final/"
+machine=brooks
+abs=/home/jfc425/bin/var/oavar_abs/calcstats_sles-11-broadwell-64-xc40-m_2.2.2-66-gdde9234_M.Abs
+expname="29-debug-lam-G-EnKF-012m"
+ensdir=/home/jfc425/data_maestro/brooks/ensemble
+gest="${HOME}/data_maestro/${machine}/calcstats/${expname}"
 analysisgrid="/home/jfc425/data/ords/oavarGridTemplate/analysisgrid_national10km_80L_vcode5002.fst"
 
 npex=1
 npey=1
-openmp=44
-memory=220000M
+openmp=36 #44
+memory=100000M #220000M
 maxcputime=1800
 
 run_in_parallel="/fs/ssm/eccc/mrd/rpn/utils/16.2/all/bin/r.run_in_parallel_1.1.28c"

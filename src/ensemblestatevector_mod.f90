@@ -70,7 +70,7 @@ MODULE ensembleStateVector_mod
 
 CONTAINS
 
-  subroutine ens_allocate(ens,numMembers,numStep,hco_ens,vco_ens, varName)
+  subroutine ens_allocate(ens,numMembers,numStep,hco_ens,vco_ens,dateStampList, varName)
     implicit none
 
     ! arguments
@@ -78,6 +78,7 @@ CONTAINS
     integer :: numMembers, numStep
     type(struct_hco), pointer :: hco_ens
     type(struct_vco), pointer :: vco_ens
+    integer :: dateStampList(:)
     character(len=*), optional :: varName  ! allow specification of a single variable
 
     ! locals
@@ -92,12 +93,12 @@ CONTAINS
     if ( present(varName) ) then
       call gsv_allocate( ens%statevector_work, &
                          numStep, hco_ens, vco_ens,  &
-                         datestamp=tim_getDatestamp(), mpi_local=.true., &
+                         datestamplist=dateStampList, mpi_local=.true., &
                          varName=VarName, dataKind_in=4 )
     else
       call gsv_allocate( ens%statevector_work, &
                          numStep, hco_ens, vco_ens,  &
-                         datestamp=tim_getDatestamp(), mpi_local=.true., dataKind_in=4 )
+                         datestamplist=dateStampList, mpi_local=.true., dataKind_in=4 )
     end if
 
     lon1 = ens%statevector_work%myLonBeg
@@ -542,7 +543,7 @@ CONTAINS
     real(4), allocatable :: gd_recv_r4(:,:,:,:)
     real(4), pointer     :: ptr3d_r4(:,:,:), ptr4d_r4(:,:,:,:)
     real(8)              :: multFactor
-    integer,allocatable :: dateStampList(:)
+    integer,pointer :: dateStampList(:)
     integer :: batchnum, nsize, status, ierr
     integer :: yourid, youridx, youridy
     integer :: readFilePE(1000)
@@ -573,6 +574,7 @@ CONTAINS
     nj       = ens%statevector_work%nj
     nk       = ens%statevector_work%nk
     numStep  = ens%statevector_work%numStep
+    dateStampList => ens%statevector_work%dateStampList
 
     ens%ensPathName = trim(ensPathName)
 
@@ -581,8 +583,8 @@ CONTAINS
     allocate(gd_send_r4(lonPerPE,latPerPE,numLevelsToSend,mpi_nprocs))
     allocate(gd_recv_r4(lonPerPE,latPerPE,numLevelsToSend,mpi_nprocs))
 
-    allocate(dateStampList(numStep))
-    call tim_getstamplist(dateStampList,numStep,tim_getDatestamp())
+    !allocate(dateStampList(numStep))
+    !call tim_getstamplist(dateStampList,numStep,tim_getDatestamp())
 
     do memberIndex = 1, ens%numMembers
       readFilePE(memberIndex) = mod(memberIndex-1,mpi_nprocs)

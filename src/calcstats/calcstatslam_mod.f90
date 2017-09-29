@@ -1470,7 +1470,7 @@ module calcstatslam_mod
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
 !$OMP PARALLEL
-!$OMP DO PRIVATE (ens, kgdim, j, i)
+!$OMP DO PRIVATE (ens, kgdim, j, i, fact)
     do kgdim = 1, nkgdim
       do j = 1, hco_bhi%nj
          do i = 1, hco_bhi%ni

@@ -66,9 +66,11 @@ if [ ${compiledir_main} != "../compiledir" ] ; then
 	fi
 	ln -s ${compiledir_main}/compiledir-${ORDENV_PLAT}_${compiledir_ID} ${trunkdir}/../compiledir/compiledir-${ORDENV_PLAT}_${compiledir_ID}
     fi
+    absdir=${compiledir_main}/oavar_abs
+else
+    absdir=${compiledir_main}/../oavar_abs
 fi
 
-absdir=${compiledir_main}/oavar_abs
 mkdir -p ${absdir}
 cd $absdir ; absdir=$PWD ; cd - >/dev/null
 
@@ -188,6 +190,7 @@ if [ "${mode}" == full ] ; then
   SRC2="obssubspacedata_mod.ftn90 burpfiles_mod.ftn90 chem_setup_mod.f90 chem_obserrors_mod.f90"
   SRC2="$SRC2 chem_obsoperators_mod.f90 chem_postproc_mod.f90"
   SRC2="$SRC2 obserrors_mod.f90 varqc_mod.f90 obsfilter_mod.f90 obsoperators_mod.f90 obsspacediag_mod.f90"
+  SRC2="$SRC2 fso_mod.f90"
   SRC2="$SRC2 innovation_mod.f90 minimization_mod.f90"
   s.compile $COMPF  -O ${FOPTMIZ} -src $SRC2 > listing6 2>&1
   status=1
