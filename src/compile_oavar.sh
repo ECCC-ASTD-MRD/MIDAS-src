@@ -66,9 +66,11 @@ if [ ${compiledir_main} != "../compiledir" ] ; then
 	fi
 	ln -s ${compiledir_main}/compiledir-${ORDENV_PLAT}_${compiledir_ID} ${trunkdir}/../compiledir/compiledir-${ORDENV_PLAT}_${compiledir_ID}
     fi
+    absdir=${compiledir_main}/oavar_abs
+else
+    absdir=${compiledir_main}/../oavar_abs
 fi
 
-absdir=${compiledir_main}/oavar_abs
 mkdir -p ${absdir}
 cd $absdir ; absdir=$PWD ; cd - >/dev/null
 
