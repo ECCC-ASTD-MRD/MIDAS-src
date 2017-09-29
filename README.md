@@ -4,7 +4,7 @@
 
 # OAVAR Fortran code documentation:
 
-* [Master branch](http://iweb.cmc.ec.gc.ca/~armabue/f90doc/master/index.html)
+* [Master branch](http://hpfx.science.gc.ca/~mab001/f90doc/master/)
 
 # OAVAR test suite
 
@@ -45,7 +45,7 @@ cd src
 
 # Updating the results
 
-When changed introduced modifies the result, then one must update the
+When the changes introduced modify the result, then one must update the
 results to that the tests pass.  After checking carefully the listing
 and the results obtained, you can update them with the command:
 ```bash
@@ -54,4 +54,7 @@ maestro/suites/oavar_system_tests/update_results.sh
 
 You can give as argument a single test but by default it collects the
 results for all the tests.  It also saves the listing.
+
+This will save the new references results locally on your account and
+update the system test suite to point to these results.
 
