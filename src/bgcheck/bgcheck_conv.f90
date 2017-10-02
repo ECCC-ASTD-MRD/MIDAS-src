@@ -27,7 +27,7 @@
 !!           - Added call to osd_ObsSpaceDiag
 !!
 !!           S. Laroche (ARMA/MRD) October 2017
-!!           - New option NEW_BGCK_SW (SX) for AMVs
+!!           - New option NEW_BGCK_SW for AMVs
 !!
 !--------------------------------------------------------------------------
 SUBROUTINE BGCHECK_CONV(columng,columnhr,obsSpaceData)
@@ -46,11 +46,11 @@ SUBROUTINE BGCHECK_CONV(columng,columnhr,obsSpaceData)
   INTEGER J,JDATA
   REAL*8 ZJO
 
-  INTEGER*4      :: NULNAM,IER,FNOM,FCLOS
+  INTEGER        :: NULNAM,IER,FNOM,FCLOS
   CHARACTER *256 :: NAMFILE
   LOGICAL        :: NEW_BGCK_SW
 
-  character(len=2), dimension(9) :: bgfam = (/ 'UA', 'AI', 'HU', 'SF', 'ST', 'SC', 'PR', 'GP', 'CH' /)
+  character(len=2), dimension(10) :: bgfam = (/ 'UA', 'AI', 'HU', 'SF', 'ST', 'SW', 'SC', 'PR', 'GP', 'CH' /)
       
 !
   call tmg_start(3,'BGCHECK_CONV')
@@ -67,7 +67,7 @@ SUBROUTINE BGCHECK_CONV(columng,columnhr,obsSpaceData)
 
   READ(NULNAM,NML=NAMBGCKCONV,IOSTAT=IER)
   if(IER.ne.0) then
-    write(*,*) 'selectb: No valid namelist NAMBGCKCONV found'
+    write(*,*) 'bgcheck_conv: No valid namelist NAMBGCKCONV found'
   endif
 
   iER=FCLOS(NULNAM)
@@ -87,21 +87,11 @@ SUBROUTINE BGCHECK_CONV(columng,columnhr,obsSpaceData)
 !     ----------------------------------------------
 
   do j=1,size(bgfam)
-     if (obs_famExist(obsSpaceData,bgfam(j))) CALL BGCDATA(ZJO,bgfam(j),obsSpaceData)
+    ! For SW only, old and new background check schemes controlled by "new_bgck_sw"
+    if (obs_famExist(obsSpaceData,bgfam(j))) CALL BGCDATA(ZJO,bgfam(j),obsSpaceData,new_bgck_sw)
   end do
 
   if (obs_famExist(obsSpaceData,'RO')) CALL BGCGPSRO(columnhr,obsSpaceData)
-
-!
-! Old (SW) and new (SX) background check schemes for AMVs
-!
-  if (obs_famExist(obsSpaceData,'SW')) then
-    if(new_bgck_sw) then
-      CALL BGCDATA(ZJO,'SX',obsSpaceData)
-    else
-      CALL BGCDATA(ZJO,'SW',obsSpaceData)
-    endif
-  endif
 
 ! Conduct obs-space post-processing diagnostic tasks (some diagnostic 
 ! computations controlled by NAMOSD namelist in flnml)

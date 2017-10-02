@@ -1137,8 +1137,8 @@ CONTAINS
                   IND_ELE_stat  = BURP_Find_Element(BLOCK_OMA, ELEMENT=iele,  IOSTAT=error)
 
                   if(HIPCS) then
-                   IND_ELE_tth   = BURP_Find_Element(BLOCK_OMA, ELEMENT=12101, IOSTAT=error)
-                   IND_ELE_esh   = BURP_Find_Element(BLOCK_OMA, ELEMENT=12239, IOSTAT=error)
+                    IND_ELE_tth   = BURP_Find_Element(BLOCK_OMA, ELEMENT=12101, IOSTAT=error)
+                    IND_ELE_esh   = BURP_Find_Element(BLOCK_OMA, ELEMENT=12239, IOSTAT=error)
                   endif
 
                   IND_ELE       = BURP_Find_Element(BLOCK_OBS_MUL_CP, ELEMENT=iele, IOSTAT=error)
@@ -1176,22 +1176,22 @@ CONTAINS
                       Call BURP_Set_Rval(  Block_OMP,  NELE_IND =IND_ele_stat ,NVAL_IND =j , NT_IND  = k , RVAL = OMP)
 
                       if(HIPCS) then
-                       if(iele == 12001) Call BURP_Set_Rval(Block_OMP,  NELE_IND =IND_ele_tth ,NVAL_IND =j , NT_IND  = k , RVAL = OMP )
-                       if(iele == 12192) Call BURP_Set_Rval(Block_OMP,  NELE_IND =IND_ele_esh ,NVAL_IND =j , NT_IND  = k , RVAL = OMP )
+                        if(iele == 12001) Call BURP_Set_Rval(Block_OMP,  NELE_IND =IND_ele_tth ,NVAL_IND =j , NT_IND  = k , RVAL = OMP )
+                        if(iele == 12192) Call BURP_Set_Rval(Block_OMP,  NELE_IND =IND_ele_esh ,NVAL_IND =j , NT_IND  = k , RVAL = OMP )
                       endif
 
                       Call BURP_Set_Rval(  Block_OER,  NELE_IND =IND_ele_stat ,NVAL_IND =j , NT_IND  = k , RVAL = OER  ) 
 
                       if(HIPCS) then
-                       if(iele == 12001) Call BURP_Set_Rval(Block_OER,  NELE_IND =IND_ele_tth ,NVAL_IND =j , NT_IND  = k , RVAL = OER )
-                       if(iele == 12192) Call BURP_Set_Rval(Block_OER,  NELE_IND =IND_ele_esh ,NVAL_IND =j , NT_IND  = k , RVAL = OER )
+                        if(iele == 12001) Call BURP_Set_Rval(Block_OER,  NELE_IND =IND_ele_tth ,NVAL_IND =j , NT_IND  = k , RVAL = OER )
+                        if(iele == 12192) Call BURP_Set_Rval(Block_OER,  NELE_IND =IND_ele_esh ,NVAL_IND =j , NT_IND  = k , RVAL = OER )
                       endif
 
                       Call BURP_Set_Rval(  Block_FGE,  NELE_IND =IND_ele_stat ,NVAL_IND =j , NT_IND  = k , RVAL = FGE ) 
 
                       if(HIPCS) then
-                       if(iele == 12001) Call BURP_Set_Rval(Block_FGE,  NELE_IND =IND_ele_tth ,NVAL_IND =j , NT_IND  = k , RVAL = FGE )
-                       if(iele == 12192) Call BURP_Set_Rval(Block_FGE,  NELE_IND =IND_ele_esh ,NVAL_IND =j , NT_IND  = k , RVAL = FGE )
+                        if(iele == 12001) Call BURP_Set_Rval(Block_FGE,  NELE_IND =IND_ele_tth ,NVAL_IND =j , NT_IND  = k , RVAL = FGE )
+                        if(iele == 12192) Call BURP_Set_Rval(Block_FGE,  NELE_IND =IND_ele_esh ,NVAL_IND =j , NT_IND  = k , RVAL = FGE )
                       endif
 
                       Call BURP_Set_Rval(  Block_FSO,  NELE_IND =IND_ele_stat ,NVAL_IND =j , NT_IND  = k , RVAL = FSO )
@@ -1201,14 +1201,14 @@ CONTAINS
                       Call BURP_Set_tblval(Block_MAR_MUL_CP,NELE_IND =IND_ELE_MAR ,NVAL_IND =j  , NT_IND  = k,TBLVAL = FLG )
 
                       if(HIPCS) then
-                       if(iele == 12001) then
-                        IND_ele_mar  = BURP_Find_Element(Block_MAR_MUL_CP, ELEMENT=212101, IOSTAT=error)
-                        Call BURP_Set_tblval(Block_MAR_MUL_CP,NELE_IND =IND_ELE_MAR ,NVAL_IND =j  , NT_IND  = k,TBLVAL = FLG )
-                       endif
-                       if(iele == 12192) then
-                        IND_ele_mar  = BURP_Find_Element(Block_MAR_MUL_CP, ELEMENT=212239, IOSTAT=error)
-                        Call BURP_Set_tblval(Block_MAR_MUL_CP,NELE_IND =IND_ELE_MAR ,NVAL_IND =j  , NT_IND  = k,TBLVAL = FLG )
-                       endif
+                        if(iele == 12001) then
+                          IND_ele_mar  = BURP_Find_Element(Block_MAR_MUL_CP, ELEMENT=212101, IOSTAT=error)
+                          Call BURP_Set_tblval(Block_MAR_MUL_CP,NELE_IND =IND_ELE_MAR ,NVAL_IND =j  , NT_IND  = k,TBLVAL = FLG )
+                        endif
+                        if(iele == 12192) then
+                          IND_ele_mar  = BURP_Find_Element(Block_MAR_MUL_CP, ELEMENT=212239, IOSTAT=error)
+                          Call BURP_Set_tblval(Block_MAR_MUL_CP,NELE_IND =IND_ELE_MAR ,NVAL_IND =j  , NT_IND  = k,TBLVAL = FLG )
+                        endif
                       endif
 
                       IND_ele  = BURP_Find_Element(Block_OBS_MUL_CP, ELEMENT=iele, IOSTAT=error)
@@ -1394,7 +1394,7 @@ CONTAINS
     !
     !****************************************************************************
 
-
+    IMPLICIT NONE
 
     INTEGER*4          :: NULNAM,IER,FNOM,FCLOS
     CHARACTER *256     :: NAMFILE
@@ -2034,66 +2034,66 @@ CONTAINS
               IND_SW  = BURP_Find_Element(Block_in, ELEMENT=33007, IOSTAT=error)
               if (IND_SW .le. 0 ) cycle
               do k = 1, nte
-                  QI1VAL(k)= BURP_Get_Tblval(Block_in, &
-                                   &   NELE_IND = IND_SW, &
-                                   &   NVAL_IND = 1, &
-                                   &   NT_IND   = k, &
-                                   &   IOSTAT   = error)
+                QI1VAL(k)= BURP_Get_Tblval(Block_in, &
+                                           NELE_IND = IND_SW, &
+                                           NVAL_IND = 1, &
+                                           NT_IND   = k, &
+                                           IOSTAT   = error)
               end do
 
               IND_SW  = BURP_Find_Element(Block_in, ELEMENT=33194, IOSTAT=error)
               if (IND_SW .le. 0 ) cycle
               do k = 1, nte
-                  QI2VAL(k)= BURP_Get_Tblval(Block_in, &
-                                   &   NELE_IND = IND_SW, &
-                                   &   NVAL_IND = 1, &
-                                   &   NT_IND   = k, &
-                                   &   IOSTAT   = error)
+                QI2VAL(k)= BURP_Get_Tblval(Block_in, &
+                                           NELE_IND = IND_SW, &
+                                           NVAL_IND = 1, &
+                                           NT_IND   = k, &
+                                           IOSTAT   = error)
               end do
 
               do k = 1, nte
-               QIVAL(k) = QI2VAL(k)
-               if(QIVAL(k) .lt. 0)  QIVAL(k) = QI1VAL(k)
+                QIVAL(k) = QI2VAL(k)
+                if(QIVAL(k) .lt. 0)  QIVAL(k) = QI1VAL(k)
               enddo
 
               IND_SW  = BURP_Find_Element(Block_in, ELEMENT=2023, IOSTAT=error)
               if (IND_SW .le. 0 ) cycle
               do k = 1, nte
-                  MTVAL(k)= BURP_Get_Tblval(Block_in, &
-                                  &   NELE_IND = IND_SW, &
-                                  &   NVAL_IND = 1, &
-                                  &   NT_IND   = k, &
-                                  &   IOSTAT   = error)
+                MTVAL(k)= BURP_Get_Tblval(Block_in, &
+                                          NELE_IND = IND_SW, &
+                                          NVAL_IND = 1, &
+                                          NT_IND   = k, &
+                                          IOSTAT   = error)
               end do
 
               IND_SW  = BURP_Find_Element(Block_in, ELEMENT=8012, IOSTAT=error)
               if (IND_SW .le. 0 ) cycle
               do k = 1, nte
-                  LSVAL(k)= BURP_Get_Tblval(Block_in, &
-                                  &   NELE_IND = IND_SW, &
-                                  &   NVAL_IND = 1, &
-                                  &   NT_IND   = k, &
-                                  &   IOSTAT   = error)
+                LSVAL(k)= BURP_Get_Tblval(Block_in, &
+                                          NELE_IND = IND_SW, &
+                                          NVAL_IND = 1, &
+                                          NT_IND   = k, &
+                                          IOSTAT   = error)
               end do
 
               IND_SW  = BURP_Find_Element(Block_in, ELEMENT=13039, IOSTAT=error)
               if (IND_SW .le. 0 ) cycle
               do k = 1, nte
-                  GAVAL(k)= BURP_Get_Tblval(Block_in, &
-                                  &   NELE_IND = IND_SW, &
-                                  &   NVAL_IND = 1, &
-                                  &   NT_IND   = k, &
-                                  &   IOSTAT   = error)
+                GAVAL(k)= BURP_Get_Tblval(Block_in, &
+                                          NELE_IND = IND_SW, &
+                                          NVAL_IND = 1, &
+                                          NT_IND   = k, &
+                                          IOSTAT   = error)
               end do
 
               IND_SW  = BURP_Find_Element(Block_in, ELEMENT=2163, IOSTAT=error)
               if (IND_SW .le. 0 ) cycle
               do k = 1, nte
-                  HAVAL(k)= BURP_Get_Tblval(Block_in, &
-                                  &   NELE_IND = IND_SW, &
-                                  &   NVAL_IND = 1, &
-                                  &   NT_IND   = k, &
-                                  &   IOSTAT   = error)
+                HAVAL(k)= BURP_Get_Tblval(Block_in, &
+                                          NELE_IND = IND_SW, &
+                                          NVAL_IND = 1, &
+                                          NT_IND   = k, &
+                                          IOSTAT   = error)
               end do
 
             endif
@@ -2665,6 +2665,7 @@ CONTAINS
     !
     !****************************************************************************
 
+    implicit none
     type (struct_obs), intent(inout) :: obsdat
 
     INTEGER ::  WRITE_BODY,VCOORD_TYPE
@@ -2867,6 +2868,7 @@ CONTAINS
 
   subroutine GET_HEADER(obsdat, LAT,LON,DATE,TIME,CODTYP,STATUS,ELEV,NOBS,FILENUMB)
 
+    implicit none
     type (struct_obs), intent(inout) :: obsdat
 
     INTEGER     ::   DATE,TIME,CODTYP,STATUS,FILENUMB
@@ -2893,6 +2895,7 @@ CONTAINS
 
   SUBROUTINE WRITE_HEADER(obsdat, STNID,LAT,LON,DATE,TIME,CODTYP,STATUS,ELEV,FILENUMB)
 
+    implicit none
     type (struct_obs), intent(inout) :: obsdat
     CHARACTER(LEN=9)       :: STNID
 
@@ -2924,6 +2927,7 @@ CONTAINS
 
   SUBROUTINE WRITE_QI(obsdat, QIvalue, MTvalue, LSvalue, HAvalue, GAvalue)
 
+    implicit none
     type (struct_obs), intent(inout) :: obsdat
     INTEGER     ::  QIvalue, MTvalue, LSvalue, HAvalue, GAvalue
     INTEGER     ::  NOBS
@@ -2952,6 +2956,7 @@ CONTAINS
     !
     !****************************************************************************
 
+    implicit none
     type (struct_obs), intent(inout) :: obsdat
 
     !REAL   , allocatable  ::      RINFO(:)
@@ -3157,7 +3162,8 @@ CONTAINS
   END SUBROUTINE  WRITE_INFO
 
 
-    INTEGER  FUNCTION FIND_INDEX(LIST,ELEMENT)
+  INTEGER  FUNCTION FIND_INDEX(LIST,ELEMENT)
+    implicit none
     INTEGER LIST(:)
     INTEGER I,ELEMENT
     FIND_INDEX=-1

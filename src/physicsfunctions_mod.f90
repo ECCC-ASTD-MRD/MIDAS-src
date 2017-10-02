@@ -38,7 +38,6 @@ module physicsFunctions_mod
   public :: FOEFQPSA, fottva, folnqva
   public :: phf_convert_z_to_pressure,phf_convert_z_to_gz
   public :: phf_get_tropopause, phf_get_pbl
-  public :: tetens_coefs_switch
 
   LOGICAL :: initialized = .false.
   LOGICAL :: NEW_TETENS_COEFS

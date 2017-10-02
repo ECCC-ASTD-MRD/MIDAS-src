@@ -21,17 +21,21 @@
 !!
 !--------------------------------------------------------------------------
 module obsErrors_mod
-  use MathPhysConstants_mod
+  use mpivar_mod
+  use mathPhysConstants_mod
   use obsSpaceData_mod
   use tovs_nl_mod
   use chem_obserrors_mod
   use codtyp_mod
   use bufr
   use utilities_mod
-  use EarthConstants_mod
+  use earthConstants_mod
   use gps_mod
   use columnData_mod
+  use hirchannels_mod
+  use rmatrix_mod
   implicit none
+  save
   private
 
   ! public procedures
@@ -62,7 +66,6 @@ module obsErrors_mod
 
   logical :: new_oer_sw
 
-  save
   character(len=48) :: obserrorMode
 
 contains
@@ -177,12 +180,6 @@ contains
     !    Purpose: Read the observation error statistics and
     !             utilization flag for TOVS processing. This information
     !             resides on an ASCII file and is read using a free format.
-
-
-    use hirchannels_mod
-    use mpivar_mod
-    use tovs_nl_mod
-    use rmatrix_mod
     implicit none
 
     integer,external  :: FNOM, FCLOS
@@ -1037,11 +1034,6 @@ contains
     !
     !Arguments
     !
-    use earthConstants_mod
-    use mathPhysConstants_mod
-    use obsSpaceData_mod
-    use columnData_mod 
-    use bufr
     implicit none
     type(struct_columnData) :: columnhr
     type(struct_obs) :: obsSpaceData
@@ -1061,102 +1053,98 @@ contains
 
     logical :: passe_once, valeurs_defaut, print_debug
 
+    if(.not. new_oer_sw) return
 
-    if(new_oer_sw) then
+    valeurs_defaut = .false.
+    passe_once     = .true.
+    print_debug    = .false.
 
-     valeurs_defaut = .false.
-     passe_once     = .true.
-     print_debug    = .false.
+    write(*,*) "Entering subroutine oer_sw"
 
-     Write(*,*) "Entering subroutine oer_sw"
-
-     call obs_set_current_body_list(obsSpaceData, 'SW')
-     BODY: do
-       bodyIndex = obs_getBodyIndex(obsSpaceData)
-       if (bodyIndex < 0) exit BODY
+    call obs_set_current_body_list(obsSpaceData, 'SW')
+    BODY: do
+      bodyIndex = obs_getBodyIndex(obsSpaceData)
+      if (bodyIndex < 0) exit BODY
        
-       ! Only process pressure level observations flagged to be assimilated
-       iass=obs_bodyElem_i (obsSpaceData,OBS_ASS,bodyIndex)
-       ivco=obs_bodyElem_i (obsSpaceData,OBS_VCO,bodyIndex)
+      ! Only process pressure level observations flagged to be assimilated
+      iass=obs_bodyElem_i (obsSpaceData,OBS_ASS,bodyIndex)
+      ivco=obs_bodyElem_i (obsSpaceData,OBS_VCO,bodyIndex)
+      if(iass.ne.1 .or. ivco.ne.2) cycle BODY
 
-       if(iass.ne.1 .or. ivco.ne.2) cycle BODY
+      ixtr = obs_bodyElem_i (obsSpaceData,OBS_XTR,bodyIndex)
+      ivnm = obs_bodyElem_i (obsSpaceData,OBS_VNM,bodyIndex)
+      zvar = obs_bodyElem_r (obsSpaceData,OBS_VAR,bodyIndex)
+      zlev = obs_bodyElem_r (obsSpaceData,OBS_PPP,bodyIndex)
+      zoer = obs_bodyElem_r (obsSpaceData,OBS_OER,bodyIndex)
+      headerIndex = obs_bodyElem_i (obsSpaceData,OBS_HIND,bodyIndex)
 
-       ixtr=obs_bodyElem_i (obsSpaceData,OBS_XTR,bodyIndex)
-       ivnm=obs_bodyElem_i (obsSpaceData,OBS_VNM,bodyIndex)
-       zvar=obs_bodyElem_r (obsSpaceData,OBS_VAR,bodyIndex)
-       zlev=obs_bodyElem_r (obsSpaceData,OBS_PPP,bodyIndex)
-       zoer=obs_bodyElem_r (obsSpaceData,OBS_OER,bodyIndex)
-       headerIndex = obs_bodyElem_i (obsSpaceData,OBS_HIND,bodyIndex)
+      IOTP = obs_headElem_i (obsSpaceData,OBS_OTP,headerIndex)
+      iqiv = obs_headElem_i (obsSpaceData,OBS_SZA,headerIndex)
+      imet = obs_headElem_i (obsSpaceData,OBS_TEC,headerIndex)
+      ilsv = obs_headElem_i (obsSpaceData,OBS_AZA,headerIndex)
+      igav = obs_headElem_i (obsSpaceData,OBS_SUN,headerIndex)
+      ihav = obs_headElem_i (obsSpaceData,OBS_CLF,headerIndex)
+      zlat = obs_headElem_r (obsSpaceData,OBS_LAT,headerIndex)*MPC_DEGREES_PER_RADIAN_R8
+      zlon = obs_headElem_r (obsSpaceData,OBS_LON,headerIndex)*MPC_DEGREES_PER_RADIAN_R8
+      cstnid = obs_elem_c (obsSpaceData,'STID' ,headerIndex)
 
-       IOTP=obs_headElem_i (obsSpaceData,OBS_OTP,headerIndex)
-       iqiv=obs_headElem_i (obsSpaceData,OBS_SZA,headerIndex)
-       imet=obs_headElem_i (obsSpaceData,OBS_TEC,headerIndex)
-       ilsv=obs_headElem_i (obsSpaceData,OBS_AZA,headerIndex)
-       igav=obs_headElem_i (obsSpaceData,OBS_SUN,headerIndex)
-       ihav=obs_headElem_i (obsSpaceData,OBS_CLF,headerIndex)
-       zlat=obs_headElem_r (obsSpaceData,OBS_LAT,headerIndex)*MPC_DEGREES_PER_RADIAN_R8
-       zlon=obs_headElem_r (obsSpaceData,OBS_LON,headerIndex)*MPC_DEGREES_PER_RADIAN_R8
-       cstnid = obs_elem_c (obsSpaceData,'STID' ,headerIndex)
+      itrn = ilsv
+      if(igav == 1) itrn = 2
+      if(imet >  3) imet = 3
+      if(ihav /= 4) ihav = 1
 
-       itrn = ilsv
-       if(igav == 1) itrn = 2
-       if(imet >  3) imet = 3
-       if(ihav /= 4) ihav = 1
+      if(valeurs_defaut) then
+        E_DRIFT  = 2.5
+        E_HEIGHT = 8000.0
+      else
+        E_DRIFT = 7.5 - 0.05*iqiv
+        call get_height_error(cstnid,imet,itrn,ihav,zlat,zlon,zlev,E_HEIGHT,J_SAT)
+      endif
 
-       if(valeurs_defaut) then
-         E_DRIFT  = 2.5
-         E_HEIGHT = 8000.0
-       else
-         E_DRIFT = 7.5 - 0.05*iqiv
-         call get_height_error(cstnid,imet,itrn,ihav,zlat,zlon,zlev,E_HEIGHT,J_SAT)
-       endif
+      varLevel = vnl_varLevelFromVarnum(ivnm)
+      varName  = vnl_varnameFromVarnum(ivnm)
 
-       varLevel = vnl_varLevelFromVarnum(ivnm)
-       varName  = vnl_varnameFromVarnum(ivnm)
+      col_ptr_uv=>col_getColumn(columnhr,headerIndex,varName)
+      ilyr = obs_bodyElem_i (obsSpaceData,OBS_LYR,bodyIndex)
+      ZPT  = col_getPressure(columnhr,ilyr  ,headerIndex,varLevel)
+      ZPB  = col_getPressure(columnhr,ilyr+1,headerIndex,varLevel)
+      ZWB  = LOG(ZLEV/ZPT)/LOG(ZPB/ZPT)
+      ZWT  = 1. - ZWB
 
-       col_ptr_uv=>col_getColumn(columnhr,headerIndex,varName)
-       ilyr = obs_bodyElem_i (obsSpaceData,OBS_LYR,bodyIndex)
-       ZPT  = col_getPressure(columnhr,ilyr  ,headerIndex,varLevel)
-       ZPB  = col_getPressure(columnhr,ilyr+1,headerIndex,varLevel)
-       ZWB  = LOG(ZLEV/ZPT)/LOG(ZPB/ZPT)
-       ZWT  = 1. - ZWB
+      ZMOD = ZWB*col_ptr_uv(ilyr+1) + ZWT*col_ptr_uv(ilyr)
 
-       ZMOD = ZWB*col_ptr_uv(ilyr+1) + ZWT*col_ptr_uv(ilyr)
+      TO_WGH = 0.0D0
+      TO_DSP = 0.0D0
+      if(ZLEV > 20000. .and. ZLEV < 30000. .and. passe_once .and. print_debug ) then
+        write(*,'(3a10,2i10,4f12.3)') 'stlchka',cstnid,varName,iqiv,imet,ZLEV,ZMOD,ZVAR,E_DRIFT
+      endif
+      do jlev = 2, col_getNumLev(columnhr,'MM') - 1
+        ZPT= col_getPressure(columnhr,jlev-1,headerIndex,varLevel)
+        ZPC= col_getPressure(columnhr,jlev  ,headerIndex,varLevel)
+        ZPB= col_getPressure(columnhr,jlev+1,headerIndex,varLevel)
+        ZOTR = col_ptr_uv(jlev)
+        SP_WGH = exp( -0.5*((ZPC - ZLEV)**2)/(E_HEIGHT**2) )*((ZPB - ZPT)/2)
+        TO_DSP = TO_DSP + SP_WGH*((ZOTR - ZMOD)**2)
+        TO_WGH = TO_WGH + SP_WGH 
+        if(ZLEV > 20000. .and. ZLEV < 30000. .and. passe_once) then
+          write(*,'(a10,i10,4f12.3)') 'stlchk',jlev,ZPT,ZPC,ZPB,ZOTR
+        end if
 
-       TO_WGH = 0.0D0
-       TO_DSP = 0.0D0
-       if(ZLEV > 20000. .and. ZLEV < 30000. .and. passe_once .and. print_debug ) then
-         write(*,'(3a10,2i10,4f12.3)') 'stlchka',cstnid,varName,iqiv,imet,ZLEV,ZMOD,ZVAR,E_DRIFT
-       endif
-       do jlev = 2, col_getNumLev(columnhr,'MM') - 1
-         ZPT= col_getPressure(columnhr,jlev-1,headerIndex,varLevel)
-         ZPC= col_getPressure(columnhr,jlev  ,headerIndex,varLevel)
-         ZPB= col_getPressure(columnhr,jlev+1,headerIndex,varLevel)
-         ZOTR = col_ptr_uv(jlev)
-         SP_WGH = exp( -0.5*((ZPC - ZLEV)**2)/(E_HEIGHT**2) )*((ZPB - ZPT)/2)
-         TO_DSP = TO_DSP + SP_WGH*((ZOTR - ZMOD)**2)
-         TO_WGH = TO_WGH + SP_WGH 
-         if(ZLEV > 20000. .and. ZLEV < 30000. .and. passe_once) then
-           write(*,'(a10,i10,4f12.3)') 'stlchk',jlev,ZPT,ZPC,ZPB,ZOTR
-         endif
+      end do
 
-       enddo
-
-       E_VHGT = sqrt(TO_DSP/TO_WGH)
-         zoer = sqrt(E_VHGT**2 + E_DRIFT**2)
+      E_VHGT = sqrt(TO_DSP/TO_WGH)
+      zoer = sqrt(E_VHGT**2 + E_DRIFT**2)
        
-       if(ZLEV > 20000. .and. ZLEV < 30000. .and. passe_once .and. print_debug ) then
-         write(*,'(a10,4f10.2)') 'stlchkb',zoer,E_VHGT,E_DRIFT,E_HEIGHT
-         passe_once = .false.
-       endif
+      if(ZLEV > 20000. .and. ZLEV < 30000. .and. passe_once .and. print_debug ) then
+        write(*,'(a10,4f10.2)') 'stlchkb',zoer,E_VHGT,E_DRIFT,E_HEIGHT
+        passe_once = .false.
+      endif
 
-       call obs_bodySet_r(obsSpaceData,OBS_OER,bodyIndex,zoer)
+      call obs_bodySet_r(obsSpaceData,OBS_OER,bodyIndex,zoer)
 
-       if( print_debug ) write(*,'(2a10,6f12.3,4i10)') 'hgterr',cstnid,zlat,zlon,zlev/100.,E_HEIGHT/100.0,E_DRIFT,zoer,imet,itrn,ihav,J_SAT
+      if( print_debug ) write(*,'(2a10,6f12.3,4i10)') 'hgterr',cstnid,zlat,zlon,zlev/100.,E_HEIGHT/100.0,E_DRIFT,zoer,imet,itrn,ihav,J_SAT
 
-     enddo body
-
-   endif !new_oer_sw
+    end do body
 
   end subroutine oer_sw
 
