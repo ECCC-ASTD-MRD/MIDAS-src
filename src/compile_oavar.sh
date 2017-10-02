@@ -105,7 +105,7 @@ if [ "${mode}" == full ] ; then
   # Compile the subroutines...
   echo "... > Compiling low-level independent modules"
   echo "...   if aborting, check in ${PWD}/listing0"
-  SRC0="tovs_extrap_mod.f90 utilities_mod.f90 ramdisk_mod.ftn90 randomnumber_mod.f90"
+  SRC0="utilities_mod.f90 ramdisk_mod.ftn90 randomnumber_mod.f90"
   SRC0="$SRC0 mathphysconstants_mod.f90 earthconstants_mod.f90 mpi_mod.f90 mpivar_mod.f90 bufr_mod.f90 codtyp_mod.f90"
   SRC0="$SRC0 physicsfunctions_mod.f90 obsspacedata_mod.ftn90 localizationfunction_mod.f90"
   SRC0="$SRC0 horizontalcoord_mod.f90 timecoord_mod.f90 verticalcoord_mod.f90"
@@ -145,7 +145,7 @@ if [ "${mode}" == full ] ; then
   echo "... > Compiling most of the new modules"
   echo "...   if aborting, check in ${PWD}/listing3"
 
-  SRC1="obssubspacedata_mod.ftn90 controlvector_mod.f90 rmatrix_mod.ftn90 hirchannels_mod.f90 "
+  SRC1="tovs_extrap_mod.f90 obssubspacedata_mod.ftn90 controlvector_mod.f90 rmatrix_mod.ftn90 hirchannels_mod.f90 "
   SRC1="$SRC1 varnamelist_mod.f90 columndata_mod.f90 ozoneclim_mod.f90 tovs_nl_mod.ftn90"
   SRC1="$SRC1 globalspectraltransform_mod.f90 tt2phi_mod.f90"
   SRC1="$SRC1 lamspectraltransform_mod.f90 gridstatevector_mod.f90 ensemblestatevector_mod.f90 statetocolumn_mod.f90 variabletransforms_mod.f90"

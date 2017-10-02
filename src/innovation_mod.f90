@@ -1764,16 +1764,16 @@ contains
 
       codtyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
 !Is it really what we want ?
-      if(tvs_Is_idburp_inst(codtyp,"IASI")) then
+      if(tvs_isIdBurpInst(codtyp,"IASI")) then
          !obsLoad = 200
          obsLoad = 100
-      elseif(tvs_Is_idburp_inst(codtyp,"AIRS")) then
+      elseif(tvs_isIdBurpInst(codtyp,"AIRS")) then
          !obsLoad = 200
          obsLoad = 100
-      elseif(tvs_Is_idburp_inst(codtyp,"CRIS")) then
+      elseif(tvs_isIdBurpInst(codtyp,"CRIS")) then
          !obsLoad = 150
          obsLoad = 100
-      elseif(tvs_Is_idburp_tovs(codtyp)) then
+      elseif(tvs_isIdBurpTovs(codtyp)) then
          ! all other types of radiance obs
          !obsLoad = 5
          obsLoad = 10

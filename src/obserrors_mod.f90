@@ -330,7 +330,7 @@ contains
                    ICHN(JI,JL) = ICHNIN(JI,JM)
                 END DO
                 IF ( (trim(obserrorMode) == 'analysis' .or. trim(obserrorMode) == 'FSO') .and. rmat_lnondiagr) then
-                  call rmat_setFullRMatrix ( TOVERRST(:,JL), JL, chanoffset(JL) )
+                  call rmat_setFullRMatrix ( TOVERRST(:,JL), JL, tvs_channelOffset(JL) )
                 end if
              END IF
           END IF
