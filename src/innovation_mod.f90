@@ -1246,6 +1246,7 @@ contains
     !
     !        SATWINDS
     !--------------------------------
+    CALL oer_sw(columnhr,obsSpaceData)
     CALL oop_ppp_nl(columnhr,obsSpaceData,ZJOSATWIND,'SW')
     !
     !        SURFACE (SF, UA, SC AND GP FAMILIES)

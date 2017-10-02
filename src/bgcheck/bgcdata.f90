@@ -31,10 +31,16 @@
 !!v                  ZBGCHK=(ZOMP**2)/(ZFGE**2) 
 !!v               where ZFGE = StdDev(O-P) estimated from ZWD and set in
 !!v               s/r SETERRGPSGB (stored in obsSpaceData col. OBS_HPHT).
+!!
 !!        -Y.J. Rochon *ARQD/ARQI March 2016
 !!          - Allow ZFGE**2 + ZOER**2 .LT. 1.D-5 for CDFAM='CH'
 !!          - Set output format 124 for 'CH'
-!!             
+!!
+!!
+!!        -S. Laroche  *ARMA/MRD October 2017
+!!           -New background check for AMVs (SX) that checks u and v
+!!            simultaneously.
+!!
 !--------------------------------------------------------------------------
       SUBROUTINE BGCDATA(PJO,CDFAM,lobsSpaceData)
 
@@ -247,7 +253,6 @@
       ENDDO HEADER
 
 
-!stl
       ELSE !IF (CDFAM .NE. 'SX') THEN
 
 
@@ -357,7 +362,6 @@
        enddo bodyuv
 
       ENDIF !IF (CDFAM .NE. 'SX') THEN
-!stl
 
       IF ( INOBS .GT. 0 ) THEN
         WRITE(*,*)' '

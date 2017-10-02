@@ -557,9 +557,7 @@ CONTAINS
         LBLOCK_OER_CP=.false.
         LBLOCK_FGE_CP=.false.
         HIRES=.FALSE.
-!stl
         HIPCS=.FALSE.
-!stl
         REGRUP=.false.
         NDATA_SF=-1
         !WRITE(*,*)'  record number =',kk,' obs_start =',obs_start
@@ -1038,10 +1036,8 @@ CONTAINS
             IND_TIME  = BURP_Find_Element(BLOCK_OBS_MUL_CP, ELEMENT=4015, IOSTAT=error)
             if (IND_LAT .gt. 0 .and. IND_LON .gt. 0 .and. IND_TIME .gt. 0 ) HIRES=.true.
             if(ENFORCE_CLASSIC_SONDES .eqv. .true.)hires=.false.
-!stl
+
             if( TRIM(FAMILYTYPE2) .eq. 'UA' .and. UA_HIGH_PRECISION_TT_ES .eqv. .true. ) HIPCS=.true.
-            if(HIPCS) write(*,*) 'Write high precision TT and ES radiosonde data'
-!stl
 
             !print * , ' hires =true ? ndata_sf ',stnid,hires,NDATA_SF
 
@@ -1139,12 +1135,12 @@ CONTAINS
                   if ( STID .ne. stnid ) cycle
 
                   IND_ELE_stat  = BURP_Find_Element(BLOCK_OMA, ELEMENT=iele,  IOSTAT=error)
-!stl
+
                   if(HIPCS) then
                    IND_ELE_tth   = BURP_Find_Element(BLOCK_OMA, ELEMENT=12101, IOSTAT=error)
                    IND_ELE_esh   = BURP_Find_Element(BLOCK_OMA, ELEMENT=12239, IOSTAT=error)
                   endif
-!stl
+
                   IND_ELE       = BURP_Find_Element(BLOCK_OBS_MUL_CP, ELEMENT=iele, IOSTAT=error)
                   IND_eleu      = BURP_Find_Element(BLOCK_OBS_MUL_CP, ELEMENT=ILEMU, IOSTAT=error)
                   convfact=1.
@@ -1167,10 +1163,9 @@ CONTAINS
                         OMA=OMA*convfact
                       end if
                       Call BURP_Set_Rval(Block_OMA,  NELE_IND =IND_ele_stat ,NVAL_IND =j , NT_IND  = k , RVAL = OMA )
-!stl
+
                       if(iele == 12001) Call BURP_Set_Rval(Block_OMA,  NELE_IND =IND_ele_tth ,NVAL_IND =j , NT_IND  = k , RVAL = OMA )
                       if(iele == 12192) Call BURP_Set_Rval(Block_OMA,  NELE_IND =IND_ele_esh ,NVAL_IND =j , NT_IND  = k , RVAL = OMA )
-!stl
 
                       !if(trim(familytype) .eq. 'TO' )print *,' bingo  stnid kk vnm ppp flg omp ',stnid,kk,vnm,ppp,flg,omp,oma
                       SUM=SUM +1
@@ -1179,35 +1174,32 @@ CONTAINS
                         OMP=OMP*convfact
                       end if
                       Call BURP_Set_Rval(  Block_OMP,  NELE_IND =IND_ele_stat ,NVAL_IND =j , NT_IND  = k , RVAL = OMP)
-!stl
+
                       if(HIPCS) then
                        if(iele == 12001) Call BURP_Set_Rval(Block_OMP,  NELE_IND =IND_ele_tth ,NVAL_IND =j , NT_IND  = k , RVAL = OMP )
                        if(iele == 12192) Call BURP_Set_Rval(Block_OMP,  NELE_IND =IND_ele_esh ,NVAL_IND =j , NT_IND  = k , RVAL = OMP )
                       endif
-!stl
 
                       Call BURP_Set_Rval(  Block_OER,  NELE_IND =IND_ele_stat ,NVAL_IND =j , NT_IND  = k , RVAL = OER  ) 
-!stl
+
                       if(HIPCS) then
                        if(iele == 12001) Call BURP_Set_Rval(Block_OER,  NELE_IND =IND_ele_tth ,NVAL_IND =j , NT_IND  = k , RVAL = OER )
                        if(iele == 12192) Call BURP_Set_Rval(Block_OER,  NELE_IND =IND_ele_esh ,NVAL_IND =j , NT_IND  = k , RVAL = OER )
                       endif
-!stl
 
                       Call BURP_Set_Rval(  Block_FGE,  NELE_IND =IND_ele_stat ,NVAL_IND =j , NT_IND  = k , RVAL = FGE ) 
-!stl
+
                       if(HIPCS) then
                        if(iele == 12001) Call BURP_Set_Rval(Block_FGE,  NELE_IND =IND_ele_tth ,NVAL_IND =j , NT_IND  = k , RVAL = FGE )
                        if(iele == 12192) Call BURP_Set_Rval(Block_FGE,  NELE_IND =IND_ele_esh ,NVAL_IND =j , NT_IND  = k , RVAL = FGE )
                       endif
-!stl
+
                       Call BURP_Set_Rval(  Block_FSO,  NELE_IND =IND_ele_stat ,NVAL_IND =j , NT_IND  = k , RVAL = FSO )
 
                       IND_ele_mar  = BURP_Find_Element(Block_MAR_MUL_CP, ELEMENT=iele+200000, IOSTAT=error)
 
                       Call BURP_Set_tblval(Block_MAR_MUL_CP,NELE_IND =IND_ELE_MAR ,NVAL_IND =j  , NT_IND  = k,TBLVAL = FLG )
 
-!stl
                       if(HIPCS) then
                        if(iele == 12001) then
                         IND_ele_mar  = BURP_Find_Element(Block_MAR_MUL_CP, ELEMENT=212101, IOSTAT=error)
@@ -1218,7 +1210,6 @@ CONTAINS
                         Call BURP_Set_tblval(Block_MAR_MUL_CP,NELE_IND =IND_ELE_MAR ,NVAL_IND =j  , NT_IND  = k,TBLVAL = FLG )
                        endif
                       endif
-!stl
 
                       IND_ele  = BURP_Find_Element(Block_OBS_MUL_CP, ELEMENT=iele, IOSTAT=error)
                       Call BURP_Set_Rval(Block_OBS_MUL_CP,NELE_IND =IND_ele,NVAL_IND =j,NT_IND = k,RVAL = OBS) 
@@ -1834,9 +1825,7 @@ CONTAINS
         ref_blk = 0
 
         HIRES=.FALSE.
-!stl
         HIPCS=.FALSE.
-!stl
         HIRES_SFC=.FALSE.
         BLOCKS1: do
 
@@ -1962,10 +1951,8 @@ CONTAINS
             IND_TIME  = BURP_Find_Element(Block_in, ELEMENT=4015, IOSTAT=error)
             IND_EMIS  = BURP_Find_Element(Block_in, ELEMENT=55043,IOSTAT=error)
             if (IND_LAT .gt. 0 .and. IND_LON .gt. 0 .and. IND_TIME .gt. 0 ) HIRES=.true.
-!stl
+
             if( TRIM(FAMILYTYPE2) .eq. 'UA' .and. UA_HIGH_PRECISION_TT_ES .eqv. .true. ) HIPCS=.true.
-            if(HIPCS) write(*,*) 'Read high precision TT and ES radiosonde data'
-!stl
 
             if(HIRES) ALLOCATE(HLAT(nvale,nte),HLON(nvale,nte),HTIME(nvale,nte) )
 
@@ -1980,10 +1967,8 @@ CONTAINS
               IND_ele  = BURP_Find_Element(Block_in, ELEMENT=iele, IOSTAT=error)
               if (IND_ele .lt. 0 ) cycle
 
-!stl
               if(HIPCS .and. iele == 12001) IND_ele = BURP_Find_Element(Block_in, ELEMENT=12101, IOSTAT=error)
               if(HIPCS .and. iele == 12192) IND_ele = BURP_Find_Element(Block_in, ELEMENT=12239, IOSTAT=error)
-!stl
 
               do k=1,nte
                 do j=1,nvale
@@ -2025,7 +2010,7 @@ CONTAINS
 
 !==================================================================================
 !
-!stl : Lire les divers elements de la famille SW
+! Lire les divers elements de la famille SW
 !
             ALLOCATE(qi1val(nte))
             ALLOCATE(qi2val(nte))
@@ -2112,7 +2097,6 @@ CONTAINS
               end do
 
             endif
-!stl
 !
 !==================================================================================
 
@@ -2373,7 +2357,7 @@ CONTAINS
                   call WRITE_HEADER(obsdat,STNID,XLAT,XLON,date2,time2,idtyp,STATUS,RELEV,FILENUMB)
 !==================================================================================
 !
-!stl : Ajoute qivals dans les argument de WRITE_QI
+! Ajoute qivals dans les argument de WRITE_QI
 
                   if (TRIM(FAMILYTYPE) .eq. 'SW' .and. READ_QI_GA_MT_SW) call WRITE_QI(obsdat,QIVAL(k),MTVAL(k),LSVAL(k),HAVAL(k),GAVAL(k))
 
@@ -2447,7 +2431,7 @@ CONTAINS
                   call WRITE_HEADER(obsdat,STNID,XLAT,XLON,YMD_DATE,HM,idtyp,STATUS,RELEV,FILENUMB)
 !==================================================================================
 !
-!stl : Ajoute qivals dans les argument de WRITE_QI
+! Ajoute qivals dans les argument de WRITE_QI
 
                   if (TRIM(FAMILYTYPE) .eq. 'SW') call WRITE_QI(obsdat,QIVAL(k),MTVAL(k),LSVAL(k),HAVAL(k),GAVAL(k))
 

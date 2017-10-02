@@ -57,7 +57,7 @@ module physicsFunctions_mod
 !                   - Added phf_convert* and phf_get_*
 !
 !                Stephane Laroche, Sept 2017
-!                   - Added AERK thermodynamic fonctions
+!                   - Added AERK thermodynamic fonctions for FOTW8 and FODTW8
 !
 !     REAL*8 version of thermodynamic functions based on
 !     fintern.cdk in the physics library.
@@ -212,7 +212,7 @@ module physicsFunctions_mod
       real*8 function FOTW8(EEE) 
         implicit none
         real*8 EEE
-!stl
+
        if(.not.initialized) call tetens_coefs_switch
        if(new_tetens_coefs) then
          FOTW8=(30.11D0*LOG(EEE/610.94D0)-17.625D0*MPC_TRIPLE_POINT_R8)/ &
@@ -221,7 +221,7 @@ module physicsFunctions_mod
          FOTW8=(35.86D0*LOG(EEE/610.78D0)-17.269D0*MPC_TRIPLE_POINT_R8)/ &
               (LOG(EEE/610.78D0)-17.269D0)
         endif
-!stl         
+
       end function FOTW8
 !
 !     FONCTION DE LA TEMPERATURE EN FONCTION DE LA TENSION DE VAPEUR
@@ -238,14 +238,14 @@ module physicsFunctions_mod
       real*8 function FODTW8(TTT,EEE) 
         implicit none
         real*8 TTT,EEE
-!stl
+
         if(.not.initialized) call tetens_coefs_switch
         if(new_tetens_coefs) then
          FODTW8=(30.11D0-TTT)/EEE/(LOG(EEE/610.94D0)-17.625D0)
         else
          FODTW8=(35.86D0-TTT)/EEE/(LOG(EEE/610.78D0)-17.269D0)
         endif
-!stl
+
       end function FODTW8
 !
 !     FONCTION DE LA DERIVE DE LA TEMPERATURE EN FONCTION DE LA TENSION DE

@@ -22,8 +22,13 @@
 !! Revision:  M. Sitwell (ARQI/AQRD) May 2015, March 2016
 !!           - Added call to BGCDATA for chemical constituents
 !!           - Added loop over bgfam list
+!!
 !!           Y. Rochon (ARQI/AQRD) June 2016
 !!           - Added call to osd_ObsSpaceDiag
+!!
+!!           S. Laroche (ARMA/MRD) October 2017
+!!           - New option NEW_BGCK_SW (SX) for AMVs
+!!
 !--------------------------------------------------------------------------
 SUBROUTINE BGCHECK_CONV(columng,columnhr,obsSpaceData)
 
@@ -53,7 +58,6 @@ SUBROUTINE BGCHECK_CONV(columng,columnhr,obsSpaceData)
   WRITE(*,FMT=9000)
 9000 FORMAT(//,3(" **********"),/," BEGIN CONVENTIONNAL BACKGROUND CHECK",/,3(" **********"),/)
 
-!stl
   NEW_BGCK_SW = .false.
 
   NAMELIST /NAMBGCKCONV/NEW_BGCK_SW
@@ -69,7 +73,6 @@ SUBROUTINE BGCHECK_CONV(columng,columnhr,obsSpaceData)
   iER=FCLOS(NULNAM)
 
   write(*,*) 'new_bgck_sw = ',new_bgck_sw
-!stl
 
 
 !     CALCULATE HBHT (sigma_B in observation space)
@@ -89,7 +92,9 @@ SUBROUTINE BGCHECK_CONV(columng,columnhr,obsSpaceData)
 
   if (obs_famExist(obsSpaceData,'RO')) CALL BGCGPSRO(columnhr,obsSpaceData)
 
-!stl
+!
+! Old (SW) and new (SX) background check schemes for AMVs
+!
   if (obs_famExist(obsSpaceData,'SW')) then
     if(new_bgck_sw) then
       CALL BGCDATA(ZJO,'SX',obsSpaceData)
@@ -97,7 +102,6 @@ SUBROUTINE BGCHECK_CONV(columng,columnhr,obsSpaceData)
       CALL BGCDATA(ZJO,'SW',obsSpaceData)
     endif
   endif
-!stl
 
 ! Conduct obs-space post-processing diagnostic tasks (some diagnostic 
 ! computations controlled by NAMOSD namelist in flnml)
