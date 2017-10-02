@@ -65,11 +65,12 @@ program main_ensManip
   type(struct_hco), pointer :: hco_ens_core => null()
   type(struct_ens)          :: ensemble
 
-  integer             :: fclos, fnom, fstopc, newdate, ierr
-  integer             :: memberIndex, stepIndex, numStep
-  integer             :: idate, itime, nulnam
-  integer             :: dateStamp, dateStamp_last 
-  integer             :: get_max_rss
+  integer              :: fclos, fnom, fstopc, newdate, ierr
+  integer              :: memberIndex, stepIndex, numStep
+  integer              :: idate, itime, nulnam
+  integer              :: dateStamp, dateStamp_last 
+  integer, allocatable :: dateStampList(:)
+  integer              :: get_max_rss
 
   character(len=2)    :: hourstr, hourstr_last
   character(len=8)    :: datestr, datestr_last
@@ -152,7 +153,9 @@ program main_ensManip
   ! Setup timeCoord module
   call tim_setup
   call tim_setDatestamp(dateStamp)
-  numstep = tim_nstepobsinc
+  numStep = tim_nstepobsinc
+  allocate(dateStampList(numStep))
+  call tim_getstamplist(dateStampList,numStep,tim_getDatestamp())
 
   ! Previous analysis time
   delhh = -tim_windowsize
@@ -161,7 +164,7 @@ program main_ensManip
   write(datestr_last,'(i8.8)') idate
   write(hourstr_last,'(i2.2)') itime/1000000
   if ( mpi_myid == 0 ) write(*,*)' datestr_last= ', datestr_last, ' hourstr_last= ', hourstr_last
-  if ( mpi_myid == 0 ) write(*,*)' dateStamp= ', dateStamp_last
+  if ( mpi_myid == 0 ) write(*,*)' dateStamp_last= ', dateStamp_last
 
   !- 2.3 Initialize variables of the model states
   call gsv_setup
@@ -178,7 +181,7 @@ program main_ensManip
 
   !- 2.5 Setup and read the background ensemble
   call tmg_start(2,'READ_ENSEMBLE')
-  call ens_allocate(ensemble, nEns, numStep, hco_ens, vco_ens)
+  call ens_allocate(ensemble, nEns, numStep, hco_ens, vco_ens, dateStampList)
   makeBiPeriodic = .false.
   call ens_readEnsemble( ensemble, ensPathName, ensFileBaseName, makeBiPeriodic, ctrlVarHumidity )
   call tmg_stop(2)
