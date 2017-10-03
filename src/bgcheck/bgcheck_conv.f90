@@ -22,8 +22,13 @@
 !! Revision:  M. Sitwell (ARQI/AQRD) May 2015, March 2016
 !!           - Added call to BGCDATA for chemical constituents
 !!           - Added loop over bgfam list
+!!
 !!           Y. Rochon (ARQI/AQRD) June 2016
 !!           - Added call to osd_ObsSpaceDiag
+!!
+!!           S. Laroche (ARMA/MRD) October 2017
+!!           - New option NEW_BGCK_SW for AMVs
+!!
 !--------------------------------------------------------------------------
 SUBROUTINE BGCHECK_CONV(columng,columnhr,obsSpaceData)
 
@@ -41,6 +46,10 @@ SUBROUTINE BGCHECK_CONV(columng,columnhr,obsSpaceData)
   INTEGER J,JDATA
   REAL*8 ZJO
 
+  INTEGER        :: NULNAM,IER,FNOM,FCLOS
+  CHARACTER *256 :: NAMFILE
+  LOGICAL        :: NEW_BGCK_SW
+
   character(len=2), dimension(10) :: bgfam = (/ 'UA', 'AI', 'HU', 'SF', 'ST', 'SW', 'SC', 'PR', 'GP', 'CH' /)
       
 !
@@ -49,7 +58,23 @@ SUBROUTINE BGCHECK_CONV(columng,columnhr,obsSpaceData)
   WRITE(*,FMT=9000)
 9000 FORMAT(//,3(" **********"),/," BEGIN CONVENTIONNAL BACKGROUND CHECK",/,3(" **********"),/)
 
-!
+  NEW_BGCK_SW = .false.
+
+  NAMELIST /NAMBGCKCONV/NEW_BGCK_SW
+  NAMFILE=trim("flnml")
+  nulnam=0
+  IER=FNOM(NULNAM,NAMFILE,'R/O',0)
+
+  READ(NULNAM,NML=NAMBGCKCONV,IOSTAT=IER)
+  if(IER.ne.0) then
+    write(*,*) 'bgcheck_conv: No valid namelist NAMBGCKCONV found'
+  endif
+
+  iER=FCLOS(NULNAM)
+
+  write(*,*) 'new_bgck_sw = ',new_bgck_sw
+
+
 !     CALCULATE HBHT (sigma_B in observation space)
 !     ----------------------------------------------
 !
@@ -62,7 +87,8 @@ SUBROUTINE BGCHECK_CONV(columng,columnhr,obsSpaceData)
 !     ----------------------------------------------
 
   do j=1,size(bgfam)
-     if (obs_famExist(obsSpaceData,bgfam(j))) CALL BGCDATA(ZJO,bgfam(j),obsSpaceData)
+    ! For SW only, old and new background check schemes controlled by "new_bgck_sw"
+    if (obs_famExist(obsSpaceData,bgfam(j))) CALL BGCDATA(ZJO,bgfam(j),obsSpaceData,new_bgck_sw)
   end do
 
   if (obs_famExist(obsSpaceData,'RO')) CALL BGCGPSRO(columnhr,obsSpaceData)
