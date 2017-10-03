@@ -1318,7 +1318,7 @@ contains
     endif
     jobs = 0.0d0
 
-    call tovs_calc_jo(jobs,llprint,obsSpaceData,dest_obs)
+    call tvs_calc_jo(jobs,llprint,obsSpaceData,dest_obs)
 
     if(present(jobs_out)) jobs_out=jobs
 

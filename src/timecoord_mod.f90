@@ -198,9 +198,9 @@ contains
 
     formatspec2='(1X,A6,":"'
     do jstep=1,nStepObs
-       formatspec2=trim(formatspec2)//',1X,I6'
+       formatspec2=trim(formatspec2)//',1X,I7'
     enddo
-    formatspec2=trim(formatspec2)//',1X,A8)'
+    formatspec2=trim(formatspec2)//',1X,A9)'
 
     write(*,*)'-----------------------------------------------------------------'
     write(*,*)'Distribution of number of headers over stepobs ON LOCAL PROCESSOR'

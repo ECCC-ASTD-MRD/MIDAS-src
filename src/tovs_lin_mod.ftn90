@@ -22,9 +22,20 @@
 !!
 !--------------------------------------------------------------------------
 module tovs_lin_mod
-  use rttov_types, only : rttov_profile, rttov_radiance 
+
+  use rttov_types, only : rttov_profile, rttov_radiance
+  use rttov_const ,only : gas_unit_specconc
+  use parkind1, only : jpim, jprb
+
   use tovs_nl_mod
   use utilities_mod
+  use MathPhysConstants_mod
+  use obsFilter_mod
+  use obsSpaceData_mod
+  use columnData_mod
+  use tovs_extrap_mod
+  use presProfileOperators_mod
+ 
   implicit none
   save
   private
@@ -40,7 +51,7 @@ contains
 
   subroutine LEXTHUM4(KNPF,KLAPF,PPRES,PAV,PAV5)
 !
-!**** *lexthum4* - tangent linear of extrapolaatione upper level humidity profil!.
+!**** *lexthum4* - tangent linear of extrapolaation of upper level humidity profile.
 !                 (adapted from exthumtl by J. Eyre)
 !
 !     purpose.
@@ -73,8 +84,6 @@ contains
 !          ecmwf tech mem 176.
 !
 
-    use MathPhysConstants_mod
-    use obsFilter_mod
     implicit none
 
     integer :: klapf, knpf
@@ -145,17 +154,7 @@ contains
 !                  - remove #include "comtovst.cdk"
 !
 !--------------------------------------------------------------------------
-    use MathPhysConstants_mod
-    use tovs_nl_mod
-    use obsSpaceData_mod
-    use columnData_mod
-    use obsSpaceData_mod
-    use tovs_extrap_mod
-    use rttov_const ,only : gas_unit_specconc
-    use parkind1, only : jpim, jprb
-    use presProfileOperators_mod
-    use utilities_mod
-
+   
     implicit none
     !implicits
 #include "rttov_parallel_tl.interface"
@@ -639,13 +638,7 @@ contains
 !revision 004  : s. macpherson  nov 2012
 !                  - remove #include "comtovst.cdk"
 !--------------------------------------------------------------------------
-    use MathPhysConstants_mod
-    use tovs_nl_mod
-    use obsSpaceData_mod
-    use columnData_mod
-    use utilities_mod
-    use presProfileOperators_mod
-    use tovs_extrap_mod
+   
 
     implicit none
     !implicits
@@ -1023,8 +1016,7 @@ contains
       zps_ad(:)   = 0.0d0
 
       call tmg_start(75,'intavgad')
-!$omp parallel
-!$omp do private(profile_index)
+!$omp parallel do private(profile_index)
       do profile_index = 1, count_profile
         
         call ppo_IntAvgAd(zvlev(:,profile_index:profile_index), dPdPs(:,profile_index:profile_index), &
@@ -1038,8 +1030,7 @@ contains
              jpmolev,xpres(jpmotop:nlevels), lqo_ad(:,profile_index:profile_index))
        
       end do
-!$omp end do
-!$omp end parallel
+!$omp end parallel do
       call tmg_stop(75)
  
       ! Fix pour eviter probleme au toit avec GEM 4
@@ -1157,8 +1148,7 @@ contains
 !          none.
 !
 
-    use MathPhysConstants_mod
-    use obsFilter_mod
+   
     implicit none
 
     integer :: klapf,knpf

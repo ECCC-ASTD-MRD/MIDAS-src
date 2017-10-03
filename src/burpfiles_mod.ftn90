@@ -1384,11 +1384,9 @@ END SUBROUTINE burp_updateFiles
 
     end do HEADER1
 
-    
-    if ( LEVEL_UU .eq. LEVEL .and. UU .eq. PPMIS ) then
-      call obs_bodySet_i(obsdat,OBS_VNM,J4,-1)
-    endif
-             
+!==========================================================================================
+!  do JO=1,obs_numHeader(obsdat)
+   do JO=START,END
 
     RLN=obs_headElem_i(obsdat,OBS_RLN,JO)
     NLV=obs_headElem_i(obsdat,OBS_NLV,JO)
@@ -1466,10 +1464,13 @@ END SUBROUTINE burp_updateFiles
         call obs_bodySet_i(obsdat,OBS_VNM,J,-1)
       end if
 
-      !--------------------------------
-    END DO !J
-    !==========================================================================================
-       
+	!--------------------------------
+        END DO !J
+	!--------------------------------
+
+        END DO !JO
+!==========================================================================================
+
   END SUBROUTINE FDTOUV_OBSDAT
 
 

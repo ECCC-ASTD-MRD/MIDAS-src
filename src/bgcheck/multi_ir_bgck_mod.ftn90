@@ -31,6 +31,16 @@ module multi_ir_bgck_mod
   use rttov_const, only : inst_id_iasi
   use utilities_mod
   use obsSpaceData_mod
+  use mpi_mod
+  use columnData_mod
+  use mpivar_mod
+  use burpFiles_mod
+  use burp_module
+  use EarthConstants_mod
+  use MathPhysConstants_mod
+  use verticalCoord_mod
+  use presProfileOperators_mod
+
   implicit none
   save
   private
@@ -118,7 +128,6 @@ module multi_ir_bgck_mod
   type( rttov_coefs ) :: coefs_avhrr
 
   type avhrr_bgck_iasi
-     sequence   
      real(8)              :: RADMOY(nClassAVHRR,nChanAVHRR)
      real(8)              :: RADSTD(nClassAVHRR,nChanAVHRR)
      real(8)              :: CFRAC(nClassAVHRR)
@@ -141,7 +150,7 @@ module multi_ir_bgck_mod
 contains
 
   subroutine  irbg_init()
-    use mpi_mod
+   
     implicit none
     integer :: nulnam, ierr
     logical, save :: lfirst = .true.
@@ -246,9 +255,6 @@ contains
 !!
 !--------------------------------------------------------------------------
   subroutine irbg_bgCheckIR(columnhr,obsSpaceData)
-    use columnData_mod
-    use mpivar_mod, only: mpi_myid
-    use burpFiles_mod
     IMPLICIT NONE
 
     type(struct_obs) :: obsSpaceData
@@ -323,8 +329,6 @@ contains
   END subroutine IRBG_BGCHECKIR
 
   subroutine add_cloudprms(lobsSpaceData)
-    use mpivar_mod
-    use burpFiles_mod
     implicit none
 
     type(struct_obs) :: lobsSpaceData
@@ -354,7 +358,6 @@ contains
 
 
   subroutine hir_cldprm_to_brp(lobsspacedata,brp_file)
-    use burp_module
     IMPLICIT NONE
     !implicits
     CHARACTER(LEN=128),intent(in)     :: BRP_FILE
@@ -992,13 +995,6 @@ contains
 !            -LEND       : AT THE END OF THIS CALL TO irbg_doQualityControl, DO ALL 
 !                               PROFILES BEEN TREATED (true) OR NOT (false)
 !
-    use EarthConstants_mod
-    use MathPhysConstants_mod
-    use tovs_nl_mod
-    use columnData_mod
-    use obsSpaceData_mod
-    use verticalCoord_mod
-    use presProfileOperators_mod
     implicit none
     integer,intent(in),optional :: id_in
     type(struct_columnData),intent(in) :: lcolumnhr
@@ -1941,14 +1937,13 @@ contains
   end subroutine convert_avhrr
 
   subroutine calcreflect(rad,sunzen,reflect)
-    use MathPhysConstants_mod ,only : MPC_PI_R8, MPC_RADIANS_PER_DEGREE_R8
     implicit none
 
-    real (8) , intent(in) ,dimension(nvis) :: rad
+    real (8) , intent(in) :: rad(nvis)
     real (8) , intent(in) :: sunzen
-    real (8) , intent(out),dimension(nvis) :: reflect ! reflectivite en %
+    real (8) , intent(out):: reflect(nvis) ! reflectivite en %
     !************
-    real (8) ,DIMENSION(NVIS) :: SOLAR_FILTERED_IRRADIANCE
+    real (8) :: SOLAR_FILTERED_IRRADIANCE(nvis)
     data SOLAR_FILTERED_IRRADIANCE /139.873215d0,232.919556d0,14.016470d0/
 !# equivalent widths, integrated solar irradiance,  effective central wavelength
 !0.084877,139.873215,0.632815
@@ -1976,8 +1971,8 @@ contains
     integer,parameter  :: nchan=3
     real(8) ,parameter :: c1= 1.19106590D-05   ! first planck constant
     real(8) ,parameter :: c2= 1.438833d0     ! second planck constant 
-    real (8) , intent(in) ,dimension(nchan) :: rad,freq,offset,slope
-    real (8) , intent(out) ,dimension(nchan) :: tb,dtbsdrad
+    real (8) , intent(in) :: rad(nchan), freq(nchan), offset(nchan), slope(nchan)
+    real (8) , intent(out):: tb(nchan), dtbsdrad(nchan)
     !************
     integer :: i
     real (8) ::  radtotal,tstore,planck1,planck2
@@ -2882,8 +2877,6 @@ contains
 !          OUTPUT:
 !            -TS          : RETRIEVED SKIN TEMPERATURE (-1. FOR MISSING)
 !
-    use tovs_nl_mod
-
     implicit none
     integer ,intent(in) :: NCHNKEPT
     integer ,intent(in) :: ICHREF,CLDFLAG
@@ -3442,7 +3435,7 @@ contains
 !
 !
 !***********************************************************************
-
+    implicit none
     integer,intent (in) :: ndim
     real(8),intent (in) :: f(ndim)
     integer,intent (out):: imin
@@ -3513,7 +3506,6 @@ contains
 ! appel de RTTOV pour le calcul des radiances AVHRR
 ! (non assimilees mais necessaires au background check IASI)
 
-    use tovs_nl_mod 
     implicit none
 #include "rttov_direct.interface"
 #include "rttov_alloc_rad.interface"
@@ -3646,7 +3638,6 @@ contains
 !*arguments        del   - output - facteur de correction
 !*                 scos  - input  - cosinus de l'angle solaire
 !**
-    use MathPhysConstants_mod ,only : MPC_RADIANS_PER_DEGREE_R8
     implicit  none
     real(8),intent(in)  ::  scos
     real(8),intent(out) ::  del
@@ -3786,7 +3777,6 @@ contains
 !*                 THE ROUTINE IS A LOOK UP TABLE ALONG WITH INTERPOLATION ON THE 
 !*                 THREE ANGLES. 
 !**
-    use MathPhysConstants_mod ,only: MPC_RADIANS_PER_DEGREE_R8
     implicit  none
     real (8),intent(in) :: SZ,SATZ,rz
     real (8),intent(out):: ANISOT,ZLAMB,ZCLOUD

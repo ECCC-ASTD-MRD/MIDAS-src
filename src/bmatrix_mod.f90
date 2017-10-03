@@ -277,9 +277,7 @@ contains
     end if
     call tmg_stop(61)
 
-
     !- 1.3 adjoint of copy 3D increment to 4D increment
-
     if ( cvm_subVectorExists(cvm_BHI) .or. cvm_subVectorExists(cvm_BCHM)) call gsv_3dto4dAdj(statevector)
 
     !- 1.4 add contribution to gradient from BmatrixChem

@@ -37,7 +37,6 @@ module rMatrix_mod
   public :: rmat_init,rmat_cleanup,rmat_readCMatrix,rmat_setFullRMatrix,rmat_sqrtRm1
 
  type rmat_matrix
-    sequence   
     real(8) ,pointer     :: Rmat(:,:)=>null()
     integer ,pointer     :: listChans(:)=>null()
     integer              :: nchans=0

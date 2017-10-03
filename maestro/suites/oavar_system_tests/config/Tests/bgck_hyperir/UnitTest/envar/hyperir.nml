@@ -44,17 +44,17 @@
    ANLVAR(6)   ='TG'
 /
  &NAMTOV
-   TVS_NSENSORS         =  4,
-   TVS_SATELLITENAME(1)        = 'AQUA',
-   tvs_instrumentName(1) = 'AIRS',
-   TVS_SATELLITENAME(2)        = 'METOP-2',
-   tvs_instrumentName(2) = 'IASI',
-   TVS_SATELLITENAME(3)        = 'METOP-1',
-   tvs_instrumentName(3) = 'IASI',
-   TVS_SATELLITENAME(4)        = 'NPP',
-   tvs_instrumentName(4) = 'CRIS',
-   tvs_debug    = .FALSE.,
-   tvs_radiativeTransferCode    = 'RTTOV',
+   NSENSORS         =  4,
+   CSATID(1)        = 'AQUA',
+   CINSTRUMENTID(1) = 'AIRS',
+   CSATID(2)        = 'METOP-2',
+   CINSTRUMENTID(2) = 'IASI',
+   CSATID(3)        = 'METOP-1',
+   CINSTRUMENTID(3) = 'IASI',
+   CSATID(4)        = 'NPP',
+   CINSTRUMENTID(4) = 'CRIS',
+   LDBGTOV    = .FALSE.,
+   CRTMODL    = 'RTTOV',
 /
  &NAMSAT
    LISTBURP(1)=054, ! METEOSAT 7
@@ -242,6 +242,7 @@
    name_inst(3)='mviri',
    name_inst(4)='seviri',
    name_inst(5)='gmsim',
+   name_inst(6)='mtsatim',
 /
  &NAMCODTYP
 /

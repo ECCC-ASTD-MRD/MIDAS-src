@@ -1763,20 +1763,15 @@ contains
       ! a separate program to do a more objective evalution of this
 
       codtyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
-!Is it really what we want ?
       if(tvs_isIdBurpInst(codtyp,"IASI")) then
-         !obsLoad = 200
-         obsLoad = 100
+         obsLoad = 200
       elseif(tvs_isIdBurpInst(codtyp,"AIRS")) then
-         !obsLoad = 200
-         obsLoad = 100
+         obsLoad = 200
       elseif(tvs_isIdBurpInst(codtyp,"CRIS")) then
-         !obsLoad = 150
-         obsLoad = 100
+         obsLoad = 150
       elseif(tvs_isIdBurpTovs(codtyp)) then
          ! all other types of radiance obs
-         !obsLoad = 5
-         obsLoad = 10
+         obsLoad = 5
       else
          ! all non-radiance obs
          obsLoad = 1
