@@ -5,6 +5,7 @@ set -e
 mode=$1
 program="calcstats"
 
+export COMPILE_OAVAR_ADD_DEBUG_OPTIONS=yes
 . ./compile_commons.sh
 
 echo "..."
