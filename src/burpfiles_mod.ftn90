@@ -103,12 +103,17 @@ contains
     INTEGER, ALLOCATABLE :: IBUF(:)
     INTEGER INRECS
     INTEGER MRFCLS,MRFOPN,MRFOPC,MRBHDR,MRFLOC,MRFGET
-    INTEGER MRFMXL, status, length_burp_split
+    INTEGER MRFMXL, status, length_burp_split, length_burpDatestamp
 
     INTEGER ISTAMPOBS,INEWHH,NEWDATE,nresume
     REAL*8 DELHH
     INTEGER       IVALS
     CHARACTER*9   CLSTNID
+
+    character(len=12) :: obs_yyyymmddhhmm_char
+    integer :: length_obs_yyyymmddhhmm, obsCentralDate_yyyyddmm, obsCentralDate_hhmm
+
+    logical :: datestampFromBurpFile
 
     EXTERNAL FCLOS,FNOM,MRFCLS,MRFOPN,MRFOPC,MRBHDR,MRFLOC,MRFGET,MRFMXL,NUMBLKS
 
@@ -123,7 +128,7 @@ contains
     status = 0
     call get_environment_variable('OAVAR_BURP_SPLIT',burp_split_mode,length_burp_split,status,.true.)
 
-    if (status.eq.1) then
+    if ( status == 1 ) then
       write(*,*) 'burp_setupfiles: The environment variable OAVAR_BURP_SPLIT has not been detected!'
       write(*,*) '                 The observation files are NOT split'
       burp_split_L = .false.  
@@ -159,6 +164,28 @@ contains
       end select
     end if
 
+    !
+    !- Determine datestamp
+    !
+    status = 0
+    call get_environment_variable('OAVAR_OBS_CENTRAL_DATE',obs_yyyymmddhhmm_char,length_obs_yyyymmddhhmm,status,.true.)
+
+    if ( status == 1 ) then
+      write(*,*) 'burp_setupfiles: The environment variable OAVAR_OBS_CENTRAL_DATESTAMP has not been detected!'
+      write(*,*) '                 The datestamp will be obtained from the burp files'
+      datestampFromBurpFile = .true.
+    else
+      write(*,*)
+      write(*,*) 'burp_setupfiles: The environment variable OAVAR_OBS_CENTRAL_DATE has correctly been detected'
+      write(*,*) '                 The date found is: ', trim(obs_yyyymmddhhmm_char)
+      datestampFromBurpFile = .false.
+      read(obs_yyyymmddhhmm_char(1: 8),'(i8)') obsCentralDate_yyyyddmm
+      read(obs_yyyymmddhhmm_char(9:12),'(i4)') obsCentralDate_hhmm
+    end if
+
+    !
+    !- Process the input burp files
+    !
     write(cmyidy,'(I4.4)') (mpi_npey-mpi_myidy)
     write(cmyidx,'(I4.4)') (mpi_myidx+1)
     cmyid  = trim(cmyidx)//'_'//trim(cmyidy)
@@ -308,36 +335,42 @@ contains
       WRITE(*,'(1X,A2,1X,A128)' ) burp_cfamtyp(JJ),trim(burp_cfilnam(JJ))
     END DO
 
-    ! Make sure all mpi tasks have a valid date (important for split burp files)
-    call rpn_comm_allreduce(kdate,kdate_recv,1,"MPI_INTEGER","MPI_MAX","GRID",ier)
-    call rpn_comm_allreduce(ktime,ktime_recv,1,"MPI_INTEGER","MPI_MAX","GRID",ier)
-
-    kdate = kdate_recv
-    ktime = ktime_recv
-
-    ! Set reference datestamp
-
-    if (nresume.ge.1) then  
-      ier = newdate(datestamp,kdate,ktime*10000,3)
-    else
-      ! Assumes 6-hour windows with reference times being synoptic times.
-      ! Does not require kdate and ktime to be from a resume record.
-      ier = newdate(istampobs,kdate,ktime*10000,3)
-      delhh = 3.0d0
-      call INCDATR (datestamp, istampobs, delhh)
-      ier = newdate(datestamp,kdate,inewhh,-3)
-      ktime=KTIME/100
-      if (ktime .ge. 21 .or. ktime .lt. 3) then
-        ktime = 0
-      else if(ktime .ge. 3 .and. ktime .lt. 9) then
-        ktime = 6
-      else if(ktime .ge. 9 .and. ktime .lt. 15) then
-        ktime = 12
+    !
+    !- Set reference datestamp
+    !
+    if ( datestampFromBurpFile ) then
+      ! Make sure all mpi tasks have a valid date (important for split burp files)
+      call rpn_comm_allreduce(kdate,kdate_recv,1,"MPI_INTEGER","MPI_MAX","GRID",ier)
+      call rpn_comm_allreduce(ktime,ktime_recv,1,"MPI_INTEGER","MPI_MAX","GRID",ier)
+      kdate = kdate_recv
+      ktime = ktime_recv
+       if (nresume >= 1 ) then  
+        ier = newdate(datestamp,kdate,ktime*10000,3)
       else
-        ktime = 18
+        ! Assumes 6-hour windows with reference times being synoptic times.
+        ! Does not require kdate and ktime to be from a resume record.
+        ier = newdate(istampobs,kdate,ktime*10000,3)
+        delhh = 3.0d0
+        call INCDATR (datestamp, istampobs, delhh)
+        ier = newdate(datestamp,kdate,inewhh,-3)
+        ktime=KTIME/100
+        if (ktime .ge. 21 .or. ktime .lt. 3) then
+          ktime = 0
+        else if(ktime .ge. 3 .and. ktime .lt. 9) then
+          ktime = 6
+        else if(ktime .ge. 9 .and. ktime .lt. 15) then
+          ktime = 12
+        else
+          ktime = 18
+        end if
+        ier = newdate(datestamp,kdate,ktime*1000000,3)
+        ktime=ktime*100
       end if
-      ier = newdate(datestamp,kdate,ktime*1000000,3)
-      ktime=ktime*100
+
+    else
+      kdate = obsCentralDate_yyyyddmm
+      ktime = obsCentralDate_hhmm
+      ier = newdate(datestamp,kdate,ktime*10000,3)
     end if
 
     WRITE(*, *)' BURP FILES VALID DATE (YYYYMMDD) : ',kdate
