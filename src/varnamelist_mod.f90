@@ -53,7 +53,7 @@ module varNameList_mod
                                  'TNH3','AF  ','AC  ','TNO ','ALFA'/)
 
   character(len=2), parameter :: varLevelList3D(vnl_numvarmax3D)     = (/                        &
-                                 'MM',  'MM',  'MM',  'TH',  'TH',  'TH',  'TH',  'TH',          &
+                                 'MM',  'MM',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',          &
                                  'MM',  'MM',  'MM',  'TH',  'TH',  'TH',  'MM',  'MM',          &
                                  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',          &
                                  'TH',  'TH',  'TH',  'TH',  'MM'/)
