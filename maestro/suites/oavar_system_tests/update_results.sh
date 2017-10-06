@@ -8,7 +8,7 @@ version=${2}
 SEQ_EXP_HOME=${SEQ_EXP_HOME:-$(dirname $(true_path ${0}))}
 export SEQ_EXP_HOME
 
-gitworkdir=$(dirname $(true_path ${SEQ_EXP_HOME}))
+gitworkdir=$(dirname $(true_path ${SEQ_EXP_HOME}))/../..
 
 if [ -z "${version}" ]; then
     gitdescribe="cd ${gitworkdir}; git describe --always --abbrev=7 --dirty=_M 2>/dev/null"
