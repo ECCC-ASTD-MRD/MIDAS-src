@@ -76,14 +76,14 @@ contains
   !
     implicit none
     
-    integer :: nulnam,ierr,fnom,fclos,newdate,imode,prntdate,prnttime
+    integer :: nulnam,ierr,fnom,fclos,newdate,imode,prntdate,prnttime,date
     real*8  :: dstepobs,dstepobsinc,dwindowsize
-    NAMELIST /NAMTIME/dstepobs,dstepobsinc,dwindowsize,datestamp
+    NAMELIST /NAMTIME/dstepobs,dstepobsinc,dwindowsize,date
 
     dstepobs    = 6.0d0
     dstepobsinc = 6.0d0      
     dwindowsize = 6.0d0     
-    datestamp   = 0
+    date        = 0
 
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -92,16 +92,16 @@ contains
     if(mpi_myid.eq.0) write(*,nml=namtime)
     ierr=fclos(nulnam)
 
-    if ( datestamp /= 0 ) then
+    if ( date /= 0 ) then
       write(*,*) 'tim_setup: ====================================================='
       write(*,*) 'tim_setup: WARNING! DATESTAMP has been set by value in namelist!'
       write(*,*) 'tim_setup: ====================================================='
-      imode = 3 ! printable to stamp
-      prntdate = datestamp/100
-      prnttime = (datestamp - prntdate*100) * 10000
-      write(*,*) 'tim_setup: printable = ',datestamp
+      prntdate = date/100
+      prnttime = (date - prntdate*100) * 10000
+      write(*,*) 'tim_setup: printable = ',date
       write(*,*) 'tim_setup: printdate = ',prntdate
       write(*,*) 'tim_setup: printtime = ',prnttime
+      imode = 3 ! printable to stamp
       ierr = newdate(datestamp, prntdate, prnttime, imode)
       write(*,*) 'tim_setup: datestamp = ',datestamp
     endif

@@ -22,10 +22,11 @@
 !--------------------------------------------------------------------------
 module gridStateVector_mod
   use mpivar_mod
+  use earthConstants_mod
   use varNameList_mod
   use verticalCoord_mod
   use horizontalCoord_mod
-  use MathPhysConstants_mod
+  use mathPhysConstants_mod
   use timeCoord_mod
   use utilities_mod
   implicit none
@@ -102,7 +103,8 @@ module gridStateVector_mod
   logical :: varExistList(vnl_numVarMax)
   character(len=8) :: ANLTIME_BIN
   integer :: get_max_rss
-
+  real(8) :: rhumin
+  character(len=12) :: hInterpolationDegree
 
   contains
 
@@ -212,9 +214,8 @@ module gridStateVector_mod
     implicit none
     integer :: varIndex, fnom, fclos, nulnam, ierr
     CHARACTER(len=4) :: ANLVAR(VNL_NUMVARMAX)
-    real*8 :: rhumin
     logical :: AddGZSfcOffset = .false. ! controls adding non-zero GZ offset to diag levels
-    NAMELIST /NAMSTATE/ANLVAR,rhumin,ANLTIME_BIN,AddGZSfcOffset
+    NAMELIST /NAMSTATE/ANLVAR,rhumin,ANLTIME_BIN,AddGZSfcOffset,hInterpolationDegree
 
     if(mpi_myid.eq.0) write(*,*) 'gsv_setup: List of known (valid) variable names'
     if(mpi_myid.eq.0) write(*,*) 'gsv_setup: varNameList3D=',vnl_varNameList3D
@@ -224,6 +225,8 @@ module gridStateVector_mod
 
     ANLVAR(1:vnl_numvarmax) = '    '
     ANLTIME_BIN = 'MIDDLE'
+    rhumin = MPC_MINIMUM_HU_R8
+    hInterpolationDegree = 'LINEAR'
 
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -528,7 +531,8 @@ module gridStateVector_mod
         if ( ( statevector%mpi_distribution == 'VarsLevs' .and. mpi_myid == 0 ) .or. &
              statevector%mpi_distribution /= 'VarsLevs' ) then
           allocate(statevector%gzSfc(statevector%myLonBeg:statevector%myLonEnd,  &
-                                      statevector%myLatBeg:statevector%myLatEnd))
+                                     statevector%myLatBeg:statevector%myLatEnd))
+          statevector%gzSfc(:,:) = 0.0d0
         end if
       end if
     end if
@@ -788,7 +792,8 @@ module gridStateVector_mod
         do stepIndex = 1, statevector_out%numStep
           do latIndex = lat1, lat2
             do lonIndex = lon1, lon2
-              statevector_out%gd_r8(lonIndex,latIndex,kIndex,stepIndex) = statevector_in%gd_r8(lonIndex,latIndex,kIndex,stepIndex)
+              statevector_out%gd_r8(lonIndex,latIndex,kIndex,stepIndex) =  &
+                statevector_in%gd_r8(lonIndex,latIndex,kIndex,stepIndex)
             end do
           end do
         end do
@@ -802,7 +807,8 @@ module gridStateVector_mod
         do stepIndex = 1, statevector_out%numStep
           do latIndex = lat1, lat2
             do lonIndex = lon1, lon2
-              statevector_out%gd_r4(lonIndex,latIndex,kIndex,stepIndex) = statevector_in%gd_r4(lonIndex,latIndex,kIndex,stepIndex)
+              statevector_out%gd_r4(lonIndex,latIndex,kIndex,stepIndex) =  &
+                statevector_in%gd_r4(lonIndex,latIndex,kIndex,stepIndex)
             end do
           end do
         end do
@@ -1727,7 +1733,8 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   ! gsv_readFromFile
   !--------------------------------------------------------------------------
-  subroutine gsv_readFromFile(statevector_out,fileName,etiket_in,typvar_in,indexStep_in,unitconversion,HUcontainsLQ)
+  subroutine gsv_readFromFile(statevector_out, fileName, etiket_in, typvar_in, indexStep_in,  &
+                              unitconversion, HUcontainsLQ, PsfcReference_opt, readGZsfc_opt)
     implicit none
     ! Note this routine currently only works correctly for reading FULL FIELDS,
     ! not increments or perturbations... because of the HU -> LQ conversion
@@ -1740,6 +1747,8 @@ module gridStateVector_mod
     integer, optional             :: indexStep_in
     logical, optional             :: unitconversion
     logical, optional             :: HUcontainsLQ
+    real(8), optional             :: PsfcReference_opt(:,:)
+    logical, optional             :: readGZsfc_opt
 
     ! locals
     type(struct_gsv) :: statevector_file, statevector_tiles, statevector_hinterp, statevector_vinterp
@@ -1747,34 +1756,48 @@ module gridStateVector_mod
     real(8), pointer     :: field_in_ptr(:,:,:,:), field_out_ptr(:,:,:,:)
     real(4) :: factor_r4
     integer :: kIndex, lonIndex, latIndex, varIndex, stepIndex, levIndex
-    character(len=4) :: varName
-    logical :: doHorizInterp, doVertInterp, unitconversion2, HUcontainsLQ2, HUcontainsLQinFile
+    character(len=4) :: varName, varNameToRead
+    logical :: doHorizInterp, doVertInterp, unitconversion2, HUcontainsLQ2, HUcontainsLQinFile, readGZsfc
     type(struct_vco), pointer :: vco_file
     type(struct_hco), pointer :: hco_file
 
     nullify(vco_file, hco_file)
     nullify(field3d_r4_ptr, field_in_ptr, field_out_ptr)
 
+    write(*,*) ''
     write(*,*) 'gsv_readFromFile: START'
     call tmg_start(7,'READFROMFILE')
 
-    if (present(indexStep_in)) then
+    if( present(indexStep_in) ) then
       stepIndex = indexStep_in
     else
       stepIndex = statevector_out%anltime
     end if
 
-    if(present(unitConversion)) then
+    if( present(unitConversion) ) then
       unitConversion2 = unitConversion
     else
       unitConversion2 = .true.
     end if
 
-    if(present(HUcontainsLQ)) then
+    if( present(HUcontainsLQ) ) then
       HUcontainsLQ2 = HUcontainsLQ
     else
       HUcontainsLQ2 = .true.
     end if
+
+    if( present(readGZsfc_opt) ) then
+      readGZsfc = readGZsfc_opt
+    else
+      readGZsfc = .false.
+    end if
+
+    if( count( statevector_out%varExistList(:) ) == 1 ) then
+      if( mpi_myid == 0 ) write(*,*) 'gsv_readFromFile: only 1 variable will be read'
+      varNameToRead = gsv_getVarNameFromK(statevector_out,1)
+    else
+      varNameToRead = 'ALL'
+    endif
 
     ! set up vertical and horizontal coordinate for input file
     call vco_SetupFromFile(vco_file,trim(fileName),beSilent=.true.)
@@ -1788,18 +1811,35 @@ module gridStateVector_mod
     !-- 1.0 Read the file, distributed over mpi task with respect to variables/levels
 
     ! initialize single precision 3D working copy of statevector for reading file
-    call gsv_allocate(statevector_file, 1, hco_file, vco_file, &
-                      dateStamp=statevector_out%datestamplist(stepIndex), &
-                      mpi_local=.true., mpi_distribution='VarsLevs', dataKind_in=4)
+    if(varNameToRead == 'ALL') then
+      call gsv_allocate(statevector_file, 1, hco_file, vco_file, &
+                        dateStamp=statevector_out%datestamplist(stepIndex), &
+                        mpi_local=.true., mpi_distribution='VarsLevs', dataKind_in=4,  &
+                        allocGZsfc=readGZsfc)
+    else
+      call gsv_allocate(statevector_file, 1, hco_file, vco_file, &
+                        dateStamp=statevector_out%datestamplist(stepIndex), &
+                        mpi_local=.true., mpi_distribution='VarsLevs', dataKind_in=4,  &
+                        allocGZsfc=readGZsfc, varName=varNameToRead)
+    end if
 
-    call gsv_readFile(statevector_file, filename, etiket_in, typvar_in, HUcontainsLQinFile)
+    call gsv_readFile(statevector_file, filename, etiket_in, typvar_in, HUcontainsLQinFile,  &
+                      readGZsfc_opt=readGZsfc)
 
     !-- 2.0 Horizontal Interpolation
 
     ! initialize single precision 3D working copy of statevector for horizontal interpolation result
-    call gsv_allocate(statevector_hinterp, 1, statevector_out%hco, vco_file, &
-                      dateStamp=statevector_out%datestamplist(stepIndex), &
-                      mpi_local=.true., mpi_distribution='VarsLevs', dataKind_in=4)
+    if(varNameToRead == 'ALL') then
+      call gsv_allocate(statevector_hinterp, 1, statevector_out%hco, vco_file, &
+                        dateStamp=statevector_out%datestamplist(stepIndex), &
+                        mpi_local=.true., mpi_distribution='VarsLevs', dataKind_in=4,  &
+                        allocGZsfc=readGZsfc)
+    else
+      call gsv_allocate(statevector_hinterp, 1, statevector_out%hco, vco_file, &
+                        dateStamp=statevector_out%datestamplist(stepIndex), &
+                        mpi_local=.true., mpi_distribution='VarsLevs', dataKind_in=4,  &
+                        allocGZsfc=readGZsfc, varName=varNameToRead)
+    end if
 
     call gsv_hInterpolate_r4(statevector_file, statevector_hinterp)
 
@@ -1829,9 +1869,17 @@ module gridStateVector_mod
     !-- 4.0 MPI communication from vars/levels to lat/lon tiles
 
     ! initialize double precision 3D working copy of statevector for mpi communication result
-    call gsv_allocate(statevector_tiles, 1, statevector_out%hco, vco_file, &
-                      dateStamp=statevector_out%datestamplist(stepIndex), &
-                      mpi_local=.true., mpi_distribution='Tiles', dataKind_in=8)
+    if(varNameToRead == 'ALL') then
+      call gsv_allocate(statevector_tiles, 1, statevector_out%hco, vco_file, &
+                        dateStamp=statevector_out%datestamplist(stepIndex), &
+                        mpi_local=.true., mpi_distribution='Tiles', dataKind_in=8, &
+                        allocGZsfc=readGZsfc)
+    else
+      call gsv_allocate(statevector_tiles, 1, statevector_out%hco, vco_file, &
+                        dateStamp=statevector_out%datestamplist(stepIndex), &
+                        mpi_local=.true., mpi_distribution='Tiles', dataKind_in=8, &
+                        allocGZsfc=readGZsfc, varName=varNameToRead)
+    end if
 
     call gsv_transposeVarsLevsToLatLon(statevector_hinterp, statevector_tiles)
 
@@ -1840,15 +1888,32 @@ module gridStateVector_mod
     !-- 5.0 Vertical interpolation
 
     ! initialize double precision 3D working copy of statevector for mpi communication result
-    call gsv_allocate(statevector_vinterp, 1, statevector_out%hco, statevector_out%vco, &
-                      dateStamp=statevector_out%datestamplist(stepIndex), &
-                      mpi_local=.true., mpi_distribution='Tiles', dataKind_in=8)
+    if(varNameToRead == 'ALL') then
+      call gsv_allocate(statevector_vinterp, 1, statevector_out%hco, statevector_out%vco, &
+                        dateStamp=statevector_out%datestamplist(stepIndex), &
+                        mpi_local=.true., mpi_distribution='Tiles', dataKind_in=8, &
+                        allocGZsfc=readGZsfc)
+    else
+      call gsv_allocate(statevector_vinterp, 1, statevector_out%hco, statevector_out%vco, &
+                        dateStamp=statevector_out%datestamplist(stepIndex), &
+                        mpi_local=.true., mpi_distribution='Tiles', dataKind_in=8, &
+                        allocGZsfc=readGZsfc, varName=varNameToRead)
+    end if
 
-    call gsv_vInterpolate(statevector_tiles,statevector_vinterp)
+    if( present(PsfcReference_opt) ) then
+      call gsv_vInterpolate(statevector_tiles,statevector_vinterp,PsfcReference_opt=PsfcReference_opt)
+    else
+      call gsv_vInterpolate(statevector_tiles,statevector_vinterp)
+    end if
 
     call gsv_deallocate(statevector_tiles)
 
     !-- 6.0 Copy result to output statevector and convert HU to LQ
+    ! THIS SHOULD BE REPLACED MOSTLY BY CALL TO gsv_copy
+
+    if ( associated(statevector_vinterp%gzSfc) .and. associated(statevector_out%gzSfc) ) then
+      statevector_out%gzSfc(:,:) = statevector_vinterp%gzSfc(:,:)
+    end if
 
     do varIndex = 1, vnl_numvarmax
       if( .not. gsv_varExist(statevector_out,vnl_varNameList(varIndex)) ) cycle
@@ -1889,7 +1954,7 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   ! gsv_readFile
   !--------------------------------------------------------------------------
-  subroutine gsv_readFile(statevector, filename, etiket_in, typvar_in, HUcontainsLQinFile)
+  subroutine gsv_readFile(statevector, filename, etiket_in, typvar_in, HUcontainsLQinFile, readGZsfc_opt)
     implicit none
 
     ! arguments
@@ -1898,6 +1963,7 @@ module gridStateVector_mod
     character(len=*), intent(in)  :: etiket_in
     character(len=*), intent(in)  :: typvar_in
     logical :: HUcontainsLQinFile
+    logical, optional             :: readGZsfc_opt
 
     ! locals
     integer :: nulfile, ierr, ni_file, nj_file, nk_file, ip1, kIndex, stepIndex, ikey, levIndex
@@ -1917,11 +1983,13 @@ module gridStateVector_mod
 
     real(4), pointer :: field_r4_ptr(:,:,:,:)
     real(4), pointer :: fieldUV_r4_ptr(:,:,:,:)
-    real(4), pointer :: gd2d_file(:,:)
-    real(4), allocatable :: gd2d_tg(:,:)
+    real(4), pointer :: gd2d_file_r4(:,:)
+    real(4), allocatable :: gd2d_tg_r4(:,:)
     character(len=4)  :: varName
     character(len=2)  :: varLevel
     type(struct_vco), pointer :: vco_file
+
+    nullify(gd2d_file_r4)
 
     vco_file => gsv_getVco(statevector)
 
@@ -1933,35 +2001,70 @@ module gridStateVector_mod
 
     !- Open input field
     nulfile = 0
-    write(*,*) 'gsv_readFromFile: file name = ',trim(fileName)
+    write(*,*) 'gsv_readFile: file name = ',trim(fileName)
     ierr = fnom(nulfile,trim(fileName),'RND+OLD+R/O',0)
        
     if ( ierr >= 0 ) then
-      write(*,*)'gsv_readFromFile: file opened with unit number ',nulfile
+      write(*,*)'gsv_readFile: file opened with unit number ',nulfile
       ierr  =  fstouv(nulfile,'RND+OLD')
     else
-      call utl_abort('gsv_readFromFile: problem opening input file, aborting!')
+      call utl_abort('gsv_readFile: problem opening input file, aborting!')
     end if
 
     if (nulfile == 0 ) then
-      call utl_abort('gsv_readFromFile: unit number for input file not valid!')
+      call utl_abort('gsv_readFile: unit number for input file not valid!')
+    end if
+
+    ! Read surface GZ if requested
+    if( present(readGZsfc_opt) ) then
+      if( readGZsfc_opt .and. associated( statevector%GZsfc ) ) then
+        write(*,*) 'gsv_readFile: reading the surface GZ'
+        varName = 'GZ'
+        ip1 = statevector%vco%ip1_sfc
+        ikey = fstinf(nulfile, ni_file, nj_file, nk_file,  &
+                      statevector%datestamplist(1), etiket_in, &
+                      -1, -1, -1, typvar_in, varName)
+        allocate(gd2d_file_r4(ni_file,nj_file))
+        gd2d_file_r4(:,:) = 0.0d0
+        ierr=fstlir(gd2d_file_r4(:,:),nulfile,ni_file, nj_file, nk_file,  &
+                    statevector%datestamplist(1),etiket_in,ip1,-1,-1,  &
+                    typvar_in,varName)
+        if(ierr.lt.0)then
+          write(*,*) varName,ip1,statevector%datestamplist(1)
+          call utl_abort('gsv_readFile: Problem with reading surface GZ from file')
+        end if
+        statevector%GZsfc(:,:) = real(gd2d_file_r4(1:statevector%hco%ni,1:statevector%hco%nj),8)*10.0d0*RG
+        deallocate(gd2d_file_r4)
+        nullify(gd2d_file_r4)
+      end if
     end if
 
     if (statevector%hco%global) then
       ! In global mode, allow for possibility that input is Z grid equivalent to output Gaussian grid
-      varName = gsv_getVarNameFromK(statevector,statevector%mykBeg)
-      ikey = fstinf(nulfile, ni_file, nj_file, nk_file,  &
-                    statevector%datestamplist(1), etiket_in, &
-                    -1, -1, -1, typvar_in, varName)
+      if( statevector%mykCount > 0 ) then
+        varName = gsv_getVarNameFromK(statevector,statevector%mykBeg)
+        ikey = fstinf(nulfile, ni_file, nj_file, nk_file,  &
+                      statevector%datestamplist(1), etiket_in, &
+                      -1, -1, -1, typvar_in, varName)
+        if(ikey <= 0 .and. varName == 'HU') then
+          varName = 'LQ'
+          ikey = fstinf(nulfile, ni_file, nj_file, nk_file,  &
+                        statevector%datestamplist(1), etiket_in, &
+                        -1, -1, -1, typvar_in, varName)
+        end if
+        if(ikey <= 0 ) call utl_abort('gsv_readFile: problem getting grid size')
+        allocate(gd2d_file_r4(ni_file,nj_file))
+        gd2d_file_r4(:,:) = 0.0
+      end if 
     else
       ! In LAM mode, force the input file dimensions to be always identical to the input statevector dimensions
       ni_file=statevector%ni
       nj_file=statevector%nj
+      allocate(gd2d_file_r4(ni_file,nj_file))
+      gd2d_file_r4(:,:) = 0.0
     end if
-    allocate(gd2d_file(ni_file,nj_file))
-    gd2d_file(:,:) = 0.0d0
 
-    ! Read all fields needed for this MPI task
+    ! Read all other fields needed for this MPI task
     field_r4_ptr => gsv_getField_r4(statevector)
     if(statevector%mpi_distribution == 'VarsLevs') then
       fieldUV_r4_ptr => gsv_getFieldUV_r4(statevector)
@@ -1984,7 +2087,7 @@ module gridStateVector_mod
         elseif(varLevel == 'SF') then
           ip1 = -1
         else
-          call utl_abort('gsv_readFromFile: unknown varLevel')
+          call utl_abort('gsv_readFile: unknown varLevel')
         end if
 
         if ( trim(varName) == 'TG' .and. .not. statevector%hco%global ) then
@@ -1999,42 +2102,42 @@ module gridStateVector_mod
                   ig4_tg, swa_tg, lng_tg, dltf_tg, ubc_tg, extra1_tg, extra2_tg, extra3_tg ) ! OUT
           EZscintID_tg  = ezqkdef( ni_tg, nj_tg, grtyp_tg, ig1_tg, ig2_tg, ig3_tg, ig4_tg, nulfile ) ! IN
 
-          allocate(gd2d_tg(ni_tg,nj_tg))
-          gd2d_tg(:,:) = 0.0d0
-          ierr=fstlir(gd2d_tg(:,:),nulfile,ni_tg, nj_tg, nk_tg,  &
+          allocate(gd2d_tg_r4(ni_tg,nj_tg))
+          gd2d_tg_r4(:,:) = 0.0
+          ierr=fstlir(gd2d_tg_r4(:,:),nulfile,ni_tg, nj_tg, nk_tg,  &
                      statevector%datestamplist(stepIndex),etiket_in,ip1,-1,-1,  &
                      typvar_in,varName)
 
           ierr = ezdefset(statevector%hco%EZscintID,EZscintID_tg)
           ierr = ezsetopt('INTERP_DEGREE', 'NEAREST')
           ierr = ezsetopt('EXTRAP_DEGREE', 'NEUTRAL')
-          ierr = ezsint( gd2d_file, gd2d_tg)
+          ierr = ezsint( gd2d_file_r4, gd2d_tg_r4)
           ierr = ezsetopt('EXTRAP_DEGREE', 'MAXIMUM') ! Reset to default
 
-          deallocate(gd2d_tg)
+          deallocate(gd2d_tg_r4)
         else
-          ierr=fstlir(gd2d_file(:,:),nulfile,ni_file, nj_file, nk_file,  &
+          ierr=fstlir(gd2d_file_r4(:,:),nulfile,ni_file, nj_file, nk_file,  &
                      statevector%datestamplist(stepIndex),etiket_in,ip1,-1,-1,  &
                      typvar_in,varName)
         end if
-        field_r4_ptr(:,:,kIndex,stepIndex) = gd2d_file(1:statevector%hco%ni,1:statevector%hco%nj)
+        field_r4_ptr(:,:,kIndex,stepIndex) = gd2d_file_r4(1:statevector%hco%ni,1:statevector%hco%nj)
 
         HUcontainsLQinFile = .false.
         if(ierr.lt.0)then
           if(varName == 'HU') then
             ! HU variable not found in file, try reading LQ
-            ierr=fstlir(gd2d_file(:,:),nulfile, ni_file, nj_file, nk_file,  &
+            ierr=fstlir(gd2d_file_r4(:,:),nulfile, ni_file, nj_file, nk_file,  &
                         statevector%datestamplist(stepIndex),etiket_in,ip1,-1,-1,  &
                         typvar_in,'LQ')
-            field_r4_ptr(:,:,kIndex,stepIndex) = gd2d_file(1:statevector%hco%ni,1:statevector%hco%nj)
+            field_r4_ptr(:,:,kIndex,stepIndex) = gd2d_file_r4(1:statevector%hco%ni,1:statevector%hco%nj)
             HUcontainsLQinFile = .true.
             if(ierr.lt.0)then
               write(*,*) 'LQ',ip1,statevector%datestamplist(stepIndex)
-              call utl_abort('gsv_readFromFile: Problem with background file')
+              call utl_abort('gsv_readFile: Problem with reading file')
             end if
           else
             write(*,*) varName,ip1,statevector%datestamplist(stepIndex)
-            call utl_abort('gsv_readFromFile: Problem with background file')
+            call utl_abort('gsv_readFile: Problem with reading file')
           end if
         end if
 
@@ -2042,15 +2145,15 @@ module gridStateVector_mod
         ! here we re-read the corresponding UV component and store it
         if(statevector%mpi_distribution == 'VarsLevs') then
           if(varName == 'UU') then
-            ierr=fstlir(gd2d_file(:,:),nulfile, ni_file, nj_file, nk_file,  &
+            ierr=fstlir(gd2d_file_r4(:,:),nulfile, ni_file, nj_file, nk_file,  &
                         statevector%datestamplist(stepIndex),etiket_in,ip1,-1,-1,  &
                         typvar_in,'VV')
-            fieldUV_r4_ptr(:,:,kIndex,stepIndex) = gd2d_file(1:statevector%hco%ni,1:statevector%hco%nj)
+            fieldUV_r4_ptr(:,:,kIndex,stepIndex) = gd2d_file_r4(1:statevector%hco%ni,1:statevector%hco%nj)
           elseif(varName == 'VV') then
-            ierr=fstlir(gd2d_file(:,:),nulfile, ni_file, nj_file, nk_file,  &
+            ierr=fstlir(gd2d_file_r4(:,:),nulfile, ni_file, nj_file, nk_file,  &
                         statevector%datestamplist(stepIndex),etiket_in,ip1,-1,-1,  &
                         typvar_in,'UU')
-            fieldUV_r4_ptr(:,:,kIndex,stepIndex) = gd2d_file(1:statevector%hco%ni,1:statevector%hco%nj)
+            fieldUV_r4_ptr(:,:,kIndex,stepIndex) = gd2d_file_r4(1:statevector%hco%ni,1:statevector%hco%nj)
           end if
         end if
 
@@ -2059,7 +2162,7 @@ module gridStateVector_mod
 
     ierr = fstfrm(nulfile)
     ierr = fclos(nulfile)        
-    deallocate(gd2d_file)
+    if( associated(gd2d_file_r4) ) deallocate(gd2d_file_r4)
 
   end subroutine gsv_readFile
 
@@ -2237,19 +2340,22 @@ module gridStateVector_mod
 
     if ( statevector_in%gzSfcPresent .and. statevector_out%gzSfcPresent ) then
       allocate(gd_send_GZ(statevector_out%lonPerPE,statevector_out%latPerPE,mpi_nprocs))
+      gd_send_GZ(:,:,:) = 0.0d0
       field_GZ_in_ptr => gsv_getGZsfc(statevector_in)
       field_GZ_out_ptr => gsv_getGZsfc(statevector_out)
 
+      if( mpi_myid == 0 ) then
 !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
-      do youridy = 0, (mpi_npey-1)
-        do youridx = 0, (mpi_npex-1)
-          yourid = youridx + youridy*mpi_npex
-          gd_send_GZ(:,:,yourid+1) =  &
-            field_GZ_in_ptr(statevector_out%allLonBeg(youridx+1):statevector_out%allLonEnd(youridx+1),  &
-                            statevector_out%allLatBeg(youridy+1):statevector_out%allLatEnd(youridy+1))
+        do youridy = 0, (mpi_npey-1)
+          do youridx = 0, (mpi_npex-1)
+            yourid = youridx + youridy*mpi_npex
+            gd_send_GZ(:,:,yourid+1) =  &
+              field_GZ_in_ptr(statevector_out%allLonBeg(youridx+1):statevector_out%allLonEnd(youridx+1),  &
+                              statevector_out%allLatBeg(youridy+1):statevector_out%allLatEnd(youridy+1))
+          end do
         end do
-      end do
 !$OMP END PARALLEL DO
+      end if
 
       nsize = statevector_out%lonPerPE * statevector_out%latPerPE
       allocate(displs(mpi_nprocs))
@@ -2436,6 +2542,9 @@ module gridStateVector_mod
       call utl_abort('gsv_hInterpolate: Incorrect value for dataKind. Only compatible with dataKind=4')
     end if
 
+    ! set the interpolation degree from value specified in namelist
+    ierr = ezsetopt('INTERP_DEGREE', trim(hInterpolationDegree))
+
     if( .not.statevector_in%mpi_local .and. .not.statevector_out%mpi_local ) then
 
       write(*,*) 'gsv_hInterpolate: before interpolation (no mpi)'
@@ -2450,7 +2559,6 @@ module gridStateVector_mod
           nlev = statevector_out%varNumLev(varIndex)
 
           ! horizontal interpolation
-          ierr = ezsetopt('INTERP_DEGREE', 'LINEAR')
           ierr = ezdefset(statevector_out%hco%EZscintID, statevector_in%hco%EZscintID)
 
           if( trim(varName) == 'UU' ) then
@@ -2494,7 +2602,6 @@ module gridStateVector_mod
           if( .not. gsv_varExist(statevector_in,varName) ) cycle K_LOOP
 
           ! horizontal interpolation
-          ierr = ezsetopt('INTERP_DEGREE', 'LINEAR')
           ierr = ezdefset(statevector_out%hco%EZscintID, statevector_in%hco%EZscintID)
 
           if( trim(varName) == 'UU' ) then
@@ -2535,6 +2642,14 @@ module gridStateVector_mod
 
     end if
 
+    if ( associated(statevector_in%gzSfc) .and. associated(statevector_out%gzSfc) ) then
+      write(*,*) 'gsv_hInterpolate: interpolating surface GZ'
+      ierr = ezdefset(statevector_out%hco%EZscintID, statevector_in%hco%EZscintID)
+      ierr = utl_ezsint( statevector_out%GZsfc(:,:), statevector_in%GZsfc(:,:), &
+                         statevector_out%ni, statevector_out%nj, 1,  &
+                         statevector_in%ni, statevector_in%nj, 1 )
+    end if
+
   end subroutine gsv_hInterpolate
 
   !--------------------------------------------------------------------------
@@ -2571,6 +2686,9 @@ module gridStateVector_mod
       call utl_abort('gsv_hInterpolate_r4: Incorrect value for dataKind. Only compatible with dataKind=4')
     end if
 
+    ! set the interpolation degree from value specified in namelist
+    ierr = ezsetopt('INTERP_DEGREE', trim(hInterpolationDegree))
+
     if( .not.statevector_in%mpi_local .and. .not.statevector_out%mpi_local ) then
 
       write(*,*) 'gsv_hInterpolate_r4: before interpolation (no mpi)'
@@ -2585,7 +2703,6 @@ module gridStateVector_mod
           nlev = statevector_out%varNumLev(varIndex)
 
           ! horizontal interpolation
-          ierr = ezsetopt('INTERP_DEGREE', 'LINEAR')
           ierr = ezdefset(statevector_out%hco%EZscintID, statevector_in%hco%EZscintID)
 
           if( trim(varName) == 'UU' ) then
@@ -2625,7 +2742,6 @@ module gridStateVector_mod
           if( .not. gsv_varExist(statevector_in,varName) ) cycle K_LOOP
 
           ! horizontal interpolation
-          ierr = ezsetopt('INTERP_DEGREE', 'LINEAR')
           ierr = ezdefset(statevector_out%hco%EZscintID, statevector_in%hco%EZscintID)
 
           if( trim(varName) == 'UU' ) then
@@ -2658,24 +2774,34 @@ module gridStateVector_mod
 
     end if
 
+    if ( associated(statevector_in%gzSfc) .and. associated(statevector_out%gzSfc) ) then
+      write(*,*) 'gsv_hInterpolate_r4: interpolating surface GZ'
+      ierr = ezdefset(statevector_out%hco%EZscintID, statevector_in%hco%EZscintID)
+      ierr = utl_ezsint( statevector_out%GZsfc(:,:), statevector_in%GZsfc(:,:), &
+                         statevector_out%ni, statevector_out%nj, 1,  &
+                         statevector_in%ni, statevector_in%nj, 1 )
+    end if
+
   end subroutine gsv_hInterpolate_r4
 
   !--------------------------------------------------------------------------
   ! gsv_vInterpolate
   !--------------------------------------------------------------------------
-  subroutine gsv_vInterpolate(statevector_in,statevector_out,Ps_in_hPa)
+  subroutine gsv_vInterpolate(statevector_in,statevector_out,Ps_in_hPa,PsfcReference_opt)
     ! s/r gsv_vInterpolate  - Vertical interpolation of pressure defined fields
     implicit none
 
     ! arguments
-    type(struct_gsv) :: statevector_in
-    type(struct_gsv) :: statevector_out
+    type(struct_gsv)  :: statevector_in
+    type(struct_gsv)  :: statevector_out
     logical, optional :: Ps_in_hPa
+    real(8), optional :: PsfcReference_opt(:,:)
 
     ! locals
     character(len=4) :: varName
     type(struct_vco), pointer :: vco_in, vco_out
-    integer :: nlev_out, nlev_in, levIndex_out, levIndex_in, latIndex, lonIndex, status, latIndex2, lonIndex2, varIndex, stepIndex
+    integer :: nlev_out, nlev_in, levIndex_out, levIndex_in, latIndex, lonIndex
+    integer :: status, latIndex2, lonIndex2, varIndex, stepIndex
     real(8) :: zwb, zwt
     real(8), pointer  :: pres_out(:,:,:), pres_in(:,:,:), field_out(:,:,:,:), field_in(:,:,:,:)
     real(8) :: psfc_in(statevector_in%myLonBeg:statevector_in%myLonEnd, &
@@ -2695,13 +2821,21 @@ module gridStateVector_mod
       call utl_abort('gsv_vInterpolate: Incorrect value for dataKind. Only compatible with dataKind=8')
     end if
 
+    if ( associated(statevector_in%gzSfc) .and. associated(statevector_out%gzSfc) ) then
+      statevector_out%gzSfc(:,:) = statevector_in%gzSfc(:,:)
+    end if
+
     vco_in => gsv_getVco(statevector_in)
     vco_out => gsv_getVco(statevector_out)
 
     do stepIndex = 1, statevector_out%numStep
 
-      field_in => gsv_getField_r8(statevector_in,'P0')
-      psfc_in(:,:) = field_in(:,:,1,stepIndex)
+      if( present(PsfcReference_opt) ) then
+        psfc_in(:,:) = PsfcReference_opt(:,:)
+      else
+        field_in => gsv_getField_r8(statevector_in,'P0')
+        psfc_in(:,:) = field_in(:,:,1,stepIndex)
+      end if
       if( present(Ps_in_hPa) ) then
         if( Ps_in_hPa ) psfc_in = psfc_in * MPC_PA_PER_MBAR_R8
       end if
@@ -2787,19 +2921,21 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   ! gsv_vInterpolate_r4
   !--------------------------------------------------------------------------
-  subroutine gsv_vInterpolate_r4(statevector_in,statevector_out,Ps_in_hPa)
+  subroutine gsv_vInterpolate_r4(statevector_in,statevector_out,Ps_in_hPa,PsfcReference_opt)
     ! s/r gsv_vInterpolate_r4  - Vertical interpolation of pressure defined fields
     implicit none
 
     ! arguments
-    type(struct_gsv) :: statevector_in
-    type(struct_gsv) :: statevector_out
+    type(struct_gsv)  :: statevector_in
+    type(struct_gsv)  :: statevector_out
     logical, optional :: Ps_in_hPa
+    real(4), optional :: PsfcReference_opt(:,:)
 
     ! locals
     character(len=4) :: varName
     type(struct_vco), pointer :: vco_in, vco_out
-    integer :: nlev_out, nlev_in, levIndex_out, levIndex_in, latIndex, lonIndex, status, latIndex2, lonIndex2, varIndex, stepIndex
+    integer :: nlev_out, nlev_in, levIndex_out, levIndex_in, latIndex, lonIndex
+    integer :: status, latIndex2, lonIndex2, varIndex, stepIndex
     real(4) :: zwb, zwt
     real(4), pointer  :: pres_out(:,:,:), pres_in(:,:,:), field_out(:,:,:,:), field_in(:,:,:,:)
     real(4) :: psfc_in(statevector_in%myLonBeg:statevector_in%myLonEnd, &
@@ -2819,13 +2955,21 @@ module gridStateVector_mod
       call utl_abort('gsv_vInterpolate_r4: Incorrect value for dataKind. Only compatible with dataKind=4')
     end if
 
+    if ( associated(statevector_in%gzSfc) .and. associated(statevector_out%gzSfc) ) then
+      statevector_out%gzSfc(:,:) = statevector_in%gzSfc(:,:)
+    end if
+
     vco_in => gsv_getVco(statevector_in)
     vco_out => gsv_getVco(statevector_out)
 
     do stepIndex = 1, statevector_out%numStep
 
-      field_in => gsv_getField_r4(statevector_in,'P0')
-      psfc_in(:,:) = field_in(:,:,1,stepIndex)
+      if( present(PsfcReference_opt) ) then
+        psfc_in(:,:) = PsfcReference_opt(:,:)
+      else
+        field_in => gsv_getField_r4(statevector_in,'P0')
+        psfc_in(:,:) = field_in(:,:,1,stepIndex)
+      end if
       if( present(Ps_in_hPa) ) then
         if( Ps_in_hPa ) psfc_in = psfc_in * MPC_PA_PER_MBAR_R4
       end if
@@ -3161,7 +3305,7 @@ module gridStateVector_mod
   ! gsv_writeToFile
   !--------------------------------------------------------------------------
   subroutine gsv_writeToFile(statevector, fileName, etiket_in, scaleFactor, ip3_in, &
-       indexStep_in, typvar_in, HUcontainsLQ, unitconversion)
+       indexStep_in, typvar_in, HUcontainsLQ, unitconversion, writeGZsfc_opt, numBits_opt)
     implicit none
 
     ! arguments
@@ -3173,6 +3317,8 @@ module gridStateVector_mod
     character(len=*), optional, intent(in) :: typvar_in
     logical, optional,intent(in) :: HUcontainsLQ
     logical, optional,intent(in) :: unitconversion
+    logical, optional,intent(in) :: writeGZsfc_opt
+    integer, optional,intent(in) :: numBits_opt
 
     ! locals
     integer :: fclos, fnom, fstouv, fstfrm
@@ -3221,8 +3367,13 @@ module gridStateVector_mod
       stepIndex = statevector%anltime
     end if
 
+    if( present(numBits_opt) ) then
+      npak = -numBits_opt
+    else
+      npak = -32
+    end if
+
     ! initialization of parameters for writing to file
-    npak   = -32
     dateo  = statevector%dateStampList(stepIndex)
     deet   = 0
     npas   = 0
@@ -3282,6 +3433,56 @@ module gridStateVector_mod
     else
       allocate(gd_recv_r4(1,1,1))
       allocate(work2d_r4(1,1))
+    end if
+
+    ! Write surface GZ, if requested
+    if( present(writeGZsfc_opt) ) then
+      if( writeGZsfc_opt .and. associated(statevector%GZsfc) ) then
+        write(*,*) 'gsv_writeToFile: writing surface GZ'
+
+        ! MPI communication
+        gd_send_r4(:,:) =  &
+            real(statevector%GZsfc(statevector%myLonBeg:statevector%myLonEnd, &
+                                   statevector%myLatBeg:statevector%myLatEnd),4)
+        if( (mpi_nprocs > 1) .and. (statevector%mpi_local) ) then
+          nsize = statevector%lonPerPE*statevector%latPerPE
+          call rpn_comm_gather(gd_send_r4, nsize, "mpi_real4",  &
+                               gd_recv_r4, nsize, "mpi_real4", 0, "GRID", ierr )
+        else
+          ! just copy when either nprocs is 1 or data is global
+          gd_recv_r4(:,:,1) = gd_send_r4(:,:)
+        end if
+        if( mpi_myid == 0 .and. statevector%mpi_local ) then
+!$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
+          do youridy = 0, (mpi_npey-1)
+            do youridx = 0, (mpi_npex-1)
+              yourid = youridx + youridy*mpi_npex
+                work2d_r4(statevector%allLonBeg(youridx+1):statevector%allLonEnd(youridx+1),  &
+                          statevector%allLatBeg(youridy+1):statevector%allLatEnd(youridy+1)) = &
+                  gd_recv_r4(:,:,yourid+1)
+            end do
+          end do
+!$OMP END PARALLEL DO
+        elseif( .not. statevector%mpi_local ) then
+          work2d_r4(:,:) = gd_recv_r4(:,:,1)
+        end if
+
+        ! now do writing
+        if (iDoWriting) then
+          ip1 = statevector%vco%ip1_sfc
+          nomvar = 'GZ'
+
+          !- Scale
+          factor_r4 = real(1.0d0/(10.0d0 * RG),4)
+          work2d_r4(:,:) = factor_r4 * work2d_r4(:,:)
+
+          !- Writing to file
+          ierr = fstecr(work2d_r4, work_r4, npak, nulfile, dateo, deet, npas, ni, nj, &
+                        nk, ip1, ip2, ip3, typvar, nomvar, etiket, grtyp,      &
+                        ig1, ig2, ig3, ig4, datyp, .false.)
+        end if ! iDoWriting
+
+      end if
     end if
 
     do varIndex = 1, vnl_numvarmax 
@@ -3596,7 +3797,7 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   ! gsv_readTrials
   !--------------------------------------------------------------------------
-  subroutine gsv_readTrials(hco_anl,vco_anl,statevector_trial)
+  subroutine gsv_readTrials(hco_anl,vco_anl,statevector_trial,HUcontainsLQ_opt)
   !
   ! Author: Y. Rochon, Feb 2017 (addition recommended by Mark Buehner)
   !         Bulk of content originally in vtr_setupTrials.
@@ -3607,6 +3808,7 @@ module gridStateVector_mod
     type(struct_hco), pointer :: hco_anl
     type(struct_vco), pointer :: vco_anl
     type(struct_gsv)          :: statevector_trial
+    logical, optional         :: HUcontainsLQ_opt
 
     integer              :: fnom, fstouv, fclos, fstfrm, fstinf
     integer              :: ierr, ikey, stepIndex, indexTrial, numTrials, nulTrial
@@ -3614,11 +3816,17 @@ module gridStateVector_mod
     integer, allocatable :: dateStampList(:)
     character(len=2)     :: fileNumber
     character(len=30)    :: fileName
-    logical              :: fileExists
+    logical              :: fileExists, HUcontainsLQ
+
+    if( present(HUcontainsLQ_opt) ) then
+      HUcontainsLQ = HUcontainsLQ_opt
+    else
+      HUcontainsLQ = .true.
+    end if
 
     ! initialize statevector_trial
     call gsv_allocate(statevector_trial, tim_nstepobsinc, hco_anl, vco_anl, &
-                      dateStamp=tim_getDateStamp(), mpi_local=.true.)
+                      dateStamp=tim_getDateStamp(), mpi_local=.true., allocGZsfc=.true.)
 
     ! initialize list of dates for the 4D analysis increment
     allocate(datestamplist(tim_nStepObsInc))
@@ -3627,54 +3835,51 @@ module gridStateVector_mod
     ! check existence of all trial files
     numTrials = 0
     do 
-       write(fileNumber,'(I2.2)') numTrials+1
-       fileName = './trlm_' // trim(fileNumber)
-       inquire(file=trim(fileName),exist=fileExists)
-       if (fileExists) then
-          numTrials = numTrials + 1
-       elseif ( (.not. fileExists) .and. numTrials > 0 ) then
-          exit  
-       elseif ( (.not. fileExists) .and. numTrials == 0 ) then
-          call utl_abort('gsv_readTrials: No trial files found')
-       end if
+      write(fileNumber,'(I2.2)') numTrials+1
+      fileName = './trlm_' // trim(fileNumber)
+      inquire(file=trim(fileName),exist=fileExists)
+      if (fileExists) then
+        numTrials = numTrials + 1
+      elseif ( (.not. fileExists) .and. numTrials > 0 ) then
+        exit  
+      elseif ( (.not. fileExists) .and. numTrials == 0 ) then
+        call utl_abort('gsv_readTrials: No trial files found')
+      end if
     end do
 
     if (numTrials.ne.tim_nstepobs) then
-       write(*,*) 'numTrials, tim_nstepobs = ',numTrials, tim_nstepobs
-       call utl_abort('gsv_readTrials: numTrials /= tim_nstepobs')
+      write(*,*) 'numTrials, tim_nstepobs = ',numTrials, tim_nstepobs
+      call utl_abort('gsv_readTrials: numTrials /= tim_nstepobs')
     end if
 
     ! loop over times for which increment is computed
     do stepIndex = 1, tim_nstepobsinc
-       dateStamp = dateStampList(stepIndex)
-       if(mpi_myid.eq.0) write(*,*) 'gsv_readTrials: reading background for time step: ',stepIndex, dateStamp
+      dateStamp = dateStampList(stepIndex)
+      if(mpi_myid.eq.0) write(*,*) 'gsv_readTrials: reading background for time step: ',stepIndex, dateStamp
 
-       ! identify which trial file corresponds with current datestamp
-       ikey = 0
-       do indexTrial = 1, numTrials
-          write(fileNumber,'(I2.2)') indexTrial
-          fileName = './trlm_' // trim(fileNumber)
-          nulTrial = 0
-          ierr = fnom(nulTrial,trim(fileName),'RND+OLD+R/O',0)
-          ierr = fstouv(nulTrial,'RND+OLD')
-          ikey = fstinf(nulTrial, ni_file, nj_file, nk_file,  &
+      ! identify which trial file corresponds with current datestamp
+      ikey = 0
+      do indexTrial = 1, numTrials
+        write(fileNumber,'(I2.2)') indexTrial
+        fileName = './trlm_' // trim(fileNumber)
+        nulTrial = 0
+        ierr = fnom(nulTrial,trim(fileName),'RND+OLD+R/O',0)
+        ierr = fstouv(nulTrial,'RND+OLD')
+        ikey = fstinf(nulTrial, ni_file, nj_file, nk_file,  &
                dateStamp, ' ', -1, -1, -1, ' ', 'P0')
-          ierr = fstfrm(nulTrial)
-          ierr = fclos(nulTrial)
-          if(ikey.gt.0) exit
-       end do
+        ierr = fstfrm(nulTrial)
+        ierr = fclos(nulTrial)
+        if(ikey.gt.0) exit
+      end do
 
-       if (ikey.le.0) then 
-          write(*,*) 'stepIndex, dateStamp = ', stepIndex, dateStamp
-          call utl_abort('gsv_readTrials: trial file not found for this increment timestep')
-       end if
+      if (ikey.le.0) then 
+        write(*,*) 'stepIndex, dateStamp = ', stepIndex, dateStamp
+        call utl_abort('gsv_readTrials: trial file not found for this increment timestep')
+      end if
 
-       ! read the trial file for this timestep
-       call gsv_readFromFile(statevector_trial, fileName, ' ', 'P', stepIndex)
-
-       ! for testing purposes
-       !fileName = trim(fileName) // '_testout'
-       !call gsv_writeToFileMpi(statevector_trial, fileName, 'TESTOUT', stepIndex_in = stepIndex)
+      ! read the trial file for this timestep
+      call gsv_readFromFile(statevector_trial, fileName, ' ', 'P', stepIndex,  &
+                            HUcontainsLQ=HUcontainsLQ, readGZsfc_opt=.true.)
 
     end do ! stepIndex
 
