@@ -42,11 +42,12 @@ module obsErrors_mod
   ! -----------------
 
   public :: oer_setObsErrors, oer_SETERRGPSGB, oer_SETERRGPSRO, oer_sw
+  public :: oer_setInterchanCorr
 
   ! TOVS OBS ERRORS
   ! ---------------
 
-  real(8) :: toverrst(jpchmax,jpnsatmax)
+  real(8) :: toverrst(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
 
   !
   ! CONVENTIONAL OBS ERRORS
@@ -70,9 +71,38 @@ module obsErrors_mod
 
 contains
 
-  !-----------------------------------------------------------------------------------------
-  !-----------------------------------------------------------------------------------------
-  !-----------------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------------------
+
+   SUBROUTINE oer_setInterchanCorr()
+!
+!  s/r oer_setInterchanCorr : Setup of interchannel observation errors correlations
+!           S.  Heilliette
+!            - 04/2017 extracted from tvslin_setupallo
+      Use rmatrix_mod
+
+      IMPLICIT NONE
+!implicits
+
+      INTEGER ::  ISENS
+
+!-----------------------------------------------------------------------
+
+      if (tvs_nsensors == 0) then
+         write(*,*) 'oer_setInterchanCorr: tvs_nsensors is zero, skipping setup'
+         return
+      end if
+
+! Initialization of the correlation matrices
+      call rmat_init(tvs_nsensors,tvs_nobtov)
+      if (rmat_lnondiagr) then
+         do isens = 1, tvs_nsensors
+            if (tvs_isReallyPresent(isens) ) call rmat_readCMatrix(tvs_listSensors(:,isens), isens, tvs_ichan(1:tvs_nchan(isens),isens)  )
+         end do
+      end if
+
+   END SUBROUTINE oer_setInterchanCorr
 
   subroutine oer_setObsErrors(lobsSpaceData, obserrorMode_in)
     !
@@ -184,12 +214,12 @@ contains
 
     integer,external  :: FNOM, FCLOS
     integer  :: IER, ILUTOV, JI, JJ, JK, JL, JM, I, IPOS1, IPOS2, INUMSAT, ISAT, IPLF
-    integer, dimension(JPNSATMAX)         :: IPLATFORM, ISATID, IINSTRUMENT, NUMCHN, NUMCHNIN
-    integer, dimension(JPCHMAX,JPNSATMAX) :: IUTILST, ICHN, ICHNIN
+    integer, dimension(tvs_maxNumberOfSensors)         :: IPLATFORM, ISATID, IINSTRUMENT, NUMCHN, NUMCHNIN
+    integer, dimension(tvs_maxChannelNumber,tvs_maxNumberOfSensors) :: IUTILST, ICHN, ICHNIN
 
     real :: ZDUM
 
-    real(8), dimension(JPCHMAX,2,JPNSATMAX) :: TOVERRIN
+    real(8), dimension(tvs_maxChannelNumber,2,tvs_maxNumberOfSensors) :: TOVERRIN
 
     character (len=132) :: CLDUM,CPLATF,CINSTR
 
@@ -199,8 +229,8 @@ contains
     !    1. Initialize
     !       ----------
     !
-    DO JL = 1, JPNSATMAX  
-       DO JI = 1, JPCHMAX
+    DO JL = 1, tvs_maxNumberOfSensors  
+       DO JI = 1, tvs_maxChannelNumber
           TOVERRST(JI,JL) = 0.0D0
           TOVERRIN(JI,1,JL) = 0.0D0
           TOVERRIN(JI,2,JL) = 0.0D0
@@ -208,17 +238,17 @@ contains
        END DO
     END DO
 
-    DO JL = 1, JPNSATMAX
+    DO JL = 1, tvs_maxNumberOfSensors
        IPLATFORM(JL) = 0
        NUMCHN(JL) = 0
        NUMCHNIN(JL) = 0
-       DO JI = 1, JPCHMAX
+       DO JI = 1, tvs_maxChannelNumber
           ICHN(JI,JL) = 0
           ICHNIN(JI,JL) = 0
        END DO
     END DO
 
-    if (nobtov==0) return
+    if (tvs_nobtov == 0) return
 
     !
     !     2. Open the file
@@ -262,14 +292,14 @@ contains
           READ (ILUTOV,*)
        END DO
 
-       IPLATFORM(JL) =  tvs_get_platform_id(CPLATF)
+       IPLATFORM(JL) =  tvs_getPlatformId(CPLATF)
 
        IF ( IPLATFORM(JL) .EQ. -1 ) THEN
           WRITE ( *, '(" read_obs_erreurs_tovs: Unknown platform!"/)' )
           CALL utl_abort ('read_obs_erreurs_tovs')
        END IF
 
-       IINSTRUMENT(JL) = tvs_get_inst_id(CINSTR)
+       IINSTRUMENT(JL) = tvs_getInstrumentId(CINSTR)
 
        IF ( IINSTRUMENT(JL) .EQ. -1 ) THEN
           WRITE ( *, '(" read_obs_erreurs_tovs: Unknown instrument!"/)' )
@@ -298,16 +328,16 @@ contains
     !
     WRITE(*,'(5X,"read_obs_erreurs_tovs: Fill error array TOVERRST: "//)')
     DO JM= 1, INUMSAT
-       DO JL = 1, NSENSORS
-          IF ( PLATFORM (JL) .EQ. IPLATFORM(JM) .AND. SATELLITE(JL) .EQ. ISATID(JM) ) THEN
-             IF ( INSTRUMENT (JL) .EQ. IINSTRUMENT(JM) ) THEN
+       DO JL = 1, tvs_nsensors
+          IF ( tvs_platforms (JL) .EQ. IPLATFORM(JM) .AND. tvs_satellites(JL) .EQ. ISATID(JM) ) THEN
+             IF ( tvs_instruments (JL) .EQ. IINSTRUMENT(JM) ) THEN
                 NUMCHN(JL)=NUMCHNIN(JM)
-                DO JI = 1, JPCHMAX
+                DO JI = 1, tvs_maxChannelNumber
                    TOVERRST(JI,JL) = TOVERRIN(JI,JJ,JM)
                    ICHN(JI,JL) = ICHNIN(JI,JM)
                 END DO
                 IF ( (trim(obserrorMode) == 'analysis' .or. trim(obserrorMode) == 'FSO') .and. rmat_lnondiagr) then
-                  call rmat_setFullRMatrix ( TOVERRST(:,JL), JL, chanoffset(JL) )
+                  call rmat_setFullRMatrix ( TOVERRST(:,JL), JL, tvs_channelOffset(JL) )
                 end if
              END IF
           END IF
@@ -318,9 +348,9 @@ contains
     !  Check that oberservation error statistics have been defined for
     !  all the satellites specified in the namelist.
     !
-    DO JL = 1, NSENSORS
-       IPLF = utl_findArrayIndex( IPLATFORM  , INUMSAT, PLATFORM  (JL) )
-       ISAT =  utl_findArrayIndex( ISATID     , INUMSAT, SATELLITE (JL) )
+    DO JL = 1, tvs_nsensors
+       IPLF = utl_findArrayIndex( IPLATFORM  , INUMSAT, tvs_platforms  (JL) )
+       ISAT =  utl_findArrayIndex( ISATID     , INUMSAT, tvs_satellites (JL) )
        IF ( IPLF .EQ. 0 .OR. ISAT .EQ. 0 ) THEN
           WRITE ( *, '(" read_obs_erreurs_tovs: Observation errors not ","defined for sensor # ", I3)' ) JL
           CALL utl_abort ('read_obs_erreurs_tovs')
@@ -359,9 +389,9 @@ contains
     IF(MPI_MYID.eq.0) THEN
        WRITE(*,'(//1X,"Radiance observation errors read from file")')
        WRITE(*,'(  1X,"------------------------------------------")')
-       DO JL = 1, NSENSORS
+       DO JL = 1, tvs_nsensors
           WRITE(*,'(/1X,"SENSOR #",I2,". Platform: ",A,"Instrument: ",A)') &
-               JL, CSATID(JL), CINSTRUMENTID(JL)
+               JL, tvs_satelliteName(JL), tvs_instrumentName(JL)
           WRITE(*,'(1X,"Channel",5X,"  error   ")')
           DO JI = 1, NUMCHN(JL)
              WRITE (*,'(1X,I7,1(5X,F10.5))') ICHN(JI,JL),TOVERRST(ICHN(JI,JL),JL)
@@ -729,10 +759,10 @@ contains
                    CALL tvs_mapSat(IPLATF,IPLATFORM,ISAT)
                    CALL tvs_mapInstrum(INSTR,INSTRUM)
 
-                   DO JN = 1, NSENSORS
-                      IF ( IPLATFORM .EQ.   PLATFORM(JN) .AND. &
-                           ISAT .EQ.  SATELLITE(JN) .AND. &
-                           INSTRUM .EQ. INSTRUMENT(JN)      ) THEN
+                   DO JN = 1, tvs_nsensors
+                      IF ( IPLATFORM ==  tvs_platforms(JN)  .AND. &
+                           ISAT      ==  tvs_satellites(JN) .AND. &
+                           INSTRUM   == tvs_instruments(JN)      ) THEN
                          call obs_bodySet_r(lobsSpaceData,OBS_OER,INDEX_BODY,TOVERRST(ICHN,JN))
                       END IF
                    END DO

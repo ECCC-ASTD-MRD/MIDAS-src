@@ -23,10 +23,9 @@
 module costfunction_mod
   use mpivar_mod
   use obsSpaceData_mod
-  use tovs_nl_mod
   use rmatrix_mod ,only : rmat_sqrtRm1, rmat_lnondiagr
   use rttov_const, only : nplatforms, ninst,inst_name, platform_name
-  use tovs_nl_mod, only : jpchmax,ltovsno,lsensor,tvs_Is_idburp_tovs
+  use tovs_nl_mod
   implicit none
   save
   private
@@ -40,7 +39,6 @@ contains
   ! cfn_RsqrtInverse
   !--------------------------------------------------------------------------
   subroutine cfn_RsqrtInverse(lobsSpaceData,elem_dest_i,elem_src_i)
-    use tovs_nl_mod, only : jpchmax,ltovsno,lsensor,tvs_Is_idburp_tovs
     implicit NONE
 
     type(struct_obs), intent(inout) :: lobsSpaceData
@@ -52,8 +50,8 @@ contains
     !
     INTEGER index_body,iass,index_header
     integer :: idata,idatend,idatyp,count,ichn
-    real (8) :: x(jpchmax),y(jpchmax)
-    integer :: list_chan(jpchmax)
+    real (8) :: x(tvs_maxChannelNumber),y(tvs_maxChannelNumber)
+    integer :: list_chan(tvs_maxChannelNumber)
 
     ! NOTE I tried using openMP on this loop, but it increased the cost from 4sec to 80sec!!!
     do index_header =1, obs_numHeader(lobsSpaceData)
@@ -62,14 +60,14 @@ contains
        IDATEND = obs_headElem_i(lobsSpaceData,OBS_NLV,INDEX_HEADER) + IDATA - 1
        IDATYP  = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
 
-       if ( tvs_Is_idburp_tovs(idatyp) .and. rmat_lnondiagr) then
+       if ( tvs_isIdBurpTovs(idatyp) .and. rmat_lnondiagr) then
 
           count=0
           do index_body=idata,idatend
              iass = obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body)
              if(iass.eq.1 .or. iass.eq.-1) then
                 ICHN = NINT(obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY))
-                ICHN = MAX(0,MIN(ICHN,JPCHMAX+1))
+                ICHN = MAX(0,MIN(ICHN,tvs_maxChannelNumber+1))
                 count=count+1
                 list_chan(count)=ichn
                 x(count)=obs_bodyElem_r(lobsSpaceData,elem_src_i,index_body)
@@ -77,7 +75,7 @@ contains
           enddo
 
           if (count>0) then
-             call rmat_sqrtRm1(lsensor(ltovsno(index_header)), count, x(1:count), y(1:count), list_chan(1:count), ltovsno(index_header) )
+             call rmat_sqrtRm1(tvs_lsensor(tvs_ltovsno(index_header)), count, x(1:count), y(1:count), list_chan(1:count), tvs_ltovsno(index_header) )
 
              count=0
              do index_body=idata,idatend
@@ -150,7 +148,7 @@ contains
 
     real*8 :: dljoraob,dljoairep,dljosatwind,dljoscat,dljosurfc,dljotov
     real*8 :: dljoprof,dljogpsro,dljogpsztd,dljochm,pjo_1
-    real*8 :: dljotov_sensors(nsensors)
+    real*8 :: dljotov_sensors(tvs_nsensors)
     integer :: ierr
 
     call tmg_start(81,'SUMJO')
@@ -199,14 +197,14 @@ contains
        end select
     enddo
 
-    do itvs =1,NOBTOV
-       index_header=lobsno(itvs)
+    do itvs =1,tvs_nobtov
+       index_header=tvs_lobsno(itvs)
        if (index_header > 0 ) then
           IDATA   = obs_headElem_i(lobsSpaceData,OBS_RLN,INDEX_HEADER)
           IDATEND = obs_headElem_i(lobsSpaceData,OBS_NLV,INDEX_HEADER) + IDATA - 1
           do index_body=IDATA,IDATEND
              pjo_1 = obs_bodyElem_r(lobsSpaceData,OBS_JOBS,index_body)
-             isens = lsensor (itvs)
+             isens = tvs_lsensor (itvs)
              dljotov_sensors(isens) =  dljotov_sensors(isens) + pjo_1
           enddo
        endif
@@ -223,7 +221,7 @@ contains
     call mpi_allreduce_sumreal8scalar(dljoprof,"GRID")
     call mpi_allreduce_sumreal8scalar(dljogpsztd,"GRID")
     call mpi_allreduce_sumreal8scalar(dljochm,"GRID")
-    do isens = 1, nsensors
+    do isens = 1, tvs_nsensors
        call mpi_allreduce_sumreal8scalar(dljotov_sensors(isens),"GRID")
     enddo
 
@@ -239,12 +237,12 @@ contains
        write(*,'(a15,f25.17)') 'Jo(GP)   = ',dljogpsztd
        write(*,'(a15,f25.17)') 'Jo(CH)   = ',dljochm
        write(*,*) ' '
-       if(nsensors > 0) then
+       if(tvs_nsensors > 0) then
           write(*,'(1x,a)') 'For TOVS decomposition by sensor:'
           write(*,'(1x,a)') '#  plt sat ins    Jo'
-          do isens=1,NSENSORS
-             write(*,'(i2,1x,a,1x,a,1x,i2,1x,f25.17)') isens,inst_name(INSTRUMENT(isens)), &
-                  platform_name(PLATFORM(isens)),SATELLITE(isens),dljotov_sensors(isens)
+          do isens=1,tvs_nsensors
+             write(*,'(i2,1x,a,1x,a,1x,i2,1x,f25.17)') isens,inst_name(tvs_instruments(isens)), &
+                  platform_name(tvs_platforms(isens)),tvs_satellites(isens),dljotov_sensors(isens)
           enddo
           write(*,*) ' '
        endif

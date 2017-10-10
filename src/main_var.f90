@@ -45,6 +45,7 @@ program main_var
   use obsErrors_mod
   use variableTransforms_mod
   use obsOperators_mod
+  use multi_ir_bgck_mod
   use fso_mod
   implicit none
 
@@ -163,7 +164,7 @@ program main_var
     call tmg_stop(2)
 
     ! Do the background check and output the observation data files
-    call bgcheck_ir(trlColumnOnTrlLev,obsSpaceData)
+    call irbg_bgCheckIR(trlColumnOnTrlLev,obsSpaceData)
 
   ! ---ANALYSIS MODE--- !
   else if ( trim(oavarMode) == 'analysis' ) then

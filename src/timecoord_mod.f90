@@ -191,16 +191,16 @@ contains
 
     formatspec='(1X,A6,":"'
     do jstep=1,nStepObs
-       formatspec=trim(formatspec)//',1X,I6' ! this is for each time bin
+       formatspec=trim(formatspec)//',1X,I7' ! this is for each time bin
     enddo
-    formatspec=trim(formatspec)//',1X,I8' ! this is for the total
+    formatspec=trim(formatspec)//',1X,I9' ! this is for the total
     formatspec=trim(formatspec)//')'
 
     formatspec2='(1X,A6,":"'
     do jstep=1,nStepObs
-       formatspec2=trim(formatspec2)//',1X,I6'
+       formatspec2=trim(formatspec2)//',1X,I7'
     enddo
-    formatspec2=trim(formatspec2)//',1X,A8)'
+    formatspec2=trim(formatspec2)//',1X,A9)'
 
     write(*,*)'-----------------------------------------------------------------'
     write(*,*)'Distribution of number of headers over stepobs ON LOCAL PROCESSOR'

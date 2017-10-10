@@ -129,7 +129,7 @@ contains
     !
     ! Initialize TOVS processing
     !
-    if (obs_famExist(obsSpaceData,'TO')) call tovs_setup
+    if (obs_famExist(obsSpaceData,'TO')) call tvs_setup
     !
     ! Read the NAMELIST NAMCHEM and set up additional constituent
     ! obs related info not found in obsSpaceData.
@@ -169,9 +169,10 @@ contains
     !- Initialization and memory allocation for TOVS processing
     !
     if (obs_famExist(obsSpaceData,'TO')) then
-       call tovs_nl_setupallo(obsSpaceData)
-       if (trim(innovationMode) == 'bgckIR'  ) call BGCK_IR_SETUP(obsSpaceData)
-       if (trim(innovationMode) == 'analysis' .or. trim(innovationMode) == 'FSO') call tovs_lin_setupallo()
+       call tvs_setupAlloc(obsSpaceData)
+       if (trim(innovationMode) == 'bgckIR' ) call irbg_setup(obsSpaceData)
+       ! Initialize non diagonal observation error matrices
+       if ( trim(innovationMode) == 'analysis' .or. trim(innovationMode) == 'FSO') call oer_setInterchanCorr()
     end if
 
   end subroutine inn_setupobs
@@ -1638,10 +1639,10 @@ contains
        totalObsLoad_mpilocal(:)=0
        do headerIndex = 1, numHeaderFile
           codtyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
-          if(tvs_Is_idburp_tovs(codtyp) ) numtovs(mpi_myid+1)=numtovs(mpi_myid+1)+1
-          if(tvs_Is_idburp_inst(codtyp,"IASI") ) numir(mpi_myid+1)=numir(mpi_myid+1)+1
-          if(tvs_Is_idburp_inst(codtyp,"AIRS") ) numir(mpi_myid+1)=numir(mpi_myid+1)+1
-          if(tvs_Is_idburp_inst(codtyp,"CRIS") ) numir(mpi_myid+1)=numir(mpi_myid+1)+1
+          if(tvs_isIdBurpTovs(codtyp) ) numtovs(mpi_myid+1)=numtovs(mpi_myid+1)+1
+          if(tvs_isIdBurpInst(codtyp,"IASI") ) numir(mpi_myid+1)=numir(mpi_myid+1)+1
+          if(tvs_isIdBurpInst(codtyp,"AIRS") ) numir(mpi_myid+1)=numir(mpi_myid+1)+1
+          if(tvs_isIdBurpInst(codtyp,"CRIS") ) numir(mpi_myid+1)=numir(mpi_myid+1)+1
           totalObsLoad_mpilocal(mpi_myid+1) = totalObsLoad_mpilocal(mpi_myid+1) + obsLoad(headerIndex)
        enddo
        call rpn_comm_allreduce(numtovs,numtovs_mpiglobal,mpi_nprocs,  &
@@ -1661,10 +1662,10 @@ contains
        do headerIndex = 1, numHeaderFile
           IP = obs_headElem_i(obsSpaceData,OBS_IPT,headerIndex)
           codtyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
-          if(tvs_Is_idburp_tovs(codtyp) ) numtovs(IP+1)=numtovs(IP+1)+1
-          if(tvs_Is_idburp_inst(codtyp,"IASI") ) numir(IP+1)=numir(IP+1)+1
-          if(tvs_Is_idburp_inst(codtyp,"AIRS") ) numir(IP+1)=numir(IP+1)+1
-          if(tvs_Is_idburp_inst(codtyp,"CRIS") ) numir(IP+1)=numir(IP+1)+1
+          if(tvs_isIdBurpTovs(codtyp) ) numtovs(IP+1)=numtovs(IP+1)+1
+          if(tvs_isIdBurpInst(codtyp,"IASI") ) numir(IP+1)=numir(IP+1)+1
+          if(tvs_isIdBurpInst(codtyp,"AIRS") ) numir(IP+1)=numir(IP+1)+1
+          if(tvs_isIdBurpInst(codtyp,"CRIS") ) numir(IP+1)=numir(IP+1)+1
           totalObsLoad_mpilocal(IP+1) = totalObsLoad_mpilocal(IP+1) + obsLoad(headerIndex)
        enddo
        call rpn_comm_allreduce(numtovs,numtovs_mpiglobal,mpi_nprocs,  &
@@ -1684,10 +1685,10 @@ contains
        do headerIndex = 1, numHeaderFile
           IP = obs_headElem_i(obsSpaceData,OBS_IPC,headerIndex)
           codtyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
-          if(tvs_Is_idburp_tovs(codtyp) ) numtovs(IP+1)=numtovs(IP+1)+1
-          if(tvs_Is_idburp_inst(codtyp,"IASI") ) numir(IP+1)=numir(IP+1)+1
-          if(tvs_Is_idburp_inst(codtyp,"AIRS") ) numir(IP+1)=numir(IP+1)+1
-          if(tvs_Is_idburp_inst(codtyp,"CRIS") ) numir(IP+1)=numir(IP+1)+1
+          if(tvs_isIdBurpTovs(codtyp) ) numtovs(IP+1)=numtovs(IP+1)+1
+          if(tvs_isIdBurpInst(codtyp,"IASI") ) numir(IP+1)=numir(IP+1)+1
+          if(tvs_isIdBurpInst(codtyp,"AIRS") ) numir(IP+1)=numir(IP+1)+1
+          if(tvs_isIdBurpInst(codtyp,"CRIS") ) numir(IP+1)=numir(IP+1)+1
           totalObsLoad_mpilocal(IP+1) = totalObsLoad_mpilocal(IP+1) + obsLoad(headerIndex)
        enddo
        call rpn_comm_allreduce(numtovs,numtovs_mpiglobal,mpi_nprocs,  &
@@ -1704,7 +1705,7 @@ contains
        do headerIndex = 1, numHeaderFile
           IP = obs_headElem_i(obsSpaceData,OBS_IPC,headerIndex)
           codtyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
-          if(tvs_Is_idburp_inst(codtyp,"AMSUA")) numtovs(IP+1)=numtovs(IP+1)+1
+          if(tvs_isIdBurpInst(codtyp,"AMSUA")) numtovs(IP+1)=numtovs(IP+1)+1
        enddo
        call rpn_comm_allreduce(numtovs,numtovs_mpiglobal,mpi_nprocs,  &
             "MPI_INTEGER","MPI_SUM","GRID",ierr)
@@ -1714,7 +1715,7 @@ contains
        do headerIndex = 1, numHeaderFile
           IP = obs_headElem_i(obsSpaceData,OBS_IPC,headerIndex)
           codtyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
-          if(tvs_Is_idburp_inst(codtyp,"AMSUB") .or. tvs_Is_idburp_inst(codtyp,"MHS")) numtovs(IP+1)=numtovs(IP+1)+1
+          if(tvs_isIdBurpInst(codtyp,"AMSUB") .or. tvs_isIdBurpInst(codtyp,"MHS")) numtovs(IP+1)=numtovs(IP+1)+1
        enddo
        call rpn_comm_allreduce(numtovs,numtovs_mpiglobal,mpi_nprocs,  &
             "MPI_INTEGER","MPI_SUM","GRID",ierr)
@@ -1724,7 +1725,7 @@ contains
        do headerIndex = 1, numHeaderFile
           IP = obs_headElem_i(obsSpaceData,OBS_IPC,headerIndex)
           codtyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
-          if(tvs_Is_idburp_inst(codtyp,"METEOSAT") .or. tvs_Is_idburp_inst(codtyp,"GOES")) numtovs(IP+1)=numtovs(IP+1)+1
+          if(tvs_isIdBurpInst(codtyp,"METEOSAT") .or. tvs_isIdBurpInst(codtyp,"GOES")) numtovs(IP+1)=numtovs(IP+1)+1
        enddo
        call rpn_comm_allreduce(numtovs,numtovs_mpiglobal,mpi_nprocs,  &
             "MPI_INTEGER","MPI_SUM","GRID",ierr)
@@ -1734,7 +1735,7 @@ contains
        do headerIndex = 1, numHeaderFile
           IP = obs_headElem_i(obsSpaceData,OBS_IPC,headerIndex)
           codtyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
-          if(tvs_Is_idburp_inst(codtyp,"SSMIS")) numtovs(IP+1)=numtovs(IP+1)+1
+          if(tvs_isIdBurpInst(codtyp,"SSMIS")) numtovs(IP+1)=numtovs(IP+1)+1
        enddo
        call rpn_comm_allreduce(numtovs,numtovs_mpiglobal,mpi_nprocs,  &
             "MPI_INTEGER","MPI_SUM","GRID",ierr)
@@ -1763,20 +1764,15 @@ contains
       ! a separate program to do a more objective evalution of this
 
       codtyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
-
-      if(tvs_Is_idburp_inst(codtyp,"IASI")) then
-         !obsLoad = 200
-         obsLoad = 100
-      elseif(tvs_Is_idburp_inst(codtyp,"AIRS")) then
-         !obsLoad = 200
-         obsLoad = 100
-      elseif(tvs_Is_idburp_inst(codtyp,"CRIS")) then
-         !obsLoad = 150
-         obsLoad = 100
-      elseif(tvs_Is_idburp_tovs(codtyp)) then
+      if(tvs_isIdBurpInst(codtyp,"IASI")) then
+         obsLoad = 200
+      elseif(tvs_isIdBurpInst(codtyp,"AIRS")) then
+         obsLoad = 200
+      elseif(tvs_isIdBurpInst(codtyp,"CRIS")) then
+         obsLoad = 150
+      elseif(tvs_isIdBurpTovs(codtyp)) then
          ! all other types of radiance obs
-         !obsLoad = 5
-         obsLoad = 10
+         obsLoad = 5
       else
          ! all non-radiance obs
          obsLoad = 1

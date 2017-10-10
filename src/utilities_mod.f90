@@ -28,7 +28,7 @@ module utilities_mod
   ! public procedures
   public :: utl_EZUVINT, utl_EZUVINT2, utl_EZGDEF, utl_CXGAIG, utl_FSTLIR, utl_FSTECR
   public :: utl_EZSINT, utl_EZSINT2, utl_findArrayIndex, utl_matSqrt
-  public :: utl_writeStatus, utl_getfldprm, utl_abort
+  public :: utl_writeStatus, utl_getfldprm, utl_abort, utl_checkAllocationStatus
   public :: utl_open_asciifile, utl_stnid_equal, utl_resize, utl_str
   public :: utl_get_stringId, utl_get_Id
   public :: utl_readFstField
@@ -1108,7 +1108,7 @@ contains
     integer, intent(out)   :: elemId
     character(len=*), intent(in)     :: cstringin
     character(len=*),  intent(inout) :: CList(Nmax)
-  
+
     integer :: i
     character(len=120) :: cstring
     
@@ -1211,7 +1211,7 @@ contains
   end subroutine utl_get_Id
   
   !--------------------------------------------------------------------------
-  ! utl_radFstField
+  ! utl_readFstField
   !------------------;-------------------------------------------------------
   subroutine utl_readFstField(fname,varName,iip1,iip2,iip3,etiketi, &
                                ni,nj,nkeys,array,xlat,xlong,lvls,kind)
@@ -1391,5 +1391,38 @@ contains
     ier=fclos(iun)  
 
   end subroutine utl_readFstField
- 
+
+  !--------------------------------------------------------------------------
+  ! utl_checkAllocationStatus(status, message, alloc)
+  !------------------;-------------------------------------------------------
+  subroutine utl_checkAllocationStatus(status, message, alloc)
+    
+    implicit none
+    character(len=*),intent(in) :: message
+    integer, intent(in) :: status(:)
+    logical, optional, intent(in) :: alloc 
+    !**************************************************
+    logical :: flag
+
+    if ( present(alloc) ) then
+       flag = alloc
+    else
+       flag = .true.
+    end if
+
+    if (any(status /= 0)) then
+       if (flag) then
+          Write(6,'(A)') "Memory allocation failure !"
+       else
+          Write(6,'(A)') "Memory deallocation failure !"
+       end if
+       Write(6,'(64(i8,1x))') status
+       call utl_abort(message)
+    end if
+
+ end subroutine utl_checkAllocationStatus
+
+
+
+
 end module utilities_mod

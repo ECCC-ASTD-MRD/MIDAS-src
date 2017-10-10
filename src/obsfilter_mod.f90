@@ -28,7 +28,7 @@ module obsFilter_mod
   use obsSpaceData_mod
   use columnData_mod
   use bufr
-  use tovs_nl_mod ,only :  tvs_Is_idburp_tovs
+  use tovs_nl_mod
   use gps_mod
   use utilities_mod
   use chem_setup_mod, only: chm_setup_get_str
@@ -292,8 +292,8 @@ contains
        !
        ! Filter TOVS data: check for invalid land/sea/sea-ice flag
        !
-       if (ivnm.eq.BUFR_NBT1.or.ivnm.eq.BUFR_NBT2.or.ivnm.eq.BUFR_NBT3) then
-         if (tvs_Is_idburp_tovs(idburp)) then
+       if (ivnm == BUFR_NBT1 .or. ivnm == BUFR_NBT2 .or. ivnm == BUFR_NBT3) then
+         if ( tvs_isIdBurpTovs(idburp) ) then
             ilansea  = obs_headElem_i(obsSpaceData,OBS_OFL,headerIndex)
             if (ilansea .lt. 0 .or. ilansea .gt. 2  ) then
                llok = .false.
