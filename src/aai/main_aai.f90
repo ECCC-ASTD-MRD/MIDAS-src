@@ -38,15 +38,12 @@ program main_aai
   type(struct_vco), pointer :: vco_trl => null()
   type(struct_hco), pointer :: hco_trl => null()
 
-  integer              :: fclos, fnom, fstopc, newdate, ierr
+  integer              :: fclos, fnom, fstopc, ierr
   integer              :: stepIndex, numStep, middleStep
-  integer              :: idate, itime, nulnam
-  integer              :: dateStamp, date
+  integer              :: nulnam, dateStamp
   integer, allocatable :: dateStampList(:)
   integer              :: get_max_rss
 
-  character(len=2)    :: hourstr
-  character(len=8)    :: datestr
   character(len=256)  :: trialFileName, incFileName, anlFileName
   character(len=4)    :: coffset
 
@@ -109,16 +106,6 @@ program main_aai
   numStep = tim_nstepobsinc
   allocate(dateStampList(numStep))
   call tim_getstamplist(dateStampList,numStep,tim_getDatestamp())
-
-  ! Analysis time date
-  dateStamp = tim_getDateStamp()
-  ierr    = newdate(dateStamp, idate, itime, -3)
-  itime   = itime/1000000
-  date    = idate*100+itime
-  write(datestr,'(i8.8)') idate
-  write(hourstr,'(i2.2)') itime
-  if ( mpi_myid == 0 ) write(*,*)' datestr= ', datestr, ' hourstr= ', hourstr
-  if ( mpi_myid == 0 ) write(*,*)' dateStamp= ', dateStamp
 
   !- Initialize variables of the model states
   call gsv_setup

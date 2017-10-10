@@ -5,7 +5,7 @@
 # User-defined options
 #
 machine=hare
-abs="${HOME}/data_maestro/ords/oavar_abs/aai_sles-11-broadwell-64-xc40-m_2.2.3-7-g2dc10a8_M.Abs"
+abs="${HOME}/data_maestro/ords/oavar_abs/aai_sles-11-broadwell-64-xc40-m_2.2.3-9-g391f355_M.Abs"
 #machine=eccc-ppp2
 #abs="${HOME}/data_maestro/ords/oavar_abs/aai_ubuntu-14.04-amd64-64-m_2.2.3-7-g2dc10a8_M.Abs"
 inputdir="/home/mab001/data_maestro/${machine}/aai/inputs/"
@@ -19,28 +19,16 @@ run_in_parallel="/fs/ssm/eccc/mrd/rpn/utils/16.2/all/bin/r.run_in_parallel_1.1.2
 # Don't modify below ...
 #
 
-#date=$1
-date=2015111200
-if [ "${date}" = "" ]; then
-  echo ""
-  echo " *************************************************"
-  echo " ERROR: NO DATE WAS SPECIFIED ON THE COMMAND LINE!"
-  echo " PLEASE GIVE THE VALID DATE FOR THE TRIALS/INCREMENTS."
-  echo " *************************************************"
-  echo ""
-  exit
-fi
-gest="${HOME}/data_maestro/${machine}/aai/test_${date}/"
+gest="${HOME}/data_maestro/${machine}/aai/workdir/"
 
 # build the namelist
 cat << EOF > $TMPDIR/flnml
  &NAMCT0
 /
  &NAMAAI
-
 /
  &NAMTIME
-  DATE = 2015111200
+  dateFromTrials = .TRUE.
   DSTEPOBS = 3.0d0
   DSTEPOBSINC = 3.0d0
 /
@@ -104,4 +92,4 @@ cat << EOF > $TMPDIR/ptopo_nml
 EOF
 scp $TMPDIR/ptopo_nml ${machine}:${gest}
 
-ord_soumet $TMPDIR/go_aai.sh -mach $machine -mpi -t $maxcputime -cm 1000M -cpus ${npex}x${npey}x${openmp} -jn aai_${date} -waste
+ord_soumet $TMPDIR/go_aai.sh -mach $machine -mpi -t $maxcputime -cm 1000M -cpus ${npex}x${npey}x${openmp} -jn aai -waste
