@@ -1043,7 +1043,7 @@ CONTAINS
 
             if ( HIRES .AND. NDATA_SF .gt.0 ) OBS_START =OBS_START +1
             OBSN=OBS_START
-            if( HIRES .AND. NDATA_SF .gt.0 ) STATUS_HIRES=obs_headElem_i(obsdat,OBS_ST1,OBS_START )
+            STATUS_HIRES=obs_headElem_i(obsdat,OBS_ST1,OBS_START )
 
             regrup_LOOP: do k=1,nte
               KOBSN=0

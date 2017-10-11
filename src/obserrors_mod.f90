@@ -1156,7 +1156,7 @@ contains
         SP_WGH = exp( -0.5*((ZPC - ZLEV)**2)/(E_HEIGHT**2) )*((ZPB - ZPT)/2)
         TO_DSP = TO_DSP + SP_WGH*((ZOTR - ZMOD)**2)
         TO_WGH = TO_WGH + SP_WGH 
-        if(ZLEV > 20000. .and. ZLEV < 30000. .and. passe_once) then
+        if( ZLEV > 20000. .and. ZLEV < 30000. .and. passe_once .and. print_debug ) then
           write(*,'(a10,i10,4f12.3)') 'stlchk',jlev,ZPT,ZPC,ZPB,ZOTR
         end if
 
