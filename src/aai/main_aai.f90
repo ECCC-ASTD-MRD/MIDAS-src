@@ -22,14 +22,14 @@
 !--------------------------------------------------------------------------
 program main_aai
   use mpi_mod
-  use mpivar_mod
+  use utilities_mod
+  use ramDisk_mod
   use mathPhysConstants_mod
-  use gridStateVector_mod
   use verticalCoord_mod
   use horizontalCoord_mod
   use timeCoord_mod
-  use utilities_mod
-  use ramDisk_mod
+  use gridStateVector_mod
+  use humidityLimits_mod
   implicit none
 
   type(struct_gsv) :: statevector_trial, statevector_increment,  &
@@ -55,9 +55,10 @@ program main_aai
   ! namelist variables
   integer  :: writeNumBits
   logical  :: writeHiresIncrement
+  logical  :: imposeRttovHuLimits
   character(len=12) :: etiket_rehm
   character(len=12) :: etiket_anlm
-  NAMELIST /NAMAAI/writeHiresIncrement, etiket_rehm, etiket_anlm, writeNumBits
+  NAMELIST /NAMAAI/writeHiresIncrement, etiket_rehm, etiket_anlm, writeNumBits, imposeRttovHuLimits
 
   write(*,'(/,' //  &
         '3(" *****************"),/,' //                   &
@@ -87,6 +88,7 @@ program main_aai
   
   !- Setting default values
   writeHiresIncrement = .true.
+  imposeRttovHuLimits = .true.
   etiket_rehm = 'INCREMENT'
   etiket_anlm = 'ANALYSIS'
   writeNumBits = 16
@@ -189,6 +191,22 @@ program main_aai
   end do
 
   !
+  ! Calculate analysis state
+  !
+  call gsv_allocate(statevector_analysis, numStep, hco_trl, vco_trl, &
+                    dateStamp=tim_getDateStamp(), mpi_local=.true., allocGZsfc=.true.)
+  call gsv_copy(statevector_trial, statevector_analysis)
+  call gsv_add(statevector_increment, statevector_analysis)
+
+  !
+  ! Impose limits on humidity analysis and recompute increment
+  !
+  write(*,*) 'calling qlim_gsvSaturationLimit'
+  call qlim_gsvSaturationLimit(statevector_analysis, HUcontainsLQ_opt=.false.)
+  if( imposeRttovHuLimits ) call qlim_gsvRttovLimit(statevector_analysis, HUcontainsLQ_opt=.false.)
+  call gsv_copy(statevector_analysis, statevector_increment)
+  call gsv_add(statevector_trial, statevector_increment, -1.0d0)
+  !
   ! Write interpolated increment files
   !
   if( writeHiresIncrement ) then
@@ -216,14 +234,6 @@ program main_aai
     end do
   end if
   
-  !
-  ! Calculate analysis state
-  !
-  call gsv_allocate(statevector_analysis, numStep, hco_trl, vco_trl, &
-                    dateStamp=tim_getDateStamp(), mpi_local=.true., allocGZsfc=.true.)
-  call gsv_copy(statevector_trial, statevector_analysis)
-  call gsv_add(statevector_increment, statevector_analysis)
-
   !
   ! Write analysis state to file only at the central time
   !

@@ -675,9 +675,10 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   subroutine gsv_add(statevector_in,statevector_inout,scaleFactor)
     implicit none
-    type(struct_gsv) :: statevector_in,statevector_inout
-    integer          :: stepIndex,lonIndex,kIndex,latIndex,lon1,lon2,lat1,lat2,k1,k2
+    type(struct_gsv)  :: statevector_in,statevector_inout
     real(8), optional :: scaleFactor
+
+    integer           :: stepIndex,lonIndex,kIndex,latIndex,lon1,lon2,lat1,lat2,k1,k2
 
     if(.not.statevector_in%allocated) then
       call utl_abort('gridStateVector_in not yet allocated! Aborting.')
@@ -817,6 +818,10 @@ module gridStateVector_mod
 
     else
       call utl_abort('gsv_copy: Data type must be the same for both statevectors')
+    end if
+
+    if ( associated(statevector_in%gzSfc) .and. associated(statevector_out%gzSfc) ) then
+      statevector_out%gzSfc(:,:) = statevector_in%gzSfc(:,:)
     end if
 
   end subroutine gsv_copy

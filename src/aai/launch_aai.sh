@@ -5,14 +5,14 @@
 # User-defined options
 #
 machine=hare
-abs="${HOME}/data_maestro/ords/oavar_abs/aai_sles-11-broadwell-64-xc40-m_2.2.3-9-g391f355_M.Abs"
-#machine=eccc-ppp2
-#abs="${HOME}/data_maestro/ords/oavar_abs/aai_ubuntu-14.04-amd64-64-m_2.2.3-7-g2dc10a8_M.Abs"
+abs="${HOME}/data_maestro/ords/oavar_abs/aai_sles-11-broadwell-64-xc40-m_2.2.3-57-g9000603_M.Abs"
+machine=eccc-ppp2
+abs="${HOME}/data_maestro/ords/oavar_abs/aai_ubuntu-14.04-amd64-64-m_2.2.3-57-g9000603_M.Abs"
 inputdir="/home/mab001/data_maestro/${machine}/aai/inputs/"
 npex=1
 npey=139
 openmp=1
-maxcputime=60
+maxcputime=120
 run_in_parallel="/fs/ssm/eccc/mrd/rpn/utils/16.2/all/bin/r.run_in_parallel_1.1.28c"
 
 #
