@@ -44,7 +44,7 @@ module varNameList_mod
   public :: vnl_varLevelFromVarname, vnl_varLevelFromVarnum, vnl_varTypeFromVarname
   public :: vnl_varKindFromVarname, vnl_varnumFromVarname
 
-  integer, parameter          :: vnl_numvarmax3D=29, vnl_numvarmax2D=9
+  integer, parameter          :: vnl_numvarmax3D = 29, vnl_numvarmax2D = 10
 
   character(len=4), parameter :: vnl_varNameList3D(vnl_numvarmax3D) = (/                         &
                                  'UU  ','VV  ','GZ  ','TT  ','HU  ','LQ  ','ES  ','VT  ',        &
@@ -69,18 +69,18 @@ module varNameList_mod
                                  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',          &
                                  'CH',  'CH',  'CH',  'CH',  'CH',  'CH',  'CH',  'CH',          &
                                  'CH',  'CH',  'CH',  'CH',  'MT'/)
-  
+
   character(len=4), parameter :: vnl_varNameList2D(vnl_numvarmax2D) = (/ &
-                                 'P0  ','TG  ','UP  ','PB  ','ECO ', 'ENO2 ', 'EHCH', 'ESO2', 'ENH3'/)
+                                 'P0  ','TG  ','UP  ','PB  ','ECO ', 'ENO2', 'EHCH', 'ESO2', 'ENH3' , 'GL  '/)
 
   character(len=2), parameter :: varLevelList2D(vnl_numvarmax2D) = (/    &
-                                 'SF',  'SF',  'SF',  'SF', 'SF',  'SF',  'SF',  'SF',  'SF'/)
+                                 'SF',  'SF',  'SF',  'SF', 'SF',  'SF',  'SF',  'SF',  'SF',  'SF'/)
 
   character(len=5), parameter :: varTypeList2D(vnl_numvarmax2D) = (/     &
-                                 'MODEL', 'MODEL', 'DIAG ', 'DIAG ', 'MODEL', 'MODEL', 'MODEL', 'MODEL', 'MODEL'/)
+                                 'MODEL', 'MODEL', 'DIAG ', 'DIAG ', 'MODEL', 'MODEL', 'MODEL', 'MODEL', 'MODEL', 'MODEL'/)
 
   character(len=2), parameter :: varKindList2D(vnl_numvarmax2D) = (/     &
-                                 'MT', 'MT', 'MT', 'MT', 'CH', 'CH', 'CH', 'CH', 'CH' /)
+                                 'MT', 'MT', 'MT', 'MT', 'CH', 'CH', 'CH', 'CH', 'CH', 'MT'/)
 
   integer, parameter          :: vnl_numvarmax = vnl_numvarmax3D + vnl_numvarmax2D
 
