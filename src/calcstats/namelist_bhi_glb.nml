@@ -1,5 +1,5 @@
  &NAMCONF
-   CMODE   = 'BHI'
+   MODE   = 'BHI'
 /
  &NAMSTATE
    ANLVAR(1)   ='UU'
@@ -9,9 +9,9 @@
    ANLVAR(5)   ='P0'
 /
  &NAMENS
-   NENS=160
-   ENSFILEBASENAME='2015012000_006_'  
+   NENS=176
+   ENSFILEBASENAME='nmc_ensemble_'  
 /
- &NAMCALCB_GLB
+ &NAMCALCSTATS_GLB
    NTRUNC=270
 /

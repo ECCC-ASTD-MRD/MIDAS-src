@@ -128,6 +128,12 @@ program main_calcstats
      else
         call csl_computeStats
      end if
+  case ('BHI2')
+     if (hco_ens % global) then
+        call csg_computeStatsLatBands
+     else
+        call utl_abort('BHI2 mode is not available for LAM')
+     end if
   case ('TOOLBOX')
      if (hco_ens % global) then
         call csg_toolbox
