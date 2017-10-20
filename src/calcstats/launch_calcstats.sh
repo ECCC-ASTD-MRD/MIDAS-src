@@ -4,19 +4,19 @@
 #
 # User-defined options
 #
-flnml="namelist_lam.nml"
+flnml="namelist_hvloc_lam.nml"
 machine=brooks
-abs=/home/jfc425/bin/var/oavar_abs/calcstats_sles-11-broadwell-64-xc40-m_2.2.2-66-gdde9234_M.Abs
-expname="29-debug-lam-G-EnKF-012m"
-ensdir=/home/jfc425/data_maestro/brooks/ensemble
+abs=/home/jfc425/bin/var/oavar_abs/calcstats_sles-11-broadwell-64-xc40-m_2.2.2-83-g181efb1_M.Abs
+expname="31-locRadii-lam-modular_padding22"
+ensdir=/home/jfc425/data_maestro/brooks/ensemble/national_test #global_test/gaussian_grid
 gest="${HOME}/data_maestro/${machine}/calcstats/${expname}"
-analysisgrid="/home/jfc425/data/ords/oavarGridTemplate/analysisgrid_national10km_80L_vcode5002.fst"
+#analysisgrid="/home/jfc425/data/ords/oavarGridTemplate/analysisgrid_national10km_80L_vcode5002.fst"
 
 npex=1
 npey=1
 openmp=36 #44
 memory=100000M #220000M
-maxcputime=1800
+maxcputime=6000
 
 run_in_parallel="/fs/ssm/eccc/mrd/rpn/utils/16.2/all/bin/r.run_in_parallel_1.1.28c"
 
@@ -41,7 +41,7 @@ ssh $machine rm -rf $gest
 ssh $machine mkdir -p $gest
 ssh $machine ln -s ${ensdir} ${gest}/ensemble
 scp $flnml ${machine}:${gest}/flnml
-scp $analysisgrid ${machine}:${gest}/analysisgrid
+#scp $analysisgrid ${machine}:${gest}/analysisgrid
 scp $abs ${machine}:${gest}/calcstats.abs
 ssh $machine ls -l $gest
 

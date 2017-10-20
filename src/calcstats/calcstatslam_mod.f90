@@ -28,6 +28,7 @@ module calcstatslam_mod
   use HorizontalCoord_mod
   use localizationFunction_mod
   use utilities_mod
+  use menetrierDiag_mod
   implicit none
   save
   private
@@ -311,7 +312,7 @@ module calcstatslam_mod
        horizLoc=.true.
     end if
 
-    !- 5.2 Setup vertical pressure profile for vertical localization
+    !- 5.2 Setup vertical localization
     if ( vLocalize_wind < 0.d0 .and. vLocalize_mass < 0.d0 .and. vLocalize_humidity < 0.d0 ) then
        write(*,*) 
        write(*,*) 'csl_setup: NO vertical correlation localization will be performed'
@@ -320,45 +321,47 @@ module calcstatslam_mod
        write(*,*) 
        write(*,*) 'csl_setup: vertical correlation localization WILL BE performed'
        vertLoc=.true.
-
-       SurfacePressure = 101000.D0
-
-       status = vgd_levels( vco_bhi%vgrid, ip1_list=vco_bhi%ip1_M,     & ! IN
-                            levels=pressureProfile_M,                  & ! OUT
-                            sfc_field=SurfacePressure, in_log=.false.)   ! IN
-
-       if ( status /= VGD_OK ) then
-          write(*,*)
-          write(*,*) 'csl_setup: ERROR with vgd_levels for MOMENTUM levels '
-          call utl_abort('csl_setup')
-       else
-          write(*,*)
-          write(*,*) 'Pressure profile...'
-          do k = 1, vco_bhi%nlev_M
-             write(*,*) k, pressureProfile_M(k) / 100.d0, ' hPa'
-          end do
-       endif
-
-       status = vgd_levels( vco_bhi%vgrid, ip1_list=vco_bhi%ip1_T,     & ! IN
-                            levels=pressureProfile_T,                  & ! OUT
-                            sfc_field=SurfacePressure, in_log=.false.)   ! IN
-
-       if ( status /= VGD_OK ) then
-          write(*,*)
-          write(*,*) 'csl_setup: ERROR with vgd_levels for THERMO levels '
-          call utl_abort('csl_setup')
-       else
-          write(*,*)
-          write(*,*) 'Pressure profile...'
-          do k = 1, vco_bhi%nlev_T
-             write(*,*) k, pressureProfile_T(k) / 100.d0, ' hPa'
-          end do
-       endif
-
     end if
 
     !
-    !- 6.  Ending
+    !- 6.  Setup pressure profile for vertical localization
+    !
+    SurfacePressure = 101000.D0
+
+    status = vgd_levels( vco_bhi%vgrid, ip1_list=vco_bhi%ip1_M,     & ! IN
+                         levels=pressureProfile_M,                  & ! OUT
+                         sfc_field=SurfacePressure, in_log=.false.)   ! IN
+
+    if ( status /= VGD_OK ) then
+      write(*,*)
+      write(*,*) 'csl_setup: ERROR with vgd_levels for MOMENTUM levels '
+      call utl_abort('csl_setup')
+    else
+      write(*,*)
+      write(*,*) 'Pressure profile...'
+      do k = 1, vco_bhi%nlev_M
+        write(*,*) k, pressureProfile_M(k) / 100.d0, ' hPa'
+      end do
+    endif
+    
+    status = vgd_levels( vco_bhi%vgrid, ip1_list=vco_bhi%ip1_T,     & ! IN
+                         levels=pressureProfile_T,                  & ! OUT
+                         sfc_field=SurfacePressure, in_log=.false.)   ! IN
+    
+    if ( status /= VGD_OK ) then
+      write(*,*)
+      write(*,*) 'csl_setup: ERROR with vgd_levels for THERMO levels '
+      call utl_abort('csl_setup')
+    else
+      write(*,*)
+      write(*,*) 'Pressure profile...'
+      do k = 1, vco_bhi%nlev_T
+        write(*,*) k, pressureProfile_T(k) / 100.d0, ' hPa'
+      end do
+    endif
+
+    !
+    !- 7.  Ending
     !
     initialized = .true.
 
@@ -592,6 +595,10 @@ module calcstatslam_mod
 
     integer,allocatable :: Bin2d(:,:)
 
+    character(len=4), allocatable :: nomvar3d(:,:),nomvar2d(:,:)
+
+    integer :: varLevOffset(6), nvar3d, nvar2d, var3d, var2d, var
+
     character(len=60) :: tool
 
     NAMELIST /NAMTOOLBOX/tool
@@ -619,6 +626,40 @@ module calcstatslam_mod
     case ('STDDEV')
        write(*,*)
        write(*,*) 'Computing Standard-Deviations'
+    case ('LOCALIZATIONRADII')
+       write(6,*)
+       write(6,*) 'Estimating the optimal covariance localization radii'
+
+       nVar3d = 0
+       nVar2d = 0
+       do var = 1, nControlVariable
+         if ( ControlVariable(var)%nlev == 1 ) then
+           nVar2d = nVar2d + 1
+         else
+           nVar3d = nVar3d + 1
+         end if
+       end do
+       allocate(nomvar3d(nVar3d,3))
+       allocate(nomvar2d(nVar2d,3))
+
+       var3d = 0
+       var2d = 0
+       do var = 1, nControlVariable
+         if ( ControlVariable(var)%nlev == 1 ) then
+           var2d = var2d + 1
+           nomvar2d(var2d,1) = ControlVariable(var)%nomvar(cv_model)
+           nomvar2d(var2d,2) = ControlVariable(var)%nomvar(cv_bhi)
+         else
+           var3d = var3d + 1
+           nomvar3d(var3d,1) = ControlVariable(var)%nomvar(cv_model)
+           nomvar3d(var3d,2) = ControlVariable(var)%nomvar(cv_bhi)
+         end if
+         varLevOffset(var) = ControlVariable(var)%kDimStart - 1
+       end do
+       call bmd_setup( hco_ens, nens, vco_bhi%nlev_M, vco_bhi%nlev_T,    & ! IN
+                       nkgdim, pressureProfile_M, pressureProfile_T,     & ! IN
+                       nvar3d, nvar2d, varLevOffset, nomvar3d, nomvar2d, & ! IN
+                       1)
     case default
        write(*,*)
        write(*,*) 'Unknown TOOL in csl_toolbox : ', trim(tool)
@@ -698,16 +739,15 @@ module calcstatslam_mod
        return
     end if
 
-    !- 5.2 Normalization
-    call Normalize3d(ensPerturbations, & ! INOUT
-                     StdDev3dGridPoint)  ! IN
-
-
     if ( trim(tool) == 'VERTCORREL_GRIDPOINT' ) then
        !
        !- 6.  VERTCORREL_GRIDPOINT
        !
        
+       !- 6.0 Normalization
+       call Normalize3d(ensPerturbations, & ! INOUT
+                        StdDev3dGridPoint)  ! IN
+
        !- 6.1  Remove the (2D) domain mean
        call removeDomainMean(ensPerturbations) ! INOUT
 
@@ -748,13 +788,18 @@ module calcstatslam_mod
        ier =  fstfrm(iunstats)
        ier =  fclos (iunstats)
 
-    else
+     else if (trim(tool) == 'HORIZCORREL_FUNCTION') then
+       
        !
        !- 7.  HORIZCORREL_FUNCTION
        !
        allocate(SpVertCorrel(nkgdim,nkgdim,0:ntrunc))
        allocate(PowerSpectrum(nkgdim,0:ntrunc))
        allocate(NormB(nkgdim,nkgdim,0:ntrunc))
+
+       !- 7.0 Normalization
+       call Normalize3d(ensPerturbations, & ! INOUT
+                        StdDev3dGridPoint)  ! IN
 
        !- 7.1 Vertical correlations and Power Spectra
        call CalcSpectralStats(ensPerturbations,              & ! IN
@@ -768,7 +813,14 @@ module calcstatslam_mod
        deallocate(PowerSpectrum)
        deallocate(NormB)
 
+    else
+      call bmd_localizationRadii(ensPerturbations, StdDev3dGridPoint, cv_bhi, waveBandIndex=1) ! IN
     endif
+
+    !
+    !- Write the estimated pressure profiles
+    !
+    call writePressureProfiles
 
     deallocate(Bin2d)
     deallocate(ensPerturbations)
@@ -3315,5 +3367,34 @@ module calcstatslam_mod
                  ig2, ig3, ig4, datyp, .true.)
 
   end subroutine WriteControlVarInfo
+
+  !--------------------------------------------------------------------------
+  ! WRITEPRESSUREPROFILES
+  !--------------------------------------------------------------------------
+  subroutine writePressureProfiles
+    implicit none
+
+    character(len=128) :: outfilename
+
+    integer :: jk
+
+    outfilename = "./pressureProfile_M.txt"
+    open (unit=99,file=outfilename,action="write",status="new")
+    do jk = 1, vco_bhi%nlev_M
+       write(99,'(I3,2X,F6.1)') jk, pressureProfile_M(jk)/100.d0
+    end do
+    close(unit=99)
+       
+    outfilename = "./pressureProfile_T.txt"
+    open (unit=99,file=outfilename,action="write",status="new")
+    do jk = 1, vco_bhi%nlev_T
+       write(99,'(I3,2X,F6.1)') jk, pressureProfile_T(jk)/100.d0
+    end do
+    close(unit=99)
+
+    write(6,*) 'finished writing pressure profiles...'
+    call flush(6)
+
+  end subroutine writePressureProfiles
 
 end module calcstatslam_mod
