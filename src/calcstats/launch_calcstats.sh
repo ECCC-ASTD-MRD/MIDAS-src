@@ -6,8 +6,8 @@
 #
 flnml="namelist_hvloc_lam.nml"
 machine=brooks
-abs=/home/jfc425/bin/var/oavar_abs/calcstats_sles-11-broadwell-64-xc40-m_2.2.2-82-g81f2003_M.Abs
-expname="31-locRadii-lam-modular"
+abs=/home/jfc425/bin/var/oavar_abs/calcstats_sles-11-broadwell-64-xc40-m_2.2.2-83-g181efb1_M.Abs
+expname="31-locRadii-lam-modular_padding22"
 ensdir=/home/jfc425/data_maestro/brooks/ensemble/national_test #global_test/gaussian_grid
 gest="${HOME}/data_maestro/${machine}/calcstats/${expname}"
 #analysisgrid="/home/jfc425/data/ords/oavarGridTemplate/analysisgrid_national10km_80L_vcode5002.fst"

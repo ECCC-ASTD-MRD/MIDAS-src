@@ -41,7 +41,7 @@ module menetrierDiag_mod
 
   character(len=4), allocatable :: nomvar3d(:,:), nomvar2d(:,:)
 
-  integer :: strideForHLoc, strideForVloc
+  integer :: strideForHLoc, strideForVloc, horizPadding
   logical :: hLoc, vLoc, global
 
   logical :: initialized = .false.
@@ -72,7 +72,7 @@ contains
 
     integer :: nulnam, ierr, fclos, fnom
 
-    NAMELIST /NAMLOCALIZATIONRADII/strideForHLoc,strideForVloc,hLoc,vLoc
+    NAMELIST /NAMLOCALIZATIONRADII/strideForHLoc,strideForVloc,hLoc,vLoc,horizPadding
 
     !
     !- 1.  Input parameters 
@@ -104,6 +104,7 @@ contains
     vLoc          = .true.
     strideForHLoc = 100 ! Horizontal correlations will be computed every "stride" gridpoint in x and y
     strideForVLoc = 50  ! Vertical   correlations will be computed every "stride" gridpoint in x and y
+    horizPadding  = 0   ! Number of grid point to discard along the horiontale edgeds (only for LAM)
 
     nulnam = 0
     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -129,30 +130,8 @@ contains
     integer, intent(in) :: variableType
     integer,optional, intent(in) :: waveBandIndex
 
-    integer :: nulnam, ierr, fclos, fnom, strideForHLoc,strideForVloc
-
-    logical :: hLoc, vLoc
-
-    NAMELIST /NAMLOCALIZATIONRADII/strideForHLoc,strideForVloc,hLoc,vLoc
-
     !
-    !- 1.  Setup
-    !
-
-    ! Parameters from namelist
-    hLoc          = .true.
-    vLoc          = .true.
-    strideForHLoc = 100 ! Horizontal correlations will be computed every "stride" gridpoint in x and y
-    strideForVLoc = 50  ! Vertical   correlations will be computed every "stride" gridpoint in x and y
-
-    nulnam = 0
-    ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-    read(nulnam,nml=NAMLOCALIZATIONRADII)
-    write(*,nml=NAMLOCALIZATIONRADII)
-    ierr = fclos(nulnam)
-
-    !
-    !- 2. Estimate the horionzontal and vertical localization radii
+    !- Estimate the horionzontal and vertical localization radii
     !
     if ( hLoc ) then
       call calcHorizLocalizationRadii(ensPerturbations, ensStdDev, strideForHLoc, & ! IN
@@ -198,11 +177,12 @@ contains
 
     real(8), pointer :: PressureProfile(:)
 
+    logical, allocatable :: gridPointAlreadyUsed(:,:)
+
     real(8) :: dnens, correlation, covariance, fourthMoment, distance, maxDistance, weight
     real(8) :: t1, t2, t3, rmse
 
     integer :: i, j, k, f, ens, bin, numbins, numFunctions
-    integer :: nirefpoint, njrefpoint
     integer :: iref_id, jref_id, iref, jref
     integer :: nLevEns, nLevStart, nLevEnd, jvar
 
@@ -215,13 +195,19 @@ contains
 
     numFunctions = 3
 
-    nirefpoint = ni/stride ! Number of reference grid point in x
-    njrefpoint = nj/stride ! Number of reference grid point in y
-
     if ( global ) then
       numBins = ni/4 ! 1/4 of the Earth
+      if ( horizPadding /= 0 ) then
+        write(*,*)
+        write(*,*) 'WARNING: horizPadding /= 0. Force it to zero since we are in global mode.'
+        horizPadding = 0
+      end if
     else
-      numBins = ni
+      numBins = ni-(2*horizPadding)
+      if ( horizPadding == 0 ) then
+        write(*,*)
+        write(*,*) 'WARNING: horizPadding == 0. The rim and blending zone WILL HAVE an impact on the results.'
+      end if
     end if
 
     allocate(localizationFunctions(numFunctions,numBins,nkgdimEns))
@@ -241,8 +227,8 @@ contains
     write(6,*)
     write(6,*) 'Separation distance bin'
     do bin = 1, numbins
-      distanceBinThresholds(bin) = calcDistance(hco_ens%lat(nj/2),hco_ens%lon(1),hco_ens%lat(nj/2),hco_ens%lon(bin))
-      write(6,*) bin, hco_ens%lat(nj/2),hco_ens%lon(1),hco_ens%lat(nj/2),hco_ens%lon(bin), distanceBinThresholds(bin)/1000.d0
+      distanceBinThresholds(bin) = calcDistance(hco_ens%lat(nj/2),hco_ens%lon(1+horizPadding),hco_ens%lat(nj/2),hco_ens%lon(bin+horizPadding))
+      write(6,*) bin, hco_ens%lat(nj/2),hco_ens%lon(1+horizPadding),hco_ens%lat(nj/2),hco_ens%lon(bin+horizPadding), distanceBinThresholds(bin)/1000.d0
     end do
 
     maxDistance=distanceBinThresholds(numBins)
@@ -270,9 +256,10 @@ contains
     sumWeight(:,:) = 0.d0
 
     allocate(ensPert_local(nens,ni,nj))
+    allocate(gridPointAlreadyUsed(ni,nj))
 
     !$OMP PARALLEL
-    !$OMP DO PRIVATE (k,iref,jref,j,i,ens,correlation,covariance,fourthMoment,distance,bin,weight,ensPert_local)
+    !$OMP DO PRIVATE (k,iref,jref,j,i,ens,correlation,covariance,fourthMoment,distance,bin,weight,ensPert_local,gridPointAlreadyUsed)
     do k = 1, nkgdimEns
       write(6,*) 'Computing distance-bin statistics for ensemble level: ', k
       call flush(6)
@@ -286,17 +273,22 @@ contains
           end do
         end do
       end do
+      
+      gridPointAlreadyUsed(:,:) = .false.
 
-      do jref = nint(stride/2.0), nj, stride     ! Pick every stride point to save cost.
-        do iref = nint(stride/2.0), ni, stride  ! Pick every stride point to save cost.
+      do jref = nint(stride/2.0)+horizPadding, nj-horizPadding, stride    ! Pick every stride point to save cost.
+        do iref = nint(stride/2.0)+horizPadding, ni-horizPadding, stride  ! Pick every stride point to save cost.
 
           if (k == 1) then
             write(6,*) 'grid point info', iref, jref
             call flush(6)
           end if
 
-          do j = 1, nj
-            do i = 1, ni
+          do j = 1+horizPadding, nj-horizPadding
+            do i = 1+horizPadding, ni-horizPadding
+              
+              if ( gridPointAlreadyUsed(i,j) ) cycle ! prevent using the same pair of points more than once
+
               distance=calcDistance(hco_ens%lat(jref),hco_ens%lon(iref),hco_ens%lat(j),hco_ens%lon(i))
               if (distance <= maxDistance .and. gridPointWeight(i,j,k) > 0.d0) then
                 covariance = 0.d0
@@ -331,17 +323,17 @@ contains
           end do
 
           ! From now on, omit the current reference point
-          gridPointWeight(iref,jref,k) = 0.d0
+          gridPointAlreadyUsed(iref,jref) = .true.
 
         end do ! iref
-      end do    ! jref
+      end do   ! jref
 
     end do ! nkgdimEns
     !$OMP END DO
     !$OMP END PARALLEL
 
     deallocate(ensPert_local)
-
+    deallocate(gridPointAlreadyUsed)
 
     !- 2.2  Computation of the localization functions
     t1=dble((nens-1)**2)/dble(nens*(nens-3))
@@ -628,7 +620,6 @@ contains
     real(8) :: t1, t2, t3, rmse
 
     integer :: k, k2, kens, f, ens, bin, numbins, numFunctions
-    integer :: nirefpoint, njrefpoint
     integer :: iref, jref
     integer :: nLevEns, nLevStart, nLevEnd, jvar
 
@@ -640,9 +631,6 @@ contains
     !
 
     numFunctions = 3
-
-    nirefpoint = ni/stride ! Number of reference grid point in x
-    njrefpoint = nj/stride ! Number of reference grid point in y
 
     numBins=max(nLevEns_M,nLevEns_T) !ni/4 !2
 
@@ -698,8 +686,8 @@ contains
 
     allocate(ensPert_local(nens,nkgdimEns))
 
-    do jref = nint(stride/2.0), nj, stride     ! Pick every stride point to save cost.
-      do iref = nint(stride/2.0), ni, stride  ! Pick every stride point to save cost.
+    do jref = nint(stride/2.0)+horizPadding, nj-horizPadding, stride    ! Pick every stride point to save cost.
+      do iref = nint(stride/2.0)+horizPadding, ni-horizPadding, stride  ! Pick every stride point to save cost.
 
         !- Select data needed to speed up the process (ensemble member index must come first in ensPert_Local 
         !  because ensemble member is the last loop index below)
