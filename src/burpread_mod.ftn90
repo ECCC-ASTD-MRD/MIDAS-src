@@ -1416,16 +1416,22 @@ CONTAINS
     SELECT CASE(trim(NML_SECTION))
       CASE( 'namburp_sfc')
         READ(NULNAM,NML=NAMBURP_FILTER_SFC)
+        write(*,nml=NAMBURP_FILTER_SFC)
       CASE( 'namburp_conv')
         READ(NULNAM,NML=NAMBURP_FILTER_CONV)
+        write(*,nml=NAMBURP_FILTER_CONV)
       CASE( 'namburp_tovs')
         READ(NULNAM,NML=NAMBURP_FILTER_TOVS)
+        write(*,nml=NAMBURP_FILTER_TOVS)
       CASE( 'namburp_chm_sfc')
         READ(NULNAM,NML=NAMBURP_FILTER_CHM_SFC)
+        write(*,nml=NAMBURP_FILTER_CHM_SFC)
       CASE( 'namburp_chm')
         READ(NULNAM,NML=NAMBURP_FILTER_CHM)
+        write(*,nml=NAMBURP_FILTER_CHM)
       CASE( 'namburp_update')
         READ(NULNAM,NML=NAMBURP_UPDATE)
+        write(*,nml=NAMBURP_UPDATE)
     END SELECT
 
     ier=FCLOS(NULNAM)
@@ -2026,8 +2032,6 @@ CONTAINS
             LSVAL (:) = 0
             HAVAL (:) = 0
             GAVAL (:) = 0
-
-            write(*,*) 'read_qi_ga_mt_sw = ',READ_QI_GA_MT_SW
 
             if (TRIM(FAMILYTYPE) .eq. 'SW' .and. READ_QI_GA_MT_SW) then
 
