@@ -24,9 +24,11 @@
 MODULE variableTransforms_mod
   use mpivar_mod
   use mathPhysConstants_mod
+  use EarthConstants_mod
   use timeCoord_mod
   use gridStateVector_mod
   use lamSpectralTransform_mod
+  use globalSpectralTransform_mod
   use analysisGrid_mod
   use horizontalCoord_mod
   use verticalCoord_mod
@@ -38,29 +40,29 @@ MODULE variableTransforms_mod
   ! public procedures
   public :: vtr_Setup, vtr_Transform
 
-  logical             :: initialized = .false.
+  logical             :: trialsInitialized = .false.
+  type(struct_hco), pointer :: hco_anl => null()
+  type(struct_vco), pointer :: vco_anl => null()
 
   type(struct_gsv)    :: statevector_trial
-  integer             :: myLonBeg, myLonEnd, myLatBeg, myLatEnd
 
 CONTAINS
 
   !--------------------------------------------------------------------------
   ! vtr_Setup
   !--------------------------------------------------------------------------
-  subroutine vtr_setup(hco_anl,vco_anl)
+  subroutine vtr_setup(hco_in,vco_in)
     implicit none
 
-    type(struct_hco), pointer :: hco_anl
-    type(struct_vco), pointer :: vco_anl
+    type(struct_hco), pointer :: hco_in
+    type(struct_vco), pointer :: vco_in
     
-    if (initialized) return
+    if (trialsInitialized) return
 
     write(*,*) 'vtr_setup: starting'
 
-    initialized  = .true.
-
-    call vtr_setupTrials(hco_anl,vco_anl) ! in
+    hco_anl => hco_in
+    vco_anl => vco_in
 
     write(*,*) 'vtr_setup: done'
 
@@ -69,15 +71,14 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! vtr_setupTrials
   !--------------------------------------------------------------------------
-  subroutine vtr_setupTrials(hco_anl,vco_anl)
+  subroutine vtr_setupTrials()
     implicit none
 
-    type(struct_hco), pointer :: hco_anl
-    type(struct_vco), pointer :: vco_anl    
- 
     call tmg_start(92,'VTR_READTRIALS')
     call gsv_readTrials(hco_anl,vco_anl,statevector_trial)
     call tmg_stop(92)
+
+    trialsInitialized = .true.
     
   end subroutine vtr_setupTrials
 
@@ -93,17 +94,6 @@ CONTAINS
 
     integer :: indexStep
 
-    if ( .not. initialized ) then
-      write(*,*)
-      write(*,*) 'The variable transforms module was NOT initialized'
-      call utl_abort('vtr_transform')
-    endif
-
-    myLonBeg = statevector%myLonBeg
-    myLonEnd = statevector%myLonEnd
-    myLatBeg = statevector%myLatBeg
-    myLatEnd = statevector%myLatEnd
-
     select case(trim(transform))
 
     case ('UVtoVortDiv')
@@ -115,6 +105,13 @@ CONTAINS
          call utl_abort('vtr_transform')
        end if
        call VortDivToPsiChi(statevector)
+    case ('UVtoPsiChi')
+       if ( .not. gsv_varExist(statevector,'PP') .or. .not. gsv_varExist(statevector,'CC') ) then
+         write(*,*)
+         write(*,*) 'for UVToPsiChi, variables PP and CC must be allocated in gridstatevector'
+         call utl_abort('vtr_transform')
+       end if
+       call UVtoPsiChi(statevector)
     case ('LQtoHU')
        call LQtoHU(statevector)
     case ('HUtoLQ')
@@ -198,6 +195,8 @@ CONTAINS
 
     real(8), pointer :: hu_ptr(:,:,:,:), lq_ptr(:,:,:,:), lq_trial(:,:,:,:)
 
+    if ( .not. trialsInitialized ) call vtr_setupTrials()
+
     lq_trial => gsv_getField_r8(statevector_trial,'HU')
     hu_ptr   => gsv_getField_r8(statevector      ,'HU')
     lq_ptr   => gsv_getField_r8(statevector      ,'HU')
@@ -226,6 +225,8 @@ CONTAINS
     integer :: i,j,k,indexStep
 
     real(8), pointer :: hu_ptr(:,:,:,:), lq_ptr(:,:,:,:), lq_trial(:,:,:,:)
+
+    if ( .not. trialsInitialized ) call vtr_setupTrials()
 
     lq_trial => gsv_getField_r8(statevector_trial,'HU')
     hu_ptr   => gsv_getField_r8(statevector      ,'HU')
@@ -331,5 +332,100 @@ CONTAINS
     end if
 
   end subroutine VortDivToPsiChi
+
+!--------------------------------------------------------------------------
+! UVtoPsiChi
+!--------------------------------------------------------------------------
+  subroutine UVtoPsiChi(statevector)
+    implicit none
+   
+    type(struct_gsv) :: statevector
+
+    integer :: indexStep 
+    real(8), pointer :: uu_ptr(:,:,:,:), vv_ptr(:,:,:,:)
+    real(8), pointer :: psi_ptr(:,:,:,:), chi_ptr(:,:,:,:)
+    real(8), allocatable :: gridState(:,:,:), spectralState(:,:,:)
+    real(8) :: dla2
+    integer :: nlev_M, levIndex
+    integer :: ila_mpiglobal, ila_mpilocal
+
+    ! spectral transform configuration (saved)
+    integer, save :: gstID = -1
+    integer, save :: nla_mpilocal, maxMyNla, ntrunc
+    integer, save :: mymBeg,mymEnd,mymSkip,mymCount
+    integer, save :: mynBeg,mynEnd,mynSkip,mynCount
+    integer, save, pointer :: ilaList_mpiglobal(:), ilaList_mpilocal(:)
+
+    write(*,*) 'UVtoPsiChi: starting'
+    call flush(6)
+
+    uu_ptr  => gsv_getField_r8(statevector,'UU')
+    vv_ptr  => gsv_getField_r8(statevector,'VV')
+    psi_ptr => gsv_getField_r8(statevector,'PP')
+    chi_ptr => gsv_getField_r8(statevector,'CC')
+    nlev_M = gsv_getNumLev(statevector,'MM')
+    
+    if ( .not. statevector%hco%global ) then
+      call utl_abort('UVtoPsiChi:only global is available')
+    else
+
+      if ( gstID < 0 ) then
+        !ntrunc = statevector%nj
+        ntrunc = 180
+        gstID = gst_setup(statevector%ni,statevector%nj,ntrunc,2*nlev_M)
+        call mpivar_setup_m(ntrunc,mymBeg,mymEnd,mymSkip,mymCount)
+        call mpivar_setup_n(ntrunc,mynBeg,mynEnd,mynSkip,mynCount)
+        call gst_ilaList_mpiglobal(ilaList_mpiglobal,nla_mpilocal,maxMyNla,gstID,mymBeg,mymEnd,mymSkip,mynBeg,mynEnd,mynSkip)
+        call gst_ilaList_mpilocal(ilaList_mpilocal,gstID,mymBeg,mymEnd,mymSkip,mynBeg,mynEnd,mynSkip)
+      end if
+
+      dla2   = dble(ra)*dble(ra)
+      allocate(gridState(statevector%lonPerPE,statevector%latPerPE,2*nlev_M))
+      allocate(spectralState(nla_mpilocal,2,2*nlev_M))
+
+      do indexStep = 1, statevector%numStep
+
+        write(*,*) 'copying into gridstate'
+        call flush(6)
+
+        gridState(:,:,1:nlev_M)            = uu_ptr(:,:,:,indexStep)
+        gridState(:,:,(nlev_M+1):2*nlev_M) = vv_ptr(:,:,:,indexStep)
+
+        write(*,*) 'first tranform'; call flush(6)
+
+        call gst_setID(gstID)
+        call gst_gdsp(spectralState,gridState,nlev_M)
+
+        write(*,*) 'scale spectral state'; call flush(6)
+        do levIndex = 1, 2*nlev_M
+          do ila_mpilocal = 1, nla_mpilocal
+            ila_mpiglobal = ilaList_mpiglobal(ila_mpilocal)
+            spectralState(ila_mpilocal,:,levIndex) =   &
+                             spectralState(ila_mpilocal,:,levIndex) *   &
+                             dla2*gst_getR1snp1(ila_mpiglobal)
+          enddo
+        enddo
+
+        write(*,*) 'second transform'; call flush(6)
+        call gst_speree(spectralState,gridState)
+
+        write(*,*) 'copying back to psi/chi'
+        call flush(6)
+
+        psi_ptr(:,:,:,indexStep) = gridState(:,:,1:nlev_M)
+        chi_ptr(:,:,:,indexStep) = gridState(:,:,(nlev_M+1):2*nlev_M)
+
+      end do
+
+      write(*,*) 'deallocate'; call flush(6)
+      deallocate(gridState)
+      deallocate(spectralState)
+
+    end if
+
+    write(*,*) 'UVtoPsiChi: finished'
+    call flush(6)
+
+  end subroutine UVtoPsiChi
 
 END MODULE variableTransforms_mod

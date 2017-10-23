@@ -792,6 +792,8 @@ module calcstatsglb_mod
     real*8  :: dfact,dfact2,dsummed
     integer :: jens,ila,jn,jm,jk1,jk2,jlat
 
+    call tmg_start(3,'CALCCORRELATIONS')
+
     corns(:,:,:)=0.0d0
     do jens=1,nens
 
@@ -873,6 +875,7 @@ module calcstatsglb_mod
     enddo
 !$OMP END PARALLEL DO
 
+    call tmg_stop(3)
     write(6,*) 'finished computing correlations...'
     call flush(6)
 
@@ -2143,6 +2146,7 @@ module calcstatsglb_mod
 !
 ! Convert from U/V to PSI/CHI and spectrally filter all fields
 !
+    call tmg_start(2,'UV_TO_PSICHI')
     dla2   = dble(ra)*dble(ra)
     do jens=1,nens
       member(:,:,:)=dble(ensPerturbations(:,:,:,jens))
@@ -2160,6 +2164,7 @@ module calcstatsglb_mod
       ensPerturbations(:,:,:,jens)=sngl(member(:,:,:))
     enddo
 
+    call tmg_stop(2)
     write(6,*) 'finished doing u/v -> psi/chi and spectral filter...'
     call flush(6)
     

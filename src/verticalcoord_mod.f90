@@ -262,6 +262,16 @@ module verticalCoord_mod
       enddo
     endif
     if(vco%nlev_M.eq.0) then
+      if(mpi_myid.eq.0 .and. .not.beSilent2) then
+        write(*,*) 'vco_setupFromFile: UU not found looking for PP to get nlev_M'
+      endif
+      nomvar_M = 'PP  '
+      do jlev = 1, vgd_nlev_M
+        ikey = fstinf(nultemplate, ni, nj, nk, -1 ,etiket, vgd_ip1_M(jlev), -1, -1, ' ', nomvar_M)
+        if(ikey.gt.0) vco%nlev_M = vco%nlev_M + 1
+      enddo
+    endif
+    if(vco%nlev_M.eq.0) then
       write(*,*) 'vco_setupfromfile: template file name=',templatefile
       write(*,*) 'vco_setupfromfile: etiket=',etiket
       write(*,*) 'vco_setupfromfile: variable name=',nomvar_M

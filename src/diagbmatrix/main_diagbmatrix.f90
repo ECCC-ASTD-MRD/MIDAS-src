@@ -23,6 +23,7 @@ program main_diagBmatrix
   use mpivar_mod
   use MathPhysConstants_mod
   use controlVector_mod
+  use variableTransforms_mod
   use gridStateVector_mod
   use bmatrix_mod
   use bmatrixEnsemble_mod
@@ -50,12 +51,13 @@ program main_diagBmatrix
   real(8), allocatable :: stddev(:,:,:)
   real(8), allocatable :: stddev_zm(:,:),stddev_zm2(:,:)
   real(8), allocatable :: stddev_dm(:,:),stddev_dm2(:,:)
+  real(8), allocatable :: zonalMeanStddev(:)
   real(8), allocatable :: controlVector(:), controlVector_global(:)
 
   integer :: fclos, fnom, fstopc, newdate, get_max_rss
   integer :: ierr, nsize, iseed, cvDim_local
   integer :: ensIndex, index, lonIndex, latIndex, kIndex, nkgdim, levIndex
-  integer :: idate, itime, nulnam, dateStamp, numLoc
+  integer :: idate, itime, nulnam, nultxt, dateStamp, numLoc
   integer :: nlons, nlats, nlevs, nlevs2, jvar, ip3
   integer :: latIndex2, lonIndex2, levIndex2
 
@@ -66,15 +68,17 @@ program main_diagBmatrix
   character(len=128) :: filename, filenameEnsAmp
   character(len=10)  :: datestr
   character(len=12)  :: etiket
-
-  logical :: writeEnsAmplitude
+  character(len=4)   :: varName
 
   ! namelist variables
   integer :: numperturbations, nrandseed, diagdate
   integer :: oneobs_levs(100),oneobs_lons(100),oneobs_lats(100)
+  logical :: writeEnsAmplitude
+  logical :: writeTextStddev
+  logical :: writePsiChiStddev
 
   namelist /namdiag/numperturbations, nrandseed, diagdate, oneobs_levs, oneobs_lons, oneobs_lats, &
-                    writeEnsAmplitude
+                    writeEnsAmplitude, writeTextStddev, writePsiChiStddev
 
   write(*,*) " -------------------------------------------"
   write(*,*) " --- START OF MAIN PROGRAM diagBmatrix   ---"
@@ -95,6 +99,8 @@ program main_diagBmatrix
   oneobs_lons(:)=-1
   oneobs_lats(:)=-1
   writeEnsAmplitude = .false.
+  writeTextStddev = .false.
+  writePsiChiStddev = .false.
 
   ! Read the parameters from NAMDIAG
   nulnam=0
@@ -156,7 +162,8 @@ program main_diagBmatrix
 
   ! Allocate the statevector
   call gsv_allocate(statevector, tim_nstepobsinc, hco_anl, vco_anl, &
-       datestamp=tim_getDatestamp(),mpi_local=.true.)
+                    datestamp=tim_getDatestamp(), mpi_local=.true.)
+  call gsv_zero(statevector)
   nkgdim = statevector%nk
 
   ! Setup the B matrix
@@ -372,6 +379,8 @@ program main_diagBmatrix
       !- Transform to control variables in physical space
       call bmat_sqrtB(controlVector,cvm_nvadim,statevector)
 
+      if ( writePsiChiStddev ) call vtr_transform(statevector,'UVtoPsiChi')
+
       !$OMP PARALLEL DO PRIVATE (lonIndex,latIndex,kIndex)    
       do kIndex = 1, nkgdim
         do latIndex = statevector%myLatBeg, statevector%myLatEnd
@@ -514,7 +523,40 @@ program main_diagBmatrix
     deallocate(stddev_zm2)
 
     call gsv_writeToFile(statevector,'stddev_' // datestr // '.fst','ZM_STDDEV',  &
-         HUcontainsLQ=.true.,unitConversion=.true.)
+                         HUcontainsLQ=.true.,unitConversion=.true.)
+
+    ! Write the zonal mean stddev to a text file, if requested
+    if ( writeTextStddev ) then
+      allocate(zonalMeanStddev(statevector%latPerPE * mpi_npey))
+      do jvar = 1, vnl_numvarmax
+        if (.not. gsv_varExist(varName=vnl_varNameList(jvar)) ) cycle
+
+        write(*,*) ' writing zonal mean stddev to text file for variable: ', vnl_varNameList(jvar)
+        field => gsv_getField3d_r8(statevector,vnl_varNameList(jvar))
+
+        varName = vnl_varNameList(jvar)
+        if ( varName == 'HU' ) varName = 'LQ'
+        filename = 'stddev_ZM_' // trim(varName) // '_' // datestr // '.txt'
+        nultxt = 0
+        if ( mpi_myid == 0 ) ierr = fnom(nultxt,trim(filename),'FTN',0)
+
+        do levIndex = 1, gsv_getNumLevFromVarName(statevector,vnl_varNameList(jvar))
+          nsize = statevector%latPerPE
+          call rpn_comm_gather(field(1,:,levIndex), nsize, 'mpi_double_precision',  &
+                               zonalMeanStddev,     nsize, 'mpi_double_precision', 0, 'NS', ierr )
+          if ( mpi_myid == 0 ) then
+            do latIndex = 1, statevector%nj
+              write(nultxt,*) field(1,latIndex,levIndex)
+            end do
+          end if
+        end do
+
+        if ( mpi_myid == 0 ) ierr = fclos(nulnam)
+
+      end do
+      deallocate(zonalMeanStddev)
+
+    end if
 
     !
     !- Compute the domain mean std dev

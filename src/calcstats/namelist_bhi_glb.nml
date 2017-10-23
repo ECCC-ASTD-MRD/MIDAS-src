@@ -1,5 +1,5 @@
  &NAMCONF
-   MODE   = 'BHI'
+   MODE   = 'BHI2'
 /
  &NAMSTATE
    ANLVAR(1)   ='UU'
@@ -13,5 +13,5 @@
    ENSFILEBASENAME='nmc_ensemble_'  
 /
  &NAMCALCSTATS_GLB
-   NTRUNC=270
+   NTRUNC=180
 /

@@ -30,12 +30,12 @@
 !!v              for constituents not yet included.
 !--------------------------------------------------------------------------
 MODULE BMatrix_mod
-
   use mpivar_mod
   use bMatrixHI_mod
   use bMatrixEnsemble_mod
   use bMatrixChem_mod
   use bMatrixDiff_mod
+  use bMatrixLatBands_mod
   use controlVector_mod
   use gridStateVector_mod
   use LAMbMatrixHI_mod
@@ -58,6 +58,7 @@ MODULE BMatrix_mod
 
 
   type(struct_hco), pointer :: hco_anl
+  logical                   :: useBmatrixLatBands = .false.
 
 contains
 
@@ -81,8 +82,8 @@ contains
     type(struct_vco), pointer :: vco_anl_in
     type(struct_hco), pointer :: hco_anl_in
 
-    integer :: cvdimens, cvdimhi
-    integer :: get_max_rss
+    integer :: cvdimens, cvdimhi, cvdimhi_mpiglobal
+    integer :: get_max_rss, ierr
     integer :: cvdimchm, cvdimdiff
    
     !
@@ -105,6 +106,15 @@ contains
       write(*,*) 'Setting up the modular GLOBAL HI covariances...'
       call bhi_Setup( hco_anl, vco_anl_in, & ! IN
                       cvdimhi )              ! OUT
+      call rpn_comm_allreduce(cvdimhi,cvdimhi_mpiglobal,1,"MPI_INTEGER","MPI_SUM","GRID",ierr)
+      if ( cvdimhi_mpiglobal == 0 ) then
+        write(*,*) 'Setting up the modular GLOBAL LatBands covariances...'
+        call blb_Setup( hco_anl, vco_anl_in, & ! IN
+                        cvdimhi )              ! OUT
+        call rpn_comm_allreduce(cvdimhi,cvdimhi_mpiglobal,1,"MPI_INTEGER","MPI_SUM","GRID",ierr)
+        if ( cvdimhi_mpiglobal > 0 ) useBmatrixLatBands = .true.
+        if ( mpi_myid == 0 ) write(*,*) 'bmat_setup: useBmatrixLatBands = ', useBmatrixLatBands
+      end if
     else
       write(*,*)
       write(*,*) 'Setting up the modular LAM HI covariances...'
@@ -204,8 +214,13 @@ contains
       cvBhi => cvm_getSubVector(controlVector,cvm_BHI)
       if ( statevector%hco%global ) then
         !- 2.2.1 Global mode
-        call bhi_bsqrt( cvBhi,      & ! IN
-                        statevector ) ! OUT
+        if ( useBmatrixLatBands ) then
+          call blb_bsqrt( cvBhi,      & ! IN
+                          statevector ) ! OUT
+        else
+          call bhi_bsqrt( cvBhi,      & ! IN
+                          statevector ) ! OUT
+        end if
       else
         !- 2.2.2 LAM mode
         call lbhi_bSqrt( cvBhi,      & ! IN
@@ -319,8 +334,13 @@ contains
       cvBhi=>cvm_getSubVector(controlVector,cvm_BHI)
       if ( statevector%hco%global ) then
         !- 1.5.1 add contribution to gradient from GLOBAL BmatrixHI
-        call bhi_bsqrtad( statevector, & ! IN
-                          cvBhi )        ! OUT
+        if ( useBmatrixLatBands ) then
+          call blb_bsqrtad( statevector, & ! IN
+                            cvBhi )        ! OUT
+        else
+          call bhi_bsqrtad( statevector, & ! IN
+                            cvBhi )        ! OUT
+        end if
       else
         !- 1.5.2 add contribution to gradient from LAM BmatrixHI
         call lbhi_bSqrtAdj( statevector, & ! IN
@@ -360,6 +380,7 @@ contains
     implicit none    
 
     call bhi_finalize()
+    call blb_finalize()
     call ben_finalize()
     call bchm_finalize()
     call lbhi_finalize()
@@ -400,7 +421,11 @@ contains
          cvBhi_mpiglobal=>null()
       end if
       if ( hco_anl%global ) then 
-         call bhi_reduceToMPILocal (cvBhi_mpilocal,cvBhi_mpiglobal,cvDim_Bhi_mpilocal)
+         if ( useBmatrixLatBands ) then
+           call blb_reduceToMPILocal (cvBhi_mpilocal,cvBhi_mpiglobal,cvDim_Bhi_mpilocal)
+         else
+           call bhi_reduceToMPILocal (cvBhi_mpilocal,cvBhi_mpiglobal,cvDim_Bhi_mpilocal)
+         end if
       else
          call lbhi_reduceToMPILocal(cvBhi_mpilocal,cvBhi_mpiglobal,cvDim_Bhi_mpilocal)
       end if
@@ -483,7 +508,11 @@ contains
          cvBhi_mpiglobal=>null()
       end if
       if ( hco_anl%global ) then 
-         call bhi_reduceToMPILocal_r4 (cvBhi_mpilocal,cvBhi_mpiglobal,cvDim_Bhi_mpilocal)
+         if ( useBmatrixLatBands ) then
+           call blb_reduceToMPILocal_r4 (cvBhi_mpilocal,cvBhi_mpiglobal,cvDim_Bhi_mpilocal)
+         else
+           call bhi_reduceToMPILocal_r4 (cvBhi_mpilocal,cvBhi_mpiglobal,cvDim_Bhi_mpilocal)
+         end if
       else
          call lbhi_reduceToMPILocal_r4(cvBhi_mpilocal,cvBhi_mpiglobal,cvDim_Bhi_mpilocal)
       end if
@@ -554,7 +583,11 @@ contains
          cvBhi_mpiglobal=>null()
       end if
       if ( hco_anl%global ) then
-         call bhi_expandToMPIGlobal (cvBhi_mpilocal,cvBhi_mpiglobal,cvDim_Bhi_mpiglobal)
+         if ( useBmatrixLatBands ) then
+           call blb_expandToMPIGlobal (cvBhi_mpilocal,cvBhi_mpiglobal,cvDim_Bhi_mpiglobal)
+         else
+           call bhi_expandToMPIGlobal (cvBhi_mpilocal,cvBhi_mpiglobal,cvDim_Bhi_mpiglobal)
+         end if
       else
          call lbhi_expandToMPIGlobal(cvBhi_mpilocal,cvBhi_mpiglobal,cvDim_Bhi_mpiglobal)
       end if
@@ -623,7 +656,11 @@ contains
          cvBhi_mpiglobal=>null()
       end if
       if ( hco_anl%global ) then
-         call bhi_expandToMPIGlobal_r4 (cvBhi_mpilocal,cvBhi_mpiglobal,cvDim_Bhi_mpiglobal)
+         if ( useBmatrixLatBands ) then
+           call blb_expandToMPIGlobal_r4 (cvBhi_mpilocal,cvBhi_mpiglobal,cvDim_Bhi_mpiglobal)
+         else
+           call bhi_expandToMPIGlobal_r4 (cvBhi_mpilocal,cvBhi_mpiglobal,cvDim_Bhi_mpiglobal)
+         end if
       else
          call lbhi_expandToMPIGlobal_r4(cvBhi_mpilocal,cvBhi_mpiglobal,cvDim_Bhi_mpiglobal)
       end if

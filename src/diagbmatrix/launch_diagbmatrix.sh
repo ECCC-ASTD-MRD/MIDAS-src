@@ -5,16 +5,17 @@
 # User-defined options
 #
 machine=brooks
-ensbase="N-NMC"
-abs="/home/bed666/code/new_oavar/compiledir/compiledir-diagbmatrix-sles-11-broadwell-64-xc40_m_2.2.2-61-g4e18e02_M/diagbmatrix_sles-11-broadwell-64-xc40-m_2.2.2-61-g4e18e02_M.Abs"
+ensbase="G-NMC"
+abs="/home/mab001/data_maestro/ords/oavar_abs/diagbmatrix_sles-11-broadwell-64-xc40-m_3.0.0-1-gaea63f4_M.Abs"
 gest="${HOME}/data_maestro/${machine}/diagbmatrix/${ensbase}_test/"
 if [ "${ensbase}" = "G-NMC" ]; then
   flnml="namelist.nml_${ensbase}"
   analysisgrid="/home/sanl000/ANAL_shared/datafiles/constants/arma/oavar/2.1.1/analysis_grid_prototypes/analysis_grid_prototype_glb_800x400_south-to-north_80L_vcode5002"
-  bgcov="/home/sanl000/ANAL_shared/datafiles/constants/arma/oavar/2.1.1/__GEM25km_NMC_T399_stag5002_BgckStddev3d_corns_sqrt_800x400__/07"
+  #bgcov="/home/sanl000/ANAL_shared/datafiles/constants/arma/oavar/2.1.1/__GEM25km_NMC_T399_stag5002_BgckStddev3d_corns_sqrt_800x400__/01"
+  bgcov="/home/mab001/data_maestro/eccc-ppp2/calcstats/test_5002_latbands_m_3.0.0/latbands_test2.fst"
   ensdir="/home/bed666/brooks/diagbmatrix/ensemble/G-EnKF/"
   npey=10
-  npex=16
+  npex=10
 else
   if [ "${ensbase}" = "N-NMC" ]; then
     flnml="namelist.nml_${ensbase}"
@@ -29,7 +30,7 @@ else
   npex=12
 fi
 openmp=1
-maxcputime=300
+maxcputime=1200
 run_in_parallel="/fs/ssm/eccc/mrd/rpn/utils/16.2/all/bin/r.run_in_parallel_1.1.28c"
 
 #
