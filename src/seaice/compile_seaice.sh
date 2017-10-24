@@ -64,7 +64,7 @@ varabs=${program}_${ORDENV_PLAT}-${revnum}.Abs
 
 #-----------------------------------------------------------------------------
 
-LIBAPPL="netcdff rttov10.2.0_coef_io rttov10.2.0_main rttov10.2.0_emis_atlas rttov10.2.0_other burp_module descrip $MPILIB"
+LIBAPPL="netcdff rttov_coef_io rttov_main rttov_emis_atlas rttov_other burp_module descrip $MPILIB"
 LIBSYS="hpcoperf"
 LIBRMN=rmnMP
 
