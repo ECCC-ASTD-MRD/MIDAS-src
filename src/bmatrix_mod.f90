@@ -35,6 +35,7 @@ MODULE BMatrix_mod
   use bMatrixHI_mod
   use bMatrixEnsemble_mod
   use bMatrixChem_mod
+  use bMatrixDiff_mod
   use controlVector_mod
   use gridStateVector_mod
   use LAMbMatrixHI_mod
@@ -45,20 +46,21 @@ MODULE BMatrix_mod
   implicit none
   save
   private
-  
+
   ! public procedures
   public :: bmat_setup, bmat_finalize, bmat_sqrtB, bmat_sqrtBT
   public :: bmat_reduceToMPILocal, bmat_reduceToMPILocal_r4, bmat_expandToMPIGlobal, bmat_expandToMPIGlobal_r4
   ! public procedures through inheritance
-  public :: bhi_getScaleFactor,bhi_truncateCV,ben_getScaleFactor,ben_getnEns,ben_getPerturbation
-  public :: bchm_getScaleFactor,bchm_truncateCV
+  public :: bhi_getScaleFactor, ben_getScaleFactor, bchm_getScaleFactor, bdiff_getScaleFactor
+  public :: bhi_truncateCV, bchm_truncateCV
+  public :: ben_getnEns, ben_getPerturbation
   public :: ben_setFsoLeadTime
 
 
   type(struct_hco), pointer :: hco_anl
 
 contains
-  
+
 !--------------------------------------------------------------------------
 ! bmat_setup
 !--------------------------------------------------------------------------
@@ -81,7 +83,7 @@ contains
 
     integer :: cvdimens, cvdimhi
     integer :: get_max_rss
-    integer :: cvdimchm
+    integer :: cvdimchm, cvdimdiff
    
     !
     !- 1.  Get/Check the analysis grid info
@@ -123,7 +125,7 @@ contains
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     write(*,*) 'Dimension of ENS control vector returned:',cvdimens
 
-    !-2.3  Static (Time-Mean Homogeneous and Isotropic) covariances for constituents
+    !- 2.3  Static (Time-Mean Homogeneous and Isotropic) covariances for constituents
     if ( hco_anl % global ) then
       write(*,*)
       write(*,*) 'Setting up the modular GLOBAL HI-chm covariances...'
@@ -137,10 +139,19 @@ contains
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     write(*,*) 'Dimension of CH static control vector returned:',cvdimchm
 
+    !- 2.4 Covariances modelled using a diffusion operator.
+    write(*,*)
+    write(*,*) 'Setting up the modular DIFFUSION covariances...'
+    call bdiff_Setup( hco_anl, vco_anl_in, & ! IN
+                      cvdimdiff )            ! OUT
+
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    write(*,*) 'Dimension of DIFFUSION static control vector returned:',cvdimdiff
+
     !
     !- 3.  Setup the control vector
     !
-    call cvm_Setup( cvdimhi, cvdimens, cvdimchm ) ! IN
+    call cvm_Setup( cvdimhi, cvdimens, cvdimchm, cvdimdiff ) ! IN
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     write(*,*) 'Dimension of TOTAL control vector:',cvm_nvadim
@@ -168,7 +179,7 @@ contains
     integer         :: cvdim
     real(8)         :: controlVector(cvdim)
     real(8),pointer :: cvBhi(:), cvBen(:), field(:,:,:), field4d(:,:,:,:)
-    real(8),pointer :: cvBchm(:)
+    real(8),pointer :: cvBchm(:), cvBdiff(:)
     logical,optional :: useFSOFcst_opt
 
     type(struct_gsv) :: statevector, statevector_temp
@@ -218,6 +229,13 @@ contains
     end if
     call tmg_stop(123)
 
+    !- Compute 3D contribution to increment from BmatrixDiff
+    if ( cvm_subVectorExists(cvm_BDIFF) ) then
+      cvBdiff => cvm_getSubVector(controlVector,cvm_BDIFF)
+      call bdiff_bsqrt( cvBdiff,    & ! IN
+                        statevector ) ! OUT
+    end if
+
     !- 2.4 copy 3D increment to other timesteps to create 4D increment
     if ( cvm_subVectorExists(cvm_BHI) .or. cvm_subVectorExists(cvm_BCHM) ) call gsv_3dto4d(statevector)
 
@@ -258,7 +276,7 @@ contains
     !
     integer :: cvdim
     real(8) :: controlVector(cvdim)
-    real(8),pointer :: cvBhi(:),cvBen(:),cvBchm(:)
+    real(8),pointer :: cvBhi(:), cvBen(:), cvBchm(:), cvBdiff(:)
     type(struct_gsv) :: statevector
     logical,optional :: useFSOFcst_opt
 
@@ -311,6 +329,16 @@ contains
     end if
     call tmg_stop(51)
 
+    !- 1.6 add contribution to gradient from BmatrixDiff
+    call tmg_start(52,'B_DIFF_T')
+    if ( cvm_subVectorExists(cvm_BDIFF) ) then
+      cvBdiff=>cvm_getSubVector(controlVector,cvm_BDIFF)
+      !- 1.6.1 add contribution to gradient from BmatrixDIFF
+      call bdiff_bsqrtad( statevector, & ! IN
+                          cvBdiff )      ! OUT
+    end if
+    call tmg_stop(52)
+
   END SUBROUTINE bmat_sqrtBT
 
 !--------------------------------------------------------------------------
@@ -335,6 +363,7 @@ contains
     call ben_finalize()
     call bchm_finalize()
     call lbhi_finalize()
+    call bdiff_finalize()
 
   END SUBROUTINE bmat_finalize
 
@@ -356,10 +385,10 @@ contains
     real(8), intent(in)  :: cv_mpiglobal(:)
     integer, intent(out) :: cvDim_mpilocal_out
 
-    integer :: cvDim_Bhi_mpilocal,cvDim_Ben_mpilocal,cvDim_Bchm_mpilocal
+    integer :: cvDim_Bhi_mpilocal, cvDim_Ben_mpilocal, cvDim_Bchm_mpilocal, cvDim_Bdiff_mpilocal
 
-    real(8),pointer :: cvBhi_mpilocal(:) ,cvBen_mpilocal(:),cvBchm_mpilocal(:)
-    real(8),pointer :: cvBhi_mpiglobal(:),cvBen_mpiglobal(:),cvBchm_mpiglobal(:)
+    real(8),pointer :: cvBhi_mpilocal(:), cvBen_mpilocal(:), cvBchm_mpilocal(:), cvBdiff_mpilocal(:)
+    real(8),pointer :: cvBhi_mpiglobal(:), cvBen_mpiglobal(:), cvBchm_mpiglobal(:) , cvBdiff_mpiglobal(:)
 
 
     cvDim_Bhi_mpilocal = 0
@@ -403,9 +432,22 @@ contains
       end if
     end if
 
+    cvDim_Bdiff_mpilocal = 0
+    if(cvm_subVectorExists(cvm_BDIFF)) then
+      cvBdiff_mpilocal => cvm_getSubVector(cv_mpilocal,cvm_BDIFF)
+      if (mpi_myid == 0) then
+         cvBdiff_mpiglobal => cvm_getSubVector_mpiglobal(cv_mpiglobal,cvm_BDIFF)
+      else
+         cvBdiff_mpiglobal => null()
+      end if
+!!$      if ( hco_anl%global ) then 
+!!$         call bdiff_reduceToMPILocal(cvBdiff_mpilocal,cvBdiff_mpiglobal,cvDim_Bdiff_mpilocal)
+!!$      end if
+    end if
+
 
     cvDim_mpilocal_out = cvDim_Bhi_mpilocal + cvDim_Ben_mpilocal + &
-                         cvDim_Bchm_mpilocal
+                         cvDim_Bchm_mpilocal + cvDim_Bdiff_mpilocal
 
   END SUBROUTINE BMAT_reduceToMPILocal
 
