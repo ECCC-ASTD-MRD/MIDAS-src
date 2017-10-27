@@ -170,6 +170,8 @@ module tovs_nl_mod
   type( rttov_profile ),      allocatable :: tvs_profiles(:)       ! profiles, all profiles
   type( rttov_radiance ),     allocatable :: tvs_radiance(:)       ! radiances organized by profile
   type( rttov_transmission ), allocatable :: tvs_transmission(:)   ! transmittances all profiles for HIR quality control
+
+  integer, external :: get_max_rss
  
 contains
 
@@ -2010,9 +2012,9 @@ contains
     integer ,allocatable:: iptobs  (:)  
     
     type (rttov_emissivity), allocatable :: emissivity_local (:)    ! emissivity structure with input and output
-    type (rttov_chanprof), allocatable :: chanprof (:)
-    type (rttov_radiance) :: radiancedata_d
-    type (rttov_transmission) :: transmission
+    type (rttov_chanprof), allocatable :: chanprof(:), chanprof1(:)
+    type (rttov_radiance) :: radiancedata_d, radiancedata_d1
+    type (rttov_transmission) :: transmission, transmission1
     type (rttov_emis_atlas_data),allocatable,save :: Atlas(:)
     logical ,save        :: first=.true.
     logical              :: init
@@ -2020,9 +2022,11 @@ contains
     logical, allocatable :: calcemis  (:)
     real*8, allocatable  :: surfem1 (:)
     real*8, allocatable  :: surfem2 (:)
+    integer              :: profileIndex2, tb1, tb2
 !*****************************************************************
-  
+
     write(*,*) "Entering tvs_rttov subroutine"
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     if (tvs_nobtov == 0) return                  ! exit if there are not tovs data
 
@@ -2154,7 +2158,6 @@ contains
              tvs_coefs(sensor_id)                  , &   ! in
              Atlas(sensor_id)                      , &   ! in
              surfem2(1:count_tb)     ) ! out
-        
 
         if (rttov_err_stat /= 0) THEN
           write(*,*) "Error in rttov_get_emis ", rttov_err_stat
@@ -2197,17 +2200,82 @@ contains
 
       rttov_err_stat = 0 
 
-      call rttov_parallel_direct(       &
-           rttov_err_stat,              & ! out
-           chanprof,                    & ! in
-           tvs_opts(sensor_id),         & ! in
-           tvs_profiles(iptobs(1:count_profile)),  & ! in
-           tvs_coefs(sensor_id),        & ! in
-           transmission,                & ! inout
-           radiancedata_d,              & ! inout
-           calcemis=calcemis,           & ! in
-           emissivity=emissivity_local, & ! inout
-           nthreads=nthreads      )   
+      if( bgckMode .and. tvs_isInstrumHyperSpectral(instrum) ) then
+        write(*,*) 'for bgck IR: call rttov_parallel_direct for each profile...'
+
+        asw = 1 ! 1 to allocate,0 to deallocate
+        ! allocate transmitance structure for 1 profile
+        call rttov_alloc_transmission(alloc_status(1), transmission1, nlevels=nlevels, &
+             nchanprof=tvs_nchan(sensor_id), asw=asw, init=.true. )
+        ! allocate radiance structure for 1 profile
+        call rttov_alloc_rad (alloc_status(1),tvs_nchan(sensor_id), radiancedata_d1,nlevels,asw,init=.true.)
+        ! allocate chanprof for 1 profile
+        allocate(chanprof1(tvs_nchan(sensor_id)))
+        do  channel_index = 1,tvs_nchan(sensor_id)
+          chanprof1(channel_index)%prof = 1
+          chanprof1(channel_index)%chan = channel_index
+        end do
+
+        do profileIndex2 = 1, count_profile
+          tb1 = 1 + (profileIndex2-1) * tvs_nchan(sensor_id) 
+          tb2 = profileIndex2 * tvs_nchan(sensor_id)
+          call rttov_parallel_direct(       &
+               rttov_err_stat,              & ! out
+               chanprof1,                   & ! in
+               tvs_opts(sensor_id),         & ! in
+               tvs_profiles(iptobs(profileIndex2):iptobs(profileIndex2)),  & ! in
+               tvs_coefs(sensor_id),                 & ! in
+               transmission1,                        & ! inout
+               radiancedata_d1,                      & ! inout
+               calcemis=calcemis(tb1:tb2),           & ! in
+               emissivity=emissivity_local(tb1:tb2), & ! inout
+               nthreads=nthreads )   
+
+          ! copy contents of single profile structures into complete structures
+          transmission%tau_total(tb1:tb2)             = transmission1%tau_total(:)
+          transmission%tau_levels(:,tb1:tb2)          = transmission1%tau_levels(:,:)
+          transmission%tausun_levels_path1(:,tb1:tb2) = transmission1%tausun_levels_path1(:,:)
+          transmission%tausun_levels_path2(:,tb1:tb2) = transmission1%tausun_levels_path2(:,:)
+          transmission%tausun_total_path1(tb1:tb2)    = transmission1%tausun_total_path1(:)
+          transmission%tausun_total_path2(tb1:tb2)    = transmission1%tausun_total_path2(:)
+          radiancedata_d%clear(tb1:tb2)      = radiancedata_d1%clear(:)
+          radiancedata_d%total(tb1:tb2)      = radiancedata_d1%total(:)
+          radiancedata_d%bt_clear(tb1:tb2)   = radiancedata_d1%bt_clear(:)
+          radiancedata_d%bt(tb1:tb2)         = radiancedata_d1%bt(:)
+          radiancedata_d%refl_clear(tb1:tb2) = radiancedata_d1%refl_clear(:)
+          radiancedata_d%refl(tb1:tb2)       = radiancedata_d1%refl(:)
+          radiancedata_d%overcast(:,tb1:tb2) = radiancedata_d1%overcast(:,:)
+          radiancedata_d%cloudy(tb1:tb2)     = radiancedata_d1%cloudy(:)
+
+        end do
+
+        ! transmittance deallocation for 1 profile
+        deallocate(chanprof1)
+        asw = 0 ! 1 to allocate,0 to deallocate
+        ! transmittance deallocation for 1 profile
+        call rttov_alloc_transmission(alloc_status(1),transmission1,nlevels=nlevels,  &
+             nchanprof=tvs_nchan(sensor_id), asw=asw )
+        ! radiance deallocation for 1 profile
+        call rttov_alloc_rad (alloc_status(1), tvs_nchan(sensor_id), radiancedata_d1, nlevels, asw)
+
+      else
+
+        call rttov_parallel_direct(       &
+             rttov_err_stat,              & ! out
+             chanprof,                    & ! in
+             tvs_opts(sensor_id),         & ! in
+             tvs_profiles(iptobs(1:count_profile)),  & ! in
+             tvs_coefs(sensor_id),        & ! in
+             transmission,                & ! inout
+             radiancedata_d,              & ! inout
+             calcemis=calcemis,           & ! in
+             emissivity=emissivity_local, & ! inout
+             nthreads=nthreads      )   
+
+      end if
+
+      write(*,*) 'after rttov_parallel_direct...'
+      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'     
 
       if (rttov_err_stat /= 0) then
         write(*,*) "Error in rttov_parallel_direct",rttov_err_stat

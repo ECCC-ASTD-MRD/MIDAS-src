@@ -263,7 +263,7 @@ contains
     INTEGER,allocatable :: nobir(:)
     INTEGER :: index_header,idatyp,krtid
 
-    call tmg_start(3,'B')
+    call tmg_start(3,'BGCHECKIR')
 
     write(*,'(A)') " ****************"
     write(*,'(A)') " BEGIN IR BACKGROUND CHECK"
