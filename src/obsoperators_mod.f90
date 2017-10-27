@@ -50,6 +50,8 @@ module obsOperators_mod
 
   character(len=48) :: obsoperMode
 
+  integer, external :: get_max_rss
+
 contains
 
   subroutine oop_setup(obsoperMode_in)
@@ -1298,10 +1300,12 @@ contains
     ! 1.   Prepare atmospheric profiles for all tovs observation points for use in rttov
     ! .    -----------------------------------------------------------------------------
     call tvs_fillProfiles(columnghr,obsSpaceData,datestamp,limlvhu,bgckMode)
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     ! 2.   Compute radiance
     ! .    ----------------
     call tvs_rttov(columnghr,obsSpaceData,bgckMode)
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     ! 3.   Compute Jobs and the residuals
     ! .    ----------------------------
