@@ -189,7 +189,8 @@ module mpivar_mod
     if(makeEven) then
       if(mod(numlevels, 2) /= 0) then
         write(*,*) 'mpivar_setup_levels_npex: total number of levels is not even, now=', numlevels
-        write(*,*) '          therefore, if global grid, cannot do transforms of vor/div <-> u/v'
+        write(*,*) '                          therefore, if global grid, may not be able to do '
+        write(*,*) '                          transforms of vor/div <-> u/v'
         factor = 1
       else
         factor = 2

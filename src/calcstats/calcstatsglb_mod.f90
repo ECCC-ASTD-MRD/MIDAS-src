@@ -36,7 +36,7 @@ module calcstatsglb_mod
   private
 
   ! Public Subroutines
-  public :: csg_setup, csg_computeStats, csg_stddev
+  public :: csg_setup, csg_computeStats, csg_computeStatsLatBands, csg_stddev
   public :: csg_toolbox, csg_powerspec
 
   type(struct_hco), pointer :: hco_ens ! Ensemble horizontal grid parameters
@@ -74,7 +74,7 @@ module calcstatsglb_mod
 
     integer, intent(in)            :: nens_in
 
-    character(len=*), intent(in)   :: cflens_in(nens_in)
+    character(len=*), intent(in)   :: cflens_in(:)
 
     type(struct_vco), pointer, intent(in)   :: vco_in
     type(struct_hco), pointer, intent(in)   :: hco_in
@@ -91,7 +91,7 @@ module calcstatsglb_mod
 
     nens=nens_in
     allocate(cflensin(nens))
-    cflensin(:)=cflens_in(:)
+    cflensin(:)=cflens_in(1:nens)
     call mpc_printConstants(6)
 
     ! parameters from namelist (date in filename should come directly from sequencer?)
@@ -325,6 +325,107 @@ module calcstatsglb_mod
   end subroutine csg_computeStats
 
 !--------------------------------------------------------------------------
+! CSG_COMPUTESTATSLATBANDS
+!--------------------------------------------------------------------------
+  subroutine csg_computeStatsLatBands
+    integer :: ierr, variableType, jlat, jlatband, lat1, lat2, lat3
+    real*4,pointer     :: ensPerturbations(:,:,:,:)
+    real*8,allocatable :: stddev3d(:,:,:)
+    real*8,allocatable :: stddevZonAvg(:,:),stddevZonAvgBal(:,:)
+    real*8,allocatable :: corns(:,:,:),rstddev(:,:)
+    real*8 :: latMask(nj)
+
+    allocate(ensPerturbations(ni,nj,nkgdimEns,nens),stat=ierr)
+    if(ierr.ne.0) call utl_abort('Problem allocating memory 1')
+    allocate(stddev3d(ni,nj,nkgdimEns),stat=ierr)
+    if(ierr.ne.0) call utl_abort('Problem allocating memory 2')
+    allocate(stddevZonAvg(nkgdimEns,nj),stat=ierr)
+    if(ierr.ne.0) call utl_abort('Problem allocating memory 3')
+    allocate(corns(nkgdimEns,nkgdimEns,0:ntrunc),stat=ierr)
+    if(ierr.ne.0) call utl_abort('Problem allocating memory 4')
+    allocate(rstddev(nkgdimEns,0:ntrunc),stat=ierr)
+    if(ierr.ne.0) call utl_abort('Problem allocating memory 5')
+
+    call readEnsemble(ensPerturbations)
+    write(6,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+    call removeMean(ensPerturbations)
+
+    call uv_to_psichi(ensPerturbations)
+
+    call calcStddev3d(ensPerturbations,stddev3d,nkgdimens)
+
+    call calcZonAvg(stddevZonAvg,stddev3d,nkgdimens)
+
+    call normalize3d(ensPerturbations,stddev3d)
+
+    call removeGlobalMean(ensPerturbations)
+
+    do jlatband = 1, 3
+      write(*,*) 'calcb_glb2_computeStats: selected LATBAND = ',jlatband
+      lat1=nj/4
+      lat2=nj/2
+      lat3=3*nj/4
+      write(*,*) 'lat1,2,3=',lat1,lat2,lat3
+      if(jlatband==1) then
+        ! Southern extratropics
+        latMask(1:lat1) = 1.0d0
+        do jlat = lat1, lat2
+          !latMask(jlat) = sqrt(dble((lat2-jlat)*4)/dble(nj))
+          latMask(jlat) = sqrt(0.5d0*(1.0d0+cos(dble((jlat-lat1)*4)*MPC_PI_R8/dble(nj))))
+        enddo
+        latMask(lat2:nj) = 0.0d0
+      elseif(jlatband==2) then
+        ! Tropics
+        !latMask(1:lat1) = 0.0d0
+        !do jlat = lat1, lat2
+        !  latMask(jlat) = sqrt(dble((jlat-lat1)*4)/dble(nj))
+        !enddo
+        !do jlat = lat2,lat3
+        !  latMask(jlat) = sqrt(dble((lat3-jlat)*4)/dble(nj))
+        !enddo
+        !latMask(lat3:nj) = 0.0d0
+
+        ! NOTE: use much broader band for tropics to avoid shortening horizontal correlations
+        ! ok, since the masks do not have to sum to one for calculation, but they do
+        ! when used in bmatrixhi_mod
+        ! Tropics
+        do jlat = 1, lat1
+          !latMask(jlat) = sqrt(dble((jlat-1)*4)/dble(nj))
+          latMask(jlat) = sqrt(0.5d0*(1.0d0+cos(dble((lat1-jlat)*4)*MPC_PI_R8/dble(nj))))
+        enddo
+        latMask(lat1:lat3) = 1.0d0
+        do jlat = lat3,nj
+          !latMask(jlat) = sqrt(dble((nj-jlat)*4)/dble(nj))
+          latMask(jlat) = sqrt(0.5d0*(1.0d0+cos(dble((jlat-lat3)*4)*MPC_PI_R8/dble(nj))))
+        enddo
+      elseif(jlatband==3) then
+        ! Northern extratropics
+        latMask(1:lat2) = 0.0d0
+        do jlat = lat2, lat3
+          !latMask(jlat) = sqrt(dble((jlat-lat2)*4)/dble(nj))
+          latMask(jlat) = sqrt(0.5d0*(1.0d0+cos(dble((lat3-jlat)*4)*MPC_PI_R8/dble(nj))))
+        enddo
+        latMask(lat3:nj) = 1.0d0
+      endif
+      write(*,*) 'latMask = ',latMask(:)
+      call calcCorrelations(ensPerturbations,corns,rstddev,latMask_in=latMask)
+
+      variableType = cvSpace
+      call writeStats(corns,rstddev,variableType,latBand=jlatBand)
+    enddo
+
+    call writeStddev2(stddevZonAvg,stddev3d)
+
+    write(200,*) stddevZonAvg(1:nlevEns_M,:)
+    write(201,*) stddevZonAvg((1+1*nlevEns_M):(2*nlevEns_M),:)
+    write(202,*) stddevZonAvg((1+2*nlevEns_M):(3*nlevEns_T),:)
+    write(203,*) stddevZonAvg((1+2*nlevEns_M+1*nlevEns_T):(2*nlevEns_M+2*nlevEns_T),:)
+    write(204,*) stddevZonAvg((1+2*nlevEns_M+2*nlevEns_T),:)/1.0d2
+
+  end subroutine csg_computeStatsLatBands
+
+!--------------------------------------------------------------------------
 ! CSG_TOOLBOOX
 !--------------------------------------------------------------------------
   subroutine csg_toolbox
@@ -505,7 +606,7 @@ module calcstatsglb_mod
 
     call calcZonAvg(stddevZonAvg,stddev3d,nkgdimens)
 
-    call writeStddev(stddevZonAvg,stddevZonAvg,stddev3d,stddev3d)
+    call writeStddev2(stddevZonAvg,stddev3d)
 
     write(200,*) stddevZonAvg(1:nlevEns_M,:)
     write(201,*) stddevZonAvg((1+1*nlevEns_M):(2*nlevEns_M),:)
@@ -555,7 +656,7 @@ module calcstatsglb_mod
       enddo
 
       ierr = utl_fstecr(bufz,ipak,nulstats,idateo,0,0,nlevEns_M,1,1,   &
-                     ip1,jn,ip3,'X','ZZ','SP_THETA','X',0,0,0,0,idatyp,.true.)
+                        ip1,jn,ip3,'X','ZZ','SP_THETA','X',0,0,0,0,idatyp,.true.)
 
     enddo
 
@@ -582,7 +683,7 @@ module calcstatsglb_mod
       kni=nLevEns_T+1
       knj=nLevEns_M
       ierr = utl_fstecr(zspptot,ipak,nulstats,idateo,0,0,kni,knj,1,  &
-                     ip1,jn,ip3,'X','ZZ','SP_PTOT ','X',0,0,0,0,idatyp,.true.)
+                        ip1,jn,ip3,'X','ZZ','SP_PTOT ','X',0,0,0,0,idatyp,.true.)
     enddo
 
 
@@ -681,14 +782,17 @@ module calcstatsglb_mod
 !--------------------------------------------------------------------------
 ! CALCCORRELATIONS
 !--------------------------------------------------------------------------
-  subroutine calcCorrelations(ensPerturbations,corns,rstddev)
+  subroutine calcCorrelations(ensPerturbations,corns,rstddev,latMask_in)
     implicit none
     real*4,pointer :: ensPerturbations(:,:,:,:)
     real*8 :: corns(nkgdimEns,nkgdimEns,0:ntrunc),rstddev(nkgdimEns,0:ntrunc)
+    real*8,  optional :: latMask_in(:)
 
     real*8  :: spectralState(nla,2,nkgdimEns),gridState(ni,nj,nkgdimEns)
     real*8  :: dfact,dfact2,dsummed
-    integer :: jens,ila,jn,jm,jk1,jk2
+    integer :: jens,ila,jn,jm,jk1,jk2,jlat
+
+    call tmg_start(3,'CALCCORRELATIONS')
 
     corns(:,:,:)=0.0d0
     do jens=1,nens
@@ -697,6 +801,11 @@ module calcstatsglb_mod
       call flush(6)
 
       gridState(:,:,:)=ensPerturbations(:,:,:,jens)
+      if(present(latMask_in)) then
+        do jlat = 1, nj
+          gridState(:,jlat,:) = latMask_in(jlat)*gridState(:,jlat,:)
+        enddo
+      endif
       call gst_setID(gstID_nkgdimEns)
       call gst_reespe(spectralState,gridState)
 
@@ -719,6 +828,7 @@ module calcstatsglb_mod
 
     enddo
 
+!$OMP PARALLEL DO PRIVATE (jn,jk1)
     do jn = 0, ntrunc
       do jk1 = 1, nkgdimEns
         if(abs(corns(jk1,jk1,jn)).gt.0.0d0) then
@@ -728,7 +838,9 @@ module calcstatsglb_mod
         endif
       enddo
     enddo
+!$OMP END PARALLEL DO
 
+!$OMP PARALLEL DO PRIVATE (jn,jk1,jk2)
     do jn = 0, ntrunc
       do jk1 = 1, nkgdimEns
         do jk2 = 1, nkgdimEns
@@ -740,6 +852,7 @@ module calcstatsglb_mod
         enddo
       enddo
     enddo
+!$OMP END PARALLEL DO
 
     dfact2 = 1.0d0/sqrt(dble(nens-1))
     do jn = 0, ntrunc
@@ -750,6 +863,7 @@ module calcstatsglb_mod
     enddo
 
     ! Normalize to ensure correlations in horizontal and Multiply by sqrt(0.5) to make valid for m.ne.0
+!$OMP PARALLEL DO PRIVATE (jk1,jn,dsummed)
     do jk1 = 1, nkgdimEns
       dsummed=0.0d0
       do jn = 0, ntrunc
@@ -759,7 +873,9 @@ module calcstatsglb_mod
         if(dsummed.gt.0.0d0) rstddev(jk1,jn)=rstddev(jk1,jn)*sqrt(0.5d0/dsummed)
       enddo
     enddo
+!$OMP END PARALLEL DO
 
+    call tmg_stop(3)
     write(6,*) 'finished computing correlations...'
     call flush(6)
 
@@ -821,13 +937,14 @@ module calcstatsglb_mod
 !--------------------------------------------------------------------------
 ! WRITESTATS
 !--------------------------------------------------------------------------
-  subroutine writeStats(corns,rstddev,variableType, ptot,theta,waveBandIndex)
+  subroutine writeStats(corns,rstddev,variableType, ptot,theta,waveBandIndex,latBand)
     implicit none
 
     real*8 :: corns(nkgdimEns,nkgdimEns,0:ntrunc),rstddev(nkgdimEns,0:ntrunc)
     integer, intent(in) :: variableType
     real*8, optional :: PtoT(:,:,:),theta(:,:)
     integer, optional :: waveBandIndex
+    integer, optional :: latBand
 
     real*8 prcor(nkgdimEns,nkgdimEns)
 
@@ -862,25 +979,27 @@ module calcstatsglb_mod
     ip3 = nens
     idateo = 0
 
+    if(present(latBand)) ip1 = latBand
+
     if (present(ptot)) then
        ierr = utl_fstecr(ptot,ipak,nulstats,idateo,0,0,nlevEns_T+1,nlevEns_M,nj,  &
-                      ip1,ip2,ip3,'X','ZZ','P_to_T  ','X',0,0,0,0,idatyp,.true.)
+                         ip1,ip2,ip3,'X','ZZ','P_to_T  ','X',0,0,0,0,idatyp,.true.)
     end if
     if (present(theta)) then
        ierr = utl_fstecr(theta,ipak,nulstats,idateo,0,0,nlevEns_M,nj,1,   &
-                      ip1,ip2,ip3,'X','ZZ','THETA   ','X',0,0,0,0,idatyp,.true.)
+                         ip1,ip2,ip3,'X','ZZ','THETA   ','X',0,0,0,0,idatyp,.true.)
     end if
 
     do jn = 0, ntrunc
       ip2 = jn
       ierr = utl_fstecr(corns(:,:,jn),ipak,nulstats,idateo,0,0,nkgdimEns,nkgdimEns,1,  &
-                     ip1,ip2,ip3,'X','ZZ','CORRNS  ','X',0,0,0,0,idatyp,.true.)
+                        ip1,ip2,ip3,'X','ZZ','CORRNS  ','X',0,0,0,0,idatyp,.true.)
     enddo
 
     do jn = 0, ntrunc
       ip2 = jn
       ierr = utl_fstecr(rstddev(:,jn),ipak,nulstats,idateo,0,0,nkgdimEns,1,1,   &
-                     ip1,ip2,ip3,'X','SS','RSTDDEV ','X',0,0,0,0,idatyp,.true.)
+                        ip1,ip2,ip3,'X','SS','RSTDDEV ','X',0,0,0,0,idatyp,.true.)
     enddo
 
     
@@ -905,12 +1024,13 @@ module calcstatsglb_mod
     enddo
     ip2 =0
     ierr = utl_fstecr(prcor(:,:),ipak,nulstats,idateo,0,0,nkgdimEns,nkgdimEns,1,   &
-                   ip1,ip2,ip3,'X','ZV','CORVERT ','X',0,0,0,0,idatyp,.true.)
+                      ip1,ip2,ip3,'X','ZV','CORVERT ','X',0,0,0,0,idatyp,.true.)
 
     ierr =  fstfrm(nulstats)
     ierr =  fclos (nulstats)
 
     !- For plotting purposes...
+    if(.false.) then
     do jvar1 = 1, nvar3d
        do jvar2 = jvar1, nvar3d
 
@@ -951,6 +1071,7 @@ module calcstatsglb_mod
           
        end do
     end do
+    end if
 
     write(6,*) 'finished writing statistics...'
     call flush(6)
@@ -1027,7 +1148,7 @@ module calcstatsglb_mod
           enddo
         enddo
         ierr = utl_fstecr(zbuf,ipak,nulstats,idateo,0,0,ni,nj,1,nip1_l(jlev),ip2,ip3,   &
-                       'E',nomvar3d(jvar,cvSpace),'STDDEV3D','G',0,0,0,0,idatyp,.true.)
+                          'E',nomvar3d(jvar,cvSpace),'STDDEV3D','G',0,0,0,0,idatyp,.true.)
       enddo
 
       do jlev=1,nlevEns
@@ -1036,7 +1157,7 @@ module calcstatsglb_mod
         enddo
       enddo
       ierr = utl_fstecr(zbufyz(:,1:nLevEns),ipak,nulstats,idateo,0,0,1,nj,nlevEns,ip1,ip2,ip3,   &
-                     'E',nomvar3d(jvar,cvSpace),'STDDEV  ','X',0,0,0,0,idatyp,.true.)
+                        'E',nomvar3d(jvar,cvSpace),'STDDEV  ','X',0,0,0,0,idatyp,.true.)
 
       if(nomvar3d(jvar,cvSpace).ne.nomvar3d(jvar,cvUnbalSpace)) then
         dfact=1.0d0
@@ -1048,7 +1169,7 @@ module calcstatsglb_mod
             enddo 
           enddo
           ierr = utl_fstecr(zbuf,ipak,nulstats,idateo,0,0,ni,nj,1,nip1_l(jlev),ip2,ip3,   &
-                         'E',nomvar3d(jvar,cvUnbalSpace),'STDDEV3D','G',0,0,0,0,idatyp,.true.)
+                            'E',nomvar3d(jvar,cvUnbalSpace),'STDDEV3D','G',0,0,0,0,idatyp,.true.)
         enddo
 
         do jlev=1,nlevEns
@@ -1057,7 +1178,7 @@ module calcstatsglb_mod
           enddo
         enddo
         ierr = utl_fstecr(zbufyz(:,1:nLevEns),ipak,nulstats,idateo,0,0,1,nj,nlevEns,ip1,ip2,ip3,   &
-                       'E',nomvar3d(jvar,cvUnbalSpace),'STDDEV  ','X',0,0,0,0,idatyp,.true.)
+                          'E',nomvar3d(jvar,cvUnbalSpace),'STDDEV  ','X',0,0,0,0,idatyp,.true.)
       endif
 
     enddo
@@ -1076,13 +1197,13 @@ module calcstatsglb_mod
         enddo
       enddo
       ierr = utl_fstecr(zbuf,ipak,nulstats,idateo,0,0,ni,nj,1,0,ip2,ip3,   &
-                     'E',nomvar2d(jvar,cvSpace),'STDDEV3D','G',0,0,0,0,idatyp,.true.)
+                        'E',nomvar2d(jvar,cvSpace),'STDDEV3D','G',0,0,0,0,idatyp,.true.)
 
       do jlat=1,nj
         zbufy(jlat)=dfact*stddevZonAvg(varLevOffset(nvar3d+1)+jvar,jlat)
       enddo
       ierr = utl_fstecr(zbufy,ipak,nulstats,idateo,0,0,1,nj,1,ip1,ip2,ip3,   &
-                     'E',nomvar2d(jvar,cvSpace),'STDDEV  ','X',0,0,0,0,idatyp,.true.)
+                        'E',nomvar2d(jvar,cvSpace),'STDDEV  ','X',0,0,0,0,idatyp,.true.)
 
       if(nomvar2d(jvar,cvSpace).ne.nomvar2d(jvar,cvUnbalSpace)) then
         if(nomvar2d(jvar,cvUnbalSpace).eq.'UP') then
@@ -1097,13 +1218,13 @@ module calcstatsglb_mod
           enddo 
         enddo
         ierr = utl_fstecr(zbuf,ipak,nulstats,idateo,0,0,ni,nj,1,0,ip2,ip3,   &
-                       'E',nomvar2d(jvar,cvUnbalSpace),'STDDEV3D','G',0,0,0,0,idatyp,.true.)
+                          'E',nomvar2d(jvar,cvUnbalSpace),'STDDEV3D','G',0,0,0,0,idatyp,.true.)
 
         do jlat=1,nj
           zbufy(jlat)=dfact*stddevZonAvgUnbal(varLevOffset(nvar3d+1)+jvar,jlat)
         enddo
         ierr = utl_fstecr(zbufy,ipak,nulstats,idateo,0,0,1,nj,1,ip1,ip2,ip3,   &
-                       'E',nomvar2d(jvar,cvUnbalSpace),'STDDEV  ','X',0,0,0,0,idatyp,.true.)
+                          'E',nomvar2d(jvar,cvUnbalSpace),'STDDEV  ','X',0,0,0,0,idatyp,.true.)
       endif
 
     enddo
@@ -1115,6 +1236,93 @@ module calcstatsglb_mod
     call flush(6)
 
   end subroutine writeStddev
+
+!--------------------------------------------------------------------------
+! WRITESTDDEV2
+!--------------------------------------------------------------------------
+  subroutine writeStddev2(stddevZonAvg,stddev3d)
+    implicit none
+    real*8 :: stddevZonAvg(:,:),stddev3d(:,:,:)
+    real*8 :: dfact,zbuf(ni,nj),zbufyz(nj,max(nLevEns_M,nLevens_T)),zbufy(nj)
+    integer jlat,jlon,jlev,ierr,jvar,nLevEns
+    integer fstouv,fnom,fstfrm,fclos
+    integer ip1,ip2,ip3,idatyp,idateo,ipak,nip1_l(max(nLevEns_M,nLevens_T))
+    integer :: nulstats
+
+    nulstats=0
+    ierr =  fnom  (nulstats,'./stddev.fst','RND',0)
+    ierr =  fstouv(nulstats,'RND')
+
+    ipak = -32
+    idatyp = 5
+    ip1 = 0
+    ip2 = 0
+    ip3 = nens
+    idateo = 0
+
+    ! do 3d variables
+    do jvar=1,nvar3d
+      if(vnl_varLevelFromVarName(nomvar3d(jvar,cvSpace)).eq.'MM') then
+        nLevEns = nLevEns_M
+        nip1_l(1:nLevEns_M)=nip1_M(1:nLevEns_M)
+      else
+        nLevEns = nLevEns_T
+        nip1_l(1:nLevEns_T)=nip1_T(1:nLevEns_T)
+      endif
+
+      do jlev=1,nlevEns
+        do jlat=1,nj
+          dfact=1.0d0
+          do jlon=1,ni
+            zbuf(jlon,jlat)=dfact*stddev3d(jlon,jlat,varLevOffset(jvar)+jlev)
+          enddo
+        enddo
+        ierr = utl_fstecr(zbuf,ipak,nulstats,idateo,0,0,ni,nj,1,nip1_l(jlev),ip2,ip3,   &
+                          'E',nomvar3d(jvar,cvSpace),'STDDEV3D','G',0,0,0,0,idatyp,.true.)
+      enddo
+
+      do jlev=1,nlevEns
+        do jlat=1,nj
+          dfact=1.0d0
+          zbufyz(jlat,jlev)=dfact*stddevZonAvg(varLevOffset(jvar)+jlev,jlat)
+        enddo
+      enddo
+      ierr = utl_fstecr(zbufyz(:,1:nLevEns),ipak,nulstats,idateo,0,0,1,nj,nlevEns,ip1,ip2,ip3,   &
+                        'E',nomvar3d(jvar,cvSpace),'STDDEV  ','X',0,0,0,0,idatyp,.true.)
+
+    enddo
+
+    ! now do 2D variables
+    do jvar=1,nvar2d
+      if(nomvar2d(jvar,cvSpace).eq.'P0') then
+        dfact=1.0d0/1.0d2
+      else
+        dfact=1.0d0
+      endif
+
+      do jlat=1,nj
+        do jlon=1,ni
+          zbuf(jlon,jlat)=dfact*stddev3d(jlon,jlat,varLevOffset(nvar3d+1)+jvar)
+        enddo
+      enddo
+      ierr = utl_fstecr(zbuf,ipak,nulstats,idateo,0,0,ni,nj,1,0,ip2,ip3,   &
+                        'E',nomvar2d(jvar,cvSpace),'STDDEV3D','G',0,0,0,0,idatyp,.true.)
+
+      do jlat=1,nj
+        zbufy(jlat)=dfact*stddevZonAvg(varLevOffset(nvar3d+1)+jvar,jlat)
+      enddo
+      ierr = utl_fstecr(zbufy,ipak,nulstats,idateo,0,0,1,nj,1,ip1,ip2,ip3,   &
+                        'E',nomvar2d(jvar,cvSpace),'STDDEV  ','X',0,0,0,0,idatyp,.true.)
+
+    enddo
+
+    ierr =  fstfrm(nulstats)
+    ierr =  fclos (nulstats)
+
+    write(6,*) 'finished writing stddev...'
+    call flush(6)
+
+  end subroutine writeStddev2
 
 !--------------------------------------------------------------------------
 ! WRITESTDDEVBAL
@@ -1157,7 +1365,7 @@ module calcstatsglb_mod
           enddo
         enddo
         ierr = utl_fstecr(zbuf,ipak,nulstats,idateo,0,0,ni,nj,1,nip1_l(jlev),ip2,ip3,   &
-                       'E',nomvar3dBal(jvar),'STDDEV3D','G',0,0,0,0,idatyp,.true.)
+                          'E',nomvar3dBal(jvar),'STDDEV3D','G',0,0,0,0,idatyp,.true.)
       enddo
 
       do jlev=1,nlevEns
@@ -1166,7 +1374,7 @@ module calcstatsglb_mod
         enddo
       enddo
       ierr = utl_fstecr(zbufyz(:,1:nLevEns),ipak,nulstats,idateo,0,0,1,nj,nlevEns,ip1,ip2,ip3,   &
-                     'E',nomvar3dBal(jvar),'STDDEV  ','X',0,0,0,0,idatyp,.true.)
+                        'E',nomvar3dBal(jvar),'STDDEV  ','X',0,0,0,0,idatyp,.true.)
 
     enddo
 
@@ -1180,13 +1388,13 @@ module calcstatsglb_mod
         enddo
       enddo
       ierr = utl_fstecr(zbuf,ipak,nulstats,idateo,0,0,ni,nj,1,0,ip2,ip3,   &
-                     'E',nomvar2dBal(jvar),'STDDEV3D','G',0,0,0,0,idatyp,.true.)
+                        'E',nomvar2dBal(jvar),'STDDEV3D','G',0,0,0,0,idatyp,.true.)
 
       do jlat=1,nj
         zbufy(jlat)=dfact*stddevZonAvgBal(varLevOffset(nvar3d+1)+jvar,jlat)
       enddo
       ierr = utl_fstecr(zbufy,ipak,nulstats,idateo,0,0,1,nj,1,ip1,ip2,ip3,   &
-                     'E',nomvar2dBal(jvar),'STDDEV  ','X',0,0,0,0,idatyp,.true.)
+                        'E',nomvar2dBal(jvar),'STDDEV  ','X',0,0,0,0,idatyp,.true.)
 
     enddo
 
@@ -1938,6 +2146,7 @@ module calcstatsglb_mod
 !
 ! Convert from U/V to PSI/CHI and spectrally filter all fields
 !
+    call tmg_start(2,'UV_TO_PSICHI')
     dla2   = dble(ra)*dble(ra)
     do jens=1,nens
       member(:,:,:)=dble(ensPerturbations(:,:,:,jens))
@@ -1955,6 +2164,7 @@ module calcstatsglb_mod
       ensPerturbations(:,:,:,jens)=sngl(member(:,:,:))
     enddo
 
+    call tmg_stop(2)
     write(6,*) 'finished doing u/v -> psi/chi and spectral filter...'
     call flush(6)
     
@@ -2189,7 +2399,7 @@ module calcstatsglb_mod
           enddo
         enddo
         ierr = utl_fstecr(zbuf,ipak,nulstats,idateo,0,0,ni,nj,1,nip1_l(jlev),ip2,ip3,   &
-                       'E',nomvar3d(jvar,variableType),etiket,'G',0,0,0,0,idatyp,.true.)
+                          'E',nomvar3d(jvar,variableType),etiket,'G',0,0,0,0,idatyp,.true.)
       enddo
 
     enddo
@@ -2208,7 +2418,7 @@ module calcstatsglb_mod
         enddo
       enddo
       ierr = utl_fstecr(zbuf,ipak,nulstats,idateo,0,0,ni,nj,1,0,ip2,ip3,   &
-                     'E',nomvar2d(jvar,variableType),etiket,'G',0,0,0,0,idatyp,.true.)
+                        'E',nomvar2d(jvar,variableType),etiket,'G',0,0,0,0,idatyp,.true.)
 
     enddo
 

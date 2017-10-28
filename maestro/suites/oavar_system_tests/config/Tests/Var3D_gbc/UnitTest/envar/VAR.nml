@@ -5,6 +5,12 @@
    NTRUNC  = 180,
    SCALEFACTOR = 100*1.0D0
 /
+ &NAMBLB
+   NTRUNC  = 180,
+   SCALEFACTOR = 100*0.0D0
+   stddevMode = 'GD3D'
+   filterStddev = 5
+/
  &NAMBEN
    SCALEFACTOR = 100*0.0D0
 /
@@ -30,6 +36,8 @@
   DSTEPOBSINC = 6.0d0
 /
  &NAMFILT
+!  NELEMS = 1,
+!  NLIST(1)=12001,
   NELEMS = 16,
   NLIST(1)=10004,
   NLIST(2)=10051,

@@ -1307,7 +1307,8 @@ CONTAINS
     ! check if this mpi task will deal with winds during Legendre transform
     if(gst(gstID)%myLevBeg.le.2*nflev) then
       ! ensure that the number of levels on this mpi task is even to allow interleaving of u and v
-      if(mod(gst(gstID)%myLevCount,2).ne.0) then
+      ! only necessary when number of levels on an mpi task is less than all wind levels (2nd condition)
+      if( (mod(gst(gstID)%myLevCount,2).ne.0) .and. (gst(gstID)%myLevCount < 2*nflev) ) then
         write(*,*) 'GST_SPGD: myLevCount = ',gst(gstID)%myLevCount
         call utl_abort('GST_SPGD: Number of levels on this mpi task must be even!')
       endif
@@ -1377,7 +1378,8 @@ CONTAINS
     ! check if this mpi task will deal with winds during Legendre transform
     if(gst(gstID)%myLevBeg.le.2*nflev) then
       ! ensure that the number of levels on this mpi task is even to allow interleaving of u and v
-      if(mod(gst(gstID)%myLevCount,2).ne.0) then
+      ! only necessary when number of levels on an mpi task is less than all wind levels (2nd condition)
+      if( (mod(gst(gstID)%myLevCount,2).ne.0) .and. (gst(gstID)%myLevCount < 2*nflev) ) then
         write(*,*) 'GST_GDSP: myLevCount = ',gst(gstID)%myLevCount
         call utl_abort('GST_GDSP: Number of levels on this mpi task must be even!')
       endif
@@ -1709,7 +1711,8 @@ CONTAINS
     ! check if this mpi task will deal with winds during Legendre transform
     if(gst(gstID)%myLevBeg.le.2*nflev) then
       ! ensure that the number of levels on this mpi task is even to allow interleaving of u and v
-      if(mod(gst(gstID)%myLevCount,2).ne.0) then
+      ! only necessary when number of levels on an mpi task is less than all wind levels (2nd condition)
+      if( (mod(gst(gstID)%myLevCount,2).ne.0) .and. (gst(gstID)%myLevCount < 2*nflev) ) then
         write(*,*) 'GST_SPGDA: myLevCount = ',gst(gstID)%myLevCount
         call utl_abort('GST_SPGDA: Number of levels on this mpi task must be even!')
       endif

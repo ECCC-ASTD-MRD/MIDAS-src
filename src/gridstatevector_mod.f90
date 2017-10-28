@@ -44,7 +44,7 @@ module gridStateVector_mod
   public :: gsv_getField_i2, gsv_getField3D_i2, gsv_convertToInteger
   public :: gsv_getFieldUV_r8, gsv_getFieldUV_r4, gsv_getGZsfc
   public :: gsv_getIntOffset, gsv_getIntMultFactor
-  public :: gsv_getDateStamp, gsv_getNumLev
+  public :: gsv_getDateStamp, gsv_getNumLev, gsv_getNumLevFromVarName
   public :: gsv_add, gsv_power, gsv_scale, gsv_scaleVertical, gsv_copy, gsv_stddev
   public :: gsv_getVco, gsv_getHco
   public :: gsv_horizSubSample

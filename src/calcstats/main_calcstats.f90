@@ -59,8 +59,11 @@ program main_calcstats
 
   ierr = fstopc('MSGLVL','ERRORS',0)
 
-  !- 1.1 MPI
+  !- 1.1 MPI and TMG
   call mpi_initialize
+  call tmg_init(mpi_myid, 'TMG_CALCSTATS')
+
+  call tmg_start(1,'MAIN')
 
   !- 1.2 Read NAMENS namelist
   nens              = 96                ! default value
@@ -128,6 +131,12 @@ program main_calcstats
      else
         call csl_computeStats
      end if
+  case ('BHI2')
+     if (hco_ens % global) then
+        call csg_computeStatsLatBands
+     else
+        call utl_abort('BHI2 mode is not available for LAM')
+     end if
   case ('TOOLBOX')
      if (hco_ens % global) then
         call csg_toolbox
@@ -166,6 +175,12 @@ program main_calcstats
   write(*,*) '> ENDING CALCBMATRIX '
   write(*,*) '---------------------'
 
+  !
+  !- 4.  MPI, tmg finalize
+  !  
+  call tmg_stop(1)
+
+  call tmg_terminate(mpi_myid, 'TMG_CALCSTATS')
   call rpn_comm_finalize(ierr) 
 
 end program main_calcstats

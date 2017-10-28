@@ -1,25 +1,22 @@
- &NAMCT0
-/
- &NCONF
-/
  &NAMDIAG
-   DIAGDATE = 2014071000
-   !NUMPERTURBATIONS = 30
-   ONEOBS_LEVS = 60, 74
-   ONEOBS_LONS = 437, 470
-   ONEOBS_LATS = 230
-   !WRITEENSAMPLITUDE = .true.
+   DIAGDATE = 2017010100
+   NUMPERTURBATIONS = 1000
+   !ONEOBS_LEVS = 20, 40, 60, 80
+   !ONEOBS_LONS = 400
+   !ONEOBS_LATS = 50, 100, 150, 200, 250, 300, 350
+   writeTextStddev = .false.
+   writePsiChiStddev = .true.
 /
  &NAMBHI
-   NTRUNC  = 270,
+   NTRUNC  = 180,
    SCALEFACTOR   = 100*1.00D0
 /
+ &NAMBLB
+   NTRUNC  = 180,
+   SCALEFACTOR   = 100*0.00D0
+   stddevmode = 'GD3D'
+/
  &NAMBEN
-   NTRUNC       = 24,
-   NENS         = 128
-   SCALEFACTOR  = 100*0.00D0
-   ENSPATHNAME  ='./ensemble/'
-   !KEEPAMPLITUDE = .true.
 /
  &NAMSTATE
    ANLVAR(1)   ='UU'
@@ -28,6 +25,8 @@
    ANLVAR(4)   ='HU'
    ANLVAR(5)   ='P0'
    ANLVAR(6)   ='TG'
+   ANLVAR(7)   ='PP'
+   ANLVAR(8)   ='CC'
 /
  &NAMTIME
   DSTEPOBS = 6.0d0
