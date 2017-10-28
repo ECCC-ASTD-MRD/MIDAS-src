@@ -52,7 +52,7 @@ if [ "${ORDENV_PLAT}" = ubuntu-14.04-amd64-64 ];then
     ## for openmpi
     echo "... loading main/opt/openmpi/openmpi-1.6.5/intelcomp-2016.1.156"
     . ssmuse-sh -d main/opt/openmpi/openmpi-1.6.5/intelcomp-2016.1.156
-    echo "loading hdf5"
+    echo "... loading hdf5"
     . ssmuse-sh -x /fs/site1/dev/ssc/hpco/alk001/ssm/install_space/hdf5/hdf5_1.10.0-patch1-intel-serial-nosh-2016.1.156
 elif [ "${ORDENV_PLAT}" = sles-11-amd64-64 -o "${ORDENV_PLAT}" = sles-11-broadwell-64-xc40 ];then
     echo "loading cray-hdf5"
@@ -71,7 +71,7 @@ echo "... loading eccc/cmd/cmda/libs/16.2-4/${COMP_ARCH}"
 echo "... loading main/opt/perftools/perftools-2.0/${COMP_ARCH}"
 . ssmuse-sh -d main/opt/perftools/perftools-2.0/${COMP_ARCH}
 
-echo "...   loading arma/rttov/12v1"
+echo "... loading arma/rttov/12v1"
 . ssmuse-sh -d eccc/mrd/rpn/anl/rttov/12v1.0-rc1/${COMP_ARCH}
 
 if [ "$nompi" = "NOMPI" -o "$nompi" = "nompi" ] ; then
