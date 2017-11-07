@@ -1428,9 +1428,9 @@ contains
     integer :: numHeaderFile,numHeaderFile_mpiglobal(mpi_nprocs)
     integer :: obsLoadTile_mpilocal(mpi_nprocs),obsLoadTile_mpiglobal(mpi_nprocs)
     integer :: obsLoadTile_mpiglobal_tmp(mpi_nprocs)
-    integer :: obsLoadTile_sorted(mpi_nprocs), PE_sorted(mpi_nprocs), load_to_send
+    integer :: obsLoadTile_sorted(mpi_nprocs), PE_sorted(mpi_nprocs), totalLoadToSend
     integer :: numHeaderTile_mpilocal(mpi_nprocs),numHeaderTile_mpiglobal(mpi_nprocs)
-    integer :: PE_sender, PE_receiver, loadSent
+    integer :: PE_sender, PE_receiver, loadSent, thisLoadToSend, loadDifference
     integer, allocatable :: IPT_mpiglobal(:,:), IPT_mpilocal(:)
     integer, allocatable :: obsLoad_mpiglobal(:,:), obsLoad_mpilocal(:)
     integer :: codtyp, numtovs(mpi_nprocs), numir(mpi_nprocs), numtovs_mpiglobal(mpi_nprocs), numir_mpiglobal(mpi_nprocs)
@@ -1595,22 +1595,30 @@ contains
        if(mpi_myid == 0) write(*,*) 'setObsMpiStrategy: corresponding sorted PE_mpiglobal  =',PE_sorted(:)
 
        ! modify IPC for headers that need to be sent to balance load
-       do IP = 0, (mpi_nprocs/2)-1
-          PE_sender=PE_sorted(IP+1);
-          PE_receiver=PE_sorted(mpi_nprocs-IP);
-          load_to_send=floor(0.5*(obsLoadTile_mpiglobal(PE_sender+1) -  &
-               obsLoadTile_mpiglobal(PE_receiver+1)))
-          if(mpi_myid == 0) write(*,*) 'setObsMpiStrategy: PE_sender, PE_receiver, load_to_send = ', PE_sender, PE_receiver, load_to_send
+       IP_LOOP: do IP = 0, (mpi_nprocs/2)-1
+          PE_sender=PE_sorted(IP+1)
+          PE_receiver=PE_sorted(mpi_nprocs-IP)
+          loadDifference = obsLoadTile_mpiglobal(PE_sender+1) -  &
+                           obsLoadTile_mpiglobal(PE_receiver+1)
+          totalLoadToSend = floor(0.5 * loadDifference)
+          if(mpi_myid == 0) write(*,*) 'setObsMpiStrategy: PE_sender, PE_receiver, totalLoadToSend = ', &
+                                       PE_sender, PE_receiver, totalLoadToSend
 
-          ! modify IPC value from PE_sender to PE_receiver for headers whose load adds up to load_to_send
+          ! modify IPC value from PE_sender to PE_receiver for headers whose load adds up to totalLoadToSend
           loadSent=0
           do IP2 = 0, (mpi_nprocs-1)
-             if(loadSent<load_to_send) then
+             if( loadSent < totalLoadToSend ) then
                 do headerIndex = 1, numHeaderFile_mpiglobal(IP2+1)
-                   if( IPT_mpiglobal(headerIndex,IP2+1).eq.PE_sender .and. &
-                        obsLoad_mpiglobal(headerIndex,IP2+1).gt.0 .and. &
-                        loadSent.lt.load_to_send ) then
-                      loadSent = loadSent + obsLoad_mpiglobal(headerIndex,IP2+1)
+                   thisLoadToSend = obsLoad_mpiglobal(headerIndex,IP2+1)
+                   if( IPT_mpiglobal(headerIndex,IP2+1) == PE_sender .and. &
+                       thisLoadToSend > 0 .and. &
+                       loadSent < totalLoadToSend ) then
+                      ! check if sending this header would mean entire load difference is sent
+                      if( (loadSent + thisLoadToSend) == loadDifference ) then
+                        if( mpi_myid == 0 ) write(*,*) 'setObsMpiStrategy: prevent sending all of load difference!'
+                        cycle IP_LOOP
+                      end if
+                      loadSent = loadSent + thisLoadToSend
                       if(mpi_myid.eq.IP2) then
                          ! header to send is currently on my PE
                          !write(*,*) 'setObsMpiStrategy: changing obs_ipc from ', &
@@ -1621,7 +1629,7 @@ contains
                 enddo
              endif
           enddo
-       enddo
+       enddo IP_LOOP
 
        deallocate(IPT_mpiglobal)
        deallocate(IPT_mpilocal)
