@@ -3819,6 +3819,7 @@ contains
       call rpn_comm_bcast(coefs%coef%nlte_coef%start_chan, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
 
       allocate(nlte_chans(coefs%coef%fmv_chn)) ! Index of selected channels in nlte_coefs array in the file
+
       nlte_count = 0  ! Number of NLTE channels being read in
       nlte_start = 0  ! Index (in input channel list) of first NLTE channel being read in
       do i = 1, coefs%coef%fmv_chn
@@ -3829,26 +3830,21 @@ contains
           if (nlte_count == 1) nlte_start = i
         end if
       end do
-           
-      if (nlte_count > 0) THEN
-        ! Reset NLTE channel variables according to input channel list
-        nlte_file_nchan                  = coefs%coef%nlte_coef%nchan
-        coefs%coef%nlte_coef%start_chan  = nlte_start
-        coefs%coef%nlte_coef%nchan      = nlte_count
-      else
-!        ! No NLTE channels selected so no need for NLTE coef section
-        coefs%coef%nlte_coef%start_chan = 0_jpim
-        coefs%coef%nlte_coef%nchan = 0_jpim
-!        deallocate(coefs%coef%nlte_coef, nlte_chans)
-        coefs%coef%nltecoef = .FALSE.
-      end if
+
+      coefs%coef%nltecoef = ( nlte_count > 0)
+
+      nlte_file_nchan  = coefs%coef%nlte_coef%nchan
+
+! Reset NLTE channel variables according to input channel list
+      coefs%coef%nlte_coef%start_chan  = nlte_start
+      coefs%coef%nlte_coef%nchan      = nlte_count
 
       if (mpi_myid > 0) then
          allocate (coefs%coef%nlte_coef%sec_sat(coefs%coef%nlte_coef%nsat) )
          allocate (coefs%coef%nlte_coef%sol_zen_angle(coefs%coef%nlte_coef%nsol) )
       end if
-      call rpn_comm_bcast(coefs%coef%nlte_coef%sec_sat, size(coefs%coef%nlte_coef%sec_sat), 'MPI_REAL8', 0, 'GRID', ierr)
-      call rpn_comm_bcast(coefs%coef%nlte_coef%sol_zen_angle, size(coefs%coef%nlte_coef%sol_zen_angle), 'MPI_REAL8', 0, 'GRID', ierr)
+      call rpn_comm_bcast(coefs%coef%nlte_coef%sec_sat, coefs%coef%nlte_coef%nsat, 'MPI_REAL8', 0, 'GRID', ierr)
+      call rpn_comm_bcast(coefs%coef%nlte_coef%sol_zen_angle, coefs%coef%nlte_coef%nsol, 'MPI_REAL8', 0, 'GRID', ierr)
      
       allocate(bigArray(coefs%coef%nlte_coef%ncoef, coefs%coef%nlte_coef%nsat, &
            coefs%coef%nlte_coef%nsol, nlte_file_nchan) )
@@ -3868,7 +3864,7 @@ contains
 
       call rpn_comm_bcast(bigArray, size(bigArray), 'MPI_REAL8', 0, 'GRID', ierr)
       allocate(coefs%coef%nlte_coef%coef(coefs%coef%nlte_coef%ncoef, coefs%coef%nlte_coef%nsat, &
-           coefs%coef%nlte_coef%nsol, coefs%coef%nlte_coef%nchan) )
+           coefs%coef%nlte_coef%nsol, nlte_count))
       coefs%coef%nlte_coef%coef(:,:,:,:) = bigArray(:,:,:,nlte_chans(1:nlte_count))
       deallocate(nlte_chans, bigArray)
        
