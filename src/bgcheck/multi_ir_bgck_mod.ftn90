@@ -3509,6 +3509,7 @@ contains
     implicit none
 #include "rttov_direct.interface"
 #include "rttov_alloc_rad.interface"
+#include "rttov_read_coefs.interface"
     integer ,intent(in) :: idiasi
     integer ,intent (in) :: iptobs(1)
     real (8) , intent (in) :: surfem1_avhrr(3)
@@ -3544,11 +3545,11 @@ contains
         end if
       end if
 
-      call tvs_rttov_read_coefs ( errorstatus, &! out
+      call rttov_read_coefs ( errorstatus, &! out
            coefs_avhrr,     &! out
            tvs_opts(1),     &! in
-           ichan_avhrr,     &! in 
-           list_sensor )     ! in
+           channels=ichan_avhrr,     &! in
+           instrument=list_sensor )     ! in
 
        
       if ( errorstatus /= 0) then
