@@ -83,6 +83,7 @@ module bMatrixLatBands_mod
   real(8)             :: blendMeanStddev
   integer             :: numLatBand = 3
   real(8),allocatable :: latMask(:,:)
+  logical             :: zeroTropicsCrossCorr
 
   ! this should come from state vector object
   integer             :: numvar3d
@@ -127,7 +128,8 @@ contains
     type(struct_vco),pointer :: vco_file => null()
     character(len=8) :: bFileName = './bgcov'
     
-    NAMELIST /NAMBLB/ntrunc,scaleFactor,scaleFactorLQ,scaleTG,TweakTG,stddevMode,filterStddev,blendMeanStddev
+    NAMELIST /NAMBLB/ntrunc, scaleFactor, scaleFactorLQ, scaleTG, TweakTG,  &
+         stddevMode, filterStddev, blendMeanStddev, zeroTropicsCrossCorr
 
     call tmg_start(52,'BLB_SETUP')
     if( mpi_myid == 0 ) write(*,*) 'blb_setup: starting'
@@ -176,6 +178,7 @@ contains
     stddevMode = 'GD2D'
     filterStddev = -1
     blendMeanStddev = -1.0d0
+    zeroTropicsCrossCorr = .true.
 
     nulnam = 0
     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -1367,7 +1370,7 @@ contains
 
     do jLatBand = 1, numLatBand
 
-      if( jLatBand == 2 ) then
+      if( jLatBand == 2 .and. zeroTropicsCrossCorr ) then
         ! Set all cross-variable correlations to zero for tropics
         do jblock1 = 1, inbrblock
           do jblock2 = 1, jblock1
@@ -1513,8 +1516,9 @@ contains
     integer, parameter  :: inbrvar3d=4
     integer, parameter  :: inbrvar2d=1
     integer :: jvar,jn,jfilt,count
-    integer :: ikey, jlev, jlat,firstn,lastn
-    real(8) :: zgr(nj,max(nlev_M,nlev_T))
+    integer :: ikey, jlev, jlat, jlat_file
+    real(8), allocatable :: zgr(:,:)
+    real(8) :: zgr_interp(nj,max(nlev_M,nlev_T))
     character(len=4) :: varName3d(inbrvar3d),varName2d(inbrvar2d)
     real(8), allocatable :: rgsig_filter(:,:)
     real(8) :: globalmean
@@ -1544,6 +1548,11 @@ contains
     cletiket = 'STDDEV'
     cltypvar = 'E'
 
+    ! allocate array used to read 2D stddev
+    varName = varName3d(1)
+    ikey = fstinf(nulbgst,ni_file,nj_file,nk_file,idate,cletiket,ip1,ip2,ip3,cltypvar,varName)
+    allocate(zgr(nj_file,max(nlev_M,nlev_T)))
+
     do jvar = 1, inbrvar3d
       varName = varName3d(jvar)
       if( vnl_varLevelFromVarName(varName) == 'MM' ) then
@@ -1554,26 +1563,35 @@ contains
 
       ikey = fstinf(nulbgst,ni_file,nj_file,nk_file,idate,cletiket,ip1,ip2,ip3,cltypvar,varName)
 
-      if( ikey >= 0 ) then
-        ikey = utl_fstlir(zgr(:,1:nlev_MT),nulbgst,ni_file,nj_file,nk_file,idate,cletiket,ip1,ip2,ip3,cltypvar,varName)
-      else
-        write(*,*) 'blb_readStd: could not read varName=',varName
-        call utl_abort('READSTD') 
-      end if
-
       if( nk_file /= nlev_MT ) then
         write(*,*) 'nk_file, nlev_MT=', nk_file, nlev_MT
         call utl_abort('blb_readStd: BG stat levels inconsitencies')
       end if
 
+      if( ikey >= 0 ) then
+        ikey = utl_fstlir(zgr(:,1:nlev_MT),nulbgst,ni_file,nj_file,nk_file,idate,cletiket,ip1,ip2,ip3,cltypvar,varName)
+      else
+        write(*,*) 'blb_readStd: could not read varName=',varName
+        call utl_abort('blb_readStd') 
+      end if
+
+      if( nj_file == nj ) then
+        zgr_interp(:,1:nlev_MT) = zgr(:,1:nlev_MT)
+      else
+        do jlat = 1, nj
+          jlat_file = (real(nj_file-1)/real(nj-1))*(jlat-1) + 1
+          zgr_interp(jlat,1:nlev_MT) = zgr(jlat_file,1:nlev_MT)
+        end do
+      end if
+
       if( varName == 'PP' ) then
-        rgsiguu(:,:) = zgr(:,1:nlev_M)
+        rgsiguu(:,:) = zgr_interp(:,1:nlev_MT)
       else if( varName == 'UC' .or. varName == 'CC' ) then
-        rgsigvv(:,:) = zgr(:,1:nlev_M)
+        rgsigvv(:,:) = zgr_interp(:,1:nlev_MT)
       else if( varName == 'TT' ) then
-        rgsigtt(:,:) = zgr(:,1:nlev_T)
+        rgsigtt(:,:) = zgr_interp(:,1:nlev_MT)
       else if( varName == 'LQ' ) then
-        rgsigq(:,:) = max(0.10d0,zgr(:,1:nlev_T)*rfacthum)
+        rgsigq(:,:) = max(0.10d0,zgr_interp(:,1:nlev_MT)*rfacthum)
       end if
 
     end do
@@ -1591,8 +1609,17 @@ contains
         call utl_abort('blb_readStd') 
       end if
 
+      if( nj_file == nj ) then
+        zgr_interp(:,1) = zgr(:,1)
+      else
+        do jlat = 1, nj
+          jlat_file = (real(nj_file-1)/real(nj-1))*(jlat-1) + 1
+          zgr_interp(jlat,1) = zgr(jlat_file,1)
+        end do
+      end if
+
       if( varName == 'P0' ) then
-        rgsigps(:) = zgr(:,1)*100.0d0
+        rgsigps(:) = zgr_interp(:,1)*100.0d0
       end if
 
     end do
@@ -1626,6 +1653,8 @@ contains
 
     end if
 
+    deallocate(zgr)
+
   end subroutine blb_readStd
 
 
@@ -1633,8 +1662,8 @@ contains
     implicit none
 
     integer, parameter  :: inbrvar=5
-    integer :: varIndex,jn,jfilt,count
-    integer :: ikey, ierr, levIndex, jlat,firstn,lastn
+    integer :: varIndex, jn, jfilt, count
+    integer :: ikey, ierr, levIndex, jlat
     real(8) :: zgr(ni,nj)
     character(len=4) :: varNames(inbrvar)
     real(8), allocatable :: rgsig_filter(:,:)

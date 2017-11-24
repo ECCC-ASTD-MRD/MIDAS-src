@@ -9,8 +9,9 @@
    ANLVAR(5)   ='P0'
 /
  &NAMENS
-   NENS=176
-   ENSFILEBASENAME='nmc_ensemble_'  
+   NENS=150
+   !ENSFILEBASENAME='nmc_ensemble_'  
+   ENSFILEBASENAME='2017011000_006_'  
 /
  &NAMCALCSTATS_GLB
    NTRUNC=180
