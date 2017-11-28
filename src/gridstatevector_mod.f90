@@ -1901,10 +1901,24 @@ module gridStateVector_mod
 
     ! locals
     integer :: nulfile, ierr, ni_file, nj_file, nk_file, ip1, kIndex, stepIndex, ikey, levIndex
+    integer :: ni_tg, nj_tg, nk_tg
     integer :: fnom, fstouv, fclos, fstfrm, fstlir, fstinf
+    integer :: fstprm, EZscintID_tg, ezdefset, ezsetopt, ezqkdef, ezsint
+
+    integer :: dateo_tg, deet_tg, npas_tg, nbits_tg, datyp_tg
+    integer :: ip1_tg, ip2_tg, ip3_tg, swa_tg, lng_tg, dltf_tg, ubc_tg
+    integer :: extra1_tg, extra2_tg, extra3_tg
+    integer :: ig1_tg, ig2_tg, ig3_tg, ig4_tg
+
+    character(len=4 ) :: nomvar_tg
+    character(len=2 ) :: typvar_tg
+    character(len=1 ) :: grtyp_tg
+    character(len=12) :: etiket_tg
+
     real(4), pointer :: field_r4_ptr(:,:,:,:)
     real(4), pointer :: fieldUV_r4_ptr(:,:,:,:)
     real(4), pointer :: gd2d_file(:,:)
+    real(4), allocatable :: gd2d_tg(:,:)
     character(len=4)  :: varName
     character(len=2)  :: varLevel
     type(struct_vco), pointer :: vco_file
@@ -1933,11 +1947,17 @@ module gridStateVector_mod
       call utl_abort('gsv_readFromFile: unit number for input file not valid!')
     end if
 
-    ! allow for possibility that input is Z grid equivalent to output Gaussian grid
-    varName = gsv_getVarNameFromK(statevector,statevector%mykBeg)
-    ikey = fstinf(nulfile, ni_file, nj_file, nk_file,  &
-                  statevector%datestamplist(1), etiket_in, &
-                  -1, -1, -1, typvar_in, varName)
+    if (statevector%hco%global) then
+      ! In global mode, allow for possibility that input is Z grid equivalent to output Gaussian grid
+      varName = gsv_getVarNameFromK(statevector,statevector%mykBeg)
+      ikey = fstinf(nulfile, ni_file, nj_file, nk_file,  &
+                    statevector%datestamplist(1), etiket_in, &
+                    -1, -1, -1, typvar_in, varName)
+    else
+      ! In LAM mode, force the input file dimensions to be always identical to the input statevector dimensions
+      ni_file=statevector%ni
+      nj_file=statevector%nj
+    end if
     allocate(gd2d_file(ni_file,nj_file))
     gd2d_file(:,:) = 0.0d0
 
@@ -1967,9 +1987,36 @@ module gridStateVector_mod
           call utl_abort('gsv_readFromFile: unknown varLevel')
         end if
 
-        ierr=fstlir(gd2d_file(:,:),nulfile,ni_file, nj_file, nk_file,  &
-                    statevector%datestamplist(stepIndex),etiket_in,ip1,-1,-1,  &
-                    typvar_in,varName)
+        if ( trim(varName) == 'TG' .and. .not. statevector%hco%global ) then
+          ! Special case for TG on the physic (smaller) grid in LAM mode
+          ikey = fstinf(nulfile, ni_tg, nj_tg, nk_tg,  &
+                 statevector%datestamplist(1), etiket_in, &
+                  -1, -1, -1, typvar_in, varName)
+          ierr = fstprm( ikey,                                                             & ! IN
+                  dateo_tg, deet_tg, npas_tg, ni_tg, nj_tg, nk_tg, nbits_tg,               & ! OUT
+                  datyp_tg, ip1_tg, ip2_tg, ip3_tg, typvar_tg, nomvar_tg, etiket_tg,       & ! OUT
+                  grtyp_tg, ig1_tg, ig2_tg, ig3_tg,                                        & ! OUT
+                  ig4_tg, swa_tg, lng_tg, dltf_tg, ubc_tg, extra1_tg, extra2_tg, extra3_tg ) ! OUT
+          EZscintID_tg  = ezqkdef( ni_tg, nj_tg, grtyp_tg, ig1_tg, ig2_tg, ig3_tg, ig4_tg, nulfile ) ! IN
+
+          allocate(gd2d_tg(ni_tg,nj_tg))
+          gd2d_tg(:,:) = 0.0d0
+          ierr=fstlir(gd2d_tg(:,:),nulfile,ni_tg, nj_tg, nk_tg,  &
+                     statevector%datestamplist(stepIndex),etiket_in,ip1,-1,-1,  &
+                     typvar_in,varName)
+
+          ierr = ezdefset(statevector%hco%EZscintID,EZscintID_tg)
+          ierr = ezsetopt('INTERP_DEGREE', 'NEAREST')
+          ierr = ezsetopt('EXTRAP_DEGREE', 'NEUTRAL')
+          ierr = ezsint( gd2d_file, gd2d_tg)
+          ierr = ezsetopt('EXTRAP_DEGREE', 'MAXIMUM') ! Reset to default
+
+          deallocate(gd2d_tg)
+        else
+          ierr=fstlir(gd2d_file(:,:),nulfile,ni_file, nj_file, nk_file,  &
+                     statevector%datestamplist(stepIndex),etiket_in,ip1,-1,-1,  &
+                     typvar_in,varName)
+        end if
         field_r4_ptr(:,:,kIndex,stepIndex) = gd2d_file(1:statevector%hco%ni,1:statevector%hco%nj)
 
         HUcontainsLQinFile = .false.
