@@ -871,7 +871,7 @@ CONTAINS
           call tmg_stop(35)
           deallocate(col_send)
         else
-          call utl_abort('transpose_tileToColumn: NOT SURE WHAT IS GOING ON, CALL MARK')
+          call utl_abort('transpose_columnToTile: NOT SURE WHAT IS GOING ON, CALL MARK')
         endif
 
       else
