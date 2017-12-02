@@ -91,9 +91,10 @@ else
 fi
 
 if [ "${COMPILE_OAVAR_ADD_DEBUG_OPTIONS:-no}" = yes ]; then
-    echo "... > !WARNING! You are compiling in DEBUG MODE"
+    echo "... > !WARNING! You are compiling in DEBUG MODE: '-debug -C -O 0'"
     COMPF_NOC="${COMPF_GLOBAL} -debug DEBUG -optf ${OPTF}"
     COMPF="${COMPF_NOC} =-C"
+    FOPTMIZ=0
 else
     COMPF="${COMPF_GLOBAL} -optf ${OPTF}"
     COMPF_NOC=${COMPF}
