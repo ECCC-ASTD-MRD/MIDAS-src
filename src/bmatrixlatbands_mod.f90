@@ -72,11 +72,8 @@ module bMatrixLatBands_mod
   logical             :: llimtg=.true.
   logical             :: TweakTG
   integer             :: nulbgst=0
-  real(8)             :: rvlocpsi    = 6.0d0
-  real(8)             :: rvlocchi    = 6.0d0
-  real(8)             :: rvloct      = 6.0d0
-  real(8)             :: rvlocpsitt  = 6.0d0
-  real(8)             :: rvloclq     = 4.0d0
+  real(8)             :: rvlocpsichittps
+  real(8)             :: rvloclq
   real(8)             :: rlimlv_bdl  = 85000.0d0
   character(len=4)    :: stddevMode
   integer             :: filterStddev
@@ -129,7 +126,7 @@ contains
     character(len=8) :: bFileName = './bgcov'
     
     NAMELIST /NAMBLB/ntrunc, scaleFactor, scaleFactorLQ, scaleTG, TweakTG,  &
-         stddevMode, filterStddev, blendMeanStddev, zeroTropicsCrossCorr
+         stddevMode, filterStddev, blendMeanStddev, zeroTropicsCrossCorr, rvlocpsichittps, rvloclq
 
     call tmg_start(52,'BLB_SETUP')
     if( mpi_myid == 0 ) write(*,*) 'blb_setup: starting'
@@ -179,6 +176,8 @@ contains
     filterStddev = -1
     blendMeanStddev = -1.0d0
     zeroTropicsCrossCorr = .true.
+    rvlocpsichittps = 6.0d0
+    rvloclq = 4.0d0
 
     nulnam = 0
     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -463,7 +462,7 @@ contains
     ! Apply vertical localization to corrns
 
     ! streamfunction 
-    ztlen = rvlocpsi    ! specify length scale (in units of ln(Pressure))
+    ztlen = rvlocpsichittps    ! specify length scale (in units of ln(Pressure))
     if( ztlen > 0.0d0 ) then
       ! calculate 5'th order function (from Gaspari and Cohn)
       do jk1 = 1, nlev_M
@@ -480,7 +479,7 @@ contains
     end if
 
     ! velocity potential
-    ztlen = rvlocchi    ! specify length scale (in units of ln(Pressure))
+    ztlen = rvlocpsichittps    ! specify length scale (in units of ln(Pressure))
     if( ztlen > 0.0d0 ) then
       ! calculate 5'th order function (from Gaspari and Cohn)
       do jk1 = 1, nlev_M
@@ -497,7 +496,7 @@ contains
     end if
 
     ! psi-chi cross-correlations
-    ztlen = rvlocpsi    ! specify length scale (in units of ln(Pressure))
+    ztlen = rvlocpsichittps    ! specify length scale (in units of ln(Pressure))
     if( ztlen > 0.0d0 ) then
       ! calculate 5'th order function (from Gaspari and Cohn)
       do jk1 = 1, nlev_M
@@ -515,7 +514,7 @@ contains
     end if
 
     ! temperature
-    ztlen = rvloct
+    ztlen = rvlocpsichittps
     if( ztlen > 0.0d0 ) then
       do jk1 = 1, nlev_T
         zpres1 = log(pressureProfile_T(jk1))
@@ -532,7 +531,7 @@ contains
     end if
 
     ! temp-psi cross-correlations
-    ztlen = rvlocpsitt    ! specify length scale (in units of ln(Pressure))
+    ztlen = rvlocpsichittps    ! specify length scale (in units of ln(Pressure))
     if( ztlen > 0.0d0 ) then
       ! calculate 5'th order function (from Gaspari and Cohn)
       do jk1 = 1, nlev_M
@@ -550,7 +549,7 @@ contains
     end if
 
     ! temp-chi cross-correlations
-    ztlen = rvlocpsitt    ! specify length scale (in units of ln(Pressure))
+    ztlen = rvlocpsichittps    ! specify length scale (in units of ln(Pressure))
     if( ztlen > 0.0d0 ) then
       ! calculate 5'th order function (from Gaspari and Cohn)
       do jk1 = 1, nlev_M
@@ -568,7 +567,7 @@ contains
     end if
 
     ! cross-correlation psi-ps
-    ztlen = rvloct    ! specify length scale (in units of ln(Pressure))
+    ztlen = rvlocpsichittps    ! specify length scale (in units of ln(Pressure))
     if( ztlen > 0.0d0 ) then
       ! calculate 5'th order function (from Gaspari and Cohn)
       zpres1 = log(pressureProfile_T(nlev_T))
@@ -586,7 +585,7 @@ contains
     end if
 
     ! cross-correlation chi-ps
-    ztlen = rvloct    ! specify length scale (in units of ln(Pressure))
+    ztlen = rvlocpsichittps    ! specify length scale (in units of ln(Pressure))
     if( ztlen > 0.0d0 ) then
       ! calculate 5'th order function (from Gaspari and Cohn)
       zpres1 = log(pressureProfile_T(nlev_T))
@@ -604,7 +603,7 @@ contains
     end if
 
     ! cross-correlation temp-ps
-    ztlen = rvloct    ! specify length scale (in units of ln(Pressure))
+    ztlen = rvlocpsichittps    ! specify length scale (in units of ln(Pressure))
     if( ztlen > 0.0d0 ) then
       ! calculate 5'th order function (from Gaspari and Cohn)
       zpres1 = log(pressureProfile_T(nlev_T))
