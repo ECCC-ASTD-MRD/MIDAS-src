@@ -252,6 +252,8 @@ contains
              columnhr_ptr => col_getColumn(columnhr,columnIndex,'HU')
              do jlev=1,col_getNumLev(columnhr,'TH')
                 columnhr_ptr(jlev) = log(max(columnhr_ptr(jlev),col_rhumin))
+             enddo
+             do jlev=1,col_getNumLev(columng,'TH')
                 columng_ptr(jlev) = log(max(columng_ptr(jlev),col_rhumin))
              enddo
           enddo
