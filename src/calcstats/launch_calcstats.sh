@@ -8,11 +8,11 @@
 #ensdir=/home/jfc425/data_maestro/brooks/ensemble/national_test #global_test/gaussian_grid
 #analysisgrid="/home/jfc425/data/ords/oavarGridTemplate/analysisgrid_national10km_80L_vcode5002.fst"
 
-flnml="namelist_glb.nml"
+flnml="namelist_bhi_glb.nml"
 machine=brooks
 abs=/home/mab001/data_maestro/ords/oavar_abs/calcstats_sles-11-broadwell-64-xc40-m_3.0.0-1-gaea63f4_M.Abs
-expname="test_5002_latbands_m_3.0.0"
-ensdir=${HOME}/data_maestro/${machine}/calcstats/ensemble
+expname="test_5002_latbands_m_3.0.0_enkf"
+ensdir=${HOME}/data_maestro/${machine}/calcstats/ensemble_enkf
 gest="${HOME}/data_maestro/${machine}/calcstats/${expname}"
 analysisgrid="/home/sanl000/ANAL_shared/datafiles/constants/arma/oavar/2.1.1/analysis_grid_prototypes/analysis_grid_prototype_glb_800x400_south-to-north_80L_vcode5002"
 
