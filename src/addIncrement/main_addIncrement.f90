@@ -20,7 +20,7 @@
 !!            AddAnalInc (AAI) program
 !!
 !--------------------------------------------------------------------------
-program main_aai
+program main_addIncrement
   use mpi_mod
   use utilities_mod
   use ramDisk_mod
@@ -58,11 +58,11 @@ program main_aai
   logical  :: imposeRttovHuLimits
   character(len=12) :: etiket_rehm
   character(len=12) :: etiket_anlm
-  NAMELIST /NAMAAI/writeHiresIncrement, etiket_rehm, etiket_anlm, writeNumBits, imposeRttovHuLimits
+  NAMELIST /NAMADDINC/writeHiresIncrement, etiket_rehm, etiket_anlm, writeNumBits, imposeRttovHuLimits
 
   write(*,'(/,' //  &
         '3(" *****************"),/,' //                   &
-        '14x,"-- START OF MAIN_AAI             --",/,' //   &
+        '14x,"-- START OF MAIN_ADDINCREMENT         --",/,' //   &
         '14x,"-- Program for interpolating and adding analysis increment to background state --",/, ' //  &
         '14x,"-- Revision number ",a," --",/,' //  &
         '3(" *****************"))') 'GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE'
@@ -71,7 +71,7 @@ program main_aai
   !- MPI, TMG initialization
   !
   call mpi_initialize
-  call tmg_init(mpi_myid, 'TMG_AAI' )
+  call tmg_init(mpi_myid, 'TMG_ADDINC' )
 
   call tmg_start(1,'MAIN')
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -83,7 +83,7 @@ program main_aai
   call ram_setup
 
   !
-  !- Set/Read values for the namelist NAMAAI
+  !- Set/Read values for the namelist NAMADDINC
   !
   
   !- Setting default values
@@ -96,9 +96,9 @@ program main_aai
   !- Read the namelist
   nulnam = 0
   ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
-  read(nulnam, nml=namaai, iostat=ierr)
-  if ( ierr /= 0) call utl_abort('main_aai: Error reading namelist')
-  if ( mpi_myid == 0 ) write(*,nml=namaai)
+  read(nulnam, nml=namaddinc, iostat=ierr)
+  if ( ierr /= 0) call utl_abort('main_addIncrement: Error reading namelist')
+  if ( mpi_myid == 0 ) write(*,nml=namaddinc)
   ierr = fclos(nulnam)
 
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
@@ -114,7 +114,7 @@ program main_aai
 
   !- Initialize the trial state grid
   if (mpi_myid == 0) write(*,*) ''
-  if (mpi_myid == 0) write(*,*) ' main_aai: Set hco parameters for trial grid'
+  if (mpi_myid == 0) write(*,*) ' main_addIncrement: Set hco parameters for trial grid'
   trialFileName = './trlm_01'
   call hco_SetupFromFile( hco_trl, trim(trialFileName), ' ')
   call vco_setupFromFile( vco_trl, trim(trialFileName) )
@@ -125,7 +125,7 @@ program main_aai
   ! Read trial files, keeping HU as is (no conversion to LQ)
   !
   if(mpi_myid == 0) write(*,*) ''
-  if(mpi_myid == 0) write(*,*) 'main_aai: reading background state for all time steps'
+  if(mpi_myid == 0) write(*,*) 'main_addIncrement: reading background state for all time steps'
   call gsv_readTrials(hco_trl,vco_trl,statevector_trial,HUcontainsLQ_opt=.false.)
 
   !
@@ -137,7 +137,7 @@ program main_aai
   do stepIndex = 1, numStep
     dateStamp = datestamplist(stepIndex)
     if(mpi_myid == 0) write(*,*) ''
-    if(mpi_myid == 0) write(*,*) 'main_aai: reading Psfc increment for time step: ',stepIndex, dateStamp
+    if(mpi_myid == 0) write(*,*) 'main_addIncrement: reading Psfc increment for time step: ',stepIndex, dateStamp
 
     call difdatr(dateStamp,tim_getDatestamp(),deltaHours)
     if(nint(deltaHours*60.0d0).lt.0) then
@@ -175,7 +175,7 @@ program main_aai
   do stepIndex = 1, numStep
     dateStamp = datestamplist(stepIndex)
     if(mpi_myid == 0) write(*,*) ''
-    if(mpi_myid == 0) write(*,*) 'main_aai: reading increment for time step: ',stepIndex, dateStamp
+    if(mpi_myid == 0) write(*,*) 'main_addIncrement: reading increment for time step: ',stepIndex, dateStamp
 
     call difdatr(dateStamp,tim_getDatestamp(),deltaHours)
     if(nint(deltaHours*60.0d0).lt.0) then
@@ -213,7 +213,7 @@ program main_aai
     do stepIndex = 1, numStep
       dateStamp = datestamplist(stepIndex)
       if(mpi_myid == 0) write(*,*) ''
-      if(mpi_myid == 0) write(*,*) 'main_aai: writing interpolated increment for time step: ',stepIndex, dateStamp
+      if(mpi_myid == 0) write(*,*) 'main_addIncrement: writing interpolated increment for time step: ',stepIndex, dateStamp
 
       call difdatr(dateStamp,tim_getDatestamp(),deltaHours)
       if(nint(deltaHours*60.0d0).lt.0) then
@@ -235,12 +235,12 @@ program main_aai
   end if
   
   !
-  ! Write analysis state to file only at the central time
+  ! Write analysis state to file
   !
   do stepIndex = 1, numStep
     dateStamp = datestamplist(stepIndex)
     if(mpi_myid == 0) write(*,*) ''
-    if(mpi_myid == 0) write(*,*) 'main_aai: writing analysis for time step: ',stepIndex, dateStamp
+    if(mpi_myid == 0) write(*,*) 'main_addIncrement: writing analysis for time step: ',stepIndex, dateStamp
 
     call difdatr(dateStamp,tim_getDatestamp(),deltaHours)
     if(nint(deltaHours*60.0d0).lt.0) then
@@ -261,7 +261,7 @@ program main_aai
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
   call tmg_stop(1)
 
-  call tmg_terminate(mpi_myid, 'TMG_AAI' )
+  call tmg_terminate(mpi_myid, 'TMG_ADDINC' )
   call rpn_comm_finalize(ierr) 
 
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
@@ -270,7 +270,7 @@ program main_aai
   !- Ending
   !
   if ( mpi_myid == 0 ) write(*,*) ' --------------------------------'
-  if ( mpi_myid == 0 ) write(*,*) ' MAIN_AAI ENDS'
+  if ( mpi_myid == 0 ) write(*,*) ' MAIN_ADDINCREMENT ENDS'
   if ( mpi_myid == 0 ) write(*,*) ' --------------------------------'
 
-end program main_aai
+end program main_addIncrement

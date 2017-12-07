@@ -1,8 +1,8 @@
 #!/bin/bash
 #
 
-cd aai
-./compile_aai.sh
+cd addIncrement
+./compile_addIncrement.sh
 cd ../
 
 echo ''

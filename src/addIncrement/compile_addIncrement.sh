@@ -3,7 +3,7 @@
 set -e
 
 mode=$1
-program="aai"
+program="addIncrement"
 
 . ./compile_commons.sh
 

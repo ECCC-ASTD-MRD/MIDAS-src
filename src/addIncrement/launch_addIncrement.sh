@@ -4,11 +4,9 @@
 #
 # User-defined options
 #
-machine=hare
-abs="${HOME}/data_maestro/ords/oavar_abs/aai_sles-11-broadwell-64-xc40-m_2.2.3-57-g9000603_M.Abs"
 machine=eccc-ppp2
-abs="${HOME}/data_maestro/ords/oavar_abs/aai_ubuntu-14.04-amd64-64-m_2.2.3-57-g9000603_M.Abs"
-inputdir="/home/mab001/data_maestro/${machine}/aai/inputs/"
+abs="${HOME}/data_maestro/ords/oavar_abs/addIncrement_ubuntu-14.04-amd64-64-v_3.0.4-26-g6a1e6b2_M.Abs"
+inputdir="/home/mab001/data_maestro/${machine}/addIncrement/inputs/"
 npex=1
 npey=139
 openmp=1
@@ -19,13 +17,13 @@ run_in_parallel="/fs/ssm/eccc/mrd/rpn/utils/16.2/all/bin/r.run_in_parallel_1.1.2
 # Don't modify below ...
 #
 
-gest="${HOME}/data_maestro/${machine}/aai/workdir/"
+gest="${HOME}/data_maestro/${machine}/addIncrement/workdir2/"
 
 # build the namelist
 cat << EOF > $TMPDIR/flnml
  &NAMCT0
 /
- &NAMAAI
+ &NAMADDINC
 /
  &NAMTIME
   dateFromTrials = .TRUE.
@@ -45,7 +43,7 @@ EOF
 abs_basename=`basename $abs`
 
 echo
-echo "Launching AAI using..."
+echo "Launching addIncrement using..."
 echo
 echo "Working machine      :" $machine
 echo "Working directory    :" $gest
@@ -58,10 +56,10 @@ ssh $machine rm -rf $gest
 ssh $machine mkdir -p $gest
 ssh $machine ln -s ${inputdir} ${gest}/input
 scp $TMPDIR/flnml ${machine}:${gest}/flnml
-scp $abs ${machine}:${gest}/aai.abs
+scp $abs ${machine}:${gest}/addIncrement.abs
 ssh $machine ls -l $gest
 
-cat << EOF > $TMPDIR/go_aai.sh
+cat << EOF > $TMPDIR/go_addIncrement.sh
 #!/bin/bash
 set -ex
  echo "!!STARTING SCRIPT!!"
@@ -81,7 +79,7 @@ fi
  ln -s input/* .
  export TMG_ON=YES
  export OAVAR_BURP_SPLIT=yes
- ${run_in_parallel} -pgm ./aai.abs -npex ${npex} -npey ${npey} -processorder -tag -nocleanup -verbose
+ ${run_in_parallel} -pgm ./addIncrement.abs -npex ${npex} -npey ${npey} -processorder -tag -nocleanup -verbose
 EOF
 
 cat << EOF > $TMPDIR/ptopo_nml
@@ -92,4 +90,4 @@ cat << EOF > $TMPDIR/ptopo_nml
 EOF
 scp $TMPDIR/ptopo_nml ${machine}:${gest}
 
-ord_soumet $TMPDIR/go_aai.sh -mach $machine -mpi -t $maxcputime -cm 1000M -cpus ${npex}x${npey}x${openmp} -jn aai -waste
+ord_soumet $TMPDIR/go_addIncrement.sh -mach $machine -mpi -t $maxcputime -cm 1000M -cpus ${npex}x${npey}x${openmp} -jn addIncrement -waste
