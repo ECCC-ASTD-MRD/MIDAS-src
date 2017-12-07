@@ -1,0 +1,221 @@
+#!/bin/ksh
+#.*****************************************************************************
+#.
+#.     JOB NAME - getTrials
+#.
+#.     STATUS - OPERATIONAL - ESSENTIAL
+#.
+#.     DESCRIPTION - This task gets the GDPS trial field files needed to do the analysis.  
+#.
+#.*****************************************************************************
+
+INPUT_TRIALS=$(${TASK_BIN}/readlink ${TASK_INPUT}/trials)
+${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s infox -m  "Get trials from ${INPUT_TRIALS}"
+
+if [ -d "${INPUT_TRIALS#*:}" ]; then
+    if [ -n "${ENVAR_trial_extension}" ]; then
+	trial_missing=0
+	for ext in ${ENVAR_trial_extension}; do
+	    file=${INPUT_TRIALS#*:}/${ENVAR_trial_prefix}${__ENVAR_DATE_m6}_${ext}
+	    if [ -f "${file}" ]; then
+		${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s infox -m  "Get file ${file}"
+		envar_cp_command ${file} .
+	    else
+		${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s infox -m  "missing file: ${file}"
+		trial_missing=1
+	    fi
+            #for trlp
+            file=${INPUT_TRIALS#*:}/trlp${ENVAR_trial_prefix}${__ENVAR_DATE_m6}_360m
+            if [ -f "${file}" ]; then
+                ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s infox -m  "Get file ${file}"
+                envar_cp_command ${file} .
+            else
+                ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s infox -m  "missing file: ${file}"
+                trial_missing=1
+            fi
+
+	done
+	if [ "${trial_missing}" -ne 0 ]; then
+	    exit 1
+	fi
+    else
+	for file in ${INPUT_TRIALS#*:}/${ENVAR_trial_prefix}${__ENVAR_DATE_m6}_*; do
+	    ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s infox -m  "Get file ${file}"
+	    if [ -f "${file}" ]; then
+		envar_cp_command ${file} .
+	    else
+		${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s infox -m "No trial is available"
+		exit 1
+	    fi
+	done
+        #for trlp
+         for file in ${INPUT_TRIALS#*:}/trlp${ENVAR_trial_prefix}${__ENVAR_DATE_m6}_360m; do
+            ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s infox -m  "Get file ${file}"
+            if [ -f "${file}" ]; then
+                envar_cp_command ${file} .
+            else
+                ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s infox -m "No trial is available"
+                exit 1
+            fi
+        done
+
+    fi
+else
+    if [ -n "${ENVAR_trial_extension}" ]; then
+	trial_missing=0
+	for ext in ${ENVAR_trial_extension}; do
+	    ${TASK_BIN}/remote_copy ${INPUT_TRIALS}/${ENVAR_trial_prefix}${__ENVAR_DATE_m6}_${ext} ${TRUE_HOST}:${PWD}/. || trial_missing=1
+	    ${TASK_BIN}/remote_copy ${INPUT_TRIALS}/trlp${ENVAR_trial_prefix}${__ENVAR_DATE_m6}_360m ${TRUE_HOST}:${PWD}/. || trial_missing=1
+	    if [ ! -f "${ENVAR_trial_prefix}${__ENVAR_DATE_m6}_${ext}" ]; then
+		${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s infox -m "File missing: ${INPUT_TRIALS}/${ENVAR_trial_prefix}${__ENVAR_DATE_m6}_${ext}"
+	    fi
+	done
+	if [ "${trial_missing}" -ne 0 ]; then
+	    exit 1
+	fi
+    else
+	trial_missing=0
+	${TASK_BIN}/remote_copy ${INPUT_TRIALS}/${ENVAR_trial_prefix}${__ENVAR_DATE_m6}_* ${TRUE_HOST}:${PWD}/. || trial_missing=1
+	${TASK_BIN}/remote_copy ${INPUT_TRIALS}/trlp${ENVAR_trial_prefix}${__ENVAR_DATE_m6}_360m ${TRUE_HOST}:${PWD}/. || trial_missing=1
+	if [ "${trial_missing}" -ne 0 ]; then
+	    ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s infox -m "No trial is available"
+	    exit 1
+	fi
+    fi
+fi
+
+## On va chercher la machine de la tache 'VAR'
+##     getVARresources_host
+getVARresources host
+
+if [ "${getVARresources_host}" = "${TRUE_HOST}" ]; then
+    is_local=yes
+    output=${TASK_OUTPUT}
+else
+    is_local=no
+    prepare_destination_directory
+fi
+
+check_do_ssh_as_remote_copy
+
+${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s infox -m "Put trials in ${output}"
+if [ "${is_local}" = yes ]; then
+    AAI_host=$(${SEQ_BIN}/nodeinfo -n ${SEQ_CONTAINER}/AddAnalInc -f res | grep node\.machine | cut -d'=' -f2)
+    if [ "${AAI_host}" != "${TRUE_HOST}" ]; then
+	prepare_destination_directory ${AAI_host}
+    fi
+    for file in *${__ENVAR_DATE_m6}_*; do
+	if [ "${AAI_host}" != "${TRUE_HOST}" ]; then
+	    if [ "${AAI_host}" = eccc-ppp1 -a "${TRUE_HOST}" = hare ]; then
+		cp ${file} ${output##*:}
+	    elif [ "${AAI_host}" = eccc-ppp2 -a "${TRUE_HOST}" = brooks ]; then
+		cp ${file} ${output##*:}
+	    elif [ "${AAI_host}" = hare -a "${TRUE_HOST}" = eccc-ppp1 ]; then
+		ssh ${AAI_host} cp ${PWD}/${file} ${output##*:}
+	    elif [ "${AAI_host}" = brooks -a "${TRUE_HOST}" = eccc-ppp2 ]; then
+		ssh ${AAI_host} cp ${PWD}/${file} ${output##*:}
+	    else
+		${TASK_BIN}/remote_copy ${file} ${output}
+	    fi
+	fi
+	mv ${file} ${TASK_OUTPUT}
+    done
+else
+    for file in *${__ENVAR_DATE_m6}_*; do
+	if [ "${do_ssh_as_remote_copy}" = yes ]; then
+	    time ssh ${getVARresources_host} cp ${PWD}/${file} ${output##*:}
+	else
+	    ${TASK_BIN}/remote_copy ${file} ${output}
+	fi
+	## on doit garder une copie pour 'AddAnalInc'
+	mv ${file} ${TASK_OUTPUT}
+    done
+fi
+
+if [ -L ${TASK_INPUT}/precon ]; then
+    file=$(${TASK_BIN}/readlink ${TASK_INPUT}/precon)
+    if [ -f "${file#*:}" ]; then
+	if [ "${is_local}" = yes ]; then
+	    envar_cp_command ${file#*:} ${TASK_OUTPUT}/precon
+	else
+	    if [ "${do_ssh_as_remote_copy}" = yes ]; then
+		time ssh ${getVARresources_host} cp ${file#*:} ${output##*:}/precon
+	    else
+		${TASK_BIN}/remote_copy ${file#*:} ${output}/precon
+	    fi
+	fi
+    else
+	precon_missing=0
+	${TASK_BIN}/remote_copy ${file} precon || precon_missing=1
+	if [ "${precon_missing}" -ne 0 ]; then
+	    ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s infox -m "preconditioning file not available '${file}'"
+	    exit 1
+	fi
+	if [ "${is_local}" = yes ]; then
+	    mv precon ${output}/precon
+	else
+	    if [ "${do_ssh_as_remote_copy}" = yes ]; then
+		time ssh ${getVARresources_host} cp ${PWD}/precon ${output##*:}/precon
+	    else
+		${TASK_BIN}/remote_copy precon ${output}/precon
+	    fi
+	fi
+    fi
+    ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s infox -m  "Using ${file} as 'precon' for warm start of the 3D-Var or EnVar"
+elif [ "${ENVAR_precon_input}" != '<no value>' -a "${ENVAR_precon_input}" != 'no' ]; then
+    ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m  "Preconditing file is not available for warm start of the 3D-Var or EnVar"
+fi
+
+if [ -L ${TASK_INPUT}/sfc4hyperir ]; then
+    file=$(${TASK_BIN}/readlink ${TASK_INPUT}/sfc4hyperir)
+    if [ -f "${file}" ]; then
+	if [ "${is_local}" = yes ]; then
+	    envar_cp_command ${file} ${TASK_OUTPUT}/sfc4hyperir
+	else
+	    if [ "${do_ssh_as_remote_copy}" = yes ]; then
+		time ssh ${getVARresources_host} cp ${file} ${output##*:}/sfc4hyperir
+	    else
+		${TASK_BIN}/remote_copy ${file} ${output}/sfc4hyperir
+	    fi
+	fi
+    else
+	${TASK_BIN}/remote_copy ${file} sfc4hyperir
+	if [ "${is_local}" = yes ]; then
+	    mv sfc4hyperir ${output}/sfc4hyperir
+	else
+	    if [ "${do_ssh_as_remote_copy}" = yes ]; then
+		time ssh ${getVARresources_host} cp ${PWD}/sfc4hyperir ${output##*:}/sfc4hyperir
+	    else
+		${TASK_BIN}/remote_copy sfc4hyperir ${output}/sfc4hyperir
+	    fi
+	fi
+    fi
+    ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s infox -m  "Using ${file} as 'sfc4hyperir'"
+fi
+
+if [ -L ${TASK_INPUT}/sfc4hyperir_newalb ]; then
+    file=$(${TASK_BIN}/readlink ${TASK_INPUT}/sfc4hyperir_newalb)
+    if [ -f "${file}" ]; then
+	if [ "${is_local}" = yes ]; then
+	    envar_cp_command ${file} ${TASK_OUTPUT}/sfc4hyperir_newalb
+	else
+	    if [ "${do_ssh_as_remote_copy}" = yes ]; then
+		time ssh ${getVARresources_host} cp ${file} ${output##*:}/sfc4hyperir_newalb
+	    else
+		${TASK_BIN}/remote_copy ${file} ${output}/sfc4hyperir_newalb
+	    fi
+	fi
+    else
+	${TASK_BIN}/remote_copy ${file} sfc4hyperir_newalb
+	if [ "${is_local}" = yes ]; then
+	    mv sfc4hyperir_newalb ${output}/sfc4hyperir_newalb
+	else
+	    if [ "${do_ssh_as_remote_copy}" = yes ]; then
+		time ssh ${getVARresources_host} cp ${PWD}/sfc4hyperir_newalb ${output##*:}/sfc4hyperir_newalb
+	    else
+		${TASK_BIN}/remote_copy sfc4hyperir_newalb ${output}/sfc4hyperir_newalb
+	    fi
+	fi
+    fi
+    ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s infox -m  "Using ${file} as 'sfc4hyperir_newalb'"
+fi

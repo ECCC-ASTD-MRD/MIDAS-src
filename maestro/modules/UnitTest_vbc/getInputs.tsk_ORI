@@ -1,0 +1,52 @@
+#!/bin/ksh
+
+input=$(readlink ${TASK_INPUT}/${SHORT_DATE}.ca)
+$SEQ_BIN/nodelogger -n $SEQ_NODE -s infox -m "Downloading input: ${input}"
+if [ -f "${input}" ]; then
+    cp ${input} ${SHORT_DATE}.ca
+else
+    ${TASK_BIN}/remote_copy ${input} ${SHORT_DATE}.ca
+fi
+
+${TASK_BIN}/cmcarc -f ${SHORT_DATE}.ca -x "banco\.bgckalt\.${SHORT_DATE}_.*" -v
+mkdir ${TASK_OUTPUT}/observations
+for file in banco.bgckalt.${SHORT_DATE}_*; do
+    mv ${file} ${TASK_OUTPUT}/observations/$(echo $file | cut -d. -f3)
+done
+
+if [ "${PREVIOUS_DATE}" != "${SHORT_DATE}" ]; then
+    rm ${SHORT_DATE}.ca
+
+    input=$(readlink ${TASK_INPUT}/${PREVIOUS_DATE}.ca)
+    $SEQ_BIN/nodelogger -n $SEQ_NODE -s infox -m "Downloading input: ${input}"
+    if [ -f "${input}" ]; then
+	cp ${input} ${PREVIOUS_DATE}.ca
+    else
+	${TASK_BIN}/remote_copy ${input} ${PREVIOUS_DATE}.ca
+    fi
+fi
+
+${TASK_BIN}/cmcarc -f ${PREVIOUS_DATE}.ca -x "trial\.model\.${PREVIOUS_DATE}_.*" -v
+mkdir ${TASK_OUTPUT}/trials
+for file in trial.model.${PREVIOUS_DATE}_*; do
+    mv ${file} ${TASK_OUTPUT}/trials/$(echo $file | cut -d. -f3)
+done
+
+if [ -n "${ENVAR_precon_input}" ]; then
+    if [ "${ENVAR_precon_input}" != no ]; then
+	${TASK_BIN}/cmcarc -f ${PREVIOUS_DATE}.ca -x "anal\.anl\.model\.${PREVIOUS_DATE}_precon" -v
+	mv anal.anl.model.${PREVIOUS_DATE}_precon ${TASK_OUTPUT}/precon
+    fi
+fi
+
+if [ -n "${ENVAR_sfc4hyperir_input}" ]; then
+    ${TASK_BIN}/cmcarc -f ${PREVIOUS_DATE}.ca -x "anal.${PREVIOUS_DATE}_sfc4hyperir" -v
+    mv anal.${PREVIOUS_DATE}_sfc4hyperir ${TASK_OUTPUT}/sfc4hyperir
+fi
+
+if [ -n "${ENVAR_sfc4hyperir_newalb_input}" ]; then
+    ${TASK_BIN}/cmcarc -f ${PREVIOUS_DATE}.ca -x "anal.${PREVIOUS_DATE}_sfc4hyperir_newalb" -v
+    mv anal.${PREVIOUS_DATE}_sfc4hyperir_newalb ${TASK_OUTPUT}/sfc4hyperir_newalb
+fi
+
+rm ${PREVIOUS_DATE}.ca
