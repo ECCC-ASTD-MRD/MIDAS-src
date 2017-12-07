@@ -178,7 +178,7 @@ CONTAINS
     INTEGER                :: new_bktyp,post_bit,STATUS_HIRES,BIT_STATUS,FILEN
     LOGICAL                :: REGRUP,WINDS,OMA_SFC_EXIST,OMA_ALT_EXIST
 
-    INTEGER                :: LISTE_INFO(17),LISTE_ELE(20),LISTE_ELE_SFC(20),is_in_list
+    INTEGER                :: LISTE_INFO(18),LISTE_ELE(20),LISTE_ELE_SFC(20),is_in_list
     INTEGER                :: ADDSIZE,SIZE_DATA_BK
 
     LOGICAL                :: LBLOCK_OER_CP, LBLOCK_FGE_CP
@@ -186,7 +186,7 @@ CONTAINS
 
     DATA LISTE_INFO  &
        /1007,002019,007024,007025 ,005021, 005022, 008012, 013039,020010,2048,2022,33060, &
-        33062,33039,10035,10036,08046/
+        33062,33039,10035,10036,08046,5043/
 
     STATUS_HIRES = 0
     FAMILYTYPE2= 'SCRAP'
@@ -1530,7 +1530,7 @@ CONTAINS
 
     REAL(OBS_REAL), ALLOCATABLE :: RADMOY(:,:,:)
     REAL(OBS_REAL), ALLOCATABLE :: radstd(:,:,:)
-    INTEGER                :: LISTE_INFO(17),LISTE_ELE(20),LISTE_ELE_SFC(20)
+    INTEGER                :: LISTE_INFO(18),LISTE_ELE(20),LISTE_ELE_SFC(20)
 
     INTEGER                :: NBELE,NVALE,NTE
     INTEGER                :: I,J,JJ,K,KK,KL,IL,ERROR,OBSN
@@ -1558,7 +1558,7 @@ CONTAINS
     
     DATA LISTE_INFO  &
        /1007,002019,007024,007025 ,005021, 005022, 008012, &
-        013039,020010,2048,2022,33060,33062,33039,10035,10036,08046/
+        013039,020010,2048,2022,33060,33062,33039,10035,10036,08046,5043/
 
     RELEV2=0.0
     FAMILYTYPE2= 'SCRAP'
@@ -1648,7 +1648,7 @@ CONTAINS
         BNBITSOFF=0
         BNBITSON=0
         !================GPS-RO CANNOT BE FILTERED=======
-        NELE_INFO=16
+        NELE_INFO=18
       CASE('GO','MI','TO')
         BURP_TYP='multi'
         vcord_type(1)=5042
@@ -1660,14 +1660,14 @@ CONTAINS
         CALL BRPACMA_NML('namburp_tovs')
         NELE=NELEMS
 
-        NELE_INFO=16
+        NELE_INFO=18
      CASE('CH')
 
         BURP_TYP='multi'  ! Both 'multi' and 'uni' are possible for this family.
                           ! 'uni' level data are assumed not to have any accompanynig vertical 
                           ! coordinate element in addition to having only one level.
         vcord_type(1:8) = (/7004,7204,7006,7007,5042,2150,2071,0/) ! 0 must be at end.
-        NELE_INFO=17
+        NELE_INFO=18
 
         UNI_FAMILYTYPE = 'CH'
         LISTE_ELE_SFC(1:19) = (/15008,15009,15010,15020,15021,15022,15023,15024,15026,15027,15028, &
@@ -2977,11 +2977,13 @@ CONTAINS
     INTEGER     ::   SENSOR,ID_SAT,INSTRUMENT,LAND_SEA,CONSTITUENT_TYPE
     INTEGER     ::   TERRAIN_TYPE,ZENITH,SOLAR_ZENITH,AZIMUTH,CLOUD_COVER,SOLAR_AZIMUTH
     INTEGER     ::   IGQISFLAGQUAL,IGQISQUALINDEXLOC,ITANGENT_RADIUS,IGEOID,IRO_QCFLAG
+    INTEGER     ::   IFOV
 
     REAL        ::   RSOLAR_ZENITH,RCLOUD_COVER,RZENITH,RAZIMUTH,RSOLAR_AZIMUTH
     REAL        ::   RIGQISFLAGQUAL,RIGQISQUALINDEXLOC,RCONSTITUENT
     REAL        ::   RTERRAIN_TYPE,RLAND_SEA,RID_SAT,RSENSOR,RINSTRUMENT,RRO_QCFLAG
     REAL(OBS_REAL)        ::   RTANGENT_RADIUS,RGEOID
+    REAL        ::   RFOV
 
     NOBS=obs_numHeader(obsdat)
 
@@ -3001,6 +3003,7 @@ CONTAINS
     TERRAIN_TYPE=99
     !CLOUD_COVER = 0
     CONSTITUENT_TYPE = -99
+    IFOV = -99
 
     !if ( allocated(rinfo) ) then
 
@@ -3015,33 +3018,40 @@ CONTAINS
             ID_SAT=NINT(RID_SAT)
           END IF
         CASE( 2048)
-          RSENSOR=INFOV
+          RSENSOR = INFOV
           if (RSENSOR .eq. PPMIS ) THEN
-            SENSOR=-99
+            SENSOR = -99
           ELSE
-            SENSOR=NINT(RSENSOR)
+            SENSOR = NINT(RSENSOR)
           END IF
         CASE( 2019)
-          RINSTRUMENT=INFOV
+          RINSTRUMENT = INFOV
           if (RINSTRUMENT .eq. PPMIS ) THEN
-            INSTRUMENT=0
+            INSTRUMENT = 0
           ELSE
-            INSTRUMENT=NINT(RINSTRUMENT)
+            INSTRUMENT = NINT(RINSTRUMENT)
+          END IF
+        CASE( 5043)
+          RFOV = INFOV
+          if (RFOV .eq. PPMIS ) THEN
+            IFOV = 0
+          ELSE
+            IFOV = NINT(RFOV)
           END IF
         CASE( 7024)
-          RZENITH=INFOV
+          RZENITH = INFOV
           if (RZENITH .eq. PPMIS ) THEN
-            ZENITH=9000
+            ZENITH = 9000
           ELSE
-            ZENITH=NINT ( (90.0 + RZENITH)*100 )
+            ZENITH = NINT ( (90.0 + RZENITH)*100 )
           END IF
         CASE( 7025)
-          RSOLAR_ZENITH =INFOV
+          RSOLAR_ZENITH = INFOV
           if (RSOLAR_ZENITH .eq. PPMIS )  THEN 
-            SOLAR_ZENITH=0
-            SOLAR_ZENITH=-99
+            SOLAR_ZENITH = 0
+            SOLAR_ZENITH = -99
           ELSE
-            SOLAR_ZENITH=NINT ( (90.0 + RSOLAR_ZENITH)*100 )
+            SOLAR_ZENITH = NINT ( (90.0 + RSOLAR_ZENITH)*100 )
           END IF
         CASE( 5021)
           RAZIMUTH=INFOV
@@ -3146,6 +3156,7 @@ CONTAINS
     call obs_headSet_i(obsdat,OBS_OFL,nobs,LAND_SEA)
     call obs_headSet_i(obsdat,OBS_INS,nobs,INSTRUMENT  )
     call obs_headSet_i(obsdat,OBS_SZA,nobs,ZENITH )
+    call obs_headSet_i(obsdat,OBS_FOV,nobs,IFOV )
     call obs_headSet_i(obsdat,OBS_CLF,nobs,CLOUD_COVER )
     call obs_headSet_i(obsdat,OBS_AZA,nobs,AZIMUTH )
     call obs_headSet_i(obsdat,OBS_SUN,nobs,SOLAR_ZENITH )
