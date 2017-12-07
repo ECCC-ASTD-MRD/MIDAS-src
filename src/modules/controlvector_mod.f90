@@ -34,7 +34,7 @@ module controlVector_mod
 
   ! public variables
   public              :: cvm_nvadim, cvm_nvadim_mpiglobal
-  public              :: cvm_BHI, cvm_BEN, cvm_BCHM, cvm_BDIFF
+  public              :: cvm_BHI, cvm_BEN, cvm_BCHM, cvm_BDIFF, cvm_Bias
   ! public procedures
   public              :: cvm_Setup, cvm_getSubVector, cvm_getSubVector_mpiglobal
   public              :: cvm_getSubVector_r4, cvm_getSubVector_mpiglobal_r4
@@ -47,43 +47,49 @@ module controlVector_mod
   integer             :: cvm_nvadim
   integer             :: cvm_dimBchm
   integer             :: cvm_dimBdiff
+  integer             :: cvm_dimBias
   integer             :: cvm_dimBHI_mpiglobal
   integer             :: cvm_dimBEN_mpiglobal
   integer             :: cvm_nvadim_mpiglobal
   integer             :: cvm_dimBchm_mpiglobal
   integer             :: cvm_dimBdiff_mpiglobal
+  integer             :: cvm_dimBias_mpiglobal
 
-  integer, parameter  :: cvm_numSubvector=4 ! total number of possible valid subvectors
+  integer, parameter  :: cvm_numSubvector = 5 ! total number of possible valid subvectors
   integer, parameter  :: cvm_BHI  = 1
   integer, parameter  :: cvm_BEN  = 2
   integer, parameter  :: cvm_BCHM = 3
   integer, parameter  :: cvm_BDIFF = 4
+  integer, parameter  :: cvm_Bias = 5
 
 contains
 
-  subroutine cvm_setup(dimBhi_in, dimBen_in, dimBchm_in, dimBdiff_in)
+  subroutine cvm_setup(dimBhi_in, dimBen_in, dimBchm_in, dimBdiff_in, dimBias_in)
     implicit none
 
-    integer           :: dimBHI_in, dimBEN_in, dimBCHM_in, dimBdiff_in
+    integer           :: dimBHI_in, dimBEN_in, dimBCHM_in, dimBdiff_in, dimBias_in
     integer           :: ierr
 
     cvm_dimbhi = dimbhi_in
     cvm_dimben = dimben_in
     cvm_dimbchm = dimbchm_in
     cvm_dimbdiff = dimbdiff_in
+    cvm_dimbias = dimbias_in
 
     call rpn_comm_allreduce(cvm_dimbhi,cvm_dimbhi_mpiglobal,1,"MPI_INTEGER","MPI_SUM","GRID",ierr)
     call rpn_comm_allreduce(cvm_dimben,cvm_dimben_mpiglobal,1,"MPI_INTEGER","MPI_SUM","GRID",ierr)
     call rpn_comm_allreduce(cvm_dimbchm,cvm_dimbchm_mpiglobal,1,"MPI_INTEGER","MPI_SUM","GRID",ierr)
     call rpn_comm_allreduce(cvm_dimbdiff,cvm_dimbdiff_mpiglobal,1,"MPI_INTEGER","MPI_SUM","GRID",ierr)
+    call rpn_comm_allreduce(cvm_dimbias,cvm_dimbias_mpiglobal,1,"MPI_INTEGER","MPI_SUM","GRID",ierr)
 
-    cvm_nvadim = cvm_dimben + cvm_dimbhi + cvm_dimbchm + cvm_dimbdiff
-    cvm_nvadim_mpiglobal = cvm_dimben_mpiglobal + cvm_dimbhi_mpiglobal + cvm_dimbchm_mpiglobal + cvm_dimbdiff_mpiglobal
+    cvm_nvadim = cvm_dimben + cvm_dimbhi + cvm_dimbchm + cvm_dimbdiff + cvm_dimbias
+    cvm_nvadim_mpiglobal = cvm_dimben_mpiglobal + cvm_dimbhi_mpiglobal + &
+                           cvm_dimbchm_mpiglobal + cvm_dimbdiff_mpiglobal + cvm_dimbias_mpiglobal
 
-    write(*,*) 'cvm_setup: subvector dimensions            =',cvm_dimbhi, cvm_dimben, cvm_dimbchm, cvm_dimbdiff, &
+    write(*,*) 'cvm_setup: subvector dimensions            =',cvm_dimbhi, cvm_dimben, cvm_dimbchm, cvm_dimbdiff, cvm_dimbias, &
                                                               cvm_nvadim
     write(*,*) 'cvm_setup: subvector dimensions (mpiglobal)=',cvm_dimbhi_mpiglobal,cvm_dimben_mpiglobal,       & 
-                          cvm_dimbchm_mpiglobal, cvm_nvadim_mpiglobal, cvm_dimbdiff_mpiglobal
+                          cvm_dimbchm_mpiglobal, cvm_dimbdiff_mpiglobal, cvm_dimbias_mpiglobal, cvm_nvadim_mpiglobal
 
     initialized=.true.
 
@@ -105,13 +111,15 @@ contains
 
     if( subVectorIndex == cvm_BHI .and. cvm_dimbhi_mpiglobal > 0 ) then
       exists = .true.
-    elseif( subVectorIndex == cvm_BEN .and. cvm_dimben_mpiglobal > 0 ) then
+    else if( subVectorIndex == cvm_BEN .and. cvm_dimben_mpiglobal > 0 ) then
       exists = .true.
-    elseif( subVectorIndex == cvm_BCHM .and. cvm_dimbchm_mpiglobal > 0 ) then
+    else if( subVectorIndex == cvm_BCHM .and. cvm_dimbchm_mpiglobal > 0 ) then
       exists = .true.
-    elseif( subVectorIndex == cvm_BDIFF .and. cvm_dimbdiff_mpiglobal > 0 ) then
+    else if( subVectorIndex == cvm_BDIFF .and. cvm_dimbdiff_mpiglobal > 0 ) then
       exists = .true.
-    endif
+    else if( subVectorIndex == cvm_Bias .and. cvm_dimbias_mpiglobal > 0 ) then
+      exists = .true.
+    end if
 
   end function cvm_subVectorExists
 
@@ -133,15 +141,17 @@ contains
 
     if( subVectorIndex == cvm_BHI ) then
       subVector => controlVector(1:cvm_dimbhi)
-    elseif( subVectorIndex == cvm_BEN ) then
+    else if( subVectorIndex == cvm_BEN ) then
       subVector => controlVector((cvm_dimbhi+1):(cvm_dimbhi+cvm_dimben))
-    elseif( subVectorIndex == cvm_BCHM ) then
+    else if( subVectorIndex == cvm_BCHM ) then
       subVector => controlVector((cvm_dimbhi+cvm_dimben+1):(cvm_dimbhi+cvm_dimben+cvm_dimbchm))
-    elseif( subVectorIndex == cvm_BDIFF ) then
+    else if( subVectorIndex == cvm_BDIFF ) then
       subVector => controlVector((cvm_dimbhi+cvm_dimben+cvm_dimbchm+1):(cvm_dimbhi+cvm_dimben+cvm_dimbchm+cvm_dimbdiff))
+    else if( subVectorIndex == cvm_Bias ) then
+      subVector => controlVector((cvm_dimbhi+cvm_dimben+cvm_dimbchm+cvm_dimbdiff+1):(cvm_dimbhi+cvm_dimben+cvm_dimbchm+cvm_dimbdiff+cvm_dimbias))
     else
       call utl_abort('cvm_getSubVector: unknown subVectorIndex!')
-    endif
+    end if
 
   end function cvm_getSubVector
 
@@ -163,12 +173,14 @@ contains
 
     if( subVectorIndex == cvm_BHI ) then
       subVector => controlVector(1:cvm_dimbhi)
-    elseif( subVectorIndex == cvm_BEN ) then
+    else if( subVectorIndex == cvm_BEN ) then
       subVector => controlVector((cvm_dimbhi+1):(cvm_dimbhi+cvm_dimben))
-    elseif( subVectorIndex == cvm_BCHM ) then
+    else if( subVectorIndex == cvm_BCHM ) then
       subVector => controlVector((cvm_dimbhi+cvm_dimben+1):(cvm_dimbhi+cvm_dimben+cvm_dimbchm))
-    elseif( subVectorIndex == cvm_BDIFF ) then
+    else if( subVectorIndex == cvm_BDIFF ) then
       subVector => controlVector((cvm_dimbhi+cvm_dimben+cvm_dimbchm+1):(cvm_dimbhi+cvm_dimben+cvm_dimbchm+cvm_dimbdiff))
+    else if( subVectorIndex == cvm_Bias ) then
+      subVector => controlVector((cvm_dimbhi+cvm_dimben+cvm_dimbchm+cvm_dimbdiff+1):(cvm_dimbhi+cvm_dimben+cvm_dimbchm+cvm_dimbdiff+cvm_dimbias))
     else
       call utl_abort('cvm_getSubVector_r4: unknown subVectorIndex!')
     endif
@@ -193,15 +205,17 @@ contains
 
     if( subVectorIndex == cvm_BHI ) then
       subVector => controlVector(1:cvm_dimbhi_mpiglobal)
-    elseif( subVectorIndex == cvm_BEN ) then
+    else if( subVectorIndex == cvm_BEN ) then
       subVector => controlVector((cvm_dimbhi_mpiglobal+1):(cvm_dimbhi_mpiglobal+cvm_dimben_mpiglobal))
-    elseif( subVectorIndex == cvm_BCHM ) then
+    else if( subVectorIndex == cvm_BCHM ) then
       subVector => controlVector((cvm_dimbhi_mpiglobal+cvm_dimben_mpiglobal+1):(cvm_dimbhi_mpiglobal+cvm_dimben_mpiglobal+cvm_dimbchm_mpiglobal))
-    elseif( subVectorIndex == cvm_BDIFF ) then
+    else if( subVectorIndex == cvm_BDIFF ) then
       subVector => controlVector((cvm_dimbhi_mpiglobal+cvm_dimben_mpiglobal+cvm_dimbchm_mpiglobal+1):(cvm_dimbhi_mpiglobal+cvm_dimben_mpiglobal+cvm_dimbchm_mpiglobal+cvm_dimbdiff_mpiglobal))
+    else if( subVectorIndex == cvm_Bias ) then
+      subVector => controlVector((cvm_dimbhi_mpiglobal+cvm_dimben_mpiglobal+cvm_dimbchm_mpiglobal+cvm_dimbdiff_mpiglobal+1):(cvm_dimbhi_mpiglobal+cvm_dimben_mpiglobal+cvm_dimbchm_mpiglobal+cvm_dimbdiff_mpiglobal+cvm_dimbias_mpiglobal))
     else
       call utl_abort('cvm_getSubVector_mpiglobal: unknown subVectorIndex!')
-    endif
+    end if
 
   end function cvm_getSubVector_mpiglobal
 
@@ -223,15 +237,17 @@ contains
 
     if( subVectorIndex == cvm_BHI ) then
       subVector => controlVector(1:cvm_dimbhi_mpiglobal)
-    elseif( subVectorIndex == cvm_BEN ) then
+    else if( subVectorIndex == cvm_BEN ) then
       subVector => controlVector((cvm_dimbhi_mpiglobal+1):(cvm_dimbhi_mpiglobal+cvm_dimben_mpiglobal))
-    elseif( subVectorIndex == cvm_BCHM ) then
+    else if( subVectorIndex == cvm_BCHM ) then
       subVector => controlVector((cvm_dimbhi_mpiglobal+cvm_dimben_mpiglobal+1):(cvm_dimbhi_mpiglobal+cvm_dimben_mpiglobal+cvm_dimbchm_mpiglobal))
-    elseif( subVectorIndex == cvm_BDIFF ) then
+    else if( subVectorIndex == cvm_BDIFF ) then
       subVector => controlVector((cvm_dimbhi_mpiglobal+cvm_dimben_mpiglobal+cvm_dimbchm_mpiglobal+1):(cvm_dimbhi_mpiglobal+cvm_dimben_mpiglobal+cvm_dimbchm_mpiglobal+cvm_dimbdiff_mpiglobal))
+    else if( subVectorIndex == cvm_Bias ) then
+      subVector => controlVector((cvm_dimbhi_mpiglobal+cvm_dimben_mpiglobal+cvm_dimbchm_mpiglobal+cvm_dimbdiff_mpiglobal+1):(cvm_dimbhi_mpiglobal+cvm_dimben_mpiglobal+cvm_dimbchm_mpiglobal+cvm_dimbdiff_mpiglobal+cvm_dimbias_mpiglobal))
     else
       call utl_abort('cvm_getSubVector_mpiglobal_r4: unknown subVectorIndex!')
-    endif
+    end if
 
   end function cvm_getSubVector_mpiglobal_r4
 

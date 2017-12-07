@@ -43,6 +43,7 @@ MODULE BMatrix_mod
   use timeCoord_mod
   use globalSpectralTransform_mod
   use utilities_mod
+  use biascorrection_mod
   implicit none
   save
   private
@@ -82,9 +83,9 @@ contains
     type(struct_vco), pointer :: vco_anl_in
     type(struct_hco), pointer :: hco_anl_in
 
-    integer :: cvdimens, cvdimhi, cvdimhi_mpiglobal
-    integer :: get_max_rss, ierr
-    integer :: cvdimchm, cvdimdiff
+    integer :: cvdimens, cvdimhi
+    integer :: get_max_rss
+    integer :: cvdimchm, cvdimdiff, cvdimbias
    
     !
     !- 1.  Get/Check the analysis grid info
@@ -99,6 +100,7 @@ contains
     cvdimhi  = 0
     cvdimens = 0
     cvdimchm = 0
+    cvdimbias = 0
 
     !- 2.1 Time-Mean Homogeneous and Isotropic...
     if ( hco_anl%global ) then
@@ -158,10 +160,23 @@ contains
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     write(*,*) 'Dimension of DIFFUSION static control vector returned:',cvdimdiff
 
+    !-2.5 Bias_correction
+    if ( hco_anl % global ) then
+      write(*,*)
+      write(*,*) 'Setting up the modular bias correction covariances...'
+      call bias_setup(cvdimbias)
+
+    else
+    end if
+
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    write(*,*) 'Dimension of Bias control vector returned:',cvdimbias
+
+
     !
     !- 3.  Setup the control vector
     !
-    call cvm_Setup( cvdimhi, cvdimens, cvdimchm, cvdimdiff ) ! IN
+    call cvm_Setup( cvdimhi, cvdimens, cvdimchm, cvdimdiff, cvdimbias ) ! IN
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     write(*,*) 'Dimension of TOTAL control vector:',cvm_nvadim
@@ -296,12 +311,14 @@ contains
     logical,optional :: useFSOFcst_opt
 
     !- 1.1 set gradient to zero
-    controlVector(:)=0.0d0
+    ! DPP for biasCorrection
+    !controlVector(:)=0.0d0
     
     !- 1.2 Add contribution to gradient from BmatrixEnsemble
     call tmg_start(61,'B_ENS_T')
     if ( cvm_subVectorExists(cvm_BEN) ) then
       cvBen=>cvm_getSubVector(controlVector,cvm_BEN)
+      cvBen(:) = 0.0d0
       if ( present(useFSOFcst_opt) ) then
         call ben_bsqrtad(statevector,cvBen,useFSOFcst_opt)
       else
@@ -317,6 +334,7 @@ contains
     call tmg_start(124,'B_CHM_T')
     if ( cvm_subVectorExists(cvm_BCHM) ) then
       cvBchm=>cvm_getSubVector(controlVector,cvm_BCHM)
+      cvBchm(:) = 0.0d0
       if ( statevector%hco%global ) then
         !- 1.4.1 add contribution to gradient from GLOBAL BmatrixChem
         call bchm_bsqrtad( statevector, & ! IN
@@ -332,6 +350,7 @@ contains
     call tmg_start(51,'B_HI_T')
     if ( cvm_subVectorExists(cvm_BHI) ) then
       cvBhi=>cvm_getSubVector(controlVector,cvm_BHI)
+      cvBhi(:) = 0.0d0
       if ( statevector%hco%global ) then
         !- 1.5.1 add contribution to gradient from GLOBAL BmatrixHI
         if ( useBmatrixLatBands ) then
@@ -353,6 +372,7 @@ contains
     call tmg_start(52,'B_DIFF_T')
     if ( cvm_subVectorExists(cvm_BDIFF) ) then
       cvBdiff=>cvm_getSubVector(controlVector,cvm_BDIFF)
+      cvBdiff(:) = 0.0d0
       !- 1.6.1 add contribution to gradient from BmatrixDIFF
       call bdiff_bsqrtad( statevector, & ! IN
                           cvBdiff )      ! OUT
@@ -385,6 +405,7 @@ contains
     call bchm_finalize()
     call lbhi_finalize()
     call bdiff_finalize()
+    call bias_finalize()
 
   END SUBROUTINE bmat_finalize
 
