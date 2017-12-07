@@ -1,5 +1,6 @@
 <MODULE name="Tests">
   <SUBMITS sub_name="EnVar_24mem_xc40"/>
+  <SUBMITS sub_name="EnVar_vbc"/>
   <SUBMITS sub_name="EnVar_gbc_oma"/>
   <SUBMITS sub_name="Var3D_gbc"/>
   <SUBMITS sub_name="EnVar_gdps_5p1"/>
@@ -15,6 +16,11 @@
   <FAMILY  name="EnVar_24mem_xc40">
     <SUBMITS sub_name="UnitTest"/>
     <MODULE  name="UnitTest"/>
+  </FAMILY>
+
+  <FAMILY  name="EnVar_vbc">
+    <SUBMITS sub_name="UnitTest_vbc"/>
+    <MODULE  name="UnitTest_vbc"/>
   </FAMILY>
 
   <FAMILY  name="EnVar_gbc_oma">
