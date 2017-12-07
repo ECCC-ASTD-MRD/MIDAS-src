@@ -36,112 +36,184 @@ MODULE timeCoord_mod
   public :: tim_sutimeinterp, tim_setTimeInterpWeight, tim_getTimeInterpWeight
   public :: tim_getDateStamp, tim_setDateStamp, tim_getStampList, tim_getStepObsIndex
 
-  real*8    :: tim_dstepobs
-  real*8    :: tim_dstepobsinc, tim_windowsize
+  character(len=4) :: varNameForDate = 'P0'
+  real(8)   :: tim_dstepobs
+  real(8)   :: tim_dstepobsinc, tim_windowsize
   integer   :: tim_nstepobs
   integer   :: tim_nstepobsinc
-  integer, parameter :: mxstepobs=9 
-  real*8,pointer     :: timeInterpWeight(:,:) => NULL() ! weights for linear temporal interpolation of increment to obs times
+  integer, parameter :: mxstepobs = 9 
+  real(8), pointer   :: timeInterpWeight(:,:) => NULL() ! weights for linear temporal interpolation of increment to obs times
   integer            :: datestamp      ! window centre of analysis validity
   logical            :: initialized = .false.
 
 contains
 
-  subroutine tim_setup
-  !
-  ! Purpose: Setup of obs time window size and related trial field 
-  !          time step for OmP determination. 
-  !  
-  ! Revisions:
-  !           Y. Rochon ARQI/AQRD July 2016
-  !           - Allowance for obs time windows of size different from 6 hours.
-  !             Related addition of dwindowsize and tim_windowsize 
-  !
-  ! Namelist parameters:
-  !
-  !   dstepobs          time step (hrs) between successive trial fields 
-  !                     for use in OmP determation. Set to dwindowsize for
-  !                     single trial field, i.e. use of 3dvar instead of 3dvar-FGAT.
-  !                     nstepobs = number of trial fields 
-  !   dstepobsinc       time step (hrs) between obs groupings in time. Set to
-  !                     dwindowsize for use of a single obs group.
-  !                     nstepobsinc = number of obs time intervals 
-  !   dwindowsize       Time window size (hrs).
-  !
-  ! Comment:
-  !
-  ! - Provided dates and number of provided trial field files must be
-  !   consistent with nstepobs, dstepobs and dwindowsize with reference datestamp
-  !   corresponding to the date of the middle trial field file.
-  !
+  subroutine tim_setup()
+    !
+    ! Purpose: Setup of obs time window size and related trial field 
+    !          time step for OmP determination. 
+    !  
+    ! Revisions:
+    !           Y. Rochon ARQI/AQRD July 2016
+    !           - Allowance for obs time windows of size different from 6 hours.
+    !             Related addition of dwindowsize and tim_windowsize 
+    !
+    ! Namelist parameters:
+    !
+    !   dstepobs          time step (hrs) between successive trial fields 
+    !                     for use in OmP determation. Set to dwindowsize for
+    !                     single trial field, i.e. use of 3dvar instead of 3dvar-FGAT.
+    !                     nstepobs = number of trial fields 
+    !   dstepobsinc       time step (hrs) between obs groupings in time. Set to
+    !                     dwindowsize for use of a single obs group.
+    !                     nstepobsinc = number of obs time intervals 
+    !   dwindowsize       Time window size (hrs).
+    !
+    ! Comment:
+    !
+    ! - Provided dates and number of provided trial field files must be
+    !   consistent with nstepobs, dstepobs and dwindowsize with reference datestamp
+    !   corresponding to the date of the middle trial field file.
+    !
     implicit none
-    
-    integer :: nulnam,ierr,fnom,fclos,newdate,imode,prntdate,prnttime
-    real*8  :: dstepobs,dstepobsinc,dwindowsize
-    NAMELIST /NAMTIME/dstepobs,dstepobsinc,dwindowsize,datestamp
 
-    dstepobs    = 6.0d0
-    dstepobsinc = 6.0d0      
-    dwindowsize = 6.0d0     
-    datestamp   = 0
+    integer :: nulnam,ierr,fnom,fclos,newdate,imode,prntdate,prnttime,date
+    real(8) :: dstepobs,dstepobsinc,dwindowsize
+    logical :: dateFromTrials
+    NAMELIST /NAMTIME/dstepobs,dstepobsinc,dwindowsize,date,dateFromTrials
 
-    nulnam=0
-    ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-    read(nulnam,nml=namtime,iostat=ierr)
-    if(ierr.ne.0) call utl_abort('tim_setup: Error reading namelist')
-    if(mpi_myid.eq.0) write(*,nml=namtime)
-    ierr=fclos(nulnam)
+    ! Set default values for namelist variables
+    dstepobs       = 6.0d0
+    dstepobsinc    = 6.0d0      
+    dwindowsize    = 6.0d0     
+    date           = 0
+    dateFromTrials = .false.
 
-    if ( datestamp /= 0 ) then
-      write(*,*) 'tim_setup: ====================================================='
-      write(*,*) 'tim_setup: WARNING! DATESTAMP has been set by value in namelist!'
-      write(*,*) 'tim_setup: ====================================================='
-      imode = 3 ! printable to stamp
-      prntdate = datestamp/100
-      prnttime = (datestamp - prntdate*100) * 10000
-      write(*,*) 'tim_setup: printable = ',datestamp
-      write(*,*) 'tim_setup: printdate = ',prntdate
-      write(*,*) 'tim_setup: printtime = ',prnttime
-      ierr = newdate(datestamp, prntdate, prnttime, imode)
-      write(*,*) 'tim_setup: datestamp = ',datestamp
-    endif
+    ! Read the namelist
+    nulnam = 0
+    ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
+    read(nulnam, nml=namtime, iostat=ierr)
+    if(ierr /= 0) call utl_abort('tim_setup: Error reading namelist')
+    if(mpi_myid == 0) write(*,nml=namtime)
+    ierr = fclos(nulnam)
+
+    ! Set the module variables for timestep length, number of timesteps and window length
     tim_dstepobs    = dstepobs
     tim_dstepobsinc = dstepobsinc
-    tim_windowsize = dwindowsize
-    if (dstepobs.gt.dwindowsize) then
-        if(mpi_myid.eq.0) write(*,*) 'tim_setup: dstepobs>dwindowsize. Reset to dwindowsize value.'
+    tim_windowsize  = dwindowsize
+    if (dstepobs > dwindowsize) then
+        if(mpi_myid == 0) write(*,*) 'tim_setup: dstepobs>dwindowsize. Reset to dwindowsize value.'
         tim_dstepobs = tim_windowsize 
     end if
-    if (dstepobsinc.gt.dwindowsize) then
-        if(mpi_myid.eq.0) write(*,*) 'tim_setup: dstepobsinc>dwindowsize. Reset to dwindowsize value.'
+    if (dstepobsinc > dwindowsize) then
+        if(mpi_myid == 0) write(*,*) 'tim_setup: dstepobsinc>dwindowsize. Reset to dwindowsize value.'
         tim_dstepobsinc = tim_windowsize 
     end if      
-
     tim_nstepobs    = 2*nint(((tim_windowsize - tim_dstepobs)/2.d0)/tim_dstepobs) + 1
     tim_nstepobsinc = 2*nint(((tim_windowsize - tim_dstepobsinc)/2.d0)/tim_dstepobsinc) + 1
 
-    if(mpi_myid.eq.0) write(*,*) 'tim_setup: dobs_windowsize=',tim_windowsize
-    if(mpi_myid.eq.0) write(*,*) 'tim_setup: dstepobs   =',tim_dstepobs
-    if(mpi_myid.eq.0) write(*,*) 'tim_setup: nstepobs   =',tim_nstepobs
-    if(mpi_myid.eq.0) write(*,*) 'tim_setup: dstepobsinc=',tim_dstepobsinc
-    if(mpi_myid.eq.0) write(*,*) 'tim_setup: nstepobsinc=',tim_nstepobsinc
+    ! Possibly set the datestamp (except when set later from burp files)
+    if( dateFromTrials ) then
+      write(*,*) 'tim_setup: ====================================================='
+      write(*,*) 'tim_setup: DATESTAMP set by value in the Trial files'
+      write(*,*) 'tim_setup: ====================================================='
+      datestamp = tim_getDatestampFromTrials()
+      imode = -3 ! stamp to printable
+      ierr = newdate(datestamp, prntdate, prnttime, imode)
+      write(*,*) 'tim_setup: printdate = ',prntdate
+      write(*,*) 'tim_setup: printtime = ',prnttime
+      write(*,*) 'tim_setup: datestamp = ',datestamp
+    else if ( date /= 0 ) then
+      write(*,*) 'tim_setup: ====================================================='
+      write(*,*) 'tim_setup: DATESTAMP set by value in namelist'
+      write(*,*) 'tim_setup: ====================================================='
+      prntdate = date/100
+      prnttime = (date - prntdate*100) * 10000
+      imode = 3 ! printable to stamp
+      ierr = newdate(datestamp, prntdate, prnttime, imode)
+      write(*,*) 'tim_setup: printdate = ',prntdate
+      write(*,*) 'tim_setup: printtime = ',prnttime
+      write(*,*) 'tim_setup: datestamp = ',datestamp
+    end if
+
+    if(mpi_myid == 0) write(*,*) 'tim_setup: dobs_windowsize=',tim_windowsize
+    if(mpi_myid == 0) write(*,*) 'tim_setup: dstepobs       =',tim_dstepobs
+    if(mpi_myid == 0) write(*,*) 'tim_setup: nstepobs       =',tim_nstepobs
+    if(mpi_myid == 0) write(*,*) 'tim_setup: dstepobsinc    =',tim_dstepobsinc
+    if(mpi_myid == 0) write(*,*) 'tim_setup: nstepobsinc    =',tim_nstepobsinc
 
     initialized = .true.
 
   end subroutine tim_setup
 
-  subroutine tim_timeBinning(lobsSpaceData,nstepobs)
-    IMPLICIT NONE
-    type(struct_obs) :: lobsSpaceData
+
+  function tim_getDatestampFromTrials() result(dateStamp_out)
+    !
+    ! object: to extract the dateStamp from the set of trial files.  Returns the dateStamp
+    !         of the window centre of analysis validity.
+    implicit none
+
+    integer :: dateStamp_out
+
+    integer :: middleStep, nulTrial, ierr, ikey
+    integer :: fnom, fstouv, fstinf, fstprm, fstfrm, fclos
+    character(len=2)   :: fileNumber
+    character(len=256) :: fileName
+    logical :: fileExists
+    real(8) :: leadTimeInHours
+    integer :: ideet, inpas, dateStamp_origin, ini, inj, ink, inbits, idatyp, &
+               ip1, ip2, ip3, ig1, ig2, ig3, ig4, iswa, ilng, idltf, iubc,   &
+               iextra1, iextra2, iextra3
+    character(len=2)  :: typvar
+    character(len=4)  :: nomvar
+    character(len=12) :: etiket
+    character(len=1)  :: grtyp
+
+    ! Check if trial file for middle of analysis window exists
+    middleStep = nint((real(tim_nstepobs,8)+1.0d0)/2.0d0)
+    write(fileNumber,'(I2.2)') middleStep
+    fileName = './trlm_' // trim(fileNumber)
+    inquire(file=trim(fileName), exist=fileExists)
+    if (.not. fileExists) then
+      call utl_abort('tim_getDateStampFromTrials: Trial file not found')
+    end if
+
+    ! Extract the datestamp from the trial file
+    nulTrial = 0
+    ierr = fnom(nulTrial,trim(fileName),'RND+OLD+R/O',0)
+    ierr = fstouv(nulTrial,'RND+OLD')
+    ikey = fstinf(nulTrial, ini, inj, ink,  &
+                  -1, ' ', -1, -1, -1, ' ', trim(varNameForDate))
+    if( ikey <= 0 ) then
+      call utl_abort('tim_getDateStampFromTrials: Could not find variable ' //  &
+                     trim(varNameForDate) // ' in the trial file')
+    end if
+    ierr = fstprm(ikey, dateStamp_origin, ideet, inpas, ini, inj, &
+                  ink, inbits, idatyp, ip1, ip2, ip3, &
+                  typvar, nomvar, etiket, grtyp, ig1, ig2, ig3, ig4, &
+                  iswa, ilng, idltf, iubc, iextra1, iextra2, iextra3)
+    leadTimeInHours = real(ideet*inpas,8)/3600.0d0
+    call incdatr(dateStamp_out, dateStamp_origin, leadTimeInHours)
+
+    ierr = fstfrm(nulTrial)
+    ierr = fclos(nulTrial)
+
+  end function tim_getDateStampFromTrials
+
+
+  subroutine tim_timeBinning(obsSpaceData,nstepobs)
+    implicit none
+
+    type(struct_obs) :: obsSpaceData
     integer :: nstepobs
 
     integer :: jstep,jobs,jfamily,jdata,iobs,idatabeg,idatend,nsize,ierr
-    integer, allocatable, dimension(:,:) :: idataass,inumheader
-    integer, allocatable, dimension(:,:) :: my_idataass,my_inumheader
-    integer, parameter :: nfamily=10
-    character*2 :: familylist(nfamily)
-    character*256 :: formatspec,formatspec2
-    real*8 :: stepObsIndex
+    integer, allocatable :: idataass(:,:), inumheader(:,:)
+    integer, allocatable :: my_idataass(:,:), my_inumheader(:,:)
+    integer, parameter   :: nfamily = 10
+    character(len=2)     :: familylist(nfamily)
+    character(len=256)   :: formatspec,formatspec2
+    real(8)              :: stepObsIndex
 
     if (.not. initialized) call utl_abort('tim_timeBinning: module not initialized')
 
@@ -152,163 +224,166 @@ contains
     allocate(my_inumheader(nfamily,nStepObs+1))
     my_inumheader(:,:) = 0
 
-    familylist(1)='UA'
-    familylist(2)='AI'
-    familylist(3)='SF'
-    familylist(4)='TO'
-    familylist(5)='SW'
-    familylist(6)='SC'
-    familylist(7)='PR'
-    familylist(8)='RO'
-    familylist(9)='GP'
-    familylist(10)='CH'
+    familylist(1) = 'UA'
+    familylist(2) = 'AI'
+    familylist(3) = 'SF'
+    familylist(4) = 'TO'
+    familylist(5) = 'SW'
+    familylist(6) = 'SC'
+    familylist(7) = 'PR'
+    familylist(8) = 'RO'
+    familylist(9) = 'GP'
+    familylist(10) = 'CH'
 
-    do jobs = 1, obs_numheader(lobsSpaceData)
+    do jobs = 1, obs_numheader(obsSpaceData)
        call tim_getStepObsIndex(stepObsIndex,tim_getDatestamp(), &
-            obs_headElem_i(lobsSpaceData,OBS_DAT,jobs), &
-            obs_headElem_i(lobsSpaceData,OBS_ETM,jobs),nstepobs)
-       if(stepObsIndex.gt.0.0d0) then
-          jstep=nint(stepObsIndex)
-          idatabeg   = obs_headElem_i(lobsSpaceData,OBS_RLN,jobs)
-          idatend = obs_headElem_i(lobsSpaceData,OBS_NLV,jobs) + idatabeg - 1          
+            obs_headElem_i(obsSpaceData,OBS_DAT,jobs), &
+            obs_headElem_i(obsSpaceData,OBS_ETM,jobs),nstepobs)
+       if(stepObsIndex > 0.0d0) then
+          jstep = nint(stepObsIndex)
+          idatabeg = obs_headElem_i(obsSpaceData,OBS_RLN,jobs)
+          idatend = obs_headElem_i(obsSpaceData,OBS_NLV,jobs) + idatabeg - 1          
           do jfamily = 1, nfamily
-             if(obs_getfamily(lobsSpaceData,jobs).eq.familylist(jfamily)) then
-                my_inumheader(jfamily,jstep)=my_inumheader(jfamily,jstep)+1
-                my_inumheader(jfamily,nStepObs+1)=my_inumheader(jfamily,nStepObs+1)+1
+             if(obs_getfamily(obsSpaceData,jobs) == familylist(jfamily)) then
+                my_inumheader(jfamily,jstep) = my_inumheader(jfamily,jstep)+1
+                my_inumheader(jfamily,nStepObs+1) = my_inumheader(jfamily,nStepObs+1)+1
                 do jdata = idatabeg, idatend
-                   if ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,jdata) .eq. 1) then
+                   if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,jdata) == 1) then
                       my_idataass(jfamily,jstep) = my_idataass(jfamily,jstep) + 1
                       my_idataass(jfamily,nStepObs+1) = &
                            my_idataass(jfamily,nStepObs+1) + 1
-                   endif
-                enddo
-             endif
-          enddo
+                   end if
+                end do
+             end if
+          end do
        else
           write(*,*) 'TIM_TIMEBINNING: observation outside time window:',jobs,stepObsIndex
-       endif
-    enddo
+       end if
+    end do
 
-    formatspec='(1X,A6,":"'
-    do jstep=1,nStepObs
-       formatspec=trim(formatspec)//',1X,I7' ! this is for each time bin
-    enddo
-    formatspec=trim(formatspec)//',1X,I9' ! this is for the total
-    formatspec=trim(formatspec)//')'
+    formatspec ='(1X,A6,":"'
+    do jstep = 1,nStepObs
+       formatspec = trim(formatspec)//',1X,I7' ! this is for each time bin
+    end do
+    formatspec = trim(formatspec)//',1X,I9' ! this is for the total
+    formatspec = trim(formatspec)//')'
 
-    formatspec2='(1X,A6,":"'
-    do jstep=1,nStepObs
-       formatspec2=trim(formatspec2)//',1X,I7'
-    enddo
-    formatspec2=trim(formatspec2)//',1X,A9)'
+    formatspec2 = '(1X,A6,":"'
+    do jstep = 1,nStepObs
+       formatspec2 = trim(formatspec2)//',1X,I7'
+    end do
+    formatspec2 = trim(formatspec2)//',1X,A9)'
 
-    write(*,*)'-----------------------------------------------------------------'
-    write(*,*)'Distribution of number of headers over stepobs ON LOCAL PROCESSOR'
-    write(*,trim(formatspec2))'Bin#',(jstep,jstep=1,nStepObs),'Total'
+    write(*,*) '-----------------------------------------------------------------'
+    write(*,*) 'Distribution of number of headers over stepobs ON LOCAL PROCESSOR'
+    write(*,trim(formatspec2)) 'Bin#',(jstep, jstep = 1, nStepObs),'Total'
     do jfamily = 1, nfamily
-       write(*,trim(formatspec)) familylist(jfamily),(my_inumheader(jfamily,jstep) &
-            ,jstep=1,nStepObs+1)
-    enddo
-    write(*,trim(formatspec)) 'ALL',(sum(my_inumheader(:,jstep)),jstep=1,nStepObs+1)
-    write(*,*)'----------------------------------------------------------------'
-    write(*,*)'Distribution of assimilated data over stepobs ON LOCAL PROCESSOR'
-    write(*,trim(formatspec2))'Bin#',(jstep,jstep=1,nStepObs),'Total'
+       write(*,trim(formatspec)) familylist(jfamily),(my_inumheader(jfamily,jstep), &
+             jstep = 1, nStepObs+1)
+    end do
+    write(*,trim(formatspec)) 'ALL',(sum(my_inumheader(:,jstep)), jstep = 1, nStepObs+1)
+    write(*,*) '----------------------------------------------------------------'
+    write(*,*) 'Distribution of assimilated data over stepobs ON LOCAL PROCESSOR'
+    write(*,trim(formatspec2)) 'Bin#', (jstep, jstep = 1, nStepObs),'Total'
     do jfamily = 1, nfamily
-       write(*,trim(formatspec)) familylist(jfamily),(my_idataass(jfamily,jstep) &
-            ,jstep=1,nStepObs+1)
-    enddo
+       write(*,trim(formatspec)) familylist(jfamily), (my_idataass(jfamily,jstep), &
+             jstep = 1, nStepObs+1)
+    end do
     write(*,trim(formatspec)) 'ALL',(sum(my_idataass(:,jstep)),jstep=1,nStepObs+1)
-    write(*,*)'----------------------------------------------------------------'
+    write(*,*) '----------------------------------------------------------------'
 
-    nsize=size(inumheader)
-    call rpn_comm_allreduce(my_inumheader,inumheader,nsize, &
-         "mpi_integer","mpi_sum","GRID",ierr)
+    nsize = size(inumheader)
+    call rpn_comm_allreduce(my_inumheader, inumheader, nsize, &
+         "mpi_integer", "mpi_sum", "GRID", ierr)
     deallocate(my_inumheader) 
-    nsize=size(idataass)
-    call rpn_comm_allreduce(my_idataass,idataass,nsize, &
-         "mpi_integer","mpi_sum","GRID",ierr)
+    nsize = size(idataass)
+    call rpn_comm_allreduce(my_idataass, idataass, nsize, &
+         "mpi_integer", "mpi_sum", "GRID", ierr)
     deallocate(my_idataass) 
-    if(mpi_myid.eq.0) then
-       write(*,*)'----------------------------------------------------------------'
-       write(*,*)'Distribution of number of headers over stepobs ON ALL PROCESSORS'
-       write(*,trim(formatspec2))'Bin#',(jstep,jstep=1,nStepObs),'Total'
+    if(mpi_myid == 0) then
+       write(*,*) '----------------------------------------------------------------'
+       write(*,*) 'Distribution of number of headers over stepobs ON ALL PROCESSORS'
+       write(*,trim(formatspec2)) 'Bin#', (jstep, jstep = 1, nStepObs), 'Total'
        do jfamily = 1, nfamily
-          write(*,trim(formatspec)) familylist(jfamily),(inumheader(jfamily,jstep) &
-               ,jstep=1,nStepObs+1)
-       enddo
-       write(*,trim(formatspec)) 'ALL',(sum(inumheader(:,jstep)),jstep=1,nStepObs+1)
-       write(*,*)'---------------------------------------------------------------'
-       write(*,*)'Distribution of assimilated data over stepobs ON ALL PROCESSORS'
-       write(*,trim(formatspec2))'Bin#',(jstep,jstep=1,nStepObs),'Total'
+          write(*,trim(formatspec)) familylist(jfamily), (inumheader(jfamily,jstep), &
+                jstep = 1, nStepObs+1)
+       end do
+       write(*,trim(formatspec)) 'ALL', (sum(inumheader(:,jstep)), jstep = 1, nStepObs+1)
+       write(*,*) '---------------------------------------------------------------'
+       write(*,*) 'Distribution of assimilated data over stepobs ON ALL PROCESSORS'
+       write(*,trim(formatspec2)) 'Bin#', (jstep, jstep = 1, nStepObs), 'Total'
        do jfamily = 1, nfamily
-          write(*,trim(formatspec)) familylist(jfamily),(idataass(jfamily,jstep) &
-               ,jstep=1,nStepObs+1)
-       enddo
-       write(*,trim(formatspec)) 'ALL',(sum(idataass(:,jstep)),jstep=1,nStepObs+1)
-       write(*,*)'---------------------------------------------------------------'
-    endif
+          write(*,trim(formatspec)) familylist(jfamily), (idataass(jfamily,jstep), &
+                jstep = 1, nStepObs+1)
+       end do
+       write(*,trim(formatspec)) 'ALL', (sum(idataass(:,jstep)), jstep = 1, nStepObs+1)
+       write(*,*) '---------------------------------------------------------------'
+    end if
 
     deallocate(idataass)
     deallocate(inumheader)
 
   end subroutine tim_timeBinning
 
-  subroutine tim_sutimeinterp(lobsSpaceData)
+
+  subroutine tim_sutimeinterp(obsSpaceData)
     implicit none
 
-    type(struct_obs) :: lobsSpaceData
+    type(struct_obs) :: obsSpaceData
+
     integer :: jobs,jstep
-    real*8 :: stepObsIndex
+    real(8) :: stepObsIndex
 
     if (.not. initialized) call utl_abort('tim_suTimeInterp: module not initialized')
 
-    if(mpi_myid.eq.0) write(*,*) ' '
-    if(mpi_myid.eq.0) write(*,*) '-------- ENTERING TIM_SUTIMEINTERP ---------'
-    if(mpi_myid.eq.0) write(*,*) ' '
+    if(mpi_myid == 0) write(*,*) ' '
+    if(mpi_myid == 0) write(*,*) '-------- ENTERING TIM_SUTIMEINTERP ---------'
+    if(mpi_myid == 0) write(*,*) ' '
 
     ! Compute the number of step obs over the observation time window 
-    if(mpi_myid.eq.0) write(*,*) 'TIM_SUTIMEINTERP: Number of step obs inc : ',tim_nstepobsinc
+    if(mpi_myid == 0) write(*,*) 'TIM_SUTIMEINTERP: Number of step obs inc : ',tim_nstepobsinc
 
     if(associated(timeInterpWeight)) deallocate(timeInterpWeight)
-    allocate(timeInterpWeight(obs_numHeader(lobsSpaceData),mxstepobs))
-    timeInterpWeight(:,:)=0.0d0
+    allocate(timeInterpWeight(obs_numHeader(obsSpaceData),mxstepobs))
+    timeInterpWeight(:,:) = 0.0d0
 
-    do jobs=1, obs_numHeader(lobsSpaceData)
+    do jobs = 1, obs_numHeader(obsSpaceData)
       ! return the step stamp associated with date and time of the observation
 
       ! building the list of step stamp and counting number of obs in each step
-      if(tim_nstepobsinc.eq.1) then
+      if(tim_nstepobsinc == 1) then
         call tim_setTimeInterpWeight(1.0d0,jobs,1)
       else
         call tim_getStepObsIndex(stepObsIndex,tim_getDatestamp(),  &
-                             obs_headElem_i(lobsSpaceData,OBS_DAT,jobs),  &
-                             obs_headElem_i(lobsSpaceData,OBS_ETM,jobs),tim_nstepobsinc)
-        if(floor(stepObsIndex).ge.tim_nstepobsinc) then
-          write(*,*) 'tim_sutimeinterp: stepObsIndex too big=',jobs,stepObsIndex
-          call tim_setTimeInterpWeight(1.0d0,jobs,tim_nstepobsinc)
-        elseif(floor(stepObsIndex).le.0) then
-          write(*,*) 'tim_sutimeinterp: stepObsIndex too small=',jobs,stepObsIndex
-          call tim_setTimeInterpWeight(1.0d0,jobs,1)
+                             obs_headElem_i(obsSpaceData,OBS_DAT,jobs),  &
+                             obs_headElem_i(obsSpaceData,OBS_ETM,jobs),tim_nstepobsinc)
+        if(floor(stepObsIndex) >= tim_nstepobsinc) then
+          write(*,*) 'tim_sutimeinterp: stepObsIndex too big=', jobs, stepObsIndex
+          call tim_setTimeInterpWeight(1.0d0, jobs, tim_nstepobsinc)
+        else if(floor(stepObsIndex) <= 0) then
+          write(*,*) 'tim_sutimeinterp: stepObsIndex too small=',jobs, stepObsIndex
+          call tim_setTimeInterpWeight(1.0d0, jobs, 1)
         else
-          call tim_setTimeInterpWeight(1.0d0-(stepObsIndex-floor(stepObsIndex)),jobs,floor(stepObsIndex))
-          call tim_setTimeInterpWeight(stepObsIndex-floor(stepObsIndex),jobs,floor(stepObsIndex)+1)
-        endif
-      endif
+          call tim_setTimeInterpWeight(1.0d0-(stepObsIndex-floor(stepObsIndex)), jobs, floor(stepObsIndex))
+          call tim_setTimeInterpWeight(stepObsIndex-floor(stepObsIndex), jobs, floor(stepObsIndex)+1)
+        end if
+      end if
 
-    enddo
+    end do
 
-    if(mpi_myid.eq.0) write(*,*) ' '
-    if(mpi_myid.eq.0) write(*,*) '-------- END OF TIM_SUTIMEINTERP ---------'
-    if(mpi_myid.eq.0) write(*,*) ' '
+    if(mpi_myid == 0) write(*,*) ' '
+    if(mpi_myid == 0) write(*,*) '-------- END OF TIM_SUTIMEINTERP ---------'
+    if(mpi_myid == 0) write(*,*) ' '
 
   end subroutine tim_sutimeinterp
 
+
   subroutine tim_setTimeInterpWeight(weight_in,headerIndex,stepObs)
     implicit none
-    integer, intent(in)    :: headerIndex,stepObs
-    real(kind=8),intent(in):: weight_in
+    integer, intent(in)      :: headerIndex, stepObs
+    real(kind=8), intent(in) :: weight_in
 
-    timeInterpWeight(headerIndex,stepObs)=weight_in
+    timeInterpWeight(headerIndex, stepObs) = weight_in
 
   end SUBROUTINE tim_setTimeInterpWeight
 
@@ -316,11 +391,12 @@ contains
   function tim_getTimeInterpWeight(headerIndex,stepObs) result(weight_out)
     implicit none
     real(kind=8)        :: weight_out
-    integer,intent(in)  :: headerIndex,stepObs
+    integer, intent(in) :: headerIndex, stepObs
 
-    weight_out=timeInterpWeight(headerIndex,stepObs)
+    weight_out = timeInterpWeight(headerIndex, stepObs)
 
   end function tim_getTimeInterpWeight
+
 
   subroutine tim_setDatestamp(datestamp_in)
     !
@@ -340,7 +416,6 @@ contains
     !
     ! object: to control access to the minimization object.  Returns the date
     !         of the window centre of analysis validity.
-
     implicit none
     integer :: datestamp_out
 
@@ -369,21 +444,21 @@ contains
 
     ! Locals
     integer :: jstep
-    real*8 :: dldelt
-    real*8 :: dtstep ! Del Time in hours between step obs
+    real(8) :: dldelt
+    real(8) :: dtstep ! Del Time in hours between step obs
 
     if (.not. initialized) call utl_abort('tim_getStampList: module not initialized')
 
-    if(kstep.gt.1) then
+    if(kstep > 1) then
       dtstep = tim_windowsize/(real(kstep-1,8))
     else
       dtstep = tim_windowsize
-    endif
+    end if
 
     do jstep = 1,kstep
       dldelt = (jstep - ((kstep-1)/2+1)) * dtstep
       call incdatr(datestamplist(jstep),ksystamp, dldelt)
-    enddo
+    end do
 
   end subroutine tim_getStampList
 
@@ -404,44 +479,43 @@ contains
     integer, intent(in) :: ktobs     ! Obs time HHMM
     integer, intent(in) :: knstepobs ! number of stepobs in assimilation window
 
-    real*8,  intent(out):: dnstepobs ! number of stepobs from reference time
+    real(8), intent(out):: dnstepobs ! number of stepobs from reference time
 
     ! Locals
-    real*8  :: dddt      ! dstepobs
+    real(8) :: dddt      ! dstepobs
     integer :: newdate, istat, imode
     integer :: istobs    ! Obs CMC date-time stamp
     integer :: itobs     ! Obs time HHMMSShh
-    real*8  :: dlhours   ! Del time from synop time
+    real(8) :: dlhours   ! Del time from synop time
 
     if (.not. initialized) call utl_abort('tim_getStepObsIndex: module not initialized')
 
     ! Building observation stamp
     imode = 3 ! printable to stamp
-!    itobs = ktobs * 10000 + 2900
     itobs = ktobs * 10000
-    istat = newdate(istobs, kdobs,itobs,imode)
+    istat = newdate(istobs, kdobs, itobs, imode)
 
     ! Difference (in hours) between obs time and reference time
-    call difdatr (istobs,kstsyn, dlhours)
+    call difdatr(istobs, kstsyn, dlhours)
 
-    if(knstepobs.gt.1) then
+    if(knstepobs > 1) then
       ! FGAT: more than 1 trial field in time window
       dddt = tim_windowsize/(real(knstepobs-1,8))
       dnstepobs = dlhours/dddt ! number of step obs from reference (e.g. synoptic)
       dnstepobs = dnstepobs + real((knstepobs+1)/2,8)
-      if(dnstepobs.lt.0.5d0.or.dnstepobs.gt.(0.5d0+real(knstepobs,8))) dnstepobs=-1.0d0
+      if(dnstepobs < 0.5d0.or.dnstepobs > (0.5d0+real(knstepobs,8))) dnstepobs = -1.0d0
 
     else
       ! 3D-Var: only 1 trial field in time window
-      if(dlhours.lt.-tim_windowsize/2.0D0.or.dlhours.gt.tim_windowsize/2.0D0) then
+      if(dlhours < -tim_windowsize/2.0D0.or.dlhours > tim_windowsize/2.0D0) then
         ! outside time window
-        dnstepobs=-1.0d0
+        dnstepobs = -1.0d0
       else
         ! inside time window
-        dnstepobs= 1.0d0
-      endif
+        dnstepobs = 1.0d0
+      end if
 
-    endif
+    end if
 
   end subroutine tim_getStepObsIndex
 

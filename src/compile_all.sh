@@ -1,6 +1,14 @@
 #!/bin/bash
 #
 
+cd addIncrement
+./compile_addIncrement.sh
+cd ../
+
+echo ''
+echo ' ----------------------------------------------------------- '
+read -rsp $' Press enter to compile next program...\n ----------------------------------------------------------- \n \n'
+
 cd ominusf
 ./compile_ominusf.sh
 cd ../
