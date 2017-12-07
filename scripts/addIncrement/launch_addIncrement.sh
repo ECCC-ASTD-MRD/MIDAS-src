@@ -5,10 +5,10 @@
 # User-defined options
 #
 machine=eccc-ppp2
-abs="${HOME}/data_maestro/ords/oavar_abs/addIncrement_ubuntu-14.04-amd64-64-v_3.0.4-26-g6a1e6b2_M.Abs"
+abs="${HOME}/data_maestro/ords/oavar_abs/addIncrement_ubuntu-14.04-amd64-64-v_3.0.4-28-g343d855_M.Abs"
 inputdir="/home/mab001/data_maestro/${machine}/addIncrement/inputs/"
-npex=1
-npey=139
+npex=4
+npey=11
 openmp=1
 maxcputime=120
 run_in_parallel="/fs/ssm/eccc/mrd/rpn/utils/16.2/all/bin/r.run_in_parallel_1.1.28c"
@@ -17,7 +17,7 @@ run_in_parallel="/fs/ssm/eccc/mrd/rpn/utils/16.2/all/bin/r.run_in_parallel_1.1.2
 # Don't modify below ...
 #
 
-gest="${HOME}/data_maestro/${machine}/addIncrement/workdir2/"
+gest="${HOME}/data_maestro/${machine}/addIncrement/workdir_test2/"
 
 # build the namelist
 cat << EOF > $TMPDIR/flnml

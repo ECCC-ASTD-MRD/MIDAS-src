@@ -103,7 +103,7 @@ program midas_addIncrement
 
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
-  ! Setup timeCoord module (date read in NAMTIME namelist)
+  ! Setup timeCoord module (date read from trial file)
   call tim_setup
   numStep = tim_nstepobsinc
   allocate(dateStampList(numStep))

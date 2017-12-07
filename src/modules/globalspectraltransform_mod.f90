@@ -74,9 +74,9 @@ MODULE globalSpectralTransform_mod
     integer               :: ni
     integer               :: nj
     integer               :: nk
-    integer               :: myLatBeg,myLatEnd,latPerPE
+    integer               :: myLatBeg,myLatEnd,latPerPE,latPerPEmax
     integer,allocatable   :: allLatBeg(:),allLatEnd(:)
-    integer               :: myLonBeg,myLonEnd,lonPerPE
+    integer               :: myLonBeg,myLonEnd,lonPerPE,lonPerPEmax
     integer,allocatable   :: allLonBeg(:),allLonEnd(:)
     integer               :: myLatHalfBeg,myLatHalfEnd
     integer               :: mymBeg,mymEnd,mymSkip,mymCount,maxmCount
@@ -416,8 +416,8 @@ CONTAINS
     integer  :: ni_in,nj_in,ntrunc_in
     integer  :: maxlevels_in
     integer  :: jn,jm,ila,ierr
-    integer  :: latPerPE,myLatBeg,myLatEnd,myLatHalfBeg,myLatHalfEnd
-    integer  :: lonPerPE,myLonBeg,myLonEnd
+    integer  :: latPerPE,latPerPEmax,myLatBeg,myLatEnd,myLatHalfBeg,myLatHalfEnd
+    integer  :: lonPerPE,lonPerPEmax,myLonBeg,myLonEnd
     integer  :: myLevBeg,myLevEnd,myLevCount
     integer  :: mymBeg,mymEnd,mymSkip,mymCount
     integer  :: mynBeg,mynEnd,mynSkip,mynCount
@@ -445,8 +445,8 @@ CONTAINS
     gst(gstID)%nlarh = (gst(gstID)%ntrunc+1)*(gst(gstID)%ntrunc+1)
     if(mpi_myid.eq.0) write(*,*) 'gst_setup: ntrunc=',gst(gstID)%ntrunc
 
-    call mpivar_setup_latbands(gst(gstID)%nj,latPerPE,myLatBeg,myLatEnd,myLatHalfBeg,myLatHalfEnd)
-    call mpivar_setup_lonbands(gst(gstID)%ni,lonPerPE,myLonBeg,myLonEnd)
+    call mpivar_setup_latbands(gst(gstID)%nj,latPerPE,latPerPEmax,myLatBeg,myLatEnd,myLatHalfBeg,myLatHalfEnd)
+    call mpivar_setup_lonbands(gst(gstID)%ni,lonPerPE,lonPerPEmax,myLonBeg,myLonEnd)
 
     gst(gstID)%nk = maxlevels_in
     ! 2D MPI decomposition: split levels across npex

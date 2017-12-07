@@ -67,8 +67,8 @@ module analysisGrid_mod
 
   integer :: istart, iend, jstart, jend
 
-  integer :: LonPerPE, myLonBeg, myLonEnd
-  integer :: LatPerPE, myLatBeg, myLatEnd
+  integer :: LonPerPE, LonPerPEmax, myLonBeg, myLonEnd
+  integer :: LatPerPE, LatPerPEmax, myLatBeg, myLatEnd
 
   logical :: initialized = .false.
 
@@ -337,10 +337,10 @@ module analysisGrid_mod
     !
     if ( mpi_nprocs /= 0 ) then
        call mpivar_setup_lonbands(ni_ext,                      & ! IN
-                                  lonPerPE, myLonBeg, myLonEnd ) ! OUT
+                                  lonPerPE, lonPerPEmax, myLonBeg, myLonEnd ) ! OUT
        
        call mpivar_setup_latbands(nj_ext,                      & ! IN
-                                  latPerPE, myLatBeg, myLatEnd ) ! OUT
+                                  latPerPE, latPerPEmax, myLatBeg, myLatEnd ) ! OUT
     else
        ! This option is needed for the biper program
        lonPerPE = ni_ext

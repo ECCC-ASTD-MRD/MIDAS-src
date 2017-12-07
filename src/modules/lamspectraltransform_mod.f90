@@ -80,8 +80,8 @@ module LamSpectralTransform_mod
      integer, allocatable            :: allnBeg(:), allnEnd(:), allnSkip(:)
      integer, allocatable            :: mynIndex(:)
      logical                         :: allocated = .false.
-     integer                         :: latPerPE, myLatBeg, myLatEnd
-     integer                         :: lonPerPE, myLonBeg, myLonEnd
+     integer                         :: latPerPE, latPerPEmax, myLatBeg, myLatEnd
+     integer                         :: lonPerPE, lonPerPEmax, myLonBeg, myLonEnd
      integer                         :: myLevBeg, myLevEnd, myLevCount, maxLevCount
      integer, allocatable            :: allLatBeg(:), allLatEnd(:)
      integer, allocatable            :: allLonBeg(:), allLonEnd(:)
@@ -281,11 +281,11 @@ contains
 
        ! range of LONS handled by this processor in GRIDPOINT SPACE
        call mpivar_setup_lonbands( lst(id)%ni,                                       & ! IN
-                                   lst(id)%lonPerPE,lst(id)%myLonBeg,lst(id)%myLonEnd) ! OUT
+                                   lst(id)%lonPerPE,lst(id)%lonPerPEmax,lst(id)%myLonBeg,lst(id)%myLonEnd) ! OUT
 
        ! range of LATS handled by this processor in GRIDPOINT SPACE
        call mpivar_setup_latbands( lst(id)%nj,                                       & ! IN
-                                   lst(id)%latPerPE,lst(id)%myLatBeg,lst(id)%myLatEnd) ! OUT
+                                   lst(id)%latPerPE,lst(id)%latPerPEmax,lst(id)%myLatBeg,lst(id)%myLatEnd) ! OUT
 
        ! range of M handled by this processor in SPECTRAL SPACE
        call mpivar_setup_m( lst(id)%mmax,                                                     & ! IN

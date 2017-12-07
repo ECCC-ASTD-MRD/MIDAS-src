@@ -43,21 +43,43 @@ module mpivar_mod
   contains
 
 
-  subroutine mpivar_setup_latbands(nj, latPerPE, myLatBeg, myLatEnd, myLatHalfBeg, myLatHalfEnd)
+  subroutine mpivar_setup_latbands(nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd,  &
+                                   myLatHalfBeg, myLatHalfEnd, overRideDivisible_opt)
     ! Purpose: compute parameters that define the mpi distribution of
     !          latitudes over tasks in Y direction (npey)
     implicit none
-    integer           :: nj, latPerPE, myLatBeg, myLatEnd, njlath
+    integer           :: nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd, njlath
     integer, optional :: myLatHalfBeg, myLatHalfEnd
+    logical, optional :: overRideDivisible_opt
 
-    if ( mod(nj, mpi_npey) /= 0 ) then
-      write(*,*) 'nj = ', nj, ', mpi_npey = ', mpi_npey
-      call utl_abort('mpivar_setup_latbands: latitudes not divisible by MPI npey!')
+    integer :: latPerPEmin, ierr
+    logical :: overRideDivisible
+
+    if( present(overRideDivisible_opt) ) then
+      overRideDivisible = overRideDivisible_opt
+    else
+      overRideDivisible = .false.
     end if
 
-    latPerPE = nj / mpi_npey
-    myLatBeg = 1 + (mpi_myidy * latPerPE)
-    myLatEnd = (1 + mpi_myidy) * latPerPE
+    if( .not. overRideDivisible ) then
+      if ( mod(nj, mpi_npey) /= 0 ) then
+        write(*,*) 'nj = ', nj, ', mpi_npey = ', mpi_npey
+        call utl_abort('mpivar_setup_latbands: latitudes not divisible by MPI npey!')
+      end if
+    end if
+
+    latPerPEmin = floor(real(nj) / real(mpi_npey))
+    myLatBeg = 1 + (mpi_myidy * latPerPEmin)
+    if( mpi_myidy < (mpi_npey-1) ) then
+      myLatEnd = (1 + mpi_myidy) * latPerPEmin
+    else
+      myLatEnd = nj
+    endif
+    latPerPE = myLatEnd - myLatBeg + 1
+    call rpn_comm_allreduce(latPerPE,latPerPEmax,1,'MPI_INTEGER','MPI_MAX','NS',ierr)
+
+    write(*,*) 'mpivar_setup_latbands: latPerPE, latPerPEmax, myLatBeg, myLatEnd = ',  &
+         latPerPE, latPerPEmax, myLatBeg, myLatEnd
 
     if (present(myLatHalfBeg).and.present(myLatHalfEnd)) then
       njlath = (nj + 1) / 2
@@ -76,20 +98,41 @@ module mpivar_mod
   end subroutine mpivar_setup_latbands
 
 
-  subroutine mpivar_setup_lonbands(ni, lonPerPE, myLonBeg, myLonEnd)
+  subroutine mpivar_setup_lonbands(ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd, overRideDivisible_opt)
     ! Purpose: compute parameters that define the mpi distribution of
     !          longitudes over tasks in X direction (npex)
     implicit none
-    integer          :: ni, lonPerPE, myLonBeg, myLonEnd
+    integer          :: ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd
+    logical, optional :: overRideDivisible_opt
 
-    if ( mod(ni, mpi_npex) /= 0 ) then
-      write(*,*) 'ni = ', ni, ', mpi_npex = ', mpi_npex
-      call utl_abort('mpivar_setup_lonbands: longitudes not divisible by MPI npex!')
+    integer :: lonPerPEmin, ierr
+    logical :: overRideDivisible
+
+    if( present(overRideDivisible_opt) ) then
+      overRideDivisible = overRideDivisible_opt
+    else
+      overRideDivisible = .false.
     end if
 
-    lonPerPE = ni / mpi_npex
-    myLonBeg = 1 + (mpi_myidx * lonPerPE)
-    myLonEnd = (1 + mpi_myidx) * lonPerPE
+    if( .not. overRideDivisible ) then
+      if ( mod(ni, mpi_npex) /= 0 ) then
+        write(*,*) 'ni = ', ni, ', mpi_npex = ', mpi_npex
+        call utl_abort('mpivar_setup_lonbands: longitudes not divisible by MPI npex!')
+      end if
+    end if
+
+    lonPerPEmin = floor(real(ni) / real(mpi_npex))
+    myLonBeg = 1 + (mpi_myidx * lonPerPEmin)
+    if( mpi_myidx < (mpi_npex-1) ) then
+      myLonEnd = (1 + mpi_myidx) * lonPerPEmin
+    else
+      myLonEnd = ni
+    end if
+    lonPerPE = myLonEnd - myLonBeg + 1
+    call rpn_comm_allreduce(lonPerPE,lonPerPEmax,1,'MPI_INTEGER','MPI_MAX','EW',ierr)
+
+    write(*,*) 'mpivar_setup_lonbands: lonPerPE, lonPerPEmax, myLonBeg, myLonEnd = ', &
+         lonPerPE, lonPerPEmax, myLonBeg, myLonEnd
 
   end subroutine mpivar_setup_lonbands
 
@@ -243,6 +286,7 @@ module mpivar_mod
     mykEnd = mykBeg + mykCount - 1
 
     if(minval(mykCounts) == 0) then
+      write(*,*) 'mpivar_setup_varslevels: numk = ', numk
       write(*,*) 'mpivar_setup_varslevels: mykCounts = ', mykCounts(:)
       write(*,*) 'mpivar_setup_varslevels: WARNING, some mpi tasks have zero vars/levels'
     endif
