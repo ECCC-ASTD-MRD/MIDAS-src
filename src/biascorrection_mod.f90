@@ -152,17 +152,16 @@ CONTAINS
         allocate( bias(iSensor)%predictorIndex (1:bias(iSensor)%numActivePredictors))
 
         do iPredictor = 1, bias(iSensor)%numActivePredictors
-           bias(iSensor)%predictorIndex(iPredictor) = idNum(iSensor,iPredictor)
+          bias(iSensor)%predictorIndex(iPredictor) = idNum(iSensor,iPredictor)
         end do   
        
         do iPredictor = 1, bias(iSensor)%numActivePredictors
-           bias(iSensor)%stddev(:,iPredictor) = bg_stddev( bias(iSensor)%PredictorIndex(iPredictor) )
+          bias(iSensor)%stddev(:,iPredictor) = bg_stddev( bias(iSensor)%PredictorIndex(iPredictor) )
         end do
- 
 
         ! Make AMSU-A ch 13-14 static
         if( tvs_instruments(iSensor) == 3 ) then
-          if ( bias(iSensor)%numChannels /= 0 ) then
+          if( bias(iSensor)%numChannels /= 0 ) then
             bias(iSensor)%stddev(13:14, :) = 0.0d0
           end if
         end if
@@ -176,7 +175,10 @@ CONTAINS
     end if
 
   end subroutine bias_setup
- 
+
+  !---------------------------------------
+  ! calcBias_tl
+  !---------------------------------------- 
   subroutine bias_calcBias_tl(cv_in,cv_dim,obsColumnIndex,multFactor,lobsSpaceData)
     implicit none
 
@@ -241,9 +243,9 @@ CONTAINS
 
       BODY: do
         index_body = obs_getBodyIndex(lobsSpaceData)
-        if (index_body < 0) exit BODY
+        if( index_body < 0 ) exit BODY
 
-        if (obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) .ne. 1) cycle BODY   
+        if( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) .ne. 1 ) cycle BODY   
 
         iChannel = nint(obs_bodyElem_r(lobsSpaceData,OBS_PPP,index_body))
         iChannel = max(0,min(iChannel,tvs_maxChannelNumber+1))
@@ -252,7 +254,7 @@ CONTAINS
 
         do iPredictor = 1, bias(iSensor)%NumActivePredictors
           jj = bias(iSensor)%PredictorIndex(iPredictor)
-          if (iPredictor == 1) then
+          if( iPredictor == 1 ) then
 
             if (bias(iSensor)%numScan .gt. 1) then
               iScan = iFov
@@ -263,8 +265,6 @@ CONTAINS
           else
             biasCor = biasCor + predictor(jj) * bias(iSensor)%coeffIncr(iChannel,iPredictor) 
           end if
-
-            
           
         end do
         call obs_bodySet_r( lobsSpaceData, obsColumnIndex, index_body, &
@@ -273,14 +273,15 @@ CONTAINS
       end do BODY
     end do HEADER
 
-
   end subroutine bias_calcBias_tl
 
-
+  !----------------------
+  ! getTrialPredictors
+  !----------------------
   subroutine bias_getTrialPredictors(lobsSpaceData)
     implicit none
-    type(struct_obs)  :: lobsSpaceData
 
+    type(struct_obs)  :: lobsSpaceData
     character(len=80)  :: trialfilename="./trlp"
     integer  :: iSensor,iPredictor
     integer  :: ierr,nulfst,iset
@@ -539,7 +540,6 @@ CONTAINS
       trialTG(:) = trialTG(:) - MPC_K_C_DEGREE_OFFSET_R8
     end if
  
-
     ierr = fstfrm(nulfst)
     ierr = fclos(nulfst)
 
@@ -556,6 +556,9 @@ CONTAINS
 
   end subroutine bias_getTrialPredictors
 
+  !---------------------------------------
+  ! bias_cvToCoeff
+  !--------------------------------------
   subroutine bias_cvToCoeff(cv_bias)
     implicit none
 
@@ -592,8 +595,6 @@ CONTAINS
 
     end if
 
-     
-
     call flush(6)
 
     ! for constant part
@@ -610,7 +611,10 @@ CONTAINS
 
     if( mpi_myid == 0 ) write(*,*) 'bias_cvToCoeff finishes', maxval(bias(tvs_nSensors)%coeffIncr)
   end subroutine bias_cvToCoeff
- 
+
+  !-----------------------------------
+  !getPredictors
+  !---------------------------------- 
   subroutine bias_getPredictors(predictor,index_header,index_obs,lobsSpaceData)
     implicit none
 
@@ -659,6 +663,9 @@ CONTAINS
 
   end subroutine bias_getPredictors
 
+  !--------------------------------------------------
+  ! calcMeanPredictors
+  !---------------------------------------------------
   subroutine bias_calcMeanPredictors(lobsSpaceData)
     implicit none
 
@@ -702,19 +709,21 @@ CONTAINS
       end do
     end do HEADER
 
-
-  !  do iPredictor=1,bias(iSensor)%NumActivePredictors
-     do iPredictor=2,bias(iSensor)%NumActivePredictors
+    !  do iPredictor=1,bias(iSensor)%NumActivePredictors
+    do iPredictor=2,bias(iSensor)%NumActivePredictors
       if(countObs(iPredictor).gt.0) then
         meanPredictors(iPredictor)=meanPredictors(iPredictor)/real(countObs(iPredictor),8)
         meanAbsPredictors(iPredictor)=meanAbsPredictors(iPredictor)/real(countObs(iPredictor),8)
         write(*,*) 'bias_calcMeanPredictors: mean(abs),mean,min,max=',iPredictor, &
                    meanAbsPredictors(iPredictor),meanPredictors(iPredictor),minPredictors(iPredictor),maxPredictors(iPredictor)
       endif
-     enddo
+    enddo
 
   end subroutine bias_calcMeanPredictors
 
+  !---------------------------------------------
+  ! calcBias_ad
+  !---------------------------------------------
   subroutine bias_calcBias_ad(cv_out,cv_dim,obsColumnIndex,multFactor,lobsSpaceData)
     implicit none
 
@@ -784,10 +793,8 @@ CONTAINS
             else
               iScan = 1
             endif
-
             bias(iSensor)%coeffIncr_fov(iChannel,iScan) = bias(iSensor)%coeffIncr_fov(iChannel,iScan) &
                  + predictor(jj)*biasCor
-           
           else
             bias(iSensor)%coeffIncr(iChannel,iPredictor) = bias(iSensor)%coeffIncr(iChannel,iPredictor) & 
                + predictor(jj)*biasCor
@@ -808,6 +815,9 @@ CONTAINS
 
   end subroutine bias_calcBias_ad
 
+  !----------------------------------------------------
+  ! cvToCoeff_ad
+  !----------------------------------------------------
   subroutine bias_cvToCoeff_ad(cv_bias)
     implicit none
 
@@ -831,7 +841,6 @@ CONTAINS
     end do
 
     do iSensor = 1, tvs_nSensors
-
       nChan = bias(iSensor)%numChannels
       nScan  = bias(iSensor)%numScan
       allocate(temp_coeffIncr_fov(1:nChan, 1:nScan)) 
@@ -856,7 +865,7 @@ CONTAINS
             else
               index_cv = index_cv + 1
               cv_bias(index_cv) = bias(iSensor)%stddev(iChannel,iPredictor) * bias(iSensor)%coeffIncr(iChannel,iPredictor)
-              dl_jbias = dl_jbias+(cv_bias(index_cv)*cv_bias(index_cv))/2.0  !PDD
+              dl_jbias = dl_jbias+(cv_bias(index_cv)*cv_bias(index_cv))/2.0  
             end if
           end do
         end do
@@ -866,6 +875,9 @@ CONTAINS
     
   end subroutine bias_cvToCoeff_ad
 
+  !-----------------------------------------
+  ! writeBias
+  !-----------------------------------------
   subroutine bias_writeBias(cv_in,cv_dim)
     implicit none
 
@@ -883,13 +895,12 @@ CONTAINS
     !for background coeff and write out
     integer             :: iInstr, iuncoef
     real(8)             :: fovbias_bg(tvs_nSensors,maxNumChannels,maxfov)
-
     integer             :: numCoefFile,jj,kk
     character(len=10)   :: coefInstrName(tvs_nSensors), temp_instrName, instrName
     character(len=25)   :: filecoeff
     logical             :: coeffExists
 
-    if (.not.lvarbc) return
+    if( .not.lvarbc ) return
 
     if (mpi_myid == 0) then
       if ( cvm_subVectorExists(cvm_Bias) ) then
@@ -967,29 +978,25 @@ CONTAINS
     write(*,*) 'DPP-tst', numCoefFile
     write(*,*) 'DPP-tst2', coefInstrName(1:numCoefFile)
 
-  
     ! update coeff_file_instrument and write out
     if( mpi_myid == 0) then
       do iInstr=1, numCoefFile 
-
         biasCoeff_bg(:,:,:) = 0.0
         fovbias_bg(:,:,:) = 0.0
-      
         BgFileName ='./coeff_file_'//coefInstrName(iInstr)//''
         call bias_updateCoeff(tvs_nSensors,NumPredictors,BgFileName)
-
       end do
     end if
 
   end subroutine bias_writeBias
-!-----------
-!
-!-----------
-    subroutine bias_updateCoeff(maxsat,maxpred,coeff_file)
+
+  !--------------------------------------
+  ! updateCoeff
+  !--------------------------------------
+  subroutine bias_updateCoeff(maxsat,maxpred,coeff_file)
     implicit none
 
     ! There are three parts in this subroutine, read, update and write out the coeff files
-
     ! IN
     integer            :: maxsat, maxpred
     character(len=80)  :: coeff_file
@@ -1009,11 +1016,10 @@ CONTAINS
     character(len=10)  :: sat
     character(len=120) :: line
     integer            :: chan, ndata, nbfov, nbpred
-    integer            :: i, j, k, ier, istat, ii
+    integer            :: i, j, k, ier, istat, ii, iSat
     logical            :: newsat, verbose
     real               :: dummy
     integer            :: iun
-
     integer            :: fnom, fclos
     external           :: fnom, fclos
 
@@ -1027,21 +1033,17 @@ CONTAINS
     integer            :: iuncoef2, ierr, numPred
     character(len=80)  :: filename2
 
-! 
-!   sats(nsat)            = satellite names
-!   chans(nsat,nchan(i))  = channel numbers of each channel of each satellite i
-!   npred(nsat,nchan(i))  = number of predictors for each channel of each satellite i
-!   fovbias(i,j,k)        = bias for satellite i, channel j, FOV k   k=1,nfov
-!     if FOV not considered for instrument, nfov = 1 and fovbias is global bias for channel
-!   coeff(i,j,1)          = regression constant
-!   coeff(i,j,2), ..., coeff(i,j,npred(i,j)) = predictor coefficients
-
-!   nsat, nchan, nfov, cinstrum (output) are determined from file
-!   if returned nsat = 0, coeff_file was empty
-
-!   maxpred (input) is max number of predictors
-!   maxsat (input)  is max number of satellites
-
+    !   sats(nsat)            = satellite names
+    !   chans(nsat,nchan(i))  = channel numbers of each channel of each satellite i
+    !   npred(nsat,nchan(i))  = number of predictors for each channel of each satellite i
+    !   fovbias(i,j,k)        = bias for satellite i, channel j, FOV k   k=1,nfov
+    !     if FOV not considered for instrument, nfov = 1 and fovbias is global bias for channel
+    !   coeff(i,j,1)          = regression constant
+    !   coeff(i,j,2), ..., coeff(i,j,npred(i,j)) = predictor coefficients
+    !   nsat, nchan, nfov, cinstrum (output) are determined from file
+    !   if returned nsat = 0, coeff_file was empty
+    !   maxpred (input) is max number of predictors
+    !   maxsat (input)  is max number of satellites
 
     ! 
     !- 1. read in the background coeff files, this program is read_coeff from genbiascorr
@@ -1061,19 +1063,19 @@ CONTAINS
     write(*,*) 'Reading coeff file starts'  
     iun = 0
     ier = FNOM(iun,coeff_file,'FMT',0)
-    IF (ier == 0) THEN
-      WRITE(*,*) 'Bias correction coefficient file open = ', coeff_file
-      READ(iun,*,IOSTAT=istat)
-      IF ( istat < 0 ) THEN
-        WRITE(*,*) 'ERROR- File appears empty.'
-        RETURN
-      END IF
-      REWIND(iun)
+    if( ier == 0 ) then 
+      write(*,*) 'Bias correction coefficient file open = ', coeff_file
+      read(iun,*,IOSTAT=istat)
+      if( istat < 0 ) then
+        write(*,*) 'ERROR- File appears empty.'
+        return
+      end if
+      rewind(iun)
       ii = 0
       ! Loop over the satellites/channels in the file
       do
         read(iun,'(A)',IOSTAT=istat) line
-        if ( istat < 0 ) EXIT
+        if ( istat < 0 ) exit
         if ( line(1:3) == 'SAT' ) then
           newsat = .true.
           read(line,'(T53,A8,1X,A6,1X,I6,1X,I8,1X,I2,1X,I3)',IOSTAT=istat) sat, cinstrum, chan, ndata, nbpred, nbfov
@@ -1081,7 +1083,7 @@ CONTAINS
             if ( trim(sats(i)) == trim(sat) ) then
               newsat = .false.
               ii = i
-            endif
+            end if
           end do
           if ( newsat ) then
             ii = ii + 1
@@ -1094,29 +1096,27 @@ CONTAINS
           chans(ii, j) = chan
           npred(ii, j) = nbpred
           read(iun,'(A)',IOSTAT=istat) line
-          if ( nbpred > 0 ) then
+          if( nbpred > 0 ) then
             read(line,'(T8,6(1X,A2))',IOSTAT=istat) (ptypes(ii,j,k),k=1,nbpred)
           end if
           read(iun,*,IOSTAT=istat) (fovbias(ii,j,k),k=1,nbfov)
-          if ( nbpred > 0 ) then
+          if( nbpred > 0 ) then
             read(iun,*,IOSTAT=istat) (coeff(ii,j,k),k=1,nbpred+1)
           else
             read(iun,*,IOSTAT=istat) dummy
           end if
         end if
-
       end do
 
-      if ( ii == 0 ) then
+      if( ii == 0 ) then
         write(*,*) ' ERROR - No data read from coeff file!'
         call utl_abort('bias_updateCoeff')
-      endif
-
+      end if
       nsat      = ii
       nfov      = nbfov
       nchan(ii) = j
 
-      if (verbose) then
+      if( verbose ) then
         write(*,*) ' '
         write(*,*) ' ------------- BIAS CORRECTION COEFFICIENT FILE ------------------ '
         write(*,*) ' '
@@ -1130,7 +1130,7 @@ CONTAINS
           write(*,*) '     predictors, fovbias, coeff for each channel: '
           do j = 1, nchan(i)
             write(*,*) i, chans(i,j)
-            if ( npred(i,j) > 0 ) then
+            if( npred(i,j) > 0 ) then
               write(*,'(6(1X,A2))') (ptypes(i,j,k),k=1,npred(i,j))
             else
               write(*,'(A)') 'No predictors'
@@ -1141,11 +1141,10 @@ CONTAINS
         end do
           write(*,*) ' '
       end if
-    ELSE
+    else
       write(*,*) 'READ_COEFF: ERROR - Problem opening the coeff file!'
       call utl_abort('bias_updateCoeff')
-    ENDIF
-
+    end if 
     ier = FCLOS(iun)
 
     write(*,*) 'Reading coeff file done', coeff_file
@@ -1153,7 +1152,6 @@ CONTAINS
     !
     !- 2.update coeff and fovbias  
     !
-
     coeff_an(:,:,:) = coeff(:,:,:)
     fovbias_an(:,:,:) = fovbias(:,:,:)
 
@@ -1164,29 +1162,29 @@ CONTAINS
         ! for Instrument Name
         tmp_InstName = InstrNameinCoeffFile(tvs_instrumentName(iSensor))
         if( trim(tmp_SatName) == trim(sats(i)) .and. trim(tmp_InstName) == trim(cinstrum) ) then
-            do j = 1, nchan(i)
-              do jChan = 1, bias(iSensor)%numChannels  
-                if ( chans(i,j) == jChan ) then
-                  ! part 1 for coeffIncr
-                  do iFov = 1, nfov
-                    if( bias(iSensor)%coeffIncr_fov(jChan,iFov) /= 0.0d0 ) then
-                      fovbias_an(i,j,iFov) = fovbias(i,j,iFov) + bias(iSensor)%coeffIncr_fov(jChan,iFov)
+          do j = 1, nchan(i)
+            do jChan = 1, bias(iSensor)%numChannels  
+              if( chans(i,j) == jChan ) then
+                ! part 1 for coeffIncr
+                do iFov = 1, nfov
+                  if( bias(iSensor)%coeffIncr_fov(jChan,iFov) /= 0.0d0 ) then
+                    fovbias_an(i,j,iFov) = fovbias(i,j,iFov) + bias(iSensor)%coeffIncr_fov(jChan,iFov)
+                  end if
+                end do ! iFov
+                ! part 2 for coeffIncr_fov
+                totPred  = bias(iSensor)%NumActivePredictors 
+                do iPred = 1, totPred
+                  if( iPred == 1 ) then
+                    coeff_an(i,j,iPred) = coeff(i,j,iPred)
+                  else
+                    if( bias(iSensor)%coeffIncr(jChan,iPred) /= 0.0d0 ) then
+                      coeff_an(i,j,iPred) = coeff(i,j,iPred) + bias(iSensor)%coeffIncr(jChan,iPred)
                     end if
-                  end do ! iFov
-                  ! part 2 for coeffIncr_fov
-                  totPred  = bias(iSensor)%NumActivePredictors 
-                  do iPred = 1, totPred
-                    if( iPred == 1 ) then
-                      coeff_an(i,j,iPred) = coeff(i,j,iPred)
-                    else
-                      if( bias(iSensor)%coeffIncr(jChan,iPred) /= 0.0d0 ) then
-                        coeff_an(i,j,iPred) = coeff(i,j,iPred) + bias(iSensor)%coeffIncr(jChan,iPred)
-                      end if
-                    end if
-                  end do ! iPred
-                end if
-              end do ! jChan
-            end do !j 
+                  end if
+                end do ! iPred
+              end if
+            end do ! jChan
+          end do !j 
         end if ! sat and instr
       end do !iSendor
     end do ! i
@@ -1217,9 +1215,10 @@ CONTAINS
     write(*,*) 'Finish writing in bias_updateCoeff'
     
   end subroutine bias_updateCoeff
-!-----------
-!
-!----------
+
+  !------------------
+  ! read_coeff
+  !------------------
   subroutine read_coeff(maxsat,maxpred,coeff_file,sats,chans,nsat,nchan,nfov,cinstrum)
     implicit none
 
@@ -1249,18 +1248,18 @@ CONTAINS
     integer            :: fnom, fclos
     external           :: fnom, fclos
 
-!   sats(nsat)            = satellite names
-!   chans(nsat,nchan(i))  = channel numbers of each channel of each satellite i
-!   npred(nsat,nchan(i))  = number of predictors for each channel of each satellite i
-!   nsat, nchan, nfov, cinstrum (output) are determined from file
-!   if returned nsat = 0, coeff_file was empty
+    !   sats(nsat)            = satellite names
+    !   chans(nsat,nchan(i))  = channel numbers of each channel of each satellite i
+    !   npred(nsat,nchan(i))  = number of predictors for each channel of each satellite i
+    !   nsat, nchan, nfov, cinstrum (output) are determined from file
+    !   if returned nsat = 0, coeff_file was empty
 
-!   fovbias(i,j,k)        = bias for satellite i, channel j, FOV k   k=1,nfov
-!     if FOV not considered for instrument, nfov = 1 and fovbias is global bias for channel
-!   coeff(i,j,1)          = regression constant
-!   coeff(i,j,2), ..., coeff(i,j,npred(i,j)) = predictor coefficients
-!   maxpred (input) is max number of predictors
-!   maxsat (input)  is max number of satellites
+    !   fovbias(i,j,k)        = bias for satellite i, channel j, FOV k   k=1,nfov
+    !     if FOV not considered for instrument, nfov = 1 and fovbias is global bias for channel
+    !   coeff(i,j,1)          = regression constant
+    !   coeff(i,j,2), ..., coeff(i,j,npred(i,j)) = predictor coefficients
+    !   maxpred (input) is max number of predictors
+    !   maxsat (input)  is max number of satellites
 
     verbose = .false.
     coeff    = 0.0
@@ -1277,22 +1276,22 @@ CONTAINS
     write(*,*) 'Reading coeff file starts'
     iun = 0
     ier = FNOM(iun,coeff_file,'FMT',0)
-    IF (ier == 0) THEN
-      WRITE(*,*) 'Bias correction coefficient file open = ', coeff_file
-      READ(iun,*,IOSTAT=istat)
-      IF ( istat < 0 ) THEN
-        WRITE(*,*) 'ERROR- File appears empty.'
-        RETURN
-      END IF
-      REWIND(iun)
+    if (ier == 0)  then 
+      write(*,*) 'Bias correction coefficient file open = ', coeff_file
+      read(iun,*,iostat=istat)
+      if( istat < 0 ) then
+        write(*,*) 'Error: File appears empty.'
+        return
+      end if 
+      rewind(iun)
       ii = 0
       ! Loop over the satellites/channels in the file
       do
-        read(iun,'(A)',IOSTAT=istat) line
-        if ( istat < 0 ) EXIT
+        read(iun,'(A)',iostat=istat) line
+        if ( istat < 0 ) exit
           if ( line(1:3) == 'SAT' ) then
             newsat = .true.
-            read(line,'(T53,A8,1X,A6,1X,I6,1X,I8,1X,I2,1X,I3)',IOSTAT=istat) sat, cinstrum, chan, ndata, nbpred, nbfov
+            read(line,'(T53,A8,1X,A6,1X,I6,1X,I8,1X,I2,1X,I3)',iostat=istat) sat, cinstrum, chan, ndata, nbpred, nbfov
             do i = 1, maxsat
               if ( trim(sats(i)) == trim(sat) ) then
                 newsat = .false.
@@ -1311,20 +1310,20 @@ CONTAINS
             chans(ii, j) = chan
             npred(ii, j) = nbpred
 
-            read(iun,'(A)',IOSTAT=istat) line
+            read(iun,'(A)',iostat=istat) line
             if ( nbpred > 0 ) then
-              read(line,'(T8,6(1X,A2))',IOSTAT=istat) (ptypes(ii,j,k),k=1,nbpred)
+              read(line,'(T8,6(1X,A2))',iostat=istat) (ptypes(ii,j,k),k=1,nbpred)
             end if
-            read(iun,*,IOSTAT=istat) (fovbias(ii,j,k),k=1,nbfov)
+            read(iun,*,iostat=istat) (fovbias(ii,j,k),k=1,nbfov)
             if ( nbpred > 0 ) then
-              read(iun,*,IOSTAT=istat) (coeff(ii,j,k),k=1,nbpred+1)
+              read(iun,*,iostat=istat) (coeff(ii,j,k),k=1,nbpred+1)
             else
-              read(iun,*,IOSTAT=istat) dummy
+              read(iun,*,iostat=istat) dummy
             end if
         endif
       end do
       if ( ii == 0 ) then
-        write(*,*) ' ERROR - No data read from coeff file!'
+        write(*,*) ' Error - No data read from coeff file!'
         call utl_abort('read_coeff')
       endif
 
@@ -1358,7 +1357,7 @@ CONTAINS
           write(*,*) ' '
       end if
     else
-      write(*,*) 'READ_COEFF: ERROR - Problem opening the coeff file!'
+      write(*,*) 'Read_coeff:Error - Problem opening the coeff file!'
       call utl_abort('read_coeff')
     end if
 
@@ -1368,9 +1367,9 @@ CONTAINS
 
   end subroutine read_coeff
 
-!-----------
-!
-!-----------
+  !----------------------
+  ! Finalize
+  !----------------------
   subroutine bias_Finalize
     implicit none
 
@@ -1392,6 +1391,9 @@ CONTAINS
     end do
   end subroutine bias_Finalize 
 
+  !-----------------------------
+  ! Lower
+  !-----------------------------
   function Lower(s1) result(s2) 
     implicit none
  
@@ -1409,6 +1411,9 @@ CONTAINS
   
   end function Lower
  
+  !-----------------------------
+  ! InstrNametoCoeffFileName 
+  !-----------------------------
   function InstrNametoCoeffFileName(nameIn) result(nameOut)
     implicit none
 
@@ -1430,6 +1435,9 @@ CONTAINS
 
   end function InstrNametoCoeffFileName 
 
+  !-----------------------------
+  ! InstrNameinCoeffFile
+  !-----------------------------
   function InstrNameinCoeffFile(nameIn) result(nameOut)
     implicit none
     
@@ -1450,6 +1458,9 @@ CONTAINS
 
   end function InstrNameinCoeffFile
 
+  !-----------------------------
+  ! SatNameinCoeffFile
+  !-----------------------------
   function SatNameinCoeffFile(nameIn) result(nameOut)
     implicit none
     
