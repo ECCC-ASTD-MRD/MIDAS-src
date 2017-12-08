@@ -44,29 +44,15 @@ module mpivar_mod
 
 
   subroutine mpivar_setup_latbands(nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd,  &
-                                   myLatHalfBeg, myLatHalfEnd, overRideDivisible_opt)
+                                   myLatHalfBeg, myLatHalfEnd, divisible_opt)
     ! Purpose: compute parameters that define the mpi distribution of
     !          latitudes over tasks in Y direction (npey)
     implicit none
     integer           :: nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd, njlath
     integer, optional :: myLatHalfBeg, myLatHalfEnd
-    logical, optional :: overRideDivisible_opt
+    logical, optional :: divisible_opt
 
     integer :: latPerPEmin, ierr
-    logical :: overRideDivisible
-
-    if( present(overRideDivisible_opt) ) then
-      overRideDivisible = overRideDivisible_opt
-    else
-      overRideDivisible = .false.
-    end if
-
-    if( .not. overRideDivisible ) then
-      if ( mod(nj, mpi_npey) /= 0 ) then
-        write(*,*) 'nj = ', nj, ', mpi_npey = ', mpi_npey
-        call utl_abort('mpivar_setup_latbands: latitudes not divisible by MPI npey!')
-      end if
-    end if
 
     latPerPEmin = floor(real(nj) / real(mpi_npey))
     myLatBeg = 1 + (mpi_myidy * latPerPEmin)
@@ -95,31 +81,21 @@ module mpivar_mod
       endif
     endif
 
+    if( present(divisible_opt) ) then
+      divisible_opt = (latPerPEmin * mpi_npey == nj)
+    end if
+
   end subroutine mpivar_setup_latbands
 
 
-  subroutine mpivar_setup_lonbands(ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd, overRideDivisible_opt)
+  subroutine mpivar_setup_lonbands(ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd, divisible_opt)
     ! Purpose: compute parameters that define the mpi distribution of
     !          longitudes over tasks in X direction (npex)
     implicit none
     integer          :: ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd
-    logical, optional :: overRideDivisible_opt
+    logical, optional :: divisible_opt
 
     integer :: lonPerPEmin, ierr
-    logical :: overRideDivisible
-
-    if( present(overRideDivisible_opt) ) then
-      overRideDivisible = overRideDivisible_opt
-    else
-      overRideDivisible = .false.
-    end if
-
-    if( .not. overRideDivisible ) then
-      if ( mod(ni, mpi_npex) /= 0 ) then
-        write(*,*) 'ni = ', ni, ', mpi_npex = ', mpi_npex
-        call utl_abort('mpivar_setup_lonbands: longitudes not divisible by MPI npex!')
-      end if
-    end if
 
     lonPerPEmin = floor(real(ni) / real(mpi_npex))
     myLonBeg = 1 + (mpi_myidx * lonPerPEmin)
@@ -133,6 +109,10 @@ module mpivar_mod
 
     write(*,*) 'mpivar_setup_lonbands: lonPerPE, lonPerPEmax, myLonBeg, myLonEnd = ', &
          lonPerPE, lonPerPEmax, myLonBeg, myLonEnd
+
+    if( present(divisible_opt) ) then
+      divisible_opt = (lonPerPEmin * mpi_npex == ni)
+    end if
 
   end subroutine mpivar_setup_lonbands
 

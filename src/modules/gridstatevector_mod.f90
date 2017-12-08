@@ -379,12 +379,10 @@ module gridStateVector_mod
     if( statevector%mpi_distribution == 'Tiles' ) then
       call mpivar_setup_latbands(statevector%nj,  &
                                  statevector%latPerPE, statevector%latPerPEmax, &
-                                 statevector%myLatBeg, statevector%myLatEnd,  &
-                                 overRideDivisible_opt=.true.)
+                                 statevector%myLatBeg, statevector%myLatEnd)
       call mpivar_setup_lonbands(statevector%ni,  &
                                  statevector%lonPerPE, statevector%lonPerPEmax, &
-                                 statevector%myLonBeg, statevector%myLonEnd, &
-                                 overRideDivisible_opt=.true.)
+                                 statevector%myLonBeg, statevector%myLonEnd)
     else
       statevector%latPerPE    = statevector%nj
       statevector%latPerPEmax = statevector%nj
@@ -2299,11 +2297,11 @@ module gridStateVector_mod
     nsize = statevector_out%lonPerPEmax * statevector_out%latPerPEmax * statevector_out%numStep * maxkCount
     if(mpi_nprocs > 1) then
       if( sendrecvKind == 4 ) then
-        call rpn_comm_alltoall(gd_send_r4,nsize,"mpi_real4",  &
-                               gd_recv_r4,nsize,"mpi_real4","GRID",ierr)
+        call rpn_comm_alltoall(gd_send_r4, nsize, "mpi_real4",  &
+                               gd_recv_r4, nsize, "mpi_real4", "GRID", ierr)
       else
-        call rpn_comm_alltoall(gd_send_r8,nsize,"mpi_real8",  &
-                               gd_recv_r8,nsize,"mpi_real8","GRID",ierr)
+        call rpn_comm_alltoall(gd_send_r8, nsize, "mpi_real8",  &
+                               gd_recv_r8, nsize, "mpi_real8", "GRID", ierr)
       end if
     else
       if( sendrecvKind == 4 ) then
@@ -2486,11 +2484,11 @@ module gridStateVector_mod
     nsize = statevector_in%lonPerPEmax * statevector_in%latPerPEmax * statevector_in%numStep * maxkCount
     if(mpi_nprocs > 1) then
       if( sendrecvKind == 4 ) then
-        call rpn_comm_alltoall(gd_send_r4,nsize,"mpi_real4",  &
-                               gd_recv_r4,nsize,"mpi_real4","GRID",ierr)
+        call rpn_comm_alltoall(gd_send_r4, nsize, "mpi_real4",  &
+                               gd_recv_r4, nsize, "mpi_real4", "GRID", ierr)
       else
-        call rpn_comm_alltoall(gd_send_r8,nsize,"mpi_real8",  &
-                               gd_recv_r8,nsize,"mpi_real8","GRID",ierr)
+        call rpn_comm_alltoall(gd_send_r8, nsize, "mpi_real8",  &
+                               gd_recv_r8, nsize, "mpi_real8", "GRID", ierr)
       end if
     else
       if( sendrecvKind == 4 ) then
@@ -3261,7 +3259,7 @@ module gridStateVector_mod
           end do
 !$OMP END PARALLEL DO
 
-          nsize = statevector%lonPerPEmax*statevector%latPerPEmax
+          nsize = statevector%lonPerPEmax * statevector%latPerPEmax
           if(mpi_nprocs.gt.1) then
             call rpn_comm_alltoall(gd_send_r4,nsize,"mpi_real4",  &
                                    gd_recv_r4,nsize,"mpi_real4","GRID",ierr)

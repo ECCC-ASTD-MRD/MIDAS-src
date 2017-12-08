@@ -78,8 +78,8 @@ module LamBMatrixHI_mod
   logical              :: regrid
   logical              :: initialized = .false.
 
-  integer              :: LatPerPE, myLatBeg, myLatEnd
-  integer              :: LonPerPE, myLonBeg, myLonEnd
+  integer              :: LatPerPE, LatPerPEmax, myLatBeg, myLatEnd
+  integer              :: LonPerPE, LonPerPEmax, myLonBeg, myLonEnd
 
   integer,parameter    :: maxNumLevels=200
   real(8)              :: scaleFactor(maxNumLevels)
@@ -217,10 +217,10 @@ contains
 
     !- 2.2 Initialized the LAM spectral transform
     call mpivar_setup_lonbands(hco_bhi%ni,                  & ! IN
-                               lonPerPE, myLonBeg, myLonEnd ) ! OUT
+                               lonPerPE, lonPerPEmax, myLonBeg, myLonEnd ) ! OUT
 
     call mpivar_setup_latbands(hco_bhi%nj,                  & ! IN
-                               latPerPE, myLatBeg, myLatEnd ) ! OUT
+                               latPerPE, latPerPEmax, myLatBeg, myLatEnd ) ! OUT
 
     call lst_Setup( lst_bhi,                        & ! OUT
                     hco_bhi%ni, hco_bhi%nj,         & ! IN

@@ -99,7 +99,7 @@ CONTAINS
     integer, intent(out) :: id_out
     integer, intent(out) :: nEnsOverDimension_out
 
-    integer :: latPerPE, lonPerPE, mymCount, mynCount, mIndex, nIndex, id, maxMyNla
+    integer :: latPerPE, latPerPEmax, lonPerPE, lonPerPEmax, mymCount, mynCount, mIndex, nIndex, id, maxMyNla
     integer :: myMemberBeg, myMemberEnd, myMemberCount, maxMyMemberCount, ierr
 
     if (verbose) write(*,*) 'Entering lsp_Setup'
@@ -139,8 +139,8 @@ CONTAINS
     lsp(id)%ni   = hco_loc%ni
     lsp(id)%nj   = hco_loc%nj
 
-    call mpivar_setup_latbands(lsp(id)%nj,latPerPE,lsp(id)%myLatBeg,lsp(id)%myLatEnd)
-    call mpivar_setup_lonbands(lsp(id)%ni,lonPerPE,lsp(id)%myLonBeg,lsp(id)%myLonEnd)
+    call mpivar_setup_latbands(lsp(id)%nj, latPerPE, latPerPEmax, lsp(id)%myLatBeg, lsp(id)%myLatEnd)
+    call mpivar_setup_lonbands(lsp(id)%ni, lonPerPE, lonPerPEmax, lsp(id)%myLonBeg, lsp(id)%myLonEnd)
 
     lsp(id)%global = hco_loc%global
     if (lsp(id)%global) then

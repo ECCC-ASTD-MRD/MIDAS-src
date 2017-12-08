@@ -86,7 +86,7 @@ CONTAINS
     character(len=15) :: bdiff_mode
 
     integer :: nulnam, ierr, fnom, fclos
-    integer :: status, latPerPE, lonPerPE, Vcode_anl
+    integer :: status, latPerPE, latPerPEmax, lonPerPE, lonPerPEmax, Vcode_anl
     integer :: jvar
 
     type(struct_vco), pointer :: vco_anl
@@ -205,8 +205,8 @@ CONTAINS
        diffID(jvar) = diff_setup(hco_in, corr_len(jvar), stab(jvar), nsamp(jvar))
     end do
 
-    call mpivar_setup_latbands(nj_l,latPerPE,myLatBeg,myLatEnd)
-    call mpivar_setup_lonbands(ni_l,lonPerPE,myLonBeg,myLonEnd)
+    call mpivar_setup_latbands(nj_l, latPerPE, latPerPEmax, myLatBeg, myLatEnd)
+    call mpivar_setup_lonbands(ni_l, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
 
     ! compute mpilocal control vector size
     cvDim_mpilocal = ni_l*nj_l*numvar2d

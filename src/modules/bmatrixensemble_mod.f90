@@ -54,7 +54,7 @@ MODULE BmatrixEnsemble_mod
 
   real(8),allocatable :: scaleFactor_M(:), scaleFactor_T(:)
 
-  integer             :: nj,ni,lonPerPE,myLonBeg,myLonEnd,latPerPE,myLatBeg,myLatEnd
+  integer             :: nj,ni,lonPerPE,lonPerPEmax,myLonBeg,myLonEnd,latPerPE,latPerPEmax,myLatBeg,myLatEnd
   integer,allocatable :: allLonBeg(:), allLatBeg(:)
   integer             :: nLevInc_M,nLevInc_T,nkgdimInc,nLevEns_M,nLevEns_T,nkgdimEns
   integer             :: topLevIndex_M,topLevIndex_T
@@ -354,8 +354,8 @@ CONTAINS
     end do
 
     !- 2.5 Domain Partionning
-    call mpivar_setup_latbands(nj,latPerPE,myLatBeg,myLatEnd)
-    call mpivar_setup_lonbands(ni,lonPerPE,myLonBeg,myLonEnd)
+    call mpivar_setup_latbands(nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd)
+    call mpivar_setup_lonbands(ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
     allocate(allLonBeg(mpi_npex))
     CALL rpn_comm_allgather(myLonBeg,1,"mpi_integer",       &
          allLonBeg,1,"mpi_integer","EW",ierr)
@@ -1125,28 +1125,6 @@ CONTAINS
     deallocate(AnalSeaIceMask)
 
   END SUBROUTINE AdjustTGOverOpenWater
-
-  !--------------------------------------------------------------------------
-  ! CheckEnsDim
-  !--------------------------------------------------------------------------
-  SUBROUTINE CheckEnsDim(niEns,njEns,nkEns,nomvar)
-    implicit none
-
-    integer,      intent(in) :: niEns,njEns,nkEns
-    character(*), intent(in) :: nomvar
-
-    if ( niEns /= lonPerPE  .or. &
-         njEns /= latPerPE  .or. &
-         nkEns /= 1 ) then
-
-      write(*,*) 'Variable :', trim(nomvar)
-      write(*,*) 'i-dim = ', niEns, lonPerPE
-      write(*,*) 'j-dim = ', njEns, latPerPE
-      write(*,*) 'k-dim = ', nkEns, 1
-      call utl_abort('Ensemble dimensions are incompatible with the topology and/or the analysis grid')
-    end if
-
-  END SUBROUTINE CheckEnsDim
 
   !--------------------------------------------------------------------------
   ! EnsembleScaleDecomposition

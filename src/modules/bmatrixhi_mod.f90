@@ -123,7 +123,7 @@ CONTAINS
     character(len=15) :: bhi_mode
     
     integer :: jlev, nulnam, ierr, fnom, fclos, fstouv, fstfrm
-    integer :: jm, jn, status, latPerPE, lonPerPE, Vcode_anl
+    integer :: jm, jn, status, latPerPE, lonPerPE, latPerPEmax, lonPerPEmax, Vcode_anl
     logical :: llfound, lExists
     real(8) :: zps
     type(struct_vco),pointer :: vco_file => null()
@@ -254,8 +254,8 @@ CONTAINS
     if(mpi_myid == 0) write(*,*) 'BHI:returned value of gstID =',gstID
     if(mpi_myid == 0) write(*,*) 'BHI:returned value of gstID2=',gstID2
 
-    call mpivar_setup_latbands(nj_l,latPerPE,myLatBeg,myLatEnd)
-    call mpivar_setup_lonbands(ni_l,lonPerPE,myLonBeg,myLonEnd)
+    call mpivar_setup_latbands(nj_l, latPerPE, latPerPEmax, myLatBeg, myLatEnd)
+    call mpivar_setup_lonbands(ni_l, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
 
     call mpivar_setup_m(ntrunc,mymBeg,mymEnd,mymSkip,mymCount)
     call mpivar_setup_n(ntrunc,mynBeg,mynEnd,mynSkip,mynCount)
