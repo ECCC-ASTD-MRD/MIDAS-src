@@ -1,1 +1,0 @@
-compile_ominusf_oldFashion.sh
