@@ -33,6 +33,7 @@ module mpivar_mod
   public :: mpivar_setup_m, mpivar_setup_n
   public :: mpivar_setup_levels_npex, mpivar_setup_levels_npey
   public :: mpivar_setup_varslevels
+  public :: mpivar_myidXfromLon, mpivar_myidYfromLat
 
   ! public variables through inheritance
   public :: mpi_myid, mpi_nprocs, mpi_npex, mpi_npey, mpi_myidx, mpi_myidy
@@ -53,6 +54,7 @@ module mpivar_mod
     logical, optional :: divisible_opt
 
     integer :: latPerPEmin, ierr
+    logical, save :: firstCall = .true.
 
     latPerPEmin = floor(real(nj) / real(mpi_npey))
     myLatBeg = 1 + (mpi_myidy * latPerPEmin)
@@ -64,8 +66,11 @@ module mpivar_mod
     latPerPE = myLatEnd - myLatBeg + 1
     call rpn_comm_allreduce(latPerPE,latPerPEmax,1,'MPI_INTEGER','MPI_MAX','NS',ierr)
 
-    write(*,*) 'mpivar_setup_latbands: latPerPE, latPerPEmax, myLatBeg, myLatEnd = ',  &
-         latPerPE, latPerPEmax, myLatBeg, myLatEnd
+    if( firstCall ) then
+      write(*,*) 'mpivar_setup_latbands: latPerPE, latPerPEmax, myLatBeg, myLatEnd = ',  &
+           latPerPE, latPerPEmax, myLatBeg, myLatEnd
+      firstCall = .false.
+    end if
 
     if (present(myLatHalfBeg).and.present(myLatHalfEnd)) then
       njlath = (nj + 1) / 2
@@ -88,6 +93,18 @@ module mpivar_mod
   end subroutine mpivar_setup_latbands
 
 
+  function mpivar_myidYfromLat(latIndex, nj) result(IP_y)
+    ! Purpose: use same logic as setup_latbands to compute myidy
+    !          corresponding to a latitude grid index
+    implicit none
+    integer :: latIndex, nj, IP_y
+
+    IP_y = (latIndex-1) / floor( real(nj) / real(mpi_npey) )
+    IP_y = min( mpi_npey-1, IP_y )
+
+  end function mpivar_myidYfromLat
+
+
   subroutine mpivar_setup_lonbands(ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd, divisible_opt)
     ! Purpose: compute parameters that define the mpi distribution of
     !          longitudes over tasks in X direction (npex)
@@ -96,6 +113,7 @@ module mpivar_mod
     logical, optional :: divisible_opt
 
     integer :: lonPerPEmin, ierr
+    logical, save :: firstCall = .true.
 
     lonPerPEmin = floor(real(ni) / real(mpi_npex))
     myLonBeg = 1 + (mpi_myidx * lonPerPEmin)
@@ -107,14 +125,29 @@ module mpivar_mod
     lonPerPE = myLonEnd - myLonBeg + 1
     call rpn_comm_allreduce(lonPerPE,lonPerPEmax,1,'MPI_INTEGER','MPI_MAX','EW',ierr)
 
-    write(*,*) 'mpivar_setup_lonbands: lonPerPE, lonPerPEmax, myLonBeg, myLonEnd = ', &
-         lonPerPE, lonPerPEmax, myLonBeg, myLonEnd
+    if( firstCall ) then
+      write(*,*) 'mpivar_setup_lonbands: lonPerPE, lonPerPEmax, myLonBeg, myLonEnd = ', &
+           lonPerPE, lonPerPEmax, myLonBeg, myLonEnd
+      firstCall = .false.
+    end if
 
     if( present(divisible_opt) ) then
       divisible_opt = (lonPerPEmin * mpi_npex == ni)
     end if
 
   end subroutine mpivar_setup_lonbands
+
+
+  function mpivar_myidXfromLon(lonIndex, ni) result(IP_x)
+    ! Purpose: use same logic as setup_lonbands to compute myidx
+    !          corresponding to a longitude grid index
+    implicit none
+    integer :: lonIndex, ni, IP_x
+
+    IP_x = (lonIndex-1) / floor( real(ni) / real(mpi_npex) )
+    IP_x = min( mpi_npex-1, IP_x )
+
+  end function mpivar_myidXfromLon
 
 
   subroutine mpivar_setup_m(ntrunc, mymBeg, mymEnd, mymSkip, mymCount)
