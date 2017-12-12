@@ -83,8 +83,8 @@ contains
     type(struct_vco), pointer :: vco_anl_in
     type(struct_hco), pointer :: hco_anl_in
 
-    integer :: cvdimens, cvdimhi
-    integer :: get_max_rss
+    integer :: cvdimens, cvdimhi, cvdimhi_mpiglobal
+    integer :: get_max_rss, ierr
     integer :: cvdimchm, cvdimdiff, cvdimbias
    
     !
@@ -161,12 +161,12 @@ contains
     write(*,*) 'Dimension of DIFFUSION static control vector returned:',cvdimdiff
 
     !-2.5 Bias_correction
-    if ( hco_anl % global ) then
+    if( hco_anl % global ) then
       write(*,*)
       write(*,*) 'Setting up the modular bias correction covariances...'
       call bias_setup(cvdimbias)
-
     else
+      write(*,*) 'It is now only for global'
     end if
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -310,11 +310,7 @@ contains
     type(struct_gsv) :: statevector
     logical,optional :: useFSOFcst_opt
 
-    !- 1.1 set gradient to zero
-    ! DPP for biasCorrection
-    !controlVector(:)=0.0d0
-    
-    !- 1.2 Add contribution to gradient from BmatrixEnsemble
+    !- 1.1 Add contribution to gradient from BmatrixEnsemble
     call tmg_start(61,'B_ENS_T')
     if ( cvm_subVectorExists(cvm_BEN) ) then
       cvBen=>cvm_getSubVector(controlVector,cvm_BEN)
@@ -327,32 +323,32 @@ contains
     end if
     call tmg_stop(61)
 
-    !- 1.3 adjoint of copy 3D increment to 4D increment
+    !- 1.2 adjoint of copy 3D increment to 4D increment
     if ( cvm_subVectorExists(cvm_BHI) .or. cvm_subVectorExists(cvm_BCHM)) call gsv_3dto4dAdj(statevector)
 
-    !- 1.4 add contribution to gradient from BmatrixChem
+    !- 1.3 add contribution to gradient from BmatrixChem
     call tmg_start(124,'B_CHM_T')
     if ( cvm_subVectorExists(cvm_BCHM) ) then
       cvBchm=>cvm_getSubVector(controlVector,cvm_BCHM)
       cvBchm(:) = 0.0d0
       if ( statevector%hco%global ) then
-        !- 1.4.1 add contribution to gradient from GLOBAL BmatrixChem
+        !- 1.3.1 add contribution to gradient from GLOBAL BmatrixChem
         call bchm_bsqrtad( statevector, & ! IN
                           cvBchm )        ! OUT
       else
-        !- 1.4.2 add contribution to gradient from LAM BmatrixChem
+        !- 1.3.2 add contribution to gradient from LAM BmatrixChem
         call utl_abort('bmat_sqrtBT: local routine currently unavailable for chemical constituents, to be available via lbhi_bSqrtAdj in the future')
       end if
     end if
     call tmg_stop(124)
 
-    !- 1.5 add contribution to gradient from BmatrixHI
+    !- 1.4 add contribution to gradient from BmatrixHI
     call tmg_start(51,'B_HI_T')
     if ( cvm_subVectorExists(cvm_BHI) ) then
       cvBhi=>cvm_getSubVector(controlVector,cvm_BHI)
       cvBhi(:) = 0.0d0
       if ( statevector%hco%global ) then
-        !- 1.5.1 add contribution to gradient from GLOBAL BmatrixHI
+        !- 1.4.1 add contribution to gradient from GLOBAL BmatrixHI
         if ( useBmatrixLatBands ) then
           call blb_bsqrtad( statevector, & ! IN
                             cvBhi )        ! OUT
@@ -361,19 +357,19 @@ contains
                             cvBhi )        ! OUT
         end if
       else
-        !- 1.5.2 add contribution to gradient from LAM BmatrixHI
+        !- 1.4.2 add contribution to gradient from LAM BmatrixHI
         call lbhi_bSqrtAdj( statevector, & ! IN
                             cvBhi )        ! OUT
       end if
     end if
     call tmg_stop(51)
 
-    !- 1.6 add contribution to gradient from BmatrixDiff
+    !- 1.5 add contribution to gradient from BmatrixDiff
     call tmg_start(52,'B_DIFF_T')
     if ( cvm_subVectorExists(cvm_BDIFF) ) then
       cvBdiff=>cvm_getSubVector(controlVector,cvm_BDIFF)
       cvBdiff(:) = 0.0d0
-      !- 1.6.1 add contribution to gradient from BmatrixDIFF
+      !- 1.5.1 add contribution to gradient from BmatrixDIFF
       call bdiff_bsqrtad( statevector, & ! IN
                           cvBdiff )      ! OUT
     end if
