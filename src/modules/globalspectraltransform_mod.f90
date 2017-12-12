@@ -603,7 +603,7 @@ CONTAINS
 
     call gst_zlegpol(gstID)
 
-    ! setup mpi derived types used in transposes
+    ! setup mpi derived types used in transposes (only used when grid is divisible)
     ! ... mpi_type_vector(count, blocklength, stride, ...)
     ! ... mpi_type_create_resized(oldtype, lowerbound, extent(in bytes), newtype, ierr)
 

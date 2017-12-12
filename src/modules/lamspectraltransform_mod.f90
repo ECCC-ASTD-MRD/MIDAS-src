@@ -83,14 +83,15 @@ module LamSpectralTransform_mod
      integer                         :: latPerPE, latPerPEmax, myLatBeg, myLatEnd
      integer                         :: lonPerPE, lonPerPEmax, myLonBeg, myLonEnd
      integer                         :: myLevBeg, myLevEnd, myLevCount, maxLevCount
-     integer, allocatable            :: allLatBeg(:), allLatEnd(:)
-     integer, allocatable            :: allLonBeg(:), allLonEnd(:)
+     integer, allocatable            :: allLatBeg(:), allLatEnd(:), allLatPerPE(:)
+     integer, allocatable            :: allLonBeg(:), allLonEnd(:), allLonPerPE(:)
      integer, allocatable            :: allLevBeg(:), allLevEnd(:)
      integer, allocatable            :: KfromMNglb(:,:)
      character(len=10)               :: MpiMode
      character(len=3)                :: gridDataOrder ! Ordering the gridded data: 'ijk' or 'kij'
      integer                         :: sendType_LevToLon, recvType_LevToLon
      integer                         :: sendType_LonToLev, recvType_LonToLev
+     logical                         :: lonLatDivisible
   end type struct_lst_local
 
   integer,parameter      :: nMaxLst = 10
@@ -144,7 +145,7 @@ contains
     real(8)                         :: NormFactorAd1, NormFactorAd2, NormFactorAd3
     real(8)                         :: factor, factorAd
     character(len=60)               :: kreftype
-
+    logical                         :: divisibleLon, divisibleLat
     integer(kind=MPI_ADDRESS_KIND) :: lowerBound, extent
     integer :: realSize, sendType, recvType, ierr
 
@@ -280,12 +281,19 @@ contains
        !- 1.4.2 MPI 2D: Distribution of lon/lat tiles (gridpoint space) and n/m (spectral space)
 
        ! range of LONS handled by this processor in GRIDPOINT SPACE
-       call mpivar_setup_lonbands( lst(id)%ni,                                       & ! IN
-                                   lst(id)%lonPerPE,lst(id)%lonPerPEmax,lst(id)%myLonBeg,lst(id)%myLonEnd) ! OUT
+       call mpivar_setup_lonbands( lst(id)%ni,                            & ! IN
+                                   lst(id)%lonPerPE, lst(id)%lonPerPEmax, & ! OUT
+                                   lst(id)%myLonBeg, lst(id)%myLonEnd,    & ! OUT
+                                   divisible_opt=divisibleLon )             ! OUT
 
        ! range of LATS handled by this processor in GRIDPOINT SPACE
        call mpivar_setup_latbands( lst(id)%nj,                                       & ! IN
-                                   lst(id)%latPerPE,lst(id)%latPerPEmax,lst(id)%myLatBeg,lst(id)%myLatEnd) ! OUT
+                                   lst(id)%latPerPE, lst(id)%latPerPEmax, & ! OUT
+                                   lst(id)%myLatBeg, lst(id)%myLatEnd,    & ! OUT
+                                   divisible_opt=divisibleLat )             ! OUT
+
+       lst(id)%lonLatDivisible = (divisibleLon .and. divisibleLat)
+       if( mpi_myid == 0 ) write(*,*) 'lst_setup: lonLatDivisible = ', lst(id)%lonLatDivisible
 
        ! range of M handled by this processor in SPECTRAL SPACE
        call mpivar_setup_m( lst(id)%mmax,                                                     & ! IN
@@ -350,6 +358,11 @@ contains
                               lst(id)%allLonEnd,1,"mpi_integer","EW",ier)
       if ( mpi_myid == 0 ) write(*,*) 'AllLonEnd =', lst(id)%allLonEnd(:)
 
+      allocate(lst(id)%allLonPerPE(mpi_npex))
+      call rpn_comm_allgather(lst(id)%lonPerPE ,1,"mpi_integer",       &
+                              lst(id)%allLonPerPE,1,"mpi_integer","EW",ier)
+      if ( mpi_myid == 0 ) write(*,*) 'AllLonPerPE =', lst(id)%allLonPerPE(:)
+
       ! Gathering with respect to Latitude
       allocate(lst(id)%allLatBeg(mpi_npey))
       call rpn_comm_allgather(lst(id)%myLatBeg ,1,"mpi_integer",       &
@@ -360,6 +373,11 @@ contains
       call rpn_comm_allgather(lst(id)%myLatEnd ,1,"mpi_integer",       &
                               lst(id)%allLatEnd,1,"mpi_integer","NS",ier)
       if ( mpi_myid == 0 ) write(*,*) 'AllLatEnd =', lst(id)%allLatEnd(:)
+
+      allocate(lst(id)%allLatPerPE(mpi_npey))
+      call rpn_comm_allgather(lst(id)%latPerPE ,1,"mpi_integer",       &
+                              lst(id)%allLatPerPE,1,"mpi_integer","NS",ier)
+      if ( mpi_myid == 0 ) write(*,*) 'AllLatPerPE =', lst(id)%allLatPerPE(:)
 
       ! Gathering with respect to M
       allocate(lst(id)%allmBeg(mpi_npey))
@@ -407,7 +425,7 @@ contains
                               lst(id)%allLevEnd,1,"mpi_integer","EW",ier)
       if ( mpi_myid == 0 ) write(*,*) 'AllLevEnd =', lst(id)%allLevEnd(:)
 
-      ! Setup mpi derived types used in transposes
+      ! Setup mpi derived types used in transposes (only used when grid is divisible)
       ! ... mpi_type_vector(count, blocklength, stride, ...)
       ! ... mpi_type_create_resized(oldtype, lowerbound, extent(in bytes), newtype, ierr)
    
@@ -1025,8 +1043,13 @@ contains
        if ( trim(lst(id)%MpiMode) == 'NoMpi') then
          Step0(:,:,:) = GridState(:,:,:)
        else
-         call transpose2d_LonToLev_kij( Step0,            & ! OUT
-                                        GridState, nk, id ) ! IN
+         if( lst(id)%lonLatDivisible ) then
+           call transpose2d_LonToLev_kij_mpitypes( Step0,            & ! OUT
+                                                   GridState, nk, id ) ! IN
+         else
+           call transpose2d_LonToLev_kij( Step0,            & ! OUT
+                                          GridState, nk, id ) ! IN
+         end if
        end if
     end if
 
@@ -1198,8 +1221,13 @@ contains
        if ( trim(lst(id)%MpiMode) == 'NoMpi') then
          Step3(:,:,:) = Step2(:,1:lst(id)%ni,:)
        else
-         call transpose2d_LevToLon_kij( Step3,                          & ! OUT
-                                        Step2(:,1:lst(id)%ni,:), nk, id ) ! IN
+         if( lst(id)%lonLatDivisible ) then
+           call transpose2d_LevToLon_kij_mpitypes( Step3,                          & ! OUT
+                                                   Step2(:,1:lst(id)%ni,:), nk, id ) ! IN
+         else
+           call transpose2d_LevToLon_kij( Step3,                          & ! OUT
+                                          Step2(:,1:lst(id)%ni,:), nk, id ) ! IN
+         end if
        end if
 
        GridState(:,lst(id)%myLonBeg:lst(id)%myLonEnd,lst(id)%myLatBeg:lst(id)%myLatEnd) = Step3(:,1:lst(id)%lonPerPE,1:lst(id)%latPerPE)
@@ -1431,14 +1459,12 @@ contains
     implicit none
 
     integer, intent(in) :: nk, id
-
     real(8), intent(in) :: gd_in(lst(id)%myLonBeg:lst(id)%myLonEnd, lst(id)%myLatBeg:lst(id)%myLatEnd, nk)
     real(8), intent(out):: gd_out(lst(id)%ni, lst(id)%myLatBeg:lst(id)%myLatEnd, lst(id)%myLevBeg:lst(id)%myLevEnd)
 
-    real(8) :: gd_send(lst(id)%lonPerPE, lst(id)%latPerPE, lst(id)%maxLevCount, mpi_npex)
-    real(8) :: gd_recv(lst(id)%lonPerPE, lst(id)%latPerPE, lst(id)%maxLevCount, mpi_npex)
-
-    integer :: yourid, nsize, ierr, levIndex, levIndex2, latIndex, latIndex2, lonIndex, lonIndex2
+    real(8) :: gd_send(lst(id)%lonPerPEmax, lst(id)%latPerPEmax, lst(id)%maxLevCount, mpi_npex)
+    real(8) :: gd_recv(lst(id)%lonPerPEmax, lst(id)%latPerPEmax, lst(id)%maxLevCount, mpi_npex)
+    integer :: yourid, nsize, ierr, levIndex, levIndex2
 
     if (verbose) write(*,*) 'Entering transpose2d_LonToLev'
     call rpn_comm_barrier("GRID",ierr)
@@ -1447,14 +1473,15 @@ contains
 
 !$OMP PARALLEL DO PRIVATE(yourid,levIndex,levIndex2)
     do yourid = 0, (mpi_npex-1)
+       gd_send(:,:,:,yourid+1) = 0.0d0
        do levIndex = lst(id)%allLevBeg(yourid+1), lst(id)%allLevEnd(yourid+1)
           levIndex2 = levIndex-lst(id)%allLevBeg(yourid+1)+1
-          gd_send(:,:,levIndex2,yourid+1) = gd_in(:,:,levIndex)
+          gd_send(1:lst(id)%lonPerPE,1:lst(id)%latPerPE,levIndex2,yourid+1) = gd_in(:,:,levIndex)
        end do
     end do
 !$OMP END PARALLEL DO
 
-    nsize = lst(id)%lonPerPE*lst(id)%maxLevCount*lst(id)%latPerPE
+    nsize = lst(id)%lonPerPEmax * lst(id)%maxLevCount * lst(id)%latPerPEmax
     if ( mpi_npex > 1 ) then
       call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
                              gd_recv,nsize,"mpi_double_precision","EW",ierr)
@@ -1466,7 +1493,8 @@ contains
     do levIndex = lst(id)%myLevBeg, lst(id)%myLevEnd
        levIndex2 = levIndex - lst(id)%myLevBeg + 1
        do yourid = 0, (mpi_npex-1)
-          gd_out(lst(id)%allLonBeg(yourid+1):lst(id)%allLonEnd(yourid+1),:,levIndex) = gd_recv(:,:,levIndex2,yourid+1)
+          gd_out(lst(id)%allLonBeg(yourid+1):lst(id)%allLonEnd(yourid+1),:,levIndex) =  &
+            gd_recv(1:lst(id)%allLonPerPE(yourid+1),1:lst(id)%latPerPE,levIndex2,yourid+1)
        end do
     end do
 !$OMP END PARALLEL DO
@@ -1476,19 +1504,46 @@ contains
   END SUBROUTINE transpose2d_LonToLev
 
 !--------------------------------------------------------------------------
+! LST_Transpose2d_LonToLev_kij_mpitypes
+!--------------------------------------------------------------------------
+  SUBROUTINE transpose2d_LonToLev_kij_mpitypes(gd_out, gd_in, nk, id)
+    implicit none
+
+    integer, intent(in) :: nk, id
+    real(8), intent(in) :: gd_in (nk,lst(id)%myLonBeg:lst(id)%myLonEnd, lst(id)%myLatBeg:lst(id)%myLatEnd)
+    real(8), intent(out):: gd_out(lst(id)%myLevBeg:lst(id)%myLevEnd,lst(id)%ni, lst(id)%myLatBeg:lst(id)%myLatEnd)
+
+    integer :: nsize, ierr
+
+    if (verbose) write(*,*) 'Entering transpose2d_LonToLev_kij'
+    call rpn_comm_barrier("GRID",ierr)
+
+    call tmg_start(28,'TRANSP_2D_LEVtoLON')
+
+    nsize = lst(id)%lonPerPE * lst(id)%maxLevCount * lst(id)%latPerPE
+    if ( mpi_npex > 1 ) then
+      call mpi_alltoall(gd_in,      1, lst(id)%sendType_LonToLev,  &
+                        gd_out,     1, lst(id)%recvType_LonToLev, mpi_comm_EW, ierr)
+    else
+       gd_out(:,:,:) = gd_in(:,:,:)
+    end if
+
+    call tmg_stop(28)
+
+  END SUBROUTINE transpose2d_LonToLev_kij_mpitypes
+
+!--------------------------------------------------------------------------
 ! LST_Transpose2d_LonToLev_kij
 !--------------------------------------------------------------------------
   SUBROUTINE transpose2d_LonToLev_kij(gd_out, gd_in, nk, id)
     implicit none
 
     integer, intent(in) :: nk, id
-
     real(8), intent(in) :: gd_in (nk,lst(id)%myLonBeg:lst(id)%myLonEnd, lst(id)%myLatBeg:lst(id)%myLatEnd)
     real(8), intent(out):: gd_out(lst(id)%myLevBeg:lst(id)%myLevEnd,lst(id)%ni, lst(id)%myLatBeg:lst(id)%myLatEnd)
 
-    !real(8) :: gd_send(lst(id)%maxLevCount,lst(id)%lonPerPE, lst(id)%latPerPE, mpi_npex)
-    !real(8) :: gd_recv(lst(id)%maxLevCount,lst(id)%lonPerPE, lst(id)%latPerPE, mpi_npex)
-
+    real(8) :: gd_send(lst(id)%maxLevCount,lst(id)%lonPerPEmax, lst(id)%latPerPEmax, mpi_npex)
+    real(8) :: gd_recv(lst(id)%maxLevCount,lst(id)%lonPerPEmax, lst(id)%latPerPEmax, mpi_npex)
     integer :: yourid, nsize, ierr, levIndex, levIndex2, latIndex, latIndex2, lonIndex, lonIndex2
 
     if (verbose) write(*,*) 'Entering transpose2d_LonToLev_kij'
@@ -1496,46 +1551,44 @@ contains
 
     call tmg_start(28,'TRANSP_2D_LEVtoLON')
 
-!!$!$OMP PARALLEL DO PRIVATE(yourid,latIndex,latIndex2,levIndex,levIndex2,lonIndex,lonIndex2)
-!!$    do yourid = 0, (mpi_npex-1)
-!!$       do latIndex = lst(id)%myLatBeg, lst(id)%myLatEnd
-!!$          latIndex2 = latIndex - lst(id)%myLatBeg + 1
-!!$          do lonIndex = lst(id)%myLonBeg, lst(id)%myLonEnd
-!!$             lonIndex2 = lonIndex - lst(id)%myLonBeg + 1
-!!$             do levIndex = lst(id)%allLevBeg(yourid+1), lst(id)%allLevEnd(yourid+1)
-!!$                levIndex2 = levIndex-lst(id)%allLevBeg(yourid+1)+1
-!!$                gd_send(levIndex2,lonIndex2,latIndex2,yourid+1) = gd_in(levIndex,lonIndex,latIndex)
-!!$             end do
-!!$          end do
-!!$       end do
-!!$    end do
-!!$!$OMP END PARALLEL DO
+!$OMP PARALLEL DO PRIVATE(yourid,latIndex,latIndex2,levIndex,levIndex2,lonIndex,lonIndex2)
+    do yourid = 0, (mpi_npex-1)
+       gd_send(:,:,:,yourid+1) = 0.0d0
+       do latIndex = lst(id)%myLatBeg, lst(id)%myLatEnd
+          latIndex2 = latIndex - lst(id)%myLatBeg + 1
+          do lonIndex = lst(id)%myLonBeg, lst(id)%myLonEnd
+             lonIndex2 = lonIndex - lst(id)%myLonBeg + 1
+             do levIndex = lst(id)%allLevBeg(yourid+1), lst(id)%allLevEnd(yourid+1)
+                levIndex2 = levIndex-lst(id)%allLevBeg(yourid+1)+1
+                gd_send(levIndex2,lonIndex2,latIndex2,yourid+1) = gd_in(levIndex,lonIndex,latIndex)
+             end do
+          end do
+       end do
+    end do
+!$OMP END PARALLEL DO
 
-    nsize = lst(id)%lonPerPE*lst(id)%maxLevCount*lst(id)%latPerPE
+    nsize = lst(id)%lonPerPEmax * lst(id)%maxLevCount * lst(id)%latPerPEmax
     if ( mpi_npex > 1 ) then
-      !call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
-      !                       gd_recv,nsize,"mpi_double_precision","EW",ierr)
-      call mpi_alltoall(gd_in,      1, lst(id)%sendType_LonToLev,  &
-                        gd_out,     1, lst(id)%recvType_LonToLev, mpi_comm_EW, ierr)
+      call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
+                             gd_recv,nsize,"mpi_double_precision","EW",ierr)
     else
-      !gd_recv(:,:,:,1) = gd_send(:,:,:,1)
-       gd_out(:,:,:) = gd_in(:,:,:)
+      gd_recv(:,:,:,1) = gd_send(:,:,:,1)
     end if
 
-!!$!$OMP PARALLEL DO PRIVATE(yourid,levIndex,levIndex2,lonIndex,lonIndex2,latIndex,latIndex2)
-!!$    do yourid = 0, (mpi_npex-1)
-!!$       do latIndex = lst(id)%myLatBeg, lst(id)%myLatEnd
-!!$          latIndex2 = latIndex - lst(id)%myLatBeg + 1
-!!$          do lonIndex = lst(id)%allLonBeg(yourid+1), lst(id)%allLonEnd(yourid+1)
-!!$             lonIndex2 = lonIndex - lst(id)%allLonBeg(yourid+1) + 1
-!!$             do levIndex = lst(id)%myLevBeg, lst(id)%myLevEnd
-!!$                levIndex2 = levIndex - lst(id)%myLevBeg + 1
-!!$                gd_out(levIndex,lonIndex,latIndex) = gd_recv(levIndex2,lonIndex2,latIndex2,yourid+1)
-!!$             end do
-!!$          end do
-!!$       end do
-!!$    end do
-!!$!$OMP END PARALLEL DO
+!$OMP PARALLEL DO PRIVATE(yourid,levIndex,levIndex2,lonIndex,lonIndex2,latIndex,latIndex2)
+    do yourid = 0, (mpi_npex-1)
+       do latIndex = lst(id)%myLatBeg, lst(id)%myLatEnd
+          latIndex2 = latIndex - lst(id)%myLatBeg + 1
+          do lonIndex = lst(id)%allLonBeg(yourid+1), lst(id)%allLonEnd(yourid+1)
+             lonIndex2 = lonIndex - lst(id)%allLonBeg(yourid+1) + 1
+             do levIndex = lst(id)%myLevBeg, lst(id)%myLevEnd
+                levIndex2 = levIndex - lst(id)%myLevBeg + 1
+                gd_out(levIndex,lonIndex,latIndex) = gd_recv(levIndex2,lonIndex2,latIndex2,yourid+1)
+             end do
+          end do
+       end do
+    end do
+!$OMP END PARALLEL DO
 
     call tmg_stop(28)
 
@@ -1548,14 +1601,12 @@ contains
     implicit none
 
     integer, intent(in) :: nk, id
-
     real(8), intent(out):: gd_out(lst(id)%myLonBeg:lst(id)%myLonEnd, lst(id)%myLatBeg:lst(id)%myLatEnd, nk)
     real(8), intent(in) :: gd_in(lst(id)%ni, lst(id)%myLatBeg:lst(id)%myLatEnd, lst(id)%myLevBeg:lst(id)%myLevEnd)
 
-    real(8) :: gd_send(lst(id)%lonPerPE, lst(id)%latPerPE, lst(id)%maxLevCount, mpi_npex)
-    real(8) :: gd_recv(lst(id)%lonPerPE, lst(id)%latPerPE, lst(id)%maxLevCount, mpi_npex)
-
-    integer :: yourid, nsize, ierr, levIndex, levIndex2, latIndex, latIndex2, lonIndex, lonIndex2
+    real(8) :: gd_send(lst(id)%lonPerPEmax, lst(id)%latPerPEmax, lst(id)%maxLevCount, mpi_npex)
+    real(8) :: gd_recv(lst(id)%lonPerPEmax, lst(id)%latPerPEmax, lst(id)%maxLevCount, mpi_npex)
+    integer :: yourid, nsize, ierr, levIndex, levIndex2
 
     if (verbose) write(*,*) 'Entering transpose2d_LevToLon'
     call rpn_comm_barrier("GRID",ierr)
@@ -1566,12 +1617,14 @@ contains
     do levIndex = lst(id)%myLevBeg, lst(id)%myLevEnd
        levIndex2 = levIndex - lst(id)%myLevBeg + 1
        do yourid = 0, (mpi_npex-1)
-          gd_send(:,:,levIndex2,yourid+1) = gd_in(lst(id)%allLonBeg(yourid+1):lst(id)%allLonEnd(yourid+1),:,levIndex)
-        end do
+          gd_send(:,:,levIndex2,yourid+1) = 0.0d0
+          gd_send(1:lst(id)%allLonPerPE(yourid+1),1:lst(id)%latPerPE,levIndex2,yourid+1) =  &
+               gd_in(lst(id)%allLonBeg(yourid+1):lst(id)%allLonEnd(yourid+1),:,levIndex)
+       end do
     end do
 !$OMP END PARALLEL DO
 
-    nsize = lst(id)%lonPerPE*lst(id)%maxLevCount*lst(id)%latPerPE
+    nsize = lst(id)%lonPerPEmax * lst(id)%maxLevCount * lst(id)%latPerPEmax
     if ( mpi_npex > 1 ) then
       call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
                              gd_recv,nsize,"mpi_double_precision","EW",ierr)
@@ -1583,7 +1636,7 @@ contains
     do yourid = 0, (mpi_npex-1)
        do levIndex=lst(id)%allLevBeg(yourid+1),lst(id)%allLevEnd(yourid+1)
           levIndex2=levIndex-lst(id)%allLevBeg(yourid+1)+1
-          gd_out(:,:,levIndex) = gd_recv(:,:,levIndex2,yourid+1)
+          gd_out(:,:,levIndex) = gd_recv(1:lst(id)%lonPerPE,1:lst(id)%latPerPE,levIndex2,yourid+1)
        end do
     end do
 !$OMP END PARALLEL DO
@@ -1593,19 +1646,46 @@ contains
   END SUBROUTINE transpose2d_LevtoLon
 
 !--------------------------------------------------------------------------
+! LST_Transpose2d_LevToLon_kij_mpitypes
+!--------------------------------------------------------------------------
+  SUBROUTINE transpose2d_LevToLon_kij_mpitypes(gd_out,gd_in,nk,id)
+    implicit none
+
+    integer, intent(in) :: nk, id
+    real(8), intent(out):: gd_out(nk,lst(id)%myLonBeg:lst(id)%myLonEnd, lst(id)%myLatBeg:lst(id)%myLatEnd)
+    real(8), intent(in) :: gd_in(lst(id)%myLevBeg:lst(id)%myLevEnd,lst(id)%ni, lst(id)%myLatBeg:lst(id)%myLatEnd)
+
+    integer :: nsize, ierr
+
+    if (verbose) write(*,*) 'Entering transpose2d_LevToLon_kij'
+    call rpn_comm_barrier("GRID",ierr)
+
+    call tmg_start(28,'TRANSP_2D_LEVtoLON')
+
+    nsize = lst(id)%lonPerPE*lst(id)%maxLevCount*lst(id)%latPerPE
+    if ( mpi_npex > 1 ) then
+       call mpi_alltoall(gd_in,      1, lst(id)%sendType_LevToLon,  &
+                         gd_out,     1, lst(id)%recvType_LevToLon, mpi_comm_EW, ierr) 
+    else
+      gd_out(:,:,:) = gd_in(:,:,:)
+    end if
+
+    call tmg_stop(28)
+
+  END SUBROUTINE transpose2d_LevtoLon_kij_mpitypes
+
+!--------------------------------------------------------------------------
 ! LST_Transpose2d_LevToLon_kij
 !--------------------------------------------------------------------------
   SUBROUTINE transpose2d_LevToLon_kij(gd_out,gd_in,nk,id)
     implicit none
 
     integer, intent(in) :: nk, id
-
     real(8), intent(out):: gd_out(nk,lst(id)%myLonBeg:lst(id)%myLonEnd, lst(id)%myLatBeg:lst(id)%myLatEnd)
     real(8), intent(in) :: gd_in(lst(id)%myLevBeg:lst(id)%myLevEnd,lst(id)%ni, lst(id)%myLatBeg:lst(id)%myLatEnd)
 
-  !  real(8) :: gd_send(lst(id)%maxLevCount, lst(id)%lonPerPE, lst(id)%latPerPE, mpi_npex)
-  !  real(8) :: gd_recv(lst(id)%maxLevCount, lst(id)%lonPerPE, lst(id)%latPerPE, mpi_npex)
-
+    real(8) :: gd_send(lst(id)%maxLevCount, lst(id)%lonPerPEmax, lst(id)%latPerPEmax, mpi_npex)
+    real(8) :: gd_recv(lst(id)%maxLevCount, lst(id)%lonPerPEmax, lst(id)%latPerPEmax, mpi_npex)
     integer :: yourid, nsize, ierr, levIndex, levIndex2, latIndex, latIndex2, lonIndex, lonIndex2
 
     if (verbose) write(*,*) 'Entering transpose2d_LevToLon_kij'
@@ -1613,46 +1693,44 @@ contains
 
     call tmg_start(28,'TRANSP_2D_LEVtoLON')
 
-!!$!$OMP PARALLEL DO PRIVATE(yourid,levIndex,levIndex2,lonIndex,lonIndex2,latIndex,latIndex2)
-!!$    do yourid = 0, (mpi_npex-1)
-!!$       do latIndex = lst(id)%myLatBeg, lst(id)%myLatEnd
-!!$          latIndex2 = latIndex - lst(id)%myLatBeg + 1
-!!$          do lonIndex = lst(id)%allLonBeg(yourid+1), lst(id)%allLonEnd(yourid+1)
-!!$             lonIndex2 = lonIndex - lst(id)%allLonBeg(yourid+1) + 1
-!!$             do levIndex = lst(id)%myLevBeg, lst(id)%myLevEnd
-!!$                levIndex2 = levIndex - lst(id)%myLevBeg + 1
-!!$                gd_send(levIndex2,lonIndex2,latIndex2,yourid+1) = gd_in(levIndex,lonIndex,latIndex)
-!!$             end do
-!!$          end do
-!!$       end do
-!!$    end do
-!!$!$OMP END PARALLEL DO
+!$OMP PARALLEL DO PRIVATE(yourid,levIndex,levIndex2,lonIndex,lonIndex2,latIndex,latIndex2)
+    do yourid = 0, (mpi_npex-1)
+       gd_send(:,:,:,yourid+1) = 0.0d0
+       do latIndex = lst(id)%myLatBeg, lst(id)%myLatEnd
+          latIndex2 = latIndex - lst(id)%myLatBeg + 1
+          do lonIndex = lst(id)%allLonBeg(yourid+1), lst(id)%allLonEnd(yourid+1)
+             lonIndex2 = lonIndex - lst(id)%allLonBeg(yourid+1) + 1
+             do levIndex = lst(id)%myLevBeg, lst(id)%myLevEnd
+                levIndex2 = levIndex - lst(id)%myLevBeg + 1
+                gd_send(levIndex2,lonIndex2,latIndex2,yourid+1) = gd_in(levIndex,lonIndex,latIndex)
+             end do
+          end do
+       end do
+    end do
+!$OMP END PARALLEL DO
 
-    nsize = lst(id)%lonPerPE*lst(id)%maxLevCount*lst(id)%latPerPE
+    nsize = lst(id)%lonPerPEmax * lst(id)%maxLevCount * lst(id)%latPerPEmax
     if ( mpi_npex > 1 ) then
-      !call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
-      !                       gd_recv,nsize,"mpi_double_precision","EW",ierr)
-       call mpi_alltoall(gd_in,      1, lst(id)%sendType_LevToLon,  &
-                         gd_out,     1, lst(id)%recvType_LevToLon, mpi_comm_EW, ierr) 
+      call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
+                             gd_recv,nsize,"mpi_double_precision","EW",ierr)
     else
-      !gd_recv(:,:,:,1) = gd_send(:,:,:,1)
-      gd_out(:,:,:) = gd_in(:,:,:)
+      gd_recv(:,:,:,1) = gd_send(:,:,:,1)
     end if
 
-!!$!$OMP PARALLEL DO PRIVATE(yourid,latIndex,latIndex2,levIndex,levIndex2,lonIndex,lonIndex2)
-!!$    do yourid = 0, (mpi_npex-1)
-!!$       do latIndex = lst(id)%myLatBeg, lst(id)%myLatEnd
-!!$          latIndex2 = latIndex - lst(id)%myLatBeg + 1
-!!$          do lonIndex = lst(id)%myLonBeg, lst(id)%myLonEnd
-!!$             lonIndex2 = lonIndex - lst(id)%myLonBeg + 1
-!!$             do levIndex=lst(id)%allLevBeg(yourid+1),lst(id)%allLevEnd(yourid+1)
-!!$                levIndex2=levIndex-lst(id)%allLevBeg(yourid+1)+1
-!!$                gd_out(levIndex,lonIndex,latIndex) = gd_recv(levIndex2,lonIndex2,latIndex2,yourid+1)
-!!$             end do
-!!$          end do
-!!$       end do
-!!$    end do
-!!$!$OMP END PARALLEL DO
+!$OMP PARALLEL DO PRIVATE(yourid,latIndex,latIndex2,levIndex,levIndex2,lonIndex,lonIndex2)
+    do yourid = 0, (mpi_npex-1)
+       do latIndex = lst(id)%myLatBeg, lst(id)%myLatEnd
+          latIndex2 = latIndex - lst(id)%myLatBeg + 1
+          do lonIndex = lst(id)%myLonBeg, lst(id)%myLonEnd
+             lonIndex2 = lonIndex - lst(id)%myLonBeg + 1
+             do levIndex=lst(id)%allLevBeg(yourid+1),lst(id)%allLevEnd(yourid+1)
+                levIndex2=levIndex-lst(id)%allLevBeg(yourid+1)+1
+                gd_out(levIndex,lonIndex,latIndex) = gd_recv(levIndex2,lonIndex2,latIndex2,yourid+1)
+             end do
+          end do
+       end do
+    end do
+!$OMP END PARALLEL DO
 
     call tmg_stop(28)
 
@@ -1665,13 +1743,11 @@ contains
     implicit none
 
     integer, intent(in)  :: id
-
     real(8), intent(out) :: gd_out(2*lst(id)%mymCount,lst(id)%nj+njp  ,lst(id)%myLevBeg:lst(id)%myLevEnd)
     real(8), intent(in)  :: gd_in (lst(id)%ni+nip    ,lst(id)%latPerPE,lst(id)%myLevBeg:lst(id)%myLevEnd)
 
-    real(8) :: gd_recv(lst(id)%maxmActiveCount,2,lst(id)%latPerPE, lst(id)%maxLevCount, mpi_npey)
-    real(8) :: gd_send(lst(id)%maxmActiveCount,2,lst(id)%latPerPE, lst(id)%maxLevCount, mpi_npey)
-
+    real(8) :: gd_recv(lst(id)%maxmActiveCount,2,lst(id)%latPerPEmax, lst(id)%maxLevCount, mpi_npey)
+    real(8) :: gd_send(lst(id)%maxmActiveCount,2,lst(id)%latPerPEmax, lst(id)%maxLevCount, mpi_npey)
     integer :: yourid, mIndex, icount, nsize, ierr, levIndex, levIndex2, latIndex, latIndex2
 
     if (verbose) write(*,*) 'Entering transpose2d_LatToM'
@@ -1683,8 +1759,8 @@ contains
     do yourid = 0, (mpi_npey-1)
        do levIndex = lst(id)%myLevBeg, lst(id)%myLevEnd
           levIndex2 = levIndex - lst(id)%myLevBeg + 1 
+          gd_send(:,:,:,levIndex2,yourid+1) = 0.d0
           do latIndex = 1, lst(id)%latPerPE
-             gd_send(:,:,latIndex,levIndex2,yourid+1) = 0.d0
              icount = 0
              do mIndex = lst(id)%allmBeg(yourid+1), lst(id)%allmEnd(yourid+1), lst(id)%allmSkip(yourid+1)
                 if ( lst(id)%KfromMNglb(mIndex,0) /= -1 ) then
@@ -1698,7 +1774,7 @@ contains
     end do
 !$OMP END PARALLEL DO
 
-    nsize = lst(id)%maxmActiveCount*2*lst(id)%maxLevCount*lst(id)%latPerPE
+    nsize = lst(id)%maxmActiveCount * 2 * lst(id)%maxLevCount * lst(id)%latPerPEmax
     if ( mpi_npey > 1 ) then
       call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
                              gd_recv,nsize,"mpi_double_precision","NS",ierr)
@@ -1739,13 +1815,11 @@ contains
     implicit none
 
     integer, intent(in)  :: id
-
     real(8), intent(out) :: gd_out(lst(id)%myLevBeg:lst(id)%myLevEnd,2*lst(id)%mymCount,lst(id)%nj+njp  )
     real(8), intent(in)  :: gd_in (lst(id)%myLevBeg:lst(id)%myLevEnd,lst(id)%ni+nip    ,lst(id)%latPerPE)
 
-    real(8) :: gd_recv(lst(id)%maxLevCount,lst(id)%maxmActiveCount,2,lst(id)%latPerPE, mpi_npey)
-    real(8) :: gd_send(lst(id)%maxLevCount,lst(id)%maxmActiveCount,2,lst(id)%latPerPE, mpi_npey)
-
+    real(8) :: gd_recv(lst(id)%maxLevCount,lst(id)%maxmActiveCount,2,lst(id)%latPerPEmax, mpi_npey)
+    real(8) :: gd_send(lst(id)%maxLevCount,lst(id)%maxmActiveCount,2,lst(id)%latPerPEmax, mpi_npey)
     integer :: yourid, mIndex, icount, nsize, ierr, levIndex, levIndex2, latIndex, latIndex2
 
     if (verbose) write(*,*) 'Entering transpose2d_LatToM_kij'
@@ -1755,8 +1829,8 @@ contains
 
 !$OMP PARALLEL DO PRIVATE(yourid,latIndex,levIndex,levIndex2,icount,mIndex)
     do yourid = 0, (mpi_npey-1)
+       gd_send(:,:,:,:,yourid+1) = 0.d0
        do latIndex = 1, lst(id)%latPerPE
-          gd_send(:,:,:,latIndex,yourid+1) = 0.d0
           icount = 0
           do mIndex = lst(id)%allmBeg(yourid+1), lst(id)%allmEnd(yourid+1), lst(id)%allmSkip(yourid+1)
              if ( lst(id)%KfromMNglb(mIndex,0) /= -1 ) then
@@ -1772,7 +1846,7 @@ contains
     end do
 !$OMP END PARALLEL DO
 
-    nsize = lst(id)%maxmActiveCount*2*lst(id)%maxLevCount*lst(id)%latPerPE
+    nsize = lst(id)%maxmActiveCount * 2 * lst(id)%maxLevCount * lst(id)%latPerPEmax
     if ( mpi_npey > 1 ) then
       call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
                              gd_recv,nsize,"mpi_double_precision","NS",ierr)
@@ -1813,13 +1887,11 @@ contains
     implicit none
 
     integer, intent(in)  :: id
-
     real(8), intent(in)   :: gd_in (2*lst(id)%mymCount,lst(id)%nj+njp  ,lst(id)%myLevBeg:lst(id)%myLevEnd)
     real(8), intent(out)  :: gd_out(lst(id)%ni+nip    ,lst(id)%latPerPE,lst(id)%myLevBeg:lst(id)%myLevEnd)
 
-    real(8) :: gd_recv(lst(id)%maxmActiveCount,2,lst(id)%latPerPE,lst(id)%maxLevCount, mpi_npey)
-    real(8) :: gd_send(lst(id)%maxmActiveCount,2,lst(id)%latPerPE,lst(id)%maxLevCount, mpi_npey)
-
+    real(8) :: gd_recv(lst(id)%maxmActiveCount,2,lst(id)%latPerPEmax,lst(id)%maxLevCount, mpi_npey)
+    real(8) :: gd_send(lst(id)%maxmActiveCount,2,lst(id)%latPerPEmax,lst(id)%maxLevCount, mpi_npey)
     integer :: yourid, mIndex, icount, nsize, ierr, levIndex, levIndex2, latIndex, latIndex2
 
     if (verbose) write(*,*) 'Entering transpose2d_MToLat'
@@ -1831,9 +1903,9 @@ contains
     do yourid = 0, (mpi_npey-1)
        do levIndex = lst(id)%myLevBeg, lst(id)%myLevEnd
           levIndex2 = levIndex - lst(id)%myLevBeg + 1
+          gd_send(:,:,:,levIndex2,yourid+1) = 0.d0
           do latIndex = lst(id)%allLatBeg(yourid+1), lst(id)%allLatEnd(yourid+1)
              latIndex2 = latIndex - lst(id)%allLatBeg(yourid+1) + 1
-             gd_send(:,:,latIndex2,levIndex2,yourid+1) = 0.d0
              icount = 0
              do mIndex = lst(id)%mymBeg, lst(id)%mymEnd, lst(id)%mymSkip
                 if ( lst(id)%KfromMNglb(mIndex,0) /= -1 ) then
@@ -1847,7 +1919,7 @@ contains
     end do
 !$OMP END PARALLEL DO
 
-    nsize = lst(id)%maxmActiveCount*2*lst(id)%maxLevCount*lst(id)%latPerPE
+    nsize = lst(id)%maxmActiveCount * 2 * lst(id)%maxLevCount * lst(id)%latPerPEmax
     if ( mpi_npey > 1 ) then
       call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
                              gd_recv,nsize,"mpi_double_precision","NS",ierr)
@@ -1887,13 +1959,11 @@ contains
     implicit none
 
     integer, intent(in)  :: id
-
     real(8), intent(in)   :: gd_in (lst(id)%myLevBeg:lst(id)%myLevEnd,2*lst(id)%mymCount,lst(id)%nj+njp  )
     real(8), intent(out)  :: gd_out(lst(id)%myLevBeg:lst(id)%myLevEnd,lst(id)%ni+nip    ,lst(id)%latPerPE)
 
-    real(8) :: gd_recv(lst(id)%maxLevCount,lst(id)%maxmActiveCount,2,lst(id)%latPerPE, mpi_npey)
-    real(8) :: gd_send(lst(id)%maxLevCount,lst(id)%maxmActiveCount,2,lst(id)%latPerPE, mpi_npey)
-
+    real(8) :: gd_recv(lst(id)%maxLevCount,lst(id)%maxmActiveCount,2,lst(id)%latPerPEmax, mpi_npey)
+    real(8) :: gd_send(lst(id)%maxLevCount,lst(id)%maxmActiveCount,2,lst(id)%latPerPEmax, mpi_npey)
     integer :: yourid, mIndex, icount, nsize, ierr, levIndex, levIndex2, latIndex, latIndex2
 
     if (verbose) write(*,*) 'Entering transpose2d_MToLat_kij'
@@ -1903,9 +1973,9 @@ contains
 
 !$OMP PARALLEL DO PRIVATE(yourid,latIndex,latIndex2,levIndex,levIndex2,icount,mIndex)
     do yourid = 0, (mpi_npey-1)
+       gd_send(:,:,:,:,yourid+1) = 0.d0
        do latIndex = lst(id)%allLatBeg(yourid+1), lst(id)%allLatEnd(yourid+1)
           latIndex2 = latIndex - lst(id)%allLatBeg(yourid+1) + 1
-          gd_send(:,:,:,latIndex2,yourid+1) = 0.d0
           icount = 0
           do mIndex = lst(id)%mymBeg, lst(id)%mymEnd, lst(id)%mymSkip
              if ( lst(id)%KfromMNglb(mIndex,0) /= -1 ) then
@@ -1921,7 +1991,7 @@ contains
     end do
 !$OMP END PARALLEL DO
 
-    nsize = lst(id)%maxmActiveCount*2*lst(id)%maxLevCount*lst(id)%latPerPE
+    nsize = lst(id)%maxmActiveCount * 2 * lst(id)%maxLevCount * lst(id)%latPerPEmax
     if ( mpi_npey > 1 ) then
       call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
                              gd_recv,nsize,"mpi_double_precision","NS",ierr)
@@ -1966,8 +2036,7 @@ contains
 
     real(8) :: gd_send(lst(id)%maxnla, 4, lst(id)%maxLevCount, mpi_npex)
     real(8) :: gd_recv(lst(id)%maxnla, 4, lst(id)%maxLevCount, mpi_npex)
-
-    integer :: yourid, nsize, ierr, levIndex, levIndex2, nIndex, mIndex, icount, ila
+    integer :: yourid, nsize, ierr, levIndex, levIndex2, nIndex, mIndex, icount
 
     if (verbose) write(*,*) 'Entering transpose2d_LevToN'
     call rpn_comm_barrier("GRID",ierr)
@@ -1995,7 +2064,7 @@ contains
     end do
 !$OMP END PARALLEL DO
 
-    nsize = lst(id)%maxnla*4*lst(id)%maxLevCount
+    nsize = lst(id)%maxnla * 4 * lst(id)%maxLevCount
     if ( mpi_npex > 1 ) then
       call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
                              gd_recv,nsize,"mpi_double_precision","EW",ierr)
@@ -2028,8 +2097,7 @@ contains
 
     real(8) :: gd_send(lst(id)%maxnla, 4, lst(id)%maxLevCount, mpi_npex)
     real(8) :: gd_recv(lst(id)%maxnla, 4, lst(id)%maxLevCount, mpi_npex)
-
-    integer :: yourid, nsize, ierr, levIndex, levIndex2, nIndex, mIndex, icount, ila
+    integer :: yourid, nsize, ierr, levIndex, levIndex2, nIndex, mIndex, icount
 
     if (verbose) write(*,*) 'Entering transpose2d_LevToN_kij'
     call rpn_comm_barrier("GRID",ierr)
@@ -2057,7 +2125,7 @@ contains
     end do
 !$OMP END PARALLEL DO
 
-    nsize = lst(id)%maxnla*4*lst(id)%maxLevCount
+    nsize = lst(id)%maxnla * 4 * lst(id)%maxLevCount
     if ( mpi_npex > 1 ) then
       call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
                              gd_recv,nsize,"mpi_double_precision","EW",ierr)
@@ -2085,14 +2153,12 @@ contains
     implicit none
 
     integer, intent(in) :: nk, id
-
     real(8), intent(in):: SpectralStateVar(lst(id)%nla,nphase,nk)
     real(8), intent(out):: gd_out(2*lst(id)%mymCount, lst(id)%nj+njp    , lst(id)%myLevBeg:lst(id)%myLevEnd)
 
     real(8) :: gd_send(lst(id)%maxnla, 4, lst(id)%maxLevCount, mpi_npex)
     real(8) :: gd_recv(lst(id)%maxnla, 4, lst(id)%maxLevCount, mpi_npex)
-
-    integer :: yourid, nsize, ierr, levIndex, levIndex2, nIndex, mIndex, icount,ila
+    integer :: yourid, nsize, ierr, levIndex, levIndex2, nIndex, mIndex, icount
 
     if (verbose) write(*,*) 'Entering transpose2d_NToLev'
     call rpn_comm_barrier("GRID",ierr)
@@ -2109,7 +2175,7 @@ contains
     end do
 !$OMP END PARALLEL DO
 
-    nsize = lst(id)%maxnla*4*lst(id)%maxLevCount
+    nsize = lst(id)%maxnla * 4* lst(id)%maxLevCount
     if ( mpi_npex > 1 ) then
       call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
                              gd_recv,nsize,"mpi_double_precision","EW",ierr)
@@ -2153,14 +2219,12 @@ contains
     implicit none
 
     integer, intent(in) :: nk, id
-
     real(8), intent(in):: SpectralStateVar(lst(id)%nla,nphase,nk)
     real(8), intent(out):: gd_out(lst(id)%myLevBeg:lst(id)%myLevEnd,2*lst(id)%mymCount, lst(id)%nj+njp)
 
     real(8) :: gd_send(lst(id)%maxnla, 4, lst(id)%maxLevCount, mpi_npex)
     real(8) :: gd_recv(lst(id)%maxnla, 4, lst(id)%maxLevCount, mpi_npex)
-
-    integer :: yourid, nsize, ierr, levIndex, levIndex2, nIndex, mIndex, icount,ila
+    integer :: yourid, nsize, ierr, levIndex, levIndex2, nIndex, mIndex, icount
 
     if (verbose) write(*,*) 'Entering transpose2d_NToLev_kij'
     call rpn_comm_barrier("GRID",ierr)
@@ -2177,7 +2241,7 @@ contains
     end do
 !$OMP END PARALLEL DO
 
-    nsize = lst(id)%maxnla*4*lst(id)%maxLevCount
+    nsize = lst(id)%maxnla * 4 * lst(id)%maxLevCount
     if ( mpi_npex > 1 ) then
       call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
                              gd_recv,nsize,"mpi_double_precision","EW",ierr)
