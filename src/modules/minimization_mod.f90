@@ -1131,7 +1131,7 @@ CONTAINS
 
        call res_compute(obsSpaceData)  ! Calculate OBS_OMA from OBS_WORK : d-Hdx
  
-       call bias_calcbias_tl(da_v,nvadim_mpilocal,OBS_OMA,1.0d0,obsSpaceData)
+       call bias_calcbias_tl(da_v,nvadim_mpilocal,OBS_OMA,obsSpaceData)
      
        call cfn_RsqrtInverse(obsSpaceData,OBS_WORK,OBS_OMA)  ! Save as OBS_WORK : R**-1/2 (d-Hdx)
      
@@ -1171,7 +1171,7 @@ CONTAINS
        call tmg_stop(31)
 
        da_gradJ(:) = 0.d0
-       call bias_calcbias_ad(da_gradJ,nvadim_mpilocal,OBS_WORK,1.0d0,obsSpaceData)
+       call bias_calcbias_ad(da_gradJ,nvadim_mpilocal,OBS_WORK,obsSpaceData)
        call bmat_sqrtBT(da_gradJ,nvadim_mpilocal,statevector)
        call gsv_deallocate(statevector)
 
