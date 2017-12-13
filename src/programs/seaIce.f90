@@ -51,8 +51,8 @@ program midas_seaIce
   integer :: idate, itime, nulnam
   integer :: nlons, nlats
   integer :: get_max_rss
-  integer :: latPerPE, myLatBeg, myLatEnd
-  integer :: lonPerPE, myLonBeg, myLonEnd
+  integer :: latPerPE, latPerPEmax, myLatBeg, myLatEnd
+  integer :: lonPerPE, lonPerPEmax, myLonBeg, myLonEnd
   character(len=128) :: filename
 
   ! namelist variables
@@ -141,10 +141,12 @@ program midas_seaIce
   call hco_SetupFromFile( hco_anl, './analysisgrid', ' ', 'ANALYSISGRID')
   call vco_setupFromFile( vco_anl, './analysisgrid' )
 
-  call mpivar_setup_latbands(hco_anl % nj,                & ! IN
-                             latPerPE, myLatBeg, myLatEnd ) ! OUT
-  call mpivar_setup_lonbands(hco_anl % ni,                & ! IN
-                             lonPerPE, myLonBeg, myLonEnd ) ! OUT
+  call mpivar_setup_latbands(hco_anl % nj,           & ! IN
+                             latPerPE, latPerPEmax,  & ! OUT
+                             myLatBeg, myLatEnd )      ! OUT
+  call mpivar_setup_lonbands(hco_anl % ni,           & ! IN
+                             lonPerPE, lonPerPEmax,  & ! OUT
+                             myLonBeg, myLonEnd )      ! OUT
 
 
   ! DO THE TEST FOR DIFFUSION B MATRIX

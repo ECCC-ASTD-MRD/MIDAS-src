@@ -5,7 +5,7 @@
 # User-defined options
 #
 machine=eccc-ppp2
-abs="${HOME}/data_maestro/ords/oavar_abs/ensmanip_ubuntu-14.04-amd64-64-v_3.0.4-28-g343d855_M.Abs"
+abs="${HOME}/data_maestro/ords/midas_abs/midas-ensManip_ubuntu-14.04-amd64-64-v_3.0.4-34-g3951b62_M.Abs"
 ensdir="/home/mab001/data_maestro/${machine}/kal569/"
 npex=4
 npey=11
@@ -102,4 +102,4 @@ cat << EOF > $TMPDIR/ptopo_nml
 EOF
 scp $TMPDIR/ptopo_nml ${machine}:${gest}
 
-ord_soumet $TMPDIR/go_ensmanip.sh -mach $machine -mpi -t $maxcputime -cm 3000M -cpus ${npex}x${npey}x${openmp} -jn ensmanip_${ensdate} -waste
+ord_soumet $TMPDIR/go_ensmanip.sh -mach $machine -mpi -t $maxcputime -cm 4G -cpus ${npex}x${npey}x${openmp} -jn ensManip_${ensdate} -waste

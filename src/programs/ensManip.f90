@@ -147,8 +147,8 @@ program midas_ensManip
   ierr    = newdate(dateStamp, idate, itime, 3)
   write(datestr,'(i8.8)') idate
   write(hourstr,'(i2.2)') itime/1000000
-  if ( mpi_myid == 0 ) write(*,*)' datestr= ', datestr, ' hourstr= ', hourstr
-  if ( mpi_myid == 0 ) write(*,*)' dateStamp= ', dateStamp
+  if ( mpi_myid == 0 ) write(*,*) 'datestr= ', datestr, ' hourstr= ', hourstr
+  if ( mpi_myid == 0 ) write(*,*) 'dateStamp= ', dateStamp
 
   ! Setup timeCoord module
   call tim_setup
@@ -163,15 +163,15 @@ program midas_ensManip
   ierr = newdate( dateStamp_last, idate, itime, -3 )
   write(datestr_last,'(i8.8)') idate
   write(hourstr_last,'(i2.2)') itime/1000000
-  if ( mpi_myid == 0 ) write(*,*)' datestr_last= ', datestr_last, ' hourstr_last= ', hourstr_last
-  if ( mpi_myid == 0 ) write(*,*)' dateStamp_last= ', dateStamp_last
+  if ( mpi_myid == 0 ) write(*,*) 'midas-ensManip: datestr_last= ', datestr_last, ' hourstr_last= ', hourstr_last
+  if ( mpi_myid == 0 ) write(*,*) 'midas-ensManip: dateStamp_last= ', dateStamp_last
 
   !- 2.3 Initialize variables of the model states
   call gsv_setup
 
   !- 2.4 Initialize the Ensemble grid
-  if (mpi_myid == 0) write(*,*)''
-  if (mpi_myid == 0) write(*,*)' Set hco parameters for ensemble grid'
+  if (mpi_myid == 0) write(*,*) ''
+  if (mpi_myid == 0) write(*,*) 'midas-ensManip: Set hco parameters for ensemble grid'
   ! Use the first ensemble member to initialize the grid
   call ens_fileName( ensFileName, ensPathName, ensFileBaseName, 1 )
   call hco_SetupFromFile( hco_ens, ensFileName, ' ', 'ENSFILEGRID')

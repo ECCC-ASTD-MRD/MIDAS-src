@@ -61,7 +61,7 @@ program midas_diagBmatrix
   integer :: nlons, nlats, nlevs, nlevs2, jvar, ip3
   integer :: latIndex2, lonIndex2, levIndex2
 
-  integer :: latPerPE, lonPerPE
+  integer :: latPerPE, latPerPEmax, lonPerPE, lonPerPEmax
   integer :: myLatBeg, myLatEnd
   integer :: myLonBeg, myLonEnd
 
@@ -80,7 +80,7 @@ program midas_diagBmatrix
   namelist /namdiag/numperturbations, nrandseed, diagdate, oneobs_levs, oneobs_lons, oneobs_lats, &
                     writeEnsAmplitude, writeTextStddev, writePsiChiStddev
 
-  write(*,*) " --------------------------------=---------------"
+  write(*,*) " ------------------------------------------------"
   write(*,*) " --- START OF MAIN PROGRAM midas-diagBmatrix  ---"
   write(*,*) " --- Diagnositcs of the B matrix              ---"
   write(*,*) " ------------------------------------------------"
@@ -106,7 +106,7 @@ program midas_diagBmatrix
   nulnam=0
   ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
   read(nulnam,nml=namdiag,iostat=ierr)
-  if(ierr.ne.0) call utl_abort('diagBmatrix: Error reading namelist')
+  if(ierr.ne.0) call utl_abort('midas-diagBmatrix: Error reading namelist')
   write(*,nml=namdiag)
   ierr=fclos(nulnam)
 
@@ -186,7 +186,7 @@ program midas_diagBmatrix
     allocate(controlVector(cvm_nvadim))
 
     write(*,*) '********************************************'
-    write(*,*) 'Compute columns of B matrix'
+    write(*,*) 'midas-diagBmatrix: Compute columns of B matrix'
     write(*,*) '********************************************'
 
     write(*,*) 'number of levels     =',nlevs
@@ -227,7 +227,7 @@ program midas_diagBmatrix
             call bmat_sqrtBT(controlVector,cvm_nvadim,statevector)
             call bmat_sqrtB (controlVector,cvm_nvadim,statevector)
 
-            write(*,*)'diagBmatrix: writing out the column of B, levIndex,lonIndex,latIndex=',levIndex,lonIndex,latIndex
+            write(*,*)'midas-diagBmatrix: writing out the column of B, levIndex,lonIndex,latIndex=',levIndex,lonIndex,latIndex
             call flush(6)
 
             ip3 = ip3 + 1
@@ -254,8 +254,8 @@ program midas_diagBmatrix
     if (numLoc /= 0) then
       locInfo => loc_getLocInfo(1) ! Grab the first one...
 
-      call mpivar_setup_latbands(locInfo%hco%nj,latPerPE,myLatBeg,myLatEnd)
-      call mpivar_setup_lonbands(locInfo%hco%ni,lonPerPE,myLonBeg,myLonEnd)
+      call mpivar_setup_latbands(locInfo%hco%nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd)
+      call mpivar_setup_lonbands(locInfo%hco%ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
 
       call gsv_allocate(statevectorEnsAmp, 1, locInfo%hco, locInfo%vco, &
                         datestamp=tim_getDatestamp(),mpi_local=.true.,varName='ALFA')
@@ -265,7 +265,7 @@ program midas_diagBmatrix
       allocate(controlVector(locInfo%cvDim))
 
       write(*,*) '********************************************'
-      write(*,*) 'Compute columns of L matrix'
+      write(*,*) 'midas-diagBmatrix: Compute columns of L matrix'
       write(*,*) '********************************************'
       
       write(*,*) 'number of levels     =',nlevs
@@ -298,7 +298,7 @@ program midas_diagBmatrix
                              controlVector, & ! IN
                              ensAmplitude)    ! OUT
 
-            write(*,*)'diagBmatrix: writing out the column of L, levIndex,lonIndex,latIndex=',levIndex,lonIndex,latIndex
+            write(*,*)'midas-diagBmatrix: writing out the column of L, levIndex,lonIndex,latIndex=',levIndex,lonIndex,latIndex
             call flush(6)
             
             ip3 = ip3 + 1
@@ -341,7 +341,7 @@ program midas_diagBmatrix
   if ( numperturbations > 1 ) then
 
     write(*,*) '********************************************'
-    write(*,*) 'Compute the stddev from random perturbations'
+    write(*,*) 'midas-diagBmatrix: Compute the stddev from random perturbations'
     write(*,*) '********************************************'
 
     allocate(controlVector(cvm_nvadim))
@@ -363,7 +363,7 @@ program midas_diagBmatrix
     !- Compute the ensemble of random perturbations
     !
     do ensIndex = 1, numperturbations
-      write(*,*) ' computing member number= ',ensIndex
+      write(*,*) 'midas-diagBmatrix: computing member number= ',ensIndex
       call flush(6)
 
       !- Global vector (same for each processors)
@@ -483,7 +483,7 @@ program midas_diagBmatrix
     !
     !- Compute the zonal mean std dev
     !
-    write(*,*) 'Compute the zonal mean stddev'
+    write(*,*) 'midas-diagBmatrix: Compute the zonal mean stddev'
     call flush(6)
 
     allocate(stddev_zm(hco_anl%nj,nkgdim))
@@ -531,7 +531,7 @@ program midas_diagBmatrix
       do jvar = 1, vnl_numvarmax
         if (.not. gsv_varExist(varName=vnl_varNameList(jvar)) ) cycle
 
-        write(*,*) ' writing zonal mean stddev to text file for variable: ', vnl_varNameList(jvar)
+        write(*,*) 'midas-diagBmatrix: writing zonal mean stddev to text file for variable: ', vnl_varNameList(jvar)
         field => gsv_getField3d_r8(statevector,vnl_varNameList(jvar))
 
         varName = vnl_varNameList(jvar)
@@ -561,7 +561,7 @@ program midas_diagBmatrix
     !
     !- Compute the domain mean std dev
     !
-    write(*,*) 'Compute the domain mean stddev'
+    write(*,*) 'midas-diagBmatrix: Compute the domain mean stddev'
     call flush(6)
 
     allocate(stddev_dm(hco_anl%ni,nkgdim))

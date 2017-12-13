@@ -365,7 +365,6 @@ contains
     call tmg_stop(51)
 
     !- 1.5 add contribution to gradient from BmatrixDiff
-    call tmg_start(52,'B_DIFF_T')
     if ( cvm_subVectorExists(cvm_BDIFF) ) then
       cvBdiff=>cvm_getSubVector(controlVector,cvm_BDIFF)
       cvBdiff(:) = 0.0d0
@@ -373,7 +372,6 @@ contains
       call bdiff_bsqrtad( statevector, & ! IN
                           cvBdiff )      ! OUT
     end if
-    call tmg_stop(52)
 
   END SUBROUTINE bmat_sqrtBT
 

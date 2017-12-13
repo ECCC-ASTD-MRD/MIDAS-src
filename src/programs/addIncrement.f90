@@ -114,7 +114,7 @@ program midas_addIncrement
 
   !- Initialize the trial state grid
   if (mpi_myid == 0) write(*,*) ''
-  if (mpi_myid == 0) write(*,*) ' midas-addIncrement: Set hco parameters for trial grid'
+  if (mpi_myid == 0) write(*,*) 'midas-addIncrement: Set hco parameters for trial grid'
   trialFileName = './trlm_01'
   call hco_SetupFromFile( hco_trl, trim(trialFileName), ' ')
   call vco_setupFromFile( vco_trl, trim(trialFileName) )
@@ -201,7 +201,7 @@ program midas_addIncrement
   !
   ! Impose limits on humidity analysis and recompute increment
   !
-  write(*,*) 'calling qlim_gsvSaturationLimit'
+  write(*,*) 'midas-addIncrement: calling qlim_gsvSaturationLimit'
   call qlim_gsvSaturationLimit(statevector_analysis, HUcontainsLQ_opt=.false.)
   if( imposeRttovHuLimits ) call qlim_gsvRttovLimit(statevector_analysis, HUcontainsLQ_opt=.false.)
   call gsv_copy(statevector_analysis, statevector_increment)

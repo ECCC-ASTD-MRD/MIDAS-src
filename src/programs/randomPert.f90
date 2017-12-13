@@ -131,8 +131,8 @@ program midas_randomPert
   idate   = ndate/100
   itime   = (ndate-idate*100)*1000000
   ierr    = newdate(nstamp, idate, itime, 3)
-  if( mpi_myid == 0 ) write(*,*)' idate= ', idate, ' time= ', itime
-  if( mpi_myid == 0 ) write(*,*)' date= ', ndate, ' stamp= ', nstamp
+  if( mpi_myid == 0 ) write(*,*) ' idate= ', idate, ' time= ', itime
+  if( mpi_myid == 0 ) write(*,*) ' date= ', ndate, ' stamp= ', nstamp
 
   !- 2.2 Initialize variables of the model states
   call gsv_setup
@@ -144,8 +144,8 @@ program midas_randomPert
   call tim_setDatestamp(nstamp)
 
   !- 2.3 Initialize the Analysis grid
-  if (mpi_myid == 0) write(*,*)''
-  if (mpi_myid == 0) write(*,*)' Set hco parameters for analysis grid'
+  if (mpi_myid == 0) write(*,*) ''
+  if (mpi_myid == 0) write(*,*) ' Set hco parameters for analysis grid'
   call hco_setupFromFile(hco_anl, './analysisgrid', 'ANALYSIS', 'Analysis' ) ! IN
 
   if ( hco_anl % global ) then
@@ -201,8 +201,8 @@ program midas_randomPert
   !
 
   if( mpi_myid == 0 ) write(*,*) '******************'
-  if( mpi_myid == 0 ) write(*,*) 'COMPUTE the mean of the random perturbations ',  &
-                                 'of all the members'
+  if( mpi_myid == 0 ) write(*,*) 'midas-randomPert: COMPUTE the mean of the random ', &
+                                 'perturbations of all the members'
 
   if( mpiTopoIndependent ) then
     call rng_setup(abs(seed))
@@ -372,7 +372,7 @@ program midas_randomPert
   !- 4.4 Write the perturbations
   do memberIndex = 1, NENS
     if( mpi_myid == 0 ) write(*,*)
-    if( mpi_myid == 0 ) write(*,*) ' pre-processing for writing member number= ', memberIndex
+    if( mpi_myid == 0 ) write(*,*) 'midas-randomPert: pre-processing for writing member number= ', memberIndex
 
     call gsv_allocate(statevector, 1, hco_anl, vco_anl, &
                       dateStamp=nstamp, mpi_local=.true.)
@@ -390,7 +390,7 @@ program midas_randomPert
 
     write(clmember, '(I3.3)') memberIndex
     clfiname = './pert_'//trim(cldate)//'_'//trim(clmember)
-    if( mpi_myid == 0 ) write(*,*)'MIDAS-RANDOMPERT: PROCESSING clfiname= ', clfiname
+    if( mpi_myid == 0 ) write(*,*) 'midas-randomPert: processing clfiname= ', clfiname
 
     if( write_mpi ) then
       call gsv_writeToFileMPI(statevector, clfiname, out_etiket,      & ! IN

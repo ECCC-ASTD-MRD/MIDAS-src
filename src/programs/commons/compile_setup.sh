@@ -3,7 +3,7 @@
 # This script contains general configuration and should be dotted in other compile scripts
 
 echo
-echo "... compile_commons.sh script"
+echo "... compile_setup.sh script"
 
 if [ "${ORDENV_PLAT}" = sles-11-haswell-64-xc40 ];then
     echo "... Switching ORDENV_PLAT from '${ORDENV_PLAT}' to 'sles-11-broadwell-64-xc40'"
@@ -44,7 +44,6 @@ fi
 ## for hdf5
 HDF5_LIBS="hdf5hl_fortran hdf5_hl hdf5_fortran hdf5 z"
 
-
 ## for rmn, rpncomm
 echo "... loading eccc/mrd/rpn/libs/16.2"
 . ssmuse-sh -d eccc/mrd/rpn/libs/16.2
@@ -74,12 +73,7 @@ echo "... loading main/opt/perftools/perftools-2.0/${COMP_ARCH}"
 echo "... loading eccc/mrd/rpn/anl/rttov/12v1.0"
 . ssmuse-sh -d eccc/mrd/rpn/anl/rttov/12v1.0/${COMP_ARCH}
 
-if [ "$nompi" = "NOMPI" -o "$nompi" = "nompi" ] ; then
-  MPIKEY=""
-else
-  MPIKEY="-mpi"
-fi
-COMPF_GLOBAL="-openmp ${MPIKEY}"
+COMPF_GLOBAL="-openmp -mpi"
 OPTF="=-check =noarg_temp_created"
 if [ "${ORDENV_PLAT}" = ubuntu-14.04-amd64-64 ];then
     OPTF="=-mkl ${OPTF}"
