@@ -1,15 +1,28 @@
-!--------------------------------------------------------------------------
-! MODULE biascorrection (Variational bias correction.  prefix="bias")
+!--------------------------------------- LICENCE BEGIN -----------------------------------
+!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
+!                     version 3; Last Modified: May 7, 2008.
+!This is free but copyrighted software; you can use/redistribute/modify it under the terms
+!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
+!version 3 or (at your option) any later version that should be found at:
+!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
 !
-! Purpose: 
-!
-! Subroutines (public):
-!    bias_setup
-!
-! Dependencies:
-!
-!--------------------------------------------------------------------------
-module biascorrection_mod
+!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+!See the above mentioned License/Disclaimer for more details.
+!You should have received a copy of the License/Disclaimer along with this software;
+!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
+!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
+!-------------------------------------- LICENCE END --------------------------------------
+
+!-----------------------------------------------------------------------------------------
+!! MODULE biascorrection (Variational bias correction.  prefix="bias")
+!!
+!! *Purpose*: Performs the variational bias correction for satellite radiance data 
+!! 
+!!
+!!
+!-----------------------------------------------------------------------------------------
+MODULE biascorrection_mod
   use utilities_mod
   use ramDisk_mod
   use MathPhysConstants_mod
@@ -54,8 +67,11 @@ module biascorrection_mod
   namelist /nambias/lvarbc,bg_stddev,abortIfNoBackground
 
 CONTAINS
-
-  subroutine bias_setup(cvdim_out)
+ 
+  !-----------------------------------------------------------------------
+  ! bias_setup
+  !-----------------------------------------------------------------------
+  SUBROUTINE bias_setup(cvdim_out)
     implicit none
 
     integer  :: cvdim_out
@@ -174,12 +190,12 @@ CONTAINS
       cvdim_out = 0
     end if
 
-  end subroutine bias_setup
+  END SUBROUTINE bias_setup
 
   !---------------------------------------
-  ! calcBias_tl
+  ! bias_calcBias_tl
   !---------------------------------------- 
-  subroutine bias_calcBias_tl(cv_in,cv_dim,obsColumnIndex,obsSpaceData)
+  SUBROUTINE bias_calcBias_tl(cv_in,cv_dim,obsColumnIndex,obsSpaceData)
     implicit none
 
     integer  :: cv_dim
@@ -270,12 +286,12 @@ CONTAINS
       end do BODY
     end do HEADER
 
-  end subroutine bias_calcBias_tl
+  END SUBROUTINE bias_calcBias_tl
 
   !----------------------
-  ! getTrialPredictors
+  ! bias_getTrialPredictors
   !----------------------
-  subroutine bias_getTrialPredictors(obsSpaceData)
+  SUBROUTINE bias_getTrialPredictors(obsSpaceData)
     implicit none
 
     type(struct_obs)  :: obsSpaceData
@@ -547,12 +563,12 @@ CONTAINS
 
     write(*,*) 'bias_getTrialPredictors done'
 
-  end subroutine bias_getTrialPredictors
+  END SUBROUTINE bias_getTrialPredictors
 
   !---------------------------------------
   ! bias_cvToCoeff
   !--------------------------------------
-  subroutine bias_cvToCoeff(cv_bias)
+  SUBROUTINE bias_cvToCoeff(cv_bias)
     implicit none
 
     real(8)  :: cv_bias(:)
@@ -600,12 +616,12 @@ CONTAINS
       call rpn_comm_bcast(bias(iSensor)%coeffIncr,nsize,"mpi_double_precision",0,"GRID",ierr)
     end do
 
-  end subroutine bias_cvToCoeff
+  END SUBROUTINE bias_cvToCoeff
 
   !-----------------------------------
-  !getPredictors
+  ! bias_getPredictors
   !---------------------------------- 
-  subroutine bias_getPredictors(predictor,index_header,index_obs,obsSpaceData)
+  SUBROUTINE bias_getPredictors(predictor,index_header,index_obs,obsSpaceData)
     implicit none
 
     real(8)  :: predictor(NumPredictors)
@@ -651,12 +667,12 @@ CONTAINS
 
     end do
 
-  end subroutine bias_getPredictors
+  END SUBROUTINE bias_getPredictors
 
   !--------------------------------------------------
-  ! calcMeanPredictors
+  ! bias_calcMeanPredictors
   !---------------------------------------------------
-  subroutine bias_calcMeanPredictors(obsSpaceData)
+  SUBROUTINE bias_calcMeanPredictors(obsSpaceData)
     implicit none
 
     type(struct_obs)  :: obsSpaceData
@@ -710,12 +726,12 @@ CONTAINS
       end if
     end do
 
-  end subroutine bias_calcMeanPredictors
+  END SUBROUTINE bias_calcMeanPredictors
 
   !---------------------------------------------
-  ! calcBias_ad
+  ! bias_calcBias_ad
   !---------------------------------------------
-  subroutine bias_calcBias_ad(cv_out,cv_dim,obsColumnIndex,obsSpaceData)
+  SUBROUTINE bias_calcBias_ad(cv_out,cv_dim,obsColumnIndex,obsSpaceData)
     implicit none
 
     integer  :: cv_dim
@@ -802,12 +818,12 @@ CONTAINS
       write(*,*) 'bias_calcBias_ad: maxval(cv_bias)=',maxval(cv_bias(:))
     end if
 
-  end subroutine bias_calcBias_ad
+  END SUBROUTINE bias_calcBias_ad
 
   !----------------------------------------------------
-  ! cvToCoeff_ad
+  ! bias_cvToCoeff_ad
   !----------------------------------------------------
-  subroutine bias_cvToCoeff_ad(cv_bias)
+  SUBROUTINE bias_cvToCoeff_ad(cv_bias)
     implicit none
 
     real(8)  :: cv_bias(:)
@@ -858,12 +874,12 @@ CONTAINS
       end do
     end if
     
-  end subroutine bias_cvToCoeff_ad
+  END SUBROUTINE bias_cvToCoeff_ad
 
   !-----------------------------------------
-  ! writeBias
+  ! bias_writeBias
   !-----------------------------------------
-  subroutine bias_writeBias(cv_in,cv_dim)
+  SUBROUTINE bias_writeBias(cv_in,cv_dim)
     implicit none
 
     integer  :: cv_dim
@@ -977,12 +993,12 @@ CONTAINS
       end do
     end if
 
-  end subroutine bias_writeBias
+  END SUBROUTINE bias_writeBias
 
   !--------------------------------------
-  ! updateCoeff
+  ! bias_updateCoeff
   !--------------------------------------
-  subroutine bias_updateCoeff(maxsat,maxpred,coeff_file,sats,chans,nsat,nchan,nfov,cinstrum,updateCoeff_opt)
+  SUBROUTINE bias_updateCoeff(maxsat,maxpred,coeff_file,sats,chans,nsat,nchan,nfov,cinstrum,updateCoeff_opt)
     implicit none
 
     ! There are three parts in this subroutine, read, update and write out the coeff files
@@ -1217,12 +1233,12 @@ CONTAINS
    
     write(*,*) 'bias_updateCoeff: finish writing coeffient file', filename2
     
-  end subroutine bias_updateCoeff
+  END SUBROUTINE bias_updateCoeff
 
   !----------------------
-  ! Finalize
+  ! bias_Finalize
   !----------------------
-  subroutine bias_Finalize
+  SUBROUTINE bias_Finalize
     implicit none
 
     integer    :: iSensor
@@ -1241,7 +1257,8 @@ CONTAINS
       deallocate(bias(iSensor)%predictorIndex)
       deallocate(bias(iSensor)%coeffIncr_fov)
     end do
-  end subroutine bias_Finalize 
+
+  END SUBROUTINE bias_Finalize 
 
   !-----------------------------
   ! Lower
@@ -1331,4 +1348,4 @@ CONTAINS
 
   end function SatNameinCoeffFile
 
-end module biascorrection_mod
+END MODULE biascorrection_mod

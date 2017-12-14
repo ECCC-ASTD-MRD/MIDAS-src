@@ -18,7 +18,7 @@ if [ "$mode" == "" ] ; then
   echo "... !WARNING! no compilation mode specified, assuming 'full'"
   mode=full
 fi
-:
+
 if [ $mode == full ] ; then
   echo "..."
   echo "... > Full Compilation"
