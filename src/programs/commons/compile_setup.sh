@@ -90,7 +90,7 @@ else
     exit 1
 fi
 
-if [ "${COMPILE_OAVAR_ADD_DEBUG_OPTIONS:-no}" = yes ]; then
+if [ "${COMPILE_MIDAS_ADD_DEBUG_OPTIONS:-no}" = yes ]; then
     echo "... > !WARNING! You are compiling in DEBUG MODE: '-debug -C -O 0'"
     COMPF_NOC="${COMPF_GLOBAL} -debug DEBUG -optf ${OPTF}"
     COMPF="${COMPF_NOC} =-C"

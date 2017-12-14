@@ -502,9 +502,8 @@ CONTAINS
                   ni,nj,nk,                                  & ! OUT
                   dateo,cletiket,ip1,ip2,ip3,cltypvar,varName )! IN
     if( key < 0 ) then
-      write(*,*)
-      write(*,*) 'Bias_getTrialPredictors: Unable to find trial field = ',varName
-      call utl_abort('Bias_getTrialPredictors: Unable to find trial field')
+      write(*,*) 'bias_getTrialPredictors: Unable to find trial field = ',varName
+      call utl_abort('bias_getTrialPredictors: Unable to find trial field')
     end if
     ierr = fstprm( key,                                               & ! IN
                    dateo, deet, npas, ni, nj, nk, nbits,              & ! OUT
@@ -1059,18 +1058,18 @@ CONTAINS
     nfov     = 0
     ptypes   = 'XX'
 
-    write(*,*) 'Reading coeff file starts'  
+    write(*,*) 'bias_updateCoeff: Reading coeff file starts'  
     iun = 0
     ier = fnom(iun,coeff_file,'FMT',0)
     if( ier /= 0 ) then
-      write(*,*) 'READ_COEFF: ERROR - Problem opening the coeff file!'
-      call utl_abort('read_coeff')
+      write(*,*) 'bias_updateCoeff: ERROR - Problem opening the coeff file!', coeff_file 
+      call utl_abort('bias_updateCoeff for read_coeff')
     end if
 
-    write(*,*) 'Bias correction coefficient file open = ', coeff_file
+    write(*,*) 'bias_updateCoeff: open background file open = ', coeff_file
     read(iun,*,iostat=istat)
     if( istat < 0 ) then
-      write(*,*) 'ERROR- File appears empty.'
+      write(*,*) 'bias_updateCoeff: File appears empty', coeff_file
       return
     end if
     rewind(iun)
@@ -1113,7 +1112,7 @@ CONTAINS
     end do
 
     if( totSat == 0 ) then
-      write(*,*) ' ERROR - No data read from coeff file!'
+      write(*,*) 'bias_updateCoeff: No data read from coeff file!', coeff_file
       call utl_abort('bias_updateCoeff')
     end if
     nsat      = totSat 
@@ -1147,7 +1146,7 @@ CONTAINS
     end if
     ier = fclos(iun)
 
-    write(*,*) 'Reading coeff file done', coeff_file
+    write(*,*) 'bias_updateCoef: Reading coeff file done', coeff_file
 
 
     if( updateCoeff_opt2 == .false. ) return 
@@ -1201,7 +1200,7 @@ CONTAINS
     filename2 ='./anlcoeffs_'//cinstrum//'' 
     ierr = fnom(iuncoef2, filename2,'FTN+FMT',0)
 
-    write(*,*) 'Write in bias_updateCoeff'
+    write(*,*) 'bias_updateCoeff: write in bias_updateCoeff'
    
     do iSat = 1, nsat
       do jChan = 1, nchan(iSat)      
@@ -1216,7 +1215,7 @@ CONTAINS
 
     ierr = fclos(iuncoef2) 
    
-    write(*,*) 'Finish writing in bias_updateCoeff'
+    write(*,*) 'bias_updateCoeff: finish writing coeffient file', filename2
     
   end subroutine bias_updateCoeff
 

@@ -5,7 +5,7 @@ set -e
 program=$1
 mode=$2
 
-export COMPILE_MIDAS_ADD_DEBUG_OPTIONS=yes
+export COMPILE_MIDAS_ADD_DEBUG_OPTIONS=no
 . ./commons/compile_setup.sh
 
 echo "..."
@@ -18,7 +18,7 @@ if [ "$mode" == "" ] ; then
   echo "... !WARNING! no compilation mode specified, assuming 'full'"
   mode=full
 fi
-
+:
 if [ $mode == full ] ; then
   echo "..."
   echo "... > Full Compilation"

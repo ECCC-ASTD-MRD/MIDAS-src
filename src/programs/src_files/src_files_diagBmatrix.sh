@@ -13,4 +13,4 @@ SRC_FILES="$SRC_FILES lamspectraltransform_mod.f90 gridstatevector_mod.f90 ensem
 SRC_FILES="$SRC_FILES columndata_mod.f90 spectralfilter_mod.f90 lambmatrixhi_mod.f90"
 SRC_FILES="$SRC_FILES localizationspectral_mod.f90 localization_mod.f90"
 SRC_FILES="$SRC_FILES variabletransforms_mod.f90 bmatrixensemble_mod.f90 bmatrixchem_mod.f90"
-SRC_FILES="$SRC_FILES bmatrixhi_mod.f90 bmatrixlatbands_mod.f90 bmatrixdiff_mod.f90 bmatrix_mod.f90"
+SRC_FILES="$SRC_FILES bmatrixhi_mod.f90 bmatrixlatbands_mod.f90 bmatrixdiff_mod.f90 biascorrection_mod.f90 bmatrix_mod.f90"
