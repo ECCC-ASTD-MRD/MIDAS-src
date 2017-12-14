@@ -1,5 +1,1 @@
-<?xml version="1.0" ?>
-<NODE_RESOURCES>
-  <BATCH catchup="2" cpu="1" machine="${BACKEND}" queue="${BACKEND_XFER_Q}" wallclock="20"/>
-  <ABORT_ACTION name="rerun"/>
-</NODE_RESOURCES>
+../../../EnVar_24mem_xc40/UnitTest/envar/getStats.xml
