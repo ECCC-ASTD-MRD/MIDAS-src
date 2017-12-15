@@ -2,18 +2,19 @@
 
 set -e
 
-LIBAPPL="netcdff rttov_coef_io rttov_main rttov_emis_atlas rttov_other burp_module descrip $MPILIB"
+LIBAPPL="netcdff rttov_coef_io rttov_hdf rttov_parallel rttov_main rttov_emis_atlas rttov_other ${HDF5_LIBS} burp_module descrip $MPILIB"
 
 SRC_FILES="utilities_mod.f90"
-SRC_FILES="$SRC_FILES ramdisk_mod.ftn90 bufr_mod.f90"
+SRC_FILES="$SRC_FILES ramdisk_mod.ftn90 mpi_mod.f90 mpivar_mod.f90 bufr_mod.f90 codtyp_mod.f90"
 SRC_FILES="$SRC_FILES mathphysconstants_mod.f90 earthconstants_mod.f90"
 SRC_FILES="$SRC_FILES randomnumber_mod.f90"
 SRC_FILES="$SRC_FILES controlvector_mod.f90"
 SRC_FILES="$SRC_FILES physicsfunctions_mod.f90"
 SRC_FILES="$SRC_FILES varnamelist_mod.f90"
-SRC_FILES="$SRC_FILES mpi_mod.f90 mpivar_mod.f90"
 SRC_FILES="$SRC_FILES obsspacedata_mod.ftn90"
+SRC_FILES="$SRC_FILES presprofileoperators_mod.f90 tovs_extrap_mod.f90"
 SRC_FILES="$SRC_FILES horizontalcoord_mod.f90 verticalcoord_mod.f90 timecoord_mod.f90"
+SRC_FILES="$SRC_FILES rmatrix_mod.ftn90 hirchannels_mod.f90 columndata_mod.f90 ozoneclim_mod.f90 tovs_nl_mod.ftn90"
 SRC_FILES="$SRC_FILES analysisgrid_mod.f90"
 SRC_FILES="$SRC_FILES gridstatevector_mod.f90"
 SRC_FILES="$SRC_FILES lamspectraltransform_mod.f90 lambmatrixhi_mod.f90"
