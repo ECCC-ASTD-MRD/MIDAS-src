@@ -1,0 +1,50 @@
+<MODULE name="envar_vbc">
+  <SUBMITS sub_name="getObservations"/>
+  <SUBMITS sub_name="getTrials"/>
+  <SUBMITS sub_name="getEnsTrials"/>
+  <SUBMITS sub_name="getStats"/>
+
+  <TASK name="getObservations"/>
+  <TASK name="getStats"/>
+
+  <TASK name="getTrials">
+    <SUBMITS sub_name="VAR"/>
+  </TASK>
+
+  <TASK name="VAR">
+    <DEPENDS_ON dep_name="./getObservations"  status="end" type="node"/>
+    <DEPENDS_ON dep_name="./getEnsTrials"     status="end" type="node"/>
+    <DEPENDS_ON dep_name="./interpEnsTrials"  status="end" type="node"/>
+    <DEPENDS_ON dep_name="./getStats"         status="end" type="node"/>
+
+    <SUBMITS sub_name="wait4increments"/>
+    <SUBMITS sub_name="getPostalt"/>
+  </TASK>
+
+  <TASK name="wait4increments">
+    <SUBMITS sub_name="AddAnalInc"/>
+  </TASK>
+
+  <TASK name="AddAnalInc">
+    <SUBMITS sub_name="Transfer_anlm"/>
+  </TASK>
+
+  <TASK name="getEnsTrials">
+    <SUBMITS sub_name="interpEnsTrials"/>
+  </TASK>
+
+  <TASK name="interpEnsTrials"/>
+
+  <TASK name="getPostalt">
+    <SUBMITS sub_name="postalt"/>
+  </TASK>
+
+  <TASK name="postalt">
+    <SUBMITS sub_name="Transfer"/>
+  </TASK>
+
+  <TASK name="Transfer_anlm"/>
+  <TASK name="Transfer">
+    <DEPENDS_ON dep_name="./Transfer_anlm" status="end" type="node"/>
+  </TASK>
+</MODULE>

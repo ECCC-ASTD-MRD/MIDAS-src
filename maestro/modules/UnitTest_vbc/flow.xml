@@ -1,0 +1,18 @@
+<MODULE name="UnitTest_vbc">
+  <SUBMITS sub_name="getInputs"/>
+  <SUBMITS sub_name="check_results"/>
+
+  <TASK  name="getInputs">
+    <SUBMITS sub_name="envar_vbc"/>
+  </TASK>
+
+  <MODULE  name="envar_vbc"/>
+
+  <TASK name="check_results">
+    <DEPENDS_ON dep_name="./envar_vbc" status="end" type="node"/>
+    
+    <SUBMITS sub_name="clean_test"/>
+  </TASK>
+
+  <TASK name="clean_test"/>
+</MODULE>

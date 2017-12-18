@@ -44,6 +44,7 @@ MODULE minimization_mod
   use innovation_mod
   use quasinewton_mod
   use utilities_mod
+  use biasCorrection_mod
   use chem_postproc_mod, only: chm_transform_final_increments
 
   implicit none
@@ -482,6 +483,9 @@ CONTAINS
             call obs_prntbdy(obsSpaceData,jdata)
           end do
         endif
+
+        ! Compute satellite bias correction increment and write to file
+        call bias_writebias(vazx,cvm_nvadim)
 
         ! get final increment
         call min_getIncrement(vazx,columng,statevector_incr)
@@ -1126,6 +1130,8 @@ CONTAINS
        call tmg_stop(40)
 
        call res_compute(obsSpaceData)  ! Calculate OBS_OMA from OBS_WORK : d-Hdx
+ 
+       call bias_calcbias_tl(da_v,nvadim_mpilocal,OBS_OMA,obsSpaceData)
      
        call cfn_RsqrtInverse(obsSpaceData,OBS_WORK,OBS_OMA)  ! Save as OBS_WORK : R**-1/2 (d-Hdx)
      
@@ -1165,6 +1171,7 @@ CONTAINS
        call tmg_stop(31)
 
        da_gradJ(:) = 0.d0
+       call bias_calcbias_ad(da_gradJ,nvadim_mpilocal,OBS_WORK,obsSpaceData)
        call bmat_sqrtBT(da_gradJ,nvadim_mpilocal,statevector)
        call gsv_deallocate(statevector)
 
