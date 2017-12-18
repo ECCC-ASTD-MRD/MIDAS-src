@@ -6,8 +6,8 @@
 #
 machine=hare
 ensbase="G-NMC"
-abs="/home/mab001/data_maestro/ords/oavar_abs/diagbmatrix_sles-11-broadwell-64-xc40-m_3.0.0-2-g670e3e2_M.Abs"
-gest="${HOME}/data_maestro/${machine}/diagbmatrix/${ensbase}_test_BlatBands_enkf/"
+abs="/home/mab001/data_maestro/ords/midas_abs/midas-diagBmatrix_sles-11-broadwell-64-xc40-v_3.0.4-34-g3951b62_M.Abs"
+gest="${HOME}/data_maestro/${machine}/diagbmatrix/${ensbase}_test_BlatBands_enkf_new/"
 if [ "${ensbase}" = "G-NMC" ]; then
   flnml="namelist.nml_${ensbase}"
   #analysisgrid="/home/sanl000/ANAL_shared/datafiles/constants/arma/oavar/2.1.1/analysis_grid_prototypes/analysis_grid_prototype_glb_800x400_south-to-north_80L_vcode5002"
@@ -89,4 +89,4 @@ cat << EOF > $TMPDIR/ptopo_nml
 EOF
 scp $TMPDIR/ptopo_nml ${machine}:${gest}
 
-ord_soumet $TMPDIR/go_diagbmatrix.sh -mach $machine -mpi -t $maxcputime -cm 3000M -cpus ${npex}x${npey}x${openmp} -jn diagbmatrix -waste
+ord_soumet $TMPDIR/go_diagbmatrix.sh -mach $machine -mpi -t $maxcputime -cm 3000M -cpus ${npex}x${npey}x${openmp} -jn diagBmatrix -waste

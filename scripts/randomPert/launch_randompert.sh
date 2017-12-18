@@ -5,18 +5,20 @@
 # User-defined options
 #
 flnml="namelist.nml"
-machine=hare
-#machine=eccc-ppp2
-abs="${HOME}/data_maestro/ords/oavar_abs/randompert_sles-11-broadwell-64-xc40-m_2.2.1-6-g15400d5_M.Abs"
-#abs="${HOME}/data_maestro/ords/oavar_abs/randompert_ubuntu-14.04-amd64-64-m_2.2.1-6-g15400d5_M.Abs"
-gest="${HOME}/data_maestro/${machine}/randompert/test/"
+#machine=hare
+machine=eccc-ppp2
+abs="${HOME}/data_maestro/ords/midas_abs/midas-randomPert_ubuntu-14.04-amd64-64-v_3.0.4-34-g3951b62_M.Abs"
+gest="${HOME}/data_maestro/${machine}/randompert/test_ens_9x9_new/"
 analysisgrid="/home/sanl000/ANAL_shared/datafiles/constants/arma/oavar/2.1.2/analysis_grid_prototype_glb_1080x540_south-to-north_80L_vcode5002"
 bgcov="/home/sanl000/ANAL_shared/datafiles/constants/arma/oavar/2.1.1/__GEM25km_NMC_T399_stag5002_BgckStddev3d_corns_sqrt_800x400__/01"
-npex=12
-npey=12
+npex=9
+npey=9
 openmp=1
 maxcputime=600
 run_in_parallel="/fs/ssm/eccc/mrd/rpn/utils/16.2/all/bin/r.run_in_parallel_1.1.28c"
+
+ensdir="/home/mab001/data_maestro/${machine}/kal569/"
+
 
 #
 # Don't modify below ...
@@ -41,6 +43,7 @@ scp $flnml ${machine}:${gest}/flnml
 scp $analysisgrid ${machine}:${gest}/analysisgrid
 scp $bgcov ${machine}:${gest}/bgcov
 scp $abs ${machine}:${gest}/randompert.abs
+ssh $machine ln -s ${ensdir} ${gest}/ensemble
 ssh $machine ls -l $gest
 
 cat << EOF > $TMPDIR/go_randompert.sh
@@ -71,4 +74,4 @@ cat << EOF > $TMPDIR/ptopo_nml
 EOF
 scp $TMPDIR/ptopo_nml ${machine}:${gest}
 
-ord_soumet $TMPDIR/go_randompert.sh -mach $machine -mpi -t $maxcputime -cm 3000M -cpus ${npex}x${npey}x${openmp} -jn randompert -waste
+ord_soumet $TMPDIR/go_randompert.sh -mach $machine -mpi -t $maxcputime -cm 3000M -cpus ${npex}x${npey}x${openmp} -jn randomPert -waste

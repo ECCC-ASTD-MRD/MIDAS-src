@@ -82,11 +82,11 @@ module gridStateVector_mod
     ! All the remaining extra information
     integer             :: dataKind = 8
     integer             :: ni, nj, nk, numStep, anltime
-    integer             :: latPerPE, myLatBeg, myLatEnd
-    integer             :: lonPerPE, myLonBeg, myLonEnd
+    integer             :: latPerPE, latPerPEmax, myLatBeg, myLatEnd
+    integer             :: lonPerPE, lonPerPEmax, myLonBeg, myLonEnd
     integer             :: mykCount, mykBeg, mykEnd
-    integer, pointer    :: allLatBeg(:), allLatEnd(:)
-    integer, pointer    :: allLonBeg(:), allLonEnd(:)
+    integer, pointer    :: allLatBeg(:), allLatEnd(:), allLatPerPE(:)
+    integer, pointer    :: allLonBeg(:), allLonEnd(:), allLonPerPE(:)
     integer, pointer    :: allkCount(:), allkBeg(:), allkEnd(:)
     integer, pointer    :: dateStampList(:) => null()
     integer, pointer    :: dateStamp3d
@@ -377,17 +377,21 @@ module gridStateVector_mod
 
     ! determine lat/lon index ranges
     if( statevector%mpi_distribution == 'Tiles' ) then
-      call mpivar_setup_latbands(statevector%nj,statevector%latPerPE,statevector%myLatBeg, &
-                                 statevector%myLatEnd)
-      call mpivar_setup_lonbands(statevector%ni,statevector%lonPerPE,statevector%myLonBeg, &
-                                 statevector%myLonEnd)
+      call mpivar_setup_latbands(statevector%nj,  &
+                                 statevector%latPerPE, statevector%latPerPEmax, &
+                                 statevector%myLatBeg, statevector%myLatEnd)
+      call mpivar_setup_lonbands(statevector%ni,  &
+                                 statevector%lonPerPE, statevector%lonPerPEmax, &
+                                 statevector%myLonBeg, statevector%myLonEnd)
     else
-      statevector%latPerPE = statevector%nj
-      statevector%myLatBeg = 1
-      statevector%myLatEnd = statevector%nj
-      statevector%lonPerPE = statevector%ni
-      statevector%myLonBeg = 1
-      statevector%myLonEnd = statevector%ni
+      statevector%latPerPE    = statevector%nj
+      statevector%latPerPEmax = statevector%nj
+      statevector%myLatBeg    = 1
+      statevector%myLatEnd    = statevector%nj
+      statevector%lonPerPE    = statevector%ni
+      statevector%lonPerPEmax = statevector%ni
+      statevector%myLonBeg    = 1
+      statevector%myLonEnd    = statevector%ni
     end if
 
     allocate(statevector%varOffset(vnl_numvarmax))
@@ -446,6 +450,9 @@ module gridStateVector_mod
     allocate(statevector%allLonEnd(mpi_npex))
     CALL rpn_comm_allgather(statevector%myLonEnd,1,"mpi_integer",       &
                             statevector%allLonEnd,1,"mpi_integer","EW",ierr)
+    allocate(statevector%allLonPerPE(mpi_npex))
+    CALL rpn_comm_allgather(statevector%lonPerPE,1,"mpi_integer",       &
+                            statevector%allLonPerPE,1,"mpi_integer","EW",ierr)
 
     allocate(statevector%allLatBeg(mpi_npey))
     CALL rpn_comm_allgather(statevector%myLatBeg,1,"mpi_integer",       &
@@ -453,6 +460,9 @@ module gridStateVector_mod
     allocate(statevector%allLatEnd(mpi_npey))
     CALL rpn_comm_allgather(statevector%myLatEnd,1,"mpi_integer",       &
                             statevector%allLatEnd,1,"mpi_integer","NS",ierr)
+    allocate(statevector%allLatPerPE(mpi_npey))
+    CALL rpn_comm_allgather(statevector%LatPerPE,1,"mpi_integer",       &
+                            statevector%allLatPerPE,1,"mpi_integer","NS",ierr)
 
     allocate(statevector%allkCount(mpi_nprocs))
     CALL rpn_comm_allgather(statevector%mykCount,1,"mpi_integer",       &
@@ -884,7 +894,7 @@ module gridStateVector_mod
 
     elseif( statevector_out%dataKind == 4 .and. statevector_in%dataKind == 4 ) then
 
-      statevector_out%gzSfc(:,:) = 0.0
+      if ( associated(statevector_out%gzSfc) ) statevector_out%gzSfc(:,:) = 0.0
       if ( associated(statevector_in%gzSfc) .and. associated(statevector_out%gzSfc) ) then
         statevector_out%gzSfc(lonBeg_in:lonEnd_in,latBeg_in:latEnd_in) = statevector_in%gzSfc(:,:)
       end if
@@ -2190,7 +2200,7 @@ module gridStateVector_mod
     real(8), allocatable :: gd_send_r8(:,:,:,:,:), gd_recv_r8(:,:,:,:,:)
     real(4), pointer     :: field_in_r4_ptr(:,:,:,:), field_out_r4_ptr(:,:,:,:)
     real(8), pointer     :: field_in_r8_ptr(:,:,:,:), field_out_r8_ptr(:,:,:,:)
-    real(8), allocatable :: gd_send_GZ(:,:,:)
+    real(8), allocatable :: gd_send_GZ(:,:,:), gd_recv_GZ(:,:)
     real(8), pointer     :: field_GZ_in_ptr(:,:), field_GZ_out_ptr(:,:)
 
     if( statevector_in%mpi_distribution /= 'VarsLevs' ) then
@@ -2211,13 +2221,13 @@ module gridStateVector_mod
 
     maxkCount = maxval(statevector_in%allkCount(:))
     if( sendrecvKind == 4 ) then
-      allocate(gd_send_r4(statevector_out%lonPerPE,statevector_out%latPerPE,maxkCount,statevector_out%numStep,mpi_nprocs))
-      allocate(gd_recv_r4(statevector_out%lonPerPE,statevector_out%latPerPE,maxkCount,statevector_out%numStep,mpi_nprocs))
+      allocate(gd_send_r4(statevector_out%lonPerPEmax,statevector_out%latPerPEmax,maxkCount,statevector_out%numStep,mpi_nprocs))
+      allocate(gd_recv_r4(statevector_out%lonPerPEmax,statevector_out%latPerPEmax,maxkCount,statevector_out%numStep,mpi_nprocs))
       gd_send_r4(:,:,:,:,:) = 0.0
       gd_recv_r4(:,:,:,:,:) = 0.0
     else
-      allocate(gd_send_r8(statevector_out%lonPerPE,statevector_out%latPerPE,maxkCount,statevector_out%numStep,mpi_nprocs))
-      allocate(gd_recv_r8(statevector_out%lonPerPE,statevector_out%latPerPE,maxkCount,statevector_out%numStep,mpi_nprocs))
+      allocate(gd_send_r8(statevector_out%lonPerPEmax,statevector_out%latPerPEmax,maxkCount,statevector_out%numStep,mpi_nprocs))
+      allocate(gd_recv_r8(statevector_out%lonPerPEmax,statevector_out%latPerPEmax,maxkCount,statevector_out%numStep,mpi_nprocs))
       gd_send_r8(:,:,:,:,:) = 0.0
       gd_recv_r8(:,:,:,:,:) = 0.0
     end if
@@ -2228,7 +2238,9 @@ module gridStateVector_mod
       do youridy = 0, (mpi_npey-1)
         do youridx = 0, (mpi_npex-1)
           yourid = youridx + youridy*mpi_npex
-          gd_send_r4(:,:,1:statevector_in%mykCount,:,yourid+1) =  &
+          gd_send_r4(1:statevector_out%allLonPerPE(youridx+1),  &
+                     1:statevector_out%allLatPerPE(youridy+1),  &
+                     1:statevector_in%mykCount,:,yourid+1) =  &
             field_in_r4_ptr(statevector_out%allLonBeg(youridx+1):statevector_out%allLonEnd(youridx+1),  &
                             statevector_out%allLatBeg(youridy+1):statevector_out%allLatEnd(youridy+1),  &
                             statevector_in%mykBeg:statevector_in%mykEnd,:)
@@ -2241,7 +2253,9 @@ module gridStateVector_mod
       do youridy = 0, (mpi_npey-1)
         do youridx = 0, (mpi_npex-1)
           yourid = youridx + youridy*mpi_npex
-          gd_send_r4(:,:,1:statevector_in%mykCount,:,yourid+1) =  &
+          gd_send_r4(1:statevector_out%allLonPerPE(youridx+1),  &
+                     1:statevector_out%allLatPerPE(youridy+1),  &
+                     1:statevector_in%mykCount,:,yourid+1) =  &
             real(field_in_r8_ptr(statevector_out%allLonBeg(youridx+1):statevector_out%allLonEnd(youridx+1),  &
                                  statevector_out%allLatBeg(youridy+1):statevector_out%allLatEnd(youridy+1),  &
                                  statevector_in%mykBeg:statevector_in%mykEnd,:),4)
@@ -2254,7 +2268,9 @@ module gridStateVector_mod
       do youridy = 0, (mpi_npey-1)
         do youridx = 0, (mpi_npex-1)
           yourid = youridx + youridy*mpi_npex
-          gd_send_r8(:,:,1:statevector_in%mykCount,:,yourid+1) =  &
+          gd_send_r8(1:statevector_out%allLonPerPE(youridx+1),  &
+                     1:statevector_out%allLatPerPE(youridy+1),  &
+                     1:statevector_in%mykCount,:,yourid+1) =  &
             real(field_in_r4_ptr(statevector_out%allLonBeg(youridx+1):statevector_out%allLonEnd(youridx+1),  &
                                  statevector_out%allLatBeg(youridy+1):statevector_out%allLatEnd(youridy+1),  &
                                  statevector_in%mykBeg:statevector_in%mykEnd,:),8)
@@ -2267,7 +2283,9 @@ module gridStateVector_mod
       do youridy = 0, (mpi_npey-1)
         do youridx = 0, (mpi_npex-1)
           yourid = youridx + youridy*mpi_npex
-          gd_send_r8(:,:,1:statevector_in%mykCount,:,yourid+1) =  &
+          gd_send_r8(1:statevector_out%allLonPerPE(youridx+1),  &
+                     1:statevector_out%allLatPerPE(youridy+1),  &
+                     1:statevector_in%mykCount,:,yourid+1) =  &
             field_in_r8_ptr(statevector_out%allLonBeg(youridx+1):statevector_out%allLonEnd(youridx+1),  &
                             statevector_out%allLatBeg(youridy+1):statevector_out%allLatEnd(youridy+1),  &
                             statevector_in%mykBeg:statevector_in%mykEnd,:)
@@ -2276,14 +2294,14 @@ module gridStateVector_mod
 !$OMP END PARALLEL DO
     end if
 
-    nsize = statevector_out%lonPerPE * statevector_out%latPerPE * statevector_out%numStep * maxkCount
+    nsize = statevector_out%lonPerPEmax * statevector_out%latPerPEmax * statevector_out%numStep * maxkCount
     if(mpi_nprocs > 1) then
       if( sendrecvKind == 4 ) then
-        call rpn_comm_alltoall(gd_send_r4,nsize,"mpi_real4",  &
-                               gd_recv_r4,nsize,"mpi_real4","GRID",ierr)
+        call rpn_comm_alltoall(gd_send_r4, nsize, "mpi_real4",  &
+                               gd_recv_r4, nsize, "mpi_real4", "GRID", ierr)
       else
-        call rpn_comm_alltoall(gd_send_r8,nsize,"mpi_real8",  &
-                               gd_recv_r8,nsize,"mpi_real8","GRID",ierr)
+        call rpn_comm_alltoall(gd_send_r8, nsize, "mpi_real8",  &
+                               gd_recv_r8, nsize, "mpi_real8", "GRID", ierr)
       end if
     else
       if( sendrecvKind == 4 ) then
@@ -2299,8 +2317,10 @@ module gridStateVector_mod
       do yourid = 0, (mpi_nprocs-1)
         field_out_r4_ptr(statevector_out%myLonBeg:statevector_out%myLonEnd, &
                          statevector_out%myLatBeg:statevector_out%myLatEnd, &
-                         statevector_in%allkBeg(yourid+1):statevector_in%allkEnd(yourid+1),:) =   &
-          gd_recv_r4(:,:,1:statevector_in%allkCount(yourid+1),:,yourid+1)
+                         statevector_in%allkBeg(yourid+1):statevector_in%allkEnd(yourid+1), :) =   &
+          gd_recv_r4(1:statevector_out%lonPerPE,  &
+                     1:statevector_out%latPerPE,  &
+                     1:statevector_in%allkCount(yourid+1), :, yourid+1)
       end do
 !$OMP END PARALLEL DO
     elseif( sendrecvKind == 4 .and. outKind == 8 ) then
@@ -2309,8 +2329,10 @@ module gridStateVector_mod
       do yourid = 0, (mpi_nprocs-1)
         field_out_r8_ptr(statevector_out%myLonBeg:statevector_out%myLonEnd, &
                          statevector_out%myLatBeg:statevector_out%myLatEnd, &
-                         statevector_in%allkBeg(yourid+1):statevector_in%allkEnd(yourid+1),:) =   &
-          real(gd_recv_r4(:,:,1:statevector_in%allkCount(yourid+1),:,yourid+1),8)
+                         statevector_in%allkBeg(yourid+1):statevector_in%allkEnd(yourid+1), :) =   &
+          real(gd_recv_r4(1:statevector_out%lonPerPE,  &
+                          1:statevector_out%latPerPE,  &
+                          1:statevector_in%allkCount(yourid+1), :, yourid+1),8)
       end do
 !$OMP END PARALLEL DO
     elseif( sendrecvKind == 8 .and. outKind == 4 ) then
@@ -2319,8 +2341,10 @@ module gridStateVector_mod
       do yourid = 0, (mpi_nprocs-1)
         field_out_r4_ptr(statevector_out%myLonBeg:statevector_out%myLonEnd, &
                          statevector_out%myLatBeg:statevector_out%myLatEnd, &
-                         statevector_in%allkBeg(yourid+1):statevector_in%allkEnd(yourid+1),:) =   &
-          real(gd_recv_r8(:,:,1:statevector_in%allkCount(yourid+1),:,yourid+1),4)
+                         statevector_in%allkBeg(yourid+1):statevector_in%allkEnd(yourid+1), :) =   &
+          real(gd_recv_r8(1:statevector_out%lonPerPE,  &
+                          1:statevector_out%latPerPE,  &
+                          1:statevector_in%allkCount(yourid+1), :, yourid+1),4)
       end do
 !$OMP END PARALLEL DO
     elseif( sendrecvKind == 8 .and. outKind == 8 ) then
@@ -2330,7 +2354,9 @@ module gridStateVector_mod
         field_out_r8_ptr(statevector_out%myLonBeg:statevector_out%myLonEnd, &
                          statevector_out%myLatBeg:statevector_out%myLatEnd, &
                          statevector_in%allkBeg(yourid+1):statevector_in%allkEnd(yourid+1),:) =   &
-          gd_recv_r8(:,:,1:statevector_in%allkCount(yourid+1),:,yourid+1)
+          gd_recv_r8(1:statevector_out%lonPerPE,  &
+                     1:statevector_out%latPerPE,  &
+                     1:statevector_in%allkCount(yourid+1), :, yourid+1)
       end do
 !$OMP END PARALLEL DO
     end if
@@ -2344,8 +2370,10 @@ module gridStateVector_mod
     end if
 
     if ( statevector_in%gzSfcPresent .and. statevector_out%gzSfcPresent ) then
-      allocate(gd_send_GZ(statevector_out%lonPerPE,statevector_out%latPerPE,mpi_nprocs))
+      allocate(gd_send_GZ(statevector_out%lonPerPEmax,statevector_out%latPerPEmax,mpi_nprocs))
+      allocate(gd_recv_GZ(statevector_out%lonPerPEmax,statevector_out%latPerPEmax))
       gd_send_GZ(:,:,:) = 0.0d0
+      gd_recv_GZ(:,:) = 0.0d0
       field_GZ_in_ptr => gsv_getGZsfc(statevector_in)
       field_GZ_out_ptr => gsv_getGZsfc(statevector_out)
 
@@ -2354,7 +2382,8 @@ module gridStateVector_mod
         do youridy = 0, (mpi_npey-1)
           do youridx = 0, (mpi_npex-1)
             yourid = youridx + youridy*mpi_npex
-            gd_send_GZ(:,:,yourid+1) =  &
+            gd_send_GZ(1:statevector_out%allLonPerPE(youridx+1),  &
+                       1:statevector_out%allLatPerPE(youridy+1), yourid+1) =  &
               field_GZ_in_ptr(statevector_out%allLonBeg(youridx+1):statevector_out%allLonEnd(youridx+1),  &
                               statevector_out%allLatBeg(youridy+1):statevector_out%allLatEnd(youridy+1))
           end do
@@ -2362,7 +2391,7 @@ module gridStateVector_mod
 !$OMP END PARALLEL DO
       end if
 
-      nsize = statevector_out%lonPerPE * statevector_out%latPerPE
+      nsize = statevector_out%lonPerPEmax * statevector_out%latPerPEmax
       allocate(displs(mpi_nprocs))
       allocate(nsizes(mpi_nprocs))
       do yourid = 0, (mpi_nprocs-1)
@@ -2370,11 +2399,17 @@ module gridStateVector_mod
         nsizes(yourid+1) = nsize
       end do
       call rpn_comm_scatterv(gd_send_GZ, nsizes, displs, 'mpi_double_precision', &
-                             field_GZ_out_ptr, nsize, 'mpi_double_precision', &
+                             gd_recv_GZ, nsize, 'mpi_double_precision', &
                              0, 'GRID', ierr)
+
+      field_GZ_out_ptr(statevector_out%myLonBeg:statevector_out%myLonEnd, &
+                       statevector_out%myLatBeg:statevector_out%myLatEnd) =   &
+        gd_recv_GZ(1:statevector_out%lonPerPE,  &
+                   1:statevector_out%latPerPE)
 
       deallocate(displs)
       deallocate(nsizes)
+      deallocate(gd_recv_GZ)
       deallocate(gd_send_GZ)
     end if
 
@@ -2419,13 +2454,13 @@ module gridStateVector_mod
 
     maxkCount = maxval(statevector_out%allkCount(:))
     if( sendrecvKind == 4 ) then
-      allocate(gd_send_r4(statevector_in%lonPerPE,statevector_in%latPerPE,maxkCount,statevector_in%numStep,mpi_nprocs))
-      allocate(gd_recv_r4(statevector_in%lonPerPE,statevector_in%latPerPE,maxkCount,statevector_in%numStep,mpi_nprocs))
+      allocate(gd_send_r4(statevector_in%lonPerPEmax,statevector_in%latPerPEmax,maxkCount,statevector_in%numStep,mpi_nprocs))
+      allocate(gd_recv_r4(statevector_in%lonPerPEmax,statevector_in%latPerPEmax,maxkCount,statevector_in%numStep,mpi_nprocs))
       gd_send_r4(:,:,:,:,:) = 0.0
       gd_recv_r4(:,:,:,:,:) = 0.0
     else
-      allocate(gd_send_r8(statevector_in%lonPerPE,statevector_in%latPerPE,maxkCount,statevector_in%numStep,mpi_nprocs))
-      allocate(gd_recv_r8(statevector_in%lonPerPE,statevector_in%latPerPE,maxkCount,statevector_in%numStep,mpi_nprocs))
+      allocate(gd_send_r8(statevector_in%lonPerPEmax,statevector_in%latPerPEmax,maxkCount,statevector_in%numStep,mpi_nprocs))
+      allocate(gd_recv_r8(statevector_in%lonPerPEmax,statevector_in%latPerPEmax,maxkCount,statevector_in%numStep,mpi_nprocs))
       gd_send_r8(:,:,:,:,:) = 0.0
       gd_recv_r8(:,:,:,:,:) = 0.0
     end if
@@ -2434,24 +2469,26 @@ module gridStateVector_mod
       field_in_r8_ptr => gsv_getField_r8(statevector_in)
 !$OMP PARALLEL DO PRIVATE(yourid)
       do yourid = 0, (mpi_nprocs-1)
-        gd_send_r8(:,:,1:statevector_out%allkCount(yourid+1),:,yourid+1) =  &
+        gd_send_r8(1:statevector_in%lonPerPE, &
+                   1:statevector_in%latPerPE, &
+                   1:statevector_out%allkCount(yourid+1), :, yourid+1) =  &
             field_in_r8_ptr(statevector_in%myLonBeg:statevector_in%myLonEnd, &
                             statevector_in%myLatBeg:statevector_in%myLatEnd, &
-                            statevector_out%allkBeg(yourid+1):statevector_out%allkEnd(yourid+1),:)
+                            statevector_out%allkBeg(yourid+1):statevector_out%allkEnd(yourid+1), :)
       end do
 !$OMP END PARALLEL DO
     else
       call utl_abort('gsv_transposeLatLonToLevsVars: not compatible yet with these data types')
     end if
 
-    nsize = statevector_in%lonPerPE * statevector_in%latPerPE * statevector_in%numStep * maxkCount
+    nsize = statevector_in%lonPerPEmax * statevector_in%latPerPEmax * statevector_in%numStep * maxkCount
     if(mpi_nprocs > 1) then
       if( sendrecvKind == 4 ) then
-        call rpn_comm_alltoall(gd_send_r4,nsize,"mpi_real4",  &
-                               gd_recv_r4,nsize,"mpi_real4","GRID",ierr)
+        call rpn_comm_alltoall(gd_send_r4, nsize, "mpi_real4",  &
+                               gd_recv_r4, nsize, "mpi_real4", "GRID", ierr)
       else
-        call rpn_comm_alltoall(gd_send_r8,nsize,"mpi_real8",  &
-                               gd_recv_r8,nsize,"mpi_real8","GRID",ierr)
+        call rpn_comm_alltoall(gd_send_r8, nsize, "mpi_real8",  &
+                               gd_recv_r8, nsize, "mpi_real8", "GRID", ierr)
       end if
     else
       if( sendrecvKind == 4 ) then
@@ -2469,8 +2506,10 @@ module gridStateVector_mod
           yourid = youridx + youridy*mpi_npex
           field_out_r8_ptr(statevector_in%allLonBeg(youridx+1):statevector_in%allLonEnd(youridx+1),  &
                            statevector_in%allLatBeg(youridy+1):statevector_in%allLatEnd(youridy+1),  &
-                           statevector_out%mykBeg:statevector_out%mykEnd,:) = &
-              gd_recv_r8(:,:,1:statevector_out%mykCount,:,yourid+1)
+                           statevector_out%mykBeg:statevector_out%mykEnd, :) = &
+              gd_recv_r8(1:statevector_in%allLonPerPE(youridx+1),  &
+                         1:statevector_in%allLatPerPE(youridy+1),  &
+                         1:statevector_out%mykCount, :, yourid+1)
         end do
       end do
 !$OMP END PARALLEL DO
@@ -2487,11 +2526,11 @@ module gridStateVector_mod
     end if
 
     if ( statevector_in%gzSfcPresent .and. statevector_out%gzSfcPresent ) then
-      allocate(gd_recv_GZ(statevector_out%lonPerPE,statevector_out%latPerPE,mpi_nprocs))
+      allocate(gd_recv_GZ(statevector_out%lonPerPEmax,statevector_out%latPerPEmax,mpi_nprocs))
       field_GZ_in_ptr => gsv_getGZsfc(statevector_in)
       field_GZ_out_ptr => gsv_getGZsfc(statevector_out)
 
-      nsize = statevector_out%lonPerPE * statevector_out%latPerPE
+      nsize = statevector_out%lonPerPEmax * statevector_out%latPerPEmax
       call rpn_comm_gather(field_GZ_in_ptr, nsize, 'mpi_double_precision',  &
                            gd_recv_GZ,      nsize, 'mpi_double_precision', 0, 'GRID', ierr )
 
@@ -2502,7 +2541,8 @@ module gridStateVector_mod
             yourid = youridx + youridy*mpi_npex
             field_GZ_out_ptr(statevector_in%allLonBeg(youridx+1):statevector_in%allLonEnd(youridx+1),  &
                              statevector_in%allLatBeg(youridy+1):statevector_in%allLatEnd(youridy+1)) = &
-                gd_recv_GZ(:,:,yourid+1)
+                gd_recv_GZ(1:statevector_in%allLonPerPE(youridx+1),  &
+                           1:statevector_in%allLatPerPE(youridy+1), yourid+1)
           end do
         end do
 !$OMP END PARALLEL DO
@@ -3183,8 +3223,8 @@ module gridStateVector_mod
     end if
 
     allocate(work2d_r4(statevector%ni,statevector%nj))
-    allocate(gd_send_r4(statevector%lonPerPE,statevector%latPerPE,mpi_nprocs))
-    allocate(gd_recv_r4(statevector%lonPerPE,statevector%latPerPE,mpi_nprocs))
+    allocate(gd_send_r4(statevector%lonPerPEmax,statevector%latPerPEmax,mpi_nprocs))
+    allocate(gd_recv_r4(statevector%lonPerPEmax,statevector%latPerPEmax,mpi_nprocs))
 
     do varIndex = 1, vnl_numvarmax 
  
@@ -3212,13 +3252,14 @@ module gridStateVector_mod
 !$OMP PARALLEL DO PRIVATE(levIndex2,yourid)
           do levIndex2 = 1+(batchnum-1)*mpi_nprocs, levIndex_last
             yourid = writeLevPE(levIndex2)
-            gd_send_r4(:,:,yourid+1) =  &
+            gd_send_r4(1:statevector%lonPerPE,  &
+                       1:statevector%latPerPE, yourid+1) =  &
                 real(work3d(statevector%myLonBeg:statevector%myLonEnd, &
-                            statevector%myLatBeg:statevector%myLatEnd,levIndex2),4)
+                            statevector%myLatBeg:statevector%myLatEnd, levIndex2),4)
           end do
 !$OMP END PARALLEL DO
 
-          nsize = statevector%lonPerPE*statevector%latPerPE
+          nsize = statevector%lonPerPEmax * statevector%latPerPEmax
           if(mpi_nprocs.gt.1) then
             call rpn_comm_alltoall(gd_send_r4,nsize,"mpi_real4",  &
                                    gd_recv_r4,nsize,"mpi_real4","GRID",ierr)
@@ -3232,7 +3273,8 @@ module gridStateVector_mod
               yourid = youridx + youridy*mpi_npex
                 work2d_r4(statevector%allLonBeg(youridx+1):statevector%allLonEnd(youridx+1),  &
                           statevector%allLatBeg(youridy+1):statevector%allLatEnd(youridy+1)) = &
-                  gd_recv_r4(:,:,yourid+1)
+                  gd_recv_r4(1:statevector%allLonPerPE(youridx+1),  &
+                             1:statevector%allLatPerPE(youridy+1), yourid+1)
             end do
           end do
 !$OMP END PARALLEL DO
@@ -3431,9 +3473,9 @@ module gridStateVector_mod
 
     end if
 
-    allocate(gd_send_r4(statevector%lonPerPE,statevector%latPerPE))
+    allocate(gd_send_r4(statevector%lonPerPEmax,statevector%latPerPEmax))
     if( mpi_myid == 0 .or. (.not. statevector%mpi_local) ) then
-      allocate(gd_recv_r4(statevector%lonPerPE,statevector%latPerPE,mpi_nprocs))
+      allocate(gd_recv_r4(statevector%lonPerPEmax,statevector%latPerPEmax,mpi_nprocs))
       allocate(work2d_r4(statevector%ni,statevector%nj))
     else
       allocate(gd_recv_r4(1,1,1))
@@ -3446,11 +3488,12 @@ module gridStateVector_mod
         write(*,*) 'gsv_writeToFile: writing surface GZ'
 
         ! MPI communication
-        gd_send_r4(:,:) =  &
-            real(statevector%GZsfc(statevector%myLonBeg:statevector%myLonEnd, &
-                                   statevector%myLatBeg:statevector%myLatEnd),4)
+        gd_send_r4(1:statevector%lonPerPE, &
+                   1:statevector%latPerPE) =  &
+             real(statevector%GZsfc(statevector%myLonBeg:statevector%myLonEnd, &
+                                    statevector%myLatBeg:statevector%myLatEnd),4)
         if( (mpi_nprocs > 1) .and. (statevector%mpi_local) ) then
-          nsize = statevector%lonPerPE*statevector%latPerPE
+          nsize = statevector%lonPerPEmax * statevector%latPerPEmax
           call rpn_comm_gather(gd_send_r4, nsize, "mpi_real4",  &
                                gd_recv_r4, nsize, "mpi_real4", 0, "GRID", ierr )
         else
@@ -3464,7 +3507,8 @@ module gridStateVector_mod
               yourid = youridx + youridy*mpi_npex
                 work2d_r4(statevector%allLonBeg(youridx+1):statevector%allLonEnd(youridx+1),  &
                           statevector%allLatBeg(youridy+1):statevector%allLatEnd(youridy+1)) = &
-                  gd_recv_r4(:,:,yourid+1)
+                  gd_recv_r4(1:statevector%allLonPerPE(youridx+1),  &
+                             1:statevector%allLatPerPE(youridy+1),yourid+1)
             end do
           end do
 !$OMP END PARALLEL DO
@@ -3500,17 +3544,19 @@ module gridStateVector_mod
 
           if( statevector%dataKind == 8 ) then
             field_r8 => gsv_getField_r8(statevector,vnl_varNameList(varIndex))
-            gd_send_r4(:,:) =  &
+            gd_send_r4(1:statevector%lonPerPE,  &
+                       1:statevector%latPerPE) =  &
                 real(field_r8(statevector%myLonBeg:statevector%myLonEnd, &
                               statevector%myLatBeg:statevector%myLatEnd,levIndex,stepIndex),4)
           else
             field_r4 => gsv_getField_r4(statevector,vnl_varNameList(varIndex))
-            gd_send_r4(:,:) =  &
+            gd_send_r4(1:statevector%lonPerPE,  &
+                       1:statevector%latPerPE) =  &
                 field_r4(statevector%myLonBeg:statevector%myLonEnd, &
                          statevector%myLatBeg:statevector%myLatEnd,levIndex,stepIndex)
           end if
 
-          nsize = statevector%lonPerPE*statevector%latPerPE
+          nsize = statevector%lonPerPEmax*statevector%latPerPEmax
           if( (mpi_nprocs > 1) .and. (statevector%mpi_local) ) then
             call rpn_comm_gather(gd_send_r4, nsize, "mpi_real4",  &
                                  gd_recv_r4, nsize, "mpi_real4", 0, "GRID", ierr )
@@ -3526,7 +3572,8 @@ module gridStateVector_mod
                 yourid = youridx + youridy*mpi_npex
                   work2d_r4(statevector%allLonBeg(youridx+1):statevector%allLonEnd(youridx+1),  &
                             statevector%allLatBeg(youridy+1):statevector%allLatEnd(youridy+1)) = &
-                    gd_recv_r4(:,:,yourid+1)
+                    gd_recv_r4(1:statevector%allLonPerPE(youridx+1),  &
+                               1:statevector%allLatPerPE(youridy+1), yourid+1)
               end do
             end do
 !$OMP END PARALLEL DO
@@ -3964,7 +4011,7 @@ module gridStateVector_mod
 
     ! compute 3D log pressure fields
     Psfc_ptr => gsv_getField3D_r8(statevector_ref,'P0')
-    allocate(Psfc_ref(statevector_inout%lonPerPE,statevector_inout%latPerPE))
+    allocate(Psfc_ref(statevector_inout%lonPerPEmax,statevector_inout%latPerPEmax))
     Psfc_ref(:,:) =  &
                   Psfc_ptr(statevector_inout%myLonBeg:statevector_inout%myLonEnd,  &
                   statevector_inout%myLatBeg:statevector_inout%myLatEnd, 1)

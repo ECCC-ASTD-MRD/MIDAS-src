@@ -387,7 +387,7 @@ contains
     !
     numColumns = col_getNumCol(columnhr)
     call rpn_comm_allreduce(numColumns,numColumn_maxmpiglobal,1,  &
-         "MPI_INTEGER","MPI_MAX","GRID",ierr)
+         'MPI_INTEGER','MPI_MAX','GRID',ierr)
 
     !
     !     Allocate trial field column object and other local arrays
@@ -661,17 +661,17 @@ contains
 
        ! gather and compute the max number of obs over all processors for each timestep
        call rpn_comm_allreduce(nobs(jstep),nobs_maxmpiglobal(jstep),1,  &
-            "MPI_INTEGER","MPI_MAX","GRID",ierr)
-       call rpn_comm_allgather(nobs(jstep),1,"mpi_integer",       &
-            nobs_mpiglobal(jstep,:),1,"mpi_integer", &
-            "GRID",ierr)
+            'MPI_INTEGER','MPI_MAX','GRID',ierr)
+       call rpn_comm_allgather(nobs(jstep),1,'mpi_integer',       &
+            nobs_mpiglobal(jstep,:),1,'mpi_integer', &
+            'GRID',ierr)
        ! gather lon-lat of observations from all processors
-       call rpn_comm_allgather(dlonfld,numColumn_maxmpiglobal,"mpi_double_precision",       &
-            dlonfld_mpiglobal,numColumn_maxmpiglobal,"mpi_double_precision", &
-            "GRID",ierr)
-       call rpn_comm_allgather(dlatfld,numColumn_maxmpiglobal,"mpi_double_precision",       &
-            dlatfld_mpiglobal,numColumn_maxmpiglobal,"mpi_double_precision", &
-            "GRID",ierr)
+       call rpn_comm_allgather(dlonfld,numColumn_maxmpiglobal,'mpi_double_precision',       &
+            dlonfld_mpiglobal,numColumn_maxmpiglobal,'mpi_double_precision', &
+            'GRID',ierr)
+       call rpn_comm_allgather(dlatfld,numColumn_maxmpiglobal,'mpi_double_precision',       &
+            dlatfld_mpiglobal,numColumn_maxmpiglobal,'mpi_double_precision', &
+            'GRID',ierr)
 
        zig1 = 0.0D0
        zig2 = 0.0D0
@@ -949,7 +949,7 @@ contains
       integer :: extra1, extra2, extra3
       integer :: ig1, ig2, ig3, ig4
 
-      if(mpi_doBarrier) call rpn_comm_barrier("GRID",ierr)
+      if(mpi_doBarrier) call rpn_comm_barrier('GRID',ierr)
       call tmg_start(91,'READTRIALFIELD')
       !
       ! Determine the type and number of vertical levels
@@ -1148,20 +1148,20 @@ contains
                   if (mpi_myid == pe_send) then
                      nsize=nobs_mpiglobal(jstep,jlatlontile)
                      call rpn_comm_send(varInterp_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile), &
-                          nsize,"mpi_real4",pe_recv,tag,"GRID",ierr)
+                          nsize,'mpi_real4',pe_recv,tag,'GRID',ierr)
                      if (trim(varName).eq.'UU') then
                         call rpn_comm_send(varInterp_VV_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile), &
-                             nsize,"mpi_real4",pe_recv,tag2,"GRID",ierr)
+                             nsize,'mpi_real4',pe_recv,tag2,'GRID',ierr)
                      endif
                   endif
 
                   if (mpi_myid == pe_recv) then
                      nsize=nobs_mpiglobal(jstep,jlatlontile)
                      call rpn_comm_recv(varInterp_recv_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep), &
-                          nsize,"mpi_real4",pe_send,tag,"GRID",status,ierr)
+                          nsize,'mpi_real4',pe_send,tag,'GRID',status,ierr)
                      if (trim(varName) == 'UU') then
                         call rpn_comm_recv(varInterp_recv_VV_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep), &
-                             nsize,"mpi_real4",pe_send,tag2,"GRID",status,ierr)
+                             nsize,'mpi_real4',pe_send,tag2,'GRID',status,ierr)
                      endif
                   endif
                endif
@@ -1322,20 +1322,20 @@ contains
     write(*,'(a15,f30.16)') 'JOCHM    = ',ZJOCHM
     write(*,'(a15,f30.16)') 'Total Jo = ',ZJO
 
-    call mpi_allreduce_sumreal8scalar(ZJORAOB,"GRID")
-    call mpi_allreduce_sumreal8scalar(ZJOAIREP,"GRID")
-    call mpi_allreduce_sumreal8scalar(ZJOSURFC,"GRID")
-    call mpi_allreduce_sumreal8scalar(ZJOSFCSF,"GRID")
-    call mpi_allreduce_sumreal8scalar(ZJOSFCUA,"GRID")
-    call mpi_allreduce_sumreal8scalar(ZJOSFCSC,"GRID")
-    call mpi_allreduce_sumreal8scalar(ZJOSFCGP,"GRID")
-    call mpi_allreduce_sumreal8scalar(ZJOTOV,"GRID")
-    call mpi_allreduce_sumreal8scalar(ZJOSATWIND,"GRID")
-    call mpi_allreduce_sumreal8scalar(ZJOPROF,"GRID")
-    call mpi_allreduce_sumreal8scalar(ZJOGPSRO,"GRID")
-    call mpi_allreduce_sumreal8scalar(ZJOGPSGB,"GRID")
-    call mpi_allreduce_sumreal8scalar(ZJOCHM,"GRID")
-    call mpi_allreduce_sumreal8scalar(ZJO,"GRID")
+    call mpi_allreduce_sumreal8scalar(ZJORAOB,'GRID')
+    call mpi_allreduce_sumreal8scalar(ZJOAIREP,'GRID')
+    call mpi_allreduce_sumreal8scalar(ZJOSURFC,'GRID')
+    call mpi_allreduce_sumreal8scalar(ZJOSFCSF,'GRID')
+    call mpi_allreduce_sumreal8scalar(ZJOSFCUA,'GRID')
+    call mpi_allreduce_sumreal8scalar(ZJOSFCSC,'GRID')
+    call mpi_allreduce_sumreal8scalar(ZJOSFCGP,'GRID')
+    call mpi_allreduce_sumreal8scalar(ZJOTOV,'GRID')
+    call mpi_allreduce_sumreal8scalar(ZJOSATWIND,'GRID')
+    call mpi_allreduce_sumreal8scalar(ZJOPROF,'GRID')
+    call mpi_allreduce_sumreal8scalar(ZJOGPSRO,'GRID')
+    call mpi_allreduce_sumreal8scalar(ZJOGPSGB,'GRID')
+    call mpi_allreduce_sumreal8scalar(ZJOCHM,'GRID')
+    call mpi_allreduce_sumreal8scalar(ZJO,'GRID')
 
     write(*,*) 'Cost function values summed for all MPI tasks:'
     write(*,'(a15,f30.16)') 'JORAOB   = ',ZJORAOB
@@ -1481,6 +1481,7 @@ contains
     case ('LATLONTILES')
        !- 2.3 Distribute by latitude/longitude tiles for both obs_ipc and obs_ipt:
        do headerIndex = 1, numHeaderFile
+          ! compute grid index for each observation header
           lat_r8 = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex)
           lon_r8 = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex)
           lat_r4 = real(lat_r8) * MPC_DEGREES_PER_RADIAN_R4
@@ -1488,11 +1489,14 @@ contains
           ierr = gdxyfll( hco_anl%EZscintID,   & ! IN 
                xpos_r4, ypos_r4,    & ! OUT
                lat_r4, lon_r4, 1 )    ! IN
+
+          ! compute correponding mpi task id for each observation
           latIndex = floor(ypos_r4)
           lonIndex = floor(xpos_r4)
-          IP_y = ( mpi_npey * (latIndex-1) ) / hco_anl%nj
-          IP_x = ( mpi_npex * (lonIndex-1) ) / hco_anl%ni
+          IP_y = mpivar_myidYfromLat(latIndex, hco_anl%nj)
+          IP_x = mpivar_myidXfromLon(lonIndex, hco_anl%ni)
           IP = IP_x + IP_y*mpi_npex
+
           call obs_headSet_i(obsSpaceData,OBS_IPC,headerIndex, IP)
           call obs_headSet_i(obsSpaceData,OBS_IPT,headerIndex, IP)
        end do
@@ -1501,11 +1505,12 @@ contains
        !- 2.4 Distribute by latitude/longitude tiles, but with simple & cheap balancing for obs_ipc (1 send or recv):
 
        write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-       call rpn_comm_allgather(numHeaderFile, 1, "mpi_integer",  &
-            numHeaderFile_mpiglobal, 1, "mpi_integer", "GRID", ierr)
+       call rpn_comm_allgather(numHeaderFile, 1, 'mpi_integer',  &
+            numHeaderFile_mpiglobal, 1, 'mpi_integer', 'GRID', ierr)
 
        ! set PE index for the tile (where interpolation will be done)
        do headerIndex = 1, numHeaderFile
+          ! compute grid index for each observation header
           lat_r8 = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex)
           lon_r8 = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex)
           lat_r4 = real(lat_r8) * MPC_DEGREES_PER_RADIAN_R4
@@ -1513,10 +1518,12 @@ contains
           ierr = gdxyfll( hco_anl%EZscintID,   & ! IN 
                xpos_r4, ypos_r4,    & ! OUT
                lat_r4, lon_r4, 1 )    ! IN
+
+          ! compute corresponding mpi task id for each observation
           latIndex = floor(ypos_r4)
           lonIndex = floor(xpos_r4)
-          IP_y = ( mpi_npey * (latIndex-1) ) / hco_anl%nj
-          IP_x = ( mpi_npex * (lonIndex-1) ) / hco_anl%ni
+          IP_y = mpivar_myidYfromLat(latIndex, hco_anl%nj)
+          IP_x = mpivar_myidXfromLon(lonIndex, hco_anl%ni)
           IP = IP_x + IP_y*mpi_npex
           call obs_headSet_i(obsSpaceData,OBS_IPT,headerIndex,IP)
        end do
@@ -1541,10 +1548,10 @@ contains
           IPT_mpilocal(headerIndex) = obs_headElem_i(obsSpaceData,OBS_IPT,headerIndex)
           obsLoad_mpilocal(headerIndex) = obsLoad(headerIndex)
        enddo
-       call rpn_comm_allgather(IPT_mpilocal, nsize, "mpi_integer",  &
-            IPT_mpiglobal, nsize, "mpi_integer", "GRID", ierr)
-       call rpn_comm_allgather(obsLoad_mpilocal, nsize, "mpi_integer",  &
-            obsLoad_mpiglobal, nsize, "mpi_integer", "GRID", ierr)
+       call rpn_comm_allgather(IPT_mpilocal, nsize, 'mpi_integer',  &
+            IPT_mpiglobal, nsize, 'mpi_integer', 'GRID', ierr)
+       call rpn_comm_allgather(obsLoad_mpilocal, nsize, 'mpi_integer',  &
+            obsLoad_mpiglobal, nsize, 'mpi_integer', 'GRID', ierr)
 
        write(*,*) ' '
        write(*,*) 'setObsMpiStrategy: do balancing according to approximate load'
@@ -1557,7 +1564,7 @@ contains
           numHeaderTile_mpilocal(IP+1) = numHeaderTile_mpilocal(IP+1) + 1
        end do
        call rpn_comm_allreduce(numHeaderTile_mpilocal,numHeaderTile_mpiglobal,mpi_nprocs,  &
-            "MPI_INTEGER","MPI_SUM","GRID",ierr)
+            'MPI_INTEGER','MPI_SUM','GRID',ierr)
        if(mpi_myid == 0) write(*,*) 'setObsMpiStrategy: original numHeaderTile_mpiglobal     =',numHeaderTile_mpiglobal(:)
 
        ! compute total load per PE on tiles
@@ -1569,7 +1576,7 @@ contains
           endif
        end do
        call rpn_comm_allreduce(obsLoadTile_mpilocal,obsLoadTile_mpiglobal,mpi_nprocs,  &
-            "MPI_INTEGER","MPI_SUM","GRID",ierr)
+            'MPI_INTEGER','MPI_SUM','GRID',ierr)
        if(mpi_myid == 0) write(*,*) 'setObsMpiStrategy: original obsLoadTile_mpiglobal     =',obsLoadTile_mpiglobal(:)
 
        ! set obsLoad to zero if only 1 header on the tile to avoid sending it
@@ -1650,17 +1657,17 @@ contains
        do headerIndex = 1, numHeaderFile
           codtyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
           if(tvs_isIdBurpTovs(codtyp) ) numtovs(mpi_myid+1)=numtovs(mpi_myid+1)+1
-          if(tvs_isIdBurpInst(codtyp,"IASI") ) numir(mpi_myid+1)=numir(mpi_myid+1)+1
-          if(tvs_isIdBurpInst(codtyp,"AIRS") ) numir(mpi_myid+1)=numir(mpi_myid+1)+1
-          if(tvs_isIdBurpInst(codtyp,"CRIS") ) numir(mpi_myid+1)=numir(mpi_myid+1)+1
+          if(tvs_isIdBurpInst(codtyp,'IASI') ) numir(mpi_myid+1)=numir(mpi_myid+1)+1
+          if(tvs_isIdBurpInst(codtyp,'AIRS') ) numir(mpi_myid+1)=numir(mpi_myid+1)+1
+          if(tvs_isIdBurpInst(codtyp,'CRIS') ) numir(mpi_myid+1)=numir(mpi_myid+1)+1
           totalObsLoad_mpilocal(mpi_myid+1) = totalObsLoad_mpilocal(mpi_myid+1) + obsLoad(headerIndex)
        enddo
        call rpn_comm_allreduce(numtovs,numtovs_mpiglobal,mpi_nprocs,  &
-            "MPI_INTEGER","MPI_SUM","GRID",ierr)
+            'MPI_INTEGER','MPI_SUM','GRID',ierr)
        call rpn_comm_allreduce(numir,numir_mpiglobal,mpi_nprocs,  &
-            "MPI_INTEGER","MPI_SUM","GRID",ierr)
+            'MPI_INTEGER','MPI_SUM','GRID',ierr)
        call rpn_comm_allreduce(totalObsLoad_mpilocal,totalObsLoad_mpiglobal,mpi_nprocs,  &
-            "MPI_INTEGER","MPI_SUM","GRID",ierr)
+            'MPI_INTEGER','MPI_SUM','GRID',ierr)
        if(mpi_myid == 0) write(*,*) 'setObsMpiStrategy: number of FILE headers for all TOVS = ',numtovs_mpiglobal(:)
        if(mpi_myid == 0) write(*,*) '                   number of FILE headers for only IR  = ',numir_mpiglobal(:)
        if(mpi_myid == 0) write(*,*) '                   estimated total obsLoad             = ',totalObsLoad_mpiglobal(:)
@@ -1673,17 +1680,17 @@ contains
           IP = obs_headElem_i(obsSpaceData,OBS_IPT,headerIndex)
           codtyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
           if(tvs_isIdBurpTovs(codtyp) ) numtovs(IP+1)=numtovs(IP+1)+1
-          if(tvs_isIdBurpInst(codtyp,"IASI") ) numir(IP+1)=numir(IP+1)+1
-          if(tvs_isIdBurpInst(codtyp,"AIRS") ) numir(IP+1)=numir(IP+1)+1
-          if(tvs_isIdBurpInst(codtyp,"CRIS") ) numir(IP+1)=numir(IP+1)+1
+          if(tvs_isIdBurpInst(codtyp,'IASI') ) numir(IP+1)=numir(IP+1)+1
+          if(tvs_isIdBurpInst(codtyp,'AIRS') ) numir(IP+1)=numir(IP+1)+1
+          if(tvs_isIdBurpInst(codtyp,'CRIS') ) numir(IP+1)=numir(IP+1)+1
           totalObsLoad_mpilocal(IP+1) = totalObsLoad_mpilocal(IP+1) + obsLoad(headerIndex)
        enddo
        call rpn_comm_allreduce(numtovs,numtovs_mpiglobal,mpi_nprocs,  &
-            "MPI_INTEGER","MPI_SUM","GRID",ierr)
+            'MPI_INTEGER','MPI_SUM','GRID',ierr)
        call rpn_comm_allreduce(numir,numir_mpiglobal,mpi_nprocs,  &
-            "MPI_INTEGER","MPI_SUM","GRID",ierr)
+            'MPI_INTEGER','MPI_SUM','GRID',ierr)
        call rpn_comm_allreduce(totalObsLoad_mpilocal,totalObsLoad_mpiglobal,mpi_nprocs,  &
-            "MPI_INTEGER","MPI_SUM","GRID",ierr)
+            'MPI_INTEGER','MPI_SUM','GRID',ierr)
        if(mpi_myid == 0) write(*,*) 'setObsMpiStrategy: number of TILE headers for all TOVS = ',numtovs_mpiglobal(:)
        if(mpi_myid == 0) write(*,*) '                   number of TILE headers for only IR  = ',numir_mpiglobal(:)
        if(mpi_myid == 0) write(*,*) '                   estimated total obsLoad             = ',totalObsLoad_mpiglobal(:)
@@ -1696,17 +1703,17 @@ contains
           IP = obs_headElem_i(obsSpaceData,OBS_IPC,headerIndex)
           codtyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
           if(tvs_isIdBurpTovs(codtyp) ) numtovs(IP+1)=numtovs(IP+1)+1
-          if(tvs_isIdBurpInst(codtyp,"IASI") ) numir(IP+1)=numir(IP+1)+1
-          if(tvs_isIdBurpInst(codtyp,"AIRS") ) numir(IP+1)=numir(IP+1)+1
-          if(tvs_isIdBurpInst(codtyp,"CRIS") ) numir(IP+1)=numir(IP+1)+1
+          if(tvs_isIdBurpInst(codtyp,'IASI') ) numir(IP+1)=numir(IP+1)+1
+          if(tvs_isIdBurpInst(codtyp,'AIRS') ) numir(IP+1)=numir(IP+1)+1
+          if(tvs_isIdBurpInst(codtyp,'CRIS') ) numir(IP+1)=numir(IP+1)+1
           totalObsLoad_mpilocal(IP+1) = totalObsLoad_mpilocal(IP+1) + obsLoad(headerIndex)
        enddo
        call rpn_comm_allreduce(numtovs,numtovs_mpiglobal,mpi_nprocs,  &
-            "MPI_INTEGER","MPI_SUM","GRID",ierr)
+            'MPI_INTEGER','MPI_SUM','GRID',ierr)
        call rpn_comm_allreduce(numir,numir_mpiglobal,mpi_nprocs,  &
-            "MPI_INTEGER","MPI_SUM","GRID",ierr)
+            'MPI_INTEGER','MPI_SUM','GRID',ierr)
        call rpn_comm_allreduce(totalObsLoad_mpilocal,totalObsLoad_mpiglobal,mpi_nprocs,  &
-            "MPI_INTEGER","MPI_SUM","GRID",ierr)
+            'MPI_INTEGER','MPI_SUM','GRID',ierr)
        if(mpi_myid == 0) write(*,*) 'setObsMpiStrategy: number of COLS headers for all TOVS = ',numtovs_mpiglobal(:)
        if(mpi_myid == 0) write(*,*) '                   number of COLS headers for only IR  = ',numir_mpiglobal(:)
        if(mpi_myid == 0) write(*,*) '                   estimated total obsLoad             = ',totalObsLoad_mpiglobal(:)
@@ -1715,40 +1722,40 @@ contains
        do headerIndex = 1, numHeaderFile
           IP = obs_headElem_i(obsSpaceData,OBS_IPC,headerIndex)
           codtyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
-          if(tvs_isIdBurpInst(codtyp,"AMSUA")) numtovs(IP+1)=numtovs(IP+1)+1
+          if(tvs_isIdBurpInst(codtyp,'AMSUA')) numtovs(IP+1)=numtovs(IP+1)+1
        enddo
        call rpn_comm_allreduce(numtovs,numtovs_mpiglobal,mpi_nprocs,  &
-            "MPI_INTEGER","MPI_SUM","GRID",ierr)
+            'MPI_INTEGER','MPI_SUM','GRID',ierr)
        if(mpi_myid == 0) write(*,*) 'setObsMpiStrategy: number of COLS headers for AMSUA     = ',numtovs_mpiglobal(:)
 
        numtovs(:)=0
        do headerIndex = 1, numHeaderFile
           IP = obs_headElem_i(obsSpaceData,OBS_IPC,headerIndex)
           codtyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
-          if(tvs_isIdBurpInst(codtyp,"AMSUB") .or. tvs_isIdBurpInst(codtyp,"MHS")) numtovs(IP+1)=numtovs(IP+1)+1
+          if(tvs_isIdBurpInst(codtyp,'AMSUB') .or. tvs_isIdBurpInst(codtyp,'MHS')) numtovs(IP+1)=numtovs(IP+1)+1
        enddo
        call rpn_comm_allreduce(numtovs,numtovs_mpiglobal,mpi_nprocs,  &
-            "MPI_INTEGER","MPI_SUM","GRID",ierr)
+            'MPI_INTEGER','MPI_SUM','GRID',ierr)
        if(mpi_myid == 0) write(*,*) 'setObsMpiStrategy: number of COLS headers for AMSUB/MHS = ',numtovs_mpiglobal(:)
 
        numtovs(:)=0
        do headerIndex = 1, numHeaderFile
           IP = obs_headElem_i(obsSpaceData,OBS_IPC,headerIndex)
           codtyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
-          if(tvs_isIdBurpInst(codtyp,"METEOSAT") .or. tvs_isIdBurpInst(codtyp,"GOES")) numtovs(IP+1)=numtovs(IP+1)+1
+          if(tvs_isIdBurpInst(codtyp,'METEOSAT') .or. tvs_isIdBurpInst(codtyp,'GOES')) numtovs(IP+1)=numtovs(IP+1)+1
        enddo
        call rpn_comm_allreduce(numtovs,numtovs_mpiglobal,mpi_nprocs,  &
-            "MPI_INTEGER","MPI_SUM","GRID",ierr)
+            'MPI_INTEGER','MPI_SUM','GRID',ierr)
        if(mpi_myid == 0) write(*,*) 'setObsMpiStrategy: number of COLS headers for GEORAD    = ',numtovs_mpiglobal(:)
 
        numtovs(:)=0
        do headerIndex = 1, numHeaderFile
           IP = obs_headElem_i(obsSpaceData,OBS_IPC,headerIndex)
           codtyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
-          if(tvs_isIdBurpInst(codtyp,"SSMIS")) numtovs(IP+1)=numtovs(IP+1)+1
+          if(tvs_isIdBurpInst(codtyp,'SSMIS')) numtovs(IP+1)=numtovs(IP+1)+1
        enddo
        call rpn_comm_allreduce(numtovs,numtovs_mpiglobal,mpi_nprocs,  &
-            "MPI_INTEGER","MPI_SUM","GRID",ierr)
+            'MPI_INTEGER','MPI_SUM','GRID',ierr)
        if(mpi_myid == 0) write(*,*) 'setObsMpiStrategy: number of COLS headers for SSMIS     = ',numtovs_mpiglobal(:)
 
       end if
@@ -1774,11 +1781,11 @@ contains
       ! a separate program to do a more objective evalution of this
 
       codtyp = obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex)
-      if(tvs_isIdBurpInst(codtyp,"IASI")) then
+      if(tvs_isIdBurpInst(codtyp,'IASI')) then
          obsLoad = 200
-      elseif(tvs_isIdBurpInst(codtyp,"AIRS")) then
+      elseif(tvs_isIdBurpInst(codtyp,'AIRS')) then
          obsLoad = 200
-      elseif(tvs_isIdBurpInst(codtyp,"CRIS")) then
+      elseif(tvs_isIdBurpInst(codtyp,'CRIS')) then
          obsLoad = 150
       elseif(tvs_isIdBurpTovs(codtyp)) then
          ! all other types of radiance obs

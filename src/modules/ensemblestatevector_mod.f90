@@ -550,7 +550,7 @@ CONTAINS
     integer :: readFilePE(1000)
     integer :: memberIndexOffset, totalEnsembleSize
     integer :: length_envVariable
-    integer :: lonPerPE, latPerPE, ni, nj, nk, numStep, numlevelstosend, numlevelstosend2
+    integer :: lonPerPEmax, latPerPEmax, ni, nj, nk, numStep, numlevelstosend, numlevelstosend2
     integer :: memberIndex, memberIndex2, fileMemberIndex, stepIndex, jvar, jk, jk2, jk3
     character(len=256) :: ensFileName
     character(len=32)  :: envVariable
@@ -569,20 +569,22 @@ CONTAINS
 
     !- 1. Initial setup
 
-    lonPerPE = ens%statevector_work%lonPerPE
-    latPerPE = ens%statevector_work%latPerPE
-    ni       = ens%statevector_work%ni
-    nj       = ens%statevector_work%nj
-    nk       = ens%statevector_work%nk
-    numStep  = ens%statevector_work%numStep
+    lonPerPEmax = ens%statevector_work%lonPerPEmax
+    latPerPEmax = ens%statevector_work%latPerPEmax
+    ni          = ens%statevector_work%ni
+    nj          = ens%statevector_work%nj
+    nk          = ens%statevector_work%nk
+    numStep     = ens%statevector_work%numStep
     dateStampList => ens%statevector_work%dateStampList
 
     ens%ensPathName = trim(ensPathName)
 
     ! Memory allocation
     numLevelsToSend = 10
-    allocate(gd_send_r4(lonPerPE,latPerPE,numLevelsToSend,mpi_nprocs))
-    allocate(gd_recv_r4(lonPerPE,latPerPE,numLevelsToSend,mpi_nprocs))
+    allocate(gd_send_r4(lonPerPEmax,latPerPEmax,numLevelsToSend,mpi_nprocs))
+    allocate(gd_recv_r4(lonPerPEmax,latPerPEmax,numLevelsToSend,mpi_nprocs))
+    gd_send_r4(:,:,:,:) = 0.0
+    gd_recv_r4(:,:,:,:) = 0.0
 
     !allocate(dateStampList(numStep))
     !call tim_getstamplist(dateStampList,numStep,tim_getDatestamp())
@@ -769,14 +771,15 @@ CONTAINS
             do youridy = 0, (mpi_npey-1)
               do youridx = 0, (mpi_npex-1)
                 yourid = youridx + youridy*mpi_npex
-                gd_send_r4(:,:,1:numLevelsToSend2,yourid+1) =  &
+                gd_send_r4(1:ens%statevector_work%allLonPerPE(youridx+1),  &
+                           1:ens%statevector_work%allLatPerPE(youridy+1), 1:numLevelsToSend2, yourid+1) =  &
                   ptr3d_r4(ens%statevector_work%allLonBeg(youridx+1):ens%statevector_work%allLonEnd(youridx+1),  &
-                           ens%statevector_work%allLatBeg(youridy+1):ens%statevector_work%allLatEnd(youridy+1),jk:jk2)
+                           ens%statevector_work%allLatBeg(youridy+1):ens%statevector_work%allLatEnd(youridy+1), jk:jk2)
               end do
             end do
 !$OMP END PARALLEL DO
 
-            nsize = lonPerPE*latPerPE*numLevelsToSend2
+            nsize = lonPerPEmax * latPerPEmax * numLevelsToSend2
             if (mpi_nprocs.gt.1) then
               call rpn_comm_alltoall(gd_send_r4(:,:,1:numLevelsToSend2,:),nsize,"mpi_real4",  &
                                      gd_recv_r4(:,:,1:numLevelsToSend2,:),nsize,"mpi_real4","GRID",ierr)
@@ -789,7 +792,8 @@ CONTAINS
             do jk3 = 1, numLevelsToSend2
               do memberIndex2 = 1+(batchnum-1)*mpi_nprocs, memberIndex
                 yourid = readFilePE(memberIndex2)
-                ens%repack_r4(jk3+jk-1)%onelevel(memberIndex2,stepIndex,:,:) = gd_recv_r4(:,:,jk3,yourid+1)
+                ens%repack_r4(jk3+jk-1)%onelevel(memberIndex2,stepIndex, :, :) =  &
+                     gd_recv_r4(1:ens%statevector_work%lonPerPE, 1:ens%statevector_work%latPerPE, jk3, yourid+1)
               end do
             end do
 !$OMP END PARALLEL DO
@@ -848,7 +852,7 @@ CONTAINS
     integer :: batchnum, nsize, status, ierr
     integer :: yourid, youridx, youridy
     integer :: writeFilePE(1000)
-    integer :: lonPerPE, latPerPE, ni, nj, nk, numStep, numlevelstosend, numlevelstosend2
+    integer :: lonPerPE, lonPerPEmax, latPerPE, latPerPEmax, ni, nj, nk, numStep, numlevelstosend, numlevelstosend2
     integer :: memberIndex, memberIndex2, stepIndex, jvar, jk, jk2, jk3, ip3
     character(len=256) :: ensFileName
 
@@ -867,19 +871,21 @@ CONTAINS
       ip3 = 0
     end if
 
-    lonPerPE = ens%statevector_work%lonPerPE
-    latPerPE = ens%statevector_work%latPerPE
-    ni       = ens%statevector_work%ni
-    nj       = ens%statevector_work%nj
-    nk       = ens%statevector_work%nk
-    numStep  = ens%statevector_work%numStep
+    lonPerPE    = ens%statevector_work%lonPerPE
+    latPerPE    = ens%statevector_work%latPerPE
+    lonPerPEmax = ens%statevector_work%lonPerPEmax
+    latPerPEmax = ens%statevector_work%latPerPEmax
+    ni          = ens%statevector_work%ni
+    nj          = ens%statevector_work%nj
+    nk          = ens%statevector_work%nk
+    numStep     = ens%statevector_work%numStep
 
     ens%ensPathName = trim(ensPathName)
 
     ! Memory allocation
     numLevelsToSend = 10
-    allocate(gd_send_r4(lonPerPE,latPerPE,numLevelsToSend,mpi_nprocs))
-    allocate(gd_recv_r4(lonPerPE,latPerPE,numLevelsToSend,mpi_nprocs))
+    allocate(gd_send_r4(lonPerPEmax,latPerPEmax,numLevelsToSend,mpi_nprocs))
+    allocate(gd_recv_r4(lonPerPEmax,latPerPEmax,numLevelsToSend,mpi_nprocs))
     gd_send_r4(:,:,:,:) = 0.0
     gd_recv_r4(:,:,:,:) = 0.0
 
@@ -935,12 +941,12 @@ CONTAINS
             do jk3 = 1, numLevelsToSend2
               do memberIndex2 = 1+(batchnum-1)*mpi_nprocs, min(ens%numMembers, batchnum*mpi_nprocs)
                 yourid = writeFilePE(memberIndex2)
-                gd_send_r4(:,:,jk3,yourid+1) = ens%repack_r4(jk3+jk-1)%onelevel(memberIndex2,stepIndex,:,:)
+                gd_send_r4(1:lonPerPE,1:latPerPE,jk3,yourid+1) = ens%repack_r4(jk3+jk-1)%onelevel(memberIndex2,stepIndex,:,:)
               end do
             end do
 !$OMP END PARALLEL DO
 
-            nsize = lonPerPE*latPerPE*numLevelsToSend2
+            nsize = lonPerPEmax * latPerPEmax * numLevelsToSend2
             if (mpi_nprocs > 1) then
               call rpn_comm_alltoall(gd_send_r4(:,:,1:numLevelsToSend2,:),nsize,"mpi_real4",  &
                                      gd_recv_r4(:,:,1:numLevelsToSend2,:),nsize,"mpi_real4","GRID",ierr)
@@ -954,8 +960,9 @@ CONTAINS
               do youridx = 0, (mpi_npex-1)
                 yourid = youridx + youridy*mpi_npex
                 ptr3d_r4(ens%statevector_work%allLonBeg(youridx+1):ens%statevector_work%allLonEnd(youridx+1),  &
-                         ens%statevector_work%allLatBeg(youridy+1):ens%statevector_work%allLatEnd(youridy+1),jk:jk2) = &
-                    gd_recv_r4(:,:,1:numLevelsToSend2,yourid+1)
+                         ens%statevector_work%allLatBeg(youridy+1):ens%statevector_work%allLatEnd(youridy+1), jk:jk2) = &
+                    gd_recv_r4(1:ens%statevector_work%allLonPerPE(youridx+1),  &
+                               1:ens%statevector_work%allLatPerPE(youridy+1), 1:numLevelsToSend2, yourid+1)
 
               end do
             end do

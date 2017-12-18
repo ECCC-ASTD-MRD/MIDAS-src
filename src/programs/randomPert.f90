@@ -27,6 +27,7 @@ program midas_randomPert
   use mpi_mod
   use mpivar_mod
   use mathPhysConstants_mod
+  use ramDisk_mod
   use controlVector_mod
   use gridStateVector_mod
   use bmatrix_mod
@@ -51,10 +52,11 @@ program midas_randomPert
   integer :: idate, itime, ndate, nulnam
   integer :: get_max_rss, n_grid_point, n_grid_point_glb
 
-  integer :: latPerPE, myLatBeg, myLatEnd
-  integer :: lonPerPE, myLonBeg, myLonEnd
+  integer :: latPerPE, latPerPEmax, myLatBeg, myLatEnd
+  integer :: lonPerPE, lonPerPEmax, myLonBeg, myLonEnd
+  integer :: cvDim_mpilocal
 
-  real(8), allocatable :: controlVector(:)
+  real(8), allocatable :: controlVector(:), controlVector_mpiglobal(:)
   real(8), allocatable :: gdmean(:,:,:)
   real(4), allocatable :: ensemble_r4(:,:,:,:)
   real(8), allocatable :: avg_pturb_var(:)
@@ -67,9 +69,10 @@ program midas_randomPert
   character(len=12) :: etiket
   character(len=12) :: out_etiket
   
-  logical  :: remove_mean, smoothVariances, write_mpi
+  logical  :: remove_mean, smoothVariances, write_mpi, mpiTopoIndependent
   integer  :: nens, seed, date
-  NAMELIST /NAMENKF/nens, seed, date, out_etiket,remove_mean, smoothVariances, write_mpi
+  NAMELIST /NAMENKF/nens, seed, date, out_etiket, remove_mean,  &
+                    smoothVariances, write_mpi, mpiTopoIndependent
 
   write(*,'(/,' //  &
         '3(" *****************"),/,' //                   &
@@ -101,6 +104,7 @@ program midas_randomPert
   out_etiket='RANDOM_PERT' 
   smoothVariances = .false.
   write_mpi = .false.
+  mpiTopoIndependent = .false.
 
   !- 1.2 Read the namelist
   nulnam=0
@@ -119,13 +123,16 @@ program midas_randomPert
   !- 2.  Initialization
   !
 
+  ! Setup the ramdisk directory (if supplied)
+  call ram_setup
+
   !- 2.1 Decompose ndate(yyyymmddhh) into date(YYYYMMDD) time(HHMMSShh)
   !      calculate date-time stamp for postproc.ftn 
   idate   = ndate/100
   itime   = (ndate-idate*100)*1000000
   ierr    = newdate(nstamp, idate, itime, 3)
-  if( mpi_myid == 0 ) write(*,*)' idate= ', idate, ' time= ', itime
-  if( mpi_myid == 0 ) write(*,*)' date= ', ndate, ' stamp= ', nstamp
+  if( mpi_myid == 0 ) write(*,*) ' idate= ', idate, ' time= ', itime
+  if( mpi_myid == 0 ) write(*,*) ' date= ', ndate, ' stamp= ', nstamp
 
   !- 2.2 Initialize variables of the model states
   call gsv_setup
@@ -137,8 +144,8 @@ program midas_randomPert
   call tim_setDatestamp(nstamp)
 
   !- 2.3 Initialize the Analysis grid
-  if (mpi_myid == 0) write(*,*)''
-  if (mpi_myid == 0) write(*,*)' Set hco parameters for analysis grid'
+  if (mpi_myid == 0) write(*,*) ''
+  if (mpi_myid == 0) write(*,*) ' Set hco parameters for analysis grid'
   call hco_setupFromFile(hco_anl, './analysisgrid', 'ANALYSIS', 'Analysis' ) ! IN
 
   if ( hco_anl % global ) then
@@ -151,9 +158,9 @@ program midas_randomPert
   end if
 
   call mpivar_setup_latbands(hco_anl % nj,                & ! IN
-                             latPerPE, myLatBeg, myLatEnd ) ! OUT
+                             latPerPE, latPerPEmax, myLatBeg, myLatEnd ) ! OUT
   call mpivar_setup_lonbands(hco_anl % ni,                & ! IN
-                             lonPerPE, myLonBeg, myLonEnd ) ! OUT
+                             lonPerPE, lonPerPEmax, myLonBeg, myLonEnd ) ! OUT
 
   !- 2.4 Initialize the vertical coordinate from the statistics file
   if ( hco_anl % global ) then
@@ -185,6 +192,7 @@ program midas_randomPert
   end if
 
   allocate(controlVector(cvm_nvadim))
+  allocate(controlVector_mpiglobal(cvm_nvadim_mpiglobal))
 
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
@@ -193,10 +201,14 @@ program midas_randomPert
   !
 
   if( mpi_myid == 0 ) write(*,*) '******************'
-  if( mpi_myid == 0 ) write(*,*) 'COMPUTE the mean of the random perturbations ',  &
-                                 'of all the members'
+  if( mpi_myid == 0 ) write(*,*) 'midas-randomPert: COMPUTE the mean of the random ', &
+                                 'perturbations of all the members'
 
-  call rng_setup(abs(seed+mpi_myid))
+  if( mpiTopoIndependent ) then
+    call rng_setup(abs(seed))
+  else
+    call rng_setup(abs(seed+mpi_myid))
+  end if
 
   gdmean(:,:,:) = 0.0D0
   field => gsv_getField3d_r8(statevector)
@@ -208,12 +220,19 @@ program midas_randomPert
 
     !- 4.1.1 Create a random control vector in spectral space
 
-
-    !- Local vector (different seed for each processor)
     call tmg_start(32, 'RANDOM_GEN')
-    do cvIndex = 1, cvm_nvadim
-      controlVector(cvIndex) = rng_gaussian()
-    end do
+    if( mpiTopoIndependent ) then
+      !- Global vector (for testing different mpi topology, less efficient)
+      do cvIndex = 1, cvm_nvadim_mpiglobal
+        controlVector_mpiglobal(cvIndex) = rng_gaussian()
+      end do
+      call bmat_reduceToMPILocal(controlVector,controlVector_mpiglobal,cvDim_mpilocal)
+    else
+      !- Local vector (different seed for each processor, more efficient)
+      do cvIndex = 1, cvm_nvadim
+        controlVector(cvIndex) = rng_gaussian()
+      end do
+    end if
     call tmg_stop(32)
 
     !- 4.1.2 Transform to control variables in physical space
@@ -353,7 +372,7 @@ program midas_randomPert
   !- 4.4 Write the perturbations
   do memberIndex = 1, NENS
     if( mpi_myid == 0 ) write(*,*)
-    if( mpi_myid == 0 ) write(*,*) ' pre-processing for writing member number= ', memberIndex
+    if( mpi_myid == 0 ) write(*,*) 'midas-randomPert: pre-processing for writing member number= ', memberIndex
 
     call gsv_allocate(statevector, 1, hco_anl, vco_anl, &
                       dateStamp=nstamp, mpi_local=.true.)
@@ -371,7 +390,7 @@ program midas_randomPert
 
     write(clmember, '(I3.3)') memberIndex
     clfiname = './pert_'//trim(cldate)//'_'//trim(clmember)
-    if( mpi_myid == 0 ) write(*,*)'MIDAS-RANDOMPERT: PROCESSING clfiname= ', clfiname
+    if( mpi_myid == 0 ) write(*,*) 'midas-randomPert: processing clfiname= ', clfiname
 
     if( write_mpi ) then
       call gsv_writeToFileMPI(statevector, clfiname, out_etiket,      & ! IN
@@ -397,6 +416,7 @@ program midas_randomPert
 
   deallocate(ensemble_r4)
   deallocate(controlVector)  
+  deallocate(controlVector_mpiglobal)  
 
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
   call tmg_stop(1)

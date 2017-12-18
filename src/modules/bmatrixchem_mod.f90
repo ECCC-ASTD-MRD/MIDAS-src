@@ -210,7 +210,7 @@ CONTAINS
     character(len=*), intent(in), optional :: mode
 
     integer :: jlev, nulnam, ierr, fnom, fclos, jm, jn, status
-    integer :: latPerPE, lonPerPE
+    integer :: latPerPE, latPerPEmax, lonPerPE, lonPerPEmax
     real(8) :: zps
 
     integer :: jvar
@@ -352,8 +352,8 @@ CONTAINS
     if(mpi_myid == 0) write(*,*) 'BCHM:returned value of gstID =',gstID
     if(mpi_myid == 0) write(*,*) 'BCHM:returned value of gstID2=',gstID2
 
-    call mpivar_setup_latbands(nj_l,latPerPE,myLatBeg,myLatEnd)
-    call mpivar_setup_lonbands(ni_l,lonPerPE,myLonBeg,myLonEnd)
+    call mpivar_setup_latbands(nj_l, latPerPE, latPerPEmax, myLatBeg, myLatEnd)
+    call mpivar_setup_lonbands(ni_l, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
 
     call mpivar_setup_m(ntrunc,mymBeg,mymEnd,mymSkip,mymCount)
     call mpivar_setup_n(ntrunc,mynBeg,mynEnd,mynSkip,mynCount)

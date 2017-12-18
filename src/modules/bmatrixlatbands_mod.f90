@@ -118,7 +118,7 @@ contains
 
     character(len=15) :: bhi_mode
     integer :: jlev, nulnam, ierr, fnom, fclos, fstouv, fstfrm
-    integer :: jm, jn, mynIndex, status, latPerPE, lonPerPE, Vcode_anl
+    integer :: jm, jn, mynIndex, status, latPerPE, latPerPEmax, lonPerPE, lonPerPEmax, Vcode_anl
     integer :: jlat, jLatBand, lat1, lat2, lat3
     logical :: llfound, lExists
     real(8) :: zps
@@ -168,7 +168,7 @@ contains
 
     ! default values for namelist variables
     ntrunc = 108
-    scaleFactor(:) = 1.0d0
+    scaleFactor(:) = 0.0d0
     scaleFactorLQ(:) = 1.0d0
     scaleTG = .true.
     TweakTG = .false.
@@ -240,8 +240,8 @@ contains
     gstID  = gst_setup(ni,nj,ntrunc,nkgdim)
     if( mpi_myid == 0 ) write(*,*) 'blb_setup: returned value of gstID    =',gstID
 
-    call mpivar_setup_latbands(nj,latPerPE,myLatBeg,myLatEnd)
-    call mpivar_setup_lonbands(ni,lonPerPE,myLonBeg,myLonEnd)
+    call mpivar_setup_latbands(nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd)
+    call mpivar_setup_lonbands(ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
 
     call mpivar_setup_m(ntrunc,mymBeg,mymEnd,mymSkip,mymCount)
     call mpivar_setup_n(ntrunc,mynBeg,mynEnd,mynSkip,mynCount)
