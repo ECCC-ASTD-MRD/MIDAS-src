@@ -32,6 +32,7 @@ module utilities_mod
   public :: utl_open_asciifile, utl_stnid_equal, utl_resize, utl_str
   public :: utl_get_stringId, utl_get_Id
   public :: utl_readFstField
+  public :: utl_varNamePresentInFile
 
   ! module interfaces
   ! -----------------
@@ -491,7 +492,7 @@ contains
   END SUBROUTINE UTL_MATSQRT
 
   !--------------------------------------------------------------------------
-  ! utl_writeSratus
+  ! utl_writeStatus
   !--------------------------------------------------------------------------
   subroutine utl_writeStatus(cmsg)
     implicit none
@@ -1422,7 +1423,34 @@ contains
 
  end subroutine utl_checkAllocationStatus
 
+ !--------------------------------------------------------------------------
+ ! utl_varNamePresentInFile
+ !--------------------------------------------------------------------------
+  function utl_varNamePresentInFile(fileName,varName) result(found)
+    IMPLICIT NONE
 
+    character(len=256) :: fileName
+    character(len=4)   :: varName
+    logical :: found
 
+    integer :: fnom, fstouv, fstfrm, fclos, fstinf
+    integer :: ni, nj, nk, key, ierr
+    integer :: unit = 0
+
+    ierr = fnom(unit,fileName,'RND+OLD+R/O',0)
+    ierr = fstouv(unit,'RND+OLD')
+
+    key = fstinf(unit, ni, nj, nk, -1 ,' ', -1, -1, -1, ' ', trim(varName))
+
+    if ( key > 0 )  then
+      found = .true.
+    else
+      found = .false.
+    end if
+
+    ierr =  fstfrm(unit)
+    ierr =  fclos (unit)
+
+  end function utl_varNamePresentInFile
 
 end module utilities_mod

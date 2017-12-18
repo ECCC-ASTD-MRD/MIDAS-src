@@ -31,6 +31,7 @@ MODULE ensembleStateVector_mod
   use timeCoord_mod
   use mathPhysConstants_mod
   use utilities_mod
+  use varNameList_mod
   implicit none
   save
   private
@@ -71,7 +72,7 @@ MODULE ensembleStateVector_mod
 CONTAINS
 
   subroutine ens_allocate(ens, numMembers, numStep, hco_ens, vco_ens, &
-                          dateStampList, varName)
+                          dateStampList, varNames_opt)
     implicit none
 
     ! arguments
@@ -80,8 +81,7 @@ CONTAINS
     type(struct_hco), pointer :: hco_ens
     type(struct_vco), pointer :: vco_ens
     integer :: dateStampList(:)
-    character(len=*), optional :: varName  ! allow specification of a single variable
-
+    character(len=*), optional :: varNames_opt(:)  ! allow specification of assigned variables
     ! locals
     integer :: memberIndex, ierr
     integer :: jk, lon1, lon2, lat1, lat2, k1, k2
@@ -91,15 +91,15 @@ CONTAINS
       call ens_deallocate( ens )
     end if
 
-    if ( present(varName) ) then
+    if ( present(varNames_opt) ) then
       call gsv_allocate( ens%statevector_work, &
                          numStep, hco_ens, vco_ens,  &
-                         datestamplist=dateStampList, mpi_local=.true., &
-                         varName=VarName, dataKind_in=4 )
+                         datestamplist_opt=dateStampList, mpi_local_opt=.true., &
+                         varNames_opt=VarNames_opt, dataKind_in_opt=4 )
     else
       call gsv_allocate( ens%statevector_work, &
                          numStep, hco_ens, vco_ens,  &
-                         datestamplist=dateStampList, mpi_local=.true., dataKind_in=4 )
+                         datestamplist_opt=dateStampList, mpi_local_opt=.true., dataKind_in_opt=4 )
     end if
 
     lon1 = ens%statevector_work%myLonBeg
@@ -270,7 +270,7 @@ CONTAINS
 
     call gsv_allocate(statevector, numStep,  &
                       ens%statevector_work%hco, ens%statevector_work%vco,  &
-                      datestamp=tim_getDatestamp(), mpi_local=.true., dataKind_in=8 )
+                      datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., dataKind_in_opt=8 )
 
     ptr4d_r8 => gsv_getField_r8(statevector)
     do stepIndex = 1, numStep
@@ -300,7 +300,7 @@ CONTAINS
 
     call gsv_allocate( statevector, numStep,  &
                        ens%statevector_work%hco, ens%statevector_work%vco,  &
-                       datestamp=tim_getDatestamp(), mpi_local=.true., dataKind_in=4 )
+                       datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., dataKind_in_opt=4 )
 
     ptr4d_r4 => gsv_getField_r4(statevector)
     do stepIndex = 1, numStep
@@ -526,7 +526,8 @@ CONTAINS
   end subroutine ens_removeMean
 
 
-  subroutine ens_readEnsemble(ens, ensPathName, ensFileBaseName, biPeriodic, ctrlVarHumidity)
+  subroutine ens_readEnsemble(ens, ensPathName, ensFileBaseName, biPeriodic, ctrlVarHumidity, &
+                              vco_file_opt)
     implicit none
 
     ! arguments
@@ -535,6 +536,7 @@ CONTAINS
     character(len=*) :: ensFileBaseName
     logical          :: biPeriodic
     character(len=*) :: ctrlVarHumidity
+    type(struct_vco), pointer, optional :: vco_file_opt
 
     ! locals
     type(struct_gsv) :: statevector_file_r4, statevector_hint_r4, statevector_member_r4
@@ -552,12 +554,15 @@ CONTAINS
     integer :: length_envVariable
     integer :: lonPerPEmax, latPerPEmax, ni, nj, nk, numStep, numlevelstosend, numlevelstosend2
     integer :: memberIndex, memberIndex2, fileMemberIndex, stepIndex, jvar, jk, jk2, jk3
+    integer :: nEnsVarNamesWanted, varIndex
     character(len=256) :: ensFileName
     character(len=32)  :: envVariable
     character(len=2)   :: typvar
     character(len=12)  :: etiket
     character(len=4)   :: varName
-    logical            :: verticalInterpNeeded, horizontalInterpNeeded, horizontalPaddingNeeded
+    character(len=4)   :: ensVarNamesWanted_dummy(99)
+    character(len=4), allocatable :: ensVarNamesWanted(:)
+    logical :: verticalInterpNeeded, horizontalInterpNeeded, horizontalPaddingNeeded
     logical :: HUcontainsLQinFile
 
     write(*,*) 'ens_readEnsemble: starting'
@@ -567,8 +572,8 @@ CONTAINS
       call utl_abort('ens_readEnsemble: ensemble object not allocated!')
     end if
 
+    !
     !- 1. Initial setup
-
     lonPerPEmax = ens%statevector_work%lonPerPEmax
     latPerPEmax = ens%statevector_work%latPerPEmax
     ni          = ens%statevector_work%ni
@@ -620,19 +625,48 @@ CONTAINS
       write(*,*) 'totalEnsembleSize = ',totalEnsembleSize
     end if
 
-    ! Set up hco and vco for ensemble files (use member 1)
+    ! Set up hco and vco for ensemble files
     call ens_fileName(ensFileName, ensPathName, ensFileBaseName, 1)
     nullify(hco_file)
     call hco_SetupFromFile(hco_file, ensFileName, ' ', 'ENSFILEGRID')
-    nullify(vco_file)
-    if ( mpi_myid == 0 ) then
-      call vco_SetupFromFile(vco_file, ensFileName) 
+    if ( present(vco_file_opt) ) then
+      ! use the input vertical grid provided
+      vco_file => vco_file_opt
+    else
+      ! find the info from the ensemble files
+      nullify(vco_file)
+      if ( mpi_myid == 0 ) then
+        call vco_SetupFromFile(vco_file, ensFileName)
+      end if
+      call vco_mpiBcast(vco_file)
     end if
-    call vco_mpiBcast(vco_file)
-    hco_ens => gsv_getHco(ens%statevector_work)
-    vco_ens => gsv_getVco(ens%statevector_work)
+    hco_ens  => gsv_getHco(ens%statevector_work)
+    vco_ens  => gsv_getVco(ens%statevector_work)
     horizontalInterpNeeded = (.not. hco_equal(hco_ens, hco_file))
-    verticalInterpNeeded = (.not. vco_equal(vco_ens, vco_file))
+    verticalInterpNeeded   = (.not. vco_equal(vco_ens, vco_file))
+
+    ! Setup the list of variables to be read (use member 1)
+    call ens_fileName(ensFileName, ensPathName, ensFileBaseName, 1)
+    nEnsVarNamesWanted=0
+    write(*,*)
+    write(*,*) 'ens_readEnsemble: Listing the analysis variables present in ensemble file'
+    write(*,*) trim(ensFileName)
+    do varIndex = 1, vnl_numVarMax
+      if (gsv_varExist(varName=vnl_varNameList(varIndex))) then
+        if (utl_varNamePresentInFile(ensFileName,vnl_varNameList(varIndex))) then
+          write(*,*) ' Analysis variable found     : ', trim(vnl_varNameList(varIndex))
+          nEnsVarNamesWanted = nEnsVarNamesWanted + 1
+          ensVarNamesWanted_dummy(nEnsVarNamesWanted) = trim(vnl_varNameList(varIndex))
+        else
+          write(*,*) ' Analysis variable NOT FOUND : ', trim(vnl_varNameList(varIndex))
+        end if
+      end if
+    end do
+    
+    allocate(ensVarNamesWanted(nEnsVarNamesWanted))
+    do varIndex = 1, nEnsVarNamesWanted
+      ensVarNamesWanted(varIndex) = trim(ensVarNamesWanted_dummy(varIndex))
+    end do
 
     ! More efficient handling of common case where input is on Z grid, analysis in on G grid
     if ( hco_file%grtyp == 'Z' .and. hco_ens%grtyp == 'G' ) then
@@ -672,14 +706,17 @@ CONTAINS
 
       ! allocate the needed statevector objects
       call gsv_allocate(statevector_member_r4, 1, hco_ens, vco_ens,  &
-                        datestamp=dateStampList(stepIndex), mpi_local=.false., dataKind_in=4)
+                        datestamp_opt=dateStampList(stepIndex), mpi_local_opt=.false., &
+                        varNames_opt=ensVarNamesWanted, dataKind_in_opt=4)
       if (horizontalInterpNeeded .or. verticalInterpNeeded .or. horizontalPaddingNeeded) then
         call gsv_allocate(statevector_file_r4, 1, hco_file, vco_file,  &
-                          datestamp=dateStampList(stepIndex), mpi_local=.false., dataKind_in=4)
+                          datestamp_opt=dateStampList(stepIndex), mpi_local_opt=.false., &
+                          varNames_opt=ensVarNamesWanted, dataKind_in_opt=4)
       end if
       if (verticalInterpNeeded) then
         call gsv_allocate(statevector_hint_r4, 1, hco_ens, vco_file,  &
-                          datestamp=dateStampList(stepIndex), mpi_local=.false., dataKind_in=4)
+                          datestamp_opt=dateStampList(stepIndex), mpi_local_opt=.false., &
+                          varNames_opt=ensVarNamesWanted, dataKind_in_opt=4)
       end if
 
       do memberIndex = 1, ens%numMembers
@@ -818,7 +855,9 @@ CONTAINS
     deallocate(gd_recv_r4)
     deallocate(datestamplist)
     call hco_deallocate(hco_file)
-    call vco_deallocate(vco_file)
+    if ( .not. present(vco_file_opt) ) then
+      call vco_deallocate(vco_file)
+    end if
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     write(*,*) 'ens_readEnsemble: finished reading and communicating ensemble members...'
@@ -827,7 +866,7 @@ CONTAINS
 
 
   subroutine ens_writeEnsemble(ens, ensPathName, ensFileBaseName, ctrlVarHumidity, etiket, &
-       typvar, varName, ip3_in)
+       typvar, varNames_opt, ip3_in_opt)
     implicit none
 
     ! arguments
@@ -837,8 +876,8 @@ CONTAINS
     character(len=*)  :: ctrlVarHumidity
     character(len=*)  :: etiket
     character(len=*)  :: typvar
-    character(len=*), optional :: varName  ! allow specification of a single variable
-    integer, optional :: ip3_in
+    character(len=*), optional :: varNames_opt(:)  ! allow specification of variables
+    integer, optional :: ip3_in_opt
 
     ! locals
     type(struct_gsv) :: statevector_member_r4
@@ -865,8 +904,8 @@ CONTAINS
 
     !- 1. Initial setup
 
-    if (present(ip3_in)) then
-      ip3 = ip3_in
+    if (present(ip3_in_opt)) then
+      ip3 = ip3_in_opt
     else
       ip3 = 0
     end if
@@ -915,13 +954,14 @@ CONTAINS
       write(*,*) 'ens_writeEnsemble: starting to write time level ', stepIndex
 
       ! allocate the needed statevector objects
-      if ( present(varName) ) then
+      if ( present(varNames_opt) ) then
         call gsv_allocate(statevector_member_r4, 1, hco_ens, vco_ens,  &
-                          datestamp=dateStampList(stepIndex), mpi_local=.false., &
-                          varName=VarName, dataKind_in=4)
+                          datestamp_opt=dateStampList(stepIndex), mpi_local_opt=.false., &
+                          varNames_opt=VarNames_opt, dataKind_in_opt=4)
       else
         call gsv_allocate(statevector_member_r4, 1, hco_ens, vco_ens,  &
-                          datestamp=dateStampList(stepIndex), mpi_local=.false., dataKind_in=4)
+             datestamp_opt=dateStampList(stepIndex), mpi_local_opt=.false., &
+             dataKind_in_opt=4)
       end if
 
       do memberIndex = 1, ens%numMembers

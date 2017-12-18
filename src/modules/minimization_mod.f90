@@ -562,7 +562,7 @@ CONTAINS
     vco_anl => col_getVco(columng)
 
     call gsv_allocate(statevector_incr, tim_nstepobsinc, hco_anl, vco_anl, &
-                      datestamp=tim_getDatestamp(), mpi_local=.true.)
+                      datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.)
 
     ! compute increment from control vector (multiply by B^1/2)
     call bmat_sqrtB(incr_cv, nvadim_mpilocal, statevector_incr)
@@ -671,16 +671,16 @@ CONTAINS
     vco_anl => col_getVco(columng)
 
     call gsv_allocate(statevector_mean, tim_nstepobsinc, hco_anl, vco_anl, &
-                      datestamp=tim_getDatestamp(), mpi_local=.true.)
+                      datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.)
 
     call gsv_allocate(statevector_incr, tim_nstepobsinc, hco_anl, vco_anl, &
-                      datestamp=tim_getDatestamp(), mpi_local=.true.)
+                      datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.)
 
     call gsv_allocate(statevector_incr_perturbed, tim_nstepobsinc, hco_anl, vco_anl, &
-                      datestamp=tim_getDatestamp(), mpi_local=.true.)
+                      datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.)
 
     call gsv_allocate(statevector_randpert, tim_nstepobsinc, hco_anl, vco_anl, &
-                      datestamp=tim_getDatestamp(), mpi_local=.true.)
+                      datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.)
 
     ! allocate local arrays
     allocate(incr_cv(nvadim_mpilocal))
@@ -700,7 +700,7 @@ CONTAINS
       if(mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
       call gsv_allocate(statevector_ens(indexAnalysis), tim_nstepobsinc, hco_anl, vco_anl, &
-                        datestamp=tim_getDatestamp(), mpi_local=.true.)
+                        datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.)
 
       write(censnumber,'(i4.4)') indexAnalysis + (envar_loop-1)*numAnalyses
       fileName = trim(ensPathName) // '/' // datestr_last // hourstr_last // '_006_' // trim(censnumber)
@@ -1117,7 +1117,7 @@ CONTAINS
        hco_anl => agd_getHco('ComputationalGrid')
        vco_anl => col_getVco(columng)
        call gsv_allocate(statevector, tim_nstepobsinc, hco_anl, vco_anl, &
-                         mpi_local=.true.)
+                         mpi_local_opt=.true.)
 
        call bmat_sqrtB(da_v,nvadim_mpilocal,statevector)
 

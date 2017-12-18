@@ -144,7 +144,7 @@ contains
       call bchm_Setup( hco_anl, vco_anl_in, & ! IN
                        cvdimchm )             ! OUT
 
-    else
+    !else
       ! Done in lbhi_Setup 
     end if
 
@@ -220,7 +220,7 @@ contains
 
     !- 2.1 Allocate and set to zero another temporary statevector
     call gsv_allocate(statevector_temp, statevector%numStep, hco_anl, gsv_getVco(statevector), &
-                      mpi_local=.true.)
+                      mpi_local_opt=.true.)
     call gsv_zero(statevector_temp)
 
     !- 2.2 Compute 3D contribution to increment from BmatrixHI

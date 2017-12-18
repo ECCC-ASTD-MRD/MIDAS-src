@@ -177,26 +177,26 @@ CONTAINS
     inquire(file=trim(fileName_fa),exist=faExists)
     write(*,*) 'faExists', faExists
     call gsv_allocate(statevector_fa, 1, hco_anl, vco_anl, &
-                      datestamp=datestamp_fcst, mpi_local=.true.)
+                      datestamp_opt=datestamp_fcst, mpi_local_opt=.true.)
     call gsv_readFromFile(statevector_fa, fileName_fa, ' ', 'P')
 
     !for statevecotr_tempfa
     call gsv_allocate(statevector_tempfa, 1, hco_anl, vco_anl, &
-                      datestamp=datestamp_fcst, mpi_local=.true.)
+                      datestamp_opt=datestamp_fcst, mpi_local_opt=.true.)
 
     !for statevecotr_tempfb
     call gsv_allocate(statevector_tempfb, 1, hco_anl, vco_anl, &
-                      datestamp=datestamp_fcst, mpi_local=.true.)
+                      datestamp_opt=datestamp_fcst, mpi_local_opt=.true.)
 
     fileName_fb = trim(forecastPath) // '/forecast_b'
     call gsv_allocate(statevector_fb, 1, hco_anl, vco_anl, &
-                      datestamp=datestamp_fcst, mpi_local=.true.)
+                      datestamp_opt=datestamp_fcst, mpi_local_opt=.true.)
     call gsv_readFromFile(statevector_fb, fileName_fb, ' ', 'P')
 
     ! read verifying analysis
     fileName_a = trim(forecastPath) // '/analysis'
     call gsv_allocate(statevector_a, 1,hco_anl, vco_anl, &
-                      datestamp=datestamp_fcst, mpi_local=.true.)
+                      datestamp_opt=datestamp_fcst, mpi_local_opt=.true.)
     call gsv_readFromFile(statevector_a, fileName_a, ' ', 'A')
 
 
@@ -270,7 +270,7 @@ CONTAINS
 
     ! Compute yhat = [R^-1 H B^1/2 ahat], and put in OBS_FSO
     call gsv_allocate(statevector_fso, tim_nstepobsinc, hco_anl, vco_anl, &
-                      datestamp=tim_getDatestamp(), mpi_local=.true.)
+                      datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.)
 
     call bmat_sqrtB(ahat, nvadim_mpilocal, statevector_fso) 
     call s2c_tl(statevector_fso,column,columng,obsSpaceData)  ! put in column H_horiz B^1/2 ahat
@@ -353,7 +353,7 @@ CONTAINS
        hco_anl => agd_getHco('ComputationalGrid')
        vco_anl => col_getVco(columng_ptr)
        call gsv_allocate(statevector,tim_nstepobsinc, hco_anl, vco_anl, &
-                         mpi_local=.true.)
+                         mpi_local_opt=.true.)
 
        call bmat_sqrtB(ahat_vhat,nvadim_mpilocal,statevector)
 

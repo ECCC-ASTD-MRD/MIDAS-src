@@ -5,19 +5,18 @@
 # User-defined options
 #
 machine=eccc-ppp2
-abs="${HOME}/data_maestro/ords/midas_abs/midas-addIncrement_ubuntu-14.04-amd64-64-v_3.0.4-34-g3951b62_M.Abs"
-inputdir="/home/mab001/data_maestro/${machine}/addIncrement/inputs/"
-npex=4
-npey=11
-openmp=1
+abs="/home/jfc425/bin/midas/midas_abs/midas-addIncrement_ubuntu-14.04-amd64-64-v_3.0.4-30-ge727ad8_M.Abs"
+inputdir="/home/jfc425/tmp/addInc2d"
+npex=1
+npey=4
+openmp=10
 maxcputime=120
 run_in_parallel="/fs/ssm/eccc/mrd/rpn/utils/16.2/all/bin/r.run_in_parallel_1.1.28c"
 
 #
 # Don't modify below ...
 #
-
-gest="${HOME}/data_maestro/${machine}/addIncrement/workdir_test3/"
+gest="${HOME}/data_maestro/${machine}/addIncrement"
 
 # build the namelist
 cat << EOF > $TMPDIR/flnml
@@ -27,15 +26,11 @@ cat << EOF > $TMPDIR/flnml
 /
  &NAMTIME
   dateFromTrials = .TRUE.
-  DSTEPOBS = 3.0d0
-  DSTEPOBSINC = 3.0d0
+  DSTEPOBS = 6.0d0
+  DSTEPOBSINC = 6.0d0
 /
  &NAMSTATE
-   ANLVAR(1)   ='UU'
-   ANLVAR(2)   ='VV'
-   ANLVAR(3)   ='TT'
-   ANLVAR(4)   ='HU'
-   ANLVAR(5)   ='P0'
+   ANLVAR(1)   ='TT'
    hInterpolationDegree = 'CUBIC'
 /
 EOF
