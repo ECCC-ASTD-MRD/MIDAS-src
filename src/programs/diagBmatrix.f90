@@ -259,7 +259,7 @@ program midas_diagBmatrix
 
       call gsv_allocate(statevectorEnsAmp, 1, locInfo%hco, locInfo%vco, &
                         datestamp_opt=tim_getDatestamp(),mpi_local_opt=.true., &
-                        varNames_opt='ALFA')
+                        varNames_opt=(/'ALFA'/))
 
       allocate(ensAmplitude(locInfo%nEnsOverDimension,myLonBeg:myLonEnd,myLatBeg:myLatEnd,locInfo%vco%nLev_M))
 

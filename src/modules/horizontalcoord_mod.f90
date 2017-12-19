@@ -83,7 +83,7 @@ module HorizontalCoord_mod
 
     real    :: xlat1_4, xlon1_4, xlat2_4, xlon2_4
 
-    integer :: iu_template, varIndex
+    integer :: iu_template
     integer :: fnom, fstlir, fstouv, fstfrm, fclos, ezqkdef
     integer :: key, fstinf, fstprm, ier, fstinl, EZscintID
     integer :: ni, nj, ni_tictacU, ni_t, nj_t, nlev_t, i, j, gdll

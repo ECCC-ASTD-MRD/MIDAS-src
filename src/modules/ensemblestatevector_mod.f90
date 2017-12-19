@@ -634,7 +634,6 @@ CONTAINS
       vco_file => vco_file_opt
     else
       ! find the info from the ensemble files
-      nullify(vco_file)
       if ( mpi_myid == 0 ) then
         call vco_SetupFromFile(vco_file, ensFileName)
       end if
@@ -662,7 +661,7 @@ CONTAINS
         end if
       end if
     end do
-    
+
     allocate(ensVarNamesWanted(nEnsVarNamesWanted))
     do varIndex = 1, nEnsVarNamesWanted
       ensVarNamesWanted(varIndex) = trim(ensVarNamesWanted_dummy(varIndex))

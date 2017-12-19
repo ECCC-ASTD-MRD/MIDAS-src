@@ -1889,12 +1889,7 @@ module gridStateVector_mod
       call vco_SetupFromFile(vco_file,trim(fileName),beSilent=.true.)
     end if
 
-    do varIndex = 1, vnl_numVarMax
-      if (gsv_varExist(statevector_out,vnl_varNameList(varIndex))) then
-        varName = vnl_varNameList(varIndex)
-        exit
-      end if
-    end do
+    varName=gsv_getVarNameFromK(statevector_out,1)
     call hco_SetupFromFile(hco_file,trim(fileName), ' ',gridName='FILEGRID',varName_opt=varName)
 
     ! test if horizontal and/or vertical interpolation needed for statevector grid

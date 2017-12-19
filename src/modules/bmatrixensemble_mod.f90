@@ -518,10 +518,6 @@ CONTAINS
     !
     initialized = .true.
 
-    if(vco_anl%Vcode  /=  5002 .and. vco_anl%Vcode  /=  5005) then
-      call utl_abort('JFC: unknown vertical coordinate type!')
-    end if
-
     call tmg_stop(12)
 
   END SUBROUTINE ben_setup
@@ -855,28 +851,6 @@ CONTAINS
     end do ! levIndex
 
   END SUBROUTINE ben_getEnsMean
-
-  !--------------------------------------------------------------------------
-  ! CheckEnsDim
-  !--------------------------------------------------------------------------
-  SUBROUTINE CheckEnsDim(niEns,njEns,nkEns,nomvar)
-    implicit none
-
-    integer,      intent(in) :: niEns,njEns,nkEns
-    character(*), intent(in) :: nomvar
-
-    if ( niEns /= lonPerPE  .or. &
-         njEns /= latPerPE  .or. &
-         nkEns /= 1 ) then
-
-      write(*,*) 'Variable :', trim(nomvar)
-      write(*,*) 'i-dim = ', niEns, lonPerPE
-      write(*,*) 'j-dim = ', njEns, latPerPE
-      write(*,*) 'k-dim = ', nkEns, 1
-      call utl_abort('Ensemble dimensions are incompatible with the topology and/or the analysis grid')
-    end if
-
-  END SUBROUTINE CheckEnsDim
 
   !--------------------------------------------------------------------------
   ! EnsembleScaleDecomposition

@@ -1430,7 +1430,7 @@ contains
     IMPLICIT NONE
 
     character(len=256) :: fileName
-    character(len=4)   :: varName
+    character(len=*)   :: varName
     logical :: found
 
     integer :: fnom, fstouv, fstfrm, fclos, fstinf
@@ -1439,15 +1439,15 @@ contains
 
     ierr = fnom(unit,fileName,'RND+OLD+R/O',0)
     ierr = fstouv(unit,'RND+OLD')
-
+    
     key = fstinf(unit, ni, nj, nk, -1 ,' ', -1, -1, -1, ' ', trim(varName))
-
+    
     if ( key > 0 )  then
       found = .true.
     else
       found = .false.
     end if
-
+    
     ierr =  fstfrm(unit)
     ierr =  fclos (unit)
 

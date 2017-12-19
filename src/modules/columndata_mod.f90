@@ -560,8 +560,6 @@ module columnData_mod
       call vco_levelMatchingList( THlevelWanted, MMlevelWanted, & ! OUT
                                   column_out%vco, column_in%vco ) ! IN
 
-      write(*,*) 'JFC', THlevelWanted(:)
-      write(*,*) 'JFC', MMlevelWanted(:)
       if ( any(THlevelWanted == -1) .or. any(MMlevelWanted == -1) ) then
         call utl_abort('col_vintprof: column_out is not a subsets of column_in!')
       end if
