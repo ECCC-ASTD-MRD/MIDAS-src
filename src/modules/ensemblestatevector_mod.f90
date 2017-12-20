@@ -591,9 +591,6 @@ CONTAINS
     gd_send_r4(:,:,:,:) = 0.0
     gd_recv_r4(:,:,:,:) = 0.0
 
-    !allocate(dateStampList(numStep))
-    !call tim_getstamplist(dateStampList,numStep,tim_getDatestamp())
-
     do memberIndex = 1, ens%numMembers
       readFilePE(memberIndex) = mod(memberIndex-1,mpi_nprocs)
     end do
@@ -634,6 +631,7 @@ CONTAINS
       vco_file => vco_file_opt
     else
       ! find the info from the ensemble files
+      nullify(vco_file)
       if ( mpi_myid == 0 ) then
         call vco_SetupFromFile(vco_file, ensFileName)
       end if
@@ -645,21 +643,27 @@ CONTAINS
     verticalInterpNeeded   = (.not. vco_equal(vco_ens, vco_file))
 
     ! Setup the list of variables to be read (use member 1)
-    call ens_fileName(ensFileName, ensPathName, ensFileBaseName, 1)
-    nEnsVarNamesWanted=0
-    write(*,*)
-    write(*,*) 'ens_readEnsemble: Listing the analysis variables present in ensemble file'
-    write(*,*) trim(ensFileName)
-    do varIndex = 1, vnl_numVarMax
-      if (gsv_varExist(varName=vnl_varNameList(varIndex))) then
-        if (utl_varNamePresentInFile(ensFileName,vnl_varNameList(varIndex))) then
-          write(*,*) ' Analysis variable found     : ', trim(vnl_varNameList(varIndex))
-          nEnsVarNamesWanted = nEnsVarNamesWanted + 1
-          ensVarNamesWanted_dummy(nEnsVarNamesWanted) = trim(vnl_varNameList(varIndex))
-        else
-          write(*,*) ' Analysis variable NOT FOUND : ', trim(vnl_varNameList(varIndex))
+    if (mpi_myid == 0) then
+      call ens_fileName(ensFileName, ensPathName, ensFileBaseName, 1)
+      nEnsVarNamesWanted=0
+      write(*,*)
+      write(*,*) 'ens_readEnsemble: Listing the analysis variables present in ensemble file'
+      write(*,*) trim(ensFileName)
+      do varIndex = 1, vnl_numVarMax
+        if (gsv_varExist(varName=vnl_varNameList(varIndex))) then
+          if (utl_varNamePresentInFile(ensFileName,vnl_varNameList(varIndex))) then
+            write(*,*) ' Analysis variable found     : ', trim(vnl_varNameList(varIndex))
+            nEnsVarNamesWanted = nEnsVarNamesWanted + 1
+            ensVarNamesWanted_dummy(nEnsVarNamesWanted) = trim(vnl_varNameList(varIndex))
+          else
+            write(*,*) ' Analysis variable NOT FOUND : ', trim(vnl_varNameList(varIndex))
+          end if
         end if
-      end if
+      end do
+    end if
+    call rpn_comm_bcast(nEnsVarNamesWanted, 1, 'MPI_INTEGER'  , 0, 'GRID', ierr)
+    do varIndex = 1, nEnsVarNamesWanted
+      call rpn_comm_bcastc(ensVarNamesWanted_dummy(varIndex) , 4, 'MPI_CHARACTER', 0, 'GRID', ierr)
     end do
 
     allocate(ensVarNamesWanted(nEnsVarNamesWanted))
