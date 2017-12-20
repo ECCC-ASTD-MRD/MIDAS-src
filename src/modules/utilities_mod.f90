@@ -1429,8 +1429,8 @@ contains
   function utl_varNamePresentInFile(fileName,varName) result(found)
     IMPLICIT NONE
 
-    character(len=256) :: fileName
-    character(len=*)   :: varName
+    character(len=*) :: fileName
+    character(len=*) :: varName
     logical :: found
 
     integer :: fnom, fstouv, fstfrm, fclos, fstinf
