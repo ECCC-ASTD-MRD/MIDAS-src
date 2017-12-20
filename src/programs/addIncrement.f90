@@ -24,44 +24,13 @@ program midas_addIncrement
   use mpi_mod
   use utilities_mod
   use ramDisk_mod
-  use mathPhysConstants_mod
-  use verticalCoord_mod
-  use horizontalCoord_mod
   use timeCoord_mod
   use gridStateVector_mod
-  use humidityLimits_mod
+  use addIncrement_mod
   implicit none
 
-  type(struct_gsv) :: statevector_trial, statevector_increment,  &
-                      statevector_Psfc, statevector_analysis
-
-  type(struct_vco), pointer :: vco_trl => null()
-  type(struct_vco), pointer :: vco_inc => null()
-  type(struct_hco), pointer :: hco_trl => null()
-
-  integer              :: fclos, fnom, fstopc, ierr
-  integer              :: stepIndex, numStep, middleStep
-  integer              :: nulnam, dateStamp
-  integer, allocatable :: dateStampList(:)
-  integer              :: get_max_rss
-
-  character(len=256)  :: trialFileName, incFileName, anlFileName
-  character(len=4)    :: coffset
-
-  real(8)             :: deltaHours
-  real(8), pointer    :: PsfcTrial(:,:,:,:), PsfcAnalysis(:,:,:,:),  &
-                         PsfcIncrement(:,:,:,:)
-  real(8), pointer    :: GZsfc_increment(:,:), GZsfc_trial(:,:)
-
-  logical  :: allocGZsfc, writeGZsfc, useIncLevelsOnly
-
-  ! namelist variables
-  integer  :: writeNumBits
-  logical  :: writeHiresIncrement
-  logical  :: imposeRttovHuLimits
-  character(len=12) :: etiket_rehm
-  character(len=12) :: etiket_anlm
-  NAMELIST /NAMADDINC/writeHiresIncrement, etiket_rehm, etiket_anlm, writeNumBits, imposeRttovHuLimits
+  integer :: get_max_rss
+  integer :: ierr, fstopc
 
   write(*,'(/,' //  &
         '3(" *****************"),/,' //                   &
@@ -71,226 +40,31 @@ program midas_addIncrement
         '3(" *****************"))') 'GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE'
 
   !
-  !- MPI, TMG initialization
+  !- Setup
   !
+
+  !- MPI, TMG initialization
   call mpi_initialize
   call tmg_init(mpi_myid, 'TMG_ADDINC' )
-
   call tmg_start(1,'MAIN')
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-  ! Avoid printing lots of stuff to listing for std file I/O
+  !- Avoid printing lots of stuff to listing for std file I/O
   ierr = fstopc('MSGLVL','ERRORS',0)
 
-  ! Setup the ramdisk directory (if supplied)
+  !- Setup the ramdisk directory (if supplied)
   call ram_setup
 
-  !
-  !- Set/Read values for the namelist NAMADDINC
-  !
-  
-  !- Setting default values
-  writeHiresIncrement = .true.
-  imposeRttovHuLimits = .true.
-  etiket_rehm = 'INCREMENT'
-  etiket_anlm = 'ANALYSIS'
-  writeNumBits = 16
-
-  !- Read the namelist
-  nulnam = 0
-  ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
-  read(nulnam, nml=namaddinc, iostat=ierr)
-  if ( ierr /= 0) call utl_abort('midas-addIncrement: Error reading namelist')
-  if ( mpi_myid == 0 ) write(*,nml=namaddinc)
-  ierr = fclos(nulnam)
-
-  write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
-
-  ! Setup timeCoord module (date read from trial file)
+  !- Setup timeCoord module (date read from trial file)
   call tim_setup
-  numStep = tim_nstepobsinc
-  allocate(dateStampList(numStep))
-  call tim_getstamplist(dateStampList,numStep,tim_getDatestamp())
 
   !- Initialize variables of the model states
   call gsv_setup
 
-  !- Initialize the trial state grid
-  if (mpi_myid == 0) write(*,*) ''
-  if (mpi_myid == 0) write(*,*) 'midas-addIncrement: Set hco parameters for trial grid'
-  trialFileName = './trlm_01'
-  call hco_SetupFromFile( hco_trl, trim(trialFileName), ' ')
-  call vco_setupFromFile( vco_trl, trim(trialFileName) )
-
-  !- Do we need to read all the vertical levels from the trial fields?
-  call difdatr(datestamplist(1),tim_getDatestamp(),deltaHours)
-  if(nint(deltaHours*60.0d0).lt.0) then
-    write(coffset,'(I4.3)') nint(deltaHours*60.0d0)
-  else
-    write(coffset,'(I3.3)') nint(deltaHours*60.0d0)
-  endif
-  incFileName = './rebm_' // trim(coffset) // 'm'
-  call vco_setupFromFile(vco_inc, incFileName)
-  useIncLevelsOnly = vco_subsetOrNot(vco_inc, vco_trl)
-  if ( useIncLevelsOnly ) then
-    ! Read only the increment levels
-    call  vco_deallocate(vco_trl)
-    vco_trl => vco_inc
-  else
-    ! Read them all
-    call vco_deallocate(vco_inc)
-  end if
-
-  write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
-
   !
-  ! Read trial files, keeping HU as is (no conversion to LQ)
+  !- Interpolate the increment, add the increment and output the analysis
   !
-  if(mpi_myid == 0) write(*,*) ''
-  if(mpi_myid == 0) write(*,*) 'midas-addIncrement: reading background state for all time steps'
-  call gsv_readTrials(hco_trl,vco_trl,statevector_trial,HUcontainsLQ_opt=.false.)
-
-  !
-  ! Read increment files only for Psfc
-  !
-  if (gsv_varExist(varName='P0')) then
-    call gsv_allocate(statevector_Psfc, numStep, hco_trl, vco_trl, &
-                      dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,  &
-                      varNames_opt=(/'P0'/), allocGZsfc_opt=.true.)
-    do stepIndex = 1, numStep
-      dateStamp = datestamplist(stepIndex)
-      if(mpi_myid == 0) write(*,*) ''
-      if(mpi_myid == 0) write(*,*) 'midas-addIncrement: reading Psfc increment for time step: ',stepIndex, dateStamp
-
-      call difdatr(dateStamp,tim_getDatestamp(),deltaHours)
-      if(nint(deltaHours*60.0d0).lt.0) then
-        write(coffset,'(I4.3)') nint(deltaHours*60.0d0)
-      else
-        write(coffset,'(I3.3)') nint(deltaHours*60.0d0)
-      endif
-      incFileName = './rebm_' // trim(coffset) // 'm'
-      
-      PsfcTrial => gsv_getField_r8(statevector_trial,'P0')
-      call gsv_readFromFile(statevector_Psfc, trim(incFileName), ' ', ' ', stepIndex,  &
-                          HUcontainsLQ=.false., PsfcReference_opt=PsfcTrial(:,:,1,stepIndex))
-    end do
-
-    !
-    ! Compute analysis Psfc to use for interpolation of increment
-    !
-    PsfcTrial => gsv_getField_r8(statevector_trial,'P0')
-    PsfcIncrement => gsv_getField_r8(statevector_Psfc,'P0')
-    PsfcAnalysis => gsv_getField_r8(statevector_Psfc,'P0')
-    PsfcAnalysis(:,:,1,:) = PsfcTrial(:,:,1,:) + PsfcIncrement(:,:,1,:)
-
-    !
-    ! Copy the surface GZ from trial into statevector_Psfc
-    !
-    GZsfc_increment => gsv_getGZsfc(statevector_Psfc)
-    GZsfc_trial => gsv_getGZsfc(statevector_trial)
-    GZsfc_increment(:,:) = GZsfc_trial(:,:)
-    allocGZsfc = .true.
-  else
-    allocGZsfc = .false.
-  end if
-  writeGZsfc = allocGZsfc
-
-  !
-  ! Read increment files (interpolating to trial grid/levels), also keeping HU as is
-  !
-  call gsv_allocate(statevector_increment, numStep, hco_trl, vco_trl, &
-                    dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                    allocGZsfc_opt=allocGZsfc)
-  do stepIndex = 1, numStep
-    dateStamp = datestamplist(stepIndex)
-    if(mpi_myid == 0) write(*,*) ''
-    if(mpi_myid == 0) write(*,*) 'midas-addIncrement: reading increment for time step: ',stepIndex, dateStamp
-
-    call difdatr(dateStamp,tim_getDatestamp(),deltaHours)
-    if(nint(deltaHours*60.0d0).lt.0) then
-      write(coffset,'(I4.3)') nint(deltaHours*60.0d0)
-    else
-      write(coffset,'(I3.3)') nint(deltaHours*60.0d0)
-    endif
-    incFileName = './rebm_' // trim(coffset) // 'm'
-
-    write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
-    if (gsv_varExist(varName='P0')) then
-      call gsv_readFromFile(statevector_increment, trim(incFileName), ' ', ' ', stepIndex,  &
-                            HUcontainsLQ=.false., PsfcReference_opt=PsfcAnalysis(:,:,1,stepIndex))
-    else
-      call gsv_readFromFile(statevector_increment, trim(incFileName), ' ', ' ', stepIndex,  &
-                            HUcontainsLQ=.false.)
-    end if
-  end do
-
-  !
-  ! Calculate analysis state
-  !
-  call gsv_allocate(statevector_analysis, numStep, hco_trl, vco_trl, &
-                    dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                    allocGZsfc_opt=allocGZsfc)
-  call gsv_copy(statevector_trial, statevector_analysis)
-  call gsv_add(statevector_increment, statevector_analysis)
-
-  !
-  ! Impose limits on humidity analysis and recompute increment
-  !
-  write(*,*) 'midas-addIncrement: calling qlim_gsvSaturationLimit'
-  call qlim_gsvSaturationLimit(statevector_analysis, HUcontainsLQ_opt=.false.)
-  if( imposeRttovHuLimits ) call qlim_gsvRttovLimit(statevector_analysis, HUcontainsLQ_opt=.false.)
-  call gsv_copy(statevector_analysis, statevector_increment)
-  call gsv_add(statevector_trial, statevector_increment, -1.0d0)
-  !
-  ! Write interpolated increment files
-  !
-  if( writeHiresIncrement ) then
-    do stepIndex = 1, numStep
-      dateStamp = datestamplist(stepIndex)
-      if(mpi_myid == 0) write(*,*) ''
-      if(mpi_myid == 0) write(*,*) 'midas-addIncrement: writing interpolated increment for time step: ',stepIndex, dateStamp
-
-      call difdatr(dateStamp,tim_getDatestamp(),deltaHours)
-      if(nint(deltaHours*60.0d0).lt.0) then
-        write(coffset,'(I4.3)') nint(deltaHours*60.0d0)
-      else
-        write(coffset,'(I3.3)') nint(deltaHours*60.0d0)
-      endif
-      incFileName = './rehm_' // trim(coffset) // 'm'
-
-      write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
-      call gsv_writeToFile(statevector_increment, trim(incFileName), etiket_rehm,  &
-                           indexStep_in=stepIndex, typvar_in='R', numBits_opt=writeNumBits )
-
-      if (gsv_varExist(varName='P0')) then
-        ! Also write analysis value of Psfc and surface GZ to increment file
-        call gsv_writeToFile(statevector_Psfc, trim(incFileName), etiket_rehm,  &
-                             indexStep_in=stepIndex, typvar_in='A', writeGZsfc_opt=.true., &
-                             numBits_opt=writeNumBits )
-      end if
-    end do
-  end if
-  
-  !
-  ! Write analysis state to file
-  !
-  do stepIndex = 1, numStep
-    dateStamp = datestamplist(stepIndex)
-    if(mpi_myid == 0) write(*,*) ''
-    if(mpi_myid == 0) write(*,*) 'midas-addIncrement: writing analysis for time step: ',stepIndex, dateStamp
-
-    call difdatr(dateStamp,tim_getDatestamp(),deltaHours)
-    if(nint(deltaHours*60.0d0).lt.0) then
-      write(coffset,'(I4.3)') nint(deltaHours*60.0d0)
-    else
-      write(coffset,'(I3.3)') nint(deltaHours*60.0d0)
-    endif
-    anlFileName = './anlm_' // trim(coffset) // 'm'
-
-    write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
-    call gsv_writeToFile(statevector_analysis, trim(anlFileName), etiket_anlm, indexStep_in=stepIndex, &
-                         typvar_in='A', writeGZsfc_opt=writeGZsfc, numBits_opt=writeNumBits )
-  end do
+  call adx_computeAndWriteAnalysis()
 
   !
   !- MPI, tmg finalize

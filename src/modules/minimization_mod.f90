@@ -46,7 +46,7 @@ MODULE minimization_mod
   use utilities_mod
   use biasCorrection_mod
   use chem_postproc_mod, only: chm_transform_final_increments
-
+  use addIncrement_mod
   implicit none
   save
   private
@@ -80,9 +80,9 @@ MODULE minimization_mod
 
   ! namelist variables
   INTEGER NVAMAJ,NITERMAX,NSIMMAX
-  LOGICAL lxbar,lwrthess,lgrtest,lvazx
+  logical :: lxbar,lwrthess,lgrtest,lvazx
   REAL*8 REPSG,rdf1fac
-  LOGICAL lvarqc,pertBhiOnly
+  logical :: lvarqc,pertBhiOnly, writeAnalysis
   integer :: nwoqcv
   integer :: numIterMax_pert, numAnalyses, ntrunc_pert
   character(len=256) :: ensPathName
@@ -99,7 +99,7 @@ MODULE minimization_mod
   NAMELIST /NAMMIN/numIterMax_pert,numAnalyses,ensPathName
   NAMELIST /NAMMIN/e1_scaleFactor,e2_scaleFactor,pertBhiOnly
   NAMELIST /NAMMIN/pertScaleFactor_UV,ntrunc_pert
-  NAMELIST /NAMMIN/cetikinc
+  NAMELIST /NAMMIN/cetikinc,writeAnalysis
 
 CONTAINS
 
@@ -140,6 +140,7 @@ CONTAINS
     pertScaleFactor_UV(:) = 1.0d0
     ntrunc_pert = 0
     cetikinc = 'UNDEFINED***'
+    writeAnalysis = .false.
 
     ! read in the namelist NAMMIN
     nulnam=0
@@ -492,9 +493,16 @@ CONTAINS
 
         ! output the analysis increment
         call tmg_start(6,'MIN_WRITEINCR')
-        call min_writeIncrement(statevector_incr)
+        call min_writeIncrement(statevector_incr) ! IN
         call tmg_stop(6)
-        
+
+        ! compute and write the analysis (as well as the increment on the trial grid)
+        if (writeAnalysis) then
+          call tmg_start(129,'MIN_ADDINCREMENT')
+          call adx_computeAndWriteAnalysis(statevector_incr) ! IN
+          call tmg_stop(129)
+        end if
+
         if (mpi_myid == 0) then
           clmsg = 'REBM_DONE'
           call utl_writeStatus(clmsg)
