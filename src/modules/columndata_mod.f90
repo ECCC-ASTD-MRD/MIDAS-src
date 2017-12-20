@@ -499,7 +499,9 @@ module columnData_mod
 
   end subroutine col_calcPressure
 
-
+  !--------------------------------------------------------------------------
+  ! col_vintprof
+  !--------------------------------------------------------------------------
   subroutine col_vintprof(column_in,column_out,varName)
     implicit none
     type(struct_columnData), intent(inout) :: column_out
@@ -510,31 +512,82 @@ module columnData_mod
     character(len=2) :: varLevel
     real(kind=8)     :: zwb,zwt
     integer          :: jlevo,jlevi,jprof
+    logical          :: vInterp
+
+    integer, allocatable, target :: THlevelWanted(:), MMlevelWanted(:)
+    integer, pointer :: levelWanted(:)
 
     varLevel = vnl_varLevelFromVarname(varName)
 
-    do jprof = 1, col_getNumCol(column_out)
-       column_ptr_in  => col_getColumn(column_in ,jprof,varName)
-       column_ptr_out => col_getColumn(column_out,jprof,varName)
-       jlevi = 1
-       do jlevo = 1, col_getNumLev(column_out,varLevel)
+    vInterp = .true.
+    if ( .not. col_varExist('P0' ) ) then
+      write(*,*)
+      write(*,*) 'col_vintprof: P0 is missing. Vertical interpolation WILL NOT BE PERFORMED'
+      vInterp = .false.
+    else if ( col_getNumLev(column_in ,'TH') <= 1 .or. &
+              col_getNumLev(column_in ,'MM') <= 1 ) then
+      vInterp = .false.
+      write(*,*)
+      write(*,*) 'col_vintprof: The input backgrounds are 2D. Vertical interpolation WILL NOT BE PERFORMED'
+    end if
+
+    if (vInterp) then
+      do jprof = 1, col_getNumCol(column_out)
+        column_ptr_in  => col_getColumn(column_in ,jprof,varName)
+        column_ptr_out => col_getColumn(column_out,jprof,varName)
+        jlevi = 1
+        do jlevo = 1, col_getNumLev(column_out,varLevel)
           jlevi = jlevi + 1
           do while(col_getPressure(column_out,jlevo,jprof,varLevel) .gt.  &
                col_getPressure(column_in ,jlevi,jprof,varLevel) .and. &
                jlevi .lt. col_getNumLev(column_in,varLevel) )
-             jlevi = jlevi + 1
+            jlevi = jlevi + 1
           enddo
           jlevi = jlevi - 1
           zwb = log(col_getPressure(column_out,jlevo,jprof,varLevel)/col_getPressure(column_in,jlevi,jprof,varLevel))/  &
                log(col_getPressure(column_in,jlevi+1,jprof,varLevel)/col_getPressure(column_in,jlevi,jprof,varLevel))
           zwt = 1. - zwb
           column_ptr_out(jlevo) = zwb*column_ptr_in(jlevi+1) + zwt*column_ptr_in(jlevi)
-       enddo
-    enddo
+        enddo
+      enddo
+      
+    else
+
+      ! Find which levels in column_in matches column_out
+      allocate(THlevelWanted(column_out%vco%nlev_T))
+      allocate(MMlevelWanted(column_out%vco%nlev_M))
+
+      call vco_levelMatchingList( THlevelWanted, MMlevelWanted, & ! OUT
+                                  column_out%vco, column_in%vco ) ! IN
+
+      if ( any(THlevelWanted == -1) .or. any(MMlevelWanted == -1) ) then
+        call utl_abort('col_vintprof: column_out is not a subsets of column_in!')
+      end if
+
+      ! Transfer the corresponding data
+      do jprof = 1, col_getNumCol(column_out)
+        column_ptr_in  => col_getColumn(column_in ,jprof,varName)
+        column_ptr_out => col_getColumn(column_out,jprof,varName)
+        if (vnl_varLevelFromVarname(varName) == 'TH') then
+          levelWanted => THlevelWanted
+        else
+          levelWanted => MMlevelWanted
+        end if
+        do jlevo = 1, col_getNumLev(column_out,varLevel)
+          column_ptr_out(jlevo) = column_ptr_in(levelWanted(jlevo))
+        end do
+      end do
+
+      deallocate(THlevelWanted)
+      deallocate(MMlevelWanted)
+
+    end if
 
   end subroutine col_vintprof
 
-
+  !--------------------------------------------------------------------------
+  ! col_getPressure
+  !--------------------------------------------------------------------------
   function col_getPressure(column,ilev,headerIndex,varLevel) result(pressure)
     implicit none
     type(struct_columnData), intent(in) :: column

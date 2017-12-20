@@ -74,7 +74,8 @@ subroutine compute_HBHT_ensemble(columng,columnhr,obsSpaceData,active)
   end if
 
   !- 1.3 Create a gridstatevector to store the ensemble perturbations
-  call gsv_allocate(statevector, tim_nstepobsinc, hco_anl, vco_anl, mpi_local=.true.)
+  call gsv_allocate(statevector, tim_nstepobsinc, hco_anl, vco_anl, &
+       mpi_local_opt=.true.)
 
   !- 1.4 Create column vectors to store the ens perturbation interpolated to obs horizontal locations
   call col_setVco(column,vco_anl)

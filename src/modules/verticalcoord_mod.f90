@@ -33,14 +33,18 @@ module verticalCoord_mod
   public :: struct_vco
   ! public procedures
   public :: vco_setupFromFile, vco_setupManual, vco_getNumLev, vco_equal, vco_deallocate, vco_mpiBcast
+  public :: vco_subsetOrNot, vco_levelMatchingList
   ! public entities accessed through inheritance
   public :: vgd_get,vgd_levels,vgd_ok,vgd_dpidpis,vgd_write
 
   type struct_vco
      logical :: initialized=.false.
-     integer :: nlev_T= 0
-     integer :: nlev_M= 0
-     integer :: ip1_sfc  ! ip1 value for the surface (Vcode=5005)
+     integer :: Vcode
+     integer :: nlev_T = 0
+     integer :: nlev_M = 0
+     integer :: ip1_sfc   ! ip1 value for the surface (hybrid = 1)
+     integer :: ip1_T_2m  ! ip1 value for the 2m thermodynamic level
+     integer :: ip1_M_10m ! ip1 value for the 10m momentum level
      integer,pointer,dimension(:) :: ip1_T => null()
      integer,pointer,dimension(:) :: ip1_M => null()  ! encoded IP1 levels (Thermo/Moment)
      type(vgrid_descriptor) :: vgrid
@@ -95,6 +99,7 @@ module verticalCoord_mod
  
     vco%nlev_T    = numLev
     vco%nlev_M    = numLev
+    vco%Vcode     = -1
     !vco%vgrid    = ???
 
     call vco_allocate(vco)
@@ -104,8 +109,10 @@ module verticalCoord_mod
 
     ! determine IP1 of sfc (hyb=1.0)
     call convip(ip1_sfc, 1.0, 5, 2, blk_s, .false.)
+    vco%ip1_sfc   = ip1_sfc
 
-    vco%ip1_sfc   = ip1_sfc  ! ip1 value for the surface (Vcode=5005)
+    ! determine IP1s of 2m and 10m levels
+    call set_2m_10m_levels(vco)
 
     vco%initialized=.true.
 
@@ -202,6 +209,7 @@ module verticalCoord_mod
     if (Vcode /= 5002 .and. Vcode /= 5005) then
       call utl_abort('vco_setupFromFile: Invalid Vcode. Currently only 5002 and 5005 supported.')
     endif
+    vco%Vcode = Vcode
 
     ! Get vgrid values for ip1
     stat = 0
@@ -239,10 +247,8 @@ module verticalCoord_mod
       enddo
     endif
     if(vco%nlev_T.eq.0) then
-      write(*,*) 'vco_setupfromfile: template file name=',templatefile
-      write(*,*) 'vco_setupfromfile: etiket=',etiket
-      write(*,*) 'vco_setupfromfile: variable name=',nomvar_T
-      call utl_abort('vco_setupfromfile: Could not find a valid thermodynamic variable in the template file!')
+      write(*,*) 
+      write(*,*) 'vco_setupfromfile: Could not find a valid thermodynamic variable in the template file!'
     endif
 
     vco%nlev_M = 0
@@ -272,11 +278,13 @@ module verticalCoord_mod
       enddo
     endif
     if(vco%nlev_M.eq.0) then
-      write(*,*) 'vco_setupfromfile: template file name=',templatefile
-      write(*,*) 'vco_setupfromfile: etiket=',etiket
-      write(*,*) 'vco_setupfromfile: variable name=',nomvar_M
-      call utl_abort('vco_setupfromfile: Could not find a valid momentum variable in the template file!')
+      write(*,*) 
+      write(*,*) 'vco_setupfromfile: Could not find a valid momentum variable in the template file!'
     endif
+
+    if (vco%nlev_M == 0 .and. vco%nlev_T == 0) then
+      call utl_abort('vco_setupfromfile: they were no valid momentum and thermodynamic variables in the template file!')
+    end  if
 
     if(mpi_myid.eq.0 .and. .not.beSilent2) then
       write(*,*) 'vco_setupFromFile: nlev_M, nlev_T=',vco%nlev_M,vco%nlev_T
@@ -324,8 +332,9 @@ module verticalCoord_mod
       call utl_abort('vco_setupFromFile: Problem with consistency between vgrid descriptor and template file (thermo)')
     endif
 
-    !==========================================================================
-    ! Define level ip1 for surface (only used for Vcode=5005)
+    !
+    !- Define level ip1 for surface (only used for Vcode=5005)
+    !
 
     ! determine IP1 of sfc (hyb=1.0)
     call convip(ip1_sfc, 1.0, 5, 2, blk_s, .false.) 
@@ -343,8 +352,14 @@ module verticalCoord_mod
       if(mpi_myid.eq.0 .and. .not.beSilent2) write(*,*) 'vco_setupFromFile: Set surface level IP1=',vco%ip1_sfc
     endif
 
-    !==========================================================================
+    !
+    !- determine IP1s of 2m and 10m levels
+    !
+    call set_2m_10m_levels(vco)
 
+    !
+    !- Ending
+    !
     vco%initialized=.true.
 
     ierr =  fstfrm(nultemplate)
@@ -385,10 +400,9 @@ module verticalCoord_mod
 
   end function vco_getNumLev
 
-
-!--------------------------------------------------------------------------
-! mpiBcast
-!--------------------------------------------------------------------------
+  !--------------------------------------------------------------------------
+  ! vco_mpiBcast
+  !--------------------------------------------------------------------------
   subroutine vco_mpiBcast(vco)
     implicit none
     type(struct_vco), pointer :: vco
@@ -411,9 +425,12 @@ module verticalCoord_mod
     endif
 
     call rpn_comm_bcast(vco%initialized, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
-    call rpn_comm_bcast(vco%nlev_T, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-    call rpn_comm_bcast(vco%nlev_M, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-    call rpn_comm_bcast(vco%ip1_sfc, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+    call rpn_comm_bcast(vco%nlev_T   , 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+    call rpn_comm_bcast(vco%nlev_M   , 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+    call rpn_comm_bcast(vco%ip1_sfc  , 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+    call rpn_comm_bcast(vco%ip1_T_2m , 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+    call rpn_comm_bcast(vco%ip1_M_10m, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+    call rpn_comm_bcast(vco%Vcode    , 1, 'MPI_INTEGER', 0, 'GRID', ierr)
     if ( mpi_myid == 0 ) then
       vgd_nlev_M = size(vco%ip1_M)
       vgd_nlev_T = size(vco%ip1_T)
@@ -525,5 +542,105 @@ module verticalCoord_mod
     endif
 
   end function vco_equal
+
+  !--------------------------------------------------------------------------
+  ! vco_subsetOrNot
+  !--------------------------------------------------------------------------
+  function vco_subsetOrNot(vco_template, vco_full) result(subset)
+    implicit none
+
+    type(struct_vco), pointer, intent(in)  :: vco_full, vco_template
+    logical :: subset
+
+    integer, allocatable :: THlevelWanted(:), MMlevelWanted(:)
+
+    !
+    ! This function determines if vco_template is a subset of vco_full.
+    !
+
+    allocate(THlevelWanted(vco_template%nlev_T))
+    allocate(MMlevelWanted(vco_template%nlev_M))
+
+    call vco_levelMatchingList( THlevelWanted, MMlevelWanted, & ! OUT
+                                vco_template, vco_full )        ! IN
+
+    if ( (any(THlevelWanted == -1) .or. any(MMlevelWanted == -1)) .or. &
+         (vco_template%Vcode /= vco_full%Vcode) ) then
+      ! vco_template IS NOT a subset of vco_full
+      subset = .false.
+    else
+      ! vco_template IS a subset of vco_full
+      subset = .true.
+    end if
+
+    deallocate(MMlevelWanted)
+    deallocate(THlevelWanted)
+
+  end function vco_subsetOrNot
+
+  !--------------------------------------------------------------------------
+  ! vco_levelMatchingList
+  !--------------------------------------------------------------------------
+  subroutine vco_levelMatchingList(THmatchingList, MMmatchingList, vco1, vco2)
+    implicit none
+    
+    type(struct_vco), pointer, intent(in) :: vco1, vco2
+    integer, intent(out) :: THmatchingList(vco1%nlev_T), MMmatchingList(vco1%nlev_M)
+ 
+    integer :: levIndex1, levIndex2
+
+    !
+    ! This subroutine returns arrays of array indices of the levels (ip1s) in vco2 corresponding 
+    ! with the levels (ip1s) in vco1
+    !
+
+    ! Do momentum levels...
+    MMmatchingList(:) = -1
+    do levIndex1 = 1, vco1%nlev_M
+      do levIndex2 =  1, vco2%nlev_M
+        if ( (vco2%ip1_M(levIndex2) == vco1%ip1_M(levIndex1)) .or. &
+             (vco2%ip1_M(levIndex2) == vco2%ip1_M_10m .and.        &
+              vco1%ip1_M(levIndex1) == vco1%ip1_M_10m) ) then
+          MMmatchingList(levIndex1) = levIndex2
+          exit
+        end if
+      end do
+    end do
+
+    ! Do thermo levels...
+    THmatchingList(:) = -1
+    do levIndex1 = 1, vco1%nlev_T
+      do levIndex2 = 1, vco2%nlev_T
+        if ( (vco2%ip1_T(levIndex2) == vco1%ip1_T(levIndex1)) .or. &
+             (vco2%ip1_T(levIndex2) == vco2%ip1_T_2m .and.        &
+              vco1%ip1_T(levIndex1) == vco1%ip1_T_2m) ) then 
+          THmatchingList(levIndex1) = levIndex2
+          exit
+        end if
+      end do
+    end do
+
+  end subroutine vco_levelMatchingList
+
+  !--------------------------------------------------------------------------
+  ! set_2m_10m_levels
+  !--------------------------------------------------------------------------
+  subroutine set_2m_10m_levels(vco)
+    implicit none
+    type(struct_vco), pointer, intent(in) :: vco
+    character(len=10) :: blk_s
+
+    if      (vco%Vcode == 5002) then
+      vco%ip1_T_2m  = vco%ip1_sfc 
+      vco%ip1_M_10m = vco%ip1_sfc
+    else if (vco%Vcode == 5005) then
+      call convip(vco%ip1_T_2m ,  1.5, 4, 2, blk_s, .false.)
+      call convip(vco%ip1_M_10m, 10.0, 4, 2, blk_s, .false.)
+    else
+      vco%ip1_T_2m  = -1
+      vco%ip1_M_10m = -1
+    end if
+
+  end subroutine set_2m_10m_levels
 
 end module VerticalCoord_mod

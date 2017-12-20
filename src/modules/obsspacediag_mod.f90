@@ -298,7 +298,7 @@ contains
     ! initialize gridStateVector object for increment
     hco_anl => agd_getHco('ComputationalGrid')
     vco_anl => col_getVco(columng)
-    call gsv_allocate(statevector, tim_nstepobsinc, hco_anl, vco_anl, mpi_local=.true.)
+    call gsv_allocate(statevector, tim_nstepobsinc, hco_anl, vco_anl, mpi_local_opt=.true.)
 
     nlev_max=max(col_getNumLev(columng,'MM'),col_getNumLev(columng,'TH'))
 

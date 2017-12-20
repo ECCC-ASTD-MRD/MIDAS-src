@@ -206,7 +206,7 @@ contains
     enddo
 
     ! calculate pressure profiles on analysis levels
-    if (col_getNumCol(columng) > 0) then
+    if (col_getNumCol(columng) > 0 .and. col_varExist('P0')) then
        call col_calcPressure(columng)
        do jlev = 1,col_getNumLev(columng,'MM')
           if (mpi_myid.eq.0) write(*,*) 'inn_setupBackgroundColumnsAnl: jlev, col_getPressure(COLUMNG,jlev,1,MM) = ',  &
@@ -226,7 +226,7 @@ contains
        end do
     endif
 
-    ! vertical interpolation of 3D surface variables
+    ! vertical interpolation of 3D variables
     do jvar = 1, vnl_numvarmax3D
        if ( .not. col_varExist( vnl_varNameList3D(jvar) ) ) cycle
        if ( vnl_varNameList3D(jvar) == 'GZ  ') cycle
@@ -713,7 +713,7 @@ contains
     !
     !     Derive the pressure fields at observation points
     !      
-    if (numColumns.gt.0) then
+    if (numColumns > 0 .and. col_varExist('P0')) then
        call col_calcPressure(columnhr)
 
        do jlev = 1,col_getNumLev(columnhr,'MM')

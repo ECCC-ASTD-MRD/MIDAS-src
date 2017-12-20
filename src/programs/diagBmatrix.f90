@@ -162,7 +162,7 @@ program midas_diagBmatrix
 
   ! Allocate the statevector
   call gsv_allocate(statevector, tim_nstepobsinc, hco_anl, vco_anl, &
-                    datestamp=tim_getDatestamp(), mpi_local=.true.)
+                    datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.)
   call gsv_zero(statevector)
   nkgdim = statevector%nk
 
@@ -258,7 +258,8 @@ program midas_diagBmatrix
       call mpivar_setup_lonbands(locInfo%hco%ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
 
       call gsv_allocate(statevectorEnsAmp, 1, locInfo%hco, locInfo%vco, &
-                        datestamp=tim_getDatestamp(),mpi_local=.true.,varName='ALFA')
+                        datestamp_opt=tim_getDatestamp(),mpi_local_opt=.true., &
+                        varNames_opt=(/'ALFA'/))
 
       allocate(ensAmplitude(locInfo%nEnsOverDimension,myLonBeg:myLonEnd,myLatBeg:myLatEnd,locInfo%vco%nLev_M))
 

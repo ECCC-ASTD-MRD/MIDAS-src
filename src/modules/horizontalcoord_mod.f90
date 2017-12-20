@@ -65,13 +65,15 @@ module HorizontalCoord_mod
 !--------------------------------------------------------------------------
 ! hco_SetupFromFile
 !--------------------------------------------------------------------------
-  subroutine hco_SetupFromFile(hco, TemplateFile, EtiketName, GridName)
+  subroutine hco_SetupFromFile(hco, TemplateFile, EtiketName, GridName, &
+       varName_opt)
     implicit none
 
     type(struct_hco), pointer    :: hco
     character(len=*), intent(in) :: TemplateFile
     character(len=*), intent(in) :: EtiketName
     character(len=*), intent(in), optional :: GridName
+    character(len=*), intent(in), optional :: varName_opt
 
     real, allocatable :: lat2d_4(:,:)
     real, allocatable :: lon2d_4(:,:)
@@ -141,7 +143,11 @@ module HorizontalCoord_mod
     ip2    = -1
     ip3    = -1
     typvar = ' '
-    nomvar = 'P0'
+    if (present(varName_opt)) then
+      nomvar = varName_opt
+    else
+      nomvar = 'P0'
+    end if
 
     key = fstinf( iu_template,                                & ! IN
                   ni, nj, nk,                                 & ! OUT

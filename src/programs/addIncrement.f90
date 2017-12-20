@@ -36,6 +36,7 @@ program midas_addIncrement
                       statevector_Psfc, statevector_analysis
 
   type(struct_vco), pointer :: vco_trl => null()
+  type(struct_vco), pointer :: vco_inc => null()
   type(struct_hco), pointer :: hco_trl => null()
 
   integer              :: fclos, fnom, fstopc, ierr
@@ -51,6 +52,8 @@ program midas_addIncrement
   real(8), pointer    :: PsfcTrial(:,:,:,:), PsfcAnalysis(:,:,:,:),  &
                          PsfcIncrement(:,:,:,:)
   real(8), pointer    :: GZsfc_increment(:,:), GZsfc_trial(:,:)
+
+  logical  :: allocGZsfc, writeGZsfc, useIncLevelsOnly
 
   ! namelist variables
   integer  :: writeNumBits
@@ -119,6 +122,25 @@ program midas_addIncrement
   call hco_SetupFromFile( hco_trl, trim(trialFileName), ' ')
   call vco_setupFromFile( vco_trl, trim(trialFileName) )
 
+  !- Do we need to read all the vertical levels from the trial fields?
+  call difdatr(datestamplist(1),tim_getDatestamp(),deltaHours)
+  if(nint(deltaHours*60.0d0).lt.0) then
+    write(coffset,'(I4.3)') nint(deltaHours*60.0d0)
+  else
+    write(coffset,'(I3.3)') nint(deltaHours*60.0d0)
+  endif
+  incFileName = './rebm_' // trim(coffset) // 'm'
+  call vco_setupFromFile(vco_inc, incFileName)
+  useIncLevelsOnly = vco_subsetOrNot(vco_inc, vco_trl)
+  if ( useIncLevelsOnly ) then
+    ! Read only the increment levels
+    call  vco_deallocate(vco_trl)
+    vco_trl => vco_inc
+  else
+    ! Read them all
+    call vco_deallocate(vco_inc)
+  end if
+
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
   !
@@ -131,47 +153,54 @@ program midas_addIncrement
   !
   ! Read increment files only for Psfc
   !
-  call gsv_allocate(statevector_Psfc, numStep, hco_trl, vco_trl, &
-                    dateStamp=tim_getDateStamp(), mpi_local=.true.,  &
-                    varName='P0', allocGZsfc=.true.)
-  do stepIndex = 1, numStep
-    dateStamp = datestamplist(stepIndex)
-    if(mpi_myid == 0) write(*,*) ''
-    if(mpi_myid == 0) write(*,*) 'midas-addIncrement: reading Psfc increment for time step: ',stepIndex, dateStamp
+  if (gsv_varExist(varName='P0')) then
+    call gsv_allocate(statevector_Psfc, numStep, hco_trl, vco_trl, &
+                      dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,  &
+                      varNames_opt=(/'P0'/), allocGZsfc_opt=.true.)
+    do stepIndex = 1, numStep
+      dateStamp = datestamplist(stepIndex)
+      if(mpi_myid == 0) write(*,*) ''
+      if(mpi_myid == 0) write(*,*) 'midas-addIncrement: reading Psfc increment for time step: ',stepIndex, dateStamp
 
-    call difdatr(dateStamp,tim_getDatestamp(),deltaHours)
-    if(nint(deltaHours*60.0d0).lt.0) then
-      write(coffset,'(I4.3)') nint(deltaHours*60.0d0)
-    else
-      write(coffset,'(I3.3)') nint(deltaHours*60.0d0)
-    endif
-    incFileName = './rebm_' // trim(coffset) // 'm'
-
-    PsfcTrial => gsv_getField_r8(statevector_trial,'P0')
-    call gsv_readFromFile(statevector_Psfc, trim(incFileName), ' ', ' ', stepIndex,  &
+      call difdatr(dateStamp,tim_getDatestamp(),deltaHours)
+      if(nint(deltaHours*60.0d0).lt.0) then
+        write(coffset,'(I4.3)') nint(deltaHours*60.0d0)
+      else
+        write(coffset,'(I3.3)') nint(deltaHours*60.0d0)
+      endif
+      incFileName = './rebm_' // trim(coffset) // 'm'
+      
+      PsfcTrial => gsv_getField_r8(statevector_trial,'P0')
+      call gsv_readFromFile(statevector_Psfc, trim(incFileName), ' ', ' ', stepIndex,  &
                           HUcontainsLQ=.false., PsfcReference_opt=PsfcTrial(:,:,1,stepIndex))
-  end do
+    end do
 
-  !
-  ! Compute analysis Psfc to use for interpolation of increment
-  !
-  PsfcTrial => gsv_getField_r8(statevector_trial,'P0')
-  PsfcIncrement => gsv_getField_r8(statevector_Psfc,'P0')
-  PsfcAnalysis => gsv_getField_r8(statevector_Psfc,'P0')
-  PsfcAnalysis(:,:,1,:) = PsfcTrial(:,:,1,:) + PsfcIncrement(:,:,1,:)
+    !
+    ! Compute analysis Psfc to use for interpolation of increment
+    !
+    PsfcTrial => gsv_getField_r8(statevector_trial,'P0')
+    PsfcIncrement => gsv_getField_r8(statevector_Psfc,'P0')
+    PsfcAnalysis => gsv_getField_r8(statevector_Psfc,'P0')
+    PsfcAnalysis(:,:,1,:) = PsfcTrial(:,:,1,:) + PsfcIncrement(:,:,1,:)
 
-  !
-  ! Copy the surface GZ from trial into statevector_Psfc
-  !
-  GZsfc_increment => gsv_getGZsfc(statevector_Psfc)
-  GZsfc_trial => gsv_getGZsfc(statevector_trial)
-  GZsfc_increment(:,:) = GZsfc_trial(:,:)
+    !
+    ! Copy the surface GZ from trial into statevector_Psfc
+    !
+    GZsfc_increment => gsv_getGZsfc(statevector_Psfc)
+    GZsfc_trial => gsv_getGZsfc(statevector_trial)
+    GZsfc_increment(:,:) = GZsfc_trial(:,:)
+    allocGZsfc = .true.
+  else
+    allocGZsfc = .false.
+  end if
+  writeGZsfc = allocGZsfc
 
   !
   ! Read increment files (interpolating to trial grid/levels), also keeping HU as is
   !
   call gsv_allocate(statevector_increment, numStep, hco_trl, vco_trl, &
-                    dateStamp=tim_getDateStamp(), mpi_local=.true., allocGZsfc=.true.)
+                    dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                    allocGZsfc_opt=allocGZsfc)
   do stepIndex = 1, numStep
     dateStamp = datestamplist(stepIndex)
     if(mpi_myid == 0) write(*,*) ''
@@ -186,15 +215,21 @@ program midas_addIncrement
     incFileName = './rebm_' // trim(coffset) // 'm'
 
     write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
-    call gsv_readFromFile(statevector_increment, trim(incFileName), ' ', ' ', stepIndex,  &
-                          HUcontainsLQ=.false., PsfcReference_opt=PsfcAnalysis(:,:,1,stepIndex))
+    if (gsv_varExist(varName='P0')) then
+      call gsv_readFromFile(statevector_increment, trim(incFileName), ' ', ' ', stepIndex,  &
+                            HUcontainsLQ=.false., PsfcReference_opt=PsfcAnalysis(:,:,1,stepIndex))
+    else
+      call gsv_readFromFile(statevector_increment, trim(incFileName), ' ', ' ', stepIndex,  &
+                            HUcontainsLQ=.false.)
+    end if
   end do
 
   !
   ! Calculate analysis state
   !
   call gsv_allocate(statevector_analysis, numStep, hco_trl, vco_trl, &
-                    dateStamp=tim_getDateStamp(), mpi_local=.true., allocGZsfc=.true.)
+                    dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                    allocGZsfc_opt=allocGZsfc)
   call gsv_copy(statevector_trial, statevector_analysis)
   call gsv_add(statevector_increment, statevector_analysis)
 
@@ -227,10 +262,12 @@ program midas_addIncrement
       call gsv_writeToFile(statevector_increment, trim(incFileName), etiket_rehm,  &
                            indexStep_in=stepIndex, typvar_in='R', numBits_opt=writeNumBits )
 
-      ! Also write analysis value of Psfc and surface GZ to increment file
-      call gsv_writeToFile(statevector_Psfc, trim(incFileName), etiket_rehm,  &
-                           indexStep_in=stepIndex, typvar_in='A', writeGZsfc_opt=.true., &
-                           numBits_opt=writeNumBits )
+      if (gsv_varExist(varName='P0')) then
+        ! Also write analysis value of Psfc and surface GZ to increment file
+        call gsv_writeToFile(statevector_Psfc, trim(incFileName), etiket_rehm,  &
+                             indexStep_in=stepIndex, typvar_in='A', writeGZsfc_opt=.true., &
+                             numBits_opt=writeNumBits )
+      end if
     end do
   end if
   
@@ -252,7 +289,7 @@ program midas_addIncrement
 
     write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
     call gsv_writeToFile(statevector_analysis, trim(anlFileName), etiket_anlm, indexStep_in=stepIndex, &
-                         typvar_in='A', writeGZsfc_opt=.true., numBits_opt=writeNumBits )
+                         typvar_in='A', writeGZsfc_opt=writeGZsfc, numBits_opt=writeNumBits )
   end do
 
   !
