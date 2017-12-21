@@ -13,8 +13,6 @@
 !if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
-#include "maincompileswitch.inc"
-#include "compileswitches.inc"
 
 !--------------------------------------------------------------------------
 !! MODULE burpFiles (prefix="burp")
@@ -24,6 +22,7 @@
 !!
 !--------------------------------------------------------------------------
 module burpFiles_mod
+  use codePrecision_mod
   use MathPhysConstants_mod
   use EarthConstants_mod
   use utilities_mod

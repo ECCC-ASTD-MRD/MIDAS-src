@@ -4013,8 +4013,7 @@ module gridStateVector_mod
 
       ! read the trial file for this timestep
       call gsv_readFromFile(statevector_trial, fileName, ' ', 'P', stepIndex,  &
-                            HUcontainsLQ=HUcontainsLQ, readGZsfc_opt=.true., &
-                            vco_file_opt=vco_in)
+                            HUcontainsLQ=HUcontainsLQ, readGZsfc_opt=.true.)
 
     end do ! stepIndex
 

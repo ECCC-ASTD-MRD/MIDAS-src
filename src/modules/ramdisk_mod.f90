@@ -127,10 +127,17 @@ contains
 !--------------------------------------------------------------------------
   function ram_remove(fullWorkingPath) result(returnCode)
     implicit none
-#include <clib_interface.cdk>
     character(len=*) :: fullWorkingPath
     integer          :: returnCode
     logical          :: fileExists
+
+    ! The following interface was extracted from #include <clib_interface.cdk>
+    interface clib_remove
+      integer function clib_remove_schhide(path)
+        implicit none
+        character(len=*),intent(IN) :: path
+      end function
+    end interface
 
     if ( .not. initialized ) then
       call utl_abort('ram_remove: ramDisk module has not been initialized.')

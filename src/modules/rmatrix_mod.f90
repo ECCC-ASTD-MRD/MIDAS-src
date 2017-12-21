@@ -24,6 +24,7 @@
 !!
 !--------------------------------------------------------------------------
 module rMatrix_mod
+  use rttov_interfaces_mod
   use mpivar_mod,  only  : mpi_myid
   use rttov_const, only  : errorstatus_success
   use utilities_mod
@@ -89,7 +90,6 @@ module rMatrix_mod
   subroutine rmat_readCMatrix(instrument, sensor_id, ichan )
    
     implicit none
-#include "rttov_coeffname.interface"
     integer ,intent (in) :: instrument(3), sensor_id, ichan(:)
 
     character (len=64) :: filename

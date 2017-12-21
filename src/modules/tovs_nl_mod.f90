@@ -23,6 +23,7 @@
 !--------------------------------------------------------------------------
 module tovs_nl_mod
 
+  use rttov_interfaces_mod
   use rttov_types, only :   &
        rttov_coefs         ,&
        rttov_options       ,&
@@ -217,10 +218,6 @@ contains
 
   subroutine tvs_setupAlloc(lobsSpaceData)
     implicit none
-!implicits
-
-#include "rttov_user_options_checkinput.interface"
-#include "rttov_alloc_prof.interface"
 
     type(struct_obs) :: lobsSpaceData
 
@@ -1985,13 +1982,6 @@ contains
 
   subroutine tvs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
     implicit none
-    !implicits
-#include "rttov_parallel_direct.interface"
-#include "rttov_alloc_rad.interface"
-#include "rttov_alloc_transmission.interface"
-#include "rttov_print_profile.interface"
-#include "rttov_get_emis.interface"
-#include "rttov_setup_emis_atlas.interface"
 
     type(struct_obs) :: lobsSpaceData
     type(struct_columnData) :: lcolumnhr
@@ -3359,10 +3349,6 @@ contains
     TYPE(rttov_options),intent(in)  :: opts
     integer(kind=jpim), intent(in)  :: channels(:)
     integer(kind=jpim), intent(in)  :: instrument(3)
-
-
-#include "rttov_read_coefs.interface"
-#include "rttov_nullify_coef.interface"
 
     integer ,allocatable :: listGlobal(:)
     real(8) ,allocatable :: bigArray(:,:,:,:)

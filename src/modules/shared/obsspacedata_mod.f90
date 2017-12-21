@@ -1,7 +1,4 @@
 ! ObsSpaceData_mod:  the module, ObsSpaceData_mod, follows IndexListDepot_mod
-#include "maincompileswitch.inc"
-#include "compileswitches.inc"
-
 
 ! NOTE:  Throughout this file:
 !             column_index   - is not (in general) indexed from one.  Each column
@@ -613,6 +610,7 @@ module ObsDataColumn_mod
    !
    ! author  : Mark Buehner - 2012
    !
+   use codePrecision_mod
    use ObsColumnNames_mod
    implicit none
    save
@@ -712,21 +710,21 @@ contains
       !NOTE:  For debugging (i.e. UNIT_TESTING is defined), obs_abort should
       !       generally be followed by a 'return' in the calling routine.
 
-#if defined(UNIT_TESTING)
-      use pFUnit
-#endif
+!#if defined(UNIT_TESTING)
+!      use pFUnit
+!#endif
       implicit none
       character(len=*), intent(in) :: cdmessage
 
       write(*,'(//,4X,"ABORTING IN ObsDataColumn_mod:-------",/,8X,A)')cdmessage
       call flush(6)
 
-#if defined(UNIT_TESTING)
-      call throw(Exception('exiting in odc_abort:' // cdmessage))
-#else
+!#if defined(UNIT_TESTING)
+!      call throw(Exception('exiting in odc_abort:' // cdmessage))
+!#else
       call qqexit(1)
       stop
-#endif
+!#endif
    end subroutine odc_abort
 
 
@@ -1252,6 +1250,7 @@ end module ObsDataColumn_mod
 
 
 module ObsSpaceData_mod
+   use codePrecision_mod
    use ObsColumnNames_mod
    use ObsDataColumn_mod
    use IndexListDepot_mod
@@ -1502,9 +1501,9 @@ contains
       !Arguments
       !     i     CDMESSAGE: message to be printed
 
-#if defined(UNIT_TESTING)
-      use pFUnit
-#endif
+!#if defined(UNIT_TESTING)
+!      use pFUnit
+!#endif
       implicit none
       character(len=*), intent(in) :: cdmessage
       integer :: initialized
@@ -1512,12 +1511,12 @@ contains
       write(*,'(//,4X,"ABORTING IN ObsSpaceData_mod:-------",/,8X,A)')cdmessage
       call flush(6)
 
-#if defined(UNIT_TESTING)
-      call throw(Exception('exiting in obs_abort'))
-#else
+!#if defined(UNIT_TESTING)
+!      call throw(Exception('exiting in obs_abort'))
+!#else
       call qqexit(13)
       stop
-#endif
+!#endif
    end subroutine obs_abort
 
 
@@ -2481,11 +2480,6 @@ contains
       real(OBS_REAL), pointer :: realHeaders_tmp(:,:),realBodies_tmp(:,:)
       integer :: ier,master,mxstn,ncomm,nobs
       character(len=100) :: message
-#if OBS_REAL==4
-      character(len=*), parameter :: MPI_OBS_REAL="mpi_real"
-#elif OBS_REAL==8
-      character(len=*), parameter :: MPI_OBS_REAL="mpi_double_precision"
-#endif
 
       ! broadcast relevant integers from master to all processes 
 
@@ -3233,11 +3227,6 @@ contains
       integer :: headerIndex_mpilocal,headerIndex
       integer :: nsize,sourcePE,nprocs_mpi,myid_mpi
       integer :: charIndex,activeIndex,columnIndex
-#if OBS_REAL==4
-      character(len=*), parameter :: MPI_OBS_REAL="mpi_real"
-#elif OBS_REAL==8
-      character(len=*), parameter :: MPI_OBS_REAL="mpi_double_precision"
-#endif
       !!---------------------------------------------------------------
 
       write(*,*) 'Entering obs_expandToMpiGlobal'
