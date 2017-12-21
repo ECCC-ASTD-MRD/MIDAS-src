@@ -26,6 +26,7 @@
 !!
 !--------------------------------------------------------------------------
 module multi_ir_bgck_mod
+  use rttov_interfaces_mod
   use tovs_nl_mod
   use hirChannels_mod
   use rttov_const, only : inst_id_iasi
@@ -3507,9 +3508,6 @@ contains
 ! (non assimilees mais necessaires au background check IASI)
 
     implicit none
-#include "rttov_direct.interface"
-#include "rttov_alloc_rad.interface"
-#include "rttov_read_coefs.interface"
     integer ,intent(in) :: idiasi
     integer ,intent (in) :: iptobs(1)
     real (8) , intent (in) :: surfem1_avhrr(3)

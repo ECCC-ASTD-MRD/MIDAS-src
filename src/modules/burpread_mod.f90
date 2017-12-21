@@ -14,9 +14,6 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-
-#include "maincompileswitch.inc"
-#include "compileswitches.inc"
 !--------------------------------------------------------------------------
 !! MODULE burpRead (prefix= no standard prefix)
 !!
@@ -26,6 +23,7 @@
 !--------------------------------------------------------------------------
 module  burpread_mod
 
+use codePrecision_mod
 use burp_module
 use ObsSpaceData_mod
 use MathPhysConstants_mod

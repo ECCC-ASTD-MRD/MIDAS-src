@@ -14,9 +14,6 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-#include "maincompileswitch.inc"
-#include "compileswitches.inc"
-
 module obsSubSpaceData_mod
 !
 ! PURPOSE: Repository of obs space structures, arrays, and routines specific to obs 
@@ -50,6 +47,7 @@ module obsSubSpaceData_mod
 !
 !----------------------------------------------------------------------------------
 
+  use codePrecision_mod
   use utilities_mod    
   use MathPhysConstants_mod
   use mpi_mod, only: mpi_allgather_string, mpi_doBarrier
@@ -645,8 +643,6 @@ contains
     real(8), allocatable :: data1d_local(:,:),data1d_global(:,:,:),data2d_local(:,:,:),data2d_global(:,:,:,:)
     integer :: i,j,k,ierr,nproc,nrep_total,nrep_max,irep,array_size
 
-    character(len=*), parameter :: MPI_OBS_REAL="mpi_double_precision"
-  
     write(*,*) 'Begin oss_obsdata_MPIallgather'
       
     ! Identify number of processors.

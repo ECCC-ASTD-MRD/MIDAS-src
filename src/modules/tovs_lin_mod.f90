@@ -22,6 +22,7 @@
 !!
 !--------------------------------------------------------------------------
 module tovs_lin_mod
+  use rttov_interfaces_mod
 
   use rttov_types, only : rttov_profile, rttov_radiance
   use rttov_const ,only : gas_unit_specconc
@@ -156,12 +157,6 @@ contains
 !--------------------------------------------------------------------------
    
     implicit none
-    !implicits
-#include "rttov_parallel_tl.interface"
-#include "rttov_alloc_prof.interface"
-#include "rttov_alloc_rad.interface"
-#include "rttov_alloc_transmission.interface"
-#include "rttov_copy_prof.interface"
 
     type(struct_obs) :: lobsSpaceData
     type(struct_columnData) :: column,columng
@@ -641,14 +636,6 @@ contains
    
 
     implicit none
-    !implicits
-#include "rttov_parallel_ad.interface"
-#include "rttov_alloc_prof.interface"
-#include "rttov_alloc_rad.interface"
-#include "rttov_alloc_transmission.interface"
-#include "rttov_copy_prof.interface"
-#include "rttov_init_prof.interface"
-#include "rttov_init_rad.interface"
 
     type(struct_columnData) :: column,columng
 

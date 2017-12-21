@@ -86,9 +86,7 @@ if [ $mode == full ] ; then
       cp -f ${modulesDir}/${program}/*.f* ${compiledir}/
   fi
   cp -f ${modulesDir}/*.f* ${compiledir}/
-  cp -f ${programsDir}/commons/*.inc ${compiledir}/
   cp -f ${modulesDir}/shared/*.f*90 ${compiledir}/
-  cp -f ${modulesDir}/shared/*.inc ${compiledir}/
   cp -f ${modulesDir}/bgcheck/*.f*90 ${compiledir}/
 
   cd ${compiledir}
