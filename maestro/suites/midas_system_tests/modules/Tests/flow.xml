@@ -13,6 +13,7 @@
   <SUBMITS sub_name="bgck_o-p"/>
   <SUBMITS sub_name="bgck_conv"/>
   <SUBMITS sub_name="bgck_hyperir"/>
+  <SUBMITS sub_name="ensManip"/>
 
   <FAMILY  name="EnVar_24mem_xc40">
     <SUBMITS sub_name="UnitTest"/>
@@ -82,6 +83,14 @@
   <FAMILY  name="bgck_hyperir">
     <SUBMITS sub_name="UnitTest"/>
     <MODULE  name="UnitTest"/>
+  </FAMILY>
+
+  <FAMILY  name="ensManip">
+    <SUBMITS sub_name="mean"/>
+    <FAMILY  name="mean">
+      <SUBMITS sub_name="UnitTest_pgm"/>
+      <MODULE  name="UnitTest_pgm"/>
+    </FAMILY>
   </FAMILY>
 
 </MODULE>

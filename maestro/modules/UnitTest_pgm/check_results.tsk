@@ -1,0 +1,222 @@
+#!/bin/ksh
+
+NOT_VALIDATING=""
+
+if [ "${EC_ARCH}" = AIX-powerpc7 ]; then
+    diff_options='-h'
+elif [ "${EC_ARCH}" = Linux_x86-64 ]; then
+    diff_options='--speed-large-files'
+else
+    echo "The plateform 'EC_ARCH=${EC_ARCH}' is not supported"
+fi
+
+function check_result {
+    set -ex
+
+    if [ $# -eq 1 ]; then
+	file2=$1
+	file=$(basename ${file2})
+    else
+	file=$1
+	file2=$2
+    fi
+
+    not_validating=""
+
+    ${TASK_BIN}/cmcarc -f results.ca -x "${file}" -v
+
+    if [ ! -f "${file}" ]; then
+	$SEQ_BIN/nodelogger -n $SEQ_NODE -s info  -m "File '${file}' not in archive!"
+	exit 1
+    fi
+    if [ ! -f "${file2}" ]; then
+	$SEQ_BIN/nodelogger -n $SEQ_NODE -s info  -m "File '${file2}' not available!"
+	exit 1
+    fi
+
+    cmp_identical=yes
+    cmp ${file} ${file2} || cmp_identical=no
+    if [ "${cmp_identical}" = yes ]; then
+        method=cmp
+    else
+        ${TASK_BIN}/r.filetype ${file}  > file.filetype  ||  filetype=$?
+        ${TASK_BIN}/r.filetype ${file2} > file2.filetype || filetype2=$?
+        if [ "${filetype}" -eq "${filetype2}" ]; then
+            case "${filetype}" in
+                ## de type fichier standard
+                1|2|3|33) method=fstcomp;;
+                ## BURP
+                6) method=${UnitTest_pgm_burp_diff};;
+                ## when the filetype is not know, then use 'cmp'
+                *) method=cmp;;
+            esac
+        else
+	    $SEQ_BIN/nodelogger -n $SEQ_NODE -s info  -m "The files ${file} are not of the same type!"
+            method=not_the_same_type
+        fi
+
+        if [ "${method}" = fstcomp ]; then
+            ln -s ${file2} file2
+	    ${TASK_BIN}/fstcomp -ne -a ${file} -b file2 2>&1 | tee fstcomp.list
+	    cat fstcomp.list | grep -vE '^   \*|^1|^c_fstopl option REDUCTION32|^ Debug TG= T| SONT EGAUX$' | grep -v "^  NOM    ETIKET        IP1           IP2 IP3 E-REL-MAX  E-REL-MOY    VAR-A      C-COR        MOY-A        BIAIS      E-M
+AX      E-MOY" | grep -v "^  \*\*   SKIPPING RECORD \"!!\", CAN'T COMPARE  \*\*$" | awk 'NF>0 && $(NF-1)!="0.0000E+00"' | tee fstcomp.list.grep
+	    if [ -s fstcomp.list.grep ]; then
+	        not_validating="yes"
+	        rm fstcomp.list fstcomp.list.grep file2
+	    else
+
+	        ${TASK_BIN}/fstcomp -ne -b ${file} -a file2 2>&1 | tee fstcomp.list
+	        cat fstcomp.list | grep -vE '^   \*|^1|^c_fstopl option REDUCTION32|^ Debug TG= T| SONT EGAUX$' | grep -v "^  NOM    ETIKET        IP1           IP2 IP3 E-REL-MAX  E-REL-MOY    VAR-A      C-COR        MOY-A        BIAIS      E-M
+AX      E-MOY" | grep -v "^  \*\*   SKIPPING RECORD \"!!\", CAN'T COMPARE  \*\*$" | awk 'NF>0 && $(NF-1)!="0.0000E+00"' | tee fstcomp.list.grep
+	        if [ -s fstcomp.list.grep ]; then
+		    not_validating="yes"
+	        fi
+	        rm fstcomp.list fstcomp.list.grep file2
+	    fi
+        elif [ "${method}" = cmp ]; then
+	    cmp ${file} ${file2} || not_validating="yes"
+        elif [ "${method}" = diff ]; then
+	    diff ${diff_options} ${file} ${file2} || not_validating="yes"
+        elif [ "${method}" = liburp ]; then
+	    status=0
+	    cmp ${file} ${file2} || status=1
+	    if [ "${status}" -ne 0 ]; then
+	        status=0
+	        diff ${file} ${file2} > /dev/null || status=1
+	        if [ "${status}" -ne 0 ]; then
+		    ${TASK_BIN}/liburp ${file}  > file1.${file}
+		    ${TASK_BIN}/liburp ${file2} > file2.${file}
+		    status=0
+		    cmp file1.${file} file2.${file} || status=1
+		    if [ "${status}" -ne 0 ]; then
+		        diff ${diff_options} file1.${file} file2.${file} || not_validating="yes"
+		        if [ -z "${not_validating}" ]; then
+			    rm file1.${file} file2.${file}
+		        fi
+		    fi
+	        fi
+	    fi
+        elif [ "${method}" = liburp-noresume ]; then
+            [[ -f file1.nores ]] && rm -f file1.nores
+            ${TASK_BIN}/editbrp -s ${file}  -d file1.nores -i<<EOF
+ exclure('>>*******')
+EOF
+            [[ -f file2.nores ]] && rm -f file2.nores
+            ${TASK_BIN}/editbrp -s ${file2} -d file2.nores -i<<EOF
+ exclure('>>*******')
+EOF
+            ${TASK_BIN}/liburp file1.nores > file1.${file}
+            ${TASK_BIN}/liburp file2.nores > file2.${file}
+            cmp file1.${file} file2.${file} || not_validating="yes"
+	    if [ -n "${not_validating}" ]; then
+	        ## Alors on trouve ce qui ne valide pas
+                diff ${diff_options} file1.${file} file2.${file} > diff.${file} || not_validating="yes"
+	    fi
+            if [ -z "${not_validating}" ]; then
+                rm file1.${file} file2.${file} file1.nores file2.nores
+	        [ -f diff.${file} ] && rm diff.${file}
+            else
+                cat diff.${file}
+            fi
+        elif [ "${method}" = SQL ]; then
+	    fam=$(basename ${file} | cut -d. -f3 | cut -d_ -f2-)
+	    if [ "$fam" = to_amsua ]; then
+	        typ=amsua
+	    elif [ "$fam" = to_amsub ]; then
+	        typ=amsub
+	    elif [ "$fam" = sc ]; then
+	        typ=scat
+	    elif [ "$fam" = ssmis ]; then
+	        typ=ssmi
+	    else
+	        typ=$fam
+	    fi
+	    ${TASK_BIN}/burp2rdb -in ${file}  -out file1.sql.${file} -type ${typ} || rm file1.sql.${file}
+	    if [ ! -s file1.sql.${file} ]; then
+	        $SEQ_BIN/nodelogger -n $SEQ_NODE -s info  -m "Problem with rdb2burp with file ${file}"
+	        not_validating="problem"
+	    else
+	        ${TASK_BIN}/burp2rdb -in ${file2} -out file2.sql.${file} -type ${typ} || rm file2.sql.${file}
+	        if [ ! -s file2.sql.${file} ]; then
+		    $SEQ_BIN/nodelogger -n $SEQ_NODE -s info  -m "Problem with rdb2burp with file ${file2}"
+		    not_validating="problem"
+	        else
+		    case "${fam}" in
+		        to_amsua|to_amsub|csr|airs|iasi|ssmis) satel_elem=",bias_corr" ;;
+		        *) satel_elem="" ;;
+		    esac
+		    cat > sqldir <<EOF
+.nullvalue NULL
+.mode tabs
+select id_stn,lat,lon,date,time,omp,obsvalue,vcoord,flag${satel_elem} from header natural join data  order by concat(id_stn,lat,lon,date,time);
+EOF
+
+		    cat sqldir | ${TASK_BIN}/d.sqlite -noheader file1.sql.${file} | sort -n > file1.sqllist.${file} || rm file1.sqllist.${file}
+		    if [ ! -s file1.sqllist.${file} ]; then
+		        $SEQ_BIN/nodelogger -n $SEQ_NODE -s info  -m "Problem with SQL request for file ${file}"
+		        not_validating="problem"
+		    else
+		        cat sqldir | ${TASK_BIN}/d.sqlite -noheader file2.sql.${file} | sort -n > file2.sqllist.${file} || rm file2.sqllist.${file}
+		        if [ ! -s file2.sqllist.${file} ]; then
+			    $SEQ_BIN/nodelogger -n $SEQ_NODE -s info  -m "Problem with SQL request for file ${file2}"
+			    not_validating="problem"
+		        else
+			    diff ${diff_options} file1.sqllist.${file} file2.sqllist.${file} || not_validating="yes"
+			    cmp file1.sqllist.${file} file2.sqllist.${file} || echo "'cmp' found files different"
+			    if [ -z "${not_validating}" ]; then
+			        rm file1.sql.${file} file2.sql.${file} file1.sqllist.${file} file2.sqllist.${file}
+			    fi
+		        fi ## Fin du else pour le 'if [ ! -s file2.sqllist.${file} ]'
+		    fi ## Fin du else pour le 'if [ ! -s file1.sqllist.${file} ]'
+	        fi ## Fin du else pour le 'if [ ! -s file2.sql.${file} ]'
+	    fi ## Fin du else pour le 'if [ ! -s file1.sql.${file} ]'
+        elif [ "${method}" = not_the_same_type ]; then
+            not_validating=yes
+        else
+	    echo "In function check_result:  method=${method} is not one of the possibility"
+	    echo "Please use 'fstcomp', 'cmp' or 'diff'"
+	    exit 1
+        fi
+    fi ## Fin du 'if [ "${cmp_not_identical}" = yes ]'
+
+    if [ -n "${not_validating}" ]; then
+	message="The file ${file} does not validate with method '${method}'!"
+	echo "${message}"
+	$SEQ_BIN/nodelogger -n $SEQ_NODE -s info  -m "${message}"
+	NOT_VALIDATING="yes"
+    else
+	message="The file ${file} is validating with method '${method}'!"
+	echo "${message}"
+	$SEQ_BIN/nodelogger -n $SEQ_NODE -s infox -m "${message}"
+    fi
+}
+
+ref=$(${TASK_BIN}/readlink ${TASK_INPUT}/results.ca)
+if [ -f "${ref##*:}" ]; then
+    ${SEQ_BIN}/nodelogger -n $SEQ_NODE -s infox -m "Local copy of reference results: ${ref##*:}"
+    ln -s ${ref##*:} results.ca
+else
+    ${SEQ_BIN}/nodelogger -n $SEQ_NODE -s infox -m "Downloading reference results: ${ref}"
+    ${TASK_BIN}/remote_copy ${ref} results.ca
+fi
+
+/bin/ls -1 ${TASK_INPUT}/live_results/* | xargs -L1 basename | sort > ls_live_results
+cmcarc -f results.ca -t | sort > results_files
+diff_result=0
+diff ls_live_results results_files || diff_result=1
+if [ "${diff_result}" -ne 0 ]; then
+    $SEQ_BIN/nodelogger -n $SEQ_NODE -s info -m "The directory 'run/output' and the reference don't contain the same files."
+    exit 1
+fi
+rm ls_live_results results_files
+
+for file in ${TASK_INPUT}/live_results/*; do
+    check_result ${file}
+done
+
+if [ -n "${NOT_VALIDATING}" ]; then
+    $SEQ_BIN/nodelogger -n $SEQ_NODE -s info -m "One of the files does not validate"
+    exit 1
+else
+    $SEQ_BIN/nodelogger -n $SEQ_NODE -s infox -m "All files do validate"
+fi

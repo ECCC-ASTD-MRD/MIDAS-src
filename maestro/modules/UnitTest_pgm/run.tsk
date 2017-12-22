@@ -1,0 +1,39 @@
+#!/bin/ksh
+
+cp ${UnitTest_pgm_run_namelist} flnml
+cp ${TASK_BIN}/pgm .
+cp -r ${TASK_INPUT}/inputs/* .
+
+for __ssm_domain__ in ${UnitTest_pgm_run_ssm}; do
+    . ssmuse-sh -d ${__ssm_domain__}
+done
+unset __ssm_domain__
+
+for __envvar__ in ${UnitTest_pgm_run_environment_variables}; do
+    eval "export ${__envvar__}"
+done
+unset __envvar__
+
+cat << EOF > ptopo_nml
+ &ptopo
+  npex=${SEQ_NPEX}
+  npey=${SEQ_NPEY}
+/
+EOF
+
+which r.run_in_parallel
+r.run_in_parallel -pgm ./pgm -npex ${SEQ_NPEX} -npey ${SEQ_NPEY} -processorder -tag -nocleanup -verbose -tmpdir mpitmpdir
+
+## remove inputs
+for file in ${TASK_INPUT}/inputs/*; do
+    bfile=$(basename ${file})
+    rm -r ${bfile}
+done
+
+## remove other files created by the execution
+rm -f flnml pgm ptopo_nml
+rm -r mpitmpdir
+
+## put all the rest in 'output'
+mv * ${TASK_OUTPUT}
+

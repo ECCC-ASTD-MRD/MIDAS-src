@@ -1,0 +1,13 @@
+#!/bin/ksh
+
+cd ${TMPDIR}
+
+unittest=$(dirname ${SEQ_CONTAINER})
+testworkdir=${SEQ_WORKBASE}/${unittest}
+
+if [ "${UnitTest_cleanup}" = yes ]; then
+    ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s infox  -m "Erasing test ${unittest}: ${testworkdir}"
+    rm -rf ${testworkdir}
+else
+    ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s infox  -m "We do not erase the working directory for unit test ${unittest}: ${testworkdir}"
+fi
