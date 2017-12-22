@@ -20,29 +20,15 @@
 !!            are (generally, all start with reading supplied ensemble):
 !!            1. output_ensemble_mean
 !!               - compute mean of input ensemble and write it out
-!!            2. output_ensemble_perturbations
-!!               - compute mean of input ensemble, subtract from
-!!                 ensemble, and write out resulting ensemble perturbations
+!!            2. output_ensemble_stddev
+!!               - compute the input ensemble stddev and write it out
 !!            3. output_recentered_ensemble
 !!               - compute mean of input ensemble, subtract from 
 !!                 ensemble, add supplied ensemble mean, and write out resulting ensemble
-!!            4. output_ssensrf_iau_deterministic
-!!               - compute mean of input background ensemble, subtract from 
-!!                 ensemble, multiply by (1-tilde(K)), add random perturbations,
-!!                 add supplied ensemble mean increment, and output resulting
-!!                 analysis ensemble perturbations
-!!               - result used as IAU increments added to deterministic background state
-!!               - requires specification of sigma_obs for computing tilde(K)
-!!            5. output_ssensrf_iau_ensemble
-!!               - compute mean of input background ensemble, subtract from 
-!!                 ensemble, multiply by (-tilde(K)), add random perturbations,
-!!                 add ensemble mean increment with recentering (supplied mean 
-!!                 analysis minus background ensemble mean)
-!!               - result used as IAU increments added to ensemble of background states
-!!               - requires specification of sigma_obs for computing tilde(K)
+!!            4. output_ensemble_perturbations
+!!               - compute mean of input ensemble, subtract from
+!!                 ensemble, and write out resulting ensemble perturbations
 !!
-!!            Should also add capability of adjusting analyses or analysis perturbations 
-!!            to remove super-saturation, to avoid need of running AddAnalInc on each member
 !!
 !--------------------------------------------------------------------------
 program midas_ensManip
@@ -58,7 +44,7 @@ program midas_ensManip
   use ramDisk_mod
   implicit none
 
-  type(struct_gsv) :: statevector_mean, statevector_member
+  type(struct_gsv) :: statevector_mean, statevector_stddev, statevector_member
 
   type(struct_vco), pointer :: vco_ens => null()
   type(struct_hco), pointer :: hco_ens => null()
@@ -84,10 +70,10 @@ program midas_ensManip
   ! namelist variables
   character(len=2)   :: ctrlVarHumidity
   character(len=256) :: ensPathName, ensFileBaseName
-  logical  :: write_mpi, output_ensemble_mean, output_ensemble_perturbations
+  logical  :: write_mpi, output_ensemble_mean, output_ensemble_stddev, output_ensemble_perturbations
   integer  :: nEns, date
   NAMELIST /NAMENSMANIP/nEns, date, ensPathName, ensFileBaseName, ctrlVarHumidity, write_mpi,  &
-                        output_ensemble_mean, output_ensemble_perturbations
+                        output_ensemble_mean, output_ensemble_stddev, output_ensemble_perturbations
 
   write(*,'(/,' //  &
         '3(" *****************"),/,' //                   &
@@ -123,6 +109,7 @@ program midas_ensManip
   ensFileBaseName               = ''
   ctrlVarHumidity               = 'HU'
   output_ensemble_mean          = .false.
+  output_ensemble_stddev        = .false.
   output_ensemble_perturbations = .false.
 
   !- 1.2 Read the namelist
@@ -179,25 +166,24 @@ program midas_ensManip
 
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
-  !- 2.5 Setup and read the background ensemble
+  !- 2.5 Setup and read the ensemble
   call tmg_start(2,'READ_ENSEMBLE')
   call ens_allocate(ensemble, nEns, numStep, hco_ens, vco_ens, dateStampList)
   makeBiPeriodic = .false.
   call ens_readEnsemble( ensemble, ensPathName, ensFileBaseName, makeBiPeriodic, ctrlVarHumidity )
   call tmg_stop(2)
 
-  !- 2.6 Compute ensemble mean and subtract it from ensemble
+  !- 2.6 Compute ensemble mean
   call tmg_start(3,'COMPUTE_MEAN')
   call ens_computeMean( ensemble )
-  call ens_removeMean( ensemble )
   call tmg_stop(3)
 
-  !- 3.0 Output the background ensemble mean, if requested
+  !- 3.0 Output the ensemble mean, if requested
   if ( output_ensemble_mean ) then
     call tmg_start(4,'OUTPUT_MEAN')
     call ens_copyEnsMean( ensemble, statevector_mean )
 
-    ! Filename for background ensemble mean
+    ! Filename for ensemble mean
     ensFileName = './' // trim(ensfilebasename) // &
                   trim(datestr_last) // trim(hourstr_last) // '_006_ensmean'
 
@@ -213,9 +199,26 @@ program midas_ensManip
     call tmg_stop(4)
   end if
 
-  !- 4.0 Output the background ensemble perturbations, if requested
+  !- 4.0 Compute and output the ensemble spread stddev, if requested
+  if ( output_ensemble_stddev ) then
+    call tmg_start(5,'OUTPUT_STDDEV')
+
+    ! Filename for ensemble stddev
+    ensFileName = './' // trim(ensfilebasename) // &
+                  trim(datestr_last) // trim(hourstr_last) // '_006_ensstddev'
+
+    ! Compute the ensemble stddev and put in statevector_stddev
+
+    ! Output the ensemble stddev
+
+
+    call tmg_stop(5)
+  end if
+
+  !- 5.0 Output the ensemble perturbations, if requested
   if ( output_ensemble_perturbations ) then
     call tmg_start(8,'OUTPUT_PERTURBATIONS')
+    call ens_removeMean( ensemble )
     call ens_writeEnsemble( ensemble, './', 'pert_', ctrlVarHumidity, 'ENSPERT', 'P')
     call tmg_stop(8)
   end if

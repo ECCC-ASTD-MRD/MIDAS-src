@@ -262,22 +262,24 @@ CONTAINS
       subEnsIndex2 = subEnsIndex
     else
       subEnsIndex2 = 1
-    endif
+    end if
 
     k1 = ens%statevector_work%mykBeg
     k2 = ens%statevector_work%mykEnd
     numStep = ens%statevector_work%numStep
 
-    call gsv_allocate(statevector, numStep,  &
-                      ens%statevector_work%hco, ens%statevector_work%vco,  &
-                      datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., dataKind_in_opt=8 )
+    if (.not. statevector%allocated) then
+      call gsv_allocate(statevector, numStep,  &
+                        ens%statevector_work%hco, ens%statevector_work%vco,  &
+                        datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., dataKind_in_opt=8 )
+    end if
 
     ptr4d_r8 => gsv_getField_r8(statevector)
     do stepIndex = 1, numStep
       do jk = k1, k2
         ptr4d_r8(:,:,jk,stepIndex) = ens%repack_ensMean_r8(jk)%onelevel(subEnsIndex2,stepIndex,:,:)
-      enddo
-    enddo
+      end do
+    end do
 
   end subroutine ens_copyEnsMean
 

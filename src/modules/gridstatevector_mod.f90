@@ -1087,8 +1087,8 @@ module gridStateVector_mod
 
     if ( statevector_out%dataKind == 8 .and. statevector_in%dataKind == 8 ) then
 
-      statevector_out%gzSfc(:,:) = 0.d0
       if ( associated(statevector_in%gzSfc) .and. associated(statevector_out%gzSfc) ) then
+        statevector_out%gzSfc(:,:) = 0.d0
         statevector_out%gzSfc(lonBeg_in:lonEnd_in,latBeg_in:latEnd_in) = statevector_in%gzSfc(:,:)
       end if
 
@@ -1107,8 +1107,8 @@ module gridStateVector_mod
 
     elseif ( statevector_out%dataKind == 4 .and. statevector_in%dataKind == 4 ) then
 
-      if ( associated(statevector_out%gzSfc) ) statevector_out%gzSfc(:,:) = 0.0
       if ( associated(statevector_in%gzSfc) .and. associated(statevector_out%gzSfc) ) then
+        statevector_out%gzSfc(:,:) = 0.0
         statevector_out%gzSfc(lonBeg_in:lonEnd_in,latBeg_in:latEnd_in) = statevector_in%gzSfc(:,:)
       end if
 
