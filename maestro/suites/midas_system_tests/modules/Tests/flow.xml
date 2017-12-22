@@ -91,6 +91,11 @@
       <SUBMITS sub_name="UnitTest_pgm"/>
       <MODULE  name="UnitTest_pgm"/>
     </FAMILY>
+    <SUBMITS sub_name="recenter"/>
+    <FAMILY  name="recenter">
+      <SUBMITS sub_name="UnitTest_pgm"/>
+      <MODULE  name="UnitTest_pgm"/>
+    </FAMILY>
   </FAMILY>
 
 </MODULE>

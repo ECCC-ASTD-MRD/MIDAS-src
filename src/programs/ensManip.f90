@@ -44,7 +44,7 @@ program midas_ensManip
   use ramDisk_mod
   implicit none
 
-  type(struct_gsv) :: statevector_mean, statevector_stddev, statevector_member
+  type(struct_gsv) :: statevector_mean, statevector_stddev, statevector_recenteringMean
 
   type(struct_vco), pointer :: vco_ens => null()
   type(struct_hco), pointer :: hco_ens => null()
@@ -60,7 +60,7 @@ program midas_ensManip
 
   character(len=2)    :: hourstr, hourstr_last
   character(len=8)    :: datestr, datestr_last
-  character(len=256)  :: ensFileName
+  character(len=256)  :: ensFileName, recenteringMeanFileName
 
   logical             :: makeBiPeriodic
 
@@ -70,10 +70,12 @@ program midas_ensManip
   ! namelist variables
   character(len=2)   :: ctrlVarHumidity
   character(len=256) :: ensPathName, ensFileBaseName
-  logical  :: write_mpi, output_ensemble_mean, output_ensemble_stddev, output_ensemble_perturbations
+  logical  :: write_mpi, output_ensemble_mean, output_ensemble_stddev, output_ensemble_perturbations, recenter
+  real(8)  :: recentering_coeff
   integer  :: nEns, date
   NAMELIST /NAMENSMANIP/nEns, date, ensPathName, ensFileBaseName, ctrlVarHumidity, write_mpi,  &
-                        output_ensemble_mean, output_ensemble_stddev, output_ensemble_perturbations
+                        output_ensemble_mean, output_ensemble_stddev, output_ensemble_perturbations, &
+                        recenter, recentering_coeff
 
   write(*,'(/,' //  &
         '3(" *****************"),/,' //                   &
@@ -214,8 +216,11 @@ program midas_ensManip
       end if
     end do
 
-
     call tmg_stop(7)
+  end if
+
+  if ( output_ensemble_perturbations .and. recenter ) then
+     call utl_abort('midas-ensManip: You must choose between computing ensemble perturbations and recenter.')
   end if
 
   !- 5.0 Output the ensemble perturbations, if requested
@@ -224,6 +229,37 @@ program midas_ensManip
     call ens_removeMean( ensemble )
     call ens_writeEnsemble( ensemble, './', 'pert_', ctrlVarHumidity, 'ENSPERT', 'P')
     call tmg_stop(8)
+  end if
+
+  if (recenter) then
+     ! read recentering mean in file '${DATE}_recenteringmean'
+     call tmg_start(10,'READ_RECENTERINGMEAN')
+
+     ! Filename for recentering mean
+     recenteringMeanFileName = './' // trim(datestr_last) // trim(hourstr_last) // '_recenteringmean'
+
+     call gsv_allocate(statevector_recenteringMean, numStep, hco_ens, vco_ens, &
+          dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.)
+
+     do stepIndex = 1, numStep
+        dateStamp = datestamplist(stepIndex)
+        if(mpi_myid == 0) write(*,*) ''
+        if(mpi_myid == 0) write(*,*) 'midas-ensManip: reading recentering mean for time step: ',stepIndex, dateStamp
+        call gsv_readFromFile(statevector_recenteringMean, trim(recenteringMeanFileName), ' ', ' ', stepIndex)
+     end do
+
+     call tmg_stop(10)
+
+     ! Compute 'x_recenteringMean - x_ensembleMean' which is stored in 'statevector_recenteringMean'
+     call gsv_add(statevector_mean, statevector_recenteringMean, -1.0d0)
+
+     call tmg_start(11,'RECENTER_ENSEMBLE_MEMBERS')
+     call ens_recenter(ensemble,statevector_recenteringMean,recentering_coeff)
+     call tmg_stop(11)
+
+     call tmg_start(12,'OUTPUT_RECENTER_MEMBERS')
+     call ens_writeEnsemble( ensemble, './', 'recentered_', ctrlVarHumidity, 'ENSRECENTER', 'P')
+     call tmg_stop(12)
   end if
 
   !

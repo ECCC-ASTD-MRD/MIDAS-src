@@ -41,7 +41,7 @@ MODULE ensembleStateVector_mod
   public :: ens_readEnsemble, ens_writeEnsemble, ens_fileName
   public :: ens_copyToStateWork, ens_getRepackMean_r8
   public :: ens_varExist, ens_getNumLev
-  public :: ens_computeMean, ens_removeMean, ens_copyEnsMean, ens_copyMember
+  public :: ens_computeMean, ens_removeMean, ens_copyEnsMean, ens_copyMember, ens_recenter
   public :: ens_computeStdDev, ens_copyEnsStdDev
   public :: ens_getRepack_r4
   public :: ens_getOffsetFromVarName, ens_getLevFromK, ens_getVarNameFromK, ens_getNumK, ens_getKFromLevVarName
@@ -670,6 +670,51 @@ CONTAINS
 !$OMP END PARALLEL DO
 
   end subroutine ens_removeMean
+
+
+  subroutine ens_recenter(ens,recenteringMean,recenteringCoeff)
+    implicit none
+
+    !! We want to compute:
+    !!    x_recentered = x_original + recenteringCoeff*(x_recenteringMean - x_ensembleMean)
+
+    ! arguments
+    type(struct_ens) :: ens
+    type(struct_gsv) :: recenteringMean
+    real(8)          :: recenteringCoeff
+
+    ! locals
+    real(8), pointer :: ptr4d_r8(:,:,:,:)
+    integer :: lon1, lon2, lat1, lat2, k1, k2, numStep
+    integer :: jk, jj, ji, stepIndex, memberIndex
+
+    lon1 = ens%statevector_work%myLonBeg
+    lon2 = ens%statevector_work%myLonEnd
+    lat1 = ens%statevector_work%myLatBeg
+    lat2 = ens%statevector_work%myLatEnd
+    k1 = ens%statevector_work%mykBeg
+    k2 = ens%statevector_work%mykEnd
+    numStep = ens%statevector_work%numStep
+
+    ptr4d_r8 => gsv_getField_r8(recenteringMean)
+
+!$OMP PARALLEL DO PRIVATE (jk,jj,ji,stepIndex,memberIndex)
+    do jk = k1, k2
+      do jj = lat1, lat2
+        do ji = lon1, lon2
+          do stepIndex = 1, numStep
+            do memberIndex = 1, ens%numMembers
+              ens%repack_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj) =  &
+                real( real(ens%repack_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj),8) + &
+                      recenteringCoeff*ptr4d_r8(ji,jj,jk,stepIndex), 4)
+            end do
+          end do
+        end do
+      end do
+    end do
+!$OMP END PARALLEL DO
+
+  end subroutine ens_recenter
 
 
   subroutine ens_readEnsemble(ens, ensPathName, ensFileBaseName, biPeriodic, ctrlVarHumidity, &
