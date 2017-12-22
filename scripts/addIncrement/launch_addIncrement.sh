@@ -25,7 +25,6 @@ cat << EOF > $TMPDIR/flnml
  &NAMADDINC
 /
  &NAMTIME
-  dateFromTrials = .TRUE.
   DSTEPOBS = 6.0d0
   DSTEPOBSINC = 6.0d0
 /

@@ -5,7 +5,7 @@
 # User-defined options
 #
 machine=eccc-ppp2
-abs="${HOME}/data_maestro/ords/midas_abs/midas-ensManip_ubuntu-14.04-amd64-64-v_3.0.4-34-g3951b62_M.Abs"
+abs="${HOME}/data_maestro/ords/midas_abs/midas-ensManip_ubuntu-14.04-amd64-64-v_3.0.4-63-gf669ce6_M.Abs"
 ensdir="/home/mab001/data_maestro/${machine}/kal569/"
 npex=4
 npey=11
@@ -17,18 +17,7 @@ run_in_parallel="/fs/ssm/eccc/mrd/rpn/utils/16.2/all/bin/r.run_in_parallel_1.1.2
 # Don't modify below ...
 #
 
-#ensdate=$1
-ensdate=2017010100
-if [ "${ensdate}" = "" ]; then
-  echo ""
-  echo " *************************************************"
-  echo " ERROR: NO DATE WAS SPECIFIED ON THE COMMAND LINE!"
-  echo " PLEASE GIVE THE VALID DATE FOR THE ENSEMBLES."
-  echo " *************************************************"
-  echo ""
-  exit
-fi
-gest="${HOME}/data_maestro/${machine}/ensmanip/test3_${ensdate}/"
+gest="${HOME}/data_maestro/${machine}/ensmanip/test5/"
 
 # build the namelist
 cat << EOF > $TMPDIR/flnml
@@ -38,7 +27,6 @@ cat << EOF > $TMPDIR/flnml
    OUTPUT_ENSEMBLE_MEAN = T
    OUTPUT_ENSEMBLE_PERTURBATIONS = T
    NENS = 10
-   DATE = ${ensdate}
    WRITE_MPI = F
 /
  &NAMTIME

@@ -128,18 +128,9 @@ program midas_ensManip
 
   !- 2.1 Initialize the dates
 
-  ! Analysis time
-  idate   = date/100
-  itime   = (date-idate*100)*1000000
-  ierr    = newdate(dateStamp, idate, itime, 3)
-  write(datestr,'(i8.8)') idate
-  write(hourstr,'(i2.2)') itime/1000000
-  if ( mpi_myid == 0 ) write(*,*) 'datestr= ', datestr, ' hourstr= ', hourstr
-  if ( mpi_myid == 0 ) write(*,*) 'dateStamp= ', dateStamp
-
   ! Setup timeCoord module
-  call tim_setup
-  call tim_setDatestamp(dateStamp)
+  call ens_fileName( ensFileName, ensPathName, ensFileBaseName, 1 )
+  call tim_setup( fileNameForDate_opt=ensFileName )
   numStep = tim_nstepobsinc
   allocate(dateStampList(numStep))
   call tim_getstamplist(dateStampList,numStep,tim_getDatestamp())

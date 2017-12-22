@@ -1057,14 +1057,48 @@ CONTAINS
 
     ! locals
     real(8)          :: delhh
-    integer          :: stamp_last, ndate, ntime, ierr, newdate
+    integer          :: datestamp, datestamp_last, ndate, ntime, ierr, newdate, numFiles, returnCode
     character(len=8) :: datestr_last
     character(len=2) :: hourstr_last
     character(len=4) :: ensNumber
     logical          :: lExists
     logical          :: shouldExist2
+    character(len=200) :: fileList(10), fileNamePattern
     logical, save    :: firstTime = .true.
     integer, save    :: ensembleFileExtLength = 4
+
+    ! The following interface was extracted from #include <clib_interface.cdk>
+    interface clib_glob
+      integer function clib_glob_schhide(filelist,nfiles,pattern,maxnfiles)
+        implicit none
+        integer,intent(IN)  :: maxnfiles
+        character(len=*),intent(IN) :: pattern
+        integer,intent(OUT) :: nfiles
+        character(len=*),dimension(maxnfiles),intent(OUT):: filelist
+      end function
+    end interface
+
+    datestamp = 0
+    if ( tim_initialized() ) then
+      datestamp = tim_getDatestamp()
+    end if
+
+    ! datestamp not yet set try to figure out filename and get date from it
+    if ( datestamp == 0 ) then
+      write(*,*) 'ens_fileName: trying to set datestamp from ensemble file'
+      fileNamePattern = './' // trim(enspathname) // '/' // '??????????_006_*1'
+      returnCode = clib_glob(fileList,numFiles,trim(fileNamePattern),10)
+      write(*,*) 'ens_fileName: fileList = ',trim(fileList(1))
+      write(*,*) 'ens_fileName: numFiles, returnCode = ', numFiles,returnCode
+      if ( tim_initialized() ) then
+        datestamp = tim_getDatestampFromFile(trim(fileList(1)))
+        call tim_setDatestamp(datestamp)
+      else
+        call tim_setup(trim(fileList(1)))
+        datestamp = tim_getDatestamp()
+      end if
+      write(*,*) 'ens_fileName: datestamp set from file = ', datestamp
+    end if
 
     if ( present(shouldExist) ) then
       shouldExist2 = shouldExist
@@ -1074,8 +1108,8 @@ CONTAINS
 
     ! Initialize dates for ensemble files
     delhh = -tim_windowsize
-    call incdatr(stamp_last,tim_getDatestamp(),delhh)
-    ierr = newdate(stamp_last,ndate,ntime,-3)
+    call incdatr(datestamp_last,tim_getDatestamp(),delhh)
+    ierr = newdate(datestamp_last,ndate,ntime,-3)
     write(datestr_last,'(i8.8)') ndate
     write(hourstr_last,'(i2.2)') ntime/1000000
     if (mpi_myid == 0) write(*,*) 'ens_fileName: DATE,TIME=',ndate,'  ,',ntime

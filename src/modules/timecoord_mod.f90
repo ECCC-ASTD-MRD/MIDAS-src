@@ -32,9 +32,10 @@ MODULE timeCoord_mod
   public :: tim_dstepobs, tim_dstepobsinc, tim_windowsize
   public :: tim_nstepobs, tim_nstepobsinc
   ! public procedures
-  public :: tim_setup, tim_timeBinning
+  public :: tim_setup, tim_timeBinning, tim_initialized
   public :: tim_sutimeinterp, tim_setTimeInterpWeight, tim_getTimeInterpWeight
   public :: tim_getDateStamp, tim_setDateStamp, tim_getStampList, tim_getStepObsIndex
+  public :: tim_getDateStampFromFile
 
   character(len=4) :: varNameForDate = 'P0'
   real(8)   :: tim_dstepobs
@@ -43,12 +44,12 @@ MODULE timeCoord_mod
   integer   :: tim_nstepobsinc
   integer, parameter :: mxstepobs = 9 
   real(8), pointer   :: timeInterpWeight(:,:) => NULL() ! weights for linear temporal interpolation of increment to obs times
-  integer            :: datestamp      ! window centre of analysis validity
+  integer            :: datestamp = 0    ! window centre of analysis validity
   logical            :: initialized = .false.
 
 contains
 
-  subroutine tim_setup()
+  subroutine tim_setup(fileNameForDate_opt)
     !
     ! Purpose: Setup of obs time window size and related trial field 
     !          time step for OmP determination. 
@@ -76,18 +77,22 @@ contains
     !   corresponding to the date of the middle trial field file.
     !
     implicit none
+    character(len=*), optional :: fileNameForDate_opt
 
     integer :: nulnam,ierr,fnom,fclos,newdate,imode,prntdate,prnttime,date
     real(8) :: dstepobs,dstepobsinc,dwindowsize
-    logical :: dateFromTrials
-    NAMELIST /NAMTIME/dstepobs,dstepobsinc,dwindowsize,date,dateFromTrials
+    NAMELIST /NAMTIME/dstepobs,dstepobsinc,dwindowsize,date
+
+    if ( initialized ) then
+      write(*,*) 'tim_setup: already initialized, just return'
+      return
+    end if
 
     ! Set default values for namelist variables
     dstepobs       = 6.0d0
     dstepobsinc    = 6.0d0      
     dwindowsize    = 6.0d0     
     date           = 0
-    dateFromTrials = .false.
 
     ! Read the namelist
     nulnam = 0
@@ -113,11 +118,11 @@ contains
     tim_nstepobsinc = 2*nint(((tim_windowsize - tim_dstepobsinc)/2.d0)/tim_dstepobsinc) + 1
 
     ! Possibly set the datestamp (except when set later from burp files)
-    if( dateFromTrials ) then
+    if( present(fileNameForDate_opt) ) then
       write(*,*) 'tim_setup: ====================================================='
-      write(*,*) 'tim_setup: DATESTAMP set by value in the Trial files'
+      write(*,*) 'tim_setup: DATESTAMP set by value in supplied file'
       write(*,*) 'tim_setup: ====================================================='
-      datestamp = tim_getDatestampFromTrials()
+      datestamp = tim_getDatestampFromFile(fileNameForDate_opt)
       imode = -3 ! stamp to printable
       ierr = newdate(datestamp, prntdate, prnttime, imode)
       write(*,*) 'tim_setup: printdate = ',prntdate
@@ -146,19 +151,27 @@ contains
 
   end subroutine tim_setup
 
+  function tim_initialized() result(initialized_out)
+    implicit none
+    logical initialized_out
 
-  function tim_getDatestampFromTrials() result(dateStamp_out)
+    initialized_out = initialized
+
+  end function tim_initialized
+
+  function tim_getDatestampFromFile(fileName) result(dateStamp_out)
     !
-    ! object: to extract the dateStamp from the set of trial files.  Returns the dateStamp
-    !         of the window centre of analysis validity.
+    ! object: to extract the dateStamp from the supplied file.
     implicit none
 
+    character(len=*) :: fileName
     integer :: dateStamp_out
 
-    integer :: middleStep, nulTrial, ierr, ikey
-    integer :: fnom, fstouv, fstinf, fstprm, fstfrm, fclos
+    integer :: middleStep, nulFile, ierr
+    integer, parameter :: maxNumDates = 100
+    integer :: numDates, ikeys(maxNumDates)
+    integer :: fnom, fstouv, fstinf, fstinl, fstprm, fstfrm, fclos
     character(len=2)   :: fileNumber
-    character(len=256) :: fileName
     logical :: fileExists
     real(8) :: leadTimeInHours
     integer :: ideet, inpas, dateStamp_origin, ini, inj, ink, inbits, idatyp, &
@@ -169,36 +182,40 @@ contains
     character(len=12) :: etiket
     character(len=1)  :: grtyp
 
-    ! Check if trial file for middle of analysis window exists
-    middleStep = nint((real(tim_nstepobs,8)+1.0d0)/2.0d0)
-    write(fileNumber,'(I2.2)') middleStep
-    fileName = './trlm_' // trim(fileNumber)
-    inquire(file=trim(fileName), exist=fileExists)
-    if (.not. fileExists) then
-      call utl_abort('tim_getDateStampFromTrials: Trial file not found')
+    if ( mpi_myid == 0 ) then
+
+      ! Check if file for middle of analysis window exists
+      inquire(file=trim(fileName), exist=fileExists)
+      if (.not. fileExists) then
+        call utl_abort('tim_getDateStampFromFile: File not found')
+      end if
+
+      ! Extract the datestamp from the file
+      nulFile = 0
+      ierr = fnom(nulFile,trim(fileName),'RND+OLD+R/O',0)
+      ierr = fstouv(nulFile,'RND+OLD')
+      ierr = fstinl(nulFile,ini,inj,ink,-1,' ',-1,-1,-1,' ', &
+                    trim(varNameForDate),ikeys,numdates,maxnumdates)
+      if( ikeys(1) <= 0 ) then
+        call utl_abort('tim_getDateStampFromFile: Could not find variable ' //  &
+                       trim(varNameForDate) // ' in the supplied file')
+      end if
+      write(*,*) 'tim_getDateStampFromFile: number of dates found = ', numDates
+      ierr = fstprm(ikeys((numDates+1)/2), dateStamp_origin, ideet, inpas, ini, inj, &
+                    ink, inbits, idatyp, ip1, ip2, ip3, &
+                    typvar, nomvar, etiket, grtyp, ig1, ig2, ig3, ig4, &
+                    iswa, ilng, idltf, iubc, iextra1, iextra2, iextra3)
+      leadTimeInHours = real(ideet*inpas,8)/3600.0d0
+      call incdatr(dateStamp_out, dateStamp_origin, leadTimeInHours)
+
+      ierr = fstfrm(nulFile)
+      ierr = fclos(nulFile)
+
     end if
 
-    ! Extract the datestamp from the trial file
-    nulTrial = 0
-    ierr = fnom(nulTrial,trim(fileName),'RND+OLD+R/O',0)
-    ierr = fstouv(nulTrial,'RND+OLD')
-    ikey = fstinf(nulTrial, ini, inj, ink,  &
-                  -1, ' ', -1, -1, -1, ' ', trim(varNameForDate))
-    if( ikey <= 0 ) then
-      call utl_abort('tim_getDateStampFromTrials: Could not find variable ' //  &
-                     trim(varNameForDate) // ' in the trial file')
-    end if
-    ierr = fstprm(ikey, dateStamp_origin, ideet, inpas, ini, inj, &
-                  ink, inbits, idatyp, ip1, ip2, ip3, &
-                  typvar, nomvar, etiket, grtyp, ig1, ig2, ig3, ig4, &
-                  iswa, ilng, idltf, iubc, iextra1, iextra2, iextra3)
-    leadTimeInHours = real(ideet*inpas,8)/3600.0d0
-    call incdatr(dateStamp_out, dateStamp_origin, leadTimeInHours)
+    call rpn_comm_bcast(dateStamp_out, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
 
-    ierr = fstfrm(nulTrial)
-    ierr = fclos(nulTrial)
-
-  end function tim_getDateStampFromTrials
+  end function tim_getDateStampFromFile
 
 
   subroutine tim_timeBinning(obsSpaceData,nstepobs)
