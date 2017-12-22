@@ -90,4 +90,4 @@ cat << EOF > $TMPDIR/ptopo_nml
 EOF
 scp $TMPDIR/ptopo_nml ${machine}:${gest}
 
-ord_soumet $TMPDIR/go_ensmanip.sh -mach $machine -mpi -t $maxcputime -cm 4G -cpus ${npex}x${npey}x${openmp} -jn ensManip_${ensdate} -waste
+ord_soumet $TMPDIR/go_ensmanip.sh -mach $machine -mpi -t $maxcputime -cm 4G -cpus ${npex}x${npey}x${openmp} -jn ensManip_${ensdate} -waste -listing ${gest}
