@@ -50,6 +50,7 @@ CONTAINS
     type(struct_gsv) :: statevector_incHighRes
     type(struct_gsv) :: statevector_trial, statevector_analysis
     type(struct_gsv) :: statevector_PsfcLowRes, statevector_Psfc
+    type(struct_gsv) :: statevector_PsfcLowRes_varsLevs, statevector_Psfc_varsLevs
 
     type(struct_vco), pointer :: vco_trl => null()
     type(struct_vco), pointer :: vco_inc => null()
@@ -141,10 +142,14 @@ CONTAINS
     useIncLevelsOnly = vco_subsetOrNot(vco_inc, vco_trl)
     if ( useIncLevelsOnly ) then
       ! Read only the increment levels
+      write(*,*)
+      write(*,*) 'adx_computeAndWriteAnalysis: only the increment levels will be read in the trials' 
       call  vco_deallocate(vco_trl)
       vco_trl => vco_inc
     else
       ! Read them all
+      write(*,*)
+      write(*,*) 'adx_computeAndWriteAnalysis: all the vertical levels will be read in the trials'
       if (.not. present(statevector_incLowRes_opt)) then
         call vco_deallocate(vco_inc)
       end if
@@ -164,25 +169,26 @@ CONTAINS
     !- Get the increment of Psfc
     !
     if (gsv_varExist(varName='P0')) then
-      !- Interpolation the input increment
       call gsv_allocate(statevector_Psfc, numStep, hco_trl, vco_trl, &
                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,  &
                         varNames_opt=(/'P0'/), allocGZsfc_opt=.true., &
                         hInterpolateDegree_opt=hInterpolationDegree)
 
       if (present(statevector_incLowRes_opt)) then
+        if(mpi_myid == 0) write(*,*) ''
+        if(mpi_myid == 0) write(*,*) 'adx_computeAndWriteAnalysis: horiz interpolation of the Psfc increment'
 
+        ! Extract Psfc inc at low resolution
         call gsv_allocate(statevector_PsfcLowRes, numStep, statevector_incLowRes_opt%hco, &
-                          statevector_incLowRes_opt%vco, &
+                          statevector_incLowRes_opt%vco,  &
                           dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,  &
-                          varNames_opt=(/'P0'/), allocGZsfc_opt=.true.)
-
-        PsfcIncLowResFrom3Dgsv => gsv_getField_r8(statevector_incLowRes_opt,'P0')
+                          varNames_opt=(/'P0'/))
         PsfcIncLowRes          => gsv_getField_r8(statevector_PsfcLowRes,'P0')
+        PsfcIncLowResFrom3Dgsv => gsv_getField_r8(statevector_incLowRes_opt,'P0')
         PsfcIncLowRes(:,:,1,:) = PsfcIncLowResFrom3Dgsv(:,:,1,:)
 
-        call gsv_hInterpolate(statevector_PsfcLowRes, statevector_Psfc)
-
+        ! Interpolate
+        call gsv_interpolate(statevector_PsfcLowRes,statevector_Psfc)
         call gsv_deallocate(statevector_PsfcLowRes)
 
       else
@@ -204,19 +210,19 @@ CONTAINS
                HUcontainsLQ=.false.)
         end do
  
-     end if
-
+      end if
+     
       !
       !- Compute analysis Psfc to use for interpolation of increment
       !
       PsfcTrial     => gsv_getField_r8(statevector_trial,'P0')
       PsfcIncrement => gsv_getField_r8(statevector_Psfc ,'P0')
       PsfcAnalysis  => gsv_getField_r8(statevector_Psfc ,'P0')
-
+      
       PsfcAnalysis(:,:,1,:) = PsfcTrial(:,:,1,:) + PsfcIncrement(:,:,1,:)
-
+      
       !
-      ! Copy the surface GZ from trial into statevector_Psfc
+      !- Copy the surface GZ from trial into statevector_Psfc
       !
       GZsfc_increment => gsv_getGZsfc(statevector_Psfc)
       GZsfc_trial     => gsv_getGZsfc(statevector_trial)
@@ -230,6 +236,9 @@ CONTAINS
     !
     !- Compute the analysis
     !
+    if(mpi_myid == 0) write(*,*) ''
+    if(mpi_myid == 0) write(*,*) 'adx_computeAndWriteAnalysis: compute the analysis'
+
     call gsv_allocate(statevector_incHighRes, numStep, hco_trl, vco_trl, &
                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
                       allocGZsfc_opt=allocGZsfc, hInterpolateDegree_opt=hInterpolationDegree)

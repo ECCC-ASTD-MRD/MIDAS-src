@@ -48,7 +48,7 @@ module gridStateVector_mod
   public :: gsv_getDateStamp, gsv_getNumLev, gsv_getNumLevFromVarName
   public :: gsv_add, gsv_power, gsv_scale, gsv_scaleVertical, gsv_copy, gsv_stddev
   public :: gsv_getVco, gsv_getHco
-  public :: gsv_horizSubSample, gsv_interpolateAndAdd
+  public :: gsv_horizSubSample, gsv_interpolateAndAdd, gsv_interpolate
   public :: gsv_varKindExist, gsv_varExist
   public :: gsv_multEnergyNorm, gsv_dotProduct
 
@@ -720,13 +720,14 @@ module gridStateVector_mod
   subroutine gsv_interpolateAndAdd(statevector_in,statevector_inout,scaleFactor_opt, &
                                    PsfcReference_opt)
     implicit none
-    type(struct_gsv)  :: statevector_in,statevector_inout
+    type(struct_gsv)  :: statevector_in, statevector_inout
 
     real(8), optional :: scaleFactor_opt
     real(8), optional :: PsfcReference_opt(:,:,:)
 
-    type(struct_gsv) :: statevector_in_varLevs, statevector_in_varLevs_hInterp
-    type(struct_gsv) :: statevector_in_hvInterp, statevector_in_hInterp
+    type(struct_gsv) :: statevector_in_hvInterp
+
+    character(len=4) :: varNameToInterpolate(1) 
 
     !
     !- Error traps
@@ -741,55 +742,31 @@ module gridStateVector_mod
     !
     !- Do the interpolation of statevector_in onto the grid of statevector_inout
     !
-
-    !- Horizontal interpolation
-    call gsv_allocate(statevector_in_VarLevs, 1, statevector_in%hco, statevector_in%vco,          &
-                        mpi_local_opt=statevector_in%mpi_local, mpi_distribution_opt='VarsLevs',  &
-                        dataKind_in_opt=statevector_in%dataKind,                                  &
-                        allocGZsfc_opt=statevector_in%gzSfcPresent)
-    call gsv_transposeLatLonToVarsLevs( statevector_in, statevector_in_VarLevs )
-
-    call gsv_allocate(statevector_in_VarLevs_hInterp, 1, statevector_inout%hco, statevector_in%vco,  &
-                        mpi_local_opt=statevector_inout%mpi_local, mpi_distribution_opt='VarsLevs', &
-                        dataKind_in_opt=statevector_inout%dataKind,                                 &
-                        allocGZsfc_opt=statevector_inout%gzSfcPresent)
-
-    if (statevector_in_VarLevs%dataKind == 4) then
-      call gsv_hInterpolate_r4(statevector_in_VarLevs, statevector_in_VarLevs_hInterp)
+    if ( count( statevector_in%varExistList(:) ) == 1 ) then
+      if ( mpi_myid == 0 ) write(*,*) 'gsv_interpolate: only 1 variable to interpolate'
+      varNameToInterpolate(1) = gsv_getVarNameFromK(statevector_in,1)
     else
-      call gsv_hInterpolate(statevector_in_VarLevs, statevector_in_VarLevs_hInterp)
+      varNameToInterpolate(1) = 'ALL'
+    endif
+
+    if (varNameToInterpolate(1) == 'ALL') then
+      call gsv_allocate(statevector_in_hvInterp, 1, statevector_inout%hco, statevector_inout%vco, &
+                        mpi_local_opt=statevector_inout%mpi_local, mpi_distribution_opt='Tiles',  &
+                        dataKind_in_opt=statevector_inout%dataKind,                               &
+                        allocGZsfc_opt=statevector_inout%gzSfcPresent)
+    else
+      call gsv_allocate(statevector_in_hvInterp, 1, statevector_inout%hco, statevector_inout%vco, &
+                        mpi_local_opt=statevector_inout%mpi_local, mpi_distribution_opt='Tiles',  &
+                        dataKind_in_opt=statevector_inout%dataKind,                               &
+                        allocGZsfc_opt=statevector_inout%gzSfcPresent,                            &
+                        varNames_opt=varNameToInterpolate)
     end if
-    call gsv_deallocate(statevector_in_VarLevs)
-
-    call gsv_allocate(statevector_in_hInterp, 1, statevector_inout%hco, statevector_in%vco,      &
-                      mpi_local_opt=statevector_inout%mpi_local, mpi_distribution_opt='Tiles', &
-                      dataKind_in_opt=statevector_inout%dataKind,                              &
-                      allocGZsfc_opt=statevector_inout%gzSfcPresent)
-    call gsv_transposeVarsLevsToLatLon( statevector_in_varLevs_hInterp, statevector_in_hInterp)
-    call gsv_deallocate(statevector_in_varLevs_hInterp)
-
-    !- Vertical interpolation
-    call gsv_allocate(statevector_in_hvInterp, 1, statevector_inout%hco, statevector_inout%vco,    &
-                      mpi_local_opt=statevector_inout%mpi_local, mpi_distribution_opt='Tiles', &
-                      dataKind_in_opt=statevector_inout%dataKind,                               &
-                      allocGZsfc_opt=statevector_inout%gzSfcPresent)
 
     if (present(PsfcReference_opt) ) then
-      if (statevector_in_VarLevs%dataKind == 4) then
-        call utl_abort('gsv_interpolateAndAdd: vertical interpolation for dataKind == 4 not yet availbale!')
-        !call gsv_vInterpolate_r4(statevector_in_hInterp,statevector_in_hvInterp,PsfcReference_opt=PsfcReference_opt_r4)
-      else
-        call gsv_vInterpolate(statevector_in_hInterp,statevector_in_hvInterp,PsfcReference_opt=PsfcReference_opt)
-      end if
+      call gsv_interpolate(statevector_in,statevector_in_hvInterp,PsfcReference_opt=PsfcReference_opt)
     else
-      if (statevector_in_VarLevs%dataKind == 4) then
-        call gsv_vInterpolate_r4(statevector_in_hInterp,statevector_in_hvInterp)
-      else
-        call gsv_vInterpolate(statevector_in_hInterp,statevector_in_hvInterp)
-      end if
+      call gsv_interpolate(statevector_in,statevector_in_hvInterp)
     end if
-
-    call gsv_deallocate(statevector_in_hInterp)
 
     !
     !- Do the summation
@@ -803,6 +780,118 @@ module gridStateVector_mod
     call gsv_deallocate(statevector_in_hvInterp)
 
   end subroutine gsv_interpolateAndAdd
+
+  !--------------------------------------------------------------------------
+  ! GSV_interpolate
+  !--------------------------------------------------------------------------
+  subroutine gsv_interpolate(statevector_in,statevector_out, &
+                             PsfcReference_opt)
+    implicit none
+    type(struct_gsv)  :: statevector_in,statevector_out
+
+    real(8), optional :: PsfcReference_opt(:,:,:)
+
+    type(struct_gsv) :: statevector_in_varLevs, statevector_in_varLevs_hInterp
+    type(struct_gsv) :: statevector_in_hInterp
+
+    character(len=4) :: varNameToInterpolate(1)
+
+    !
+    !- Error traps
+    !
+    if (.not.statevector_in%allocated) then
+      call utl_abort('gsv_interpolate: gridStateVector_in not yet allocated! Aborting.')
+    end if
+    if (.not.statevector_out%allocated) then
+      call utl_abort('gsv_interpolate: gridStateVector_out not yet allocated! Aborting.')
+    end if
+
+    !
+    !- Do the interpolation of statevector_in onto the grid of statevector_out
+    !
+
+    if ( count( statevector_in%varExistList(:) ) == 1 ) then
+      if ( mpi_myid == 0 ) write(*,*) 'gsv_interpolate: only 1 variable to interpolate'
+      varNameToInterpolate(1) = gsv_getVarNameFromK(statevector_in,1)
+    else
+      varNameToInterpolate(1) = 'ALL'
+    endif
+
+    !- Horizontal interpolation
+    if (varNameToInterpolate(1) == 'ALL') then
+      call gsv_allocate(statevector_in_VarLevs, statevector_in%numstep, &
+                        statevector_in%hco, statevector_in%vco,          &
+                        mpi_local_opt=statevector_in%mpi_local, mpi_distribution_opt='VarsLevs',  &
+                        dataKind_in_opt=statevector_in%dataKind,                                  &
+                        allocGZsfc_opt=statevector_in%gzSfcPresent)
+    else
+      call gsv_allocate(statevector_in_VarLevs, statevector_in%numstep, &
+                        statevector_in%hco, statevector_in%vco,          &
+                        mpi_local_opt=statevector_in%mpi_local, mpi_distribution_opt='VarsLevs',  &
+                        dataKind_in_opt=statevector_in%dataKind,                                  &
+                        allocGZsfc_opt=statevector_in%gzSfcPresent, &
+                        varNames_opt=varNameToInterpolate)
+    end if
+    call transposeLatLonToVarsLevs( statevector_in, statevector_in_VarLevs )
+
+    if (varNameToInterpolate(1) == 'ALL') then
+      call gsv_allocate(statevector_in_VarLevs_hInterp, statevector_in%numstep, &
+                        statevector_out%hco, statevector_in%vco,  &
+                        mpi_local_opt=statevector_out%mpi_local, mpi_distribution_opt='VarsLevs', &
+                        dataKind_in_opt=statevector_out%dataKind,                                 &
+                        allocGZsfc_opt=statevector_out%gzSfcPresent)
+    else
+      call gsv_allocate(statevector_in_VarLevs_hInterp, statevector_in%numstep, &
+                        statevector_out%hco, statevector_in%vco,  &
+                        mpi_local_opt=statevector_out%mpi_local, mpi_distribution_opt='VarsLevs', &
+                        dataKind_in_opt=statevector_out%dataKind,                                 &
+                        allocGZsfc_opt=statevector_out%gzSfcPresent, &
+                        varNames_opt=varNameToInterpolate)
+    end if
+
+    if (statevector_in_VarLevs%dataKind == 4) then
+      call gsv_hInterpolate_r4(statevector_in_VarLevs, statevector_in_VarLevs_hInterp)
+    else
+      call gsv_hInterpolate(statevector_in_VarLevs, statevector_in_VarLevs_hInterp)
+    end if
+    call gsv_deallocate(statevector_in_VarLevs)
+
+    if (varNameToInterpolate(1) == 'ALL') then
+      call gsv_allocate(statevector_in_hInterp, statevector_in%numstep, &
+                        statevector_out%hco, statevector_in%vco,      &
+                        mpi_local_opt=statevector_out%mpi_local, mpi_distribution_opt='Tiles', &
+                        dataKind_in_opt=statevector_out%dataKind,                              &
+                        allocGZsfc_opt=statevector_out%gzSfcPresent)
+    else
+      call gsv_allocate(statevector_in_hInterp, statevector_in%numstep, &
+                        statevector_out%hco, statevector_in%vco,      &
+                        mpi_local_opt=statevector_out%mpi_local, mpi_distribution_opt='Tiles', &
+                        dataKind_in_opt=statevector_out%dataKind,                              &
+                        allocGZsfc_opt=statevector_out%gzSfcPresent, &
+                        varNames_opt=varNameToInterpolate)
+    end if
+    call transposeVarsLevsToLatLon( statevector_in_varLevs_hInterp, statevector_in_hInterp)
+    call gsv_deallocate(statevector_in_varLevs_hInterp)
+
+    !- Vertical interpolation
+    if (present(PsfcReference_opt) ) then
+      if (statevector_in_VarLevs%dataKind == 4) then
+        call utl_abort('gsv_interpolate: vertical interpolation for dataKind == 4 not yet availbale!')
+        !call gsv_vInterpolate_r4(statevector_in_hInterp,statevector_in_hvInterp,PsfcReference_opt=PsfcReference_opt_r4)
+      else
+        call gsv_vInterpolate(statevector_in_hInterp,statevector_out,PsfcReference_opt=PsfcReference_opt)
+      end if
+    else
+      if (statevector_in_VarLevs%dataKind == 4) then
+        call gsv_vInterpolate_r4(statevector_in_hInterp,statevector_out)
+      else
+        call gsv_vInterpolate(statevector_in_hInterp,statevector_out)
+      end if
+    end if
+
+    call gsv_deallocate(statevector_in_hInterp)
+
+  end subroutine gsv_interpolate
 
   !--------------------------------------------------------------------------
   ! GSV_add
@@ -1996,8 +2085,12 @@ module gridStateVector_mod
     readSubsetOfLevels = vco_subsetOrNot(statevector_out%vco, vco_file)
     if ( readSubsetOfLevels ) then
       ! use the output vertical grid provided to read only a subset of the verical levels
-      call vco_deallocate(vco_file)
+      write(*,*)
+      write(*,*) 'gsv_readFromFile: read only a subset of the verical levels'
       vco_file => statevector_out%vco
+    else
+      write(*,*)
+      write(*,*) 'gsv_readFromFile: all the vertical levels will be read'
     end if
 
     varName=gsv_getVarNameFromK(statevector_out,1)
@@ -2088,7 +2181,7 @@ module gridStateVector_mod
                         varNames_opt=varNameToRead)
     end if
 
-    call gsv_transposeVarsLevsToLatLon(statevector_hinterp, statevector_tiles)
+    call transposeVarsLevsToLatLon(statevector_hinterp, statevector_tiles)
 
     call gsv_deallocate(statevector_hinterp)
 
@@ -2378,9 +2471,9 @@ module gridStateVector_mod
   end subroutine gsv_readFile
 
   !--------------------------------------------------------------------------
-  ! gsv_transposeVarsLevsToLatLon
+  ! transposeVarsLevsToLatLon
   !--------------------------------------------------------------------------
-  subroutine gsv_transposeVarsLevsToLatLon(statevector_in, statevector_out)
+  subroutine transposeVarsLevsToLatLon(statevector_in, statevector_out)
     ! Transpose the data from mpi_distribution=VarsLevs to Tiles
     implicit none
 
@@ -2400,11 +2493,11 @@ module gridStateVector_mod
     real(8), pointer     :: field_GZ_in_ptr(:,:), field_GZ_out_ptr(:,:)
 
     if ( statevector_in%mpi_distribution /= 'VarsLevs' ) then
-      call utl_abort('gsv_transposeVarsLevsToLatLon: input statevector must have VarsLevs mpi distribution') 
+      call utl_abort('transposeVarsLevsToLatLon: input statevector must have VarsLevs mpi distribution') 
     end if
 
     if ( statevector_out%mpi_distribution /= 'Tiles' ) then
-      call utl_abort('gsv_transposeVarsLevsToLatLon: out statevector must have Tiles mpi distribution')
+      call utl_abort('transposeVarsLevsToLatLon: out statevector must have Tiles mpi distribution')
     end if
 
     inKind = statevector_in%dataKind
@@ -2609,12 +2702,12 @@ module gridStateVector_mod
       deallocate(gd_send_GZ)
     end if
 
-  end subroutine gsv_transposeVarsLevsToLatLon
+  end subroutine transposeVarsLevsToLatLon
 
   !--------------------------------------------------------------------------
-  ! gsv_transposeLatLonToVarsLevs
+  ! transposeLatLonToVarsLevs
   !--------------------------------------------------------------------------
-  subroutine gsv_transposeLatLonToVarsLevs(statevector_in, statevector_out)
+  subroutine transposeLatLonToVarsLevs(statevector_in, statevector_out)
     ! Transpose the data from mpi_distribution=Tiles to VarsLevs
     implicit none
 
@@ -2633,11 +2726,11 @@ module gridStateVector_mod
     real(8), allocatable :: gd_recv_GZ(:,:,:)
 
     if ( statevector_in%mpi_distribution /= 'Tiles' ) then
-      call utl_abort('gsv_transposeLatLonToVarsLevs: input statevector must have Tiles mpi distribution') 
+      call utl_abort('transposeLatLonToVarsLevs: input statevector must have Tiles mpi distribution') 
     end if
 
     if ( statevector_out%mpi_distribution /= 'VarsLevs' ) then
-      call utl_abort('gsv_transposeLatLonToVarsLevs: out statevector must have VarsLevs mpi distribution')
+      call utl_abort('transposeLatLonToVarsLevs: out statevector must have VarsLevs mpi distribution')
     end if
 
     inKind = statevector_in%dataKind
@@ -2674,7 +2767,7 @@ module gridStateVector_mod
       end do
 !$OMP END PARALLEL DO
     else
-      call utl_abort('gsv_transposeLatLonToLevsVars: not compatible yet with these data types')
+      call utl_abort('transposeLatLonToLevsVars: not compatible yet with these data types')
     end if
 
     nsize = statevector_in%lonPerPEmax * statevector_in%latPerPEmax * statevector_in%numStep * maxkCount
@@ -2710,7 +2803,7 @@ module gridStateVector_mod
       end do
 !$OMP END PARALLEL DO
     else
-      call utl_abort('gsv_transposeLatLonToLevsVars: not compatible yet with these data types')
+      call utl_abort('transposeLatLonToLevsVars: not compatible yet with these data types')
     end if
 
     if ( sendrecvKind == 4 ) then
@@ -2747,7 +2840,7 @@ module gridStateVector_mod
       deallocate(gd_recv_GZ)
     end if
 
-  end subroutine gsv_transposeLatLonToVarsLevs
+  end subroutine transposeLatLonToVarsLevs
 
   !--------------------------------------------------------------------------
   ! gsv_hInterpolate

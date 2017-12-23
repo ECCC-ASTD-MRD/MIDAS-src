@@ -64,11 +64,7 @@
 /
  &NAMSTATE
    RHUMIN  = 1.0D-07
-   ANLVAR(1)   ='UU'
-   ANLVAR(2)   ='VV'
-   ANLVAR(3)   ='TT'
-   ANLVAR(4)   ='HU'
-   ANLVAR(5)   ='P0'
+   ANLVAR(1)   ='TT'
 /
  &NAMTOV   
 /

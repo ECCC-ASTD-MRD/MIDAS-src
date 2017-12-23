@@ -97,6 +97,7 @@ contains
 
     integer ikey, ierr, ileni, ileno, jk1
     real, allocatable :: bufuuout4(:), bufvvout4(:)
+    real, allocatable :: bufuuin4(:), bufvvin4(:)
 
     integer ezuvint
     external ezuvint
@@ -104,7 +105,15 @@ contains
     allocate(bufuuout4(nio))
     allocate(bufvvout4(nio))
 
-    ierr = ezuvint(bufuuout4, bufvvout4, duuin, dvvin)
+    allocate(bufuuin4(nii))
+    allocate(bufvvin4(nii))
+
+    do jk1 = 1,nii
+      bufuuin4(jk1) = duuin(jk1)
+      bufvvin4(jk1) = dvvin(jk1)
+    enddo
+
+    ierr = ezuvint(bufuuout4, bufvvout4, bufuuin4, bufvvin4)
 
     do jk1 = 1,nio
        duuout(jk1) = bufuuout4(jk1)
