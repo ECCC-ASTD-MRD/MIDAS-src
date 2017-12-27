@@ -455,6 +455,7 @@ CONTAINS
     write(*,*) 'ens_computeMean: number of members in each sub-ensemble = ', ens%nensSubEns(:)
 
     call ens_allocateMean(ens)
+    ens%meanIsComputed = .true.
 
     lon1 = ens%statevector_work%myLonBeg
     lon2 = ens%statevector_work%myLonEnd
