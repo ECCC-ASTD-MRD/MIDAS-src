@@ -22,7 +22,35 @@ cat << EOF > ptopo_nml
 EOF
 
 which r.run_in_parallel
-r.run_in_parallel -pgm ./pgm -npex ${SEQ_NPEX} -npey ${SEQ_NPEY} -processorder -tag -nocleanup -verbose -tmpdir mpitmpdir
+
+if [ "${UnitTest_pgm_run_debug}" = ddt ]; then
+    if [[ "${ORDENV_PLAT}" = sles-*xc40 ]]; then
+        run_in_parallel_extra_args=-ddt
+        RUN_PGM=./pgm
+    else
+        cat > run.sh <<EOF
+#!/bin/ksh
+
+/fs/home/fs1/ords/ssc/hpco/mib002/allinea/forge/bin/ddt-client --ddtsessionfile /fs/home/fs1/eccc/mrd/rpndat/erv000/.allinea/session/eccc1-ppp2-1 ./pgm
+EOF
+        RUN_PGM=./run.sh
+    fi
+elif [ "${UnitTest_pgm_run_debug}" = gdb ]; then
+    cat > run.sh <<EOF
+#!/bin/ksh
+gdb -ex run -ex where ./pgm
+EOF
+    RUN_PGM=./run.sh
+elif [ "${UnitTest_pgm_run_debug}" = no ]; then
+    RUN_PGM=./pgm
+else
+    echo "The value of 'UnitTest_pgm_run_debug=${UnitTest_pgm_run_debug}' is not 'ddt', 'gdb' or 'no' so we will use 'no'."
+    RUN_PGM=./pgm
+fi
+
+[ ! -x "${RUN_PGM}" ] && chmod u+x ${RUN_PGM}
+
+r.run_in_parallel -pgm ${RUN_PGM} -npex ${SEQ_NPEX} -npey ${SEQ_NPEY} -processorder -tag -nocleanup -verbose -tmpdir mpitmpdir ${run_in_parallel_extra_args}
 
 ## remove inputs
 for file in ${TASK_INPUT}/inputs/*; do
