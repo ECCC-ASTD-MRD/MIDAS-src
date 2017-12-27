@@ -42,6 +42,7 @@ MODULE ensembleStateVector_mod
   public :: ens_copyToStateWork, ens_getRepackMean_r8
   public :: ens_varExist, ens_getNumLev
   public :: ens_computeMean, ens_removeMean, ens_copyEnsMean, ens_copyMember
+  public :: ens_computeStdDev, ens_copyEnsStdDev
   public :: ens_getRepack_r4
   public :: ens_getOffsetFromVarName, ens_getLevFromK, ens_getVarNameFromK, ens_getNumK, ens_getKFromLevVarName
 
@@ -61,9 +62,9 @@ MODULE ensembleStateVector_mod
     integer                       :: numMembers
     integer                       :: dataKind
     type(struct_gsv)              :: statevector_work
-    type(struct_repack_r8), allocatable :: repack_ensMean_r8(:)
+    type(struct_repack_r8), allocatable :: repack_ensMean_r8(:), repack_ensStdDev_r8(:)
     type(struct_repack_r4), allocatable :: repack_r4(:)
-    logical                       :: meanIsComputed
+    logical                       :: meanIsComputed, stdDevIsComputed
     integer, allocatable          :: subEnsIndexList(:), nEnsSubEns(:)
     integer                       :: numSubEns
     character(len=256)            :: enspathname
@@ -150,6 +151,34 @@ CONTAINS
   end subroutine ens_allocateMean
 
 
+  subroutine ens_allocateStdDev(ens)
+    implicit none
+
+    ! arguments
+    type(struct_ens) :: ens
+
+    ! locals
+    integer :: subEnsIndex, ierr, lon1, lon2, lat1, lat2, k1, k2, jk, numStep
+
+    lon1 = ens%statevector_work%myLonBeg
+    lon2 = ens%statevector_work%myLonEnd
+    lat1 = ens%statevector_work%myLatBeg
+    lat2 = ens%statevector_work%myLatEnd
+    k1 = ens%statevector_work%mykBeg
+    k2 = ens%statevector_work%mykEnd
+    numStep = ens%statevector_work%numStep
+
+    allocate( ens%repack_ensStdDev_r8(k1:k2) )
+    do jk = k1, k2
+      allocate( ens%repack_ensStdDev_r8(jk)%onelevel(ens%numSubEns,numStep,lon1:lon2,lat1:lat2) )
+      ens%repack_ensStdDev_r8(jk)%onelevel(:,:,:,:) = 0.0d0
+    end do
+
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+  end subroutine ens_allocateStdDev
+
+
   subroutine ens_deallocate( ens )
     implicit none
 
@@ -168,6 +197,13 @@ CONTAINS
       deallocate( ens%repack_r4(jk)%onelevel )
     end do
     deallocate( ens%repack_r4 )
+
+    if (ens%stdDevIsComputed) then
+      do jk = k1, k2
+        deallocate( ens%repack_ensStdDev_r8(jk)%onelevel )
+      end do
+      deallocate( ens%repack_ensStdDev_r8 )
+    end if
 
     if (ens%meanIsComputed) then
       do jk = k1, k2
@@ -282,6 +318,43 @@ CONTAINS
     end do
 
   end subroutine ens_copyEnsMean
+
+  subroutine ens_copyEnsStdDev(ens, statevector, subEnsIndex)
+    implicit none
+
+    ! arguments
+    type(struct_ens)  :: ens
+    type(struct_gsv)  :: statevector
+    integer, optional :: subEnsIndex
+
+    ! locals
+    real(8), pointer :: ptr4d_r8(:,:,:,:)
+    integer          :: k1, k2, jk, stepIndex, numStep, subEnsIndex2
+
+    if( present(subEnsIndex) ) then
+      subEnsIndex2 = subEnsIndex
+    else
+      subEnsIndex2 = 1
+    end if
+
+    k1 = ens%statevector_work%mykBeg
+    k2 = ens%statevector_work%mykEnd
+    numStep = ens%statevector_work%numStep
+
+    if (.not. statevector%allocated) then
+      call gsv_allocate(statevector, numStep,  &
+                        ens%statevector_work%hco, ens%statevector_work%vco,  &
+                        datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., dataKind_in_opt=8 )
+    end if
+
+    ptr4d_r8 => gsv_getField_r8(statevector)
+    do stepIndex = 1, numStep
+      do jk = k1, k2
+        ptr4d_r8(:,:,jk,stepIndex) = ens%repack_ensStdDev_r8(jk)%onelevel(subEnsIndex2,stepIndex,:,:)
+      end do
+    end do
+
+  end subroutine ens_copyEnsStdDev
 
 
   subroutine ens_copyMember(ens, statevector, memberIndex)
@@ -490,6 +563,76 @@ CONTAINS
     if ( present(numSubEns) ) numSubEns = ens%numSubEns
 
   end subroutine ens_computeMean
+
+
+  subroutine ens_computeStdDev(ens, computeSubEns, numSubEns)
+    implicit none
+
+    ! arguments
+    type(struct_ens)  :: ens
+    logical, optional :: computeSubEns
+    integer, optional :: numSubEns
+
+    ! locals
+    logical           :: computeSubEns2, lExists
+    character(len=256), parameter :: subEnsIndexFileName = 'subEnsembleIndex.txt'
+    integer           :: kulin, ierr, memberIndex, memberIndex2, stepIndex, subEnsIndex
+    integer           :: k1, k2, jk, lon1, lon2, lat1, lat2, numStep, ji, jj
+    integer           :: fnom, fclos
+    real(4), pointer  :: ptr_repack_r4(:,:,:,:)
+    real(8), pointer  :: ptr4d_r8(:,:,:,:)
+
+    if (present(computeSubEns)) then
+      computeSubEns2 = computeSubEns
+    else
+      computeSubEns2 = .false.
+    end if
+
+    if (.not.ens%meanIsComputed) then
+       call utl_abort('ens_computeStdDev: The mean should have been already computed but it is not.')
+    end if
+
+    ! Read sub-ensemble index list from file, if it exists
+    ! The sub-ensembles should have been already read in routine 'ens_computeMean'
+    write(*,*) 'ens_computeStdDev: number of sub-ensembles = ', ens%numSubEns
+    write(*,*) 'ens_computeStdDev: number of members in each sub-ensemble = ', ens%nensSubEns(:)
+
+    call ens_allocateStdDev(ens)
+    ens%StdDevIsComputed = .true.
+
+    lon1 = ens%statevector_work%myLonBeg
+    lon2 = ens%statevector_work%myLonEnd
+    lat1 = ens%statevector_work%myLatBeg
+    lat2 = ens%statevector_work%myLatEnd
+    k1 = ens%statevector_work%mykBeg
+    k2 = ens%statevector_work%mykEnd
+    numStep = ens%statevector_work%numStep
+    ! Compute ensemble StdDev(s)
+!$OMP PARALLEL DO PRIVATE (jk,jj,ji,stepIndex,memberIndex,subEnsIndex)
+    do jk = k1, k2
+       do jj = lat1, lat2
+          do ji = lon1, lon2
+             do stepIndex = 1, ens%statevector_work%numStep
+                do memberIndex = 1, ens%numMembers
+                   ens%repack_ensStdDev_r8(jk)%onelevel(ens%subEnsIndexList(memberIndex),stepIndex,ji,jj) = &
+                        ens%repack_ensStdDev_r8(jk)%onelevel(ens%subEnsIndexList(memberIndex),stepIndex,ji,jj) + &
+                        (dble(ens%repack_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj))-ens%repack_ensMean_r8(jk)%onelevel(ens%subEnsIndexList(memberIndex),stepIndex,ji,jj))**2
+                end do
+                do subEnsIndex = 1, ens%numSubEns
+                   ens%repack_ensStdDev_r8(jk)%onelevel(subEnsIndex,stepIndex,ji,jj) = &
+                        sqrt(ens%repack_ensStdDev_r8(jk)%onelevel(subEnsIndex,stepIndex,ji,jj) /  &
+                        dble(ens%nEnsSubEns(subEnsIndex)))
+                end do
+             end do
+          end do
+       end do
+    end do
+!$OMP END PARALLEL DO
+
+    ! provide output argument value
+    if ( present(numSubEns) ) numSubEns = ens%numSubEns
+
+  end subroutine ens_computeStdDev
 
 
   subroutine ens_removeMean(ens)

@@ -192,18 +192,30 @@ program midas_ensManip
 
   !- 4.0 Compute and output the ensemble spread stddev, if requested
   if ( output_ensemble_stddev ) then
-    call tmg_start(5,'OUTPUT_STDDEV')
+    ! Compute the ensemble stddev and put in statevector_stddev
+    call tmg_start(6,'COMPUTE_STDDEV')
+    call ens_computeStdDev( ensemble )
+    call tmg_stop(6)
+
+    call tmg_start(7,'OUTPUT_STDDEV')
+    call ens_copyEnsStdDev( ensemble, statevector_stddev )
 
     ! Filename for ensemble stddev
     ensFileName = './' // trim(ensfilebasename) // &
                   trim(datestr_last) // trim(hourstr_last) // '_006_ensstddev'
 
-    ! Compute the ensemble stddev and put in statevector_stddev
-
     ! Output the ensemble stddev
+    do stepIndex = 1, numStep
+      if ( mpi_myid == 0 ) write(*,*) 'midas-ensManip: writing time step ', stepIndex
+      if ( write_mpi ) then
+        call gsv_writeToFileMPI( statevector_stddev, ensFileName, 'ENSMEAN', indexStep_in = stepIndex, typvar_in = 'P' )
+      else
+        call gsv_writeToFile( statevector_stddev, ensFileName, 'ENSMEAN', indexStep_in = stepIndex, typvar_in = 'P' )
+      end if
+    end do
 
 
-    call tmg_stop(5)
+    call tmg_stop(7)
   end if
 
   !- 5.0 Output the ensemble perturbations, if requested
