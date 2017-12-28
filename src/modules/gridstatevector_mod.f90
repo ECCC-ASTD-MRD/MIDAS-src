@@ -3748,7 +3748,7 @@ module gridStateVector_mod
     ig2    = statevector%hco%ig2
     ig3    = statevector%hco%ig3
     ig4    = statevector%hco%ig4
-    datyp  = 1
+    datyp  = 134
 
     nlev = max(gsv_getNumLev(statevector,'MM'),gsv_getNumLev(statevector,'TH'))
 
