@@ -72,10 +72,10 @@ program midas_ensManip
   character(len=256) :: ensPathName, ensFileBaseName
   logical  :: write_mpi, output_ensemble_mean, output_ensemble_stddev, output_ensemble_perturbations, recenter
   real(8)  :: recentering_coeff
-  integer  :: nEns, date
+  integer  :: nEns, date, numBits
   NAMELIST /NAMENSMANIP/nEns, date, ensPathName, ensFileBaseName, ctrlVarHumidity, write_mpi,  &
                         output_ensemble_mean, output_ensemble_stddev, output_ensemble_perturbations, &
-                        recenter, recentering_coeff
+                        recenter, recentering_coeff, numBits
 
   write(*,'(/,' //  &
         '3(" *****************"),/,' //                   &
@@ -113,6 +113,7 @@ program midas_ensManip
   output_ensemble_mean          = .false.
   output_ensemble_stddev        = .false.
   output_ensemble_perturbations = .false.
+  numBits                       = 16
 
   !- 1.2 Read the namelist
   nulnam = 0
@@ -183,9 +184,9 @@ program midas_ensManip
     do stepIndex = 1, numStep
       if ( mpi_myid == 0 ) write(*,*) 'midas-ensManip: writing time step ', stepIndex
       if ( write_mpi ) then
-        call gsv_writeToFileMPI( statevector_mean, ensFileName, 'ENSMEAN', indexStep_in = stepIndex, typvar_in = 'P' )
+        call gsv_writeToFileMPI( statevector_mean, ensFileName, 'ENSMEAN', indexStep_in = stepIndex, typvar_in = 'P')
       else
-        call gsv_writeToFile( statevector_mean, ensFileName, 'ENSMEAN', indexStep_in = stepIndex, typvar_in = 'P' )
+        call gsv_writeToFile( statevector_mean, ensFileName, 'ENSMEAN', indexStep_in = stepIndex, typvar_in = 'P', numBits_opt = numBits)
       end if
     end do
 
@@ -210,9 +211,9 @@ program midas_ensManip
     do stepIndex = 1, numStep
       if ( mpi_myid == 0 ) write(*,*) 'midas-ensManip: writing time step ', stepIndex
       if ( write_mpi ) then
-        call gsv_writeToFileMPI( statevector_stddev, ensFileName, 'ENSMEAN', indexStep_in = stepIndex, typvar_in = 'P' )
+        call gsv_writeToFileMPI( statevector_stddev, ensFileName, 'ENSMEAN', indexStep_in = stepIndex, typvar_in = 'P')
       else
-        call gsv_writeToFile( statevector_stddev, ensFileName, 'ENSMEAN', indexStep_in = stepIndex, typvar_in = 'P' )
+        call gsv_writeToFile( statevector_stddev, ensFileName, 'ENSMEAN', indexStep_in = stepIndex, typvar_in = 'P' , numBits_opt = numBits)
       end if
     end do
 
@@ -227,7 +228,7 @@ program midas_ensManip
   if ( output_ensemble_perturbations ) then
     call tmg_start(8,'OUTPUT_PERTURBATIONS')
     call ens_removeMean( ensemble )
-    call ens_writeEnsemble( ensemble, './', 'pert_', ctrlVarHumidity, 'ENSPERT', 'P')
+    call ens_writeEnsemble( ensemble, './', 'pert_', ctrlVarHumidity, 'ENSPERT', 'P', numBits_opt = numBits)
     call tmg_stop(8)
   end if
 
@@ -258,7 +259,7 @@ program midas_ensManip
      call tmg_stop(11)
 
      call tmg_start(12,'OUTPUT_RECENTER_MEMBERS')
-     call ens_writeEnsemble( ensemble, './', 'recentered_', ctrlVarHumidity, 'ENSRECENTER', 'P')
+     call ens_writeEnsemble( ensemble, './', 'recentered_', ctrlVarHumidity, 'ENSRECENTER', 'P', numBits_opt = numBits)
      call tmg_stop(12)
   end if
 
