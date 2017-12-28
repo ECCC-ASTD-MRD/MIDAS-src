@@ -1060,7 +1060,7 @@ CONTAINS
 
 
   subroutine ens_writeEnsemble(ens, ensPathName, ensFileBaseName, ctrlVarHumidity, etiket, &
-       typvar, varNames_opt, ip3_in_opt)
+       typvar, varNames_opt, ip3_in_opt, numBits_opt)
     implicit none
 
     ! arguments
@@ -1071,7 +1071,7 @@ CONTAINS
     character(len=*)  :: etiket
     character(len=*)  :: typvar
     character(len=*), optional :: varNames_opt(:)  ! allow specification of variables
-    integer, optional :: ip3_in_opt
+    integer, optional :: ip3_in_opt, numBits_opt
 
     ! locals
     type(struct_gsv) :: statevector_member_r4
@@ -1214,7 +1214,11 @@ CONTAINS
 
           !  Write the file
           call ens_fileName( ensFileName, ensPathName, ensFileBaseName, memberIndex, shouldExist = .false. )
-          call gsv_writeToFile( statevector_member_r4, ensFileName, etiket, ip3_in = ip3, typvar_in = typvar )
+          if (present(numBits_opt)) then
+             call gsv_writeToFile( statevector_member_r4, ensFileName, etiket, ip3_in = ip3, typvar_in = typvar , numBits_opt = numBits_opt)
+          else
+             call gsv_writeToFile( statevector_member_r4, ensFileName, etiket, ip3_in = ip3, typvar_in = typvar )
+          end if
         end if ! locally written one member
 
 
