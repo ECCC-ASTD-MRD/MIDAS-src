@@ -2,6 +2,11 @@
 
 set -e
 
+if [ "${ORDENV_PLAT}" = sles-11-amd64-64 -o "${ORDENV_PLAT}" = sles-11-broadwell-64-xc40 ]; then
+    echo "... loading cray-netcdf"
+    module load cray-netcdf
+fi
+
 LIBAPPL="netcdff rttov_coef_io rttov_hdf rttov_parallel rttov_main rttov_emis_atlas rttov_other ${HDF5_LIBS} burp_module descrip $MPILIB"
 
 SRC_FILES="rttov_interfaces_mod.ftn90 codeprecision_mod.f90 utilities_mod.f90"
