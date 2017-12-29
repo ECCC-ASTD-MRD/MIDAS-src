@@ -114,6 +114,8 @@ program midas_ensManip
   output_ensemble_stddev        = .false.
   output_ensemble_perturbations = .false.
   numBits                       = 16
+  recenter                      = .false.
+  recentering_coeff             = 1.0
 
   !- 1.2 Read the namelist
   nulnam = 0
