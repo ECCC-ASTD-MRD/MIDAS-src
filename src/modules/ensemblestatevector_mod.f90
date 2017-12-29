@@ -1281,6 +1281,13 @@ CONTAINS
       write(*,*) 'ens_fileName: trying to set datestamp from ensemble file'
       fileNamePattern = './' // trim(enspathname) // '/' // '??????????_006_*1'
       returnCode = clib_glob(fileList,numFiles,trim(fileNamePattern),10)
+      if (returnCode.ne.1) then
+         fileNamePattern = './' // trim(enspathname) // '/' // '??????????_006_*01'
+         returnCode = clib_glob(fileList,numFiles,trim(fileNamePattern),10)
+         if (returnCode.ne.1) then
+            call utl_abort('ens_fileName: reached maximum number of files or no files are available')
+        end if
+      end if
       write(*,*) 'ens_fileName: fileList = ',trim(fileList(1))
       write(*,*) 'ens_fileName: numFiles, returnCode = ', numFiles,returnCode
       if ( tim_initialized() ) then
