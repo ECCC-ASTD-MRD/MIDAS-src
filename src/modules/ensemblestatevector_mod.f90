@@ -545,13 +545,13 @@ CONTAINS
           do stepIndex = 1, ens%statevector_work%numStep
             do memberIndex = 1, ens%numMembers
               ens%repack_ensMean_r8(jk)%onelevel(ens%subEnsIndexList(memberIndex),stepIndex,ji,jj) = &
-                ens%repack_ensMean_r8(jk)%onelevel(ens%subEnsIndexList(memberIndex),stepIndex,ji,jj) + &
-                dble(ens%repack_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj))
+                   ens%repack_ensMean_r8(jk)%onelevel(ens%subEnsIndexList(memberIndex),stepIndex,ji,jj) + &
+                   dble(ens%repack_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj))
             end do
             do subEnsIndex = 1, ens%numSubEns
               ens%repack_ensMean_r8(jk)%onelevel(subEnsIndex,stepIndex,ji,jj) = &
-                ens%repack_ensMean_r8(jk)%onelevel(subEnsIndex,stepIndex,ji,jj) /  &
-                dble(ens%nEnsSubEns(subEnsIndex))
+                   ens%repack_ensMean_r8(jk)%onelevel(subEnsIndex,stepIndex,ji,jj) /  &
+                   dble(ens%nEnsSubEns(subEnsIndex))
             end do
           end do
         end do
@@ -589,7 +589,7 @@ CONTAINS
     end if
 
     if (.not.ens%meanIsComputed) then
-       call utl_abort('ens_computeStdDev: The mean should have been already computed but it is not.')
+      call utl_abort('ens_computeStdDev: The mean should have been already computed but it is not.')
     end if
 
     ! Read sub-ensemble index list from file, if it exists
@@ -610,22 +610,22 @@ CONTAINS
     ! Compute ensemble StdDev(s)
 !$OMP PARALLEL DO PRIVATE (jk,jj,ji,stepIndex,memberIndex,subEnsIndex)
     do jk = k1, k2
-       do jj = lat1, lat2
-          do ji = lon1, lon2
-             do stepIndex = 1, ens%statevector_work%numStep
-                do memberIndex = 1, ens%numMembers
-                   ens%repack_ensStdDev_r8(jk)%onelevel(ens%subEnsIndexList(memberIndex),stepIndex,ji,jj) = &
-                        ens%repack_ensStdDev_r8(jk)%onelevel(ens%subEnsIndexList(memberIndex),stepIndex,ji,jj) + &
-                        (dble(ens%repack_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj))-ens%repack_ensMean_r8(jk)%onelevel(ens%subEnsIndexList(memberIndex),stepIndex,ji,jj))**2
-                end do
-                do subEnsIndex = 1, ens%numSubEns
-                   ens%repack_ensStdDev_r8(jk)%onelevel(subEnsIndex,stepIndex,ji,jj) = &
-                        sqrt(ens%repack_ensStdDev_r8(jk)%onelevel(subEnsIndex,stepIndex,ji,jj) /  &
-                        dble(ens%nEnsSubEns(subEnsIndex)))
-                end do
-             end do
+      do jj = lat1, lat2
+        do ji = lon1, lon2
+          do stepIndex = 1, ens%statevector_work%numStep
+            do memberIndex = 1, ens%numMembers
+              ens%repack_ensStdDev_r8(jk)%onelevel(ens%subEnsIndexList(memberIndex),stepIndex,ji,jj) = &
+                   ens%repack_ensStdDev_r8(jk)%onelevel(ens%subEnsIndexList(memberIndex),stepIndex,ji,jj) + &
+                   (dble(ens%repack_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj))-ens%repack_ensMean_r8(jk)%onelevel(ens%subEnsIndexList(memberIndex),stepIndex,ji,jj))**2
+            end do
+            do subEnsIndex = 1, ens%numSubEns
+              ens%repack_ensStdDev_r8(jk)%onelevel(subEnsIndex,stepIndex,ji,jj) = &
+                   sqrt(ens%repack_ensStdDev_r8(jk)%onelevel(subEnsIndex,stepIndex,ji,jj) /  &
+                   dble(ens%nEnsSubEns(subEnsIndex)))
+            end do
           end do
-       end do
+        end do
+      end do
     end do
 !$OMP END PARALLEL DO
 
@@ -660,12 +660,12 @@ CONTAINS
           do stepIndex = 1, numStep
             do memberIndex = 1, ens%numMembers
               ens%repack_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj) =  &
-                real( (real(ens%repack_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj),8) -  &
-                      ens%repack_ensMean_r8(jk)%onelevel(ens%subEnsIndexList(memberIndex),stepIndex,ji,jj)), 4 )
+                   real( (real(ens%repack_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj),8) -  &
+                   ens%repack_ensMean_r8(jk)%onelevel(ens%subEnsIndexList(memberIndex),stepIndex,ji,jj)), 4 )
             end do
           end do
         end do
-      end do 
+      end do
     end do
 !$OMP END PARALLEL DO
 
@@ -705,8 +705,8 @@ CONTAINS
           do stepIndex = 1, numStep
             do memberIndex = 1, ens%numMembers
               ens%repack_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj) =  &
-                real( real(ens%repack_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj),8) + &
-                      recenteringCoeff*ptr4d_r8(ji,jj,jk,stepIndex), 4)
+                   real( real(ens%repack_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj),8) + &
+                   recenteringCoeff*ptr4d_r8(ji,jj,jk,stepIndex), 4)
             end do
           end do
         end do
@@ -872,21 +872,21 @@ CONTAINS
     ! In limited-area mode, avoid horizontal interpolation when the ensemble is on the coregrid
     horizontalPaddingNeeded = .false.
     if ( .not. hco_file%global ) then
-       hco_coregrid => agd_getHco('CoreGrid')
-       if ( hco_file%ni == hco_coregrid%ni .and. hco_file%nj == hco_coregrid%nj  ) then
-          if (mpi_myid == 0) write(*,*) 'ens_readEnsemble: no interpolation needed for ensemble on the limited-area coregrid'
-          horizontalInterpNeeded = .false.
-          horizontalPaddingNeeded = .true.
-       end if
+      hco_coregrid => agd_getHco('CoreGrid')
+      if ( hco_file%ni == hco_coregrid%ni .and. hco_file%nj == hco_coregrid%nj  ) then
+        if (mpi_myid == 0) write(*,*) 'ens_readEnsemble: no interpolation needed for ensemble on the limited-area coregrid'
+        horizontalInterpNeeded = .false.
+        horizontalPaddingNeeded = .true.
+      end if
     end if
 
     if (mpi_myid == 0) then
-       write(*,*)
-       write(*,*) 'ens_readEnsemble: dateStampList=',dateStampList(1:numStep)
-       write(*,*)
-       if (horizontalInterpNeeded )  write(*,*) 'ens_readEnsemble: HORIZONTAL interpolation is needed'
-       if (verticalInterpNeeded   )  write(*,*) 'ens_readEnsemble: VERTICAL   interpolation is needed'
-       if (horizontalPaddingNeeded)  write(*,*) 'ens_readEnsemble: HORIZONTAL padding       is needed'
+      write(*,*)
+      write(*,*) 'ens_readEnsemble: dateStampList=',dateStampList(1:numStep)
+      write(*,*)
+      if (horizontalInterpNeeded )  write(*,*) 'ens_readEnsemble: HORIZONTAL interpolation is needed'
+      if (verticalInterpNeeded   )  write(*,*) 'ens_readEnsemble: VERTICAL   interpolation is needed'
+      if (horizontalPaddingNeeded)  write(*,*) 'ens_readEnsemble: HORIZONTAL padding       is needed'
     end if
 
     !
@@ -909,8 +909,8 @@ CONTAINS
       end if
       if (verticalInterpNeeded) then
         call gsv_allocate(statevector_hint_r4, 1, hco_ens, vco_file,  &
-                          datestamp_opt=dateStampList(stepIndex), mpi_local_opt=.false., &
-                          varNames_opt=ensVarNamesWanted, dataKind_in_opt=4)
+                         datestamp_opt=dateStampList(stepIndex), mpi_local_opt=.false., &
+                         varNames_opt=ensVarNamesWanted, dataKind_in_opt=4)
       end if
 
       do memberIndex = 1, ens%numMembers
@@ -925,8 +925,8 @@ CONTAINS
           typvar = ' '
           etiket = ' '
           if (.not. horizontalInterpNeeded  .and. &
-             .not. verticalInterpNeeded    .and. &
-             .not. horizontalPaddingNeeded ) then
+              .not. verticalInterpNeeded    .and. &
+              .not. horizontalPaddingNeeded ) then
             call gsv_readFile(statevector_member_r4, ensFileName, etiket, typvar, HUcontainsLQinFile)
           else
             call gsv_readFile(statevector_file_r4, ensFileName, etiket, typvar, HUcontainsLQinFile)
@@ -945,14 +945,14 @@ CONTAINS
 
           else if (.not. horizontalInterpNeeded .and. verticalInterpNeeded) then
             if (horizontalPaddingNeeded) then
-               call gsv_hPad(statevector_file_r4, statevector_hint_r4)
+              call gsv_hPad(statevector_file_r4, statevector_hint_r4)
             else
-               call gsv_copy(statevector_file_r4, statevector_hint_r4)
+              call gsv_copy(statevector_file_r4, statevector_hint_r4)
             end if
             call gsv_vInterpolate_r4(statevector_hint_r4, statevector_member_r4, Ps_in_hPa=.true.)
 
           else if (horizontalPaddingNeeded) then
-             call gsv_hPad(statevector_file_r4, statevector_member_r4)
+            call gsv_hPad(statevector_file_r4, statevector_member_r4)
           end if
 
           ! unit conversion
@@ -1004,7 +1004,7 @@ CONTAINS
                 yourid = youridx + youridy*mpi_npex
                 gd_send_r4(1:ens%statevector_work%allLonPerPE(youridx+1),  &
                            1:ens%statevector_work%allLatPerPE(youridy+1), 1:numLevelsToSend2, yourid+1) =  &
-                  ptr3d_r4(ens%statevector_work%allLonBeg(youridx+1):ens%statevector_work%allLonEnd(youridx+1),  &
+                           ptr3d_r4(ens%statevector_work%allLonBeg(youridx+1):ens%statevector_work%allLonEnd(youridx+1),  &
                            ens%statevector_work%allLatBeg(youridy+1):ens%statevector_work%allLatEnd(youridy+1), jk:jk2)
               end do
             end do
@@ -1060,7 +1060,7 @@ CONTAINS
 
 
   subroutine ens_writeEnsemble(ens, ensPathName, ensFileBaseName, ctrlVarHumidity, etiket, &
-       typvar, varNames_opt, ip3_in_opt, numBits_opt)
+                               typvar, varNames_opt, ip3_in_opt, numBits_opt)
     implicit none
 
     ! arguments
@@ -1133,9 +1133,9 @@ CONTAINS
     vco_ens => gsv_getVco(ens%statevector_work)
 
     if (mpi_myid == 0) then
-       write(*,*)
-       write(*,*) 'ens_writeEnsemble: dateStampList=',dateStampList(1:numStep)
-       write(*,*)
+      write(*,*)
+      write(*,*) 'ens_writeEnsemble: dateStampList=',dateStampList(1:numStep)
+      write(*,*)
     end if
 
     !
@@ -1154,8 +1154,8 @@ CONTAINS
                           varNames_opt=VarNames_opt, dataKind_in_opt=4)
       else
         call gsv_allocate(statevector_member_r4, 1, hco_ens, vco_ens,  &
-             datestamp_opt=dateStampList(stepIndex), mpi_local_opt=.false., &
-             dataKind_in_opt=4)
+                          datestamp_opt=dateStampList(stepIndex), mpi_local_opt=.false., &
+                          dataKind_in_opt=4)
       end if
 
       do memberIndex = 1, ens%numMembers
@@ -1195,8 +1195,8 @@ CONTAINS
                 yourid = youridx + youridy*mpi_npex
                 ptr3d_r4(ens%statevector_work%allLonBeg(youridx+1):ens%statevector_work%allLonEnd(youridx+1),  &
                          ens%statevector_work%allLatBeg(youridy+1):ens%statevector_work%allLatEnd(youridy+1), jk:jk2) = &
-                    gd_recv_r4(1:ens%statevector_work%allLonPerPE(youridx+1),  &
-                               1:ens%statevector_work%allLatPerPE(youridy+1), 1:numLevelsToSend2, yourid+1)
+                         gd_recv_r4(1:ens%statevector_work%allLonPerPE(youridx+1),  &
+                         1:ens%statevector_work%allLatPerPE(youridy+1), 1:numLevelsToSend2, yourid+1)
 
               end do
             end do
@@ -1215,9 +1215,9 @@ CONTAINS
           !  Write the file
           call ens_fileName( ensFileName, ensPathName, ensFileBaseName, memberIndex, shouldExist = .false. )
           if (present(numBits_opt)) then
-             call gsv_writeToFile( statevector_member_r4, ensFileName, etiket, ip3_in = ip3, typvar_in = typvar , numBits_opt = numBits_opt)
+            call gsv_writeToFile( statevector_member_r4, ensFileName, etiket, ip3_in = ip3, typvar_in = typvar , numBits_opt = numBits_opt)
           else
-             call gsv_writeToFile( statevector_member_r4, ensFileName, etiket, ip3_in = ip3, typvar_in = typvar )
+            call gsv_writeToFile( statevector_member_r4, ensFileName, etiket, ip3_in = ip3, typvar_in = typvar )
           end if
         end if ! locally written one member
 
@@ -1268,8 +1268,8 @@ CONTAINS
         character(len=*),intent(IN) :: pattern
         integer,intent(OUT) :: nfiles
         character(len=*),dimension(maxnfiles),intent(OUT):: filelist
-      end function
-    end interface
+      end function clib_glob_schhide
+    end interface clib_glob
 
     datestamp = 0
     if ( tim_initialized() ) then
@@ -1282,10 +1282,10 @@ CONTAINS
       fileNamePattern = './' // trim(enspathname) // '/' // '??????????_006_*1'
       returnCode = clib_glob(fileList,numFiles,trim(fileNamePattern),10)
       if (returnCode.ne.1) then
-         fileNamePattern = './' // trim(enspathname) // '/' // '??????????_006_*01'
-         returnCode = clib_glob(fileList,numFiles,trim(fileNamePattern),10)
-         if (returnCode.ne.1) then
-            call utl_abort('ens_fileName: reached maximum number of files or no files are available')
+        fileNamePattern = './' // trim(enspathname) // '/' // '??????????_006_*01'
+        returnCode = clib_glob(fileList,numFiles,trim(fileNamePattern),10)
+        if (returnCode.ne.1) then
+          call utl_abort('ens_fileName: reached maximum number of files or no files are available')
         end if
       end if
       write(*,*) 'ens_fileName: fileList = ',trim(fileList(1))
