@@ -589,7 +589,8 @@ CONTAINS
     end if
 
     if (.not.ens%meanIsComputed) then
-      call utl_abort('ens_computeStdDev: The mean should have been already computed but it is not.')
+      if (mpi_myid == 0) write(*,*) 'ens_computeStdDev: compute Mean since it was not already done'
+      call ens_computeMean( ens )
     end if
 
     ! Read sub-ensemble index list from file, if it exists
