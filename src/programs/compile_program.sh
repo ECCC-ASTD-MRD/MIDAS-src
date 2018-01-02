@@ -2,7 +2,7 @@
 
 set -e
 
-program=$1
+program=$(basename $1 .f90)
 mode=$2
 
 export COMPILE_MIDAS_ADD_DEBUG_OPTIONS=${COMPILE_MIDAS_ADD_DEBUG_OPTIONS:-no}
