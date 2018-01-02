@@ -718,14 +718,13 @@ CONTAINS
   end subroutine ens_recenter
 
 
-  subroutine ens_readEnsemble(ens, ensPathName, ensFileBaseName, biPeriodic, ctrlVarHumidity, &
+  subroutine ens_readEnsemble(ens, ensPathName, biPeriodic, ctrlVarHumidity, &
                               vco_file_opt)
     implicit none
 
     ! arguments
     type(struct_ens) :: ens
     character(len=*) :: ensPathName
-    character(len=*) :: ensFileBaseName
     logical          :: biPeriodic
     character(len=*) :: ctrlVarHumidity
     type(struct_vco), pointer, optional :: vco_file_opt
@@ -815,7 +814,7 @@ CONTAINS
     end if
 
     ! Set up hco and vco for ensemble files
-    call ens_fileName(ensFileName, ensPathName, ensFileBaseName, 1)
+    call ens_fileName(ensFileName, ensPathName, 1)
     nullify(hco_file)
     call hco_SetupFromFile(hco_file, ensFileName, ' ', 'ENSFILEGRID')
     if ( present(vco_file_opt) ) then
@@ -836,7 +835,7 @@ CONTAINS
 
     ! Setup the list of variables to be read (use member 1)
     if (mpi_myid == 0) then
-      call ens_fileName(ensFileName, ensPathName, ensFileBaseName, 1)
+      call ens_fileName(ensFileName, ensPathName, 1)
       nEnsVarNamesWanted=0
       write(*,*)
       write(*,*) 'ens_readEnsemble: Listing the analysis variables present in ensemble file'
@@ -922,7 +921,7 @@ CONTAINS
 
           !  Read the file
           fileMemberIndex = 1+mod(memberIndex+memberIndexOffset-1, totalEnsembleSize)
-          call ens_fileName(ensFileName, ensPathName, ensFileBaseName, fileMemberIndex)
+          call ens_fileName(ensFileName, ensPathName, fileMemberIndex)
           typvar = ' '
           etiket = ' '
           if (.not. horizontalInterpNeeded  .and. &
@@ -1060,14 +1059,14 @@ CONTAINS
   end subroutine ens_readEnsemble
 
 
-  subroutine ens_writeEnsemble(ens, ensPathName, ensFileBaseName, ctrlVarHumidity, etiket, &
+  subroutine ens_writeEnsemble(ens, ensPathName, ensFileNamePrefix, ctrlVarHumidity, etiket, &
                                typvar, varNames_opt, ip3_in_opt, numBits_opt)
     implicit none
 
     ! arguments
     type(struct_ens)  :: ens
     character(len=*)  :: ensPathName
-    character(len=*)  :: ensFileBaseName
+    character(len=*)  :: ensFileNamePrefix
     character(len=*)  :: ctrlVarHumidity
     character(len=*)  :: etiket
     character(len=*)  :: typvar
@@ -1214,7 +1213,7 @@ CONTAINS
           write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
           !  Write the file
-          call ens_fileName( ensFileName, ensPathName, ensFileBaseName, memberIndex, shouldExist = .false. )
+          call ens_fileName( ensFileName, ensPathName, memberIndex, ensFileNamePrefix_opt=ensFileNamePrefix, shouldExist_opt = .false. )
           if (present(numBits_opt)) then
             call gsv_writeToFile( statevector_member_r4, ensFileName, etiket, ip3_in = ip3, typvar_in = typvar , numBits_opt = numBits_opt)
           else
@@ -1240,26 +1239,25 @@ CONTAINS
   end subroutine ens_writeEnsemble
 
 
-  subroutine ens_fileName(ensFileName, ensPathName, ensFileBaseName, memberIndex, shouldExist)
+  subroutine ens_fileName(ensFileName, ensPathName, memberIndex, ensFileNamePrefix_opt, ensFileBaseName_opt, shouldExist_opt)
     implicit none
 
     ! arguments
     character(len=*)  :: ensFileName
-    character(len=*)  :: ensPathName, ensFileBaseName
+    character(len=*)  :: ensPathName
     integer           :: memberIndex
-    logical, optional :: shouldExist
+    character(len=*),optional  :: ensFileBaseName_opt, ensFileNamePrefix_opt
+    logical, optional :: shouldExist_opt
 
     ! locals
-    real(8)          :: delhh
-    integer          :: datestamp, datestamp_last, ndate, ntime, ierr, newdate, numFiles, returnCode
-    character(len=8) :: datestr_last
-    character(len=2) :: hourstr_last
+    integer          :: numFiles, returnCode, totalLength
     character(len=4) :: ensNumber
-    logical          :: lExists
-    logical          :: shouldExist2
-    character(len=200) :: fileList(10), fileNamePattern
+    logical          :: shouldExist
+    character(len=2000) :: fileList(10), fileNamePattern
+    character        :: ensembleFileExtLengthStr
     logical, save    :: firstTime = .true.
     integer, save    :: ensembleFileExtLength = 4
+    character(len=200), save :: ensFileBaseName
 
     ! The following interface was extracted from #include <clib_interface.cdk>
     interface clib_glob
@@ -1272,84 +1270,47 @@ CONTAINS
       end function clib_glob_schhide
     end interface clib_glob
 
-    datestamp = 0
-    if ( tim_initialized() ) then
-      datestamp = tim_getDatestamp()
+    if ( present(shouldExist_opt) ) then
+      shouldExist = shouldExist_opt
+    else
+      shouldExist = .true.
     end if
 
-    ! datestamp not yet set try to figure out filename and get date from it
-    if ( datestamp == 0 ) then
+    if (firstTime) then
       write(*,*) 'ens_fileName: trying to set datestamp from ensemble file'
-      fileNamePattern = './' // trim(enspathname) // '/' // '??????????_006_*1'
+      fileNamePattern = './' // trim(enspathname) // '/' // '*[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]_[0-9][0-9][0-9]_*001'
       returnCode = clib_glob(fileList,numFiles,trim(fileNamePattern),10)
-      if (returnCode.ne.1) then
-        fileNamePattern = './' // trim(enspathname) // '/' // '??????????_006_*01'
-        returnCode = clib_glob(fileList,numFiles,trim(fileNamePattern),10)
-        if (returnCode.ne.1) then
-          call utl_abort('ens_fileName: reached maximum number of files or no files are available')
-        end if
+      if (returnCode /= 1) then
+        call utl_abort('ens_fileName: reached maximum number of files or no files are available')
       end if
       write(*,*) 'ens_fileName: fileList = ',trim(fileList(1))
       write(*,*) 'ens_fileName: numFiles, returnCode = ', numFiles,returnCode
-      if ( tim_initialized() ) then
-        datestamp = tim_getDatestampFromFile(trim(fileList(1)))
-        call tim_setDatestamp(datestamp)
-      else
-        call tim_setup(trim(fileList(1)))
-        datestamp = tim_getDatestamp()
+
+      ensFileName = trim(fileList(1))
+
+      ! find number of digits used to identify ensemble member index
+      ensembleFileExtLength = 0
+      totalLength = len_trim(ensFileName)
+      do
+        if ( ensFileName((totalLength-ensembleFileExtLength):(totalLength-ensembleFileExtLength)) == '_' ) exit
+        ensembleFileExtLength = ensembleFileExtLength + 1
+      end do
+
+      if (ensembleFileExtLength == 0) then
+        call utl_abort('ens_fileName: Cannot determine the ensemble file extention length with ' // trim(ensFileName))
       end if
-      write(*,*) 'ens_fileName: datestamp set from file = ', datestamp
-    end if
 
-    if ( present(shouldExist) ) then
-      shouldExist2 = shouldExist
-    else
-      shouldExist2 = .true.
-    end if
-
-    ! Initialize dates for ensemble files
-    delhh = -tim_windowsize
-    call incdatr(datestamp_last,tim_getDatestamp(),delhh)
-    ierr = newdate(datestamp_last,ndate,ntime,-3)
-    write(datestr_last,'(i8.8)') ndate
-    write(hourstr_last,'(i2.2)') ntime/1000000
-    if (mpi_myid == 0) write(*,*) 'ens_fileName: DATE,TIME=',ndate,'  ,',ntime
-
-    ! Determine file name extension length for ensemble files (3 or 4)
-    if ( firstTime .and. shouldExist2 ) then
-      write(ensNumber,'(i4.4)') memberIndex
-      ensFileName = trim(enspathname) // '/' // trim(ensfilebasename) // &
-                    trim(datestr_last) // trim(hourstr_last) // '_006_' // trim(ensNumber)
-      inquire(file=ensFileName,exist=lExists)
-      if (lExists) then
-        ensembleFileExtLength = 4
-      else
-        write(ensNumber,'(i3.3)') memberIndex
-        ensFileName = trim(enspathname) // '/' // trim(ensfilebasename) // &
-                      trim(datestr_last) // trim(hourstr_last) // '_006_' // trim(ensNumber)
-        inquire(file=ensFileName,exist=lExists)
-        if (lExists) then
-          ensembleFileExtLength = 4
-        else 
-          call utl_abort('ens_fileName: could not determine file extension length')
-        end if
-      end if
+      ensFileBasename = ensFileName(1:(totalLength-ensembleFileExtLength-1))
       firstTime = .false.
-    else if ( firstTime .and. .not.shouldExist2 ) then
-      call utl_abort('ens_fileName: cannot determine file extension length!')
-    else
-      if ( ensembleFileExtLength == 4 ) then
-        write(ensNumber,'(i4.4)') memberIndex
-        ensFileName = trim(enspathname) // '/' // trim(ensfilebasename) // &
-                      trim(datestr_last) // trim(hourstr_last) // '_006_' // trim(ensNumber)
-      else
-        write(ensNumber,'(i3.3)') memberIndex
-        ensFileName = trim(enspathname) // '/' // trim(ensfilebasename) // &
-                      trim(datestr_last) // trim(hourstr_last) // '_006_' // trim(ensNumber)
-      end if
     end if
 
-    if ( shouldExist2 ) ensFileName = ram_fullWorkingPath(ensFileName)
+    write(ensembleFileExtLengthStr,'(i1.1)') ensembleFileExtLength
+    write(ensNumber,'(i' // ensembleFileExtLengthStr // '.' // ensembleFileExtLengthStr // ')') memberIndex
+    ensFileName = trim(enspathname) // '/' // trim(ensFileBaseName) // '_' // trim(ensNumber)
+
+    if ( shouldExist ) ensFileName = ram_fullWorkingPath(ensFileName)
+
+    if (present(ensFileBaseName_opt)) ensFileBaseName_opt = trim(ensFileBaseName)
 
   end subroutine ens_fileName
 

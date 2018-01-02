@@ -51,29 +51,25 @@ program midas_ensManip
   type(struct_hco), pointer :: hco_ens_core => null()
   type(struct_ens)          :: ensemble
 
-  integer              :: fclos, fnom, fstopc, newdate, ierr
+  integer              :: fclos, fnom, fstopc, ierr
   integer              :: memberIndex, stepIndex, numStep
-  integer              :: idate, itime, nulnam
-  integer              :: dateStamp, dateStamp_last 
+  integer              :: nulnam, dateStamp
   integer, allocatable :: dateStampList(:)
   integer              :: get_max_rss
 
-  character(len=2)    :: hourstr, hourstr_last
-  character(len=8)    :: datestr, datestr_last
-  character(len=256)  :: ensFileName, recenteringMeanFileName
+  character(len=256)  :: ensFileName, ensFileBaseName, recenteringMeanFileName
 
   logical             :: makeBiPeriodic
 
-  real(8)             :: delhh
   real(4), pointer    :: ensOneLevel(:,:,:,:)
 
   ! namelist variables
   character(len=2)   :: ctrlVarHumidity
-  character(len=256) :: ensPathName, ensFileBaseName
+  character(len=256) :: ensPathName
   logical  :: write_mpi, output_ensemble_mean, output_ensemble_stddev, output_ensemble_perturbations, recenter
   real(8)  :: recentering_coeff
-  integer  :: nEns, date, numBits
-  NAMELIST /NAMENSMANIP/nEns, date, ensPathName, ensFileBaseName, ctrlVarHumidity, write_mpi,  &
+  integer  :: nEns, numBits
+  NAMELIST /NAMENSMANIP/nEns, ensPathName, ctrlVarHumidity, write_mpi,  &
                         output_ensemble_mean, output_ensemble_stddev, output_ensemble_perturbations, &
                         recenter, recentering_coeff, numBits
 
@@ -105,10 +101,8 @@ program midas_ensManip
 
   !- 1.1 Setting default values
   nEns                          = 10
-  date                          = 1900120100
   write_mpi                     = .false.
   ensPathName                   = 'ensemble'
-  ensFileBaseName               = ''
   ctrlVarHumidity               = 'HU'
   output_ensemble_mean          = .false.
   output_ensemble_stddev        = .false.
@@ -134,20 +128,11 @@ program midas_ensManip
   !- 2.1 Initialize the dates
 
   ! Setup timeCoord module
-  call ens_fileName( ensFileName, ensPathName, ensFileBaseName, 1 )
+  call ens_fileName( ensFileName, ensPathName, 1, ensFileBaseName_opt=ensFileBaseName)
   call tim_setup( fileNameForDate_opt=ensFileName )
   numStep = tim_nstepobsinc
   allocate(dateStampList(numStep))
   call tim_getstamplist(dateStampList,numStep,tim_getDatestamp())
-
-  ! Previous analysis time
-  delhh = -tim_windowsize
-  call incdatr( dateStamp_last, tim_getDatestamp(), delhh )
-  ierr = newdate( dateStamp_last, idate, itime, -3 )
-  write(datestr_last,'(i8.8)') idate
-  write(hourstr_last,'(i2.2)') itime/1000000
-  if ( mpi_myid == 0 ) write(*,*) 'midas-ensManip: datestr_last= ', datestr_last, ' hourstr_last= ', hourstr_last
-  if ( mpi_myid == 0 ) write(*,*) 'midas-ensManip: dateStamp_last= ', dateStamp_last
 
   !- 2.3 Initialize variables of the model states
   call gsv_setup
@@ -155,8 +140,8 @@ program midas_ensManip
   !- 2.4 Initialize the Ensemble grid
   if (mpi_myid == 0) write(*,*) ''
   if (mpi_myid == 0) write(*,*) 'midas-ensManip: Set hco parameters for ensemble grid'
+
   ! Use the first ensemble member to initialize the grid
-  call ens_fileName( ensFileName, ensPathName, ensFileBaseName, 1 )
   call hco_SetupFromFile( hco_ens, ensFileName, ' ', 'ENSFILEGRID')
   call vco_setupFromFile( vco_ens, ensFileName )
 
@@ -166,7 +151,7 @@ program midas_ensManip
   call tmg_start(2,'READ_ENSEMBLE')
   call ens_allocate(ensemble, nEns, numStep, hco_ens, vco_ens, dateStampList)
   makeBiPeriodic = .false.
-  call ens_readEnsemble( ensemble, ensPathName, ensFileBaseName, makeBiPeriodic, ctrlVarHumidity )
+  call ens_readEnsemble( ensemble, ensPathName, makeBiPeriodic, ctrlVarHumidity )
   call tmg_stop(2)
 
   !- 2.6 Compute ensemble mean
@@ -180,8 +165,7 @@ program midas_ensManip
     call ens_copyEnsMean( ensemble, statevector_mean )
 
     ! Filename for ensemble mean
-    ensFileName = './' // trim(ensfilebasename) // &
-                  trim(datestr_last) // trim(hourstr_last) // '_006_ensmean'
+    ensFileName = './' // trim(ensFileBaseName) // '_ensmean'
 
     do stepIndex = 1, numStep
       if ( mpi_myid == 0 ) write(*,*) 'midas-ensManip: writing time step ', stepIndex
@@ -206,8 +190,7 @@ program midas_ensManip
     call ens_copyEnsStdDev( ensemble, statevector_stddev )
 
     ! Filename for ensemble stddev
-    ensFileName = './' // trim(ensfilebasename) // &
-                  trim(datestr_last) // trim(hourstr_last) // '_006_ensstddev'
+    ensFileName = './' // trim(ensFileBaseName) // '_ensstddev'
 
     ! Output the ensemble stddev
     do stepIndex = 1, numStep
@@ -239,7 +222,7 @@ program midas_ensManip
     call tmg_start(10,'READ_RECENTERINGMEAN')
 
     ! Filename for recentering mean
-    recenteringMeanFileName = './' // trim(datestr_last) // trim(hourstr_last) // '_recenteringmean'
+    recenteringMeanFileName = './' // trim(ensFileBaseName) // '_recenteringmean'
 
     call gsv_allocate(statevector_recenteringMean, numStep, hco_ens, vco_ens, &
          dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.)
