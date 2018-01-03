@@ -1328,7 +1328,14 @@ CONTAINS
 
     write(ensembleFileExtLengthStr,'(i1.1)') ensembleFileExtLength
     write(ensNumber,'(i' // ensembleFileExtLengthStr // '.' // ensembleFileExtLengthStr // ')') memberIndex
-    ensFileName = trim(enspathname) // '/' // trim(ensFileBaseName) // '_' // trim(ensNumber)
+
+    if (present(ensFileNamePrefix_opt)) then
+      ensFileName = trim(enspathname) // '/' // trim(ensFileNamePrefix_opt) // trim(ensFileBaseName) // '_' // trim(ensNumber)
+    else
+      ensFileName = trim(enspathname) // '/' // trim(ensFileBaseName) // '_' // trim(ensNumber)
+    end if
+
+    write(*,*) 'ens_fileName: ensFileName = ', trim(ensFileName)
 
     if ( shouldExist ) ensFileName = ram_fullWorkingPath(ensFileName)
 
