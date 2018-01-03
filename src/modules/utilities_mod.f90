@@ -104,7 +104,6 @@ contains
 
     allocate(bufuuout4(nio))
     allocate(bufvvout4(nio))
-
     allocate(bufuuin4(nii))
     allocate(bufvvin4(nii))
 
@@ -120,6 +119,8 @@ contains
        dvvout(jk1) = bufvvout4(jk1)
     enddo
 
+    deallocate(bufuuin4)
+    deallocate(bufvvin4)
     deallocate(bufuuout4)
     deallocate(bufvvout4)
 
