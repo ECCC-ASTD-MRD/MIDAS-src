@@ -57,7 +57,7 @@ for file in ${TASK_INPUT}/inputs/*; do
 done
 
 ## remove other files created by the execution
-rm -f flnml pgm ptopo_nml
+rm -f flnml pgm ptopo_nml run.sh
 rm -r mpitmpdir
 
 ## put all the rest in 'output'

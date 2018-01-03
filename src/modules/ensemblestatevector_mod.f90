@@ -1250,7 +1250,7 @@ CONTAINS
     logical, optional :: shouldExist_opt
 
     ! locals
-    integer          :: numFiles, returnCode, totalLength
+    integer          :: numFiles, returnCode, totalLength, ensembleBaseFileNameLength
     character(len=4) :: ensNumber
     logical          :: shouldExist
     character(len=2000) :: fileList(10), fileNamePattern
@@ -1276,21 +1276,22 @@ CONTAINS
       shouldExist = .true.
     end if
 
+    ! Do this step only once in the program since this should not change during the program is running.
     if (firstTime) then
-      write(*,*) 'ens_fileName: trying to set datestamp from ensemble file'
       fileNamePattern = './' // trim(enspathname) // '/' // '*[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]_[0-9][0-9][0-9]_*001'
       returnCode = clib_glob(fileList,numFiles,trim(fileNamePattern),10)
       if (returnCode /= 1) then
-        call utl_abort('ens_fileName: reached maximum number of files or no files are available')
+        call utl_abort('ens_fileName: reached maximum number of files or no file is available')
       end if
-      write(*,*) 'ens_fileName: fileList = ',trim(fileList(1))
-      write(*,*) 'ens_fileName: numFiles, returnCode = ', numFiles,returnCode
 
       ensFileName = trim(fileList(1))
+      totalLength = len_trim(ensFileName)
+      if ( totalLength == 0 ) then
+        call utl_abort('ens_fileName: ensFileName seems empty: ''ensFileName=' // trim(ensFileName) // '''')
+      end if
 
       ! find number of digits used to identify ensemble member index
       ensembleFileExtLength = 0
-      totalLength = len_trim(ensFileName)
       do
         if ( ensFileName((totalLength-ensembleFileExtLength):(totalLength-ensembleFileExtLength)) == '_' ) exit
         ensembleFileExtLength = ensembleFileExtLength + 1
@@ -1300,8 +1301,29 @@ CONTAINS
         call utl_abort('ens_fileName: Cannot determine the ensemble file extention length with ' // trim(ensFileName))
       end if
 
-      ensFileBasename = ensFileName(1:(totalLength-ensembleFileExtLength-1))
+      ! find the last '/' in the file name to get the basename of the file
+      ensembleBaseFileNameLength = 0
+      do
+        if ( totalLength == ensembleBaseFileNameLength ) exit
+        if ( ensFileName((totalLength-ensembleBaseFileNameLength):(totalLength-ensembleBaseFileNameLength)) == '/' ) exit
+        ensembleBaseFileNameLength = ensembleBaseFileNameLength + 1
+      end do
+
+      ! if 'ensFileName = ./abc/def/ghi/123_456_001' then
+      !    totalLength = 25
+      !    ensembleFileExtLength = 3
+      !    ensembleBaseFileNameLength = 11
+      !    ensFileBaseName = '123_456'
+      ! if 'ensFileName = 123_456_001' then
+      !    totalLength = 11
+      !    ensembleFileExtLength = 3
+      !    ensembleBaseFileNameLength = 11
+      !    ensFileBaseName = '123_456'
+      ensFileBasename = ensFileName((totalLength-ensembleBaseFileNameLength+1):(totalLength-ensembleFileExtLength-1))
+
       firstTime = .false.
+
+      write(*,*) 'ens_fileName: ensFileBasename = ', trim(ensFileBasename)
     end if
 
     write(ensembleFileExtLengthStr,'(i1.1)') ensembleFileExtLength
