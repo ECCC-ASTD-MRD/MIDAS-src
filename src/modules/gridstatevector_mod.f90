@@ -4018,7 +4018,7 @@ module gridStateVector_mod
       etiket   = 'TICTICTACTAC'
       npak     = -32
       ier = fstecr(statevector%hco%tictacU, statevector%hco%tictacU, npak, iun, 0, 0, 0, size(statevector%hco%tictacU), 1, 1  , &
-                   statevector%hco%ig1, statevector%hco%ig2,  statevector%hco%ig3, 'E', '^>', etiket, &
+                   statevector%hco%ig1, statevector%hco%ig2,  statevector%hco%ig3, 'X', '^>', etiket, &
                    'F', 1, 0, 0, 0, 5, .false.)
 
     end if
