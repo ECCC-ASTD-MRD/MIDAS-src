@@ -19,8 +19,9 @@
    LGRTEST  = .FALSE.,
    LWRTHESS = .FALSE.,
    LVARQC=.FALSE.,
-   NWOQCV=5
-   CETIKINC ='ENVAR'
+   NWOQCV=5,
+   CETIKINC ='ENVAR',
+   WRITEANALYSIS = .TRUE.
 /
  &NAMSPECTRAL
 /
@@ -114,14 +115,5 @@
   BITEMLIST(4)='FGE',
   TYPE_RESUME='POSTALT'
 /
- &NAMaai_control
-   s_nomvars='TT'
-   l_writeHighResDelxa=.true.,
-   n_nbits=16,
-   l_useAnalyzedPSurf = .false.,
-   l_huIncFromLq=.false.,
-   l_icePhaseEs=.false.
-/
- &NAMSHARED_AAI_3DV
-   CVCORD='GEMHYB'
+ &NAMADDINC
 /

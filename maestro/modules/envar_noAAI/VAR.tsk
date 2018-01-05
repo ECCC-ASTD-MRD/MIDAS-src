@@ -1,0 +1,204 @@
+#!/bin/ksh
+#.*****************************************************************************
+#.
+#.     JOB NAME - VAR
+#.
+#.     STATUS - OPERATIONAL - ESSENTIAL
+#.
+#.     DESCRIPTION - This tasks is the main one of the module.  It executes the
+#.                   variational assimilation program.  
+#.
+#.*****************************************************************************
+
+if [ -L ${TASK_BIN}/manip_script ]; then
+    $SEQ_BIN/nodelogger -n $SEQ_NODE -s infox -m  "Executing $(true_path ${TASK_BIN}/manip_script)"
+    . ${TASK_BIN}/manip_script
+fi
+
+if [ -L ${TASK_BIN}/splitobs ]; then
+    if [[ "${ENVAR_observations_splitobs}" = 'reflex' ]]; then
+	splitobs_mode=reflex
+    else
+	splitobs_mode=splitobs
+    fi
+    splitobs_pgm=$(${TASK_BIN}/readlink ${TASK_BIN}/splitobs)
+    splitobs_grid=$(${TASK_BIN}/readlink ${TASK_INPUT}/split_grid)
+else
+    splitobs_mode=no
+    splitobs_pgm=no
+    splitobs_grid=no
+fi
+
+if [ "${ENVAR_mode}" = EnVar ]; then
+    if [ "${ENVAR_enstrials_interpolation_in_VAR}" = yes ]; then
+	ensemble=${PWD}/ensemble
+	mkdir ${ensemble}
+	. interpEnsTrials.dot ${ensemble}
+    else
+	ensemble=${TASK_INPUT}/ensemble
+    fi
+else
+    ensemble=
+fi
+
+if [ -L ${TASK_INPUT}/sfc4hyperir ]; then
+    sfc4hyperir_opt="-sfc4hyperir ${TASK_INPUT}/sfc4hyperir"
+fi
+if [ -L ${TASK_INPUT}/sfc4hyperir_newalb ]; then
+    sfc4hyperir_newalb_opt="-sfc4hyperir_newalb ${TASK_INPUT}/sfc4hyperir_newalb"
+fi
+
+## submit task 'wait4increments'
+#if [ "${SEQ_XFER}" != stop ]; then
+#    cat > launch_Transfer_anlm.sh <<EOF
+##!/bin/ksh
+#
+#set -ex
+#
+#echo Submitting ${SEQ_CONTAINER}/Transfer_anlm at \$(date)
+#$SEQ_BIN/nodelogger -n $SEQ_NODE -s infox -m "Submit '${SEQ_CONTAINER}/Transfer_anlm'"
+#
+#submit_abort=0
+#${SEQ_BIN}/maestro -s submit -n ${SEQ_CONTAINER}/Transfer_anlm || submit_abort=1
+#if [ "\${submit_abort}" -ne 0 ]; then
+#    $SEQ_BIN/nodelogger -n $SEQ_NODE -s info -m "Unable to submit '${SEQ_CONTAINER}/Transfer_anlm'"
+#fi
+
+#ls -l rebm_*  || true
+#md5sum rebm_* || true
+#
+#EOF
+#    chmod +x launch_Transfer_anlm.sh
+
+#    if [ -L ${TASK_BIN}/oavar.monitor ]; then
+#	${TASK_BIN}/oavar.monitor oavar_exec/VAR3D_STATUS.dot ./launch_Transfer_anlm.sh
+#    else
+#	./launch_Transfer_anlm.sh
+#    fi
+#fi
+
+${TASK_BIN}/oavar.launch                                                  \
+    -cfg                ${ENVAR_CFG}                                      \
+    -workdir            oavar_exec                                        \
+    -date               ${ENVAR_DATE}                                     \
+    -date_trial         ${__ENVAR_DATE_m6}                                \
+    -fallback_mode      ${ENVAR_fallback_mode}                            \
+    -observations       ${TASK_INPUT}/observations                        \
+    -trials             ${TASK_INPUT}/trial.model                         \
+    -preconin           ${TASK_INPUT}/precon                              \
+    -ensemble           ${ensemble}                                       \
+    -bgcov              ${TASK_INPUT}/allStats/bgcov                      \
+    -obscov             ${TASK_INPUT}/allStats/obscov                     \
+    -coefsat            ${TASK_INPUT}/allStats/coefsat                    \
+    -statsat            ${TASK_INPUT}/allStats/statsat                    \
+    -namelist           ${TASK_INPUT}/namelist                            \
+    -biascoeff          ${TASK_INPUT}/allStats/biascoeff                  \
+    -analysisgrid       ${TASK_INPUT}/analysisgrid                        \
+    ${sfc4hyperir_opt}                                                       \
+    ${sfc4hyperir_newalb_opt}                                                \
+    -oavar              $(${TASK_BIN}/readlink ${TASK_BIN}/oavar.Abs)     \
+    -oavar_mpirun       ${TASK_BIN}/oavar.mpirun                          \
+    -mpimode            ${ENVAR_mpi_mode}                                 \
+    -omp_stacksize      ${ENVAR_OMP_STACKSIZE}                            \
+    -mpi_ssm            ${ENVAR_mpi_ssm}                                  \
+    -npex               ${SEQ_NPEX}                                       \
+    -npey               ${SEQ_NPEY}                                       \
+    -splitobs_mode      ${splitobs_mode}                                  \
+    -splitobs_pgm       ${splitobs_pgm}                                   \
+    -splitobs_grid      ${splitobs_grid}                                  \
+    -splitobs_nomvar    ${ENVAR_observations_splitobs_nomvar}             \
+    -splitobs_ndigits   4                                                 \
+    -reunir_obs         ${TASK_BIN}/reunir_obs                            \
+    -ens_subdomains     ${ENVAR_ens_subdomains}                           \
+    -etiket             ${ENVAR_etiket}                                   \
+    -enstrials_extension_length    ${ENVAR_enstrials_extension_length}    \
+    -minimum_proportion_of_members ${ENVAR_minimum_proportion_of_members} \
+    -editbrp            ${TASK_BIN}/editbrp                               \
+    -reflex             ${TASK_BIN}/reflex                                \
+    -run_in_parallel    ${TASK_BIN}/r.run_in_parallel                     \
+    -tripotenml         ${TASK_BIN}/r.tripotenml                          \
+    -remote_copy        ${TASK_BIN}/remote_copy                           \
+    -fasttmp            ${ENVAR_fasttmp}
+
+$SEQ_BIN/nodelogger -n $SEQ_NODE -s infox -m  "Distributing outputs"
+cp flnml ${TASK_OUTPUT}/namelist
+
+if [ -f "$(/bin/ls -1 rebm* | head -1)" ]; then
+    cp rebm* ${TASK_OUTPUT}
+    rm -f combined_rebm
+    $TASK_BIN/editfst -i 0 -s rebm*  -d combined_rebm
+    mv combined_rebm ${TASK_OUTPUT}/rebm_all
+elif [ "${ENVAR_mode}" != 'O-P' ]; then
+    $SEQ_BIN/nodelogger -n $SEQ_NODE -s info -m  "An increment file should have been produced"
+    exit 1
+fi
+
+# move the 'rehm' files
+nb_rehm=$(/bin/ls -1 oavar_exec/rehm* | wc -l)
+
+if [ "${nb_rehm}" -eq 1 ]; then
+    ## S'il n'y a qu'un seul fichier alors il est le 000m
+    mv oavar_exec/rehm* ${TASK_OUTPUT}/rehm
+else
+    mkdir ${TASK_OUTPUT}/rehm
+    for rehm in oavar_exec/rehm*; do
+	ext=$(basename ${rehm} | cut -d_ -f2)
+	mv ${rehm} ${TASK_OUTPUT}/rehm/${ext}
+    done
+fi
+
+## move the 'anlm' file
+if [ -f "$(/bin/ls -1 oavar_exec/anlm* | head -1)" ]; then
+    mkdir ${TASK_OUTPUT}/anlm
+    for anlm in oavar_exec/anlm_*; do
+	ext=$(basename ${anlm} | cut -d_ -f2)
+	mv ${anlm} ${TASK_OUTPUT}/anlm/${ext}
+    done
+fi
+
+mv brp* ${TASK_OUTPUT}
+
+if [ -f pm1q ]; then
+    mv pm1q ${TASK_OUTPUT}
+fi
+
+## Manipulate the TMG file to remove the process id information
+for file in $(ls TMG_OAVAR*.hpm || true);  do
+    no=$(echo $file | cut -d_ -f4)
+    [ -f "${file}" ] && mv -f ${file} TMG_OAVAR_${no}
+done
+
+## Submit task 'Transfer_anlm'
+if [ "${SEQ_XFER}" != stop ]; then
+    submit_abort=0
+    ${SEQ_BIN}/maestro -s submit -n ${SEQ_CONTAINER}/Transfer_anlm || submit_abort=1
+    if [ "\${submit_abort}" -ne 0 ]; then
+	$SEQ_BIN/nodelogger -n $SEQ_NODE -s info -m "Unable to submit '${SEQ_CONTAINER}/Transfer_anlm'"
+    fi
+fi
+
+## Submit task 'getPostalt'
+if [ "${SEQ_XFER}" != stop ]; then
+    submit_abort=0
+    ${SEQ_BIN}/maestro -s submit -n ${SEQ_CONTAINER}/getPostalt || submit_abort=1
+    if [ "${submit_abort}" -ne 0 ]; then
+	$SEQ_BIN/nodelogger -n $SEQ_NODE -s info -m "Unable to submit '${SEQ_CONTAINER}/getPostalt'"
+    fi
+fi
+
+ls -l  rebm* || true
+ls -l  ${TASK_OUTPUT}/rebm* || true
+
+for file in rebm*; do
+    md5sum $file > md5sum.${file}.local &
+    md5sum ${TASK_OUTPUT}/${file} > md5sum.${file}.output &
+done
+wait
+
+cat md5sum.*.local
+cat md5sum.*.output
+
+## On s'est occupe de lancer nous-memes les taches 'wait4increments'
+## et 'getPostalt' plus tot, alors on evite de la faire automatiquement
+## par 'maestro'.
+export SEQ_XFER=stop

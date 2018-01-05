@@ -51,8 +51,11 @@ module verticalCoord_mod
      character(len=8) :: setuptype
   end type struct_vco
 
-  contains
-
+contains
+  
+  !--------------------------------------------------------------------------
+  ! vco_allocate
+  !--------------------------------------------------------------------------
   subroutine vco_allocate(vco)
     implicit none
     type(struct_vco), pointer :: vco
@@ -74,7 +77,9 @@ module verticalCoord_mod
 
   end subroutine vco_allocate
 
-
+  !--------------------------------------------------------------------------
+  ! vco_setupManual
+  !--------------------------------------------------------------------------
   subroutine vco_setupManual(vco,ip1,numLev)
     implicit none
     type(struct_vco), pointer :: vco
@@ -118,7 +123,9 @@ module verticalCoord_mod
 
   end subroutine vco_SetupManual
 
-
+  !--------------------------------------------------------------------------
+  ! vco_SetupFromFile
+  !--------------------------------------------------------------------------
   subroutine vco_SetupFromFile(vco,templatefile,etiket_in,beSilent)
     !  s/r vco_SetupFromFile - Initialize structure for a standard file using vgrid_descriptors library.
     implicit none
@@ -367,7 +374,9 @@ module verticalCoord_mod
 
   end subroutine vco_setupFromFile
 
-
+  !--------------------------------------------------------------------------
+  ! vco_deallocate
+  !--------------------------------------------------------------------------
   subroutine vco_deallocate(vco)
     implicit none
     type(struct_vco), pointer :: vco
@@ -381,7 +390,9 @@ module verticalCoord_mod
 
   end subroutine vco_deallocate
 
-
+  !--------------------------------------------------------------------------
+  ! vco_getNumLev
+  !--------------------------------------------------------------------------
   function vco_getNumLev(vco,varLevel) result(nlev)
     implicit none
     type(struct_vco), pointer    :: vco
@@ -498,7 +509,9 @@ module verticalCoord_mod
 
   end subroutine vco_mpiBcast
 
-
+  !--------------------------------------------------------------------------
+  ! vco_equal
+  !--------------------------------------------------------------------------
   function vco_equal(vco1,vco2) result(equal)
     implicit none
     type(struct_vco), pointer :: vco1, vco2
@@ -540,6 +553,13 @@ module verticalCoord_mod
        write(*,*) 'vco_equal: ip1_sfc not equal'
        return
     endif
+    if (vco1%Vcode == 5002 .or. vco1%Vcode == 5005) then
+      equal = equal .and. hybridCoefEqualOrNot(vco1, vco2)
+      if (.not. equal) then
+        write(*,*) 'vco_equal: hybrid parameters are not equal'
+        return
+      endif
+    end if
 
   end function vco_equal
 
@@ -548,53 +568,173 @@ module verticalCoord_mod
   !--------------------------------------------------------------------------
   function vco_subsetOrNot(vco_template, vco_full) result(subset)
     implicit none
-
+    !
+    !- This function determines if vco_template is a subset of vco_full.
+    !
     type(struct_vco), pointer, intent(in)  :: vco_full, vco_template
     logical :: subset
 
     integer, allocatable :: THlevelWanted(:), MMlevelWanted(:)
 
-    !
-    ! This function determines if vco_template is a subset of vco_full.
-    !
+    real(8) :: ptop_template, ptop_full
 
+    real(8), pointer :: coefA_template(:), coefA_full(:)
+    real(8), pointer :: coefB_template(:), coefB_full(:)
+
+    real :: coefR1_template, coefR1_full
+    real :: coefR2_template, coefR2_full
+
+    integer :: stat, levIndex
+
+    !
+    !- Compare the vCode
+    !
+    if (vco_template%Vcode /= vco_full%Vcode) then
+      subset = .false.
+      return
+    end if
+
+    !
+    !- Compare the IP1s
+    !
     allocate(THlevelWanted(vco_template%nlev_T))
     allocate(MMlevelWanted(vco_template%nlev_M))
 
     call vco_levelMatchingList( THlevelWanted, MMlevelWanted, & ! OUT
                                 vco_template, vco_full )        ! IN
 
-    if ( (any(THlevelWanted == -1) .or. any(MMlevelWanted == -1)) .or. &
-         (vco_template%Vcode /= vco_full%Vcode) ) then
-      ! vco_template IS NOT a subset of vco_full
+    if (any(THlevelWanted == -1) .or. any(MMlevelWanted == -1)) then
       subset = .false.
-    else
-      ! vco_template IS a subset of vco_full
-      subset = .true.
+      return
     end if
 
     deallocate(MMlevelWanted)
     deallocate(THlevelWanted)
 
+    !
+    !- For hybrid coordinates, compare additional grid parameters
+    !
+    if ( .not. hybridCoefEqualOrNot(vco_template, vco_full) ) then
+      subset = .false.
+      return
+    end if
+
+    !
+    !- When reaching this point, we assume that we have a subset
+    !
+    subset = .true.
+
   end function vco_subsetOrNot
+
+  !--------------------------------------------------------------------------
+  ! hybridCoefEqualOrNot
+  !--------------------------------------------------------------------------
+  function hybridCoefEqualOrNot(vco1, vco2) result(equal)
+    implicit none
+
+    type(struct_vco), pointer, intent(in)  :: vco1, vco2
+    logical :: equal
+
+    real(8) :: ptop1, ptop2
+
+    real(8), pointer :: coefA1(:), coefA2(:)
+    real(8), pointer :: coefB1(:), coefB2(:)
+
+    real :: coefR11, coefR12
+    real :: coefR21, coefR22
+
+    integer :: stat, levIndex
+
+    if (vco1%Vcode == 5002) then
+      !- Ptop
+      stat = vgd_get(vco1%vgrid,key='PTOP - top level pressure',value=ptop1)
+      stat = vgd_get(vco2%vgrid,key='PTOP - top level pressure',value=ptop2)
+      if (ptop1 /= ptop2) then
+        equal = .false.
+        return
+      end if
+    end if
+
+    if (vco1%Vcode == 5002 .or. vco1%Vcode == 5005) then
+
+      !- Pref
+      stat = vgd_get(vco1%vgrid,key='PREF - reference pressure',value=ptop1)
+      stat = vgd_get(vco2%vgrid,key='PREF - reference pressure',value=ptop2)
+      if (ptop1 /= ptop2) then
+        equal = .false.
+        return
+      end if
+      !- R-coef 1
+      stat = vgd_get(vco1%vgrid,key='RC_1 - first R-coef value',value=coefR11)
+      stat = vgd_get(vco2%vgrid,key='RC_1 - first R-coef value',value=coefR12)
+      if (coefR11 /= coefR12) then
+        equal = .false.
+        return
+      end if
+      !- R-coef 2
+      stat = vgd_get(vco1%vgrid,key='RC_2 - second R-coef value',value=coefR21)
+      stat = vgd_get(vco2%vgrid,key='RC_2 - second R-coef value',value=coefR22)
+      if (coefR21 /= coefR22) then
+        equal = .false.
+        return
+      end if
+      !- A
+      nullify(coefA1)
+      nullify(coefA2)
+      stat = vgd_get(vco1%vgrid,key='CA_M - vertical A coefficient (m)',value=coefA1)
+      stat = vgd_get(vco2%vgrid,key='CA_M - vertical A coefficient (m)',value=coefA2)
+      if ( size(coefA1) /= size(coefA2) ) then
+        equal = .false.
+        return
+      end if
+      do levIndex = 1, size(coefA1)
+        if (coefA1(levIndex) /= coefA2(levIndex)) then
+          equal = .false.
+          return
+        end if
+      end do
+      !- B
+      nullify(coefB1)
+      nullify(coefB2)
+      stat = vgd_get(vco1%vgrid,key='CB_M - vertical B coefficient (m)',value=coefB1)
+      stat = vgd_get(vco2%vgrid,key='CB_M - vertical B coefficient (m)',value=coefB2)
+      if ( size(coefB1) /= size(coefB2) ) then
+        equal = .false.
+        return
+      end if
+      do levIndex = 1, size(coefB1)
+        if (coefB1(levIndex) /= coefB2(levIndex)) then
+          equal = .false.
+          return
+        end if
+      end do
+
+    end if
+
+    !
+    !- When reaching this point, we assume that they are equal
+    !
+    equal = .true.
+
+  end function hybridCoefEqualOrNot
 
   !--------------------------------------------------------------------------
   ! vco_levelMatchingList
   !--------------------------------------------------------------------------
   subroutine vco_levelMatchingList(THmatchingList, MMmatchingList, vco1, vco2)
     implicit none
-    
+    !
+    !- This subroutine returns arrays of array indices of the levels (ip1s) in vco2 
+    !  corresponding with the levels (ip1s) in vco1
+    !
     type(struct_vco), pointer, intent(in) :: vco1, vco2
     integer, intent(out) :: THmatchingList(vco1%nlev_T), MMmatchingList(vco1%nlev_M)
  
     integer :: levIndex1, levIndex2
 
     !
-    ! This subroutine returns arrays of array indices of the levels (ip1s) in vco2 corresponding 
-    ! with the levels (ip1s) in vco1
+    !- Do momentum levels...
     !
-
-    ! Do momentum levels...
     MMmatchingList(:) = -1
     do levIndex1 = 1, vco1%nlev_M
       do levIndex2 =  1, vco2%nlev_M
@@ -606,8 +746,10 @@ module verticalCoord_mod
         end if
       end do
     end do
-
-    ! Do thermo levels...
+    
+    !
+    !- Do thermo levels...
+    !
     THmatchingList(:) = -1
     do levIndex1 = 1, vco1%nlev_T
       do levIndex2 = 1, vco2%nlev_T

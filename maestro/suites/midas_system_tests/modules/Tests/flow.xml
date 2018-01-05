@@ -60,8 +60,8 @@
   </FAMILY>
 
   <FAMILY  name="EnVar_2D_ppp">
-    <SUBMITS sub_name="UnitTest"/>
-    <MODULE  name="UnitTest"/>
+    <SUBMITS sub_name="UnitTest_noAAI"/>
+    <MODULE  name="UnitTest_noAAI"/>
   </FAMILY>
 
   <FAMILY  name="Var3D_splitobs_ppp">
