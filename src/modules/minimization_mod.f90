@@ -197,7 +197,7 @@ CONTAINS
 
     write(*,*) 'TIM_TIMEBINNING: For 4D increment'
     call tim_timeBinning(obsSpaceData,tim_nstepobsinc)
-    call tim_sutimeinterp(obsSpaceData)
+    call tim_sutimeinterp(obsSpaceData,tim_nstepobsinc)
 
     call quasiNewtonMinimization(column,columng,obsSpaceData)
 

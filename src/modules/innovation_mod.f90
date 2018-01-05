@@ -273,7 +273,7 @@ contains
        enddo
        if (col_getNumLev(columng,'MM') > 1) call tt2phi(columng)
     else
-       write(*,*) ':inn_setupBackgroundColumnsAnl  GZ TLM calcs not generated since TT, HU and P0 not all present'
+       write(*,*) 'inn_setupBackgroundColumnsAnl:  GZ TLM calcs not generated since TT, HU and P0 not all present'
     end if
 
     call tmg_stop(10)
@@ -314,7 +314,6 @@ contains
     integer, parameter   :: maxLevels = 200
     integer              :: EZscintID_trl, iip1s(maxLevels), iip2, iip3
     integer, allocatable :: idate(:), itime(:)
-    integer, allocatable :: nobsgid(:) ! (nstepobs) grid id for ezscint corresponding to stepobs bin
     integer, allocatable :: notag(:,:) ! (nobtot,nstepobs) obs tag associated to observations of each bin
     integer, allocatable :: nobs(:), nobs_maxmpiglobal(:) ! number of headers for each stepobs bin
     integer, allocatable :: nobsgid_mpiglobal(:,:), nobs_mpiglobal(:,:)
@@ -406,7 +405,6 @@ contains
     allocate(dlatfld(numColumn_maxmpiglobal))
     allocate(dlonfld_mpiglobal(numColumn_maxmpiglobal,mpi_nprocs))
     allocate(dlatfld_mpiglobal(numColumn_maxmpiglobal,mpi_nprocs))
-    allocate(nobsgid(tim_nStepObs))
     allocate(nobs(tim_nStepObs))
     allocate(nobs_maxmpiglobal(tim_nStepObs))
     allocate(datestamplist(tim_nStepObs))
@@ -893,7 +891,6 @@ contains
        deallocate(varInterphr_VV)
     endif
     deallocate(datestamplist)
-    deallocate(nobsgid)
     deallocate(nobs,nobs_maxmpiglobal)
     deallocate(nultrl)
     deallocate(idate)
@@ -1892,5 +1889,6 @@ contains
     enddo
 
   end subroutine inn_perturbObs
+
 
 end module innovation_mod

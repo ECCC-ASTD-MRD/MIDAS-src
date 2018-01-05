@@ -27,7 +27,7 @@ elif [ $mode == abs ] ; then
   echo "... > Building the Executable only"
 else
   echo "..."
-  echo "... > Compiling only routine : $1"
+  echo "... > Compiling only routine : $mode"
 fi
 
 echo "..."
@@ -170,9 +170,17 @@ else
     echo "... compiling $mode"
     echo "..."
     s.compile $COMPF  -O ${FOPTMIZ} -src $file
+  elif [ -f $programsDir/$mode ] ; then
+    file=`basename $mode`
+    rm -f $file
+    cp ${programsDir}/$mode .
+    echo "..."
+    echo "... compiling $mode"
+    echo "..."
+    s.compile $COMPF  -O ${FOPTMIZ} -src $file
   else
     echo "..."
-    echo "... !! File ${modulesDir}/$mode does NOT exist. Stop !!"
+    echo "... !! File $mode does NOT exist in directories ${modulesDir} and ${programsDir}. Stop !!"
     exit 1
   fi
 

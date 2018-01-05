@@ -24,6 +24,7 @@
 MODULE ensembleStateVector_mod
   use ramDisk_mod
   use mpivar_mod
+  use fileNames_mod
   use gridStateVector_mod
   use horizontalCoord_mod
   use verticalCoord_mod
@@ -38,7 +39,7 @@ MODULE ensembleStateVector_mod
 
   ! public procedures
   public :: struct_ens, ens_allocate, ens_deallocate
-  public :: ens_readEnsemble, ens_writeEnsemble, ens_fileName
+  public :: ens_readEnsemble, ens_writeEnsemble
   public :: ens_copyToStateWork, ens_getRepackMean_r8
   public :: ens_varExist, ens_getNumLev
   public :: ens_computeMean, ens_removeMean, ens_copyEnsMean, ens_copyMember, ens_recenter
@@ -802,7 +803,7 @@ CONTAINS
     end if
 
     ! Set up hco and vco for ensemble files
-    call ens_fileName(ensFileName, ensPathName, 1)
+    call fln_ensFileName(ensFileName, ensPathName, 1)
     nullify(hco_file)
     call hco_SetupFromFile(hco_file, ensFileName, ' ', 'ENSFILEGRID')
     if ( present(vco_file_opt) ) then
@@ -823,7 +824,7 @@ CONTAINS
 
     ! Setup the list of variables to be read (use member 1)
     if (mpi_myid == 0) then
-      call ens_fileName(ensFileName, ensPathName, 1)
+      call fln_ensFileName(ensFileName, ensPathName, 1)
       nEnsVarNamesWanted=0
       write(*,*)
       write(*,*) 'ens_readEnsemble: Listing the analysis variables present in ensemble file'
@@ -909,7 +910,7 @@ CONTAINS
 
           !  Read the file
           fileMemberIndex = 1+mod(memberIndex+memberIndexOffset-1, totalEnsembleSize)
-          call ens_fileName(ensFileName, ensPathName, fileMemberIndex)
+          call fln_ensFileName(ensFileName, ensPathName, fileMemberIndex)
           typvar = ' '
           etiket = ' '
           if (.not. horizontalInterpNeeded  .and. &
@@ -1201,12 +1202,8 @@ CONTAINS
           write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
           !  Write the file
-          call ens_fileName( ensFileName, ensPathName, memberIndex, ensFileNamePrefix_opt=ensFileNamePrefix, shouldExist_opt = .false. )
-          if (present(numBits_opt)) then
-            call gsv_writeToFile( statevector_member_r4, ensFileName, etiket, ip3_in = ip3, typvar_in = typvar , numBits_opt = numBits_opt)
-          else
-            call gsv_writeToFile( statevector_member_r4, ensFileName, etiket, ip3_in = ip3, typvar_in = typvar )
-          end if
+          call fln_ensFileName( ensFileName, ensPathName, memberIndex, ensFileNamePrefix_opt = ensFileNamePrefix, shouldExist_opt = .false. )
+          call gsv_writeToFile( statevector_member_r4, ensFileName, etiket, ip3_in = ip3, typvar_in = typvar , numBits_opt = numBits_opt)
         end if ! locally written one member
 
 

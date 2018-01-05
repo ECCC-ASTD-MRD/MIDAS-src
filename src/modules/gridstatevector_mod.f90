@@ -474,35 +474,37 @@ module gridStateVector_mod
       end if
     end if
 
-    allocate(statevector%allLonBeg(mpi_npex))
-    CALL rpn_comm_allgather(statevector%myLonBeg,1,"mpi_integer",       &
-                            statevector%allLonBeg,1,"mpi_integer","EW",ierr)
-    allocate(statevector%allLonEnd(mpi_npex))
-    CALL rpn_comm_allgather(statevector%myLonEnd,1,"mpi_integer",       &
-                            statevector%allLonEnd,1,"mpi_integer","EW",ierr)
-    allocate(statevector%allLonPerPE(mpi_npex))
-    CALL rpn_comm_allgather(statevector%lonPerPE,1,"mpi_integer",       &
-                            statevector%allLonPerPE,1,"mpi_integer","EW",ierr)
+    if ( statevector%mpi_local ) then
+      allocate(statevector%allLonBeg(mpi_npex))
+      CALL rpn_comm_allgather(statevector%myLonBeg,1,"mpi_integer",       &
+                              statevector%allLonBeg,1,"mpi_integer","EW",ierr)
+      allocate(statevector%allLonEnd(mpi_npex))
+      CALL rpn_comm_allgather(statevector%myLonEnd,1,"mpi_integer",       &
+                              statevector%allLonEnd,1,"mpi_integer","EW",ierr)
+      allocate(statevector%allLonPerPE(mpi_npex))
+      CALL rpn_comm_allgather(statevector%lonPerPE,1,"mpi_integer",       &
+                              statevector%allLonPerPE,1,"mpi_integer","EW",ierr)
+  
+      allocate(statevector%allLatBeg(mpi_npey))
+      CALL rpn_comm_allgather(statevector%myLatBeg,1,"mpi_integer",       &
+                              statevector%allLatBeg,1,"mpi_integer","NS",ierr)
+      allocate(statevector%allLatEnd(mpi_npey))
+      CALL rpn_comm_allgather(statevector%myLatEnd,1,"mpi_integer",       &
+                              statevector%allLatEnd,1,"mpi_integer","NS",ierr)
+      allocate(statevector%allLatPerPE(mpi_npey))
+      CALL rpn_comm_allgather(statevector%LatPerPE,1,"mpi_integer",       &
+                              statevector%allLatPerPE,1,"mpi_integer","NS",ierr)
 
-    allocate(statevector%allLatBeg(mpi_npey))
-    CALL rpn_comm_allgather(statevector%myLatBeg,1,"mpi_integer",       &
-                            statevector%allLatBeg,1,"mpi_integer","NS",ierr)
-    allocate(statevector%allLatEnd(mpi_npey))
-    CALL rpn_comm_allgather(statevector%myLatEnd,1,"mpi_integer",       &
-                            statevector%allLatEnd,1,"mpi_integer","NS",ierr)
-    allocate(statevector%allLatPerPE(mpi_npey))
-    CALL rpn_comm_allgather(statevector%LatPerPE,1,"mpi_integer",       &
-                            statevector%allLatPerPE,1,"mpi_integer","NS",ierr)
-
-    allocate(statevector%allkCount(mpi_nprocs))
-    CALL rpn_comm_allgather(statevector%mykCount,1,"mpi_integer",       &
-                            statevector%allkCount,1,"mpi_integer","GRID",ierr)
-    allocate(statevector%allkBeg(mpi_nprocs))
-    CALL rpn_comm_allgather(statevector%mykBeg,1,"mpi_integer",       &
-                            statevector%allkBeg,1,"mpi_integer","GRID",ierr)
-    allocate(statevector%allkEnd(mpi_nprocs))
-    CALL rpn_comm_allgather(statevector%mykEnd,1,"mpi_integer",       &
-                            statevector%allkEnd,1,"mpi_integer","GRID",ierr)
+      allocate(statevector%allkCount(mpi_nprocs))
+      CALL rpn_comm_allgather(statevector%mykCount,1,"mpi_integer",       &
+                              statevector%allkCount,1,"mpi_integer","GRID",ierr)
+      allocate(statevector%allkBeg(mpi_nprocs))
+      CALL rpn_comm_allgather(statevector%mykBeg,1,"mpi_integer",       &
+                              statevector%allkBeg,1,"mpi_integer","GRID",ierr)
+      allocate(statevector%allkEnd(mpi_nprocs))
+      CALL rpn_comm_allgather(statevector%mykEnd,1,"mpi_integer",       &
+                              statevector%allkEnd,1,"mpi_integer","GRID",ierr)
+    end if
 
     select case (ANLTIME_BIN)
     case ("FIRST")
@@ -561,7 +563,7 @@ module gridStateVector_mod
     end if
     if (ierr.ne.0) then
       write(*,*) 'gridStateVector: Problem allocating memory! id=1 ',ierr
-      call utl_abort('aborting in gsv_allocate')
+      call utl_abort('gsv_allocate')
     end if
 
     if ( present(allocGZsfc_opt) ) then
@@ -570,6 +572,7 @@ module gridStateVector_mod
         statevector%gzSfcPresent = .true.
         if ( ( statevector%mpi_distribution == 'VarsLevs' .and. mpi_myid == 0 ) .or. &
              statevector%mpi_distribution /= 'VarsLevs' ) then
+          write(*,*) 'gsv_allocate: allocating gzSfc on this mpi task'
           allocate(statevector%gzSfc(statevector%myLonBeg:statevector%myLonEnd,  &
                                      statevector%myLatBeg:statevector%myLatEnd))
           statevector%gzSfc(:,:) = 0.0d0
@@ -603,7 +606,7 @@ module gridStateVector_mod
     real(8)          :: real8value = 1.0d0
 
     if (.not.statevector%allocated) then
-      call utl_abort('gridStateVector not yet allocated! Aborting.')
+      call utl_abort('gsv_convertToInteger: gridStateVector not yet allocated!')
     end if
 
     lon1=statevector%myLonBeg
@@ -668,7 +671,7 @@ module gridStateVector_mod
     integer          :: stepIndex,lonIndex,kIndex,latIndex,lat1,lat2,lon1,lon2,k1,k2
 
     if (.not.statevector%allocated) then
-      call utl_abort('gridStateVector not yet allocated! Aborting.')
+      call utl_abort('gsv_zero: gridStateVector not yet allocated! Aborting.')
     end if
 
     lon1=statevector%myLonBeg
@@ -906,10 +909,10 @@ module gridStateVector_mod
     integer           :: stepIndex,lonIndex,kIndex,latIndex,lon1,lon2,lat1,lat2,k1,k2
 
     if (.not.statevector_in%allocated) then
-      call utl_abort('gridStateVector_in not yet allocated! Aborting.')
+      call utl_abort('gsv_add: gridStateVector_in not yet allocated! Aborting.')
     end if
     if (.not.statevector_inout%allocated) then
-      call utl_abort('gridStateVector_inout not yet allocated! Aborting.')
+      call utl_abort('gsv_add: gridStateVector_inout not yet allocated! Aborting.')
     end if
 
     lon1=statevector_in%myLonBeg
@@ -1144,7 +1147,7 @@ module gridStateVector_mod
     real(8), optional :: scaleFactor
 
     if (.not.statevector_inout%allocated) then
-      call utl_abort('gridStateVector_inout not yet allocated! Aborting.')
+      call utl_abort('gsv_power: gridStateVector_inout not yet allocated! Aborting.')
     end if
 
     lon1=statevector_inout%myLonBeg
@@ -1228,7 +1231,7 @@ module gridStateVector_mod
     integer          :: stepIndex,lonIndex,kIndex,latIndex,lon1,lon2,lat1,lat2,k1,k2
 
     if (.not.statevector_in%allocated) then
-      call utl_abort('gridStateVector_in not yet allocated! Aborting.')
+      call utl_abort('gsv_stddev: gridStateVector_in not yet allocated! Aborting.')
     end if
 
     lon1=statevector_in%myLonBeg
@@ -1269,7 +1272,7 @@ module gridStateVector_mod
     real(8)          :: scaleFactor
 
     if (.not.statevector_inout%allocated) then
-      call utl_abort('gsv_Scale: gridStateVector_inout not yet allocated! Aborting.')
+      call utl_abort('gsv_scale: gridStateVector_inout not yet allocated! Aborting.')
     end if
 
     lon1=statevector_inout%myLonBeg
@@ -1324,7 +1327,7 @@ module gridStateVector_mod
     real(8)          :: scaleFactor(:)
 
     if (.not.statevector_inout%allocated) then
-      call utl_abort('gsv_Scale: gridStateVector_inout not yet allocated! Aborting.')
+      call utl_abort('gsv_scaleVertical: gridStateVector_inout not yet allocated! Aborting.')
     end if
 
     lon1=statevector_inout%myLonBeg
@@ -1508,18 +1511,22 @@ module gridStateVector_mod
     integer        :: ierr
 
     if (.not.statevector%allocated) then
-      call utl_abort('gridStateVector not yet allocated! Aborting.')
+      call utl_abort('gsv_deallocate: gridStateVector not yet allocated! Aborting.')
     end if
 
     statevector%allocated=.false.
 
-    deallocate(statevector%allLonBeg)
-    deallocate(statevector%allLonEnd)
-    deallocate(statevector%allLatBeg)
-    deallocate(statevector%allLatEnd)
-    deallocate(statevector%allkBeg)
-    deallocate(statevector%allkEnd)
-    deallocate(statevector%allkCount)
+    if ( statevector%mpi_local ) then
+      deallocate(statevector%allLonBeg)
+      deallocate(statevector%allLonEnd)
+      deallocate(statevector%allLonPerPE)
+      deallocate(statevector%allLatBeg)
+      deallocate(statevector%allLatEnd)
+      deallocate(statevector%allLatPerPE)
+      deallocate(statevector%allkBeg)
+      deallocate(statevector%allkEnd)
+      deallocate(statevector%allkCount)
+    end if
 
     if (statevector%dataKind==8) then
       deallocate(statevector%gd_r8,stat=ierr)
@@ -1689,7 +1696,7 @@ module gridStateVector_mod
 
     if (present(varName)) then
       if (statevector%mpi_distribution == 'VarsLevs') then
-        call utl_abort('gsv_getField_r4: cannot specify a varName for VarsLevs mpi distribution')
+        call utl_abort('gsv_getField3D_r4: cannot specify a varName for VarsLevs mpi distribution')
       end if
       if (gsv_varExist(statevector,varName)) then
         ilev1 = 1 + statevector%varOffset(vnl_varListIndex(varName))
@@ -1764,7 +1771,7 @@ module gridStateVector_mod
 
     if (present(varName)) then
       if (statevector%mpi_distribution == 'VarsLevs') then
-        call utl_abort('gsv_getField_i2: cannot specify a varName for VarsLevs mpi distribution')
+        call utl_abort('gsv_getField3D_i2: cannot specify a varName for VarsLevs mpi distribution')
       end if
       if (gsv_varExist(statevector,varName)) then
         ilev1 = 1 + statevector%varOffset(vnl_varListIndex(varName))
@@ -1800,7 +1807,7 @@ module gridStateVector_mod
     lat1 = statevector%myLatBeg
     k1 = statevector%mykBeg
 
-    if (.not. associated(statevector%gd_r8)) call utl_abort('gsv_getField_r8: data with type r8 not allocated')
+    if (.not. associated(statevector%gd_r8)) call utl_abort('gsv_getFieldUV_r8: data with type r8 not allocated')
 
     field(lon1:,lat1:,k1:,1:) => statevector%gdUV_r8(:,:,:,:)
 
@@ -1819,7 +1826,7 @@ module gridStateVector_mod
     lat1=statevector%myLatBeg
     k1=statevector%mykBeg
 
-    if (.not. associated(statevector%gd_r4)) call utl_abort('gsv_getField_r4: data with type r4 not allocated')
+    if (.not. associated(statevector%gd_r4)) call utl_abort('gsv_getFieldUV_r4: data with type r4 not allocated')
 
     field(lon1:,lat1:,k1:,1:) => statevector%gdUV_r4(:,:,:,:)
 
@@ -1838,7 +1845,7 @@ module gridStateVector_mod
     lat1=statevector%myLatBeg
     k1=statevector%mykBeg
 
-    if (.not. associated(statevector%gd_i2)) call utl_abort('gsv_getField_i2: data with type i2 not allocated')
+    if (.not. associated(statevector%gd_i2)) call utl_abort('gsv_getFieldUV_i2: data with type i2 not allocated')
 
     field(lon1:,lat1:,k1:,1:) => statevector%gdUV_i2(:,:,:,:)
 
@@ -1943,7 +1950,7 @@ module gridStateVector_mod
           dateStamp=statevector%dateStampList(step)
         else
           write(*,*) 'gsv_getDateStamp: requested step is out of range! Step,numStep=',step,statevector%numStep
-          call utl_abort('aborting in gsv_getDateStamp')
+          call utl_abort('gsv_getDateStamp')
         end if    
       else
         dateStamp=statevector%dateStamp3D
@@ -2328,15 +2335,15 @@ module gridStateVector_mod
         varName = 'GZ'
         ip1 = statevector%vco%ip1_sfc
         ikey = fstinf(nulfile, ni_file, nj_file, nk_file,  &
-                      statevector%datestamplist(1), etiket_in, &
+                      -1, etiket_in, &
                       -1, -1, -1, typvar_in, varName)
         allocate(gd2d_file_r4(ni_file,nj_file))
         gd2d_file_r4(:,:) = 0.0d0
         ierr=fstlir(gd2d_file_r4(:,:),nulfile,ni_file, nj_file, nk_file,  &
-                    statevector%datestamplist(1),etiket_in,ip1,-1,-1,  &
+                    -1,etiket_in,ip1,-1,-1,  &
                     typvar_in,varName)
         if (ierr.lt.0)then
-          write(*,*) varName,ip1,statevector%datestamplist(1)
+          write(*,*) varName,ip1
           call utl_abort('gsv_readFile: Problem with reading surface GZ from file')
         end if
         statevector%GZsfc(:,:) = real(gd2d_file_r4(1:statevector%hco%ni,1:statevector%hco%nj),8)*10.0d0*RG
@@ -4546,10 +4553,10 @@ module gridStateVector_mod
     integer          :: k1,k2
 
     if (.not.statevector_a%allocated) then
-      call utl_abort('gridStateVector_in not yet allocated! Aborting.')
+      call utl_abort('gsv_dotProduct: gridStateVector_in not yet allocated! Aborting.')
     end if
     if (.not.statevector_b%allocated) then
-      call utl_abort('gridStateVector_inout not yet allocated! Aborting.')
+      call utl_abort('gsv_dotProduct: gridStateVector_inout not yet allocated! Aborting.')
     end if
 
     lon1 = statevector_a%myLonBeg

@@ -224,6 +224,7 @@ contains
     CLVALU(32) = 'brpssm'  
     CLVALU(33) = 'brpgp'  
     CLVALU(34) = 'brpch' 
+    CLVALU(35) = 'brpua'  
 
 
     CFAMI(:)   = ''
@@ -261,6 +262,7 @@ contains
     CFAMI(32)  = 'MI' 
     CFAMI(33)  = 'GP' 
     CFAMI(34)  = 'CH' 
+    CFAMI(35)  = 'UA' 
 
     IER =MRFOPC('MSGLVL','FATAL')
 

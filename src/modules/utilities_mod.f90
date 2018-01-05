@@ -703,7 +703,7 @@ contains
     integer :: comm, ierr, rpn_comm_comm
     
     write(6,9000) message
-9000 format(//,4X,"!!!---ABORT---!!!",/,8X,"VAR stopped in ",A)
+9000 format(//,4X,"!!!---ABORT---!!!",/,8X,"MIDAS stopped in ",A)
     call flush(6)
 
     comm = rpn_comm_comm("WORLD")

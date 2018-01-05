@@ -167,22 +167,31 @@ module columnData_mod
     END SUBROUTINE col_zero
 
 
-    SUBROUTINE col_allocate(column,numCol,mpi_local)
+    SUBROUTINE col_allocate(column, numCol, mpi_local, beSilent_opt)
       IMPLICIT NONE
 
+      ! arguments
       type(struct_columnData) :: column
-      integer, intent(in)           :: numCol
-      logical, optional             :: mpi_local
-      integer :: nkgdimo,ier
+      integer, intent(in)     :: numCol
+      logical, optional       :: mpi_local
+      logical, optional       :: beSilent_opt
 
-      integer iloc,jvar,jvar2
+      ! locals
+      integer :: nkgdimo, iloc, jvar, jvar2
+      logical :: beSilent
+
+      if ( present(beSilent_opt) ) then
+        beSilent = beSilent_opt
+      else
+        beSilent = .false.
+      end if
 
       column%numCol = numCol
       if(present(mpi_local)) then
         column%mpi_local=mpi_local
       else
         column%mpi_local=.true.
-        if(mpi_myid == 0) write(*,*) 'col_allocate: assuming columnData is mpi-local'
+        if (mpi_myid == 0 .and. .not.beSilent) write(*,*) 'col_allocate: assuming columnData is mpi-local'
       endif
 
       if(.not.column%vco%initialized) then
@@ -213,7 +222,7 @@ module columnData_mod
       nkgdimo=iloc
 
       if(column%numCol.le.0) then
-        write(*,*) 'col_allocate: number of columns is zero, not allocated'
+        if ( .not.beSilent ) write(*,*) 'col_allocate: number of columns is zero, not allocated'
       else         
         allocate(column%all(nkgdimo,column%numCol))
         column%all(:,:)=0.0d0
@@ -253,9 +262,9 @@ module columnData_mod
 
       endif
  
-      if(mpi_myid == 0) write(*,*) 'col_allocate: nkgdimo = ',nkgdimo
-      if(mpi_myid == 0) write(*,*) 'col_allocate: varOffset=',column%varOffset
-      if(mpi_myid == 0) write(*,*) 'col_allocate: varNumLev=',column%varNumLev
+      if(mpi_myid == 0 .and. .not.beSilent) write(*,*) 'col_allocate: nkgdimo = ',nkgdimo
+      if(mpi_myid == 0 .and. .not.beSilent) write(*,*) 'col_allocate: varOffset=',column%varOffset
+      if(mpi_myid == 0 .and. .not.beSilent) write(*,*) 'col_allocate: varNumLev=',column%varNumLev
 
       column%allocated=.true.
 
@@ -449,6 +458,8 @@ module columnData_mod
     real(kind=8), pointer     :: zppobs1(:,:,:) => null()
     real(kind=8), pointer     :: dP_dPsfc(:,:,:) => null()
     integer :: jobs, status
+
+    if ( col_getNumCol(column) <= 0 ) return
 
     if (.not.col_varExist('P0')) then
       call utl_abort('col_calcPressure: P0 must be present as an analysis variable!')
