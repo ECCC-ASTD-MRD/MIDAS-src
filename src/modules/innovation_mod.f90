@@ -32,7 +32,6 @@ module innovation_mod
   use obsOperators_mod
   use EarthConstants_mod
   use MathPhysConstants_mod
-  use physicsFunctions_mod
   use mpivar_mod
   use horizontalCoord_mod
   use columnData_mod
@@ -261,10 +260,6 @@ contains
     enddo
 
     if (col_varExist('TT') .and. col_varExist('HU') .and. col_varExist('P0')) then
-       !
-       !- Initialisation of TLM operators
-       !
-       call subasic_obs(columng)
        !
        !- Using T, q and PS to compute GZ for columng
        !
@@ -1357,49 +1352,6 @@ contains
     write(*,*) '--Done subroutine inn_computeInnovation--'
 
   end subroutine inn_computeInnovation
-
-
-  subroutine subasic_obs(lcolumng)
-    implicit none
-
-    ! s/r SUBASIC_OBS
-    !     OBJECT: Initialise background state dependant factors
-    !             and vectors for use in TLM and adjoint of
-    !             non-linear operator
-    !
-    !     Author  : S. Pellerin *ARMA/AES Sept. 98
-    !
-    !
-    type(struct_columnData) :: lcolumng
-    type(struct_vco), pointer :: vco_anl
-    integer :: jlev,jobs,nlev_T,vcode_anl,status
-    real(8) :: zhu,one
-
-    vco_anl => col_getVco(lcolumng)
-    one=1.0D0
-    nlev_T = col_getNumLev(lcolumng,'TH')
-    status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
-
-    if( Vcode_anl .ne. 5002 .and. Vcode_anl .ne. 5005 ) then
-       call utl_abort('subasic_obs: invalid vertical coord!')
-    endif
-
-    ! initialize virtual temperature operator
-
-!$OMP PARALLEL DO PRIVATE(jlev,jobs,zhu)
-    do jlev = 1, nlev_T
-       do jobs=1,col_getNumCol(lcolumng)
-
-          zhu=exp(col_getElem(lcolumng,jlev,jobs,'HU'))
-          lcolumng%oltv(1,jlev,jobs) = fottva(zhu,one)
-          lcolumng%oltv(2,jlev,jobs) = folnqva(zhu,col_getElem(lcolumng,  &
-               jlev,jobs,'TT'),one)
-
-       enddo
-    enddo
-!$OMP END PARALLEL DO
-
-  end subroutine subasic_obs
 
 
   subroutine setObsMpiStrategy(obsSpaceData, mpiStrategy)

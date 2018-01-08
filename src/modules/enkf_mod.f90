@@ -37,7 +37,9 @@ MODULE enkf_mod
   private
 
   ! public procedures
-  public :: enkf_readMember, enkf_setupBackgroundColumnsFromEnsemble
+  public :: enkf_readMember, enkf_setupColumnsFromEnsemble
+  public :: enkf_computeColumnsMean, enkf_computeColumnsPerturbations
+  public :: enkf_extractObsBodyColumn, enkf_writeHXensemble
 
   integer, external :: get_max_rss
 
@@ -278,7 +280,7 @@ contains
   end subroutine enkf_allGatherObsGrid
 
 
-  subroutine enkf_setupBackgroundColumnsFromEnsemble(stateVector,obsSpaceData,columns)
+  subroutine enkf_setupColumnsFromEnsemble(stateVector,obsSpaceData,columns)
     implicit none
 
     ! arguments
@@ -294,7 +296,7 @@ contains
     real(8) :: gzSfc_col
     character(len=4)     :: varName
     integer, pointer     :: allNumObs(:,:), allObsGid(:,:), headerIndexVec(:,:)
-    real(8), pointer     :: column_ptr(:), ptr2d_r8(:,:)
+    real(8), pointer     :: column_ptr(:), ptr2d_r8(:,:), allCols_ptr(:,:)
     real(4), pointer     :: ptr4d_r4(:,:,:,:), ptrUU4d_r4(:,:,:,:), ptrVV4d_r4(:,:,:,:)
     real(4), allocatable :: cols_send_r4(:,:,:),cols_send_VV_r4(:,:,:)
     real(4), allocatable :: cols_recv_r4(:,:,:),cols_recv_VV_r4(:,:,:)
@@ -302,13 +304,19 @@ contains
 
     numStep = stateVector%numStep
     nEns = size(columns)
-    write(*,*) 'enkf_setupBackgroundColumnsFromEnsemble: nEns =', nEns
+    write(*,*) 'enkf_setupColumnsFromEnsemble: nEns =', nEns
 
     ! compute and collect all obs grids onto all mpi tasks
     allocate(allObsGid(numStep,mpi_nprocs))
     allocate(allNumObs(numStep,mpi_nprocs))
     allocate(headerIndexVec(obs_numheader(obsSpaceData),numStep))
     call enkf_allGatherObsGrid(obsSpaceData, stateVector, allNumObs, allObsGid, headerIndexVec)
+
+    if ( mpi_myid == 0 ) then
+      do stepIndex = 1, numStep
+        write(*,*) 'enkf_setupColumnsFromEnsemble: stepIndex, allNumObs = ', stepIndex, allNumObs(stepIndex,:)
+      end do
+    end if
 
     ! arrays for sending/receiving columns for 1 level/variable
     allocate(cols_send_r4(maxval(allNumObs),numStep,mpi_nprocs))
@@ -329,10 +337,13 @@ contains
       if ( .not. gsv_varExist(varName=varName) ) cycle
       if ( trim(varName) == 'VV' ) cycle  ! handled together with UU
 
+      write(*,*) 'enkf_setupColumnsFromEnsemble: doing interpolation for varName = ', varName
+      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
       numLev = gsv_getNumLevFromVarName(stateVector,varName)
       LEV_LOOP: do levIndex = 1, numLev
 
-        write(*,*) 'doing interpolation for varName, level=', varName, levIndex; call flush(6)
+        call tmg_start(140,'ENKF_INTERP')
         STEP_LOOP: do stepIndex = 1, numStep
 
           if ( maxval(allNumObs(stepIndex,:)) == 0 ) cycle STEP_LOOP
@@ -342,7 +353,7 @@ contains
             numObs = allNumObs(stepIndex,procIndex)
             if ( numObs > 0 ) then
               iset = ezdefset(allObsGid(stepIndex,procIndex),stateVector%hco%EZscintID)
-              if (trim(varName).eq.'UU') then
+              if (trim(varName) == 'UU') then
                 ptrUU4d_r4 => gsv_getField_r4(stateVector, 'UU')
                 ptrVV4d_r4 => gsv_getField_r4(stateVector, 'VV')
                 ierr = ezuvint( cols_send_r4(1:numObs,stepIndex,procIndex),  &
@@ -357,30 +368,62 @@ contains
           end do PROC_LOOP
 
         end do STEP_LOOP
+        call tmg_stop(140)
 
-        ! mpi communication: alltoall for one level/variable
-        write(*,*) 'doing alltoall for varName, level=', varName, levIndex; call flush(6)
-        nsize = maxval(allNumObs) * numStep
-        if(mpi_nprocs > 1) then
-          call rpn_comm_alltoall(cols_send_r4, nsize, 'MPI_REAL4',  &
-                                 cols_recv_r4, nsize, 'MPI_REAL4', 'GRID', ierr)
-        else
-          cols_recv_r4(:,:,1) = cols_send_r4(:,:,1)
-        end if
-
-        if (trim(varName).eq.'UU') then
+        call tmg_start(141,'ENKF_ALLTOALL')
+        STEP_LOOP2: do stepIndex = 1, numStep
+          ! mpi communication: alltoall for one level/variable
+          numObs = maxval(allNumObs(stepIndex,:))
+          nsize = numObs
           if(mpi_nprocs > 1) then
-            call rpn_comm_alltoall(cols_send_VV_r4, nsize, 'MPI_REAL4',  &
-                                   cols_recv_VV_r4, nsize, 'MPI_REAL4', 'GRID', ierr)
+            call rpn_comm_alltoall(cols_send_r4(1:numObs,stepIndex,:), nsize, 'MPI_REAL4',  &
+                                   cols_recv_r4(1:numObs,stepIndex,:), nsize, 'MPI_REAL4', 'GRID', ierr)
           else
-            cols_recv_VV_r4(:,:,1) = cols_send_VV_r4(:,:,1)
+            cols_recv_r4(1:numObs,stepIndex,1) = cols_send_r4(1:numObs,stepIndex,1)
           end if
-        end if
 
+          if (trim(varName) == 'UU') then
+            if(mpi_nprocs > 1) then
+              call rpn_comm_alltoall(cols_send_VV_r4(1:numObs,stepIndex,:), nsize, 'MPI_REAL4',  &
+                                     cols_recv_VV_r4(1:numObs,stepIndex,:), nsize, 'MPI_REAL4', 'GRID', ierr)
+            else
+              cols_recv_VV_r4(1:numObs,stepIndex,1) = cols_send_VV_r4(1:numObs,stepIndex,1)
+            end if
+          end if
+        end do STEP_LOOP2
+        call tmg_stop(141)
+
+!        call tmg_start(141,'ENKF_ALLTOALL')
+!        ! mpi communication: alltoall for one level/variable
+!        nsize = maxval(allNumObs) * numStep
+!        if(mpi_nprocs > 1) then
+!          call rpn_comm_alltoall(cols_send_r4, nsize, 'MPI_REAL4',  &
+!                                 cols_recv_r4, nsize, 'MPI_REAL4', 'GRID', ierr)
+!        else
+!          cols_recv_r4(:,:,1) = cols_send_r4(:,:,1)
+!        end if
+
+!        if (trim(varName) == 'UU') then
+!          if(mpi_nprocs > 1) then
+!            call rpn_comm_alltoall(cols_send_VV_r4, nsize, 'MPI_REAL4',  &
+!                                   cols_recv_VV_r4, nsize, 'MPI_REAL4', 'GRID', ierr)
+!          else
+!            cols_recv_VV_r4(:,:,1) = cols_send_VV_r4(:,:,1)
+!          end if
+!        end if
+!        call tmg_stop(141)
+
+        call tmg_start(142,'ENKF_RESHUFFLE')
         ! reorganize ensemble of distributed columns
-        write(*,*) 'reorganizing received data into columns'; call flush(6)
         do memberIndex = 1, nEns
+          allCols_ptr => col_getAllColumns(columns(memberIndex),varName)
+          allCols_ptr(levIndex,:) = 0.0d0
+          if (trim(varName) == 'UU') then
+            allCols_ptr => col_getAllColumns(columns(memberIndex),'VV')
+            allCols_ptr(levIndex,:) = 0.0d0
+          end if
           do stepIndex = 1, numStep
+            !$OMP PARALLEL DO PRIVATE (headerIndex, headerIndex2, column_ptr)
             do headerIndex = 1, allNumObs(stepIndex, mpi_myid+1)
               headerIndex2 = headerIndexVec(headerIndex,stepIndex)
 
@@ -388,15 +431,17 @@ contains
               column_ptr(levIndex) = column_ptr(levIndex) + tim_getTimeInterpWeight(headerIndex2,stepIndex)  &
                                                           * real(cols_recv_r4(headerIndex,stepIndex,memberIndex),8)
 
-              if (trim(varName).eq.'UU') then
+              if (trim(varName) == 'UU') then
                 column_ptr => col_getColumn(columns(memberIndex),headerIndex2,'VV')
                 column_ptr(levIndex) = column_ptr(levIndex) + tim_getTimeInterpWeight(headerIndex2,stepIndex)  &
                                                             * real(cols_recv_VV_r4(headerIndex,stepIndex,memberIndex),8)
               end if
 
             end do
+            !$OMP END PARALLEL DO
           end do
         end do
+        call tmg_stop(142)
 
       end do LEV_LOOP
 
@@ -404,7 +449,7 @@ contains
 
     ! Interpolate surface GZ separately
     varName = 'GZ'
-    write(*,*) 'doing interpolation for varName=', varName; call flush(6)
+    write(*,*) 'enkf_setupColumnsFromEnsemble: doing interpolation for varName = ', varName
     STEP_LOOP_GZ: do stepIndex = 1, numStep
 
       if ( maxval(allNumObs(stepIndex,:)) == 0 ) cycle STEP_LOOP_GZ
@@ -424,7 +469,6 @@ contains
     end do STEP_LOOP_GZ
 
     ! mpi communication: alltoall for one level/variable
-    write(*,*) 'doing alltoall for varName, level=', varName; call flush(6)
     nsize = maxval(allNumObs) * numStep
     if(mpi_nprocs > 1) then
       call rpn_comm_alltoall(cols_send_r4, nsize, 'MPI_REAL4',  &
@@ -434,15 +478,16 @@ contains
     end if
 
     ! reorganize ensemble of distributed columns
-    write(*,*) 'reorganizing received data into columns'; call flush(6)
     do memberIndex = 1, nEns
       do stepIndex = 1, numStep
+        !$OMP PARALLEL DO PRIVATE (headerIndex, headerIndex2, gzSfc_col)
         do headerIndex = 1, allNumObs(stepIndex, mpi_myid+1)
           headerIndex2 = headerIndexVec(headerIndex,stepIndex)
 
           gzSfc_col = real(cols_recv_r4(headerIndex,stepIndex,memberIndex),8)
           call col_setGZsfc(columns(memberIndex), headerIndex2, gzSfc_col)
         end do
+        !$OMP END PARALLEL DO
       end do
     end do
 
@@ -450,7 +495,11 @@ contains
     deallocate(allNumObs)
     deallocate(headerIndexVec)
 
+    ! Free up memory now that ensemble member no longer needed
+    call gsv_deallocate(stateVector)
+
     ! Do final preparations of columnData objects (compute GZ and pressure)
+    call tmg_start(143,'ENKF_PRESHEIGHT')
     do memberIndex = 1, nEns
       if (col_varExist('P0')) then
         call col_calcPressure(columns(memberIndex))
@@ -458,6 +507,149 @@ contains
       if (col_varExist('TT') .and. col_varExist('HU') .and. col_varExist('P0') .and. col_getNumLev(columns(1),'MM') > 1) then
         call tt2phi(columns(memberIndex))
       end if
+    end do
+    call tmg_stop(143)
+
+    if ( verbose ) then
+      write(*,*) '======================='
+      write(*,*) 'Contents of columns(1):'
+      column_ptr => col_getColumn(columns(1),1,'UU')
+      write(*,*) 'column UU = ', column_ptr(:)
+      column_ptr => col_getColumn(columns(1),1,'VV')
+      write(*,*) 'column VV = ', column_ptr(:)
+      column_ptr => col_getColumn(columns(1),1,'TT')
+      write(*,*) 'column TT = ', column_ptr(:)
+      column_ptr => col_getColumn(columns(1),1,'HU')
+      write(*,*) 'column LQ = ', column_ptr(:)
+      column_ptr => col_getColumn(columns(1),1,'P0')
+      write(*,*) 'column P0 = ', column_ptr(:)
+      column_ptr => col_getColumn(columns(1),1,'TG')
+      write(*,*) 'column TG = ', column_ptr(:)
+      write(*,*) '======================='
+
+      do levIndex = 1, col_getNumLev(columns(1),'MM')
+        write(*,*) 'enkf_setupColumnsFromEnsemble: levIndex, col_getPressure(columns(1),levIndex,1,MM) = ',  &
+                   levIndex,col_getPressure(columns(1),levIndex,1,'MM')
+      end do
+      do levIndex = 1, col_getNumLev(columns(1),'MM')
+        write(*,*) 'enkf_setupColumnsFromEnsemble: levIndex, col_getHeight(columns(1),levIndex,1,MM) = ',  &
+                   levIndex,col_getHeight(columns(1),levIndex,1,'MM')
+      end do
+    end if
+
+  end subroutine enkf_setupColumnsFromEnsemble
+
+
+  subroutine enkf_computeColumnsMean(column_mean, columns)
+    implicit none
+
+    ! arguments
+    type(struct_columnData) :: column_mean, columns(:)
+
+    ! locals
+    logical :: verbose = .true.
+    integer :: memberIndex, nEns, levIndex
+    real(8) :: multFactor
+    real(8), pointer :: column_ptr(:)
+
+    nEns = size(columns)
+    multFactor = 1.0d0 / real(nEns,8)
+    write(*,*) 'enkf_computeColumnsMean: nEns =', nEns
+
+    call col_copyLatLon(columns(1),column_mean)
+
+    call col_zero(column_mean)
+
+    do memberIndex = 1, nEns
+
+        column_mean%all(:,:) = column_mean%all(:,:) +  &
+                               multFactor * columns(memberIndex)%all(:,:)
+
+        column_mean%gz_T(:,:) = column_mean%gz_T(:,:) +  &
+                                multFactor * columns(memberIndex)%gz_T(:,:)
+        column_mean%gz_M(:,:) = column_mean%gz_M(:,:) +  &
+                                multFactor * columns(memberIndex)%gz_M(:,:)
+        column_mean%gz_sfc(:) = column_mean%gz_sfc(:) +  &
+                                multFactor * columns(memberIndex)%gz_sfc(:)
+
+        column_mean%pressure_T(:,:) = column_mean%pressure_T(:,:) +  &
+                                      multFactor * columns(memberIndex)%pressure_T(:,:)
+        column_mean%pressure_M(:,:) = column_mean%pressure_M(:,:) +  &
+                                      multFactor * columns(memberIndex)%pressure_M(:,:)
+
+        column_mean%dP_dPsfc_T(:,:) = column_mean%dP_dPsfc_T(:,:) +  &
+                                      multFactor * columns(memberIndex)%dP_dPsfc_T(:,:)
+        column_mean%dP_dPsfc_M(:,:) = column_mean%dP_dPsfc_M(:,:) +  &
+                                      multFactor * columns(memberIndex)%dP_dPsfc_M(:,:)
+
+    end do
+
+    !if (col_varExist('P0')) then
+    !  call col_calcPressure(column_mean)
+    !end if
+
+    if ( verbose ) then
+      write(*,*) '======================='
+      write(*,*) 'Contents of column_mean:'
+      column_ptr => col_getColumn(column_mean,1,'UU')
+      write(*,*) 'column UU = ', column_ptr(:)
+      column_ptr => col_getColumn(column_mean,1,'VV')
+      write(*,*) 'column VV = ', column_ptr(:)
+      column_ptr => col_getColumn(column_mean,1,'TT')
+      write(*,*) 'column TT = ', column_ptr(:)
+      column_ptr => col_getColumn(column_mean,1,'HU')
+      write(*,*) 'column LQ = ', column_ptr(:)
+      column_ptr => col_getColumn(column_mean,1,'P0')
+      write(*,*) 'column P0 = ', column_ptr(:)
+      column_ptr => col_getColumn(column_mean,1,'TG')
+      write(*,*) 'column TG = ', column_ptr(:)
+      write(*,*) '======================='
+
+      do levIndex = 1, col_getNumLev(column_mean,'MM')
+        write(*,*) 'enkf_setupColumnsFromEnsemble: levIndex, col_getPressure(column_mean,levIndex,1,MM) = ',  &
+                   levIndex,col_getPressure(column_mean,levIndex,1,'MM')
+      end do
+      do levIndex = 1, col_getNumLev(column_mean,'MM')
+        write(*,*) 'enkf_setupColumnsFromEnsemble: levIndex, col_getHeight(column_mean,levIndex,1,MM) = ',  &
+                   levIndex,col_getHeight(column_mean,levIndex,1,'MM')
+      end do
+    end if
+
+  end subroutine enkf_computeColumnsMean
+
+
+  subroutine enkf_computeColumnsPerturbations(columns, column_mean)
+    implicit none
+
+    ! arguments
+    type(struct_columnData) :: columns(:), column_mean
+
+    ! locals
+    logical :: verbose = .true.
+    integer :: memberIndex, nEns, levIndex
+    real(8), pointer :: column_ptr(:)
+
+    nEns = size(columns)
+    write(*,*) 'enkf_computeColumnsPerturbations: nEns =', nEns
+
+    !
+    ! Remove ensemble mean from all variables, except: gz_sfc, dP_dPsfc_T/M, oltv
+    !
+    do memberIndex = 1, nEns
+
+        columns(memberIndex)%all(:,:) = columns(memberIndex)%all(:,:) -  &
+                                        column_mean%all(:,:)
+
+        columns(memberIndex)%gz_T(:,:) = columns(memberIndex)%gz_T(:,:) -  &
+                                         column_mean%gz_T(:,:)
+        columns(memberIndex)%gz_M(:,:) = columns(memberIndex)%gz_M(:,:) -  &
+                                         column_mean%gz_M(:,:)
+
+        columns(memberIndex)%pressure_T(:,:) = columns(memberIndex)%pressure_T(:,:) -  &
+                                      column_mean%pressure_T(:,:)
+        columns(memberIndex)%pressure_M(:,:) = columns(memberIndex)%pressure_M(:,:) -  &
+                                      column_mean%pressure_M(:,:)
+
     end do
 
     if ( verbose ) then
@@ -478,16 +670,59 @@ contains
       write(*,*) '======================='
 
       do levIndex = 1, col_getNumLev(columns(1),'MM')
-        write(*,*) 'enkf_setupBackgroundColumnsFromEnsemble: levIndex, col_getPressure(columns(1),levIndex,1,MM) = ',  &
+        write(*,*) 'enkf_setupColumnsFromEnsemble: levIndex, col_getPressure(columns(1),levIndex,1,MM) = ',  &
                    levIndex,col_getPressure(columns(1),levIndex,1,'MM')
       end do
       do levIndex = 1, col_getNumLev(columns(1),'MM')
-        write(*,*) 'enkf_setupBackgroundColumnsFromEnsemble: levIndex, col_getHeight(columns(1),levIndex,1,MM) = ',  &
+        write(*,*) 'enkf_setupColumnsFromEnsemble: levIndex, col_getHeight(columns(1),levIndex,1,MM) = ',  &
                    levIndex,col_getHeight(columns(1),levIndex,1,'MM')
       end do
     end if
 
-  end subroutine enkf_setupBackgroundColumnsFromEnsemble
+  end subroutine enkf_computeColumnsPerturbations
 
+
+  subroutine enkf_extractObsBodyColumn(outputVector_r4, obsSpaceData, obsColumnIndex)
+    implicit none
+
+    ! arguments
+    real(4)          :: outputVector_r4(:)
+    type(struct_obs) :: obsSpaceData
+    integer          :: obsColumnIndex
+
+    ! locals
+    integer :: bodyIndex
+
+    do bodyIndex = 1, obs_numBody(obsSpaceData)
+      outputVector_r4(bodyIndex) = real(obs_bodyElem_r(obsSpaceData,obsColumnIndex,bodyIndex), 4)
+    end do
+
+  end subroutine enkf_extractObsBodyColumn
+
+
+  subroutine enkf_writeHXensemble(HX_ens_r4, obsSpaceData)
+    implicit none
+
+    ! arguments
+    real(4) :: HX_ens_r4(:,:)
+    type(struct_obs) :: obsSpaceData
+
+    ! locals
+    integer :: bodyIndex, numBody, nEns, assFlag
+    character(len=2) :: obsFamily
+
+    numBody = size(HX_ens_r4, 1)
+    nEns = size(HX_ens_r4, 2)
+
+    write(*,*) 'enkf_writeHXensemble: numBody = ', numBody
+    write(*,*) 'enkf_writeHXensemble: nEns    = ', nEns
+
+    do bodyIndex = 1, numBody
+      assFlag = obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex)
+      obsFamily = obs_getFamily(obsSpaceData,bodyIndex=bodyIndex)
+      if ( assFlag == 1 ) write(100+mpi_myid,*) bodyIndex, obsFamily, HX_ens_r4(bodyIndex,:)
+    end do
+
+  end subroutine enkf_writeHXensemble
 
 end module enkf_mod

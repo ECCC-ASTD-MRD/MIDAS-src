@@ -156,18 +156,20 @@ module columnData_mod
       type(struct_columnData) :: column
 
       if(column%numCol.gt.0) then
-        column%all(:,:)=0.0d0
-        column%pressure_M(:,:)=0.0d0
-        column%pressure_T(:,:)=0.0d0
-        column%gz_M(:,:)=0.0d0
-        column%gz_T(:,:)=0.0d0
-        column%gz_sfc(:)=0.0d0
+        column%all(:,:) = 0.0d0
+        column%pressure_M(:,:) = 0.0d0
+        column%pressure_T(:,:) = 0.0d0
+        column%dP_dPsfc_T(:,:) = 0.0d0
+        column%dP_dPsfc_M(:,:) = 0.0d0
+        column%gz_M(:,:) = 0.0d0
+        column%gz_T(:,:) = 0.0d0
+        column%gz_sfc(:) = 0.0d0
       endif
 
     END SUBROUTINE col_zero
 
 
-    SUBROUTINE col_allocate(column, numCol, mpi_local, beSilent_opt)
+    SUBROUTINE col_allocate(column, numCol, mpi_local, beSilent_opt, setToZero_opt)
       IMPLICIT NONE
 
       ! arguments
@@ -175,15 +177,22 @@ module columnData_mod
       integer, intent(in)     :: numCol
       logical, optional       :: mpi_local
       logical, optional       :: beSilent_opt
+      logical, optional       :: setToZero_opt
 
       ! locals
       integer :: nkgdimo, iloc, jvar, jvar2
-      logical :: beSilent
+      logical :: beSilent, setToZero
 
       if ( present(beSilent_opt) ) then
         beSilent = beSilent_opt
       else
         beSilent = .false.
+      end if
+
+      if ( present(setToZero_opt) ) then
+        setToZero = setToZero_opt
+      else
+        setToZero = .true.
       end if
 
       column%numCol = numCol
@@ -225,24 +234,24 @@ module columnData_mod
         if ( .not.beSilent ) write(*,*) 'col_allocate: number of columns is zero, not allocated'
       else         
         allocate(column%all(nkgdimo,column%numCol))
-        column%all(:,:)=0.0d0
+        if ( setToZero ) column%all(:,:)=0.0d0
 
         allocate(column%gz_T(col_getNumLev(column,'TH'),column%numCol))
         allocate(column%gz_M(col_getNumLev(column,'MM'),column%numCol))
         allocate(column%gz_sfc(column%numCol))
-        column%gz_T(:,:)=0.0d0
-        column%gz_M(:,:)=0.0d0
+        if ( setToZero ) column%gz_T(:,:)=0.0d0
+        if ( setToZero ) column%gz_M(:,:)=0.0d0
         column%gz_sfc(:)=0.0d0
 
         allocate(column%pressure_T(col_getNumLev(column,'TH'),column%numCol))
         allocate(column%pressure_M(col_getNumLev(column,'MM'),column%numCol))
-        column%pressure_T(:,:)=0.0d0
-        column%pressure_M(:,:)=0.0d0
+        if ( setToZero ) column%pressure_T(:,:)=0.0d0
+        if ( setToZero ) column%pressure_M(:,:)=0.0d0
 
         allocate(column%dP_dPsfc_T(col_getNumLev(column,'TH'),column%numCol))
         allocate(column%dP_dPsfc_M(col_getNumLev(column,'MM'),column%numCol))
-        column%dP_dPsfc_T(:,:)=0.0d0
-        column%dP_dPsfc_M(:,:)=0.0d0
+        if ( setToZero ) column%dP_dPsfc_T(:,:)=0.0d0
+        if ( setToZero ) column%dP_dPsfc_M(:,:)=0.0d0
 
         allocate(column%lat(column%numCol))
         allocate(column%lon(column%numCol))
@@ -258,7 +267,7 @@ module columnData_mod
         column%xpos(:)=0.0d0
 
         allocate(column%oltv(2,col_getNumLev(column,'TH'),numCol))
-        column%oltv(:,:,:)=0.0d0
+        if ( setToZero ) column%oltv(:,:,:)=0.0d0
 
       endif
  

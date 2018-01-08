@@ -36,6 +36,7 @@ program midas_ensembleH
   use burpFiles_mod
   use obsSpaceData_mod
   use obsErrors_mod
+  use obsOperators_mod
   use innovation_mod
   implicit none
 
@@ -44,12 +45,16 @@ program midas_ensembleH
   type(struct_columnData), allocatable :: columns(:)
   type(struct_columnData)              :: column_mean
 
+  real(4), allocatable :: HX_mean_r4(:)
+  real(4), allocatable :: HX_ens_r4(:,:)
+  real(4), allocatable :: obsVal_r4(:)
+
   type(struct_vco), pointer :: vco_ens => null()
   type(struct_hco), pointer :: hco_ens => null()
   type(struct_hco), pointer :: hco_ens_core => null()
 
   integer              :: fclos, fnom, fstopc, newdate, ierr
-  integer              :: memberIndex, stepIndex, numStep, procIndex
+  integer              :: memberIndex, stepIndex, numStep, procIndex, numBody
   integer              :: idate, itime, nulnam
   integer              :: dateStamp, dateStampObs
   integer              :: get_max_rss
@@ -160,6 +165,7 @@ program midas_ensembleH
   obsMpiStrategy = 'LIKESPLITFILES'
   call burp_setupFiles(dateStampObs,'OminusF')
   call inn_setupObs(obsSpaceData, obsColumnMode, obsMpiStrategy, 'analysis')
+  call oop_setup('analysis')
 
   write(*,*) ''
   write(*,*) 'midas-ensembleH: allocate an ensemble of columnData objects'
@@ -167,16 +173,17 @@ program midas_ensembleH
   write(*,*) ''
   call col_setup
   if ( useTlmH ) then
+    write(*,*) 'midas-ensembleH: allocating column_mean'
     call col_setVco(column_mean, vco_ens)
-    call col_allocate(column_mean, obs_numheader(obsSpaceData), mpi_local=.true., beSilent_opt=.true.)
+    call col_allocate(column_mean, obs_numheader(obsSpaceData), mpi_local=.true.)
   end if
   allocate(columns(nEns))
   do memberIndex = 1, nEns
     beSilent = .true.
     if ( memberIndex == 1 ) beSilent = .false.
-    write(*,*) 'allocating member ', memberIndex
+    write(*,*) 'midas-ensembleH: allocating member ', memberIndex
     call col_setVco(columns(memberIndex), vco_ens)
-    call col_allocate(columns(memberIndex), obs_numheader(obsSpaceData), mpi_local=.true., beSilent_opt=beSilent)
+    call col_allocate(columns(memberIndex), obs_numheader(obsSpaceData), mpi_local=.true., beSilent_opt=beSilent, setToZero_opt=.false.)
     write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
   end do
 
@@ -184,33 +191,76 @@ program midas_ensembleH
   write(*,*) 'midas-ensembleH: Interpolate ensemble members to obs locations/times and redistribute'
   write(*,*) ''
   call tim_sutimeinterp(obsSpaceData, numStep)
-  call enkf_setupBackgroundColumnsFromEnsemble(stateVector_member, obsSpaceData, columns)
+  call enkf_setupColumnsFromEnsemble(stateVector_member, obsSpaceData, columns)
 
   ! Initialize the observation error covariances
   call oer_setObsErrors(obsSpaceData, 'analysis') ! IN
 
+  ! Allocate vectors for storing HX values
+  numBody = obs_numBody(obsSpaceData)
+  allocate(HX_mean_r4(numBody))
+  allocate(HX_ens_r4(numBody, nEns))
+  allocate(obsVal_r4(numBody))
+
+  ! extract observation value, Y
+  call enkf_extractObsBodyColumn(obsVal_r4, obsSpaceData, OBS_VAR)
+
   ! Compute H(X) for all members either with TLM or nonlinear H()
   if ( useTlmH ) then
+
     ! Compute ensemble mean column and use nonlinear H()
+    call enkf_computeColumnsMean(column_mean, columns)
 
-    ! Compute ensemble perturbation columns and use TLM H()
+    write(*,*) ''
+    write(*,*) 'midas-ensembleH: apply nonlinear H to ensemble mean'
+    write(*,*) ''
+    ! compute Y-H(X) in OBS_OMP
+    call inn_computeInnovation(column_mean, obsSpaceData)
 
-    ! Recombine mean and perturbation and extract total H(X) values
+    ! extract observation-minus-HXmean value, Y-HXmean
+    call enkf_extractObsBodyColumn(HX_mean_r4, obsSpaceData, OBS_OMP)
+    ! compute HXmean = Y - (Y-HXmean)
+    HX_mean_r4(:) = obsVal_r4(:) - HX_mean_r4(:)
+
+    ! Compute ensemble perturbation columns and use TL H()
+    call enkf_computeColumnsPerturbations(columns, column_mean)
+    write(*,*) ''
+    write(*,*) 'midas-ensembleH: apply tangent linear H to ensemble perturbations'
+    write(*,*) ''
+    do memberIndex = 1, nEns
+      ! compute H(dX) in OBS_WORK
+      call oop_Htl(columns(memberIndex), column_mean, obsSpaceData, memberIndex)
+
+      ! extract HXpert value
+      call enkf_extractObsBodyColumn(HX_ens_r4(:,memberIndex), obsSpaceData, OBS_WORK)
+      ! Recombine mean and perturbation to get total HX values
+      HX_ens_r4(:,memberIndex) = HX_mean_r4(:) + HX_ens_r4(:,memberIndex)
+    end do
 
     ! Output H(X) files
+    call enkf_writeHXensemble(HX_ens_r4, obsSpaceData)
 
   else
+
     ! Compute HX for all members using the nonlinear H()
     do memberIndex = 1, nEns
       ! compute Y-H(X) in OBS_OMP
-      call inn_computeInnovation(columns(memberIndex),obsSpaceData)
-      ! extract H(X)
+      write(*,*) ''
+      write(*,*) 'midas-ensembleH: apply nonlinear H to ensemble member ', memberIndex
+      write(*,*) ''
+      call inn_computeInnovation(columns(memberIndex), obsSpaceData)
 
+      ! extract observation-minus-HX value, Y-HX
+      call enkf_extractObsBodyColumn(HX_ens_r4(:,memberIndex), obsSpaceData, OBS_OMP)
+      ! compute HX = Y - (Y-HX)
+      HX_ens_r4(:,memberIndex) = obsVal_r4(:) - HX_ens_r4(:,memberIndex)
     end do
 
     ! Need to reconcile assimilation flag between all members
+    ! ????????????????
 
     ! Output H(X) files
+    call enkf_writeHXensemble(HX_ens_r4, obsSpaceData)
 
   end if
 

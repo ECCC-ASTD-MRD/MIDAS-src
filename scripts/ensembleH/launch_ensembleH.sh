@@ -4,17 +4,18 @@
 #
 # User-defined options
 #
-machine=eccc-ppp2
-abs="${HOME}/data_maestro/ords/midas_abs/midas-ensembleH_ubuntu-14.04-amd64-64-v_3.0.4-59-ga2368d9_M.Abs"
+machine=brooks
+#abs="${HOME}/data_maestro/ords/midas_abs/midas-ensembleH_ubuntu-14.04-amd64-64-v_3.0.4-67-ga8fcc8a_M.Abs"
+abs="${HOME}/data_maestro/ords/midas_abs/midas-ensembleH_sles-11-broadwell-64-xc40-v_3.0.4-67-ga8fcc8a_M.Abs"
 ensdir="/home/mab001/data_maestro/${machine}/kal569/with_gz"
-obsdir="/home/mab001/data_maestro/${machine}/ensembleh/obssplit_11x4/"
+obsdir="/home/mab001/data_maestro/${machine}/ensembleh/obssplit_16x16_noiasicris/"
 coefsat="/home/scvs400/datafiles/constants/cmda/alt/v3.0.0/rtcoefsat"
 statsat="/home/scvs400/datafiles/constants/cmda/alt/v3.0.0/statsat/"
 obscov="/home/sanl000/ANAL_shared/datafiles/constants/arma/oavar/2.1.3/__STATOBS_CONV_201709__/"
-npex=11
-npey=4
+npex=16
+npey=16
 openmp=2
-maxcputime=300
+maxcputime=600
 run_in_parallel="/fs/ssm/eccc/mrd/rpn/utils/16.2/all/bin/r.run_in_parallel_1.1.28c"
 
 #
@@ -22,14 +23,14 @@ run_in_parallel="/fs/ssm/eccc/mrd/rpn/utils/16.2/all/bin/r.run_in_parallel_1.1.2
 #
 
 ensdate=2017010100
-gest="${HOME}/data_maestro/${machine}/ensembleh/test1/"
+gest="${HOME}/data_maestro/${machine}/ensembleh/test2_256/"
 
 # build the namelist
 cat << EOF > $TMPDIR/flnml
  &NAMCT0
 /
  &NAMENSEMBLEH
-   NENS = 10
+   NENS = 256
    DATE = ${ensdate}
    USETLMH = .false.
 /
@@ -47,7 +48,7 @@ cat << EOF > $TMPDIR/flnml
 /
  &NAMDIMO
    NMXOBS=30000,
-   NDATAMX=2000000,
+   NDATAMX=500000,
 /
  &NAMRMAT
 /
@@ -427,6 +428,16 @@ fi
  cd $gest
  export TMG_ON=YES
  export OAVAR_BURP_SPLIT=yes
+
+cat > run.sh <<EOFRUN
+#!/bin/ksh
+
+gdb -ex run -ex where ./ensembleh.abs
+EOFRUN
+
+chmod +x run.sh
+
+
  ${run_in_parallel} -pgm ./ensembleh.abs -npex ${npex} -npey ${npey} -processorder -tag -nocleanup -verbose
 EOF
 
@@ -438,4 +449,4 @@ cat << EOF > $TMPDIR/ptopo_nml
 EOF
 scp $TMPDIR/ptopo_nml ${machine}:${gest}
 
-ord_soumet $TMPDIR/go_ensembleh.sh -mach $machine -mpi -t $maxcputime -cm 8G -cpus ${npex}x${npey}x${openmp} -jn ensembleh -waste
+ord_soumet $TMPDIR/go_ensembleh.sh -mach $machine -mpi -t $maxcputime -cm 6500M -cpus ${npex}x${npey}x${openmp} -jn ensembleh -waste

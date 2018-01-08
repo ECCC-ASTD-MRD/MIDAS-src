@@ -29,6 +29,7 @@ module obsOperators_mod
   use columnData_mod 
   use bufr
   use lqtoes_mod
+  use physicsFunctions_mod
   use gps_mod
   use mpivar_mod
   use timeCoord_mod
@@ -1420,6 +1421,10 @@ contains
     if ( firstTime ) then
       !     Find interpolation layer in model profiles (used by several operators)
       if ( col_getNumLev(columng,'MM') > 1 ) call oop_vobslyrs(columng,obsSpaceData)
+
+      !     Initialize some operators needed by linearized H
+      call subasic_obs(columng)
+
       firstTime = .false.
     endif
 
@@ -1453,6 +1458,53 @@ contains
 
 
   CONTAINS
+
+    subroutine subasic_obs(columng)
+      implicit none
+
+      ! s/r SUBASIC_OBS
+      !     OBJECT: Initialise background state dependant factors
+      !             and vectors for use in TLM and adjoint of
+      !             non-linear operator
+      !
+      !     Author  : S. Pellerin *ARMA/AES Sept. 98
+      !
+      !
+      type(struct_columnData) :: columng
+      type(struct_vco), pointer :: vco_anl
+      integer :: jlev,jobs,nlev_T,vcode_anl,status
+      real(8) :: zhu,one
+
+      if ( .not.col_varExist('TT') .or. .not.col_varExist('HU') ) return
+
+      write(*,*) 'subasic_obs: setting up linearized Tv operator'
+
+      vco_anl => col_getVco(columng)
+      one=1.0D0
+      nlev_T = col_getNumLev(columng,'TH')
+      status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
+
+      if( Vcode_anl .ne. 5002 .and. Vcode_anl .ne. 5005 ) then
+         call utl_abort('subasic_obs: invalid vertical coord!')
+      endif
+
+      ! initialize virtual temperature operator
+
+!$OMP PARALLEL DO PRIVATE(jlev,jobs,zhu)
+      do jlev = 1, nlev_T
+         do jobs=1,col_getNumCol(columng)
+
+            zhu=exp(col_getElem(columng,jlev,jobs,'HU'))
+            columng%oltv(1,jlev,jobs) = fottva(zhu,one)
+            columng%oltv(2,jlev,jobs) = folnqva(zhu,col_getElem(columng,  &
+                 jlev,jobs,'TT'),one)
+
+         enddo
+      enddo
+!$OMP END PARALLEL DO
+
+    end subroutine subasic_obs
+
 
     SUBROUTINE oop_Hpp(obs_ass_val)
       !*
