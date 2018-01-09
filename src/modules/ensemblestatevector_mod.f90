@@ -686,6 +686,7 @@ CONTAINS
 
     ! locals
     real(8), pointer :: ptr4d_r8(:,:,:,:)
+    real(8) :: increment
     integer :: lon1, lon2, lat1, lat2, k1, k2, numStep
     integer :: jk, jj, ji, stepIndex, memberIndex
 
@@ -704,10 +705,10 @@ CONTAINS
       do jj = lat1, lat2
         do ji = lon1, lon2
           do stepIndex = 1, numStep
+            increment = ptr4d_r8(ji,jj,jk,stepIndex) - ens%repack_ensMean_r8(jk)%onelevel(1,stepIndex,ji,jj)
             do memberIndex = 1, ens%numMembers
               ens%repack_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj) =  &
-                   real( real(ens%repack_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj),8) + &
-                   recenteringCoeff*ptr4d_r8(ji,jj,jk,stepIndex), 4)
+                   real( real(ens%repack_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj),8) + recenteringCoeff*increment, 4)
             end do
           end do
         end do

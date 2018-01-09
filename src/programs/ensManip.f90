@@ -236,9 +236,6 @@ program midas_ensManip
 
     call tmg_stop(10)
 
-    ! Compute 'x_recenteringMean - x_ensembleMean' which is stored in 'statevector_recenteringMean'
-    call gsv_add(statevector_mean, statevector_recenteringMean, -1.0d0)
-
     call tmg_start(11,'RECENTER_ENSEMBLE_MEMBERS')
     call ens_recenter(ensemble,statevector_recenteringMean,recentering_coeff)
     call tmg_stop(11)
