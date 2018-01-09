@@ -1448,14 +1448,14 @@ contains
 !! adjoint of RTTOV
 !--------------------------------------------------------------------------
 
-  subroutine tvs_fillProfiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode)
+  subroutine tvs_fillProfiles(columnghr,lobsSpaceData,datestamp,LIMLVHU,bgckMode,beSilent)
     implicit none
     type(struct_obs),intent(in) :: lobsSpaceData
     type(struct_columnData),intent(in) :: columnghr
     integer,intent(in) :: datestamp
     real(8),intent(in)  :: LIMLVHU
     logical,intent(in) :: bgckMode
-
+    logical,intent(in) :: beSilent
 
     logical :: diagTtop,TopAt10hPa
 
@@ -1499,7 +1499,7 @@ contains
     real(8) :: zptop, zptopmbs
  
 
-    write(*,*) "Entering tvs_fillProfiles subroutine"
+    if ( .not. beSilent ) write(*,*) "Entering tvs_fillProfiles subroutine"
   
     if (tvs_nobtov == 0) return    ! exit if there are no tovs data
 
@@ -1521,13 +1521,13 @@ contains
     vco => col_getVco(columnghr)
     status = vgd_get(vco%vgrid,key='ig_1 - vertical coord code',value=Vcode)
     diagTtop = (Vcode.eq.5002)
-    write(*,*) 'tvs_fillProfiles: diagTtop=', diagTtop 
+    if ( .not. beSilent ) write(*,*) 'tvs_fillProfiles: diagTtop=', diagTtop 
 
     ! find model level top, within 0.000001 mbs.
     zptop    = col_getPressure(columnghr,1,1,'TH')
     zptopmbs = zptop / 100.d0
     zptopmbs = zptopmbs - 0.000001d0
-    write(*,*) 'tvs_fillProfiles: zptopmbs=',zptopmbs
+    if ( .not. beSilent ) write(*,*) 'tvs_fillProfiles: zptopmbs=',zptopmbs
 
     TopAt10hPa = ( abs( zptopmbs - 10.0d0 ) <= .1d0 )
 
@@ -1574,7 +1574,7 @@ contains
           exit
         end if
       end do
-      write(*,*) 'tvs_fillProfiles: jpmotop=', sensor_id, jpmotop
+      if ( .not. beSilent ) write(*,*) 'tvs_fillProfiles: jpmotop=', sensor_id, jpmotop
       jpmolev = nlevels - jpmotop + 1
 
       alloc_status(:) = 0
@@ -1980,12 +1980,12 @@ contains
 !! tvs_fillProfiles should be called before
 !--------------------------------------------------------------------------
 
-  subroutine tvs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
+  subroutine tvs_rttov(lcolumnhr,lobsSpaceData,bgckMode,beSilent)
     implicit none
 
     type(struct_obs) :: lobsSpaceData
     type(struct_columnData) :: lcolumnhr
-    logical :: bgckMode
+    logical :: bgckMode, beSilent
   
     integer :: ichn
     integer :: isurface
@@ -2017,8 +2017,8 @@ contains
     integer              :: profileIndex2, tb1, tb2
 !*****************************************************************
 
-    write(*,*) "Entering tvs_rttov subroutine"
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    if ( .not. beSilent ) write(*,*) "Entering tvs_rttov subroutine"
+    if ( .not. beSilent ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     if (tvs_nobtov == 0) return                  ! exit if there are not tovs data
 
@@ -2266,8 +2266,8 @@ contains
 
       end if
 
-      write(*,*) 'after rttov_parallel_direct...'
-      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'     
+      if ( .not. beSilent ) write(*,*) 'after rttov_parallel_direct...'
+      if ( .not. beSilent ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'     
 
       if (rttov_err_stat /= 0) then
         write(*,*) "Error in rttov_parallel_direct",rttov_err_stat
@@ -4189,7 +4189,7 @@ contains
     integer :: list_chan(tvs_maxChannelNumber)
     integer :: count
 
-    write(*,*) "Entering tvs_calc_jo subroutine"
+    if ( llprint ) write(*,*) "Entering tvs_calc_jo subroutine"
 
     if ( tvs_nobtov == 0) return    ! exit if there are not tovs data
 

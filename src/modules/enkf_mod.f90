@@ -124,13 +124,13 @@ contains
   end subroutine enkf_readMember
 
 
-  subroutine enkf_allGatherObsGrid(obsSpaceData, stateVector, allNumObs, allObsGid, headerIndexVec)
+  subroutine enkf_allGatherObsGrid(obsSpaceData, stateVector, allNumObs, allObsGid, allHeaderIndexVec)
     implicit none
 
     ! arguments
     type(struct_obs) :: obsSpaceData
     type(struct_gsv) :: stateVector
-    integer, pointer :: allNumObs(:,:), allObsGid(:,:), headerIndexVec(:,:)
+    integer, pointer :: allNumObs(:,:), allObsGid(:,:), allHeaderIndexVec(:,:,:)
 
     ! locals
     integer :: numHeader, numHeaderMax, headerIndex, bodyIndex, numStep, stepIndex, ierr
@@ -138,7 +138,7 @@ contains
     integer :: ig1obs, ig2obs, ig3obs, ig4obs
     real(8) :: zig1, zig2, zig3, zig4, stepObsIndex
     real(4) :: lon_r4, lat_r4, lon_deg_r4, lat_deg_r4, xpos_r4, ypos_r4
-    integer, allocatable :: numObs(:)
+    integer, allocatable :: numObs(:), headerIndexVec(:,:)
     real(4), allocatable :: lonVec(:), latVec(:), allLonVec(:,:), allLatVec(:,:)
     integer :: ezgdef, ezsetopt, gdxyfll, gdllfxy
 
@@ -153,7 +153,7 @@ contains
 
     allObsGid(:,:) = 0
     allNumObs(:,:) = 0
-    headerIndexVec(:,:) = 0
+    allHeaderIndexVec(:,:,:) = 0
 
     ! temporary arrays
     allocate(lonVec(numHeaderMax))
@@ -161,6 +161,8 @@ contains
     allocate(allLonVec(numHeaderMax,mpi_nprocs))
     allocate(allLatVec(numHeaderMax,mpi_nprocs))
     allocate(numObs(numStep))
+    allocate(headerIndexVec(numHeaderMax,numStep))
+    headerIndexVec(:,:) = 0
 
     numObs(:) = 0
 
@@ -169,7 +171,7 @@ contains
       lonVec(:) = 0.0
       latVec(:) = 0.0
 
-      HEADER_LOOP: do headerIndex=1, numHeader
+      HEADER_LOOP: do headerIndex = 1, numHeader
 
         if ( tim_timeInterpWeightAllZero(headerIndex) .and. stepIndex == 1 ) then
           ! obs is outside of assimilation window and stepIndex is 1 (has to go somewhere)
@@ -237,18 +239,18 @@ contains
 
       end do HEADER_LOOP
 
-      ! gather and compute the number of obs over all processors for each timestep
-      call rpn_comm_allgather(numObs(stepIndex), 1, 'MPI_INTEGER',       &
-           allNumObs(stepIndex,:), 1, 'MPI_INTEGER', &
-           'GRID',ierr)
+      ! gather the number of obs over all processors for each timestep
+      call rpn_comm_allgather(numObs(stepIndex),      1, 'MPI_INTEGER', &
+                              allNumObs(stepIndex,:), 1, 'MPI_INTEGER', &
+                              'GRID',ierr)
 
       ! gather lon-lat of observations from all processors
-      call rpn_comm_allgather(lonVec, numHeaderMax, 'MPI_REAL4',       &
-           allLonVec, numHeaderMax, 'MPI_REAL4', &
-           'GRID', ierr)
-      call rpn_comm_allgather(latVec, numHeaderMax, 'MPI_REAL4',       &
-           allLatVec, numHeaderMax, 'MPI_REAL4', &
-           'GRID', ierr)
+      call rpn_comm_allgather(lonVec,    numHeaderMax, 'MPI_REAL4', &
+                              allLonVec, numHeaderMax, 'MPI_REAL4', &
+                              'GRID', ierr)
+      call rpn_comm_allgather(latVec,    numHeaderMax, 'MPI_REAL4', &
+                              allLatVec, numHeaderMax, 'MPI_REAL4', &
+                              'GRID', ierr)
 
       zig1 = 0.0D0
       zig2 = 0.0D0
@@ -269,11 +271,17 @@ contains
 
     end do STEP_LOOP
 
+    ! gather the headerIndexVec arrays onto all processors
+    call rpn_comm_allgather(headerIndexVec,    numHeaderMax*numStep, 'MPI_INTEGER', &
+                            allHeaderIndexVec, numHeaderMax*numStep, 'MPI_INTEGER', &
+                            'GRID',ierr)
+
     deallocate(lonVec)
     deallocate(latVec)
     deallocate(allLonVec)
     deallocate(allLatVec)
     deallocate(numObs)
+    deallocate(headerIndexVec)
 
     write(*,*) 'enkf_allGatherObsGrid: FINISHED'
 
@@ -290,27 +298,34 @@ contains
 
     ! locals
     logical :: verbose = .true.
-    integer :: varIndex, levIndex, numLev, stepIndex, numStep, headerIndex, numObs
+    integer :: varIndex, levIndex, numLev, stepIndex, numStep
+    integer :: headerIndex, numHeader, numHeaderMax, yourNumHeader
     integer :: memberIndex, nEns, procIndex, nsize, ierr, iset, headerIndex2
     integer :: ezdefset, ezuvint, ezsint, ezqkdef
     real(8) :: gzSfc_col
+    real(8) :: weight
     character(len=4)     :: varName
-    integer, pointer     :: allNumObs(:,:), allObsGid(:,:), headerIndexVec(:,:)
+    integer, pointer     :: allNumObs(:,:), allObsGid(:,:), allHeaderIndexVec(:,:,:)
     real(8), pointer     :: column_ptr(:), ptr2d_r8(:,:), allCols_ptr(:,:)
     real(4), pointer     :: ptr4d_r4(:,:,:,:), ptrUU4d_r4(:,:,:,:), ptrVV4d_r4(:,:,:,:)
-    real(4), allocatable :: cols_send_r4(:,:,:),cols_send_VV_r4(:,:,:)
-    real(4), allocatable :: cols_recv_r4(:,:,:),cols_recv_VV_r4(:,:,:)
+    real(4), allocatable :: cols_hint_r4(:,:,:),cols_hint_VV_r4(:,:,:)
+    real(4), allocatable :: cols_send_r4(:,:),cols_send_VV_r4(:,:)
+    real(4), allocatable :: cols_recv_r4(:,:),cols_recv_VV_r4(:,:)
+    real(8), allocatable :: cols_send_1proc_r8(:), cols_send_VV_1proc_r8(:)
     real(4), allocatable :: gzSfc_r4(:,:)
 
     numStep = stateVector%numStep
+    numHeader = obs_numheader(obsSpaceData)
+    call rpn_comm_allreduce(numHeader, numHeaderMax, 1,  &
+                            'MPI_INTEGER', 'MPI_MAX', 'GRID', ierr)
     nEns = size(columns)
     write(*,*) 'enkf_setupColumnsFromEnsemble: nEns =', nEns
 
     ! compute and collect all obs grids onto all mpi tasks
     allocate(allObsGid(numStep,mpi_nprocs))
     allocate(allNumObs(numStep,mpi_nprocs))
-    allocate(headerIndexVec(obs_numheader(obsSpaceData),numStep))
-    call enkf_allGatherObsGrid(obsSpaceData, stateVector, allNumObs, allObsGid, headerIndexVec)
+    allocate(allHeaderIndexVec(numHeaderMax,numStep,mpi_nprocs))
+    call enkf_allGatherObsGrid(obsSpaceData, stateVector, allNumObs, allObsGid, allHeaderIndexVec)
 
     if ( mpi_myid == 0 ) then
       do stepIndex = 1, numStep
@@ -318,16 +333,25 @@ contains
       end do
     end if
 
-    ! arrays for sending/receiving columns for 1 level/variable
-    allocate(cols_send_r4(maxval(allNumObs),numStep,mpi_nprocs))
-    allocate(cols_send_VV_r4(maxval(allNumObs),numStep,mpi_nprocs))
-    cols_send_r4(:,:,:) = 0.0
-    cols_send_VV_r4(:,:,:) = 0.0
+    ! arrays for interpolated columns for 1 level/variable and each time step
+    allocate(cols_hint_r4(maxval(allNumObs),numStep,mpi_nprocs))
+    allocate(cols_hint_VV_r4(maxval(allNumObs),numStep,mpi_nprocs))
+    cols_hint_r4(:,:,:) = 0.0
+    cols_hint_VV_r4(:,:,:) = 0.0
 
-    allocate(cols_recv_r4(maxval(allNumObs),numStep,mpi_nprocs))
-    allocate(cols_recv_VV_r4(maxval(allNumObs),numStep,mpi_nprocs))
-    cols_recv_r4(:,:,:) = 0.0
-    cols_recv_VV_r4(:,:,:) = 0.0
+    ! arrays for sending/receiving time interpollated columns for 1 level/variable
+    allocate(cols_send_r4(numHeaderMax,mpi_nprocs))
+    allocate(cols_send_VV_r4(numHeaderMax,mpi_nprocs))
+    cols_send_r4(:,:) = 0.0
+    cols_send_VV_r4(:,:) = 0.0
+
+    allocate(cols_recv_r4(numHeaderMax,mpi_nprocs))
+    allocate(cols_recv_VV_r4(numHeaderMax,mpi_nprocs))
+    cols_recv_r4(:,:) = 0.0
+    cols_recv_VV_r4(:,:) = 0.0
+
+    allocate(cols_send_1proc_r8(numHeaderMax))
+    allocate(cols_send_VV_1proc_r8(numHeaderMax))
 
     allocate(gzSfc_r4(stateVector%myLonBeg:stateVector%myLonEnd,  &
                       stateVector%myLatBeg:stateVector%myLatEnd))
@@ -343,25 +367,25 @@ contains
       numLev = gsv_getNumLevFromVarName(stateVector,varName)
       LEV_LOOP: do levIndex = 1, numLev
 
-        call tmg_start(140,'ENKF_INTERP')
+        call tmg_start(140,'ENKF_HINTERP')
         STEP_LOOP: do stepIndex = 1, numStep
 
           if ( maxval(allNumObs(stepIndex,:)) == 0 ) cycle STEP_LOOP
 
           ! interpolate to the columns destined for all procs for all steps and one level/variable
           PROC_LOOP: do procIndex = 1, mpi_nprocs
-            numObs = allNumObs(stepIndex,procIndex)
-            if ( numObs > 0 ) then
+            yourNumHeader = allNumObs(stepIndex,procIndex)
+            if ( yourNumHeader > 0 ) then
               iset = ezdefset(allObsGid(stepIndex,procIndex),stateVector%hco%EZscintID)
               if (trim(varName) == 'UU') then
                 ptrUU4d_r4 => gsv_getField_r4(stateVector, 'UU')
                 ptrVV4d_r4 => gsv_getField_r4(stateVector, 'VV')
-                ierr = ezuvint( cols_send_r4(1:numObs,stepIndex,procIndex),  &
-                                cols_send_VV_r4(1:numObs,stepIndex,procIndex),  &
+                ierr = ezuvint( cols_hint_r4(1:yourNumHeader,stepIndex,procIndex),  &
+                                cols_hint_VV_r4(1:yourNumHeader,stepIndex,procIndex),  &
                                 ptrUU4d_r4(:,:,levIndex,stepIndex), ptrVV4d_r4(:,:,levIndex,stepIndex) )
               else
                 ptr4d_r4 => gsv_getField_r4(stateVector, varName)
-                ierr = ezsint( cols_send_r4(1:numObs,stepIndex,procIndex),  &
+                ierr = ezsint( cols_hint_r4(1:yourNumHeader,stepIndex,procIndex),  &
                                ptr4d_r4(:,:,levIndex,stepIndex) )
               end if
             end if
@@ -370,78 +394,73 @@ contains
         end do STEP_LOOP
         call tmg_stop(140)
 
-        call tmg_start(141,'ENKF_ALLTOALL')
-        STEP_LOOP2: do stepIndex = 1, numStep
-          ! mpi communication: alltoall for one level/variable
-          numObs = maxval(allNumObs(stepIndex,:))
-          nsize = numObs
-          if(mpi_nprocs > 1) then
-            call rpn_comm_alltoall(cols_send_r4(1:numObs,stepIndex,:), nsize, 'MPI_REAL4',  &
-                                   cols_recv_r4(1:numObs,stepIndex,:), nsize, 'MPI_REAL4', 'GRID', ierr)
-          else
-            cols_recv_r4(1:numObs,stepIndex,1) = cols_send_r4(1:numObs,stepIndex,1)
-          end if
-
+        call tmg_start(141,'ENKF_TINTERP')
+        ! interpolate in time to the columns destined for all procs and one level/variable
+        PROC_LOOP2: do procIndex = 1, mpi_nprocs
+          cols_send_1proc_r8(:) = 0.0d0
           if (trim(varName) == 'UU') then
-            if(mpi_nprocs > 1) then
-              call rpn_comm_alltoall(cols_send_VV_r4(1:numObs,stepIndex,:), nsize, 'MPI_REAL4',  &
-                                     cols_recv_VV_r4(1:numObs,stepIndex,:), nsize, 'MPI_REAL4', 'GRID', ierr)
-            else
-              cols_recv_VV_r4(1:numObs,stepIndex,1) = cols_send_VV_r4(1:numObs,stepIndex,1)
-            end if
+            cols_send_VV_1proc_r8(:) = 0.0d0
           end if
-        end do STEP_LOOP2
-        call tmg_stop(141)
-
-!        call tmg_start(141,'ENKF_ALLTOALL')
-!        ! mpi communication: alltoall for one level/variable
-!        nsize = maxval(allNumObs) * numStep
-!        if(mpi_nprocs > 1) then
-!          call rpn_comm_alltoall(cols_send_r4, nsize, 'MPI_REAL4',  &
-!                                 cols_recv_r4, nsize, 'MPI_REAL4', 'GRID', ierr)
-!        else
-!          cols_recv_r4(:,:,1) = cols_send_r4(:,:,1)
-!        end if
-
-!        if (trim(varName) == 'UU') then
-!          if(mpi_nprocs > 1) then
-!            call rpn_comm_alltoall(cols_send_VV_r4, nsize, 'MPI_REAL4',  &
-!                                   cols_recv_VV_r4, nsize, 'MPI_REAL4', 'GRID', ierr)
-!          else
-!            cols_recv_VV_r4(:,:,1) = cols_send_VV_r4(:,:,1)
-!          end if
-!        end if
-!        call tmg_stop(141)
-
-        call tmg_start(142,'ENKF_RESHUFFLE')
-        ! reorganize ensemble of distributed columns
-        do memberIndex = 1, nEns
-          allCols_ptr => col_getAllColumns(columns(memberIndex),varName)
-          allCols_ptr(levIndex,:) = 0.0d0
-          if (trim(varName) == 'UU') then
-            allCols_ptr => col_getAllColumns(columns(memberIndex),'VV')
-            allCols_ptr(levIndex,:) = 0.0d0
-          end if
-          do stepIndex = 1, numStep
-            !$OMP PARALLEL DO PRIVATE (headerIndex, headerIndex2, column_ptr)
-            do headerIndex = 1, allNumObs(stepIndex, mpi_myid+1)
-              headerIndex2 = headerIndexVec(headerIndex,stepIndex)
-
-              column_ptr => col_getColumn(columns(memberIndex),headerIndex2,varName)
-              column_ptr(levIndex) = column_ptr(levIndex) + tim_getTimeInterpWeight(headerIndex2,stepIndex)  &
-                                                          * real(cols_recv_r4(headerIndex,stepIndex,memberIndex),8)
+          STEP_LOOP2: do stepIndex = 1, numStep
+            !$OMP PARALLEL DO PRIVATE (headerIndex, headerIndex2, weight)
+            do headerIndex = 1, allNumObs(stepIndex, procIndex)
+              headerIndex2 = allHeaderIndexVec(headerIndex,stepIndex,procIndex)
+              weight = tim_getTimeInterpWeightMpiGlobal(headerIndex2,stepIndex,procIndex)
+              cols_send_1proc_r8(headerIndex2) = cols_send_1proc_r8(headerIndex2) &
+                            + weight * real(cols_hint_r4(headerIndex,stepIndex,procIndex),8)
 
               if (trim(varName) == 'UU') then
-                column_ptr => col_getColumn(columns(memberIndex),headerIndex2,'VV')
-                column_ptr(levIndex) = column_ptr(levIndex) + tim_getTimeInterpWeight(headerIndex2,stepIndex)  &
-                                                            * real(cols_recv_VV_r4(headerIndex,stepIndex,memberIndex),8)
+                cols_send_VV_1proc_r8(headerIndex2) = cols_send_VV_1proc_r8(headerIndex2) &
+                                 + weight * real(cols_hint_VV_r4(headerIndex,stepIndex,procIndex),8)
               end if
 
             end do
             !$OMP END PARALLEL DO
-          end do
-        end do
+          end do STEP_LOOP2
+          cols_send_r4(:,procIndex) = real(cols_send_1proc_r8(:),4)
+          if (trim(varName) == 'UU') then
+            cols_send_VV_r4(:,procIndex) = real(cols_send_VV_1proc_r8(:),4)
+          end if
+        end do PROC_LOOP2
+        call tmg_stop(141)
+
+        call tmg_start(142,'ENKF_ALLTOALL')
+        ! mpi communication: alltoall for one level/variable
+        nsize = numHeaderMax
+        if(mpi_nprocs > 1) then
+          call rpn_comm_alltoall(cols_send_r4, nsize, 'MPI_REAL4',  &
+                                 cols_recv_r4, nsize, 'MPI_REAL4', 'GRID', ierr)
+        else
+          cols_recv_r4(:,1) = cols_send_r4(:,1)
+        end if
+
+        if (trim(varName) == 'UU') then
+          if(mpi_nprocs > 1) then
+            call rpn_comm_alltoall(cols_send_VV_r4, nsize, 'MPI_REAL4',  &
+                                   cols_recv_VV_r4, nsize, 'MPI_REAL4', 'GRID', ierr)
+          else
+            cols_recv_VV_r4(:,1) = cols_send_VV_r4(:,1)
+          end if
+        end if
         call tmg_stop(142)
+
+        call tmg_start(143,'ENKF_RESHUFFLE')
+        ! reorganize ensemble of distributed columns
+        do memberIndex = 1, nEns
+
+          !$OMP PARALLEL DO PRIVATE (headerIndex, column_ptr)
+          do headerIndex = 1, numHeader
+            column_ptr => col_getColumn(columns(memberIndex),headerIndex,varName)
+            column_ptr(levIndex) = real(cols_recv_r4(headerIndex,memberIndex),8)
+            if (trim(varName) == 'UU') then
+              column_ptr => col_getColumn(columns(memberIndex),headerIndex,'VV')
+              column_ptr(levIndex) = real(cols_recv_VV_r4(headerIndex,memberIndex),8)
+            end if
+          end do
+          !$OMP END PARALLEL DO
+
+        end do
+        call tmg_stop(143)
 
       end do LEV_LOOP
 
@@ -456,59 +475,74 @@ contains
 
       ! interpolate to the columns destined for all procs for all steps and one level/variable
       PROC_LOOP_GZ: do procIndex = 1, mpi_nprocs
-        numObs = allNumObs(stepIndex,procIndex)
-        if ( numObs > 0 ) then
+        yourNumHeader = allNumObs(stepIndex,procIndex)
+        if ( yourNumHeader > 0 ) then
           iset = ezdefset(allObsGid(stepIndex,procIndex),stateVector%hco%EZscintID)
           ptr2d_r8 => gsv_getGZsfc(stateVector)
-          gzSfc_r4(:,:) = ptr2d_r8(:,:)
-          ierr = ezsint( cols_send_r4(1:numObs,stepIndex,procIndex),  &
+          gzSfc_r4(:,:) = real(ptr2d_r8(:,:),4)
+          ierr = ezsint( cols_hint_r4(1:yourNumHeader,stepIndex,procIndex),  &
                          gzSfc_r4(:,:) )
         end if
       end do PROC_LOOP_GZ
 
     end do STEP_LOOP_GZ
 
+    ! interpolate in time to the columns destined for all procs and one level/variable
+    PROC_LOOP_GZ2: do procIndex = 1, mpi_nprocs
+      cols_send_r4(:,procIndex) = 0.0
+      STEP_LOOP_GZ2: do stepIndex = 1, numStep
+        !$OMP PARALLEL DO PRIVATE (headerIndex, headerIndex2)
+        do headerIndex = 1, allNumObs(stepIndex, procIndex)
+          headerIndex2 = allHeaderIndexVec(headerIndex,stepIndex,procIndex)
+          ! just copy, since surface GZ same for all time steps
+          cols_send_r4(headerIndex2,procIndex) = cols_hint_r4(headerIndex,stepIndex,procIndex)
+        end do
+        !$OMP END PARALLEL DO
+      end do STEP_LOOP_GZ2
+    end do PROC_LOOP_GZ2
+
     ! mpi communication: alltoall for one level/variable
-    nsize = maxval(allNumObs) * numStep
+    nsize = numHeaderMax
     if(mpi_nprocs > 1) then
       call rpn_comm_alltoall(cols_send_r4, nsize, 'MPI_REAL4',  &
                              cols_recv_r4, nsize, 'MPI_REAL4', 'GRID', ierr)
     else
-      cols_recv_r4(:,:,1) = cols_send_r4(:,:,1)
+      cols_recv_r4(:,1) = cols_send_r4(:,1)
     end if
 
     ! reorganize ensemble of distributed columns
     do memberIndex = 1, nEns
-      do stepIndex = 1, numStep
-        !$OMP PARALLEL DO PRIVATE (headerIndex, headerIndex2, gzSfc_col)
-        do headerIndex = 1, allNumObs(stepIndex, mpi_myid+1)
-          headerIndex2 = headerIndexVec(headerIndex,stepIndex)
-
-          gzSfc_col = real(cols_recv_r4(headerIndex,stepIndex,memberIndex),8)
-          call col_setGZsfc(columns(memberIndex), headerIndex2, gzSfc_col)
-        end do
-        !$OMP END PARALLEL DO
+      !$OMP PARALLEL DO PRIVATE (headerIndex, gzSfc_col)
+      do headerIndex = 1, numHeader
+        gzSfc_col = real(cols_recv_r4(headerIndex,memberIndex),8)
+        call col_setGZsfc(columns(memberIndex), headerIndex, gzSfc_col)
       end do
+      !$OMP END PARALLEL DO
     end do
 
     deallocate(allObsGid)
     deallocate(allNumObs)
-    deallocate(headerIndexVec)
+    deallocate(allHeaderIndexVec)
 
     ! Free up memory now that ensemble member no longer needed
     call gsv_deallocate(stateVector)
 
     ! Do final preparations of columnData objects (compute GZ and pressure)
-    call tmg_start(143,'ENKF_PRESHEIGHT')
+    call tmg_start(144,'ENKF_PRESSURE')
     do memberIndex = 1, nEns
       if (col_varExist('P0')) then
         call col_calcPressure(columns(memberIndex))
       end if
+    end do
+    call tmg_stop(144)
+
+    call tmg_start(145,'ENKF_HEIGHT')
+    do memberIndex = 1, nEns
       if (col_varExist('TT') .and. col_varExist('HU') .and. col_varExist('P0') .and. col_getNumLev(columns(1),'MM') > 1) then
         call tt2phi(columns(memberIndex))
       end if
     end do
-    call tmg_stop(143)
+    call tmg_stop(145)
 
     if ( verbose ) then
       write(*,*) '======================='
@@ -551,6 +585,8 @@ contains
     integer :: memberIndex, nEns, levIndex
     real(8) :: multFactor
     real(8), pointer :: column_ptr(:)
+
+    call tmg_start(146,'ENKF_COLSMEAN')
 
     nEns = size(columns)
     multFactor = 1.0d0 / real(nEns,8)
@@ -615,6 +651,8 @@ contains
       end do
     end if
 
+    call tmg_stop(146)
+
   end subroutine enkf_computeColumnsMean
 
 
@@ -628,6 +666,8 @@ contains
     logical :: verbose = .true.
     integer :: memberIndex, nEns, levIndex
     real(8), pointer :: column_ptr(:)
+
+    call tmg_start(147,'ENKF_COLSPERTS')
 
     nEns = size(columns)
     write(*,*) 'enkf_computeColumnsPerturbations: nEns =', nEns
@@ -679,6 +719,8 @@ contains
       end do
     end if
 
+    call tmg_stop(147)
+
   end subroutine enkf_computeColumnsPerturbations
 
 
@@ -693,9 +735,13 @@ contains
     ! locals
     integer :: bodyIndex
 
+    call tmg_start(148,'ENKF_EXTRACTBODY')
+
     do bodyIndex = 1, obs_numBody(obsSpaceData)
       outputVector_r4(bodyIndex) = real(obs_bodyElem_r(obsSpaceData,obsColumnIndex,bodyIndex), 4)
     end do
+
+    call tmg_stop(148)
 
   end subroutine enkf_extractObsBodyColumn
 
@@ -711,6 +757,8 @@ contains
     integer :: bodyIndex, numBody, nEns, assFlag
     character(len=2) :: obsFamily
 
+    call tmg_start(149,'ENKF_WRITEHX')
+
     numBody = size(HX_ens_r4, 1)
     nEns = size(HX_ens_r4, 2)
 
@@ -722,6 +770,8 @@ contains
       obsFamily = obs_getFamily(obsSpaceData,bodyIndex=bodyIndex)
       if ( assFlag == 1 ) write(100+mpi_myid,*) bodyIndex, obsFamily, HX_ens_r4(bodyIndex,:)
     end do
+
+    call tmg_stop(149)
 
   end subroutine enkf_writeHXensemble
 

@@ -4,9 +4,13 @@
 #
 # User-defined options
 #
+#machine=eccc-ppp2
+#abs="${HOME}/data_maestro/ords/midas_abs/midas-ensembleH_ubuntu-14.04-amd64-64-v_3.0.4-68-g19f22a7_M.Abs"
+
 machine=brooks
-#abs="${HOME}/data_maestro/ords/midas_abs/midas-ensembleH_ubuntu-14.04-amd64-64-v_3.0.4-67-ga8fcc8a_M.Abs"
-abs="${HOME}/data_maestro/ords/midas_abs/midas-ensembleH_sles-11-broadwell-64-xc40-v_3.0.4-67-ga8fcc8a_M.Abs"
+#abs="${HOME}/data_maestro/ords/midas_abs/midas-ensembleH_sles-11-broadwell-64-xc40-v_3.0.4-67-ga8fcc8a_M.Abs"
+abs="${HOME}/data_maestro/ords/midas_abs/midas-ensembleH_sles-11-broadwell-64-xc40-v_3.0.4-68-g19f22a7_M.Abs"
+
 ensdir="/home/mab001/data_maestro/${machine}/kal569/with_gz"
 obsdir="/home/mab001/data_maestro/${machine}/ensembleh/obssplit_16x16_noiasicris/"
 coefsat="/home/scvs400/datafiles/constants/cmda/alt/v3.0.0/rtcoefsat"
@@ -23,7 +27,7 @@ run_in_parallel="/fs/ssm/eccc/mrd/rpn/utils/16.2/all/bin/r.run_in_parallel_1.1.2
 #
 
 ensdate=2017010100
-gest="${HOME}/data_maestro/${machine}/ensembleh/test2_256/"
+gest="${HOME}/data_maestro/${machine}/ensembleh/test2_256_tinterp/"
 
 # build the namelist
 cat << EOF > $TMPDIR/flnml
@@ -438,7 +442,7 @@ EOFRUN
 chmod +x run.sh
 
 
- ${run_in_parallel} -pgm ./ensembleh.abs -npex ${npex} -npey ${npey} -processorder -tag -nocleanup -verbose
+ ${run_in_parallel} -pgm ./run.sh -npex ${npex} -npey ${npey} -processorder -tag -nocleanup -verbose
 EOF
 
 cat << EOF > $TMPDIR/ptopo_nml

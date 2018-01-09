@@ -323,7 +323,7 @@ contains
   end subroutine filt_suprep
 
 
-  subroutine filt_topo(columnhr,obsSpaceData)
+  subroutine filt_topo(columnhr,obsSpaceData,beSilent)
 
     ! Revisions:
     !           Y.J. Rochon (ARQI/AQRD), Jan 2015
@@ -333,32 +333,33 @@ contains
 
     type(struct_columnData) :: columnhr
     type(struct_obs) :: obsSpaceData
+    logical :: beSilent
 
     if (ltopofilt) then
-       if(mpi_myid.eq.0) write(*,*)' *****************************************'
-       if(mpi_myid.eq.0) write(*,*)' *    filt_topo:                         *'
-       if(mpi_myid.eq.0) write(*,*)' *                                       *'
-       if(mpi_myid.eq.0) write(*,*)' *    FILTER OF OBS DUE TO TOPOGRAPHY    *'
-       if(mpi_myid.eq.0) write(*,*)' *                                       *'
-       if(mpi_myid.eq.0) write(*,*)' *****************************************'
-       call filt_toposfc(columnhr,obsSpaceData)
-       call filt_toporaob(columnhr,obsSpaceData)
-       call filt_topoaisw(columnhr,obsSpaceData)
-       call filt_topoprof(columnhr,obsSpaceData)
-       call filt_topocsbt(columnhr,obsSpaceData)
-       call filt_topoChm(columnhr,obsSpaceData)
+       if(mpi_myid.eq.0 .and. .not.beSilent) write(*,*)' *****************************************'
+       if(mpi_myid.eq.0 .and. .not.beSilent) write(*,*)' *    filt_topo:                         *'
+       if(mpi_myid.eq.0 .and. .not.beSilent) write(*,*)' *                                       *'
+       if(mpi_myid.eq.0 .and. .not.beSilent) write(*,*)' *    FILTER OF OBS DUE TO TOPOGRAPHY    *'
+       if(mpi_myid.eq.0 .and. .not.beSilent) write(*,*)' *                                       *'
+       if(mpi_myid.eq.0 .and. .not.beSilent) write(*,*)' *****************************************'
+       call filt_toposfc(columnhr,obsSpaceData,beSilent)
+       call filt_toporaob(columnhr,obsSpaceData,beSilent)
+       call filt_topoaisw(columnhr,obsSpaceData,beSilent)
+       call filt_topoprof(columnhr,obsSpaceData,beSilent)
+       call filt_topocsbt(columnhr,obsSpaceData,beSilent)
+       call filt_topoChm(columnhr,obsSpaceData,beSilent)
     else
-       if(mpi_myid.eq.0) write(*,*)' *****************************************'
-       if(mpi_myid.eq.0) write(*,*)' *    filt_topo:                         *'
-       if(mpi_myid.eq.0) write(*,*)' *                                       *'
-       if(mpi_myid.eq.0) write(*,*)' * NO FILTER OF OBS DUE TO TOPOGRAPHY    *'
-       if(mpi_myid.eq.0) write(*,*)' *                                       *'
-       if(mpi_myid.eq.0) write(*,*)' *****************************************'
+       if(mpi_myid.eq.0 .and. .not.beSilent) write(*,*)' *****************************************'
+       if(mpi_myid.eq.0 .and. .not.beSilent) write(*,*)' *    filt_topo:                         *'
+       if(mpi_myid.eq.0 .and. .not.beSilent) write(*,*)' *                                       *'
+       if(mpi_myid.eq.0 .and. .not.beSilent) write(*,*)' * NO FILTER OF OBS DUE TO TOPOGRAPHY    *'
+       if(mpi_myid.eq.0 .and. .not.beSilent) write(*,*)' *                                       *'
+       if(mpi_myid.eq.0 .and. .not.beSilent) write(*,*)' *****************************************'
     end if
   end subroutine filt_topo
 
 
-  subroutine filt_topoSfc(columnhr,obsSpaceData)
+  subroutine filt_topoSfc(columnhr,obsSpaceData,beSilent)
     !
     ! Author  : P. Koclas *CMC/AES  October  1998
     !
@@ -369,6 +370,7 @@ contains
     implicit none
     type(struct_columnData) :: columnhr
     type(struct_obs) :: obsSpaceData
+    logical :: beSilent
 
     logical :: llok
     real(8) :: zdiff
@@ -395,14 +397,16 @@ contains
     !    ilistel(9)=BUFR_NEGZ
     !    ilistel(10)=BUFR_NEZD
 
-    write(*,*) ' '
-    write(*,*) ' SUBROUTINE filt_topoSFC '
-    write(*,*) ' '
-    write(*,*) '*****************************************************'
-    write(*,222) 'ELEMENTS                  ',(elemList(elemIndex),elemIndex=1,numElem)
-    write(*,223) 'REJECTION BOUNDARY(METRE) ',(heightCrit(elemIndex),elemIndex=1,numElem)
-    write(*,*) '*****************************************************'
-    write(*,*) ' '
+    if (  .not.beSilent ) then
+      write(*,*) ' '
+      write(*,*) ' SUBROUTINE filt_topoSFC '
+      write(*,*) ' '
+      write(*,*) '*****************************************************'
+      write(*,222) 'ELEMENTS                  ',(elemList(elemIndex),elemIndex=1,numElem)
+      write(*,223) 'REJECTION BOUNDARY(METRE) ',(heightCrit(elemIndex),elemIndex=1,numElem)
+      write(*,*) '*****************************************************'
+      write(*,*) ' '
+    end if
 
     ! Loop over the families of interest
     list_family(1) = 'SF'
@@ -455,14 +459,16 @@ contains
           end do BODY
        end do HEADER
 
-       write(*,*) ' '
-       write(*,*) '*****************************************************'
-       write(*,*) 'FAMILY = ',list_family(familyIndex)
-       write(*,222) 'ELEMENTS            ', (elemList(elemIndex),elemIndex=1,numElem)
-       write(*,222) 'ACCEPTED  ',(countAcc(elemIndex),elemIndex=1,numElem)
-       write(*,222) 'REJECTED  ',(countRej(elemIndex),elemIndex=1,numElem)
-       write(*,*) '*****************************************************'
-       write(*,*) ' '
+       if ( .not.beSilent ) then
+         write(*,*) ' '
+         write(*,*) '*****************************************************'
+         write(*,*) 'FAMILY = ',list_family(familyIndex)
+         write(*,222) 'ELEMENTS            ', (elemList(elemIndex),elemIndex=1,numElem)
+         write(*,222) 'ACCEPTED  ',(countAcc(elemIndex),elemIndex=1,numElem)
+         write(*,222) 'REJECTED  ',(countRej(elemIndex),elemIndex=1,numElem)
+         write(*,*) '*****************************************************'
+         write(*,*) ' '
+       end if
 222    format(2x,a29,16(2x,i5))
 223    format(2x,a29,16(2x,f5.0))
 
@@ -472,13 +478,13 @@ contains
     do bodyIndex=1,obs_numbody(obsSpaceData)
        if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) .eq. 1) countAssim=countAssim+1
     end do
-    write(*,'(1X," NUMBER OF DATA TO BE ASSIMILATED AFTER ADJUSTMENTS: ",i10)') countAssim
-    write(*,* ) ' '
+    if ( .not.beSilent ) write(*,'(1X," NUMBER OF DATA TO BE ASSIMILATED AFTER ADJUSTMENTS: ",i10)') countAssim
+    if ( .not.beSilent ) write(*,* ) ' '
 
   end subroutine filt_toposfc
 
 
-  subroutine filt_topoRaob(columnhr,obsSpaceData)
+  subroutine filt_topoRaob(columnhr,obsSpaceData,beSilent)
     !
     ! Author  : P. Koclas *CMC/AES  October  1998
     !
@@ -489,6 +495,7 @@ contains
     implicit none
     type(struct_columnData) :: columnhr
     type(struct_obs) :: obsSpaceData
+    logical :: beSilent
 
     integer :: headerIndex, bodyIndex, listIndex, elemIndex
     integer :: ivnm, iass, countAssim
@@ -498,15 +505,17 @@ contains
     real(8) :: zStnAlt, zpb, zpt, zdelp
     logical :: llok
 
-    write(*,*) ' '
-    write(*,*) ' SUBROUTINE filt_topoRAOB '
-    write(*,*) ' '
-    write(*,*) '************************************************'
-    write(*,222) ' ELEMENTS                  ',(elemList(elemIndex),elemIndex=1,numElem)
-    write(*,223) ' REJECTION BOUNDARY(METRE) ',(heightCrit(elemIndex),elemIndex=1,numElem)
-    write(*,223) ' REJECTION SBL (PASCAL)    ',(bndryCritPres,elemIndex=1,numElem)
-    write(*,*) '************************************************'
-    write(*,*) ' '
+    if ( .not.beSilent ) then
+      write(*,*) ' '
+      write(*,*) ' SUBROUTINE filt_topoRAOB '
+      write(*,*) ' '
+      write(*,*) '************************************************'
+      write(*,222) ' ELEMENTS                  ',(elemList(elemIndex),elemIndex=1,numElem)
+      write(*,223) ' REJECTION BOUNDARY(METRE) ',(heightCrit(elemIndex),elemIndex=1,numElem)
+      write(*,223) ' REJECTION SBL (PASCAL)    ',(bndryCritPres,elemIndex=1,numElem)
+      write(*,*) '************************************************'
+      write(*,*) ' '
+    end if
 
     ! set counters to zero
     itotrej(:)=0
@@ -629,19 +638,21 @@ contains
        end do BODY2
     end do HEADER
 
-    write(*,*) ' '
-    write(*,*) '***************************************'
-    write(*,*) 'FAMILY = UA'
-    write(*,222) ' ELEMENTS          ', (elemList(elemIndex),elemIndex=1,numElem)
-    write(*,222) ' ACC GZ EXT  ',(igzacc(elemIndex),elemIndex=1,numElem)
-    write(*,222) ' ACC TOTAL   ',(itotacc(elemIndex),elemIndex=1,numElem)
-    write(*,*) '***************'
-    write(*,222) ' REJ GZ EXT  ',(igzrej(elemIndex),elemIndex=1,numElem)
-    write(*,222) ' REJ OUT BND ',(ibndrej(elemIndex),elemIndex=1,numElem)
-    write(*,222) ' REJ SBL     ',(isblrej(elemIndex),elemIndex=1,numElem)
-    write(*,222) ' REJ TOTAL   ',(itotrej(elemIndex),elemIndex=1,numElem)
-    write(*,*) '***************************************'
-    write(*,*) ' '
+    if ( .not.beSilent ) then
+      write(*,*) ' '
+      write(*,*) '***************************************'
+      write(*,*) 'FAMILY = UA'
+      write(*,222) ' ELEMENTS          ', (elemList(elemIndex),elemIndex=1,numElem)
+      write(*,222) ' ACC GZ EXT  ',(igzacc(elemIndex),elemIndex=1,numElem)
+      write(*,222) ' ACC TOTAL   ',(itotacc(elemIndex),elemIndex=1,numElem)
+      write(*,*) '***************'
+      write(*,222) ' REJ GZ EXT  ',(igzrej(elemIndex),elemIndex=1,numElem)
+      write(*,222) ' REJ OUT BND ',(ibndrej(elemIndex),elemIndex=1,numElem)
+      write(*,222) ' REJ SBL     ',(isblrej(elemIndex),elemIndex=1,numElem)
+      write(*,222) ' REJ TOTAL   ',(itotrej(elemIndex),elemIndex=1,numElem)
+      write(*,*) '***************************************'
+      write(*,*) ' '
+    end if
 222 format(2x,a29,16(2x,i5))
 223 format(2x,a29,16(2x,f6.0))
 
@@ -649,13 +660,13 @@ contains
     do bodyIndex=1,obs_numbody(obsSpaceData)
        if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) .eq. 1) countAssim=countAssim+1
     end do
-    write(*,'(1X," NUMBER OF DATA TO BE ASSIMILATED AFTER ADJUSTMENTS:",i10)') countAssim
-    write(*,*) ' '
+    if ( .not.beSilent ) write(*,'(1X," NUMBER OF DATA TO BE ASSIMILATED AFTER ADJUSTMENTS:",i10)') countAssim
+    if ( .not.beSilent ) write(*,*) ' '
 
   end subroutine filt_toporaob
 
 
-  subroutine filt_topoAISW(columnhr,obsSpaceData)
+  subroutine filt_topoAISW(columnhr,obsSpaceData,beSilent)
     !
     ! Author  : R. Sarrazin *CMC/AES  February 2000
     !
@@ -664,6 +675,7 @@ contains
     implicit none
     type(struct_columnData) :: columnhr
     type(struct_obs) :: obsSpaceData
+    logical :: beSilent
 
     integer :: headerIndex, bodyIndex, familyIndex, listIndex, elemIndex
     integer :: ivnm, countRej(numElem), countAssim
@@ -673,14 +685,16 @@ contains
     !    DATA    RLISTCRIT/50.D0/
     !    DATA    ILISTEL/11003,11004,12001,12192/
 
-    write(*,*) ' '
-    write(*,*) ' SUBROUTINE filt_topoAISW '
-    write(*,*) ' '
-    write(*,*) '****************************************************'
-    write(*,222) 'ELEMENTS                 ', (elemList(elemIndex),elemIndex=1,numElem)
-    write(*,223) 'REJECTION BOUNDARY(HPA)  ', (bndryCritPres,elemIndex=1,numElem)
-    write(*,*) '****************************************************'
-    write(*,*) ' '
+    if ( .not.beSilent ) then
+      write(*,*) ' '
+      write(*,*) ' SUBROUTINE filt_topoAISW '
+      write(*,*) ' '
+      write(*,*) '****************************************************'
+      write(*,222) 'ELEMENTS                 ', (elemList(elemIndex),elemIndex=1,numElem)
+      write(*,223) 'REJECTION BOUNDARY(HPA)  ', (bndryCritPres,elemIndex=1,numElem)
+      write(*,*) '****************************************************'
+      write(*,*) ' '
+    end if
 
     ! Loop over the families of interest
     list_family(1) = 'AI'
@@ -717,13 +731,15 @@ contains
           end if
        end do BODY
 
-       write(*,*) ' '
-       write(*,*) '*****************************************************************'
-       write(*,*) ' FAMILY = ',list_family(familyIndex)
-       write(*,222) 'ELEMENTS            ',(elemList(elemIndex),elemIndex=1,numElem)
-       write(*,222) 'REJECTED  ',(countRej(elemIndex),elemIndex=1,numElem)
-       write(*,*) '*****************************************************************'
-       write(*,*) ' '
+       if ( .not.beSilent ) then
+         write(*,*) ' '
+         write(*,*) '*****************************************************************'
+         write(*,*) ' FAMILY = ',list_family(familyIndex)
+         write(*,222) 'ELEMENTS            ',(elemList(elemIndex),elemIndex=1,numElem)
+         write(*,222) 'REJECTED  ',(countRej(elemIndex),elemIndex=1,numElem)
+         write(*,*) '*****************************************************************'
+         write(*,*) ' '
+       end if
 
     end do FAMILY
 
@@ -731,8 +747,8 @@ contains
     do bodyIndex=1,obs_numbody(obsSpaceData)
        if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex).eq.1) countAssim=countAssim+1
     end do
-    write(*,'(1X," NUMBER OF DATA TO BE ASSIMILATED AFTER ADJUSTMENTS:",i10)') countAssim
-    write(*,*) ' '
+    if ( .not.beSilent ) write(*,'(1X," NUMBER OF DATA TO BE ASSIMILATED AFTER ADJUSTMENTS:",i10)') countAssim
+    if ( .not.beSilent ) write(*,*) ' '
 
 222 format(2x,a29,16(2x,i5))
 223 format(2x,a29,16(2x,f5.0))
@@ -740,7 +756,7 @@ contains
   end subroutine filt_topoaisw
 
 
-  subroutine filt_topoProf(columnhr,obsSpaceData)
+  subroutine filt_topoProf(columnhr,obsSpaceData,beSilent)
     !
     ! Author: J. St-James October 2002
     !          - Based on the subroutine filt_toporaob.  Adapt to
@@ -753,6 +769,7 @@ contains
     implicit none
     type(struct_columnData) :: columnhr
     type(struct_obs) :: obsSpaceData
+    logical :: beSilent
 
     integer :: headerIndex, bodyIndex, listIndex, elemIndex
     integer :: ivnm, countAssim
@@ -771,15 +788,17 @@ contains
     !    ILISTEL(6)=BUFR_NETT
     !    ILISTEL(7)=BUFR_NEGZ
 
-    write(*,*) ' '
-    write(*,*) ' SUBROUTINE filt_topoPROF '
-    write(*,*) ' '
-    write(*,*) '************************************************'
-    write(*,222) ' ELEMENTS                  ',(elemList(elemIndex),elemIndex=1,numElem)
-    write(*,223) ' REJECTION BOUNDARY(METRE) ',(heightCrit(elemIndex),elemIndex=1,numElem)
-    write(*,223) ' REJECTION SBL (METRE) ',(bndryCritHeight,elemIndex=1,numElem)
-    write(*,*) '************************************************'
-    write(*,*) ' '
+    if ( .not.beSilent ) then
+      write(*,*) ' '
+      write(*,*) ' SUBROUTINE filt_topoPROF '
+      write(*,*) ' '
+      write(*,*) '************************************************'
+      write(*,222) ' ELEMENTS                  ',(elemList(elemIndex),elemIndex=1,numElem)
+      write(*,223) ' REJECTION BOUNDARY(METRE) ',(heightCrit(elemIndex),elemIndex=1,numElem)
+      write(*,223) ' REJECTION SBL (METRE) ',(bndryCritHeight,elemIndex=1,numElem)
+      write(*,*) '************************************************'
+      write(*,*) ' '
+    end if
 
     ! set counters to zero
     itotrej(:)=0
@@ -850,16 +869,18 @@ contains
        end do BODY
     end do HEADER
 
-    write(*,*) ' '
-    write(*,*) '***************************************'
-    write(*,*) 'FAMILY = PR'
-    write(*,222) ' ELEMENTS          ', (elemList(elemIndex),elemIndex=1,numElem)
-    write(*,*) '************'
-    write(*,222) ' REJ OUT BND ',(ibndrej(elemIndex),elemIndex=1,numElem)
-    write(*,222) ' REJ SBL     ',(isblrej(elemIndex),elemIndex=1,numElem)
-    write(*,222) ' REJ TOTAL   ',(itotrej(elemIndex),elemIndex=1,numElem)
-    write(*,*) '***************************************'
-    write(*,*) ' '
+    if ( .not.beSilent ) then
+      write(*,*) ' '
+      write(*,*) '***************************************'
+      write(*,*) 'FAMILY = PR'
+      write(*,222) ' ELEMENTS          ', (elemList(elemIndex),elemIndex=1,numElem)
+      write(*,*) '************'
+      write(*,222) ' REJ OUT BND ',(ibndrej(elemIndex),elemIndex=1,numElem)
+      write(*,222) ' REJ SBL     ',(isblrej(elemIndex),elemIndex=1,numElem)
+      write(*,222) ' REJ TOTAL   ',(itotrej(elemIndex),elemIndex=1,numElem)
+      write(*,*) '***************************************'
+      write(*,*) ' '
+    end if
 222 format(2x,a29,16(2x,i5))
 223 format(2x,a29,16(2x,f6.0))
 
@@ -867,13 +888,13 @@ contains
     do bodyIndex=1,obs_numbody(obsSpaceData)
        if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex).eq.1) countAssim=countAssim+1
     end do
-    write(*,'(1X," NUMBER OF DATA TO BE ASSIMILATED AFTER ADJUSTMENTS:",i10)') countAssim
-    write(*,*) ' '
+    if ( .not.beSilent ) write(*,'(1X," NUMBER OF DATA TO BE ASSIMILATED AFTER ADJUSTMENTS:",i10)') countAssim
+    if ( .not.beSilent ) write(*,*) ' '
 
   end subroutine filt_topoProf
 
 
-  subroutine filt_topoCsbt(columnhr,obsSpaceData)
+  subroutine filt_topoCsbt(columnhr,obsSpaceData,beSilent)
     !
     ! Author  : R. Sarrazin *CMC/AES  June 2008
     ! Revision: A. Beaulne  CMDA      October 2012
@@ -884,6 +905,7 @@ contains
     implicit none
     type(struct_columnData) :: columnhr
     type(struct_obs) :: obsSpaceData
+    logical :: beSilent
 
     integer :: headerIndex, bodyIndex, elemIndex
     integer :: idatyp, countAssim, countRej
@@ -892,14 +914,16 @@ contains
     !    DATA    RLISTCRIT/800.D0/
     !    DATA    ILISTEL/12163/
 
-    write(*,* ) ' '
-    write(*,* ) ' SUBROUTINE filt_topoCSBT '
-    write(*,* ) ' '
-    write(*,* ) '****************************************************'
-    write(*,222) 'ELEMENTS                  ', BUFR_NBT3
-    write(*,223) 'MINIMUM SFC PRESSURE (PA) ', minSfcPressure
-    write(*,* ) '****************************************************'
-    write(*,* ) ' '
+    if ( .not.beSilent ) then
+      write(*,* ) ' '
+      write(*,* ) ' SUBROUTINE filt_topoCSBT '
+      write(*,* ) ' '
+      write(*,* ) '****************************************************'
+      write(*,222) 'ELEMENTS                  ', BUFR_NBT3
+      write(*,223) 'MINIMUM SFC PRESSURE (PA) ', minSfcPressure
+      write(*,* ) '****************************************************'
+      write(*,* ) ' '
+    end if
 
     ! set counters to zero
     countRej=0
@@ -934,13 +958,15 @@ contains
        end do BODY
     end do HEADER
 
-    write(*,*) ' '
-    write(*,*) '*****************************************************************'
-    write(*,*) ' FAMILY = TO'
-    write(*,222) 'ELEMENTS            ', BUFR_NBT3
-    write(*,222) 'REJECTED  ',countRej
-    write(*,*) '*****************************************************************'
-    write(*,*) ' '
+    if ( .not.beSilent ) then
+      write(*,*) ' '
+      write(*,*) '*****************************************************************'
+      write(*,*) ' FAMILY = TO'
+      write(*,222) 'ELEMENTS            ', BUFR_NBT3
+      write(*,222) 'REJECTED  ',countRej
+      write(*,*) '*****************************************************************'
+      write(*,*) ' '
+    end if
 222 format(2x,a29,1(4x,i5))
 223 format(2x,a29,1(2x,f7.0))
 
@@ -948,17 +974,19 @@ contains
     do bodyIndex=1,obs_numbody(obsSpaceData)
        if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) .EQ. 1) countAssim=countAssim+1
     end do
-    write(*,'(1X," NUMBER OF DATA TO BE ASSIMILATED AFTER ADJUSTMENTS:",i10)') countAssim
-    write(*,* ) ' '
+    if ( .not.beSilent ) write(*,'(1X," NUMBER OF DATA TO BE ASSIMILATED AFTER ADJUSTMENTS:",i10)') countAssim
+    if ( .not.beSilent ) write(*,* ) ' '
 
   end subroutine filt_topocsbt
 
-  SUBROUTINE filt_surfaceWind(lobsSpaceData)
+  SUBROUTINE filt_surfaceWind(lobsSpaceData,beSilent)
     !
     !*    Purpose:
     !      Zap sfc wind components at land stations
     IMPLICIT NONE
     type(struct_obs) :: lobsSpaceData
+    logical :: beSilent
+
     INTEGER JPINEL,JPIDLND
     PARAMETER(JPINEL=2,JPIDLND=9)
     INTEGER J,JID,JDATA
@@ -977,14 +1005,16 @@ contains
     !
     ILISTEL(1)=BUFR_NEUS
     ILISTEL(2)=BUFR_NEVS
-    WRITE(*,* ) ' '
-    WRITE(*,* ) ' SUBROUTINE SFCWNDZAP '
-    WRITE(*,* ) ' '
-    WRITE(*,* ) '*****************************************************'
-    WRITE(*,222)'ELEMENTS REJECTED         ',(  ILISTEL(J),J=1,jpinel)
-    WRITE(*,222)'LIST OF IDTYP             ',(   idlnd(J),J=1,jpidlnd)
-    WRITE(*,* ) '*****************************************************'
-    WRITE(*,* ) ' '
+    if ( .not.beSilent ) then
+      WRITE(*,* ) ' '
+      WRITE(*,* ) ' SUBROUTINE SFCWNDZAP '
+      WRITE(*,* ) ' '
+      WRITE(*,* ) '*****************************************************'
+      WRITE(*,222)'ELEMENTS REJECTED         ',(  ILISTEL(J),J=1,jpinel)
+      WRITE(*,222)'LIST OF IDTYP             ',(   idlnd(J),J=1,jpidlnd)
+      WRITE(*,* ) '*****************************************************'
+      WRITE(*,* ) ' '
+    end if
     LLPRINT = .FALSE.
     !cc      LLPRINT = .TRUE.
     !
@@ -1000,7 +1030,7 @@ contains
     list_family(1) = 'SF'
     list_family(2) = 'UA'
     do index_family = 1,2
-       WRITE(*,'(2x,A9,2x,A2)')'FAMILY = ',list_family(index_family)
+       if ( .not.beSilent ) WRITE(*,'(2x,A9,2x,A2)')'FAMILY = ',list_family(index_family)
 
        !
        ! loop over all header indices of each family
@@ -1038,7 +1068,7 @@ contains
                             IKOUNTREJ(J)=IKOUNTREJ(J)+1
                          END IF
                       END DO
-                      IF(LLPRINT) THEN
+                      IF(LLPRINT .and. .not.beSilent ) THEN
                          WRITE(*,225) 'Rej sfc wind lnd',INDEX_HEADER,ITYP &
                               ,obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER),IDBURP &
                               ,obs_headElem_r(lobsSpaceData,OBS_LAT,INDEX_HEADER) &
@@ -1051,12 +1081,14 @@ contains
           END DO BODY
        END DO HEADER
        !
-       WRITE(*,* ) ' '
-       WRITE(*,* ) '*****************************************************'
-       WRITE(*,222 )'ELEMENTS            ', (  ILISTEL(J),J=1,JPINEL)
-       WRITE(*,222)'REJECTED             ',(IKOUNTREJ(J),J=1,JPINEL)
-       WRITE(*,* ) '*****************************************************'
-       WRITE(*,* ) ' '
+       if ( .not.beSilent ) then
+         WRITE(*,* ) ' '
+         WRITE(*,* ) '*****************************************************'
+         WRITE(*,222 )'ELEMENTS            ', (  ILISTEL(J),J=1,JPINEL)
+         WRITE(*,222)'REJECTED             ',(IKOUNTREJ(J),J=1,JPINEL)
+         WRITE(*,* ) '*****************************************************'
+         WRITE(*,* ) ' '
+       END IF
 222    FORMAT(2x,a29,10(2x,i5))
 223    FORMAT(2x,a29,10(2x,f5.0))
 224    FORMAT(2x,a17,2x,I6,2X,I5,1x,a9,1x,2(2x,f9.2))
@@ -1068,10 +1100,10 @@ contains
     DO JDATA=1,obs_numbody(lobsSpaceData)
        IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,JDATA) .EQ. 1) IKOUNTT=IKOUNTT+1
     END DO
-    WRITE(*, &
+    if ( .not.beSilent ) WRITE(*, &
          '(1X," NUMBER OF DATA ASSIMILATED BY 3D","-VAR AFTER ADJUSTMENTS: ",i10)') &
          IKOUNTT
-    WRITE(*,* ) ' '
+    if ( .not.beSilent ) WRITE(*,* ) ' '
 
   END SUBROUTINE filt_surfaceWind
 
@@ -1233,7 +1265,7 @@ contains
 
   END SUBROUTINE FILT_GPSRO
 
-  SUBROUTINE filt_topoChm(columnhr,obsSpaceData)
+  SUBROUTINE filt_topoChm(columnhr,obsSpaceData,beSilent)
     !
     ! Author: Y.J. Rochon Feb 2015
     !          - Based on the subroutines filt_topo* in obsfilter_mod.ftn90.
@@ -1257,6 +1289,7 @@ contains
     implicit none
     type(struct_columnData) :: columnhr
     type(struct_obs) :: obsSpaceData
+    logical :: beSilent
 
     integer :: headerIndex, bodyIndex, listIndex, elemIndex, listIndex_stnid
     integer :: ivnm, countAssim, jl, icount,unit,ier
@@ -1403,7 +1436,7 @@ contains
 
     end do HEADER
 
-    if (Num_stnid_chm.gt.0) then
+    if (Num_stnid_chm.gt.0 .and. .not.beSilent) then
        write(*,*) ' '
        write(*,*) '*****************************************************************'
        write(*,*) ' SUBROUTINE filt_topoChm '

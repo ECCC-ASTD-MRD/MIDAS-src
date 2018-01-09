@@ -33,7 +33,9 @@ MODULE timeCoord_mod
   public :: tim_nstepobs, tim_nstepobsinc
   ! public procedures
   public :: tim_setup, tim_timeBinning, tim_initialized
-  public :: tim_sutimeinterp, tim_setTimeInterpWeight, tim_getTimeInterpWeight, tim_timeInterpWeightAllZero
+  public :: tim_sutimeinterp, tim_sutimeinterpMpiGlobal
+  public :: tim_setTimeInterpWeight, tim_getTimeInterpWeight, tim_getTimeInterpWeightMpiGlobal
+  public :: tim_timeInterpWeightAllZero
   public :: tim_getDateStamp, tim_setDateStamp, tim_getStampList, tim_getStepObsIndex
   public :: tim_getDateStampFromFile
 
@@ -43,8 +45,11 @@ MODULE timeCoord_mod
   integer   :: tim_nstepobs
   integer   :: tim_nstepobsinc
   real(8), pointer :: timeInterpWeight(:,:) => NULL() ! weights for linear temporal interpolation of increment to obs times
+  real(8), pointer :: timeInterpWeightMpiGlobal(:,:,:) => NULL() ! mpi global version of weights
   integer          :: datestamp = 0      ! window centre of analysis validity
   logical          :: initialized = .false.
+
+  integer, external :: get_max_rss
 
 contains
 
@@ -395,6 +400,46 @@ contains
   end subroutine tim_sutimeinterp
 
 
+  subroutine tim_sutimeinterpMpiGlobal()
+    implicit none
+
+    ! arguments
+
+    ! locals
+    integer :: numHeader, numHeaderMax, numStep, nsize, ierr
+    real(8), allocatable :: timeInterpWeightMax(:,:)
+
+    if ( .not.associated(timeInterpWeight) ) then
+      call utl_abort('tim_sutimeinterpMpiGlobal: time_sutimeInterpWeight must first be called')
+    end if
+
+    numHeader = size(timeInterpWeight,1)
+    numStep = size(timeInterpWeight,2)
+    write(*,*) 'tim_sutimeinterpMpiGlobal: before allreduce ', numHeader ; call flush(6)
+    call rpn_comm_allreduce(numHeader, numHeaderMax, 1,  &
+                            'MPI_INTEGER', 'MPI_MAX', 'GRID', ierr)
+
+    write(*,*) 'tim_sutimeinterpMpiGlobal: allocating array of dimension ', &
+               numHeaderMax, numStep, mpi_nprocs 
+    allocate(timeInterpWeightMpiGlobal(numHeaderMax,numStep,mpi_nprocs))
+
+    ! copy over timeInterpWeight into a local array with same size for all mpi tasks
+    allocate(timeInterpWeightMax(numHeaderMax,numStep))
+    timeInterpWeightMax(:,:) = 0.0d0
+    timeInterpWeightMax(1:numHeader,1:numStep) = timeInterpWeight(1:numHeader,1:numStep)
+
+    nsize = numHeaderMax * numStep 
+    call rpn_comm_allgather(timeInterpWeightMax,       nsize, 'MPI_REAL8',  &
+                            timeInterpWeightMpiGlobal, nsize, 'MPI_REAL8',  &
+                            'GRID', ierr)
+
+    deallocate(timeInterpWeightMax)
+
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+  end subroutine tim_sutimeinterpMpiGlobal
+
+
   subroutine tim_setTimeInterpWeight(weight_in,headerIndex,stepObs)
     implicit none
     integer, intent(in)      :: headerIndex, stepObs
@@ -413,6 +458,16 @@ contains
     weight_out = timeInterpWeight(headerIndex, stepObs)
 
   end function tim_getTimeInterpWeight
+
+
+  function tim_getTimeInterpWeightMpiGlobal(headerIndex,stepObs,procIndex) result(weight_out)
+    implicit none
+    real(kind=8)        :: weight_out
+    integer, intent(in) :: headerIndex, stepObs, procIndex
+
+    weight_out = timeInterpWeightMpiGlobal(headerIndex, stepObs, procIndex)
+
+  end function tim_getTimeInterpWeightMpiGlobal
 
 
   function tim_timeInterpWeightAllZero(headerIndex) result(allZero)

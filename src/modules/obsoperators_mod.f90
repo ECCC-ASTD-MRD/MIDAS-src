@@ -567,7 +567,7 @@ contains
   end subroutine oop_zzz_nl
 
 
-  subroutine oop_gpsro_nl(columnhr,obsSpaceData,jobs_out)
+  subroutine oop_gpsro_nl(columnhr,obsSpaceData,beSilent,jobs_out)
     !
     !**s/r oop_gpsro_nl - Computation of Jo and the residuals to the GPSRO observations
     !
@@ -584,6 +584,7 @@ contains
 
     type(struct_columnData) :: columnhr
     type(struct_obs)        :: obsSpaceData
+    logical :: beSilent
     real(8), optional :: jobs_out
 
     real(8) :: jobs, pjob, pjo1
@@ -798,7 +799,7 @@ contains
              jobs = jobs + pjo1
              pjob= pjob+ pjo1
              !
-             if (firstheader) then
+             if (firstheader .and. .not.beSilent) then
                 write(*,  &
                      '(A9,i10,3f7.2,f11.1,4f12.6,15f12.4)') 'DOBSGPSRO',  &
                      index_header,lat,lon,azm,hnh1,zobs,zoer,  &
@@ -808,7 +809,7 @@ contains
           endif
        enddo BODY_3
 
-       write(*,'(A9,i10,2f7.2,f18.10,f12.4,2I6)')  &
+       if ( .not.beSilent ) write(*,'(A9,i10,2f7.2,f18.10,f12.4,2I6)')  &
             'GPSRO_JO',index_header,lat,lon,pjob,zmt,isat,ldsc
        firstheader = .false.
     enddo HEADER
@@ -835,7 +836,7 @@ contains
   end subroutine oop_gpsro_nl
 
 
-  subroutine oop_gpsgb_nl(columnhr,obsSpaceData,jobs_out,analysisMode_in)
+  subroutine oop_gpsgb_nl(columnhr,obsSpaceData,beSilent,jobs_out,analysisMode_in)
     !
     !**s/r oop_gpsgb_nl - Computation of Jo and the residuals to the GB-GPS ZTD observations
     !
@@ -873,6 +874,7 @@ contains
 
     type(struct_columnData) :: columnhr
     type(struct_obs) :: obsSpaceData
+    logical           :: beSilent
     real(8), optional :: jobs_out
     logical, optional :: analysisMode_in
 
@@ -932,7 +934,7 @@ contains
     jobs = 0.d0
 
     nlev_T = col_getNumLev(columnhr,'TH')
-    if (ltestop) write(*,*) '  col_getNumLev(columnhr,TH) = ',nlev_T
+    if (ltestop .and. .not.beSilent) write(*,*) '  col_getNumLev(columnhr,TH) = ',nlev_T
 
     !
     ! Initializations
@@ -942,11 +944,13 @@ contains
     allocate(zdp(nlev_T))
     allocate(zpp(nlev_T))
 
-    write(*, *) ' '
-    write(*, *) ' '
-    write(*,'(A11,A9,3A8,A9,4A8,2A9,A7,A10,A11)')  &
-         'OOP_GPSGB_NL','CSTNID','ZLAT','ZLON','ZLEV','ZDZ','ZOBS','ZOER','ZHX','O-P',  &
-         'ZPOMPS','ZPOMP','ZPWMOD','Jobs','ZINC2'
+    if ( .not.beSilent ) then
+      write(*, *) ' '
+      write(*, *) ' '
+      write(*,'(A11,A9,3A8,A9,4A8,2A9,A7,A10,A11)')  &
+           'OOP_GPSGB_NL','CSTNID','ZLAT','ZLON','ZLEV','ZDZ','ZOBS','ZOER','ZHX','O-P',  &
+           'ZPOMPS','ZPOMP','ZPWMOD','Jobs','ZINC2'
+    end if
 
     icount  = 0
     icount1 = 0
@@ -1108,9 +1112,9 @@ contains
              !
              ! Print data for first NOBS2P observations
              !
-             if ( icountp .le. nobs2p ) then
+             if ( icountp .le. nobs2p .and. .not.beSilent ) then
                 write(*,  &
-                     '(A12,A9,3(1x,f7.2),1x,f8.2,4(1x,f8.5),2(1x,f8.4),2x,f5.2,1x,f9.2,1x,f10.5)')  &
+                     '(A14,A9,3(1x,f7.2),1x,f8.2,4(1x,f8.5),2(1x,f8.4),2x,f5.2,1x,f9.2,1x,f10.5)')  &
                      'OOP_GPSGB_NL: ',cstnid,zlat,zlon,zlev,zdz,zobs,zoer/yzderrwgt,zhx,-zinc*zoer,  &
                      zpomps/100.d0,zpomp/100.d0,zpwmod,jobs,zinc/zoer
              endif
@@ -1126,23 +1130,25 @@ contains
     deallocate(zdp)
     deallocate(zpp)
 
-    write(*,*) ' '
-    write(*,*) 'NUMBER OF GPS ZTD DATA FLAGGED FOR ASSIMILATION = ', icountp
-    if ( icountp.gt.0 ) then
-       bias = sum(ztdomp(1:icountp))/real(icountp,8)
-       std = 0.d0
-       do jl = 1, icountp
-          std = std + (ztdomp(jl)-bias)**2
-       enddo
-       write(*, *) '     MEAN O-P (BIAS) [mm] = ', bias*1000.d0
-       if (icountp.gt.1) then
-          std = sqrt(std/(real(icountp,8)-1.d0))
-          write(*, *) '     STD  O-P        [mm] = ', std*1000.d0
-       else
-          write(*, *) '     STD  O-P        Uncomputable since number of GPS ZTD observations is 1'
-       end if
-       write(*, *) ' '
-    endif
+    if ( .not. beSilent ) then
+      write(*,*) ' '
+      write(*,*) 'NUMBER OF GPS ZTD DATA FLAGGED FOR ASSIMILATION = ', icountp
+      if ( icountp.gt.0 ) then
+         bias = sum(ztdomp(1:icountp))/real(icountp,8)
+         std = 0.d0
+         do jl = 1, icountp
+            std = std + (ztdomp(jl)-bias)**2
+         enddo
+         write(*, *) '     MEAN O-P (BIAS) [mm] = ', bias*1000.d0
+         if (icountp.gt.1) then
+            std = sqrt(std/(real(icountp,8)-1.d0))
+            write(*, *) '     STD  O-P        [mm] = ', std*1000.d0
+         else
+            write(*, *) '     STD  O-P        Uncomputable since number of GPS ZTD observations is 1'
+         end if
+         write(*, *) ' '
+      endif
+    end if
 
     if ( l1obs .and. analysisMode ) then
        ! Set assim flag to 0 for all observations except for selected record (site/time)
@@ -1168,7 +1174,7 @@ contains
 
     numgpsztd = icountp
 
-    if ( analysisMode .and. icount .gt. 0 .and. .not.l1obs ) then
+    if ( analysisMode .and. icount .gt. 0 .and. .not.l1obs .and. .not.beSilent ) then
        write(*,*) ' '
        write(*,*) '-----------------------------------------'
        write(*,*) ' SUMMARY OF ZTD REJECTIONS IN OOP_GPSGB_NL '
@@ -1190,12 +1196,12 @@ contains
     if ( icount .gt. 0 .and. numgpsztd .gt. 0) then
 
        if ( analysisMode ) then
-          write(*,*) ' Number of GPS ZTD data to be assimilated (numGPSZTD) = ', numgpsztd
+          if ( .not.beSilent ) write(*,*) ' Number of GPS ZTD data to be assimilated (numGPSZTD) = ', numgpsztd
        else
-          write(*,*) ' Number of GPS ZTD data for background check (numGPSZTD) = ', numgpsztd
+          if ( .not.beSilent ) write(*,*) ' Number of GPS ZTD data for background check (numGPSZTD) = ', numgpsztd
        end if
 
-       write(*,*) ' Allocating and setting vGPSZTD_Index(numGPSZTD)...'
+       if ( .not.beSilent ) write(*,*) ' Allocating and setting vGPSZTD_Index(numGPSZTD)...'
        if(allocated(vgpsztd_index)) deallocate(vgpsztd_index)
        allocate(vgpsztd_index(numgpsztd))
        iztd = 0
@@ -1232,7 +1238,8 @@ contains
   end subroutine oop_gpsgb_nl
 
 
-  subroutine oop_tovs_nl(columnghr,obsSpaceData,datestamp,limlvhu,bgckMode_in,jobs_out,option_in,source_obs_in,dest_obs_in)
+  subroutine oop_tovs_nl(columnghr,obsSpaceData,datestamp,limlvhu,beSilent,  &
+                         bgckMode_in,jobs_out,option_in,source_obs_in,dest_obs_in)
     !
     !**s/r oop_tovs_nl  - Computation of jobs and the residuals to the tovs observations
     !
@@ -1252,6 +1259,7 @@ contains
     type(struct_obs) :: obsSpaceData
     integer :: datestamp
     real(8) :: limlvhu
+    logical :: beSilent
     logical, optional :: bgckMode_in
     real(8), optional :: jobs_out
     character(len=*), optional :: option_in        ! only valid value is HR
@@ -1300,13 +1308,13 @@ contains
 
     ! 1.   Prepare atmospheric profiles for all tovs observation points for use in rttov
     ! .    -----------------------------------------------------------------------------
-    call tvs_fillProfiles(columnghr,obsSpaceData,datestamp,limlvhu,bgckMode)
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call tvs_fillProfiles(columnghr,obsSpaceData,datestamp,limlvhu,bgckMode,beSilent)
+    if ( .not.beSilent ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     ! 2.   Compute radiance
     ! .    ----------------
-    call tvs_rttov(columnghr,obsSpaceData,bgckMode)
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call tvs_rttov(columnghr,obsSpaceData,bgckMode,beSilent)
+    if ( .not.beSilent ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     ! 3.   Compute Jobs and the residuals
     ! .    ----------------------------
@@ -1323,6 +1331,7 @@ contains
     endif
     jobs = 0.0d0
 
+    if ( beSilent ) llprint = .false.
     call tvs_calc_jo(jobs,llprint,obsSpaceData,dest_obs)
 
     if(present(jobs_out)) jobs_out=jobs
@@ -1747,9 +1756,9 @@ contains
       if (min_nsim == 1) then
          datestamp = tim_getDatestamp()
          if ( trim(obsoperMode) == 'bgckIR') then
-           call tvs_fillProfiles(columng,obsSpaceData,datestamp,filt_rlimlvhu,.true.)
+           call tvs_fillProfiles(columng,obsSpaceData,datestamp,filt_rlimlvhu,.true.,.false.)
          else
-           call tvs_fillProfiles(columng,obsSpaceData,datestamp,filt_rlimlvhu,.false.)
+           call tvs_fillProfiles(columng,obsSpaceData,datestamp,filt_rlimlvhu,.false.,.false.)
          end if
       endif
 

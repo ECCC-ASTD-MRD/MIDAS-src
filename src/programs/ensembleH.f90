@@ -158,6 +158,7 @@ program midas_ensembleH
   end if
   call tmg_stop(2)
 
+  call tmg_start(3,'SETUPOBS')
   write(*,*) ''
   write(*,*) 'midas-ensembleH: read in the observations, keeping them distributed as is (RR)'
   write(*,*) ''
@@ -166,7 +167,9 @@ program midas_ensembleH
   call burp_setupFiles(dateStampObs,'OminusF')
   call inn_setupObs(obsSpaceData, obsColumnMode, obsMpiStrategy, 'analysis')
   call oop_setup('analysis')
+  call tmg_stop(3)
 
+  call tmg_start(4,'ALLOC_COLS')
   write(*,*) ''
   write(*,*) 'midas-ensembleH: allocate an ensemble of columnData objects'
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
@@ -186,12 +189,16 @@ program midas_ensembleH
     call col_allocate(columns(memberIndex), obs_numheader(obsSpaceData), mpi_local=.true., beSilent_opt=beSilent, setToZero_opt=.false.)
     write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
   end do
+  call tmg_stop(4)
 
+  call tmg_start(5,'SETUP_COLS')
   write(*,*) ''
   write(*,*) 'midas-ensembleH: Interpolate ensemble members to obs locations/times and redistribute'
   write(*,*) ''
   call tim_sutimeinterp(obsSpaceData, numStep)
+  call tim_sutimeinterpMpiglobal()
   call enkf_setupColumnsFromEnsemble(stateVector_member, obsSpaceData, columns)
+  call tmg_stop(5)
 
   ! Initialize the observation error covariances
   call oer_setObsErrors(obsSpaceData, 'analysis') ! IN
@@ -206,6 +213,7 @@ program midas_ensembleH
   call enkf_extractObsBodyColumn(obsVal_r4, obsSpaceData, OBS_VAR)
 
   ! Compute H(X) for all members either with TLM or nonlinear H()
+  call tmg_start(6,'OBSOPERANDWRITE')
   if ( useTlmH ) then
 
     ! Compute ensemble mean column and use nonlinear H()
@@ -248,7 +256,9 @@ program midas_ensembleH
       write(*,*) ''
       write(*,*) 'midas-ensembleH: apply nonlinear H to ensemble member ', memberIndex
       write(*,*) ''
-      call inn_computeInnovation(columns(memberIndex), obsSpaceData)
+      beSilent = .true.
+      if ( memberIndex == 1 ) beSilent = .false.
+      call inn_computeInnovation(columns(memberIndex), obsSpaceData, beSilent_opt=beSilent)
 
       ! extract observation-minus-HX value, Y-HX
       call enkf_extractObsBodyColumn(HX_ens_r4(:,memberIndex), obsSpaceData, OBS_OMP)
@@ -263,13 +273,7 @@ program midas_ensembleH
     call enkf_writeHXensemble(HX_ens_r4, obsSpaceData)
 
   end if
-
-
-
-
-
-  ! Deallocate things
-  if ( stateVector_member%allocated ) call gsv_deallocate(statevector_member)
+  call tmg_stop(6)
 
   !
   !- MPI, tmg finalize
