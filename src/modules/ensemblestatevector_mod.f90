@@ -563,8 +563,6 @@ CONTAINS
 
     ! arguments
     type(struct_ens)  :: ens
-    logical, optional :: computeSubEns
-    integer, optional :: numSubEns
 
     ! locals
     integer           :: kulin, ierr, memberIndex, memberIndex2, stepIndex, subEnsIndex
@@ -607,9 +605,6 @@ CONTAINS
       end do
     end do
 !$OMP END PARALLEL DO
-
-    ! provide output argument value
-    if ( present(numSubEns) ) numSubEns = ens%numSubEns
 
   end subroutine ens_computeStdDev
 
