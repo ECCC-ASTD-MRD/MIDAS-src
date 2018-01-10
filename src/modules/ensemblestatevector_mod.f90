@@ -567,6 +567,7 @@ CONTAINS
     ! locals
     integer           :: kulin, ierr, memberIndex, memberIndex2, stepIndex, subEnsIndex
     integer           :: k1, k2, jk, lon1, lon2, lat1, lat2, numStep, ji, jj
+    real(8), allocatable  :: subEnsStdDev(:)
 
     if (.not.ens%meanIsComputed) then
       if (mpi_myid == 0) write(*,*) 'ens_computeStdDev: compute Mean since it was not already done'
@@ -588,23 +589,36 @@ CONTAINS
     k1 = ens%statevector_work%mykBeg
     k2 = ens%statevector_work%mykEnd
     numStep = ens%statevector_work%numStep
-    ! Compute ensemble StdDev(s)
-!$OMP PARALLEL DO PRIVATE (jk,jj,ji,stepIndex,memberIndex,subEnsIndex)
+
+    allocate(subEnsStdDev(ens%numSubEns))
+
+    ! Compute global ensemble StdDev as the sqrt of the mean of each suchensemble variance
+    !   var_subens(i) = sum( ( ens(j) - mean_subens(i) )**2, j=1..numEns_subens(i) ) / ( numEns_subens(i) - 1 )
+    !   var_allensensemble = sum( numEns_subens(i) * var_subens(i), i=1..numSubEns)
+    !   stddev = sqrt( var_allensensemble / numEnsTotal )
+
+!$OMP PARALLEL DO PRIVATE (jk,jj,ji,stepIndex,memberIndex,subEnsIndex,subEnsStdDev)
     do jk = k1, k2
       do jj = lat1, lat2
         do ji = lon1, lon2
           do stepIndex = 1, ens%statevector_work%numStep
+            subEnsStdDev(:) = 0.0d0
             do memberIndex = 1, ens%numMembers
-              ens%repack_ensStdDev_r8(jk)%onelevel(1,stepIndex,ji,jj) = ens%repack_ensStdDev_r8(jk)%onelevel(1,stepIndex,ji,jj) + &
+              subEnsStdDev(ens%subEnsIndexList(memberIndex)) = subEnsStdDev(ens%subEnsIndexList(memberIndex)) + &
                    (dble(ens%repack_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj))-ens%repack_ensMean_r8(jk)%onelevel(ens%subEnsIndexList(memberIndex),stepIndex,ji,jj))**2
             end do
-            ens%repack_ensStdDev_r8(jk)%onelevel(subEnsIndex,stepIndex,ji,jj) = &
-                 sqrt(ens%repack_ensStdDev_r8(jk)%onelevel(subEnsIndex,stepIndex,ji,jj) / dble(ens%numMembers - ens%nEnsSubEns(subEnsIndex)))
+            do subEnsIndex = 1, ens%numSubEns
+              ens%repack_ensStdDev_r8(jk)%onelevel(1,stepIndex,ji,jj) = ens%repack_ensStdDev_r8(jk)%onelevel(1,stepIndex,ji,jj) + &
+                   ens%nEnsSubEns(subEnsIndex)*subEnsStdDev(subEnsIndex)/(ens%nEnsSubEns(subEnsIndex)-1)
+            end do
+            ens%repack_ensStdDev_r8(jk)%onelevel(1,stepIndex,ji,jj) = sqrt( ens%repack_ensStdDev_r8(jk)%onelevel(1,stepIndex,ji,jj) / dble(ens%numMembers) )
           end do
         end do
       end do
     end do
 !$OMP END PARALLEL DO
+
+    deallocate(subEnsStdDev)
 
   end subroutine ens_computeStdDev
 
