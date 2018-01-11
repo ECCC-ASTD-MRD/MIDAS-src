@@ -2036,7 +2036,7 @@ module gridStateVector_mod
 
     character(len=4) :: varName, varNameToRead(1)
 
-    logical :: doHorizInterp, doVertInterp, unitconversion2, HUcontainsLQ2, HUcontainsLQinFile
+    logical :: doHorizInterp, doVertInterp, unitconversion2, HUcontainsLQ2
     logical :: readGZsfc, readSubsetOfLevels
 
     type(struct_vco), pointer :: vco_file
@@ -2122,7 +2122,7 @@ module gridStateVector_mod
                         varNames_opt=varNameToRead)
     end if
 
-    call gsv_readFile(statevector_file, filename, etiket_in, typvar_in, HUcontainsLQinFile,  &
+    call gsv_readFile(statevector_file, filename, etiket_in, typvar_in,  &
                       readGZsfc_opt=readGZsfc)
 
     !-- 2.0 Horizontal Interpolation
@@ -2224,7 +2224,7 @@ module gridStateVector_mod
       field_in_ptr => gsv_getField_r8(statevector_vinterp, vnl_varNameList(varIndex))
       field_out_ptr => gsv_getField_r8(statevector_out, vnl_varNameList(varIndex))
 
-      if ( trim(vnl_varNameList(varIndex)) == 'HU' .and. HUcontainsLQ2 .and. .not. HUcontainsLQinFile ) then
+      if ( trim(vnl_varNameList(varIndex)) == 'HU' .and. HUcontainsLQ2 ) then
 !$OMP PARALLEL DO PRIVATE (latIndex,levIndex,lonIndex)
         do latIndex = statevector_out%myLatBeg, statevector_out%myLatEnd
           do levIndex = 1, statevector_out%varNumLev(varIndex)
@@ -2258,7 +2258,7 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   ! gsv_readFile
   !--------------------------------------------------------------------------
-  subroutine gsv_readFile(statevector, filename, etiket_in, typvar_in, HUcontainsLQinFile, readGZsfc_opt)
+  subroutine gsv_readFile(statevector, filename, etiket_in, typvar_in, readGZsfc_opt)
     implicit none
 
     ! arguments
@@ -2266,7 +2266,7 @@ module gridStateVector_mod
     character(len=*), intent(in)  :: fileName
     character(len=*), intent(in)  :: etiket_in
     character(len=*), intent(in)  :: typvar_in
-    logical :: HUcontainsLQinFile
+
     logical, optional             :: readGZsfc_opt
 
     ! locals
@@ -2427,7 +2427,6 @@ module gridStateVector_mod
         end if
         field_r4_ptr(:,:,kIndex,stepIndex) = gd2d_file_r4(1:statevector%hco%ni,1:statevector%hco%nj)
 
-        HUcontainsLQinFile = .false.
         if (ierr.lt.0)then
           if (varName == 'HU') then
             ! HU variable not found in file, try reading LQ
@@ -2435,7 +2434,6 @@ module gridStateVector_mod
                         statevector%datestamplist(stepIndex),etiket_in,ip1,-1,-1,  &
                         typvar_in,'LQ')
             field_r4_ptr(:,:,kIndex,stepIndex) = gd2d_file_r4(1:statevector%hco%ni,1:statevector%hco%nj)
-            HUcontainsLQinFile = .true.
             if (ierr.lt.0)then
               write(*,*) 'LQ',ip1,statevector%datestamplist(stepIndex)
               call utl_abort('gsv_readFile: Problem with reading file')
