@@ -687,7 +687,7 @@ CONTAINS
 
     ptr4d_r8 => gsv_getField_r8(recenteringMean)
 
-!$OMP PARALLEL DO PRIVATE (jk,jj,ji,stepIndex,memberIndex)
+!$OMP PARALLEL DO PRIVATE (jk,jj,ji,stepIndex,memberIndex,increment)
     do jk = k1, k2
       do jj = lat1, lat2
         do ji = lon1, lon2
