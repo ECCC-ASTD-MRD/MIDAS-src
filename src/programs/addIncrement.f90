@@ -31,6 +31,7 @@ program midas_addIncrement
 
   integer :: get_max_rss
   integer :: ierr, fstopc
+  character(len=256) :: trialFileName
 
   write(*,'(/,' //  &
         '3(" *****************"),/,' //                   &
@@ -56,7 +57,8 @@ program midas_addIncrement
   call ram_setup
 
   !- Setup timeCoord module (date read from trial file)
-  call tim_setup
+  trialFileName = './trlm_01'
+  call tim_setup( fileNameForDate_opt=trim(trialFileName) )
 
   !- Initialize variables of the model states
   call gsv_setup

@@ -1,0 +1,20 @@
+ &NAMCT0
+/
+ &NAMENSMANIP
+   OUTPUT_ENSEMBLE_MEAN = T
+   NENS = 10
+   RECENTER = T
+   RECENTERING_COEFF = 1.0
+   WRITE_MPI = F
+/
+ &NAMTIME
+  DSTEPOBSINC = 1.0d0
+/
+ &NAMSTATE
+   ANLVAR(1)   ='UU'
+   ANLVAR(2)   ='VV'
+   ANLVAR(3)   ='TT'
+   ANLVAR(4)   ='HU'
+   ANLVAR(5)   ='P0'
+   ANLVAR(6)   ='TG'
+/

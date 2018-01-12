@@ -109,7 +109,7 @@ MODULE BmatrixEnsemble_mod
   real(8)             :: scaleFactor(maxNumLevels)
   real(8)             :: scaleFactorHumidity(maxNumLevels)
   integer             :: ntrunc
-  character(len=256)  :: enspathname,ensfilebasename
+  character(len=256)  :: enspathname
   real(8)             :: hLocalize(maxNumLocalLength)
   real(8)             :: vLocalize(maxNumLocalLength)
   character(len=256)  :: LocalizationType
@@ -152,7 +152,7 @@ CONTAINS
     logical        :: lExists
 
     !namelist
-    NAMELIST /NAMBEN/nEns,scaleFactor,scaleFactorHumidity,ntrunc,enspathname,ensfilebasename, &
+    NAMELIST /NAMBEN/nEns,scaleFactor,scaleFactorHumidity,ntrunc,enspathname, &
          hLocalize,vLocalize,LocalizationType,waveBandPeaks, &
          diagnostic,ctrlVarHumidity,advectAmplitudeFactor,removeSubEnsMeans, &
          keepAmplitude
@@ -169,7 +169,6 @@ CONTAINS
     nEns             = 10
     ntrunc           = 30
     enspathname      = 'ensemble'
-    ensfilebasename  = ''
     LocalizationType = 'LevelDependent'
     waveBandPeaks(:) =   -1.0d0
     diagnostic       = .false.
@@ -257,7 +256,7 @@ CONTAINS
     vco_anl => vco_anl_in
 
     if ( mpi_myid == 0 ) then
-      call ens_fileName(ensFileName, ensPathName, ensFileBaseName, 1)
+      call ens_fileName(ensFileName, ensPathName, 1)
       call vco_SetupFromFile(vco_file, ensFileName)
     end if
     call vco_mpiBcast(vco_file)
@@ -592,7 +591,7 @@ CONTAINS
 
     !- 2. Read ensemble
     makeBiPeriodic = (trim(LocalizationType) == 'ScaleDependent')
-    call ens_readEnsemble(ensPerts(1), ensPathName, ensFileBaseName, makeBiPeriodic, & 
+    call ens_readEnsemble(ensPerts(1), ensPathName, makeBiPeriodic, &
                           ctrlVarHumidity, vco_file_opt = vco_file)
 
     !- 3. From ensemble FORECASTS to ensemble PERTURBATIONS
@@ -2241,17 +2240,17 @@ CONTAINS
 !--------------------------------------------------------------------------
 ! ben_writeAmplitude
 !--------------------------------------------------------------------------
-  SUBROUTINE ben_writeAmplitude(ensPathName, ensFileBaseName, ip3)
+  SUBROUTINE ben_writeAmplitude(ensPathName, ensFileNamePrefix, ip3)
     implicit none
 
     character(len=*), intent(in) :: ensPathName
-    character(len=*), intent(in) :: ensFileBaseName
+    character(len=*), intent(in) :: ensFileNamePrefix
     integer,          intent(in) :: ip3
 
     if (initialized .and. keepAmplitude) then
       if ( mpi_myid == 0 ) write(*,*)
       if ( mpi_myid == 0 ) write(*,*) 'bmatrixEnsemble_mod: Writing the amplitude field'
-      call ens_writeEnsemble(ensAmplitudeStorage, ensPathName, ensFileBaseName, &
+      call ens_writeEnsemble(ensAmplitudeStorage, ensPathName, ensFileNamePrefix, &
                              'LQ', 'FROM_BENS', 'R',varNames_opt=varNameALFA, ip3_in_opt=ip3)
     end if
 

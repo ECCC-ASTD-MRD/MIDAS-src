@@ -41,7 +41,8 @@ MODULE ensembleStateVector_mod
   public :: ens_readEnsemble, ens_writeEnsemble, ens_fileName
   public :: ens_copyToStateWork, ens_getRepackMean_r8
   public :: ens_varExist, ens_getNumLev
-  public :: ens_computeMean, ens_removeMean, ens_copyEnsMean, ens_copyMember
+  public :: ens_computeMean, ens_removeMean, ens_copyEnsMean, ens_copyMember, ens_recenter
+  public :: ens_computeStdDev, ens_copyEnsStdDev
   public :: ens_getRepack_r4
   public :: ens_getOffsetFromVarName, ens_getLevFromK, ens_getVarNameFromK, ens_getNumK, ens_getKFromLevVarName
 
@@ -61,9 +62,10 @@ MODULE ensembleStateVector_mod
     integer                       :: numMembers
     integer                       :: dataKind
     type(struct_gsv)              :: statevector_work
-    type(struct_repack_r8), allocatable :: repack_ensMean_r8(:)
+    type(struct_repack_r8), allocatable :: repack_ensMean_r8(:), repack_ensStdDev_r8(:)
     type(struct_repack_r4), allocatable :: repack_r4(:)
-    logical                       :: meanIsComputed
+    logical                       :: meanIsComputed = .false.
+    logical                       :: stdDevIsComputed = .false.
     integer, allocatable          :: subEnsIndexList(:), nEnsSubEns(:)
     integer                       :: numSubEns
     character(len=256)            :: enspathname
@@ -150,6 +152,34 @@ CONTAINS
   end subroutine ens_allocateMean
 
 
+  subroutine ens_allocateStdDev(ens)
+    implicit none
+
+    ! arguments
+    type(struct_ens) :: ens
+
+    ! locals
+    integer :: lon1, lon2, lat1, lat2, k1, k2, jk, numStep
+
+    lon1 = ens%statevector_work%myLonBeg
+    lon2 = ens%statevector_work%myLonEnd
+    lat1 = ens%statevector_work%myLatBeg
+    lat2 = ens%statevector_work%myLatEnd
+    k1 = ens%statevector_work%mykBeg
+    k2 = ens%statevector_work%mykEnd
+    numStep = ens%statevector_work%numStep
+
+    allocate( ens%repack_ensStdDev_r8(k1:k2) )
+    do jk = k1, k2
+      allocate( ens%repack_ensStdDev_r8(jk)%onelevel(1,numStep,lon1:lon2,lat1:lat2) )
+      ens%repack_ensStdDev_r8(jk)%onelevel(:,:,:,:) = 0.0d0
+    end do
+
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+  end subroutine ens_allocateStdDev
+
+
   subroutine ens_deallocate( ens )
     implicit none
 
@@ -168,6 +198,13 @@ CONTAINS
       deallocate( ens%repack_r4(jk)%onelevel )
     end do
     deallocate( ens%repack_r4 )
+
+    if (ens%stdDevIsComputed) then
+      do jk = k1, k2
+        deallocate( ens%repack_ensStdDev_r8(jk)%onelevel )
+      end do
+      deallocate( ens%repack_ensStdDev_r8 )
+    end if
 
     if (ens%meanIsComputed) then
       do jk = k1, k2
@@ -262,24 +299,56 @@ CONTAINS
       subEnsIndex2 = subEnsIndex
     else
       subEnsIndex2 = 1
-    endif
+    end if
 
     k1 = ens%statevector_work%mykBeg
     k2 = ens%statevector_work%mykEnd
     numStep = ens%statevector_work%numStep
 
-    call gsv_allocate(statevector, numStep,  &
-                      ens%statevector_work%hco, ens%statevector_work%vco,  &
-                      datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., dataKind_in_opt=8 )
+    if (.not. statevector%allocated) then
+      call gsv_allocate(statevector, numStep,  &
+                        ens%statevector_work%hco, ens%statevector_work%vco,  &
+                        datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., dataKind_in_opt=8 )
+    end if
 
     ptr4d_r8 => gsv_getField_r8(statevector)
     do stepIndex = 1, numStep
       do jk = k1, k2
         ptr4d_r8(:,:,jk,stepIndex) = ens%repack_ensMean_r8(jk)%onelevel(subEnsIndex2,stepIndex,:,:)
-      enddo
-    enddo
+      end do
+    end do
 
   end subroutine ens_copyEnsMean
+
+  subroutine ens_copyEnsStdDev(ens, statevector)
+    implicit none
+
+    ! arguments
+    type(struct_ens)  :: ens
+    type(struct_gsv)  :: statevector
+
+    ! locals
+    real(8), pointer :: ptr4d_r8(:,:,:,:)
+    integer          :: k1, k2, jk, stepIndex, numStep
+
+    k1 = ens%statevector_work%mykBeg
+    k2 = ens%statevector_work%mykEnd
+    numStep = ens%statevector_work%numStep
+
+    if (.not. statevector%allocated) then
+      call gsv_allocate(statevector, numStep,  &
+                        ens%statevector_work%hco, ens%statevector_work%vco,  &
+                        datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., dataKind_in_opt=8 )
+    end if
+
+    ptr4d_r8 => gsv_getField_r8(statevector)
+    do stepIndex = 1, numStep
+      do jk = k1, k2
+        ptr4d_r8(:,:,jk,stepIndex) = ens%repack_ensStdDev_r8(jk)%onelevel(1,stepIndex,:,:)
+      end do
+    end do
+
+  end subroutine ens_copyEnsStdDev
 
 
   subroutine ens_copyMember(ens, statevector, memberIndex)
@@ -453,6 +522,7 @@ CONTAINS
     write(*,*) 'ens_computeMean: number of members in each sub-ensemble = ', ens%nensSubEns(:)
 
     call ens_allocateMean(ens)
+    ens%meanIsComputed = .true.
 
     lon1 = ens%statevector_work%myLonBeg
     lon2 = ens%statevector_work%myLonEnd
@@ -469,13 +539,13 @@ CONTAINS
           do stepIndex = 1, ens%statevector_work%numStep
             do memberIndex = 1, ens%numMembers
               ens%repack_ensMean_r8(jk)%onelevel(ens%subEnsIndexList(memberIndex),stepIndex,ji,jj) = &
-                ens%repack_ensMean_r8(jk)%onelevel(ens%subEnsIndexList(memberIndex),stepIndex,ji,jj) + &
-                dble(ens%repack_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj))
+                   ens%repack_ensMean_r8(jk)%onelevel(ens%subEnsIndexList(memberIndex),stepIndex,ji,jj) + &
+                   dble(ens%repack_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj))
             end do
             do subEnsIndex = 1, ens%numSubEns
               ens%repack_ensMean_r8(jk)%onelevel(subEnsIndex,stepIndex,ji,jj) = &
-                ens%repack_ensMean_r8(jk)%onelevel(subEnsIndex,stepIndex,ji,jj) /  &
-                dble(ens%nEnsSubEns(subEnsIndex))
+                   ens%repack_ensMean_r8(jk)%onelevel(subEnsIndex,stepIndex,ji,jj) /  &
+                   dble(ens%nEnsSubEns(subEnsIndex))
             end do
           end do
         end do
@@ -487,6 +557,71 @@ CONTAINS
     if ( present(numSubEns) ) numSubEns = ens%numSubEns
 
   end subroutine ens_computeMean
+
+
+  subroutine ens_computeStdDev(ens)
+    implicit none
+
+    ! arguments
+    type(struct_ens)  :: ens
+
+    ! locals
+    integer           :: kulin, ierr, memberIndex, memberIndex2, stepIndex, subEnsIndex
+    integer           :: k1, k2, jk, lon1, lon2, lat1, lat2, numStep, ji, jj
+    real(8), allocatable  :: subEnsStdDev(:)
+
+    if (.not.ens%meanIsComputed) then
+      if (mpi_myid == 0) write(*,*) 'ens_computeStdDev: compute Mean since it was not already done'
+      call ens_computeMean( ens )
+    end if
+
+    ! Read sub-ensemble index list from file, if it exists
+    ! The sub-ensembles should have been already read in routine 'ens_computeMean'
+    write(*,*) 'ens_computeStdDev: number of sub-ensembles = ', ens%numSubEns
+    write(*,*) 'ens_computeStdDev: number of members in each sub-ensemble = ', ens%nensSubEns(:)
+
+    call ens_allocateStdDev(ens)
+    ens%StdDevIsComputed = .true.
+
+    lon1 = ens%statevector_work%myLonBeg
+    lon2 = ens%statevector_work%myLonEnd
+    lat1 = ens%statevector_work%myLatBeg
+    lat2 = ens%statevector_work%myLatEnd
+    k1 = ens%statevector_work%mykBeg
+    k2 = ens%statevector_work%mykEnd
+    numStep = ens%statevector_work%numStep
+
+    allocate(subEnsStdDev(ens%numSubEns))
+
+    ! Compute global ensemble StdDev as the sqrt of the mean of each suchensemble variance
+    !   var_subens(i) = sum( ( ens(j) - mean_subens(i) )**2, j=1..numEns_subens(i) ) / ( numEns_subens(i) - 1 )
+    !   var_allensensemble = sum( numEns_subens(i) * var_subens(i), i=1..numSubEns)
+    !   stddev = sqrt( var_allensensemble / numEnsTotal )
+
+!$OMP PARALLEL DO PRIVATE (jk,jj,ji,stepIndex,memberIndex,subEnsIndex,subEnsStdDev)
+    do jk = k1, k2
+      do jj = lat1, lat2
+        do ji = lon1, lon2
+          do stepIndex = 1, ens%statevector_work%numStep
+            subEnsStdDev(:) = 0.0d0
+            do memberIndex = 1, ens%numMembers
+              subEnsStdDev(ens%subEnsIndexList(memberIndex)) = subEnsStdDev(ens%subEnsIndexList(memberIndex)) + &
+                   (dble(ens%repack_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj))-ens%repack_ensMean_r8(jk)%onelevel(ens%subEnsIndexList(memberIndex),stepIndex,ji,jj))**2
+            end do
+            do subEnsIndex = 1, ens%numSubEns
+              ens%repack_ensStdDev_r8(jk)%onelevel(1,stepIndex,ji,jj) = ens%repack_ensStdDev_r8(jk)%onelevel(1,stepIndex,ji,jj) + &
+                   ens%nEnsSubEns(subEnsIndex)*subEnsStdDev(subEnsIndex)/(ens%nEnsSubEns(subEnsIndex)-1)
+            end do
+            ens%repack_ensStdDev_r8(jk)%onelevel(1,stepIndex,ji,jj) = sqrt( ens%repack_ensStdDev_r8(jk)%onelevel(1,stepIndex,ji,jj) / dble(ens%numMembers) )
+          end do
+        end do
+      end do
+    end do
+!$OMP END PARALLEL DO
+
+    deallocate(subEnsStdDev)
+
+  end subroutine ens_computeStdDev
 
 
   subroutine ens_removeMean(ens)
@@ -514,26 +649,71 @@ CONTAINS
           do stepIndex = 1, numStep
             do memberIndex = 1, ens%numMembers
               ens%repack_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj) =  &
-                real( (real(ens%repack_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj),8) -  &
-                      ens%repack_ensMean_r8(jk)%onelevel(ens%subEnsIndexList(memberIndex),stepIndex,ji,jj)), 4 )
+                   real( (real(ens%repack_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj),8) -  &
+                   ens%repack_ensMean_r8(jk)%onelevel(ens%subEnsIndexList(memberIndex),stepIndex,ji,jj)), 4 )
             end do
           end do
         end do
-      end do 
+      end do
     end do
 !$OMP END PARALLEL DO
 
   end subroutine ens_removeMean
 
 
-  subroutine ens_readEnsemble(ens, ensPathName, ensFileBaseName, biPeriodic, ctrlVarHumidity, &
+  subroutine ens_recenter(ens,recenteringMean,recenteringCoeff)
+    implicit none
+
+    !! We want to compute:
+    !!    x_recentered = x_original + recenteringCoeff*(x_recenteringMean - x_ensembleMean)
+
+    ! arguments
+    type(struct_ens) :: ens
+    type(struct_gsv) :: recenteringMean
+    real(8)          :: recenteringCoeff
+
+    ! locals
+    real(8), pointer :: ptr4d_r8(:,:,:,:)
+    real(8) :: increment
+    integer :: lon1, lon2, lat1, lat2, k1, k2, numStep
+    integer :: jk, jj, ji, stepIndex, memberIndex
+
+    lon1 = ens%statevector_work%myLonBeg
+    lon2 = ens%statevector_work%myLonEnd
+    lat1 = ens%statevector_work%myLatBeg
+    lat2 = ens%statevector_work%myLatEnd
+    k1 = ens%statevector_work%mykBeg
+    k2 = ens%statevector_work%mykEnd
+    numStep = ens%statevector_work%numStep
+
+    ptr4d_r8 => gsv_getField_r8(recenteringMean)
+
+!$OMP PARALLEL DO PRIVATE (jk,jj,ji,stepIndex,memberIndex,increment)
+    do jk = k1, k2
+      do jj = lat1, lat2
+        do ji = lon1, lon2
+          do stepIndex = 1, numStep
+            increment = ptr4d_r8(ji,jj,jk,stepIndex) - ens%repack_ensMean_r8(jk)%onelevel(1,stepIndex,ji,jj)
+            do memberIndex = 1, ens%numMembers
+              ens%repack_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj) =  &
+                   real( real(ens%repack_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj),8) + recenteringCoeff*increment, 4)
+            end do
+          end do
+        end do
+      end do
+    end do
+!$OMP END PARALLEL DO
+
+  end subroutine ens_recenter
+
+
+  subroutine ens_readEnsemble(ens, ensPathName, biPeriodic, ctrlVarHumidity, &
                               vco_file_opt)
     implicit none
 
     ! arguments
     type(struct_ens) :: ens
     character(len=*) :: ensPathName
-    character(len=*) :: ensFileBaseName
     logical          :: biPeriodic
     character(len=*) :: ctrlVarHumidity
     type(struct_vco), pointer, optional :: vco_file_opt
@@ -623,7 +803,7 @@ CONTAINS
     end if
 
     ! Set up hco and vco for ensemble files
-    call ens_fileName(ensFileName, ensPathName, ensFileBaseName, 1)
+    call ens_fileName(ensFileName, ensPathName, 1)
     nullify(hco_file)
     call hco_SetupFromFile(hco_file, ensFileName, ' ', 'ENSFILEGRID')
     if ( present(vco_file_opt) ) then
@@ -644,7 +824,7 @@ CONTAINS
 
     ! Setup the list of variables to be read (use member 1)
     if (mpi_myid == 0) then
-      call ens_fileName(ensFileName, ensPathName, ensFileBaseName, 1)
+      call ens_fileName(ensFileName, ensPathName, 1)
       nEnsVarNamesWanted=0
       write(*,*)
       write(*,*) 'ens_readEnsemble: Listing the analysis variables present in ensemble file'
@@ -681,21 +861,21 @@ CONTAINS
     ! In limited-area mode, avoid horizontal interpolation when the ensemble is on the coregrid
     horizontalPaddingNeeded = .false.
     if ( .not. hco_file%global ) then
-       hco_coregrid => agd_getHco('CoreGrid')
-       if ( hco_file%ni == hco_coregrid%ni .and. hco_file%nj == hco_coregrid%nj  ) then
-          if (mpi_myid == 0) write(*,*) 'ens_readEnsemble: no interpolation needed for ensemble on the limited-area coregrid'
-          horizontalInterpNeeded = .false.
-          horizontalPaddingNeeded = .true.
-       end if
+      hco_coregrid => agd_getHco('CoreGrid')
+      if ( hco_file%ni == hco_coregrid%ni .and. hco_file%nj == hco_coregrid%nj  ) then
+        if (mpi_myid == 0) write(*,*) 'ens_readEnsemble: no interpolation needed for ensemble on the limited-area coregrid'
+        horizontalInterpNeeded = .false.
+        horizontalPaddingNeeded = .true.
+      end if
     end if
 
     if (mpi_myid == 0) then
-       write(*,*)
-       write(*,*) 'ens_readEnsemble: dateStampList=',dateStampList(1:numStep)
-       write(*,*)
-       if (horizontalInterpNeeded )  write(*,*) 'ens_readEnsemble: HORIZONTAL interpolation is needed'
-       if (verticalInterpNeeded   )  write(*,*) 'ens_readEnsemble: VERTICAL   interpolation is needed'
-       if (horizontalPaddingNeeded)  write(*,*) 'ens_readEnsemble: HORIZONTAL padding       is needed'
+      write(*,*)
+      write(*,*) 'ens_readEnsemble: dateStampList=',dateStampList(1:numStep)
+      write(*,*)
+      if (horizontalInterpNeeded )  write(*,*) 'ens_readEnsemble: HORIZONTAL interpolation is needed'
+      if (verticalInterpNeeded   )  write(*,*) 'ens_readEnsemble: VERTICAL   interpolation is needed'
+      if (horizontalPaddingNeeded)  write(*,*) 'ens_readEnsemble: HORIZONTAL padding       is needed'
     end if
 
     !
@@ -718,8 +898,8 @@ CONTAINS
       end if
       if (verticalInterpNeeded) then
         call gsv_allocate(statevector_hint_r4, 1, hco_ens, vco_file,  &
-                          datestamp_opt=dateStampList(stepIndex), mpi_local_opt=.false., &
-                          varNames_opt=ensVarNamesWanted, dataKind_in_opt=4)
+                         datestamp_opt=dateStampList(stepIndex), mpi_local_opt=.false., &
+                         varNames_opt=ensVarNamesWanted, dataKind_in_opt=4)
       end if
 
       do memberIndex = 1, ens%numMembers
@@ -730,12 +910,12 @@ CONTAINS
 
           !  Read the file
           fileMemberIndex = 1+mod(memberIndex+memberIndexOffset-1, totalEnsembleSize)
-          call ens_fileName(ensFileName, ensPathName, ensFileBaseName, fileMemberIndex)
+          call ens_fileName(ensFileName, ensPathName, fileMemberIndex)
           typvar = ' '
           etiket = ' '
           if (.not. horizontalInterpNeeded  .and. &
-             .not. verticalInterpNeeded    .and. &
-             .not. horizontalPaddingNeeded ) then
+              .not. verticalInterpNeeded    .and. &
+              .not. horizontalPaddingNeeded ) then
             call gsv_readFile(statevector_member_r4, ensFileName, etiket, typvar, HUcontainsLQinFile)
           else
             call gsv_readFile(statevector_file_r4, ensFileName, etiket, typvar, HUcontainsLQinFile)
@@ -754,14 +934,14 @@ CONTAINS
 
           else if (.not. horizontalInterpNeeded .and. verticalInterpNeeded) then
             if (horizontalPaddingNeeded) then
-               call gsv_hPad(statevector_file_r4, statevector_hint_r4)
+              call gsv_hPad(statevector_file_r4, statevector_hint_r4)
             else
-               call gsv_copy(statevector_file_r4, statevector_hint_r4)
+              call gsv_copy(statevector_file_r4, statevector_hint_r4)
             end if
             call gsv_vInterpolate_r4(statevector_hint_r4, statevector_member_r4, Ps_in_hPa=.true.)
 
           else if (horizontalPaddingNeeded) then
-             call gsv_hPad(statevector_file_r4, statevector_member_r4)
+            call gsv_hPad(statevector_file_r4, statevector_member_r4)
           end if
 
           ! unit conversion
@@ -813,7 +993,7 @@ CONTAINS
                 yourid = youridx + youridy*mpi_npex
                 gd_send_r4(1:ens%statevector_work%allLonPerPE(youridx+1),  &
                            1:ens%statevector_work%allLatPerPE(youridy+1), 1:numLevelsToSend2, yourid+1) =  &
-                  ptr3d_r4(ens%statevector_work%allLonBeg(youridx+1):ens%statevector_work%allLonEnd(youridx+1),  &
+                           ptr3d_r4(ens%statevector_work%allLonBeg(youridx+1):ens%statevector_work%allLonEnd(youridx+1),  &
                            ens%statevector_work%allLatBeg(youridy+1):ens%statevector_work%allLatEnd(youridy+1), jk:jk2)
               end do
             end do
@@ -868,19 +1048,19 @@ CONTAINS
   end subroutine ens_readEnsemble
 
 
-  subroutine ens_writeEnsemble(ens, ensPathName, ensFileBaseName, ctrlVarHumidity, etiket, &
-       typvar, varNames_opt, ip3_in_opt)
+  subroutine ens_writeEnsemble(ens, ensPathName, ensFileNamePrefix, ctrlVarHumidity, etiket, &
+                               typvar, varNames_opt, ip3_in_opt, numBits_opt)
     implicit none
 
     ! arguments
     type(struct_ens)  :: ens
     character(len=*)  :: ensPathName
-    character(len=*)  :: ensFileBaseName
+    character(len=*)  :: ensFileNamePrefix
     character(len=*)  :: ctrlVarHumidity
     character(len=*)  :: etiket
     character(len=*)  :: typvar
     character(len=*), optional :: varNames_opt(:)  ! allow specification of variables
-    integer, optional :: ip3_in_opt
+    integer, optional :: ip3_in_opt, numBits_opt
 
     ! locals
     type(struct_gsv) :: statevector_member_r4
@@ -942,9 +1122,9 @@ CONTAINS
     vco_ens => gsv_getVco(ens%statevector_work)
 
     if (mpi_myid == 0) then
-       write(*,*)
-       write(*,*) 'ens_writeEnsemble: dateStampList=',dateStampList(1:numStep)
-       write(*,*)
+      write(*,*)
+      write(*,*) 'ens_writeEnsemble: dateStampList=',dateStampList(1:numStep)
+      write(*,*)
     end if
 
     !
@@ -963,8 +1143,8 @@ CONTAINS
                           varNames_opt=VarNames_opt, dataKind_in_opt=4)
       else
         call gsv_allocate(statevector_member_r4, 1, hco_ens, vco_ens,  &
-             datestamp_opt=dateStampList(stepIndex), mpi_local_opt=.false., &
-             dataKind_in_opt=4)
+                          datestamp_opt=dateStampList(stepIndex), mpi_local_opt=.false., &
+                          dataKind_in_opt=4)
       end if
 
       do memberIndex = 1, ens%numMembers
@@ -1004,8 +1184,8 @@ CONTAINS
                 yourid = youridx + youridy*mpi_npex
                 ptr3d_r4(ens%statevector_work%allLonBeg(youridx+1):ens%statevector_work%allLonEnd(youridx+1),  &
                          ens%statevector_work%allLatBeg(youridy+1):ens%statevector_work%allLatEnd(youridy+1), jk:jk2) = &
-                    gd_recv_r4(1:ens%statevector_work%allLonPerPE(youridx+1),  &
-                               1:ens%statevector_work%allLatPerPE(youridy+1), 1:numLevelsToSend2, yourid+1)
+                         gd_recv_r4(1:ens%statevector_work%allLonPerPE(youridx+1),  &
+                         1:ens%statevector_work%allLatPerPE(youridy+1), 1:numLevelsToSend2, yourid+1)
 
               end do
             end do
@@ -1022,8 +1202,12 @@ CONTAINS
           write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
           !  Write the file
-          call ens_fileName( ensFileName, ensPathName, ensFileBaseName, memberIndex, shouldExist = .false. )
-          call gsv_writeToFile( statevector_member_r4, ensFileName, etiket, ip3_in = ip3, typvar_in = typvar )
+          call ens_fileName( ensFileName, ensPathName, memberIndex, ensFileNamePrefix_opt=ensFileNamePrefix, shouldExist_opt = .false. )
+          if (present(numBits_opt)) then
+            call gsv_writeToFile( statevector_member_r4, ensFileName, etiket, ip3_in = ip3, typvar_in = typvar , numBits_opt = numBits_opt)
+          else
+            call gsv_writeToFile( statevector_member_r4, ensFileName, etiket, ip3_in = ip3, typvar_in = typvar )
+          end if
         end if ! locally written one member
 
 
@@ -1044,75 +1228,107 @@ CONTAINS
   end subroutine ens_writeEnsemble
 
 
-  subroutine ens_fileName(ensFileName, ensPathName, ensFileBaseName, memberIndex, shouldExist)
+  subroutine ens_fileName(ensFileName, ensPathName, memberIndex, ensFileNamePrefix_opt, ensFileBaseName_opt, shouldExist_opt)
     implicit none
 
     ! arguments
     character(len=*)  :: ensFileName
-    character(len=*)  :: ensPathName, ensFileBaseName
+    character(len=*)  :: ensPathName
     integer           :: memberIndex
-    logical, optional :: shouldExist
+    character(len=*),optional  :: ensFileBaseName_opt, ensFileNamePrefix_opt
+    logical, optional :: shouldExist_opt
 
     ! locals
-    real(8)          :: delhh
-    integer          :: stamp_last, ndate, ntime, ierr, newdate
-    character(len=8) :: datestr_last
-    character(len=2) :: hourstr_last
+    integer          :: numFiles, returnCode, totalLength, ensembleBaseFileNameLength
     character(len=4) :: ensNumber
-    logical          :: lExists
-    logical          :: shouldExist2
+    logical          :: shouldExist
+    character(len=2000) :: fileList(10), fileNamePattern
+    character        :: ensembleFileExtLengthStr
     logical, save    :: firstTime = .true.
     integer, save    :: ensembleFileExtLength = 4
+    character(len=200), save :: ensFileBaseName
 
-    if ( present(shouldExist) ) then
-      shouldExist2 = shouldExist
+    ! The following interface was extracted from #include <clib_interface.cdk>
+    interface clib_glob
+      integer function clib_glob_schhide(filelist,nfiles,pattern,maxnfiles)
+        implicit none
+        integer,intent(IN)  :: maxnfiles
+        character(len=*),intent(IN) :: pattern
+        integer,intent(OUT) :: nfiles
+        character(len=*),dimension(maxnfiles),intent(OUT):: filelist
+      end function clib_glob_schhide
+    end interface clib_glob
+
+    if ( present(shouldExist_opt) ) then
+      shouldExist = shouldExist_opt
     else
-      shouldExist2 = .true.
+      shouldExist = .true.
     end if
 
-    ! Initialize dates for ensemble files
-    delhh = -tim_windowsize
-    call incdatr(stamp_last,tim_getDatestamp(),delhh)
-    ierr = newdate(stamp_last,ndate,ntime,-3)
-    write(datestr_last,'(i8.8)') ndate
-    write(hourstr_last,'(i2.2)') ntime/1000000
-    if (mpi_myid == 0) write(*,*) 'ens_fileName: DATE,TIME=',ndate,'  ,',ntime
-
-    ! Determine file name extension length for ensemble files (3 or 4)
-    if ( firstTime .and. shouldExist2 ) then
-      write(ensNumber,'(i4.4)') memberIndex
-      ensFileName = trim(enspathname) // '/' // trim(ensfilebasename) // &
-                    trim(datestr_last) // trim(hourstr_last) // '_006_' // trim(ensNumber)
-      inquire(file=ensFileName,exist=lExists)
-      if (lExists) then
-        ensembleFileExtLength = 4
-      else
-        write(ensNumber,'(i3.3)') memberIndex
-        ensFileName = trim(enspathname) // '/' // trim(ensfilebasename) // &
-                      trim(datestr_last) // trim(hourstr_last) // '_006_' // trim(ensNumber)
-        inquire(file=ensFileName,exist=lExists)
-        if (lExists) then
-          ensembleFileExtLength = 4
-        else 
-          call utl_abort('ens_fileName: could not determine file extension length')
-        end if
+    ! Do this step only once in the program since this should not change during the program is running.
+    if (firstTime) then
+      fileNamePattern = './' // trim(enspathname) // '/' // '*[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]_[0-9][0-9][0-9]_*001'
+      returnCode = clib_glob(fileList,numFiles,trim(fileNamePattern),10)
+      if (returnCode /= 1) then
+        call utl_abort('ens_fileName: reached maximum number of files or no file is available')
       end if
+
+      ensFileName = trim(fileList(1))
+      totalLength = len_trim(ensFileName)
+      if ( totalLength == 0 ) then
+        call utl_abort('ens_fileName: ensFileName seems empty: ''ensFileName=' // trim(ensFileName) // '''')
+      end if
+
+      ! find number of digits used to identify ensemble member index
+      ensembleFileExtLength = 0
+      do
+        if ( ensFileName((totalLength-ensembleFileExtLength):(totalLength-ensembleFileExtLength)) == '_' ) exit
+        ensembleFileExtLength = ensembleFileExtLength + 1
+      end do
+
+      if (ensembleFileExtLength == 0) then
+        call utl_abort('ens_fileName: Cannot determine the ensemble file extention length with ' // trim(ensFileName))
+      end if
+
+      ! find the last '/' in the file name to get the basename of the file
+      ensembleBaseFileNameLength = 0
+      do
+        if ( totalLength == ensembleBaseFileNameLength ) exit
+        if ( ensFileName((totalLength-ensembleBaseFileNameLength):(totalLength-ensembleBaseFileNameLength)) == '/' ) exit
+        ensembleBaseFileNameLength = ensembleBaseFileNameLength + 1
+      end do
+
+      ! if 'ensFileName = ./abc/def/ghi/123_456_001' then
+      !    totalLength = 25
+      !    ensembleFileExtLength = 3
+      !    ensembleBaseFileNameLength = 11
+      !    ensFileBaseName = '123_456'
+      ! if 'ensFileName = 123_456_001' then
+      !    totalLength = 11
+      !    ensembleFileExtLength = 3
+      !    ensembleBaseFileNameLength = 11
+      !    ensFileBaseName = '123_456'
+      ensFileBasename = ensFileName((totalLength-ensembleBaseFileNameLength+1):(totalLength-ensembleFileExtLength-1))
+
       firstTime = .false.
-    else if ( firstTime .and. .not.shouldExist2 ) then
-      call utl_abort('ens_fileName: cannot determine file extension length!')
-    else
-      if ( ensembleFileExtLength == 4 ) then
-        write(ensNumber,'(i4.4)') memberIndex
-        ensFileName = trim(enspathname) // '/' // trim(ensfilebasename) // &
-                      trim(datestr_last) // trim(hourstr_last) // '_006_' // trim(ensNumber)
-      else
-        write(ensNumber,'(i3.3)') memberIndex
-        ensFileName = trim(enspathname) // '/' // trim(ensfilebasename) // &
-                      trim(datestr_last) // trim(hourstr_last) // '_006_' // trim(ensNumber)
-      end if
+
+      write(*,*) 'ens_fileName: ensFileBasename = ', trim(ensFileBasename)
     end if
 
-    if ( shouldExist2 ) ensFileName = ram_fullWorkingPath(ensFileName)
+    write(ensembleFileExtLengthStr,'(i1.1)') ensembleFileExtLength
+    write(ensNumber,'(i' // ensembleFileExtLengthStr // '.' // ensembleFileExtLengthStr // ')') memberIndex
+
+    if (present(ensFileNamePrefix_opt)) then
+      ensFileName = trim(enspathname) // '/' // trim(ensFileNamePrefix_opt) // trim(ensFileBaseName) // '_' // trim(ensNumber)
+    else
+      ensFileName = trim(enspathname) // '/' // trim(ensFileBaseName) // '_' // trim(ensNumber)
+    end if
+
+    write(*,*) 'ens_fileName: ensFileName = ', trim(ensFileName)
+
+    if ( shouldExist ) ensFileName = ram_fullWorkingPath(ensFileName)
+
+    if (present(ensFileBaseName_opt)) ensFileBaseName_opt = trim(ensFileBaseName)
 
   end subroutine ens_fileName
 

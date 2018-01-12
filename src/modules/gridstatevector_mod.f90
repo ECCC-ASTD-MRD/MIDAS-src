@@ -1087,8 +1087,8 @@ module gridStateVector_mod
 
     if ( statevector_out%dataKind == 8 .and. statevector_in%dataKind == 8 ) then
 
-      statevector_out%gzSfc(:,:) = 0.d0
       if ( associated(statevector_in%gzSfc) .and. associated(statevector_out%gzSfc) ) then
+        statevector_out%gzSfc(:,:) = 0.d0
         statevector_out%gzSfc(lonBeg_in:lonEnd_in,latBeg_in:latEnd_in) = statevector_in%gzSfc(:,:)
       end if
 
@@ -1107,8 +1107,8 @@ module gridStateVector_mod
 
     elseif ( statevector_out%dataKind == 4 .and. statevector_in%dataKind == 4 ) then
 
-      if ( associated(statevector_out%gzSfc) ) statevector_out%gzSfc(:,:) = 0.0
       if ( associated(statevector_in%gzSfc) .and. associated(statevector_out%gzSfc) ) then
+        statevector_out%gzSfc(:,:) = 0.0
         statevector_out%gzSfc(lonBeg_in:lonEnd_in,latBeg_in:latEnd_in) = statevector_in%gzSfc(:,:)
       end if
 
@@ -3748,7 +3748,7 @@ module gridStateVector_mod
     ig2    = statevector%hco%ig2
     ig3    = statevector%hco%ig3
     ig4    = statevector%hco%ig4
-    datyp  = 1
+    datyp  = 134
 
     nlev = max(gsv_getNumLev(statevector,'MM'),gsv_getNumLev(statevector,'TH'))
 
@@ -4018,7 +4018,7 @@ module gridStateVector_mod
       etiket   = 'TICTICTACTAC'
       npak     = -32
       ier = fstecr(statevector%hco%tictacU, statevector%hco%tictacU, npak, iun, 0, 0, 0, size(statevector%hco%tictacU), 1, 1  , &
-                   statevector%hco%ig1, statevector%hco%ig2,  statevector%hco%ig3, 'E', '^>', etiket, &
+                   statevector%hco%ig1, statevector%hco%ig2,  statevector%hco%ig3, 'X', '^>', etiket, &
                    'F', 1, 0, 0, 0, 5, .false.)
 
     end if
