@@ -743,7 +743,6 @@ CONTAINS
     character(len=4)   :: ensVarNamesWanted_dummy(99)
     character(len=4), allocatable :: ensVarNamesWanted(:)
     logical :: verticalInterpNeeded, horizontalInterpNeeded, horizontalPaddingNeeded
-    logical :: HUcontainsLQinFile
 
     write(*,*) 'ens_readEnsemble: starting'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -916,9 +915,9 @@ CONTAINS
           if (.not. horizontalInterpNeeded  .and. &
               .not. verticalInterpNeeded    .and. &
               .not. horizontalPaddingNeeded ) then
-            call gsv_readFile(statevector_member_r4, ensFileName, etiket, typvar, HUcontainsLQinFile)
+            call gsv_readFile(statevector_member_r4, ensFileName, etiket, typvar)
           else
-            call gsv_readFile(statevector_file_r4, ensFileName, etiket, typvar, HUcontainsLQinFile)
+            call gsv_readFile(statevector_file_r4, ensFileName, etiket, typvar)
           end if
           if (stepIndex == numStep) then
             ierr = ram_remove(ensFileName)
@@ -959,10 +958,10 @@ CONTAINS
             end if
             ptr3d_r4(:,:,:) = real( multFactor * ptr3d_r4(:,:,:), 4 )
 
-            if (trim(varName) == 'HU' .and. ctrlVarHumidity == 'LQ' .and. .not. HUcontainsLQinFile ) then
+            if      (trim(varName) == 'HU' .and. ctrlVarHumidity == 'LQ') then
               ptr3d_r4(:,:,:) = sngl(log(max(real(ptr3d_r4(:,:,:),8),MPC_MINIMUM_HU_R8)))
-            else if (trim(varName) == 'HU' .and. ctrlVarHumidity == 'HU' .and. .not. HUcontainsLQinFile ) then
-              ptr3d_r4(:,:,:) = sngl(max(real(ptr3d_r4(:,:,:),8),MPC_MINIMUM_HU_R8))
+            else if (trim(varName) == 'HU' .and. ctrlVarHumidity == 'HU') then
+              ptr3d_r4(:,:,:) = sngl(    max(real(ptr3d_r4(:,:,:),8),MPC_MINIMUM_HU_R8))
             end if
           end do VAR_LOOP
 

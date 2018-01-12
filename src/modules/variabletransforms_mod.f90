@@ -75,7 +75,9 @@ CONTAINS
     implicit none
 
     call tmg_start(92,'VTR_READTRIALS')
-    call gsv_readTrials(hco_anl,vco_anl,statevector_trial)
+    call gsv_readTrials( hco_anl, vco_anl,        & ! IN
+                         statevector_trial,       & ! OUT
+                         HUcontainsLQ_opt=.false. )  !IN
     call tmg_stop(92)
 
     trialsInitialized = .true.
@@ -193,11 +195,11 @@ CONTAINS
     type(struct_gsv)    :: statevector
     integer :: i,j,k,indexStep
 
-    real(8), pointer :: hu_ptr(:,:,:,:), lq_ptr(:,:,:,:), lq_trial(:,:,:,:)
+    real(8), pointer :: hu_ptr(:,:,:,:), lq_ptr(:,:,:,:), hu_trial(:,:,:,:)
 
     if ( .not. trialsInitialized ) call vtr_setupTrials()
 
-    lq_trial => gsv_getField_r8(statevector_trial,'HU')
+    hu_trial => gsv_getField_r8(statevector_trial,'HU')
     hu_ptr   => gsv_getField_r8(statevector      ,'HU')
     lq_ptr   => gsv_getField_r8(statevector      ,'HU')
 
@@ -206,7 +208,7 @@ CONTAINS
        do k = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
           do j = statevector%myLatBeg, statevector%myLatEnd
              do i = statevector%myLonBeg, statevector%myLonEnd       
-                hu_ptr(i,j,k,indexStep) = lq_ptr(i,j,k,indexStep)*exp(lq_trial(i,j,k,indexStep))
+               hu_ptr(i,j,k,indexStep) =  lq_ptr(i,j,k,indexStep)*hu_trial(i,j,k,indexStep)
              end do
           end do
        end do
@@ -224,11 +226,11 @@ CONTAINS
     type(struct_gsv)    :: statevector
     integer :: i,j,k,indexStep
 
-    real(8), pointer :: hu_ptr(:,:,:,:), lq_ptr(:,:,:,:), lq_trial(:,:,:,:)
+    real(8), pointer :: hu_ptr(:,:,:,:), lq_ptr(:,:,:,:), hu_trial(:,:,:,:)
 
     if ( .not. trialsInitialized ) call vtr_setupTrials()
 
-    lq_trial => gsv_getField_r8(statevector_trial,'HU')
+    hu_trial => gsv_getField_r8(statevector_trial,'HU')
     hu_ptr   => gsv_getField_r8(statevector      ,'HU')
     lq_ptr   => gsv_getField_r8(statevector      ,'HU')
 
@@ -237,7 +239,7 @@ CONTAINS
        do k = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
           do j = statevector%myLatBeg, statevector%myLatEnd
              do i = statevector%myLonBeg, statevector%myLonEnd
-                lq_ptr(i,j,k,indexStep) = hu_ptr(i,j,k,indexStep)/exp(lq_trial(i,j,k,indexStep))
+               lq_ptr(i,j,k,indexStep) = hu_ptr(i,j,k,indexStep)/hu_trial(i,j,k,indexStep)
              end do
           end do
        end do
