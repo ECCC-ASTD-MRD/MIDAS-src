@@ -464,11 +464,11 @@ contains
          END DO
          !    initializations
          DO JO=IBEG,IEND
-            call obs_bodySet_r(obsdat,OBS_OMA ,JO,MISG)
-            call obs_bodySet_r(obsdat,OBS_OMP ,JO,MISG)
-            call obs_bodySet_r(obsdat,OBS_OER ,JO,MISG)
-            call obs_bodySet_r(obsdat,OBS_HPHT,JO,MISG)
-            call obs_bodySet_r(obsdat,OBS_WORK,JO,MISG)
+            if ( obs_columnActive_RB(obsdat,OBS_OMA) )  call obs_bodySet_r(obsdat,OBS_OMA ,JO,MISG)
+            if ( obs_columnActive_RB(obsdat,OBS_OMP) )  call obs_bodySet_r(obsdat,OBS_OMP ,JO,MISG)
+            if ( obs_columnActive_RB(obsdat,OBS_OER) )  call obs_bodySet_r(obsdat,OBS_OER ,JO,MISG)
+            if ( obs_columnActive_RB(obsdat,OBS_HPHT) ) call obs_bodySet_r(obsdat,OBS_HPHT,JO,MISG)
+            if ( obs_columnActive_RB(obsdat,OBS_WORK) ) call obs_bodySet_r(obsdat,OBS_WORK,JO,MISG)
          END DO
 
          ! For GP family, initialize OBS_OER to element 15032 (ZTD formal error) 

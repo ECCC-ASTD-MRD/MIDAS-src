@@ -67,7 +67,7 @@ contains
   ! inn_setupObs
   !--------------------------------------------------------------------------
   subroutine inn_setupobs(obsSpaceData, obsColumnMode, obsMpiStrategy, &
-       innovationMode_in)
+       innovationMode_in, obsClean_opt)
     !
     !**s/r INN_SETUPOBS  - Initialisation of observation parameters and constants
     !
@@ -86,6 +86,8 @@ contains
     character(len=*) :: obsMpiStrategy
     character(len=*) :: obsColumnMode
     character(len=*), intent(in) :: innovationMode_in
+    logical, optional :: obsClean_opt
+
     integer :: get_max_rss
     logical :: obs_init
 
@@ -143,12 +145,26 @@ contains
     call filt_suprep(obsSpaceData)
     call tmg_stop(14)
 
+    if ( present(obsClean_opt) ) then
+      if ( obsClean_opt ) then
+        write(*,*) ''
+        write(*,*) 'inn_setupObs: !!WARNING!! Performing a cleanup of obsSpaceData'
+        write(*,*) '              This may make it impossible to update burp files'
+        write(*,*) ''
+        call obs_clean2(obsSpaceData)
+      end if
+    end if
+
     !
     ! set OBS_IPC and OBS_IPT columns according to the chosen strategy
     !
     write(*,*)
     write(*,*) 'INN_SETUPOBS - Using obsMpiStrategy = ', trim(obsMpiStrategy)
-    call setObsMpiStrategy(obsSpaceData,obsMpiStrategy)
+    if ( obs_columnActive_IH(obsSpaceData,OBS_IPC) ) then
+      call setObsMpiStrategy(obsSpaceData,obsMpiStrategy)
+    else
+      write(*,*) 'INN_SETUPOBS - OBS_IPC column not active, no redistribution of observations!'
+    end if
 
     !
     ! Check env variable ARMA_BURP_SPLIT to know if burp files already split
@@ -156,7 +172,9 @@ contains
     if ( burp_split() ) then 
        ! local observations files, so just do reallocation to reduce memory used
        call obs_squeeze(obsSpaceData)
-       call obs_MpiRedistribute(obsSpaceData,OBS_IPC)
+       if ( obs_columnActive_IH(obsSpaceData,OBS_IPC) ) then
+         call obs_MpiRedistribute(obsSpaceData,OBS_IPC)
+       end if
        write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     else
        ! global observations files so have to localize them for each MPI process
@@ -1226,7 +1244,7 @@ contains
     !
     !     Remove surface station wind observations
     !
-    IF (trim(innovationMode) == 'analysis' .or. trim(innovationMode) == 'FSO') CALL filt_surfaceWind(obsSpaceData,beSilent)
+    if (trim(innovationMode) == 'analysis' .or. trim(innovationMode) == 'FSO') call filt_surfaceWind(obsSpaceData,beSilent)
     !
     !     Find interpolation layer in model profiles 
     !
@@ -1240,16 +1258,16 @@ contains
     !------------------------------
     !
     call tmg_start(48,'NL_OBS_OPER')
-    CALL oop_ppp_nl(columnhr,obsSpaceData,ZJORAOB,'UA')
+    call oop_ppp_nl(columnhr,obsSpaceData,ZJORAOB,'UA')
     !
     !        AIREPS
     !--------------------------------
-    CALL oop_ppp_nl(columnhr,obsSpaceData,ZJOAIREP,'AI')
+    call oop_ppp_nl(columnhr,obsSpaceData,ZJOAIREP,'AI')
     !
     !        SATWINDS
     !--------------------------------
-    CALL oer_sw(columnhr,obsSpaceData)
-    CALL oop_ppp_nl(columnhr,obsSpaceData,ZJOSATWIND,'SW')
+    call oer_sw(columnhr,obsSpaceData)
+    call oop_ppp_nl(columnhr,obsSpaceData,ZJOSATWIND,'SW')
     !
     !        SURFACE (SF, UA, SC AND GP FAMILIES)
     !-------------------------------
@@ -1290,10 +1308,10 @@ contains
     ZJOGPSGB=0.0D0
     if (obs_famExist(obsSpaceData,'GP',local_mpi=.true.)) then
       if (trim(innovationMode) == 'analysis' .or. trim(innovationMode) == 'FSO') then
-        CALL oer_SETERRGPSGB(columnhr,obsSpaceData,lgpdata,.true.)
+        call oer_SETERRGPSGB(columnhr,obsSpaceData,lgpdata,.true.)
         if (lgpdata) call oop_gpsgb_nl(columnhr,obsSpaceData,beSilent,ZJOGPSGB,.true.)
       else
-        CALL oer_SETERRGPSGB(columnhr,obsSpaceData,lgpdata,.false.)
+        call oer_SETERRGPSGB(columnhr,obsSpaceData,lgpdata,.false.)
         if (lgpdata) call oop_gpsgb_nl(columnhr,obsSpaceData,beSilent,ZJOGPSGB,.false.)
       end if
     end if

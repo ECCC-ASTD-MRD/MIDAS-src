@@ -3151,25 +3151,25 @@ CONTAINS
       LAND_SEA = 2
     END IF
 
-    call obs_headSet_i(obsdat,OBS_OFL,nobs,LAND_SEA)
-    call obs_headSet_i(obsdat,OBS_INS,nobs,INSTRUMENT  )
-    call obs_headSet_i(obsdat,OBS_SZA,nobs,ZENITH )
-    call obs_headSet_i(obsdat,OBS_FOV,nobs,IFOV )
-    call obs_headSet_i(obsdat,OBS_CLF,nobs,CLOUD_COVER )
-    call obs_headSet_i(obsdat,OBS_AZA,nobs,AZIMUTH )
-    call obs_headSet_i(obsdat,OBS_SUN,nobs,SOLAR_ZENITH )
-    call obs_headSet_i(obsdat,OBS_SAZ,nobs,SOLAR_AZIMUTH )
-    call obs_headSet_i(obsdat,OBS_SAT,nobs,ID_SAT)
-    call obs_headSet_i(obsdat,OBS_GQF,nobs,IGQISFLAGQUAL)
-    call obs_headSet_i(obsdat,OBS_GQL,nobs,IGQISQUALINDEXLOC)
+    if ( obs_columnActive_IH(obsdat,OBS_OFL) ) call obs_headSet_i(obsdat,OBS_OFL,nobs,LAND_SEA)
+    if ( obs_columnActive_IH(obsdat,OBS_INS) ) call obs_headSet_i(obsdat,OBS_INS,nobs,INSTRUMENT  )
+    if ( obs_columnActive_IH(obsdat,OBS_SZA) ) call obs_headSet_i(obsdat,OBS_SZA,nobs,ZENITH )
+    if ( obs_columnActive_IH(obsdat,OBS_FOV) ) call obs_headSet_i(obsdat,OBS_FOV,nobs,IFOV )
+    if ( obs_columnActive_IH(obsdat,OBS_CLF) ) call obs_headSet_i(obsdat,OBS_CLF,nobs,CLOUD_COVER )
+    if ( obs_columnActive_IH(obsdat,OBS_AZA) ) call obs_headSet_i(obsdat,OBS_AZA,nobs,AZIMUTH )
+    if ( obs_columnActive_IH(obsdat,OBS_SUN) ) call obs_headSet_i(obsdat,OBS_SUN,nobs,SOLAR_ZENITH )
+    if ( obs_columnActive_IH(obsdat,OBS_SAZ) ) call obs_headSet_i(obsdat,OBS_SAZ,nobs,SOLAR_AZIMUTH )
+    if ( obs_columnActive_IH(obsdat,OBS_SAT) ) call obs_headSet_i(obsdat,OBS_SAT,nobs,ID_SAT)
+    if ( obs_columnActive_IH(obsdat,OBS_GQF) ) call obs_headSet_i(obsdat,OBS_GQF,nobs,IGQISFLAGQUAL)
+    if ( obs_columnActive_IH(obsdat,OBS_GQL) ) call obs_headSet_i(obsdat,OBS_GQL,nobs,IGQISQUALINDEXLOC)
     !if( trim(FAMTYP) .eq. trim('RO'))print *, 'geoid   QCFLAG TANGENT_RADIUS GEOID=',IRO_QCFLAG,RTANGENT_RADIUS,RGEOID
-    call obs_headSet_i(obsdat,OBS_ROQF,nobs,IRO_QCFLAG)
-    call obs_headSet_r(obsdat,OBS_TRAD,nobs,RTANGENT_RADIUS)
-    call obs_headSet_r(obsdat,OBS_GEOI,nobs,RGEOID)
+    if ( obs_columnActive_IH(obsdat,OBS_ROQF) ) call obs_headSet_i(obsdat,OBS_ROQF,nobs,IRO_QCFLAG)
+    if ( obs_columnActive_RH(obsdat,OBS_TRAD) ) call obs_headSet_r(obsdat,OBS_TRAD,nobs,RTANGENT_RADIUS)
+    if ( obs_columnActive_RH(obsdat,OBS_GEOI) ) call obs_headSet_r(obsdat,OBS_GEOI,nobs,RGEOID)
     if (trim(FAMTYP) .eq. trim('CH')) then
-        call obs_headSet_i(obsdat,OBS_CHM,nobs,CONSTITUENT_TYPE)
+        if ( obs_columnActive_IH(obsdat,OBS_CHM) ) call obs_headSet_i(obsdat,OBS_CHM,nobs,CONSTITUENT_TYPE)
     else
-        call obs_headSet_i(obsdat,OBS_CHM,nobs,-1)
+        if ( obs_columnActive_IH(obsdat,OBS_CHM) ) call obs_headSet_i(obsdat,OBS_CHM,nobs,-1)
     end if
 
   END SUBROUTINE  WRITE_INFO

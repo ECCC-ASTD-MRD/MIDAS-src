@@ -7,27 +7,25 @@
 #machine=eccc-ppp2
 #abs="${HOME}/data_maestro/ords/midas_abs/midas-ensembleH_ubuntu-14.04-amd64-64-v_3.0.4-68-g19f22a7_M.Abs"
 
-machine=brooks
-#abs="${HOME}/data_maestro/ords/midas_abs/midas-ensembleH_sles-11-broadwell-64-xc40-v_3.0.4-67-ga8fcc8a_M.Abs"
-abs="${HOME}/data_maestro/ords/midas_abs/midas-ensembleH_sles-11-broadwell-64-xc40-v_3.0.4-68-g19f22a7_M.Abs"
+machine=hare
+abs="${HOME}/data_maestro/ords/midas_abs/midas-ensembleH_sles-11-broadwell-64-xc40-v_3.0.4-70-gcd43d5a_M.Abs"
 
 ensdir="/home/mab001/data_maestro/${machine}/kal569/with_gz"
-obsdir="/home/mab001/data_maestro/${machine}/ensembleh/obssplit_16x16_noiasicris/"
+obsdir="/home/mab001/data_maestro/${machine}/ensembleh/obssplit_264x1_noiasicris/"
 coefsat="/home/scvs400/datafiles/constants/cmda/alt/v3.0.0/rtcoefsat"
 statsat="/home/scvs400/datafiles/constants/cmda/alt/v3.0.0/statsat/"
 obscov="/home/sanl000/ANAL_shared/datafiles/constants/arma/oavar/2.1.3/__STATOBS_CONV_201709__/"
-npex=16
-npey=16
+npex=264
+npey=1
 openmp=2
-maxcputime=600
+maxcputime=450
 run_in_parallel="/fs/ssm/eccc/mrd/rpn/utils/16.2/all/bin/r.run_in_parallel_1.1.28c"
 
 #
 # Don't modify below ...
 #
 
-ensdate=2017010100
-gest="${HOME}/data_maestro/${machine}/ensembleh/test2_256_tinterp/"
+gest="${HOME}/data_maestro/${machine}/ensembleh/test2_256_264mpix2_tinterp_anyass15/"
 
 # build the namelist
 cat << EOF > $TMPDIR/flnml
@@ -35,8 +33,8 @@ cat << EOF > $TMPDIR/flnml
 /
  &NAMENSEMBLEH
    NENS = 256
-   DATE = ${ensdate}
    USETLMH = .false.
+   OBSCLEAN = .true.
 /
  &NAMTIME
   DSTEPOBS = 1.0d0
@@ -51,8 +49,8 @@ cat << EOF > $TMPDIR/flnml
    ANLVAR(6)   ='TG'
 /
  &NAMDIMO
-   NMXOBS=30000,
-   NDATAMX=500000,
+   NMXOBS=15000,
+   NDATAMX=100000,
 /
  &NAMRMAT
 /

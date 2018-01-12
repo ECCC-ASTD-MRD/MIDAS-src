@@ -459,14 +459,16 @@ module columnData_mod
     end function col_getOffsetFromVarno
 
 
-  subroutine col_calcPressure(column)
+  subroutine col_calcPressure(column, beSilent_opt)
     implicit none
     type(struct_columnData), intent(inout) :: column
+    logical, optional :: beSilent_opt
 
     real(kind=8), allocatable :: Psfc(:,:),zppobs2(:,:)
     real(kind=8), pointer     :: zppobs1(:,:,:) => null()
     real(kind=8), pointer     :: dP_dPsfc(:,:,:) => null()
     integer :: jobs, status
+    logical                   :: beSilent
 
     if ( col_getNumCol(column) <= 0 ) return
 
@@ -479,7 +481,13 @@ module columnData_mod
       Psfc(1,jobs) = col_getElem(column,1,jobs,'P0')
     enddo
 
-    write(*,*) 'col_calcPressure: computing pressure on staggered or UNstaggered levels'
+    if ( present(beSilent_opt) ) then
+      beSilent = beSilent_opt
+    else
+      beSilent = .false.
+    end if
+
+    if ( .not.beSilent ) write(*,*) 'col_calcPressure: computing pressure on staggered or UNstaggered levels'
 
     status=vgd_levels(column%vco%vgrid,ip1_list=column%vco%ip1_M,  &
                       levels=zppobs1,sfc_field=Psfc,in_log=.false.)
@@ -499,7 +507,7 @@ module columnData_mod
     if (associated(zppobs1)) deallocate(zppobs1)
     deallocate(zppobs2)
 
-    write(*,*) 'col_calcPressure: computing derivate of pressure wrt surface pressure'
+    if ( .not.beSilent ) write(*,*) 'col_calcPressure: computing derivate of pressure wrt surface pressure'
 
     status = vgd_dpidpis(column%vco%vgrid,column%vco%ip1_M,dP_dPsfc,Psfc)
     allocate(zppobs2(col_getNumLev(column,'MM'),col_getNumCol(column)))
@@ -758,7 +766,7 @@ module columnData_mod
           ilev2 = ilev1 - 1 + column%varNumLev(vnl_varListIndex(varName))
           allColumns => column%all(ilev1:ilev2,:)
         else
-          call utl_abort('col_getAllColumn: Unknown variable name! ' // varName)
+          call utl_abort('col_getAllColumns: Unknown variable name! ' // varName)
         endif
       else
         allColumns => column%all(:,:)

@@ -577,9 +577,11 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_OMA = OBS_OMP +1 ! obs - H (analysis)
    integer, parameter, public :: OBS_OER = OBS_OMA +1 ! sigma(obs)
    integer, parameter, public :: OBS_HPHT= OBS_OER +1 ! root of (hpht with hx scalar)
-   integer, parameter, public :: OBS_ZHA = OBS_HPHT+1 ! vert coordinate for Schur product
+   integer, parameter, public :: OBS_HAHT= OBS_HPHT +1 ! root of (hp_{a}ht with hx scalar)
+   integer, parameter, public :: OBS_ZHA = OBS_HAHT+1 ! vert coordinate for Schur product
    integer, parameter, public :: OBS_OMP6= OBS_ZHA +1 ! obs - H (6-h trial field)
-   integer, parameter, public :: OBS_SIGI= OBS_OMP6+1 ! ensemble-based estimate of the innov std dev
+   integer, parameter, public :: OBS_OMA0= OBS_OMP6+1 ! obs - H (analysis at central time)
+   integer, parameter, public :: OBS_SIGI= OBS_OMA0+1 ! ensemble-based estimate of the innov std dev
    integer, parameter, public :: OBS_SIGO= OBS_SIGI+1 ! ensemble-based estimate of obs std dev
    integer, parameter, public :: OBS_POB = OBS_SIGO+1 ! initial value of "gamma" for variational QC 
    integer, parameter, public :: OBS_WORK= OBS_POB +1 ! temporary values
@@ -595,8 +597,8 @@ module ObsColumnNames_mod
    ! REAL-BODY COLUMN NAMES
    !
    character(len=4), target :: ocn_ColumnNameList_RB(NBDY_REAL_BEG:NBDY_REAL_END) = &
-      (/ 'PPP ','SEM ','VAR ','OMP ','OMA ','OER ','HPHT','ZHA ','OMP6','SIGI','SIGO', &  
-         'POB ','OMF ','PRM ','JOBS','QCV ','FSO ' /)
+      (/ 'PPP ','SEM ','VAR ','OMP ','OMA ','OER ','HPHT','HAHT','ZHA ','OMP6','OMA0',     &
+         'SIGI','SIGO','POB ','WORK','PRM ','JOBS','QCV ','FSO ' /)
 end module ObsColumnNames_mod
 
 
@@ -970,7 +972,8 @@ contains
 
          bdy_real_column_list= &
             (/OBS_PPP, OBS_SEM, OBS_VAR, OBS_OMP, OBS_OMA, OBS_OER, OBS_HPHT,&
-              OBS_ZHA, OBS_OMP6, OBS_SIGI, OBS_SIGO, (0,ii=12,100) /)
+              OBS_HAHT,OBS_ZHA, OBS_OMP6, OBS_OMA0, OBS_SIGI, OBS_SIGO, &
+              (0,ii=14,100) /)
 
          do list_index=1,COLUMN_LIST_SIZE
             column_index = hdr_int_column_list(list_index)
@@ -996,6 +999,50 @@ contains
             call odc_activateColumn(odc_flavour_RB, column_index)
          end do
 
+      elseif(trim(obsColumnMode).eq.'ENKFMIDAS') then COLUMN_MODE
+
+         hdr_int_column_list= &
+            (/OBS_RLN, OBS_ONM, OBS_INS, OBS_OTP, OBS_ITY, OBS_SAT, OBS_TEC, &
+              OBS_DAT, OBS_ETM, OBS_NLV, OBS_OFL, OBS_PAS, OBS_REG, OBS_IP,  &
+              OBS_AZA, OBS_SZA, OBS_SUN, OBS_CLF, OBS_ST1, OBS_IDO, OBS_IDF, &
+              OBS_SAZ, OBS_GQF, OBS_GQL, OBS_ROQF, (0,ii=26,100) /)
+
+         hdr_real_column_list= &
+            (/OBS_LAT, OBS_LON, OBS_ALT, OBS_BX,  OBS_BY,  OBS_BZ, OBS_TRAD, &
+              OBS_GEOI,(0,ii=9,100)/)
+
+         bdy_int_column_list= &
+            (/OBS_VNM, OBS_FLG, OBS_ASS, OBS_HIND,OBS_VCO, OBS_LYR, OBS_IDD, &
+              OBS_XTR, (0,ii=9,100) /)
+
+         bdy_real_column_list= &
+            (/OBS_PPP, OBS_SEM, OBS_VAR, OBS_OMP, OBS_OMA, OBS_OER, OBS_HPHT,&
+              OBS_HAHT,OBS_ZHA, OBS_OMP6, OBS_OMA0, OBS_SIGI, OBS_SIGO, OBS_PRM,&
+              (0,ii=15,100) /)
+
+         do list_index=1,COLUMN_LIST_SIZE
+            column_index = hdr_int_column_list(list_index)
+            if(column_index .eq. 0) exit
+            call odc_activateColumn(odc_flavour_IH, column_index)
+         end do
+
+         do list_index=1,COLUMN_LIST_SIZE
+            column_index = hdr_real_column_list(list_index)
+            if(column_index .eq. 0) exit
+            call odc_activateColumn(odc_flavour_RH, column_index)
+         end do
+
+         do list_index=1,COLUMN_LIST_SIZE
+            column_index = bdy_int_column_list(list_index)
+            if(column_index .eq. 0) exit
+            call odc_activateColumn(odc_flavour_IB, column_index)
+         end do
+
+         do list_index=1,COLUMN_LIST_SIZE
+            column_index = bdy_real_column_list(list_index)
+            if(column_index .eq. 0) exit
+            call odc_activateColumn(odc_flavour_RB, column_index)
+         end do
 
       elseif(trim(obsColumnMode).eq.'VAR') then COLUMN_MODE
 
@@ -1021,6 +1068,8 @@ contains
          enddo
          do column_index=NBDY_REAL_BEG,NBDY_REAL_END
             if(      column_index.ne.OBS_OMP6 &
+               .and. column_index.ne.OBS_OMA0 &
+               .and. column_index.ne.OBS_HAHT &
                .and. column_index.ne.OBS_SIGI &
                .and. column_index.ne.OBS_SIGO &
               )call odc_activateColumn(odc_flavour_RB, column_index)
@@ -1288,6 +1337,7 @@ module ObsSpaceData_mod
    public obs_bodySet_r  ! set a real body value in the observation object
    public obs_class_initialize ! initialize class variables: column mode
    public obs_clean      ! remove from obs data those that not to be assimilated
+   public obs_clean2     ! modified version of obs_clean used by MIDAS
    public obs_columnActive_IB ! return the active status for a column (T/F)
    public obs_columnActive_IH !                 "
    public obs_columnActive_RB !                 "
@@ -1412,8 +1462,8 @@ module ObsSpaceData_mod
 
    !    real-body column numbers
    public :: OBS_PPP, OBS_SEM, OBS_VAR, OBS_OMP, OBS_OMA, OBS_OER, OBS_HPHT
-   public :: OBS_ZHA, OBS_OMP6,OBS_SIGI,OBS_SIGO,OBS_POB, OBS_WORK, OBS_PRM
-   public :: OBS_JOBS,OBS_QCV,OBS_FSO
+   public :: OBS_HAHT,OBS_ZHA, OBS_OMP6,OBS_OMA0,OBS_SIGI,OBS_SIGO,OBS_POB
+   public :: OBS_WORK,OBS_PRM, OBS_JOBS,OBS_QCV,OBS_FSO
 
 
    ! OBSERVATION-SPACE FUNDAMENTAL PARAMETERS
@@ -1925,6 +1975,7 @@ contains
                         call obs_bodySet_r(obsdat, OBS_OMP, IP+IND, real(PPMIS,OBS_REAL))
                         call obs_bodySet_r(obsdat, OBS_OMA, IP+IND, real(PPMIS,OBS_REAL))
                         call obs_bodySet_r(obsdat, OBS_HPHT, IP+IND, real(PPMIS,OBS_REAL))
+                        call obs_bodySet_r(obsdat, OBS_HAHT, IP+IND, real(PPMIS,OBS_REAL))
                         call obs_bodySet_r(obsdat, OBS_OER, IP+IND, real(PPMIS,OBS_REAL))
                         !
                         ! OBS ERROR FOR HUMSAT
@@ -2275,6 +2326,88 @@ contains
 
    end subroutine obs_clean
 
+
+   subroutine obs_clean2(obsdat)
+     !
+     ! object  - remove all observations from the obsdat  
+     !           that will not be assimilated. 
+     !
+     ! modified version of obs_clean, used by MIDAS
+     !
+     implicit none
+
+     type (struct_obs), intent(inout) :: obsdat
+
+     integer :: numBodyAccept,bodyIndexEnd,bodyIndexBeg,numBodyCleaned
+     integer :: bodyIndex,headerIndex,numHeaderCleaned
+     integer :: column_index
+     integer :: active_index
+
+     write(*,*) 'before cleanup of obsSpaceData:'
+     write(*,*) 'number of headers ', obsdat%numHeader
+     write(*,*) 'number of bodies  ', obsdat%numBody
+
+     numHeaderCleaned = 0 
+     numBodyCleaned = 0
+     stations: do headerIndex = 1, obsdat%numHeader
+       bodyIndexBeg = obs_headElem_i(obsdat, OBS_RLN, headerIndex)
+       bodyIndexEnd = obs_headElem_i(obsdat, OBS_NLV, headerIndex) + bodyIndexBeg - 1
+       numBodyAccept = 0
+       observations: do bodyIndex = bodyIndexBeg, bodyIndexEnd
+         if ( obs_bodyElem_i(obsdat,OBS_ASS,bodyIndex) == 1 ) then
+           ! the observation will be used in the analysis
+           numBodyAccept = numBodyAccept + 1
+           numBodyCleaned = numBodyCleaned + 1
+           do active_index = 1, odc_numActiveColumn(obsdat%intBodies)
+             column_index = odc_columnIndexFromActiveIndex( &
+                              obsdat%intBodies%odc_flavour,active_index)
+             call obs_bodySet_i (obsdat, column_index, numBodyCleaned, &
+                  obs_bodyElem_i(obsdat, column_index, bodyIndex))
+           enddo
+           do active_index = 1, odc_numActiveColumn(obsdat%realBodies)
+             column_index = odc_columnIndexFromActiveIndex( &
+                                 obsdat%realBodies%odc_flavour,active_index)
+             call obs_bodySet_r (obsdat, column_index, numBodyCleaned, &
+                                 obs_bodyElem_r(obsdat, column_index, bodyIndex))
+           enddo
+           ! Revise the header row cross-index to match the revised headers
+           call obs_bodySet_i (obsdat, OBS_HIND, numBodyCleaned, numHeaderCleaned+1)
+         endif
+       enddo observations
+
+       ! adjust obsdat%realHeaders%columns 
+       if (numBodyAccept.gt.0) then
+         numHeaderCleaned = numHeaderCleaned + 1
+         do active_index = 1, odc_numActiveColumn(obsdat%intHeaders)
+           column_index = odc_columnIndexFromActiveIndex( &
+                                  obsdat%intHeaders%odc_flavour,active_index)
+           call obs_headSet_i (obsdat, column_index, numHeaderCleaned, &
+                obs_headElem_i(obsdat, column_index, headerIndex))
+         enddo
+         do active_index = 1, odc_numActiveColumn(obsdat%realHeaders)
+           column_index = odc_columnIndexFromActiveIndex( &
+                                 obsdat%realHeaders%odc_flavour,active_index)
+           call obs_headSet_r (obsdat, column_index, numHeaderCleaned, &
+                obs_headElem_r(obsdat, column_index, headerIndex))
+         enddo
+         obsdat%cstnid(numHeaderCleaned) = obsdat%cstnid(headerIndex)
+         obsdat%cfamily(numHeaderCleaned) = obsdat%cfamily(headerIndex)
+         ! Revise the body cross-indices to match the revised bodies
+         call obs_headSet_i(obsdat, OBS_NLV, numHeaderCleaned, numBodyAccept)
+         call obs_headSet_i(obsdat, OBS_RLN, numHeaderCleaned, numBodyCleaned-numBodyAccept+1)
+       endif
+     enddo stations
+     obsdat%numHeader = numHeaderCleaned
+     obsdat%numBody = numBodyCleaned
+
+     ! reallocate obsdat to free up memory
+     call obs_squeeze(obsdat)
+
+     write(*,*) 'after cleanup of obsSpaceData: '
+     write(*,*) 'number of headers with valid data   ',obsdat%numHeader
+     write(*,*) 'number of bodies kept               ',obsdat%numBody
+
+   end subroutine obs_clean2
 
    function obs_columnActive_IB(obsdat,column_index) result(columnActive)
       !
@@ -3022,12 +3155,14 @@ contains
 
                         OBSDAT%REALBODIES%COLUMNS(OBS_VAR)%value_r(IP+IND)=pvalue
                                         ! initialise o minus p , o minus p6,
-                                        ! o minus a, hpht, sigi and sigo to undefined values
-                                        ! (-999)
+                                        ! o minus a, omin a0, hpht, sigi and sigo 
+                                        ! to undefined values (-999)
                         obsdat%realBodies%columns(OBS_OMP)%value_r(ip+ind)=-999.
                         obsdat%realBodies%columns(OBS_OMP6)%value_r(ip+ind)=-999.
                         obsdat%realBodies%columns(OBS_OMA)%value_r(ip+ind)=-999.
+                        obsdat%realBodies%columns(OBS_OMA0)%value_r(ip+ind)=-999.
                         obsdat%realBodies%columns(OBS_HPHT)%value_r(ip+ind)=-999.
+                        obsdat%realBodies%columns(OBS_HAHT)%value_r(ip+ind)=-999.
                         obsdat%realBodies%columns(OBS_SIGI)%value_r(ip+ind)=-999.
                         obsdat%realBodies%columns(OBS_SIGO)%value_r(ip+ind)=-999.
                         obsdat%intBodies%columns(OBS_VNM)%value_i(IP+IND)=KLIST(ielement)
@@ -3092,8 +3227,8 @@ contains
       ! print all data records
 
       write(kulout,'(a,a,a,a)') '   no.   var.  press. ass observ. ', &
-         '  o minus p  o minus p6  o minus a    obserr. root(hpht) ', &
-         'innov std dev obs std dev   acc ', &
+         '  o minus p  o minus p6  o minus a   o min a0     obserr. root(hpht) ', &
+         'root(haht) innov std dev obs std dev   acc ', &
          'zhad  vco'
       do jdata = ipnt, ipnt + idata - 1
          idata2 = jdata -ipnt + 1
@@ -3110,8 +3245,10 @@ contains
             obsdat%realBodies%columns(OBS_OMP )%value_r(jdata), &
             obsdat%realBodies%columns(OBS_OMP6)%value_r(jdata), &
             obsdat%realBodies%columns(OBS_OMA )%value_r(jdata), &
+            obsdat%realBodies%columns(OBS_OMA0)%value_r(jdata), &
             obsdat%realBodies%columns(OBS_OER )%value_r(jdata), &
             obsdat%realBodies%columns(OBS_HPHT)%value_r(jdata), &
+            obsdat%realBodies%columns(OBS_HAHT)%value_r(jdata), &
             obsdat%realBodies%columns(OBS_SIGI)%value_r(jdata), &
             obsdat%realBodies%columns(OBS_SIGO)%value_r(jdata), &
             var3d, &
@@ -3120,7 +3257,7 @@ contains
 
       enddo
 
-9201  format(1x,i3,1x,i6,1x,f7.0,1x,i3,8(1x,f10.3),1x,i2, &
+9201  format(1x,i3,1x,i6,1x,f7.0,1x,i3,10(1x,f10.3),1x,i2, &
          1x,f10.3,1x,i2)
 
       return
@@ -3217,15 +3354,18 @@ contains
       integer, allocatable :: intStnid_mpilocal(:,:),all_intStnid_mpilocal(:,:,:)
       integer, allocatable :: intFamily_mpilocal(:,:),all_intFamily_mpilocal(:,:,:)
       integer, allocatable :: intBodies_mpilocal(:,:),all_intBodies_mpilocal(:,:,:)
+      integer, allocatable :: all_numHeader_mpilocal(:), all_numBody_mpilocal(:)
       real(OBS_REAL), allocatable :: realBodies_mpilocal(:,:),all_realBodies_mpilocal(:,:,:)
 
       integer :: ierr
       integer :: get_max_rss
       integer :: numHeader_mpilocalmax,numBody_mpilocalmax
       integer :: numHeader_mpiGlobal,numBody_mpiGlobal
+      integer :: numHeader_mpilocal, numBody_mpilocal
       integer :: bodyIndex_mpilocal,bodyIndex
       integer :: headerIndex_mpilocal,headerIndex
-      integer :: nsize,sourcePE,nprocs_mpi,myid_mpi
+      integer :: headerIndexOffset,bodyIndexOffset
+      integer :: nsize,sourcePE,nprocs_mpi,myid_mpi,procIndex
       integer :: charIndex,activeIndex,columnIndex
       !!---------------------------------------------------------------
 
@@ -3245,6 +3385,59 @@ contains
       ! determine number of rows in mpiglobal arrays
       numHeader_mpiGlobal = obs_numHeader_mpiglobal(obsdat)
       numBody_mpiGlobal   = obs_numBody_mpiglobal  (obsdat)
+
+      ! determine number of rows in mpilocal arrays
+      numHeader_mpilocal = obs_numHeader(obsdat)
+      numBody_mpilocal   = obs_numBody(obsdat)
+
+      ! construct the header/body mpiglobal indices if they do not exist
+      if ( .not. associated(obsdat%headerIndex_mpiglobal) ) then
+         write(*,*) 'obs_expandToMpiGlobal: This object was never mpiglobal. ' // &
+                    'Just gather the body and header rows in a simple way.'
+
+         if(numHeader_mpilocal > 0) then
+            ! Allocate the list of global header indices
+            allocate(obsdat%headerIndex_mpiglobal(numHeader_mpilocal))
+            obsdat%headerIndex_mpiglobal(:)=0
+         else
+            nullify(obsdat%headerIndex_mpiglobal)
+            write(*,*) 'obs_expandToMpiGlobal: This mpi processor has zero headers.'
+         end if
+
+         if(numBody_mpilocal > 0) then
+            ! Allocate the list of global body indices
+            allocate(obsdat%bodyIndex_mpiglobal(numBody_mpilocal))
+            obsdat%bodyIndex_mpiglobal(:)=0
+         else
+            nullify(obsdat%bodyIndex_mpiglobal)
+            write(*,*) 'obs_expandToMpiGlobal: This mpi processor has zero bodies.'
+         endif
+
+         allocate( all_numHeader_mpilocal(nprocs_mpi) )
+         call rpn_comm_allgather(numHeader_mpilocal,     1, "mpi_integer", &
+                                 all_numHeader_mpilocal, 1, "mpi_integer", &
+                                 "GRID",ierr)
+         allocate( all_numBody_mpilocal(nprocs_mpi) )
+         call rpn_comm_allgather(numBody_mpilocal,     1, "mpi_integer", &
+                                 all_numBody_mpilocal, 1, "mpi_integer", &
+                                 "GRID",ierr)
+
+         headerIndexOffset = 0
+         bodyIndexOffset = 0
+         do procIndex = 1, myid_mpi
+            headerIndexOffset = headerIndexOffset + all_numHeader_mpilocal(procIndex)
+            bodyIndexOffset   = bodyIndexOffset   + all_numBody_mpilocal(procIndex)
+         end do
+
+         do headerIndex = 1, numHeader_mpilocal
+            obsdat%headerIndex_mpiglobal(headerIndex) = headerIndex + headerIndexOffset
+         end do
+
+         do bodyIndex = 1, numBody_mpilocal
+            obsdat%bodyIndex_mpiglobal(bodyIndex) = bodyIndex + bodyIndexOffset
+         end do
+
+      end if ! construct mpiglobal indices
 
       ! first set the mpiglobal header index value stored in the body table
       do bodyIndex_mpilocal=1,obsdat%numBody
@@ -5006,7 +5199,7 @@ contains
       cma_sub%numBody=numBody
       cma_sub%mpi_local=.false.
 
- end subroutine obs_creatSubCMA
+   end subroutine obs_creatSubCMA
 
 
 
@@ -6351,8 +6544,8 @@ contains
       type (struct_obs), intent(inout) :: obsdat
       integer,      intent(in) :: kobs,kulout
 
-      integer :: idata,idata2,ihpht,ioer,ioma,iomp,iomp6,ipnt,ippp, &
-         ivnm,ivnmc,istat,isigi, isigo,ivar,jdata,jtrans,var3d
+      integer :: idata,idata2,ihaht,ihpht,ioer,ioma,ioma0,iomp,iomp6,ipnt, &
+         ippp, ivnm,ivnmc,istat,isigi, isigo,ivar,jdata,jtrans,var3d
       integer  :: mrbcol,mrbcvt
       real     :: rppp
       character(len=100) :: message
@@ -6378,8 +6571,10 @@ contains
          istat=mrbcvt(ivnmc,iomp ,obs_bodyElem_r(obsdat, OBS_OMP, jdata),1,1,1,1)
          istat=mrbcvt(ivnmc,iomp6,obs_bodyElem_r(obsdat, OBS_OMP6,jdata),1,1,1,1)
          istat=mrbcvt(ivnmc,ioma ,obs_bodyElem_r(obsdat, OBS_OMA, jdata),1,1,1,1)
+         istat=mrbcvt(ivnmc,ioma0,obs_bodyElem_r(obsdat, OBS_OMA0,jdata),1,1,1,1)
          istat=mrbcvt(ivnmc,ioer ,obs_bodyElem_r(obsdat, OBS_OER, jdata),1,1,1,1)
          istat=mrbcvt(ivnmc,ihpht,obs_bodyElem_r(obsdat, OBS_HPHT,jdata),1,1,1,1)
+         istat=mrbcvt(ivnmc,ihaht,obs_bodyElem_r(obsdat, OBS_HAHT,jdata),1,1,1,1)
          istat=mrbcvt(ivnmc,isigi,obs_bodyElem_r(obsdat, OBS_SIGI,jdata),1,1,1,1)
          istat=mrbcvt(ivnmc,isigo,obs_bodyElem_r(obsdat, OBS_SIGO,jdata),1,1,1,1)
          jtrans=obs_bodyElem_i(obsdat, OBS_VCO, jdata)
@@ -6402,13 +6597,13 @@ contains
          write(kulout,fmt=9201) kobs,idata2, &
             obs_bodyElem_i(obsdat, OBS_VNM, jdata),ippp, &
             obs_bodyElem_i(obsdat, OBS_ASS, jdata), &
-            ivar,iomp,iomp6,ioma,ioer,ihpht,isigi,isigo,var3d,  &
+            ivar,iomp,iomp6,ioma,ioma0,ioer,ihpht,ihaht,isigi,isigo,var3d,  &
             obs_bodyElem_r(obsdat, OBS_ZHA, jdata), &
             obs_bodyElem_i(obsdat, OBS_VCO, jdata), &
             obs_bodyElem_i(obsdat, OBS_FLG, jdata)
       enddo
 
-9201  format(1x,i9,',',i3,2(',',i6),',',i3,8(',',i8), &
+9201  format(1x,i9,',',i3,2(',',i6),',',i3,10(',',i8), &
          ',',i2,',',f10.3,',',i2,',',i12)
 
       return

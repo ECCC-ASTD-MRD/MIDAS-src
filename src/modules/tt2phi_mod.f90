@@ -38,7 +38,7 @@ module tt2phi_mod
 
 contains
 
-subroutine tt2phi(columnghr)
+subroutine tt2phi(columnghr,beSilent_opt)
   !
   !**s/r tt2phi - Temperature to geopotential transformation on GEM4 staggered levels
   !               NOTE: we assume 
@@ -53,6 +53,7 @@ subroutine tt2phi(columnghr)
   implicit none
 
   type(struct_columnData) :: columnghr
+  logical, optional       :: beSilent_opt
 
   integer :: columnIndex,lev_M,lev_T,nlev_M,nlev_T,status,Vcode
   real(8) :: hu,tt,ratioP
@@ -60,6 +61,13 @@ subroutine tt2phi(columnghr)
   real(8), pointer     :: gz_T(:),gz_M(:)
   real                 :: gz_sfcOffset_T_r4, gz_sfcOffset_M_r4
   type(struct_vco), pointer :: vco_ghr
+  logical                   :: beSilent
+
+  if ( present(beSilent_opt) ) then
+    beSilent = beSilent_opt
+  else
+    beSilent = .false.
+  end if
 
   vco_ghr => col_getVco(columnghr)
   status = vgd_get(vco_ghr%vgrid,key='ig_1 - vertical coord code',value=Vcode)
@@ -130,8 +138,10 @@ subroutine tt2phi(columnghr)
 
     status = vgd_get(columnghr%vco%vgrid,key='DHM - height of the diagnostic level (m)',value=gz_sfcOffset_M_r4)
     status = vgd_get(columnghr%vco%vgrid,key='DHT - height of the diagnostic level (t)',value=gz_sfcOffset_T_r4)
-    if(mpi_myid == 0) write(*,*) 'col_fillmvo: height offset for near-sfc momentum level is: ', gz_sfcOffset_M_r4, ' metres'
-    if(mpi_myid == 0) write(*,*) 'col_fillmvo: height offset for near-sfc thermo level is:   ', gz_sfcOffset_T_r4, ' metres'
+    if(mpi_myid == 0 .and. .not.beSilent ) then
+      write(*,*) 'col_fillmvo: height offset for near-sfc momentum level is: ', gz_sfcOffset_M_r4, ' metres'
+      write(*,*) 'col_fillmvo: height offset for near-sfc thermo level is:   ', gz_sfcOffset_T_r4, ' metres'
+    end if
 
     ! loop over all columns
     do columnIndex = 1, col_getNumCol(columnghr)

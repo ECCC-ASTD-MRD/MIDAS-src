@@ -45,23 +45,26 @@ program midas_ensembleH
   type(struct_columnData), allocatable :: columns(:)
   type(struct_columnData)              :: column_mean
 
-  real(4), allocatable :: HX_mean_r4(:)
-  real(4), allocatable :: HX_ens_r4(:,:)
-  real(4), allocatable :: obsVal_r4(:)
+  real(8), allocatable :: HXmean(:)
+  real(8), allocatable :: HXens(:,:)
+  real(8), pointer     :: HXensT_mpiglobal(:,:)
+  real(8), allocatable :: obsVal(:)
 
   type(struct_vco), pointer :: vco_ens => null()
   type(struct_hco), pointer :: hco_ens => null()
   type(struct_hco), pointer :: hco_ens_core => null()
 
-  integer              :: fclos, fnom, fstopc, newdate, ierr
-  integer              :: memberIndex, stepIndex, numStep, procIndex, numBody
-  integer              :: idate, itime, nulnam
-  integer              :: dateStamp, dateStampObs
+  integer              :: fclos, fnom, fstopc, ierr
+  integer              :: memberIndex, stepIndex, numStep, procIndex, numBody, bodyIndex
+  integer              :: nulnam, dateStamp
+  integer              :: unitObsHdr, unitObsBdy, unitHX, unitDim
   integer              :: get_max_rss
 
+  character(len=20)   :: fileNameObsHdr, fileNameObsBdy, fileNameHX, fileNameDim
   character(len=256)  :: ensFileName
-  character(len=3)    :: obsColumnMode
+  character(len=9)    :: obsColumnMode
   character(len=48)   :: obsMpiStrategy
+  character(len=10)   :: midasMode
 
   logical :: beSilent
 
@@ -70,9 +73,9 @@ program midas_ensembleH
   ! namelist variables
   character(len=2)   :: ctrlVarHumidity
   character(len=256) :: ensPathName, ensFileBaseName
-  logical  :: useTlmH
-  integer  :: nEns, date
-  NAMELIST /NAMENSEMBLEH/nEns, date, ensPathName, ensFileBaseName, ctrlVarHumidity, useTlmH
+  logical  :: useTlmH, obsClean
+  integer  :: nEns
+  NAMELIST /NAMENSEMBLEH/nEns, ensPathName, ensFileBaseName, ctrlVarHumidity, useTlmH, obsClean
 
   write(*,'(/,' //  &
         '3(" *****************"),/,' //                   &
@@ -98,11 +101,11 @@ program midas_ensembleH
 
   ! Setting default namelist variable values
   nEns            = 10
-  date            = 0
   ensPathName     = 'ensemble'
   ensFileBaseName = ''
   ctrlVarHumidity = 'LQ'
   useTlmH         = .true.
+  obsClean        = .false.
 
   ! Read the namelist
   nulnam = 0
@@ -118,11 +121,13 @@ program midas_ensembleH
     call utl_abort('midas-ensembleH: Not enough mpi processes available to read all ensemble members')
   end if
 
-  ! Initialize the analysis date-time from the namelist (for now)
-  idate   = date/100
-  itime   = (date-idate*100)*1000000
-  ierr    = newdate(dateStamp, idate, itime, 3)
-  if ( mpi_myid == 0 ) write(*,*) 'dateStamp from namelist= ', dateStamp
+  write(*,*) ''
+  write(*,*) 'midas-ensembleH: read in the observations, keeping them distributed as is (RR)'
+  write(*,*) ''
+  midasMode = 'analysis'
+  call tmg_start(2,'SETUPBURPFILES')
+  call burp_setupFiles(dateStamp,midasMode)
+  call tmg_stop(2)
 
   ! Setup timeCoord module
   call tim_setup
@@ -143,7 +148,7 @@ program midas_ensembleH
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
   !- Setup and read the background ensemble (keep distribution as members on native grid)
-  call tmg_start(2,'READ_ENSEMBLE')
+  call tmg_start(3,'READ_ENSEMBLE')
   write(*,*) ''
   write(*,*) 'midas-ensembleH: allocating stateVector_member'
   write(*,*) ''
@@ -156,64 +161,60 @@ program midas_ensembleH
     memberIndex = mpi_myid + 1
     call enkf_readMember(stateVector_member, ensPathName, memberIndex, ctrlVarHumidity)
   end if
-  call tmg_stop(2)
-
-  call tmg_start(3,'SETUPOBS')
-  write(*,*) ''
-  write(*,*) 'midas-ensembleH: read in the observations, keeping them distributed as is (RR)'
-  write(*,*) ''
-  obsColumnMode = 'VAR'
-  obsMpiStrategy = 'LIKESPLITFILES'
-  call burp_setupFiles(dateStampObs,'OminusF')
-  call inn_setupObs(obsSpaceData, obsColumnMode, obsMpiStrategy, 'analysis')
-  call oop_setup('analysis')
   call tmg_stop(3)
 
-  call tmg_start(4,'ALLOC_COLS')
+  call tmg_start(4,'SETUPOBS')
+  obsColumnMode = 'ENKFMIDAS'
+  obsMpiStrategy = 'LIKESPLITFILES'
+  call inn_setupObs(obsSpaceData, obsColumnMode, obsMpiStrategy, midasMode, obsClean_opt=obsClean)
+  call oop_setup(midasMode)
+  call tmg_stop(4)
+
+  call tmg_start(5,'ALLOC_COLS')
   write(*,*) ''
   write(*,*) 'midas-ensembleH: allocate an ensemble of columnData objects'
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
   write(*,*) ''
   call col_setup
+  allocate(columns(nEns))
+  do memberIndex = 1, nEns
+    beSilent = .true.
+    if ( memberIndex == 1 ) beSilent = .false.
+    call col_setVco(columns(memberIndex), vco_ens)
+    call col_allocate(columns(memberIndex), obs_numheader(obsSpaceData), mpi_local=.true., beSilent_opt=beSilent, setToZero_opt=.false.)
+  end do
   if ( useTlmH ) then
     write(*,*) 'midas-ensembleH: allocating column_mean'
     call col_setVco(column_mean, vco_ens)
     call col_allocate(column_mean, obs_numheader(obsSpaceData), mpi_local=.true.)
   end if
-  allocate(columns(nEns))
-  do memberIndex = 1, nEns
-    beSilent = .true.
-    if ( memberIndex == 1 ) beSilent = .false.
-    write(*,*) 'midas-ensembleH: allocating member ', memberIndex
-    call col_setVco(columns(memberIndex), vco_ens)
-    call col_allocate(columns(memberIndex), obs_numheader(obsSpaceData), mpi_local=.true., beSilent_opt=beSilent, setToZero_opt=.false.)
-    write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
-  end do
-  call tmg_stop(4)
+  write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+  call tmg_stop(5)
 
-  call tmg_start(5,'SETUP_COLS')
+  call tmg_start(6,'SETUP_COLS')
   write(*,*) ''
   write(*,*) 'midas-ensembleH: Interpolate ensemble members to obs locations/times and redistribute'
   write(*,*) ''
   call tim_sutimeinterp(obsSpaceData, numStep)
   call tim_sutimeinterpMpiglobal()
   call enkf_setupColumnsFromEnsemble(stateVector_member, obsSpaceData, columns)
-  call tmg_stop(5)
+  call tmg_stop(6)
 
   ! Initialize the observation error covariances
-  call oer_setObsErrors(obsSpaceData, 'analysis') ! IN
+  call oer_setObsErrors(obsSpaceData, midasMode) ! IN
 
   ! Allocate vectors for storing HX values
   numBody = obs_numBody(obsSpaceData)
-  allocate(HX_mean_r4(numBody))
-  allocate(HX_ens_r4(numBody, nEns))
-  allocate(obsVal_r4(numBody))
+  allocate(HXmean(numBody))
+  allocate(HXens(numBody, nEns))
+  allocate(obsVal(numBody))
 
   ! extract observation value, Y
-  call enkf_extractObsBodyColumn(obsVal_r4, obsSpaceData, OBS_VAR)
+  call enkf_extractObsRealBodyColumn(obsVal, obsSpaceData, OBS_VAR)
 
+  ! ------------------------------------------------------------
   ! Compute H(X) for all members either with TLM or nonlinear H()
-  call tmg_start(6,'OBSOPERANDWRITE')
+  ! ------------------------------------------------------------
   if ( useTlmH ) then
 
     ! Compute ensemble mean column and use nonlinear H()
@@ -223,12 +224,14 @@ program midas_ensembleH
     write(*,*) 'midas-ensembleH: apply nonlinear H to ensemble mean'
     write(*,*) ''
     ! compute Y-H(X) in OBS_OMP
+    call tmg_start(7,'OBSOPER')
     call inn_computeInnovation(column_mean, obsSpaceData)
+    call tmg_stop(7)
 
     ! extract observation-minus-HXmean value, Y-HXmean
-    call enkf_extractObsBodyColumn(HX_mean_r4, obsSpaceData, OBS_OMP)
+    call enkf_extractObsRealBodyColumn(HXmean, obsSpaceData, OBS_OMP)
     ! compute HXmean = Y - (Y-HXmean)
-    HX_mean_r4(:) = obsVal_r4(:) - HX_mean_r4(:)
+    HXmean(:) = obsVal(:) - HXmean(:)
 
     ! Compute ensemble perturbation columns and use TL H()
     call enkf_computeColumnsPerturbations(columns, column_mean)
@@ -237,16 +240,15 @@ program midas_ensembleH
     write(*,*) ''
     do memberIndex = 1, nEns
       ! compute H(dX) in OBS_WORK
+      call tmg_start(7,'OBSOPER')
       call oop_Htl(columns(memberIndex), column_mean, obsSpaceData, memberIndex)
+      call tmg_stop(7)
 
       ! extract HXpert value
-      call enkf_extractObsBodyColumn(HX_ens_r4(:,memberIndex), obsSpaceData, OBS_WORK)
+      call enkf_extractObsRealBodyColumn(HXens(:,memberIndex), obsSpaceData, OBS_WORK)
       ! Recombine mean and perturbation to get total HX values
-      HX_ens_r4(:,memberIndex) = HX_mean_r4(:) + HX_ens_r4(:,memberIndex)
+      HXens(:,memberIndex) = HXmean(:) + HXens(:,memberIndex)
     end do
-
-    ! Output H(X) files
-    call enkf_writeHXensemble(HX_ens_r4, obsSpaceData)
 
   else
 
@@ -258,22 +260,70 @@ program midas_ensembleH
       write(*,*) ''
       beSilent = .true.
       if ( memberIndex == 1 ) beSilent = .false.
+
+      call tmg_start(7,'OBSOPER')
       call inn_computeInnovation(columns(memberIndex), obsSpaceData, beSilent_opt=beSilent)
+      call tmg_stop(7)
 
       ! extract observation-minus-HX value, Y-HX
-      call enkf_extractObsBodyColumn(HX_ens_r4(:,memberIndex), obsSpaceData, OBS_OMP)
+      call enkf_extractObsRealBodyColumn(HXens(:,memberIndex), obsSpaceData, OBS_OMP)
       ! compute HX = Y - (Y-HX)
-      HX_ens_r4(:,memberIndex) = obsVal_r4(:) - HX_ens_r4(:,memberIndex)
+      HXens(:,memberIndex) = obsVal(:) - HXens(:,memberIndex)
+
     end do
 
-    ! Need to reconcile assimilation flag between all members
-    ! ????????????????
+  end if ! useTlmH
 
-    ! Output H(X) files
-    call enkf_writeHXensemble(HX_ens_r4, obsSpaceData)
+  ! Put y-mean(H(X)) in OBS_OMP
+  HXmean(:) = 0.0d0
+  do memberIndex = 1, nEns
+    do bodyIndex = 1, numBody
+      HXmean(bodyIndex) = HXmean(bodyIndex) + HXens(bodyIndex,memberIndex)
+    end do 
+  end do
+  HXmean(:) = HXmean(:)/nEns
+  do bodyIndex = 1, numBody
+    call obs_bodySet_r(obsSpaceData, OBS_OMP, bodyIndex,  &
+                       obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)-HXmean(bodyIndex))
+  end do
 
+  ! Gather obsSpaceData and HXens onto task 0
+  call tmg_start(8,'OBS&HX_MPICOMM')
+  call obs_expandToMpiGlobal(obsSpaceData)
+  call enkf_gatherHX(HXens,HXensT_mpiglobal)
+  call tmg_stop(8)
+
+  ! Output mpiglobal H(X) and obsSpaceData files
+  if( mpi_myid == 0 ) then
+    call tmg_start(9,'WRITEHXOBS')
+
+    ! open the output files
+    fileNameObsHdr = 'cmaheaderout'
+    unitObsHdr = 0
+    ierr = fnom(unitObsHdr, fileNameObsHdr, 'FTN+SEQ+UNF+R/W', 0)
+
+    fileNameObsBdy = 'cmabdyout'
+    unitObsBdy = 0
+    ierr = fnom(unitObsBdy, fileNameObsBdy, 'FTN+SEQ+UNF+R/W', 0)
+
+    fileNameHX     = 'cmahxout'
+    unitHX = 0
+    ierr = fnom(unitHX, fileNameHX, 'FTN+SEQ+UNF+R/W', 0)
+
+    fileNameDim    = 'cmadimout'
+    unitDim = 0
+    ierr = fnom(unitDim, fileNameDim, 'FTN+SEQ+R/W', 0)
+
+    ! write out obsSpaceData and HX files
+    call obs_write(obsSpaceData, HXensT_mpiglobal, nEns, unitObsHdr, unitObsBdy, unitHX, unitDim)
+
+    ierr = fclos(unitObsHdr)
+    ierr = fclos(unitObsBdy)
+    ierr = fclos(unitHX)
+    ierr = fclos(unitDim)
+
+    call tmg_stop(9)
   end if
-  call tmg_stop(6)
 
   !
   !- MPI, tmg finalize

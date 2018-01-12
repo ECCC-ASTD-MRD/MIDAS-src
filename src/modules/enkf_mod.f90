@@ -39,7 +39,8 @@ MODULE enkf_mod
   ! public procedures
   public :: enkf_readMember, enkf_setupColumnsFromEnsemble
   public :: enkf_computeColumnsMean, enkf_computeColumnsPerturbations
-  public :: enkf_extractObsBodyColumn, enkf_writeHXensemble
+  public :: enkf_extractObsRealBodyColumn, enkf_extractObsIntBodyColumn
+  public :: enkf_gatherHX
 
   integer, external :: get_max_rss
 
@@ -190,6 +191,7 @@ contains
         else
           ! if obs inside window, but zero weight for current stepIndex then skip it
           if ( tim_getTimeInterpWeight(headerIndex,stepIndex) == 0.0d0 ) cycle HEADER_LOOP
+
         end if
 
         numObs(stepIndex) = numObs(stepIndex) + 1
@@ -306,13 +308,14 @@ contains
     real(8) :: weight
     character(len=4)     :: varName
     integer, pointer     :: allNumObs(:,:), allObsGid(:,:), allHeaderIndexVec(:,:,:)
-    real(8), pointer     :: column_ptr(:), ptr2d_r8(:,:), allCols_ptr(:,:)
+    real(8), pointer     :: column_ptr(:), ptr2d_r8(:,:), allCols_ptr(:,:), allCols_VV_ptr(:,:)
     real(4), pointer     :: ptr4d_r4(:,:,:,:), ptrUU4d_r4(:,:,:,:), ptrVV4d_r4(:,:,:,:)
     real(4), allocatable :: cols_hint_r4(:,:,:),cols_hint_VV_r4(:,:,:)
     real(4), allocatable :: cols_send_r4(:,:),cols_send_VV_r4(:,:)
     real(4), allocatable :: cols_recv_r4(:,:),cols_recv_VV_r4(:,:)
     real(8), allocatable :: cols_send_1proc_r8(:), cols_send_VV_1proc_r8(:)
     real(4), allocatable :: gzSfc_r4(:,:)
+    logical              :: beSilent
 
     numStep = stateVector%numStep
     numHeader = obs_numheader(obsSpaceData)
@@ -326,6 +329,7 @@ contains
     allocate(allNumObs(numStep,mpi_nprocs))
     allocate(allHeaderIndexVec(numHeaderMax,numStep,mpi_nprocs))
     call enkf_allGatherObsGrid(obsSpaceData, stateVector, allNumObs, allObsGid, allHeaderIndexVec)
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     if ( mpi_myid == 0 ) then
       do stepIndex = 1, numStep
@@ -355,6 +359,16 @@ contains
 
     allocate(gzSfc_r4(stateVector%myLonBeg:stateVector%myLonEnd,  &
                       stateVector%myLatBeg:stateVector%myLatEnd))
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+    write(*,*) 'before setting to zero' ; call flush(6)
+    ! set contents of all columns to zero
+    do memberIndex = 1, nEns
+      allCols_ptr => col_getAllColumns(columns(memberIndex))
+      allCols_ptr(:,:) = 0.0d0
+      if ( memberIndex == 1 ) write(*,*) 'shape(allCols_ptr) = ', shape(allCols_ptr)
+    end do
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     VAR_LOOP: do varIndex = 1, vnl_numvarmax
       varName = vnl_varNameList(varIndex)
@@ -424,6 +438,10 @@ contains
         end do PROC_LOOP2
         call tmg_stop(141)
 
+        call tmg_start(150,'ENKF_BARR')
+        call rpn_comm_barrier('GRID',ierr)
+        call tmg_stop(150)
+
         call tmg_start(142,'ENKF_ALLTOALL')
         ! mpi communication: alltoall for one level/variable
         nsize = numHeaderMax
@@ -447,14 +465,16 @@ contains
         call tmg_start(143,'ENKF_RESHUFFLE')
         ! reorganize ensemble of distributed columns
         do memberIndex = 1, nEns
+          allCols_ptr => col_getAllColumns(columns(memberIndex),varName)
+          if (trim(varName) == 'UU') then
+            allCols_VV_ptr => col_getAllColumns(columns(memberIndex),'VV')
+          end if
 
-          !$OMP PARALLEL DO PRIVATE (headerIndex, column_ptr)
+          !$OMP PARALLEL DO PRIVATE (headerIndex)
           do headerIndex = 1, numHeader
-            column_ptr => col_getColumn(columns(memberIndex),headerIndex,varName)
-            column_ptr(levIndex) = real(cols_recv_r4(headerIndex,memberIndex),8)
+            allCols_ptr(levIndex,headerIndex) = real(cols_recv_r4(headerIndex,memberIndex),8)
             if (trim(varName) == 'UU') then
-              column_ptr => col_getColumn(columns(memberIndex),headerIndex,'VV')
-              column_ptr(levIndex) = real(cols_recv_VV_r4(headerIndex,memberIndex),8)
+              allCols_VV_ptr(levIndex,headerIndex) = real(cols_recv_VV_r4(headerIndex,memberIndex),8)
             end if
           end do
           !$OMP END PARALLEL DO
@@ -531,7 +551,9 @@ contains
     call tmg_start(144,'ENKF_PRESSURE')
     do memberIndex = 1, nEns
       if (col_varExist('P0')) then
-        call col_calcPressure(columns(memberIndex))
+        beSilent = .true.
+        if ( memberIndex == 1 ) beSilent = .false.
+        call col_calcPressure(columns(memberIndex),beSilent_opt=beSilent)
       end if
     end do
     call tmg_stop(144)
@@ -539,7 +561,9 @@ contains
     call tmg_start(145,'ENKF_HEIGHT')
     do memberIndex = 1, nEns
       if (col_varExist('TT') .and. col_varExist('HU') .and. col_varExist('P0') .and. col_getNumLev(columns(1),'MM') > 1) then
-        call tt2phi(columns(memberIndex))
+        beSilent = .true.
+        if ( memberIndex == 1 ) beSilent = .false.
+        call tt2phi(columns(memberIndex),beSilent_opt=beSilent)
       end if
     end do
     call tmg_stop(145)
@@ -724,11 +748,11 @@ contains
   end subroutine enkf_computeColumnsPerturbations
 
 
-  subroutine enkf_extractObsBodyColumn(outputVector_r4, obsSpaceData, obsColumnIndex)
+  subroutine enkf_extractObsRealBodyColumn(outputVector, obsSpaceData, obsColumnIndex)
     implicit none
 
     ! arguments
-    real(4)          :: outputVector_r4(:)
+    real(8)          :: outputVector(:)
     type(struct_obs) :: obsSpaceData
     integer          :: obsColumnIndex
 
@@ -738,41 +762,81 @@ contains
     call tmg_start(148,'ENKF_EXTRACTBODY')
 
     do bodyIndex = 1, obs_numBody(obsSpaceData)
-      outputVector_r4(bodyIndex) = real(obs_bodyElem_r(obsSpaceData,obsColumnIndex,bodyIndex), 4)
+      outputVector(bodyIndex) = obs_bodyElem_r(obsSpaceData,obsColumnIndex,bodyIndex)
     end do
 
     call tmg_stop(148)
 
-  end subroutine enkf_extractObsBodyColumn
+  end subroutine enkf_extractObsRealBodyColumn
 
 
-  subroutine enkf_writeHXensemble(HX_ens_r4, obsSpaceData)
+  subroutine enkf_extractObsIntBodyColumn(outputVector, obsSpaceData, obsColumnIndex)
     implicit none
 
     ! arguments
-    real(4) :: HX_ens_r4(:,:)
+    integer          :: outputVector(:)
     type(struct_obs) :: obsSpaceData
+    integer          :: obsColumnIndex
 
     ! locals
-    integer :: bodyIndex, numBody, nEns, assFlag
-    character(len=2) :: obsFamily
+    integer :: bodyIndex
 
-    call tmg_start(149,'ENKF_WRITEHX')
+    call tmg_start(148,'ENKF_EXTRACTBODY')
 
-    numBody = size(HX_ens_r4, 1)
-    nEns = size(HX_ens_r4, 2)
-
-    write(*,*) 'enkf_writeHXensemble: numBody = ', numBody
-    write(*,*) 'enkf_writeHXensemble: nEns    = ', nEns
-
-    do bodyIndex = 1, numBody
-      assFlag = obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex)
-      obsFamily = obs_getFamily(obsSpaceData,bodyIndex=bodyIndex)
-      if ( assFlag == 1 ) write(100+mpi_myid,*) bodyIndex, obsFamily, HX_ens_r4(bodyIndex,:)
+    do bodyIndex = 1, obs_numBody(obsSpaceData)
+      outputVector(bodyIndex) = obs_bodyElem_i(obsSpaceData,obsColumnIndex,bodyIndex)
     end do
 
-    call tmg_stop(149)
+    call tmg_stop(148)
 
-  end subroutine enkf_writeHXensemble
+  end subroutine enkf_extractObsIntBodyColumn
+
+
+  subroutine enkf_gatherHX(HXens,HXensT_mpiglobal)
+    implicit none
+
+    ! arguments
+    real(8) :: HXens(:,:)
+    real(8),pointer :: HXensT_mpiglobal(:,:)
+
+    ! locals
+    integer :: ierr, nEns, numBody, procIndex, memberIndex, numBody_mpiglobal
+    integer :: allNumBody(mpi_nprocs), displs(mpi_nprocs)
+
+    numBody = size(HXens,1)
+    nEns     = size(HXens,2)
+
+    write(*,*) 'enkf_gatherHX: starting'
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+    call rpn_comm_gather( numBody, 1, 'mpi_integer', allNumBody, 1, 'mpi_integer', &
+                          0, 'GRID', ierr )
+    if ( mpi_myid == 0 ) then
+      displs(1) = 0
+      do procIndex = 2, mpi_nprocs
+        displs(procIndex) = displs(procIndex-1) + allNumBody(procIndex-1)
+      end do
+    else
+      displs(:) = 0
+    end if
+
+    numBody_mpiglobal = sum(allNumBody(:))
+    if( mpi_myid == 0 ) then
+      allocate(HXensT_mpiglobal(nEns,numBody_mpiglobal))
+    else
+      allocate(HXensT_mpiglobal(1,1))
+    end if
+
+    do memberIndex = 1, nEns
+      call rpn_comm_gatherv( HXens(:,memberIndex), numBody, 'mpi_double_precision', &
+                             HXensT_mpiglobal(memberIndex,:), allNumBody, displs, &
+                             'mpi_double_precision', 0, 'GRID', ierr )
+    end do
+
+    write(*,*) 'enkf_gatherHX: finished'
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+  end subroutine enkf_gatherHX
+
 
 end module enkf_mod
