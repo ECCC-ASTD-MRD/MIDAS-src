@@ -64,7 +64,8 @@ MODULE ensembleStateVector_mod
     type(struct_gsv)              :: statevector_work
     type(struct_repack_r8), allocatable :: repack_ensMean_r8(:), repack_ensStdDev_r8(:)
     type(struct_repack_r4), allocatable :: repack_r4(:)
-    logical                       :: meanIsComputed, stdDevIsComputed
+    logical                       :: meanIsComputed = .false.
+    logical                       :: stdDevIsComputed = .false.
     integer, allocatable          :: subEnsIndexList(:), nEnsSubEns(:)
     integer                       :: numSubEns
     character(len=256)            :: enspathname
