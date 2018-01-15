@@ -750,12 +750,14 @@ module gridStateVector_mod
     endif
 
     if (varNameToInterpolate(1) == 'ALL') then
-      call gsv_allocate(statevector_in_hvInterp, 1, statevector_inout%hco, statevector_inout%vco, &
+      call gsv_allocate(statevector_in_hvInterp, statevector_inout%numstep,                       &
+                        statevector_inout%hco, statevector_inout%vco,                             &
                         mpi_local_opt=statevector_inout%mpi_local, mpi_distribution_opt='Tiles',  &
                         dataKind_in_opt=statevector_inout%dataKind,                               &
                         allocGZsfc_opt=statevector_inout%gzSfcPresent)
     else
-      call gsv_allocate(statevector_in_hvInterp, 1, statevector_inout%hco, statevector_inout%vco, &
+      call gsv_allocate(statevector_in_hvInterp, statevector_inout%numstep,                       &
+                        statevector_inout%hco, statevector_inout%vco,                             &
                         mpi_local_opt=statevector_inout%mpi_local, mpi_distribution_opt='Tiles',  &
                         dataKind_in_opt=statevector_inout%dataKind,                               &
                         allocGZsfc_opt=statevector_inout%gzSfcPresent,                            &
