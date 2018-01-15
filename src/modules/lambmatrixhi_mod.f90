@@ -59,9 +59,10 @@ module LamBMatrixHI_mod
   character(len=12) :: WindTransform
 
   type(struct_hco), pointer :: hco_bhi    ! Analysis horizontal grid parameters
+  type(struct_hco), pointer :: hco_bstats ! Grid-point std dev horizontal grid parameters
+
   type(struct_lst)     :: lst_bhi    ! Spectral transform Parameters for B
   type(struct_lst)     :: lst_wind   ! Spectral transform Parameters for Vort/Div -> Psi/Chi
-  type(struct_hco)     :: hco_bstats ! Grid-point std dev horizontal grid parameters
 
   real(8), allocatable :: bsqrt  (:,:,:)  ! B^1/2
 
@@ -84,6 +85,8 @@ module LamBMatrixHI_mod
   integer,parameter    :: maxNumLevels=200
   real(8)              :: scaleFactor(maxNumLevels)
 
+  character(len=8), parameter     :: BStatsFilename = './bgcov'
+
 contains
 
 !--------------------------------------------------------------------------
@@ -95,8 +98,6 @@ contains
     type(struct_hco), pointer, intent(in)    :: hco_anl_in
     type(struct_vco), pointer, intent(in)    :: vco_anl_in
     integer,          intent(out)   :: cvDim_out
-
-    character(len=8), parameter     :: BStatsFilename = './bgcov'
 
     integer  :: numvar3d
     integer  :: numvar2d
@@ -182,28 +183,19 @@ contains
 
     !- Read variables and vertical grid info from the background stats file
     call lbhi_GetControlVariableInfo( iu_bstats ) ! IN
-    call lbhi_GetHorizGridInfo      ( iu_bstats ) ! IN
+    call lbhi_GetHorizGridInfo()
 
     nkgdim = 0
     do var = 1, nControlVariable
       allocate( ControlVariable(var)%GpStdDev (1:hco_bhi%ni, 1:hco_bhi%nj, 1:ControlVariable(var)%nlev) )
       allocate( ControlVariable(var)%ip1 (1:ControlVariable(var)%nlev) )
 
-      ! NOTE: Temporarily patched up to work for true surface variables (P0,TG)
-      ! Need to introduce a gridtype 'SF' for true surface variables and for 
-      ! screen-level variables should use 'MM' or 'TH' as appropriate
       if (ControlVariable(var)%GridType == 'TH') then
          ControlVariable(var)%ip1(:) = vco_anl_in%ip1_T(:)
       elseif (ControlVariable(var)%GridType == 'MM') then
          ControlVariable(var)%ip1(:) = vco_anl_in%ip1_M(:)
-      elseif (ControlVariable(var)%GridType == 'NS') then
-         if (ControlVariable(var)%nomvar(cv_bhi) == 'P0' .or. ControlVariable(var)%nomvar(cv_bhi) == 'TG') then
-            ControlVariable(var)%ip1(:) = 0
-         else
-            ControlVariable(var)%ip1(:) = vco_anl_in%ip1_M(:)
-         endif
       else
-         ControlVariable(var)%ip1(:) = 0
+        ControlVariable(var)%ip1(:) = 0
       end if
 
       ControlVariable(var)%kDimStart = nkgdim + 1
@@ -457,71 +449,21 @@ contains
 !--------------------------------------------------------------------------
 ! LBHI_GetHorizGridInfo
 !--------------------------------------------------------------------------
-  subroutine lbhi_GetHorizGridInfo( iu_bstats )
+  subroutine lbhi_GetHorizGridInfo()
     implicit none
-
-    integer, intent(in) :: iu_bstats
-
-    integer, allocatable :: key_list(:)
-
-    integer :: key, fstinf, fstprm, ier, fstinl
-    integer :: ni, nj, NivMax, k
-    integer :: dateo, deet, npas, nk, nbits, datyp
-    integer :: ip1, ip2, ip3, swa, lng, dltf, ubc
-    integer :: extra1, extra2, extra3
-    integer :: ezdefset, ezqkdef, ezsetopt
-
-    character(len=4 )      :: nomvar
-    character(len=2 )      :: typvar
-    character(len=12)      :: etiket
 
     !
     !- 1.  Get horizontal grid parameters
     !
-    dateo  = -1
-    etiket = 'STDDEV'
-    ip1    = -1
-    ip2    = -1
-    ip3    = -1
-    typvar = ' '
-    nomvar = ControlVariable(1)%nomvar(cv_bhi)
-
-    key = fstinf( iu_bstats,                                  & ! IN
-                  ni, nj, nk,                                 & ! OUT
-                  dateo, etiket, ip1, ip2, ip3, typvar, nomvar )! IN
-
-    if (key < 0) then
-      write(*,*)
-      write(*,*) 'lbhi_GetHorizGridInfo: Unable to find input horiz grid info using =',nomvar
-      call utl_abort('lbhi_GetHorizGridInfo')
-    end if
-
-    ier = fstprm( key,                                                 & ! IN
-                  dateo, deet, npas, hco_bstats%ni, hco_bstats%nj, nk, & ! OUT
-                  nbits, datyp, ip1, ip2, ip3, typvar, nomvar, etiket, & ! OUT
-                  hco_bstats%grtyp, hco_bstats%ig1, hco_bstats%ig2,    & ! OUT
-                  hco_bstats%ig3, hco_bstats%ig4, swa, lng, dltf, ubc, & ! OUT
-                  extra1, extra2, extra3 )                               ! OUT
+    call hco_setupFromFile(hco_bstats, BStatsFilename, ' ', 'bstats' ) ! IN
 
     !- 1.3 Regridding needed ?
-    if ( hco_bstats%ni    == hco_bhi%ni    .and. &
-         hco_bstats%nj    == hco_bhi%nj    .and. &
-         hco_bstats%grtyp == hco_bhi%grtyp .and. &
-         hco_bstats%ig1   == hco_bhi%ig1   .and. &
-         hco_bstats%ig2   == hco_bhi%ig2   .and. &
-         hco_bstats%ig3   == hco_bhi%ig3   .and. &
-         hco_bstats%ig4   == hco_bhi%ig4 ) then
+    if ( hco_equal(hco_bstats,hco_bhi) ) then
       Regrid = .false.
       write(*,*)
       write(*,*) 'lbhi_GetHorizGridInfo: No Horizontal regridding needed'
     else
       Regrid = .true.
-      hco_bstats%EZscintID = ezqkdef( hco_bstats%ni, hco_bstats%nj,       & ! IN
-                                        hco_bstats%grtyp, hco_bstats%ig1, & ! IN
-                                        hco_bstats%ig2, hco_bstats%ig3,   & ! IN
-                                        hco_bstats%ig4, iu_bstats )         ! IN
-      ier = ezdefset(hco_bhi%EZscintID, hco_bstats%EZscintID)               ! IN
-      ier = ezsetopt('INTERP_DEGREE', 'LINEAR')
       write(*,*)
       write(*,*) 'lbhi_GetHorizGridInfo: Horizontal regridding is needed'
     end if
@@ -662,7 +604,7 @@ contains
     real(8), allocatable :: StdDev2D(:,:)
     real(8), allocatable :: StdDev2D_Regrid(:,:)
 
-    integer :: ezsint, ier
+    integer :: ezdefset, ezsetopt, ezsint, ier
     integer :: ni_t, nj_t, nlev_t, var, k
     integer :: dateo, ip1,ip2,ip3
 
@@ -678,6 +620,8 @@ contains
     allocate( StdDev2D(1:hco_bstats%ni,1:hco_bstats%nj) )
     if (Regrid) then
       allocate( StdDev2D_Regrid(1:hco_bhi%ni, 1:hco_bhi%nj) )
+      ier = ezdefset(hco_bhi%EZscintID, hco_bstats%EZscintID)             ! IN
+      ier = ezsetopt('INTERP_DEGREE', 'LINEAR')
     end if
 
     !- 1.1 Loop over Control Variables
@@ -728,7 +672,7 @@ contains
         if ( .not. Regrid) then
            ControlVariable(var)%GpStdDev(:,:,k) = StdDev2D(:,:)
         else
-           ! Note: EZSCINT setup was done in GetHorizGridInfo
+           ! Note: EZSCINT setup was done above
            ier = ezsint(StdDev2D_Regrid, StdDev2D)
            ControlVariable(var)%GpStdDev(:,:,k) = StdDev2D_Regrid(:,:)
         end if

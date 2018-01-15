@@ -74,7 +74,6 @@ module calcstatslam_mod
 
   character(len=12) :: WindTransform
   character(len=12) :: SpectralWeights
-  character(len=2)  :: spatialDimensions
 
   real(8), pointer     :: pressureProfile_M(:), pressureProfile_T(:)
 
@@ -131,11 +130,9 @@ module calcstatslam_mod
     if ( vco_bhi%nlev_T == 1 .and. vco_bhi%nlev_T == 1 ) then
        write(*,*)
        write(*,*) 'Spatial dimensions = 2D'
-       spatialDimensions = '2D'
     else
        write(*,*)
        write(*,*) 'Spatial dimensions = 3D'
-       spatialDimensions = '3D'
     end if
 
     ip2_ens = ip2_in
@@ -190,12 +187,12 @@ module calcstatslam_mod
     call CreateLamTemplateGrids('./analysisgrid',grd_ext_x,grd_ext_y) ! IN
 
     !- 3.2 Setup the Extended B_HI grid
-    call hco_SetupFromFile( hco_bhi,'./analysisgrid', 'ANALYSIS', 'BHI' ) ! IN
+    call hco_setupFromFile( hco_bhi,'./analysisgrid', 'ANALYSIS', 'BHI' ) ! IN
 
     !- 3.3 Setup the LAM analysis grid metrics
-    call agd_SetupFromHCO( hco_bhi, hco_ens ) ! IN
+    call agd_setupFromHCO( hco_bhi, hco_ens ) ! IN
     !- 3.4 Setup the LAM spectral transform
-    call lst_Setup( lst_bhi,                & ! OUT
+    call lst_setup( lst_bhi,                & ! OUT
                     hco_bhi%ni, hco_bhi%nj, & ! IN
                     hco_bhi%dlon, ntrunc,   & ! IN
                     'NoMpi' )                 ! IN
@@ -260,15 +257,10 @@ module calcstatslam_mod
        end if
 
        !- Set Level info
-       if ( ControlVariable(var)%nomvar(cv_model) /= 'TG' .and. spatialDimensions /= '2D' ) then
-          call VarLevInfo(ControlVariable(var)%nlev,             & ! OUT
-                          ControlVariable(var)%GridType,         & ! OUT
-                          ControlVariable(var)%nomvar(cv_model), & ! IN 
-                          cflensin(1) )                            ! IN
-       else
-          ControlVariable(var)%nlev     = 1
-          ControlVariable(var)%GridType = 'NS'
-       end if
+       call VarLevInfo(ControlVariable(var)%nlev,             & ! OUT
+                       ControlVariable(var)%GridType,         & ! OUT
+                       ControlVariable(var)%nomvar(cv_model), & ! IN 
+                       cflensin(1) )                            ! IN
 
        write(*,*)
        write(*,*) 'Control Variable Name ', ControlVariable(var)%nomvar(cv_model)
@@ -276,19 +268,13 @@ module calcstatslam_mod
        write(*,*) '   Type   of Levels = ', ControlVariable(var)%GridType
        
        allocate( ControlVariable(var)%ip1 (ControlVariable(var)%nlev) )
-
-       if ( spatialDimensions /= '2D' ) then
-          if (ControlVariable(var)%nlev /= 1) then
-             if (ControlVariable(var)%GridType == 'TH') then
-                ControlVariable(var)%ip1(:) = vco_bhi%ip1_T(:)
-             else
-                ControlVariable(var)%ip1(:) = vco_bhi%ip1_M(:)
-             end if
-          else
-             ControlVariable(var)%ip1(:) = 0
-          end if
-       else
-          ControlVariable(var)%ip1(:) = vco_bhi%ip1_T(:) ! which is identical to ip1_M(:)
+       
+       if (ControlVariable(var)%GridType == 'TH') then
+         ControlVariable(var)%ip1(:) = vco_bhi%ip1_T(:)
+       else if (ControlVariable(var)%GridType == 'MM') then
+         ControlVariable(var)%ip1(:) = vco_bhi%ip1_M(:)
+       else if (ControlVariable(var)%GridType == 'NS') then
+         ControlVariable(var)%ip1(:) = 0
        end if
 
        ControlVariable(var)%kDimStart = nkgdim + 1
@@ -844,18 +830,20 @@ module calcstatslam_mod
     integer         , intent(in) :: grd_ext_x
     integer         , intent(in) :: grd_ext_y
 
-    integer :: ni_ext, nj_ext, i, j
+    integer :: ni_ext, nj_ext, i, j, lev, ni, nj, nk
     integer :: iun = 0
-    integer :: ier, fnom, fstouv, fstfrm, fclos
+    integer :: ier, fnom, fstouv, fstfrm, fclos, fstecr
 
     real(8), allocatable :: Field2d(:,:)
-
     real(8), allocatable :: lat_ext(:)
     real(8), allocatable :: lon_ext(:)
 
-    real(8) :: dlat, dlon
+    real(4), allocatable :: dummy2D(:,:)
 
-    integer :: dateo,npak
+    real(8) :: dlat, dlon
+    real(4) :: work
+
+    integer :: dateo,npak,status
     integer :: ip1,ip2,ip3,deet,npas,datyp,ig1,ig2,ig3,ig4
     integer :: ig1_tictac,ig2_tictac,ig3_tictac,ig4_tictac
 
@@ -1014,7 +1002,57 @@ module calcstatslam_mod
     deallocate(Field2d)
 
     !
-    !- 4.  Closing the output template file
+    !- 4. Write the vertical grid description
+    !
+
+    !- 4.1 Write the toc-toc
+    status = vgd_write(vco_bhi%vgrid,iun,'fst')
+    
+    if ( status /= VGD_OK ) then
+      write(*,*)
+      write(*,*) 'WriteTicTacToc: ERROR with vgd_write '
+      call utl_abort('WriteTicTacToc')
+    end if
+
+    !- 4.2 Write a dummy 2D field for each MM and TH levels
+    npak   = -12
+    dateo  = 0
+    deet   = 0
+    npas   = 0
+    ni     = 4
+    nj     = 2
+    nk     = 1
+    ip2    = 0
+    ip3    = 0
+    typvar = 'A'
+    etiket = 'VERTICALGRID'
+    grtyp  = 'G'
+    ig1    = 0
+    ig2    = 0
+    ig3    = 0
+    ig4    = 0
+    datyp  = 1
+
+    allocate(dummy2D(ni,nj))
+    dummy2D(:,:) = 0.0
+  
+    do lev = 1, vco_bhi%nlev_M
+      ip1 = vco_bhi%ip1_M(lev)
+      ier = fstecr(dummy2D, work, npak, iun, dateo, deet, npas, ni, nj, &
+                   nk, ip1, ip2, ip3, typvar, 'MM', etiket, grtyp,        &
+                   ig1, ig2, ig3, ig4, datyp, .true.)
+    end do
+    do lev = 1, vco_bhi%nlev_T
+      ip1 = vco_bhi%ip1_T(lev)
+      ier = fstecr(dummy2D, work, npak, iun, dateo, deet, npas, ni, nj, &
+                   nk, ip1, ip2, ip3, typvar, 'TH', etiket, grtyp,        &
+                   ig1, ig2, ig3, ig4, datyp, .true.)
+    end do
+
+    deallocate(dummy2D)
+
+    !
+    !- 5.  Closing the output template file
     !
     ier = fstfrm(iun)
     ier = fclos (iun)
@@ -1092,25 +1130,24 @@ module calcstatslam_mod
     !
     !- 4.  Find the type of vertical grid
     !
-    if ( nlev /=1 ) then
-      ier = fstprm( liste(1),                                            & ! IN
-                    dateo, deet, npas, ni_t, nj_t, nlev_t,               & ! OUT
-                    nbits, datyp, ip1, ip2, ip3, typvar, nomvar, etiket, & ! OUT
-                    grtyp, ig1, ig2, ig3, ig4, swa, lng, dltf, ubc,      & ! OUT
-                    extra1, extra2, extra3 )                               ! OUT
+    ier = fstprm( liste(1),                                            & ! IN
+                  dateo, deet, npas, ni_t, nj_t, nlev_t,               & ! OUT
+                  nbits, datyp, ip1, ip2, ip3, typvar, nomvar, etiket, & ! OUT
+                  grtyp, ig1, ig2, ig3, ig4, swa, lng, dltf, ubc,      & ! OUT
+                  extra1, extra2, extra3 )                               ! OUT
 
-      if      ( ANY(vco_bhi%ip1_M == ip1) ) then
-         GridType = 'MM'
-      else if ( ANY(vco_bhi%ip1_T == ip1) ) then
-         GridType = 'TH'
-      else
-         write(*,*)
-         write(*,*) 'The ip1 found does not match with the vco structure !!!', ip1
-         call utl_abort('VarLevInfo')
-      end if
-
+    if      ( ANY(vco_bhi%ip1_M == ip1) ) then
+      GridType = 'MM'
+    else if ( ANY(vco_bhi%ip1_T == ip1) ) then
+      GridType = 'TH'
     else
-       GridType = 'NS'
+      if (nlev == 1) then
+        GridType = 'NS'
+      else
+        write(*,*)
+        write(*,*) 'The ip1 found from a 3D variable does not match with the vco structure !!!', ip1
+        call utl_abort('VarLevInfo')        
+      end if
     end if
 
     !
@@ -3263,14 +3300,12 @@ module calcstatslam_mod
     !
     !- Writing Toc-Toc
     !
-    if ( spatialDimensions /= '2D' ) then
-       status = vgd_write(vco_bhi%vgrid,iun,'fst')
-
-       if ( status /= VGD_OK ) then
-          write(*,*)
-          write(*,*) 'WriteTicTacToc: ERROR with vgd_write '
-          call utl_abort('WriteTicTacToc')
-       end if
+    status = vgd_write(vco_bhi%vgrid,iun,'fst')
+    
+    if ( status /= VGD_OK ) then
+      write(*,*)
+      write(*,*) 'WriteTicTacToc: ERROR with vgd_write '
+      call utl_abort('WriteTicTacToc')
     end if
 
   end subroutine WriteTicTacToc
