@@ -40,14 +40,12 @@ program midas_calcstats
   integer           :: nulnam, ierr, fnom, fclos
 
   integer           :: nens   ! Ensemble size
-  integer           :: ip1(1)
   integer           :: ip2    ! Ensemble lead time (hour) selected within the file
   character(len=256):: ensfilebasename
   character(len=60) :: mode
-  character(len=2)  :: spatialDimensions
 
   NAMELIST /NAMCONF/mode
-  NAMELIST /NAMENS/nens,ensfilebasename,spatialDimensions,ip1,ip2
+  NAMELIST /NAMENS/nens,ensfilebasename,ip2
 
   !
   !- 1.  Initilization
@@ -68,8 +66,6 @@ program midas_calcstats
   !- 1.2 Read NAMENS namelist
   nens              = 96                ! default value
   ensfilebasename   = '2011011918_006_' ! default value
-  spatialDimensions = '3D'              ! default value
-  ip1(:)            = -1                ! default value
   ip2               = -1                ! default value
 
   nulnam = 0
@@ -89,19 +85,8 @@ program midas_calcstats
   call hco_SetupFromFile(hco_ens, trim(cflensin(1)), ' ', 'Ensemble' ) ! IN
 
   !- 1.4 Initialize the vertical grid
-  select case(trim(spatialDimensions))
-  case ('3D')
-     call vco_SetupFromFile( vco_ens,        & ! OUT
-                             cflensin(1), ' ') ! IN
-  case ('2D')
-     call vco_SetupManual( vco_ens,  & ! OUT
-                           ip1, 1 )    ! IN
-  case default
-     write(*,*)
-     write(*,*) 'Unknown value for spatialDimensions', spatialDimensions
-     write(*,*) 'use 3D or 2D'
-     call utl_abort('midas-calcstats')
-  end select
+  call vco_SetupFromFile( vco_ens,        & ! OUT
+                          cflensin(1), ' ') ! IN
 
   !- 1.5 Read NAMCONF namelist to find the mode
   mode  = 'BHI'  ! default value
