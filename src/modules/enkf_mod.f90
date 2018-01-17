@@ -84,7 +84,7 @@ contains
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     typvar = ' '
     etiket = ' '
-    call gsv_readFile(stateVector, ensFileName, etiket, typvar, HUcontainsLQinFile, readGZsfc_opt=.true.)
+    call gsv_readFile(stateVector, ensFileName, etiket, typvar, readGZsfc_opt=.true.)
     ierr = ram_remove(ensFileName)
 
     ! Do unit conversion
@@ -109,9 +109,9 @@ contains
           ptr4d_r4(:,:,:,stepIndex) = ptr4d_r4(:,:,:,stepIndex) + MPC_K_C_DEGREE_OFFSET_R4
         end if
 
-        if (trim(varName) == 'HU' .and. ctrlVarHumidity == 'LQ' .and. .not.HUcontainsLQinFile ) then
+        if (trim(varName) == 'HU' .and. ctrlVarHumidity == 'LQ' ) then
           ptr4d_r4(:,:,:,stepIndex) = sngl(log(max(real(ptr4d_r4(:,:,:,stepIndex),8),MPC_MINIMUM_HU_R8)))
-        else if (trim(varName) == 'HU' .and. ctrlVarHumidity == 'HU' .and. .not.HUcontainsLQinFile ) then
+        else if (trim(varName) == 'HU' .and. ctrlVarHumidity == 'HU' ) then
           ptr4d_r4(:,:,:,stepIndex) = sngl(max(real(ptr4d_r4(:,:,:,stepIndex),8),MPC_MINIMUM_HU_R8))
         end if
       end do STEP_LOOP
