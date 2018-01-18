@@ -183,7 +183,7 @@ contains
 !!          (original name of routine: sutovalo)
 !!
 !!Author  : J. Halle *CMDA/AES Oct 1999
-!!    -------------------
+!!
 !!     Purpose: to allocate memory for the radiative transfer model variables.
 !!
 !! Revision:
@@ -462,12 +462,12 @@ contains
       isens = tvs_lsensor(jo)
       nc = tvs_nchan(isens)
       nl = tvs_coefs(isens) % coef % nlevels
-     !! allocate BT equivalent to total direct, tl and ad radiance output
+      ! allocate BT equivalent to total direct, tl and ad radiance output
       allocate( tvs_radiance(jo)  % bt  ( nc ) ,stat= alloc_status(1))
      
       tvs_radiance(jo)  % bt  ( : ) = 0.d0
     
-      !! allocate clear sky radiance/BT output
+      ! allocate clear sky radiance/BT output
       allocate( tvs_radiance(jo)  % clear  ( nc ) ,stat= alloc_status(2) )
       tvs_radiance(jo)  % clear  ( : ) = 0.d0
 
@@ -588,7 +588,7 @@ contains
 !!**s/r SENSORS : Initialisation of the RTTOV-10 platform, satellite
 !!                and instrument ID's. Also set burp to RTTOV channel
 !!                mapping offset.
-!!    -------------------
+!!
 !!*    Purpose: to verify and transfom the sensor information contained in the
 !!              NAMTOV namelist into the variables required by RTTTOV-7:
 !!              platform, satellite and instrument ID's.
@@ -1027,15 +1027,14 @@ contains
 !!                lecture depuis une namelist
 !!
 !!
-!!    -------------------
 !!*    Purpose:  Map burp satellite instrument (element #2019)
 !!               to RTTOV-7 instrument.
 !!*              A negative value is returned, if no match in found.
 !!
 !!               Table of  RTTOV-7 instrument identifier
-!!               ---------------------------------------
+!                ---------------------------------------
 !!               Instrument        Instrument identifier  Sensor type
-!!               ---------         ---------------------  -----------
+!                ---------         ---------------------  -----------
 !!               HIRS               0                     ir
 !!               MSU                1                     mw
 !!               SSU                2                     ir
@@ -1166,16 +1165,15 @@ contains
 !!                . information is now read from namelist
 !!                . instead of being hardcoded
 !!
-!!    -------------------
 !!    Purpose:  Map burp satellite identifier (element #1007)
 !!               to RTTOV-7 platform and satellite.
 !!               Negative values are returned, if no match in found.
 !!
-!!               ---------------------------------------------
+!                ---------------------------------------------
 !!               Table of  RTTOV-7 platform identifier
-!!               ---------------------------------------------
+!                ---------------------------------------------
 !!               Platform          RTTOV-7 platform identifier
-!!               ---------         ---------------------------
+!                ---------         ---------------------------
 !!               NOAA               1
 !!               DMSP               2
 !!               METEOSAT           3
@@ -1766,8 +1764,8 @@ contains
         tvs_profiles(jj) % skin % soil_moisture  = 0.d0 ! soil moisure (m**3/m**3) not yet used
 !
         tvs_profiles(jj) % s2m % t         = col_getElem(columnghr,ilowlvl_T,iptobscma(j),'TT')
-!!!        tvs_profiles(jj) % s2m % q         = exp(col_getElem(columnghr,ilowlvl_T,iptobscma(j),'HU')) * qMixratio2ppmv
-        tvs_profiles(jj) % s2m % q         = 0.3D6  * qppmv2Mixratio !! a value between 0 and 0.6d6 so that RTTOV will not complain; not used
+!        tvs_profiles(jj) % s2m % q         = exp(col_getElem(columnghr,ilowlvl_T,iptobscma(j),'HU')) * qMixratio2ppmv
+        tvs_profiles(jj) % s2m % q         = 0.3D6  * qppmv2Mixratio ! a value between 0 and 0.6d6 so that RTTOV will not complain; not used
         tvs_profiles(jj) % s2m % p         = col_getElem(columnghr,1      ,iptobscma(j),'P0')*MPC_MBAR_PER_PA_R8
         tvs_profiles(jj) % s2m % u         = col_getElem(columnghr,ilowlvl_M,iptobscma(j),'UU')
         tvs_profiles(jj) % s2m % v         = col_getElem(columnghr,ilowlvl_M,iptobscma(j),'VV')
@@ -1814,12 +1812,12 @@ contains
 !!                 (adapted from exthum by J. Eyre)
 !!
 !!     purpose.
-!!     --------
+!      --------
 !!          to extend mixing ratio profile into stratosphere in
 !!          a reasonable way.
 !!
 !!**   interface.
-!!     ----------
+!      ----------
 !!          *call* *exthum4(knpf,klapf,ppres,pav)*
 !!               *knpf*:  no. of profiles to be processed.
 !!               *klapf*: length of atm. profiles.
@@ -1827,18 +1825,18 @@ contains
 !!               *pav*:   humidity profiles.
 !!
 !!     method.
-!!     -------
+!      -------
 !!          take top tropospheric mixing ratio (e.g. near 300 mb) and
 !!          extrapolate with given fall off into lower stratosphere
 !!          (e.g. to 70 mb).  constrain mixing ratio to be >= zwmin
 !!          (e.g. 0.000003 kg/kg).   in upper strat, mixing ratio = zwmin.
 !!
 !!     externals.
-!!     ----------
+!      ----------
 !!          none.
 !!
 !!     reference.
-!!     ----------
+!      ----------
 !!          ecmwf tech mem 176.
 !--------------------------------------------------------------------------
 
@@ -2662,21 +2660,21 @@ contains
 
 
     !* find the sensor bands (central) wavenumbers
-    if ( tvs_instruments(KRTID) == 11 ) THEN !! --AIRS--
+    if ( tvs_instruments(KRTID) == 11 ) THEN ! --AIRS--
       
       do JC = 1, NCHN
         ICHN = tvs_ichan(JC,KRTID)
         WAVEN(JC) = hir_get_wavn("AIRS",ICHN)
       end do
 
-    else if ( tvs_instruments(KRTID) == 16 ) THEN !! --IASI--
+    else if ( tvs_instruments(KRTID) == 16 ) THEN ! --IASI--
 
       do JC = 1, NCHN
         ICHN = tvs_ichan(JC,KRTID)
         WAVEN(JC) =  hir_get_wavn("IASI",ICHN)
       end do
 
-    else if ( tvs_instruments(KRTID) == 27 ) THEN !! --CrIS--
+    else if ( tvs_instruments(KRTID) == 27 ) THEN ! --CrIS--
       
       do JC = 1, NCHN
         ICHN = tvs_ichan(JC,KRTID)
@@ -2778,7 +2776,7 @@ contains
 !!          OUTPUT:
 !!            -ILAT(NPRF)     : Y-COORDINATE OF PROFILE
 !!            -ILON(NPRF)     : X-COORDINATE OF PROFILE 
-!!--------------------------------------------------------------------------
+!--------------------------------------------------------------------------
 
   subroutine INTERP_SFC (ILAT,ILON, nprf,zlat,zlon,iptobs)
     implicit none
@@ -2812,11 +2810,11 @@ contains
     integer            :: ig1obs,ig2obs,ig3obs,ig4obs
     real (8)           :: ALAT, ALON, ZZLAT, ZZLON
 
-!! fields on input grid
+! fields on input grid
 
     real(8),ALLOCATABLE :: GLACE(:,:), NEIGE(:,:), ALB(:,:)
 
-!! fields on output grid
+! fields on output grid
 
     real(8) :: GLACE_INTRPL(NPRF), NEIGE_INTRPL(NPRF), ALB_INTRPL(NPRF)
 
