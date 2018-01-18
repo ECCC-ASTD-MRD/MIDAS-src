@@ -24,6 +24,7 @@
 MODULE ensembleStateVector_mod
   use ramDisk_mod
   use mpivar_mod
+  use fileNames_mod
   use gridStateVector_mod
   use horizontalCoord_mod
   use verticalCoord_mod
@@ -38,7 +39,7 @@ MODULE ensembleStateVector_mod
 
   ! public procedures
   public :: struct_ens, ens_allocate, ens_deallocate
-  public :: ens_readEnsemble, ens_writeEnsemble, ens_fileName
+  public :: ens_readEnsemble, ens_writeEnsemble
   public :: ens_copyToStateWork, ens_getRepackMean_r8
   public :: ens_varExist, ens_getNumLev
   public :: ens_computeMean, ens_removeMean, ens_copyEnsMean, ens_copyMember, ens_recenter
@@ -802,7 +803,7 @@ CONTAINS
     end if
 
     ! Set up hco and vco for ensemble files
-    call ens_fileName(ensFileName, ensPathName, 1)
+    call fln_ensFileName(ensFileName, ensPathName, 1)
     nullify(hco_file)
     call hco_SetupFromFile(hco_file, ensFileName, ' ', 'ENSFILEGRID')
     if ( present(vco_file_opt) ) then
@@ -823,7 +824,7 @@ CONTAINS
 
     ! Setup the list of variables to be read (use member 1)
     if (mpi_myid == 0) then
-      call ens_fileName(ensFileName, ensPathName, 1)
+      call fln_ensFileName(ensFileName, ensPathName, 1)
       nEnsVarNamesWanted=0
       write(*,*)
       write(*,*) 'ens_readEnsemble: Listing the analysis variables present in ensemble file'
@@ -909,7 +910,7 @@ CONTAINS
 
           !  Read the file
           fileMemberIndex = 1+mod(memberIndex+memberIndexOffset-1, totalEnsembleSize)
-          call ens_fileName(ensFileName, ensPathName, fileMemberIndex)
+          call fln_ensFileName(ensFileName, ensPathName, fileMemberIndex)
           typvar = ' '
           etiket = ' '
           if (.not. horizontalInterpNeeded  .and. &
@@ -1201,12 +1202,8 @@ CONTAINS
           write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
           !  Write the file
-          call ens_fileName( ensFileName, ensPathName, memberIndex, ensFileNamePrefix_opt=ensFileNamePrefix, shouldExist_opt = .false. )
-          if (present(numBits_opt)) then
-            call gsv_writeToFile( statevector_member_r4, ensFileName, etiket, ip3_in = ip3, typvar_in = typvar , numBits_opt = numBits_opt)
-          else
-            call gsv_writeToFile( statevector_member_r4, ensFileName, etiket, ip3_in = ip3, typvar_in = typvar )
-          end if
+          call fln_ensFileName( ensFileName, ensPathName, memberIndex, ensFileNamePrefix_opt = ensFileNamePrefix, shouldExist_opt = .false. )
+          call gsv_writeToFile( statevector_member_r4, ensFileName, etiket, ip3_in = ip3, typvar_in = typvar , numBits_opt = numBits_opt)
         end if ! locally written one member
 
 
@@ -1225,110 +1222,5 @@ CONTAINS
     write(*,*) 'ens_writeEnsemble: finished communicating and writing ensemble members...'
 
   end subroutine ens_writeEnsemble
-
-
-  subroutine ens_fileName(ensFileName, ensPathName, memberIndex, ensFileNamePrefix_opt, ensFileBaseName_opt, shouldExist_opt)
-    implicit none
-
-    ! arguments
-    character(len=*)  :: ensFileName
-    character(len=*)  :: ensPathName
-    integer           :: memberIndex
-    character(len=*),optional  :: ensFileBaseName_opt, ensFileNamePrefix_opt
-    logical, optional :: shouldExist_opt
-
-    ! locals
-    integer          :: numFiles, returnCode, totalLength, ensembleBaseFileNameLength
-    character(len=4) :: ensNumber
-    logical          :: shouldExist
-    character(len=2000) :: fileList(10), fileNamePattern
-    character        :: ensembleFileExtLengthStr
-    logical, save    :: firstTime = .true.
-    integer, save    :: ensembleFileExtLength = 4
-    character(len=200), save :: ensFileBaseName
-
-    ! The following interface was extracted from #include <clib_interface.cdk>
-    interface clib_glob
-      integer function clib_glob_schhide(filelist,nfiles,pattern,maxnfiles)
-        implicit none
-        integer,intent(IN)  :: maxnfiles
-        character(len=*),intent(IN) :: pattern
-        integer,intent(OUT) :: nfiles
-        character(len=*),dimension(maxnfiles),intent(OUT):: filelist
-      end function clib_glob_schhide
-    end interface clib_glob
-
-    if ( present(shouldExist_opt) ) then
-      shouldExist = shouldExist_opt
-    else
-      shouldExist = .true.
-    end if
-
-    ! Do this step only once in the program since this should not change during the program is running.
-    if (firstTime) then
-      fileNamePattern = './' // trim(enspathname) // '/' // '*[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]_[0-9][0-9][0-9]_*001'
-      returnCode = clib_glob(fileList,numFiles,trim(fileNamePattern),10)
-      if (returnCode /= 1) then
-        call utl_abort('ens_fileName: reached maximum number of files or no file is available')
-      end if
-
-      ensFileName = trim(fileList(1))
-      totalLength = len_trim(ensFileName)
-      if ( totalLength == 0 ) then
-        call utl_abort('ens_fileName: ensFileName seems empty: ''ensFileName=' // trim(ensFileName) // '''')
-      end if
-
-      ! find number of digits used to identify ensemble member index
-      ensembleFileExtLength = 0
-      do
-        if ( ensFileName((totalLength-ensembleFileExtLength):(totalLength-ensembleFileExtLength)) == '_' ) exit
-        ensembleFileExtLength = ensembleFileExtLength + 1
-      end do
-
-      if (ensembleFileExtLength == 0) then
-        call utl_abort('ens_fileName: Cannot determine the ensemble file extention length with ' // trim(ensFileName))
-      end if
-
-      ! find the last '/' in the file name to get the basename of the file
-      ensembleBaseFileNameLength = 0
-      do
-        if ( totalLength == ensembleBaseFileNameLength ) exit
-        if ( ensFileName((totalLength-ensembleBaseFileNameLength):(totalLength-ensembleBaseFileNameLength)) == '/' ) exit
-        ensembleBaseFileNameLength = ensembleBaseFileNameLength + 1
-      end do
-
-      ! if 'ensFileName = ./abc/def/ghi/123_456_001' then
-      !    totalLength = 25
-      !    ensembleFileExtLength = 3
-      !    ensembleBaseFileNameLength = 11
-      !    ensFileBaseName = '123_456'
-      ! if 'ensFileName = 123_456_001' then
-      !    totalLength = 11
-      !    ensembleFileExtLength = 3
-      !    ensembleBaseFileNameLength = 11
-      !    ensFileBaseName = '123_456'
-      ensFileBasename = ensFileName((totalLength-ensembleBaseFileNameLength+1):(totalLength-ensembleFileExtLength-1))
-
-      firstTime = .false.
-
-      write(*,*) 'ens_fileName: ensFileBasename = ', trim(ensFileBasename)
-    end if
-
-    write(ensembleFileExtLengthStr,'(i1.1)') ensembleFileExtLength
-    write(ensNumber,'(i' // ensembleFileExtLengthStr // '.' // ensembleFileExtLengthStr // ')') memberIndex
-
-    if (present(ensFileNamePrefix_opt)) then
-      ensFileName = trim(enspathname) // '/' // trim(ensFileNamePrefix_opt) // trim(ensFileBaseName) // '_' // trim(ensNumber)
-    else
-      ensFileName = trim(enspathname) // '/' // trim(ensFileBaseName) // '_' // trim(ensNumber)
-    end if
-
-    write(*,*) 'ens_fileName: ensFileName = ', trim(ensFileName)
-
-    if ( shouldExist ) ensFileName = ram_fullWorkingPath(ensFileName)
-
-    if (present(ensFileBaseName_opt)) ensFileBaseName_opt = trim(ensFileBaseName)
-
-  end subroutine ens_fileName
 
 end module ensembleStateVector_mod

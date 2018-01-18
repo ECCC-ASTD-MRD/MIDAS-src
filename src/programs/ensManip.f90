@@ -36,6 +36,7 @@ program midas_ensManip
   use mpivar_mod
   use mathPhysConstants_mod
   use gridStateVector_mod
+  use fileNames_mod
   use ensembleStateVector_mod
   use verticalCoord_mod
   use horizontalCoord_mod
@@ -128,7 +129,7 @@ program midas_ensManip
   !- 2.1 Initialize the dates
 
   ! Setup timeCoord module
-  call ens_fileName( ensFileName, ensPathName, 1, ensFileBaseName_opt=ensFileBaseName)
+  call fln_ensFileName( ensFileName, ensPathName, 1, ensFileBaseName_opt=ensFileBaseName)
   call tim_setup( fileNameForDate_opt=ensFileName )
   numStep = tim_nstepobsinc
   allocate(dateStampList(numStep))

@@ -25,6 +25,7 @@
 MODULE BmatrixEnsemble_mod
   use ramDisk_mod
   use mpivar_mod
+  use fileNames_mod
   use gridStateVector_mod
   use ensembleStateVector_mod
   use horizontalCoord_mod
@@ -256,7 +257,7 @@ CONTAINS
     vco_anl => vco_anl_in
 
     if ( mpi_myid == 0 ) then
-      call ens_fileName(ensFileName, ensPathName, 1)
+      call fln_ensfileName(ensFileName, ensPathName, 1)
       call vco_SetupFromFile(vco_file, ensFileName)
     end if
     call vco_mpiBcast(vco_file)

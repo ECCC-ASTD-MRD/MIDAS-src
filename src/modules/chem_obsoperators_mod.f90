@@ -44,7 +44,6 @@ module chem_obsoperators_mod
   use codtyp_mod
   use obsSpaceData_mod
   use columnData_mod
-  use controlVector_mod
   use gridStateVector_mod
   use stateToColumn_mod
   use verticalCoord_mod

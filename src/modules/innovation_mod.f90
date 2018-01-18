@@ -32,7 +32,6 @@ module innovation_mod
   use obsOperators_mod
   use EarthConstants_mod
   use MathPhysConstants_mod
-  use physicsFunctions_mod
   use mpivar_mod
   use horizontalCoord_mod
   use columnData_mod
@@ -68,7 +67,7 @@ contains
   ! inn_setupObs
   !--------------------------------------------------------------------------
   subroutine inn_setupobs(obsSpaceData, obsColumnMode, obsMpiStrategy, &
-       innovationMode_in)
+       innovationMode_in, obsClean_opt)
     !
     !**s/r INN_SETUPOBS  - Initialisation of observation parameters and constants
     !
@@ -87,6 +86,8 @@ contains
     character(len=*) :: obsMpiStrategy
     character(len=*) :: obsColumnMode
     character(len=*), intent(in) :: innovationMode_in
+    logical, optional :: obsClean_opt
+
     integer :: get_max_rss
     logical :: obs_init
 
@@ -144,12 +145,26 @@ contains
     call filt_suprep(obsSpaceData)
     call tmg_stop(14)
 
+    if ( present(obsClean_opt) ) then
+      if ( obsClean_opt ) then
+        write(*,*) ''
+        write(*,*) 'inn_setupObs: !!WARNING!! Performing a cleanup of obsSpaceData'
+        write(*,*) '              This may make it impossible to update burp files'
+        write(*,*) ''
+        call obs_clean2(obsSpaceData)
+      end if
+    end if
+
     !
     ! set OBS_IPC and OBS_IPT columns according to the chosen strategy
     !
     write(*,*)
     write(*,*) 'INN_SETUPOBS - Using obsMpiStrategy = ', trim(obsMpiStrategy)
-    call setObsMpiStrategy(obsSpaceData,obsMpiStrategy)
+    if ( obs_columnActive_IH(obsSpaceData,OBS_IPC) ) then
+      call setObsMpiStrategy(obsSpaceData,obsMpiStrategy)
+    else
+      write(*,*) 'INN_SETUPOBS - OBS_IPC column not active, no redistribution of observations!'
+    end if
 
     !
     ! Check env variable ARMA_BURP_SPLIT to know if burp files already split
@@ -157,7 +172,9 @@ contains
     if ( burp_split() ) then 
        ! local observations files, so just do reallocation to reduce memory used
        call obs_squeeze(obsSpaceData)
-       call obs_MpiRedistribute(obsSpaceData,OBS_IPC)
+       if ( obs_columnActive_IH(obsSpaceData,OBS_IPC) ) then
+         call obs_MpiRedistribute(obsSpaceData,OBS_IPC)
+       end if
        write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     else
        ! global observations files so have to localize them for each MPI process
@@ -262,10 +279,6 @@ contains
 
     if (col_varExist('TT') .and. col_varExist('HU') .and. col_varExist('P0')) then
        !
-       !- Initialisation of TLM operators
-       !
-       call subasic_obs(columng)
-       !
        !- Using T, q and PS to compute GZ for columng
        !
        do columnIndex = 1, col_getNumCol(columng)
@@ -273,7 +286,7 @@ contains
        enddo
        if (col_getNumLev(columng,'MM') > 1) call tt2phi(columng)
     else
-       write(*,*) ':inn_setupBackgroundColumnsAnl  GZ TLM calcs not generated since TT, HU and P0 not all present'
+       write(*,*) 'inn_setupBackgroundColumnsAnl:  GZ TLM calcs not generated since TT, HU and P0 not all present'
     end if
 
     call tmg_stop(10)
@@ -314,7 +327,6 @@ contains
     integer, parameter   :: maxLevels = 200
     integer              :: EZscintID_trl, iip1s(maxLevels), iip2, iip3
     integer, allocatable :: idate(:), itime(:)
-    integer, allocatable :: nobsgid(:) ! (nstepobs) grid id for ezscint corresponding to stepobs bin
     integer, allocatable :: notag(:,:) ! (nobtot,nstepobs) obs tag associated to observations of each bin
     integer, allocatable :: nobs(:), nobs_maxmpiglobal(:) ! number of headers for each stepobs bin
     integer, allocatable :: nobsgid_mpiglobal(:,:), nobs_mpiglobal(:,:)
@@ -406,7 +418,6 @@ contains
     allocate(dlatfld(numColumn_maxmpiglobal))
     allocate(dlonfld_mpiglobal(numColumn_maxmpiglobal,mpi_nprocs))
     allocate(dlatfld_mpiglobal(numColumn_maxmpiglobal,mpi_nprocs))
-    allocate(nobsgid(tim_nStepObs))
     allocate(nobs(tim_nStepObs))
     allocate(nobs_maxmpiglobal(tim_nStepObs))
     allocate(datestamplist(tim_nStepObs))
@@ -893,7 +904,6 @@ contains
        deallocate(varInterphr_VV)
     endif
     deallocate(datestamplist)
-    deallocate(nobsgid)
     deallocate(nobs,nobs_maxmpiglobal)
     deallocate(nultrl)
     deallocate(idate)
@@ -1196,26 +1206,33 @@ contains
   end subroutine inn_setupBackgroundColumns
 
 
-  subroutine inn_computeInnovation(columnhr,obsSpaceData)
+  subroutine inn_computeInnovation(columnhr,obsSpaceData,beSilent_opt)
     !
     ! Initialise Observation Innovations using the nonlinear H
     !
     implicit none
 
     type(struct_columnData) :: columnhr
-    type(struct_obs) :: obsSpaceData
+    type(struct_obs)        :: obsSpaceData
+    logical, optional       :: beSilent_opt
 
-    real*8 zjo,zjoraob,zjosatwind,zjosurfc
-    real*8 zjosfcsf,zjosfcua,zjotov,zjoairep,zjosfcsc,zjoprof
-    real*8 zjogpsro,zjogpsgb,zjosfcgp,zjochm
+    real(8) :: zjo,zjoraob,zjosatwind,zjosurfc
+    real(8) :: zjosfcsf,zjosfcua,zjotov,zjoairep,zjosfcsc,zjoprof
+    real(8) :: zjogpsro,zjogpsgb,zjosfcgp,zjochm
     integer :: ierr, get_max_rss
-    logical lgpdata
+    logical :: lgpdata, beSilent
 
     write(*,*) '--Starting subroutine inn_computeInnovation--'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-    write(*,*) 'TIM_TIMEBINNING: Before filtering done in INN_COMPUTEINNOVATION'
-    call tim_timeBinning(obsSpaceData,tim_nstepobs)
+    if ( present(beSilent_opt) ) then
+      beSilent = beSilent_opt
+    else
+      beSilent = .false.
+    end if
+
+    if ( .not.beSilent ) write(*,*) 'TIM_TIMEBINNING: Before filtering done in INN_COMPUTEINNOVATION'
+    if ( .not.beSilent ) call tim_timeBinning(obsSpaceData,tim_nstepobs)
     !
     !     Reject observed elements too far below the surface. Pressure values
     !     for elements slightly below the surface are replaced by the surface
@@ -1223,11 +1240,11 @@ contains
     !
     !     GB-GPS (met and ZTD) observations are processed in s/r filt_topoSFC (in obsFilter_mod.ftn90)
     !
-    call filt_topo(columnhr,obsSpaceData)
+    call filt_topo(columnhr,obsSpaceData,beSilent)
     !
     !     Remove surface station wind observations
     !
-    IF (trim(innovationMode) == 'analysis' .or. trim(innovationMode) == 'FSO') CALL filt_surfaceWind(obsSpaceData)
+    if (trim(innovationMode) == 'analysis' .or. trim(innovationMode) == 'FSO') call filt_surfaceWind(obsSpaceData,beSilent)
     !
     !     Find interpolation layer in model profiles 
     !
@@ -1241,16 +1258,16 @@ contains
     !------------------------------
     !
     call tmg_start(48,'NL_OBS_OPER')
-    CALL oop_ppp_nl(columnhr,obsSpaceData,ZJORAOB,'UA')
+    call oop_ppp_nl(columnhr,obsSpaceData,ZJORAOB,'UA')
     !
     !        AIREPS
     !--------------------------------
-    CALL oop_ppp_nl(columnhr,obsSpaceData,ZJOAIREP,'AI')
+    call oop_ppp_nl(columnhr,obsSpaceData,ZJOAIREP,'AI')
     !
     !        SATWINDS
     !--------------------------------
-    CALL oer_sw(columnhr,obsSpaceData)
-    CALL oop_ppp_nl(columnhr,obsSpaceData,ZJOSATWIND,'SW')
+    call oer_sw(columnhr,obsSpaceData)
+    call oop_ppp_nl(columnhr,obsSpaceData,ZJOSATWIND,'SW')
     !
     !        SURFACE (SF, UA, SC AND GP FAMILIES)
     !-------------------------------
@@ -1263,9 +1280,9 @@ contains
     !        TOVS - RADIANCE
     !-------------------------------
     if (trim(innovationMode) == 'bgckIR'  ) then
-      call oop_tovs_nl(columnhr,obsSpaceData,tim_getDatestamp(),filt_rlimlvhu,.true. ,ZJOTOV)
+      call oop_tovs_nl(columnhr,obsSpaceData,tim_getDatestamp(),filt_rlimlvhu,beSilent,bgckMode_in=.true. ,jobs_out=ZJOTOV)
     else
-      call oop_tovs_nl(columnhr,obsSpaceData,tim_getDatestamp(),filt_rlimlvhu,.false.,ZJOTOV)
+      call oop_tovs_nl(columnhr,obsSpaceData,tim_getDatestamp(),filt_rlimlvhu,beSilent,bgckMode_in=.false.,jobs_out=ZJOTOV)
     end if
     !
     !        PROFILER
@@ -1278,7 +1295,7 @@ contains
     if (obs_famExist(obsSpaceData,'RO',local_mpi=.true.)) then
        CALL filt_gpsro(columnhr,obsSpaceData)
        CALL oer_SETERRGPSRO(columnhr,obsSpaceData)
-       call oop_gpsro_nl(columnhr,obsSpaceData,ZJOGPSRO)
+       call oop_gpsro_nl(columnhr,obsSpaceData,beSilent,ZJOGPSRO)
     end if
     !
     !        CH - CHEMICAL CONSTITUENTS
@@ -1291,11 +1308,11 @@ contains
     ZJOGPSGB=0.0D0
     if (obs_famExist(obsSpaceData,'GP',local_mpi=.true.)) then
       if (trim(innovationMode) == 'analysis' .or. trim(innovationMode) == 'FSO') then
-        CALL oer_SETERRGPSGB(columnhr,obsSpaceData,lgpdata,.true.)
-        if (lgpdata) call oop_gpsgb_nl(columnhr,obsSpaceData,ZJOGPSGB,.true.)
+        call oer_SETERRGPSGB(columnhr,obsSpaceData,lgpdata,.true.)
+        if (lgpdata) call oop_gpsgb_nl(columnhr,obsSpaceData,beSilent,ZJOGPSGB,.true.)
       else
-        CALL oer_SETERRGPSGB(columnhr,obsSpaceData,lgpdata,.false.)
-        if (lgpdata) call oop_gpsgb_nl(columnhr,obsSpaceData,ZJOGPSGB,.false.)
+        call oer_SETERRGPSGB(columnhr,obsSpaceData,lgpdata,.false.)
+        if (lgpdata) call oop_gpsgb_nl(columnhr,obsSpaceData,beSilent,ZJOGPSGB,.false.)
       end if
     end if
 
@@ -1306,103 +1323,64 @@ contains
          ZJOSURFC + ZJOTOV + ZJOPROF + ZJOGPSRO + ZJOGPSGB + ZJOCHM
     !=======================================================================
 
-    write(*,*) 'Cost function values for this MPI task:'
-    write(*,'(a15,f30.16)') 'JORAOB   = ',ZJORAOB
-    write(*,'(a15,f30.16)') 'JOAIREP  = ',ZJOAIREP
-    write(*,'(a15,f30.16)') 'JOSURFC  = ',ZJOSURFC
-    write(*,'(a15,f30.16)') 'JOSFCSF  = ',ZJOSFCSF
-    write(*,'(a15,f30.16)') 'JOSFCUA  = ',ZJOSFCUA
-    write(*,'(a15,f30.16)') 'JOSFCSC  = ',ZJOSFCSC
-    write(*,'(a15,f30.16)') 'JOSFCGP  = ',ZJOSFCGP
-    write(*,'(a15,f30.16)') 'JOTOV    = ',ZJOTOV
-    write(*,'(a15,f30.16)') 'JOSATWIND= ',ZJOSATWIND
-    write(*,'(a15,f30.16)') 'JOPROF   = ',ZJOPROF
-    write(*,'(a15,f30.16)') 'JOGPSRO  = ',ZJOGPSRO
-    write(*,'(a15,f30.16)') 'JOGPSGB  = ',ZJOGPSGB
-    write(*,'(a15,f30.16)') 'JOCHM    = ',ZJOCHM
-    write(*,'(a15,f30.16)') 'Total Jo = ',ZJO
+    if ( .not.beSilent ) then
+      write(*,*) 'Cost function values for this MPI task:'
+      write(*,'(a15,f30.16)') 'JORAOB   = ',ZJORAOB
+      write(*,'(a15,f30.16)') 'JOAIREP  = ',ZJOAIREP
+      write(*,'(a15,f30.16)') 'JOSURFC  = ',ZJOSURFC
+      write(*,'(a15,f30.16)') 'JOSFCSF  = ',ZJOSFCSF
+      write(*,'(a15,f30.16)') 'JOSFCUA  = ',ZJOSFCUA
+      write(*,'(a15,f30.16)') 'JOSFCSC  = ',ZJOSFCSC
+      write(*,'(a15,f30.16)') 'JOSFCGP  = ',ZJOSFCGP
+      write(*,'(a15,f30.16)') 'JOTOV    = ',ZJOTOV
+      write(*,'(a15,f30.16)') 'JOSATWIND= ',ZJOSATWIND
+      write(*,'(a15,f30.16)') 'JOPROF   = ',ZJOPROF
+      write(*,'(a15,f30.16)') 'JOGPSRO  = ',ZJOGPSRO
+      write(*,'(a15,f30.16)') 'JOGPSGB  = ',ZJOGPSGB
+      write(*,'(a15,f30.16)') 'JOCHM    = ',ZJOCHM
+      write(*,'(a15,f30.16)') 'Total Jo = ',ZJO
 
-    call mpi_allreduce_sumreal8scalar(ZJORAOB,'GRID')
-    call mpi_allreduce_sumreal8scalar(ZJOAIREP,'GRID')
-    call mpi_allreduce_sumreal8scalar(ZJOSURFC,'GRID')
-    call mpi_allreduce_sumreal8scalar(ZJOSFCSF,'GRID')
-    call mpi_allreduce_sumreal8scalar(ZJOSFCUA,'GRID')
-    call mpi_allreduce_sumreal8scalar(ZJOSFCSC,'GRID')
-    call mpi_allreduce_sumreal8scalar(ZJOSFCGP,'GRID')
-    call mpi_allreduce_sumreal8scalar(ZJOTOV,'GRID')
-    call mpi_allreduce_sumreal8scalar(ZJOSATWIND,'GRID')
-    call mpi_allreduce_sumreal8scalar(ZJOPROF,'GRID')
-    call mpi_allreduce_sumreal8scalar(ZJOGPSRO,'GRID')
-    call mpi_allreduce_sumreal8scalar(ZJOGPSGB,'GRID')
-    call mpi_allreduce_sumreal8scalar(ZJOCHM,'GRID')
+      call mpi_allreduce_sumreal8scalar(ZJORAOB,'GRID')
+      call mpi_allreduce_sumreal8scalar(ZJOAIREP,'GRID')
+      call mpi_allreduce_sumreal8scalar(ZJOSURFC,'GRID')
+      call mpi_allreduce_sumreal8scalar(ZJOSFCSF,'GRID')
+      call mpi_allreduce_sumreal8scalar(ZJOSFCUA,'GRID')
+      call mpi_allreduce_sumreal8scalar(ZJOSFCSC,'GRID')
+      call mpi_allreduce_sumreal8scalar(ZJOSFCGP,'GRID')
+      call mpi_allreduce_sumreal8scalar(ZJOTOV,'GRID')
+      call mpi_allreduce_sumreal8scalar(ZJOSATWIND,'GRID')
+      call mpi_allreduce_sumreal8scalar(ZJOPROF,'GRID')
+      call mpi_allreduce_sumreal8scalar(ZJOGPSRO,'GRID')
+      call mpi_allreduce_sumreal8scalar(ZJOGPSGB,'GRID')
+      call mpi_allreduce_sumreal8scalar(ZJOCHM,'GRID')
+
+      write(*,*) 'Cost function values summed for all MPI tasks:'
+      write(*,'(a15,f30.16)') 'JORAOB   = ',ZJORAOB
+      write(*,'(a15,f30.16)') 'JOAIREP  = ',ZJOAIREP
+      write(*,'(a15,f30.16)') 'JOSURFC  = ',ZJOSURFC
+      write(*,'(a15,f30.16)') 'JOSFCSF  = ',ZJOSFCSF
+      write(*,'(a15,f30.16)') 'JOSFCUA  = ',ZJOSFCUA
+      write(*,'(a15,f30.16)') 'JOSFCSC  = ',ZJOSFCSC
+      write(*,'(a15,f30.16)') 'JOSFCGP  = ',ZJOSFCGP
+      write(*,'(a15,f30.16)') 'JOTOV    = ',ZJOTOV
+      write(*,'(a15,f30.16)') 'JOSATWIND= ',ZJOSATWIND
+      write(*,'(a15,f30.16)') 'JOPROF   = ',ZJOPROF
+      write(*,'(a15,f30.16)') 'JOGPSRO  = ',ZJOGPSRO
+      write(*,'(a15,f30.16)') 'JOGPSGB  = ',ZJOGPSGB
+      write(*,'(a15,f30.16)') 'JOCHM    = ',ZJOCHM
+
+    end if ! beSilent
+
     call mpi_allreduce_sumreal8scalar(ZJO,'GRID')
-
-    write(*,*) 'Cost function values summed for all MPI tasks:'
-    write(*,'(a15,f30.16)') 'JORAOB   = ',ZJORAOB
-    write(*,'(a15,f30.16)') 'JOAIREP  = ',ZJOAIREP
-    write(*,'(a15,f30.16)') 'JOSURFC  = ',ZJOSURFC
-    write(*,'(a15,f30.16)') 'JOSFCSF  = ',ZJOSFCSF
-    write(*,'(a15,f30.16)') 'JOSFCUA  = ',ZJOSFCUA
-    write(*,'(a15,f30.16)') 'JOSFCSC  = ',ZJOSFCSC
-    write(*,'(a15,f30.16)') 'JOSFCGP  = ',ZJOSFCGP
-    write(*,'(a15,f30.16)') 'JOTOV    = ',ZJOTOV
-    write(*,'(a15,f30.16)') 'JOSATWIND= ',ZJOSATWIND
-    write(*,'(a15,f30.16)') 'JOPROF   = ',ZJOPROF
-    write(*,'(a15,f30.16)') 'JOGPSRO  = ',ZJOGPSRO
-    write(*,'(a15,f30.16)') 'JOGPSGB  = ',ZJOGPSGB
-    write(*,'(a15,f30.16)') 'JOCHM    = ',ZJOCHM
     write(*,'(a15,f30.16)') 'Total Jo = ',ZJO
 
-    write(*,*) 'TIM_TIMEBINNING: After filtering done in INN_COMPUTEINNOVATION'
-    call tim_timeBinning(obsSpaceData,tim_nstepobs)
+    if ( .not.beSilent ) write(*,*) 'TIM_TIMEBINNING: After filtering done in INN_COMPUTEINNOVATION'
+    if ( .not.beSilent ) call tim_timeBinning(obsSpaceData,tim_nstepobs)
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     write(*,*) '--Done subroutine inn_computeInnovation--'
 
   end subroutine inn_computeInnovation
-
-
-  subroutine subasic_obs(lcolumng)
-    implicit none
-
-    ! s/r SUBASIC_OBS
-    !     OBJECT: Initialise background state dependant factors
-    !             and vectors for use in TLM and adjoint of
-    !             non-linear operator
-    !
-    !     Author  : S. Pellerin *ARMA/AES Sept. 98
-    !
-    !
-    type(struct_columnData) :: lcolumng
-    type(struct_vco), pointer :: vco_anl
-    integer :: jlev,jobs,nlev_T,vcode_anl,status
-    real(8) :: zhu,one
-
-    vco_anl => col_getVco(lcolumng)
-    one=1.0D0
-    nlev_T = col_getNumLev(lcolumng,'TH')
-    status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
-
-    if( Vcode_anl .ne. 5002 .and. Vcode_anl .ne. 5005 ) then
-       call utl_abort('subasic_obs: invalid vertical coord!')
-    endif
-
-    ! initialize virtual temperature operator
-
-!$OMP PARALLEL DO PRIVATE(jlev,jobs,zhu)
-    do jlev = 1, nlev_T
-       do jobs=1,col_getNumCol(lcolumng)
-
-          zhu=exp(col_getElem(lcolumng,jlev,jobs,'HU'))
-          lcolumng%oltv(1,jlev,jobs) = fottva(zhu,one)
-          lcolumng%oltv(2,jlev,jobs) = folnqva(zhu,col_getElem(lcolumng,  &
-               jlev,jobs,'TT'),one)
-
-       enddo
-    enddo
-!$OMP END PARALLEL DO
-
-  end subroutine subasic_obs
 
 
   subroutine setObsMpiStrategy(obsSpaceData, mpiStrategy)
@@ -1892,5 +1870,6 @@ contains
     enddo
 
   end subroutine inn_perturbObs
+
 
 end module innovation_mod

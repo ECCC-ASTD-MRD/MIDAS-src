@@ -150,7 +150,7 @@ CONTAINS
     call col_copyLatLon(columng,column)
 
     write(*,*) 'PRDATABIN: For 4D increment'
-    call tim_sutimeinterp(obsSpaceData)
+    call tim_sutimeinterp(obsSpaceData,tim_nstepobsinc)
 
     ! compute dateStamp_fcst
     call incdatr(dateStamp_fcst, tim_getDatestamp(), leadTime)

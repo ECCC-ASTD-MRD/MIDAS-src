@@ -224,6 +224,7 @@ contains
     CLVALU(32) = 'brpssm'  
     CLVALU(33) = 'brpgp'  
     CLVALU(34) = 'brpch' 
+    CLVALU(35) = 'brpua'  
 
 
     CFAMI(:)   = ''
@@ -261,6 +262,7 @@ contains
     CFAMI(32)  = 'MI' 
     CFAMI(33)  = 'GP' 
     CFAMI(34)  = 'CH' 
+    CFAMI(35)  = 'UA' 
 
     IER =MRFOPC('MSGLVL','FATAL')
 
@@ -462,11 +464,11 @@ contains
          END DO
          !    initializations
          DO JO=IBEG,IEND
-            call obs_bodySet_r(obsdat,OBS_OMA ,JO,MISG)
-            call obs_bodySet_r(obsdat,OBS_OMP ,JO,MISG)
-            call obs_bodySet_r(obsdat,OBS_OER ,JO,MISG)
-            call obs_bodySet_r(obsdat,OBS_HPHT,JO,MISG)
-            call obs_bodySet_r(obsdat,OBS_WORK,JO,MISG)
+            if ( obs_columnActive_RB(obsdat,OBS_OMA) )  call obs_bodySet_r(obsdat,OBS_OMA ,JO,MISG)
+            if ( obs_columnActive_RB(obsdat,OBS_OMP) )  call obs_bodySet_r(obsdat,OBS_OMP ,JO,MISG)
+            if ( obs_columnActive_RB(obsdat,OBS_OER) )  call obs_bodySet_r(obsdat,OBS_OER ,JO,MISG)
+            if ( obs_columnActive_RB(obsdat,OBS_HPHT) ) call obs_bodySet_r(obsdat,OBS_HPHT,JO,MISG)
+            if ( obs_columnActive_RB(obsdat,OBS_WORK) ) call obs_bodySet_r(obsdat,OBS_WORK,JO,MISG)
          END DO
 
          ! For GP family, initialize OBS_OER to element 15032 (ZTD formal error) 

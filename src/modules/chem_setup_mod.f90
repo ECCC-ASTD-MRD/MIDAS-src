@@ -1639,7 +1639,7 @@ contains
 !! *Purpose*: Apply transform (or its inverse) of 2D field.
 !!            Called by routine readTrialField in file innovation_mod.ftn90. 
 !!
-!! @uthor Y. Rochon, Feb 2016
+!! @author Y. Rochon, Feb 2016
 !!
 !! Revisions:
 !!

@@ -156,33 +156,51 @@ module columnData_mod
       type(struct_columnData) :: column
 
       if(column%numCol.gt.0) then
-        column%all(:,:)=0.0d0
-        column%pressure_M(:,:)=0.0d0
-        column%pressure_T(:,:)=0.0d0
-        column%gz_M(:,:)=0.0d0
-        column%gz_T(:,:)=0.0d0
-        column%gz_sfc(:)=0.0d0
+        column%all(:,:) = 0.0d0
+        column%pressure_M(:,:) = 0.0d0
+        column%pressure_T(:,:) = 0.0d0
+        column%dP_dPsfc_T(:,:) = 0.0d0
+        column%dP_dPsfc_M(:,:) = 0.0d0
+        column%gz_M(:,:) = 0.0d0
+        column%gz_T(:,:) = 0.0d0
+        column%gz_sfc(:) = 0.0d0
       endif
 
     END SUBROUTINE col_zero
 
 
-    SUBROUTINE col_allocate(column,numCol,mpi_local)
+    SUBROUTINE col_allocate(column, numCol, mpi_local, beSilent_opt, setToZero_opt)
       IMPLICIT NONE
 
+      ! arguments
       type(struct_columnData) :: column
-      integer, intent(in)           :: numCol
-      logical, optional             :: mpi_local
-      integer :: nkgdimo,ier
+      integer, intent(in)     :: numCol
+      logical, optional       :: mpi_local
+      logical, optional       :: beSilent_opt
+      logical, optional       :: setToZero_opt
 
-      integer iloc,jvar,jvar2
+      ! locals
+      integer :: nkgdimo, iloc, jvar, jvar2
+      logical :: beSilent, setToZero
+
+      if ( present(beSilent_opt) ) then
+        beSilent = beSilent_opt
+      else
+        beSilent = .false.
+      end if
+
+      if ( present(setToZero_opt) ) then
+        setToZero = setToZero_opt
+      else
+        setToZero = .true.
+      end if
 
       column%numCol = numCol
       if(present(mpi_local)) then
         column%mpi_local=mpi_local
       else
         column%mpi_local=.true.
-        if(mpi_myid == 0) write(*,*) 'col_allocate: assuming columnData is mpi-local'
+        if (mpi_myid == 0 .and. .not.beSilent) write(*,*) 'col_allocate: assuming columnData is mpi-local'
       endif
 
       if(.not.column%vco%initialized) then
@@ -213,27 +231,27 @@ module columnData_mod
       nkgdimo=iloc
 
       if(column%numCol.le.0) then
-        write(*,*) 'col_allocate: number of columns is zero, not allocated'
+        if ( .not.beSilent ) write(*,*) 'col_allocate: number of columns is zero, not allocated'
       else         
         allocate(column%all(nkgdimo,column%numCol))
-        column%all(:,:)=0.0d0
+        if ( setToZero ) column%all(:,:)=0.0d0
 
         allocate(column%gz_T(col_getNumLev(column,'TH'),column%numCol))
         allocate(column%gz_M(col_getNumLev(column,'MM'),column%numCol))
         allocate(column%gz_sfc(column%numCol))
-        column%gz_T(:,:)=0.0d0
-        column%gz_M(:,:)=0.0d0
+        if ( setToZero ) column%gz_T(:,:)=0.0d0
+        if ( setToZero ) column%gz_M(:,:)=0.0d0
         column%gz_sfc(:)=0.0d0
 
         allocate(column%pressure_T(col_getNumLev(column,'TH'),column%numCol))
         allocate(column%pressure_M(col_getNumLev(column,'MM'),column%numCol))
-        column%pressure_T(:,:)=0.0d0
-        column%pressure_M(:,:)=0.0d0
+        if ( setToZero ) column%pressure_T(:,:)=0.0d0
+        if ( setToZero ) column%pressure_M(:,:)=0.0d0
 
         allocate(column%dP_dPsfc_T(col_getNumLev(column,'TH'),column%numCol))
         allocate(column%dP_dPsfc_M(col_getNumLev(column,'MM'),column%numCol))
-        column%dP_dPsfc_T(:,:)=0.0d0
-        column%dP_dPsfc_M(:,:)=0.0d0
+        if ( setToZero ) column%dP_dPsfc_T(:,:)=0.0d0
+        if ( setToZero ) column%dP_dPsfc_M(:,:)=0.0d0
 
         allocate(column%lat(column%numCol))
         allocate(column%lon(column%numCol))
@@ -249,13 +267,13 @@ module columnData_mod
         column%xpos(:)=0.0d0
 
         allocate(column%oltv(2,col_getNumLev(column,'TH'),numCol))
-        column%oltv(:,:,:)=0.0d0
+        if ( setToZero ) column%oltv(:,:,:)=0.0d0
 
       endif
  
-      if(mpi_myid == 0) write(*,*) 'col_allocate: nkgdimo = ',nkgdimo
-      if(mpi_myid == 0) write(*,*) 'col_allocate: varOffset=',column%varOffset
-      if(mpi_myid == 0) write(*,*) 'col_allocate: varNumLev=',column%varNumLev
+      if(mpi_myid == 0 .and. .not.beSilent) write(*,*) 'col_allocate: nkgdimo = ',nkgdimo
+      if(mpi_myid == 0 .and. .not.beSilent) write(*,*) 'col_allocate: varOffset=',column%varOffset
+      if(mpi_myid == 0 .and. .not.beSilent) write(*,*) 'col_allocate: varNumLev=',column%varNumLev
 
       column%allocated=.true.
 
@@ -441,14 +459,18 @@ module columnData_mod
     end function col_getOffsetFromVarno
 
 
-  subroutine col_calcPressure(column)
+  subroutine col_calcPressure(column, beSilent_opt)
     implicit none
     type(struct_columnData), intent(inout) :: column
+    logical, optional :: beSilent_opt
 
     real(kind=8), allocatable :: Psfc(:,:),zppobs2(:,:)
     real(kind=8), pointer     :: zppobs1(:,:,:) => null()
     real(kind=8), pointer     :: dP_dPsfc(:,:,:) => null()
     integer :: jobs, status
+    logical                   :: beSilent
+
+    if ( col_getNumCol(column) <= 0 ) return
 
     if (.not.col_varExist('P0')) then
       call utl_abort('col_calcPressure: P0 must be present as an analysis variable!')
@@ -459,7 +481,13 @@ module columnData_mod
       Psfc(1,jobs) = col_getElem(column,1,jobs,'P0')
     enddo
 
-    write(*,*) 'col_calcPressure: computing pressure on staggered or UNstaggered levels'
+    if ( present(beSilent_opt) ) then
+      beSilent = beSilent_opt
+    else
+      beSilent = .false.
+    end if
+
+    if ( .not.beSilent ) write(*,*) 'col_calcPressure: computing pressure on staggered or UNstaggered levels'
 
     status=vgd_levels(column%vco%vgrid,ip1_list=column%vco%ip1_M,  &
                       levels=zppobs1,sfc_field=Psfc,in_log=.false.)
@@ -479,7 +507,7 @@ module columnData_mod
     if (associated(zppobs1)) deallocate(zppobs1)
     deallocate(zppobs2)
 
-    write(*,*) 'col_calcPressure: computing derivate of pressure wrt surface pressure'
+    if ( .not.beSilent ) write(*,*) 'col_calcPressure: computing derivate of pressure wrt surface pressure'
 
     status = vgd_dpidpis(column%vco%vgrid,column%vco%ip1_M,dP_dPsfc,Psfc)
     allocate(zppobs2(col_getNumLev(column,'MM'),col_getNumCol(column)))
@@ -738,7 +766,7 @@ module columnData_mod
           ilev2 = ilev1 - 1 + column%varNumLev(vnl_varListIndex(varName))
           allColumns => column%all(ilev1:ilev2,:)
         else
-          call utl_abort('col_getAllColumn: Unknown variable name! ' // varName)
+          call utl_abort('col_getAllColumns: Unknown variable name! ' // varName)
         endif
       else
         allColumns => column%all(:,:)

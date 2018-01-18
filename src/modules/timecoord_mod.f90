@@ -33,7 +33,9 @@ MODULE timeCoord_mod
   public :: tim_nstepobs, tim_nstepobsinc
   ! public procedures
   public :: tim_setup, tim_timeBinning, tim_initialized
-  public :: tim_sutimeinterp, tim_setTimeInterpWeight, tim_getTimeInterpWeight
+  public :: tim_sutimeinterp, tim_sutimeinterpMpiGlobal
+  public :: tim_setTimeInterpWeight, tim_getTimeInterpWeight, tim_getTimeInterpWeightMpiGlobal
+  public :: tim_timeInterpWeightAllZero
   public :: tim_getDateStamp, tim_setDateStamp, tim_getStampList, tim_getStepObsIndex
   public :: tim_getDateStampFromFile
 
@@ -42,10 +44,12 @@ MODULE timeCoord_mod
   real(8)   :: tim_dstepobsinc, tim_windowsize
   integer   :: tim_nstepobs
   integer   :: tim_nstepobsinc
-  integer, parameter :: mxstepobs = 9 
-  real(8), pointer   :: timeInterpWeight(:,:) => NULL() ! weights for linear temporal interpolation of increment to obs times
-  integer            :: datestamp = 0    ! window centre of analysis validity
-  logical            :: initialized = .false.
+  real(8), pointer :: timeInterpWeight(:,:) => NULL() ! weights for linear temporal interpolation of increment to obs times
+  real(8), pointer :: timeInterpWeightMpiGlobal(:,:,:) => NULL() ! mpi global version of weights
+  integer          :: datestamp = 0      ! window centre of analysis validity
+  logical          :: initialized = .false.
+
+  integer, external :: get_max_rss
 
 contains
 
@@ -343,11 +347,14 @@ contains
   end subroutine tim_timeBinning
 
 
-  subroutine tim_sutimeinterp(obsSpaceData)
+  subroutine tim_sutimeinterp(obsSpaceData, numStep)
     implicit none
 
+    ! arguments
     type(struct_obs) :: obsSpaceData
+    integer          :: numStep
 
+    ! locals
     integer :: jobs,jstep
     real(8) :: stepObsIndex
 
@@ -358,28 +365,26 @@ contains
     if(mpi_myid == 0) write(*,*) ' '
 
     ! Compute the number of step obs over the observation time window 
-    if(mpi_myid == 0) write(*,*) 'TIM_SUTIMEINTERP: Number of step obs inc : ',tim_nstepobsinc
+    if(mpi_myid == 0) write(*,*) 'TIM_SUTIMEINTERP: Number of step obs inc : ', numStep
 
     if(associated(timeInterpWeight)) deallocate(timeInterpWeight)
-    allocate(timeInterpWeight(obs_numHeader(obsSpaceData),mxstepobs))
+    allocate(timeInterpWeight(obs_numHeader(obsSpaceData),numStep))
     timeInterpWeight(:,:) = 0.0d0
 
     do jobs = 1, obs_numHeader(obsSpaceData)
-      ! return the step stamp associated with date and time of the observation
 
-      ! building the list of step stamp and counting number of obs in each step
-      if(tim_nstepobsinc == 1) then
+      if(numStep == 1) then
         call tim_setTimeInterpWeight(1.0d0,jobs,1)
       else
+        ! building floating point step index
         call tim_getStepObsIndex(stepObsIndex,tim_getDatestamp(),  &
                              obs_headElem_i(obsSpaceData,OBS_DAT,jobs),  &
-                             obs_headElem_i(obsSpaceData,OBS_ETM,jobs),tim_nstepobsinc)
-        if(floor(stepObsIndex) >= tim_nstepobsinc) then
+                             obs_headElem_i(obsSpaceData,OBS_ETM,jobs), numStep)
+        ! leave all weights zero if obs time is out of range, otherwise set weights
+        if(floor(stepObsIndex) >= numStep) then
           write(*,*) 'tim_sutimeinterp: stepObsIndex too big=', jobs, stepObsIndex
-          call tim_setTimeInterpWeight(1.0d0, jobs, tim_nstepobsinc)
         else if(floor(stepObsIndex) <= 0) then
           write(*,*) 'tim_sutimeinterp: stepObsIndex too small=',jobs, stepObsIndex
-          call tim_setTimeInterpWeight(1.0d0, jobs, 1)
         else
           call tim_setTimeInterpWeight(1.0d0-(stepObsIndex-floor(stepObsIndex)), jobs, floor(stepObsIndex))
           call tim_setTimeInterpWeight(stepObsIndex-floor(stepObsIndex), jobs, floor(stepObsIndex)+1)
@@ -393,6 +398,46 @@ contains
     if(mpi_myid == 0) write(*,*) ' '
 
   end subroutine tim_sutimeinterp
+
+
+  subroutine tim_sutimeinterpMpiGlobal()
+    implicit none
+
+    ! arguments
+
+    ! locals
+    integer :: numHeader, numHeaderMax, numStep, nsize, ierr
+    real(8), allocatable :: timeInterpWeightMax(:,:)
+
+    if ( .not.associated(timeInterpWeight) ) then
+      call utl_abort('tim_sutimeinterpMpiGlobal: time_sutimeInterpWeight must first be called')
+    end if
+
+    numHeader = size(timeInterpWeight,1)
+    numStep = size(timeInterpWeight,2)
+    write(*,*) 'tim_sutimeinterpMpiGlobal: before allreduce ', numHeader ; call flush(6)
+    call rpn_comm_allreduce(numHeader, numHeaderMax, 1,  &
+                            'MPI_INTEGER', 'MPI_MAX', 'GRID', ierr)
+
+    write(*,*) 'tim_sutimeinterpMpiGlobal: allocating array of dimension ', &
+               numHeaderMax, numStep, mpi_nprocs 
+    allocate(timeInterpWeightMpiGlobal(numHeaderMax,numStep,mpi_nprocs))
+
+    ! copy over timeInterpWeight into a local array with same size for all mpi tasks
+    allocate(timeInterpWeightMax(numHeaderMax,numStep))
+    timeInterpWeightMax(:,:) = 0.0d0
+    timeInterpWeightMax(1:numHeader,1:numStep) = timeInterpWeight(1:numHeader,1:numStep)
+
+    nsize = numHeaderMax * numStep 
+    call rpn_comm_allgather(timeInterpWeightMax,       nsize, 'MPI_REAL8',  &
+                            timeInterpWeightMpiGlobal, nsize, 'MPI_REAL8',  &
+                            'GRID', ierr)
+
+    deallocate(timeInterpWeightMax)
+
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+  end subroutine tim_sutimeinterpMpiGlobal
 
 
   subroutine tim_setTimeInterpWeight(weight_in,headerIndex,stepObs)
@@ -413,6 +458,26 @@ contains
     weight_out = timeInterpWeight(headerIndex, stepObs)
 
   end function tim_getTimeInterpWeight
+
+
+  function tim_getTimeInterpWeightMpiGlobal(headerIndex,stepObs,procIndex) result(weight_out)
+    implicit none
+    real(kind=8)        :: weight_out
+    integer, intent(in) :: headerIndex, stepObs, procIndex
+
+    weight_out = timeInterpWeightMpiGlobal(headerIndex, stepObs, procIndex)
+
+  end function tim_getTimeInterpWeightMpiGlobal
+
+
+  function tim_timeInterpWeightAllZero(headerIndex) result(allZero)
+    implicit none
+    logical             :: allZero
+    integer, intent(in) :: headerIndex
+
+    allZero = all(timeInterpWeight(headerIndex, :) == 0.0d0)
+
+  end function tim_timeInterpWeightAllZero
 
 
   subroutine tim_setDatestamp(datestamp_in)
