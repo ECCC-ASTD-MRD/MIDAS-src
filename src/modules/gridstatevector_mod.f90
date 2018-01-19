@@ -1060,8 +1060,12 @@ module gridStateVector_mod
   subroutine gsv_hPad(statevector_in,statevector_out)
     implicit none
     type(struct_gsv)  :: statevector_in,statevector_out
-    integer           :: stepIndex,lonIndex,kIndex,latIndex
-    integer           :: lonBeg_in, lonEnd_in, latBeg_in, latEnd_in, kBeg, kEnd
+
+    integer :: stepIndex,lonIndex,kIndex,latIndex
+    integer :: lonBeg_in, lonEnd_in, latBeg_in, latEnd_in, kBeg, kEnd
+
+    real(8) :: paddingValue_r8
+    real(4) :: paddingValue_r4
 
     if (.not.statevector_in%allocated) then
       call utl_abort('gsv_hPad: gridStateVector_in not yet allocated! Aborting.')
@@ -1081,9 +1085,9 @@ module gridStateVector_mod
     kEnd=statevector_in%mykEnd
 
     if (lonBeg_in > statevector_out%myLonBeg .or. &
-       lonEnd_in > statevector_out%myLonEnd .or. &
-       latBeg_in > statevector_out%myLatBeg .or. &
-       latEnd_in > statevector_out%myLatEnd ) then
+        lonEnd_in > statevector_out%myLonEnd .or. &
+        latBeg_in > statevector_out%myLatBeg .or. &
+        latEnd_in > statevector_out%myLatEnd ) then
       call utl_abort('gsv_hPad: StateVector_out is SMALLER than StateVector_in! Aborting.')
     end if
     if ( kBeg /= statevector_out%mykBeg .or. kEnd /= statevector_out%mykEnd) then
@@ -1097,10 +1101,15 @@ module gridStateVector_mod
         statevector_out%gzSfc(lonBeg_in:lonEnd_in,latBeg_in:latEnd_in) = statevector_in%gzSfc(:,:)
       end if
 
-!$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,kIndex,lonIndex)    
+!$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,kIndex,lonIndex,paddingValue_r8)    
       do kIndex = kBeg, kEnd
+        if (trim(gsv_getVarNameFromK(statevector_out,kIndex)) == 'P0') then
+          paddingValue_r8 = 1000.d0 ! 1000 hPa
+        else
+          paddingValue_r8 = 0.d0
+        end if
         do stepIndex = 1, statevector_out%numStep
-          statevector_out%gd_r8(:,:,kIndex,stepIndex) = 0.d0
+          statevector_out%gd_r8(:,:,kIndex,stepIndex) = paddingValue_r8
           do latIndex = latBeg_in, latEnd_in
             do lonIndex = lonBeg_in, lonEnd_in
               statevector_out%gd_r8(lonIndex,latIndex,kIndex,stepIndex) = statevector_in%gd_r8(lonIndex,latIndex,kIndex,stepIndex)
@@ -1117,10 +1126,15 @@ module gridStateVector_mod
         statevector_out%gzSfc(lonBeg_in:lonEnd_in,latBeg_in:latEnd_in) = statevector_in%gzSfc(:,:)
       end if
 
-!$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,kIndex,lonIndex)    
+!$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,kIndex,lonIndex,paddingValue_r4)    
       do kIndex = kBeg, kEnd
+        if (trim(gsv_getVarNameFromK(statevector_out,kIndex)) == 'P0') then
+          paddingValue_r4 = 1000.0 ! 1000 hPa
+        else
+          paddingValue_r4 = 0.0
+        end if
         do stepIndex = 1, statevector_out%numStep
-          statevector_out%gd_r4(:,:,kIndex,stepIndex) = 0.0
+          statevector_out%gd_r4(:,:,kIndex,stepIndex) = paddingValue_r4
           do latIndex = latBeg_in, latEnd_in
             do lonIndex = lonBeg_in, lonEnd_in
               statevector_out%gd_r4(lonIndex,latIndex,kIndex,stepIndex) = statevector_in%gd_r4(lonIndex,latIndex,kIndex,stepIndex)
@@ -2279,28 +2293,31 @@ module gridStateVector_mod
     logical, optional             :: readGZsfc_opt
 
     ! locals
-    integer :: nulfile, ierr, ni_file, nj_file, nk_file, ip1, kIndex, stepIndex, ikey, levIndex
-    integer :: ni_tg, nj_tg, nk_tg
+    integer :: nulfile, ierr, ip1, ni_file, nj_file, nk_file, kIndex, stepIndex, ikey, levIndex
+    integer :: ni_var, nj_var, nk_var
     integer :: fnom, fstouv, fclos, fstfrm, fstlir, fstinf
-    integer :: fstprm, EZscintID_tg, ezdefset, ezsetopt, ezqkdef, ezsint
+    integer :: fstprm, EZscintID_var, ezdefset, ezsetopt, ezqkdef, ezsint
 
-    integer :: dateo_tg, deet_tg, npas_tg, nbits_tg, datyp_tg
-    integer :: ip1_tg, ip2_tg, ip3_tg, swa_tg, lng_tg, dltf_tg, ubc_tg
-    integer :: extra1_tg, extra2_tg, extra3_tg
-    integer :: ig1_tg, ig2_tg, ig3_tg, ig4_tg
+    integer :: dateo_var, deet_var, npas_var, nbits_var, datyp_var
+    integer :: ip1_var, ip2_var, ip3_var, swa_var, lng_var, dltf_var, ubc_var
+    integer :: extra1_var, extra2_var, extra3_var
+    integer :: ig1_var, ig2_var, ig3_var, ig4_var
 
-    character(len=4 ) :: nomvar_tg
-    character(len=2 ) :: typvar_tg
-    character(len=1 ) :: grtyp_tg
-    character(len=12) :: etiket_tg
+    character(len=4 ) :: nomvar_var
+    character(len=2 ) :: typvar_var
+    character(len=1 ) :: grtyp_var
+    character(len=12) :: etiket_var
 
     real(4), pointer :: field_r4_ptr(:,:,:,:)
     real(4), pointer :: fieldUV_r4_ptr(:,:,:,:)
     real(4), pointer :: gd2d_file_r4(:,:)
-    real(4), allocatable :: gd2d_tg_r4(:,:)
+    real(4), allocatable :: gd2d_var_r4(:,:)
+
     character(len=4)  :: varName
     character(len=2)  :: varLevel
+
     type(struct_vco), pointer :: vco_file
+    type(struct_hco), pointer :: hco_file
 
     nullify(gd2d_file_r4)
 
@@ -2352,30 +2369,20 @@ module gridStateVector_mod
       end if
     end if
 
+    nullify(hco_file)
     if (statevector%hco%global) then
       ! In global mode, allow for possibility that input is Z grid equivalent to output Gaussian grid
       if ( statevector%mykCount > 0 ) then
-        varName = gsv_getVarNameFromK(statevector,statevector%mykBeg)
-        ikey = fstinf(nulfile, ni_file, nj_file, nk_file,  &
-                      statevector%datestamplist(1), etiket_in, &
-                      -1, -1, -1, typvar_in, varName)
-        if (ikey <= 0 .and. varName == 'HU') then
-          varName = 'LQ'
-          ikey = fstinf(nulfile, ni_file, nj_file, nk_file,  &
-                        statevector%datestamplist(1), etiket_in, &
-                        -1, -1, -1, typvar_in, varName)
-        end if
-        if (ikey <= 0 ) call utl_abort('gsv_readFile: problem getting grid size')
-        allocate(gd2d_file_r4(ni_file,nj_file))
-        gd2d_file_r4(:,:) = 0.0
+        call hco_SetupFromFile(hco_file, filename, ' ', 'INPUTFILE')
       end if 
     else
       ! In LAM mode, force the input file dimensions to be always identical to the input statevector dimensions
+      hco_file => statevector%hco
       ni_file=statevector%ni
       nj_file=statevector%nj
-      allocate(gd2d_file_r4(ni_file,nj_file))
-      gd2d_file_r4(:,:) = 0.0
     end if
+    allocate(gd2d_file_r4(hco_file%ni,hco_file%nj))
+    gd2d_file_r4(:,:) = 0.0
 
     ! Read all other fields needed for this MPI task
     field_r4_ptr => gsv_getField_r4(statevector)
@@ -2403,37 +2410,47 @@ module gridStateVector_mod
           call utl_abort('gsv_readFile: unknown varLevel')
         end if
 
-        if ( trim(varName) == 'TG' .and. .not. statevector%hco%global ) then
-          ! Special case for TG on the physic (smaller) grid in LAM mode
-          ikey = fstinf(nulfile, ni_tg, nj_tg, nk_tg,  &
-                 statevector%datestamplist(1), etiket_in, &
-                  -1, -1, -1, typvar_in, varName)
-          ierr = fstprm( ikey,                                                             & ! IN
-                  dateo_tg, deet_tg, npas_tg, ni_tg, nj_tg, nk_tg, nbits_tg,               & ! OUT
-                  datyp_tg, ip1_tg, ip2_tg, ip3_tg, typvar_tg, nomvar_tg, etiket_tg,       & ! OUT
-                  grtyp_tg, ig1_tg, ig2_tg, ig3_tg,                                        & ! OUT
-                  ig4_tg, swa_tg, lng_tg, dltf_tg, ubc_tg, extra1_tg, extra2_tg, extra3_tg ) ! OUT
-          EZscintID_tg  = ezqkdef( ni_tg, nj_tg, grtyp_tg, ig1_tg, ig2_tg, ig3_tg, ig4_tg, nulfile ) ! IN
+        ! Make sure that the input variable has the same grid size than hco_file   
+        ikey = fstinf(nulfile, ni_var, nj_var, nk_var,         &
+                      statevector%datestamplist(1), etiket_in, &
+                      -1, -1, -1, typvar_in, varName)
 
-          allocate(gd2d_tg_r4(ni_tg,nj_tg))
-          gd2d_tg_r4(:,:) = 0.0
-          ierr=fstlir(gd2d_tg_r4(:,:),nulfile,ni_tg, nj_tg, nk_tg,  &
-                     statevector%datestamplist(stepIndex),etiket_in,ip1,-1,-1,  &
-                     typvar_in,varName)
-
-          ierr = ezdefset(statevector%hco%EZscintID,EZscintID_tg)
-          ierr = ezsetopt('INTERP_DEGREE', 'NEAREST')
-          ierr = ezsetopt('EXTRAP_DEGREE', 'NEUTRAL')
-          ierr = ezsint( gd2d_file_r4, gd2d_tg_r4)
-          ierr = ezsetopt('EXTRAP_DEGREE', 'MAXIMUM') ! Reset to default
-          ierr = ezsetopt('INTERP_DEGREE', 'LINEAR')  ! Reset to default
-
-          deallocate(gd2d_tg_r4)
-        else
+        if ( ni_var == hco_file%ni .and. nj_var == hco_file%nj ) then
           ierr=fstlir(gd2d_file_r4(:,:),nulfile,ni_file, nj_file, nk_file,  &
                      statevector%datestamplist(stepIndex),etiket_in,ip1,-1,-1,  &
                      typvar_in,varName)
+        else
+          ! Special cases for variables that are on a different horizontal grid in LAM (e.g. TG)
+          write(*,*)
+          write(*,*) 'gsv_readFile: variable on a different horizontal grid = ',trim(varName)
+          if (statevector%hco%global) then
+            call utl_abort('gsv_readFile: This is not allowed in global mode!')
+          end if
+          ierr = fstprm( ikey,                                                               & ! IN
+                         dateo_var, deet_var, npas_var, ni_var, nj_var, nk_var, nbits_var,   & ! OUT
+                         datyp_var, ip1_var, ip2_var, ip3_var, typvar_var, nomvar_var,       & ! OUT
+                         etiket_var, grtyp_var, ig1_var, ig2_var, ig3_var, ig4_var, swa_var, & ! OUT
+                         lng_var, dltf_var, ubc_var, extra1_var, extra2_var, extra3_var )      ! OUT
+
+          EZscintID_var  = ezqkdef( ni_var, nj_var, grtyp_var, ig1_var, ig2_var, ig3_var, ig4_var, nulfile ) ! IN
+
+          allocate(gd2d_var_r4(ni_var,nj_var))
+          gd2d_var_r4(:,:) = 0.0
+
+          ierr=fstlir(gd2d_var_r4(:,:),nulfile,ni_var, nj_var, nk_var,  &
+                     statevector%datestamplist(stepIndex),etiket_in,ip1,-1,-1,  &
+                     typvar_in,varName)
+
+          ierr = ezdefset(hco_file%EZscintID,EZscintID_var)
+          ierr = ezsetopt('INTERP_DEGREE', 'NEAREST')
+          ierr = ezsetopt('EXTRAP_DEGREE', 'NEUTRAL')
+          ierr = ezsint( gd2d_file_r4, gd2d_var_r4)
+          ierr = ezsetopt('EXTRAP_DEGREE', 'MAXIMUM') ! Reset to default
+          ierr = ezsetopt('INTERP_DEGREE', 'LINEAR')  ! Reset to default
+
+          deallocate(gd2d_var_r4)
         end if
+
         field_r4_ptr(:,:,kIndex,stepIndex) = gd2d_file_r4(1:statevector%hco%ni,1:statevector%hco%nj)
 
         if (ierr.lt.0)then
@@ -2471,6 +2488,8 @@ module gridStateVector_mod
 
       end do K_LOOP
     end do
+
+    if (statevector%hco%global .and. statevector%mykCount > 0) call hco_deallocate(hco_file)
 
     ierr = fstfrm(nulfile)
     ierr = fclos(nulfile)        
