@@ -39,6 +39,7 @@ program midas_ensManip
   use fileNames_mod
   use ensembleStateVector_mod
   use verticalCoord_mod
+  use analysisGrid_mod
   use horizontalCoord_mod
   use timeCoord_mod
   use utilities_mod
@@ -145,6 +146,14 @@ program midas_ensManip
   ! Use the first ensemble member to initialize the grid
   call hco_SetupFromFile( hco_ens, ensFileName, ' ', 'ENSFILEGRID')
   call vco_setupFromFile( vco_ens, ensFileName )
+
+  if ( hco_ens % global ) then
+    call agd_SetupFromHCO( hco_ens ) ! IN
+  else
+    !- Setup the LAM analysis grid metrics
+    hco_ens_core => hco_ens
+    call agd_SetupFromHCO( hco_ens, hco_ens_core ) ! IN
+  end if
 
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
