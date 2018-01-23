@@ -54,6 +54,8 @@ program midas_diagBmatrix
   real(8), allocatable :: zonalMeanStddev(:)
   real(8), allocatable :: controlVector(:), controlVector_global(:)
 
+  real(8) :: centralValue
+
   integer :: fclos, fnom, fstopc, newdate, get_max_rss
   integer :: ierr, nsize, iseed, cvDim_local
   integer :: ensIndex, index, lonIndex, latIndex, kIndex, nkgdim, levIndex
@@ -200,6 +202,9 @@ program midas_diagBmatrix
       filename       = 'columnB_'      // trim(vnl_varNameList(jvar)) // '_' // datestr // '.fst'
       filenameEnsAmp = 'ensAmplitude_' // trim(vnl_varNameList(jvar)) // '_' // datestr
 
+      write(*,*)
+      write(*,*) 'midas-diagBmatrix: simulating a pseudo-observation of ', trim(vnl_varNameList(jvar))
+
       if(vnl_varLevelFromVarname(vnl_varNameList(jvar)).eq.'SF') then
         nlevs2 = 1
       else
@@ -226,14 +231,37 @@ program midas_diagBmatrix
             controlVector(:)=0.0d0
             call bmat_sqrtBT(controlVector,cvm_nvadim,statevector)
             call bmat_sqrtB (controlVector,cvm_nvadim,statevector)
-
+            
             write(*,*)'midas-diagBmatrix: writing out the column of B, levIndex,lonIndex,latIndex=',levIndex,lonIndex,latIndex
-            call flush(6)
 
             ip3 = ip3 + 1
 
-            call gsv_writeToFile(statevector,filename,'ONEOBS_'//trim(vnl_varNameList(jvar)),  &
+            call gsv_writeToFile(statevector,filename,'1OBS_'//trim(vnl_varNameList(jvar)),  &
                  ip3_in=ip3,HUcontainsLQ=.true.,unitConversion=.true.)
+
+            ! Normalized the result to get correlation-like pattern
+            centralValue = 0.d0
+            if(oneobs_lats(latIndex).ge.statevector%myLatBeg .and. oneobs_lats(latIndex).le.statevector%myLatEnd .and.  &
+                 oneobs_lons(lonIndex).ge.statevector%myLonBeg .and. oneobs_lons(lonIndex).le.statevector%myLonEnd) then
+              if(vnl_varLevelFromVarname(vnl_varNameList(jvar)).eq.'SF') then
+                centralValue = field(oneobs_lons(lonIndex),oneobs_lats(latIndex),1)
+              else
+                centralValue = field(oneobs_lons(lonIndex),oneobs_lats(latIndex),oneobs_levs(levIndex))
+              end if
+            end if
+            call rpn_comm_allreduce(centralValue, centralValue, 1,  &
+                                    "MPI_DOUBLE_PRECISION", "MPI_SUM", "GRID", ierr)
+
+            write(*,*) 'midas-diagBmatrix: centralValue found = ', centralValue
+
+            if (centralValue /= 0.d0) then
+              call gsv_scale(statevector,1.d0/centralValue)
+            else
+              call utl_abort('midas-diagBmatrix: central value equals 0!')
+            end if
+
+            call gsv_writeToFile(statevector,filename,'1OBSNRM_'//trim(vnl_varNameList(jvar)),  &
+                 ip3_in=ip3,HUcontainsLQ=.true.,unitConversion=.false.)
 
             ! Write the ensemble amplitude fields (i.e., the alphas) when Bens is active
             if (writeEnsAmplitude) call ben_writeAmplitude('./',filenameEnsAmp, ip3) ! IN
