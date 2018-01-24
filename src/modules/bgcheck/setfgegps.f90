@@ -200,7 +200,7 @@
                        ZTT(JL)  = col_getElem(lcolumn,JL,INDEX_HEADER,'TT')
                        DX(JL)   = ZTT(JL)
                        ZHUB(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'HU')
-                       ZQQB(JL) = EXP(ZHUB(JL))
+                       ZQQB(JL) = ZHUB(JL)
                        ZHU(JL)  = col_getElem(lcolumn,JL,INDEX_HEADER,'HU')
                        DX(NFLEV_T+JL) = ZHU(JL)
                        ZGZ(JL)  = col_getHeight(lcolumng,JL,INDEX_HEADER,'TH')
@@ -290,9 +290,9 @@
             ZTTB(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'TT')- 273.15d0
             ZTT(JL)  = col_getElem(lcolumn,JL,INDEX_HEADER,'TT') * PERTFAC
             ZHUB(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'HU')
-            ZQQB(JL) = EXP(ZHUB(JL))
+            ZQQB(JL) = ZHUB(JL)
             ZHU(JL)  = col_getElem(lcolumn,JL,INDEX_HEADER,'HU')
-            ZQQ(JL)  = ZQQB(JL) * ZHU(JL) * PERTFAC
+            ZQQ(JL)  = ZHU(JL) * PERTFAC ! ZQQB(JL) * ZHU(JL) * PERTFAC
             ZHU(JL)  = ZHU(JL) * PERTFAC
             ZGZ(JL)  = col_getHeight(lcolumng,JL,INDEX_HEADER,'TH')
          ENDDO

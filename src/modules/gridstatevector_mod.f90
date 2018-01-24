@@ -2245,17 +2245,8 @@ module gridStateVector_mod
       if ( .not. gsv_varExist(statevector_out,vnl_varNameList(varIndex)) ) cycle
       field_in_ptr => gsv_getField_r8(statevector_vinterp, vnl_varNameList(varIndex))
       field_out_ptr => gsv_getField_r8(statevector_out, vnl_varNameList(varIndex))
-
       if ( trim(vnl_varNameList(varIndex)) == 'HU' .and. HUcontainsLQ ) then
-!$OMP PARALLEL DO PRIVATE (latIndex,levIndex,lonIndex)
-        do latIndex = statevector_out%myLatBeg, statevector_out%myLatEnd
-          do levIndex = 1, statevector_out%varNumLev(varIndex)
-            do lonIndex = statevector_out%myLonBeg, statevector_out%myLonEnd
-              field_out_ptr(lonIndex,latIndex,levIndex,stepIndex) = log(max(field_in_ptr(lonIndex,latIndex,levIndex,1),MPC_MINIMUM_HU_R8))
-            end do
-          end do
-        end do
-!$OMP END PARALLEL DO
+        call utl_abort('gsv_readFromFile: you are trying to convert HU to LQ. STOP!')
       else
 !$OMP PARALLEL DO PRIVATE (latIndex,levIndex,lonIndex)
         do latIndex = statevector_out%myLatBeg, statevector_out%myLatEnd
@@ -2452,20 +2443,20 @@ module gridStateVector_mod
         field_r4_ptr(:,:,kIndex,stepIndex) = gd2d_file_r4(1:statevector%hco%ni,1:statevector%hco%nj)
 
         if (ierr.lt.0)then
-          if (varName == 'HU') then
-            ! HU variable not found in file, try reading LQ
-            ierr=fstlir(gd2d_file_r4(:,:),nulfile, ni_file, nj_file, nk_file,  &
-                        statevector%datestamplist(stepIndex),etiket_in,ip1,-1,-1,  &
-                        typvar_in,'LQ')
-            field_r4_ptr(:,:,kIndex,stepIndex) = gd2d_file_r4(1:statevector%hco%ni,1:statevector%hco%nj)
-            if (ierr.lt.0)then
-              write(*,*) 'LQ',ip1,statevector%datestamplist(stepIndex)
-              call utl_abort('gsv_readFile: Problem with reading file')
-            end if
-          else
-            write(*,*) varName,ip1,statevector%datestamplist(stepIndex)
-            call utl_abort('gsv_readFile: Problem with reading file')
-          end if
+          !if (varName == 'HU') then
+          !  ! HU variable not found in file, try reading LQ
+          !  ierr=fstlir(gd2d_file_r4(:,:),nulfile, ni_file, nj_file, nk_file,  &
+          !              statevector%datestamplist(stepIndex),etiket_in,ip1,-1,-1,  &
+          !              typvar_in,'LQ')
+          !  field_r4_ptr(:,:,kIndex,stepIndex) = gd2d_file_r4(1:statevector%hco%ni,1:statevector%hco%nj)
+          !  if (ierr.lt.0)then
+          !    write(*,*) 'LQ',ip1,statevector%datestamplist(stepIndex)
+          !    call utl_abort('gsv_readFile: Problem with reading file')
+          !  end if
+          !else
+          write(*,*) varName,ip1,statevector%datestamplist(stepIndex)
+          call utl_abort('gsv_readFile: Problem with reading file')
+          !end if
         end if
 
         ! When mpi distribution could put UU on a different mpi task than VV

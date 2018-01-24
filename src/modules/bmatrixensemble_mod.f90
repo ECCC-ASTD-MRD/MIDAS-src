@@ -1458,10 +1458,12 @@ CONTAINS
     !
     !- 3.  Variable transforms
     !
-    if ( ctrlVarHumidity == 'HU') then
-       ! convert HU to LQ
+    if ( ctrlVarHumidity == 'LQ') then
+       !! convert HU to LQ
+       !call vtr_transform( statevector, & ! INOUT
+       !                    'HUtoLQ_tlm' ) ! IN
        call vtr_transform( statevector, & ! INOUT
-                           'HUtoLQ_tlm' ) ! IN
+                           'LQtoHU_tlm' ) ! IN
     end if
 
     if (mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -1514,10 +1516,9 @@ CONTAINS
     !
     !- 3.  Variable transforms
     !
-    if ( ctrlVarHumidity == 'HU') then
-      ! convert HU to LQ
+    if ( ctrlVarHumidity == 'LQ') then
       call vtr_transform( statevector, & ! INOUT
-                          'HUtoLQ_tlm' ) ! IN
+                          'LQtoHU_tlm' ) ! IN
     end if
 
     !

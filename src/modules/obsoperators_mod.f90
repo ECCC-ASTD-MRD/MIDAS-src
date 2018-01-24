@@ -27,13 +27,11 @@ module obsOperators_mod
   use obsSpaceData_mod
   use columnData_mod 
   use bufr_mod
-  use lqtoes_mod
   use physicsFunctions_mod
   use gps_mod
   use mpivar_mod
   use timeCoord_mod
   use obsFilter_mod
-  use lqtoes_mod
   use tovs_nl_mod
   use utilities_mod
   use tovs_lin_mod
@@ -316,8 +314,10 @@ contains
           if(ivnm == bufr_nees) then
              col_ptr_hu=>col_getColumn(columnhr,headerIndex,'HU')
              col_ptr_tt=>col_getColumn(columnhr,headerIndex,'TT')
-             columnVarB=lqtoes(col_ptr_hu(ilyr+1),col_ptr_tt(ilyr+1),zpb)
-             columnVarT=lqtoes(col_ptr_hu(ilyr  ),col_ptr_tt(ilyr  ),zpt)
+             !columnVarB=lqtoes(col_ptr_hu(ilyr+1),col_ptr_tt(ilyr+1),zpb)
+             !columnVarT=lqtoes(col_ptr_hu(ilyr  ),col_ptr_tt(ilyr  ),zpt)
+             columnVarB=hutoes(col_ptr_hu(ilyr+1),col_ptr_tt(ilyr+1),zpb)
+             columnVarT=hutoes(col_ptr_hu(ilyr  ),col_ptr_tt(ilyr  ),zpt)
           else
              if(trim(varName) == 'GZ') then
                 col_ptr=>col_getColumn(columnhr,headerIndex,varName,'TH')
@@ -338,8 +338,10 @@ contains
              !
              ! Forward nonlinear model for geopotential data below model's orography
              !
-             ztvg = (1.0d0 + MPC_DELTA_R8 * exp(col_getElem(columnhr,col_getNumLev(columnhr,'TH'),headerIndex,'HU')))*  &
-                  col_getElem(columnhr,col_getNumLev(columnhr,'TH'),headerIndex,'TT')
+             !ztvg = (1.0d0 + MPC_DELTA_R8 * exp(col_getElem(columnhr,col_getNumLev(columnhr,'TH'),headerIndex,'HU')))*  &
+             !     col_getElem(columnhr,col_getNumLev(columnhr,'TH'),headerIndex,'TT')
+            ztvg = (1.0d0 + MPC_DELTA_R8 * col_getElem(columnhr,col_getNumLev(columnhr,'TH'),headerIndex,'HU'))*  &
+                 col_getElem(columnhr,col_getNumLev(columnhr,'TH'),headerIndex,'TT')
              zomp = (  zvar - col_getGZsfc(columnhr,headerIndex) -  &
                   ztvg/zgamma*(1.D0-(zlev/col_getElem(columnhr,1,headerIndex,'P0'))**zexp))
              jobs = jobs + zomp*zomp/(zoer*zoer)
@@ -434,8 +436,9 @@ contains
 
              ipt  = col_getNumLev(COLUMNHR,varLevel)-1 + col_getOffsetFromVarno(columnhr,ivnm)
              ipb  = ipt + 1
-             if(ivnm == bufr_ness) then
-                columnVarB=lqtoes(col_getElem(columnhr,col_getNumLev(COLUMNHR,'TH'),headerIndex,'HU'),  &
+
+             if(ivnm.eq.bufr_ness) then
+                columnVarB=hutoes(col_getElem(columnhr,col_getNumLev(COLUMNHR,'TH'),headerIndex,'HU'),  &
                      col_getElem(columnhr,col_getNumLev(COLUMNHR,'TH'),headerIndex,'TT'),  &
                      col_getPressure(columnhr,col_getNumLev(COLUMNHR,'TH'),headerIndex,'TH'))
              else
@@ -1490,12 +1493,10 @@ contains
 !$OMP PARALLEL DO PRIVATE(jlev,columnIndex,zhu)
       do jlev = 1, nlev_T
          do columnIndex=1,col_getNumCol(columng)
-
-            zhu=exp(col_getElem(columng,jlev,columnIndex,'HU'))
-            columng%oltv(1,jlev,columnIndex) = fottva(zhu,one)
-            columng%oltv(2,jlev,columnIndex) = folnqva(zhu,col_getElem(columng,  &
-                 jlev,columnIndex,'TT'),one)
-
+            zhu=col_getElem(columng,jlev,jobs,'HU')
+            columng%oltv(1,jlev,jobs) = fottva(zhu,one)
+            columng%oltv(2,jlev,jobs) = folnqva(zhu,col_getElem(columng,  &
+                 jlev,jobs,'TT'),one)
          end do
       end do
 !$OMP END PARALLEL DO
@@ -1565,23 +1566,23 @@ contains
                     LOG(ZLEV/ZPT)*dPdPsB/ZPB )/  &
                     LOG(ZPB/ZPT)**2
 
-               if(ityp == bufr_nees) then
-                  columnVarB=lqtoes_tl(col_getElem(column,IK+1,INDEX_HEADER,'HU'), &
+               if(ityp.eq.bufr_nees) then
+                  columnVarB=hutoes_tl(col_getElem(column,IK+1,INDEX_HEADER,'HU'), &
                        col_getElem(column,IK+1,INDEX_HEADER,'TT'), &
                        col_getElem(column,1,INDEX_HEADER,'P0'), &
                        col_getElem(columng,IK+1,INDEX_HEADER,'HU'), &
                        col_getPressure(columng,IK+1,INDEX_HEADER,'TH'), &
                        dPdPsB)
-                  columnVarT=lqtoes_tl(col_getElem(column,IK  ,INDEX_HEADER,'HU'), &
+                  columnVarT=hutoes_tl(col_getElem(column,IK  ,INDEX_HEADER,'HU'), &
                        col_getElem(column,IK  ,INDEX_HEADER,'TT'), &
                        col_getElem(column,1,INDEX_HEADER,'P0'), &
                        col_getElem(columng,IK  ,INDEX_HEADER,'HU'), &
                        col_getPressure(columng,IK  ,INDEX_HEADER,'TH'),  &
                        dPdPsT)
-                  columngVarB=lqtoes(col_getElem(columng,IK+1,INDEX_HEADER,'HU'), &
+                  columngVarB=hutoes(col_getElem(columng,IK+1,INDEX_HEADER,'HU'), &
                        col_getElem(columng,IK+1,INDEX_HEADER,'TT'), &
                        col_getPressure(columng,IK+1,INDEX_HEADER,'TH'))
-                  columngVarT=lqtoes(col_getElem(columng,IK  ,INDEX_HEADER,'HU'), &
+                  columngVarT=hutoes(col_getElem(columng,IK  ,INDEX_HEADER,'HU'), &
                        col_getElem(columng,IK  ,INDEX_HEADER,'TT'), &
                        col_getPressure(columng,IK  ,INDEX_HEADER,'TH'))
                else
@@ -1672,7 +1673,7 @@ contains
                     ITYP == BUFR_NEUS .OR. ITYP == BUFR_NEVS) THEN
                   if(ITYP == BUFR_NESS) THEN
                      dPdPsfc = col_getPressureDeriv(columng,nlev,index_header,'TH')
-                     columnVarB=lqtoes_tl(col_getElem(column,nlev,INDEX_HEADER,'HU'), &
+                     columnVarB=hutoes_tl(col_getElem(column,nlev,INDEX_HEADER,'HU'), &
                           col_getElem(column,nlev,INDEX_HEADER,'TT'), &
                           col_getElem(column,1,INDEX_HEADER,'P0'), &
                           col_getElem(columng,nlev,INDEX_HEADER,'HU'), &
@@ -2528,25 +2529,26 @@ contains
                tt_column  => col_getColumn(column,INDEX_HEADER,'TT')
                hu_column  => col_getColumn(column,INDEX_HEADER,'HU')
                ps_column  => col_getColumn(column,INDEX_HEADER,'P0')
-               if(ITYP == BUFR_NEES) then
-                  call lqtoes_ad(hu_column(IK+1),  &
+
+               if(ITYP.eq.BUFR_NEES) then
+                  call hutoes_ad(hu_column(IK+1),  &
                        tt_column(IK+1),  &
                        ps_column(1),     &
                        ZWB*ZRES,         &
                        col_getElem(columng,IK+1,INDEX_HEADER,'HU'),      &
                        col_getPressure(columng,IK+1,INDEX_HEADER,'TH'),  &
                        dPdPsB)
-                  call lqtoes_ad(hu_column(IK  ),  &
+                  call hutoes_ad(hu_column(IK  ),  &
                        tt_column(IK  ),  &
                        ps_column(1),     &
                        ZWT*ZRES,         &
                        col_getElem(columng,IK  ,INDEX_HEADER,'HU'),      &
                        col_getPressure(columng,IK  ,INDEX_HEADER,'TH'),  &
                        dPdPsT)
-                  columngVarB=lqtoes(col_getElem(columng,IK+1,INDEX_HEADER,'HU'),  &
+                  columngVarB=hutoes(col_getElem(columng,IK+1,INDEX_HEADER,'HU'),  &
                        col_getElem(columng,IK+1,INDEX_HEADER,'TT'),  &
                        col_getPressure(columng,IK+1,INDEX_HEADER,'TH'))
-                  columngVarT=lqtoes(col_getElem(columng,IK  ,INDEX_HEADER,'HU'),  &
+                  columngVarT=hutoes(col_getElem(columng,IK  ,INDEX_HEADER,'HU'),  &
                        col_getElem(columng,IK  ,INDEX_HEADER,'TT'),  &
                        col_getPressure(columng,IK  ,INDEX_HEADER,'TH'))
                else
@@ -2642,7 +2644,7 @@ contains
                      tt_column  => col_getColumn(column,INDEX_HEADER,'TT')
                      hu_column  => col_getColumn(column,INDEX_HEADER,'HU')
                      ps_column  => col_getColumn(column,INDEX_HEADER,'P0')
-                     call lqtoes_ad(hu_column(nlev),  &
+                     call hutoes_ad(hu_column(nlev),  &
                           tt_column(nlev),  &
                           ps_column(1),     &
                           ZRES,             &
@@ -3085,5 +3087,96 @@ contains
     end subroutine oop_HTchm
 
   end subroutine oop_Had
+
+  function HUtoES(hu,tt,pressure) result(es)
+    !
+    ! Purpose:
+    !          to calculate the dew point depression from specific
+    !          humidity, temperature and pressure.  No ice phase
+    !          is permitted and the pressure vector is given.
+    !
+    implicit none
+    real(8), intent(in) :: hu, tt, pressure
+    real(8) :: husat, td, es
+
+    ! get the saturated vapor pressure from lq (log of specific humidity)
+    husat = foefq8(max(hu,1.d-12),pressure)
+
+    ! now the dewpoint temperature
+    td = fotw8(husat)
+
+    ! finally the dewpoint depression
+    es = min(tt-td,MPC_MAXIMUM_ES_R8)
+
+  end function HUtoES
+
+  function HUtoES_tl(HU_inc,TT_inc,P0_inc,HU_trial,PRES_trial,dPdPsfc) result(ES_inc)
+    !
+    ! Purpose: TLM VERSION
+    !          to calculate the dew point depression from specific
+    !          humidity, temperature and pressure.  No ice phase
+    !          is permitted and the pressure vector is given.
+    !
+    implicit none
+    REAL(8), intent(in) :: HU_inc, TT_inc, P0_inc, HU_trial, PRES_trial, dPdPsfc
+    REAL(8) :: ZE, ZTD, dTDdE, ZQBRANCH, ES_inc
+    REAL(8) :: dESdLQ, dESdTT, dESdP0
+
+    dESdTT = 1.0d0
+
+    !- Forward calculations of saturation vapour pressure and dewpoint temperature
+    !  and adjoint of vapour pressure from adjoint of dewpoint temperature
+    ZE   = FOEFQ8(HU_trial, PRES_trial)
+    ZTD  = FOTW8 (ZE)
+    dTDdE= FODTW8(ZTD,ZE)
+
+    !- adjoint of temp. specific humidity and surface pressure due to changes in vapour pressure
+    ZQBRANCH = FQBRANCH(HU_trial)
+
+    dESdLQ = - ZQBRANCH*FOEFQA(1.0d0,dTDdE,HU_trial,PRES_trial)
+
+    dESdP0 = - ZQBRANCH*FOEFQPSA(1.0d0,dTDdE,HU_trial,dPdPsfc)-  &
+               (1.D0-ZQBRANCH)*(dTDdE*dPdPsfc)
+
+    ES_inc =  dESdLQ*HU_inc/max(HU_trial,1.d-12) + dESdP0*P0_inc + dESdTT*TT_inc
+
+  end function HUtoES_tl
+
+  subroutine HUtoES_ad(HU_inc,TT_inc,P0_inc,ES_inc,HU_trial,PRES_trial,dPdPsfc)
+    !
+    ! Purpose: ADJOINT VERSION
+    !          to calculate the dew point depression from specific
+    !          humidity, temperature and pressure.  No ice phase
+    !          is permitted and the pressure vector is given.
+    !
+    implicit none
+    REAL(8), intent(inout) :: HU_inc,TT_inc,P0_inc
+    REAL(8), intent(in)  :: ES_inc,HU_trial,PRES_trial,dPdPsfc
+    REAL(8) :: ZE,ZTD,dTDdE,ZQBRANCH
+    REAL(8) :: dESdLQ,dESdTT,dESdP0
+
+    dESdTT = 1.0d0
+   
+    !- Forward calculations of saturation vapour pressure and dewpoint temperature
+    !  and adjoint of vapour pressure from adjoint of dewpoint temperature
+    ZE = FOEFQ8(HU_trial, PRES_trial)
+
+    ZTD=FOTW8(ZE)
+    dTDdE=FODTW8(ZTD,ZE)
+
+    !- adjoint of temp. specific humidity and surface pressure due to changes in vapour pressure
+    ZQBRANCH = FQBRANCH(HU_trial)
+    dESdLQ = - ZQBRANCH*FOEFQA(1.0d0,dTDdE,HU_trial,PRES_trial)
+
+    dESdP0 = - ZQBRANCH*FOEFQPSA(1.0d0,dTDdE,HU_trial,dPdPsfc)-  &
+               (1.D0-ZQBRANCH)*(dTDdE*dPdPsfc)
+
+    ! TLM: ES_inc =  dESdLQ*HU_inc/HU_trial + dESdP0*P0_inc + dESdTT*TT_inc
+    ! ADJOINT:
+    HU_inc = HU_inc + dESdLQ*ES_inc/max(HU_trial,1.d-12)
+    P0_inc = P0_inc + dESdP0*ES_inc
+    TT_inc = TT_inc + dESdTT*ES_inc
+
+  end subroutine HUtoES_ad
 
 end module obsOperators_mod

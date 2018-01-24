@@ -33,6 +33,7 @@ MODULE BmatrixHI_mod
   use verticalCoord_mod
   use varNameList_mod
   use utilities_mod
+  use variableTransforms_mod
   implicit none
   save
   private
@@ -2300,6 +2301,9 @@ CONTAINS
 
     call copyToStatevector(statevector,gd_out)
 
+    call vtr_transform( statevector, & ! INOUT
+                        'LQtoHU_tlm' ) ! IN
+
     deallocate(gd_out)
 
     if(mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -2326,6 +2330,9 @@ CONTAINS
     if(mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     allocate(gd_in(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim))
+
+    call vtr_transform( statevector, & ! INOUT
+                        'LQtoHU_tlm' ) ! IN
 
     call copyFromStatevector(statevector,gd_in)
 

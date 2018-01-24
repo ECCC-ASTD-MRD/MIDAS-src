@@ -1454,13 +1454,13 @@ contains
     type(struct_vco), pointer :: vco
 
     real(8), allocatable :: to    (:,:)
-    real(8), allocatable :: lqo   (:,:)
+    real(8), allocatable :: huo   (:,:)
     real(8), allocatable :: zho   (:,:)
     real(8), allocatable :: toext (:,:)
     real(8), allocatable :: qoext (:,:)
     real(8), allocatable :: zvlev (:,:)
     real(8), allocatable :: zt    (:,:)
-    real(8), allocatable :: zlq   (:,:)
+    real(8), allocatable :: zhu   (:,:)
     real(8), allocatable :: zht   (:,:)
     real(8), allocatable :: xpres (:)
     real(8), allocatable :: zlat  (:)
@@ -1555,13 +1555,13 @@ contains
       allocate (zlat      (count_profile)        ,stat= alloc_status(3) )
       allocate (ozo       (nlevels,count_profile),stat= alloc_status(4)) 
       allocate (to        (jpmolev,count_profile),stat= alloc_status(5))
-      allocate (lqo       (jpmolev,count_profile),stat= alloc_status(6))
+      allocate (huo       (jpmolev,count_profile),stat= alloc_status(6))
       allocate (zho       (jpmolev,count_profile),stat= alloc_status(7))
       allocate (toext     (nlevels  ,count_profile),stat= alloc_status(8))
       allocate (qoext     (nlevels  ,count_profile),stat= alloc_status(9))
       allocate (zvlev     (nlv_T,count_profile),stat= alloc_status(10))
       allocate (zt        (nlv_T,count_profile),stat= alloc_status(11))
-      allocate (zlq       (nlv_T,count_profile),stat= alloc_status(12))
+      allocate (zhu       (nlv_T,count_profile),stat= alloc_status(12))
       allocate (zht       (nlv_T,count_profile),stat= alloc_status(13))
       call utl_checkAllocationStatus(alloc_status, " tvs_fillProfiles")
       
@@ -1612,7 +1612,7 @@ contains
         tvs_profiles(iobs) % longitude = zlon
         do jl = 1, nlv_T
           zt   (jl,count_profile) = col_getElem(columnghr,jl,header_index,'TT')
-          zlq  (jl,count_profile) = col_getElem(columnghr,jl,header_index,'HU')
+          zhu  (jl,count_profile) = col_getElem(columnghr,jl,header_index,'HU')
           zvlev(jl,count_profile) = col_getPressure(columnghr,jl,header_index,'TH') * MPC_MBAR_PER_PA_R8
           zht  (jl,count_profile) = col_getHeight(columnghr,jl,header_index,'TH') / rg
         end do
@@ -1624,7 +1624,7 @@ contains
           zt   (1,count_profile) =  zt   (2,count_profile) + tvs_mesosphereLapseRate *  &
                log( col_getPressure(columnghr,1,header_index,'TH') /  &
                col_getPressure(columnghr,2,header_index,'TH') )
-          zlq  (1,count_profile) =  zlq  (2,count_profile)         ! extrapolation valeur constante pour H2O peu important a cette hauteur
+          zhu  (1,count_profile) =  zhu  (2,count_profile)         ! extrapolation valeur constante pour H2O peu important a cette hauteur
 !!!!
         end if
         
@@ -1640,8 +1640,8 @@ contains
       do jn=1, count_profile
         call ppo_IntAvg (zvlev(:,jn:jn),zt(:,jn:jn),nlv_T,nlv_T,1, &
              jpmolev,xpres(jpmotop:nlevels),to(:,jn:jn))
-        call ppo_IntAvg (zvlev(:,jn:jn),zlq(:,jn:jn),nlv_T,nlv_T,1, &
-             jpmolev,xpres(jpmotop:nlevels),lqo(:,jn:jn))
+        call ppo_IntAvg (zvlev(:,jn:jn),zhu(:,jn:jn),nlv_T,nlv_T,1, &
+             jpmolev,xpres(jpmotop:nlevels),huo(:,jn:jn))
       end do
 !$omp end parallel do
 
@@ -1671,7 +1671,7 @@ contains
      
       do jn = 1, count_profile
         do jl = 1, jpmolev
-          qoext(nlevels - jpmolev + jl,jn) = exp(lqo(jl,jn)) 
+          qoext(nlevels - jpmolev + jl,jn) = huo(jl,jn) !exp(lqo(jl,jn)) 
         end do
       end do
 
@@ -1762,13 +1762,13 @@ contains
 
       deallocate (xpres     ,stat= alloc_status(1))
       deallocate (zht       ,stat= alloc_status(2))
-      deallocate (zlq       ,stat= alloc_status(3))
+      deallocate (zhu       ,stat= alloc_status(3))
       deallocate (zt        ,stat= alloc_status(4))
       deallocate (zvlev     ,stat= alloc_status(5))
       deallocate (qoext     ,stat= alloc_status(6))
       deallocate (toext     ,stat= alloc_status(7))
       deallocate (zho       ,stat= alloc_status(8))
-      deallocate (lqo       ,stat= alloc_status(9))
+      deallocate (huo       ,stat= alloc_status(9))
       deallocate (to        ,stat= alloc_status(10))
       deallocate (ozo       ,stat= alloc_status(11))
       deallocate (zlat      ,stat= alloc_status(12))
