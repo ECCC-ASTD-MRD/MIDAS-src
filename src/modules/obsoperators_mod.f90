@@ -2107,6 +2107,7 @@ contains
       REAL*8 ZP0B, ZPSMOD, ZPWMOD, ZPWMOD2, dZTD
       REAL*8 ZMT
       real*8 sfcfield
+      real*8 dxq1, dxq2, dxq3
 
       REAL*8 ZHX, ZLEV, ZDZMIN
       REAL*8 JAC(ngpscvmx)
@@ -2237,23 +2238,26 @@ contains
                   write(*,*) ' dZTD Linear = ', vGPSZTD_Jacobian(iztd,2*NFLEV+1)*50.0d0
                   write(*,*) ' '
                   !               ZPPB(NFLEV) = ZPPB(NFLEV) - 50.0d0
-                  !           log(q) dx 
-                  ZHUB(64) = ZHUB(64) - 0.44D-01
-                  ZHUB(65) = ZHUB(65) - 0.44D-01
-                  ZHUB(66) = ZHUB(66) - 0.44D-01
+                  !           q dx 
+                  dxq1 = 0.44D-01*ZHUB(64)
+                  dxq2 = 0.44D-01*ZHUB(65)
+                  dxq3 = 0.44D-01*ZHUB(66)
+                  ZHUB(64) = ZHUB(64) - dxq1
+                  ZHUB(65) = ZHUB(65) - dxq2
+                  ZHUB(66) = ZHUB(66) - dxq3
                   CALL gps_structztd(NFLEV,Lat,Lon,ZMT,ZP0B,ZPPB,ZDP,ZTTB,ZHUB,LBEVIS,IREFOPT,PRF2)
                   CALL gps_ztdopv(ZLEV,PRF2,LBEVIS,ZDZMIN,ZTDopv2,ZPSMOD,IZTDOP)
                   CALL gps_pw(PRF2,ZPWMOD2)
-                  write(*,*) ' ZTD Operator Test:  dLQ = -0.44E-01 JL = 64,65,66'
+                  write(*,*) ' ZTD Operator Test:  dQ = -0.44E-01*Q JL = 64,65,66'
                   write(*,*) ' dPW (mm)    = ', ZPWMOD2 - ZPWMOD
                   write(*,*) ' dZTD NL     = ', ZTDopv2%Var - ZTDopv%Var
-                  dZTD = vGPSZTD_Jacobian(iztd,64+NFLEV)*(-0.44D-01) + vGPSZTD_Jacobian(iztd,65+NFLEV)*(-0.44D-01) + &
-                       vGPSZTD_Jacobian(iztd,66+NFLEV)*(-0.44D-01)
+                  dZTD = vGPSZTD_Jacobian(iztd,64+NFLEV)*(-dxq1) + vGPSZTD_Jacobian(iztd,65+NFLEV)*(-dxq2) + &
+                       vGPSZTD_Jacobian(iztd,66+NFLEV)*(-dxq3)
                   write(*,*) ' dZTD Linear = ', dZTD
                   write(*,*) ' '
-                  ZHUB(64) = ZHUB(64) + 0.44D-01
-                  ZHUB(65) = ZHUB(65) + 0.44D-01
-                  ZHUB(66) = ZHUB(66) + 0.44D-01
+                  ZHUB(64) = ZHUB(64) + dxq1
+                  ZHUB(65) = ZHUB(65) + dxq2
+                  ZHUB(66) = ZHUB(66) + dxq3
                   !           temperature dx                   
                   ZTTB(64) = ZTTB(64) + 2.0d0
                   ZTTB(65) = ZTTB(65) + 2.0d0

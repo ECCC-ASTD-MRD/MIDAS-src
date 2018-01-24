@@ -878,7 +878,7 @@ contains
     do i = 1, ngpslev
        prf%qst(i)%Var               = rHU(i)
        prf%qst(i)%DVar              = 0._dp
-       prf%qst(i)%DVar(ngpslev+i)   = prf%qst(i)%Var
+       prf%qst(i)%DVar(ngpslev+i)   = 1._dp
     enddo
 
     ! Compressibility:
@@ -1073,7 +1073,7 @@ contains
     do i = 1, ngpslev
        prf%qst(i)%Var               = rHU(i)
        prf%qst(i)%DVar              = 0._dp
-       prf%qst(i)%DVar(ngpslev+i)   = prf%qst(i)%Var
+       prf%qst(i)%DVar(ngpslev+i)   = 1._dp
     enddo
 
     if ( refopt == 2 ) then  ! use Aparicio & Laroche refractivity

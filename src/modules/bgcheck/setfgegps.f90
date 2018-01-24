@@ -258,7 +258,6 @@
       
       allocate(ZTTB_P(NFLEV_T))
       allocate(ZQQB_P(NFLEV_T))
-      allocate(RZHUB_P(NFLEV_T))
       allocate(ZPP_P(NFLEV_T))
 
       icount = 0
@@ -289,11 +288,8 @@
             ZDP(JL)  = col_getPressureDeriv(lcolumng,JL,INDEX_HEADER,'TH')
             ZTTB(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'TT')- 273.15d0
             ZTT(JL)  = col_getElem(lcolumn,JL,INDEX_HEADER,'TT') * PERTFAC
-            ZHUB(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'HU')
-            ZQQB(JL) = ZHUB(JL)
-            ZHU(JL)  = col_getElem(lcolumn,JL,INDEX_HEADER,'HU')
-            ZQQ(JL)  = ZHU(JL) * PERTFAC ! ZQQB(JL) * ZHU(JL) * PERTFAC
-            ZHU(JL)  = ZHU(JL) * PERTFAC
+            ZQQB(JL) = col_getElem(lcolumng,JL,INDEX_HEADER,'HU')
+            ZQQ(JL)  = col_getElem(lcolumn,JL,INDEX_HEADER,'HU') * PERTFAC
             ZGZ(JL)  = col_getHeight(lcolumng,JL,INDEX_HEADER,'TH')
          ENDDO
          ZP0  = col_getElem(lcolumn,1,INDEX_HEADER,'P0') * PERTFAC
@@ -301,7 +297,7 @@
 
          DO JL = 1, NFLEV_T
              DX (      JL) = ZTT(JL)
-             DX (NFLEV_T+JL) = ZHU(JL)
+             DX (NFLEV_T+JL) = ZQQ(JL)
          ENDDO
          DX (2*NFLEV_T+1) = ZP0
 
@@ -330,15 +326,13 @@
              ZPP_P(JL)  = ZPP(JL)  + ZDP(JL)*ZP0
              ZTTB_P(JL) = ZTTB(JL) + ZTT(JL)
              ZQQB_P(JL) = ZQQB(JL) + ZQQ(JL)
-!c             RZHUB_P(JL) = RZHUB(JL) + ZHU(JL)
-             RZHUB_P(JL) = LOG(ZQQB_P(JL))
            ENDDO
            ZP0B_P = ZP0B + ZP0
 !C
 !C         Non-linear observation operator --> delta_H = H(x+delta_x) - H(x)
 !c
-           CALL gps_structztd(NFLEV_T,Lat,Lon,ZMT,ZP0B,ZPP,ZDP,ZTTB,ZHUB,LBEVIS,IREFOPT,PRF)
-           CALL gps_structztd(NFLEV_T,Lat,Lon,ZMT,ZP0B_P,ZPP_P,ZDP,ZTTB_P,RZHUB_P,LBEVIS,IREFOPT,PRFP)
+           CALL gps_structztd(NFLEV_T,Lat,Lon,ZMT,ZP0B,ZPP,ZDP,ZTTB,ZQQB,LBEVIS,IREFOPT,PRF)
+           CALL gps_structztd(NFLEV_T,Lat,Lon,ZMT,ZP0B_P,ZPP_P,ZDP,ZTTB_P,ZQQB_P,LBEVIS,IREFOPT,PRFP)
            CALL gps_ztdopv(ZLEV,PRF,LBEVIS,ZDZMIN,ZTDopv,ZPSMOD,IZTDOP)
            JAC  = ZTDopv%DVar
            ZTDM = ZTDopv%Var
@@ -377,7 +371,6 @@
 
       deallocate(ZTTB_P)
       deallocate(ZQQB_P)
-      deallocate(RZHUB_P)
       deallocate(ZPP_P)
 
       ENDIF
