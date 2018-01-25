@@ -1,0 +1,961 @@
+#!/bin/ksh93
+
+## enlever 'splitobs_grid' qui peut etre remplace par 'analysisgrid'.
+##    l'enlever egalement du VAR.cfg
+
+set -ex
+
+arguments=$*
+eval `cclargs_lite -D "" $0 \
+  -cfg               "not defined"   "not defined"    "[maestro OAVAR configuration file]" \
+  -workdir           ""   ""    "[working directory created  by the script (default: oavar_exec_\$\$)]" \
+  -date              ""   ""    "[date on the analysis (mandatory)]" \
+  -date_trial        ""   ""    "[date of the trial files (default: \${date} - 6 hours]" \
+  -fallback_mode     "abort" "abort" "[fallback mode (default: 'abort')]" \
+  -observations      ""   ""    "[observations files (a directory) (mandatory)]" \
+  -observations      ""   ""    "[observations files (a directory) (mandatory)]" \
+  -trials            ""   ""    "[trial files (a file or a directory) (mandatory)]" \
+  -analysis          ""   ""    "[analysis file for FSO]" \
+  -forecasts         ""   ""    "[forecast file for FSO]" \
+  -preconin          "preconin" "preconin" "[path to the preconditionning file]" \
+  -ensemble          "" "" "[directory to find the ensemble trials fields for EnVar]" \
+  -bgcov             "" "" "[background error statistics (mandatory)]" \
+  -obscov            "" "" "[conventional observation error statistics (mandatory)]" \
+  -coefsat           "" "" "[RTTOV coefficients (mandatory)]" \
+  -statsat           "" "" "[satellite observations error statistics (mandatory)]" \
+  -stats_tovs        "stats_tovs" "stats_tovs" "['stats_tovs' file to used instead the one in the 'statsat' directory]" \
+  -sfc4hyperir       "" "" "['sfc4airs' file for Airs, Iasi and Cris background check]" \
+  -sfc4hyperir_newalb   "" "" "['sfc4airs_newalb' file for Airs, Iasi and Cris background check]" \
+  -namelist          "" "" "[namelist for OAVAR program (mandatory)]" \
+  -biascoeff         "" "" "[biascoeff file]" \
+  -analysisgrid      "" "" "[prototype of the analysis grid (standard file)]" \
+  -oavar             "oavar.Abs" "oavar.Abs" "[OAVAR binary ('oavar.Abs') to be run in the script (default: the one in the PATH)]" \
+  -oavar_mpirun      "oavar.mpirun" "oavar.mpirun" "[script 'oavar.mpirun' to launch MPI binaries (default: the one in the PATH)]" \
+  -mpimode           "mpi" "mpi" "[MPI mode ('mpi' or 'nompi') ('mpi' is the default)]" \
+  -npex              "1"   "1"   "[number of MPI tiles in the x direction (default to 1]" \
+  -npey              "1"   "1"   "[number of MPI tiles in the y direction (default to 1]" \
+  -omp_stacksize     "2G"  "2G"  "[set the variable OMP_STACKSIZE to that number]" \
+  -mpi_ssm           ""    ""    "[SSM domains to load the MPI environment]" \
+  -splitobs_mode     "no" "no"   "[mode to use to split observation files ('no', 'splitobs', 'reflex' and 'burp_split') (default is 'no')]" \
+  -splitobs_pgm      "splitobs.Abs" "splitobs.Abs" "[program 'splitobs.Abs' to be used to split observation along MPI tiles (default: the one in the PATH)]" \
+  -splitobs_grid     "" "" "[prototype of horizontal grid defining the analysis grid]" \
+  -splitobs_nomvar   "P0" "P0" "[nomvar of the field to be read to define the grid]" \
+  -splitobs_ndigits  "4" "4" "[number of digits for file names of observations]" \
+  -reunir_obs        "reunir_obs.Abs" "reunir_obs.Abs" "[program 'reunir_obs' to group observations files (default: the one in the PATH)]" \
+  -reunir_obs_fam    "uan uas ua to_amsua to_amsub csr ssmis airs iasi atms cris tov" "" "[list of observation families that 'reunir_obs' will have to process (default: 'uan uas ua to_amsua to_amsub csr ssmis airs iasi atms cris tov')]" \
+  -ens_subdomains    "no" "yes" "[Are ensemble trials separated along MPI subdomains? (default no)]" \
+  -etiket            ""   ""    "[etiket of fields produced by OAVAR]" \
+  -enstrials_extension_length      "4" "4" "[Ensemble trials extension length (default: 4)]" \
+  -minimum_proportion_of_members   "0.5" "0.5" "[minimum proportion of members]" \
+  -editbrp     "editbrp" "editbrp" "[path to 'editbrp' (default: the one in the PATH)]" \
+  -reflex      "reflex"  "reflex"  "[path to 'reflex'  (default: the one in the PATH)]" \
+  -tripotenml  "r.tripotenml" "r.tripotenml"  "[path to 'r.tripotenml' (default: the one in the PATH)]" \
+  -run_in_parallel  "r.run_in_parallel" "r.run_in_parallel"  "[path to 'r.run_in_parallel' (default: the one in the PATH)]" \
+  -tripotenml  "r.tripotenml" "r.tripotenml"  "[path to 'r.tripotenml' (default: the one in the PATH)]" \
+  -remote_copy "scp" "scp"  "[path to remote copy tool (default: 'scp')]" \
+  -fasttmp "no" "yes" "[Using the FASTTMP technology]" \
+  ++ $arguments`
+
+## On verifie si certains arguments sont presents
+for __oavar_launch_arg__ in date observations trials bgcov obscov coefsat statsat namelist analysisgrid oavar; do
+    eval __oavar_launch_tmp_var__="\${${__oavar_launch_arg__}}"
+    if [ -z "${__oavar_launch_tmp_var__}" ]; then
+	echo "oavar.launch: the argument '-${__oavar_launch_arg__}' must be defined"
+	exit 1
+    fi
+    unset __oavar_launch_tmp_var__
+done
+unset __oavar_launch_arg__
+
+if [ -z "${date_trial}" ]; then
+    date_trial=$(r.date ${date} -6 | cut -c-10)
+fi
+
+if [ -z "${workdir}" ]; then
+    workdir=oavar_exec_$$
+fi
+
+if [ -d "${workdir}" ]; then
+    rm -rf ${workdir}
+fi
+
+cp_cmd=$(which cp)
+mkdir_cmd=$(which mkdir)
+cut_cmd=$(which cut)
+rev_cmd=$(which rev)
+rm_cmd=$(which rm)
+mv_cmd=$(which mv)
+ln_cmd=$(which ln)
+echo_cmd=$(which echo)
+basename_cmd=$(which basename)
+ls_cmd=$(which ls)
+xargs_cmd=$(which xargs)
+touch_cmd=$(which touch)
+grep_cmd=$(which grep)
+true_cmd=$(which true)
+printf_cmd=$(which printf)
+sed_cmd=$(which sed)
+
+mkdir ${workdir}
+cd ${workdir}
+
+if [ -x ${SEQ_BIN}/nodelogger ]; then
+    nodelogger=${SEQ_BIN}/nodelogger
+else
+    nodelogger=$(which nodelogger || true)
+    if [ -z "${nodelogger}" ]; then
+	function nodelogger {
+	    echo $*
+	}
+	nodelogger=nodelogger
+    fi
+fi
+
+${nodelogger} -n $SEQ_NODE -s infox -m "Get observations files"
+## We do copy the observations files since they are changed in place
+mkdir burpfiles
+if [ -d "${observations}" ]; then
+    cp ${observations}/* burpfiles
+elif [ -f "${observations}" ]; then
+    cp ${observations} burpfiles
+else
+    echo "The observations are unavailable"
+    exit 1
+fi
+
+${nodelogger} -n $SEQ_NODE -s infox -m "Get trials"
+typeset -Z2 counter=1
+if [ -d "${trials}" ]; then
+    for file in ${trials}/*; do
+	ln -s ${file} trlm_${counter}
+	let counter=counter+1
+    done
+elif [ -d "${trials}" ]; then
+    ln -s ${trials} trlm_01
+else
+    echo "The trials are unavailable"
+    exit 1
+fi
+
+${nodelogger} -n $SEQ_NODE -s infox -m "Get Analysis and Forecasts files for FSO"
+analysis=$(${TASK_BIN}/readlink ${TASK_INPUT}/analysis)
+if  [ -d ${TASK_INPUT}/forecasts ]; then
+   mkdir forecasts
+    ln -s ${TASK_INPUT}/forecasts/${date}_*  forecasts/forecast_a
+    ln -s ${TASK_INPUT}/forecasts/${date_trial}_*  forecasts/forecast_b
+    ln -s  ${analysis} forecasts/analysis
+fi
+
+
+if [ -L "${preconin}" -o -f "${preconin}" ]; then
+    ${nodelogger} -n $SEQ_NODE -s infox -m "Get Preconditioning file"
+    ln -s ${preconin} preconin
+fi
+
+${nodelogger} -n $SEQ_NODE -s infox -m "bgcov=${bgcov}"
+ln -s ${bgcov} bgcov
+## Pour garder une compatibilite arriere, on fait un lien de 'glbcov' vers 'bgcov'
+ln -s bgcov glbcov
+
+if [ -d "${obscov}" ]; then
+    ln -s ${obscov}/* .
+else
+    ln -s ${obscov} obscov
+fi
+
+${nodelogger} -n $SEQ_NODE -s infox -m "coefsat=${coefsat}"
+ln -s ${coefsat}/* .
+${nodelogger} -n $SEQ_NODE -s infox -m "statsat=${statsat}"
+ln -s ${statsat}/* .
+
+## ici, on sélectionne un 'stats_tovs' si necessaire
+if [ "${stats_tovs}" != stats_tovs ]; then
+    [ -f stats_tovs ] && rm stats_tovs
+    ${nodelogger} -n $SEQ_NODE -s infox -m "Using ${stats_tovs} as stats_tovs"
+    ln -s ${stats_tovs} stats_tovs
+fi
+
+if [ -d "${biascoeff}" ]; then
+    ${nodelogger} -n $SEQ_NODE -s infox -m "biascoeff=${biascoeff}"
+    for file in ${biascoeff}/*; do
+	file2=$(basename $file | sed 's/_analysis_/_background_/')
+	ln -s $file $file2
+    done
+fi
+
+if [[ "${analysisgrid}" = /* ]]; then
+    local=yes
+elif [ -z "${analysisgrid%%:*}" ]; then
+    local=yes
+else ## Si ${analysisgrid} ne commence pas par '/' et ne contient pas de ':' alors
+    local=no
+fi
+
+if [ "${local}" = "no" ]; then
+    ${remote_copy} ${analysisgrid} analysisgrid
+else
+    ln -s ${analysisgrid} analysisgrid
+fi
+
+if [ "${sfc4hyperir}" ]; then
+    ln -s ${sfc4hyperir} sfc4airs
+fi
+if [ "${sfc4hyperir_newalb}" ]; then
+    ln -s ${sfc4hyperir_newalb} sfc4airs_newalb
+fi
+
+## traitement des ensembles
+if [ -n "${ensemble}" ]; then
+    ${nodelogger} -n $SEQ_NODE -s infox -m "Get ensemble trials"
+
+    ## check if all ensemble members are present
+    NUMBER_OF_MEMBERS=$(grep 'NENS *=' ${namelist} | cut -d= -f2)
+    if [ "${NUMBER_OF_MEMBERS}" -lt 1 ]; then
+	${nodelogger} -n $SEQ_NODE -s info -m "On ne peut determiner le nombre de membres a partir du namelist ${namelist}"
+	exit 1
+    fi
+
+    typeset -Z${enstrials_extension_length} number thisnumber
+    number=1
+    MEMBER_MISSING=0
+    mkdir ensemble
+    if [[ "${ens_subdomains}" = 'yes' ]]; then
+	cat > check_interpolated_files <<EOF
+#!/bin/ksh93
+
+set -e
+
+typeset -Z${enstrials_extension_length} number
+let number=MP_CHILD+base
+
+if [ "\${number}" -gt "${NUMBER_OF_MEMBERS}" ]; then
+     exit 0
+fi
+
+if [[ "${ens_subdomains}" = 'yes' ]]; then
+    typeset -Z4 ilonband=1
+    while [[ "\${ilonband}" -le "${npex}" ]]; do
+        typeset -Z4 jlatband=1
+        while [[ "\${jlatband}" -le "${npey}" ]]; do
+            if [ ! -f ${ensemble}/subdomain_\${ilonband}_\${jlatband}/${date_trial}_006_\${number} ]; then
+                ${echo_cmd} "Le membre \${number} pour le sous-domaine \${ilonband}x\${jlatband} n'existe pas"
+                ${touch_cmd} MEMBER_MISSING.\${number}
+                break
+            fi
+            let jlatband=jlatband+1
+        done
+        [ -f MEMBER_MISSING.\${number} ] && break
+        let ilonband=ilonband+1
+    done
+else
+    if [ ! -f ${ensemble}/${date_trial}_006_\${number} ]; then
+        ${touch_cmd} MEMBER_MISSING.\${number}
+    fi
+fi
+
+if [ -f MEMBER_MISSING.\${number} ]; then
+    ${nodelogger} -n ${SEQ_NODE} -s info -m "Le membre \${number} n'existe pas"
+else
+    ${echo_cmd} "Le membre \${number} est complet et disponible"
+fi
+
+EOF
+	chmod +x check_interpolated_files
+
+	let nproc=${npex}*${npey}
+	export base=1
+	while [ "${base}" -le "${NUMBER_OF_MEMBERS}" ]; do
+	    ${oavar_mpirun} "Launching check_interpolated_files with MPI" "${mpi_ssm}" "${omp_stacksize}" ${run_in_parallel} -pgm ./check_interpolated_files -npex ${nproc} -nompi pseudo_mpi -tmpdir ${PWD}/check_interpolated_files_mpi_tmpdir_${base}
+	    let base=base+nproc
+	done
+
+        ## On trouve le nombre de membres manquants en comptant le nombre de fichier 'MEMBER_MISSING.*'
+	MEMBER_MISSING=$( (/bin/ls MEMBER_MISSING.* 2>/dev/null || true) | wc -l)
+    else
+	while [ "${number}" -le "${NUMBER_OF_MEMBERS}" ]; do
+	    if [ ! -f ${ensemble}/${date_trial}_006_${number} ]; then
+		${nodelogger} -n ${SEQ_NODE} -s info -m "Le membre ${number} n'existe pas"
+		let MEMBER_MISSING=MEMBER_MISSING+1
+		touch MEMBER_MISSING.${number}
+	    fi
+	    let number=number+1
+	done
+    fi ## Fin du 'else' relie au 'if [[ "${ens_subdomains}" = 'yes' ]]'
+
+    if [ "${MEMBER_MISSING}" -gt 0 ]; then
+	if [ "${fallback_mode}" = 'abort' ]; then
+	    ${nodelogger} -n ${SEQ_NODE} -s info -m "At least one ensemble member is missing and 'fallback_mode' is 'abort' then ABORT!!!"
+	    if [ "${USER}" = afsiops -o "${USER}" = afsipar ]; then
+		${nodelogger} -n ${SEQ_NODE} -s info -m "A&P: CALL CMOIS"
+	    fi
+	    ${nodelogger} -n ${SEQ_NODE} -s info -m "If you want to continue by ignoring those missing ensemble members, put 'fallback_mode=continue' in ${cfg} and relaunch this task as indicated in the web page 'https://wiki.cmc.ec.gc.ca/wiki/ARMA/envar/contingency'"
+	    exit 1
+	elif [ "${fallback_mode}" = 'continue' ]; then
+	    ${nodelogger} -n ${SEQ_NODE} -s info -m "Since fallback_mode=${fallback_mode}, then continue"
+	else
+	    echo "The variable 'fallback_mode' can only be 'abort' or 'continue' and not '${fallback_mode}'"
+	    exit 1
+	fi
+	if [ "${MEMBER_MISSING}" -lt "$(echo ${NUMBER_OF_MEMBERS}*${minimum_proportion_of_members} | bc -l | cut -d. -f1)" ]; then
+	    reponse=$(echo ${minimum_proportion_of_members} | awk '$1<0.5 {print "yes"}')
+	    if [ "${reponse}" = yes ]; then
+		${nodelogger} -n $SEQ_NODE -s info -m "Le parametre 'minimum_proportion_of_members' doit etre plus grand que 0.5"
+		exit 1
+	    fi
+
+	    ## On cree la structure de repertoire sous 'ensemble'
+	    if [[ "${ens_subdomains}" = 'yes' ]]; then
+		typeset -Z4 ilonband=1
+		while [[ "${ilonband}" -le "${npex}" ]]; do
+		    typeset -Z4 jlatband=1
+		    while [[ "${jlatband}" -le "${npey}" ]]; do
+			[[ ! -d ensemble/subdomain_${ilonband}_${jlatband} ]] && mkdir ensemble/subdomain_${ilonband}_${jlatband}
+			let jlatband=jlatband+1
+		    done
+		    let ilonband=ilonband+1
+		done
+	    fi
+
+	    cat > create_links_members <<EOF
+#!/bin/ksh93
+
+set -e
+
+typeset -Z${enstrials_extension_length} number
+let number=MP_CHILD+base
+
+if [ "\${number}" -gt "${NUMBER_OF_MEMBERS}" ]; then
+     exit 0
+fi
+
+if [ -f MEMBER_MISSING.\${number} ]; then
+    ${echo_cmd} "The member \${number} is not complete"
+    exit 0
+fi
+
+${echo_cmd} "The member \${number} is complete"
+if [[ "${ens_subdomains}" = 'yes' ]]; then
+    typeset -Z4 ilonband=1
+    while [[ "\${ilonband}" -le "${npex}" ]]; do
+        typeset -Z4 jlatband=1
+        while [[ "\${jlatband}" -le "${npey}" ]]; do
+            ${ln_cmd} -s ${ensemble}/subdomain_\${ilonband}_\${jlatband}/${date_trial}_006_\${number} ensemble/subdomain_\${ilonband}_\${jlatband}/${date_trial}_006_\${number}
+            let jlatband=jlatband+1
+        done
+        [ -f MEMBER_MISSING.\${number} ] && break
+        let ilonband=ilonband+1
+    done
+else
+    ${ln_cmd} -s ${ensemble}/${date_trial}_006_\${number} ensemble/${date_trial}_006_\${number}
+fi
+
+EOF
+	    chmod +x create_links_members
+
+	    let nproc=${npex}*${npey}
+	    export base=1
+	    while [ "${base}" -le "${NUMBER_OF_MEMBERS}" ]; do
+		${oavar_mpirun} "Launching create_links_members with MPI" "${mpi_ssm}" "${omp_stacksize}" ${run_in_parallel} -pgm ./create_links_members -npex ${nproc} -nompi pseudo_mpi -tmpdir ${PWD}/create_links_mpi_tmpdir_${base}
+		let base=base+nproc
+	    done
+
+	    ## Tous les membres complets ont ete linkes
+	    ## Il faut maintenant remplacer les membres incomplets
+	    typeset -Z${enstrials_extension_length} number thisnumber
+	    number=0
+	    thisnumber=1
+	    while [ "${number}" -le "${NUMBER_OF_MEMBERS}" ]; do
+		let number=number+1
+		if [ ! -f MEMBER_MISSING.${number} ]; then
+		    ## Si le membre est complet alors le fichier 'MEMBER_MISSING.${number}'
+		    ## n'existe pas alors on passe a l'autre nombre.
+		    continue
+		fi
+
+		while [ "${thisnumber}" -le "${NUMBER_OF_MEMBERS}" ]; do
+		    ## Si ce fichier n'existe pas alors le membre est complet
+		    if [ ! -f MEMBER_MISSING.${thisnumber} ]; then
+			break
+		    fi
+		    let thisnumber=thisnumber+1
+		done
+
+		if [[ "${ens_subdomains}" = 'yes' ]]; then
+                    ## On fait un lien des membres complets aux membres vides
+		    ${nodelogger} -n ${SEQ_NODE} -s info -m "On remplace le membre ${number} par le membre ${thisnumber}"
+		    typeset -Z4 ilonband=1
+		    while [[ "${ilonband}" -le "${npex}" ]]; do
+			typeset -Z4 jlatband=1
+			while [[ "${jlatband}" -le "${npey}" ]]; do
+			    ln -sf ${ensemble}/subdomain_${ilonband}_${jlatband}/${date_trial}_006_${thisnumber} \
+				ensemble/subdomain_${ilonband}_${jlatband}/${date_trial}_006_${number}
+			    let jlatband=jlatband+1
+			done
+			let ilonband=ilonband+1
+		    done
+		    let thisnumber=thisnumber+1
+		else
+		    ${nodelogger} -n ${SEQ_NODE} -s info -m "On remplace le membre ${number} par ${thisnumber}"
+		    ln -s ${ensemble}/${date_trial}_006_${thisnumber} ensemble/${date_trial}_006_${number}
+		    let thisnumber=thisnumber+1
+		fi
+	    done ## Fin du 'while [ "${number}" -le "${NUMBER_OF_MEMBERS}" ]'
+	else
+	    [[ -d ensemble ]] && rm -rf ensemble
+	    ${nodelogger} -n ${SEQ_NODE} -s info -m "Trop de membres sont absents alors nous tournerons sans les ensemble (3D-Var)"
+	## On enleve la partie '&NAMBEN ... /' dans le namelist pour tourner sans ceux-ci.
+	## cat ${namelist} | python -c "import re, sys; match=re.match('(.*)^ *?\&NAMBEN.*?^ *?/(.*)', sys.stdin.read(), re.DOTALL | re.MULTILINE); print match.group(1),match.group(2)," > flnml || true
+	    cat > convert_to_3DVar.py <<EOF
+import re
+import sys
+
+## On enleve la ligne 'SCALEFACTOR' parce qu'elle n'a plus de sens, on est en 3D-Var pur.
+regex1=re.compile('^ *SCALEFACTOR.*?$', re.DOTALL | re.MULTILINE)
+subtxt_NOSCALEFACTOR = regex1.sub('', sys.stdin.read(), 1)
+
+## On attrape la ligne '&NAMBEN .... /' pour l'enlever puisqu'on est en 3D-Var pur
+regex2=re.compile('^ *?\&NAMBEN.*?^ *?/', re.DOTALL | re.MULTILINE)
+result=regex2.sub(' &NAMBEN\n/\n', subtxt_NOSCALEFACTOR, 1)
+
+## On evite d'ecrire la hessienne
+regex3=re.compile('^ *LWRTHESS.*$', re.MULTILINE)
+result=regex3.sub('   LWRTHESS = .FALSE.,', result, 1)
+
+## On double le nombre d'iterations et de simulations
+regex4=re.compile('^ *NITERMAX *= *([0-9]*) *, *$', re.MULTILINE)
+nitermax=regex4.search(result)
+result=regex4.sub('   NITERMAX = %d,' % (2*int(nitermax.group(1))), result, 1)
+
+regex5=re.compile('^ *NSIMMAX *= *([0-9]*) *, *$', re.MULTILINE)
+nsimmax=regex5.search(result)
+result=regex5.sub('   NSIMMAX = %d,' % (2*int(nsimmax.group(1))), result, 1)
+
+print result,
+EOF
+	    cat ${namelist} | python convert_to_3DVar.py > flnml || true
+	    if [ ! -s flnml ]; then
+		rm -f flnml
+	    fi
+	    ## Si on est en mode 3D-Var alors il ne faut pas utiliser la hessienne en intrant et a la sortie pour ne pas melanger les modes EnVar et 3D-Var
+	    ## Par contre, on va la recycler pour pouvoir l'utiliser dans la prochaine analyse
+	    if [ -f preconin ]; then
+		mv preconin pm1q
+	    fi
+	fi ## Fin du 'else' relie au 'if [ "${MEMBER_MISSING}" -lt "$(echo ${NUMBER_OF_MEMBERS}*${minimum_proportion_of_members} | bc -l | cut -d. -f1)" ]'
+    else
+	rm -rf ./ensemble
+	ln -s ${ensemble} ensemble
+    fi  ## Fin du 'else' relie au 'if [ "${MEMBER_MISSING}" -gt 0 ]'
+fi ## Fin du 'if [ -n "${ensemble}" ]'
+
+if [[ "${ORDENV_PLAT}" = sles-* ]]; then
+    ramdiskpath=/tmp/${USER}
+elif [[ "${ORDENV_PLAT}" = ubuntu-14.04-* ]]; then
+    ramdiskpath=/dev/shm
+fi
+
+if [ "${splitobs_mode}" = no ]; then
+    ## Si on ne splitte pas les observations alors on les deplace directement dans 'output'
+    mv burpfiles/* .
+else
+    ${nodelogger} -n $SEQ_NODE -s infox -m "Doing the splitting with program ${splitobs_pgm}"
+
+    if [ "${splitobs_mode}" = 'splitobs' ]; then
+	if [ -f "${splitobs_grid}" ]; then
+	    ln -s ${splitobs_grid} split_grid
+	else
+	    ${remote_copy} ${splitobs_grid} split_grid
+	fi
+    fi
+
+    ## On prepare les scripts de lancement du splitting
+    burpfile_counter=0
+    for burpfile in burpfiles/brp*; do
+	fam=$(basename ${burpfile} | cut -c4-)
+	mkdir burpfiles_${fam} burpfiles_${fam}.updated
+        FINAL_BURPFILE_DIRECTORY=${PWD}/burpfiles_${fam}
+	cat > splitobs_script_${burpfile_counter} <<EOF
+#!/bin/ksh93
+
+set -ex
+
+    if [ "${fasttmp}" = yes ]; then
+        FASTTMPDIR=${ramdiskpath}/${fam}
+        ${mkdir_cmd} -p \${FASTTMPDIR}
+        time ${cp_cmd} ${burpfile} \${FASTTMPDIR}/$(basename ${burpfile}).full
+        cd \${FASTTMPDIR}
+        export TMPDIR=\${FASTTMPDIR}
+    else
+        ${cp_cmd} ${burpfile} $(basename ${burpfile}).full
+    fi
+
+    npex=${npex}
+    npey=${npey}
+
+    if [ "${splitobs_mode}" = 'splitobs' ]; then
+	time ${splitobs_pgm} -burpin $(${basename_cmd} ${burpfile}).full -burpout $(${basename_cmd} ${burpfile}) -fstin ${FINAL_BURPFILE_DIRECTORY}/../split_grid \
+	    -nomvar ${splitobs_nomvar} -npex \${npex} -npey \${npey}
+    elif [ "${splitobs_mode}" = 'reflex' ]; then
+        ## Dans ce cas, on va splitter mais avec reflex puisque cela peut etre fait egard a la localisation geographique
+	let nprocs=npex*npey
+	[[ -z "\${nprocs}" ]] && nprocs=1
+        ## Puisque 'reflex' permet de splitter les fichiers jusqu'a un maximum de 980
+	if [ "\${nprocs}" -gt 980 ]; then
+	    ${nodelogger} -n $SEQ_NODE -s info -m "We are not supporting mode than 980 MPI process when splitting with 'reflex'"
+	    exit 1
+	fi
+	bburpfile=$(${basename_cmd} ${burpfile})
+	${editbrp} -s \${bburpfile}.full -d \${bburpfile}.nores -i<<EOFBRP
+ exclure('>>*******')
+EOFBRP
+	${editbrp} -s \${bburpfile}.full -d \${bburpfile}.res -c 1 -i<<EOFBRP
+ desire('>>*******')
+EOFBRP
+	${splitobs_pgm} -ixent \${bburpfile}.nores -oxsrt \${bburpfile} -nsplit \${nprocs}
+	for file in \${bburpfile}_*; do
+	    ${editbrp} -s \${bburpfile}.res -d \${file} -i 0
+	done
+	${rm_cmd} \${bburpfile}.res \${bburpfile}.nores
+        ## Il faut convertir les fichiers avec les noms compatibles avec ceux que le 3dvar lira
+        ## Le fichier 'brptov_014' sera transforme en 'brptov_0001_0014'
+	typeset -Z3 proc=1
+	typeset -Z${splitobs_ndigits} procx=1
+	typeset -Z${splitobs_ndigits} procy=1
+	while [[ "\${proc}" -le "\${nprocs}" ]]; do
+	    procx=\$(((proc-1)/npey+1))
+	    procy=\$(((proc-1)%npey+1))
+	    ${mv_cmd} \${bburpfile}_\${proc} \${bburpfile}_\${procx}_\${procy}
+	    let proc=proc+1
+	done
+    elif [ "${splitobs_mode}" = 'burp_split' ]; then
+	bburpfile=$(${basename_cmd} ${burpfile})
+	let nprocs=npex*npey
+	[[ -z "\${nprocs}" ]] && nprocs=1
+	${splitobs_pgm} ${burpfile} \${bburpfile} \${nprocs} ">>DERIALT"
+    else
+	echo "This splitobs_mode=${splitobs_mode} is not supported"
+	exit 1
+    fi
+
+    if [ "${fasttmp}" = yes ]; then
+        time ${cp_cmd} brp${fam}_* ${FINAL_BURPFILE_DIRECTORY}
+        cd ${FINAL_BURPFILE_DIRECTORY}/..
+        ${rm_cmd} -rf \${FASTTMPDIR}
+    else
+        [ -f brp${fam}      ] && ${mv_cmd} brp${fam}      ${FINAL_BURPFILE_DIRECTORY}
+        [ -f brp${fam}.full ] && ${mv_cmd} brp${fam}.full ${FINAL_BURPFILE_DIRECTORY}
+        [ -f brp${fam}_*    ] && ${mv_cmd} brp${fam}_*    ${FINAL_BURPFILE_DIRECTORY}
+    fi
+EOF
+	chmod +x splitobs_script_${burpfile_counter}
+	let burpfile_counter=burpfile_counter+1
+    done
+
+    cat > launch_splitobs <<EOF
+#!/bin/ksh93
+
+set -ex
+
+${echo_cmd} MP_CHILD=\${MP_CHILD}
+
+let number=MP_CHILD+base || true
+
+## must redefine a local TMPDIR if not, editbrp will abort because all threads are using the same directory
+[ -d \${TMPDIR}/\${MP_CHILD} ] && ${rm_cmd} -rf \${TMPDIR}/\${MP_CHILD}
+${mkdir_cmd} \${TMPDIR}/\${MP_CHILD}
+export TMPDIR=\${TMPDIR}/\${MP_CHILD}
+
+if [ -x ./splitobs_script_\${number} ]; then
+    ./splitobs_script_\${number}
+fi
+
+EOF
+    chmod +x launch_splitobs
+    let nprocs=${npex}*${npey}
+    export base=0
+    while [ "${base}" -lt "${burpfile_counter}" ]; do
+	${oavar_mpirun} "Launching splitobs with MPI" "${mpi_ssm}" "${omp_stacksize}" ${run_in_parallel} -pgm ./launch_splitobs -npex ${nprocs} -tmpdir ${PWD}/splitobs_mpi_tmpdir_${base} -nompi pseudo_mpi
+	let base=base+${nprocs}
+    done
+    ## ici, les observations devraient etre splittees en bandes de latitudes ou par batch
+fi
+
+if [ -f "${oavar}" ]; then
+    cp ${oavar} oavar.Abs
+else
+    ${remote_copy} ${oavar} oavar.Abs
+fi
+
+## Rendu ici, on devrait avoir tout installe pour executer le 'oavar.Abs'.
+export TMG_ON=YES
+
+if [ "${mpimode}" = 'mpi' ]; then
+    ${nodelogger} -n $SEQ_NODE -s infox -m "Building namelist"
+
+    if [ -f flnml ]; then
+	mv flnml flnml.no_tripote
+	namelist=flnml.no_tripote
+    fi
+    if [ -n "${etiket}" ]; then
+	${tripotenml} char CETIKINC ${etiket} ${namelist} > flnml
+    else
+	cp ${namelist} flnml
+    fi
+    
+    cat > ptopo_nml <<EOF
+ &ptopo
+  npex=${npex}
+  npey=${npey}
+/
+EOF
+    
+    if [ "${splitobs_mode}" != no ]; then
+	export OAVAR_BURP_SPLIT='yes'
+    fi
+
+    cat > oavar.sh <<EOF
+#!/bin/ksh
+
+set -ex
+
+npex=${npex}
+npey=${npey}
+let nprocs=npex*npey
+
+typeset -Z${splitobs_ndigits} burpfile_x burpfile_y
+
+burpfile_y=\$((npey-MP_CHILD/npex))
+burpfile_x=\$((MP_CHILD+1-npex*(MP_CHILD/npex)))
+
+if [ "${fasttmp}" = yes ]; then
+    FASTTMPDIR=${ramdiskpath}/oavar_\${MP_CHILD}
+    ${mkdir_cmd} -p \${FASTTMPDIR}
+
+    ## move observations in RAMDisk
+    ${mkdir_cmd} \${FASTTMPDIR}/obs
+    if [ "${splitobs_mode}" = no ]; then
+        ${cp_cmd} brp* \${FASTTMPDIR}/obs
+    else
+        ${cp_cmd} burpfiles_*/brp*_\${burpfile_x}_\${burpfile_y} \${FASTTMPDIR}/obs
+    fi
+    export OAVAR_BURP_DIRECTORY=\${FASTTMPDIR}/obs
+
+    ## Move Ensemble files in RAMDisk
+    ${mkdir_cmd} \${FASTTMPDIR}/ensemble
+    typeset -Z${enstrials_extension_length} number=1
+    while [ "\${number}" -le "${NUMBER_OF_MEMBERS}" ]; do
+        if [ "\$(((number-1)%nprocs))" -eq "\${MP_CHILD}" ]; then
+            ${cp_cmd} ensemble/${date_trial}_006_\${number} \${FASTTMPDIR}/ensemble
+        fi
+        let number=number+1
+    done
+    export OAVAR_ENSPATHNAME=\${FASTTMPDIR}/ensemble
+
+    ## Move Trial files in RAMDisk
+    typeset -Z2 counter=1
+    for file in trlm_* ; do
+        if [ "\$(((counter-1)%nprocs))" -eq "\${MP_CHILD}" ]; then
+            time ${cp_cmd} \${file} \${FASTTMPDIR}/
+        fi
+	let counter=counter+1
+    done
+
+    export OAVAR_RAM_DISK_DIR=\${FASTTMPDIR}
+else
+    if [ "${splitobs_mode}" != no ]; then
+       [ "\${MP_CHILD}" -eq 0 ] && ${mkdir_cmd} ./obs
+       while [ ! -d ./obs ]; do
+           $(which sleep) 1
+       done
+       ${cp_cmd} burpfiles_*/brp*_\${burpfile_x}_\${burpfile_y} ./obs
+       export OAVAR_BURP_DIRECTORY=./obs
+    fi
+fi
+
+./oavar.Abs
+##gdb -ex run -ex where ./oavar.Abs
+
+if [ "${splitobs_mode}" = no ]; then
+    if [ "${fasttmp}" = yes ]; then
+        if [ "\${MP_CHILD}" -eq 0 ]; then
+            ${cp_cmd} \${FASTTMPDIR}/obs/brp* .
+        fi
+    fi
+else
+    if [ "${fasttmp}" = yes ]; then
+        for file in \${FASTTMPDIR}/obs/brp*; do
+            fam=\$(${basename_cmd} \${file} | ${rev_cmd} | ${cut_cmd} -d_ -f3- | ${rev_cmd} | ${cut_cmd} -c4-)
+            ${cp_cmd} \${file} burpfiles_\${fam}.updated/\$(${basename_cmd} \${file})
+        done
+    else
+        for file in ./obs/brp*_\${burpfile_x}_\${burpfile_y}; do
+            fam=\$(${basename_cmd} \${file} | ${rev_cmd} | ${cut_cmd} -d_ -f3- | ${rev_cmd} | ${cut_cmd} -c4-)
+            ${mv_cmd} \${file} burpfiles_\${fam}.updated/\$(${basename_cmd} \${file})
+        done
+    fi
+fi
+
+if [ "${fasttmp}" = yes ]; then
+    ${rm_cmd} -rf \${FASTTMPDIR}
+fi
+
+EOF
+    chmod +x oavar.sh
+    ${oavar_mpirun} "$(true_path ${oavar})" "${mpi_ssm}" "${omp_stacksize}" ${run_in_parallel} -pgm ./oavar.sh -npex ${npex} -npey ${npey} -tmpdir ${PWD}/oavar_mpi_tmpdir
+
+    if [ -f VAR3D_STATUS.dot ]; then
+	. ./VAR3D_STATUS.dot
+	if [ "${VAR3D_STATUS}" != VAR3D_END ]; then
+	    echo "3D-Var execution problem!"
+	    exit 1
+	fi
+    else
+	echo "The file 'VAR3D_STATUS.dot' has not been created so we cannot determine the status of the 3D-Var execution"
+	exit 1
+    fi
+elif [ "${mpimode}" = 'nompi' ]; then
+    cat > ptopo_nml <<EOF
+ &ptopo
+  npex=1
+  npey=1
+/
+EOF
+    counter=0
+    for file in brp*; do
+        family=$(echo ${file} | cut -c4-)
+        cat > omp_${counter}.sh <<EOF
+#!/bin/ksh93
+
+set -ex
+
+${mkdir_cmd} ${family}
+cd ${family}
+
+EOF
+        if [ -d ${namelist} ]; then
+            if [ -f ${namelist}/${family}.nml ]; then
+                cat >> omp_${counter}.sh <<EOF
+${ln_cmd} -s ${namelist}/${family}.nml flnml
+EOF
+            else
+                cat >> omp_${counter}.sh <<EOF
+${ln_cmd} -s ${namelist}/default.nml flnml
+EOF
+            fi
+        else
+            cat >> omp_${counter}.sh <<EOF
+${ln_cmd} -s ${namelist} flnml
+EOF
+        fi
+
+        cat >> omp_${counter}.sh <<EOF
+
+${ln_cmd} -s ../${file} ${file}
+
+${ln_cmd} -s ../trlm_* .
+
+${ln_cmd} -s ../ptopo_nml .
+
+[ -f ../analysisgrid ] && ${ln_cmd} -s ../analysisgrid .
+
+${ln_cmd} -s ${bgcov} bgcov
+
+if [ -d ${obscov} ]; then
+    ${ln_cmd} -s ${obscov}/* .
+else
+    ${ln_cmd} -s ${obscov} obscov
+fi
+
+## Pour garder une compatibilite arriere, on fait un lien de 'glbcov' vers 'bgcov'
+${ln_cmd} -s bgcov glbcov
+
+${ln_cmd} -s ${coefsat}/* .
+${ln_cmd} -s ${statsat}/* .
+
+../oavar.Abs
+
+if [ -f VAR3D_STATUS.dot ]; then
+    . ./VAR3D_STATUS.dot
+    if [ "\${VAR3D_STATUS}" != VAR3D_END ]; then
+        ${echo_cmd} "3D-Var execution problem!"
+        exit 1
+    fi
+else
+    ${echo_cmd} "The file 'VAR3D_STATUS.dot' has not been created so we cannot determine the status of the 3D-Var execution"
+    exit 1
+fi
+
+exit 0
+EOF
+
+        chmod +x omp_${counter}.sh
+        let counter=counter+1
+    done
+
+    if [ "${npex}" = 1 -a "${npey}" = 1 ]; then
+        ## Si on est en 1x1 alors, on execute les familles une apres l'autre
+        for file in omp_*.sh; do
+            ./${file}
+        done
+    else
+        cat > launch_mpi_jobs <<EOF
+#!/bin/ksh93
+set -ex
+echo MP_CHILD=\${MP_CHILD}
+
+typeset -Z2 job
+set +e
+let job=\${base}+\${MP_CHILD}
+set -e
+if [[ -e omp_\${job}.sh ]]; then
+    ./omp_\${job}.sh > out_omp_\${job} 2>&1 || ${touch_cmd} abort_\${job}
+fi
+EOF
+        chmod +x launch_mpi_jobs
+
+        num_procs=$((npex*npey))
+        echo 'num_procs='${num_procs}
+
+        export base=0
+        while [ ${base} -lt ${counter} ]; do
+            ${oavar_mpirun} "$(true_path ./oavar.Abs)" "${mpi_ssm}" ${omp_stacksize} ${run_in_parallel} -pgm ./launch_mpi_jobs -npex ${npex} -npey ${npey} -tmpdir ${PWD}/oavar_mpi_tmpdir_${base} -nompi pseudo_mpi
+            let base=${base}+${num_procs}
+        done
+
+        if [ -f abort_* ]; then
+            echo "One of the 3D-Var execution aborted"
+            exit 1
+        fi
+        for file in out_omp_*; do
+            echo "Listing ${file}"
+            cat ${file}
+        done
+    fi ## Fin du 'else' relie au 'if [ "${npex}" = 1 -a "${npey}" = 1 ]'
+fi ## Fin du 'elif [ "${mpimode}" = 'nompi' ]'
+
+mkdir burpfiles_final
+if [ "${splitobs_mode}" = no ]; then
+    mv brp* burpfiles_final
+else
+    mkdir burpfiles_work
+
+    if [ "${splitobs_mode}" = 'splitobs' ]; then
+	${nodelogger} -n $SEQ_NODE -s infox -m "Regrouping the observations with program ${reunir_obs}"
+    fi
+
+    __reunir_obs_fam__=$(echo ${reunir_obs_fam} | sed 's/[ ,]/|/g')
+
+    ## to get the list of observations families to process, we do those steps:
+    ##   get the list of all files of the form 'brp${fam}_0013_0078' with the command
+    ##                       /bin/ls -1 burpfiles_splitted | grep -v num_headers
+    ##   reverse the characters of each line with 'rev' so 'brpto_amsub_0013_0078' becomes '8700_3100_busma_otprb'
+    ##   split this string into fields using the '_' separator and discard the first 2 fields:
+    ##                       cut -d_ -f3-   which gives 'busma_otprb'
+    ##   reverse again the string which gives 'brpto_amsub'
+    ##   after the last 'rev' command, we have a list of files of the form 'brp${fam}'
+    ##   which we can 'sort' and extract the unique element ('-u' option to 'sort')
+    ##   Now, we have something like 'brp${fam}' which we extract the '${fam}' part with 'cut -c4-'
+    ##      families2process=$(/bin/ls -1 burpfiles_splitted | grep -v num_headers | rev | cut -d_ -f3- | rev | sort -u | cut -c4-)
+    ## We could also have used the command
+    ##      families2process=$(/bin/ls -1 burpfiles_splitted | sed 's/brp\([a-z_]*\)_[0-9]*_[0-9]*/\1/' | sort -u)
+
+    ## La liste des familles est celle des repertoires 'burpfiles_*.updated
+    families2process=$(/bin/ls -1d burpfiles_*.updated | sed 's/\.updated$//;s/^burpfiles_//')
+
+    burpfile_counter=0
+    for fam in ${families2process}; do
+	OAVAR_WORKDIR=${PWD}
+	cat > reunirobs_script_${burpfile_counter} <<EOFREUNIROBS
+#!/bin/ksh93
+
+set -ex
+
+	files="$(${ls_cmd} -1 burpfiles_${fam}.updated/brp${fam}_* | ${grep_cmd} -v num_headers || ${true_cmd})"
+	[ -z "\${files}" ] && exit 0
+
+	[ -f brp${fam}.all.original ] && ${rm_cmd} -f brp${fam}.all.original
+
+	## On regroupe les fichiers ensemble avec 'reflex' qui ne peut prendre que 10 fichiers a la fois
+        if [ "${fasttmp}" = yes ]; then
+            FASTTMP=${ramdiskpath}/reunir_obs_${fam}
+            ${mkdir_cmd} \${FASTTMP}
+            ${cp_cmd} \${files} \${FASTTMP}
+            cd \${FASTTMP}
+            export TMPDIR=\${FASTTMP}
+            ${printf_cmd} "\$(${echo_cmd} \${files} | ${sed_cmd} 's/ /\\n/g')" | ${xargs_cmd} -L1 ${basename_cmd} | ${xargs_cmd} -t -L10 ${reflex} -oxsrt brp${fam}.all.original -ixent
+        else
+            ${printf_cmd} "\$(${echo_cmd} \${files} | ${sed_cmd} 's/ /\\n/g')" | ${xargs_cmd} -t -L10 ${reflex} -oxsrt brp${fam}.all.original -ixent
+        fi
+
+	## On enleve tous les enregistrements resume pour n'en garder qu'un seul.
+	[ -f brp${fam}.1resrec ] && ${rm_cmd} -f brp${fam}.1resrec
+	${editbrp} -s brp${fam}.all.original -d brp${fam}.1resrec -i<<EOF
+ exclure('>>*******')
+EOF
+	${editbrp} -s brp${fam}.all.original -d brp${fam}.1resrec -c 1 -i<<EOF
+ desire('>>*******')
+EOF
+
+	if [ "${splitobs_mode}" = 'splitobs' ]; then
+	    case "${fam}" in
+		${__reunir_obs_fam__})
+		    [ -f brp${fam} ] && ${rm_cmd} -f brp${fam}
+		    ${reunir_obs} -inburp brp${fam}.1resrec -outburp brp${fam}
+		    ;;
+		*)
+		    ${mv_cmd} brp${fam}.1resrec brp${fam}
+		    ;;
+	    esac
+	else
+	    ${mv_cmd} brp${fam}.1resrec brp${fam}
+	fi
+
+        ${cp_cmd} brp${fam} ${OAVAR_WORKDIR}/burpfiles_final
+        cd ${OAVAR_WORKDIR}
+        if [ "${fasttmp}" = yes ]; then
+            ${rm_cmd} -rf \${FASTTMP}
+        fi
+EOFREUNIROBS
+	chmod +x reunirobs_script_${burpfile_counter}
+	let burpfile_counter=burpfile_counter+1
+    done
+
+    cat > launch_reunirobs <<EOF
+#!/bin/ksh93
+
+set -ex
+
+echo MP_CHILD=\${MP_CHILD}
+
+let number=MP_CHILD+base || true
+
+## must redefine a local TMPDIR if not, editbrp will abort because all threads are using the same directory
+[ -d \${TMPDIR}/\${MP_CHILD} ] && ${rm_cmd} -rf \${TMPDIR}/\${MP_CHILD}
+${mkdir_cmd} \${TMPDIR}/\${MP_CHILD}
+export TMPDIR=\${TMPDIR}/\${MP_CHILD}
+
+if [ -x ./reunirobs_script_\${number} ]; then
+    ./reunirobs_script_\${number}
+fi
+
+EOF
+    chmod +x launch_reunirobs
+    let nprocs=${npex}*${npey}
+    export base=0
+    while [ "${base}" -lt "${burpfile_counter}" ]; do
+	${oavar_mpirun} "Launching reunir_obs with MPI" "${mpi_ssm}" "${omp_stacksize}" ${run_in_parallel} -pgm ./launch_reunirobs -nompi pseudo_mpi -npex ${nprocs} -tmpdir ${PWD}/reunirobs_mpi_tmpdir_${base}
+	let base=base+${nprocs}
+    done
+    ## ici, les observations devraient etre remises dans des fichiers pour chaque famille
+fi ## Fin du 'else' relie au 'if [ "${splitobs_mode}" = no ]'
+
+cp -f rebm* .. || true
+mv -f flnml .. || true
+mv -f burpfiles_final/brp* .. || true
+mv -f pm1q .. || true
+## Ces fichiers n'existemt pas necessairement puisque l'information est maintenant affichee dans le listing.
+mv -f TMG_3D-VAR*.hpm .. || true
+
+cd ..
+
+echo "End of script 'oavar.launch'"
