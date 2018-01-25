@@ -4,22 +4,22 @@
 #
 # User-defined options
 #
-#flnml="namelist_hvloc_lam.nml"
-#ensdir=/home/jfc425/data_maestro/brooks/ensemble/national_test #global_test/gaussian_grid
-#analysisgrid="/home/jfc425/data/ords/oavarGridTemplate/analysisgrid_national10km_80L_vcode5002.fst"
+flnml="namelist_hvloc_lam.nml"
+ensdir=/home/jfc425/data_maestro/eccc-ppp2/ensemble/national_test #global_test/gaussian_grid
+analysisgrid="/home/jfc425/data/ords/oavarGridTemplate/analysisgrid_national10km_80L_vcode5002.fst"
 
-flnml="namelist_bhi_glb.nml"
-machine=brooks
-abs=/home/mab001/data_maestro/ords/oavar_abs/calcstats_sles-11-broadwell-64-xc40-m_3.0.0-1-gaea63f4_M.Abs
-expname="test_5002_latbands_m_3.0.0_enkf"
-ensdir=${HOME}/data_maestro/${machine}/calcstats/ensemble_enkf
+#flnml="namelist_bhi_glb.nml"
+machine=eccc-ppp2
+abs=/home/jfc425/bin/midas/midas_abs/midas-calcStats_ubuntu-14.04-amd64-64-m_3.1.0_M.Abs
+expname="test_hvlocal"
+#ensdir=${HOME}/data_maestro/${machine}/calcstats/ensemble_enkf
 gest="${HOME}/data_maestro/${machine}/calcstats/${expname}"
-analysisgrid="/home/sanl000/ANAL_shared/datafiles/constants/arma/oavar/2.1.1/analysis_grid_prototypes/analysis_grid_prototype_glb_800x400_south-to-north_80L_vcode5002"
+#analysisgrid="/home/sanl000/ANAL_shared/datafiles/constants/arma/oavar/2.1.1/analysis_grid_prototypes/analysis_grid_prototype_glb_800x400_south-to-north_80L_vcode5002"
 
 npex=1
 npey=1
-openmp=36 #44
-memory=3000M #220000M
+openmp=44 #44
+memory=100000M #220000M
 maxcputime=10800
 
 run_in_parallel="/fs/ssm/eccc/mrd/rpn/utils/16.2/all/bin/r.run_in_parallel_1.1.28c"

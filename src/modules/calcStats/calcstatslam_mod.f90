@@ -612,6 +612,9 @@ module calcstatslam_mod
     case ('STDDEV')
        write(*,*)
        write(*,*) 'Computing Standard-Deviations'
+    case ('HVCORREL_LOCAL')
+       write(6,*)
+       write(6,*) 'Computing Local Correlation'
     case ('LOCALIZATIONRADII')
        write(6,*)
        write(6,*) 'Estimating the optimal covariance localization radii'
@@ -723,9 +726,7 @@ module calcstatslam_mod
        ier =  fstfrm(iunstats)
        ier =  fclos (iunstats)
        return
-    end if
-
-    if ( trim(tool) == 'VERTCORREL_GRIDPOINT' ) then
+    else if ( trim(tool) == 'VERTCORREL_GRIDPOINT' ) then
        !
        !- 6.  VERTCORREL_GRIDPOINT
        !
@@ -799,7 +800,15 @@ module calcstatslam_mod
        deallocate(PowerSpectrum)
        deallocate(NormB)
 
+     else if (trim(tool) == 'HVCORREL_LOCAL') then
+       !
+       !- 8.  
+       !
+       call Normalize3d( ensPerturbations, & ! INOUT
+                         StdDev3dGridPoint)  ! IN
+       call calcLocalCorrelations(ensPerturbations) ! IN
     else
+      
       call bmd_localizationRadii(ensPerturbations, StdDev3dGridPoint, cv_bhi, waveBandIndex=1) ! IN
     endif
 
@@ -3431,5 +3440,103 @@ module calcstatslam_mod
     call flush(6)
 
   end subroutine writePressureProfiles
+
+  !--------------------------------------------------------------------------
+  ! CALCLOCALCORRELATIONS
+  !--------------------------------------------------------------------------
+  subroutine calcLocalCorrelations(ensPerturbations)
+    implicit none
+
+    real(4), intent(in) :: ensPerturbations(:,:,:,:)
+
+    real(8), allocatable :: localHorizCorrel(:,:,:)
+
+    real(8) :: dnens
+
+    integer :: ier
+    integer :: i, j, k, ens
+    integer :: blocklength_x, blocklength_y, blockpadding, nirefpoint, njrefpoint
+    integer :: iref_id, jref_id, iref, jref
+    integer :: imin, imax, jmin, jmax
+
+    integer :: nulstats, ierr, fclos, fnom, nulnam, iunstats, fstouv, fstfrm
+    
+    NAMELIST /NAMHVCORREL_LOCAL/nirefpoint, njrefpoint, blockpadding
+
+    !
+    ! To compute the local horizontal correlation for some 'reference' grid point
+    ! ... we assume that the ensemble grid point mean was removed and that
+    !     the ensemble values were divided by the grid point std dev.
+    !
+
+    nirefpoint = 4 ! Number of reference grid point in x
+    njrefpoint = 2 ! Number of reference grid point in y
+    blockpadding = 4  ! Number of grid point padding between blocks (to set correlation to 0 between each block)
+
+    nulnam = 0
+    ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+    read(nulnam,nml=NAMHVCORREL_LOCAL)
+    write(*,nml=NAMHVCORREL_LOCAL)
+    ierr = fclos(nulnam)
+
+    blocklength_x = hco_ens%ni / nirefpoint ! Horizontal correlation will be compute blocklength x blocklength gridpoint
+                                            ! around each reference point
+    blocklength_y = hco_ens%nj / njrefpoint ! Horizontal correlation will be compute blocklength x blocklength gridpoint
+                                            ! around each reference point
+
+    allocate(localHorizCorrel(hco_bhi%ni,hco_bhi%nj,nkgdim))
+
+    localHorizCorrel(:,:,:)=0.0d0
+
+    dnens = 1.0d0/dble(nens-1)
+
+!$OMP PARALLEL DO PRIVATE (k,jref_id,iref_id,iref,jref,jmin,jmax,imin,imax,j,i,ens)
+    do k = 1, nkgdim
+
+       do ens = 1, nens
+          do jref_id = 1, njrefpoint
+             do iref_id = 1, nirefpoint
+                iref = (2*iref_id-1)*blocklength_x/2
+                jref = (2*jref_id-1)*blocklength_y/2
+                jmin = max(jref-(blocklength_y-blockpadding)/2,1)
+                jmax = min(jref+(blocklength_y-blockpadding)/2,hco_ens%nj)
+                imin = max(iref-(blocklength_x-blockpadding)/2,1)
+                imax = min(iref+(blocklength_x-blockpadding)/2,hco_ens%ni)
+                do j = jmin, jmax
+                   do i = imin, imax
+                      localHorizCorrel(i,j,k)=localHorizCorrel(i,j,k) + &
+                           ensPerturbations(i,j,k,ens) * ensPerturbations(iref,jref,k,ens)
+                   end do
+                end do
+             end do
+          end do
+       end do
+
+       do j = 1, hco_ens%nj
+          do i = 1, hco_ens%ni
+             localHorizCorrel(i,j,k) = localHorizCorrel(i,j,k)*dnens
+          end do
+       end do
+
+    end do
+!$OMP END PARALLEL DO
+
+    write(6,*) 'finished computing the local horizontal correlations...'
+    call flush(6)
+
+    !
+    !- 4.  Write to file
+    !
+    iunstats = 0
+    ier    = fnom(iunstats,'./horizCorrelLocal.fst','RND',0)
+    ier    = fstouv(iunstats,'RND')
+    call write3d(localHorizCorrel,iunstats,'HCORREL_LOC',cv_bhi)
+    call WriteTicTacToc(iunstats) ! IN
+    ier =  fstfrm(iunstats)
+    ier =  fclos (iunstats)
+
+    deallocate(localHorizCorrel)
+
+  end subroutine calcLocalCorrelations
 
 end module calcstatslam_mod
