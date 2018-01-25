@@ -223,7 +223,7 @@ subroutine tt2phi_tl(column,columng)
   real(8) :: hu,tt,ratioP1,delLnP_M1,delLnP_T1
   real(8), allocatable :: ratioP(:), delThick(:)
   real(8), allocatable :: delLnP_M(:),delLnP_T(:)
-  real(8), pointer     :: delGz_M(:),delGz_T(:),delTT(:),delLQ(:),delP0(:)
+  real(8), pointer     :: delGz_M(:),delGz_T(:),delTT(:),delHU(:),delP0(:), HU_trial(:)
   type(struct_vco), pointer :: vco_anl
 
   real(8), allocatable, save :: coeff_M_TT(:,:), coeff_M_HU(:,:), coeff_M_P0(:,:), &
@@ -292,13 +292,15 @@ subroutine tt2phi_tl(column,columng)
 
     ! loop over all columns
 
-!$OMP PARALLEL DO PRIVATE(columnIndex,delGz_M,delGz_T,delThick,delTT,delLQ,delP0,lev_M,lev_T)
+!$OMP PARALLEL DO PRIVATE(columnIndex,delGz_M,delGz_T,delThick,delTT,delHU,HU_trial,delP0,lev_M,lev_T)
     do columnIndex = 1, col_getNumCol(columng)
 
       delGz_M => col_getColumn(column,columnIndex,'GZ','MM')
       delGz_T => col_getColumn(column,columnIndex,'GZ','TH')
       delTT   => col_getColumn(column,columnIndex,'TT')
-      delLQ   => col_getColumn(column,columnIndex,'HU')
+      !delLQ   => col_getColumn(column,columnIndex,'HU')
+      delHU   => col_getColumn(column,columnIndex,'HU')
+      HU_trial=> col_getColumn(columng,columnIndex,'HU')
       delP0   => col_getColumn(column,columnIndex,'P0')
 
       ! ensure increment at sfc is zero (fixed height level)
@@ -308,7 +310,7 @@ subroutine tt2phi_tl(column,columng)
       ! compute increment to thickness for each layer
       do lev_T = 2, (nlev_T-1)
         delThick(lev_T) = coeff_M_TT(lev_T,columnIndex) * delTT(lev_T) + &
-                          coeff_M_HU(lev_T,columnIndex) * delLQ(lev_T) + &
+                          coeff_M_HU(lev_T,columnIndex) * delHU(lev_T)/HU_trial(lev_T) + &
                           coeff_M_P0(lev_T,columnIndex) * delP0(1)
       enddo
 
@@ -327,7 +329,7 @@ subroutine tt2phi_tl(column,columng)
       ! compute GZ increment for top thermo level (from top momentum level)
       delGz_T(1) = delGz_M(1) +  &
                    coeff_T_TT(columnIndex) * delTT(1) + &
-                   coeff_T_HU(columnIndex) * delLQ(1) + &
+                   coeff_T_HU(columnIndex) * delHU(1)/HU_trial(1) + &
                    coeff_T_P0(columnIndex) * delP0(1)
 
       !if(columnIndex.eq.1) then
@@ -376,13 +378,15 @@ subroutine tt2phi_tl(column,columng)
 
     ! loop over all columns
 
-!$OMP PARALLEL DO PRIVATE(columnIndex,delGz_M,delGz_T,delThick,delTT,delLQ,delP0,lev_M,lev_T)
+!$OMP PARALLEL DO PRIVATE(columnIndex,delGz_M,delGz_T,delThick,delTT,delHU,HU_trial,delP0,lev_M,lev_T)
     do columnIndex = 1, col_getNumCol(columng)
 
       delGz_M => col_getColumn(column,columnIndex,'GZ','MM')
       delGz_T => col_getColumn(column,columnIndex,'GZ','TH')
       delTT   => col_getColumn(column,columnIndex,'TT')
-      delLQ   => col_getColumn(column,columnIndex,'HU')
+      !delLQ   => col_getColumn(column,columnIndex,'HU')
+      delHU   => col_getColumn(column,columnIndex,'HU')
+      HU_trial=> col_getColumn(columng,columnIndex,'HU')
       delP0   => col_getColumn(column,columnIndex,'P0')
 
       ! ensure increment at sfc is zero (fixed height level)
@@ -392,7 +396,7 @@ subroutine tt2phi_tl(column,columng)
       ! compute increment to thickness for each layer
       do lev_T = 1, (nlev_T-1)
         delThick(lev_T) = coeff_M_TT(lev_T,columnIndex) * delTT(lev_T) + &
-                          coeff_M_HU(lev_T,columnIndex) * delLQ(lev_T) + &
+                          coeff_M_HU(lev_T,columnIndex) * delHU(lev_T)/HU_trial(lev_T) + &
                           coeff_M_P0(lev_T,columnIndex) * delP0(1)
       enddo
 
@@ -452,7 +456,7 @@ subroutine tt2phi_ad(column,columng)
   real(8) :: hu,tt,ratioP1,delLnP_M1,delLnP_T1
   real(8), allocatable :: ratioP(:),sumGz_T(:)
   real(8), allocatable :: delLnP_M(:),delLnP_T(:),delGz_M(:),delGz_T(:)
-  real(8), pointer     :: delGz_M_in(:),delGz_T_in(:),delTT(:),delLQ(:),delP0(:)
+  real(8), pointer     :: delGz_M_in(:),delGz_T_in(:),delTT(:),delHU(:),HU_trial(:),delP0(:)
   type(struct_vco), pointer :: vco_anl
 
   real(8), allocatable, save :: coeff_M_TT(:,:), coeff_M_HU(:,:), coeff_M_P0(:,:), &
@@ -524,13 +528,15 @@ subroutine tt2phi_ad(column,columng)
     ! loop over all columns
 
 !$OMP PARALLEL DO PRIVATE(columnIndex,delGz_M_in,delGz_T_in,delTT,  &
-!$OMP delLQ,delP0,lev_M,lev_T,sumGz_T,delGz_M,delGz_T)
+!$OMP delHU,HU_trial,delP0,lev_M,lev_T,sumGz_T,delGz_M,delGz_T)
     do columnIndex = 1, col_getNumCol(columng)
 
       delGz_M_in => col_getColumn(column,columnIndex,'GZ','MM')
       delGz_T_in => col_getColumn(column,columnIndex,'GZ','TH')
       delTT      => col_getColumn(column,columnIndex,'TT')
-      delLQ      => col_getColumn(column,columnIndex,'HU')
+      !delLQ      => col_getColumn(column,columnIndex,'HU')
+      delHU      => col_getColumn(column,columnIndex,'HU')
+      HU_trial   => col_getColumn(columng,columnIndex,'HU')
       delP0      => col_getColumn(column,columnIndex,'P0')
 
       !if(columnIndex.eq.1) then
@@ -556,7 +562,7 @@ subroutine tt2phi_ad(column,columng)
       ! adjoint of compute GZ increment on top thermo level (from top momentum level)
       delGz_M(1)  = delGz_M(1)  + delGz_T(1)
       delTT(1) = delTT(1) + coeff_T_TT(columnIndex)*delGz_T(1)
-      delLQ(1) = delLQ(1) + coeff_T_HU(columnIndex)*delGz_T(1)
+      delHU(1) = delHU(1) + coeff_T_HU(columnIndex)*delGz_T(1)/HU_trial(1)
       delP0(1) = delP0(1) + coeff_T_P0(columnIndex)*delGz_T(1)
 
       ! adjoint of compute GZ increment on momentum levels
@@ -567,7 +573,7 @@ subroutine tt2phi_ad(column,columng)
       enddo
       do lev_T = 2, nlev_T-1
         delTT(lev_T) = delTT(lev_T) + coeff_M_TT(lev_T,columnIndex)*sumGz_T(lev_T)
-        delLQ(lev_T) = delLQ(lev_T) + coeff_M_HU(lev_T,columnIndex)*sumGz_T(lev_T)
+        delHU(lev_T) = delHU(lev_T) + coeff_M_HU(lev_T,columnIndex)*sumGz_T(lev_T)/HU_trial(lev_T)
         delP0(1)     = delP0(1)     + coeff_M_P0(lev_T,columnIndex)*sumGz_T(lev_T)
       enddo
 
@@ -616,13 +622,15 @@ subroutine tt2phi_ad(column,columng)
     ! loop over all columns
 
 !$OMP PARALLEL DO PRIVATE(columnIndex,delGz_M_in,delGz_T_in,delTT,  &
-!$OMP delLQ,delP0,lev_M,lev_T,sumGz_T,delGz_M,delGz_T)
+!$OMP delHU,HU_trial,delP0,lev_M,lev_T,sumGz_T,delGz_M,delGz_T)
     do columnIndex = 1, col_getNumCol(columng)
 
       delGz_M_in => col_getColumn(column,columnIndex,'GZ','MM')
       delGz_T_in => col_getColumn(column,columnIndex,'GZ','TH')
       delTT      => col_getColumn(column,columnIndex,'TT')
-      delLQ      => col_getColumn(column,columnIndex,'HU')
+      !delLQ      => col_getColumn(column,columnIndex,'HU')
+      delHU   => col_getColumn(column,columnIndex,'HU')
+      HU_trial=> col_getColumn(columng,columnIndex,'HU')
       delP0      => col_getColumn(column,columnIndex,'P0')
 
       !if(columnIndex.eq.1) then
@@ -653,7 +661,8 @@ subroutine tt2phi_ad(column,columng)
       enddo
       do lev_T = 1, nlev_T-1
         delTT(lev_T) = delTT(lev_T) + coeff_M_TT(lev_T,columnIndex)*sumGz_T(lev_T)
-        delLQ(lev_T) = delLQ(lev_T) + coeff_M_HU(lev_T,columnIndex)*sumGz_T(lev_T)
+        !delLQ(lev_T) = delLQ(lev_T) + coeff_M_HU(lev_T,columnIndex)*sumGz_T(lev_T)
+        delHU(lev_T) = delHU(lev_T) + coeff_M_HU(lev_T,columnIndex)*sumGz_T(lev_T)/HU_trial(lev_T)
         delP0(1)     = delP0(1)     + coeff_M_P0(lev_T,columnIndex)*sumGz_T(lev_T)
       enddo
 

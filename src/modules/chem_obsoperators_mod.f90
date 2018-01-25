@@ -458,6 +458,10 @@ contains
 !!
 !! @author M. Sitwell and Y. Rochon, April 2016
 !!
+!! Revisions:
+!!v           J-F Caron, ARMA/MRD, Jan. 2018
+!!v           - Account for change from LQ to Q for 'HU'
+!!v 
 !! Input
 !!
 !!v     column_bkgrnd   Column of x_background interpolated to observation location. Can
@@ -572,8 +576,8 @@ contains
     ! Get specific humidity if available
     if (col_varExist('HU')) then
        do jl=1,nmodlev
-          !obsoper%hu(jl) = exp(col_getElem(column_bkgrnd,jl,headerIndex,'HU')) ! Convert from LQ to Q (lnq to q)
-         obsoper%hu(jl) = col_getElem(column_bkgrnd,jl,headerIndex,'HU')
+         !obsoper%hu(jl) = exp(col_getElem(column_bkgrnd,jl,headerIndex,'HU')) ! Convert from LQ to Q (lnq to q)
+         obsoper%hu(jl) = col_getElem(column_bkgrnd,jl,headerIndex,'HU')       ! lnq was replaced by q
        enddo
     else
        obsoper%hu(:)=-1
@@ -1040,6 +1044,10 @@ contains
 !!
 !! @author Y. Rochon, April 2016
 !!
+!! Revisions:
+!!v           J-Caron (ARMA/MRD) and Y Rochon (ARQI/ARQD), Jan. 2018
+!!v           - Account for change from LQ to Q for 'HU' (see  lines with !! for original code)
+!!
 !! Inout
 !!   
 !!v    obsoper               Contains basic information related to the observation operator
@@ -1054,6 +1062,7 @@ contains
 !!v    - When called with incrementCol provided, it is assumed that obsoper%dtransform has
 !!v      already been computed in a previous call.
 !!v    - At some point may be merged with chm_apply_transform.
+!!
 !--------------------------------------------------------------------------
   subroutine chm_transform_profile(obsoper,incrementCol_opt,computeDtransform_opt)
     
@@ -1085,22 +1094,29 @@ contains
        if (obsoper%constituent_id.eq.1.and.trim(obsoper%varname).eq.'HU') then
 
           ! Transformations for water vapor, converting from
-          ! log of specific humidity LQ to volume mixing ratio
+          ! specific humidity HU to volume mixing ratio
+          !! (replaced) specific humidity LQ to volume mixing ratio
           
-          ! Converts LQ=ln(q) to HU=q
-          obsoper%trial = exp(obsoper%trial)
-          where(obsoper%trial.gt.0.8) obsoper%trial = 0.8
-          where(obsoper%trial.lt.-1.D-5) obsoper%trial = -1.D-5
+          !! Converts LQ=ln(q) to HU=q
+          !!obsoper%trial = exp(obsoper%trial)
+          !!where(obsoper%trial.gt.0.8) obsoper%trial = 0.8
+          !!where(obsoper%trial.lt.-1.D-5) obsoper%trial = -1.D-5
+          
           ! Converts specific humidity (q) to mass mixing ratio (rm) rm = q/(1-q)
           ! then from mass mixing ratio (rm) to volume mixing ratio (r) r = m_a/m_H2O rm
           obsoper%trial = obsoper%trial / (1.0-obsoper%trial) &
                * MPC_MOLAR_MASS_DRY_AIR_R8 &
                /chm_setup_get_float('amu',obsoper%constituent_id)
      
-          ! For conversion of LQ increment (dlnq) to volume mixing ratio increment (dr) via mass mixing ratio (drm)
-          ! drm = dq/(1-q)^2 = q*dlnq/(1-q)^2 = rm(rm+1) dlnq, dr = m_a/m_H2O drm = r(r*m_H2O/m_a + 1) dlnq
-          if (comp_dtransform) obsoper%dtransform = obsoper%trial * &
-               (obsoper%trial*chm_setup_get_float('amu',obsoper%constituent_id)/MPC_MOLAR_MASS_DRY_AIR_R8 + 1.0)
+          !! For conversion of LQ increment (dlnq) to volume mixing ratio increment (dr) via mass mixing ratio (drm)
+          !! drm = dq/(1-q)^2 = q*dlnq/(1-q)^2 = rm(rm+1) dlnq, dr = m_a/m_H2O drm = r(r*m_H2O/m_a + 1) dlnq          
+          !!if (comp_dtransform) obsoper%dtransform = obsoper%trial * &
+          !!     (obsoper%trial*chm_setup_get_float('amu',obsoper%constituent_id)/MPC_MOLAR_MASS_DRY_AIR_R8 + 1.0)
+
+          ! For conversion of q increment (dq) to volume mixing ratio increment (dr) via mass mixing ratio (drm)
+          ! drm = dq/(1-q)^2 = (rm+1)^2 dq, dr = m_a/m_H2O drm = m_a/m_H2O (r*m_H2O/m_a + 1)^2 dq          
+          if (comp_dtransform) obsoper%dtransform = MPC_MOLAR_MASS_DRY_AIR_R8/chm_setup_get_float('amu',obsoper%constituent_id) * &
+               (obsoper%trial*chm_setup_get_float('amu',obsoper%constituent_id)/MPC_MOLAR_MASS_DRY_AIR_R8 + 1.0)**2
      
        else if (transform_id.eq.1) then
 

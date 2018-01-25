@@ -104,7 +104,7 @@ module humidityLimits_mod
 
             ! Obtain HU from LQ, if necessary
             if( HUcontainsLQ ) then
-              hu = exp(lq_ptr(lonIndex,latIndex,levIndex,stepIndex))
+              call utl_abort('qlim_gsvSaturationLimit: HUcontainsLQ not supported anymore')
             else
               hu = hu_ptr(lonIndex,latIndex,levIndex,stepIndex)
             end if
@@ -115,15 +115,7 @@ module humidityLimits_mod
 
             ! limit the humidity to the saturated humidity
             hu_modified = min(husat, hu)
-
-            ! Recompute LQ from HU, if necessary
-            if( HUcontainsLQ ) then
-              if( hu /= hu_modified ) then
-                lq_ptr(lonIndex,latIndex,levIndex,stepIndex) = log(max(hu_modified,MPC_MINIMUM_HU_R8))
-              end if
-            else
-              hu_ptr(lonIndex,latIndex,levIndex,stepIndex) = hu_modified
-            end if
+            hu_ptr(lonIndex,latIndex,levIndex,stepIndex) = hu_modified
 
           end do ! lonIndex
         end do ! latIndex
@@ -245,7 +237,7 @@ module humidityLimits_mod
 
             ! Obtain HU from LQ, if necessary
             if( HUcontainsLQ ) then
-              hu = exp(lq_ptr(lonIndex,latIndex,levIndex,stepIndex))
+              call utl_abort('qlim_gsvRttovLimit: HUcontainsLQ not supported anymore')
             else
               hu = hu_ptr(lonIndex,latIndex,levIndex,stepIndex)
             end if
@@ -253,15 +245,7 @@ module humidityLimits_mod
             ! limit the humidity according to the rttov limits
             hu_modified = max(hu, qmin3D_rttov(lonIndex - lon1 + 1, latIndex - lat1 + 1, levIndex) )
             hu_modified = min(hu_modified, qmax3D_rttov(lonIndex - lon1 + 1, latIndex - lat1 + 1, levIndex) )
-
-            ! Recompute LQ from HU, if necessary
-            if( HUcontainsLQ ) then
-              if( hu /= hu_modified ) then
-                lq_ptr(lonIndex,latIndex,levIndex,stepIndex) = log(max(hu_modified,MPC_MINIMUM_HU_R8))
-              end if
-            else
-              hu_ptr(lonIndex,latIndex,levIndex,stepIndex) = hu_modified
-            end if
+            hu_ptr(lonIndex,latIndex,levIndex,stepIndex) = hu_modified
 
           end do ! lonIndex
         end do ! latIndex
