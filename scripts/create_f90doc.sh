@@ -1,5 +1,6 @@
 #!/bin/bash
 codedir=$1
+docdir=${2:-${PWD}/doc}
 
 if [ -z $codedir ]; then
   echo " "
@@ -25,9 +26,8 @@ cd scripts
 scriptdir=$PWD
 cd ../
 
-mkdir -p doc
-cd doc
-docdir=$PWD
+[ ! -d "${docdir}" ] && mkdir ${docdir}
+cd ${doc}
 
 echo " "
 echo "Generating documentation for source code: $codedir"
@@ -299,3 +299,4 @@ for i in * ; do
   fi
 done
 
+echo "The documentation has been generated in ${docdir}."
