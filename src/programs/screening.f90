@@ -43,41 +43,44 @@ program midas_screening
   use multi_ir_bgck_mod
   implicit none
 
-  integer :: istamp,exdb,exfin
-  integer :: ierr,nconf
+  type(struct_obs),       target  :: obsSpaceData
+  type(struct_columnData),target  :: trlColumnOnAnlLev
+  type(struct_columnData),target  :: trlColumnOnTrlLev
+  type(struct_vco),       pointer :: vco_anl  => null()
+  type(struct_vco),       pointer :: vco_trl  => null()
+  type(struct_hco),       pointer :: hco_anl  => null()
+  type(struct_hco),       pointer :: hco_core => null()
 
-  type(struct_obs),       target :: obsSpaceData
-  type(struct_columnData),target :: trlColumnOnAnlLev
-  type(struct_columnData),target :: trlColumnOnTrlLev
-
-  character(len=9) :: clmsg
   character(len=48) :: obsMpiStrategy, varMode
+  character(len=3)  :: obsColumnMode
 
-  NAMELIST /NAMCT0/NCONF
+  integer :: ierr
+  integer :: datestamp
+  integer :: get_max_rss
   integer nulnam, fnom, fclos 
 
-  istamp = exdb('VAR','DEBUT','NON')
+  ! Namelist
+  integer :: nconf
+  NAMELIST /NAMCT0/NCONF
 
   write(*,'(/,' //                                                &
-            '3(" *****************"),/,' //                       &
-            '14x,"-- START OF MAIN PROGRAM MIDAS-SCREENING: --",/,' //   &
-            '14x,"-- BACKGROUND CHECK AND SCREENING         --",/, ' //&
-            '14x,"-- SCREENING Revision number   ",a," --",/,' //       &
-            '3(" *****************"))') 'GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE'
+       '3(" *****************"),/,' //                       &
+       '14x,"-- START OF MAIN PROGRAM MIDAS-SCREENING: --",/,' //   &
+       '14x,"-- BACKGROUND CHECK AND SCREENING         --",/, ' //&
+       '14x,"-- SCREENING Revision number   ",a," --",/,' //       &
+       '3(" *****************"))') 'GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE'
 
-  ! MPI initilization
-  call mpi_initialize  
+  if ( mpi_myid == 0 ) then
+    call utl_writeStatus('VAR3D_BEG')
+  endif
 
-  call tmg_init(mpi_myid, 'TMG_SCREENING' )
+  !
+  !- 1.  Settings and module initializations
+  !
+  write(*,*)
+  write(*,*) '> midas-screening: setup - START'
 
-  call tmg_start(1,'MAIN')
-
-  if(mpi_myid == 0) then
-    clmsg = 'VAR3D_BEG'
-    call utl_writeStatus(clmsg)
-  endif 
-
-  ! 1. Top level setup
+  !- 1.0 Namelist
   nconf             = 111
 
   nulnam=0
@@ -103,184 +106,132 @@ program midas_screening
     call utl_abort('midas-screening')
   end select
 
+  !- 1.1 mpi
+  call mpi_initialize  
+
+  !- 1.2 timings
+  call tmg_init(mpi_myid, 'TMG_SCREENING' )
+  call tmg_start(1,'MAIN')
+  
+  !- 1.3 RAM disk usage
   call ram_setup
 
-  ! 2. Decide on configuration of job
+  !- 1.4 Temporal grid
+  call tim_setup
 
-  ! ---BGCHECK (conventional obs)--- !
+  !- 1.5 Initialize burp file names and set datestamp
+  call burp_setupFiles (datestamp, varMode) ! IN
+  call tim_setDatestamp(datestamp)            ! IN
+
+  !- 1.6 Constants
+  if ( mpi_myid == 0 ) call mpc_printConstants(6)
+
+  !- 1.7 Setup a column vector following the background vertical grid
+  if(mpi_myid.eq.0) write(*,*)''
+  if(mpi_myid.eq.0) write(*,*)' preproc: Set vcoord parameters for trial grid'
+  call vco_SetupFromFile( vco_trl,     & ! OUT
+       './trlm_01')   ! IN
+  call col_setVco(trlColumnOnTrlLev,vco_trl)
+
+  !- 1.8 Variables of the model states
+  call gsv_setup
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+  !- 1.9 Set the horizontal domain
+  if(mpi_myid.eq.0) write(*,*)''
+  if(mpi_myid.eq.0) write(*,*)' preproc: Set hco parameters for analysis grid'
+  call hco_SetupFromFile(hco_anl, './analysisgrid', 'ANALYSIS', 'Analysis' ) ! IN
+
+  if ( hco_anl % global ) then
+    call agd_SetupFromHCO( hco_anl ) ! IN
+  else
+    !- Iniatilized the core (Non-Exteded) analysis grid
+    call hco_SetupFromFile( hco_core, './analysisgrid', 'COREGRID', 'AnalysisCore' ) ! IN
+    !- Setup the LAM analysis grid metrics
+    call agd_SetupFromHCO( hco_anl, hco_core ) ! IN
+  end if
+
+  if ( hco_anl % rotated ) then
+    call uvr_Setup(hco_anl) ! IN 
+  end if
+
+  !- 1.10 Setup a column vector following the analysis vertical grid
+  call vco_SetupFromFile( vco_anl,        & ! OUT
+       './analysisgrid') ! IN
+
+  call col_setVco(trlColumnOnAnlLev,vco_anl)
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+  !- 1.11 Setup and read observations
+  obsMpiStrategy = 'LIKESPLITFILES'
+  obsColumnMode  = 'ALL'
+  call inn_setupObs(obsSpaceData, obsColumnMode, obsMpiStrategy, varMode) ! IN
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+  !- 1.12 Setup observation operators
+  call oop_setup(varMode) ! IN
+
+  !- 1.13 Basic setup of columnData module
+  call col_setup
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+  !- 1.14 Memory allocation for background column data
+  call col_allocate(trlColumnOnAnlLev,obs_numheader(obsSpaceData),mpi_local=.true.)
+  call col_allocate(trlColumnOnTrlLev,obs_numheader(obsSpaceData),mpi_local=.true.)
+
+  !- 1.15 Initialize the observation error covariances
+  call oer_setObsErrors(obsSpaceData, varMode) ! IN
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+  !- 1.16 Reading, horizontal interpolation and unit conversions of the 3D background fields
+  call inn_setupBackgroundColumns(trlColumnOnTrlLev,obsSpaceData)
+
+  !
+  !- 2.  O-P computation
+  !
+  write(*,*)
+  write(*,*) '> midas-screening: compute innovation'
+  call inn_computeInnovation(trlColumnOnTrlLev,obsSpaceData)
+
+  !
+  !- 3.  Background Check
+  !
+
+  !-  3.1 Conventional data
   if ( trim(varMode) == 'bgckConv' ) then
-    if(mpi_myid == 0) write(*,*) 'MIDAS-SCREENING: CONVENTIONNAL BGCHECK MODE'
-
-    ! Do initial set up
-    call tmg_start(2,'PREMIN')
-
-    obsMpiStrategy = 'LIKESPLITFILES'
-
-    call screening_setup('ALL') ! obsColumnMode   
-
-    ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
-    call inn_setupBackgroundColumns(trlColumnOnTrlLev,obsSpaceData)
+    write(*,*)
+    write(*,*) 'midas-screening: CONVENTIONNAL background check'
 
     ! Interpolate trial columns to analysis levels and setup for linearized H
     call inn_setupBackgroundColumnsAnl(trlColumnOnTrlLev,trlColumnOnAnlLev)
 
-    ! Compute observation innovations and prepare obsSpaceData for minimization
-    call inn_computeInnovation(trlColumnOnTrlLev,obsSpaceData)
-    call tmg_stop(2)
-
     ! Do the background check and output the observation data files
     call bgcheck_conv(trlColumnOnAnlLev,trlColumnOnTrlLev,obsSpaceData)
 
-  ! ---BGCHECK (AIRS, IASI, CrIS)--- !
+  !-  3.2 Hyperspectral IR (AIRS, IASI & CrIS)
   else if ( trim(varMode) == 'bgckIR' ) then
-    if(mpi_myid == 0) write(*,*) 'MIDAS-SCREENING: HYPERSPECTRAL IR BGCHECK MODE'
-
-    ! Do initial set up
-    call tmg_start(2,'PREMIN')
-
-    obsMpiStrategy = 'LIKESPLITFILES'
-
-    call screening_setup('ALL') ! obsColumnMode   
-
-    ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
-    call inn_setupBackgroundColumns(trlColumnOnTrlLev,obsSpaceData)
-
-    ! Compute observation innovations and prepare obsSpaceData for minimization
-    call inn_computeInnovation(trlColumnOnTrlLev,obsSpaceData)
-    call tmg_stop(2)
+    write(*,*)
+    write(*,*) 'midas-screening: HYPERSPECTRAL IR background check'
 
     ! Do the background check and output the observation data files
     call irbg_bgCheckIR(trlColumnOnTrlLev,obsSpaceData)
 
-  else
-
-    write(*,*) ' MIDAS-SCREENING: ERROR, UNKNOWN NCONF SPECIFIED'
-
   endif
 
-  ! 3. Job termination
-
-  istamp = exfin('VAR','FIN','NON')
-
-  if(mpi_myid == 0) then
-    clmsg = 'VAR3D_END'
-    call utl_writeStatus(clmsg)
-  endif
+  !
+  !- 4.  Ending
+  !
+  write(*,*)
+  write(*,*) '> midas-screening: Ending'
+  call obs_finalize(obsSpaceData) ! deallocate obsSpaceData
 
   call tmg_stop(1)
-
   call tmg_terminate(mpi_myid, 'TMG_SCREENING' )
 
   call rpn_comm_finalize(ierr) 
 
-contains
-
-  subroutine screening_setup(obsColumnMode)
-    implicit none
-
-    character (len=*) :: obsColumnMode
-    integer :: datestamp
-    type(struct_vco),pointer :: vco_anl => null()
-    type(struct_vco),pointer :: vco_trl => null()
-    type(struct_hco),pointer :: hco_anl => null()
-    type(struct_hco),pointer :: hco_core => null()
-
-    integer :: get_max_rss
-
-    write(*,*) ''
-    write(*,*) '-----------------------------------'
-    write(*,*) '-- Starting subroutine var_setup --'
-    write(*,*) '-----------------------------------'
-
-    !
-    !- Initialize the Temporal grid
-    !
-    call tim_setup
-
-    !     
-    !- Initialize burp file names and set datestamp
-    !
-    call burp_setupFiles (datestamp, varMode) ! IN
-    call tim_setDatestamp(datestamp)            ! IN
-
-    !
-    !- Initialize constants
-    !
-    if(mpi_myid.eq.0) call mpc_printConstants(6)
-
-    !
-    !- Set vertical coordinate parameters from !! record in trial file
-    !
-    if(mpi_myid.eq.0) write(*,*)''
-    if(mpi_myid.eq.0) write(*,*)' preproc: Set vcoord parameters for trial grid'
-    call vco_SetupFromFile( vco_trl,     & ! OUT
-                            './trlm_01')   ! IN
-    call col_setVco(trlColumnOnTrlLev,vco_trl)
-
-    !
-    !- Initialize variables of the model states
-    !
-    call gsv_setup
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-    !
-    !- Initialize the Analysis grid
-    !
-    if(mpi_myid.eq.0) write(*,*)''
-    if(mpi_myid.eq.0) write(*,*)' preproc: Set hco parameters for analysis grid'
-    call hco_SetupFromFile(hco_anl, './analysisgrid', 'ANALYSIS', 'Analysis' ) ! IN
-
-    if ( hco_anl % global ) then
-       call agd_SetupFromHCO( hco_anl ) ! IN
-    else
-       !- Iniatilized the core (Non-Exteded) analysis grid
-       call hco_SetupFromFile( hco_core, './analysisgrid', 'COREGRID', 'AnalysisCore' ) ! IN
-       !- Setup the LAM analysis grid metrics
-       call agd_SetupFromHCO( hco_anl, hco_core ) ! IN
-    end if
-
-    if ( hco_anl % rotated ) then
-       call uvr_Setup(hco_anl) ! IN 
-    end if
-
-    !     
-    !- Initialisation of the analysis grid vertical coordinate from analysisgrid file
-    !
-    call vco_SetupFromFile( vco_anl,        & ! OUT
-                            './analysisgrid') ! IN
-
-    call col_setVco(trlColumnOnAnlLev,vco_anl)
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-    !
-    !- Setup and read observations
-    !
-    call inn_setupObs(obsSpaceData, obsColumnMode, obsMpiStrategy, varMode) ! IN
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-    !
-    !- Setup observation operators
-    !
-    call oop_setup(varMode) ! IN
-
-    !
-    !- Basic setup of columnData module
-    !
-    call col_setup
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-    !
-    !- Memory allocation for background column data
-    !
-    call col_allocate(trlColumnOnAnlLev,obs_numheader(obsSpaceData),mpi_local=.true.)
-    call col_allocate(trlColumnOnTrlLev,obs_numheader(obsSpaceData),mpi_local=.true.)
-
-    !
-    !- Initialize the observation error covariances
-    !
-    call oer_setObsErrors(obsSpaceData, varMode) ! IN
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-  end subroutine screening_setup
+  if ( mpi_myid == 0 ) then
+    call utl_writeStatus('VAR3D_END')
+  endif
 
 end program midas_screening
