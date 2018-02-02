@@ -99,14 +99,6 @@ program midas_var
     write(*,*)
     write(*,*) 'midas-var: Analysis mode selected'
     varMode='analysis'
-  case (111)
-    write(*,*)
-    write(*,*) 'midas-var: Background check for IR sat. data mode selected'
-    varMode='bgckIR'
-  case (101)
-    write(*,*)
-    write(*,*) 'midas-var: Background check for conventional obs mode selected'
-    varMode='bgckConv'
   case (201)
     write(*,*)
     write(*,*) 'midas-var: FSO mode selected'
@@ -121,53 +113,8 @@ program midas_var
 
   ! 2. Decide on configuration of job
 
-  ! ---BGCHECK (conventional obs)--- !
-  if ( trim(varMode) == 'bgckConv' ) then
-    if(mpi_myid == 0) write(*,*) 'MIDAS-VAR: CONVENTIONNAL BGCHECK MODE'
-
-    ! Do initial set up
-    call tmg_start(2,'PREMIN')
-
-    obsMpiStrategy = 'LIKESPLITFILES'
-
-    call var_setup('ALL') ! obsColumnMode   
-
-    ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
-    call inn_setupBackgroundColumns(trlColumnOnTrlLev,obsSpaceData)
-
-    ! Interpolate trial columns to analysis levels and setup for linearized H
-    call inn_setupBackgroundColumnsAnl(trlColumnOnTrlLev,trlColumnOnAnlLev)
-
-    ! Compute observation innovations and prepare obsSpaceData for minimization
-    call inn_computeInnovation(trlColumnOnTrlLev,obsSpaceData)
-    call tmg_stop(2)
-
-    ! Do the background check and output the observation data files
-    call bgcheck_conv(trlColumnOnAnlLev,trlColumnOnTrlLev,obsSpaceData)
-
-  ! ---BGCHECK (AIRS, IASI, CrIS)--- !
-  else if ( trim(varMode) == 'bgckIR' ) then
-    if(mpi_myid == 0) write(*,*) 'MIDAS-VAR: HYPERSPECTRAL IR BGCHECK MODE'
-
-    ! Do initial set up
-    call tmg_start(2,'PREMIN')
-
-    obsMpiStrategy = 'LIKESPLITFILES'
-
-    call var_setup('ALL') ! obsColumnMode   
-
-    ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
-    call inn_setupBackgroundColumns(trlColumnOnTrlLev,obsSpaceData)
-
-    ! Compute observation innovations and prepare obsSpaceData for minimization
-    call inn_computeInnovation(trlColumnOnTrlLev,obsSpaceData)
-    call tmg_stop(2)
-
-    ! Do the background check and output the observation data files
-    call irbg_bgCheckIR(trlColumnOnTrlLev,obsSpaceData)
-
   ! ---ANALYSIS MODE--- !
-  else if ( trim(varMode) == 'analysis' ) then
+  if ( trim(varMode) == 'analysis' ) then
     write(*,*) 'MIDAS-VAR: ANALYSIS MODE'
 
     ! Do initial set up
@@ -205,7 +152,7 @@ program midas_var
     ! Deallocate copied obsSpaceData
     call obs_finalize(obsSpaceData)
 
-else if ( trim(varMode) == 'FSO' ) then
+  else if ( trim(varMode) == 'FSO' ) then
     write(*,*) 'MIDAS-VAR: FSO MODE'
 
     ! Do initial set up
@@ -377,17 +324,13 @@ contains
     !
     !- Initialize the background-error covariance, also sets up control vector module (cvm)
     !
-    if ( trim(varMode) == 'analysis' .or. trim(varMode) == 'FSO' ) then
-       call bmat_setup(hco_anl,vco_anl)
-       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    end if
+    call bmat_setup(hco_anl,vco_anl)
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     !
     ! - Initialize the gridded variable transform module
     !
-    if ( trim(varMode) == 'analysis' .or. trim(varMode) == 'FSO' ) then
-       call vtr_setup(hco_anl,vco_anl)
-    end if
+    call vtr_setup(hco_anl,vco_anl)
 
     !
     !- Set up the minimization module, now that the required parameters are known
