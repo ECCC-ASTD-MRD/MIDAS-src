@@ -16,11 +16,10 @@
 
 !--------------------------------------------------------------------------
 !!
-!! *Purpose*: Main program for variational minimization and background check 
-!!            (depending on the mode selected in the namelist).
+!! *Purpose*: Main program for obervation background check and thinning
 !!
 !--------------------------------------------------------------------------
-program midas_var
+program midas_screening
   use ramDisk_mod
   use utilities_mod
   use mpivar_mod
@@ -34,19 +33,14 @@ program midas_var
   use obsSpaceDiag_mod
   use controlVector_mod
   use burpFiles_mod
-  use obsFilter_mod  
-  use minimization_mod
+  use obsFilter_mod
   use innovation_mod
   use WindRotation_mod
-  use minimization_mod
   use analysisGrid_mod
-  use bmatrix_mod
   use tovs_nl_mod
   use obsErrors_mod
-  use variableTransforms_mod
   use obsOperators_mod
   use multi_ir_bgck_mod
-  use fso_mod
   implicit none
 
   integer :: istamp,exdb,exfin
@@ -66,15 +60,15 @@ program midas_var
 
   write(*,'(/,' //                                                &
             '3(" *****************"),/,' //                       &
-            '14x,"-- START OF MAIN PROGRAM MIDAS-VAR: --",/,' //   &
-            '14x,"-- VARIATIONAL ASSIMILATION          --",/, ' //&
-            '14x,"-- VAR Revision number   ",a," --",/,' //       &
+            '14x,"-- START OF MAIN PROGRAM MIDAS-SCREENING: --",/,' //   &
+            '14x,"-- BACKGROUND CHECK AND SCREENING         --",/, ' //&
+            '14x,"-- SCREENING Revision number   ",a," --",/,' //       &
             '3(" *****************"))') 'GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE'
 
   ! MPI initilization
   call mpi_initialize  
 
-  call tmg_init(mpi_myid, 'TMG_VAR' )
+  call tmg_init(mpi_myid, 'TMG_SCREENING' )
 
   call tmg_start(1,'MAIN')
 
@@ -84,49 +78,47 @@ program midas_var
   endif 
 
   ! 1. Top level setup
-  nconf             = 141
+  nconf             = 111
 
   nulnam=0
   ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-  if(ierr.ne.0) call utl_abort('midas-var: Error opening file flnml')
+  if(ierr.ne.0) call utl_abort('midas-screening: Error opening file flnml')
   read(nulnam,nml=namct0,iostat=ierr)
-  if(ierr.ne.0) call utl_abort('midas-var: Error reading namelist')
+  if(ierr.ne.0) call utl_abort('midas-screening: Error reading namelist')
   write(*,nml=namct0)
   ierr=fclos(nulnam)
 
   select case(nconf)
-  case (141)
+  case (111)
     write(*,*)
-    write(*,*) 'midas-var: Analysis mode selected'
-    varMode='analysis'
-  case (201)
+    write(*,*) 'midas-screening: Background check for IR sat. data mode selected'
+    varMode='bgckIR'
+  case (101)
     write(*,*)
-    write(*,*) 'midas-var: FSO mode selected'
-    varMode='FSO'
+    write(*,*) 'midas-screening: Background check for conventional obs mode selected'
+    varMode='bgckConv'
   case default
     write(*,*)
-    write(*,*) 'midas-var: Unknown mode ', nconf
-    call utl_abort('midas-var')
+    write(*,*) 'midas-screening: Unknown mode ', nconf
+    call utl_abort('midas-screening')
   end select
 
   call ram_setup
 
   ! 2. Decide on configuration of job
 
-  ! ---ANALYSIS MODE--- !
-  if ( trim(varMode) == 'analysis' ) then
-    write(*,*) 'MIDAS-VAR: ANALYSIS MODE'
+  ! ---BGCHECK (conventional obs)--- !
+  if ( trim(varMode) == 'bgckConv' ) then
+    if(mpi_myid == 0) write(*,*) 'MIDAS-SCREENING: CONVENTIONNAL BGCHECK MODE'
 
     ! Do initial set up
     call tmg_start(2,'PREMIN')
 
-    obsMpiStrategy = 'LATLONTILESBALANCED'
+    obsMpiStrategy = 'LIKESPLITFILES'
 
-    call var_setup('VAR') ! obsColumnMode
-    call tmg_stop(2)
+    call screening_setup('ALL') ! obsColumnMode   
 
     ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
-    call tmg_start(2,'PREMIN')
     call inn_setupBackgroundColumns(trlColumnOnTrlLev,obsSpaceData)
 
     ! Interpolate trial columns to analysis levels and setup for linearized H
@@ -136,57 +128,33 @@ program midas_var
     call inn_computeInnovation(trlColumnOnTrlLev,obsSpaceData)
     call tmg_stop(2)
 
-    ! Do minimization of cost function
-    call min_minimize(trlColumnOnAnlLev,obsSpaceData)
+    ! Do the background check and output the observation data files
+    call bgcheck_conv(trlColumnOnAnlLev,trlColumnOnTrlLev,obsSpaceData)
 
-    ! Conduct obs-space post-processing diagnostic tasks (some diagnostic 
-    ! computations controlled by NAMOSD namelist in flnml)
-    call osd_ObsSpaceDiag(obsSpaceData,trlColumnOnAnlLev)
-
-    ! Deallocate memory related to B matrices
-    call bmat_finalize()
-
-    ! Now write out the observation data files
-    if(min_niter.gt.0) call burp_updateFiles(obsSpaceData)
-
-    ! Deallocate copied obsSpaceData
-    call obs_finalize(obsSpaceData)
-
-  else if ( trim(varMode) == 'FSO' ) then
-    write(*,*) 'MIDAS-VAR: FSO MODE'
+  ! ---BGCHECK (AIRS, IASI, CrIS)--- !
+  else if ( trim(varMode) == 'bgckIR' ) then
+    if(mpi_myid == 0) write(*,*) 'MIDAS-SCREENING: HYPERSPECTRAL IR BGCHECK MODE'
 
     ! Do initial set up
     call tmg_start(2,'PREMIN')
-    call fso_setup
-    
-    obsMpiStrategy = 'LATLONTILESBALANCED'
 
-    call var_setup('VAR') ! obsColumnMode
-    call tmg_stop(2)
+    obsMpiStrategy = 'LIKESPLITFILES'
+
+    call screening_setup('ALL') ! obsColumnMode   
 
     ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
-    call tmg_start(2,'PREMIN')
     call inn_setupBackgroundColumns(trlColumnOnTrlLev,obsSpaceData)
-
-    ! Interpolate trial columns to analysis levels and setup for linearized H
-    call inn_setupBackgroundColumnsAnl(trlColumnOnTrlLev,trlColumnOnAnlLev)
 
     ! Compute observation innovations and prepare obsSpaceData for minimization
     call inn_computeInnovation(trlColumnOnTrlLev,obsSpaceData)
     call tmg_stop(2)
 
-    ! Perform forecast sensitivity to observation calculation using ensemble approach 
-    call fso_ensemble(trlColumnOnAnlLev,obsSpaceData)
-
-    ! Now write out the observation data files
-    call burp_updateFiles(obsSpaceData)
-
-    ! Deallocate copied obsSpaceData
-    call obs_finalize(obsSpaceData)
+    ! Do the background check and output the observation data files
+    call irbg_bgCheckIR(trlColumnOnTrlLev,obsSpaceData)
 
   else
 
-    write(*,*) ' MIDAS-VAR: ERROR, UNKNOWN NCONF SPECIFIED'
+    write(*,*) ' MIDAS-SCREENING: ERROR, UNKNOWN NCONF SPECIFIED'
 
   endif
 
@@ -201,21 +169,13 @@ program midas_var
 
   call tmg_stop(1)
 
-  call tmg_terminate(mpi_myid, 'TMG_VAR' )
+  call tmg_terminate(mpi_myid, 'TMG_SCREENING' )
 
   call rpn_comm_finalize(ierr) 
 
 contains
 
-  !--------------------------------------------------------------------------
-  !! *Purpose*: Control of the preprocessing of the variational assimilation
-  !!
-  !! Revisions:
-  !!           Y.J. Rochon, Jan 2016
-  !!           - Addition of test on availability of input trial fields according
-  !!             to related observation families.
-  !--------------------------------------------------------------------------
-  subroutine var_setup(obsColumnMode)
+  subroutine screening_setup(obsColumnMode)
     implicit none
 
     character (len=*) :: obsColumnMode
@@ -321,27 +281,6 @@ contains
     call oer_setObsErrors(obsSpaceData, varMode) ! IN
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-    !
-    !- Initialize the background-error covariance, also sets up control vector module (cvm)
-    !
-    call bmat_setup(hco_anl,vco_anl)
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+  end subroutine screening_setup
 
-    !
-    ! - Initialize the gridded variable transform module
-    !
-    call vtr_setup(hco_anl,vco_anl)
-
-    !
-    !- Set up the minimization module, now that the required parameters are known
-    !  NOTE: some global variables remain in minimization_mod that must be initialized before 
-    !        inn_setupBackgroundColumns
-    !
-    if ( trim(varMode) == 'analysis' ) then
-       call min_setup( cvm_nvadim ) ! IN
-       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    end if
-
-  end subroutine var_setup
-
-end program midas_var
+end program midas_screening
