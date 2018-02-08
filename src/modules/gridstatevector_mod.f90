@@ -400,7 +400,7 @@ module gridStateVector_mod
     end if
 
     ! determine lat/lon index ranges
-    if( statevector%mpi_distribution == 'Tiles' ) then
+    if ( statevector%mpi_distribution == 'Tiles' ) then
       call mpivar_setup_latbands(statevector%nj,  &
                                  statevector%latPerPE, statevector%latPerPEmax, &
                                  statevector%myLatBeg, statevector%myLatEnd)
@@ -511,13 +511,13 @@ module gridStateVector_mod
 
     if (present(dateStamp_opt) .and. present(dateStampList_opt)) then
       call utl_abort('gsv_allocate: Either dateStamp or dateStampList should be presented but not both')
-    elseif (present(dateStampList_opt)) then
+    else if (present(dateStampList_opt)) then
       allocate(statevector%dateStampList(numStep))
       do stepIndex = 1, numStep
        statevector%dateStampList(stepIndex)= dateStampList_opt(stepIndex)
       end do
       statevector%dateStamp3d => statevector%dateStampList(statevector%anltime)
-    elseif (present(dateStamp_opt)) then
+    else if (present(dateStamp_opt)) then
       allocate(statevector%dateStampList(numStep))
       call tim_getstamplist(statevector%dateStampList,numStep,dateStamp_opt)
       statevector%dateStamp3d => statevector%dateStampList(statevector%anltime)
@@ -525,7 +525,7 @@ module gridStateVector_mod
       nullify(statevector%dateStamplist)
     end if
 
-    if (statevector%dataKind==8) then
+    if (statevector%dataKind == 8) then
       allocate(statevector%gd_r8(statevector%myLonBeg:statevector%myLonEnd,  &
                                  statevector%myLatBeg:statevector%myLatEnd,  &
                                  statevector%mykBeg:statevector%mykEnd,numStep),stat=ierr)
@@ -534,7 +534,7 @@ module gridStateVector_mod
                                      statevector%myLatBeg:statevector%myLatEnd,  &
                                      statevector%myUVkBeg:statevector%myUVkEnd,numStep),stat=ierr)
       end if
-    elseif (statevector%dataKind==4) then
+    else if (statevector%dataKind == 4) then
       allocate(statevector%gd_r4(statevector%myLonBeg:statevector%myLonEnd,  &
                                  statevector%myLatBeg:statevector%myLatEnd,  &
                                  statevector%mykBeg:statevector%mykEnd,numStep),stat=ierr)
@@ -543,7 +543,7 @@ module gridStateVector_mod
                                      statevector%myLatBeg:statevector%myLatEnd,  &
                                      statevector%myUVkBeg:statevector%myUVkEnd,numStep),stat=ierr)
       end if
-    elseif (statevector%dataKind==2) then
+    else if (statevector%dataKind == 2) then
       allocate(statevector%gd_i2(statevector%myLonBeg:statevector%myLonEnd,  &
                                  statevector%myLatBeg:statevector%myLatEnd,  &
                                  statevector%mykBeg:statevector%mykEnd,numStep),stat=ierr)
@@ -577,11 +577,11 @@ module gridStateVector_mod
     lon1=statevector%myLonBeg
     lat1=statevector%myLatBeg
     k1=statevector%mykBeg
-    if (statevector%dataKind==8) then
+    if (statevector%dataKind == 8) then
       statevector%gd3d_r8(lon1:,lat1:,k1:) => statevector%gd_r8(:,:,:,statevector%anltime)
-    elseif (statevector%dataKind==4) then
+    else if (statevector%dataKind == 4) then
       statevector%gd3d_r4(lon1:,lat1:,k1:) => statevector%gd_r4(:,:,:,statevector%anltime)
-    elseif (statevector%dataKind==2) then
+    else if (statevector%dataKind == 2) then
       statevector%gd3d_i2(lon1:,lat1:,k1:) => statevector%gd_i2(:,:,:,statevector%anltime)
     end if
 
@@ -677,7 +677,7 @@ module gridStateVector_mod
 
     if ( associated(statevector%gzSfc) ) statevector%gzSfc(:,:) = 0.0d0
 
-    if ( statevector%dataKind==8 ) then
+    if ( statevector%dataKind == 8 ) then
 
 !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,kIndex,lonIndex)    
        do kIndex = k1, k2
@@ -691,7 +691,7 @@ module gridStateVector_mod
        end do
 !$OMP END PARALLEL DO
 
-    elseif ( statevector%dataKind==4 ) then
+    else if ( statevector%dataKind == 4 ) then
 
 !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,kIndex,lonIndex)
        do kIndex = k1, k2
@@ -893,7 +893,7 @@ module gridStateVector_mod
         end do
       end if
 
-    elseif ( statevector_inout%dataKind == 4 .and. statevector_in%dataKind == 4 ) then
+    else if ( statevector_inout%dataKind == 4 .and. statevector_in%dataKind == 4 ) then
 
       if (present(scaleFactor_opt)) then
 !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,kIndex,lonIndex)    
@@ -970,7 +970,7 @@ module gridStateVector_mod
       end do
 !$OMP END PARALLEL DO
 
-    elseif ( statevector_out%dataKind == 4 .and. statevector_in%dataKind == 4 ) then
+    else if ( statevector_out%dataKind == 4 .and. statevector_in%dataKind == 4 ) then
 
 !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,kIndex,lonIndex)    
       do kIndex = k1, k2
@@ -1060,7 +1060,7 @@ module gridStateVector_mod
       end do
 !$OMP END PARALLEL DO
 
-    elseif ( statevector_out%dataKind == 4 .and. statevector_in%dataKind == 4 ) then
+    else if ( statevector_out%dataKind == 4 .and. statevector_in%dataKind == 4 ) then
 
       if ( associated(statevector_in%gzSfc) .and. associated(statevector_out%gzSfc) ) then
         statevector_out%gzSfc(:,:) = 0.0
@@ -1142,7 +1142,7 @@ module gridStateVector_mod
 !$OMP END PARALLEL DO
       end if
 
-    elseif ( statevector_inout%dataKind == 4 ) then
+    else if ( statevector_inout%dataKind == 4 ) then
 
       if (present(scaleFactor_opt)) then
 !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,kIndex,lonIndex)    
@@ -1483,21 +1483,21 @@ module gridStateVector_mod
       deallocate(statevector%allkCount)
     end if
 
-    if (statevector%dataKind==8) then
+    if (statevector%dataKind == 8) then
       deallocate(statevector%gd_r8,stat=ierr)
       nullify(statevector%gd_r8)
       if (statevector%UVComponentPresent) then 
         deallocate(statevector%gdUV_r8)
         nullify(statevector%gdUV_r8)
       end if
-    elseif (statevector%dataKind==4) then
+    else if (statevector%dataKind == 4) then
       deallocate(statevector%gd_r4,stat=ierr)
       nullify(statevector%gd_r4)
       if (statevector%UVComponentPresent) then 
         deallocate(statevector%gdUV_r4)
         nullify(statevector%gdUV_r4)
       end if
-    elseif (statevector%dataKind==2) then
+    else if (statevector%dataKind == 2) then
       deallocate(statevector%gd_i2,stat=ierr)
       nullify(statevector%gd_i2)
       if (statevector%UVComponentPresent) then 
@@ -2313,9 +2313,9 @@ module gridStateVector_mod
         varLevel = vnl_varLevelFromVarname(varName)
         if (varLevel == 'MM') then
           ip1 = vco_file%ip1_M(levIndex)
-        elseif (varLevel == 'TH') then
+        else if (varLevel == 'TH') then
           ip1 = vco_file%ip1_T(levIndex)
-        elseif (varLevel == 'SF') then
+        else if (varLevel == 'SF') then
           ip1 = -1
         else
           call utl_abort('gsv_readFile: unknown varLevel')
@@ -2385,7 +2385,7 @@ module gridStateVector_mod
                         statevector%datestamplist(stepIndex),etiket_in,ip1,-1,-1,  &
                         typvar_in,'VV')
             fieldUV_r4_ptr(:,:,kIndex,stepIndex) = gd2d_file_r4(1:statevector%hco%ni,1:statevector%hco%nj)
-          elseif (varName == 'VV') then
+          else if (varName == 'VV') then
             ierr=fstlir(gd2d_file_r4(:,:),nulfile, ni_file, nj_file, nk_file,  &
                         statevector%datestamplist(stepIndex),etiket_in,ip1,-1,-1,  &
                         typvar_in,'UU')
@@ -2443,7 +2443,7 @@ module gridStateVector_mod
     end if
 
     maxkCount = maxval(statevector_in%allkCount(:))
-    if( sendrecvKind == 4 ) then
+    if ( sendrecvKind == 4 ) then
       allocate(gd_send_r4(statevector_out%lonPerPEmax,statevector_out%latPerPEmax,maxkCount,statevector_out%numStep,mpi_nprocs))
       allocate(gd_recv_r4(statevector_out%lonPerPEmax,statevector_out%latPerPEmax,maxkCount,statevector_out%numStep,mpi_nprocs))
       gd_send_r4(:,:,:,:,:) = 0.0
@@ -2470,7 +2470,7 @@ module gridStateVector_mod
         end do
       end do
 !$OMP END PARALLEL DO
-    elseif ( sendrecvKind == 4 .and. inKind == 8 ) then
+    else if ( sendrecvKind == 4 .and. inKind == 8 ) then
       field_in_r8_ptr => gsv_getField_r8(statevector_in)
 !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
       do youridy = 0, (mpi_npey-1)
@@ -2485,7 +2485,7 @@ module gridStateVector_mod
         end do
       end do
 !$OMP END PARALLEL DO
-    elseif ( sendrecvKind == 8 .and. inKind == 4 ) then
+    else if ( sendrecvKind == 8 .and. inKind == 4 ) then
       field_in_r4_ptr => gsv_getField_r4(statevector_in)
 !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
       do youridy = 0, (mpi_npey-1)
@@ -2500,7 +2500,7 @@ module gridStateVector_mod
         end do
       end do
 !$OMP END PARALLEL DO
-    elseif ( sendrecvKind == 8 .and. inKind == 8 ) then
+    else if ( sendrecvKind == 8 .and. inKind == 8 ) then
       field_in_r8_ptr => gsv_getField_r8(statevector_in)
 !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
       do youridy = 0, (mpi_npey-1)
@@ -2518,8 +2518,8 @@ module gridStateVector_mod
     end if
 
     nsize = statevector_out%lonPerPEmax * statevector_out%latPerPEmax * statevector_out%numStep * maxkCount
-    if(mpi_nprocs > 1) then
-      if( sendrecvKind == 4 ) then
+    if (mpi_nprocs > 1) then
+      if ( sendrecvKind == 4 ) then
         call rpn_comm_alltoall(gd_send_r4, nsize, "mpi_real4",  &
                                gd_recv_r4, nsize, "mpi_real4", "GRID", ierr)
       else
@@ -2546,7 +2546,7 @@ module gridStateVector_mod
                      1:statevector_in%allkCount(yourid+1), :, yourid+1)
       end do
 !$OMP END PARALLEL DO
-    elseif ( sendrecvKind == 4 .and. outKind == 8 ) then
+    else if ( sendrecvKind == 4 .and. outKind == 8 ) then
       field_out_r8_ptr => gsv_getField_r8(statevector_out)
 !$OMP PARALLEL DO PRIVATE(yourid)
       do yourid = 0, (mpi_nprocs-1)
@@ -2558,7 +2558,7 @@ module gridStateVector_mod
                           1:statevector_in%allkCount(yourid+1), :, yourid+1),8)
       end do
 !$OMP END PARALLEL DO
-    elseif ( sendrecvKind == 8 .and. outKind == 4 ) then
+    else if ( sendrecvKind == 8 .and. outKind == 4 ) then
       field_out_r4_ptr => gsv_getField_r4(statevector_out)
 !$OMP PARALLEL DO PRIVATE(yourid)
       do yourid = 0, (mpi_nprocs-1)
@@ -2570,7 +2570,7 @@ module gridStateVector_mod
                           1:statevector_in%allkCount(yourid+1), :, yourid+1),4)
       end do
 !$OMP END PARALLEL DO
-    elseif ( sendrecvKind == 8 .and. outKind == 8 ) then
+    else if ( sendrecvKind == 8 .and. outKind == 8 ) then
       field_out_r8_ptr => gsv_getField_r8(statevector_out)
 !$OMP PARALLEL DO PRIVATE(yourid)
       do yourid = 0, (mpi_nprocs-1)
@@ -2676,7 +2676,7 @@ module gridStateVector_mod
     end if
 
     maxkCount = maxval(statevector_out%allkCount(:))
-    if( sendrecvKind == 4 ) then
+    if ( sendrecvKind == 4 ) then
       allocate(gd_send_r4(statevector_in%lonPerPEmax,statevector_in%latPerPEmax,maxkCount,statevector_in%numStep,mpi_nprocs))
       allocate(gd_recv_r4(statevector_in%lonPerPEmax,statevector_in%latPerPEmax,maxkCount,statevector_in%numStep,mpi_nprocs))
       gd_send_r4(:,:,:,:,:) = 0.0
@@ -2705,8 +2705,8 @@ module gridStateVector_mod
     end if
 
     nsize = statevector_in%lonPerPEmax * statevector_in%latPerPEmax * statevector_in%numStep * maxkCount
-    if(mpi_nprocs > 1) then
-      if( sendrecvKind == 4 ) then
+    if (mpi_nprocs > 1) then
+      if ( sendrecvKind == 4 ) then
         call rpn_comm_alltoall(gd_send_r4, nsize, "mpi_real4",  &
                                gd_recv_r4, nsize, "mpi_real4", "GRID", ierr)
       else
@@ -2884,7 +2884,7 @@ module gridStateVector_mod
                                 fieldUU_in_r8_ptr(:,:,kIndex,stepIndex),  fieldVV_in_r8_ptr(:,:,kIndex,stepIndex), &
                                 interpDegree_opt=trim(interpolationDegree) ) 
             deallocate( field2dVV_out_r8 )
-          elseif ( trim(varName) == 'VV' ) then
+          else if ( trim(varName) == 'VV' ) then
             ! interpolate both UV components and keep VV
             fieldUU_in_r8_ptr => gsv_getFieldUV_r8(statevector_in)
             allocate( field2dUU_out_r8(statevector_out%ni, statevector_out%nj) )
@@ -3023,7 +3023,7 @@ module gridStateVector_mod
                                 fieldUU_in_r4_ptr(:,:,kIndex,stepIndex),  fieldVV_in_r4_ptr(:,:,kIndex,stepIndex), &
                                 interpDegree_opt=trim(InterpolationDegree) ) 
             deallocate( field2dVV_out_r4 )
-          elseif ( trim(varName) == 'VV' ) then
+          else if ( trim(varName) == 'VV' ) then
             ! interpolate both UV components and keep VV
             fieldUU_in_r4_ptr => gsv_getFieldUV_r4(statevector_in)
             allocate( field2dUU_out_r4(statevector_out%ni, statevector_out%nj) )
@@ -3444,7 +3444,7 @@ module gridStateVector_mod
       end if
 
       !- Write TicTacToc
-      if (mpi_myid == 0) call WriteTicTacToc(statevector,nulfile) ! IN
+      if (mpi_myid == 0) call writeTicTacToc(statevector,nulfile) ! IN
 
     end if
 
@@ -3486,7 +3486,7 @@ module gridStateVector_mod
 !$OMP END PARALLEL DO
 
           nsize = statevector%lonPerPEmax * statevector%latPerPEmax
-          if(mpi_nprocs.gt.1) then
+          if (mpi_nprocs.gt.1) then
             call rpn_comm_alltoall(gd_send_r4,nsize,"mpi_real4",  &
                                    gd_recv_r4,nsize,"mpi_real4","GRID",ierr)
           else
@@ -3511,9 +3511,9 @@ module gridStateVector_mod
             ! Set the ip1 value
             if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'MM') then
                ip1 = statevector%vco%ip1_M(levIndex)
-            elseif (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'TH') then
+            else if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'TH') then
                ip1 = statevector%vco%ip1_T(levIndex)
-            elseif (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'SF') then
+            else if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'SF') then
                ip1 = 0
             else
                write(*,*) 'gsv_writeToFileMpi: unknown type of vertical level: ',  &
@@ -3695,12 +3695,14 @@ module gridStateVector_mod
       end if
 
       !- Write TicTacToc
-      if (mpi_myid == 0) call WriteTicTacToc(statevector,nulfile) ! IN
+      if ( (mpi_myid == 0 .and. statevector%mpi_local) .or. .not.statevector%mpi_local ) then
+        call writeTicTacToc(statevector,nulfile) ! IN
+      endif
 
     end if
 
     allocate(gd_send_r4(statevector%lonPerPEmax,statevector%latPerPEmax))
-    if( mpi_myid == 0 .or. (.not. statevector%mpi_local) ) then
+    if ( mpi_myid == 0 .or. (.not. statevector%mpi_local) ) then
       allocate(gd_recv_r4(statevector%lonPerPEmax,statevector%latPerPEmax,mpi_nprocs))
       allocate(work2d_r4(statevector%ni,statevector%nj))
     else
@@ -3718,7 +3720,7 @@ module gridStateVector_mod
                    1:statevector%latPerPE) =  &
              real(statevector%GZsfc(statevector%myLonBeg:statevector%myLonEnd, &
                                     statevector%myLatBeg:statevector%myLatEnd),4)
-        if( (mpi_nprocs > 1) .and. (statevector%mpi_local) ) then
+        if ( (mpi_nprocs > 1) .and. (statevector%mpi_local) ) then
           nsize = statevector%lonPerPEmax * statevector%latPerPEmax
           call rpn_comm_gather(gd_send_r4, nsize, "mpi_real4",  &
                                gd_recv_r4, nsize, "mpi_real4", 0, "GRID", ierr )
@@ -3738,7 +3740,7 @@ module gridStateVector_mod
             end do
           end do
 !$OMP END PARALLEL DO
-        elseif ( .not. statevector%mpi_local ) then
+        else if ( .not. statevector%mpi_local ) then
           work2d_r4(:,:) = gd_recv_r4(:,:,1)
         end if
 
@@ -3783,7 +3785,7 @@ module gridStateVector_mod
           end if
 
           nsize = statevector%lonPerPEmax*statevector%latPerPEmax
-          if( (mpi_nprocs > 1) .and. (statevector%mpi_local) ) then
+          if ( (mpi_nprocs > 1) .and. (statevector%mpi_local) ) then
             call rpn_comm_gather(gd_send_r4, nsize, "mpi_real4",  &
                                  gd_recv_r4, nsize, "mpi_real4", 0, "GRID", ierr )
           else
@@ -3803,7 +3805,7 @@ module gridStateVector_mod
               end do
             end do
 !$OMP END PARALLEL DO
-          elseif ( .not. statevector%mpi_local ) then
+          else if ( .not. statevector%mpi_local ) then
             work2d_r4(:,:) = gd_recv_r4(:,:,1)
           end if
 
@@ -3813,9 +3815,9 @@ module gridStateVector_mod
             ! Set the ip1 value
             if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'MM') then
                ip1 = statevector%vco%ip1_M(levIndex)
-            elseif (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'TH') then
+            else if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'TH') then
                ip1 = statevector%vco%ip1_T(levIndex)
-            elseif (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'SF') then
+            else if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'SF') then
                ip1 = 0
             else
                write(*,*) 'gsv_writeToFile: unknown type of vertical level: ',  &
@@ -3875,9 +3877,9 @@ module gridStateVector_mod
   end subroutine gsv_writeToFile
 
   !--------------------------------------------------------------------------
-  ! WriteTicTacToc
+  ! writeTicTacToc
   !--------------------------------------------------------------------------
-  subroutine WriteTicTacToc(statevector,iun)
+  subroutine writeTicTacToc(statevector,iun)
     use vGrid_Descriptors , only: vgrid_descriptor, vgd_write, VGD_OK
     use MathPhysConstants_mod, only : MPC_DEGREES_PER_RADIAN_R8
     implicit none
@@ -3903,7 +3905,7 @@ module gridStateVector_mod
        deet     =  0
        ip1      =  statevector%hco%ig1
        ip2      =  statevector%hco%ig2
-       ip3      =  0
+       ip3      =  statevector%hco%ig3
        npas     =  0
        datyp    =  1
        grtyp    = 'E'
@@ -3946,11 +3948,11 @@ module gridStateVector_mod
     if ( trim(statevector%vco%setupType) == 'FromFile' ) then 
        status = vgd_write(statevector%vco%vgrid,iun,'fst')
        if ( status /= VGD_OK ) then
-          call utl_abort('WriteTicTacToc: ERROR with vgd_write')
+          call utl_abort('writeTicTacToc: ERROR with vgd_write')
        end if
     end if
 
-  end subroutine WriteTicTacToc
+  end subroutine writeTicTacToc
 
   !--------------------------------------------------------------------------
   ! gsv_horizSubSample
@@ -4121,9 +4123,9 @@ module gridStateVector_mod
       inquire(file=trim(fileName),exist=fileExists)
       if (fileExists) then
         numTrials = numTrials + 1
-      elseif ( (.not. fileExists) .and. numTrials > 0 ) then
+      else if ( (.not. fileExists) .and. numTrials > 0 ) then
         exit  
-      elseif ( (.not. fileExists) .and. numTrials == 0 ) then
+      else if ( (.not. fileExists) .and. numTrials == 0 ) then
         call utl_abort('gsv_readTrials: No trial files found')
       end if
     end do
@@ -4272,7 +4274,7 @@ module gridStateVector_mod
           do jlon = statevector_inout%myLonBeg, statevector_inout%myLonEnd
             jlon2 = jlon - statevector_inout%myLonBeg + 1
             ! do all thermo levels for which there is a momentum level above and below
-            if ( jlev  ==  nLev_M) then
+            if ( jlev == nLev_M) then
               scaleFactorLev = Press_M(jlon2, jlat2, nLev_M)-Press_T(jlon2, jlat2, nLev_T-1) 
             else if ( Press_T(jlon2, jlat2, jlev) < 10000.0D0) then 
               scaleFactorLev = 0.0D0
