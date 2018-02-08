@@ -120,7 +120,7 @@ contains
 
             ! Analysis increment transformations to dx if needed.
            
-            call chm_apply_transform(statevector_trial, varName, l_reverse=.true., mode=2, increment=statevector_increment)
+            call chm_apply_transform(statevector_trial, varName, l_reverse=.true., mode=2, increment_opt=statevector_increment)
 
             ! Apply min and max boundaries if needed.
 
@@ -159,12 +159,12 @@ contains
 !!v          - Create new sub-function log_matrix from previous code for handling
 !!v            negative values before taking the log. 
 !--------------------------------------------------------------------------
-  subroutine chm_apply_transform(background,varName,l_reverse,mode,increment)
+  subroutine chm_apply_transform(background,varName,l_reverse,mode,increment_opt)
 
     implicit none
 
     type(struct_gsv), intent(inout) :: background
-    type(struct_gsv), intent(inout), optional :: increment
+    type(struct_gsv), intent(inout), optional :: increment_opt
     character(len=*), intent(in) :: varName
     integer, intent(in) :: mode
     logical, intent(in) :: l_reverse
@@ -188,14 +188,14 @@ contains
 
        ! Transform lnx to/from x or dlnx to/from dx
        
-       if (.not.present(increment).and.(mode.eq.1.or.mode.eq.2)) then
+       if (.not.present(increment_opt).and.(mode.eq.1.or.mode.eq.2)) then
           write(*,'(A,I2)') "chm_apply_transform: increment must be provided for mode = ",mode
           call utl_abort("chm_apply_transform")
        end if
        
        ! Get the pointers to the fields
        background_field => gsv_getField_r8(background,varName)
-       if (present(increment)) increment_field => gsv_getField_r8(increment,varName)
+       if (present(increment_opt)) increment_field => gsv_getField_r8(increment_opt,varName)
 
        if (.not.l_reverse) then
 

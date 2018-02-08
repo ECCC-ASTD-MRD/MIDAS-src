@@ -75,13 +75,13 @@ MODULE BmatrixDiff_mod
 
 CONTAINS
 
-  SUBROUTINE BDIFF_setup(hco_in, vco_in, CVDIM_OUT, mode)
+  SUBROUTINE BDIFF_setup(hco_in, vco_in, CVDIM_OUT, mode_opt)
     implicit none
 
     type(struct_hco), pointer :: hco_in
     type(struct_vco), pointer :: vco_in
     integer, intent(out)      :: cvDim_out
-    character(len=*), intent(in), optional :: mode
+    character(len=*), intent(in), optional :: mode_opt
 
     character(len=15) :: bdiff_mode
 
@@ -105,14 +105,14 @@ CONTAINS
     if(mpi_myid == 0) write(*,*) 'bdiff_setup: starting'
     if(mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-    if ( present(mode) ) then
-       if ( trim(mode) == 'Analysis' .or. trim(mode) == 'BackgroundCheck') then
-         bdiff_mode = trim(mode)
+    if ( present(mode_opt) ) then
+       if ( trim(mode_opt) == 'Analysis' .or. trim(mode_opt) == 'BackgroundCheck') then
+         bdiff_mode = trim(mode_opt)
          if(mpi_myid == 0) write(*,*)
          if(mpi_myid == 0) write(*,*) 'bmatrixDiff: Mode activated = ', trim(bdiff_mode)
        else
           write(*,*)
-          write(*,*) 'mode = ', trim(mode)
+          write(*,*) 'mode = ', trim(mode_opt)
           call utl_abort('bmatrixDiff: unknown mode')
        end if
     else

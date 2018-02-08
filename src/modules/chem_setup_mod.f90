@@ -297,11 +297,11 @@ contains
 !!v              'datestamp'
 !!v          
 !----------------------------------------------------------------------------------------
-  subroutine chm_setup(datestamp)
+  subroutine chm_setup(datestamp_opt)
   
   implicit none
 
-  integer, intent(in), optional :: datestamp
+  integer, intent(in), optional :: datestamp_opt
 
   write(*,*) 'Begin chm_setup'
 
@@ -325,8 +325,8 @@ contains
   
  ! Read reference (e.g. climatological) fields
   
-  if (present(datestamp)) then
-     call chm_read_ref_fields(datestamp)
+  if (present(datestamp_opt)) then
+     call chm_read_ref_fields(datestamp_opt)
   else
      call chm_read_ref_fields()
   end if
@@ -1098,11 +1098,11 @@ contains
 !!v     - Fields assumed to be of the same units as those of the corresponding input trial fields
 !!
 !-----------------------------------------------------------------------------------------
-  subroutine chm_read_ref_fields(datestamp)
+  subroutine chm_read_ref_fields(datestamp_opt)
     
     implicit none
 
-    integer, intent(in), optional :: datestamp
+    integer, intent(in), optional :: datestamp_opt
     
     character(len=128) :: fname
     character(len=4) :: varName
@@ -1159,10 +1159,10 @@ contains
     
 !   Initialization
 
-    if (linterp.and.present(datestamp)) then
-       ierr = newdate(datestamp,ijour,itime,-3)
+    if (linterp.and.present(datestamp_opt)) then
+       ierr = newdate(datestamp_opt,ijour,itime,-3)
        if (ierr<0) then
-          Write(*,*) "Invalid datestamp ",datestamp,ijour,itime,ierr
+          Write(*,*) "Invalid datestamp ",datestamp_opt,ijour,itime,ierr
           call utl_abort('chm_read_ref_fields')
        endif
        imonth = MOD(ijour/100,100)
@@ -1205,7 +1205,7 @@ contains
        do j=1,nd
           read(nulstat,*,iostat=ios,err=10,end=10) etiket             
                            
-          call utl_readFstField(trim(fname),varName,-1,imonth,-1,etiket,ni,nj,nkeys,array1,xlat=xlat,xlong=xlong,lvls=lvls,kind=kind)
+          call utl_readFstField(trim(fname),varName,-1,imonth,-1,etiket,ni,nj,nkeys,array1,xlat_opt=xlat,xlong_opt=xlong,lvls_opt=lvls,kind_opt=kind)
 
           if (j.eq.1) then
               chm_ref_fields(id,1)%nlon=ni
@@ -1237,7 +1237,7 @@ contains
               chm_ref_fields(id,2)%vlev(1:nkeys)=lvls(1:nkeys)
           end if
 
-          if (.not.linterp .or. (.not.present(datestamp))) then
+          if (.not.linterp .or. (.not.present(datestamp_opt))) then
 
              if (j.eq.1) then 
                  chm_ref_fields(id,1)%field3d(:,:,:) = array1(:,:,:)
@@ -1251,9 +1251,9 @@ contains
              
              if (iday.gt.15) then
                  if (imonth.eq.12) then
-                    call utl_readFstField(trim(fname),varName,-1,1,-1,etiket,ni,nj,nkeys,array2,lvls=lvls,kind=kind)
+                    call utl_readFstField(trim(fname),varName,-1,1,-1,etiket,ni,nj,nkeys,array2,lvls_opt=lvls,kind_opt=kind)
                 else
-                   call utl_readFstField(trim(fname),varName,-1,imonth+1,-1,etiket,ni,nj,nkeys,array2,lvls=lvls,kind=kind)
+                   call utl_readFstField(trim(fname),varName,-1,imonth+1,-1,etiket,ni,nj,nkeys,array2,lvls_opt=lvls,kind_opt=kind)
                 end if
           
 !               Linearly interpolate in time (approximately - assumes 30 day months)
@@ -1266,9 +1266,9 @@ contains
              
              else if (iday.le.15) then
                 if (imonth.eq.1) then
-                   call utl_readFstField(trim(fname),varName,-1,12,-1,etiket,ni,nj,nkeys,array2,lvls=lvls,kind=kind)
+                   call utl_readFstField(trim(fname),varName,-1,12,-1,etiket,ni,nj,nkeys,array2,lvls_opt=lvls,kind_opt=kind)
                 else
-                   call utl_readFstField(trim(fname),varName,-1,imonth-1,-1,etiket,ni,nj,nkeys,array2,lvls=lvls,kind=kind)
+                   call utl_readFstField(trim(fname),varName,-1,imonth-1,-1,etiket,ni,nj,nkeys,array2,lvls_opt=lvls,kind_opt=kind)
                 end if
 
 !               Linearly interpolate in time (approximately - assumes 30 day months)
@@ -1392,7 +1392,7 @@ contains
         tropo_press=-1.0
         
         if (all(obsoper%hu.ge.0.0D0)) then
-           tropo_press=phf_get_tropopause(obsoper%nmodlev,obsoper%pp,obsoper%tt,obsoper%gz,hu=obsoper%hu)
+           tropo_press=phf_get_tropopause(obsoper%nmodlev,obsoper%pp,obsoper%tt,obsoper%gz,hu_opt=obsoper%hu)
         else
            tropo_press=phf_get_tropopause(obsoper%nmodlev,obsoper%pp,obsoper%tt,obsoper%gz)
          end if
@@ -1661,13 +1661,13 @@ contains
 !!v    for the transformed field if a variable transformation is requested!
 !!v
 !-----------------------------------------------------------------------------------
-  subroutine chm_apply_2dfieldr4_transform(iconstituent_id,varName,jlev,jstep,field,l_reverse)
+  subroutine chm_apply_2dfieldr4_transform(iconstituent_id,varName,jlev,jstep,field,l_reverse_opt)
 
     implicit none
     
     integer, intent(in) :: iconstituent_id,jlev,jstep
     character(len=*), intent(in) :: varName
-    logical, intent(in), optional :: l_reverse
+    logical, intent(in), optional :: l_reverse_opt
 
     real(4), intent(inout) :: field(:,:)            
 
@@ -1680,8 +1680,8 @@ contains
     
     if (transform(iconstituent_id).lt.0) return
     
-    if (present(l_reverse)) then
-       lrev = l_reverse
+    if (present(l_reverse_opt)) then
+       lrev = l_reverse_opt
     else
        lrev = .false.
     end if
@@ -1804,11 +1804,11 @@ contains
 !!v   index     array index (optional)
 !!v
 !----------------------------------------------------------------------------------------
-  function chm_setup_get_int(stype,index)  result(val)
+  function chm_setup_get_int(stype,index_opt)  result(val)
 
     implicit none
     character(len=*), intent(in) :: stype
-    integer, intent(in), optional :: index
+    integer, intent(in), optional :: index_opt
     integer :: val
     
     select case(trim(stype))    
@@ -1817,26 +1817,26 @@ contains
     case('obsdata_maxsize')
        val=obsdata_maxsize
     case('genoper')
-       if (present(index)) then
-          val=generalized_operator(index)
+       if (present(index_opt)) then
+          val=generalized_operator(index_opt)
        else
           call utl_abort('chm_setup_get_int: Missing index for ' // trim(stype))
        end if
     case('tropo_mode')
-       if (present(index)) then
-          val=tropo_mode(index)
+       if (present(index_opt)) then
+          val=tropo_mode(index_opt)
        else
           call utl_abort('chm_setup_get_int: Missing index for ' // trim(stype))
        end if
     case('tropo_bound')
-       if (present(index)) then
-          val=tropo_bound(index)
+       if (present(index_opt)) then
+          val=tropo_bound(index_opt)
        else
           call utl_abort('chm_setup_get_int: Missing index for ' // trim(stype))
        end if
     case('transform')
-       if (present(index)) then
-          val=transform(index)
+       if (present(index_opt)) then
+          val=transform(index_opt)
        else
           call utl_abort('chm_setup_get_int: Missing index for ' // trim(stype))
        end if
@@ -1896,41 +1896,41 @@ contains
 !!v   index     array index (optional)
 !!
 !----------------------------------------------------------------------------------------
-  function chm_setup_get_float(stype,index)  result(val)
+  function chm_setup_get_float(stype,index_opt)  result(val)
 
     implicit none
     character(len=*), intent(in) :: stype
-    integer, intent(in), optional :: index
+    integer, intent(in), optional :: index_opt
     real(8) :: val
     
     select case(trim(stype))    
     case('amu')
-       if (present(index)) then
-          val=amu(index)
+       if (present(index_opt)) then
+          val=amu(index_opt)
        else
           call utl_abort('chm_setup_get_float: Missing index for ' // trim(stype))
        end if
     case('tropo_column_top')
-       if (present(index)) then
-          val=tropo_column_top(index)
+       if (present(index_opt)) then
+          val=tropo_column_top(index_opt)
        else
           call utl_abort('chm_setup_get_float: Missing index for ' // trim(stype))
        end if
     case('low_cutoff')
-       if (present(index)) then
-          val=low_cutoff(index)
+       if (present(index_opt)) then
+          val=low_cutoff(index_opt)
        else
           call utl_abort('chm_setup_get_float: Missing index for ' // trim(stype))
        end if
     case('high_cutoff')
-       if (present(index)) then
-          val=high_cutoff(index)
+       if (present(index_opt)) then
+          val=high_cutoff(index_opt)
        else
           call utl_abort('chm_setup_get_float: Missing index for ' // trim(stype))
        end if
     case('sigma_cutoff')
-       if (present(index)) then
-          val=sigma_cutoff(index)
+       if (present(index_opt)) then
+          val=sigma_cutoff(index_opt)
        else
           call utl_abort('chm_setup_get_float: Missing index for ' // trim(stype))
        end if
@@ -1991,7 +1991,7 @@ contains
     
     if (chm_efftemp%nrep.gt.0) then
         varno(1)=12001
-        nrep_modified = burp_chem_update_all('CH',varno(1:max(1,chm_efftemp%dim2)),0,'INFO',chm_efftemp,multi='UNI') 
+        nrep_modified = burp_chem_update_all('CH',varno(1:max(1,chm_efftemp%dim2)),0,'INFO',chm_efftemp,multi_opt='UNI') 
         write(*,*) 'chm_add_efftemp_obsfile: Added ',nrep_modified,' effective temperature values in the obs file.'
     end if 
 

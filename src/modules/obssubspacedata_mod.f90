@@ -119,7 +119,7 @@ contains
 !--------------------------------------------------------------------------------------------
 !------------------- OBSDATA functions and routines -----------------------------------------
  
-  subroutine oss_obsdata_alloc(obsdata,nrep,dim1,dim2)
+  subroutine oss_obsdata_alloc(obsdata,nrep,dim1,dim2_opt)
 !
 ! Author  : M. Sitwell  April 2015
 !
@@ -144,15 +144,15 @@ contains
 
     type(struct_oss_obsdata), intent(inout) :: obsdata
     integer, intent(in) :: nrep,dim1 
-    integer, intent(in), optional :: dim2 
+    integer, intent(in), optional :: dim2_opt
     
     obsdata%nrep = nrep
     obsdata%dim1 = dim1
 
-    if (present(dim2)) then
-       obsdata%dim2 = dim2
+    if (present(dim2_opt)) then
+       obsdata%dim2 = dim2_opt
        obsdata%ndim = 2
-       allocate(obsdata%data2d(dim1,dim2,nrep))
+       allocate(obsdata%data2d(dim1,dim2_opt,nrep))
        obsdata%data2d(:,:,:) = 0.0D0
     else
        obsdata%dim2 = 0
@@ -194,7 +194,7 @@ contains
 
 !-------------------------------------------------------------------------------------------
 
-  function oss_obsdata_get_element(obsdata,code,idim1,stat) result(element)
+  function oss_obsdata_get_element(obsdata,code,idim1,stat_opt) result(element)
 ! 
 !   Purpose: Returns element of array from obsdata 1D data array. The returned element is the
 !            one with the specified identifying code.
@@ -219,14 +219,14 @@ contains
     type(struct_oss_obsdata), intent(inout) :: obsdata
     character(len=*), intent(in)  :: code
     integer, intent(in) :: idim1
-    integer, intent(out), optional :: stat
+    integer, intent(out), optional :: stat_opt
 
     real(8) :: element
     
     ! find obsdata%irep for current observation
-    if (present(stat)) then
-       call obsdata_set_index(obsdata,code,stat=stat)
-       if (stat.ne.0) then
+    if (present(stat_opt)) then
+       call obsdata_set_index(obsdata,code,stat_opt=stat_opt)
+       if (stat_opt.ne.0) then
           element = 0.
           return
        end if
@@ -248,7 +248,7 @@ contains
 
 !-------------------------------------------------------------------------------------------
 
-  function oss_obsdata_get_array1d(obsdata,code,stat) result(array)
+  function oss_obsdata_get_array1d(obsdata,code,stat_opt) result(array)
 ! 
 !   Purpose: Returns 1D data array from obsdata. The returned array is the one with the specified
 !            identifying code.
@@ -272,13 +272,13 @@ contains
 
     type(struct_oss_obsdata), intent(inout) :: obsdata
     character(len=*), intent(in) :: code
-    integer, intent(out), optional :: stat
+    integer, intent(out), optional :: stat_opt
     real(8) :: array(obsdata%dim1)
     
     ! find obsdata%irep for current observation
-    if (present(stat)) then
-       call obsdata_set_index(obsdata,code,stat=stat)
-       if (stat.ne.0) then
+    if (present(stat_opt)) then
+       call obsdata_set_index(obsdata,code,stat_opt=stat_opt)
+       if (stat_opt.ne.0) then
           array(:) = 0.
           return
        end if
@@ -300,7 +300,7 @@ contains
 
 !-------------------------------------------------------------------------------------------
 
-  function oss_obsdata_get_data1d(obsdata,lon,lat,date,time,stnid,stat) result(array)
+  function oss_obsdata_get_data1d(obsdata,lon,lat,date,time,stnid,stat_opt) result(array)
 !
 ! Purpose: Extract 1D data array from structure according to input (lat,long,date,time,stnid)
 !
@@ -328,7 +328,7 @@ contains
     real(8), intent(in) :: lon,lat
     integer, intent(in) :: date,time
     character(len=*), intent(in) :: stnid
-    integer, intent(out), optional :: stat
+    integer, intent(out), optional :: stat_opt
 
     character(len=oss_code_len) :: code
     real(8) :: array(obsdata%dim1)
@@ -337,13 +337,13 @@ contains
     code=oss_obsdata_get_header_code(lon,lat,date,time,stnid) 
   
     ! Get array corresponding to code.
-    array=oss_obsdata_get_array1d(obsdata,code,stat=stat)
+    array=oss_obsdata_get_array1d(obsdata,code,stat_opt=stat_opt)
     
   end function oss_obsdata_get_data1d
 
 !-------------------------------------------------------------------------------------------
 
-  function oss_obsdata_get_array2d(obsdata,code,stat) result(array)
+  function oss_obsdata_get_array2d(obsdata,code,stat_opt) result(array)
 ! 
 !   Purpose: Returns 2D data array from obsdata. The returned array is the one with the specified
 !            identifying code.
@@ -366,13 +366,13 @@ contains
 
     type(struct_oss_obsdata), intent(inout) :: obsdata
     character(len=*), intent(in) :: code
-    integer, intent(out), optional :: stat
+    integer, intent(out), optional :: stat_opt
     real(8) :: array(obsdata%dim1,obsdata%dim2)
     
     ! find obsdata%irep for current observation
-    if (present(stat)) then
-       call obsdata_set_index(obsdata,code,stat=stat)
-       if (stat.ne.0) then
+    if (present(stat_opt)) then
+       call obsdata_set_index(obsdata,code,stat_opt=stat_opt)
+       if (stat_opt.ne.0) then
           array(:,:) = 0.
           return
        end if
@@ -394,7 +394,7 @@ contains
 
 !-------------------------------------------------------------------------------------------
 
-  subroutine obsdata_set_index(obsdata,code,stat)
+  subroutine obsdata_set_index(obsdata,code,stat_opt)
 ! 
 !  Purpose: Sets the position variable (irep) in struct_oss_obsdata to reference the record
 !           that matches the input identifying code.
@@ -424,12 +424,12 @@ contains
 
     type(struct_oss_obsdata), intent(inout) :: obsdata
     character(len=*), intent(in) :: code
-    integer, intent(out), optional :: stat
+    integer, intent(out), optional :: stat_opt
     integer :: i
     
     if (obsdata%nrep.le.0) then
-       if (present(stat)) then
-          stat = 1
+       if (present(stat_opt)) then
+          stat_opt = 1
           return
        else
           call utl_abort("obsdata_set_index: No reports available. Check for consistency " // &
@@ -445,8 +445,8 @@ contains
        obsdata%irep=obsdata%irep+1
        if (obsdata%irep.gt.obsdata%nrep) obsdata%irep=1
        if (i.gt.obsdata%nrep) then
-          if (present(stat)) then
-             stat = 2
+          if (present(stat_opt)) then
+             stat_opt = 2
              return
           else
              call utl_abort("obsdata_set_index: Obs index not found for nrep = " // trim(utl_str(obsdata%nrep)) // " and code = '" // code // "'")
@@ -455,7 +455,7 @@ contains
        i=i+1       
     end do
           
-    if (present(stat)) stat = 0
+    if (present(stat_opt)) stat_opt = 0
            
   end subroutine obsdata_set_index
     
@@ -545,7 +545,7 @@ contains
 
 !----------------------------------------------------------------------------------------
 
-  subroutine oss_obsdata_add_data1d(obsdata,val,code,maxsize,dim1)
+  subroutine oss_obsdata_add_data1d(obsdata,val,code,maxsize,dim1_opt)
 !
 ! Author: Y. Rochon, ARQI/AQRD, June 2016
 !
@@ -581,11 +581,11 @@ contains
     real(8), intent(in) :: val(:)
     integer, intent(in) :: maxsize
     character(len=*), intent(in) :: code
-    integer, intent(in), optional :: dim1
+    integer, intent(in), optional :: dim1_opt
 
     if (.not.associated(obsdata%data1d)) then
-      if (present(dim1)) then 
-         call oss_obsdata_alloc(obsdata,maxsize,dim1=dim1)
+      if (present(dim1_opt)) then 
+         call oss_obsdata_alloc(obsdata,maxsize,dim1=dim1_opt)
       else
          call oss_obsdata_alloc(obsdata,maxsize,dim1=1)
       end if
@@ -793,7 +793,7 @@ contains
     logical :: all_combos
 
 
-    call oss_comboIdlist(all_combos=all_combos)
+    call oss_comboIdlist(all_combos_opt=all_combos)
     
     if (all_combos) then
     
@@ -830,25 +830,26 @@ contains
           end do
 
           ! Adds to running list of unique pairs if unique
-          call oss_comboIdlist(stnid_add=obs_elem_c(obsSpaceData,'STID',headerIndex), varno_add=varno, unilev_add=(nlev_obs.eq.1.and.vco.ge.4))
+          call oss_comboIdlist(stnid_add_opt=obs_elem_c(obsSpaceData,'STID',headerIndex), varno_add_opt=varno, unilev_add_opt=(nlev_obs.eq.1.and.vco.ge.4))
                        
        end do HEADER
        
        ! Get a common sequence of search pairs over all processors. 
        
-       call oss_comboIdlist(gather_mpi=.true.)
+       call oss_comboIdlist(gather_mpi_opt=.true.)
        
     end if
     
     ! Get list of unique pairs
-    call oss_comboIdlist(stnid_list=stnid_list, varno_list=varno_list, unilev_list=unilev_list, num_elements=num_elements, nset=nset)
+    call oss_comboIdlist(stnid_list_opt=stnid_list, varno_list_opt=varno_list, unilev_list_opt=unilev_list, num_elements_opt=num_elements, nset_opt=nset)
 
   end subroutine oss_get_comboIdlist
 
 !-----------------------------------------------------------------------------------
   
-  subroutine oss_comboIdList(stnid_add,varno_add,unilev_add,stnid_list,varno_list,unilev_list, &
-                             num_elements,initialize,nset,gather_mpi,all_combos)
+  subroutine oss_comboIdList(stnid_add_opt,varno_add_opt,unilev_add_opt,stnid_list_opt, &
+                             varno_list_opt,unilev_list_opt, &
+                             num_elements_opt,initialize_opt,nset_opt,gather_mpi_opt,all_combos_opt)
   ! 
   !   Purpose: Provide list of fixed or accumulated stnid, (stnid,varno) or 
   !            (stnid,varno,multi/uni-level) combinations to be used in searches.
@@ -900,16 +901,16 @@ contains
     
     integer, parameter :: nmax=100,stnid_len=9
 
-    logical, intent(in), optional :: initialize,gather_mpi,unilev_add
-    integer, intent(in), optional :: varno_add
-    character(len=stnid_len), intent(in), optional :: stnid_add
+    logical, intent(in), optional :: initialize_opt,gather_mpi_opt,unilev_add_opt
+    integer, intent(in), optional :: varno_add_opt
+    character(len=stnid_len), intent(in), optional :: stnid_add_opt
 
-    integer, intent(inout), optional :: nset
-    logical, intent(inout), optional :: all_combos
+    integer, intent(inout), optional :: nset_opt
+    logical, intent(inout), optional :: all_combos_opt
 
-    integer, intent(out), optional :: varno_list(nmax),num_elements
-    character(len=stnid_len), intent(out), optional :: stnid_list(nmax)
-    logical, intent(out), optional :: unilev_list(nmax)
+    integer, intent(out), optional :: varno_list_opt(nmax),num_elements_opt
+    character(len=stnid_len), intent(out), optional :: stnid_list_opt(nmax)
+    logical, intent(out), optional :: unilev_list_opt(nmax)
 
     ! local arrays of unique values
     integer, save :: varno_unique(nmax)
@@ -929,7 +930,7 @@ contains
     integer :: i,j,nproc,iproc,ierr
 
     init=.false.
-    if (present(initialize)) init = initialize
+    if (present(initialize_opt)) init = initialize_opt
 
     
     ! Initialize internal arrays and counters
@@ -938,38 +939,38 @@ contains
        varno_unique(:) = 0
        unilev_unique(:) = .false.
        num_unique = 0
-       if (present(nset)) iset = nset
-       if (present(all_combos)) lall_combos = all_combos
+       if (present(nset_opt)) iset = nset_opt
+       if (present(all_combos_opt)) lall_combos = all_combos_opt
     end if      
 
 
     ! Add new elements to internal arrays if not there already
-    if (present(stnid_add)) then
+    if (present(stnid_add_opt)) then
       
-       if (iset.ge.2 .and. (.not. present(varno_add))) call utl_abort('oss_comboIdlist: varno_add must be present to add element for nset>=2.')
-       if (iset.ge.3 .and. (.not. present(unilev_add))) call utl_abort('oss_comboIdlist: unilev_add must be present to add element for nset>=3.')
+       if (iset.ge.2 .and. (.not. present(varno_add_opt))) call utl_abort('oss_comboIdlist: varno_add must be present to add element for nset>=2.')
+       if (iset.ge.3 .and. (.not. present(unilev_add_opt))) call utl_abort('oss_comboIdlist: unilev_add must be present to add element for nset>=3.')
 
        same = .false.
 
        do i=1,num_unique
-          same = utl_stnid_equal(stnid_add,stnid_unique(i))
-          if (iset.ge.2) same = same .and. varno_add.eq.varno_unique(i)
-          if (iset.ge.3) same = same .and. unilev_add.eqv.unilev_unique(i)
+          same = utl_stnid_equal(stnid_add_opt,stnid_unique(i))
+          if (iset.ge.2) same = same .and. varno_add_opt.eq.varno_unique(i)
+          if (iset.ge.3) same = same .and. unilev_add_opt.eqv.unilev_unique(i)
           if (same) exit
        end do
 
        if (.not.same) then
           num_unique=num_unique+1
           if (num_unique.gt.nmax) call utl_abort("oss_comboIDlist: Max allowed dimension exceeded.")
-          stnid_unique(num_unique) = stnid_add
-          if (iset.ge.2) varno_unique(num_unique) = varno_add
-          if (iset.ge.3) unilev_unique(num_unique) = unilev_add
+          stnid_unique(num_unique) = stnid_add_opt
+          if (iset.ge.2) varno_unique(num_unique) = varno_add_opt
+          if (iset.ge.3) unilev_unique(num_unique) = unilev_add_opt
        end if
     end if        
 
     ! Gather unique arrays from each local mpi process and compile global unique arrays
-    if (present(gather_mpi)) then
-       if (gather_mpi) then
+    if (present(gather_mpi_opt)) then
+       if (gather_mpi_opt) then
 
           call rpn_comm_size("GRID",nproc,ierr)
 
@@ -1027,13 +1028,13 @@ contains
 
 
     ! Return internal arrays (and other info) if requested
-    if (present(varno_list)) varno_list = varno_unique
-    if (present(stnid_list)) stnid_list = stnid_unique
-    if (present(unilev_list)) unilev_list = unilev_unique
-    if (present(num_elements)) num_elements = num_unique
+    if (present(varno_list_opt)) varno_list_opt = varno_unique
+    if (present(stnid_list_opt)) stnid_list_opt = stnid_unique
+    if (present(unilev_list_opt)) unilev_list_opt = unilev_unique
+    if (present(num_elements_opt)) num_elements_opt = num_unique
     if (.not. init) then
-       if (present(nset)) nset = iset
-       if (present(all_combos)) all_combos = lall_combos
+       if (present(nset_opt)) nset_opt = iset
+       if (present(all_combos_opt)) all_combos_opt = lall_combos
     end if
     
     

@@ -923,7 +923,7 @@ contains
 
   contains
 
-    subroutine readTrialField(varInterphr_MT,varInterphr_VV,varName_in,varLevel,noUpperGZ)
+    subroutine readTrialField(varInterphr_MT,varInterphr_VV,varName_in,varLevel,noUpperGZ_opt)
       !
       ! s/r readTrialField
       !
@@ -940,7 +940,7 @@ contains
       character(len=*) :: varName_in
       character(len=*) :: varLevel
       character(len=4) :: varName
-      logical, optional :: noUpperGZ
+      logical, optional :: noUpperGZ_opt
       real*8 :: varInterphr_MT(:,:),varInterphr_VV(:,:)
       real*4, allocatable :: varTrial_r4(:,:),varTrial_VV_r4(:,:)
       real*4, allocatable :: varTrial_zero_r4(:,:)
@@ -987,16 +987,16 @@ contains
       !
       ! Check if too few GZ levels are in file, if so then just read surface
       !
-      if (trim(varName).eq.'GZ' .and. present(noUpperGZ)) then
+      if (trim(varName).eq.'GZ' .and. present(noUpperGZ_opt)) then
          ierr = fstinl(nultrl_forEZ, ni, nj, nk, -1, ' ', -1, -1, -1, &
               ' ','GZ',keys, numkeys, maxnumkeys)
          write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: nlevel =  ', nlevel, ', numkeys = ', numkeys
          if (numkeys.lt.nlevel) then
             write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: Too few GZ levels found, will only read surface'
-            noUpperGZ = .true.
+            noUpperGZ_opt = .true.
          else
             write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: sufficient levels of GZ found, will read all'
-            noUpperGZ = .false.
+            noUpperGZ_opt = .false.
          endif
       endif
 
@@ -1063,8 +1063,8 @@ contains
                call utl_abort('INN_SETUPBACKGROUNDCOLUMNS: unknown varLevel')
             endif
 
-            if (trim(varName).eq.'GZ'.and.present(noUpperGZ)) then
-               if (noUpperGZ.and.jlev.ne.nlevel) then
+            if (trim(varName).eq.'GZ'.and.present(noUpperGZ_opt)) then
+               if (noUpperGZ_opt.and.jlev.ne.nlevel) then
                   ! do not try to read GZ above surface if it does not exist
                   varTrial_r4(:,:) = 0.0
                else
@@ -1280,9 +1280,9 @@ contains
     !        TOVS - RADIANCE
     !-------------------------------
     if (trim(innovationMode) == 'bgckIR'  ) then
-      call oop_tovs_nl(columnhr,obsSpaceData,tim_getDatestamp(),filt_rlimlvhu,beSilent,bgckMode_in=.true. ,jobs_out=ZJOTOV)
+      call oop_tovs_nl(columnhr,obsSpaceData,tim_getDatestamp(),filt_rlimlvhu,beSilent,bgckMode_opt=.true. ,jobs_opt=ZJOTOV)
     else
-      call oop_tovs_nl(columnhr,obsSpaceData,tim_getDatestamp(),filt_rlimlvhu,beSilent,bgckMode_in=.false.,jobs_out=ZJOTOV)
+      call oop_tovs_nl(columnhr,obsSpaceData,tim_getDatestamp(),filt_rlimlvhu,beSilent,bgckMode_opt=.false.,jobs_opt=ZJOTOV)
     end if
     !
     !        PROFILER

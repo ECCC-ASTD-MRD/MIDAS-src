@@ -126,15 +126,15 @@ contains
   !--------------------------------------------------------------------------
   ! vco_SetupFromFile
   !--------------------------------------------------------------------------
-  subroutine vco_SetupFromFile(vco,templatefile,etiket_in,beSilent)
+  subroutine vco_SetupFromFile(vco,templatefile,etiket_opt,beSilent_opt)
     !  s/r vco_SetupFromFile - Initialize structure for a standard file using vgrid_descriptors library.
     implicit none
     type(struct_vco),pointer :: vco
     character(len=*) :: templatefile
-    character(len=*), optional :: etiket_in
-    logical, optional :: beSilent
+    character(len=*), optional :: etiket_opt
+    logical, optional :: beSilent_opt
 
-    logical           :: beSilent2
+    logical           :: beSilent
     character(len=12) :: etiket
     integer :: Vcode,kind,jlev,nlevMatched,stat,sigdigits,nultemplate,ierr,ikey
     integer :: fnom,fstouv,fstfrm,fclos,fstinf,fstprm
@@ -156,19 +156,19 @@ contains
 
     allocate(vco)
 
-    if(present(etiket_in)) then
-      etiket = etiket_in
+    if(present(etiket_opt)) then
+      etiket = etiket_opt
     else
       etiket = ' '
     endif
 
-    if(present(beSilent)) then
-      beSilent2 = beSilent
+    if(present(beSilent_opt)) then
+      beSilent = beSilent_opt
     else
-      beSilent2 = .false.
+      beSilent = .false.
     endif
 
-    if(mpi_myid.eq.0 .and. .not.beSilent2) then
+    if(mpi_myid.eq.0 .and. .not.beSilent) then
       write(*,*) 'vco_setupFromFile: TEMPLATEFILE=', templatefile
     endif
     inquire(file=templatefile,exist=isExist_L)
@@ -176,7 +176,7 @@ contains
       nultemplate=0
       ierr=fnom(nultemplate,templatefile,'RND+OLD+R/O',0)
       if( ierr .eq. 0 ) then
-        if(mpi_myid.eq.0 .and. .not.beSilent2) then
+        if(mpi_myid.eq.0 .and. .not.beSilent) then
           write(*,*) ' opened as unit file ',nultemplate
         endif
         ierr =  fstouv(nultemplate,'RND+OLD')
@@ -198,7 +198,7 @@ contains
     endif
 
     ! Print out vertical structure 
-    if(mpi_myid.eq.0 .and. .not.beSilent2) then
+    if(mpi_myid.eq.0 .and. .not.beSilent) then
       stat = vgd_print(vco%vgrid)
       if(stat.ne.VGD_OK)then
         call utl_abort('vco_setupFromFile: ERROR with vgd_print')
@@ -244,7 +244,7 @@ contains
       if(ikey.gt.0) vco%nlev_T = vco%nlev_T + 1
     enddo
     if(vco%nlev_T.eq.0) then
-      if(mpi_myid.eq.0 .and. .not.beSilent2) then
+      if(mpi_myid.eq.0 .and. .not.beSilent) then
         write(*,*) 'vco_setupFromFile: TH not found looking for TT to get nlev_T'
       endif
       nomvar_T = 'TT  '
@@ -265,7 +265,7 @@ contains
       if(ikey.gt.0) vco%nlev_M = vco%nlev_M + 1
     enddo
     if(vco%nlev_M.eq.0) then
-      if(mpi_myid.eq.0 .and. .not.beSilent2) then
+      if(mpi_myid.eq.0 .and. .not.beSilent) then
         write(*,*) 'vco_setupFromFile: MM not found looking for UU to get nlev_M'
       endif
       nomvar_M = 'UU  '
@@ -275,7 +275,7 @@ contains
       enddo
     endif
     if(vco%nlev_M.eq.0) then
-      if(mpi_myid.eq.0 .and. .not.beSilent2) then
+      if(mpi_myid.eq.0 .and. .not.beSilent) then
         write(*,*) 'vco_setupFromFile: UU not found looking for PP to get nlev_M'
       endif
       nomvar_M = 'PP  '
@@ -293,7 +293,7 @@ contains
       call utl_abort('vco_setupfromfile: they were no valid momentum and thermodynamic variables in the template file!')
     end  if
 
-    if(mpi_myid.eq.0 .and. .not.beSilent2) then
+    if(mpi_myid.eq.0 .and. .not.beSilent) then
       write(*,*) 'vco_setupFromFile: nlev_M, nlev_T=',vco%nlev_M,vco%nlev_T
     endif
     
@@ -356,7 +356,7 @@ contains
       write(*,*) 'vco_setupFromFile: Could not find IP1=',ip1_sfc
       call utl_abort('vco_setupFromFile: No surface level found in Vgrid!!!')
     else
-      if(mpi_myid.eq.0 .and. .not.beSilent2) write(*,*) 'vco_setupFromFile: Set surface level IP1=',vco%ip1_sfc
+      if(mpi_myid.eq.0 .and. .not.beSilent) write(*,*) 'vco_setupFromFile: Set surface level IP1=',vco%ip1_sfc
     endif
 
     !

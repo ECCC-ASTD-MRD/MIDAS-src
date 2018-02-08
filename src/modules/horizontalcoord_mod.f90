@@ -65,14 +65,14 @@ module HorizontalCoord_mod
 !--------------------------------------------------------------------------
 ! hco_SetupFromFile
 !--------------------------------------------------------------------------
-  subroutine hco_SetupFromFile(hco, TemplateFile, EtiketName, GridName, &
+  subroutine hco_SetupFromFile(hco, TemplateFile, EtiketName, GridName_opt, &
        varName_opt)
     implicit none
 
     type(struct_hco), pointer    :: hco
     character(len=*), intent(in) :: TemplateFile
     character(len=*), intent(in) :: EtiketName
-    character(len=*), intent(in), optional :: GridName
+    character(len=*), intent(in), optional :: GridName_opt
     character(len=*), intent(in), optional :: varName_opt
 
     real, allocatable :: lat2d_4(:,:)
@@ -355,8 +355,8 @@ module HorizontalCoord_mod
     allocate(hco % lat(1:nj))
     allocate(hco % lon(1:ni))
 
-    if ( present(gridName) ) then
-      hco % gridname     = trim(gridName)
+    if ( present(gridName_opt) ) then
+      hco % gridname     = trim(gridName_opt)
     else
       hco % gridname     = 'UNDEFINED'
     end if

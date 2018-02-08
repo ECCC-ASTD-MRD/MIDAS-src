@@ -277,12 +277,12 @@ contains
       IF(CLVALU(JJ) == '') EXIT
       nulburp=0
       burpin=trim(burp_directory)//'/'//trim(CLVALU(JJ))//'_'//trim(cmyid)
-      burpinFull = ram_fullWorkingPath(burpin,noAbort=.true.)
+      burpinFull = ram_fullWorkingPath(burpin,noAbort_opt=.true.)
 
       INQUIRE(FILE=trim(burpinFull),EXIST=isExist_L)
       IF (.NOT. isExist_L )THEN
         burpin=trim(burp_directory)//'/'//trim(CLVALU(JJ))
-        burpinFull = ram_fullWorkingPath(burpin,noAbort=.true.)
+        burpinFull = ram_fullWorkingPath(burpin,noAbort_opt=.true.)
         INQUIRE(FILE=trim(burpinFull),EXIST=isExist_L)
       END IF
       IF ( isExist_L )THEN
@@ -1794,7 +1794,8 @@ END SUBROUTINE burp_updateFiles
 !!v   other than 'CH', It should be renamed once used for other families.
 !!
 !--------------------------------------------------------------------------
-  function burp_chem_read_all(obsfam,stnid,varno,nlev,ndim,bkstp,block_type,match_nlev,codtyplist) result(burp_out)
+  function burp_chem_read_all(obsfam,stnid,varno,nlev,ndim,bkstp,block_type,match_nlev,  &
+                              codtyplist_opt) result(burp_out)
 
     implicit none
 
@@ -1802,7 +1803,7 @@ END SUBROUTINE burp_updateFiles
     character(len=4), intent(in) :: block_type
     integer, intent(in)          :: ndim,varno,nlev,bkstp
     logical, intent(in)          :: match_nlev
-    integer, intent(in), optional :: codtyplist(:)
+    integer, intent(in), optional :: codtyplist_opt(:)
     character(len=*), intent(in) :: obsfam
     type(struct_oss_obsdata) :: burp_out
 
@@ -1812,9 +1813,9 @@ END SUBROUTINE burp_updateFiles
     filename = burp_get_filename(obsfam,found)
 
     if (found) then
-       if (present(codtyplist)) then
+       if (present(codtyplist_opt)) then
           burp_out = burp_chem_read(filename,stnid,varno,nlev,ndim,bkstp,block_type,match_nlev, &
-                                   codtyplist=codtyplist)
+                                   codtyplist_opt=codtyplist_opt)
        else
           burp_out = burp_chem_read(filename,stnid,varno,nlev,ndim,bkstp,block_type,match_nlev)
        end if
@@ -1826,7 +1827,7 @@ END SUBROUTINE burp_updateFiles
           if (ndim.eq.1) then
              call oss_obsdata_alloc(burp_out,1,dim1=nlev)
           else
-             call oss_obsdata_alloc(burp_out,1,dim1=nlev,dim2=nlev)
+             call oss_obsdata_alloc(burp_out,1,dim1=nlev,dim2_opt=nlev)
           end if
           burp_out%nrep=0
           write(*,*) "burp_chem_read_all: Number of reports set to ",burp_out%nrep
@@ -1891,7 +1892,8 @@ END SUBROUTINE burp_updateFiles
 !!v     other than 'CH', It should be renamed once used for other families.
 !!
 !--------------------------------------------------------------------------
-  function burp_chem_read(filename,stnid,varno,nlev,ndim,bkstp,block_type,match_nlev,codtyplist) result(burp_out)
+  function burp_chem_read(filename,stnid,varno,nlev,ndim,bkstp,block_type,match_nlev,  &
+                          codtyplist_opt) result(burp_out)
     
     implicit none
 
@@ -1900,7 +1902,7 @@ END SUBROUTINE burp_updateFiles
     character(len=4), intent(in) :: block_type
     integer, intent(in)          :: ndim,varno,nlev,bkstp
     logical, intent(in)          :: match_nlev
-    integer, intent(in), optional :: codtyplist(:)
+    integer, intent(in), optional :: codtyplist_opt(:)
     type(struct_oss_obsdata) :: burp_out
 
     character(len=9)  :: rep_stnid
@@ -1924,7 +1926,7 @@ END SUBROUTINE burp_updateFiles
        write(*,*) "burp_chem_read: Reading file " // trim(filename)
        write(*,*) "burp_chem_read: Selecting STNID = ",stnid," BUFR = ",varno," block type = ",block_type
        write(*,*) "burp_chem_read:           bkstp = ",bkstp," nlev = ",nlev," match_nlev = ",match_nlev
-       if (present(codtyplist)) write(*,*) "burp_chem_read: CodeTypeList: ",codtyplist(:)
+       if (present(codtyplist_opt)) write(*,*) "burp_chem_read: CodeTypeList: ",codtyplist_opt(:)
     else
        call utl_abort('burp_chem_read: Could not find/open BURP file: ' // trim(filename))
     end if
@@ -1936,7 +1938,7 @@ END SUBROUTINE burp_updateFiles
     if (ndim.eq.1) then
        call oss_obsdata_alloc(burp_out,nrep,dim1=nlev)
     else
-       call oss_obsdata_alloc(burp_out,nrep,dim1=nlev,dim2=nlev)
+       call oss_obsdata_alloc(burp_out,nrep,dim1=nlev,dim2_opt=nlev)
     end if
     
     icount = 0  ! counter of reports with same stnid, number of levels, and varno as input 
@@ -1951,8 +1953,8 @@ END SUBROUTINE burp_updateFiles
        
        call BURP_Get_Property(rep, STNID=rep_stnid, DATE=date, TEMPS=time, LATI=ilat, LONG=ilon, IDTYP=icodtyp) 
 
-       if (present(codtyplist)) then
-          if (.not.any(codtyplist(:).eq.icodtyp)) cycle REPORTS
+       if (present(codtyplist_opt)) then
+          if (.not.any(codtyplist_opt(:).eq.icodtyp)) cycle REPORTS
        end if
 
        if (.not.utl_stnid_equal(stnid,rep_stnid)) cycle REPORTS
@@ -2081,7 +2083,7 @@ END SUBROUTINE burp_updateFiles
 !!v   other than 'CH', It should be renamed once used for other families.
 !!
 !--------------------------------------------------------------------------
-  function burp_chem_update_all(obsfam,varno,bkstp,block_type,obsdata,multi) result(nrep_modified)
+  function burp_chem_update_all(obsfam,varno,bkstp,block_type,obsdata,multi_opt) result(nrep_modified)
 
     implicit none
 
@@ -2089,14 +2091,14 @@ END SUBROUTINE burp_updateFiles
     character(len=*), intent(in) :: obsfam
     type(struct_oss_obsdata), intent(inout) :: obsdata
     integer, intent(in) :: varno(:),bkstp    
-    character(len=*), intent(in), optional :: multi
+    character(len=*), intent(in), optional :: multi_opt
     integer :: nrep_modified
 
     integer :: ierr,nrep_modified_global
 
     if (burp_split_L .or. mpi_myid.eq.0) then
-       if (present(multi)) then
-          nrep_modified = burp_chem_update(burp_get_filename(obsfam),varno,bkstp,block_type,obsdata,multi=multi)
+       if (present(multi_opt)) then
+          nrep_modified = burp_chem_update(burp_get_filename(obsfam),varno,bkstp,block_type,obsdata,multi_opt=multi_opt)
        else
           nrep_modified = burp_chem_update(burp_get_filename(obsfam),varno,bkstp,block_type,obsdata)
        end if
@@ -2149,7 +2151,7 @@ END SUBROUTINE burp_updateFiles
 !!v    other than 'CH', It should be renamed once used for other families.
 !!
 !--------------------------------------------------------------------------
-  function burp_chem_update(filename,varno,bkstp,block_type,obsdata,multi) result(nrep_modified)
+  function burp_chem_update(filename,varno,bkstp,block_type,obsdata,multi_opt) result(nrep_modified)
 
     implicit none
 
@@ -2158,7 +2160,7 @@ END SUBROUTINE burp_updateFiles
     type(struct_oss_obsdata), intent(inout) :: obsdata
     integer, intent(in) :: varno(:),bkstp
     
-    character(len=*), intent(in), optional :: multi
+    character(len=*), intent(in), optional :: multi_opt
 
     integer :: nrep_modified,ncount
     logical :: blk_found
@@ -2238,22 +2240,22 @@ END SUBROUTINE burp_updateFiles
        
        ! Determine if replacement/additional data likely present for this report
        if (dim1.eq.1.and.dim2.eq.1) then
-          new_vals(1,1,ncount)=real(oss_obsdata_get_element(obsdata,trim(code),1,stat=istat))
+          new_vals(1,1,ncount)=real(oss_obsdata_get_element(obsdata,trim(code),1,stat_opt=istat))
        else if (dim2.eq.1) then
-          new_vals(:,1,ncount)=real(oss_obsdata_get_array1d(obsdata,trim(code),stat=istat))
+          new_vals(:,1,ncount)=real(oss_obsdata_get_array1d(obsdata,trim(code),stat_opt=istat))
        else 
-          new_vals(:,:,ncount)=real(oss_obsdata_get_array2d(obsdata,trim(code),stat=istat))
+          new_vals(:,:,ncount)=real(oss_obsdata_get_array2d(obsdata,trim(code),stat_opt=istat))
        end if
 
        if (istat.eq.0) then
-          if (present(multi)) then
+          if (present(multi_opt)) then
              ! loop through blocks to find first data block
              ref_blk = 0
              BLOCKS1: do
                 ref_blk = BURP_Find_Block(rep, BLOCK=blk, SEARCH_FROM=ref_blk, IOSTAT=error)          
                 if (ref_blk<0) exit BLOCKS1
                 if (IS_Burp_Btyp('DATA',BLOCK=blk)) then
-                   if (IS_Burp_Btyp(trim(multi),BLOCK=blk)) modify(ncount) = .true.
+                   if (IS_Burp_Btyp(trim(multi_opt),BLOCK=blk)) modify(ncount) = .true.
                    exit BLOCKS1
                 end if
              end do BLOCKS1
@@ -2343,12 +2345,12 @@ END SUBROUTINE burp_updateFiles
 !!v    burp_filename  file name of associated BURP file
 !!v    found          logical indicating if the BURP file could be found (optional)
 !--------------------------------------------------------------------------
-  function burp_get_filename(obsfam,found) result(burp_filename)
+  function burp_get_filename(obsfam,found_opt) result(burp_filename)
 
     implicit none
 
     character(len=2), intent(in) :: obsfam
-    logical, intent(out), optional :: found
+    logical, intent(out), optional :: found_opt
     character(len=128) :: burp_filename
     
     logical :: file_found
@@ -2367,7 +2369,7 @@ END SUBROUTINE burp_updateFiles
 
     if (.not.file_found) write(*,*) "burp_get_filename: File not found for observation family " // trim(obsfam)
 
-    if (present(found)) found = file_found
+    if (present(found_opt)) found_opt = file_found
 
   end function burp_get_filename
 

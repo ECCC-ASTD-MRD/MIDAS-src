@@ -409,10 +409,10 @@ module calcstatsglb_mod
         latMask(lat3:nj) = 1.0d0
       endif
       write(*,*) 'latMask = ',latMask(:)
-      call calcCorrelations(ensPerturbations,corns,rstddev,latMask_in=latMask)
+      call calcCorrelations(ensPerturbations,corns,rstddev,latMask_opt=latMask)
 
       variableType = cvSpace
-      call writeStats(corns,rstddev,variableType,latBand=jlatBand)
+      call writeStats(corns,rstddev,variableType,latBand_opt=jlatBand)
     enddo
 
     call writeStddev2(stddevZonAvg,stddev3d)
@@ -509,7 +509,7 @@ module calcstatsglb_mod
           call removeGlobalMean(ensPerturbations) ! INOUT
        end if
 
-       call spectralFilter(ensPerturbations,nkgdimens,waveBandIndex=waveBandIndex) ! INOUT, IN, IN
+       call spectralFilter(ensPerturbations,nkgdimens,waveBandIndex_opt=waveBandIndex) ! INOUT, IN, IN
 
        call calcStddev3d(ensPerturbations,stddev3d,nkgdimens) ! IN, OUT, IN
 
@@ -522,16 +522,16 @@ module calcstatsglb_mod
                                 corns,            & ! OUT (vertical correlation in spectral space)
                                 rstddev)            ! OUT ( sqrt(normalized power spectrum) )
 
-          call writeStats(corns,rstddev,variableType,waveBandIndex=waveBandIndex) ! IN
+          call writeStats(corns,rstddev,variableType,waveBandIndex_opt=waveBandIndex) ! IN
 
-          call calcHorizScale(rstddev,variableType,waveBandIndex=waveBandIndex) ! IN
+          call calcHorizScale(rstddev,variableType,waveBandIndex_opt=waveBandIndex) ! IN
 
-          call horizCorrelFunction(rstddev,variableType,waveBandIndex=waveBandIndex) ! IN
+          call horizCorrelFunction(rstddev,variableType,waveBandIndex_opt=waveBandIndex) ! IN
        else if (trim(tool) == 'HVCORREL_LOCAL') then
           call normalize3d(ensPerturbations,stddev3d) ! INOUT, IN
-          call calcLocalCorrelations(ensPerturbations, variableType, waveBandIndex=waveBandIndex) ! IN
+          call calcLocalCorrelations(ensPerturbations, variableType, waveBandIndex_opt=waveBandIndex) ! IN
        else
-          call bmd_localizationRadii(ensPerturbations, stddev3d, variableType, waveBandIndex=waveBandIndex) ! IN
+          call bmd_localizationRadii(ensPerturbations, stddev3d, variableType, waveBandIndex_opt=waveBandIndex) ! IN
        end if
 
     end do
@@ -782,11 +782,11 @@ module calcstatsglb_mod
 !--------------------------------------------------------------------------
 ! CALCCORRELATIONS
 !--------------------------------------------------------------------------
-  subroutine calcCorrelations(ensPerturbations,corns,rstddev,latMask_in)
+  subroutine calcCorrelations(ensPerturbations,corns,rstddev,latMask_opt)
     implicit none
     real*4,pointer :: ensPerturbations(:,:,:,:)
     real*8 :: corns(nkgdimEns,nkgdimEns,0:ntrunc),rstddev(nkgdimEns,0:ntrunc)
-    real*8,  optional :: latMask_in(:)
+    real*8,  optional :: latMask_opt(:)
 
     real*8  :: spectralState(nla,2,nkgdimEns),gridState(ni,nj,nkgdimEns)
     real*8  :: dfact,dfact2,dsummed
@@ -801,9 +801,9 @@ module calcstatsglb_mod
       call flush(6)
 
       gridState(:,:,:)=ensPerturbations(:,:,:,jens)
-      if(present(latMask_in)) then
+      if(present(latMask_opt)) then
         do jlat = 1, nj
-          gridState(:,jlat,:) = latMask_in(jlat)*gridState(:,jlat,:)
+          gridState(:,jlat,:) = latMask_opt(jlat)*gridState(:,jlat,:)
         enddo
       endif
       call gst_setID(gstID_nkgdimEns)
@@ -937,14 +937,15 @@ module calcstatsglb_mod
 !--------------------------------------------------------------------------
 ! WRITESTATS
 !--------------------------------------------------------------------------
-  subroutine writeStats(corns,rstddev,variableType, ptot,theta,waveBandIndex,latBand)
+  subroutine writeStats(corns, rstddev, variableType, ptot_opt, &
+                        theta_opt, waveBandIndex_opt, latBand_opt)
     implicit none
 
     real*8 :: corns(nkgdimEns,nkgdimEns,0:ntrunc),rstddev(nkgdimEns,0:ntrunc)
     integer, intent(in) :: variableType
-    real*8, optional :: PtoT(:,:,:),theta(:,:)
-    integer, optional :: waveBandIndex
-    integer, optional :: latBand
+    real*8, optional :: PtoT_opt(:,:,:),theta_opt(:,:)
+    integer, optional :: waveBandIndex_opt
+    integer, optional :: latBand_opt
 
     real*8 prcor(nkgdimEns,nkgdimEns)
 
@@ -962,11 +963,11 @@ module calcstatsglb_mod
     if ( nWaveBand == 1 ) then
        outfilename='./bgcov.fst'
     else
-       if (.not. present(waveBandIndex)) then
-          write(6,*) 'writeStats: No waveBandIndex was supplied!!!'
+       if (.not. present(waveBandIndex_opt)) then
+          write(*,*) 'writeStats: No waveBandIndex was supplied!!!'
           call utl_abort('calbmatrix_glb')
        end if
-       write(wbnum,'(I2.2)') waveBandIndex
+       write(wbnum,'(I2.2)') waveBandIndex_opt
        outfilename='./bgcov_'//trim(wbnum)//'.fst'
     end if
     ierr =  fnom  (nulstats,trim(outfilename),'RND',0)
@@ -979,14 +980,14 @@ module calcstatsglb_mod
     ip3 = nens
     idateo = 0
 
-    if(present(latBand)) ip1 = latBand
+    if(present(latBand_opt)) ip1 = latBand_opt
 
-    if (present(ptot)) then
-       ierr = utl_fstecr(ptot,ipak,nulstats,idateo,0,0,nlevEns_T+1,nlevEns_M,nj,  &
+    if (present(ptot_opt)) then
+       ierr = utl_fstecr(ptot_opt,ipak,nulstats,idateo,0,0,nlevEns_T+1,nlevEns_M,nj,  &
                          ip1,ip2,ip3,'X','ZZ','P_to_T  ','X',0,0,0,0,idatyp,.true.)
     end if
-    if (present(theta)) then
-       ierr = utl_fstecr(theta,ipak,nulstats,idateo,0,0,nlevEns_M,nj,1,   &
+    if (present(theta_opt)) then
+       ierr = utl_fstecr(theta_opt,ipak,nulstats,idateo,0,0,nlevEns_M,nj,1,   &
                          ip1,ip2,ip3,'X','ZZ','THETA   ','X',0,0,0,0,idatyp,.true.)
     end if
 
@@ -1409,11 +1410,11 @@ module calcstatsglb_mod
 !--------------------------------------------------------------------------
 ! SPECTRALFILTER
 !--------------------------------------------------------------------------
-  subroutine spectralFilter(ensPerturbations,nlev,waveBandIndex)
+  subroutine spectralFilter(ensPerturbations,nlev,waveBandIndex_opt)
     implicit none
     real*4,pointer :: ensPerturbations(:,:,:,:)
     integer, intent(in) :: nlev
-    integer, optional, intent(in) :: waveBandIndex
+    integer, optional, intent(in) :: waveBandIndex_opt
 
     real*8  :: spectralState(nla,2,nlev)
     real*8  :: member(ni,nj,nlev)
@@ -1427,16 +1428,16 @@ module calcstatsglb_mod
 
     if ( nWaveBand /= 1 ) then
        write(6,*) 'Bandpass filtering step'
-       if (.not. present(waveBandIndex)) then
+       if (.not. present(waveBandIndex_opt)) then
           write(6,*) 'Error: No waveBandIndex was supplied!!!'
           call utl_abort('calbmatrix_glb')
        end if
        allocate(ResponseFunction(0:ntrunc))
-       write(wbnum,'(I2.2)') waveBandIndex
+       write(wbnum,'(I2.2)') waveBandIndex_opt
        outfilename = "./ResponseFunction_"//wbnum//".txt"
        open (unit=99,file=outfilename,action="write",status="new")
        do jn = 0, ntrunc
-          ResponseFunction(jn) = spf_filterResponseFunction(dble(jn),waveBandIndex, waveBandPeaks, nWaveBand)
+          ResponseFunction(jn) = spf_filterResponseFunction(dble(jn),waveBandIndex_opt, waveBandPeaks, nWaveBand)
           if ( jn /= 0) then
              waveLength=4.d0*asin(1.d0)*ra/dble(jn)
           else
@@ -2217,12 +2218,12 @@ module calcstatsglb_mod
 !--------------------------------------------------------------------------
 ! HORIZCORRELFUNCTION
 !--------------------------------------------------------------------------
-  subroutine horizCorrelFunction(rstddev,variableType, waveBandIndex)
+  subroutine horizCorrelFunction(rstddev,variableType, waveBandIndex_opt)
     implicit none
 
     real*8,  intent(in) :: rstddev(nkgdimEns,0:ntrunc)
     integer, intent(in) :: variableType
-    integer,optional, intent(in) :: waveBandIndex
+    integer,optional, intent(in) :: waveBandIndex_opt
 
     real*8  :: spectralState(nla,2,nkgdimEns)
     real*8  :: gridState(ni,nj,nkgdimEns)
@@ -2286,11 +2287,11 @@ module calcstatsglb_mod
     !- 4.  Write to file
     !
     if ( nWaveBand /= 1 ) then
-       if (.not. present(waveBandIndex)) then
+       if (.not. present(waveBandIndex_opt)) then
           write(6,*) 'horizCorrelFunction: No waveBandIndex was supplied!!!'
           call utl_abort('calbmatrix_glb')
        end if
-       write(wbnum,'(I2.2)') waveBandIndex
+       write(wbnum,'(I2.2)') waveBandIndex_opt
     end if
 
     !- 4.1 2D correlation function in fst format
@@ -2433,13 +2434,13 @@ module calcstatsglb_mod
 !--------------------------------------------------------------------------
 ! CALCHORIZSCALE
 !--------------------------------------------------------------------------
-  subroutine CalcHorizScale(rstddev,variableType,waveBandIndex)
+  subroutine CalcHorizScale(rstddev,variableType,waveBandIndex_opt)
     implicit none
     
     ! Based on subroutine corrlength.ftn in the "old" var code
     real(8),intent(in) :: rstddev(nkgdimEns,0:ntrunc)
     integer,intent(in) :: variableType
-    integer,optional, intent(in) :: waveBandIndex
+    integer,optional, intent(in) :: waveBandIndex_opt
 
     real(8) :: HorizScale(nkgdimEns)
     real(8), pointer :: PressureProfile(:)
@@ -2479,11 +2480,11 @@ module calcstatsglb_mod
     !- 2. Write the results
     !
     if ( nWaveBand /= 1 ) then
-       if (.not. present(waveBandIndex)) then
+       if (.not. present(waveBandIndex_opt)) then
           write(6,*) 'CalcHorizScale: No waveBandIndex was supplied!!!'
           call utl_abort('calbmatrix_glb')
        end if
-       write(wbnum,'(I2.2)') waveBandIndex
+       write(wbnum,'(I2.2)') waveBandIndex_opt
     end if
 
     do jvar = 1, nvar3d
@@ -2599,12 +2600,12 @@ module calcstatsglb_mod
   !--------------------------------------------------------------------------
   ! CALCLOCALCORRELATIONS
   !--------------------------------------------------------------------------
-  subroutine calcLocalCorrelations(ensPerturbations,variableType,waveBandIndex)
+  subroutine calcLocalCorrelations(ensPerturbations,variableType,waveBandIndex_opt)
     implicit none
 
     real(4), intent(in) :: ensPerturbations(:,:,:,:)
     integer, intent(in) :: variableType
-    integer,optional, intent(in) :: waveBandIndex
+    integer,optional, intent(in) :: waveBandIndex_opt
 
     real(8), allocatable :: localHorizCorrel(:,:,:)
 
@@ -2685,11 +2686,11 @@ module calcstatsglb_mod
     !- 4.  Write to file
     !
     if ( nWaveBand /= 1 ) then
-       if (.not. present(waveBandIndex)) then
+       if (.not. present(waveBandIndex_opt)) then
           write(6,*) 'calcLocalCorrelations: No waveBandIndex was supplied!!!'
           call utl_abort('calbmatrix_glb')
        end if
-       write(wbnum,'(I2.2)') waveBandIndex
+       write(wbnum,'(I2.2)') waveBandIndex_opt
     end if
 
     !- 4.1 2D correlation function in fst format

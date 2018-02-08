@@ -151,11 +151,11 @@ module rMatrix_mod
   end subroutine rmat_setFullRMatrix
 
 
-  subroutine rmat_readCMatrixByFileName(infile,C,liste_chan)
+  subroutine rmat_readCMatrixByFileName(infile,C,chanList_opt)
     implicit none
     character (len=*),intent(in) :: infile ! name of input file
     type(rmat_matrix),intent(inout) :: C    ! correlation matrix structure
-    integer ,intent(in),optional :: liste_chan(:) ! list of requested channels (if missing will read all file content)
+    integer ,intent(in),optional :: chanList_opt(:) ! list of requested channels (if missing will read all file content)
 
     integer :: i,j,iu,ierr,count,ich,nchn,nch
     integer ,external :: fnom,fclos
@@ -163,8 +163,8 @@ module rMatrix_mod
     integer ,allocatable :: index(:)
 
     nchn = -1
-    if (present(liste_chan)) then
-      nchn=size(liste_chan)
+    if (present(chanList_opt)) then
+      nchn=size(chanList_opt)
     end if
 
     iu = 0
@@ -199,9 +199,9 @@ module rMatrix_mod
     index = -1
     do i=1,nch
       read(iu,*) ich
-      if (present(liste_chan)) then
+      if (present(chanList_opt)) then
         bj:do j=1,nchn
-          if (ich == liste_chan(j)) then
+          if (ich == chanList_opt(j)) then
             count = count + 1
             index(i) = j
             C%listChans(count) = ich
@@ -217,7 +217,7 @@ module rMatrix_mod
     if (count /= nchn) then
       write(*,*) "Warning: Missing information in "//trim(infile)
       do j=1,nchn
-        write(*,*) j,liste_chan(j) 
+        write(*,*) j, chanList_opt(j) 
       end do
       write(*,*) "Not important if there is no observation of this family"
     end if

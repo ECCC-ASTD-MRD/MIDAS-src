@@ -365,8 +365,8 @@ contains
     !
     !- Memory allocation for background column data
     !
-    call col_allocate(trlColumnOnAnlLev,obs_numheader(obsSpaceData),mpi_local=.true.)
-    call col_allocate(trlColumnOnTrlLev,obs_numheader(obsSpaceData),mpi_local=.true.)
+    call col_allocate(trlColumnOnAnlLev,obs_numheader(obsSpaceData),mpiLocal_opt=.true.)
+    call col_allocate(trlColumnOnTrlLev,obs_numheader(obsSpaceData),mpiLocal_opt=.true.)
 
     !
     !- Initialize the observation error covariances

@@ -79,7 +79,7 @@ subroutine compute_HBHT_ensemble(columng,columnhr,obsSpaceData,active)
 
   !- 1.4 Create column vectors to store the ens perturbation interpolated to obs horizontal locations
   call col_setVco(column,vco_anl)
-  call col_allocate(column,col_getNumCol(columng),mpi_local=.true.)
+  call col_allocate(column,col_getNumCol(columng),mpiLocal_opt=.true.)
   call col_copyLatLon(columng,column)
 
   !- 1.5 Create a working a array to sum H ensPert HT

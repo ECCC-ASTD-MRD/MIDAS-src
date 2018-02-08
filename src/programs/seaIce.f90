@@ -178,7 +178,7 @@ program midas_seaIce
 
      do jvar = 1, vnl_numvarmax
 
-        if (.not. gsv_varExist(statevector=statevector, varName=vnl_varNameList(jvar)) ) cycle
+        if (.not. gsv_varExist(statevector_opt=statevector, varName=vnl_varNameList(jvar)) ) cycle
 
         filename = 'columnB_' // trim(vnl_varNameList(jvar)) // '.fst'
 
@@ -187,7 +187,7 @@ program midas_seaIce
            do jlat = 1, nlats
 
               call gsv_zero(statevector)
-              field => gsv_getField3d_r8(statevector, varName=vnl_varNameList(jvar))
+              field => gsv_getField3d_r8(statevector, varName_opt=vnl_varNameList(jvar))
 
               if(oneobs_lats(jlat) >= statevector%myLatBeg .and. oneobs_lats(jlat) <= statevector%myLatEnd .and.  &
                    oneobs_lons(jlon) >= statevector%myLonBeg .and. oneobs_lons(jlon) <= statevector%myLonEnd) then
@@ -207,7 +207,7 @@ program midas_seaIce
 
               ip3 = ip3 + 1
               call gsv_writeToFileMpi(statevector,filename,'ONEOBS_'//trim(vnl_varNameList(jvar)),  &
-                                         ip3_in=ip3,HUcontainsLQ=.true.,unitConversion=.true.)
+                                         ip3_opt=ip3,HUcontainsLQ_opt=.true.,unitConversion_opt=.true.)
 
            enddo
         enddo

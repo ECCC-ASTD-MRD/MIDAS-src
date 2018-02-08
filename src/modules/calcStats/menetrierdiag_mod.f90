@@ -122,24 +122,24 @@ contains
   !--------------------------------------------------------------------------
   ! bmd_localizationRadii
   !--------------------------------------------------------------------------
-  subroutine bmd_localizationRadii(ensPerturbations,ensStdDev,variableType,waveBandIndex)
+  subroutine bmd_localizationRadii(ensPerturbations,ensStdDev,variableType,waveBandIndex_opt)
     implicit none
 
     real(4), intent(in) :: ensPerturbations(:,:,:,:)
     real(8), intent(in) :: ensStdDev(:,:,:)
     integer, intent(in) :: variableType
-    integer,optional, intent(in) :: waveBandIndex
+    integer,optional, intent(in) :: waveBandIndex_opt
 
     !
     !- Estimate the horionzontal and vertical localization radii
     !
     if ( hLoc ) then
       call calcHorizLocalizationRadii(ensPerturbations, ensStdDev, strideForHLoc, & ! IN
-           variableType, waveBandIndex=waveBandIndex)                               ! IN
+           variableType, waveBandIndex_opt=waveBandIndex_opt)                       ! IN
     end if
     if ( vLoc ) then
       call calcVertLocalizationRadii(ensPerturbations, ensStdDev, strideForVloc, &  ! IN
-           variableType, waveBandIndex=waveBandIndex)                               ! IN
+           variableType, waveBandIndex_opt=waveBandIndex_opt)                       ! IN
     end if
 
   end subroutine bmd_localizationRadii
@@ -147,13 +147,13 @@ contains
   !--------------------------------------------------------------------------
   ! CALCHORIZLOCALIZATIONRADII
   !--------------------------------------------------------------------------
-  subroutine calcHorizLocalizationRadii(ensPerturbations,ensStdDev,stride,variableType,waveBandIndex)
+  subroutine calcHorizLocalizationRadii(ensPerturbations,ensStdDev,stride,variableType,waveBandIndex_opt)
     implicit none
 
     real(4), intent(in) :: ensPerturbations(:,:,:,:)
     real(8), intent(in) :: ensStdDev(:,:,:)
     integer, intent(in) :: stride, variableType
-    integer,optional, intent(in) :: waveBandIndex
+    integer,optional, intent(in) :: waveBandIndex_opt
 
     real*4, allocatable :: ensPert_local(:,:,:)
 
@@ -413,11 +413,11 @@ contains
     !- 4.  Write to file
     !
     if ( nWaveBand /= 1 ) then
-      if (.not. present(waveBandIndex)) then
+      if (.not. present(waveBandIndex_opt)) then
         write(6,*) 'calcLocalizationRadii: No waveBandIndex was supplied!!!'
         call utl_abort('calbmatrix_glb')
       end if
-      write(wbnum,'(I2.2)') waveBandIndex
+      write(wbnum,'(I2.2)') waveBandIndex_opt
     end if
 
     !- 4.1 Localization functions in txt format (for plotting purposes)
@@ -585,13 +585,13 @@ contains
   !--------------------------------------------------------------------------
   ! CALCVERTLOCALIZATIONRADII
   !--------------------------------------------------------------------------
-  subroutine calcVertLocalizationRadii(ensPerturbations,ensStdDev,stride,variableType,waveBandIndex)
+  subroutine calcVertLocalizationRadii(ensPerturbations,ensStdDev,stride,variableType,waveBandIndex_opt)
     implicit none
 
     real(4), intent(in) :: ensPerturbations(:,:,:,:)
     real(8), intent(in) :: ensStdDev(:,:,:)
     integer, intent(in) :: stride,variableType
-    integer,optional, intent(in) :: waveBandIndex
+    integer,optional, intent(in) :: waveBandIndex_opt
 
     real*4, allocatable :: ensPert_local(:,:)
 
@@ -843,11 +843,11 @@ contains
     !- 4.  Write to file
     !
     if ( nWaveBand /= 1 ) then
-      if (.not. present(waveBandIndex)) then
+      if (.not. present(waveBandIndex_opt)) then
         write(6,*) 'calcLocalizationRadii: No waveBandIndex was supplied!!!'
         call utl_abort('calbmatrix_glb')
       end if
-      write(wbnum,'(I2.2)') waveBandIndex
+      write(wbnum,'(I2.2)') waveBandIndex_opt
     end if
 
     !- 4.1 Localization functions in txt format (for plotting purposes)

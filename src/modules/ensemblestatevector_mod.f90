@@ -98,11 +98,11 @@ CONTAINS
       call gsv_allocate( ens%statevector_work, &
                          numStep, hco_ens, vco_ens,  &
                          datestamplist_opt=dateStampList, mpi_local_opt=.true., &
-                         varNames_opt=VarNames_opt, dataKind_in_opt=4 )
+                         varNames_opt=VarNames_opt, dataKind_opt=4 )
     else
       call gsv_allocate( ens%statevector_work, &
                          numStep, hco_ens, vco_ens,  &
-                         datestamplist_opt=dateStampList, mpi_local_opt=.true., dataKind_in_opt=4 )
+                         datestamplist_opt=dateStampList, mpi_local_opt=.true., dataKind_opt=4 )
     end if
 
     lon1 = ens%statevector_work%myLonBeg
@@ -284,22 +284,22 @@ CONTAINS
   end function ens_getRepackMean_r8
 
 
-  subroutine ens_copyEnsMean(ens, statevector, subEnsIndex)
+  subroutine ens_copyEnsMean(ens, statevector, subEnsIndex_opt)
     implicit none
 
     ! arguments
     type(struct_ens)  :: ens
     type(struct_gsv)  :: statevector
-    integer, optional :: subEnsIndex
+    integer, optional :: subEnsIndex_opt
 
     ! locals
     real(8), pointer :: ptr4d_r8(:,:,:,:)
-    integer          :: k1, k2, jk, stepIndex, numStep, subEnsIndex2
+    integer          :: k1, k2, jk, stepIndex, numStep, subEnsIndex
 
-    if( present(subEnsIndex) ) then
-      subEnsIndex2 = subEnsIndex
+    if( present(subEnsIndex_opt) ) then
+      subEnsIndex = subEnsIndex_opt
     else
-      subEnsIndex2 = 1
+      subEnsIndex = 1
     end if
 
     k1 = ens%statevector_work%mykBeg
@@ -309,13 +309,13 @@ CONTAINS
     if (.not. statevector%allocated) then
       call gsv_allocate(statevector, numStep,  &
                         ens%statevector_work%hco, ens%statevector_work%vco,  &
-                        datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., dataKind_in_opt=8 )
+                        datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., dataKind_opt=8 )
     end if
 
     ptr4d_r8 => gsv_getField_r8(statevector)
     do stepIndex = 1, numStep
       do jk = k1, k2
-        ptr4d_r8(:,:,jk,stepIndex) = ens%repack_ensMean_r8(jk)%onelevel(subEnsIndex2,stepIndex,:,:)
+        ptr4d_r8(:,:,jk,stepIndex) = ens%repack_ensMean_r8(jk)%onelevel(subEnsIndex,stepIndex,:,:)
       end do
     end do
 
@@ -339,7 +339,7 @@ CONTAINS
     if (.not. statevector%allocated) then
       call gsv_allocate(statevector, numStep,  &
                         ens%statevector_work%hco, ens%statevector_work%vco,  &
-                        datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., dataKind_in_opt=8 )
+                        datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., dataKind_opt=8 )
     end if
 
     ptr4d_r8 => gsv_getField_r8(statevector)
@@ -370,7 +370,7 @@ CONTAINS
 
     call gsv_allocate( statevector, numStep,  &
                        ens%statevector_work%hco, ens%statevector_work%vco,  &
-                       datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., dataKind_in_opt=4 )
+                       datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., dataKind_opt=4 )
 
     ptr4d_r4 => gsv_getField_r4(statevector)
     do stepIndex = 1, numStep
@@ -471,16 +471,16 @@ CONTAINS
   end function ens_getVarNameFromK
 
 
-  subroutine ens_computeMean(ens, computeSubEnsMeans, numSubEns)
+  subroutine ens_computeMean(ens, computeSubEnsMeans_opt, numSubEns_opt)
     implicit none
 
     ! arguments
     type(struct_ens)  :: ens
-    logical, optional :: computeSubEnsMeans
-    integer, optional :: numSubEns
+    logical, optional :: computeSubEnsMeans_opt
+    integer, optional :: numSubEns_opt
 
     ! locals
-    logical           :: computeSubEnsMeans2, lExists
+    logical           :: computeSubEnsMeans, lExists
     character(len=256), parameter :: subEnsIndexFileName = 'subEnsembleIndex.txt'
     integer           :: kulin, ierr, memberIndex, memberIndex2, stepIndex, subEnsIndex
     integer           :: k1, k2, jk, lon1, lon2, lat1, lat2, numStep, ji, jj
@@ -488,15 +488,15 @@ CONTAINS
     real(4), pointer  :: ptr_repack_r4(:,:,:,:)
     real(8), pointer  :: ptr4d_r8(:,:,:,:)
 
-    if (present(computeSubEnsMeans)) then
-      computeSubEnsMeans2 = computeSubEnsMeans
+    if (present(computeSubEnsMeans_opt)) then
+      computeSubEnsMeans = computeSubEnsMeans_opt
     else
-      computeSubEnsMeans2 = .false.
+      computeSubEnsMeans = .false.
     end if
 
     ! Read sub-ensemble index list from file, if it exists
     allocate(ens%subEnsIndexList(ens%numMembers))
-    if ( computeSubEnsMeans2 ) then
+    if ( computeSubEnsMeans ) then
       write(*,*) 'ens_computeMean: checking in ensemble directory if file with sub-ensemble index list exists: ',subEnsIndexFileName
       inquire(file=trim(ens%enspathname) // trim(subEnsIndexFileName),exist=lExists)
       if ( lExists ) then
@@ -555,7 +555,7 @@ CONTAINS
 !$OMP END PARALLEL DO
 
     ! provide output argument value
-    if ( present(numSubEns) ) numSubEns = ens%numSubEns
+    if ( present(numSubEns_opt) ) numSubEns_opt = ens%numSubEns
 
   end subroutine ens_computeMean
 
@@ -890,16 +890,16 @@ CONTAINS
       ! allocate the needed statevector objects
       call gsv_allocate(statevector_member_r4, 1, hco_ens, vco_ens,  &
                         datestamp_opt=dateStampList(stepIndex), mpi_local_opt=.false., &
-                        varNames_opt=ensVarNamesWanted, dataKind_in_opt=4)
+                        varNames_opt=ensVarNamesWanted, dataKind_opt=4)
       if (horizontalInterpNeeded .or. verticalInterpNeeded .or. horizontalPaddingNeeded) then
         call gsv_allocate(statevector_file_r4, 1, hco_file, vco_file,  &
                           datestamp_opt=dateStampList(stepIndex), mpi_local_opt=.false., &
-                          varNames_opt=ensVarNamesWanted, dataKind_in_opt=4)
+                          varNames_opt=ensVarNamesWanted, dataKind_opt=4)
       end if
       if (verticalInterpNeeded) then
         call gsv_allocate(statevector_hint_r4, 1, hco_ens, vco_file,  &
                          datestamp_opt=dateStampList(stepIndex), mpi_local_opt=.false., &
-                         varNames_opt=ensVarNamesWanted, dataKind_in_opt=4)
+                         varNames_opt=ensVarNamesWanted, dataKind_opt=4)
       end if
 
       do memberIndex = 1, ens%numMembers
@@ -927,7 +927,7 @@ CONTAINS
           ! do any required interpolation
           if (horizontalInterpNeeded .and. verticalInterpNeeded) then
             call gsv_hInterpolate_r4(statevector_file_r4, statevector_hint_r4)
-            call gsv_vInterpolate_r4(statevector_hint_r4, statevector_member_r4, Ps_in_hPa=.true.)
+            call gsv_vInterpolate_r4(statevector_hint_r4, statevector_member_r4, Ps_in_hPa_opt=.true.)
 
           else if (horizontalInterpNeeded .and. .not. verticalInterpNeeded) then
             call gsv_hInterpolate_r4(statevector_file_r4, statevector_member_r4)
@@ -938,7 +938,7 @@ CONTAINS
             else
               call gsv_copy(statevector_file_r4, statevector_hint_r4)
             end if
-            call gsv_vInterpolate_r4(statevector_hint_r4, statevector_member_r4, Ps_in_hPa=.true.)
+            call gsv_vInterpolate_r4(statevector_hint_r4, statevector_member_r4, Ps_in_hPa_opt=.true.)
 
           else if (horizontalPaddingNeeded) then
             call gsv_hPad(statevector_file_r4, statevector_member_r4)
@@ -1049,7 +1049,7 @@ CONTAINS
 
 
   subroutine ens_writeEnsemble(ens, ensPathName, ensFileNamePrefix, ctrlVarHumidity, etiket, &
-                               typvar, varNames_opt, ip3_in_opt, numBits_opt)
+                               typvar, varNames_opt, ip3_opt, numBits_opt)
     implicit none
 
     ! arguments
@@ -1060,7 +1060,7 @@ CONTAINS
     character(len=*)  :: etiket
     character(len=*)  :: typvar
     character(len=*), optional :: varNames_opt(:)  ! allow specification of variables
-    integer, optional :: ip3_in_opt, numBits_opt
+    integer, optional :: ip3_opt, numBits_opt
 
     ! locals
     type(struct_gsv) :: statevector_member_r4
@@ -1087,8 +1087,8 @@ CONTAINS
 
     !- 1. Initial setup
 
-    if (present(ip3_in_opt)) then
-      ip3 = ip3_in_opt
+    if (present(ip3_opt)) then
+      ip3 = ip3_opt
     else
       ip3 = 0
     end if
@@ -1140,11 +1140,11 @@ CONTAINS
       if ( present(varNames_opt) ) then
         call gsv_allocate(statevector_member_r4, 1, hco_ens, vco_ens,  &
                           datestamp_opt=dateStampList(stepIndex), mpi_local_opt=.false., &
-                          varNames_opt=VarNames_opt, dataKind_in_opt=4)
+                          varNames_opt=VarNames_opt, dataKind_opt=4)
       else
         call gsv_allocate(statevector_member_r4, 1, hco_ens, vco_ens,  &
                           datestamp_opt=dateStampList(stepIndex), mpi_local_opt=.false., &
-                          dataKind_in_opt=4)
+                          dataKind_opt=4)
       end if
 
       do memberIndex = 1, ens%numMembers
@@ -1203,7 +1203,7 @@ CONTAINS
 
           !  Write the file
           call fln_ensFileName( ensFileName, ensPathName, memberIndex, ensFileNamePrefix_opt = ensFileNamePrefix, shouldExist_opt = .false. )
-          call gsv_writeToFile( statevector_member_r4, ensFileName, etiket, ip3_in = ip3, typvar_in = typvar , numBits_opt = numBits_opt)
+          call gsv_writeToFile( statevector_member_r4, ensFileName, etiket, ip3_opt = ip3, typvar_opt = typvar , numBits_opt = numBits_opt)
         end if ! locally written one member
 
 

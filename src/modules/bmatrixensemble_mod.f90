@@ -127,13 +127,13 @@ CONTAINS
   ! ben_setup
   !--------------------------------------------------------------------------
   SUBROUTINE ben_setup(hco_anl_in,vco_anl_in,cvDim_out,&
-       mode)
+       mode_opt)
     implicit none
 
     type(struct_hco), pointer, intent(in) :: hco_anl_in
     type(struct_vco), pointer, intent(in) :: vco_anl_in
 
-    character(len=*), intent(in), optional :: mode
+    character(len=*), intent(in), optional :: mode_opt
 
     character(len=15) :: ben_mode
 
@@ -203,14 +203,14 @@ CONTAINS
     !
 
     !- 2.1 Mode
-    if ( present(mode) ) then
-      if ( trim(mode) == 'Analysis' .or. trim(mode) == 'BackgroundCheck') then
-        ben_mode = trim(mode)
+    if ( present(mode_opt) ) then
+      if ( trim(mode_opt) == 'Analysis' .or. trim(mode_opt) == 'BackgroundCheck') then
+        ben_mode = trim(mode_opt)
         if (mpi_myid == 0) write(*,*)
         if (mpi_myid == 0) write(*,*) 'ben_setup: Mode activated = ', trim(ben_mode)
       else
         write(*,*)
-        write(*,*) 'mode = ', trim(mode)
+        write(*,*) 'mode = ', trim(mode_opt)
         call utl_abort('ben_setup: unknown mode')
       end if
     else
@@ -598,7 +598,7 @@ CONTAINS
     !- 3. From ensemble FORECASTS to ensemble PERTURBATIONS
 
     !- 3.1 remove mean
-    call ens_computeMean( ensPerts(1), removeSubEnsMeans, numSubEns=numSubEns )
+    call ens_computeMean( ensPerts(1), removeSubEnsMeans, numSubEns_opt=numSubEns )
     call ens_removeMean( ensPerts(1) )
 
     !- 3.2 normalize and apply scale factors
@@ -644,20 +644,20 @@ CONTAINS
   ! ben_getPerturbation
   !--------------------------------------------------------------------------
   SUBROUTINE ben_getPerturbation(statevector, memberIndexWanted,  &
-       upwardExtrapolationMethod, waveBandIndexWanted, &
-       undoNormalization)
+       upwardExtrapolationMethod, waveBandIndexWanted_opt, &
+       undoNormalization_opt)
     implicit none
 
     type(struct_gsv) :: statevector
     integer,          intent(in) :: memberIndexWanted
     character(len=*), intent(in) :: upwardExtrapolationMethod
-    integer, optional, intent(in):: waveBandIndexWanted
-    logical, optional :: undoNormalization
+    integer, optional, intent(in):: waveBandIndexWanted_opt
+    logical, optional :: undoNormalization_opt
 
     real(8), pointer :: ptr4d_r8(:,:,:,:)
     real(4), pointer :: repack_r4(:,:,:,:)
     real(8) :: dnens2, scaleFactor_MT
-    logical :: undoNormalization2
+    logical :: undoNormalization
     integer :: waveBandIndex
     integer :: lonIndex,latIndex,stepIndex,levIndex,lev,levInc,topLevOffset
     character(len=4) :: varName
@@ -666,17 +666,17 @@ CONTAINS
       call utl_abort('ben_getPerturbation : Invalid value for upwardExtrapolationMethod')
     end if
 
-    if ( present(waveBandIndexWanted) ) then
-      waveBandIndex = waveBandIndexWanted
+    if ( present(waveBandIndexWanted_opt) ) then
+      waveBandIndex = waveBandIndexWanted_opt
     else
       waveBandIndex = 1
     end if
 
     ! set default value for optional argument undoNormalization
-    if ( present(undoNormalization) ) then
-      undoNormalization2 = undoNormalization
+    if ( present(undoNormalization_opt) ) then
+      undoNormalization = undoNormalization_opt
     else
-      undoNormalization2 = .false.
+      undoNormalization = .false.
     end if
 
     do levIndex = 1, ens_getNumK(ensPerts(1))
@@ -703,7 +703,7 @@ CONTAINS
         levInc = lev + topLevOffset
 
         ! undo the normalization (optional)
-        if (undoNormalization2) then
+        if (undoNormalization) then
           if (scaleFactor_MT > 0.0d0) then
             dnens2 = sqrt(1.0d0*dble(nEns-1))/scaleFactor_MT
           else
@@ -738,7 +738,7 @@ CONTAINS
           ! Fill the gap between the ensemble lid and the analysis lid
 
           ! undo the normalization (optional)
-          if (undoNormalization2) then
+          if (undoNormalization) then
             if (scaleFactor(1) > 0.0d0) then
               dnens2 = sqrt(1.0d0*dble(nEns-1))/scaleFactor(1)
             else
@@ -934,10 +934,10 @@ CONTAINS
 
     else
       ! LAM mode
-      call lst_Setup( lst_ben_filter,                  & ! OUT
-           ni, nj, hco_ens%dlon, ntrunc,               & ! IN
-           'LatLonMN', maxlevels_in=nEnsOverDimension, & ! IN
-           gridDataOrder='kij' )                         ! IN
+      call lst_Setup( lst_ben_filter,                   & ! OUT
+           ni, nj, hco_ens%dlon, ntrunc,                & ! IN
+           'LatLonMN', maxlevels_opt=nEnsOverDimension, & ! IN
+           gridDataOrder_opt='kij' )                      ! IN
 
       nla_filter = lst_ben_filter%nla
       nphase_filter = lst_ben_filter%nphase
@@ -2158,7 +2158,7 @@ CONTAINS
              etiket = 'PERT001_WB' // trim(wbnum)
           end if
           call gsv_writeToFile(statevector,'./ens_pert001.fst',etiket, & ! IN
-                               dnens2,HUcontainsLQ=HUcontainsLQ_gsv )    ! IN
+                               dnens2,HUcontainsLQ_opt=HUcontainsLQ_gsv )    ! IN
           call gsv_deallocate(statevector)
        end do
     end if
@@ -2200,7 +2200,7 @@ CONTAINS
           etiket = 'STDDEV_WB' // trim(wbnum)
        end if
        call gsv_writeToFile(statevector,'./ens_stddev.fst',etiket, & ! IN
-                            HUcontainsLQ=HUcontainsLQ_gsv)           ! IN
+                            HUcontainsLQ_opt=HUcontainsLQ_gsv)       ! IN
        call gsv_deallocate(statevector)
     end do
 
@@ -2252,7 +2252,7 @@ CONTAINS
       if ( mpi_myid == 0 ) write(*,*)
       if ( mpi_myid == 0 ) write(*,*) 'bmatrixEnsemble_mod: Writing the amplitude field'
       call ens_writeEnsemble(ensAmplitudeStorage, ensPathName, ensFileNamePrefix, &
-                             'LQ', 'FROM_BENS', 'R',varNames_opt=varNameALFA, ip3_in_opt=ip3)
+                             'LQ', 'FROM_BENS', 'R',varNames_opt=varNameALFA, ip3_opt=ip3)
     end if
 
   END SUBROUTINE ben_writeAmplitude

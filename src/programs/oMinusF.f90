@@ -155,9 +155,9 @@ program midas_ominusf
   call col_setup
 
   !- 1.14 Memory allocation for background column data
-  call col_allocate(trlColumnOnTrlLev,obs_numheader(obsSpaceData),mpi_local=.true.)
+  call col_allocate(trlColumnOnTrlLev,obs_numheader(obsSpaceData),mpiLocal_opt=.true.)
   if ( addHBHT ) then
-    call col_allocate(trlColumnOnAnlLev, obs_numheader(obsSpaceData),mpi_local=.true.)
+    call col_allocate(trlColumnOnAnlLev, obs_numheader(obsSpaceData),mpiLocal_opt=.true.)
   end if
 
   if ( addSigmaO ) then

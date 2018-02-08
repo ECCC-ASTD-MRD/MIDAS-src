@@ -166,10 +166,10 @@ module varNameList_mod
     !             - Modified search for chemical constituents 
     !          
     !--------------------------------------------------------------------------
-    function vnl_varnameFromVarnum(varNumber,varNumber_chm) result(varName)
+    function vnl_varnameFromVarnum(varNumber,varNumberChm_opt) result(varName)
       implicit none
       integer, intent(in) :: varNumber
-      integer, intent(in), optional :: varNumber_chm
+      integer, intent(in), optional :: varNumberChm_opt
       character(len=4)    :: varName
       integer             :: i
       
@@ -195,8 +195,8 @@ module varNameList_mod
         !
         ! Search for constituents. Identification depends on value and presence of second parameter.
         !
-        if (present(varNumber_chm)) then 
-           select case (varnumber_chm)
+        if (present(varNumberChm_opt)) then 
+           select case (varNumberChm_opt)
               case(BUFR_NECH_O3)
                  varname='TO3'
               case(BUFR_NECH_H2O)
@@ -224,7 +224,7 @@ module varNameList_mod
               case(BUFR_NECH_PM10)
                  varname='AC'
               case default
-                 write(*,*) 'vnl_varnameFromVarnum: Unknown variable number! ',varNumber, varNumber_chm
+                 write(*,*) 'vnl_varnameFromVarnum: Unknown variable number! ',varNumber, varNumberChm_opt
                  call utl_abort('aborting in vnl_varnameFromVarnum')
            end select
         else
@@ -252,11 +252,11 @@ module varNameList_mod
     !   there is a unique pairing of varNumbers with the varNames from vnl_VarNameList.
     !   
     !-------------------------------------------------------------------------- 
-    function vnl_varnumFromVarName(varName,kind) result(varNumber)
+    function vnl_varnumFromVarName(varName,varKind_opt) result(varNumber)
 
       implicit none
       character(len=*),  intent(in) :: varName
-      character(len=*),  intent(in), optional :: kind
+      character(len=*),  intent(in), optional :: varKind_opt
       integer    :: varNumber
       
       varNumber=0
@@ -288,8 +288,8 @@ module varNameList_mod
       case('DZ')
         varNumber=BUFR_NEDZ
       case('HU')
-        if (present(kind)) then
-           if (kind.eq.'CH') then
+        if (present(varKind_opt)) then
+           if (varKind_opt == 'CH') then
               varNumber=BUFR_NECH_H2O
            else
               varNumber=BUFR_NEHU
@@ -360,16 +360,16 @@ module varNameList_mod
     !--------------------------------------------------------------------------
     ! vnl_varLevelFromVarnum
     !--------------------------------------------------------------------------
-    function vnl_varLevelFromVarnum(varNumber,varNumber_chm) result(varLevel)
+    function vnl_varLevelFromVarnum(varNumber,varNumberChm_opt) result(varLevel)
       implicit none
 
       integer, intent(in)           :: varNumber
-      integer, intent(in), optional :: varNumber_chm
+      integer, intent(in), optional :: varNumberChm_opt
       character(len=2)              :: varLevel
       character(len=4)              :: varName
 
-      if (present(varNumber_chm)) then      
-         varName = vnl_varnameFromVarnum(varNumber,varNumber_chm)
+      if (present(varNumberChm_opt)) then      
+         varName = vnl_varnameFromVarnum(varNumber,varNumberChm_opt)
       else 
          varName = vnl_varnameFromVarnum(varNumber)
       endif 

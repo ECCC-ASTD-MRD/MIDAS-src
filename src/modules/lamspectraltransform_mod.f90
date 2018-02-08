@@ -114,7 +114,7 @@ contains
 ! LST_SETUP
 !--------------------------------------------------------------------------
   subroutine lst_Setup( lst_out, ni_in, nj_in, dlon_in, ktrunc_in,    &
-                        MpiMode, maxlevels_in, gridDataOrder )
+                        MpiMode, maxlevels_opt, gridDataOrder_opt )
     implicit none
 
     integer,          intent(in)    :: ni_in, nj_in    
@@ -125,9 +125,9 @@ contains
                                      ! Grid Spacing in Radians
     integer,          intent(in)    :: ktrunc_in
                                      ! Spectral Truncation (global)
-    integer, intent(in), optional   :: maxlevels_in
+    integer, intent(in), optional   :: maxlevels_opt
                                      ! Number of levels; Only needed when MpiMode = LatLev
-    character(len=*), intent(in), optional :: gridDataOrder
+    character(len=*), intent(in), optional :: gridDataOrder_opt
                                      ! 'ijk' or 'kij'
     type(struct_lst), intent(out)   :: lst_out
                                      ! Parameters available to the outside world
@@ -304,11 +304,11 @@ contains
                             lst(id)%mynBeg, lst(id)%mynEnd, lst(id)%mynSkip, lst(id)%mynCount ) ! OUT
 
        ! range of LEVELS TEMPORARILY handled by this processor DURING THE SPECTRAL TRANSFORM
-       if ( .not.present(maxlevels_in) ) then
+       if ( .not.present(maxlevels_opt) ) then
           call utl_abort('lst_setup: ERROR, number of levels must be specified with MpiMode LatLonMN')
        end if
        ! 2D MPI decomposition: split levels across npex
-       call mpivar_setup_levels_npex( maxlevels_in,                                        & ! IN
+       call mpivar_setup_levels_npex( maxlevels_opt,                                       & ! IN
                                       lst(id)%myLevBeg,lst(id)%myLevEnd,lst(id)%myLevCount ) ! OUT
 
     case default
@@ -442,14 +442,14 @@ contains
       ! create the receive type for LevToLon
       extent = lst(id)%maxLevCount * realSize
       call mpi_type_vector(lst(id)%lonPerPE * lst(id)%latPerPE , lst(id)%maxLevCount,  &
-           maxlevels_in, MPI_REAL8, recvtype, ierr);
+           maxlevels_opt, MPI_REAL8, recvtype, ierr);
       call mpi_type_create_resized(recvtype, lowerBound, extent, lst(id)%recvType_LevToLon, ierr);
       call mpi_type_commit(lst(id)%recvType_LevToLon, ierr)
 
       ! create the send type for LonToLev
       extent = lst(id)%maxLevCount * realSize
       call mpi_type_vector(lst(id)%lonPerPE * lst(id)%latPerPE , lst(id)%maxLevCount,  &
-           maxlevels_in, MPI_REAL8, sendtype, ierr);
+           maxlevels_opt, MPI_REAL8, sendtype, ierr);
       call mpi_type_create_resized(sendtype, lowerBound, extent, lst(id)%sendType_LonToLev, ierr);
       call mpi_type_commit(lst(id)%sendType_LonToLev, ierr)
       
@@ -607,8 +607,8 @@ contains
     deallocate( KfromMN )
 
     !- 1.7 Gridded data ordering (input/output)
-    if (present(gridDataOrder)) then
-       lst(id)%gridDataOrder = trim(gridDataOrder)
+    if (present(gridDataOrder_opt)) then
+       lst(id)%gridDataOrder = trim(gridDataOrder_opt)
     else
        lst(id)%gridDataOrder = 'ijk' ! default value
     end if
@@ -620,7 +620,7 @@ contains
        write(*,*) 'lst_setup: gridded data ordering = KIJ'
     case default
        write(*,*)
-       write(*,*) 'Error: gridDataOrder Unknown ', trim(gridDataOrder)
+       write(*,*) 'Error: gridDataOrder Unknown ', trim(gridDataOrder_opt)
        call utl_abort('lst_setup')
     end select
 

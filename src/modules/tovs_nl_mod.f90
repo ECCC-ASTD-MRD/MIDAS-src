@@ -1285,22 +1285,22 @@ contains
 !! subroutine to initialize the chanprof structure used by RTTOV
 !--------------------------------------------------------------------------
 
-  subroutine TVS_getChanprof(sensor_id, iptobs, nprofiles, ObsSpaceData, chanprof, iptobs_cma,assim_flag_val)
+  subroutine TVS_getChanprof(sensor_id, iptobs, nprofiles, ObsSpaceData, chanprof, iptobs_cma_opt,assim_flag_val_opt)
     implicit none
     integer ,intent(in) :: nprofiles, sensor_id, iptobs(:)
-    integer ,intent(out),optional :: iptobs_cma(:)
-    integer ,intent(in) ,optional :: assim_flag_val
+    integer ,intent(out),optional :: iptobs_cma_opt(:)
+    integer ,intent(in) ,optional :: assim_flag_val_opt
     type(struct_obs) :: ObsSpaceData
     type(rttov_chanprof) :: chanprof(:)
 !******************************************************************************
-    integer :: count, profile_index, header_index, istart, iend, body_index, ichn, nrank, iobs, assim_flag_val2
+    integer :: count, profile_index, header_index, istart, iend, body_index, ichn, nrank, iobs, assim_flag_val
 !******************************************************************************
 ! Build the list of channels/profiles indices
 
-    if (present(assim_flag_val)) then
-      assim_flag_val2 = assim_flag_val
+    if (present(assim_flag_val_opt)) then
+      assim_flag_val = assim_flag_val_opt
     else
-      assim_flag_val2 = 1
+      assim_flag_val = 1
     end if
 
     count = 0
@@ -1311,7 +1311,7 @@ contains
       istart = obs_headElem_i(ObsSpaceData,OBS_RLN,header_index)
       iend= obs_headElem_i(ObsSpaceData,OBS_NLV,header_index) + istart - 1
       do body_index = istart, iend
-        if (obs_bodyElem_i(ObsSpaceData,OBS_ASS,body_index) == assim_flag_val2) then
+        if (obs_bodyElem_i(ObsSpaceData,OBS_ASS,body_index) == assim_flag_val) then
           ichn = nint(obs_bodyElem_r(ObsSpaceData,OBS_PPP,body_index))
           ichn = max(0, min(ichn,tvs_maxChannelNumber + 1))
           ICHN = ICHN - tvs_channelOffset(sensor_id)
@@ -1322,7 +1322,7 @@ contains
             count =  count + 1
             chanprof(count)%prof = profile_index
             chanprof(count)%chan = nrank
-            if (present(iptobs_cma)) iptobs_cma(count) = body_index
+            if (present(iptobs_cma_opt)) iptobs_cma_opt(count) = body_index
           else
             write(*,*) "strange channel number",ichn
           end if
@@ -1337,18 +1337,18 @@ contains
 !! subroutine to count radiances selected for assimilation
 !--------------------------------------------------------------------------
 
-  integer function tvs_countRadiances(iptobs, nprofiles, ObsSpaceData,assim_flag_val)
+  integer function tvs_countRadiances(iptobs, nprofiles, ObsSpaceData,assim_flag_val_opt)
     implicit none
     integer ,intent(in) :: nprofiles, iptobs(:)
-    integer ,intent(in),optional :: assim_flag_val
+    integer ,intent(in),optional :: assim_flag_val_opt
     type(struct_obs) :: ObsSpaceData
 !******************************************************************************
-    integer :: profile_index, header_index, istart, iend, body_index, iobs, assim_flag_val2
+    integer :: profile_index, header_index, istart, iend, body_index, iobs, assim_flag_val
 
-    if (present(assim_flag_val)) then
-      assim_flag_val2 = assim_flag_val
+    if (present(assim_flag_val_opt)) then
+      assim_flag_val = assim_flag_val_opt
     else
-      assim_flag_val2 = 1
+      assim_flag_val = 1
     end if
 
     tvs_countRadiances = 0
@@ -1358,7 +1358,7 @@ contains
       istart = obs_headElem_i(ObsSpaceData,OBS_RLN,header_index)
       iend = obs_headElem_i(ObsSpaceData,OBS_NLV,header_index) + istart - 1
       do body_index = istart, iend
-        if(obs_bodyElem_i(ObsSpaceData,OBS_ASS,body_index) == assim_flag_val2) tvs_countRadiances  = tvs_countRadiances + 1
+        if(obs_bodyElem_i(ObsSpaceData,OBS_ASS,body_index) == assim_flag_val) tvs_countRadiances  = tvs_countRadiances + 1
       end do
     end do
 
@@ -1367,21 +1367,21 @@ contains
 !--------------------------------------------------------------------------
 !! subroutine to get emissivity for Hyperspectral Infrared Sounders (AIRS, IASI, CrIS, ...)
 !--------------------------------------------------------------------------
-  subroutine tvs_getHIREmissivities(sensor_id, iptobs, nprofiles, ObsSpaceData, surfem,assim_flag_val)
+  subroutine tvs_getHIREmissivities(sensor_id, iptobs, nprofiles, ObsSpaceData, surfem,assim_flag_val_opt)
 
     implicit none
     integer ,intent(in) :: nprofiles, sensor_id, iptobs(:)
-    integer ,intent(in),optional :: assim_flag_val
+    integer ,intent(in),optional :: assim_flag_val_opt
     type(struct_obs) :: ObsSpaceData
     real(8), intent(out) :: surfem(:)
 !***************************************************************************
-    integer :: count, profile_index, iobs, istart, iend, index_body, index_header, assim_flag_val2
+    integer :: count, profile_index, iobs, istart, iend, index_body, index_header, assim_flag_val
 !***************************************************************************
 
-    if (present(assim_flag_val)) then
-      assim_flag_val2 = assim_flag_val
+    if (present(assim_flag_val_opt)) then
+      assim_flag_val = assim_flag_val_opt
     else
-      assim_flag_val2 = 1
+      assim_flag_val = 1
     end if
 
     count = 0 
@@ -1392,7 +1392,7 @@ contains
       istart = obs_headElem_i(ObsSpaceData,OBS_RLN,index_header)
       iend = obs_headElem_i(ObsSpaceData,OBS_NLV,index_header) + istart - 1
       do index_body = istart, iend
-        if(obs_bodyElem_i(ObsSpaceData,OBS_ASS,index_body) == assim_flag_val2) then
+        if(obs_bodyElem_i(ObsSpaceData,OBS_ASS,index_body) == assim_flag_val) then
           count = count + 1
           surfem ( count ) = obs_bodyElem_r(ObsSpaceData,OBS_SEM,index_body)
         end if

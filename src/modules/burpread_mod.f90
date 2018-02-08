@@ -2653,7 +2653,7 @@ CONTAINS
 
 
   FUNCTION WRITE_BODY(obsdat,FAMTYP, ELEV,VERTCOORD,VCOORD_TYPE, &
-                      obsvalue,qcflag,NELE,NVAL,LISTE_ELE,SURF_EMIS)
+                      obsvalue,qcflag,NELE,NVAL,LISTE_ELE,SURF_EMIS_opt)
 
     !******************************************************************************** 
     !
@@ -2672,7 +2672,7 @@ CONTAINS
 
     INTEGER ::  WRITE_BODY,VCOORD_TYPE
     REAL   , allocatable          ::   OBSVALUE(:,:)
-    REAL   , allocatable,optional ::   SURF_EMIS(:)
+    REAL   , allocatable,optional ::   SURF_EMIS_opt(:)
     INTEGER, allocatable          ::     QCFLAG(:,:)
     REAL   , allocatable          ::  VERTCOORD(:)
 
@@ -2694,7 +2694,7 @@ CONTAINS
     REAL        ::   ZEMFACT
     LOGICAL     ::   L_EMISS
     
-    if(present(SURF_EMIS)) then
+    if(present(SURF_EMIS_opt)) then
       L_EMISS=.true.
     else
       L_EMISS=.false.
@@ -2779,8 +2779,8 @@ CONTAINS
         VCOORD=VERTCOORD(j)
         OBSV  =   obsvalue(il,j)
         if( L_EMISS .eqv. .true.)  then
-          if( SURF_EMIS(j) .ne.  MISG)  then
-            REMIS =  SURF_EMIS(j)*ZEMFACT
+          if( SURF_EMIS_opt(j) .ne.  MISG)  then
+            REMIS =  SURF_EMIS_opt(j)*ZEMFACT
           else
             REMIS = MISG
           end if

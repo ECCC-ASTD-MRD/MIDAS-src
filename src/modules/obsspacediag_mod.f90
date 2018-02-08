@@ -163,7 +163,7 @@ module obsSpaceDiag_mod
 contains
 
 !-------------------------------------------------------------------------------------------
-  subroutine osd_ObsSpaceDiag(obsSpaceData,columng,analysis_mode)
+  subroutine osd_ObsSpaceDiag(obsSpaceData,columng,analysisMode_opt)
 !           
 ! Purpose: Calls routines to perform observation-space diagnostic tasks
 !
@@ -178,7 +178,7 @@ contains
 !     obsSpaceData   Obs space data structure
 !     columng        Structure of vertical columns at obs locations.
 !                    Expected to be for analysis vertical levels if to be used.
-!     analysis_mode  logical indicating if following analysis mode or not (optional)
+!     analysisMode   logical indicating if following analysis mode or not (optional)
 !                    Assumed .true. if not present.
 !   Output 
 !       
@@ -187,7 +187,7 @@ contains
     implicit none
     type(struct_obs) :: obsSpaceData
     type(struct_columnData) :: columng
-    logical, intent(in), optional :: analysis_mode
+    logical, intent(in), optional :: analysisMode_opt
     
     logical :: nmlExists,anlm_mod    
     integer :: ierr
@@ -195,8 +195,8 @@ contains
     
 !    write(*,*) 'osd_ObsSpaceDiag: Starting'
 
-    if (present(analysis_mode)) then
-       anlm_mod = analysis_mode
+    if (present(analysisMode_opt)) then
+       anlm_mod = analysisMode_opt
     else
        anlm_mod = .true.
     end if
@@ -292,7 +292,7 @@ contains
 
     ! initialize columnData object for increment
     call col_setVco(column,col_getVco(columng))
-    call col_allocate(column,col_getNumCol(columng),mpi_local=.true.)
+    call col_allocate(column,col_getNumCol(columng),mpiLocal_opt=.true.)
     call col_copyLatLon(columng,column)
 
     ! initialize gridStateVector object for increment
@@ -848,9 +848,9 @@ contains
           ! Initialize oss_comboIDlist and add (stnid,varno) pairs from the namelist
           ! Sets list of identifiers for observations to be processed in osd_obsDiagnostics within the CH family
                
-          call oss_comboIdlist(initialize=.true., nset=diagn_nset(ifam), all_combos=diagn_all(ifam))
+          call oss_comboIdlist(initialize_opt=.true., nset_opt=diagn_nset(ifam), all_combos_opt=diagn_all(ifam))
           do jelm=1,diagn_num(ifam)
-             call oss_comboIdlist(stnid_add=diagn_stnid(ifam,jelm), varno_add=diagn_varno(ifam,jelm), unilev_add=diagn_unilev(ifam,jelm))
+             call oss_comboIdlist(stnid_add_opt=diagn_stnid(ifam,jelm), varno_add_opt=diagn_varno(ifam,jelm), unilev_add_opt=diagn_unilev(ifam,jelm))
           end do
 
           ! Diagnostics for retrievd chemical constituents (CH family)
@@ -1117,11 +1117,11 @@ contains
                 call osd_obsspace_diagn_add(obs_diagn, lat, lon, lev, &
                           pressmin, omp, obs, sigma_obs, &
                           nlev_obs, unilevel, assim_obs, status, &
-                          oma=oma, sqrtHPHT=sqrtHPHT)
+                          oma_opt=oma, sqrtHPHT_opt=sqrtHPHT)
              else 
                 call osd_obsspace_diagn_add(obs_diagn, lat, lon, lev, &
                           pressmin, omp, obs, sigma_obs, &
-                          nlev_obs, unilevel, assim_obs, status,oma=oma)
+                          nlev_obs, unilevel, assim_obs, status,oma_opt=oma)
               end if
           else
              call osd_obsspace_diagn_add(obs_diagn, lat, lon, lev, &
@@ -1149,13 +1149,13 @@ contains
        
        ! Output, and deallocate diagnostic arrays
        if (mpi_myid.eq.0) call osd_obsspace_diagn_print(obs_diagn,filename, save_diagn, &
-                              'stats', pressmin, status_hpht, label=label, openfile=.true.)
+                              'stats', pressmin, status_hpht, label_opt=label, openfile_opt=.true.)
  
     end do
     
     ! Output diagnostics summary (over all CH observations)
     if (mpi_myid.eq.0) call osd_obsspace_diagn_print(obs_diagn,filename, save_diagn, &
-                            'summary', pressmin, status_hpht, openfile=.true.)
+                            'summary', pressmin, status_hpht, openfile_opt=.true.)
  
     ! Deallocate arrays in obs_diagn
     call osd_obsspace_diagn_dealloc(obs_diagn)
@@ -1212,7 +1212,7 @@ contains
     ! (with ndim=1, bkstp=15 and block_type='DATA')
 
     status_hpht=.true.
-    SqrtHPHT_struct = burp_chem_read_all(obsfam,stnid,-1,max_nlev,1,15,'DATA',.false.,codtyplist=codtyplist)
+    SqrtHPHT_struct = burp_chem_read_all(obsfam,stnid,-1,max_nlev,1,15,'DATA',.false.,codtyplist_opt=codtyplist)
     if (SqrtHPHT_struct%nrep.eq.0) then
        write(*,*) 'osd_ReadSqrtHPHT: WARNING. sqrtHPHT not found in obs file(s).'
        write(*,*) 'Will not be used in Desroziers-based diagnostics.'       
@@ -1238,7 +1238,7 @@ contains
        array=oss_obsdata_get_data1d(SqrtHPHT_struct, &
              obs_headElem_r(obsSpaceData,OBS_LON,headerIndex),obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex), &
              obs_headElem_i(obsSpaceData,OBS_DAT,headerIndex),obs_headElem_i(obsSpaceData,OBS_ETM,headerIndex), &
-             obs_elem_c(obsSpaceData,'STID',headerIndex),stat=stat) 
+             obs_elem_c(obsSpaceData,'STID',headerIndex),stat_opt=stat) 
  
        if (stat.eq.0) then
 
@@ -1393,7 +1393,7 @@ contains
 !----------------------------------------------------------------------------------------
 
   subroutine osd_obsspace_diagn_add(obs_diagn,lat,lon,pressure,pressmin,OmP,obs,sigma_obs,nlev_obs, &
-                                    unilevel,assim_obs,status,OmA,sqrtHPHT)
+                                    unilevel,assim_obs,status,OmA_opt,sqrtHPHT_opt)
 !
 ! Author:  M. Sitwell, ARQI/AQRD June 2015
 !          
@@ -1436,7 +1436,7 @@ contains
     real(8), intent(in) :: pressure(nlev_obs),OmP(nlev_obs),obs(nlev_obs)
     real(8), intent(in) :: sigma_obs(nlev_obs),pressmin
     logical, intent(in) :: unilevel,assim_obs
-    real(8), intent(in), optional :: OmA(nlev_obs),sqrtHPHT(nlev_obs)
+    real(8), intent(in), optional :: OmA_opt(nlev_obs),sqrtHPHT_opt(nlev_obs)
 
     integer :: ilat,ilon,ilev,ilev_obs
 
@@ -1469,37 +1469,37 @@ contains
 
        obs_diagn%Jo_stats(ilat,ilon,ilev,2)  = obs_diagn%Jo_stats(ilat,ilon,ilev,2)  + 0.5 * OmP(ilev_obs)**2 / sigma_obs(ilev_obs)**2
 
-       if (present(OmA)) then
+       if (present(OmA_opt)) then
           
-          obs_diagn%OmA_stats(ilat,ilon,ilev,1) = obs_diagn%OmA_stats(ilat,ilon,ilev,1) + OmA(ilev_obs)**2
-          obs_diagn%OmA_stats(ilat,ilon,ilev,2) = obs_diagn%OmA_stats(ilat,ilon,ilev,2) + OmA(ilev_obs)
-          obs_diagn%Jo_stats(ilat,ilon,ilev,1)  = obs_diagn%Jo_stats(ilat,ilon,ilev,1)  + 0.5 * OmA(ilev_obs)**2 / sigma_obs(ilev_obs)**2
+          obs_diagn%OmA_stats(ilat,ilon,ilev,1) = obs_diagn%OmA_stats(ilat,ilon,ilev,1) + OmA_opt(ilev_obs)**2
+          obs_diagn%OmA_stats(ilat,ilon,ilev,2) = obs_diagn%OmA_stats(ilat,ilon,ilev,2) + OmA_opt(ilev_obs)
+          obs_diagn%Jo_stats(ilat,ilon,ilev,1)  = obs_diagn%Jo_stats(ilat,ilon,ilev,1)  + 0.5 * OmA_opt(ilev_obs)**2 / sigma_obs(ilev_obs)**2
 
           if (status(ilev_obs).eq.1) then
 
              obs_diagn%diagR_stats(ilat,ilon,ilev,1) = obs_diagn%diagR_stats(ilat,ilon,ilev,1) &
-                + OmP(ilev_obs)*OmA(ilev_obs)/sigma_obs(ilev_obs)**2
+                + OmP(ilev_obs)*OmA_opt(ilev_obs)/sigma_obs(ilev_obs)**2
              obs_diagn%diagR_stats(ilat,ilon,ilev,2) = obs_diagn%diagR_stats(ilat,ilon,ilev,2) &
                 + OmP(ilev_obs)/sigma_obs(ilev_obs)
              obs_diagn%diagR_stats(ilat,ilon,ilev,3) = obs_diagn%diagR_stats(ilat,ilon,ilev,3) &
-                + OmA(ilev_obs)/sigma_obs(ilev_obs)
+                + OmA_opt(ilev_obs)/sigma_obs(ilev_obs)
 
-             if (present(sqrtHPHT)) then
-                if (sqrtHPHT(ilev_obs).gt.0.0) then
+             if (present(sqrtHPHT_opt)) then
+                if (sqrtHPHT_opt(ilev_obs).gt.0.0) then
                    obs_diagn%diagHPHT_stats(ilat,ilon,ilev,1) = obs_diagn%diagHPHT_stats(ilat,ilon,ilev,1) &
-                        + OmP(ilev_obs)*(OmP(ilev_obs)-OmA(ilev_obs))/sqrtHPHT(ilev_obs)**2
+                        + OmP(ilev_obs)*(OmP(ilev_obs)-OmA_opt(ilev_obs))/sqrtHPHT_opt(ilev_obs)**2
                    obs_diagn%diagHPHT_stats(ilat,ilon,ilev,2) = obs_diagn%diagHPHT_stats(ilat,ilon,ilev,2) &
-                        + OmP(ilev_obs)/sqrtHPHT(ilev_obs)
+                        + OmP(ilev_obs)/sqrtHPHT_opt(ilev_obs)
                    obs_diagn%diagHPHT_stats(ilat,ilon,ilev,3) = obs_diagn%diagHPHT_stats(ilat,ilon,ilev,3) &
-                        + (OmP(ilev_obs)-OmA(ilev_obs))/sqrtHPHT(ilev_obs)
+                        + (OmP(ilev_obs)-OmA_opt(ilev_obs))/sqrtHPHT_opt(ilev_obs)
                 end if
              else
 
                 ! No division by sqrtHPHT
                 
-                obs_diagn%diagHPHT_stats(ilat,ilon,ilev,1) = obs_diagn%diagHPHT_stats(ilat,ilon,ilev,1) + OmP(ilev_obs)*(OmP(ilev_obs)-OmA(ilev_obs))
+                obs_diagn%diagHPHT_stats(ilat,ilon,ilev,1) = obs_diagn%diagHPHT_stats(ilat,ilon,ilev,1) + OmP(ilev_obs)*(OmP(ilev_obs)-OmA_opt(ilev_obs))
                 obs_diagn%diagHPHT_stats(ilat,ilon,ilev,2) = obs_diagn%diagHPHT_stats(ilat,ilon,ilev,2) + OmP(ilev_obs)
-                obs_diagn%diagHPHT_stats(ilat,ilon,ilev,3) = obs_diagn%diagHPHT_stats(ilat,ilon,ilev,3) + OmP(ilev_obs)-OmA(ilev_obs)
+                obs_diagn%diagHPHT_stats(ilat,ilon,ilev,3) = obs_diagn%diagHPHT_stats(ilat,ilon,ilev,3) + OmP(ilev_obs)-OmA_opt(ilev_obs)
              end if
              
           end if
@@ -1580,7 +1580,7 @@ contains
 
 !----------------------------------------------------------------------------------------
 
-  subroutine osd_obsspace_diagn_print(obs_diagn,filename,save_diagn,print_type,pressmin,status_hpht,label,openfile)
+  subroutine osd_obsspace_diagn_print(obs_diagn,filename,save_diagn,print_type,pressmin,status_hpht,label_opt,openfile_opt)
 !
 ! Author:  M. Sitwell, ARQI/AQRD June 2015
 !          
@@ -1616,8 +1616,8 @@ contains
     character(len=*) :: print_type, filename
     real(8) :: pressmin
     logical, intent(in) :: status_hpht, save_diagn
-    logical, intent(in), optional :: openfile
-    character(len=256), intent(in), optional :: label
+    logical, intent(in), optional :: openfile_opt
+    character(len=256), intent(in), optional :: label_opt
 
     integer, external :: fnom, fclos
     
@@ -1638,8 +1638,8 @@ contains
              
        ! Open and append to output file if requested
              
-       if (present(openfile)) then
-          if (openfile) then 
+       if (present(openfile_opt)) then
+          if (openfile_opt) then 
              inquire(file=filename, exist=fileout_exist)
              call utl_open_asciifile(filename,unit) 
           else
@@ -1649,9 +1649,9 @@ contains
           unit=6             
        end if
              
-       if (present(label)) then
+       if (present(label_opt)) then
           write(unit,*)
-          write(unit,*) trim(label)
+          write(unit,*) trim(label_opt)
        end if
                       
        if (any(obs_diagn%counts.gt.0)) then
@@ -1739,8 +1739,8 @@ contains
           deallocate(ncounts)
              
           ! Output lat,lon dependent averages to file if obsspace_diagn_filename is provided
-          if (present(openfile)) then
-             if (openfile.and.save_diagn.and.(nlat.gt.1.or.nlon.gt.1)) then
+          if (present(openfile_opt)) then
+             if (openfile_opt.and.save_diagn.and.(nlat.gt.1.or.nlon.gt.1)) then
                 
                 write(unit,*)
                 write(unit,'(A)') " Lat-lon gridded statistics"
@@ -1790,8 +1790,8 @@ contains
           write(unit,*)
        end if
        
-       if (present(openfile)) then
-          if (openfile) ierr=fclos(unit)     
+       if (present(openfile_opt)) then
+          if (openfile_opt) ierr=fclos(unit)     
        end if
              
     case('summary','SUMMARY')
@@ -1801,8 +1801,8 @@ contains
           return
        end if
           
-       if (present(openfile)) then
-          if (openfile) then 
+       if (present(openfile_opt)) then
+          if (openfile_opt) then 
              inquire(file=filename, exist=fileout_exist)
              call utl_open_asciifile(filename,unit) 
           else
@@ -1814,8 +1814,8 @@ contains
             
        call print_Jo(unit,"Total cost function for CH observations:",Jo_a_total,Jo_b_total,counts_total)
 
-       if (present(openfile)) then
-          if (openfile) ierr=fclos(unit) 
+       if (present(openfile_opt)) then
+          if (openfile_opt) ierr=fclos(unit) 
        end if
     
     case default

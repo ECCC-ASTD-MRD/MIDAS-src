@@ -809,7 +809,7 @@ module calcstatslam_mod
        call calcLocalCorrelations(ensPerturbations) ! IN
     else
       
-      call bmd_localizationRadii(ensPerturbations, StdDev3dGridPoint, cv_bhi, waveBandIndex=1) ! IN
+      call bmd_localizationRadii(ensPerturbations, StdDev3dGridPoint, cv_bhi, waveBandIndex_opt=1) ! IN
     endif
 
     !
