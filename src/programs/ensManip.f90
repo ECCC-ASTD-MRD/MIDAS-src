@@ -180,9 +180,9 @@ program midas_ensManip
     do stepIndex = 1, numStep
       if ( mpi_myid == 0 ) write(*,*) 'midas-ensManip: writing time step ', stepIndex
       if ( write_mpi ) then
-        call gsv_writeToFileMPI( statevector_mean, ensFileName, 'ENSMEAN', indexStep_in = stepIndex, typvar_in = 'P')
+        call gsv_writeToFileMPI( statevector_mean, ensFileName, 'ENSMEAN', stepIndex_opt = stepIndex, typvar_opt = 'P')
       else
-        call gsv_writeToFile( statevector_mean, ensFileName, 'ENSMEAN', indexStep_in = stepIndex, typvar_in = 'P', numBits_opt = numBits)
+        call gsv_writeToFile( statevector_mean, ensFileName, 'ENSMEAN', stepIndex_opt = stepIndex, typvar_opt = 'P', numBits_opt = numBits)
       end if
     end do
 
@@ -206,9 +206,9 @@ program midas_ensManip
     do stepIndex = 1, numStep
       if ( mpi_myid == 0 ) write(*,*) 'midas-ensManip: writing time step ', stepIndex
       if ( write_mpi ) then
-        call gsv_writeToFileMPI( statevector_stddev, ensFileName, 'ENSMEAN', indexStep_in = stepIndex, typvar_in = 'P')
+        call gsv_writeToFileMPI( statevector_stddev, ensFileName, 'ENSMEAN', stepIndex_opt = stepIndex, typvar_opt = 'P')
       else
-        call gsv_writeToFile( statevector_stddev, ensFileName, 'ENSMEAN', indexStep_in = stepIndex, typvar_in = 'P' , numBits_opt = numBits)
+        call gsv_writeToFile( statevector_stddev, ensFileName, 'ENSMEAN', stepIndex_opt = stepIndex, typvar_opt = 'P' , numBits_opt = numBits)
       end if
     end do
 

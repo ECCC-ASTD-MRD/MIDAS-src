@@ -207,7 +207,7 @@ CONTAINS
           incFileName = './rebm_' // trim(coffset) // 'm'
  
           call gsv_readFromFile(statevector_Psfc, trim(incFileName), ' ', ' ', stepIndex,  &
-               HUcontainsLQ=.false.)
+               HUcontainsLQ_opt=.false.)
         end do
  
       end if
@@ -273,10 +273,10 @@ CONTAINS
         write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
         if (gsv_varExist(varName='P0')) then
           call gsv_readFromFile(statevector_incHighRes, trim(incFileName), ' ', ' ', stepIndex,  &
-               HUcontainsLQ=.false., PsfcReference_opt=PsfcAnalysis(:,:,1,stepIndex))
+               HUcontainsLQ_opt=.false., PsfcReference_opt=PsfcAnalysis(:,:,1,stepIndex))
         else
           call gsv_readFromFile(statevector_incHighRes, trim(incFileName), ' ', ' ', stepIndex,  &
-               HUcontainsLQ=.false.)
+               HUcontainsLQ_opt=.false.)
         end if
       end do
 
@@ -312,12 +312,12 @@ CONTAINS
 
         write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
         call gsv_writeToFile(statevector_incHighRes, trim(incFileName), etiket_rehm,  &
-             indexStep_in=stepIndex, typvar_in='R', numBits_opt=writeNumBits )
+             stepIndex_opt=stepIndex, typvar_opt='R', numBits_opt=writeNumBits )
 
         if (gsv_varExist(varName='P0')) then
           ! Also write analysis value of Psfc and surface GZ to increment file
           call gsv_writeToFile(statevector_Psfc, trim(incFileName), etiket_rehm,  &
-               indexStep_in=stepIndex, typvar_in='A', writeGZsfc_opt=.true., &
+               stepIndex_opt=stepIndex, typvar_opt='A', writeGZsfc_opt=.true., &
                numBits_opt=writeNumBits )
         end if
       end do
@@ -340,8 +340,8 @@ CONTAINS
       anlFileName = './anlm_' // trim(coffset) // 'm'
 
       write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
-      call gsv_writeToFile(statevector_analysis, trim(anlFileName), etiket_anlm, indexStep_in=stepIndex, &
-           typvar_in='A', writeGZsfc_opt=writeGZsfc, numBits_opt=writeNumBits )
+      call gsv_writeToFile(statevector_analysis, trim(anlFileName), etiket_anlm, stepIndex_opt=stepIndex, &
+           typvar_opt='A', writeGZsfc_opt=writeGZsfc, numBits_opt=writeNumBits )
     end do
 
     call gsv_deallocate(statevector_analysis)

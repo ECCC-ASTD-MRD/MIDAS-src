@@ -594,7 +594,7 @@ module physicsFunctions_mod
  
   !----------------------------------------------------------------------------------------
 
-  function phf_get_tropopause(nmodlev,pressmod,tt,gz,hu) result(tropo_press)
+  function phf_get_tropopause(nmodlev,pressmod,tt,gz,hu_opt) result(tropo_press)
   !
   ! Author   : Y. Rochon, ARQI/AQRD Oct 2015
   !            - Following consultation with Irena Paunova for water vapour based approach
@@ -626,7 +626,7 @@ module physicsFunctions_mod
 
     integer, intent(in) :: nmodlev
     real(8), intent(in) :: pressmod(nmodlev),tt(nmodlev),gz(nmodlev)
-    real(8), intent(in), optional :: hu(nmodlev)
+    real(8), intent(in), optional :: hu_opt(nmodlev)
    
     real(8) :: tropo_press
   
@@ -670,7 +670,7 @@ module physicsFunctions_mod
     
    ! Improve on tropopause pressure levels using specific humidity if available,
 
-    if (present(hu)) then
+    if (present(hu_opt)) then
     
       !  Use water vapour
       
@@ -680,11 +680,11 @@ module physicsFunctions_mod
           ! Convert specific humidity to ppmv mixing ratio.
           ! First apply r=q/(1-q) to convert to mass mixing ratio.
 
-          if (hu(i).le.0.8.and.hu(i).ge.0) then
-               hu_ppmv2 = consth*hu(i)/(1.0-hu(i))
-          else if (hu(i).gt.0.8) then
+          if (hu_opt(i).le.0.8.and.hu_opt(i).ge.0) then
+               hu_ppmv2 = consth*hu_opt(i)/(1.0-hu_opt(i))
+          else if (hu_opt(i).gt.0.8) then
                hu_ppmv2 = consth*0.8/(1.0-0.8)
-          else if (hu(i).lt.0.0) then
+          else if (hu_opt(i).lt.0.0) then
                hu_ppmv2 = 0.0
           end if
 
@@ -695,9 +695,9 @@ module physicsFunctions_mod
              ilaps=1
              do k=i+1,nmodlev
                 if (gz(i)-gz(k).gt.5000.0) exit
-                if (hu(k).le.0.8.and.hu(k).ge.0) then
-                   hu_ppmv3 = consth*hu(k)/(1.0-hu(k))
-                else if (hu(k).gt.0.8) then
+                if (hu_opt(k).le.0.8.and.hu_opt(k).ge.0) then
+                   hu_ppmv3 = consth*hu_opt(k)/(1.0-hu_opt(k))
+                else if (hu_opt(k).gt.0.8) then
                    hu_ppmv3 = consth*0.8/(1.0-0.8)
                 else
                    hu_ppmv3=0.0
@@ -732,7 +732,7 @@ module physicsFunctions_mod
 
   !----------------------------------------------------------------------------------------
 
-  function phf_get_pbl(nmodlev,pressmod,tt,gz,hu,uu,vv) result(pbl_press)
+  function phf_get_pbl(nmodlev,pressmod,tt,gz,hu_opt,uu_opt,vv_opt) result(pbl_press)
   !
   ! Author   : Y. Rochon, ARQI/AQRD Oct 2015
   !            - Following consultation with Amir Aliabadi, Shuzhan Ren and Saroja Polavarapu.
@@ -789,7 +789,7 @@ module physicsFunctions_mod
 
     integer, intent(in) :: nmodlev
     real(8), intent(in) :: pressmod(nmodlev),tt(nmodlev),gz(nmodlev)
-    real(8), optional :: uu(:),vv(:),hu(nmodlev)
+    real(8), optional :: uu_opt(:),vv_opt(:),hu_opt(nmodlev)
    
     real(8) :: pbl_press
   
@@ -813,8 +813,8 @@ module physicsFunctions_mod
 
     ! Convert hu to mass mixing ratio
 
-    if (present(hu)) then
-       huw(:)=hu(:)
+    if (present(hu_opt)) then
+       huw(:)=hu_opt(:)
     else
        huw(:)=0.0
     end if
@@ -843,13 +843,13 @@ module physicsFunctions_mod
     RiB2=0.0
     RiBmax=0.0
     iRiBmax=0
-    if (present(uu).and.present(vv)) then
-       id=nmodlev-size(uu)
+    if (present(uu_opt).and.present(vv_opt)) then
+       id=nmodlev-size(uu_opt)
        if (id.gt.1.or.id.lt.0) then
-          call utl_abort('phf_get_pbl: Unexpected number of UV levels, nmodlev = ' // trim(utl_str(nmodlev)) // ' , size(uu) = ' // trim(utl_str(size(uu))) )    
+          call utl_abort('phf_get_pbl: Unexpected number of UV levels, nmodlev = ' // trim(utl_str(nmodlev)) // ' , size(uu) = ' // trim(utl_str(size(uu_opt))) )    
        end if
-       us = uu(size(uu))
-       vs = vv(size(vv))
+       us = uu_opt(size(uu_opt))
+       vs = vv_opt(size(vv_opt))
 !   us,vs set to 0.0
 !      us=0.0
 !      vs=0.0
@@ -868,10 +868,10 @@ module physicsFunctions_mod
            thetavh(i) = tt(i)*(1.D5/pressmod(i))**kappa* ( 1.0 + 0.61*huh )
 
            if (id.eq.0) then
-               uv = max( (uu(i)-us)**2 + (vv(i)-vs)**2, 1.D-8 ) 
+               uv = max( (uu_opt(i)-us)**2 + (vv_opt(i)-vs)**2, 1.D-8 ) 
            else
               ! Take layer midpoint values
-              uv = max( ((uu(i)+uu(i-1))/2.0-us)**2 + ((vv(i)+vv(i-1))/2.0-vs)**2, 1.D-8 ) 
+              uv = max( ((uu_opt(i)+uu_opt(i-1))/2.0-us)**2 + ((vv_opt(i)+vv_opt(i-1))/2.0-vs)**2, 1.D-8 ) 
            end if
          
            RiB2 = grav * (thetavh(i)-thetavs) * (gz(i)*0.001-zs) / (thetavs*uv)

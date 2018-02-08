@@ -511,7 +511,7 @@ contains
           
        ! Adjust error standard deviations read from BURP file if requested.
        
-       sigma = oss_obsdata_get_element(chm_burp_std(istnid), oss_obsdata_get_header_code(zlon,zlat,idate,itime,cstnid), ilev, stat=stat)
+       sigma = oss_obsdata_get_element(chm_burp_std(istnid), oss_obsdata_get_header_code(zlon,zlat,idate,itime,cstnid), ilev, stat_opt=stat)
 
        select case(stat)
        case(1)

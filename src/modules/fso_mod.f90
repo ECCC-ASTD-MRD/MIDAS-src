@@ -146,7 +146,7 @@ CONTAINS
      
     ! initialize column object for storing "increment"
     call col_setVco(column,col_getVco(columng))
-    call col_allocate(column,col_getNumCol(columng),mpi_local=.true.)
+    call col_allocate(column,col_getNumCol(columng),mpiLocal_opt=.true.)
     call col_copyLatLon(columng,column)
 
     write(*,*) 'PRDATABIN: For 4D increment'

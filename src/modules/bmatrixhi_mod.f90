@@ -112,13 +112,13 @@ MODULE BmatrixHI_mod
 
 CONTAINS
 
-  SUBROUTINE BHI_setup(hco_in,vco_in,CVDIM_OUT, mode)
+  SUBROUTINE BHI_setup(hco_in,vco_in,CVDIM_OUT, mode_opt)
     implicit none
 
     type(struct_hco),pointer :: hco_in
     type(struct_vco),pointer :: vco_in
     integer                  :: cvDim_out
-    character(len=*), intent(in), optional :: mode
+    character(len=*), intent(in), optional :: mode_opt
 
     character(len=15) :: bhi_mode
     
@@ -135,14 +135,14 @@ CONTAINS
     if(mpi_myid == 0) write(*,*) 'bhi_setup: starting'
     if(mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-    if ( present(mode) ) then
-       if ( trim(mode) == 'Analysis' .or. trim(mode) == 'BackgroundCheck') then
-         bhi_mode = trim(mode)
+    if ( present(mode_opt) ) then
+       if ( trim(mode_opt) == 'Analysis' .or. trim(mode_opt) == 'BackgroundCheck') then
+         bhi_mode = trim(mode_opt)
          if(mpi_myid == 0) write(*,*)
          if(mpi_myid == 0) write(*,*) 'bmatrixHI: Mode activated = ', trim(bhi_mode)
        else
           write(*,*)
-          write(*,*) 'mode = ', trim(mode)
+          write(*,*) 'mode = ', trim(mode_opt)
           call utl_abort('bmatrixHI: unknown mode')
        end if
     else

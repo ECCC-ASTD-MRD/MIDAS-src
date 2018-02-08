@@ -973,7 +973,7 @@ contains
 
   end subroutine BGCK_GET_QCID
 
-  subroutine irbg_doQualityControl ( lcolumnhr, lobsSpaceData,CINST,id_in)
+  subroutine irbg_doQualityControl ( lcolumnhr, lobsSpaceData,CINST,id_opt)
 !
 !**ID irbg_doQualityControl -- QUALITY CONTROL OF HYPERSPECTRAL INFRARED OBSERVATIONS
 !
@@ -997,7 +997,7 @@ contains
 !                               PROFILES BEEN TREATED (true) OR NOT (false)
 !
     implicit none
-    integer,intent(in),optional :: id_in
+    integer,intent(in),optional :: id_opt
     type(struct_columnData),intent(in) :: lcolumnhr
     type(struct_obs),intent(inout) :: lobsSpaceData
     character (len=*),intent(in) :: CINST
@@ -1074,8 +1074,8 @@ contains
 
     call BGCK_GET_QCID(cinst,QCID)
     
-    if (present(id_in)) then
-      id = id_in
+    if (present(id_opt)) then
+      id = id_opt
     else
 ! ** find sensor number corresponding to the desired instrument
       ID = -1

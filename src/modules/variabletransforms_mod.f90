@@ -94,7 +94,7 @@ CONTAINS
  
     character(len=*), intent(in) :: transform
 
-    integer :: indexStep
+    integer :: stepIndex
 
     select case(trim(transform))
 
@@ -137,19 +137,19 @@ CONTAINS
     implicit none
 
     type(struct_gsv) :: statevector
-    integer :: i,j,k,indexStep
+    integer :: i,j,k,stepIndex
 
     real(8), pointer :: hu_ptr(:,:,:,:), lq_ptr(:,:,:,:)
 
     hu_ptr => gsv_getField_r8(statevector,'HU')
     lq_ptr => gsv_getField_r8(statevector,'HU')
 
-    do indexStep = 1, statevector%numStep
+    do stepIndex = 1, statevector%numStep
 !$OMP PARALLEL DO PRIVATE(i,j,k)
        do k = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
           do j = statevector%myLatBeg, statevector%myLatEnd
              do i = statevector%myLonBeg, statevector%myLonEnd
-                hu_ptr(i,j,k,indexStep) = exp(lq_ptr(i,j,k,indexStep))
+                hu_ptr(i,j,k,stepIndex) = exp(lq_ptr(i,j,k,stepIndex))
              end do
           end do
        end do
@@ -165,19 +165,19 @@ CONTAINS
     implicit none
 
     type(struct_gsv)    :: statevector
-    integer :: i,j,k,indexStep
+    integer :: i,j,k,stepIndex
 
     real(8), pointer :: hu_ptr(:,:,:,:), lq_ptr(:,:,:,:)
 
     hu_ptr   => gsv_getField_r8(statevector,'HU')
     lq_ptr   => gsv_getField_r8(statevector,'HU')
 
-    do indexStep = 1, statevector%numStep
+    do stepIndex = 1, statevector%numStep
 !$OMP PARALLEL DO PRIVATE(i,j,k)
        do k = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
           do j = statevector%myLatBeg, statevector%myLatEnd
              do i = statevector%myLonBeg, statevector%myLonEnd
-                lq_ptr(i,j,k,indexStep) = log(max(hu_ptr(i,j,k,indexStep),MPC_MINIMUM_HU_R8))
+                lq_ptr(i,j,k,stepIndex) = log(max(hu_ptr(i,j,k,stepIndex),MPC_MINIMUM_HU_R8))
              end do
           end do
        end do
@@ -193,7 +193,7 @@ CONTAINS
     implicit none
 
     type(struct_gsv)    :: statevector
-    integer :: i,j,k,indexStep
+    integer :: i,j,k,stepIndex
 
     real(8), pointer :: hu_ptr(:,:,:,:), lq_ptr(:,:,:,:), hu_trial(:,:,:,:)
 
@@ -203,12 +203,12 @@ CONTAINS
     hu_ptr   => gsv_getField_r8(statevector      ,'HU')
     lq_ptr   => gsv_getField_r8(statevector      ,'HU')
 
-    do indexStep = 1, statevector%numStep
+    do stepIndex = 1, statevector%numStep
 !$OMP PARALLEL DO PRIVATE(i,j,k)
        do k = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
           do j = statevector%myLatBeg, statevector%myLatEnd
              do i = statevector%myLonBeg, statevector%myLonEnd       
-               hu_ptr(i,j,k,indexStep) =  lq_ptr(i,j,k,indexStep)*hu_trial(i,j,k,indexStep)
+               hu_ptr(i,j,k,stepIndex) =  lq_ptr(i,j,k,stepIndex)*hu_trial(i,j,k,stepIndex)
              end do
           end do
        end do
@@ -224,7 +224,7 @@ CONTAINS
     implicit none
 
     type(struct_gsv)    :: statevector
-    integer :: i,j,k,indexStep
+    integer :: i,j,k,stepIndex
 
     real(8), pointer :: hu_ptr(:,:,:,:), lq_ptr(:,:,:,:), hu_trial(:,:,:,:)
 
@@ -234,12 +234,12 @@ CONTAINS
     hu_ptr   => gsv_getField_r8(statevector      ,'HU')
     lq_ptr   => gsv_getField_r8(statevector      ,'HU')
 
-    do indexStep = 1, statevector%numStep
+    do stepIndex = 1, statevector%numStep
 !$OMP PARALLEL DO PRIVATE(i,j,k)
        do k = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
           do j = statevector%myLatBeg, statevector%myLatEnd
              do i = statevector%myLonBeg, statevector%myLonEnd
-               lq_ptr(i,j,k,indexStep) = hu_ptr(i,j,k,indexStep)/hu_trial(i,j,k,indexStep)
+               lq_ptr(i,j,k,stepIndex) = hu_ptr(i,j,k,stepIndex)/hu_trial(i,j,k,stepIndex)
              end do
           end do
        end do
@@ -255,7 +255,7 @@ CONTAINS
     implicit none
    
     type(struct_gsv) :: statevector
-    integer :: indexStep
+    integer :: stepIndex
  
     real(8), pointer :: uu_ptr(:,:,:,:), vv_ptr(:,:,:,:)
     real(8), pointer :: qr_ptr(:,:,:,:), dd_ptr(:,:,:,:)
@@ -272,10 +272,10 @@ CONTAINS
        call utl_abort('UVtoVortDiv:global mode not available')
     else
 
-       do indexStep = 1, statevector%numStep
+       do stepIndex = 1, statevector%numStep
           
-          call agd_UVToVortDiv(qr_ptr(:,:,:,indexStep), dd_ptr(:,:,:,indexStep), & ! OUT
-                               uu_ptr(:,:,:,indexStep), vv_ptr(:,:,:,indexStep), & ! IN
+          call agd_UVToVortDiv(qr_ptr(:,:,:,stepIndex), dd_ptr(:,:,:,stepIndex), & ! OUT
+                               uu_ptr(:,:,:,stepIndex), vv_ptr(:,:,:,stepIndex), & ! IN
                                nlev_M )      ! IN
           
        end do
@@ -291,7 +291,7 @@ CONTAINS
     implicit none
    
     type(struct_gsv) :: statevector
-    integer :: indexStep
+    integer :: stepIndex
 
     real(8), pointer :: qr_ptr(:,:,:,:), dd_ptr(:,:,:,:)
     real(8), pointer :: pp_ptr(:,:,:,:), cc_ptr(:,:,:,:)
@@ -314,19 +314,19 @@ CONTAINS
                        statevector%hco%dlon, trunc,             & ! IN
                       'LatLonMN', nlev_M )                        ! IN
 
-       do indexStep = 1, statevector%numStep
+       do stepIndex = 1, statevector%numStep
           
-          pp_ptr(:,:,:,indexStep) = qr_ptr(:,:,:,indexStep)
-          cc_ptr(:,:,:,indexStep) = dd_ptr(:,:,:,indexStep)
+          pp_ptr(:,:,:,stepIndex) = qr_ptr(:,:,:,stepIndex)
+          cc_ptr(:,:,:,stepIndex) = dd_ptr(:,:,:,stepIndex)
          
           ! Vort -> Psi
           call lst_Laplacian( lst_lapl%id,             & ! IN
-                              pp_ptr(:,:,:,indexStep), & ! INOUT
+                              pp_ptr(:,:,:,stepIndex), & ! INOUT
                               'Inverse', nlev_M )        ! IN
 
           ! Div -> Chi
           call lst_Laplacian( lst_lapl%id,             & ! IN
-                              cc_ptr(:,:,:,indexStep), & ! INOUT
+                              cc_ptr(:,:,:,stepIndex), & ! INOUT
                               'Inverse', nlev_M )        ! IN
 
        end do
@@ -343,7 +343,7 @@ CONTAINS
    
     type(struct_gsv) :: statevector
 
-    integer :: indexStep 
+    integer :: stepIndex 
     real(8), pointer :: uu_ptr(:,:,:,:), vv_ptr(:,:,:,:)
     real(8), pointer :: psi_ptr(:,:,:,:), chi_ptr(:,:,:,:)
     real(8), allocatable :: gridState(:,:,:), spectralState(:,:,:)
@@ -385,13 +385,13 @@ CONTAINS
       allocate(gridState(statevector%lonPerPE,statevector%latPerPE,2*nlev_M))
       allocate(spectralState(nla_mpilocal,2,2*nlev_M))
 
-      do indexStep = 1, statevector%numStep
+      do stepIndex = 1, statevector%numStep
 
         write(*,*) 'copying into gridstate'
         call flush(6)
 
-        gridState(:,:,1:nlev_M)            = uu_ptr(:,:,:,indexStep)
-        gridState(:,:,(nlev_M+1):2*nlev_M) = vv_ptr(:,:,:,indexStep)
+        gridState(:,:,1:nlev_M)            = uu_ptr(:,:,:,stepIndex)
+        gridState(:,:,(nlev_M+1):2*nlev_M) = vv_ptr(:,:,:,stepIndex)
 
         write(*,*) 'first tranform'; call flush(6)
 
@@ -414,8 +414,8 @@ CONTAINS
         write(*,*) 'copying back to psi/chi'
         call flush(6)
 
-        psi_ptr(:,:,:,indexStep) = gridState(:,:,1:nlev_M)
-        chi_ptr(:,:,:,indexStep) = gridState(:,:,(nlev_M+1):2*nlev_M)
+        psi_ptr(:,:,:,stepIndex) = gridState(:,:,1:nlev_M)
+        chi_ptr(:,:,:,stepIndex) = gridState(:,:,(nlev_M+1):2*nlev_M)
 
       end do
 

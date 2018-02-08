@@ -74,23 +74,23 @@ contains
 !                       adding the current working directory or the ram disk
 !                       directory
 !--------------------------------------------------------------------------
-  function ram_fullWorkingPath(fileName, noAbort) result(fullWorkingPath)
+  function ram_fullWorkingPath(fileName, noAbort_opt) result(fullWorkingPath)
     implicit none
     character(len=512) :: fullWorkingPath
-    logical, optional  :: noAbort
+    logical, optional  :: noAbort_opt
     character(len=*)   :: fileName
 
-    logical            :: fileExists, noAbort2
+    logical            :: fileExists, noAbort
     character(len=256) :: fileName2
 
     if ( .not. initialized ) then
           call utl_abort('ram_fullWorkingPath: ramDisk module has not been initialized.')
     end if
 
-    if ( present(noAbort) ) then
-      noAbort2 = noAbort
+    if ( present(noAbort_opt) ) then
+      noAbort = noAbort_opt
     else
-      noAbort2 = .false.
+      noAbort = .false.
     end if
 
     ! this should make it safe for calls where input and output are the same variable
@@ -108,7 +108,7 @@ contains
       inquire(file=trim(fullWorkingPath),exist=fileExists)
 
       if ( .not. fileExists ) then
-        if ( noAbort2 ) then
+        if ( noAbort ) then
           fullWorkingPath = ' '
         else
           write(*,*) 'ram_fullWorkingPath: file name          = ', trim(fileName2)

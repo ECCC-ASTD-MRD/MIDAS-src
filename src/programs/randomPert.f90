@@ -394,10 +394,10 @@ program midas_randomPert
 
     if( write_mpi ) then
       call gsv_writeToFileMPI(statevector, clfiname, out_etiket,      & ! IN
-                              HUcontainsLQ=.true., unitConversion=.true.)  ! IN
+                              HUcontainsLQ_opt=.true., unitConversion_opt=.true.)  ! IN
     else
       call gsv_writeToFile(statevector, clfiname, out_etiket,      & ! IN
-                           HUcontainsLQ=.true., unitConversion=.true.)  ! IN
+                           HUcontainsLQ_opt=.true., unitConversion_opt=.true.)  ! IN
     end if
 
     call gsv_deallocate(statevector)

@@ -45,12 +45,12 @@ module mpivar_mod
 
 
   subroutine mpivar_setup_latbands(nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd,  &
-                                   myLatHalfBeg, myLatHalfEnd, divisible_opt)
+                                   myLatHalfBeg_opt, myLatHalfEnd_opt, divisible_opt)
     ! Purpose: compute parameters that define the mpi distribution of
     !          latitudes over tasks in Y direction (npey)
     implicit none
     integer           :: nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd, njlath
-    integer, optional :: myLatHalfBeg, myLatHalfEnd
+    integer, optional :: myLatHalfBeg_opt, myLatHalfEnd_opt
     logical, optional :: divisible_opt
 
     integer :: latPerPEmin, ierr
@@ -72,17 +72,17 @@ module mpivar_mod
       firstCall = .false.
     end if
 
-    if (present(myLatHalfBeg).and.present(myLatHalfEnd)) then
+    if (present(myLatHalfBeg_opt).and.present(myLatHalfEnd_opt)) then
       njlath = (nj + 1) / 2
       if (myLatBeg <= njlath .and. myLatEnd <= njlath) then
-        myLatHalfBeg = myLatBeg
-        myLatHalfEnd = myLatEnd
+        myLatHalfBeg_opt = myLatBeg
+        myLatHalfEnd_opt = myLatEnd
       elseif (myLatBeg >= njlath .and. myLatEnd >= njlath) then
-        myLatHalfBeg = 1 + nj - myLatEnd
-        myLatHalfEnd = 1 + nj - myLatBeg
+        myLatHalfBeg_opt = 1 + nj - myLatEnd
+        myLatHalfEnd_opt = 1 + nj - myLatBeg
       else
-        myLatHalfBeg = min(myLatBeg, 1 + nj - myLatEnd)
-        myLatHalfEnd = njlath
+        myLatHalfBeg_opt = min(myLatBeg, 1 + nj - myLatEnd)
+        myLatHalfEnd_opt = njlath
       endif
     endif
 

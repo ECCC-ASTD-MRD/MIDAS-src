@@ -214,10 +214,10 @@ contains
     call mpivar_setup_latbands(hco_bhi%nj,                  & ! IN
                                latPerPE, latPerPEmax, myLatBeg, myLatEnd ) ! OUT
 
-    call lst_Setup( lst_bhi,                        & ! OUT
-                    hco_bhi%ni, hco_bhi%nj,         & ! IN
-                    hco_bhi%dlon, trunc,            & ! IN
-                    'LatLonMN', maxlevels_in=nksdim ) ! IN
+    call lst_Setup( lst_bhi,                         & ! OUT
+                    hco_bhi%ni, hco_bhi%nj,          & ! IN
+                    hco_bhi%dlon, trunc,             & ! IN
+                    'LatLonMN', maxlevels_opt=nksdim ) ! IN
 
     cvDim     = nkgdim * lst_bhi%nla * lst_bhi%nphase
     cvDim_out = cvDim
@@ -227,10 +227,10 @@ contains
 
     !- 2.3 Initialized the Wind spectral transform
     if ( trim(WindTransform) == 'VortDiv' ) then
-       call lst_Setup( lst_wind,                      & ! OUT
-                       hco_bhi%ni, hco_bhi%nj,        & ! IN
-                       hco_bhi%dlon, trunc,           & ! IN
-                      'LatLonMN', maxlevels_in=nlev_M ) ! IN
+       call lst_Setup( lst_wind,                       & ! OUT
+                       hco_bhi%ni, hco_bhi%nj,         & ! IN
+                       hco_bhi%dlon, trunc,            & ! IN
+                      'LatLonMN', maxlevels_opt=nlev_M ) ! IN
     end if
 
     !

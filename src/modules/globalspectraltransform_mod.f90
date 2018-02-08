@@ -132,14 +132,14 @@ CONTAINS
   END SUBROUTINE GST_setToDefaultID
 
 
-  integer FUNCTION GST_getNla(gstID_in)
+  integer FUNCTION GST_getNla(gstID_opt)
     implicit none
 
     integer :: gstID_l
-    integer,optional :: gstID_in
+    integer,optional :: gstID_opt
 
-    if(present(gstID_in)) then
-      gstID_l = gstID_in
+    if(present(gstID_opt)) then
+      gstID_l = gstID_opt
     else
       gstID_l = gstIdDefault
     endif
@@ -149,15 +149,15 @@ CONTAINS
   END FUNCTION GST_getNla
 
 
-  real(8) FUNCTION GST_getRmu(latIndex,gstID_in)
+  real(8) FUNCTION GST_getRmu(latIndex,gstID_opt)
     implicit none
 
     integer :: latIndex,gstID_l
-    integer,optional :: gstID_in
+    integer,optional :: gstID_opt
     integer :: latIndex2
 
-    if(present(gstID_in)) then
-      gstID_l = gstID_in
+    if(present(gstID_opt)) then
+      gstID_l = gstID_opt
     else
       gstID_l = gstIdDefault
     endif
@@ -169,14 +169,14 @@ CONTAINS
   END FUNCTION GST_getRmu
 
 
-  real(8) FUNCTION GST_getRnnp1(ilaIndex,gstID_in)
+  real(8) FUNCTION GST_getRnnp1(ilaIndex,gstID_opt)
     implicit none
 
     integer :: ilaIndex,gstID_l
-    integer,optional :: gstID_in
+    integer,optional :: gstID_opt
 
-    if(present(gstID_in)) then
-      gstID_l = gstID_in
+    if(present(gstID_opt)) then
+      gstID_l = gstID_opt
     else
       gstID_l = gstIdDefault
     endif
@@ -186,14 +186,14 @@ CONTAINS
   END FUNCTION GST_getRnnp1
 
 
-  real(8) FUNCTION GST_getR1snp1(ilaIndex,gstID_in)
+  real(8) FUNCTION GST_getR1snp1(ilaIndex,gstID_opt)
     implicit none
 
     integer :: ilaIndex,gstID_l
-    integer,optional :: gstID_in
+    integer,optional :: gstID_opt
 
-    if(present(gstID_in)) then
-      gstID_l = gstID_in
+    if(present(gstID_opt)) then
+      gstID_l = gstID_opt
     else
       gstID_l = gstIdDefault
     endif
@@ -203,15 +203,15 @@ CONTAINS
   END FUNCTION GST_getR1snp1
 
 
-  real(8) FUNCTION GST_getRwt(latIndex,gstID_in)
+  real(8) FUNCTION GST_getRwt(latIndex,gstID_opt)
     implicit none
 
     integer :: latIndex,gstID_l
-    integer,optional :: gstID_in
+    integer,optional :: gstID_opt
     integer :: latIndex2
   
-    if(present(gstID_in)) then
-      gstID_l = gstID_in
+    if(present(gstID_opt)) then
+      gstID_l = gstID_opt
     else
       gstID_l = gstIdDefault
     endif
@@ -223,14 +223,14 @@ CONTAINS
   END FUNCTION GST_getRwt
 
 
-  integer FUNCTION GST_getNind(mIndex,gstID_in)
+  integer FUNCTION GST_getNind(mIndex,gstID_opt)
     implicit none
 
     integer :: mIndex,gstID_l
-    integer,optional :: gstID_in
+    integer,optional :: gstID_opt
   
-    if(present(gstID_in)) then
-      gstID_l = gstID_in
+    if(present(gstID_opt)) then
+      gstID_l = gstID_opt
     else
       gstID_l = gstIdDefault
     endif
@@ -240,15 +240,15 @@ CONTAINS
   END FUNCTION GST_getNind
 
 
-  real(8) FUNCTION GST_getRlati(latIndex,gstID_in)
+  real(8) FUNCTION GST_getRlati(latIndex,gstID_opt)
     implicit none
 
     integer :: latIndex,gstID_l
-    integer,optional :: gstID_in
+    integer,optional :: gstID_opt
     integer :: latIndex2
  
-    if(present(gstID_in)) then
-      gstID_l = gstID_in
+    if(present(gstID_opt)) then
+      gstID_l = gstID_opt
     else
       gstID_l = gstIdDefault
     endif
@@ -260,15 +260,15 @@ CONTAINS
   END FUNCTION GST_getRlati
 
 
-  real(8) FUNCTION GST_getR1qm2(latIndex,gstID_in)
+  real(8) FUNCTION GST_getR1qm2(latIndex,gstID_opt)
     implicit none
 
     integer :: latIndex,gstID_l
-    integer,optional :: gstID_in
+    integer,optional :: gstID_opt
     integer :: latIndex2
   
-    if(present(gstID_in)) then
-      gstID_l = gstID_in
+    if(present(gstID_opt)) then
+      gstID_l = gstID_opt
     else
       gstID_l = gstIdDefault
     endif
@@ -280,15 +280,15 @@ CONTAINS
   END FUNCTION GST_getR1qm2
 
 
-  real(8) FUNCTION GST_getRsqm2(latIndex,gstID_in)
+  real(8) FUNCTION GST_getRsqm2(latIndex,gstID_opt)
     implicit none
 
     integer :: latIndex,gstID_l
-    integer,optional :: gstID_in
+    integer,optional :: gstID_opt
     integer :: latIndex2
 
-    if(present(gstID_in)) then
-      gstID_l = gstID_in
+    if(present(gstID_opt)) then
+      gstID_l = gstID_opt
     else
       gstID_l = gstIdDefault
     endif
@@ -2888,12 +2888,12 @@ CONTAINS
   END SUBROUTINE ALLOCATE_COMLEG
 
 
-  SUBROUTINE SULEG(lverbose_in)
+  SUBROUTINE SULEG(lverbose_opt)
     !
     !**s/r SULEG  - Initialisation of Gaussian latitudes, weights and related
     !     .         quantities
     implicit none
-    logical, optional :: lverbose_in
+    logical, optional :: lverbose_opt
 
     logical :: lverbose
     integer :: jlat, jm
@@ -2906,8 +2906,8 @@ CONTAINS
     ! rwt = gauss weight (complicated)
     ! rwocs = rwt / cos(latitude)^2
 
-    if(present(lverbose_in)) then
-      lverbose = lverbose_in
+    if(present(lverbose_opt)) then
+      lverbose = lverbose_opt
     else
       lverbose = .false.
     endif

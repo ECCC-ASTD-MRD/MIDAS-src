@@ -77,11 +77,11 @@ module analysisGrid_mod
 !--------------------------------------------------------------------------
 ! agd_SetupFromHCO
 !--------------------------------------------------------------------------
-  subroutine agd_SetupFromHCO( hco_ext_in, hco_core_in )
+  subroutine agd_SetupFromHCO( hco_ext_in, hco_core_opt )
     implicit none
 
     type(struct_hco), pointer :: hco_ext_in
-    type(struct_hco), pointer, optional :: hco_core_in
+    type(struct_hco), pointer, optional :: hco_core_opt
 
     real(8), allocatable :: rlath  (:) ! Latitudes of half grid-points of gridpoints in lat-direction
     real(8), allocatable :: rrcos  (:) ! 1.0/Cos(Latitudes of gridpoints)
@@ -104,8 +104,8 @@ module analysisGrid_mod
     !- 1.  Check the hco structures
     !
     hco_ext  => hco_ext_in
-    if( present(hco_core_in) ) then
-      hco_core => hco_core_in
+    if( present(hco_core_opt) ) then
+      hco_core => hco_core_opt
     else
       hco_core => hco_ext_in
     end if

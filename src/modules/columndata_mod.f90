@@ -169,13 +169,13 @@ module columnData_mod
     END SUBROUTINE col_zero
 
 
-    SUBROUTINE col_allocate(column, numCol, mpi_local, beSilent_opt, setToZero_opt)
+    SUBROUTINE col_allocate(column, numCol, mpiLocal_opt, beSilent_opt, setToZero_opt)
       IMPLICIT NONE
 
       ! arguments
       type(struct_columnData) :: column
       integer, intent(in)     :: numCol
-      logical, optional       :: mpi_local
+      logical, optional       :: mpiLocal_opt
       logical, optional       :: beSilent_opt
       logical, optional       :: setToZero_opt
 
@@ -196,8 +196,8 @@ module columnData_mod
       end if
 
       column%numCol = numCol
-      if(present(mpi_local)) then
-        column%mpi_local=mpi_local
+      if(present(mpiLocal_opt)) then
+        column%mpi_local=mpiLocal_opt
       else
         column%mpi_local=.true.
         if (mpi_myid == 0 .and. .not.beSilent) write(*,*) 'col_allocate: assuming columnData is mpi-local'
@@ -311,7 +311,7 @@ module columnData_mod
     END SUBROUTINE col_deallocate
 
 
-    SUBROUTINE col_fillmvo(columnghr,pvar,varName,varLevel)
+    SUBROUTINE col_fillmvo(columnghr,pvar,varName,varLevel_opt)
     !
     !**s/r fillmvo - Fill in values for a complete set of columns at once
     !
@@ -326,7 +326,7 @@ module columnData_mod
     type(struct_columnData) :: columnghr
     real*8 pvar(:,:)
     character(len=*) :: varName
-    character(len=*), optional :: varLevel
+    character(len=*), optional :: varLevel_opt
 
     integer jobs, jlev, status, vcode, nlev_M, nlev_T
     real(8), pointer :: column_ptr(:)
@@ -339,21 +339,21 @@ module columnData_mod
     ! Pressure
     select case(trim(varName))
     case('PRES')
-      if(present(varLevel)) then
-        if(varLevel == 'TH') then
+      if(present(varLevel_opt)) then
+        if(varLevel_opt == 'TH') then
           do jobs = 1, columnghr%numCol
             do jlev = 1, nlev_T
               columnghr%pressure_T(jlev,jobs) = pvar(jlev,jobs)
             enddo
           enddo
-        elseif(varLevel == 'MM') then
+        elseif(varLevel_opt == 'MM') then
           do jobs = 1, columnghr%numCol
             do jlev = 1, nlev_M
               columnghr%pressure_M(jlev,jobs) = pvar(jlev,jobs)
             enddo
           enddo
         else
-          call utl_abort('col_fillmvo: must specify varLevel TH or MM for Pressure! ' // varLevel)
+          call utl_abort('col_fillmvo: must specify varLevel TH or MM for Pressure! ' // varLevel_opt)
         endif
       else
         call utl_abort('col_fillmvo: must specify varLevel for Pressure!')
@@ -361,8 +361,8 @@ module columnData_mod
 
     ! Height
     case('GZ')
-      if(present(varLevel)) then
-        if(varLevel == 'TH') then
+      if(present(varLevel_opt)) then
+        if(varLevel_opt == 'TH') then
           if(vcode == 5005 .and. AddGZSfcOffset) then
             status = vgd_get(columnghr%vco%vgrid,key='DHT - height of the diagnostic level (t)',value=gz_sfcOffset_r4)
           else
@@ -378,7 +378,7 @@ module columnData_mod
             ! adjust heights of near-surface GZ
             columnghr%gz_T(nlev_T,jobs) = columnghr%gz_T(nlev_T,jobs) + real(gz_sfcOffset_r4,8) * RG
           enddo
-        elseif(varLevel == 'MM') then
+        elseif(varLevel_opt == 'MM') then
           if(vcode == 5005 .and. AddGZSfcOffset) then
             status = vgd_get(columnghr%vco%vgrid,key='DHM - height of the diagnostic level (m)',value=gz_sfcOffset_r4)
           else
@@ -395,7 +395,7 @@ module columnData_mod
             columnghr%gz_M(nlev_M,jobs) = columnghr%gz_M(nlev_M,jobs) + real(gz_sfcOffset_r4,8) * RG
           enddo
         else
-          call utl_abort('col_fillmvo: must specify varLevel TH or MM for GZ! ' // varLevel)
+          call utl_abort('col_fillmvo: must specify varLevel TH or MM for GZ! ' // varLevel_opt)
         endif
       else
         call utl_abort('col_fillmvo: must specify varLevel for GZ!')
@@ -438,7 +438,7 @@ module columnData_mod
     end function col_varExist
 
 
-    function col_getOffsetFromVarno(column,varnum,varCHnumber) result(offset)
+    function col_getOffsetFromVarno(column,varnum,varCHnumber_opt) result(offset)
 !
 !   Revisions:
 !             Y.J. Rochon (ARQI), Jan. 2015
@@ -447,11 +447,11 @@ module columnData_mod
       implicit none
       type(struct_columnData) :: column
       integer, intent(in)     :: varnum
-      integer, intent(in), optional     :: varCHnumber
+      integer, intent(in), optional     :: varCHnumber_opt
       integer                 :: offset
 
-      if (present(varCHnumber)) then
-         offset=column%varOffset(vnl_varListIndex(vnl_varnameFromVarnum(varnum,varCHnumber)))
+      if (present(varCHnumber_opt)) then
+         offset=column%varOffset(vnl_varListIndex(vnl_varnameFromVarnum(varnum,varCHnumber_opt)))
       else
          offset=column%varOffset(vnl_varListIndex(vnl_varnameFromVarnum(varnum)))
       end if
@@ -750,23 +750,23 @@ module columnData_mod
   end subroutine col_copyLatLon
 
 
-  function col_getAllColumns(column,varName) result(allColumns)
+  function col_getAllColumns(column,varName_opt) result(allColumns)
     implicit none
     type(struct_columnData), intent(in)    :: column
-    character(len=*), intent(in), optional :: varName
+    character(len=*), intent(in), optional :: varName_opt
     real*8,pointer                         :: allColumns(:,:)
     integer                                :: ilev1,ilev2
 
     if ( column%numCol > 0 ) then
-      if(present(varName)) then
-        if(trim(varName) == 'GZ') then
+      if(present(varName_opt)) then
+        if(trim(varName_opt) == 'GZ') then
           call utl_abort('col_getAllColumns: Cannot call this for GZ!')
-        elseif(col_varExist(varName)) then
-          ilev1 = column%varOffset(vnl_varListIndex(varName))+1
-          ilev2 = ilev1 - 1 + column%varNumLev(vnl_varListIndex(varName))
+        elseif(col_varExist(varName_opt)) then
+          ilev1 = column%varOffset(vnl_varListIndex(varName_opt))+1
+          ilev2 = ilev1 - 1 + column%varNumLev(vnl_varListIndex(varName_opt))
           allColumns => column%all(ilev1:ilev2,:)
         else
-          call utl_abort('col_getAllColumns: Unknown variable name! ' // varName)
+          call utl_abort('col_getAllColumns: Unknown variable name! ' // varName_opt)
         endif
       else
         allColumns => column%all(:,:)
@@ -778,53 +778,53 @@ module columnData_mod
   end function col_getAllColumns
 
 
-  function col_getColumn(column,headerIndex,varName,varLevel) result(onecolumn)
+  function col_getColumn(column,headerIndex,varName_opt,varLevel_opt) result(onecolumn)
     implicit none
     type(struct_columnData), intent(in)    :: column
     integer, intent(in)                    :: headerIndex
-    character(len=*), intent(in), optional :: varName
-    character(len=*), intent(in), optional :: varLevel
+    character(len=*), intent(in), optional :: varName_opt
+    character(len=*), intent(in), optional :: varLevel_opt
     real*8,pointer                         :: onecolumn(:)
     integer                                :: ilev1,ilev2
 
-    if(present(varName)) then
-      if(col_varExist(varName)) then
+    if(present(varName_opt)) then
+      if(col_varExist(varName_opt)) then
 
-        select case(trim(varName))
+        select case(trim(varName_opt))
         case('PRES')
-          if(present(varLevel)) then 
-            if(varLevel == 'TH') then
+          if(present(varLevel_opt)) then 
+            if(varLevel_opt == 'TH') then
               onecolumn => column%pressure_T(:,headerIndex)
-            elseif(varLevel == 'MM') then
+            elseif(varLevel_opt == 'MM') then
               onecolumn => column%pressure_M(:,headerIndex)
             else
-              call utl_abort('col_getColumn: varLevel must MM or TH for Pressure! ' // varLevel)         
+              call utl_abort('col_getColumn: varLevel must MM or TH for Pressure! ' // varLevel_opt)         
             endif
           else
             call utl_abort('col_getColumn: varLevel must be specified for Pressure!')
           endif
 
         case('GZ')
-          if(present(varLevel)) then 
-            if(varLevel == 'TH') then
+          if(present(varLevel_opt)) then 
+            if(varLevel_opt == 'TH') then
               onecolumn => column%gz_T(:,headerIndex)
-            elseif(varLevel == 'MM') then
+            elseif(varLevel_opt == 'MM') then
               onecolumn => column%gz_M(:,headerIndex)
             else
-              call utl_abort('col_getColumn: varLevel must MM or TH for Height! ' // varLevel)         
+              call utl_abort('col_getColumn: varLevel must MM or TH for Height! ' // varLevel_opt)         
             endif
           else
             call utl_abort('col_getColumn: varLevel must be specified for Height!')         
           endif
 
         case default ! all other variable names
-          ilev1 = column%varOffset(vnl_varListIndex(varName))+1
-          ilev2 = ilev1 - 1 + column%varNumLev(vnl_varListIndex(varName))
+          ilev1 = column%varOffset(vnl_varListIndex(varName_opt))+1
+          ilev2 = ilev1 - 1 + column%varNumLev(vnl_varListIndex(varName_opt))
           onecolumn => column%all(ilev1:ilev2,headerIndex)
         end select
 
       else
-        call utl_abort('col_getColumn: Unknown variable name! ' // varName)
+        call utl_abort('col_getColumn: Unknown variable name! ' // varName_opt)
       endif
     else
       onecolumn => column%all(:,headerIndex)
@@ -833,19 +833,19 @@ module columnData_mod
   end function col_getColumn
 
 
-  function col_getElem(column,ilev,headerIndex,varName) result(value)
+  function col_getElem(column,ilev,headerIndex,varName_opt) result(value)
     implicit none
     type(struct_columnData), intent(in)    :: column
     integer, intent(in)                    :: ilev
     integer, intent(in)                    :: headerIndex
-    character(len=*), intent(in), optional :: varName
+    character(len=*), intent(in), optional :: varName_opt
     real*8                                 :: value
 
-    if(present(varName)) then
-      if(.not.col_varExist(varName)) call utl_Abort('col_getElem: Unknown variable name! ' // varName)
-      if(trim(varName) == 'GZ') call utl_Abort('col_getElem: cannot call for GZ!')
-      if(trim(varName) == 'PRES') call utl_Abort('col_getElem: cannot call for Pressure!')
-      value = column%all(column%varOffset(vnl_varListIndex(varName))+ilev,headerIndex)
+    if(present(varName_opt)) then
+      if(.not.col_varExist(varName_opt)) call utl_Abort('col_getElem: Unknown variable name! ' // varName_opt)
+      if(trim(varName_opt) == 'GZ') call utl_Abort('col_getElem: cannot call for GZ!')
+      if(trim(varName_opt) == 'PRES') call utl_Abort('col_getElem: cannot call for Pressure!')
+      value = column%all(column%varOffset(vnl_varListIndex(varName_opt))+ilev,headerIndex)
     else
       value = column%all(ilev,headerIndex)
     endif

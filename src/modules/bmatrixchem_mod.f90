@@ -200,14 +200,14 @@ CONTAINS
 !!v          - various
 !!
 !------------------------------------------------------------------------------------------
-  SUBROUTINE BCHM_setup(hco_in,vco_in,CVDIM_OUT,mode)
+  SUBROUTINE BCHM_setup(hco_in,vco_in,CVDIM_OUT,mode_opt)
 
     implicit none
 
     type(struct_hco),pointer :: hco_in
     type(struct_vco),pointer :: vco_in
     integer                  :: cvDim_out
-    character(len=*), intent(in), optional :: mode
+    character(len=*), intent(in), optional :: mode_opt
 
     integer :: jlev, nulnam, ierr, fnom, fclos, jm, jn, status
     integer :: latPerPE, latPerPEmax, lonPerPE, lonPerPEmax
@@ -227,14 +227,14 @@ CONTAINS
     allocate(nsposit(vnl_numvarmax+1))
     nsposit(1)=1
 
-    if ( present(mode) ) then
-       if ( trim(mode) == 'Analysis' .or. trim(mode) == 'BackgroundCheck') then
-         bchm_mode = trim(mode)
+    if ( present(mode_opt) ) then
+       if ( trim(mode_opt) == 'Analysis' .or. trim(mode_opt) == 'BackgroundCheck') then
+         bchm_mode = trim(mode_opt)
          if(mpi_myid == 0) write(*,*)
          if(mpi_myid == 0) write(*,*) 'bchm_setup: Mode activated = ', trim(bchm_mode)
        else
           write(*,*)
-          write(*,*) 'mode = ', trim(mode)
+          write(*,*) 'mode = ', trim(mode_opt)
           call utl_abort('bchm_setup: unknown mode')
        end if
     else
@@ -2741,7 +2741,7 @@ CONTAINS
 !!
 !-----------------------------------------------------------------------------------------------
   Subroutine bchm_corvert_mult(varName,rmat_in,rmat_out,lvl_top,lvl_bot,ndim1,ndim2,ndim3, &
-                               lrgsig,itype,rsig)
+                               lrgsig,itype,rsig_opt)
 
     implicit none
     character(len=*), intent(in) :: varName
@@ -2750,14 +2750,14 @@ CONTAINS
     logical, intent(in) :: lrgsig
     real(8), intent(in) :: rmat_in(ndim1,ndim2)
     real(8), intent(inout) :: rmat_out(ndim1,ndim3)
-    real(8), intent(in), optional :: rsig(ndim2)
+    real(8), intent(in), optional :: rsig_opt(ndim2)
    
     integer :: jvar,jk1,jk2,jk3,nsize
     real(8) :: rmat_work(ndim2,ndim2),rsum
 
     if (.not.initialized) return
  
-    if (.not.present(rsig).and.lrgsig) call utl_abort('BCHM_corvert_mult: Missing rsig')  
+    if (.not.present(rsig_opt).and.lrgsig) call utl_abort('BCHM_corvert_mult: Missing rsig_opt')  
 
 !   Determine location and size in bchm_corvert/bchm_corverti
     
@@ -2781,7 +2781,7 @@ CONTAINS
           do jk1=1,nsize
           do jk2=1,ndim1
              rmat_work(jk1,jk2)=sum(rmat_in(jk2,lvl_top(jk2):lvl_bot(jk2))*bchm_corvert(jk1,lvl_top(jk2):lvl_bot(jk2),jvar) &
-                                   *rsig(lvl_top(jk2):lvl_bot(jk2)))*rsig(jk1)
+                                   *rsig_opt(lvl_top(jk2):lvl_bot(jk2)))*rsig_opt(jk1)
           end do
           end do
        else
@@ -2806,7 +2806,7 @@ CONTAINS
           do jk1=1,nsize
           do jk2=1,ndim1
              rmat_work(jk1,jk2)=sum(rmat_in(jk2,lvl_top(jk2):lvl_bot(jk2))*bchm_corverti(jk1,lvl_top(jk2):lvl_bot(jk2),jvar) &
-                                   /rsig(lvl_top(jk2):lvl_bot(jk2)))/rsig(jk1)
+                                   /rsig_opt(lvl_top(jk2):lvl_bot(jk2)))/rsig_opt(jk1)
           end do
           end do
        else
@@ -2832,7 +2832,7 @@ CONTAINS
           do jk1=1,nsize
           do jk3=1,nsize
              do jk2=lvl_top(jk3),lvl_bot(jk3)     ! Instead of do jk2=1,ndim2
-                rmat_out(jk1,jk2)=rmat_out(jk1,jk2)+bchm_corvert(jk1,jk3,jvar)*rsig(jk3)*rsig(jk1)*rmat_in(jk3,jk2)
+                rmat_out(jk1,jk2)=rmat_out(jk1,jk2)+bchm_corvert(jk1,jk3,jvar)*rsig_opt(jk3)*rsig_opt(jk1)*rmat_in(jk3,jk2)
              end do
           end do
           end do
@@ -2855,7 +2855,7 @@ CONTAINS
           do jk1=1,nsize
           do jk3=1,nsize
              do jk2=lvl_top(jk3),lvl_bot(jk3)     ! Instead of do jk2=1,ndim2
-                rmat_out(jk1,jk2)=rmat_out(jk1,jk2)+bchm_corverti(jk1,jk3,jvar)*rmat_in(jk3,jk2)/(rsig(jk3)*rsig(jk1))
+                rmat_out(jk1,jk2)=rmat_out(jk1,jk2)+bchm_corverti(jk1,jk3,jvar)*rmat_in(jk3,jk2)/(rsig_opt(jk3)*rsig_opt(jk1))
              end do
           end do
           end do
@@ -2878,7 +2878,7 @@ CONTAINS
           do jk1=1,ndim1
           do jk2=1,nsize
              rmat_out(jk1,jk2)=sum(rmat_in(jk1,lvl_top(jk1):lvl_bot(jk1))*bchm_corvert(lvl_top(jk1):lvl_bot(jk1),jk2,jvar) &
-                                  *rsig(lvl_top(jk1):lvl_bot(jk1)))*rsig(jk2)
+                                  *rsig_opt(lvl_top(jk1):lvl_bot(jk1)))*rsig_opt(jk2)
           end do
           end do
        else
@@ -2898,7 +2898,7 @@ CONTAINS
           do jk1=1,ndim1
           do jk2=1,nsize
              rmat_out(jk1,jk2)=sum(rmat_in(jk1,lvl_top(jk1):lvl_bot(jk1))*bchm_corverti(lvl_top(jk1):lvl_bot(jk1),jk2,jvar) &
-                                  /rsig(lvl_top(jk1):lvl_bot(jk1)))/rsig(jk2)
+                                  /rsig_opt(lvl_top(jk1):lvl_bot(jk1)))/rsig_opt(jk2)
           end do
           end do
        else
@@ -2917,8 +2917,8 @@ CONTAINS
        if (lrgsig) then
           do jk1=1,ndim1
           do jk2=lvl_top(jk1),lvl_bot(jk1)   ! instead of do jk2=1,nsize
-              rmat_out(jk1,jk2)=rmat_in(jk1,jk2)/rsig(jk2) &
-                  /sum(bchm_corvert(1:nsize,jk2,jvar)/rsig(1:nsize)) 
+              rmat_out(jk1,jk2)=rmat_in(jk1,jk2)/rsig_opt(jk2) &
+                  /sum(bchm_corvert(1:nsize,jk2,jvar)/rsig_opt(1:nsize)) 
           end do
           end do
        else

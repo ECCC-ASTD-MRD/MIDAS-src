@@ -237,7 +237,7 @@ program midas_diagBmatrix
             ip3 = ip3 + 1
 
             call gsv_writeToFile(statevector,filename,'1OBS_'//trim(vnl_varNameList(jvar)),  &
-                 ip3_in=ip3,HUcontainsLQ=.true.,unitConversion=.true.)
+                 ip3_opt=ip3,HUcontainsLQ_opt=.true.,unitConversion_opt=.true.)
 
             ! Normalized the result to get correlation-like pattern
             centralValue = 0.d0
@@ -261,7 +261,7 @@ program midas_diagBmatrix
             end if
 
             call gsv_writeToFile(statevector,filename,'1OBSNRM_'//trim(vnl_varNameList(jvar)),  &
-                 ip3_in=ip3,HUcontainsLQ=.true.,unitConversion=.false.)
+                 ip3_opt=ip3,HUcontainsLQ_opt=.true.,unitConversion_opt=.false.)
 
             ! Write the ensemble amplitude fields (i.e., the alphas) when Bens is active
             if (writeEnsAmplitude) call ben_writeAmplitude('./',filenameEnsAmp, ip3) ! IN
@@ -346,7 +346,7 @@ program midas_diagBmatrix
 !$OMP END PARALLEL DO
 
             call gsv_writeToFile(statevectorEnsAmp,filename,'ONEOBS',  &
-                 ip3_in=ip3,unitConversion=.false.)
+                 ip3_opt=ip3,unitConversion_opt=.false.)
 
           end do
         end do
@@ -507,7 +507,7 @@ program midas_diagBmatrix
 
     !- Write to file
     call gsv_writeToFile(statevector,'stddev_' // datestr // '.fst','GD_STDDEV',  &
-         HUcontainsLQ=.true.,unitConversion=.true.)
+         HUcontainsLQ_opt=.true.,unitConversion_opt=.true.)
 
     !
     !- Compute the zonal mean std dev
@@ -552,7 +552,7 @@ program midas_diagBmatrix
     deallocate(stddev_zm2)
 
     call gsv_writeToFile(statevector,'stddev_' // datestr // '.fst','ZM_STDDEV',  &
-                         HUcontainsLQ=.true.,unitConversion=.true.)
+                         HUcontainsLQ_opt=.true.,unitConversion_opt=.true.)
 
     ! Write the zonal mean stddev to a text file, if requested
     if ( writeTextStddev ) then
@@ -632,7 +632,7 @@ program midas_diagBmatrix
     deallocate(controlVector_global)
 
     call gsv_writeToFile(statevector,'stddev_' // datestr // '.fst','DM_STDDEV',  &
-         HUcontainsLQ=.true.,unitConversion=.true.)
+         HUcontainsLQ_opt=.true.,unitConversion_opt=.true.)
 
   end if ! if numperturbations.gt.1
 

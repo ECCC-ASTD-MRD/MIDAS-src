@@ -45,33 +45,32 @@ contains
 !!
 !! Revisions:
 !!v      M. Sitwell, March 2017
-!!v        - Added optional input argument obs_ass_flag
+!!v        - Added optional input argument obsAssVal
 !--------------------------------------------------------------------------
-  SUBROUTINE res_compute(obsSpaceData,obs_ass_flag)
-    use obsSpaceData_mod
+  subroutine res_compute(obsSpaceData,obsAssVal_opt)
     implicit none
 
     type(struct_obs) :: obsSpaceData 
-    integer, intent(in), optional :: obs_ass_flag
-    integer index_body,obs_ass_val
+    integer, intent(in), optional :: obsAssVal_opt
+    integer :: index_body, obsAssVal
 
-    if (present(obs_ass_flag)) then
-       obs_ass_val = obs_ass_flag
+    if (present(obsAssVal_opt)) then
+      obsAssVal = obsAssVal_opt
     else
-       obs_ass_val = 1
-    end if
+      obsAssVal = 1
+    endif
 
 !$OMP PARALLEL DO PRIVATE(index_body)
     do index_body=1,obs_numbody(obsSpaceData)
-       if(obs_bodyElem_i(obsSpaceData,OBS_ASS,index_body).eq.obs_ass_val) then
-          call obs_bodySet_r(obsSpaceData,OBS_OMA,index_body, &
-               obs_bodyElem_r(obsSpaceData,OBS_OMP,index_body) &
-               -obs_bodyElem_r(obsSpaceData,OBS_WORK,index_body))
-       end if
-    end do
+      if(obs_bodyElem_i(obsSpaceData,OBS_ASS,index_body).eq.obsAssVal) then
+        call obs_bodySet_r(obsSpaceData,OBS_OMA,index_body, &
+             obs_bodyElem_r(obsSpaceData,OBS_OMP,index_body) &
+             -obs_bodyElem_r(obsSpaceData,OBS_WORK,index_body))
+      endif
+    enddo
 !$OMP END PARALLEL DO
 
-  END SUBROUTINE res_compute
+  end subroutine res_compute
 
 !--------------------------------------------------------------------------
 !! *Purpose*: Adjoint of computing residuals to observations.
@@ -79,30 +78,30 @@ contains
 !!
 !! Revisions:
 !!v      M. Sitwell, March 2017
-!!v        - Added optional input argument obs_ass_flag
+!!v        - Added optional input argument obsAssVal_opt
 !--------------------------------------------------------------------------
-  SUBROUTINE res_computeAd(obsSpaceData,obs_ass_flag)
+  subroutine res_computeAd(obsSpaceData,obsAssVal_opt)
     implicit none
 
     type(struct_obs) :: obsSpaceData
-    integer, intent(in), optional :: obs_ass_flag
-    integer index_body,obs_ass_val
+    integer, intent(in), optional :: obsAssVal_opt
+    integer :: index_body,obsAssVal
     
-    if (present(obs_ass_flag)) then
-       obs_ass_val = obs_ass_flag
+    if (present(obsAssVal_opt)) then
+      obsAssVal = obsAssVal_opt
     else
-       obs_ass_val = 1
-    end if
+      obsAssVal = 1
+    endif
 
 !$OMP PARALLEL DO PRIVATE(index_body)
     do index_body=1,obs_numbody(obsSpaceData)
-       if(obs_bodyElem_i(obsSpaceData,OBS_ASS,index_body).eq.obs_ass_val) then
-          call obs_bodySet_r(obsSpaceData,OBS_WORK,index_body, &
-               -obs_bodyElem_r(obsSpaceData,OBS_WORK,index_body))
-       endif
+      if(obs_bodyElem_i(obsSpaceData,OBS_ASS,index_body).eq.obsAssVal) then
+        call obs_bodySet_r(obsSpaceData,OBS_WORK,index_body, &
+             -obs_bodyElem_r(obsSpaceData,OBS_WORK,index_body))
+      endif
     enddo
 !$OMP END PARALLEL DO
 
-  END SUBROUTINE res_computeAd
+  end subroutine res_computeAd
 
 end module residual_mod

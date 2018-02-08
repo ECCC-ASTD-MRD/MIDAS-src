@@ -282,7 +282,7 @@ contains
       NOBMAX = iptobs(count_profile)
       !     compute the number of calculated radiances for one call
       count_tb = tvs_countRadiances(iptobs, count_profile, lobsSpaceData, &
-           assim_flag_val=obs_ass_val)
+           assim_flag_val_opt=obs_ass_val)
       if ( count_tb == 0 ) cycle  sensor_loop
    
       allocate (xpres(nlevels))
@@ -501,10 +501,10 @@ contains
     
       !     get Hyperspecral IR emissivities
       if ( tvs_isInstrumHyperSpectral(instrum) ) call tvs_getHIREmissivities(sensor_id, iptobs, &
-           count_profile, lobsSpaceData, surfem1,assim_flag_val=obs_ass_val)
+           count_profile, lobsSpaceData, surfem1,assim_flag_val_opt=obs_ass_val)
 
       call TVS_getChanprof(sensor_id, iptobs, count_profile, lobsSpaceData, chanprof, &
-           iptobs_cma=iptobs_body,assim_flag_val=obs_ass_val)
+           iptobs_cma_opt=iptobs_body,assim_flag_val_opt=obs_ass_val)
 
       ! allocate transmitance structure
       call rttov_alloc_transmission(alloc_status(1),transmission,nlevels=nlevels, &

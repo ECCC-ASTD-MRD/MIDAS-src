@@ -108,14 +108,14 @@ contains
 !!v                          observation space, sqrt(diag(H*B_static*H^T)).
 !!v                          Saved in OBS_HPHT of obsSpaceData
 !!v                       2) Hdx saved in OBS_WORK of obsSpaceData
-!!v                       3) H^T * R^-1 (OmP-Hdx) in column_inc
+!!v                       3) H^T * R^-1 (OmP-Hdx) in columnInc
 !!
 !!v   jobs            Optional output of total Jo(x_background) for chemical constituents. 
 !!v                   Required for kmode=0 and not provided otherwise.
 !!
 !! Inout
 !!
-!!v   column_inc      Optional argument for input/output of column of increment (column).
+!!v   columnInc      Optional argument for input/output of column of increment (column).
 !!v                   For kmode=2, used as input for increment H_horiz dx interpolated
 !!v                   to observation location. For kmode=3, used as output for
 !!v                   H^T * R^-1 (OmP-Hdx). Required for kmode=2,3.
@@ -146,23 +146,23 @@ contains
 !!v               ... obs_bodyElem_r(obsSpaceData, ... ,bodyIndex)   
 !!v            end do
 !--------------------------------------------------------------------------
-  subroutine chm_observation_operators(column_bkgrnd,obsSpaceData,kmode,column_inc,obs_ass_flag,jobs)
+  subroutine chm_observation_operators(column_bkgrnd,obsSpaceData,kmode,columnInc_opt,obsAssVal_opt,jobs_opt)
 
     implicit none
     
     ! Subroutine arguments
 
     type(struct_columnData), intent(inout) :: column_bkgrnd
-    type(struct_columnData), intent(inout), optional :: column_inc
+    type(struct_columnData), intent(inout), optional :: columnInc_opt
     type(struct_obs), intent(inout) :: obsSpaceData
     integer, intent(in) :: kmode
-    integer, intent(in), optional  :: obs_ass_flag
-    real(8), intent(out), optional :: jobs
+    integer, intent(in), optional  :: obsAssVal_opt
+    real(8), intent(out), optional :: jobs_opt
 
     ! Local variables
     
     real(8) :: zomp,zinc
-    integer :: unit,ier,obs_ass_val
+    integer :: unit,ier,obsAssVal
     integer, external :: fclos
 
     ! Obs space local variables
@@ -183,10 +183,10 @@ contains
     
     type(struct_chm_obsoperators) :: obsoper
 
-    if (present(obs_ass_flag)) then
-       obs_ass_val = obs_ass_flag
+    if (present(obsAssVal_opt)) then
+       obsAssVal = obsAssVal_opt
     else
-       obs_ass_val = 1
+       obsAssVal = 1
     end if
 
     ! Open message file (file may be written to from routines in chem_obsdata_mod)
@@ -194,21 +194,21 @@ contains
     call utl_open_asciifile(chm_setup_get_str('message'),unit)
     ier = chm_setup_set_int('message_unit',unit)      ! Update unit
 
-    if ((kmode.eq.2.or.kmode.eq.3) .and. (.not.present(column_inc))) then
-       write(*,*) "chm_observation_operators: column_inc must be specified for kmode = ",kmode
+    if ((kmode.eq.2.or.kmode.eq.3) .and. (.not.present(columnInc_opt))) then
+       write(*,*) "chm_observation_operators: columnInc_opt must be specified for kmode = ",kmode
        call utl_abort("chm_observation_operators")
     end if
     
     ! Initializations
         
-    if (present(jobs)) jobs = 0.d0
+    if (present(jobs_opt)) jobs_opt = 0.d0
 
     nlev_bkgrnd = col_getNumLev(column_bkgrnd,varLevel)
     
     ! Allocate memory for model_col. Not necessary for kmode=0 since model_col points to obsoper%trial.
     select case(kmode)
     case(2)
-       nlev_inc = col_getNumLev(column_inc,varLevel)
+       nlev_inc = col_getNumLev(columnInc_opt,varLevel)
        allocate(model_col(nlev_inc))
     case(1,3)
        allocate(model_col(nlev_bkgrnd))
@@ -272,9 +272,9 @@ contains
                
             ! Indicates if this obs should be processed by chm_obsoperators
             if (kmode.eq.1) then
-               process_obs(iobslev) = ixtr(iobslev).eq.0.and.(iass(iobslev).eq.obs_ass_val.or.iass(iobslev).eq.3)
+               process_obs(iobslev) = ixtr(iobslev).eq.0.and.(iass(iobslev).eq.obsAssVal.or.iass(iobslev).eq.3)
             else
-               process_obs(iobslev) = ixtr(iobslev).eq.0.and.iass(iobslev).eq.obs_ass_val
+               process_obs(iobslev) = ixtr(iobslev).eq.0.and.iass(iobslev).eq.obsAssVal
             end if
 
          end if
@@ -308,7 +308,7 @@ contains
             model_col => obsoper%trial
          case(2)
             do imodlev=1,nlev_inc
-               model_col(imodlev) = col_getElem(column_inc,imodlev,headerIndex,obsoper%varName)
+               model_col(imodlev) = col_getElem(columnInc_opt,imodlev,headerIndex,obsoper%varName)
             end do
          case(1,3)
             model_col(:) = 0.0D0
@@ -364,9 +364,9 @@ contains
       ! Output results
       
       if (kmode.eq.3) then
-         ! Store H^T * R^-1 (OmP-Hdx) in column_inc
+         ! Store H^T * R^-1 (OmP-Hdx) in columnInc
                      
-         col => col_getColumn(column_inc,headerIndex,obsoper%varName)
+         col => col_getColumn(columnInc_opt,headerIndex,obsoper%varName)
          col(1:nlev_bkgrnd) = model_col(1:nlev_bkgrnd)
 
       else
@@ -417,10 +417,10 @@ contains
                if (chm_diagn_only('CH',stnid,varno,nobslev,flag(iobslev))) then
                   ! Observation is for diagnostics and is not to be assimilated
                   call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex,3)
-               else if (present(jobs).and.iass(iobslev).eq.1) then
+               else if (present(jobs_opt).and.iass(iobslev).eq.1) then
                   ! Add to Jo contribution (factor of 0.5 to be applied outside report loop)
                   zinc = zomp/obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
-                  jobs = jobs + zinc**2
+                  jobs_opt = jobs_opt + zinc**2
                end if
 
             case(1)
@@ -450,7 +450,7 @@ contains
     deallocate(obsoper%gz,obsoper%vmodpress,obsoper%vweights,obsoper%hu)
     if (kmode.ne.0) deallocate(model_col)
   
-    if (present(jobs)) jobs=0.5d0*jobs
+    if (present(jobs_opt)) jobs_opt = 0.5d0*jobs_opt
 
     ! Close message file
     ier=fclos(chm_setup_get_int('message_unit'))
@@ -596,10 +596,10 @@ contains
                    uu(jl) = col_getElem(column_bkgrnd,jl,headerIndex,'UU')
                    vv(jl) = col_getElem(column_bkgrnd,jl,headerIndex,'VV')
                 enddo
-                obsoper%column_bound = chm_get_col_boundary(obsoper%constituent_id,nmodlev,obsoper%pp,obsoper%tt,obsoper%gz,hu=obsoper%hu,uu=uu,vv=vv)
+                obsoper%column_bound = chm_get_col_boundary(obsoper%constituent_id,nmodlev,obsoper%pp,obsoper%tt,obsoper%gz,hu_opt=obsoper%hu,uu_opt=uu,vv_opt=vv)
                 deallocate(uu,vv)
              else 
-                obsoper%column_bound = chm_get_col_boundary(obsoper%constituent_id,nmodlev,obsoper%pp,obsoper%tt,obsoper%gz,hu=obsoper%hu)   
+                obsoper%column_bound = chm_get_col_boundary(obsoper%constituent_id,nmodlev,obsoper%pp,obsoper%tt,obsoper%gz,hu_opt=obsoper%hu)   
              end if
 
           else
@@ -809,7 +809,7 @@ contains
 
 ! Apply unit conversion and any necessary (nonlinear) transformations (apply unit conversion later for kmode=3)
 
-  call chm_transform_profile(obsoper, compute_dtransform=kmode.ne.0) ! transformations on obsoper%trial
+  call chm_transform_profile(obsoper, computeDtransform_opt=kmode.ne.0) ! transformations on obsoper%trial
 
   select case(kmode)
   case(0)
@@ -829,7 +829,7 @@ contains
   if (obsoper%apply_genoper) then
      ! Perform unit conversion on obsoper%trial when applying the generalized
      ! obs operator for kmode=2,3. Keep obsoper%trial in ug/kg in this case.
-     call chm_convert_units(obsoper,obsoper%trial,ppb=.true.)
+     call chm_convert_units(obsoper,obsoper%trial,ppb_opt=.true.)
   end if
 
 ! Convert observation vertical coordinate value(s) to pressure if needed
@@ -1045,40 +1045,40 @@ contains
 !!
 !! Inout
 !!   
-!!v    obsoper              Contains basic information related to the observation operator
-!!v    increment_col        Model-space increment profile to transform (optional)
-!!v    compute_dtransform   Computes obsoper%dtransform (optional, only used when increment_col
-!!v                         is not provided and default is true in this case)
+!!v    obsoper               Contains basic information related to the observation operator
+!!v    incrementCol_opt      Model-space increment profile to transform (optional)
+!!v    computeDtransform_opt Computes obsoper%dtransform (optional, only used when incrementCol
+!!v                          is not provided and default is true in this case)
 !!
 !!  Comments:
-!!v    - If increment_col is not provided, transformations will be done on obsoper%trial. If
-!!v      increment_col is provided, then transformations will done on increment_col only and will
+!!v    - If incrementCol is not provided, transformations will be done on obsoper%trial. If
+!!v      incrementCol is provided, then transformations will done on incrementCol only and will
 !!v      not be done on obsoper%trial.
-!!v    - When called with increment_col provided, it is assumed that obsoper%dtransform has
+!!v    - When called with incrementCol provided, it is assumed that obsoper%dtransform has
 !!v      already been computed in a previous call.
 !!v    - At some point may be merged with chm_apply_transform.
 !--------------------------------------------------------------------------
-  subroutine chm_transform_profile(obsoper,increment_col,compute_dtransform)
+  subroutine chm_transform_profile(obsoper,incrementCol_opt,computeDtransform_opt)
     
     implicit none
 
     type(struct_chm_obsoperators), intent(inout) :: obsoper
-    real(8), intent(inout), optional  :: increment_col(obsoper%nmodlev)
-    logical, intent(in), optional :: compute_dtransform
+    real(8), intent(inout), optional  :: incrementCol_opt(obsoper%nmodlev)
+    logical, intent(in), optional :: computeDtransform_opt
     
     logical :: comp_dtransform
 
     if (obsoper%constituent_id.lt.0) return
     if (chm_setup_get_int('transform',obsoper%constituent_id).eq.0.and.trim(obsoper%varname).ne.'HU') return
     
-    if (present(increment_col)) then
+    if (present(incrementCol_opt)) then
 
-       increment_col = obsoper%dtransform * increment_col
+       incrementCol_opt = obsoper%dtransform * incrementCol_opt
 
     else
 
-       if (present(compute_dtransform)) then
-          comp_dtransform = compute_dtransform
+       if (present(computeDtransform_opt)) then
+          comp_dtransform = computeDtransform_opt
        else
           comp_dtransform = .true.
        end if
@@ -1198,13 +1198,13 @@ contains
 !!
 !!v      C. List should be revised following changes to the 'tableburp' file.
 !--------------------------------------------------------------------------
-  subroutine chm_convert_units(obsoper,model_col,ppb)
+  subroutine chm_convert_units(obsoper,model_col,ppb_opt)
   
     implicit none
 
     type(struct_chm_obsoperators), intent(inout) :: obsoper
     real(8), intent(inout) :: model_col(obsoper%nmodlev)
-    logical, intent(in), optional :: ppb
+    logical, intent(in), optional :: ppb_opt
     
     ! Declaration of local variables
     real(8) :: zcoef
@@ -1218,8 +1218,8 @@ contains
     if (any( obsoper%varno .eq. (/ BUFR_UNIT_OptDepth,BUFR_UNIT_OptDepth2, &
             BUFR_UNIT_OptDepth3, BUFR_UNIT_MR_NVaerosol, BUFR_NETT /)  )) return
     
-    if (present(ppb)) then
-       ppb_out = ppb
+    if (present(ppb_opt)) then
+       ppb_out = ppb_opt
     else
        ppb_out = .false.
     end if
@@ -2360,7 +2360,7 @@ contains
 !!v   - Revisions required whem LAM and ensembles cases become available.
 !--------------------------------------------------------------------------
   subroutine chm_corvert_mult(varName,rmat_in,rmat_out,imodlev_top,imodlev_bot, &
-                              ndim1,ndim2,ndim3,lrgsig,itype,rsig)
+                              ndim1,ndim2,ndim3,lrgsig,itype,rsig_opt)
  
       implicit none
 
@@ -2370,28 +2370,28 @@ contains
       integer, intent(in)    :: imodlev_top(ndim1),imodlev_bot(ndim1)
       real(8), intent(in)    :: rmat_in(ndim1,ndim2)
       real(8), intent(out)   :: rmat_out(ndim1,ndim3)
-      real(8), intent(in), optional :: rsig(ndim2,2)
+      real(8), intent(in), optional :: rsig_opt(ndim2,2)
    
       integer :: nsize
-      real(8) :: rsig_local(ndim2,2)
+      real(8) :: rsig(ndim2,2)
       
       rmat_out(:,:)=0.0D0
-      rsig_local=0.0
-      if (present(rsig)) rsig_local=rsig
+      rsig=0.0
+      if (present(rsig_opt)) rsig=rsig_opt
         
       ! Apply operation related to static background error covariance/correlation matrix.
       ! Applicability tests within b*chm_corvert_mult.
 
       call bchm_corvert_mult(varName,rmat_in,rmat_out,imodlev_top,imodlev_bot,ndim1,ndim2,ndim3, &
-                             lrgsig,itype,rsig_local(:,1))
+                             lrgsig,itype,rsig(:,1))
 !      call blamchm_corvert_mult(varName,rmat_in,rmat_out,imodlev_top,imodlev_bot,ndim1,ndim2,ndim3, &
-!                             lrgsig,itype,rsig_local(:,1))
+!                             lrgsig,itype,rsig(:,1))
 
       ! Apply operation related to ensemble-based background error covariance/correlation matrix.
       ! Applicability test within benschm_corvert_mult.
 
 !      call benschm_corvert_mult(varName,rmat_in,rmat_out,imodlev_top,imodlev_bot,ndim1,ndim2,ndim3, &
-!                                lrgsig,itype,rsig_local(:,2))
+!                                lrgsig,itype,rsig(:,2))
 
   end subroutine chm_corvert_mult
   
@@ -2416,13 +2416,13 @@ contains
 !!
 !!v      bound_press       pressure level of boundary to be imposed
 !--------------------------------------------------------------------------
-  function chm_get_col_boundary(iconstituent_id,nmodlev,pressmod,tt,gz,hu,uu,vv) result(bound_press)
+  function chm_get_col_boundary(iconstituent_id,nmodlev,pressmod,tt,gz,hu_opt,uu_opt,vv_opt) result(bound_press)
 
     implicit none
 
     integer, intent(in) :: nmodlev,iconstituent_id
     real(8), intent(in) :: pressmod(nmodlev),tt(nmodlev),gz(nmodlev)
-    real(8), optional, intent(in) :: uu(:),vv(:),hu(nmodlev)
+    real(8), optional, intent(in) :: uu_opt(:),vv_opt(:),hu_opt(nmodlev)
    
     real(8) :: bound_press
     integer :: tropo_bound
@@ -2441,8 +2441,8 @@ contains
     
              ! Get tropopause pressure level
       
-             if (present(hu)) then
-                bound_press = phf_get_tropopause(nmodlev,pressmod,tt,gz,hu=hu)
+             if (present(hu_opt)) then
+                bound_press = phf_get_tropopause(nmodlev,pressmod,tt,gz,hu_opt=hu_opt)
              else
                 bound_press = phf_get_tropopause(nmodlev,pressmod,tt,gz)
              end if
@@ -2451,12 +2451,12 @@ contains
  
              ! Get PBL pressure level
       
-             if (present(hu).and.present(uu).and.present(vv)) then
-                bound_press = phf_get_pbl(nmodlev,pressmod,tt,gz,hu=hu,uu=uu,vv=vv) 
-             else if (present(hu)) then
-                bound_press = phf_get_pbl(nmodlev,pressmod,tt,gz,hu=hu)
-             else if (present(uu).and.present(vv)) then
-                bound_press = phf_get_pbl(nmodlev,pressmod,tt,gz,uu=uu,vv=vv) 
+             if (present(hu_opt).and.present(uu_opt).and.present(vv_opt)) then
+                bound_press = phf_get_pbl(nmodlev,pressmod,tt,gz,hu_opt=hu_opt,uu_opt=uu_opt,vv_opt=vv_opt) 
+             else if (present(hu_opt)) then
+                bound_press = phf_get_pbl(nmodlev,pressmod,tt,gz,hu_opt=hu_opt)
+             else if (present(uu_opt).and.present(vv_opt)) then
+                bound_press = phf_get_pbl(nmodlev,pressmod,tt,gz,uu_opt=uu_opt,vv_opt=vv_opt)
              end if
       
           case default
@@ -2546,7 +2546,7 @@ contains
     obsdata_maxsize = chm_setup_get_int('obsdata_maxsize')
      
     if (.not.associated(chm_sigma_trial%data2d)) then
-       call oss_obsdata_alloc(chm_sigma_trial, obsdata_maxsize, dim1=size(sigma,dim=1), dim2=max(4,size(sigma,dim=2)))
+       call oss_obsdata_alloc(chm_sigma_trial, obsdata_maxsize, dim1=size(sigma,dim=1), dim2_opt=max(4,size(sigma,dim=2)))
        chm_sigma_trial%nrep = 0
     end if
 

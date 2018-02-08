@@ -96,7 +96,7 @@ SUBROUTINE BGCHECK_CONV(columng,columnhr,obsSpaceData)
 ! Conduct obs-space post-processing diagnostic tasks (some diagnostic 
 ! computations controlled by NAMOSD namelist in flnml)
 
-  call osd_ObsSpaceDiag(obsSpaceData,columng,analysis_mode=.false.)
+  call osd_ObsSpaceDiag(obsSpaceData,columng,analysisMode_opt=.false.)
 
 !
 !     Write out contents of obsSpaceData into BURP files

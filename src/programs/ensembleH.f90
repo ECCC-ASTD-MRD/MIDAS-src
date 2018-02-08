@@ -153,7 +153,7 @@ program midas_ensembleH
   write(*,*) 'midas-ensembleH: allocating stateVector_member'
   write(*,*) ''
   call gsv_allocate(statevector_member, numStep, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
-                    mpi_local_opt=.false., dataKind_in_opt=4, allocGZsfc_opt=.true.)
+                    mpi_local_opt=.false., dataKind_opt=4, allocGZsfc_opt=.true.)
   if ( (mpi_myid+1) <= nEns ) then
     write(*,*) ''
     write(*,*) 'midas-ensembleH: reading member from file'
@@ -181,12 +181,12 @@ program midas_ensembleH
     beSilent = .true.
     if ( memberIndex == 1 ) beSilent = .false.
     call col_setVco(columns(memberIndex), vco_ens)
-    call col_allocate(columns(memberIndex), obs_numheader(obsSpaceData), mpi_local=.true., beSilent_opt=beSilent, setToZero_opt=.false.)
+    call col_allocate(columns(memberIndex), obs_numheader(obsSpaceData), mpiLocal_opt=.true., beSilent_opt=beSilent, setToZero_opt=.false.)
   end do
   if ( useTlmH ) then
     write(*,*) 'midas-ensembleH: allocating column_mean'
     call col_setVco(column_mean, vco_ens)
-    call col_allocate(column_mean, obs_numheader(obsSpaceData), mpi_local=.true.)
+    call col_allocate(column_mean, obs_numheader(obsSpaceData), mpiLocal_opt=.true.)
   end if
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
   call tmg_stop(5)

@@ -60,15 +60,14 @@ contains
   function utl_EZUVINT2(duuout, dvvout, duuin, dvvin, nio, nii) result(ierr)
     IMPLICIT NONE
 
-    real*8 duuout(nio), dvvout(nio)
-    real*4 duuin(nii) , dvvin(nii)
-    integer iun, nio, nii
+    real(8) :: duuout(nio), dvvout(nio)
+    real(4) :: duuin(nii) , dvvin(nii)
+    integer :: iun, nio, nii
 
-    integer ikey, ierr, ileni, ileno, jk1
+    integer :: ikey, ierr, ileni, ileno, jk1
     real, allocatable :: bufuuout4(:), bufvvout4(:)
 
-    integer ezuvint
-    external ezuvint
+    integer :: ezuvint
 
     allocate(bufuuout4(nio))
     allocate(bufvvout4(nio))
@@ -91,16 +90,15 @@ contains
   function utl_EZUVINT(duuout, dvvout, duuin, dvvin, nio, nii) result(ierr)
     IMPLICIT NONE
 
-    real*8 duuout(nio), dvvout(nio)
-    real*8 duuin(nii) , dvvin(nii)
-    integer iun, nio, nii
+    real(8) :: duuout(nio), dvvout(nio)
+    real(8) :: duuin(nii) , dvvin(nii)
+    integer :: iun, nio, nii
 
-    integer ikey, ierr, ileni, ileno, jk1
+    integer :: ikey, ierr, ileni, ileno, jk1
     real, allocatable :: bufuuout4(:), bufvvout4(:)
     real, allocatable :: bufuuin4(:), bufvvin4(:)
 
-    integer ezuvint
-    external ezuvint
+    integer :: ezuvint
 
     allocate(bufuuout4(nio))
     allocate(bufvvout4(nio))
@@ -132,17 +130,16 @@ contains
   FUNCTION utl_EZGDEF(ni, nj, grtyp, grtypref, ig1, ig2, ig3, ig4, ax, ay) result(vezgdef)
     IMPLICIT NONE
 
-    integer vezgdef
+    integer :: vezgdef
 
-    integer ni, nj, ig1, ig2, ig3, ig4
-    real*8 ax(*), ay(*)
+    integer :: ni, nj, ig1, ig2, ig3, ig4
+    real(8) :: ax(*), ay(*)
     character(len=*) :: grtyp, grtypref
 
-    integer ier1,ier2,jk,ilenx,ileny
+    integer :: ier1,ier2,jk,ilenx,ileny
     real, allocatable :: bufax4(:), bufay4(:)
 
-    integer ezgdef
-    external ezgdef
+    integer :: ezgdef
 
     if      (grtyp .eq. 'Y') then
        ilenx=max(1,ni*nj)
@@ -151,8 +148,7 @@ contains
        ilenx=max(1,ni)
        ileny=max(1,nj)
     else
-       write(*,'()') 'STOP in VEZGDEF: Grid type not supported'
-       STOP
+       call utl_abort('VEZGDEF: Grid type not supported')
     endif
 
     allocate(bufax4(ilenx))
@@ -181,13 +177,11 @@ contains
   SUBROUTINE utl_CXGAIG(grtyp, ig1, ig2, ig3, ig4, xlat0, xlon0, dlat, dlon) 
     IMPLICIT NONE
 
-    integer ig1, ig2, ig3, ig4   
-    real*8 xlat0, xlon0, dlat, dlon 
+    integer :: ig1, ig2, ig3, ig4   
+    real(8) :: xlat0, xlon0, dlat, dlon 
     character(len=*) :: grtyp 
 
-    real xlat04, xlon04, dlat4, dlon4
-
-    external cxgaig 
+    real(4) :: xlat04, xlon04, dlat4, dlon4
 
     xlat04=xlat0
     xlon04=xlon0
@@ -205,18 +199,17 @@ contains
        ip1, ip2, ip3, typvar, nomvar) result(vfstlir)
     IMPLICIT NONE
 
-    integer vfstlir
-    real*8 fld8(*)
-    integer iun, ni, nj, nk, datev, ip1, ip2, ip3
+    integer :: vfstlir
+    real(8) :: fld8(*)
+    integer :: iun, ni, nj, nk, datev, ip1, ip2, ip3
     character(len=*) :: etiket
     character(len=*) :: nomvar
     character(len=*) :: typvar
 
-    integer key1,key2, ierr, ilen, jk1, jk2, jk3, la
-    real, allocatable :: buffer4(:)
+    integer :: key1,key2, ierr, ilen, jk1, jk2, jk3, la
+    real(4), allocatable :: buffer4(:)
 
-    integer fstluk, fstinf
-    external fstluk, fstinf
+    integer :: fstluk, fstinf
 
     !     Get field dimensions and allow memory for REAL copy of fld8.
     key1 = fstinf(iun, ni, nj, nk, datev, etiket, &
@@ -254,23 +247,22 @@ contains
        datyp, rewrit) result(vfstecr)
     IMPLICIT NONE
 
-    integer vfstecr
-    real :: work
+    integer :: vfstecr
+    real(4) :: work
     integer, intent(in) :: ni,nj,nk
-    real*8 fld8(ni,nj,nk)
-    integer iun, datev, ip1, ip2, ip3, ig1, ig2, ig3, ig4
-    integer npak, dateo, deet, npas, datyp
+    real(8) :: fld8(ni,nj,nk)
+    integer :: iun, datev, ip1, ip2, ip3, ig1, ig2, ig3, ig4
+    integer :: npak, dateo, deet, npas, datyp
     logical :: rewrit  
     character(len=*) :: etiket 
     character(len=*) :: typvar
     character(len=*) :: grtyp 
     character(len=*) :: nomvar            
 
-    integer ikey, ierr, jk1, jk2, jk3
-    real, allocatable :: buffer4(:,:,:)
+    integer :: ikey, ierr, jk1, jk2, jk3
+    real(4), allocatable :: buffer4(:,:,:)
 
-    integer fstecr
-    external fstecr 
+    integer :: fstecr
 
     allocate(buffer4(ni,nj,nk))
 
@@ -298,14 +290,13 @@ contains
   function utl_EZSINT(zout8, zin8, nio, njo, nko, nii, nji, nki) result(ierr)
     IMPLICIT NONE
 
-    integer nii, nji, nki, nio, njo, nko     
-    real*8 zout8(nio,njo,nko),zin8(nii,nji,nki)
+    integer :: nii, nji, nki, nio, njo, nko     
+    real(8) :: zout8(nio,njo,nko),zin8(nii,nji,nki)
 
-    integer ierr, jk1, jk2, jk3
-    real, allocatable :: bufferi4(:,:,:), buffero4(:,:,:)
+    integer :: ierr, jk1, jk2, jk3
+    real(4), allocatable :: bufferi4(:,:,:), buffero4(:,:,:)
 
-    integer ezsint
-    external ezsint
+    integer :: ezsint
 
     allocate(bufferi4(nii,nji,nki))
     allocate(buffero4(nio,njo,nko))
@@ -339,15 +330,14 @@ contains
   function utl_EZSINT2(zout8, zin4, nio, njo, nko, nii, nji, nki)  result(ierr)
     IMPLICIT NONE
 
-    integer nii, nji, nki, nio, njo, nko     
-    real*8 zout8(nio,njo,nko)
-    real*4 zin4(nii,nji,nki)
+    integer :: nii, nji, nki, nio, njo, nko     
+    real(8) :: zout8(nio,njo,nko)
+    real(4) :: zin4(nii,nji,nki)
 
-    integer ierr, jk1, jk2, jk3
-    real, allocatable :: buffero4(:,:,:)
+    integer :: ierr, jk1, jk2, jk3
+    real(4), allocatable :: buffero4(:,:,:)
 
-    integer ezsint
-    external ezsint
+    integer :: ezsint
 
     allocate(buffero4(nio,njo,nko))
 
@@ -396,7 +386,7 @@ contains
   !--------------------------------------------------------------------------
   ! utl_matSqrt
   !--------------------------------------------------------------------------
-  SUBROUTINE utl_MATSQRT(PA,KN,ZSIGN,print_information)
+  SUBROUTINE utl_MATSQRT(PA,KN,ZSIGN,printInformation_opt)
     !
     !**s/r MATSQRT     - Calculate square root of an error covariance
     !     .              matrix
@@ -412,22 +402,22 @@ contains
     INTEGER, intent(in) :: KN
     REAL(8), intent(inout) :: PA(KN,KN)
     REAL(8), intent(in) ::ZSIGN
-    LOGICAL, intent(in), optional :: print_information
+    LOGICAL, intent(in), optional :: printInformation_opt
     !
     ! Local variables
     !
-    LOGICAL :: print_information_local
-    INTEGER JI, J, INFO, IER, IWORK
-    REAL*8 size_zwork
-    REAL*8, allocatable :: ZWORK(:), ZRESULT(:,:), ZEIGENV2(:,:), ZEIGEN(:,:), ZEIGENV(:)
+    LOGICAL :: printInformation
+    INTEGER :: JI, J, INFO, IER, IWORK
+    REAL(8) :: size_zwork
+    REAL(8), allocatable :: ZWORK(:), ZRESULT(:,:), ZEIGENV2(:,:), ZEIGEN(:,:), ZEIGENV(:)
 
-    if (present(print_information)) then
-       print_information_local = print_information
+    if (present(printInformation_opt)) then
+       printInformation = printInformation_opt
     else
-       print_information_local = .false.
+       printInformation = .false.
     end if
 
-    if (print_information_local) then
+    if (printInformation) then
        WRITE(*,*)' MATSQRT-Sqrt matrix of a symmetric matrix'
        WRITE(*,*)' zsign= ',zsign
        WRITE(*,*)'  -----------------------------------------------'
@@ -446,18 +436,18 @@ contains
        END DO
     END DO
 
-    !! query the size of the 'zwork' vector by calling 'DSYEV' with 'iwork=-1'
+    ! query the size of the 'zwork' vector by calling 'DSYEV' with 'iwork=-1'
     iwork=-1
     info = -1
     CALL DSYEV('V','U',KN, ZEIGEN,KN, ZEIGENV,size_ZWORK, IWORK, INFO )
 
     iwork=int(size_zwork)
     allocate(zwork(iwork))
-    !! compute the eigenvalues
+    ! compute the eigenvalues
     CALL DSYEV('V','U',KN, ZEIGEN,KN, ZEIGENV,ZWORK, IWORK, INFO )
     deallocate(zwork)
     !
-    if (print_information_local) then
+    if (printInformation) then
        WRITE(*,'(1x,"ORIGINAL EIGEN VALUES: ")')
        WRITE(*,'(1x,10f7.3)') (ZEIGENV(JI),JI=1,KN)
     end if
@@ -473,12 +463,12 @@ contains
        ZEIGENV2(JI,JI)= ZEIGENV(JI)**(0.5d0*ZSIGN)
     END DO
     !
-    if (print_information_local) then
+    if (printInformation) then
        WRITE(*,'(1x,"SQRT OF ORIGINAL EIGEN VALUES: ")')
        WRITE(*,'(1x,10f7.3)') (ZEIGENV2(JI,JI),JI=1,KN)
     end if
     !
-    IF (ZSIGN < 0. .and. print_information_local) THEN
+    IF (ZSIGN < 0. .and. printInformation) THEN
        Write(*,'(A,1x,e14.6)') "Condition number:", &
             maxval(ZEIGENV)/minval(ZEIGENV)
     ENDIF
@@ -494,7 +484,7 @@ contains
     !
     deallocate(ZRESULT,ZEIGEN,ZEIGENV2,ZEIGENV)
 
-    if (print_information_local) then
+    if (printInformation) then
        WRITE(*,*)'MATSQRT-----------Done--------------- '
        WRITE(*,*)' '
     end if
@@ -506,7 +496,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine utl_writeStatus(cmsg)
     implicit none
-    INTEGER  iulstatus,fnom,fclos, ierr
+    INTEGER :: iulstatus,fnom,fclos, ierr
     character(len=*) :: cmsg
     character(len=22):: clmsg
     
@@ -527,10 +517,10 @@ contains
                            ktrials,koutmpg)
     implicit none
 
-    integer kstampv,knmaxlev,knlev,kgid
-    integer kip1s(knmaxlev),kip1style,kip1kind,kip2,kip3
-    integer ktrials, koutmpg  
-    integer kinmpg(ktrials)
+    integer :: kstampv,knmaxlev,knlev,kgid
+    integer :: kip1s(knmaxlev),kip1style,kip1kind,kip2,kip3
+    integer :: ktrials, koutmpg  
+    integer :: kinmpg(ktrials)
     character(len=*) :: cdtypvar
     character(len=*) :: cdvar
     character(len=*) :: cdetiket
@@ -562,23 +552,23 @@ contains
     !     koutmpg         : the unit which contains the selected records.  
     !
 
-    integer fstinl,fstprm,ezqkdef,newdate
-    integer ini,inj,ink,jlev,ier
-    integer idateo, idateo2, idatyp, idatyp2, ideet, ideet2, idltf, &
+    integer :: fstinl,fstprm,ezqkdef,newdate
+    integer :: ini,inj,ink,jlev,ier
+    integer :: idateo, idateo2, idatyp, idatyp2, ideet, ideet2, idltf, &
          iextra1, iextra2, iextra3, iig12, iig22, &
          iig32, iig42, ilng, inbits,iig1,iig2,iig3,iig4, &
          inpas,inpas2, iswa, iubc, iip2, iip3
     !
-    integer ipmode,idate2,idate3,idatefull
-    integer k,ier1 
-    real    zlev_r4
-    character *12 cletiket
-    character *4 clnomvar
-    character *3 clnomvar_3
-    character *2 cltypvar
-    character *1 clgrtyp2,clgrtyp,clstring
-    logical llflag
-    integer ikeys(knmaxlev)
+    integer :: ipmode,idate2,idate3,idatefull
+    integer :: k,ier1 
+    real(4) :: zlev_r4
+    character(len=12) :: cletiket
+    character(len=4) :: clnomvar
+    character(len=3) :: clnomvar_3
+    character(len=2) :: cltypvar
+    character(len=1) :: clgrtyp2,clgrtyp,clstring
+    logical :: llflag
+    integer :: ikeys(knmaxlev)
     !
     knlev = 0
     !
@@ -617,7 +607,7 @@ contains
           koutmpg = kinmpg(k) 
           exit 
        endif
-    enddo !! End of loop k   
+    enddo ! End of loop k   
     !
     if (knlev.gt.0) then
        do jlev = 1, knlev
@@ -735,7 +725,7 @@ contains
     integer, intent(out) :: unit
     logical :: file_exists
     integer :: ier
-    integer, external :: fnom
+    integer :: fnom
     character(len=20) :: mode
     
     inquire(file=trim(filename), exist=file_exists)
@@ -773,7 +763,7 @@ contains
     character(len=*) :: filename,mode
     integer :: ier
     character(len=10) :: position,action
-    integer, external :: fnom
+    integer :: fnom
 
     if (index(mode,'APPEND').gt.0) then
        position = 'APPEND'
@@ -1225,7 +1215,7 @@ contains
   ! utl_readFstField
   !------------------;-------------------------------------------------------
   subroutine utl_readFstField(fname,varName,iip1,iip2,iip3,etiketi, &
-                               ni,nj,nkeys,array,xlat,xlong,lvls,kind)
+                               ni,nj,nkeys,array,xlat_opt,xlong_opt,lvls_opt,kind_opt)
   !
   ! Author  : Y. Rochon, ARQI/AQRD, Nov 2015
   !
@@ -1249,13 +1239,13 @@ contains
   !
   ! OUT
   !
-  !     ni,nj    ni,nj values
-  !     nkeys    number of records satisfying search criteria
-  !     array    (ni,nj,nkeys) data arrray
-  !     xlat     1D latitude array (optional)
-  !     xlong    1D longitude array (optional)
-  !     lvls     1D vertical coordinate array (optional)
-  !     kind     vertical coordinate type according to convip (optional)
+  !     ni,nj     ni,nj values
+  !     nkeys     number of records satisfying search criteria
+  !     array     (ni,nj,nkeys) data arrray
+  !     xlat_opt  1D latitude array (optional)
+  !     xlong_opt 1D longitude array (optional)
+  !     lvls_opt  1D vertical coordinate array (optional)
+  !     kind_opt  vertical coordinate type according to convip (optional)
   !-----------------------------------------------------------------------------------------
 
     implicit none
@@ -1263,9 +1253,9 @@ contains
     integer, intent(in) :: iip1,iip2,iip3
     character(len=*), intent(in) :: varName,fname,etiketi
     integer, intent(out) :: ni, nj, nkeys
-    integer, intent(out), optional :: kind
+    integer, intent(out), optional :: kind_opt
     real(8), intent(out), allocatable :: array(:,:,:)
-    real(8), intent(out), allocatable, optional :: lvls(:), xlat(:),xlong(:)
+    real(8), intent(out), allocatable, optional :: lvls_opt(:), xlat_opt(:),xlong_opt(:)
 
     integer, external :: fnom,fclos,fstouv,fstfrm,fstinl,fstlir,fstluk,fstprm
     
@@ -1314,14 +1304,14 @@ contains
       call utl_abort('utl_read_fst_field')      
     end if
 
-    if (present(xlat).and.present(xlong)) then
+    if (present(xlat_opt).and.present(xlong_opt)) then
 
        !  Get lat and long if available.
 
-       if (allocated(xlat)) deallocate(xlat,xlong)
-       allocate(xlat(nj),xlong(ni),buffer(ni*nj,1))
-       xlat(:)=-999.
-       xlong(:)=-999.
+       if (allocated(xlat_opt)) deallocate(xlat_opt,xlong_opt)
+       allocate(xlat_opt(nj),xlong_opt(ni),buffer(ni*nj,1))
+       xlat_opt(:)=-999.
+       xlong_opt(:)=-999.
 
        ier = fstprm(keys(1),dateo, deet, npas, ni, nj, nk, nbits,    &         
                     datyp, ip1, ip2, ip3, cltypvar, nomvar, cletiket, &
@@ -1330,11 +1320,11 @@ contains
     
        if (ni.gt.1) then
           ier=fstlir(buffer,iun,ni,inj,nk,-1,'',ig1,ig2,ig3,'','>>')
-          if (ier.ge.0) xlong(:)=buffer(1:ni,1) 
+          if (ier.ge.0) xlong_opt(:)=buffer(1:ni,1) 
        end if
        if (nj.gt.1) then
           ier=fstlir(buffer,iun,ini,nj,nk,-1,'',ig1,ig2,ig3,'','^^')
-          if (ier.ge.0) xlat(:)=buffer(1:nj,1)     
+          if (ier.ge.0) xlat_opt(:)=buffer(1:nj,1)     
        end if
        deallocate(buffer)
 
@@ -1365,9 +1355,9 @@ contains
     
     ! Get vertical coordinate
     
-    if (present(lvls)) then
-       if (allocated(lvls)) deallocate(lvls)
-       allocate(lvls(nkeys))
+    if (present(lvls_opt)) then
+       if (allocated(lvls_opt)) deallocate(lvls_opt)
+       allocate(lvls_opt(nkeys))
 
        do i=1,nkeys
           ier = fstprm(keys(i),dateo, deet, npas, ni, nj, nk, nbits,    &         
@@ -1375,15 +1365,15 @@ contains
                     clgrtyp, ig1, ig2, ig3,                           &
                     ig4, swa, lng, dltf, ubc, extra1, extra2, extra3)  
           call convip(ip1,lvl_r4,kindi,-1,string,.false.)
-          lvls(i)=lvl_r4
+          lvls_opt(i)=lvl_r4
        end do
     end if
      
-    if (present(kind)) then
-        if (present(lvls)) then         
-            kind=kindi
+    if (present(kind_opt)) then
+        if (present(lvls_opt)) then         
+            kind_opt=kindi
         else
-            kind=-1
+            kind_opt=-1
         end if
     end if
 
@@ -1404,19 +1394,19 @@ contains
   end subroutine utl_readFstField
 
   !--------------------------------------------------------------------------
-  ! utl_checkAllocationStatus(status, message, alloc)
-  !------------------;-------------------------------------------------------
-  subroutine utl_checkAllocationStatus(status, message, alloc)
+  ! utl_checkAllocationStatus(status, message, alloc_opt)
+  !--------------------------------------------------------------------------
+  subroutine utl_checkAllocationStatus(status, message, alloc_opt)
     
     implicit none
     character(len=*),intent(in) :: message
     integer, intent(in) :: status(:)
-    logical, optional, intent(in) :: alloc 
-    !**************************************************
+    logical, optional, intent(in) :: alloc_opt 
+
     logical :: flag
 
-    if ( present(alloc) ) then
-       flag = alloc
+    if ( present(alloc_opt) ) then
+       flag = alloc_opt
     else
        flag = .true.
     end if

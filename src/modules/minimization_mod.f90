@@ -192,7 +192,7 @@ CONTAINS
     call tmg_start(3,'MIN')
 
     call col_setVco(column,col_getVco(columng))
-    call col_allocate(column,col_getNumCol(columng),mpi_local=.true.)
+    call col_allocate(column,col_getNumCol(columng),mpiLocal_opt=.true.)
     call col_copyLatLon(columng,column)
 
     write(*,*) 'TIM_TIMEBINNING: For 4D increment'
@@ -608,7 +608,7 @@ CONTAINS
     ! arguments
     type(struct_gsv)     :: statevector_incr
     ! locals
-    integer              :: indexStep, dateStamp
+    integer              :: stepIndex, dateStamp
     real(8)              :: deltaHours
     character(len=4)     :: coffset
     character(len=2)     :: flnum
@@ -617,10 +617,10 @@ CONTAINS
     if(mpi_myid == 0) write(*,*) 'min_writeIncrement: STARTING'
 
     ! loop over times for which increment is computed
-    do indexStep = 1, tim_nstepobsinc
+    do stepIndex = 1, tim_nstepobsinc
 
-      dateStamp = gsv_getDateStamp(statevector_incr,indexStep)
-      if(mpi_myid == 0) write(*,*) 'min_writeIncrement: writing increment for time step: ',indexStep, dateStamp
+      dateStamp = gsv_getDateStamp(statevector_incr,stepIndex)
+      if(mpi_myid == 0) write(*,*) 'min_writeIncrement: writing increment for time step: ',stepIndex, dateStamp
 
       ! write the increment file for this time step
       call difdatr(dateStamp,tim_getDatestamp(),deltaHours)
@@ -630,7 +630,7 @@ CONTAINS
         write(coffset,'(I3.3)') nint(deltaHours*60.0d0)
       endif
       fileName = './rebm_' // trim(coffset) // 'm'
-      call gsv_writeToFile(statevector_incr, fileName, cetikinc, 1.0d0, 0, indexStep)
+      call gsv_writeToFile(statevector_incr, fileName, cetikinc, 1.0d0, 0, stepIndex)
 
     enddo
 
@@ -653,7 +653,7 @@ CONTAINS
     type(struct_vco), pointer :: vco_anl
     real(8), allocatable :: incr_cv(:)
     real(8)           :: scalefactor
-    integer :: indexAnalysis,indexStep,cvdim_mpilocal
+    integer :: indexAnalysis,stepIndex,cvdim_mpilocal
     character(len=80) :: fileName
     character(len=4)  :: censnumber
     character(len=8)   :: datestr_last
@@ -713,8 +713,8 @@ CONTAINS
       write(censnumber,'(i4.4)') indexAnalysis + (envar_loop-1)*numAnalyses
       fileName = trim(ensPathName) // '/' // datestr_last // hourstr_last // '_006_' // trim(censnumber)
       if(mpi_myid == 0) write(*,*) 'Reading from file: ', fileName
-      do indexStep = 1, statevector_ens(indexAnalysis)%numStep
-        call gsv_readFromFile(statevector_ens(indexAnalysis),fileName,' ','P',indexStep_in=indexStep)
+      do stepIndex = 1, statevector_ens(indexAnalysis)%numStep
+        call gsv_readFromFile(statevector_ens(indexAnalysis),fileName,' ','P',stepIndex_opt=stepIndex)
       enddo
 
     enddo
@@ -722,10 +722,10 @@ CONTAINS
     ! read the background ensemble mean
     ! NOTE: assume it is supplied to VAR task as the trial file
     if(mpi_myid == 0) write(*,*) 'min_analysisPert: reading ensemble mean'
-    do indexStep = 1, statevector_mean%numStep
-      write(trialTimeIndex_str,'(i2.2)') indexStep
+    do stepIndex = 1, statevector_mean%numStep
+      write(trialTimeIndex_str,'(i2.2)') stepIndex
       fileName = './trlm_' // trim(trialTimeIndex_str)
-      call gsv_readFromFile(statevector_mean,fileName,' ','P',indexStep_in=indexStep)
+      call gsv_readFromFile(statevector_mean,fileName,' ','P',stepIndex_opt=stepIndex)
     enddo
 
     ! remove mean
@@ -847,7 +847,7 @@ CONTAINS
     integer            :: indexAnalysis
     ! locals
     character(len=100) :: fileNameFull
-    integer            :: indexStep
+    integer            :: stepIndex
 
     ! convert LQ to HU
     if ( gsv_varExist(statevector,'HU') ) then
@@ -855,27 +855,27 @@ CONTAINS
                            'LQtoHU_tlm' ) ! IN
     end if
 
-    do indexStep = 1, statevector%numStep
-      fileNameFull = trim(fileName) // trim(fileNameExt(statevector,indexStep,indexAnalysis))
+    do stepIndex = 1, statevector%numStep
+      fileNameFull = trim(fileName) // trim(fileNameExt(statevector,stepIndex,indexAnalysis))
       call gsv_writeToFileMpi(statevector,fileNameFull,cetiket,1.0d0, &
-                              ip3_in=0,  &
-                              indexStep_in=indexStep)
+                              ip3_opt=0,  &
+                              stepIndex_opt=stepIndex)
     enddo
 
   end subroutine writeToFile4D
 
 
-  function fileNameExt(statevector,indexStep,indexAnalysis) result(fileNameExtStr)
+  function fileNameExt(statevector,stepIndex,indexAnalysis) result(fileNameExtStr)
     implicit none
     ! arguments
     type(struct_gsv)  :: statevector
-    integer           :: indexStep, indexAnalysis
+    integer           :: stepIndex, indexAnalysis
     character(len=20) :: fileNameExtStr
     ! locals
     real(8) :: deltaHours
     character(len=4) :: coffset, cmember
 
-    call difdatr(gsv_getDateStamp(statevector,indexStep),tim_getDatestamp(),deltaHours)
+    call difdatr(gsv_getDateStamp(statevector,stepIndex),tim_getDatestamp(),deltaHours)
     if(nint(deltaHours*60.0d0).lt.0) then
       write(coffset,'(I4.3)') nint(deltaHours*60.0d0)
     else
@@ -1698,17 +1698,17 @@ CONTAINS
        
     ! Initialize columnData object for increment
     call col_setVco(column,col_getVco(columng))
-    call col_allocate(column,col_getNumCol(columng),mpi_local=.true.)
+    call col_allocate(column,col_getNumCol(columng),mpiLocal_opt=.true.)
     call col_copyLatLon(columng,column)
     
     ! Put H_horiz dx in column
     call s2c_tl(statevector_incr,column,columng,obsSpaceData)
     
     ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
-    call oop_Htl(column,columng,obsSpaceData,min_nsim,obs_ass_flag=3)
+    call oop_Htl(column,columng,obsSpaceData,min_nsim,obsAssVal_opt=3)
        
     ! Calculate OBS_OMA from OBS_WORK : d-Hdx
-    call res_compute(obsSpaceData,obs_ass_flag=3)
+    call res_compute(obsSpaceData,obsAssVal_opt=3)
 
   end subroutine calc_OmA_diagnostic
 

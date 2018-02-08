@@ -173,8 +173,8 @@ CONTAINS
        ! LAM mode
        call lst_Setup( lsp(id)%lst,                                 & ! OUT
                        lsp(id)%ni, lsp(id)%nj, lsp(id)%dlon, lsp(id)%ntrunc, & ! IN
-                       'LatLonMN', maxlevels_in=lsp(id)%nEnsOverDimension,  & ! IN
-                        gridDataOrder='kij'                         ) ! IN
+                       'LatLonMN', maxlevels_opt=lsp(id)%nEnsOverDimension,  & ! IN
+                        gridDataOrder_opt='kij'                         ) ! IN
 
        if (mpi_myid == 0) write(*,*) 'lsp_setup: returned value of lstID = ', lsp(id)%lst%id
        lsp(id)%nphase       = lsp(id)%lst%nphase
