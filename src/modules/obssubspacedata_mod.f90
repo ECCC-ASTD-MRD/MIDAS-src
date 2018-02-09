@@ -224,14 +224,12 @@ contains
     real(8) :: element
     
     ! find obsdata%irep for current observation
+    call obsdata_set_index(obsdata,code,stat_opt=stat_opt)
     if (present(stat_opt)) then
-       call obsdata_set_index(obsdata,code,stat_opt=stat_opt)
        if (stat_opt.ne.0) then
           element = 0.
           return
        end if
-    else
-       call obsdata_set_index(obsdata,code)
     end if
 
     ! get element from data array at current position
@@ -276,14 +274,12 @@ contains
     real(8) :: array(obsdata%dim1)
     
     ! find obsdata%irep for current observation
+    call obsdata_set_index(obsdata,code,stat_opt=stat_opt)
     if (present(stat_opt)) then
-       call obsdata_set_index(obsdata,code,stat_opt=stat_opt)
        if (stat_opt.ne.0) then
           array(:) = 0.
           return
        end if
-    else
-       call obsdata_set_index(obsdata,code)
     end if
     
     ! get element from data array at current position
@@ -370,14 +366,12 @@ contains
     real(8) :: array(obsdata%dim1,obsdata%dim2)
     
     ! find obsdata%irep for current observation
+    call obsdata_set_index(obsdata,code,stat_opt=stat_opt)
     if (present(stat_opt)) then
-       call obsdata_set_index(obsdata,code,stat_opt=stat_opt)
        if (stat_opt.ne.0) then
           array(:,:) = 0.
           return
        end if
-    else
-       call obsdata_set_index(obsdata,code)
     end if
     
     ! get elements from data array at current position

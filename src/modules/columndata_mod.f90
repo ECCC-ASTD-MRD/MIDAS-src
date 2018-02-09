@@ -438,7 +438,7 @@ module columnData_mod
     end function col_varExist
 
 
-    function col_getOffsetFromVarno(column,varnum,varCHnumber_opt) result(offset)
+    function col_getOffsetFromVarno(column,varnum,varNumberChm_opt) result(offset)
 !
 !   Revisions:
 !             Y.J. Rochon (ARQI), Jan. 2015
@@ -447,14 +447,10 @@ module columnData_mod
       implicit none
       type(struct_columnData) :: column
       integer, intent(in)     :: varnum
-      integer, intent(in), optional     :: varCHnumber_opt
+      integer, intent(in), optional :: varNumberChm_opt
       integer                 :: offset
 
-      if (present(varCHnumber_opt)) then
-         offset=column%varOffset(vnl_varListIndex(vnl_varnameFromVarnum(varnum,varCHnumber_opt)))
-      else
-         offset=column%varOffset(vnl_varListIndex(vnl_varnameFromVarnum(varnum)))
-      end if
+      offset=column%varOffset(vnl_varListIndex(vnl_varnameFromVarnum(varnum,varNumberChm_opt=varNumberChm_opt)))
 
     end function col_getOffsetFromVarno
 

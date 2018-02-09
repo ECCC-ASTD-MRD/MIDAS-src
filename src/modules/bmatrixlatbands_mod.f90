@@ -831,7 +831,7 @@ contains
     logical :: llpb
     integer :: ikey, jlat, jlon, jla, ezgprm, igdgid, ezqkdef
     integer :: jn, jm, ila_mpilocal, ila_mpiglobal, inlev, itggid, inmxlev, iset, nsize
-    integer :: ezdefset, ezsetopt
+    integer :: ezdefset
     integer :: ip1style,ip1kind
     integer :: koutmpg
     real(8), allocatable :: dltg(:,:), tgstdbg_tmp(:,:)
@@ -861,7 +861,7 @@ contains
     integer :: swa, lng, dltf, ubc
     integer :: extra1, extra2, extra3
     
-    integer :: ezsint, TrialGridID
+    integer :: TrialGridID
 
     character(len=2)  :: cltypvar
     character(len=1)  :: clgrtyp
@@ -914,11 +914,10 @@ contains
        !- 1.2.3 The std. dev. are NOT on the analysis grid. Interpolation is needed
        iset = ezdefset(AnalGridID,itggid)
        if ( TweakTG ) then
-          ierr = ezsetopt('INTERP_DEGREE', 'NEAREST') ! Nearest-neighbor interpolation
+          ierr = utl_ezsint(tgstdbg,dltg,interpDegree_opt='NEAREST')
        else
-          ierr = ezsetopt('INTERP_DEGREE', 'CUBIC') ! Cubic interpolation (legacy mode)
+          ierr = utl_ezsint(tgstdbg,dltg,interpDegree_opt='CUBIC')
        end if
-       ierr = utl_ezsint(tgstdbg,dltg,ni,nj,1,ni_file,nj_file,1)
 
     end if
 
@@ -1049,10 +1048,10 @@ contains
       allocate(AnalSeaIceMask(ni, nj))
 
       ierr = ezdefset(AnalGridID     , TrialGridID     ) ! IN,  IN
-      ierr = ezsetopt('INTERP_DEGREE', 'NEAREST') ! Nearest-neighbor interpolation
 
-      ierr = ezsint  (AnalLandSeaMask, TrialLandSeaMask) ! OUT, IN
-      ierr = ezsint  (AnalSeaIceMask , TrialSeaIceMask ) ! OUT, IN
+      ! Nearest-neighbor interpolation
+      ierr = utl_ezsint(AnalLandSeaMask, TrialLandSeaMask, interpDegree_opt='NEAREST') ! OUT, IN
+      ierr = utl_ezsint(AnalSeaIceMask , TrialSeaIceMask, interpDegree_opt='NEAREST')  ! OUT, IN
 
       deallocate(TrialLandSeaMask)
       deallocate(TrialSeaIceMask)

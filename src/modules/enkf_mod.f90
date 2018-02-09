@@ -141,11 +141,9 @@ contains
     real(4) :: lon_r4, lat_r4, lon_deg_r4, lat_deg_r4, xpos_r4, ypos_r4
     integer, allocatable :: numObs(:), headerIndexVec(:,:)
     real(4), allocatable :: lonVec(:), latVec(:), allLonVec(:,:), allLatVec(:,:)
-    integer :: ezgdef, ezsetopt, gdxyfll, gdllfxy
+    integer :: ezgdef, gdxyfll, gdllfxy
 
     write(*,*) 'enkf_allGatherObsGrid: STARTING'
-
-    ierr = ezsetopt('INTERP_DEGREE', 'LINEAR')
 
     numStep = stateVector%numStep
     numHeader = obs_numheader(obsSpaceData)
@@ -303,7 +301,7 @@ contains
     integer :: varIndex, levIndex, numLev, stepIndex, numStep
     integer :: headerIndex, numHeader, numHeaderMax, yourNumHeader
     integer :: memberIndex, nEns, procIndex, nsize, ierr, iset, headerIndex2
-    integer :: ezdefset, ezuvint, ezsint, ezqkdef
+    integer :: ezdefset, ezqkdef
     real(8) :: gzSfc_col
     real(8) :: weight
     character(len=4)     :: varName
@@ -394,13 +392,13 @@ contains
               if (trim(varName) == 'UU') then
                 ptrUU4d_r4 => gsv_getField_r4(stateVector, 'UU')
                 ptrVV4d_r4 => gsv_getField_r4(stateVector, 'VV')
-                ierr = ezuvint( cols_hint_r4(1:yourNumHeader,stepIndex,procIndex),  &
-                                cols_hint_VV_r4(1:yourNumHeader,stepIndex,procIndex),  &
-                                ptrUU4d_r4(:,:,levIndex,stepIndex), ptrVV4d_r4(:,:,levIndex,stepIndex) )
+                ierr = utl_ezuvint( cols_hint_r4(1:yourNumHeader,stepIndex,procIndex),  &
+                                    cols_hint_VV_r4(1:yourNumHeader,stepIndex,procIndex),  &
+                                    ptrUU4d_r4(:,:,levIndex,stepIndex), ptrVV4d_r4(:,:,levIndex,stepIndex) )
               else
                 ptr4d_r4 => gsv_getField_r4(stateVector, varName)
-                ierr = ezsint( cols_hint_r4(1:yourNumHeader,stepIndex,procIndex),  &
-                               ptr4d_r4(:,:,levIndex,stepIndex) )
+                ierr = utl_ezsint( cols_hint_r4(1:yourNumHeader,stepIndex,procIndex),  &
+                                   ptr4d_r4(:,:,levIndex,stepIndex) )
               end if
             end if
           end do PROC_LOOP
@@ -500,8 +498,8 @@ contains
           iset = ezdefset(allObsGid(stepIndex,procIndex),stateVector%hco%EZscintID)
           ptr2d_r8 => gsv_getGZsfc(stateVector)
           gzSfc_r4(:,:) = real(ptr2d_r8(:,:),4)
-          ierr = ezsint( cols_hint_r4(1:yourNumHeader,stepIndex,procIndex),  &
-                         gzSfc_r4(:,:) )
+          ierr = utl_ezsint( cols_hint_r4(1:yourNumHeader,stepIndex,procIndex),  &
+                             gzSfc_r4(:,:) )
         end if
       end do PROC_LOOP_GZ
 

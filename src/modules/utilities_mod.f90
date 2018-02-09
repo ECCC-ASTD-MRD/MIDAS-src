@@ -26,8 +26,8 @@ module utilities_mod
   private
 
   ! public procedures
-  public :: utl_EZUVINT, utl_EZUVINT2, utl_EZGDEF, utl_CXGAIG, utl_FSTLIR, utl_FSTECR
-  public :: utl_EZSINT, utl_EZSINT2, utl_findArrayIndex, utl_matSqrt
+  public :: utl_ezuvint, utl_ezgdef, utl_cxgaig, utl_fstlir, utl_fstecr
+  public :: utl_ezsint, utl_findArrayIndex, utl_matSqrt
   public :: utl_writeStatus, utl_getfldprm, utl_abort, utl_checkAllocationStatus
   public :: utl_open_asciifile, utl_stnid_equal, utl_resize, utl_str
   public :: utl_get_stringId, utl_get_Id
@@ -39,66 +39,325 @@ module utilities_mod
 
   ! interface for resizing arrays
   interface utl_resize
-     module procedure utl_resize_1d_real
-     module procedure utl_resize_1d_int
-     module procedure utl_resize_1d_str
-     module procedure utl_resize_2d_real
-     module procedure utl_resize_3d_real
+    module procedure utl_resize_1d_real
+    module procedure utl_resize_1d_int
+    module procedure utl_resize_1d_str
+    module procedure utl_resize_2d_real
+    module procedure utl_resize_3d_real
   end interface utl_resize
 
   ! interface for conversion to a left-justified string (useful for calls to utl_abort)
   interface utl_str
-     module procedure utl_int2str
-     module procedure utl_float2str
+    module procedure utl_int2str
+    module procedure utl_float2str
   end interface utl_str
+
+  interface utl_ezsint
+    module procedure utl_ezsint_r4_2d
+    module procedure utl_ezsint_r4_3d
+    module procedure utl_ezsint_r4_2dTo1d
+    module procedure utl_ezsint_r8_2d
+    module procedure utl_ezsint_r8_3d
+    module procedure utl_ezsint_r8_2dTo1d
+  end interface utl_ezsint
+
+  interface utl_ezuvint
+    module procedure utl_ezuvint_r4_2d
+    module procedure utl_ezuvint_r4_2dTo1d
+    module procedure utl_ezuvint_r8_1d
+    module procedure utl_ezuvint_r8_2d
+  end interface utl_ezuvint
 
 contains
 
   !--------------------------------------------------------------------------
-  ! utl_EZUVINT2
+  ! utl_setezopt (private subroutine)
   !--------------------------------------------------------------------------
-  function utl_EZUVINT2(duuout, dvvout, duuin, dvvin, nio, nii) result(ierr)
-    IMPLICIT NONE
+  subroutine utl_setezopt(interpDegree_opt, extrapDegree_opt)
+    implicit none
 
-    real(8) :: duuout(nio), dvvout(nio)
-    real(4) :: duuin(nii) , dvvin(nii)
-    integer :: iun, nio, nii
+    ! arguments
+    character(len=*), optional :: interpDegree_opt, extrapDegree_opt
 
-    integer :: ikey, ierr, ileni, ileno, jk1
-    real, allocatable :: bufuuout4(:), bufvvout4(:)
+    ! locals
+    character(len=12) :: interpDegree, extrapDegree
+    integer           :: ierr, ezsetopt
 
-    integer :: ezuvint
+    if ( present(interpDegree_opt) ) then
+      interpDegree = interpDegree_opt
+    else
+      interpDegree = 'LINEAR'
+    end if
 
-    allocate(bufuuout4(nio))
-    allocate(bufvvout4(nio))
+    if ( present(extrapDegree_opt) ) then
+      extrapDegree = extrapDegree_opt
+    else
+      extrapDegree = 'MAXIMUM'
+    end if
 
-    ierr = ezuvint(bufuuout4, bufvvout4, duuin, dvvin)
+    ierr = ezsetopt('INTERP_DEGREE', interpDegree)
+    ierr = ezsetopt('EXTRAP_DEGREE', extrapDegree)
+
+  end subroutine utl_setezopt
+
+  !--------------------------------------------------------------------------
+  ! utl_ezsint_r4_3d
+  !--------------------------------------------------------------------------
+  function utl_ezsint_r4_3d(zout4, zin4, interpDegree_opt, extrapDegree_opt) result(ierr)
+    implicit none
+
+    ! arguments
+    real(4) :: zout4(:,:,:), zin4(:,:,:)
+    integer :: ierr, ezsint
+    character(len=*), optional :: interpDegree_opt, extrapDegree_opt
+
+    call utl_setezopt(interpDegree_opt, extrapDegree_opt)   
+
+    ierr = ezsint(zout4,zin4)
+
+  end function utl_ezsint_r4_3d
+
+  !--------------------------------------------------------------------------
+  ! utl_ezsint_r4_2d
+  !--------------------------------------------------------------------------
+  function utl_ezsint_r4_2d(zout4, zin4, interpDegree_opt, extrapDegree_opt) result(ierr)
+    implicit none
+
+    ! arguments
+    real(4) :: zout4(:,:), zin4(:,:)
+    character(len=*), optional :: interpDegree_opt, extrapDegree_opt
+
+    ! locals
+    integer :: ierr, ezsint
+
+    call utl_setezopt(interpDegree_opt, extrapDegree_opt)   
+
+    ierr = ezsint(zout4,zin4)
+
+  end function utl_ezsint_r4_2d
+
+  !--------------------------------------------------------------------------
+  ! utl_ezsint_r4_2dTo1d
+  !--------------------------------------------------------------------------
+  function utl_ezsint_r4_2dTo1d(zout4, zin4, interpDegree_opt, extrapDegree_opt) result(ierr)
+    implicit none
+
+    ! arguments
+    real(4) :: zout4(:), zin4(:,:)
+    character(len=*), optional :: interpDegree_opt, extrapDegree_opt
+
+    ! locals
+    integer :: ierr, ezsint
+
+    call utl_setezopt(interpDegree_opt, extrapDegree_opt)   
+
+    ierr = ezsint(zout4,zin4)
+
+  end function utl_ezsint_r4_2dTo1d
+
+  !--------------------------------------------------------------------------
+  ! utl_ezsint_r8_3d
+  !--------------------------------------------------------------------------
+  function utl_ezsint_r8_3d(zout8, zin8, interpDegree_opt, extrapDegree_opt) result(ierr)
+    implicit none
+
+    ! arguments
+    real(8) :: zout8(:,:,:), zin8(:,:,:)
+    character(len=*), optional :: interpDegree_opt, extrapDegree_opt
+
+    ! locals
+    integer :: nii, nji, nki, nio, njo, nko     
+    integer :: ierr, jk1, jk2, jk3
+    real(4), allocatable :: bufferi4(:,:,:), buffero4(:,:,:)
+    integer :: ezsint
+
+    call utl_setezopt(interpDegree_opt, extrapDegree_opt)   
+
+    nii = size(zin8,1)
+    nji = size(zin8,2)
+    nki = size(zin8,3)
+
+    nio = size(zout8,1)
+    njo = size(zout8,2)
+    nko = size(zout8,3)
+
+    allocate(bufferi4(nii,nji,nki))
+    allocate(buffero4(nio,njo,nko))
+
+    do jk3 = 1,nki
+      do jk2 = 1,nji
+        do jk1 = 1,nii
+          bufferi4(jk1,jk2,jk3) = zin8(jk1,jk2,jk3)
+        end do
+      end do
+    end do
+
+    ierr = ezsint(buffero4,bufferi4)
+
+    do jk3 = 1,nko
+      do jk2 = 1,njo
+        do jk1 = 1,nio
+          zout8(jk1,jk2,jk3) = buffero4(jk1,jk2,jk3)
+        end do
+      end do
+    end do
+
+    deallocate(bufferi4)
+    deallocate(buffero4)
+
+  end function utl_ezsint_r8_3d
+
+  !--------------------------------------------------------------------------
+  ! utl_ezsint_r8_2d
+  !--------------------------------------------------------------------------
+  function utl_ezsint_r8_2d(zout8, zin8, interpDegree_opt, extrapDegree_opt) result(ierr)
+    implicit none
+
+    ! arguments
+    real(8) :: zout8(:,:), zin8(:,:)
+    character(len=*), optional :: interpDegree_opt, extrapDegree_opt
+
+    ! locals
+    integer :: nii, nji, nio, njo     
+    integer :: ierr, jk1, jk2
+    real(4), allocatable :: bufferi4(:,:), buffero4(:,:)
+    integer :: ezsint
+
+    call utl_setezopt(interpDegree_opt, extrapDegree_opt)   
+
+    nii = size(zin8,1)
+    nji = size(zin8,2)
+
+    nio = size(zout8,1)
+    njo = size(zout8,2)
+
+    allocate(bufferi4(nii,nji))
+    allocate(buffero4(nio,njo))
+
+    do jk2 = 1,nji
+      do jk1 = 1,nii
+        bufferi4(jk1,jk2) = zin8(jk1,jk2)
+      end do
+    end do
+
+    ierr = ezsint(buffero4,bufferi4)
+
+    do jk2 = 1,njo
+      do jk1 = 1,nio
+        zout8(jk1,jk2) = buffero4(jk1,jk2)
+      end do
+    end do
+
+    deallocate(bufferi4)
+    deallocate(buffero4)
+
+  end function utl_ezsint_r8_2d
+
+  !--------------------------------------------------------------------------
+  ! utl_ezsint_r8_2dTo1d
+  !--------------------------------------------------------------------------
+  function utl_ezsint_r8_2dTo1d(zout8, zin8, interpDegree_opt, extrapDegree_opt) result(ierr)
+    implicit none
+
+    ! arguments
+    real(8) :: zout8(:), zin8(:,:)
+    character(len=*), optional :: interpDegree_opt, extrapDegree_opt
+
+    ! locals
+    integer :: nii, nji, nio
+    integer :: ierr, jk1, jk2
+    real(4), allocatable :: bufferi4(:,:), buffero4(:)
+    integer :: ezsint
+
+    call utl_setezopt(interpDegree_opt, extrapDegree_opt)   
+
+    nii = size(zin8,1)
+    nji = size(zin8,2)
+
+    nio = size(zout8,1)
+
+    allocate(bufferi4(nii,nji))
+    allocate(buffero4(nio))
+
+    do jk2 = 1,nji
+      do jk1 = 1,nii
+        bufferi4(jk1,jk2) = zin8(jk1,jk2)
+      end do
+    end do
+
+    ierr = ezsint(buffero4,bufferi4)
 
     do jk1 = 1,nio
-       duuout(jk1) = bufuuout4(jk1)
-       dvvout(jk1) = bufvvout4(jk1)
-    enddo
+      zout8(jk1) = buffero4(jk1)
+    end do
 
-    deallocate(bufuuout4)
-    deallocate(bufvvout4)
+    deallocate(bufferi4)
+    deallocate(buffero4)
 
-  end function utl_EZUVINT2
+  end function utl_ezsint_r8_2dTo1d
 
   !--------------------------------------------------------------------------
-  ! utl_EZUVINT
+  ! utl_ezuvint_r4_2d
   !--------------------------------------------------------------------------
-  function utl_EZUVINT(duuout, dvvout, duuin, dvvin, nio, nii) result(ierr)
-    IMPLICIT NONE
+  function utl_ezuvint_r4_2d(uuout, vvout, uuin, vvin, interpDegree_opt, extrapDegree_opt) result(ierr)
+    implicit none
 
-    real(8) :: duuout(nio), dvvout(nio)
-    real(8) :: duuin(nii) , dvvin(nii)
+    ! arguments
+    real(4) :: uuout(:,:), vvout(:,:)
+    real(4) :: uuin(:,:) , vvin(:,:)
+    character(len=*), optional :: interpDegree_opt, extrapDegree_opt
+
+    ! locals
+    integer :: ierr, ezuvint
+
+    call utl_setezopt(interpDegree_opt, extrapDegree_opt)   
+
+    ierr = ezuvint(uuout, vvout, uuin, vvin)
+
+  end function utl_ezuvint_r4_2d
+
+  !--------------------------------------------------------------------------
+  ! utl_ezuvint_r4_2dTo1d
+  !--------------------------------------------------------------------------
+  function utl_ezuvint_r4_2dTo1d(uuout, vvout, uuin, vvin, interpDegree_opt, extrapDegree_opt) result(ierr)
+    implicit none
+
+    ! arguments
+    real(4) :: uuout(:), vvout(:)
+    real(4) :: uuin(:,:) , vvin(:,:)
+    character(len=*), optional :: interpDegree_opt, extrapDegree_opt
+
+    ! locals
+    integer :: ierr, ezuvint
+
+    call utl_setezopt(interpDegree_opt, extrapDegree_opt)   
+
+    ierr = ezuvint(uuout, vvout, uuin, vvin)
+
+  end function utl_ezuvint_r4_2dTo1d
+
+  !--------------------------------------------------------------------------
+  ! utl_ezuvint_r8_1d
+  !--------------------------------------------------------------------------
+  function utl_ezuvint_r8_1d(uuout, vvout, uuin, vvin, interpDegree_opt, extrapDegree_opt) result(ierr)
+    implicit none
+
+    ! arguments
+    real(8) :: uuout(:), vvout(:)
+    real(8) :: uuin(:) , vvin(:)
+    character(len=*), optional :: interpDegree_opt, extrapDegree_opt
+
+    ! locals
     integer :: iun, nio, nii
-
-    integer :: ikey, ierr, ileni, ileno, jk1
+    integer :: ierr, jk1
     real, allocatable :: bufuuout4(:), bufvvout4(:)
     real, allocatable :: bufuuin4(:), bufvvin4(:)
-
     integer :: ezuvint
+
+    call utl_setezopt(interpDegree_opt, extrapDegree_opt)   
+
+    nii = size(uuin)
+    nio = size(uuout)
 
     allocate(bufuuout4(nio))
     allocate(bufvvout4(nio))
@@ -106,29 +365,86 @@ contains
     allocate(bufvvin4(nii))
 
     do jk1 = 1,nii
-      bufuuin4(jk1) = duuin(jk1)
-      bufvvin4(jk1) = dvvin(jk1)
-    enddo
+      bufuuin4(jk1) = uuin(jk1)
+      bufvvin4(jk1) = vvin(jk1)
+    end do
 
     ierr = ezuvint(bufuuout4, bufvvout4, bufuuin4, bufvvin4)
 
     do jk1 = 1,nio
-       duuout(jk1) = bufuuout4(jk1)
-       dvvout(jk1) = bufvvout4(jk1)
-    enddo
+      uuout(jk1) = bufuuout4(jk1)
+      vvout(jk1) = bufvvout4(jk1)
+    end do
 
     deallocate(bufuuin4)
     deallocate(bufvvin4)
     deallocate(bufuuout4)
     deallocate(bufvvout4)
 
-  end function utl_EZUVINT
+  end function utl_ezuvint_r8_1d
+
+  !--------------------------------------------------------------------------
+  ! utl_ezuvint_r8_2d
+  !--------------------------------------------------------------------------
+  function utl_ezuvint_r8_2d(uuout, vvout, uuin, vvin, interpDegree_opt, extrapDegree_opt) result(ierr)
+    implicit none
+
+    ! arguments
+    real(8) :: uuout(:,:), vvout(:,:)
+    real(8) :: uuin(:,:) , vvin(:,:)
+    character(len=*), optional :: interpDegree_opt, extrapDegree_opt
+
+    ! locals
+    integer :: iun, nio, njo, nii, nji
+    integer :: ierr, jk1, jk2
+    real, allocatable :: bufuuout4(:,:), bufvvout4(:,:)
+    real, allocatable :: bufuuin4(:,:), bufvvin4(:,:)
+    integer :: ezuvint
+
+    call utl_setezopt(interpDegree_opt, extrapDegree_opt)   
+
+    nii = size(uuin,1)
+    nji = size(uuin,2)
+
+    nio = size(uuout,1)
+    njo = size(uuout,2)
+
+    allocate(bufuuout4(nio,njo))
+    allocate(bufvvout4(nio,njo))
+    allocate(bufuuin4(nii,nji))
+    allocate(bufvvin4(nii,nji))
+
+    do jk2 = 1,nji
+      do jk1 = 1,nii
+        bufuuin4(jk1,jk2) = uuin(jk1,jk2)
+        bufvvin4(jk1,jk2) = vvin(jk1,jk2)
+      end do
+    end do
+
+    ierr = ezuvint(bufuuout4, bufvvout4, bufuuin4, bufvvin4)
+
+    do jk2 = 1,njo
+      do jk1 = 1,nio
+        uuout(jk1,jk2) = bufuuout4(jk1,jk2)
+        vvout(jk1,jk2) = bufvvout4(jk1,jk2)
+      end do
+    end do
+
+    deallocate(bufuuin4)
+    deallocate(bufvvin4)
+    deallocate(bufuuout4)
+    deallocate(bufvvout4)
+
+  end function utl_ezuvint_r8_2d
+
+
+
 
   !--------------------------------------------------------------------------
   ! utl_EZGDEF
   !--------------------------------------------------------------------------
   FUNCTION utl_EZGDEF(ni, nj, grtyp, grtypref, ig1, ig2, ig3, ig4, ax, ay) result(vezgdef)
-    IMPLICIT NONE
+    implicit none
 
     integer :: vezgdef
 
@@ -149,17 +465,17 @@ contains
        ileny=max(1,nj)
     else
        call utl_abort('VEZGDEF: Grid type not supported')
-    endif
+    end if
 
     allocate(bufax4(ilenx))
     allocate(bufay4(ileny))
 
     do jk = 1,ilenx
        bufax4(jk) = ax(jk)
-    enddo
+    end do
     do jk = 1,ileny
        bufay4(jk) = ay(jk)
-    enddo
+    end do
 
     ier2 = ezgdef(ni, nj, grtyp, grtypref, ig1, ig2, ig3, ig4, &
          bufax4, bufay4)
@@ -175,7 +491,7 @@ contains
   ! utl_CXGAIG
   !--------------------------------------------------------------------------
   SUBROUTINE utl_CXGAIG(grtyp, ig1, ig2, ig3, ig4, xlat0, xlon0, dlat, dlon) 
-    IMPLICIT NONE
+    implicit none
 
     integer :: ig1, ig2, ig3, ig4   
     real(8) :: xlat0, xlon0, dlat, dlon 
@@ -197,7 +513,7 @@ contains
   !--------------------------------------------------------------------------
   FUNCTION utl_FSTLIR(fld8, iun, ni, nj, nk, datev, etiket, &
        ip1, ip2, ip3, typvar, nomvar) result(vfstlir)
-    IMPLICIT NONE
+    implicit none
 
     integer :: vfstlir
     real(8) :: fld8(*)
@@ -226,13 +542,13 @@ contains
                 do jk1 = 1,ni
                    la=jk1+(jk2-1)*ni+(jk3-1)*ni*nj
                    fld8(la) = buffer4(la)
-                enddo
-             enddo
-          enddo
-       endif
+                end do
+             end do
+          end do
+       end if
 
        deallocate(buffer4)
-    endif
+    end if
 
     vfstlir=key1
 
@@ -245,7 +561,7 @@ contains
        npas, ni, nj, nk, ip1, ip2, ip3, typvar, &
        nomvar, etiket, grtyp, ig1, ig2, ig3, ig4, & 
        datyp, rewrit) result(vfstecr)
-    IMPLICIT NONE
+    implicit none
 
     integer :: vfstecr
     real(4) :: work
@@ -267,12 +583,12 @@ contains
     allocate(buffer4(ni,nj,nk))
 
     do jk3 = 1,nk
-       do jk2 = 1,nj
-          do jk1 = 1,ni
-             buffer4(jk1,jk2,jk3) = fld8(jk1,jk2,jk3)
-          enddo
-       enddo
-    enddo
+      do jk2 = 1,nj
+        do jk1 = 1,ni
+          buffer4(jk1,jk2,jk3) = fld8(jk1,jk2,jk3)
+        end do
+      end do
+    end do
 
     ikey = fstecr(buffer4, work, npak, iun, dateo, deet, &
          npas, ni, nj, nk, ip1, ip2, ip3, typvar, nomvar, & 
@@ -283,77 +599,6 @@ contains
     vfstecr=ikey
 
   end FUNCTION UTL_FSTECR
-
-  !--------------------------------------------------------------------------
-  ! utl_ezsint
-  !--------------------------------------------------------------------------
-  function utl_EZSINT(zout8, zin8, nio, njo, nko, nii, nji, nki) result(ierr)
-    IMPLICIT NONE
-
-    integer :: nii, nji, nki, nio, njo, nko     
-    real(8) :: zout8(nio,njo,nko),zin8(nii,nji,nki)
-
-    integer :: ierr, jk1, jk2, jk3
-    real(4), allocatable :: bufferi4(:,:,:), buffero4(:,:,:)
-
-    integer :: ezsint
-
-    allocate(bufferi4(nii,nji,nki))
-    allocate(buffero4(nio,njo,nko))
-
-    do jk3 = 1,nki
-       do jk2 = 1,nji
-          do jk1 = 1,nii
-             bufferi4(jk1,jk2,jk3) = zin8(jk1,jk2,jk3)
-          enddo
-       enddo
-    enddo
-
-    ierr = ezsint(buffero4,bufferi4)
-
-    do jk3 = 1,nko
-       do jk2 = 1,njo
-          do jk1 = 1,nio
-             zout8(jk1,jk2,jk3) = buffero4(jk1,jk2,jk3)
-          enddo
-       enddo
-    enddo
-
-    deallocate(bufferi4)
-    deallocate(buffero4)
-
-  end function utl_EZSINT
-
-  !--------------------------------------------------------------------------
-  ! utl_ezsint2
-  !--------------------------------------------------------------------------
-  function utl_EZSINT2(zout8, zin4, nio, njo, nko, nii, nji, nki)  result(ierr)
-    IMPLICIT NONE
-
-    integer :: nii, nji, nki, nio, njo, nko     
-    real(8) :: zout8(nio,njo,nko)
-    real(4) :: zin4(nii,nji,nki)
-
-    integer :: ierr, jk1, jk2, jk3
-    real(4), allocatable :: buffero4(:,:,:)
-
-    integer :: ezsint
-
-    allocate(buffero4(nio,njo,nko))
-
-    ierr = ezsint(buffero4,zin4)
-
-    do jk3 = 1,nko
-       do jk2 = 1,njo
-          do jk1 = 1,nio
-             zout8(jk1,jk2,jk3) = buffero4(jk1,jk2,jk3)
-          enddo
-       enddo
-    enddo
-
-    deallocate(buffero4)
-
-  end function utl_EZSINT2
 
   !--------------------------------------------------------------------------
   ! utl_findArrayIndex
@@ -378,8 +623,8 @@ contains
        IF ( KLIST(JI) .EQ. KENTRY ) THEN
           ISRCHEQ = JI
           RETURN
-       ENDIF
-    ENDDO
+       END IF
+    END DO
 
   END FUNCTION UTL_FINDARRAYINDEX
 
@@ -395,7 +640,7 @@ contains
     !     .  PA(KN,KN)     :  on entry, the original matrix
     !     .                   on exit,  the sqrt     matrix
     !     .  KN            : order of the matrix
-    IMPLICIT NONE
+    implicit none
     !
     ! Arguments
     !
@@ -471,7 +716,7 @@ contains
     IF (ZSIGN < 0. .and. printInformation) THEN
        Write(*,'(A,1x,e14.6)') "Condition number:", &
             maxval(ZEIGENV)/minval(ZEIGENV)
-    ENDIF
+    END IF
     CALL DGEMM('N','N',KN,KN,KN,1.0d0,ZEIGEN,KN,ZEIGENV2,KN, &
          0.0D0 ,ZRESULT,KN)
 
@@ -584,7 +829,7 @@ contains
        else
           ier = fstinl(kinmpg(k),INI,INJ, INK, kstampv, ' ', -1, -1, -1, &
                ' ',cdvar,IKEYS, KNLEV, knmaxlev)
-       endif
+       end if
        !
        if(knlev > 0 ) then
           ier1   = newdate(kstampv,idate2,idate3,-3)
@@ -606,8 +851,8 @@ contains
           llflag = .true.
           koutmpg = kinmpg(k) 
           exit 
-       endif
-    enddo ! End of loop k   
+       end if
+    end do ! End of loop k   
     !
     if (knlev.gt.0) then
        do jlev = 1, knlev
@@ -650,8 +895,8 @@ contains
                   ,',typvar,datyp,ig1,ig2,ig3 and/or ig4 ' &
                   ,'for variable ',cdvar,' and datev, ',kstampv
              call utl_abort('GETFLDPRM2')
-          endif
-       enddo
+          end if
+       end do
        !
        kgid = ezqkdef(ini,inj,clgrtyp,iig1,iig2,iig3,iig4,koutmpg)
        !
@@ -663,7 +908,7 @@ contains
           kip1style = 3
        else
           kip1style = 2
-       endif
+       end if
        !
        !-------Determine the type of P  (see doc. of convip)
        !
@@ -674,12 +919,12 @@ contains
        do k=1,ktrials
           ier = fstinl(kinmpg(k),ini,inj, ink, -1, ' ', -1, -1, -1, &
                ' ',cdvar,ikeys, knlev, knmaxlev)
-       enddo
+       end do
        write(*,*) 'Error - getfldprm2: no record found at time ' &
             ,idatefull,' for field ',cdvar,' but',knlev, &
             ' records found in unit ',kinmpg(k)
        call utl_abort('GETFLDPRM2')
-    endif
+    end if
     !
   end subroutine utl_getfldprm
 
@@ -1427,7 +1672,7 @@ contains
  ! utl_varNamePresentInFile
  !--------------------------------------------------------------------------
   function utl_varNamePresentInFile(fileName,varName) result(found)
-    IMPLICIT NONE
+    implicit none
 
     character(len=*) :: fileName
     character(len=*) :: varName

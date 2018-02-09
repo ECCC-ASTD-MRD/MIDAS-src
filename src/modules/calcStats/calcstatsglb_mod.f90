@@ -86,8 +86,8 @@ module calcstatsglb_mod
 
     NAMELIST /NAMCALCSTATS_GLB/ntrunc,waveBandPeaks
 
-    write(6,*)
-    write(6,*) 'csg_setup: Starting...'
+    write(*,*)
+    write(*,*) 'csg_setup: Starting...'
 
     nens=nens_in
     allocate(cflensin(nens))
@@ -110,7 +110,7 @@ module calcstatsglb_mod
     nj=hco_in%nj
     gridSpacingInKm = ra * hco_in%dlon / 1000.d0
     
-    write(6,*) 'Grid Spacing in Km = ', gridSpacingInKm
+    write(*,*) 'Grid Spacing in Km = ', gridSpacingInKm
 
     !- Setup vertical levels
     nLevEns_M=vco_in%nlev_M
@@ -172,25 +172,25 @@ module calcstatsglb_mod
     if ( nWaveBand < 1 ) then
        nWaveBand = 1
     else if (nWaveBand == 1) then
-       write(6,*) 'You have specified only ONE waveBandPeaks'
+       write(*,*) 'You have specified only ONE waveBandPeaks'
        call utl_abort('calbmatrix_glb')
     else
-       write(6,*)
-       write(6,*) 'WaveBand decomposition is ACTIVATED'
+       write(*,*)
+       write(*,*) 'WaveBand decomposition is ACTIVATED'
     end if
     
     ! Make sure that the wavenumbers are in the correct (decreasing) order
     do waveBandIndex = 1, nWaveBand-1
        if ( waveBandPeaks(waveBandIndex)-waveBandPeaks(waveBandIndex+1) <= 0 ) then
-          write(6,*) 'csg_setup: waveBandPeaks are not in decreasing wavenumber order'
+          write(*,*) 'csg_setup: waveBandPeaks are not in decreasing wavenumber order'
           call utl_abort('calbmatrix_glb')
        end if
     end do
 
     ! Make sure the truncation is compatible with the waveBandPeaks
     if ( ntrunc < nj-1 .and. nWaveBand > 1 ) then
-       write(6,*) 'csg_setup: The truncation is not compatible with wave band decomposition'
-       write(6,*) '                 ntrunc should = ', nj-1
+       write(*,*) 'csg_setup: The truncation is not compatible with wave band decomposition'
+       write(*,*) '                 ntrunc should = ', nj-1
        call utl_abort('calbmatrix_glb')
     end if
 
@@ -199,8 +199,8 @@ module calcstatsglb_mod
     !
     initialized = .true.
 
-    write(6,*)
-    write(6,*) 'csg_setup: Done!'
+    write(*,*)
+    write(*,*) 'csg_setup: Done!'
 
   end subroutine csg_setup
 
@@ -247,7 +247,7 @@ module calcstatsglb_mod
     if(ierr.ne.0) call utl_abort('Problem allocating memory 1')
 
     call readEnsemble(ensPerturbations)
-    write(6,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     call removeMean(ensPerturbations)
 
@@ -347,7 +347,7 @@ module calcstatsglb_mod
     if(ierr.ne.0) call utl_abort('Problem allocating memory 5')
 
     call readEnsemble(ensPerturbations)
-    write(6,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     call removeMean(ensPerturbations)
 
@@ -447,9 +447,9 @@ module calcstatsglb_mod
 
     NAMELIST /NAMTOOLBOX/tool
 
-    write(6,*)
-    write(6,*) 'csg_toolbox'
-    write(6,*)
+    write(*,*)
+    write(*,*) 'csg_toolbox'
+    write(*,*)
 
     variableType = modelSpace
 
@@ -464,21 +464,21 @@ module calcstatsglb_mod
 
     select case(trim(tool))
     case ('HVCORREL_HI')
-       write(6,*)
-       write(6,*) 'Computing Homogeneous and Isotropic Correlation'
+       write(*,*)
+       write(*,*) 'Computing Homogeneous and Isotropic Correlation'
     case ('HVCORREL_LOCAL')
-       write(6,*)
-       write(6,*) 'Computing Local Correlation'
+       write(*,*)
+       write(*,*) 'Computing Local Correlation'
     case ('LOCALIZATIONRADII')
-       write(6,*)
-       write(6,*) 'Estimating the optimal covariance localization radii'
+       write(*,*)
+       write(*,*) 'Estimating the optimal covariance localization radii'
        call bmd_setup( hco_ens, nens, nLevEns_M, nLevEns_T,              & ! IN
                        nkgdimEns, pressureProfile_M, pressureProfile_T,  & ! IN
                        nvar3d, nvar2d, varLevOffset, nomvar3d, nomvar2d, & ! IN
                        nWaveBand)                                          ! IN
     case default
-       write(6,*)
-       write(6,*) 'Unknown TOOL in csg_toolbox : ', trim(tool)
+       write(*,*)
+       write(*,*) 'Unknown TOOL in csg_toolbox : ', trim(tool)
        call utl_abort('calbmatrix_glb')
     end select
 
@@ -495,13 +495,13 @@ module calcstatsglb_mod
     do waveBandIndex = 1, nWaveBand
 
        if ( nWaveBand /= 1 ) then
-          write(6,*)
-          write(6,*) ' ********* Processing WaveBand #',waveBandIndex
-          write(6,*)
+          write(*,*)
+          write(*,*) ' ********* Processing WaveBand #',waveBandIndex
+          write(*,*)
        end if
 
        call readEnsemble(ensPerturbations) ! OUT
-       write(6,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
        call removeMean(ensPerturbations) ! INOUT
        
@@ -559,9 +559,9 @@ module calcstatsglb_mod
     real*4,pointer     :: ensPerturbations(:,:,:,:)
     real*8,allocatable :: powerSpec(:,:)
 
-    write(6,*)
-    write(6,*) 'csg_powerspec'
-    write(6,*)
+    write(*,*)
+    write(*,*) 'csg_powerspec'
+    write(*,*)
     
     variableType = modelSpace
 
@@ -569,7 +569,7 @@ module calcstatsglb_mod
     allocate(powerspec(nkgdimEns,0:ntrunc))
 
     call readEnsemble(ensPerturbations) ! OUT, IN
-    write(6,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     call removeMean(ensPerturbations) ! INOUT
 
@@ -692,7 +692,7 @@ module calcstatsglb_mod
     ierr =  fstfrm(nulstats)
     ierr =  fclos (nulstats)
 
-    write(6,*) 'finished writing statistics...'
+    write(*,*) 'finished writing statistics...'
     call flush(6)
 
   end subroutine writeSpStats
@@ -721,7 +721,7 @@ module calcstatsglb_mod
 
     enddo
 
-    write(6,*) 'finished removing balanced chi...'
+    write(*,*) 'finished removing balanced chi...'
     call flush(6)
 
   end subroutine removeBalancedChi
@@ -774,7 +774,7 @@ module calcstatsglb_mod
 
     enddo
 
-    write(6,*) 'finished removing balanced T and Ps...'
+    write(*,*) 'finished removing balanced T and Ps...'
     call flush(6)
 
   end subroutine removeBalancedT_Ps
@@ -797,7 +797,7 @@ module calcstatsglb_mod
     corns(:,:,:)=0.0d0
     do jens=1,nens
 
-      write(6,*) 'calcCorrelations: processing member ',jens
+      write(*,*) 'calcCorrelations: processing member ',jens
       call flush(6)
 
       gridState(:,:,:)=ensPerturbations(:,:,:,jens)
@@ -876,7 +876,7 @@ module calcstatsglb_mod
 !$OMP END PARALLEL DO
 
     call tmg_stop(3)
-    write(6,*) 'finished computing correlations...'
+    write(*,*) 'finished computing correlations...'
     call flush(6)
 
   end subroutine calcCorrelations
@@ -898,7 +898,7 @@ module calcstatsglb_mod
 
     do jens = 1, nens
 
-      write(6,*) 'calcPowerSpec: processing member ',jens
+      write(*,*) 'calcPowerSpec: processing member ',jens
       call flush(6)
 
       gridState(:,:,:)=ensPerturbations(:,:,:,jens)
@@ -929,7 +929,7 @@ module calcstatsglb_mod
       enddo
     enddo
 
-    write(6,*) 'finished computing power spectrum...'
+    write(*,*) 'finished computing power spectrum...'
     call flush(6)
 
   end subroutine calcPowerSpec
@@ -1074,7 +1074,7 @@ module calcstatsglb_mod
     end do
     end if
 
-    write(6,*) 'finished writing statistics...'
+    write(*,*) 'finished writing statistics...'
     call flush(6)
 
   end subroutine writeStats
@@ -1103,7 +1103,7 @@ module calcstatsglb_mod
     end do
     close(unit=99)
 
-    write(6,*) 'finished writing pressure profiles...'
+    write(*,*) 'finished writing pressure profiles...'
     call flush(6)
 
   end subroutine writePressureProfiles
@@ -1233,7 +1233,7 @@ module calcstatsglb_mod
     ierr =  fstfrm(nulstats)
     ierr =  fclos (nulstats)
 
-    write(6,*) 'finished writing stddev...'
+    write(*,*) 'finished writing stddev...'
     call flush(6)
 
   end subroutine writeStddev
@@ -1320,7 +1320,7 @@ module calcstatsglb_mod
     ierr =  fstfrm(nulstats)
     ierr =  fclos (nulstats)
 
-    write(6,*) 'finished writing stddev...'
+    write(*,*) 'finished writing stddev...'
     call flush(6)
 
   end subroutine writeStddev2
@@ -1402,7 +1402,7 @@ module calcstatsglb_mod
     ierr =  fstfrm(nulstats)
     ierr =  fclos (nulstats)
 
-    write(6,*) 'finished writing stddev...'
+    write(*,*) 'finished writing stddev...'
     call flush(6)
 
   end subroutine writeStddevBal
@@ -1427,9 +1427,9 @@ module calcstatsglb_mod
     character(len=2) :: wbnum
 
     if ( nWaveBand /= 1 ) then
-       write(6,*) 'Bandpass filtering step'
+       write(*,*) 'Bandpass filtering step'
        if (.not. present(waveBandIndex_opt)) then
-          write(6,*) 'Error: No waveBandIndex was supplied!!!'
+          write(*,*) 'Error: No waveBandIndex was supplied!!!'
           call utl_abort('calbmatrix_glb')
        end if
        allocate(ResponseFunction(0:ntrunc))
@@ -1481,7 +1481,7 @@ module calcstatsglb_mod
        deallocate(ResponseFunction)
     end if
 
-    write(6,*) 'finished applying spectral filter...'
+    write(*,*) 'finished applying spectral filter...'
     call flush(6)
 
   end subroutine spectralFilter
@@ -1523,7 +1523,7 @@ module calcstatsglb_mod
       enddo
     enddo
 
-    write(6,*) 'finished computing theta...'
+    write(*,*) 'finished computing theta...'
     call flush(6)
 
   end subroutine calcTheta
@@ -1578,7 +1578,7 @@ module calcstatsglb_mod
 
     do jens = 1,nens
 
-      write(6,*) 'calcPtoT: processing member ',jens
+      write(*,*) 'calcPtoT: processing member ',jens
       call flush(6)
 
       psi(:,:,:)=ensPerturbations(:,:,1:nlevEns_M,jens)
@@ -1652,8 +1652,8 @@ module calcstatsglb_mod
     IWORK=4*NLEVPTOT
     CALL DSYEV('V','U',NLEVPTOT,ZEIGEN,NLEVPTOT,ZEIGENV,ZEIGWRK,IWORK,INFO)
 
-    write(6,*) 'calcPtot: info=',info
-    write(6,*) 'calcPtot: eigen values=',zeigenv(:)
+    write(*,*) 'calcPtot: info=',info
+    write(*,*) 'calcPtot: eigen values=',zeigenv(:)
 
     do JK1=1,NLEVPTOT
       if (ZEIGENV(JK1).gt.0.0d0) then
@@ -1672,9 +1672,9 @@ module calcstatsglb_mod
       ENDDO
     ENDDO
 
-!    write(6,*) 'zm1=',zm1(:,:,1)
-!    write(6,*) 'zm2=',zm2(:,:,1)
-!    write(6,*) 'zm2inv=',zm2inv(:,:,1)
+!    write(*,*) 'zm1=',zm1(:,:,1)
+!    write(*,*) 'zm2=',zm2(:,:,1)
+!    write(*,*) 'zm2inv=',zm2inv(:,:,1)
 
 ! Calculate A = ZM1*inv(ZM2)
 !
@@ -1694,7 +1694,7 @@ module calcstatsglb_mod
       ENDDO
     ENDDO
 
-    write(6,*) 'finished computing PtoT...'
+    write(*,*) 'finished computing PtoT...'
     call flush(6)
 
   end subroutine calcPtoT
@@ -1727,7 +1727,7 @@ module calcstatsglb_mod
     enddo
 !$OMP END PARALLEL DO
 
-    write(6,*) 'finished removing global mean...'
+    write(*,*) 'finished removing global mean...'
     call flush(6)
 
   end subroutine removeGlobalMean
@@ -1753,7 +1753,7 @@ module calcstatsglb_mod
       enddo
 !$OMP END PARALLEL DO
 
-    write(6,*) 'finished computing the zonal average...'
+    write(*,*) 'finished computing the zonal average...'
     call flush(6)
 
   end subroutine calcZonAvg
@@ -1768,8 +1768,8 @@ module calcstatsglb_mod
     real*8  :: dnens,stddev3d(:,:,:)
     real*4  :: ensPerturbations(:,:,:,:)
 
-    write(6,*) 'started computing the stddev...'
-    write(6,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    write(*,*) 'started computing the stddev...'
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     call flush(6)
 
     stddev3d(:,:,:)=0.0d0
@@ -1795,7 +1795,7 @@ module calcstatsglb_mod
       enddo
 !$OMP END PARALLEL DO
 
-    write(6,*) 'finished computing the stddev...'
+    write(*,*) 'finished computing the stddev...'
     call flush(6)
   
   end subroutine calcStddev3d
@@ -1917,7 +1917,7 @@ module calcstatsglb_mod
       enddo
 !$OMP END PARALLEL DO
 
-    write(6,*) 'finished normalizing by stddev3D...'
+    write(*,*) 'finished normalizing by stddev3D...'
     call flush(6)
   
   end subroutine normalize3d
@@ -1944,7 +1944,7 @@ module calcstatsglb_mod
       enddo
 !$OMP END PARALLEL DO
 
-    write(6,*) 'finished multiplying by stddev3D...'
+    write(*,*) 'finished multiplying by stddev3D...'
     call flush(6)
   
   end subroutine multiply3d
@@ -1966,22 +1966,22 @@ module calcstatsglb_mod
        ierr = fstouv(nulens(jens),'RND+OLD')
     end do
 
-    write(6,*) 'Before reading the ensemble:'
-    write(6,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    write(*,*) 'Before reading the ensemble:'
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     call flush(6)
 
 !$OMP PARALLEL DO PRIVATE (jens)
     do jens = 1, nens
-        write(6,*) 'Reading ensemble member:',trim(cflensin(jens))
+        write(*,*) 'Reading ensemble member:',trim(cflensin(jens))
         call flush(6)
         call readEnsembleMember(ensPerturbations,nulens,jens)
-        write(6,*) 'done reading member ',jens
+        write(*,*) 'done reading member ',jens
         call flush(6)
     end do
 !$OMP END PARALLEL DO
 
-    write(6,*) 'After reading the ensemble:'
-    write(6,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    write(*,*) 'After reading the ensemble:'
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     call flush(6)
 
     do jens = 1, nens
@@ -1989,7 +1989,7 @@ module calcstatsglb_mod
        ierr =  fclos (nulens(jens))
     end do
 
-    write(6,*) 'finished reading ensemble members...'
+    write(*,*) 'finished reading ensemble members...'
     call flush(6)
 
   end subroutine readEnsemble
@@ -2053,7 +2053,7 @@ module calcstatsglb_mod
        clnomvar = 'TT'
        ikey=fstlir(gd2d,nulens(jens),ini,inj,ink,idateo,cletiket,nip1_T(jlev),ip2,ip3,cltypvar,clnomvar)
        if(ikey.lt.0) then
-          write(6,*) idateo,cletiket,nip1_T(jlev),ip2,ip3,cltypvar,clnomvar
+          write(*,*) idateo,cletiket,nip1_T(jlev),ip2,ip3,cltypvar,clnomvar
           call utl_abort('readEnsembleMember: Problem with TT ENS')
        endif
        call flush(6)
@@ -2071,7 +2071,7 @@ module calcstatsglb_mod
           clnomvar = 'LQ' 
           ikey=fstlir(gd2d,nulens(jens),ini,inj,ink,idateo,cletiket,nip1_T(jlev),ip2,ip3,cltypvar,clnomvar)
           if(ikey.lt.0) then
-             write(6,*) idateo,cletiket,nip1_T(jlev),ip2,ip3,cltypvar,clnomvar
+             write(*,*) idateo,cletiket,nip1_T(jlev),ip2,ip3,cltypvar,clnomvar
              call utl_abort('readEnsembleMember: Problem with HU and LQ ENS')
           else
              do jlat=1,nj
@@ -2093,7 +2093,7 @@ module calcstatsglb_mod
        clnomvar = 'UU' 
        ikey=fstlir(gd2d,nulens(jens),ini,inj,ink,idateo,cletiket,nip1_M(jlev),ip2,ip3,cltypvar,clnomvar)
        if(ikey.lt.0) then
-          write(6,*) idateo,cletiket,nip1_M(jlev),ip2,ip3,cltypvar,clnomvar
+          write(*,*) idateo,cletiket,nip1_M(jlev),ip2,ip3,cltypvar,clnomvar
           call utl_abort('readEnsembleMember: Problem with UU ENS')
        endif
        do jlat=1,nj
@@ -2107,7 +2107,7 @@ module calcstatsglb_mod
        clnomvar = 'VV' 
        ikey=fstlir(gd2d,nulens(jens),ini,inj,ink,idateo,cletiket,nip1_M(jlev),ip2,ip3,cltypvar,clnomvar)
        if(ikey.lt.0) then
-          write(6,*) idateo,cletiket,nip1_M(jlev),ip2,ip3,cltypvar,clnomvar
+          write(*,*) idateo,cletiket,nip1_M(jlev),ip2,ip3,cltypvar,clnomvar
           call utl_abort('readEnsembleMember: Problem with VV ENS')
        endif
        do jlat=1,nj
@@ -2120,7 +2120,7 @@ module calcstatsglb_mod
 !          clnomvar = 'TG' 
 !          ikey = utl_fstlir(gd2d,nulens,ini,inj,ink,idateo,cletiket,-1,ip2,ip3,cltypvar,clnomvar)
 !          if(ikey.lt.0)  then
-!            write(6,*) idateo,cletiket,ip2,ip3,cltypvar,clnomvar
+!            write(*,*) idateo,cletiket,ip2,ip3,cltypvar,clnomvar
 !            call utl_abort('readEnsembleMember: Problem with TG ENS')
 !          else
 !            do jlat=1,nj
@@ -2166,7 +2166,7 @@ module calcstatsglb_mod
     enddo
 
     call tmg_stop(2)
-    write(6,*) 'finished doing u/v -> psi/chi and spectral filter...'
+    write(*,*) 'finished doing u/v -> psi/chi and spectral filter...'
     call flush(6)
     
   end subroutine uv_to_psichi
@@ -2209,7 +2209,7 @@ module calcstatsglb_mod
       enddo
 !$OMP END PARALLEL DO
 
-    write(6,*) 'finished removing the ensemble mean...'
+    write(*,*) 'finished removing the ensemble mean...'
     call flush(6)
 
   end subroutine removeMean
@@ -2234,8 +2234,8 @@ module calcstatsglb_mod
     character(len=128) :: outfilename
     character(len=2) :: wbnum
 
-    write(6,*)
-    write(6,*) 'Computing horizontal correlation functions'
+    write(*,*)
+    write(*,*) 'Computing horizontal correlation functions'
 
     !
     !- 1.  Spectral transform of a delta function (at the center of the domain)
@@ -2288,7 +2288,7 @@ module calcstatsglb_mod
     !
     if ( nWaveBand /= 1 ) then
        if (.not. present(waveBandIndex_opt)) then
-          write(6,*) 'horizCorrelFunction: No waveBandIndex was supplied!!!'
+          write(*,*) 'horizCorrelFunction: No waveBandIndex was supplied!!!'
           call utl_abort('calbmatrix_glb')
        end if
        write(wbnum,'(I2.2)') waveBandIndex_opt
@@ -2426,7 +2426,7 @@ module calcstatsglb_mod
     ierr =  fstfrm(nulstats)
     ierr =  fclos (nulstats)
 
-    write(6,*) 'finished writing 3d array...'
+    write(*,*) 'finished writing 3d array...'
     call flush(6)
 
   end subroutine write3d
@@ -2451,8 +2451,8 @@ module calcstatsglb_mod
     character(len=128) :: outfilename
     character(len=2) :: wbnum
 
-    write(6,*)
-    write(6,*) 'Computing horizontal correlation lengthscales'
+    write(*,*)
+    write(*,*) 'Computing horizontal correlation lengthscales'
 
     !
     !- 1.  Compute the horizontal correlation lengthscales
@@ -2481,15 +2481,15 @@ module calcstatsglb_mod
     !
     if ( nWaveBand /= 1 ) then
        if (.not. present(waveBandIndex_opt)) then
-          write(6,*) 'CalcHorizScale: No waveBandIndex was supplied!!!'
+          write(*,*) 'CalcHorizScale: No waveBandIndex was supplied!!!'
           call utl_abort('calbmatrix_glb')
        end if
        write(wbnum,'(I2.2)') waveBandIndex_opt
     end if
 
     do jvar = 1, nvar3d
-       write(6,*)
-       write(6,*) nomvar3d(jvar,variableType)
+       write(*,*)
+       write(*,*) nomvar3d(jvar,variableType)
 
        if ( nWaveBand == 1 ) then
           outfilename = "./horizScale_"//trim(nomvar3d(jvar,variableType))//".txt"
@@ -2514,8 +2514,8 @@ module calcstatsglb_mod
     end do
 
     do jvar = 1, nvar2d
-       write(6,*)
-       write(6,*) nomvar2d(jvar,variableType)
+       write(*,*)
+       write(*,*) nomvar2d(jvar,variableType)
        
        if ( nWaveBand == 1 ) then
           outfilename = "./horizScale_"//trim(nomvar2d(jvar,variableType))//".txt"
@@ -2679,7 +2679,7 @@ module calcstatsglb_mod
     end do
 !$OMP END PARALLEL DO
 
-    write(6,*) 'finished computing the local horizontal correlations...'
+    write(*,*) 'finished computing the local horizontal correlations...'
     call flush(6)
 
     !
@@ -2687,7 +2687,7 @@ module calcstatsglb_mod
     !
     if ( nWaveBand /= 1 ) then
        if (.not. present(waveBandIndex_opt)) then
-          write(6,*) 'calcLocalCorrelations: No waveBandIndex was supplied!!!'
+          write(*,*) 'calcLocalCorrelations: No waveBandIndex was supplied!!!'
           call utl_abort('calbmatrix_glb')
        end if
        write(wbnum,'(I2.2)') waveBandIndex_opt

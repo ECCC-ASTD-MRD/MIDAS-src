@@ -43,6 +43,7 @@ module varNameList_mod
   public :: vnl_varListIndex3d, vnl_varListIndex2d, vnl_varListIndex, vnl_varnameFromVarnum
   public :: vnl_varLevelFromVarname, vnl_varLevelFromVarnum, vnl_varTypeFromVarname
   public :: vnl_varKindFromVarname, vnl_varnumFromVarname
+  public :: vnl_varNamesFromExistList
 
   integer, parameter          :: vnl_numvarmax3D = 29, vnl_numvarmax2D = 10
 
@@ -368,11 +369,7 @@ module varNameList_mod
       character(len=2)              :: varLevel
       character(len=4)              :: varName
 
-      if (present(varNumberChm_opt)) then      
-         varName = vnl_varnameFromVarnum(varNumber,varNumberChm_opt)
-      else 
-         varName = vnl_varnameFromVarnum(varNumber)
-      endif 
+      varName = vnl_varnameFromVarnum(varNumber,varNumberChm_opt=varNumberChm_opt)
       varLevel = varLevelList(vnl_varListIndex(varName))
 
     end function vnl_varLevelFromVarnum
@@ -409,5 +406,38 @@ module varNameList_mod
       varKind = varKindList(vnl_varListIndex(varName))
 
     end function vnl_varKindFromVarname
+
+    !--------------------------------------------------------------------------
+    ! vnl_varNamesFromExistList
+    !--------------------------------------------------------------------------
+    subroutine vnl_varNamesFromExistList(varNames,varExistList)
+      implicit none
+
+      ! arguments
+      logical :: varExistList(:)
+      character(len=4), pointer :: varNames(:)
+
+      ! locals
+      integer :: varIndex, numFound
+
+      if (associated(varNames)) then
+        call utl_abort('vnl_varNamesFromExistList: varNames must be NULL pointer on input')
+      end if
+
+      numFound = 0
+      do varIndex = 1, vnl_numvarmax
+        if ( varExistList(varIndex) ) numFound = numFound + 1
+      end do
+      allocate(varNames(numFound))
+
+      numFound = 0
+      do varIndex = 1, vnl_numvarmax
+        if ( varExistList(varIndex) ) then
+          numFound = numFound + 1
+          varNames(numFound) = vnl_varNameList(varIndex)
+        end if
+      end do
+
+    end subroutine vnl_varNamesFromExistList
 
 end module varNameList_mod

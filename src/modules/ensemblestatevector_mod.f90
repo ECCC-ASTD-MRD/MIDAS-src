@@ -94,16 +94,10 @@ CONTAINS
       call ens_deallocate( ens )
     end if
 
-    if ( present(varNames_opt) ) then
-      call gsv_allocate( ens%statevector_work, &
-                         numStep, hco_ens, vco_ens,  &
-                         datestamplist_opt=dateStampList, mpi_local_opt=.true., &
-                         varNames_opt=VarNames_opt, dataKind_opt=4 )
-    else
-      call gsv_allocate( ens%statevector_work, &
-                         numStep, hco_ens, vco_ens,  &
-                         datestamplist_opt=dateStampList, mpi_local_opt=.true., dataKind_opt=4 )
-    end if
+    call gsv_allocate( ens%statevector_work, &
+                       numStep, hco_ens, vco_ens,  &
+                       datestamplist_opt=dateStampList, mpi_local_opt=.true., &
+                       varNames_opt=VarNames_opt, dataKind_opt=4 )
 
     lon1 = ens%statevector_work%myLonBeg
     lon2 = ens%statevector_work%myLonEnd
@@ -741,7 +735,7 @@ CONTAINS
     character(len=2)   :: typvar
     character(len=12)  :: etiket
     character(len=4)   :: varName
-    character(len=4)   :: ensVarNamesWanted_dummy(99)
+    character(len=4)   :: ensVarNamesWanted_dummy(vnl_numvarmax)
     character(len=4), allocatable :: ensVarNamesWanted(:)
     logical :: verticalInterpNeeded, horizontalInterpNeeded, horizontalPaddingNeeded
 
@@ -1037,6 +1031,7 @@ CONTAINS
     deallocate(gd_send_r4)
     deallocate(gd_recv_r4)
     deallocate(datestamplist)
+    deallocate(ensVarNamesWanted)
     call hco_deallocate(hco_file)
     if ( .not. present(vco_file_opt) ) then
       call vco_deallocate(vco_file)
@@ -1137,15 +1132,9 @@ CONTAINS
       write(*,*) 'ens_writeEnsemble: starting to write time level ', stepIndex
 
       ! allocate the needed statevector objects
-      if ( present(varNames_opt) ) then
-        call gsv_allocate(statevector_member_r4, 1, hco_ens, vco_ens,  &
-                          datestamp_opt=dateStampList(stepIndex), mpi_local_opt=.false., &
-                          varNames_opt=VarNames_opt, dataKind_opt=4)
-      else
-        call gsv_allocate(statevector_member_r4, 1, hco_ens, vco_ens,  &
-                          datestamp_opt=dateStampList(stepIndex), mpi_local_opt=.false., &
-                          dataKind_opt=4)
-      end if
+      call gsv_allocate(statevector_member_r4, 1, hco_ens, vco_ens,  &
+                        datestamp_opt=dateStampList(stepIndex), mpi_local_opt=.false., &
+                        varNames_opt=varNames_opt, dataKind_opt=4)
 
       do memberIndex = 1, ens%numMembers
 

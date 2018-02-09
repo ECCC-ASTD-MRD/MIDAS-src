@@ -2805,7 +2805,7 @@ contains
     character(len=2)   :: NOMVAR, snowvar
     character(len=8)   :: ETIKET
     integer,external   :: FNOM,FSTOUV,FSTINF,FSTPRM,FSTFRM,FCLOS
-    integer,external   :: ezsetopt,ezqkdef,ezdefset
+    integer,external   :: ezqkdef,ezdefset
     real(8)            :: zig1,zig2,zig3,zig4
     integer            :: ig1obs,ig2obs,ig3obs,ig4obs
     real (8)           :: ALAT, ALON, ZZLAT, ZZLON
@@ -2951,14 +2951,6 @@ contains
     IZ5 = utl_fstlir(ALB,   iun5,NI5,NJ5,NK5,-1,'',-1,-1,-1,'','AL')
     write(*,*) 'variable = AL           : UTL_FSTLIR : return = ', IZ5
 
-
-    ! EZSETOPT: set nearest neighbor interpolation option within EZSCINT package
-    ! success = 0
-    write(*,*) 
-    IV6 = ezsetopt('INTERP_DEGREE','NEAREST')
-    write(*,*) 'apply to all variables  : ezsetopt : return = ', IV6
-
-
     ! UTL_CXGAIG: define the grid descriptors (integer form) of the
     !          observation profile output grid
     ! desired output = IG1OBS, IG2OBS, IG3OBS, IG4OBS
@@ -2994,7 +2986,7 @@ contains
     IX9 = ezdefset(iv7,ix8)
     write(*,*) 'variable = LG           : ezdefset : return = ', IX9
 
-    IX10 = utl_ezsint(GLACE_INTRPL,glace,nprf,1,1,ni3,nj3,1)
+    IX10 = utl_ezsint(GLACE_INTRPL,glace,interpDegree_opt='NEAREST')
     write(*,*) 'variable = LG           : utl_ezsint  : return = ', IX10
 
     write(*,*) 
@@ -3005,7 +2997,7 @@ contains
     IY9 = ezdefset(iv7,iy8)
     write(*,*) 'variable = ', snowvar, '           : ezdefset : return = ', IY9
 
-    IY10 = utl_ezsint(NEIGE_INTRPL,neige,nprf,1,1,ni4,nj4,1)
+    IY10 = utl_ezsint(NEIGE_INTRPL,neige,interpDegree_opt='NEAREST')
     write(*,*) 'variable = ', snowvar, '           : utl_ezsint  : return = ', IY10
 
     write(*,*) 
@@ -3016,7 +3008,7 @@ contains
     IZ9 = ezdefset(iv7,iz8)
     write(*,*) 'variable = AL           : ezdefset : return = ', IZ9
 
-    IZ10 = utl_ezsint(ALB_INTRPL,alb,nprf,1,1,ni5,nj5,1)
+    IZ10 = utl_ezsint(ALB_INTRPL,alb,interpDegree_opt='NEAREST')
     write(*,*) 'variable = AL           : utl_ezsint  : return = ', IZ10
 
 
