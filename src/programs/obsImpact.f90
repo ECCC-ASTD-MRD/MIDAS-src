@@ -20,6 +20,7 @@
 !!
 !--------------------------------------------------------------------------
 program midas_obsimpact
+  use ramDisk_mod
   use MathPhysConstants_mod
   use timeCoord_mod
   use columnData_mod
@@ -89,6 +90,8 @@ program midas_obsimpact
     call utl_writeStatus('VAR3D_BEG')
   end if
 
+  call ram_setup
+
   !  1. Settings 
 
   obsColumnMode  = 'VAR'
@@ -134,7 +137,7 @@ program midas_obsimpact
 
   call tmg_stop(1)
 
-  call tmg_terminate(mpi_myid, 'TMG_VAR' )
+  call tmg_terminate(mpi_myid, 'TMG_OBSIMPACT' )
 
   call rpn_comm_finalize(ierr)
 
@@ -332,7 +335,7 @@ contains
     call col_copyLatLon(columng,column)
  
      write(*,*) 'PRDATABIN: For 4D increment'
-    call tim_sutimeinterp(obsSpaceData)
+    call tim_sutimeinterp(obsSpaceData, tim_nstepobsinc)
 
     ! compute dateStamp_fcst
     call incdatr(dateStamp_fcst, tim_getDatestamp(), leadTime)
