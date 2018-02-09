@@ -186,6 +186,10 @@ MODULE MathPhysConstants_mod
    real(4)            ::MPC_MINIMUM_HU_R4                 =  2.500000000000000D-06 !  
    real(4)            ::MPC_MAXIMUM_ES_R4                 =  3.000000000000000D+01 !  
 
+! <<<<<< BURP CONSTANTS
+   real(4), parameter :: MPC_missingValue_R4 = -999.
+   real(8), parameter :: MPC_missingValue_R8 = -999.D0
+
 contains
 
   subroutine mpc_setValue(name, var_r4, var_r8, value)

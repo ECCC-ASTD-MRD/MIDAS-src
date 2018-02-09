@@ -34,8 +34,6 @@ save
 
 private
 
-! public variables (parameters)
-public             :: PPMIS
 ! public procedures
 public             :: READBURP,UPDATE_BURP
 
@@ -46,7 +44,6 @@ public             :: READBURP,UPDATE_BURP
 !   are not changed thereafter.
 ! bits to verify in Quality Control Flag:
 
-REAL*4,   PARAMETER  :: PPMIS=-999.
 
 INTEGER*4              :: NELEMS,NELEMS_SFC,BLISTELEMENTS(20),BLISTELEMENTS_SFC(20)
 INTEGER*4              :: BN_ITEMS
@@ -340,9 +337,9 @@ CONTAINS
     END SELECT
     LISTE_ELE    (1:NELE    )=BLISTELEMENTS(1:NELE)
     LISTE_ELE_SFC(1:NELE_SFC)=BLISTELEMENTS_SFC(1:NELE_SFC)
-    if(NELE     .gt. 0)write(*,*)  ' LISTE_ELE =',LISTE_ELE
-    if(NELE_SFC .gt. 0)write(*,*)  ' LISTE_ELE_SFC =',LISTE_ELE_SFC
-    if(BNBITSOFF .gt. 0 .or. BNBITSON .gt.0)write(*,*)  ' BNBITSON BNBITSOFF SIZE OF CP_RPT   =',BNBITSON,BNBITSOFF,LNMX*8
+    if(NELE     > 0)write(*,*)  ' LISTE_ELE =',LISTE_ELE
+    if(NELE_SFC > 0)write(*,*)  ' LISTE_ELE_SFC =',LISTE_ELE_SFC
+    if(BNBITSOFF > 0 .or. BNBITSON > 0)write(*,*)  ' BNBITSON BNBITSOFF SIZE OF CP_RPT   =',BNBITSON,BNBITSOFF,LNMX*8
 
 
     TYPE_RESUME='POSTALT'
@@ -360,21 +357,21 @@ CONTAINS
         BIT_STATUS = 11 
     END SELECT 
 
-    if (trim(BURP_TYP) .eq. 'uni') then
+    if (trim(BURP_TYP) == 'uni') then
       btyp_offset=256
     else
       btyp_offset=0
     end if
 
-    if ( TRIM(FAMILYTYPE2) .eq. 'SCAT') then
+    if ( TRIM(FAMILYTYPE2) == 'SCAT') then
       btyp_offset= 0
       btyp_offset_uni= 256 +0
-    elseif ( TRIM(FAMILYTYPE2) .eq. 'SFC') then
+    elseif ( TRIM(FAMILYTYPE2) == 'SFC') then
       btyp_offset= 0
       btyp_offset_uni= 256 +32
-    elseif ( TRIM(FAMILYTYPE2) .eq. 'UA') then
+    elseif ( TRIM(FAMILYTYPE2) == 'UA') then
       btyp_offset_uni= 256 +32
-    elseif ( TRIM(FAMILYTYPE2) .eq. 'CH') then
+    elseif ( TRIM(FAMILYTYPE2) == 'CH') then
       btyp_offset_uni= 256
     else
       btyp_offset_uni= -999 !set to -999 when not used
@@ -397,7 +394,7 @@ CONTAINS
 
     Call BURP_Set_Options( &
        & REAL_OPTNAME       = opt_missing, &
-       & REAL_OPTNAME_VALUE = PPMIS, &
+       & REAL_OPTNAME_VALUE = MPC_missingValue_R4, &
        & CHAR_OPTNAME       = 'MSGLVL', &
        & CHAR_OPTNAME_VALUE = 'FATAL', &
        & IOSTAT             = error )
@@ -472,7 +469,7 @@ CONTAINS
       END IF
 
       if (ref_rpt < 0) Exit
-      if (count .eq. nb_rpts) then
+      if (count == nb_rpts) then
         write(*,*) 'UPDATE_BURP: ERROR: count = nb_rpts:',count,nb_rpts
         exit
       end if
@@ -483,13 +480,13 @@ CONTAINS
 
     BTYP10obs     = 291 -btyp_offset
     BTYP10obs_uni = 291 -btyp_offset_uni
-    if (bit_alt .eq. 2) btyp10obs     =  BTYP10obs - 2
-    if (bit_alt .eq. 2) btyp10obs_uni =  BTYP10obs_uni - 2
+    if (bit_alt == 2) btyp10obs     =  BTYP10obs - 2
+    if (bit_alt == 2) btyp10obs_uni =  BTYP10obs_uni - 2
 
     BTYP10flg = 483 -btyp_offset
     BTYP10flg_uni = 483 -btyp_offset_uni
-    if (bit_alt .eq. 2) BTYP10flg =  BTYP10flg  - 2
-    if (bit_alt .eq. 2) BTYP10flg_uni =  BTYP10flg_uni  - 2
+    if (bit_alt == 2) BTYP10flg =  BTYP10flg  - 2
+    if (bit_alt == 2) BTYP10flg_uni =  BTYP10flg_uni  - 2
     BTYP10des = 160
 
     BTYP10inf = 96
@@ -507,7 +504,7 @@ CONTAINS
       SAVE_OBS=1
       DO Jo=1,obs_numHeader(obsdat)
         filen= obs_headElem_i(obsdat,OBS_OTP,Jo)
-        if ( filen .eq. filenumb) then
+        if ( filen == filenumb) then
           OBS_START=Jo
           SAVE_OBS=Jo
           exit
@@ -601,10 +598,10 @@ CONTAINS
           else
             !WRITE(*, *)' POUR STATION bloc NON CONNU: ',STNID,ref_blk,bfam,familytype
           end if
-          if (bfam.eq.10.and.bkstp.eq.14) then
+          if (bfam == 10.and.bkstp == 14) then
               LBLOCK_OER_CP=.true.
               BLOCK_OER_CP=BLOCK_IN
-          else  if (bfam.eq.10.and.bkstp.eq.15) then
+          else  if (bfam == 10.and.bkstp == 15) then
               LBLOCK_FGE_CP=.true.
               BLOCK_FGE_CP=BLOCK_IN
           end if
@@ -618,7 +615,7 @@ CONTAINS
         
         BLOCKS1: do bl=1,NBLOC_LIST
 
-          if( BLOCK_LIST(bl) .lt. 0 )cycle
+          if( BLOCK_LIST(bl) < 0 ) cycle
           ref_blk = BURP_Find_Block(Rpt_in, &
                                & BLOCK       = Block_in, &
                                & BTYP = BLOCK_LIST(bl), &
@@ -645,12 +642,12 @@ CONTAINS
           OBS_START=SAVE_OBS
 
           !if ( btyp10 - btyp10obs_uni == 0 .and. bfam == 0 ) then
-          if ( bl .eq. 2 ) then
+          if ( bl == 2 ) then
             OBSN=OBS_START
 
             NDATA_SF=0
             new_bktyp=bktyp
-            if ( post_bit .gt. 0 ) then
+            if ( post_bit > 0 ) then
               new_bktyp=IBSET(bktyp,post_bit)
               Call BURP_Set_Property(BLOCK_OBS_SFC_CP ,BKTYP =new_bktyp)
               Call BURP_Set_Property(BLOCK_MAR_SFC_CP ,BKTYP =new_bktyp)
@@ -707,26 +704,26 @@ CONTAINS
                call BURP_Set_Element( BLOCK_FSO_SFC,NELE_IND = 2,ElEMENT=ILEMV,IOSTAT=error)
 
                do k =1,nte
-                 Call BURP_Set_Rval(Block_OMA_SFC,NELE_IND =1,NVAL_IND =1,NT_IND = k,RVAL = PPMIS ) 
-                 Call BURP_Set_Rval(Block_OMA_SFC,NELE_IND =2,NVAL_IND =1,NT_IND = k,RVAL = PPMIS ) 
-                 Call BURP_Set_Rval(Block_OMP_SFC,NELE_IND =1,NVAL_IND =1,NT_IND = k,RVAL = PPMIS ) 
-                 Call BURP_Set_Rval(Block_OMP_SFC,NELE_IND =2,NVAL_IND =1,NT_IND = k,RVAL = PPMIS ) 
-                 Call BURP_Set_Rval(Block_OER_SFC,NELE_IND =1,NVAL_IND =1,NT_IND = k,RVAL = PPMIS ) 
-                 Call BURP_Set_Rval(Block_OER_SFC,NELE_IND =2,NVAL_IND =1,NT_IND = k,RVAL = PPMIS ) 
-                 Call BURP_Set_Rval(Block_FGE_SFC,NELE_IND =1,NVAL_IND =1,NT_IND = k,RVAL = PPMIS ) 
-                 Call BURP_Set_Rval(Block_FGE_SFC,NELE_IND =2,NVAL_IND =1,NT_IND = k,RVAL = PPMIS ) 
-                 Call BURP_Set_Rval(Block_FSO_SFC,NELE_IND =1,NVAL_IND =1,NT_IND = k,RVAL = PPMIS )
-                 Call BURP_Set_Rval(Block_FSO_SFC,NELE_IND =2,NVAL_IND =1,NT_IND = k,RVAL = PPMIS )
+                 Call BURP_Set_Rval(Block_OMA_SFC,NELE_IND =1,NVAL_IND =1,NT_IND = k,RVAL = MPC_missingValue_R4 ) 
+                 Call BURP_Set_Rval(Block_OMA_SFC,NELE_IND =2,NVAL_IND =1,NT_IND = k,RVAL = MPC_missingValue_R4 ) 
+                 Call BURP_Set_Rval(Block_OMP_SFC,NELE_IND =1,NVAL_IND =1,NT_IND = k,RVAL = MPC_missingValue_R4 ) 
+                 Call BURP_Set_Rval(Block_OMP_SFC,NELE_IND =2,NVAL_IND =1,NT_IND = k,RVAL = MPC_missingValue_R4 ) 
+                 Call BURP_Set_Rval(Block_OER_SFC,NELE_IND =1,NVAL_IND =1,NT_IND = k,RVAL = MPC_missingValue_R4 ) 
+                 Call BURP_Set_Rval(Block_OER_SFC,NELE_IND =2,NVAL_IND =1,NT_IND = k,RVAL = MPC_missingValue_R4 ) 
+                 Call BURP_Set_Rval(Block_FGE_SFC,NELE_IND =1,NVAL_IND =1,NT_IND = k,RVAL = MPC_missingValue_R4 ) 
+                 Call BURP_Set_Rval(Block_FGE_SFC,NELE_IND =2,NVAL_IND =1,NT_IND = k,RVAL = MPC_missingValue_R4 ) 
+                 Call BURP_Set_Rval(Block_FSO_SFC,NELE_IND =1,NVAL_IND =1,NT_IND = k,RVAL = MPC_missingValue_R4 )
+                 Call BURP_Set_Rval(Block_FSO_SFC,NELE_IND =2,NVAL_IND =1,NT_IND = k,RVAL = MPC_missingValue_R4 )
                end do
                il_index=2
 
-               IF (IND_eleu .lt. 0 .and. IND_elef .gt. 0) THEN
+               IF (IND_eleu < 0 .and. IND_elef > 0) THEN
                  Call BURP_RESIZE_BLOCK(BLOCK_OBS_SFC_CP,ADD_NELE = 2 ,IOSTAT=error) 
                  call BURP_Set_Element( BLOCK_OBS_SFC_CP,NELE_IND = nbele+1,ElEMENT=ILEMU,IOSTAT=error) 
                  call BURP_Set_Element( BLOCK_OBS_SFC_CP,NELE_IND = nbele+2,ElEMENT=ILEMV,IOSTAT=error) 
                  do k =1,nte
-                   Call BURP_Set_Rval(Block_OBS_SFC_CP,NELE_IND =nbele+1,NVAL_IND =1,NT_IND = k,RVAL = PPMIS ) 
-                   Call BURP_Set_Rval(Block_OBS_SFC_CP,NELE_IND =nbele+2,NVAL_IND =1,NT_IND = k,RVAL = PPMIS ) 
+                   Call BURP_Set_Rval(Block_OBS_SFC_CP,NELE_IND =nbele+1,NVAL_IND =1,NT_IND = k,RVAL = MPC_missingValue_R4 ) 
+                   Call BURP_Set_Rval(Block_OBS_SFC_CP,NELE_IND =nbele+2,NVAL_IND =1,NT_IND = k,RVAL = MPC_missingValue_R4 ) 
                  end do
 
                  Call BURP_RESIZE_BLOCK(BLOCK_MAR_SFC_CP,ADD_NELE = 2 ,IOSTAT=error) 
@@ -755,13 +752,13 @@ CONTAINS
                  iele=BURP_Get_Element(BLOCK_OBS_SFC_CP,INDEX =il,IOSTAT= error) 
 
                  IND_ELE_MAR= BURP_Find_Element(Block_MAR_SFC_CP, ELEMENT=iele+200000, IOSTAT=error)
-                 if (IND_ele_mar .le. 0 ) cycle
+                 if (IND_ele_mar <= 0 ) cycle
 
                  IND_ele  = BURP_Find_Element(BLOCK_OBS_SFC_CP, ELEMENT=iele, IOSTAT=error)
 
-                 if ( k .eq. 1 ) then
+                 if ( k == 1 ) then
                     if( OMA_SFC_EXIST .eqv.  .true.   ) then
-                      if (iele .ne. ILEMU .and. iele .ne. ILEMV) then
+                      if (iele /= ILEMU .and. iele /= ILEMV) then
                         il_index=il_index +1
                         call BURP_Set_Element (BLOCK_OMA_SFC,NELE_IND= il_index,ElEMENT=iele,IOSTAT=error)
                         Call BURP_Set_Element (BLOCK_OMP_SFC,NELE_IND= il_index,ElEMENT=iele,IOSTAT=error)
@@ -774,33 +771,33 @@ CONTAINS
 
                  is_in_list=-1
                  is_in_list=FIND_INDEX(LISTE_ELE_SFC,iele)
-                 if (is_in_list .lt. 0   .and. iele  .ne. ILEMU .and. iele .ne. ILEMV) cycle ELEMS_SFC
+                 if (is_in_list < 0   .and. iele  /= ILEMU .and. iele /= ILEMV) cycle ELEMS_SFC
                     IND_ele_stat  = BURP_Find_Element(BLOCK_OMA_SFC, ELEMENT=iele, IOSTAT=error)
-                    Call BURP_Set_Rval(Block_OMA_SFC, NELE_IND =IND_ELE_stat ,NVAL_IND =1 , NT_IND  = k , RVAL = PPMIS)
-                    Call BURP_Set_Rval(Block_OMP_SFC, NELE_IND =IND_ELE_stat ,NVAL_IND =1 , NT_IND  = k , RVAL = PPMIS)
-                    Call BURP_Set_Rval(Block_OER_SFC, NELE_IND =IND_ELE_stat ,NVAL_IND =1 , NT_IND  = k , RVAL = PPMIS)
-                    Call BURP_Set_Rval(Block_FGE_SFC, NELE_IND =IND_ELE_stat ,NVAL_IND =1 , NT_IND  = k , RVAL = PPMIS) 
-                    Call BURP_Set_Rval(Block_FSO_SFC, NELE_IND =IND_ELE_stat ,NVAL_IND =1 , NT_IND  = k , RVAL = PPMIS) 
+                    Call BURP_Set_Rval(Block_OMA_SFC, NELE_IND =IND_ELE_stat ,NVAL_IND =1 , NT_IND  = k , RVAL = MPC_missingValue_R4)
+                    Call BURP_Set_Rval(Block_OMP_SFC, NELE_IND =IND_ELE_stat ,NVAL_IND =1 , NT_IND  = k , RVAL = MPC_missingValue_R4)
+                    Call BURP_Set_Rval(Block_OER_SFC, NELE_IND =IND_ELE_stat ,NVAL_IND =1 , NT_IND  = k , RVAL = MPC_missingValue_R4)
+                    Call BURP_Set_Rval(Block_FGE_SFC, NELE_IND =IND_ELE_stat ,NVAL_IND =1 , NT_IND  = k , RVAL = MPC_missingValue_R4) 
+                    Call BURP_Set_Rval(Block_FSO_SFC, NELE_IND =IND_ELE_stat ,NVAL_IND =1 , NT_IND  = k , RVAL = MPC_missingValue_R4) 
 
                     IFLAG =  BURP_Get_Tblval(Block_MAR_SFC_CP,NELE_IND = IND_ele_mar,NVAL_IND = 1, NT_IND = k)
                     OBSVA =  BURP_Get_Rval  (Block_OBS_SFC_CP,NELE_IND = IND_ele    ,NVAL_IND = 1, NT_IND = k)
-                    if (OBSVA .eq. PPMIS .and. iele .ne. ILEMU  .and. iele .ne. ILEMV ) cycle
-                    if(iand(IFLAG,BITSflagoff) .ne.0) cycle
+                    if (OBSVA == MPC_missingValue_R4 .and. iele /= ILEMU  .and. iele /= ILEMV ) cycle
+                    if(iand(IFLAG,BITSflagoff) /= 0) cycle
 
-                    if (OBSN .gt. obs_numHeader(obsdat) ) write(*,*)  ' debordement  surface OBS_START=',OBS_START
-                    if (OBSN .gt. obs_numHeader(obsdat))  cycle
+                    if (OBSN > obs_numHeader(obsdat) ) write(*,*)  ' debordement  surface OBS_START=',OBS_START
+                    if (OBSN > obs_numHeader(obsdat))  cycle
 
                     IRLN=obs_headElem_i(obsdat,OBS_RLN,OBSN )
                     INLV=obs_headElem_i(obsdat,OBS_NLV,OBSN )
 
                     IND_ELE_stat  = BURP_Find_Element(BLOCK_OMA_SFC, ELEMENT=iele, IOSTAT=error)
                     STID=obs_elem_c(obsdat,'STID',obs_start)
-                    if ( STID .ne. stnid ) cycle
+                    if ( STID /= stnid ) cycle
 
                     OBSDATA: do LK=IRLN,IRLN+INLV-1
 
                       VNM=obs_bodyElem_i(obsdat,OBS_VNM ,LK)
-                      if(  VNM .eq. iele ) then 
+                      if( VNM == iele ) then 
                         OBS=obs_bodyElem_r(obsdat,OBS_VAR,LK)
                         OMA=obs_bodyElem_r(obsdat,OBS_OMA ,LK)
                         OMP=obs_bodyElem_r(obsdat,OBS_OMP ,LK)
@@ -837,7 +834,7 @@ CONTAINS
                end do  elems_sfc
 !-------------------------------------------
 
-            if ( REGRUP .and. KOBSN .gt. 0   )  then
+            if ( REGRUP .and. KOBSN > 0   )  then
                 STATUS=obs_headElem_i(obsdat,OBS_ST1,OBS_START )
                 STATUS=IBSET(STATUS,BIT_STATUS)
                 ind055200 = BURP_Find_Element(Block_FLG_CP, ELEMENT=055200, IOSTAT=error)
@@ -851,19 +848,19 @@ CONTAINS
 
             do item=1,BN_ITEMS
 
-              if ( BITEMLIST(item) .eq. 'OMA') then
+              if ( BITEMLIST(item) == 'OMA') then
                 Call BURP_Reduce_Block(BLOCK_OMA_SFC, NEW_NELE =il_index )
                 Call BURP_Write_Block( CP_RPT, BLOCK_OMA_SFC,&
                 ENCODE_BLOCK = .TRUE., CONVERT_BLOCK = .TRUE., IOSTAT= error) 
                 cycle
               end if
-              if ( BITEMLIST(item) .eq. 'OMP') then
+              if ( BITEMLIST(item) == 'OMP') then
                 Call BURP_Reduce_Block(BLOCK_OMP_SFC, NEW_NELE =il_index )
                 Call BURP_Write_Block( CP_RPT, BLOCK_OMP_SFC,&
                 ENCODE_BLOCK = .TRUE., CONVERT_BLOCK = .TRUE., IOSTAT= error) 
                 cycle
               end if
-              if ( BITEMLIST(item) .eq. 'OER') then
+              if ( BITEMLIST(item) == 'OER') then
                 if (.not.LBLOCK_OER_CP) then
                    Call BURP_Reduce_Block(BLOCK_OER_SFC, NEW_NELE =il_index )
                    Call BURP_Write_Block( CP_RPT, BLOCK_OER_SFC,&
@@ -875,7 +872,7 @@ CONTAINS
                 end if
                 cycle
               end if
-              if ( BITEMLIST(item) .eq. 'FGE') then
+              if ( BITEMLIST(item) == 'FGE') then
                 if (.not.LBLOCK_FGE_CP) then
                    Call BURP_Reduce_Block(BLOCK_FGE_SFC, NEW_NELE =il_index )
                    Call BURP_Write_Block( CP_RPT, BLOCK_FGE_SFC,&
@@ -888,7 +885,7 @@ CONTAINS
                 cycle
               end if
 
-              if ( BITEMLIST(item) .eq. 'FSO') then
+              if ( BITEMLIST(item) == 'FSO') then
                    Call BURP_Reduce_Block(BLOCK_FSO_SFC, NEW_NELE =il_index )
                    Call BURP_Write_Block( CP_RPT, BLOCK_FSO_SFC,&
                    ENCODE_BLOCK = .TRUE., CONVERT_BLOCK = .TRUE., IOSTAT= error)
@@ -904,7 +901,7 @@ CONTAINS
                                    ENCODE_BLOCK = .TRUE., CONVERT_BLOCK = .TRUE., IOSTAT= error) 
             Call BURP_Write_Block( CP_RPT, BLOCK_MAR_SFC_CP,&
                                    ENCODE_BLOCK = .TRUE., CONVERT_BLOCK = .FALSE., IOSTAT= error) 
-            IF ( KOBSN .gt. 0 .and. .not. REGRUP ) THEN
+            IF ( KOBSN > 0 .and. .not. REGRUP ) THEN
               STATUS=obs_headElem_i(obsdat,OBS_ST1,OBS_START)
               STATUS=IBSET(STATUS,BIT_STATUS)
               Call BURP_Set_Property(CP_RPT ,FLGS =STATUS)
@@ -912,20 +909,20 @@ CONTAINS
 
             SAVE_OBS=OBS_START
             NDATA_SF=KOBSN
-            if (BLOCK_LIST(4) .eq. -1 .and.  KOBSN .gt. 0 .and. .not. regrup ) THEN
+            if (BLOCK_LIST(4) == -1 .and.  KOBSN > 0 .and. .not. regrup ) THEN
               SAVE_OBS=SAVE_OBS+1
               OBS_START=OBS_START+1
             end if
 
-          end if  ! bl.eq.2
+          end if  ! bl == 2
 
 
           !if ( btyp10 - btyp10obs == 0 .and. bfam == 0 ) then
-          if ( bl .eq. 4 ) then
+          if ( bl == 4 ) then
             ILEMU=11003
             ILEMV=11004
             new_bktyp=bktyp
-            if ( post_bit .gt.0 ) then
+            if ( post_bit  > 0 ) then
               new_bktyp=IBSET(bktyp,post_bit)
               Call BURP_Set_Property(BLOCK_OBS_MUL_CP ,BKTYP =new_bktyp)
               Call BURP_Set_Property(BLOCK_MAR_MUL_CP ,BKTYP =new_bktyp)
@@ -952,7 +949,7 @@ CONTAINS
                k=k+1 
                IND_VCOORD  = BURP_Find_Element(BLOCK_OBS_MUL_CP, ELEMENT=vcord_type(k),IOSTAT=error)
             end do
-            IF ( IND_VCOORD .gt. 0 ) then
+            IF ( IND_VCOORD > 0 ) then
               IF (trim(FAMILYTYPE) == trim('CH')) THEN
                  ELEVFACT=0.0
                  IF (vcord_type(k) == 7006) ELEVFACT=1.0
@@ -973,7 +970,7 @@ CONTAINS
             IND_elef  = BURP_Find_Element(BLOCK_OBS_MUL_CP, ELEMENT=ILEMD, IOSTAT=error)
 
             OMA_ALT_EXIST=.false.
-            if(WINDS .and. IND_eleu .lt. 0 .and. IND_elef .gt. 0) then
+            if(WINDS .and. IND_eleu < 0 .and. IND_elef > 0) then
               Call BURP_RESIZE_BLOCK(BLOCK_OMA,ADD_NELE = 2 ,IOSTAT=error) 
               call BURP_Set_Element( BLOCK_OMA,NELE_IND = VCOORD_POS+1,ElEMENT=ILEMU,IOSTAT=error) 
               call BURP_Set_Element( BLOCK_OMA,NELE_IND = VCOORD_POS+2,ElEMENT=ILEMV,IOSTAT=error) 
@@ -1005,19 +1002,19 @@ CONTAINS
 
               do k=1,nte
                 do jj=1,nvale
-                  Call BURP_Set_Rval( Block_OMA,  NELE_IND =VCOORD_POS+1 ,NVAL_IND =jj , NT_IND  = k , RVAL = PPMIS  ) 
-                  Call BURP_Set_Rval( Block_OMA,  NELE_IND =VCOORD_POS+2 ,NVAL_IND =jj , NT_IND  = k , RVAL = PPMIS  ) 
-                  Call BURP_Set_Rval( Block_OMP,  NELE_IND =VCOORD_POS+1 ,NVAL_IND =jj , NT_IND  = k , RVAL = PPMIS  ) 
-                  Call BURP_Set_Rval( Block_OMP,  NELE_IND =VCOORD_POS+2 ,NVAL_IND =jj , NT_IND  = k , RVAL = PPMIS  ) 
-                  Call BURP_Set_Rval( Block_OER,  NELE_IND =VCOORD_POS+1 ,NVAL_IND =jj , NT_IND  = k , RVAL = PPMIS  ) 
-                  Call BURP_Set_Rval( Block_OER,  NELE_IND =VCOORD_POS+2 ,NVAL_IND =jj , NT_IND  = k , RVAL = PPMIS  ) 
-                  Call BURP_Set_Rval( Block_FGE,  NELE_IND =VCOORD_POS+1 ,NVAL_IND =jj , NT_IND  = k , RVAL = PPMIS  ) 
-                  Call BURP_Set_Rval( Block_FGE,  NELE_IND =VCOORD_POS+2 ,NVAL_IND =jj , NT_IND  = k , RVAL = PPMIS  ) 
-                  Call BURP_Set_Rval( Block_FSO,  NELE_IND =VCOORD_POS+1 ,NVAL_IND =jj , NT_IND  = k , RVAL = PPMIS  )
-                  Call BURP_Set_Rval( Block_FSO,  NELE_IND =VCOORD_POS+2 ,NVAL_IND =jj , NT_IND  = k , RVAL = PPMIS  )
+                  Call BURP_Set_Rval( Block_OMA,  NELE_IND =VCOORD_POS+1 ,NVAL_IND =jj , NT_IND  = k , RVAL = MPC_missingValue_R4  ) 
+                  Call BURP_Set_Rval( Block_OMA,  NELE_IND =VCOORD_POS+2 ,NVAL_IND =jj , NT_IND  = k , RVAL = MPC_missingValue_R4  ) 
+                  Call BURP_Set_Rval( Block_OMP,  NELE_IND =VCOORD_POS+1 ,NVAL_IND =jj , NT_IND  = k , RVAL = MPC_missingValue_R4  ) 
+                  Call BURP_Set_Rval( Block_OMP,  NELE_IND =VCOORD_POS+2 ,NVAL_IND =jj , NT_IND  = k , RVAL = MPC_missingValue_R4  ) 
+                  Call BURP_Set_Rval( Block_OER,  NELE_IND =VCOORD_POS+1 ,NVAL_IND =jj , NT_IND  = k , RVAL = MPC_missingValue_R4  ) 
+                  Call BURP_Set_Rval( Block_OER,  NELE_IND =VCOORD_POS+2 ,NVAL_IND =jj , NT_IND  = k , RVAL = MPC_missingValue_R4  ) 
+                  Call BURP_Set_Rval( Block_FGE,  NELE_IND =VCOORD_POS+1 ,NVAL_IND =jj , NT_IND  = k , RVAL = MPC_missingValue_R4  ) 
+                  Call BURP_Set_Rval( Block_FGE,  NELE_IND =VCOORD_POS+2 ,NVAL_IND =jj , NT_IND  = k , RVAL = MPC_missingValue_R4  ) 
+                  Call BURP_Set_Rval( Block_FSO,  NELE_IND =VCOORD_POS+1 ,NVAL_IND =jj , NT_IND  = k , RVAL = MPC_missingValue_R4  )
+                  Call BURP_Set_Rval( Block_FSO,  NELE_IND =VCOORD_POS+2 ,NVAL_IND =jj , NT_IND  = k , RVAL = MPC_missingValue_R4  )
 
-                  Call BURP_Set_Rval(  BLOCK_OBS_MUL_CP, NELE_IND =nbele+1 ,NVAL_IND =jj , NT_IND  = k , RVAL = PPMIS) 
-                  Call BURP_Set_Rval(  BLOCK_OBS_MUL_CP, NELE_IND =nbele+2 ,NVAL_IND =jj , NT_IND  = k , RVAL = PPMIS) 
+                  Call BURP_Set_Rval(  BLOCK_OBS_MUL_CP, NELE_IND =nbele+1 ,NVAL_IND =jj , NT_IND  = k , RVAL = MPC_missingValue_R4) 
+                  Call BURP_Set_Rval(  BLOCK_OBS_MUL_CP, NELE_IND =nbele+2 ,NVAL_IND =jj , NT_IND  = k , RVAL = MPC_missingValue_R4) 
                   Call BURP_Set_tblval(BLOCK_MAR_MUL_CP, NELE_IND =nbele+1 ,NVAL_IND =jj , NT_IND  = k , TBLVAL = 0  ) 
                   Call BURP_Set_tblval(BLOCK_MAR_MUL_CP, NELE_IND =nbele+2 ,NVAL_IND =jj , NT_IND  = k , TBLVAL = 0  ) 
                 end do
@@ -1032,14 +1029,14 @@ CONTAINS
             IND_LAT   = BURP_Find_Element(BLOCK_OBS_MUL_CP, ELEMENT=5001, IOSTAT=error)
             IND_LON   = BURP_Find_Element(BLOCK_OBS_MUL_CP, ELEMENT=6001, IOSTAT=error)
             IND_TIME  = BURP_Find_Element(BLOCK_OBS_MUL_CP, ELEMENT=4015, IOSTAT=error)
-            if (IND_LAT .gt. 0 .and. IND_LON .gt. 0 .and. IND_TIME .gt. 0 ) HIRES=.true.
-            if(ENFORCE_CLASSIC_SONDES .eqv. .true.)hires=.false.
+            if (IND_LAT > 0 .and. IND_LON > 0 .and. IND_TIME > 0 ) HIRES=.true.
+            if(ENFORCE_CLASSIC_SONDES .eqv. .true.) hires=.false.
 
-            if( TRIM(FAMILYTYPE2) .eq. 'UA' .and. UA_HIGH_PRECISION_TT_ES .eqv. .true. ) HIPCS=.true.
+            if( TRIM(FAMILYTYPE2) == 'UA' .and. UA_HIGH_PRECISION_TT_ES .eqv. .true. ) HIPCS=.true.
 
             !print * , ' hires =true ? ndata_sf ',stnid,hires,NDATA_SF
 
-            if ( HIRES .AND. NDATA_SF .gt.0 ) OBS_START =OBS_START +1
+            if ( HIRES .AND. NDATA_SF  > 0 ) OBS_START =OBS_START +1
             OBSN=OBS_START
             STATUS_HIRES=0
 
@@ -1049,7 +1046,7 @@ CONTAINS
               levels: do j=1,nvale
 
                 !pikpik
-                if(HIRES)KOBSN=0
+                if(HIRES) KOBSN=0
                 !pikpik
 
                 elems: do IL = 1, NBELE  
@@ -1058,16 +1055,16 @@ CONTAINS
                   iele=BURP_Get_Element(BLOCK_OBS_MUL_CP,INDEX =il,IOSTAT= error) 
 
                   IND_ELE_MAR= BURP_Find_Element(Block_MAR_MUL_CP, ELEMENT=iele+200000, IOSTAT=error)
-                  if (IND_ele_mar .lt.  0 ) cycle
+                  if (IND_ele_mar <  0 ) cycle
 
                   IND_ele       = BURP_Find_Element(BLOCK_OBS_MUL_CP, ELEMENT=iele, IOSTAT=error)
-                  if (IND_ele .eq. IND_LAT  .and. hires ) cycle
-                  if (IND_ele .eq. IND_LON  .and. hires ) cycle
-                  if (IND_ele .eq. IND_TIME .and. hires ) cycle
+                  if (IND_ele == IND_LAT  .and. hires ) cycle
+                  if (IND_ele == IND_LON  .and. hires ) cycle
+                  if (IND_ele == IND_TIME .and. hires ) cycle
                   IND_ELE_STAT=-1
                   IND_ele_STAT  = BURP_Find_Element(BLOCK_OMA, ELEMENT=iele, IOSTAT=error)
 
-                  if(j .eq. 1 .and. il .ne. ind_vcoord .and. IND_ELE_STAT .lt. 1  ) then
+                  if(j == 1 .and. il /= ind_vcoord .and. IND_ELE_STAT < 1 ) then
                   il_index=il_index +1
                   Call BURP_RESIZE_BLOCK(BLOCK_OMA,ADD_NELE = 1 ,IOSTAT=error) 
                   call BURP_Set_Element (BLOCK_OMA,NELE_IND = il_index,ElEMENT=iele,IOSTAT=error)
@@ -1086,11 +1083,11 @@ CONTAINS
 
                   do ki=1,nte
                     do jj=1,nvale
-                      Call BURP_Set_Rval( Block_OMA, NELE_IND =il_index ,NVAL_IND =jj , NT_IND  = ki, RVAL = PPMIS ) 
-                      Call BURP_Set_Rval( Block_OMP, NELE_IND =il_index ,NVAL_IND =jj , NT_IND  = ki, RVAL = PPMIS ) 
-                      Call BURP_Set_Rval( Block_OER, NELE_IND =il_index ,NVAL_IND =jj , NT_IND  = ki, RVAL = PPMIS ) 
-                      Call BURP_Set_Rval( Block_FGE, NELE_IND =il_index ,NVAL_IND =jj , NT_IND  = ki, RVAL = PPMIS ) 
-                      Call BURP_Set_Rval( Block_FSO, NELE_IND =il_index ,NVAL_IND =jj , NT_IND  = ki, RVAL = PPMIS )
+                      Call BURP_Set_Rval( Block_OMA, NELE_IND =il_index ,NVAL_IND =jj , NT_IND  = ki, RVAL = MPC_missingValue_R4 ) 
+                      Call BURP_Set_Rval( Block_OMP, NELE_IND =il_index ,NVAL_IND =jj , NT_IND  = ki, RVAL = MPC_missingValue_R4 ) 
+                      Call BURP_Set_Rval( Block_OER, NELE_IND =il_index ,NVAL_IND =jj , NT_IND  = ki, RVAL = MPC_missingValue_R4 ) 
+                      Call BURP_Set_Rval( Block_FGE, NELE_IND =il_index ,NVAL_IND =jj , NT_IND  = ki, RVAL = MPC_missingValue_R4 ) 
+                      Call BURP_Set_Rval( Block_FSO, NELE_IND =il_index ,NVAL_IND =jj , NT_IND  = ki, RVAL = MPC_missingValue_R4 )
                     end do
                   end do
                 end if
@@ -1098,7 +1095,7 @@ CONTAINS
                                       &   NELE_IND = IND_VCOORD, &
                                       &   NVAL_IND = j, &
                                       &   NT_IND   = k)
-                IF (il .eq. IND_VCOORD) THEN
+                IF (il == IND_VCOORD) THEN
                   Call BURP_Set_Rval( Block_OMA, NELE_IND =1 ,NVAL_IND =j , NT_IND  = k , RVAL = VCOORD  ) 
                   Call BURP_Set_Rval( Block_OMP, NELE_IND =1 ,NVAL_IND =j , NT_IND  = k , RVAL = VCOORD  ) 
                   Call BURP_Set_Rval( Block_OER, NELE_IND =1 ,NVAL_IND =j , NT_IND  = k , RVAL = VCOORD  ) 
@@ -1107,30 +1104,30 @@ CONTAINS
                 END IF
 
                 IND_ele       = BURP_Find_Element(BLOCK_OBS_MUL_CP, ELEMENT=iele, IOSTAT=error)
-                !if ( kk .lt. obs_headElem_i(obsdat,OBS_IDO,OBSN) ) print *, ' kk OBS_IDO cycle =',kk, obs_headElem_i(obsdat,OBS_IDO,OBSN)
-                !if ( kk .lt. obs_headElem_i(obsdat,OBS_IDO,OBSN) ) cycle elems
+                !if ( kk < obs_headElem_i(obsdat,OBS_IDO,OBSN) ) print *, ' kk OBS_IDO cycle =',kk, obs_headElem_i(obsdat,OBS_IDO,OBSN)
+                !if ( kk < obs_headElem_i(obsdat,OBS_IDO,OBSN) ) cycle elems
 
                 is_in_list=-1
                 is_in_list=FIND_INDEX(LISTE_ELE,iele)
-                if (is_in_list .lt. 0   .and. iele  .ne. ILEMU .and. iele .ne. ILEMV)cycle
+                if (is_in_list < 0   .and. iele  /= ILEMU .and. iele /= ILEMV)cycle
 
                   IFLAG =  BURP_Get_Tblval(Block_MAR_MUL_CP,NELE_IND = IND_ELE_MAR,NVAL_IND = J, NT_IND = k)
                   OBSVA =  BURP_Get_Rval  (Block_OBS_MUL_CP,NELE_IND = IND_ele    ,NVAL_IND = J, NT_IND = k)
-                  if(iand(iflag,BITSflagoff) .ne.0) CYCLE ELEMS     
+                  if(iand(iflag,BITSflagoff) /= 0) CYCLE ELEMS     
 
                   OBSVA =  BURP_Get_Rval  (Block_OBS_MUL_CP,NELE_IND = IND_ele    ,NVAL_IND = J, NT_IND = k)
-                  !if( idtyp .eq. 168) print * , ' bobossmi avant vcoord obsva    stnid =',  VCOORD,OBSVA,stnid
+                  !if( idtyp == 168 ) print * , ' bobossmi avant vcoord obsva    stnid =',  VCOORD,OBSVA,stnid
 
-                  if (VCOORD .eq. PPMIS ) CYCLE ELEMS
-                  if (OBSVA .eq. PPMIS .and. iele .ne. ILEMU  .and. iele .ne. ILEMV ) CYCLE ELEMS      
+                  if (VCOORD == MPC_missingValue_R4 ) CYCLE ELEMS
+                  if (OBSVA == MPC_missingValue_R4 .and. iele /= ILEMU  .and. iele /= ILEMV ) CYCLE ELEMS      
 
-                  if (OBSN .gt. obs_numHeader(obsdat)) write(*,*) ' debordement  altitude OBSN=',OBSN
-                  if (OBSN .gt. obs_numHeader(obsdat))  cycle
+                  if (OBSN > obs_numHeader(obsdat)) write(*,*) ' debordement  altitude OBSN=',OBSN
+                  if (OBSN > obs_numHeader(obsdat))  cycle
                   IRLN=obs_headElem_i(obsdat,OBS_RLN,OBSN)
                   INLV=obs_headElem_i(obsdat,OBS_NLV,OBSN)
                   TIME=obs_headElem_i(obsdat,OBS_ETM,OBSN)
                   STID=obs_elem_c(obsdat,'STID',OBSN)
-                  if ( STID .ne. stnid ) cycle
+                  if ( STID /= stnid ) cycle
 
                   IND_ELE_stat  = BURP_Find_Element(BLOCK_OMA, ELEMENT=iele,  IOSTAT=error)
 
@@ -1142,12 +1139,12 @@ CONTAINS
                   IND_ELE       = BURP_Find_Element(BLOCK_OBS_MUL_CP, ELEMENT=iele, IOSTAT=error)
                   IND_eleu      = BURP_Find_Element(BLOCK_OBS_MUL_CP, ELEMENT=ILEMU, IOSTAT=error)
                   convfact=1.
-                  if (iele .eq. 10194) convfact=1./RG
+                  if (iele == 10194) convfact=1./RG
                   do LK=IRLN,IRLN+INLV-1
                     ASSIM=obs_bodyElem_i(obsdat,OBS_ASS,LK)
                     VNM  =obs_bodyElem_i(obsdat,OBS_VNM,LK)
                     PPP  =obs_bodyElem_r(obsdat,OBS_PPP,LK) - (ELEV-400.)*ELEVFACT
-                    if( abs( VCOORD -  PPP) .lt. .01  .and.  VNM .eq. iele  ) then 
+                    if( abs( VCOORD -  PPP) < .01  .and.  VNM == iele  ) then 
                       OBS=obs_bodyElem_r(obsdat,OBS_VAR,LK)*convfact
                       OMA=obs_bodyElem_r(obsdat,OBS_OMA,LK)
                       OMP=obs_bodyElem_r(obsdat,OBS_OMP,LK)
@@ -1157,7 +1154,7 @@ CONTAINS
                       FLG=obs_bodyElem_i(obsdat,OBS_FLG,LK)
                       KOBSN= KOBSN + 1
                       IND_ELE_stat  = BURP_Find_Element(BLOCK_OMA, ELEMENT=iele, IOSTAT=error)
-                      if  ( OMA .ne. PPMIS ) then
+                      if  ( OMA /= MPC_missingValue_R4 ) then
                         OMA=OMA*convfact
                       end if
                       Call BURP_Set_Rval(Block_OMA,  NELE_IND =IND_ele_stat ,NVAL_IND =j , NT_IND  = k , RVAL = OMA )
@@ -1165,10 +1162,10 @@ CONTAINS
                       if(iele == 12001) Call BURP_Set_Rval(Block_OMA,  NELE_IND =IND_ele_tth ,NVAL_IND =j , NT_IND  = k , RVAL = OMA )
                       if(iele == 12192) Call BURP_Set_Rval(Block_OMA,  NELE_IND =IND_ele_esh ,NVAL_IND =j , NT_IND  = k , RVAL = OMA )
 
-                      !if(trim(familytype) .eq. 'TO' )print *,' bingo  stnid kk vnm ppp flg omp ',stnid,kk,vnm,ppp,flg,omp,oma
+                      !if(trim(familytype) == 'TO' )print *,' bingo  stnid kk vnm ppp flg omp ',stnid,kk,vnm,ppp,flg,omp,oma
                       SUM=SUM +1
                       IND_ELE_stat  = BURP_Find_Element(BLOCK_OMP, ELEMENT=iele, IOSTAT=error)
-                      if  ( OMP .ne. PPMIS ) then
+                      if  ( OMP /= MPC_missingValue_R4 ) then
                         OMP=OMP*convfact
                       end if
                       Call BURP_Set_Rval(  Block_OMP,  NELE_IND =IND_ele_stat ,NVAL_IND =j , NT_IND  = k , RVAL = OMP)
@@ -1217,18 +1214,18 @@ CONTAINS
                     end if
                   end do 
 
-                  IF (HIRES .and. KOBSN .gt. 0 ) THEN
+                  IF (HIRES .and. KOBSN > 0 ) THEN
                     STATUS=obs_headElem_i(obsdat,OBS_ST1,OBSN )
                     STATUS_HIRES=ior(STATUS_HIRES,STATUS)
                   END IF
 
                 end do ELEMS
 
-                IF (HIRES .and. KOBSN .gt. 0 ) OBSN=OBSN +1
+                IF (HIRES .and. KOBSN > 0 ) OBSN=OBSN +1
 
               end do LEVELS
 
-              if ( REGRUP .and. KOBSN .gt. 0   )  then
+              if ( REGRUP .and. KOBSN > 0   )  then
                 STATUS=obs_headElem_i(obsdat,OBS_ST1,OBS_START )
                 STATUS=IBSET(STATUS,BIT_STATUS)
                 ind055200 = BURP_Find_Element(Block_FLG_CP, ELEMENT=055200, IOSTAT=error)
@@ -1239,7 +1236,7 @@ CONTAINS
 
             end do regrup_LOOP
 
-            IF (HIRES .and. KOBSN .gt. 0 .and. .not. regrup ) THEN
+            IF (HIRES .and. KOBSN > 0 .and. .not. regrup ) THEN
               STATUS=obs_headElem_i(obsdat,OBS_ST1,OBS_START)
 !pik 8-2014   STATUS=IBSET(STATUS,BIT_STATUS)
               STATUS_HIRES=IBSET(STATUS_HIRES,BIT_STATUS)
@@ -1249,17 +1246,17 @@ CONTAINS
             IF (HIRES )SAVE_OBS=OBS_START
             IF (REGRUP)OBS_START=OBSN
 
-            IF ( .not. HIRES .and. .not. regrup .and. KOBSN .gt. 0 ) THEN
+            IF ( .not. HIRES .and. .not. regrup .and. KOBSN > 0 ) THEN
               STATUS=obs_headElem_i(obsdat,OBS_ST1,OBS_START)
               STATUS=IBSET(STATUS,BIT_STATUS)
               OBS_START=OBSN +1
               OBSN=OBSN +1
               Call BURP_Set_Property(CP_RPT ,FLGS =STATUS)
             END IF
-            IF ( .not. HIRES .and. .not. regrup .and. KOBSN .eq. 0 ) THEN
+            IF ( .not. HIRES .and. .not. regrup .and. KOBSN == 0 ) THEN
               write(*,*) ' KOBSN=0  stnid=',stnid
             END IF
-            IF ( .not. HIRES .and.  regrup .and. KOBSN .eq. 0 ) THEN
+            IF ( .not. HIRES .and.  regrup .and. KOBSN == 0 ) THEN
               write(*,*)' KOBSN=0 regrup stnid=',kk,stnid,obsn,obs_numHeader(obsdat)
             END IF
 
@@ -1280,15 +1277,15 @@ CONTAINS
 
             do item=1,BN_ITEMS
 
-              if ( BITEMLIST(item) .eq. 'OMA') then
+              if ( BITEMLIST(item) == 'OMA') then
                 Call BURP_Write_Block( CP_RPT, BLOCK_OMA,&
                           ENCODE_BLOCK = .TRUE., CONVERT_BLOCK = .TRUE., IOSTAT= error) 
               end if
-              if ( BITEMLIST(item) .eq. 'OMP') then
+              if ( BITEMLIST(item) == 'OMP') then
                 Call BURP_Write_Block( CP_RPT, BLOCK_OMP,&
                           ENCODE_BLOCK = .TRUE., CONVERT_BLOCK = .TRUE., IOSTAT= error) 
               end if
-              if ( BITEMLIST(item) .eq. 'OER') then
+              if ( BITEMLIST(item) == 'OER') then
                 if (.not.LBLOCK_OER_CP) then
                    Call BURP_Write_Block( CP_RPT, BLOCK_OER,&
                           ENCODE_BLOCK = .TRUE., CONVERT_BLOCK = .TRUE., IOSTAT= error) 
@@ -1298,7 +1295,7 @@ CONTAINS
                         ENCODE_BLOCK = .FALSE., CONVERT_BLOCK = .FALSE., IOSTAT= error) 
                   end if
               end if
-              if ( BITEMLIST(item) .eq. 'FGE') then
+              if ( BITEMLIST(item) == 'FGE') then
                 if (.not.LBLOCK_FGE_CP) then
                    Call BURP_Write_Block( CP_RPT, BLOCK_FGE,&
                           ENCODE_BLOCK = .TRUE., CONVERT_BLOCK = .TRUE., IOSTAT= error) 
@@ -1308,7 +1305,7 @@ CONTAINS
                         ENCODE_BLOCK = .FALSE., CONVERT_BLOCK = .FALSE., IOSTAT= error) 
                   end if
               end if
-              if ( BITEMLIST(item) .eq. 'FSO') then
+              if ( BITEMLIST(item) == 'FSO') then
                  Call BURP_Write_Block( CP_RPT, BLOCK_FSO,&
                         ENCODE_BLOCK = .TRUE., CONVERT_BLOCK = .TRUE., IOSTAT= error)
               end if
@@ -1316,11 +1313,11 @@ CONTAINS
             end do
 
             if (regrup ) OBS_START = OBSN
-            if( .not. hires) SAVE_OBS = OBS_START
+            if( .not. hires ) SAVE_OBS = OBS_START
 
-          end if  ! bl.eq.4
+          end if  ! bl == 4
 
-          if ( bl .eq. 6 ) then
+          if ( bl == 6 ) then
             Call BURP_Write_Block( CP_RPT, BLOCK_in, ENCODE_BLOCK = .FALSE., CONVERT_BLOCK = .FALSE., IOSTAT= error) 
           end if
 
@@ -1329,12 +1326,12 @@ CONTAINS
           BTYP10des = 160
 
           !if ( BTYP10 - BTYP10des == 0 ) then
-          if (  bl .eq. 1 ) then
+          if (  bl == 1 ) then
             OBS_START=SAVE_OBS
           end if
 
           !==================== IASI  SPECIAL BLOCK==================
-          if ( (BTYP .eq. 9217 .or. BTYP .eq. 15361) .and.  IDTYP .eq. 186   ) then
+          if ( (BTYP == 9217 .or. BTYP == 15361) .and.  IDTYP == 186   ) then
             Call BURP_Write_Block( CP_RPT, BLOCK_in, ENCODE_BLOCK = .FALSE., CONVERT_BLOCK = .FALSE., IOSTAT= error) 
           end if
           !==================== IASI  SPECIAL BLOCK==================
@@ -1683,24 +1680,24 @@ CONTAINS
     END SELECT
     LISTE_ELE    (1:NELE    )=BLISTELEMENTS(1:NELE)
     LISTE_ELE_SFC(1:NELE_SFC)=BLISTELEMENTS_SFC(1:NELE_SFC)
-    if(NELE     .gt. 0)write(*,*)  ' LISTE_ELE =',LISTE_ELE
-    if(NELE_SFC .gt. 0)write(*,*)  ' LISTE_ELE_SFC =',LISTE_ELE_SFC(1:NELE_SFC)
+    if(NELE     > 0)write(*,*)  ' LISTE_ELE =',LISTE_ELE
+    if(NELE_SFC > 0)write(*,*)  ' LISTE_ELE_SFC =',LISTE_ELE_SFC(1:NELE_SFC)
     write(*,*) ' BNBITSON BNBITSOFF     =',BNBITSON,BNBITSOFF
 
     btyp_offset_uni=-999
     btyp_offset=-999
-    if (trim(BURP_TYP) .eq. 'uni') then
+    if (trim(BURP_TYP) == 'uni') then
       btyp_offset=256
     else
       btyp_offset=0
     end if
 
-    if (TRIM(FAMILYTYPE2) .eq. 'SFC') then
+    if (TRIM(FAMILYTYPE2) == 'SFC') then
       btyp_offset= btyp_offset+32
       btyp_offset_uni= 256 +32
-    elseif ( TRIM(FAMILYTYPE2) .eq. 'UA') then
+    elseif ( TRIM(FAMILYTYPE2) == 'UA') then
       btyp_offset_uni= 256 +32
-    elseif (TRIM(FAMILYTYPE2) .eq. 'CH') then
+    elseif (TRIM(FAMILYTYPE2) == 'CH') then
       btyp_offset_uni= 256
     else
       btyp_offset_uni= -999 ! set to -999 when not used
@@ -1727,7 +1724,7 @@ CONTAINS
 
     Call BURP_Set_Options( &
        & REAL_OPTNAME       = opt_missing, &
-       & REAL_OPTNAME_VALUE = PPMIS, &
+       & REAL_OPTNAME_VALUE = MPC_missingValue_R4, &
        & CHAR_OPTNAME       = 'MSGLVL', &
        & CHAR_OPTNAME_VALUE = 'FATAL', &
        & IOSTAT             = error )
@@ -1782,7 +1779,7 @@ CONTAINS
 
       if (ref_rpt < 0) Exit
 
-      if (count .eq. nb_rpts) then
+      if (count == nb_rpts) then
         write(*,*) 'READBURP: ERROR: count = nb_rpts:',count,nb_rpts
         exit
       end if
@@ -1796,13 +1793,13 @@ CONTAINS
 
     BTYP10obs     = 291 -btyp_offset
     BTYP10obs_uni = 291 -btyp_offset_uni
-    if (bit_alt .eq. 2) btyp10obs =  BTYP10obs - 2
-    if (bit_alt .eq. 2) btyp10obs_uni =  BTYP10obs_uni - 2
+    if (bit_alt == 2) btyp10obs =  BTYP10obs - 2
+    if (bit_alt == 2) btyp10obs_uni =  BTYP10obs_uni - 2
 
     BTYP10flg     = 483 -btyp_offset
     BTYP10flg_uni = 483 -btyp_offset_uni
-    if (bit_alt .eq. 2) BTYP10flg =  BTYP10flg  - 2
-    if (bit_alt .eq. 2) BTYP10flg_uni =  BTYP10flg_uni  - 2
+    if (bit_alt == 2) BTYP10flg =  BTYP10flg  - 2
+    if (bit_alt == 2) BTYP10flg_uni =  BTYP10flg_uni  - 2
 
     write(*, *)  ' NUMBER OF VALID REPORTS IN FILE = ',count
     write(*, *)  ' BTYP10obs BTYP10obs_uni         = ',BTYP10obs,BTYP10obs_uni
@@ -1863,12 +1860,12 @@ CONTAINS
 
             vcoord_type=0
             vcoord_SFC(:)       = 0
-            obsvalue_sfc(:,:,:) = PPMIS
+            obsvalue_sfc(:,:,:) = MPC_missingValue_R4
             IND_LAT   = BURP_Find_Element(Block_in, ELEMENT=5001, IOSTAT=error)
             IND_LON   = BURP_Find_Element(Block_in, ELEMENT=6001, IOSTAT=error)
             IND_TIME  = BURP_Find_Element(Block_in, ELEMENT=4015, IOSTAT=error)
-            if (IND_LAT .gt. 0 .and. IND_LON .gt. 0 .and. IND_TIME .gt. 0 ) HIRES_SFC=.true.
-            if(HIRES_SFC) ALLOCATE(HLAT_SFC(nte),HLON_SFC(nte),HTIME_SFC(nte) )
+            if (IND_LAT > 0 .and. IND_LON > 0 .and. IND_TIME > 0 ) HIRES_SFC=.true.
+            if (HIRES_SFC) ALLOCATE(HLAT_SFC(nte),HLON_SFC(nte),HTIME_SFC(nte) )
             IF (HIRES_SFC) THEN
               do k=1,nte
                 HLAT_SFC(k) =BURP_Get_Rval(Block_in, &
@@ -1891,7 +1888,7 @@ CONTAINS
 
               iele=LISTE_ELE_SFC(IL)
               IND_ele  = BURP_Find_Element(Block_in, ELEMENT=iele, IOSTAT=error)
-              if (IND_ele .lt. 0 ) cycle
+              if (IND_ele < 0 ) cycle
 
               do k=1,nte
                 obsvalue_sfc(IL,1,k) =  BURP_Get_Rval(Block_in, &
@@ -1914,7 +1911,7 @@ CONTAINS
             do IL = 1, NELE_SFC
               iele=LISTE_ELE_SFC(IL) + 200000
               IND_QCFLAG  = BURP_Find_Element(Block_in, ELEMENT=iele, IOSTAT=error)
-              if (IND_QCFLAG .lt. 0 ) cycle
+              if (IND_QCFLAG < 0 ) cycle
               DO k=1,nte
                 QCFLAG_sfc(IL,1,k) =  BURP_Get_Tblval(Block_in, &
                                          & NELE_IND = IND_QCFLAG, &
@@ -1934,8 +1931,8 @@ CONTAINS
             ALLOCATE(  OBSERV(NELE,nvale)    )
             ALLOCATE(   VCORD(nvale)    )
                            
-            obsvalue(:,:,:) = PPMIS
-            OBSERV  (:,:)   = PPMIS
+            obsvalue(:,:,:) = MPC_missingValue_R4
+            OBSERV  (:,:)   = MPC_missingValue_R4
             VCOORD  (:,:)   = 0.
             VCORD   (:)     = 0.
 
@@ -1954,22 +1951,22 @@ CONTAINS
             IND_LON   = BURP_Find_Element(Block_in, ELEMENT=6001, IOSTAT=error)
             IND_TIME  = BURP_Find_Element(Block_in, ELEMENT=4015, IOSTAT=error)
             IND_EMIS  = BURP_Find_Element(Block_in, ELEMENT=55043,IOSTAT=error)
-            if (IND_LAT .gt. 0 .and. IND_LON .gt. 0 .and. IND_TIME .gt. 0 ) HIRES=.true.
+            if (IND_LAT > 0 .and. IND_LON > 0 .and. IND_TIME > 0 ) HIRES=.true.
 
-            if( TRIM(FAMILYTYPE2) .eq. 'UA' .and. UA_HIGH_PRECISION_TT_ES .eqv. .true. ) HIPCS=.true.
+            if( TRIM(FAMILYTYPE2) == 'UA' .and. UA_HIGH_PRECISION_TT_ES .eqv. .true. ) HIPCS=.true.
 
             if(HIRES) ALLOCATE(HLAT(nvale,nte),HLON(nvale,nte),HTIME(nvale,nte) )
 
             ALLOCATE(EMIS(nvale,nte))
             ALLOCATE(SURF_EMIS(nvale))
-            EMIS(:,:)       = PPMIS
-            OBSVALUE(:,:,:) = PPMIS
+            EMIS(:,:)       = MPC_missingValue_R4
+            OBSVALUE(:,:,:) = MPC_missingValue_R4
 
             do IL = 1, NELE
 
               iele=LISTE_ELE(IL)
               IND_ele  = BURP_Find_Element(Block_in, ELEMENT=iele, IOSTAT=error)
-              if (IND_ele .lt. 0 ) cycle
+              if (IND_ele < 0 ) cycle
 
               if(HIPCS .and. iele == 12001) IND_ele = BURP_Find_Element(Block_in, ELEMENT=12101, IOSTAT=error)
               if(HIPCS .and. iele == 12192) IND_ele = BURP_Find_Element(Block_in, ELEMENT=12239, IOSTAT=error)
@@ -2031,10 +2028,10 @@ CONTAINS
             HAVAL (:) = 0
             GAVAL (:) = 0
 
-            if (TRIM(FAMILYTYPE) .eq. 'SW' .and. READ_QI_GA_MT_SW) then
+            if (TRIM(FAMILYTYPE) == 'SW' .and. READ_QI_GA_MT_SW) then
 
               IND_SW  = BURP_Find_Element(Block_in, ELEMENT=33007, IOSTAT=error)
-              if (IND_SW .le. 0 ) cycle
+              if (IND_SW <= 0 ) cycle
               do k = 1, nte
                 QI1VAL(k)= BURP_Get_Tblval(Block_in, &
                                            NELE_IND = IND_SW, &
@@ -2044,7 +2041,7 @@ CONTAINS
               end do
 
               IND_SW  = BURP_Find_Element(Block_in, ELEMENT=33194, IOSTAT=error)
-              if (IND_SW .le. 0 ) cycle
+              if (IND_SW <= 0 ) cycle
               do k = 1, nte
                 QI2VAL(k)= BURP_Get_Tblval(Block_in, &
                                            NELE_IND = IND_SW, &
@@ -2055,11 +2052,11 @@ CONTAINS
 
               do k = 1, nte
                 QIVAL(k) = QI2VAL(k)
-                if(QIVAL(k) .lt. 0)  QIVAL(k) = QI1VAL(k)
+                if(QIVAL(k) < 0)  QIVAL(k) = QI1VAL(k)
               enddo
 
               IND_SW  = BURP_Find_Element(Block_in, ELEMENT=2023, IOSTAT=error)
-              if (IND_SW .le. 0 ) cycle
+              if (IND_SW <= 0 ) cycle
               do k = 1, nte
                 MTVAL(k)= BURP_Get_Tblval(Block_in, &
                                           NELE_IND = IND_SW, &
@@ -2069,7 +2066,7 @@ CONTAINS
               end do
 
               IND_SW  = BURP_Find_Element(Block_in, ELEMENT=8012, IOSTAT=error)
-              if (IND_SW .le. 0 ) cycle
+              if (IND_SW <= 0 ) cycle
               do k = 1, nte
                 LSVAL(k)= BURP_Get_Tblval(Block_in, &
                                           NELE_IND = IND_SW, &
@@ -2079,7 +2076,7 @@ CONTAINS
               end do
 
               IND_SW  = BURP_Find_Element(Block_in, ELEMENT=13039, IOSTAT=error)
-              if (IND_SW .le. 0 ) cycle
+              if (IND_SW <= 0 ) cycle
               do k = 1, nte
                 GAVAL(k)= BURP_Get_Tblval(Block_in, &
                                           NELE_IND = IND_SW, &
@@ -2089,7 +2086,7 @@ CONTAINS
               end do
 
               IND_SW  = BURP_Find_Element(Block_in, ELEMENT=2163, IOSTAT=error)
-              if (IND_SW .le. 0 ) cycle
+              if (IND_SW <= 0 ) cycle
               do k = 1, nte
                 HAVAL(k)= BURP_Get_Tblval(Block_in, &
                                           NELE_IND = IND_SW, &
@@ -2119,7 +2116,7 @@ CONTAINS
               iele=LISTE_ELE(IL)
 
               IND_QCFLAG  = BURP_Find_Element(Block_in, ELEMENT=200000+iele, IOSTAT=error)
-              if (IND_QCFLAG .le. 0 ) cycle
+              if (IND_QCFLAG <= 0 ) cycle
               do k = 1, nte
                 do j = 1, nvale
                   QCFLAG(IL,j,k)= BURP_Get_Tblval(Block_in, &
@@ -2149,7 +2146,7 @@ CONTAINS
               info_elepos = BURP_Find_Element(Block_in, &
                                  & ELEMENT  = LISTE_INFO(kl), &
                                  & IOSTAT   = error)
-              if (  info_elepos .ge.  0 )then
+              if (  info_elepos >= 0 )then
                 
                 do k =1 , nte
                   RINFO(kl,k)= BURP_Get_rval(Block_in, &
@@ -2157,19 +2154,19 @@ CONTAINS
                               &   NVAL_IND = 1, &
                               &   NT_IND   = k, &
                               &   IOSTAT   = error)
-                  if  (RINFO(kl,k) .eq. PPMIS)  THEN    
+                  if  (RINFO(kl,k) == MPC_missingValue_R4)  THEN    
                     infot= BURP_Get_tblval(Block_in, &
                             &   NELE_IND = info_elepos, &
                             &   NVAL_IND = 1, &
                             &   NT_IND   = k, &
                             &   IOSTAT   = error)
-                    if (infot .ne. -1) RINFO(kl,k) =real(infot)
+                    if (infot /= -1) RINFO(kl,k) =real(infot)
                   END IF
 
                 end do
 
               else
-                RINFO(kl,1:nte)=PPMIS
+                RINFO(kl,1:nte)=MPC_missingValue_R4
             end if
 
             end do
@@ -2223,15 +2220,15 @@ CONTAINS
           end if
 
           !==================== IASI  SPECIAL BLOCK==================
-          if ( BTYP .eq. 9217 .and.  IDTYP .eq. 186   ) then
+          if ( BTYP == 9217 .and.  IDTYP == 186   ) then
             NCLASSAVHRR=obs_getNclassAvhrr()
             NCHANAVHRR=obs_getNchanAvhrr()
             if (.not. allocated(CFRAC) ) allocate( CFRAC(NCLASSAVHRR,nte) )
             if (.not. allocated(RADMOY)) allocate(RADMOY(NCLASSAVHRR,NCHANAVHRR,nte))
             if (.not. allocated(radstd)) allocate(radstd(NCLASSAVHRR,NCHANAVHRR,nte))
 
-            RADMOY(:,:,:)=PPMIS
-            RADSTD(:,:,:)=PPMIS
+            RADMOY(:,:,:)=MPC_missingValue_R4
+            RADSTD(:,:,:)=MPC_missingValue_R4
             CFRAC(:,:)=-999
 
             IASIQUAL: DO k = 1, nte
@@ -2274,7 +2271,7 @@ CONTAINS
 
             XLON    = (lon(k)*1.-18000.)*.01
             XLAT    = (lat(k)*1.- 9000.)*.01
-            IF ( xlon  .LT. 0. ) xlon  = 360. + xlon
+            IF ( xlon  < 0. ) xlon  = 360. + xlon
             XLON    = XLON*MPC_RADIANS_PER_DEGREE_R8
             XLAT    = XLAT*MPC_RADIANS_PER_DEGREE_R8
             YMD_DATE=date(k)
@@ -2307,7 +2304,7 @@ CONTAINS
               QCFLAGS_sfc(1:NELE_SFC,1:1)=qcflag_sfc  (1:NELE_SFC,1:1,k)
               IF ( HIRES_SFC) THEN
                 XLAT=HLAT_SFC(k);XLON=HLON_SFC(k);XTIME=HTIME_SFC(k)
-                IF ( XLON  .LT. 0. ) XLON  = 360. + XLON
+                IF ( XLON  < 0. ) XLON  = 360. + XLON
                 ier= NEWDATE(kstamp2,YMD_DATE,HM*10000,3)
                 XLAT=XLAT*MPC_RADIANS_PER_DEGREE_R8
                 XLON=XLON*MPC_RADIANS_PER_DEGREE_R8
@@ -2320,12 +2317,12 @@ CONTAINS
               END IF
 
               NDATA_SF= WRITE_BODY(obsdat,UNI_FAMILYTYPE,RELEV,vcoord_sfc,vcoord_type,OBSERV_sfc,qcflags_sfc,NELE_SFC,1,LISTE_ELE_SFC)
-              IF ( NDATA_SF .GT. 0) THEN
+              IF ( NDATA_SF > 0) THEN
                 call WRITE_HEADER(obsdat,STNID,XLAT,XLON,YMD_DATE_SFC,HM_SFC,idtyp,STATUS,RELEV,FILENUMB)
                 OBSN=obs_numHeader(obsdat)
                 call obs_setFamily(obsdat,trim(FAMILYTYPE),  OBSN )
                 call obs_headSet_i(obsdat,OBS_NLV,OBSN,NDATA_SF)
-                IF (OBSN .GT. 1 ) THEN
+                IF (OBSN > 1 ) THEN
                   LN= obs_headElem_i(obsdat,OBS_RLN,OBSN-1) + obs_headElem_i(obsdat,OBS_NLV,OBSN-1)
                   call obs_headSet_i(obsdat,OBS_RLN,OBSN,LN)
                 ELSE
@@ -2342,7 +2339,7 @@ CONTAINS
                 OBSERV(1:NELE,1:1)  =obsvalue  (1:NELE,jj:jj,k)
                 if (allocated(qcflag))     QCFLAGS(1:NELE,1:1)    =qcflag  (1:NELE,jj:jj,k)
                 XLAT=HLAT(jj,k);XLON=HLON(jj,k);XTIME=HTIME(jj,k)
-                IF ( XLON  .LT. 0. ) XLON  = 360. + XLON
+                IF ( XLON  < 0. ) XLON  = 360. + XLON
 
                 XLAT=XLAT*MPC_RADIANS_PER_DEGREE_R8
                 XLON=XLON*MPC_RADIANS_PER_DEGREE_R8
@@ -2355,18 +2352,18 @@ CONTAINS
                 VCORD(1)=VCOORD(jj,k)
                 NDATA= WRITE_BODY(obsdat,familytype,RELEV,VCORD,vcoord_type,OBSERV,qcflags,NELE,1,LISTE_ELE,SURF_EMIS)
 
-                IF (NDATA .gt. 0) THEN
+                IF (NDATA > 0) THEN
                   call WRITE_HEADER(obsdat,STNID,XLAT,XLON,date2,time2,idtyp,STATUS,RELEV,FILENUMB)
 !==================================================================================
 !
 ! Ajoute qivals dans les argument de WRITE_QI
 
-                  if (TRIM(FAMILYTYPE) .eq. 'SW' .and. READ_QI_GA_MT_SW) call WRITE_QI(obsdat,QIVAL(k),MTVAL(k),LSVAL(k),HAVAL(k),GAVAL(k))
+                  if (TRIM(FAMILYTYPE) == 'SW' .and. READ_QI_GA_MT_SW) call WRITE_QI(obsdat,QIVAL(k),MTVAL(k),LSVAL(k),HAVAL(k),GAVAL(k))
 
                   OBSN=obs_numHeader(obsdat)
                   call obs_setFamily(obsdat,trim(FAMILYTYPE), OBSN )
                   call obs_headSet_i(obsdat,OBS_NLV,OBSN,NDATA)
-                  IF (OBSN .GT. 1 ) THEN
+                  IF (OBSN > 1 ) THEN
                     LN= obs_headElem_i(obsdat,OBS_RLN,OBSN-1) + obs_headElem_i(obsdat,OBS_NLV,OBSN-1)
                     call obs_headSet_i(obsdat,OBS_RLN,OBSN,LN)
                     !call obs_headSet_i(obsdat,OBS_IDO,OBSN,kk)
@@ -2389,7 +2386,7 @@ CONTAINS
             IF ( allocated(obsvalue_sfc) ) THEN
               IF ( HIRES_SFC) THEN
                 XLAT=HLAT_SFC(k);XLON=HLON_SFC(k);XTIME=HTIME_SFC(k)
-                IF ( XLON  .LT. 0. ) XLON  = 360. + XLON
+                IF ( XLON  < 0. ) XLON  = 360. + XLON
                 ier= NEWDATE(kstamp2,YMD_DATE,HM*10000,3)
                 XLAT=XLAT*MPC_RADIANS_PER_DEGREE_R8
                 XLON=XLON*MPC_RADIANS_PER_DEGREE_R8
@@ -2405,12 +2402,12 @@ CONTAINS
               QCFLAGS_sfc(1:NELE_SFC,1:1)=qcflag_sfc  (1:NELE_SFC,1:1,k)
 
               NDATA_SF= WRITE_BODY(obsdat,UNI_FAMILYTYPE,RELEV,vcoord_sfc,vcoord_type,OBSERV_sfc,qcflags_sfc,NELE_SFC,1,LISTE_ELE_SFC)
-              IF ( NDATA_SF .GT. 0) THEN
+              IF ( NDATA_SF > 0) THEN
                 call WRITE_HEADER(obsdat,STNID,XLAT,XLON,YMD_DATE,HM,idtyp,STATUS,RELEV,FILENUMB)
                 OBSN=obs_numHeader(obsdat) 
                 call obs_setFamily(obsdat,trim(FAMILYTYPE), OBSN )
                 call obs_headSet_i(obsdat,OBS_NLV ,OBSN,NDATA_SF)
-                IF (OBSN  .GT. 1 ) THEN
+                IF (OBSN  > 1 ) THEN
                   LN= obs_headElem_i(obsdat,OBS_RLN,OBSN-1) + obs_headElem_i(obsdat,OBS_NLV,OBSN-1)
                   call obs_headSet_i(obsdat,OBS_RLN,OBSN,LN)
                   !call obs_headSet_i(obsdat,OBS_IDO,OBSN,kk)
@@ -2427,22 +2424,22 @@ CONTAINS
               VCORD(1:NVAL)            =VCOORD  (1:NVAL,k)
               NDATA= WRITE_BODY(obsdat,familytype,RELEV,VCORD,vcoord_type,OBSERV,qcflags,NELE,NVAL,LISTE_ELE,SURF_EMIS)
 
-              IF (NDATA .gt. 0) THEN
+              IF (NDATA > 0) THEN
 
-                IF (NDATA_SF .eq. 0) THEN
+                IF (NDATA_SF == 0) THEN
                   call WRITE_HEADER(obsdat,STNID,XLAT,XLON,YMD_DATE,HM,idtyp,STATUS,RELEV,FILENUMB)
 !==================================================================================
 !
 ! Ajoute qivals dans les argument de WRITE_QI
 
-                  if (TRIM(FAMILYTYPE) .eq. 'SW') call WRITE_QI(obsdat,QIVAL(k),MTVAL(k),LSVAL(k),HAVAL(k),GAVAL(k))
+                  if (TRIM(FAMILYTYPE) == 'SW') call WRITE_QI(obsdat,QIVAL(k),MTVAL(k),LSVAL(k),HAVAL(k),GAVAL(k))
 
        	          OBSN=obs_numHeader(obsdat) 
                   call obs_setFamily(obsdat,trim(FAMILYTYPE), OBSN )
                 END IF
                 OBSN=obs_numHeader(obsdat) 
                 call obs_headSet_i(obsdat,OBS_NLV,OBSN,NDATA+NDATA_SF)
-                IF (OBSN   .GT. 1 ) THEN
+                IF (OBSN   > 1 ) THEN
                   LN= obs_headElem_i(obsdat,OBS_RLN,OBSN-1) + obs_headElem_i(obsdat,OBS_NLV,OBSN-1)
                   call obs_headSet_i(obsdat,OBS_RLN,OBSN,LN)
                   !call obs_headSet_i(obsdat,OBS_IDO,OBSN,kk)
@@ -2456,7 +2453,7 @@ CONTAINS
             END IF
 
             !============ IASI =====================================
-            if ( allocated(RADMOY) .and. NDATA .gt. 0 ) then
+            if ( allocated(RADMOY) .and. NDATA > 0 ) then
               OBSN=obs_numHeader(obsdat)
 
               iclass=1
@@ -2499,7 +2496,7 @@ CONTAINS
           END IF
 
           if (allocated(TRINFO))  then
-            IF ( NDATA.gt.0.or.NDATA_SF.gt.0 ) then
+            IF ( NDATA > 0.or.NDATA_SF > 0 ) then
               call WRITE_INFO(obsdat,familytype, TRINFO,LISTE_INFO,NELE_INFO  )
             END IF
           end if
@@ -2702,7 +2699,7 @@ CONTAINS
 
     NONELEV  =-1
 
-    MISG=PPMIS
+    MISG=MPC_missingValue_R4
     ZEMFACT=0.01
 
     REMIS = MISG
@@ -2726,12 +2723,12 @@ CONTAINS
     id_obs=NOBS
 
 
-    if (  trim(FAMTYP) .eq. trim('PR') .OR. trim(FAMTYP) .eq. trim('SF') ) then
+    if (  trim(FAMTYP) == trim('PR') .OR. trim(FAMTYP) == trim('SF') ) then
       ELEVFACT=1.
     else
       ELEVFACT=0.
     end if
-    if (  trim(FAMTYP) .eq. trim('TO') ) then
+    if (  trim(FAMTYP) == trim('TO') ) then
       !ELEV=0.
     END IF
 
@@ -2752,14 +2749,14 @@ CONTAINS
            VCO=3
         ELSE            
            ! Vertical coordinate not provided or not recognized.
-           IF (NVAL.EQ.1) THEN
+           IF (NVAL == 1) THEN
               VCO=5 ! Initializes as surface point measurement
               DO il = 1, NELE
-                 if ( obsvalue(il,1) .ne. PPMIS) then
-                    if (liste_ele(il).EQ.15198.OR.liste_ele(il).EQ.15009.OR. &
-                        liste_ele(il).EQ.15020.OR.liste_ele(il).EQ.15021.OR. &
-                        liste_ele(il).EQ.15024.OR.liste_ele(il).EQ.15200.OR. &
-                        liste_ele(il).EQ.15001.OR.liste_ele(il).EQ.15005) then
+                 if ( obsvalue(il,1) /= MPC_missingValue_R4) then
+                    if (liste_ele(il) == 15198.OR.liste_ele(il) == 15009.OR. &
+                        liste_ele(il) == 15020.OR.liste_ele(il) == 15021.OR. &
+                        liste_ele(il) == 15024.OR.liste_ele(il) == 15200.OR. &
+                        liste_ele(il) == 15001.OR.liste_ele(il) == 15005) then
                         
                         VCO=4  ! Assumes this is a total column measurement
                         exit
@@ -2779,18 +2776,18 @@ CONTAINS
         VCOORD=VERTCOORD(j)
         OBSV  =   obsvalue(il,j)
         if( L_EMISS .eqv. .true.)  then
-          if( SURF_EMIS_opt(j) .ne.  MISG)  then
+          if( SURF_EMIS_opt(j) /= MISG)  then
             REMIS =  SURF_EMIS_opt(j)*ZEMFACT
           else
             REMIS = MISG
           end if
         end if
         IFLAG = INT(qCflag(il,j))
-        if(iand(iflag,BITSflagoff) .ne.0) cycle
+        if(iand(iflag,BITSflagoff) /= 0) cycle
         !burpmodule IFLAG = IBCLR(IFLAG,12)
 
-        !if (VARNO .eq. .10194)OBSV=OBSV*RG
-        if ( obsv .ne. PPMIS .and. VCOORD .ne. PPMIS   ) then
+        !if (VARNO == .10194)OBSV=OBSV*RG
+        if ( obsv /= MPC_missingValue_R4 .and. VCOORD /= MPC_missingValue_R4   ) then
           count = count  + 1
           NLV= NLV +1
           ID_DATA=count
@@ -2802,10 +2799,10 @@ CONTAINS
           call obs_bodySet_r(obsdat,OBS_PPP,count, ELEV_R)
           call obs_bodySet_i(obsdat,OBS_VNM,count,VARNO)
           call obs_bodySet_i(obsdat,OBS_FLG,count,IFLAG)
-          if ( REMIS .ne. PPMIS .and. FAMTYP .eq. 'TO') THEN
+          if ( REMIS /= MPC_missingValue_R4 .and. FAMTYP == 'TO') THEN
             call obs_bodySet_r(obsdat,OBS_SEM,count,REMIS)
           else
-            if ( FAMTYP .eq. 'TO') then
+            if ( FAMTYP == 'TO') then
                 emmissivite=0.95
                 call obs_bodySet_r(obsdat,OBS_SEM,count,emmissivite)
              else
@@ -2818,9 +2815,9 @@ CONTAINS
           !call obs_bodySet_i(obsdat,OBS_IDD,count,ID_DATA)
           !call obs_bodySet_i(obsdat,OBS_IDD,count,0)
 
-          if ( varno .eq. 11001 .or. varno .eq. 11011) then
+          if ( varno == 11001 .or. varno == 11011) then
             call obs_bodySet_r(obsdat,OBS_VAR,count,OBSV)
-            if ( varno .eq. 11001) then
+            if ( varno == 11001) then
               call obs_bodySet_i(obsdat,OBS_VNM,count+1,11003)
               call obs_bodySet_i(obsdat,OBS_FLG,count+1,0)
               !call obs_bodySet_i(obsdat,OBS_IDD,count+1,-1)
@@ -2996,8 +2993,8 @@ CONTAINS
 
     SOLAR_AZIMUTH = 0
     SOLAR_ZENITH = 0
-    RTANGENT_RADIUS=PPMIS
-    RGEOID=PPMIS
+    RTANGENT_RADIUS=real(MPC_missingValue_R8,OBS_REAL)
+    RGEOID=real(MPC_missingValue_R8,OBS_REAL)
     TERRAIN_TYPE=99
     !CLOUD_COVER = 0
     CONSTITUENT_TYPE = -99
@@ -3010,42 +3007,42 @@ CONTAINS
       SELECT CASE( liste_info(il) )
         CASE( 1007)
           RID_SAT=INFOV
-          IF (RID_SAT .eq. PPMIS ) THEN 
+          IF (RID_SAT == MPC_missingValue_R4 ) THEN 
             ID_SAT=0
           ELSE
             ID_SAT=NINT(RID_SAT)
           END IF
         CASE( 2048)
           RSENSOR = INFOV
-          if (RSENSOR .eq. PPMIS ) THEN
+          if (RSENSOR == MPC_missingValue_R4 ) THEN
             SENSOR = -99
           ELSE
             SENSOR = NINT(RSENSOR)
           END IF
         CASE( 2019)
           RINSTRUMENT = INFOV
-          if (RINSTRUMENT .eq. PPMIS ) THEN
+          if (RINSTRUMENT == MPC_missingValue_R4 ) THEN
             INSTRUMENT = 0
           ELSE
             INSTRUMENT = NINT(RINSTRUMENT)
           END IF
         CASE( 5043)
           RFOV = INFOV
-          if (RFOV .eq. PPMIS ) THEN
+          if (RFOV == MPC_missingValue_R4 ) THEN
             IFOV = 0
           ELSE
             IFOV = NINT(RFOV)
           END IF
         CASE( 7024)
           RZENITH = INFOV
-          if (RZENITH .eq. PPMIS ) THEN
+          if (RZENITH == MPC_missingValue_R4 ) THEN
             ZENITH = 9000
           ELSE
             ZENITH = NINT ( (90.0 + RZENITH)*100 )
           END IF
         CASE( 7025)
           RSOLAR_ZENITH = INFOV
-          if (RSOLAR_ZENITH .eq. PPMIS )  THEN 
+          if (RSOLAR_ZENITH == MPC_missingValue_R4 )  THEN 
             SOLAR_ZENITH = 0
             SOLAR_ZENITH = -99
           ELSE
@@ -3053,28 +3050,28 @@ CONTAINS
           END IF
         CASE( 5021)
           RAZIMUTH=INFOV
-          if (RAZIMUTH .eq. PPMIS ) THEN
+          if (RAZIMUTH == MPC_missingValue_R4 ) THEN
             AZIMUTH=0
           ELSE
             AZIMUTH=NINT ( (RAZIMUTH)*100 )
           END IF
         CASE( 33060)
           RIGQISFLAGQUAL=INFOV
-          if (RIGQISFLAGQUAL .eq. PPMIS )  then
+          if (RIGQISFLAGQUAL == MPC_missingValue_R4 )  then
             IGQISFLAGQUAL=0
           ELSE
             IGQISFLAGQUAL=NINT ( RIGQISFLAGQUAL )
           END IF
         CASE( 33062)
           RIGQISQUALINDEXLOC=INFOV
-          if (RIGQISQUALINDEXLOC .eq. PPMIS )  then
+          if (RIGQISQUALINDEXLOC == MPC_missingValue_R4 )  then
             IGQISQUALINDEXLOC=0
           ELSE
             IGQISQUALINDEXLOC=NINT ( RIGQISQUALINDEXLOC )
           END IF
         CASE( 5022)
           RSOLAR_AZIMUTH=INFOV
-          if (RSOLAR_AZIMUTH .eq. PPMIS )  then
+          if (RSOLAR_AZIMUTH == MPC_missingValue_R4 )  then
             SOLAR_AZIMUTH=0
             SOLAR_AZIMUTH=-99
           ELSE
@@ -3082,21 +3079,21 @@ CONTAINS
           END IF
         CASE( 8012)
           RLAND_SEA=INFOV
-          if (RLAND_SEA .eq. PPMIS ) THEN
+          if (RLAND_SEA == MPC_missingValue_R4 ) THEN
             LAND_SEA=99
           ELSE
             LAND_SEA=NINT ( RLAND_SEA )
           END IF
         CASE( 13039)
           RTERRAIN_TYPE=INFOV
-          if (RTERRAIN_TYPE .eq. PPMIS ) THEN
+          if (RTERRAIN_TYPE == MPC_missingValue_R4 ) THEN
             TERRAIN_TYPE=99
           ELSE
             TERRAIN_TYPE=NINT ( RTERRAIN_TYPE )
           END IF
         CASE( 20010)
           RCLOUD_COVER=INFOV
-          if (RCLOUD_COVER .eq. PPMIS ) THEN
+          if (RCLOUD_COVER == MPC_missingValue_R4 ) THEN
             CLOUD_COVER=0
           ELSE
             CLOUD_COVER=NINT ( RCLOUD_COVER )
@@ -3107,7 +3104,7 @@ CONTAINS
           RGEOID=INFOV
         CASE( 33039)
           RRO_QCFLAG=INFOV
-          if (RRO_QCFLAG .eq. PPMIS ) THEN
+          if (RRO_QCFLAG == MPC_missingValue_R4 ) THEN
             IRO_QCFLAG=-99
           ELSE
             IRO_QCFLAG=NINT ( RRO_QCFLAG )
@@ -3115,7 +3112,7 @@ CONTAINS
         CASE( 08046)          
           IF (trim(FAMTYP) == 'CH') THEN
              RCONSTITUENT=INFOV
-             IF (RCONSTITUENT .eq. PPMIS) THEN
+             IF (RCONSTITUENT == MPC_missingValue_R4) THEN
                 call utl_abort('WRITE_INFO: Missing 08046 element for the CH family.')
              ELSE
                 CONSTITUENT_TYPE=NINT(RCONSTITUENT)
@@ -3127,8 +3124,8 @@ CONTAINS
     !-------------------SPECIAL CASES--------------
 
     ! INSTRUMENT
-    IF ( SENSOR .EQ. -99)then
-      IF ( INSTRUMENT .EQ. -99)then
+    IF ( SENSOR == -99)then
+      IF ( INSTRUMENT == -99)then
         INSTRUMENT=0
       END IF
     ELSE
@@ -3138,7 +3135,7 @@ CONTAINS
     ! AIRS
     IF ( INSTRUMENT == 420 ) ID_SAT = 784
 
-    if (  trim(FAMTYP) .eq. trim('GO') ) then
+    if (  trim(FAMTYP) == trim('GO') ) then
       LAND_SEA=0
       ZENITH=0
     END IF
@@ -3147,7 +3144,7 @@ CONTAINS
     !-------------------SPECIAL CASES--------------
 
     ! Is terrain type sea ice (iterrain=0)?, If so, set imask=2.
-    IF ( TERRAIN_TYPE .EQ.  0       ) THEN
+    IF ( TERRAIN_TYPE ==  0       ) THEN
       LAND_SEA = 2
     END IF
 
@@ -3162,11 +3159,11 @@ CONTAINS
     if ( obs_columnActive_IH(obsdat,OBS_SAT) ) call obs_headSet_i(obsdat,OBS_SAT,nobs,ID_SAT)
     if ( obs_columnActive_IH(obsdat,OBS_GQF) ) call obs_headSet_i(obsdat,OBS_GQF,nobs,IGQISFLAGQUAL)
     if ( obs_columnActive_IH(obsdat,OBS_GQL) ) call obs_headSet_i(obsdat,OBS_GQL,nobs,IGQISQUALINDEXLOC)
-    !if( trim(FAMTYP) .eq. trim('RO'))print *, 'geoid   QCFLAG TANGENT_RADIUS GEOID=',IRO_QCFLAG,RTANGENT_RADIUS,RGEOID
+    !if( trim(FAMTYP) == trim('RO'))print *, 'geoid   QCFLAG TANGENT_RADIUS GEOID=',IRO_QCFLAG,RTANGENT_RADIUS,RGEOID
     if ( obs_columnActive_IH(obsdat,OBS_ROQF) ) call obs_headSet_i(obsdat,OBS_ROQF,nobs,IRO_QCFLAG)
     if ( obs_columnActive_RH(obsdat,OBS_TRAD) ) call obs_headSet_r(obsdat,OBS_TRAD,nobs,RTANGENT_RADIUS)
     if ( obs_columnActive_RH(obsdat,OBS_GEOI) ) call obs_headSet_r(obsdat,OBS_GEOI,nobs,RGEOID)
-    if (trim(FAMTYP) .eq. trim('CH')) then
+    if (trim(FAMTYP) == trim('CH')) then
         if ( obs_columnActive_IH(obsdat,OBS_CHM) ) call obs_headSet_i(obsdat,OBS_CHM,nobs,CONSTITUENT_TYPE)
     else
         if ( obs_columnActive_IH(obsdat,OBS_CHM) ) call obs_headSet_i(obsdat,OBS_CHM,nobs,-1)
@@ -3181,7 +3178,7 @@ CONTAINS
     INTEGER I,ELEMENT
     FIND_INDEX=-1
     do I=1,size (LIST)
-      if (list(i) .eq. element) THEN
+      if (list(i) == element) THEN
         FIND_INDEX=i
         exit
       end if

@@ -288,27 +288,27 @@ contains
       IF ( isExist_L )THEN
         IER=FNOM(nulburp,burpinFull,'RND+OLD',0)
         WRITE(*,*)' Open File : ',trim(burpinFull)
-        IF ( IER .EQ. 0 ) THEN
+        IF ( IER == 0 ) THEN
           INBLKS= -1
           INBLKS=NUMBLKS(nulburp)
-          IF ( INBLKS .GT. 0 ) THEN
+          IF ( INBLKS > 0 ) THEN
             INRECS=MRFOPN(NULBURP,'READ')
             ILONG =MRFMXL(NULBURP)
             ALLOCATE(IBUF(ILONG + 20))
             IBUF(1)=ILONG + 20
             IHANDL  =MRFLOC(NULBURP,0,'>>*******',-1,-1,-1,-1,-1,-1,0)
-            IF ( IHANDL .LT. 0 ) THEN
+            IF ( IHANDL < 0 ) THEN
               IHANDL=MRFLOC(NULBURP,0,'*********',-1,-1,-1,-1,-1,-1,0)
             ELSE
               nresume=nresume+1
             END IF
-            IF ( IHANDL .LT. 0 ) THEN
+            IF ( IHANDL < 0 ) THEN
               WRITE(*,*) 'AUCUN ENREGISTREMENT VALIDE DANS LE FICHIER BURP'
             ELSE
               burp_nfiles=burp_nfiles + 1
               burp_cfilnam(burp_nfiles)=burpinFull
               burp_cfamtyp(burp_nfiles)=CFAMI(JJ)
-              if ((kdate.lt.0.and.ktime.lt.0).or.nresume.eq.1) then 
+              if ((kdate < 0.and.ktime < 0).or.nresume == 1) then 
                 INSUP=0
                 INXAUX=0
                 IER=MRFGET(IHANDL,IBUF)
@@ -317,7 +317,7 @@ contains
                      ISUP,INSUP,IXAUX,INXAUX)
                 KTIME=ITIME
                 KDATE=IDATE
-                if (nresume.eq.1) nresume=2
+                if (nresume == 1) nresume=2
               end if
             END IF
             DEALLOCATE(IBUF)
@@ -355,11 +355,11 @@ contains
         call INCDATR (datestamp, istampobs, delhh)
         ier = newdate(datestamp,kdate,inewhh,-3)
         ktime=KTIME/100
-        if (ktime .ge. 21 .or. ktime .lt. 3) then
+        if (ktime >= 21 .or. ktime < 3) then
           ktime = 0
-        else if(ktime .ge. 3 .and. ktime .lt. 9) then
+        else if(ktime >= 3 .and. ktime < 9) then
           ktime = 6
-        else if(ktime .ge. 9 .and. ktime .lt. 15) then
+        else if(ktime >= 9 .and. ktime < 15) then
           ktime = 12
         else
           ktime = 18
@@ -437,7 +437,7 @@ contains
       WRITE(*,*)'                burp_readFiles BEGIN             '
       WRITE(*,*)'================================================='
       WRITE(*,*)' '
-      MISG=PPMIS
+      MISG = real(MPC_missingValue_R8,OBS_REAL)
 
       IBEG=obs_numbody(obsdat)
       DO J =1,burp_nfiles
@@ -449,10 +449,10 @@ contains
          Nstn2=obs_numheader(obsdat)
          IEND=obs_numbody(obsdat)
 
-         burp_chem = trim(burp_cfamtyp(J)).eq.'CH'
+         burp_chem = trim(burp_cfamtyp(J)) == 'CH'
 
-         IF ( trim(burp_cfamtyp(J)) .ne. 'TO' .and. .not.burp_chem) THEN
-            call FDTOUV_OBSDAT(  obsdat,Nstn1+1,Nstn2,PPMIS)
+         IF ( trim(burp_cfamtyp(J)) /= 'TO' .and. .not.burp_chem) THEN
+            call FDTOUV_OBSDAT(  obsdat,Nstn1+1,Nstn2,MPC_missingValue_R4)
             call ADJUST_HUM_GZ(  obsdat,Nstn1+1,Nstn2)
             call ADJUST_SFVCOORD(obsdat,Nstn1+1,Nstn2)
          END IF
@@ -473,7 +473,7 @@ contains
 
          ! For GP family, initialize OBS_OER to element 15032 (ZTD formal error) 
          ! for all ZTD data (element 15031)
-         IF ( trim(burp_cfamtyp(J)) .eq. 'GP') THEN
+         IF ( trim(burp_cfamtyp(J)) == 'GP') THEN
            print * ,' Initializing OBS_OER for GB-GPS ZTD to formal error (ele 15032)'
            CALL SET_ERR_GBGPS(obsdat,Nstn1+1,Nstn2)
          END IF
@@ -624,7 +624,7 @@ END SUBROUTINE burp_updateFiles
           SELECT CASE(VARNO)
             CASE(BUFR_NEES,BUFR_NESS)
              OBSV=obs_bodyElem_r(obsdat,OBS_VAR,j)
-             IF ( OBSV .GT. ZESMAX) THEN
+             IF ( OBSV > ZESMAX) THEN
                 OBSV=ZESMAX
              END IF
              call obs_bodySet_r(obsdat,OBS_VAR,j, OBSV )
@@ -670,11 +670,9 @@ END SUBROUTINE burp_updateFiles
       type (struct_obs), intent(inout):: obsdat
 
       REAL(OBS_REAL)    :: OBSV
-      REAL              :: MISG
 
 !-----------------------------------------------------------------------
       WRITE(*,*)'   SET_ERR_GBGPS '
-      MISG=-999.
 !
 !-----------------------------------
 !      STN LOOP
@@ -685,11 +683,11 @@ END SUBROUTINE burp_updateFiles
         !=================================
         ! DATA LOOP
         !=================================
-        OBSV=MISG
+        OBSV=real(MPC_missingValue_R8,OBS_REAL)
         DO J = RLN, NLV + RLN -1
 
           VARNO=obs_bodyElem_i(obsdat,OBS_VNM,j)
-          IF ( VARNO .eq. 15032 ) THEN
+          IF ( VARNO == 15032 ) THEN
              OBSV=obs_bodyElem_r(obsdat,OBS_VAR,j)
              call obs_bodySet_i(obsdat,OBS_VNM,j,999 )
              EXIT
@@ -699,7 +697,7 @@ END SUBROUTINE burp_updateFiles
         DO J = RLN, NLV + RLN -1
 
           VARNO=obs_bodyElem_i(obsdat,OBS_VNM,j)
-          IF ( VARNO .eq. 15031 .and. OBSV .ne. MISG ) THEN
+          IF ( VARNO == 15031 .and. OBSV /= real(MPC_missingValue_R8,OBS_REAL)) THEN
              call obs_bodySet_r(obsdat,OBS_OER,j,OBSV )
              EXIT
           END IF
@@ -766,18 +764,18 @@ END SUBROUTINE burp_updateFiles
 
       nexp=0
       DO bodyIndex = RLN, NLV + RLN -1
-         if (obs_bodyElem_i(obsdat,OBS_VNM,bodyIndex).eq.BUFR_SCALE_EXPONENT) then
+         if (obs_bodyElem_i(obsdat,OBS_VNM,bodyIndex) == BUFR_SCALE_EXPONENT) then
             nexp=nexp+1
             expnt(nexp) = obs_bodyElem_r(obsdat,OBS_VAR,bodyIndex)
          end if
       END DO
 
-      if (nexp.eq.0) then
+      if (nexp == 0) then
          deallocate(expnt)
          return
       end if
 
-      if (nexp.ne.nlv/2) then
+      if (nexp /= nlv/2) then
          ! Skip over obs assuming mantissa was filtered out in READBURP 
          ! (not inserted in obsSpaceData) due to quality flags.
          ! Set exponent quality flag to that of a 'Suspicious element' 
@@ -800,7 +798,7 @@ END SUBROUTINE burp_updateFiles
          
          iobs=0
          DO bodyIndex = RLN, NLV + RLN -1
-            IF (obs_bodyElem_i(obsdat,OBS_VNM,bodyIndex).ne.BUFR_SCALE_EXPONENT) THEN
+            IF (obs_bodyElem_i(obsdat,OBS_VNM,bodyIndex) /= BUFR_SCALE_EXPONENT) THEN
                iobs=iobs+1
                obsv=obs_bodyElem_r(obsdat,OBS_VAR,bodyIndex)
                call obs_bodySet_r(obsdat,OBS_VAR,bodyIndex,obsv*10**(expnt(iobs)) )
@@ -816,7 +814,7 @@ END SUBROUTINE burp_updateFiles
          iobs=0
          iexp=0
          DO bodyIndex = RLN, NLV + RLN -1
-            if (obs_bodyElem_i(obsdat,OBS_VNM,bodyIndex).eq.BUFR_SCALE_EXPONENT) then
+            if (obs_bodyElem_i(obsdat,OBS_VNM,bodyIndex) == BUFR_SCALE_EXPONENT) then
                ! Store scaling exponents
                iexp=iexp+1
                call obs_bodySet_r(obsdat,OBS_OMP,bodyIndex,expnt(iexp))
@@ -898,7 +896,7 @@ END SUBROUTINE burp_updateFiles
 !           CASE(11011,11012,11215,11216,12004,12203,10051,10004,13220,15031)
 !
              SFC_VCO= SURFVCORD(VARNO,CODTYP)
-             IF ( VARNO .ne.  BUFR_NEPN) THEN
+             IF ( VARNO /= BUFR_NEPN) THEN
                 PPP=ELEV  + SFC_VCO
                 call obs_bodySet_r(obsdat,OBS_PPP,j,PPP)
                 call obs_bodySet_i(obsdat,OBS_VCO,j,1)
@@ -1253,7 +1251,7 @@ END SUBROUTINE burp_updateFiles
  !++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
         case (BUFR_NEDD,BUFR_NEDS)
-          IF( VARNO .eq. BUFR_NEDS) then
+          IF( VARNO == BUFR_NEDS) then
             ILEMF=BUFR_NEFS
             ILEMU=BUFR_NEUS
             ILEMV=BUFR_NEVS
@@ -1278,24 +1276,24 @@ END SUBROUTINE burp_updateFiles
           uvinobsdat: do J4 =J, NLV + RLN -1
             !-------------------------------------
             LEVEL4 = obs_bodyElem_r(obsdat, OBS_PPP,j4)
-            IF (LEVEL4 .eq. LEVEL_dd) then
+            IF (LEVEL4 == LEVEL_dd) then
               VARNO4=obs_bodyElem_i(obsdat, OBS_VNM,j4)
               SELECT case (VARNO4)
               case (11003,11004,11002,11001,11215,11216,11011,11012)
 
                 OBSUV =obs_bodyElem_r(obsdat, OBS_VAR,j4)
-                IF (  (VARNO4 .eq. ILEMU)     .and.  (obsuv .ne. PPMIS) ) THEN
+                IF (  (VARNO4 == ILEMU)     .and.  (obsuv /= PPMIS) ) THEN
                   LLU_PRESENT=.true.
                   INDUM=J4
-                ELSE IF ( (VARNO4 .eq. ILEMV) .and. (obsuv .ne. PPMIS) ) THEN
+                ELSE IF ( (VARNO4 == ILEMV) .and. (obsuv /= PPMIS) ) THEN
                   LLV_PRESENT=.true.
                   INDVM=J4
                 END IF
                 
-                IF (  (VARNO4 .eq. ILEMU)     .and. (obsuv .eq. PPMIS) ) THEN
+                IF (  (VARNO4 == ILEMU)     .and. (obsuv == PPMIS) ) THEN
                   LLU_misg=.true.
                   INDU_MISG=J4
-                ELSE IF ( (VARNO4 .eq. ILEMV)  .and. (obsuv .eq. PPMIS) ) THEN
+                ELSE IF ( (VARNO4 == ILEMV)  .and. (obsuv == PPMIS) ) THEN
                   LLV_misg=.true.
                   INDV_MISG=J4
                 END IF
@@ -1322,17 +1320,17 @@ END SUBROUTINE burp_updateFiles
               LLMISDD =.true.
               LLMIS   =.true.
               LEVEL=obs_bodyElem_r(obsdat,OBS_PPP,j2)
-              if ( LEVEL .ne. LEVEL_dd) cycle
+              if ( LEVEL /= LEVEL_dd) cycle
               VARNO2=obs_bodyElem_i(obsdat,OBS_VNM,j2)
               !==VARNO2=============================================
-              IF (  (VARNO2)  .eq. ILEMF ) THEN
+              IF (  (VARNO2) == ILEMF ) THEN
 
                 FF   =obs_bodyElem_r(obsdat,OBS_VAR,j2)
                 FFFLAG=obs_bodyElem_i(obsdat,OBS_FLG,j2)
-                IF (  (DD .EQ. 0.  .AND. FF .GT. 0.) .or. ( DD .GT. 360. .OR. DD .LT.0.) ) THEN
+                IF (  (DD == 0.  .AND. FF > 0.) .or. ( DD > 360. .OR. DD  < 0.) ) THEN
                   LLMISDD =.true.
                   LLMISFF =.true.
-                ELSE IF ( DD .eq. PPMIS .OR. FF .eq. PPMIS)  THEN
+                ELSE IF ( DD == PPMIS .OR. FF == PPMIS)  THEN
                   LLMISDD =.true.
                   LLMISFF =.true.
                 ELSE
@@ -1342,12 +1340,12 @@ END SUBROUTINE burp_updateFiles
                 !
                 !             IF SPEED = 0 CALM WIND IS ASSUMED.
                 !             ==================================
-                IF (FF .EQ. 0.0) THEN
+                IF (FF == 0.0) THEN
                   DD = 0.
                 ENDIF
                    
                 DD=DD + 180.
-                IF ( DD .GT. 360.) DD=DD-360.
+                IF ( DD > 360.) DD=DD-360.
                 DD=DD*MPC_RADIANS_PER_DEGREE_R8
                 
                 !                U,V COMPONENTS ARE
@@ -1356,7 +1354,7 @@ END SUBROUTINE burp_updateFiles
                 VV =FF*COS(DD)
                 if  ( ( llmisdd .eqv. .true.) .or. ( llmisff .eqv. .true. ) ) then
                   llmis=.true.
-                  if ( INDU_MISG .GT. 0 .or. INDV_MISG .GT. 0 ) then
+                  if ( INDU_MISG > 0 .or. INDV_MISG > 0 ) then
                     call obs_bodySet_i(obsdat,OBS_VNM,INDU_MISG,-1)
                     call obs_bodySet_i(obsdat,OBS_VNM,INDV_MISG,-1)
                   end if
@@ -1367,12 +1365,12 @@ END SUBROUTINE burp_updateFiles
               END IF
               NEWFLAG = IOR(DDFLAG,FFFLAG)
 
-              if ( INDUM .GT. 0 .or. INDVM .GT. 0 ) then
+              if ( INDUM > 0 .or. INDVM > 0 ) then
                 call obs_bodySet_i(obsdat,OBS_VNM,INDU_MISG,-1)
                 call obs_bodySet_i(obsdat,OBS_VNM,INDV_MISG,-1)
               end if
               IF (llmis .eqv. .true.) THEN
-                if ( INDUM .GT. 0 .or. INDVM .GT. 0 ) then
+                if ( INDUM > 0 .or. INDVM > 0 ) then
                   call obs_bodySet_i(obsdat,OBS_FLG,induM,NEWFLAG)
                   call obs_bodySet_i(obsdat,OBS_FLG,indvM,NEWFLAG)
                 end if
@@ -1394,10 +1392,10 @@ END SUBROUTINE burp_updateFiles
               call obs_bodySet_i(obsdat,OBS_VNM,INDU_MISG,-1)
               call obs_bodySet_i(obsdat,OBS_VNM,INDV_MISG,-1)
             ELSE
-              if (indum .gt. 0) then
+              if (indum > 0) then
                 call obs_bodySet_i(obsdat,OBS_VNM,indum,-1)
               end if
-              if (indvm .gt. 0) then
+              if (indvm > 0) then
                 call obs_bodySet_i(obsdat,OBS_VNM,indvm,-1)
               end if
             END IF
@@ -1463,18 +1461,18 @@ END SUBROUTINE burp_updateFiles
         Jpos=-1
         
 !
-        if ( LEVEL_UU .eq. LEVEL .and. UU .eq. PPMIS ) then
+        if ( LEVEL_UU == LEVEL .and. UU == PPMIS ) then
           call obs_bodySet_i(obsdat,OBS_VNM,J4,-1)
         end if
 !
 
-        if ( LEVEL_UU .eq. LEVEL .and. UU .ne. PPMIS ) then
+        if ( LEVEL_UU == LEVEL .and. UU /= PPMIS ) then
           UUFLAG  =obs_bodyElem_i(obsdat,OBS_FLG,J4)
           VARNO2  =obs_bodyElem_i(obsdat,OBS_VNM,J4)
           !            SELECT case (VARNO2)
           !              case (BUFR_NEUU,BUFR_NEUS,BUFR_NEVV,BUFR_NEVS)
           !============================================================
-          IF ( (ILEM .eq. VARNO2)  ) THEN
+          IF ( (ILEM == VARNO2)  ) THEN
             VVFLAG  =obs_bodyElem_i(obsdat,OBS_FLG,J)
             NEWFLAG =IOR(UUFLAG,VVFLAG)
             call obs_bodySet_i(obsdat,OBS_FLG,J, NEWFLAG)
@@ -1493,7 +1491,7 @@ END SUBROUTINE burp_updateFiles
       !---------------------------------------------------------------------
       !ELIMINATE ENTRIES WHERE ONE COMPONENT OF WIND (UU OR VV) IS MISSING
       !---------------------------------------------------------------------
-      if (Jpos .lt. 0) then
+      if (Jpos < 0) then
         WRITE(*,*) ' eliminate winds for station : ',obs_elem_c(obsdat,'STID',JO),obs_bodyElem_i (obsdat,OBS_VNM,J),obs_bodyElem_r(obsdat,OBS_PPP,J)
         call obs_bodySet_i(obsdat,OBS_VNM,J,-1)
       end if
@@ -1532,7 +1530,7 @@ END SUBROUTINE burp_updateFiles
 !
       WIND_TYPE: do jwintyp=1,2
 
-         if (jwintyp .eq. 1) then
+         if (jwintyp == 1) then
             IUU=BUFR_NEUU
             IVV=BUFR_NEVV
             IDD=BUFR_NEDD
@@ -1548,7 +1546,7 @@ END SUBROUTINE burp_updateFiles
 !
          BODY: DO INDEX_BODY=1,obs_numBody(obsSpaceData)
 
-            LLOK= ( obs_bodyElem_i(obsSpaceData,OBS_VNM,INDEX_BODY) .EQ. IUU)
+            LLOK= ( obs_bodyElem_i(obsSpaceData,OBS_VNM,INDEX_BODY) == IUU)
 
              FLAGU=-1
     !----------------
@@ -1569,8 +1567,8 @@ END SUBROUTINE burp_updateFiles
        FLAGU=obs_bodyElem_i(obsSpaceData,OBS_FLG,INDEX_BODY)
 
                BODY_2: DO INDEX_BODY2=ISTART,IEND
-                  IF ( ( obs_bodyElem_i(obsSpaceData,OBS_VNM,INDEX_BODY2) .EQ. IVV) &
-                 .AND. ( obs_bodyElem_r(obsSpaceData,OBS_PPP,INDEX_BODY2) .EQ. ZLEVU) ) THEN
+                  IF ( ( obs_bodyElem_i(obsSpaceData,OBS_VNM,INDEX_BODY2) == IVV) &
+                 .AND. ( obs_bodyElem_r(obsSpaceData,OBS_PPP,INDEX_BODY2) == ZLEVU) ) THEN
 !
 !****************************************************************************
 !  GET FLAG OF V COMPONENT
@@ -1588,8 +1586,8 @@ END SUBROUTINE burp_updateFiles
 !
                BODY_2_2: DO INDEX_BODY2=ISTART,IEND
        !===============================================
-                  IF ((obs_bodyElem_i(obsSpaceData,OBS_VNM,INDEX_BODY2).EQ.IDD) &
-                 .AND. obs_bodyElem_r(obsSpaceData,OBS_PPP,INDEX_BODY2) .EQ. ZLEVU ) THEN
+                  IF ((obs_bodyElem_i(obsSpaceData,OBS_VNM,INDEX_BODY2) == IDD) &
+                 .AND. obs_bodyElem_r(obsSpaceData,OBS_PPP,INDEX_BODY2) == ZLEVU ) THEN
 
                      NEWFLAG =IOR(FLAGU,FLAGV)
                      call obs_bodySet_i(obsSpaceData, OBS_FLG, INDEX_BODY2, NEWFLAG) 
@@ -1598,8 +1596,8 @@ END SUBROUTINE burp_updateFiles
 	       !===============================================
 
        !===============================================
-                  IF ((obs_bodyElem_i(obsSpaceData,OBS_VNM,INDEX_BODY2).EQ.IFF) &
-                 .AND. obs_bodyElem_r(obsSpaceData,OBS_PPP,INDEX_BODY2) .EQ. ZLEVU ) THEN
+                  IF ((obs_bodyElem_i(obsSpaceData,OBS_VNM,INDEX_BODY2) == IFF) &
+                 .AND. obs_bodyElem_r(obsSpaceData,OBS_PPP,INDEX_BODY2) == ZLEVU ) THEN
 
                      NEWFLAG =IOR(FLAGU,FLAGV)
                      call obs_bodySet_i(obsSpaceData,OBS_FLG,INDEX_BODY2, NEWFLAG)
@@ -1646,7 +1644,7 @@ END SUBROUTINE burp_updateFiles
 
       WIND_TYPE: do jwintyp=1,2
 
-         if (jwintyp .eq. 1) then
+         if (jwintyp == 1) then
             IUU=BUFR_NEUU
             IVV=BUFR_NEVV
             IDD=BUFR_NEDD
@@ -1661,8 +1659,8 @@ END SUBROUTINE burp_updateFiles
          ! Process all data within the domain of the model
 
          BODY: DO INDEX_BODY=1,obs_numBody(obsSpaceData)
-            LLOK= (obs_bodyElem_i(obsSpaceData,OBS_ASS,INDEX_BODY) .EQ. 1)  &
-            .AND. (obs_bodyElem_i(obsSpaceData,OBS_VNM,INDEX_BODY) .EQ. IUU)
+            LLOK= (obs_bodyElem_i(obsSpaceData,OBS_ASS,INDEX_BODY) == 1)  &
+            .AND. (obs_bodyElem_i(obsSpaceData,OBS_VNM,INDEX_BODY) == IUU)
             IF ( LLOK ) THEN
                INDEX_HEADER = obs_bodyElem_i(obsSpaceData,OBS_HIND,INDEX_BODY)
                ISTART=obs_headElem_i(obsSpaceData,OBS_RLN,INDEX_HEADER)
@@ -1671,15 +1669,15 @@ END SUBROUTINE burp_updateFiles
                UU=-obs_bodyElem_r(obsSpaceData,elem_i,INDEX_BODY) +  &
                    obs_bodyElem_r(obsSpaceData,OBS_VAR,INDEX_BODY)
                BODY_2: DO INDEX_BODY2=ISTART,IEND
-                  IF ((obs_bodyElem_i(obsSpaceData,OBS_VNM,INDEX_BODY2) .EQ. IVV)  &
-                 .AND.(obs_bodyElem_r(obsSpaceData,OBS_PPP,INDEX_BODY2) .EQ. ZLEVU)) THEN
+                  IF ((obs_bodyElem_i(obsSpaceData,OBS_VNM,INDEX_BODY2) == IVV)  &
+                 .AND.(obs_bodyElem_r(obsSpaceData,OBS_PPP,INDEX_BODY2) == ZLEVU)) THEN
                    VV=-obs_bodyElem_r(obsSpaceData,elem_i,INDEX_BODY2) +  &
                        obs_bodyElem_r(obsSpaceData,OBS_VAR,INDEX_BODY2)
 
                      ! 1-calculate angle
 
                      MODUL=SQRT((UU**2)+(VV**2))
-                     IF (MODUL.EQ.0.) THEN
+                     IF (MODUL == 0.) THEN
                         ANG=0.0D0
                      ELSE
                         ANG=ATAN2(VV,UU)
@@ -1687,8 +1685,8 @@ END SUBROUTINE burp_updateFiles
 
                         ! 2-Change to meteorological definition of wind direction.
 
-                        IF (ANG.GT.360.0D0) ANG=ANG-360.0D0
-                        IF (ANG.LE.0.0D0)   ANG=ANG+360.0D0
+                        IF (ANG > 360.0D0) ANG=ANG-360.0D0
+                        IF (ANG <= 0.0D0)   ANG=ANG+360.0D0
                      END IF
    
                   END IF
@@ -1697,16 +1695,16 @@ END SUBROUTINE burp_updateFiles
                ! insert resduals into obsSpaceData
 
                BODY_2_2: DO INDEX_BODY2=ISTART,IEND
-                  IF ((obs_bodyElem_i(obsSpaceData,OBS_VNM,INDEX_BODY2).EQ.IDD)  &
-                 .AND. obs_bodyElem_r(obsSpaceData,OBS_PPP,INDEX_BODY2) .EQ. ZLEVU ) THEN
+                  IF ((obs_bodyElem_i(obsSpaceData,OBS_VNM,INDEX_BODY2) == IDD)  &
+                 .AND. obs_bodyElem_r(obsSpaceData,OBS_PPP,INDEX_BODY2) == ZLEVU ) THEN
 
                      call obs_bodySet_r(obsSpaceData, elem_i, INDEX_BODY2,    &
                           obs_bodyElem_r(obsSpaceData,OBS_VAR,INDEX_BODY2) - ANG )
 
-                     IF ( obs_bodyElem_r(obsSpaceData,elem_i,INDEX_BODY2) .gt.  180.0d0)  &
+                     IF ( obs_bodyElem_r(obsSpaceData,elem_i,INDEX_BODY2) >  180.0d0)  &
                         call obs_bodySet_r(obsSpaceData, elem_i, INDEX_BODY2,   &
                                        obs_bodyElem_r(obsSpaceData,elem_i,INDEX_BODY2)-360.0d0)
-                     IF ( obs_bodyElem_r(obsSpaceData,elem_i,INDEX_BODY2) .le. -180.0d0)  &
+                     IF ( obs_bodyElem_r(obsSpaceData,elem_i,INDEX_BODY2) <= -180.0d0)  &
                         call obs_bodySet_r(obsSpaceData, elem_i, INDEX_BODY2,  &
                                        obs_bodyElem_r(obsSpaceData,elem_i,INDEX_BODY2)+360.0d0)
 
@@ -1717,8 +1715,8 @@ END SUBROUTINE burp_updateFiles
                       call obs_bodySet_i(obsSpaceData,OBS_ASS,INDEX_BODY2, 1)
                       call obs_bodySet_i(obsSpaceData,OBS_FLG,INDEX_BODY2, 0)
                   END IF
-                  IF ((obs_bodyElem_i(obsSpaceData,OBS_VNM,INDEX_BODY2).EQ.IFF)  &
-                 .AND. obs_bodyElem_r(obsSpaceData,OBS_PPP,INDEX_BODY2) .EQ. ZLEVU ) THEN
+                  IF ((obs_bodyElem_i(obsSpaceData,OBS_VNM,INDEX_BODY2) == IFF)  &
+                 .AND. obs_bodyElem_r(obsSpaceData,OBS_PPP,INDEX_BODY2) == ZLEVU ) THEN
                      call obs_bodySet_r(obsSpaceData,elem_i, INDEX_BODY2,   &
                           obs_bodyElem_r(obsSpaceData,OBS_VAR,INDEX_BODY2) - MODUL)
                      call obs_bodySet_r(obsSpaceData,OBS_OER,INDEX_BODY2,1.0d0)
@@ -1746,7 +1744,7 @@ END SUBROUTINE burp_updateFiles
 !     Process all data
 !
       DO INDEX_BODY=1,obs_numBody(lobsSpaceData)
-         IF (obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) .EQ. 1)  THEN
+         IF (obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) == 1)  THEN
             call obs_bodySet_i(lobsSpaceData,OBS_FLG,INDEX_BODY,ibset( obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY), 12 ))
          END IF
       END DO
@@ -1820,7 +1818,7 @@ END SUBROUTINE burp_updateFiles
           ! Must allocate burp_out so that it is available from ALL processors when
           ! requiring of rpn_comm_allgather via oss_obsdata_MPIallgather.
           write(*,*) "burp_chem_read_all: Could not find/open BURP file: ",trim(filename)
-          if (ndim.eq.1) then
+          if (ndim == 1) then
              call oss_obsdata_alloc(burp_out,1,dim1=nlev)
           else
              call oss_obsdata_alloc(burp_out,1,dim1=nlev,dim2_opt=nlev)
@@ -1918,7 +1916,7 @@ END SUBROUTINE burp_updateFiles
     ! open the burp file
     call BURP_New(brp, FILENAME=filename, MODE=FILE_ACC_READ, IOSTAT=error)
     
-    if (error.eq.0) then
+    if (error == 0) then
        write(*,*) "burp_chem_read: Reading file " // trim(filename)
        write(*,*) "burp_chem_read: Selecting STNID = ",stnid," BUFR = ",varno," block type = ",block_type
        write(*,*) "burp_chem_read:           bkstp = ",bkstp," nlev = ",nlev," match_nlev = ",match_nlev
@@ -1931,7 +1929,7 @@ END SUBROUTINE burp_updateFiles
     call BURP_Get_Property(brp, NRPTS=nrep)
 
     ! allocate memory
-    if (ndim.eq.1) then
+    if (ndim == 1) then
        call oss_obsdata_alloc(burp_out,nrep,dim1=nlev)
     else
        call oss_obsdata_alloc(burp_out,nrep,dim1=nlev,dim2_opt=nlev)
@@ -1950,7 +1948,7 @@ END SUBROUTINE burp_updateFiles
        call BURP_Get_Property(rep, STNID=rep_stnid, DATE=date, TEMPS=time, LATI=ilat, LONG=ilon, IDTYP=icodtyp) 
 
        if (present(codtyplist_opt)) then
-          if (.not.any(codtyplist_opt(:).eq.icodtyp)) cycle REPORTS
+          if (.not.any(codtyplist_opt(:) == icodtyp)) cycle REPORTS
        end if
 
        if (.not.utl_stnid_equal(stnid,rep_stnid)) cycle REPORTS
@@ -1964,36 +1962,36 @@ END SUBROUTINE burp_updateFiles
           
           call BURP_Get_Property(blk, NELE=nele, NVAL=nval, BKSTP=ref_bkstp, IOSTAT=error)
 
-          if (.not.IS_Burp_Btyp(trim(block_type),BLOCK=blk) .or. bkstp.ne.ref_bkstp .or. (match_nlev.and.nval.ne.nlev)) cycle BLOCKS
+          if (.not.IS_Burp_Btyp(trim(block_type),BLOCK=blk) .or. bkstp /= ref_bkstp .or. (match_nlev.and.nval /= nlev)) cycle BLOCKS
 
-          if (varno.gt.0) then
+          if (varno > 0) then
              ivar = BURP_Find_Element(blk, ELEMENT=varno, IOSTAT=error)
-             if (ivar.lt.0) cycle BLOCKS
+             if (ivar < 0) cycle BLOCKS
           else 
              ! Search for first data element within elements 10000 and 16000.
              varno_ivar=-1
              do ivar=1,nele
                 varno_ivar=BURP_Get_Element(blk, INDEX=ivar, IOSTAT=error)
-                if (varno_ivar.ge.10000.and.varno_ivar.lt.16000) exit
+                if (varno_ivar >= 10000.and.varno_ivar < 16000) exit
              end do
-             if (varno_ivar.lt.10000.or.varno_ivar.ge.16000) call utl_abort('burp_chem_read: No valid element found for STNID ' // rep_stnid )
+             if (varno_ivar < 10000.or.varno_ivar >= 16000) call utl_abort('burp_chem_read: No valid element found for STNID ' // rep_stnid )
           end if
 
           ! required block found if code reaches this point, retrieve data and store in burp_out
           
-          if (nval.gt.nlev) call utl_abort('burp_chem_read: number of levels in the report (' // trim(utl_str(nval)) // &
+          if (nval > nlev) call utl_abort('burp_chem_read: number of levels in the report (' // trim(utl_str(nval)) // &
                                          ') exceeds the specified maximum number of levels (' // trim(utl_str(nlev)) // &
                                          ') for STNID ' // rep_stnid )
 
           icount=icount+1
           burp_out%code(icount) = oss_obsdata_get_header_code(ilon,ilat,date,time,rep_stnid)  ! this code is a unique identifier for this report
 
-          if (ndim.eq.1) then
+          if (ndim == 1) then
              ! retrieve 1D data
 
              iexp = BURP_Find_Element(blk, ELEMENT=BUFR_SCALE_EXPONENT, IOSTAT=error)
                 
-             if (iexp.lt.0) then
+             if (iexp < 0) then
                 ! No exponent found in block
                 do ilev=1,nval                   
                    burp_out%data1d(ilev,icount) = BURP_Get_Rval(blk, NELE_IND=ivar, NVAL_IND=ilev, NT_IND=1, IOSTAT=error)                
@@ -2007,13 +2005,13 @@ END SUBROUTINE burp_updateFiles
                 end do
              end if
                    
-          else if (ndim.eq.2) then
+          else if (ndim == 2) then
              ! retrieve 2D data
 
              icol = 0
              do iele=1,nele
                 ivar = BURP_Get_Element(blk, INDEX=iele, IOSTAT=error)
-                if (ivar.eq.varno) then
+                if (ivar == varno) then
                    icol = icol+1
                    do ilev=1,nval                  
                       burp_out%data2d(ilev,icol,icount) = BURP_Get_Rval(blk, NELE_IND=iele, NVAL_IND=ilev, NT_IND=1, IOSTAT=error)
@@ -2031,9 +2029,9 @@ END SUBROUTINE burp_updateFiles
 
     ! resize first dimension of data arrays from length of nrep to icount
     call utl_resize(burp_out%code,icount)
-    if (ndim.eq.1) then
+    if (ndim == 1) then
        call utl_resize(burp_out%data1d,nlev,icount)
-    else if (ndim.eq.2) then
+    else if (ndim == 2) then
        call utl_resize(burp_out%data2d,nlev,nlev,icount)
     end if
 
@@ -2092,7 +2090,7 @@ END SUBROUTINE burp_updateFiles
 
     integer :: ierr,nrep_modified_global
 
-    if (burp_split_L .or. mpi_myid.eq.0) then
+    if (burp_split_L .or. mpi_myid == 0) then
        nrep_modified = burp_chem_update(burp_get_filename(obsfam),varno,bkstp,block_type,obsdata,multi_opt=multi_opt)
     end if
 
@@ -2171,7 +2169,7 @@ END SUBROUTINE burp_updateFiles
     logical, allocatable :: modify(:)
     
     ! Check presence of data to update
-    if (obsdata%nrep.le.0) then
+    if (obsdata%nrep <= 0) then
        write(*,*) 'burp_chem_update: Skipped due to absence of data to update.'
        return
     end if
@@ -2179,16 +2177,16 @@ END SUBROUTINE burp_updateFiles
     ! Identify dimensions for the input data    
     ndim=obsdata%ndim
     dim1=obsdata%dim1
-    if (ndim.eq.1) then
+    if (ndim == 1) then
        dim2=1
     else
        dim2=obsdata%dim2
     end if
     
-    if (size(varno).lt.dim2) call utl_abort('burp_chem_update: Number of BUFR elements not sufficient. ' // &
+    if (size(varno) < dim2) call utl_abort('burp_chem_update: Number of BUFR elements not sufficient. ' // &
                                           trim(utl_str(size(varno))) // ' vs ' // trim(utl_str(dim2)))
 
-    if (code_len.lt.oss_obsdata_code_len()) call utl_abort('burp_chem_update: Length of code string' &
+    if (code_len < oss_obsdata_code_len()) call utl_abort('burp_chem_update: Length of code string' &
                                           // ' needs to be increased to ' // trim(utl_str(oss_obsdata_code_len())))
      
     ! initialize burp file, report, and block system resources
@@ -2198,7 +2196,7 @@ END SUBROUTINE burp_updateFiles
 
     ! open the burp file in append mode (to replace or add data in a block)
     call BURP_New(brp, FILENAME=filename, MODE=FILE_ACC_APPEND, IOSTAT=error)
-    if (error.ne.0) call utl_abort('burp_chem_update: Could not open BURP file: ' // trim(filename))
+    if (error /= 0) call utl_abort('burp_chem_update: Could not open BURP file: ' // trim(filename))
 
     ! get number of reports in file
     call BURP_Get_Property(brp, NRPTS=nrep)
@@ -2225,21 +2223,21 @@ END SUBROUTINE burp_updateFiles
 
        call BURP_Get_Property(rep, STNID=stnid, DATE=date, TEMPS=time, LATI=ilat, LONG=ilon)
 
-       if (stnid(1:2).eq.'>>') cycle REPORTS1
+       if (stnid(1:2) == '>>') cycle REPORTS1
 
        ! Get unique identifier for search from input data
        code = oss_obsdata_get_header_code(ilon,ilat,date,time,stnid)
        
        ! Determine if replacement/additional data likely present for this report
-       if (dim1.eq.1.and.dim2.eq.1) then
+       if (dim1 == 1.and.dim2 == 1) then
           new_vals(1,1,ncount)=real(oss_obsdata_get_element(obsdata,trim(code),1,stat_opt=istat))
-       else if (dim2.eq.1) then
+       else if (dim2 == 1) then
           new_vals(:,1,ncount)=real(oss_obsdata_get_array1d(obsdata,trim(code),stat_opt=istat))
        else 
           new_vals(:,:,ncount)=real(oss_obsdata_get_array2d(obsdata,trim(code),stat_opt=istat))
        end if
 
-       if (istat.eq.0) then
+       if (istat == 0) then
           if (present(multi_opt)) then
              ! loop through blocks to find first data block
              ref_blk = 0
@@ -2283,7 +2281,7 @@ END SUBROUTINE burp_updateFiles
 
              call BURP_Get_Property(blk, NELE=nele, NVAL=nval, BKSTP=ref_bkstp, IOSTAT=error)
 
-             blk_found = IS_Burp_Btyp(trim(block_type),BLOCK=blk) .and. bkstp.eq.ref_bkstp .and. dim1.eq.nval
+             blk_found = IS_Burp_Btyp(trim(block_type),BLOCK=blk) .and. bkstp == ref_bkstp .and. dim1 == nval
          
              if (blk_found) then
                 ! Block to be modified has been found, add new data to block.
@@ -2292,7 +2290,7 @@ END SUBROUTINE burp_updateFiles
 
                 do iele=1,dim2
                    ivar = BURP_Find_Element(blk, ELEMENT=varno(iele), IOSTAT=error)           
-                   if (ivar.lt.0) then
+                   if (ivar < 0) then
                       ivar=nele+1
                       call BURP_Resize_Block(blk,ADD_NELE=1,IOSTAT=error)
                       call BURP_Set_Element(blk,NELE_IND=ivar,ELEMENT=varno(iele),IOSTAT=error)
@@ -2352,7 +2350,7 @@ END SUBROUTINE burp_updateFiles
     file_found = .false.
        
     do ifile=1,burp_nfiles
-       if (obsfam.eq.burp_cfamtyp(ifile)) then
+       if (obsfam == burp_cfamtyp(ifile)) then
           burp_filename = burp_cfilnam(ifile)
           inquire(file=trim(burp_filename), exist=file_found)
           exit
