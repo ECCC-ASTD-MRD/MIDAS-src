@@ -220,8 +220,8 @@ CONTAINS
     end if
 
     if( mpi_myid == 0) then
-      if( cvm_subVectorExists(cvm_Bias) ) then
-        cv_Bias => cvm_getSubVector(cv_in,cvm_Bias)
+      if( cvm_subVectorExists('BIAS') ) then
+        cv_Bias => cvm_getSubVector(cv_in,'BIAS')
         write(*,*) 'bias_calcBias_tl: maxval(cv_bias)=',maxval(cv_bias(:))
       else
         write(*,*) 'bias_calcBias_tl: control vector does not include bias coefficients'
@@ -751,8 +751,8 @@ CONTAINS
     if( mpi_myid == 0 ) write(*,*) 'Starting bias_calcBias_ad'
 
     if( mpi_myid == 0 ) then
-      if( cvm_subVectorExists(cvm_Bias) ) then
-        cv_bias => cvm_getSubVector(cv_out,cvm_Bias)
+      if( cvm_subVectorExists('BIAS') ) then
+        cv_bias => cvm_getSubVector(cv_out,'BIAS')
       else
         write(*,*) 'bias_calcBias_ad: control vector does not include bias coefficients'
         return
@@ -909,8 +909,8 @@ CONTAINS
     if( .not. lvarbc ) return
 
     if( mpi_myid == 0 ) then
-      if( cvm_subVectorExists(cvm_Bias) ) then
-        cv_bias => cvm_getSubVector(cv_in,cvm_Bias)
+      if( cvm_subVectorExists('BIAS') ) then
+        cv_bias => cvm_getSubVector(cv_in,'BIAS')
         write(*,*) 'bias_writeBias: maxval(cv_bias)=',maxval(cv_bias(:))
       else
         write(*,*) 'bias_writeBias: control vector does not include bias coefficients'

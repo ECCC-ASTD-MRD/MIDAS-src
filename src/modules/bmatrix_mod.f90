@@ -225,8 +225,8 @@ contains
 
     !- 2.2 Compute 3D contribution to increment from BmatrixHI
     call tmg_start(50,'B_HI')
-    if ( cvm_subVectorExists(cvm_BHI) ) then
-      cvBhi => cvm_getSubVector(controlVector,cvm_BHI)
+    if ( cvm_subVectorExists('HI') ) then
+      cvBhi => cvm_getSubVector(controlVector,'HI')
       if ( statevector%hco%global ) then
         !- 2.2.1 Global mode
         if ( useBmatrixLatBands ) then
@@ -246,8 +246,8 @@ contains
 
     !- 2.3  Compute 3D contribution to increment from BmatrixChem
     call tmg_start(123,'B_CHM')
-    if ( cvm_subVectorExists(cvm_BCHM) ) then
-      cvBchm => cvm_getSubVector(controlVector,cvm_BCHM)
+    if ( cvm_subVectorExists('CHM') ) then
+      cvBchm => cvm_getSubVector(controlVector,'CHM')
       if ( statevector % hco % global ) then
         !- 2.3.1 Global mode
         call bchm_bsqrt( cvBchm,      & ! IN
@@ -260,19 +260,19 @@ contains
     call tmg_stop(123)
 
     !- Compute 3D contribution to increment from BmatrixDiff
-    if ( cvm_subVectorExists(cvm_BDIFF) ) then
-      cvBdiff => cvm_getSubVector(controlVector,cvm_BDIFF)
+    if ( cvm_subVectorExists('DIFF') ) then
+      cvBdiff => cvm_getSubVector(controlVector,'DIFF')
       call bdiff_bsqrt( cvBdiff,    & ! IN
                         statevector ) ! OUT
     end if
 
     !- 2.4 copy 3D increment to other timesteps to create 4D increment
-    if ( cvm_subVectorExists(cvm_BHI) .or. cvm_subVectorExists(cvm_BCHM) ) call gsv_3dto4d(statevector)
+    if ( cvm_subVectorExists('HI') .or. cvm_subVectorExists('CHM') ) call gsv_3dto4d(statevector)
 
     !- 2.5 compute 4D contribution to increment from BmatrixEnsemble
     call tmg_start(60,'B_ENS')
-    if ( cvm_subVectorExists(cvm_BEN) ) then
-      cvBen => cvm_getSubVector(controlVector,cvm_BEN)
+    if ( cvm_subVectorExists('ENS') ) then
+      cvBen => cvm_getSubVector(controlVector,'ENS')
       if( present(useFSOFcst_opt) ) then
         call ben_bsqrt(cvBen, statevector_temp, useFSOFcst_opt)
       else
@@ -312,8 +312,8 @@ contains
 
     !- 1.1 Add contribution to gradient from BmatrixEnsemble
     call tmg_start(61,'B_ENS_T')
-    if ( cvm_subVectorExists(cvm_BEN) ) then
-      cvBen=>cvm_getSubVector(controlVector,cvm_BEN)
+    if ( cvm_subVectorExists('ENS') ) then
+      cvBen=>cvm_getSubVector(controlVector,'ENS')
       cvBen(:) = 0.0d0
       if ( present(useFSOFcst_opt) ) then
         call ben_bsqrtad(statevector,cvBen,useFSOFcst_opt)
@@ -324,12 +324,12 @@ contains
     call tmg_stop(61)
 
     !- 1.2 adjoint of copy 3D increment to 4D increment
-    if ( cvm_subVectorExists(cvm_BHI) .or. cvm_subVectorExists(cvm_BCHM)) call gsv_3dto4dAdj(statevector)
+    if ( cvm_subVectorExists('HI') .or. cvm_subVectorExists('CHM')) call gsv_3dto4dAdj(statevector)
 
     !- 1.3 add contribution to gradient from BmatrixChem
     call tmg_start(124,'B_CHM_T')
-    if ( cvm_subVectorExists(cvm_BCHM) ) then
-      cvBchm=>cvm_getSubVector(controlVector,cvm_BCHM)
+    if ( cvm_subVectorExists('CHM') ) then
+      cvBchm=>cvm_getSubVector(controlVector,'CHM')
       cvBchm(:) = 0.0d0
       if ( statevector%hco%global ) then
         !- 1.3.1 add contribution to gradient from GLOBAL BmatrixChem
@@ -344,8 +344,8 @@ contains
 
     !- 1.4 add contribution to gradient from BmatrixHI
     call tmg_start(51,'B_HI_T')
-    if ( cvm_subVectorExists(cvm_BHI) ) then
-      cvBhi=>cvm_getSubVector(controlVector,cvm_BHI)
+    if ( cvm_subVectorExists('HI') ) then
+      cvBhi=>cvm_getSubVector(controlVector,'HI')
       cvBhi(:) = 0.0d0
       if ( statevector%hco%global ) then
         !- 1.4.1 add contribution to gradient from GLOBAL BmatrixHI
@@ -365,8 +365,8 @@ contains
     call tmg_stop(51)
 
     !- 1.5 add contribution to gradient from BmatrixDiff
-    if ( cvm_subVectorExists(cvm_BDIFF) ) then
-      cvBdiff=>cvm_getSubVector(controlVector,cvm_BDIFF)
+    if ( cvm_subVectorExists('DIFF') ) then
+      cvBdiff=>cvm_getSubVector(controlVector,'DIFF')
       cvBdiff(:) = 0.0d0
       !- 1.5.1 add contribution to gradient from BmatrixDIFF
       call bdiff_bsqrtad( statevector, & ! IN
@@ -428,10 +428,10 @@ contains
 
 
     cvDim_Bhi_mpilocal = 0
-    if(cvm_subVectorExists(cvm_BHI)) then
-      cvBhi_mpilocal =>cvm_getSubVector(cv_mpilocal,cvm_BHI)
+    if(cvm_subVectorExists('HI')) then
+      cvBhi_mpilocal =>cvm_getSubVector(cv_mpilocal,'HI')
       if (mpi_myid == 0) then
-         cvBhi_mpiglobal=>cvm_getSubVector_mpiglobal(cv_mpiglobal,cvm_BHI)
+         cvBhi_mpiglobal=>cvm_getSubVector_mpiglobal(cv_mpiglobal,'HI')
       else
          cvBhi_mpiglobal=>null()
       end if
@@ -447,10 +447,10 @@ contains
     end if
 
     cvDim_Ben_mpilocal = 0
-    if(cvm_subVectorExists(cvm_BEN)) then
-       cvBen_mpilocal => cvm_getSubVector(cv_mpilocal,cvm_BEN)
+    if(cvm_subVectorExists('ENS')) then
+       cvBen_mpilocal => cvm_getSubVector(cv_mpilocal,'ENS')
        if (mpi_myid == 0) then
-          cvBen_mpiglobal => cvm_getSubVector_mpiglobal(cv_mpiglobal,cvm_BEN)
+          cvBen_mpiglobal => cvm_getSubVector_mpiglobal(cv_mpiglobal,'ENS')
        else
           cvBen_mpiglobal => null()
        end if
@@ -458,10 +458,10 @@ contains
     end if
 
     cvDim_Bchm_mpilocal = 0
-    if(cvm_subVectorExists(cvm_BCHM)) then
-      cvBchm_mpilocal => cvm_getSubVector(cv_mpilocal,cvm_BCHM)
+    if(cvm_subVectorExists('CHM')) then
+      cvBchm_mpilocal => cvm_getSubVector(cv_mpilocal,'CHM')
       if (mpi_myid == 0) then
-         cvBchm_mpiglobal => cvm_getSubVector_mpiglobal(cv_mpiglobal,cvm_BCHM)
+         cvBchm_mpiglobal => cvm_getSubVector_mpiglobal(cv_mpiglobal,'CHM')
       else
          cvBchm_mpiglobal => null()
       end if
@@ -473,10 +473,10 @@ contains
     end if
 
     cvDim_Bdiff_mpilocal = 0
-    if(cvm_subVectorExists(cvm_BDIFF)) then
-      cvBdiff_mpilocal => cvm_getSubVector(cv_mpilocal,cvm_BDIFF)
+    if(cvm_subVectorExists('DIFF')) then
+      cvBdiff_mpilocal => cvm_getSubVector(cv_mpilocal,'DIFF')
       if (mpi_myid == 0) then
-         cvBdiff_mpiglobal => cvm_getSubVector_mpiglobal(cv_mpiglobal,cvm_BDIFF)
+         cvBdiff_mpiglobal => cvm_getSubVector_mpiglobal(cv_mpiglobal,'DIFF')
       else
          cvBdiff_mpiglobal => null()
       end if
@@ -515,10 +515,10 @@ contains
     real(4),pointer :: cvBhi_mpiglobal(:),cvBen_mpiglobal(:),cvBchm_mpiglobal(:)
 
     cvDim_Bhi_mpilocal = 0
-    if(cvm_subVectorExists(cvm_BHI)) then
-      cvBhi_mpilocal =>cvm_getSubVector_r4(cv_mpilocal,cvm_BHI)
+    if(cvm_subVectorExists('HI')) then
+      cvBhi_mpilocal =>cvm_getSubVector_r4(cv_mpilocal,'HI')
       if (mpi_myid == 0) then
-         cvBhi_mpiglobal=>cvm_getSubVector_mpiglobal_r4(cv_mpiglobal,cvm_BHI)
+         cvBhi_mpiglobal=>cvm_getSubVector_mpiglobal_r4(cv_mpiglobal,'HI')
       else
          cvBhi_mpiglobal=>null()
       end if
@@ -534,10 +534,10 @@ contains
     end if
 
     cvDim_Ben_mpilocal = 0
-    if(cvm_subVectorExists(cvm_BEN)) then
-       cvBen_mpilocal =>cvm_getSubVector_r4(cv_mpilocal,cvm_BEN)
+    if(cvm_subVectorExists('ENS')) then
+       cvBen_mpilocal =>cvm_getSubVector_r4(cv_mpilocal,'ENS')
        if (mpi_myid == 0) then
-          cvBen_mpiglobal=>cvm_getSubVector_mpiglobal_r4(cv_mpiglobal,cvm_BEN)
+          cvBen_mpiglobal=>cvm_getSubVector_mpiglobal_r4(cv_mpiglobal,'ENS')
        else
           cvBen_mpiglobal=>null()
        end if
@@ -545,10 +545,10 @@ contains
     end if
 
     cvDim_Bchm_mpilocal = 0
-    if(cvm_subVectorExists(cvm_BCHM)) then
-      cvBchm_mpilocal =>cvm_getSubVector_r4(cv_mpilocal,cvm_BCHM)
+    if(cvm_subVectorExists('CHM')) then
+      cvBchm_mpilocal =>cvm_getSubVector_r4(cv_mpilocal,'CHM')
       if (mpi_myid == 0) then
-         cvBchm_mpiglobal=>cvm_getSubVector_mpiglobal_r4(cv_mpiglobal,cvm_BCHM)
+         cvBchm_mpiglobal=>cvm_getSubVector_mpiglobal_r4(cv_mpiglobal,'CHM')
       else
          cvBchm_mpiglobal=>null()
       end if
@@ -590,10 +590,10 @@ contains
     real(8), pointer :: cvBhi_mpiglobal(:),cvBen_mpiglobal(:),cvBchm_mpiglobal(:)
 
     cvDim_Bhi_mpiglobal = 0
-    if(cvm_subVectorExists(cvm_BHI)) then
-      cvBhi_mpilocal =>cvm_getSubVector(cv_mpilocal,cvm_BHI)
+    if(cvm_subVectorExists('HI')) then
+      cvBhi_mpilocal =>cvm_getSubVector(cv_mpilocal,'HI')
       if (mpi_myid == 0) then
-         cvBhi_mpiglobal=>cvm_getSubVector_mpiglobal(cv_mpiglobal,cvm_BHI)
+         cvBhi_mpiglobal=>cvm_getSubVector_mpiglobal(cv_mpiglobal,'HI')
       else
          cvBhi_mpiglobal=>null()
       end if
@@ -609,10 +609,10 @@ contains
     end if
 
     cvDim_Ben_mpiglobal = 0
-    if(cvm_subVectorExists(cvm_BEN)) then
-       cvBen_mpilocal =>cvm_getSubVector(cv_mpilocal,cvm_BEN)
+    if(cvm_subVectorExists('ENS')) then
+       cvBen_mpilocal =>cvm_getSubVector(cv_mpilocal,'ENS')
        if (mpi_myid == 0) then
-          cvBen_mpiglobal=>cvm_getSubVector_mpiglobal(cv_mpiglobal,cvm_BEN)
+          cvBen_mpiglobal=>cvm_getSubVector_mpiglobal(cv_mpiglobal,'ENS')
        else
           cvBen_mpiglobal=>null()
        end if
@@ -620,10 +620,10 @@ contains
     end if
 
     cvDim_Bchm_mpiglobal = 0
-    if(cvm_subVectorExists(cvm_BCHM)) then
-      cvBchm_mpilocal =>cvm_getSubVector(cv_mpilocal,cvm_BCHM) 
+    if(cvm_subVectorExists('CHM')) then
+      cvBchm_mpilocal =>cvm_getSubVector(cv_mpilocal,'CHM') 
       if (mpi_myid == 0) then
-         cvBchm_mpiglobal=>cvm_getSubVector_mpiglobal(cv_mpiglobal,cvm_BCHM)
+         cvBchm_mpiglobal=>cvm_getSubVector_mpiglobal(cv_mpiglobal,'CHM')
       else
          cvBchm_mpiglobal=>null()
       end if
@@ -663,10 +663,10 @@ contains
     real(4), pointer :: cvBhi_mpiglobal(:),cvBen_mpiglobal(:),cvBchm_mpiglobal(:)
 
     cvDim_Bhi_mpiglobal = 0
-    if(cvm_subVectorExists(cvm_BHI)) then
-      cvBhi_mpilocal =>cvm_getSubVector_r4(cv_mpilocal,cvm_BHI)
+    if(cvm_subVectorExists('HI')) then
+      cvBhi_mpilocal =>cvm_getSubVector_r4(cv_mpilocal,'HI')
       if (mpi_myid == 0) then
-         cvBhi_mpiglobal=>cvm_getSubVector_mpiglobal_r4(cv_mpiglobal,cvm_BHI)
+         cvBhi_mpiglobal=>cvm_getSubVector_mpiglobal_r4(cv_mpiglobal,'HI')
       else
          cvBhi_mpiglobal=>null()
       end if
@@ -682,10 +682,10 @@ contains
     end if
 
     cvDim_Ben_mpiglobal = 0
-    if(cvm_subVectorExists(cvm_BEN)) then
-       cvBen_mpilocal => cvm_getSubVector_r4(cv_mpilocal,cvm_BEN)
+    if(cvm_subVectorExists('ENS')) then
+       cvBen_mpilocal => cvm_getSubVector_r4(cv_mpilocal,'ENS')
        if (mpi_myid == 0) then
-          cvBen_mpiglobal => cvm_getSubVector_mpiglobal_r4(cv_mpiglobal,cvm_BEN)
+          cvBen_mpiglobal => cvm_getSubVector_mpiglobal_r4(cv_mpiglobal,'ENS')
        else
           cvBen_mpiglobal => null()
        end if
@@ -693,10 +693,10 @@ contains
     end if
 
     cvDim_Bchm_mpiglobal = 0
-    if(cvm_subVectorExists(cvm_BCHM)) then
-      cvBchm_mpilocal =>cvm_getSubVector_r4(cv_mpilocal,cvm_BCHM)
+    if(cvm_subVectorExists('CHM')) then
+      cvBchm_mpilocal =>cvm_getSubVector_r4(cv_mpilocal,'CHM')
       if (mpi_myid == 0) then
-         cvBchm_mpiglobal=>cvm_getSubVector_mpiglobal_r4(cv_mpiglobal,cvm_BCHM)
+         cvBchm_mpiglobal=>cvm_getSubVector_mpiglobal_r4(cv_mpiglobal,'CHM')
       else
          cvBchm_mpiglobal=>null()
       end if
