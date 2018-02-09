@@ -30,7 +30,7 @@ module stateToColumn_mod
   use gridstatevector_mod
   use obsSpaceData_mod
   use columnData_mod
-  use timeCoord_mod
+  use obsTimeInterp_mod
   use tt2phi_mod
   use utilities_mod
   
@@ -175,7 +175,7 @@ CONTAINS
             else
               do stepIndex = 1, statevector%numStep
                 myTimeInterpWeight(headerIndex2,stepIndex) = &
-                  tim_getTimeInterpWeight(headerIndex,stepIndex)
+                  oti_getTimeInterpWeight(headerIndex,stepIndex)
               end do
             end if
           end if
@@ -224,7 +224,7 @@ CONTAINS
             else
               do stepIndex = 1, statevector%numStep
                 myTimeInterpWeight(headerIndex2,stepIndex) = &
-                  tim_getTimeInterpWeight(headerIndex,stepIndex)
+                  oti_getTimeInterpWeight(headerIndex,stepIndex)
               end do
             end if
           end if
@@ -256,7 +256,7 @@ CONTAINS
               else
                 do stepIndex = 1, statevector%numStep
                   myTimeInterpWeightToSend(headerIndex2,stepIndex) = &
-                    tim_getTimeInterpWeight(headerIndex,stepIndex)
+                    oti_getTimeInterpWeight(headerIndex,stepIndex)
                 end do
               end if
 
@@ -312,7 +312,7 @@ CONTAINS
           else
             do stepIndex = 1, statevector%numStep
               myTimeInterpWeight(headerIndex,stepIndex) = &
-                tim_getTimeInterpWeight(headerIndex,stepIndex)
+                oti_getTimeInterpWeight(headerIndex,stepIndex)
             end do
           end if
         end do

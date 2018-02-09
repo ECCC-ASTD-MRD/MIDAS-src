@@ -30,6 +30,7 @@ program midas_ensembleH
   use verticalCoord_mod
   use horizontalCoord_mod
   use timeCoord_mod
+  use obsTimeInterp_mod
   use utilities_mod
   use ramDisk_mod
   use enkf_mod
@@ -195,8 +196,8 @@ program midas_ensembleH
   write(*,*) ''
   write(*,*) 'midas-ensembleH: Interpolate ensemble members to obs locations/times and redistribute'
   write(*,*) ''
-  call tim_sutimeinterp(obsSpaceData, numStep)
-  call tim_sutimeinterpMpiglobal()
+  call oti_setup(obsSpaceData, numStep)
+  call oti_setupMpiglobal()
   call enkf_setupColumnsFromEnsemble(stateVector_member, obsSpaceData, columns)
   call tmg_stop(6)
 

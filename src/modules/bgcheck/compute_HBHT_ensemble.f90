@@ -24,6 +24,7 @@ subroutine compute_HBHT_ensemble(columng,columnhr,obsSpaceData,active)
   use obsSpaceData_mod
   use columnData_mod
   use timeCoord_mod
+  use obsTimeInterp_mod
   use bMatrixEnsemble_mod
   use horizontalCoord_mod
   use analysisGrid_mod
@@ -87,8 +88,8 @@ subroutine compute_HBHT_ensemble(columng,columnhr,obsSpaceData,active)
   HBHT_ens(:) = 0.d0
 
   !- 1.6
-  call tim_timeBinning(obsSpaceData,tim_nstepobsinc)
-  call tim_sutimeinterp(obsSpaceData,tim_nstepobsinc)
+  call oti_timeBinning(obsSpaceData,tim_nstepobsinc)
+  call oti_setup(obsSpaceData,tim_nstepobsinc)
 
   !
   !- 2.  Compute HBHT from the ensemble perturbations
