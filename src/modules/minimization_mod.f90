@@ -55,7 +55,7 @@ MODULE minimization_mod
   ! public variables
   public              :: min_niter
   ! public procedures
-  public              :: min_Setup, min_minimize
+  public              :: min_Setup, min_minimize, min_diagHBHt
 
   type struct_dataptr
     type(struct_obs),pointer        :: obsSpaceData
@@ -211,6 +211,105 @@ CONTAINS
     write(*,*) '--Done subroutine minimize--'
 
   end subroutine min_minimize
+
+
+  subroutine min_diagHBHt(columng,column,obsSpaceData)
+    implicit none
+    type(struct_gsv)        :: statevector
+
+    type(struct_obs)        :: obsSpaceData ! Observation-related data
+    type(struct_columnData) :: columng      ! Columns of the background interpolated 
+                                          ! to analysis levels and to obs horizontal locations
+    type(struct_columnData) :: column
+
+    type(struct_hco), pointer :: hco_anl
+    type(struct_vco), pointer :: vco_anl
+    real(8) ,allocatable :: random_vector(:)
+    real(8) ,allocatable :: local_random_vector(:)
+    integer :: index_body, local_dimension, jj, ierr, dateprnt,timeprnt,nrandseed, istat
+    integer ,external :: newdate,get_max_rss
+    real(8) ,external :: gasdev
+    real(8) :: zdum
+    !
+    !- 1.  Initialization
+
+    write(*,*)
+    write(*,*) 'Computing perturbations for randomized HBHT evaluation START'
+
+    vco_anl => col_getVco(columng)
+    hco_anl => agd_getHco('ComputationalGrid')
+    !- 1.3 Create a gridstatevector to store the perturbations
+    call gsv_setVco(statevector,vco_anl)
+    call gsv_setHco(statevector,hco_anl)
+    call gsv_allocate(statevector,tim_nstepobsinc,hco_anl,vco_anl,mpi_local_opt=.true.)
+
+    !- 1.4 Create column vectors to store the perturbation interpolated to obs horizontal locations
+    call col_setVco(column,vco_anl)
+    call col_allocate(column,col_getNumCol(columng),mpiLocal_opt=.true.)
+    call col_copyLatLon(columng,column)
+
+    !- 1.6
+!    call prdatabin(obsSpaceData,tim_nstepobsinc)
+    call tim_sutimeinterp(obsSpaceData,tim_nstepobsinc)
+
+    !
+    !- 2.  Compute the perturbations
+    !
+
+    !- 2.1 Random perturbations
+    write(*,*)
+    write(*,*) 'Generating random perturbation:'
+
+    !- Global vector (same for each processors)
+    allocate(random_vector(cvm_nvadim_mpiglobal),stat =istat )
+    allocate(local_random_vector(cvm_nvadim),stat =istat )
+
+    !- Initialize random number generator
+    ierr = newdate(tim_getDatestamp(), dateprnt, timeprnt, -3)
+    nrandseed=100*dateprnt + int(timeprnt/100.0) 
+    write(*,*) 'compute_HBHT_sylvain: Random seed set to ',nrandseed ; call flush(6)
+    call rng_setup(nrandseed)
+    ! Generate a random vector from N(0,1)
+    do jj = 1, cvm_nvadim_mpiglobal
+      random_vector(jj) = rng_gaussian()
+    enddo
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    !- Extract only the subvector for this processor
+    call bmat_reduceToMPILocal(local_random_vector,  & ! OUT
+         random_vector, & ! IN
+         local_dimension)      ! OUT
+    !- Transform to control variables in physical space
+    call bmat_sqrtB(local_random_vector,local_dimension,statevector)
+    !- 2.2 Interpolation to the observation horizontal locations
+
+    call  s2c_tl( statevector,   & ! IN
+         column,                & ! OUT (H_horiz EnsPert)
+         columng, obsSpaceData )  ! IN
+    !- 2.3 Interpolation to observation space
+    call oop_Htl(column,columng,obsSpaceData,min_nsim=1)
+!    call oda_H( column, columng, & ! IN
+!         obsSpaceData )     ! OUT (Save as OBS_WORK: H_vert H_horiz EnsPert = H EnsPert)
+  !- Copy from OBS_WORK to OBS_HPHT
+
+    do index_body = 1, obs_numBody(obsSpaceData)
+      call obs_bodySet_r(obsSpaceData,OBS_HPHT,index_body,obs_bodyElem_r(obsSpaceData,OBS_WORK,index_body) )
+    end do
+  !
+  !- 3.  Ending/Deallocation
+  !
+    call bmat_finalize()
+    deallocate(random_vector, stat=istat)
+    deallocate(local_random_vector, stat=istat)
+    call col_deallocate(column)
+    call gsv_deallocate(statevector)
+    write(*,*)
+    write(*,*) 'Computing perturbations for randomized HBHT evaluation END' ; call flush(6)
+
+end subroutine min_diagHBHt
+
+
+
+
 
   SUBROUTINE quasiNewtonMinimization(column,columng,obsSpaceData)
     !
