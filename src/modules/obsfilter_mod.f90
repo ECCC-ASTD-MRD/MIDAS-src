@@ -39,17 +39,19 @@ module obsFilter_mod
   ! public variables
   public :: filt_rlimlvhu
   ! public procedures
-  public :: filt_setup,filt_topo,filt_sethind,filt_suprep
+  public :: filt_setup, filt_topo, filt_sethind, filt_suprep
   public :: filt_surfaceWind, filt_gpsro
 
-  integer filt_nelems,filt_nlist(30)
-  integer filt_nflags,filt_nlistflg(15)
-  logical ltopofilt,discardlandsfcwind
+  integer filt_nelems, filt_nlist(30)
+  integer filt_nflags, filt_nlistflg(15)
+
+  logical ltopofilt, discardlandsfcwind
+
   real(8) :: filt_rlimlvhu
 
   ! topographic rejection criteria
   integer, parameter :: numElem = 16
-  real(8)            :: heightCrit(numElem) =   & ! in Metres
+  real(8)            :: altDiffMax(numElem) =   & ! default values (in metres)
        (/     50.d0,     50.d0,     50.d0,     50.d0,     50.d0,    800.d0,    800.d0,  &
        800.d0,    800.D0,   1000.d0,     50.D0,     50.D0,     50.D0,     50.D0,  &
        50.D0,     50.D0 /)
@@ -64,7 +66,10 @@ module obsFilter_mod
 
 contains
 
-  function findElemIndex(varNum) result(listIndex)
+!--------------------------------------------------------------------------
+! findElemIndex
+!------------------------------------------------------------------------- 
+ function findElemIndex(varNum) result(listIndex)
     implicit none
     integer :: varNum, listIndex, elemIndex
 
@@ -73,23 +78,29 @@ contains
        if(varNum.eq.elemList(elemIndex)) listIndex = elemIndex
     end do
 
-    if(listIndex.eq.-1) then
+    if (listIndex == -1) then
        write(*,*) 'filterobs_mod-findElemIndex: WARNING: varNum value not found: ',varNum
     end if
 
   end function findElemIndex
 
-
+!--------------------------------------------------------------------------
+! filt_setup
+!--------------------------------------------------------------------------
   subroutine filt_setup(filterMode_in)
     implicit none
 
     character(len=*), intent(in) :: filterMode_in
 
-    integer :: nulnam,ierr,jelem,jelem2,jflag,ibit,itotelem,ielem
-    integer :: fnom,fclos
-    integer nelems,nlist(30)
-    integer nflags,nlistflg(15)
+    integer :: nulnam, ierr, elem, elem2, jflag, ibit, itotelem, ielem
+    integer :: fnom, fclos
+    integer :: nelems, nlist(30)
+    integer :: nflags, nlistflg(15)
+    integer :: nelems_altDiffMax, list_altDiffMax(numElem), elemIndex
+    
+    real(8) :: value_altDiffMax(numElem)
     real(8) :: rlimlvhu
+
     character(len=35) :: CREASON(-8:13)
     data creason/'JACOBIAN IMPORTANT ABOVE MODEL TOP', &
          'ABS OROGRAPH-PHI                  ', &
@@ -114,14 +125,13 @@ contains
          'ELEMENT EXCEEDS CLIMATE EXTREME   ', &
          'ELEMENT MODIFIED OR GEN BY  ADE   '/
 
-    namelist /namfilt/nelems,nlist,nflags,nlistflg,ltopofilt,rlimlvhu,discardlandsfcwind
+    namelist /namfilt/nelems,nlist,nflags,nlistflg,ltopofilt,rlimlvhu,discardlandsfcwind, &
+         nelems_altDiffMax, list_altDiffMax, value_altDiffMax
 
     filterMode = filterMode_in
 
     ! set default values for namelist variables
-    do jelem = 1, 30
-       nlist(jelem) = 0
-    end do
+    nlist(:) = 0
     nelems = 6
     nlist(1)=11003
     nlist(2)=11004
@@ -129,9 +139,8 @@ contains
     nlist(4)=12192
     nlist(5)=12062
     nlist(6)=12063
-    do jflag = 1, 15
-       nlistflg(jflag) = 0
-    end do
+
+    nlistflg(:) = 0
     nflags=6
     nlistflg(1)=2
     nlistflg(2)=4
@@ -139,6 +148,10 @@ contains
     nlistflg(4)=9
     nlistflg(5)=11
     nlistflg(6)=12
+
+    list_altDiffMax (:) = 0
+    value_altDiffMax(:) = -1.d0
+    nelems_altDiffMax = 0
 
     ltopofilt = .true.
     rlimlvhu = 300.d0
@@ -154,15 +167,15 @@ contains
     ! Force nlist to be in the same sequence as NVNUMB for invariance in
     ! matrix-vector product done in matvec.
     itotelem = 0
-    do jelem2 = 1, filt_nelems
-       jelem=obs_get_obs_index_for_bufr_element(nlist(jelem2))
-       if (jelem .ne. -1) then
+    do elem2 = 1, filt_nelems
+       elem=obs_get_obs_index_for_bufr_element(nlist(elem2))
+       if (elem .ne. -1) then
           itotelem = itotelem + 1
           ielem = nlist(itotelem)
-          nlist(itotelem) = nlist(jelem2)
-          nlist(jelem2) = ielem
+          nlist(itotelem) = nlist(elem2)
+          nlist(elem2) = ielem
        else 
-          if(mpi_myid.eq.0) write(*,*) 'ELEMENT NOT FOUND IN NVNUMB LIST:',nlist(jelem2)
+          if(mpi_myid.eq.0) write(*,*) 'ELEMENT NOT FOUND IN NVNUMB LIST:',nlist(elem2)
        end if
     end do
 
@@ -176,8 +189,8 @@ contains
        write(*,'(1X,"***********************************")')
        write(*,'(1X," ELEMENTS SELECTED FOR ASSIMILATION:",/)')
        write(*,'(1X,"***********************************")')
-       do jelem=1,filt_nelems
-          write(*,'(15X,I5)') filt_nlist(jelem)
+       do elem=1,filt_nelems
+          write(*,'(15X,I5)') filt_nlist(elem)
        end do
        write(*,'(1X,"***********************************")')
        write(*,*) ' REJECT ELEMENTS WITH REJECT FLAG '
@@ -189,8 +202,25 @@ contains
        write(*,'(1X,"***********************************")')
     end if
 
-  end subroutine filt_setup
+    !
+    !- Set values for altDiffMax
+    !
+    if ( nelems_altDiffMax > 0 ) then
+      if ( nelems_altDiffMax > numElem ) then
+        call utl_abort('filt_setup: You have specify too many altDiffMax elements')
+      end if
+      do elem = 1, nelems_altDiffMax
+        elemIndex = findElemIndex(list_altDiffMax(elem))
+        if ( elemIndex >= 1 .and. elemIndex <= numElem ) then
+          altDiffMax(elemIndex) = value_altDiffMax(elem)
+          write(*,*) ' filt_setup: altDiffMax value for ', elemList(elemIndex), ' is set to ', altDiffMax(elemIndex)
+        else
+          call utl_abort('filt_setup: Error in value setting for altDiffMax')
+        end if
+      end do
+    end if
 
+  end subroutine filt_setup
 
   subroutine filt_sethind(obsSpaceData)
     implicit none
@@ -380,22 +410,10 @@ contains
     integer, parameter :: numFamily = 3
     character(len=2) :: list_family(numFamily)
 
-    !    data rlistcrit/50.d0, 50.d0, 50.d0, 50.d0, 50.d0, 800.d0, 800.d0, 800.d0, 800.d0, 1000.d0 /
     !
     ! reset dzmax for gb gps ztd to value in namelist file
     !
-    heightCrit(findElemIndex(BUFR_NEZD)) = dzmax
-
-    !    ilistel(1)=BUFR_NEDS
-    !    ilistel(2)=BUFR_NEFS
-    !    ilistel(3)=BUFR_NEUS
-    !    ilistel(4)=BUFR_NEVS
-    !    ilistel(5)=BUFR_NESS
-    !    ilistel(6)=BUFR_NETS
-    !    ilistel(7)=BUFR_NEPS
-    !    ilistel(8)=BUFR_NEPN
-    !    ilistel(9)=BUFR_NEGZ
-    !    ilistel(10)=BUFR_NEZD
+    altDiffMax(findElemIndex(BUFR_NEZD)) = dzmax
 
     if (  .not.beSilent ) then
       write(*,*) ' '
@@ -403,7 +421,7 @@ contains
       write(*,*) ' '
       write(*,*) '*****************************************************'
       write(*,222) 'ELEMENTS                  ',(elemList(elemIndex),elemIndex=1,numElem)
-      write(*,223) 'REJECTION BOUNDARY(METRE) ',(heightCrit(elemIndex),elemIndex=1,numElem)
+      write(*,223) 'REJECTION BOUNDARY(METRE) ',(altDiffMax(elemIndex),elemIndex=1,numElem)
       write(*,*) '*****************************************************'
       write(*,*) ' '
     end if
@@ -446,7 +464,7 @@ contains
              elemIndex = findElemIndex(ivnm)
              if (elemIndex.eq.-1) cycle BODY
 
-             if (zdiff.le.heightCrit(elemIndex)) then
+             if (zdiff.le.altDiffMax(elemIndex)) then
                 ! obs passes the acceptance criteria
                 countAcc(elemIndex) = countAcc(elemIndex)+1
              else
@@ -511,7 +529,7 @@ contains
       write(*,*) ' '
       write(*,*) '************************************************'
       write(*,222) ' ELEMENTS                  ',(elemList(elemIndex),elemIndex=1,numElem)
-      write(*,223) ' REJECTION BOUNDARY(METRE) ',(heightCrit(elemIndex),elemIndex=1,numElem)
+      write(*,223) ' REJECTION BOUNDARY(METRE) ',(altDiffMax(elemIndex),elemIndex=1,numElem)
       write(*,223) ' REJECTION SBL (PASCAL)    ',(bndryCritPres,elemIndex=1,numElem)
       write(*,*) '************************************************'
       write(*,*) ' '
@@ -557,7 +575,7 @@ contains
           ! obs is above surface, so it is ok, lets jump to the next obs
           if(zdiff .ge. 0.0d0) cycle BODY
 
-          if(zdiff .ge. -1.0d0*heightCrit(listIndex)) then
+          if(zdiff .ge. -1.0d0*altDiffMax(listIndex)) then
              ! obs is an acceptably small distance below the surface
              itotacc(listIndex) = itotacc(listIndex)+1
              igzacc(listIndex) = igzacc(listIndex)+1
@@ -615,7 +633,7 @@ contains
              zpt   = zpb - (zdelp + bndryCritPres)
           end if
 
-          if(abs(zdifalt).le.heightCrit(listIndex)) then
+          if(abs(zdifalt).le.altDiffMax(listIndex)) then
              !--Model surface and station altitude are very close
              !  Accept observation if zlev is within the domain
              !  of the trial field
@@ -778,23 +796,13 @@ contains
     real(8) :: zStnAlt,zModAlt,zpb,zpt
     logical :: llok, list_is_empty
 
-    !    DATA    RLISTCRIT/50.D0,50.D0,50.D0,50.D0,50.D0,50.D0,800.D0/
-    !    DATA    RSBLCRIT /400.0D0,400.0D0,400.0D0,400.0D0,400.0D0,400.0D0,400.0D0 /
-    !    ILISTEL(1)=BUFR_NEDD
-    !    ILISTEL(2)=BUFR_NEFF
-    !    ILISTEL(3)=BUFR_NEUU
-    !    ILISTEL(4)=BUFR_NEVV
-    !    ILISTEL(5)=BUFR_NEES
-    !    ILISTEL(6)=BUFR_NETT
-    !    ILISTEL(7)=BUFR_NEGZ
-
     if ( .not.beSilent ) then
       write(*,*) ' '
       write(*,*) ' SUBROUTINE filt_topoPROF '
       write(*,*) ' '
       write(*,*) '************************************************'
       write(*,222) ' ELEMENTS                  ',(elemList(elemIndex),elemIndex=1,numElem)
-      write(*,223) ' REJECTION BOUNDARY(METRE) ',(heightCrit(elemIndex),elemIndex=1,numElem)
+      write(*,223) ' REJECTION BOUNDARY(METRE) ',(altDiffMax(elemIndex),elemIndex=1,numElem)
       write(*,223) ' REJECTION SBL (METRE) ',(bndryCritHeight,elemIndex=1,numElem)
       write(*,*) '************************************************'
       write(*,*) ' '
@@ -846,7 +854,7 @@ contains
           else
              zpt = zModAlt + bndryCritHeight
           end if
-          if(abs(zStnAlt-zModAlt).le.heightCrit(listIndex)) then
+          if(abs(zStnAlt-zModAlt).le.altDiffMax(listIndex)) then
              !----Model surface and station altitude are very close
              !    Accept observation if zlev is within the domain
              !    of the trial field
@@ -910,9 +918,6 @@ contains
     integer :: headerIndex, bodyIndex, elemIndex
     integer :: idatyp, countAssim, countRej
     real(8), parameter :: minSfcPressure = 80000.D0
-
-    !    DATA    RLISTCRIT/800.D0/
-    !    DATA    ILISTEL/12163/
 
     if ( .not.beSilent ) then
       write(*,* ) ' '
