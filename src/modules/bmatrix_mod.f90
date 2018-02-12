@@ -43,7 +43,6 @@ MODULE BMatrix_mod
   use timeCoord_mod
   use globalSpectralTransform_mod
   use utilities_mod
-  use biascorrection_mod
   implicit none
   save
   private
@@ -85,7 +84,7 @@ contains
 
     integer :: cvdimens, cvdimhi, cvdimhi_mpiglobal
     integer :: get_max_rss, ierr
-    integer :: cvdimchm, cvdimdiff, cvdimbias
+    integer :: cvdimchm, cvdimdiff
    
     !
     !- 1.  Get/Check the analysis grid info
@@ -97,10 +96,10 @@ contains
     !
     !- 2.  Set the B matrices
     !
-    cvdimhi  = 0
-    cvdimens = 0
-    cvdimchm = 0
-    cvdimbias = 0
+    cvdimhi   = 0
+    cvdimens  = 0
+    cvdimchm  = 0
+    cvdimdiff = 0
 
     !- 2.1 Time-Mean Homogeneous and Isotropic...
     if ( hco_anl%global ) then
@@ -123,9 +122,7 @@ contains
       call lbhi_Setup( hco_anl, vco_anl_in, & ! IN
                        cvdimhi )              ! OUT
     end if
-
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    write(*,*) 'Dimension of HI  control vector returned:',cvdimhi
+    call cvm_setupSubVector('HI','HI',cvdimhi)
 
     !- 2.2 Flow-dependent Ensemble-Based
     write(*,*)
@@ -133,9 +130,7 @@ contains
     call ben_Setup( hco_anl,             & ! IN
                     vco_anl_in,          & ! IN
                     cvdimens )             ! OUT
-
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    write(*,*) 'Dimension of ENS control vector returned:',cvdimens
+    call cvm_setupSubVector('ENS','ENS',cvdimens)
 
     !- 2.3  Static (Time-Mean Homogeneous and Isotropic) covariances for constituents
     if ( hco_anl % global ) then
@@ -143,43 +138,17 @@ contains
       write(*,*) 'Setting up the modular GLOBAL HI-chm covariances...'
       call bchm_Setup( hco_anl, vco_anl_in, & ! IN
                        cvdimchm )             ! OUT
-
     !else
       ! Done in lbhi_Setup 
     end if
-
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    write(*,*) 'Dimension of CH static control vector returned:',cvdimchm
+    call cvm_setupSubVector('CHM','CHM',cvdimchm)
 
     !- 2.4 Covariances modelled using a diffusion operator.
     write(*,*)
     write(*,*) 'Setting up the modular DIFFUSION covariances...'
     call bdiff_Setup( hco_anl, vco_anl_in, & ! IN
                       cvdimdiff )            ! OUT
-
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    write(*,*) 'Dimension of DIFFUSION static control vector returned:',cvdimdiff
-
-    !-2.5 Bias_correction
-    if( hco_anl % global ) then
-      write(*,*)
-      write(*,*) 'Setting up the modular bias correction covariances...'
-      call bias_setup(cvdimbias)
-    else
-      write(*,*) 'It is now only for global'
-    end if
-
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    write(*,*) 'Dimension of Bias control vector returned:',cvdimbias
-
-
-    !
-    !- 3.  Setup the control vector
-    !
-    call cvm_Setup( cvdimhi, cvdimens, cvdimchm, cvdimdiff, cvdimbias ) ! IN
-
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    write(*,*) 'Dimension of TOTAL control vector:',cvm_nvadim
+    call cvm_setupSubVector('DIFF','DIFF',cvdimdiff)
     
   END SUBROUTINE bmat_setup
 
@@ -399,7 +368,6 @@ contains
     call bchm_finalize()
     call lbhi_finalize()
     call bdiff_finalize()
-    call bias_finalize()
 
   END SUBROUTINE bmat_finalize
 

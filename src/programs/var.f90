@@ -46,6 +46,7 @@ program midas_var
   use variableTransforms_mod
   use obsOperators_mod
   use multi_ir_bgck_mod
+  use biasCorrection_mod
   use fso_mod
   implicit none
 
@@ -196,6 +197,9 @@ program midas_var
     ! computations controlled by NAMOSD namelist in flnml)
     call osd_ObsSpaceDiag(obsSpaceData,trlColumnOnAnlLev)
 
+    ! Deallocate memory related to variational bias correction
+    call bias_finalize()
+
     ! Deallocate memory related to B matrices
     call bmat_finalize()
 
@@ -205,7 +209,7 @@ program midas_var
     ! Deallocate copied obsSpaceData
     call obs_finalize(obsSpaceData)
 
-else if ( trim(varMode) == 'FSO' ) then
+  else if ( trim(varMode) == 'FSO' ) then
     write(*,*) 'MIDAS-VAR: FSO MODE'
 
     ! Do initial set up
@@ -372,6 +376,12 @@ contains
     !- Initialize the observation error covariances
     !
     call oer_setObsErrors(obsSpaceData, varMode) ! IN
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+    !
+    !- Initialize variational bias correction (default is to not use it)
+    !
+    call bias_setup()
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     !

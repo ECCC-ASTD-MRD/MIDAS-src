@@ -35,7 +35,7 @@ module controlVector_mod
   ! public variables
   public              :: cvm_nvadim, cvm_nvadim_mpiglobal
   ! public procedures
-  public              :: cvm_setup, cvm_getSubVector, cvm_getSubVector_mpiglobal
+  public              :: cvm_setupSubVector, cvm_getSubVector, cvm_getSubVector_mpiglobal
   public              :: cvm_getSubVector_r4, cvm_getSubVector_mpiglobal_r4
   public              :: cvm_subVectorExists
 
@@ -55,13 +55,12 @@ module controlVector_mod
   integer            :: numVectors = 0
   type(struct_cvm)   :: cvm_vector(maxNumVectors)
 
-  logical             :: initialized = .false.
   integer             :: cvm_nvadim
   integer             :: cvm_nvadim_mpiglobal
 
 contains
 
-  subroutine cvm_setupSubVector(label,BmatrixType,dimVector)
+  subroutine cvm_setupSubVector(label, BmatrixType, dimVector)
     implicit none
 
     ! arguments
@@ -70,21 +69,24 @@ contains
     integer :: dimVector
 
     ! locals
-    integer :: ierr
+    integer :: ierr, dimVector_mpiglobal
 
     if ( numVectors == maxNumVectors ) then
       call utl_abort('cvm_setupSubVector: number of allocated subvectors already at maximum allowed')
     end if
+
+    call rpn_comm_allreduce(dimVector, dimVector_mpiglobal,  &
+                            1, 'MPI_INTEGER', 'MPI_SUM', 'GRID', ierr)
+
+    ! just return if subVector dimension is zero on all MPI tasks
+    if ( dimVector_mpiglobal == 0 ) return
 
     numVectors = numVectors + 1
 
     cvm_vector(numVectors)%label = label
     cvm_vector(numVectors)%BmatrixType = BmatrixType
     cvm_vector(numVectors)%dimVector = dimVector
-
-    call rpn_comm_allreduce(cvm_vector(numVectors)%dimVector,  &
-                            cvm_vector(numVectors)%dimVector_mpiglobal,  &
-                            1,'MPI_INTEGER','MPI_SUM','GRID',ierr)
+    cvm_vector(numVectors)%dimVector_mpiglobal = dimVector_mpiglobal
 
     if ( numVectors == 1 ) then
       cvm_vector(numVectors)%subVectorBeg = 1
@@ -102,29 +104,16 @@ contains
                                                       cvm_vector(numVectors-1)%subVectorEnd_mpiglobal
     end if
 
+    cvm_nvadim = sum(cvm_vector(1:numVectors)%dimVector)
+    cvm_nvadim_mpiglobal = sum(cvm_vector(1:numVectors)%dimVector_mpiglobal)
+
+    write(*,*) 'cvm_setupSubVector: '
+    write(*,*) '   added subVector with dimension             = ', cvm_vector(numVectors)%dimVector
+    write(*,*) '   added subVector with dimension (mpiglobal) = ', cvm_vector(numVectors)%dimVector_mpiglobal
+    write(*,*) '   current total dimension             = ', cvm_nvadim
+    write(*,*) '   current total dimension (mpiglobal) = ', cvm_nvadim_mpiglobal
+
   end subroutine cvm_setupSubVector
-
-
-  subroutine cvm_setup(dimBhi_in, dimBen_in, dimBchm_in, dimBdiff_in, dimBias_in)
-    implicit none
-
-    integer           :: dimBHI_in, dimBEN_in, dimBCHM_in, dimBdiff_in, dimBias_in
-
-    call cvm_setupSubVector('HI','HI',dimBhi_in)
-    call cvm_setupSubVector('ENS','ENS',dimBen_in)
-    call cvm_setupSubVector('CHM','CHM',dimBchm_in)
-    call cvm_setupSubVector('DIFF','DIFF',dimBdiff_in)
-    call cvm_setupSubVector('BIAS','BIAS',dimBias_in)
-
-    cvm_nvadim = sum(cvm_vector(:)%dimVector)
-    cvm_nvadim_mpiglobal = sum(cvm_vector(:)%dimVector_mpiglobal)
-
-    write(*,*) 'cvm_setup: total dimension            =', cvm_nvadim
-    write(*,*) 'cvm_setup: total dimension (mpiglobal)=', cvm_nvadim_mpiglobal
-
-    initialized=.true.
-
-  end subroutine cvm_setup
 
 
   function cvm_indexFromLabel(subVectorLabel) result(subVectorIndex)
