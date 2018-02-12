@@ -22,7 +22,6 @@
 !!
 !--------------------------------------------------------------------------
 module obsOperators_mod
-
   use earthConstants_mod
   use mathPhysConstants_mod
   use obsSpaceData_mod
@@ -101,7 +100,7 @@ contains
              ZLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,JDATA)
           ELSE
              call utl_abort('oop_vobslyr: ZLEV cannot be set, BUFR_NEDZ not supported!')
-          ENDIF
+          END IF
           IOBS = obs_bodyElem_i(obsSpaceData,OBS_HIND,JDATA)
           ITYP = obs_bodyElem_i(obsSpaceData,OBS_VNM,JDATA)
           if (bufr_IsAtmosConstituent(ITYP)) then
@@ -121,13 +120,13 @@ contains
              if(varLevel /= 'SF') then
                 write(*,*) 'oop_vobslyrs: Rejecting OBS above model lid, pressure = ', ZLEV,' < ',ZPT
                 call obs_bodySet_i(obsSpaceData,OBS_ASS,JDATA, 0)
-             endif
+             end if
           ELSE IF ( ZLEV > ZPB ) THEN
              call obs_bodySet_i(obsSpaceData,OBS_XTR,JDATA,2)
           ELSE
              call obs_bodySet_i(obsSpaceData,OBS_XTR,JDATA,0)
-          ENDIF
-       ENDIF
+          END IF
+       END IF
     END DO
 !$OMP END PARALLEL DO
     !
@@ -142,7 +141,7 @@ contains
              ZLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,JDATA)
           ELSE
              call utl_abort('oop_vobslyr: ZLEV cannot be set, BUFR_NEDZ not supported!')
-          ENDIF
+          END IF
           IOBS = obs_bodyElem_i(obsSpaceData,OBS_HIND,JDATA)
           ITYP = obs_bodyElem_i(obsSpaceData,OBS_VNM,JDATA)
           if (bufr_IsAtmosConstituent(ITYP)) then
@@ -158,7 +157,7 @@ contains
              nlev=col_getNumLev(columnghr,varLevel)
              ZPT= col_getHeight(columnghr,1,IOBS,varLevel)/RG
              ZPB= col_getHeight(columnghr,NLEV,IOBS,varLevel)/RG
-          endif
+          end if
           IF ( ZLEV > ZPT ) THEN
              call obs_bodySet_i(obsSpaceData,OBS_XTR,JDATA,1)
              write(*,*) 'oop_vobslyrs: Rejecting OBS above model lid, height =', ZLEV,' > ',ZPT
@@ -167,8 +166,8 @@ contains
              call obs_bodySet_i(obsSpaceData,OBS_XTR,JDATA,2)
           ELSE
              call obs_bodySet_i(obsSpaceData,OBS_XTR,JDATA,0)
-          ENDIF
-       ENDIF
+          END IF
+       END IF
     END DO
 !$OMP END PARALLEL DO
     !
@@ -204,7 +203,7 @@ contains
           ZPT = col_getPressure(COLUMNGHR,IK,IOBS,varLevel)
           ZPB = col_getPressure(COLUMNGHR,IK+1,IOBS,varLevel) 
           call obs_bodySet_i(obsSpaceData,OBS_LYR,JDATA, IK)
-       ENDIF
+       END IF
     END DO
 !$OMP END PARALLEL DO
     !
@@ -240,9 +239,9 @@ contains
                ITYP == BUFR_NEHS) THEN
              ! for surface observations associated with NON-surface analysis variables
              IK = nlev - 1
-          ENDIF
+          END IF
           call obs_bodySet_i(obsSpaceData,OBS_LYR,JDATA, IK)
-       ENDIF
+       END IF
     END DO
 !$OMP END PARALLEL DO
     !
@@ -291,7 +290,7 @@ contains
        call obs_set_current_body_list(obsSpaceData, cdfam_opt)
     else
        call obs_set_current_body_list(obsSpaceData)
-    endif
+    end if
     BODY: do
        bodyIndex = obs_getBodyIndex(obsSpaceData)
        if (bodyIndex < 0) exit BODY
@@ -328,10 +327,10 @@ contains
                 col_ptr=>col_getColumn(columnhr,headerIndex,varName,'TH')
              else
                 col_ptr=>col_getColumn(columnhr,headerIndex,varName)
-             endif
+             end if
              columnVarB=col_ptr(ilyr+1)
              columnVarT=col_ptr(ilyr  )
-          endif
+          end if
           zomp = zvar-(zwb*columnVarB+zwt*columnVarT)
           jobs = jobs + zomp*zomp/(zoer*zoer)
           call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex,zomp)
@@ -349,11 +348,11 @@ contains
                   ztvg/zgamma*(1.D0-(zlev/col_getElem(columnhr,1,headerIndex,'P0'))**zexp))
              jobs = jobs + zomp*zomp/(zoer*zoer)
              call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex,zomp)
-          endif
+          end if
 
-       endif
+       end if
 
-    enddo body
+    end do body
 
     if(present(jobs_opt)) jobs_opt=0.5d0*jobs
 
@@ -401,7 +400,7 @@ contains
        call obs_set_current_header_list(obsSpaceData,cdfam_opt)
     else
        call obs_set_current_header_list(obsSpaceData)
-    endif
+    end if
     HEADER: do
        headerIndex = obs_getHeaderIndex(obsSpaceData)
        if (headerIndex < 0) exit HEADER
@@ -439,7 +438,7 @@ contains
                 zslope = zgamma
              else
                 zslope = 0.0d0
-             endif
+             end if
 
              ipt  = col_getNumLev(COLUMNHR,varLevel)-1 + col_getOffsetFromVarno(columnhr,ivnm)
              ipb  = ipt + 1
@@ -449,27 +448,39 @@ contains
                      col_getPressure(columnhr,col_getNumLev(COLUMNHR,'TH'),headerIndex,'TH'))
              else
                 columnVarB=col_getElem(columnhr,ipb,headerIndex)
-             endif
+             end if
              gzhr=col_getHeight(columnhr,col_getNumLev(columnhr,varLevel),headerIndex,varLevel)
              call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex,  &
                   (zvar-columnVarB + zslope*(zhhh-gzhr)) )
 
-          elseif(ivnm == BUFR_NEPS .or. ivnm == BUFR_NEPN) then
-             ! Surface Pressure Mean sea level Pressure
-             ! In this section we always extrapolate linearly the trial
-             ! field at the model surface to the height of the
-             ! surface observation whether the observation is above or
-             ! below the model height
+          else if ( ivnm == BUFR_NEPS .or. ivnm == BUFR_NEPN ) then
+            ! Surface (PS) & mean sea level (PN) pressure cases
+            ! Background surface pressure are corrected for the height difference with the 
+            ! observation. For mean sea level observation, the observation height = 0.
 
-             zgamaz= zgamma*(zhhh-col_getGZsfc(columnhr,headerIndex))
-             ztvg = (1.0d0 + MPC_DELTA_R8 *  &
-                  exp(col_getElem(columnhr,col_getNumLev(columnhr,'TH'),headerIndex,'HU'))) *  &
-                  col_getElem(columnhr,col_getNumLev(columnhr,'TH'),headerIndex,'TT')
-             zcon = ((ztvg-zgamaz)/ztvg)
-             call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex,  &
-                  zvar-(col_getElem(columnhr,1,headerIndex,'P0')*zcon**zexp))
+            ! 1) Temperature difference = lapse-rate (6.5 degree/km) * height difference (dz)
+            zgamaz = zgamma*(zhhh-col_getGZsfc(columnhr,headerIndex))
 
-          endif
+            ! 2) Compute the 2m background virtual temperature: Tv = T*(1+0.608*HU)
+            ztvg = (1.0d0 + MPC_DELTA_R8 *  &
+                   exp(col_getElem(columnhr,col_getNumLev(columnhr,'TH'),headerIndex,'HU'))) *  &
+                   col_getElem(columnhr,col_getNumLev(columnhr,'TH'),headerIndex,'TT')
+            
+            ! 3) Compute the temperature ratio 
+            ! The legacy code says...
+            zcon = ((ztvg-zgamaz)/ztvg)
+            ! However, the U.S. Standard Atmosphere (1976, U.S. Government Printing Office, Washington, D.C., 1976*)
+            ! at page 12 says...
+            ! zcon = (ztvg/(ztvg+zgamaz))
+            ! but the former was found to perform better (gives lower O-P values) than the latter by J-F Caron in 2018 
+
+            ! 4) O-P, where P = P0 * zcon ** zexp (page 12 of the U.S. Standard Atmosphere, 1976, 
+            !                                      U.S. Government Printing Office, Washington, D.C., 1976*)
+            call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex,  &
+                               zvar-(col_getElem(columnhr,1,headerIndex,'P0')*zcon**zexp))
+
+            ! (*) available at https://ntrs.nasa.gov/archive/nasa/casi.ntrs.nasa.gov/19770009539_1977009539.pdf
+          end if
 
           ! contribution to jobs
           jobs = jobs +(obs_bodyElem_r(obsSpaceData,OBS_OMP,bodyIndex)*   &
@@ -477,9 +488,9 @@ contains
                (obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)*   &
                obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex))
 
-       enddo BODY
+       end do BODY
 
-    enddo HEADER
+    end do HEADER
 
     if(present(jobs_opt)) jobs_opt=0.5d0*jobs
 
@@ -523,7 +534,7 @@ contains
     else
        write(*,*) 'oop_zzz_nl: WARNING, no family specified, assuming PR'
        call obs_set_current_body_list(obsSpaceData, 'PR')
-    endif
+    end if
     BODY: do
        bodyIndex = obs_getBodyIndex(obsSpaceData)
        if (bodyIndex < 0) exit BODY
@@ -560,7 +571,7 @@ contains
             (obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)*   &
             obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex))
 
-    enddo BODY
+    end do BODY
 
     if(present(jobs_opt)) jobs_opt=0.5d0*jobs
 
@@ -628,7 +639,7 @@ contains
     !if (levelgpsro == 1) then
     !  allocate( rstvp(gpsro_maxprfsize) )
     !  allocate( rstvm(gpsro_maxprfsize) )
-    !endif
+    !end if
 
     jobs=0.0d0
 
@@ -658,8 +669,8 @@ contains
           if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,index_body) == 1 ) then
              assim = .true.
              nh = nh + 1
-          endif
-       enddo BODY
+          end if
+       end do BODY
        !
        ! If no assimilations are requested, skip to next header
        !
@@ -677,7 +688,7 @@ contains
        wfgps=0.d0
        do jj=1,numgpssats
           if (isat == igpssat(jj)) wfgps=wgps(jj)
-       enddo
+       end do
        !
        ! Profile at the observation location:
        !
@@ -697,7 +708,7 @@ contains
           zdp(jl) = col_getPressureDeriv(columnhr,jl,index_header,'TH')
           ztt(jl) = col_getElem(columnhr,jl,index_header,'TT') - p_tc
           zhu(jl) = col_getElem(columnhr,jl,index_header,'HU')
-       enddo
+       end do
 
        if((col_getPressure(columnhr,1,index_header,'TH') + 1.0d-4) < &
             col_getPressure(columnhr,1,index_header,'MM')) then
@@ -705,16 +716,16 @@ contains
           do jl = 1, nwndlev
              zuu(jl) = col_getElem(columnhr,jl  ,index_header,'UU') * p_knot
              zvv(jl) = col_getElem(columnhr,jl  ,index_header,'VV') * p_knot
-          enddo
+          end do
        else
           ! case without top thermo above top momentum level or unstaggered (Vcode=5001/4/5)
           do jl = 1, nwndlev-1
              zuu(jl) = col_getElem(columnhr,jl+1,index_header,'UU') * p_knot
              zvv(jl) = col_getElem(columnhr,jl+1,index_header,'VV') * p_knot
-          enddo
+          end do
           zuu(nwndlev) = zuu(nwndlev-1)
           zvv(nwndlev) = zuu(nwndlev-1)
-       endif
+       end if
        zuu(ngpslev) = zuu(nwndlev)
        zvv(ngpslev) = zuu(nwndlev)
        !     
@@ -738,8 +749,8 @@ contains
              nh1      = nh1 + 1
              h(nh1)   = obs_bodyElem_r(obsSpaceData,OBS_PPP,index_body)
              azmv(nh1)= zazm
-          endif
-       enddo BODY_2
+          end if
+       end do BODY_2
        !
        ! Apply the observation operator:
        !
@@ -749,10 +760,10 @@ contains
           !call gps_bndopv1(h-wfgps, azmv, nh, prf, rstvm)
           !do nh1 = 1, nh
           !  rstv(nh1)=(rstvp(nh1)+rstv(nh1)+rstvm(nh1))/3.d0
-          !enddo
+          !end do
        else
           call gps_refopv (h,       nh, prf, rstv)
-       endif
+       end if
        !
        ! Perform the (H(x)-Y)/S operation:
        !
@@ -804,20 +815,20 @@ contains
                      '(A9,i10,3f7.2,f11.1,4f12.6,15f12.4)') 'DOBSGPSRO',  &
                      index_header,lat,lon,azm,hnh1,zobs,zoer,  &
                      zmhx,zinc,pjob,prf%gst(ngpslev)%var  
-             endif
+             end if
              call obs_bodySet_r(obsSpaceData,OBS_OMP,index_body, zobs - zmhx)
-          endif
-       enddo BODY_3
+          end if
+       end do BODY_3
 
        if ( .not.beSilent ) write(*,'(A9,i10,2f7.2,f18.10,f12.4,2I6)')  &
             'GPSRO_JO',index_header,lat,lon,pjob,zmt,isat,ldsc
        firstheader = .false.
-    enddo HEADER
+    end do HEADER
 
     !if (levelgpsro == 1) then
     !  deallocate( rstvm )
     !  deallocate( rstvp )
-    !endif
+    !end if
     deallocate( rstv )
     deallocate( azmv )
     deallocate( h    )
@@ -921,7 +932,7 @@ contains
        analysisMode = analysisMode_opt
     else
        analysisMode = .true.
-    endif
+    end if
 
     zpomps = 0.0d0
 
@@ -992,14 +1003,14 @@ contains
              ! Index in body of ZTD datum (assume at most 1 per header)
              index_ztd = bodyIndex
              icount = icount + 1
-          endif
+          end if
           if ( ityp == bufr_neps ) then
              if ( (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == 1) .or. llblmet ) then
                 zpsobs = obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)
                 zpomps = obs_bodyElem_r(obsSpaceData,OBS_OMP,bodyIndex)
-             endif
-          endif
-       enddo BODY
+             end if
+          end if
+       end do BODY
 
        ! If no ZTD assimilation requested, jump to next header
        if (.not.assim) cycle HEADER
@@ -1017,7 +1028,7 @@ contains
           zdp(jl) = col_getPressureDeriv(columnhr,jl,headerIndex,'TH')
           ztt(jl) = col_getElem(columnhr,jl,headerIndex,'TT')-MPC_K_C_DEGREE_OFFSET_R8
           zhu(jl) = col_getElem(columnhr,jl,headerIndex,'HU')
-       enddo
+       end do
        zdz = zlev - zmt
 
        ! Fill GPS ZTD profile structure (PRF):
@@ -1050,17 +1061,17 @@ contains
                 else
                    llrej = .true.
                    icount2 = icount2 + 1
-                endif
+                end if
              else
                 icount1 = icount1 + 1
-             endif
-          endif
-       endif
+             end if
+          end if
+       end if
 
        if ( llrej ) then
           call obs_bodySet_i(obsSpaceData,OBS_ASS,index_ztd, 0)
           if ( .not. lassmet ) icount1 = icount1 + 1
-       endif
+       end if
 
        ! Perform the (H(x)-Y)/SDERR operation
        !
@@ -1086,7 +1097,7 @@ contains
                 write(*,*) ' Station =',cstnid
                 write(*,*) ' Error =', zoer
                 call utl_abort('OOP_GPSGB_NL: ABORT! BAD ZTD OBSERR') 
-             endif
+             end if
 
              ! Observation height (m)
              !
@@ -1107,8 +1118,8 @@ contains
                      abs(zdz) < xdzmax ) then
                    ioneobs = headerIndex
                    write(*,*) 'SINGLE OBS SITE = ',cstnid
-                endif
-             endif
+                end if
+             end if
              !
              ! Print data for first NOBS2P observations
              !
@@ -1117,13 +1128,13 @@ contains
                      '(A14,A9,3(1x,f7.2),1x,f8.2,4(1x,f8.5),2(1x,f8.4),2x,f5.2,1x,f9.2,1x,f10.5)')  &
                      'OOP_GPSGB_NL: ',cstnid,zlat,zlon,zlev,zdz,zobs,zoer/yzderrwgt,zhx,-zinc*zoer,  &
                      zpomps/100.d0,zpomp/100.d0,zpwmod,jobs,zinc/zoer
-             endif
+             end if
 
-          endif
+          end if
 
-       enddo BODY_2
+       end do BODY_2
 
-    enddo HEADER
+    end do HEADER
 
     deallocate(ztt)
     deallocate(zhu)
@@ -1138,7 +1149,7 @@ contains
          std = 0.d0
          do jl = 1, icountp
             std = std + (ztdomp(jl)-bias)**2
-         enddo
+         end do
          write(*, *) '     MEAN O-P (BIAS) [mm] = ', bias*1000.d0
          if (icountp > 1) then
             std = sqrt(std/(real(icountp,8)-1.d0))
@@ -1147,7 +1158,7 @@ contains
             write(*, *) '     STD  O-P        Uncomputable since number of GPS ZTD observations is 1'
          end if
          write(*, *) ' '
-      endif
+      end if
     end if
 
     if ( l1obs .and. analysisMode ) then
@@ -1164,13 +1175,13 @@ contains
                    bodyIndex = obs_getBodyIndex(obsSpaceData)
                    if (bodyIndex < 0) exit BODY_1
                    call obs_bodySet_i(obsSpaceData,OBS_ASS,bodyIndex, 0)
-                enddo BODY_1
-             endif
-          enddo HEADER_1
+                end do BODY_1
+             end if
+          end do HEADER_1
        else
           call utl_abort('ERROR: FAILED TO SELECT SINGLE OBSERVATION!')
-       endif
-    endif
+       end if
+    end if
 
     numgpsztd = icountp
 
@@ -1189,7 +1200,7 @@ contains
        write(*, *) ' TOTAL NUMBER OF ASSIMILATED ZTD DATA                        = ', icountp
        if ( icountp > 0 ) then
           write(*, *) 'MEAN Jo = (jobs/numGPSZTD)*YZDERRWGT**2 = ',(jobs/real(icountp,8))*yzderrwgt**2
-       endif
+       end if
        write(*,*) ' '
     end if
 
@@ -1220,16 +1231,16 @@ contains
                      ityp == BUFR_NEZD ) then  
                    iztd = iztd + 1
                    vgpsztd_index(iztd) = headerIndex
-                endif
-             enddo BODY_3
-          endif
-       enddo HEADER_2
+                end if
+             end do BODY_3
+          end if
+       end do HEADER_2
 
        if ( iztd /= numgpsztd ) then
           call utl_abort('ERROR: vGPSZTD_Index init: iztd /= numGPSZTD!')
-       endif
+       end if
 
-    endif
+    end if
 
     if(present(jobs_opt)) jobs_opt=jobs
 
@@ -1285,26 +1296,26 @@ contains
        bgckMode = bgckMode_opt
     else
        bgckMode = .false.
-    endif
+    end if
 
     if(present(option_opt)) then
        option = option_opt(1:2)
     else
        option = 'HR'
-    endif
+    end if
     if ( option /= 'HR' ) call utl_abort('oop_tovs_nl: Invalid option for input state')
 
     if(present(sourceObs_opt)) then
        sourceObs = sourceObs_opt
     else
        sourceObs = OBS_VAR
-    endif
+    end if
 
     if(present(destObs_opt)) then
        destObs = destObs_opt
     else
        destObs = OBS_OMP
-    endif
+    end if
 
     ! 1.   Prepare atmospheric profiles for all tovs observation points for use in rttov
     ! .    -----------------------------------------------------------------------------
@@ -1321,14 +1332,14 @@ contains
     if ( option == 'HR' .or. option == 'LR' ) then
        do jdata=1,obs_numbody(obsSpaceData)
           call obs_bodySet_r(obsSpaceData,OBS_PRM,jdata, obs_bodyElem_r(obsSpaceData,sourceObs,jdata))
-       enddo
-    endif
+       end do
+    end if
 
     if(present(jobs_opt) .and. option == 'HR') then
        llprint = .true.
     else
        llprint = .false.
-    endif
+    end if
     jobs = 0.0d0
 
     if ( beSilent ) llprint = .false.
@@ -1417,7 +1428,7 @@ contains
 
     IF(mpi_myid == 0) THEN
        write(*,*)'OOP_Htl - Linearized observation operators'
-    endif
+    end if
 
     if (present(obsAssVal_opt)) then
        obsAssVal = obsAssVal_opt
@@ -1435,7 +1446,7 @@ contains
       call subasic_obs(columng)
 
       firstTime = .false.
-    endif
+    end if
 
     call tmg_start(42,'OBS_PPP_TLAD')
     call oop_Hpp(obsAssVal)           ! fill in OBS_WORK : Hdx
@@ -1495,7 +1506,7 @@ contains
 
       if( Vcode_anl /= 5002 .and. Vcode_anl /= 5005 ) then
          call utl_abort('subasic_obs: invalid vertical coord!')
-      endif
+      end if
 
       ! initialize virtual temperature operator
 
@@ -1508,8 +1519,8 @@ contains
             columng%oltv(2,jlev,jobs) = folnqva(zhu,col_getElem(columng,  &
                  jlev,jobs,'TT'),one)
 
-         enddo
-      enddo
+         end do
+      end do
 !$OMP END PARALLEL DO
 
     end subroutine subasic_obs
@@ -1601,17 +1612,17 @@ contains
                   columnVarT=col_getElem(column,IPT,INDEX_HEADER)
                   columngVarB=col_getElem(columng,IPB,INDEX_HEADER)
                   columngVarT=col_getElem(columng,IPT,INDEX_HEADER)
-               endif
+               end if
                call obs_bodySet_r(obsSpaceData,OBS_WORK,INDEX_BODY,   &
                     ZWB*columnVarB + ZWT*columnVarT+  &
                     (columngVarB - columngVarT)*  &
                     ZDADPS*col_getElem(COLUMN,1,INDEX_HEADER,'P0'))
 
-            endif
+            end if
 
-         enddo BODY
+         end do BODY
 
-      enddo FAMILY
+      end do FAMILY
 
     end subroutine oop_Hpp
 
@@ -1669,7 +1680,7 @@ contains
                   varLevel = 'MM'
                else
                   varLevel = 'TH'
-               endif
+               end if
                nlev = col_getNumLev(column,varLevel)
                INDEX_HEADER = obs_bodyElem_i(obsSpaceData,OBS_HIND,INDEX_BODY)
                ITYP = obs_bodyElem_i(obsSpaceData,OBS_VNM,INDEX_BODY)
@@ -1692,7 +1703,7 @@ contains
                           dPdPsfc)
                   else
                      columnVarB=col_getElem(COLUMN,IPB,INDEX_HEADER)
-                  endif
+                  end if
                   call obs_bodySet_r(obsSpaceData,OBS_WORK,INDEX_BODY,columnVarB)
                ELSEIF (ITYP == BUFR_NEPS .OR. ITYP == BUFR_NEPN) THEN
                   ZLTV  = columng%OLTV(1,nlev,INDEX_HEADER)*col_getElem(COLUMN,nlev,INDEX_HEADER,'TT')  & 
@@ -1715,13 +1726,13 @@ contains
                   call obs_bodySet_r(obsSpaceData,OBS_WORK,INDEX_BODY,  &
                        ZWB*col_getElem(COLUMN,IPB,INDEX_HEADER) + ZWT*col_getElem(COLUMN,IPT,INDEX_HEADER)+  &
                        (col_getElem(columng,IPB,INDEX_HEADER)-col_getElem(columng,IPT,INDEX_HEADER)))
-               ENDIF
+               END IF
 
-            endif
+            end if
 
-         enddo BODY
+         end do BODY
 
-      enddo FAMILY
+      end do FAMILY
 
     END subroutine oop_Hsf
 
@@ -1760,7 +1771,7 @@ contains
          else
            call tvs_fillProfiles(columng,obsSpaceData,datestamp,filt_rlimlvhu,.false.,.false.)
          end if
-      endif
+      end if
 
 
       !     2.   Compute radiance
@@ -1838,8 +1849,8 @@ contains
          !C         IF (LEVELGPSRO == 1) THEN
          !C            allocate( RSTVP(GPSRO_MAXPRFSIZE) )
          !C            allocate( RSTVM(GPSRO_MAXPRFSIZE) )
-         !C         ENDIF
-      endif
+         !C         END IF
+      end if
       !C
       !C    Loop over all header indices of the 'RO' family (Radio Occultation)
       !C
@@ -1877,8 +1888,8 @@ contains
                IF ( obs_bodyElem_i(obsSpaceData,OBS_ASS,INDEX_BODY) == obsAssVal ) THEN
                   ASSIM = .TRUE.
                   NH = NH + 1
-               ENDIF
-            ENDDO BODY
+               END IF
+            END DO BODY
             !C
             !C     *    If assimilations are requested, prepare and apply the observation operator
             !C
@@ -1902,7 +1913,7 @@ contains
                   WFGPS= 0.d0
                   DO JJ=1,NUMGPSSATS
                      IF (ISAT == IGPSSAT(JJ)) WFGPS=WGPS(JJ)
-                  ENDDO
+                  END DO
                   Lat  = zLat * MPC_DEGREES_PER_RADIAN_R8
                   Lon  = zLon * MPC_DEGREES_PER_RADIAN_R8
                   Azm  = zAzm * MPC_DEGREES_PER_RADIAN_R8
@@ -1918,7 +1929,7 @@ contains
                      zDP(JL) = col_getPressureDeriv(columng,JL,INDEX_HEADER,'TH')
                      zTT(JL) = col_getElem(columng,JL,INDEX_HEADER,'TT') - p_TC
                      zHU(JL) = col_getElem(columng,JL,INDEX_HEADER,'HU')
-                  ENDDO
+                  END DO
 
                   if((col_getPressure(columng,1,index_header,'TH') + 1.0d-4) <  &
                        col_getPressure(columng,1,index_header,'MM')) then
@@ -1926,16 +1937,16 @@ contains
                      do jl = 1, nwndlev
                         zuu(jl) = col_getElem(columng,jl  ,index_header,'UU') * p_knot
                         zvv(jl) = col_getElem(columng,jl  ,index_header,'VV') * p_knot
-                     enddo
+                     end do
                   else
                      ! case without top thermo above top momentum level or unstaggered (Vcode=5001/4/5)
                      do jl = 1, nwndlev-1
                         zuu(jl) = col_getElem(columng,jl+1,index_header,'UU') * p_knot
                         zvv(jl) = col_getElem(columng,jl+1,index_header,'VV') * p_knot
-                     enddo
+                     end do
                      zuu(nwndlev) = zuu(nwndlev-1)
                      zvv(nwndlev) = zuu(nwndlev-1)
-                  endif
+                  end if
                   zuu(ngpslev) = zuu(nwndlev)
                   zvv(ngpslev) = zuu(nwndlev)
                   !C     
@@ -1955,8 +1966,8 @@ contains
                         NH1      = NH1 + 1
                         H(NH1)   = obs_bodyElem_r(obsSpaceData,OBS_PPP,INDEX_BODY)
                         AZMV(NH1)= zAzm
-                     ENDIF
-                  ENDDO BODY_2
+                     END IF
+                  END DO BODY_2
                   !C
                   !C     *          Apply the observation operator:
                   !C
@@ -1966,22 +1977,22 @@ contains
                      !C                     CALL GPS_BNDOPV1(H-WFGPS, AZMV, NH, PRF, RSTVM)
                      !C                     do nh1 = 1, nh
                      !C                        RSTV(nh1)=(RSTVP(nh1)+RSTV(nh1)+RSTVM(nh1))/3.d0
-                     !C                     enddo
+                     !C                     end do
                   ELSE
                      CALL GPS_REFOPV (H,       NH, PRF, RSTV)
-                  ENDIF
+                  END IF
                   DO NH1=1,NH
                      gps_vRO_Jacobian(iProfile,NH1,:)= RSTV(NH1)%DVAR(1:2*NGPSLEV+1)
-                  ENDDO
+                  END DO
                   gps_vRO_lJac(iProfile)=.true.
-               endif
+               end if
                !C
                !C     *       Local vector state
                !C
                DO JL = 1, NGPSLEV
                   DX (        JL) = col_getElem(COLUMN,JL,index_header,'TT')
                   DX (NGPSLEV+JL) = col_getElem(COLUMN,JL,index_header,'HU')
-               ENDDO
+               END DO
                DX (2*NGPSLEV+1)   = col_getElem(COLUMN,1 ,index_header,'P0')
                !C
                !C     *       Perform the (H(xb)DX-Y') operation
@@ -2001,23 +2012,23 @@ contains
                      ZMHXL = 0.d0
                      DO JV = 1, 2*NGPSLEV+1
                         ZMHXL = ZMHXL + gps_vRO_Jacobian(iProfile,NH1,JV) * DX(JV)
-                     ENDDO
+                     END DO
                      !C
                      !C     *             Store in CMA
                      !C
                      call obs_bodySet_r(obsSpaceData,OBS_WORK,INDEX_BODY, ZMHXL)
-                  ENDIF
-               ENDDO BODY_3
-            ENDIF ASSIMILATE
-         ENDIF DATYP
-      ENDDO HEADER
+                  END IF
+               END DO BODY_3
+            END IF ASSIMILATE
+         END IF DATYP
+      END DO HEADER
       !##$omp end parallel
 
       IF (LFIRST) THEN
          !C         IF (LEVELGPSRO == 1) THEN
          !C            deallocate( RSTVM )
          !C            deallocate( RSTVP )
-         !C         ENDIF
+         !C         END IF
          deallocate( RSTV )
          deallocate( AZMV )
          deallocate( H    )
@@ -2028,7 +2039,7 @@ contains
          deallocate(zTT)
          deallocate(zDP)
          deallocate(zPP)
-      ENDIF
+      END IF
 
       !C      WRITE(*,*)'EXIT oop_Hro'
       RETURN
@@ -2085,13 +2096,13 @@ contains
             if(ITYP == BUFR_NEES) then
                write(*,*) 'ABORTING IN OOP_HZP: CANNOT ASSIMILATE ES!!!',ityp,obs_getfamily(obsSpaceData,index_header),index_header,index_body
                call utl_abort('Aborting in oop_H')
-            endif
+            end if
             call obs_bodySet_r(obsSpaceData,OBS_WORK,INDEX_BODY,  &
                  ZWB*col_getElem(COLUMN,IPB,INDEX_HEADER) + ZWT*col_getElem(COLUMN,IPT,INDEX_HEADER) +  &
                  (col_getElem(columng,IPB,INDEX_HEADER) - col_getElem(columng,IPT,INDEX_HEADER))*  &
                  (ZDA1*col_getHeight(COLUMN,IK,INDEX_HEADER,varLevel)/RG + ZDA2*col_getHeight(COLUMN,IK+1,INDEX_HEADER,varLevel)/RG))
-         ENDIF
-      ENDDO BODY
+         END IF
+      END DO BODY
       RETURN
     END subroutine oop_Hzp
 
@@ -2155,7 +2166,7 @@ contains
          allocate(vGPSZTD_lJac(numGPSZTD))
          vGPSZTD_lJac = .false.
          vGPSZTD_Jacobian = 0.0d0
-      endif
+      end if
 
       !   If first time (iteration), store the Jacobians for all ZTD data to be assimilated
 
@@ -2193,8 +2204,8 @@ contains
                     .and. (obs_bodyElem_i(obsSpaceData,OBS_ASS,INDEX_BODY) == obsAssVal) ) then
                   ZLEV = obs_bodyElem_r(obsSpaceData,OBS_PPP,INDEX_BODY)
                   ASSIM = .TRUE.
-               endif
-            ENDDO BODY_0
+               end if
+            END DO BODY_0
 
             IF ( ASSIM ) THEN
                !C
@@ -2212,12 +2223,12 @@ contains
                   ZPPB(JL) = col_getPressure(columng,JL,INDEX_HEADER,'TH')
                   !C            Get ZDP = dP/dP0
                   ZDP(JL)  = col_getPressureDeriv(columng,JL,INDEX_HEADER,'TH')
-               ENDDO
+               END DO
                if ( ZPPB(NFLEV) /= ZP0B ) then
                   write(*,*) ' oop_Hgp: ERROR: ZPPB(NFLEV) /= ZP0B'
                   write(*,*) '          ZPPB(NFLEV), ZP0B =', ZPPB(NFLEV), ZP0B
                   !BUE              call utl_abort('oop_Hgp')
-               endif
+               end if
                ZMT  = col_getGZsfc(columng,INDEX_HEADER)/RG
                if ( icount == 1 .and. LTESTOP ) write(*,*) 'ZDP (dpdp0) = ', (ZDP(JL),JL= 1,NFLEV)
                !c
@@ -2228,7 +2239,7 @@ contains
                iztd = gps_i_from_index(INDEX_HEADER)
                DO JL = 1, 2*NFLEV+1
                   vGPSZTD_Jacobian(iztd,JL) = JAC(JL)
-               ENDDO
+               END DO
                vGPSZTD_lJac(iztd) = .true.
                !            
                if ( icount <= 3 .and. LTESTOP ) then
@@ -2277,11 +2288,11 @@ contains
                        vGPSZTD_Jacobian(iztd,66)*2.0d0
                   write(*,*) ' dZTD Linear = ', dZTD
                   write(*,*) '--------------------------------------------------------- '              
-               endif
+               end if
 
-            ENDIF
+            END IF
 
-         ENDDO HEADER_0
+         END DO HEADER_0
 
          deallocate(ZTTB)
          deallocate(ZHUB)
@@ -2296,16 +2307,16 @@ contains
 
          if ( icount /= numGPSZTD ) then
             call utl_abort('oop_Hgp: ERROR: icount /= numGPSZTD!')
-         endif
+         end if
          if ( icount /= iztd ) then
             call utl_abort('oop_Hgp: ERROR: icount /= iztd!')
-         endif
+         end if
          if ( numGPSZTD /= iztd ) then
             call utl_abort('oop_Hgp: ERROR: numGPSZTD /= iztd!')
-         endif
+         end if
 
 
-      ENDIF INIT
+      END IF INIT
       !-----------------------------------------------------------------------------------------
 
       icount = 0
@@ -2329,8 +2340,8 @@ contains
                  .and. (obs_bodyElem_i(obsSpaceData,OBS_VNM,INDEX_BODY) == BUFR_NEZD) &
                  .and. (obs_bodyElem_i(obsSpaceData,OBS_ASS,INDEX_BODY) == obsAssVal) ) then
                ASSIM = .TRUE.
-            ENDIF
-         ENDDO BODY
+            END IF
+         END DO BODY
          !C
          !C     * If ZTD assimilation, apply the TL observation operator
          !C
@@ -2338,14 +2349,14 @@ contains
             iztd = gps_i_from_index(INDEX_HEADER)
             if ( iztd < 1 .or. iztd > numGPSZTD ) then
                call utl_abort('oop_Hgp: ERROR: index from gps_i_from_index() is out of range!')
-            endif
+            end if
             !C
             !C     *    Local vector state (analysis increments)
             !C
             DO JL = 1, NFLEV
                DX (JL)        = col_getElem(COLUMN,JL,index_header,'TT')
                DX (NFLEV+JL)  = col_getElem(COLUMN,JL,index_header,'HU')
-            ENDDO
+            END DO
             DX (2*NFLEV+1)    = col_getElem(COLUMN,1 ,index_header,'P0')
 
             !C     *    Evaluate H'(xb)*dX
@@ -2353,7 +2364,7 @@ contains
             ZHX = 0.D0
             DO JL = 1, 2*NFLEV+1
                ZHX = ZHX + vGPSZTD_Jacobian(iztd,JL)*DX(JL)
-            ENDDO
+            END DO
             !C
             !C     *    Store ZHX = H'dx in OBS_WORK
             !C
@@ -2375,13 +2386,13 @@ contains
                      write(*,*) 'DHU(JL)  = ', (DX(JL),JL=NFLEV+1,2*NFLEV)
                      write(*,*) 'DP0(JL)  = ', DX(2*NFLEV+1)
                      write(*,*) 'ZHX (mm) = ', ZHX*1000.D0
-                  endif
-               ENDIF
-            ENDDO BODY_2
+                  end if
+               END IF
+            END DO BODY_2
 
-         ENDIF ! ASSIM
+         END IF ! ASSIM
 
-      ENDDO HEADER
+      END DO HEADER
 
       !      WRITE(*,*) 'oop_Hgp: Number of ZTD data locations with obs_bodySet_r(OBS_OMA) = ', icount
 
@@ -2434,7 +2445,7 @@ contains
 
     IF(mpi_myid == 0) THEN
        write(*,*)'OOP_HT- Adjoint of linearized observation operators'
-    endif
+    end if
 
     vco_anl => col_getVco(columng)
 
@@ -2442,7 +2453,7 @@ contains
     if ( firstTime ) then
       if ( col_getNumLev(columng,'MM') > 1 ) call oop_vobslyrs(columng,obsSpaceData)
       firstTime = .false.
-    endif
+    end if
 
     call tmg_start(125,'OBS_CHM_TLAD') !
     call oop_HTchm
@@ -2566,16 +2577,16 @@ contains
                   all_column(IPT) = all_column(IPT) + ZWT*ZRES
                   columngVarB=col_getElem(columng,IPB,INDEX_HEADER)
                   columngVarT=col_getElem(columng,IPT,INDEX_HEADER)
-               endif
+               end if
                ps_column(1)    = ps_column(1)    +         &
                     (columngVarB - columngVarT)  &
                     *ZDADPS*ZRES
 
-            endif
+            end if
 
-         enddo BODY
+         end do BODY
 
-      enddo FAMILY
+      end do FAMILY
 
     end subroutine oop_HTpp
 
@@ -2636,7 +2647,7 @@ contains
                   varLevel = 'MM'
                else
                   varLevel = 'TH'
-               endif
+               end if
                nlev = col_getNumLev(column,varLevel)
 
                INDEX_HEADER = obs_bodyElem_i(obsSpaceData,OBS_HIND,INDEX_BODY)
@@ -2664,7 +2675,7 @@ contains
                   else
                      all_column => col_getColumn(column,INDEX_HEADER) 
                      all_column(IPB) = all_column(IPB) + ZRES
-                  endif
+                  end if
                ELSEIF (ITYP == BUFR_NEPS .OR. ITYP == BUFR_NEPN) THEN
                   tt_column  => col_getColumn(column,INDEX_HEADER,'TT')
                   hu_column  => col_getColumn(column,INDEX_HEADER,'HU')
@@ -2698,13 +2709,13 @@ contains
                   ps_column(1)    = ps_column(1)    +         &
                        (col_getElem(columng,IPB,INDEX_HEADER) - col_getElem(columng,IPT,INDEX_HEADER))  &
                        *ZDADPS*ZRES
-               ENDIF
+               END IF
 
-            endif
+            end if
 
-         ENDDO BODY
+         END DO BODY
 
-      ENDDO FAMILY
+      END DO FAMILY
 
       RETURN
     END subroutine oop_HTsf
@@ -2816,8 +2827,8 @@ contains
                IF ( LUSE ) THEN
                   ASSIM = .TRUE.
                   NH = NH + 1
-               ENDIF
-            ENDDO BODY
+               END IF
+            END DO BODY
             !C
             !C     *    If assimilations are requested, prepare and apply the observation operator
             !C
@@ -2864,10 +2875,10 @@ contains
                      !C     *             Accumulate the gradient of the observation cost function:
                      !C
                      DPJO0(1:2*NGPSLEV+1) = DPJO0(1:2*NGPSLEV+1) + DPJO1(1:2*NGPSLEV+1)
-                  ENDIF
-               ENDDO BODY_3
-            ENDIF ASSIMILATE
-         ENDIF DATYP
+                  END IF
+               END DO BODY_3
+            END IF ASSIMILATE
+         END IF DATYP
          !C
          !C     * Store H* (HX - Z)/SIGMA in COMMVO
          !C
@@ -2877,9 +2888,9 @@ contains
          DO JL = 1, NGPSLEV
             tt_column(JL) = DPJO0(JL)
             hu_column(JL) = DPJO0(JL+NGPSLEV)
-         ENDDO
+         END DO
          ps_column(1) = DPJO0(1+2*NGPSLEV)
-      ENDDO HEADER
+      END DO HEADER
       !##$omp end parallel
 
       !C      WRITE(*,*)'EXIT oop_HTro'
@@ -2945,8 +2956,8 @@ contains
             all_column(IPB) = all_column(IPB) + ZWB*ZRES
             all_column(IPT) = all_column(IPT) + ZWT*ZRES
 
-         ENDIF
-      ENDDO BODY
+         END IF
+      END DO BODY
       RETURN
     END subroutine oop_HTzp
 
@@ -2987,7 +2998,7 @@ contains
 
       IF ( .not.vGPSZTD_lJac(1) ) THEN
          call utl_abort('oop_HTgp:ERROR: ZTD Jacobians not stored!')
-      ENDIF
+      END IF
 
       ! loop over all header indices of the 'GP' family (GPS observations)
       ! Set the header list & start at the beginning of the list
@@ -3016,8 +3027,8 @@ contains
                  .and. (obs_bodyElem_i(obsSpaceData,OBS_VNM,INDEX_BODY) == BUFR_NEZD) &
                  .and. (obs_bodyElem_i(obsSpaceData,OBS_ASS,INDEX_BODY) == 1) ) then
                ASSIM = .TRUE.
-            ENDIF
-         ENDDO BODY
+            END IF
+         END DO BODY
          !C
          IF (ASSIM) THEN
 
@@ -3025,11 +3036,11 @@ contains
             iztd = gps_i_from_index(INDEX_HEADER)
             if ( iztd < 1 .or. iztd > numGPSZTD ) then
                call utl_abort('oop_HTgp: ERROR: index from gps_i_from_index() is out of range!')
-            endif
+            end if
 
             DO JL = 1, 2*NFLEV+1
                JAC(JL) = vGPSZTD_Jacobian(iztd,JL)
-            ENDDO
+            END DO
             !C
             !C          Get Ht*grad(Index_header) = Ht*(H'dx - d)/sigma_o^2
             !C
@@ -3045,8 +3056,8 @@ contains
                   ZINC = obs_bodyElem_r(obsSpaceData,OBS_WORK,INDEX_BODY)
                   !C     *       Accumulate the gradient of the observation cost function
                   DPJO0(1:2*NFLEV+1) = ZINC * vGPSZTD_Jacobian(iztd,:)
-               endif
-            ENDDO BODY_2
+               end if
+            END DO BODY_2
             !c
             !C      *   Store Ht*grad(Index_header) in COMMVO
             !c
@@ -3056,13 +3067,13 @@ contains
             DO JL = 1, NFLEV
                tt_column(JL) = DPJO0(JL)
                hu_column(JL) = DPJO0(JL+NFLEV)
-            ENDDO
+            END DO
             ps_column(1) = DPJO0(2*NFLEV+1)
 
-         ENDIF ! ASSIM
+         END IF ! ASSIM
 
 
-      ENDDO HEADER
+      END DO HEADER
 
       !      WRITE(*,*) 'oop_HTgp: Number of ZTD data locations processed = ', icount
 

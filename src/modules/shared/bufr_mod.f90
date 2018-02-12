@@ -47,6 +47,8 @@ module bufr
  !          Universal Field-Identity Numbers
  !          (At the CMC, these have also been known as burp_id.)
  !
+ ! Use the program codbuf to find out the meaning of these IDs.
+ !
 
  integer, parameter :: BUFR_NETT=12001
  integer, parameter :: BUFR_NEUU=11003
