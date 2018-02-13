@@ -1,6 +1,6 @@
 # Machine stuff
 FRONTEND=eccc-ppp2
-BACKEND=hare
+BACKEND=brooks
 
 BACKEND_DEFAULT_Q=development
 FRONTEND_DEFAULT_Q=development

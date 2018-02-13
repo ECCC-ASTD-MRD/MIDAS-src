@@ -401,9 +401,8 @@ program midas_diagBmatrix
       end do
 
       !- Extract only the subvector for this processor
-      call bmat_reduceToMPILocal(controlVector,        & ! OUT
-           controlVector_global, & ! IN
-           cvDim_local )           ! OUT
+      call bmat_reduceToMPILocal(controlVector,       & ! OUT
+                                 controlVector_global ) ! IN
 
       !- Transform to control variables in physical space
       call bmat_sqrtB(controlVector,cvm_nvadim,statevector)

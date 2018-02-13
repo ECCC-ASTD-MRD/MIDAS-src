@@ -932,9 +932,8 @@ CONTAINS
       cv_pert_mpiglobal(:) = cv_pert_mpiglobal(:)/real(numAnalyses,8)
 
       allocate(cv_pert_mean_mpilocal(cvm_nvadim))
-      call bmat_reduceToMPILocal(cv_pert_mean_mpilocal,   & ! OUT
-                                 cv_pert_mpiglobal,  & ! IN
-                                 jj )         ! OUT
+      call bmat_reduceToMPILocal( cv_pert_mean_mpilocal, & ! OUT
+                                  cv_pert_mpiglobal )      ! IN
 
     endif ! firstTime
 
@@ -946,9 +945,8 @@ CONTAINS
       cv_pert_mpiglobal(jj) = rng_gaussian()
     enddo
 
-    call bmat_reduceToMPILocal(cv_pert_mpilocal,   & ! OUT
-                               cv_pert_mpiglobal,  & ! IN
-                               jj )         ! OUT
+    call bmat_reduceToMPILocal( cv_pert_mpilocal,  & ! OUT
+                                cv_pert_mpiglobal )  ! IN
     deallocate(cv_pert_mpiglobal)
 
     ! remove the ensemble mean
@@ -1367,7 +1365,6 @@ CONTAINS
 
     integer :: ibrpstamp,ireslun, ierr, fnom, fclos
     integer :: nvadim_mpiglobal,nmtra_mpiglobal
-    integer :: cvDim_return
     integer :: ivadim, itrunc
     integer :: imtra,ivamaj
     integer :: jvec, i1gc,ictrlvec,ii,jproc
@@ -1455,9 +1452,8 @@ CONTAINS
          end if
 
          call tmg_start(119,'MIN_READHESS_REDUCE')
-         call bmat_reduceToMPILocal_r4( vatra_r4,              & ! OUT
-                                        vatravec_r4_mpiglobal, & ! IN (contains data only on proc 0)
-                                        cvDim_return )           ! OUT
+         call bmat_reduceToMPILocal_r4( vatra_r4,            & ! OUT
+                                        vatravec_r4_mpiglobal) ! IN (contains data only on proc 0)
          call tmg_stop(119)
 !$OMP PARALLEL DO PRIVATE(ii)
          do ii = 1, nvadim_mpilocal
@@ -1491,9 +1487,8 @@ CONTAINS
          else
             allocate(vazxbar_mpiglobal(1))
          end if
-         call bmat_reduceToMPILocal( vazxbar,           & ! OUT
-                                     vazxbar_mpiglobal, & ! IN (contains data only on proc 0)
-                                     cvDim_return )       ! OUT
+         call bmat_reduceToMPILocal( vazxbar,          & ! OUT
+                                     vazxbar_mpiglobal ) ! IN (contains data only on proc 0)
          deallocate(vazxbar_mpiglobal)
       end if
 
@@ -1509,8 +1504,7 @@ CONTAINS
             allocate(vazx_mpiglobal(1))
          end if
          call bmat_reduceToMPILocal( vazx,           & ! OUT
-                                     vazx_mpiglobal, & ! IN (contains data only on proc 0)
-                                     cvDim_return)     ! OUT
+                                     vazx_mpiglobal )  ! IN (contains data only on proc 0)
          deallocate(vazx_mpiglobal)
       end if
 
@@ -1551,8 +1545,8 @@ CONTAINS
           vatra_r4(ii) = vatra((jvec-1)*nvadim_mpilocal+ii)
         enddo
 !$OMP END PARALLEL DO
-        call bmat_expandToMPIGlobal_r4( vatra_r4,                              & ! IN
-                                        vatravec_r4_mpiglobal, cvDim_return )    ! OUT
+        call bmat_expandToMPIGlobal_r4( vatra_r4,              & ! IN
+                                        vatravec_r4_mpiglobal )  ! OUT
         call tmg_start(76,'MIN_WRITEHESS_IO')
         if (mpi_myid == 0) write(ireslun) vatravec_r4_mpiglobal
         call tmg_stop(76)
@@ -1566,8 +1560,8 @@ CONTAINS
       else
          allocate(vazxbar_mpiglobal(1)) ! dummy
       end if
-      call bmat_expandToMPIGlobal( vazxbar,                        & ! IN
-                                   vazxbar_mpiglobal, cvDim_return ) ! OUT
+      call bmat_expandToMPIGlobal( vazxbar,          & ! IN
+                                   vazxbar_mpiglobal ) ! OUT
       call tmg_start(76,'MIN_WRITEHESS_IO')
       if (mpi_myid == 0) write(ireslun) vazxbar_mpiglobal(1:nvadim_mpiglobal)
       call tmg_stop(76)
@@ -1579,8 +1573,8 @@ CONTAINS
       else
          allocate(vazx_mpiglobal(1))
       end if
-      call bmat_expandToMPIGlobal( vazx,                        & ! IN
-                                   vazx_mpiglobal, cvDim_return ) ! OUT
+      call bmat_expandToMPIGlobal( vazx,          & ! IN
+                                   vazx_mpiglobal ) ! OUT
       call tmg_start(76,'MIN_WRITEHESS_IO')
       if (mpi_myid == 0) write(ireslun) vazx_mpiglobal(1:nvadim_mpiglobal)
       call tmg_stop(76)

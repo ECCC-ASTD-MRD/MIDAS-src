@@ -295,6 +295,7 @@ CONTAINS
            write(*,*) 'END OF BCHM_SETUP'
        end if
        call tmg_stop(120)
+       cvDim_out = 0
        return
     else if (mpi_myid == 0) then
        if (numvar3d.gt.0) &
@@ -1926,11 +1927,10 @@ CONTAINS
 
 !-----------------------------------------------------------------------------------------------
 
-  SUBROUTINE BCHM_reduceToMPILocal(cv_mpilocal,cv_mpiglobal,cvDim_mpilocal_out)
+  SUBROUTINE BCHM_reduceToMPILocal(cv_mpilocal,cv_mpiglobal)
     implicit none
     real(8), intent(out) :: cv_mpilocal(cvDim_mpilocal)
     real(8), intent(in)  :: cv_mpiglobal(:)
-    integer, intent(out) :: cvDim_mpilocal_out
 
     real(8), allocatable :: cv_allMaxMpilocal(:,:)
 
@@ -1942,8 +1942,6 @@ CONTAINS
     integer :: jlev,jn,jm,ila_mpilocal,ila_mpiglobal,jdim_mpilocal,jdim_mpiglobal
 
     if (.not.initialized) return
-
-    cvDim_mpilocal_out = cvDim_mpilocal
 
     call rpn_comm_allreduce(cvDim_mpilocal, cvDim_maxmpilocal, &
                             1,"MPI_INTEGER","MPI_MAX","GRID",ierr)
@@ -2080,11 +2078,10 @@ CONTAINS
 
 !-----------------------------------------------------------------------------------------------
 
-  SUBROUTINE BCHM_reduceToMPILocal_r4(cv_mpilocal,cv_mpiglobal,cvDim_mpilocal_out)
+  SUBROUTINE BCHM_reduceToMPILocal_r4(cv_mpilocal,cv_mpiglobal)
     implicit none
     real(4), intent(out) :: cv_mpilocal(cvDim_mpilocal)
     real(4), intent(in)  :: cv_mpiglobal(:)
-    integer, intent(out) :: cvDim_mpilocal_out
 
     real(4), allocatable :: cv_allMaxMpilocal(:,:)
 
@@ -2096,8 +2093,6 @@ CONTAINS
     integer :: jlev,jn,jm,ila_mpilocal,ila_mpiglobal,jdim_mpilocal,jdim_mpiglobal
 
     if (.not.initialized) return
-
-    cvDim_mpilocal_out = cvDim_mpilocal
 
     call rpn_comm_allreduce(cvDim_mpilocal, cvDim_maxmpilocal, &
                             1,"MPI_INTEGER","MPI_MAX","GRID",ierr)
@@ -2234,11 +2229,10 @@ CONTAINS
 
 !-----------------------------------------------------------------------------------------------
 
-  SUBROUTINE BCHM_expandToMPIGlobal(cv_mpilocal,cv_mpiglobal,cvDim_mpiglobal_out)
+  SUBROUTINE BCHM_expandToMPIGlobal(cv_mpilocal,cv_mpiglobal)
     implicit none
     real(8), intent(in)  :: cv_mpilocal(cvDim_mpilocal)
     real(8), intent(out) :: cv_mpiglobal(:)
-    integer, intent(out) :: cvDim_mpiglobal_out
 
     real(8), allocatable :: cv_maxmpilocal(:)
     real(8), pointer :: cv_allmaxmpilocal(:,:) => null()
@@ -2247,8 +2241,6 @@ CONTAINS
     integer :: jlev, jn, jm, jproc, ila_mpiglobal, jdim_mpilocal, jdim_mpiglobal, ierr, cvDim_maxmpilocal
 
     if (.not.initialized) return
-
-    cvDim_mpiglobal_out = cvDim_mpiglobal
 
     !
     !- 1.  Gather all local control vectors onto mpi task 0
@@ -2364,11 +2356,10 @@ CONTAINS
 
 !-----------------------------------------------------------------------------------------------
 
-  SUBROUTINE BCHM_expandToMPIGlobal_r4(cv_mpilocal,cv_mpiglobal,cvDim_mpiglobal_out)
+  SUBROUTINE BCHM_expandToMPIGlobal_r4(cv_mpilocal,cv_mpiglobal)
     implicit none
     real(4), intent(in)  :: cv_mpilocal(cvDim_mpilocal)
     real(4), intent(out) :: cv_mpiglobal(:)
-    integer, intent(out) :: cvDim_mpiglobal_out
 
     real(4), allocatable :: cv_maxmpilocal(:)
     real(4), pointer :: cv_allmaxmpilocal(:,:) => null()
@@ -2377,8 +2368,6 @@ CONTAINS
     integer :: jlev, jn, jm, jproc, ila_mpiglobal, jdim_mpilocal, jdim_mpiglobal, ierr, cvDim_maxmpilocal
 
     if (.not.initialized) return
-
-    cvDim_mpiglobal_out = cvDim_mpiglobal
 
     !
     !- 1.  Gather all local control vectors onto mpi task 0

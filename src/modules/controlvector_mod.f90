@@ -108,6 +108,8 @@ contains
     cvm_nvadim_mpiglobal = sum(cvm_vector(1:numVectors)%dimVector_mpiglobal)
 
     write(*,*) 'cvm_setupSubVector: '
+    write(*,*) '   added subVector with label                 = ', cvm_vector(numVectors)%label
+    write(*,*) '   added subVector of type                    = ', cvm_vector(numVectors)%Bmatrixtype
     write(*,*) '   added subVector with dimension             = ', cvm_vector(numVectors)%dimVector
     write(*,*) '   added subVector with dimension (mpiglobal) = ', cvm_vector(numVectors)%dimVector_mpiglobal
     write(*,*) '   current total dimension             = ', cvm_nvadim

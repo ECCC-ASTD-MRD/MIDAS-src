@@ -207,24 +207,22 @@ CONTAINS
 !--------------------------------------------------------------------------
 ! loc_reduceToMPILocal
 !--------------------------------------------------------------------------
-  subroutine loc_reduceToMPILocal(id,cv_mpilocal,cv_mpiglobal,cvDim_mpilocal_out)
+  subroutine loc_reduceToMPILocal(id,cv_mpilocal,cv_mpiglobal)
     implicit none
 
     integer, intent(in) :: id
 
     real(8), intent(out) :: cv_mpilocal(:)
     real(8), intent(in)  :: cv_mpiglobal(:)
-    integer, intent(out) :: cvDim_mpilocal_out
 
     if (verbose) write(*,*) 'Entering loc_reduceToMPILocal'
     call idcheck(id)
 
     select case (trim(loc(id)%locType))
     case('spectral')
-       call lsp_reduceToMPILocal(loc(id)%id,       & ! IN
-                                 cv_mpilocal,      & ! OUT
-                                 cv_mpiglobal,     & ! IN
-                                 cvDim_mpilocal_out) ! OUT
+       call lsp_reduceToMPILocal(loc(id)%id,     & ! IN
+                                 cv_mpilocal,    & ! OUT
+                                 cv_mpiglobal)     ! IN
     case default
        call utl_abort('loc_reduceToMPILocal: unknown locType')
     end select
@@ -234,22 +232,20 @@ CONTAINS
 !--------------------------------------------------------------------------
 ! loc_reduceToMPILocal_r4
 !--------------------------------------------------------------------------
-  subroutine loc_reduceToMPILocal_r4(id,cv_mpilocal,cv_mpiglobal,cvDim_mpilocal_out)
+  subroutine loc_reduceToMPILocal_r4(id,cv_mpilocal,cv_mpiglobal)
     implicit none
     integer, intent(in)  :: id
     real(4), intent(out) :: cv_mpilocal(:)
     real(4), intent(in)  :: cv_mpiglobal(:)
-    integer, intent(out) :: cvDim_mpilocal_out
 
     if (verbose) write(*,*) 'Entering loc_reduceToMPILocal_r4'
     call idcheck(id)
 
     select case (trim(loc(id)%locType))
     case('spectral')
-       call lsp_reduceToMPILocal_r4(loc(id)%id,       & ! IN
-                                    cv_mpilocal,      & ! OUT
-                                    cv_mpiglobal,     & ! IN
-                                    cvDim_mpilocal_out) ! OUT
+       call lsp_reduceToMPILocal_r4(loc(id)%id,    & ! IN
+                                    cv_mpilocal,   & ! OUT
+                                    cv_mpiglobal)    ! IN
     case default
        call utl_abort('loc_reduceToMPILocal_r4: unknown locType')
     end select
@@ -259,21 +255,20 @@ CONTAINS
 !--------------------------------------------------------------------------
 ! loc_expandToMPIGlobal
 !--------------------------------------------------------------------------
-  subroutine loc_expandToMPIGlobal(id,cv_mpilocal,cv_mpiglobal,cvDim_mpiglobal_out)
+  subroutine loc_expandToMPIGlobal(id,cv_mpilocal,cv_mpiglobal)
     implicit none
 
     integer, intent(in)  :: id
     real(8), intent(in)  :: cv_mpilocal(:)
     real(8), intent(out) :: cv_mpiglobal(:)
-    integer, intent(out) :: cvDim_mpiglobal_out
 
     if (verbose) write(*,*) 'Entering loc_expandToMPIGlobal'
     call idcheck(id)
     
     select case (trim(loc(id)%locType))
     case('spectral')
-       call lsp_expandToMPIGlobal(loc(id)%id, cv_mpilocal,         & ! IN
-                                  cv_mpiglobal, cvDim_mpiglobal_out) ! OUT
+       call lsp_expandToMPIGlobal(loc(id)%id, cv_mpilocal,  & ! IN
+                                  cv_mpiglobal)               ! OUT
     case default
        call utl_abort('loc_expandToMPIGlobal: unknown locType')
     end select
@@ -283,21 +278,20 @@ CONTAINS
 !--------------------------------------------------------------------------
 ! loc_expandToMPIGlobal_r4
 !--------------------------------------------------------------------------
-  subroutine loc_expandToMPIGlobal_r4(id,cv_mpilocal,cv_mpiglobal,cvDim_mpiglobal_out)
+  subroutine loc_expandToMPIGlobal_r4(id,cv_mpilocal,cv_mpiglobal)
     implicit none
 
     integer, intent(in)  :: id
     real(4), intent(in)  :: cv_mpilocal(:)
     real(4), intent(out) :: cv_mpiglobal(:)
-    integer, intent(out) :: cvDim_mpiglobal_out
 
     if (verbose) write(*,*) 'Entering loc_expandToMPIGlobal_r4'
     call idcheck(id)
     
     select case (trim(loc(id)%locType))
     case('spectral')
-       call lsp_expandToMPIGlobal_r4(loc(id)%id, cv_mpilocal,         & ! IN
-                                     cv_mpiglobal, cvDim_mpiglobal_out) ! OUT
+       call lsp_expandToMPIGlobal_r4(loc(id)%id, cv_mpilocal, & ! IN
+                                     cv_mpiglobal)              ! OUT
     case default
        call utl_abort('loc_expandToMPIGlobal_r4: unknown locType')
     end select

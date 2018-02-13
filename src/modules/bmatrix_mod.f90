@@ -29,7 +29,7 @@
 !!v            - Considerations for ensemble-based and regional static covariances
 !!v              for constituents not yet included.
 !--------------------------------------------------------------------------
-MODULE BMatrix_mod
+module BMatrix_mod
   use mpivar_mod
   use bMatrixHI_mod
   use bMatrixEnsemble_mod
@@ -56,311 +56,310 @@ MODULE BMatrix_mod
   public :: ben_getnEns, ben_getPerturbation
   public :: ben_setFsoLeadTime
 
-
-  type(struct_hco), pointer :: hco_anl
-  logical                   :: useBmatrixLatBands = .false.
+  logical :: globalGrid = .true.
+  integer, parameter :: numBmat = 5
+  character(len=4) :: bmatTypeList(numBmat) = (/'HI','LATB','ENS','CHM','DIFF'/)
+  character(len=8) :: bmatLabelList(numBmat) = (/'B_HI','B_LATB','B_ENS','B_CHM','B_DIFF'/)
+  logical :: bmatIs3dList(numBmat) = (/.true.,.true.,.false.,.true.,.true./)
 
 contains
 
-!--------------------------------------------------------------------------
-! bmat_setup
-!--------------------------------------------------------------------------
-  SUBROUTINE bmat_setup(hco_anl_in, vco_anl_in)
+  !--------------------------------------------------------------------------
+  ! bmat_setup
+  !--------------------------------------------------------------------------
+  subroutine bmat_setup(hco_anl, vco_anl)
+    implicit none
     !
     !- bmat_setup - Initializes the analysis Background term for the 
     !               specific analysis configuration used.
     !
-    ! Revision:
-    !           Ping Du, CMDA/MSC, July 2014
-    !           - Additions for chemical constituents (see cvdimchm and 
-    !             section 2.3)
-    !
-    ! Comments:
-    !
-    IMPLICIT NONE
 
-    type(struct_vco), pointer :: vco_anl_in
-    type(struct_hco), pointer :: hco_anl_in
+    type(struct_vco), pointer :: vco_anl
+    type(struct_hco), pointer :: hco_anl
 
-    integer :: cvdimens, cvdimhi, cvdimhi_mpiglobal
-    integer :: get_max_rss, ierr
-    integer :: cvdimchm, cvdimdiff
+    integer :: cvdim, bmatIndex
+    integer :: get_max_rss
    
     !
     !- 1.  Get/Check the analysis grid info
     !
 
     !- 1.1 Horizontal Grid info
-    hco_anl => hco_anl_in
+    globalGrid = hco_anl%global
 
     !
-    !- 2.  Set the B matrices
+    !- 2.  Setup the B matrices
     !
-    cvdimhi   = 0
-    cvdimens  = 0
-    cvdimchm  = 0
-    cvdimdiff = 0
+    do bmatIndex = 1, numBmat
 
-    !- 2.1 Time-Mean Homogeneous and Isotropic...
-    if ( hco_anl%global ) then
-      write(*,*)
-      write(*,*) 'Setting up the modular GLOBAL HI covariances...'
-      call bhi_Setup( hco_anl, vco_anl_in, & ! IN
-                      cvdimhi )              ! OUT
-      call rpn_comm_allreduce(cvdimhi,cvdimhi_mpiglobal,1,"MPI_INTEGER","MPI_SUM","GRID",ierr)
-      if ( cvdimhi_mpiglobal == 0 ) then
-        write(*,*) 'Setting up the modular GLOBAL LatBands covariances...'
-        call blb_Setup( hco_anl, vco_anl_in, & ! IN
-                        cvdimhi )              ! OUT
-        call rpn_comm_allreduce(cvdimhi,cvdimhi_mpiglobal,1,"MPI_INTEGER","MPI_SUM","GRID",ierr)
-        if ( cvdimhi_mpiglobal > 0 ) useBmatrixLatBands = .true.
-        if ( mpi_myid == 0 ) write(*,*) 'bmat_setup: useBmatrixLatBands = ', useBmatrixLatBands
-      end if
-    else
-      write(*,*)
-      write(*,*) 'Setting up the modular LAM HI covariances...'
-      call lbhi_Setup( hco_anl, vco_anl_in, & ! IN
-                       cvdimhi )              ! OUT
-    end if
-    call cvm_setupSubVector('HI','HI',cvdimhi)
+      select case( trim(bmatTypeList(bmatIndex)) )
+      case ('HI')
 
-    !- 2.2 Flow-dependent Ensemble-Based
-    write(*,*)
-    write(*,*) 'Setting up the modular ENSEMBLE covariances...'
-    call ben_Setup( hco_anl,             & ! IN
-                    vco_anl_in,          & ! IN
-                    cvdimens )             ! OUT
-    call cvm_setupSubVector('ENS','ENS',cvdimens)
+        !- 2.1 Time-Mean Homogeneous and Isotropic...
+        if ( globalGrid ) then
+          write(*,*)
+          write(*,*) 'Setting up the modular GLOBAL HI covariances...'
+          call bhi_Setup( hco_anl, vco_anl, & ! IN
+                          cvdim )             ! OUT
+        else
+          write(*,*)
+          write(*,*) 'Setting up the modular LAM HI covariances...'
+          call lbhi_Setup( hco_anl, vco_anl, & ! IN
+                           cvdim )             ! OUT
+        end if
 
-    !- 2.3  Static (Time-Mean Homogeneous and Isotropic) covariances for constituents
-    if ( hco_anl % global ) then
-      write(*,*)
-      write(*,*) 'Setting up the modular GLOBAL HI-chm covariances...'
-      call bchm_Setup( hco_anl, vco_anl_in, & ! IN
-                       cvdimchm )             ! OUT
-    !else
-      ! Done in lbhi_Setup 
-    end if
-    call cvm_setupSubVector('CHM','CHM',cvdimchm)
+      case ('LATB')
 
-    !- 2.4 Covariances modelled using a diffusion operator.
-    write(*,*)
-    write(*,*) 'Setting up the modular DIFFUSION covariances...'
-    call bdiff_Setup( hco_anl, vco_anl_in, & ! IN
-                      cvdimdiff )            ! OUT
-    call cvm_setupSubVector('DIFF','DIFF',cvdimdiff)
+        !- 2.2 Time-Mean Lat-Bands...
+        if ( globalGrid ) then
+          write(*,*) 'Setting up the modular GLOBAL LatBands covariances...'
+          call blb_Setup( hco_anl, vco_anl, & ! IN
+                          cvdim )             ! OUT
+        end if
+
+      case ('ENS')
+
+        !- 2.3 Flow-dependent Ensemble-Based
+        write(*,*)
+        write(*,*) 'Setting up the modular ENSEMBLE covariances...'
+        call ben_Setup( hco_anl, vco_anl, & ! IN
+                        cvdim )             ! OUT
+
+      case ('CHM')
+
+        !- 2.4  Static (Time-Mean Homogeneous and Isotropic) covariances for constituents
+        if ( globalGrid ) then
+          write(*,*)
+          write(*,*) 'Setting up the modular GLOBAL HI-chm covariances...'
+          call bchm_Setup( hco_anl, vco_anl, & ! IN
+                           cvdim )                   ! OUT
+        end if
+
+      case ('DIFF')
+
+        !- 2.5 Covariances modelled using a diffusion operator.
+        write(*,*)
+        write(*,*) 'Setting up the modular DIFFUSION covariances...'
+        call bdiff_Setup( hco_anl, vco_anl, & ! IN
+                          cvdim )             ! OUT
+
+      case default
+
+        call utl_abort( 'bmat_setup: requested bmatrix type = ' // trim(bmatTypeList(bmatIndex)) )
+
+      end select
+
+      call cvm_setupSubVector(bmatLabelList(bmatIndex), bmatTypeList(bmatIndex), cvdim)
+
+    end do
     
-  END SUBROUTINE bmat_setup
+  end subroutine bmat_setup
 
-!--------------------------------------------------------------------------
-! bmat_sqrtB
-!-------------------------------------------------------------------------- 
-  SUBROUTINE bmat_sqrtB(controlVector,cvdim,statevector,useFSOFcst_opt)
+  !--------------------------------------------------------------------------
+  ! bmat_sqrtB
+  !-------------------------------------------------------------------------- 
+  subroutine bmat_sqrtB(controlVector,cvdim,statevector,useFSOFcst_opt)
     implicit none
     !
-    !- Purpose: Transforms model state from error covariance space
+    !- Purpose: Transforms model state from control vector space
     !           to grid point space.
     !
-    ! Revision:
-    !           Ping Du, CMDA/MSC, July 2014
-    !           - Additions for chemical constituents (see cvBchm and 
-    !             section 2.3)
-    !
-    ! Comments:
-    !
-    ! LAM and Ensemble cases not done for constituents. TBD 
-    !
+
+    ! arguments
     integer         :: cvdim
     real(8)         :: controlVector(cvdim)
-    real(8),pointer :: cvBhi(:), cvBen(:), field(:,:,:), field4d(:,:,:,:)
-    real(8),pointer :: cvBchm(:), cvBdiff(:)
+    type(struct_gsv) :: statevector
     logical,optional :: useFSOFcst_opt
 
-    type(struct_gsv) :: statevector, statevector_temp
+    ! locals
+    integer :: bmatIndex
+    real(8),pointer :: subVector(:)
+    type(struct_gsv) :: statevector_temp
 
     !
-    !- 1.  Set analysis increment to zero
+    !- 1.  Set analysis increment to zero and allocate a temporary statevector
     !
-    call gsv_zero(statevector)
+    call gsv_zero( statevector )
+    call gsv_allocate( statevector_temp, statevector%numStep,            &
+                       gsv_getHco(statevector), gsv_getVco(statevector), &
+                       mpi_local_opt=.true. )
 
     !
     !- 2.  Compute the analysis increment
     !
+    BMAT_LOOP: do bmatIndex = 1, numBmat
 
-    !- 2.1 Allocate and set to zero another temporary statevector
-    call gsv_allocate(statevector_temp, statevector%numStep, hco_anl, gsv_getVco(statevector), &
-                      mpi_local_opt=.true.)
-    call gsv_zero(statevector_temp)
+      if ( .not.cvm_subVectorExists( bmatLabelList(bmatIndex) ) ) cycle BMAT_LOOP
 
-    !- 2.2 Compute 3D contribution to increment from BmatrixHI
-    call tmg_start(50,'B_HI')
-    if ( cvm_subVectorExists('HI') ) then
-      cvBhi => cvm_getSubVector(controlVector,'HI')
-      if ( statevector%hco%global ) then
-        !- 2.2.1 Global mode
-        if ( useBmatrixLatBands ) then
-          call blb_bsqrt( cvBhi,      & ! IN
-                          statevector ) ! OUT
+      subVector => cvm_getSubVector( controlVector, bmatLabelList(bmatIndex) )
+      call gsv_zero( statevector_temp )
+
+      select case( trim(bmatTypeList(bmatIndex)) )
+      case ('HI')
+
+        !- 2.1 Time-Mean Homogeneous and Isotropic...
+        call tmg_start(50,'B_HI')
+        if ( globalGrid ) then
+          call bhi_bsqrt( subVector,       & ! IN
+                          statevector_temp ) ! OUT
         else
-          call bhi_bsqrt( cvBhi,      & ! IN
-                          statevector ) ! OUT
+          call lbhi_bSqrt( subVector,       & ! IN
+                           statevector_temp ) ! OUT
         end if
-      else
-        !- 2.2.2 LAM mode
-        call lbhi_bSqrt( cvBhi,      & ! IN
-                         statevector ) ! OUT
-      end if
-    end if
-    call tmg_stop(50)
+        call tmg_stop(50)
 
-    !- 2.3  Compute 3D contribution to increment from BmatrixChem
-    call tmg_start(123,'B_CHM')
-    if ( cvm_subVectorExists('CHM') ) then
-      cvBchm => cvm_getSubVector(controlVector,'CHM')
-      if ( statevector % hco % global ) then
-        !- 2.3.1 Global mode
-        call bchm_bsqrt( cvBchm,      & ! IN
-                        statevector )   ! OUT
-      else
-        !- 2.3.2 LAM mode
-        call utl_abort('bmat_sqrtB: local routine currently unavailable for chemical constituents, to be available via lbhi_bsqrt in the future')
-      end if
-    end if
-    call tmg_stop(123)
+      case ('LATB')
 
-    !- Compute 3D contribution to increment from BmatrixDiff
-    if ( cvm_subVectorExists('DIFF') ) then
-      cvBdiff => cvm_getSubVector(controlVector,'DIFF')
-      call bdiff_bsqrt( cvBdiff,    & ! IN
-                        statevector ) ! OUT
-    end if
+        !- 2.2 Time-Mean Lat-Bands...
+        call tmg_start(50,'B_HI')
+        if ( globalGrid ) then
+          call blb_bsqrt( subVector,       & ! IN
+                          statevector_temp ) ! OUT
+        end if
+        call tmg_stop(50)
 
-    !- 2.4 copy 3D increment to other timesteps to create 4D increment
-    if ( cvm_subVectorExists('HI') .or. cvm_subVectorExists('CHM') ) call gsv_3dto4d(statevector)
+      case ('CHM')
 
-    !- 2.5 compute 4D contribution to increment from BmatrixEnsemble
-    call tmg_start(60,'B_ENS')
-    if ( cvm_subVectorExists('ENS') ) then
-      cvBen => cvm_getSubVector(controlVector,'ENS')
-      if( present(useFSOFcst_opt) ) then
-        call ben_bsqrt(cvBen, statevector_temp, useFSOFcst_opt)
-      else
-        call ben_bsqrt(cvBen, statevector_temp)
-      end if
-    end if
-    call tmg_stop(60)
+        !- 2.3  Static (Time-Mean Homogeneous and Isotropic) covariances for constituents
+        call tmg_start(123,'B_CHM')
+        if ( globalGrid ) then
+          call bchm_bsqrt( subVector,        & ! IN
+                           statevector_temp )  ! OUT
+        end if
+        call tmg_stop(123)
 
-    !- 2.6 Add the two contributions together, result in statevector
-    call gsv_add(statevector_temp,statevector)
+      case ('DIFF')
 
-    call gsv_deallocate(statevector_temp)
+        !- 2.4 Covariances modelled using a diffusion operator.
+        call bdiff_bsqrt( subVector,       & ! IN
+                          statevector_temp ) ! OUT
 
-  END SUBROUTINE bmat_sqrtB
+      case ('ENS')
 
-!--------------------------------------------------------------------------
-! bmat_sqrtBT
-!--------------------------------------------------------------------------
-  SUBROUTINE bmat_sqrtBT(controlVector,cvdim,statevector,useFSOFcst_opt)
+        !- 2.5 Flow-dependent Ensemble-Based
+        call tmg_start(60,'B_ENS')
+        call ben_bsqrt( subVector,         & ! IN
+                        statevector_temp,  & ! OUT
+                        useFSOFcst_opt )     ! IN
+        call tmg_stop(60)
+
+      end select
+
+      ! Make latest increment contribution 4D, if necessary
+      if ( bmatIs3dList(bmatIndex) ) call gsv_3dto4d( statevector_temp )
+
+      ! Add latest contribution to total increment in statevector
+      call gsv_add( statevector_temp, statevector )
+
+    end do BMAT_LOOP
+
+    call gsv_deallocate( statevector_temp )
+
+  end subroutine bmat_sqrtB
+
+  !--------------------------------------------------------------------------
+  ! bmat_sqrtBT
+  !--------------------------------------------------------------------------
+  subroutine bmat_sqrtBT(controlVector,cvdim,statevector,useFSOFcst_opt)
     implicit none
     !
     !- Purpose: Transforms model state from grid point space 
     !           to error covariance space.
     !
-    ! Revision:
-    !           Ping Du, CMDA/MSC, July 2014
-    !           - Additions for chemical constituents (see cvBchm and
-    !             section 1.5)
-    !
-    ! Comments:
-    !
+
+    ! arguments
     integer :: cvdim
     real(8) :: controlVector(cvdim)
-    real(8),pointer :: cvBhi(:), cvBen(:), cvBchm(:), cvBdiff(:)
     type(struct_gsv) :: statevector
     logical,optional :: useFSOFcst_opt
 
-    !- 1.1 Add contribution to gradient from BmatrixEnsemble
-    call tmg_start(61,'B_ENS_T')
-    if ( cvm_subVectorExists('ENS') ) then
-      cvBen=>cvm_getSubVector(controlVector,'ENS')
-      cvBen(:) = 0.0d0
-      if ( present(useFSOFcst_opt) ) then
-        call ben_bsqrtad(statevector,cvBen,useFSOFcst_opt)
-      else
-        call ben_bsqrtad(statevector,cvBen)
-      end if
-    end if
-    call tmg_stop(61)
+    ! locals
+    integer :: bmatIndex
+    real(8),pointer :: subVector(:)
+    type(struct_gsv) :: statevector_temp
 
-    !- 1.2 adjoint of copy 3D increment to 4D increment
-    if ( cvm_subVectorExists('HI') .or. cvm_subVectorExists('CHM')) call gsv_3dto4dAdj(statevector)
+    call gsv_allocate( statevector_temp, statevector%numStep,            &
+                       gsv_getHco(statevector), gsv_getVco(statevector), &
+                       mpi_local_opt=.true. )
 
-    !- 1.3 add contribution to gradient from BmatrixChem
-    call tmg_start(124,'B_CHM_T')
-    if ( cvm_subVectorExists('CHM') ) then
-      cvBchm=>cvm_getSubVector(controlVector,'CHM')
-      cvBchm(:) = 0.0d0
-      if ( statevector%hco%global ) then
-        !- 1.3.1 add contribution to gradient from GLOBAL BmatrixChem
-        call bchm_bsqrtad( statevector, & ! IN
-                          cvBchm )        ! OUT
-      else
-        !- 1.3.2 add contribution to gradient from LAM BmatrixChem
-        call utl_abort('bmat_sqrtBT: local routine currently unavailable for chemical constituents, to be available via lbhi_bSqrtAdj in the future')
-      end if
-    end if
-    call tmg_stop(124)
+    BMAT_LOOP: do bmatIndex = 1, numBmat
 
-    !- 1.4 add contribution to gradient from BmatrixHI
-    call tmg_start(51,'B_HI_T')
-    if ( cvm_subVectorExists('HI') ) then
-      cvBhi=>cvm_getSubVector(controlVector,'HI')
-      cvBhi(:) = 0.0d0
-      if ( statevector%hco%global ) then
-        !- 1.4.1 add contribution to gradient from GLOBAL BmatrixHI
-        if ( useBmatrixLatBands ) then
-          call blb_bsqrtad( statevector, & ! IN
-                            cvBhi )        ! OUT
-        else
-          call bhi_bsqrtad( statevector, & ! IN
-                            cvBhi )        ! OUT
+      if ( .not.cvm_subVectorExists( bmatLabelList(bmatIndex) ) ) cycle BMAT_LOOP
+
+      subVector => cvm_getSubVector( controlVector, bmatLabelList(bmatIndex) )
+      subVector(:) = 0.0d0
+
+      ! Adjoint of converting statevector from 3D to 4D
+      call gsv_copy( statevector, statevector_temp )
+      if ( bmatIs3dList(bmatIndex) ) call gsv_3dto4dAdj( statevector_temp )
+
+      select case( trim(bmatTypeList(bmatIndex)) )
+      case ('ENS')
+
+        !- 2.1 Flow-dependent Ensemble-Based
+
+        call tmg_start(61,'B_ENS_T')
+        call ben_bsqrtad( statevector_temp, & ! IN
+                          subVector,        & ! OUT
+                          useFSOFcst_opt)     ! IN
+        call tmg_stop(61)
+
+
+      case ('DIFF')
+
+        !- 2.2 Covariances modelled using a diffusion operator.
+        call bdiff_bsqrtad( statevector_temp, & ! IN
+                            subVector )         ! OUT
+ 
+      case ('CHM')
+
+        !- 2.3  Static (Time-Mean Homogeneous and Isotropic) covariances for constituents
+        call tmg_start(124,'B_CHM_T')
+        if ( globalGrid ) then
+          call bchm_bsqrtad( statevector_temp, & ! IN
+                             subVector )         ! OUT
         end if
-      else
-        !- 1.4.2 add contribution to gradient from LAM BmatrixHI
-        call lbhi_bSqrtAdj( statevector, & ! IN
-                            cvBhi )        ! OUT
-      end if
-    end if
-    call tmg_stop(51)
+        call tmg_stop(124)
 
-    !- 1.5 add contribution to gradient from BmatrixDiff
-    if ( cvm_subVectorExists('DIFF') ) then
-      cvBdiff=>cvm_getSubVector(controlVector,'DIFF')
-      cvBdiff(:) = 0.0d0
-      !- 1.5.1 add contribution to gradient from BmatrixDIFF
-      call bdiff_bsqrtad( statevector, & ! IN
-                          cvBdiff )      ! OUT
-    end if
+      case ('LATB')
 
-  END SUBROUTINE bmat_sqrtBT
+        !- 2.4 Time-Mean Lat-Bands...
+        call tmg_start(51,'B_HI_T')
+        if ( globalGrid ) then
+          call blb_bsqrtad( statevector_temp, & ! IN
+                            subVector )         ! OUT
+        end if
+        call tmg_stop(51)
 
-!--------------------------------------------------------------------------
-! bmat_finalize
-!--------------------------------------------------------------------------
-  SUBROUTINE bmat_finalize()
+      case ('HI')
+
+        !- 2.5 Time-Mean Homogeneous and Isotropic...
+        call tmg_start(51,'B_HI_T')
+        if ( globalGrid ) then
+          call bhi_bsqrtad( statevector_temp, & ! IN
+                            subVector )         ! OUT
+        else
+          call lbhi_bSqrtAdj( statevector_temp, & ! IN
+                              subVector )         ! OUT
+        end if
+        call tmg_stop(51)
+
+      end select
+
+    end do BMAT_LOOP
+
+    call gsv_deallocate( statevector_temp )
+
+  end subroutine bmat_sqrtBT
+
+  !--------------------------------------------------------------------------
+  ! bmat_finalize
+  !--------------------------------------------------------------------------
+  subroutine bmat_finalize()
+    implicit none    
     !
     !- Purpose: Releases memory used by B matrices.
     !
-    !
-    ! Revision:
-    !           Ping Du, CMDA/MSC, July 2014
-    !           - Additions for chemical constituents (see cvBchm)
-    !
-    ! Comments:
-    !
-    ! - LAM and ensemble components for constituents tbd.
-    !
-    implicit none    
 
     call bhi_finalize()
     call blb_finalize()
@@ -369,314 +368,278 @@ contains
     call lbhi_finalize()
     call bdiff_finalize()
 
-  END SUBROUTINE bmat_finalize
+  end subroutine bmat_finalize
 
-!--------------------------------------------------------------------------
-! BMAT_reduceToMPILocal
-!--------------------------------------------------------------------------
-  SUBROUTINE BMAT_reduceToMPILocal(cv_mpilocal,cv_mpiglobal,cvDim_mpilocal_out)
+  !--------------------------------------------------------------------------
+  ! bmat_reduceToMPILocal
+  !--------------------------------------------------------------------------
+  subroutine bmat_reduceToMPILocal(cv_mpilocal,cv_mpiglobal)
+    implicit none    
     !
-    ! Revision:
-    !           Ping Du, CMDA/MSC, Dec 2014
-    !           - Additions for chemical constituents (see cv*Bchm*)
+    ! Purpose: distribute MPI_global control vector from task 0 to all tasks
     !
-    ! Comments:
-    !
-    ! - LAM and ensemble components for constituents tbd.
-    !
-    implicit none
+
+    ! arguments
     real(8), intent(out) :: cv_mpilocal(:)
     real(8), intent(in)  :: cv_mpiglobal(:)
-    integer, intent(out) :: cvDim_mpilocal_out
 
-    integer :: cvDim_Bhi_mpilocal, cvDim_Ben_mpilocal, cvDim_Bchm_mpilocal, cvDim_Bdiff_mpilocal
+    ! locals
+    integer :: bmatIndex
+    real(8), pointer :: subVector_mpilocal(:), subVector_mpiglobal(:)
 
-    real(8),pointer :: cvBhi_mpilocal(:), cvBen_mpilocal(:), cvBchm_mpilocal(:), cvBdiff_mpilocal(:)
-    real(8),pointer :: cvBhi_mpiglobal(:), cvBen_mpiglobal(:), cvBchm_mpiglobal(:) , cvBdiff_mpiglobal(:)
+    BMAT_LOOP: do bmatIndex = 1, numBmat
 
+      if ( .not.cvm_subVectorExists( bmatLabelList(bmatIndex) ) ) cycle BMAT_LOOP
 
-    cvDim_Bhi_mpilocal = 0
-    if(cvm_subVectorExists('HI')) then
-      cvBhi_mpilocal =>cvm_getSubVector(cv_mpilocal,'HI')
-      if (mpi_myid == 0) then
-         cvBhi_mpiglobal=>cvm_getSubVector_mpiglobal(cv_mpiglobal,'HI')
+      subVector_mpilocal => cvm_getSubVector( cv_mpilocal, bmatLabelList(bmatIndex) )
+      if ( mpi_myid == 0 ) then
+         subVector_mpiglobal => cvm_getSubVector_mpiglobal( cv_mpiglobal, bmatLabelList(bmatIndex) )
       else
-         cvBhi_mpiglobal=>null()
+         subVector_mpiglobal => null()
       end if
-      if ( hco_anl%global ) then 
-         if ( useBmatrixLatBands ) then
-           call blb_reduceToMPILocal (cvBhi_mpilocal,cvBhi_mpiglobal,cvDim_Bhi_mpilocal)
-         else
-           call bhi_reduceToMPILocal (cvBhi_mpilocal,cvBhi_mpiglobal,cvDim_Bhi_mpilocal)
-         end if
-      else
-         call lbhi_reduceToMPILocal(cvBhi_mpilocal,cvBhi_mpiglobal,cvDim_Bhi_mpilocal)
-      end if
-    end if
 
-    cvDim_Ben_mpilocal = 0
-    if(cvm_subVectorExists('ENS')) then
-       cvBen_mpilocal => cvm_getSubVector(cv_mpilocal,'ENS')
-       if (mpi_myid == 0) then
-          cvBen_mpiglobal => cvm_getSubVector_mpiglobal(cv_mpiglobal,'ENS')
-       else
-          cvBen_mpiglobal => null()
-       end if
-       call ben_reduceToMPILocal(cvBen_mpilocal,cvBen_mpiglobal,cvDim_Ben_mpilocal)
-    end if
+      select case( trim(bmatTypeList(bmatIndex)) )
+      case ('HI')
 
-    cvDim_Bchm_mpilocal = 0
-    if(cvm_subVectorExists('CHM')) then
-      cvBchm_mpilocal => cvm_getSubVector(cv_mpilocal,'CHM')
-      if (mpi_myid == 0) then
-         cvBchm_mpiglobal => cvm_getSubVector_mpiglobal(cv_mpiglobal,'CHM')
-      else
-         cvBchm_mpiglobal => null()
-      end if
-      if ( hco_anl%global ) then 
-         call bchm_reduceToMPILocal(cvBchm_mpilocal,cvBchm_mpiglobal,cvDim_Bchm_mpilocal)
-      else
-!         Done in lbhi_reducetoMPILocal
-      end if
-    end if
+        !- 2.1 Time-Mean Homogeneous and Isotropic...
+        if ( globalGrid ) then
+          call bhi_reduceToMPILocal( subVector_mpilocal,subVector_mpiglobal )
+        else
+          call lbhi_reduceToMPILocal( subVector_mpilocal,subVector_mpiglobal )
+        end if
 
-    cvDim_Bdiff_mpilocal = 0
-    if(cvm_subVectorExists('DIFF')) then
-      cvBdiff_mpilocal => cvm_getSubVector(cv_mpilocal,'DIFF')
-      if (mpi_myid == 0) then
-         cvBdiff_mpiglobal => cvm_getSubVector_mpiglobal(cv_mpiglobal,'DIFF')
-      else
-         cvBdiff_mpiglobal => null()
-      end if
-!!$      if ( hco_anl%global ) then 
-!!$         call bdiff_reduceToMPILocal(cvBdiff_mpilocal,cvBdiff_mpiglobal,cvDim_Bdiff_mpilocal)
-!!$      end if
-    end if
+      case ('LATB')
 
+        !- 2.2 Time-Mean Lat-Bands...
+        if ( globalGrid ) then
+          call blb_reduceToMPILocal( subVector_mpilocal, subVector_mpiglobal )
+        end if
 
-    cvDim_mpilocal_out = cvDim_Bhi_mpilocal + cvDim_Ben_mpilocal + &
-                         cvDim_Bchm_mpilocal + cvDim_Bdiff_mpilocal
+      case ('CHM')
 
-  END SUBROUTINE BMAT_reduceToMPILocal
+        !- 2.3  Static (Time-Mean Homogeneous and Isotropic) covariances for constituents
+        if ( globalGrid ) then
+          call bchm_reduceToMPILocal( subVector_mpilocal, subVector_mpiglobal )
+        end if
 
-!--------------------------------------------------------------------------
-! BMAT_reduceToMPILocal_r4
-!--------------------------------------------------------------------------
-  SUBROUTINE BMAT_reduceToMPILocal_r4(cv_mpilocal,cv_mpiglobal,cvDim_mpilocal_out)
-    !
-    ! Revision:
-    !           Ping Du, CMDA/MSC, Dec 2014
-    !           - Additions for chemical constituents (see cv*Bchm*)
-    !
-    ! Comments:
-    !
-    ! - LAM and ensemble components for constituents tbd.
-    !
+      case ('DIFF')
+
+        !- 2.4 Covariances modelled using a diffusion operator.
+        !call bdiff_reduceToMPILocal( subVector_mpilocal, subVector_mpiglobal )
+
+      case ('ENS')
+
+        !- 2.5 Flow-dependent Ensemble-Based
+        call ben_reduceToMPILocal( subVector_mpilocal, subVector_mpiglobal )
+
+      end select
+
+    end do BMAT_LOOP
+
+  end subroutine bmat_reduceToMPILocal
+
+  !--------------------------------------------------------------------------
+  ! bmat_reduceToMPILocal_r4
+  !--------------------------------------------------------------------------
+  subroutine bmat_reduceToMPILocal_r4(cv_mpilocal,cv_mpiglobal)
     implicit none
+    !
+    ! Purpose: distribute MPI_global control vector from task 0 to all tasks
+    !
+
+    ! arguments
     real(4), intent(out) :: cv_mpilocal(:)
     real(4), intent(in)  :: cv_mpiglobal(:)
-    integer, intent(out) :: cvDim_mpilocal_out
 
-    integer :: cvDim_Bhi_mpilocal,cvDim_Ben_mpilocal,cvDim_Bchm_mpilocal
+    ! locals
+    integer :: bmatIndex
+    real(4), pointer :: subVector_mpilocal(:), subVector_mpiglobal(:)
 
-    real(4),pointer :: cvBhi_mpilocal(:) ,cvBen_mpilocal(:),cvBchm_mpilocal(:)
-    real(4),pointer :: cvBhi_mpiglobal(:),cvBen_mpiglobal(:),cvBchm_mpiglobal(:)
+    BMAT_LOOP: do bmatIndex = 1, numBmat
 
-    cvDim_Bhi_mpilocal = 0
-    if(cvm_subVectorExists('HI')) then
-      cvBhi_mpilocal =>cvm_getSubVector_r4(cv_mpilocal,'HI')
-      if (mpi_myid == 0) then
-         cvBhi_mpiglobal=>cvm_getSubVector_mpiglobal_r4(cv_mpiglobal,'HI')
+      if ( .not.cvm_subVectorExists( bmatLabelList(bmatIndex) ) ) cycle BMAT_LOOP
+
+      subVector_mpilocal => cvm_getSubVector_r4( cv_mpilocal, bmatLabelList(bmatIndex) )
+      if ( mpi_myid == 0 ) then
+         subVector_mpiglobal => cvm_getSubVector_mpiglobal_r4( cv_mpiglobal, bmatLabelList(bmatIndex) )
       else
-         cvBhi_mpiglobal=>null()
+         subVector_mpiglobal => null()
       end if
-      if ( hco_anl%global ) then 
-         if ( useBmatrixLatBands ) then
-           call blb_reduceToMPILocal_r4 (cvBhi_mpilocal,cvBhi_mpiglobal,cvDim_Bhi_mpilocal)
-         else
-           call bhi_reduceToMPILocal_r4 (cvBhi_mpilocal,cvBhi_mpiglobal,cvDim_Bhi_mpilocal)
-         end if
-      else
-         call lbhi_reduceToMPILocal_r4(cvBhi_mpilocal,cvBhi_mpiglobal,cvDim_Bhi_mpilocal)
-      end if
-    end if
 
-    cvDim_Ben_mpilocal = 0
-    if(cvm_subVectorExists('ENS')) then
-       cvBen_mpilocal =>cvm_getSubVector_r4(cv_mpilocal,'ENS')
-       if (mpi_myid == 0) then
-          cvBen_mpiglobal=>cvm_getSubVector_mpiglobal_r4(cv_mpiglobal,'ENS')
-       else
-          cvBen_mpiglobal=>null()
-       end if
-       call ben_reduceToMPILocal_r4(cvBen_mpilocal,cvBen_mpiglobal,cvDim_Ben_mpilocal)
-    end if
+      select case( trim(bmatTypeList(bmatIndex)) )
+      case ('HI')
 
-    cvDim_Bchm_mpilocal = 0
-    if(cvm_subVectorExists('CHM')) then
-      cvBchm_mpilocal =>cvm_getSubVector_r4(cv_mpilocal,'CHM')
-      if (mpi_myid == 0) then
-         cvBchm_mpiglobal=>cvm_getSubVector_mpiglobal_r4(cv_mpiglobal,'CHM')
-      else
-         cvBchm_mpiglobal=>null()
-      end if
-      if ( hco_anl%global ) then 
-         call bchm_reduceToMPILocal_r4(cvBchm_mpilocal,cvBchm_mpiglobal,cvDim_Bchm_mpilocal)
-      else
-!         Done in lbhi_reducetoMPILocal
-      end if
-    end if
+        !- 2.1 Time-Mean Homogeneous and Isotropic...
+        if ( globalGrid ) then
+          call bhi_reduceToMPILocal_r4( subVector_mpilocal,subVector_mpiglobal )
+        else
+          call lbhi_reduceToMPILocal_r4( subVector_mpilocal,subVector_mpiglobal )
+        end if
 
+      case ('LATB')
 
-    cvDim_mpilocal_out = cvDim_Bhi_mpilocal + cvDim_Ben_mpilocal + &
-                         cvDim_Bchm_mpilocal
+        !- 2.2 Time-Mean Lat-Bands...
+        if ( globalGrid ) then
+          call blb_reduceToMPILocal_r4( subVector_mpilocal, subVector_mpiglobal )
+        end if
 
-  END SUBROUTINE BMAT_reduceToMPILocal_r4
+      case ('CHM')
 
-!--------------------------------------------------------------------------
-! BMAT_expandToMPIGlobal
-!--------------------------------------------------------------------------
-  SUBROUTINE BMAT_expandToMPIGlobal(cv_mpilocal,cv_mpiglobal,cvDim_mpiglobal_out)
-    !
-    ! Revision:
-    !           Ping Du, CMDA/MSC, July 2014
-    !           - Additions for chemical constituents (see cvBchm*)
-    !
-    ! Comments:
-    !
-    ! - LAM and ensemble components for constituents tbd.
-    !
+        !- 2.3  Static (Time-Mean Homogeneous and Isotropic) covariances for constituents
+        if ( globalGrid ) then
+          call bchm_reduceToMPILocal_r4( subVector_mpilocal, subVector_mpiglobal )
+        end if
+
+      case ('DIFF')
+
+        !- 2.4 Covariances modelled using a diffusion operator.
+        !call bdiff_reduceToMPILocal_r4( subVector_mpilocal, subVector_mpiglobal )
+
+      case ('ENS')
+
+        !- 2.5 Flow-dependent Ensemble-Based
+        call ben_reduceToMPILocal_r4( subVector_mpilocal, subVector_mpiglobal )
+
+      end select
+
+    end do BMAT_LOOP
+
+  end subroutine bmat_reduceToMPILocal_r4
+
+  !--------------------------------------------------------------------------
+  ! bmat_expandToMPIGlobal
+  !--------------------------------------------------------------------------
+  subroutine bmat_expandToMPIGlobal(cv_mpilocal,cv_mpiglobal)
     implicit none
+    !
+    ! Purpose: gather control vector from all tasks to task 0
+    !
 
+    ! arguments
     real(8), intent(in)  :: cv_mpilocal(:)
     real(8), intent(out) :: cv_mpiglobal(:)
-    integer, intent(out) :: cvDim_mpiglobal_out
 
-    integer :: cvDim_Bhi_mpiglobal,cvDim_Ben_mpiglobal,cvDim_Bchm_mpiglobal
+    ! locals
+    integer :: bmatIndex
+    real(8), pointer :: subVector_mpilocal(:), subVector_mpiglobal(:)
 
-    real(8), pointer :: cvBhi_mpilocal(:) ,cvBen_mpilocal(:), cvBchm_mpilocal(:)
-    real(8), pointer :: cvBhi_mpiglobal(:),cvBen_mpiglobal(:),cvBchm_mpiglobal(:)
+    BMAT_LOOP: do bmatIndex = 1, numBmat
 
-    cvDim_Bhi_mpiglobal = 0
-    if(cvm_subVectorExists('HI')) then
-      cvBhi_mpilocal =>cvm_getSubVector(cv_mpilocal,'HI')
-      if (mpi_myid == 0) then
-         cvBhi_mpiglobal=>cvm_getSubVector_mpiglobal(cv_mpiglobal,'HI')
+      if ( .not.cvm_subVectorExists( bmatLabelList(bmatIndex) ) ) cycle BMAT_LOOP
+
+      subVector_mpilocal => cvm_getSubVector( cv_mpilocal, bmatLabelList(bmatIndex) )
+      if ( mpi_myid == 0 ) then
+         subVector_mpiglobal => cvm_getSubVector_mpiglobal( cv_mpiglobal, bmatLabelList(bmatIndex) )
       else
-         cvBhi_mpiglobal=>null()
+         subVector_mpiglobal => null()
       end if
-      if ( hco_anl%global ) then
-         if ( useBmatrixLatBands ) then
-           call blb_expandToMPIGlobal (cvBhi_mpilocal,cvBhi_mpiglobal,cvDim_Bhi_mpiglobal)
-         else
-           call bhi_expandToMPIGlobal (cvBhi_mpilocal,cvBhi_mpiglobal,cvDim_Bhi_mpiglobal)
-         end if
-      else
-         call lbhi_expandToMPIGlobal(cvBhi_mpilocal,cvBhi_mpiglobal,cvDim_Bhi_mpiglobal)
-      end if
-    end if
 
-    cvDim_Ben_mpiglobal = 0
-    if(cvm_subVectorExists('ENS')) then
-       cvBen_mpilocal =>cvm_getSubVector(cv_mpilocal,'ENS')
-       if (mpi_myid == 0) then
-          cvBen_mpiglobal=>cvm_getSubVector_mpiglobal(cv_mpiglobal,'ENS')
-       else
-          cvBen_mpiglobal=>null()
-       end if
-       call ben_expandToMPIGlobal(cvBen_mpilocal,cvBen_mpiglobal,cvDim_Ben_mpiglobal)
-    end if
+      select case( trim(bmatTypeList(bmatIndex)) )
+      case ('HI')
 
-    cvDim_Bchm_mpiglobal = 0
-    if(cvm_subVectorExists('CHM')) then
-      cvBchm_mpilocal =>cvm_getSubVector(cv_mpilocal,'CHM') 
-      if (mpi_myid == 0) then
-         cvBchm_mpiglobal=>cvm_getSubVector_mpiglobal(cv_mpiglobal,'CHM')
-      else
-         cvBchm_mpiglobal=>null()
-      end if
-      if ( hco_anl%global ) then
-         call bchm_expandToMPIGlobal(cvBchm_mpilocal,cvBchm_mpiglobal,cvDim_Bchm_mpiglobal)
-      else
-!         Done in lbhi_expandToMPIGlobal
-      end if
-    end if
+        !- 2.1 Time-Mean Homogeneous and Isotropic...
+        if ( globalGrid ) then
+          call bhi_expandToMPIGlobal( subVector_mpilocal,subVector_mpiglobal )
+        else
+          call lbhi_expandToMPIGlobal( subVector_mpilocal,subVector_mpiglobal )
+        end if
 
-    cvDim_mpiglobal_out = cvDim_Bhi_mpiglobal + cvDim_Ben_mpiglobal + cvDim_Bchm_mpiglobal
+      case ('LATB')
 
-  end SUBROUTINE BMAT_expandToMPIGlobal
+        !- 2.2 Time-Mean Lat-Bands...
+        if ( globalGrid ) then
+          call blb_expandToMPIGlobal( subVector_mpilocal, subVector_mpiglobal )
+        end if
 
-!--------------------------------------------------------------------------
-! BMAT_expandToMPIGlobal_r4
-!--------------------------------------------------------------------------
-  SUBROUTINE BMAT_expandToMPIGlobal_r4(cv_mpilocal,cv_mpiglobal,cvDim_mpiglobal_out)
-    !
-    ! Revision:
-    !           Ping Du, CMDA/MSC, July 2014
-    !           - Additions for chemical constituents (see cvBchm*)
-    !
-    ! Comments:
-    !
-    ! - LAM and ensemble components for constituents tbd.
-    !
+      case ('CHM')
+
+        !- 2.3  Static (Time-Mean Homogeneous and Isotropic) covariances for constituents
+        if ( globalGrid ) then
+          call bchm_expandToMPIGlobal( subVector_mpilocal, subVector_mpiglobal )
+        end if
+
+      case ('DIFF')
+
+        !- 2.4 Covariances modelled using a diffusion operator.
+        !call bdiff_expandToMPIGlobal( subVector_mpilocal, subVector_mpiglobal )
+
+      case ('ENS')
+
+        !- 2.5 Flow-dependent Ensemble-Based
+        call ben_expandToMPIGlobal( subVector_mpilocal, subVector_mpiglobal )
+
+      end select
+
+    end do BMAT_LOOP
+
+  end subroutine bmat_expandToMPIGlobal
+
+  !--------------------------------------------------------------------------
+  ! bmat_expandToMPIGlobal_r4
+  !--------------------------------------------------------------------------
+  subroutine bmat_expandToMPIGlobal_r4(cv_mpilocal,cv_mpiglobal)
     implicit none
+    !
+    ! Purpose: gather control vector from all tasks to task 0
+    !
 
+    ! arguments
     real(4), intent(in)  :: cv_mpilocal(:)
     real(4), intent(out) :: cv_mpiglobal(:)
-    integer, intent(out) :: cvDim_mpiglobal_out
 
-    integer :: cvDim_Bhi_mpiglobal,cvDim_Ben_mpiglobal,cvDim_Bchm_mpiglobal
+    ! locals
+    integer :: bmatIndex
+    real(4), pointer :: subVector_mpilocal(:), subVector_mpiglobal(:)
 
-    real(4), pointer :: cvBhi_mpilocal(:) ,cvBen_mpilocal(:), cvBchm_mpilocal(:)
-    real(4), pointer :: cvBhi_mpiglobal(:),cvBen_mpiglobal(:),cvBchm_mpiglobal(:)
+    BMAT_LOOP: do bmatIndex = 1, numBmat
 
-    cvDim_Bhi_mpiglobal = 0
-    if(cvm_subVectorExists('HI')) then
-      cvBhi_mpilocal =>cvm_getSubVector_r4(cv_mpilocal,'HI')
-      if (mpi_myid == 0) then
-         cvBhi_mpiglobal=>cvm_getSubVector_mpiglobal_r4(cv_mpiglobal,'HI')
+      if ( .not.cvm_subVectorExists( bmatLabelList(bmatIndex) ) ) cycle BMAT_LOOP
+
+      subVector_mpilocal => cvm_getSubVector_r4( cv_mpilocal, bmatLabelList(bmatIndex) )
+      if ( mpi_myid == 0 ) then
+         subVector_mpiglobal => cvm_getSubVector_mpiglobal_r4( cv_mpiglobal, bmatLabelList(bmatIndex) )
       else
-         cvBhi_mpiglobal=>null()
+         subVector_mpiglobal => null()
       end if
-      if ( hco_anl%global ) then
-         if ( useBmatrixLatBands ) then
-           call blb_expandToMPIGlobal_r4 (cvBhi_mpilocal,cvBhi_mpiglobal,cvDim_Bhi_mpiglobal)
-         else
-           call bhi_expandToMPIGlobal_r4 (cvBhi_mpilocal,cvBhi_mpiglobal,cvDim_Bhi_mpiglobal)
-         end if
-      else
-         call lbhi_expandToMPIGlobal_r4(cvBhi_mpilocal,cvBhi_mpiglobal,cvDim_Bhi_mpiglobal)
-      end if
-    end if
 
-    cvDim_Ben_mpiglobal = 0
-    if(cvm_subVectorExists('ENS')) then
-       cvBen_mpilocal => cvm_getSubVector_r4(cv_mpilocal,'ENS')
-       if (mpi_myid == 0) then
-          cvBen_mpiglobal => cvm_getSubVector_mpiglobal_r4(cv_mpiglobal,'ENS')
-       else
-          cvBen_mpiglobal => null()
-       end if
-       call ben_expandToMPIGlobal_r4(cvBen_mpilocal,cvBen_mpiglobal,cvDim_Ben_mpiglobal)
-    end if
+      select case( trim(bmatTypeList(bmatIndex)) )
+      case ('HI')
 
-    cvDim_Bchm_mpiglobal = 0
-    if(cvm_subVectorExists('CHM')) then
-      cvBchm_mpilocal =>cvm_getSubVector_r4(cv_mpilocal,'CHM')
-      if (mpi_myid == 0) then
-         cvBchm_mpiglobal=>cvm_getSubVector_mpiglobal_r4(cv_mpiglobal,'CHM')
-      else
-         cvBchm_mpiglobal=>null()
-      end if
-      if ( hco_anl%global ) then
-         call bchm_expandToMPIGlobal_r4(cvBchm_mpilocal,cvBchm_mpiglobal,cvDim_Bchm_mpiglobal)
-      else
-!         Done in lbhi_expandToMPIGlobal
-      end if
-    end if
+        !- 2.1 Time-Mean Homogeneous and Isotropic...
+        if ( globalGrid ) then
+          call bhi_expandToMPIGlobal_r4( subVector_mpilocal,subVector_mpiglobal )
+        else
+          call lbhi_expandToMPIGlobal_r4( subVector_mpilocal,subVector_mpiglobal )
+        end if
 
-    cvDim_mpiglobal_out = cvDim_Bhi_mpiglobal + cvDim_Ben_mpiglobal + cvDim_Bchm_mpiglobal
+      case ('LATB')
 
-  end SUBROUTINE BMAT_expandToMPIGlobal_r4
+        !- 2.2 Time-Mean Lat-Bands...
+        if ( globalGrid ) then
+          call blb_expandToMPIGlobal_r4( subVector_mpilocal, subVector_mpiglobal )
+        end if
 
-END MODULE BMatrix_mod
+      case ('CHM')
+
+        !- 2.3  Static (Time-Mean Homogeneous and Isotropic) covariances for constituents
+        if ( globalGrid ) then
+          call bchm_expandToMPIGlobal_r4( subVector_mpilocal, subVector_mpiglobal )
+        end if
+
+      case ('DIFF')
+
+        !- 2.4 Covariances modelled using a diffusion operator.
+        !call bdiff_expandToMPIGlobal_r4( subVector_mpilocal, subVector_mpiglobal )
+
+      case ('ENS')
+
+        !- 2.5 Flow-dependent Ensemble-Based
+        call ben_expandToMPIGlobal_r4( subVector_mpilocal, subVector_mpiglobal )
+
+      end select
+
+    end do BMAT_LOOP
+
+  end subroutine bmat_expandToMPIGlobal_r4
+
+end module BMatrix_mod

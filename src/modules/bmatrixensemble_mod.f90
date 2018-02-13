@@ -1083,58 +1083,52 @@ CONTAINS
 !--------------------------------------------------------------------------
 ! ben_reduceToMPILocal
 !--------------------------------------------------------------------------
-  SUBROUTINE ben_reduceToMPILocal(cv_mpilocal,cv_mpiglobal,cvDim_mpilocal_out)
+  SUBROUTINE ben_reduceToMPILocal(cv_mpilocal,cv_mpiglobal)
     implicit none
     real(8), intent(out) :: cv_mpilocal(cvDim_mpilocal)
     real(8), intent(in)  :: cv_mpiglobal(:)
-    integer, intent(out) :: cvDim_mpilocal_out
 
-    call loc_reduceToMPILocal(locIDs(1),cv_mpilocal,cv_mpiglobal, & ! IN
-                              cvDim_mpilocal_out)                   ! OUT
+    call loc_reduceToMPILocal(locIDs(1),cv_mpilocal,cv_mpiglobal)
 
  END SUBROUTINE ben_reduceToMPILocal
 
 !--------------------------------------------------------------------------
 ! ben_reduceToMPILocal_r4
 !--------------------------------------------------------------------------
-  SUBROUTINE ben_reduceToMPILocal_r4(cv_mpilocal,cv_mpiglobal,cvDim_mpilocal_out)
+  SUBROUTINE ben_reduceToMPILocal_r4(cv_mpilocal,cv_mpiglobal)
     implicit none
     real(4), intent(out) :: cv_mpilocal(cvDim_mpilocal)
     real(4), intent(in)  :: cv_mpiglobal(:)
-    integer, intent(out) :: cvDim_mpilocal_out
 
-    call loc_reduceToMPILocal_r4(locIDs(1),cv_mpilocal,cv_mpiglobal, & ! IN
-                                 cvDim_mpilocal_out)                   ! OUT
+    call loc_reduceToMPILocal_r4(locIDs(1),cv_mpilocal,cv_mpiglobal) ! IN
 
  END SUBROUTINE ben_reduceToMPILocal_r4
 
 !--------------------------------------------------------------------------
 ! ben_expandToMPIGlobal
 !--------------------------------------------------------------------------
-  SUBROUTINE ben_expandToMPIGlobal(cv_mpilocal,cv_mpiglobal,cvDim_mpiglobal_out)
+  SUBROUTINE ben_expandToMPIGlobal(cv_mpilocal,cv_mpiglobal)
     implicit none
 
     real(8), intent(in)  :: cv_mpilocal(cvDim_mpilocal)
     real(8), intent(out) :: cv_mpiglobal(:)
-    integer, intent(out) :: cvDim_mpiglobal_out
 
-    call loc_expandToMPIGlobal(locIDs(1), cv_mpilocal,          & ! IN
-                               cv_mpiglobal,cvDim_mpiglobal_out)  ! OUT  
+    call loc_expandToMPIGlobal(locIDs(1), cv_mpilocal,  & ! IN
+                               cv_mpiglobal)              ! OUT  
 
   end SUBROUTINE ben_expandToMPIGlobal
 
 !--------------------------------------------------------------------------
 ! ben_expandToMPIGlobal_r4
 !--------------------------------------------------------------------------
-  SUBROUTINE ben_expandToMPIGlobal_r4(cv_mpilocal,cv_mpiglobal,cvDim_mpiglobal_out)
+  SUBROUTINE ben_expandToMPIGlobal_r4(cv_mpilocal,cv_mpiglobal)
     implicit none
 
     real(4), intent(in)  :: cv_mpilocal(cvDim_mpilocal)
     real(4), intent(out) :: cv_mpiglobal(:)
-    integer, intent(out) :: cvDim_mpiglobal_out
 
-    call loc_expandToMPIGlobal_r4(locIDs(1), cv_mpilocal ,         & ! IN
-                                  cv_mpiglobal,cvDim_mpiglobal_out)  ! OUT
+    call loc_expandToMPIGlobal_r4(locIDs(1), cv_mpilocal,  & ! IN
+                                  cv_mpiglobal)              ! OUT
 
   end SUBROUTINE ben_expandToMPIGlobal_r4
 

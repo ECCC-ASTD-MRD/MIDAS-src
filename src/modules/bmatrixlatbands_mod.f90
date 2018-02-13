@@ -1973,11 +1973,10 @@ contains
   end subroutine copyFromStatevector
 
 
-  subroutine blb_reduceToMPILocal(cv_mpilocal,cv_mpiglobal,cvDim_mpilocal_out)
+  subroutine blb_reduceToMPILocal(cv_mpilocal,cv_mpiglobal)
     implicit none
     real(8), intent(out) :: cv_mpilocal(cvDim_mpilocal)
     real(8), intent(in)  :: cv_mpiglobal(:)
-    integer, intent(out) :: cvDim_mpilocal_out
 
     real(8), allocatable :: cv_allMaxMpilocal(:,:)
 
@@ -1987,8 +1986,6 @@ contains
 
     integer :: jproc,jlatBand,cvDim_maxmpilocal,ierr
     integer :: jlev,jn,jm,ila_mpilocal,ila_mpiglobal,jdim_mpilocal,jdim_mpiglobal
-
-    cvDim_mpilocal_out = cvDim_mpilocal
 
     call rpn_comm_allreduce(cvDim_mpilocal, cvDim_maxmpilocal, &
                             1,"MPI_INTEGER","MPI_MAX","GRID",ierr)
@@ -2128,11 +2125,10 @@ contains
   end subroutine blb_reduceToMPILocal
 
 
-  subroutine blb_reduceToMPILocal_r4(cv_mpilocal,cv_mpiglobal,cvDim_mpilocal_out)
+  subroutine blb_reduceToMPILocal_r4(cv_mpilocal,cv_mpiglobal)
     implicit none
     real(4), intent(out) :: cv_mpilocal(cvDim_mpilocal)
     real(4), intent(in)  :: cv_mpiglobal(:)
-    integer, intent(out) :: cvDim_mpilocal_out
 
     real(4), allocatable :: cv_allMaxMpilocal(:,:)
 
@@ -2142,8 +2138,6 @@ contains
 
     integer :: jproc,jlatBand,cvDim_maxmpilocal,ierr
     integer :: jlev,jn,jm,ila_mpilocal,ila_mpiglobal,jdim_mpilocal,jdim_mpiglobal
-
-    cvDim_mpilocal_out = cvDim_mpilocal
 
     call rpn_comm_allreduce(cvDim_mpilocal, cvDim_maxmpilocal, &
                             1,"MPI_INTEGER","MPI_MAX","GRID",ierr)
@@ -2281,19 +2275,16 @@ contains
   end subroutine blb_reduceToMPILocal_r4
 
 
-  subroutine blb_expandToMPIGlobal(cv_mpilocal,cv_mpiglobal,cvDim_mpiglobal_out)
+  subroutine blb_expandToMPIGlobal(cv_mpilocal,cv_mpiglobal)
     implicit none
     real(8), intent(in)  :: cv_mpilocal(cvDim_mpilocal)
     real(8), intent(out) :: cv_mpiglobal(:)
-    integer, intent(out) :: cvDim_mpiglobal_out
 
     real(8), allocatable :: cv_maxmpilocal(:)
     real(8), pointer :: cv_allmaxmpilocal(:,:) => null()
     integer, allocatable :: allnBeg(:),allnEnd(:),allnSkip(:)
     integer, allocatable :: allmBeg(:),allmEnd(:),allmSkip(:)
     integer :: jlev, jn, jm, jproc, jlatBand, ila_mpiglobal, jdim_mpilocal, jdim_mpiglobal, ierr, cvDim_maxmpilocal
-
-    cvDim_mpiglobal_out = cvDim_mpiglobal
 
     !
     !- 1.  Gather all local control vectors onto mpi task 0
@@ -2417,19 +2408,16 @@ contains
   end subroutine blb_expandToMPIGlobal
 
 
-  subroutine blb_expandToMPIGlobal_r4(cv_mpilocal,cv_mpiglobal,cvDim_mpiglobal_out)
+  subroutine blb_expandToMPIGlobal_r4(cv_mpilocal,cv_mpiglobal)
     implicit none
     real(4), intent(in)  :: cv_mpilocal(cvDim_mpilocal)
     real(4), intent(out) :: cv_mpiglobal(:)
-    integer, intent(out) :: cvDim_mpiglobal_out
 
     real(4), allocatable :: cv_maxmpilocal(:)
     real(4), pointer :: cv_allmaxmpilocal(:,:) => null()
     integer, allocatable :: allnBeg(:),allnEnd(:),allnSkip(:)
     integer, allocatable :: allmBeg(:),allmEnd(:),allmSkip(:)
     integer :: jlev, jn, jm, jproc, jlatBand, ila_mpiglobal, jdim_mpilocal, jdim_mpiglobal, ierr, cvDim_maxmpilocal
-
-    cvDim_mpiglobal_out = cvDim_mpiglobal
 
     !
     !- 1.  Gather all local control vectors onto mpi task 0
