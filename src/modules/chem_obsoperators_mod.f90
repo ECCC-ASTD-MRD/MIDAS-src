@@ -35,7 +35,7 @@ module chem_obsoperators_mod
   use physicsfunctions_mod
   use MathPhysConstants_mod
   use earthconstants_mod
-  use bufr
+  use bufr_mod
 
   ! Following modules needed only by chm_observation_operators 
   ! and or chm_obsoper_init

@@ -379,17 +379,19 @@ contains
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     !
-    !- Initialize variational bias correction (default is to not use it)
-    !
-    call bias_setup()
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-    !
     !- Initialize the background-error covariance, also sets up control vector module (cvm)
     !
     if ( trim(varMode) == 'analysis' .or. trim(varMode) == 'FSO' ) then
        call bmat_setup(hco_anl,vco_anl)
        write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    end if
+
+    !
+    !- Initialize variational bias correction (default is to not use it)
+    !
+    if ( trim(varMode) == 'analysis' ) then
+      call bias_setup()
+      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     end if
 
     !

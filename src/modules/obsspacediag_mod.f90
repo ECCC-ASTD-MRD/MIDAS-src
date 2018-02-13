@@ -36,7 +36,7 @@ module obsSpaceDiag_mod
 !
 !-------------------------------------------------------------------------------------------
   use mpivar_mod
-  use bufr
+  use bufr_mod
   use codtyp_mod
   use EarthConstants_mod
   use MathPhysConstants_mod
@@ -311,10 +311,10 @@ contains
     if (all(familyList(1:numFamily).eq.'CH')) then
        cvBhi => null()
     else
-       cvBhi => cvm_getSubVector(controlVector,'HI')
+       cvBhi => cvm_getSubVector(controlVector,'B_HI')
     end if
     if (any(familyList(1:numFamily).eq.'CH').and.obs_famExist(obsSpaceData,'CH')) then
-       cvBChm => cvm_getSubVector(controlVector,'CHM')
+       cvBChm => cvm_getSubVector(controlVector,'B_CHM')
     else
        cvBChm => null()
     end if
@@ -324,13 +324,13 @@ contains
     iseed = abs(nrandseed)
     call rng_setup(iseed)
 
-    if (cvm_subVectorExists('HI').or. cvm_subVectorExists('CHM')) then
+    if (cvm_subVectorExists('B_HI').or. cvm_subVectorExists('B_CHM')) then
        
        ! compute random control vector
 
        controlVector(:) = 0.0d0
 
-       if (cvm_subVectorExists('HI')) then
+       if (cvm_subVectorExists('B_HI')) then
           do jj = 1,size(cvBhi)
              cvBhi(jj)=rng_gaussian()
           enddo
@@ -340,7 +340,7 @@ contains
           scaleFactor(:)=1.0      
        end if
 
-       if (cvm_subVectorExists('CHM')) then
+       if (cvm_subVectorExists('B_CHM')) then
           do jj = 1,size(cvBChm)
              cvBChm(jj)=rng_gaussian()
           enddo
@@ -386,11 +386,11 @@ contains
    
     ! COMPUTE BMATRIX PERTURBATION FOR THE ENSEMBLE COVARIANCES CASE; from Ben
 
-    cvBen => cvm_getSubVector(controlVector,'ENS')
+    cvBen => cvm_getSubVector(controlVector,'B_ENS')
    
     HxBen(:) = 0.0d0
 
-    if (cvm_subVectorExists('ENS')) then
+    if (cvm_subVectorExists('B_ENS')) then
 
        ! compute random control vector
 
@@ -463,11 +463,11 @@ contains
         lpert_ens=.false.
         
         if (familyList(familyIndex).ne.'CH') then
-           if (cvm_subVectorExists('HI')) lpert_static=.true.
+           if (cvm_subVectorExists('B_HI')) lpert_static=.true.
         else        
-           if (cvm_subVectorExists('CHM')) lpert_static=.true.
+           if (cvm_subVectorExists('B_CHM')) lpert_static=.true.
         end if
-        if (cvm_subVectorExists('ENS')) lpert_ens=.true.
+        if (cvm_subVectorExists('B_ENS')) lpert_ens=.true.
       
         ivco = -999
         my_innovStd(:,:,:) = 0.0d0

@@ -45,7 +45,7 @@
       SUBROUTINE BGCDATA(PJO,CDFAM,lobsSpaceData,new_bgck_sw)
 
       use MathPhysConstants_mod
-      use bufr
+      use bufr_mod
       use obsSpaceData_mod
       use gps_mod
       use utilities_mod

@@ -51,7 +51,7 @@ module obsSubSpaceData_mod
   use utilities_mod    
   use MathPhysConstants_mod
   use mpi_mod, only: mpi_allgather_string, mpi_doBarrier
-  use bufr
+  use bufr_mod
   use obsSpaceData_mod  ! for use in oss_get_comboIdList 
    
   implicit none

@@ -31,7 +31,7 @@
 !--------------------------------------------------------------------------
       function isetflag(cdfam,kodtyp,kvnam,zlev,zbgchk,lmodif1020)
 
-      use bufr
+      use bufr_mod
       IMPLICIT NONE
       integer isetflag
       integer kvnam,kodtyp

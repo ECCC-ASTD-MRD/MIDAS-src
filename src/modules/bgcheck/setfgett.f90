@@ -24,7 +24,7 @@
 !!
 !--------------------------------------------------------------------------
       SUBROUTINE SETFGETT(lcolumn,lcolumng,lobsSpaceData)
-      use bufr
+      use bufr_mod
       use columnData_mod
       use obsSpaceData_mod
       IMPLICIT NONE

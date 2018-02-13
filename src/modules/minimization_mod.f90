@@ -954,8 +954,8 @@ CONTAINS
 
     if(pertBhiOnly) then
       ! set Bensemble component of control vector to zero
-      if(cvm_subVectorExists('ENS')) then
-        cv_pert_bens_mpilocal => cvm_getSubVector(cv_pert_mpilocal,'ENS')
+      if(cvm_subVectorExists('B_ENS')) then
+        cv_pert_bens_mpilocal => cvm_getSubVector(cv_pert_mpilocal,'B_ENS')
         if(associated(cv_pert_bens_mpilocal)) cv_pert_bens_mpilocal(:) = 0.0d0
       endif
     endif
@@ -963,14 +963,14 @@ CONTAINS
     ! do spectral truncation of control vector
     if(ntrunc_pert.gt.0) then
       ! Check for weather field static covariances
-      if(cvm_subVectorExists('HI')) then
-        cv_pert_bhi_mpilocal => cvm_getSubVector(cv_pert_mpilocal,'HI')
+      if(cvm_subVectorExists('B_HI')) then
+        cv_pert_bhi_mpilocal => cvm_getSubVector(cv_pert_mpilocal,'B_HI')
         if (associated(cv_pert_bhi_mpilocal)) call bhi_truncateCV(cv_pert_bhi_mpilocal,ntrunc_pert)
       endif
 
       ! Check for constituent field static covariances
-      if(cvm_subVectorExists('CHM')) then
-        cv_pert_bchm_mpilocal => cvm_getSubVector(cv_pert_mpilocal,'CHM')
+      if(cvm_subVectorExists('B_CHM')) then
+        cv_pert_bchm_mpilocal => cvm_getSubVector(cv_pert_mpilocal,'B_CHM')
         if (associated(cv_pert_bchm_mpilocal)) call bchm_truncateCV(cv_pert_bchm_mpilocal,ntrunc_pert)
       endif
 

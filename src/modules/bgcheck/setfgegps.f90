@@ -51,7 +51,7 @@
       SUBROUTINE SETFGEGPS(lcolumn,lcolumng,lobsSpaceData)
       use EarthConstants_mod
       use MathPhysConstants_mod
-      use bufr
+      use bufr_mod
       use columnData_mod
       use obsSpaceData_mod
       use verticalCoord_mod

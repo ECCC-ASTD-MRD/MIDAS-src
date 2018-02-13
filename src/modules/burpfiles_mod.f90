@@ -30,7 +30,7 @@ module burpFiles_mod
   use obsSpaceData_mod
   use burpread_mod
   use ramDisk_mod
-  use bufr
+  use bufr_mod
   use utilities_mod
   use obsSubSpaceData_mod
   use burp_module

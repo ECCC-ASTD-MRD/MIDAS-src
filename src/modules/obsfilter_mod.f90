@@ -27,7 +27,7 @@ module obsFilter_mod
   use MathPhysConstants_mod
   use obsSpaceData_mod
   use columnData_mod
-  use bufr
+  use bufr_mod
   use tovs_nl_mod
   use gps_mod
   use utilities_mod

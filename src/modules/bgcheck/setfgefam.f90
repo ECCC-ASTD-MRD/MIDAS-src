@@ -23,7 +23,7 @@
 !! @author P. Koclas *CMC/CMSV November 1998
 !--------------------------------------------------------------------------
       SUBROUTINE SETFGEFAM(CDFAM,lcolumn,lcolumng,lobsSpaceData)
-      use bufr
+      use bufr_mod
       use columnData_mod
       use obsSpaceData_mod
       use utilities_mod
