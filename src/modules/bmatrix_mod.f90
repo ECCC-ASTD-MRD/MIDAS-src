@@ -282,7 +282,8 @@ contains
                        gsv_getHco(statevector), gsv_getVco(statevector), &
                        mpi_local_opt=.true. )
 
-    BMAT_LOOP: do bmatIndex = 1, numBmat
+    ! Process components in opposite order as forward calculation
+    BMAT_LOOP: do bmatIndex = numBmat, 1, -1
 
       if ( .not.cvm_subVectorExists( bmatLabelList(bmatIndex) ) ) cycle BMAT_LOOP
 

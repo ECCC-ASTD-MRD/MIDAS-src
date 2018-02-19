@@ -129,44 +129,10 @@ contains
          stddevMode, filterStddev, blendMeanStddev, zeroTropicsCrossCorr, rvlocpsichittps, rvloclq
 
     call tmg_start(52,'BLB_SETUP')
-    if( mpi_myid == 0 ) write(*,*) 'blb_setup: starting'
-    if( mpi_myid == 0 ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    if ( mpi_myid == 0 ) write(*,*) 'blb_setup: starting'
+    if ( mpi_myid == 0 ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-    if ( present(mode_opt) ) then
-       if ( trim(mode_opt) == 'Analysis' .or. trim(mode_opt) == 'BackgroundCheck') then
-         bhi_mode = trim(mode_opt)
-         if( mpi_myid == 0 ) write(*,*)
-         if( mpi_myid == 0 ) write(*,*) 'blb_setup: Mode activated = ', trim(bhi_mode)
-       else
-          write(*,*)
-          write(*,*) 'mode = ', trim(mode_opt)
-          call utl_abort('blb_setup: unknown mode')
-       end if
-    else
-       bhi_mode = 'Analysis'
-       if( mpi_myid == 0 ) write(*,*)
-       if( mpi_myid == 0 ) write(*,*) 'blb_setup: Analysis mode activated (by default)'
-    end if
-
-    vco_anl => vco_in
-    nLev_M = vco_anl%nlev_M
-    nLev_T = vco_anl%nlev_T
-    if( mpi_myid == 0 ) write(*,*) 'blb_setup: nLev_M, nLev_T =',nLev_M, nLev_T
-
-    ! check if analysisgrid and covariance file have the same vertical levels
-    call vco_SetupFromFile( vco_file,  & ! OUT
-                            bFileName )  ! IN
-    if( .not. vco_equal(vco_anl,vco_file) ) then
-      call utl_abort('bmatrixLatBands: vco from analysisgrid and cov file do not match')
-    end if
-
-    status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
-    if( Vcode_anl /= 5002 .and. Vcode_anl /= 5005 ) then
-      write(*,*) 'Vcode_anl = ',Vcode_anl
-      call utl_abort('blb_setup: unknown vertical coordinate type!')
-    end if
-
-    ! default values for namelist variables
+    ! Default values for namelist variables
     ntrunc = 108
     scaleFactor(:) = 0.0d0
     scaleFactorLQ(:) = 1.0d0
@@ -182,43 +148,80 @@ contains
     nulnam = 0
     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=namblb,iostat=ierr)
-    !if( ierr /= 0 ) call utl_abort('blb_setup: Error reading namelist')
-    if( ierr /= 0 .and. mpi_myid == 0 ) write(*,*) 'WARNING: blb_setup: Error reading namelist, ' //  &
-                             'assume it will not be used!'
-    if( mpi_myid == 0 ) write(*,nml=namblb)
+    if ( ierr /= 0 ) then
+      if ( mpi_myid == 0 ) write(*,*) 'WARNING: blb_setup: Error reading namelist, ' //  &
+                                      'assume it will not be used!'
+      cvdim_out = 0
+      return
+    end if
+    if ( mpi_myid == 0 ) write(*,nml=namblb)
     ierr = fclos(nulnam)
 
+    if ( present(mode_opt) ) then
+      if ( trim(mode_opt) == 'Analysis' .or. trim(mode_opt) == 'BackgroundCheck') then
+        bhi_mode = trim(mode_opt)
+        if ( mpi_myid == 0 ) write(*,*)
+        if ( mpi_myid == 0 ) write(*,*) 'blb_setup: Mode activated = ', trim(bhi_mode)
+      else
+        write(*,*)
+        write(*,*) 'mode = ', trim(mode_opt)
+        call utl_abort('blb_setup: unknown mode')
+      end if
+    else
+      bhi_mode = 'Analysis'
+      if ( mpi_myid == 0 ) write(*,*)
+      if ( mpi_myid == 0 ) write(*,*) 'blb_setup: Analysis mode activated (by default)'
+    end if
+
+    vco_anl => vco_in
+    nLev_M = vco_anl%nlev_M
+    nLev_T = vco_anl%nlev_T
+    if ( mpi_myid == 0 ) write(*,*) 'blb_setup: nLev_M, nLev_T =',nLev_M, nLev_T
+
     do jlev = 1, max(nLev_M,nLev_T)
-      if( scaleFactor(jlev) > 0.0d0 ) then 
+      if ( scaleFactor(jlev) > 0.0d0 ) then 
         scaleFactor(jlev) = sqrt(scaleFactor(jlev))
       else
         scaleFactor(jlev) = 0.0d0
       end if
     end do
 
-    if( sum(scaleFactor(1:max(nLev_M,nLev_T))) == 0.0d0 ) then
-      if( mpi_myid == 0 ) write(*,*) 'blb_setup: scaleFactor=0, skipping rest of setup'
+    if ( sum(scaleFactor(1:max(nLev_M,nLev_T))) == 0.0d0 ) then
+      if ( mpi_myid == 0 ) write(*,*) 'blb_setup: scaleFactor=0, skipping rest of setup'
       cvdim_out = 0
       return
     end if
 
-    if( .not. (gsv_varExist(varName='TT').and.gsv_varExist(varName='UU').and.gsv_varExist(varName='VV').and. &
-               gsv_varExist(varName='HU').and.gsv_varExist(varName='P0').and.gsv_varExist(varName='TG')) ) then
-       call utl_abort('bmatrixLatBands: Some or all weather fields are missing. If it is desired to deactivate the weather assimilation, then all entries of the array SCALEFACTOR in the namelist NAMBLB should be set to zero.')
-    end if
-
     do jlev = 1, max(nLev_M,nLev_T)
-      if( scaleFactorLQ(jlev) > 0.0d0 ) then 
+      if ( scaleFactorLQ(jlev) > 0.0d0 ) then 
         scaleFactorLQ(jlev) = sqrt(scaleFactorLQ(jlev))
       else
         scaleFactorLQ(jlev) = 0.0d0
       end if
     end do
 
-    if( trim(bhi_mode) == 'BackgroundCheck' ) then
-       cvDim_out = 9999 ! Dummy value > 0 to indicate to the background check (s/r compute_HBHT_ensemble) 
-                        ! that Bhi is used
-       return
+    ! check if analysisgrid and covariance file have the same vertical levels
+    call vco_SetupFromFile( vco_file,  & ! OUT
+                            bFileName )  ! IN
+    if ( .not. vco_equal(vco_anl,vco_file) ) then
+      call utl_abort('bmatrixLatBands: vco from analysisgrid and cov file do not match')
+    end if
+
+    status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
+    if ( Vcode_anl /= 5002 .and. Vcode_anl /= 5005 ) then
+      write(*,*) 'Vcode_anl = ',Vcode_anl
+      call utl_abort('blb_setup: unknown vertical coordinate type!')
+    end if
+
+    if ( .not. (gsv_varExist(varName='TT').and.gsv_varExist(varName='UU').and.gsv_varExist(varName='VV').and. &
+               gsv_varExist(varName='HU').and.gsv_varExist(varName='P0').and.gsv_varExist(varName='TG')) ) then
+      call utl_abort('bmatrixLatBands: Some or all weather fields are missing. If it is desired to deactivate the weather assimilation, then all entries of the array SCALEFACTOR in the namelist NAMBLB should be set to zero.')
+    end if
+
+    if ( trim(bhi_mode) == 'BackgroundCheck' ) then
+      cvDim_out = 9999 ! Dummy value > 0 to indicate to the background check (s/r compute_HBHT_ensemble) 
+                       ! that Bhi is used
+      return
     end if
 
     numvar3d = 4
@@ -238,7 +241,7 @@ contains
     AnalGridID = hco_in%EZscintID
 
     gstID  = gst_setup(ni,nj,ntrunc,nkgdim)
-    if( mpi_myid == 0 ) write(*,*) 'blb_setup: returned value of gstID    =',gstID
+    if ( mpi_myid == 0 ) write(*,*) 'blb_setup: returned value of gstID    =',gstID
 
     call mpivar_setup_latbands(nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd)
     call mpivar_setup_lonbands(ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
@@ -263,14 +266,14 @@ contains
       lat2=nj/2
       lat3=3*nj/4
       write(*,*) 'lat1,2,3=',lat1,lat2,lat3
-      if( jlatband == 1 ) then
+      if ( jlatband == 1 ) then
         ! Southern extratropics
         latMask(1:lat1,jLatBand) = 1.0d0
         do jlat = lat1, lat2
           latMask(jlat,jLatBand) = sqrt(0.5d0*(1.0d0+cos(dble((jlat-lat1)*4)*MPC_PI_R8/dble(nj))))
         end do
         latMask(lat2:nj,jLatBand) = 0.0d0
-      else if( jlatband == 2 ) then
+      else if ( jlatband == 2 ) then
         ! Tropics
         latMask(1:lat1,jLatBand) = 0.0d0
         do jlat = lat1, lat2
@@ -280,7 +283,7 @@ contains
           latMask(jlat,jLatBand) = sqrt(0.5d0*(1.0d0+cos(dble((jlat-lat2)*4)*MPC_PI_R8/dble(nj))))
         end do
         latMask(lat3:nj,jLatBand) = 0.0d0
-      else if( jlatband == 3 ) then
+      else if ( jlatband == 3 ) then
         ! Northern extratropics
         latMask(1:lat2,jLatBand) = 0.0d0
         do jlat = lat2, lat3
@@ -296,8 +299,8 @@ contains
     do jLatBand = 1, numLatBand
       do jm = mymBeg, mymEnd, mymSkip
         do jn = mynBeg, mynEnd, mynSkip
-          if( jm <= jn ) then
-            if( jm == 0 ) then
+          if ( jm <= jn ) then
+            if ( jm == 0 ) then
               ! only real component for jm=0
               cvDim_mpilocal = cvDim_mpilocal + 1*nkgdim
             else
@@ -325,7 +328,7 @@ contains
     allocate(rstddev(nkgdim,0:ntrunc,numLatBand))
     rstddev(:,:,:) = 0.0d0
 
-    if( mpi_myid == 0 ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    if ( mpi_myid == 0 ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     zps = 101000.D0
     status = vgd_levels( vco_anl%vgrid, ip1_list=vco_anl%ip1_M, levels=pressureProfile_M, &
@@ -336,16 +339,16 @@ contains
     llfound = .false.
     nlev_bdl = 0
     do jlev = 1, nlev_M
-      if( .not. llfound .and. (pressureProfile_M(jlev) >= rlimlv_bdl) ) then
+      if ( .not. llfound .and. (pressureProfile_M(jlev) >= rlimlv_bdl) ) then
         nlev_bdl = jlev
         llfound = .true.
       end if
     end do
 
     inquire(file=bFileName,exist=lExists)
-    if( lexists ) then
+    if ( lexists ) then
       ierr = fnom(nulbgst,bFileName,'RND+OLD+R/O',0)
-      if( ierr == 0 ) then
+      if ( ierr == 0 ) then
         ierr =  fstouv(nulbgst,'RND+OLD')
       else
         call utl_abort('blb_setup:NO BACKGROUND STAT FILE!!')
@@ -360,9 +363,9 @@ contains
 
     call blb_setupCorns
 
-    if( stddevmode == 'GD2D' ) then
+    if ( stddevmode == 'GD2D' ) then
       call blb_readStd
-    else if( stddevmode == 'GD3D' ) then
+    else if ( stddevmode == 'GD3D' ) then
       call blb_readStd3d
     else
       call utl_abort('blb_setup: unknown stddevMode')
@@ -373,7 +376,7 @@ contains
     ierr = fstfrm(nulbgst)
     ierr = fclos(nulbgst)
 
-    if( mpi_myid == 0 ) write(*,*) 'blb_setup: finished'
+    if ( mpi_myid == 0 ) write(*,*) 'blb_setup: finished'
 
     initialized = .true.
 
@@ -400,7 +403,7 @@ contains
     integer :: jlev, jlon, jlat, shift_level, Vcode_anl, status
 
     status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
-    if( Vcode_anl == 5002 ) then
+    if ( Vcode_anl == 5002 ) then
       shift_level = 1
     else
       shift_level = 0
@@ -422,7 +425,7 @@ contains
       rgsigps(jlat)  = scaleFactor(max(nLev_M,nLev_T))*rgsigps(jlat)
     end do
     ! User has the option to not scale down the STDDEV of TG (because underestimated in Benkf)
-    if( scaleTG ) then
+    if ( scaleTG ) then
       do jlat = 1, nj
         do jlon = 1, ni
           tgstdbg(jlon,jlat) = scaleFactor(max(nLev_M,nLev_T))*tgstdbg(jlon,jlat)
@@ -463,7 +466,7 @@ contains
 
     ! streamfunction 
     ztlen = rvlocpsichittps    ! specify length scale (in units of ln(Pressure))
-    if( ztlen > 0.0d0 ) then
+    if ( ztlen > 0.0d0 ) then
       ! calculate 5'th order function (from Gaspari and Cohn)
       do jk1 = 1, nlev_M
         zpres1 = log(pressureProfile_M(jk1))
@@ -480,7 +483,7 @@ contains
 
     ! velocity potential
     ztlen = rvlocpsichittps    ! specify length scale (in units of ln(Pressure))
-    if( ztlen > 0.0d0 ) then
+    if ( ztlen > 0.0d0 ) then
       ! calculate 5'th order function (from Gaspari and Cohn)
       do jk1 = 1, nlev_M
         zpres1 = log(pressureProfile_M(jk1))
@@ -497,7 +500,7 @@ contains
 
     ! psi-chi cross-correlations
     ztlen = rvlocpsichittps    ! specify length scale (in units of ln(Pressure))
-    if( ztlen > 0.0d0 ) then
+    if ( ztlen > 0.0d0 ) then
       ! calculate 5'th order function (from Gaspari and Cohn)
       do jk1 = 1, nlev_M
         zpres1 = log(pressureProfile_M(jk1))
@@ -515,7 +518,7 @@ contains
 
     ! temperature
     ztlen = rvlocpsichittps
-    if( ztlen > 0.0d0 ) then
+    if ( ztlen > 0.0d0 ) then
       do jk1 = 1, nlev_T
         zpres1 = log(pressureProfile_T(jk1))
         do jk2 = 1, nlev_T
@@ -532,7 +535,7 @@ contains
 
     ! temp-psi cross-correlations
     ztlen = rvlocpsichittps    ! specify length scale (in units of ln(Pressure))
-    if( ztlen > 0.0d0 ) then
+    if ( ztlen > 0.0d0 ) then
       ! calculate 5'th order function (from Gaspari and Cohn)
       do jk1 = 1, nlev_M
         zpres1 = log(pressureProfile_M(jk1))
@@ -550,7 +553,7 @@ contains
 
     ! temp-chi cross-correlations
     ztlen = rvlocpsichittps    ! specify length scale (in units of ln(Pressure))
-    if( ztlen > 0.0d0 ) then
+    if ( ztlen > 0.0d0 ) then
       ! calculate 5'th order function (from Gaspari and Cohn)
       do jk1 = 1, nlev_M
         zpres1 = log(pressureProfile_M(jk1))
@@ -568,7 +571,7 @@ contains
 
     ! cross-correlation psi-ps
     ztlen = rvlocpsichittps    ! specify length scale (in units of ln(Pressure))
-    if( ztlen > 0.0d0 ) then
+    if ( ztlen > 0.0d0 ) then
       ! calculate 5'th order function (from Gaspari and Cohn)
       zpres1 = log(pressureProfile_T(nlev_T))
       do jk2 = 1, nlev_M
@@ -586,7 +589,7 @@ contains
 
     ! cross-correlation chi-ps
     ztlen = rvlocpsichittps    ! specify length scale (in units of ln(Pressure))
-    if( ztlen > 0.0d0 ) then
+    if ( ztlen > 0.0d0 ) then
       ! calculate 5'th order function (from Gaspari and Cohn)
       zpres1 = log(pressureProfile_T(nlev_T))
       do jk2 = 1, nlev_M
@@ -604,7 +607,7 @@ contains
 
     ! cross-correlation temp-ps
     ztlen = rvlocpsichittps    ! specify length scale (in units of ln(Pressure))
-    if( ztlen > 0.0d0 ) then
+    if ( ztlen > 0.0d0 ) then
       ! calculate 5'th order function (from Gaspari and Cohn)
       zpres1 = log(pressureProfile_T(nlev_T))
       do jk2 = 1, nlev_T
@@ -622,7 +625,7 @@ contains
 
     ! humidity
     ztlen = rvloclq    ! specify length scale (in units of ln(Pressure))
-    if( ztlen > 0.0d0 ) then
+    if ( ztlen > 0.0d0 ) then
       ! calculate 5'th order function (from Gaspari and Cohn)
       do jk1 = 1, nlev_T
         zpres1 = log(pressureProfile_T(jk1))
@@ -639,10 +642,10 @@ contains
     end if
 
     ! compute total vertical correlations (including for balanced temperature)
-    if( .true. ) then
+    if ( .true. ) then
 
       iulcorvert = 0
-      if( mpi_myid == 0 ) then
+      if ( mpi_myid == 0 ) then
         ierr = fnom(iulcorvert,'corvert_localized.fst','RND',0)
         ierr = fstouv(iulcorvert,'RND')
       end if
@@ -661,7 +664,7 @@ contains
         nsize = nkgdim*nkgdim
         call rpn_comm_allreduce(corvert_temp,corvert,nsize,"mpi_double_precision","mpi_sum","EW",ierr)
 
-        if( mpi_myid == 0 ) then
+        if ( mpi_myid == 0 ) then
           ikey = fstinf(NULBGST,ni_file,nj_file,nk_file,-1,'CORRNS',-1,0,-1,' ','ZZ')
           ierr = fstprm(ikey,idateo,ideet,inpas,ni_file,nj_file,nk_file, inbits        &
                ,idatyp,ip1,ip2,ip3,cltypvar,varName,cletiket,clgrtyp      &
@@ -687,7 +690,7 @@ contains
 
       end do ! jLatBand
 
-      if( mpi_myid == 0 ) then
+      if ( mpi_myid == 0 ) then
         ierr = fstfrm(iulcorvert)
         ierr = fclos(iulcorvert)
       end if
@@ -708,13 +711,13 @@ contains
         ! CALCULATE EIGENVALUES AND EIGENVECTORS.
         ilwork = 4*nkgdim*2
         call dsyev('V','U',nkgdim,eigenvec,nkgdim,eigenval,zwork,ilwork,ierr)
-        if( ierr /= 0 ) then
+        if ( ierr /= 0 ) then
           write(*,*) 'blb_setupcorns: non-zero value of ierr for dsyev =',ierr,' returned by dsyev for wavenumber index ',mynIndex
           call utl_abort('blb_SUCORNS')
         end if
 
         do jk1 = 1, nkgdim
-          if( eigenval(jk1) < 1.0d-15 ) then
+          if ( eigenval(jk1) < 1.0d-15 ) then
             eigenvalsqrt(jk1) = 0.0d0
           else
             eigenvalsqrt(jk1) = sqrt(eigenval(jk1))
@@ -752,17 +755,17 @@ contains
     real(8)  :: ztlen,zr,zlc
 
     zlc = ztlen/2.0d0
-    if( zr <= zlc ) then
+    if ( zr <= zlc ) then
       gasparicohn = -0.250d0*(zr/zlc)**5+0.5d0*(zr/zlc)**4             &
                   +0.625d0*(zr/zlc)**3-(5.0d0/3.0d0)*(zr/zlc)**2+1.0d0
-    else if( zr <= (2.0d0*zlc) ) then
+    else if ( zr <= (2.0d0*zlc) ) then
       gasparicohn = (1.0d0/12.0d0)*(zr/zlc)**5-0.5d0*(zr/zlc)**4         &
                   +0.625d0*(zr/zlc)**3+(5.0d0/3.0d0)*(zr/zlc)**2       &
                   -5.0d0*(zr/zlc)+4.0d0-(2.0d0/3.0d0)*(zlc/zr)
     else
       gasparicohn = 0.0d0
     end if
-    if( gasparicohn < 0.0d0 ) gasparicohn = 0.0d0
+    if ( gasparicohn < 0.0d0 ) gasparicohn = 0.0d0
 
   end function gaspariCohn
 
@@ -786,7 +789,7 @@ contains
     dltemp  = (3.d0*(1.d0 + dlalpha))/(1.d0 + dlalpha/(dln*dln))
     dltemp  = dsqrt(dltemp)
 
-    if( kcorrtyp == 1 ) then
+    if ( kcorrtyp == 1 ) then
       ! Gaussian correlation
       do  jlev = 1, klev
         dlc = 1.d0/dble(pcscl(jlev))
@@ -799,7 +802,7 @@ contains
           end do
         end do
       end do
-    else if( kcorrtyp == 2 ) then
+    else if ( kcorrtyp == 2 ) then
       ! Autoregressive (SOAR) correlation
       do jlev = 1, klev
         dlc = dltemp/dble(pcscl(jlev))
@@ -893,7 +896,7 @@ contains
            ip2, ip3, cltypvar, varName)
 
     !- 1.2 Rearrange the data according to the analysis grid (if necessary)
-    if( clgrtyp == 'G' .and. ni == ni_file .and. nj == nj_file .and. ig1 == 0  &
+    if ( clgrtyp == 'G' .and. ni == ni_file .and. nj == nj_file .and. ig1 == 0  &
           .and. ig2 ==0 .and. ig3 == 0 .and.ig4 == 0 ) then
       !- 1.2.1 The std. dev. on the analysis grid 
       do jlat = 1, nj
@@ -902,7 +905,7 @@ contains
         end do
       end do
 
-    else if( clgrtyp == 'G' .and. ni == ni_file .and. nj == nj_file .and.   &
+    else if ( clgrtyp == 'G' .and. ni == ni_file .and. nj == nj_file .and.   &
              ig1 == 0 .and. ig2 ==1 .and. ig3 == 0 .and.ig4 == 0 ) then
        !- 1.2.2 flipped Gaussian grid no longer supported
        call utl_abort('blb_setupTg: The flipped Gaussian grid is no longer supported!')
@@ -910,7 +913,7 @@ contains
     else
        !- 1.2.3 The std. dev. are NOT on the analysis grid. Interpolation is needed
        iset = ezdefset(AnalGridID,itggid)
-       if( TweakTG ) then
+       if ( TweakTG ) then
           ierr = ezsetopt('INTERP_DEGREE', 'NEAREST') ! Nearest-neighbor interpolation
        else
           ierr = ezsetopt('INTERP_DEGREE', 'CUBIC') ! Cubic interpolation (legacy mode)
@@ -922,20 +925,20 @@ contains
     !- 1.3 Tweaking the Std Dev.
 
     !- 1.3.1 If specified at the top of the module, do not accept TG errors of more than value specified above
-    if( llimtg ) then
-       if( mpi_myid == 0 ) write(*,*)
-       if( mpi_myid == 0 ) write(*,*) 'Capping TG Std. Dev. using a max value (K) = ', rlimsuptg
+    if ( llimtg ) then
+       if ( mpi_myid == 0 ) write(*,*)
+       if ( mpi_myid == 0 ) write(*,*) 'Capping TG Std. Dev. using a max value (K) = ', rlimsuptg
        where ( tgstdbg > rlimsuptg) tgstdbg = rlimsuptg
     end if
 
     !- 1.3.2 Take into account the Land-Sea mask and the Sea-Ice mask of the day
-    if( TweakTG ) then
+    if ( TweakTG ) then
 
-      if( mpi_myid == 0 ) write(*,*)
-      if( mpi_myid == 0 ) write(*,*) 'Adjusting TG Std Dev based on LandSea and SeaIce masks'
+      if ( mpi_myid == 0 ) write(*,*)
+      if ( mpi_myid == 0 ) write(*,*) 'Adjusting TG Std Dev based on LandSea and SeaIce masks'
 
       !- Read MG and GL in the middle of the assimilation time window
-      if( tim_nStepObs == 1 ) then
+      if ( tim_nStepObs == 1 ) then
          TrlmNumberWanted = 1
       else
          TrlmNumberWanted = nint( (tim_nStepObs + 1.d0) / 2.d0)
@@ -945,15 +948,15 @@ contains
       trialfile='./trlm_'//trim(flnum)
       inquire(file=trim(trialfile),exist=trialExists)
 
-      if( .not. trialExists ) then
-        if( mpi_myid == 0 ) write(*,*)
-        if( mpi_myid == 0 ) write(*,*) 'Trial file not found = ', trialfile
-        if( mpi_myid == 0 ) write(*,*) 'Look for an ensemble of trial files '
+      if ( .not. trialExists ) then
+        if ( mpi_myid == 0 ) write(*,*)
+        if ( mpi_myid == 0 ) write(*,*) 'Trial file not found = ', trialfile
+        if ( mpi_myid == 0 ) write(*,*) 'Look for an ensemble of trial files '
 
         trialfile='./trlm_'//trim(flnum)//'_0001'
         inquire(file=trim(trialfile),exist=trialExists)
-        if( .not. trialExists ) then
-           if( mpi_myid == 0 ) write(*,*) 'Ensemble trial file not found = ', trialfile
+        if ( .not. trialExists ) then
+           if ( mpi_myid == 0 ) write(*,*) 'Ensemble trial file not found = ', trialfile
            call utl_abort('blb_setupTg : DID NOT FIND A TRIAL FIELD FILE')
         end if
       end if
@@ -975,7 +978,7 @@ contains
                     ni_trial, nj_trial, nk_file,                            & ! OUT
                     idateo, cletiket, ip1, ip2, ip3, cltypvar, varName ) ! IN
 
-      if( key < 0 ) then
+      if ( key < 0 ) then
          write(*,*)
          write(*,*) 'blb_setupTg: Unable to find trial field = ',varName
          call utl_abort('blb_setupTg')
@@ -999,13 +1002,13 @@ contains
       varName = 'MG'
       ierr = fstlir(TrialLandSeaMask, nultrl, ni_file, nj_file, nk_file,  &
                     idateo ,cletiket, ip1, ip2, ip3, cltypvar, varName)
-      if( ierr < 0 ) then
+      if ( ierr < 0 ) then
          write(*,*)
          write(*,*) 'blb_setupTg: Unable to read trial field = ',varName
          call utl_abort('BMatrixLatBands : fstlir failed')
       end if
 
-      if( ni_file /= ni_trial .or. nj_file /= nj_trial ) then
+      if ( ni_file /= ni_trial .or. nj_file /= nj_trial ) then
           write(*,*)
           write(*,*) 'blb_setupTg: Invalid dimensions for ...'
           write(*,*) 'nomvar      =', trim(varName)
@@ -1019,13 +1022,13 @@ contains
       varName = 'GL'
       ierr = fstlir(TrialSeaIceMask, nultrl, ni_file, nj_file, nk_file,  &
                     idateo ,cletiket, ip1, ip2, ip3, cltypvar, varName)
-      if( ierr < 0 ) then
+      if ( ierr < 0 ) then
          write(*,*)
          write(*,*) 'blb_setupTg: Unable to read trial field = ',varName
          call utl_abort('blb_setupTg: fstlir failed')
       end if
 
-      if(ni_file /= ni_trial .or. nj_file /= nj_trial) then
+      if (ni_file /= ni_trial .or. nj_file /= nj_trial) then
           write(*,*)
           write(*,*) 'blb_setupTg: Invalid dimensions for ...'
           write(*,*) 'nomvar      =', trim(varName)
@@ -1058,18 +1061,18 @@ contains
       do jlat = 1, nj
          do jlon = 1,ni
 
-           if( AnalLandSeaMask(jlon,jlat) > 0.1 ) then
+           if ( AnalLandSeaMask(jlon,jlat) > 0.1 ) then
              ! We take this as a land point.
              ! Force std. dev. to capping value
              tgstdbg(jlon,jlat) = rlimsuptg
-           else if( AnalSeaIceMask(jlon,jlat) > 0.2 ) then
+           else if ( AnalSeaIceMask(jlon,jlat) > 0.2 ) then
              ! We have significant sea ice on this sea point.
              ! Force std. dev. to capping value
              tgstdbg(jlon,jlat) = rlimsuptg
            else
              ! We have an open water point. Make sure that the std. dev. is realistic
              ! 1.55 is slightly above the max value over the ocean in the legacy TG Std. Dev. field (in 2014)
-             if( tgstdbg(jlon,jlat) > 1.55d0 ) then
+             if ( tgstdbg(jlon,jlat) > 1.55d0 ) then
                 tgstdbg(jlon,jlat) = 0.9d0
              end if
            end if
@@ -1078,7 +1081,7 @@ contains
       end do
 
       !- Write the modified Std. Dev.
-      if( mpi_myid == 0 ) then
+      if ( mpi_myid == 0 ) then
         allocate(tgstdbg_tmp(ni,nj))
         do jlat = 1, nj
           do jlon = 1,ni
@@ -1173,7 +1176,7 @@ contains
     ! and make the result mpiglobal
     do jm = mymBeg, mymEnd, mymSkip
       do jn = mynBeg, mynEnd, mynSkip
-        if( jm <= jn ) then
+        if ( jm <= jn ) then
           ila_mpiglobal = gst_getNIND(jm,gstID) + jn - jm
           ila_mpilocal  = ilaList_mpilocal(ila_mpiglobal)
           my_zsp_mpiglobal(ila_mpiglobal,:,1) = zsp_mpilocal(ila_mpilocal,:,1)
@@ -1189,7 +1192,7 @@ contains
       zabs = abs(zsp_mpiglobal(jla,1,1))
       llpb = llpb.or.((zsp_mpiglobal(jla,1,1) < 0.).and.(zabs > epsilon(zabs)))
     end do
-    if( llpb ) then
+    if ( llpb ) then
       call utl_abort(' AUTOCORRELATION  NEGATIVES')
     end if
     do jla = 1, ntrunc+1
@@ -1201,7 +1204,7 @@ contains
       jn = jla-1
       zpole = zpole + zsp_mpiglobal(jla,1,1)*sqrt((2.d0*jn+1.d0)/2.d0)
     end do
-    if( zpole <= 0.d0 ) then
+    if ( zpole <= 0.d0 ) then
       call utl_abort('POLE VALUE NEGATIVE IN SETUPTG')
     end if
     do jla = 1, ntrunc+1
@@ -1280,19 +1283,19 @@ contains
 
       ! Truncate in horizontal extent with Gaussian window
       do jk = 1, nkgdim
-        if( jk >= nspositVO .and. jk < nspositVO+nlev_M ) then
+        if ( jk >= nspositVO .and. jk < nspositVO+nlev_M ) then
           dtlen = rporvo
-        else if( jk >= nspositDI .and. jk < nspositDI+nlev_M ) then
+        else if ( jk >= nspositDI .and. jk < nspositDI+nlev_M ) then
           dtlen = rpordi
-        else if( jk >= nspositTT .and. jk < nspositTT+nlev_T ) then
+        else if ( jk >= nspositTT .and. jk < nspositTT+nlev_T ) then
           dtlen = rportt
-        else if( jk >= nspositQ .and. jk < nspositQ+nlev_T ) then
+        else if ( jk >= nspositQ .and. jk < nspositQ+nlev_T ) then
           dtlen = rporq
-        else if( jk == nspositPS ) then
+        else if ( jk == nspositPS ) then
           dtlen = rporps
         end if
 
-        if( dtlen > 0.0d0 ) then
+        if ( dtlen > 0.0d0 ) then
           dlc = 1.d0/dble(dtlen)
           dlc = 0.5d0*dlc*dlc
           do jlat = 1, nj
@@ -1327,9 +1330,9 @@ contains
         do jn = 0, ntrunc
           dsummed = dsummed+ dble(rstddev(jk,jn,jLatBand)**2)*sqrt(((2.d0*jn)+1.d0)/2.d0)
         end do
-        if( dsummed > 0.0d0 ) dsummed = sqrt(dsummed)
+        if ( dsummed > 0.0d0 ) dsummed = sqrt(dsummed)
         do jn = 0, ntrunc
-          if( dsummed > 1.d-30 ) rstddev(jk,jn,jLatBand) = rstddev(jk,jn,jLatBand)/dsummed
+          if ( dsummed > 1.d-30 ) rstddev(jk,jn,jLatBand) = rstddev(jk,jn,jLatBand)/dsummed
         end do
       end do
 
@@ -1369,11 +1372,11 @@ contains
 
     do jLatBand = 1, numLatBand
 
-      if( jLatBand == 2 .and. zeroTropicsCrossCorr ) then
+      if ( jLatBand == 2 .and. zeroTropicsCrossCorr ) then
         ! Set all cross-variable correlations to zero for tropics
         do jblock1 = 1, inbrblock
           do jblock2 = 1, jblock1
-            if( jblock1 /= jblock2 ) then
+            if ( jblock1 /= jblock2 ) then
               do jk2 = 1, nlev_all(jblock2)
                 do jk1 = 1, nlev_all(jblock1)
                   corns(jk1 + levOffset(jblock1),jk2 + levOffset(jblock2),:,jLatBand) = 0.0d0
@@ -1387,7 +1390,7 @@ contains
         ! Only set cross-variable correlations with humidity and TG to zero in extra-tropics
         do jblock1 = 1, inbrblock
           do jblock2 = 1, jblock1-1
-            if( jblock1==4 .or. jblock1==6 .or. jblock2==4 .or. jblock2==6 ) then
+            if ( jblock1==4 .or. jblock1==6 .or. jblock2==4 .or. jblock2==6 ) then
               do jk2 = 1, nlev_all(jblock2)
                 do jk1 = 1, nlev_all(jblock1)
                   corns(jk1 + levOffset(jblock1),jk2 + levOffset(jblock2),:,jLatBand) = 0.0d0
@@ -1443,11 +1446,11 @@ contains
 
         istdkey = utl_fstlir(ZSTDSRC,nulbgst,NI_FILE,NJ_FILE,NK_FILE,idateo,cletiket,ip1,ip2,ip3,cltypvar,varName)
 
-        if( istdkey < 0 ) then
+        if ( istdkey < 0 ) then
           call utl_abort('READCORNS: Problem with background stat file (RSTDDEV)')
         end if
 
-        if( ni_file /= iksdim ) then
+        if ( ni_file /= iksdim ) then
           call utl_abort('READCORNS: BG stat levels inconsitencies')
         end if
 
@@ -1470,11 +1473,11 @@ contains
         varName = 'ZZ'
         icornskey = utl_fstlir(ZCORNSSRC,nulbgst,NI_FILE,NJ_FILE,NK_FILE,idateo,cletiket,ip1,ip2,ip3,cltypvar,varName)
 
-        if( icornskey < 0 ) then
+        if ( icornskey < 0 ) then
           call utl_abort('READCORNS: Problem with background stat file (CORRNS)')
         end if
 
-        if( ni_file /= iksdim .or. nj_file /= iksdim ) then
+        if ( ni_file /= iksdim .or. nj_file /= iksdim ) then
           call utl_abort('READCORNS: BG stat levels inconsitencies')
         end if
 
@@ -1554,7 +1557,7 @@ contains
 
     do jvar = 1, inbrvar3d
       varName = varName3d(jvar)
-      if( vnl_varLevelFromVarName(varName) == 'MM' ) then
+      if ( vnl_varLevelFromVarName(varName) == 'MM' ) then
         nlev_MT = nlev_M
       else
         nlev_MT = nlev_T
@@ -1562,19 +1565,19 @@ contains
 
       ikey = fstinf(nulbgst,ni_file,nj_file,nk_file,idate,cletiket,ip1,ip2,ip3,cltypvar,varName)
 
-      if( nk_file /= nlev_MT ) then
+      if ( nk_file /= nlev_MT ) then
         write(*,*) 'nk_file, nlev_MT=', nk_file, nlev_MT
         call utl_abort('blb_readStd: BG stat levels inconsitencies')
       end if
 
-      if( ikey >= 0 ) then
+      if ( ikey >= 0 ) then
         ikey = utl_fstlir(zgr(:,1:nlev_MT),nulbgst,ni_file,nj_file,nk_file,idate,cletiket,ip1,ip2,ip3,cltypvar,varName)
       else
         write(*,*) 'blb_readStd: could not read varName=',varName
         call utl_abort('blb_readStd') 
       end if
 
-      if( nj_file == nj ) then
+      if ( nj_file == nj ) then
         zgr_interp(:,1:nlev_MT) = zgr(:,1:nlev_MT)
       else
         do jlat = 1, nj
@@ -1583,13 +1586,13 @@ contains
         end do
       end if
 
-      if( varName == 'PP' ) then
+      if ( varName == 'PP' ) then
         rgsiguu(:,:) = zgr_interp(:,1:nlev_MT)
-      else if( varName == 'UC' .or. varName == 'CC' ) then
+      else if ( varName == 'UC' .or. varName == 'CC' ) then
         rgsigvv(:,:) = zgr_interp(:,1:nlev_MT)
-      else if( varName == 'TT' ) then
+      else if ( varName == 'TT' ) then
         rgsigtt(:,:) = zgr_interp(:,1:nlev_MT)
-      else if( varName == 'LQ' ) then
+      else if ( varName == 'LQ' ) then
         rgsigq(:,:) = max(0.10d0,zgr_interp(:,1:nlev_MT)*rfacthum)
       end if
 
@@ -1601,14 +1604,14 @@ contains
 
       ikey = fstinf(nulbgst,ni_file,nj_file,nk_file,idate,cletiket,ip1,ip2,ip3,cltypvar,varName)
 
-      if( ikey >= 0 ) then
+      if ( ikey >= 0 ) then
         ikey = utl_fstlir(zgr,nulbgst,ni_file,nj_file,nk_file,idate,cletiket,ip1,ip2,ip3,cltypvar,varName)
       else
         write(*,*) 'blb_readStd: could not read varName=',varName
         call utl_abort('blb_readStd') 
       end if
 
-      if( nj_file == nj ) then
+      if ( nj_file == nj ) then
         zgr_interp(:,1) = zgr(:,1)
       else
         do jlat = 1, nj
@@ -1617,13 +1620,13 @@ contains
         end do
       end if
 
-      if( varName == 'P0' ) then
+      if ( varName == 'P0' ) then
         rgsigps(:) = zgr_interp(:,1)*100.0d0
       end if
 
     end do
 
-    if( filterStddev > 0 ) then
+    if ( filterStddev > 0 ) then
 
       allocate(rgsig_filter(nj,nkgdim))
       rgsig_filter(:,:) = 0.0d0
@@ -1640,7 +1643,7 @@ contains
 
     end if
 
-    if( blendMeanStddev > 0.0d0 ) then
+    if ( blendMeanStddev > 0.0d0 ) then
 
       do jlev = 1, nkgdim
         globalmean = 0.0d0
@@ -1681,7 +1684,7 @@ contains
 
     data varNames/'PP  ','CC  ','TT  ','LQ  ','P0  '/   
 
-    if( mpi_myid == 0 ) write(*,*) 'blb_readStd3d: starting'
+    if ( mpi_myid == 0 ) write(*,*) 'blb_readStd3d: starting'
     rgsig(:,:) = 0.0d0
 
 !   2. Reading the data
@@ -1696,51 +1699,51 @@ contains
     do varIndex = 1, inbrvar
       varName = varNames(varIndex)
       varLevel = vnl_varLevelFromVarname(varName)
-      if( mpi_myid == 0 ) write(*,*) 'blb_readStd3d: reading stddev for variable ', trim(varName)
+      if ( mpi_myid == 0 ) write(*,*) 'blb_readStd3d: reading stddev for variable ', trim(varName)
 
-      if( varLevel == 'MM' ) then
+      if ( varLevel == 'MM' ) then
         nlev_MT = nlev_M
-      else if( varLevel == 'TH' ) then
+      else if ( varLevel == 'TH' ) then
         nlev_MT = nlev_T
-      else if( varLevel == 'SF' ) then
+      else if ( varLevel == 'SF' ) then
         nlev_MT = 1
       else
         call utl_abort('blb_readStd3d: unknown varLevel')
       end if
 
       do levIndex = 1, nlev_MT
-        if( varLevel == 'MM' ) then
+        if ( varLevel == 'MM' ) then
           ip1 = vco_anl%ip1_M(levIndex)
-        else if( varLevel == 'TH' ) then
+        else if ( varLevel == 'TH' ) then
           ip1 = vco_anl%ip1_T(levIndex)
-        else if( varLevel == 'SF' ) then
+        else if ( varLevel == 'SF' ) then
           ip1 = -1
         end if
 
         ikey = fstinf(nulbgst,ni_file,nj_file,nk_file,idate,cletiket,ip1,ip2,ip3,cltypvar,varName)
 
-        if( nj_file /= nj ) then
+        if ( nj_file /= nj ) then
           write(*,*) 'blb_readStd3d: number of latitudes not consistent between '
           write(*,*) '             stats file and analysis grid: ', nj_file, nj
           call utl_abort('blb_readStd3d')
         end if
 
-        if( ikey >= 0 ) then
+        if ( ikey >= 0 ) then
           ierr = utl_fstlir(zgr,nulbgst,ni_file,nj_file,nk_file,idate,cletiket,ip1,ip2,ip3,cltypvar,varName)
         else
           write(*,*) 'blb_readStd3d: could not read varName, ip1=',varName,ip1
           call utl_abort('blb_readStd3d') 
         end if
 
-        if( varName == 'PP' ) then
+        if ( varName == 'PP' ) then
           rgsiguu(:,levIndex) = zgr(1,:)
-        else if( varName == 'UC' .or. varName == 'CC' ) then
+        else if ( varName == 'UC' .or. varName == 'CC' ) then
           rgsigvv(:,levIndex) = zgr(1,:)
-        else if( varName == 'TT' ) then
+        else if ( varName == 'TT' ) then
           rgsigtt(:,levIndex) = zgr(1,:)
-        else if( varName == 'LQ' ) then
+        else if ( varName == 'LQ' ) then
           rgsigq(:,levIndex) = max(0.10d0, zgr(1,:)*rfacthum)
-        else if( varName == 'P0' ) then
+        else if ( varName == 'P0' ) then
           rgsigps(:) = zgr(1,:)*100.0d0
         end if
 
@@ -1748,7 +1751,7 @@ contains
 
     end do ! varIndex
 
-    if( filterStddev > 0 ) then
+    if ( filterStddev > 0 ) then
 
       allocate( rgsig_filter(nj,nkgdim) )
       rgsig_filter(:,:) = 0.0d0
@@ -1765,7 +1768,7 @@ contains
 
     end if
 
-    if( blendMeanStddev > 0.0d0 ) then
+    if ( blendMeanStddev > 0.0d0 ) then
 
       do levIndex = 1, nkgdim
         globalmean = 0.0d0
@@ -1777,7 +1780,7 @@ contains
 
     end if
 
-    if( mpi_myid == 0 ) write(*,*) 'blb_readStd3d: finished'
+    if ( mpi_myid == 0 ) write(*,*) 'blb_readStd3d: finished'
 
   end subroutine blb_readStd3d
 
@@ -1790,12 +1793,12 @@ contains
     integer          :: ntruncCut
     integer          :: jn, jm, ila_mpiglobal, ila_mpilocal, jlev, jdim
 
-    if( .not. initialized ) then
-      if( mpi_myid == 0 ) write(*,*) 'blb_truncateCV: bMatrixLatBands not initialized'
+    if ( .not. initialized ) then
+      if ( mpi_myid == 0 ) write(*,*) 'blb_truncateCV: bMatrixLatBands not initialized'
       return
     end if
 
-    if( ntruncCut > ntrunc ) then
+    if ( ntruncCut > ntrunc ) then
       write(*,*) ntruncCut, ntrunc
       call utl_abort('blb_truncateCV: ntruncCut is greater than ntrunc!')
     end if
@@ -1804,19 +1807,19 @@ contains
     do jlev = 1, nkgdim
       do jm = mymBeg, mymEnd, mymSkip
         do jn = mynBeg, mynEnd, mynSkip
-          if( jm <= jn ) then
+          if ( jm <= jn ) then
             ila_mpiglobal = gst_getNIND(jm,gstID) + jn - jm
             ila_mpilocal  = ilaList_mpilocal(ila_mpiglobal)
-            if( jm == 0 ) then
+            if ( jm == 0 ) then
               ! only real component for jm=0
               jdim = jdim + 1
-              if( jn > ntruncCut ) controlVector_inout(jdim) = 0.0d0
+              if ( jn > ntruncCut ) controlVector_inout(jdim) = 0.0d0
             else
               ! both real and imaginary components for jm>0
               jdim = jdim + 1
-              if( jn > ntruncCut ) controlVector_inout(jdim) = 0.0d0
+              if ( jn > ntruncCut ) controlVector_inout(jdim) = 0.0d0
               jdim = jdim + 1
-              if( jn > ntruncCut ) controlVector_inout(jdim) = 0.0d0
+              if ( jn > ntruncCut ) controlVector_inout(jdim) = 0.0d0
             end if
           end if
         end do
@@ -1834,11 +1837,11 @@ contains
     real(8),allocatable :: gd_out(:,:,:)
     real(8)   :: hiControlVector(nla_mpilocal,2,nkgdim,numLatBand)
 
-    if( mpi_myid == 0 ) write(*,*) 'blb_bsqrt: starting'
-    if( mpi_myid == 0 ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    if ( mpi_myid == 0 ) write(*,*) 'blb_bsqrt: starting'
+    if ( mpi_myid == 0 ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-    if( .not. initialized ) then
-      if( mpi_myid == 0 ) write(*,*) 'bMatrixLatBands not initialized'
+    if ( .not. initialized ) then
+      if ( mpi_myid == 0 ) write(*,*) 'bMatrixLatBands not initialized'
       return
     end if
 
@@ -1851,8 +1854,8 @@ contains
 
     deallocate(gd_out)
 
-    if( mpi_myid == 0 ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    if( mpi_myid == 0 ) write(*,*) 'blb_bsqrt: done'
+    if ( mpi_myid == 0 ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    if ( mpi_myid == 0 ) write(*,*) 'blb_bsqrt: done'
 
   end subroutine blb_bSqrt
 
@@ -1865,13 +1868,13 @@ contains
     real(8), allocatable :: gd_in(:,:,:)
     real(8)   :: hiControlVector(nla_mpilocal,2,nkgdim,numLatBand)
 
-    if( .not. initialized ) then
-      if( mpi_myid == 0 ) write(*,*) 'bMatrixLatBands not initialized'
+    if ( .not. initialized ) then
+      if ( mpi_myid == 0 ) write(*,*) 'bMatrixLatBands not initialized'
       return
     end if
 
-    if( mpi_myid == 0 ) write(*,*) 'blb_bsqrtad: starting'
-    if( mpi_myid == 0 ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    if ( mpi_myid == 0 ) write(*,*) 'blb_bsqrtad: starting'
+    if ( mpi_myid == 0 ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     allocate(gd_in(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim))
 
@@ -1883,8 +1886,8 @@ contains
 
     deallocate(gd_in)
 
-    if( mpi_myid == 0 ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    if( mpi_myid == 0 ) write(*,*) 'blb_bsqrtad: done'
+    if ( mpi_myid == 0 ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    if ( mpi_myid == 0 ) write(*,*) 'blb_bsqrtad: done'
 
   end subroutine blb_bSqrtAd
 
@@ -1897,19 +1900,19 @@ contains
     real(8), pointer :: field(:,:,:)
 
     do jvar = 1, vnl_numvarmax 
-      if( gsv_varExist(statevector,vnl_varNameList(jvar)) ) then
+      if ( gsv_varExist(statevector,vnl_varNameList(jvar)) ) then
         field => gsv_getField3D_r8(statevector,vnl_varNameList(jvar))
-        if( vnl_varNameList(jvar) == 'UU  ' ) then
+        if ( vnl_varNameList(jvar) == 'UU  ' ) then
           ilev1 = nspositVO
-        else if( vnl_varNameList(jvar) == 'VV  ' ) then
+        else if ( vnl_varNameList(jvar) == 'VV  ' ) then
           ilev1 = nspositDI
-        else if( vnl_varNameList(jvar) == 'TT  ' ) then
+        else if ( vnl_varNameList(jvar) == 'TT  ' ) then
           ilev1 = nspositTT
-        else if( vnl_varNameList(jvar) == 'HU  ' ) then
+        else if ( vnl_varNameList(jvar) == 'HU  ' ) then
           ilev1 = nspositQ
-        else if( vnl_varNameList(jvar) == 'P0  ' ) then
+        else if ( vnl_varNameList(jvar) == 'P0  ' ) then
           ilev1 = nspositPS
-        else if( vnl_varNameList(jvar) == 'TG  ' ) then
+        else if ( vnl_varNameList(jvar) == 'TG  ' ) then
           ilev1 = nspositTG
         else
           ! Cycle (instead of abort) to allow for non-NWP assimilation (e.g. chemical data assimilation)
@@ -1939,19 +1942,19 @@ contains
     real(8), pointer :: field(:,:,:)
 
     do jvar = 1, vnl_numvarmax 
-      if( gsv_varExist(statevector,vnl_varNameList(jvar)) ) then
+      if ( gsv_varExist(statevector,vnl_varNameList(jvar)) ) then
         field => gsv_getField3D_r8(statevector,vnl_varNameList(jvar))
-        if( vnl_varNameList(jvar) == 'UU  ' ) then
+        if ( vnl_varNameList(jvar) == 'UU  ' ) then
           ilev1 = nspositVO
-        else if( vnl_varNameList(jvar) == 'VV  ' ) then
+        else if ( vnl_varNameList(jvar) == 'VV  ' ) then
           ilev1 = nspositDI
-        else if( vnl_varNameList(jvar) == 'TT  ' ) then
+        else if ( vnl_varNameList(jvar) == 'TT  ' ) then
           ilev1 = nspositTT
-        else if( vnl_varNameList(jvar) == 'HU  ' ) then
+        else if ( vnl_varNameList(jvar) == 'HU  ' ) then
           ilev1 = nspositQ
-        else if( vnl_varNameList(jvar) == 'P0  ' ) then
+        else if ( vnl_varNameList(jvar) == 'P0  ' ) then
           ilev1 = nspositPS
-        else if( vnl_varNameList(jvar) == 'TG  ' ) then
+        else if ( vnl_varNameList(jvar) == 'TG  ' ) then
           ilev1 = nspositTG
         else
           ! Cycle (instead of abort) to allow for non-NWP assimilation (e.g. chemical data assimilation)
@@ -1990,7 +1993,7 @@ contains
     call rpn_comm_allreduce(cvDim_mpilocal, cvDim_maxmpilocal, &
                             1,"MPI_INTEGER","MPI_MAX","GRID",ierr)
 
-    if( mpi_myid == 0 ) then
+    if ( mpi_myid == 0 ) then
       allocate(cvDim_allMpiLocal(mpi_nprocs))
     else
       allocate(cvDim_allMpiLocal(1))
@@ -1999,7 +2002,7 @@ contains
     call rpn_comm_gather(cvDim_mpiLocal   ,1,"mpi_integer",       &
                          cvDim_allMpiLocal,1,"mpi_integer",0,"GRID",ierr)
 
-    if( mpi_myid == 0 ) then
+    if ( mpi_myid == 0 ) then
       allocate(allnBeg(mpi_nprocs))
       allocate(allnEnd(mpi_nprocs))
       allocate(allnSkip(mpi_nprocs))
@@ -2030,7 +2033,7 @@ contains
                          allmSkip,1,"mpi_integer",0,"GRID",ierr)
 
     ! Prepare data to be distributed
-    if( mpi_myid == 0 ) then
+    if ( mpi_myid == 0 ) then
 
       allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mpi_nprocs))
 
@@ -2044,12 +2047,12 @@ contains
             do jm = allmBeg(jproc+1), allmEnd(jproc+1), allmSkip(jproc+1)
               do jn = allnBeg(jproc+1), allnEnd(jproc+1), allnSkip(jproc+1)
 
-                if( jm <= jn ) then
+                if ( jm <= jn ) then
                       
                   ila_mpiglobal = gst_getNIND(jm,gstID) + jn - jm
                       
                   ! figure out index into global control vector
-                  if( jm == 0 ) then
+                  if ( jm == 0 ) then
                     ! for jm=0 only real part
                     jdim_mpiglobal = ila_mpiglobal
                   else
@@ -2062,7 +2065,7 @@ contains
                   jdim_mpiglobal = jdim_mpiglobal + (jlatBand-1) * nkgdim * (ntrunc+1)*(ntrunc+1)
                       
                   ! index into local control vector computer as in cain
-                  if( jm == 0 ) then
+                  if ( jm == 0 ) then
                     ! only real component for jm=0
                     jdim_mpilocal = jdim_mpilocal + 1
                     cv_allmaxmpilocal(jdim_mpilocal,jproc+1) = cv_mpiglobal(jdim_mpiglobal)
@@ -2074,13 +2077,13 @@ contains
                     cv_allmaxmpilocal(jdim_mpilocal,jproc+1) = cv_mpiglobal(jdim_mpiglobal+1)
                   end if
                       
-                  if( jdim_mpilocal > cvDim_allMpiLocal(jproc+1) ) then
+                  if ( jdim_mpilocal > cvDim_allMpiLocal(jproc+1) ) then
                     write(*,*)
                     write(*,*) 'ERROR: jdim_mpilocal > cvDim_allMpiLocal(jproc+1)', jdim_mpilocal, cvDim_mpilocal
                     write(*,*) '       proc, jlev, jn, jm = ',jproc, jlev, jn, jm
                     call utl_abort('blb_reduceToMPILocal')
                   end if
-                  if( jdim_mpiglobal > cvDim_mpiglobal ) then
+                  if ( jdim_mpiglobal > cvDim_mpiglobal ) then
                     write(*,*)
                     write(*,*) 'ERROR: jdim_mpiglobal > cvDim_mpiglobal', jdim_mpiglobal, cvDim_mpiglobal
                     write(*,*) '       proc, jlev, jn, jm = ',jproc, jlev, jn, jm
@@ -2142,7 +2145,7 @@ contains
     call rpn_comm_allreduce(cvDim_mpilocal, cvDim_maxmpilocal, &
                             1,"MPI_INTEGER","MPI_MAX","GRID",ierr)
 
-    if( mpi_myid == 0 ) then
+    if ( mpi_myid == 0 ) then
       allocate(cvDim_allMpiLocal(mpi_nprocs))
     else
       allocate(cvDim_allMpiLocal(1))
@@ -2151,7 +2154,7 @@ contains
     call rpn_comm_gather(cvDim_mpiLocal   ,1,"mpi_integer",       &
                          cvDim_allMpiLocal,1,"mpi_integer",0,"GRID",ierr)
 
-    if( mpi_myid == 0 ) then
+    if ( mpi_myid == 0 ) then
       allocate(allnBeg(mpi_nprocs))
       allocate(allnEnd(mpi_nprocs))
       allocate(allnSkip(mpi_nprocs))
@@ -2182,7 +2185,7 @@ contains
                          allmSkip,1,"mpi_integer",0,"GRID",ierr)
 
     ! Prepare data to be distributed
-    if(mpi_myid == 0 ) then
+    if (mpi_myid == 0 ) then
 
       allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mpi_nprocs))
 
@@ -2196,12 +2199,12 @@ contains
             do jm = allmBeg(jproc+1), allmEnd(jproc+1), allmSkip(jproc+1)
               do jn = allnBeg(jproc+1), allnEnd(jproc+1), allnSkip(jproc+1)
 
-                if( jm <= jn ) then
+                if ( jm <= jn ) then
                       
                   ila_mpiglobal = gst_getNIND(jm,gstID) + jn - jm
                       
                   ! figure out index into global control vector
-                  if( jm == 0 ) then
+                  if ( jm == 0 ) then
                     ! for jm=0 only real part
                     jdim_mpiglobal = ila_mpiglobal
                   else
@@ -2214,7 +2217,7 @@ contains
                   jdim_mpiglobal = jdim_mpiglobal + (jlatBand-1) * nkgdim * (ntrunc+1)*(ntrunc+1)
                         
                   ! index into local control vector computer as in cain
-                  if( jm == 0 ) then
+                  if ( jm == 0 ) then
                     ! only real component for jm=0
                     jdim_mpilocal = jdim_mpilocal + 1
                     cv_allmaxmpilocal(jdim_mpilocal,jproc+1) = cv_mpiglobal(jdim_mpiglobal)
@@ -2226,13 +2229,13 @@ contains
                     cv_allmaxmpilocal(jdim_mpilocal,jproc+1) = cv_mpiglobal(jdim_mpiglobal+1)
                   end if
                       
-                  if( jdim_mpilocal > cvDim_allMpiLocal(jproc+1) ) then
+                  if ( jdim_mpilocal > cvDim_allMpiLocal(jproc+1) ) then
                     write(*,*)
                     write(*,*) 'ERROR: jdim_mpilocal > cvDim_allMpiLocal(jproc+1)', jdim_mpilocal, cvDim_mpilocal
                     write(*,*) '       proc, jlev, jn, jm = ',jproc, jlev, jn, jm
                     call utl_abort('blb_reduceToMPILocal')
                   end if
-                  if( jdim_mpiglobal > cvDim_mpiglobal ) then
+                  if ( jdim_mpiglobal > cvDim_mpiglobal ) then
                     write(*,*)
                     write(*,*) 'ERROR: jdim_mpiglobal > cvDim_mpiglobal', jdim_mpiglobal, cvDim_mpiglobal
                     write(*,*) '       proc, jlev, jn, jm = ',jproc, jlev, jn, jm
@@ -2294,7 +2297,7 @@ contains
     allocate(cv_maxmpilocal(cvDim_maxmpilocal))
 
     nullify(cv_allmaxmpilocal)
-    if( mpi_myid == 0 ) then
+    if ( mpi_myid == 0 ) then
        allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mpi_nprocs))
     else
        allocate(cv_allmaxmpilocal(1,1))
@@ -2313,7 +2316,7 @@ contains
     !
     !- 2.  Reorganize gathered mpilocal control vectors into the mpiglobal control vector
     !
-    if( mpi_myid == 0 ) then
+    if ( mpi_myid == 0 ) then
        allocate(allnBeg(mpi_nprocs))
        allocate(allnEnd(mpi_nprocs))
        allocate(allnSkip(mpi_nprocs))
@@ -2343,7 +2346,7 @@ contains
     call rpn_comm_gather(mymSkip ,1,"mpi_integer",       &
                          allmSkip,1,"mpi_integer",0,"GRID",ierr)
 
-    if( mpi_myid == 0 ) then
+    if ( mpi_myid == 0 ) then
       cv_mpiglobal(:) = 0.0d0
 
 !$OMP PARALLEL DO PRIVATE(jproc,jdim_mpilocal,jlatBand,jlev,jm,jn,ila_mpiglobal,jdim_mpiglobal)
@@ -2354,12 +2357,12 @@ contains
           do jlev = 1, nkgdim
             do jm = allmBeg(jproc+1), allmEnd(jproc+1), allmSkip(jproc+1)
               do jn = allnBeg(jproc+1), allnEnd(jproc+1), allnSkip(jproc+1)
-                if( jm <= jn ) then
+                if ( jm <= jn ) then
 
                   ila_mpiglobal = gst_getNIND(jm,gstID) + jn - jm
 
                   ! figure out index into global control vector
-                  if( jm == 0 ) then
+                  if ( jm == 0 ) then
                     ! for jm=0 only real part
                     jdim_mpiglobal = ila_mpiglobal
                   else
@@ -2372,7 +2375,7 @@ contains
                   jdim_mpiglobal = jdim_mpiglobal + (jlatBand-1) * nkgdim * (ntrunc+1)*(ntrunc+1)
 
                   ! index into local control vector
-                  if( jm == 0 ) then
+                  if ( jm == 0 ) then
                     ! only real component for jm=0
                     jdim_mpilocal = jdim_mpilocal + 1
                     cv_mpiglobal(jdim_mpiglobal) = cv_allmaxmpilocal(jdim_mpilocal,jproc+1)
@@ -2384,7 +2387,7 @@ contains
                     cv_mpiglobal(jdim_mpiglobal+1) = cv_allmaxmpilocal(jdim_mpilocal,jproc+1)
                   end if
 
-                  if( jdim_mpiglobal > cvDim_mpiglobal )   &
+                  if ( jdim_mpiglobal > cvDim_mpiglobal )   &
                     write(*,*) 'ERROR: jdim,cvDim,mpiglobal=',jdim_mpiglobal,cvDim_mpiglobal,jlev,jn,jm
 
                 end if
@@ -2427,7 +2430,7 @@ contains
     allocate(cv_maxmpilocal(cvDim_maxmpilocal))
 
     nullify(cv_allmaxmpilocal)
-    if( mpi_myid == 0 ) then
+    if ( mpi_myid == 0 ) then
        allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mpi_nprocs))
     else
        allocate(cv_allmaxmpilocal(1,1))
@@ -2446,7 +2449,7 @@ contains
     !
     !- 2.  Reorganize gathered mpilocal control vectors into the mpiglobal control vector
     !
-    if( mpi_myid == 0 ) then
+    if ( mpi_myid == 0 ) then
        allocate(allnBeg(mpi_nprocs))
        allocate(allnEnd(mpi_nprocs))
        allocate(allnSkip(mpi_nprocs))
@@ -2476,7 +2479,7 @@ contains
     call rpn_comm_gather(mymSkip ,1,"mpi_integer",       &
                          allmSkip,1,"mpi_integer",0,"GRID",ierr)
 
-    if( mpi_myid == 0 ) then
+    if ( mpi_myid == 0 ) then
       cv_mpiglobal(:) = 0.0d0
 
 !$OMP PARALLEL DO PRIVATE(jproc,jdim_mpilocal,jlatBand,jlev,jm,jn,ila_mpiglobal,jdim_mpiglobal)
@@ -2487,12 +2490,12 @@ contains
           do jlev = 1, nkgdim
             do jm = allmBeg(jproc+1), allmEnd(jproc+1), allmSkip(jproc+1)
               do jn = allnBeg(jproc+1), allnEnd(jproc+1), allnSkip(jproc+1)
-                if( jm <= jn ) then
+                if ( jm <= jn ) then
 
                   ila_mpiglobal = gst_getNIND(jm,gstID) + jn - jm
 
                   ! figure out index into global control vector
-                  if( jm == 0 ) then
+                  if ( jm == 0 ) then
                     ! for jm=0 only real part
                     jdim_mpiglobal = ila_mpiglobal
                   else
@@ -2505,7 +2508,7 @@ contains
                   jdim_mpiglobal = jdim_mpiglobal + (jlatBand-1) * nkgdim * (ntrunc+1)*(ntrunc+1)
 
                   ! index into local control vector
-                  if( jm == 0 ) then
+                  if ( jm == 0 ) then
                     ! only real component for jm=0
                     jdim_mpilocal = jdim_mpilocal + 1
                     cv_mpiglobal(jdim_mpiglobal) = cv_allmaxmpilocal(jdim_mpilocal,jproc+1)
@@ -2517,7 +2520,7 @@ contains
                     cv_mpiglobal(jdim_mpiglobal+1) = cv_allmaxmpilocal(jdim_mpilocal,jproc+1)
                   end if
 
-                  if( jdim_mpiglobal > cvDim_mpiglobal )   &
+                  if ( jdim_mpiglobal > cvDim_mpiglobal )   &
                     write(*,*) 'ERROR: jdim,cvDim,mpiglobal=',jdim_mpiglobal,cvDim_mpiglobal,jlev,jn,jm
 
                 end if ! jm <= jn
@@ -2555,10 +2558,10 @@ contains
       do jlev = 1, nkgdim
         do jm = mymBeg, mymEnd, mymSkip
           do jn = mynBeg, mynEnd, mynSkip
-            if( jm <= jn ) then
+            if ( jm <= jn ) then
               ila_mpiglobal = gst_getNIND(jm,gstID) + jn - jm
               ila_mpilocal  = ilaList_mpilocal(ila_mpiglobal)
-              if( jm == 0 ) then
+              if ( jm == 0 ) then
                 ! only real component for jm=0
                 jdim = jdim + 1
                 hiControlVector_out(ila_mpilocal,1,jlev,jLatBand) = controlVector_in(jdim)
@@ -2591,10 +2594,10 @@ contains
       do jlev = 1, nkgdim
         do jm = mymBeg, mymEnd, mymSkip
           do jn = mynBeg, mynEnd, mynSkip
-            if( jm <= jn ) then
+            if ( jm <= jn ) then
               ila_mpiglobal = gst_getNIND(jm,gstID) + jn - jm
               ila_mpilocal  = ilaList_mpilocal(ila_mpiglobal)
-              if( jm == 0 ) then
+              if ( jm == 0 ) then
                 ! only real component for jm=0
                 jdim = jdim + 1
                 controlVector_out(jdim) = controlVector_out(jdim) + hiControlVector_in(ila_mpilocal,1,jlev,jLatBand)
@@ -2646,7 +2649,7 @@ contains
 
         icount = 0
         do jm = mymBeg, mymEnd, mymSkip
-          if( jm <= jn ) then
+          if ( jm <= jn ) then
             icount = icount+1
             ila_mpiglobal = gst_getNIND(jm,gstID) + jn - jm
             ila_mpilocal = ilaList_mpilocal(ila_mpiglobal)
@@ -2657,13 +2660,13 @@ contains
           end if
         end do
 
-        if( icount > 0 ) then
+        if ( icount > 0 ) then
 
           CALL DGEMM('N','N',nkgdim,2*icount,nkgdim,1.0d0,corns(1,1,mynIndex_fromn(jn),jLatBand),nkgdim,zsp(1,1,1),nkgdim,0.0d0,zsp2(1,1,1),nkgdim)
 
           icount = 0
           do jm = mymBeg, mymEnd, mymSkip
-            if( jm <= jn ) then
+            if ( jm <= jn ) then
               icount = icount+1
               ila_mpiglobal = gst_getNIND(jm,gstID) + jn - jm
               ila_mpilocal = ilaList_mpilocal(ila_mpiglobal)
@@ -2677,7 +2680,7 @@ contains
         end if
 
         ! make adjustments for jm=0
-        if( mymBeg == 0 ) then
+        if ( mymBeg == 0 ) then
           ila_mpiglobal = gst_getNind(0,gstID) + jn
           ila_mpilocal = ilaList_mpilocal(ila_mpiglobal)
           do jlev = 1, nkgdim
@@ -2703,7 +2706,7 @@ contains
       call tmg_start(54,'BLB_SPA2GD2')
 !$OMP PARALLEL DO PRIVATE(jlat,jlev,jlon)
       do jlev = 1, nkgdim
-        if( jlev == nspositTG ) then
+        if ( jlev == nspositTG ) then
           do jlat = myLatBeg, myLatEnd
             do jlon = myLonBeg, myLonEnd
               gd(jlon,jlat,jlev) = gd(jlon,jlat,jlev)*tgstdbg(jlon,jlat)*latMask(jlat,jLatBand)
@@ -2823,7 +2826,7 @@ contains
           end do
         end do
 
-        if( jlev == nspositTG ) then
+        if ( jlev == nspositTG ) then
           do jlat = myLatBeg, myLatEnd
             do jlon = myLonBeg, myLonEnd
               gd(jlon,jlat,jlev) = gd(jlon,jlat,jlev)*tgstdbg(jlon,jlat)*latMask(jlat,jLatBand)
@@ -2854,7 +2857,7 @@ contains
 
         icount = 0
         do jm = mymBeg, mymEnd, mymSkip
-          if( jm <= jn ) then
+          if ( jm <= jn ) then
             icount = icount+1
             ila_mpiglobal = gst_getNind(jm,gstID) + jn - jm
             ila_mpilocal = ilaList_mpilocal(ila_mpiglobal)
@@ -2865,7 +2868,7 @@ contains
           end if
         end do
 
-        if( icount > 0 ) then
+        if ( icount > 0 ) then
 
           call dgemm('T', 'N', nkgdim, 2*icount, nkgdim, 1.0d0,  &
               corns(1,1,mynIndex_fromn(jn),jLatBand), nkgdim,  &
@@ -2885,7 +2888,7 @@ contains
         end if
 
         ! make adjustments for jm=0
-        if( mymBeg == 0 ) then
+        if ( mymBeg == 0 ) then
           ila_mpiglobal = gst_getNIND(0,gstID) + jn
           ila_mpilocal = ilaList_mpilocal(ila_mpiglobal)
           do jlev = 1, nkgdim
@@ -2909,7 +2912,7 @@ contains
   subroutine blb_Finalize()
     implicit none
 
-    if( initialized ) then
+    if ( initialized ) then
       deallocate(pressureProfile_M)
       deallocate(pressureProfile_T)
       deallocate(rgsig)
