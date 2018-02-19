@@ -50,7 +50,7 @@ module innovation_mod
   use burpFiles_mod
   use randomNumber_mod
   use obsErrors_mod
-  use bufr
+  use bufr_mod
   implicit none
   save
   private

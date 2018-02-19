@@ -958,14 +958,13 @@ CONTAINS
 !--------------------------------------------------------------------------
 ! lsp_reduceToMPILocal
 !--------------------------------------------------------------------------
-  SUBROUTINE lsp_reduceToMPILocal(id,cv_mpilocal,cv_mpiglobal,cvDim_mpilocal_out)
+  SUBROUTINE lsp_reduceToMPILocal(id,cv_mpilocal,cv_mpiglobal)
     implicit none
 
     integer, intent(in) :: id
 
     real(8), intent(out) :: cv_mpilocal(lsp(id)%cvDim_mpilocal)
     real(8), intent(in)  :: cv_mpiglobal(:)
-    integer, intent(out) :: cvDim_mpilocal_out
 
     real(8), allocatable :: cv_allmaxmpilocal(:,:)
 
@@ -983,8 +982,6 @@ CONTAINS
 
     if (verbose) write(*,*) 'Entering lsp_reduceToMPILocal'
     call idcheck(id)
-
-    cvDim_mpilocal_out = lsp(id)%cvDim_mpilocal
 
     call rpn_comm_allreduce(lsp(id)%cvDim_mpilocal, cvDim_maxmpilocal, &
          1,"MPI_INTEGER","MPI_MAX","GRID",ierr)
@@ -1194,12 +1191,11 @@ CONTAINS
 !--------------------------------------------------------------------------
 ! lsp_reduceToMPILocal_r4
 !--------------------------------------------------------------------------
-  SUBROUTINE lsp_reduceToMPILocal_r4(id,cv_mpilocal,cv_mpiglobal,cvDim_mpilocal_out)
+  SUBROUTINE lsp_reduceToMPILocal_r4(id,cv_mpilocal,cv_mpiglobal)
     implicit none
     integer, intent(in)  :: id
     real(4), intent(out) :: cv_mpilocal(lsp(id)%cvDim_mpilocal)
     real(4), intent(in)  :: cv_mpiglobal(:)
-    integer, intent(out) :: cvDim_mpilocal_out
 
     real(4), allocatable :: cv_allmaxmpilocal(:,:)
 
@@ -1217,8 +1213,6 @@ CONTAINS
 
    if (verbose) write(*,*) 'Entering lsp_reduceToMPILocal_r4'
     call idcheck(id)
-
-    cvDim_mpilocal_out = lsp(id)%cvDim_mpilocal
 
     call rpn_comm_allreduce(lsp(id)%cvDim_mpilocal, cvDim_maxmpilocal, &
          1,"MPI_INTEGER","MPI_MAX","GRID",ierr)
@@ -1428,13 +1422,12 @@ CONTAINS
 !--------------------------------------------------------------------------
 ! lsp_expandToMPIGlobal
 !--------------------------------------------------------------------------
-  SUBROUTINE lsp_expandToMPIGlobal(id,cv_mpilocal,cv_mpiglobal,cvDim_mpiglobal_out)
+  SUBROUTINE lsp_expandToMPIGlobal(id,cv_mpilocal,cv_mpiglobal)
     implicit none
 
     integer, intent(in)  :: id
     real(8), intent(in)  :: cv_mpilocal(lsp(id)%cvDim_mpilocal)
     real(8), intent(out) :: cv_mpiglobal(:)
-    integer, intent(out) :: cvDim_mpiglobal_out
 
     real(8), allocatable :: cv_maxmpilocal(:)
     real(8), pointer     :: cv_allmaxmpilocal(:,:) => null()
@@ -1452,8 +1445,6 @@ CONTAINS
 
     if (verbose) write(*,*) 'Entering lsp_expandToMPIGlobal'
     call idcheck(id)
-
-    cvDim_mpiglobal_out = lsp(id)%cvDim_mpiglobal
 
     !
     !- 1.  Gather all local control vectors onto mpi task 0
@@ -1670,13 +1661,12 @@ CONTAINS
 !--------------------------------------------------------------------------
 ! lsp_expandToMPIGlobal_r4
 !--------------------------------------------------------------------------
-  SUBROUTINE lsp_expandToMPIGlobal_r4(id,cv_mpilocal,cv_mpiglobal,cvDim_mpiglobal_out)
+  SUBROUTINE lsp_expandToMPIGlobal_r4(id,cv_mpilocal,cv_mpiglobal)
     implicit none
 
     integer, intent(in)  :: id
     real(4), intent(in)  :: cv_mpilocal(lsp(id)%cvDim_mpilocal)
     real(4), intent(out) :: cv_mpiglobal(:)
-    integer, intent(out) :: cvDim_mpiglobal_out
 
     real(4), allocatable :: cv_maxmpilocal(:)
     real(4), pointer     :: cv_allmaxmpilocal(:,:) => null()
@@ -1694,8 +1684,6 @@ CONTAINS
 
     if (verbose) write(*,*) 'Entering lsp_expandToMPIGlobal_r4'
     call idcheck(id)
-
-    cvDim_mpiglobal_out = lsp(id)%cvDim_mpiglobal
 
     !
     !- 1.  Gather all local control vectors onto mpi task 0

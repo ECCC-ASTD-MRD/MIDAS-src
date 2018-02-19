@@ -1209,11 +1209,10 @@ contains
 !--------------------------------------------------------------------------
 ! LBHI_reduceToMPILocal
 !--------------------------------------------------------------------------
-  SUBROUTINE LBHI_reduceToMPILocal(cv_mpilocal,cv_mpiglobal,cvDim_mpilocal_out)
+  SUBROUTINE LBHI_reduceToMPILocal(cv_mpilocal,cv_mpiglobal)
     implicit none
     real(8), intent(out) :: cv_mpilocal(cvDim)
     real(8), intent(in)  :: cv_mpiglobal(:)
-    integer, intent(out) :: cvDim_mpilocal_out
 
     real(8), allocatable :: cv_allmaxmpilocal(:,:)
 
@@ -1223,8 +1222,6 @@ contains
 
     integer :: k, ila, p, ila_mpiglobal, jdim_mpilocal, jdim_mpiglobal
     integer :: ier, nlaMax, cvDim_maxmpilocal, jproc
-
-    cvDim_mpilocal_out = cvDim
 
     call rpn_comm_allreduce(cvDim, cvDim_maxmpilocal, &
          1,"MPI_INTEGER","MPI_MAX","GRID",ier)
@@ -1331,11 +1328,10 @@ contains
 !--------------------------------------------------------------------------
 ! LBHI_reduceToMPILocal_r4
 !--------------------------------------------------------------------------
-  SUBROUTINE LBHI_reduceToMPILocal_r4(cv_mpilocal,cv_mpiglobal,cvDim_mpilocal_out)
+  SUBROUTINE LBHI_reduceToMPILocal_r4(cv_mpilocal,cv_mpiglobal)
     implicit none
     real(4), intent(out) :: cv_mpilocal(cvDim)
     real(4), intent(in)  :: cv_mpiglobal(:)
-    integer, intent(out) :: cvDim_mpilocal_out
 
     real(4), allocatable :: cv_allmaxmpilocal(:,:)
 
@@ -1345,8 +1341,6 @@ contains
 
     integer :: k, ila, p, ila_mpiglobal, jdim_mpilocal, jdim_mpiglobal
     integer :: ier, nlaMax, cvDim_maxmpilocal, jproc
-
-    cvDim_mpilocal_out = cvDim
 
     call rpn_comm_allreduce(cvDim, cvDim_maxmpilocal, &
          1,"MPI_INTEGER","MPI_MAX","GRID",ier)
@@ -1453,11 +1447,10 @@ contains
 !--------------------------------------------------------------------------
 ! LBHI_expandToMPIGlobal
 !--------------------------------------------------------------------------
-  SUBROUTINE LBHI_expandToMPIGlobal(cv_mpilocal,cv_mpiglobal,cvDim_mpiglobal_out)
+  SUBROUTINE LBHI_expandToMPIGlobal(cv_mpilocal,cv_mpiglobal)
     implicit none
     real(8), intent(in)  :: cv_mpilocal(cvDim)
     real(8), intent(out) :: cv_mpiglobal(:)
-    integer, intent(out) :: cvDim_mpiglobal_out
 
     real(8), allocatable :: cv_maxmpilocal(:)
     real(8), pointer     :: cv_allmaxmpilocal(:,:) => null()
@@ -1469,8 +1462,6 @@ contains
 
     integer :: k, ila, p, ila_mpiglobal, jdim_mpilocal, jdim_mpiglobal
     integer :: ier, nlaMax, cvDim_maxmpilocal, jproc
-
-    cvDim_mpiglobal_out = cvDim_mpiglobal
 
     !
     !- 1.  Gather all local control vectors onto mpi task 0
@@ -1577,11 +1568,10 @@ contains
 !--------------------------------------------------------------------------
 ! LBHI_expandToMPIGlobal_r4
 !--------------------------------------------------------------------------
-  SUBROUTINE LBHI_expandToMPIGlobal_r4(cv_mpilocal,cv_mpiglobal,cvDim_mpiglobal_out)
+  SUBROUTINE LBHI_expandToMPIGlobal_r4(cv_mpilocal,cv_mpiglobal)
     implicit none
     real(4), intent(in)  :: cv_mpilocal(cvDim)
     real(4), intent(out) :: cv_mpiglobal(:)
-    integer, intent(out) :: cvDim_mpiglobal_out
 
     real(4), allocatable :: cv_maxmpilocal(:)
     real(4), pointer     :: cv_allmaxmpilocal(:,:) => null()
@@ -1593,8 +1583,6 @@ contains
 
     integer :: k, ila, p, ila_mpiglobal, jdim_mpilocal, jdim_mpiglobal
     integer :: ier, nlaMax, cvDim_maxmpilocal, jproc
-
-    cvDim_mpiglobal_out = cvDim_mpiglobal
 
     !
     !- 1.  Gather all local control vectors onto mpi task 0

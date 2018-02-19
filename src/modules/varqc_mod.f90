@@ -26,7 +26,7 @@ module varqc_mod
   use MathPhysConstants_mod
   use EarthConstants_mod
   use codtyp_mod
-  use bufr
+  use bufr_mod
   use obsSpaceData_mod
   use columnData_mod
   use rmatrix_mod ,only : rmat_lnondiagr

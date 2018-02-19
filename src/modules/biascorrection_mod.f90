@@ -50,7 +50,6 @@ MODULE biascorrection_mod
   type(struct_bias),allocatable  :: bias(:)
    
   logical               :: initialized = .false.
-  integer               :: cvdim
   integer, parameter    :: maxNumChannels = tvs_maxChannelNumber
   integer, parameter    :: NumPredictors = 11
   integer, parameter    :: maxfov = 120
@@ -71,10 +70,10 @@ CONTAINS
   !-----------------------------------------------------------------------
   ! bias_setup
   !-----------------------------------------------------------------------
-  SUBROUTINE bias_setup(cvdim_out)
+  SUBROUTINE bias_setup()
     implicit none
 
-    integer  :: cvdim_out
+    integer  :: cvdim
     integer  :: iSensor,iPredictor
     integer  :: jPredictor
     integer  :: ierr,nulnam
@@ -101,14 +100,14 @@ CONTAINS
     nulnam = 0
     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=nambias,iostat=ierr)
-    if( ierr /= 0 .and. mpi_myid == 0 ) write(*,*) 'WARNING: bias_setup: Error reading namelist, ' //  &
+    if ( ierr /= 0 .and. mpi_myid == 0 ) write(*,*) 'WARNING: bias_setup: Error reading namelist, ' //  &
                              'assume it will not be used!'
-    if( mpi_myid == 0 ) write(*,nml=nambias)
+    if ( mpi_myid == 0 ) write(*,nml=nambias)
     ierr = fclos(nulnam)
 
     cvdim = 0
 
-    if( lvarbc ) then
+    if ( lvarbc ) then
       allocate(bias(tvs_nSensors))
 
       do iSensor = 1, tvs_nSensors
@@ -128,7 +127,7 @@ CONTAINS
         activePredictors(iSensor)=ibset(activePredictors(iSensor),iPredictor-1)
 
         do iPredictor=1,NumPredictors
-          if( btest(activePredictors(iSensor),iPredictor-1) ) then
+          if ( btest(activePredictors(iSensor),iPredictor-1) ) then
             bias(iSensor)%numActivePredictors = bias(iSensor)%numActivePredictors + 1
             jPred = bias(iSensor)%numActivePredictors
             idNum(iSensor,jPred) = iPredictor
@@ -142,10 +141,10 @@ CONTAINS
         filecoeff = 'coeff_file_'//trim(instrName)//''
         inquire(file=trim(filecoeff),exist = coeffExists)
          
-        if( coeffExists ) then
+        if ( coeffExists ) then
           call bias_updateCoeff(tvs_nSensors,NumPredictors,filecoeff,sats,chans,nsat,nchan,nfov,cinstrum, updateCoeff_opt = .false.)
           do iSat = 1, nsat
-            if( sats(iSat) /= trim(satNamecoeff) .or. cinstrum /= trim(instrNamecoeff) ) cycle
+            if ( sats(iSat) /= trim(satNamecoeff) .or. cinstrum /= trim(instrNamecoeff) ) cycle
             bias(iSensor)%numScan = nfov
             allocate( bias(iSensor)%channelNum(nchan(iSat)) ) 
             bias(iSensor)%channelNum(:)  = chans(iSat,:)
@@ -176,18 +175,17 @@ CONTAINS
         end do
 
         ! Make AMSU-A ch 13-14 static
-        if( tvs_instruments(iSensor) == 3 ) then
-          if( bias(iSensor)%numChannels /= 0 ) then
+        if ( tvs_instruments(iSensor) == 3 ) then
+          if ( bias(iSensor)%numChannels /= 0 ) then
             bias(iSensor)%stddev(13:14, :) = 0.0d0
           end if
         end if
       end do
     end if
 
-    if( mpi_myid == 0) then
-      cvdim_out = cvdim
-    else
-      cvdim_out = 0
+    if ( cvdim > 0 ) then
+      if ( mpi_myid > 0 ) cvdim = 0 ! for minimization, all coefficients only on task 0
+      call cvm_setupSubVector('BIAS', 'BIAS', cvdim)
     end if
 
   END SUBROUTINE bias_setup
@@ -211,17 +209,17 @@ CONTAINS
     real(8)  :: biasCor
     logical,save  :: firstTime=.true.
 
-    if( .not. lvarbc ) return
+    if ( .not. lvarbc ) return
 
-    if( firstTime ) then
+    if ( firstTime ) then
       call bias_getTrialPredictors(obsSpaceData)
       call bias_calcMeanPredictors(obsSpaceData)
       firstTime = .false.
     end if
 
-    if( mpi_myid == 0) then
-      if( cvm_subVectorExists(cvm_Bias) ) then
-        cv_Bias => cvm_getSubVector(cv_in,cvm_Bias)
+    if ( mpi_myid == 0) then
+      if ( cvm_subVectorExists('BIAS') ) then
+        cv_Bias => cvm_getSubVector(cv_in,'BIAS')
         write(*,*) 'bias_calcBias_tl: maxval(cv_bias)=',maxval(cv_bias(:))
       else
         write(*,*) 'bias_calcBias_tl: control vector does not include bias coefficients'
@@ -237,14 +235,14 @@ CONTAINS
     call obs_set_current_header_list(obsSpaceData,'TO')
     HEADER: do
       index_header = obs_getHeaderIndex(obsSpaceData)
-      if( index_header < 0 ) exit HEADER
+      if ( index_header < 0 ) exit HEADER
 
       ! process only radiance data to be assimilated?
       idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,index_header)
-      if( .not. tvs_isIdBurpTovs(idatyp) ) cycle HEADER
+      if ( .not. tvs_isIdBurpTovs(idatyp) ) cycle HEADER
       
       indxtovs = tvs_ltovsno(index_header)
-      if( indxtovs == 0 ) then
+      if ( indxtovs == 0 ) then
         call utl_abort('bias_calcBias_tl')
       end if
 
@@ -257,9 +255,9 @@ CONTAINS
 
       BODY: do
         index_body = obs_getBodyIndex(obsSpaceData)
-        if( index_body < 0 ) exit BODY
+        if ( index_body < 0 ) exit BODY
 
-        if( obs_bodyElem_i(obsSpaceData,OBS_ASS,INDEX_BODY) /= 1 ) cycle BODY   
+        if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,INDEX_BODY) /= 1 ) cycle BODY   
 
         iChannel = nint(obs_bodyElem_r(obsSpaceData,OBS_PPP,index_body))
         iChannel = max(0,min(iChannel,tvs_maxChannelNumber+1))
@@ -268,9 +266,9 @@ CONTAINS
 
         do iPredictor = 1, bias(iSensor)%NumActivePredictors
           jPred = bias(iSensor)%PredictorIndex(iPredictor)
-          if( iPredictor == 1 ) then
+          if ( iPredictor == 1 ) then
 
-            if( bias(iSensor)%numScan > 1 ) then
+            if ( bias(iSensor)%numScan > 1 ) then
               iScan = iFov
             else
               iScan = 1
@@ -326,9 +324,9 @@ CONTAINS
     call obs_set_current_header_list(obsSpaceData,'TO')
     HEADER: do
       index_header = obs_getHeaderIndex(obsSpaceData)
-      if( index_header < 0 ) exit HEADER
+      if ( index_header < 0 ) exit HEADER
       idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,index_header)
-      if( .not.  tvs_isIdBurpTovs(idatyp) ) cycle HEADER 
+      if ( .not.  tvs_isIdBurpTovs(idatyp) ) cycle HEADER 
       nobs = nobs + 1
     end do HEADER
     allocate(dlonfld(nobs),dlatfld(nobs))
@@ -338,16 +336,16 @@ CONTAINS
     call obs_set_current_header_list(obsSpaceData,'TO')
     HEADER2: do
       index_header = obs_getHeaderIndex(obsSpaceData)
-      if( index_header < 0 ) exit HEADER2
+      if ( index_header < 0 ) exit HEADER2
       idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,index_header)
-      if( .not. tvs_isIdBurpTovs(idatyp) ) cycle HEADER2
+      if ( .not. tvs_isIdBurpTovs(idatyp) ) cycle HEADER2
 
       nobs = nobs + 1
 
       lat_r8 = obs_headElem_r(obsSpaceData,OBS_LAT,index_header)
       lon_r8 = obs_headElem_r(obsSpaceData,OBS_LON,index_header)
-      if( lon_r8 < 0.0d0 ) lon_r8 = lon_r8 + 2*MPC_PI_R8
-      if( lon_r8 >= 2.0d0*MPC_PI_R8 ) lon_r8 = lon_r8 - 2*MPC_PI_R8
+      if ( lon_r8 < 0.0d0 ) lon_r8 = lon_r8 + 2*MPC_PI_R8
+      if ( lon_r8 >= 2.0d0*MPC_PI_R8 ) lon_r8 = lon_r8 - 2*MPC_PI_R8
       dlatfld(nobs) = lat_r8*MPC_DEGREES_PER_RADIAN_R8
       dlonfld(nobs) = lon_r8*MPC_DEGREES_PER_RADIAN_R8
 
@@ -359,7 +357,7 @@ CONTAINS
     zig4 = 1.0D0
     call utl_cxgaig('L',ig1obs,ig2obs,ig3obs,ig4obs,zig1,zig2,zig3,zig4)
 
-    if( nobs > 0 ) then
+    if ( nobs > 0 ) then
       obsgid = utl_ezgdef(nobs,1,'Y','L',ig1obs,ig2obs,ig3obs,ig4obs,dlonfld(:),dlatfld(:))
     else
       write(*,*) 'bias_getTrialPredictors: NO OBS found'
@@ -373,7 +371,7 @@ CONTAINS
     inquire(file=trim(trialfilename), exist=FileExists)
     write(*,*) 'bias_getTrialfile', FileExists
     ierr = fnom(nulfst,trialfilename,'RND+OLD+R/O',0)
-    if( ierr /= 0 ) then
+    if ( ierr /= 0 ) then
       write(*,*) 'bias_getTrialPredictors: trialfilename=',trialfilename
       call utl_abort('bias_getTrialPredictors: Error opening trial file')
     end if
@@ -390,7 +388,7 @@ CONTAINS
     key = fstinf( nulfst,                                    & ! IN
                   ni,nj,nk,                                  & ! OUT
                   dateo,cletiket,ip1,ip2,ip3,cltypvar,varName )! IN
-    if( key < 0 ) then
+    if ( key < 0 ) then
       write(*,*) 'bias_getTrialPredictors: Unable to find trial field = ',varName
       call utl_abort('bias_getTrialPredictors')
     end if
@@ -416,73 +414,73 @@ CONTAINS
     varName= 'GZ'
     ip1 = 300
     key = utl_fstlir(varTrial1,nulfst,ni,nj,nk,-1,' ',ip1,-1,-1,' ',varName)
-    if( key < 0 ) then
+    if ( key < 0 ) then
       write(*,*) 'bias_getTrialPredictors: Unable to find trial field - varname,ip1= ',varName,ip1
       call utl_abort('bias_getTrialPredictors')
     end if
     ip1 = 1000
     key = utl_fstlir(varTrial2,nulfst,ni,nj,nk,-1,' ',ip1,-1,-1,' ',varName)
-    if( key < 0 ) then
+    if ( key < 0 ) then
       write(*,*) 'bias_getTrialPredictors: Unable to find trial field - varname,ip1= ',varName,ip1
       call utl_abort('bias_getTrialPredictors')
     end if
     varTrial1(:,:) = varTrial1(:,:) - varTrial2(:,:)
     ierr = utl_ezsint(trialGZ300m1000,varTrial1,nobs,1,1,ni,nj,1)
-    if( ierr < 0 ) call utl_abort('bias_getTrialPredictors: error interpolating GZ300-GZ1000')
+    if ( ierr < 0 ) call utl_abort('bias_getTrialPredictors: error interpolating GZ300-GZ1000')
 
     ! GZ50 - GZ200
     varName = 'GZ'
     ip1 = 50
     key = utl_fstlir(varTrial1,nulfst,ni,nj,nk,-1,' ',ip1,-1,-1,' ',varName)
-    if( key < 0 ) then
+    if ( key < 0 ) then
       write(*,*) 'bias_getTrialPredictors: Unable to find trial field - varname,ip1= ',varName,ip1
       call utl_abort('bias_getTrialPredictors')
     end if
     ip1 = 200
     key = utl_fstlir(varTrial2,nulfst,ni,nj,nk,-1,' ',ip1,-1,-1,' ',varName)
-    if( key < 0 ) then
+    if ( key < 0 ) then
       write(*,*) 'bias_getTrialPredictors: Unable to find trial field - varname,ip1= ',varName,ip1
       call utl_abort('bias_getTrialPredictors')
     end if
     varTrial1(:,:) = varTrial1(:,:) - varTrial2(:,:)
     ierr = utl_ezsint(trialGZ50m200,varTrial1,nobs,1,1,ni,nj,1)
-    if( ierr < 0 ) call utl_abort('bias_getTrialPredictors: error interpolating GZ50-GZ200')
+    if ( ierr < 0 ) call utl_abort('bias_getTrialPredictors: error interpolating GZ50-GZ200')
 
     ! GZ5 - GZ50
     varName = 'GZ'
     ip1 = 1900 ! 5hPa
     key = utl_fstlir(varTrial1,nulfst,ni,nj,nk,-1,' ',ip1,-1,-1,' ',varName)
-    if( key < 0 ) then
+    if ( key < 0 ) then
       write(*,*) 'bias_getTrialPredictors: Unable to find trial field - varname,ip1= ',varName,ip1
       call utl_abort('bias_getTrialPredictors')
     end if
     ip1 = 50
     key = utl_fstlir(varTrial2,nulfst,ni,nj,nk,-1,' ',ip1,-1,-1,' ',varName)
-    if( key < 0 ) then
+    if ( key < 0 ) then
       write(*,*) 'bias_getTrialPredictors: Unable to find trial field - varname,ip1= ',varName,ip1
       call utl_abort('bias_getTrialPredictors')
     end if
     varTrial1(:,:) = varTrial1(:,:) - varTrial2(:,:)
     ierr = utl_ezsint(trialGZ5m50,varTrial1,nobs,1,1,ni,nj,1)
-    if( ierr < 0 ) call utl_abort('bias_getTrialPredictors: error interpolating GZ5-GZ50')
+    if ( ierr < 0 ) call utl_abort('bias_getTrialPredictors: error interpolating GZ5-GZ50')
 
     ! GZ1 - GZ10
     varName = 'GZ'
     ip1 = 1820  ! 1hPa
     key = utl_fstlir(varTrial1,nulfst,ni,nj,nk,-1,' ',ip1,-1,-1,' ',varName)
-    if( key < 0 ) then
+    if ( key < 0 ) then
       write(*,*) 'bias_getTrialPredictors: Unable to find trial field - varname,ip1= ',varName,ip1
       call utl_abort('bias_getTrialPredictors')
     end if
     ip1 = 10
     key = utl_fstlir(varTrial2,nulfst,ni,nj,nk,-1,' ',ip1,-1,-1,' ',varName)
-    if( key < 0 ) then
+    if ( key < 0 ) then
       write(*,*) 'bias_getTrialPredictors: Unable to find trial field - varname,ip1= ',varName,ip1
       call utl_abort('bias_getTrialPredictors')
     end if
     varTrial1(:,:) = varTrial1(:,:) - varTrial2(:,:)
     ierr = utl_ezsint(trialGZ1m10,varTrial1,nobs,1,1,ni,nj,1)
-    if( ierr < 0 ) call utl_abort('bias_getTrialPredictors: error interpolating GZ1-GZ10')
+    if ( ierr < 0 ) call utl_abort('bias_getTrialPredictors: error interpolating GZ1-GZ10')
 
     ! Determine grid size and EZSCINT ID for TG
 
@@ -492,13 +490,13 @@ CONTAINS
 
     inquire(file=trim(trialfile),exist=trialExists)
 
-    if( .not.trialExists ) then
+    if ( .not.trialExists ) then
       write(*,*) 'File missing for bias_getTrialPredictors_forTG=',trialfile
       call utl_abort('bias_getTrialPredictors_forTG:DID NOT FIND THE MODEL-LEVEL TRIAL FIELD FILE')
     else
       nultrlm = 0 
       ierr = fnom(nultrlm,trim(trialfile),'RND+OLD+R/O',0)
-      if( ierr /= 0 ) then
+      if ( ierr /= 0 ) then
         write(*,*) 'bias_getTrialPredictors_forTG: trialfilename=',trialfile
         call utl_abort('bias_getTrialPredictors_forTG: Error opening trial file')
       end if
@@ -517,7 +515,7 @@ CONTAINS
     key = fstinf( nultrlm,                                    & ! IN
                   ni,nj,nk,                                  & ! OUT
                   dateo,cletiket,ip1,ip2,ip3,cltypvar,varName )! IN
-    if( key < 0 ) then
+    if ( key < 0 ) then
       write(*,*) 'bias_getTrialPredictors: Unable to find trial field = ',varName
       call utl_abort('bias_getTrialPredictors: Unable to find trial field')
     end if
@@ -537,14 +535,14 @@ CONTAINS
     varName = 'TG'
     ip1 = -1
     key = utl_fstlir(varTrial3,nultrlm,ni,nj,nk,-1,' ',ip1,-1,-1,' ',varName)
-    if( key < 0 ) then
+    if ( key < 0 ) then
       write(*,*) 'bias_getTrialPredictors_forTG: Unable to find trial field - varname,ip1= ',varName,ip1
       call utl_abort('bias_getTrialPredictors_forTG')
     end if
     ierr = utl_ezsint(trialTG,varTrial3,nobs,1,1,ni,nj,1)
-    if( ierr < 0 ) call utl_abort('bias_getTrialPredictors_forTG: error interpolating TG')
+    if ( ierr < 0 ) call utl_abort('bias_getTrialPredictors_forTG: error interpolating TG')
 
-    if( trialTG(1) > 150.0d0) then
+    if ( trialTG(1) > 150.0d0) then
       write(*,*) 'bias_getTrialPredictors_forTG: converting TG from Kelvin to deg_C'
       trialTG(:) = trialTG(:) - MPC_K_C_DEGREE_OFFSET_R8
     end if
@@ -575,9 +573,9 @@ CONTAINS
     integer  :: index_cv,iSensor,iChannel,iPredictor,iScan
     integer  :: nsize,ierr
 
-    if( mpi_myid == 0 ) write(*,*) 'bias_cvToCoeff starting'
+    if ( mpi_myid == 0 ) write(*,*) 'bias_cvToCoeff starting'
  
-    if( mpi_myid == 0 ) then
+    if ( mpi_myid == 0 ) then
 
       index_cv = 0
       ! initialize of coeffIncr
@@ -589,7 +587,7 @@ CONTAINS
       do iSensor = 1, tvs_nSensors
         do iChannel = 1, bias(iSensor)%numChannels
           do iPredictor = 1, bias(iSensor)%numActivePredictors
-            if( iPredictor == 1 ) then
+            if ( iPredictor == 1 ) then
               do iScan = 1, bias(iSensor)%numScan
                 index_cv = index_cv + 1
                 bias(iSensor)%coeffIncr_fov(iChannel,iScan) = bias(iSensor)%stddev(iChannel,iPredictor)*cv_bias(index_cv)
@@ -636,31 +634,31 @@ CONTAINS
 
     do iPredictor = 1, NumPredictors
 
-      if( iPredictor == 1 ) then
+      if ( iPredictor == 1 ) then
         ! constant
         predictor(iPredictor) = 1.0d0
-      else if( iPredictor == 2 ) then
+      else if ( iPredictor == 2 ) then
         ! GZ300-GZ1000 (dam) /1000
         predictor(iPredictor) = trialGZ300m1000(index_obs)/1000.0d0  !-0.85d0 tried de-biasing
-      else if( iPredictor == 3 ) then
+      else if ( iPredictor == 3 ) then
         ! GZ50-GZ200 (dam) /1000
         predictor(iPredictor) = trialGZ50m200(index_obs)/1000.0d0  !-0.85d0 tried de-biasing
-      else if( iPredictor == 4 ) then
+      else if ( iPredictor == 4 ) then
         ! skin temperature (C) /10
         predictor(iPredictor) = trialTG(index_obs)
-      else if( iPredictor == 6 ) then
+      else if ( iPredictor == 6 ) then
         ! GZ1-GZ10 (dam) /1000
         predictor(iPredictor) = trialGZ1m10(index_obs)/1000.0d0
-      else if( iPredictor == 7 ) then
+      else if ( iPredictor == 7 ) then
         ! GZ5-GZ50 (dam) /1000
         predictor(iPredictor) = trialGZ5m50(index_obs)/1000.0d0  !-0.72d0 tried de-biasing
-      else if( iPredictor == 9 ) then
+      else if ( iPredictor == 9 ) then
         ! satellite zenith angle (degrees/100)^1
         predictor(iPredictor) = (obs_headElem_i(obsSpaceData,OBS_SZA,index_header)-9000)/100.0
-      else if( iPredictor == 10 ) then
+      else if ( iPredictor == 10 ) then
         ! satellite zenith angle (degrees/100)^2
         predictor(iPredictor) = ((obs_headElem_i(obsSpaceData,OBS_SZA,index_header)-9000)/100.0)**2
-      else if( iPredictor == 11 ) then
+      else if ( iPredictor == 11 ) then
         ! satellite zenith angle (degrees/100)^3
         predictor(iPredictor) = ((obs_headElem_i(obsSpaceData,OBS_SZA,index_header)-9000)/100.0)**3
       end if
@@ -697,10 +695,10 @@ CONTAINS
     call obs_set_current_header_list(obsSpaceData,'TO')
     HEADER: do
       index_header = obs_getHeaderIndex(obsSpaceData)
-      if( index_header < 0 ) exit HEADER
+      if ( index_header < 0 ) exit HEADER
       
       idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,index_header)
-      if( .not.  tvs_isIdBurpTovs(idatyp) ) cycle HEADER       
+      if ( .not.  tvs_isIdBurpTovs(idatyp) ) cycle HEADER       
 
       iobs = iobs + 1
       iSensor = tvs_lsensor(tvs_ltovsno(index_header))
@@ -718,7 +716,7 @@ CONTAINS
 
     !  do iPredictor=1,bias(iSensor)%NumActivePredictors
     do iPredictor = 2,bias(iSensor)%NumActivePredictors
-      if( countObs(iPredictor) > 0 ) then
+      if ( countObs(iPredictor) > 0 ) then
         meanPredictors(iPredictor) = meanPredictors(iPredictor)/real(countObs(iPredictor),8)
         meanAbsPredictors(iPredictor) = meanAbsPredictors(iPredictor)/real(countObs(iPredictor),8)
         write(*,*) 'bias_calcMeanPredictors: mean(abs),mean,min,max=',iPredictor, &
@@ -746,13 +744,13 @@ CONTAINS
     real(8),pointer  :: cv_bias(:)
     real(8)  :: biasCor
 
-    if( .not. lvarbc ) return
+    if ( .not. lvarbc ) return
 
-    if( mpi_myid == 0 ) write(*,*) 'Starting bias_calcBias_ad'
+    if ( mpi_myid == 0 ) write(*,*) 'Starting bias_calcBias_ad'
 
-    if( mpi_myid == 0 ) then
-      if( cvm_subVectorExists(cvm_Bias) ) then
-        cv_bias => cvm_getSubVector(cv_out,cvm_Bias)
+    if ( mpi_myid == 0 ) then
+      if ( cvm_subVectorExists('BIAS') ) then
+        cv_bias => cvm_getSubVector(cv_out,'BIAS')
       else
         write(*,*) 'bias_calcBias_ad: control vector does not include bias coefficients'
         return
@@ -769,9 +767,9 @@ CONTAINS
     call obs_set_current_header_list(obsSpaceData,'TO')
     HEADER: do
       index_header = obs_getHeaderIndex(obsSpaceData)
-      if( index_header < 0 ) exit HEADER
+      if ( index_header < 0 ) exit HEADER
       idatyp = obs_headElem_i(obsSpaceData,OBS_ITY,index_header)
-      if( .not.  tvs_isIdBurpTovs(idatyp) ) cycle HEADER  
+      if ( .not.  tvs_isIdBurpTovs(idatyp) ) cycle HEADER  
 
       iobs = iobs + 1
       iSensor = tvs_lsensor(tvs_ltovsno(index_header))
@@ -781,9 +779,9 @@ CONTAINS
 
       BODY: do
         index_body = obs_getBodyIndex(obsSpaceData)
-        if( index_body < 0 ) exit BODY
+        if ( index_body < 0 ) exit BODY
 
-        if( obs_bodyElem_i(obsSpaceData,OBS_ASS,INDEX_BODY) /= 1 ) cycle BODY  
+        if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,INDEX_BODY) /= 1 ) cycle BODY  
         iChannel = nint(obs_bodyElem_r(obsSpaceData,OBS_PPP,index_body))
         iChannel = max(0,min(iChannel,tvs_maxChannelNumber+1))
         iChannel = iChannel-tvs_channelOffset(iSensor)
@@ -793,8 +791,8 @@ CONTAINS
         do iPredictor = 1, bias(iSensor)%numActivePredictors
           jPred = bias(iSensor)%PredictorIndex(iPredictor)
 
-          if( iPredictor == 1 ) then
-            if( bias(iSensor)%numScan > 1) then
+          if ( iPredictor == 1 ) then
+            if ( bias(iSensor)%numScan > 1) then
               iScan = iFov
             else
               iScan = 1
@@ -814,7 +812,7 @@ CONTAINS
     ! put the coefficients into the control vector
     call bias_cvToCoeff_ad(cv_bias)
 
-    if( mpi_myid == 0 ) then
+    if ( mpi_myid == 0 ) then
       write(*,*) 'bias_calcBias_ad: maxval(cv_bias)=',maxval(cv_bias(:))
     end if
 
@@ -855,12 +853,12 @@ CONTAINS
       deallocate(temp_coeffIncr_fov)
     end do
 
-    if( mpi_myid == 0 ) then
+    if ( mpi_myid == 0 ) then
       index_cv = 0
       do iSensor = 1, tvs_nSensors
         do iChannel = 1, bias(iSensor)%numChannels
           do iPredictor = 1, bias(iSensor)%numActivePredictors
-            if( iPredictor == 1 ) then
+            if ( iPredictor == 1 ) then
               do iScan = 1, bias(iSensor)%numScan
                 index_cv  =  index_cv  +  1
                 cv_bias(index_cv) = bias(iSensor)%stddev(iChannel,iPredictor) * bias(iSensor)%coeffIncr_fov(iChannel,iScan)
@@ -906,11 +904,11 @@ CONTAINS
     integer            :: nchan(tvs_nSensors)
     character(len=6)   :: cinstrum
 
-    if( .not. lvarbc ) return
+    if ( .not. lvarbc ) return
 
-    if( mpi_myid == 0 ) then
-      if( cvm_subVectorExists(cvm_Bias) ) then
-        cv_bias => cvm_getSubVector(cv_in,cvm_Bias)
+    if ( mpi_myid == 0 ) then
+      if ( cvm_subVectorExists('BIAS') ) then
+        cv_bias => cvm_getSubVector(cv_in,'BIAS')
         write(*,*) 'bias_writeBias: maxval(cv_bias)=',maxval(cv_bias(:))
       else
         write(*,*) 'bias_writeBias: control vector does not include bias coefficients'
@@ -928,10 +926,10 @@ CONTAINS
       write(nulfile_inc,'(/,1X,"Sensor Index=",I3,", Satellite Name=",A15,", Instrument Name=",A15)') &
              iSensor,tvs_satelliteName(iSensor),tvs_instrumentName(iSensor)
       do iChannel = 1, bias(iSensor)%numChannels
-        if( sum(bias(iSensor)%coeffIncr(iChannel,:)) /= 0.0d0 ) &
+        if ( sum(bias(iSensor)%coeffIncr(iChannel,:)) /= 0.0d0 ) &
           write(nulfile_inc,'(3X,"Channel number=",I4)') iChannel
         do iPredictor = 2, bias(iSensor)%numActivePredictors
-          if( bias(iSensor)%coeffIncr(iChannel,iPredictor) /= 0.0d0 ) &
+          if ( bias(iSensor)%coeffIncr(iChannel,iPredictor) /= 0.0d0 ) &
             write(nulfile_inc,'(5X,"Predictor number=",I4,", Coefficient=",e12.4)') &
                  iPredictor,bias(iSensor)%coeffIncr(iChannel,iPredictor)
         end do
@@ -947,9 +945,9 @@ CONTAINS
       write(nulfile_fov,'(/,1X,"Sensor Index=",I3,", Satellite Name=",A15,", Instrument Name=",A15)') &
                        iSensor,tvs_satelliteName(iSensor),tvs_instrumentName(iSensor)
       do iChannel = 1, bias(iSensor)%numChannels
-        if( sum(bias(iSensor)%coeffIncr_fov(iChannel,:)) /= 0.0d0 ) &
+        if ( sum(bias(iSensor)%coeffIncr_fov(iChannel,:)) /= 0.0d0 ) &
           write(nulfile_fov,'(3X,"Channel number=",I4)') iChannel 
-        if( sum(bias(iSensor)%coeffIncr_fov(iChannel,:)) /= 0.0d0 ) & 
+        if ( sum(bias(iSensor)%coeffIncr_fov(iChannel,:)) /= 0.0d0 ) & 
           write(nulfile_fov,*) bias(iSensor)%coeffIncr_fov(iChannel,:)
       end do
     end do
@@ -965,14 +963,14 @@ CONTAINS
         filecoeff = 'coeff_file_'//trim(temp_instrName)//''
         inquire(file=trim(filecoeff),exist = coeffExists)
 
-        if( coeffExists ) then
+        if ( coeffExists ) then
           numCoefFile = numCoefFile + 1
           jCoef = jCoef + 1
           coefInstrName(jCoef) = temp_instrName
         end if
-        if( jSensor > 1 ) then
+        if ( jSensor > 1 ) then
           do kCoef = 1, jCoef-1
-            if( temp_instrName == coefInstrName(kCoef) ) then
+            if ( temp_instrName == coefInstrName(kCoef) ) then
               numCoefFile = numCoefFile - 1
               jCoef = jCoef -1
             end if
@@ -982,7 +980,7 @@ CONTAINS
     end do
 
     ! update coeff_file_instrument and write out
-    if( mpi_myid == 0 ) then
+    if ( mpi_myid == 0 ) then
       do iInstr=1, numCoefFile 
 
         biasCoeff_bg(:,:,:) = 0.0
@@ -1056,7 +1054,7 @@ CONTAINS
     ! 
     !- 1. read in the background coeff files, this program is read_coeff from genbiascorr
     ! 
-    if( present(updateCoeff_opt) ) then
+    if ( present(updateCoeff_opt) ) then
       updateCoeff_opt2 = updateCoeff_opt
     else
       updateCoeff_opt2 = .true.
@@ -1077,14 +1075,14 @@ CONTAINS
     write(*,*) 'bias_updateCoeff: Reading coeff file starts'  
     iun = 0
     ier = fnom(iun,coeff_file,'FMT',0)
-    if( ier /= 0 ) then
+    if ( ier /= 0 ) then
       write(*,*) 'bias_updateCoeff: ERROR - Problem opening the coeff file!', coeff_file 
       call utl_abort('bias_updateCoeff for read_coeff')
     end if
 
     write(*,*) 'bias_updateCoeff: open background file open = ', coeff_file
     read(iun,*,iostat=istat)
-    if( istat < 0 ) then
+    if ( istat < 0 ) then
       write(*,*) 'bias_updateCoeff: File appears empty', coeff_file
       return
     end if
@@ -1094,20 +1092,20 @@ CONTAINS
     ! Loop over the satellites/channels in the file
     do
       read(iun,'(A)',iostat=istat) line
-      if( istat < 0 ) exit
-      if( line(1:3) == 'SAT' ) then
+      if ( istat < 0 ) exit
+      if ( line(1:3) == 'SAT' ) then
         newsat = .true.
         read(line,'(T53,A8,1X,A6,1X,I6,1X,I8,1X,I2,1X,I3)',iostat=istat) sat, cinstrum, chan, ndata, nbpred, nbfov
         do iSat = 1, maxsat
-          if( trim(sats(iSat)) == trim(sat) ) then
+          if ( trim(sats(iSat)) == trim(sat) ) then
             newsat = .false.
             totSat = iSat
           end if
         end do
-        if( newsat ) then
+        if ( newsat ) then
           totSat = totSat + 1
           sats(totSat) = sat
-          if( totSat > 1 ) nchan(totSat-1) = jChan
+          if ( totSat > 1 ) nchan(totSat-1) = jChan
           jChan = 1
         else
           jChan = jChan + 1
@@ -1115,11 +1113,11 @@ CONTAINS
         chans(totSat, jChan) = chan
         npred(totSat, jChan) = nbpred
         read(iun,'(A)',iostat=istat) line
-        if( nbpred > 0 ) then
+        if ( nbpred > 0 ) then
           read(line,'(T8,6(1X,A2))',iostat=istat) (ptypes(totSat,jChan,kPred),kPred=1,nbpred)
         end if
         read(iun,*,iostat=istat) (fovbias(totSat,jChan,kFov),kFov=1,nbfov)
-        if( nbpred > 0 ) then
+        if ( nbpred > 0 ) then
           read(iun,*,iostat=istat) (coeff(totSat,jChan,kPred),kPred=1,nbpred+1)
         else
           read(iun,*,iostat=istat) dummy
@@ -1127,7 +1125,7 @@ CONTAINS
       end if
     end do
 
-    if( totSat == 0 ) then
+    if ( totSat == 0 ) then
       write(*,*) 'bias_updateCoeff: No data read from coeff file!', coeff_file
       call utl_abort('bias_updateCoeff')
     end if
@@ -1135,7 +1133,7 @@ CONTAINS
     nfov      = nbfov
     nchan(totSat) = jChan
 
-    if( verbose ) then
+    if ( verbose ) then
       write(*,*) ' '
       write(*,*) ' ------------- BIAS CORRECTION COEFFICIENT FILE ------------------ '
       write(*,*) ' '
@@ -1149,7 +1147,7 @@ CONTAINS
         write(*,*) '     predictors, fovbias, coeff for each channel: '
         do jChan = 1, nchan(iSat)
           write(*,*) iSat, chans(iSat,jChan)
-          if( npred(iSat,jChan) > 0 ) then
+          if ( npred(iSat,jChan) > 0 ) then
             write(*,'(6(1X,A2))') (ptypes(iSat,jChan,kPred),kPred=1,npred(iSat,jChan))
           else
             write(*,'(A)') 'No predictors'
@@ -1165,7 +1163,7 @@ CONTAINS
     write(*,*) 'bias_updateCoef: Reading coeff file done', coeff_file
 
 
-    if( updateCoeff_opt2 == .false. ) return 
+    if ( updateCoeff_opt2 == .false. ) return 
 
     !
     !- 2.update coeff and fovbias  
@@ -1179,15 +1177,15 @@ CONTAINS
         tmp_SatName = SatNameinCoeffFile(tvs_satelliteName(iSensor))
         ! for Instrument Name
         tmp_InstName = InstrNameinCoeffFile(tvs_instrumentName(iSensor))
-        if( trim(tmp_SatName) /= trim(sats(iSat)) .or. trim(tmp_InstName) /= trim(cinstrum) ) cycle 
+        if ( trim(tmp_SatName) /= trim(sats(iSat)) .or. trim(tmp_InstName) /= trim(cinstrum) ) cycle 
         do jChan = 1, nchan(iSat)
           do jChannel = 1, bias(iSensor)%numChannels  
 
-            if( chans(iSat,jChan) /= jChannel ) cycle 
+            if ( chans(iSat,jChan) /= jChannel ) cycle 
 
             ! part 1 for coeffIncr
             do iFov = 1, nfov
-              if( bias(iSensor)%coeffIncr_fov(jChannel,iFov) /= 0.0d0 ) then
+              if ( bias(iSensor)%coeffIncr_fov(jChannel,iFov) /= 0.0d0 ) then
                 fovbias_an(iSat,jChan,iFov) = fovbias(iSat,jChan,iFov) + bias(iSensor)%coeffIncr_fov(jChannel,iFov)
               end if
             end do ! iFov
@@ -1195,10 +1193,10 @@ CONTAINS
             ! part 2 for coeffIncr_fov
             totPred  = bias(iSensor)%NumActivePredictors 
             do iPred = 1, totPred
-              if( iPred == 1 ) then
+              if ( iPred == 1 ) then
                 coeff_an(iSat,jChan,iPred) = coeff(iSat,jChan,iPred)
               else
-                if( bias(iSensor)%coeffIncr(jChannel,iPred) /= 0.0d0 ) then
+                if ( bias(iSensor)%coeffIncr(jChannel,iPred) /= 0.0d0 ) then
                   coeff_an(iSat,jChan,iPred) = coeff(iSat,jChan,iPred) + bias(iSensor)%coeffIncr(jChannel,iPred)
                 end if
               end if
@@ -1243,7 +1241,7 @@ CONTAINS
 
     integer    :: iSensor
 
-    if( .not.lvarbc ) return
+    if ( .not.lvarbc ) return
 
     deallocate(trialGZ300m1000)
     deallocate(trialGZ50m200)
@@ -1290,13 +1288,13 @@ CONTAINS
     character(len=10)  :: nameOut
   
     temp_instrName = Lower(nameIn)
-    if( trim(temp_instrName) == 'mhs' ) then
+    if ( trim(temp_instrName) == 'mhs' ) then
       nameOut = 'amsub'
-    else if( trim(temp_instrName) == 'goesimager' ) then
+    else if ( trim(temp_instrName) == 'goesimager' ) then
       nameOut = 'cgoes'
-    else if( trim(temp_instrName) == 'gmsmtsat' ) then
+    else if ( trim(temp_instrName) == 'gmsmtsat' ) then
       nameOut = 'mtsat'
-    else if( trim(temp_instrName) == 'mviri' ) then
+    else if ( trim(temp_instrName) == 'mviri' ) then
       nameOut = 'mets7'
     else
       nameOut = temp_instrName
@@ -1313,13 +1311,13 @@ CONTAINS
     character(len=10)  :: nameIn
     character(len=10)  :: nameOut
 
-    if( trim(nameIn) == 'MHS' ) then
+    if ( trim(nameIn) == 'MHS' ) then
       nameOut = 'AMSUB'
-    else if( trim(nameIn) == 'GOESIMAGER' ) then
+    else if ( trim(nameIn) == 'GOESIMAGER' ) then
       nameOut = 'CGOES' 
-    else if( trim(nameIn) == 'GMSMTSAT' ) then
+    else if ( trim(nameIn) == 'GMSMTSAT' ) then
       nameOut = 'MTSAT' 
-    else if( trim(nameIn) == 'MVIRI' ) then
+    else if ( trim(nameIn) == 'MVIRI' ) then
       nameOut = 'METS7' 
     else 
       nameOut = nameIn
@@ -1336,11 +1334,11 @@ CONTAINS
     character(len=10)  :: nameIn
     character(len=10)  :: nameOut
 
-    if( trim(nameIn) == 'MSG2' ) then
+    if ( trim(nameIn) == 'MSG2' ) then
       nameOut = 'METSAT9'
-    else if( trim(nameIn) == 'MSG3' ) then
+    else if ( trim(nameIn) == 'MSG3' ) then
       nameOut = 'METSAT10' 
-    else if( trim(nameIn) == 'METEOSAT7' ) then
+    else if ( trim(nameIn) == 'METEOSAT7' ) then
       nameOut = 'METSAT7' 
     else 
       nameOut = nameIn

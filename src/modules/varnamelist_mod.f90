@@ -29,7 +29,7 @@ module varNameList_mod
 !            - Added varKindList and vnl_varKindFromVarname to identify the kind of field
 !              where 'MT'=meteorological and 'CH'=chemical constituent
 !
-  use bufr
+  use bufr_mod
   use utilities_mod
   implicit none
   save

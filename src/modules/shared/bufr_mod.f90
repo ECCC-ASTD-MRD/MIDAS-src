@@ -14,7 +14,7 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 !!
-!! MODULE bufr
+!! MODULE bufr_mod
 !!
 !! This module contains information that is needed from the
 !! Binary Universal Format for the Representation of meteorological data, 
@@ -39,7 +39,7 @@
 !           - Replaced BUFR_NETR_* by BUFR_NECH_*  
 !       
 !------------------------------------------------------------------------
-module bufr
+module bufr_mod
 
  public
 
@@ -231,4 +231,4 @@ contains
   
   end function bufr_IsIntegral
 
-end module bufr
+end module bufr_mod

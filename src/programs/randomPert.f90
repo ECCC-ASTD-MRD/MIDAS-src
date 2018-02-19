@@ -226,7 +226,7 @@ program midas_randomPert
       do cvIndex = 1, cvm_nvadim_mpiglobal
         controlVector_mpiglobal(cvIndex) = rng_gaussian()
       end do
-      call bmat_reduceToMPILocal(controlVector,controlVector_mpiglobal,cvDim_mpilocal)
+      call bmat_reduceToMPILocal( controlVector, controlVector_mpiglobal )
     else
       !- Local vector (different seed for each processor, more efficient)
       do cvIndex = 1, cvm_nvadim

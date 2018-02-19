@@ -27,7 +27,7 @@ module obsErrors_mod
   use tovs_nl_mod
   use chem_obserrors_mod
   use codtyp_mod
-  use bufr
+  use bufr_mod
   use utilities_mod
   use earthConstants_mod
   use gps_mod

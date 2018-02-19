@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE controlVector (prefix="cvm")
+!! MODULE controlVector (prefix='cvm')
 !!
 !! *Purpose*: The control vector and related information.  
 !!
@@ -34,220 +34,233 @@ module controlVector_mod
 
   ! public variables
   public              :: cvm_nvadim, cvm_nvadim_mpiglobal
-  public              :: cvm_BHI, cvm_BEN, cvm_BCHM, cvm_BDIFF, cvm_Bias
   ! public procedures
-  public              :: cvm_Setup, cvm_getSubVector, cvm_getSubVector_mpiglobal
+  public              :: cvm_setupSubVector, cvm_getSubVector, cvm_getSubVector_mpiglobal
   public              :: cvm_getSubVector_r4, cvm_getSubVector_mpiglobal_r4
   public              :: cvm_subVectorExists
 
+  type struct_cvm
+    private
+    character(len=8) :: label                  = 'XXXXXXXX'
+    character(len=4) :: BmatrixType            = 'XXXX'
+    integer          :: dimVector              = 0
+    integer          :: subVectorBeg           = 1
+    integer          :: subVectorEnd           = 0
+    integer          :: dimVector_mpiglobal    = 0
+    integer          :: subVectorBeg_mpiglobal = 1
+    integer          :: subVectorEnd_mpiglobal = 0
+  end type struct_cvm
 
-  logical             :: initialized = .false.
-  integer             :: cvm_dimBHI
-  integer             :: cvm_dimBEN
+  integer, parameter :: maxNumVectors = 5
+  integer            :: numVectors = 0
+  type(struct_cvm)   :: cvm_vector(maxNumVectors)
+
   integer             :: cvm_nvadim
-  integer             :: cvm_dimBchm
-  integer             :: cvm_dimBdiff
-  integer             :: cvm_dimBias
-  integer             :: cvm_dimBHI_mpiglobal
-  integer             :: cvm_dimBEN_mpiglobal
   integer             :: cvm_nvadim_mpiglobal
-  integer             :: cvm_dimBchm_mpiglobal
-  integer             :: cvm_dimBdiff_mpiglobal
-  integer             :: cvm_dimBias_mpiglobal
-
-  integer, parameter  :: cvm_numSubvector = 5 ! total number of possible valid subvectors
-  integer, parameter  :: cvm_BHI  = 1
-  integer, parameter  :: cvm_BEN  = 2
-  integer, parameter  :: cvm_BCHM = 3
-  integer, parameter  :: cvm_BDIFF = 4
-  integer, parameter  :: cvm_Bias = 5
 
 contains
 
-  subroutine cvm_setup(dimBhi_in, dimBen_in, dimBchm_in, dimBdiff_in, dimBias_in)
+  subroutine cvm_setupSubVector(label, BmatrixType, dimVector)
     implicit none
 
-    integer           :: dimBHI_in, dimBEN_in, dimBCHM_in, dimBdiff_in, dimBias_in
-    integer           :: ierr
+    ! arguments
+    character(len=*) :: label
+    character(len=*) :: BmatrixType
+    integer :: dimVector
 
-    cvm_dimbhi = dimbhi_in
-    cvm_dimben = dimben_in
-    cvm_dimbchm = dimbchm_in
-    cvm_dimbdiff = dimbdiff_in
-    cvm_dimbias = dimbias_in
+    ! locals
+    integer :: ierr, dimVector_mpiglobal
 
-    call rpn_comm_allreduce(cvm_dimbhi,cvm_dimbhi_mpiglobal,1,"MPI_INTEGER","MPI_SUM","GRID",ierr)
-    call rpn_comm_allreduce(cvm_dimben,cvm_dimben_mpiglobal,1,"MPI_INTEGER","MPI_SUM","GRID",ierr)
-    call rpn_comm_allreduce(cvm_dimbchm,cvm_dimbchm_mpiglobal,1,"MPI_INTEGER","MPI_SUM","GRID",ierr)
-    call rpn_comm_allreduce(cvm_dimbdiff,cvm_dimbdiff_mpiglobal,1,"MPI_INTEGER","MPI_SUM","GRID",ierr)
-    call rpn_comm_allreduce(cvm_dimbias,cvm_dimbias_mpiglobal,1,"MPI_INTEGER","MPI_SUM","GRID",ierr)
+    if ( numVectors == maxNumVectors ) then
+      call utl_abort('cvm_setupSubVector: number of allocated subvectors already at maximum allowed')
+    end if
 
-    cvm_nvadim = cvm_dimben + cvm_dimbhi + cvm_dimbchm + cvm_dimbdiff + cvm_dimbias
-    cvm_nvadim_mpiglobal = cvm_dimben_mpiglobal + cvm_dimbhi_mpiglobal + &
-                           cvm_dimbchm_mpiglobal + cvm_dimbdiff_mpiglobal + cvm_dimbias_mpiglobal
+    call rpn_comm_allreduce(dimVector, dimVector_mpiglobal,  &
+                            1, 'MPI_INTEGER', 'MPI_SUM', 'GRID', ierr)
 
-    write(*,*) 'cvm_setup: subvector dimensions            =',cvm_dimbhi, cvm_dimben, cvm_dimbchm, cvm_dimbdiff, cvm_dimbias, &
-                                                              cvm_nvadim
-    write(*,*) 'cvm_setup: subvector dimensions (mpiglobal)=',cvm_dimbhi_mpiglobal,cvm_dimben_mpiglobal,       & 
-                          cvm_dimbchm_mpiglobal, cvm_dimbdiff_mpiglobal, cvm_dimbias_mpiglobal, cvm_nvadim_mpiglobal
+    ! just return if subVector dimension is zero on all MPI tasks
+    if ( dimVector_mpiglobal == 0 ) return
 
-    initialized=.true.
+    numVectors = numVectors + 1
 
-  end subroutine cvm_setup
+    cvm_vector(numVectors)%label = label
+    cvm_vector(numVectors)%BmatrixType = BmatrixType
+    cvm_vector(numVectors)%dimVector = dimVector
+    cvm_vector(numVectors)%dimVector_mpiglobal = dimVector_mpiglobal
+
+    if ( numVectors == 1 ) then
+      cvm_vector(numVectors)%subVectorBeg = 1
+      cvm_vector(numVectors)%subVectorEnd = cvm_vector(numVectors)%dimVector
+
+      cvm_vector(numVectors)%subVectorBeg_mpiglobal = 1
+      cvm_vector(numVectors)%subVectorEnd_mpiglobal = cvm_vector(numVectors)%dimVector_mpiglobal
+    else
+      cvm_vector(numVectors)%subVectorBeg = 1 + cvm_vector(numVectors-1)%subVectorEnd
+      cvm_vector(numVectors)%subVectorEnd = cvm_vector(numVectors)%dimVector +   &
+                                            cvm_vector(numVectors-1)%subVectorEnd
+
+      cvm_vector(numVectors)%subVectorBeg_mpiglobal = 1 + cvm_vector(numVectors-1)%subVectorEnd_mpiglobal
+      cvm_vector(numVectors)%subVectorEnd_mpiglobal = cvm_vector(numVectors)%dimVector_mpiglobal +  &
+                                                      cvm_vector(numVectors-1)%subVectorEnd_mpiglobal
+    end if
+
+    cvm_nvadim = sum(cvm_vector(1:numVectors)%dimVector)
+    cvm_nvadim_mpiglobal = sum(cvm_vector(1:numVectors)%dimVector_mpiglobal)
+
+    write(*,*) 'cvm_setupSubVector: '
+    write(*,*) '   added subVector with label                 = ', cvm_vector(numVectors)%label
+    write(*,*) '   added subVector of type                    = ', cvm_vector(numVectors)%Bmatrixtype
+    write(*,*) '   added subVector with dimension             = ', cvm_vector(numVectors)%dimVector
+    write(*,*) '   added subVector with dimension (mpiglobal) = ', cvm_vector(numVectors)%dimVector_mpiglobal
+    write(*,*) '   current total dimension             = ', cvm_nvadim
+    write(*,*) '   current total dimension (mpiglobal) = ', cvm_nvadim_mpiglobal
+
+  end subroutine cvm_setupSubVector
 
 
-  function cvm_subVectorExists(subVectorIndex) RESULT(exists)
+  function cvm_indexFromLabel(subVectorLabel) result(subVectorIndex)
     implicit none
 
+    ! arguments
+    character(len=*) :: subVectorLabel
     integer :: subVectorIndex
+
+    ! locals
+    logical :: found
+
+    found = .false.
+    index_loop: do subVectorIndex = 1, numVectors
+      if ( trim(cvm_vector(subVectorIndex)%label) == trim(subVectorLabel) ) then
+        found = .true.
+        exit index_loop
+      end if
+    end do index_loop
+
+    if ( .not.found ) then
+      subVectorIndex = -1
+    end if
+
+  end function cvm_indexFromLabel
+
+
+  function cvm_subVectorExists(subVectorLabel) RESULT(exists)
+    implicit none
+
+    ! arguments
+    character(len=*) :: subVectorLabel
     logical :: exists
 
-    if( subVectorIndex < 0 .or. subVectorIndex > cvm_numSubvector ) then
-      write(*,*) 'cvm_getSubVector: subVectorIndex = ',subVectorIndex
-      call utl_abort('cvm_getSubVector: invalid value for subVectorIndex')
-    endif
+    ! locals
+    integer :: subVectorIndex
 
-    exists = .false.
+    subVectorIndex = cvm_indexFromLabel(subVectorLabel)
 
-    if( subVectorIndex == cvm_BHI .and. cvm_dimbhi_mpiglobal > 0 ) then
+    if ( subVectorIndex < 0 ) then
+      exists = .false.
+      return
+    end if
+
+    if ( cvm_vector(subVectorIndex)%dimVector_mpiglobal > 0 ) then
       exists = .true.
-    else if( subVectorIndex == cvm_BEN .and. cvm_dimben_mpiglobal > 0 ) then
-      exists = .true.
-    else if( subVectorIndex == cvm_BCHM .and. cvm_dimbchm_mpiglobal > 0 ) then
-      exists = .true.
-    else if( subVectorIndex == cvm_BDIFF .and. cvm_dimbdiff_mpiglobal > 0 ) then
-      exists = .true.
-    else if( subVectorIndex == cvm_Bias .and. cvm_dimbias_mpiglobal > 0 ) then
-      exists = .true.
+    else
+      exists = .false.
     end if
 
   end function cvm_subVectorExists
 
 
-  function cvm_getSubVector(controlVector,subVectorIndex) RESULT(subVector)
+  function cvm_getSubVector(controlVector,subVectorLabel) result(subVector)
     implicit none
 
+    ! arguments
+    character(len=*) :: subVectorLabel
     real*8, pointer :: subVector(:)
     real*8, target  :: controlVector(:)
-    integer         :: subVectorIndex
-    logical, save   :: firstCall(cvm_numSubvector)=.true.
 
-    if( subVectorIndex < 0 .or. subVectorIndex > cvm_numSubvector ) then
-       write(*,*) 'cvm_getSubVector: subVectorIndex = ',subVectorIndex
-       call utl_abort('cvm_getSubVector: invalid value for subVectorIndex')
+    ! locals
+    integer         :: subVectorIndex, indexBeg, indexEnd
+
+    subVectorIndex = cvm_indexFromLabel(subVectorLabel)
+
+    if( subVectorIndex < 0 ) then
+      call utl_abort('cvm_getSubVector: invalid subVector label')
     end if
 
-    nullify(subVector)
-
-    if( subVectorIndex == cvm_BHI ) then
-      subVector => controlVector(1:cvm_dimbhi)
-    else if( subVectorIndex == cvm_BEN ) then
-      subVector => controlVector((cvm_dimbhi+1):(cvm_dimbhi+cvm_dimben))
-    else if( subVectorIndex == cvm_BCHM ) then
-      subVector => controlVector((cvm_dimbhi+cvm_dimben+1):(cvm_dimbhi+cvm_dimben+cvm_dimbchm))
-    else if( subVectorIndex == cvm_BDIFF ) then
-      subVector => controlVector((cvm_dimbhi+cvm_dimben+cvm_dimbchm+1):(cvm_dimbhi+cvm_dimben+cvm_dimbchm+cvm_dimbdiff))
-    else if( subVectorIndex == cvm_Bias ) then
-      subVector => controlVector((cvm_dimbhi+cvm_dimben+cvm_dimbchm+cvm_dimbdiff+1):(cvm_dimbhi+cvm_dimben+cvm_dimbchm+cvm_dimbdiff+cvm_dimbias))
-    else
-      call utl_abort('cvm_getSubVector: unknown subVectorIndex!')
-    end if
+    indexBeg = cvm_vector(subVectorIndex)%subVectorBeg
+    indexEnd = cvm_vector(subVectorIndex)%subVectorEnd
+    subVector => controlVector(indexBeg:indexEnd)
 
   end function cvm_getSubVector
 
 
-  function cvm_getSubVector_r4(controlVector,subVectorIndex) RESULT(subVector)
+  function cvm_getSubVector_r4(controlVector,subVectorLabel) result(subVector)
     implicit none
 
+    ! arguments
+    character(len=*) :: subVectorLabel
     real*4, pointer :: subVector(:)
     real*4, target  :: controlVector(:)
-    integer         :: subVectorIndex
-    logical, save   :: firstCall(cvm_numSubvector)=.true.
 
-    if( subVectorIndex < 0 .or. subVectorIndex > cvm_numSubvector ) then
-       write(*,*) 'cvm_getSubVector_r4: subVectorIndex = ',subVectorIndex
-       call utl_abort('cvm_getSubVector_r4: invalid value for subVectorIndex')
+    ! locals
+    integer         :: subVectorIndex, indexBeg, indexEnd
+
+    subVectorIndex = cvm_indexFromLabel(subVectorLabel)
+
+    if( subVectorIndex < 0 ) then
+      call utl_abort('cvm_getSubVector_r4: invalid subVector label')
     end if
 
-    nullify(subVector)
-
-    if( subVectorIndex == cvm_BHI ) then
-      subVector => controlVector(1:cvm_dimbhi)
-    else if( subVectorIndex == cvm_BEN ) then
-      subVector => controlVector((cvm_dimbhi+1):(cvm_dimbhi+cvm_dimben))
-    else if( subVectorIndex == cvm_BCHM ) then
-      subVector => controlVector((cvm_dimbhi+cvm_dimben+1):(cvm_dimbhi+cvm_dimben+cvm_dimbchm))
-    else if( subVectorIndex == cvm_BDIFF ) then
-      subVector => controlVector((cvm_dimbhi+cvm_dimben+cvm_dimbchm+1):(cvm_dimbhi+cvm_dimben+cvm_dimbchm+cvm_dimbdiff))
-    else if( subVectorIndex == cvm_Bias ) then
-      subVector => controlVector((cvm_dimbhi+cvm_dimben+cvm_dimbchm+cvm_dimbdiff+1):(cvm_dimbhi+cvm_dimben+cvm_dimbchm+cvm_dimbdiff+cvm_dimbias))
-    else
-      call utl_abort('cvm_getSubVector_r4: unknown subVectorIndex!')
-    endif
+    indexBeg = cvm_vector(subVectorIndex)%subVectorBeg
+    indexEnd = cvm_vector(subVectorIndex)%subVectorEnd
+    subVector => controlVector(indexBeg:indexEnd)
 
   end function cvm_getSubVector_r4
 
 
-  function cvm_getSubVector_mpiglobal(controlVector,subVectorIndex) RESULT(subVector)
+  function cvm_getSubVector_mpiglobal(controlVector,subVectorLabel) RESULT(subVector)
     implicit none
 
+    ! arguments
+    character(len=*) :: subVectorLabel
     real*8, pointer :: subVector(:)
     real*8, target  :: controlVector(:)
-    integer         :: subVectorIndex
-    logical, save   :: firstCall(cvm_numSubvector)=.true.
 
-    if( subVectorIndex < 0 .or. subVectorIndex > cvm_numSubvector ) then
-       write(*,*) 'cvm_getSubVector_mpiglobal: subVectorIndex = ',subVectorIndex
-       call utl_abort('cvm_getSubVector_mpiglobal: invalid value for subVectorIndex')
+    ! locals
+    integer         :: subVectorIndex, indexBeg, indexEnd
+
+    subVectorIndex = cvm_indexFromLabel(subVectorLabel)
+
+    if( subVectorIndex < 0 ) then
+      call utl_abort('cvm_getSubVector_mpiglobal: invalid subVector label')
     end if
 
-    nullify(subVector)
-
-    if( subVectorIndex == cvm_BHI ) then
-      subVector => controlVector(1:cvm_dimbhi_mpiglobal)
-    else if( subVectorIndex == cvm_BEN ) then
-      subVector => controlVector((cvm_dimbhi_mpiglobal+1):(cvm_dimbhi_mpiglobal+cvm_dimben_mpiglobal))
-    else if( subVectorIndex == cvm_BCHM ) then
-      subVector => controlVector((cvm_dimbhi_mpiglobal+cvm_dimben_mpiglobal+1):(cvm_dimbhi_mpiglobal+cvm_dimben_mpiglobal+cvm_dimbchm_mpiglobal))
-    else if( subVectorIndex == cvm_BDIFF ) then
-      subVector => controlVector((cvm_dimbhi_mpiglobal+cvm_dimben_mpiglobal+cvm_dimbchm_mpiglobal+1):(cvm_dimbhi_mpiglobal+cvm_dimben_mpiglobal+cvm_dimbchm_mpiglobal+cvm_dimbdiff_mpiglobal))
-    else if( subVectorIndex == cvm_Bias ) then
-      subVector => controlVector((cvm_dimbhi_mpiglobal+cvm_dimben_mpiglobal+cvm_dimbchm_mpiglobal+cvm_dimbdiff_mpiglobal+1):(cvm_dimbhi_mpiglobal+cvm_dimben_mpiglobal+cvm_dimbchm_mpiglobal+cvm_dimbdiff_mpiglobal+cvm_dimbias_mpiglobal))
-    else
-      call utl_abort('cvm_getSubVector_mpiglobal: unknown subVectorIndex!')
-    end if
+    indexBeg = cvm_vector(subVectorIndex)%subVectorBeg_mpiglobal
+    indexEnd = cvm_vector(subVectorIndex)%subVectorEnd_mpiglobal
+    subVector => controlVector(indexBeg:indexEnd)
 
   end function cvm_getSubVector_mpiglobal
 
 
-  function cvm_getSubVector_mpiglobal_r4(controlVector,subVectorIndex) RESULT(subVector)
+  function cvm_getSubVector_mpiglobal_r4(controlVector,subVectorLabel) RESULT(subVector)
     implicit none
 
+    ! arguments
+    character(len=*) :: subVectorLabel
     real*4, pointer :: subVector(:)
     real*4, target  :: controlVector(:)
-    integer         :: subVectorIndex
-    logical, save   :: firstCall(cvm_numSubvector)=.true.
 
-    if( subVectorIndex < 0 .or. subVectorIndex > cvm_numSubvector ) then
-       write(*,*) 'cvm_getSubVector_mpiglobal_r4: subVectorIndex = ',subVectorIndex
-       call utl_abort('cvm_getSubVector_mpiglobal_r4: invalid value for subVectorIndex')
+    ! locals
+    integer         :: subVectorIndex, indexBeg, indexEnd
+
+    subVectorIndex = cvm_indexFromLabel(subVectorLabel)
+
+    if( subVectorIndex < 0 ) then
+      call utl_abort('cvm_getSubVector_mpiglobal_r4: invalid subVector label')
     end if
 
-    nullify(subVector)
-
-    if( subVectorIndex == cvm_BHI ) then
-      subVector => controlVector(1:cvm_dimbhi_mpiglobal)
-    else if( subVectorIndex == cvm_BEN ) then
-      subVector => controlVector((cvm_dimbhi_mpiglobal+1):(cvm_dimbhi_mpiglobal+cvm_dimben_mpiglobal))
-    else if( subVectorIndex == cvm_BCHM ) then
-      subVector => controlVector((cvm_dimbhi_mpiglobal+cvm_dimben_mpiglobal+1):(cvm_dimbhi_mpiglobal+cvm_dimben_mpiglobal+cvm_dimbchm_mpiglobal))
-    else if( subVectorIndex == cvm_BDIFF ) then
-      subVector => controlVector((cvm_dimbhi_mpiglobal+cvm_dimben_mpiglobal+cvm_dimbchm_mpiglobal+1):(cvm_dimbhi_mpiglobal+cvm_dimben_mpiglobal+cvm_dimbchm_mpiglobal+cvm_dimbdiff_mpiglobal))
-    else if( subVectorIndex == cvm_Bias ) then
-      subVector => controlVector((cvm_dimbhi_mpiglobal+cvm_dimben_mpiglobal+cvm_dimbchm_mpiglobal+cvm_dimbdiff_mpiglobal+1):(cvm_dimbhi_mpiglobal+cvm_dimben_mpiglobal+cvm_dimbchm_mpiglobal+cvm_dimbdiff_mpiglobal+cvm_dimbias_mpiglobal))
-    else
-      call utl_abort('cvm_getSubVector_mpiglobal_r4: unknown subVectorIndex!')
-    end if
+    indexBeg = cvm_vector(subVectorIndex)%subVectorBeg_mpiglobal
+    indexEnd = cvm_vector(subVectorIndex)%subVectorEnd_mpiglobal
+    subVector => controlVector(indexBeg:indexEnd)
 
   end function cvm_getSubVector_mpiglobal_r4
 

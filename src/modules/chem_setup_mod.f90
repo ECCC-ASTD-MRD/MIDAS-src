@@ -66,7 +66,7 @@ module chem_setup_mod
   use mpi_mod, only: mpi_myid, mpi_allgather_string
   use utilities_mod
   use obsSubSpaceData_mod
-  use bufr
+  use bufr_mod
   use varNameList_mod
   use MathPhysConstants_mod
   use burpFiles_mod

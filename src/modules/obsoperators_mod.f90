@@ -26,7 +26,7 @@ module obsOperators_mod
   use mathPhysConstants_mod
   use obsSpaceData_mod
   use columnData_mod 
-  use bufr
+  use bufr_mod
   use lqtoes_mod
   use physicsFunctions_mod
   use gps_mod
