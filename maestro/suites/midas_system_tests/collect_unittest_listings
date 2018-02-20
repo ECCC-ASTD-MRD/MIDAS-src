@@ -1,0 +1,65 @@
+#!/bin/ksh
+
+set -e
+
+export SEQ_EXP_HOME=$(dirname $(true_path ${0}))
+unittests=${*}
+
+## Si 'overwrite_listings=yes' alors on va effacer les listings precedents
+if [ -n "${COLLECT_UNITTEST_LISTINGS_OVERWRITE_LISTINGS}" ]; then
+    overwrite_listings=${COLLECT_UNITTEST_LISTINGS_OVERWRITE_LISTINGS}
+else
+    overwrite_listings=no
+fi
+
+LOCAL_GITDIR=$(cd ${SEQ_EXP_HOME}; git rev-parse --git-dir)
+gittag=${gittag:-$(git --git-dir=${LOCAL_GITDIR} describe)}
+
+tasks=${COLLECT_UNITTEST_LISTINGS_TASKS:-"getInputs run download check_results"}
+
+if [ -n "${COLLECT_UNITTEST_LISTINGS_EXPDATE}" ]; then
+    ExpDate=${COLLECT_UNITTEST_LISTINGS_EXPDATE}
+else
+    ExpDate=$(basename $(/bin/ls -t1 ${SEQ_EXP_HOME}/logs/*_nodelog | head -1) _nodelog)
+fi
+
+echo "Using ExpDate=${ExpDate}"
+
+if [[ -z "${unittests}" ]]; then
+    unittests=$(cd ${SEQ_EXP_HOME}/resources/Tests; find . -name UnitTest | xargs -L1 dirname | cut -c3-)
+fi
+
+for unittest in ${unittests}; do
+    config=${SEQ_EXP_HOME}/config/Tests/${unittest}.cfg
+    if [[ ! -f "${config}" ]]; then
+	echo "Le fichier '${config}' n'existe pas (ce doit etre le path complet vers un fichier de configuration)"
+	continue
+    fi
+    unset UnitTest_reference
+    eval $(grep UnitTest_reference ${config})
+    if [ -z "${UnitTest_reference}" ]; then
+	echo "La variable 'UnitTest_reference' n'a pas ete initialisee dans le fichier ${config}"
+	continue
+    fi
+    results=${collect_unittest_listings_output:-${UnitTest_reference##*:}}
+    cd ${results}
+    if [ -f listings_${gittag}.ca ]; then
+	if [ "${overwrite_listings}" != 'yes' ]; then
+	    echo "Le fichier '$PWD/listings_${gittag}.ca' existe deja.  On ne l'efface pas"
+	    cmcarc -f listings_${gittag}.ca -t -v
+	    continue
+	else
+	    rm -v listings_${gittag}.ca
+	fi
+    fi
+    echo "travail avec '${unittest}' (tag ${gittag}) dans le repertoire $PWD"
+    for task in ${tasks}; do
+	nodename=/Tests/${unittest}/UnitTest/${task}
+	filename=$(echo ${nodename} | cut -c2- | sed 's!/!\.!g')
+	nodelister -n ${nodename} -d ${ExpDate} > ${filename} || true
+	cmcarc -f listings_${gittag}.ca -a ${filename}
+	rm ${filename}
+    done
+    cmcarc -f listings_${gittag}.ca -t -v
+    chmod -wx listings_${gittag}.ca
+done
