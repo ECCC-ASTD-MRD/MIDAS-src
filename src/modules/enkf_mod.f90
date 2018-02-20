@@ -28,7 +28,7 @@ MODULE enkf_mod
   use utilities_mod
   use fileNames_mod
   use varNameList_mod
-  use timeCoord_mod
+  use obsTimeInterp_mod
   use tt2phi_mod
   use obsSpaceData_mod
   use columnData_mod
@@ -174,7 +174,7 @@ contains
 
       HEADER_LOOP: do headerIndex = 1, numHeader
 
-        if ( tim_timeInterpWeightAllZero(headerIndex) .and. stepIndex == 1 ) then
+        if ( oti_timeInterpWeightAllZero(headerIndex) .and. stepIndex == 1 ) then
           ! obs is outside of assimilation window and stepIndex is 1 (has to go somewhere)
 
           write(*,*) 'enkf_allGatherObsGrid: Observation time outside assimilation window: ',  &
@@ -190,7 +190,7 @@ contains
                ibset( obs_headElem_i(obsSpaceData, OBS_ST1, headerIndex), 05))
         else
           ! if obs inside window, but zero weight for current stepIndex then skip it
-          if ( tim_getTimeInterpWeight(headerIndex,stepIndex) == 0.0d0 ) cycle HEADER_LOOP
+          if ( oti_getTimeInterpWeight(headerIndex,stepIndex) == 0.0d0 ) cycle HEADER_LOOP
 
         end if
 
@@ -419,7 +419,7 @@ contains
             !$OMP PARALLEL DO PRIVATE (headerIndex, headerIndex2, weight)
             do headerIndex = 1, allNumObs(stepIndex, procIndex)
               headerIndex2 = allHeaderIndexVec(headerIndex,stepIndex,procIndex)
-              weight = tim_getTimeInterpWeightMpiGlobal(headerIndex2,stepIndex,procIndex)
+              weight = oti_getTimeInterpWeightMpiGlobal(headerIndex2,stepIndex,procIndex)
               cols_send_1proc_r8(headerIndex2) = cols_send_1proc_r8(headerIndex2) &
                             + weight * real(cols_hint_r4(headerIndex,stepIndex,procIndex),8)
 

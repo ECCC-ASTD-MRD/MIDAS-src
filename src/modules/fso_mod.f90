@@ -29,6 +29,7 @@
 module fso_mod
   use MathPhysConstants_mod
   use timeCoord_mod
+  use obsTimeInterp_mod
   use columnData_mod
   use obsSpaceData_mod
   use controlVector_mod
@@ -149,8 +150,7 @@ CONTAINS
     call col_allocate(column,col_getNumCol(columng),mpiLocal_opt=.true.)
     call col_copyLatLon(columng,column)
 
-    write(*,*) 'PRDATABIN: For 4D increment'
-    call tim_sutimeinterp(obsSpaceData,tim_nstepobsinc)
+    call oti_setup(obsSpaceData,tim_nstepobsinc)
 
     ! compute dateStamp_fcst
     call incdatr(dateStamp_fcst, tim_getDatestamp(), leadTime)

@@ -29,6 +29,7 @@ module innovation_mod
   use obsSpaceData_mod
   use columnData_mod
   use timeCoord_mod
+  use obsTimeInterp_mod
   use obsOperators_mod
   use EarthConstants_mod
   use MathPhysConstants_mod
@@ -1231,8 +1232,8 @@ contains
       beSilent = .false.
     end if
 
-    if ( .not.beSilent ) write(*,*) 'TIM_TIMEBINNING: Before filtering done in INN_COMPUTEINNOVATION'
-    if ( .not.beSilent ) call tim_timeBinning(obsSpaceData,tim_nstepobs)
+    if ( .not.beSilent ) write(*,*) 'oti_timeBinning: Before filtering done in inn_computeInnovation'
+    if ( .not.beSilent ) call oti_timeBinning(obsSpaceData,tim_nstepobs)
     !
     !     Reject observed elements too far below the surface. Pressure values
     !     for elements slightly below the surface are replaced by the surface
@@ -1374,8 +1375,8 @@ contains
     call mpi_allreduce_sumreal8scalar(ZJO,'GRID')
     write(*,'(a15,f30.16)') 'Total Jo = ',ZJO
 
-    if ( .not.beSilent ) write(*,*) 'TIM_TIMEBINNING: After filtering done in INN_COMPUTEINNOVATION'
-    if ( .not.beSilent ) call tim_timeBinning(obsSpaceData,tim_nstepobs)
+    if ( .not.beSilent ) write(*,*) 'oti_timeBinning: After filtering done in inn_computeInnovation'
+    if ( .not.beSilent ) call oti_timeBinning(obsSpaceData,tim_nstepobs)
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     write(*,*) '--Done subroutine inn_computeInnovation--'

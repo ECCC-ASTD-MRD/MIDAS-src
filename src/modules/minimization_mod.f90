@@ -24,6 +24,7 @@
 MODULE minimization_mod
   use MathPhysConstants_mod
   use timeCoord_mod
+  use obsTimeInterp_mod
   use columnData_mod
   use obsSpaceData_mod
   use controlVector_mod
@@ -195,9 +196,9 @@ CONTAINS
     call col_allocate(column,col_getNumCol(columng),mpiLocal_opt=.true.)
     call col_copyLatLon(columng,column)
 
-    write(*,*) 'TIM_TIMEBINNING: For 4D increment'
-    call tim_timeBinning(obsSpaceData,tim_nstepobsinc)
-    call tim_sutimeinterp(obsSpaceData,tim_nstepobsinc)
+    write(*,*) 'oti_timeBinning: For 4D increment'
+    call oti_timeBinning(obsSpaceData,tim_nstepobsinc)
+    call oti_setup(obsSpaceData,tim_nstepobsinc)
 
     call quasiNewtonMinimization(column,columng,obsSpaceData)
 
