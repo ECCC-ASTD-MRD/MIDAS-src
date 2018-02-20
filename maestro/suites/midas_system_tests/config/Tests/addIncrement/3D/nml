@@ -1,0 +1,15 @@
+ &NAMCT0
+/
+ &NAMADDINC
+/
+ &NAMTIME
+  DSTEPOBS = 6.0d0
+  DSTEPOBSINC = 6.0d0
+/
+ &NAMSTATE
+   ANLVAR(1)   ='UU'
+   ANLVAR(2)   ='VV'
+   ANLVAR(3)   ='TT'
+   ANLVAR(4)   ='HU'
+   ANLVAR(5)   ='P0'
+/
