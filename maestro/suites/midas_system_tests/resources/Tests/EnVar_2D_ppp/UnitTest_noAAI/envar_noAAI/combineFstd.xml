@@ -1,4 +1,0 @@
-<?xml version="1.0" ?>
-<NODE_RESOURCES>
-  <BATCH catchup="9" cpu="1x36x1" machine="${FRONTEND}" mpi="1" queue="${FRONTEND_DEFAULT_Q}" soumet_args="-waste" wallclock="40"/>
-</NODE_RESOURCES>
