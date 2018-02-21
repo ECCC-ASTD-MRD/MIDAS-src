@@ -230,7 +230,7 @@ contains
                                         ! Obtain the next element from the list
       next_element = current_list%current_element + 1
       next_index = current_list%indices(next_element)
-      if(.not. present(no_advance) .and. next_index .ne. -1) then
+      if(.not. present(no_advance) .and. next_index /= -1) then
                                         ! Increment the current element
          current_list%current_element = next_element
       end if
@@ -262,7 +262,7 @@ contains
       next_element = private_list%current_element + 1
       next_index = private_list%indices(next_element)
 
-      if(.not. present(no_advance) .and. next_index .ne. -1) then
+      if(.not. present(no_advance) .and. next_index /= -1) then
                                         ! Increment the current element
          private_list%current_element = next_element
       end if
@@ -769,7 +769,7 @@ contains
 
       active_index_out=odc_flavour%activeIndexFromColumnIndex(column_index_in)
 
-      if(active_index_out.eq.-1) then
+      if(active_index_out == -1) then
          write(message,*)'ODC_activeIndexFromColumnIndex: requested column is ',&
                          'not active!  Column name is ', &
                          odc_flavour%columnNameList(column_index_in)
@@ -940,7 +940,7 @@ contains
       call odc_initColumnFlavour(odc_flavour_RB, 'REAL', 'BODY')
       call odc_initColumnFlavour(odc_flavour_RH, 'REAL', 'HEAD')
 
-      COLUMN_MODE:if(trim(obsColumnMode).eq.'ALL') then
+      COLUMN_MODE:if(trim(obsColumnMode) == 'ALL') then
          do column_index=NHDR_INT_BEG,NHDR_INT_END
             call odc_activateColumn(odc_flavour_IH, column_index)
          enddo
@@ -954,7 +954,7 @@ contains
             call odc_activateColumn(odc_flavour_RB, column_index)
          enddo
 
-      elseif(trim(obsColumnMode).eq.'ENKF') then COLUMN_MODE
+      elseif(trim(obsColumnMode) == 'ENKF') then COLUMN_MODE
 
          hdr_int_column_list= &
             (/OBS_RLN, OBS_ONM, OBS_INS, OBS_OTP, OBS_ITY, OBS_SAT, OBS_TEC, &
@@ -977,29 +977,29 @@ contains
 
          do list_index=1,COLUMN_LIST_SIZE
             column_index = hdr_int_column_list(list_index)
-            if(column_index .eq. 0) exit
+            if(column_index == 0) exit
             call odc_activateColumn(odc_flavour_IH, column_index)
          end do
 
          do list_index=1,COLUMN_LIST_SIZE
             column_index = hdr_real_column_list(list_index)
-            if(column_index .eq. 0) exit
+            if(column_index == 0) exit
             call odc_activateColumn(odc_flavour_RH, column_index)
          end do
 
          do list_index=1,COLUMN_LIST_SIZE
             column_index = bdy_int_column_list(list_index)
-            if(column_index .eq. 0) exit
+            if(column_index == 0) exit
             call odc_activateColumn(odc_flavour_IB, column_index)
          end do
 
          do list_index=1,COLUMN_LIST_SIZE
             column_index = bdy_real_column_list(list_index)
-            if(column_index .eq. 0) exit
+            if(column_index == 0) exit
             call odc_activateColumn(odc_flavour_RB, column_index)
          end do
 
-      elseif(trim(obsColumnMode).eq.'ENKFMIDAS') then COLUMN_MODE
+      elseif(trim(obsColumnMode) == 'ENKFMIDAS') then COLUMN_MODE
 
          hdr_int_column_list= &
             (/OBS_RLN, OBS_ONM, OBS_INS, OBS_OTP, OBS_ITY, OBS_SAT, OBS_TEC, &
@@ -1022,56 +1022,56 @@ contains
 
          do list_index=1,COLUMN_LIST_SIZE
             column_index = hdr_int_column_list(list_index)
-            if(column_index .eq. 0) exit
+            if(column_index == 0) exit
             call odc_activateColumn(odc_flavour_IH, column_index)
          end do
 
          do list_index=1,COLUMN_LIST_SIZE
             column_index = hdr_real_column_list(list_index)
-            if(column_index .eq. 0) exit
+            if(column_index == 0) exit
             call odc_activateColumn(odc_flavour_RH, column_index)
          end do
 
          do list_index=1,COLUMN_LIST_SIZE
             column_index = bdy_int_column_list(list_index)
-            if(column_index .eq. 0) exit
+            if(column_index == 0) exit
             call odc_activateColumn(odc_flavour_IB, column_index)
          end do
 
          do list_index=1,COLUMN_LIST_SIZE
             column_index = bdy_real_column_list(list_index)
-            if(column_index .eq. 0) exit
+            if(column_index == 0) exit
             call odc_activateColumn(odc_flavour_RB, column_index)
          end do
 
-      elseif(trim(obsColumnMode).eq.'VAR') then COLUMN_MODE
+      elseif(trim(obsColumnMode) == 'VAR') then COLUMN_MODE
 
          do column_index=NHDR_INT_BEG,NHDR_INT_END
-            if(     column_index.ne.OBS_IDF &
-               .and.column_index.ne.OBS_IDO &
-               .and.(column_index.lt.OBS_CF1 .or. &
-                     column_index.gt.OBS_STYP) &
+            if(     column_index /= OBS_IDF &
+               .and.column_index /= OBS_IDO &
+               .and.(column_index < OBS_CF1 .or. &
+                     column_index > OBS_STYP) &
               )call odc_activateColumn(odc_flavour_IH, column_index)
          enddo
          do column_index=NHDR_REAL_BEG,NHDR_REAL_END
-            if(     column_index.ne.OBS_BX &
-               .and.column_index.ne.OBS_BY &
-               .and.column_index.ne.OBS_BZ &
-               .and. (column_index.lt.OBS_M1C1 .or. &
-                      column_index.gt.OBS_ZPS) &
+            if(     column_index /= OBS_BX &
+               .and.column_index /= OBS_BY &
+               .and.column_index /= OBS_BZ &
+               .and. (column_index < OBS_M1C1 .or. &
+                      column_index > OBS_ZPS) &
               ) call odc_activateColumn(odc_flavour_RH, column_index)
          enddo
          do column_index=NBDY_INT_BEG,NBDY_INT_END
-            if(     column_index.ne.OBS_KFA &
-               .and.column_index.ne.OBS_IDD &
+            if(     column_index /= OBS_KFA &
+               .and.column_index /= OBS_IDD &
               ) call odc_activateColumn(odc_flavour_IB, column_index)
          enddo
          do column_index=NBDY_REAL_BEG,NBDY_REAL_END
-            if(      column_index.ne.OBS_OMP6 &
-               .and. column_index.ne.OBS_OMA0 &
-               .and. column_index.ne.OBS_HAHT &
-               .and. column_index.ne.OBS_SIGI &
-               .and. column_index.ne.OBS_SIGO &
+            if(      column_index /= OBS_OMP6 &
+               .and. column_index /= OBS_OMA0 &
+               .and. column_index /= OBS_HAHT &
+               .and. column_index /= OBS_SIGI &
+               .and. column_index /= OBS_SIGO &
               )call odc_activateColumn(odc_flavour_RB, column_index)
          enddo
 
@@ -1100,8 +1100,8 @@ contains
 
       character(len=100) :: message
       
-      if(      column_index.ge.odc_array%odc_flavour%ncol_beg &
-         .and. column_index.le.odc_array%odc_flavour%ncol_end) then
+      if(      column_index >= odc_array%odc_flavour%ncol_beg &
+         .and. column_index <= odc_array%odc_flavour%ncol_end) then
          if(odc_array%odc_flavour%columnActive(column_index)) then
             ! Return the value (return int AND real, just to make it simple)
             value_i = odc_array%columns(column_index)%value_i(row_index)
@@ -1213,8 +1213,8 @@ contains
 
       ! Validate the requested column index, and
       ! Record the value
-      if(      column_index.ge.odc_array%odc_flavour%ncol_beg &
-         .and. column_index.le.odc_array%odc_flavour%ncol_end) then
+      if(      column_index >= odc_array%odc_flavour%ncol_beg &
+         .and. column_index <= odc_array%odc_flavour%ncol_end) then
          if(odc_array%odc_flavour%columnActive(column_index)) then
             ! Record the value (record int AND real, just to make it simple)
             odc_array%columns(column_index)%value_i(row_index) = value_i
@@ -1254,13 +1254,13 @@ contains
       endif
 
       odc%allocated=.false.
-      if(trim(odc%dataType) .eq. 'INT' .and. associated(odc%value_i)) then
+      if(trim(odc%dataType) == 'INT' .and. associated(odc%value_i)) then
          deallocate(odc%value_i)
          nullify(odc%value_i)
          nullify(odc%value_r)    ! Dont deallocate:  this is not the only pointer
       end if
 
-      if(trim(odc%dataType) .eq. 'REAL' .and. associated(odc%value_r)) then
+      if(trim(odc%dataType) == 'REAL' .and. associated(odc%value_r)) then
          deallocate(odc%value_r)
          nullify(odc%value_r)
          nullify(odc%value_i)    ! Dont deallocate:  this is not the only pointer
@@ -1617,7 +1617,7 @@ contains
       allocate(obsdat%intHeaders%columns(NHDR_INT_BEG:NHDR_INT_END))
       obsdat%intHeaders%odc_flavour => odc_flavour_IH
 
-      HEADER:if(numHeader_max.gt.0) then
+      HEADER:if(numHeader_max > 0) then
          allocate(obsdat%cfamily(numHeader_max))
          obsdat%cfamily(:)='XX'
 
@@ -1654,7 +1654,7 @@ contains
       allocate(obsdat%intBodies%columns(NBDY_INT_BEG:NBDY_INT_END))
       obsdat%intBodies%odc_flavour => odc_flavour_IB
 
-      BODY:if(numBody_max.gt.0) then
+      BODY:if(numBody_max > 0) then
          allocate(obsdat%scratchRealBody(numBody_max))
          allocate(obsdat%scratchIntBody (numBody_max))
          obsdat%scratchRealBody(:) = NULL_COLUMN_VALUE_R
@@ -1700,7 +1700,7 @@ contains
       integer :: loc,loc_last
       integer :: column_index, pass_offset
 
-      if (obsdat%numHeader.eq.0) then
+      if (obsdat%numHeader == 0) then
          write(*,*) 'odd input for routine obs_append'
          write(*,*) 'no stations need to be added to the obsdat.'
          return
@@ -1709,7 +1709,7 @@ contains
       nens=size(hx,1)
 
       ! Locate the first available locations in the output
-      if (obs_out%numHeader.ge.1) then
+      if (obs_out%numHeader >= 1) then
                                         ! Memorize pass_offset, since numHeader
                                         ! will change
          pass_offset=obs_headElem_i(obs_out,OBS_PAS,obs_out%numHeader) 
@@ -1718,7 +1718,7 @@ contains
          loc_last=obs_headElem_i(obs_out, OBS_RLN, 1)
          storedlast: do istation=2,obs_out%numHeader
             loc=obs_headElem_i(obs_out, OBS_RLN, istation)
-            if (loc.gt.loc_last) then
+            if (loc > loc_last) then
                i_last=istation
                loc_last=loc
             endif
@@ -1764,7 +1764,7 @@ contains
          call obs_headSet_i(obs_out, OBS_ONM, i_station_write, i_station_write)
          call obs_headSet_i(obs_out, OBS_RLN, i_station_write, i_write_first)
 
-         if (obs_out%numHeader.gt.0) then
+         if (obs_out%numHeader > 0) then
             call obs_headSet_i(obs_out, OBS_PAS, i_station_write, &
                                obs_headElem_i(obs_out,OBS_PAS,i_station_write) &
                                +pass_offset&
@@ -1915,13 +1915,13 @@ contains
       IK= KINDEX
       DO ielement=1,n_elements_in_block
          ILEM=obs_get_obs_index_for_bufr_element(KLIST(ielement))
-         IF ( (ILEM .GT. 0) .AND. (KLIST(ielement) .NE. KVCORD) ) THEN
+         IF ( (ILEM > 0) .AND. (KLIST(ielement) /= KVCORD) ) THEN
             DO ilevel=1,n_levels_in_block
-               if(pvcord(ilevel) .ne. ppmis .and. (nonelev .eq. -1 .or. &
-                  nonelev .eq. nint(pvcord(ilevel)*zfact))) then
-                  IF  ( PVALUES (ielement,ilevel,IK) .NE. PPMIS ) THEN
+               if(pvcord(ilevel) /= ppmis .and. (nonelev == -1 .or. &
+                  nonelev == nint(pvcord(ilevel)*zfact))) then
+                  IF  ( PVALUES (ielement,ilevel,IK) /= PPMIS ) THEN
                      pvalue=PVALUES(ielement,ilevel,IK)
-                     IF ( IP + IND .LE. obsdat%numBody_max ) THEN
+                     IF ( IP + IND <= obsdat%numBody_max ) THEN
                                         ! VERTICAL COORDINATE
                         call obs_bodySet_r(obsdat, OBS_PPP, IP+IND, &
                                real(PVCORD(ilevel) *ZFACT +vcordsf(ilem,kidtyp),&
@@ -1929,33 +1929,33 @@ contains
 
                                         !  FOR PNM HEIGHT IS SET TO 0
                                         ! ----------------------------
-                        IF ( ILEM .EQ. 53 ) THEN
+                        IF ( ILEM == 53 ) THEN
                            call obs_bodySet_r(obsdat, OBS_PPP, IP+IND, &
                                               real(0.D0,OBS_REAL))
                         ENDIF
                                         ! ----------------------------
 
-                                        ! IF ( ILEM .EQ. 2 ) Units:  V
+                                        ! IF ( ILEM == 2 ) Units:  V
                                         ! CONVERT TO GZ
-                        IF ( ILEM .EQ. 3 ) THEN
+                        IF ( ILEM == 3 ) THEN
                            pvalue=RG*pvalue
                         ENDIF
-                                        ! IF ( ILEM .EQ. 4 ) Units: METERS
-                                        ! IF ( ILEM .EQ. 8 ) Units:  CELSIUS
+                                        ! IF ( ILEM == 4 ) Units: METERS
+                                        ! IF ( ILEM == 8 ) Units:  CELSIUS
                                         ! Max value T-Td upper air
-                        IF ( ILEM .EQ. 9 ) THEN
-                           IF ( pvalue .GT. ZESMAX) THEN
+                        IF ( ILEM == 9 ) THEN
+                           IF ( pvalue > ZESMAX) THEN
                               pvalue=ZESMAX
                            ENDIF
                         ENDIF
                                         ! Max value T-Td surface
-                        IF ( ILEM .EQ. 11 ) THEN
-                           IF ( pvalue .GT. ZESMAX) THEN
+                        IF ( ILEM == 11 ) THEN
+                           IF ( pvalue > ZESMAX) THEN
                               pvalue=ZESMAX
                            ENDIF
                         ENDIF
                                         ! CONVERT TO RADIANS
-                        IF ( ILEM .EQ. 48 .OR. ILEM .EQ. 54 ) THEN
+                        IF ( ILEM == 48 .OR. ILEM == 54 ) THEN
                            pvalue=MPC_RADIANS_PER_DEGREE_R8*pvalue
                         ENDIF
                                         ! FLAGS
@@ -2194,10 +2194,10 @@ contains
                     // 're-activating columns'
          write(*,*) 'obs_class_initialize: !!! WARNING WARNING WARNING!!!'
          if(present(obsColumnMode_in)) then
-            if(trim(obsColumnMode_in).ne.trim(obsColumnMode_class)) then
+            if(trim(obsColumnMode_in) /= trim(obsColumnMode_class)) then
                call obs_abort('obs_class_initialize: called with different '&
                             //'value of obsColumnMode than during first call: '&
-                            // trim(obsColumnMode_class) // ' .ne. ' &
+                            // trim(obsColumnMode_class) // ' /= ' &
                             // trim(obsColumnMode_in))
                return
             endif
@@ -2226,8 +2226,8 @@ contains
       !        1) either of:
       !             1a) btest(obsdat%intBodies%columns(OBS_FLG,jdata),12)
       !             1b) .not. qcvar (the 5th parameter of obs_clean)
-      !        2) obsdat% intBodies%columns(OBS_ASS,jdata) .eq. 1
-      !        3) obsdat%realBodies%columns(OBS_ZHA,jdata) .ge. 0.0
+      !        2) obsdat% intBodies%columns(OBS_ASS,jdata) == 1
+      !        3) obsdat%realBodies%columns(OBS_ZHA,jdata) >= 0.0
       !
       implicit none
 
@@ -2266,12 +2266,12 @@ contains
             ! To remove observations for which the height in the atmosphere has
             ! not been assigned (for instance because they are above the model
             ! top for the EnKF system)
-            if (obs_bodyElem_r(obsdat, OBS_ZHA, jdata) .lt. 0.) then
+            if (obs_bodyElem_r(obsdat, OBS_ZHA, jdata) < 0.) then
                call obs_bodySet_i(obsdat, OBS_ASS, jdata, -1)
             endif
 
-            if (      (obs_bodyElem_i(obsdat, OBS_ASS, jdata).eq.1) &
-                 .and.(var3d.eq.1)) then 
+            if (      (obs_bodyElem_i(obsdat, OBS_ASS, jdata) == 1) &
+                 .and.(var3d == 1)) then 
                ! the observation will be used in the analysis
                iaccept=iaccept+1
                iwrite=iwrite+1
@@ -2294,7 +2294,7 @@ contains
          enddo observations
 
          ! adjust obsdat%realHeaders%columns 
-         if (iaccept.gt.0) then
+         if (iaccept > 0) then
             kobsout=kobsout+1
             do active_index=1,odc_numActiveColumn(obsdat%intHeaders)
                column_index = odc_columnIndexFromActiveIndex( &
@@ -2376,7 +2376,7 @@ contains
        enddo observations
 
        ! adjust obsdat%realHeaders%columns 
-       if (numBodyAccept.gt.0) then
+       if (numBodyAccept > 0) then
          numHeaderCleaned = numHeaderCleaned + 1
          do active_index = 1, odc_numActiveColumn(obsdat%intHeaders)
            column_index = odc_columnIndexFromActiveIndex( &
@@ -2619,14 +2619,14 @@ contains
       master=0
 
       ! if nothing to communicate, return
-      if (obsdat%numHeader_max.le.0) return
+      if (obsdat%numHeader_max <= 0) return
 
-      if (nstncom.gt.obsdat%numHeader_max) then
+      if (nstncom > obsdat%numHeader_max) then
          write(message,*) 'ERROR in obs_comm: nstncom ',nstncom, &
             ' may not exceed numHeader_max ',obsdat%numHeader_max
          call obs_abort(message); return
       endif
-      if (nstncom.le.0) then
+      if (nstncom <= 0) then
          call obs_abort('OBS_COMM: nstncom should be positive'); return
       endif
 
@@ -2636,12 +2636,12 @@ contains
       ncomm=1
       call rpn_comm_bcast(nobs,ncomm,"mpi_integer",master,"world",ier)
 
-      if (nobs.gt.obsdat%numBody_max) then
+      if (nobs > obsdat%numBody_max) then
          write(message,*) 'ERROR in obs_comm: nobs ',nobs, &
             ' may not exceed obsdat%numBody_max ',obsdat%numBody_max
          call obs_abort(message); return
       endif
-      if (nobs.le.0) then
+      if (nobs <= 0) then
          write(message,*) 'ERROR in obs_comm: nobs ',nobs,' should be positive. '
          call obs_abort(message); return
       endif
@@ -2738,7 +2738,7 @@ contains
       call rpn_comm_bcast(obsdat%mpi_local,ncomm,"mpi_integer",master,"world", &
                                                                              ier)
 
-      if (nens.gt.0) then
+      if (nens > 0) then
          ncomm=nobs*nens
          call rpn_comm_bcast(hx,ncomm,"mpi_double_precision",master,"world",ier)
       endif
@@ -2767,7 +2767,7 @@ contains
       integer :: column_index
 
       ! check if object to be copied is empty and react appropriately
-      if (obs_a%numHeader_max.eq.0 .or. obs_a%numBody_max.eq.0) then
+      if (obs_a%numHeader_max == 0 .or. obs_a%numBody_max == 0) then
          obs_b%numHeader     = obs_a%numHeader
          obs_b%numHeader_max = obs_a%numHeader_max
          obs_b%numBody       = obs_a%numBody
@@ -2862,10 +2862,10 @@ contains
 
       do kobs=1,obsdat%numHeader
          id=obs_headElem_i(obsdat, OBS_ITY, kobs)
-         if(id.gt.MAXID) then
+         if(id > MAXID) then
             id=mod(id,1000)
          endif
-         if ((id.lt.1).or.(id.gt.MAXID)) then 
+         if ((id < 1).or.(id > MAXID)) then 
             write(message,*)'OBS_COUNT_HEADERS: ITY (instrument and ' // &
                             'retrieval type) out of range: ', id
             write(kulout,*)message
@@ -2880,7 +2880,7 @@ contains
       write(kulout,*) 'number of stations and observations'
       write(kulout,*) ' idtype #stations #observations '
       do id=1,MAXID
-         if (numstn(id).gt.0) then
+         if (numstn(id) > 0) then
             write(kulout,'(i3,3x,i7,2x,i8)') id,numstn(id),numobs(id)
          endif
          allstn=allstn+numstn(id)
@@ -2914,17 +2914,17 @@ contains
       endif
 
       obsdat%allocated=.false.
-      HEADER:if(obsdat%numHeader_max.gt.0) then
+      HEADER:if(obsdat%numHeader_max > 0) then
          if (associated(obsdat%cfamily)) then
             deallocate(obsdat%cfamily,STAT=ierr)
             nullify(obsdat%cfamily)
-            if(ierr.ne.0)write(*,*) 'Problem detected with CFAMILY. IERR =',ierr
+            if(ierr /= 0)write(*,*) 'Problem detected with CFAMILY. IERR =',ierr
          end if
 
          if (associated(obsdat%cstnid))then
             deallocate(obsdat%cstnid,STAT=ierr)
             nullify(obsdat%cstnid)
-            if(ierr.ne.0)write(*,*) 'Problem detected with CSTNID. IERR =',ierr
+            if(ierr /= 0)write(*,*) 'Problem detected with CSTNID. IERR =',ierr
          end if
 
          if (associated(obsdat%realHeaders%columns))then
@@ -2948,7 +2948,7 @@ contains
          nullify   (obsdat%scratchIntHeader)
       endif HEADER
 
-      BODY:if(obsdat%numBody_max.gt.0) then
+      BODY:if(obsdat%numBody_max > 0) then
          if (associated(obsdat%realBodies%columns))then
             do column_index=NBDY_REAL_BEG,NBDY_REAL_END
                if(obsdat%realBodies%odc_flavour%columnActive(column_index)) &
@@ -3083,8 +3083,6 @@ contains
                                         ! for surface data
       real, dimension(:,:) :: vcordsf
 
-      real (kind=4), parameter :: PPMIS=-999.0 ! VALUE OF MISSING DATA
-
       integer :: ichn,ik,ilem,ind,ip,ielement,ilevel,n_elements_in_block
       integer :: n_levels_in_block,zesmax
 
@@ -3112,41 +3110,41 @@ contains
       IK= KINDEX
       DO ielement=1,n_elements_in_block
          ILEM=obs_get_obs_index_for_bufr_element(KLIST(ielement))
-         IF ( (ILEM .GT. 0) .AND. (KLIST(ielement) .NE. KVCORD) ) THEN
+         IF ( (ILEM > 0) .AND. (KLIST(ielement) /= KVCORD) ) THEN
             DO ilevel=1,n_levels_in_block
-               if(pvcord(ilevel) .ne. ppmis) then
-                  IF  ( PVALUES (ielement,ilevel,IK) .NE. PPMIS ) THEN
+               if(pvcord(ilevel)  /= MPC_missingValue_R4 ) then
+                  IF  ( PVALUES (ielement,ilevel,IK) /= MPC_missingValue_R4 ) THEN
                      pvalue=PVALUES(ielement,ilevel,IK)
                      ! PLH replaced ndatamx by numBody_max
-                     IF ( IP + IND .LE. obsdat%numBody_max ) THEN
+                     IF ( IP + IND <= obsdat%numBody_max ) THEN
                                         ! VERTICAL COORDINATE
                         OBSDAT%REALBODIES%COLUMNS(OBS_PPP)%value_r(IP+IND) &
                                       =PVCORD(ilevel)*vconv +vcordsf(ilem,kidtyp)
                                         !
                                         !  FOR PNM HEIGHT IS SET TO 0
                                         ! ----------------------------
-                        IF ( ILEM .EQ. 53 ) THEN
+                        IF ( ILEM == 53 ) THEN
                            OBSDAT%REALBODIES%COLUMNS(OBS_PPP)%value_r(IP+IND)=0.
                         ENDIF
                                         ! ----------------------------
                                         ! CONVERT TO GZ
-                        if ( ILEM .EQ. 3 ) then
+                        if ( ILEM == 3 ) then
                            pvalue=GRAV*pvalue
                         endif
                                         ! Max value T-Td upper air
-                        IF ( ILEM .EQ. 9 ) THEN
-                           IF ( pvalue .GT. ZESMAX) THEN
+                        IF ( ILEM == 9 ) THEN
+                           IF ( pvalue > ZESMAX) THEN
                               pvalue=ZESMAX
                            ENDIF
                         ENDIF
                                         ! Max value T-Td surface
-                        IF ( ILEM .EQ. 11 ) THEN
-                           IF ( pvalue .GT. ZESMAX) THEN
+                        IF ( ILEM == 11 ) THEN
+                           IF ( pvalue > ZESMAX) THEN
                               pvalue=ZESMAX
                            ENDIF
                         ENDIF
                                         ! CONVERT TO RADIANS
-                        if ( ILEM .EQ. 48 ) then
+                        if ( ILEM == 48 ) then
                            pvalue=ztorad*pvalue
                         endif
                                         ! FLAGS
@@ -3216,7 +3214,7 @@ contains
       ipnt  = obs_headElem_i(obsdat, OBS_RLN, kstn)
       idata = obs_headElem_i(obsdat, OBS_NLV, kstn)
 
-      if(idata.eq.1) then
+      if(idata == 1) then
          write(kulout,fmt=9101)idata,kstn
       else
          write(kulout,fmt=9100)idata,kstn
@@ -3454,7 +3452,7 @@ contains
          headerIndex_mpiglobal(headerIndex_mpilocal)=obsdat%headerIndex_mpiglobal(headerIndex_mpilocal)
       enddo
 
-      if(myid_mpi.eq.0) then
+      if(myid_mpi == 0) then
          allocate(all_headerIndex_mpiglobal(numHeader_mpilocalmax,0:nprocs_mpi-1))
       else
          allocate(all_headerIndex_mpiglobal(1,1))
@@ -3478,7 +3476,7 @@ contains
          enddo
       enddo
 
-      if(myid_mpi.eq.0) then
+      if(myid_mpi == 0) then
          allocate(all_intHeaders_mpilocal(odc_numActiveColumn(obsdat%intHeaders),numHeader_mpilocalmax,0:nprocs_mpi-1))
       else
          allocate(all_intHeaders_mpilocal(1,1,1))
@@ -3503,7 +3501,7 @@ contains
          enddo
       enddo
       
-      if(myid_mpi.eq.0) then
+      if(myid_mpi == 0) then
          allocate(all_realHeaders_mpilocal(odc_numActiveColumn(obsdat%realHeaders),numHeader_mpilocalmax,0:nprocs_mpi-1))
       else
          allocate(all_realHeaders_mpilocal(1,1,1))
@@ -3526,7 +3524,7 @@ contains
          enddo
       enddo
 
-      if(myid_mpi.eq.0) then
+      if(myid_mpi == 0) then
          allocate(all_intStnid_mpilocal(len(obsdat%cstnid(1)),numHeader_mpilocalmax,0:nprocs_mpi-1))
       else
          allocate(all_intStnid_mpilocal(1,1,1))
@@ -3549,7 +3547,7 @@ contains
          enddo
       enddo
 
-      if(myid_mpi.eq.0) then
+      if(myid_mpi == 0) then
          allocate(all_intFamily_mpilocal(len(obsdat%cfamily(1)),numHeader_mpilocalmax,0:nprocs_mpi-1))
       else
          allocate(all_intFamily_mpilocal(1,1,1))
@@ -3570,7 +3568,7 @@ contains
          bodyIndex_mpiglobal(bodyIndex_mpilocal)=obsdat%bodyIndex_mpiglobal(bodyIndex_mpilocal)
       enddo
 
-      if(myid_mpi.eq.0) then
+      if(myid_mpi == 0) then
          allocate(all_bodyIndex_mpiglobal(numBody_mpilocalmax,0:nprocs_mpi-1))
       else
          allocate(all_bodyIndex_mpiglobal(1,1))
@@ -3594,7 +3592,7 @@ contains
          enddo
       enddo
 
-      if(myid_mpi.eq.0) then
+      if(myid_mpi == 0) then
          allocate(all_intBodies_mpilocal(odc_numActiveColumn(obsdat%intBodies),numBody_mpilocalmax,0:nprocs_mpi-1))
       else
          allocate(all_intBodies_mpilocal(1,1,1))
@@ -3619,7 +3617,7 @@ contains
          enddo
       enddo
 
-      if(myid_mpi.eq.0) then
+      if(myid_mpi == 0) then
          allocate(all_realBodies_mpilocal(odc_numActiveColumn(obsdat%realBodies),numBody_mpilocalmax,0:nprocs_mpi-1))
       else
          allocate(all_realBodies_mpilocal(1,1,1))
@@ -3636,7 +3634,7 @@ contains
       call obs_deallocate(obsdat)
 
       ! Only processor 0 does any work hereafter
-      if(myid_mpi.eq.0) then
+      if(myid_mpi == 0) then
           call obs_allocate(obsdat,numHeader_mpiGlobal,numBody_mpiGlobal)
       else
           call obs_allocate(obsdat,0,0)
@@ -3644,13 +3642,13 @@ contains
 
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-      if(myid_mpi.eq.0) then
+      if(myid_mpi == 0) then
 
          do sourcePE=0,nprocs_mpi-1
             do headerIndex_mpilocal=1,numHeader_mpilocalmax
                ! grab the mpiglobal header index
                headerIndex=all_headerIndex_mpiglobal(headerIndex_mpilocal,sourcePE)
-               if(headerIndex.gt.0) then
+               if(headerIndex > 0) then
 
                   do activeIndex=1,odc_numActiveColumn(obsdat%realHeaders)
                      columnIndex=odc_columnIndexFromActiveIndex(obsdat%realHeaders%odc_flavour,activeIndex)
@@ -3681,7 +3679,7 @@ contains
          do sourcePE=0,nprocs_mpi-1
             do bodyIndex_mpilocal=1,numBody_mpilocalmax
                bodyIndex=all_bodyIndex_mpiglobal(bodyIndex_mpilocal,sourcePE)
-               if(bodyIndex.gt.0) then
+               if(bodyIndex > 0) then
 
                   do activeIndex=1,odc_numActiveColumn(obsdat%realBodies)
                      columnIndex=odc_columnIndexFromActiveIndex(obsdat%realBodies%odc_flavour,activeIndex)
@@ -3719,7 +3717,7 @@ contains
          obsdat%numBody     = 0
          obsdat%numHeader   = 0
 
-      endif ! myid_mpi.eq.0
+      endif ! myid_mpi == 0
 
       ! deallocate the complete temporary arrays
       deallocate(all_headerIndex_mpiglobal)
@@ -3779,8 +3777,8 @@ contains
       !     IF VALID DATA WERE FOUND GENERATE THE OBSDAT HEADER
       !      AND INCREMENT OBSDAT%numHeader
       !
-      ! PLH          if  ( obsdat%numHeader .lt. nmxobs) then
-      if ( obsdat%numHeader .lt. obsdat%numHeader_max) then
+      ! PLH          if  ( obsdat%numHeader < nmxobs) then
+      if ( obsdat%numHeader < obsdat%numHeader_max) then
          obsdat%numHeader=obsdat%numHeader + 1
 
          obsdat%realHeaders%columns(OBS_LON)%value_r(obsdat%numHeader) = real(ilon) *0.01
@@ -3796,7 +3794,7 @@ contains
          call obs_headSet_i(obsdat, OBS_NLV, obsdat%numHeader, inbon)
          !       print*,'NOBTOTAL=',obsdat%numHeader
 
-         if ( obsdat%numHeader .eq. 1) then
+         if ( obsdat%numHeader == 1) then
             ! This is the first entry into the obsdat
             call obs_headSet_i(obsdat, OBS_RLN, 1, 1)
          else
@@ -3928,7 +3926,7 @@ contains
 
       obs_get_obs_index_for_bufr_element=-1
       do indbuf=1,OBS_JPNBRELEM
-         if (NVNUMB(indbuf) .eq. kbufrn ) then
+         if (NVNUMB(indbuf) == kbufrn ) then
             obs_get_obs_index_for_bufr_element=indbuf
             return
          endif
@@ -4230,7 +4228,7 @@ contains
 
          ! Read the dimensions from a namelist
          read(nulnam,nml=namdimo,iostat=ierr)
-         if(ierr.ne.0) call obs_abort('obs_initialize: Error reading namelist')
+         if(ierr /= 0) call obs_abort('obs_initialize: Error reading namelist')
          write(*,nml=namdimo)
          ierr=fclos(nulnam)
          ! Verify that the namelist contained values
@@ -4296,7 +4294,7 @@ contains
       numHeader_mpiLocal=0
       numBody_mpiLocal=0
       do headerIndex_mpiglobal=1,obsdat%numHeader
-         if(my_mpi_id.eq.obs_headElem_i(obsdat,OBS_IP,headerIndex_mpiglobal))then
+         if(my_mpi_id == obs_headElem_i(obsdat,OBS_IP,headerIndex_mpiglobal))then
             numHeader_mpiLocal=numHeader_mpiLocal+1
             numBody_mpilocal=numBody_mpilocal &
                             +obs_headElem_i(obsdat,OBS_NLV,headerIndex_mpiglobal)
@@ -4307,7 +4305,7 @@ contains
       write(*,*) 'obs_mpidistributeindices: numBody_mpiLocal,global=',  &
                  numBody_mpiLocal,obsdat%numBody
 
-      if(numHeader_mpilocal.gt.0) then
+      if(numHeader_mpilocal > 0) then
          ! Allocate the list of global header indices
          allocate(obsdat%headerIndex_mpiglobal(numHeader_mpilocal))
          obsdat%headerIndex_mpiglobal(:)=0
@@ -4316,7 +4314,7 @@ contains
          write(*,*) 'This mpi processor has zero headers.'
       end if
 
-      if(numBody_mpilocal.gt.0) then
+      if(numBody_mpilocal > 0) then
          ! Allocate the list of global body indices
          allocate(obsdat%bodyIndex_mpiglobal(numBody_mpilocal))
          obsdat%bodyIndex_mpiglobal(:)=0
@@ -4328,7 +4326,7 @@ contains
       ! determine the list of header indices
       headerIndex_mpilocal=0
       do headerIndex_mpiglobal=1,obsdat%numHeader
-         if(my_mpi_id.eq.obs_headElem_i(obsdat,OBS_IP,headerIndex_mpiglobal))then
+         if(my_mpi_id == obs_headElem_i(obsdat,OBS_IP,headerIndex_mpiglobal))then
             headerIndex_mpilocal=headerIndex_mpilocal+1
             obsdat%headerIndex_mpiglobal(headerIndex_mpilocal) &
                                                            =headerIndex_mpiglobal
@@ -4506,7 +4504,7 @@ contains
          sorted=.false.
          do while(.not.sorted)
             jk=obs_headElem_i(obsdat, OBS_ONM, hdr)
-            if (jk.eq.hdr) then
+            if (jk == hdr) then
                sorted=.true.
             else
                call obs_exchange_stations(obsdat,jk,hdr)
@@ -4672,7 +4670,7 @@ contains
       ipnt  = obs_headElem_i(obsdat,OBS_RLN,index_header)
       idata = obs_headElem_i(obsdat,OBS_NLV,index_header)
 
-      if(idata.eq.1) then
+      if(idata == 1) then
          write(unitout_,fmt=9101)idata,index_header, NBDY_INT_SIZE+NBDY_REAL_SIZE
       else
          write(unitout_,fmt=9100)idata,index_header, NBDY_INT_SIZE+NBDY_REAL_SIZE
@@ -4688,9 +4686,9 @@ contains
       !
       do jdata = ipnt, ipnt + idata - 1
          idata2 = jdata -ipnt + 1
-         if(obs_bodyElem_i(obsdat,OBS_ASS,jdata).ge.0) then
+         if(obs_bodyElem_i(obsdat,OBS_ASS,jdata) >= 0) then
             ivco=obs_bodyElem_i(obsdat,OBS_VCO,jdata)
-            if(ivco.lt.1.or.ivco.gt.3) ivco=4
+            if(ivco < 1.or.ivco > 3) ivco=4
             write(unitout_,fmt=9201) idata2 &
                ,obs_bodyElem_i(obsdat,OBS_VNM ,jdata) &
                ,ccordtyp(ivco) &
@@ -4833,7 +4831,7 @@ contains
 
       obsdat%mpi_local = .false.
 
-      if (nobshx.eq.-1) then
+      if (nobshx == -1) then
          nens=0
       else
          nens=size(hx,1)
@@ -4864,7 +4862,7 @@ contains
             obsdat%cstnid(istn), &
             obsdat%cfamily(istn)
 
-         if (istn.eq.1) then 
+         if (istn == 1) then 
             call obs_headSet_i(obsdat, OBS_RLN, istn, 1)
          else
             call obs_headSet_i (obsdat, OBS_RLN, istn, &
@@ -4886,14 +4884,14 @@ contains
                                         )%value_r(i),&
                    k=1,odc_numActiveColumn(obsdat%realBodies))
          enddo
-         if (nens.gt.0) then
+         if (nens > 0) then
             do i=ifirst,ilast
                read(nobshx)  (hx(j,i),j=1,nens)
             enddo
          endif
       enddo readstn
 
-      if (iobscur.ne.obsdat%numBody) then
+      if (iobscur /= obsdat%numBody) then
          write(message,*)'OBS_READ: the number of references in the header, ', &
                          iobscur, ', does not match the body size, ', &
                          obsdat%numBody
@@ -4904,7 +4902,7 @@ contains
       close(nobshdr)
       write(*,*) 'close nobsbdy which is on unit: ',nobsbdy
       close(nobsbdy)
-      if (nens.gt.0) then
+      if (nens > 0) then
          write(*,*) 'close nobshx which is on unit: ',nobshx
          close(nobshx)
       endif
@@ -4954,7 +4952,7 @@ contains
       logical,           save :: empty  = .false., &
                                  hasone = .false.
 
-      if (myip.ne.0) return
+      if (myip /= 0) return
 
       if (empty) then
          write(*,*) 'file is empty'
@@ -5016,11 +5014,11 @@ contains
          call obs_headSet_i(obsdat,OBS_IP,idata,mod(ipasscur,np))
 
          ireg=obs_headElem_i(obsdat, OBS_REG, idata)
-         if (iregcur.ne.ireg) then
+         if (iregcur /= ireg) then
             iregcur=ireg
          endif
 
-         if (idata.eq.1) then
+         if (idata == 1) then
             call obs_headSet_i(obsdat, OBS_RLN, idata, 1)
          else
             call obs_headSet_i(obsdat, OBS_RLN, idata, &
@@ -5155,11 +5153,11 @@ contains
          call obs_headSet_i(cma_sub,OBS_IP,idata, mod(obs_headElem_i(cma,OBS_ONM,istn),np))
 
          ireg=obs_headElem_i(cma_sub, OBS_REG, idata)
-         if (iregcur.ne.ireg) then
+         if (iregcur /= ireg) then
             iregcur=ireg
          endif
 
-         if (idata.eq.1) then
+         if (idata == 1) then
             call obs_headSet_i(cma_sub, OBS_RLN, idata, 1)
           else
             call obs_headSet_i(cma_sub, OBS_RLN, idata, &
@@ -5244,7 +5242,7 @@ contains
          return
       end if
 
-      if(obsdat%numHeader_max.eq.0)then
+      if(obsdat%numHeader_max == 0)then
          call obs_abort('OBS_REDUCETOMPILOCAL() has been called when there are '&
                         // 'no data.  Obs_reduceToMpiLocal cannot be called ' &
                         // 'after a call to obs_expandToMpiGlobal.')
@@ -5271,7 +5269,7 @@ contains
       numBody_mpiGlobal   = obs_numBody(obsdat)
 
       ! allocate temporary arrays to hold mpilocal data
-      if(numHeader_mpiLocal.gt.0) then
+      if(numHeader_mpiLocal > 0) then
          allocate(cfamily_tmp(    numHeader_mpiLocal)) 
          allocate( cstnid_tmp(    numHeader_mpiLocal)) 
          allocate(realHeaders_tmp(odc_numActiveColumn(obsdat%realHeaders), &
@@ -5280,7 +5278,7 @@ contains
                                   numHeader_mpilocal))
       endif
 
-      if(numBody_mpiLocal.gt.0) then
+      if(numBody_mpiLocal > 0) then
          allocate( realBodies_tmp(odc_numActiveColumn(obsdat%realBodies), &
                                   numBody_mpilocal))
          allocate(  intBodies_tmp(odc_numActiveColumn(obsdat%intBodies), &
@@ -5369,7 +5367,7 @@ contains
       call obs_allocate(obsdat,obsdat%numHeader,obsdat%numBody)
 
       ! copy all data from temporary arrays to object's arrays
-      HEADER:if(numHeader_mpiLocal.gt.0) then
+      HEADER:if(numHeader_mpiLocal > 0) then
          obsdat%cfamily(:  )=cfamily_tmp(:  ) 
          obsdat%cstnid (:  )= cstnid_tmp(:  )
          do active_index=1,odc_numActiveColumn(obsdat%realHeaders)
@@ -5392,7 +5390,7 @@ contains
          deallocate(intHeaders_tmp)
       endif HEADER
 
-      BODY:if(numBody_mpiLocal.gt.0) then
+      BODY:if(numBody_mpiLocal > 0) then
          do active_index=1,odc_numActiveColumn(obsdat%realBodies)
             column_index=odc_columnIndexFromActiveIndex( &
                                      obsdat%realBodies%odc_flavour, active_index)
@@ -5441,14 +5439,14 @@ contains
 
       write(*,*) '============= Enter obs_squeeze =============='
 
-      if(obsdat%numHeader_max .eq. obsdat%numHeader .and. &
-         obsdat%numBody_max .eq. obsdat%numBody)then
+      if(obsdat%numHeader_max == obsdat%numHeader .and. &
+         obsdat%numBody_max == obsdat%numBody)then
          write(*,*) 'obs_squeeze: obsdata instance is already sized correctly, do nothing'
          return
       end if
 
       ! allocate temporary arrays to hold data
-      if(obsdat%numHeader .gt. 0) then
+      if(obsdat%numHeader > 0) then
          allocate(cfamily_tmp(    obsdat%numHeader)) 
          allocate( cstnid_tmp(    obsdat%numHeader)) 
          allocate(realHeaders_tmp(odc_numActiveColumn(obsdat%realHeaders), &
@@ -5457,7 +5455,7 @@ contains
                                   obsdat%numHeader))
       endif
 
-      if(obsdat%numBody .gt. 0) then
+      if(obsdat%numBody > 0) then
          allocate( realBodies_tmp(odc_numActiveColumn(obsdat%realBodies), &
                                   obsdat%numBody))
          allocate(  intBodies_tmp(odc_numActiveColumn(obsdat%intBodies), &
@@ -5515,7 +5513,7 @@ contains
       call obs_allocate(obsdat,obsdat%numHeader,obsdat%numBody)
 
       ! copy all data from temporary arrays to object's arrays
-      HEADER:if(obsdat%numHeader.gt.0) then
+      HEADER:if(obsdat%numHeader > 0) then
          obsdat%cfamily(:)=cfamily_tmp(:) 
          obsdat%cstnid (:)= cstnid_tmp(:)
          do active_index=1,odc_numActiveColumn(obsdat%realHeaders)
@@ -5538,7 +5536,7 @@ contains
          deallocate(intHeaders_tmp)
       endif HEADER
 
-      BODY:if(obsdat%numBody.gt.0) then
+      BODY:if(obsdat%numBody > 0) then
          do active_index=1,odc_numActiveColumn(obsdat%realBodies)
             column_index=odc_columnIndexFromActiveIndex( &
                                      obsdat%realBodies%odc_flavour, active_index)
@@ -5611,7 +5609,7 @@ contains
       needToRedistribute = .false.
       do headerIndex = 1, numHeader_in
          target_ip = obs_headElem_i(obsdat_inout,target_ip_index,headerIndex)
-         if (target_ip.ne.myid_mpi) needToRedistribute = .true.
+         if (target_ip /= myid_mpi) needToRedistribute = .true.
       enddo
       call rpn_comm_allreduce(needToRedistribute,needToRedistribute_mpiglobal,1,  &
                               "MPI_LOGICAL","MPI_LOR","world",ierr)
@@ -5710,7 +5708,7 @@ contains
       enddo
 
       ! do mpi communication: header-level data
-      if(nprocs_mpi.gt.1) then
+      if(nprocs_mpi > 1) then
         nsize = numHeader_mpimessage*odc_numActiveColumn(obsdat_inout%realHeaders)
         call rpn_comm_alltoall(real_send,nsize,"mpi_double_precision",  &
                                real_recv,nsize,"mpi_double_precision","GRID",ierr)
@@ -5741,8 +5739,8 @@ contains
       headerIndex_out = 0
       do procIndex = 1, nprocs_mpi
          do headerIndex=1,numHeader_mpimessage
-            if(int_recv(1,headerIndex,procIndex).ne.-99999) then
-               if(target_ip_index.eq.OBS_IPF) then
+            if(int_recv(1,headerIndex,procIndex) /= -99999) then
+               if(target_ip_index == OBS_IPF) then
                  ! put headers back in original order as in the files
                  headerIndex_out = message_onm(headerIndex,procIndex)
                else
@@ -5820,7 +5818,7 @@ contains
          enddo
 
          ! do mpi communication: body-level data
-         if(nprocs_mpi.gt.1) then
+         if(nprocs_mpi > 1) then
            nsize = numBody_mpimessage
            call rpn_comm_alltoall(real_send_2d,nsize,"mpi_double_precision",  &
                                   real_recv_2d,nsize,"mpi_double_precision","GRID",ierr)
@@ -5829,14 +5827,14 @@ contains
          endif
 
          ! copy the data from temporary arrays: body-level data
-         if(target_ip_index.eq.OBS_IPF) then
+         if(target_ip_index == OBS_IPF) then
 
             ! copy the data in the same order as in the original files
             do procIndex = 1, nprocs_mpi
                bodyIndex = 0
                do headerIndex=1,numHeader_mpimessage
                   headerIndex_out = message_onm(headerIndex,procIndex)
-                  if(headerIndex_out.ne.-99999) then
+                  if(headerIndex_out /= -99999) then
                      bodyIndexBeg = obs_headElem_i(obsdat_tmp,OBS_RLN,headerIndex_out)
                      bodyIndexEnd = obs_headElem_i(obsdat_tmp,OBS_NLV,headerIndex_out) + bodyIndexBeg - 1
                      do bodyIndex_out = bodyIndexBeg, bodyIndexEnd
@@ -5854,7 +5852,7 @@ contains
             bodyIndex_out = 0
             do procIndex = 1, nprocs_mpi
                do bodyIndex=1,numBody_mpimessage
-                  if(real_recv_2d(bodyIndex,procIndex).ne.-99999.0d0) then
+                  if(real_recv_2d(bodyIndex,procIndex) /= -99999.0d0) then
                      bodyIndex_out = bodyIndex_out + 1
                      obsdat_tmp%realBodies%columns(columnIndex)%value_r(bodyIndex_out)= &
                         real_recv_2d(bodyIndex,procIndex)
@@ -5890,7 +5888,7 @@ contains
          enddo
 
          ! do mpi communication: body-level data
-         if(nprocs_mpi.gt.1) then
+         if(nprocs_mpi > 1) then
            nsize = numBody_mpimessage
            call rpn_comm_alltoall(int_send_2d,nsize,"mpi_integer",  &
                                   int_recv_2d,nsize,"mpi_integer","GRID",ierr)
@@ -5899,14 +5897,14 @@ contains
          endif
 
          ! copy the data from temporary arrays: body-level data
-         if(target_ip_index.eq.OBS_IPF) then
+         if(target_ip_index == OBS_IPF) then
 
             ! copy the data in the same order as in the original files
             do procIndex = 1, nprocs_mpi
                bodyIndex = 0
                do headerIndex=1,numHeader_mpimessage
                   headerIndex_out = message_onm(headerIndex,procIndex)
-                  if(headerIndex_out.ne.-99999) then
+                  if(headerIndex_out /= -99999) then
                      bodyIndexBeg = obs_headElem_i(obsdat_tmp,OBS_RLN,headerIndex_out)
                      bodyIndexEnd = obs_headElem_i(obsdat_tmp,OBS_NLV,headerIndex_out) + bodyIndexBeg - 1
                      do bodyIndex_out = bodyIndexBeg, bodyIndexEnd
@@ -5924,7 +5922,7 @@ contains
             bodyIndex_out = 0
             do procIndex = 1, nprocs_mpi
                do bodyIndex=1,numBody_mpimessage
-                  if(int_recv_2d(bodyIndex,procIndex).ne.-99999) then
+                  if(int_recv_2d(bodyIndex,procIndex) /= -99999) then
                      bodyIndex_out = bodyIndex_out + 1
                      obsdat_tmp%intBodies%columns(columnIndex)%value_i(bodyIndex_out)= &
                         int_recv_2d(bodyIndex,procIndex)
@@ -6017,8 +6015,8 @@ contains
          iaccept=0
          observations: do jdata = ipnt, ipnt + idata - 1
             ! To remove observations that are not in the desired vertical layer 
-            if ((obs_bodyElem_r(obsdat, OBS_ZHA, jdata) .gt. zhamin).and. &
-                (obs_bodyElem_r(obsdat, OBS_ZHA, jdata) .le. zhamax)) then
+            if ((obs_bodyElem_r(obsdat, OBS_ZHA, jdata) > zhamin).and. &
+                (obs_bodyElem_r(obsdat, OBS_ZHA, jdata) <= zhamax)) then
                iaccept=iaccept+1
                iwrite=iwrite+1
                do active_index=1,odc_numActiveColumn(obsdat%intBodies)
@@ -6038,7 +6036,7 @@ contains
          enddo observations
 
          ! adjust obs_sel%*Headers%columns
-         if (iaccept.gt.0) then
+         if (iaccept > 0) then
             kobsout=kobsout+1
             do active_index=1,odc_numActiveColumn(obsdat%intHeaders)
                column_index=odc_columnIndexFromActiveIndex( &
@@ -6492,7 +6490,7 @@ contains
       endif
 
       obsdat%cfamily(headerIndex)=Family_in
-      if(headerIndex.eq.(obsdat%numHeader+1)) then
+      if(headerIndex == (obsdat%numHeader+1)) then
          obsdat%numHeader=obsdat%numHeader+1
       endif
 
@@ -6513,10 +6511,10 @@ contains
       integer, intent(in)  :: kulout
 
 
-      ! PLH   if ( obsdat%numHeader .ge. nmxobs ) then
-      ! PLH     if ( obsdat%numBody .ge. ndatamx .or. obsdat%numHeader .ge. nmxobs ) then
-      if (     obsdat%numBody   .ge. obsdat%numBody_max &
-          .or. obsdat%numHeader .ge. obsdat%numHeader_max) then
+      ! PLH   if ( obsdat%numHeader >= nmxobs ) then
+      ! PLH     if ( obsdat%numBody >= ndatamx .or. obsdat%numHeader >= nmxobs ) then
+      if (     obsdat%numBody   >= obsdat%numBody_max &
+          .or. obsdat%numHeader >= obsdat%numHeader_max) then
          write(kulout,*) ' OBSDAT FILE FULL'
          obs_full = .true.
 
@@ -6578,13 +6576,13 @@ contains
          istat=mrbcvt(ivnmc,isigi,obs_bodyElem_r(obsdat, OBS_SIGI,jdata),1,1,1,1)
          istat=mrbcvt(ivnmc,isigo,obs_bodyElem_r(obsdat, OBS_SIGO,jdata),1,1,1,1)
          jtrans=obs_bodyElem_i(obsdat, OBS_VCO, jdata)
-         if (jtrans .eq. 1) then
+         if (jtrans == 1) then
             istat=mrbcol(7001,ivnmc,1)
             istat=mrbcvt(ivnmc,ippp,rppp,1,1,1,1)
-         elseif (jtrans .eq. 2) then
+         elseif (jtrans == 2) then
             istat=mrbcol(7004,ivnmc,1)
             istat=mrbcvt(ivnmc,ippp,rppp,1,1,1,1)
-         elseif (jtrans .eq. 3) then
+         elseif (jtrans == 3) then
             istat=mrbcol(2150,ivnmc,1)
             istat=mrbcvt(ivnmc,ippp,rppp,1,1,1,1)
          else
@@ -6639,7 +6637,7 @@ contains
       ! when converting this output to sqlite. - Xingxiu Deng, March 2009
       do
          iout=index(ccstnid,',')
-         if (iout .gt. 0 ) then
+         if (iout > 0 ) then
             ccstnid(iout:iout)='b'
          else
             exit
@@ -6696,7 +6694,7 @@ contains
       do jo=1,obsdat%numHeader
          call obs_write_hdr(obsdat,jo,nobshdrout,irealBodies,nrealBodies)
          call obs_write_bdy(obsdat,jo,nobsbdyout)
-         if (nens.gt.0) then
+         if (nens > 0) then
             call obs_write_hx(obsdat,hx,jo,nobshxout)
          endif
          irealBodies=irealBodies+nrealBodies
@@ -6886,7 +6884,7 @@ contains
 
      ! check if family exists in local MPI process
      do index_header = 1,obs_numheader(obsdat)
-        if (obs_getFamily(obsdat,index_header).eq.family) then
+        if (obs_getFamily(obsdat,index_header) == family) then
            famExist = .true.
            exit
         end if

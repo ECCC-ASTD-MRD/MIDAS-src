@@ -4158,9 +4158,9 @@ contains
   subroutine tvs_calc_jo(pjo,llprint,lobsSpaceData,dest_obs)
     implicit none
 
-    real(8) :: pjo
-    logical :: llprint
-    type(struct_obs) :: lobsSpaceData
+    real(8),intent(out) :: pjo
+    logical,intent(in)  :: llprint
+    type(struct_obs),intent(inout) :: lobsSpaceData
     integer, intent(in) :: dest_obs       ! probably set to OBS_OMP or OBS_OMA
 
     integer :: isens, indxchn, indxtovs
@@ -4176,10 +4176,13 @@ contains
     integer :: index_header, index_body
     
     real (8) :: x(tvs_maxChannelNumber),y(tvs_maxChannelNumber)
+    real (8) :: sigmaObs
     integer :: list_chan(tvs_maxChannelNumber)
     integer :: count
 
     if ( llprint ) write(*,*) "Entering tvs_calc_jo subroutine"
+
+    pjo = 0.D0
 
     if ( tvs_nobtov == 0) return    ! exit if there are not tovs data
 
@@ -4253,21 +4256,22 @@ contains
         end if
         call obs_bodySet_r(lobsSpaceData,dest_obs,index_body, zdtb)
 
+        sigmaObs = obs_bodyElem_r(lobsSpaceData,OBS_OER,index_body)
+
+        if ( sigmaObs == MPC_missingValue_R8) cycle body
+
         ! Comment out the modification of Jobs due to varqc for now, since this is probably
         ! only needed for use of nonlinear obs operator in minimization, which is not yet
         ! functional, but this interferes with doing ensemble of analyses (M. Buehner, Dec. 2013)
         !if (.not. min_lvarqc .or. obs_bodyElem_r(lobsSpaceData,OBS_POB,index_body).eq.0.0d0) then
         dlsum =  dlsum &
-             + (obs_bodyElem_r(lobsSpaceData,dest_obs,index_body) * &
-             obs_bodyElem_r(lobsSpaceData,dest_obs,index_body)) &
-             / (2.D0 * obs_bodyElem_r(lobsSpaceData,OBS_OER,index_body) &
-             * obs_bodyElem_r(lobsSpaceData,OBS_OER,index_body))
+             + (zdtb * zdtb) / (2.D0 * sigmaObs * sigmaObs)
         !else
         !  compute contribution of data with varqc
  
         !   zgami = obs_bodyElem_r(lobsSpaceData,OBS_POB,index_body)
-        !   zjon = (obs_bodyElem_r(lobsSpaceData,dest_obs,index_body)* &
-        !           obs_bodyElem_r(lobsSpaceData,dest_obs,index_body))/2.D0
+        !   zjon = (zdtb* &
+        !           zdtb)/2.D0
         !   zqcarg = zgami + exp(-1.0D0*zjon)
         !   dlsum= dlsum - log(zqcarg/(zgami+1.D0))
         !end if
@@ -4279,14 +4283,10 @@ contains
         inobsch(ichOBS_A,Isens) = inobsch(ichOBS_A,Isens) + 1
         zjoch(ichOBS_A,Isens)   = &
              zjoch(ichOBS_A,Isens) &
-             + obs_bodyElem_r(lobsSpaceData,dest_obs,index_body) * &
-             obs_bodyElem_r(lobsSpaceData,dest_obs,index_body) &
-             / (obs_bodyElem_r(lobsSpaceData,OBS_OER,index_body) * &
-             obs_bodyElem_r(lobsSpaceData,OBS_OER,index_body))
+             + zdtb * zdtb / (sigmaObs * sigmaObs)
         zavgnrm(ichOBS_A,Isens)   = &
              zavgnrm(ichOBS_A,Isens) - &
-             obs_bodyElem_r(lobsSpaceData,dest_obs,index_body) / &
-             obs_bodyElem_r(lobsSpaceData,OBS_OER,index_body)
+             zdtb / sigmaObs
       end do BODY
 
     end do HEADER
@@ -4295,6 +4295,9 @@ contains
     !   .   -----------------------
 
     pjo = dlsum
+
+    if ( pjo == 0.D0) return
+
 
     ! printout of mean jo and normalized average for each sensor.
 
