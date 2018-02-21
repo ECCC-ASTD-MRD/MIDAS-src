@@ -1,0 +1,10 @@
+#!/bin/ksh
+#!/bin/ksh
+
+if [ -L ${TASK_OUTPUT}/live_results ]; then
+    target=$(readlink ${TASK_OUTPUT}/live_results)
+else
+    target=${TASK_OUTPUT}/live_results
+fi
+
+${TASK_BIN}/remote_copy -r ${TASK_INPUT}/live_results/ ${target}

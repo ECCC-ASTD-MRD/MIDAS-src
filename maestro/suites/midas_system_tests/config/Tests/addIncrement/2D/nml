@@ -1,0 +1,11 @@
+ &NAMCT0
+/
+ &NAMADDINC
+/
+ &NAMTIME
+  DSTEPOBS = 6.0d0
+  DSTEPOBSINC = 6.0d0
+/
+ &NAMSTATE
+   ANLVAR(1)   ='TT'
+/
