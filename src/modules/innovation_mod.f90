@@ -354,7 +354,7 @@ contains
 
     ! external functions
     integer :: get_max_rss, newdate
-    integer :: ezgprm, ezsetopt, ezqkdef, gdxyfll, gdllfxy
+    integer :: ezgprm, ezqkdef, gdxyfll, gdllfxy
     integer :: fnom, fclos, fstouv, fstfrm, fstinf, fstprm
 
     write(*,*) ' '
@@ -435,12 +435,6 @@ contains
        ierr = newdate(datestamplist(jstep),idate(jstep),itime(jstep),-3)
        if (mpi_myid.eq.0) write(*,*) 'INN_SETUPBACKGROUNDCOLUMNS: datestamplist=',jstep,datestamplist(jstep)
     end do
-
-    !
-    !     Setting degree of horizontal interpolations
-    !
-    ierr = ezsetopt('INTERP_DEGREE', 'LINEAR')
-    !ierr = ezsetopt('INTERP_DEGREE', 'NEAREST')
 
     !
     !-    Get the Analysis Grid structure
@@ -949,7 +943,7 @@ contains
       real*4, allocatable :: varInterp2_r4(:),varInterp2_VV_r4(:)
       real*4, allocatable :: varInterp_recv_r4(:,:),varInterp_recv_VV_r4(:,:)
       integer :: nlevel,nsize,iip1,pe_send,pe_recv,tag,tag2
-      integer :: fstlir,ezdefset, ezuvint, ezsint
+      integer :: fstlir,ezdefset
 
       integer, parameter :: maxnumkeys = 500
       integer :: numkeys, keys(maxnumkeys)
@@ -1103,12 +1097,12 @@ contains
                   iset = ezdefset(nobsgid_mpiglobal(jstep,jlatlontile),EZscintID)
                   if (trim(varName).eq.'UU') then
 
-                     ierr = ezuvint(varInterp_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile),  &
-                                    varInterp_VV_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile),  &
-                                    varTrial_r4,varTrial_zero_r4)
-                     ierr = ezuvint(varInterp2_r4(1:nobs_mpiglobal(jstep,jlatlontile)),  &
-                                    varInterp2_VV_r4(1:nobs_mpiglobal(jstep,jlatlontile)),  &
-                                    varTrial_zero_r4,varTrial_VV_r4)
+                     ierr = utl_ezuvint(varInterp_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile),  &
+                                        varInterp_VV_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile),  &
+                                        varTrial_r4,varTrial_zero_r4)
+                     ierr = utl_ezuvint(varInterp2_r4(1:nobs_mpiglobal(jstep,jlatlontile)),  &
+                                        varInterp2_VV_r4(1:nobs_mpiglobal(jstep,jlatlontile)),  &
+                                        varTrial_zero_r4,varTrial_VV_r4)
 
                      varInterp_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile) =  &
                           real(varInterp_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile),8) +  &
@@ -1123,8 +1117,8 @@ contains
                      !                    varTrial_r4,varTrial_VV_r4,  &
                      !                    nobs_mpiglobal(jstep,jlatlontile),ni*nj)
                   else
-                     ierr = ezsint(varInterp_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile),  &
-                                   varTrial_r4)
+                     ierr = utl_ezsint(varInterp_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile),  &
+                                       varTrial_r4)
                   endif
                endif
             enddo
@@ -1281,9 +1275,9 @@ contains
     !        TOVS - RADIANCE
     !-------------------------------
     if (trim(innovationMode) == 'bgckIR'  ) then
-      call oop_tovs_nl(columnhr,obsSpaceData,tim_getDatestamp(),filt_rlimlvhu,beSilent,bgckMode_opt=.true. ,jobs_opt=ZJOTOV)
+      call oop_tovs_nl(columnhr,obsSpaceData,tim_getDatestamp(),filt_rlimlvhu,beSilent,ZJOTOV,bgckMode_opt=.true.)
     else
-      call oop_tovs_nl(columnhr,obsSpaceData,tim_getDatestamp(),filt_rlimlvhu,beSilent,bgckMode_opt=.false.,jobs_opt=ZJOTOV)
+      call oop_tovs_nl(columnhr,obsSpaceData,tim_getDatestamp(),filt_rlimlvhu,beSilent,ZJOTOV,bgckMode_opt=.false.)
     end if
     !
     !        PROFILER

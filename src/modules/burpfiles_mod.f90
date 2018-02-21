@@ -1813,12 +1813,8 @@ END SUBROUTINE burp_updateFiles
     filename = burp_get_filename(obsfam,found)
 
     if (found) then
-       if (present(codtyplist_opt)) then
-          burp_out = burp_chem_read(filename,stnid,varno,nlev,ndim,bkstp,block_type,match_nlev, &
-                                   codtyplist_opt=codtyplist_opt)
-       else
-          burp_out = burp_chem_read(filename,stnid,varno,nlev,ndim,bkstp,block_type,match_nlev)
-       end if
+       burp_out = burp_chem_read(filename,stnid,varno,nlev,ndim,bkstp,block_type,match_nlev, &
+                                 codtyplist_opt=codtyplist_opt)
     else
        if (burp_split_L) then
           ! Must allocate burp_out so that it is available from ALL processors when
@@ -2097,11 +2093,7 @@ END SUBROUTINE burp_updateFiles
     integer :: ierr,nrep_modified_global
 
     if (burp_split_L .or. mpi_myid.eq.0) then
-       if (present(multi_opt)) then
-          nrep_modified = burp_chem_update(burp_get_filename(obsfam),varno,bkstp,block_type,obsdata,multi_opt=multi_opt)
-       else
-          nrep_modified = burp_chem_update(burp_get_filename(obsfam),varno,bkstp,block_type,obsdata)
-       end if
+       nrep_modified = burp_chem_update(burp_get_filename(obsfam),varno,bkstp,block_type,obsdata,multi_opt=multi_opt)
     end if
 
     if (burp_split_L) then

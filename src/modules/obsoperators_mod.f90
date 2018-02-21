@@ -248,7 +248,7 @@ contains
   end subroutine oop_vobslyrs
 
 
-  subroutine oop_ppp_nl(columnhr,obsSpaceData,jobs_opt,cdfam_opt)
+  subroutine oop_ppp_nl(columnhr,obsSpaceData,jobs,cdfam)
     !
     !**s/r oop_ppp_nl - Computation of Jobs and y - H(x)
     !                 for pressure-level observations
@@ -258,18 +258,18 @@ contains
     !                A linear interpolation in ln(p) is performed.
     !
     !Arguments
-    !     jobs_opt:  contribution to Jobs
-    !     cdfam_opt: family of obsservation
+    !     jobs:  contribution to Jobs
+    !     cdfam: family of obsservation
     !
     implicit none
     type(struct_columnData) :: columnhr
     type(struct_obs) :: obsSpaceData
-    real(8), optional :: jobs_opt
-    character(len=*), optional :: cdfam_opt
+    real(8) :: jobs
+    character(len=*) :: cdfam
 
     integer :: headerIndex,bodyIndex,ilyr
     integer :: iass,ixtr,ivco,ivnm
-    real(8) :: zvar,zoer,jobs
+    real(8) :: zvar,zoer
     real(8) :: zwb,zwt,zexp,zgamma,ztvg
     real(8) :: zlev,zpt,zpb,zomp
     real(8) :: columnVarB,columnVarT
@@ -284,13 +284,9 @@ contains
     zgamma = 0.0065D0 / GRAV
     zexp = MPC_RGAS_DRY_AIR_R8*zgamma
 
-    jobs=0.d0
+    jobs = 0.d0
 
-    if(present(cdfam_opt)) then
-       call obs_set_current_body_list(obsSpaceData, cdfam_opt)
-    else
-       call obs_set_current_body_list(obsSpaceData)
-    end if
+    call obs_set_current_body_list(obsSpaceData, cdfam)
     BODY: do
        bodyIndex = obs_getBodyIndex(obsSpaceData)
        if (bodyIndex < 0) exit BODY
@@ -354,12 +350,12 @@ contains
 
     end do body
 
-    if(present(jobs_opt)) jobs_opt=0.5d0*jobs
+    jobs = 0.5d0 * jobs
 
   end subroutine oop_ppp_nl
 
 
-  subroutine oop_sfc_nl(columnhr,obsSpaceData,jobs_opt,cdfam_opt)
+  subroutine oop_sfc_nl(columnhr,obsSpaceData,jobs,cdfam)
     !
     !**s/r oop_sfc_nl - Computation of Jo and the residuals to the observations
     !                 FOR SURFACE DATA (except ground-based GPS zenith delay)
@@ -370,19 +366,19 @@ contains
     !                A linear interpolation in ln(p) is performed.
     !
     !Arguments
-    !     jobs_opt  : contribution to Jo
-    !     cdfam_opt: family of observation
+    !     jobs   : contribution to Jo
+    !     cdfam  : family of observation
     !
     implicit none
     type(struct_columnData) :: columnhr
     type(struct_obs) :: obsSpaceData
-    real(8), optional :: jobs_opt
-    character(len=*), optional :: cdfam_opt
+    real(8)          :: jobs
+    character(len=*) :: cdfam
 
     integer :: ipb,ipt,ivnm,headerIndex,bodyIndex
     real(8) :: zvar,zcon,zexp,zgamma,ztvg
     real(8) :: zlev,zhhh,zgamaz,zslope,gzhr
-    real(8) :: columnVarB,jobs
+    real(8) :: columnVarB
     character(len=2) :: varLevel
     !
     ! Temperature lapse rate for extrapolation of gz below model surface
@@ -393,14 +389,10 @@ contains
     zgamma = 0.0065d0 / GRAV
     zexp = 1.0D0/(MPC_RGAS_DRY_AIR_R8*zgamma)
 
-    jobs=0.d0
+    jobs = 0.d0
 
-    ! loop over all header indices of the 'SF' family
-    if(present(cdfam_opt)) then
-       call obs_set_current_header_list(obsSpaceData,cdfam_opt)
-    else
-       call obs_set_current_header_list(obsSpaceData)
-    end if
+    ! loop over all header indices of the specified family with surface obs
+    call obs_set_current_header_list(obsSpaceData,cdfam)
     HEADER: do
        headerIndex = obs_getHeaderIndex(obsSpaceData)
        if (headerIndex < 0) exit HEADER
@@ -492,12 +484,12 @@ contains
 
     end do HEADER
 
-    if(present(jobs_opt)) jobs_opt=0.5d0*jobs
+    jobs = 0.5d0 * jobs
 
   end subroutine oop_sfc_nl
 
 
-  subroutine oop_zzz_nl(columnhr,obsSpaceData,jobs_opt,cdfam_opt)
+  subroutine oop_zzz_nl(columnhr,obsSpaceData,jobs,cdfam)
     !
     !**s/r oop_zzz_nl - Computation of Jo and the residuals to the observations
     !                 FOR UPPER AIR DATAFILES
@@ -512,29 +504,24 @@ contains
     !                 A linear interpolation in z is performed.
     !
     !Arguments
-    !     jobs_opt:  CONTRIBUTION to Jo
-    !     cdfam_opt: FAMILY OF OBSSERVATION
+    !     jobs:  CONTRIBUTION to Jo
+    !     cdfam: FAMILY OF OBSSERVATION
     !
     implicit none
     type(struct_columnData) :: columnhr
     type(struct_obs) :: obsSpaceData
-    real(8), optional :: jobs_opt
-    character(len=*), optional :: cdfam_opt
+    real(8) :: jobs
+    character(len=*) :: cdfam
 
     integer :: ipb,ipt,ivnm,ik,headerIndex,bodyIndex
-    real(8) :: zvar,zwb,zwt,zlev,zpt,zpb,jobs
+    real(8) :: zvar,zwb,zwt,zlev,zpt,zpb
     character(len=2) :: varLevel, obsfam
 
     Write(*,*) "Entering subroutine oop_zzz_nl"
 
-    jobs=0.d0
+    jobs = 0.d0
 
-    if(present(cdfam_opt)) then
-       call obs_set_current_body_list(obsSpaceData, cdfam_opt)
-    else
-       write(*,*) 'oop_zzz_nl: WARNING, no family specified, assuming PR'
-       call obs_set_current_body_list(obsSpaceData, 'PR')
-    end if
+    call obs_set_current_body_list(obsSpaceData, cdfam)
     BODY: do
        bodyIndex = obs_getBodyIndex(obsSpaceData)
        if (bodyIndex < 0) exit BODY
@@ -573,12 +560,12 @@ contains
 
     end do BODY
 
-    if(present(jobs_opt)) jobs_opt=0.5d0*jobs
+    jobs = 0.5d0 * jobs
 
   end subroutine oop_zzz_nl
 
 
-  subroutine oop_gpsro_nl(columnhr,obsSpaceData,beSilent,jobs_opt)
+  subroutine oop_gpsro_nl(columnhr,obsSpaceData,beSilent,jobs)
     !
     !**s/r oop_gpsro_nl - Computation of Jo and the residuals to the GPSRO observations
     !
@@ -589,16 +576,16 @@ contains
     !*    Purpose:
     !
     !Arguments
-    !     jobs_opt: total value of Jobs for GPSRO
+    !     jobs: total value of Jobs for GPSRO
     !
     implicit none
 
     type(struct_columnData) :: columnhr
     type(struct_obs)        :: obsSpaceData
     logical :: beSilent
-    real(8), optional :: jobs_opt
+    real(8) :: jobs
 
-    real(8) :: jobs, pjob, pjo1
+    real(8) :: pjob, pjo1
     real(8) :: zlat, lat, slat
     real(8) :: zlon, lon
     real(8) :: zazm, azm
@@ -641,7 +628,7 @@ contains
     !  allocate( rstvm(gpsro_maxprfsize) )
     !end if
 
-    jobs=0.0d0
+    jobs = 0.0d0
 
     !
     ! Loop over all header indices of the 'RO' family:
@@ -840,14 +827,12 @@ contains
     deallocate(zdp)
     deallocate(zpp)
 
-    if(present(jobs_opt)) jobs_opt=jobs
-
     write(*,*)'EXIT oop_gpsro_nl'
 
   end subroutine oop_gpsro_nl
 
 
-  subroutine oop_gpsgb_nl(columnhr,obsSpaceData,beSilent,jobs_opt,analysisMode_opt)
+  subroutine oop_gpsgb_nl(columnhr,obsSpaceData,beSilent,jobs,analysisMode_opt)
     !
     !**s/r oop_gpsgb_nl - Computation of Jo and the residuals to the GB-GPS ZTD observations
     !
@@ -879,21 +864,21 @@ contains
     !           -- adadpt for E-GVAP data (assimilate ZTD without surface met data, i.e. Psfc)
     !
     !Arguments (out)
-    !     jobs_opt: total value of Jo for all GB-GPS (ZTD) observations
+    !     jobs: total value of Jo for all GB-GPS (ZTD) observations
     !
     implicit none
 
     type(struct_columnData) :: columnhr
     type(struct_obs) :: obsSpaceData
     logical           :: beSilent
-    real(8), optional :: jobs_opt
+    real(8)           :: jobs
     logical, optional :: analysisMode_opt
 
     real(8), allocatable :: zpp (:)
     real(8), allocatable :: zdp (:)
     real(8), allocatable :: ztt (:)
     real(8), allocatable :: zhu (:)
-    real(8) :: zlat, lat, zlon, lon, jobs
+    real(8) :: zlat, lat, zlon, lon
     real(8) :: zp0, zmt, zdzmin
     real(8) :: zobs, zoer, zinc, zhx, zlev
     real(8) :: zdz, zpsobs, zpsmod, zpwmod, zpomp, zpomps
@@ -1242,15 +1227,13 @@ contains
 
     end if
 
-    if(present(jobs_opt)) jobs_opt=jobs
-
     write(*,*)'EXIT oop_gpsgb_nl'
 
   end subroutine oop_gpsgb_nl
 
 
   subroutine oop_tovs_nl(columnghr,obsSpaceData,datestamp,limlvhu,beSilent,  &
-                         bgckMode_opt,jobs_opt,option_opt,sourceObs_opt,destObs_opt)
+                         jobs,bgckMode_opt,option_opt,sourceObs_opt,destObs_opt)
     !
     !**s/r oop_tovs_nl  - Computation of jobs and the residuals to the tovs observations
     !
@@ -1262,7 +1245,7 @@ contains
     !               'HR': High Resolution background state,
     !               'LR': Low  Resolution background state, (CURRENTLY NOT SUPPORTED)
     !               'MO': Model state. (CURRENTLY NOT SUPPORTED)
-    !     jobs_opt: total value of jobs for tovs
+    !     jobs: total value of jobs for tovs
     !
     implicit none
 
@@ -1271,19 +1254,18 @@ contains
     integer :: datestamp
     real(8) :: limlvhu
     logical :: beSilent
+    real(8) :: jobs
     logical, optional :: bgckMode_opt
-    real(8), optional :: jobs_opt
     character(len=*), optional :: option_opt        ! only valid value is HR
     integer, optional, intent(in) :: sourceObs_opt ! usually set to OBS_VAR
     integer, optional, intent(in) :: destObs_opt   ! usually set to OBS_OMP
 
-    real(8) :: jobs
     integer :: jdata, sourceObs, destObs
     logical :: llprint,bgckMode
     character(len=2) :: option
 
     if (.not.obs_famExist(obsSpaceData,'TO',local_mpi=.true.)) then
-       if (present(jobs_opt)) jobs_opt=0.0d0
+       jobs=0.0d0
        return
     end if
 
@@ -1335,7 +1317,7 @@ contains
        end do
     end if
 
-    if(present(jobs_opt) .and. option == 'HR') then
+    if(option == 'HR') then
        llprint = .true.
     else
        llprint = .false.
@@ -1345,12 +1327,10 @@ contains
     if ( beSilent ) llprint = .false.
     call tvs_calc_jo(jobs,llprint,obsSpaceData,destObs)
 
-    if(present(jobs_opt)) jobs_opt=jobs
-
   end subroutine oop_tovs_nl
 
 
-  subroutine oop_chm_nl(columnhr,obsSpaceData,jobs_opt)
+  subroutine oop_chm_nl(columnhr,obsSpaceData,jobs)
     !
     !**s/r oop_chm_nl - Computation of Jo and the residuals to the observations
     !                 for all observations of the CH (chemical constituents) family.
@@ -1379,7 +1359,7 @@ contains
     !
     !   Output
     !
-    !     jobs_opt  : contribution to Jo
+    !     jobs  : contribution to Jo
     !
     ! Comments:
     !
@@ -1389,17 +1369,14 @@ contains
     
     type(struct_columnData) :: columnhr
     type(struct_obs) :: obsSpaceData
-    real(8), optional :: jobs_opt
     real(8) :: jobs
     
     if (.not.obs_famExist(obsSpaceData,'CH',local_mpi=.true.)) then
-       if (present(jobs_opt)) jobs_opt=0.0d0
+       jobs = 0.0d0
        return
     end if
 
     call chm_observation_operators(columnhr,obsSpaceData,kmode=0,jobs_opt=jobs) ! kmode=0 for general operator
-
-    if (present(jobs_opt)) jobs_opt=jobs
 
   end subroutine oop_chm_nl
 
@@ -1492,7 +1469,7 @@ contains
       !
       type(struct_columnData) :: columng
       type(struct_vco), pointer :: vco_anl
-      integer :: jlev,jobs,nlev_T,vcode_anl,status
+      integer :: jlev,columnIndex,nlev_T,vcode_anl,status
       real(8) :: zhu,one
 
       if ( .not.col_varExist('TT') .or. .not.col_varExist('HU') ) return
@@ -1510,14 +1487,14 @@ contains
 
       ! initialize virtual temperature operator
 
-!$OMP PARALLEL DO PRIVATE(jlev,jobs,zhu)
+!$OMP PARALLEL DO PRIVATE(jlev,columnIndex,zhu)
       do jlev = 1, nlev_T
-         do jobs=1,col_getNumCol(columng)
+         do columnIndex=1,col_getNumCol(columng)
 
-            zhu=exp(col_getElem(columng,jlev,jobs,'HU'))
-            columng%oltv(1,jlev,jobs) = fottva(zhu,one)
-            columng%oltv(2,jlev,jobs) = folnqva(zhu,col_getElem(columng,  &
-                 jlev,jobs,'TT'),one)
+            zhu=exp(col_getElem(columng,jlev,columnIndex,'HU'))
+            columng%oltv(1,jlev,columnIndex) = fottva(zhu,one)
+            columng%oltv(2,jlev,columnIndex) = folnqva(zhu,col_getElem(columng,  &
+                 jlev,columnIndex,'TT'),one)
 
          end do
       end do

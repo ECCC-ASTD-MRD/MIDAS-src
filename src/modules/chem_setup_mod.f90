@@ -325,11 +325,7 @@ contains
   
  ! Read reference (e.g. climatological) fields
   
-  if (present(datestamp_opt)) then
-     call chm_read_ref_fields(datestamp_opt)
-  else
-     call chm_read_ref_fields()
-  end if
+  call chm_read_ref_fields(datestamp_opt=datestamp_opt)
 
 ! Allocation of chm_efftemp done in chm_setup instead of obsdata_add_data1d
 ! to ensure allocation is done for all processors, including those without associated data.

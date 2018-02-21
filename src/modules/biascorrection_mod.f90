@@ -297,7 +297,7 @@ CONTAINS
     integer  :: iSensor,iPredictor
     integer  :: ierr,nulfst,iset
     integer  :: fnom,fclos,fstouv,fstfrm,vezgdef,ezdefset
-    integer  :: fstinf,fstprm,fstlir,ezqkdef,ezsint
+    integer  :: fstinf,fstprm,fstlir,ezqkdef
     integer  :: index_header, idatyp
     integer  :: obsgid,trlgid
     real(8)  :: lat_r8,lon_r8
@@ -425,7 +425,7 @@ CONTAINS
       call utl_abort('bias_getTrialPredictors')
     end if
     varTrial1(:,:) = varTrial1(:,:) - varTrial2(:,:)
-    ierr = utl_ezsint(trialGZ300m1000,varTrial1,nobs,1,1,ni,nj,1)
+    ierr = utl_ezsint(trialGZ300m1000,varTrial1)
     if ( ierr < 0 ) call utl_abort('bias_getTrialPredictors: error interpolating GZ300-GZ1000')
 
     ! GZ50 - GZ200
@@ -443,7 +443,7 @@ CONTAINS
       call utl_abort('bias_getTrialPredictors')
     end if
     varTrial1(:,:) = varTrial1(:,:) - varTrial2(:,:)
-    ierr = utl_ezsint(trialGZ50m200,varTrial1,nobs,1,1,ni,nj,1)
+    ierr = utl_ezsint(trialGZ50m200,varTrial1)
     if ( ierr < 0 ) call utl_abort('bias_getTrialPredictors: error interpolating GZ50-GZ200')
 
     ! GZ5 - GZ50
@@ -461,7 +461,7 @@ CONTAINS
       call utl_abort('bias_getTrialPredictors')
     end if
     varTrial1(:,:) = varTrial1(:,:) - varTrial2(:,:)
-    ierr = utl_ezsint(trialGZ5m50,varTrial1,nobs,1,1,ni,nj,1)
+    ierr = utl_ezsint(trialGZ5m50,varTrial1)
     if ( ierr < 0 ) call utl_abort('bias_getTrialPredictors: error interpolating GZ5-GZ50')
 
     ! GZ1 - GZ10
@@ -479,7 +479,7 @@ CONTAINS
       call utl_abort('bias_getTrialPredictors')
     end if
     varTrial1(:,:) = varTrial1(:,:) - varTrial2(:,:)
-    ierr = utl_ezsint(trialGZ1m10,varTrial1,nobs,1,1,ni,nj,1)
+    ierr = utl_ezsint(trialGZ1m10,varTrial1)
     if ( ierr < 0 ) call utl_abort('bias_getTrialPredictors: error interpolating GZ1-GZ10')
 
     ! Determine grid size and EZSCINT ID for TG
@@ -539,7 +539,7 @@ CONTAINS
       write(*,*) 'bias_getTrialPredictors_forTG: Unable to find trial field - varname,ip1= ',varName,ip1
       call utl_abort('bias_getTrialPredictors_forTG')
     end if
-    ierr = utl_ezsint(trialTG,varTrial3,nobs,1,1,ni,nj,1)
+    ierr = utl_ezsint(trialTG,varTrial3)
     if ( ierr < 0 ) call utl_abort('bias_getTrialPredictors_forTG: error interpolating TG')
 
     if ( trialTG(1) > 150.0d0) then

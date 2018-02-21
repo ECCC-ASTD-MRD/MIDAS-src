@@ -2441,23 +2441,13 @@ contains
     
              ! Get tropopause pressure level
       
-             if (present(hu_opt)) then
-                bound_press = phf_get_tropopause(nmodlev,pressmod,tt,gz,hu_opt=hu_opt)
-             else
-                bound_press = phf_get_tropopause(nmodlev,pressmod,tt,gz)
-             end if
+             bound_press = phf_get_tropopause(nmodlev,pressmod,tt,gz,hu_opt=hu_opt)
     
           case(2)
  
              ! Get PBL pressure level
       
-             if (present(hu_opt).and.present(uu_opt).and.present(vv_opt)) then
-                bound_press = phf_get_pbl(nmodlev,pressmod,tt,gz,hu_opt=hu_opt,uu_opt=uu_opt,vv_opt=vv_opt) 
-             else if (present(hu_opt)) then
-                bound_press = phf_get_pbl(nmodlev,pressmod,tt,gz,hu_opt=hu_opt)
-             else if (present(uu_opt).and.present(vv_opt)) then
-                bound_press = phf_get_pbl(nmodlev,pressmod,tt,gz,uu_opt=uu_opt,vv_opt=vv_opt)
-             end if
+             bound_press = phf_get_pbl(nmodlev,pressmod,tt,gz,hu_opt=hu_opt,uu_opt=uu_opt,vv_opt=vv_opt) 
       
           case default
              call utl_abort("chm_get_col_boundary: Unrecognized value for tropo_bound of " &

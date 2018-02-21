@@ -604,7 +604,7 @@ contains
     real(8), allocatable :: StdDev2D(:,:)
     real(8), allocatable :: StdDev2D_Regrid(:,:)
 
-    integer :: ezdefset, ezsetopt, ezsint, ier
+    integer :: ezdefset, ier
     integer :: ni_t, nj_t, nlev_t, var, k
     integer :: dateo, ip1,ip2,ip3
 
@@ -621,7 +621,6 @@ contains
     if (Regrid) then
       allocate( StdDev2D_Regrid(1:hco_bhi%ni, 1:hco_bhi%nj) )
       ier = ezdefset(hco_bhi%EZscintID, hco_bstats%EZscintID)             ! IN
-      ier = ezsetopt('INTERP_DEGREE', 'LINEAR')
     end if
 
     !- 1.1 Loop over Control Variables
@@ -673,7 +672,7 @@ contains
            ControlVariable(var)%GpStdDev(:,:,k) = StdDev2D(:,:)
         else
            ! Note: EZSCINT setup was done above
-           ier = ezsint(StdDev2D_Regrid, StdDev2D)
+           ier = utl_ezsint(StdDev2D_Regrid, StdDev2D)
            ControlVariable(var)%GpStdDev(:,:,k) = StdDev2D_Regrid(:,:)
         end if
 
