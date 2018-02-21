@@ -6,6 +6,23 @@
 
 * [Master branch](http://hpfx.science.gc.ca/~mab001/f90doc/master/)
 
+# Compiling the programs
+
+To compile the programs used in this code, use the commands
+```bash
+ssh eccc-ppp2  ## or eccc-ppp1
+cd ${WHERE YOUR CODE IS}
+cd src/programs
+yes '' | ./compile_all.sh
+```
+and
+```bash
+ssh brooks  ## or hare
+cd ${WHERE YOUR CODE IS}
+cd src/programs
+yes '' | ./compile_all.sh
+```
+
 # MIDAS test suite
 
 You can install a maestro suite with a serie of tests to evaluate the
@@ -18,33 +35,12 @@ maestro/suites/midas_system_tests/install_suite.sh
 
 Once the `xflow` appears, just launch the node `/Tests`.
 
-Then, you have to compile the programs used in the tests suite.
-This can be done with the commands
-```bash
-ssh eccc-ppp2
-cd ${WHERE YOUR CODE IS}
-cd src/programs
-./compile_all.sh
-```
-and
-```bash
-ssh brooks
-cd ${WHERE YOUR CODE IS}
-cd src/programs
-./compile_all.sh
-```
-
 The suite is configured to use by default the programs you just
-compiled.  But, if you want to use another program, you have to change
-the variables `ENVAR_abs` and `ENVAR_ominusf_abs` in the file
-`maestro/suites/midas_system_tests/experiment.cfg` which have the
-following form
-```bash
-ENVAR_abs=${ABS_DIR}/midas-var_${ORDENV_PLAT}-${MIDAS_version}.Abs
-ENVAR_ominusf_abs=${ABS_DIR}/midas-ominusf_${ORDENV_PLAT}-${MIDAS_version}.Abs
-```
+compiled.
 
 # Updating the results
+
+*This script is not working for now!*
 
 When the changes introduced modify the result, then one must update the
 results to that the tests pass.  After checking carefully the listing
