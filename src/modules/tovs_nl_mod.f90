@@ -1443,7 +1443,7 @@ contains
     integer :: ilowlvl_M,ilowlvl_T,nlv_M,nlv_T
     integer :: status, Vcode
     integer :: ier,day,month,year,ijour,itime
-    integer :: alloc_status(14)
+    integer :: alloc_status(15)
     
     integer,external ::  omp_get_num_threads
     integer,external ::  newdate
@@ -1455,7 +1455,8 @@ contains
 
     real(8), allocatable :: to    (:,:)
     real(8), allocatable :: huo   (:,:)
-    real(8), allocatable :: zho   (:,:)
+    real(8), allocatable :: loghuo(:,:)
+    real(8), allocatable :: logzhu(:,:)
     real(8), allocatable :: toext (:,:)
     real(8), allocatable :: qoext (:,:)
     real(8), allocatable :: zvlev (:,:)
@@ -1466,7 +1467,7 @@ contains
     real(8), allocatable :: zlat  (:)
     real(8), allocatable :: toto3obs(:),PP(:,:) 
     real(8), allocatable :: ozo     (:,:)
- 
+    
     real(8) :: zlon
     real(8) :: zptop, zptopmbs
  
@@ -1556,13 +1557,14 @@ contains
       allocate (ozo       (nlevels,count_profile),stat= alloc_status(4)) 
       allocate (to        (jpmolev,count_profile),stat= alloc_status(5))
       allocate (huo       (jpmolev,count_profile),stat= alloc_status(6))
-      allocate (zho       (jpmolev,count_profile),stat= alloc_status(7))
+      allocate (loghuo    (jpmolev,count_profile),stat= alloc_status(7))	
       allocate (toext     (nlevels  ,count_profile),stat= alloc_status(8))
       allocate (qoext     (nlevels  ,count_profile),stat= alloc_status(9))
       allocate (zvlev     (nlv_T,count_profile),stat= alloc_status(10))
       allocate (zt        (nlv_T,count_profile),stat= alloc_status(11))
       allocate (zhu       (nlv_T,count_profile),stat= alloc_status(12))
-      allocate (zht       (nlv_T,count_profile),stat= alloc_status(13))
+      allocate (logzhu    (nlv_T,count_profile),stat= alloc_status(13))
+      allocate (zht       (nlv_T,count_profile),stat= alloc_status(14))
       call utl_checkAllocationStatus(alloc_status, " tvs_fillProfiles")
       
       count_profile = 0
@@ -1640,8 +1642,10 @@ contains
       do jn=1, count_profile
         call ppo_IntAvg (zvlev(:,jn:jn),zt(:,jn:jn),nlv_T,nlv_T,1, &
              jpmolev,xpres(jpmotop:nlevels),to(:,jn:jn))
-        call ppo_IntAvg (zvlev(:,jn:jn),zhu(:,jn:jn),nlv_T,nlv_T,1, &
-             jpmolev,xpres(jpmotop:nlevels),huo(:,jn:jn))
+	logzhu(:,jn) = log( zhu(:,jn) )	
+        call ppo_IntAvg (zvlev(:,jn:jn),logzhu(:,jn:jn),nlv_T,nlv_T,1, &
+             jpmolev,xpres(jpmotop:nlevels),loghuo(:,jn:jn))
+        huo(:,jn) = exp ( loghuo(:,jn) )
       end do
 !$omp end parallel do
 
@@ -1762,18 +1766,19 @@ contains
 
       deallocate (xpres     ,stat= alloc_status(1))
       deallocate (zht       ,stat= alloc_status(2))
-      deallocate (zhu       ,stat= alloc_status(3))
-      deallocate (zt        ,stat= alloc_status(4))
-      deallocate (zvlev     ,stat= alloc_status(5))
-      deallocate (qoext     ,stat= alloc_status(6))
-      deallocate (toext     ,stat= alloc_status(7))
-      deallocate (zho       ,stat= alloc_status(8))
-      deallocate (huo       ,stat= alloc_status(9))
-      deallocate (to        ,stat= alloc_status(10))
-      deallocate (ozo       ,stat= alloc_status(11))
-      deallocate (zlat      ,stat= alloc_status(12))
-      deallocate (iptobscma ,stat= alloc_status(13))
-      deallocate (iptobs    ,stat= alloc_status(14))
+      deallocate (logzhu    ,stat= alloc_status(3))
+      deallocate (zhu       ,stat= alloc_status(4))
+      deallocate (zt        ,stat= alloc_status(5))
+      deallocate (zvlev     ,stat= alloc_status(6))
+      deallocate (qoext     ,stat= alloc_status(7))
+      deallocate (toext     ,stat= alloc_status(8))
+      deallocate (loghuo    ,stat= alloc_status(9))	
+      deallocate (huo       ,stat= alloc_status(10))
+      deallocate (to        ,stat= alloc_status(11))
+      deallocate (ozo       ,stat= alloc_status(12))
+      deallocate (zlat      ,stat= alloc_status(13))
+      deallocate (iptobscma ,stat= alloc_status(14))
+      deallocate (iptobs    ,stat= alloc_status(15))
     
       call utl_checkAllocationStatus(alloc_status, " tvs_fillProfiles", .false.)
      
