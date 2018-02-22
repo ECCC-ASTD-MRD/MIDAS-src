@@ -50,6 +50,7 @@ program midas_ominusf
 
   character(len=48) :: obsMpiStrategy
   character(len=3)  :: obsColumnMode
+  character(len=10) :: trialFileName
 
   integer :: datestamp, get_max_rss, headerIndex, ierr
   integer :: fnom, fclos, nulnam
@@ -76,6 +77,7 @@ program midas_ominusf
 
   obsMpiStrategy = 'LIKESPLITFILES'
   obsColumnMode  = 'VAR'
+  trialFileName = './trlm_01'
 
   !- 1.0 Namelist
   addHBHT   = .false. ! default value
@@ -99,11 +101,10 @@ program midas_ominusf
   call ram_setup
 
   !- 1.4 Temporal grid
-  call tim_setup
+  call tim_setup( fileNameForDate_opt=trim(trialFileName) )
 
-  !- 1.5 Burp file names and set datestamp
+  !- 1.5 Burp file names and get datestamp, but do not use it
   call burp_setupFiles(datestamp,'OminusF')
-  call tim_setDatestamp(datestamp)
 
   !- 1.6 Constants
   if (mpi_myid == 0) call mpc_printConstants(6)
@@ -111,8 +112,8 @@ program midas_ominusf
   !- 1.7 Setup a column vector following the background vertical grid
   if (mpi_myid == 0) write(*,*)''
   if (mpi_myid == 0) write(*,*)' set vcoord parameters for background grid'
-  call vco_SetupFromFile( vco_trl,     & ! OUT
-                          './trlm_01')   ! IN
+  call vco_SetupFromFile( vco_trl,             & ! OUT
+                          trim(trialFileName) )  ! IN
   call col_setVco(trlColumnOnTrlLev,vco_trl)
 
   !- 1.8 Variables of the model states
@@ -130,7 +131,7 @@ program midas_ominusf
       call agd_SetupFromHCO( hco_anl, hco_core ) ! IN
     end if
   else
-    call hco_SetupFromFile(hco_anl, './trlm_01', ' ') ! IN
+    call hco_SetupFromFile(hco_anl, trim(trialFileName), ' ') ! IN
     call agd_SetupFromHCO( hco_anl ) ! IN
   end if
 

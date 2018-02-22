@@ -53,7 +53,7 @@ module gridStateVector_mod
   public :: gsv_multEnergyNorm, gsv_dotProduct
 
   ! public entities accessed through inheritance
-  public :: struct_vco, vco_SetupFromFile
+  public :: struct_vco, vco_setupFromFile
   public :: vnl_varnameFromVarnum, vnl_varLevelFromVarnum, vnl_varLevelFromVarname
   public :: vnl_numvarmax2d, vnl_numvarmax3d,vnl_numvarmax
   public :: vnl_varNameList2d, vnl_varNameList3d, vnl_varNameList
@@ -2042,7 +2042,7 @@ module gridStateVector_mod
     call vnl_varNamesFromExistList(varNamesToRead, statevector_out%varExistlist(:))
 
     ! set up vertical and horizontal coordinate for input file
-    call vco_SetupFromFile(vco_file,trim(fileName),beSilent_opt=.true.)
+    call vco_setupFromFile(vco_file,trim(fileName),beSilent_opt=.true.)
     readSubsetOfLevels = vco_subsetOrNot(statevector_out%vco, vco_file)
     if ( readSubsetOfLevels ) then
       ! use the output vertical grid provided to read only a subset of the verical levels
@@ -2056,7 +2056,7 @@ module gridStateVector_mod
     end if
 
     varName=gsv_getVarNameFromK(statevector_out,1)
-    call hco_SetupFromFile(hco_file,trim(fileName), ' ',gridName_opt='FILEGRID',varName_opt=varName)
+    call hco_setupFromFile(hco_file,trim(fileName), ' ',gridName_opt='FILEGRID',varName_opt=varName)
 
     ! test if horizontal and/or vertical interpolation needed for statevector grid
     if (readSubsetOfLevels) then
@@ -2230,8 +2230,6 @@ module gridStateVector_mod
     type(struct_vco), pointer :: vco_file
     type(struct_hco), pointer :: hco_file
 
-    nullify(gd2d_file_r4)
-
     vco_file => gsv_getVco(statevector)
 
     if ( statevector%mpi_distribution /= 'VarsLevs' .and. &
@@ -2276,24 +2274,21 @@ module gridStateVector_mod
         end if
         statevector%GZsfc(:,:) = real(gd2d_file_r4(1:statevector%hco%ni,1:statevector%hco%nj),8)*10.0d0*RG
         deallocate(gd2d_file_r4)
-        nullify(gd2d_file_r4)
       end if
     end if
 
     nullify(hco_file)
-    if (statevector%hco%global) then
-      ! In global mode, allow for possibility that input is Z grid equivalent to output Gaussian grid
-      if ( statevector%mykCount > 0 ) then
-        call hco_SetupFromFile(hco_file, filename, ' ', 'INPUTFILE')
-      end if 
-    else
-      ! In LAM mode, force the input file dimensions to be always identical to the input statevector dimensions
-      hco_file => statevector%hco
-      ni_file=statevector%ni
-      nj_file=statevector%nj
+    nullify(gd2d_file_r4)
+    if ( statevector%mykCount > 0 ) then
+      if (statevector%hco%global) then
+        call hco_setupFromFile(hco_file, filename, ' ', 'INPUTFILE')
+      else
+        ! In LAM mode, force the input file dimensions to be always identical to the input statevector dimensions
+        hco_file => statevector%hco
+      end if
+      allocate(gd2d_file_r4(hco_file%ni,hco_file%nj))
+      gd2d_file_r4(:,:) = 0.0
     end if
-    allocate(gd2d_file_r4(hco_file%ni,hco_file%nj))
-    gd2d_file_r4(:,:) = 0.0
 
     ! Read all other fields needed for this MPI task
     field_r4_ptr => gsv_getField_r4(statevector)
