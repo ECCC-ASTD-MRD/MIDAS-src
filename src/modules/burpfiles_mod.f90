@@ -80,6 +80,7 @@ contains
     !             The resume record first encountered must contain the desired reference time.
     !             
 
+    integer :: dateStamp
     character(len=*), intent(in) :: burpFileMode_in
 
     INTEGER IER,INBLKS,nulburp,JJ
@@ -94,7 +95,7 @@ contains
     LOGICAL   isExist_L 
 
     INTEGER KTIME,KDATE,KDATE_RECV,KTIME_RECV
-    INTEGER IHANDL,ILONG,DATESTAMP
+    INTEGER IHANDL,ILONG
     INTEGER ITIME,IFLGS,IDBURP,ILAT,ILON,IDX,IDY
     INTEGER IALT,IDELAY,IDATE,IRS,IRUNN,INBLK,ISUP,IXAUX
     INTEGER INSUP,INXAUX
@@ -102,17 +103,12 @@ contains
     INTEGER, ALLOCATABLE :: IBUF(:)
     INTEGER INRECS
     INTEGER MRFCLS,MRFOPN,MRFOPC,MRBHDR,MRFLOC,MRFGET
-    INTEGER MRFMXL, status, length_burp_split, length_burpDatestamp
+    INTEGER MRFMXL
 
     INTEGER ISTAMPOBS,INEWHH,NEWDATE,nresume
     REAL*8 DELHH
     INTEGER       IVALS
     CHARACTER*9   CLSTNID
-
-    character(len=12) :: obs_yyyymmddhhmm_char
-    integer :: length_obs_yyyymmddhhmm, obsCentralDate_yyyyddmm, obsCentralDate_hhmm
-
-    logical :: datestampFromBurpFile
 
     EXTERNAL FCLOS,FNOM,MRFCLS,MRFOPN,MRFOPC,MRBHDR,MRFLOC,MRFGET,MRFMXL,NUMBLKS
 
@@ -121,66 +117,12 @@ contains
     !
     burpFileMode = burpFileMode_in
 
-    !
-    !- Determine if the observation files are already split by subdomain
-    !
-    status = 0
-    call get_environment_variable('OAVAR_BURP_SPLIT',burp_split_mode,length_burp_split,status,.true.)
-
-    if ( status == 1 ) then
-      write(*,*) 'burp_setupfiles: The environment variable OAVAR_BURP_SPLIT has not been detected!'
-      write(*,*) '                 The observation files are NOT split'
-      burp_split_L = .false.  
-      burp_split_mode = 'DEFAULT'
-      ! At this point the code only supports split files
-      write(*,*) 'burp_setupfiles: Expecting split burp files!'
-      call utl_abort('burp_setupfiles')
-    else
-      write(*,*)
-      write(*,*) 'burp_setupfiles: The environment variable OAVAR_BURP_SPLIT has correctly been detected'
-      select case ( trim(burp_split_mode) )
-      case ('yes')
-        write(*,*) 'burp_setupfiles: The observation files ARE split. Assuming ROUNDROBIN strategy'
-        burp_split_L = .true.
-        burp_split_mode = 'ROUNDROBIN'
-      case ('no')
-        write(*,*) 'burp_setupfiles: The observation files are NOT split'
-        burp_split_L = .false.
-        burp_split_mode = 'DEFAULT'
-        ! At this point the code only supports split files
-        write(*,*) 'burp_setupfiles: Expecting split burp files!'
-        call utl_abort('burp_setupfiles')
-      case ('ROUNDROBIN')
-        write(*,*) 'burp_setupfiles: The observation files ARE split using the ROUNDROBIN strategy'
-        burp_split_L = .true.
-      case ('LATLONTILES')
-        write(*,*) 'burp_setupfiles: The observation files ARE split by LAT-LON tiles'
-        write(*,*) 'burp_setupfiles: LAT-LON TILES NO LONGER PERMITTED, USE ROUND ROBIN!'
-        call utl_abort('burp_setupfiles')
-      case default
-        write(*,*) 'burp_setupfiles: Unknown burp_split_mode ', trim(burp_split_mode)
-        call utl_abort('burp_setupfiles')
-      end select
-    end if
-
-    !
-    !- Determine datestamp
-    !
-    status = 0
-    call get_environment_variable('OAVAR_OBS_CENTRAL_DATE',obs_yyyymmddhhmm_char,length_obs_yyyymmddhhmm,status,.true.)
-
-    if ( status == 1 ) then
-      write(*,*) 'burp_setupfiles: The environment variable OAVAR_OBS_CENTRAL_DATESTAMP has not been detected!'
-      write(*,*) '                 The datestamp will be obtained from the burp files'
-      datestampFromBurpFile = .true.
-    else
-      write(*,*)
-      write(*,*) 'burp_setupfiles: The environment variable OAVAR_OBS_CENTRAL_DATE has correctly been detected'
-      write(*,*) '                 The date found is: ', trim(obs_yyyymmddhhmm_char)
-      datestampFromBurpFile = .false.
-      read(obs_yyyymmddhhmm_char(1: 8),'(i8)') obsCentralDate_yyyyddmm
-      read(obs_yyyymmddhhmm_char(9:12),'(i4)') obsCentralDate_hhmm
-    end if
+    write(*,*) ' '
+    write(*,*) 'burp_setupfiles: Assuming the observation files ARE split by ROUNDROBIN strategy'
+    write(*,*) '                 as this is the only supported strategy.'
+    write(*,*) ' '
+    burp_split_L = .true.
+    burp_split_mode = 'ROUNDROBIN'
 
     !
     !- Process the input burp files
@@ -339,44 +281,37 @@ contains
     !
     !- Set reference datestamp
     !
-    if ( datestampFromBurpFile ) then
-      ! Make sure all mpi tasks have a valid date (important for split burp files)
-      call rpn_comm_allreduce(kdate,kdate_recv,1,"MPI_INTEGER","MPI_MAX","GRID",ier)
-      call rpn_comm_allreduce(ktime,ktime_recv,1,"MPI_INTEGER","MPI_MAX","GRID",ier)
-      kdate = kdate_recv
-      ktime = ktime_recv
-       if (nresume >= 1 ) then  
-        ier = newdate(datestamp,kdate,ktime*10000,3)
-      else
-        ! Assumes 6-hour windows with reference times being synoptic times.
-        ! Does not require kdate and ktime to be from a resume record.
-        ier = newdate(istampobs,kdate,ktime*10000,3)
-        delhh = 3.0d0
-        call INCDATR (datestamp, istampobs, delhh)
-        ier = newdate(datestamp,kdate,inewhh,-3)
-        ktime=KTIME/100
-        if (ktime >= 21 .or. ktime < 3) then
-          ktime = 0
-        else if(ktime >= 3 .and. ktime < 9) then
-          ktime = 6
-        else if(ktime >= 9 .and. ktime < 15) then
-          ktime = 12
-        else
-          ktime = 18
-        end if
-        ier = newdate(datestamp,kdate,ktime*1000000,3)
-        ktime=ktime*100
-      end if
-
-    else
-      kdate = obsCentralDate_yyyyddmm
-      ktime = obsCentralDate_hhmm
+    ! Make sure all mpi tasks have a valid date (important for split burp files)
+    call rpn_comm_allreduce(kdate,kdate_recv,1,"MPI_INTEGER","MPI_MAX","GRID",ier)
+    call rpn_comm_allreduce(ktime,ktime_recv,1,"MPI_INTEGER","MPI_MAX","GRID",ier)
+    kdate = kdate_recv
+    ktime = ktime_recv
+    if (nresume >= 1 ) then  
       ier = newdate(datestamp,kdate,ktime*10000,3)
+    else
+      ! Assumes 6-hour windows with reference times being synoptic times.
+      ! Does not require kdate and ktime to be from a resume record.
+      ier = newdate(istampobs,kdate,ktime*10000,3)
+      delhh = 3.0d0
+      call INCDATR (datestamp, istampobs, delhh)
+      ier = newdate(datestamp,kdate,inewhh,-3)
+      ktime=KTIME/100
+      if (ktime >= 21 .or. ktime < 3) then
+        ktime = 0
+      else if(ktime >= 3 .and. ktime < 9) then
+        ktime = 6
+      else if(ktime >= 9 .and. ktime < 15) then
+        ktime = 12
+      else
+        ktime = 18
+      end if
+      ier = newdate(datestamp,kdate,ktime*1000000,3)
+      ktime=ktime*100
     end if
 
-    WRITE(*, *)' BURP FILES VALID DATE (YYYYMMDD) : ',kdate
-    WRITE(*, *)' BURP FILES VALID TIME     (HHMM) : ',ktime
-    write(*, *)' BURP FILES DATESTAMP             : ',datestamp
+    write(*,*)' BURP FILES VALID DATE (YYYYMMDD) : ', kdate
+    write(*,*)' BURP FILES VALID TIME     (HHMM) : ', ktime
+    write(*,*)' BURP FILES DATESTAMP             : ', datestamp
 
   END SUBROUTINE burp_setupfiles
 
@@ -488,7 +423,6 @@ contains
       WRITE(*,*)'                burp_readFiles END               '
       WRITE(*,*)'================================================='
       WRITE(*,*)' '
-      RETURN
 
 end subroutine burp_readFiles
 
@@ -641,7 +575,7 @@ END SUBROUTINE burp_updateFiles
 !-----------------------------------
 !
       WRITE(*,*)' DONE   ADJUST_HUM_GZ '
-      RETURN
+
   END SUBROUTINE ADJUST_HUM_GZ
 
 
@@ -709,7 +643,7 @@ END SUBROUTINE burp_updateFiles
 !-----------------------------------
 !
       WRITE(*,*)' DONE   SET_ERR_GBGPS '
-      RETURN
+
   END SUBROUTINE SET_ERR_GBGPS
 
 !--------------------------------------------------------------------------
@@ -839,7 +773,6 @@ END SUBROUTINE burp_updateFiles
                  
       end if
 
-      RETURN
   END SUBROUTINE SET_SCALE_CHM
 
 
@@ -913,7 +846,6 @@ END SUBROUTINE burp_updateFiles
 !-----------------------------------
 !
       WRITE(*,*)' DONE   ADJUST_SFVCOORD '
-      RETURN
 
   END SUBROUTINE ADJUST_SFVCOORD
 
@@ -1180,7 +1112,6 @@ END SUBROUTINE burp_updateFiles
          SURFVCORD=VCORDSF2
 !        *******************
 !
-      RETURN
   END FUNCTION  SURFVCORD
 
 
@@ -1336,13 +1267,13 @@ END SUBROUTINE burp_updateFiles
                 ELSE
                   LLMISDD=.false.
                   LLMISFF=.false.
-                ENDIF
+                END IF
                 !
                 !             IF SPEED = 0 CALM WIND IS ASSUMED.
                 !             ==================================
                 IF (FF == 0.0) THEN
                   DD = 0.
-                ENDIF
+                END IF
                    
                 DD=DD + 180.
                 IF ( DD > 360.) DD=DD-360.
@@ -1613,7 +1544,6 @@ END SUBROUTINE burp_updateFiles
 
       END DO WIND_TYPE
 
-      RETURN
   END SUBROUTINE FLAGUVTOFD_OBSDAT
 
 

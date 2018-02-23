@@ -177,10 +177,11 @@ contains
     integer :: middleStep, nulFile, ierr
     integer, parameter :: maxNumDates = 100
     integer :: numDates, ikeys(maxNumDates)
-    integer :: fnom, fstouv, fstinl, fstprm, fstfrm, fclos
+    integer :: fnom, fstouv, fstinl, fstprm, fstfrm, fclos, newdate
+    integer :: prntdate, prnttime, imode, windowIndex, windowsPerDay, dateStamp_tmp
     character(len=2) :: fileNumber
-    logical :: fileExists
-    real(8) :: leadTimeInHours
+    logical :: fileExists, foundWindow
+    real(8) :: leadTimeInHours, windowBegHour, windowEndHour, fileHour, middleHour
     integer :: ideet, inpas, dateStamp_origin, ini, inj, ink, inbits, idatyp, &
                ip1, ip2, ip3, ig1, ig2, ig3, ig4, iswa, ilng, idltf, iubc,   &
                iextra1, iextra2, iextra3
@@ -191,7 +192,7 @@ contains
 
     if ( mpi_myid == 0 ) then
 
-      ! Check if file for middle of analysis window exists
+      ! Check if file for any date within the analysis window (except the last) exists
       inquire(file=trim(fileName), exist=fileExists)
       if ( .not.fileExists ) then
         call utl_abort('tim_getDateStampFromFile: File not found')
@@ -208,7 +209,7 @@ contains
                        trim(varNameForDate) // ' in the supplied file')
       end if
       write(*,*) 'tim_getDateStampFromFile: number of dates found = ', numDates
-      ierr = fstprm(ikeys((numDates+1)/2), dateStamp_origin, ideet, inpas, ini, inj, &
+      ierr = fstprm(ikeys(1), dateStamp_origin, ideet, inpas, ini, inj, &
                     ink, inbits, idatyp, ip1, ip2, ip3, &
                     typvar, nomvar, etiket, grtyp, ig1, ig2, ig3, ig4, &
                     iswa, ilng, idltf, iubc, iextra1, iextra2, iextra3)
@@ -221,6 +222,45 @@ contains
     end if
 
     call rpn_comm_bcast(dateStamp_out, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+
+    ! Modify date to ensure that it corresponds to the middle of the window
+    ! Note: For this, we have to assume that the date in the file
+    !       does NOT correspond to the final time of the window
+    imode = -3 ! stamp to printable, time is HHMMSShh
+    ierr = newdate(datestamp_out, prntdate, prnttime, imode)
+    fileHour = real(prnttime,8)/1000000.0d0
+    windowsPerDay = nint(24.0d0 / tim_windowsize)
+    foundWindow = .false.
+    WINDOW_LOOP: do windowIndex = 0, windowsPerDay
+      windowBegHour = (real(windowIndex,8) * tim_windowsize) - (tim_windowsize/2.0d0)
+      windowEndHour = (real(windowIndex,8) * tim_windowsize) + (tim_windowsize/2.0d0)
+      if ( fileHour >= windowBegHour .and. fileHour < windowEndHour ) then
+        foundWindow = .true.
+        middleHour = real(windowIndex,8) * tim_windowsize
+        exit WINDOW_LOOP
+      end if
+    end do WINDOW_LOOP
+
+    if ( .not. foundWindow ) then
+      write(*,*) 'windowsPerDay, fileHour=', windowsPerDay, fileHour
+      call utl_abort('tim_getDateStampFromFile: could not determine assimilation window position')
+    end if
+
+    ! handle special case when window centered on hour 24
+    if ( nint(middleHour) == 24 ) then
+      ! add 24h to dateStamp and recompute prntdate
+      dateStamp_tmp = dateStamp_out
+      call incdatr(dateStamp_out, dateStamp_tmp, 24.0d0)
+      imode = -3 ! stamp to printable, only prntdate will be used
+      ierr = newdate(datestamp_out, prntdate, prnttime, imode)
+
+      ! subtract 24h from middleHour
+      middleHour = 0.0d0
+    end if
+
+    prnttime = nint(middleHour) * 1000000
+    imode = 3 ! printable to stamp
+    ierr = newdate(datestamp_out, prntdate, prnttime, imode)
 
   end function tim_getDateStampFromFile
 
