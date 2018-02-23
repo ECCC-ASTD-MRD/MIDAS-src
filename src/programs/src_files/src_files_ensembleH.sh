@@ -19,4 +19,4 @@ SRC_FILES="$SRC_FILES gps_mod.f90 tt2phi_mod.f90 windrotation_mod.f90 statetocol
 SRC_FILES="$SRC_FILES burpfiles_mod.f90 multi_ir_bgck_mod.f90 chem_setup_mod.f90 chem_obserrors_mod.f90"
 SRC_FILES="$SRC_FILES bmatrixchem_mod.f90 chem_obsoperators_mod.f90 chem_postproc_mod.f90"
 SRC_FILES="$SRC_FILES obserrors_mod.f90 varqc_mod.f90 obsfilter_mod.f90 tovs_lin_mod.f90 obsoperators_mod.f90"
-SRC_FILES="$SRC_FILES innovation_mod.f90 enkf_mod.f90"
+SRC_FILES="$SRC_FILES enkf_mod.f90 innovation_mod.f90"

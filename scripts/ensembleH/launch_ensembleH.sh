@@ -4,19 +4,20 @@
 #
 # User-defined options
 #
-#machine=eccc-ppp2
-#abs="${HOME}/data_maestro/ords/midas_abs/midas-ensembleH_ubuntu-14.04-amd64-64-v_3.0.4-68-g19f22a7_M.Abs"
+machine=eccc-ppp2
+abs="${HOME}/data_maestro/ords/midas_abs/midas-ensembleH_ubuntu-14.04-amd64-64-m_3.1.0-34-gac27bc8_M.Abs"
 
-machine=hare
-abs="${HOME}/data_maestro/ords/midas_abs/midas-ensembleH_sles-11-broadwell-64-xc40-v_3.0.4-108-g28bce62_M.Abs"
-
+#machine=hare
+#abs="${HOME}/data_maestro/ords/midas_abs/midas-ensembleH_sles-11-broadwell-64-xc40-v_3.0.4-108-g28bce62_M.Abs"
+#abs="${HOME}/data_maestro/ords/midas_abs/midas-ensembleH_sles-11-broadwell-64-xc40-m_3.1.0-34-gac27bc8_M.Abs"
 ensdir="/home/mab001/data_maestro/${machine}/kal569/with_gz"
-obsdir="/home/mab001/data_maestro/${machine}/ensembleh/obssplit_264x1_noiasicris/"
+obsdir="/home/mab001/data_maestro/${machine}/ensembleh/obssplit_11x4_noiasicris/"
+#obsdir="/home/mab001/data_maestro/${machine}/ensembleh/obscma_ens32_noiasicrisairs/"
 coefsat="/home/scvs400/datafiles/constants/cmda/alt/v3.0.0/rtcoefsat"
 statsat="/home/scvs400/datafiles/constants/cmda/alt/v3.0.0/statsat/"
 obscov="/home/sanl000/ANAL_shared/datafiles/constants/arma/oavar/2.1.3/__STATOBS_CONV_201709__/"
-npex=264
-npey=1
+npex=11
+npey=4
 openmp=2
 maxcputime=450
 run_in_parallel="/fs/ssm/eccc/mrd/rpn/utils/16.2/all/bin/r.run_in_parallel_1.1.28c"
@@ -25,20 +26,22 @@ run_in_parallel="/fs/ssm/eccc/mrd/rpn/utils/16.2/all/bin/r.run_in_parallel_1.1.2
 # Don't modify below ...
 #
 
-gest="${HOME}/data_maestro/${machine}/ensembleh/test2_256_264mpix2_tinterp_anyass16/"
+gest="${HOME}/data_maestro/${machine}/ensembleh/test_ens32_11x4_burpin2/"
 
 # build the namelist
 cat << EOF > $TMPDIR/flnml
  &NAMCT0
 /
  &NAMENSEMBLEH
-   NENS = 256
+   NENS = 32
    USETLMH = .false.
    OBSCLEAN = .true.
+   READBURPFILES = .true.
+   ASCIDUMPOBS = .true.
 /
  &NAMTIME
-  DSTEPOBS = 1.0d0
-  DSTEPOBSINC = 1.0d0
+  DSTEPOBS = 3.0d0
+  DSTEPOBSINC = 3.0d0
 /
  &NAMSTATE
    ANLVAR(1)   ='UU'
@@ -49,8 +52,8 @@ cat << EOF > $TMPDIR/flnml
    ANLVAR(6)   ='TG'
 /
  &NAMDIMO
-   NMXOBS=15000,
-   NDATAMX=100000,
+   NMXOBS=30000,
+   NDATAMX=200000,
 /
  &NAMRMAT
 /
