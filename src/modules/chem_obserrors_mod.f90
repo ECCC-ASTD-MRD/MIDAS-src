@@ -32,6 +32,7 @@ module chem_obserrors_mod
   use utilities_mod
   use obsSubSpaceData_mod
   use burpFiles_mod    
+  use obsFiles_mod
   use MathPhysConstants_mod
   
   implicit none
@@ -117,6 +118,8 @@ contains
     implicit none
 
     integer :: istnid
+
+    if ( .not.obsf_fileTypeIsBurp() ) call utl_abort('chm_read_avgkern: only compatible with BURP files')
 
     ! read the error std. dev. information from the ascii file
     call chm_read_obs_err_stddev_ascii

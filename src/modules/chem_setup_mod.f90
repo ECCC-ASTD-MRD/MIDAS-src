@@ -70,6 +70,7 @@ module chem_setup_mod
   use varNameList_mod
   use MathPhysConstants_mod
   use burpFiles_mod
+  use obsFiles_mod
   use physicsfunctions_mod
   use stateToColumn_mod, only: s2c_column_hbilin
   
@@ -795,6 +796,8 @@ contains
     implicit none
 
     integer :: istnid
+
+    if ( .not.obsf_fileTypeIsBurp() ) call utl_abort('chm_read_avgkern: only compatible with BURP files')
 
     ! read the averaging kernel information from the ascii file
     call chm_read_avgkern_ascii
@@ -1982,6 +1985,8 @@ contains
     integer :: ierr,nrep_modified,varno(1)
 
 !   If needed, add effective temperature values in obs file for total column measurements
+
+    if ( .not.obsf_fileTypeIsBurp() ) call utl_abort('chm_read_avgkern: only compatible with BURP files')
 
     call oss_obsdata_MPIallgather(chm_efftemp)
     

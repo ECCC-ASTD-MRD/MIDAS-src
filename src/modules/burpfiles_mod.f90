@@ -45,7 +45,7 @@ module burpFiles_mod
 
   ! public procedures
   public :: burp_setupfiles, burp_readfiles, burp_updatefiles
-  public :: burp_chem_read_all, burp_chem_update_all, burp_split, burp_splitMode
+  public :: burp_chem_read_all, burp_chem_update_all
 
   integer, parameter :: jpfiles=64
   integer :: burp_nfiles
@@ -53,10 +53,7 @@ module burpFiles_mod
 
   character(len=jmaxburpfilename) :: burp_cfilnam(jpfiles)
   character(len=2)   :: burp_cfamtyp(jpfiles)
-  character(len=256) :: burp_split_mode
   character(len=48)  :: burpFileMode
-
-  logical :: burp_split_L
 
 contains
 
@@ -115,14 +112,7 @@ contains
     !
     !- Setup the mode
     !
-    burpFileMode = burpFileMode_in
-
-    write(*,*) ' '
-    write(*,*) 'burp_setupfiles: Assuming the observation files ARE split by ROUNDROBIN strategy'
-    write(*,*) '                 as this is the only supported strategy.'
-    write(*,*) ' '
-    burp_split_L = .true.
-    burp_split_mode = 'ROUNDROBIN'
+    burpFileMode = trim(burpFileMode_in)
 
     !
     !- Process the input burp files
@@ -315,27 +305,6 @@ contains
 
   END SUBROUTINE burp_setupfiles
 
-!--------------------------------------------------------------------------
-! burp_splitMode
-!--------------------------------------------------------------------------
-    function burp_SplitMode() result(BurpSplitMode)
-      implicit none
-      character(len=48) :: BurpSplitMode
-
-      BurpSplitMode = trim(burp_split_mode)
-        
-    end function burp_SplitMode
-
-!--------------------------------------------------------------------------
-! burp_split
-!--------------------------------------------------------------------------
-    function burp_split() result(BurpSplit)
-      implicit none
-      logical :: BurpSplit
-
-      BurpSplit = burp_split_L
-        
-    end function burp_split
 
     SUBROUTINE burp_readFiles(obsdat)
 !
@@ -470,19 +439,6 @@ subroutine burp_updateFiles(obsSpaceData)
       WRITE(*,*)'                burp_updateFiles BEGIN           '
       WRITE(*,*)'================================================='
       WRITE(*,*)' '
-
-      if ( .not. burp_split_L ) then 
-         write(*,*) 'burp_updateFiles: We read/write global observation files'
-         CALL obs_expandToMpiGlobal(obsSpaceData)
-         IF(mpi_myid /= 0) then
-           call tmg_stop(93)
-           return
-         end if
-      else
-         ! redistribute obs data to how it was just after reading the files
-         call obs_MpiRedistribute(obsSpaceData,OBS_IPF)
-      end if
-
       
       ! CH family: Scaling of the obs related values to be stored in the BURP files
 
@@ -1723,7 +1679,7 @@ END SUBROUTINE burp_updateFiles
 !!
 !--------------------------------------------------------------------------
   function burp_chem_read_all(obsfam,stnid,varno,nlev,ndim,bkstp,block_type,match_nlev,  &
-                              codtyplist_opt) result(burp_out)
+                              codtyplist_opt, obsFilesSplit_opt) result(burp_out)
 
     implicit none
 
@@ -1734,9 +1690,16 @@ END SUBROUTINE burp_updateFiles
     integer, intent(in), optional :: codtyplist_opt(:)
     character(len=*), intent(in) :: obsfam
     type(struct_oss_obsdata) :: burp_out
+    logical, optional        :: obsFilesSplit_opt
 
     character(len=500) :: filename
-    logical :: found
+    logical :: found, obsFilesSplit
+
+    if ( present(obsFilesSplit_opt) ) then
+      obsFilesSplit = obsFilesSplit_opt
+    else
+      obsFilesSplit = .true.
+    end if
 
     filename = burp_get_filename(obsfam,found)
 
@@ -1744,7 +1707,7 @@ END SUBROUTINE burp_updateFiles
        burp_out = burp_chem_read(filename,stnid,varno,nlev,ndim,bkstp,block_type,match_nlev, &
                                  codtyplist_opt=codtyplist_opt)
     else
-       if (burp_split_L) then
+       if (obsFilesSplit) then
           ! Must allocate burp_out so that it is available from ALL processors when
           ! requiring of rpn_comm_allgather via oss_obsdata_MPIallgather.
           write(*,*) "burp_chem_read_all: Could not find/open BURP file: ",trim(filename)
@@ -1760,7 +1723,7 @@ END SUBROUTINE burp_updateFiles
        end if
     end if
 
-    if (burp_split_L) call oss_obsdata_MPIallgather(burp_out)
+    if (obsFilesSplit) call oss_obsdata_MPIallgather(burp_out)
 
   end function burp_chem_read_all
 
@@ -2007,8 +1970,8 @@ END SUBROUTINE burp_updateFiles
 !!v   other than 'CH', It should be renamed once used for other families.
 !!
 !--------------------------------------------------------------------------
-  function burp_chem_update_all(obsfam,varno,bkstp,block_type,obsdata,multi_opt) result(nrep_modified)
-
+  function burp_chem_update_all(obsfam,varno,bkstp,block_type,obsdata,multi_opt, &
+                                obsFilesSplit_opt) result(nrep_modified)
     implicit none
 
     character(len=4), intent(in) :: block_type
@@ -2016,15 +1979,23 @@ END SUBROUTINE burp_updateFiles
     type(struct_oss_obsdata), intent(inout) :: obsdata
     integer, intent(in) :: varno(:),bkstp    
     character(len=*), intent(in), optional :: multi_opt
+    logical, optional :: obsFilesSplit_opt
     integer :: nrep_modified
 
     integer :: ierr,nrep_modified_global
+    logical :: obsFilesSplit
 
-    if (burp_split_L .or. mpi_myid == 0) then
+    if ( present(obsFilesSplit_opt) ) then
+      obsFilesSplit = obsFilesSplit_opt
+    else
+      obsFilesSplit = .true.
+    end if
+
+    if (obsFilesSplit .or. mpi_myid == 0) then
        nrep_modified = burp_chem_update(burp_get_filename(obsfam),varno,bkstp,block_type,obsdata,multi_opt=multi_opt)
     end if
 
-    if (burp_split_L) then
+    if (obsFilesSplit) then
        call rpn_comm_allreduce(nrep_modified,nrep_modified_global,1,"MPI_INTEGER","MPI_SUM","GRID",ierr)
        nrep_modified = nrep_modified_global
     end if

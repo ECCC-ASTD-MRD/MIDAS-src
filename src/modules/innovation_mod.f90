@@ -48,10 +48,9 @@ module innovation_mod
   use tovs_lin_mod
   use multi_ir_bgck_mod
   use chem_setup_mod, only: chm_setup, chm_apply_2dfieldr4_transform
-  use burpFiles_mod
+  use obsFiles_mod
   use randomNumber_mod
   use obsErrors_mod
-  use enkf_mod
   use bufr_mod
   implicit none
   save
@@ -69,14 +68,14 @@ contains
   ! inn_setupObs
   !--------------------------------------------------------------------------
   subroutine inn_setupobs(obsSpaceData, obsColumnMode, obsMpiStrategy, &
-       innovationMode_in, obsClean_opt, obsFileType_opt)
+       innovationMode_in, obsClean_opt)
     !
     !**s/r INN_SETUPOBS  - Initialisation of observation parameters and constants
     !
     ! Revisions:
     !           Y. Rochon and M. Sitwell, Jan 2016
     !           - Use of obs_famExist and corresponding move of calls
-    !             to gps_setupro, gps_setupgb and tovs_setup after the call to burp_readFiles
+    !             to gps_setupro, gps_setupgb and tovs_setup after the call to obsf_readFiles
     !             as initialization of family list in obs_famExist must follow
     !             saving of the obs in obsSpaceData.
     !           - Addition of call to chm_setup for inclusion of constituent data
@@ -89,12 +88,10 @@ contains
     character(len=*) :: obsColumnMode
     character(len=*), intent(in) :: innovationMode_in
     logical, optional :: obsClean_opt
-    character(len=*), optional :: obsFileType_opt
 
-    character(len=10) :: obsFileType
     character(len=20) :: nameDimFile
     integer :: get_max_rss, ierr, fnom, fclos, unitDimFile, mxstn, mxobs
-    logical :: obsFilesSplit, obsDimFileExists
+    logical :: obsDimFileExists
 
     WRITE(*,FMT=9000)
 9000 FORMAT(/,1x,' INN_SETUPOBS - Initialisation of observations',/,1x,3('- -----------'))
@@ -105,26 +102,6 @@ contains
     innovationMode = innovationMode_in
 
     !
-    ! Set the default observation file type
-    !
-    if ( present(obsFileType_opt) ) then
-      obsFileType = obsFileType_opt
-    else
-      obsFileType = 'BURP'
-    end if
-
-    !
-    ! Determine if obsFiles are split
-    !
-    if ( obsFileType == 'BURP' ) then
-      obsFilesSplit = .true.
-    else if ( obsFileType == 'CMA' ) then
-      obsFilesSplit = .false.
-    else
-      call utl_abort('inn_setupObs: invalid observation file type: ' // trim(obsFileType))
-    end if
-
-    !
     ! Specify the active observation-array columns
     !
     call obs_class_initialize(obsColumnMode)
@@ -133,20 +110,16 @@ contains
     ! Allocate memory for observation arrays
     !
     nameDimFile = './obs/cmadim'
-    inquire(file=trim(nameDimFile),exist=obsDimFileExists)
+    inquire( file=trim(nameDimFile), exist=obsDimFileExists )
     if ( obsDimFileExists ) then
-      ierr = fnom(unitDimFile, trim(nameDimFile), 'FTN+SEQ+R/O', 0)
+      unitDimFile = 0
+      ierr = fnom( unitDimFile, trim(nameDimFile), 'FTN+SEQ+R/O', 0 )
       read(unitDimFile,*) mxstn
       read(unitDimFile,*) mxobs
       ierr=fclos(unitDimFile)  
-      if ( mxstn > 0 .and. mxobs > 0 ) then
-        call obs_initialize(obsSpaceData,numHeader_max=mxstn, numBody_max=mxobs, mpi_local=obsFilesSplit )
-      else
-        write(*,*) 'mxstn, mxobs = ', mxstn, mxobs
-        call utl_abort('inn_setupObs: invalid dimensions provided in file')
-      end if
+      call obs_initialize( obsSpaceData, numHeader_max=mxstn, numBody_max=mxobs, mpi_local=obsf_filesSplit() )
     else
-      call obs_initialize(obsSpaceData,mpi_local=obsFilesSplit )
+      call obs_initialize( obsSpaceData, mpi_local=obsf_filesSplit() )
     end if
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
@@ -159,12 +132,7 @@ contains
     ! Read the observations from files
     !
     call tmg_start(11,'READ_OBS')
-    if ( obsFileType == 'BURP' ) then
-      call burp_readFiles(obsSpaceData)
-    else if ( obsFileType == 'CMA' ) then
-      ! read same global CMA file on all mpi tasks
-      call enkf_readCMA(obsSpaceData)
-    end if
+    call obsf_readFiles(obsSpaceData)
     call tmg_stop(11)
 
     !
@@ -213,26 +181,26 @@ contains
     !
     ! Check if burp files already split
     !
-    if ( obsFilesSplit ) then 
-       ! local observations files, so just do reallocation to reduce memory used
-       call obs_squeeze(obsSpaceData)
-       if ( obs_columnActive_IH(obsSpaceData,OBS_IPC) ) then
-         call obs_MpiRedistribute(obsSpaceData,OBS_IPC)
-       end if
-       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    if ( obsf_filesSplit() ) then 
+      ! local observations files, so just do reallocation to reduce memory used
+      call obs_squeeze(obsSpaceData)
+      if ( obs_columnActive_IH(obsSpaceData,OBS_IPC) ) then
+        call obs_MpiRedistribute(obsSpaceData,OBS_IPC)
+      end if
+      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     else
-       ! only keep a subset of the obs on each MPI process according to OBS_IP column
-       call obs_reduceToMpiLocal(obsSpaceData)
+      ! complete set of obs on each MPI process, only keep subset according to OBS_IP
+      call obs_reduceToMpiLocal(obsSpaceData)
     end if
 
     !
     !- Initialization and memory allocation for TOVS processing
     !
     if (obs_famExist(obsSpaceData,'TO')) then
-       call tvs_setupAlloc(obsSpaceData)
-       if (trim(innovationMode) == 'bgckIR' ) call irbg_setup(obsSpaceData)
-       ! Initialize non diagonal observation error matrices
-       if ( trim(innovationMode) == 'analysis' .or. trim(innovationMode) == 'FSO') call oer_setInterchanCorr()
+      call tvs_setupAlloc(obsSpaceData)
+      if (trim(innovationMode) == 'bgckIR' ) call irbg_setup(obsSpaceData)
+      ! Initialize non diagonal observation error matrices
+      if ( trim(innovationMode) == 'analysis' .or. trim(innovationMode) == 'FSO') call oer_setInterchanCorr()
     end if
 
   end subroutine inn_setupobs

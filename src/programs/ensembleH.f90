@@ -34,7 +34,7 @@ program midas_ensembleH
   use utilities_mod
   use ramDisk_mod
   use enkf_mod
-  use burpFiles_mod
+  use obsFiles_mod
   use obsSpaceData_mod
   use obsErrors_mod
   use obsOperators_mod
@@ -63,7 +63,7 @@ program midas_ensembleH
   character(len=256)  :: ensFileName
   character(len=9)    :: obsColumnMode
   character(len=48)   :: obsMpiStrategy
-  character(len=10)   :: midasMode
+  character(len=48)   :: midasMode
   character(len=10)   :: obsFileType
 
   logical :: beSilent
@@ -73,10 +73,10 @@ program midas_ensembleH
   ! namelist variables
   character(len=2)   :: ctrlVarHumidity
   character(len=256) :: ensPathName, ensFileBaseName
-  logical  :: useTlmH, obsClean, readBurpFiles, asciDumpObs
+  logical  :: useTlmH, obsClean, asciDumpObs
   integer  :: nEns
   NAMELIST /NAMENSEMBLEH/nEns, ensPathName, ensFileBaseName, ctrlVarHumidity, useTlmH, &
-                         readBurpFiles, obsClean, asciDumpObs
+                         obsClean, asciDumpObs
 
   write(*,'(/,' //  &
         '3(" *****************"),/,' //                   &
@@ -108,7 +108,6 @@ program midas_ensembleH
   ensFileBaseName = ''
   ctrlVarHumidity = 'LQ'
   useTlmH         = .true.
-  readBurpFiles   = .false.
   obsClean        = .false.
   asciDumpObs     = .false.
 
@@ -127,17 +126,8 @@ program midas_ensembleH
   end if
 
   ! Read the observations
-  if ( readBurpFiles ) then
-    write(*,*) ''
-    write(*,*) 'midas-ensembleH: setup BURP observation files'
-    write(*,*) ''
-    call tmg_start(2,'SETUPBURPFILES')
-    call burp_setupFiles(dateStamp,midasMode)
-    call tmg_stop(2)
-    obsFileType = 'BURP'
-  else
-    obsFileType = 'CMA'
-  end if
+  call obsf_setup( dateStamp, midasMode )
+  call obsf_getFileType( obsFileType )
 
   ! Use the first ensemble member to initialize datestamp and grid
   call fln_ensFileName( ensFileName, ensPathName, 1 )
@@ -175,13 +165,16 @@ program midas_ensembleH
 
   call tmg_start(4,'SETUPOBS')
   obsColumnMode = 'ENKFMIDAS'
+  ! determine the mpi strategy for observations, based on file type
   if ( obsFileType == 'BURP' ) then
     obsMpiStrategy = 'LIKESPLITFILES'
   else
     obsMpiStrategy = 'ROUNDROBIN'
   end if
+  ! read in the observations
   call inn_setupObs(obsSpaceData, obsColumnMode, obsMpiStrategy, midasMode,  &
-                    obsClean_opt=obsClean, obsFileType_opt=obsFileType)
+                    obsClean_opt=obsClean)
+  ! set up the observation operators
   call oop_setup(midasMode)
   call tmg_stop(4)
 
@@ -312,7 +305,7 @@ program midas_ensembleH
   ! Output mpiglobal H(X) and obsSpaceData files
   if( mpi_myid == 0 ) then
     call tmg_start(9,'WRITEHXOBS')
-    call enkf_writeCMA(obsSpaceData,HXensT_mpiglobal,asciDumpObs)
+    call obsf_writeFiles( obsSpaceData, HXensT_mpiglobal, asciDumpObs )
     call tmg_stop(9)
   end if
 

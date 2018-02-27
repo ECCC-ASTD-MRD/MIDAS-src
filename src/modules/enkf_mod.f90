@@ -40,7 +40,7 @@ MODULE enkf_mod
   public :: enkf_readMember, enkf_setupColumnsFromEnsemble
   public :: enkf_computeColumnsMean, enkf_computeColumnsPerturbations
   public :: enkf_extractObsRealBodyColumn, enkf_extractObsIntBodyColumn
-  public :: enkf_gatherHX, enkf_readCMA, enkf_writeCMA
+  public :: enkf_gatherHX
 
   integer, external :: get_max_rss
 
@@ -822,7 +822,7 @@ contains
     if( mpi_myid == 0 ) then
       allocate(HXensT_mpiglobal(nEns,numBody_mpiglobal))
     else
-      allocate(HXensT_mpiglobal(1,1))
+      allocate(HXensT_mpiglobal(nEns,1))
     end if
 
     do memberIndex = 1, nEns
@@ -836,84 +836,5 @@ contains
 
   end subroutine enkf_gatherHX
 
-
-  subroutine enkf_readCMA(obsSpaceData)
-    implicit none
-    type(struct_obs) :: obsSpaceData
-
-    character(len=20)   :: fileNameObsHdr, fileNameObsBdy
-    integer :: unitObsHdr, unitObsBdy, unitHX
-    integer :: fnom, fclos, ierr
-    real(8) :: HX(1,1)
-
-    ! open the input files
-    fileNameObsHdr = './obs/cmaheader'
-    unitObsHdr = 0
-    ierr = fnom(unitObsHdr, fileNameObsHdr, 'FTN+SEQ+UNF+R/O', 0)
-
-    fileNameObsBdy = './obs/cmabdy'
-    unitObsBdy = 0
-    ierr = fnom(unitObsBdy, fileNameObsBdy, 'FTN+SEQ+UNF+R/O', 0)
-
-    unitHX = -1
-
-    ! write out obsSpaceData and HX files
-    call obs_read(obsSpaceData, HX, unitObsHdr, unitObsBdy, unitHX)
-
-    ierr = fclos(unitObsHdr)
-    ierr = fclos(unitObsBdy)
-
-  end subroutine enkf_readCMA
-
-
-  subroutine enkf_writeCMA(obsSpaceData,HXensT_mpiglobal,asciDumpObs)
-    implicit none
-
-    ! arguments
-    type(struct_obs)  :: obsSpaceData
-    real(8),pointer   :: HXensT_mpiglobal(:,:)
-    logical           :: asciDumpObs
-
-    ! locals
-    character(len=20) :: fileNameObsHdr, fileNameObsBdy, fileNameHX, fileNameDim, fileNameAsciDump
-    integer           :: ierr, unitObsHdr, unitObsBdy, unitHX, unitDim, unitAsciDump, nEns
-    integer           :: fnom, fclos
-
-    nEns     = size(HXensT_mpiglobal,1)
-
-    ! open the output files
-    fileNameObsHdr = 'cmaheaderout'
-    unitObsHdr = 0
-    ierr = fnom(unitObsHdr, fileNameObsHdr, 'FTN+SEQ+UNF+R/W', 0)
-
-    fileNameObsBdy = 'cmabdyout'
-    unitObsBdy = 0
-    ierr = fnom(unitObsBdy, fileNameObsBdy, 'FTN+SEQ+UNF+R/W', 0)
-
-    fileNameHX     = 'cmahxout'
-    unitHX = 0
-    ierr = fnom(unitHX, fileNameHX, 'FTN+SEQ+UNF+R/W', 0)
-
-    fileNameDim    = 'cmadimout'
-    unitDim = 0
-    ierr = fnom(unitDim, fileNameDim, 'FTN+SEQ+R/W', 0)
-
-    ! write out obsSpaceData and HX files
-    call obs_write(obsSpaceData, HXensT_mpiglobal, nEns, unitObsHdr, unitObsBdy, unitHX, unitDim)
-
-    ierr = fclos(unitObsHdr)
-    ierr = fclos(unitObsBdy)
-    ierr = fclos(unitHX)
-    ierr = fclos(unitDim)
-
-    if ( asciDumpObs ) then
-      fileNameAsciDump = 'cmaout_asci'
-      unitAsciDump = 0
-      ierr = fnom(unitAsciDump, fileNameAsciDump, 'FTN+SEQ+FMT+R/W', 0)
-      call obs_print(obsSpaceData,unitAsciDump)
-      ierr = fclos(unitAsciDump)
-    end if
-
-  end subroutine enkf_writeCMA
 
 end module enkf_mod

@@ -30,7 +30,7 @@ program midas_ominusf
   use obsSpaceData_mod
   use columnData_mod  
   use gridStateVector_mod
-  use burpFiles_mod
+  use obsFiles_mod
   use obsFilter_mod  
   use innovation_mod
   use windRotation_mod
@@ -103,8 +103,8 @@ program midas_ominusf
   !- 1.4 Temporal grid
   call tim_setup( fileNameForDate_opt=trim(trialFileName) )
 
-  !- 1.5 Burp file names and get datestamp, but do not use it
-  call burp_setupFiles(datestamp,'OminusF')
+  !- 1.5 Observation file names and get datestamp, but do not use it
+  call obsf_setup(dateStamp, 'OminusF' )
 
   !- 1.6 Constants
   if (mpi_myid == 0) call mpc_printConstants(6)
@@ -203,10 +203,10 @@ program midas_ominusf
     call obs_prnthdr(obsSpaceData,headerIndex)
     call obs_prntbdy(obsSpaceData,headerIndex)
   end do
-  ! 2.4.2 Into burp files
+  ! 2.4.2 Into the observation files
   write(*,*)
   write(*,*) '> midas-OminusF: writing to file'
-  call burp_updateFiles(obsSpaceData)
+  call obsf_writeFiles(obsSpaceData)
 
   !
   !- 3.  Ending

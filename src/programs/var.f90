@@ -33,7 +33,7 @@ program midas_var
   use gridStateVector_mod
   use obsSpaceDiag_mod
   use controlVector_mod
-  use burpFiles_mod
+  use obsFiles_mod
   use obsFilter_mod  
   use minimization_mod
   use innovation_mod
@@ -204,7 +204,17 @@ program midas_var
     call bmat_finalize()
 
     ! Now write out the observation data files
-    if(min_niter.gt.0) call burp_updateFiles(obsSpaceData)
+    if(min_niter.gt.0) then
+      if ( .not. obsf_filesSplit() ) then 
+        write(*,*) 'We read/write global observation files'
+        call obs_expandToMpiGlobal(obsSpaceData)
+        if (mpi_myid == 0) call obsf_writeFiles(obsSpaceData)
+      else
+        ! redistribute obs data to how it was just after reading the files
+        call obs_MpiRedistribute(obsSpaceData,OBS_IPF)
+        call obsf_writeFiles(obsSpaceData)
+      end if
+    end if
 
     ! Deallocate copied obsSpaceData
     call obs_finalize(obsSpaceData)
@@ -236,7 +246,15 @@ program midas_var
     call fso_ensemble(trlColumnOnAnlLev,obsSpaceData)
 
     ! Now write out the observation data files
-    call burp_updateFiles(obsSpaceData)
+    if ( .not. obsf_filesSplit() ) then 
+      write(*,*) 'We read/write global observation files'
+      call obs_expandToMpiGlobal(obsSpaceData)
+      if (mpi_myid == 0) call obsf_writeFiles(obsSpaceData)
+    else
+      ! redistribute obs data to how it was just after reading the files
+      call obs_MpiRedistribute(obsSpaceData,OBS_IPF)
+      call obsf_writeFiles(obsSpaceData)
+    end if
 
     ! Deallocate copied obsSpaceData
     call obs_finalize(obsSpaceData)
@@ -297,8 +315,12 @@ contains
     !     
     !- Initialize burp file names and set datestamp
     !
-    call burp_setupFiles (datestamp, varMode) ! IN
-    call tim_setDatestamp(datestamp)            ! IN
+    call obsf_setup( dateStamp, varMode )
+    if ( dateStamp > 0 ) then
+      call tim_setDatestamp(datestamp)     ! IN
+    else
+      call utl_abort('var_setup: Problem getting dateStamp from observation file')
+    end if
 
     !
     !- Initialize constants
@@ -309,7 +331,7 @@ contains
     !- Set vertical coordinate parameters from !! record in trial file
     !
     if(mpi_myid.eq.0) write(*,*)''
-    if(mpi_myid.eq.0) write(*,*)' preproc: Set vcoord parameters for trial grid'
+    if(mpi_myid.eq.0) write(*,*)'var_setup: Set vcoord parameters for trial grid'
     call vco_SetupFromFile( vco_trl,     & ! OUT
                             './trlm_01')   ! IN
     call col_setVco(trlColumnOnTrlLev,vco_trl)
@@ -324,7 +346,7 @@ contains
     !- Initialize the Analysis grid
     !
     if(mpi_myid.eq.0) write(*,*)''
-    if(mpi_myid.eq.0) write(*,*)' preproc: Set hco parameters for analysis grid'
+    if(mpi_myid.eq.0) write(*,*)'var_setup: Set hco parameters for analysis grid'
     call hco_SetupFromFile(hco_anl, './analysisgrid', 'ANALYSIS', 'Analysis' ) ! IN
 
     if ( hco_anl % global ) then

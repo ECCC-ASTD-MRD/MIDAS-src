@@ -5,14 +5,14 @@
 # User-defined options
 #
 machine=eccc-ppp2
-abs="${HOME}/data_maestro/ords/midas_abs/midas-ensembleH_ubuntu-14.04-amd64-64-m_3.1.0-34-gac27bc8_M.Abs"
+abs="${HOME}/data_maestro/ords/midas_abs/midas-ensembleH_ubuntu-14.04-amd64-64-m_3.1.0-37-g6f47bb1_M.Abs"
 
 #machine=hare
 #abs="${HOME}/data_maestro/ords/midas_abs/midas-ensembleH_sles-11-broadwell-64-xc40-v_3.0.4-108-g28bce62_M.Abs"
 #abs="${HOME}/data_maestro/ords/midas_abs/midas-ensembleH_sles-11-broadwell-64-xc40-m_3.1.0-34-gac27bc8_M.Abs"
 ensdir="/home/mab001/data_maestro/${machine}/kal569/with_gz"
-obsdir="/home/mab001/data_maestro/${machine}/ensembleh/obssplit_11x4_noiasicris/"
-#obsdir="/home/mab001/data_maestro/${machine}/ensembleh/obscma_ens32_noiasicrisairs/"
+#obsdir="/home/mab001/data_maestro/${machine}/ensembleh/obssplit_11x4_noiasicris/"
+obsdir="/home/mab001/data_maestro/${machine}/ensembleh/obscma_ens32_noiasicrisairs/"
 coefsat="/home/scvs400/datafiles/constants/cmda/alt/v3.0.0/rtcoefsat"
 statsat="/home/scvs400/datafiles/constants/cmda/alt/v3.0.0/statsat/"
 obscov="/home/sanl000/ANAL_shared/datafiles/constants/arma/oavar/2.1.3/__STATOBS_CONV_201709__/"
@@ -21,12 +21,13 @@ npey=4
 openmp=2
 maxcputime=450
 run_in_parallel="/fs/ssm/eccc/mrd/rpn/utils/16.2/all/bin/r.run_in_parallel_1.1.28c"
-
+# The observation file type is controlled by the environment variable MIDAS_OBS_FILE_TYPE
+obsfiletype="CMA"
 #
 # Don't modify below ...
 #
 
-gest="${HOME}/data_maestro/${machine}/ensembleh/test_ens32_11x4_burpin2/"
+gest="${HOME}/data_maestro/${machine}/ensembleh/test_ens32_11x4_cmain_noclean_new3/"
 
 # build the namelist
 cat << EOF > $TMPDIR/flnml
@@ -35,13 +36,12 @@ cat << EOF > $TMPDIR/flnml
  &NAMENSEMBLEH
    NENS = 32
    USETLMH = .false.
-   OBSCLEAN = .true.
-   READBURPFILES = .true.
+   OBSCLEAN = .false.
    ASCIDUMPOBS = .true.
 /
  &NAMTIME
-  DSTEPOBS = 3.0d0
-  DSTEPOBSINC = 3.0d0
+   DSTEPOBS = 3.0d0
+   DSTEPOBSINC = 3.0d0
 /
  &NAMSTATE
    ANLVAR(1)   ='UU'
@@ -58,29 +58,29 @@ cat << EOF > $TMPDIR/flnml
  &NAMRMAT
 /
  &NAMFILT
-  NELEMS = 16,
-  NLIST(1)=10004,
-  NLIST(2)=10051,
-  NLIST(3)=12004,
-  NLIST(4)=11215,
-  NLIST(5)=11216,
-  NLIST(6)=12203,
-  NLIST(7)=12001,
-  NLIST(8)=12192,
-  NLIST(9)=11003,
-  NLIST(10)=11004,
-  NLIST(11)=10194,
-  NLIST(12)=12062,
-  NLIST(13)=12063,
-  NLIST(14)=12163,
-  NLIST(15)=15036,
-  NLIST(16)=15031,
-  NFLAGS=3,
-  NLISTFLG(1)=2,
-  NLISTFLG(2)=4,
-  NLISTFLG(3)=5,
-  LTOPOFILT=.TRUE.,
-  RLIMLVHU=70.D0,
+   NELEMS = 16,
+   NLIST(1)=10004,
+   NLIST(2)=10051,
+   NLIST(3)=12004,
+   NLIST(4)=11215,
+   NLIST(5)=11216,
+   NLIST(6)=12203,
+   NLIST(7)=12001,
+   NLIST(8)=12192,
+   NLIST(9)=11003,
+   NLIST(10)=11004,
+   NLIST(11)=10194,
+   NLIST(12)=12062,
+   NLIST(13)=12063,
+   NLIST(14)=12163,
+   NLIST(15)=15036,
+   NLIST(16)=15031,
+   NFLAGS=3,
+   NLISTFLG(1)=2,
+   NLISTFLG(2)=4,
+   NLISTFLG(3)=5,
+   LTOPOFILT=.TRUE.,
+   RLIMLVHU=70.D0,
 /
  &NAMTOV   
    NSENSORS =  30,
@@ -432,8 +432,7 @@ fi
 
  cd $gest
  export TMG_ON=YES
- export OAVAR_BURP_SPLIT=yes
-
+ export MIDAS_OBS_FILE_TYPE=$obsfiletype
 cat > run.sh <<EOFRUN
 #!/bin/ksh
 
