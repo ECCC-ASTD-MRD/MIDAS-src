@@ -35,7 +35,7 @@ module multi_ir_bgck_mod
   use mpi_mod
   use columnData_mod
   use mpivar_mod
-  use burpFiles_mod
+  use obsFiles_mod
   use burp_module
   use EarthConstants_mod
   use MathPhysConstants_mod
@@ -314,7 +314,7 @@ contains
 
   !     Write out contents of obsSpaceData into BURP files
   !
-    call burp_updateFiles(obsSpaceData)
+    call obsf_writeFiles(obsSpaceData)
     ! add cloud parameter data to burp files (AIRS,IASI,CrIS,...)
     call ADD_CLOUDPRMS(obsSpaceData)
     do j =1, min(1,obs_numHeader(obsSpaceData))
@@ -334,25 +334,20 @@ contains
 
     type(struct_obs) :: lobsSpaceData
     integer jfile
-    character(len=256) :: BURP_SPLIT_VAR
-    integer length_burp_split, ier
+    character(len=10) :: obsFileType
 
-    ier = 0
-    call get_environment_variable('OAVAR_BURP_SPLIT',BURP_SPLIT_VAR,length_burp_split,ier,.true.)
-    if (ier > 1) then
-      write(*,*) 'add_cloudprms: Problem when getting the environment variable OAVAR_BURP_SPLIT'
-    end if
-    if (ier == 1) then
-      write(*,*) 'add_cloudprms: The environment variable OAVAR_BURP_SPLIT has not been detected so we read global observation files'
-      ! if files not split then modification of burp file is only done on processor 0
-      IF(mpi_myid /= 0) return
-    else
-      write(*,*) 'add_cloudprms: The environment variable OAVAR_BURP_SPLIT has been detected so we read splitted observation files'
+    call obsf_getFileType(obsFileType)
+    if ( trim(obsFileType) /= 'BURP' ) then
+      write(*,*) 'obsFileType = ',obsFileType
+      call utl_abort('add_cloudprms: this s/r is currently only compatible with BURP files')
     end if
 
-    do jfile=1,burp_nfiles
-      write(*,*) 'INPUT FILE TO  hir_cldprm_to_brp= ', trim(burp_cfilnam(jfile))
-      call hir_cldprm_to_brp(lobsspacedata,burp_cfilnam(jfile))
+    ! If obs files not split and I am not task 0, then return
+    if ( .not.obsf_filesSplit() .and. mpi_myid /= 0 ) return
+
+    do jfile=1,obsf_nfiles
+      write(*,*) 'INPUT FILE TO  hir_cldprm_to_brp= ', trim(obsf_cfilnam(jfile))
+      call hir_cldprm_to_brp(lobsspacedata,obsf_cfilnam(jfile))
     end do
 
   end subroutine add_cloudprms

@@ -4,6 +4,7 @@
   <SUBMITS sub_name="ensManip"/>
   <SUBMITS sub_name="addIncrement"/>
   <SUBMITS sub_name="randomPert"/>
+  <SUBMITS sub_name="ensembleH"/>
   <!-- <SUBMITS sub_name="calcStats"/> -->
   <!-- <SUBMITS sub_name="diagBmatrix"/> -->
 
@@ -124,6 +125,11 @@
   </FAMILY>
 
   <FAMILY  name="randomPert">
+    <SUBMITS sub_name="UnitTest"/>
+    <MODULE  name="UnitTest"/>
+  </FAMILY>
+
+  <FAMILY  name="ensembleH">
     <SUBMITS sub_name="UnitTest"/>
     <MODULE  name="UnitTest"/>
   </FAMILY>

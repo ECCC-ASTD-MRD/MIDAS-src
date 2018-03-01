@@ -48,7 +48,7 @@ module innovation_mod
   use tovs_lin_mod
   use multi_ir_bgck_mod
   use chem_setup_mod, only: chm_setup, chm_apply_2dfieldr4_transform
-  use burpFiles_mod
+  use obsFiles_mod
   use randomNumber_mod
   use obsErrors_mod
   use bufr_mod
@@ -75,7 +75,7 @@ contains
     ! Revisions:
     !           Y. Rochon and M. Sitwell, Jan 2016
     !           - Use of obs_famExist and corresponding move of calls
-    !             to gps_setupro, gps_setupgb and tovs_setup after the call to burp_readFiles
+    !             to gps_setupro, gps_setupgb and tovs_setup after the call to obsf_readFiles
     !             as initialization of family list in obs_famExist must follow
     !             saving of the obs in obsSpaceData.
     !           - Addition of call to chm_setup for inclusion of constituent data
@@ -89,8 +89,9 @@ contains
     character(len=*), intent(in) :: innovationMode_in
     logical, optional :: obsClean_opt
 
-    integer :: get_max_rss
-    logical :: obs_init
+    character(len=20) :: nameDimFile
+    integer :: get_max_rss, ierr, fnom, fclos, unitDimFile, mxstn, mxobs
+    logical :: obsDimFileExists
 
     WRITE(*,FMT=9000)
 9000 FORMAT(/,1x,' INN_SETUPOBS - Initialisation of observations',/,1x,3('- -----------'))
@@ -108,7 +109,18 @@ contains
     !
     ! Allocate memory for observation arrays
     !
-    call obs_initialize(obsSpaceData,mpi_local=burp_split() )
+    nameDimFile = './obs/cmadim'
+    inquire( file=trim(nameDimFile), exist=obsDimFileExists )
+    if ( obsDimFileExists ) then
+      unitDimFile = 0
+      ierr = fnom( unitDimFile, trim(nameDimFile), 'FTN+SEQ+R/O', 0 )
+      read(unitDimFile,*) mxstn
+      read(unitDimFile,*) mxobs
+      ierr=fclos(unitDimFile)  
+      call obs_initialize( obsSpaceData, numHeader_max=mxstn, numBody_max=mxobs, mpi_local=obsf_filesSplit() )
+    else
+      call obs_initialize( obsSpaceData, mpi_local=obsf_filesSplit() )
+    end if
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     !
@@ -116,8 +128,11 @@ contains
     !
     call filt_setup(innovationMode) ! IN
 
-    call tmg_start(11,'READ_BURP')
-    call burp_readFiles(obsSpaceData)
+    !
+    ! Read the observations from files
+    !
+    call tmg_start(11,'READ_OBS')
+    call obsf_readFiles(obsSpaceData)
     call tmg_stop(11)
 
     !
@@ -157,40 +172,35 @@ contains
     end if
 
     !
-    ! set OBS_IPC and OBS_IPT columns according to the chosen strategy
+    ! set (OBS_IPC and OBS_IPT) or OBS_IP columns according to the chosen strategy
     !
     write(*,*)
-    write(*,*) 'INN_SETUPOBS - Using obsMpiStrategy = ', trim(obsMpiStrategy)
-    if ( obs_columnActive_IH(obsSpaceData,OBS_IPC) ) then
-      call setObsMpiStrategy(obsSpaceData,obsMpiStrategy)
-    else
-      write(*,*) 'INN_SETUPOBS - OBS_IPC column not active, no redistribution of observations!'
-    end if
+    write(*,*) 'inn_setupObs - Using obsMpiStrategy = ', trim(obsMpiStrategy)
+    call setObsMpiStrategy(obsSpaceData,obsMpiStrategy)
 
     !
-    ! Check env variable ARMA_BURP_SPLIT to know if burp files already split
+    ! Check if burp files already split
     !
-    if ( burp_split() ) then 
-       ! local observations files, so just do reallocation to reduce memory used
-       call obs_squeeze(obsSpaceData)
-       if ( obs_columnActive_IH(obsSpaceData,OBS_IPC) ) then
-         call obs_MpiRedistribute(obsSpaceData,OBS_IPC)
-       end if
-       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    if ( obsf_filesSplit() ) then 
+      ! local observations files, so just do reallocation to reduce memory used
+      call obs_squeeze(obsSpaceData)
+      if ( obs_columnActive_IH(obsSpaceData,OBS_IPC) ) then
+        call obs_MpiRedistribute(obsSpaceData,OBS_IPC)
+      end if
+      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     else
-       ! global observations files so have to localize them for each MPI process
-       ! NOTE: not currently supported, but may be useful for future versions
-       call obs_reduceToMpiLocal(obsSpaceData)
+      ! complete set of obs on each MPI process, only keep subset according to OBS_IP
+      call obs_reduceToMpiLocal(obsSpaceData)
     end if
 
     !
     !- Initialization and memory allocation for TOVS processing
     !
     if (obs_famExist(obsSpaceData,'TO')) then
-       call tvs_setupAlloc(obsSpaceData)
-       if (trim(innovationMode) == 'bgckIR' ) call irbg_setup(obsSpaceData)
-       ! Initialize non diagonal observation error matrices
-       if ( trim(innovationMode) == 'analysis' .or. trim(innovationMode) == 'FSO') call oer_setInterchanCorr()
+      call tvs_setupAlloc(obsSpaceData)
+      if (trim(innovationMode) == 'bgckIR' ) call irbg_setup(obsSpaceData)
+      ! Initialize non diagonal observation error matrices
+      if ( trim(innovationMode) == 'analysis' .or. trim(innovationMode) == 'FSO') call oer_setInterchanCorr()
     end if
 
   end subroutine inn_setupobs
@@ -1432,24 +1442,34 @@ contains
     end do
 
     ! set PE index for the file (where reading and updating was/will be done)
-    do headerIndex = 1, numHeaderFile
-       call obs_headSet_i(obsSpaceData,OBS_IPF,headerIndex,mpi_myid)
-    end do
+    if ( obs_columnActive_IH(obsSpaceData,OBS_IPF) ) then
+      do headerIndex = 1, numHeaderFile
+        call obs_headSet_i(obsSpaceData,OBS_IPF,headerIndex,mpi_myid)
+      end do
+    end if
 
     select case (trim(mpiStrategy))
     case ('LIKESPLITFILES')
        !- 2.1 Keep distribution exactly as it is in the split files:
        do headerIndex = 1, numHeaderFile
-          call obs_headSet_i(obsSpaceData,OBS_IPC,headerIndex, mpi_myid)
-          call obs_headSet_i(obsSpaceData,OBS_IPT,headerIndex, mpi_myid)
+          if ( obs_columnActive_IH(obsSpaceData,OBS_IPC) ) &
+            call obs_headSet_i(obsSpaceData,OBS_IPC,headerIndex, mpi_myid)
+          if ( obs_columnActive_IH(obsSpaceData,OBS_IPT) ) &
+            call obs_headSet_i(obsSpaceData,OBS_IPT,headerIndex, mpi_myid)
+          if ( obs_columnActive_IH(obsSpaceData,OBS_IP) ) &
+            call obs_headSet_i(obsSpaceData,OBS_IP,headerIndex, mpi_myid)
        end do
     case ('ROUNDROBIN')
        !- 2.2 Distribute by a round-robin strategy for both obs_ipc and obs_ipt:
        !      (Only use if files already not split by round robin)
        do headerIndex = 1, numHeaderFile
           IP = mod((headerIndex-1),mpi_nprocs)
-          call obs_headSet_i(obsSpaceData,OBS_IPC,headerIndex, IP)
-          call obs_headSet_i(obsSpaceData,OBS_IPT,headerIndex, IP)
+          if ( obs_columnActive_IH(obsSpaceData,OBS_IPC) ) &
+            call obs_headSet_i(obsSpaceData,OBS_IPC,headerIndex, IP)
+          if ( obs_columnActive_IH(obsSpaceData,OBS_IPT) ) &
+            call obs_headSet_i(obsSpaceData,OBS_IPT,headerIndex, IP)
+          if ( obs_columnActive_IH(obsSpaceData,OBS_IP) ) &
+            call obs_headSet_i(obsSpaceData,OBS_IP ,headerIndex, IP)
        end do
     case ('LATLONTILES')
        !- 2.3 Distribute by latitude/longitude tiles for both obs_ipc and obs_ipt:
