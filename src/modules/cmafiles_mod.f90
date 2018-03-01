@@ -62,17 +62,16 @@ contains
   end subroutine cma_readFiles
 
 
-  subroutine cma_writeFiles(obsSpaceData,HXensT_mpiglobal,asciDumpObs)
+  subroutine cma_writeFiles(obsSpaceData,HXensT_mpiglobal)
     implicit none
 
     ! arguments
     type(struct_obs)  :: obsSpaceData
     real(8),pointer   :: HXensT_mpiglobal(:,:)
-    logical           :: asciDumpObs
 
     ! locals
-    character(len=20) :: fileNameObsHdr, fileNameObsBdy, fileNameHX, fileNameDim, fileNameAsciDump
-    integer           :: ierr, unitObsHdr, unitObsBdy, unitHX, unitDim, unitAsciDump, nEns
+    character(len=20) :: fileNameObsHdr, fileNameObsBdy, fileNameHX, fileNameDim
+    integer           :: ierr, unitObsHdr, unitObsBdy, unitHX, unitDim, nEns
     integer           :: fnom, fclos
 
     nEns     = size(HXensT_mpiglobal,1)
@@ -102,13 +101,6 @@ contains
     ierr = fclos(unitHX)
     ierr = fclos(unitDim)
 
-    if ( asciDumpObs ) then
-      fileNameAsciDump = 'cmaout_asci'
-      unitAsciDump = 0
-      ierr = fnom(unitAsciDump, fileNameAsciDump, 'FTN+SEQ+FMT+R/W', 0)
-      call obs_print(obsSpaceData,unitAsciDump)
-      ierr = fclos(unitAsciDump)
-    end if
 
   end subroutine cma_writeFiles
 

@@ -1212,7 +1212,7 @@ contains
     ! (with ndim=1, bkstp=15 and block_type='DATA')
 
     status_hpht=.true.
-    SqrtHPHT_struct = burp_chem_read_all(obsfam,stnid,-1,max_nlev,1,15,'DATA',.false.,codtyplist_opt=codtyplist)
+    SqrtHPHT_struct = brpf_chem_read_all(obsfam,stnid,-1,max_nlev,1,15,'DATA',.false.,codtyplist_opt=codtyplist)
     if (SqrtHPHT_struct%nrep.eq.0) then
        write(*,*) 'osd_ReadSqrtHPHT: WARNING. sqrtHPHT not found in obs file(s).'
        write(*,*) 'Will not be used in Desroziers-based diagnostics.'       

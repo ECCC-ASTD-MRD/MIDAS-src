@@ -5,12 +5,13 @@
 # User-defined options
 #
 machine=eccc-ppp2
-abs="${HOME}/data_maestro/ords/midas_abs/midas-ensembleH_ubuntu-14.04-amd64-64-m_3.1.0-37-g6f47bb1_M.Abs"
+abs="${HOME}/data_maestro/ords/midas_abs/midas-ensembleH_ubuntu-14.04-amd64-64-m_3.1.0-38-g8ebaff7_M.Abs"
 
 #machine=hare
 #abs="${HOME}/data_maestro/ords/midas_abs/midas-ensembleH_sles-11-broadwell-64-xc40-v_3.0.4-108-g28bce62_M.Abs"
 #abs="${HOME}/data_maestro/ords/midas_abs/midas-ensembleH_sles-11-broadwell-64-xc40-m_3.1.0-34-gac27bc8_M.Abs"
 ensdir="/home/mab001/data_maestro/${machine}/kal569/with_gz"
+#obsdir="/home/mab001/data_maestro/${machine}/ensembleh/obssqlite_test/"
 #obsdir="/home/mab001/data_maestro/${machine}/ensembleh/obssplit_11x4_noiasicris/"
 obsdir="/home/mab001/data_maestro/${machine}/ensembleh/obscma_ens32_noiasicrisairs/"
 coefsat="/home/scvs400/datafiles/constants/cmda/alt/v3.0.0/rtcoefsat"
@@ -21,13 +22,12 @@ npey=4
 openmp=2
 maxcputime=450
 run_in_parallel="/fs/ssm/eccc/mrd/rpn/utils/16.2/all/bin/r.run_in_parallel_1.1.28c"
-# The observation file type is controlled by the environment variable MIDAS_OBS_FILE_TYPE
-obsfiletype="CMA"
 #
 # Don't modify below ...
 #
 
-gest="${HOME}/data_maestro/${machine}/ensembleh/test_ens32_11x4_cmain_noclean_new3/"
+gest="${HOME}/data_maestro/${machine}/ensembleh/test_ens32_11x4_cmain2/"
+#gest="${HOME}/data_maestro/${machine}/ensembleh/test_ens32_11x4_burpin/"
 
 # build the namelist
 cat << EOF > $TMPDIR/flnml
@@ -386,6 +386,12 @@ cat << EOF > $TMPDIR/flnml
   NELEMS=1
   BLISTELEMENTS=12163
 /
+ &NAMBURP_UPDATE
+  BN_ITEMS=2,
+  BITEMLIST(1)='OMP',
+  BITEMLIST(2)='OMA',
+  TYPE_RESUME='DERIALT'
+/
  &NAMPHY
   NEW_TETENS_COEFS=.true.
 /
@@ -406,7 +412,8 @@ echo
 ssh $machine rm -rf $gest
 ssh $machine mkdir -p $gest
 ssh $machine ln -s ${ensdir} ${gest}/ensemble
-ssh $machine ln -s ${obsdir} ${gest}/obs
+ssh $machine mkdir ${gest}/obs
+ssh $machine cp ${obsdir}/* ${gest}/obs/
 scp ${coefsat}/* ${machine}:${gest}/
 scp ${statsat}/* ${machine}:${gest}/
 scp ${obscov}/* ${machine}:${gest}/
@@ -432,7 +439,6 @@ fi
 
  cd $gest
  export TMG_ON=YES
- export MIDAS_OBS_FILE_TYPE=$obsfiletype
 cat > run.sh <<EOFRUN
 #!/bin/ksh
 

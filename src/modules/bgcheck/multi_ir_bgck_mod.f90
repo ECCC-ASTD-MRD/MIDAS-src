@@ -35,7 +35,6 @@ module multi_ir_bgck_mod
   use mpi_mod
   use columnData_mod
   use mpivar_mod
-  use burpFiles_mod
   use obsFiles_mod
   use burp_module
   use EarthConstants_mod
@@ -346,9 +345,9 @@ contains
     ! If obs files not split and I am not task 0, then return
     if ( .not.obsf_filesSplit() .and. mpi_myid /= 0 ) return
 
-    do jfile=1,burp_nfiles
-      write(*,*) 'INPUT FILE TO  hir_cldprm_to_brp= ', trim(burp_cfilnam(jfile))
-      call hir_cldprm_to_brp(lobsspacedata,burp_cfilnam(jfile))
+    do jfile=1,obsf_nfiles
+      write(*,*) 'INPUT FILE TO  hir_cldprm_to_brp= ', trim(obsf_cfilnam(jfile))
+      call hir_cldprm_to_brp(lobsspacedata,obsf_cfilnam(jfile))
     end do
 
   end subroutine add_cloudprms

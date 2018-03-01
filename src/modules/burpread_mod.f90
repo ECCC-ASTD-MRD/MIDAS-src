@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!! MODULE burpRead (prefix= no standard prefix)
+!! MODULE burpRead (prefix= "brpr")
 !!
 !! *Purpose*: To read and update BURP observation files. Data is stored in 
 !!            obsSpaceData object.
@@ -35,7 +35,7 @@ save
 private
 
 ! public procedures
-public             :: READBURP,UPDATE_BURP
+public :: brpr_readBurp, brpr_updateBurp
 
 
 ! MODULE CONSTANTS ...
@@ -56,11 +56,11 @@ LOGICAL                :: ENFORCE_CLASSIC_SONDES,UA_HIGH_PRECISION_TT_ES,READ_QI
 
 CONTAINS
 
-  SUBROUTINE UPDATE_BURP(obsdat,familytype,brp_file,FILENUMB)
+  SUBROUTINE brpr_updateBurp(obsdat,familytype,brp_file,FILENUMB)
 
     !******************************************************************************** 
     !
-    !**ID UPDATE_BURP -- UPDATE VARIABLES RELATIVE TO ASSIMILATION IN BURP FILES
+    !**ID brpr_updateBurp -- UPDATE VARIABLES RELATIVE TO ASSIMILATION IN BURP FILES
     !
     !       AUTHOR:   P. KOCLAS (CMDA/SMC) Feb 2013
     !
@@ -379,7 +379,7 @@ CONTAINS
 
 
     WRITE(*,*) '----------------------------------------------------'
-    WRITE(*,*) '-----------     BEGIN UPDATE_BURP     ------------'
+    WRITE(*,*) '-----------     BEGIN brpr_updateBurp   ------------'
     WRITE(*,*) 'FAMILYTYPE   =',FAMILYTYPE
     WRITE(*,*) 'BURP_TYP btyp_offset    =',BURP_TYP, btyp_offset
     WRITE(*,*) 'BURP_TYP btyp_offset_uni=',BURP_TYP, btyp_offset_uni
@@ -470,7 +470,7 @@ CONTAINS
 
       if (ref_rpt < 0) Exit
       if (count == nb_rpts) then
-        write(*,*) 'UPDATE_BURP: ERROR: count = nb_rpts:',count,nb_rpts
+        write(*,*) 'brpr_updateBurp: ERROR: count = nb_rpts:',count,nb_rpts
         exit
       end if
       count = count + 1
@@ -803,7 +803,11 @@ CONTAINS
                         OMP=obs_bodyElem_r(obsdat,OBS_OMP ,LK)
                         OER=obs_bodyElem_r(obsdat,OBS_OER ,LK)
                         FGE=obs_bodyElem_r(obsdat,OBS_HPHT,LK)
-                        FSO=obs_bodyElem_r(obsdat,OBS_FSO,LK)
+                        if ( obs_columnActive_RB(obsdat,OBS_FSO) ) then
+                          FSO=obs_bodyElem_r(obsdat,OBS_FSO,LK)
+                        else
+                          FSO = MPC_missingValue_R4
+                        end if
                         FLG=obs_bodyElem_i(obsdat,OBS_FLG ,LK)
                         KOBSN= KOBSN + 1
                         SUM=SUM +1
@@ -1150,7 +1154,11 @@ CONTAINS
                       OMP=obs_bodyElem_r(obsdat,OBS_OMP,LK)
                       OER=obs_bodyElem_r(obsdat,OBS_OER,LK)
                       FGE=obs_bodyElem_r(obsdat,OBS_HPHT,LK)
-                      FSO=obs_bodyElem_r(obsdat,OBS_FSO,LK)
+                      if ( obs_columnActive_RB(obsdat,OBS_FSO) ) then
+                        FSO=obs_bodyElem_r(obsdat,OBS_FSO,LK)
+                      else
+                        FSO = MPC_missingValue_R4
+                      end if
                       FLG=obs_bodyElem_i(obsdat,OBS_FLG,LK)
                       KOBSN= KOBSN + 1
                       IND_ELE_stat  = BURP_Find_Element(BLOCK_OMA, ELEMENT=iele, IOSTAT=error)
@@ -1159,8 +1167,10 @@ CONTAINS
                       end if
                       Call BURP_Set_Rval(Block_OMA,  NELE_IND =IND_ele_stat ,NVAL_IND =j , NT_IND  = k , RVAL = OMA )
 
-                      if(iele == 12001) Call BURP_Set_Rval(Block_OMA,  NELE_IND =IND_ele_tth ,NVAL_IND =j , NT_IND  = k , RVAL = OMA )
-                      if(iele == 12192) Call BURP_Set_Rval(Block_OMA,  NELE_IND =IND_ele_esh ,NVAL_IND =j , NT_IND  = k , RVAL = OMA )
+                      if(HIPCS) then
+                        if(iele == 12001) Call BURP_Set_Rval(Block_OMA,  NELE_IND =IND_ele_tth ,NVAL_IND =j , NT_IND  = k , RVAL = OMA )
+                        if(iele == 12192) Call BURP_Set_Rval(Block_OMA,  NELE_IND =IND_ele_esh ,NVAL_IND =j , NT_IND  = k , RVAL = OMA )
+                      endif
 
                       !if(trim(familytype) == 'TO' )print *,' bingo  stnid kk vnm ppp flg omp ',stnid,kk,vnm,ppp,flg,omp,oma
                       SUM=SUM +1
@@ -1374,7 +1384,7 @@ CONTAINS
 
     write(*,*) ' BURPFILE  UPDATED SUM = ',trim(brp_file),SUM
 
-  END SUBROUTINE UPDATE_BURP
+  END SUBROUTINE brpr_updateBurp
 
 
   SUBROUTINE BRPACMA_NML(NML_SECTION)
@@ -1433,11 +1443,11 @@ CONTAINS
   END SUBROUTINE BRPACMA_NML
 
 
-  SUBROUTINE READBURP(obsdat,familytype,brp_file,FILENUMB)
+  SUBROUTINE brpr_readBurp(obsdat,familytype,brp_file,FILENUMB)
 
     !***********************************************************************
     !
-    !**ID READBURP -- SELECT VARIABLES RELATIVE TO AIRS IN BURP FILE
+    !**ID brpr_readBurp -- SELECT VARIABLES RELATIVE TO AIRS IN BURP FILE
     !
     !       AUTHOR:   P. KOCLAS (CMDA/SMC) May 2011
     !
@@ -1704,7 +1714,7 @@ CONTAINS
     end if
 
     WRITE(*,*) '-----------------------------------------------'
-    WRITE(*,*) '-----------     BEGIN READBURP     ------------'
+    WRITE(*,*) '-----------  BEGIN brpr_readBurp   ------------'
     WRITE(*,*) 'FAMILYTYPE vcord_type   =',FAMILYTYPE,vcord_type
     WRITE(*,*) 'BURP_TYP btyp_offset    =',BURP_TYP, btyp_offset
     WRITE(*,*) '-----------------------------------------------'
@@ -1780,7 +1790,7 @@ CONTAINS
       if (ref_rpt < 0) Exit
 
       if (count == nb_rpts) then
-        write(*,*) 'READBURP: ERROR: count = nb_rpts:',count,nb_rpts
+        write(*,*) 'brpr_readBurp: ERROR: count = nb_rpts:',count,nb_rpts
         exit
       end if
 
@@ -2591,7 +2601,7 @@ CONTAINS
     Call BURP_Free(Block_in,     IOSTAT=error)
 
     write(*,*)' file   Nobs SUM = ',trim(brp_file),obs_numHeader(obsdat),SUM
-  END SUBROUTINE READBURP
+  END SUBROUTINE brpr_readBurp
 
 
   integer function cvt_burp_instrum(sensor)

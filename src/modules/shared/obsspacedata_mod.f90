@@ -1398,6 +1398,7 @@ module ObsSpaceData_mod
    public obs_write      ! write the observation data to binary files
                          ! (calls obs_write_hdr, obs_write_bdy, obs_write_hx
                          !  for each station)
+   public obs_write_hx   ! write to binary files a station's interpolated values
 
    interface obs_getBodyIndex
       module procedure obs_getBodyIndex_depot
@@ -1425,7 +1426,6 @@ module ObsSpaceData_mod
    private obs_tosqlhdr  ! write the observation header in comma-separated format
    private obs_write_bdy ! write the observation data to binary files
    private obs_write_hdr ! write the observation header to binary files
-   private obs_write_hx  ! write to binary files a station's interpolated values
 
 
    ! PARAMETERS INHERITED FROM ObsColumnNames_mod (make them public)
@@ -3310,7 +3310,7 @@ contains
          obs_headElem_i(obsdat, OBS_IP , kobs), &
          obs_headElem_i(obsdat, OBS_AZA, kobs)
 
-9200  format(2x,'position within realBodies:',i6,1x,'stn. number:',i6,1x,/, &
+9200  format(2x,'position within realBodies:',i8,1x,'stn. number:',i6,1x,/, &
          '  date: ',i10,1x,' time: ',i8,/, &
          '  model box:',i12,1x,'instrument: ',i6,1x, &
          'obs. type:',i8,1x,/, &

@@ -298,12 +298,14 @@ program midas_ensembleH
 
   ! Gather obsSpaceData and HXens onto task 0
   call tmg_start(8,'OBS&HX_MPICOMM')
-  call obs_expandToMpiGlobal(obsSpaceData)
+  if ( .not. obsf_filesSplit() ) then 
+    call obs_expandToMpiGlobal(obsSpaceData)
+  end if
   call enkf_gatherHX(HXens,HXensT_mpiglobal)
   call tmg_stop(8)
 
   ! Output mpiglobal H(X) and obsSpaceData files
-  if( mpi_myid == 0 ) then
+  if( (.not.obsf_filesSplit() .and. mpi_myid == 0) .or. obsf_filesSplit() ) then
     call tmg_start(9,'WRITEHXOBS')
     call obsf_writeFiles( obsSpaceData, HXensT_mpiglobal, asciDumpObs )
     call tmg_stop(9)
