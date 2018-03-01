@@ -101,7 +101,6 @@ contains
     ierr = fclos(unitHX)
     ierr = fclos(unitDim)
 
-
   end subroutine cma_writeFiles
 
 end module cmaFiles_mod

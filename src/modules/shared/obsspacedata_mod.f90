@@ -698,6 +698,12 @@ module ObsDataColumn_mod
    integer, target :: columnIndexFromActiveIndex_RB(NBDY_REAL_SIZE)
    integer, target :: columnIndexFromActiveIndex_RH(NHDR_REAL_SIZE)
 
+   integer, public, parameter :: odc_ENKF_bdy_int_column_list(7) = &
+      (/OBS_VNM, OBS_FLG, OBS_ASS, OBS_HIND, OBS_VCO, OBS_LYR, OBS_IDD /)
+   integer, public, parameter :: odc_ENKF_bdy_real_column_list(13) = &
+      (/OBS_PPP, OBS_SEM, OBS_VAR, OBS_OMP, OBS_OMA, OBS_OER, OBS_HPHT,&
+        OBS_HAHT,OBS_ZHA, OBS_OMP6,OBS_OMA0,OBS_SIGI,OBS_SIGO /)
+
 contains
 
    subroutine odc_abort(cdmessage)
@@ -966,14 +972,13 @@ contains
             (/OBS_LAT, OBS_LON, OBS_ALT, OBS_BX,  OBS_BY,  OBS_BZ, OBS_TRAD, &
               OBS_GEOI,(0,ii=9,100)/)
 
-         bdy_int_column_list= &
-            (/OBS_VNM, OBS_FLG, OBS_ASS, OBS_HIND,OBS_VCO, OBS_LYR, OBS_IDD, &
-              (0,ii=8,100) /)
+         bdy_int_column_list(:)    = 0
+         bdy_int_column_list(1:size(odc_ENKF_bdy_int_column_list)) = &
+            odc_ENKF_bdy_int_column_list(:)
 
-         bdy_real_column_list= &
-            (/OBS_PPP, OBS_SEM, OBS_VAR, OBS_OMP, OBS_OMA, OBS_OER, OBS_HPHT,&
-              OBS_HAHT,OBS_ZHA, OBS_OMP6, OBS_OMA0, OBS_SIGI, OBS_SIGO, &
-              (0,ii=14,100) /)
+         bdy_real_column_list(:)   = 0
+         bdy_real_column_list(1:size(odc_ENKF_bdy_real_column_list)) = &
+            odc_ENKF_bdy_real_column_list(:)
 
          do list_index=1,COLUMN_LIST_SIZE
             column_index = hdr_int_column_list(list_index)
@@ -4828,12 +4833,6 @@ contains
       integer  :: column_index
       integer  :: active_index
       character(len=100) :: message
-      integer, parameter :: bdy_int_column_list(7) = &
-         (/OBS_VNM, OBS_FLG, OBS_ASS, OBS_HIND, OBS_VCO, OBS_LYR, OBS_IDD /)
-      integer, parameter :: bdy_real_column_list(13) = &
-         (/OBS_PPP, OBS_SEM, OBS_VAR, OBS_OMP, OBS_OMA, OBS_OER, OBS_HPHT,&
-           OBS_HAHT,OBS_ZHA, OBS_OMP6,OBS_OMA0,OBS_SIGI,OBS_SIGO /)
-
 
       obsdat%mpi_local = .false.
 
@@ -4882,12 +4881,12 @@ contains
          ! only read those columns specified by the user
          do i=ifirst,ilast
             read(nobsbdy) &
-              (obsdat%intBodies%columns(bdy_int_column_list(j) &
+              (obsdat%intBodies%columns(odc_ENKF_bdy_int_column_list(j) &
                                        )%value_i(i),&
-                   j=1,size(bdy_int_column_list(:))),&
-              (obsdat%realBodies%columns(bdy_real_column_list(k) &
+                   j=1,size(odc_ENKF_bdy_int_column_list(:))),&
+              (obsdat%realBodies%columns(odc_ENKF_bdy_real_column_list(k) &
                                         )%value_r(i),&
-                   k=1,size(bdy_real_column_list(:)))
+                   k=1,size(odc_ENKF_bdy_real_column_list(:)))
          enddo
          if (nens > 0) then
             do i=ifirst,ilast
@@ -6731,11 +6730,6 @@ contains
       integer, intent(in) ::  kobs,kulout
 
       integer :: ipnt,idata,j,jdata,k
-      integer, parameter :: bdy_int_column_list(7) = &
-         (/OBS_VNM, OBS_FLG, OBS_ASS, OBS_HIND, OBS_VCO, OBS_LYR, OBS_IDD /)
-      integer, parameter :: bdy_real_column_list(13) = &
-         (/OBS_PPP, OBS_SEM, OBS_VAR, OBS_OMP, OBS_OMA, OBS_OER, OBS_HPHT,&
-           OBS_HAHT,OBS_ZHA, OBS_OMP6,OBS_OMA0,OBS_SIGI,OBS_SIGO /)
 
 
       ipnt  = obs_headElem_i(obsdat, OBS_RLN, kobs) 
@@ -6744,12 +6738,12 @@ contains
       ! write the data records
       do jdata=ipnt,ipnt+idata-1
          write(kulout) &
-           (obsdat%intBodies%columns(bdy_int_column_list(k) &
+           (obsdat%intBodies%columns(odc_ENKF_bdy_int_column_list(k) &
                                     )%value_i(jdata), &
-                 k=1,size(bdy_int_column_list(:))),&
-           (obsdat%realBodies%columns(bdy_real_column_list(j) &
+                 k=1,size(odc_ENKF_bdy_int_column_list(:))),&
+           (obsdat%realBodies%columns(odc_ENKF_bdy_real_column_list(j) &
                                      )%value_r(jdata), &
-                 j=1,size(bdy_real_column_list(:)))
+                 j=1,size(odc_ENKF_bdy_real_column_list(:)))
       enddo
 
       return
