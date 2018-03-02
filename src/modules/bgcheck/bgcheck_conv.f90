@@ -36,7 +36,7 @@ SUBROUTINE BGCHECK_CONV(columng,columnhr,obsSpaceData)
   use obsSpaceData_mod
   use columnData_mod
   use obsSpaceDiag_mod
-  use burpFiles_mod
+  use obsFiles_mod
   IMPLICIT NONE
 
   type(struct_obs)        :: obsSpaceData  ! Observation-related data
@@ -99,9 +99,9 @@ SUBROUTINE BGCHECK_CONV(columng,columnhr,obsSpaceData)
   call osd_ObsSpaceDiag(obsSpaceData,columng,analysisMode_opt=.false.)
 
 !
-!     Write out contents of obsSpaceData into BURP files
+!     Write out contents of obsSpaceData into observation files
 !
-  CALL burp_updateFiles(obsSpaceData)
+  CALL obsf_writeFiles(obsSpaceData)
 
   if (mpi_myid == 0 ) then
      DO j =1, min(1,obs_numHeader(obsSpaceData))

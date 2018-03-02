@@ -34,7 +34,7 @@ program midas_ensembleH
   use utilities_mod
   use ramDisk_mod
   use enkf_mod
-  use burpFiles_mod
+  use obsFiles_mod
   use obsSpaceData_mod
   use obsErrors_mod
   use obsOperators_mod
@@ -58,14 +58,13 @@ program midas_ensembleH
   integer              :: fclos, fnom, fstopc, ierr
   integer              :: memberIndex, stepIndex, numStep, procIndex, numBody, bodyIndex
   integer              :: nulnam, dateStamp
-  integer              :: unitObsHdr, unitObsBdy, unitHX, unitDim
   integer              :: get_max_rss
 
-  character(len=20)   :: fileNameObsHdr, fileNameObsBdy, fileNameHX, fileNameDim
   character(len=256)  :: ensFileName
   character(len=9)    :: obsColumnMode
   character(len=48)   :: obsMpiStrategy
-  character(len=10)   :: midasMode
+  character(len=48)   :: midasMode
+  character(len=10)   :: obsFileType
 
   logical :: beSilent
 
@@ -74,9 +73,10 @@ program midas_ensembleH
   ! namelist variables
   character(len=2)   :: ctrlVarHumidity
   character(len=256) :: ensPathName, ensFileBaseName
-  logical  :: useTlmH, obsClean
+  logical  :: useTlmH, obsClean, asciDumpObs
   integer  :: nEns
-  NAMELIST /NAMENSEMBLEH/nEns, ensPathName, ensFileBaseName, ctrlVarHumidity, useTlmH, obsClean
+  NAMELIST /NAMENSEMBLEH/nEns, ensPathName, ensFileBaseName, ctrlVarHumidity, useTlmH, &
+                         obsClean, asciDumpObs
 
   write(*,'(/,' //  &
         '3(" *****************"),/,' //                   &
@@ -84,6 +84,8 @@ program midas_ensembleH
         '14x,"-- Program for applying H to ensemble --",/, ' //  &
         '14x,"-- Revision number ",a," --",/,' //  &
         '3(" *****************"))') 'GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE'
+
+  midasMode = 'analysis'
 
   !
   !- 0. MPI, TMG initialization
@@ -107,6 +109,7 @@ program midas_ensembleH
   ctrlVarHumidity = 'LQ'
   useTlmH         = .true.
   obsClean        = .false.
+  asciDumpObs     = .false.
 
   ! Read the namelist
   nulnam = 0
@@ -122,17 +125,15 @@ program midas_ensembleH
     call utl_abort('midas-ensembleH: Not enough mpi processes available to read all ensemble members')
   end if
 
-  write(*,*) ''
-  write(*,*) 'midas-ensembleH: read in the observations, keeping them distributed as is (RR)'
-  write(*,*) ''
-  midasMode = 'analysis'
-  call tmg_start(2,'SETUPBURPFILES')
-  call burp_setupFiles(dateStamp,midasMode)
-  call tmg_stop(2)
+  ! Read the observations
+  call obsf_setup( dateStamp, midasMode )
+  call obsf_getFileType( obsFileType )
 
-  ! Setup timeCoord module
-  call tim_setup
-  call tim_setDatestamp(dateStamp)
+  ! Use the first ensemble member to initialize datestamp and grid
+  call fln_ensFileName( ensFileName, ensPathName, 1 )
+
+  ! Setup timeCoord module, get datestamp from ensemble member
+  call tim_setup(fileNameForDate_opt=ensFileName)
   numStep = tim_nstepobs
 
   !- Initialize variables of the model states
@@ -141,8 +142,6 @@ program midas_ensembleH
   !- Initialize the Ensemble grid
   if (mpi_myid == 0) write(*,*) ''
   if (mpi_myid == 0) write(*,*) 'midas-ensembleH: Set hco and vco parameters for ensemble grid'
-  ! Use the first ensemble member to initialize the grid
-  call fln_ensFileName( ensFileName, ensPathName, 1 )
   call hco_SetupFromFile( hco_ens, ensFileName, ' ', 'ENSFILEGRID')
   call vco_setupFromFile( vco_ens, ensFileName )
 
@@ -166,8 +165,16 @@ program midas_ensembleH
 
   call tmg_start(4,'SETUPOBS')
   obsColumnMode = 'ENKFMIDAS'
-  obsMpiStrategy = 'LIKESPLITFILES'
-  call inn_setupObs(obsSpaceData, obsColumnMode, obsMpiStrategy, midasMode, obsClean_opt=obsClean)
+  ! determine the mpi strategy for observations, based on file type
+  if ( obsFileType == 'BURP' ) then
+    obsMpiStrategy = 'LIKESPLITFILES'
+  else
+    obsMpiStrategy = 'ROUNDROBIN'
+  end if
+  ! read in the observations
+  call inn_setupObs(obsSpaceData, obsColumnMode, obsMpiStrategy, midasMode,  &
+                    obsClean_opt=obsClean)
+  ! set up the observation operators
   call oop_setup(midasMode)
   call tmg_stop(4)
 
@@ -182,7 +189,8 @@ program midas_ensembleH
     beSilent = .true.
     if ( memberIndex == 1 ) beSilent = .false.
     call col_setVco(columns(memberIndex), vco_ens)
-    call col_allocate(columns(memberIndex), obs_numheader(obsSpaceData), mpiLocal_opt=.true., beSilent_opt=beSilent, setToZero_opt=.false.)
+    call col_allocate(columns(memberIndex), obs_numheader(obsSpaceData),  &
+                      mpiLocal_opt=.true., beSilent_opt=beSilent, setToZero_opt=.false.)
   end do
   if ( useTlmH ) then
     write(*,*) 'midas-ensembleH: allocating column_mean'
@@ -290,39 +298,16 @@ program midas_ensembleH
 
   ! Gather obsSpaceData and HXens onto task 0
   call tmg_start(8,'OBS&HX_MPICOMM')
-  call obs_expandToMpiGlobal(obsSpaceData)
+  if ( .not. obsf_filesSplit() ) then 
+    call obs_expandToMpiGlobal(obsSpaceData)
+  end if
   call enkf_gatherHX(HXens,HXensT_mpiglobal)
   call tmg_stop(8)
 
   ! Output mpiglobal H(X) and obsSpaceData files
-  if( mpi_myid == 0 ) then
+  if( (.not.obsf_filesSplit() .and. mpi_myid == 0) .or. obsf_filesSplit() ) then
     call tmg_start(9,'WRITEHXOBS')
-
-    ! open the output files
-    fileNameObsHdr = 'cmaheaderout'
-    unitObsHdr = 0
-    ierr = fnom(unitObsHdr, fileNameObsHdr, 'FTN+SEQ+UNF+R/W', 0)
-
-    fileNameObsBdy = 'cmabdyout'
-    unitObsBdy = 0
-    ierr = fnom(unitObsBdy, fileNameObsBdy, 'FTN+SEQ+UNF+R/W', 0)
-
-    fileNameHX     = 'cmahxout'
-    unitHX = 0
-    ierr = fnom(unitHX, fileNameHX, 'FTN+SEQ+UNF+R/W', 0)
-
-    fileNameDim    = 'cmadimout'
-    unitDim = 0
-    ierr = fnom(unitDim, fileNameDim, 'FTN+SEQ+R/W', 0)
-
-    ! write out obsSpaceData and HX files
-    call obs_write(obsSpaceData, HXensT_mpiglobal, nEns, unitObsHdr, unitObsBdy, unitHX, unitDim)
-
-    ierr = fclos(unitObsHdr)
-    ierr = fclos(unitObsBdy)
-    ierr = fclos(unitHX)
-    ierr = fclos(unitDim)
-
+    call obsf_writeFiles( obsSpaceData, HXensT_mpiglobal, asciDumpObs )
     call tmg_stop(9)
   end if
 

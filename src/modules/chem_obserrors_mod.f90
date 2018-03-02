@@ -32,6 +32,7 @@ module chem_obserrors_mod
   use utilities_mod
   use obsSubSpaceData_mod
   use burpFiles_mod    
+  use obsFiles_mod
   use MathPhysConstants_mod
   
   implicit none
@@ -118,6 +119,8 @@ contains
 
     integer :: istnid
 
+    if ( .not.obsf_fileTypeIsBurp() ) call utl_abort('chm_read_avgkern: only compatible with BURP files')
+
     ! read the error std. dev. information from the ascii file
     call chm_read_obs_err_stddev_ascii
 
@@ -129,7 +132,7 @@ contains
        if (chm_std%brp(istnid).ge.1) then
           
           ! retrieve data from stats blocks (with bkstp=14 and block_type='DATA')
-          chm_burp_std(istnid) = burp_chem_read_all('CH',chm_std%stnids(istnid), &
+          chm_burp_std(istnid) = brpf_chem_read_all('CH',chm_std%stnids(istnid), &
                chm_std%bfr(istnid), chm_std%n_lvl(istnid), 1, 14, 'DATA',       &
                match_nlev=chm_std%brp(istnid).eq.1 )
 

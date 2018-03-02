@@ -1,0 +1,318 @@
+#!/bin/ksh
+
+# JFC: This script works with listings from MAESTRO archives (e.g. main.assimcycle.anlalt.envar.VAR.success.*)
+
+listings=""
+titles="=-1"
+evals="=-1"
+dt="=-1"
+concat=NON
+mtitle=DEFAULT
+
+eval $(cclargs_lite -D ' ' $0 "[ Cost function display program ]"\
+ -listings "${listings}" "" "[list of mach:/dir/listing_name]"\
+ -evals"${evals}" "=-1" "[listing evals associated to listings]"\
+ -titles "${titles}" "=-1" "[titles associated to listings]"\
+ -dt "${dt}" "=-1" "[del t beetween loop]"\
+ -concat "${concat}" "OUI" "[listings concatanation]"\
+ -pdf "0" "1" "[generation de pdf]"\
+ -gif "0" "1" "[generation de gif]"\
+ -won2 "1" "1" "[sans N/2]"\
+ -cost "total" "jo" "[fam of observation: ua,]"\
+ -list "0" "1" "[list of fam code]"\
+ -mtitle "${mtitle}" "DEFAULT" "[main title]"\
+ ++ $*)
+
+if [[ ${list} = "1" ]] ; then
+    echo "jo ua ai sf to sw go sc hu pr ro gp"
+    exit
+fi
+integer lcnt
+integer itertot
+integer jotot
+integer jbend
+integer nplot
+
+integer numcost=$(echo $cost | wc -w | sed 's/ *//g')
+
+psout="${TMPDIR}/cost.ps"
+if [[ ${pdf} = 1 ]] ; then
+    pdfout="cost_${cost}.pdf"
+    psoutb="cost_${cost}.ps"
+else
+    pdfout="${pdf}"
+fi
+if [[ ${gif} = 1 ]] ; then
+    gifout="${psout%/*}/cost_${cost}.ps" # sera transforme en cost_${cost}.gif par r.ps2gif
+else
+    gifout="${gif}"
+fi
+skip1stline=NON
+
+defstr2grep() #
+{
+  typeset lcost=$1
+  case "${lcost}" in
+    total)
+	   string2grep='n1qn3: iter'
+	   lastjtot2grep='f         ='
+	   maintitle="Total cost function"
+	   ;;
+    ua)
+	string2grep='Jo(UA)'
+	maintitle="UA cost function"
+	;;
+    ai)
+	string2grep='Jo(AI)'
+	maintitle="AI cost function"
+	;;
+    sf)
+	string2grep='Jo(SF)'
+	maintitle="SF cost function"
+	;;
+    to)
+	string2grep='Jo(TO)'
+	maintitle="TO cost function"
+	;;
+    sw)
+	string2grep='Jo(SW)'
+	maintitle="SW cost function"
+	;;
+    go)
+	string2grep='Jo(GO)'
+	maintitle="GO cost function"
+	;;
+    sc)
+	string2grep='Jo(SC)'
+	maintitle="SC cost function"
+	;;
+    hu)
+	string2grep='Jo(HU)'
+	maintitle="HU cost function"
+	skip1stline=NON
+	;;
+    pr)
+	string2grep='Jo(PR)'
+	maintitle="PR cost function"
+	skip1stline=NON
+	;;
+    ro)
+	string2grep='Jo(RO)'
+	maintitle="GPSRO cost function"
+	skip1stline=NON
+	;;
+    gp)
+	string2grep='Jo(GP)'
+	maintitle="GB-GPS cost function"
+	skip1stline=NON
+	;;
+    jo)
+	string2grep='JO ='
+	maintitle="JO cost function"
+	skip1stline=NON
+	;;
+    jb)
+	string2grep='Jb ='
+	maintitle="Jb cost function"
+	skip1stline=NON
+	;;
+
+  esac
+}
+
+gendat() #
+{
+  typeset lcost=${4}
+
+  if [[ ${lcost} = 'total' ]] ; then
+      set -x
+      ssh ${1%%:*} "grep --text '${string2grep}' ${1##*:}" | sed -e 's/[0-9]*://' -e 's/f=[-]*\(.*\)/f= \1/g' | awk '{print $8}' | sed 's/,//g' > ${TMPDIR}/${nplot}.tmp
+
+  elif [[ ${lcost} = 'jo' ]] ; then
+      ssh ${1%%:*} "grep --text '${string2grep}' ${1##*:}" | grep "SIMVAR" | sed -e 's/[0-9]*://' | awk '{print $8}' | sed 's/,//g' > ${TMPDIR}/${nplot}.tmp
+  elif [[ ${lcost} = 'jb' ]] ; then
+      ssh ${1%%:*} "grep --text '${string2grep}' ${1##*:}" | sed -e 's/[0-9]*://' | awk '{print $5}' | sed 's/,//g' > ${TMPDIR}/${nplot}.tmp
+  else
+      ssh ${1%%:*} "grep --text '${string2grep}' ${1##*:}" | sed -e 's/[0-9]*://' | sed 's/=//' | awk '{print $3}' | sed 's/,//g' > ${TMPDIR}/${nplot}.tmp1
+      if [[ ${skip1stline} = 'OUI' ]] ; then
+	  integer num=$(cat ${TMPDIR}/${nplot}.tmp1 | wc -l)-1
+	  tail -${num} ${TMPDIR}/${nplot}.tmp1 > ${TMPDIR}/${nplot}.tmp
+      else
+	  mv ${TMPDIR}/${nplot}.tmp1 ${TMPDIR}/${nplot}.tmp
+      fi
+  fi
+
+  cat -n ${TMPDIR}/${nplot}.tmp | sed 's/://g'| sed -e 's/D/E/' > ${TMPDIR}/${2}.${nplot}
+  niter="$(tail -1 ${TMPDIR}/${2}.${nplot} | awk '{print $1}')"
+
+  costdebut_tmp="$(head -1 ${TMPDIR}/${2}.${nplot}| awk '{printf("%.0f", $2)}')"
+  if [[ $costdebut_tmp -gt $costdebut ]] ; then 
+      costdebut=$costdebut_tmp 
+  fi
+  costfin_tmp="$(tail -1 ${TMPDIR}/${2}.${nplot} | awk '{printf("%.0f", $2)}')"
+  if [[ ${lcost} != 'jb' ]] ; then
+      if [[ $costfin_tmp -lt $costfin ]] ; then 
+	  costfin=$costfin_tmp 
+      fi
+  else
+    if [[ $costfin_tmp -gt $costfin ]] ; then
+	costfin=$costfin_tmp 
+    fi
+  fi
+  if [[ ${costfin} -gt  ${costdebut} ]] ; then
+      costdiff=$(echo "(${costfin} - ${costdebut}) * 0.1"|bc)
+      cost_inf=$(echo "${costdebut} - ${costdiff} "|bc| awk '{printf("%.0f", $1)}')
+      cost_sup=$(echo "${costfin} + ${costdiff} "|bc| awk '{printf("%.0f", $1)}')
+  else
+      costdiff=$(echo "(${costdebut} - ${costfin}) * 0.1"|bc)
+      cost_sup=$(echo "${costdebut} + ${costdiff} "|bc| awk '{printf("%.0f", $1)}')
+      cost_inf=$(echo "${costfin} - ${costdiff} "|bc| awk '{printf("%.0f", $1)}')
+  fi
+
+  if [[ "${leval[${lcnt}]}" != "-1" && "${leval[${lcnt}]}" != "" ]] ; then
+      set -x
+      jbend=$(ssh ${1%%:*} "grep --text 'Jb =' ${1##*:}" | awk '{print $4}' | sed 's/,//g' | tail -1 | sed 's/\..*//g')
+      echo toto
+      jotot=$(/users/dor/arma/spe/scripts/jo.py ${leval[${lcnt}]} | sed 's/\..*//g')
+      jotot=jotot+jbend
+      itertot=${niter}
+      itertot=itertot+1
+      echo "   ${itertot} ${jotot}" >> ${TMPDIR}/${2}.${nplot}
+  fi
+  if [[ ${lcost} = 'total' && ${won2} = "0" ]] ; then
+      ssh ${1%%:*} "grep --text 'NUMBER OF DATA ASSIMILATED BY 3D-VAR AFTER ADJUSTMENTS' ${1##*:}" | tail -1 | sed 's/  NUMBER OF DATA ASSIMILATED BY 3D-VAR AFTER ADJUSTMENTS://g' > ${TMPDIR}/${nplot}.${2}_ndat
+      nobs=$(cat ${TMPDIR}/${nplot}.${2}_ndat | sed 's/ *[0-9]: *//g')
+      if [[ "${plot}" == "" ]] ; then
+	  plot="\"${TMPDIR}/${2}.${nplot}\" title '${3} (${niter} it./${costfin})', ${nobs}/2 title '${3} (${nobs}/2)'"
+      else
+	  plot="${plot}, \"${TMPDIR}/${2}.${nplot}\" title '${3} (${niter} it./${costfin})', ${nobs}/2 title '${3} (${nobs}/2)'"
+      fi
+  else
+      if [[ "${plot}" == "" ]] ; then
+	  plot="\"${TMPDIR}/${2}.${nplot}\" title '${3} (${niter} it./${costfin_tmp})'"
+      else
+	  plot="${plot}, \"${TMPDIR}/${2}.${nplot}\" title '${3} (${niter} it./${costfin_tmp})'"
+      fi
+  fi
+}
+
+integer loop=1
+lcnt=0
+nplot=0
+costdebut=0
+if [[ ${cost} != 'jb' ]] ; then
+    costfin=999999
+else
+    costfin=0
+fi
+for titre in $(echo ${titles}) ; do
+    title[${lcnt}]="${titre}"
+    lcnt=lcnt+1
+done
+
+lcnt=0
+for ieval in $(echo ${evals}) ; do
+    leval[${lcnt}]="${ieval}"
+    lcnt=lcnt+1
+done
+
+if [[ "${concat}" != "NON" ]] ; then
+    listconcat=${TMPDIR}/listconcat.$$
+    cat /dev/null > ${listconcat}
+    tmplisting=${TMPDIR}/tmplisting.$$
+    
+    for listing in $(echo ${concat}) ; do
+	
+	if [[ "${listing%%:*}" == "${listing}" ]] ; then
+	    if [[ "$(echo ${listing##*:} | cut -c1)" != "/" ]] ; then
+		listing="${HOST}:$(pwd)/${listing}"
+	    else
+		listing="${HOST}:${listing}"
+	    fi
+	fi
+	
+	nrcp ${listing} ${tmplisting}
+	cat ${tmplisting} >> ${listconcat}
+    done
+    listings="${listings} ${listconcat}"
+fi
+
+
+if [[ "${pdf}" != "0" ||  "${gif}" != "0" ]] ; then
+    loop=0
+fi
+echo "loop equals $loop "
+
+lcnt=0
+nplot=0
+for listing in $(echo ${listings}) ;do
+    
+    listing2=$listing
+    if [[ "${listing%%:*}" == "${listing}" ]] ; then
+	if [[ "$(echo ${listing##*:} | cut -c1)" != "/" ]]
+	then
+	    listing="${HOST}:$(pwd)/${listing}"
+	else
+	    listing="${HOST}:${listing}"
+	fi
+    fi
+    
+    nom=${listing##*/}
+    
+    if [[ "${title[${lcnt}]}" == "-1" || "${title[${lcnt}]}" == "" ]] ; then
+	title[${lcnt}]=${listing2}
+    fi
+    if [[ ${numcost} == 1 ]] ; then
+	defstr2grep ${cost}
+	gendat ${listing} ${nom} ${title[${lcnt}]} ${cost}
+	nplot=nplot+1
+    else
+	set ${cost}
+	while [[ $# > 0 ]] ; do
+	    defstr2grep ${1}
+	    gendat ${listing} ${nom} ${title[${lcnt}]}_${1} ${1}
+	    nplot=nplot+1
+	    shift
+	done
+    fi
+    lcnt=lcnt+1
+done
+
+if [[ "${mtitle}" != "DEFAULT" ]] ; then
+    maintitle="${mtitle}"
+fi
+
+cat <<EOF > ${TMPDIR}/gp.dir
+set title "${maintitle}"
+set ylabel "Cost function"
+set xlabel "Number of iterations"
+set style data lines
+set yrange [${cost_inf}:${cost_sup}]
+set key below
+EOF
+#deplacer les lignes suivantes avant le EOF pour controler les axes.
+#set yrange [90000:220000]
+
+if [[ "${pdf}" != "0" || "${gif}" != "0"  ]] ; then
+    echo "set terminal postscript color" >> ${TMPDIR}/gp.dir 
+    echo "set output \"${psout}\"" >> ${TMPDIR}/gp.dir
+fi
+
+echo "plot ${plot}" >> ${TMPDIR}/gp.dir
+
+if [[ "${pdf}" = "0" && "${gif}" = "0" ]] ; then
+    echo "pause ${dt}" >> ${TMPDIR}/gp.dir
+fi
+
+cat ${TMPDIR}/gp.dir
+gnuplot $* ${TMPDIR}/gp.dir
+plot=""
+
+if [[ "${pdf}" != "0" ]] ; then
+    cp ${psout} ${psoutb}
+    ps2pdf ${psoutb} ${pdfout}
+fi
+if [[ "${gif}" != "0" ]] ; then
+    cp ${psout} ${gifout}
+    r.ps2gif -psfile ${gifout} -xsize 400 -ysize 300 -r 150
+fi

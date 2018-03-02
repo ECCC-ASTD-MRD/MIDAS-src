@@ -822,7 +822,7 @@ contains
     if( mpi_myid == 0 ) then
       allocate(HXensT_mpiglobal(nEns,numBody_mpiglobal))
     else
-      allocate(HXensT_mpiglobal(1,1))
+      allocate(HXensT_mpiglobal(nEns,1))
     end if
 
     do memberIndex = 1, nEns

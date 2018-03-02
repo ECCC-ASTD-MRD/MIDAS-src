@@ -54,14 +54,14 @@ program midas_diagBmatrix
   real(8), allocatable :: zonalMeanStddev(:)
   real(8), allocatable :: controlVector(:), controlVector_global(:)
 
-  real(8) :: centralValue
+  real(8) :: centralValue, centralValueLocal
 
   integer :: fclos, fnom, fstopc, newdate, get_max_rss
   integer :: ierr, nsize, iseed, cvDim_local
   integer :: ensIndex, index, lonIndex, latIndex, kIndex, nkgdim, levIndex
   integer :: idate, itime, nulnam, nultxt, dateStamp, numLoc
   integer :: nlons, nlats, nlevs, nlevs2, jvar, ip3
-  integer :: latIndex2, lonIndex2, levIndex2
+  integer :: latIndex2, lonIndex2, levIndex2, locIndex
 
   integer :: latPerPE, latPerPEmax, lonPerPE, lonPerPEmax
   integer :: myLatBeg, myLatEnd
@@ -71,6 +71,7 @@ program midas_diagBmatrix
   character(len=10)  :: datestr
   character(len=12)  :: etiket
   character(len=4)   :: varName
+  character(len=1)   :: locIndexString
 
   ! namelist variables
   integer :: numperturbations, nrandseed, diagdate
@@ -240,16 +241,16 @@ program midas_diagBmatrix
                  ip3_opt=ip3,HUcontainsLQ_opt=.true.,unitConversion_opt=.true.)
 
             ! Normalized the result to get correlation-like pattern
-            centralValue = 0.d0
+            centralValueLocal = 0.d0
             if(oneobs_lats(latIndex).ge.statevector%myLatBeg .and. oneobs_lats(latIndex).le.statevector%myLatEnd .and.  &
                  oneobs_lons(lonIndex).ge.statevector%myLonBeg .and. oneobs_lons(lonIndex).le.statevector%myLonEnd) then
               if(vnl_varLevelFromVarname(vnl_varNameList(jvar)).eq.'SF') then
-                centralValue = field(oneobs_lons(lonIndex),oneobs_lats(latIndex),1)
+                centralValueLocal = field(oneobs_lons(lonIndex),oneobs_lats(latIndex),1)
               else
-                centralValue = field(oneobs_lons(lonIndex),oneobs_lats(latIndex),oneobs_levs(levIndex))
+                centralValueLocal = field(oneobs_lons(lonIndex),oneobs_lats(latIndex),oneobs_levs(levIndex))
               end if
             end if
-            call rpn_comm_allreduce(centralValue, centralValue, 1,  &
+            call rpn_comm_allreduce(centralValueLocal, centralValue, 1,  &
                                     "MPI_DOUBLE_PRECISION", "MPI_SUM", "GRID", ierr)
 
             write(*,*) 'midas-diagBmatrix: centralValue found = ', centralValue
@@ -279,8 +280,8 @@ program midas_diagBmatrix
     !
     numLoc = loc_getNumLocActive()
 
-    if (numLoc /= 0) then
-      locInfo => loc_getLocInfo(1) ! Grab the first one...
+    do locIndex = 1, numLoc ! (this loop will be done only when localization is used in B)
+      locInfo => loc_getLocInfo(locIndex)
 
       call mpivar_setup_latbands(locInfo%hco%nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd)
       call mpivar_setup_lonbands(locInfo%hco%ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
@@ -300,10 +301,11 @@ program midas_diagBmatrix
       write(*,*) 'number of levels     =',nlevs
       write(*,*) 'number of longitudes =',nlons
       write(*,*) 'number of latitudes  =',nlats
-      
-      ip3 = 0
-      filename = 'columnL_' // trim(locInfo%locType) // '_' // datestr // '.fst'
 
+      write(locIndexString,'(i1)') locIndex
+      filename = 'columnL_' // trim(locInfo%locType) // '_' // locIndexString // '_' // datestr // '.fst'
+
+      ip3 = 0
       do levIndex = 1, nlevs2
         do lonIndex = 1, nlons
           do latIndex = 1, nlats
@@ -311,19 +313,14 @@ program midas_diagBmatrix
             ensAmplitude(:,:,:,:) = 0.d0
             if(oneobs_lats(latIndex).ge.myLatBeg .and. oneobs_lats(latIndex).le.myLatEnd .and.  &
                  oneobs_lons(lonIndex).ge.myLonBeg .and. oneobs_lons(lonIndex).le.myLonEnd) then
-              if ( locInfo%hco%global ) then
-                ensAmplitude(1,oneobs_lons(lonIndex),oneobs_lats(latIndex),oneobs_levs(levIndex)) = &
-                     1.d0 * real(locInfo%hco%ni,8) / gst_getRWT(oneobs_lats(latIndex)) ! This normalization should not be done here
-              else
-                ensAmplitude(1,oneobs_lons(lonIndex),oneobs_lats(latIndex),oneobs_levs(levIndex)) = 1.d0
-              end if
+              ensAmplitude(1,oneobs_lons(lonIndex),oneobs_lats(latIndex),oneobs_levs(levIndex)) = 1.d0
             end if
             controlVector(:)=0.0d0
 
-            call loc_LsqrtAd(1,             & ! IN
+            call loc_LsqrtAd(locIndex,      & ! IN
                              ensAmplitude,  & ! IN
                              controlVector)   ! OUT
-            call loc_Lsqrt  (1,             & ! IN
+            call loc_Lsqrt  (locIndex,      & ! IN
                              controlVector, & ! IN
                              ensAmplitude)    ! OUT
 
@@ -356,7 +353,7 @@ program midas_diagBmatrix
       deallocate(ensAmplitude)
       call gsv_deallocate(statevectorEnsAmp)
 
-    end if ! if localization is active in B
+    end do ! localization index (if active in B)
 
   end if ! if any oneobs selected
 

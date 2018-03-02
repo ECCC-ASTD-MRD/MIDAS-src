@@ -698,6 +698,12 @@ module ObsDataColumn_mod
    integer, target :: columnIndexFromActiveIndex_RB(NBDY_REAL_SIZE)
    integer, target :: columnIndexFromActiveIndex_RH(NHDR_REAL_SIZE)
 
+   integer, public, parameter :: odc_ENKF_bdy_int_column_list(7) = &
+      (/OBS_VNM, OBS_FLG, OBS_ASS, OBS_HIND, OBS_VCO, OBS_LYR, OBS_IDD /)
+   integer, public, parameter :: odc_ENKF_bdy_real_column_list(13) = &
+      (/OBS_PPP, OBS_SEM, OBS_VAR, OBS_OMP, OBS_OMA, OBS_OER, OBS_HPHT,&
+        OBS_HAHT,OBS_ZHA, OBS_OMP6,OBS_OMA0,OBS_SIGI,OBS_SIGO /)
+
 contains
 
    subroutine odc_abort(cdmessage)
@@ -966,14 +972,13 @@ contains
             (/OBS_LAT, OBS_LON, OBS_ALT, OBS_BX,  OBS_BY,  OBS_BZ, OBS_TRAD, &
               OBS_GEOI,(0,ii=9,100)/)
 
-         bdy_int_column_list= &
-            (/OBS_VNM, OBS_FLG, OBS_ASS, OBS_HIND,OBS_VCO, OBS_LYR, OBS_IDD, &
-              (0,ii=8,100) /)
+         bdy_int_column_list(:)    = 0
+         bdy_int_column_list(1:size(odc_ENKF_bdy_int_column_list)) = &
+            odc_ENKF_bdy_int_column_list(:)
 
-         bdy_real_column_list= &
-            (/OBS_PPP, OBS_SEM, OBS_VAR, OBS_OMP, OBS_OMA, OBS_OER, OBS_HPHT,&
-              OBS_HAHT,OBS_ZHA, OBS_OMP6, OBS_OMA0, OBS_SIGI, OBS_SIGO, &
-              (0,ii=14,100) /)
+         bdy_real_column_list(:)   = 0
+         bdy_real_column_list(1:size(odc_ENKF_bdy_real_column_list)) = &
+            odc_ENKF_bdy_real_column_list(:)
 
          do list_index=1,COLUMN_LIST_SIZE
             column_index = hdr_int_column_list(list_index)
@@ -1398,6 +1403,7 @@ module ObsSpaceData_mod
    public obs_write      ! write the observation data to binary files
                          ! (calls obs_write_hdr, obs_write_bdy, obs_write_hx
                          !  for each station)
+   public obs_write_hx   ! write to binary files a station's interpolated values
 
    interface obs_getBodyIndex
       module procedure obs_getBodyIndex_depot
@@ -1425,7 +1431,6 @@ module ObsSpaceData_mod
    private obs_tosqlhdr  ! write the observation header in comma-separated format
    private obs_write_bdy ! write the observation data to binary files
    private obs_write_hdr ! write the observation header to binary files
-   private obs_write_hx  ! write to binary files a station's interpolated values
 
 
    ! PARAMETERS INHERITED FROM ObsColumnNames_mod (make them public)
@@ -3310,7 +3315,7 @@ contains
          obs_headElem_i(obsdat, OBS_IP , kobs), &
          obs_headElem_i(obsdat, OBS_AZA, kobs)
 
-9200  format(2x,'position within realBodies:',i6,1x,'stn. number:',i6,1x,/, &
+9200  format(2x,'position within realBodies:',i8,1x,'stn. number:',i6,1x,/, &
          '  date: ',i10,1x,' time: ',i8,/, &
          '  model box:',i12,1x,'instrument: ',i6,1x, &
          'obs. type:',i8,1x,/, &
@@ -4873,16 +4878,15 @@ contains
          ! now read the observations:
          ifirst=         obs_headElem_i(obsdat, OBS_RLN, istn)
          ilast =ifirst + obs_headElem_i(obsdat, OBS_NLV, istn) -1
+         ! only read those columns specified by the user
          do i=ifirst,ilast
             read(nobsbdy) &
-              (obsdat%intBodies%columns(odc_columnIndexFromActiveIndex( &
-                                                obsdat%intBodies%odc_flavour,j) &
+              (obsdat%intBodies%columns(odc_ENKF_bdy_int_column_list(j) &
                                        )%value_i(i),&
-                   j=1,odc_numActiveColumn(obsdat%intBodies)),&
-              (obsdat%realBodies%columns(odc_columnIndexFromActiveIndex( &
-                                               obsdat%realBodies%odc_flavour,k) &
+                   j=1,size(odc_ENKF_bdy_int_column_list(:))),&
+              (obsdat%realBodies%columns(odc_ENKF_bdy_real_column_list(k) &
                                         )%value_r(i),&
-                   k=1,odc_numActiveColumn(obsdat%realBodies))
+                   k=1,size(odc_ENKF_bdy_real_column_list(:)))
          enddo
          if (nens > 0) then
             do i=ifirst,ilast
@@ -6734,14 +6738,12 @@ contains
       ! write the data records
       do jdata=ipnt,ipnt+idata-1
          write(kulout) &
-           (obsdat%intBodies%columns(odc_columnIndexFromActiveIndex( &
-                                                obsdat%intBodies%odc_flavour,k) &
+           (obsdat%intBodies%columns(odc_ENKF_bdy_int_column_list(k) &
                                     )%value_i(jdata), &
-                 k=1,odc_numActiveColumn(obsdat%intBodies)),&
-           (obsdat%realBodies%columns(odc_columnIndexFromActiveIndex( &
-                                               obsdat%realBodies%odc_flavour,j) &
+                 k=1,size(odc_ENKF_bdy_int_column_list(:))),&
+           (obsdat%realBodies%columns(odc_ENKF_bdy_real_column_list(j) &
                                      )%value_r(jdata), &
-                 j=1,odc_numActiveColumn(obsdat%realBodies))
+                 j=1,size(odc_ENKF_bdy_real_column_list(:)))
       enddo
 
       return
