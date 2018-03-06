@@ -1517,9 +1517,9 @@ contains
     call oop_Hchm(obsAssVal)          ! fill in OBS_WORK : Hdx
     call tmg_stop (126)
 
-    call tmg_start(170,'OBS_SST_TLAD')
+    call tmg_start(190,'OBS_SST_TLAD')
     call oop_Hsst(obsAssVal)          ! fill in OBS_WORK : Hdx
-    call tmg_stop (170)
+    call tmg_stop (190)
 
 
 
@@ -2570,9 +2570,9 @@ contains
     call oop_HTpp
     call tmg_stop (42)
 
-    call tmg_start(171,'OBS_SST_TLAD')
+    call tmg_start(191,'OBS_SST_TLAD')
     call oop_HTsst
-    call tmg_stop (171)      !
+    call tmg_stop (191)      !
 
 
   CONTAINS

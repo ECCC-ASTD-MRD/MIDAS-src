@@ -311,7 +311,6 @@ contains
     ! initialize columnData object for increment
     call col_setVco(column,col_getVco(columng))
     call col_allocate(column,col_getNumCol(columng),mpiLocal_opt=.true.)
-    call col_copyLatLon(columng,column)
 
     ! initialize gridStateVector object for increment
     hco_anl => agd_getHco('ComputationalGrid')

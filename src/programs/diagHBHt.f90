@@ -58,9 +58,13 @@ program midas_diagHBHt
   type(struct_obs),       target :: obsSpaceData
   type(struct_columnData),target :: trlColumnOnAnlLev
   type(struct_columnData),target :: trlColumnOnTrlLev
+  type(struct_gsv)               :: stateVector
+  type(struct_hco), pointer      :: hco_trl => null()
+  type(struct_vco), pointer      :: vco_trl => null()
 
   character(len=9) :: clmsg
   character(len=48) :: obsMpiStrategy, varMode
+  character(len=20) :: timeInterpType_nl = 'NEAREST' ! 'NEAREST' or 'LINEAR'
 
 
   istamp = exdb('diagHBHt','DEBUT','NON')
@@ -86,14 +90,25 @@ program midas_diagHBHt
   ! Do initial set up
   call tmg_start(2,'PREMIN')
 
-  obsMpiStrategy = 'LATLONTILESBALANCED'
+  obsMpiStrategy = 'LIKESPLITFILES'
 
   call var_setup('VAR') ! obsColumnMode
   call tmg_stop(2)
 
   ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
   call tmg_start(2,'PREMIN')
-  call inn_setupBackgroundColumns(trlColumnOnTrlLev,obsSpaceData)
+  call gsv_allocate( stateVector, tim_nstepobs, hco_trl, vco_trl,  &
+                     dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                     mpi_distribution_opt='VarsLevs', dataKind_opt=4, &
+                     allocGZsfc_opt=.true. )
+  call tmg_start(9,'readTrials')
+  call gsv_readTrials( stateVector )
+  call tmg_stop(9)
+  call tmg_start(8,'s2c_nl')
+  call s2c_nl( stateVector, obsSpaceData, trlColumnOnTrlLev,  &
+               moveObsAtPole_opt=.true., timeInterpType_opt=timeInterpType_nl )
+  call tmg_stop(8)
+  call gsv_deallocate(stateVector)
 
   ! Interpolate trial columns to analysis levels and setup for linearized H
   call inn_setupBackgroundColumnsAnl(trlColumnOnTrlLev,trlColumnOnAnlLev)
@@ -152,7 +167,6 @@ contains
     character (len=*) :: obsColumnMode
     integer :: datestamp
     type(struct_vco),pointer :: vco_anl => null()
-    type(struct_vco),pointer :: vco_trl => null()
     type(struct_hco),pointer :: hco_anl => null()
     type(struct_hco),pointer :: hco_core => null()
 
@@ -182,6 +196,11 @@ contains
     !- Initialize constants
     !
     if(mpi_myid.eq.0) call mpc_printConstants(6)
+
+    !
+    ! - Set horizontal coordinate for trial file
+    !
+    call hco_SetupFromFile( hco_trl, './trlm_01', ' ', 'Trial' )
 
     !
     !- Set vertical coordinate parameters from !! record in trial file
@@ -299,7 +318,6 @@ contains
     !- 1.4 Create column vectors to store the perturbation interpolated to obs horizontal locations
     call col_setVco(column,vco_anl)
     call col_allocate(column,col_getNumCol(columng),mpiLocal_opt=.true.)
-    call col_copyLatLon(columng,column)
 
     !- 1.6
     call oti_timeBinning(obsSpaceData,tim_nstepobsinc)
@@ -334,9 +352,9 @@ contains
     call bmat_sqrtB(local_random_vector,local_dimension,statevector)
     !- 2.2 Interpolation to the observation horizontal locations
 
-    call  s2c_tl( statevector,   & ! IN
-         column,                & ! OUT (H_horiz EnsPert)
-         columng, obsSpaceData )  ! IN
+    call s2c_tl( statevector,           & ! IN
+                 column,                & ! OUT (H_horiz EnsPert)
+                 columng, obsSpaceData )  ! IN
     !- 2.3 Interpolation to observation space
     call oop_Htl(column,columng,obsSpaceData,min_nsim=1)
 

@@ -33,6 +33,7 @@ program midas_ominusf
   use timeCoord_mod
   use obsSpaceData_mod
   use columnData_mod  
+  use stateToColumn_mod
   use gridStateVector_mod
   use obsFiles_mod
   use obsFilter_mod  
@@ -47,10 +48,12 @@ program midas_ominusf
   type(struct_obs),       target  :: obsSpaceData
   type(struct_columnData),target  :: trlColumnOnAnlLev
   type(struct_columnData),target  :: trlColumnOnTrlLev
+  type(struct_gsv)                :: stateVector
   type(struct_vco),       pointer :: vco_anl  => null()
   type(struct_vco),       pointer :: vco_trl  => null()
   type(struct_hco),       pointer :: hco_anl  => null()
   type(struct_hco),       pointer :: hco_core => null()
+  type(struct_hco),       pointer :: hco_trl  => null()
 
   character(len=48) :: obsMpiStrategy
   character(len=3)  :: obsColumnMode
@@ -59,14 +62,17 @@ program midas_ominusf
   integer :: datestamp, get_max_rss, headerIndex, ierr
   integer :: fnom, fclos, nulnam
 
+  character(len=20) :: timeInterpType_nl  ! 'NEAREST' or 'LINEAR'
+
   ! Namelist
   logical :: addHBHT  
   logical :: addSigmaO
-  NAMELIST /NAMOMF/addHBHT,addSigmaO
+  NAMELIST /NAMOMF/addHBHT,addSigmaO,timeInterpType_nl
 
   write(*,*) " --------------------------------------------"
   write(*,*) " ---  START OF MAIN PROGRAM midas-oMinusF ---"
   write(*,*) " ---  Computation of the innovation       ---"
+  write(*,*) " ---  Revision: GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE "
   write(*,*) " --------------------------------------------"
 
   if ( mpi_myid == 0 ) then
@@ -86,6 +92,7 @@ program midas_ominusf
   !- 1.0 Namelist
   addHBHT   = .false. ! default value
   addSigmaO = .false. 
+  timeInterpType_nl='NEAREST'
 
   nulnam = 0
   ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -169,7 +176,19 @@ program midas_ominusf
   end if
 
   !- 1.16 Reading, horizontal interpolation and unit conversions of the 3D background fields
-  call inn_setupBackgroundColumns(trlColumnOnTrlLev,obsSpaceData)
+  call hco_SetupFromFile( hco_trl, trim(trialFileName), ' ', 'Trial' )
+  call gsv_allocate( stateVector, tim_nstepobs, hco_trl, vco_trl,  &
+                     dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                     mpi_distribution_opt='VarsLevs', dataKind_opt=4, &
+                     allocGZsfc_opt=.true., hInterpolateDegree_opt='LINEAR' )
+  call tmg_start(9,'readTrials')
+  call gsv_readTrials( stateVector )
+  call tmg_stop(9)
+  call tmg_start(8,'s2c_nl')
+  call s2c_nl( stateVector, obsSpaceData, trlColumnOnTrlLev,  &
+               moveObsAtPole_opt=.true., timeInterpType_opt=timeInterpType_nl )
+  call tmg_stop(8)
+  call gsv_deallocate(stateVector)
 
   write(*,*)
   write(*,*) '> midas-OminusF: setup - END'

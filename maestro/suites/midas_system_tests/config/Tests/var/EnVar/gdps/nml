@@ -11,7 +11,6 @@
    NTRUNC  = 31,
    NENS = 256
    SCALEFACTOR=3*0.00D0,0.075D0,0.15D0,0.225D0,0.30D0,0.375D0,0.45D0,0.525D0,0.60D0,0.675D0,100*0.75D0
-   ENSPATHNAME='./ensemble/'
 /
  &NAMMIN
    NVAMAJ = 25,
@@ -66,6 +65,7 @@
    rmat_lnonDiagR=.true.
 /
  &NAMSTATE
+   AddGZSfcOffset = .false.
    RHUMIN  = 1.0D-07
    ANLVAR(1)   ='UU'
    ANLVAR(2)   ='VV'

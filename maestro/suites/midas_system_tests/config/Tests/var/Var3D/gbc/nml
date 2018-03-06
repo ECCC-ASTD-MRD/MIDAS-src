@@ -1,6 +1,6 @@
  &NAMCT0
    NCONF  = 141,
-   WRITEANALYSIS = .TRUE.
+   WRITEANALYSIS = .FALSE.
 /
  &NAMBHI
    NTRUNC  = 180,
@@ -36,7 +36,7 @@
    NDATAMX=15000000,
 /
  &NAMTIME
-  DSTEPOBS = 0.25d0
+  DSTEPOBS = 1.00d0
   DSTEPOBSINC = 6.0d0
 /
  &NAMFILT
@@ -70,6 +70,7 @@
 /
 /
  &NAMSTATE
+   AddGZSfcOffset = .false.
    RHUMIN  = 1.0D-07
    ANLVAR(1)   ='UU'
    ANLVAR(2)   ='VV'

@@ -84,6 +84,8 @@ echo "Copy of observations starts at $(date +%Y%m%d:%H:%M:%S.%N)"
 echo "Launching ${pgmpath} at $(date +%Y%m%d:%H:%M:%S.%N)"
 
 SECONDS=0
+export OMP_STACKSIZE=4G
+
 ${TASK_BIN}/r.run_in_parallel -pgm ${cmd} -npex ${SEQ_NPEX} -npey ${SEQ_NPEY} -processorder -tag -nocleanup -verbose -tmpdir ${PWD}/mpitmpdir ${run_in_parallel_extra_args} -args ${UnitTest_run_pgm_args}
 RUNTIME=${SECONDS}
 

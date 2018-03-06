@@ -29,7 +29,7 @@ program midas_var
   use utilities_mod
   use mpi_mod
   use mpivar_mod
-  use MathPhysConstants_mod
+  use mathPhysConstants_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use timeCoord_mod
@@ -49,6 +49,7 @@ program midas_var
   use obsErrors_mod
   use variableTransforms_mod
   use obsOperators_mod
+  use statetocolumn_mod
   use multi_ir_bgck_mod
   use biasCorrection_mod
   use increment_mod
@@ -61,12 +62,15 @@ program midas_var
   integer :: istamp,exdb,exfin
   integer :: ierr,nconf
 
-  type(struct_obs),       target :: obsSpaceData
-  type(struct_columnData),target :: trlColumnOnAnlLev
-  type(struct_columnData),target :: trlColumnOnTrlLev
-  type(struct_vco),       pointer :: vco_anl => null()
-  type(struct_hco),       pointer :: hco_anl => null()
-  type(struct_gsv) :: statevector_incr
+  type(struct_obs),        target  :: obsSpaceData
+  type(struct_columnData), target  :: trlColumnOnAnlLev
+  type(struct_columnData), target  :: trlColumnOnTrlLev
+  type(struct_gsv)                 :: stateVector
+  type(struct_gsv)                 :: statevector_incr
+  type(struct_hco), pointer        :: hco_trl => null()
+  type(struct_vco), pointer        :: vco_trl => null()
+  type(struct_hco), pointer        :: hco_anl => null()
+  type(struct_vco), pointer        :: vco_anl => null()
 
   real*8,allocatable :: controlVector_incr(:)
 
@@ -74,7 +78,9 @@ program midas_var
   character(len=48) :: obsMpiStrategy, varMode
 
   logical :: writeAnalysis
-  NAMELIST /NAMCT0/NCONF,writeAnalysis
+  character(len=20) :: timeInterpType_nl  ! 'NEAREST' or 'LINEAR'
+
+  NAMELIST /NAMCT0/nconf,writeAnalysis,timeInterpType_nl
 
   integer :: nulnam, fnom, fclos, get_max_rss
 
@@ -84,7 +90,7 @@ program midas_var
             '3(" *****************"),/,' //                       &
             '14x,"-- START OF MAIN PROGRAM MIDAS-VAR: --",/,' //   &
             '14x,"-- VARIATIONAL ASSIMILATION          --",/, ' //&
-            '14x,"-- VAR Revision number   ",a," --",/,' //       &
+            '14x,"-- Revision : ",a," --",/,' //       &
             '3(" *****************"))') 'GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE'
 
   ! MPI initilization
@@ -102,6 +108,7 @@ program midas_var
   ! 1. Top level setup
   nconf             = 141
   writeAnalysis = .false.
+  timeInterpType_nl='NEAREST'
 
   nulnam=0
   ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -146,7 +153,18 @@ program midas_var
     call var_setup('ALL') ! obsColumnMode   
 
     ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
-    call inn_setupBackgroundColumns(trlColumnOnTrlLev,obsSpaceData)
+    call gsv_allocate( stateVector, tim_nstepobs, hco_trl, vco_trl,  &
+                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                       mpi_distribution_opt='VarsLevs', dataKind_opt=4,  &
+                       allocGZsfc_opt=.true., hInterpolateDegree_opt='LINEAR' )
+    call tmg_start(9,'readTrials')
+    call gsv_readTrials( stateVector )
+    call tmg_stop(9)
+    call tmg_start(8,'s2c_nl')
+    call s2c_nl( stateVector, obsSpaceData, trlColumnOnTrlLev,   &
+                 moveObsAtPole_opt=.true., timeInterpType_opt=timeInterpType_nl )
+    call tmg_stop(8)
+    call gsv_deallocate(stateVector)
 
     ! Interpolate trial columns to analysis levels and setup for linearized H
     call inn_setupBackgroundColumnsAnl(trlColumnOnTrlLev,trlColumnOnAnlLev)
@@ -170,7 +188,18 @@ program midas_var
     call var_setup('ALL') ! obsColumnMode   
 
     ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
-    call inn_setupBackgroundColumns(trlColumnOnTrlLev,obsSpaceData)
+    call gsv_allocate( stateVector, tim_nstepobs, hco_trl, vco_trl,  &
+                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                       mpi_distribution_opt='VarsLevs', dataKind_opt=4,  &
+                       allocGZsfc_opt=.true., hInterpolateDegree_opt='LINEAR' )
+    call tmg_start(9,'readTrials')
+    call gsv_readTrials( stateVector )
+    call tmg_stop(9)
+    call tmg_start(8,'s2c_nl')
+    call s2c_nl( stateVector, obsSpaceData, trlColumnOnTrlLev,  &
+                 moveObsAtPole_opt=.true., timeInterpType_opt=timeInterpType_nl  )
+    call tmg_stop(8)
+    call gsv_deallocate(stateVector)
 
     ! Compute observation innovations and prepare obsSpaceData for minimization
     call inn_computeInnovation(trlColumnOnTrlLev,obsSpaceData)
@@ -186,7 +215,7 @@ program midas_var
     ! Do initial set up
     call tmg_start(2,'PREMIN')
 
-    obsMpiStrategy = 'LATLONTILESBALANCED'
+    obsMpiStrategy = 'LIKESPLITFILES'
 
     call var_setup('VAR') ! obsColumnMode
     call tmg_stop(2)
@@ -218,7 +247,18 @@ program midas_var
 
     ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
     call tmg_start(2,'PREMIN')
-    call inn_setupBackgroundColumns(trlColumnOnTrlLev,obsSpaceData)
+    call gsv_allocate( stateVector, tim_nstepobs, hco_trl, vco_trl,  &
+                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
+                       mpi_distribution_opt='VarsLevs', dataKind_opt=4, &
+                       allocGZsfc_opt=.true., hInterpolateDegree_opt='LINEAR' )
+    call tmg_start(9,'readTrials')
+    call gsv_readTrials( stateVector )
+    call tmg_stop(9)
+    call tmg_start(8,'s2c_nl')
+    call s2c_nl( stateVector, obsSpaceData, trlColumnOnTrlLev,  &
+                 moveObsAtPole_opt=.true., timeInterpType_opt=timeInterpType_nl )
+    call tmg_stop(8)
+    call gsv_deallocate(stateVector)
 
     ! Interpolate trial columns to analysis levels and setup for linearized H
     call inn_setupBackgroundColumnsAnl(trlColumnOnTrlLev,trlColumnOnAnlLev)
@@ -259,9 +299,9 @@ program midas_var
 
     ! compute and write the analysis (as well as the increment on the trial grid)
     if (writeAnalysis) then
-      call tmg_start(129,'ADDINCREMENT')
+      call tmg_start(18,'ADDINCREMENT')
       call inc_computeAndWriteAnalysis(statevector_incr) ! IN
-      call tmg_stop(129)
+      call tmg_stop(18)
     end if
 
     if (mpi_myid == 0) then
@@ -333,7 +373,6 @@ contains
 
     character (len=*) :: obsColumnMode
     integer :: datestamp
-    type(struct_vco),pointer :: vco_trl => null()
     type(struct_hco),pointer :: hco_core => null()
 
     integer :: get_max_rss
@@ -349,7 +388,7 @@ contains
     call tim_setup
 
     !     
-    !- Initialize burp file names and set datestamp
+    !- Initialize observation file names and set datestamp
     !
     call obsf_setup( dateStamp, varMode )
     if ( dateStamp > 0 ) then
@@ -363,13 +402,8 @@ contains
     !
     if(mpi_myid.eq.0) call mpc_printConstants(6)
 
-    !
-    !- Set vertical coordinate parameters from !! record in trial file
-    !
-    if(mpi_myid.eq.0) write(*,*)''
-    if(mpi_myid.eq.0) write(*,*)'var_setup: Set vcoord parameters for trial grid'
-    call vco_SetupFromFile( vco_trl,     & ! OUT
-                            './trlm_01')   ! IN
+    call hco_SetupFromFile( hco_trl, './trlm_01', ' ', 'Trial' )
+    call vco_SetupFromFile( vco_trl, './trlm_01' )
     call col_setVco(trlColumnOnTrlLev,vco_trl)
 
     !
@@ -445,7 +479,6 @@ contains
 !! @author M. Sitwell Sept 2015
 !--------------------------------------------------------------------------
   subroutine var_calcOmA(statevector_incr,columng,obsSpaceData,obsAssVal)
-
     implicit none
 
     type(struct_gsv), intent(inout) :: statevector_incr
@@ -475,7 +508,6 @@ contains
     ! Initialize columnData object for increment
     call col_setVco(column,col_getVco(columng))
     call col_allocate(column,col_getNumCol(columng),mpiLocal_opt=.true.)
-    call col_copyLatLon(columng,column)
 
     ! Put H_horiz dx in column
     call s2c_tl(statevector_incr,column,columng,obsSpaceData)

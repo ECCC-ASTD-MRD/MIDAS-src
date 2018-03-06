@@ -131,8 +131,13 @@ subroutine tt2phi(columnghr,beSilent_opt)
     status = vgd_get(columnghr%vco%vgrid,key='DHM - height of the diagnostic level (m)',value=gz_sfcOffset_M_r4)
     status = vgd_get(columnghr%vco%vgrid,key='DHT - height of the diagnostic level (t)',value=gz_sfcOffset_T_r4)
     if(mpi_myid == 0 .and. .not.beSilent ) then
-      write(*,*) 'col_fillmvo: height offset for near-sfc momentum level is: ', gz_sfcOffset_M_r4, ' metres'
-      write(*,*) 'col_fillmvo: height offset for near-sfc thermo level is:   ', gz_sfcOffset_T_r4, ' metres'
+      write(*,*) 'tt2phi: height offset for near-sfc momentum level is: ', gz_sfcOffset_M_r4, ' metres'
+      write(*,*) 'tt2phi: height offset for near-sfc thermo level is:   ', gz_sfcOffset_T_r4, ' metres'
+      if ( .not.columnghr%addGZsfcOffset ) then
+        write(*,*) '----------------------------------------------------------------------------------'
+        write(*,*) 'tt2phi: BUT HEIGHT OFFSET REMOVED FOR DIAGNOSTIC LEVELS FOR BACKWARD COMPATIBILITY'
+        write(*,*) '----------------------------------------------------------------------------------'
+      end if
     end if
 
     ! loop over all columns
@@ -141,7 +146,7 @@ subroutine tt2phi(columnghr,beSilent_opt)
       gz_M => col_getColumn(columnghr,columnIndex,'GZ','MM')
       gz_T => col_getColumn(columnghr,columnIndex,'GZ','TH')
 
-      ! set the surface height (this is the true surface, not the lowest UU/TT level)
+      ! set the surface height - this is the lowest (diagnostic) UU/TT level
       gz_M(nlev_M) = col_getGZsfc(columnghr,columnIndex) + real(gz_sfcOffset_M_r4,8) * RG
       gz_T(nlev_T) = col_getGZsfc(columnghr,columnIndex) + real(gz_sfcOffset_T_r4,8) * RG
 
@@ -172,6 +177,21 @@ subroutine tt2phi(columnghr,beSilent_opt)
         lev_M = lev_T+1 ! momentum level just below thermo level being computed
         gz_T(lev_T) = 0.5d0*( gz_M(lev_M-1) + gz_M(lev_M) )
       enddo
+
+      ! remove the height offset for the diagnostic levels for backward compatibility only
+      if ( .not.columnghr%addGZsfcOffset ) then
+        gz_M(nlev_M) = gz_M(nlev_M) - real(gz_sfcOffset_M_r4,8) * RG
+        gz_T(nlev_T) = gz_T(nlev_T) - real(gz_sfcOffset_T_r4,8) * RG
+      end if
+
+      !if(columnIndex.eq.1) then
+      !  do lev_M = 1, nlev_M
+      !    write(*,*) 'tt2phi: pres_M,gz_M=',lev_M,col_getPressure(columnghr,lev_M,columnIndex,'MM'),gz_M(lev_M)
+      !  enddo
+      !  do lev_T = 1, nlev_T
+      !    write(*,*) 'tt2phi: pres_T,gz_T=',lev_T,col_getPressure(columnghr,lev_T,columnIndex,'TH'),gz_T(lev_T)
+      !  enddo
+      !endif
 
     enddo
 

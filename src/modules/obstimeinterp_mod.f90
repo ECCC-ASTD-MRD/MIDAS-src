@@ -246,7 +246,7 @@ contains
               call oti_setTimeInterpWeight(oti, 1.0d0-(stepObsIndex-floor(stepObsIndex)), headerIndex, floor(stepObsIndex))
               call oti_setTimeInterpWeight(oti, stepObsIndex-floor(stepObsIndex), headerIndex, floor(stepObsIndex)+1)
             end if
-          else if ( trim(interpType) == 'nearest' ) then
+          else if ( trim(interpType) == 'NEAREST' ) then
             call oti_setTimeInterpWeight(oti, 1.0d0, headerIndex, nint(stepObsIndex))
           else
             call utl_abort('oti_setup: unknown interpolation type : ' // trim(interpType))

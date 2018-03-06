@@ -5,7 +5,7 @@ if [ -d "${updated_results}" ]; then
     echo "The directory '${updated_results}' already exists!"
     exit 1
 fi
-mkdir ${updated_results}
+mkdir -p ${updated_results}
 
 reference=$(${TASK_BIN}/readlink ${TASK_INPUT}/results)
 

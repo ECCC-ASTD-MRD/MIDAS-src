@@ -28,8 +28,9 @@ module columnData_mod
   use earthConstants_mod
   use varNameList_mod
   use verticalCoord_mod
-  use MathPhysConstants_mod
+  use mathPhysConstants_mod
   use utilities_mod
+
   implicit none
   save
   private
@@ -42,271 +43,251 @@ module columnData_mod
   public :: col_varExist, col_getOffsetFromVarno
   public :: col_getNumLev, col_getNumCol
   public :: col_getPressure, col_getPressureDeriv, col_calcPressure, col_vintProf, col_getHeight, col_getGZsfc, col_setGZsfc
-  public :: col_getLatLon, col_setLatLon, col_copyLatLon
   public :: col_zero, col_fillmvo, col_getAllColumns, col_getColumn, col_getElem, col_getVco, col_setVco
 
   type struct_columnData
     integer           :: numCol
     logical           :: allocated=.false.
     logical           :: mpi_local
-    real*8,pointer    :: all(:,:)
-    real*8,pointer    :: gz_T(:,:),gz_M(:,:),gz_sfc(:)
-    real*8,pointer    :: pressure_T(:,:),pressure_M(:,:)
-    real*8,pointer    :: dP_dPsfc_T(:,:),dP_dPsfc_M(:,:)
-    real*8,pointer    :: oltv(:,:,:)    ! Tangent linear operator of virtual temperature
-    real*8,pointer    :: lat(:),lon(:)
-    real(8),pointer   :: latRot(:),lonRot(:)
-    real(8),pointer   :: ypos(:)
-    real(8),pointer   :: xpos(:)
-    type(struct_vco), pointer  :: vco => null()
-    integer,pointer   :: varOffset(:),varNumLev(:)
+    real(8), pointer  :: all(:,:)
+    real(8), pointer  :: gz_T(:,:),gz_M(:,:),gz_sfc(:)
+    real(8), pointer  :: pressure_T(:,:),pressure_M(:,:)
+    real(8), pointer  :: dP_dPsfc_T(:,:),dP_dPsfc_M(:,:)
+    real(8), pointer  :: oltv(:,:,:)    ! Tangent linear operator of virtual temperature
+    integer, pointer  :: varOffset(:),varNumLev(:)
+    type(struct_vco), pointer :: vco => null()
+    logical           :: addGZsfcOffset = .false.
   end type struct_columnData
 
-  real*8 :: rhumin, col_rhumin
+  real(8) :: rhumin, col_rhumin
   logical nmvoexist(vnl_numvarmax)
   integer :: nvo3d,nvo2d
-  logical :: AddGZSfcOffset = .false. ! controls adding non-zero GZ offset to diag levels
+  logical :: AddGZSfcOffset ! controls adding non-zero GZ offset to diag levels
 
-  contains
+contains
 
 
-    SUBROUTINE col_setup
-      implicit none
-      INTEGER JVAR, IPOS
-      integer :: fnom,fclos,nulnam,ierr
-      CHARACTER(len=4) :: ANLVAR(VNL_NUMVARMAX)
-      character(len=8) :: ANLTIME_BIN
-      NAMELIST /NAMSTATE/ANLVAR,rhumin,ANLTIME_BIN,AddGZSfcOffset
+  subroutine col_setup
+    implicit none
+    integer :: jvar, ipos
+    integer :: fnom,fclos,nulnam,ierr
+    character(len=4) :: anlvar(vnl_numvarmax)
+    character(len=8) :: anltime_bin
+    namelist /namstate/anlvar,rhumin,anltime_bin,AddGZSfcOffset
 
-      if(mpi_myid == 0) write(*,*) 'col_setup: List of known (valid) variable names'
-      if(mpi_myid == 0) write(*,*) 'col_setup: varNameList3D=',vnl_varNameList3D
-      if(mpi_myid == 0) write(*,*) 'col_setup: varNameList2D=',vnl_varNameList2D
-      if(mpi_myid == 0) write(*,*) 'col_setup: varNameList  =',vnl_varNameList
+    if(mpi_myid == 0) write(*,*) 'col_setup: List of known (valid) variable names'
+    if(mpi_myid == 0) write(*,*) 'col_setup: varNameList3D=',vnl_varNameList3D
+    if(mpi_myid == 0) write(*,*) 'col_setup: varNameList2D=',vnl_varNameList2D
+    if(mpi_myid == 0) write(*,*) 'col_setup: varNameList  =',vnl_varNameList
 
-      ! Read NAMELIST NAMSTATE to find which fields are needed
+    ! Read NAMELIST NAMSTATE to find which fields are needed
 
-      anlvar(:) = '    '
-      rhumin = MPC_MINIMUM_HU_R8
-      anltime_bin = 'MIDDLE'
+    anlvar(:) = '    '
+    rhumin = MPC_MINIMUM_HU_R8
+    anltime_bin = 'MIDDLE'
+    AddGZSfcOffset = .false.
 
-      nulnam=0
-      ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-      read(nulnam,nml=namstate,iostat=ierr)
-      if(ierr.ne.0) call utl_abort('col_setup: Error reading namelist')
-      if(mpi_myid == 0) write(*,nml=namstate)
-      ierr=fclos(nulnam)
+    nulnam=0
+    ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+    read(nulnam,nml=namstate,iostat=ierr)
+    if(ierr.ne.0) call utl_abort('col_setup: Error reading namelist')
+    if(mpi_myid == 0) write(*,nml=namstate)
+    ierr=fclos(nulnam)
 
-      col_rhumin = rhumin
+    col_rhumin = rhumin
 
-      if(varneed('GZ')) call utl_abort('col_setup: GZ can no longer be included as a variable in columnData!')
+    if(varneed('GZ')) call utl_abort('col_setup: GZ can no longer be included as a variable in columnData!')
 
-      nvo3d  = 0
-      nvo2d  = 0
+    nvo3d  = 0
+    nvo2d  = 0
 
-      do jvar = 1, vnl_numvarmax3D
-        if (varneed(vnl_varNameList3D(jvar))) then
-          nmvoexist(jvar) = .true.
-          nvo3d = nvo3d + 1
-        else
-          nmvoexist(jvar) = .false.
-        endif
-      enddo
+    do jvar = 1, vnl_numvarmax3D
+      if (varneed(vnl_varNameList3D(jvar))) then
+        nmvoexist(jvar) = .true.
+        nvo3d = nvo3d + 1
+      else
+        nmvoexist(jvar) = .false.
+      endif
+    enddo
 
-      do jvar = 1, vnl_numvarmax2D
-        if (varneed(vnl_varNameList2D(jvar))) then
-          nmvoexist(jvar+vnl_numvarmax3D) = .true.
-          nvo2d = nvo2d + 1
-        else
-          nmvoexist(jvar+vnl_numvarmax3D) = .false.
-        endif
-      enddo
+    do jvar = 1, vnl_numvarmax2D
+      if (varneed(vnl_varNameList2D(jvar))) then
+        nmvoexist(jvar+vnl_numvarmax3D) = .true.
+        nvo2d = nvo2d + 1
+      else
+        nmvoexist(jvar+vnl_numvarmax3D) = .false.
+      endif
+    enddo
 
-      if(mpi_myid == 0) write(*,*) 'col_setup: nvo3d,nvo2d=',nvo3d,nvo2d
-      if(mpi_myid == 0) write(*,*) 'col_setup: nmvoexist =',nmvoexist
+    if(mpi_myid == 0) write(*,*) 'col_setup: nvo3d,nvo2d=',nvo3d,nvo2d
+    if(mpi_myid == 0) write(*,*) 'col_setup: nmvoexist =',nmvoexist
 
-      if(mpi_myid == 0) WRITE(*,*)' DIMENSIONS OF MODEL STATE ARRAYS:'
-      if(mpi_myid == 0) WRITE(*,FMT=9120) NVO3D,NVO2D
+    if(mpi_myid == 0) WRITE(*,*)' DIMENSIONS OF MODEL STATE ARRAYS:'
+    if(mpi_myid == 0) WRITE(*,FMT=9120) NVO3D,NVO2D
  9120 FORMAT(4X,'  NVO3D =',I6,' NVO2D    =',I6)
 
-      CONTAINS
+    contains
 
-        LOGICAL FUNCTION VARNEED(varName)
-          character(len=*) :: varName
-          integer :: jvar
+      logical function varneed(varName)
+        character(len=*) :: varName
+        integer :: jvar
  
-          varneed=.false.
-          do jvar=1,VNL_NUMVARMAX
-            if (trim(varName) == trim(anlvar(jvar))) then
-              varneed=.true.
-            endif
-          enddo
+        varneed = .false.
+        do jvar = 1, vnl_numVarMax
+          if (trim(varName) == trim(anlvar(jvar))) then
+            varneed = .true.
+          end if
+        end do
 
-        END FUNCTION VARNEED
+      end function varneed
 
-    END SUBROUTINE col_setup
+  end subroutine col_setup
 
 
-    SUBROUTINE col_zero(column)
-      IMPLICIT NONE
-      type(struct_columnData) :: column
+  subroutine col_zero(column)
+    implicit none
+    type(struct_columnData) :: column
 
-      if(column%numCol.gt.0) then
-        column%all(:,:) = 0.0d0
-        column%pressure_M(:,:) = 0.0d0
-        column%pressure_T(:,:) = 0.0d0
-        column%dP_dPsfc_T(:,:) = 0.0d0
-        column%dP_dPsfc_M(:,:) = 0.0d0
-        column%gz_M(:,:) = 0.0d0
-        column%gz_T(:,:) = 0.0d0
-        column%gz_sfc(:) = 0.0d0
+    if(column%numCol.gt.0) then
+      column%all(:,:) = 0.0d0
+      column%pressure_M(:,:) = 0.0d0
+      column%pressure_T(:,:) = 0.0d0
+      column%dP_dPsfc_T(:,:) = 0.0d0
+      column%dP_dPsfc_M(:,:) = 0.0d0
+      column%gz_M(:,:) = 0.0d0
+      column%gz_T(:,:) = 0.0d0
+      column%gz_sfc(:) = 0.0d0
+    endif
+
+  end subroutine col_zero
+
+
+  subroutine col_allocate(column, numCol, mpiLocal_opt, beSilent_opt, setToZero_opt)
+    implicit none
+
+    ! arguments
+    type(struct_columnData) :: column
+    integer, intent(in)     :: numCol
+    logical, optional       :: mpiLocal_opt
+    logical, optional       :: beSilent_opt
+    logical, optional       :: setToZero_opt
+
+    ! locals
+    integer :: nkgdimo, iloc, jvar, jvar2
+    logical :: beSilent, setToZero
+
+    if ( present(beSilent_opt) ) then
+      beSilent = beSilent_opt
+    else
+      beSilent = .false.
+    end if
+
+    if ( present(setToZero_opt) ) then
+      setToZero = setToZero_opt
+    else
+      setToZero = .true.
+    end if
+
+    column%numCol = numCol
+    if(present(mpiLocal_opt)) then
+      column%mpi_local=mpiLocal_opt
+    else
+      column%mpi_local=.true.
+      if (mpi_myid == 0 .and. .not.beSilent) write(*,*) 'col_allocate: assuming columnData is mpi-local'
+    endif
+
+    if(.not.column%vco%initialized) then
+      call utl_abort('col_allocate: VerticalCoord has not been initialized!')
+    endif
+
+    allocate(column%varOffset(vnl_numvarmax))
+    column%varOffset(:)=0
+    allocate(column%varNumLev(vnl_numvarmax))
+    column%varNumLev(:)=0
+
+    iloc=0
+    do jvar = 1, vnl_numvarmax3d
+      if(nmvoexist(jvar)) then
+        column%varOffset(jvar)=iloc
+        column%varNumLev(jvar)=col_getNumLev(column,vnl_varLevelFromVarname(vnl_varNameList(jvar)))
+        iloc = iloc + column%varNumLev(jvar)
       endif
-
-    END SUBROUTINE col_zero
-
-
-    SUBROUTINE col_allocate(column, numCol, mpiLocal_opt, beSilent_opt, setToZero_opt)
-      IMPLICIT NONE
-
-      ! arguments
-      type(struct_columnData) :: column
-      integer, intent(in)     :: numCol
-      logical, optional       :: mpiLocal_opt
-      logical, optional       :: beSilent_opt
-      logical, optional       :: setToZero_opt
-
-      ! locals
-      integer :: nkgdimo, iloc, jvar, jvar2
-      logical :: beSilent, setToZero
-
-      if ( present(beSilent_opt) ) then
-        beSilent = beSilent_opt
-      else
-        beSilent = .false.
-      end if
-
-      if ( present(setToZero_opt) ) then
-        setToZero = setToZero_opt
-      else
-        setToZero = .true.
-      end if
-
-      column%numCol = numCol
-      if(present(mpiLocal_opt)) then
-        column%mpi_local=mpiLocal_opt
-      else
-        column%mpi_local=.true.
-        if (mpi_myid == 0 .and. .not.beSilent) write(*,*) 'col_allocate: assuming columnData is mpi-local'
+    enddo
+    do jvar2 = 1, vnl_numvarmax2d
+      jvar=jvar2+vnl_numvarmax3d
+      if(nmvoexist(jvar)) then
+        column%varOffset(jvar)=iloc
+        column%varNumLev(jvar)=1
+        iloc = iloc + 1
       endif
+    enddo
+    nkgdimo=iloc
 
-      if(.not.column%vco%initialized) then
-        call utl_abort('col_allocate: VerticalCoord has not been initialized!')
-      endif
+    if(column%numCol.le.0) then
+      if ( .not.beSilent ) write(*,*) 'col_allocate: number of columns is zero, not allocated'
+    else         
+      allocate(column%all(nkgdimo,column%numCol))
+      if ( setToZero ) column%all(:,:)=0.0d0
 
-      allocate(column%varOffset(vnl_numvarmax))
-      column%varOffset(:)=0
-      allocate(column%varNumLev(vnl_numvarmax))
-      column%varNumLev(:)=0
+      allocate(column%gz_T(col_getNumLev(column,'TH'),column%numCol))
+      allocate(column%gz_M(col_getNumLev(column,'MM'),column%numCol))
+      allocate(column%gz_sfc(column%numCol))
+      if ( setToZero ) column%gz_T(:,:)=0.0d0
+      if ( setToZero ) column%gz_M(:,:)=0.0d0
+      column%gz_sfc(:)=0.0d0
 
-      iloc=0
-      do jvar = 1, vnl_numvarmax3d
-        if(nmvoexist(jvar)) then
-          column%varOffset(jvar)=iloc
-          column%varNumLev(jvar)=col_getNumLev(column,vnl_varLevelFromVarname(vnl_varNameList(jvar)))
-          iloc = iloc + column%varNumLev(jvar)
-        endif
-      enddo
-      do jvar2 = 1, vnl_numvarmax2d
-        jvar=jvar2+vnl_numvarmax3d
-        if(nmvoexist(jvar)) then
-          column%varOffset(jvar)=iloc
-          column%varNumLev(jvar)=1
-          iloc = iloc + 1
-        endif
-      enddo
-      nkgdimo=iloc
+      allocate(column%pressure_T(col_getNumLev(column,'TH'),column%numCol))
+      allocate(column%pressure_M(col_getNumLev(column,'MM'),column%numCol))
+      if ( setToZero ) column%pressure_T(:,:)=0.0d0
+      if ( setToZero ) column%pressure_M(:,:)=0.0d0
 
-      if(column%numCol.le.0) then
-        if ( .not.beSilent ) write(*,*) 'col_allocate: number of columns is zero, not allocated'
-      else         
-        allocate(column%all(nkgdimo,column%numCol))
-        if ( setToZero ) column%all(:,:)=0.0d0
+      allocate(column%dP_dPsfc_T(col_getNumLev(column,'TH'),column%numCol))
+      allocate(column%dP_dPsfc_M(col_getNumLev(column,'MM'),column%numCol))
+      if ( setToZero ) column%dP_dPsfc_T(:,:)=0.0d0
+      if ( setToZero ) column%dP_dPsfc_M(:,:)=0.0d0
 
-        allocate(column%gz_T(col_getNumLev(column,'TH'),column%numCol))
-        allocate(column%gz_M(col_getNumLev(column,'MM'),column%numCol))
-        allocate(column%gz_sfc(column%numCol))
-        if ( setToZero ) column%gz_T(:,:)=0.0d0
-        if ( setToZero ) column%gz_M(:,:)=0.0d0
-        column%gz_sfc(:)=0.0d0
+      allocate(column%oltv(2,col_getNumLev(column,'TH'),numCol))
+      if ( setToZero ) column%oltv(:,:,:)=0.0d0
 
-        allocate(column%pressure_T(col_getNumLev(column,'TH'),column%numCol))
-        allocate(column%pressure_M(col_getNumLev(column,'MM'),column%numCol))
-        if ( setToZero ) column%pressure_T(:,:)=0.0d0
-        if ( setToZero ) column%pressure_M(:,:)=0.0d0
-
-        allocate(column%dP_dPsfc_T(col_getNumLev(column,'TH'),column%numCol))
-        allocate(column%dP_dPsfc_M(col_getNumLev(column,'MM'),column%numCol))
-        if ( setToZero ) column%dP_dPsfc_T(:,:)=0.0d0
-        if ( setToZero ) column%dP_dPsfc_M(:,:)=0.0d0
-
-        allocate(column%lat(column%numCol))
-        allocate(column%lon(column%numCol))
-        allocate(column%latRot(column%numCol))
-        allocate(column%lonRot(column%numCol))
-        allocate(column%ypos(column%numCol))
-        allocate(column%xpos(column%numCol))
-        column%lat(:)=0.0d0
-        column%lon(:)=0.0d0
-        column%latRot(:)=0.0d0
-        column%lonRot(:)=0.0d0
-        column%ypos(:)=0.0d0
-        column%xpos(:)=0.0d0
-
-        allocate(column%oltv(2,col_getNumLev(column,'TH'),numCol))
-        if ( setToZero ) column%oltv(:,:,:)=0.0d0
-
-      endif
+    endif
  
-      if(mpi_myid == 0 .and. .not.beSilent) write(*,*) 'col_allocate: nkgdimo = ',nkgdimo
-      if(mpi_myid == 0 .and. .not.beSilent) write(*,*) 'col_allocate: varOffset=',column%varOffset
-      if(mpi_myid == 0 .and. .not.beSilent) write(*,*) 'col_allocate: varNumLev=',column%varNumLev
+    if(mpi_myid == 0 .and. .not.beSilent) write(*,*) 'col_allocate: nkgdimo = ',nkgdimo
+    if(mpi_myid == 0 .and. .not.beSilent) write(*,*) 'col_allocate: varOffset=',column%varOffset
+    if(mpi_myid == 0 .and. .not.beSilent) write(*,*) 'col_allocate: varNumLev=',column%varNumLev
 
-      column%allocated=.true.
+    column%addGZsfcOffset = addGZsfcOffset
 
-    END SUBROUTINE col_allocate
+    column%allocated=.true.
 
-
-    SUBROUTINE col_deallocate(column)
-      IMPLICIT NONE
-
-      type(struct_columnData) :: column
-
-      deallocate(column%varOffset)
-      deallocate(column%varNumLev)
-
-      if(column%numCol.gt.0) then
-        deallocate(column%all)
-        deallocate(column%gz_T)
-        deallocate(column%gz_M)
-        deallocate(column%gz_sfc)
-        deallocate(column%pressure_T)
-        deallocate(column%pressure_M)
-        deallocate(column%dP_dPsfc_T)
-        deallocate(column%dP_dPsfc_M)
-        deallocate(column%lat)
-        deallocate(column%lon)
-        deallocate(column%latRot)
-        deallocate(column%lonRot)
-        deallocate(column%ypos)
-        deallocate(column%xpos)
-        deallocate(column%oltv)
-      endif
-
-      column%allocated=.false.
-
-    END SUBROUTINE col_deallocate
+  end subroutine col_allocate
 
 
-    SUBROUTINE col_fillmvo(columnghr,pvar,varName,varLevel_opt)
+  subroutine col_deallocate(column)
+    implicit none
+
+    type(struct_columnData) :: column
+
+    deallocate(column%varOffset)
+    deallocate(column%varNumLev)
+
+    if(column%numCol.gt.0) then
+      deallocate(column%all)
+      deallocate(column%gz_T)
+      deallocate(column%gz_M)
+      deallocate(column%gz_sfc)
+      deallocate(column%pressure_T)
+      deallocate(column%pressure_M)
+      deallocate(column%dP_dPsfc_T)
+      deallocate(column%dP_dPsfc_M)
+      deallocate(column%oltv)
+    endif
+
+    column%allocated=.false.
+
+  end subroutine col_deallocate
+
+
+  subroutine col_fillmvo(columnghr,pvar,varName,varLevel_opt)
     !
     !**s/r fillmvo - Fill in values for a complete set of columns at once
     !
@@ -319,7 +300,7 @@ module columnData_mod
     implicit none
 
     type(struct_columnData) :: columnghr
-    real*8 pvar(:,:)
+    real(8)          :: pvar(:,:)
     character(len=*) :: varName
     character(len=*), optional :: varLevel_opt
 
@@ -417,41 +398,41 @@ module columnData_mod
 
     end select
 
-    END SUBROUTINE col_fillmvo
+  END SUBROUTINE col_fillmvo
 
 
-    function col_varExist(varName) result(varExist)
-      implicit none
-      character(len=*), intent(in) :: varName
-      logical                      :: varExist 
+  function col_varExist(varName) result(varExist)
+    implicit none
+    character(len=*), intent(in) :: varName
+    logical                      :: varExist 
 
-      if(trim(varName) == 'GZ' .or. trim(varName) == 'PRES') then
-        ! pressure and height always available
-        varExist = .true.
-      elseif(nmvoexist(vnl_varListIndex(varName))) then
-        varExist = .true.
-      else
-        varExist = .false.
-      endif
+    if(trim(varName) == 'GZ' .or. trim(varName) == 'PRES') then
+      ! pressure and height always available
+      varExist = .true.
+    elseif(nmvoexist(vnl_varListIndex(varName))) then
+      varExist = .true.
+    else
+      varExist = .false.
+    endif
 
-    end function col_varExist
+  end function col_varExist
 
 
-    function col_getOffsetFromVarno(column,varnum,varNumberChm_opt) result(offset)
-!
-!   Revisions:
-!             Y.J. Rochon (ARQI), Jan. 2015
-!             - Added optional varCHnumber
-!          
-      implicit none
-      type(struct_columnData) :: column
-      integer, intent(in)     :: varnum
-      integer, intent(in), optional :: varNumberChm_opt
-      integer                 :: offset
+  function col_getOffsetFromVarno(column,varnum,varNumberChm_opt) result(offset)
+    !
+    !   Revisions:
+    !             Y.J. Rochon (ARQI), Jan. 2015
+    !             - Added optional varCHnumber
+    !          
+    implicit none
+    type(struct_columnData) :: column
+    integer, intent(in)     :: varnum
+    integer, intent(in), optional :: varNumberChm_opt
+    integer                 :: offset
 
-      offset=column%varOffset(vnl_varListIndex(vnl_varnameFromVarnum(varnum,varNumberChm_opt=varNumberChm_opt)))
+    offset=column%varOffset(vnl_varListIndex(vnl_varnameFromVarnum(varnum,varNumberChm_opt=varNumberChm_opt)))
 
-    end function col_getOffsetFromVarno
+  end function col_getOffsetFromVarno
 
 
   subroutine col_calcPressure(column, beSilent_opt)
@@ -616,7 +597,7 @@ module columnData_mod
     type(struct_columnData), intent(in) :: column
     integer, intent(in)                 :: ilev,headerIndex
     character(len=*), intent(in)        :: varLevel
-    real*8                              :: pressure
+    real(8)                             :: pressure
 
     if (varLevel == 'TH') then
       pressure = column%pressure_t(ilev,headerIndex)
@@ -634,7 +615,7 @@ module columnData_mod
     type(struct_columnData), intent(in) :: column
     integer, intent(in)                 :: ilev,headerIndex
     character(len=*), intent(in)        :: varLevel
-    real*8                              :: dP_dPsfc
+    real(8)                             :: dP_dPsfc
 
     if (varLevel == 'TH') then
       dP_dPsfc = column%dP_dPsfc_t(ilev,headerIndex)
@@ -652,13 +633,15 @@ module columnData_mod
     type(struct_columnData), intent(in) :: column
     integer, intent(in)                 :: ilev,headerIndex
     character(len=*), intent(in)        :: varLevel
-    real*8                              :: height
+    real(8)                             :: height
     integer                             :: ilev1
 
     if (varLevel == 'TH') then
       height = column%gz_t(ilev,headerIndex)
     elseif (varLevel == 'MM' ) then
       height = column%gz_m(ilev,headerIndex)
+    elseif (varLevel == 'SF' ) then
+      height = column%gz_sfc(headerIndex)
     else
       call utl_abort('col_getHeight: unknown varLevel! ' // varLevel)
     endif
@@ -670,7 +653,7 @@ module columnData_mod
     implicit none
     type(struct_columnData), intent(in) :: column
     integer, intent(in)                 :: headerIndex
-    real*8                              :: height
+    real(8)                             :: height
 
     height = column%gz_sfc(headerIndex)
 
@@ -681,75 +664,18 @@ module columnData_mod
     implicit none
     type(struct_columnData)             :: column
     integer, intent(in)                 :: headerIndex
-    real*8, intent(in)                  :: height
+    real(8), intent(in)                 :: height
 
     column%gz_sfc(headerIndex) = height
 
   end subroutine col_setGZsfc
 
 
-  subroutine col_getLatLon(column, headerIndex, Lat, Lon, &
-                           ypos, xpos, LatRot, LonRot)
-    implicit none
-
-    type(struct_columnData)             :: column
-    integer, intent(in)                 :: headerIndex
-    real(8), intent(out)                :: Lat, Lon
-    real(8), intent(out)                :: LatRot, LonRot
-    real(8), intent(out)                :: Ypos, Xpos
-
-    Lat    = column % lat   (headerIndex)
-    Lon    = column % lon   (headerIndex)
-    LatRot = column % latRot(headerIndex)
-    LonRot = column % lonRot(headerIndex)
-    ypos   = column % ypos  (headerIndex)
-    xpos   = column % xpos  (headerIndex)
-
-  end subroutine col_getLatLon
-
-
-  subroutine col_setLatLon(column, headerIndex, Lat, Lon, &
-                           Ypos, Xpos, LatRot, LonRot)
-    implicit none
-
-    type(struct_columnData)             :: column
-    integer, intent(in)                 :: headerIndex
-    real(8), intent(in)                 :: Lat,Lon
-    real(8), intent(in)                 :: LatRot,LonRot
-    real(8), intent(in)                 :: Ypos, Xpos
-
-    column % lat   (headerIndex) = Lat
-    column % lon   (headerIndex) = Lon
-    column % latRot(headerIndex) = LatRot
-    column % lonRot(headerIndex) = LonRot
-    column % ypos  (headerIndex) = Ypos
-    column % xpos  (headerIndex) = Xpos
-
-  end subroutine col_setLatLon
-
-
-  subroutine col_copyLatLon(column_in,column_out)
-    implicit none
-    type(struct_columnData)             :: column_in,column_out
-    integer                             :: headerIndex
-
-    do headerIndex = 1, column_in % numCol
-      column_out % lat   (headerIndex) = column_in % lat   (headerIndex)
-      column_out % lon   (headerIndex) = column_in % lon   (headerIndex)
-      column_out % latRot(headerIndex) = column_in % latRot(headerIndex)
-      column_out % lonRot(headerIndex) = column_in % lonRot(headerIndex)
-      column_out % ypos  (headerIndex) = column_in % ypos  (headerIndex)
-      column_out % xpos  (headerIndex) = column_in % xpos  (headerIndex)
-    end do
-
-  end subroutine col_copyLatLon
-
-
   function col_getAllColumns(column,varName_opt) result(allColumns)
     implicit none
     type(struct_columnData), intent(in)    :: column
     character(len=*), intent(in), optional :: varName_opt
-    real*8,pointer                         :: allColumns(:,:)
+    real(8), pointer                       :: allColumns(:,:)
     integer                                :: ilev1,ilev2
 
     if ( column%numCol > 0 ) then
@@ -779,7 +705,7 @@ module columnData_mod
     integer, intent(in)                    :: headerIndex
     character(len=*), intent(in), optional :: varName_opt
     character(len=*), intent(in), optional :: varLevel_opt
-    real*8,pointer                         :: onecolumn(:)
+    real(8), pointer                       :: onecolumn(:)
     integer                                :: ilev1,ilev2
 
     if(present(varName_opt)) then
@@ -834,7 +760,7 @@ module columnData_mod
     integer, intent(in)                    :: ilev
     integer, intent(in)                    :: headerIndex
     character(len=*), intent(in), optional :: varName_opt
-    real*8                                 :: value
+    real(8)                                :: value
 
     if(present(varName_opt)) then
       if(.not.col_varExist(varName_opt)) call utl_Abort('col_getElem: Unknown variable name! ' // varName_opt)

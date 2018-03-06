@@ -631,7 +631,7 @@ contains
     !     i   KLEN    : Dimension of list.
     !     i   KENTRY  : Entry.
     !     O   ISRCHEQ : Index of entry: (0, not found, >0, found)
-
+    !
     INTEGER :: ISRCHEQ
     INTEGER :: KENTRY, KLEN, JI
     INTEGER :: KLIST(KLEN)

@@ -10,7 +10,6 @@
    NTRUNC  = 24,
    NENS = 96,
    SCALEFACTOR=    100*0.5D0,
-   ENSPATHNAME='./ensemble/',
 /
  &NAMMIN
    NVAMAJ = 25,
@@ -62,6 +61,7 @@
  &NAMRMAT
 /
  &NAMSTATE
+   AddGZSfcOffset = .false.
    RHUMIN  = 1.0D-07
    ANLVAR(1)   ='UU'
    ANLVAR(2)   ='VV'

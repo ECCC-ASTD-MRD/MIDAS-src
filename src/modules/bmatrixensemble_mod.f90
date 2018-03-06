@@ -1213,12 +1213,12 @@ CONTAINS
         ptr4d_r4 => ens_getOneLev_r4(ensPerts(1),levIndex)
 
         !- 1.2 GridPoint space -> Spectral Space
- !$OMP PARALLEL DO PRIVATE (latIndex)
+        !$OMP PARALLEL DO PRIVATE (latIndex)
         do latIndex = myLatBeg, myLatEnd
           ensPertGD(:,:,latIndex) = 0.0d0
         end do
- !$OMP END PARALLEL DO
- !$OMP PARALLEL DO PRIVATE (memberIndex,latIndex,lonIndex)
+        !$OMP END PARALLEL DO
+        !$OMP PARALLEL DO PRIVATE (memberIndex,latIndex,lonIndex)
         do latIndex = myLatBeg, myLatEnd
           do lonIndex = myLonBeg, myLonEnd
             do memberIndex = 1, nEns
@@ -1226,7 +1226,7 @@ CONTAINS
             end do
           end do
         end do
- !$OMP END PARALLEL DO
+        !$OMP END PARALLEL DO
         if (hco_ens%global) then
           ! Global Mode
           call gst_setID(gstFilterID) ! IN
@@ -1244,7 +1244,7 @@ CONTAINS
         !- 1.3 Filtering and transformation back to grid point space 
         do waveBandIndex = nWaveBand, 2, -1 ! Start with the largest scales
           ! Filtering
-!$OMP PARALLEL DO PRIVATE (memberIndex,p,ila_filter)
+          !$OMP PARALLEL DO PRIVATE (memberIndex,p,ila_filter)
           do memberIndex = 1, nEns
             do p = 1, nphase_filter
               do ila_filter = 1, nla_filter
@@ -1253,7 +1253,7 @@ CONTAINS
               end do
             end do
           end do
- !$OMP END PARALLEL DO
+          !$OMP END PARALLEL DO
 
           ! Spectral Space -> GridPoint space
           if (hco_ens%global) then
@@ -1270,7 +1270,7 @@ CONTAINS
                                    kind, nEnsOverDimension ) ! IN
           end if
           ptr4d_r4 => ens_getOneLev_r4(ensPerts(waveBandIndex),levIndex)
-!$OMP PARALLEL DO PRIVATE (memberIndex,latIndex,lonIndex)
+          !$OMP PARALLEL DO PRIVATE (memberIndex,latIndex,lonIndex)
           do latIndex = myLatBeg, myLatEnd
             do lonIndex = myLonBeg, myLonEnd
               do memberIndex = 1, nEns
@@ -1278,7 +1278,7 @@ CONTAINS
               end do
             end do
           end do
-!$OMP END PARALLEL DO
+          !$OMP END PARALLEL DO
 
         end do ! waveBandIndex
       end do ! time bins
@@ -1294,7 +1294,7 @@ CONTAINS
     !
     allocate(bandSum(myLonBeg:myLonEnd,myLatBeg:myLatEnd))
     do stepIndex = 1, numStep
-!$OMP PARALLEL DO PRIVATE (memberIndex,levIndex,latIndex,lonIndex,waveBandIndex,bandsum,ptr4d_r4)
+      !$OMP PARALLEL DO PRIVATE (memberIndex,levIndex,latIndex,lonIndex,waveBandIndex,bandsum,ptr4d_r4)
       do levIndex = 1, ens_getNumK(ensPerts(1))
         do memberIndex = 1, nEns
           bandSum(:,:) = 0.d0
@@ -1314,7 +1314,7 @@ CONTAINS
           end do
         end do
       end do
-!$OMP END PARALLEL DO
+      !$OMP END PARALLEL DO
     end do
     deallocate(bandSum)
 
@@ -1453,6 +1453,7 @@ CONTAINS
                         varNames_opt=varNameALFA, dataKind_opt=8)
       ensAmplitude_M_ptr => ensAmplitude_M
     end if
+    call gsv_zero(statevector)
 
     do waveBandIndex = 1, nWaveBand !  Loop on WaveBand (for ScaleDependent Localization)
 
@@ -1678,11 +1679,11 @@ CONTAINS
       lev = ens_getLevFromK(ensPerts(1),levIndex)
       varName = ens_getVarNameFromK(ensPerts(1),levIndex)
 
-!$OMP PARALLEL DO PRIVATE (latIndex)
+      !$OMP PARALLEL DO PRIVATE (latIndex)
       do latIndex = myLatBeg, myLatEnd
         increment_out2(:,:,latIndex) = 0.0d0
       end do
-!$OMP END PARALLEL DO
+      !$OMP END PARALLEL DO
 
       call tmg_start(66,'ADDMEM_PREPAMP')
 
@@ -1703,14 +1704,14 @@ CONTAINS
           ensAmplitude_MT_ptr(1:,1:,myLonBeg:,myLatBeg:) => ensAmplitude_M_oneLev(1:nEns,:,:,:)
         else
           ! for other levels, interpolate momentum weights to get thermo amplitudes
-!$OMP PARALLEL DO PRIVATE (latIndex, ensAmplitude_M_oneLev, ensAmplitude_M_oneLevM1)
+          !$OMP PARALLEL DO PRIVATE (latIndex, ensAmplitude_M_oneLev, ensAmplitude_M_oneLevM1)
           do latIndex = myLatBeg, myLatEnd
             ensAmplitude_M_oneLev   => ens_getOneLev_r8(ensAmplitude_M,lev)
             ensAmplitude_M_oneLevM1 => ens_getOneLev_r8(ensAmplitude_M,lev-1)
             ensAmplitude_MT(:,:,:,latIndex) = 0.5d0*( ensAmplitude_M_oneLevM1(1:nEns,:,:,latIndex) +   &
                                                    ensAmplitude_M_oneLev(1:nEns,:,:,latIndex) )
           end do
-!$OMP END PARALLEL DO
+          !$OMP END PARALLEL DO
           ensAmplitude_MT_ptr(1:,1:,myLonBeg:,myLatBeg:) => ensAmplitude_MT(:,:,:,:)
         end if
 
@@ -1725,7 +1726,7 @@ CONTAINS
       call tmg_start(77,'ADDMEM_INNER')
 
       ensMemberAll_r4 => ens_getOneLev_r4(ensPerts(waveBandIndex),levIndex)
-!$OMP PARALLEL DO PRIVATE (latIndex,lonIndex,stepIndex,stepIndex2,stepIndex_amp,memberIndex)
+      !$OMP PARALLEL DO PRIVATE (latIndex,lonIndex,stepIndex,stepIndex2,stepIndex_amp,memberIndex)
       do latIndex = myLatBeg, myLatEnd
         do lonIndex = myLonBeg, myLonEnd
           do stepIndex = StepBeg, StepEnd
@@ -1745,7 +1746,7 @@ CONTAINS
           end do ! stepIndex
         end do ! lonIndex
       end do ! latIndex
-!$OMP END PARALLEL DO
+      !$OMP END PARALLEL DO
 
       call tmg_stop(77)
 
@@ -1760,12 +1761,12 @@ CONTAINS
       lev2 = lev - 1 + topLevOffset
 
       increment_out => gsv_getField_r8(statevector_out, varName)
-!$OMP PARALLEL DO PRIVATE (stepIndex, stepIndex2)
+      !$OMP PARALLEL DO PRIVATE (stepIndex, stepIndex2)
       do stepIndex = StepBeg, StepEnd
         stepIndex2 = stepIndex - StepBeg + 1
         increment_out(:,:,lev2,stepIndex2) = increment_out(:,:,lev2,stepIndex2) + increment_out2(stepIndex2,:,:)
       end do
-!$OMP END PARALLEL DO
+      !$OMP END PARALLEL DO
 
     end do ! levIndex
 
@@ -1780,10 +1781,10 @@ CONTAINS
 ! addEnsMemberAd
 !--------------------------------------------------------------------------
   SUBROUTINE addEnsMemberAd(statevector_in, ensAmplitude_M, &
-                                   waveBandIndex, useFSOFcst_opt)
+                            waveBandIndex, useFSOFcst_opt)
     implicit none
 
-    type(struct_ens)    :: ensAmplitude_M
+    type(struct_ens)   :: ensAmplitude_M
     type(struct_gsv)   :: statevector_in
     integer,intent(in) :: waveBandIndex
     logical,optional   :: useFSOFcst_opt
@@ -1831,12 +1832,12 @@ CONTAINS
 
     ! set output ensemble Amplitude to zero
     call tmg_start(69,'ADDMEMAD_ZERO')
-!$OMP PARALLEL DO PRIVATE (levIndex, ensAmplitude_M_oneLev)
+    !$OMP PARALLEL DO PRIVATE (levIndex, ensAmplitude_M_oneLev)
     do levIndex = 1, nLevEns_M
       ensAmplitude_M_oneLev => ens_getOneLev_r8(ensAmplitude_M,levIndex)
       ensAmplitude_M_oneLev(:,:,:,:) = 0.0d0
     end do
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
     call tmg_stop(69)
 
     do levIndex = 1, ens_getNumK(ensPerts(waveBandIndex))
@@ -1856,24 +1857,24 @@ CONTAINS
 
       call tmg_start(65,'ADDMEMAD_SHUFFLE')
       increment_in => gsv_getField_r8(statevector_in, varName)
-!$OMP PARALLEL DO PRIVATE (stepIndex, stepIndex2)
+      !$OMP PARALLEL DO PRIVATE (stepIndex, stepIndex2)
       do stepIndex = stepBeg, stepEnd
         stepIndex2 = stepIndex - stepBeg + 1
         increment_in2(stepIndex2,:,:) = increment_in(:,:,lev2,stepIndex2)
       end do
-!$OMP END PARALLEL DO
+      !$OMP END PARALLEL DO
       call tmg_stop(65)
 
-      !ensAmpZeroed(:,:,:) = .false.
       ensMemberAll_r4 => ens_getOneLev_r4(ensPerts(waveBandIndex),levIndex)
-!$OMP PARALLEL DO PRIVATE (latIndex,lonIndex,stepIndex, stepIndex2, stepIndex_amp,memberIndex,ensAmplitude_M_oneLev, ensAmplitude_M_oneLevM1, ensAmplitude_MT)
+      !$OMP PARALLEL DO PRIVATE (latIndex,lonIndex,stepIndex, stepIndex2, stepIndex_amp, &
+           memberIndex,ensAmplitude_M_oneLev, ensAmplitude_M_oneLevM1, ensAmplitude_MT)
       do latIndex = myLatBeg, myLatEnd
         do lonIndex = myLonBeg, myLonEnd
 
           if (omp_get_thread_num() == 0) call tmg_start(78,'ADDMEMAD_INNER')
           ensAmplitude_MT(:,:) = 0.0d0
-          do stepIndex = StepBeg, StepEnd
-            stepIndex2 = stepIndex-StepBeg+1
+          do stepIndex = stepBeg, stepEnd
+            stepIndex2 = stepIndex - stepBeg + 1
             if      (advectAmplitudeFSOFcst   .and. useFSOFcst) then
               stepIndex_amp = 2
             else if (advectAmplitudeAssimWindow .and. .not. useFSOFcst) then
@@ -1931,7 +1932,7 @@ CONTAINS
 
         end do ! lonIndex
       end do ! latIndex
-!$OMP END PARALLEL DO
+      !$OMP END PARALLEL DO
 
     end do ! levIndex
 

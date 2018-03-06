@@ -35,7 +35,7 @@
    NDATAMX=8000000,
 /
  &NAMTIME
-  DSTEPOBS = 0.25d0
+  DSTEPOBS = 0.5d0
   DSTEPOBSINC = 3.0d0
 /
  &NAMFILT
@@ -69,6 +69,7 @@
    rmat_lnonDiagR=.true.
 /
  &NAMSTATE
+   AddGZSfcOffset = .false.
    RHUMIN  = 1.0D-07
    ANLVAR(1)   ='UU'
    ANLVAR(2)   ='VV'

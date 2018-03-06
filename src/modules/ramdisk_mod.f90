@@ -234,7 +234,7 @@ contains
 
     write(*,*) 'copyFile: copy from ', trim(filein), ' to ', trim(fileout)
 
-    call tmg_start(160,'CopyFile')
+    call tmg_start(165,'CopyFile')
 
     unitin=10
     open(unit=unitin, file=trim(filein), status='OLD', form='UNFORMATTED', action='READ', access='STREAM')
@@ -275,7 +275,7 @@ contains
       call utl_abort('ramdisk_mod copyFile: ERROR, zero bytes copied')
     end if
 
-    call tmg_stop(160)
+    call tmg_stop(165)
 
   end function copyFile
 

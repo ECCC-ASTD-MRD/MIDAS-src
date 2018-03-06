@@ -33,10 +33,12 @@ program midas_ensembleH
   use columnData_mod
   use verticalCoord_mod
   use horizontalCoord_mod
+  use analysisGrid_mod
   use timeCoord_mod
   use utilities_mod
   use ramDisk_mod
   use enkf_mod
+  use statetocolumn_mod
   use obsFiles_mod
   use obsSpaceData_mod
   use obsErrors_mod
@@ -44,8 +46,8 @@ program midas_ensembleH
   use innovation_mod
   implicit none
 
-  type(struct_gsv)                     :: statevector_member
   type(struct_obs), target             :: obsSpaceData
+  type(struct_gsv)                     :: stateVector
   type(struct_columnData), allocatable :: columns(:)
   type(struct_columnData)              :: column_mean
 
@@ -69,7 +71,7 @@ program midas_ensembleH
   character(len=48)   :: midasMode
   character(len=10)   :: obsFileType
 
-  logical :: beSilent
+  logical :: beSilent, dealloc
 
   real(8), pointer    :: column_ptr(:)
 
@@ -108,7 +110,7 @@ program midas_ensembleH
   nEns            = 10
   ensPathName     = 'ensemble'
   ensFileBaseName = ''
-  useTlmH         = .true.
+  useTlmH         = .false.
   obsClean        = .false.
   asciDumpObs     = .false.
 
@@ -120,11 +122,7 @@ program midas_ensembleH
   if ( mpi_myid == 0 ) write(*,nml=namensembleh)
   ierr = fclos(nulnam)
 
-  ! Check if there are enough mpi tasks to read all members
-  if ( mpi_nprocs < nEns ) then 
-    write(*,*) 'nEns, mpi_nprocs = ', nEns, mpi_nprocs 
-    call utl_abort('midas-ensembleH: Not enough mpi processes available to read all ensemble members')
-  end if
+  if ( useTlmH ) call utl_abort('midas-ensembleH: WARNING use of TL of H not tested recently')
 
   
 
@@ -147,23 +145,15 @@ program midas_ensembleH
   call hco_SetupFromFile( hco_ens, ensFileName, ' ', 'ENSFILEGRID')
   call vco_setupFromFile( vco_ens, ensFileName )
 
-  write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
-
-  !- Setup and read the background ensemble (keep distribution as members on native grid)
-  call tmg_start(3,'READ_ENSEMBLE')
-  write(*,*) ''
-  write(*,*) 'midas-ensembleH: allocating stateVector_member'
-  write(*,*) ''
-  call gsv_allocate(statevector_member, numStep, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
-                    mpi_local_opt=.false., dataKind_opt=4, allocGZsfc_opt=.true.)
-  if ( (mpi_myid+1) <= nEns ) then
-    write(*,*) ''
-    write(*,*) 'midas-ensembleH: reading member from file'
-    write(*,*) ''
-    memberIndex = mpi_myid + 1
-    call enkf_readMember(stateVector_member, ensPathName, memberIndex)
+  if ( hco_ens % global ) then
+    call agd_SetupFromHCO( hco_ens ) ! IN
+  else
+    !- Setup the LAM analysis grid metrics
+    hco_ens_core => hco_ens
+    call agd_SetupFromHCO( hco_ens, hco_ens_core ) ! IN
   end if
-  call tmg_stop(3)
+
+  write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
   call tmg_start(4,'SETUPOBS')
   obsColumnMode = 'ENKFMIDAS'
@@ -202,12 +192,32 @@ program midas_ensembleH
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
   call tmg_stop(5)
 
-  call tmg_start(6,'SETUP_COLS')
-  write(*,*) ''
-  write(*,*) 'midas-ensembleH: Interpolate ensemble members to obs locations/times and redistribute'
-  write(*,*) ''
-  call enkf_setupColumnsFromEnsemble(stateVector_member, obsSpaceData, columns)
-  call tmg_stop(6)
+  ! Allocate statevector to store an ensemble member (keep distribution as members on native grid)
+  call gsv_allocate( stateVector, numStep, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
+                     mpi_local_opt=.true., mpi_distribution_opt='VarsLevs', dataKind_opt=4, allocGZsfc_opt=.true. )
+
+  do memberIndex = 1, nEns
+    write(*,*) ''
+    write(*,*) 'midas-ensembleH: read member ', memberIndex
+    call fln_ensFileName( ensFileName, ensPathName, memberIndex )
+    call tmg_start(3,'READ_ENSEMBLE')
+    call gsv_readFile( stateVector, ensFileName, ' ', ' ', readGZsfc_opt=.true. )
+    call gsv_fileUnitsToStateUnits( stateVector, containsFullField=.true. )
+    ierr = ram_remove(ensFileName)
+    call tmg_stop(3)
+
+    write(*,*) ''
+    write(*,*) 'midas-ensembleH: call s2c_nl for member ', memberIndex
+    call tmg_start(6,'SETUP_COLS')
+    if ( memberIndex == nEns ) then
+      dealloc = .true.  ! some deallocation when doing the last member
+    else
+      dealloc = .false.
+    end if
+    call s2c_nl( stateVector, obsSpaceData, columns(memberIndex), dealloc_opt=dealloc )
+    call tmg_stop(6)
+  end do
+  call gsv_deallocate( stateVector )
 
   ! Initialize the observation error covariances
   call oer_setObsErrors(obsSpaceData, midasMode) ! IN
