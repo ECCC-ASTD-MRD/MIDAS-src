@@ -267,8 +267,8 @@ contains
     !
     !- Memory allocation for background column data
     !
-    call col_allocate(trlColumnOnAnlLev,obs_numheader(obsSpaceData),mpi_local=.true.)
-    call col_allocate(trlColumnOnTrlLev,obs_numheader(obsSpaceData),mpi_local=.true.)
+    call col_allocate(trlColumnOnAnlLev,obs_numheader(obsSpaceData),mpiLocal_opt=.true.)
+    call col_allocate(trlColumnOnTrlLev,obs_numheader(obsSpaceData),mpiLocal_opt=.true.)
 
 
     !
@@ -331,7 +331,7 @@ contains
 
     ! initialize column object for storing "increment"
     call col_setVco(column,col_getVco(columng))
-    call col_allocate(column,col_getNumCol(columng),mpi_local=.true.)
+    call col_allocate(column,col_getNumCol(columng),mpiLocal_opt=.true.)
     call col_copyLatLon(columng,column)
  
      write(*,*) 'PRDATABIN: For 4D increment'
@@ -455,11 +455,7 @@ contains
     call gsv_allocate(statevector_fso, tim_nstepobsinc, hco_anl, vco_anl, &
                       datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.)
 
-    if( trim(fsoMode) == 'HFSO' ) then 
-      call bmat_sqrtB(ahat, nvadim_mpilocal, statevector_fso)
-    else if( trim(fsoMode) == 'EFSO' ) then
-      call bmat_sqrtB(vhat, nvadim_mpilocal, statevector_fso)
-    end if
+    call bmat_sqrtB(ahat, nvadim_mpilocal, statevector_fso)
     call s2c_tl(statevector_fso,column,columng,obsSpaceData)  ! put in column H_horiz B^1/2 ahat
     call oop_Htl(column,columng,obsSpaceData,1)          ! Save as OBS_WORK: H_vert H_horiz B^1/2 vhat = H B^1/2 ahat
     call cfn_RsqrtInverse(obsSpaceData,OBS_FSO,OBS_WORK) ! Save as OBS_FSO : R**-1/2 H B^1/2 ahat
