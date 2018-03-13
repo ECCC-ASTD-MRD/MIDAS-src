@@ -21,24 +21,26 @@
 !--------------------------------------------------------------------------
 program midas_obsimpact
   use ramDisk_mod
+  use utilities_mod
+  use mpivar_mod
   use MathPhysConstants_mod
+  use horizontalCoord_mod
   use timeCoord_mod
+  use obsTimeInterp_mod
   use columnData_mod
   use obsSpaceData_mod
   use controlVector_mod
-  use mpivar_mod
-  use horizontalCoord_mod
   use gridStateVector_mod
   use bmatrix_mod
   use bmatrixensemble_mod
   use stateToColumn_mod
   use analysisGrid_mod
-  use utilities_mod
   use obsOperators_mod
   use costFunction_mod
   use quasinewton_mod
   use innovation_mod
-  use burpFiles_mod
+  use obsFiles_mod
+  use obsFilter_mod
   use WindRotation_mod
   use obsErrors_mod
   use variableTransforms_mod
@@ -122,8 +124,16 @@ program midas_obsimpact
   call fso_ensemble(trlColumnOnAnlLev,obsSpaceData)
 
   ! Now write out the observation data files
-  call burp_updateFiles(obsSpaceData)
-
+  if ( .not. obsf_filesSplit() ) then
+    write(*,*) 'We read/write global observation files'
+    call obs_expandToMpiGlobal(obsSpaceData)
+    if (mpi_myid == 0) call obsf_writeFiles(obsSpaceData)
+  else
+    ! redistribute obs data to how it was just after reading the files
+    call obs_MpiRedistribute(obsSpaceData,OBS_IPF)
+    call obsf_writeFiles(obsSpaceData)
+  end if
+  
   ! Deallocate copied obsSpaceData
   call obs_finalize(obsSpaceData)
 
@@ -198,8 +208,12 @@ contains
     !     
     !- Initialize burp file names and set datestamp
     !
-    call burp_setupFiles (datestamp, 'FSO') ! IN
-    call tim_setDatestamp(datestamp)            ! IN
+    call obsf_setup( dateStamp, 'FSO' )
+    if ( dateStamp > 0 ) then
+      call tim_setDatestamp(datestamp)     ! IN
+    else
+      call utl_abort('var_setup: Problem getting dateStamp from observation file')
+    end if
     !
     !- Initialize constants
     !
@@ -209,7 +223,7 @@ contains
     !- Set vertical coordinate parameters from !! record in trial file
     !
     if(mpi_myid.eq.0) write(*,*)''
-    if(mpi_myid.eq.0) write(*,*)' preproc: Set vcoord parameters for trial grid'
+    if(mpi_myid.eq.0) write(*,*)'var_setup: Set vcoord parameters for trial grid'
     call vco_SetupFromFile( vco_trl,     & ! OUT
                             './trlm_01')   ! IN
     call col_setVco(trlColumnOnTrlLev,vco_trl)
@@ -223,7 +237,7 @@ contains
     !- Initialize the Analysis grid
     !
     if(mpi_myid.eq.0) write(*,*)''
-    if(mpi_myid.eq.0) write(*,*)' preproc: Set hco parameters for analysis grid'
+    if(mpi_myid.eq.0) write(*,*)'var_setup : Set hco parameters for analysis grid'
     call hco_SetupFromFile(hco_anl, './analysisgrid', 'ANALYSIS', 'Analysis' ) ! IN
 
     if ( hco_anl % global ) then
@@ -240,10 +254,10 @@ contains
     end if
 
     !     
-    !- Initialisation of the analysis grid vertical coordinate from analysisgrid file
-    !
+    !- Initialisation of the analysis grid vertical coordinate from analysisgrid file !
     call vco_SetupFromFile( vco_anl,        & ! OUT
                             './analysisgrid') ! IN
+
     call col_setVco(trlColumnOnAnlLev,vco_anl)
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
@@ -333,10 +347,9 @@ contains
     call col_setVco(column,col_getVco(columng))
     call col_allocate(column,col_getNumCol(columng),mpiLocal_opt=.true.)
     call col_copyLatLon(columng,column)
- 
-     write(*,*) 'PRDATABIN: For 4D increment'
-    call tim_sutimeinterp(obsSpaceData, tim_nstepobsinc)
 
+    call oti_setup(obsSpaceData,tim_nstepobsinc)
+ 
     ! compute dateStamp_fcst
     call incdatr(dateStamp_fcst, tim_getDatestamp(), leadTime)
     write(*,*) 'fso_ensemble: analysis datestamp = ',tim_getDatestamp()
