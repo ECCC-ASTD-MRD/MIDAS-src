@@ -59,6 +59,7 @@ module obsSpaceDiag_mod
   use physicsfunctions_mod
   use burpfiles_mod
   use obsSubSpaceData_mod
+  use obsfiles_mod
   
   implicit none
   save
@@ -1201,6 +1202,7 @@ contains
     integer :: bodyIndex,headerIndex,ierr,rln,nlv,kk
     integer :: stat,varno,icodtyp
     integer, parameter :: max_nlev=300
+    integer, parameter :: ndim=1
     real(8) :: array(max_nlev)
     character(len=12), parameter :: stnid='************'
     
@@ -1212,7 +1214,9 @@ contains
     ! (with ndim=1, bkstp=15 and block_type='DATA')
 
     status_hpht=.true.
-    SqrtHPHT_struct = brpf_chem_read_all(obsfam,stnid,-1,max_nlev,1,15,'DATA',.false.,codtyplist_opt=codtyplist)
+    SqrtHPHT_struct = obsf_oss_read(obsfam,stnid,-1,max_nlev,ndim,bkstp_opt=15,block_opt='DATA', &
+                                    match_nlev_opt=.false.,codtyp_opt=codtyplist)
+
     if (SqrtHPHT_struct%nrep.eq.0) then
        write(*,*) 'osd_ReadSqrtHPHT: WARNING. sqrtHPHT not found in obs file(s).'
        write(*,*) 'Will not be used in Desroziers-based diagnostics.'       

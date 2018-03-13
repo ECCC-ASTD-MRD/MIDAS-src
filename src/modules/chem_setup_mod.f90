@@ -795,6 +795,9 @@ contains
 
     implicit none
 
+    integer, parameter :: bufr_avgkern=15044
+    integer, parameter :: ndim=2
+
     integer :: istnid
 
     if ( .not.obsf_fileTypeIsBurp() ) call utl_abort('chm_read_avgkern: only compatible with BURP files')
@@ -810,8 +813,9 @@ contains
        if (chm_avgkern%brp(istnid).eq.1) then
           
           ! retrieve data from stats blocks (with bkstp=14 and block_type='DATA')
-          chm_burp_avgkern(istnid) = brpf_chem_read_all('CH',chm_avgkern%stnids(istnid), &
-               15044, chm_avgkern%n_lvl(istnid), 2, 14, 'DATA', match_nlev=.true.)
+          chm_burp_avgkern(istnid) = obsf_oss_read('CH',chm_avgkern%stnids(istnid),bufr_avgkern, &
+                                     chm_avgkern%n_lvl(istnid), ndim, bkstp_opt=14, &
+                                     block_opt='DATA', match_nlev_opt=.true.)
           
        end if
     end do
@@ -1992,7 +1996,8 @@ contains
     
     if (chm_efftemp%nrep.gt.0) then
         varno(1)=12001
-        nrep_modified = brpf_chem_update_all('CH',varno(1:max(1,chm_efftemp%dim2)),0,'INFO',chm_efftemp,multi_opt='UNI') 
+        nrep_modified = obsf_oss_update(chm_efftemp,'CH',varno(1:max(1,chm_efftemp%dim2)),bkstp_opt=0, &
+                                        block_opt='INFO',multi_opt='UNI') 
         write(*,*) 'chm_add_efftemp_obsfile: Added ',nrep_modified,' effective temperature values in the obs file.'
     end if 
 

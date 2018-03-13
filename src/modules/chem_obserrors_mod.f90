@@ -117,6 +117,7 @@ contains
 
     implicit none
 
+    integer, parameter :: ndim=1
     integer :: istnid
 
     if ( .not.obsf_fileTypeIsBurp() ) call utl_abort('chm_read_avgkern: only compatible with BURP files')
@@ -132,9 +133,9 @@ contains
        if (chm_std%brp(istnid).ge.1) then
           
           ! retrieve data from stats blocks (with bkstp=14 and block_type='DATA')
-          chm_burp_std(istnid) = brpf_chem_read_all('CH',chm_std%stnids(istnid), &
-               chm_std%bfr(istnid), chm_std%n_lvl(istnid), 1, 14, 'DATA',       &
-               match_nlev=chm_std%brp(istnid).eq.1 )
+          chm_burp_std(istnid) = obsf_oss_read('CH',chm_std%stnids(istnid),chm_std%bfr(istnid), &
+                                 chm_std%n_lvl(istnid),ndim,bkstp_opt=14,block_opt='DATA', &
+                                 match_nlev_opt=chm_std%brp(istnid).eq.1 )
 
        end if
     end do
