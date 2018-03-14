@@ -986,6 +986,7 @@ contains
        
        call obs_set_current_header_list(obsSpaceData,obsfam)
        HEADER: do
+
           headerIndex = obs_getHeaderIndex(obsSpaceData)
           if (headerIndex < 0) exit HEADER
   
@@ -1026,9 +1027,8 @@ contains
           lon = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex)*MPC_DEGREES_PER_RADIAN_R8
               
           allocate(lev(nlev_obs), omp(nlev_obs), oma(nlev_obs), obs(nlev_obs))
-          allocate(sigma_obs(nlev_obs))          
+          allocate(sigma_obs(nlev_obs), success(nlev_obs), status(nlev_obs))          
           if (anlm_mode) allocate(sqrtHPHT(nlev_obs))
-          allocate(success(nlev_obs), status(nlev_obs))
 
           lev(:) = 0.0d0
           omp(:) = 0.0d0
@@ -1062,11 +1062,12 @@ contains
              else if (iass.eq.3.and.diagn_only) then
                 status(ilev_obs) = 2
              end if
+             
+             lev(ilev_obs) = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
 
              ! Include in the sum assimilated data and diagnostic only data
              if (status(ilev_obs).gt.0) then
                 
-                lev(ilev_obs) = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
                 omp(ilev_obs) = obs_bodyElem_r(obsSpaceData,OBS_OMP,bodyIndex)
                 obs(ilev_obs) = obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)
                 sigma_obs(ilev_obs) = obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
@@ -1075,7 +1076,7 @@ contains
                    if (status_hpht) then
                       sqrtHPHT(ilev_obs) = obs_bodyElem_r(obsSpaceData,OBS_HPHT,bodyIndex)
                       if (sqrtHPHT(ilev_obs).lt.1.D-30) then
-                         write(*,*) 'osd_obsDiagnostics: WARNING. sqrtHPHT not found for all CH obs'
+                         write(*,*) 'osd_obsDiagnostics: WARNING. sqrtHPHT not found for all obs'
                          write(*,*) 'Will not be used in Desroziers-based diagnostics.'       
                          status_hpht=.false.
                       end if

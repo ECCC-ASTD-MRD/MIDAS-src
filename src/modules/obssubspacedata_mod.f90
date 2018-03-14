@@ -154,11 +154,13 @@ contains
        obsdata%ndim = 2
        allocate(obsdata%data2d(dim1,dim2_opt,nrep))
        obsdata%data2d(:,:,:) = 0.0D0
+       obsdata%data1d => null()
     else
        obsdata%dim2 = 0
        obsdata%ndim = 1
        allocate(obsdata%data1d(dim1,nrep))
        obsdata%data1d(:,:) = 0.0D0
+       obsdata%data2d => null()
     end if
 
     ! code is a character string assigned to each observation/report to uniquely identify it
