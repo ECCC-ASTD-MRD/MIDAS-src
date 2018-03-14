@@ -18,6 +18,7 @@
    NSIMMAX  = 110,
    REPSG    = 1D-5,
    FORECASTPATH='./forecasts/',
+   FSOMODE='HFSO'
 /
  &NAMMIN
    NVAMAJ = 10,
