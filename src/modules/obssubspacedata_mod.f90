@@ -430,7 +430,7 @@ contains
        else
           call utl_abort("obsdata_set_index: No reports available. Check for consistency " // &
                           "between input BURP file and input NAMBURP_FILTER_*  namelist " // &
-                          "(and input file obsinfo_chm if part of CH family).")
+                          "(and input auxiliary file if part of CH family).")
        end if
     end if
 

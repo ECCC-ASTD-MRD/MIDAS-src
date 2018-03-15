@@ -42,7 +42,7 @@ module burpFiles_mod
 
   ! public procedures
   public :: brpf_getDateStamp, brpf_readfile, brpf_updatefile
-  public :: brpf_oss_read, brpf_oss_update
+  public :: brpf_obsSub_read, brpf_obsSub_update
 
 contains
 
@@ -1022,7 +1022,7 @@ contains
 !!v     be applied to 1D data.
 !!
 !--------------------------------------------------------------------------
-  function brpf_oss_read(filename,stnid,varno,nlev,ndim,block_type,bkstp_opt,match_nlev_opt,  &
+  function brpf_obsSub_read(filename,stnid,varno,nlev,ndim,block_type,bkstp_opt,match_nlev_opt,  &
                           codtyp_opt) result(burp_out)
     
     implicit none
@@ -1058,13 +1058,13 @@ contains
 
     ! open the burp file
     call BURP_New(brp, FILENAME=filename, MODE=FILE_ACC_READ, IOSTAT=error)
-    if (error /= 0) call utl_abort('brpf_oss_read: Could not find/open BURP file: ' // trim(filename))
+    if (error /= 0) call utl_abort('brpf_obsSub_read: Could not find/open BURP file: ' // trim(filename))
 
-    write(*,*) "brpf_oss_read: Reading file " // trim(filename)
-    write(*,*) "brpf_oss_read: Selecting STNID = ",stnid," BUFR = ",varno," block type = ",block_type
-    write(*,*) "brpf_oss_read:           nlev = ",nlev," match_nlev = ",match_nlev
-    if (present(bkstp_opt))  write(*,*) "brpf_oss_read:           bkstp  = ",bkstp_opt
-    if (present(codtyp_opt)) write(*,*) "brpf_oss_read:           codtyp = ",codtyp_opt(:)
+    write(*,*) "brpf_obsSub_read: Reading file " // trim(filename)
+    write(*,*) "brpf_obsSub_read: Selecting STNID = ",stnid," BUFR = ",varno," block type = ",block_type
+    write(*,*) "brpf_obsSub_read:           nlev = ",nlev," match_nlev = ",match_nlev
+    if (present(bkstp_opt))  write(*,*) "brpf_obsSub_read:           bkstp  = ",bkstp_opt
+    if (present(codtyp_opt)) write(*,*) "brpf_obsSub_read:           codtyp = ",codtyp_opt(:)
 
     ! get number of reports in file
     call BURP_Get_Property(brp, NRPTS=nrep)
@@ -1119,12 +1119,12 @@ contains
                 varno_ivar=BURP_Get_Element(blk, INDEX=ivar, IOSTAT=error)
                 if (varno_ivar >= 10000.and.varno_ivar < 16000) exit
              end do
-             if (varno_ivar < 10000.or.varno_ivar >= 16000) call utl_abort('brpf_oss_read: No valid element found for STNID ' // rep_stnid )
+             if (varno_ivar < 10000.or.varno_ivar >= 16000) call utl_abort('brpf_obsSub_read: No valid element found for STNID ' // rep_stnid )
           end if
 
           ! required block found if code reaches this point, retrieve data and store in burp_out
           
-          if (nval > nlev) call utl_abort('brpf_oss_read: number of levels in the report (' // trim(utl_str(nval)) // &
+          if (nval > nlev) call utl_abort('brpf_obsSub_read: number of levels in the report (' // trim(utl_str(nval)) // &
                                          ') exceeds the specified maximum number of levels (' // trim(utl_str(nlev)) // &
                                          ') for STNID ' // rep_stnid )
 
@@ -1182,14 +1182,14 @@ contains
 
     burp_out%nrep = icount
 
-    write(*,*) "brpf_oss_read: Reading of file complete. Number of reports found: ",burp_out%nrep
+    write(*,*) "brpf_obsSub_read: Reading of file complete. Number of reports found: ",burp_out%nrep
     
     ! deallocate
     Call BURP_Free(brp,iostat=error)
     Call BURP_Free(rep,iostat=error)
     Call BURP_Free(blk,iostat=error)
     
-  end function brpf_oss_read
+  end function brpf_obsSub_read
 
 
 !--------------------------------------------------------------------------
@@ -1197,7 +1197,7 @@ contains
 !!            struct_oss_obsdata object. Provided data can be either
 !!            1D or 2D data.
 !!
-!! @author Y. Rochon, ARQI/AQRD, June 2016 (partly based on brpf_oss_read by M. Sitwell)
+!! @author Y. Rochon, ARQI/AQRD, June 2016 (partly based on brpf_obsSub_read by M. Sitwell)
 !!
 !! Revisions:
 !!v        M. Sitwell, ARQI/AQRD, Aug 2016
@@ -1229,7 +1229,7 @@ contains
 !!v    that can occur when writing blocks containing negative integers with datyp=4.
 !!
 !--------------------------------------------------------------------------
-  function brpf_oss_update(obsdata,filename,varno,block_type,bkstp_opt,multi_opt) result(nrep_modified)
+  function brpf_obsSub_update(obsdata,filename,varno,block_type,bkstp_opt,multi_opt) result(nrep_modified)
 
     implicit none
 
@@ -1258,7 +1258,7 @@ contains
     
     ! Check presence of data to update
     if (obsdata%nrep <= 0) then
-       write(*,*) 'brpf_oss_update: Skipped due to absence of data to update.'
+       write(*,*) 'brpf_obsSub_update: Skipped due to absence of data to update.'
        return
     end if
     
@@ -1271,10 +1271,10 @@ contains
        dim2=obsdata%dim2
     end if
     
-    if (size(varno) < dim2) call utl_abort('brpf_oss_update: Number of BUFR elements not sufficient. ' // &
+    if (size(varno) < dim2) call utl_abort('brpf_obsSub_update: Number of BUFR elements not sufficient. ' // &
                                           trim(utl_str(size(varno))) // ' vs ' // trim(utl_str(dim2)))
 
-    if (code_len < oss_obsdata_code_len()) call utl_abort('brpf_oss_update: Length of code string' &
+    if (code_len < oss_obsdata_code_len()) call utl_abort('brpf_obsSub_update: Length of code string' &
                                           // ' needs to be increased to ' // trim(utl_str(oss_obsdata_code_len())))
      
     ! initialize burp file, report, and block system resources
@@ -1284,7 +1284,7 @@ contains
 
     ! open the burp file in append mode (to replace or add data in a block)
     call BURP_New(brp, FILENAME=filename, MODE=FILE_ACC_APPEND, IOSTAT=error)
-    if (error /= 0) call utl_abort('brpf_oss_update: Could not open BURP file: ' // trim(filename))
+    if (error /= 0) call utl_abort('brpf_obsSub_update: Could not open BURP file: ' // trim(filename))
 
     ! get number of reports in file
     call BURP_Get_Property(brp, NRPTS=nrep)
@@ -1408,6 +1408,6 @@ contains
     Call BURP_Free(rep,R2=rep_new,iostat=error)
     Call BURP_Free(blk,iostat=error)
     
-  end function brpf_oss_update
+  end function brpf_obsSub_update
 
 end module burpFiles_mod

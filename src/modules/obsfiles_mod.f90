@@ -46,7 +46,7 @@ module obsFiles_mod
 
   ! public procedures
   public :: obsf_setup, obsf_filesSplit, obsf_getFileType, obsf_fileTypeIsBurp
-  public :: obsf_readFiles, obsf_writeFiles, obsf_oss_read, obsf_oss_update
+  public :: obsf_readFiles, obsf_writeFiles, obsf_obsSub_read, obsf_obsSub_update
 
   character(len=10) :: obsFileType
   logical           :: obsFilesSplit
@@ -873,7 +873,7 @@ contains
 !!v           obsdata       struct_oss_obsdata object
 !!v
 !--------------------------------------------------------------------------
-  function obsf_oss_read(obsfam,stnid,varno,nlev,ndim,bkstp_opt,block_opt,match_nlev_opt, &
+  function obsf_obsSub_read(obsfam,stnid,varno,nlev,ndim,bkstp_opt,block_opt,match_nlev_opt, &
                               codtyp_opt) result(obsdata)
 
     implicit none
@@ -895,16 +895,16 @@ contains
 
        if (obsFileType=='BURP') then
           if (.not.present(block_opt)) &
-               call utl_abort("obsf_oss_read: optional varaible 'block_opt' is required for BURP observational files.")
-          obsdata = brpf_oss_read(filename,stnid,varno,nlev,ndim,block_opt,bkstp_opt=bkstp_opt, &
+               call utl_abort("obsf_obsSub_read: optional varaible 'block_opt' is required for BURP observational files.")
+          obsdata = brpf_obsSub_read(filename,stnid,varno,nlev,ndim,block_opt,bkstp_opt=bkstp_opt, &
                                    match_nlev_opt=match_nlev_opt,codtyp_opt=codtyp_opt)
        else
-          call utl_abort("obsf_oss_read: Only BURP observational files currently supported.")
+          call utl_abort("obsf_obsSub_read: Only BURP observational files currently supported.")
        end if
 
     else
 
-       write(*,*) "obsf_oss_read: No observational files found for family '" // trim(obsfam) // "' for this node."
+       write(*,*) "obsf_obsSub_read: No observational files found for family '" // trim(obsfam) // "' for this node."
 
        if (obsf_filesSplit()) then
           ! Must allocate obsdata so that it is available from ALL processors when
@@ -915,15 +915,15 @@ contains
              call oss_obsdata_alloc(obsdata,1,dim1=nlev,dim2_opt=nlev)
           end if
           obsdata%nrep=0
-          write(*,*) "obsf_oss_read: Setting empty struct_oss_obsdata object for this node."
+          write(*,*) "obsf_obsSub_read: Setting empty struct_oss_obsdata object for this node."
        else
-          call utl_abort("obsf_oss_read: Abort since files are not split.")
+          call utl_abort("obsf_obsSub_read: Abort since files are not split.")
        end if
     end if
 
     if (obsf_filesSplit()) call oss_obsdata_MPIallgather(obsdata)
 
-  end function obsf_oss_read
+  end function obsf_obsSub_read
 
 
 !--------------------------------------------------------------------------
@@ -948,7 +948,7 @@ contains
 !!v           nrep_modified Number of modified reports
 !!
 !--------------------------------------------------------------------------
-  function obsf_oss_update(obsdata,obsfam,varno,bkstp_opt,block_opt,multi_opt) &
+  function obsf_obsSub_update(obsdata,obsfam,varno,bkstp_opt,block_opt,multi_opt) &
                            result(nrep_modified)
 
     implicit none
@@ -971,14 +971,14 @@ contains
        if (obsf_filesSplit() .or. mpi_myid == 0) then
           if (obsFileType=='BURP') then
              if (.not.present(block_opt)) &
-                  call utl_abort("obsf_oss_update: optional varaible 'block_opt' is required for BURP observational files.")
-             nrep_modified = brpf_oss_update(obsdata,filename,varno,block_opt,bkstp_opt=bkstp_opt,multi_opt=multi_opt)
+                  call utl_abort("obsf_obsSub_update: optional varaible 'block_opt' is required for BURP observational files.")
+             nrep_modified = brpf_obsSub_update(obsdata,filename,varno,block_opt,bkstp_opt=bkstp_opt,multi_opt=multi_opt)
           else
-             call utl_abort("obsf_oss_update: Only BURP observational files currently supported.")
+             call utl_abort("obsf_obsSub_update: Only BURP observational files currently supported.")
           end if
        end if
     else
-       write(*,*) "obsf_oss_update: No observational files found for family '" // trim(obsfam) // "' for this node."
+       write(*,*) "obsf_obsSub_update: No observational files found for family '" // trim(obsfam) // "' for this node."
     end if
 
     if (obsf_filesSplit()) then
@@ -986,6 +986,6 @@ contains
        nrep_modified = nrep_modified_global
     end if
 
-  end function obsf_oss_update
+  end function obsf_obsSub_update
 
 end module obsFiles_mod
