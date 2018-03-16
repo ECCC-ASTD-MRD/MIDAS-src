@@ -94,8 +94,9 @@ program midas_obsimpact
 
   call ram_setup
 
-  !  1. Settings 
-
+  !
+  !- 1. Settings 
+  !
   obsColumnMode  = 'VAR'
 
   ! Do initial set up
@@ -107,8 +108,9 @@ program midas_obsimpact
   call var_setup('VAR') ! obsColumnMode
   call tmg_stop(2)
 
-  !  2. configuration of job 
-
+  !
+  !- 2. configuration of job 
+  !
   ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
   call tmg_start(2,'PREMIN')
   call inn_setupBackgroundColumns(trlColumnOnTrlLev,obsSpaceData)
@@ -137,8 +139,9 @@ program midas_obsimpact
   ! Deallocate copied obsSpaceData
   call obs_finalize(obsSpaceData)
 
-  ! 3. Job termination
-
+  !
+  !- 3. Job termination
+  !
   istamp = exfin('OBSIMPACT','FIN','NON')
 
   if(mpi_myid == 0) then
@@ -150,7 +153,6 @@ program midas_obsimpact
   call tmg_terminate(mpi_myid, 'TMG_OBSIMPACT' )
 
   call rpn_comm_finalize(ierr)
-
 
 contains
 
@@ -241,16 +243,16 @@ contains
     call hco_SetupFromFile(hco_anl, './analysisgrid', 'ANALYSIS', 'Analysis' ) ! IN
 
     if ( hco_anl % global ) then
-       call agd_SetupFromHCO( hco_anl ) ! IN
+      call agd_SetupFromHCO( hco_anl ) ! IN
     else
-       !- Iniatilized the core (Non-Exteded) analysis grid
-       call hco_SetupFromFile( hco_core, './analysisgrid', 'COREGRID', 'AnalysisCore' ) ! IN
-       !- Setup the LAM analysis grid metrics
-       call agd_SetupFromHCO( hco_anl, hco_core ) ! IN
+      !- Iniatilized the core (Non-Exteded) analysis grid
+      call hco_SetupFromFile( hco_core, './analysisgrid', 'COREGRID', 'AnalysisCore' ) ! IN
+      !- Setup the LAM analysis grid metrics
+      call agd_SetupFromHCO( hco_anl, hco_core ) ! IN
     end if
 
     if ( hco_anl % rotated ) then
-       call uvr_Setup(hco_anl) ! IN 
+      call uvr_Setup(hco_anl) ! IN 
     end if
 
     !     
@@ -283,7 +285,6 @@ contains
     !
     call col_allocate(trlColumnOnAnlLev,obs_numheader(obsSpaceData),mpiLocal_opt=.true.)
     call col_allocate(trlColumnOnTrlLev,obs_numheader(obsSpaceData),mpiLocal_opt=.true.)
-
 
     !
     !- Initialize the observation error covariances
@@ -397,7 +398,6 @@ contains
                       datestamp_opt=datestamp_fcst, mpi_local_opt=.true.)
     call gsv_readFromFile(statevector_a, fileName_a, ' ', 'A')
 
-
     ! compute error of both forecasts (overwrite forecasts with error)
     call gsv_add(statevector_a, statevector_fa, -1.0d0)
     call gsv_add(statevector_a, statevector_fb, -1.0d0)
@@ -407,7 +407,6 @@ contains
     call gsv_multEnergyNorm(statevector_tempfa, statevector_a) ! use analysis as reference state
     call gsv_multEnergyNorm(statevector_tempfb, statevector_a) ! use analysis as reference state
 
-
     ! compute error Norm =  C * (error_t^fa + error_t^fb)
     call gsv_add(statevector_fa, statevector_fb, 1.0d0)
     call gsv_multEnergyNorm(statevector_fb, statevector_a) ! use analysis as reference state
@@ -416,13 +415,13 @@ contains
     call bmat_sqrtBT(vhat, nvadim_mpilocal, statevector_fb, useFSOFcst_opt = .true.)
 
     if(mpi_myid == 0) write(*,*) maxval(vhat),minval(vhat)
-    ! Compute zhat by performing variational minimization
 
+    ! Compute zhat by performing variational minimization
     ! Set-up for the minimization
     if(mpi_myid == 0) then
-     impres = 5
+      impres = 5
     else
-     impres = 0
+      impres = 0
     end if
 
     imode = 0
@@ -497,7 +496,7 @@ contains
 
   end subroutine fso_ensemble
 
-    subroutine simvar(indic,nvadim,zhat,Jtotal,gradJ)
+  subroutine simvar(indic,nvadim,zhat,Jtotal,gradJ)
     implicit none
     ! Argument declarations
     integer :: nvadim ! Dimension of the control vector in forecast error coraviances space
@@ -530,71 +529,71 @@ contains
 
     call tmg_start(80,'MIN_SIMVAR')
     if (indic /= 1) then ! No action taken if indic == 1
-       fso_nsim = fso_nsim + 1
+      fso_nsim = fso_nsim + 1
 
-       if(mpi_myid == 0) then
-         write(*,*) 'Entering simvar for simulation ',fso_nsim
-         write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-         call flush(6)
-       end if
+      if(mpi_myid == 0) then
+        write(*,*) 'Entering simvar for simulation ',fso_nsim
+        write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+        call flush(6)
+      end if
 
-       ! note: vhat = B_t^T/2 hat(del x_t)
-       ahat_vhat(1:nvadim_mpilocal) = zhat(1:nvadim_mpilocal) + vhat(1:nvadim_mpilocal)
+      ! note: vhat = B_t^T/2 hat(del x_t)
+      ahat_vhat(1:nvadim_mpilocal) = zhat(1:nvadim_mpilocal) + vhat(1:nvadim_mpilocal)
 
-       ! Computation of background term of cost function:
-       Jb = dot_product(zhat(1:nvadim_mpilocal),zhat(1:nvadim_mpilocal))/2.d0
-       call tmg_start(89,'MIN_COMM')
-       call mpi_allreduce_sumreal8scalar(Jb,"GRID")
-       call tmg_stop(89)
+      ! Computation of background term of cost function:
+      Jb = dot_product(zhat(1:nvadim_mpilocal),zhat(1:nvadim_mpilocal))/2.d0
+      call tmg_start(89,'MIN_COMM')
+      call mpi_allreduce_sumreal8scalar(Jb,"GRID")
+      call tmg_stop(89)
 
-       hco_anl => agd_getHco('ComputationalGrid')
-       vco_anl => col_getVco(columng_ptr)
-       call gsv_allocate(statevector,tim_nstepobsinc, hco_anl, vco_anl, &
-                         mpi_local_opt=.true.)
+      hco_anl => agd_getHco('ComputationalGrid')
+      vco_anl => col_getVco(columng_ptr)
+      call gsv_allocate(statevector,tim_nstepobsinc, hco_anl, vco_anl, &
+                        mpi_local_opt=.true.)
 
-       call bmat_sqrtB(ahat_vhat,nvadim_mpilocal,statevector)
+      call bmat_sqrtB(ahat_vhat,nvadim_mpilocal,statevector)
 
-       call tmg_start(30,'OBS_INTERP')
-       call s2c_tl(statevector,column_ptr,columng_ptr,obsSpaceData_ptr)  ! put in column H_horiz dx
-       call tmg_stop(30)
-       call tmg_start(40,'OBS_TL')
-       call oop_Htl(column_ptr,columng_ptr,obsSpaceData_ptr,fso_nsim)  ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
-       call tmg_stop(40)
+      call tmg_start(30,'OBS_INTERP')
+      call s2c_tl(statevector,column_ptr,columng_ptr,obsSpaceData_ptr)  ! put in column H_horiz dx
+      call tmg_stop(30)
+      call tmg_start(40,'OBS_TL')
+      call oop_Htl(column_ptr,columng_ptr,obsSpaceData_ptr,fso_nsim)  ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
+      call tmg_stop(40)
 
-       call cfn_RsqrtInverse(obsSpaceData_ptr,OBS_WORK,OBS_WORK)  ! Save as OBS_WORK : R**-1/2 (Hdx)
+      call cfn_RsqrtInverse(obsSpaceData_ptr,OBS_WORK,OBS_WORK)  ! Save as OBS_WORK : R**-1/2 (Hdx)
 
-       call cfn_calcJo(obsSpaceData_ptr)  ! Store J-obs in OBS_JOBS : 1/2 * R**-1 (Hdx)**2
+      call cfn_calcJo(obsSpaceData_ptr)  ! Store J-obs in OBS_JOBS : 1/2 * R**-1 (Hdx)**2
 
-       Jobs = 0.d0
-       call cfn_sumJo(obsSpaceData_ptr,Jobs)
-       Jtotal = Jb + Jobs
-       if (indic == 3) then
-          Jtotal = Jobs
-          IF(mpi_myid == 0) write(*,FMT='(6X,"SIMVAR:  JO = ",G23.16,6X)') Jobs
-       else
-          Jtotal = Jb + Jobs
-          IF(mpi_myid == 0) write(*,FMT='(6X,"SIMVAR:  Jb = ",G23.16,6X,"JO = ",G23.16,6X,"Jt = ",G23.16)') Jb,Jobs,Jtotal
-       end if
+      Jobs = 0.d0
+      call cfn_sumJo(obsSpaceData_ptr,Jobs)
+      Jtotal = Jb + Jobs
+      if (indic == 3) then
+        Jtotal = Jobs
+        if(mpi_myid == 0) write(*,FMT='(6X,"SIMVAR:  JO = ",G23.16,6X)') Jobs
+      else
+        Jtotal = Jb + Jobs
+        if(mpi_myid == 0) write(*,FMT='(6X,"SIMVAR:  Jb = ",G23.16,6X,"JO = ",G23.16,6X,"Jt = ",G23.16)') Jb,Jobs,Jtotal
+      end if
 
-       call cfn_RsqrtInverse(obsSpaceData_ptr,OBS_WORK,OBS_WORK)  ! Modify OBS_WORK : R**-1 (Hdx)
+      call cfn_RsqrtInverse(obsSpaceData_ptr,OBS_WORK,OBS_WORK)  ! Modify OBS_WORK : R**-1 (Hdx)
 
-       call col_zero(column_ptr)
+      call col_zero(column_ptr)
 
-       call tmg_start(41,'OBS_AD')
-       call oop_Had(column_ptr,columng_ptr,obsSpaceData_ptr)   ! Put in column : H_vert**T R**-1 (Hdx)
-       call tmg_stop(41)
+      call tmg_start(41,'OBS_AD')
+      call oop_Had(column_ptr,columng_ptr,obsSpaceData_ptr)   ! Put in column : H_vert**T R**-1 (Hdx)
+      call tmg_stop(41)
 
-       call tmg_start(31,'OBS_INTERPAD')
-       call s2c_ad(statevector,column_ptr,columng_ptr,obsSpaceData_ptr)  ! Put in statevector H_horiz**T H_vert**T R**-1 (Hdx)
-       call tmg_stop(31)
+      call tmg_start(31,'OBS_INTERPAD')
+      call s2c_ad(statevector,column_ptr,columng_ptr,obsSpaceData_ptr)  ! Put in statevector H_horiz**T H_vert**T R**-1 (Hdx)
+      call tmg_stop(31)
 
-       gradJ(:) = 0.d0
-       call bmat_sqrtBT(gradJ,nvadim_mpilocal,statevector)
-       call gsv_deallocate(statevector)
+      gradJ(:) = 0.d0
+      call bmat_sqrtBT(gradJ,nvadim_mpilocal,statevector)
+      call gsv_deallocate(statevector)
 
-       if (indic /= 3) then
-          gradJ(1:nvadim_mpilocal) = zhat(1:nvadim_mpilocal) + gradJ(1:nvadim_mpilocal)
-       end if
+      if (indic /= 3) then
+        gradJ(1:nvadim_mpilocal) = zhat(1:nvadim_mpilocal) + gradJ(1:nvadim_mpilocal)
+      end if
     end if
     call tmg_stop(80)
     if (indic == 1 .or. indic == 4) call tmg_start(70,'QN')
