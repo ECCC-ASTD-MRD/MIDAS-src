@@ -1465,7 +1465,7 @@ END subroutine SQL2OBS_CONV
 !  ===========================
    END SUBROUTINE handle_error
 !  ===========================
-   subroutine updsql(db,obsdat,file_numb)
+   subroutine updsql(db,obsdat,familyType,fileName,file_numb)
       !
       !   Purpose : UPDATE HEADER AND DATA TABLES OF SQLITE FILES
       !
@@ -1485,9 +1485,12 @@ END subroutine SQL2OBS_CONV
    implicit none
 !
 !
-!  type handle for  SQLIte file
-   type(fSQL_DATABASE)                       :: db
-   type (struct_obs), intent(inout)          :: obsdat
+   ! arguments
+   type(fSQL_DATABASE)              :: db
+   type (struct_obs), intent(inout) :: obsdat
+   character(len=*) :: fileName
+   character(len=*) :: familyType
+   integer :: file_numb
 
 !  prepared statement for  SQLite
    type(fSQL_STATEMENT)                     :: stmt
@@ -1496,8 +1499,7 @@ END subroutine SQL2OBS_CONV
    type(fSQL_STATUS)                        :: stat
    
 !  local variables 
-
-   integer*4                        :: file_numb ! 
+!   integer*4                        :: file_numb ! 
    integer*4                        :: RLN,NLV,IDF,ID_DATA,ASS,FLAG ! 
    integer*4                        :: IOBS,ID_OBS,STATUS ! 
    integer*4                        :: J,JO !
@@ -1521,15 +1523,17 @@ END subroutine SQL2OBS_CONV
    write(*,*) '  ==============BEGIN UPDATE============================================== '
    write(*,*) '  ======================================================================= '
    WRITE(*,*) '  ------- UPDSQL ------ ',itemlist(1)
-   WRITE(*,*) ' MISSING VALUE  = ', MPC_missingValue_R8
+   WRITE(*,*) '  FAMILYTYPE   =', FAMILYTYPE
+   WRITE(*,*) '  FileName     =', FileName
+   WRITE(*,*) '  MISSING VALUE  = ', MPC_missingValue_R8
 
    
    !    CREATE QUERY  
    !--------------------------------
    CHitem='  '
    UPDLIST=N_ITEMS
-   if (UPDLIST .eq. 0) then
-      print *, ' NO UPDATES TO DO : ---- RETURN'
+   if (UPDLIST == 0) then
+      write(*,*) ' NO UPDATES TO DO : ---- RETURN'
       return
    endif
    do K=1,UPDLIST
@@ -1590,7 +1594,7 @@ END subroutine SQL2OBS_CONV
    CHTIME=SQL_QUERY_CH(db,"PRAGMA PAGE_SIZE = 4096")
    CHTIME=SQL_QUERY_CH(db,"PRAGMA cache_size=500000")
 
-   print *, ' NUMBER OF HEADERS in obsdat    =',obs_numHeader(obsdat)
+   write(*,*) ' NUMBER OF HEADERS in obsdat    =',obs_numHeader(obsdat)
 !---------------------------------------------------------------------------
 ! Begin transaction 
 !---------------------------------------------------------------------------
@@ -1683,7 +1687,7 @@ END subroutine SQL2OBS_CONV
    END SUBROUTINE updsql
 !  =====================
 
-   subroutine insertsql(db,obsdat,file_numb)
+   subroutine insertsql(db,obsdat,familyType,fileName,file_numb)
       !
       !   Purpose : INSERT NEW DATA ROWS INTO SQLITE FILES
       !
@@ -1703,10 +1707,13 @@ END subroutine SQL2OBS_CONV
       !
 
    implicit none
-   type(struct_obs)                         :: obsdat
-
-! type for SQLIte  file handle
-   type(fSQL_DATABASE)                      :: db
+   ! arguments
+   ! type for SQLIte  file handle
+   type(fSQL_DATABASE)    :: db
+   type(struct_obs)       :: obsdat
+   character(len=*)       :: familyType
+   character(len=*)       :: fileName
+   integer                :: file_numb
 
 ! type for precompiled SQLite statements
    type(fSQL_STATEMENT)                     :: stmt
@@ -1714,14 +1721,14 @@ END subroutine SQL2OBS_CONV
 !type for error status
    type(fSQL_STATUS)                        :: stat
 
-   character(len  =   2)                    :: famtyp
+!! SSN   character(len  =   2)                    :: famtyp
 
 !---------------------------------------------------------------
 !  local  variables 
    integer*4                        :: ID_OBS,VARNO,FLAG,VCOORD_TYPE ! 
    real*4                           :: OBSV,OMA,OMP,OER,FGE,PPP
    integer*4                        :: NINSERT ! 
-   integer*4                        :: nlv,rln ,id_data,ilast,file_numb,idf
+   integer*4                        :: nlv,rln ,id_data,ilast,idf
    character(len  = 128)            :: query
    logical                          :: LLOK
 
@@ -1730,18 +1737,25 @@ END subroutine SQL2OBS_CONV
    
 
 !!!   FAMTYP=sqlite_cfamtyp(FILE_NUMB)
-   FAMTYP="SFC"
-   NELE_INS=2
-   LISTELE_INS(1)=11215
-   LISTELE_INS(2)=11216
+!!! SSN   FAMTYP="SFC"
+!   NELE_INS=2
+!   LISTELE_INS(1)=11215
+!   LISTELE_INS(2)=11216
+   if (trim(familyType)=='SF') then
+     NELE_INS=2
+     LISTELE_INS(1)=11215
+     LISTELE_INS(2)=11216
+   endif
+ 
    WRITE(*,*)  ' ---INSERTSQL ---   '
-   WRITE(*,*)' FAMILY ---> ' ,FAMTYP, '  NSTNS  ----> ', obs_numHeader(obsdat)
+   WRITE(*,*)' FAMILY ---> ' , familyType, '  NSTNS  ----> ', obs_numHeader(obsdat)
 
 !---- Print   new elements to be inserted into database
    WRITE( *,*)' INSERT INTO SQLITE FILE ELEMENTS :--> ',(LISTELE_INS(j),j=1,NELE_INS)
 !-------------------------------------- 
 
-   SELECT CASE(FAMTYP)
+   !!! SSN SELECT CASE(FAMTYP)
+   SELECT CASE(trim(familyType))
      CASE('SF','SC')
       query = ' insert into data (id_obs,varno,vcoord,obsvalue,flag,oma,omp,fg_error,obs_error) VALUES(?,?,?,?,?,?,?,?,?); '
      CASE DEFAULT
@@ -1751,7 +1765,7 @@ END subroutine SQL2OBS_CONV
    query=trim(query)
 
    write(*,*) ' QUERY    = ',TRIM(query)
-   write(*,*) ' FAMILLE  = ',FAMTYP
+   write(*,*) ' FAMILLE  = ',trim(familyType)
 
 ! Begin  transaction 
 !------------------------------------------------------------------------------------
@@ -1793,12 +1807,13 @@ END subroutine SQL2OBS_CONV
            DO JELE=1,NELE_INS
              IF (VARNO .eq. LISTELE_INS(JELE) ) LLOK=.TRUE.
            END DO
-       IF ( ID_DATA   .eq. -1 ) then
+       IF ( ID_DATA == -1 ) then
 !           IF ( ID_DATA   .gt. 0 ) then
            IF ( LLOK ) THEN
 ! print *, ' JO id_obs id_data VARNO LLOK  =', JO,ID_OBS,ID_DATA,VARNO,LLOK 
 !=========================================================================================
-             SELECT CASE(FAMTYP)
+             !!!! SSN SELECT CASE(FAMTYP)
+             SELECT CASE(trim(familyType))
               CASE('SF','SC')
                CALL fSQL_bind_param( stmt, PARAM_INDEX = 1, INT_VAR  = ID_OBS)
                CALL fSQL_bind_param( stmt, PARAM_INDEX = 2, INT_VAR  = VARNO )
@@ -1839,7 +1854,8 @@ END subroutine SQL2OBS_CONV
      CALL fSQL_finalize( stmt )
      CALL fSQL_commit(db)
 !------------------------------------------------------------------------------------
-     WRITE(*,*)' FAMILY ---> ' ,FAMTYP, '  NUMBER OF INSERTIONS ----> ',NINSERT
+!!! SSN     WRITE(*,*)' FAMILY ---> ' ,FAMTYP, '  NUMBER OF INSERTIONS ----> ',NINSERT
+     WRITE(*,*)' FAMILY ---> ' ,trim(familyType), '  NUMBER OF INSERTIONS ----> ',NINSERT
 
 !  ========================
    END SUBROUTINE INSERTSQL

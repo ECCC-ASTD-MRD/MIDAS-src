@@ -26,7 +26,7 @@ module obsUtil_mod
   
   use obsSpaceData_mod
   use bufr_mod
-  use MathPhysConstants_mod, only: MPC_DEGREES_PER_RADIAN_R8, MPC_RADIANS_PER_DEGREE_R8
+  use MathPhysConstants_mod
   use codePrecision_mod
   use EarthConstants_mod, only:  GRAV
 
@@ -35,7 +35,7 @@ module obsUtil_mod
   private
   
   ! public procedures
-  public :: VINT3DFD, SETASSFLG, FLAGUVTOFD_OBSDAT, FDTOUV_OBSDAT, ADJUST_HUM_GZ, ADJUST_SFVCOORD
+  public :: VINT3DFD, SETASSFLG, FLAGUVTOFD_OBSDAT, FDTOUV_OBSDAT, ADJUST_HUM_GZ, ADJUST_SFVCOORD, set_err_gbgps
 
   contains
 
@@ -820,6 +820,64 @@ module obsUtil_mod
       write(*,*)' DONE   ADJUST_HUM_GZ '
 
   end subroutine adjust_hum_gz
+
+  subroutine  set_err_gbgps(obsdat,start,end)
+!**s/r SET_ERR_GBGPS  - SET INITIAL ERROR FRO GROUND BASED GPS
+!
+!
+!Author  : P. Koclas *CMC/CMDA  July 2013
+!Revision:
+!
+!*    Purpose:  - PUT 15032 observation element as error of 15031 element  in obsdat
+!
+!
+!Arguments
+! 
+!               INPUT:
+!                  -OBSDAT    : instance of obsspace_data module object
+!                  -START     : FIRST OBERVATION
+!                  -END       : LAST  OBERVATION
+!
+      implicit none
+      real(obs_real)    :: obsv
+      integer  :: start,end
+
+      integer  :: j,jo,rln,nlv
+      integer  :: varno
+      type (struct_obs), intent(inout):: obsdat
+
+      write(*,*)'   SET_ERR_GBGPS '
+
+      do jo = start, end
+        rln = obs_headElem_i(obsdat,OBS_RLN,jo)
+        nlv = obs_headElem_i(obsdat,OBS_NLV,jo)
+
+        obsv = real(MPC_missingValue_R8,obs_real)
+        do j = rln, nlv + rln -1
+
+          varno = obs_bodyElem_i(obsdat,OBS_VNM,j)
+          if ( varno == 15032 ) then
+             obsv = obs_bodyElem_r(obsdat,OBS_VAR,j)
+             call obs_bodySet_i(obsdat,OBS_VNM,j,999 )
+             exit
+          end if
+
+        end do
+        do j = rln, nlv + rln -1
+
+          varno = obs_bodyElem_i(obsdat,OBS_VNM,j)
+          if ( varno == 15031 .and. obsv /= real(MPC_missingValue_R8,obs_real)) then
+             call obs_bodySet_r(obsdat,OBS_OER,j,obsv)
+             exit
+          end if
+
+        end do
+
+      end do
+
+      write(*,*)' DONE   SET_ERR_GBGPS '
+
+  end subroutine set_err_gbgps
 
 
 
