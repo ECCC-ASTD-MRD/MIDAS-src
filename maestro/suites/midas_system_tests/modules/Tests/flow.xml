@@ -38,6 +38,11 @@
         <SUBMITS sub_name="UnitTest"/>
         <MODULE  name="UnitTest"/>
       </FAMILY>
+      <SUBMITS sub_name="96mem_ppp_sqlite"/>
+      <FAMILY  name="96mem_ppp_sqlite">
+        <SUBMITS sub_name="UnitTest_sqlite"/>
+        <MODULE  name="UnitTest_sqlite"/>
+      </FAMILY>
       <SUBMITS sub_name="2D_ppp"/>
       <FAMILY  name="2D_ppp">
         <SUBMITS sub_name="UnitTest"/>
