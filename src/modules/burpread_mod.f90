@@ -29,6 +29,8 @@ use ObsSpaceData_mod
 use MathPhysConstants_mod
 use earthconstants_mod
 use utilities_mod
+use obsUtil_mod
+
 implicit none
 save
 
@@ -2609,59 +2611,6 @@ CONTAINS
   END SUBROUTINE brpr_readBurp
 
 
-  integer function cvt_burp_instrum(sensor)
-    !
-    ! func CVT_BURP_INSTRUM : Map burp satellite sensor indicator (element #2048) to
-    !                         the corresponding burp satellite instrument (element
-    !                         #2019).
-    !
-    ! Author  : J. Halle CMDA/SMC May 2002
-    ! Revision:
-    !           J.W. Blezius ARMA Feb 2011 - converted from subroutine to a function
-    !
-    !     Purpose:  Map burp satellite sensor indicator (element #2048) to
-    !               burp satellite instrument (element #2019). This is a more
-    !               complete common element, allowing for future expansion.
-    !
-    !               Table of BURP satellite sensor indicator element #002048
-    !               --------------------------------------------------------
-    !               Satellite sensor     BURP satellite sensor indicator
-    !               ----------------     -------------------------------
-    !               HIRS                 0
-    !               MSU                  1
-    !               SSU                  2
-    !               AMSUA                3
-    !               AMSUB                4
-    !               AVHRR                5
-    !               SSMI                 6
-    !               NSCAT                7
-    !               SEAWINDS             8
-    !               Reserved             9-14
-    !               Missing value        15
-    !
-
-    implicit none
-    integer :: sensor      ! BURP satellite sensor indicator (element #2048)
-    integer :: instrument  ! BURP satellite instrument       (element #2019)
-
-    select case (sensor)
-      case (000);   instrument=606  ! HIRS
-      case (001);   instrument=623  ! MSU
-      case (002);   instrument=627  ! SSU
-      case (003);   instrument=570  ! AMSUA
-      case (004);   instrument=574  ! AMSUB
-      case (005);   instrument=591  ! AVHRR
-      case (006);   instrument=905  ! SSMI
-      case (007);   instrument=312  ! NSCAT
-      case (008);   instrument=313  ! SEAWINDS
-      case (015);   instrument=2047 ! Missing value
-      case default; instrument=2047 ! Unrecognized value
-    end select
-
-    cvt_burp_instrum = instrument
-    return
-
-  end function cvt_burp_instrum
 
 
   FUNCTION WRITE_BODY(obsdat,FAMTYP, ELEV,VERTCOORD,VCOORD_TYPE, &
@@ -3144,7 +3093,7 @@ CONTAINS
         INSTRUMENT=0
       END IF
     ELSE
-      INSTRUMENT = cvt_burp_instrum(sensor)
+      INSTRUMENT = cvt_obs_instrum(sensor)
     END IF
 
     ! AIRS

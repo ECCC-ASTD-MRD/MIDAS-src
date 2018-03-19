@@ -29,10 +29,11 @@ use mpi_mod
 use fSQLite
 use MathPhysConstants_mod
 use mpivar_mod
+use obsUtil_mod
 
 implicit none
 !------------------------------------------------------------------------------------------
-private            :: cvt_burp_instrum,handle_error,GEN_HEADER,GEN_INFO,GEN_DATA
+private            :: handle_error,GEN_HEADER,GEN_INFO,GEN_DATA
 public             :: SQL2OBS_TOVS, SQL2OBS_CONV, SQL_QUERY_CH,INSERTSQL,SQL2OBS_NML
 !------------------------------------------------------------------------------------------
 
@@ -589,7 +590,7 @@ CONTAINS
              INSTRUMENT=0
           endif
        else
-          INSTRUMENT = cvt_burp_instrum2(sensor)
+          INSTRUMENT = cvt_obs_instrum(sensor)
        endif
 
      ENDIF
@@ -1338,115 +1339,6 @@ END subroutine SQL2OBS_CONV
 !  ==============================
    end function   SQL_QUERY_CH
 !  ==============================
-  integer function cvt_burp_instrum2(sensor)
-    !
-    ! func CVT_BURP_INSTRUM : Map burp satellite sensor indicator (element #2048) to
-    !                         the corresponding burp satellite instrument (element
-    !                         #2019).
-    !
-    ! Author  : J. Halle CMDA/SMC May 2002
-    ! Revision:
-    !           J.W. Blezius ARMA Feb 2011 - converted from subroutine to a function
-    !
-    !     Purpose:  Map burp satellite sensor indicator (element #2048) to
-    !               burp satellite instrument (element #2019). This is a more
-    !               complete common element, allowing for future expansion.
-    !
-    !               Table of BURP satellite sensor indicator element #002048
-    !               --------------------------------------------------------
-    !               Satellite sensor     BURP satellite sensor indicator
-    !               ----------------     -------------------------------
-    !               HIRS                 0
-    !               MSU                  1
-    !               SSU                  2
-    !               AMSUA                3
-    !               AMSUB                4
-    !               AVHRR                5
-    !               SSMI                 6
-    !               NSCAT                7
-    !               SEAWINDS             8
-    !               Reserved             9-14
-    !               Missing value        15
-    !
-
-    implicit none
-    integer :: sensor      ! BURP satellite sensor indicator (element #2048)
-    integer :: instrument  ! BURP satellite instrument       (element #2019)
-
-    select case (sensor)
-      case (000);   instrument=606  ! HIRS
-      case (001);   instrument=623  ! MSU
-      case (002);   instrument=627  ! SSU
-      case (003);   instrument=570  ! AMSUA
-      case (004);   instrument=574  ! AMSUB
-      case (005);   instrument=591  ! AVHRR
-      case (006);   instrument=905  ! SSMI
-      case (007);   instrument=312  ! NSCAT
-      case (008);   instrument=313  ! SEAWINDS
-      case (015);   instrument=2047 ! Missing value
-      case default; instrument=2047 ! Unrecognized value
-    end select
-
-    cvt_burp_instrum2 = instrument
-    return
-
-  end function cvt_burp_instrum2
-
-   integer function cvt_burp_instrum(sensor)
-      !
-      ! func CVT_BURP_INSTRUM : Map burp satellite sensor indicator (element #2048) to
-      !                         the corresponding burp satellite instrument (element
-      !                         #2019).
-      !
-      ! Author  : J. Halle CMDA/SMC May 2002
-      ! Revision:
-      !           J.W. Blezius ARMA Feb 2011 - converted from subroutine to a function
-      !
-      !     Purpose:  Map burp satellite sensor indicator (element #2048) to
-      !               burp satellite instrument (element #2019). This is a more
-      !               complete common element, allowing for future expansion.
-      !
-      !               Table of BURP satellite sensor indicator element #002048
-      !               --------------------------------------------------------
-      !               Satellite sensor     BURP satellite sensor indicator
-      !               ----------------     -------------------------------
-      !               HIRS                 0
-      !               MSU                  1
-      !               SSU                  2
-      !               AMSUA                3
-      !               AMSUB                4
-      !               AVHRR                5
-      !               SSMI                 6
-      !               NSCAT                7
-      !               SEAWINDS             8
-      !               Reserved             9-14
-      !               Missing value        15
-      !
-   implicit none
-   integer :: sensor      ! BURP satellite sensor indicator (element #2048)
-   integer :: instrument  ! BURP satellite instrument       (element #2019)
-
-   select case (sensor)
-      case (000);   instrument=606  ! HIRS
-      case (001);   instrument=623  ! MSU
-      case (002);   instrument=627  ! SSU
-      case (003);   instrument=570  ! AMSUA
-      case (004);   instrument=574  ! AMSUB
-      case (005);   instrument=591  ! AVHRR
-      case (006);   instrument=905  ! SSMI
-      case (007);   instrument=312  ! NSCAT
-      case (008);   instrument=313  ! SEAWINDS
-      case (015);   instrument=2047 ! Missing value
-      case default; instrument=2047 ! Unrecognized value
-   end select
-
-!==================================
-   cvt_burp_instrum = instrument
-!==================================
-   return
-!  =============================
-   end function cvt_burp_instrum
-!  =============================
 
    subroutine handle_error(stat, message)
       !
