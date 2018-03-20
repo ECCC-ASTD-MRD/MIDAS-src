@@ -100,6 +100,8 @@ module chem_setup_mod
                                                    ! Value to be increased as needed up to a max of 6999 as values
                                                    ! > 7000 (and less 0) are assumed assigned to non-constituent fields  
   integer, parameter :: chm_filename_size=50       ! Max size of *_filename 
+  character(len=chm_filename_size), parameter :: chm_aux_filename="obsinfo_chm"  ! auxiliary file name with supplimental
+                                                                                 ! observational information
 
 ! module structures
 ! -----------------
@@ -157,7 +159,7 @@ module chem_setup_mod
      !                           5 - not provided with obs. Obs is a surface point value.
      !  iavgkern               Integer indicating if averaging kernels are to be applied. Value
      !                         of zero indicates no averaging kernel to be applied. Non-zero value
-     !                         indicates index in chm_avgkern,chm_burp_avgkern arrays.
+     !                         indicates index in chm_avgkern,chm_obsSub_avgkern arrays.
      !  apply_genoper          Indicates if the generalized observation operator should be applied
      !  column_bound           Boudary imporsed on a column measurement
      !  dtransform             Derivative for any transform that needs to be applied to a profile
@@ -175,17 +177,17 @@ module chem_setup_mod
   end type struct_chm_obsoperators
 
   type :: struct_chm_info
-     !  Information arrays retrieved from file obsinfo_chm regarding vertical levels 
+     !  Information arrays retrieved from auxiliary file regarding vertical levels 
      !  or averaging kernels
      !
      !  Variable               Description
      !  --------               -----------
      !  n_stnid                Number of sub-families (identified via STNIDs)
      !  stnids                 Sub-families (STNIDs; * are wild cards)
-     !  bfr                    BUFR/BURP element in data block
-     !  brp                    0: Set entirely from the ascii file being read. No 
-     !                            initial values read from BURP files
-     !                         1: Initial values in obs BURP files for constant number
+     !  element                BUFR element in data block
+     !  source                 0: Set entirely from the auxiliary file being read. No 
+     !                            initial values read from observation files
+     !                         1: Initial values in observation files for constant number
      !                            of vertical levels (may be adjusted after input)
      !  vco                    Vertical coordinate type (1, 2, or 3, see bufr_read_mod)
      !
@@ -201,7 +203,7 @@ module chem_setup_mod
      
      integer ::  n_stnid
      character(len=12), allocatable :: stnids(:)
-     integer, allocatable :: bfr(:),brp(:)
+     integer, allocatable :: element(:),source(:)
      integer, allocatable :: vco(:),n_lat(:)
      integer, allocatable :: ibegin(:),n_lvl(:)
      real(8), allocatable :: rak(:),vlayertop(:),vlayerbottom(:)
@@ -241,11 +243,11 @@ module chem_setup_mod
   type(struct_chm_info) :: chm_layers
   type(struct_chm_info) :: chm_avgkern
 
-! Array of pointers to averaging kernels read from BURP file.
+! Array of pointers to averaging kernels read from observation files.
 ! Note: Ideally, these should be an element in the 'struct_chm_info' derived 
 ! types, but currently this result in an internal compiler error.
 
-  type(struct_oss_obsdata), allocatable :: chm_burp_avgkern(:)
+  type(struct_oss_obsdata), allocatable :: chm_obsSub_avgkern(:)
 
 ! Arrays containing input reference fields and fields interpolated 
 ! to obs locations
@@ -354,7 +356,7 @@ contains
 !!            - Added reading of variables related to options for attributing only 
 !!              tropospheric portion of the increment to total column observations
 !!            M. Sitwell, ARQI/AQRD, Oct 2015
-!!            - Moved amu from obsinfo_chm to namelist namchem    
+!!            - Moved amu from auxiliary file to namelist namchem    
 !!
 !! Output:
 !!
@@ -548,9 +550,9 @@ contains
 !!          
 !! Comments:
 !!
-!!v A) The option of reading from BURP files is TBD. This will change the approach in allocating
+!!v A) The option of reading from observation files is TBD. This will change the approach in allocating
 !!v    the arrays size as the sizes will become dependent on the number of related obs for
-!!v    which the BURP files will need to be read.
+!!v    which the observation files will need to be read.
 !!
 !----------------------------------------------------------------------------------------
   subroutine chm_read_layers
@@ -569,22 +571,22 @@ contains
 
   chm_layers%n_stnid=0
 
-  INQUIRE(FILE='obsinfo_chm',EXIST=LnewExists)
+  INQUIRE(FILE=trim(chm_aux_filename),EXIST=LnewExists)
   IF (.not.LnewExists )then
-    WRITE(*,*)   '-------------------------------------------------'
-    WRITE(*,*)   'chm_read_layers: COULD NOT FIND FILE obsinfo_chm!'
-    WRITE(*,*)   '-------------------------------------------------'
+    WRITE(*,*)   '----------------------------------------------'
+    WRITE(*,*)   'chm_read_layers: COULD NOT FIND AUXILIARY FILE ' // trim(chm_aux_filename)
+    WRITE(*,*)   '----------------------------------------------'
     return
   ENDIF
 !
 ! Check for available layer info.
 !
   NULSTAT=0
-  IERR=FNOM(NULSTAT,'obsinfo_chm','SEQ',0)
+  IERR=FNOM(NULSTAT,trim(chm_aux_filename),'SEQ',0)
   IF ( IERR .EQ. 0 ) THEN
-    open(unit=nulstat, file='obsinfo_chm', status='OLD')
+    open(unit=nulstat, file=trim(chm_aux_filename), status='OLD')
   ELSE
-    CALL utl_abort('chm_read_layers: COULD NOT OPEN FILE obsinfo_chm!')
+    CALL utl_abort('chm_read_layers: COULD NOT OPEN AUXILIARY FILE ' // trim(chm_aux_filename))
   ENDIF
 
   ios=0
@@ -600,13 +602,13 @@ contains
 
   allocate(chm_layers%stnids(chm_layers%n_stnid))
   allocate(chm_layers%vco(chm_layers%n_stnid))
-  allocate(chm_layers%brp(chm_layers%n_stnid),chm_layers%ibegin(chm_layers%n_stnid))
-  allocate(chm_layers%bfr(chm_layers%n_stnid),chm_layers%n_lvl(chm_layers%n_stnid))
+  allocate(chm_layers%source(chm_layers%n_stnid),chm_layers%ibegin(chm_layers%n_stnid))
+  allocate(chm_layers%element(chm_layers%n_stnid),chm_layers%n_lvl(chm_layers%n_stnid))
   allocate(chm_layers%vlayertop(isize),chm_layers%vlayerbottom(isize))
  
-  chm_layers%bfr(:)=0
+  chm_layers%element(:)=0
   chm_layers%vco(:)=0
-  chm_layers%brp(:)=0
+  chm_layers%source(:)=0
   chm_layers%n_lvl(:)=1
 
 ! Begin reading for each sub-family
@@ -625,15 +627,15 @@ contains
 
 !   Read (1) Obs BUFR element.
 !        (2) Vertical coord type (1, 2, or 3)
-!        (3) Flag indication if EOR provided from this ascii file or
-!            to be read from the BURP file,
+!        (3) Flag indication if EOR provided from this auxiliary file or
+!            to be read from the observation file,
 !        (4) Number of vertical levels
 !
 !   Important: Combination of STNID, BUFR element and number of vertical levels
 !              to determine association to the observations.
 !
-    read(nulstat,*,iostat=ios,err=10,end=10) chm_layers%bfr(jelm),chm_layers%vco(jelm),  &
-       chm_layers%brp(jelm),chm_layers%n_lvl(jelm)  
+    read(nulstat,*,iostat=ios,err=10,end=10) chm_layers%element(jelm),chm_layers%vco(jelm),  &
+       chm_layers%source(jelm),chm_layers%n_lvl(jelm)  
     
     if (icount+chm_layers%n_lvl(jelm).gt.isize) then
        write(*,'(10X,"Max array size exceeded: ",I6)') isize
@@ -653,9 +655,9 @@ contains
        end do
     end if
 
-!    if (chm_layers%brp(jelm).eq.1) then
+!    if (chm_layers%source(jelm).eq.1) then
 !    
-!      Read from BURP files
+!      Read from observation files
 !
 !      .....
 !
@@ -677,10 +679,10 @@ contains
 !
 ! SUBROUTINE chm_get_layer_boundaries
 !!
-!! *Purpose*: Return layer boundaries for an observation. Combination of STNID, BUFR element
-!!            and number of vertical levels to determine association to the observations.
-!!          Default values for top and bottom layers for total column measurements are to
-!!          be provided.
+!! *Purpose*: Return layer boundaries for an observation. Combination of STNID, element
+!!            variable number and number of vertical levels to determine association to the
+!!            observations. Default values for top and bottom layers for total column measurements
+!!            are to be provided.
 !!
 !! @author M. Sitwell, Y. Rochon, Feb 2015
 !!
@@ -688,7 +690,7 @@ contains
 !!
 !! Inputs:
 !!v   - cstnid          station id
-!!v   - varno           BUFR descriptor element
+!!v   - varno           BUFR element
 !!v   - ivco            type of vertical coordinate (see burpread_mod.ftn90 or
 !!v                     routine chm_obsoperators for definitions)
 !!v   - nlev            number of levels in the observation
@@ -729,7 +731,7 @@ contains
        ! If number of levels is one and no vertical coordinate provided for total column measurement (i.e. IVCO.eq.4),
        ! then check of vertical coordinate type is disregarded afterwards.
        IF (iset) THEN
-          IF ( varno.EQ.chm_layers%bfr(JN) .AND. NLEV.EQ.chm_layers%n_lvl(JN) .AND. &
+          IF ( varno.EQ.chm_layers%element(JN) .AND. NLEV.EQ.chm_layers%n_lvl(JN) .AND. &
               (IVCO.EQ.chm_layers%vco(JN).OR.IVCO.EQ.4) ) THEN
              ISTNID=JN
              exit
@@ -749,7 +751,7 @@ contains
        end if
 
     ELSE
-       ! layer information has been found in ascii file
+       ! layer information has been found in auxiliary file
        lfound=.true.
        start_index = chm_layers%ibegin(ISTNID)
        layertop(:) = chm_layers%vlayertop(start_index:start_index+nlev-1)
@@ -784,7 +786,7 @@ contains
 !  
 ! SUBROUTINE chm_read_avgkern
 !!
-!! *Purpose*:  Read averaging kernels from ascii file and BURP file if specified in ascii file
+!! *Purpose*:  Read averaging kernels from auxiliary file or observation file.
 !!
 !! @author M. Sitwell, ARQI/AQRD, March 2015
 !!
@@ -795,23 +797,27 @@ contains
 
     implicit none
 
+    integer, parameter :: bufr_avgkern=15044
+    integer, parameter :: ndim=2
+
     integer :: istnid
 
     if ( .not.obsf_fileTypeIsBurp() ) call utl_abort('chm_read_avgkern: only compatible with BURP files')
 
-    ! read the averaging kernel information from the ascii file
-    call chm_read_avgkern_ascii
+    ! read the averaging kernel information from the auxiliary file
+    call chm_read_avgkern_auxfile
 
-    ! set size of BURP file array
-    allocate(chm_burp_avgkern(chm_avgkern%n_stnid))
+    ! set size of observation file array
+    allocate(chm_obsSub_avgkern(chm_avgkern%n_stnid))
 
-    ! read from BURP file
+    ! read from observation file
     do istnid=1,chm_avgkern%n_stnid
-       if (chm_avgkern%brp(istnid).eq.1) then
+       if (chm_avgkern%source(istnid).eq.1) then
           
           ! retrieve data from stats blocks (with bkstp=14 and block_type='DATA')
-          chm_burp_avgkern(istnid) = brpf_chem_read_all('CH',chm_avgkern%stnids(istnid), &
-               15044, chm_avgkern%n_lvl(istnid), 2, 14, 'DATA', match_nlev=.true.)
+          chm_obsSub_avgkern(istnid) = obsf_obsSub_read('CH',chm_avgkern%stnids(istnid),bufr_avgkern, &
+                                     chm_avgkern%n_lvl(istnid), ndim, bkstp_opt=14, &
+                                     block_opt='DATA', match_nlev_opt=.true.)
           
        end if
     end do
@@ -820,7 +826,7 @@ contains
 
 !---------------------------------------------------------------------------------------
 !
-! SUBROUTINE chm_read_avgkern_ascii
+! SUBROUTINE chm_read_avgkern_auxfile
 !!
 !! *Purpose*: Read and store averaging kernel matricesfor CH sub-families
 !!
@@ -830,7 +836,7 @@ contains
 !! Revisions: 
 !!          
 !----------------------------------------------------------------------------------------
-  subroutine chm_read_avgkern_ascii
+  subroutine chm_read_avgkern_auxfile
 
   implicit none
 
@@ -846,22 +852,22 @@ contains
 
   chm_avgkern%n_stnid=0
 
-  INQUIRE(FILE='obsinfo_chm',EXIST=LnewExists)
+  INQUIRE(FILE=trim(chm_aux_filename),EXIST=LnewExists)
   IF (.not.LnewExists )then
-    WRITE(*,*)   '--------------------------------------------------'
-    WRITE(*,*)   'chm_read_avgkern_ascii: COULD NOT FIND FILE obsinfo_chm!'
-    WRITE(*,*)   '--------------------------------------------------'
+    WRITE(*,*)   '--------------------------------------------------------'
+    WRITE(*,*)   'chm_read_avgkern_auxfile: COULD NOT FIND AUXILIARY FILE ' // trim(chm_aux_filename)
+    WRITE(*,*)   '--------------------------------------------------------'
     return
   ENDIF
 !
 ! Check for available layer info.
 !
   NULSTAT=0
-  IERR=FNOM(NULSTAT,'obsinfo_chm','SEQ',0)
+  IERR=FNOM(NULSTAT,trim(chm_aux_filename),'SEQ',0)
   IF ( IERR .EQ. 0 ) THEN
-    open(unit=nulstat, file='obsinfo_chm', status='OLD')
+    open(unit=nulstat, file=trim(chm_aux_filename), status='OLD')
   ELSE
-    CALL utl_abort('chm_read_avgkern_ascii: COULD NOT OPEN FILE obsinfo_chm!')
+    CALL utl_abort('chm_read_avgkern_auxfile: COULD NOT OPEN AUXILIARY FILE ' // trim(chm_aux_filename))
   ENDIF
 
   ios=0
@@ -876,12 +882,12 @@ contains
   read(nulstat,*,iostat=ios,err=10,end=10) isize
 
   allocate(chm_avgkern%stnids(chm_avgkern%n_stnid))
-  allocate(chm_avgkern%brp(chm_avgkern%n_stnid),chm_avgkern%ibegin(chm_avgkern%n_stnid))
-  allocate(chm_avgkern%bfr(chm_avgkern%n_stnid),chm_avgkern%n_lvl(chm_avgkern%n_stnid))
+  allocate(chm_avgkern%source(chm_avgkern%n_stnid),chm_avgkern%ibegin(chm_avgkern%n_stnid))
+  allocate(chm_avgkern%element(chm_avgkern%n_stnid),chm_avgkern%n_lvl(chm_avgkern%n_stnid))
   allocate(chm_avgkern%rak(isize))
  
-  chm_avgkern%bfr(:)=0
-  chm_avgkern%brp(:)=0
+  chm_avgkern%element(:)=0
+  chm_avgkern%source(:)=0
   chm_avgkern%n_lvl(:)=1
 
 ! Begin reading for each sub-family
@@ -899,25 +905,25 @@ contains
     read(nulstat,'(2X,A9)',iostat=ios,err=10,end=10) chm_avgkern%stnids(jelm) 
 
 !   Read (1) Obs BUFR element.
-!        (2) Flag indication if avgkern provided from this ascii file or
-!            to be read from the BURP file,
+!        (2) Flag indication if avgkern provided from this auxiliary file or
+!            to be read from an observation file,
 !        (3) Number of vertical levels
 !
 !   Important: Combination of STNID, BUFR element and number of vertical levels
 !              to determine association to the observations.
 !
-    read(nulstat,*,iostat=ios,err=10,end=10) chm_avgkern%bfr(jelm),  &
-       chm_avgkern%brp(jelm),chm_avgkern%n_lvl(jelm)  
+    read(nulstat,*,iostat=ios,err=10,end=10) chm_avgkern%element(jelm),  &
+       chm_avgkern%source(jelm),chm_avgkern%n_lvl(jelm)  
     
     if (icount+chm_avgkern%n_lvl(jelm).gt.isize) then
        write(*,'(10X,"Max array size exceeded: ",I6)') isize
-       CALL utl_abort('chm_read_avgkern_ascii: READING PROBLEM.')    
+       CALL utl_abort('chm_read_avgkern_auxfile: READING PROBLEM.')    
     end if
 
     read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
 
     ! disregard data section if values to be specified in BUFR file
-    if (chm_avgkern%brp(jelm).eq.1) cycle STNIDLOOP
+    if (chm_avgkern%source(jelm).eq.1) cycle STNIDLOOP
     
     if (chm_avgkern%n_lvl(jelm).gt.1) then   
        do jlev=1,chm_avgkern%n_lvl(jelm)
@@ -936,13 +942,13 @@ contains
    
  10 if (ios.gt.0) then
        WRITE(*,*) 'File read error message number: ',ios
-       CALL utl_abort('chm_read_avgkern_ascii: READING PROBLEM')    
+       CALL utl_abort('chm_read_avgkern_auxfile: READING PROBLEM')    
     end if
  
  11 CLOSE(UNIT=NULSTAT)
     IERR=FCLOS(NULSTAT)    
 
-  end subroutine chm_read_avgkern_ascii
+  end subroutine chm_read_avgkern_auxfile
 
 !----------------------------------------------------------------------------------------
 !
@@ -963,11 +969,11 @@ contains
 
     if (chm_avgkern%n_stnid.eq.0) return
 
-    if (allocated(chm_burp_avgkern)) then
+    if (allocated(chm_obsSub_avgkern)) then
        do istnid=1,chm_avgkern%n_stnid
-          if (chm_avgkern%brp(istnid).eq.1) call oss_obsdata_dealloc(chm_burp_avgkern(istnid))
+          if (chm_avgkern%source(istnid).eq.1) call oss_obsdata_dealloc(chm_obsSub_avgkern(istnid))
        end do
-       deallocate(chm_burp_avgkern)
+       deallocate(chm_obsSub_avgkern)
     end if
 
     call chm_dealloc_info(chm_avgkern)
@@ -1017,7 +1023,7 @@ contains
 
        ! Check if number of levels and BUFR code are equal.
        IF (iset) THEN
-          IF ( varno.EQ.chm_avgkern%bfr(JN) .AND. NLEV.EQ.chm_avgkern%n_lvl(JN) ) THEN
+          IF ( varno.EQ.chm_avgkern%element(JN) .AND. NLEV.EQ.chm_avgkern%n_lvl(JN) ) THEN
              ISTNID=JN
              exit
           END IF
@@ -1059,14 +1065,14 @@ contains
 
     if (istnid.gt.0 .and. istnid.le.chm_avgkern%n_stnid) then
        
-       if (chm_avgkern%brp(istnid).eq.0) then
-          ! get averaging kernel from ascii file
+       if (chm_avgkern%source(istnid).eq.0) then
+          ! get averaging kernel from auxiliary file
           start_index = chm_avgkern%ibegin(ISTNID)
           end_index = nlev*(start_index+nlev-1)
           avg_kern = RESHAPE(chm_avgkern%rak(start_index:end_index),(/nlev,nlev/),ORDER =(/2,1/))
        else
-          ! get averaging kernel from BURP file
-          avg_kern = oss_obsdata_get_array2d(chm_burp_avgkern(istnid), oss_obsdata_get_header_code(zlon,zlat,idate,itime,stnid))
+          ! get averaging kernel from observation file
+          avg_kern = oss_obsdata_get_array2d(chm_obsSub_avgkern(istnid), oss_obsdata_get_header_code(zlon,zlat,idate,itime,stnid))
        end if
 
     else
@@ -1080,11 +1086,12 @@ contains
 !  
 ! SUBROUTINE chm_read_ref_fields(datestamp)
 !!
-!! *Purpose*:  Read reference fields as directed by the content of the ascii file obsinfo_chm.
-!!             Fields are provided in RPN/fst files specified in the obsinfo_chm file (with path and filename)
+!! *Purpose*:  Read reference fields as directed by the content of the auxiliary file.
+!!             Fields are provided in RPN/fst files specified in the auxiliary file (with path
+!!             and filename)
 !!
-!!             Reference fields can be in a separate RPN file with name provided by obsinfo_chm or in
-!!             monthly static background stats file (glbchemcov or bgcov; see 'isrc' below).
+!!             Reference fields can be in a separate RPN file with name provided by the auxiliary
+!!             or in monthly static background stats file (glbchemcov or bgcov; see 'isrc' below).
 !!
 !! ****** NOT TESTED *********
 !!
@@ -1127,22 +1134,22 @@ contains
     chm_ref_fields(:,:)%nlat=0
     chm_ref_fields(:,:)%nlev=1
     
-    inquire(FILE='obsinfo_chm',EXIST=LExists)
+    inquire(FILE=trim(chm_aux_filename),EXIST=LExists)
     IF (.not.LExists )then
-      WRITE(*,*)   '-----------------------------------------------------'
-      WRITE(*,*)   'chm_read_ref_fields: COULD NOT FIND FILE obsinfo_chm!'
-      WRITE(*,*)   '-----------------------------------------------------'
+      WRITE(*,*)   '---------------------------------------------------'
+      WRITE(*,*)   'chm_read_ref_fields: COULD NOT FIND AUXILIARY FILE ' // trim(chm_aux_filename)
+      WRITE(*,*)   '---------------------------------------------------'
       return
     ENDIF
 
 !   Check for file names containing ref fields
 
     NULSTAT=0
-    IERR=FNOM(NULSTAT,'obsinfo_chm','SEQ',0)
+    IERR=FNOM(NULSTAT,trim(chm_aux_filename),'SEQ',0)
     IF ( IERR .EQ. 0 ) THEN
-       open(unit=nulstat, file='obsinfo_chm', status='OLD')
+       open(unit=nulstat, file=trim(chm_aux_filename), status='OLD')
     ELSE
-       CALL utl_abort('chm_read_ref_fields: COULD NOT OPEN FILE obsinfo_chm!')
+       CALL utl_abort('chm_read_ref_fields: COULD NOT OPEN AUXILIARY FILE ' // trim(chm_aux_filename))
     ENDIF
 
     ios=0
@@ -1179,7 +1186,7 @@ contains
     do i=1,ndim 
 
 !      Read id,nd,isrc. id: constituent code; nd: number of sets; 1 or 2;
-!      isrc: 1 for fname being in obsinfo_chm, 0 for glbchemcov (or bgcov if glbchemcov not present) 
+!      isrc: 1 for fname being in the auxiliary file, 0 for glbchemcov (or bgcov if glbchemcov not present) 
        
        read(nulstat,*,iostat=ios,err=10,end=10)
        read(nulstat,*,iostat=ios,err=10,end=10) id,nd,isrc    
@@ -1529,8 +1536,8 @@ contains
     type(struct_chm_info), intent(inout) :: info
 
     if (allocated(info%stnids))       deallocate(info%stnids)
-    if (allocated(info%bfr))          deallocate(info%bfr)
-    if (allocated(info%brp))          deallocate(info%brp)
+    if (allocated(info%element))      deallocate(info%element)
+    if (allocated(info%source))       deallocate(info%source)
     if (allocated(info%vco))          deallocate(info%vco)
     if (allocated(info%n_lat))        deallocate(info%n_lat)
     if (allocated(info%ibegin))       deallocate(info%ibegin)
@@ -1781,6 +1788,8 @@ contains
     select case(trim(stype))    
     case('message')
        val=message_filename
+    case('auxfile')
+       val=chm_aux_filename
     case default
        call utl_abort('chm_setup_get_str: Selection not found ' // trim(stype))
     end select
@@ -1992,7 +2001,8 @@ contains
     
     if (chm_efftemp%nrep.gt.0) then
         varno(1)=12001
-        nrep_modified = brpf_chem_update_all('CH',varno(1:max(1,chm_efftemp%dim2)),0,'INFO',chm_efftemp,multi_opt='UNI') 
+        nrep_modified = obsf_obsSub_update(chm_efftemp,'CH',varno(1:max(1,chm_efftemp%dim2)),bkstp_opt=0, &
+                                        block_opt='INFO',multi_opt='UNI') 
         write(*,*) 'chm_add_efftemp_obsfile: Added ',nrep_modified,' effective temperature values in the obs file.'
     end if 
 

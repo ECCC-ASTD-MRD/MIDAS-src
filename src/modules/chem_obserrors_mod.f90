@@ -34,7 +34,8 @@ module chem_obserrors_mod
   use burpFiles_mod    
   use obsFiles_mod
   use MathPhysConstants_mod
-  
+  use chem_setup_mod, only: chm_setup_get_str
+
   implicit none
   private
   
@@ -49,35 +50,34 @@ module chem_obserrors_mod
 
   type :: struct_chm_std
      !
-     ! Structure containing information retrieved from file obsinfo_chm for holding 
+     ! Structure containing information retrieved from auxiliary file for holding 
      ! observation std dev information
      !
      !  Variable               Description
      !  --------               -----------
      !  n_stnid                Number of sub-families (identified via STNIDs)
      !  stnids                 Sub-families (STNIDs; * are wild cards)
-     !  bfr                    BUFR/BURP element in data block 
-     !  brp                    0: Set entirely from the ascii file being read. No 
-     !                            initial values read from BURP files
-     !                         1: Initial values in obs BURP files 
+     !  element                BUFR element in data block 
+     !  source                 0: Set entirely from the auxiliary file being read. No 
+     !                            initial values read from observation files
+     !                         1: Initial values in observation files 
      !                            (may be adjusted after input)
-     !                         2: Initial values in obs BURP files for variable number
+     !                         2: Initial values in observation files for variable number
      !                            of vertical levels (for error std deviations only)
-     !  std_type               Index of setup approach (used in combination with
-     !                            nstd_brp_chm)
-     !                         For nstd_brp_chm value 0 or 1, 
-     !                         0: std1 or BURP file vales (sigma)
-     !                         1: max(std3,std2*ZVAL)  if brp=0
+     !  std_type               Index of setup approach (used in combination with source)
+     !                         For source value 0 or 1, 
+     !                         0: std1 or observation file values (sigma)
+     !                         1: max(std3,std2*ZVAL)  if source=0
      !                            max(std3,std2*sigma) otherwise
-     !                         2: sqrt(std3**2+(std2*ZVAL)**2))  if brp=0
+     !                         2: sqrt(std3**2+(std2*ZVAL)**2))  if source=0
      !                            sqrt(std3**2+(std2*sigma)**2)) otherwise
-     !                         3: min(std3,max(std2,std1_chm*ZVAL)) if brp=0
+     !                         3: min(std3,max(std2,std1_chm*ZVAL)) if source=0
      !                            min(std3,max(std2,std1_chm*sigma))  otherwise
-     !                         4: sqrt(std2**2+(std1*ZVAL)**2))  if brp=0 
+     !                         4: sqrt(std2**2+(std1*ZVAL)**2))  if source=0 
      !                            sqrt(std2**2+(std1*sigma)**2)) otherwise
      !  ibegin                 Position index of start of data for given
      !                         sub-family in the arrays std1,levels,lat
-     !  n_lvl                  Number of vertical levels (max number when brp=2)
+     !  n_lvl                  Number of vertical levels (max number when source=2)
      !  levels                 Vertical levels (in coordinate of sub-family data)
      !  n_lat                  Number of latitudes
      !  lat                    Latitudes (degrees; ordered in increasing size)
@@ -87,8 +87,8 @@ module chem_obserrors_mod
 
      integer ::  n_stnid
      character(len=12), allocatable :: stnids(:)
-     integer, allocatable :: bfr(:),std_type(:),n_lat(:)
-     integer, allocatable :: brp(:),ibegin(:),n_lvl(:)
+     integer, allocatable :: element(:),std_type(:),n_lat(:)
+     integer, allocatable :: source(:),ibegin(:),n_lvl(:)
      real(8), allocatable :: std1(:),std2(:),std3(:)
      real(8), allocatable :: levels(:),lat(:)
 
@@ -96,11 +96,11 @@ module chem_obserrors_mod
 
   type(struct_chm_std)  :: chm_std
  
-! Array of pointers to hold std's read from BURP file.
+! Array of pointers to hold std's read from observation files.
 ! Note: Ideally, these should be an element in the 'struct_chm_std' derived 
 ! types, but currently this result in an internal compiler error.
 
-  type(struct_oss_obsdata), allocatable :: chm_burp_std(:)
+  type(struct_oss_obsdata), allocatable :: chm_obsSub_std(:)
 
 contains
 
@@ -108,7 +108,7 @@ contains
 !
 ! SUBROUTINE chem_read_obs_err_stddev
 !!
-!! *Purpose*: Read observation errors from ascii file and BURP file if specified in ascii file.
+!! *Purpose*: Read observation errors from auxiliary file or observation file.
 !!
 !! @author M. Sitwell, March 2015
 !!
@@ -117,24 +117,25 @@ contains
 
     implicit none
 
+    integer, parameter :: ndim=1
     integer :: istnid
 
     if ( .not.obsf_fileTypeIsBurp() ) call utl_abort('chm_read_avgkern: only compatible with BURP files')
 
-    ! read the error std. dev. information from the ascii file
-    call chm_read_obs_err_stddev_ascii
+    ! read the error std. dev. information from the auxiliary file
+    call chm_read_obs_err_stddev_auxfile
 
-    ! set size of BURP file std array
-    allocate(chm_burp_std(chm_std%n_stnid))
+    ! set size of observation sub-space std array
+    allocate(chm_obsSub_std(chm_std%n_stnid))
 
-    ! read from BURP file
+    ! read from the observation file if requested
     do istnid=1,chm_std%n_stnid
-       if (chm_std%brp(istnid).ge.1) then
+       if (chm_std%source(istnid).ge.1) then
           
           ! retrieve data from stats blocks (with bkstp=14 and block_type='DATA')
-          chm_burp_std(istnid) = brpf_chem_read_all('CH',chm_std%stnids(istnid), &
-               chm_std%bfr(istnid), chm_std%n_lvl(istnid), 1, 14, 'DATA',       &
-               match_nlev=chm_std%brp(istnid).eq.1 )
+          chm_obsSub_std(istnid) = obsf_obsSub_read('CH',chm_std%stnids(istnid),chm_std%element(istnid), &
+                                 chm_std%n_lvl(istnid),ndim,bkstp_opt=14,block_opt='DATA', &
+                                 match_nlev_opt=chm_std%source(istnid).eq.1 )
 
        end if
     end do
@@ -143,14 +144,14 @@ contains
 
 !-------------------------------------------------------------------------
 !
-! SUBROUTINE chm_read_obs_err_stddev_ascii
+! SUBROUTINE chm_read_obs_err_stddev_auxfile
 !!
 !! *Purpose*:  Read and store observation error std. dev. as needed for CH family obs.
 !!
 !! @author Y. Rochon, Nov 2014
 !!
 !--------------------------------------------------------------------------
-  subroutine chm_read_obs_err_stddev_ascii
+  subroutine chm_read_obs_err_stddev_auxfile
 
   implicit none
 
@@ -169,24 +170,24 @@ contains
 ! CHECK THE EXISTENCE OF THE NEW FILE WITH STATISTICS
 ! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
-  INQUIRE(FILE='obsinfo_chm',EXIST=LnewExists)
+  INQUIRE(FILE=trim(chm_setup_get_str('auxfile')),EXIST=LnewExists)
   IF (.not.LnewExists) then
     WRITE(*,*) '---------------------------------------------------------------'
-    WRITE(*,*) 'WARNING! chm_read_obs_err_stddev: obsinfo_chm not available.   '
-    WRITE(*,*) 'WARNING! Default CH family stddev to be applied if needed.     '
+    WRITE(*,*) 'WARNING! chm_read_obs_err_stddev: auxiliary file ' // trim(chm_setup_get_str('auxfile'))
+    WRITE(*,*) 'WARNING! not available. Default CH family stddev to be applied if needed.'
     WRITE(*,*) '---------------------------------------------------------------'
     return
   ENDIF
 !
-! Read observation error std dev. from file obsinfo_chm for constituent data
+! Read observation error std dev. from file auxiliary file for constituent data
 ! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
   NULSTAT=0
-  IERR=FNOM(NULSTAT,'obsinfo_chm','SEQ',0)
+  IERR=FNOM(NULSTAT,trim(chm_setup_get_str('auxfile')),'SEQ',0)
   IF ( IERR .EQ. 0 ) THEN
-    open(unit=nulstat, file='obsinfo_chm', status='OLD')
+    open(unit=nulstat, file=trim(chm_setup_get_str('auxfile')), status='OLD')
   ELSE
-    CALL utl_abort('chm_read_obs_err_stddev_ascii: COULD NOT OPEN FILE obsinfo_chm!')
+    CALL utl_abort('chm_read_obs_err_stddev_auxfile: COULD NOT OPEN AUXILIARY FILE ' // trim(chm_setup_get_str('auxfile')))
   ENDIF
 
 ! Read error standard deviations for constituents if available.
@@ -205,13 +206,13 @@ contains
   
   allocate(chm_std%stnids(chm_std%n_stnid))
   allocate(chm_std%std_type(chm_std%n_stnid),chm_std%n_lat(chm_std%n_stnid))
-  allocate(chm_std%brp(chm_std%n_stnid),chm_std%ibegin(chm_std%n_stnid))
-  allocate(chm_std%bfr(chm_std%n_stnid),chm_std%n_lvl(chm_std%n_stnid))
+  allocate(chm_std%source(chm_std%n_stnid),chm_std%ibegin(chm_std%n_stnid))
+  allocate(chm_std%element(chm_std%n_stnid),chm_std%n_lvl(chm_std%n_stnid))
   allocate(chm_std%std1(isize),chm_std%std2(chm_std%n_stnid),chm_std%std3(chm_std%n_stnid))
   allocate(chm_std%levels(isize),chm_std%lat(isize))
  
-  chm_std%bfr(:)=0
-  chm_std%brp(:)=0
+  chm_std%element(:)=0
+  chm_std%source(:)=0
   chm_std%std_type(:)=0
   chm_std%n_lvl(:)=1
   chm_std%n_lat(:)=1
@@ -231,8 +232,8 @@ contains
     read(nulstat,'(2X,A9)',iostat=ios,err=10,end=10) chm_std%stnids(jelm) 
     
 !   Read (1) BUFR element,
-!        (2) Flag indication if EOR provided from this ascii file or
-!            to be read from the BURP file,
+!        (2) Flag indication if EOR provided from this auxiliary file or
+!            to be read from the observation file,
 !        (3) Index specifying OER setup method,
 !        (4) Number of vertical levels
 !        (5) Number of latitudes
@@ -240,7 +241,7 @@ contains
 !   Important: Combination of STNID, BUFR element and number of vertical levels
 !              to determine association to the observations.
 !
-    read(nulstat,*,iostat=ios,err=10,end=10) chm_std%bfr(jelm),chm_std%brp(jelm),  &
+    read(nulstat,*,iostat=ios,err=10,end=10) chm_std%element(jelm),chm_std%source(jelm),  &
        chm_std%std_type(jelm), chm_std%n_lvl(jelm), chm_std%n_lat(jelm),  &
        chm_std%std2(jelm), chm_std%std3(jelm)
 
@@ -249,14 +250,14 @@ contains
     
     if (icount+chm_std%n_lvl(jelm)*chm_std%n_lat(jelm).gt.isize) then
        write(*,'(10X,"Max array size exceeded: ",I6)') isize
-       CALL utl_abort('chm_read_obs_err_stddev_ascii: PROBLEM READING OBSERR STD DEV.')    
+       CALL utl_abort('chm_read_obs_err_stddev_auxfile: PROBLEM READING OBSERR STD DEV.')    
     end if
 
     ! disregard line of dashes
     read(nulstat,'(A)',iostat=ios,err=10,end=10) ligne
     
     ! disregard data section if not needed
-    if (chm_std%std_type(jelm).eq.1.or.chm_std%std_type(jelm).eq.2.or.(chm_std%brp(jelm).ge.1.and.chm_std%std_type(jelm).eq.0)) &
+    if (chm_std%std_type(jelm).eq.1.or.chm_std%std_type(jelm).eq.2.or.(chm_std%source(jelm).ge.1.and.chm_std%std_type(jelm).eq.0)) &
          cycle STNIDLOOP 
 
     if (chm_std%n_lvl(jelm).eq.1.and.chm_std%n_lat(jelm).eq.1) then
@@ -320,13 +321,13 @@ contains
    
  10 if (ios.gt.0) then
        WRITE(*,*) 'File read error message number: ',ios
-       CALL utl_abort('chm_read_obs_err_stddev_ascii: PROBLEM READING OBSERR STD DEV.')    
+       CALL utl_abort('chm_read_obs_err_stddev_auxfile: PROBLEM READING OBSERR STD DEV.')    
     end if
  
  11 CLOSE(UNIT=NULSTAT)
     IERR=FCLOS(NULSTAT)    
 
-  end subroutine chm_read_obs_err_stddev_ascii
+  end subroutine chm_read_obs_err_stddev_auxfile
 
 !-------------------------------------------------------------------------
 !
@@ -361,7 +362,7 @@ contains
        ! chm_std%stnids(JN) as wildcards
 
        IF (utl_stnid_equal(chm_std%stnids(JN),CSTNID)) THEN
-          IF ( (NLEV.EQ.chm_std%n_lvl(JN) .OR. chm_std%brp(JN).eq.2) .AND. VARNO.EQ.chm_std%bfr(JN) ) THEN
+          IF ( (NLEV.EQ.chm_std%n_lvl(JN) .OR. chm_std%source(JN).eq.2) .AND. VARNO.EQ.chm_std%element(JN) ) THEN
              ISTNID=JN
              exit
           END IF
@@ -377,11 +378,11 @@ contains
        if (chm_std%n_stnid.gt.0) then
           write(*,'(A)') '  STNID                 BUFR     NLEVELS'
           do jn=1,chm_std%n_stnid
-             write(*,'(2X,A,2X,I12,2X,I10)') chm_std%stnids(jn),chm_std%bfr(jn),chm_std%n_lvl(jn)
+             write(*,'(2X,A,2X,I12,2X,I10)') chm_std%stnids(jn),chm_std%element(jn),chm_std%n_lvl(jn)
           end do
        end if
        write(*,*)
-       call utl_abort('chm_obs_err_stddev_index: Check section I of file obsinfo_chm.')
+       call utl_abort('chm_obs_err_stddev_index: Check section I of the auxiliary file.')
     ELSE
 
        IF (chm_std%n_lat(ISTNID) .GT. 1) THEN
@@ -449,7 +450,7 @@ contains
     ! Get weighting of error std. dev. if required
 
     if (chm_std%std_type(ISTNID).gt.2 .or. &
-       (chm_std%brp(ISTNID).eq.0 .and. chm_std%std_type(ISTNID).eq.0) ) then
+       (chm_std%source(ISTNID).eq.0 .and. chm_std%std_type(ISTNID).eq.0) ) then
 
        IF (chm_std%n_lvl(ISTNID) .GT. 1) THEN
                  
@@ -489,10 +490,10 @@ contains
              
     ! Set the error std. dev.
                    
-    IF (chm_std%brp(ISTNID).EQ.0) THEN
+    IF (chm_std%source(ISTNID).EQ.0) THEN
                
        ! Set error standard deviations from scratch using content of
-       ! previously read content of the "obsinfo_chm" file.
+       ! previously read content of the auxiliary file.
                 
        select case(chm_std%std_type(ISTNID))
        case(0)
@@ -512,9 +513,9 @@ contains
 
     ELSE
           
-       ! Adjust error standard deviations read from BURP file if requested.
+       ! Adjust error standard deviations read from observation file if requested.
        
-       sigma = oss_obsdata_get_element(chm_burp_std(istnid), oss_obsdata_get_header_code(zlon,zlat,idate,itime,cstnid), ilev, stat_opt=stat)
+       sigma = oss_obsdata_get_element(chm_obsSub_std(istnid), oss_obsdata_get_header_code(zlon,zlat,idate,itime,cstnid), ilev, stat_opt=stat)
 
        select case(stat)
        case(1)
@@ -562,19 +563,19 @@ contains
 
     if (chm_std%n_stnid.eq.0) return
     
-    if (allocated(chm_burp_std)) then
+    if (allocated(chm_obsSub_std)) then
        do istnid=1,chm_std%n_stnid
-          if (chm_std%brp(istnid).ge.1) call oss_obsdata_dealloc(chm_burp_std(istnid))
+          if (chm_std%source(istnid).ge.1) call oss_obsdata_dealloc(chm_obsSub_std(istnid))
        end do
-       deallocate(chm_burp_std)       
+       deallocate(chm_obsSub_std)       
     end if
 
     if (allocated(chm_std%stnids))   deallocate(chm_std%stnids)
     if (allocated(chm_std%n_lvl))    deallocate(chm_std%n_lvl)
     if (allocated(chm_std%std_type)) deallocate(chm_std%std_type)
     if (allocated(chm_std%ibegin))   deallocate(chm_std%ibegin)
-    if (allocated(chm_std%bfr))      deallocate(chm_std%bfr)
-    if (allocated(chm_std%brp))      deallocate(chm_std%brp)
+    if (allocated(chm_std%element))  deallocate(chm_std%element)
+    if (allocated(chm_std%source))   deallocate(chm_std%source)
     if (allocated(chm_std%n_lat))    deallocate(chm_std%n_lat)
     if (allocated(chm_std%std1))     deallocate(chm_std%std1)
     if (allocated(chm_std%std2))     deallocate(chm_std%std2)

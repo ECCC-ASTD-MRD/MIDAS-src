@@ -154,11 +154,13 @@ contains
        obsdata%ndim = 2
        allocate(obsdata%data2d(dim1,dim2_opt,nrep))
        obsdata%data2d(:,:,:) = 0.0D0
+       obsdata%data1d => null()
     else
        obsdata%dim2 = 0
        obsdata%ndim = 1
        allocate(obsdata%data1d(dim1,nrep))
        obsdata%data1d(:,:) = 0.0D0
+       obsdata%data2d => null()
     end if
 
     ! code is a character string assigned to each observation/report to uniquely identify it
@@ -428,7 +430,7 @@ contains
        else
           call utl_abort("obsdata_set_index: No reports available. Check for consistency " // &
                           "between input BURP file and input NAMBURP_FILTER_*  namelist " // &
-                          "(and input file obsinfo_chm if part of CH family).")
+                          "(and input auxiliary file if part of CH family).")
        end if
     end if
 
