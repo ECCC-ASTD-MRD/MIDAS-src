@@ -1201,6 +1201,11 @@ CONTAINS
 
                       Call BURP_Set_Rval(  Block_FSO,  NELE_IND =IND_ele_stat ,NVAL_IND =j , NT_IND  = k , RVAL = FSO )
 
+                      if(HIPCS) then
+                        if(iele == 12001) Call BURP_Set_Rval(Block_FSO,  NELE_IND =IND_ele_tth ,NVAL_IND =j , NT_IND  = k , RVAL = FSO )
+                        if(iele == 12192) Call BURP_Set_Rval(Block_FSO,  NELE_IND =IND_ele_esh ,NVAL_IND =j , NT_IND  = k , RVAL = FSO )
+                      endif
+
                       IND_ele_mar  = BURP_Find_Element(Block_MAR_MUL_CP, ELEMENT=iele+200000, IOSTAT=error)
 
                       Call BURP_Set_tblval(Block_MAR_MUL_CP,NELE_IND =IND_ELE_MAR ,NVAL_IND =j  , NT_IND  = k,TBLVAL = FLG )

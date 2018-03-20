@@ -35,7 +35,7 @@ if [ "${fasttmp}" = yes ]; then
     ## Move Ensemble files in RAMDisk
     if [ -d ensemble ]; then
         /bin/mkdir ${FASTTMPDIR}/ensemble
-        for file in ensemble/*; do
+        for file in ensemble/2*; do
         ## the file ensemble/2018020500_006_0128
         ##    -> 2018020500_006_0128
         ##      -> 8210_600_0050208102

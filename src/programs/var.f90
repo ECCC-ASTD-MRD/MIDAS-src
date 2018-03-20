@@ -47,7 +47,6 @@ program midas_var
   use obsOperators_mod
   use multi_ir_bgck_mod
   use biasCorrection_mod
-  use fso_mod
   implicit none
 
   integer :: istamp,exdb,exfin
@@ -108,10 +107,6 @@ program midas_var
     write(*,*)
     write(*,*) 'midas-var: Background check for conventional obs mode selected'
     varMode='bgckConv'
-  case (201)
-    write(*,*)
-    write(*,*) 'midas-var: FSO mode selected'
-    varMode='FSO'
   case default
     write(*,*)
     write(*,*) 'midas-var: Unknown mode ', nconf
@@ -219,51 +214,11 @@ program midas_var
     ! Deallocate copied obsSpaceData
     call obs_finalize(obsSpaceData)
 
-  else if ( trim(varMode) == 'FSO' ) then
-    write(*,*) 'MIDAS-VAR: FSO MODE'
-
-    ! Do initial set up
-    call tmg_start(2,'PREMIN')
-    call fso_setup
-    
-    obsMpiStrategy = 'LATLONTILESBALANCED'
-
-    call var_setup('VAR') ! obsColumnMode
-    call tmg_stop(2)
-
-    ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
-    call tmg_start(2,'PREMIN')
-    call inn_setupBackgroundColumns(trlColumnOnTrlLev,obsSpaceData)
-
-    ! Interpolate trial columns to analysis levels and setup for linearized H
-    call inn_setupBackgroundColumnsAnl(trlColumnOnTrlLev,trlColumnOnAnlLev)
-
-    ! Compute observation innovations and prepare obsSpaceData for minimization
-    call inn_computeInnovation(trlColumnOnTrlLev,obsSpaceData)
-    call tmg_stop(2)
-
-    ! Perform forecast sensitivity to observation calculation using ensemble approach 
-    call fso_ensemble(trlColumnOnAnlLev,obsSpaceData)
-
-    ! Now write out the observation data files
-    if ( .not. obsf_filesSplit() ) then 
-      write(*,*) 'We read/write global observation files'
-      call obs_expandToMpiGlobal(obsSpaceData)
-      if (mpi_myid == 0) call obsf_writeFiles(obsSpaceData)
-    else
-      ! redistribute obs data to how it was just after reading the files
-      call obs_MpiRedistribute(obsSpaceData,OBS_IPF)
-      call obsf_writeFiles(obsSpaceData)
-    end if
-
-    ! Deallocate copied obsSpaceData
-    call obs_finalize(obsSpaceData)
-
   else
 
     write(*,*) ' MIDAS-VAR: ERROR, UNKNOWN NCONF SPECIFIED'
 
-  endif
+  end if
 
   ! 3. Job termination
 
@@ -403,7 +358,7 @@ contains
     !
     !- Initialize the background-error covariance, also sets up control vector module (cvm)
     !
-    if ( trim(varMode) == 'analysis' .or. trim(varMode) == 'FSO' ) then
+    if ( trim(varMode) == 'analysis' ) then
        call bmat_setup(hco_anl,vco_anl)
        write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     end if
@@ -419,7 +374,7 @@ contains
     !
     ! - Initialize the gridded variable transform module
     !
-    if ( trim(varMode) == 'analysis' .or. trim(varMode) == 'FSO' ) then
+    if ( trim(varMode) == 'analysis'  ) then
        call vtr_setup(hco_anl,vco_anl)
     end if
 

@@ -1,4 +1,4 @@
-!--------------------------------------- LICENCE BEGIN -----------------------------------
+!------------------------------------- LICENCE BEGIN -------------------------------------
 !Environment Canada - Atmospheric Science and Technology License/Disclaimer,
 !                     version 3; Last Modified: May 7, 2008.
 !This is free but copyrighted software; you can use/redistribute/modify it under the terms
@@ -15,45 +15,48 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 !--------------------------------------------------------------------------
-!!  MODULE fso (Forecast sensitivity to observations.  prefix="fso")
 !!
-!!  *Purpose*:  FSO calculatio using a forecast ensemble
-!!
-!!  Subroutines (public):
-!!    fso_setup
-!!    fso_ensemble
-!!
-!!  Dependencies: 
+!! *Purpose*: Main program for Observation Impact computation
 !!
 !--------------------------------------------------------------------------
-module fso_mod
+program midas_obsimpact
+  use ramDisk_mod
+  use utilities_mod
+  use mpivar_mod
   use MathPhysConstants_mod
+  use horizontalCoord_mod
   use timeCoord_mod
   use obsTimeInterp_mod
   use columnData_mod
   use obsSpaceData_mod
   use controlVector_mod
-  use mpivar_mod
-  use horizontalCoord_mod
   use gridStateVector_mod
   use bmatrix_mod
   use bmatrixensemble_mod
-  use tovs_nl_mod
   use stateToColumn_mod
   use analysisGrid_mod
-  use utilities_mod
   use obsOperators_mod
   use costFunction_mod
   use quasinewton_mod
+  use innovation_mod
+  use obsFiles_mod
+  use obsFilter_mod
+  use WindRotation_mod
+  use obsErrors_mod
+  use variableTransforms_mod
   implicit none
-  save
-  private
 
-  ! public procedures
-  public              :: fso_setup, fso_ensemble
+  integer :: istamp,exdb,exfin,ierr
 
-  type(struct_obs),pointer        :: obsSpaceData_ptr 
-  type(struct_columnData),pointer :: columng_ptr 
+  type(struct_obs),       target :: obsSpaceData
+  type(struct_columnData),target :: trlColumnOnAnlLev
+  type(struct_columnData),target :: trlColumnOnTrlLev
+
+  character(len=48) :: obsMpiStrategy
+  character(len=3)  :: obsColumnMode
+
+  type(struct_obs),pointer        :: obsSpaceData_ptr
+  type(struct_columnData),pointer :: columng_ptr
   type(struct_columnData),pointer :: column_ptr
   logical             :: initialized = .false.
   integer             :: nmtra, fso_nsim, nvadim_mpilocal
@@ -64,18 +67,98 @@ module fso_mod
   integer             :: nvamaj, nitermax, nsimmax
   real(8)             :: leadTime, repsg, rdf1fac
   character(len=256)  :: forecastPath
+  character(len=4)    :: fsoMode
 
   NAMELIST /NAMFSO/leadTime, nvamaj, nitermax, nsimmax
-  NAMELIST /NAMFSO/repsg, rdf1fac, forecastPath
+  NAMELIST /NAMFSO/repsg, rdf1fac, forecastPath, fsoMode
 
-CONTAINS
+  istamp = exdb('OBSIMPACT','DEBUT','NON')
 
-!--------------------------------------------------------------------------
-! FSO_setup
-!--------------------------------------------------------------------------
+  write(*,'(/,' //  &
+        '3(" *****************"),/,' //                   &
+        '14x,"-- START OF MIDAS-OBSIMPACT           --",/,' //   &
+        '14x,"-- Calculation of observation impact  --",/, ' //  &
+        '14x,"-- VAR Revision number ",a," --",/,' //  &
+        '3(" *****************"))') 'GIT-REVISION-NUMBER-WILL-BE-ADDED-HERE'
+
+  ! MPI initilization
+  call mpi_initialize
+
+  call tmg_init(mpi_myid, 'TMG_OBSIMPACT' )
+
+  call tmg_start(1,'MAIN')
+
+  if(mpi_myid == 0) then
+    call utl_writeStatus('VAR3D_BEG')
+  end if
+
+  call ram_setup
+
+  !
+  !- 1. Settings 
+  !
+  obsColumnMode  = 'VAR'
+
+  ! Do initial set up
+  call tmg_start(2,'PREMIN')
+  call fso_setup
+ 
+  obsMpiStrategy = 'LATLONTILESBALANCED'
+  
+  call var_setup('VAR') ! obsColumnMode
+  call tmg_stop(2)
+
+  !
+  !- 2. configuration of job 
+  !
+  ! Reading, horizontal interpolation and unit conversions of the 3D trial fields
+  call tmg_start(2,'PREMIN')
+  call inn_setupBackgroundColumns(trlColumnOnTrlLev,obsSpaceData)
+
+  ! Interpolate trial columns to analysis levels and setup for linearized H
+  call inn_setupBackgroundColumnsAnl(trlColumnOnTrlLev,trlColumnOnAnlLev)
+
+  ! Compute observation innovations and prepare obsSpaceData for minimization
+  call inn_computeInnovation(trlColumnOnTrlLev,obsSpaceData)
+  call tmg_stop(2)
+
+  ! Perform forecast sensitivity to observation calculation using ensemble approach 
+  call fso_ensemble(trlColumnOnAnlLev,obsSpaceData)
+
+  ! Now write out the observation data files
+  if ( .not. obsf_filesSplit() ) then
+    write(*,*) 'We read/write global observation files'
+    call obs_expandToMpiGlobal(obsSpaceData)
+    if (mpi_myid == 0) call obsf_writeFiles(obsSpaceData)
+  else
+    ! redistribute obs data to how it was just after reading the files
+    call obs_MpiRedistribute(obsSpaceData,OBS_IPF)
+    call obsf_writeFiles(obsSpaceData)
+  end if
+  
+  ! Deallocate copied obsSpaceData
+  call obs_finalize(obsSpaceData)
+
+  !
+  !- 3. Job termination
+  !
+  istamp = exfin('OBSIMPACT','FIN','NON')
+
+  if(mpi_myid == 0) then
+    call utl_writeStatus('VAR3D_END')
+  endif
+
+  call tmg_stop(1)
+
+  call tmg_terminate(mpi_myid, 'TMG_OBSIMPACT' )
+
+  call rpn_comm_finalize(ierr)
+
+contains
+
   subroutine fso_setup
     implicit none
-
+  
     integer :: ierr,nulnam
     integer :: fnom,fclos
 
@@ -87,6 +170,7 @@ CONTAINS
     repsg    = 1d-5
     rdf1fac  = 0.25d0
     forecastPath = './forecasts'
+    fsoMode  = 'HFSO' 
 
     ! read in the namelist NAMFSO
     nulnam = 0
@@ -97,14 +181,130 @@ CONTAINS
     ierr = fclos(nulnam)
 
     call ben_setFsoLeadTime(leadTime)
-    fso_nsim = 0 
+    fso_nsim = 0
     initialized = .true.
 
   end subroutine fso_setup
+ 
+  subroutine var_setup(obsColumnMode)
+    implicit none
 
-!--------------------------------------------------------------------------
-! FSO_ensemble
-!--------------------------------------------------------------------------
+    character (len=*) :: obsColumnMode
+    integer :: datestamp
+    type(struct_vco),pointer :: vco_anl => null()
+    type(struct_vco),pointer :: vco_trl => null()
+    type(struct_hco),pointer :: hco_anl => null()
+    type(struct_hco),pointer :: hco_core => null()
+
+    integer :: get_max_rss
+
+    write(*,*) ''
+    write(*,*) '-----------------------------------'
+    write(*,*) '-- Starting subroutine var_setup --'
+    write(*,*) '-----------------------------------'
+
+    !
+    !- Initialize the Temporal grid
+    !
+    call tim_setup
+    !     
+    !- Initialize burp file names and set datestamp
+    !
+    call obsf_setup( dateStamp, 'FSO' )
+    if ( dateStamp > 0 ) then
+      call tim_setDatestamp(datestamp)     ! IN
+    else
+      call utl_abort('var_setup: Problem getting dateStamp from observation file')
+    end if
+    !
+    !- Initialize constants
+    !
+    if(mpi_myid.eq.0) call mpc_printConstants(6)
+
+    !
+    !- Set vertical coordinate parameters from !! record in trial file
+    !
+    if(mpi_myid.eq.0) write(*,*)''
+    if(mpi_myid.eq.0) write(*,*)'var_setup: Set vcoord parameters for trial grid'
+    call vco_SetupFromFile( vco_trl,     & ! OUT
+                            './trlm_01')   ! IN
+    call col_setVco(trlColumnOnTrlLev,vco_trl)
+
+    !
+    !- Initialize variables of the model states
+    !
+    call gsv_setup
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    !
+    !- Initialize the Analysis grid
+    !
+    if(mpi_myid.eq.0) write(*,*)''
+    if(mpi_myid.eq.0) write(*,*)'var_setup : Set hco parameters for analysis grid'
+    call hco_SetupFromFile(hco_anl, './analysisgrid', 'ANALYSIS', 'Analysis' ) ! IN
+
+    if ( hco_anl % global ) then
+      call agd_SetupFromHCO( hco_anl ) ! IN
+    else
+      !- Iniatilized the core (Non-Exteded) analysis grid
+      call hco_SetupFromFile( hco_core, './analysisgrid', 'COREGRID', 'AnalysisCore' ) ! IN
+      !- Setup the LAM analysis grid metrics
+      call agd_SetupFromHCO( hco_anl, hco_core ) ! IN
+    end if
+
+    if ( hco_anl % rotated ) then
+      call uvr_Setup(hco_anl) ! IN 
+    end if
+
+    !     
+    !- Initialisation of the analysis grid vertical coordinate from analysisgrid file !
+    call vco_SetupFromFile( vco_anl,        & ! OUT
+                            './analysisgrid') ! IN
+
+    call col_setVco(trlColumnOnAnlLev,vco_anl)
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+    !
+    !- Setup and read observations
+    !
+    call inn_setupObs(obsSpaceData, obsColumnMode, obsMpiStrategy, 'FSO') ! IN
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+    !
+    !- Setup observation operators
+    !
+    call oop_setup('FSO') ! IN
+
+    !
+    !- Basic setup of columnData module
+    !
+    call col_setup
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+    !
+    !- Memory allocation for background column data
+    !
+    call col_allocate(trlColumnOnAnlLev,obs_numheader(obsSpaceData),mpiLocal_opt=.true.)
+    call col_allocate(trlColumnOnTrlLev,obs_numheader(obsSpaceData),mpiLocal_opt=.true.)
+
+    !
+    !- Initialize the observation error covariances
+    !
+    call oer_setObsErrors(obsSpaceData, 'FSO') ! IN
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+    !
+    !- Initialize the background-error covariance, also sets up control vector module (cvm)
+    !
+    call bmat_setup(hco_anl,vco_anl)
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+    !
+    ! - Initialize the gridded variable transform module
+    !
+    call vtr_setup(hco_anl,vco_anl)
+
+  end subroutine var_setup
+
   subroutine fso_ensemble(columng,obsSpaceData)
     implicit none
 
@@ -112,7 +312,7 @@ CONTAINS
     type(struct_obs),target         :: obsSpaceData
     type(struct_columnData),target  :: column
     type(struct_gsv)                :: statevector_fa, statevector_fb, statevector_a, statevector_fso
-    type(struct_gsv)                :: statevector_tempfa, statevector_tempfb 
+    type(struct_gsv)                :: statevector_tempfa, statevector_tempfb
     type(struct_hco), pointer       :: hco_anl
     type(struct_vco), pointer       :: vco_anl
     integer                         :: nulout = 6
@@ -123,11 +323,10 @@ CONTAINS
     real(8)                         :: zjsp, zxmin, zdf1, zeps, dlgnorm, dlxnorm,zspunused(1)
     integer                         :: fnom,fclos,ierr
     integer                         :: dateStamp_fcst
-    character(len=256)              :: fileName_fa, fileName_fb, fileName_a 
+    character(len=256)              :: fileName_fa, fileName_fb, fileName_a
     character(len=8)                :: unitconversion
-
     !for Observation space 
-    integer                         :: index_header, IDATA, IDATEND,  index_body 
+    integer                         :: index_header, IDATA, IDATEND,  index_body
     real(8)                         :: fso_ori
 
     logical                         :: faExists
@@ -144,14 +343,14 @@ CONTAINS
     nvadim_mpilocal = cvm_nvadim
     nmtra = (4 + 2*nvamaj)*nvadim_mpilocal
     write(*,'(4X,"NVAMAJ = ",I3,/5X,"NMTRA =",I14)') nvamaj,nmtra
-     
+
     ! initialize column object for storing "increment"
     call col_setVco(column,col_getVco(columng))
     call col_allocate(column,col_getNumCol(columng),mpiLocal_opt=.true.)
     call col_copyLatLon(columng,column)
 
     call oti_setup(obsSpaceData,tim_nstepobsinc)
-
+ 
     ! compute dateStamp_fcst
     call incdatr(dateStamp_fcst, tim_getDatestamp(), leadTime)
     write(*,*) 'fso_ensemble: analysis datestamp = ',tim_getDatestamp()
@@ -160,7 +359,7 @@ CONTAINS
     ! allocate control vector related arrays (these are all mpilocal)
     allocate(ahat(nvadim_mpilocal))
     allocate(vhat(nvadim_mpilocal))
-    allocate(zhat(nvadim_mpilocal)) 
+    allocate(zhat(nvadim_mpilocal))
     allocate(gradJ(nvadim_mpilocal))
     allocate(vatra(nmtra))
 
@@ -199,7 +398,6 @@ CONTAINS
                       datestamp_opt=datestamp_fcst, mpi_local_opt=.true.)
     call gsv_readFromFile(statevector_a, fileName_a, ' ', 'A')
 
-
     ! compute error of both forecasts (overwrite forecasts with error)
     call gsv_add(statevector_a, statevector_fa, -1.0d0)
     call gsv_add(statevector_a, statevector_fb, -1.0d0)
@@ -209,23 +407,21 @@ CONTAINS
     call gsv_multEnergyNorm(statevector_tempfa, statevector_a) ! use analysis as reference state
     call gsv_multEnergyNorm(statevector_tempfb, statevector_a) ! use analysis as reference state
 
-
     ! compute error Norm =  C * (error_t^fa + error_t^fb)
     call gsv_add(statevector_fa, statevector_fb, 1.0d0)
     call gsv_multEnergyNorm(statevector_fb, statevector_a) ! use analysis as reference state
 
     ! compute vhat = B_t^T/2 * C * (error_t^fa + error_t^fb)  
-    call bmat_sqrtBT(vhat, nvadim_mpilocal, statevector_fb, useFSOFcst_opt = .true.) 
+    call bmat_sqrtBT(vhat, nvadim_mpilocal, statevector_fb, useFSOFcst_opt = .true.)
 
-    if(mpi_myid == 0) write(*,*) maxval(vhat),minval(vhat) 
+    if(mpi_myid == 0) write(*,*) maxval(vhat),minval(vhat)
 
     ! Compute zhat by performing variational minimization
-
     ! Set-up for the minimization
     if(mpi_myid == 0) then
-     impres = 5
-    else 
-     impres = 0
+      impres = 5
+    else
+      impres = 0
     end if
 
     imode = 0
@@ -244,7 +440,6 @@ CONTAINS
     dlgnorm = dsqrt(dlgnorm)
     call prscal(nvadim_mpilocal,zhat,zhat,dlxnorm)
     dlxnorm = dsqrt(dlxnorm)
-
     write(*,*)' |X| = ', dlxnorm
     write(*,'(/4X,"J(X) = ",G23.16,4X,"|Grad J(X)| = ",G23.16)') zjsp, dlgnorm
     write(*,'(//,10X," Minimization QNA_N1QN3 starts ...",/  &
@@ -263,7 +458,7 @@ CONTAINS
     write(*,'(//,20X,20("*"),2X    &
         ,/,20X,"              Minimization ended with MODE:",I4  &
         ,/,20X,"                Total number of iterations:",I4  &
-        ,/,20X,"               Total number of simulations:",I4)' ) imode,itermax,isimmax 
+        ,/,20X,"               Total number of simulations:",I4)' ) imode,itermax,isimmax
 
     ! Compute ahat = zhat + vhat
     ahat = zhat + vhat
@@ -272,13 +467,14 @@ CONTAINS
     call gsv_allocate(statevector_fso, tim_nstepobsinc, hco_anl, vco_anl, &
                       datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.)
 
-    call bmat_sqrtB(ahat, nvadim_mpilocal, statevector_fso) 
+    call bmat_sqrtB(ahat, nvadim_mpilocal, statevector_fso)
     call s2c_tl(statevector_fso,column,columng,obsSpaceData)  ! put in column H_horiz B^1/2 ahat
     call oop_Htl(column,columng,obsSpaceData,1)          ! Save as OBS_WORK: H_vert H_horiz B^1/2 vhat = H B^1/2 ahat
     call cfn_RsqrtInverse(obsSpaceData,OBS_FSO,OBS_WORK) ! Save as OBS_FSO : R**-1/2 H B^1/2 ahat
     call cfn_RsqrtInverse(obsSpaceData,OBS_FSO,OBS_FSO)  ! Save as OBS_FSO : R**-1 H B^1/2 ahat\
 
-    ! Due to the very small value of FSO, here it is enlarged by 1e6 therefore in the script file to extract FSO it should be divided by 1e6
+    ! Due to the very small value of FSO, here it is enlarged by 1e6
+    ! therefore in the script file to extract FSO it should be divided by 1e6
     do index_header =1, obs_numHeader(obsSpaceData)
       IDATA   = obs_headElem_i(obsSpaceData,OBS_RLN,INDEX_HEADER)
       IDATEND = obs_headElem_i(obsSpaceData,OBS_NLV,INDEX_HEADER) + IDATA - 1
@@ -296,7 +492,8 @@ CONTAINS
     deallocate(zhat)
     call col_deallocate(column)
 
-    if(mpi_myid == 0) write(*,*) 'end of fso_ensemble' 
+    if(mpi_myid == 0) write(*,*) 'end of fso_ensemble'
+
   end subroutine fso_ensemble
 
   subroutine simvar(indic,nvadim,zhat,Jtotal,gradJ)
@@ -310,7 +507,7 @@ CONTAINS
     ! =2 Same as 4 (compute J and gradJ) but do not interrupt timer of the
     !    minimizer.
     ! =3 Compute Jo and gradJo only.
-    integer :: indic 
+    integer :: indic
     real(8)  :: Jtotal ! Cost function of the Variational algorithm
     real(8), dimension(nvadim) :: gradJ ! Gradient of the Variational Cost funtion
     real(8), dimension(nvadim) :: zhat ! Control variable in forecast error covariances space
@@ -328,77 +525,75 @@ CONTAINS
     type(struct_gsv) :: statevector
     type(struct_hco), pointer :: hco_anl
     type(struct_vco), pointer :: vco_anl
-
     if (indic == 1 .or. indic == 4) call tmg_stop(70)
 
     call tmg_start(80,'MIN_SIMVAR')
     if (indic /= 1) then ! No action taken if indic == 1
-       fso_nsim = fso_nsim + 1
+      fso_nsim = fso_nsim + 1
 
-       if(mpi_myid == 0) then
-         write(*,*) 'Entering simvar for simulation ',fso_nsim
-         write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-         call flush(6)
-       end if
+      if(mpi_myid == 0) then
+        write(*,*) 'Entering simvar for simulation ',fso_nsim
+        write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+        call flush(6)
+      end if
 
-       ! note: vhat = B_t^T/2 hat(del x_t)
-       ahat_vhat(1:nvadim_mpilocal) = zhat(1:nvadim_mpilocal) + vhat(1:nvadim_mpilocal)     
+      ! note: vhat = B_t^T/2 hat(del x_t)
+      ahat_vhat(1:nvadim_mpilocal) = zhat(1:nvadim_mpilocal) + vhat(1:nvadim_mpilocal)
 
-       ! Computation of background term of cost function:
-       Jb = dot_product(zhat(1:nvadim_mpilocal),zhat(1:nvadim_mpilocal))/2.d0  
-       call tmg_start(89,'MIN_COMM')       
-       call mpi_allreduce_sumreal8scalar(Jb,"GRID")
-       call tmg_stop(89)
+      ! Computation of background term of cost function:
+      Jb = dot_product(zhat(1:nvadim_mpilocal),zhat(1:nvadim_mpilocal))/2.d0
+      call tmg_start(89,'MIN_COMM')
+      call mpi_allreduce_sumreal8scalar(Jb,"GRID")
+      call tmg_stop(89)
 
-       hco_anl => agd_getHco('ComputationalGrid')
-       vco_anl => col_getVco(columng_ptr)
-       call gsv_allocate(statevector,tim_nstepobsinc, hco_anl, vco_anl, &
-                         mpi_local_opt=.true.)
+      hco_anl => agd_getHco('ComputationalGrid')
+      vco_anl => col_getVco(columng_ptr)
+      call gsv_allocate(statevector,tim_nstepobsinc, hco_anl, vco_anl, &
+                        mpi_local_opt=.true.)
 
-       call bmat_sqrtB(ahat_vhat,nvadim_mpilocal,statevector)
+      call bmat_sqrtB(ahat_vhat,nvadim_mpilocal,statevector)
 
-       call tmg_start(30,'OBS_INTERP')
-       call s2c_tl(statevector,column_ptr,columng_ptr,obsSpaceData_ptr)  ! put in column H_horiz dx
-       call tmg_stop(30)
+      call tmg_start(30,'OBS_INTERP')
+      call s2c_tl(statevector,column_ptr,columng_ptr,obsSpaceData_ptr)  ! put in column H_horiz dx
+      call tmg_stop(30)
+      call tmg_start(40,'OBS_TL')
+      call oop_Htl(column_ptr,columng_ptr,obsSpaceData_ptr,fso_nsim)  ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
+      call tmg_stop(40)
 
-       call tmg_start(40,'OBS_TL')
-       call oop_Htl(column_ptr,columng_ptr,obsSpaceData_ptr,fso_nsim)  ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
-       call tmg_stop(40)
+      call cfn_RsqrtInverse(obsSpaceData_ptr,OBS_WORK,OBS_WORK)  ! Save as OBS_WORK : R**-1/2 (Hdx)
 
-       call cfn_RsqrtInverse(obsSpaceData_ptr,OBS_WORK,OBS_WORK)  ! Save as OBS_WORK : R**-1/2 (Hdx)
-     
-       call cfn_calcJo(obsSpaceData_ptr)  ! Store J-obs in OBS_JOBS : 1/2 * R**-1 (Hdx)**2
-     
-       Jobs = 0.d0
-       call cfn_sumJo(obsSpaceData_ptr,Jobs)
-       Jtotal = Jb + Jobs
-       if (indic == 3) then
-          Jtotal = Jobs
-          IF(mpi_myid == 0) write(*,FMT='(6X,"SIMVAR:  JO = ",G23.16,6X)') Jobs
-       else
-          Jtotal = Jb + Jobs
-          IF(mpi_myid == 0) write(*,FMT='(6X,"SIMVAR:  Jb = ",G23.16,6X,"JO = ",G23.16,6X,"Jt = ",G23.16)') Jb,Jobs,Jtotal
-       end if
+      call cfn_calcJo(obsSpaceData_ptr)  ! Store J-obs in OBS_JOBS : 1/2 * R**-1 (Hdx)**2
 
-       call cfn_RsqrtInverse(obsSpaceData_ptr,OBS_WORK,OBS_WORK)  ! Modify OBS_WORK : R**-1 (Hdx)
+      Jobs = 0.d0
+      call cfn_sumJo(obsSpaceData_ptr,Jobs)
+      Jtotal = Jb + Jobs
+      if (indic == 3) then
+        Jtotal = Jobs
+        if(mpi_myid == 0) write(*,FMT='(6X,"SIMVAR:  JO = ",G23.16,6X)') Jobs
+      else
+        Jtotal = Jb + Jobs
+        if(mpi_myid == 0) write(*,FMT='(6X,"SIMVAR:  Jb = ",G23.16,6X,"JO = ",G23.16,6X,"Jt = ",G23.16)') Jb,Jobs,Jtotal
+      end if
 
-       call col_zero(column_ptr)
+      call cfn_RsqrtInverse(obsSpaceData_ptr,OBS_WORK,OBS_WORK)  ! Modify OBS_WORK : R**-1 (Hdx)
 
-       call tmg_start(41,'OBS_AD')
-       call oop_Had(column_ptr,columng_ptr,obsSpaceData_ptr)   ! Put in column : H_vert**T R**-1 (Hdx)
-       call tmg_stop(41)
+      call col_zero(column_ptr)
 
-       call tmg_start(31,'OBS_INTERPAD')
-       call s2c_ad(statevector,column_ptr,columng_ptr,obsSpaceData_ptr)  ! Put in statevector H_horiz**T H_vert**T R**-1 (Hdx)
-       call tmg_stop(31)
+      call tmg_start(41,'OBS_AD')
+      call oop_Had(column_ptr,columng_ptr,obsSpaceData_ptr)   ! Put in column : H_vert**T R**-1 (Hdx)
+      call tmg_stop(41)
 
-       gradJ(:) = 0.d0
-       call bmat_sqrtBT(gradJ,nvadim_mpilocal,statevector)
-       call gsv_deallocate(statevector)
+      call tmg_start(31,'OBS_INTERPAD')
+      call s2c_ad(statevector,column_ptr,columng_ptr,obsSpaceData_ptr)  ! Put in statevector H_horiz**T H_vert**T R**-1 (Hdx)
+      call tmg_stop(31)
 
-       if (indic /= 3) then
-          gradJ(1:nvadim_mpilocal) = zhat(1:nvadim_mpilocal) + gradJ(1:nvadim_mpilocal)
-       end if
+      gradJ(:) = 0.d0
+      call bmat_sqrtBT(gradJ,nvadim_mpilocal,statevector)
+      call gsv_deallocate(statevector)
+
+      if (indic /= 3) then
+        gradJ(1:nvadim_mpilocal) = zhat(1:nvadim_mpilocal) + gradJ(1:nvadim_mpilocal)
+      end if
     end if
     call tmg_stop(80)
     if (indic == 1 .or. indic == 4) call tmg_start(70,'QN')
@@ -435,7 +630,6 @@ CONTAINS
     RETURN
   END SUBROUTINE DSCALQN
 
-
   SUBROUTINE PRSCAL(KDIM,PX,PY,DDSC)
     !***s/r PRSCAL: inner product in canonical space
     !*
@@ -464,7 +658,7 @@ CONTAINS
 
     do j=1,nvadim_mpilocal
       DDSC = DDSC + PX(J)*PY(J)
-    end do 
+    end do
 
     call tmg_start(79,'QN_COMM')
     call mpi_allreduce_sumreal8scalar(ddsc,"GRID")
@@ -472,8 +666,8 @@ CONTAINS
 
     call tmg_stop(71)
     RETURN
-  END SUBROUTINE PRSCAL
 
+  END SUBROUTINE PRSCAL
 
   SUBROUTINE DCANAB(KDIM,PY,PX,KZS,PZS,PDZS)
     !***s/r DCANAB  - Change of variable associated with the canonical
@@ -502,8 +696,8 @@ CONTAINS
     END DO
 
     RETURN
-  END SUBROUTINE DCANAB
 
+  END SUBROUTINE DCANAB
 
   SUBROUTINE DCANONB(KDIM,PX,PY,KZS,PZS,PDZS)
     !***s/r DCANONB  - Change of variable associated with the canonical
@@ -534,4 +728,4 @@ CONTAINS
     RETURN
   END SUBROUTINE DCANONB
 
-end module fso_mod
+end program midas_obsimpact 
