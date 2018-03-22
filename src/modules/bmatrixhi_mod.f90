@@ -204,6 +204,7 @@ CONTAINS
     if (sum(scaleFactor(1:max(nLev_M,nLev_T))) == 0.0d0 ) then
       if(mpi_myid == 0) write(*,*) 'bmatrixHI: scaleFactor=0, skipping rest of setup'
       cvdim_out = 0
+      call tmg_stop(15)
       return
     end if
 
@@ -223,6 +224,7 @@ CONTAINS
     if ( trim(bhi_mode) == 'BackgroundCheck' ) then
        cvDim_out = 9999 ! Dummy value > 0 to indicate to the background check (s/r compute_HBHT_ensemble) 
                         ! that Bhi is used
+       call tmg_stop(15)
        return
     end if
 
