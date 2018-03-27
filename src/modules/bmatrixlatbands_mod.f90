@@ -152,6 +152,7 @@ contains
       if ( mpi_myid == 0 ) write(*,*) 'WARNING: blb_setup: Error reading namelist, ' //  &
                                       'assume it will not be used!'
       cvdim_out = 0
+      call tmg_stop(52)
       return
     end if
     if ( mpi_myid == 0 ) write(*,nml=namblb)
@@ -221,6 +222,7 @@ contains
     if ( trim(bhi_mode) == 'BackgroundCheck' ) then
       cvDim_out = 9999 ! Dummy value > 0 to indicate to the background check (s/r compute_HBHT_ensemble) 
                        ! that Bhi is used
+      call tmg_stop(52)
       return
     end if
 
