@@ -297,7 +297,6 @@ CONTAINS
   !
   !- 3.  Ending/Deallocation
   !
-    call bmat_finalize()
     deallocate(random_vector, stat=istat)
     deallocate(local_random_vector, stat=istat)
     call col_deallocate(column)
