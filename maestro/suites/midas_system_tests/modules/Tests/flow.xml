@@ -14,7 +14,6 @@
   <SUBMITS sub_name="bgck_conv"/>
   <SUBMITS sub_name="bgck_hyperir"/>
   <SUBMITS sub_name="ensManip"/>
-  <SUBMITS sub_name="random_HBHt"/>
 
   <FAMILY  name="EnVar_24mem_xc40">
     <SUBMITS sub_name="UnitTest"/>
@@ -102,11 +101,6 @@
       <SUBMITS sub_name="UnitTest_pgm"/>
       <MODULE  name="UnitTest_pgm"/>
     </FAMILY>
-  </FAMILY>
-
-  <FAMILY  name="random_HBHt">
-    <SUBMITS sub_name="UnitTest"/>
-    <MODULE  name="UnitTest"/>
   </FAMILY>
 
 </MODULE>
