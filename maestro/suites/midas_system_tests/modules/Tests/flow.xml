@@ -2,40 +2,83 @@
   <SUBMITS sub_name="var"/>
   <SUBMITS sub_name="oMinusF"/>
   <SUBMITS sub_name="ensManip"/>
+  <SUBMITS sub_name="addIncrement"/>
+  <SUBMITS sub_name="randomPert"/>
+  <SUBMITS sub_name="ensembleH"/>
+  <SUBMITS sub_name="obsImpact"/>
+  <!-- <SUBMITS sub_name="calcStats"/> -->
+  <!-- <SUBMITS sub_name="diagBmatrix"/> -->
 
-  <FAMILY  name="EnVar_24mem_xc40">
-    <SUBMITS sub_name="UnitTest"/>
-    <MODULE  name="UnitTest"/>
-  </FAMILY>
-
-  <FAMILY  name="EnVar_vbc">
-    <SUBMITS sub_name="UnitTest_vbc"/>
-    <MODULE  name="UnitTest_vbc"/>
-  </FAMILY>
-
-  <FAMILY  name="EnVar_gbc_oma">
-    <SUBMITS sub_name="UnitTest"/>
-    <MODULE  name="UnitTest"/>
-  </FAMILY>
-
-  <FAMILY  name="Var3D_gbc">
-    <SUBMITS sub_name="UnitTest"/>
-    <MODULE  name="UnitTest"/>
-  </FAMILY>
-
-  <FAMILY  name="EnVar_gdps_5p1">
-    <SUBMITS sub_name="UnitTest"/>
-    <MODULE  name="UnitTest"/>
-  </FAMILY>
-
-  <FAMILY  name="rdps">
-    <SUBMITS sub_name="UnitTest"/>
-    <MODULE  name="UnitTest"/>
-  </FAMILY>
-
-  <FAMILY  name="EnVar_biFourrier_xc40">
-    <SUBMITS sub_name="UnitTest"/>
-    <MODULE  name="UnitTest"/>
+  <FAMILY  name="var">
+    <SUBMITS sub_name="EnVar"/>
+    <FAMILY  name="EnVar">
+      <SUBMITS sub_name="24mem_xc40"/>
+      <FAMILY  name="24mem_xc40">
+        <SUBMITS sub_name="UnitTest"/>
+        <MODULE  name="UnitTest"/>
+      </FAMILY>
+      <SUBMITS sub_name="gdps"/>
+      <FAMILY  name="gdps">
+        <SUBMITS sub_name="UnitTest"/>
+        <MODULE  name="UnitTest"/>
+      </FAMILY>
+      <SUBMITS sub_name="rdps"/>
+      <FAMILY  name="rdps">
+        <SUBMITS sub_name="UnitTest"/>
+        <MODULE  name="UnitTest"/>
+      </FAMILY>
+      <SUBMITS sub_name="biFourier_xc40"/>
+      <FAMILY  name="biFourier_xc40">
+        <SUBMITS sub_name="UnitTest"/>
+        <MODULE  name="UnitTest"/>
+      </FAMILY>
+      <SUBMITS sub_name="96mem_ppp"/>
+      <FAMILY  name="96mem_ppp">
+        <SUBMITS sub_name="UnitTest"/>
+        <MODULE  name="UnitTest"/>
+      </FAMILY>
+      <SUBMITS sub_name="2D_ppp"/>
+      <FAMILY  name="2D_ppp">
+        <SUBMITS sub_name="UnitTest"/>
+        <MODULE  name="UnitTest"/>
+      </FAMILY>
+    </FAMILY>
+    <SUBMITS sub_name="Var3D"/>
+    <FAMILY  name="Var3D">
+      <SUBMITS sub_name="gbc"/>
+      <FAMILY  name="gbc">
+        <SUBMITS sub_name="UnitTest"/>
+        <MODULE  name="UnitTest"/>
+      </FAMILY>
+      <SUBMITS sub_name="splitobs_xc40"/>
+      <FAMILY  name="splitobs_xc40">
+        <SUBMITS sub_name="UnitTest"/>
+        <MODULE  name="UnitTest"/>
+      </FAMILY>
+      <SUBMITS sub_name="splitobs_ppp"/>
+      <FAMILY  name="splitobs_ppp">
+        <SUBMITS sub_name="UnitTest"/>
+        <MODULE  name="UnitTest"/>
+      </FAMILY>
+    </FAMILY>
+    <SUBMITS sub_name="bgck"/>
+    <FAMILY  name="bgck">
+      <SUBMITS sub_name="conv"/>
+      <FAMILY  name="conv">
+        <SUBMITS sub_name="UnitTest"/>
+        <MODULE  name="UnitTest"/>
+      </FAMILY>
+      <SUBMITS sub_name="hyperir"/>
+      <FAMILY  name="hyperir">
+        <SUBMITS sub_name="UnitTest"/>
+        <MODULE  name="UnitTest"/>
+      </FAMILY>
+    </FAMILY>
+    <SUBMITS sub_name="vbc"/>
+    <FAMILY  name="vbc">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
   </FAMILY>
 
   <FAMILY  name="oMinusF">
