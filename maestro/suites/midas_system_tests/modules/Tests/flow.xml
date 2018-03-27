@@ -2,7 +2,6 @@
   <SUBMITS sub_name="var"/>
   <SUBMITS sub_name="oMinusF"/>
   <SUBMITS sub_name="ensManip"/>
-  <SUBMITS sub_name="random_HBHt"/>
 
   <FAMILY  name="EnVar_24mem_xc40">
     <SUBMITS sub_name="UnitTest"/>
@@ -152,10 +151,5 @@
     </FAMILY>
   </FAMILY>
   -->
-
-  <FAMILY  name="random_HBHt">
-    <SUBMITS sub_name="UnitTest"/>
-    <MODULE  name="UnitTest"/>
-  </FAMILY>
 
 </MODULE>
