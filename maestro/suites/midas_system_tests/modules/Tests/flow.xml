@@ -6,6 +6,7 @@
   <SUBMITS sub_name="randomPert"/>
   <SUBMITS sub_name="ensembleH"/>
   <SUBMITS sub_name="obsImpact"/>
+  <SUBMITS sub_name="diagHBHt"/>
   <!-- <SUBMITS sub_name="calcStats"/> -->
   <!-- <SUBMITS sub_name="diagBmatrix"/> -->
 
@@ -136,6 +137,10 @@
   </FAMILY>
 
   <FAMILY  name="obsImpact">
+    <SUBMITS sub_name="UnitTest"/>
+    <MODULE  name="UnitTest"/>
+  </FAMILY>
+  <FAMILY  name="diagHBHt">
     <SUBMITS sub_name="UnitTest"/>
     <MODULE  name="UnitTest"/>
   </FAMILY>

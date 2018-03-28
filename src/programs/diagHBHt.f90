@@ -33,7 +33,7 @@ program midas_diagHBHt
   use gridStateVector_mod
   use obsSpaceDiag_mod
   use controlVector_mod
-  use burpFiles_mod
+  use obsFiles_mod
   use obsFilter_mod  
   use minimization_mod
   use innovation_mod
@@ -106,7 +106,16 @@ program midas_diagHBHt
   call bmat_finalize()
 
   ! Now write out the observation data files
-  call burp_updateFiles(obsSpaceData)
+  if ( .not. obsf_filesSplit() ) then 
+    write(*,*) 'We read/write global observation files'
+    call obs_expandToMpiGlobal(obsSpaceData)
+    if (mpi_myid == 0) call obsf_writeFiles(obsSpaceData)
+  else
+    ! redistribute obs data to how it was just after reading the files
+    call obs_MpiRedistribute(obsSpaceData,OBS_IPF)
+    call obsf_writeFiles(obsSpaceData)
+  end if
+
 
   ! Deallocate copied obsSpaceData
   call obs_finalize(obsSpaceData)
@@ -156,8 +165,12 @@ contains
     !     
     !- Initialize burp file names and set datestamp
     !
-    call burp_setupFiles (datestamp, varMode) ! IN
-    call tim_setDatestamp(datestamp)            ! IN
+    call obsf_setup( dateStamp, 'analysis' )
+    if ( dateStamp > 0 ) then
+      call tim_setDatestamp(datestamp)     ! IN
+    else
+      call utl_abort('var_setup: Problem getting dateStamp from observation file')
+    end if
 
     !
     !- Initialize constants

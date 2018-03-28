@@ -249,8 +249,8 @@ CONTAINS
     call col_copyLatLon(columng,column)
 
     !- 1.6
-!    call prdatabin(obsSpaceData,tim_nstepobsinc)
-    call tim_sutimeinterp(obsSpaceData,tim_nstepobsinc)
+    call oti_timeBinning(obsSpaceData,tim_nstepobsinc)
+    call oti_setup(obsSpaceData,tim_nstepobsinc)
 
     !
     !- 2.  Compute the perturbations
@@ -267,7 +267,7 @@ CONTAINS
     !- Initialize random number generator
     ierr = newdate(tim_getDatestamp(), dateprnt, timeprnt, -3)
     nrandseed=100*dateprnt + int(timeprnt/100.0) 
-    write(*,*) 'compute_HBHT_sylvain: Random seed set to ',nrandseed ; call flush(6)
+    write(*,*) 'min_diagHBHt: Random seed set to ',nrandseed ; call flush(6)
     call rng_setup(nrandseed)
     ! Generate a random vector from N(0,1)
     do jj = 1, cvm_nvadim_mpiglobal
@@ -276,8 +276,8 @@ CONTAINS
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     !- Extract only the subvector for this processor
     call bmat_reduceToMPILocal(local_random_vector,  & ! OUT
-         random_vector, & ! IN
-         local_dimension)      ! OUT
+         random_vector)      ! IN
+    local_dimension = size(local_random_vector)
     !- Transform to control variables in physical space
     call bmat_sqrtB(local_random_vector,local_dimension,statevector)
     !- 2.2 Interpolation to the observation horizontal locations
