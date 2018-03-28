@@ -60,6 +60,14 @@
 !!v       - "chm_diagn_only": Identify if data is to be assimilated or only used
 !!v         for independent verifications.
 !!v
+!!
+!! Comment:
+!!
+!! See !x regarding commented output in *2dfieldr4* to ascii file as sample
+!! usage of message output file. Commented out as the same file cannot be
+!! simultaneoulsly opened for wriring by different processors. Other similar
+!! usage in code has been removed.
+!!
 !----------------------------------------------------------------------------------------
 module chem_setup_mod
  
@@ -446,6 +454,10 @@ contains
 !!v       message_filename     File name for file containing various messages and warnings related to chemical
 !!v                            constituents that are not included in the listing file.
 !!v
+!!v                            Not currently used in code.
+!!v                            Writing in MPI would need to use different files for each processor 
+!!v                            or output via a single processor.
+!!v
 !---------------------------------------------------------------------------------------- 
   subroutine chm_read_namchem
 
@@ -493,7 +505,7 @@ contains
   tropo_bound(:) = 0
   tropo_column_top(:) = 0.0
 
-  message_filename = 'chem_message_'
+  message_filename = 'chem_message_'   ! Not used
   
   amu(:) = -1.0
   amu(0) = 48.0    ! Molecular mass in g/mole for O3
@@ -1677,8 +1689,9 @@ contains
 
     real(4), intent(inout) :: field(:,:)            
 
-    integer :: i,j,ier,unit
+    integer :: i,j,ier,unit,icount
     real(4) :: valmin
+    real(4), parameter :: valmin_ref=1.0E-20
     integer, external :: fclos
     logical :: lrev
     
@@ -1696,21 +1709,35 @@ contains
 
     if (.not.lrev) then
 
-       call utl_open_asciifile(message_filename,unit)
+       !x Following open cannot be used at the same time by more than one processor 
+       !x unless opening file for reading only.
+       !x call utl_open_asciifile(message_filename,unit)
 
-       do j=1,size(field,2)
+       icount=0
+       LOOP1: do j=size(field,2),1,-1
           valmin=minval(field(:,j),mask=field(:,j).gt.0.0)
-          if (valmin.gt.1.E30) valmin=1.E-20
-          do i=1,size(field,1) 
-             if (field(i,j).lt.valmin) then
-                write(unit,'(A,G9.2,A,A)') "Unexpected/undesired negative value of ",field(i,j), " for input field ",trim(varName)
-                write(unit,'(A,3I4,A,I3,A,G9.2)')  "at location (",i,j,jlev,") and step ",jstep,". Value replaced by ",valmin,"."                    
-                field(i,j)=valmin
-             end if
-          end do
-       end do
-      
-       ier=fclos(unit)
+          if (valmin.gt.1.E30) valmin=valmin_ref
+          icount=icount+count(field(:,j).lt.valmin)
+          where (field(:,j).lt.valmin) field(:,j)=valmin
+          !x do i=1,size(field,1) 
+          !x   if (field(i,j).lt.valmin) then
+          !x      write(unit,'(A,G9.2,A,A)') "Unexpected/undesired negative value of ",field(i,j), " for input field ",trim(varName)
+          !x      write(unit,'(A,3I4,A,I3,A,G9.2)')  "at location (",i,j,jlev,") and step ",jstep,". Value replaced by ",valmin,"."                    
+          !x      field(i,j)=valmi
+          !x      icount=icount+1
+          !x   end if
+          !x   if (icount.gt.50) then
+          !x      write(unit,*) "Stopped counting... WARNING: Large number of zero or negative values for ",trim(varName),"trial field."
+          !x      icount=icount+count(field.lt.valmin)
+          !x      where (field.lt.valmin) field=valmin
+          !x	     exit LOOP1
+          !x   end if
+          !x end do
+       end do LOOP1
+       write(*,*) "chm_apply_2dfield4_transform: WARNING - ",icount," zero and or negative values found. Reset to small positive value for ", &
+                  trim(varName)," trial field."
+       
+       !x ier=fclos(unit)
        
     end if
 

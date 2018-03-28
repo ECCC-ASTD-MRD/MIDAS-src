@@ -400,20 +400,27 @@ contains
 !  Revisions:
 !           M. Sitwell, April 2016
 !             - Changed function to use unique character string
+!           Y. Rochon, Nov 2017
+!             - Account for rare occasions where the lat in 'code'
+!               maybe be off from its actual location near the poles.
+!               (issue identified by M. Sitwell)
+!               This was acoompanied by a switch in the positions of the
+!               lat and long in the 'code' values.
 !
 !  Input 
 !           obsdata       struct_oss_obsdata instance
 !           index         obs index
+!           code          code for comparison to those in obsdata
 !
 !  Output
 !           obsdata%irep      current index position for the observation/report
-!           stat              status of call (optional)
+!           stat_opt          status of call (optional)
 !                               0: no errors
 !                               1: no reports available
 !                               2: report not found
 !
 !  Comments:
-!    - If the optional argument stat is provided and an error occurs, the error code will
+!    - If the optional argument stat_opt is provided and an error occurs, the error code will
 !      be returned and the abort will not be called to allow for error handling.
 ! 
 !-------------------------------------------------------------------------------------------
@@ -422,6 +429,13 @@ contains
     character(len=*), intent(in) :: code
     integer, intent(out), optional :: stat_opt
     integer :: i
+
+    ! Additional declarations for use with obsspace_extra_code_test
+    
+    character(len=oss_code_len) :: ref_code
+    integer, save :: ref_ilat,ref_ilat1,ref_ilat2,length
+    integer :: ilon,ilat
+    
     
     if (obsdata%nrep.le.0) then
        if (present(stat_opt)) then
@@ -435,24 +449,126 @@ contains
     end if
 
     i=0
- 
+    ref_code=trim(code)
+    length=len_trim(ref_code)
+    
     ! Search for matching identifier code
     do while (trim(obsdata%code(obsdata%irep)).ne.trim(code))
        obsdata%irep=obsdata%irep+1
        if (obsdata%irep.gt.obsdata%nrep) obsdata%irep=1
        if (i.gt.obsdata%nrep) then
-          if (present(stat_opt)) then
-             stat_opt = 2
-             return
+          if (length.ge.22) then
+       
+             ! Assumes codes of the form "LAT--LON--YYYYMMDDHHMM*" when len(code)>=22.
+	  
+             ! Upper loop search did not find a match. For valid data near the poles over
+             ! the global analysis grid, the lat could have been moved to the nearest analysis grid
+             ! latitude. The following is to account for this, assuming this is the only exception
+             ! for points near the poles. 
+             !
+             ! This is done as a second search step so as not to slow down the normally sufficient 
+             ! search performed above.
+
+             i=0
+             ref_code=trim(ref_code(6:length))
+             ! ref_code=trim(ref_code(11:length))
+             ! read(ref_code(6:10),*) ref_ilon
+             ! ref_ilon1=ref_ilon-1
+             ! ref_ilon2=ref_ilon+1
+             read(ref_code(1:5),*) ref_ilat
+             ! ref_ilat1=ref_ilat-1
+             ! ref_ilat2=ref_ilat+1
+             
+             ! Search for matching identifier code
+             do while (.not.obsdata_extra_code_test(trim(obsdata%code(obsdata%irep))))
+                obsdata%irep=obsdata%irep+1
+                if (obsdata%irep.gt.obsdata%nrep) obsdata%irep=1
+                if (i.gt.obsdata%nrep) exit
+                i=i+1       
+             end do
+             if (i.gt.obsdata%nrep) then
+                if (present(stat_opt)) then
+                   stat_opt = 2
+                   return
+                else
+                   call utl_abort("obsdata_set_index: Obs index not found for nrep = " // trim(utl_str(obsdata%nrep)) // " and code = '" // code // "'")
+                end if
+             end if
           else
-             call utl_abort("obsdata_set_index: Obs index not found for nrep = " // trim(utl_str(obsdata%nrep)) // " and code = '" // code // "'")
+             if (present(stat_opt)) then
+                stat_opt = 2
+                return
+             else
+                call utl_abort("obsdata_set_index: Obs index not found for nrep = " // trim(utl_str(obsdata%nrep)) // " and code = '" // code // "'")
+             end if
           end if
-       end if
+          exit
+       end if 
        i=i+1       
     end do
-          
+         
     if (present(stat_opt)) stat_opt = 0
-           
+
+    contains 
+             
+    !-------------------------------------------------------------------------------------------
+
+    function obsdata_extra_code_test(test_code) result(found)
+    ! 
+    !  Purpose: Test matching of code values accounting for rare differences
+    !           in stored ilat (and ilon) value(s) when codes are stored as strings in the form  
+    !           LAT--LON--YYYYMMDDHHMM* (ie. with >= 22 characters).
+    !
+    !  Caveat: 
+    !           The current version assumes the only source of difference would stem from
+    !           a shift to the nearest latitude of the analysis grid from points near the pole.
+    !           (this source of difference identified by M. Sitwell)
+    !
+    !           Also currently assumes that most poleward analsysis grid latitudes are within 1 degree
+    !           away from a pole. To be more rigourous, one would need hco_anl%nj and hco_anl%global from
+    !           "hco_anl => agd_getHco('CoreGrid')" with use of horizontalCoord_mod and analysisGrid_mod 
+    !           (see innovation_mod.f90).
+    !
+    !  Author: Y. Rochon, Nov 2017
+    !    
+    !  Input
+    !           test_code     code for comparison to ref_code
+    !       
+    !           ref_code      reference code 
+    !
+    !  Output
+    !           found         logical indicating if a match has been found.  
+    ! 
+    !-------------------------------------------------------------------------------------------
+
+      implicit none
+
+      character(len=*), intent(in) :: test_code
+      
+      integer, parameter :: lat_lim1=-8900    ! Lat*100
+      integer, parameter :: lat_lim2=8900
+      logical :: found
+          
+      if (test_code(11:len_trim(test_code)).ne.ref_code) then
+         found=.false.
+         return
+      else 
+         !read(test_code(6:10),*) ilon
+         read(test_code(1:5),*) ilat
+         ! if ((ilon.eq.ref_ilon.or.ilon.eq.ref_ilon1.or.ilon.eq.ref_ilon2).and.  &
+         !   (ilat.eq.ref_ilat.or.ilat.eq.ref_ilat1.or.ilat.eq.ref_ilat2)) found=.true.
+         if ((ilat.lt.lat_lim1.and.ref_ilat.lt.lat_lim1.and.ilat.lt.ref_ilat).or. &
+            (ilat.gt.lat_lim2.and.ref_ilat.gt.lat_lim2.and.ilat.gt.ref_ilat)) then
+            found=.true.	     
+            write(*,*) 'obsdata_extra_code_test: Accounted for lat. mismatch in codes near poles: ', &
+               ilat,ref_ilat
+         else
+            found=.false.
+         end if
+      end if
+
+    end function obsdata_extra_code_test
+
   end subroutine obsdata_set_index
     
 !-------------------------------------------------------------------------------------------
@@ -461,11 +577,16 @@ contains
 ! 
 !  Purpose: Generates a string code to identify an obervation by the header information in
 !           a BURP report. The BURP header information is saved as a string in the form  
-!           LON--LAT--YYYYMMDDHHMMSTNID----. Intention of this function is to be used for
+!           LAT--LON--YYYYMMDDHHMMSTNID----. Intention of this function is to be used for
 !           setting the unique identifier 'code' in struct_oss_obsdata. Can be called under
 !           the interface oss_obsdata_get_header_code.
 !
 !  Author: M. Sitwell, April 2016
+! 
+!  Revisions:
+!           Y. Rochon, Nov 2017
+!             - Swith in the positions of the lat and long in the 'code' values
+!               for convenience in testing the lat in obsdata_set_index.
 !    
 !  Input
 !           ilon          longitude integer
@@ -486,13 +607,14 @@ contains
     character(len=oss_code_len) :: code
     integer :: len_stnid
 
+    write(code(1:5),'(I5.5)') ilat
+
     if (ilon.gt.0) then
-       write(code(1:5),'(I5.5)') ilon
+       write(code(6:10),'(I5.5)') ilon
     else
-       write(code(1:5),'(I5.5)') 36000 + ilon
+       write(code(6:10),'(I5.5)') 36000 + ilon
     end if
     
-    write(code(6:10),'(I5.5)') ilat
     write(code(11:18),'(I8.8)') date
     write(code(19:22),'(I4.4)') time
 
@@ -506,7 +628,7 @@ contains
 ! 
 !  Purpose: Generates a string code to identify an obervation by the header information in
 !           a BURP report. The BURP header information is saved as a string in the form  
-!           LON--LAT--YYYYMMDDHHMMSTNID----. Intention of this function is to be used for
+!           LAT--LON--YYYYMMDDHHMMSTNID----. Intention of this function is to be used for
 !           setting the unique identifier 'code' in struct_oss_obsdata. Can be called under
 !           the interface oss_obsdata_get_header_code.
 !

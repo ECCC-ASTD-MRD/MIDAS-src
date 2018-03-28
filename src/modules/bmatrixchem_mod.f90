@@ -141,13 +141,8 @@ MODULE BmatrixChem_mod
   integer             :: myLonBeg,myLonEnd
   integer, pointer    :: ilaList_mpiglobal(:)
   integer, pointer    :: ilaList_mpilocal(:)
-  logical             :: ReadWrite_sqrt
   
-! String indicating if calcs for 'BackgroundCheck' or 'Analysis'
-! Note: analysisMode above could be alternatively used.
-
   character(len=15) :: bchm_mode
-  logical :: analysisMode
                             
   integer, external   :: get_max_rss
   integer             :: nulbgst=0
@@ -171,14 +166,16 @@ MODULE BmatrixChem_mod
 ! Parameters of the NAMBCHM namelist
 
   integer             :: ntrunc
-  real(8)             :: rpor(100)
-  real(8)             :: rvloc(100)
+  real(8)             :: rpor(vnl_numvarmax)
+  real(8)             :: rvloc(vnl_numvarmax)
   integer,parameter   :: maxNumLevels=200
-  real(8)             :: scaleFactor(maxNumLevels,100)
-  real(8)             :: scaleFactor_sigma(maxNumLevels,100)
+  real(8)             :: scaleFactor(maxNumLevels,vnl_numvarmax)
+  real(8)             :: scaleFactor_sigma(maxNumLevels,vnl_numvarmax)
   integer             :: numModeZero  ! number of eigenmodes to set to zero
+  logical             :: ReadWrite_sqrt
   character(len=4)    :: stddevMode
-
+  character(len=4)    :: Exclude_CH_ANLVAR(vnl_numvarmax)
+ 
 ! Number of incremental variables/fields
   integer             :: numvar3d,numvar2d
 ! Start position of each field in composite arrays
@@ -213,15 +210,34 @@ CONTAINS
     integer :: latPerPE, latPerPEmax, lonPerPE, lonPerPEmax
     real(8) :: zps
 
-    integer :: jvar
+    integer :: jvar,nChmVars,jvar2
+    character(len=4) :: BchmVars(vnl_numvarmax)
     
-    NAMELIST /NAMBCHM/ntrunc,rpor,rvloc,scaleFactor,numModeZero,ReadWrite_sqrt,stddevMode
+    NAMELIST /NAMBCHM/ntrunc,rpor,rvloc,scaleFactor,numModeZero,ReadWrite_sqrt,stddevMode, &
+                      Exclude_CH_ANLVAR
+
+   ! First check if there are any CH fields 
+    
+    jvar2=0
+    do jvar=1,vnl_numvarmax
+       if (gsv_varExist(varName=vnl_varNameList(jvar))) then
+           if (vnl_varKindFromVarname(vnl_varNameList(jvar)) == 'CH') then
+              jvar2 = 1
+              exit
+           end if 
+        end if      
+    end do
+    if (jvar2.eq.0) then
+       ! Assume there is no need for Bchm
+       cvDim_out = 0
+       return
+    end if
 
     call tmg_start(120,'BCHM_SETUP')
 
-    numvar3d=0
+    numvar3d = 0
     numvar2d=0
-   
+ 
     allocate(bchm_varNameList(vnl_numvarmax))
     bchm_varNameList(:)=''
     allocate(nsposit(vnl_numvarmax+1))
@@ -243,12 +259,51 @@ CONTAINS
        if(mpi_myid == 0) write(*,*) 'bchm_setup: Analysis mode activated (by default)'
     end if
 
-!   Identify if analysis mode (top_nconf=141) as this determines if all actions
-!   are needed or not. (could be used instead of 
+    ! Initialization of namelist NAMBCHM parameters
+    
+    ntrunc=108
+    rpor(:)=3000.D3
+    rvloc(:)=4.0D0
+    scaleFactor(:,:) = 1.0d0
+    numModeZero = 0
+    ReadWrite_sqrt = .false.
+    stddevMode = 'GD3D'    
+    Exclude_CH_ANLVAR(:)=''
+    
+    ! Read namelist input
+    
+    nulnam = 0
+    ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+    read(nulnam,nml=NAMBCHM,iostat=ierr)
+    if(ierr.ne.0) call utl_abort('BCHM_setup: Error reading namelist')
+    if(mpi_myid == 0) write(*,nml=NAMBCHM)
+    ierr = fclos(nulnam)
 
-!    analysisMode=top_AnalysisMode()
-     
-!   Set vertical dimensions
+    ! Set BchmVars
+    nChmVars=0
+    BChmVars(:)=''
+    LOOP: do jvar = 1, vnl_numvarmax 
+       if (.not. gsv_varExist(varName=vnl_varNameList(jvar))) cycle
+       if (vnl_varKindFromVarname(vnl_varNameList(jvar)) /= 'CH') cycle
+       do jvar2=1,vnl_numvarmax
+          if (trim(vnl_varNameList(jvar)).eq.trim(Exclude_CH_ANLVAR(jvar2))) cycle LOOP
+       end do
+       nChmVars=nChmVars+1
+       BchmVars(nChmVars)=trim(vnl_varNameList(jvar))      
+    end do LOOP
+
+    if (nChmVars.eq.0) then 
+       if(mpi_myid == 0) then
+           write(*,*) 'Size of BchmVars is zero. Bhi matrix for CH family not produced.'
+           write(*,*) 'No chemical assimilation to be performed.'
+           write(*,*) 'END OF BCHM_SETUP'
+       end if
+       call tmg_stop(120)
+       cvdim_out = 0
+       return
+    end if
+    
+    ! Set vertical dimensions
 
     vco_anl => vco_in
     nLev_M = vco_anl%nlev_M
@@ -260,31 +315,29 @@ CONTAINS
     endif
     if(mpi_myid == 0) write(*,*) 'BCHM_setup: nLev_T, nLev_T_even=',nLev_T, nLev_T_even
 
-!   Find the 3D variables (within NAMSTATE namelist)
+    !   Find the 3D variables (within NAMSTATE namelist)
 
     do jvar = 1, vnl_numvarmax3D    
-       if(gsv_varExist(varName=vnl_varNameList3D(jvar))) then
+       if (gsv_varExist(varName=vnl_varNameList3D(jvar)) .and. &
+           any(trim(vnl_varNameList3D(jvar))==BchmVars(1:nChmVars)) ) then
 
-          if (vnl_varKindFromVarname(vnl_varNameList(jvar)) == 'CH') then
-             numvar3d = numvar3d + 1
-             nsposit(numvar3d+1)=nsposit(numvar3d)+nLev_T
-             bchm_varNameList(numvar3d)=vnl_varNameList3D(jvar)
-          end if
-
+           if (vnl_varKindFromVarname(vnl_varNameList3D(jvar)) /= 'CH') cycle
+           numvar3d = numvar3d + 1
+           nsposit(numvar3d+1)=nsposit(numvar3d)+nLev_T
+           bchm_varNameList(numvar3d)=vnl_varNameList3D(jvar)
        end if
     end do
 
 !   Find the 2D variables (within NAMSTATE namelist)
 
     do jvar=1,vnl_numvarmax2D
-       if(gsv_varExist(varName=vnl_varNameList2D(jvar))) then
+       if (gsv_varExist(varName=vnl_varNameList2D(jvar)) .and. &
+           any(trim(vnl_varNameList2D(jvar))==BchmVars(1:nChmVars)) ) then
 
-          if (vnl_varKindFromVarname(vnl_varNameList(jvar)) == 'CH') then
-             numvar2d = numvar2d + 1
-             nsposit(numvar3d+numvar2d+1)=nsposit(numvar3d+numvar2d)+1
-             bchm_varNameList(numvar2d)=vnl_varNameList2D(jvar)
-          end if
-          
+           if (vnl_varKindFromVarname(vnl_varNameList2D(jvar)) /= 'CH') cycle
+           numvar2d = numvar2d + 1
+           nsposit(numvar3d+numvar2d+1)=nsposit(numvar3d+numvar2d)+1
+           bchm_varNameList(numvar2d)=vnl_varNameList2D(jvar)
        end if       
     end do
     
@@ -401,7 +454,7 @@ CONTAINS
     
     initialized = .true.
 
-    call tmg_stop(90)
+    call tmg_stop(120)
 
   END SUBROUTINE BCHM_setup
 
@@ -1445,7 +1498,6 @@ CONTAINS
     call bchm_corvert_setup
     
     if (trim(bchm_mode) == 'BackgroundCheck') return
-!!    if (.not.analysisMode) return
 
     ! Following assumes full matrices. It does not take advantage of any block diagonal structure.
     ! Accounting for block diagonal structures would/might improve computation time.
@@ -2578,7 +2630,6 @@ CONTAINS
        
        ! Inverse not needed if not in analysis mode
        if (trim(bchm_mode) == 'BackgroundCheck') cycle
-!!       if (.not.analysisMode) cycle
        
        eigenvec(1:jnum,1:jnum)=bchm_corvert(1:jnum,1:jnum,jvar)       
 

@@ -108,14 +108,14 @@ contains
 !!v                          observation space, sqrt(diag(H*B_static*H^T)).
 !!v                          Saved in OBS_HPHT of obsSpaceData
 !!v                       2) Hdx saved in OBS_WORK of obsSpaceData
-!!v                       3) H^T * R^-1 (OmP-Hdx) in columnInc
+!!v                       3) H^T * R^-1 (OmP-Hdx) in columnInc_opt
 !!
 !!v   jobs            Optional output of total Jo(x_background) for chemical constituents. 
 !!v                   Required for kmode=0 and not provided otherwise.
 !!
 !! Inout
 !!
-!!v   columnInc      Optional argument for input/output of column of increment (column).
+!!v   columnInc_opt   Optional argument for input/output of column of increment (column).
 !!v                   For kmode=2, used as input for increment H_horiz dx interpolated
 !!v                   to observation location. For kmode=3, used as output for
 !!v                   H^T * R^-1 (OmP-Hdx). Required for kmode=2,3.
@@ -145,6 +145,7 @@ contains
 !!v            do  bodyIndex=bodyIndex_start,bodyIndex_end
 !!v               ... obs_bodyElem_r(obsSpaceData, ... ,bodyIndex)   
 !!v            end do
+!!
 !--------------------------------------------------------------------------
   subroutine chm_observation_operators(column_bkgrnd,obsSpaceData,kmode,columnInc_opt,obsAssVal_opt,jobs_opt)
 
@@ -188,11 +189,6 @@ contains
     else
        obsAssVal = 1
     end if
-
-    ! Open message file (file may be written to from routines in chem_obsdata_mod)
-    unit=chm_setup_get_int('message_unit')     ! Initialize unit
-    call utl_open_asciifile(chm_setup_get_str('message'),unit)
-    ier = chm_setup_set_int('message_unit',unit)      ! Update unit
 
     if ((kmode.eq.2.or.kmode.eq.3) .and. (.not.present(columnInc_opt))) then
        write(*,*) "chm_observation_operators: columnInc_opt must be specified for kmode = ",kmode
@@ -1067,9 +1063,11 @@ contains
     logical, intent(in), optional :: computeDtransform_opt
     
     logical :: comp_dtransform
+    integer :: transform_id
 
     if (obsoper%constituent_id.lt.0) return
-    if (chm_setup_get_int('transform',obsoper%constituent_id).eq.0.and.trim(obsoper%varname).ne.'HU') return
+    transform_id=chm_setup_get_int('transform',obsoper%constituent_id)
+    if (transform_id.le.0.and.trim(obsoper%varname).ne.'HU') return
     
     if (present(incrementCol_opt)) then
 
@@ -1103,7 +1101,7 @@ contains
           if (comp_dtransform) obsoper%dtransform = obsoper%trial * &
                (obsoper%trial*chm_setup_get_float('amu',obsoper%constituent_id)/MPC_MOLAR_MASS_DRY_AIR_R8 + 1.0)
      
-       else if (chm_setup_get_int('transform',obsoper%constituent_id).eq.1) then
+       else if (transform_id.eq.1) then
 
           ! Transformations for ln(x) to x
           

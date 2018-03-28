@@ -83,7 +83,19 @@ module obsSpaceDiag_mod
      !  OmP_stats              obs - background statistics
      !  OmA_stats              obs - analysis statistics
      !  obs_stats              observation statistics
-     !  Jo_stats               cost function statistics
+     !  Jo_stats               cost function statistics 
+     !                         - First four elements (of last dimension) apply only prescribed obs error variances 
+     !                           as normalizing-scaling denomicators.
+     !                         - Fifth element (of last dimension) applies the sum of the prescribed obs error variances 
+     !                           and the diag(HPHT) as normalizing-scaling denominator. This does not include consideration  
+     !                           of spatial correlations of (O-P) between obs points 
+     !                           associated to HPHT in the normalizing denominator.
+     !  Jpa_stats              statistics (P-A) in observation space.
+     !                         - Not exactly equivalent to Jb of the cost function 
+     !                         - Applies the prescribed diag(HPHT) as normalizing-scaling denomiator.     
+     !                         - Does not include consideration of spatial correlations of (P-A) between obs points 
+     !                           associated to HPHT in normalizing denominator
+     !                         - Vert. coordinate binning included but not currently output.
      !  diagR_stats            Elements for the calc of mean{[(O-P)-mean(O-P)][(O-A)-mean(O-A)]} 
      !                         (with each O-P and O-A difference divided by sigma_obs)
      !                         for scaling factor adjustments of obs std. dev via the Desroziers approach.
@@ -108,7 +120,7 @@ module obsSpaceDiag_mod
      !  assim_mode             indicates if assimilation was performed for this dataset
 
      real(8), allocatable :: OmP_stats(:,:,:,:),OmA_stats(:,:,:,:),obs_stats(:,:,:,:),Jo_stats(:,:,:,:)
-     real(8), allocatable :: diagR_stats(:,:,:,:),diagHPHT_stats(:,:,:,:)
+     real(8), allocatable :: diagR_stats(:,:,:,:),diagHPHT_stats(:,:,:,:), Jpa_stats(:,:,:)
      integer, allocatable :: counts(:,:,:),nstatus(:,:,:,:)
      
      integer :: nlev,nlat,nlon,nbin,nstat
@@ -1331,7 +1343,8 @@ contains
     if (.not. allocated(obs_diagn%OmP_stats)) allocate(obs_diagn%OmP_stats(nlat,nlon,nlev,nstat))
     if (.not. allocated(obs_diagn%OmA_stats)) allocate(obs_diagn%OmA_stats(nlat,nlon,nlev,nstat))
     if (.not. allocated(obs_diagn%obs_stats)) allocate(obs_diagn%obs_stats(nlat,nlon,nlev,nstat))
-    if (.not. allocated(obs_diagn%Jo_stats))  allocate(obs_diagn%Jo_stats(nlat,nlon,nlev,nstat))
+    if (.not. allocated(obs_diagn%Jo_stats))  allocate(obs_diagn%Jo_stats(nlat,nlon,nlev,nstat*2+1))
+    if (.not. allocated(obs_diagn%Jpa_stats))  allocate(obs_diagn%Jpa_stats(nlat,nlon,nlev))
     if (.not. allocated(obs_diagn%counts))    allocate(obs_diagn%counts(nlat,nlon,nlev))
     if (.not. allocated(obs_diagn%nstatus))   allocate(obs_diagn%nstatus(nlat,nlon,nlev,0:2))
     if (.not. allocated(obs_diagn%diagR_stats))    allocate(obs_diagn%diagR_stats(nlat,nlon,nlev,3))
@@ -1361,6 +1374,7 @@ contains
     obs_diagn%OmA_stats(:,:,:,:) = 0.0d0
     obs_diagn%obs_stats(:,:,:,:) = 0.0d0
     obs_diagn%Jo_stats(:,:,:,:)  = 0.0d0
+    obs_diagn%Jpa_stats(:,:,:)  = 0.0d0
     obs_diagn%counts(:,:,:) = 0
     obs_diagn%nstatus(:,:,:,:) = 0
     obs_diagn%diagR_stats(:,:,:,:)    = 0.0d0
@@ -1390,7 +1404,7 @@ contains
     type(struct_osd_diagn), intent(inout) :: obs_diagn
 
     deallocate(obs_diagn%OmP_stats,obs_diagn%OmA_stats,obs_diagn%obs_stats)
-    deallocate(obs_diagn%Jo_stats,obs_diagn%counts,obs_diagn%nstatus)
+    deallocate(obs_diagn%Jo_stats,obs_diagn%Jpa_stats,obs_diagn%counts,obs_diagn%nstatus)
     deallocate(obs_diagn%diagR_stats,obs_diagn%diagHPHT_stats)
 
   end subroutine osd_obsspace_diagn_dealloc
@@ -1473,6 +1487,7 @@ contains
        obs_diagn%obs_stats(ilat,ilon,ilev,2) = obs_diagn%obs_stats(ilat,ilon,ilev,2) + obs(ilev_obs)
 
        obs_diagn%Jo_stats(ilat,ilon,ilev,2)  = obs_diagn%Jo_stats(ilat,ilon,ilev,2)  + 0.5 * OmP(ilev_obs)**2 / sigma_obs(ilev_obs)**2
+       if (status(ilev_obs).eq.1) obs_diagn%Jo_stats(ilat,ilon,ilev,4)  = obs_diagn%Jo_stats(ilat,ilon,ilev,4)  + 0.5 * OmP(ilev_obs)**2 / sigma_obs(ilev_obs)**2
 
        if (present(OmA_opt)) then
           
@@ -1497,6 +1512,12 @@ contains
                         + OmP(ilev_obs)/sqrtHPHT_opt(ilev_obs)
                    obs_diagn%diagHPHT_stats(ilat,ilon,ilev,3) = obs_diagn%diagHPHT_stats(ilat,ilon,ilev,3) &
                         + (OmP(ilev_obs)-OmA_opt(ilev_obs))/sqrtHPHT_opt(ilev_obs)
+                   ! Following two diagnostics do not account for spatial correlations (spatial correlations of HPHT)! 
+                   ! As a consequence, Jb likely overestimated.
+                   obs_diagn%Jo_stats(ilat,ilon,ilev,5)  = obs_diagn%Jo_stats(ilat,ilon,ilev,5)  + 0.5 * (OmP(ilev_obs))**2 &
+                                                  / (sigma_obs(ilev_obs)**2 + sqrtHPHT_opt(ilev_obs)**2) 
+                   obs_diagn%Jpa_stats(ilat,ilon,ilev)  = obs_diagn%Jpa_stats(ilat,ilon,ilev)  + 0.5 * (OmA_opt(ilev_obs)-OmP(ilev_obs))**2 &
+                                                  / sqrtHPHT_opt(ilev_obs)**2
                 end if
              else
 
@@ -1535,7 +1556,7 @@ contains
 
     ! MPI global arrays
     real(8), allocatable :: OmP_global(:,:,:,:), OmA_global(:,:,:,:), obs_global(:,:,:,:), Jo_global(:,:,:,:)
-    real(8), allocatable :: diagR_global(:,:,:,:), diagHPHT_global(:,:,:,:)
+    real(8), allocatable :: Jpa_global(:,:,:), diagR_global(:,:,:,:), diagHPHT_global(:,:,:,:)
     integer, allocatable :: counts_global(:,:,:),nstatus_global(:,:,:,:)
     logical :: assim_global
 
@@ -1551,7 +1572,8 @@ contains
     allocate(OmP_global(nlat,nlon,nlev,nstat))
     allocate(OmA_global(nlat,nlon,nlev,nstat))
     allocate(obs_global(nlat,nlon,nlev,nstat))
-    allocate(Jo_global(nlat,nlon,nlev,nstat))
+    allocate(Jo_global(nlat,nlon,nlev,nstat*2+1))
+    allocate(Jpa_global(nlat,nlon,nlev))
     allocate(diagR_global(nlat,nlon,nlev,3))
     allocate(diagHPHT_global(nlat,nlon,nlev,3))
     allocate(counts_global(nlat,nlon,nlev))
@@ -1561,7 +1583,8 @@ contains
     call rpn_comm_allreduce(obs_diagn%OmP_stats,OmP_global,nbin*nstat,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
     call rpn_comm_allreduce(obs_diagn%OmA_stats,OmA_global,nbin*nstat,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
     call rpn_comm_allreduce(obs_diagn%obs_stats,obs_global,nbin*nstat,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
-    call rpn_comm_allreduce(obs_diagn%Jo_stats,Jo_global,nbin*nstat,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
+    call rpn_comm_allreduce(obs_diagn%Jo_stats,Jo_global,nbin*(nstat*2+1),"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
+    call rpn_comm_allreduce(obs_diagn%Jpa_stats,Jpa_global,nbin,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
     call rpn_comm_allreduce(obs_diagn%diagR_stats,diagR_global,nbin*3,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
     call rpn_comm_allreduce(obs_diagn%diagHPHT_stats,diagHPHT_global,nbin*3,"MPI_DOUBLE_PRECISION","MPI_SUM","GRID",ierr)
     call rpn_comm_allreduce(obs_diagn%counts,counts_global,nbin,"MPI_INTEGER","MPI_SUM","GRID",ierr)
@@ -1573,13 +1596,15 @@ contains
     obs_diagn%OmA_stats = OmA_global
     obs_diagn%obs_stats = obs_global
     obs_diagn%Jo_stats = Jo_global
+    obs_diagn%Jpa_stats = Jpa_global
     obs_diagn%diagR_stats = diagR_global
     obs_diagn%diagHPHT_stats = diagHPHT_global
     obs_diagn%counts = counts_global
     obs_diagn%nstatus = nstatus_global
     obs_diagn%assim_mode = assim_global
 
-    deallocate(OmP_global,OmA_global,obs_global,Jo_global,diagR_global,diagHPHT_global,counts_global,nstatus_global)
+    deallocate(OmP_global,OmA_global,obs_global,Jo_global,Jpa_global,diagR_global,diagHPHT_global, &
+               counts_global,nstatus_global)
     
   end subroutine osd_obsspace_diagn_MPIreduce
 
@@ -1626,12 +1651,13 @@ contains
 
     integer, external :: fnom, fclos
     
-    real(8) :: Jo_a,Jo_b
-    real(8), save :: Jo_a_total=0.0d0, Jo_b_total=0.0d0
-    integer, save :: counts_total=0
+    real(8) :: Jo_a,Jo_b,Jpa_assim, Jo_a_assim,Jo_b_assim, Jo_p_assim
+    real(8), save :: Jo_a_total=0.0d0, Jo_b_total=0.0d0, Jpa_total_assim=0.0d0
+    real(8), save :: Jo_a_total_assim=0.0d0, Jo_b_total_assim=0.0d0, Jo_p_total_assim=0.0d0
+    integer, save :: counts_total=0, counts_total_assim=0
 
-    integer :: ierr,unit,icount,nlat,nlon,nlev,ilev,ilat,ilon
-    integer, allocatable :: ncounts(:)
+    integer :: ierr,unit,icount,nlat,nlon,nlev,ilev,ilat,ilon,icount_assim
+    integer, allocatable :: ncounts(:), ncounts_assim(:)
     real(8), allocatable :: press_bins(:)
     logical :: fileout_exist,multilevel,unilevel
     character(len=20) :: mode
@@ -1665,7 +1691,7 @@ contains
           nlon = obs_diagn%nlon
           nlev = obs_diagn%nlev
           
-          allocate(ncounts(nlev), press_bins(nlev+1))
+          allocate(ncounts(nlev), ncounts_assim(nlev), press_bins(nlev+1))
           
           ! Pressure boundaries for each bin starting from a top layer with lower boundary of 0.01*pressmin (i=2) in hPa 
           ! and extending to the surface.
@@ -1678,6 +1704,8 @@ contains
           ! Total counts for each level 
           ncounts = sum(sum(obs_diagn%counts,dim=1),dim=1)
           counts_total = counts_total + sum(ncounts)
+          ncounts_assim = sum(sum(obs_diagn%nstatus(:,:,:,1),dim=1),dim=1)
+          counts_total_assim = counts_total_assim + sum(ncounts_assim)
 
           ! Indicates if any multilevel or unilevel observations exist
           multilevel = any(obs_diagn%nstatus(:,:,1:nlev-1,:).gt.0)
@@ -1699,20 +1727,32 @@ contains
           if (multilevel) then
             
              icount = sum(ncounts(1:nlev-1))
+             icount_assim = sum(ncounts_assim(1:nlev-1))
              
              if (icount.gt.0) then
                 Jo_a = sum(obs_diagn%Jo_stats(:,:,1:nlev-1,1))
                 Jo_b = sum(obs_diagn%Jo_stats(:,:,1:nlev-1,2))
+                Jo_a_assim = sum(obs_diagn%Jo_stats(:,:,1:nlev-1,3))
+                Jo_b_assim = sum(obs_diagn%Jo_stats(:,:,1:nlev-1,4))
+                Jo_p_assim = sum(obs_diagn%Jo_stats(:,:,1:nlev-1,5))
+                Jpa_assim = sum(obs_diagn%Jpa_stats(:,:,1:nlev-1))
                 Jo_a_total = Jo_a_total + Jo_a
                 Jo_b_total = Jo_b_total + Jo_b
+                Jo_a_total_assim = Jo_a_total_assim + Jo_a_assim
+                Jo_b_total_assim = Jo_b_total_assim + Jo_b_assim
+                Jo_p_total_assim = Jo_p_total_assim + Jo_p_assim
+                Jpa_total_assim = Jpa_total_assim + Jpa_assim
              else
                 Jo_a = 0.0d0
-                Jo_b = 0.0d0
+                Jo_a_assim = 0.0d0
+                Jo_b_assim = 0.0d0
+                Jo_p_assim = 0.0d0
+                Jpa_assim = 0.0d0
              end if
                     
              obs_diagn%allow_print_summary = .true.
 
-             call print_Jo(unit,"Multi-level data:",Jo_a,Jo_b,icount)
+             call print_J(unit,"Multi-level data:",Jo_a,Jo_b,icount,Jo_a_assim,Jo_b_assim,Jpa_assim,Jo_p_assim,icount_assim)
 
              call print_stats(unit,obs_diagn,press_bins,1,nlat,1,nlon,1,nlev-1) 
              if (obs_diagn%assim_mode) call print_Desroziers(unit,obs_diagn,press_bins,1,nlat,1,nlon,1,nlev-1,status_hpht)
@@ -1726,22 +1766,35 @@ contains
              if (ncounts(nlev).gt.0) then
                 Jo_a = sum(obs_diagn%Jo_stats(:,:,nlev,1))
                 Jo_b = sum(obs_diagn%Jo_stats(:,:,nlev,2))
+                Jo_a_assim = sum(obs_diagn%Jo_stats(:,:,nlev,3))
+                Jo_b_assim = sum(obs_diagn%Jo_stats(:,:,nlev,4))
+                Jo_p_assim = sum(obs_diagn%Jo_stats(:,:,nlev,5))
+                Jpa_assim = sum(obs_diagn%Jpa_stats(:,:,nlev))
                 Jo_a_total = Jo_a_total + Jo_a
                 Jo_b_total = Jo_b_total + Jo_b
+                Jo_a_total_assim = Jo_a_total_assim + Jo_a_assim
+                Jo_b_total_assim = Jo_b_total_assim + Jo_b_assim
+                Jo_p_total_assim = Jo_p_total_assim + Jo_p_assim
+                Jpa_total_assim = Jpa_total_assim + Jpa_assim
              else
                 Jo_a = 0.0d0
                 Jo_b = 0.0d0
+                Jo_a_assim = 0.0d0
+                Jo_b_assim = 0.0d0
+                Jo_p_assim = 0.0d0
+                Jpa_assim = 0.0d0
              end if
 
              obs_diagn%allow_print_summary = .true.
 
-             call print_Jo(unit,"Uni-level data:",Jo_a,Jo_b,ncounts(nlev))
-                          call print_stats(unit,obs_diagn,press_bins,1,nlat,1,nlon,nlev,nlev) 
+             call print_J(unit,"Uni-level data:",Jo_a,Jo_b,ncounts(nlev),Jo_a_assim,Jo_b_assim,Jpa_assim,Jo_p_assim,ncounts_assim(nlev))
+            
+             call print_stats(unit,obs_diagn,press_bins,1,nlat,1,nlon,nlev,nlev) 
              if (obs_diagn%assim_mode) call print_Desroziers(unit,obs_diagn,press_bins,1,nlat,1,nlon,nlev,nlev,status_hpht)
              
           end if
                           
-          deallocate(ncounts)
+          deallocate(ncounts,ncounts_assim)
              
           ! Output lat,lon dependent averages to file if obsspace_diagn_filename is provided
           if (present(openfile_opt)) then
@@ -1817,7 +1870,8 @@ contains
           unit=6
        end if
             
-       call print_Jo(unit,"Total cost function for CH observations:",Jo_a_total,Jo_b_total,counts_total)
+       call print_J(unit,"Total cost function for CH observations:",Jo_a_total,Jo_b_total,counts_total, &
+                         Jo_a_total_assim,Jo_b_total_assim,Jpa_total_assim,Jo_a_total_assim,counts_total_assim)
 
        if (present(openfile_opt)) then
           if (openfile_opt) ierr=fclos(unit) 
@@ -1832,16 +1886,24 @@ contains
  
     !----------------------------------------------------------------------------------------
 
-    subroutine print_Jo(unit,title,Jo_analysis,Jo_backgrnd,nobs)
+    subroutine print_J(unit,title,Jo_analysis,Jo_backgrnd,nobs,Jo_anal_assim,Jo_bgck_assim,Jpa_assim,Jo_p_assim,nobs_assim)
 
       implicit none
 
-      integer, intent(in) :: unit,nobs
+      integer, intent(in) :: unit,nobs,nobs_assim
       character(len=*), intent(in) :: title
       real(8), intent(in) :: Jo_analysis,Jo_backgrnd
+      real(8), intent(in) :: Jo_anal_assim,Jo_bgck_assim,Jpa_assim,Jo_p_assim
 
-      real(8) :: Jo_analysis_norm,Jo_backgrnd_norm
+      real(8) :: Jo_analysis_norm,Jo_backgrnd_norm,Jt_assim
+      real(8) :: Jpa_norm_assim,Jt_norm_assim,Jo_p_norm_assim
       character(len=100) :: fmt
+
+      if (Jo_analysis.lt.1.0d6.and.Jo_backgrnd.lt.1.0d6) then
+         fmt = '(A,F24.8,A,F24.8)'
+      else
+         fmt = '(A,ES24.8,A,ES24.8)'
+      end if
 
       if (nobs.gt.0) then
          Jo_analysis_norm = 2.*Jo_analysis/nobs
@@ -1851,21 +1913,36 @@ contains
          Jo_backgrnd_norm = 0.0d0
       end if
 
-      if (Jo_analysis.lt.1.0d6.and.Jo_backgrnd.lt.1.0d6) then
-         fmt = '(A,F24.8,A,F24.8)'
-      else
-         fmt = '(A,ES24.8,A,ES24.8)'
+      if ((nobs.gt.0.and.nobs_assim.gt.0).or.nobs_assim.eq.0) then
+         write(unit,*)
+         write(unit,'(A)') " " // title // " totals "
+         write(unit,*)
+         write(unit,fmt)       "   Jo(x_analysis) = ",Jo_analysis," ,   2*Jo(x_analysis)/N = ",Jo_analysis_norm
+         write(unit,fmt)       "   Jo(x_backgrnd) = ",Jo_backgrnd," ,   2*Jo(x_backgrnd)/N = ",Jo_backgrnd_norm
+         write(unit,'(A,I24)') "                N = ",nobs
+         write(unit,*)
       end if
 
-      write(unit,*)
-      write(unit,'(A)') " " // title
-      write(unit,*)
-      write(unit,fmt)       "   Jo(x_analysis) = ",Jo_analysis," ,   2*Jo(x_analysis)/N = ",Jo_analysis_norm
-      write(unit,fmt)       "   Jo(x_backgrnd) = ",Jo_backgrnd," ,   2*Jo(x_backgrnd)/N = ",Jo_backgrnd_norm
-      write(unit,'(A,I24)') "                N = ",nobs
-      write(unit,*)
+      if (nobs_assim.gt.0) then
+         Jo_analysis_norm = 2.*Jo_anal_assim/nobs_assim
+         Jo_backgrnd_norm = 2.*Jo_bgck_assim/nobs_assim
+         Jpa_norm_assim = 2.*Jpa_assim/nobs_assim 
+         Jt_norm_assim = Jpa_norm_assim+Jo_analysis_norm
+         Jo_p_norm_assim = 2.*Jo_p_assim/nobs_assim
 
-    end subroutine print_Jo
+         write(unit,*)
+         write(unit,'(A)') " " // title // " assimilated data "
+         write(unit,*)
+         write(unit,fmt)       "   J(A-P)+Jo(x_a) = ",Jt_assim,     " ,   2*[J(A-P)+Jo(x_a)]/N = ",Jt_norm_assim
+         write(unit,fmt)       "   J(A-P)         = ",Jpa_assim,    " ,   2*J(A-P)/N           = ",Jpa_norm_assim
+         write(unit,fmt)       "   Jo(x_analysis) = ",Jo_anal_assim," ,   2*Jo(x_analysis)/N   = ",Jo_analysis_norm
+         write(unit,fmt)       "   Jo(x_backgrnd) = ",Jo_bgck_assim," ,   2*Jo(x_backgrnd)/N   = ",Jo_backgrnd_norm
+         write(unit,fmt)       "   J(O-P)         = ",Jo_p_assim,   " ,   2*J(O-P)/N           = ",Jo_p_norm_assim
+         write(unit,'(A,I24)') "                N = ",nobs_assim
+         write(unit,*)
+      end if
+       
+    end subroutine print_J
 
     !----------------------------------------------------------------------------------------
 
@@ -1925,8 +2002,12 @@ contains
       end do
     
       write(unit,*)
-      write(unit,'(A)') "  Layer     Pressure (hPa)        obs (mean)   obs (std)  rms(O-P)/<O>   <O-P>/<O>   rms(O-A)/<O>  <O-A>/<O>"
-      write(unit,'(A)') "  -----     --------------        ----------   ---------  ------------   ---------   ------------  ---------"
+      ! Division by <O> removed to prevent unlikely division by zero (or <= zero)
+      ! write(unit,'(A)') "  Layer     Pressure (hPa)       Counts   obs (mean)   obs (std)  rms(O-P)/<O>   <O-P>/<O>   rms(O-A)/<O>  <O-A>/<O>"
+      ! write(unit,'(A)') "  -----     --------------       ------   ----------   ---------  ------------   ---------   ------------  ---------"
+      write(unit,'(A)') "  Layer     Pressure (hPa)       Counts   obs (mean)   obs (std)    rms(O-P)       <O-P>       rms(O-A)      <O-A>"
+      write(unit,'(A)') "  -----     --------------       ------   ----------   ---------    --------       -----       --------      -----"
+
 
       do ilev=ilev_start,ilev_end
 
@@ -1949,6 +2030,9 @@ contains
             OmP_mean = 0.0d0
             OmA_rms = 0.0d0
             OmA_mean = 0.0d0
+	    
+            write(unit,'(2X, I3, 2(2X, F11.4), 2X, I6, 6(2X, ES11.4))') &
+                 level,pres1,pres2,counts(ilev),obs_mean,obs_std,OmP_rms,OmP_mean,OmA_rms,OmA_mean
          else
             obs_sum = sum(obs_diagn%obs_stats(ilat_start:ilat_end,ilon_start:ilon_end,ilev,2))
             obs_mean = obs_sum / counts(ilev)
@@ -1958,12 +2042,16 @@ contains
             OmP_mean = sum(obs_diagn%OmP_stats(ilat_start:ilat_end,ilon_start:ilon_end,ilev,2)) / obs_sum
             
             OmA_rms = sqrt(max(0.0D0, sum(obs_diagn%OmA_stats(ilat_start:ilat_end,ilon_start:ilon_end,ilev,1)) / counts(ilev) ))
-            OmA_mean = sum(obs_diagn%OmA_stats(ilat_start:ilat_end,ilon_start:ilon_end,ilev,2)) / obs_sum
+            OmA_mean = sum(obs_diagn%OmA_stats(ilat_start:ilat_end,ilon_start:ilon_end,ilev,2)) / counts(ilev)
+	    
+	    ! write(unit,'(2X, I3, 2(2X, F11.4), 6(2X, ES11.4))') &
+            !     level,pres1,pres2,obs_mean,obs_std,OmP_rms/obs_mean,OmP_mean/obs_sum,OmA_rms/obs_mean,OmA_mean/obs_sum
+	    
+	    write(unit,'(2X, I3, 2(2X, F11.4), 2X, I6, 6(2X, ES11.4))') &
+                  level,pres1,pres2,counts(ilev),obs_mean,obs_std,OmP_rms,OmP_mean,OmA_rms,OmA_mean
+
          end if
-
-         write(unit,'(2X, I3, 2(2X, F11.4), 6(2X, ES11.4))') &
-              level,pres1,pres2,obs_mean,obs_std,OmP_rms,OmP_mean,OmA_rms,OmA_mean
-
+	 
       end do
 
       write(unit,*)
