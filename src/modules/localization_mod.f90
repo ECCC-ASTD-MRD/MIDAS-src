@@ -28,7 +28,7 @@ module localization_mod
   use localizationFunction_mod
   use horizontalCoord_mod
   use verticalCoord_mod
-
+  use ensembleStatevector_mod
   implicit none
   save
   private
@@ -145,7 +145,7 @@ CONTAINS
 
     integer, intent(in)  :: id
     real(8), intent(in)  :: controlVector(:)
-    real(8), intent(out) :: ensAmplitude(:,:,:,:)
+    type(struct_ens)     :: ensAmplitude
 
     if (verbose) write(*,*) 'Entering loc_Lsqrt'
     call idcheck(id)
@@ -168,7 +168,7 @@ CONTAINS
 
     integer, intent(in)   :: id
     real(8), intent(out)  :: controlVector(:)
-    real(8), intent(inout):: ensAmplitude(:,:,:,:)
+    type(struct_ens)      :: ensAmplitude
 
     if (verbose) write(*,*) 'Entering loc_LsqrtAd'
     call idcheck(id)

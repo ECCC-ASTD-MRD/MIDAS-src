@@ -80,7 +80,7 @@ module gridStateVector_mod
     real(8), pointer    :: intOffset(:,:) => null()
     real(8), pointer    :: intMultFactor(:,:) => null()
     ! All the remaining extra information
-    integer             :: dataKind = 8
+    integer             :: dataKind = 8 ! default value
     integer             :: ni, nj, nk, numStep, anltime
     integer             :: latPerPE, latPerPEmax, myLatBeg, myLatEnd
     integer             :: lonPerPE, lonPerPEmax, myLonBeg, myLonEnd

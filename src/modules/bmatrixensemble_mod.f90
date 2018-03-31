@@ -67,6 +67,7 @@ MODULE BmatrixEnsemble_mod
   integer,allocatable :: dateStampList(:)
 
   integer,external    :: get_max_rss, omp_get_thread_num
+  integer             :: numIncludeAnlVar
 
   ! FSO
   real(8)             :: fsoLeadTime = -1.0D0
@@ -123,8 +124,9 @@ MODULE BmatrixEnsemble_mod
   logical             :: keepAmplitude
   character(len=4)    :: IncludeAnlVar(vnl_numvarmax)
   
-  integer             :: numIncludeAnlVar
-  
+  ! Control parameter for the level of listing output
+  logical, parameter :: verbose = .false.
+
 CONTAINS
 
   !--------------------------------------------------------------------------
@@ -161,6 +163,8 @@ CONTAINS
          hLocalize,vLocalize,LocalizationType,waveBandPeaks, &
          diagnostic,ctrlVarHumidity,advectAmplitudeFactor,removeSubEnsMeans, &
          keepAmplitude,IncludeAnlVar
+
+    if (verbose) write(*,*) 'Entering ben_Setup'
 
     call tmg_start(12,'BEN_SETUP')
 
@@ -538,7 +542,7 @@ CONTAINS
       write(*,*)
       write(*,*) 'ben_setup: ensAmplitude fields will be store for potential write to file'
       call ens_allocate(ensAmplitudeStorage, nEns, numStepAmplitude, hco_ens, vco_ens, dateStampList, &
-           varNames_opt=varNameALFA)
+           varNames_opt=varNameALFA, dataKind_opt=8)
     end if
 
     !
@@ -556,6 +560,8 @@ CONTAINS
   SUBROUTINE ben_finalize()
     implicit none
     integer :: memberIndex, waveBandIndex, subEnsIndex
+
+    if (verbose) write(*,*) 'Entering ben_Finalize'
 
     if (initialized) then
       write(*,*) 'ben_finalize: deallocating B_ensemble arrays'
@@ -576,6 +582,8 @@ CONTAINS
     implicit none
     real(8) :: scaleFactor_out(:)
     integer :: levIndex
+
+    if (verbose) write(*,*) 'Entering ben_getScaleFactor'
 
     ! return value of 0 above highest level of ensemble
     do levIndex = 1, (topLevIndex_T - 1)
@@ -641,7 +649,7 @@ CONTAINS
 
       if ( .not. ens_varExist(ensPerts(1), varName) ) cycle 
 
-      ptr4d_r4 => ens_getRepack_r4(ensPerts(1),levIndex)
+      ptr4d_r4 => ens_getOneLev_r4(ensPerts(1),levIndex)
 
       do stepIndex = 1, numStep
         do memberIndex = 1, nEns
@@ -687,12 +695,14 @@ CONTAINS
     logical, optional :: undoNormalization_opt
 
     real(8), pointer :: ptr4d_r8(:,:,:,:)
-    real(4), pointer :: repack_r4(:,:,:,:)
+    real(4), pointer :: ensOneLev_r4(:,:,:,:)
     real(8) :: dnens2, scaleFactor_MT
     logical :: undoNormalization
     integer :: waveBandIndex
     integer :: lonIndex,latIndex,stepIndex,levIndex,lev,levInc,topLevOffset
     character(len=4) :: varName
+
+    if (verbose) write(*,*) 'Entering ben_getPerturbation'
 
     if ( trim(upwardExtrapolationMethod) /= "ConstantValue" ) then
       call utl_abort('ben_getPerturbation : Invalid value for upwardExtrapolationMethod')
@@ -716,7 +726,7 @@ CONTAINS
       lev = ens_getLevFromK(ensPerts(1),levIndex)
 
       ptr4d_r8 => gsv_getField_r8(statevector, varName)
-      repack_r4 => ens_getRepack_r4(ensPerts(waveBandIndex),levIndex)
+      ensOneLev_r4 => ens_getOneLev_r4(ensPerts(waveBandIndex),levIndex)
 
       !$OMP PARALLEL DO PRIVATE(stepIndex,topLevOffset,scaleFactor_MT,levInc,dnens2,latIndex,lonIndex)
       do stepIndex = 1, numStep
@@ -762,7 +772,7 @@ CONTAINS
         do latIndex = myLatBeg, myLatEnd
           do lonIndex = myLonBeg, myLonEnd
             ptr4d_r8(lonIndex,latIndex,levInc,stepIndex) =   &
-                 dnens2*dble(repack_r4(memberIndexWanted,stepIndex,lonIndex,latIndex))
+                 dnens2*dble(ensOneLev_r4(memberIndexWanted,stepIndex,lonIndex,latIndex))
           end do
         end do
 
@@ -799,7 +809,7 @@ CONTAINS
             do latIndex = myLatBeg, myLatEnd
               do lonIndex = myLonBeg, myLonEnd
                 ptr4d_r8(lonIndex,latIndex,levInc,stepIndex) = dnens2 *  &
-                     dble(repack_r4(memberIndexWanted,stepIndex,lonIndex,latIndex))
+                     dble(ensOneLev_r4(memberIndexWanted,stepIndex,lonIndex,latIndex))
               end do
             end do
           end do
@@ -823,7 +833,7 @@ CONTAINS
     character(len=*), intent(in) :: upwardExtrapolationMethod
 
     real(8), pointer :: ptr4d_out(:,:,:,:)
-    real(8), pointer :: repack_mean(:,:,:)
+    real(8), pointer :: ensOneLev_mean(:,:,:)
     integer :: lonIndex,latIndex,stepIndex,levIndex,lev,levInc,topLevOffset
     character(len=4) :: varName
 
@@ -842,7 +852,7 @@ CONTAINS
       lev = ens_getLevFromK(ensPerts(1),levIndex)
 
       ptr4d_out => gsv_getField_r8(statevector, varName)
-      repack_mean => ens_getRepackMean_r8(ensPerts(1), 1, levIndex)
+      ensOneLev_mean => ens_getOneLevMean_r8(ensPerts(1), 1, levIndex)
 
       !$OMP PARALLEL DO PRIVATE(stepIndex,topLevOffset,levInc,latIndex,lonIndex)
       do stepIndex = 1, numStep
@@ -859,7 +869,7 @@ CONTAINS
 
         do latIndex = myLatBeg, myLatEnd
           do lonIndex = myLonBeg, myLonEnd
-            ptr4d_out(lonIndex,latIndex,levInc,stepIndex) = repack_mean(stepIndex,lonIndex,latIndex)
+            ptr4d_out(lonIndex,latIndex,levInc,stepIndex) = ensOneLev_mean(stepIndex,lonIndex,latIndex)
           end do
         end do
 
@@ -870,7 +880,7 @@ CONTAINS
             ! using a constant value
             do latIndex = myLatBeg, myLatEnd
               do lonIndex = myLonBeg, myLonEnd
-                ptr4d_out(lonIndex,latIndex,levInc,stepIndex) = repack_mean(stepIndex,lonIndex,latIndex)
+                ptr4d_out(lonIndex,latIndex,levInc,stepIndex) = ensOneLev_mean(stepIndex,lonIndex,latIndex)
               end do
             end do
           end do
@@ -1002,7 +1012,7 @@ CONTAINS
 
     do stepIndex = 1, numStep ! Loop on ensemble time bin
       do levIndex = 1, ens_getNumK(ensPerts(waveBandIndex)) ! Loop on variables and vertical levels
-        ptr4d_r4 => ens_getRepack_r4(ensPerts(1),levIndex)
+        ptr4d_r4 => ens_getOneLev_r4(ensPerts(1),levIndex)
 
         !- 1.2 GridPoint space -> Spectral Space
  !$OMP PARALLEL DO PRIVATE (latIndex)
@@ -1061,7 +1071,7 @@ CONTAINS
                                    ensPertGD,              & ! OUT
                                    kind, nEnsOverDimension ) ! IN
           end if
-          ptr4d_r4 => ens_getRepack_r4(ensPerts(waveBandIndex),levIndex)
+          ptr4d_r4 => ens_getOneLev_r4(ensPerts(waveBandIndex),levIndex)
 !$OMP PARALLEL DO PRIVATE (memberIndex,latIndex,lonIndex)
           do latIndex = myLatBeg, myLatEnd
             do lonIndex = myLonBeg, myLonEnd
@@ -1091,14 +1101,14 @@ CONTAINS
         do memberIndex = 1, nEns
           bandSum(:,:) = 0.d0
           do waveBandIndex = 2, nWaveBand
-            ptr4d_r4 => ens_getRepack_r4(ensPerts(waveBandIndex),levIndex)
+            ptr4d_r4 => ens_getOneLev_r4(ensPerts(waveBandIndex),levIndex)
             do latIndex = myLatBeg, myLatEnd
               do lonIndex = myLonBeg, myLonEnd
                 bandSum(lonIndex,latIndex) = bandSum(lonIndex,latIndex) + dble(ptr4d_r4(memberIndex,stepIndex,lonIndex,latIndex))
               end do
             end do
           end do
-          ptr4d_r4 => ens_getRepack_r4(ensPerts(1),levIndex)
+          ptr4d_r4 => ens_getOneLev_r4(ensPerts(1),levIndex)
           do latIndex = myLatBeg, myLatEnd
             do lonIndex = myLonBeg, myLonEnd
               ptr4d_r4(memberIndex,stepIndex,lonIndex,latIndex) = sngl(dble(ptr4d_r4(memberIndex,stepIndex,lonIndex,latIndex)) - bandSum(lonIndex,latIndex))
@@ -1120,6 +1130,8 @@ CONTAINS
     real(8), intent(out) :: cv_mpilocal(cvDim_mpilocal)
     real(8), intent(in)  :: cv_mpiglobal(:)
 
+    if (verbose) write(*,*) 'Entering ben_reduceToMPILocal'
+
     call loc_reduceToMPILocal(locIDs(1),cv_mpilocal,cv_mpiglobal)
 
  END SUBROUTINE ben_reduceToMPILocal
@@ -1131,6 +1143,8 @@ CONTAINS
     implicit none
     real(4), intent(out) :: cv_mpilocal(cvDim_mpilocal)
     real(4), intent(in)  :: cv_mpiglobal(:)
+
+    if (verbose) write(*,*) 'Entering reduceToMPILocal_r4'
 
     call loc_reduceToMPILocal_r4(locIDs(1),cv_mpilocal,cv_mpiglobal) ! IN
 
@@ -1145,6 +1159,8 @@ CONTAINS
     real(8), intent(in)  :: cv_mpilocal(cvDim_mpilocal)
     real(8), intent(out) :: cv_mpiglobal(:)
 
+    if (verbose) write(*,*) 'Entering ben_expandToMPIGlobal'
+
     call loc_expandToMPIGlobal(locIDs(1), cv_mpilocal,  & ! IN
                                cv_mpiglobal)              ! OUT  
 
@@ -1158,6 +1174,8 @@ CONTAINS
 
     real(4), intent(in)  :: cv_mpilocal(cvDim_mpilocal)
     real(4), intent(out) :: cv_mpiglobal(:)
+
+    if (verbose) write(*,*) 'Entering ben_expandToMPIGlobal_r4'
 
     call loc_expandToMPIGlobal_r4(locIDs(1), cv_mpilocal,  & ! IN
                                   cv_mpiglobal)              ! OUT
@@ -1174,7 +1192,8 @@ CONTAINS
     type(struct_gsv) :: statevector
     logical,optional :: useFSOFcst_opt
 
-    real(8), pointer :: ensAmplitudeAll_M(:,:,:,:,:)
+    type(struct_ens)    :: ensAmplitude_M
+    
     integer   :: ierr, levIndex, latIndex, memberIndex, waveBandIndex
     logical   :: immediateReturn
     logical   :: useFSOFcst
@@ -1219,27 +1238,28 @@ CONTAINS
     !
     !- 2.  Compute the analysis increment from Bens
     !
-    allocate(ensAmplitudeAll_M(nEnsOverDimension,numStepAmplitude,myLonBeg:myLonEnd,myLatBeg:myLatEnd,nLevEns_M))
-    call gsv_zero(statevector)
+    if (verbose) write(*,*) 'ben_bsqrt: allocating ensAmplitude_M'
+    call ens_allocate(ensAmplitude_M, nEnsOverDimension, numStepAmplitude, hco_ens, vco_ens, dateStampList, &
+                      varNames_opt=varNameALFA, dataKind_opt=8)
 
     do waveBandIndex = 1, nWaveBand !  Loop on WaveBand (for ScaleDependent Localization)
 
       ! 2.1 Compute the ensemble amplitudes
       call loc_Lsqrt( locIDs(waveBandIndex),controlVector_in, & ! IN
-                      ensAmplitudeAll_M(:,1,:,:,:) )            ! OUT
+                      ensAmplitude_M)                           ! OUT
 
       ! 2.2 Advect the initial time amplitudes
-      if ( advectAmplitude .and. useFSOFcst ) call advectAmplitude_tl( ensAmplitudeAll_M ) ! INOUT
+      if ( advectAmplitude .and. useFSOFcst ) call advectAmplitude_tl( ensAmplitude_M ) ! INOUT
 
-      if ( keepAmplitude .and. waveBandIndex == 1 ) call copyAmplitude(ensAmplitudeAll_M) ! IN
+      if ( keepAmplitude .and. waveBandIndex == 1 ) call ens_copy(ensAmplitude_M, ensAmplitudeStorage)
 
       ! 2.3 Compute increment by multiplying amplitudes by member perturbations
-      call addEnsMember_repack( ensAmplitudeAll_M, statevector,  & ! INOUT 
-                                waveBandIndex, useFSOFcst )        ! IN
+      call addEnsMember( ensAmplitude_M, statevector,  & ! INOUT 
+                         waveBandIndex, useFSOFcst )     ! IN
 
     end do ! Loop on WaveBand
 
-    deallocate(ensAmplitudeAll_M)
+    call ens_deallocate(ensAmplitude_M)
 
     !
     !- 3.  Variable transforms
@@ -1265,7 +1285,8 @@ CONTAINS
     type(struct_gsv)  :: statevector
     logical, optional :: useFSOFcst_opt
 
-    real(8), pointer  :: ensAmplitudeAll_M(:,:,:,:,:)
+    type(struct_ens)   :: ensAmplitude_M
+
     integer           :: ierr, levIndex, latIndex, memberIndex, waveBandIndex
     logical           :: useFSOFcst
 
@@ -1295,8 +1316,6 @@ CONTAINS
       useFSOFcst = .false.
     end if
 
-    allocate(ensAmplitudeAll_M(nEnsOverDimension,numStepAmplitude,myLonBeg:myLonEnd,myLatBeg:myLatEnd,nLevEns_M))
-
     !
     !- 3.  Variable transforms
     !
@@ -1309,23 +1328,25 @@ CONTAINS
     !
     !- 2.  Compute the analysis increment from Bens
     !
-    allocate(ensAmplitudeAll_M(nEnsOverDimension,numStepAmplitude,myLonBeg:myLonEnd,myLatBeg:myLatEnd,nLevEns_M))
+    if (verbose) write(*,*) 'ben_bsqrtAd: allocating ensAmplitude_M'
+    call ens_allocate(ensAmplitude_M, nEnsOverDimension, numStepAmplitude, hco_ens, vco_ens, dateStampList, &
+                      varNames_opt=varNameALFA, dataKind_opt=8)
 
     do waveBandIndex = 1, nWaveBand !  Loop on WaveBand (for ScaleDependent Localization)
 
       ! 2.3 Compute increment by multiplying amplitudes by member perturbations
-      call addEnsMemberAd_repack( statevector, ensAmplitudeAll_M,  & ! INOUT
-                                  waveBandIndex, useFSOFcst)                    ! IN
+      call addEnsMemberAd( statevector, ensAmplitude_M,  & ! INOUT
+                           waveBandIndex, useFSOFcst)      ! IN
       ! 2.2 Advect the initial time amplitudes
-      if ( advectAmplitude .and. useFSOFcst) call advectAmplitude_ad( ensAmplitudeAll_M ) ! INOUT
+      if ( advectAmplitude .and. useFSOFcst) call advectAmplitude_ad( ensAmplitude_M ) ! INOUT
 
       ! 2.1 Compute the ensemble amplitudes
-      call loc_LsqrtAd( locIDs(waveBandIndex),ensAmplitudeAll_M(:,1,:,:,:), & ! IN
-                        controlVector_out )                        ! OUT
+      call loc_LsqrtAd( locIDs(waveBandIndex),ensAmplitude_M, & ! IN
+                        controlVector_out )                     ! OUT
 
     end do ! Loop on WaveBand
 
-    deallocate(ensAmplitudeAll_M)
+    call ens_deallocate(ensAmplitude_M)
 
     if (mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     if (mpi_myid == 0) write(*,*) 'ben_bsqrtAd: done'
@@ -1346,7 +1367,6 @@ CONTAINS
     real(4) :: lonAdvect_deg_r4, latAdvect_deg_r4, xpos_r4, ypos_r4
     real(8), allocatable :: uu_mpiglobal_tiles(:,:,:,:), uu_mpiglobal(:,:,:)
     real(8), allocatable :: vv_mpiglobal_tiles(:,:,:,:), vv_mpiglobal(:,:,:)
-    logical :: verbose
     real(8) :: numGridPts
     real(8) :: latitudePatch
     real(8), pointer  :: ptr3d_r8(:,:,:)
@@ -1359,7 +1379,6 @@ CONTAINS
 
 
     !- Set some important values
-    verbose = .false.
     numGridPts = 1.0d0 ! used to compute numSubStep
     latitudePatch = 80.0d0 ! this defines latitude where rotated grid used
     delT = fsoLeadTime*3600.0D0/real(numStepAdvect-1,8) ! time between winds (assume 6h window)
@@ -1693,23 +1712,33 @@ CONTAINS
 !--------------------------------------------------------------------------
 ! advectAmplitude_tl
 !--------------------------------------------------------------------------
-  SUBROUTINE advectAmplitude_tl( ensAmplitudeAll_M )
+  SUBROUTINE advectAmplitude_tl( ensAmplitude_M )
     implicit none
-    real(8)              :: ensAmplitudeAll_M(nEnsOverDimension,numStepAmplitude,myLonBeg:myLonEnd,myLatBeg:myLatEnd,nLevEns_M)
+    !real(8)              :: ensAmplitude_M(nEnsOverDimension,numStepAmplitude,myLonBeg:myLonEnd,myLatBeg:myLatEnd,nLevEns_M)
+    type(struct_ens)    :: ensAmplitude_M
+
+    real(8), pointer     :: ensAmplitude_M_oneLev(:,:,:,:)
     real(8), allocatable :: ensAmplitude1_mpiglobal_tiles(:,:,:,:)
     real(8), allocatable :: ensAmplitude1_mpiglobal(:,:,:)
+
     integer :: memberIndex, stepIndex, levIndex, lonIndex, latIndex, lonIndex2, latIndex2, lonIndex2_p1, latIndex2_p1, nsize, ierr
     integer :: procID, procIDx, procIDy, lonIndex_mpiglobal, latIndex_mpiglobal
 
-    ensAmplitudeAll_M(:,2,:,:,:)=0.0D0
+    !ensAmplitude_M(:,2,:,:,:)=0.0D0
     allocate(ensAmplitude1_mpiglobal_tiles(nEns,lonPerPE,latPerPE,mpi_nprocs))
     allocate(ensAmplitude1_mpiglobal(nEns,ni,nj))
 
     do levIndex = 1, nLevEns_M
 
+      ensAmplitude_M_oneLev => ens_getOneLev_r8(ensAmplitude_M,levIndex)
+      ensAmplitude_M_oneLev(:,2,:,:) = 0.0D0
+
       ! gather the global initial amplitude field on all tasks
       nsize = nEns*lonPerPE*latPerPE
-      call rpn_comm_allgather(ensAmplitudeAll_M(1:nEns,1,:,:,levIndex),        nsize, "mpi_double_precision",  &
+      !call rpn_comm_allgather(ensAmplitude_M(1:nEns,1,:,:,levIndex),        nsize, "mpi_double_precision",  &
+      !                        ensAmplitude1_mpiglobal_tiles(:,:,:,:), nsize, "mpi_double_precision",  &
+      !                        "GRID", ierr )
+      call rpn_comm_allgather(ensAmplitude_M_oneLev(1:nEns,1,:,:)   , nsize, "mpi_double_precision",  &
                               ensAmplitude1_mpiglobal_tiles(:,:,:,:), nsize, "mpi_double_precision",  &
                               "GRID", ierr )
 
@@ -1741,7 +1770,7 @@ CONTAINS
           lonIndex2_p1 = mod(lonIndex2,ni)+1 ! assume periodic
           latIndex2_p1 = min(latIndex2+1,nj)
           do memberIndex = 1, nEns
-              ensAmplitudeAll_M(memberIndex,2,lonIndex,latIndex,levIndex) =   &
+              ensAmplitude_M_oneLev(memberIndex,2,lonIndex,latIndex) =   &
                 interpWeightAdvect_BL(lonIndex,latIndex,levIndex)*ensAmplitude1_mpiglobal(memberIndex, lonIndex2   ,latIndex2) +  &
                 interpWeightAdvect_BR(lonIndex,latIndex,levIndex)*ensAmplitude1_mpiglobal(memberIndex, lonIndex2_p1,latIndex2) +  &
                 interpWeightAdvect_TL(lonIndex,latIndex,levIndex)*ensAmplitude1_mpiglobal(memberIndex, lonIndex2   ,latIndex2_p1) +  &
@@ -1761,12 +1790,16 @@ CONTAINS
 !--------------------------------------------------------------------------
 ! advectAmplitude_ad
 !--------------------------------------------------------------------------
-  SUBROUTINE advectAmplitude_ad( ensAmplitudeAll_M )
+  SUBROUTINE advectAmplitude_ad( ensAmplitude_M )
     implicit none
-    real(8)              :: ensAmplitudeAll_M(nEnsOverDimension,numStepAmplitude,myLonBeg:myLonEnd,myLatBeg:myLatEnd,nLevEns_M)
+    !real(8)              :: ensAmplitude_M(nEnsOverDimension,numStepAmplitude,myLonBeg:myLonEnd,myLatBeg:myLatEnd,nLevEns_M)
+    type(struct_ens)    :: ensAmplitude_M
+
+    real(8), pointer     :: ensAmplitude_M_oneLev(:,:,:,:)
     real(8), allocatable :: ensAmplitude1_mpiglobal(:,:,:)
     real(8), allocatable :: ensAmplitude1_mpiglobal_tiles(:,:,:,:)
     real(8), allocatable :: ensAmplitude1_mpiglobal_tiles2(:,:,:,:)
+
     integer :: memberIndex, stepIndex, levIndex, lonIndex, latIndex, lonIndex2, latIndex2, lonIndex2_p1, latIndex2_p1
     integer :: lonIndex_mpiglobal, latIndex_mpiglobal, procID, procIDx, procIDy, ierr, nsize
 
@@ -1776,6 +1809,8 @@ CONTAINS
 
     do levIndex = 1, nLevEns_M
       ensAmplitude1_mpiglobal(:,:,:) = 0.0d0
+
+      ensAmplitude_M_oneLev => ens_getOneLev_r8(ensAmplitude_M,levIndex)
 
       do latIndex = myLatBeg, myLatEnd
         do lonIndex = myLonBeg, myLonEnd
@@ -1787,13 +1822,13 @@ CONTAINS
 !$OMP PARALLEL DO PRIVATE(memberIndex)
           do memberIndex = 1, nEns
             ensAmplitude1_mpiglobal(memberIndex, lonIndex2   ,latIndex2) = ensAmplitude1_mpiglobal(memberIndex, lonIndex2   ,latIndex2) +  &
-              interpWeightAdvect_BL(lonIndex,latIndex,levIndex)*ensAmplitudeAll_M(memberIndex,2,lonIndex,latIndex,levIndex)
+              interpWeightAdvect_BL(lonIndex,latIndex,levIndex)*ensAmplitude_M_oneLev(memberIndex,2,lonIndex,latIndex)
             ensAmplitude1_mpiglobal(memberIndex, lonIndex2_p1,latIndex2) = ensAmplitude1_mpiglobal(memberIndex, lonIndex2_p1,latIndex2) +  &
-              interpWeightAdvect_BR(lonIndex,latIndex,levIndex)*ensAmplitudeAll_M(memberIndex,2,lonIndex,latIndex,levIndex)
+              interpWeightAdvect_BR(lonIndex,latIndex,levIndex)*ensAmplitude_M_oneLev(memberIndex,2,lonIndex,latIndex)
             ensAmplitude1_mpiglobal(memberIndex, lonIndex2   ,latIndex2_p1) = ensAmplitude1_mpiglobal(memberIndex, lonIndex2   ,latIndex2_p1) +  &
-              interpWeightAdvect_TL(lonIndex,latIndex,levIndex)*ensAmplitudeAll_M(memberIndex,2,lonIndex,latIndex,levIndex)
+              interpWeightAdvect_TL(lonIndex,latIndex,levIndex)*ensAmplitude_M_oneLev(memberIndex,2,lonIndex,latIndex)
             ensAmplitude1_mpiglobal(memberIndex, lonIndex2_p1,latIndex2_p1) = ensAmplitude1_mpiglobal(memberIndex, lonIndex2_p1,latIndex2_p1) +  &
-              interpWeightAdvect_TR(lonIndex,latIndex,levIndex)*ensAmplitudeAll_M(memberIndex,2,lonIndex,latIndex,levIndex)
+              interpWeightAdvect_TR(lonIndex,latIndex,levIndex)*ensAmplitude_M_oneLev(memberIndex,2,lonIndex,latIndex)
           end do ! memberIndex
 !$OMP END PARALLEL DO
         end do ! lonIndex
@@ -1833,8 +1868,12 @@ CONTAINS
           do lonIndex = 1, lonPerPE
             lonIndex2 = lonIndex + myLonBeg - 1
             do memberIndex = 1, nEns
-              ensAmplitudeAll_M(memberIndex, 1, lonIndex2, latIndex2, levIndex) = ensAmplitudeAll_M(memberIndex, 1, lonIndex2, latIndex2, levIndex) +  &
-                 ensAmplitude1_mpiglobal_tiles2(memberIndex, lonIndex, latIndex, procID+1)
+              !ensAmplitude_M(memberIndex, 1, lonIndex2, latIndex2, levIndex) = &
+              !     ensAmplitude_M(memberIndex, 1, lonIndex2, latIndex2, levIndex) +  &
+              !     ensAmplitude1_mpiglobal_tiles2(memberIndex, lonIndex, latIndex, procID+1)
+              ensAmplitude_M_oneLev(memberIndex, 1, lonIndex2, latIndex2) = &
+                   ensAmplitude_M_oneLev(memberIndex, 1, lonIndex2, latIndex2) +  &
+                   ensAmplitude1_mpiglobal_tiles2(memberIndex, lonIndex, latIndex, procID+1)
             end do ! memberIndex
           end do ! lonIndex
         end do ! latIndex
@@ -1850,19 +1889,20 @@ CONTAINS
   END SUBROUTINE advectAmplitude_ad
 
 !--------------------------------------------------------------------------
-! addEnsMember_repack
+! addEnsMember
 !--------------------------------------------------------------------------
-  SUBROUTINE addEnsMember_repack(ensAmplitudeAll_M, statevector_out, &
+  SUBROUTINE addEnsMember(ensAmplitude_M, statevector_out, &
                                  waveBandIndex, useFSOFcst_opt)
     implicit none
 
-    real(8), target    :: ensAmplitudeAll_M(nEnsOverDimension,numStepAmplitude,myLonBeg:myLonEnd,myLatBeg:myLatEnd,nLevEns_M)
+    type(struct_ens)    :: ensAmplitude_M
     type(struct_gsv)    :: statevector_out
     integer, intent(in) :: waveBandIndex
     logical, optional   :: useFSOFcst_opt
 
-    real(8), allocatable, target :: ensAmplitudeAll_MT(:,:,:,:)
-    real(8), pointer     :: ensAmplitudeAll_MT_ptr(:,:,:,:)
+    real(8), pointer    :: ensAmplitude_M_oneLev(:,:,:,:), ensAmplitude_M_oneLevM1(:,:,:,:)
+    real(8), allocatable, target :: ensAmplitude_MT(:,:,:,:)
+    real(8), pointer     :: ensAmplitude_MT_ptr(:,:,:,:)
     real(8), pointer     :: increment_out(:,:,:,:)
     real(8), allocatable :: increment_out2(:,:,:)
     real(4), pointer     :: ensMemberAll_r4(:,:,:,:)
@@ -1872,8 +1912,11 @@ CONTAINS
     logical             :: useFSOFcst
     integer             :: stepIndex2, stepBeg, stepEnd
 
+    
+    if (verbose) write(*,*) 'Entering ben_addEnsMember'
+
     if (vco_anl%Vcode /= 5002 .and. (vco_anl%nlev_T > 1 .or. vco_anl%nlev_M > 1) ) then
-      call utl_abort('addEnsMemberAd_repack: Only 5002 supported in 3D mode for now!')
+      call utl_abort('addEnsMemberAd: Only 5002 supported in 3D mode for now!')
     end if
 
     call tmg_start(62,'ADDMEM')
@@ -1892,7 +1935,7 @@ CONTAINS
       stepEnd = numStepAnlWindow
     end if
 
-    allocate(ensAmplitudeAll_MT(nEns,numStepAmplitude,myLonBeg:myLonEnd,myLatBeg:myLatEnd))
+    allocate(ensAmplitude_MT(nEns,numStepAmplitude,myLonBeg:myLonEnd,myLatBeg:myLatEnd))
     allocate(increment_out2(numStep,myLonBeg:myLonEnd,myLatBeg:myLatEnd))
 
     do levIndex = 1, ens_getNumK(ensPerts(waveBandIndex))
@@ -1907,40 +1950,46 @@ CONTAINS
 !$OMP END PARALLEL DO
 
       call tmg_start(66,'ADDMEM_PREPAMP')
+
       if (vnl_varLevelFromVarname(varName) == 'MM') then
 
-        ensAmplitudeAll_MT_ptr(1:,1:,myLonBeg:,myLatBeg:) => ensAmplitudeAll_M(1:nEns,:,:,:,lev)
+        ensAmplitude_M_oneLev => ens_getOneLev_r8(ensAmplitude_M,lev)
+        ensAmplitude_MT_ptr(1:,1:,myLonBeg:,myLatBeg:) => ensAmplitude_M_oneLev(1:nEns,:,:,:)
 
       else if (vnl_varLevelFromVarname(varName) == 'TH') then
 
         if (lev == 1) then
           ! use top momentum level amplitudes for top thermo level
-          ensAmplitudeAll_MT_ptr(1:,1:,myLonBeg:,myLatBeg:) => ensAmplitudeAll_M(1:nEns,:,:,:,lev)
+          ensAmplitude_M_oneLev => ens_getOneLev_r8(ensAmplitude_M,lev)
+          ensAmplitude_MT_ptr(1:,1:,myLonBeg:,myLatBeg:) => ensAmplitude_M_oneLev(1:nEns,:,:,:)
         else if (lev == nLevEns_T) then
           ! use surface momentum level amplitudes for surface thermo level
-          ensAmplitudeAll_MT_ptr(1:,1:,myLonBeg:,myLatBeg:) => ensAmplitudeAll_M(1:nEns,:,:,:,nLevEns_M)
+          ensAmplitude_M_oneLev => ens_getOneLev_r8(ensAmplitude_M,nLevEns_M)
+          ensAmplitude_MT_ptr(1:,1:,myLonBeg:,myLatBeg:) => ensAmplitude_M_oneLev(1:nEns,:,:,:)
         else
           ! for other levels, interpolate momentum weights to get thermo amplitudes
-!$OMP PARALLEL DO PRIVATE (latIndex)
+!$OMP PARALLEL DO PRIVATE (latIndex, ensAmplitude_M_oneLev, ensAmplitude_M_oneLevM1)
           do latIndex = myLatBeg, myLatEnd
-            ensAmplitudeAll_MT(:,:,:,latIndex) = 0.5d0*( ensAmplitudeAll_M(1:nEns,:,:,latIndex,lev-1) +   &
-                                                   ensAmplitudeAll_M(1:nEns,:,:,latIndex,lev) )
+            ensAmplitude_M_oneLev   => ens_getOneLev_r8(ensAmplitude_M,lev)
+            ensAmplitude_M_oneLevM1 => ens_getOneLev_r8(ensAmplitude_M,lev-1)
+            ensAmplitude_MT(:,:,:,latIndex) = 0.5d0*( ensAmplitude_M_oneLevM1(1:nEns,:,:,latIndex) +   &
+                                                   ensAmplitude_M_oneLev(1:nEns,:,:,latIndex) )
           end do
 !$OMP END PARALLEL DO
-          ensAmplitudeAll_MT_ptr(1:,1:,myLonBeg:,myLatBeg:) => ensAmplitudeAll_MT(:,:,:,:)
+          ensAmplitude_MT_ptr(1:,1:,myLonBeg:,myLatBeg:) => ensAmplitude_MT(:,:,:,:)
         end if
 
       else if (vnl_varLevelFromVarname(varName) == 'SF') then
 
         ! surface variable
-        ensAmplitudeAll_MT_ptr(1:,1:,myLonBeg:,myLatBeg:) => ensAmplitudeAll_M(1:nEns,:,:,:,nLevEns_M)
-
+        ensAmplitude_M_oneLev   => ens_getOneLev_r8(ensAmplitude_M,nLevEns_M)
+        ensAmplitude_MT_ptr(1:,1:,myLonBeg:,myLatBeg:) => ensAmplitude_M_oneLev(1:nEns,:,:,:)
       end if
       call tmg_stop(66)
 
       call tmg_start(77,'ADDMEM_INNER')
 
-      ensMemberAll_r4 => ens_getRepack_r4(ensPerts(waveBandIndex),levIndex)
+      ensMemberAll_r4 => ens_getOneLev_r4(ensPerts(waveBandIndex),levIndex)
 !$OMP PARALLEL DO PRIVATE (latIndex,lonIndex,stepIndex,stepIndex2,stepIndex_amp,memberIndex)
       do latIndex = myLatBeg, myLatEnd
         do lonIndex = myLonBeg, myLonEnd
@@ -1953,7 +2002,7 @@ CONTAINS
             end if
             do memberIndex = 1, nEns
               increment_out2(stepIndex2,lonIndex,latIndex) = increment_out2(stepIndex2,lonIndex,latIndex) +   &
-                ensAmplitudeAll_MT_ptr(memberIndex,stepIndex_amp,lonIndex,latIndex) *  &
+                ensAmplitude_MT_ptr(memberIndex,stepIndex_amp,lonIndex,latIndex) *  &
                 dble(ensMemberAll_r4(memberIndex,stepIndex,lonIndex,latIndex))
             end do ! memberIndex
           end do ! stepIndex
@@ -1983,26 +2032,27 @@ CONTAINS
 
     end do ! levIndex
 
-    deallocate(ensAmplitudeAll_MT)
+    deallocate(ensAmplitude_MT)
     deallocate(increment_out2)
 
     call tmg_stop(62)
 
-  END SUBROUTINE addEnsMember_repack
+  END SUBROUTINE addEnsMember
 
 !--------------------------------------------------------------------------
-! addEnsMemberAd_repack
+! addEnsMemberAd
 !--------------------------------------------------------------------------
-  SUBROUTINE addEnsMemberAd_repack(statevector_in, ensAmplitudeAll_M, &
+  SUBROUTINE addEnsMemberAd(statevector_in, ensAmplitude_M, &
                                    waveBandIndex, useFSOFcst_opt)
     implicit none
 
-    real(8)            :: ensAmplitudeAll_M(nEnsOverDimension,numStepAmplitude,myLonBeg:myLonEnd,myLatBeg:myLatEnd,nLevEns_M)
+    type(struct_ens)    :: ensAmplitude_M
     type(struct_gsv)   :: statevector_in
     integer,intent(in) :: waveBandIndex
     logical,optional   :: useFSOFcst_opt
 
-    real(8), allocatable :: ensAmplitudeAll_MT(:,:)
+    real(8), pointer    :: ensAmplitude_M_oneLev(:,:,:,:), ensAmplitude_M_oneLevM1(:,:,:,:)
+    real(8), allocatable :: ensAmplitude_MT(:,:)
     real(8), pointer :: increment_in(:,:,:,:)
     real(8), allocatable :: increment_in2(:,:,:)
     real(4), pointer :: ensMemberAll_r4(:,:,:,:)
@@ -2011,8 +2061,10 @@ CONTAINS
     integer     ::  stepBeg, stepEnd, stepIndex2
     logical          :: useFSOFcst
 
+    if (verbose) write(*,*) 'Entering ben_addEnsMemberAd'
+
     if (vco_anl%Vcode /= 5002 .and. (vco_anl%nlev_T > 1 .or. vco_anl%nlev_M > 1) ) then
-      call utl_abort('addEnsMemberAd_repack: Only 5002 supported in 3D mode for now!')
+      call utl_abort('addEnsMemberAd: Only 5002 supported in 3D mode for now!')
     end if
 
     call tmg_start(63,'ADDMEMAD')
@@ -2032,14 +2084,15 @@ CONTAINS
       stepEnd = numStepAnlWindow
     end if
 
-    allocate(ensAmplitudeAll_MT(nEns,numStepAmplitude))
+    allocate(ensAmplitude_MT(nEns,numStepAmplitude))
     allocate(increment_in2(numStep,myLonBeg:myLonEnd,myLatBeg:myLatEnd))
 
     ! set output ensemble Amplitude to zero
     call tmg_start(69,'ADDMEMAD_ZERO')
-!$OMP PARALLEL DO PRIVATE (levIndex)
+!$OMP PARALLEL DO PRIVATE (levIndex, ensAmplitude_M_oneLev)
     do levIndex = 1, nLevEns_M
-      ensAmplitudeAll_M(:,:,:,:,levIndex) = 0.0d0
+      ensAmplitude_M_oneLev => ens_getOneLev_r8(ensAmplitude_M,levIndex)
+      ensAmplitude_M_oneLev(:,:,:,:) = 0.0d0
     end do
 !$OMP END PARALLEL DO
     call tmg_stop(69)
@@ -2070,13 +2123,13 @@ CONTAINS
       call tmg_stop(65)
 
       !ensAmpZeroed(:,:,:) = .false.
-      ensMemberAll_r4 => ens_getRepack_r4(ensPerts(waveBandIndex),levIndex)
-!$OMP PARALLEL DO PRIVATE (latIndex,lonIndex,stepIndex, stepIndex2, stepIndex_amp,memberIndex,ensAmplitudeAll_MT)
+      ensMemberAll_r4 => ens_getOneLev_r4(ensPerts(waveBandIndex),levIndex)
+!$OMP PARALLEL DO PRIVATE (latIndex,lonIndex,stepIndex, stepIndex2, stepIndex_amp,memberIndex,ensAmplitude_M_oneLev, ensAmplitude_M_oneLevM1, ensAmplitude_MT)
       do latIndex = myLatBeg, myLatEnd
         do lonIndex = myLonBeg, myLonEnd
 
           if (omp_get_thread_num() == 0) call tmg_start(78,'ADDMEMAD_INNER')
-          ensAmplitudeAll_MT(:,:) = 0.0d0
+          ensAmplitude_MT(:,:) = 0.0d0
           do stepIndex = StepBeg, StepEnd
             stepIndex2 = stepIndex-StepBeg+1
             if (advectAmplitude .and. useFSOFcst) then
@@ -2085,7 +2138,7 @@ CONTAINS
               stepIndex_amp = 1
             end if
             do memberIndex = 1, nEns
-              ensAmplitudeAll_MT(memberIndex,stepIndex_amp) = ensAmplitudeAll_MT(memberIndex,stepIndex_amp) +  &
+              ensAmplitude_MT(memberIndex,stepIndex_amp) = ensAmplitude_MT(memberIndex,stepIndex_amp) +  &
                 increment_in2(stepIndex2,lonIndex,latIndex) * dble(ensMemberAll_r4(memberIndex,stepIndex,lonIndex,latIndex))
             end do ! memberIndex
           end do ! stepIndex
@@ -2096,26 +2149,38 @@ CONTAINS
           if (omp_get_thread_num() == 0) call tmg_start(68,'ADDMEMAD_PREPAMP')
           if (vnl_varLevelFromVarname(varName) == 'MM') then
 
-            ensAmplitudeAll_M(1:nEns,:,lonIndex,latIndex,lev) = ensAmplitudeAll_M(1:nEns,:,lonIndex,latIndex,lev) + ensAmplitudeAll_MT(:,:)
+            ensAmplitude_M_oneLev => ens_getOneLev_r8(ensAmplitude_M,lev)
+            ensAmplitude_M_oneLev(1:nEns,:,lonIndex,latIndex) = &
+                 ensAmplitude_M_oneLev(1:nEns,:,lonIndex,latIndex) + ensAmplitude_MT(:,:)
 
           else if (vnl_varLevelFromVarname(varName) == 'TH') then
 
             if (lev == 1) then
               ! use top momentum level amplitudes for top thermo level
-              ensAmplitudeAll_M(1:nEns,:,lonIndex,latIndex,lev) = ensAmplitudeAll_M(1:nEns,:,lonIndex,latIndex,lev) + ensAmplitudeAll_MT(:,:)
+              ensAmplitude_M_oneLev => ens_getOneLev_r8(ensAmplitude_M,lev)
+              ensAmplitude_M_oneLev(1:nEns,:,lonIndex,latIndex) = &
+                 ensAmplitude_M_oneLev(1:nEns,:,lonIndex,latIndex) + ensAmplitude_MT(:,:)
             else if (lev == nLevEns_T) then
               ! use surface momentum level amplitudes for surface thermo level
-              ensAmplitudeAll_M(1:nEns,:,lonIndex,latIndex,nLevEns_M) = ensAmplitudeAll_M(1:nEns,:,lonIndex,latIndex,nLevEns_M) + ensAmplitudeAll_MT(:,:)
+              ensAmplitude_M_oneLev => ens_getOneLev_r8(ensAmplitude_M,nLevEns_M)
+              ensAmplitude_M_oneLev(1:nEns,:,lonIndex,latIndex) = &
+                   ensAmplitude_M_oneLev(1:nEns,:,lonIndex,latIndex) + ensAmplitude_MT(:,:)
             else
               ! for other levels, interpolate momentum weights to get thermo amplitudes
-              ensAmplitudeAll_M(1:nEns,:,lonIndex,latIndex,lev)   = ensAmplitudeAll_M(1:nEns,:,lonIndex,latIndex,lev)   + 0.5d0*ensAmplitudeAll_MT(:,:)
-              ensAmplitudeAll_M(1:nEns,:,lonIndex,latIndex,lev-1) = ensAmplitudeAll_M(1:nEns,:,lonIndex,latIndex,lev-1) + 0.5d0*ensAmplitudeAll_MT(:,:)
+              ensAmplitude_M_oneLev   => ens_getOneLev_r8(ensAmplitude_M,lev)
+              ensAmplitude_M_oneLevM1 => ens_getOneLev_r8(ensAmplitude_M,lev-1)
+              ensAmplitude_M_oneLev(1:nEns,:,lonIndex,latIndex)   = &
+                   ensAmplitude_M_oneLev(1:nEns,:,lonIndex,latIndex)   + 0.5d0*ensAmplitude_MT(:,:)
+              ensAmplitude_M_oneLevM1(1:nEns,:,lonIndex,latIndex) = &
+                   ensAmplitude_M_oneLevM1(1:nEns,:,lonIndex,latIndex) + 0.5d0*ensAmplitude_MT(:,:)
             end if
 
           else if (vnl_varLevelFromVarname(varName) == 'SF') then
 
             ! surface variable
-            ensAmplitudeAll_M(1:nEns,:,lonIndex,latIndex,nLevEns_M) = ensAmplitudeAll_M(1:nEns,:,lonIndex,latIndex,nLevEns_M) + ensAmplitudeAll_MT(:,:)
+            ensAmplitude_M_oneLev   => ens_getOneLev_r8(ensAmplitude_M,nLevEns_M)
+            ensAmplitude_M_oneLev (1:nEns,:,lonIndex,latIndex) = &
+                 ensAmplitude_M_oneLev(1:nEns,:,lonIndex,latIndex) + ensAmplitude_MT(:,:)
 
           end if
           if (omp_get_thread_num() == 0) call tmg_stop(68)
@@ -2126,12 +2191,12 @@ CONTAINS
 
     end do ! levIndex
 
-    deallocate(ensAmplitudeAll_MT)
+    deallocate(ensAmplitude_MT)
     deallocate(increment_in2)
 
     call tmg_stop(63)
 
-  END SUBROUTINE addEnsMemberAd_repack
+  END SUBROUTINE addEnsMemberAd
 
 !--------------------------------------------------------------------------
 ! EnsembleDiagnostic
@@ -2233,36 +2298,6 @@ CONTAINS
     call gsv_deallocate(statevector_temp)
 
   END SUBROUTINE EnsembleDiagnostic
-
-!--------------------------------------------------------------------------
-! copyAmplitude
-!--------------------------------------------------------------------------
-  SUBROUTINE copyAmplitude(ensAmplitude)
-    implicit none
-
-    real(8), intent(in) :: ensAmplitude(nEnsOverDimension,numStepAmplitude,myLonBeg:myLonEnd,myLatBeg:myLatEnd,nLevEns_M)
-
-    integer :: ensIndex, stepIndex, lonIndex, latIndex, levIndex
-
-    real(4), pointer :: ensAmpAll_r4(:,:,:,:)
-
-    do levIndex = 1, nLevEns_M
-      ensAmpAll_r4 => ens_getRepack_r4(ensAmplitudeStorage,levIndex)
-!$OMP PARALLEL DO PRIVATE(ensIndex, latIndex,lonIndex,stepIndex)
-      do latIndex = myLatBeg, myLatEnd
-        do lonIndex = myLonBeg, myLonEnd
-          do stepIndex = 1, numStepAmplitude
-            do ensIndex = 1, nEns
-              ensAmpAll_r4(ensIndex,stepIndex,lonIndex,latIndex) = &
-                   real(ensAmplitude(ensIndex,stepIndex,lonIndex,latIndex,levIndex),4)  
-            end do
-          end do
-        end do
-      end do
-!$OMP END PARALLEL DO
-    end do
-
-  END SUBROUTINE copyAmplitude
 
 !--------------------------------------------------------------------------
 ! ben_writeAmplitude

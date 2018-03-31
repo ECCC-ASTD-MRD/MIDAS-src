@@ -39,32 +39,33 @@ MODULE ensembleStateVector_mod
 
   ! public procedures
   public :: struct_ens, ens_allocate, ens_deallocate
-  public :: ens_readEnsemble, ens_writeEnsemble
-  public :: ens_copyToStateWork, ens_getRepackMean_r8
+  public :: ens_readEnsemble, ens_writeEnsemble, ens_copy
+  public :: ens_copyToStateWork, ens_getOneLevMean_r8
   public :: ens_varExist, ens_getNumLev
   public :: ens_computeMean, ens_removeMean, ens_copyEnsMean, ens_copyMember, ens_recenter, ens_recenterControlMember
   public :: ens_computeStdDev, ens_copyEnsStdDev
-  public :: ens_getRepack_r4
+  public :: ens_getOneLev_r4, ens_getOneLev_r8
   public :: ens_getOffsetFromVarName, ens_getLevFromK, ens_getVarNameFromK, ens_getNumK, ens_getKFromLevVarName
 
   integer,external   :: get_max_rss
 
-  type :: struct_repack_r4
+  type :: struct_oneLev_r4
     real(4), pointer :: onelevel(:,:,:,:) => null()
-  end type struct_repack_r4
+  end type struct_oneLev_r4
 
-  type :: struct_repack_r8
+  type :: struct_oneLev_r8
     real(8), pointer :: onelevel(:,:,:,:) => null()
-  end type struct_repack_r8
+  end type struct_oneLev_r8
 
   type :: struct_ens
     private
     logical                       :: allocated = .false.
     integer                       :: numMembers
-    integer                       :: dataKind
+    integer                       :: dataKind = 4 ! default value
     type(struct_gsv)              :: statevector_work
-    type(struct_repack_r8), allocatable :: repack_ensMean_r8(:), repack_ensStdDev_r8(:)
-    type(struct_repack_r4), allocatable :: repack_r4(:)
+    type(struct_oneLev_r8), allocatable :: allLev_ensMean_r8(:), allLev_ensStdDev_r8(:)
+    type(struct_oneLev_r4), allocatable :: allLev_r4(:)
+    type(struct_oneLev_r8), allocatable :: allLev_r8(:)
     logical                       :: meanIsComputed = .false.
     logical                       :: stdDevIsComputed = .false.
     integer, allocatable          :: subEnsIndexList(:), nEnsSubEns(:)
@@ -75,7 +76,7 @@ MODULE ensembleStateVector_mod
 CONTAINS
 
   subroutine ens_allocate(ens, numMembers, numStep, hco_ens, vco_ens, &
-                          dateStampList, varNames_opt)
+                          dateStampList, varNames_opt, dataKind_opt)
     implicit none
 
     ! arguments
@@ -85,6 +86,7 @@ CONTAINS
     type(struct_vco), pointer :: vco_ens
     integer :: dateStampList(:)
     character(len=*), optional :: varNames_opt(:)  ! allow specification of assigned variables
+    integer, optional          :: dataKind_opt
     ! locals
     integer :: memberIndex, ierr
     integer :: jk, lon1, lon2, lat1, lat2, k1, k2
@@ -94,10 +96,12 @@ CONTAINS
       call ens_deallocate( ens )
     end if
 
+    if ( present(dataKind_opt) ) ens%dataKind = dataKind_opt
+
     call gsv_allocate( ens%statevector_work, &
                        numStep, hco_ens, vco_ens,  &
                        datestamplist_opt=dateStampList, mpi_local_opt=.true., &
-                       varNames_opt=VarNames_opt, dataKind_opt=4 )
+                       varNames_opt=VarNames_opt, dataKind_opt=ens%dataKind )
 
     lon1 = ens%statevector_work%myLonBeg
     lon2 = ens%statevector_work%myLonEnd
@@ -106,14 +110,22 @@ CONTAINS
     k1 = ens%statevector_work%mykBeg
     k2 = ens%statevector_work%mykEnd
 
-    allocate( ens%repack_r4(k1:k2) )
-    do jk = k1, k2
-      allocate( ens%repack_r4(jk)%onelevel(numMembers,numStep,lon1:lon2,lat1:lat2) )
-    end do
+    if (ens%dataKind == 8) then
+      allocate( ens%allLev_r8(k1:k2) )
+      do jk = k1, k2
+        allocate( ens%allLev_r8(jk)%onelevel(numMembers,numStep,lon1:lon2,lat1:lat2) )
+      end do
+    else if (ens%dataKind == 4) then
+      allocate( ens%allLev_r4(k1:k2) )
+      do jk = k1, k2
+        allocate( ens%allLev_r4(jk)%onelevel(numMembers,numStep,lon1:lon2,lat1:lat2) )
+      end do
+    else
+      call utl_abort('ens_allocate: unknown value of datakind')
+    end if
 
     ens%allocated = .true.
     ens%numMembers = numMembers
-    ens%dataKind = 4
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
@@ -136,10 +148,10 @@ CONTAINS
     k2 = ens%statevector_work%mykEnd
     numStep = ens%statevector_work%numStep
 
-    allocate( ens%repack_ensMean_r8(k1:k2) )
+    allocate( ens%allLev_ensMean_r8(k1:k2) )
     do jk = k1, k2
-      allocate( ens%repack_ensMean_r8(jk)%onelevel(ens%numSubEns,numStep,lon1:lon2,lat1:lat2) )
-      ens%repack_ensMean_r8(jk)%onelevel(:,:,:,:) = 0.0d0
+      allocate( ens%allLev_ensMean_r8(jk)%onelevel(ens%numSubEns,numStep,lon1:lon2,lat1:lat2) )
+      ens%allLev_ensMean_r8(jk)%onelevel(:,:,:,:) = 0.0d0
     end do
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -164,10 +176,10 @@ CONTAINS
     k2 = ens%statevector_work%mykEnd
     numStep = ens%statevector_work%numStep
 
-    allocate( ens%repack_ensStdDev_r8(k1:k2) )
+    allocate( ens%allLev_ensStdDev_r8(k1:k2) )
     do jk = k1, k2
-      allocate( ens%repack_ensStdDev_r8(jk)%onelevel(1,numStep,lon1:lon2,lat1:lat2) )
-      ens%repack_ensStdDev_r8(jk)%onelevel(:,:,:,:) = 0.0d0
+      allocate( ens%allLev_ensStdDev_r8(jk)%onelevel(1,numStep,lon1:lon2,lat1:lat2) )
+      ens%allLev_ensStdDev_r8(jk)%onelevel(:,:,:,:) = 0.0d0
     end do
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -189,23 +201,32 @@ CONTAINS
     k1 = ens%statevector_work%mykBeg
     k2 = ens%statevector_work%mykEnd
 
-    do jk = k1, k2
-      deallocate( ens%repack_r4(jk)%onelevel )
-    end do
-    deallocate( ens%repack_r4 )
+    write(*,*) 'in ens_deallocate, dataKind = ', ens%dataKind
+
+    if (ens%dataKind == 8) then
+      do jk = k1, k2
+        deallocate( ens%allLev_r8(jk)%onelevel )
+      end do
+      deallocate( ens%allLev_r8 )
+    else if (ens%dataKind == 4) then
+      do jk = k1, k2
+        deallocate( ens%allLev_r4(jk)%onelevel )
+      end do
+      deallocate( ens%allLev_r4 )
+    end if
 
     if (ens%stdDevIsComputed) then
       do jk = k1, k2
-        deallocate( ens%repack_ensStdDev_r8(jk)%onelevel )
+        deallocate( ens%allLev_ensStdDev_r8(jk)%onelevel )
       end do
-      deallocate( ens%repack_ensStdDev_r8 )
+      deallocate( ens%allLev_ensStdDev_r8 )
     end if
 
     if (ens%meanIsComputed) then
       do jk = k1, k2
-        deallocate( ens%repack_ensMean_r8(jk)%onelevel )
+        deallocate( ens%allLev_ensMean_r8(jk)%onelevel )
       end do
-      deallocate( ens%repack_ensMean_r8 )
+      deallocate( ens%allLev_ensMean_r8 )
       deallocate( ens%subEnsIndexList )
       deallocate( ens%nEnsSubEns )
     end if
@@ -214,6 +235,69 @@ CONTAINS
 
   end subroutine ens_deallocate
 
+  !--------------------------------------------------------------------------
+  ! ens_copy
+  !--------------------------------------------------------------------------
+  subroutine ens_copy(ens_in,ens_out)
+    implicit none
+    type(struct_ens)  :: ens_in, ens_out
+
+    integer           :: lon1, lon2, lat1, lat2, k1, k2
+    integer           :: jk, stepIndex, latIndex, lonIndex, memberIndex
+
+    if (.not.ens_in%allocated) then
+      call utl_abort('ens_copy: ens_in not yet allocated! Aborting.')
+    end if
+    if (.not.ens_out%allocated) then
+      call utl_abort('ens_copy: ens_out not yet allocated! Aborting.')
+    end if
+
+    lon1 = ens_out%statevector_work%myLonBeg
+    lon2 = ens_out%statevector_work%myLonEnd
+    lat1 = ens_out%statevector_work%myLatBeg
+    lat2 = ens_out%statevector_work%myLatEnd
+    k1   = ens_out%statevector_work%mykBeg
+    k2   = ens_out%statevector_work%mykEnd
+ 
+    if ( ens_out%dataKind == 8 .and. ens_in%dataKind == 8 ) then
+
+!$OMP PARALLEL DO PRIVATE (jk,stepIndex,latIndex,lonIndex,memberIndex)    
+      do jk = k1, k2
+        do latIndex = lat1, lat2
+          do lonIndex = lon1, lon2
+            do stepIndex = 1, ens_out%statevector_work%numStep
+              do memberIndex = 1, ens_out%numMembers
+                ens_out%allLev_r8(jk)%onelevel(memberIndex,stepIndex,lonIndex,latIndex) = &
+                     ens_in %allLev_r8(jk)%onelevel(memberIndex,stepIndex,lonIndex,latIndex)
+              end do
+            end do
+          end do
+        end do
+      end do
+!$OMP END PARALLEL DO
+
+    else if ( ens_out%dataKind == 4 .and. ens_in%dataKind == 4 ) then
+
+!$OMP PARALLEL DO PRIVATE (jk,stepIndex,latIndex,lonIndex,memberIndex)    
+      do jk = k1, k2
+        do latIndex = lat1, lat2
+          do lonIndex = lon1, lon2
+            do stepIndex = 1, ens_out%statevector_work%numStep
+              do memberIndex = 1, ens_out%numMembers
+                ens_out%allLev_r4(jk)%onelevel(memberIndex,stepIndex,lonIndex,latIndex) = &
+                     ens_in %allLev_r4(jk)%onelevel(memberIndex,stepIndex,lonIndex,latIndex)
+              end do
+            end do
+          end do
+        end do
+      end do
+!$OMP END PARALLEL DO
+
+    else
+      call utl_abort('ens_copy: Data type must be the same for both ensembleStatevectors')
+    end if
+
+  end subroutine ens_copy
 
   subroutine ens_copyToStateWork(ens, memberIndex)
     implicit none
@@ -224,29 +308,41 @@ CONTAINS
 
     ! locals
     real(4), pointer :: ptr4d_r4(:,:,:,:)
+    real(8), pointer :: ptr4d_r8(:,:,:,:)
     integer          :: k1, k2, jk, numStep, stepIndex
 
     k1 = ens%statevector_work%mykBeg
     k2 = ens%statevector_work%mykEnd
     numStep = ens%statevector_work%numStep
 
-    ptr4d_r4 => gsv_getField_r4(ens%statevector_work)
-    do stepIndex = 1, numStep
-      do jk = k1, k2
-        ptr4d_r4(:,:,jk,stepIndex) = ens%repack_r4(jk)%onelevel(memberIndex,stepIndex,:,:) 
+    if (ens%dataKind == 8) then
+      ptr4d_r8 => gsv_getField_r8(ens%statevector_work)
+      do stepIndex = 1, numStep
+        do jk = k1, k2
+          ptr4d_r8(:,:,jk,stepIndex) = ens%allLev_r8(jk)%onelevel(memberIndex,stepIndex,:,:) 
+        end do
       end do
-    end do
+    else if (ens%dataKind == 4) then
+      ptr4d_r4 => gsv_getField_r4(ens%statevector_work)
+      do stepIndex = 1, numStep
+        do jk = k1, k2
+          ptr4d_r4(:,:,jk,stepIndex) = ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,:,:) 
+        end do
+      end do
+    end if
 
   end subroutine ens_copyToStateWork
 
-
-  function ens_getRepack_r4(ens,kIndex) result(repackLevel)
+  !--------------------------------------------------------------------------
+  ! ens_getOneLev_r4
+  !--------------------------------------------------------------------------
+  function ens_getOneLev_r4(ens,kIndex) result(oneLevLevel)
     implicit none
 
     ! arguments
     type(struct_ens) :: ens
     integer          :: kIndex
-    real(4),pointer  :: repackLevel(:,:,:,:)
+    real(4),pointer  :: oneLevLevel(:,:,:,:)
 
     ! locals
     integer          :: lon1, lat1
@@ -254,12 +350,32 @@ CONTAINS
     lon1 = ens%statevector_work%myLonBeg
     lat1 = ens%statevector_work%myLatBeg
 
-    repackLevel(1:,1:,lon1:,lat1:) => ens%repack_r4(kIndex)%onelevel(:,:,:,:)
+    oneLevLevel(1:,1:,lon1:,lat1:) => ens%allLev_r4(kIndex)%onelevel(:,:,:,:)
 
-  end function ens_getRepack_r4
+  end function ens_getOneLev_r4
 
+  !--------------------------------------------------------------------------
+  ! ens_getOneLev_r8
+  !--------------------------------------------------------------------------
+  function ens_getOneLev_r8(ens,kIndex) result(oneLevLevel)
+    implicit none
 
-  function ens_getRepackMean_r8(ens,subEnsIndex,kIndex) result(field)
+    ! arguments
+    type(struct_ens) :: ens
+    integer          :: kIndex
+    real(8),pointer  :: oneLevLevel(:,:,:,:)
+
+    ! locals
+    integer          :: lon1, lat1
+
+    lon1 = ens%statevector_work%myLonBeg
+    lat1 = ens%statevector_work%myLatBeg
+
+    oneLevLevel(1:,1:,lon1:,lat1:) => ens%allLev_r8(kIndex)%onelevel(:,:,:,:)
+
+  end function ens_getOneLev_r8
+
+  function ens_getOneLevMean_r8(ens,subEnsIndex,kIndex) result(field)
     implicit none
 
     ! arguments
@@ -273,10 +389,9 @@ CONTAINS
     lon1 = ens%statevector_work%myLonBeg
     lat1 = ens%statevector_work%myLatBeg
 
-    field(1:, lon1:, lat1:) => ens%repack_ensMean_r8(kIndex)%onelevel(subEnsIndex,:,:,:)
+    field(1:, lon1:, lat1:) => ens%allLev_ensMean_r8(kIndex)%onelevel(subEnsIndex,:,:,:)
 
-  end function ens_getRepackMean_r8
-
+  end function ens_getOneLevMean_r8
 
   subroutine ens_copyEnsMean(ens, statevector, subEnsIndex_opt)
     implicit none
@@ -309,7 +424,7 @@ CONTAINS
     ptr4d_r8 => gsv_getField_r8(statevector)
     do stepIndex = 1, numStep
       do jk = k1, k2
-        ptr4d_r8(:,:,jk,stepIndex) = ens%repack_ensMean_r8(jk)%onelevel(subEnsIndex,stepIndex,:,:)
+        ptr4d_r8(:,:,jk,stepIndex) = ens%allLev_ensMean_r8(jk)%onelevel(subEnsIndex,stepIndex,:,:)
       end do
     end do
 
@@ -339,7 +454,7 @@ CONTAINS
     ptr4d_r8 => gsv_getField_r8(statevector)
     do stepIndex = 1, numStep
       do jk = k1, k2
-        ptr4d_r8(:,:,jk,stepIndex) = ens%repack_ensStdDev_r8(jk)%onelevel(1,stepIndex,:,:)
+        ptr4d_r8(:,:,jk,stepIndex) = ens%allLev_ensStdDev_r8(jk)%onelevel(1,stepIndex,:,:)
       end do
     end do
 
@@ -356,6 +471,7 @@ CONTAINS
 
     ! locals
     real(4), pointer :: ptr4d_r4(:,:,:,:)
+    real(8), pointer :: ptr4d_r8(:,:,:,:)
     integer          :: k1, k2, jk, stepIndex, numStep
 
     k1 = ens%statevector_work%mykBeg
@@ -364,15 +480,23 @@ CONTAINS
 
     call gsv_allocate( statevector, numStep,  &
                        ens%statevector_work%hco, ens%statevector_work%vco,  &
-                       datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., dataKind_opt=4 )
+                       datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., dataKind_opt=ens%dataKind )
 
-    ptr4d_r4 => gsv_getField_r4(statevector)
-    do stepIndex = 1, numStep
-      do jk = k1, k2
-        ptr4d_r4(:,:,jk,stepIndex) = ens%repack_r4(jk)%onelevel(memberIndex,stepIndex,:,:)
+    if (ens%dataKind == 8) then
+      ptr4d_r8 => gsv_getField_r8(statevector)
+      do stepIndex = 1, numStep
+        do jk = k1, k2
+          ptr4d_r8(:,:,jk,stepIndex) = ens%allLev_r8(jk)%onelevel(memberIndex,stepIndex,:,:)
+        end do
       end do
-    end do
-
+    else if (ens%dataKind == 4) then
+      ptr4d_r4 => gsv_getField_r4(statevector)
+      do stepIndex = 1, numStep
+        do jk = k1, k2
+          ptr4d_r4(:,:,jk,stepIndex) = ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,:,:)
+        end do
+      end do
+    end if
   end subroutine ens_copyMember
 
 
@@ -475,11 +599,13 @@ CONTAINS
 
     ! locals
     logical           :: computeSubEnsMeans, lExists
+
     character(len=256), parameter :: subEnsIndexFileName = 'subEnsembleIndex.txt'
+
     integer           :: kulin, ierr, memberIndex, memberIndex2, stepIndex, subEnsIndex
     integer           :: k1, k2, jk, lon1, lon2, lat1, lat2, numStep, ji, jj
     integer           :: fnom, fclos
-    real(4), pointer  :: ptr_repack_r4(:,:,:,:)
+
     real(8), pointer  :: ptr4d_r8(:,:,:,:)
 
     if (present(computeSubEnsMeans_opt)) then
@@ -533,13 +659,13 @@ CONTAINS
         do ji = lon1, lon2
           do stepIndex = 1, ens%statevector_work%numStep
             do memberIndex = 1, ens%numMembers
-              ens%repack_ensMean_r8(jk)%onelevel(ens%subEnsIndexList(memberIndex),stepIndex,ji,jj) = &
-                   ens%repack_ensMean_r8(jk)%onelevel(ens%subEnsIndexList(memberIndex),stepIndex,ji,jj) + &
-                   dble(ens%repack_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj))
+              ens%allLev_ensMean_r8(jk)%onelevel(ens%subEnsIndexList(memberIndex),stepIndex,ji,jj) = &
+                   ens%allLev_ensMean_r8(jk)%onelevel(ens%subEnsIndexList(memberIndex),stepIndex,ji,jj) + &
+                   dble(ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj))
             end do
             do subEnsIndex = 1, ens%numSubEns
-              ens%repack_ensMean_r8(jk)%onelevel(subEnsIndex,stepIndex,ji,jj) = &
-                   ens%repack_ensMean_r8(jk)%onelevel(subEnsIndex,stepIndex,ji,jj) /  &
+              ens%allLev_ensMean_r8(jk)%onelevel(subEnsIndex,stepIndex,ji,jj) = &
+                   ens%allLev_ensMean_r8(jk)%onelevel(subEnsIndex,stepIndex,ji,jj) /  &
                    dble(ens%nEnsSubEns(subEnsIndex))
             end do
           end do
@@ -601,13 +727,13 @@ CONTAINS
             subEnsStdDev(:) = 0.0d0
             do memberIndex = 1, ens%numMembers
               subEnsStdDev(ens%subEnsIndexList(memberIndex)) = subEnsStdDev(ens%subEnsIndexList(memberIndex)) + &
-                   (dble(ens%repack_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj))-ens%repack_ensMean_r8(jk)%onelevel(ens%subEnsIndexList(memberIndex),stepIndex,ji,jj))**2
+                   (dble(ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj))-ens%allLev_ensMean_r8(jk)%onelevel(ens%subEnsIndexList(memberIndex),stepIndex,ji,jj))**2
             end do
             do subEnsIndex = 1, ens%numSubEns
-              ens%repack_ensStdDev_r8(jk)%onelevel(1,stepIndex,ji,jj) = ens%repack_ensStdDev_r8(jk)%onelevel(1,stepIndex,ji,jj) + &
+              ens%allLev_ensStdDev_r8(jk)%onelevel(1,stepIndex,ji,jj) = ens%allLev_ensStdDev_r8(jk)%onelevel(1,stepIndex,ji,jj) + &
                    ens%nEnsSubEns(subEnsIndex)*subEnsStdDev(subEnsIndex)/(ens%nEnsSubEns(subEnsIndex)-1)
             end do
-            ens%repack_ensStdDev_r8(jk)%onelevel(1,stepIndex,ji,jj) = sqrt( ens%repack_ensStdDev_r8(jk)%onelevel(1,stepIndex,ji,jj) / dble(ens%numMembers) )
+            ens%allLev_ensStdDev_r8(jk)%onelevel(1,stepIndex,ji,jj) = sqrt( ens%allLev_ensStdDev_r8(jk)%onelevel(1,stepIndex,ji,jj) / dble(ens%numMembers) )
           end do
         end do
       end do
@@ -643,9 +769,9 @@ CONTAINS
         do ji = lon1, lon2
           do stepIndex = 1, numStep
             do memberIndex = 1, ens%numMembers
-              ens%repack_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj) =  &
-                   real( (real(ens%repack_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj),8) -  &
-                   ens%repack_ensMean_r8(jk)%onelevel(ens%subEnsIndexList(memberIndex),stepIndex,ji,jj)), 4 )
+              ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj) =  &
+                   real( (real(ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj),8) -  &
+                   ens%allLev_ensMean_r8(jk)%onelevel(ens%subEnsIndexList(memberIndex),stepIndex,ji,jj)), 4 )
             end do
           end do
         end do
@@ -1049,12 +1175,12 @@ CONTAINS
               gd_recv_r4(:,:,1:numLevelsToSend2,1) = gd_send_r4(:,:,1:numLevelsToSend2,1)
             end if
 
-            call tmg_start(110,'ENS_TO_REPACK')
+            call tmg_start(110,'ENS_TO_ONELEV')
 !$OMP PARALLEL DO PRIVATE(jk3,memberIndex2,yourid)
             do jk3 = 1, numLevelsToSend2
               do memberIndex2 = 1+(batchnum-1)*mpi_nprocs, memberIndex
                 yourid = readFilePE(memberIndex2)
-                ens%repack_r4(jk3+jk-1)%onelevel(memberIndex2,stepIndex, :, :) =  &
+                ens%allLev_r4(jk3+jk-1)%onelevel(memberIndex2,stepIndex, :, :) =  &
                      gd_recv_r4(1:ens%statevector_work%lonPerPE, 1:ens%statevector_work%latPerPE, jk3, yourid+1)
               end do
             end do
@@ -1191,7 +1317,6 @@ CONTAINS
 
       do memberIndex = 1, ens%numMembers
 
-
         !  MPI communication: from 1 lat-lon tile per process to 1 ensemble member per process
         if (writeFilePE(memberIndex) == 0) then
 
@@ -1202,14 +1327,25 @@ CONTAINS
             jk2 = min(nk,jk+numLevelsToSend-1)
             numLevelsToSend2 = jk2 - jk + 1
 
+            if ( ens%dataKind == 8 ) then
 !$OMP PARALLEL DO PRIVATE(jk3,memberIndex2,yourid)
-            do jk3 = 1, numLevelsToSend2
-              do memberIndex2 = 1+(batchnum-1)*mpi_nprocs, min(ens%numMembers, batchnum*mpi_nprocs)
-                yourid = writeFilePE(memberIndex2)
-                gd_send_r4(1:lonPerPE,1:latPerPE,jk3,yourid+1) = ens%repack_r4(jk3+jk-1)%onelevel(memberIndex2,stepIndex,:,:)
+              do jk3 = 1, numLevelsToSend2
+                do memberIndex2 = 1+(batchnum-1)*mpi_nprocs, min(ens%numMembers, batchnum*mpi_nprocs)
+                  yourid = writeFilePE(memberIndex2)
+                  gd_send_r4(1:lonPerPE,1:latPerPE,jk3,yourid+1) = real(ens%allLev_r8(jk3+jk-1)%onelevel(memberIndex2,stepIndex,:,:),4)
+                end do
               end do
-            end do
 !$OMP END PARALLEL DO
+            else
+!$OMP PARALLEL DO PRIVATE(jk3,memberIndex2,yourid)
+              do jk3 = 1, numLevelsToSend2
+                do memberIndex2 = 1+(batchnum-1)*mpi_nprocs, min(ens%numMembers, batchnum*mpi_nprocs)
+                  yourid = writeFilePE(memberIndex2)
+                  gd_send_r4(1:lonPerPE,1:latPerPE,jk3,yourid+1) = ens%allLev_r4(jk3+jk-1)%onelevel(memberIndex2,stepIndex,:,:)
+                end do
+              end do
+!$OMP END PARALLEL DO
+            end if
 
             nsize = lonPerPEmax * latPerPEmax * numLevelsToSend2
             if (mpi_nprocs > 1) then
