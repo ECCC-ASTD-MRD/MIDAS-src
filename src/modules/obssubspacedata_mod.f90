@@ -77,6 +77,7 @@ module obsSubSpaceData_mod
                                                    ! Minimum required size:
                                                    ! 22 (lat/long and time coord) + 9 (stnid) = 31
   integer, parameter :: oss_code_sublen=22         ! Length of lat/long and time coord
+  integer, parameter :: oss_code_latlen=5          ! Length of lat segment 
 
 ! interface for generating obsdata BURP header codes from (lat,long,date,hhmm,stnid)
   interface oss_obsdata_get_header_code
@@ -433,8 +434,7 @@ contains
 
     ! Additional declarations for use with obsspace_extra_code_test
     
-    character(len=oss_code_len) :: ref_code
-    integer, save :: ref_lat,length
+    integer :: ref_lat
     
     if (obsdata%nrep.le.0) then
        if (present(stat_opt)) then
@@ -448,14 +448,13 @@ contains
     end if
 
     i=0
-    length=len_trim(code)
     
     ! Search for matching identifier code
     do while (trim(obsdata%code(obsdata%irep)).ne.trim(code))
        obsdata%irep=obsdata%irep+1
        if (obsdata%irep.gt.obsdata%nrep) obsdata%irep=1
        if (i.gt.obsdata%nrep) then
-          if (length.ge.oss_code_sublen) then
+          if (len_trim(code).ge.oss_code_sublen) then
        
              ! Assumes codes of the form "LAT--LON--YYYYMMDDHHMM*" when len(code)>=oss_code_sublen.
 	  
@@ -468,11 +467,10 @@ contains
              ! search performed above.
 
              i=0
-             read(code(1:5),*) ref_lat
-             ref_code=trim(ref_code(6:length))
+             read(code(1:oss_code_latlen),*) ref_lat
              
              ! Search for matching identifier code
-             do while (.not.obsdata_extra_code_test(trim(obsdata%code(obsdata%irep)),ref_code,ref_lat))
+             do while (.not.obsdata_extra_code_test(trim(obsdata%code(obsdata%irep)),code,ref_lat))
                 obsdata%irep=obsdata%irep+1
                 if (obsdata%irep.gt.obsdata%nrep) obsdata%irep=1
                 if (i.gt.obsdata%nrep) exit
@@ -526,7 +524,7 @@ contains
   !  Input
   !           test_code     code for comparison to ref_code  
   !           ref_lat       latitude  (x100) part of reference code   
-  !           ref_code      reference code remainder
+  !           ref_code      reference code
   !
   !  Output
   !           found         logical indicating if a match has been found.  
@@ -543,11 +541,11 @@ contains
     integer :: lat
     logical :: found
           
-    if (test_code(6:len_trim(test_code)).ne.ref_code) then
+    if (test_code(6:len_trim(test_code)).ne.ref_code(oss_code_latlen+1:len_trim(ref_code))) then
        found=.false.
        return
     else 
-       read(test_code(1:5),*) lat
+       read(test_code(1:oss_code_latlen),*) lat
        if ((lat.lt.lat_lim1.and.ref_lat.lt.lat_lim1.and.lat.lt.ref_lat).or. &
           (lat.gt.lat_lim2.and.ref_lat.gt.lat_lim2.and.lat.gt.ref_lat)) then
           found=.true.	     
