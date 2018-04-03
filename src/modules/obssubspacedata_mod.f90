@@ -76,6 +76,7 @@ module obsSubSpaceData_mod
   integer, parameter :: oss_code_len=40            ! Max string size for code in struct_oss_obsdata.
                                                    ! Minimum required size:
                                                    ! 22 (lat/long and time coord) + 9 (stnid) = 31
+  integer, parameter :: oss_code_sublen=22         ! Length of lat/long and time coord
 
 ! interface for generating obsdata BURP header codes from (lat,long,date,hhmm,stnid)
   interface oss_obsdata_get_header_code
@@ -433,9 +434,7 @@ contains
     ! Additional declarations for use with obsspace_extra_code_test
     
     character(len=oss_code_len) :: ref_code
-    integer, save :: ref_ilat,ref_ilat1,ref_ilat2,length
-    integer :: ilon,ilat
-    
+    integer, save :: ref_lat,length
     
     if (obsdata%nrep.le.0) then
        if (present(stat_opt)) then
@@ -449,17 +448,16 @@ contains
     end if
 
     i=0
-    ref_code=trim(code)
-    length=len_trim(ref_code)
+    length=len_trim(code)
     
     ! Search for matching identifier code
     do while (trim(obsdata%code(obsdata%irep)).ne.trim(code))
        obsdata%irep=obsdata%irep+1
        if (obsdata%irep.gt.obsdata%nrep) obsdata%irep=1
        if (i.gt.obsdata%nrep) then
-          if (length.ge.22) then
+          if (length.ge.oss_code_sublen) then
        
-             ! Assumes codes of the form "LAT--LON--YYYYMMDDHHMM*" when len(code)>=22.
+             ! Assumes codes of the form "LAT--LON--YYYYMMDDHHMM*" when len(code)>=oss_code_sublen.
 	  
              ! Upper loop search did not find a match. For valid data near the poles over
              ! the global analysis grid, the lat could have been moved to the nearest analysis grid
@@ -470,17 +468,11 @@ contains
              ! search performed above.
 
              i=0
+             read(code(1:5),*) ref_lat
              ref_code=trim(ref_code(6:length))
-             ! ref_code=trim(ref_code(11:length))
-             ! read(ref_code(6:10),*) ref_ilon
-             ! ref_ilon1=ref_ilon-1
-             ! ref_ilon2=ref_ilon+1
-             read(ref_code(1:5),*) ref_ilat
-             ! ref_ilat1=ref_ilat-1
-             ! ref_ilat2=ref_ilat+1
              
              ! Search for matching identifier code
-             do while (.not.obsdata_extra_code_test(trim(obsdata%code(obsdata%irep))))
+             do while (.not.obsdata_extra_code_test(trim(obsdata%code(obsdata%irep)),ref_code,ref_lat))
                 obsdata%irep=obsdata%irep+1
                 if (obsdata%irep.gt.obsdata%nrep) obsdata%irep=1
                 if (i.gt.obsdata%nrep) exit
@@ -509,67 +501,64 @@ contains
          
     if (present(stat_opt)) stat_opt = 0
 
-    contains 
-             
-    !-------------------------------------------------------------------------------------------
-
-    function obsdata_extra_code_test(test_code) result(found)
-    ! 
-    !  Purpose: Test matching of code values accounting for rare differences
-    !           in stored ilat (and ilon) value(s) when codes are stored as strings in the form  
-    !           LAT--LON--YYYYMMDDHHMM* (ie. with >= 22 characters).
-    !
-    !  Caveat: 
-    !           The current version assumes the only source of difference would stem from
-    !           a shift to the nearest latitude of the analysis grid from points near the pole.
-    !           (this source of difference identified by M. Sitwell)
-    !
-    !           Also currently assumes that most poleward analsysis grid latitudes are within 1 degree
-    !           away from a pole. To be more rigourous, one would need hco_anl%nj and hco_anl%global from
-    !           "hco_anl => agd_getHco('CoreGrid')" with use of horizontalCoord_mod and analysisGrid_mod 
-    !           (see innovation_mod.f90).
-    !
-    !  Author: Y. Rochon, Nov 2017
-    !    
-    !  Input
-    !           test_code     code for comparison to ref_code
-    !       
-    !           ref_code      reference code 
-    !
-    !  Output
-    !           found         logical indicating if a match has been found.  
-    ! 
-    !-------------------------------------------------------------------------------------------
-
-      implicit none
-
-      character(len=*), intent(in) :: test_code
-      
-      integer, parameter :: lat_lim1=-8900    ! Lat*100
-      integer, parameter :: lat_lim2=8900
-      logical :: found
-          
-      if (test_code(11:len_trim(test_code)).ne.ref_code) then
-         found=.false.
-         return
-      else 
-         !read(test_code(6:10),*) ilon
-         read(test_code(1:5),*) ilat
-         ! if ((ilon.eq.ref_ilon.or.ilon.eq.ref_ilon1.or.ilon.eq.ref_ilon2).and.  &
-         !   (ilat.eq.ref_ilat.or.ilat.eq.ref_ilat1.or.ilat.eq.ref_ilat2)) found=.true.
-         if ((ilat.lt.lat_lim1.and.ref_ilat.lt.lat_lim1.and.ilat.lt.ref_ilat).or. &
-            (ilat.gt.lat_lim2.and.ref_ilat.gt.lat_lim2.and.ilat.gt.ref_ilat)) then
-            found=.true.	     
-            write(*,*) 'obsdata_extra_code_test: Accounted for lat. mismatch in codes near poles: ', &
-               ilat,ref_ilat
-         else
-            found=.false.
-         end if
-      end if
-
-    end function obsdata_extra_code_test
-
   end subroutine obsdata_set_index
+             
+!-------------------------------------------------------------------------------------------
+
+  function obsdata_extra_code_test(test_code,ref_code,ref_lat) result(found)
+  ! 
+  !  Purpose: Test matching of code values accounting for rare differences
+  !           in stored lat (and lon) value(s) when codes are stored as strings in the form  
+  !           LAT--LON--YYYYMMDDHHMM* (ie. with >= oss_code_sublen characters).
+  !
+  !  Caveat: 
+  !           The current version assumes the only source of difference would stem from
+  !           a shift to the nearest latitude of the analysis grid from points near the pole.
+  !           (this source of difference identified by M. Sitwell)
+  !
+  !           Also currently assumes that most poleward analsysis grid latitudes are within 1 degree
+  !           away from a pole. To be more rigourous, one would need hco_anl%nj and hco_anl%global from
+  !           "hco_anl => agd_getHco('CoreGrid')" with use of horizontalCoord_mod and analysisGrid_mod 
+  !           (see innovation_mod.f90).
+  !
+  !  Author: Y. Rochon, Nov 2017
+  !    
+  !  Input
+  !           test_code     code for comparison to ref_code  
+  !           ref_lat       latitude  (x100) part of reference code   
+  !           ref_code      reference code remainder
+  !
+  !  Output
+  !           found         logical indicating if a match has been found.  
+  ! 
+  !-------------------------------------------------------------------------------------------
+
+    implicit none
+
+    character(len=*), intent(in) :: test_code,ref_code
+    integer, intent(in) :: ref_lat
+      
+    integer, parameter :: lat_lim1=-8900    ! Lat*100
+    integer, parameter :: lat_lim2=8900
+    integer :: lat
+    logical :: found
+          
+    if (test_code(6:len_trim(test_code)).ne.ref_code) then
+       found=.false.
+       return
+    else 
+       read(test_code(1:5),*) lat
+       if ((lat.lt.lat_lim1.and.ref_lat.lt.lat_lim1.and.lat.lt.ref_lat).or. &
+          (lat.gt.lat_lim2.and.ref_lat.gt.lat_lim2.and.lat.gt.ref_lat)) then
+          found=.true.	     
+          write(*,*) 'obsdata_extra_code_test: Accounted for lat. mismatch in codes near poles: ', &
+             lat,ref_lat
+       else
+          found=.false.
+       end if
+    end if
+
+  end function obsdata_extra_code_test
     
 !-------------------------------------------------------------------------------------------
 
@@ -585,7 +574,7 @@ contains
 ! 
 !  Revisions:
 !           Y. Rochon, Nov 2017
-!             - Swith in the positions of the lat and long in the 'code' values
+!             - Switch in the positions of the lat and long in the 'code' values
 !               for convenience in testing the lat in obsdata_set_index.
 !    
 !  Input
@@ -618,7 +607,7 @@ contains
     write(code(11:18),'(I8.8)') date
     write(code(19:22),'(I4.4)') time
 
-    write(code(23:oss_code_len),'(A)') stnid(1:min(len_trim(stnid),oss_code_len-22))
+    write(code(23:oss_code_len),'(A)') stnid(1:min(len_trim(stnid),oss_code_len-oss_code_sublen))
 
   end function obsdata_get_header_code_i
 

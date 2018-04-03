@@ -321,12 +321,12 @@ contains
 
     ! COMPUTE BMATRIX PERTURBATION FOR THE STATIC COVARIANCES CASE; from Bhi and or BChm 
 
-    if (all(familyList(1:numFamily).eq.'CH')) then
+    if (all(familyList(1:numFamily).eq.'CH').or.(.not.cvm_subVectorExists('B_HI'))) then
        cvBhi => null()
     else
        cvBhi => cvm_getSubVector(controlVector,'B_HI')
     end if
-    if (any(familyList(1:numFamily).eq.'CH').and.obs_famExist(obsSpaceData,'CH')) then
+    if (any(familyList(1:numFamily).eq.'CH').and.obs_famExist(obsSpaceData,'CH').and.cvm_subVectorExists('B_CHM')) then
        cvBChm => cvm_getSubVector(controlVector,'B_CHM')
     else
        cvBChm => null()
@@ -337,7 +337,7 @@ contains
     iseed = abs(nrandseed)
     call rng_setup(iseed)
 
-    if (cvm_subVectorExists('B_HI').or. cvm_subVectorExists('B_CHM')) then
+    if (cvm_subVectorExists('B_HI').or.cvm_subVectorExists('B_CHM')) then
        
        ! compute random control vector
 
@@ -399,12 +399,11 @@ contains
    
     ! COMPUTE BMATRIX PERTURBATION FOR THE ENSEMBLE COVARIANCES CASE; from Ben
 
-    cvBen => cvm_getSubVector(controlVector,'B_ENS')
-   
-    HxBen(:) = 0.0d0
-
     if (cvm_subVectorExists('B_ENS')) then
 
+       cvBen => cvm_getSubVector(controlVector,'B_ENS')
+       HxBen(:) = 0.0d0
+   
        ! compute random control vector
 
        controlVector(:) = 0.0d0
@@ -449,6 +448,9 @@ contains
        do bodyIndex=1,obs_numBody(obsSpaceData)
           HxBen(bodyIndex) = obs_bodyElem_r(obsSpaceData,OBS_WORK,bodyIndex)
        enddo
+    else
+       cvBen => null()
+       HxBen(:) = 0.0d0
     end if
 
     deallocate(scaleFactor)
