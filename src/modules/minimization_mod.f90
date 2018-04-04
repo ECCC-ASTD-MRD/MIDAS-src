@@ -55,7 +55,7 @@ MODULE minimization_mod
   ! public variables
   public              :: min_niter
   ! public procedures
-  public              :: min_Setup, min_minimize
+  public              :: min_Setup, min_minimize !, min_diagHBHt
 
   type struct_dataptr
     type(struct_obs),pointer        :: obsSpaceData
@@ -211,6 +211,8 @@ CONTAINS
     write(*,*) '--Done subroutine minimize--'
 
   end subroutine min_minimize
+
+
 
   SUBROUTINE quasiNewtonMinimization(column,columng,obsSpaceData)
     !
