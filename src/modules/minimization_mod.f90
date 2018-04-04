@@ -239,8 +239,6 @@ CONTAINS
     vco_anl => col_getVco(columng)
     hco_anl => agd_getHco('ComputationalGrid')
     !- 1.3 Create a gridstatevector to store the perturbations
-    call gsv_setVco(statevector,vco_anl)
-    call gsv_setHco(statevector,hco_anl)
     call gsv_allocate(statevector,tim_nstepobsinc,hco_anl,vco_anl,mpi_local_opt=.true.)
 
     !- 1.4 Create column vectors to store the perturbation interpolated to obs horizontal locations
@@ -305,9 +303,6 @@ CONTAINS
     write(*,*) 'Computing perturbations for randomized HBHT evaluation END' ; call flush(6)
 
 end subroutine min_diagHBHt
-
-
-
 
 
   SUBROUTINE quasiNewtonMinimization(column,columng,obsSpaceData)

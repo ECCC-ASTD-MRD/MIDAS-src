@@ -51,7 +51,6 @@ module gridStateVector_mod
   public :: gsv_horizSubSample, gsv_interpolateAndAdd, gsv_interpolate
   public :: gsv_varKindExist, gsv_varExist
   public :: gsv_multEnergyNorm, gsv_dotProduct
-  public :: gsv_setVco, gsv_setHco
   ! public entities accessed through inheritance
   public :: struct_vco, vco_setupFromFile
   public :: vnl_varnameFromVarnum, vnl_varLevelFromVarnum, vnl_varLevelFromVarname
