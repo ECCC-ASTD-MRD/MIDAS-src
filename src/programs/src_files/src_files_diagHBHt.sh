@@ -29,4 +29,3 @@ SRC_FILES="$SRC_FILES bgcdata.f90 bilin.f90 compute_HBHT_static.f90 setfgefamz.f
 SRC_FILES="$SRC_FILES compute_HBHT_static_chem.f90 setfgedif.f90 setfgegps.f90 bgcheck_conv.f90 compute_HBHT_ensemble.f90"
 SRC_FILES="$SRC_FILES isetflag.f90 setfgefam.f90 setfgesurf.f90"
 
-SRC_FILES_2="quasinewton_mod.f minimization_mod.f90 "
