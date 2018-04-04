@@ -24,6 +24,10 @@
 !! Public routines:
 !!v       - "chm_transform_final_increments" for any transformations or boundary
 !!v          values to apply to final increments.
+!!
+!!
+!! Comment:
+!!
 !--------------------------------------------------------------------------
 module chem_postproc_mod
 
@@ -102,19 +106,15 @@ contains
                 statevector_trial%myLatBeg.ne.statevector_increment%myLatBeg .or. statevector_trial%myLatEnd.ne.statevector_increment%myLatEnd .or. &
                 statevector_trial%varNumLev(vnl_varListIndex(varName)).ne.statevector_increment%varNumLev(vnl_varListIndex(varName)) .or. &
                 statevector_trial%numStep.ne.statevector_increment%numStep) then
-
-               call utl_open_asciifile(chm_setup_get_str('message'),unit)
-
-               write(unit,'(A)') "chm_transform_final_increments: Warning - background and increment field index boundaries not equal."
-               write(unit,'(A)') "   index      background     increment"
-               write(unit,'(A,6X,I5,10X,I5)') 'myLonBeg ',statevector_trial%myLonBeg,statevector_increment%myLonBeg
-               write(unit,'(A,6X,I5,10X,I5)') 'myLonEnd ',statevector_trial%myLonEnd,statevector_increment%myLonEnd
-               write(unit,'(A,6X,I5,10X,I5)') 'myLatBeg ',statevector_trial%myLatBeg,statevector_increment%myLatBeg
-               write(unit,'(A,6X,I5,10X,I5)') 'myLatEnd ',statevector_trial%myLatEnd,statevector_increment%myLatEnd
-               write(unit,'(A,6X,I5,10X,I5)') 'varNumLev',statevector_trial%varNumLev(vnl_varListIndex(varName)),statevector_increment%varNumLev(vnl_varListIndex(varName))
-               write(unit,'(A,6X,I5,10X,I5)') 'numStep  ',statevector_trial%numStep,statevector_increment%numStep
-
-               ier=fclos(unit)
+	       
+               write(*,'(A)') "chm_transform_final_increments: Warning - background and increment field index boundaries not equal."
+               write(*,'(A)') "   index      background     increment"
+               write(*,'(A,6X,I5,10X,I5)') 'myLonBeg ',statevector_trial%myLonBeg,statevector_increment%myLonBeg
+               write(*,'(A,6X,I5,10X,I5)') 'myLonEnd ',statevector_trial%myLonEnd,statevector_increment%myLonEnd
+               write(*,'(A,6X,I5,10X,I5)') 'myLatBeg ',statevector_trial%myLatBeg,statevector_increment%myLatBeg
+               write(*,'(A,6X,I5,10X,I5)') 'myLatEnd ',statevector_trial%myLatEnd,statevector_increment%myLatEnd
+               write(*,'(A,6X,I5,10X,I5)') 'varNumLev',statevector_trial%varNumLev(vnl_varListIndex(varName)),statevector_increment%varNumLev(vnl_varListIndex(varName))
+               write(*,'(A,6X,I5,10X,I5)') 'numStep  ',statevector_trial%numStep,statevector_increment%numStep
 
             end if
 
@@ -179,7 +179,7 @@ contains
     if (iconstituent_id.lt.0.or.iconstituent_id.gt.chm_var_maxnumber()) return
     
     select case(chm_setup_get_int('transform',iconstituent_id))
-    case(0)
+    case(-1,0)
        write(*,'(A,A)') "chm_apply_transform: No transform to be applied for field ",trim(varName)
        return
     case(1)
@@ -306,6 +306,11 @@ contains
 !! Revisions:
 !!v       Y. Rochon, Nov 2015, Mar 2017
 !!v          - Modified to chm_apply_bounds
+!!
+!! Comment:
+!!   
+!!   Lines with !x commented out to reduce output
+!!
 !--------------------------------------------------------------------------
   subroutine chm_apply_bounds(background,increment,varName)
 
@@ -324,9 +329,8 @@ contains
     iconstituent_id = vnl_varnumFromVarname(varName)
     if (iconstituent_id.lt.0.or.iconstituent_id.gt.chm_var_maxnumber()) return
 
-    ! Open output file
-    call utl_open_asciifile(chm_setup_get_str('message'),unit)
-
+    unit=6
+    
     ! Get lat,lon,time,height index range, assumed the same for the background and increment
     lon1 = background%myLonBeg
     lon2 = background%myLonEnd
@@ -411,13 +415,13 @@ contains
 
                    if (bkgrnd.lt.0.0 .and. bkgrnd+inc.lt.0.0) then
 
-                      if (count.eq.0) then
-                         write(unit,'(A,A,A)') "chm_apply_bounds: Negative background and analysis values were found for field ",trim(varName),"."
-                         write(unit,'(A)') "Modifying the increment so the analysis is instead equal to zero at these locations."       
-                         write(unit,'(A)') "JLON JLEV JLAT TSTEP   Background   Init. incr."
-                      end if
+                      !x if (count.eq.0) then
+                      !x   write(unit,'(A,A,A)') "chm_apply_bounds: Negative background and analysis values were found for field ",trim(varName),"."
+                      !x   write(unit,'(A)') "Modifying the increment so the analysis is instead equal to zero at these locations."       
+                      !x   write(unit,'(A)') "JLON JLEV JLAT TSTEP   Background   Init. incr."
+                      !x end if
 
-                      write(unit,'(4(I4,1X),2G12.2)') jlon,jlev,jlat,jstep,bkgrnd,inc
+                      !x write(unit,'(4(I4,1X),2G12.2)') jlon,jlev,jlat,jstep,bkgrnd,inc
 
                       increment_field(jlon,jlat,jlev,jstep) = -bkgrnd
                       count = count+1
@@ -450,16 +454,16 @@ contains
 
                    if (bkgrnd+inc.lt.refval*bkgrnd .and. bkgrnd.ge.0.) then
 
-                      if (count.eq.0) then
-                         write(unit,'(A,F4.1,A,A,A)') "chm_apply_bounds: Analysis values were found below the cut-off of ", &
-                              100*chm_setup_get_float('low_cutoff',iconstituent_id),"% of the trial field for field ",trim(varName),"."
-                          write(unit,'(A)') "Modifying the increment so the analysis is instead equal to the lower bound cut-off value at these locations."
-                          write(unit,'(A)') "JLON JLEV JLAT TSTEP   Background  Init. incr.  New incr."
-                      end if
+                      !x if (count.eq.0) then
+                      !x   write(unit,'(A,F4.1,A,A,A)') "chm_apply_bounds: Analysis values were found below the cut-off of ", &
+                      !x       100*chm_setup_get_float('low_cutoff',iconstituent_id),"% of the trial field for field ",trim(varName),"."
+                      !x    write(unit,'(A)') "Modifying the increment so the analysis is instead equal to the lower bound cut-off value at these locations."
+                      !x    write(unit,'(A)') "JLON JLEV JLAT TSTEP   Background  Init. incr.  New incr."
+                      !x end if
 
                       new_inc = (refval-1.)*bkgrnd
 
-                      write(unit,'(4(I4,1X),3G12.2)') jlon,jlev,jlat,jstep,bkgrnd,inc,new_inc
+                      !x write(unit,'(4(I4,1X),3G12.2)') jlon,jlev,jlat,jstep,bkgrnd,inc,new_inc
 
                       increment_field(jlon,jlat,jlev,jstep) = new_inc
                       count = count+1
@@ -496,16 +500,16 @@ contains
 
                    if (bkgrnd+inc.gt.refval*bkgrnd .and. bkgrnd.ge.0.) then
 
-                      if (count.eq.0) then
-                         write(unit,'(A,A,F4.1,A,A,A)') "chm_apply_bounds: Analysis values were found above the cut-off of ", &
-                              100*chm_setup_get_float('high_cutoff',iconstituent_id)," times the trial field for field ",trim(varName),"."
-                         write(unit,'(A)') "Modifying the increment so the analysis is instead equal to the upper bound cut-off value at these locations."
-                         write(unit,'(A)') "JLON JLEV JLAT TSTEP   Background  Init.-incr.  New-incr."
-                      end if
+                      !x if (count.eq.0) then
+                      !x   write(unit,'(A,A,F4.1,A,A,A)') "chm_apply_bounds: Analysis values were found above the cut-off of ", &
+                      !x       100*chm_setup_get_float('high_cutoff',iconstituent_id)," times the trial field for field ",trim(varName),"."
+                      !x   write(unit,'(A)') "Modifying the increment so the analysis is instead equal to the upper bound cut-off value at these locations."
+                      !x   write(unit,'(A)') "JLON JLEV JLAT TSTEP   Background  Init.-incr.  New-incr."
+                      !x end if
 
                       new_inc = (refval-1.)*bkgrnd
 
-                      write(unit,'(4(I4,1X),3G12.2)') jlon,jlev,jlat,jstep,bkgrnd,inc,new_inc
+                      !x write(unit,'(4(I4,1X),3G12.2)') jlon,jlev,jlat,jstep,bkgrnd,inc,new_inc
 
                       increment_field(jlon,jlat,jlev,jstep) = new_inc
                       count = count+1
@@ -524,8 +528,6 @@ contains
        end if
 
     end if
-
-    ier=fclos(unit)
 
   end subroutine chm_apply_bounds
 
