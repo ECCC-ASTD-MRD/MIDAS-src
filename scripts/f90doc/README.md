@@ -1,11 +1,11 @@
-Here are the instructions to install, maintain the automatic
+Here are the instructions to install and maintain the automatic
 generation of the documentation for this code.
 
 It is based on the [GitLab CI](https://docs.gitlab.com/ce/ci)
 functionalities which are available with our code repository.
 
-It is currently configured that, for each push in the `master` branch,
-a new documentation is generated.  Then, since the link in the main
+It is configured such that, for each push to the `master` branch,
+documentation is generated. Then, since the link in the main
 [README](README.md) to the documentation is generic, the end user will
 access the latest documentation for the `master` branch.
 
@@ -19,7 +19,7 @@ automatic task.
 
 First, one must download a program, called `gitlab-runner`, which
 listens to the GitLab server for triggers to CI.  This program must be
-comptatible with the GitLab version where the code is hosted.  In our
+comptatible with the GitLab API version where the code is hosted.  In our
 case, we must download the program with the command:
 ```bash
 wget https://gitlab-ci-multi-runner-downloads.s3.amazonaws.com/v1.11.5/binaries/gitlab-ci-multi-runner-linux-amd64
@@ -30,7 +30,7 @@ But, a copy has already been installed here:
 /home/sidr000/bin/gitlab-ci-multi-runner-linux-amd64
 ```
 
-The, a runner has to be registered to the GitLab server.  You must
+Then a runner has to be registered to the GitLab server.  You must
 execute that command:
 ```bash
 /home/sidr000/bin/gitlab-ci-multi-runner-linux-amd64 register \
@@ -53,14 +53,14 @@ phrase describing the runner.
 At the end, the `${HOME}/.gitlab-runner/config.toml` should contain
 the information above.
 
-Congratulations, you have register your GitLab runner.  You can
+Congratulations, you have registered your GitLab runner!  You can
 confirm that it has been configured correctly by looking at the
 [runners page of the
 project](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/runners).
 
 ### Registering, step by step
 
-You can do a step by step configuration by doing the instructions
+You can do a step by step configuration by following the instructions
 below.
 
 Then, one has to [register the
@@ -74,7 +74,7 @@ our case:
 https://gitlab.science.gc.ca/ci
 ```
 
-Then it will ask for the `gitlab-ci` which can be found in the [CI
+Then it will ask for the `gitlab-ci` token which can be found in the [CI
 settings](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/pipelines/settings)
 of the project (put the `Runner token`).  You also have to put a
 description.  I put this:
@@ -84,7 +84,7 @@ Runner for 'erv000' connected to 'gitlab.science.gc.ca:atmospheric-data-assimila
 
 It will ask for tags which you can ignore.  The next question is the
 `executor` for which we want a `ssh` and you put
-`eccc-ppp2.science.gc.ca` as the `SSH server address` when asked then
+`eccc-ppp2.science.gc.ca` as the `SSH server address` when asked, then
 the script will be executed by doing a SSH connection to
 `eccc-ppp2.science.gc.ca`.
 
@@ -94,7 +94,7 @@ to the `SSH identity file` which is `${HOME}/.ssh/id_rsa`.
 
 ## Launch the GitLab Runner
 
-We suggest to launch the GitLab Runner in the daemon queue of one of the PPP.  To do that, we must create a job:
+We suggest to launch the GitLab Runner in the daemon queue of one of the PPPs.  To do that, we must create a job:
 ```bash
 [ ! -d ~/bin ] && mkdir -v ~/bin
 cat > ~/bin/gitlab_runner.sh <<EOF
