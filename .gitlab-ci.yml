@@ -1,0 +1,10 @@
+doc:
+  variables:
+    docname: $CI_BUILD_REF_NAME-$CI_BUILD_REF
+    midasdoc: /home/erv000/public_html/midas-doc
+  script:
+  - scripts/create_f90doc.sh ${PWD}/src $midasdoc/$docname
+  - rm -fv $midasdoc/latest
+  - ln -sv $midasdoc/$docname $midasdoc/latest
+  only:
+    - master

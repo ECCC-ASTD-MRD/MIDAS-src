@@ -4,7 +4,7 @@
 
 # MIDAS Fortran code documentation:
 
-* [Master branch](http://hpfx.science.gc.ca/~mab001/f90doc/master/)
+* [Master branch](http://hpfx.science.gc.ca/~erv000/midas-doc/latest)
 
 # Compiling the programs
 
