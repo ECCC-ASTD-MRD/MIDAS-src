@@ -102,7 +102,9 @@ cat > ~/bin/gitlab_runner.sh <<EOF
 set -ex
 
 gitlabrunner_exists=true
-jobst -c ppp1 -u \${USER} | grep 'gitlab_runner.*dev_daemon' || gitlabrunner_exists=false
+qname=dev_daemon
+
+jobst -c ppp1 -u \${USER} -q \${qname} | grep 'gitlab_runner' || gitlabrunner_exists=false
 
 if [ "\${gitlabrunner_exists}" != true ]; then
     cat > \${TMPDIR}/gitlab_runner <<ENDOFGITLABRUNNER
@@ -112,7 +114,7 @@ set -ex
 /home/sidr000/bin/gitlab-ci-multi-runner-linux-amd64 run
 ENDOFGITLABRUNNER
 
-    ord_soumet \${TMPDIR}/gitlab_runner -mach eccc-ppp1 -queue dev_daemon -cpus 1 -w \$((90*24*60))
+    ord_soumet \${TMPDIR}/gitlab_runner -mach eccc-ppp1 -queue \${qname} -cpus 1 -w \$((90*24*60))
     rm \${TMPDIR}/gitlab_runner
 fi
 
@@ -129,16 +131,16 @@ To install a `hcron` rule to check if the gitlab runner is running, do this
 ```bash
 mkdir -pv ~/.hcron/hcron1.science.gc.ca/events/eccc-ppp1
 cat > ~/.hcron/hcron1.science.gc.ca/events/eccc-ppp1/gitlab-runner <<EOF
-as_user=erv000
-host=\$HCRON_EVENT_NAME[-3]
+as_user=
+host=\$HCRON_EVENT_NAME[1]
 command=echo ~/bin/gitlab_runner.sh | bash --login
-notify_email=your.email@canada.ca
-notify_message="Run on \$HCRON_EVENT_NAME[-3]"
+notify_email=
+notify_message=
 when_month=*
 when_day=*
 when_hour=*
-when_minute=0
+when_minute=$((RANDOM % 60 ))
 when_dow=*
 EOF
-echo hcron-reload | ssh hcron1 bash --login
+ssh hcron1 hcron-reload
 ```
