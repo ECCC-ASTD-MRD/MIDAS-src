@@ -40,7 +40,7 @@ module sqliteFiles_mod
   public :: sqlite_nfiles, sqlite_cfilnam,sqlite_cfamtyp
 
   ! public procedures
-  public :: sqlite_setupfiles, sqlf_updateFile, sqlf_readFile
+  public :: sqlf_getDateStamp, sqlf_updateFile, sqlf_readFile
 
 ! type for SQLIte  file handle
   type(fSQL_DATABASE)            :: db
@@ -62,195 +62,57 @@ module sqliteFiles_mod
 
 contains
 
-SUBROUTINE sqlite_setupfiles(datestamp, sqliteFileMode_in)
+subroutine sqlf_getDateStamp(datestamp, sqliteFileName)
+
+  ! Author     : Pierre Koclas 
+  ! Adaptation from sqlite_setupFiles 
+  !            : Sergey Skachko (ARMA), March 2018
+
   implicit none
-!s/r  setup_sqlitefiles -INITIALZE sqlite FILE NAMES and return datestamp
-!
-!
-  character(len=*), intent(in) :: sqliteFileMode_in
-  
-  INTEGER IER,INBLKS,nulsqlite,JJ
-  CHARACTER(len=20) :: CLVALU(JPFILES)
-  CHARACTER(len=2) :: CFAMI(JPFILES)
-  CHARACTER(len=4) :: cmyidx, cmyidy
-  CHARACTER(len=9) :: cmyid
-  CHARACTER(len=jmaxsqlitefilename-(1+20+1+9)) :: sqlite_directory
-  CHARACTER(len=jmaxsqlitefilename) :: sqlitein   !! the length should be more than len(sqlite_directory)+1+len(clvalu)+1+len(cmyid)
-  integer :: length_sqlite_directory, status, length_sqlite_split
-  LOGICAL   isExist_L 
 
-  INTEGER KTIME,KDATE,KDATE_RECV,KTIME_RECV
-  INTEGER IHANDL,ILONG,DATESTAMP
-  INTEGER ITIME,IFLGS,IDBURP,ILAT,ILON,IDX,IDY
-  INTEGER IALT,IDELAY,IDATE,IRS,IRUNN,INBLK,ISUP,IXAUX
-  INTEGER INSUP,INXAUX
+  ! arguments
+  integer :: dateStamp
+  character(len=*), intent(in) :: sqliteFileName
 
-  INTEGER INRECS
-
-  INTEGER NBRPDATE,NBRPHH,ISTAMPOBS,INEWHH,NEWDATE
-  REAL*8 DELHH
-  INTEGER       IVALS
-  CHARACTER*9   CLSTNID
+  ! locals 
+  logical :: isExist_L 
+  integer :: ier,ktime,kdate,ivals,kdate_recv,ktime_recv
+  integer :: inrecs, mrfopc
+  real*8  :: delhh
+  integer :: nbrpdate,nbrphh,istampobs,inewhh,newdate
   
   !
-  !- Setup the mode
+  !- Get the date from the sqlite files
   !
-  sqliteFileMode = sqliteFileMode_in
+  
+  ier = mrfopc('MSGLVL','FATAL')
 
-  ier = 0
-  call get_environment_variable('OAVAR_BURP_DIRECTORY',sqlite_directory,length_sqlite_directory,ier,.true.)
-  if (ier.eq.-1) then
-     write(*,*) 'sqlite_setupfiles: Problem when getting the environment variable OAVAR_BURP_DIRECTORY'
-     write(*,*) '                 The length of the variable ''sqlite_directory'' is too short to hold the complete value'
-     call utl_abort("sqlite_setupfiles")
-  end if
-  if (ier.gt.1) then
-     write(*,*) 'sqlite_setupfiles: Problem when getting the environment variable OAVAR_BURP_DIRECTORY'
-     write(*,*) '                 Rely on defaut which is the current directory'
-     sqlite_directory = '.'
-  end if
-  if (ier.eq.1) then
-     write(*,*) 'sqlite_setupfiles: The environment variable OAVAR_BURP_DIRECTORY does not exist'
-     write(*,*) '                 Rely on defaut which is the current directory'
-     sqlite_directory = '.'
-  end if
-  if (ier.eq.0) then
-     write(*,*) 'sqlite_setupfiles: The environment variable OAVAR_BURP_DIRECTORY does exist'
-     write(*,*) '                 Retrieve it'
-  end if
- 
- !
- !- Determine if the observation files are already split by subdomain
- !
- status = 0
-    call get_environment_variable('OAVAR_BURP_SPLIT',sqlite_split_mode,length_sqlite_split,status,.true.)
+  ivals=8
+  kdate=-9999
+  ktime=-9999
+    
+  inquire(file=trim(sqliteFileName),exist=isExist_L)
+  if ( isExist_L ) then
+    
+    write(*,*)' Open File : ',trim(sqliteFileName)
+    call fSQL_open( db, trim(sqliteFileName) ,stat)
+    query="select date from resume;"
+    STR_DATE=SQL_QUERY_CH(db,trim(query))
+    read(STR_DATE,*)  datesql
+    kdate=datesql
 
-    if ( status == 1 ) then
-      write(*,*) 'sqlite_setupfiles: The environment variable OAVAR_BURP_SPLIT has not been detected!'
-      write(*,*) '                 The observation files are NOT split'
-      sqlite_split_L = .false.  
-      sqlite_split_mode = 'DEFAULT'
-      ! At this point the code only supports split files
-      write(*,*) 'sqlite_setupfiles: Expecting split sqlite files!'
-      call utl_abort('sqlite_setupfiles')
-    else
-      write(*,*)
-      write(*,*) 'sqlite_setupfiles: The environment variable OAVAR_BURP_SPLIT has correctly been detected'
-      select case ( trim(sqlite_split_mode) )
-      case ('yes')
-        write(*,*) 'sqlite_setupfiles: The observation files ARE split. Assuming ROUNDROBIN strategy'
-        sqlite_split_L = .true.
-        sqlite_split_mode = 'ROUNDROBIN'
-      case ('no')
-        write(*,*) 'sqlite_setupfiles: The observation files are NOT split'
-        sqlite_split_L = .false.
-        sqlite_split_mode = 'DEFAULT'
-        ! At this point the code only supports split files
-        write(*,*) 'sqlite_setupfiles: Expecting split sqlite files!'
-        call utl_abort('sqlite_setupfiles')
-      case ('ROUNDROBIN')
-        write(*,*) 'sqlite_setupfiles: The observation files ARE split using the ROUNDROBIN strategy'
-        sqlite_split_L = .true.
-      case ('LATLONTILES')
-        write(*,*) 'sqlite_setupfiles: The observation files ARE split by LAT-LON tiles'
-        write(*,*) 'sqlite_setupfiles: LAT-LON TILES NO LONGER PERMITTED, USE ROUND ROBIN!'
-        call utl_abort('sqlite_setupfiles')
-      case default
-        write(*,*) 'sqlite_setupfiles: Unknown sqlite_split_mode ', trim(sqlite_split_mode)
-        call utl_abort('sqlite_setupfiles')
-      end select
-    end if
+    query="select time from resume;"
+    STR_DATE=SQL_QUERY_CH(db,trim(query))
+    read(STR_DATE,*)  timesql
+    write(*,*) ' DATE and TIME t in FILE=',datesql,timesql
+    ktime=timesql
+    call fSQL_close( db, stat )
 
-  write(cmyidy,'(I4.4)') (mpi_npey-mpi_myidy)
-  write(cmyidx,'(I4.4)') (mpi_myidx+1)
-  cmyid  = trim(cmyidx)//'_'//trim(cmyidy)
-  print *, ' CMID=',cmyid
-
-  CLVALU(1) = 'ua.rdb'  
-  CLVALU(2) = 'brpai'  
-  CLVALU(3) = 'brpsfc'  
-  CLVALU(4) = 'brpssmis'
-  CLVALU(5) = 'brpairs'
-  CLVALU(6) = 'brpto_amsua'
-  CLVALU(7) = 'brpto_amsub'
-  CLVALU(8) = 'brpcsr'
-  CLVALU(9) = 'brpiasi'
-  CLVALU(10) = 'brpatms'
-  CLVALU(11) = 'brpcris'
-  CLVALU(12) = 'brpsw'  
-  CLVALU(13) = 'brpsc'  
-  CLVALU(14) = 'brppr'  
-  CLVALU(15) = 'brpro' 
-  CLVALU(16) = 'brpgp' 
-  CLVALU(17) = ' '  
-
-  CFAMI(1)   = 'UA' 
-  CFAMI(2)   = 'AI' 
-  CFAMI(3)   = 'SF' 
-  CFAMI(4)   = 'TO' 
-  CFAMI(5)   = 'TO' 
-  CFAMI(6)   = 'TO' 
-  CFAMI(7)   = 'TO' 
-  CFAMI(8)   = 'TO' 
-  CFAMI(9)   = 'TO' 
-  CFAMI(10)  = 'TO' 
-  CFAMI(11)  = 'TO' 
-  CFAMI(12)  = 'SW' 
-  CFAMI(13)  = 'SC' 
-  CFAMI(14)  = 'PR' 
-  CFAMI(15)  = 'RO' 
-  CFAMI(16)  = 'GP' 
-  CFAMI(17)  = ' ' 
-
-  IVALS=8
-  KDATE=-9999
-  KTIME=-9999
-  sqlite_nfiles=0
-  DO JJ=1,JPFILES 
-    IF(CLVALU(JJ) == '') EXIT
-    nulsqlite=0
-    sqlitein=trim(sqlite_directory)//'/'//trim(CLVALU(JJ))//'_'//trim(cmyid)
-    INQUIRE(FILE=trim(sqlitein),EXIST=isExist_L)
-    IF (.NOT. isExist_L )THEN
-      sqlitein=trim(sqlite_directory)//'/'//trim(CLVALU(JJ))
-      INQUIRE(FILE=trim(sqlitein),EXIST=isExist_L)
-    else
-      sqlite_nfiles=sqlite_nfiles + 1
-      sqlite_cfilnam(sqlite_nfiles)=sqlitein
-      sqlite_cfamtyp(sqlite_nfiles)=CFAMI(JJ)
-      write(*,*) '  SQLITE FILE NAME=',trim(sqlitein)
-      CALL fSQL_open( db, sqlitein ,stat)
-       query="select schema from rdb4_schema ;"
-       RDB4_SCHEMA= SQL_QUERY_CH(db,trim(query))
-       print *, ' RDB4_SCHEMA IS =',RDB4_SCHEMA
-
-       query="select date from resume;"
-       STR_DATE=SQL_QUERY_CH(db,trim(query))
-       read(STR_DATE,*)  datesql
-       kdate=datesql
-
-       query="select time from resume;"
-       STR_DATE=SQL_QUERY_CH(db,trim(query))
-       read(STR_DATE,*)  timesql
-       write(*,*) ' DATE and TIME t in FILE=',datesql,timesql
-       ktime=timesql
-
-       CALL fSQL_close( db, stat )
-    END IF
-  END DO
-
-  WRITE(*,*) ' '
-  WRITE(*,*)' NUMBER OF SQLITE FILES IS :',sqlite_nfiles
-  WRITE(*,*)'TYPE  NAME '
-  WRITE(*,*)'----  ---- '
-  DO JJ=1,sqlite_nfiles
-    WRITE(*,'(1X,A2,1X,A128)' ) sqlite_cfamtyp(JJ),trim(sqlite_cfilnam(JJ))
-  END DO
+  endif
 
   ! Make sure all mpi tasks have a valid date (important for split sqlite files)
   call rpn_comm_allreduce(kdate,kdate_recv,1,"MPI_INTEGER","MPI_MAX","GRID",ier)
   call rpn_comm_allreduce(ktime,ktime_recv,1,"MPI_INTEGER","MPI_MAX","GRID",ier)
-
 
   kdate = kdate_recv
   ktime = ktime_recv
@@ -270,10 +132,11 @@ SUBROUTINE sqlite_setupfiles(datestamp, sqliteFileMode_in)
     nbrphh = 18
   endif
   ier = newdate(datestamp,nbrpdate,nbrphh*1000000,3)
-  WRITE(*, *)' SQLITE FILES VALID DATE (YYYYMMDD) : ',nbrpdate
-  WRITE(*, *)' SQLITE FILES VALID TIME       (HH) : ',nbrphh
+  write(*,*)' SQLITE FILES VALID DATE (YYYYMMDD) : ', nbrpdate
+  write(*,*)' SQLITE FILES VALID TIME       (HH) : ', nbrphh
+  write(*,*)' SQLITE FILES DATESTAMP             : ', datestamp
 
-END SUBROUTINE sqlite_setupfiles
+end subroutine sqlf_getDateStamp
 
 subroutine sqlf_readFile(obsdat,fileName,familyType,fileIndex)
 !
@@ -297,116 +160,120 @@ subroutine sqlf_readFile(obsdat,fileName,familyType,fileIndex)
 !
 !***********************************************************************
 !
-      implicit none
-      ! arguments
-      type (struct_obs), intent(inout) :: obsdat
-      character(len=*) :: fileName
-      character(len=*) :: familyType
-      integer :: fileINdex
+  implicit none
+  ! arguments
+  type (struct_obs), intent(inout) :: obsdat
+  character(len=*)                 :: fileName
+  character(len=*)                 :: familyType
+  integer                          :: fileINdex
 
-      ! locals
-      integer :: ibeg, iend, nstn1, nstn2
-      integer :: jo
-      logical :: obs_full
+  ! locals
+  integer :: ibeg, iend, nstn1, nstn2
+  integer :: jo
+  logical :: obs_full
+  character(len=*), parameter :: my_name = 'sqlf_readFile'
+  character(len=*), parameter :: my_warning = '****** '// my_name //' WARNING: '
+  character(len=*), parameter :: my_error   = '******** '// my_name //' ERROR: '
+  real(obs_real)  :: misg
+  
+  ! debug:******************************
+  logical, parameter :: ldebug =.false.
+  integer :: bodyIndex,headerIndex,varno,iqiv,igav,ilansea,azimuth,inst,ifov,clf,saz,idsat,roqc
+  character*9 :: stid_l
+  real    :: lat,lon,alt,var,channel,ealoc,geoun
+  !*************************************
 
-! SSN     INTEGER                                  :: J,JO
-!      CHARACTER *2                             :: FAMILYTYPE
-!      CHARACTER *128                           :: FILENAME
-!      INTEGER                                  :: IBEG,IEND,START,NSTN1,NSTN2
-!      logical                                  :: obs_full
-!      INTEGER                                  :: nfiles, nulout,kk
+  write(*,*)' '
+  write(*,*)'                '//trim(my_name)//': Starting          '
+  write(*,*)' '
+  misg = real(MPC_missingValue_R8,OBS_REAL)
+  write(*,*)my_name//': FileName   : ', trim(FileName), mpi_myid
+  write(*,*)my_name//': FamilyType : ', FamilyType, mpi_myid
 
-      write(*,*)' '
-      write(*,*)'                sqlf_readFile: Starting          '
-      write(*,*)' '
-!
-!SSN      WRITE(*,*) ' sqlite_cfilnam sqlite_nfiles =',  trim(sqlite_cfilnam(1)), sqlite_nfiles
-!
-!      start=1
-!      nfiles=1
-!      IBEG=obs_numbody(obsdat)
-!      DO J =1,sqlite_nfiles
-!
-!   GET SCHEMA OF DATABASE FILE FROM resume table
-!  --------------------------------
-!         FILENAME  = trim(CFILNAM_SQL(J))
-!          FILENAME=trim(sqlite_cfilnam(j))
-!          FAMILYTYPE=sqlite_cfamtyp(j)
-!          WRITE(*,*)' read database -->', j,trim(FILENAME),trim(FAMILYTYPE)
-!======================================================================================
-!  subroutine obs_status(obsdat, obs_full, numstns_out, numobs_out, kulout)
-!
-!          IBEG=obs_numbody(obsdat)
-          ibeg = obs_numbody(obsdat) + 1
-          Nstn1=obs_numheader(obsdat)
+
+  ibeg = obs_numbody(obsdat) + 1
+  Nstn1=obs_numheader(obsdat)
          
-!	  SELECT CASE(FAMILYTYPE)
-         SELECT CASE(trim(familyType)) 
-!        ---------------
-	    CASE('UA','AI','SW','PR','SF','SC','RO')
-!        ---------------
-!SSN              call SQL2OBS_CONV(obsdat,familytype, FILENAME, 6 )
-              call SQL2OBS_CONV(obsdat,trim(familyType),fileName,fileIndex)
-              Nstn2=obs_numheader(obsdat)
-              iend=obs_numbody(obsdat)
-              call FDTOUV_OBSDAT(obsdat,nstn1+1,nstn2,MPC_missingValue_R4)
-              call ADJUST_HUM_GZ  (obsdat,nstn1+1,nstn2)
-              call ADJUST_SFVCOORD(obsdat,nstn1+1,nstn2)             
-!        ---------------
-!        ---------------
-	    CASE('TO')
-!        ---------------
-!SSN              call SQL2OBS_TOVS(obsdat,familytype, FILENAME, 6)
-              call SQL2OBS_TOVS(obsdat,trim(familyType),fileName,fileIndex)
-              Nstn2=obs_numheader(obsdat)
-              iend=obs_numbody(obsdat)
+  !if ( trim(familyType) /= 'TO' ) then
+  !  call SQL2OBS_CONV(obsdat,trim(familyType),trim(fileName),fileIndex)
+  !else
+  !  call SQL2OBS_TOVS(obsdat,trim(familyType),fileName,fileIndex)
+  !endif
+ 
+  call sqlr_readSqlite(obsdat,trim(familyType),trim(fileName),fileIndex)
 
-	 END SELECT
+  Nstn2=obs_numheader(obsdat)
+  iend=obs_numbody(obsdat)
 
-        DO jo=nstn1+1,nstn2
-!SSN	    call obs_headSet_i(obsdat,OBS_OTP,JO,J)
-!            call obs_headSet_i(obsdat,OBS_IDF,JO,J)
-!	    call obs_setFamily(obsdat,trim(FAMILYTYPE),JO)
-	    call obs_headSet_i(obsdat,OBS_OTP,JO,fileIndex)
-            call obs_headSet_i(obsdat,OBS_IDF,JO,fileIndex)
-	    call obs_setFamily(obsdat,trim(familyType),JO)
+  if(ldebug) then
+    ! debug ###################################################################
+    write(*,*)'SSN: debug!!!'
+    call filt_sethind_util(obsdat)
+    write(*,*)'SSN: writing  headerIndex,stid,lon,lat,alt,var...', mpi_myid
+    do bodyIndex = 1, iend
+      headerIndex = obs_bodyElem_i(obsdat, OBS_HIND,   bodyIndex)
+      stid_l      = obs_Elem_c(obsdat, 'STID',  headerIndex)
+      lat         = obs_headElem_r(obsdat, OBS_LAT,  headerIndex)
+      lon         = obs_headElem_r(obsdat, OBS_LON,  headerIndex)
+      alt         = obs_headElem_r(obsdat, OBS_ALT,  headerIndex)
+      channel     = obs_bodyElem_r(obsdat, OBS_PPP,    bodyIndex)
+      var         = obs_bodyElem_r(obsdat, OBS_VAR,    bodyIndex)
+      varno       = obs_bodyElem_i(obsdat, OBS_VNM,    bodyIndex)
+      iqiv        = obs_headElem_i(obsdat, OBS_SZA,  headerIndex)
+      igav        = obs_headElem_i(obsdat, OBS_SUN,  headerIndex)
+      ilansea     = obs_headElem_i(obsdat, OBS_OFL,  headerIndex)
+      azimuth     = obs_headElem_i(obsdat, OBS_AZA,  headerIndex)
+      inst        = obs_headElem_i(obsdat, OBS_INS,  headerIndex)
+      ifov        = obs_headElem_i(obsdat, OBS_FOV,  headerIndex)
+      clf         = obs_headElem_i(obsdat, OBS_CLF,  headerIndex)
+      saz         = obs_headElem_i(obsdat, OBS_SAZ,  headerIndex)
+      idsat       = obs_headElem_i(obsdat, OBS_SAT,  headerIndex) 
+      roqc        = obs_headElem_i(obsdat, OBS_ROQF, headerIndex) 
+      geoun       = obs_headElem_r(obsdat, OBS_GEOI, headerIndex)
+      ealoc       = obs_headElem_r(obsdat, OBS_TRAD, headerIndex)
+      !write(100+mpi_myid,'(a6,5f12.4,11i8,2f12.4)') trim(stid_l),lon,lat,alt,channel,var,varno,iqiv,igav,ilansea,azimuth,inst,ifov,clf,saz,idsat,roqc,ealoc,geoun
+      write(100+mpi_myid,'(a6,7f12.4,3i8)') trim(stid_l),lon,lat,alt,channel,var,ealoc,geoun,azimuth,idsat,roqc
+    enddo
+    write(*,*)'SSN: DONE', mpi_myid
+    ! ### FIN debug ##########################################################
+  endif  
 
-	 END DO
-!!
-!!=======================================================================================
-!!      WRITE(*,*)' readsql obs_numheader(obsdat)',FAMILYTYPE,j,obs_numheader(obsdat)
-!!      WRITE(*,*)' readsql obs_numbody(obsdat)',  FAMILYTYPE,j,obs_numbody  (obsdat)
-!!=========================================================================================
+  if ( trim(familyType) /= 'TO' ) then
+    call FDTOUV_OBSDAT(obsdat,nstn1+1,nstn2,MPC_missingValue_R4)
+    call ADJUST_HUM_GZ  (obsdat,nstn1+1,nstn2)
+    call ADJUST_SFVCOORD(obsdat,nstn1+1,nstn2)
+  endif             
+  do jo=nstn1+1,nstn2
+    call obs_headSet_i(obsdat,OBS_OTP,jo,fileIndex)
+    call obs_headSet_i(obsdat,OBS_IDF,jo,fileIndex)
+    call obs_setFamily(obsdat,trim(familyType),jo)
+  enddo
 
-      write(*,*) ' readsql IBEG,IEND =',ibeg,iend
-      do jo=ibeg,iend
-        if ( obs_columnActive_RB(obsdat,OBS_OMA) )  call obs_bodySet_r(obsdat,OBS_OMA ,JO,MPC_missingValue_R8)
-        if ( obs_columnActive_RB(obsdat,OBS_OMP) )  call obs_bodySet_r(obsdat,OBS_OMP ,JO,MPC_missingValue_R8)
-        if ( obs_columnActive_RB(obsdat,OBS_OER) )  call obs_bodySet_r(obsdat,OBS_OER ,JO,MPC_missingValue_R8)
-        if ( obs_columnActive_RB(obsdat,OBS_HPHT) ) call obs_bodySet_r(obsdat,OBS_HPHT,JO,MPC_missingValue_R8)
-        if ( obs_columnActive_RB(obsdat,OBS_WORK) ) call obs_bodySet_r(obsdat,OBS_WORK,JO,MPC_missingValue_R8)
-      enddo
-
-!SSN      END DO
+  write(*,*) my_name//': ibeg,iend =',ibeg,iend
+  do jo=ibeg,iend
+    if ( obs_columnActive_RB(obsdat,OBS_OMA) )  call obs_bodySet_r(obsdat,OBS_OMA ,jo,MISG)
+    if ( obs_columnActive_RB(obsdat,OBS_OMP) )  call obs_bodySet_r(obsdat,OBS_OMP ,jo,MISG)
+    if ( obs_columnActive_RB(obsdat,OBS_OER) )  call obs_bodySet_r(obsdat,OBS_OER ,jo,MISG)
+    if ( obs_columnActive_RB(obsdat,OBS_HPHT) ) call obs_bodySet_r(obsdat,OBS_HPHT,jo,MISG)
+    if ( obs_columnActive_RB(obsdat,OBS_WORK) ) call obs_bodySet_r(obsdat,OBS_WORK,jo,MISG)
+  enddo
     
-    ! For GP family, initialize OBS_OER to element 15032 (ZTD formal error) 
-    ! for all ZTD data (element 15031)
-    if ( trim(familyType) == 'GP') then
-      write(*,*)' Initializing OBS_OER for GB-GPS ZTD to formal error (ele 15032)'
-      call set_err_gbgps(obsdat,Nstn1+1,Nstn2)
-    end if
+  ! For GP family, initialize OBS_OER to element 15032 (ZTD formal error) 
+  ! for all ZTD data (element 15031)
+  if ( trim(familyType) == 'GP') then
+    write(*,*)' Initializing OBS_OER for GB-GPS ZTD to formal error (ele 15032)'
+    call set_err_gbgps(obsdat,Nstn1+1,Nstn2)
+  end if
 
-    write(*,*) 'sqlf_readFile: obs_numheader(obsdat)', trim(familyType), obs_numheader(obsdat)
-    write(*,*) 'sqlf_readFile: obs_numbody(obsdat)  ', trim(familyType), obs_numbody  (obsdat)
+  write(*,*) my_name//': obs_numheader(obsdat)', trim(familyType), obs_numheader(obsdat)
+  write(*,*) my_name//': obs_numbody(obsdat)  ', trim(familyType), obs_numbody  (obsdat)
 
-       write(*,*)' '
-!      WRITE(*,*)'================================================='
-       write(*,*)'      sqlf_readFile     END                   '
-!      WRITE(*,*)'================================================='
-       write(*,*)' '
-!      RETURN
+  write(*,*)' '
+  write(*,*)'      '//trim(my_name)//'     END                   '
+  write(*,*)' '
 
 end subroutine  sqlf_readFile
+
 !================================
 
 SUBROUTINE sqlf_updateFile(obsSpaceData,fileName,familyType,fileIndex)
@@ -425,73 +292,45 @@ SUBROUTINE sqlf_updateFile(obsSpaceData,fileName,familyType,fileIndex)
       implicit none
       ! arguments
       type (struct_obs), intent(inout) :: obsSpaceData
-      character(len=*) :: fileName
-      character(len=*) :: familyType
-      integer :: fileIndex
+      character(len=*)                 :: fileName
+      character(len=*)                 :: familyType
+      integer                          :: fileIndex
 
       ! locals
       integer :: headerIndex
-      !type (struct_obs), intent(inout) :: obsSpaceData
       type(fSQL_DATABASE)                      :: db
       type(FSQL_STATUS)                        :: stat
-      !INTEGER*4                                :: J,JO
-
-      !character(len=256) :: FILENAME
-      !integer length_burp_split
-      !integer   ::  EXDB,EXFIN
+     
+      character(len=*), parameter :: my_name = 'sqlf_updateFile'
+      character(len=*), parameter :: my_warning = '****** '// my_name //' WARNING: '
+      character(len=*), parameter :: my_error   = '******** '// my_name //' ERROR: '
 
       call tmg_start(97,'POST_UPDATESQL')
 
-      write(*,*) 'sqlf_updateFile: Starting'
+      write(*,*) my_name//' Starting'
+      write(*,*) my_name//': FileName   : ',trim(fileName)
+      write(*,*) my_name//': FamilyType : ',FamilyType
 
-!      if (trim(sqliteFileMode) == 'analysis') call vint3dfd(obs_oma,obsSpaceData)
-!      call vint3dfd(obs_omp,obsSpaceData)
-!      if (trim(sqliteFileMode) == 'analysis' .or. trim(sqliteFileMode) == 'FSO') call setassflg(obsSpaceData)
-!      call flaguvtofd_obsdat(obsSpaceData)
-!
-!  ------NOTE----------
-! currently supported families of data 'UA' 'AI' 'SC' 'SF' 'SW' 'TO'
-!
-!     READ DATA FROM FILES CONTAINED IN ARRAY CLVAL.
-!
-!      WRITE(*,*)' '
-!      WRITE(*,*)'================================================='
-!      WRITE(*,*)'                sqlf_updateFile BEGIN                '
-!      WRITE(*,*)'================================================='
-!      WRITE(*,*)' '
-
-
-!! SSN ????     ! redistribute obs data to how it was just after reading the files
-!     call obs_MpiRedistribute(obsSpaceData,OBS_IPF)
-
-!     ISTAMP=EXDB('UPDATE_SQL','DEBUT','NON')
       call SQL2OBS_NML('NAMSQLUPDATE')
-!SSN      DO J =1,sqlite_nfiles
-!          FILENAME=trim(sqlite_cfilnam(j))
+      call SQL2OBS_NML('NAMSQLinsert')
 
-!          WRITE(*,*)'  open database -->', trim(FILENAME)
-!         ===============================================
-          CALL fSQL_open( db, fileName ,stat)
-          if ( fSQL_error(stat) /= FSQL_OK ) then
-	    write(*,*) 'fSQL_open: ', fSQL_errmsg(stat)
-	  endif
+      call fSQL_open( db, fileName,stat)
+      if ( fSQL_error(stat) /= FSQL_OK ) then
+        write(*,*) 'fSQL_open: ', fSQL_errmsg(stat)
+        write(*,*) my_error, fSQL_errmsg(stat)
+      endif
 
-          !call    updsql(db,obsSpaceData,j)
-          !call insertsql(db,obsSpaceData,j)
-          call    updsql(db,obsSpaceData,familyType,fileName,fileIndex)
-          call insertsql(db,obsSpaceData,familyType,fileName,fileIndex)
+      call    updsql(db,obsSpaceData,familyType,fileName,fileIndex)
+      call insertsql(db,obsSpaceData,familyType,fileName,fileIndex)
           
-          CALL fSQL_close( db, stat )
-!         ===============================================
-          WRITE(*,*)'  closed database -->', trim(FILENAME)
+      write(*,*)'  closed database -->', trim(FileName)
+      call fSQL_close( db, stat )
         
-!!!SSN      END DO
-!
-      WRITE(*,*)' '
-      WRITE(*,*)'================================================='
-      WRITE(*,*)'                sqlf_updateFile    END               '
-      WRITE(*,*)'================================================='
-      WRITE(*,*)' '
+      write(*,*)' '
+      write(*,*)'================================================='
+      write(*,*)'                '//trim(my_name)//'    END               '
+      write(*,*)'================================================='
+      write(*,*)' '
 
       call tmg_stop(97)
 

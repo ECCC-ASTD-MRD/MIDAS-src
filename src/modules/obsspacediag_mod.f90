@@ -773,11 +773,11 @@ contains
   
 !---------------------------------------------------------------------------------------
 
-  subroutine osd_update_obsfile()
+  subroutine osd_update_obsfile(obsSpaceData)
 !
 ! Author   : Y. Rochon, June 2016 
 ! 
-! Revisions:
+! Revisions: Sergey Skachko, March 2018
 !          
 ! Purpose: Update of obs file(s) for content other
 !          than OBS,OMA,OMP,OER,FGE,MRK in obsSpaceData
@@ -787,13 +787,15 @@ contains
 !----------------------------------------------------------------------------------------
 
     implicit none
-    
+    ! arguments
+    type (struct_obs), intent(inout) :: obsSpaceData
+
     integer :: ierr,nrep_modified,varno(1)
 
 !   If needed, add effective temperature values in CH family obs file 
 !   for total column measurements
 
-    call chm_add_efftemp_obsfile()
+    if (obs_famExist(obsSpaceData,'CH')) call chm_add_efftemp_obsfile()
 
   end subroutine osd_update_obsfile
 
@@ -804,7 +806,7 @@ contains
 !
 ! Author:   Y. Rochon, ARQI/AQRD, June 2016
 !
-! Revisions:
+! Revisions: Sergey Skachko, ARMA, March 2018
 !          
 ! Purpose:  Interface for observation-space post-processing procedures.
 !
@@ -892,7 +894,7 @@ contains
     
     ! Apply any required obs file update
     
-    call osd_update_obsfile()
+    call osd_update_obsfile(obsSpaceData)
 
     if (mpi_myid.eq.0) then
        write(*,*)

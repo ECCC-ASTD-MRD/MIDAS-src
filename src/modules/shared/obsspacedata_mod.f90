@@ -1051,12 +1051,16 @@ contains
 
       elseif(trim(obsColumnMode) == 'VAR') then COLUMN_MODE
 
+! SSN activate OBS_IDO et _IDF pour sqlite:         do column_index=NHDR_INT_BEG,NHDR_INT_END
+!            if(     column_index.ne.OBS_IDF &
+!               .and.column_index.ne.OBS_IDO &
+!               .and.(column_index.lt.OBS_CF1 .or. &
+!                     column_index.gt.OBS_STYP) &
+!              )call odc_activateColumn(odc_flavour_IH, column_index)
+!         enddo
          do column_index=NHDR_INT_BEG,NHDR_INT_END
-            if(     column_index /= OBS_IDF &
-               .and.column_index /= OBS_IDO &
-               .and.(column_index < OBS_CF1 .or. &
-                     column_index > OBS_STYP) &
-              )call odc_activateColumn(odc_flavour_IH, column_index)
+            if( column_index.lt.OBS_CF1 .or.column_index.gt.OBS_STYP  &
+              ) call odc_activateColumn(odc_flavour_IH, column_index)
          enddo
          do column_index=NHDR_REAL_BEG,NHDR_REAL_END
             if(     column_index /= OBS_BX &
@@ -1066,10 +1070,13 @@ contains
                       column_index > OBS_ZPS) &
               ) call odc_activateColumn(odc_flavour_RH, column_index)
          enddo
+! SSN activate OBS_IDD pour sqlite:         do column_index=NBDY_INT_BEG,NBDY_INT_END
+!            if(     column_index.ne.OBS_KFA &
+!               .and.column_index.ne.OBS_IDD &
+!              ) call odc_activateColumn(odc_flavour_IB, column_index)
+!         enddo
          do column_index=NBDY_INT_BEG,NBDY_INT_END
-            if(     column_index /= OBS_KFA &
-               .and.column_index /= OBS_IDD &
-              ) call odc_activateColumn(odc_flavour_IB, column_index)
+            if( column_index.ne.OBS_KFA ) call odc_activateColumn(odc_flavour_IB, column_index)
          enddo
          do column_index=NBDY_REAL_BEG,NBDY_REAL_END
             if(      column_index /= OBS_OMP6 &

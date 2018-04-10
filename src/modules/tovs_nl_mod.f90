@@ -286,7 +286,9 @@ contains
       end if
       !    find sensor number for this obs.
       nosensor =0
+      write(*,*)'KRTID,IPLATFORM, ISAT,INSTRUM,tvs_platforms  (KRTID),tvs_satellites (KRTID),tvs_instruments(KRTID)'
       do KRTID = 1, tvs_nsensors
+        write(*,'(7i6)')KRTID,IPLATFORM, ISAT,INSTRUM,tvs_platforms  (KRTID),tvs_satellites (KRTID),tvs_instruments(KRTID)
         if ( IPLATFORM == tvs_platforms  (KRTID) .AND. &
              ISAT      == tvs_satellites (KRTID) .AND. &
              INSTRUM   == tvs_instruments(KRTID)      ) THEN

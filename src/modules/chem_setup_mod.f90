@@ -2022,7 +2022,7 @@ contains
 
 !   If needed, add effective temperature values in obs file for total column measurements
 
-    if ( .not.obsf_fileTypeIsBurp() ) call utl_abort('chm_read_avgkern: only compatible with BURP files')
+    if ( .not.obsf_fileTypeIsBurp() ) call utl_abort('chm_add_efftemp_obsfile: only compatible with BURP files')
 
     call oss_obsdata_MPIallgather(chm_efftemp)
     

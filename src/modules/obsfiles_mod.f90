@@ -95,6 +95,8 @@ contains
     !
     if ( obsFileType == 'BURP' ) then
       call brpf_getDateStamp( dateStamp_out, obsf_cfilnam(1) )
+    else if ( obsFileType == 'SQLITE' ) then
+      call sqlf_getDateStamp( dateStamp_out, obsf_cfilnam(1) )
     else
       dateStamp_out = -1
     end if

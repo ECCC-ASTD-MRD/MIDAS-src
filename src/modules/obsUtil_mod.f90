@@ -35,7 +35,7 @@ module obsUtil_mod
   private
   
   ! public procedures
-  public :: VINT3DFD, SETASSFLG, FLAGUVTOFD_OBSDAT, FDTOUV_OBSDAT, ADJUST_HUM_GZ, ADJUST_SFVCOORD, set_err_gbgps, cvt_obs_instrum
+  public :: VINT3DFD, SETASSFLG, FLAGUVTOFD_OBSDAT, FDTOUV_OBSDAT, ADJUST_HUM_GZ, ADJUST_SFVCOORD, set_err_gbgps, cvt_obs_instrum,filt_sethind_util
 
   contains
 
@@ -933,5 +933,22 @@ module obsUtil_mod
 
   end function cvt_obs_instrum
 
+  subroutine filt_sethind_util(obsSpaceData)
+    implicit none
+    type(struct_obs) :: obsSpaceData
+    integer :: ij,idata,idatend,bodyIndex,headerIndex
+    !
+    ! Set the header index in the body of obsSpaceData
+    !
+    ij=0
+    do headerIndex = 1, obs_numheader(obsSpaceData)
+       idata   = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
+       idatend = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + idata - 1
+       do bodyIndex= idata, idatend
+          ij   = ij+1
+          call obs_bodySet_i(obsSpaceData,OBS_HIND,IJ, headerIndex)
+       end do
+    end do
+  end subroutine filt_sethind_util
 
 end module obsUtil_mod

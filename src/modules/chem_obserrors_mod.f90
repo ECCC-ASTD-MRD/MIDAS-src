@@ -120,7 +120,7 @@ contains
     integer, parameter :: ndim=1
     integer :: istnid
 
-    if ( .not.obsf_fileTypeIsBurp() ) call utl_abort('chm_read_avgkern: only compatible with BURP files')
+    if ( .not.obsf_fileTypeIsBurp() ) call utl_abort('chm_read_obs_err_stddev: only compatible with BURP files')
 
     ! read the error std. dev. information from the auxiliary file
     call chm_read_obs_err_stddev_auxfile
