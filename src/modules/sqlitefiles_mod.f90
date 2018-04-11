@@ -177,7 +177,7 @@ subroutine sqlf_readFile(obsdat,fileName,familyType,fileIndex)
   real(obs_real)  :: misg
   
   ! debug:******************************
-  logical, parameter :: ldebug =.false.
+  logical, parameter :: ldebug =.true.
   integer :: bodyIndex,headerIndex,varno,iqiv,igav,ilansea,azimuth,inst,ifov,clf,saz,idsat,roqc
   character*9 :: stid_l
   real    :: lat,lon,alt,var,channel,ealoc,geoun
