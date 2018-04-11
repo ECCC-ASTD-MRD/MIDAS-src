@@ -211,15 +211,15 @@ contains
         ilansea     = obs_headElem_i(obsdat, OBS_OFL,  headerIndex)
         azimuth     = obs_headElem_i(obsdat, OBS_AZA,  headerIndex)
         inst        = obs_headElem_i(obsdat, OBS_INS,  headerIndex)
-        ifov        = obs_headElem_i(obsdat, OBS_FOV,  headerIndex)
         clf         = obs_headElem_i(obsdat, OBS_CLF,  headerIndex)
         saz         = obs_headElem_i(obsdat, OBS_SAZ,  headerIndex)
         idsat       = obs_headElem_i(obsdat, OBS_SAT,  headerIndex) 
         roqc        = obs_headElem_i(obsdat, OBS_ROQF, headerIndex) 
         geoun       = obs_headElem_r(obsdat, OBS_GEOI, headerIndex)
         ealoc       = obs_headElem_r(obsdat, OBS_TRAD, headerIndex)
-        !write(100+mpi_myid,'(a6,5f12.4,11i8,2f12.4)') trim(stid_l),lon,lat,alt,channel,var,varno,iqiv,igav,ilansea,azimuth,inst,ifov,clf,saz,idsat,roqc,ealoc,geoun
-        write(100+mpi_myid,'(a6,7f12.4,3i8)') trim(stid_l),lon,lat,alt,channel,var,ealoc,geoun,azimuth,idsat,roqc
+        write(100+mpi_myid,'(a6,5f12.4,10i8)') trim(stid_l),lon,lat,alt,channel,var,varno,iqiv,igav,ilansea,azimuth,inst,clf,saz,idsat,roqc
+        !write(100+mpi_myid,'(a6,5f12.4,10i8,2f12.4)') trim(stid_l),lon,lat,alt,channel,var,varno,iqiv,igav,ilansea,azimuth,inst,clf,saz,idsat,roqc,ealoc,geoun
+        !write(100+mpi_myid,'(a6,7f12.4,3i8)') trim(stid_l),lon,lat,alt,channel,var,ealoc,geoun,azimuth,idsat,roqc
       enddo
       write(*,*)'SSN: DONE', mpi_myid
       ! ### FIN debug ##########################################################
