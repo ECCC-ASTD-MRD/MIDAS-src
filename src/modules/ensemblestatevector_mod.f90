@@ -75,6 +75,9 @@ MODULE ensembleStateVector_mod
 
 CONTAINS
 
+  !--------------------------------------------------------------------------
+  ! ens_allocate
+  !--------------------------------------------------------------------------
   subroutine ens_allocate(ens, numMembers, numStep, hco_ens, vco_ens, &
                           dateStampList, varNames_opt, dataKind_opt)
     implicit none
@@ -131,6 +134,9 @@ CONTAINS
 
   end subroutine ens_allocate
 
+  !--------------------------------------------------------------------------
+  ! ens_allocateMean
+  !--------------------------------------------------------------------------
   subroutine ens_allocateMean(ens)
     implicit none
 
@@ -158,7 +164,9 @@ CONTAINS
 
   end subroutine ens_allocateMean
 
-
+  !--------------------------------------------------------------------------
+  ! ens_allocateStdDev
+  !--------------------------------------------------------------------------
   subroutine ens_allocateStdDev(ens)
     implicit none
 
@@ -186,7 +194,9 @@ CONTAINS
 
   end subroutine ens_allocateStdDev
 
-
+  !--------------------------------------------------------------------------
+  ! ens_deallocate
+  !--------------------------------------------------------------------------
   subroutine ens_deallocate( ens )
     implicit none
 
@@ -299,6 +309,9 @@ CONTAINS
 
   end subroutine ens_copy
 
+  !--------------------------------------------------------------------------
+  ! ens_copyToStateWork
+  !--------------------------------------------------------------------------
   subroutine ens_copyToStateWork(ens, memberIndex)
     implicit none
 
@@ -375,6 +388,9 @@ CONTAINS
 
   end function ens_getOneLev_r8
 
+  !--------------------------------------------------------------------------
+  ! ens_getOneLevMean_r8
+  !--------------------------------------------------------------------------
   function ens_getOneLevMean_r8(ens,subEnsIndex,kIndex) result(field)
     implicit none
 
@@ -393,6 +409,9 @@ CONTAINS
 
   end function ens_getOneLevMean_r8
 
+  !--------------------------------------------------------------------------
+  ! ens_copyEnsMean
+  !--------------------------------------------------------------------------
   subroutine ens_copyEnsMean(ens, statevector, subEnsIndex_opt)
     implicit none
 
@@ -430,6 +449,9 @@ CONTAINS
 
   end subroutine ens_copyEnsMean
 
+  !--------------------------------------------------------------------------
+  ! ens_copyEnsStdDev
+  !--------------------------------------------------------------------------
   subroutine ens_copyEnsStdDev(ens, statevector)
     implicit none
 
@@ -460,7 +482,9 @@ CONTAINS
 
   end subroutine ens_copyEnsStdDev
 
-
+  !--------------------------------------------------------------------------
+  ! ens_copyMember
+  !--------------------------------------------------------------------------
   subroutine ens_copyMember(ens, statevector, memberIndex)
     implicit none
 
@@ -497,9 +521,12 @@ CONTAINS
         end do
       end do
     end if
+
   end subroutine ens_copyMember
 
-
+  !--------------------------------------------------------------------------
+  ! ens_varExist
+  !--------------------------------------------------------------------------
   function ens_varExist(ens,varName) result(varExist)
     implicit none
 
@@ -512,7 +539,9 @@ CONTAINS
 
   end function ens_varExist
 
-
+  !--------------------------------------------------------------------------
+  ! ens_getNumLev
+  !--------------------------------------------------------------------------
   function ens_getNumLev(ens,varLevel) result(nlev)
     implicit none
 
@@ -525,7 +554,9 @@ CONTAINS
 
   end function ens_getNumLev
 
-
+  !--------------------------------------------------------------------------
+  ! ens_getNumK
+  !--------------------------------------------------------------------------
   function ens_getNumK(ens) result(numK)
     implicit none
 
@@ -537,7 +568,9 @@ CONTAINS
 
   end function ens_getNumK
 
-
+  !--------------------------------------------------------------------------
+  ! ens_getOffsetFromVarName
+  !--------------------------------------------------------------------------
   function ens_getOffsetFromVarName(ens,varName) result(offset)
     implicit none
     type(struct_ens)             :: ens
@@ -548,7 +581,9 @@ CONTAINS
 
   end function ens_getOffsetFromVarName
 
-
+  !--------------------------------------------------------------------------
+  ! ens_getLevFromK
+  !--------------------------------------------------------------------------
   function ens_getLevFromK(ens,kIndex) result(levIndex)
     implicit none
 
@@ -561,7 +596,9 @@ CONTAINS
 
   end function ens_getLevFromK
 
-
+  !--------------------------------------------------------------------------
+  ! ens_getKFromLevVarName
+  !--------------------------------------------------------------------------
   function ens_getKFromLevVarName(ens, levIndex, varName) result(kIndex)
     implicit none
 
@@ -575,7 +612,9 @@ CONTAINS
 
   end function ens_getKFromLevVarName
 
-
+  !--------------------------------------------------------------------------
+  ! ens_getVarNameFromK
+  !--------------------------------------------------------------------------
   function ens_getVarNameFromK(ens,kIndex) result(varName)
     implicit none
 
@@ -588,7 +627,9 @@ CONTAINS
 
   end function ens_getVarNameFromK
 
-
+  !--------------------------------------------------------------------------
+  ! ens_computeMean
+  !--------------------------------------------------------------------------
   subroutine ens_computeMean(ens, computeSubEnsMeans_opt, numSubEns_opt)
     implicit none
 
@@ -679,7 +720,9 @@ CONTAINS
 
   end subroutine ens_computeMean
 
-
+  !--------------------------------------------------------------------------
+  ! ens_computeStdDev
+  !--------------------------------------------------------------------------
   subroutine ens_computeStdDev(ens)
     implicit none
 
@@ -744,7 +787,9 @@ CONTAINS
 
   end subroutine ens_computeStdDev
 
-
+  !--------------------------------------------------------------------------
+  ! ens_removeMean
+  !--------------------------------------------------------------------------
   subroutine ens_removeMean(ens)
     implicit none
 
@@ -781,7 +826,9 @@ CONTAINS
 
   end subroutine ens_removeMean
 
-
+  !--------------------------------------------------------------------------
+  ! ens_recenter
+  !--------------------------------------------------------------------------
   subroutine ens_recenter(ens,recenteringMean,recenteringCoeff,alternativeEnsembleMean_opt,ensembleControlMember_opt)
     implicit none
 
@@ -847,7 +894,6 @@ CONTAINS
 
   end subroutine ens_recenter
 
-
   subroutine ens_recenterControlMember(ens,hco_ens,vco_ens,ensFileName,ensPathName,ensFileNamePrefix,recenteringMean,recenteringCoeff, &
        HUcontainsLQ,etiket,typvar,alternativeEnsembleMean_opt,numBits_opt)
     implicit none
@@ -904,7 +950,9 @@ CONTAINS
 
   end subroutine ens_recenterControlMember
 
-
+  !--------------------------------------------------------------------------
+  ! ens_readEnsemble
+  !--------------------------------------------------------------------------
   subroutine ens_readEnsemble(ens, ensPathName, biPeriodic, ctrlVarHumidity, &
                               vco_file_opt, varNames_opt)
     implicit none
@@ -1215,7 +1263,9 @@ CONTAINS
 
   end subroutine ens_readEnsemble
 
-
+  !--------------------------------------------------------------------------
+  ! ens_writeEnsemble
+  !--------------------------------------------------------------------------
   subroutine ens_writeEnsemble(ens, ensPathName, ensFileNamePrefix, ctrlVarHumidity, etiket, &
                                typvar, etiketAppendMemberNumber_opt, varNames_opt, ip3_opt, numBits_opt)
     implicit none
