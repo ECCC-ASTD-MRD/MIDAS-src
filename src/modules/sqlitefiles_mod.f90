@@ -177,7 +177,7 @@ subroutine sqlf_readFile(obsdat,fileName,familyType,fileIndex)
   real(obs_real)  :: misg
   
   ! debug:******************************
-  logical, parameter :: ldebug =.true.
+  logical, parameter :: ldebug =.false.
   integer :: bodyIndex,headerIndex,varno,iqiv,igav,ilansea,azimuth,inst,ifov,clf,saz,idsat,roqc
   character*9 :: stid_l
   real    :: lat,lon,alt,var,channel,ealoc,geoun
@@ -190,18 +190,9 @@ subroutine sqlf_readFile(obsdat,fileName,familyType,fileIndex)
   write(*,*)my_name//': FileName   : ', trim(FileName), mpi_myid
   write(*,*)my_name//': FamilyType : ', FamilyType, mpi_myid
 
-
   ibeg = obs_numbody(obsdat) + 1
   Nstn1=obs_numheader(obsdat)
-         
-  !if ( trim(familyType) /= 'TO' ) then
-  !  call SQL2OBS_CONV(obsdat,trim(familyType),trim(fileName),fileIndex)
-  !else
-  !  call SQL2OBS_TOVS(obsdat,trim(familyType),fileName,fileIndex)
-  !endif
- 
   call sqlr_readSqlite(obsdat,trim(familyType),trim(fileName),fileIndex)
-
   Nstn2=obs_numheader(obsdat)
   iend=obs_numbody(obsdat)
 
