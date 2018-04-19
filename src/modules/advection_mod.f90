@@ -17,8 +17,9 @@
 !--------------------------------------------------------------------------
 !! MODULE advection (prefix="adv")
 !!
-!! *Purpose*: To store various functions for variable transforms using inputs from
-!!            gridStateVector(s). Outputs are also placed in a GridStateVector.
+!! *Purpose*: To perform forward and/or backward advection (based on 
+!!            semi-lagrangian trajectories) for both gridStateVector and
+!!            ensemble of gridStateVectors
 !!
 !--------------------------------------------------------------------------
 MODULE advection_mod
@@ -81,9 +82,11 @@ MODULE advection_mod
   integer, allocatable :: allLonBeg(:), allLatBeg(:)
   integer, allocatable :: numSubStep(:)
 
-  real(8), allocatable :: uu_referenceFlow(:,:,:)
-  real(8), allocatable :: vv_referenceFlow(:,:,:)
-  real(8) :: delT, referenceFlowFactor
+  real(8), pointer     :: uu_referenceFlow_ptr4d(:,:,:,:)
+  real(8), pointer     :: vv_referenceFlow_ptr4d(:,:,:,:)
+  real(8), allocatable :: uu_referenceFlow_mpiGlobal(:,:,:)
+  real(8), allocatable :: vv_referenceFlow_mpiGlobal(:,:,:)
+  real(8) :: delT_sec, referenceFlowFactor
 
   type(struct_hco), pointer :: hco
   
@@ -96,8 +99,9 @@ CONTAINS
   ! adv_Setup
   !--------------------------------------------------------------------------
   SUBROUTINE adv_setup(adv, mode, hco_in, vco_in, numStepAdvectedField, &
-                       numStepReferenceFlow_in, fsoLeadTime,            &
-                       referenceFlowFactor_in, forecastPathName)
+                       dateStampListAdvectedField, numStepReferenceFlow_in, delT_hour, &
+                       referenceFlowFactor_in, referenceFlowFilename_opt, &
+                       statevector_referenceFlow_opt)
     implicit none
 
     type(struct_adv) :: adv
@@ -105,43 +109,57 @@ CONTAINS
     type(struct_vco), pointer :: vco_in
 
     character(len=*), intent(in) :: mode
-    character(len=*), intent(in) :: forecastPathName
+    character(len=*), optional, intent(in) :: referenceFlowFilename_opt
     integer, intent(in) :: numStepAdvectedField, numStepReferenceFlow_in
-    real(8), intent(in) :: fsoLeadTime, referenceFlowFactor_in
+    integer, intent(in) :: dateStampListAdvectedField(numStepAdvectedField)
+    real(8), intent(in) :: referenceFlowFactor_in, delT_hour
+
+    type(struct_gsv), optional :: statevector_referenceFlow_opt
 
     integer :: latIndex0, lonIndex0, latIndex, lonIndex, levIndex, jsubStep, stepIndexRF, stepIndexAF, ierr, gdxyfll
     integer :: nsize, latIndex_mpiglobal, lonIndex_mpiglobal
-    integer :: alfa, dateStamp_fcst
+    integer :: alfa
+
+    integer, allocatable :: dateStampListReferenceFlow(:)
+    integer, allocatable :: advectedFieldAssociatedStepIndexRF(:)
+    integer, allocatable :: advectionReferenceFlowStartingStepIndex(:)
+    integer, allocatable :: advectionReferenceFlowEndingStepIndex  (:)
 
     real(8) :: uu, vv, subDelT, lonAdvect, latAdvect, delx, dely, sumWeight
     real(8) :: uu_p, vv_p, lonAdvect_p, latAdvect_p, Gcoef, Scoef
     real(8) :: interpWeight_BL, interpWeight_BR, interpWeight_TL, interpWeight_TR
-    real(8), allocatable :: uu_mpiglobal_tiles(:,:,:,:)
-    real(8), allocatable :: vv_mpiglobal_tiles(:,:,:,:)
+    real(8), allocatable :: uu_referenceFlow_mpiGlobalTiles(:,:,:,:)
+    real(8), allocatable :: vv_referenceFlow_mpiGlobalTiles(:,:,:,:)
 
     real(4) :: lonAdvect_deg_r4, latAdvect_deg_r4, xpos_r4, ypos_r4
 
     character(len=64) :: filename
     character(len=3)  :: filenumber
 
-    type(struct_gsv) :: statevector_advect(numStepReferenceFlow_in)
+    type(struct_gsv) :: statevector_referenceFlow
 
     logical :: AdvectFileExists
 
-    integer :: nLev, kIndex, levTypeIndex, nLevType
+    integer :: nLev, kIndex, levTypeIndex, nLevType, stepIndexRF_start, stepIndexRF_end 
     integer :: myLonBeg, myLonEnd
     integer :: myLatBeg, myLatEnd
 
     !
-    !- 1.0 Set low-level variables
+    !- 1.  Set low-level variables
     !
     numStepReferenceFlow = numStepReferenceFlow_in
     referenceFlowFactor  = referenceFlowFactor_in
+    adv%nTimeStep        = numStepAdvectedField
 
     !- 1.1 Mode
     select case(trim(mode))
-    case ('forwardFromFirstTimeIndex')
+    case ('fromFirstTimeIndex')
       adv%timeStepIndexSource = 1
+    case ('fromMiddleTimeIndex')
+      if (mod(numStepAdvectedField,2) == 0) then
+        call utl_abort('adv_setup: numStepAdvectedField cannot be even with direction=fromMiddleTimeIndex') 
+      end if
+      adv%timeStepIndexSource = (numStepAdvectedField+1)/2
     case default
       write(*,*)
       write(*,*) 'Unsupported mode : ', trim(mode)
@@ -149,7 +167,7 @@ CONTAINS
     end select
 
     !- Set some important values
-    delT = fsoLeadTime*3600.0D0/real(numStepReferenceFlow-1,8) ! time between winds (assume 6h window)
+    delT_sec = delT_hour*3600.0D0
 
     !- 1.2 Grid Size
     hco => hco_in
@@ -212,42 +230,106 @@ CONTAINS
     end do
 
     !
-    !- 2.0 Read in the reference forecasts (winds) to use for advection
+    !- 2.  Read in the reference forecasts (winds) to use for advection
+    !
+    allocate(dateStampListReferenceFlow(numStepReferenceFlow))
+
+    if (present(referenceFlowFilename_opt) ) then
+
+      if (mpi_myid == 0)  then
+        write(*,*)
+        write(*,*) 'referenceFlow source = input file '
+        write(*,*) trim(referenceFlowFilename_opt) 
+      end if
+      !- Read in the forecasts (winds) to use for advection
+      do stepIndexRF = 1, numStepReferenceFlow
+        call incdatr(dateStampListReferenceFlow(stepIndexRF), tim_getDatestamp(), &
+                     real(stepIndexRF-1,8)*delT_hour) 
+      end do
+      
+      call gsv_allocate(statevector_referenceFlow,numStepReferenceFlow, hco, vco_in, &
+                        dateStampList_opt=dateStampListReferenceFlow, &
+                        varNames_opt=(/'UU','VV','P0'/), mpi_local_opt=.true.)
+      
+      fileName = ram_fullWorkingPath(trim(referenceFlowFilename_opt))
+      inquire(file=trim(fileName),exist=AdvectFileExists)
+      write(*,*) 'AdvectFileExists', AdvectFileExists
+      do stepIndexRF = 1, numStepReferenceFlow
+        call gsv_readFromFile(statevector_referenceFlow,fileName,' ',' ',stepIndex_opt=stepIndexRF)
+      end do
+
+      uu_referenceFlow_ptr4d => gsv_getField_r8(statevector_referenceFlow, 'UU')
+      vv_referenceFlow_ptr4d => gsv_getField_r8(statevector_referenceFlow, 'VV')
+
+    else if (present(statevector_referenceFlow_opt)) then
+
+      if (mpi_myid == 0)  then
+        write(*,*)
+        write(*,*) 'referenceFlow source = input gridStateVector'
+        write(*,*) numStepReferenceFlow
+        write(*,*) statevector_referenceFlow_opt%dateStampList(:)
+      end if
+      dateStampListReferenceFlow(:) = statevector_referenceFlow_opt%dateStampList(:)
+      uu_referenceFlow_ptr4d => gsv_getField_r8(statevector_referenceFlow_opt, 'UU')
+      vv_referenceFlow_ptr4d => gsv_getField_r8(statevector_referenceFlow_opt, 'VV')
+
+    else
+      call utl_abort('adv_setup: referenceFlow source was not provided!')
+    end if
+
+    !
+    !-  3.  Advection setup
     !
 
-    !- Read in the forecasts (winds) to use for advection
-    fileName = trim(forecastPathName) // '/forecast_for_advection'
-    fileName = ram_fullWorkingPath(FileName)
-    inquire(file=trim(fileName),exist=AdvectFileExists)
-    write(*,*) 'AdvectFileExists', AdvectFileExists
-
-    do stepIndexRF = 1, numStepReferenceFlow
-      call incdatr(dateStamp_fcst, tim_getDatestamp(), real(stepIndexRF-1,8)*fsoLeadTime/real(numStepReferenceFlow-1,8))
-      call gsv_allocate(statevector_advect(stepIndexRF),1, hco, vco_in, &
-           datestamp_opt=datestamp_fcst, varNames_opt=(/'UU','VV','P0'/), &
-           mpi_local_opt=.true.)
-      call gsv_readFromFile(statevector_advect(stepIndexRF),fileName,' ',' ')
+    !-  3.1 Match the stepIndex between the reference flow and the fields to be advected
+    allocate(advectedFieldAssociatedStepIndexRF(numStepAdvectedField))
+    advectedFieldAssociatedStepIndexRF(:) = -1
+    do stepIndexAF = 1, numStepAdvectedField
+      do stepIndexRF = 1, numStepReferenceFlow
+        if ( dateStampListAdvectedField(stepIndexAF) == dateStampListReferenceFlow(stepIndexRF) ) then
+          advectedFieldAssociatedStepIndexRF(stepIndexAF) = stepIndexRF
+          if (mpi_myid == 0)  then
+            write(*,*)
+            write(*,*) 'stepIndex Match', stepIndexAF, stepIndexRF
+          end if
+          exit 
+        end if
+      end do
+      if ( advectedFieldAssociatedStepIndexRF(stepIndexAF) == -1 ) then
+        call utl_abort('adv_setup: no match between dateStampListAdvectedField and dateStampListReferenceFlow')
+      end if
     end do
 
-    !
-    !- Match the stepIndex between the reference flow and the fields to be advected
-    !
-    !do stepIndex1 = 1, numStepAdvectedField
-    !  
-    !end do
+    !-  3.2 Set starting, ending and direction parameters
+    allocate(advectionReferenceFlowStartingStepIndex(numStepAdvectedField))
+    allocate(advectionReferenceFlowEndingStepIndex  (numStepAdvectedField))
+    advectionReferenceFlowStartingStepIndex(:) = 1
+    advectionReferenceFlowEndingStepIndex  (:) = 1
+
+    select case(trim(mode))
+    case ('fromFirstTimeIndex':'fromMiddleTimeIndex')
+      do stepIndexAF = 1, numStepAdvectedField
+        advectionReferenceFlowStartingStepIndex(stepIndexAF) = advectedFieldAssociatedStepIndexRF(adv%timeStepIndexSource)
+        advectionReferenceFlowEndingStepIndex  (stepIndexAF) = advectedFieldAssociatedStepIndexRF(stepIndexAF)
+      end do
+    case default
+      write(*,*)
+      write(*,*) 'Oops! This should never happen. Check the code...'
+      call utl_abort('adv_setup')
+    end select
 
     !
-    !- 3.0 Perform the advection (backward and/or forward) 
+    !- 4.  Perform the advection (backward and/or forward) 
     !
     if (mpi_myid == 0) write(*,*) 'setupAdvectAmplitude: starting'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     allocate(numSubStep(adv%nj))
-    allocate(uu_referenceFlow(numStepReferenceFlow, adv%ni, adv%nj))
-    allocate(vv_referenceFlow(numStepReferenceFlow, adv%ni, adv%nj))
+    allocate(uu_referenceFlow_mpiGlobal(numStepReferenceFlow, adv%ni, adv%nj))
+    allocate(vv_referenceFlow_mpiGlobal(numStepReferenceFlow, adv%ni, adv%nj))
 
-    allocate(uu_mpiglobal_tiles(numStepReferenceFlow, adv%lonPerPE, adv%latPerPE, mpi_nprocs))
-    allocate(vv_mpiglobal_tiles(numStepReferenceFlow, adv%lonPerPE, adv%latPerPE, mpi_nprocs))
+    allocate(uu_referenceFlow_mpiGlobalTiles(numStepReferenceFlow, adv%lonPerPE, adv%latPerPE, mpi_nprocs))
+    allocate(vv_referenceFlow_mpiGlobalTiles(numStepReferenceFlow, adv%lonPerPE, adv%latPerPE, mpi_nprocs))
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     do levTypeIndex = 1, min(nLevType,2) ! make sure that SF level is skipped
@@ -265,19 +347,21 @@ CONTAINS
         if (mpi_myid == 0) write(*,*) 'setupAdvectAmplitude: levIndex = ', levIndex
         write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-        call processReferenceFlow(statevector_advect, levIndex,         & ! IN 
-                                  uu_mpiglobal_tiles, vv_mpiglobal_tiles) ! IN
+        call processReferenceFlow(levIndex, uu_referenceFlow_mpiGlobalTiles, vv_referenceFlow_mpiGlobalTiles) ! IN
 
         do stepIndexAF = 1, numStepAdvectedField
           if (stepIndexAF == adv%timeStepIndexSource) cycle ! no interpolation needed for this time step
+
+          stepIndexRF_start = advectionReferenceFlowStartingStepIndex(stepIndexAF)
+          stepIndexRF_end   = advectionReferenceFlowEndingStepIndex  (stepIndexAF) 
 
           ! loop over all initial grid points within tile for determining trajectories
           do latIndex0 = adv%myLatBeg, adv%myLatEnd
             do lonIndex0 = adv%myLonBeg, adv%myLonEnd
 
-              call calcTrajAndWeights(lonIndex, latIndex, interpWeight_BL, interpWeight_BR, & ! OUT
-                                      interpWeight_TL, interpWeight_TR,                     & ! OUT
-                                      latIndex0, lonIndex0)                                   ! IN
+              call calcTrajAndWeights(lonIndex, latIndex, interpWeight_BL, interpWeight_BR,   & ! OUT
+                                      interpWeight_TL, interpWeight_TR,                       & ! OUT
+                                      latIndex0, lonIndex0, stepIndexRF_start, stepIndexRF_end) ! IN
 
               ! store the final position of the trajectory and interp weights
               adv%timeStep(stepIndexAF)%levType(levTypeIndex)%lonIndex       (lonIndex0,latIndex0,levIndex) = lonIndex
@@ -298,13 +382,13 @@ CONTAINS
     deallocate(numSubStep)
     deallocate(allLonBeg)
     deallocate(allLatBeg)
-    deallocate(uu_mpiglobal_tiles)
-    deallocate(vv_mpiglobal_tiles)
-    deallocate(uu_referenceFlow)
-    deallocate(vv_referenceFlow)
-    do stepIndexRF = 1, numStepReferenceFlow
-      call gsv_deallocate(statevector_advect(stepIndexRF))
-    end do
+    deallocate(uu_referenceFlow_mpiGlobalTiles)
+    deallocate(vv_referenceFlow_mpiGlobalTiles)
+    deallocate(uu_referenceFlow_mpiGlobal)
+    deallocate(vv_referenceFlow_mpiGlobal)
+    if (present(referenceFlowFilename_opt) ) then
+      call gsv_deallocate(statevector_referenceFlow)
+    end if
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     if (mpi_myid == 0) write(*,*) 'adv_setup: done'
@@ -314,15 +398,14 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! processReferenceFlow
   !--------------------------------------------------------------------------
-  SUBROUTINE processReferenceFlow (statevector_advect, levIndex, &
-                                   uu_mpiglobal_tiles, vv_mpiglobal_tiles)
+  SUBROUTINE processReferenceFlow (levIndex, &
+                                   uu_referenceFlow_mpiGlobalTiles, vv_referenceFlow_mpiGlobalTiles)
     implicit none
     integer, intent(in) :: levIndex 
-    type(struct_gsv) :: statevector_advect(:)
-    real(8) :: uu_mpiglobal_tiles(:,:,:,:)
-    real(8) :: vv_mpiglobal_tiles(:,:,:,:)
+    real(8) :: uu_referenceFlow_mpiGlobalTiles(:,:,:,:)
+    real(8) :: vv_referenceFlow_mpiGlobalTiles(:,:,:,:)
 
-    real(8), pointer  :: ptr3d_r8(:,:,:)
+    !real(8), pointer  :: ptr3d_r8(:,:,:)
 
     integer :: stepIndexRF, nsize, ierr 
     integer :: procID, procIDx, procIDy, lonIndex, latIndex
@@ -334,13 +417,11 @@ CONTAINS
 
     do stepIndexRF = 1, numStepReferenceFlow
       ! gather the global winds for this level
-      ptr3d_r8 => gsv_getField3D_r8(statevector_advect(stepIndexRF),'UU')
-      call rpn_comm_allgather(ptr3d_r8(:,:,levIndex), nsize, "mpi_double_precision",  &
-           uu_mpiglobal_tiles(stepIndexRF,:,:,:),     nsize, "mpi_double_precision",  &
+      call rpn_comm_allgather(uu_referenceFlow_ptr4d(:,:,levIndex,stepIndexRF), nsize, "mpi_double_precision",  &
+           uu_referenceFlow_mpiGlobalTiles(stepIndexRF,:,:,:),     nsize, "mpi_double_precision",  &
            "GRID", ierr )
-      ptr3d_r8 => gsv_getField3D_r8(statevector_advect(stepIndexRF),'VV')
-      call rpn_comm_allgather(ptr3d_r8(:,:,levIndex), nsize, "mpi_double_precision",  &
-           vv_mpiglobal_tiles(stepIndexRF,:,:,:),     nsize, "mpi_double_precision",  &
+      call rpn_comm_allgather(vv_referenceFlow_ptr4d(:,:,levIndex,stepIndexRF), nsize, "mpi_double_precision",  &
+           vv_referenceFlow_mpiGlobalTiles(stepIndexRF,:,:,:),     nsize, "mpi_double_precision",  &
            "GRID", ierr )
     end do
 
@@ -352,8 +433,8 @@ CONTAINS
           latIndex_mpiglobal = latIndex + allLatBeg(procIDy+1) - 1
           do lonIndex = 1, lonPerPE
             lonIndex_mpiglobal = lonIndex + allLonBeg(procIDx+1) - 1
-            uu_referenceFlow(:, lonIndex_mpiglobal, latIndex_mpiglobal) = uu_mpiglobal_tiles(:, lonIndex, latIndex, procID+1)
-            vv_referenceFlow(:, lonIndex_mpiglobal, latIndex_mpiglobal) = vv_mpiglobal_tiles(:, lonIndex, latIndex, procID+1)
+            uu_referenceFlow_mpiGlobal(:, lonIndex_mpiglobal, latIndex_mpiglobal) = uu_referenceFlow_mpiGlobalTiles(:, lonIndex, latIndex, procID+1)
+            vv_referenceFlow_mpiGlobal(:, lonIndex_mpiglobal, latIndex_mpiglobal) = vv_referenceFlow_mpiGlobalTiles(:, lonIndex, latIndex, procID+1)
           end do
         end do
       end do
@@ -363,15 +444,15 @@ CONTAINS
     do latIndex = 1, hco%nj
       latAdvect = hco%lat(latIndex)
       if (abs(latAdvect) < latitudePatch*MPC_RADIANS_PER_DEGREE_R8) then
-        uu = maxval(abs(uu_referenceFlow(:,:,latIndex) /(RA*cos(latAdvect)))) ! in rad/s
-        vv = maxval(abs(vv_referenceFlow(:,:,latIndex) / RA)) ! in rad/s
+        uu = maxval(abs(uu_referenceFlow_mpiGlobal(:,:,latIndex) /(RA*cos(latAdvect)))) ! in rad/s
+        vv = maxval(abs(vv_referenceFlow_mpiGlobal(:,:,latIndex) / RA)) ! in rad/s
       else
-        uu = maxval(abs(uu_referenceFlow(:,:,latIndex) / RA)) ! in rad/s
-        vv = maxval(abs(vv_referenceFlow(:,:,latIndex) / RA)) ! in rad/s
+        uu = maxval(abs(uu_referenceFlow_mpiGlobal(:,:,latIndex) / RA)) ! in rad/s
+        vv = maxval(abs(vv_referenceFlow_mpiGlobal(:,:,latIndex) / RA)) ! in rad/s
       end if
       numSubStep(latIndex) = max( 1,  &
-           nint( (delT * referenceFlowFactor * uu) / (numGridPts*(hco%lon(2)-hco%lon(1))) ),  &
-           nint( (delT * referenceFlowFactor * vv) / (numGridPts*(hco%lat(2)-hco%lat(1))) ) )
+           nint( (delT_sec * referenceFlowFactor * uu) / (numGridPts*(hco%lon(2)-hco%lon(1))) ),  &
+           nint( (delT_sec * referenceFlowFactor * vv) / (numGridPts*(hco%lat(2)-hco%lat(1))) ) )
     end do
     if (mpi_myid == 0) write(*,*) 'min and max of numSubStep',minval(numSubStep(:)),maxval(numSubStep(:))
 
@@ -381,15 +462,16 @@ CONTAINS
   ! calcTrajAndWeights
   !--------------------------------------------------------------------------
   SUBROUTINE calcTrajAndWeights(lonIndex, latIndex, interpWeight_BL, interpWeight_BR, &
-                                interpWeight_TL, interpWeight_TR, latIndex0, lonIndex0)
+                                interpWeight_TL, interpWeight_TR, latIndex0, lonIndex0, &
+                                stepIndexRF_start, stepIndexRF_end)
     implicit none
 
     integer, intent(out) :: lonIndex, latIndex
     real(8), intent(out) :: interpWeight_BL, interpWeight_BR, interpWeight_TL, interpWeight_TR
-    integer, intent(in)  :: latIndex0,lonIndex0
+    integer, intent(in)  :: latIndex0, lonIndex0, stepIndexRF_start, stepIndexRF_end
 
     integer :: subStepIndex, stepIndexRF, ierr, gdxyfll
-    integer :: alfa, ni, nj
+    integer :: alfa, ni, nj,  stepIndex_direction, stepIndex_first, stepIndex_last
 
     real(8) :: uu, vv, subDelT, lonAdvect, latAdvect, delx, dely, sumWeight
     real(8) :: uu_p, vv_p, lonAdvect_p, latAdvect_p, Gcoef, Scoef
@@ -398,7 +480,7 @@ CONTAINS
     ni = hco%ni
     nj = hco%nj
 
-    subDelT = delT/real(numSubStep(latIndex0),8)  ! in seconds
+    subDelT = delT_sec/real(numSubStep(latIndex0),8)  ! in seconds
 
     ! position at the initial time of back trajectory
     lonAdvect = hco%lon(lonIndex0)  ! in radians
@@ -419,8 +501,22 @@ CONTAINS
       write(*,*) 'numSubStep=', numSubStep(latIndex0)
     end if
 
-    ! time step of back trajectory, stepping backwards
-    do stepIndexRF = (numStepReferenceFlow-1), 1, -1
+    ! time stepping strategy
+    if      (stepIndexRF_end > stepIndexRF_start) then
+      ! back trajectory   , stepping backwards
+      stepIndex_first     = stepIndexRF_end-1
+      stepIndex_last      = stepIndexRF_start
+      stepIndex_direction = -1
+    else if (stepIndexRF_end < stepIndexRF_start) then
+      ! forward trajectory, stepping forward
+      stepIndex_first     = stepIndexRF_end
+      stepIndex_last      = stepIndexRF_start-1
+      stepIndex_direction = 1
+    else
+      call utl_abort('calcTrajAndWeights: fatal error with stepIndexRF')
+    end if
+
+    do stepIndexRF = stepIndex_first, stepIndex_last, stepIndex_direction !(numStepReferenceFlow-1), 1, -1
 
       if (verbose) write(*,*) 'stepIndexRF,lonIndex,latIndex=',stepIndexRF,lonIndex,latIndex
 
@@ -431,19 +527,19 @@ CONTAINS
         if (abs(hco%lat(latIndex0)) < latitudePatch*MPC_RADIANS_PER_DEGREE_R8) then
           ! points away from pole, handled normally
           ! determine wind at current location (now at BL point)
-          uu = (  alfa *uu_referenceFlow(stepIndexRF  ,lonIndex,latIndex) + &
-               (1-alfa)*uu_referenceFlow(stepIndexRF+1,lonIndex,latIndex) ) &
+          uu = (  alfa *uu_referenceFlow_mpiGlobal(stepIndexRF  ,lonIndex,latIndex) + &
+               (1-alfa)*uu_referenceFlow_mpiGlobal(stepIndexRF+1,lonIndex,latIndex) ) &
                /(RA*cos(hco%lat(latIndex))) ! in rad/s
-          vv = (   alfa*vv_referenceFlow(stepIndexRF  ,lonIndex,latIndex) + &
-               (1-alfa)*vv_referenceFlow(stepIndexRF+1,lonIndex,latIndex) ) &
+          vv = (   alfa*vv_referenceFlow_mpiGlobal(stepIndexRF  ,lonIndex,latIndex) + &
+               (1-alfa)*vv_referenceFlow_mpiGlobal(stepIndexRF+1,lonIndex,latIndex) ) &
                /RA
           ! apply user-specified scale factor to advecting winds
           uu = referenceFlowFactor * uu
           vv = referenceFlowFactor * vv
 
           ! compute next position
-          lonAdvect = lonAdvect - subDelT*uu  ! in radians
-          latAdvect = latAdvect - subDelT*vv
+          lonAdvect = lonAdvect + real(stepIndex_direction,8)*subDelT*uu  ! in radians
+          latAdvect = latAdvect + real(stepIndex_direction,8)*subDelT*vv
 
           if (verbose) then
             write(*,*) 'not near pole, lonAdvect,latAdvect,uu,vv=', &
@@ -453,10 +549,10 @@ CONTAINS
         else
           ! points near pole, handled in a special way
           ! determine wind at current location (now at BL point)
-          uu =    alfa *uu_referenceFlow(stepIndexRF  ,lonIndex,latIndex) + &
-               (1-alfa)*uu_referenceFlow(stepIndexRF+1,lonIndex,latIndex)  ! in m/s
-          vv =    alfa *vv_referenceFlow(stepIndexRF  ,lonIndex,latIndex) + &
-               (1-alfa)*vv_referenceFlow(stepIndexRF+1,lonIndex,latIndex)
+          uu =    alfa *uu_referenceFlow_mpiGlobal(stepIndexRF  ,lonIndex,latIndex) + &
+               (1-alfa)*uu_referenceFlow_mpiGlobal(stepIndexRF+1,lonIndex,latIndex)  ! in m/s
+          vv =    alfa *vv_referenceFlow_mpiGlobal(stepIndexRF  ,lonIndex,latIndex) + &
+               (1-alfa)*vv_referenceFlow_mpiGlobal(stepIndexRF+1,lonIndex,latIndex)
           ! transform wind vector into rotated coordinate system
           Gcoef = ( cos(latAdvect)*cos(hco%lat(latIndex0)) + &
                sin(latAdvect)*sin(hco%lat(latIndex0))*cos(lonAdvect-hco%lon(lonIndex0)) ) / &
@@ -471,8 +567,8 @@ CONTAINS
           vv_p = referenceFlowFactor * vv_p
 
           ! compute next position (in rotated coord system)
-          lonAdvect_p = lonAdvect_p - subDelT*uu_p/(RA*cos(latAdvect_p))  ! in radians
-          latAdvect_p = latAdvect_p - subDelT*vv_p/RA
+          lonAdvect_p = lonAdvect_p + real(stepIndex_direction,8)*subDelT*uu_p/(RA*cos(latAdvect_p))  ! in radians
+          latAdvect_p = latAdvect_p + real(stepIndex_direction,8)*subDelT*vv_p/RA
 
           if (verbose) then
             write(*,*) '    near pole, uu_p,vv_p,Gcoef,Scoef=', &
@@ -644,16 +740,23 @@ CONTAINS
     lon1 = adv%myLonBeg
     lat1 = adv%myLatBeg
 
-    levTypeIndex = MMindex ! JFC: hardwired for now
-    stepIndexAF  = 2 ! JFC: hardwired for now
-
     do kIndex = 1, ens_getNumK(ens)
 
       levIndex = ens_getLevFromK    (ens,kIndex)
       varName  = ens_getVarNameFromK(ens,kIndex)
+      if      (vnl_varLevelFromVarname(varName) == 'MM') then
+        levTypeIndex = MMindex
+      else if (vnl_varLevelFromVarname(varName) == 'TH') then
+        levTypeIndex = THindex
+      else if (vnl_varLevelFromVarname(varName) == 'SF') then
+        levTypeIndex = SFindex
+      end if
 
       ens_oneLev => ens_getOneLev_r8(ens,kIndex)
-      ens_oneLev(:,stepIndexAF,:,:) = 0.0D0
+      do stepIndexAF = 1, adv%nTimeStep
+        if (stepIndexAF == adv%timeStepIndexSource) cycle ! no interpolation needed for this time step
+        ens_oneLev(:,stepIndexAF,:,:) = 0.0D0
+      end do
 
       ! gather the global field to be interpolated on all tasks
       nsize = nEns*adv%lonPerPE*adv%latPerPE
@@ -680,21 +783,28 @@ CONTAINS
       end do ! procIDy
 !$OMP END PARALLEL DO
 
-!$OMP PARALLEL DO PRIVATE (latIndex,lonIndex,lonIndex2,latIndex2,lonIndex2_p1,latIndex2_p1,memberIndex)
+!$OMP PARALLEL DO PRIVATE (latIndex,lonIndex,stepIndexAF,lonIndex2,latIndex2,lonIndex2_p1,latIndex2_p1,memberIndex)
       do latIndex = adv%myLatBeg, adv%myLatEnd
         do lonIndex = adv%myLonBeg, adv%myLonEnd
-          ! this is the bottom-left grid point
-          lonIndex2 = adv%timeStep(stepIndexAF)%levType(levTypeIndex)%lonIndex(lonIndex,latIndex,levIndex)
-          latIndex2 = adv%timeStep(stepIndexAF)%levType(levTypeIndex)%latIndex(lonIndex,latIndex,levIndex)
-          lonIndex2_p1 = mod(lonIndex2,adv%ni)+1 ! assume periodic
-          latIndex2_p1 = min(latIndex2+1,adv%nj)
-          do memberIndex = 1, nEns
-              ens_oneLev(memberIndex,2,lonIndex,latIndex) =   &
-                adv%timeStep(stepIndexAF)%levType(levTypeIndex)%interpWeight_BL(lonIndex,latIndex,levIndex)*ens1_mpiglobal(memberIndex, lonIndex2   ,latIndex2   ) + &
-                adv%timeStep(stepIndexAF)%levType(levTypeIndex)%interpWeight_BR(lonIndex,latIndex,levIndex)*ens1_mpiglobal(memberIndex, lonIndex2_p1,latIndex2   ) + &
-                adv%timeStep(stepIndexAF)%levType(levTypeIndex)%interpWeight_TL(lonIndex,latIndex,levIndex)*ens1_mpiglobal(memberIndex, lonIndex2   ,latIndex2_p1) + &
-                adv%timeStep(stepIndexAF)%levType(levTypeIndex)%interpWeight_TR(lonIndex,latIndex,levIndex)*ens1_mpiglobal(memberIndex, lonIndex2_p1,latIndex2_p1)
-          end do ! memberIndex
+          do stepIndexAF = 1, adv%nTimeStep
+            if (stepIndexAF == adv%timeStepIndexSource) cycle ! no interpolation needed for this time step
+            ! this is the bottom-left grid point
+            lonIndex2 = adv%timeStep(stepIndexAF)%levType(levTypeIndex)%lonIndex(lonIndex,latIndex,levIndex)
+            latIndex2 = adv%timeStep(stepIndexAF)%levType(levTypeIndex)%latIndex(lonIndex,latIndex,levIndex)
+            lonIndex2_p1 = mod(lonIndex2,adv%ni)+1 ! assume periodic
+            latIndex2_p1 = min(latIndex2+1,adv%nj)
+            do memberIndex = 1, nEns
+              ens_oneLev(memberIndex,stepIndexAF,lonIndex,latIndex) =                                           &
+                   adv%timeStep(stepIndexAF)%levType(levTypeIndex)%interpWeight_BL(lonIndex,latIndex,levIndex)* &
+                       ens1_mpiglobal(memberIndex, lonIndex2   ,latIndex2   ) +                                 &
+                   adv%timeStep(stepIndexAF)%levType(levTypeIndex)%interpWeight_BR(lonIndex,latIndex,levIndex)* &
+                       ens1_mpiglobal(memberIndex, lonIndex2_p1,latIndex2   ) +                                 &
+                   adv%timeStep(stepIndexAF)%levType(levTypeIndex)%interpWeight_TL(lonIndex,latIndex,levIndex)* &
+                       ens1_mpiglobal(memberIndex, lonIndex2   ,latIndex2_p1) +                                 &
+                   adv%timeStep(stepIndexAF)%levType(levTypeIndex)%interpWeight_TR(lonIndex,latIndex,levIndex)* &
+                       ens1_mpiglobal(memberIndex, lonIndex2_p1,latIndex2_p1)
+            end do ! memberIndex
+          end do ! stepIndexAF
         end do ! lonIndex
       end do ! latIndex
 !$OMP END PARALLEL DO
@@ -728,9 +838,6 @@ CONTAINS
 
     character(len=4) :: varName
 
-    levTypeIndex = MMindex ! JFC: hardwired for now
-    stepIndexAF  = 2 ! JFC: hardwired for now
-
     allocate(ens1_mpiglobal(nEns,adv%ni,adv%nj))
     allocate(ens1_mpiglobal_tiles (nEns,adv%lonPerPE,adv%latPerPE,mpi_nprocs))
     allocate(ens1_mpiglobal_tiles2(nEns,adv%lonPerPE,adv%latPerPE,mpi_nprocs))
@@ -742,33 +849,47 @@ CONTAINS
             
       levIndex = ens_getLevFromK    (ens,kIndex)
       varName  = ens_getVarNameFromK(ens,kIndex)
+      if      (vnl_varLevelFromVarname(varName) == 'MM') then
+        levTypeIndex = MMindex
+      else if (vnl_varLevelFromVarname(varName) == 'TH') then
+        levTypeIndex = THindex
+      else if (vnl_varLevelFromVarname(varName) == 'SF') then
+        levTypeIndex = SFindex
+      end if
 
       ens1_mpiglobal(:,:,:) = 0.0d0
       ens_oneLev => ens_getOneLev_r8(ens,kIndex)
 
       do latIndex = adv%myLatBeg, adv%myLatEnd
         do lonIndex = adv%myLonBeg, adv%myLonEnd
-          ! this is the bottom-left grid point
-          lonIndex2 = adv%timeStep(stepIndexAF)%levType(levTypeIndex)%lonIndex(lonIndex,latIndex,levIndex)
-          latIndex2 = adv%timeStep(stepIndexAF)%levType(levTypeIndex)%latIndex(lonIndex,latIndex,levIndex)
-          lonIndex2_p1 = mod(lonIndex2,adv%ni)+1 ! assume periodic
-          latIndex2_p1 = min(latIndex2+1,adv%nj)
+          do stepIndexAF = 1, adv%nTimeStep
+            if (stepIndexAF == adv%timeStepIndexSource) cycle ! no interpolation needed for this time step
+            ! this is the bottom-left grid point
+            lonIndex2 = adv%timeStep(stepIndexAF)%levType(levTypeIndex)%lonIndex(lonIndex,latIndex,levIndex)
+            latIndex2 = adv%timeStep(stepIndexAF)%levType(levTypeIndex)%latIndex(lonIndex,latIndex,levIndex)
+            lonIndex2_p1 = mod(lonIndex2,adv%ni)+1 ! assume periodic
+            latIndex2_p1 = min(latIndex2+1,adv%nj)
 !$OMP PARALLEL DO PRIVATE(memberIndex)
-          do memberIndex = 1, nEns
-            ens1_mpiglobal(memberIndex, lonIndex2   ,latIndex2) = &
-                 ens1_mpiglobal(memberIndex, lonIndex2   ,latIndex2) +  &
-                 adv%timeStep(stepIndexAF)%levType(levTypeIndex)%interpWeight_BL(lonIndex,latIndex,levIndex)*ens_oneLev(memberIndex,stepIndexAF,lonIndex,latIndex)
-            ens1_mpiglobal(memberIndex, lonIndex2_p1,latIndex2) = &
-                 ens1_mpiglobal(memberIndex, lonIndex2_p1,latIndex2) +  &
-                 adv%timeStep(stepIndexAF)%levType(levTypeIndex)%interpWeight_BR(lonIndex,latIndex,levIndex)*ens_oneLev(memberIndex,stepIndexAF,lonIndex,latIndex)
-            ens1_mpiglobal(memberIndex, lonIndex2   ,latIndex2_p1) = &
-                 ens1_mpiglobal(memberIndex, lonIndex2   ,latIndex2_p1) +  &
-                 adv%timeStep(stepIndexAF)%levType(levTypeIndex)%interpWeight_TL(lonIndex,latIndex,levIndex)*ens_oneLev(memberIndex,stepIndexAF,lonIndex,latIndex)
-            ens1_mpiglobal(memberIndex, lonIndex2_p1,latIndex2_p1) = &
-                 ens1_mpiglobal(memberIndex, lonIndex2_p1,latIndex2_p1) +  &
-                 adv%timeStep(stepIndexAF)%levType(levTypeIndex)%interpWeight_TR(lonIndex,latIndex,levIndex)*ens_oneLev(memberIndex,stepIndexAF,lonIndex,latIndex)
-          end do ! memberIndex
+            do memberIndex = 1, nEns
+              ens1_mpiglobal(memberIndex, lonIndex2   ,latIndex2) = &
+                   ens1_mpiglobal(memberIndex, lonIndex2   ,latIndex2) +  &
+                   adv%timeStep(stepIndexAF)%levType(levTypeIndex)%interpWeight_BL(lonIndex,latIndex,levIndex)* &
+                      ens_oneLev(memberIndex,stepIndexAF,lonIndex,latIndex)
+              ens1_mpiglobal(memberIndex, lonIndex2_p1,latIndex2) = &
+                   ens1_mpiglobal(memberIndex, lonIndex2_p1,latIndex2) +  &
+                   adv%timeStep(stepIndexAF)%levType(levTypeIndex)%interpWeight_BR(lonIndex,latIndex,levIndex)* &
+                      ens_oneLev(memberIndex,stepIndexAF,lonIndex,latIndex)
+              ens1_mpiglobal(memberIndex, lonIndex2   ,latIndex2_p1) = &
+                   ens1_mpiglobal(memberIndex, lonIndex2   ,latIndex2_p1) +  &
+                   adv%timeStep(stepIndexAF)%levType(levTypeIndex)%interpWeight_TL(lonIndex,latIndex,levIndex)* &
+                      ens_oneLev(memberIndex,stepIndexAF,lonIndex,latIndex)
+              ens1_mpiglobal(memberIndex, lonIndex2_p1,latIndex2_p1) = &
+                   ens1_mpiglobal(memberIndex, lonIndex2_p1,latIndex2_p1) +  &
+                   adv%timeStep(stepIndexAF)%levType(levTypeIndex)%interpWeight_TR(lonIndex,latIndex,levIndex)* &
+                      ens_oneLev(memberIndex,stepIndexAF,lonIndex,latIndex)
+            end do ! memberIndex
 !$OMP END PARALLEL DO
+          end do ! stepIndexAF
         end do ! lonIndex
       end do ! latIndex
 

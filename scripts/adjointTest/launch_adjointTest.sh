@@ -4,19 +4,20 @@
 #
 # User-defined options
 #
-expName="latest_p2"
+expName="4d-advecAmplitude-fromMiddle"
 machine=eccc-ppp2
-abs="/home/jfc425/bin/midas/midas_abs/midas-adjointTest_ubuntu-14.04-amd64-64-m_3.1.0-67-g7ffbfa8.Abs"
+abs="/home/jfc425/bin/midas/midas_abs/midas-adjointTest_ubuntu-14.04-amd64-64-m_3.1.0-75-gace547f_M.Abs"
 gest="${HOME}/data_maestro/${machine}/adjointTest/${expName}/"
 flnml="namelist.nml"
 analysisgrid="/home/sanl000/ANAL_shared/datafiles/constants/arma/oavar/2.1.3/analysis_grid_prototypes/analysis_grid_prototype_glb_1080x540_south-to-north_80L_vcode5002"
 bgcov="/home/sanl000/ANAL_shared/datafiles/constants/arma/oavar/2.1.4/__GEM25km_NMC_T399_stag5002_BgckStddev3d_corns_sqrt_800x400__/06"
 ensdir="/fs/site2/dev/eccc/mrd/rpndat/jfc425/adjointTest/ensemble"
-trials="/home/jfc425/maestro_archives/V61C001E16/gridpt.trial.hyb.2016061500_360m"
+trials="/home/jfc425/maestro_archives/V61C001E16/gridpt.trial.hyb.2016061500_180m /home/jfc425/maestro_archives/V61C001E16/gridpt.trial.hyb.2016061500_360m /home/jfc425/maestro_archives/V61C001E16/gridpt.trial.hyb.2016061500_540m"
+#trials="/home/jfc425/maestro_archives/V61C001E16/gridpt.trial.hyb.2016061500_360m"
 npey=10
-npex=2
+npex=6
 openmp=4
-maxcputime=1200
+maxcputime=1800
 run_in_parallel="/fs/ssm/eccc/mrd/rpn/utils/16.2/all/bin/r.run_in_parallel_1.1.28c"
 
 #
@@ -44,7 +45,12 @@ scp $analysisgrid ${machine}:${gest}/analysisgrid
 scp $abs ${machine}:${gest}/adjointTest.abs
 scp $bgcov ${machine}:${gest}/bgcov
 ssh $machine ls -l $gest
-ssh $machine ln -s $trials ${gest}/trlm_01
+
+count=1
+for trial in $trials ; do
+    ssh $machine ln -s $trial ${gest}/trlm_0${count}
+    count=$(expr $count + 1)
+done
 
 cat << EOF > $TMPDIR/go_adjointTest.sh
 #!/bin/bash

@@ -39,7 +39,7 @@ MODULE ensembleStateVector_mod
 
   ! public procedures
   public :: struct_ens, ens_allocate, ens_deallocate
-  public :: ens_readEnsemble, ens_writeEnsemble, ens_copy
+  public :: ens_readEnsemble, ens_writeEnsemble, ens_copy, ens_zero
   public :: ens_copyToStateWork, ens_getOneLevMean_r8
   public :: ens_varExist, ens_getNumLev
   public :: ens_computeMean, ens_removeMean, ens_copyEnsMean, ens_copyMember, ens_recenter, ens_recenterControlMember
@@ -310,6 +310,63 @@ CONTAINS
   end subroutine ens_copy
 
   !--------------------------------------------------------------------------
+  ! ens_zero
+  !--------------------------------------------------------------------------
+  subroutine ens_zero(ens)
+    implicit none
+    type(struct_ens)  :: ens
+
+    integer           :: lon1, lon2, lat1, lat2, k1, k2
+    integer           :: jk, stepIndex, latIndex, lonIndex, memberIndex
+
+    if (.not.ens%allocated) then
+      call utl_abort('ens_zero: ens not yet allocated! Aborting.')
+    end if
+
+    lon1 = ens%statevector_work%myLonBeg
+    lon2 = ens%statevector_work%myLonEnd
+    lat1 = ens%statevector_work%myLatBeg
+    lat2 = ens%statevector_work%myLatEnd
+    k1   = ens%statevector_work%mykBeg
+    k2   = ens%statevector_work%mykEnd
+ 
+    if ( ens%dataKind == 8 ) then
+
+!$OMP PARALLEL DO PRIVATE (jk,stepIndex,latIndex,lonIndex,memberIndex)    
+      do jk = k1, k2
+        do latIndex = lat1, lat2
+          do lonIndex = lon1, lon2
+            do stepIndex = 1, ens%statevector_work%numStep
+              do memberIndex = 1, ens%numMembers
+                ens%allLev_r8(jk)%onelevel(memberIndex,stepIndex,lonIndex,latIndex) = 0.d0
+              end do
+            end do
+          end do
+        end do
+      end do
+!$OMP END PARALLEL DO
+
+    else if ( ens%dataKind == 4 ) then
+
+!$OMP PARALLEL DO PRIVATE (jk,stepIndex,latIndex,lonIndex,memberIndex)    
+      do jk = k1, k2
+        do latIndex = lat1, lat2
+          do lonIndex = lon1, lon2
+            do stepIndex = 1, ens%statevector_work%numStep
+              do memberIndex = 1, ens%numMembers
+                ens%allLev_r4(jk)%onelevel(memberIndex,stepIndex,lonIndex,latIndex) = 0.0
+              end do
+            end do
+          end do
+        end do
+      end do
+!$OMP END PARALLEL DO
+
+    end if
+
+  end subroutine ens_zero
+
+  !--------------------------------------------------------------------------
   ! ens_copyToStateWork
   !--------------------------------------------------------------------------
   subroutine ens_copyToStateWork(ens, memberIndex)
@@ -502,9 +559,12 @@ CONTAINS
     k2 = ens%statevector_work%mykEnd
     numStep = ens%statevector_work%numStep
 
-    call gsv_allocate( statevector, numStep,  &
-                       ens%statevector_work%hco, ens%statevector_work%vco,  &
-                       datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., dataKind_opt=ens%dataKind )
+    if (.not. statevector%allocated) then
+      call gsv_allocate( statevector, numStep,  &
+                         ens%statevector_work%hco, ens%statevector_work%vco,  &
+                         datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., &
+                         dataKind_opt=ens%dataKind )
+    end if
 
     if (ens%dataKind == 8) then
       ptr4d_r8 => gsv_getField_r8(statevector)

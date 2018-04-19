@@ -580,10 +580,10 @@ CONTAINS
 !--------------------------------------------------------------------------
 ! lsp_Lsqrt
 !--------------------------------------------------------------------------
-  SUBROUTINE lsp_Lsqrt(id, controlVector, ensAmplitude)
+  SUBROUTINE lsp_Lsqrt(id, controlVector, ensAmplitude, stepIndex)
     implicit none
 
-    integer, intent(in)  :: id
+    integer, intent(in)  :: id, stepIndex
     real(8), intent(in)  :: controlVector(lsp(id)%cvDim_mpilocal)
     type(struct_ens)     :: ensAmplitude
 
@@ -646,7 +646,7 @@ CONTAINS
 
 !$OMP PARALLEL DO PRIVATE (latIndex)
        do latIndex = lsp(id)%myLatBeg, lsp(id)%myLatEnd
-          ensAmplitude_oneLev(:,1,:,latIndex) = 0.0d0
+          ensAmplitude_oneLev(:,stepIndex,:,latIndex) = 0.0d0
        end do
 !$OMP END PARALLEL DO
 
@@ -654,13 +654,13 @@ CONTAINS
        
        if (lsp(id)%global) then
           call gst_setID(lsp(id)%gstID)
-          call gst_speree_kij(sp_vhLoc(:,:,levIndex,:),ensAmplitude_oneLev(:,1,:,:))
+          call gst_speree_kij(sp_vhLoc(:,:,levIndex,:),ensAmplitude_oneLev(:,stepIndex,:,:))
        else
           kind = 'SpectralToGridPoint'
-          call lst_VarTransform( lsp(id)%lst%id,                 & ! IN
-                                 sp_vhLoc(:,:,levIndex,:),       & ! IN
-                                 ensAmplitude_oneLev(:,1,:,:),   & ! OUT
-                                 kind, lsp(id)%nEnsOverDimension)  ! IN
+          call lst_VarTransform( lsp(id)%lst%id,                       & ! IN
+                                 sp_vhLoc(:,:,levIndex,:),             & ! IN
+                                 ensAmplitude_oneLev(:,stepIndex,:,:), & ! OUT
+                                 kind, lsp(id)%nEnsOverDimension)        ! IN
        end if
 
        call tmg_stop(64)
@@ -769,10 +769,10 @@ CONTAINS
 !--------------------------------------------------------------------------
 ! spectralLocalizationSqrtAd
 !--------------------------------------------------------------------------
-  SUBROUTINE lsp_LsqrtAd(id, ensAmplitude, controlVector)
+  SUBROUTINE lsp_LsqrtAd(id, ensAmplitude, controlVector, stepIndex)
     implicit none
 
-    integer, intent(in)   :: id
+    integer, intent(in)   :: id, stepIndex
     real(8), intent(out)  :: controlVector(lsp(id)%cvDim_mpilocal)
     type(struct_ens)      :: ensAmplitude
 
@@ -803,13 +803,13 @@ CONTAINS
 
       if (lsp(id)%global) then
         call gst_setID(lsp(id)%gstID)
-        call gst_speree_kij_ad(sp_vhLoc(:,:,levIndex,:),ensAmplitude_oneLev(:,1,:,:))
+        call gst_speree_kij_ad(sp_vhLoc(:,:,levIndex,:),ensAmplitude_oneLev(:,stepIndex,:,:))
       else
         kind = 'GridPointToSpectral'
-        call lst_VarTransform( lsp(id)%lst%id,                 & ! IN
-                               sp_vhLoc(:,:,levIndex,:),       & ! OUT
-                               ensAmplitude_oneLev(:,1,:,:),   & ! IN
-                               kind, lsp(id)%nEnsOverDimension ) ! IN
+        call lst_VarTransform( lsp(id)%lst%id,                       & ! IN
+                               sp_vhLoc(:,:,levIndex,:),             & ! OUT
+                               ensAmplitude_oneLev(:,stepIndex,:,:), & ! IN
+                               kind, lsp(id)%nEnsOverDimension )       ! IN
         end if
 
         call tmg_stop(64)
