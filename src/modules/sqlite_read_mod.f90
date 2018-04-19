@@ -35,16 +35,12 @@ implicit none
 !------------------------------------------------------------------------------------------
 private            :: handle_error,GEN_DATA,SAVE_INFO_HEADER
 public             :: SQL_QUERY_CH,INSERTSQL,SQL2OBS_NML,sqlr_readSqlite
-!------------------------------------------------------------------------------------------
 
 integer            :: NELE_INS,LISTELE_INS(15)
 integer            :: N_ITEMS
 character*3        :: ITEMLIST(15)
-logical            :: LABORTFULL
 INTEGER, PARAMETER :: N_MAX_FILES=16
-
 integer            :: NFILES_SQL
-
 character(len=2)   :: CFAMTYP_SQL(N_MAX_FILES)
 character(len=256) :: CFILNAM_SQL(N_MAX_FILES)
 
@@ -55,17 +51,17 @@ contains
       !----------------------------------------------------------------------------------------------
       !s/r GEN_INFO   - Initialze data values for an observation object
       !
-      ! Author  : P. Koclas, CMC/CMDA September  2012
+      ! Author     : P. Koclas,  CMC/CMDA, September  2012
+      ! Adaptation : S. Skachko, ARMA,     April      2018
       !
       !----------------------------------------------------------------------------------------------
       !
+      !----------------------------------------------------------------------------------------------
+   implicit none
    ! arguments
    type (struct_obs), intent(inout) :: obsdat
-   real*8                           :: vcoord,obsvalue
-   integer                          :: varno,flag,vcordtyp
-   integer                          :: nobs,ndata
-
-!=========================================================
+   real(obs_real),    intent(in)    :: vcoord,obsvalue
+   integer, intent(in)              :: varno,flag,vcordtyp,nobs,ndata
    call obs_bodySet_r(obsdat,OBS_PPP,NDATA,VCOORD)
    call obs_bodySet_r(obsdat,OBS_VAR,NDATA,OBSVALUE)
    call obs_bodySet_i(obsdat,OBS_VNM,NDATA,VARNO)
@@ -80,7 +76,7 @@ contains
   subroutine SAVE_INFO_HEADER( obsdat, rdb4_schema, FamilyType, nobs, elev, id_sat, azimuth, geoid_undulation &
                              , earth_local_rad_curv, ro_qc_flag, instrument, zenith, cloud_cover, solar_zenith &
                              , solar_azimuth, land_sea, id_obs, lat, lon, codtyp,date, time, status, id_stn )
-  ! Purpose: aux.routine to save GEN_INFO and GEN_HEADER.
+  ! Purpose: aux.routine to save GEN_INFO and GEN_HEADER, routines by P. Koclas, CMC/CMDA
   ! Author: Sergey Skachko, ARMA, April 2018
   implicit none
   ! arguments
@@ -94,42 +90,40 @@ contains
   character(len=*), parameter :: my_warning = '****** '// my_name //' WARNING: '
   character(len=*), parameter :: my_error   = '******** '// my_name //' ERROR: '
  
-  write(*,*) my_name//' saving additional info and header into obsdat... ', trim(FamilyType),' ',trim(rdb4_schema)
-
-  call obs_setFamily(obsdat,trim(FamilyType),nobs         )
+  call obs_setFamily( obsdat, trim(FamilyType), nobs      )
+  call obs_headSet_i( obsdat, OBS_IDO, nobs, id_obs       )       
   call obs_headSet_i( obsdat, OBS_ONM, nobs, nobs         )
-  call obs_headSet_i( obsdat, OBS_IDO, nobs, id_obs       ) 
+  call obs_headSet_i( obsdat, OBS_ITY, nobs, codtyp       )
   call obs_headSet_r( obsdat, OBS_LAT, nobs, lat          )
   call obs_headSet_r( obsdat, OBS_LON, nobs, lon          )
-  call obs_headSet_i( obsdat, OBS_ITY, nobs, codtyp       )
   call obs_headSet_i( obsdat, OBS_DAT, nobs, date         )
   call obs_headSet_i( obsdat, OBS_ETM, nobs, time         )
   call obs_headSet_i( obsdat, OBS_ST1, nobs, status       )
   call     obs_set_c( obsdat, 'STID' , nobs, trim(id_stn) )
   if ( trim(FamilyType) == 'TO' ) then
-    call obs_headSet_i( obsdat, OBS_SAT , nobs, id_sat               )
-    call obs_headSet_i( obsdat, OBS_OFL , nobs, land_sea             )
-    call obs_headSet_i( obsdat, OBS_INS , nobs, instrument           )
-    call obs_headSet_i( obsdat, OBS_SZA , nobs, zenith               )
-    call obs_headSet_i( obsdat, OBS_SUN , nobs, solar_zenith         )
-    if ( trim(rdb4_schema) /= 'csr' ) then
-      call obs_headSet_i( obsdat, OBS_AZA , nobs, azimuth            )
-    endif
-    if ( trim(rdb4_schema) =='airs'.or.trim(rdb4_schema) =='iasi'.or.trim(rdb4_schema) =='cris' ) then
-      call obs_headSet_i( obsdat, OBS_CLF , nobs, cloud_cover          )
-      call obs_headSet_i( obsdat, OBS_SAZ , nobs, solar_azimuth        )  
-    elseif ( trim(rdb4_schema) =='amsua'.or.trim(rdb4_schema) =='amsub'.or.trim(rdb4_schema) =='atms' ) then   
-      call obs_headSet_i( obsdat, OBS_SAZ , nobs, solar_azimuth        )
-    endif
+     call obs_headSet_i( obsdat, OBS_SAT , nobs, id_sat                 )
+     call obs_headSet_i( obsdat, OBS_OFL , nobs, land_sea               )
+     call obs_headSet_i( obsdat, OBS_INS , nobs, instrument             )
+     call obs_headSet_i( obsdat, OBS_SZA , nobs, zenith                 )
+     call obs_headSet_i( obsdat, OBS_SUN , nobs, solar_zenith           )
+     if ( trim(rdb4_schema) /= 'csr' ) then
+        call obs_headSet_i( obsdat, OBS_AZA , nobs, azimuth             )
+     endif
+     if ( trim(rdb4_schema) =='airs'.or.trim(rdb4_schema) =='iasi'.or.trim(rdb4_schema) =='cris' ) then
+        call obs_headSet_i( obsdat, OBS_CLF , nobs, cloud_cover         )
+        call obs_headSet_i( obsdat, OBS_SAZ , nobs, solar_azimuth       )  
+     elseif ( trim(rdb4_schema) =='amsua'.or.trim(rdb4_schema) =='amsub'.or.trim(rdb4_schema) =='atms' ) then   
+        call obs_headSet_i( obsdat, OBS_SAZ , nobs, solar_azimuth       )
+     endif
   else
-    call obs_headSet_r( obsdat, OBS_ALT , nobs, elev                 )
-    if ( trim(rdb4_schema) == 'ro' ) then
-      call obs_headSet_i( obsdat, OBS_ROQF, nobs, ro_qc_flag           )
-      call obs_headSet_r( obsdat, OBS_GEOI, nobs, geoid_undulation     )
-      call obs_headSet_r( obsdat, OBS_TRAD, nobs, earth_local_rad_curv )
-      call obs_headSet_i( obsdat, OBS_SAT , nobs, id_sat               )
-      call obs_headSet_i( obsdat, OBS_AZA , nobs, azimuth              )
-    endif
+     call obs_headSet_r( obsdat, OBS_ALT , nobs, elev                   )
+     if ( trim(rdb4_schema) == 'ro' ) then
+       call obs_headSet_i( obsdat, OBS_ROQF, nobs, ro_qc_flag           )
+       call obs_headSet_r( obsdat, OBS_GEOI, nobs, geoid_undulation     )
+       call obs_headSet_r( obsdat, OBS_TRAD, nobs, earth_local_rad_curv )
+       call obs_headSet_i( obsdat, OBS_SAT , nobs, id_sat               )
+       call obs_headSet_i( obsdat, OBS_AZA , nobs, azimuth              )
+     endif
   endif
   end subroutine SAVE_INFO_HEADER
 
@@ -140,12 +134,9 @@ contains
    integer            :: NULNAM,j
    character*256      :: NAMFILE
    character(len = *) :: NML_SECTION
-   !-------------------------------------------
-   NAMELIST /NAMDIMO/     LABORTFULL
    NAMELIST /NAMSQLinsert/NELE_INS,LISTELE_INS
    NAMELIST /NAMSQLF/     NFILES_SQL,CFILNAM_SQL,CFAMTYP_SQL
    NAMELIST /NAMSQLUPDATE/N_ITEMS,ITEMLIST
-
    NAMFILE=trim("flnml")
    WRITE(*,*) ' READ NML_SECTION =',trim(NML_SECTION)
    SELECT CASE(trim(NML_SECTION))
@@ -153,10 +144,6 @@ contains
        NULNAM=4014
        open(NULNAM,FILE=NAMFILE)
        READ(NULNAM,NML=NAMSQLinsert)
-     CASE( 'NAMDIMO')
-       NULNAM=4015
-       open(NULNAM,FILE=NAMFILE)
-       READ(NULNAM,NML=NAMDIMO)
      CASE( 'NAMSQLF')
        NULNAM=4016
        open(NULNAM,FILE=NAMFILE)
@@ -172,7 +159,7 @@ contains
    close(NULNAM)
    RETURN
    END SUBROUTINE SQL2OBS_NML
-!  ==============================
+!===============================================================================================
 
    subroutine sqlr_readSqlite(obsdat,FamilyType,FileName,FileNumb)
       ! Purpose: QUERY DATA FROM SQLITE DATA FILES
@@ -249,7 +236,8 @@ contains
    if ( trim(FamilyType) == 'TO' ) then
      LISTELEMENTS="12163"
    else
-     LISTELEMENTS="12001,11001,11002,12192,10194"
+     !LISTELEMENTS="12001,11001,11002,12192,10194"
+     LISTELEMENTS="11001,11002"
    endif
    NBITSON     =0
    NBITSOFF    =0
@@ -277,19 +265,23 @@ contains
        SQLNULL=" and obsvalue is not null and vcoord is not null "
        VCOORDFACT=1
        VCORDTYP=2
-       LISTELEMENTS="12001,11001,11002,11003,11004,12192"
+       LISTELEMENTS="12001,11001,11002,12192"
+       ! working code:
+       !LISTELEMENTS="12001,11001,11002,11003,11004,12192"
        read(nulnam,NML=NAMSQLai)
      CASE ('sw')
        SQLNULL=" and obsvalue is not null and vcoord is not null "
        VCOORDFACT=1
        VCORDTYP=2
-       LISTELEMENTS="11001,11002,11003,11004"
+       LISTELEMENTS="11001,11002"
+       !LISTELEMENTS="11001,11002,11003,11004"
        read(nulnam,NML=NAMSQLsw)
      CASE ('pr')
        SQLNULL=" and obsvalue is not null and vcoord is not null "
        VCOORDFACT=1
        VCORDTYP=1
-       LISTELEMENTS="11001,11002,11003,11004"
+       LISTELEMENTS="11001,11002"
+       !LISTELEMENTS="11001,11002,11003,11004"
        read(nulnam,NML=NAMSQLpr)
      CASE ('ro')     
        COLUMNS_HDR=trim(COLUMNS_HDR)//",ro_qc_flag,geoid_undulation,earth_local_rad_curv,id_sat,azimuth"
@@ -309,6 +301,8 @@ contains
        VCOORDFACT=0
        VCORDTYP=1
        LISTELEMENTS="11011,11012,11215,11216"
+       ! BURP:
+       !LISTELEMENTS="11012,11011"
        read(nulnam,NML=NAMSQLsc)
      CASE( 'airs')
        COLUMNS_HDR=trim(COLUMNS_HDR)//",azimuth,terrain_type,cloud_cover,solar_azimuth"
@@ -391,34 +385,32 @@ contains
    write(*,*)  my_name//' DEBUT numheader  =', obs_numHeader(obsdat)
    write(*,*)  my_name//' DEBUT numbody    =', obs_numBody(obsdat)
    
-   call tmg_start(100,'SQLMATRIXFILL')
-   call fSQL_get_many (  stmt2, nrows = nrows , ncols = ncolumns , mode = FSQL_REAL )
+   !if (trim(rdb4_schema)=='scat') then
+   !  call fSQL_get_many (  stmt2, nrows = nrows , ncols = ncolumns , mode = FSQL_REAL, REAL_MISSING = MPC_missingValue_R4 )
+   !else
+     call fSQL_get_many (  stmt2, nrows = nrows , ncols = ncolumns , mode = FSQL_REAL )
+   !endif 
    write(*,*) '  NROWS NCOLUMNS =', nrows, ncolumns, rdb4_schema, trim(query_dat)
    write(*,*)' ========================================== '
-   write(*,*) my_name//' allocating matdata(nrows,ncolumns)...(',nrows,',',ncolumns,')'
    allocate(matdata(nrows,ncolumns))
-   write(*,*) my_name//' calling fSQL_fill_matrix...'
    call fSQL_fill_matrix ( stmt2, matdata )
-   write(*,*) my_name//' calling fSQL_free_mem...'
    call fSQL_free_mem    ( stmt2 )
-   write(*,*) my_name//' calling fSQL_finalize...'
    call fSQL_finalize    ( stmt2 )
-   call tmg_stop(100,'SQLMATRIXFILL')
  
    ! HEADER LOOP
    last_id=1
    HEADER:   DO
-     write(*,*)my_name//' calling fSQL_get_row', last_id, nobs, j,nrows
+
      call fSQL_get_row( stmt, finished )   ! Fetch the next row
-     if (finished) then                    ! exit LOOP WHEN LAST ROW HAS BEEN FETCHED
-       if ( nobs > 1 .and. nlv > 0 ) then
-         write(*,*)my_name//' calling SAVE_INFO_HEADER 1'
-         call SAVE_INFO_HEADER( obsdat, rdb4_schema, FamilyType, nobs, relev, id_sat, azimuth, geoid_undulation &
-                              , earth_local_rad_curv, ro_qc_flag, instrument, zenith, cloud_cover, solar_zenith &
-                              , solar_azimuth, land_sea, id_obs, xlat, xlon, codtyp, date, time/100, status, id_stn )
-       endif
-       exit
+     
+     if (finished) then ! exit LOOP WHEN LAST ROW HAS BEEN FETCHED
+        if ( nobs > 1 .and. nlv > 0 ) &
+        call SAVE_INFO_HEADER( obsdat, rdb4_schema, FamilyType, nobs, relev, id_sat, azimuth, geoid_undulation &
+                             , earth_local_rad_curv, ro_qc_flag, instrument, zenith, cloud_cover, solar_zenith &
+                             , solar_azimuth, land_sea, id_obs, xlat, xlon, codtyp, date, time/100, status, id_stn )
+        exit
      endif
+
      ! The query result is inserted into variables
      !=========================================================================================
      terrain_type   = MPC_missingValue_INT
@@ -430,7 +422,7 @@ contains
      solar_zenith   = MPC_missingValue_INT; rsolar_zenith  = MPC_missingValue_R4
      zenith         = MPC_missingValue_INT; rzenith        = MPC_missingValue_R4    
      instrument     = MPC_missingValue_INT
-     azimuth        = MPC_missingValue_INT; razimuth       =  MPC_missingValue_R4  
+     azimuth        = MPC_missingValue_INT; razimuth       =  MPC_missingValue_R8  
 
      call fSQL_get_column( stmt, COL_INDEX = 1, INT_VAR   = id_obs                     )
      call fSQL_get_column( stmt, COL_INDEX = 2, REAL_VAR  = lat                        )
@@ -441,48 +433,48 @@ contains
      call fSQL_get_column( stmt, COL_INDEX = 7, INT_VAR   = status                     )
      call fSQL_get_column( stmt, COL_INDEX = 8, CHAR_VAR  = id_stn                     )
      if ( trim(familyType) == 'TO' ) then
-       call fSQL_get_column( stmt, COL_INDEX = 9,  INT_VAR   = id_sat                  )
-       call fSQL_get_column( stmt, COL_INDEX = 10, INT_VAR   = land_sea , INT_MISSING=MPC_missingValue_INT  )
-       call fSQL_get_column( stmt, COL_INDEX = 11, INT_VAR   = instrument,INT_MISSING=MPC_missingValue_INT  )
-       call fSQL_get_column( stmt, COL_INDEX = 12, REAL_VAR  = rzenith                 )
-       call fSQL_get_column( stmt, COL_INDEX = 13, REAL_VAR  = rsolar_zenith           )
-       if ( trim(rdb4_schema) /='csr' ) then
-         call fSQL_get_column( stmt, COL_INDEX = 14, REAL8_VAR = razimuth              )
-         call fSQL_get_column( stmt, COL_INDEX = 15, INT_VAR   = terrain_type ,INT_MISSING=MPC_missingValue_INT )
-       endif
-       if ( trim(rdb4_schema)=='airs' .or. trim(rdb4_schema)=='iasi' .or. trim(rdb4_schema)=='cris') then
-         call fSQL_get_column( stmt, COL_INDEX = 16, REAL_VAR = rcloud_cover           )
-         call fSQL_get_column( stmt, COL_INDEX = 17, REAL_VAR = rsolar_azimuth         )
-       elseif ( trim(rdb4_schema)=='amsua' .or. trim(rdb4_schema)=='amsub' .or. trim(rdb4_schema)=='atms') then
-         call fSQL_get_column( stmt, COL_INDEX = 16, INT_VAR  = sensor, INT_MISSING=MPC_missingValue_INT )
-         call fSQL_get_column( stmt, COL_INDEX = 17, REAL_VAR = rsolar_azimuth         )
-       endif
-       if ( instrument == 420 ) id_sat  = 784
-       zenith = nint ( (90. + rzenith ) * 100. )
-       solar_zenith = nint ( (90. + rsolar_zenith ) * 100. )
-       azimuth = nint( razimuth * 100. )
-       cloud_cover   = nint ( rcloud_cover * 1.     )
-       solar_azimuth = nint ( rsolar_azimuth * 100. )
-       if ( terrain_type ==  0 ) land_sea = 2  !---Is terrain type sea ice (iterrain=0)?, If so, set imask=2.----
-       if ( sensor == MPC_missingValue_INT ) then
-         sensor = 0
-         if (instrument == MPC_missingValue_INT ) instrument = 0
-       else
-         instrument = cvt_obs_instrum(sensor)
-       endif
-       !if ( id_sat < 206 ) zenith=9000   !!!!!! BUG BUG BUG !!!!!!!!!!!!!!!!!!!!!!!!!!!!!1
-     else  ! familyType = CONV
-       call fSQL_get_column( stmt, COL_INDEX = 9, REAL_VAR  = elev                     )
-       relev=elev
-       if ( trim(rdb4_schema)=='ro' ) then
-         call fSQL_get_column( stmt, COL_INDEX = 10, INT_VAR   = ro_qc_flag              )
-         call fSQL_get_column( stmt, COL_INDEX = 11, REAL8_VAR = geoid_undulation        )
-         call fSQL_get_column( stmt, COL_INDEX = 12, REAL8_VAR = earth_local_rad_curv    )
-         call fSQL_get_column( stmt, COL_INDEX = 13, INT_VAR   = id_sat                  )
-         call fSQL_get_column( stmt, COL_INDEX = 14, REAL8_VAR = razimuth                )
+         call fSQL_get_column( stmt, COL_INDEX = 9,  INT_VAR   = id_sat                  )
+         call fSQL_get_column( stmt, COL_INDEX = 10, INT_VAR   = land_sea , INT_MISSING=MPC_missingValue_INT  )
+         call fSQL_get_column( stmt, COL_INDEX = 11, INT_VAR   = instrument,INT_MISSING=MPC_missingValue_INT  )
+         call fSQL_get_column( stmt, COL_INDEX = 12, REAL_VAR  = rzenith, REAL_MISSING=MPC_missingValue_R4    )
+         call fSQL_get_column( stmt, COL_INDEX = 13, REAL_VAR  = rsolar_zenith, REAL_MISSING=MPC_missingValue_R4  )
+         if ( trim(rdb4_schema) /='csr' ) then
+            call fSQL_get_column( stmt, COL_INDEX = 14, REAL8_VAR  = razimuth     )
+            call fSQL_get_column( stmt, COL_INDEX = 15, INT_VAR   = terrain_type ,INT_MISSING=MPC_missingValue_INT )
+         endif
+         if ( trim(rdb4_schema)=='airs' .or. trim(rdb4_schema)=='iasi' .or. trim(rdb4_schema)=='cris') then
+            call fSQL_get_column( stmt, COL_INDEX = 16, REAL_VAR = rcloud_cover, REAL_MISSING=MPC_missingValue_R4   )
+            call fSQL_get_column( stmt, COL_INDEX = 17, REAL_VAR = rsolar_azimuth, REAL_MISSING=MPC_missingValue_R4 )
+         elseif ( trim(rdb4_schema)=='amsua' .or. trim(rdb4_schema)=='amsub' .or. trim(rdb4_schema)=='atms') then
+            call fSQL_get_column( stmt, COL_INDEX = 16, INT_VAR  = sensor, INT_MISSING=MPC_missingValue_INT )
+            call fSQL_get_column( stmt, COL_INDEX = 17, REAL_VAR = rsolar_azimuth, REAL_MISSING=MPC_missingValue_R4 )
+         endif
+         if ( instrument == 420 ) id_sat  = 784
+         zenith = nint ( (90. + rzenith ) * 100. )
+         solar_zenith = nint ( (90. + rsolar_zenith ) * 100. )
          azimuth = nint( razimuth * 100. )
-       endif
-     endif      
+         cloud_cover   = nint ( rcloud_cover * 1.     )
+         solar_azimuth = nint ( rsolar_azimuth * 100. )
+         if ( terrain_type ==  0 ) land_sea = 2  !---Is terrain type sea ice (iterrain=0)?, If so, set imask=2.----
+         if ( sensor == MPC_missingValue_INT ) then
+            sensor = 0
+            if (instrument == MPC_missingValue_INT ) instrument = 0
+         else
+            instrument = cvt_obs_instrum(sensor)
+         endif
+     else  ! familyType = CONV
+         call fSQL_get_column( stmt, COL_INDEX = 9, REAL_VAR  = elev, REAL_MISSING=MPC_missingValue_R4 )
+         relev=elev
+         if ( trim(rdb4_schema)=='ro' ) then
+            call fSQL_get_column( stmt, COL_INDEX = 10, INT_VAR   = ro_qc_flag, INT_MISSING=MPC_missingValue_INT           )
+            call fSQL_get_column( stmt, COL_INDEX = 11, REAL8_VAR = geoid_undulation     )
+            call fSQL_get_column( stmt, COL_INDEX = 12, REAL8_VAR = earth_local_rad_curv )
+            call fSQL_get_column( stmt, COL_INDEX = 13, INT_VAR   = id_sat, INT_MISSING=MPC_missingValue_INT               )
+            call fSQL_get_column( stmt, COL_INDEX = 14, REAL8_VAR = razimuth )
+            azimuth = nint( razimuth * 100 )
+         endif
+     endif  ! TOVS or CONV
+      
      if ( lon < 0.) lon = lon + 360.
      xlat=lat*MPC_RADIANS_PER_DEGREE_R8
      xlon=lon*MPC_RADIANS_PER_DEGREE_R8
@@ -492,67 +484,71 @@ contains
      nlv=0
      DATA: do j = last_id,nrows
      ! ---------------------------------------------------
-     if  ( int(matdata(j,2)) > id_obs ) then 
-       write(*,*)my_name//' calling SAVE_INFO_HEADER 2'        
-       call SAVE_INFO_HEADER( obsdat, rdb4_schema, FamilyType, nobs, relev, id_sat, azimuth, geoid_undulation &
-                            , earth_local_rad_curv, ro_qc_flag, instrument, zenith, cloud_cover, solar_zenith &
-                            , solar_azimuth, land_sea, id_obs, xlat, xlon, codtyp,date, time/100, status, id_stn )
-       exit
+     if ( int(matdata(j,2)) > id_obs ) then 
+        call SAVE_INFO_HEADER( obsdat, rdb4_schema, FamilyType, nobs, relev, id_sat, azimuth, geoid_undulation &
+                             , earth_local_rad_curv, ro_qc_flag, instrument, zenith, cloud_cover, solar_zenith &
+                             , solar_azimuth, land_sea, id_obs, xlat, xlon, codtyp,date, time/100, status, id_stn )
+        exit
      elseif ( int(matdata(j,2)) == id_obs ) then
-       if ( nobs == nobs_start .and. nlv == 0  ) then
-         write(*,*)my_name//' calling SAVE_INFO_HEADER 3'
-         call SAVE_INFO_HEADER( obsdat, rdb4_schema, FamilyType, nobs, relev, id_sat, azimuth, geoid_undulation &
-                            , earth_local_rad_curv, ro_qc_flag, instrument, zenith, cloud_cover, solar_zenith &
-                            , solar_azimuth, land_sea, id_obs, xlat, xlon, codtyp,date, time/100, status, id_stn )
+        if ( nobs == nobs_start .and. nlv == 0  ) &
+        call SAVE_INFO_HEADER( obsdat, rdb4_schema, FamilyType, nobs, relev, id_sat, azimuth, geoid_undulation &
+                             , earth_local_rad_curv, ro_qc_flag, instrument, zenith, cloud_cover, solar_zenith &
+                             , solar_azimuth, land_sea, id_obs, xlat, xlon, codtyp,date, time/100, status, id_stn )
+        last_id=j+1
+        id_data=int(matdata(j,1)); flag=int(matdata(j,6));  varno =int(matdata(j,4))
+        vcoord=matdata(j,3); obsvalue=matdata(j,5)
+        count = count + 1
+        nlv   = nlv + 1
+        ! INSERT data INTO OBS_SPACE_DATA STRUCTURE
+        call obs_bodySet_i(obsdat,OBS_IDD,count,id_data)
+        if (trim(rdb4_schema)=='airs'.or.trim(rdb4_schema)=='iasi'.or.trim(rdb4_schema)=='cris') then
+           surf_emiss=matdata(j,7)
+           call obs_bodySet_r(obsdat,OBS_SEM,count,surf_emiss*zemfact)
        endif
-       last_id=j+1
-       id_data=int(matdata(j,1)); flag=int(matdata(j,6));  varno =int(matdata(j,4))
-       vcoord=matdata(j,3); obsvalue=matdata(j,5)
-       count = count + 1
-       nlv   = nlv + 1
-       ! INSERT data INTO OBS_SPACE_DATA STRUCTURE
-       call obs_bodySet_i(obsdat,OBS_IDD,count,id_data)
-       if (trim(rdb4_schema)=='airs'.or.trim(rdb4_schema)=='iasi'.or.trim(rdb4_schema)=='cris') then
-         surf_emiss=matdata(j,7)
-         call obs_bodySet_r(obsdat,OBS_SEM,count,surf_emiss*zemfact)
-       endif
-       if ( trim(familyType) == 'TO' ) then
-         call GEN_DATA(obsdat,vcoord,obsvalue,varno,flag,vcordtyp,nobs,count)
+       if ( trim(FamilyType) == 'TO' ) then
+          call GEN_DATA(obsdat,vcoord,obsvalue,varno,flag,vcordtyp,nobs,count)
        else ! CONV
-         call GEN_DATA(obsdat,vcoord*vcoordfact+relev*elevfact,obsvalue,varno,flag,vcordtyp,nobs,count)
-         ! ALLOW EXTRA SPACE FOR U V COMPONENTS
-         if ( varno == 11001 ) then
-           ! U COMPONENT
-           call obs_bodySet_i(obsdat,OBS_IDD,count+1,-1)
-           call GEN_DATA(obsdat,vcoord*vcoordfact + relev*elevfact,MPC_missingValue_R8,11003,0,vcordtyp,nobs,count+1)
-           ! V COMPONENT
-           call obs_bodySet_i(obsdat,OBS_IDD,count+2,-1)
-           call GEN_DATA(obsdat,vcoord*vcoordfact + relev*elevfact,MPC_missingValue_R8,11004,0,vcordtyp,nobs,count+2)
-         else if ( varno == 11011) then
-           ! Us COMPONENT
-           call obs_bodySet_i(obsdat,OBS_IDD,count+1,-1)
-           call GEN_DATA(obsdat,vcoord*vcoordfact + relev*elevfact,MPC_missingValue_R8,11215,0,vcordtyp,nobs,count+1)
-           ! Vs COMPONENT
-           call obs_bodySet_i(obsdat,OBS_IDD,count+2,-1)
-           call GEN_DATA(obsdat,vcoord*vcoordfact + relev*elevfact,MPC_missingValue_R8,11216,0,vcordtyp,nobs,count+2)
-         endif
-         count = count + 2
-         NLV = NLV + 2
-       endif     ! TOVS or CONV
-     endif !  id_obs   
+          call GEN_DATA(obsdat,vcoord*vcoordfact+relev*elevfact,obsvalue,varno,flag,vcordtyp,nobs,count)
+          ! ALLOW EXTRA SPACE FOR U V COMPONENTS
+          if ( varno == 11001 .or. varno == 11011) then
+             if ( varno == 11001 ) then
+                ! U COMPONENT
+                call obs_bodySet_i(obsdat,OBS_IDD,count+1,-1)
+                call GEN_DATA(obsdat,vcoord*vcoordfact + relev*elevfact,MPC_missingValue_R8,11003,0,vcordtyp,nobs,count+1)
+                ! V COMPONENT
+                call obs_bodySet_i(obsdat,OBS_IDD,count+2,-1)
+                call GEN_DATA(obsdat,vcoord*vcoordfact + relev*elevfact,MPC_missingValue_R8,11004,0,vcordtyp,nobs,count+2)
+             else if ( varno == 11011) then
+                ! Us COMPONENT
+                call obs_bodySet_i(obsdat,OBS_IDD,count+1,-1)
+                call GEN_DATA(obsdat,vcoord*vcoordfact + relev*elevfact,MPC_missingValue_R8,11215,0,vcordtyp,nobs,count+1)
+                ! Vs COMPONENT
+                call obs_bodySet_i(obsdat,OBS_IDD,count+2,-1)
+                call GEN_DATA(obsdat,vcoord*vcoordfact + relev*elevfact,MPC_missingValue_R8,11216,0,vcordtyp,nobs,count+2)
+             endif
+             count = count + 2
+             NLV = NLV + 2
+          endif      ! extra space for winds
+       endif         ! TOVS or CONV
+     endif           !  id_obs   
    END DO DATA  ! END OF DATA LOOP
 
    if ( nobs == 1 ) call obs_headSet_i(obsdat,OBS_RLN,nobs,1)
    if ( nlv > 0 ) then
-     call obs_headSet_i(obsdat,OBS_NLV,nobs,NLV)
-     if ( nobs > 1 ) then
-       LN = obs_headElem_i(obsdat,OBS_RLN,nobs-1) +  obs_headElem_i(obsdat,OBS_NLV,nobs-1)
-       call obs_headSet_i(obsdat,OBS_RLN,nobs,LN)
-     endif
+      call obs_headSet_i(obsdat,OBS_NLV,nobs,nlv)
+      if ( nobs > 1 ) then
+         LN = obs_headElem_i(obsdat,OBS_RLN,nobs-1) +  obs_headElem_i(obsdat,OBS_NLV,nobs-1)
+         call obs_headSet_i(obsdat,OBS_RLN,nobs,LN)
+      endif
    else
-     nobs=nobs-1
+      nobs=nobs-1
    endif
+   if ( last_id > nrows) &
+   call SAVE_INFO_HEADER( obsdat, rdb4_schema, FamilyType, nobs, relev, id_sat, azimuth, geoid_undulation &
+                        , earth_local_rad_curv, ro_qc_flag, instrument, zenith, cloud_cover, solar_zenith &
+                        , solar_azimuth, land_sea, id_obs, xlat, xlon, codtyp,date, time/100, status, id_stn )
   END DO HEADER ! HEADER
+  
   deallocate(matdata)
   write(*,*)  my_name//' FIN numheader  =', obs_numHeader(obsdat)
   write(*,*)  my_name//' FIN numbody    =', obs_numBody(obsdat)
@@ -561,6 +557,7 @@ contains
   write(*,*) my_name//' END OF QUERY TIME IS = ', CHTIME,rdb4_schema
   call fSQL_finalize( stmt )
   call fSQL_close( db , stat) ! Close The SQLITE FILE
+  write(*,*) my_name//' end subroutine: ', rdb4_schema
   end subroutine sqlr_readSqlite
 
 !===================================================================
@@ -586,10 +583,8 @@ contains
    CHARACTER(len = *)                       :: query
 
    CH_RESULT=''
-  ! prepare query for execution
    CALL fSQL_prepare( db, trim(query), stmt, stat)
    if ( fSQL_error(stat) /= FSQL_OK ) CALL handle_error(stat,'fSQL_prepare: ')
-   ! Execute query
    finished=.FALSE.
    CALL fSQL_get_row( stmt, finished )
    !  Put result of query into variable
@@ -615,12 +610,14 @@ contains
    write(*,*) message, fSQL_errmsg(stat)
    call qqexit(2)
    END SUBROUTINE handle_error
+!  ================================================================================
 
    subroutine updsql(db,obsdat,familyType,fileName,file_numb)
       !
       !   Purpose : UPDATE HEADER AND DATA TABLES OF SQLITE FILES
       !
-      ! Author  : P. Koclas, CMC/CMDA CMDA/CMC SEPTEMBER 2012
+      ! Author    : P. Koclas,  CMC/CMDA CMDA/CMC SEPTEMBER 2012
+      ! Adaptation: S. Skachko, ARMA, April 2018
       !
       !    ARGUMENTS:
       !                 INPUT:
@@ -636,12 +633,15 @@ contains
    type(fSQL_DATABASE)              :: db
    type (struct_obs), intent(inout) :: obsdat
    character(len=*)                 :: fileName
-   character(len=*) :: familyType
-   integer :: file_numb
-   ! locals
+   character(len=*)                 :: familyType
+   integer                          :: file_numb
    type(fSQL_STATEMENT)             :: stmt ! prepared statement for  SQLite
    type(fSQL_STATUS)                :: stat ! type error status
-   integer                          :: RLN,NLV,IDF,ID_DATA,ASS,FLAG,IOBS,ID_OBS,STATUS, J,JO,last_comma
+   !  locals 
+   integer                          :: RLN,NLV,IDF,ID_DATA,ASS,FLAG ! 
+   integer                          :: IOBS,ID_OBS,STATUS ! 
+   integer                          :: J,JO !
+   integer                          :: last_comma ! 
    integer                          :: ibegin,ilast,ibeginob,ilastob,NUPD ! 
    character*10                     :: CHTIME
    character(len  =   3)            :: item
@@ -668,7 +668,6 @@ contains
    endif
    do K=1,UPDLIST
       item=itemlist(k)
-   
       SELECT CASE(item)
        CASE('OMA')
           upd_list(K) = OBS_OMA
@@ -700,7 +699,6 @@ contains
    last_comma=SCAN(CHitem, ',', back)
    CHitem2   =CHitem(1:last_comma-1) 
    CHitem    =CHitem2
-
    query = ' UPDATE data SET flag = ? , '//trim(CHitem)
    query=trim(query)
    query = trim(query)//' WHERE id_data = ?  ;'
@@ -718,28 +716,27 @@ contains
       ID_OBS=obs_headElem_i(obsdat,OBS_IDO,JO)
       RLN   =obs_headElem_i(obsdat,OBS_RLN,JO)
       NLV   =obs_headElem_i(obsdat,OBS_NLV,JO)
-
       ! TOP DATA LOOP
       DO J = RLN, NLV + RLN -1
 
-          FLAG   =obs_bodyElem_i(obsdat,OBS_FLG,j)
-          ID_DATA=obs_bodyElem_i(obsdat,OBS_IDD,j)
-          ASS    =obs_bodyElem_i(obsdat,OBS_ASS,j)
-       if ( ASS == 1 ) then
-         call fSQL_bind_param(stmt, PARAM_INDEX = 1,   INT_VAR  = flag  )
-         DO K =1,UPDLIST  
-           OBSV =obs_bodyElem_r(obsdat,OBS_VAR,j)
-           if ( OBSV /= MPC_missingValue_R8 ) then  
-             ROMP= obs_bodyElem_r(obsdat,UPD_LIST(K),j)
-             CALL fSQL_bind_param(stmt, PARAM_INDEX = K+1, REAL_VAR = ROMP   )
-           endif
-         END DO             
-         CALL fSQL_bind_param(stmt, PARAM_INDEX = UPDLIST+2, INT_VAR  = ID_DATA  )
-         CALL fSQL_exec_stmt (stmt)
-         NUPD=NUPD + 1
-       endif
-       END DO
-    END DO
+        FLAG   =obs_bodyElem_i(obsdat,OBS_FLG,j)
+        ID_DATA=obs_bodyElem_i(obsdat,OBS_IDD,j)
+        ASS    =obs_bodyElem_i(obsdat,OBS_ASS,j)
+        if ( ASS == 1 ) then
+          call fSQL_bind_param(stmt, PARAM_INDEX = 1,   INT_VAR  = flag  )
+          DO K =1,UPDLIST  
+            OBSV =obs_bodyElem_r(obsdat,OBS_VAR,j)
+            if ( OBSV /= MPC_missingValue_R8 ) then  
+              ROMP= obs_bodyElem_r(obsdat,UPD_LIST(K),j)
+              CALL fSQL_bind_param(stmt, PARAM_INDEX = K+1, REAL_VAR = ROMP   )
+            endif
+          END DO             
+          CALL fSQL_bind_param(stmt, PARAM_INDEX = UPDLIST+2, INT_VAR  = ID_DATA  )
+          CALL fSQL_exec_stmt (stmt)
+          NUPD=NUPD + 1
+        endif
+      END DO
+   END DO
    CALL fSQL_finalize( stmt )
    WRITE(*,*) ' NUMBER OF DATA ROWS UPDATES =',NUPD
    ! UPDATES FOR THE STATUS FLAGS IN THE HEADER TABBLE
@@ -747,7 +744,6 @@ contains
    query = ' UPDATE header SET status  = ?   WHERE ID_OBS = ? '
    CALL fSQL_prepare( db, query , stmt, stat)
    if ( fSQL_error(stat) /= FSQL_OK ) CALL handle_error(stat,'fSQL_prepare : ')
-
    DO JO = 1,obs_numHeader(obsdat)
       IDF=obs_headElem_i(obsdat,OBS_IDF,JO)
       if ( IDF /= FILE_NUMB) cycle
@@ -763,14 +759,13 @@ contains
    CALL fSQL_commit(db)
    write(*,*) '  ===============END UPDATE============================================== '
    END SUBROUTINE updsql
-!  =====================
+!  ==========================================================================================
 
    subroutine insertsql(db,obsdat,FamilyType,FileName,file_numb)
-      !
       !   Purpose : INSERT NEW DATA ROWS INTO SQLITE FILES
       !
-      ! Author  : P. Koclas, CMC/CMDA September 2012
-      !
+      ! Author    : P. Koclas , CMC/CMDA, September 2012
+      ! Adaptation: S. Skachko, ARMA    , April     2018
       !    ARGUMENTS:
       !                 INPUT:
       !
@@ -784,14 +779,14 @@ contains
       !                       (elements calculated by the 3dvar)
    implicit none
    ! arguments
-   type(fSQL_DATABASE)    :: db
+   type(fSQL_DATABASE)    :: db   ! type for SQLIte  file handle
    type(struct_obs)       :: obsdat
    character(len=*)       :: familyType
    character(len=*)       :: fileName
    integer                :: file_numb
-   ! locals
-   type(fSQL_STATEMENT)   :: stmt  ! type for precompiled SQLite statements
-   type(fSQL_STATUS)      :: stat  ! type for error status
+   type(fSQL_STATEMENT)   :: stmt ! type for precompiled SQLite statements
+   type(fSQL_STATUS)      :: stat !type for error status
+   !  locals 
    integer                :: ID_OBS,VARNO,FLAG,VCOORD_TYPE ! 
    real                   :: OBSV,OMA,OMP,OER,FGE,PPP
    integer                :: NINSERT,IDATA,J,JO,JELE, IERR
@@ -803,83 +798,81 @@ contains
    write(*,*)' FAMILY ---> ', trim(FamilyType), '  NSTNS  ----> ', obs_numHeader(obsdat)
    write(*,*)' FileName -> ', trim(FileName)
    write(*,*)' INSERT INTO SQLITE FILE ELEMENTS :--> ',(LISTELE_INS(j),j=1,NELE_INS)
-
    SELECT CASE(trim(familyType))
      CASE('SF','SC','GP')
       query = ' insert into data (id_obs,varno,vcoord,obsvalue,flag,oma,omp,fg_error,obs_error) VALUES(?,?,?,?,?,?,?,?,?); '
      CASE DEFAULT
       query = ' insert into data (id_obs,varno,vcoord,VCOORD_TYPE ,obsvalue,flag,oma,omp,fg_error,obs_error) VALUES(?,?,?,?,?,?,?,?,?,?); '
    END SELECT
-
    query=trim(query)
    write(*,*) ' QUERY    = ',TRIM(query)
    write(*,*) ' FAMILLE  = ',trim(familyType)
-
-   ! Begin  transaction 
-   call fSQL_begin(db)
-   call fSQL_prepare( db, query , stmt, stat)
+   CALL fSQL_begin(db)
+   CALL fSQL_prepare( db, query , stmt, stat)
    if ( fSQL_error(stat) /= FSQL_OK ) CALL handle_error(stat,'fSQL_prepare : ')
    WRITE(*,*) 'BEGIN  TRANSACTION '
    NINSERT=0
    ! HEADER LOOP
-      NINSERT=0
-      do JO=1,obs_numHeader(obsdat)
-        IDF    =obs_headElem_i(obsdat,OBS_IDF,JO)
-        if ( IDF /= FILE_NUMB) cycle
-        ID_OBS =obs_headElem_i(obsdat,OBS_IDO,JO)
-        RLN=obs_headElem_i(obsdat,OBS_RLN,JO)
-        NLV=obs_headElem_i(obsdat,OBS_NLV,JO)
-        ! DATA LOOP
-        DO J = RLN, NLV + RLN -1
-           ID_DATA    =obs_bodyElem_i(obsdat,OBS_IDD,j)
-           VARNO      =obs_bodyElem_i(obsdat,OBS_VNM,j)
-           FLAG       =obs_bodyElem_i(obsdat,OBS_FLG,j)
-           VCOORD_TYPE=obs_bodyElem_i(obsdat,OBS_VCO,j)
-           OBSV       =obs_bodyElem_r(obsdat,OBS_VAR,j)
-           OMA        =obs_bodyElem_r(obsdat,OBS_OMA,j)
-           OMP        =obs_bodyElem_r(obsdat,OBS_OMP,j)
-           OER        =obs_bodyElem_r(obsdat,OBS_OER,j)
-           FGE        =obs_bodyElem_r(obsdat,OBS_HPHT,j)
-           PPP        =obs_bodyElem_r(obsdat,OBS_PPP,j)
-           LLOK  =.FALSE.
-           DO JELE=1,NELE_INS
-             IF (VARNO == LISTELE_INS(JELE) ) LLOK=.TRUE.
-           END DO
+   NINSERT=0
+   do JO=1,obs_numHeader(obsdat)
+  
+     IDF    =obs_headElem_i(obsdat,OBS_IDF,JO)
+     if ( IDF /= FILE_NUMB) cycle
+     ID_OBS =obs_headElem_i(obsdat,OBS_IDO,JO)
+     RLN=obs_headElem_i(obsdat,OBS_RLN,JO)
+     NLV=obs_headElem_i(obsdat,OBS_NLV,JO)
+     ! DATA LOOP
+     DO J = RLN, NLV + RLN -1
+       ID_DATA    =obs_bodyElem_i(obsdat,OBS_IDD,j)
+       VARNO      =obs_bodyElem_i(obsdat,OBS_VNM,j)
+       FLAG       =obs_bodyElem_i(obsdat,OBS_FLG,j)
+       VCOORD_TYPE=obs_bodyElem_i(obsdat,OBS_VCO,j)
+       OBSV       =obs_bodyElem_r(obsdat,OBS_VAR,j)
+       OMA        =obs_bodyElem_r(obsdat,OBS_OMA,j)
+       OMP        =obs_bodyElem_r(obsdat,OBS_OMP,j)
+       OER        =obs_bodyElem_r(obsdat,OBS_OER,j)
+       FGE        =obs_bodyElem_r(obsdat,OBS_HPHT,j)
+       PPP        =obs_bodyElem_r(obsdat,OBS_PPP,j)
+       LLOK  =.FALSE.
+       DO JELE=1,NELE_INS
+         IF (VARNO == LISTELE_INS(JELE) ) LLOK=.TRUE.
+       END DO
        IF ( ID_DATA == -1 ) then
-           IF ( LLOK ) THEN
-             SELECT CASE(trim(FamilyType))
-              CASE('SF','SC','GP')
-               CALL fSQL_bind_param( stmt, PARAM_INDEX = 1, INT_VAR  = ID_OBS)
-               CALL fSQL_bind_param( stmt, PARAM_INDEX = 2, INT_VAR  = VARNO )
-               CALL fSQL_bind_param( stmt, PARAM_INDEX = 3, REAL_VAR = PPP   ) 
-               CALL fSQL_bind_param( stmt, PARAM_INDEX = 4, REAL_VAR = OBSV  ) 
-               CALL fSQL_bind_param( stmt, PARAM_INDEX = 5, INT_VAR  = FLAG  )
-               CALL fSQL_bind_param( stmt, PARAM_INDEX = 6, REAL_VAR = OMA   ) 
-               CALL fSQL_bind_param( stmt, PARAM_INDEX = 7, REAL_VAR = OMP   ) 
-               CALL fSQL_bind_param( stmt, PARAM_INDEX = 8, REAL_VAR = FGE   ) 
-               CALL fSQL_bind_param( stmt, PARAM_INDEX = 9, REAL_VAR = OER   ) 
-               CALL fSQL_exec_stmt ( stmt)
-              CASE DEFAULT
-               CALL fSQL_bind_param( stmt, PARAM_INDEX = 1, INT_VAR  = ID_OBS )
-               CALL fSQL_bind_param( stmt, PARAM_INDEX = 2, INT_VAR  = VARNO  )
-               CALL fSQL_bind_param( stmt, PARAM_INDEX = 3, REAL_VAR = PPP    ) 
-               CALL fSQL_bind_param( stmt, PARAM_INDEX = 4, INT_VAR  = VCOORD_TYPE) 
-               CALL fSQL_bind_param( stmt, PARAM_INDEX = 5, REAL_VAR = OBSV   ) 
-               CALL fSQL_bind_param( stmt, PARAM_INDEX = 6, INT_VAR  = FLAG   )
-               CALL fSQL_bind_param( stmt, PARAM_INDEX = 7, REAL_VAR = OMA    ) 
-               CALL fSQL_bind_param( stmt, PARAM_INDEX = 8, REAL_VAR = OMP    ) 
-               CALL fSQL_bind_param( stmt, PARAM_INDEX = 9, REAL_VAR = FGE    ) 
-               CALL fSQL_bind_param( stmt, PARAM_INDEX = 10,REAL_VAR = OER    ) 
-               CALL fSQL_exec_stmt ( stmt)
-             END SELECT
-             NINSERT=NINSERT + 1
-           ENDIF    ! LLOK
-        endif
-      end DO
-      end DO
-     write(*,*) 'END OF TRANSACTION '
-     call fSQL_finalize( stmt )
-     call fSQL_commit(db)
+         IF ( LLOK ) THEN
+           SELECT CASE(trim(familyType))
+           CASE('SF','SC','GP')
+             CALL fSQL_bind_param( stmt, PARAM_INDEX = 1, INT_VAR  = ID_OBS)
+             CALL fSQL_bind_param( stmt, PARAM_INDEX = 2, INT_VAR  = VARNO )
+             CALL fSQL_bind_param( stmt, PARAM_INDEX = 3, REAL_VAR = PPP   ) 
+             CALL fSQL_bind_param( stmt, PARAM_INDEX = 4, REAL_VAR = OBSV  ) 
+             CALL fSQL_bind_param( stmt, PARAM_INDEX = 5, INT_VAR  = FLAG  )
+             CALL fSQL_bind_param( stmt, PARAM_INDEX = 6, REAL_VAR = OMA   ) 
+             CALL fSQL_bind_param( stmt, PARAM_INDEX = 7, REAL_VAR = OMP   ) 
+             CALL fSQL_bind_param( stmt, PARAM_INDEX = 8, REAL_VAR = FGE   ) 
+             CALL fSQL_bind_param( stmt, PARAM_INDEX = 9, REAL_VAR = OER   ) 
+             CALL fSQL_exec_stmt ( stmt)
+           CASE DEFAULT
+             CALL fSQL_bind_param( stmt, PARAM_INDEX = 1, INT_VAR  = ID_OBS )
+             CALL fSQL_bind_param( stmt, PARAM_INDEX = 2, INT_VAR  = VARNO  )
+             CALL fSQL_bind_param( stmt, PARAM_INDEX = 3, REAL_VAR = PPP    ) 
+             CALL fSQL_bind_param( stmt, PARAM_INDEX = 4, INT_VAR  = VCOORD_TYPE) 
+             CALL fSQL_bind_param( stmt, PARAM_INDEX = 5, REAL_VAR = OBSV   ) 
+             CALL fSQL_bind_param( stmt, PARAM_INDEX = 6, INT_VAR  = FLAG   )
+             CALL fSQL_bind_param( stmt, PARAM_INDEX = 7, REAL_VAR = OMA    ) 
+             CALL fSQL_bind_param( stmt, PARAM_INDEX = 8, REAL_VAR = OMP    ) 
+             CALL fSQL_bind_param( stmt, PARAM_INDEX = 9, REAL_VAR = FGE    ) 
+             CALL fSQL_bind_param( stmt, PARAM_INDEX = 10,REAL_VAR = OER    ) 
+             CALL fSQL_exec_stmt ( stmt)
+           END SELECT
+           NINSERT=NINSERT + 1
+         ENDIF    ! LLOK
+      endif
+    end DO
+    end DO
+    WRITE(*,*) 'END OF TRANSACTION '
+    CALL fSQL_finalize( stmt )
+    CALL fSQL_commit(db)
      write(*,*)' FAMILY ---> ' ,trim(FamilyType), '  NUMBER OF INSERTIONS ----> ',NINSERT
-   END SUBROUTINE INSERTSQL
+    END SUBROUTINE INSERTSQL
+!  ========================
 end module sqliteread_mod

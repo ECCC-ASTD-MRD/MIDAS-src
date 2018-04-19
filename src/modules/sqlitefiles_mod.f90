@@ -201,8 +201,9 @@ subroutine sqlf_readFile(obsdat,fileName,familyType,fileIndex)
     write(*,*)'SSN: debug!!!'
     call filt_sethind_util(obsdat)
     write(*,*)'SSN: writing  headerIndex,stid,lon,lat,alt,var...', mpi_myid
-    do bodyIndex = 1, iend
+    do bodyIndex = ibeg, iend
       headerIndex = obs_bodyElem_i(obsdat, OBS_HIND,   bodyIndex)
+      if ( obs_headElem_i(obsdat, OBS_ONM, headerIndex) /= 0 ) cycle
       stid_l      = obs_Elem_c(obsdat, 'STID',  headerIndex)
       lat         = obs_headElem_r(obsdat, OBS_LAT,  headerIndex)
       lon         = obs_headElem_r(obsdat, OBS_LON,  headerIndex)
@@ -222,8 +223,9 @@ subroutine sqlf_readFile(obsdat,fileName,familyType,fileIndex)
       roqc        = obs_headElem_i(obsdat, OBS_ROQF, headerIndex) 
       geoun       = obs_headElem_r(obsdat, OBS_GEOI, headerIndex)
       ealoc       = obs_headElem_r(obsdat, OBS_TRAD, headerIndex)
-      write(100+mpi_myid,'(a6,5f12.4,10i8)') trim(stid_l),lon,lat,alt,channel,var,varno,iqiv,igav,ilansea,azimuth,inst,clf,saz,idsat,roqc
-      !write(100+mpi_myid,'(a6,5f12.4,11i8,2f12.4)') trim(stid_l),lon,lat,alt,channel,var,varno,iqiv,igav,ilansea,azimuth,inst,ifov,clf,saz,idsat,roqc,ealoc,geoun
+      !write(100+mpi_myid,'(a6,5f12.4,10i8)') trim(stid_l),lon,lat,alt,channel,var,varno,iqiv,igav,ilansea,azimuth,inst,clf,saz,idsat,roqc
+       write(*,'(a6,5f12.4,11i8)') trim(stid_l),lon,lat,alt,channel,var,varno,iqiv,igav,ilansea,azimuth,inst,clf,saz,idsat,roqc,headerIndex
+     !write(100+mpi_myid,'(a6,5f12.4,11i8,2f12.4)') trim(stid_l),lon,lat,alt,channel,var,varno,iqiv,igav,ilansea,azimuth,inst,ifov,clf,saz,idsat,roqc,ealoc,geoun
       !write(100+mpi_myid,'(a6,7f12.4,3i8)') trim(stid_l),lon,lat,alt,channel,var,ealoc,geoun,azimuth,idsat,roqc
     enddo
     write(*,*)'SSN: DONE', mpi_myid
@@ -311,10 +313,11 @@ SUBROUTINE sqlf_updateFile(obsSpaceData,fileName,familyType,fileIndex)
         write(*,*) 'fSQL_open: ', fSQL_errmsg(stat)
         write(*,*) my_error, fSQL_errmsg(stat)
       endif
-
-      call    updsql(db,obsSpaceData,familyType,fileName,fileIndex)
-      call insertsql(db,obsSpaceData,familyType,fileName,fileIndex)
-          
+  
+      if (trim(familyType) /='TO' ) then
+        call    updsql(db,obsSpaceData,familyType,fileName,fileIndex)
+        call insertsql(db,obsSpaceData,familyType,fileName,fileIndex)
+      endif    
       write(*,*)'  closed database -->', trim(FileName)
       call fSQL_close( db, stat )
         
