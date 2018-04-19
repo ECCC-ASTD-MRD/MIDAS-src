@@ -330,7 +330,7 @@ contains
       asw = 1 ! 1 to allocate
       call rttov_alloc_tl( &
               alloc_status(1),  &
-              asw=1,              &
+              asw,              &
               nprofiles=count_profile,        &
               nchanprof=count_tb,        &
               nlevels=nlevels,          &
@@ -576,7 +576,7 @@ contains
       asw = 0 ! 0 to deallocate
       call rttov_alloc_tl( &
            alloc_status(1),              &
-           asw=1,              &
+           asw,              &
            nprofiles=count_profile,        &
            nchanprof=count_tb,        &
            nlevels=nlevels,          &
@@ -859,13 +859,6 @@ contains
 
       emissivity_local(:)%emis_in = surfem1(:)
         
-      ! allocate transmittance structures
-      
-!      call rttov_init_rad( radiancedata_d )
-
-      !.. fill radiancedata_ad arrays
-!      call rttov_init_rad( radiancedata_ad ) ! set irrrelevant fields to zero
-
       do tb_index = 1, count_tb
         bodyIndex = iptobs_body(tb_index)
         radiancedata_ad % bt( tb_index ) = obs_bodyElem_r(lobsSpaceData,OBS_WORK,bodyIndex)

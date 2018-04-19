@@ -119,7 +119,7 @@ module tovs_nl_mod
   integer, parameter :: tvs_maxChannelNumber   = 8461   ! Max. value for channel number
   integer, parameter :: tvs_maxNumberOfChannels = 1305  ! Max. no. of channels (for one profile/spectra)
   integer, parameter :: tvs_maxNumberOfSensors  = 40    ! Max no sensors to be used
-  integer, parameter :: tvs_nlevels     = 54            ! No. of RTTOV pressure levels including "rttov top" at 0.005 hPa
+  integer, parameter :: tvs_nlevels     = 101           ! Maximum No. of RTTOV pressure levels including "rttov top" at 0.005 hPa
 !**********************************************************
 ! S. Heilliette this parameter was computed from the mean lapse rate between 50 km and 85 km
 ! of the US standard atmosphere from data contained in "AFGL Atmospheric Constituent Profiles (0-120km)"
@@ -413,20 +413,6 @@ contains
        
       end do
 
-!    .   3.1 Validate RTTOV dimensions
-!     .       -------------------------
-
-!   Verify that all coefficient files have the same number of levels, since
-!   the rest of the processing assumes this!
-
-      do jk = 2, tvs_nsensors
-        if ( tvs_coefs(jk) % coef %nlevels /= tvs_coefs(1) % coef % nlevels ) then
-          write(*,'(A)') ' Number of levels not identical in all coef files'
-          call utl_abort('tvs_setupAlloc')
-        end if
-      end do
-
-    end if
 
 !-----------------------------------------------------------------------
 
@@ -436,45 +422,46 @@ contains
 
 !___ profiles
 
-    allocate(tvs_profiles(tvs_nobtov) , stat=alloc_status(1) )
-    call utl_checkAllocationStatus(alloc_status(1:1), " tvs_setupAlloc tvs_profiles 1")
+      allocate(tvs_profiles(tvs_nobtov) , stat=alloc_status(1) )
+      call utl_checkAllocationStatus(alloc_status(1:1), " tvs_setupAlloc tvs_profiles 1")
 
-    asw = 1 ! to allocate
-    do jo = 1, tvs_nobtov
-      isens = tvs_lsensor(jo)
-      nl = tvs_coefs(isens) % coef % nlevels
-     ! allocate model profiles atmospheric arrays with RTTOV levels dimension
-      call rttov_alloc_prof(errorstatus(1),1,tvs_profiles(jo),nl, &
-           tvs_opts(isens),asw,coefs=tvs_coefs(isens),init=.false. )
+      asw = 1 ! to allocate
+      do jo = 1, tvs_nobtov
+        isens = tvs_lsensor(jo)
+        nl = tvs_coefs(isens) % coef % nlevels
+        ! allocate model profiles atmospheric arrays with RTTOV levels dimension
+        call rttov_alloc_prof(errorstatus(1),1,tvs_profiles(jo),nl, &
+             tvs_opts(isens),asw,coefs=tvs_coefs(isens),init=.false. )
 
-      call utl_checkAllocationStatus(errorstatus(1:1), " tvs_setupAlloc tvs_profiles 2")
+        call utl_checkAllocationStatus(errorstatus(1:1), " tvs_setupAlloc tvs_profiles 2")
      
-    end do
+      end do
 
 !___ radiance by profile
 
-    allocate( tvs_radiance(tvs_nobtov) ,stat= alloc_status(1))
+      allocate( tvs_radiance(tvs_nobtov) ,stat= alloc_status(1))
 
-    call utl_checkAllocationStatus(alloc_status(1:1), " tvs_setupAlloc radiances 1")
+      call utl_checkAllocationStatus(alloc_status(1:1), " tvs_setupAlloc radiances 1")
   
-    do jo = 1, tvs_nobtov
-      isens = tvs_lsensor(jo)
-      nc = tvs_nchan(isens)
-      nl = tvs_coefs(isens) % coef % nlevels
+      do jo = 1, tvs_nobtov
+        isens = tvs_lsensor(jo)
+        nc = tvs_nchan(isens)
+        nl = tvs_coefs(isens) % coef % nlevels
       ! allocate BT equivalent to total direct, tl and ad radiance output
-      allocate( tvs_radiance(jo)  % bt  ( nc ) ,stat= alloc_status(1))
+        allocate( tvs_radiance(jo)  % bt  ( nc ) ,stat= alloc_status(1))
      
-      tvs_radiance(jo)  % bt  ( : ) = 0.d0
+        tvs_radiance(jo)  % bt  ( : ) = 0.d0
     
       ! allocate clear sky radiance/BT output
-      allocate( tvs_radiance(jo)  % clear  ( nc ) ,stat= alloc_status(2) )
-      tvs_radiance(jo)  % clear  ( : ) = 0.d0
+        allocate( tvs_radiance(jo)  % clear  ( nc ) ,stat= alloc_status(2) )
+        tvs_radiance(jo)  % clear  ( : ) = 0.d0
 
-      call utl_checkAllocationStatus(alloc_status(1:2), " tvs_setupAlloc radiances 2")
+        call utl_checkAllocationStatus(alloc_status(1:2), " tvs_setupAlloc radiances 2")
      
-    end do
+      end do
 
-
+    end if
+  
     write(*,*) "Leaving tvs_setupAlloc"
 
   end subroutine tvs_setupAlloc
