@@ -30,6 +30,7 @@ module LamBMatrixHI_mod
   use gridStateVector_mod
   use analysisGrid_mod
   use utilities_mod
+  use variableTransforms_mod
   implicit none
   save
   private
@@ -738,8 +739,13 @@ contains
     call StatevectorInterface( statevector,   & ! INOUT
                                gd_out,        & ! IN
                               'ToStateVector' ) ! IN
-
     deallocate(gd_out)
+
+    !
+    !-  4. Convert LQ_inc to HU_inc
+    !
+    call vtr_transform( statevector, & ! INOUT
+                        'LQtoHU_tlm' ) ! IN
 
     write(*,*)
     write(*,*) 'lbhi_bSqrt: Done'
@@ -765,6 +771,12 @@ contains
 
     write(*,*)
     write(*,*) 'lbhi_bSqrtAdj: Starting ...'
+
+    !
+    !-  4. Convert LQ_inc to HU_inc
+    !
+    call vtr_transform( statevector, & ! INOUT
+                        'LQtoHU_tlm' ) ! IN
 
     !
     !-  3.  Extract data from the StateVector
