@@ -204,19 +204,19 @@ contains
     integer,allocatable :: iptobs_body  (:)
 
     real*8, allocatable :: surfem1       (:) 
-    type(rttov_emissivity), allocatable :: emissivity_local (:)
-    type(rttov_emissivity), allocatable :: emissivity_tl (:)
+    type(rttov_emissivity), pointer :: emissivity_local (:)
+    type(rttov_emissivity), pointer :: emissivity_tl (:)
    
     type(rttov_radiance) :: radiancedata_d   ! radiances full structure buffer used in rttov calls
     type(rttov_radiance) :: radiancedata_tl  ! tl radiances full structure buffer used in rttov calls
     type(rttov_transmission) :: transmission       ! transmission
     type(rttov_transmission) :: transmission_tl    ! transmission tl
-    type(rttov_profile)  , allocatable :: profilesdata_tl (:) ! tl profiles buffer used in rttov calls
-    type(rttov_chanprof) , allocatable :: chanprof (:)
+    type(rttov_profile)  , pointer :: profilesdata_tl (:) ! tl profiles buffer used in rttov calls
+    type(rttov_chanprof) , pointer :: chanprof (:)
     logical ,save        :: first=.true.
     logical              :: init
     
-    logical, allocatable :: calcemis  (:)
+    logical, pointer :: calcemis  (:)
     integer ::  asw
          
     if (tvs_nobtov == 0) return       ! exit if there are not tovs data
@@ -310,7 +310,6 @@ contains
       allocate (zlq       (nlv_T,count_profile)    ,stat= alloc_status(11))
       allocate (qoext     (nlevels,count_profile)  ,stat= alloc_status(12))
       allocate (zps_tl    (count_profile)          ,stat= alloc_status(13))
-      allocate (profilesdata_tl(count_profile)     ,stat= alloc_status(14))
       call utl_checkAllocationStatus(alloc_status, "  tvslin_rttov_tl")
  
       iptobs_header(:) = 0 
@@ -328,10 +327,27 @@ contains
 
       ! allocate profiledata_tl structures
       init = .true.
-      asw = 1 ! 1 to allocate,0 to deallocate
-      call rttov_alloc_prof (alloc_status(1), count_profile, profilesdata_tl, nlevels, &
-           tvs_opts(sensor_id), asw=asw, coefs=tvs_coefs(sensor_id), init=init)
-      call utl_checkAllocationStatus(alloc_status(1:1), " tovs_rtttov_tl profilesdata_tl")
+      asw = 1 ! 1 to allocate
+      call rttov_alloc_tl( &
+              alloc_status(1),  &
+              asw,              &
+              nprofiles=count_profile,        &
+              nchanprof=count_tb,        &
+              nlevels=nlevels,          &
+              chanprof=chanprof,         &
+              opts=tvs_opts(sensor_id),             &
+              profiles_tl=profilesdata_tl,      &
+              coefs=tvs_coefs(sensor_id),            &
+              transmission=transmission,     &
+              transmission_tl=transmission_tl,  &
+              radiance=radiancedata_d,         &
+              radiance_tl=radiancedata_tl,      &
+              calcemis=calcemis,         &
+              emissivity=emissivity_local,       &
+              emissivity_tl=emissivity_tl,    &
+              init=.true.)
+
+      call utl_checkAllocationStatus(alloc_status(1:1), " tovs_rtttov_tl rttov_alloc_tl 1")
 
       count_profile = 0
 
@@ -492,12 +508,8 @@ contains
       !     .       ---------------------------------------------------------
      
       allocate ( surfem1      (count_tb)       ,stat=alloc_status(1))
-      allocate ( chanprof     (count_tb)       ,stat=alloc_status(2))
-      allocate ( emissivity_local (count_tb)   ,stat=alloc_status(3))
-      allocate ( emissivity_tl(count_tb)       ,stat=alloc_status(4))
-      allocate ( calcemis     (count_tb)       ,stat=alloc_status(5))
-      allocate ( iptobs_body   (count_tb)      ,stat=alloc_status(6))
-      call utl_checkAllocationStatus(alloc_status(1:6), " tovs_rtttov_tl")
+      allocate ( iptobs_body   (count_tb)      ,stat=alloc_status(2))
+      call utl_checkAllocationStatus(alloc_status(1:2), " tovs_rtttov_tl")
     
       !     get Hyperspecral IR emissivities
       if ( tvs_isInstrumHyperSpectral(instrum) ) call tvs_getHIREmissivities(sensor_id, iptobs, &
@@ -506,21 +518,6 @@ contains
       call TVS_getChanprof(sensor_id, iptobs, count_profile, lobsSpaceData, chanprof, &
            iptobs_cma_opt=iptobs_body,assim_flag_val_opt=obs_ass_val)
 
-      ! allocate transmitance structure
-      call rttov_alloc_transmission(alloc_status(1),transmission,nlevels=nlevels, &
-           nchanprof=count_tb,asw=asw,init=init )
-      call utl_checkAllocationStatus(alloc_status(1:1), " tovs_rtttov_tl transmission")
-      
-      call rttov_alloc_transmission(alloc_status(1),transmission_tl,nlevels=nlevels, &
-           nchanprof=count_tb,asw=asw,init=init )
-      call utl_checkAllocationStatus(alloc_status(1:1), " tovs_rtttov_tl transmission_tl")
-
-      ! allocate radiance structures
-      call rttov_alloc_rad (alloc_status(1) , count_tb, radiancedata_d, nlevels, asw, init=init)
-      call utl_checkAllocationStatus(alloc_status(1:1), " tovs_rtttov_tl radiancedata_d")
-      call rttov_alloc_rad (alloc_status(1), count_tb, radiancedata_tl, nlevels, asw, init=init)
-      call utl_checkAllocationStatus(alloc_status(1:1), " tovs_rtttov_tl radiancedata_tl")
-      
       call tvs_getOtherEmissivities(chanprof, iptobs, count_tb, sensor_type, instrum, surfem1, calcemis)
       
       emissivity_local(:)%emis_in = surfem1(:)
@@ -576,37 +573,28 @@ contains
  
       !     de-allocate memory
       
-      asw = 0 ! 1 to allocate,0 to deallocate
-      ! deallocate transmitance structures
-      call rttov_alloc_transmission(alloc_status(1),transmission,nlevels=nlevels, &
-           nchanprof=count_tb,asw=asw )
-      call utl_checkAllocationStatus(alloc_status(1:1), " tovs_rtttov_tl transmission", .false.)
-      
-      call rttov_alloc_transmission(alloc_status(1),transmission_tl,nlevels=nlevels, &
-           nchanprof=count_tb,asw=asw )
-      call utl_checkAllocationStatus(alloc_status(1:1), " tovs_rtttov_tl transmission_tl", .false.)
-      
-      ! deallocate radiance structures
-      call rttov_alloc_rad (alloc_status(1),count_tb,radiancedata_d,nlevels,asw)
-      call utl_checkAllocationStatus(alloc_status(1:1), " tovs_rtttov_tl radiancedata_d", .false.)
-      
-      call rttov_alloc_rad (alloc_status(1),count_tb,radiancedata_tl,nlevels,asw)
-      call utl_checkAllocationStatus(alloc_status(1:1), " tovs_rtttov_tl radiancedata_tl", .false.)
-      
-      ! deallocate profilesdatat_tl structure
-      
-      call rttov_alloc_prof (alloc_status(1),count_profile,profilesdata_tl,nlevels, &
-           tvs_opts(sensor_id),asw=asw)
-      call utl_checkAllocationStatus(alloc_status(1:1), " tovs_rtttov_tl profilesdata_tl", .false.)
-      
-      deallocate ( surfem1         ,stat=alloc_status(1) )
-      deallocate ( chanprof        ,stat=alloc_status(2) )
-      deallocate ( emissivity_local,stat=alloc_status(3) )
-      deallocate ( emissivity_tl   ,stat=alloc_status(4) )
-      deallocate ( calcemis        ,stat=alloc_status(5) )
-      deallocate ( profilesdata_tl ,stat=alloc_status(6) )
-      deallocate ( iptobs_body     ,stat=alloc_status(7) )
-      call utl_checkAllocationStatus(alloc_status(1:7), " tvslin_rtttov_tl", .false.)
+      asw = 0 ! 0 to deallocate
+      call rttov_alloc_tl( &
+           alloc_status(1),              &
+           asw,              &
+           nprofiles=count_profile,        &
+           nchanprof=count_tb,        &
+           nlevels=nlevels,          &
+           chanprof=chanprof,         &
+           opts=tvs_opts(sensor_id),             &
+           profiles_tl=profilesdata_tl,      &
+           coefs=tvs_coefs(sensor_id),            &
+           transmission=transmission,     &
+           transmission_tl=transmission_tl,  &
+           radiance=radiancedata_d,         &
+           radiance_tl=radiancedata_tl,      &
+           calcemis=calcemis,         &
+           emissivity=emissivity_local,       &
+           emissivity_tl=emissivity_tl )
+
+      deallocate ( surfem1         ,stat=alloc_status(2) )
+      deallocate ( iptobs_body     ,stat=alloc_status(3) )
+      call utl_checkAllocationStatus(alloc_status(1:3), " tvslin_rtttov_tl", .false.)
       
     end do sensor_loop
 
@@ -684,16 +672,16 @@ contains
     integer :: errorstatus 
     
     real*8, allocatable :: surfem1       (:) 
-    type (rttov_emissivity), allocatable :: emissivity_local (:)
-    type (rttov_emissivity), allocatable :: emissivity_ad (:)
+    type (rttov_emissivity), pointer :: emissivity_local (:)
+    type (rttov_emissivity), pointer :: emissivity_ad (:)
     type (rttov_transmission) :: transmission,transmission_ad
     type (rttov_radiance) :: radiancedata_ad, radiancedata_d
     
-    type(rttov_profile)   , allocatable :: profilesdata_ad (:) ! ad profiles buffer used in rttov calls
-    type(rttov_chanprof)  , allocatable :: chanprof(:)
+    type(rttov_profile)   , pointer :: profilesdata_ad (:) ! ad profiles buffer used in rttov calls
+    type(rttov_chanprof)  , pointer :: chanprof(:)
     logical              :: init
     integer :: asw
-    logical, allocatable :: calcemis  (:)
+    logical, pointer :: calcemis  (:)
          
     if (tvs_nobtov == 0) return      ! exit if there are not tovs data
 
@@ -832,15 +820,32 @@ contains
 
       !     .  2.2  Prepare all input variables required by rttov_ad.
       !     .       ---------------------------------------------------------
-     
-      allocate ( chanprof     (count_tb)        ,stat=alloc_status(1))
-      allocate ( emissivity_local (count_tb)    ,stat=alloc_status(2))
-      allocate ( emissivity_ad(count_tb)        ,stat=alloc_status(3))
-      allocate ( calcemis     (count_tb)        ,stat=alloc_status(4))
-      allocate ( surfem1      (count_tb)        ,stat=alloc_status(5))
-      allocate ( profilesdata_ad(count_profile) ,stat=alloc_status(6))
-      allocate ( iptobs_body   (count_tb)       ,stat=alloc_status(7))
-      call utl_checkAllocationStatus(alloc_status(1:7), " tvslin_rttov_ad")
+
+      asw = 1
+      init = .true.
+
+      call rttov_alloc_ad(                  &
+           alloc_status(1),                 &
+           asw,                             &
+           count_profile,                   &
+           count_tb,                        &
+           nlevels,                         &
+           chanprof,                        &
+           opts=tvs_opts(sensor_id),        &
+           profiles_ad=profilesdata_ad,     &
+           coefs=tvs_coefs(sensor_id),       &
+           transmission= transmission,      &
+           transmission_ad= transmission_ad,&
+           radiance=radiancedata_d,         &
+           radiance_ad=radiancedata_ad,     &
+           calcemis=calcemis,               &
+           emissivity=emissivity_local,     &
+           emissivity_ad=emissivity_ad,     &
+           init=init)
+
+      allocate ( surfem1      (count_tb)        ,stat=alloc_status(2))
+      allocate ( iptobs_body   (count_tb)       ,stat=alloc_status(3))
+      call utl_checkAllocationStatus(alloc_status(1:3), " tvslin_rttov_ad")
       
 !     get Hyperspectral IR emissivities
       
@@ -854,33 +859,6 @@ contains
 
       emissivity_local(:)%emis_in = surfem1(:)
         
-      ! allocate transmittance structures
-      asw = 1
-      init = .true.
-      call rttov_alloc_transmission(alloc_status(1), transmission, nlevels=nlevels, &
-           nchanprof=count_tb, asw=asw, init=init)
-      call utl_checkAllocationStatus(alloc_status(1:1), " tvslin_rttov_ad transmittances")
-
-      call rttov_alloc_transmission(alloc_status(1), transmission_ad, nlevels=nlevels, &
-           nchanprof=count_tb, asw=asw, init=init)
-      call utl_checkAllocationStatus(alloc_status(1:1), " tvslin_rttov_ad transmittances ad")
-     
-      ! allocate radiance structures
-      call rttov_alloc_rad (alloc_status(1), count_tb, radiancedata_d, nlevels, asw)
-      call utl_checkAllocationStatus(alloc_status(1:1), " tvslin_rttov_ad radiances")
-      call rttov_alloc_rad (alloc_status(1), count_tb, radiancedata_ad, nlevels, asw)
-      call utl_checkAllocationStatus(alloc_status(1:1), " tvslin_rttov_ad radiances ad")
-      
-      ! allocate profile structures   
-      call rttov_alloc_prof (alloc_status(1), count_profile, profilesdata_ad, nlevels, &
-           tvs_opts(sensor_id), asw=asw, coefs=tvs_coefs(sensor_id), init=init)
-      call utl_checkAllocationStatus(alloc_status(1:1), " tvslin_rttov_ad radiances ad")
-
-      call rttov_init_rad( radiancedata_d )
-
-      !.. fill radiancedata_ad arrays
-      call rttov_init_rad( radiancedata_ad ) ! set irrrelevant fields to zero
-
       do tb_index = 1, count_tb
         bodyIndex = iptobs_body(tb_index)
         radiancedata_ad % bt( tb_index ) = obs_bodyElem_r(lobsSpaceData,OBS_WORK,bodyIndex)
@@ -1064,34 +1042,30 @@ contains
     
       !     de-allocate memory
 
-      asw = 0 ! 1 to allocate,0 to deallocate
+      asw = 0 ! 0 to deallocate
+      call rttov_alloc_ad(                  &
+           alloc_status(1),                 &
+           asw,                             &
+           count_profile,                   &
+           count_tb,                        &
+           nlevels,                         &
+           chanprof,                        &
+           opts=tvs_opts(sensor_id),        &
+           profiles_ad=profilesdata_ad,     &
+           coefs=tvs_coefs(sensor_id),       &
+           transmission= transmission,      &
+           transmission_ad= transmission_ad,&
+           radiance=radiancedata_d,         &
+           radiance_ad=radiancedata_ad,     &
+           calcemis=calcemis,               &
+           emissivity=emissivity_local,     &
+           emissivity_ad=emissivity_ad )
+     
 
-      call rttov_alloc_transmission(alloc_status(1), transmission, nlevels=nlevels, &
-           nchanprof=count_tb, asw=asw)
-      call utl_checkAllocationStatus(alloc_status(1:1), " tvslin_rttov_ad transmittances", .false.)
-
-      call rttov_alloc_transmission(alloc_status(1), transmission_ad, nlevels=nlevels, &
-           nchanprof=count_tb, asw=asw)
-      call utl_checkAllocationStatus(alloc_status(1:1), " tvslin_rttov_ad transmittances ad", .false.)
-         
-      call rttov_alloc_rad (alloc_status(1), count_tb, radiancedata_d, nlevels, asw)
-      call utl_checkAllocationStatus(alloc_status(1:1), " tvslin_rttov_ad radiances", .false.)
-
-      call rttov_alloc_rad (alloc_status(1), count_tb, radiancedata_ad, nlevels, asw)
-      call utl_checkAllocationStatus(alloc_status(1:1), " tvslin_rttov_ad radiances ad", .false.)
-
-      call rttov_alloc_prof (alloc_status(1), count_profile, profilesdata_ad, nlevels, &
-           tvs_opts(sensor_id), asw=asw)
-      call utl_checkAllocationStatus(alloc_status(1:1), " tvslin_rttov_ad radiances ad", .false.)
-
-      deallocate ( profilesdata_ad ,stat=alloc_status(1))
-      deallocate ( chanprof        ,stat=alloc_status(2))
-      deallocate ( emissivity_local,stat=alloc_status(3))
-      deallocate ( emissivity_ad   ,stat=alloc_status(4))
-      deallocate ( calcemis        ,stat=alloc_status(5))
-      deallocate ( surfem1         ,stat=alloc_status(6))
-      deallocate ( iptobs_body     ,stat=alloc_status(7))
-      call utl_checkAllocationStatus(alloc_status(1:7), " tvslin_rttov_ad", .false.)
+      
+      deallocate ( surfem1         ,stat=alloc_status(2))
+      deallocate ( iptobs_body     ,stat=alloc_status(3))
+      call utl_checkAllocationStatus(alloc_status(1:3), " tvslin_rttov_ad", .false.)
      
     end do sensor_loop
 
