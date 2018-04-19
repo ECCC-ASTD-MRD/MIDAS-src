@@ -2,6 +2,11 @@
 
 set -e
 
+SEQ_MAESTRO_SHORTCUT=${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/cmo/isst/maestro/1.5.1-rc21"}
+which nodelister 1>/dev/null 2>&1 || ${SEQ_MAESTRO_SHORTCUT}
+which cmcarc     1>/dev/null 2>&1 || . ssmuse-sh -x main/opt/cmcarc/cmcarc-4.3.1
+which cmcarc
+
 export SEQ_EXP_HOME=$(dirname $(true_path ${0}))
 unittests=${*}
 

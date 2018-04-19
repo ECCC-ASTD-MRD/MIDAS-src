@@ -1,9 +1,44 @@
+variables:
+    # CI_DEBUG_TRACE: "true"
+    MIDAS_ABS: /home/erv000/data_maestro/ords/midas/gitlab-ci/abs
+
+stages:
+   - build
+   - test
+   - doc
+
+## The program 'gitlab-runner' must be found in the PATH to get the artifacts collecting working.
+#before_script:
+#    - ln -svf /home/sidr000/bin/gitlab-ci-multi-runner-linux-amd64 ${TMPDIR}/bin
+#    - ln -svf gitlab-ci-multi-runner-linux-amd64 ${TMPDIR}/bin/gitlab-runner
+
+build:
+  stage: build
+  script:
+    - cd src/programs
+    - ./compile_all_plat.sh $MIDAS_ABS
+
+runtests:
+   stage: test
+   variables:
+     SEQ_MAESTRO_SHORTCUT: ". ssmuse-sh -d eccc/cmo/isst/maestro/1.5.1-rc21"
+   script:
+     - . ssmuse-sh -d eccc/cmd/cmda/maestro/dev/2.11
+     - cd maestro/suites/midas_system_tests
+     - suite=midas-$(echo ${CI_BUILD_REF} | cut -c-10)
+     - ./install_suite.sh $suite run $MIDAS_ABS
+     - ./wait4tests.sh $suite
+     - ./collect_unittest_listings
+     - clean_suite $suite
+     - rm ~/.suites/${suite}
+
 doc:
+  stage: doc
   variables:
     docname: $CI_BUILD_REF_NAME-$CI_BUILD_REF
     midasdoc: /home/erv000/public_html/midas-doc
   script:
-  - scripts/create_f90doc.sh ${PWD}/src $midasdoc/$docname
+  - scripts/create_f90doc.sh $CI_PROJECT_DIR/src $midasdoc/$docname
   - rm -fv $midasdoc/latest
   - ln -sv $midasdoc/$docname $midasdoc/latest
   only:
