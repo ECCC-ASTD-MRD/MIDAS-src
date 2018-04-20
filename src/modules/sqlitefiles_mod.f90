@@ -178,9 +178,9 @@ subroutine sqlf_readFile(obsdat,fileName,familyType,fileIndex)
   
   ! debug:******************************
   logical, parameter :: ldebug =.false.
-  integer :: bodyIndex,headerIndex,varno,iqiv,igav,ilansea,azimuth,inst,ifov,clf,saz,idsat,roqc
+  integer :: bodyIndex,headerIndex,varno,iqiv,igav,ilansea,azimuth,inst,ifov,clf,saz,idsat,roqc,id_obs
   character*9 :: stid_l
-  real    :: lat,lon,alt,var,channel,ealoc,geoun
+  real    :: lat,lon,alt,var,channel,ealoc,geoun,sigmao,omp,oma
   !*************************************
 
   write(*,*)' '
@@ -201,9 +201,9 @@ subroutine sqlf_readFile(obsdat,fileName,familyType,fileIndex)
     write(*,*)'SSN: debug!!!'
     call filt_sethind_util(obsdat)
     write(*,*)'SSN: writing  headerIndex,stid,lon,lat,alt,var...', mpi_myid
-    do bodyIndex = ibeg, iend
+    do bodyIndex = 1, iend
       headerIndex = obs_bodyElem_i(obsdat, OBS_HIND,   bodyIndex)
-      if ( obs_headElem_i(obsdat, OBS_ONM, headerIndex) /= 0 ) cycle
+      !if ( obs_headElem_i(obsdat, OBS_ONM, headerIndex) /= 0 ) cycle
       stid_l      = obs_Elem_c(obsdat, 'STID',  headerIndex)
       lat         = obs_headElem_r(obsdat, OBS_LAT,  headerIndex)
       lon         = obs_headElem_r(obsdat, OBS_LON,  headerIndex)
@@ -223,9 +223,14 @@ subroutine sqlf_readFile(obsdat,fileName,familyType,fileIndex)
       roqc        = obs_headElem_i(obsdat, OBS_ROQF, headerIndex) 
       geoun       = obs_headElem_r(obsdat, OBS_GEOI, headerIndex)
       ealoc       = obs_headElem_r(obsdat, OBS_TRAD, headerIndex)
+      sigmao      = obs_bodyElem_r(obsdat, OBS_OER,    bodyIndex)
+      omp         = obs_bodyElem_r(obsdat, OBS_OMP,    bodyIndex)
+      oma         = obs_bodyElem_r(obsdat, OBS_OMA,    bodyIndex)
+      id_obs      = obs_headElem_i(obsdat, OBS_IDO,  headerIndex)
       !write(100+mpi_myid,'(a6,5f12.4,10i8)') trim(stid_l),lon,lat,alt,channel,var,varno,iqiv,igav,ilansea,azimuth,inst,clf,saz,idsat,roqc
-       write(*,'(a6,5f12.4,11i8)') trim(stid_l),lon,lat,alt,channel,var,varno,iqiv,igav,ilansea,azimuth,inst,clf,saz,idsat,roqc,headerIndex
-     !write(100+mpi_myid,'(a6,5f12.4,11i8,2f12.4)') trim(stid_l),lon,lat,alt,channel,var,varno,iqiv,igav,ilansea,azimuth,inst,ifov,clf,saz,idsat,roqc,ealoc,geoun
+       !write(*,'(a6,5f12.4,11i8)') trim(stid_l),lon,lat,alt,channel,var,varno,iqiv,igav,ilansea,azimuth,inst,clf,saz,idsat,roqc,headerIndex
+      write(100+mpi_myid,'(a6,8f12.4,3i8)') trim(stid_l),lon,lat,alt,channel,var,sigmao,omp,oma,varno,id_obs,headerIndex
+      !write(100+mpi_myid,'(a6,5f12.4,11i8,2f12.4)') trim(stid_l),lon,lat,alt,channel,var,varno,iqiv,igav,ilansea,azimuth,inst,ifov,clf,saz,idsat,roqc,ealoc,geoun
       !write(100+mpi_myid,'(a6,7f12.4,3i8)') trim(stid_l),lon,lat,alt,channel,var,ealoc,geoun,azimuth,idsat,roqc
     enddo
     write(*,*)'SSN: DONE', mpi_myid

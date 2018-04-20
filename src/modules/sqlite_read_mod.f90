@@ -75,7 +75,7 @@ contains
 
   subroutine SAVE_INFO_HEADER( obsdat, rdb4_schema, FamilyType, nobs, elev, id_sat, azimuth, geoid_undulation &
                              , earth_local_rad_curv, ro_qc_flag, instrument, zenith, cloud_cover, solar_zenith &
-                             , solar_azimuth, land_sea, id_obs, lat, lon, codtyp,date, time, status, id_stn )
+                             , solar_azimuth, land_sea, id_obs, lat, lon, codtyp,date, time, status, id_stn, verbose )
   ! Purpose: aux.routine to save GEN_INFO and GEN_HEADER, routines by P. Koclas, CMC/CMDA
   ! Author: Sergey Skachko, ARMA, April 2018
   implicit none
@@ -86,10 +86,16 @@ contains
   integer,intent(in)                :: nobs,id_obs,codtyp,date,time,status, azimuth, land_sea, ro_qc_flag
   integer,            intent(in)    :: id_sat, instrument, zenith, cloud_cover, solar_zenith, solar_azimuth
   real(obs_real),     intent(in)    :: geoid_undulation, earth_local_rad_curv, elev, lat, lon
+  logical,intent(in),optional       :: verbose
+
   character(len=*), parameter :: my_name = 'SAVE_INFO_HEADER'
   character(len=*), parameter :: my_warning = '****** '// my_name //' WARNING: '
   character(len=*), parameter :: my_error   = '******** '// my_name //' ERROR: '
  
+  if(present(verbose)) then
+    write(*,'(3a8,5i8,3f12.4)') trim(FamilyType),trim(rdb4_schema), trim(id_stn),nobs,id_obs,codtyp,date,time,lat,lon,elev
+  endif
+
   call obs_setFamily( obsdat, trim(FamilyType), nobs      )
   call obs_headSet_i( obsdat, OBS_IDO, nobs, id_obs       )       
   call obs_headSet_i( obsdat, OBS_ONM, nobs, nobs         )
@@ -188,7 +194,7 @@ contains
    character*10             :: CHTIME
    character*512            :: QUERY,QUERY_DAT,QUERY_HDR
    character*256            :: CFG,CSQLCRIT,COLUMNS_HDR,COLUMNS_DAT
-   logical                  :: finished
+   logical                  :: finished,verbose
    real, allocatable        :: matdata(:,:)
    type(fSQL_DATABASE)      :: db         ! type for SQLIte  file handle
    type(fSQL_STATEMENT)     :: stmt,stmt2 ! type for precompiled SQLite statements
@@ -539,14 +545,19 @@ contains
       if ( nobs > 1 ) then
          LN = obs_headElem_i(obsdat,OBS_RLN,nobs-1) +  obs_headElem_i(obsdat,OBS_NLV,nobs-1)
          call obs_headSet_i(obsdat,OBS_RLN,nobs,LN)
-      endif
+      endif   
+      if ( last_id > nrows) &
+      call SAVE_INFO_HEADER( obsdat, rdb4_schema, FamilyType, nobs, relev, id_sat, azimuth, geoid_undulation &
+                        , earth_local_rad_curv, ro_qc_flag, instrument, zenith, cloud_cover, solar_zenith &
+                        , solar_azimuth, land_sea, id_obs, xlat, xlon, codtyp,date, time/100, status, id_stn, verbose =.true. )
+
    else
       nobs=nobs-1
    endif
-   if ( last_id > nrows) &
-   call SAVE_INFO_HEADER( obsdat, rdb4_schema, FamilyType, nobs, relev, id_sat, azimuth, geoid_undulation &
-                        , earth_local_rad_curv, ro_qc_flag, instrument, zenith, cloud_cover, solar_zenith &
-                        , solar_azimuth, land_sea, id_obs, xlat, xlon, codtyp,date, time/100, status, id_stn )
+   !if ( last_id > nrows) &
+   !call SAVE_INFO_HEADER( obsdat, rdb4_schema, FamilyType, nobs, relev, id_sat, azimuth, geoid_undulation &
+   !                     , earth_local_rad_curv, ro_qc_flag, instrument, zenith, cloud_cover, solar_zenith &
+   !                     , solar_azimuth, land_sea, id_obs, xlat, xlon, codtyp,date, time/100, status, id_stn, verbose =.true. )
   END DO HEADER ! HEADER
   
   deallocate(matdata)
