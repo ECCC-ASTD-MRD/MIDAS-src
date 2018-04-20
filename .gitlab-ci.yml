@@ -17,6 +17,8 @@ build:
   script:
     - cd src/programs
     - ./compile_all_plat.sh $MIDAS_ABS
+  only:
+    - master
 
 runtests:
    stage: test
@@ -31,6 +33,8 @@ runtests:
      - ./collect_unittest_listings
      - clean_suite $suite
      - rm ~/.suites/${suite}
+   only:
+     - master
 
 doc:
   stage: doc
