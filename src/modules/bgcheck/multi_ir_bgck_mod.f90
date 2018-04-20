@@ -203,6 +203,10 @@ contains
       isens = tvs_lsensor(jo)
       nc = tvs_nchan(isens)
       nl = tvs_coefs(isens) % coef % nlevels
+ ! allocate clear sky radiance output
+      allocate( tvs_radiance(jo)  % clear  ( nc ) ,stat= alloc_status(2) )
+      tvs_radiance(jo)  % clear  ( : ) = 0.d0
+ !  allocate overcast black cloud sky radiance output
       allocate( tvs_radiance(jo)  % overcast  (nl - 1,nc), stat=alloc_status(1))
       call utl_checkAllocationStatus(alloc_status(1:1), " irbg_setup")
       tvs_radiance(jo)  % overcast  (:,:) = 0.d0
@@ -1994,28 +1998,6 @@ contains
     end do
 
   end subroutine calcbt
-
-  real (8) function dplanck(nu,t,offset,slope)
-!    fonction de planck en double precision
-!    nu en cm-1 t en Kelvin  planck en Watt / ( m2 strd cm-1 )
-!    c en m/s  h en J.s  k en J/K
-    implicit none
-    real (8),intent(in) :: nu,t,offset,slope
-    real (8) :: nu0,tt
-    real (8) ,parameter :: c=299792458.d0
-    real (8) ,parameter :: k=1.3806505D-23
-    real (8) ,parameter :: h=6.62606876D-34
-    real (8) ,parameter :: scale=100.d0
-   
-    dplanck = -1.d0
-
-    if (t > 0.d0) then
-      nu0 = nu * scale
-      tt = t * slope + offset
-      dplanck = scale * 2.d0 * h * c**2 * nu0**3/(exp(h * c / k * nu0 / tt) - 1.d0)
-    end if
-    
-  end function dplanck
 
   subroutine stat_avhrr(avhrr)
     ! calcul de statistiques
