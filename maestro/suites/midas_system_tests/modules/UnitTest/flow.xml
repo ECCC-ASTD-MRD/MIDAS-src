@@ -1,7 +1,7 @@
 <MODULE name="UnitTest">
-  <SUBMITS sub_name="getInputs"/>
+  <SUBMITS sub_name="get"/>
 
-  <TASK  name="getInputs">
+  <TASK  name="get">
     <SUBMITS sub_name="run"/>
   </TASK>
 
@@ -10,12 +10,12 @@
   </TASK>
 
   <TASK name="download">
-    <SUBMITS sub_name="check_results"/>
+    <SUBMITS sub_name="check"/>
   </TASK>
 
-  <TASK name="check_results">
-    <SUBMITS sub_name="clean_test"/>
+  <TASK name="check">
+    <SUBMITS sub_name="clean"/>
   </TASK>
 
-  <TASK name="clean_test"/>
+  <TASK name="clean"/>
 </MODULE>
