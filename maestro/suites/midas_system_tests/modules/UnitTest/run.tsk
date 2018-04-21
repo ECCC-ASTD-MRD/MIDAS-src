@@ -65,7 +65,34 @@ else
     cmd=${RUN_PGM}
 fi
 
+SECONDS=0
 ${TASK_BIN}/r.run_in_parallel -pgm ${cmd} -npex ${SEQ_NPEX} -npey ${SEQ_NPEY} -processorder -tag -nocleanup -verbose -tmpdir ${PWD}/mpitmpdir ${run_in_parallel_extra_args} -args ${UnitTest_run_pgm_args}
+RUNTIME=${SECONDS}
+
+${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "The runtime was ${RUNTIME} seconds."
+if [ -n "${UnitTest_maximum_expected_runtime}" ]; then
+    function parse_time {
+        set -e
+        __parse_time__=$1
+        if [[ "${__parse_time__}" == *:*:* ]]; then
+            __parse_time_seconds__=$(echo ${__parse_time__} | awk -F: '{print 3600*$1 + 60*$2 + $3}')
+        elif [[ "${__parse_time__}" == *:* ]]; then
+            __parse_time_seconds__=$(echo ${__parse_time__} | awk -F: '{print 60*$1 + $2}')
+        else
+            __parse_time_seconds__=${__parse_time__}
+        fi
+        unset __parse_time__
+
+        echo ${__parse_time_seconds__}
+        unset __parse_time_seconds__
+    }
+
+    expected_seconds=$(parse_time ${UnitTest_maximum_expected_runtime})
+
+    if [[ ${RUNTIME} > ${expected_seconds} ]]; then
+        ${SEQ_BIN}/nodelogger -n ${SEQ_NODE} -s info -m "The runtime was ${RUNTIME} seconds which is greater than the maximum allowed ${UnitTest_maximum_expected_runtime}"
+    fi
+fi
 
 ## remove inputs
 for file in ${TASK_INPUT}/inputs/*; do
