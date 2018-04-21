@@ -1,0 +1,85 @@
+#!/bin/ksh
+
+updated_results=$(${TASK_BIN}/readlink ${TASK_OUTPUT}/updated_results)
+if [ -d "${updated_results}" ]; then
+    echo "The directory '${updated_results}' already exists!"
+    exit 1
+fi
+mkdir ${updated_results}
+
+reference=$(${TASK_BIN}/readlink ${TASK_INPUT}/results)
+
+## link inputs from previous reference:
+id=${reference##*/}
+for file in ${reference}/inputs*.ca; do
+    bfile=${file##*/}
+    ofile=${TASK_OUTPUT}/updated_results/${bfile}
+    if [ -f "${ofile}" ]; then
+        echo "The input file '${ofile}' already exist!"
+        exit 1
+    fi
+    if [ -n "${UnitTest_reference_update}" ]; then
+        ln -sv ${file} ${ofile}
+    else
+        ln -sv ../${id}/${bfile} ${ofile}
+    fi
+done
+
+mkdir live_results
+cd live_results
+for file in $(cd ${TASK_INPUT}/live_results; find . -type f); do
+    if [[ "${file}" = */* ]]; then
+        dfile=${file%/*}
+        [ ! -d "${dfile}" ] && mkdir -p ${dfile}
+    fi
+    ln -s ${TASK_INPUT}/live_results/${file} ${file}
+done
+
+for result in ${TASK_INPUT}/results/results*.ca; do
+    bresult=../${result##*/}
+    if [ -f "${bresult}" ]; then
+        echo "The file '${bresult}' already exists!"
+        exit 1
+    fi
+    for file in $(${TASK_BIN}/cmcarc -f ${result} -t); do
+        if [ -L ${file} ]; then
+            ${TASK_BIN}/cmcarc -f ${bresult} --dereference -v -a ${file}
+            rm ${file}
+        else
+            echo "The file is not in the 'live_results'"
+            exit 1
+        fi
+    done
+done
+
+if [ -n "$(find . -type l)" ]; then
+    echo "Not all files have been archived!"
+    echo "Here are the files left in the working directory."
+    ls -l
+    exit 1
+fi
+
+cd ..
+
+## collect the listings
+tasks=$(${SEQ_BIN}/nodeinfo -n ${SEQ_NODE} | awk -F= '/^node\.sibling=/ {print $2}' | grep -v clean)
+for task in ${tasks}; do
+    nodename=${SEQ_CONTAINER}/${task}
+    filename=$(echo ${nodename} | cut -c2- | sed 's!/!\.!g')
+    ${TASK_BIN}/nodelister -n ${nodename} -d ${ExpDate} > ${filename}
+    ${TASK_BIN}/cmcarc -f listings.ca -a ${filename}
+    rm ${filename}
+done
+
+for file in results*.ca listings.ca; do
+    ofile=${updated_results}/${file}
+    if [ -f "${ofile}" ]; then
+        echo "The file '${ofile}' already exists!"
+        exit 1
+    fi
+    cp ${file} ${ofile}
+    chmod -wx ${ofile}
+done
+
+$SEQ_BIN/nodelogger -n $SEQ_NODE -s info -m "You can update the configuration file '${UNITTEST_PGM_CFG}' with:"
+$SEQ_BIN/nodelogger -n $SEQ_NODE -s info -m "    UnitTest_reference=${updated_results}"

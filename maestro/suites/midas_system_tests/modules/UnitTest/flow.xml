@@ -17,5 +17,9 @@
     <SUBMITS sub_name="clean"/>
   </TASK>
 
-  <TASK name="clean"/>
+  <TASK name="clean">
+    <SUBMITS sub_name="update"/>
+  </TASK>
+
+  <TASK name="update"/>
 </MODULE>
