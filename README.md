@@ -23,6 +23,17 @@ cd src/programs
 yes '' | ./compile_all.sh
 ```
 
+## Compiling all programs on both platforms
+
+A script, `compile_all_plat.sh`, has been written to compile all
+programs of this project on supported platforms:
+`ubuntu-14.04-amd64-64` and `sles-11-broadwell-64-xc40`.  The
+compiling is done in parallel.  You can call it with:
+```bash
+cd src/programs
+./compile_all_plat.sh
+```
+
 # MIDAS test suite
 
 You can install a maestro suite with a serie of tests to evaluate the
