@@ -46,7 +46,7 @@ program midas_diagBmatrix
   type(struct_hco), pointer :: hco_core => null()
   type(struct_vco), pointer :: vco_anl => null()
   type(struct_loc), pointer :: locInfo => null()
-  type(struct_adv)  :: adv_amplitudeAnlWindow
+  type(struct_adv)  :: adv_amplitudeAssimWindow
 
   real(8), pointer :: field4d(:,:,:,:)
   real(8), pointer :: field3d(:,:,:)
@@ -318,14 +318,14 @@ program midas_diagBmatrix
     !- Compute columns of the L matrix
     !
     numLoc = loc_getNumLocActive()
-    numStepAmplitude = ben_getNumStepAmplitudeAnlWindow()
-    amp3dStepIndex   = ben_getAmp3dStepIndexAnlWindow()
+    numStepAmplitude = ben_getNumStepAmplitudeAssimWindow()
+    amp3dStepIndex   = ben_getAmp3dStepIndexAssimWindow()
 
     if (numStepAmplitude > 1) then
       allocate(datestampList(numStepAmplitude))
       call tim_getstamplist(dateStampList,numStepAmplitude,tim_getDatestamp())
       nEns = ben_getnEns()
-      adv_amplitudeAnlWindow = ben_getAmplitudeAnlWindow()
+      adv_amplitudeAssimWindow = ben_getAmplitudeAssimWindow()
     else
       allocate(datestampList(1))
       datestampList(1) = dateStamp
@@ -354,8 +354,12 @@ program midas_diagBmatrix
       write(*,*) 'number of longitudes =',nlons
       write(*,*) 'number of latitudes  =',nlats
 
-      write(locIndexString,'(i1)') locIndex
-      filename = 'columnL_' // trim(locInfo%locType) // '_' // locIndexString // '_' // datestr // '.fst'
+      if (numLoc > 1) then
+        write(locIndexString,'(i1)') locIndex
+        filename = 'columnL_' // trim(locInfo%locType) // '_' // locIndexString // '_' // datestr // '.fst'
+      else
+        filename = 'columnL_' // trim(locInfo%locType) // '_' // datestr // '.fst'
+      end if
 
       ip3 = 0
       do levIndex = 1, nlevs2
@@ -371,6 +375,11 @@ program midas_diagBmatrix
             end if
             controlVector(:)=0.0d0
 
+            if (numStepAmplitude > 1) then
+              call adv_ensemble_ad( ensAmplitude,                 & ! INOUT
+                                    adv_amplitudeAssimWindow, nEns )  ! IN
+            end if
+
             call loc_LsqrtAd(locIndex,      & ! IN
                              ensAmplitude,  & ! IN
                              controlVector, & ! OUT
@@ -382,7 +391,7 @@ program midas_diagBmatrix
 
             if (numStepAmplitude > 1) then
               call adv_ensemble_tl( ensAmplitude,                 & ! INOUT
-                                    adv_amplitudeAnlWindow, nEns )  ! IN
+                                    adv_amplitudeAssimWindow, nEns )  ! IN
             end if
 
             write(*,*)'midas-diagBmatrix: writing out the column of L, levIndex,lonIndex,latIndex=',levIndex,lonIndex,latIndex

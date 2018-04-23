@@ -49,8 +49,8 @@ MODULE BmatrixEnsemble_mod
   public :: ben_Setup, ben_BSqrt, ben_BSqrtAd, ben_writeAmplitude
   public :: ben_reduceToMPILocal, ben_reduceToMPILocal_r4, ben_expandToMPIGlobal, ben_expandToMPIGlobal_r4
   public :: ben_getScaleFactor, ben_getnEns, ben_getPerturbation, ben_getEnsMean, ben_Finalize
-  public :: ben_setFsoLeadTime, ben_getNumStepAmplitudeAnlWindow, ben_getAmplitudeAnlWindow
-  public :: ben_getAmp3dStepIndexAnlWindow
+  public :: ben_setFsoLeadTime, ben_getNumStepAmplitudeAssimWindow, ben_getAmplitudeAssimWindow
+  public :: ben_getAmp3dStepIndexAssimWindow
 
   logical             :: initialized = .false.
 
@@ -64,8 +64,8 @@ MODULE BmatrixEnsemble_mod
   integer             :: topLevIndex_M,topLevIndex_T
   integer             :: nEnsOverDimension
   integer             :: cvDim_mpilocal,cvDim_mpiglobal
-  integer             :: numStep, numStepAnlWindow
-  integer             :: numStepAmplitudeFSOFcst, numStepAmplitudeAnlWindow, numStepAdvectAnlWindow
+  integer             :: numStep, numStepAssimWindow
+  integer             :: numStepAmplitudeFSOFcst, numStepAmplitudeAssimWindow, numStepAdvectAssimWindow
   integer             :: numSubEns
   integer,allocatable :: dateStampList(:)
   integer,allocatable :: dateStampListAmplitude(:)
@@ -104,15 +104,15 @@ MODULE BmatrixEnsemble_mod
   type(struct_hco), pointer :: hco_file ! Input file horizontal grid parameters
 
   ! Amplitude parameters
-  character(len=32) :: advectTypeAnlWindow
-  character(len=32) :: advectStartTimeIndexAnlWindow
+  character(len=32) :: advectTypeAssimWindow
+  character(len=32) :: advectStartTimeIndexAssimWindow
 
   type(struct_adv)  :: adv_amplitudeFSOFcst
-  type(struct_adv)  :: adv_amplitudeAnlWindow
+  type(struct_adv)  :: adv_amplitudeAssimWindow
   type(struct_adv)  :: adv_ensPerts
   type(struct_adv)  :: adv_analInc
 
-  integer           :: amp3dStepIndexAnlWindow
+  integer           :: amp3dStepIndexAssimWindow
   integer           :: amp3dStepIndexFSOFcst
 
   ! Namelist variables
@@ -128,7 +128,7 @@ MODULE BmatrixEnsemble_mod
   logical             :: diagnostic
   character(len=2)    :: ctrlVarHumidity
   logical             :: advectAmplitudeFSOFcst
-  logical             :: advectAmplitudeAnlWindow
+  logical             :: advectAmplitudeAssimWindow
   logical             :: removeSubEnsMeans
   logical             :: keepAmplitude
   character(len=4)    :: IncludeAnlVar(vnl_numvarmax)
@@ -157,7 +157,7 @@ CONTAINS
 
     real(8) :: pSurfRef, delT_hour
     real(8) :: advectFactorFSOFcst
-    real(8) :: advectFactorAnlWindow
+    real(8) :: advectFactorAssimWindow
 
     real(8),pointer :: pressureProfileEns_M(:), pressureProfileFile_M(:), pressureProfileInc_M(:)
 
@@ -175,8 +175,8 @@ CONTAINS
     !namelist
     NAMELIST /NAMBEN/nEns,scaleFactor,scaleFactorHumidity,ntrunc,enspathname, &
          hLocalize,vLocalize,LocalizationType,waveBandPeaks, &
-         diagnostic,ctrlVarHumidity,advectFactorFSOFcst,advectFactorAnlWindow,&
-         removeSubEnsMeans, keepAmplitude, advectTypeAnlWindow, advectStartTimeIndexAnlWindow, IncludeAnlVar
+         diagnostic,ctrlVarHumidity,advectFactorFSOFcst,advectFactorAssimWindow,&
+         removeSubEnsMeans, keepAmplitude, advectTypeAssimWindow, advectStartTimeIndexAssimWindow, IncludeAnlVar
 
     if (verbose) write(*,*) 'Entering ben_Setup'
 
@@ -201,9 +201,9 @@ CONTAINS
     vLocalize(1)          =    2.0d0
     ctrlVarHumidity       = 'LQ'
     advectFactorFSOFcst   =   0.0D0
-    advectTypeAnlWindow   = 'amplitude'
-    advectStartTimeIndexAnlWindow = 'first'
-    advectFactorAnlWindow =   0.0D0
+    advectTypeAssimWindow   = 'amplitude'
+    advectStartTimeIndexAssimWindow = 'first'
+    advectFactorAssimWindow =   0.0D0
     removeSubEnsMeans     = .false.
     keepAmplitude         = .false. 
 
@@ -254,7 +254,7 @@ CONTAINS
     end if
 
     !- for FSO
-    numStepAnlWindow = numStep
+    numStepAssimWindow = numStep
     if (fsoLeadTime > 0.0D0) then
       numStep = numStep + 1
       call incdatr(dateStampFSO, tim_getDatestamp(), fsoLeadTime)
@@ -546,15 +546,15 @@ CONTAINS
       end if
     end if
 
-    !- 3.4 Pre-compute everything for advection in ANALYSIS mode
-    if ( advectFactorAnlWindow == 0.0D0 .or. numStep == 1) then
+    !- 3.3 Pre-compute everything for advection in ANALYSIS mode
+    if ( advectFactorAssimWindow == 0.0D0 .or. numStep == 1) then
       if (mpi_myid == 0) write(*,*) 'ben_setup: advection not activated in ANALYSIS mode'
-      advectAmplitudeAnlWindow = .false.
-      numStepAmplitudeAnlWindow = 1
-      amp3dStepIndexAnlWindow   = 1
+      advectAmplitudeAssimWindow = .false.
+      numStepAmplitudeAssimWindow = 1
+      amp3dStepIndexAssimWindow   = 1
     else
       if (mpi_myid == 0) write(*,*) 'ben_setup: advection activated in ANALYSIS mode'
-      if ( trim(advectTypeAnlWindow) /= 'amplitude' ) then
+      if ( trim(advectTypeAssimWindow) /= 'amplitude' ) then
         call utl_abort('ben_setup: only type=AMPLITUDE is currently supported')
       end if
       delT_hour                 = tim_dstepobsinc
@@ -567,27 +567,27 @@ CONTAINS
                            ensMean4D  )   ! OUT
 
       call tmg_start(136,'BEN_SETUP_ADVEC_ANL')
-      if ( trim(advectTypeAnlWindow) == 'amplitude' ) then
-        advectAmplitudeAnlWindow  = .true.
-        numStepAmplitudeAnlWindow = numStep
-        numStepAdvectAnlWindow    = numStep
+      if ( trim(advectTypeAssimWindow) == 'amplitude' ) then
+        advectAmplitudeAssimWindow  = .true.
+        numStepAmplitudeAssimWindow = numStep
+        numStepAdvectAssimWindow    = numStep
 
-        select case(trim(advectStartTimeIndexAnlWindow))
+        select case(trim(advectStartTimeIndexAssimWindow))
         case ('first')
           direction='fromFirstTimeIndex'
-          amp3dStepIndexAnlWindow = 1
+          amp3dStepIndexAssimWindow = 1
         case ('middle')
           direction='fromMiddleTimeIndex'
-          amp3dStepIndexAnlWindow = (numStepAmplitudeAnlWindow+1)/2
+          amp3dStepIndexAssimWindow = (numStepAmplitudeAssimWindow+1)/2
         case default
           write(*,*)
-          write(*,*) 'Unsupported starting timeIndex : ', trim(advectStartTimeIndexAnlWindow)
+          write(*,*) 'Unsupported starting timeIndex : ', trim(advectStartTimeIndexAssimWindow)
           call utl_abort('adv_setup')
         end select
-        call adv_setup( adv_amplitudeAnlWindow,                                   & ! OUT
+        call adv_setup( adv_amplitudeAssimWindow,                                   & ! OUT
                         direction, hco_ens, vco_ens,                              & ! IN
-                        numStepAmplitudeAnlWindow, dateStampListAmplitude,        & ! IN
-                        numStepAdvectAnlWindow, delT_hour, advectFactorAnlWindow, & ! IN
+                        numStepAmplitudeAssimWindow, dateStampListAmplitude,        & ! IN
+                        numStepAdvectAssimWindow, delT_hour, advectFactorAssimWindow, & ! IN
                         statevector_referenceFlow_opt = ensMean4D )                 ! IN
       end if
       call tmg_stop(136)
@@ -618,7 +618,7 @@ CONTAINS
     if (keepAmplitude) then
       write(*,*)
       write(*,*) 'ben_setup: ensAmplitude fields will be store for potential write to file'
-      call ens_allocate(ensAmplitudeStorage, nEns, numStepAmplitudeAnlWindow, hco_ens, vco_ens, dateStampList, &
+      call ens_allocate(ensAmplitudeStorage, nEns, numStepAmplitudeAssimWindow, hco_ens, vco_ens, dateStampList, &
            varNames_opt=varNameALFA, dataKind_opt=8)
     end if
 
@@ -1321,8 +1321,8 @@ CONTAINS
       numStepAmplitude = numStepAmplitudeFSOFcst
       amp3dStepIndex   = amp3dStepIndexFSOFcst
     else
-      numStepAmplitude =  numStepAmplitudeAnlWindow
-      amp3dStepIndex   = amp3dStepIndexAnlWindow
+      numStepAmplitude =  numStepAmplitudeAssimWindow
+      amp3dStepIndex   = amp3dStepIndexAssimWindow
     end if
     call ens_allocate(ensAmplitude_M, nEnsOverDimension, numStepAmplitude, hco_ens, vco_ens, dateStampList, &
                       varNames_opt=varNameALFA, dataKind_opt=8)
@@ -1340,10 +1340,10 @@ CONTAINS
         call adv_ensemble_tl( ensAmplitude_M,              & ! INOUT
                               adv_amplitudeFSOFcst, nEns )   ! IN
         call tmg_stop(131)
-      else if (advectAmplitudeAnlWindow .and. .not. useFSOFcst) then
+      else if (advectAmplitudeAssimWindow .and. .not. useFSOFcst) then
         call tmg_start(133,'BEN_ADVEC_AMP_ANL_TL')
         call adv_ensemble_tl( ensAmplitude_M,              & ! INOUT
-                              adv_amplitudeAnlWindow, nEns ) ! IN
+                              adv_amplitudeAssimWindow, nEns ) ! IN
         call tmg_stop(133)
       end if
 
@@ -1430,8 +1430,8 @@ CONTAINS
       numStepAmplitude = numStepAmplitudeFSOFcst
       amp3dStepIndex   = amp3dStepIndexFSOFcst
     else
-      numStepAmplitude = numStepAmplitudeAnlWindow
-      amp3dStepIndex   = amp3dStepIndexAnlWindow
+      numStepAmplitude = numStepAmplitudeAssimWindow
+      amp3dStepIndex   = amp3dStepIndexAssimWindow
     end if
     call ens_allocate(ensAmplitude_M, nEnsOverDimension, numStepAmplitude, hco_ens, vco_ens, dateStampList, &
                       varNames_opt=varNameALFA, dataKind_opt=8)
@@ -1447,10 +1447,10 @@ CONTAINS
         call adv_ensemble_ad( ensAmplitude_M,              & ! INOUT
                               adv_amplitudeFSOFcst, nEns )   ! IN
         call tmg_stop(132)
-      else if (advectAmplitudeAnlWindow .and. .not. useFSOFcst) then
+      else if (advectAmplitudeAssimWindow .and. .not. useFSOFcst) then
         call tmg_start(134,'BEN_ADVEC_AMP_ANL_AD')
         call adv_ensemble_ad( ensAmplitude_M,              & ! INOUT
-                              adv_amplitudeAnlWindow, nEns ) ! IN
+                              adv_amplitudeAssimWindow, nEns ) ! IN
         call tmg_stop(134)
       end if
 
@@ -1512,12 +1512,12 @@ CONTAINS
       if (mpi_myid == 0) write(*,*) 'ben_bsqrtad: using forecast ensemble stored at timestep ',stepEnd
     else
       stepBeg = 1
-      stepEnd = numStepAnlWindow
+      stepEnd = numStepAssimWindow
     end if
     if (useFSOFcst) then
       numStepAmplitude =  numStepAmplitudeFSOFcst
     else
-      numStepAmplitude =  numStepAmplitudeAnlWindow
+      numStepAmplitude =  numStepAmplitudeAssimWindow
     end if
     
     allocate(ensAmplitude_MT(nEns,numStepAmplitude,myLonBeg:myLonEnd,myLatBeg:myLatEnd))
@@ -1582,7 +1582,7 @@ CONTAINS
             stepIndex2 = stepIndex - stepBeg + 1
             if      (advectAmplitudeFSOFcst   .and. useFSOFcst) then
               stepIndex_amp = 2
-            else if (advectAmplitudeAnlWindow .and. .not. useFSOFcst) then
+            else if (advectAmplitudeAssimWindow .and. .not. useFSOFcst) then
               stepIndex_amp = stepIndex
             else
               stepIndex_amp = 1
@@ -1668,12 +1668,12 @@ CONTAINS
       if (mpi_myid == 0) write(*,*) 'ben_bsqrtad: using forecast ensemble stored at timestep ',stepEnd
     else
       stepBeg = 1
-      stepEnd = numStepAnlWindow
+      stepEnd = numStepAssimWindow
     end if
     if (useFSOFcst) then
       numStepAmplitude =  numStepAmplitudeFSOFcst
     else
-      numStepAmplitude =  numStepAmplitudeAnlWindow
+      numStepAmplitude =  numStepAmplitudeAssimWindow
     end if
 
     allocate(ensAmplitude_MT(nEns,numStepAmplitude))
@@ -1726,7 +1726,7 @@ CONTAINS
             stepIndex2 = stepIndex-StepBeg+1
             if      (advectAmplitudeFSOFcst   .and. useFSOFcst) then
               stepIndex_amp = 2
-            else if (advectAmplitudeAnlWindow .and. .not. useFSOFcst) then
+            else if (advectAmplitudeAssimWindow .and. .not. useFSOFcst) then
               stepIndex_amp = stepIndex
             else
               stepIndex_amp = 1
@@ -1924,36 +1924,36 @@ CONTAINS
   END SUBROUTINE ben_setFsoLeadTime
 
   !--------------------------------------------------------------------------
-  ! ben_getNumStepAmplitudeAnlWindow
+  ! ben_getNumStepAmplitudeAssimWindow
   !--------------------------------------------------------------------------
-  function ben_getNumStepAmplitudeAnlWindow() result(numStepAmplitude)
+  function ben_getNumStepAmplitudeAssimWindow() result(numStepAmplitude)
     implicit none
     integer numStepAmplitude
 
-    numStepAmplitude = numStepAmplitudeAnlWindow
+    numStepAmplitude = numStepAmplitudeAssimWindow
 
-  end function ben_getNumStepAmplitudeAnlWindow
+  end function ben_getNumStepAmplitudeAssimWindow
 
   !--------------------------------------------------------------------------
-  ! ben_getAmplitudeAnlWindow
+  ! ben_getAmplitudeAssimWindow
   !--------------------------------------------------------------------------
-  function ben_getAmplitudeAnlWindow() result(adv_amplitude)
+  function ben_getAmplitudeAssimWindow() result(adv_amplitude)
     implicit none
     type(struct_adv)  :: adv_amplitude
 
-    adv_amplitude = adv_amplitudeAnlWindow
+    adv_amplitude = adv_amplitudeAssimWindow
 
-  end function ben_getAmplitudeAnlWindow
+  end function ben_getAmplitudeAssimWindow
 
   !--------------------------------------------------------------------------
-  ! ben_getAmp3dStepIndexAnlWindow
+  ! ben_getAmp3dStepIndexAssimWindow
   !--------------------------------------------------------------------------
-  function ben_getAmp3dStepIndexAnlWindow() result(stepIndex)
+  function ben_getAmp3dStepIndexAssimWindow() result(stepIndex)
     implicit none
     integer  :: stepIndex
 
-    stepIndex = amp3dStepIndexAnlWindow
+    stepIndex = amp3dStepIndexAssimWindow
 
-  end function ben_getAmp3dStepIndexAnlWindow
+  end function ben_getAmp3dStepIndexAssimWindow
 
 END MODULE BMatrixEnsemble_mod
