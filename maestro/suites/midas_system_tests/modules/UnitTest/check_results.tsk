@@ -81,8 +81,8 @@ AX      E-MOY" | grep -v "^  \*\*   SKIPPING RECORD \"!!\", CAN'T COMPARE  \*\*$
 	    status=0
 	    diff ${full_file} ${file2} > /dev/null || status=1
 	    if [ "${status}" -ne 0 ]; then
-		${TASK_BIN}/liburp ${full_file} > file1.${file}
-		${TASK_BIN}/liburp ${file2}     > file2.${file}
+		${TASK_BIN}/liburp -wide ${full_file} > file1.${file}
+		${TASK_BIN}/liburp -wide ${file2}     > file2.${file}
 		status=0
 		cmp file1.${file} file2.${file} || status=1
 		if [ "${status}" -ne 0 ]; then
@@ -101,8 +101,8 @@ EOF
             ${TASK_BIN}/editbrp -s ${file2} -d file2.nores -i<<EOF
  exclure('>>*******')
 EOF
-            ${TASK_BIN}/liburp file1.nores > file1.${file}
-            ${TASK_BIN}/liburp file2.nores > file2.${file}
+            ${TASK_BIN}/liburp -wide file1.nores > file1.${file}
+            ${TASK_BIN}/liburp -wide file2.nores > file2.${file}
             cmp file1.${file} file2.${file} || not_validating="yes"
 	    if [ -n "${not_validating}" ]; then
 	        ## Alors on trouve ce qui ne valide pas
