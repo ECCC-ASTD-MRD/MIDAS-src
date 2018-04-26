@@ -430,11 +430,9 @@ contains
         isens = tvs_lsensor(jo)
         nl = tvs_coefs(isens) % coef % nlevels
         ! allocate model profiles atmospheric arrays with RTTOV levels dimension
-        call rttov_alloc_prof(errorstatus(1),1,tvs_profiles(jo),nl, &
+        call rttov_alloc_prof(errorstatus(1),asw,tvs_profiles(jo),nl, &
              tvs_opts(isens),asw,coefs=tvs_coefs(isens),init=.false. )
-
         call utl_checkAllocationStatus(errorstatus(1:1), " tvs_setupAlloc tvs_profiles 2")
-     
       end do
 
 !___ radiance by profile
@@ -446,18 +444,10 @@ contains
       do jo = 1, tvs_nobtov
         isens = tvs_lsensor(jo)
         nc = tvs_nchan(isens)
-        nl = tvs_coefs(isens) % coef % nlevels
       ! allocate BT equivalent to total direct, tl and ad radiance output
         allocate( tvs_radiance(jo)  % bt  ( nc ) ,stat= alloc_status(1))
-     
         tvs_radiance(jo)  % bt  ( : ) = 0.d0
-    
-      ! allocate clear sky radiance/BT output
-        allocate( tvs_radiance(jo)  % clear  ( nc ) ,stat= alloc_status(2) )
-        tvs_radiance(jo)  % clear  ( : ) = 0.d0
-
-        call utl_checkAllocationStatus(alloc_status(1:2), " tvs_setupAlloc radiances 2")
-     
+        call utl_checkAllocationStatus(alloc_status(1:1), " tvs_setupAlloc radiances 2")
       end do
 
     end if
@@ -1549,7 +1539,7 @@ contains
 
       nlevels = tvs_coefs(sensor_id) %coef% nlevels
       allocate ( xpres (nlevels) )
-      xpres = tvs_coefs(1)% coef % ref_prfl_p
+      xpres = tvs_coefs(sensor_id)% coef % ref_prfl_p
       jpmotop = 1
       do jl = 2, nlevels
         if ( zptopmbs >= xpres(jl - 1) .and. &
@@ -2273,9 +2263,9 @@ contains
         obs_index = iptobs(profile_index)
         tvs_radiance(obs_index) % bt(ichn) =     &
              radiancedata_d % bt(tb_index)
-        tvs_radiance(obs_index) % clear(ichn) =  &
-             radiancedata_d %clear(tb_index)
         if ( bgckMode ) then
+          tvs_radiance(obs_index) % clear(ichn) =  &
+               radiancedata_d %clear(tb_index)
           do level_index = 1, nlevels - 1
             tvs_radiance(obs_index) % overcast(level_index,ichn) =   &
                  radiancedata_d % overcast(level_index,tb_index)
