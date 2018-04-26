@@ -287,7 +287,6 @@ contains
        VCOORDFACT=1
        VCORDTYP=1
        LISTELEMENTS="11001,11002"
-       !LISTELEMENTS="11001,11002,11003,11004"
        read(nulnam,NML=NAMSQLpr)
      CASE ('ro')     
        COLUMNS_HDR=trim(COLUMNS_HDR)//",ro_qc_flag,geoid_undulation,earth_local_rad_curv,id_sat,azimuth"
@@ -303,12 +302,11 @@ contains
        LISTELEMENTS="11011,11012,12004,12203,10051,10004,15031"
        read(nulnam,NML=NAMSQLsfc)
      CASE ('scat')
-       SQLNULL=" and obsvalue is not null"
+       !SQLNULL=" and obsvalue is not null"
+       SQLEXTRA_DAT=" order by varno "
        VCOORDFACT=0
        VCORDTYP=1
-       LISTELEMENTS="11011,11012,11215,11216"
-       ! BURP:
-       !LISTELEMENTS="11012,11011"
+       LISTELEMENTS="11011,11012"
        read(nulnam,NML=NAMSQLsc)
      CASE( 'airs')
        COLUMNS_HDR=trim(COLUMNS_HDR)//",azimuth,terrain_type,cloud_cover,solar_azimuth"
@@ -391,11 +389,11 @@ contains
    write(*,*)  my_name//' DEBUT numheader  =', obs_numHeader(obsdat)
    write(*,*)  my_name//' DEBUT numbody    =', obs_numBody(obsdat)
    
-   !if (trim(rdb4_schema)=='scat') then
-   !  call fSQL_get_many (  stmt2, nrows = nrows , ncols = ncolumns , mode = FSQL_REAL, REAL_MISSING = MPC_missingValue_R4 )
-   !else
+   if (trim(rdb4_schema)=='scat') then
+     call fSQL_get_many (  stmt2, nrows = nrows , ncols = ncolumns , mode = FSQL_REAL, REAL_MISSING = MPC_missingValue_R4 )
+   else
      call fSQL_get_many (  stmt2, nrows = nrows , ncols = ncolumns , mode = FSQL_REAL )
-   !endif 
+   endif 
    write(*,*) '  NROWS NCOLUMNS =', nrows, ncolumns, rdb4_schema, trim(query_dat)
    write(*,*)' ========================================== '
    allocate(matdata(nrows,ncolumns))
@@ -470,6 +468,7 @@ contains
          endif
      else  ! familyType = CONV
          call fSQL_get_column( stmt, COL_INDEX = 9, REAL_VAR  = elev, REAL_MISSING=MPC_missingValue_R4 )
+         if ( trim(rdb4_schema)=='scat' ) elev = MPC_missingValue_R4
          relev=elev
          if ( trim(rdb4_schema)=='ro' ) then
             call fSQL_get_column( stmt, COL_INDEX = 10, INT_VAR   = ro_qc_flag, INT_MISSING=MPC_missingValue_INT           )
@@ -550,14 +549,9 @@ contains
       call SAVE_INFO_HEADER( obsdat, rdb4_schema, FamilyType, nobs, relev, id_sat, azimuth, geoid_undulation &
                         , earth_local_rad_curv, ro_qc_flag, instrument, zenith, cloud_cover, solar_zenith &
                         , solar_azimuth, land_sea, id_obs, xlat, xlon, codtyp,date, time/100, status, id_stn, verbose =.true. )
-
    else
       nobs=nobs-1
    endif
-   !if ( last_id > nrows) &
-   !call SAVE_INFO_HEADER( obsdat, rdb4_schema, FamilyType, nobs, relev, id_sat, azimuth, geoid_undulation &
-   !                     , earth_local_rad_curv, ro_qc_flag, instrument, zenith, cloud_cover, solar_zenith &
-   !                     , solar_azimuth, land_sea, id_obs, xlat, xlon, codtyp,date, time/100, status, id_stn, verbose =.true. )
   END DO HEADER ! HEADER
   
   deallocate(matdata)
