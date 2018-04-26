@@ -488,9 +488,23 @@ contains
     NCHN = coefs(id)%coef%fmv_chn
     nch_sel= hir_get_nchan_selected(cinst)
     if (NCHN/=nch_sel) then
-       write(*,*) "HIRQC: Skipping ... Invalid NCHN: ",NCHN,nch_sel,CINST
-       return
-    endif
+      write(*,*) "HIRQC: Skipping ... Invalid NCHN: ",NCHN,nch_sel,CINST
+      call obs_set_current_header_list(lobsSpaceData,'TO')
+      HEADER3: do
+        index_header = obs_getHeaderIndex(lobsSpaceData)
+        if (index_header < 0) exit HEADER3
+        IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
+        IF ( tvs_Is_idburp_inst(IDATYP,CINST) .and. lsensor(ltovsno (index_header))==id ) THEN
+          IDATA   = obs_headElem_i(lobsSpaceData,OBS_RLN,index_header)
+          IDATEND = obs_headElem_i(lobsSpaceData,OBS_NLV,index_header) + IDATA - 1
+          DO INDEX_BODY= IDATA, IDATEND
+            ! on allume le bit 9; ca devrait etre suddisant
+            call obs_bodySet_i(lobsSpaceData,OBS_FLG,INDEX_BODY,IBSET(obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY),9))
+          END DO
+        END IF
+      END DO HEADER3
+      return
+    end if
 
     NLEV = coefs(id)%coef%nlevels 
     allocate (xpres(NLEV))
