@@ -177,7 +177,7 @@ subroutine sqlf_readFile(obsdat,fileName,familyType,fileIndex)
   real(obs_real)  :: misg
   
   ! debug:******************************
-  logical, parameter :: ldebug =.true.
+  logical, parameter :: ldebug =.false.
   integer :: bodyIndex,headerIndex,varno,iqiv,igav,ilansea,azimuth,inst,ifov,clf,saz,idsat,roqc,id_obs
   character*9 :: stid_l
   real    :: lat,lon,alt,var,channel,ealoc,geoun,sigmao,omp,oma
@@ -198,9 +198,8 @@ subroutine sqlf_readFile(obsdat,fileName,familyType,fileIndex)
 
   if(ldebug) then
     ! debug ###################################################################
-    write(*,*)'SSN: debug!!!'
+    write(*,*)'SSN: debug!!! iend, numproc ', iend,mpi_myid
     call filt_sethind_util(obsdat)
-    write(*,*)'SSN: writing  iend, numproc...', iend,mpi_myid
     do bodyIndex = 1, iend
       headerIndex = obs_bodyElem_i(obsdat, OBS_HIND,   bodyIndex)
       call obs_prnthdr(obsdat,headerIndex,100+mpi_myid)
@@ -232,9 +231,7 @@ subroutine sqlf_readFile(obsdat,fileName,familyType,fileIndex)
       !write(100+mpi_myid,'(a6,5f12.4,10i8)') trim(stid_l),lon,lat,alt,channel,var,varno,iqiv,igav,ilansea,azimuth,inst,clf,saz,idsat,roqc
        !write(*,'(a6,5f12.4,11i8)') trim(stid_l),lon,lat,alt,channel,var,varno,iqiv,igav,ilansea,azimuth,inst,clf,saz,idsat,roqc,headerIndex
       !!!!write(100+mpi_myid,'(a12,8f12.4,3i8)') trim(stid_l),lon,lat,alt,channel,var,sigmao,omp,oma,varno,id_obs,headerIndex        
-
       !write(*,'(a12,7f12.4,3i8)') trim(stid_l),lon,lat,alt,channel,var,omp,oma,varno,id_obs,headerIndex
-
       !write(100+mpi_myid,'(a6,5f12.4,11i8,2f12.4)') trim(stid_l),lon,lat,alt,channel,var,varno,iqiv,igav,ilansea,azimuth,inst,ifov,clf,saz,idsat,roqc,ealoc,geoun
       !write(100+mpi_myid,'(a6,7f12.4,3i8)') trim(stid_l),lon,lat,alt,channel,var,ealoc,geoun,azimuth,idsat,roqc
     enddo
@@ -289,7 +286,7 @@ SUBROUTINE sqlf_updateFile(obsSpaceData,fileName,familyType,fileIndex)
 !                   obsSpaceData   - obsdat-file object
 !
 !       AUTHOR: P. KOCLAS(CMC CMDA)
-!       Revision:
+!       Revision: S. Skachko ARMA, April 2018
 !     NOTE:
 !     SQLITE FILES ARE ASSUMED TO BE PRESENT IN CURRENT WORKING DIRECTORY
 !

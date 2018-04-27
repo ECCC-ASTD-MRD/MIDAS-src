@@ -173,7 +173,7 @@ contains
 
 
   ! debug:******************************  
-  logical, parameter :: ldebug =.true.
+  logical, parameter :: ldebug =.false.
   integer :: bodyIndex,headerIndex,varno,iqiv,igav,ilansea,azimuth,inst,ifov,clf,saz,idsat,roqc,id_obs
   character*9 :: stid_l
   real    :: lat,lon,alt,var,channel,ealoc,geoun,sigmao,omp,oma
@@ -194,14 +194,12 @@ contains
   
     if(ldebug) then
       ! debug ###################################################################
-      write(*,*)'SSN: debug!!!'
+      write(*,*)'SSN: debug!!! iend numproc', iend, mpi_myid
       call filt_sethind_util(obsdat)
-      write(*,*)'SSN: writing  iend numproc...', iend, mpi_myid
       do bodyIndex = 1, iend
         headerIndex = obs_bodyElem_i(obsdat, OBS_HIND,   bodyIndex)      
         call obs_prnthdr(obsdat,headerIndex,100+mpi_myid)
         call obs_prntbdy(obsdat,headerIndex,100+mpi_myid)
-
         stid_l      = obs_Elem_c(obsdat, 'STID',  headerIndex)
         lat         = obs_headElem_r(obsdat, OBS_LAT,  headerIndex)
         lon         = obs_headElem_r(obsdat, OBS_LON,  headerIndex)
@@ -221,9 +219,7 @@ contains
         geoun       = obs_headElem_r(obsdat, OBS_GEOI, headerIndex)
         ealoc       = obs_headElem_r(obsdat, OBS_TRAD, headerIndex)     
         id_obs      = obs_headElem_i(obsdat, OBS_IDO,  headerIndex)
-        
         !write(*,'(a12,7f12.4,3i8)') trim(stid_l),lon,lat,alt,channel,var,omp,oma,varno,id_obs,headerIndex
-
         !!!write(100+mpi_myid,'(a12,8f12.4,3i8)') trim(stid_l),lon,lat,alt,channel,var,sigmao,omp,oma,varno,id_obs,headerIndex
         !write(100+mpi_myid,'(a6,5f12.4,10i8)') trim(stid_l),lon,lat,alt,channel,var,varno,iqiv,igav,ilansea,azimuth,inst,clf,saz,idsat,roqc
         !write(100+mpi_myid,'(a6,5f12.4,10i8,2f12.4)') trim(stid_l),lon,lat,alt,channel,var,varno,iqiv,igav,ilansea,azimuth,inst,clf,saz,idsat,roqc,ealoc,geoun

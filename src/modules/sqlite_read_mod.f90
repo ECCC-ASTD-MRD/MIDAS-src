@@ -47,15 +47,10 @@ character(len=256) :: CFILNAM_SQL(N_MAX_FILES)
 contains
   
    subroutine GEN_DATA(obsdat,VCOORD,OBSVALUE,VARNO,FLAG,VCORDTYP,NOBS,NDATA)
-      !
       !----------------------------------------------------------------------------------------------
       !s/r GEN_INFO   - Initialze data values for an observation object
-      !
       ! Author     : P. Koclas,  CMC/CMDA, September  2012
       ! Adaptation : S. Skachko, ARMA,     April      2018
-      !
-      !----------------------------------------------------------------------------------------------
-      !
       !----------------------------------------------------------------------------------------------
    implicit none
    ! arguments
@@ -67,15 +62,12 @@ contains
    call obs_bodySet_i(obsdat,OBS_VNM,NDATA,VARNO)
    call obs_bodySet_i(obsdat,OBS_FLG,NDATA,FLAG)
    call obs_bodySet_i(obsdat,OBS_VCO,NDATA,VCORDTYP)
-!=========================================================
-
-!===================================
-   END subroutine GEN_DATA
+   end subroutine GEN_DATA
 !===================================
 
   subroutine SAVE_INFO_HEADER( obsdat, rdb4_schema, FamilyType, nobs, elev, id_sat, azimuth, geoid_undulation &
                              , earth_local_rad_curv, ro_qc_flag, instrument, zenith, cloud_cover, solar_zenith &
-                             , solar_azimuth, land_sea, id_obs, lat, lon, codtyp,date, time, status, id_stn, verbose )
+                             , solar_azimuth, land_sea, id_obs, lat, lon, codtyp,date, time, status, id_stn )
   ! Purpose: aux.routine to save GEN_INFO and GEN_HEADER, routines by P. Koclas, CMC/CMDA
   ! Author: Sergey Skachko, ARMA, April 2018
   implicit none
@@ -86,15 +78,9 @@ contains
   integer,intent(in)                :: nobs,id_obs,codtyp,date,time,status, azimuth, land_sea, ro_qc_flag
   integer,            intent(in)    :: id_sat, instrument, zenith, cloud_cover, solar_zenith, solar_azimuth
   real(obs_real),     intent(in)    :: geoid_undulation, earth_local_rad_curv, elev, lat, lon
-  logical,intent(in),optional       :: verbose
-
   character(len=*), parameter :: my_name = 'SAVE_INFO_HEADER'
   character(len=*), parameter :: my_warning = '****** '// my_name //' WARNING: '
   character(len=*), parameter :: my_error   = '******** '// my_name //' ERROR: '
- 
-  if(present(verbose)) then
-    write(*,'(3a8,5i8,3f12.4)') trim(FamilyType),trim(rdb4_schema), trim(id_stn),nobs,id_obs,codtyp,date,time,lat,lon,elev
-  endif
 
   call obs_setFamily( obsdat, trim(FamilyType), nobs      )
   call obs_headSet_i( obsdat, OBS_IDO, nobs, id_obs       )       
@@ -242,7 +228,6 @@ contains
    if ( trim(FamilyType) == 'TO' ) then
      LISTELEMENTS="12163"
    else
-     !LISTELEMENTS="12001,11001,11002,12192,10194"
      LISTELEMENTS="11001,11002"
    endif
    NBITSON     =0
@@ -272,15 +257,12 @@ contains
        VCOORDFACT=1
        VCORDTYP=2
        LISTELEMENTS="12001,11001,11002,12192"
-       ! working code:
-       !LISTELEMENTS="12001,11001,11002,11003,11004,12192"
        read(nulnam,NML=NAMSQLai)
      CASE ('sw')
        SQLNULL=" and obsvalue is not null and vcoord is not null "
        VCOORDFACT=1
        VCORDTYP=2
        LISTELEMENTS="11001,11002"
-       !LISTELEMENTS="11001,11002,11003,11004"
        read(nulnam,NML=NAMSQLsw)
      CASE ('pr')
        SQLNULL=" and obsvalue is not null and vcoord is not null "
@@ -299,7 +281,7 @@ contains
        SQLNULL=" and obsvalue is not null"
        VCOORDFACT=0
        VCORDTYP=1
-       LISTELEMENTS="11011,11012,12004,12203,10051,10004,15031"
+       LISTELEMENTS="11011,11012,12004,12203,10051,10004,15031,15032,15035"
        read(nulnam,NML=NAMSQLsfc)
      CASE ('scat')
        SQLNULL=" and obsvalue is not null"
@@ -427,7 +409,6 @@ contains
      zenith         = MPC_missingValue_INT; rzenith        = MPC_missingValue_R4    
      instrument     = MPC_missingValue_INT
      azimuth        = MPC_missingValue_INT; razimuth       =  MPC_missingValue_R8  
-
      call fSQL_get_column( stmt, COL_INDEX = 1, INT_VAR   = id_obs                     )
      call fSQL_get_column( stmt, COL_INDEX = 2, REAL_VAR  = lat                        )
      call fSQL_get_column( stmt, COL_INDEX = 3, REAL_VAR  = lon                        )
@@ -515,9 +496,6 @@ contains
        else ! CONV
           call GEN_DATA(obsdat,vcoord*vcoordfact+relev*elevfact,obsvalue,varno,flag,vcordtyp,nobs,count)
           ! ALLOW EXTRA SPACE FOR U V COMPONENTS
-
-          write(*,*) 'SSN: varno = ', varno,' **************'
-
           if ( varno == 11001 .or. varno == 11011) then
              if ( varno == 11001 ) then
                 ! U COMPONENT
@@ -536,9 +514,7 @@ contains
              endif
              count = count + 2
              nlv = nlv + 2
-             write(*,'(a,3i5)') 'SSN: count, nlv, nobs ', count,nlv,nobs
           endif      ! extra space for winds
-          write(*,'(a,i8,a,3i5)') 'SSN: varno = ', varno,' ************** APRES : ',count, nlv, nobs
        endif         ! TOVS or CONV
      endif           !  id_obs   
    END DO DATA  ! END OF DATA LOOP
@@ -553,12 +529,11 @@ contains
       if ( last_id > nrows) &
       call SAVE_INFO_HEADER( obsdat, rdb4_schema, FamilyType, nobs, relev, id_sat, azimuth, geoid_undulation &
                         , earth_local_rad_curv, ro_qc_flag, instrument, zenith, cloud_cover, solar_zenith &
-                        , solar_azimuth, land_sea, id_obs, xlat, xlon, codtyp,date, time/100, status, id_stn, verbose =.true. )
+                        , solar_azimuth, land_sea, id_obs, xlat, xlon, codtyp,date, time/100, status, id_stn )
    else
       nobs=nobs-1
    endif
   END DO HEADER ! HEADER
-  
   deallocate(matdata)
   write(*,*)  my_name//' FIN numheader  =', obs_numHeader(obsdat)                    
   write(*,*)  my_name//' FIN numbody    =', obs_numBody(obsdat)
@@ -569,29 +544,27 @@ contains
   call fSQL_close( db , stat) ! Close The SQLITE FILE
   write(*,*) my_name//' end subroutine: ', rdb4_schema
   end subroutine sqlr_readSqlite
-
 !===================================================================
 
    function SQL_QUERY_CH(db,query)
       !   Purpose : RETURN RESULT OF A QUERY  TO AND OPENED SQLITE FILE
       !             THE RESULT FROM THIS QURY MUS BE A CHARATER STRING
-      !
       ! Author  : P. Koclas, CMC/CMDA September  2012
-      !
       !    ARGUMENTS:
       !                 INPUT:
       !                       -db      : SQLITE FILE HANDLE
       !                       -query   : A QUERY
       !    ---------------------------------------------------
    implicit none
-   CHARACTER(len = 256 )                          :: SQL_QUERY_CH
-   CHARACTER(len = 256 )                          :: CH_RESULT
-   logical finished
+   ! arguments
    type(fSQL_DATABASE)                      :: db   ! type handle for  SQLIte file
+   CHARACTER(len = *)                       :: query
+   ! locals
+   CHARACTER(len = 256 )                          :: SQL_QUERY_CH
+   CHARACTER(len = 256 )                          :: CH_RESULT    
+   logical finished
    type(fSQL_STATEMENT)                     :: stmt !  prepared statement for  SQLite
    type(fSQL_STATUS)                        :: stat !type error status
-   CHARACTER(len = *)                       :: query
-
    CH_RESULT=''
    CALL fSQL_prepare( db, trim(query), stmt, stat)
    if ( fSQL_error(stat) /= FSQL_OK ) CALL handle_error(stat,'fSQL_prepare: ')
