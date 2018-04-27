@@ -282,59 +282,53 @@ module obsUtil_mod
   end subroutine setassflg
 
   subroutine fdtouv_obsdat(obsdat,start,end,ppmis)
-!
 !---------------------------------------------------------------
-!
 ! Author  : P. Koclas, CMC/CMDA December  2012
 !           CONVERT DD , FF  WINDS TO
 !            UU (est-west),  VV (north-south) COMPONENTS
-!
-!    ARGUMENTS:
-!                 INPUT:
-!
-!                       -obsdat     : CMA_table INSTANCE 
-!                       -START     : FIRST OBERVATION
-!                       -END       : LAST  OBERVATION
-!                       -PPMIS     : MISSING VALUE  
-!
+! Revision:
+!     1.0  S. Skachko ARMA :  April 2018
 !        **************************************************
 !         IT IS ASSUMED THAT CMA CONTAINS ENTRIES   FOR 
 !          UU AND VV  with observed values = missing value
 !        **************************************************
-!
 !---------------------------------------------------------------
-!
     implicit none
-    type (struct_obs), intent(inout) :: obsdat
-    real(4)        :: ppmis
-    integer(4)     :: start,end
-
-    integer(4)     :: varno,varno2,varno4
-    real(4)        :: obsuv
-    integer(4)     :: jo,rln,nlv,j,j2,j4,jpos,ilem
-    integer(4)     :: ddflag,ffflag,newflag,uuflag,vvflag
-    integer(4)     :: ilemf,ilemu,ilemv,indu_misg,indv_misg,indum,indvm
+    ! arguments
+    type (struct_obs), intent(inout) :: obsdat      ! obsSpaceData
+    integer          , intent(in)    :: start, end  ! first and last observations
+    real             , intent(in)    :: ppmis       ! MISSING VALUE
+    ! locals
+    integer        :: varno,varno2,varno4
+    real           :: obsuv
+    integer        :: jo,rln,nlv,j,j2,j4,jpos,ilem
+    integer        :: ddflag,ffflag,newflag,uuflag,vvflag
+    integer        :: ilemf,ilemu,ilemv,indu_misg,indv_misg,indum,indvm
     logical        :: llmisdd,llmisff,llmis,lluv_misg,llu_misg,llv_misg
     logical        :: lluv_present,llu_present,llv_present
     real(obs_real) :: uu,vv,dd,ff
     real(obs_real) :: level_dd,level4,level,level_uu
+    character(len=*), parameter :: my_name = 'fdtouv_obsdat'
+    character(len=*), parameter :: my_warning = '****** '// my_name //' WARNING: '
+    character(len=*), parameter :: my_error   = '******** '// my_name //' ERROR: '
 
     ffflag = 0  ! bhe 
 
+    write(*,'(a,2i8)')   my_name//': first and last observations: ', start, end 
+    write(*,'(a,f12.4)') my_name//': missing value: ', ppmis
+    write(*,*)'****************************************************' 
+
     HEADER1: do jo = start, end
-        
+      
       rln = obs_headElem_i(obsdat,OBS_RLN,jo)
       nlv = obs_headElem_i(obsdat,OBS_NLV,jo)
 
       BODY1: do j = rln, nlv + rln -1
         dd = ppmis
         ff = ppmis
-
         varno = obs_bodyElem_i(obsdat,OBS_VNM,j)
         llmisdd = .true.
-
         if ( varno /= bufr_nedd .and. varno /= bufr_neds ) cycle BODY1
-
         if( varno == bufr_neds) then
           ilemf = bufr_nefs
           ilemu = bufr_neus
@@ -358,40 +352,34 @@ module obsUtil_mod
 
         ! FIND IF  U AND V ARE ALREADY IN CMA
         UVINOBSDAT: do j4 = j, nlv + rln -1
-
           level4 = obs_bodyElem_r(obsdat, OBS_PPP,j4)
           if (level4 == level_dd) then
-            varno4 = obs_bodyElem_i(obsdat, OBS_VNM,j4)
-            select case (varno4)
-              case (11003,11004,11002,11001,11215,11216,11011,11012)
-
-                obsuv = obs_bodyElem_r(obsdat, OBS_VAR,j4)
-                if (  (varno4 == ilemu)     .and.  (obsuv /= ppmis) ) then
-                  llu_present = .true.
-                  indum = j4
-                else if ( (varno4 == ilemv) .and. (obsuv /= ppmis) ) then
-                  llv_present = .true.
-                  indvm = j4
-                end if
-                
-                if (  (varno4 == ilemu)     .and. (obsuv == ppmis) ) then
-                  llu_misg = .true.
-                  indu_misg = j4
-                else if ( (varno4 == ilemv)  .and. (obsuv == ppmis) ) then
-                  llv_misg = .true.
-                  indv_misg = j4
-                end if
-
+             varno4 = obs_bodyElem_i(obsdat, OBS_VNM,j4)
+             select case (varno4)
+                case (11003,11004,11002,11001,11215,11216,11011,11012)
+                   obsuv = obs_bodyElem_r(obsdat, OBS_VAR,j4)
+                   if (  (varno4 == ilemu)     .and.  (obsuv /= ppmis) ) then
+                      llu_present = .true.
+                      indum = j4
+                   else if ( (varno4 == ilemv) .and. (obsuv /= ppmis) ) then
+                      llv_present = .true.
+                      indvm = j4
+                   end if
+                   if (  (varno4 == ilemu)     .and. (obsuv == ppmis) ) then
+                      llu_misg = .true.
+                      indu_misg = j4
+                   else if ( (varno4 == ilemv)  .and. (obsuv == ppmis) ) then
+                      llv_misg = .true.
+                      indv_misg = j4
+                   end if
             end select
           end if
-
         end do UVINOBSDAT
 
         lluv_misg = (llu_misg .and. llv_misg)
         lluv_present = (llu_present .and. llv_present)
 
         if ( lluv_misg) then
-
           CALCUV: do j2 = j, nlv + rln -1
 
             llmisff = .true.
@@ -401,62 +389,56 @@ module obsUtil_mod
             if ( level /= level_dd) cycle
             varno2 = obs_bodyElem_i(obsdat,OBS_VNM,j2)
             if ( varno2 == ilemf ) then
-
-              ff = obs_bodyElem_r(obsdat,OBS_VAR,j2)
-              ffflag = obs_bodyElem_i(obsdat,OBS_FLG,j2)
-              IF ( (dd == 0.  .and. ff > 0.) .or. ( dd > 360. .or. dd  < 0.) ) then
-                llmisdd = .true.
-                llmisff = .true.
-              else if ( dd == ppmis .or. ff == ppmis) then
-                llmisdd = .true.
-                llmisff = .true.
-              else
-                llmisdd = .false.
-                llmisff = .false.
-              end if
-
-              ! IF SPEED = 0 CALM WIND IS ASSUMED.
-              if (ff == 0.0) then
-                dd = 0.
-              end if
-                   
-              dd = dd + 180.
-              if ( dd > 360.) dd = dd - 360.
-              dd = dd * mpc_radians_per_degree_r8
-                
-              ! U,V COMPONENTS ARE
-              uu = ff * sin(dd)
-              vv = ff * cos(dd)
-              if  ( ( llmisdd == .true.) .or. ( llmisff == .true. ) ) then
-                llmis = .true.
-                if ( indu_misg > 0 .or. indv_misg > 0 ) then
-                  call obs_bodySet_i(obsdat,OBS_VNM,INDU_MISG,-1)
-                  call obs_bodySet_i(obsdat,OBS_VNM,INDV_MISG,-1)
+               ff = obs_bodyElem_r(obsdat,OBS_VAR,j2)
+               ffflag = obs_bodyElem_i(obsdat,OBS_FLG,j2)
+               if ( (dd == 0.d0  .and. ff > 0.) .or. ( dd > 360. .or. dd  < 0.) ) then
+                  llmisdd = .true.
+                  llmisff = .true.
+               else if ( dd == ppmis .or. ff == ppmis) then
+                  llmisdd = .true.
+                  llmisff = .true.
+               else
+                  llmisdd = .false.
+                  llmisff = .false.
                 end if
-              else
-                llmis = .false.
-              end if
 
-            end if
-            newflag = ior(ddflag,ffflag)
-
-            if ( indum > 0 .or. indvm > 0 ) then
-              call obs_bodySet_i(obsdat,OBS_VNM,indu_misg,-1)
-              call obs_bodySet_i(obsdat,OBS_VNM,indv_misg,-1)
+                ! IF SPEED = 0 CALM WIND IS ASSUMED.
+                if (ff == 0.d0) dd = 0.d0
+                   
+                dd = dd + 180.
+                if ( dd > 360.) dd = dd - 360.
+                dd = dd * mpc_radians_per_degree_r8
+                
+                ! U,V COMPONENTS ARE
+                uu = ff * sin(dd)
+                vv = ff * cos(dd)
+                if ( ( llmisdd == .true.) .or. ( llmisff == .true. ) ) then
+                   llmis = .true.
+                   if ( indu_misg > 0 .or. indv_misg > 0 ) then
+                      call obs_bodySet_i(obsdat,OBS_VNM,INDU_MISG,-1)
+                      call obs_bodySet_i(obsdat,OBS_VNM,INDV_MISG,-1)
+                   end if
+                else
+                   llmis = .false.
+                end if
+             end if
+             newflag = ior(ddflag,ffflag)
+     
+             if ( indum > 0 .or. indvm > 0 ) then
+                call obs_bodySet_i(obsdat,OBS_VNM,indu_misg,-1)
+                call obs_bodySet_i(obsdat,OBS_VNM,indv_misg,-1)
             end if
             if (llmis) then
-              if ( indum > 0 .or. indvm > 0 ) then
-                call obs_bodySet_i(obsdat,OBS_FLG,induM,newflag)
-                call obs_bodySet_i(obsdat,OBS_FLG,indvM,newflag)
-              end if
+               if ( indum > 0 .or. indvm > 0 ) then
+                  call obs_bodySet_i(obsdat,OBS_FLG,induM,newflag)
+                  call obs_bodySet_i(obsdat,OBS_FLG,indvM,newflag)
+               end if
             else if (.not.llmis) then
-              call obs_bodySet_r(obsdat,OBS_VAR,indu_misg,uu)
-              call obs_bodySet_i(obsdat,OBS_FLG,indu_misg,newflag)
-
-              call obs_bodySet_r(obsdat,OBS_VAR,indv_misg,vv)
-              call obs_bodySet_i(obsdat,OBS_FLG,indv_misg,newflag)
+               call obs_bodySet_r(obsdat,OBS_VAR,indu_misg,uu)
+               call obs_bodySet_i(obsdat,OBS_FLG,indu_misg,newflag)
+               call obs_bodySet_r(obsdat,OBS_VAR,indv_misg,vv)
+               call obs_bodySet_i(obsdat,OBS_FLG,indv_misg,newflag)
             end if
-
           end do CALCUV
 
         else                       
@@ -510,9 +492,7 @@ module obsUtil_mod
           level_uu = obs_bodyElem_r(obsdat,OBS_PPP,j4)
           Jpos = -1
         
-          if ( level_uu == level .and. uu == ppmis ) then
-            call obs_bodySet_i(obsdat,OBS_VNM,j4,-1)
-          end if
+          if ( level_uu == level .and. uu == ppmis ) call obs_bodySet_i(obsdat,OBS_VNM,j4,-1)
 
           if ( level_uu == level .and. uu /= ppmis ) then
             uuflag = obs_bodyElem_i(obsdat,OBS_FLG,j4)
@@ -543,6 +523,7 @@ module obsUtil_mod
     end do !jo
 
   end subroutine fdtouv_obsdat
+
   real function surfvcord(ilem,idtyp)
       implicit none
       integer :: ilem,idtyp,type

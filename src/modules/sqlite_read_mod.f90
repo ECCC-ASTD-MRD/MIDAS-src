@@ -302,8 +302,8 @@ contains
        LISTELEMENTS="11011,11012,12004,12203,10051,10004,15031"
        read(nulnam,NML=NAMSQLsfc)
      CASE ('scat')
-       !SQLNULL=" and obsvalue is not null"
-       SQLEXTRA_DAT=" order by varno "
+       SQLNULL=" and obsvalue is not null"
+       SQLEXTRA_DAT=" order by id_obs,varno "
        VCOORDFACT=0
        VCORDTYP=1
        LISTELEMENTS="11011,11012"
@@ -515,6 +515,9 @@ contains
        else ! CONV
           call GEN_DATA(obsdat,vcoord*vcoordfact+relev*elevfact,obsvalue,varno,flag,vcordtyp,nobs,count)
           ! ALLOW EXTRA SPACE FOR U V COMPONENTS
+
+          write(*,*) 'SSN: varno = ', varno,' **************'
+
           if ( varno == 11001 .or. varno == 11011) then
              if ( varno == 11001 ) then
                 ! U COMPONENT
@@ -532,8 +535,10 @@ contains
                 call GEN_DATA(obsdat,vcoord*vcoordfact + relev*elevfact,MPC_missingValue_R8,11216,0,vcordtyp,nobs,count+2)
              endif
              count = count + 2
-             NLV = NLV + 2
+             nlv = nlv + 2
+             write(*,'(a,3i5)') 'SSN: count, nlv, nobs ', count,nlv,nobs
           endif      ! extra space for winds
+          write(*,'(a,i8,a,3i5)') 'SSN: varno = ', varno,' ************** APRES : ',count, nlv, nobs
        endif         ! TOVS or CONV
      endif           !  id_obs   
    END DO DATA  ! END OF DATA LOOP
@@ -555,7 +560,7 @@ contains
   END DO HEADER ! HEADER
   
   deallocate(matdata)
-  write(*,*)  my_name//' FIN numheader  =', obs_numHeader(obsdat)
+  write(*,*)  my_name//' FIN numheader  =', obs_numHeader(obsdat)                    
   write(*,*)  my_name//' FIN numbody    =', obs_numBody(obsdat)
   write(*,*)  my_name//' fin header '
   CHTIME=SQL_QUERY_CH(db,"select time('now')")
