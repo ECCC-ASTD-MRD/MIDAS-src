@@ -371,11 +371,7 @@ contains
    write(*,*)  my_name//' DEBUT numheader  =', obs_numHeader(obsdat)
    write(*,*)  my_name//' DEBUT numbody    =', obs_numBody(obsdat)
    
-   if (trim(rdb4_schema)=='scat') then
-     call fSQL_get_many (  stmt2, nrows = nrows , ncols = ncolumns , mode = FSQL_REAL, REAL_MISSING = MPC_missingValue_R4 )
-   else
-     call fSQL_get_many (  stmt2, nrows = nrows , ncols = ncolumns , mode = FSQL_REAL )
-   endif 
+   call fSQL_get_many (  stmt2, nrows = nrows , ncols = ncolumns , mode = FSQL_REAL )
    write(*,*) '  NROWS NCOLUMNS =', nrows, ncolumns, rdb4_schema, trim(query_dat)
    write(*,*)' ========================================== '
    allocate(matdata(nrows,ncolumns))
@@ -386,7 +382,6 @@ contains
    ! HEADER LOOP
    last_id=1
    HEADER:   DO
-
      call fSQL_get_row( stmt, finished )   ! Fetch the next row
      
      if (finished) then ! exit LOOP WHEN LAST ROW HAS BEEN FETCHED
@@ -396,7 +391,6 @@ contains
                              , solar_azimuth, land_sea, id_obs, xlat, xlon, codtyp, date, time/100, status, id_stn )
         exit
      endif
-
      ! The query result is inserted into variables
      !=========================================================================================
      terrain_type   = MPC_missingValue_INT
@@ -449,7 +443,6 @@ contains
          endif
      else  ! familyType = CONV
          call fSQL_get_column( stmt, COL_INDEX = 9, REAL_VAR  = elev, REAL_MISSING=MPC_missingValue_R4 )
-         if ( trim(rdb4_schema)=='scat' ) elev = MPC_missingValue_R4
          relev=elev
          if ( trim(rdb4_schema)=='ro' ) then
             call fSQL_get_column( stmt, COL_INDEX = 10, INT_VAR   = ro_qc_flag, INT_MISSING=MPC_missingValue_INT           )
@@ -460,11 +453,9 @@ contains
             azimuth = nint( razimuth * 100 )
          endif
      endif  ! TOVS or CONV
-      
      if ( lon < 0.) lon = lon + 360.
      xlat=lat*MPC_RADIANS_PER_DEGREE_R8
      xlon=lon*MPC_RADIANS_PER_DEGREE_R8
- 
      ! INSERT INTO header   OF OBS_SPACE_DATA STRUCTURE
      nobs = nobs + 1 
      nlv=0
@@ -798,7 +789,6 @@ contains
    ! HEADER LOOP
    NINSERT=0
    do JO=1,obs_numHeader(obsdat)
-  
      IDF    =obs_headElem_i(obsdat,OBS_IDF,JO)
      if ( IDF /= FILE_NUMB) cycle
      ID_OBS =obs_headElem_i(obsdat,OBS_IDO,JO)
