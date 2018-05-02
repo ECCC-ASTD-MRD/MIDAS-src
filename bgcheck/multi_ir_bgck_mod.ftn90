@@ -614,6 +614,7 @@ contains
      IF ( tvs_Is_idburp_inst(IDATYP,CINST) .and. lsensor(ltovsno (index_header))==id) THEN
         BTOBS(:)    = -1._8
         BTCALC(:)   = -1._8
+        BTOBSERR(:) = -1._8
         RCAL_CLR(:) = -1._8
         SFCTAU(:)   = -1._8
         RCLD(:,:)   = -1._8
