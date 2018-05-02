@@ -458,7 +458,7 @@ contains
 
             ! 2) Compute the 2m background virtual temperature: Tv = T*(1+0.608*HU)
             ztvg = (1.0d0 + MPC_DELTA_R8 *  &
-                   exp(col_getElem(columnhr,col_getNumLev(columnhr,'TH'),headerIndex,'HU'))) *  &
+                   col_getElem(columnhr,col_getNumLev(columnhr,'TH'),headerIndex,'HU')) *  &
                    col_getElem(columnhr,col_getNumLev(columnhr,'TH'),headerIndex,'TT')
             
             ! 3) Compute the temperature ratio 
@@ -1493,10 +1493,10 @@ contains
 !$OMP PARALLEL DO PRIVATE(jlev,columnIndex,zhu)
       do jlev = 1, nlev_T
          do columnIndex=1,col_getNumCol(columng)
-            zhu=col_getElem(columng,jlev,jobs,'HU')
-            columng%oltv(1,jlev,jobs) = fottva(zhu,one)
-            columng%oltv(2,jlev,jobs) = folnqva(zhu,col_getElem(columng,  &
-                 jlev,jobs,'TT'),one)
+            zhu=col_getElem(columng,jlev,columnIndex,'HU')
+            columng%oltv(1,jlev,columnIndex) = fottva(zhu,one)
+            columng%oltv(2,jlev,columnIndex) = folnqva(zhu,col_getElem(columng,  &
+                 jlev,columnIndex,'TT'),one)
          end do
       end do
 !$OMP END PARALLEL DO

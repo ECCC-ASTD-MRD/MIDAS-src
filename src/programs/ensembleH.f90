@@ -75,11 +75,10 @@ program midas_ensembleH
   real(8), pointer    :: column_ptr(:)
 
   ! namelist variables
-  character(len=2)   :: ctrlVarHumidity
   character(len=256) :: ensPathName, ensFileBaseName
   logical  :: useTlmH, obsClean, asciDumpObs
   integer  :: nEns
-  NAMELIST /NAMENSEMBLEH/nEns, ensPathName, ensFileBaseName, ctrlVarHumidity, useTlmH, &
+  NAMELIST /NAMENSEMBLEH/nEns, ensPathName, ensFileBaseName, useTlmH, &
                          obsClean, asciDumpObs
 
   write(*,'(/,' //  &
@@ -110,7 +109,6 @@ program midas_ensembleH
   nEns            = 10
   ensPathName     = 'ensemble'
   ensFileBaseName = ''
-  ctrlVarHumidity = 'LQ'
   useTlmH         = .true.
   obsClean        = .false.
   asciDumpObs     = .false.
@@ -164,7 +162,7 @@ program midas_ensembleH
     write(*,*) 'midas-ensembleH: reading member from file'
     write(*,*) ''
     memberIndex = mpi_myid + 1
-    call enkf_readMember(stateVector_member, ensPathName, memberIndex, ctrlVarHumidity)
+    call enkf_readMember(stateVector_member, ensPathName, memberIndex)
   end if
   call tmg_stop(3)
 

@@ -115,13 +115,21 @@ CONTAINS
        end if
        call UVtoPsiChi(statevector)
     case ('LQtoHU')
-       call LQtoHU(statevector)
+      if ( .not. gsv_varExist(statevector,'LQ') .and. gsv_varExist(statevector,'HU')  ) then
+        call LQtoHU(statevector)
+      else
+        write(*,*) 'vtr_transform: skipping LQtoHU'
+      end if
     case ('HUtoLQ')
        call HUtoLQ(statevector)
     case ('LQtoHU_tlm')
-       call LQtoHU_tlm(statevector)
+      if ( .not. gsv_varExist(statevector,'LQ') .and. gsv_varExist(statevector,'HU')  ) then
+        call LQtoHU_tlm(statevector)
+      else
+        write(*,*) 'vtr_transform: skipping LQtoHU_tlm'
+      end if
     case ('HUtoLQ_tlm')
-       call HUtoLQ_tlm(statevector)
+      call HUtoLQ_tlm(statevector)
     case default
        write(*,*)
        write(*,*) 'Unsupported function : ', trim(transform)

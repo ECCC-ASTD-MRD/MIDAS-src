@@ -50,14 +50,13 @@ contains
   !! subroutine enkf_readMember
   !! *Purpose*: locally read one member on each MPI process and put in stateVector
   !--------------------------------------------------------------------------
-  subroutine enkf_readMember(stateVector, ensPathName, memberIndex, ctrlVarHumidity)
+  subroutine enkf_readMember(stateVector, ensPathName, memberIndex)
     implicit none
 
     ! arguments
     type(struct_gsv) :: stateVector
     character(len=*) :: ensPathName
     integer          :: memberIndex
-    character(len=*) :: ctrlVarHumidity
 
     ! locals
     real(4), pointer   :: ptr4d_r4(:,:,:,:)
@@ -104,14 +103,10 @@ contains
       !$OMP PARALLEL DO PRIVATE (stepIndex)
       STEP_LOOP: do stepIndex = 1, stateVector%numStep
         if ( multFactor /= 1.0 ) ptr4d_r4(:,:,:,stepIndex) = multFactor * ptr4d_r4(:,:,:,stepIndex)
-
         if (trim(varName) == 'TT' ) then
           ptr4d_r4(:,:,:,stepIndex) = ptr4d_r4(:,:,:,stepIndex) + MPC_K_C_DEGREE_OFFSET_R4
         end if
-
-        if (trim(varName) == 'HU' .and. ctrlVarHumidity == 'LQ' ) then
-          ptr4d_r4(:,:,:,stepIndex) = sngl(log(max(real(ptr4d_r4(:,:,:,stepIndex),8),MPC_MINIMUM_HU_R8)))
-        else if (trim(varName) == 'HU' .and. ctrlVarHumidity == 'HU' ) then
+        if (trim(varName) == 'HU' ) then
           ptr4d_r4(:,:,:,stepIndex) = sngl(max(real(ptr4d_r4(:,:,:,stepIndex),8),MPC_MINIMUM_HU_R8))
         end if
       end do STEP_LOOP

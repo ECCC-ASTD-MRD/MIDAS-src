@@ -1459,9 +1459,6 @@ CONTAINS
     !- 3.  Variable transforms
     !
     if ( ctrlVarHumidity == 'LQ') then
-       !! convert HU to LQ
-       !call vtr_transform( statevector, & ! INOUT
-       !                    'HUtoLQ_tlm' ) ! IN
        call vtr_transform( statevector, & ! INOUT
                            'LQtoHU_tlm' ) ! IN
     end if

@@ -846,8 +846,8 @@ CONTAINS
     character(len=100) :: fileNameFull
     integer            :: stepIndex
 
-    do indexStep = 1, statevector%numStep
-      fileNameFull = trim(fileName) // trim(fileNameExt(statevector,indexStep,indexAnalysis))
+    do stepIndex = 1, statevector%numStep
+      fileNameFull = trim(fileName) // trim(fileNameExt(statevector,stepIndex,indexAnalysis))
       call gsv_writeToFileMpi(statevector,fileNameFull,cetiket,1.0d0, &
                               ip3_opt=0,  &
                               stepIndex_opt=stepIndex)
