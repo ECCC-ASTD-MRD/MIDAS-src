@@ -1253,6 +1253,7 @@ contains
       if ( tvs_isIdBurpInst(IDATYP,CINST) .and. tvs_lsensor(tvs_ltovsno (index_header)) == id) then
         BTOBS(:)    = -1.d0
         BTCALC(:)   = -1.d0
+        BTOBSERR(:) = -1.d0
         RCAL_CLR(:) = -1.d0
         SFCTAU(:)   = -1.d0
         RCLD(:,:)   = -1.d0
