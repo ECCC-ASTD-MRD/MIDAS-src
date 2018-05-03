@@ -1107,8 +1107,23 @@ contains
 
     NCHN = tvs_coefs(id)%coef%fmv_chn
     nch_sel = hir_get_nchan_selected(cinst)
+
     if (NCHN /= nch_sel) then
       write(*,*) "irbg_doQualityControl: Skipping ... Invalid NCHN: ",NCHN,nch_sel,CINST
+      call obs_set_current_header_list(lobsSpaceData,'TO')
+      HEADER3: do
+        index_header = obs_getHeaderIndex(lobsSpaceData)
+        if (index_header < 0) exit HEADER3
+        idatyp = obs_headElem_i(lobsSpaceData,OBS_ITY,index_header)
+        if ( tvs_isIdBurpInst(IDATYP,CINST) .and. tvs_lsensor(tvs_ltovsno (index_header))==id ) THEN
+          idata   = obs_headElem_i(lobsSpaceData,OBS_RLN,index_header)
+          idatend = obs_headElem_i(lobsSpaceData,OBS_NLV,index_header) + idata - 1
+          do index_body = idata, idatend
+            ! on allume le bit 9; ca devrait etre suffisant
+            call obs_bodySet_i(lobsSpaceData,OBS_FLG,index_body,ibset(obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY),9))
+          end do
+        end if
+      end do HEADER3
       return
     end if
 
@@ -1238,6 +1253,7 @@ contains
       if ( tvs_isIdBurpInst(IDATYP,CINST) .and. tvs_lsensor(tvs_ltovsno (index_header)) == id) then
         BTOBS(:)    = -1.d0
         BTCALC(:)   = -1.d0
+        BTOBSERR(:) = -1.d0
         RCAL_CLR(:) = -1.d0
         SFCTAU(:)   = -1.d0
         RCLD(:,:)   = -1.d0
