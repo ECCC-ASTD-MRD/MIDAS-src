@@ -1062,7 +1062,7 @@ contains
     integer :: isatzen
     integer :: chan_indx,ILIST_SUN,ilist_co2(NCO2),ilist_co2_pair(NCO2),ilist_he(NCH_HE)
 !***************************************************************************************
-    integer :: nlv_T,nch_sel,id,KRTID, QCID
+    integer :: nlv_T,id,KRTID, QCID
     logical :: liasi,lairs,lcris
 !****************************************
     write (*,*) "Entering irbg_doQualityControl"
@@ -1106,11 +1106,7 @@ contains
     ! ** find number of channels and RTTOV levels
 
     NCHN = tvs_coefs(id)%coef%fmv_chn
-    nch_sel = hir_get_nchan_selected(cinst)
-    if (NCHN /= nch_sel) then
-      write(*,*) "irbg_doQualityControl: Skipping ... Invalid NCHN: ",NCHN,nch_sel,CINST
-      return
-    end if
+
 
     NLEV = tvs_coefs(id) % coef % nlevels 
     allocate (xpres(NLEV))
@@ -1147,14 +1143,14 @@ contains
 ! ZT(nlv_T) -- temperature profiles on NWP model levels (deg K)
 ! ZHT(nlv_T,1) -- height profiles on NWP model levels (m)
 ! ZLQS -- surface specific humidity in ln q (kg/kg)
-! BTOBSERR(nch_sel) -- observation error standard deviation
-! BTOBS(nch_sel) -- observed brightness temperatures (deg K)
-! BTCALC(nch_sel) -- computed brightness temperatures (deg K)
-! RCAL_CLR(nch_sel) -- computed clear radiances (mw/m2/sr/cm-1)
-! SFCTAU(nch_sel) -- surface to space transmittances (0-1)
-! RCLD(nch_sel,NLEV) -- overcast cloudy radiances (mw/m2/sr/cm-1)
-! TRANSM(nch_sel,NLEV) -- layer to space transmittances (0-1)
-! EMI_SFC(nch_sel) -- surface emissivities (0-1)
+! BTOBSERR(nchn) -- observation error standard deviation
+! BTOBS(nchn) -- observed brightness temperatures (deg K)
+! BTCALC(nchn) -- computed brightness temperatures (deg K)
+! RCAL_CLR(nchn) -- computed clear radiances (mw/m2/sr/cm-1)
+! SFCTAU(nchn) -- surface to space transmittances (0-1)
+! RCLD(nchn,NLEV) -- overcast cloudy radiances (mw/m2/sr/cm-1)
+! TRANSM(nchn,NLEV) -- layer to space transmittances (0-1)
+! EMI_SFC(nchn) -- surface emissivities (0-1)
 ! KSURF -- surface type in obs file (0, 1)
 ! CLFR -- cloud fraction (%)
 ! TOEXT(NLEV) -- temperature profiles on RT model levels (deg K)
@@ -1167,32 +1163,32 @@ contains
 ! LTYPE -- surface type (1,...,20)
 ! PCNT_WAT -- water fraction (0-1)
 ! PCNT_REG -- water fraction in the area (0-1)
-! ROBS(nch_sel) -- observed radiances (mW/m2/sr/cm-1)
+! ROBS(nchn) -- observed radiances (mW/m2/sr/cm-1)
 
     alloc_status(:) = 0
  
-    allocate ( BTOBSERR(nch_sel),         stat= alloc_status(1))
-    allocate ( BTOBS(nch_sel),            stat= alloc_status(2))
-    allocate ( BTCALC(nch_sel),           stat= alloc_status(3))
-    allocate ( RCAL_CLR(nch_sel),         stat= alloc_status(4))
-    allocate ( SFCTAU(nch_sel),           stat= alloc_status(5))
-    allocate ( RCLD(nch_sel,NLEVB),       stat= alloc_status(6))
-    allocate ( TRANSM(nch_sel,NLEVB),     stat= alloc_status(7))
-    allocate ( EMI_SFC(nch_sel),          stat= alloc_status(8))
+    allocate ( BTOBSERR(nchn),         stat= alloc_status(1))
+    allocate ( BTOBS(nchn),            stat= alloc_status(2))
+    allocate ( BTCALC(nchn),           stat= alloc_status(3))
+    allocate ( RCAL_CLR(nchn),         stat= alloc_status(4))
+    allocate ( SFCTAU(nchn),           stat= alloc_status(5))
+    allocate ( RCLD(nchn,NLEVB),       stat= alloc_status(6))
+    allocate ( TRANSM(nchn,NLEVB),     stat= alloc_status(7))
+    allocate ( EMI_SFC(nchn),          stat= alloc_status(8))
     allocate ( TOEXT(NLEVB),              stat= alloc_status(9))
     allocate ( ZHOEXT(NLEVB,1),           stat= alloc_status(10))
-    allocate ( ROBS(nch_sel),             stat= alloc_status(11))
-    allocate ( REJFLAG(nch_sel,0:BITFLAG),stat= alloc_status(12))
-    allocate ( NTOP_BT(nch_sel),          stat= alloc_status(13))
-    allocate ( NTOP_RD(nch_sel),          stat= alloc_status(14))
-    allocate ( PTOP_BT(nch_sel),          stat= alloc_status(15))
-    allocate ( PTOP_RD(nch_sel),          stat= alloc_status(16))
-    allocate ( MINP(nch_sel),             stat= alloc_status(17))
-    allocate ( PMIN(nch_sel),             stat= alloc_status(18))
-    allocate ( DTAUDP1(nch_sel),          stat= alloc_status(19))
-    allocate ( FATE(nch_sel),             stat= alloc_status(20))
+    allocate ( ROBS(nchn),             stat= alloc_status(11))
+    allocate ( REJFLAG(nchn,0:BITFLAG),stat= alloc_status(12))
+    allocate ( NTOP_BT(nchn),          stat= alloc_status(13))
+    allocate ( NTOP_RD(nchn),          stat= alloc_status(14))
+    allocate ( PTOP_BT(nchn),          stat= alloc_status(15))
+    allocate ( PTOP_RD(nchn),          stat= alloc_status(16))
+    allocate ( MINP(nchn),             stat= alloc_status(17))
+    allocate ( PMIN(nchn),             stat= alloc_status(18))
+    allocate ( DTAUDP1(nchn),          stat= alloc_status(19))
+    allocate ( FATE(nchn),             stat= alloc_status(20))
     if (liasi) allocate ( RCLD_AVHRR(NIR,NLEVB), stat= alloc_status(21))
-    allocate ( maxwf(nch_sel),            stat= alloc_status(22))
+    allocate ( maxwf(nchn),            stat= alloc_status(22))
     allocate ( ZVLEV(NLEVB),              stat= alloc_status(23))
     allocate ( ZLEVMOD(nlv_T,1),          stat= alloc_status(24))
     allocate ( ZT(nlv_T),                 stat= alloc_status(25))
@@ -1300,7 +1296,7 @@ contains
           if ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY)==1 ) then
             ICHN = nint(obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY))
             ICHN = max( 0,min( ICHN,tvs_maxChannelNumber + 1 ) )
-            chan_indx = hir_get_chindx_fr_chn(CINST,ichn)
+            call tvs_getChannelIndexFromChannelNumber(id,chan_indx,ichn)
             BTOBSERR(chan_indx) = obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)
             BTOBS(chan_indx) = obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY)
 
@@ -1316,7 +1312,7 @@ contains
 
         do JC = 1, NCHN
           ICHN = tvs_ichan(JC,ID)
-          chan_indx = hir_get_chindx_fr_chn(CINST,ichn)
+          call tvs_getChannelIndexFromChannelNumber(id, chan_indx,ichn)
           BTCALC(chan_indx) = tvs_radiance(tvs_nobtov) % bt(jc)
           RCAL_CLR(chan_indx) = tvs_radiance(tvs_nobtov) % clear(jc)
           SFCTAU(chan_indx) = tvs_transmission(tvs_nobtov) % tau_total(jc)
@@ -1338,7 +1334,7 @@ contains
              isatzen > 16500 ) then
           do JC = 1, NCHN
             ICHN = tvs_ichan(JC,ID)
-            chan_indx = hir_get_chindx_fr_chn(CINST,ichn)
+            call  tvs_getChannelIndexFromChannelNumber(id,chan_indx,ichn)
             REJFLAG(chan_indx,9) = 1
           end do
         end if
@@ -1368,7 +1364,7 @@ contains
         
         channels: do JC = 1, NCHN
           ICHN = tvs_ichan(JC,ID)
-          chan_indx = hir_get_chindx_fr_chn(CINST,ichn)
+          call tvs_getChannelIndexFromChannelNumber(id,chan_indx,ichn)
           if ( REJFLAG(chan_indx,9) == 1 ) cycle channels
           t_effective =  tvs_coefs(id) % coef % ff_bco(jc) &
                + tvs_coefs(id) % coef % ff_bcs(jc) * BTOBS(chan_indx)
@@ -1391,9 +1387,8 @@ contains
         CLDFLAG = 0
         
 !* -- REFERENCE FOR WINDOW CHANNEL
-           
-        IWINDO = hir_get_chindx_fr_chn(CINST,IWINDOW(QCID))
-        IWINDO_ALT = hir_get_chindx_fr_chn(CINST,IWINDOW_ALT(QCID))
+        call tvs_getChannelIndexFromChannelNumber(id, IWINDO, IWINDOW(QCID) )
+        call tvs_getChannelIndexFromChannelNumber(id, IWINDO_ALT, IWINDOW_ALT(QCID) )
         ICHREF = IWINDO
            
         if ( REJFLAG(IWINDO,9) == 1 ) then
@@ -1417,11 +1412,11 @@ contains
 
 !iopt2=1 : calcul de la hauteur en hPa PTOP_MB et du NTOP_MB correspondant
         call CLOUD_HEIGHT (PTOP_MB,NTOP_MB, btobs,cldflag,zt, &
-             zht(:,1),zps,zlevmod(:,1),nlv_T,nch_sel,ichref,lev_start,iopt2)
+             zht(:,1),zps,zlevmod(:,1),nlv_T,nchn,ichref,lev_start,iopt2)
 
 !iopt1=2 : calcul de la hauteur em metres PTOP_EQ et du NTOP_EQ correspondant
         call CLOUD_HEIGHT (PTOP_EQ,NTOP_EQ, btobs,cldflag,zt, &
-             zht(:,1),zps,zlevmod(:,1),nlv_T,nch_sel,ichref,lev_start,iopt1)
+             zht(:,1),zps,zlevmod(:,1),nlv_T,nchn,ichref,lev_start,iopt1)
 
         if (liasi) then
 ! appel de RTTOV pour calculer les radiances des 3 canaux IR (3b, 4 et 5) de AVHRR 3
@@ -1465,7 +1460,7 @@ contains
 !* -- CLEAR/CLOUDY PROFILE DETECTION USING THE GARAND & NADON ALGORITHM
 
         call GARAND1998NADON (CLDFLAG, btobs,ztg,zt, &
-             zht(:,1),nlv_T,nch_sel,ptop_eq,ntop_eq,ichref)
+             zht(:,1),nlv_T,nchn,ptop_eq,ntop_eq,ichref)
 
         if (liasi) then
           do JC=1,nClassAVHRR
@@ -1608,12 +1603,12 @@ contains
         LEV_START = 0
 
         do JCH = 1, NCH_HE
-          ILIST_HE(JCH) = hir_get_chindx_fr_chn(CINST,ILIST1(QCID,JCH))
+          call tvs_getChannelIndexFromChannelNumber(id,ILIST_HE(JCH),ILIST1(QCID,JCH))
         end do
 
         call CLOUD_TOP ( PTOP_BT,PTOP_RD,NTOP_BT,NTOP_RD, &
              btobs,toext,zhoext(:,1),rcal_clr,zps,robs,rcld,zvlev,nlevb, &
-             nch_sel,cldflag,rejflag,lev_start,iopt2,ihgt,ichref,nch_he,ilist_he)
+             nchn,cldflag,rejflag,lev_start,iopt2,ihgt,ichref,nch_he,ilist_he)
 
         if (liasi) then
           LEV_START_AVHRR(:) = 0
@@ -1628,8 +1623,8 @@ contains
 !* -- REFERENCE CHANNEL FOR CO2-SLICING
 
         do JCH = 1, NCO2
-          ILIST_CO2(JCH) = hir_get_chindx_fr_chn(CINST,ILIST2(QCID,JCH))
-          ILIST_CO2_PAIR(JCH) = hir_get_chindx_fr_chn(CINST,ILIST2_PAIR(QCID,JCH))
+          call tvs_getChannelIndexFromChannelNumber(id, ILIST_CO2(JCH), ILIST2(QCID,JCH)  )
+          call tvs_getChannelIndexFromChannelNumber(id, ILIST_CO2_PAIR(JCH), ILIST2_PAIR(QCID,JCH)  )
         end do
 
         cpt = 0
@@ -1648,19 +1643,21 @@ contains
         end if
 
 !* -- EQUIVALENT HEIGHT OF SELECTED WINDOW CHANNEL
-
-        HEFF = PTOP_RD( hir_get_chindx_fr_chn(CINST,ILIST1(QCID,2)))
+        call tvs_getChannelIndexFromChannelNumber(id,chan_indx,ILIST1(QCID,2))
+        HEFF = PTOP_RD( chan_indx )
 
               
-        if (ICHREF == IWINDO_ALT) HEFF = PTOP_RD( hir_get_chindx_fr_chn(CINST,ILIST1(QCID,3)) )
-              
+        if (ICHREF == IWINDO_ALT) then
+          call tvs_getChannelIndexFromChannelNumber(id,chan_indx,ILIST1(QCID,3))
+          HEFF = PTOP_RD( chan_indx )
+        end if
 !* -- CLOUD TOP BASED ON CO2 SLICING 
 
         
         LEV_START = max( min(LEV_START,CO2MAX(1)), CO2MIN(1) )
 
         call CO2_SLICING ( PTOP_CO2,NTOP_CO2,FCLOUD_CO2, &
-             rcal_clr,rcld,robs,zps,zvlev,nlevb,nch_sel,cldflag,rejflag, &
+             rcal_clr,rcld,robs,zps,zvlev,nlevb,nchn,cldflag,rejflag, &
              lev_start,ichref,ilist_co2,ilist_co2_pair)
 
 !* -- FIND CONSENSUS CLOUD TOP AND FRACTION
@@ -1718,7 +1715,7 @@ contains
         end if
 
         !* -- FIND MINIMUM LEVEL OF SENSITIVITY FOR CHANNEL ASSIMILATION NOT SENSIBLE TO CLOUDS        
-        call MIN_PRES_new (MAXWF, MINP,PMIN,DTAUDP1, zps,transm,zvlev,cldflag,nlevb,nch_sel,imodtop )
+        call MIN_PRES_new (MAXWF, MINP,PMIN,DTAUDP1, zps,transm,zvlev,cldflag,nlevb,nchn,imodtop )
 !* -- ASSIMILATION OF OBSERVATIONS WHEN CLOUDY PROFILES
 
 ! *** TEST # 3 ***
@@ -1727,7 +1724,7 @@ contains
 
         TAMPON = max(50.d0, 2.d0*VTOP)                                                          
 
-        do JC = 1, nch_sel        
+        do JC = 1, nchn        
           if ( REJFLAG(JC,11) == 1 .and. REJFLAG(JC,23) == 1 .and. ETOP - TAMPON > PMIN(JC) ) then
             REJFLAG(JC,11) = 0
             REJFLAG(JC,23) = 0
@@ -1741,9 +1738,9 @@ contains
 
 !     FURTHER REASONS TO REJECT OBSERVATIONS
 
-        ILIST_SUN = hir_get_chindx_fr_chn(CINST,ICHN_SUN(QCID))
+        call  tvs_getChannelIndexFromChannelNumber(id,ILIST_SUN,ICHN_SUN(QCID))
 
-        do JC = 1, nch_sel
+        do JC = 1, nchn
 
           if ( FATE(JC) == 0 ) then
 
@@ -1835,7 +1832,7 @@ contains
         ASSIM_ALL = .true.
         FATE(:) = sum(REJFLAG(:,:),DIM=2)            
         
-        chn: do JC = 1, nch_sel
+        chn: do JC = 1, nchn
           if ( REJFLAG(JC,8) == 0 ) then
             if ( FATE(JC) /= 0 ) then
               ASSIM_ALL = .false.
@@ -1866,7 +1863,7 @@ contains
         do INDEX_BODY= IDATA, IDATEND
           ICHN = nint(obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY))
           ICHN = max(0, min(ICHN, tvs_maxChannelNumber + 1))
-          chan_indx = hir_get_chindx_fr_chn(CINST,ichn)
+          call tvs_getChannelIndexFromChannelNumber(id,chan_indx,ICHN)
           call obs_bodySet_r(lobsSpaceData,OBS_SEM,INDEX_BODY,EMI_SFC(chan_indx))
           do NFLG = 0, BITFLAG
             if ( REJFLAG(chan_indx,NFLG) == 1 ) &
