@@ -107,7 +107,7 @@ module tovs_nl_mod
   public :: tvs_setupAlloc,tvs_setup, tvs_isIdBurpTovs, tvs_isIdBurpInst
   public :: tvs_getInstrumentId, tvs_getPlatformId, tvs_mapSat, tvs_mapInstrum
   public :: tvs_isInstrumHyperSpectral, tvs_getChanprof, tvs_countRadiances
-  public :: tvs_getHIREmissivities, tvs_getOtherEmissivities, tvs_rttov_read_coefs
+  public :: tvs_getHIREmissivities, tvs_getOtherEmissivities, tvs_rttov_read_coefs, tvs_getChannelIndexFromChannelNumber
   ! Module parameters
   ! units conversion from  mixing ratio to ppmv and vice versa
   real(8), Parameter :: qMixratio2ppmv  = (1000000.0d0 * mair) / mh2o
@@ -4318,6 +4318,40 @@ contains
     end if
 
 end subroutine tvs_calc_jo
+
+subroutine tvs_getChannelIndexFromChannelNumber(idsat,chanIndx,chanNum)
+implicit none
+integer ,intent(in)  :: idsat, chanNum
+integer ,intent(out) :: chanIndx
+!*********
+logical ,save :: first =.true.
+integer :: ichan, isensor
+integer ,allocatable,save :: Index(:,:)
+
+if (first) then
+  allocate( Index(tvs_nsensors, tvs_maxChannelNumber ) )
+  Index(:,:) = -1
+  do isensor = 1, tvs_nsensors
+    channels:do ichan = 1,  tvs_maxChannelNumber
+      indexes: do indx =1, tvs_nchan(isensor)
+        if ( indx == tvs_ichan(indx,isensor) ) then
+          Index(isensor,ichan) = indx
+          exit indexes
+        end if
+      end do indexes
+    end do channels
+  end do
+  first = .false.
+end if
+
+chanIndx = Index(idsat,chanNum)
+
+if ( chanIndx == -1) then
+  write(*,*) "Warning: unavailable channel number ", idsat,chanIndx,chanNum
+end if
+
+
+end subroutine tvs_getChannelIndexFromChannelNumber
 
 
 
