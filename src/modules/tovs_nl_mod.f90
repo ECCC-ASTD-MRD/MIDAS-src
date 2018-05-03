@@ -65,7 +65,6 @@ module tovs_nl_mod
   use codtyp_mod
   use mpi
   use utilities_mod
-  use hirchannels_mod
   use obsSpaceData_mod
   use EarthConstants_mod
   use MathPhysConstants_mod
@@ -2647,34 +2646,12 @@ contains
 
 
     !* find the sensor bands (central) wavenumbers
-    if ( tvs_instruments(KRTID) == 11 ) THEN ! --AIRS--
-      
-      do JC = 1, NCHN
-        ICHN = tvs_ichan(JC,KRTID)
-        WAVEN(JC) = hir_get_wavn("AIRS",ICHN)
-      end do
-
-    else if ( tvs_instruments(KRTID) == 16 ) THEN ! --IASI--
-
-      do JC = 1, NCHN
-        ICHN = tvs_ichan(JC,KRTID)
-        WAVEN(JC) =  hir_get_wavn("IASI",ICHN)
-      end do
-
-    else if ( tvs_instruments(KRTID) == 27 ) THEN ! --CrIS--
-      
-      do JC = 1, NCHN
-        ICHN = tvs_ichan(JC,KRTID)
-        WAVEN(JC) =  hir_get_wavn("CRIS",ICHN)
-      end do
-
-
-    end if
+    do jc = 1, nchn      
+      WAVEN(JC) = tvs_coefs(KRTID) % coef % ff_cwn(jc)
+    end do
 
 
     !* get the CERES emissivity matrix for all sensor wavenumbers and surface types
-
-
     call CERES_EMATRIX(EMI_MAT, waven,nchn)
 
 
