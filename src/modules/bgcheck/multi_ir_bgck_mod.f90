@@ -28,7 +28,6 @@
 module multi_ir_bgck_mod
   use rttov_interfaces_mod
   use tovs_nl_mod
-  use hirChannels_mod
   use rttov_const, only : inst_id_iasi
   use utilities_mod
   use obsSpaceData_mod
@@ -1737,9 +1736,7 @@ contains
         end do
 
 !     LOOK AT THE FATE OF THE OBSERVATIONS
-
         FATE(:) = sum(REJFLAG(:,:), DIM=2)            
-
 
 !     FURTHER REASONS TO REJECT OBSERVATIONS
 
@@ -1825,11 +1822,14 @@ contains
             end if
           end if
 
-! *** TEST # 10 ***
-! *** Do not assimilate blacklisted channels ***
-                 
-          if ( hir_get_assim_chan(CINST,JC) == 0 ) REJFLAG(JC,8) = 1
+        end do
 
+        nchannels =0 
+        do INDEX_BODY= IDATA, IDATEND
+          if ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY)==1 ) then
+            nchannels =  nchannels + 1
+            if (btest(obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY),8)) REJFLAG(channelIndex(nchannels),8) = 1
+          end if
         end do
 
 !* -- FOR EACH PROFILE, ARE ALL NON-BLACKLISTED CHANNELS ASSIMILATED
