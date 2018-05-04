@@ -72,11 +72,11 @@ contains
        call utl_abort("hir_set_assim_chan from  hirchannels module")
     endif
 
-    if (nch/=hir_get_nchan_selected(CINST)) then
-       Write(*,*) "Wrong number of channels",nch
-       Write(*,*) "Should be ",hir_get_nchan_selected(CINST)
-       call utl_abort("hir_set_assim_chan from  hirchannels module")
-    endif
+!    if (nch/=hir_get_nchan_selected(CINST)) then
+!       Write(*,*) "Wrong number of channels",nch
+!       Write(*,*) "Should be ",hir_get_nchan_selected(CINST)
+!       call utl_abort("hir_set_assim_chan from  hirchannels module")
+!    endif
 
     select case(trim(CINST))
     case("AIRS","airs")
@@ -123,10 +123,10 @@ contains
        call utl_abort("hir_get_assim_chan from  hirchannels module")
     end select
 
-    if (ichan<1 .or. ichan>hir_get_nchan_selected(CINST)) then
-       Write(*,*) "Invalid channel index",ichan
-       call utl_abort("hir_get_assim_chan from  hirchannels module")
-    endif
+!    if (ichan<1 .or. ichan>hir_get_nchan_selected(CINST)) then
+!       Write(*,*) "Invalid channel index",ichan
+!       call utl_abort("hir_get_assim_chan from  hirchannels module")
+!    endif
 
     hir_get_assim_chan = pt(ichan)
 

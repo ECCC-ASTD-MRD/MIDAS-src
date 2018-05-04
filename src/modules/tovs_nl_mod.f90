@@ -4325,7 +4325,7 @@ integer ,intent(in)  :: idsat, chanNum
 integer ,intent(out) :: chanIndx
 !*********
 logical ,save :: first =.true.
-integer :: ichan, isensor
+integer :: ichan, isensor, indx 
 integer ,allocatable,save :: Index(:,:)
 
 if (first) then
@@ -4334,7 +4334,7 @@ if (first) then
   do isensor = 1, tvs_nsensors
     channels:do ichan = 1,  tvs_maxChannelNumber
       indexes: do indx =1, tvs_nchan(isensor)
-        if ( indx == tvs_ichan(indx,isensor) ) then
+        if ( ichan == tvs_ichan(indx,isensor) ) then
           Index(isensor,ichan) = indx
           exit indexes
         end if
@@ -4346,9 +4346,9 @@ end if
 
 chanIndx = Index(idsat,chanNum)
 
-if ( chanIndx == -1) then
-  write(*,*) "Warning: unavailable channel number ", idsat,chanIndx,chanNum
-end if
+!if ( chanIndx == -1) then
+!  write(*,*) "Warning: unavailable channel number ", idsat,chanIndx,chanNum
+!end if
 
 
 end subroutine tvs_getChannelIndexFromChannelNumber
