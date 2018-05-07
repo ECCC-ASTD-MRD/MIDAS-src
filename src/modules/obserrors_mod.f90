@@ -754,7 +754,7 @@ contains
 !   Utilization flag for AIRS,IASI and CrIS channels (bgck mode only)
                   if ( trim(obserrorMode) == 'bgckIR' ) then
                     if  (tovutil(ICHN,JN) == 0) &
-                         call obs_bodySet_r(lobsSpaceData,OBS_FLG,INDEX_BODY,ibset(obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY),8))
+                         call obs_bodySet_i(lobsSpaceData,OBS_FLG,INDEX_BODY,ibset(obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY),8))
                   end if
                 END IF
               END DO
