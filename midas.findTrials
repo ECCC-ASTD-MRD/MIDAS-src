@@ -68,8 +68,38 @@ class Test_findTrials(unittest.TestCase):
         trials_ref = ['2018050206_240m']
         self.assertEqual(trials,trials_ref,"The list of trials is not the one expected")
 
+    def test_error(self):
+        with self.assertRaises(Exception):
+            trials = findTrials(5,60,1,'2018050210')
+
+        with self.assertRaises(Exception):
+            trials = findTrials(25,60,1,'2018050210')
+
+        with self.assertRaises(Exception):
+            trials = findTrials(50,60,1,'2018050210')
+
+        with self.assertRaises(Exception):
+            trials = findTrials(3.5,60,1,'2018050210')
+
+        with self.assertRaises(Exception):
+            trials = findTrials(3,60.5,1,'2018050210')
+
+        with self.assertRaises(Exception):
+            trials = findTrials(3,60,1,datetime.datetime(2018,5,2,10))
+
 
 def findTrials(trialFrequency,trialOutputFrequency,width,date):
+    if not isinstance(trialFrequency,int) and not isinstance(trialFrequency,float):
+        raise Exception("findTrials: trialFrequency must be an integer or a float")
+    if not isinstance(trialOutputFrequency,int):
+        raise Exception("findTrials: trialOutputFrequency must be an integer")
+    if not isinstance(width,int) and not isinstance(width,float):
+        raise Exception("findTrials: width must be an integer or a float")
+    if not isinstance(date,str):
+        raise Exception("findTrials: date must be an str object")
+
+    if 24%trialFrequency != 0:
+        raise Exception("findTrials: We expect the trial frequency (--trialfrequency or -t) is a factor of 24 hours.")
 
     centralDate = datetime.datetime.strptime(date,dateFormat)
 
