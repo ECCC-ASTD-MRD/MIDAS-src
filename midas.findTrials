@@ -7,6 +7,8 @@ import unittest
 
 VERSION = 'alpha'
 
+dateFormat = '%Y%m%d%H'
+
 def get_command_line():
     """
     Parse the command line and perform all the checks.
@@ -36,8 +38,8 @@ def get_command_line():
     options = parser.parse_args()
 
     if options.Verbosity:
-        print('get_command_line: options')
-        print('\t' + options)
+        print('get_command_line: options',file=sys.stderr)
+        print('\t' + options,file=sys.stderr)
 
     if options.version:
         print("midas.findTrials version: " + VERSION)
@@ -56,9 +58,69 @@ class Test_findTrials(unittest.TestCase):
         trials_ref = ['2018050206_%dm' % ext for ext in range(180,541,15)]
         self.assertEqual(trials,trials_ref,"The list of trials is not the one expected")
 
+    def test_1hr(self):
+        trials = findTrials(6,15,1,'2018050210')
+        trials_ref = ['2018050206_210m','2018050206_225m','2018050206_240m','2018050206_255m','2018050206_270m']
+        self.assertEqual(trials,trials_ref,"The list of trials is not the one expected")
+
+    def test_1hr_1bin(self):
+        trials = findTrials(6,60,1,'2018050210')
+        trials_ref = ['2018050206_240m']
+        self.assertEqual(trials,trials_ref,"The list of trials is not the one expected")
+
 
 def findTrials(trialFrequency,trialOutputFrequency,width,date):
-    pass
+
+    centralDate = datetime.datetime.strptime(date,dateFormat)
+
+    halfAssimilationWindowSpan = datetime.timedelta(minutes=width*60/2)
+
+    beginAssimilationWindow = centralDate - halfAssimilationWindowSpan
+    endAssimilationWindow   = centralDate + halfAssimilationWindowSpan
+
+    numberBins = width*60/trialOutputFrequency
+
+    dateTrial = trialDate(trialFrequency,centralDate)
+
+    dateloop=dateTrial
+    exts = []
+    trialLeadTime = 0 ## in minutes
+    while dateloop <= endAssimilationWindow:
+        if date_loop >= beginAssimilationWindow:
+            exts.append(trialLeadTime)
+
+        dateloop += datetime.timedelta(minutes=trialOutputFrequency)
+        trialLeadTime += trialOutputFrequency
+
+    dateTrialStr = dateTrial.strftime(dateFormat)
+    extsStr = ["_%3dm" % ext for ext in exts]
+    trials = [dateTrialStr + ext for ext in extsStr]
+
+    return trials
+
+class Test_trialDate(unittest.TestCase):
+    def test1(self):
+        date = trialDate(6,datetime.datetime(2018,5,2,12))
+        date_ref = datetime.datetime(2018,5,2,6)
+        self.assertEqual(date,date_ref,"The date found is not correct.")
+
+    def test2(self):
+        date = trialDate(6,datetime.datetime(2018,5,2,10))
+        date_ref = datetime.datetime(2018,5,2,6)
+        self.assertEqual(date,date_ref,"The date found is not correct.")
+
+    def test3(self):
+        date = trialDate(3,datetime.datetime(2018,5,2,10))
+        date_ref = datetime.datetime(2018,5,2,9)
+        self.assertEqual(date,date_ref,"The date found is not correct.")
+
+        date = trialDate(6,datetime.datetime(2018,5,2,12))
+        date_ref = datetime.datetime(2018,5,2,9)
+        self.assertEqual(date,date_ref,"The date found is not correct.")
+
+def trialDate(trialFrequency,date):
+    incHour = trialFrequency-date.hour%trialFrequency
+    return date-datetime.timedelta(hours=incHour)
 
 if __name__ == "__main__":
     tOptions = get_command_line()
