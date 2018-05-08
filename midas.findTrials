@@ -169,3 +169,5 @@ if __name__ == "__main__":
         trial_list = findTrials(trialFrequency = tOptions.trialFrequency, \
                                 trialOutputFrequency = tOptions.trialOutputFrequency, \
                                 width = tOptions.width, date = tOptions.date)
+        for trial in trial_list:
+            print(trial)
