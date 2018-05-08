@@ -114,12 +114,16 @@ class Test_trialDate(unittest.TestCase):
         date_ref = datetime.datetime(2018,5,2,9)
         self.assertEqual(date,date_ref,"The date found is not correct.")
 
-        date = trialDate(6,datetime.datetime(2018,5,2,12))
+    def test4(self):
+        date = trialDate(3,datetime.datetime(2018,5,2,12))
         date_ref = datetime.datetime(2018,5,2,9)
         self.assertEqual(date,date_ref,"The date found is not correct.")
 
 def trialDate(trialFrequency,date):
-    incHour = trialFrequency-date.hour%trialFrequency
+    incHour = date.hour%trialFrequency
+    if incHour == 0:
+        incHour = trialFrequency
+
     return date-datetime.timedelta(hours=incHour)
 
 if __name__ == "__main__":
