@@ -86,7 +86,7 @@ def findTrials(trialFrequency,trialOutputFrequency,width,date):
     exts = []
     trialLeadTime = 0 ## in minutes
     while dateloop <= endAssimilationWindow:
-        if date_loop >= beginAssimilationWindow:
+        if dateloop >= beginAssimilationWindow:
             exts.append(trialLeadTime)
 
         dateloop += datetime.timedelta(minutes=trialOutputFrequency)
