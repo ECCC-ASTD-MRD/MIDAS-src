@@ -703,7 +703,7 @@ CONTAINS
 
 
   subroutine ens_readEnsemble(ens, ensPathName, biPeriodic, ctrlVarHumidity, &
-                              vco_file_opt)
+                              vco_file_opt, varNames_opt)
     implicit none
 
     ! arguments
@@ -711,6 +711,7 @@ CONTAINS
     character(len=*) :: ensPathName
     logical          :: biPeriodic
     character(len=*) :: ctrlVarHumidity
+    character(len=*), optional :: varNames_opt(:)
     type(struct_vco), pointer, optional :: vco_file_opt
 
     ! locals
@@ -728,17 +729,18 @@ CONTAINS
     integer :: memberIndexOffset, totalEnsembleSize
     integer :: length_envVariable
     integer :: lonPerPEmax, latPerPEmax, ni, nj, nk, numStep, numlevelstosend, numlevelstosend2
-    integer :: memberIndex, memberIndex2, fileMemberIndex, stepIndex, jvar, jk, jk2, jk3
-    integer :: nEnsVarNamesWanted, varIndex
+    integer :: memberIndex, memberIndex2, fileMemberIndex, stepIndex, jvar, jk, jk2, jk3, jktot
+    integer :: nEnsVarNamesWanted, varIndex,nEnsVarNames,numLev
     character(len=256) :: ensFileName
     character(len=32)  :: envVariable
     character(len=2)   :: typvar
     character(len=12)  :: etiket
-    character(len=4)   :: varName
-    character(len=4)   :: ensVarNamesWanted_dummy(vnl_numvarmax)
-    character(len=4), allocatable :: ensVarNamesWanted(:)
+    character(len=4)   :: varName,ensVarNames_dummy(vnl_numVarMax)
+    character(len=4)   :: ensVarNamesWanted_dummy(vnl_numvarMax)
+    character(len=4), allocatable :: ensVarNamesWanted(:),ensVarNames(:)
     logical :: verticalInterpNeeded, horizontalInterpNeeded, horizontalPaddingNeeded
-
+    logical :: presentInFile(vnl_numVarMax)
+    
     write(*,*) 'ens_readEnsemble: starting'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
@@ -820,29 +822,63 @@ CONTAINS
     if (mpi_myid == 0) then
       call fln_ensFileName(ensFileName, ensPathName, 1)
       nEnsVarNamesWanted=0
+      nEnsVarNames=0
       write(*,*)
       write(*,*) 'ens_readEnsemble: Listing the analysis variables present in ensemble file'
       write(*,*) trim(ensFileName)
-      do varIndex = 1, vnl_numVarMax
-        if (gsv_varExist(varName=vnl_varNameList(varIndex))) then
-          if (utl_varNamePresentInFile(ensFileName,vnl_varNameList(varIndex))) then
-            write(*,*) ' Analysis variable found     : ', trim(vnl_varNameList(varIndex))
-            nEnsVarNamesWanted = nEnsVarNamesWanted + 1
-            ensVarNamesWanted_dummy(nEnsVarNamesWanted) = trim(vnl_varNameList(varIndex))
-          else
-            write(*,*) ' Analysis variable NOT FOUND : ', trim(vnl_varNameList(varIndex))
-          end if
-        end if
-      end do
+      if (present(varNames_opt)) then
+        do varIndex = 1, size(varNames_opt)
+           if (utl_varNamePresentInFile(ensFileName,varNames_opt(varIndex))) then
+             write(*,*) ' Analysis variable found     : ', trim(varNames_opt(varIndex))
+             nEnsVarNamesWanted = nEnsVarNamesWanted + 1
+             ensVarNamesWanted_dummy(nEnsVarNamesWanted) = trim(varNames_opt(varIndex))
+             nEnsVarNames=nEnsVarNames+1
+             presentInFile(nEnsVarNames)=.true.
+             EnsVarNames_dummy(nEnsVarNames)=varNames_opt(varIndex)
+           else
+             nEnsVarNames=nEnsVarNames+1
+             presentInFile(nEnsVarNames)=.false.
+             EnsVarNames_dummy(nEnsVarNames)=varNames_opt(varIndex)
+             write(*,*) ' Analysis variable NOT FOUND : ', trim(varNames_opt(varIndex))
+           end if
+        end do
+      else
+        do varIndex = 1, vnl_numVarMax
+           if (.not.gsv_varExist(varName=vnl_varNameList(varIndex))) cycle
+           if (utl_varNamePresentInFile(ensFileName,vnl_varNameList(varIndex))) then
+             write(*,*) ' Analysis variable found     : ', trim(vnl_varNameList(varIndex))
+             nEnsVarNamesWanted = nEnsVarNamesWanted + 1
+             ensVarNamesWanted_dummy(nEnsVarNamesWanted) = trim(vnl_varNameList(varIndex))
+             nEnsVarNames=nEnsVarNames+1
+             presentInFile(nEnsVarNames)=.true.
+             EnsVarNames_dummy(nEnsVarNames)=vnl_varNameList(varIndex)
+           else
+             nEnsVarNames=nEnsVarNames+1
+             presentInFile(nEnsVarNames)=.false.
+             EnsVarNames_dummy(nEnsVarNames)=vnl_varNameList(varIndex)
+             write(*,*) ' Analysis variable NOT FOUND : ', trim(vnl_varNameList(varIndex))
+           end if
+        end do
+      end if
     end if
     call rpn_comm_bcast(nEnsVarNamesWanted, 1, 'MPI_INTEGER'  , 0, 'GRID', ierr)
+    call rpn_comm_bcast(nEnsVarNames, 1, 'MPI_INTEGER'  , 0, 'GRID', ierr)
+    write(*,*) 'NENSS ',nEnsVarNamesWanted,nEnsVarNames
     do varIndex = 1, nEnsVarNamesWanted
       call rpn_comm_bcastc(ensVarNamesWanted_dummy(varIndex) , 4, 'MPI_CHARACTER', 0, 'GRID', ierr)
+    end do
+    do varIndex = 1, nEnsVarNames
+      call rpn_comm_bcastc(ensVarNames_dummy(varIndex) , 4, 'MPI_CHARACTER', 0, 'GRID', ierr)
+      call rpn_comm_bcast(presentInFile(varIndex) , 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
     end do
 
     allocate(ensVarNamesWanted(nEnsVarNamesWanted))
     do varIndex = 1, nEnsVarNamesWanted
       ensVarNamesWanted(varIndex) = trim(ensVarNamesWanted_dummy(varIndex))
+    end do
+    allocate(ensVarNames(nEnsVarNames))
+    do varIndex = 1, nEnsVarNames
+      ensVarNames(varIndex) = trim(ensVarNames_dummy(varIndex))
     end do
 
     ! More efficient handling of common case where input is on Z grid, analysis in on G grid
@@ -969,51 +1005,59 @@ CONTAINS
 
         end if ! locally read one member
 
-
         !  MPI communication: from 1 ensemble member per process to 1 lat-lon tile per process  
         if (readFilePE(memberIndex) == (mpi_nprocs-1) .or. memberIndex == ens%numMembers) then
 
           call tmg_start(13,'PRE_SUENS_COMM')
           batchnum = ceiling(dble(memberIndex)/dble(mpi_nprocs))
 
-          do jk = 1, nk, numLevelsToSend
-            jk2 = min(nk,jk+numLevelsToSend-1)
-            numLevelsToSend2 = jk2 - jk + 1
+          jktot=0
+          do varIndex=1,nEnsVarNames
+             numLev=vco_getNumLev(ens%statevector_work%vco,vnl_varLevelFromVarname(ensVarNames(varIndex)))
+             do jk = 1, numLev, numLevelsToSend
+               gd_send_r4(:,:,:,:)=0.0
+               gd_recv_r4(:,:,:,:)=0.0
+               jk2 = min(numLev,jk+numLevelsToSend-1)
+               numLevelsToSend2 = jk2 - jk + 1
 
-            ptr3d_r4 => gsv_getField3D_r4(statevector_member_r4)
+               if (presentInFile(varIndex)) then
+                 ptr3d_r4 => gsv_getField3D_r4(statevector_member_r4,ensVarNames(varIndex))
 !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
-            do youridy = 0, (mpi_npey-1)
-              do youridx = 0, (mpi_npex-1)
-                yourid = youridx + youridy*mpi_npex
-                gd_send_r4(1:ens%statevector_work%allLonPerPE(youridx+1),  &
-                           1:ens%statevector_work%allLatPerPE(youridy+1), 1:numLevelsToSend2, yourid+1) =  &
-                           ptr3d_r4(ens%statevector_work%allLonBeg(youridx+1):ens%statevector_work%allLonEnd(youridx+1),  &
-                           ens%statevector_work%allLatBeg(youridy+1):ens%statevector_work%allLatEnd(youridy+1), jk:jk2)
-              end do
-            end do
+                 do youridy = 0, (mpi_npey-1)
+                   do youridx = 0, (mpi_npex-1)
+                     yourid = youridx + youridy*mpi_npex
+                     gd_send_r4(1:ens%statevector_work%allLonPerPE(youridx+1),  &
+                        1:ens%statevector_work%allLatPerPE(youridy+1), 1:numLevelsToSend2, yourid+1) =  &
+                        ptr3d_r4(ens%statevector_work%allLonBeg(youridx+1):ens%statevector_work%allLonEnd(youridx+1),  &
+                        ens%statevector_work%allLatBeg(youridy+1):ens%statevector_work%allLatEnd(youridy+1), jk:jk2)
+                   end do
+                 end do
 !$OMP END PARALLEL DO
+               end if
+               
+               nsize = lonPerPEmax * latPerPEmax * numLevelsToSend2
+               if (mpi_nprocs.gt.1) then
+                 call rpn_comm_alltoall(gd_send_r4(:,:,1:numLevelsToSend2,:),nsize,"mpi_real4",  &
+                                 gd_recv_r4(:,:,1:numLevelsToSend2,:),nsize,"mpi_real4","GRID",ierr)
+               else
+                 gd_recv_r4(:,:,1:numLevelsToSend2,1) = gd_send_r4(:,:,1:numLevelsToSend2,1)
+               end if
 
-            nsize = lonPerPEmax * latPerPEmax * numLevelsToSend2
-            if (mpi_nprocs.gt.1) then
-              call rpn_comm_alltoall(gd_send_r4(:,:,1:numLevelsToSend2,:),nsize,"mpi_real4",  &
-                                     gd_recv_r4(:,:,1:numLevelsToSend2,:),nsize,"mpi_real4","GRID",ierr)
-            else
-              gd_recv_r4(:,:,1:numLevelsToSend2,1) = gd_send_r4(:,:,1:numLevelsToSend2,1)
-            end if
-
-            call tmg_start(110,'ENS_TO_REPACK')
+               call tmg_start(110,'ENS_TO_REPACK')
 !$OMP PARALLEL DO PRIVATE(jk3,memberIndex2,yourid)
-            do jk3 = 1, numLevelsToSend2
-              do memberIndex2 = 1+(batchnum-1)*mpi_nprocs, memberIndex
-                yourid = readFilePE(memberIndex2)
-                ens%repack_r4(jk3+jk-1)%onelevel(memberIndex2,stepIndex, :, :) =  &
+               do jk3 = 1, numLevelsToSend2
+                  do memberIndex2 = 1+(batchnum-1)*mpi_nprocs, memberIndex
+                     yourid = readFilePE(memberIndex2)
+                     ens%repack_r4(jk3+jktot+jk-1)%onelevel(memberIndex2,stepIndex, :, :) =  &
                      gd_recv_r4(1:ens%statevector_work%lonPerPE, 1:ens%statevector_work%latPerPE, jk3, yourid+1)
-              end do
-            end do
+                  end do
+               end do
 !$OMP END PARALLEL DO
-            call tmg_stop(110)
-
-          end do ! jk
+               call tmg_stop(110)      
+         
+             end do ! jk
+             jktot=jktot+numLev
+          end do ! varIndex    
           call tmg_stop(13)
 
         end if ! MPI communication
