@@ -28,7 +28,49 @@ optional arguments:
   --version, -V         Output version information and exit
 ```
 
-### UnitTests
+### Examples
+
+For example, when calling the command `./midas.findTrials -t 6 -o 15 -w 6 -d 2018050212`, we obtain the output:
+```
+2018050206_180m
+2018050206_195m
+2018050206_210m
+2018050206_225m
+2018050206_240m
+2018050206_255m
+2018050206_270m
+2018050206_285m
+2018050206_300m
+2018050206_315m
+2018050206_330m
+2018050206_345m
+2018050206_360m
+2018050206_375m
+2018050206_390m
+2018050206_405m
+2018050206_420m
+2018050206_435m
+2018050206_450m
+2018050206_465m
+2018050206_480m
+2018050206_495m
+2018050206_510m
+2018050206_525m
+2018050206_540m
+```
+
+For one hour assimilation window with trials at each 6 hours for which
+output each 15 minutes, we call `./midas.findTrials -t 6 -o 15 -w 1 -d 2018050210`
+which gives:
+```
+2018050206_210m
+2018050206_225m
+2018050206_240m
+2018050206_255m
+2018050206_270m
+```
+
+## UnitTests
 
 You can run the unit tests very easily with the command `./midas.findTrials -u` which should give you an output like this.
 ```
@@ -46,5 +88,15 @@ test4 (__main__.Test_trialDate) ... ok
 Ran 9 tests in 0.004s
 
 OK
-
 ```
+
+When a developer want to make changes, he should always follow those steps:
+ 1. create a test which represents the functionality or the bug to be fixed
+ 2. run the tests as is and all the tests should pass except the new one
+ 3. implement the new feature or fix the bug
+ 4. run the tests again
+ 5. then choose between these two cases:
+   * if the tests pass, go to step 6.
+   * if the tests do not pass, repeat the process by going to step 3.
+ 6. All the tests pass, so you can commit your changes
+ 7. Push to changes to the central depot
