@@ -33,8 +33,8 @@ use obsUtil_mod
 
 implicit none
 !------------------------------------------------------------------------------------------
-private            :: handle_error,GEN_DATA,SAVE_INFO_HEADER
-public             :: SQL_QUERY_CH,INSERTSQL,SQL2OBS_NML,sqlr_readSqlite
+private            :: handle_error, gen_data, save_info_header,write_body
+public             :: SQL_QUERY_CH, INSERTSQL, SQL2OBS_NML, sqlr_readSqlite, sqlr_readSqlite_ua
 
 integer            :: NELE_INS,LISTELE_INS(15)
 integer            :: N_ITEMS
@@ -46,7 +46,7 @@ character(len=256) :: CFILNAM_SQL(N_MAX_FILES)
 
 contains
   
-   subroutine GEN_DATA(obsdat,VCOORD,OBSVALUE,VARNO,FLAG,VCORDTYP,NOBS,NDATA)
+   subroutine gen_data(obsdat,vcoord,obsvalue,varno,flag,vcordtyp,nobs,ndata)
       !----------------------------------------------------------------------------------------------
       !s/r GEN_INFO   - Initialze data values for an observation object
       ! Author     : P. Koclas,  CMC/CMDA, September  2012
@@ -57,15 +57,15 @@ contains
    type (struct_obs), intent(inout) :: obsdat
    real(obs_real),    intent(in)    :: vcoord,obsvalue
    integer, intent(in)              :: varno,flag,vcordtyp,nobs,ndata
-   call obs_bodySet_r(obsdat,OBS_PPP,NDATA,VCOORD)
-   call obs_bodySet_r(obsdat,OBS_VAR,NDATA,OBSVALUE)
-   call obs_bodySet_i(obsdat,OBS_VNM,NDATA,VARNO)
-   call obs_bodySet_i(obsdat,OBS_FLG,NDATA,FLAG)
-   call obs_bodySet_i(obsdat,OBS_VCO,NDATA,VCORDTYP)
-   end subroutine GEN_DATA
+   call obs_bodySet_r(obsdat, OBS_PPP, ndata, vcoord  )
+   call obs_bodySet_r(obsdat, OBS_VAR, ndata, obsvalue)
+   call obs_bodySet_i(obsdat, OBS_VNM, ndata, varno   )
+   call obs_bodySet_i(obsdat, OBS_FLG, ndata, flag    )
+   call obs_bodySet_i(obsdat, OBS_VCO, ndata, vcordtyp)
+   end subroutine gen_data
 !===================================
 
-  subroutine SAVE_INFO_HEADER( obsdat, rdb4_schema, FamilyType, nobs, elev, id_sat, azimuth, geoid_undulation &
+  subroutine save_info_header( obsdat, rdb4_schema, FamilyType, nobs, elev, id_sat, azimuth, geoid_undulation &
                              , earth_local_rad_curv, ro_qc_flag, instrument, zenith, cloud_cover, solar_zenith &
                              , solar_azimuth, land_sea, id_obs, lat, lon, codtyp,date, time, status, id_stn )
   ! Purpose: aux.routine to save GEN_INFO and GEN_HEADER, routines by P. Koclas, CMC/CMDA
@@ -117,7 +117,7 @@ contains
        call obs_headSet_i( obsdat, OBS_AZA , nobs, azimuth              )
      endif
   endif
-  end subroutine SAVE_INFO_HEADER
+  end subroutine save_info_header
 
    subroutine SQL2OBS_NML(NML_SECTION)
       !---------------------------------------------
@@ -250,7 +250,8 @@ contains
        SQLNULL=" and obsvalue is not null  "
        VCOORDFACT=1
        VCORDTYP=2
-       LISTELEMENTS="12004,12203,10051,10004,11011,11012,11215,11216,12001,11001,11002,11003,11004,12192,10194,13210"
+       COLUMNS_DAT=trim(COLUMNS_DAT)//", hlat, hlon, strftime('%Y%m%d', tsonde), strftime('%H%M', tsonde)"
+       LISTELEMENTS="12004,12203,10051,10004,11011,11012,12001,11001,11002,12192,10194"
        read(nulnam,NML=NAMSQLua)
      CASE ('ai')
        SQLNULL=" and obsvalue is not null and vcoord is not null "
@@ -279,9 +280,10 @@ contains
        read(nulnam,NML=NAMSQLro)
      CASE ('sf')
        SQLNULL=" and obsvalue is not null"
+       SQLEXTRA_DAT=" order by id_obs "    ! added for TM.
        VCOORDFACT=0
        VCORDTYP=1
-       LISTELEMENTS="11011,11012,12004,12203,10051,10004,15031,15032,15035"
+       LISTELEMENTS="11011,11012,12004,12203,10051,10004,15031,15032,15035,22192,7025" ! 22192 and 7025 are added for TM
        read(nulnam,NML=NAMSQLsfc)
      CASE ('scat')
        SQLNULL=" and obsvalue is not null"
@@ -481,32 +483,32 @@ contains
         if (trim(rdb4_schema)=='airs'.or.trim(rdb4_schema)=='iasi'.or.trim(rdb4_schema)=='cris') then
            surf_emiss=matdata(j,7)
            call obs_bodySet_r(obsdat,OBS_SEM,count,surf_emiss*zemfact)
-       endif
-       if ( trim(FamilyType) == 'TO' ) then
-          call GEN_DATA(obsdat,vcoord,obsvalue,varno,flag,vcordtyp,nobs,count)
-       else ! CONV
-          call GEN_DATA(obsdat,vcoord*vcoordfact+relev*elevfact,obsvalue,varno,flag,vcordtyp,nobs,count)
-          ! ALLOW EXTRA SPACE FOR U V COMPONENTS
-          if ( varno == 11001 .or. varno == 11011) then
-             if ( varno == 11001 ) then
-                ! U COMPONENT
-                call obs_bodySet_i(obsdat,OBS_IDD,count+1,-1)
-                call GEN_DATA(obsdat,vcoord*vcoordfact + relev*elevfact,MPC_missingValue_R8,11003,0,vcordtyp,nobs,count+1)
-                ! V COMPONENT
-                call obs_bodySet_i(obsdat,OBS_IDD,count+2,-1)
-                call GEN_DATA(obsdat,vcoord*vcoordfact + relev*elevfact,MPC_missingValue_R8,11004,0,vcordtyp,nobs,count+2)
-             else if ( varno == 11011) then
-                ! Us COMPONENT
-                call obs_bodySet_i(obsdat,OBS_IDD,count+1,-1)
-                call GEN_DATA(obsdat,vcoord*vcoordfact + relev*elevfact,MPC_missingValue_R8,11215,0,vcordtyp,nobs,count+1)
-                ! Vs COMPONENT
-                call obs_bodySet_i(obsdat,OBS_IDD,count+2,-1)
-                call GEN_DATA(obsdat,vcoord*vcoordfact + relev*elevfact,MPC_missingValue_R8,11216,0,vcordtyp,nobs,count+2)
-             endif
-             count = count + 2
-             nlv = nlv + 2
-          endif      ! extra space for winds
-       endif         ! TOVS or CONV
+        endif
+        if ( trim(FamilyType) == 'TO' ) then
+           call GEN_DATA(obsdat,vcoord,obsvalue,varno,flag,vcordtyp,nobs,count)
+        else ! CONV
+           call GEN_DATA(obsdat,vcoord*vcoordfact+relev*elevfact,obsvalue,varno,flag,vcordtyp,nobs,count)
+           ! ALLOW EXTRA SPACE FOR U V COMPONENTS
+           if ( varno == 11001 .or. varno == 11011) then
+              if ( varno == 11001 ) then
+                 ! U COMPONENT
+                 call obs_bodySet_i(obsdat,OBS_IDD,count+1,-1)
+                 call GEN_DATA(obsdat,vcoord*vcoordfact + relev*elevfact,MPC_missingValue_R8,11003,0,vcordtyp,nobs,count+1)
+                 ! V COMPONENT
+                 call obs_bodySet_i(obsdat,OBS_IDD,count+2,-1)
+                 call GEN_DATA(obsdat,vcoord*vcoordfact + relev*elevfact,MPC_missingValue_R8,11004,0,vcordtyp,nobs,count+2)
+              else if ( varno == 11011) then
+                 ! Us COMPONENT
+                 call obs_bodySet_i(obsdat,OBS_IDD,count+1,-1)
+                 call GEN_DATA(obsdat,vcoord*vcoordfact + relev*elevfact,MPC_missingValue_R8,11215,0,vcordtyp,nobs,count+1)
+                 ! Vs COMPONENT
+                 call obs_bodySet_i(obsdat,OBS_IDD,count+2,-1)
+                 call GEN_DATA(obsdat,vcoord*vcoordfact + relev*elevfact,MPC_missingValue_R8,11216,0,vcordtyp,nobs,count+2)
+              endif
+              count = count + 2
+              nlv = nlv + 2
+           endif      ! extra space for winds
+        endif         ! TOVS or CONV
      endif           !  id_obs   
    END DO DATA  ! END OF DATA LOOP
 
@@ -535,8 +537,8 @@ contains
   call fSQL_close( db , stat) ! Close The SQLITE FILE
   write(*,*) my_name//' end subroutine: ', rdb4_schema
   end subroutine sqlr_readSqlite
-!===================================================================
 
+!===================================================================
    function SQL_QUERY_CH(db,query)
       !   Purpose : RETURN RESULT OF A QUERY  TO AND OPENED SQLITE FILE
       !             THE RESULT FROM THIS QURY MUS BE A CHARATER STRING
@@ -572,7 +574,6 @@ contains
    RETURN
    end function   SQL_QUERY_CH
 !  ==============================
-
    subroutine handle_error(stat, message)
       !
       ! Exit code on f90sqlite 
@@ -592,26 +593,17 @@ contains
       !
       ! Author    : P. Koclas,  CMC/CMDA CMDA/CMC SEPTEMBER 2012
       ! Adaptation: S. Skachko, ARMA, April 2018
-      !
-      !    ARGUMENTS:
-      !                 INPUT:
-      !
-      !                       -db        : SQLITE FILE HANDLE
-      !                       -obsdat    : ObsSpaceData_mod OBJECT
-      !                       -file_numb : FILE NUMBER ASSOCIATED WITH db
-      !                       -ITEMLIST  : LIST OF ITEMS ('OMA',OMP','OER','FLG','FGE','VAR')
-      !
       !    Rows of sqlite files are updated via a list of items specified in argument itemlist
    implicit none
    ! arguments
    type(fSQL_DATABASE)              :: db
    type (struct_obs), intent(inout) :: obsdat
-   character(len=*)                 :: fileName
-   character(len=*)                 :: familyType
-   integer                          :: file_numb
+   character(len=*)                 :: fileName   
+   character(len=*)                 :: familyType ! Observation Family Type 
+   integer                          :: file_numb  ! FILE NUMBER ASSOCIATED WITH db
+   !  locals 
    type(fSQL_STATEMENT)             :: stmt ! prepared statement for  SQLite
    type(fSQL_STATUS)                :: stat ! type error status
-   !  locals 
    integer                          :: RLN,NLV,IDF,ID_DATA,ASS,FLAG ! 
    integer                          :: IOBS,ID_OBS,STATUS ! 
    integer                          :: J,JO !
@@ -630,8 +622,8 @@ contains
    write(*,*) '  ==============BEGIN UPDATE============================================== '
    write(*,*) '  ======================================================================= '
    write(*,*) '  ------- UPDSQL ------ ',itemlist(1)
-   write(*,*) '  FAMILYTYPE   =', FAMILYTYPE
-   write(*,*) '  FileName     =', FileName
+   write(*,*) '  FAMILYTYPE   =', trim(familyType)
+   write(*,*) '  FileName     =', trim(FileName)
    write(*,*) '  MISSING VALUE  = ', MPC_missingValue_R8
    !    CREATE QUERY  
    CHitem='  '
@@ -740,13 +732,6 @@ contains
       !
       ! Author    : P. Koclas , CMC/CMDA, September 2012
       ! Adaptation: S. Skachko, ARMA    , April     2018
-      !    ARGUMENTS:
-      !                 INPUT:
-      !
-      !                       -db         : SQLITE FILE HANDLE
-      !                       -obsdat     : ObsSpaceData OBJECT instance
-      !                       -FILE_NUMB  : FILE NUMBER  associated to physical sqlite file
-      !
       !    New data rows are inserted into sqlite files via a selected list of BUFR elements
       !     specified in a namlist
       !    Only the data with the id_DATA= MISSING_VALUE(PPMIS) is inserted:
@@ -758,6 +743,7 @@ contains
    character(len=*)       :: familyType
    character(len=*)       :: fileName
    integer                :: file_numb
+   ! locals
    type(fSQL_STATEMENT)   :: stmt ! type for precompiled SQLite statements
    type(fSQL_STATUS)      :: stat !type for error status
    !  locals 
@@ -847,5 +833,254 @@ contains
     CALL fSQL_commit(db)
      write(*,*)' FAMILY ---> ' ,trim(FamilyType), '  NUMBER OF INSERTIONS ----> ',NINSERT
     END SUBROUTINE INSERTSQL
-!  ========================
+
+!===============================================================================================
+
+   subroutine sqlr_readSqlite_ua(obsdat,FamilyType,FileName,FileNumb)
+      ! Purpose: QUERY DATA FROM SQLITE DATA FILES
+      !          THEN INSERT THE DATA INTO  ObsSpaceData structures
+      ! Author : S. Skachko, ARMA, April 2018 from the routines SQL2OBS_TOVS and SQL2OBS_CONV by P. Koclas, CMC/CMDA
+   implicit none
+
+   ! arguments
+   type (struct_obs), intent(inout) :: obsdat     ! ObsSpaceData Structure
+   character(len=*),  intent(in)    :: FamilyType ! Family Type may be TOVS or CONV
+   character(len=*),  intent(in)    :: FileName   ! SQLITE filename
+   integer,           intent(in)    :: FileNumb   ! Stdout file unit number
+   ! locals
+   integer,parameter        :: nulnam=4000
+   character*9              :: rdb4_schema,id_stn
+   integer                  :: id_obs,id_obs_prev,ID_DATA,CODTYP,date,time,STATUS,FLAG,VARNO,date_m1,time_m1
+   real(obs_real)           :: relev,xlat,xlon, vcoord, hlat, hlon,hlon_m1,hlat_m1
+   real                     :: LAT,LON,elevfact,elev,hlon_r4,hlat_r4,vcoord_r4,obsvalue_r4,vcoord_type_r4
+   integer                  :: AZIMUTH,VCORDTYP,VCOORDFACT
+   real                     :: RZENITH,RSOLAR_ZENITH,RCLOUD_COVER,RSOLAR_AZIMUTH
+   integer                  :: ZENITH,  SOLAR_ZENITH, CLOUD_COVER, SOLAR_AZIMUTH,ro_qc_flag,vcoord_type,idata0
+   real(obs_real)           :: GEOID_UNDULATION, EARTH_LOCAL_RAD_CURV,razimuth,OBSVALUE,SURF_EMISS
+   integer                  :: ID_SAT,LAND_SEA,TERRAIN_TYPE,INSTRUMENT,sensor
+   integer                  :: I,idata,bodyIndex,nlv,headerIndex,headerIndex_start,BITSFLAGON,BITSFLAGOFF,LN,numstns_out,numobs_out
+   real(obs_real),parameter :: ZEMFACT=0.01
+   character*10             :: CHTIME
+   character*512            :: QUERY,QUERY_DAT,QUERY_HDR
+   character*256            :: CFG,CSQLCRIT,COLUMNS_HDR,COLUMNS_DAT
+   logical                  :: finished, first_new_header
+   real, allocatable        :: matdata(:,:)
+   type(fSQL_DATABASE)      :: db         ! type for SQLIte  file handle
+   type(fSQL_STATEMENT)     :: stmt,stmt2 ! type for precompiled SQLite statements
+   type(fSQL_STATUS)        :: stat,stat2 !type for error status
+   character*256            :: LISTELEMENTS,SQLEXTRA_DAT,SQLEXTRA_HDR,SQLNULL,SQLLIMIT,namfile
+   integer                  :: NBITSOFF,NBITSON,BITOFF(15),BITON(15),NROWS,NCOLUMNS,last_id, sql_header_id, nrows_hdr, nvar,ncolumns_hdr
+   character(len=*), parameter :: my_name = 'sqlr_readSqlite'
+   character(len=*), parameter :: my_warning = '****** '// my_name //' WARNING: '
+   character(len=*), parameter :: my_error   = '******** '// my_name //' ERROR: '
+
+
+   NAMELIST /NAMSQLua/   LISTELEMENTS,SQLEXTRA_DAT,SQLEXTRA_HDR,SQLNULL,SQLLIMIT,NBITSOFF,BITOFF,NBITSON,BITON
+   
+   write(*,*) 'Subroutine '//my_name
+   write(*,*)my_name//': FileName   : ', trim(FileName)
+   write(*,*)my_name//': FamilyType : ', trim(FamilyType)
+   call fSQL_open( db, trim(FileName) ,stat)
+   if ( fSQL_error(stat) /= FSQL_OK ) then
+     write(*,*) my_error//'fSQL_open: ', fSQL_errmsg(stat)
+     call qqexit(2)
+   endif
+   CHTIME=SQL_QUERY_CH(db,"select time('now')")
+   query="select schema from rdb4_schema ;"
+   rdb4_schema = SQL_QUERY_CH(db,trim(query))
+   write(*,*) my_name//' START OF QUERY TIME IS = ', CHTIME, 'rdb4_schema is ---> ', trim(rdb4_schema)
+   !--- DEFAULT VALUES----------------------------------------------
+   SQLEXTRA_HDR=""
+   SQLEXTRA_DAT=""
+   SQLLIMIT    =""
+   SQLNULL     =""
+   NBITSON     =0
+   NBITSOFF    =0
+   vcoordfact  =1
+   !----------------------------------------------------------------
+   namfile=trim("flnml")
+   open(nulnam,file=namfile)
+   SQLNULL=" and obsvalue is not null  "
+   SQLEXTRA_DAT=" order by id_obs,vcoord "
+   VCOORDFACT=1
+   VCORDTYP=2
+   COLUMNS_DAT=" id_data,id_obs,ifnull(vcoord,-999.),ifnull(vcoord_type,-999.),varno,obsvalue,flag,hlat,hlon,strftime('%Y%m%d',tsonde),strftime('%H%M',tsonde)"
+   COLUMNS_HDR="codtyp,status,id_stn,elev"  
+   LISTELEMENTS="12004,12203,10051,10004,11011,11012,12001,11001,11002,12192,10194"
+   !LISTELEMENTS="12004,12203"
+   nvar=11
+   read(nulnam,NML=NAMSQLua)
+   close(nulnam)
+   BITSflagoff=0
+   do i = 1, nbitsoff
+     BITSflagoff = IBSET ( BITSflagoff, 13-BITOFF(I) )
+   enddo
+   BITSflagon=0
+   do i = 1, nbitson
+     BITSflagon = IBSET ( BITSflagon,  13-BITON(I)  )
+   enddo
+   ! COMPOSE SQL  QUERIES 
+   write(CFG, '(i6)' ) BITSflagoff
+   CSQLcrit=trim("  flag & "//CFG)//" =0 "
+   write(CFG, '(i6)' ) BITSflagon
+   if  (nbitson > 0) then
+     write(CFG, '(i6)' ) BITSflagon
+     CSQLcrit=trim(CSQLcrit)//trim("  and flag & "//CFG)
+     CSQLcrit=trim(CSQLcrit)//" = "//CFG
+   endif
+   CSQLcrit=trim(CSQLcrit)//" and varno in ( "//trim(LISTELEMENTS)//" )"
+   CSQLcrit=trim(CSQLcrit)//trim(SQLNull)
+   CSQLcrit=trim(CSQLcrit)//trim(SQLEXTRA_DAT)
+   query_dat=                    "select "//COLUMNS_DAT
+   query_dat=trim(query_dat)//trim("   from data where  ")
+   query_dat=       trim(query_dat)//"   "
+   query_dat=trim(query_dat)//trim(CSQLcrit)
+   query_dat=trim(query_dat)//trim(SQLLIMIT)
+   query_hdr="select "//COLUMNS_HDR
+   query_hdr=trim(query_hdr)//" from header "
+   query_hdr=trim(query_hdr)//trim(SQLEXTRA_HDR)
+   query_hdr=trim(query_hdr)//" order by id_obs "
+   write(*,*) my_name//': ',trim(rdb4_schema),' QUERY_DAT --> ',trim(query_dat)
+   write(*,*) my_name//': ',trim(rdb4_schema),' QUERY_HDR --> ',trim(query_hdr)
+   write(*,*)' ========================================== '
+   elevfact=0.
+   ! EXTRACT THE DATA FOM THE DATABASE 
+   !------------------------------------------------------
+   call fSQL_prepare( db, trim(query_hdr) , stmt, stat)
+   call fSQL_prepare( db, trim(query_dat), stmt2, stat2)
+   if ( fSQL_error(stat)  /= FSQL_OK ) call handle_error(stat ,'fSQL_prepare hdr: ')
+   if ( fSQL_error(stat2) /= FSQL_OK ) call handle_error(stat2,'fSQL_prepare dat: ')
+   nlv   = 0
+   headerIndex = obs_numHeader(obsdat)
+   bodyIndex   = obs_numBody(obsdat)
+   headerIndex_start = headerIndex
+   write(*,*)  my_name//' DEBUT numheader  =', headerIndex
+   write(*,*)  my_name//' DEBUT numbody    =', bodyIndex
+   
+   call fSQL_get_many (  stmt2, nrows = nrows , ncols = ncolumns , mode = FSQL_REAL )
+   write(*,*) '  NROWS NCOLUMNS =', nrows, ncolumns, rdb4_schema, trim(query_dat)
+   write(*,*)' ========================================== '
+   allocate(matdata(nrows,ncolumns))
+   call fSQL_fill_matrix ( stmt2, matdata )
+   call fSQL_free_mem    ( stmt2 )
+   call fSQL_finalize    ( stmt2 )
+ 
+   ! HEADER LOOP
+   last_id=1
+   nlv = 0
+   sql_header_id = 1
+   id_obs_prev = -999
+   HEADER:   DO
+     call fSQL_get_row( stmt, finished )   ! Fetch the next row
+     if (finished) exit
+
+     ! The query result is inserted into variables
+     !=========================================================================================
+     elev = 0.; relev = 0. !codtyp,status,id_stn,elev
+     call fSQL_get_column( stmt,  COL_INDEX = 1, INT_VAR   = codtyp                     )
+     call fSQL_get_column( stmt,  COL_INDEX = 2, INT_VAR   = status                     )
+     call fSQL_get_column( stmt,  COL_INDEX = 3, CHAR_VAR  = id_stn                     )
+     call fSQL_get_column( stmt,  COL_INDEX = 4, REAL_VAR  = elev, REAL_MISSING=MPC_missingValue_R4 )
+     relev=elev
+
+     write(*,*)'**** SQL HEADER *********', sql_header_id, (sql_header_id-1)*nvar + 1, sql_header_id*nvar
+     if ( (sql_header_id-1)*nvar + 1 >= nrows ) exit
+
+     DATA: do idata = (sql_header_id-1)*nvar + 1, sql_header_id*nvar
+
+        idata0 = (sql_header_id-1)*nvar + 1
+
+        id_data  = int(matdata(idata,1)); id_obs   = int(matdata(idata,2)); vcoord   = matdata(idata,3)
+        varno    = int(matdata(idata,5)); obsvalue = matdata(idata,6); flag     = int(matdata(idata,7));
+        hlat = matdata(idata,8); hlon = matdata(idata,9); date = int(matdata(idata,10)); time = int(matdata(idata,11))/100     
+        time = time /100
+        if ( hlon < 0.) hlon = hlon + 360.
+        xlat=hlat*MPC_RADIANS_PER_DEGREE_R8
+        xlon=hlon*MPC_RADIANS_PER_DEGREE_R8
+        write(*,'(3i8,2f12.4,4i12)') id_obs, id_obs_prev, varno, hlat, hlon, date, time, headerIndex, nlv
+        
+        if ( idata == idata0 ) then ! create first new header
+           nlv = 1; headerIndex = obs_numHeader(obsdat) + 1
+           call obs_headSet_i(obsdat,OBS_RLN,headerIndex,nlv)
+           write(*,*)'   ***** new header ***** ', headerIndex
+           write(*,'(3i8,2f12.4,4i12)') id_obs, id_obs_prev, varno, hlat, hlon, date, time, headerIndex, nlv 
+           call SAVE_INFO_HEADER( obsdat, rdb4_schema, FamilyType, headerIndex, relev, id_sat, azimuth, geoid_undulation &
+                                , earth_local_rad_curv, ro_qc_flag, instrument, zenith, cloud_cover, solar_zenith &
+                                , solar_azimuth, land_sea, id_obs, xlat, xlon, codtyp,date, time/100, status, id_stn )
+           bodyIndex = bodyIndex + 1
+           write(*,*)' new body record* ', bodyIndex
+           write(*,'(3i8,2f12.4,4i12)') id_obs, id_obs_prev, varno, hlat, hlon, date, time, headerIndex, nlv 
+           call write_body(obsdat,vcoord,vcoordfact,relev,elevfact,obsvalue,varno,flag,vcordtyp,headerIndex,bodyIndex,nlv,id_data)
+           call obs_headSet_i(obsdat,OBS_NLV,headerIndex,1)
+           nlv       = nlv + 1           ! number of data at this location
+        else 
+           if ( hlat==hlat_m1.and.hlon==hlon_m1.and.date==date_m1.and.time==time_m1 ) then
+              bodyIndex = bodyIndex + 1
+              nlv       = nlv + 1           ! number of data at this location
+              write(*,*)' new body record ', bodyIndex
+              write(*,'(3i8,2f12.4,4i12)') id_obs, id_obs_prev, varno, hlat, hlon, date, time, headerIndex, nlv 
+              call write_body(obsdat,vcoord,vcoordfact,relev,elevfact,obsvalue,varno,flag,vcordtyp,headerIndex,bodyIndex,nlv,id_data)
+              call obs_headSet_i(obsdat,OBS_NLV,headerIndex,nlv)
+              if ( headerIndex > 1 ) then
+                 LN = obs_headElem_i(obsdat,OBS_RLN,headerIndex-1) +  obs_headElem_i(obsdat,OBS_NLV,headerIndex-1)
+                 call obs_headSet_i(obsdat,OBS_RLN,headerIndex,LN)
+              endif
+           endif
+         endif
+         hlat_m1 = hlat; hlon_m1 = hlon; date_m1 = date; time_m1 = time; id_obs_prev = id_obs
+     END DO DATA     ! END OF DATA LOOP
+
+     sql_header_id = sql_header_id + 1
+
+  END DO HEADER ! HEADER
+
+  deallocate(matdata)
+  write(*,'(a,2i10)')  my_name//' FIN numheader / obs_numHeader(obsdat)  =', headerIndex, obs_numHeader(obsdat)                  
+  write(*,'(a,2i10)')  my_name//' FIN numbody   / obs_numBody(obsdat)    =', bodyIndex,   obs_numBody(obsdat)
+  write(*,'(a,i10)')  my_name//' OBS_NLV : ', ln
+  write(*,*)  my_name//' fin header '
+  CHTIME=SQL_QUERY_CH(db,"select time('now')")
+  write(*,*) my_name//' END OF QUERY TIME IS = ', CHTIME,rdb4_schema
+  call fSQL_finalize( stmt )
+  call fSQL_close( db , stat) ! Close The SQLITE FILE
+  write(*,*) my_name//' end subroutine: ', rdb4_schema
+  end subroutine sqlr_readSqlite_ua
+  
+  subroutine write_body(obsdat,vcoord,vcoordfact,relev,elevfact,obsvalue,varno,flag,vcordtyp,headerIndex,bodyIndex,nlv,id_data)
+  !----------------------------------------------------------------------------------------------
+  ! Write data into obsspacedata object
+  ! Author : S. Skachko, ARMA, May 2018
+  !----------------------------------------------------------------------------------------------
+  implicit none
+  ! arguments
+  type (struct_obs), intent(inout) :: obsdat
+  real(obs_real),    intent(in)    :: vcoord,obsvalue,relev
+  real,              intent(in)    :: elevfact 
+  integer, intent(in)              :: varno,flag,vcordtyp,vcoordfact,id_data,headerIndex
+  integer, intent(inout)           :: nlv, bodyIndex
+
+  call obs_bodySet_i(obsdat,OBS_IDD,bodyIndex,id_data)
+  call gen_data(obsdat, vcoord*vcoordfact + relev*elevfact, obsvalue, varno, flag, vcordtyp, headerIndex, bodyIndex)
+  ! ALLOW EXTRA SPACE FOR U V COMPONENTS
+  if ( varno == 11001 .or. varno == 11011) then
+     if ( varno == 11001 ) then
+        ! U COMPONENT
+        call obs_bodySet_i(obsdat,OBS_IDD,bodyIndex+1,-1)
+        call GEN_DATA(obsdat,vcoord*vcoordfact + relev*elevfact,MPC_missingValue_R8,11003,0,vcordtyp,headerIndex,bodyIndex+1)
+        ! V COMPONENT
+        call obs_bodySet_i(obsdat,OBS_IDD,bodyIndex+2,-1)
+        call GEN_DATA(obsdat,vcoord*vcoordfact + relev*elevfact,MPC_missingValue_R8,11004,0,vcordtyp,headerIndex,bodyIndex+2)
+     else if ( varno == 11011) then
+        ! Us COMPONENT
+        call obs_bodySet_i(obsdat,OBS_IDD,bodyIndex+1,-1)
+        call GEN_DATA(obsdat,vcoord*vcoordfact + relev*elevfact,MPC_missingValue_R8,11215,0,vcordtyp,headerIndex,bodyIndex+1)
+        ! Vs COMPONENT
+        call obs_bodySet_i(obsdat,OBS_IDD,bodyIndex+2,-1)
+        call GEN_DATA(obsdat,vcoord*vcoordfact + relev*elevfact,MPC_missingValue_R8,11216,0,vcordtyp,headerIndex,bodyIndex+2)
+     endif
+     bodyIndex = bodyIndex + 2
+     nlv = nlv + 2
+  endif      ! extra space for winds
+  end subroutine write_body
+
 end module sqliteread_mod

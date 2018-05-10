@@ -23,6 +23,7 @@
 !!
 !!            1. BURP
 !!            2. CMA (binary format of obsSpaceData contents)
+!!            3. SQLITE
 !!
 !--------------------------------------------------------------------------
 module obsFiles_mod
@@ -392,6 +393,7 @@ contains
     clvalu(70) = 'obsch'
     ! file name for CMA format used by EnKF
     clvalu(71) = 'cmaheader'
+    clvalu(72) = 'brpsst' ! SST
 
     cfami(:)   = ''
     cfami( 1)  = 'UA'
@@ -466,6 +468,8 @@ contains
     cfami(70)  = 'CH'
     ! dummy family type for CMA, since it contains all families
     cfami(71)  = 'XX'
+    ! family type for SST
+    cfami(72)  = 'TM'
 
     obsDirectory = 'obs'
 

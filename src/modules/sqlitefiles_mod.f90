@@ -177,7 +177,7 @@ subroutine sqlf_readFile(obsdat,fileName,familyType,fileIndex)
   real(obs_real)  :: misg
   
   ! debug:******************************
-  logical, parameter :: ldebug =.false.
+  logical, parameter :: ldebug =.true.
   integer :: bodyIndex,headerIndex,varno,iqiv,igav,ilansea,azimuth,inst,ifov,clf,saz,idsat,roqc,id_obs
   character*9 :: stid_l
   real    :: lat,lon,alt,var,channel,ealoc,geoun,sigmao,omp,oma
@@ -192,7 +192,7 @@ subroutine sqlf_readFile(obsdat,fileName,familyType,fileIndex)
 
   ibeg = obs_numbody(obsdat) + 1
   Nstn1=obs_numheader(obsdat)
-  call sqlr_readSqlite(obsdat,trim(familyType),trim(fileName),fileIndex)
+  call sqlr_readSqlite_ua(obsdat,trim(familyType),trim(fileName),fileIndex)
   Nstn2=obs_numheader(obsdat)
   iend=obs_numbody(obsdat)
 
