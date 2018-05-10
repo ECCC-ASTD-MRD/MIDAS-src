@@ -227,7 +227,7 @@ contains
     integer ::  JO, IDATYP, J, JI, JK
     integer ::  ISENS, NC, NL
     integer ::  ICHN, nosensor, INDXCHN
-    integer ::  ERRORSTATUS(1),ASW
+    integer ::  ERRORSTATUS(1)
     integer ::  index_header, index_body
 
     if (tvs_nsensors == 0) return
@@ -424,13 +424,12 @@ contains
       allocate(tvs_profiles(tvs_nobtov) , stat=alloc_status(1) )
       call utl_checkAllocationStatus(alloc_status(1:1), " tvs_setupAlloc tvs_profiles 1")
 
-      asw = 1 ! to allocate
       do jo = 1, tvs_nobtov
         isens = tvs_lsensor(jo)
         nl = tvs_coefs(isens) % coef % nlevels
         ! allocate model profiles atmospheric arrays with RTTOV levels dimension
-        call rttov_alloc_prof(errorstatus(1),asw,tvs_profiles(jo),nl, &
-             tvs_opts(isens),asw,coefs=tvs_coefs(isens),init=.false. )
+        call rttov_alloc_prof(errorstatus(1),1,tvs_profiles(jo),nl, &    ! 1 = nprofiles un profil a la fois
+             tvs_opts(isens),asw=1,coefs=tvs_coefs(isens),init=.false. ) ! asw =1 allocation
         call utl_checkAllocationStatus(errorstatus(1:1), " tvs_setupAlloc tvs_profiles 2")
       end do
 
