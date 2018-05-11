@@ -47,7 +47,7 @@ findTestsWhoAborted () {
         __abort__=1
         nodehistory -n ${findTestsWhoAborted_nodes} -history 0 -edate ${logdate} | grep -E '^TIMESTAMP=.* MESSAGE=abortx?' 1>/dev/null || __abort__=0
         if [ "${__abort__}" -ne 0 ]; then
-            findJobWhoAborted="getInputs $(nodeinfo -n ${findTestsWhoAborted_nodes}/getInputs | grep '^node\.sibling=' | cut -d= -f2)"
+            findJobWhoAborted="get $(nodeinfo -n ${findTestsWhoAborted_nodes}/get | grep '^node\.sibling=' | cut -d= -f2)"
             for __node__ in ${findJobWhoAborted}; do
                 __abortn__=1
                 nodehistory -n ${findTestsWhoAborted_nodes}/${__node__} -history 0 -edate ${logdate} | grep -v '^[[:space:]]*$' | tail -1 | grep -E '^TIMESTAMP=.* MESSAGE=abortx?' 1>/dev/null || __abortn__=0

@@ -49,22 +49,14 @@ Once the `xflow` appears, just launch the node `/Tests`.
 The suite is configured to use by default the programs you just
 compiled.
 
-# Updating the results
+## Updating the results
 
-*This script is not working for now!*
+The results can be updated by running the task `UnitTest/update` for
+the wanted test.  You have to specify a path to store the new results
+with the variable `UnitTest_reference_update` in the test
+configuration file.
 
-When the changes introduced modify the result, then one must update the
-results to that the tests pass.  After checking carefully the listing
-and the results obtained, you can update them with the command:
-```bash
-maestro/suites/midas_system_tests/update_results.sh
-```
-
-You can give as argument a single test but by default it collects the
-results for all the tests.  It also saves the listing.
-
-This will save the new references results locally on your account and
-update the system test suite to point to these results.
+The listings will be collected at the same time.
 
 # Automatic Testing using GitLab-CI
 

@@ -105,7 +105,7 @@ EOF
 	exit 0
     fi
 
-    tasks="getInputs check_results envar/getObservations envar/getTrials envar/getStats envar/getEnsTrials envar/Transfer envar/Transfer_anlm envar/interpEnsTrials envar/VAR envar/wait4increments envar/AddAnalInc envar/postalt envar/getPostalt"
+    tasks="get check envar/getObservations envar/getTrials envar/getStats envar/getEnsTrials envar/Transfer envar/Transfer_anlm envar/interpEnsTrials envar/VAR envar/wait4increments envar/AddAnalInc envar/postalt envar/getPostalt"
 
     for task in ${tasks}; do
 	nodename=/Tests/${UnitTest_name}/UnitTest/${task}

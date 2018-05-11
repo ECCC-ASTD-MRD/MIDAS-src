@@ -2,6 +2,8 @@
 
 set -ex
 
+SECONDS=0
+
 fasttmp=${1}
 ramdiskpath=${2:-/tmp/${USER}}
 
@@ -72,7 +74,13 @@ else
     fi
 fi
 
+echo "The preparation of the working directory took ${SECONDS} seconds"
+
+SECONDS=0
 ${RUN_PGM}
+echo "The program itself took ${SECONDS} seconds"
+
+SECONDS=0
 
 if [ "${splitobs}" = no ]; then
     if [ "${fasttmp}" = yes ]; then
@@ -115,3 +123,4 @@ if [ "${fasttmp}" = yes ]; then
     /bin/rm -rf ${FASTTMPDIR}
 fi
 
+echo "The finalization took ${SECONDS} seconds"
