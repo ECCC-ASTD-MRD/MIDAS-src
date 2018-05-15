@@ -176,13 +176,6 @@ subroutine sqlf_readFile(obsdat,fileName,familyType,fileIndex)
   character(len=*), parameter :: my_error   = '******** '// my_name //' ERROR: '
   real(obs_real)  :: misg
   
-  ! debug:******************************
-  logical, parameter :: ldebug =.true.
-  integer :: bodyIndex,headerIndex,varno,iqiv,igav,ilansea,azimuth,inst,ifov,clf,saz,idsat,roqc,id_obs
-  character*9 :: stid_l
-  real    :: lat,lon,alt,var,channel,ealoc,geoun,sigmao,omp,oma
-  !*************************************
-
   write(*,*)' '
   write(*,*)'                '//trim(my_name)//': Starting          '
   write(*,*)' '
@@ -192,53 +185,9 @@ subroutine sqlf_readFile(obsdat,fileName,familyType,fileIndex)
 
   ibeg = obs_numbody(obsdat) + 1
   Nstn1=obs_numheader(obsdat)
-  call sqlr_readSqlite_ua(obsdat,trim(familyType),trim(fileName),fileIndex)
+  call sqlr_readSqlite(obsdat,trim(familyType),trim(fileName),fileIndex)
   Nstn2=obs_numheader(obsdat)
   iend=obs_numbody(obsdat)
-
-  if(ldebug) then
-    ! debug ###################################################################
-    write(*,*)'SSN: debug!!! iend, numproc ', iend,mpi_myid
-    call filt_sethind_util(obsdat)
-    do bodyIndex = 1, iend
-      headerIndex = obs_bodyElem_i(obsdat, OBS_HIND,   bodyIndex)
-      call obs_prnthdr(obsdat,headerIndex,100+mpi_myid)
-      call obs_prntbdy(obsdat,headerIndex,100+mpi_myid)
-      !if ( obs_headElem_i(obsdat, OBS_ONM, headerIndex) /= 0 ) cycle
-      stid_l      = obs_Elem_c(obsdat, 'STID',  headerIndex)
-      lat         = obs_headElem_r(obsdat, OBS_LAT,  headerIndex)
-      lon         = obs_headElem_r(obsdat, OBS_LON,  headerIndex)
-      alt         = obs_headElem_r(obsdat, OBS_ALT,  headerIndex)
-      channel     = obs_bodyElem_r(obsdat, OBS_PPP,    bodyIndex)
-      var         = obs_bodyElem_r(obsdat, OBS_VAR,    bodyIndex)
-      varno       = obs_bodyElem_i(obsdat, OBS_VNM,    bodyIndex)
-      iqiv        = obs_headElem_i(obsdat, OBS_SZA,  headerIndex)
-      igav        = obs_headElem_i(obsdat, OBS_SUN,  headerIndex)
-      ilansea     = obs_headElem_i(obsdat, OBS_OFL,  headerIndex)
-      azimuth     = obs_headElem_i(obsdat, OBS_AZA,  headerIndex)
-      inst        = obs_headElem_i(obsdat, OBS_INS,  headerIndex)
-      ifov        = obs_headElem_i(obsdat, OBS_FOV,  headerIndex)
-      clf         = obs_headElem_i(obsdat, OBS_CLF,  headerIndex)
-      saz         = obs_headElem_i(obsdat, OBS_SAZ,  headerIndex)
-      idsat       = obs_headElem_i(obsdat, OBS_SAT,  headerIndex) 
-      roqc        = obs_headElem_i(obsdat, OBS_ROQF, headerIndex) 
-      geoun       = obs_headElem_r(obsdat, OBS_GEOI, headerIndex)
-      ealoc       = obs_headElem_r(obsdat, OBS_TRAD, headerIndex)
-      sigmao      = obs_bodyElem_r(obsdat, OBS_OER,    bodyIndex)
-      omp         = obs_bodyElem_r(obsdat, OBS_OMP,    bodyIndex)
-      oma         = obs_bodyElem_r(obsdat, OBS_OMA,    bodyIndex)
-      id_obs      = obs_headElem_i(obsdat, OBS_IDO,  headerIndex)
-      !write(100+mpi_myid,'(a6,5f12.4,10i8)') trim(stid_l),lon,lat,alt,channel,var,varno,iqiv,igav,ilansea,azimuth,inst,clf,saz,idsat,roqc
-       !write(*,'(a6,5f12.4,11i8)') trim(stid_l),lon,lat,alt,channel,var,varno,iqiv,igav,ilansea,azimuth,inst,clf,saz,idsat,roqc,headerIndex
-      !!!!write(100+mpi_myid,'(a12,8f12.4,3i8)') trim(stid_l),lon,lat,alt,channel,var,sigmao,omp,oma,varno,id_obs,headerIndex        
-      !write(*,'(a12,7f12.4,3i8)') trim(stid_l),lon,lat,alt,channel,var,omp,oma,varno,id_obs,headerIndex
-      !write(100+mpi_myid,'(a6,5f12.4,11i8,2f12.4)') trim(stid_l),lon,lat,alt,channel,var,varno,iqiv,igav,ilansea,azimuth,inst,ifov,clf,saz,idsat,roqc,ealoc,geoun
-      !write(100+mpi_myid,'(a6,7f12.4,3i8)') trim(stid_l),lon,lat,alt,channel,var,ealoc,geoun,azimuth,idsat,roqc
-    enddo
-    write(*,*)'SSN: DONE', mpi_myid
-    ! ### FIN debug ##########################################################
-  endif  
-            
 
   if ( trim(familyType) /= 'TO' ) then
     call FDTOUV_OBSDAT(obsdat,nstn1+1,nstn2,MPC_missingValue_R4)
