@@ -311,38 +311,23 @@ contains
     type(struct_columnData),target  :: columng
     type(struct_obs),target         :: obsSpaceData
     type(struct_columnData),target  :: column
-    type(struct_gsv)                :: statevector_fa, statevector_fb, statevector_a, statevector_fso
-    type(struct_gsv)                :: statevector_tempfa, statevector_tempfb
+    type(struct_gsv)                :: statevector_FcstErr, statevector_fso
     type(struct_hco), pointer       :: hco_anl
     type(struct_vco), pointer       :: vco_anl
-    integer                         :: nulout = 6
-    integer                         :: impres, iztrl(10), intunused(1)
-    real                            :: rspunused(1)
-    real(8),allocatable             :: gradJ(:), ahat(:), vatra(:), zhat(:)
-    integer                         :: imode, itermax, isimmax, indic
-    real(8)                         :: zjsp, zxmin, zdf1, zeps, dlgnorm, dlxnorm,zspunused(1)
-    integer                         :: fnom,fclos,ierr
+    real(8),allocatable             :: ahat(:), zhat(:)
     integer                         :: dateStamp_fcst
-    character(len=256)              :: fileName_fa, fileName_fb, fileName_a
-    character(len=8)                :: unitconversion
+    
     !for Observation space 
     integer                         :: index_header, IDATA, IDATEND,  index_body
     real(8)                         :: fso_ori
 
-    logical                         :: faExists
 
     if (mpi_myid == 0) write(*,*) 'fso_ensemble: starting'
 
     hco_anl => agd_getHco('ComputationalGrid')
     vco_anl => col_getVco(columng)
 
-    columng_ptr => columng
-    column_ptr  => column
-    obsSpaceData_ptr => obsSpaceData
-
     nvadim_mpilocal = cvm_nvadim
-    nmtra = (4 + 2*nvamaj)*nvadim_mpilocal
-    write(*,'(4X,"NVAMAJ = ",I3,/5X,"NMTRA =",I14)') nvamaj,nmtra
 
     ! initialize column object for storing "increment"
     call col_setVco(column,col_getVco(columng))
@@ -360,17 +345,95 @@ contains
     allocate(ahat(nvadim_mpilocal))
     allocate(vhat(nvadim_mpilocal))
     allocate(zhat(nvadim_mpilocal))
-    allocate(gradJ(nvadim_mpilocal))
-    allocate(vatra(nmtra))
 
     ! initialize control vector related arrays to zero
     ahat(:) = 0.0d0
     vhat(:) = 0.0d0
-    zhat(:) = 0.0d0
-    gradJ(:) = 0.0d0
-    vatra(:) = 0.0d0
 
-    ! Compute vhat
+    ! for statevector_FcstErr
+    call gsv_allocate(statevector_FcstErr, 1, hco_anl, vco_anl, &
+                      datestamp_opt=datestamp_fcst, mpi_local_opt=.true.)
+
+    ! for statevector_fso 
+    call gsv_allocate(statevector_fso, tim_nstepobsinc, hco_anl, vco_anl, &
+                      datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.)
+ 
+    ! compute forecast error = C * (error_t^fa + error_t^fb)  
+    call fso_calcFcstError(columng,obsSpaceData,statevector_FcstErr)
+   
+
+    ! compute vhat = B_t^T/2 * C * (error_t^fa + error_t^fb)  
+    call bmat_sqrtBT(vhat, nvadim_mpilocal, statevector_FcstErr, useFSOFcst_opt = .true.)
+
+    if(mpi_myid == 0) write(*,*) maxval(vhat),minval(vhat)
+
+    if( trim(fsoMode) == 'HFSO' ) then
+      call fso_minimize(vhat, nvadim_mpilocal, zhat, column, columng, obsSpaceData)
+      ahat = zhat + vhat
+      call bmat_sqrtB(ahat, nvadim_mpilocal, statevector_fso)
+      if(mpi_myid == 0) write(*,*) maxval(ahat),minval(ahat)
+    elseif( trim(fsoMode) == 'EFSO' ) then
+      call bmat_sqrtB(vhat, nvadim_mpilocal, statevector_fso)
+    end if
+
+    ! Compute yhat = [R^-1 H B^1/2 ahat], and put in OBS_FSO
+    call s2c_tl(statevector_fso,column,columng,obsSpaceData)  ! put in column H_horiz B^1/2 ahat
+    call oop_Htl(column,columng,obsSpaceData,1)          ! Save as OBS_WORK: H_vert H_horiz B^1/2 vhat = H B^1/2 ahat
+    call cfn_RsqrtInverse(obsSpaceData,OBS_FSO,OBS_WORK) ! Save as OBS_FSO : R**-1/2 H B^1/2 ahat
+    call cfn_RsqrtInverse(obsSpaceData,OBS_FSO,OBS_FSO)  ! Save as OBS_FSO : R**-1 H B^1/2 ahat\
+
+    ! Due to the very small value of FSO, here it is enlarged by 1e6
+    ! therefore in the script file to extract FSO it should be divided by 1e6
+    do index_header =1, obs_numHeader(obsSpaceData)
+      IDATA   = obs_headElem_i(obsSpaceData,OBS_RLN,INDEX_HEADER)
+      IDATEND = obs_headElem_i(obsSpaceData,OBS_NLV,INDEX_HEADER) + IDATA - 1
+      do index_body=idata,idatend
+        fso_ori = obs_bodyElem_r(obsSpaceData,OBS_FSO,index_body)
+        call obs_bodySet_r(obsSpaceData,OBS_FSO,index_body, fso_ori*1e6)
+      end do
+    end do
+
+
+    ! deallocate the control vector related arrays
+    deallocate(ahat)
+    deallocate(vhat)
+    deallocate(zhat)
+    call col_deallocate(column)
+
+    if(mpi_myid == 0) write(*,*) 'end of fso_ensemble'
+
+  end subroutine fso_ensemble
+
+  subroutine fso_calcFcstError(columng,obsSpaceData,statevector_out)
+    !---------------------------------------------------------------------------------------------
+    ! In this subroutine it reads the forecast from background and analysis, the verifying analysis
+    ! Based on these inputs, it calculates the Forecast error
+    !
+    !-----------------------------------------------------------------------------------------------
+    implicit none
+    
+    type(struct_columnData),target  :: columng
+    type(struct_obs),target         :: obsSpaceData
+    type(struct_gsv)                :: statevector_fa, statevector_fb, statevector_a
+    type(struct_gsv)                :: statevector_out
+    character(len=256)              :: fileName_fa, fileName_fb, fileName_a
+    logical                         :: faExists
+    type(struct_gsv)                :: statevector_tempfa, statevector_tempfb
+
+    type(struct_hco), pointer       :: hco_anl
+    type(struct_vco), pointer       :: vco_anl
+    integer                         :: dateStamp_fcst
+    
+    hco_anl => agd_getHco('ComputationalGrid')
+    vco_anl => col_getVco(columng)
+
+    call oti_setup(obsSpaceData,tim_nstepobsinc)
+
+    ! compute dateStamp_fcst
+    call incdatr(dateStamp_fcst, tim_getDatestamp(), leadTime)
+    write(*,*) 'fso_ensemble: analysis datestamp = ',tim_getDatestamp()
+    write(*,*) 'fso_ensemble: forecast datestamp = ',dateStamp_fcst
+
     ! read forecasts from the analysis and background state
     fileName_fa = trim(forecastPath) // '/forecast_a'
     inquire(file=trim(fileName_fa),exist=faExists)
@@ -383,14 +446,15 @@ contains
     call gsv_allocate(statevector_tempfa, 1, hco_anl, vco_anl, &
                       datestamp_opt=datestamp_fcst, mpi_local_opt=.true.)
 
-    !for statevecotr_tempfb
-    call gsv_allocate(statevector_tempfb, 1, hco_anl, vco_anl, &
-                      datestamp_opt=datestamp_fcst, mpi_local_opt=.true.)
-
+    !for statevector_fb
     fileName_fb = trim(forecastPath) // '/forecast_b'
     call gsv_allocate(statevector_fb, 1, hco_anl, vco_anl, &
                       datestamp_opt=datestamp_fcst, mpi_local_opt=.true.)
     call gsv_readFromFile(statevector_fb, fileName_fb, ' ', 'P')
+
+    !for statevecotr_tempfb
+    call gsv_allocate(statevector_tempfb, 1, hco_anl, vco_anl, &
+                      datestamp_opt=datestamp_fcst, mpi_local_opt=.true.)
 
     ! read verifying analysis
     fileName_a = trim(forecastPath) // '/analysis'
@@ -410,12 +474,41 @@ contains
     ! compute error Norm =  C * (error_t^fa + error_t^fb)
     call gsv_add(statevector_fa, statevector_fb, 1.0d0)
     call gsv_multEnergyNorm(statevector_fb, statevector_a) ! use analysis as reference state
+    call gsv_copy(statevector_fb,statevector_out)
 
-    ! compute vhat = B_t^T/2 * C * (error_t^fa + error_t^fb)  
-    call bmat_sqrtBT(vhat, nvadim_mpilocal, statevector_fb, useFSOFcst_opt = .true.)
+  end subroutine fso_calcFcstError
 
-    if(mpi_myid == 0) write(*,*) maxval(vhat),minval(vhat)
+  subroutine fso_minimize(vhat,nvadim,zhat,column,columng,obsSpaceData)
+    implicit none
 
+    type(struct_columnData),target  :: columng, column
+    type(struct_obs),target         :: obsSpaceData
+    real(8),dimension(nvadim)       :: vhat, zhat
+    real(8),allocatable             :: gradJ(:), vatra(:)
+    ! for minimization
+    integer                         :: imode, itermax, isimmax, indic,nvadim
+    real(8)                         :: zjsp, zxmin, zdf1, zeps, dlgnorm, dlxnorm,zspunused(1)
+    integer                         :: impres, iztrl(10), intunused(1)
+    real                            :: rspunused(1)
+    integer                         :: nulout = 6
+
+   
+    if (mpi_myid == 0) write(*,*) 'fso_minimize: starting'
+
+    nmtra = (4 + 2*nvamaj)*nvadim
+    write(*,'(4X,"NVAMAJ = ",I3,/5X,"NMTRA =",I14)') nvamaj,nmtra
+
+    columng_ptr => columng
+    column_ptr  => column
+    obsSpaceData_ptr => obsSpaceData
+  
+    allocate(gradJ(nvadim))
+    allocate(vatra(nmtra))
+
+    gradJ(:) = 0.0d0
+    vatra(:) = 0.0d0
+    zhat(:)  = 0.0d0
+    
     ! Compute zhat by performing variational minimization
     ! Set-up for the minimization
     if(mpi_myid == 0) then
@@ -429,16 +522,15 @@ contains
     itermax = nitermax
     isimmax = nsimmax
     zxmin = epsilon(zxmin)
-
     ! initial gradient calculation
     indic = 2
-    call simvar(indic,nvadim_mpilocal,zhat,zjsp,gradJ)
+    call simvar(indic,nvadim,zhat,zjsp,gradJ)
     zdf1 =  rdf1fac * abs(zjsp)
 
     ! print amplitude of initial gradient and cost function value
-    call prscal(nvadim_mpilocal,gradJ,gradJ,dlgnorm)
+    call prscal(nvadim,gradJ,gradJ,dlgnorm)
     dlgnorm = dsqrt(dlgnorm)
-    call prscal(nvadim_mpilocal,zhat,zhat,dlxnorm)
+    call prscal(nvadim,zhat,zhat,dlxnorm)
     dlxnorm = dsqrt(dlxnorm)
     write(*,*)' |X| = ', dlxnorm
     write(*,'(/4X,"J(X) = ",G23.16,4X,"|Grad J(X)| = ",G23.16)') zjsp, dlgnorm
@@ -448,10 +540,10 @@ contains
 
     ! Do the minimization
     call tmg_start(70,'QN')
-    call qna_n1qn3(simvar, dscalqn, dcanonb, dcanab, nvadim_mpilocal, zhat,  &
-                    zjsp, gradJ, zxmin, zdf1, zeps, impres, nulout, imode,   &
-                itermax,isimmax, iztrl, vatra, nmtra, intunused, rspunused,  &
-                zspunused)
+    call qna_n1qn3(simvar, dscalqn, dcanonb, dcanab, nvadim, zhat,  &
+                   zjsp, gradJ, zxmin, zdf1, zeps, impres, nulout, imode,   &
+                   itermax,isimmax, iztrl, vatra, nmtra, intunused, rspunused,  &
+                   zspunused)
     call tmg_stop(70)
     call fool_optimizer(obsSpaceData)
 
@@ -460,41 +552,10 @@ contains
         ,/,20X,"                Total number of iterations:",I4  &
         ,/,20X,"               Total number of simulations:",I4)' ) imode,itermax,isimmax
 
-    ! Compute ahat = zhat + vhat
-    ahat = zhat + vhat
-
-    ! Compute yhat = [R^-1 H B^1/2 ahat], and put in OBS_FSO
-    call gsv_allocate(statevector_fso, tim_nstepobsinc, hco_anl, vco_anl, &
-                      datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.)
-
-    call bmat_sqrtB(ahat, nvadim_mpilocal, statevector_fso)
-    call s2c_tl(statevector_fso,column,columng,obsSpaceData)  ! put in column H_horiz B^1/2 ahat
-    call oop_Htl(column,columng,obsSpaceData,1)          ! Save as OBS_WORK: H_vert H_horiz B^1/2 vhat = H B^1/2 ahat
-    call cfn_RsqrtInverse(obsSpaceData,OBS_FSO,OBS_WORK) ! Save as OBS_FSO : R**-1/2 H B^1/2 ahat
-    call cfn_RsqrtInverse(obsSpaceData,OBS_FSO,OBS_FSO)  ! Save as OBS_FSO : R**-1 H B^1/2 ahat\
-
-    ! Due to the very small value of FSO, here it is enlarged by 1e6
-    ! therefore in the script file to extract FSO it should be divided by 1e6
-    do index_header =1, obs_numHeader(obsSpaceData)
-      IDATA   = obs_headElem_i(obsSpaceData,OBS_RLN,INDEX_HEADER)
-      IDATEND = obs_headElem_i(obsSpaceData,OBS_NLV,INDEX_HEADER) + IDATA - 1
-      do index_body=idata,idatend
-        fso_ori = obs_bodyElem_r(obsSpaceData,OBS_FSO,index_body)
-        call obs_bodySet_r(obsSpaceData,OBS_FSO,index_body, fso_ori*1e6)
-      end do
-    end do
-
-    ! deallocate the control vector related arrays
-    deallocate(ahat)
-    deallocate(gradJ)
     deallocate(vatra)
-    deallocate(vhat)
-    deallocate(zhat)
-    call col_deallocate(column)
+    deallocate(gradJ)
 
-    if(mpi_myid == 0) write(*,*) 'end of fso_ensemble'
-
-  end subroutine fso_ensemble
+  end subroutine fso_minimize
 
   subroutine simvar(indic,nvadim,zhat,Jtotal,gradJ)
     implicit none
