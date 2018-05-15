@@ -1365,8 +1365,6 @@ contains
         ROBS(:) = -1.d0
         
         channels: do JC = 1, nchannels
-          !ICHN = tvs_ichan(JC,ID)
-          !call tvs_getChannelIndexFromChannelNumber(id,chan_indx,ichn)
           chan_indx=channelIndex(JC)
           if ( REJFLAG(chan_indx,9) == 1 ) cycle channels
           t_effective =  tvs_coefs(id) % coef % ff_bco(chan_indx) &
