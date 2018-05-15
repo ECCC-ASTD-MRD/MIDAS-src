@@ -10,6 +10,9 @@ else
     echo "The plateform 'EC_ARCH=${EC_ARCH}' is not supported"
 fi
 
+###############################################################
+## This function check if a single file is validating against a
+## reference.
 function check_result {
     set -ex
 
@@ -187,6 +190,9 @@ EOF
 	$SEQ_BIN/nodelogger -n $SEQ_NODE -s infox -m "${message}"
     fi
 }
+## Fin de la fonction 'check_results'
+#######################################
+
 
 for result in ${TASK_INPUT}/results/*; do
     bresult=$(basename ${result})

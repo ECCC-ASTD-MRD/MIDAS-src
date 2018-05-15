@@ -8,6 +8,9 @@ codedir=${2:-${PWD}}
 rev=${CI_BUILD_REF:-$(git describe)}
 jobname=${rev}_midasCompile
 
+## get the number of programs
+number_of_programs=$(/bin/ls -1 *.f90 | wc -l)
+
 cat > compile_job <<EOF
 #!/bin/bash
 
@@ -15,15 +18,14 @@ set -ex
 
 cd ${codedir}
 echo Launching compilation on '\${TRUE_HOST}' for platform '\${ORDENV_PLAT}'
-yes '' | ./compile_all.sh
+yes '' | head -n ${number_of_programs} | ./compile_all.sh
 EOF
 
 #pbs_extra1='-Wblock=true'
 #ord_soumet compile_job -jn ${jobname} -mach brooks    -listing ${PWD} -w 60 -cpus 36
 
-## On utilise 12 cpus parce qu'il y a 12 programmes a compiler
-ncpus=$(/bin/ls -1 *.f90 | wc -l)
-jobid=$(ord_soumet compile_job -jn ${jobname} -mach eccc-ppp1 -listing ${PWD} -w 60 -cpus ${ncpus}  -m 8G)
+## Using as many cpus as there are programs to compile
+jobid=$(ord_soumet compile_job -jn ${jobname} -mach eccc-ppp1 -listing ${PWD} -w 60 -cpus ${number_of_programs}  -m 8G)
 
 ## On evite d'attendre en queue en faisant un 'ssh' directement sur 'brooks'
 cat compile_job | ssh brooks bash --login

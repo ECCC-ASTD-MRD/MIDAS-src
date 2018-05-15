@@ -2,7 +2,7 @@
 
 set -ex
 
-## Execute this script in the 'check_results/input' directory
+## Execute this script in the 'check/input' directory
 ## or specify this directory as the second argument
 
 archive_path=$1
