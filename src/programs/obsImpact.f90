@@ -371,7 +371,6 @@ contains
       call fso_minimize(vhat, nvadim_mpilocal, zhat, column, columng, obsSpaceData)
       ahat = zhat + vhat
       call bmat_sqrtB(ahat, nvadim_mpilocal, statevector_fso)
-      if(mpi_myid == 0) write(*,*) maxval(ahat),minval(ahat)
     elseif( trim(fsoMode) == 'EFSO' ) then
       call bmat_sqrtB(vhat, nvadim_mpilocal, statevector_fso)
     end if
