@@ -558,8 +558,6 @@ contains
 
   end subroutine obsf_determineFileType
 
-<<<<<<< HEAD
-
 !--------------------------------------------------------------------------
 !! *Purpose*: Returns the observations file name assigned to the calling processor.
 !!            If the input family has more than one file, the first file found will
