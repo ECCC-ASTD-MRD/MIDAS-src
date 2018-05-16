@@ -71,7 +71,7 @@ midasAbs=midas-${program}_${ORDENV_PLAT}-${revnum}.Abs
 #-----------------------------------------------------------------------------
 
 # LIBAPPL defined in "src_files" script
-LIBSYS="hpcoperf"
+LIBSYS="hpcoperf sqlite3"
 LIBRMN=rmnMP
 . ${programsDir}/src_files/src_files_${program}.sh
 
@@ -133,7 +133,7 @@ if [ $mode == full ] ; then
   echo "... > Building the executable ${midasAbs}"
   rm -f ${midasAbs}
   echo "...   if aborting, check in ${PWD}/listing_abs"
-  s.compile $COMPF  -O ${FOPTMIZ} ${MPILIBDIR} -libappl $LIBAPPL sqlite3 -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o ${midasAbs} > listing_abs 2>&1
+  s.compile $COMPF  -O ${FOPTMIZ} ${MPILIBDIR} -libappl $LIBAPPL -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o ${midasAbs} > listing_abs 2>&1
   status=1
   grep fail listing_abs || status=0
   if [ "${status}" -ne 0 ]; then
@@ -156,7 +156,7 @@ elif [ $mode == abs ] ; then
   echo "..."
   echo "... > Building the executable ${midasAbs}"
   echo "..."
-  s.compile $COMPF  -O ${FOPTMIZ} ${MPILIBDIR} -libappl sqlite3 $LIBAPPL -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o ${midasAbs}
+  s.compile $COMPF  -O ${FOPTMIZ} ${MPILIBDIR} -libappl $LIBAPPL -libsys $LIBSYS -librmn $LIBRMN -obj *.o -o ${midasAbs}
   cp ${midasAbs} ${absdir}/
 
 else
