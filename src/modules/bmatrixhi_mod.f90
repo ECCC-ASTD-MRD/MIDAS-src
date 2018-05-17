@@ -68,6 +68,7 @@ MODULE BmatrixHI_mod
   integer,parameter   :: maxNumLevels=200
   real(8)             :: scaleFactor(maxNumLevels)
   real(8)             :: scaleFactorLQ(maxNumLevels)
+  real(8)             :: scaleFactorCC(maxNumLevels)
   logical             :: scaleTG
   real(8)             :: rcscltg(1)=100000.d0
   real(8)             :: rfacthum=1.0d0
@@ -129,7 +130,7 @@ CONTAINS
     type(struct_vco),pointer :: vco_file => null()
     character(len=8) :: bFileName = './bgcov'
     
-    NAMELIST /NAMBHI/ntrunc,scaleFactor,scaleFactorLQ,scaleTG,numModeZero,squareSqrt,TweakTG,ReadWrite_sqrt,stddevMode
+    NAMELIST /NAMBHI/ntrunc,scaleFactor,scaleFactorLQ,scaleFactorCC,scaleTG,numModeZero,squareSqrt,TweakTG,ReadWrite_sqrt,stddevMode
 
     call tmg_start(15,'BHI_SETUP')
     if(mpi_myid == 0) write(*,*) 'bhi_setup: starting'
@@ -179,6 +180,7 @@ CONTAINS
     ntrunc = 108
     scaleFactor(:) = 1.0d0
     scaleFactorLQ(:) = 1.0d0
+    scaleFactorCC(:) = 1.0d0
     scaleTG = .true.
     numModeZero = 0
     squareSqrt = .false.
@@ -218,6 +220,14 @@ CONTAINS
         scaleFactorLQ(jlev) = sqrt(scaleFactorLQ(jlev))
       else
         scaleFactorLQ(jlev) = 0.0d0
+      endif
+    enddo
+
+    do jlev = 1, max(nLev_M,nLev_T)
+      if(scaleFactorCC(jlev).gt.0.0d0) then 
+        scaleFactorCC(jlev) = sqrt(scaleFactorCC(jlev))
+      else
+        scaleFactorCC(jlev) = 0.0d0
       endif
     enddo
 
@@ -384,15 +394,15 @@ CONTAINS
 
     do jlev = 1, nlev_M
       do jlat = 1, nj_l
-        rgsiguu(jlat,jlev) = scaleFactor(jlev+shift_level)*rgsiguu(jlat,jlev)
-        rgsigvv(jlat,jlev) = scaleFactor(jlev+shift_level)*rgsigvv(jlat,jlev)
+        rgsiguu(jlat,jlev) =                                 scaleFactor(jlev+shift_level)*rgsiguu(jlat,jlev)
+        rgsigvv(jlat,jlev) = scaleFactorCC(jlev+shift_level)*scaleFactor(jlev+shift_level)*rgsigvv(jlat,jlev)
       enddo
     enddo
     do jlev = 1, nlev_T
       do jlat = 1, nj_l
-        rgsigtt(jlat,jlev) = scaleFactor(jlev)*rgsigtt(jlat,jlev)
+        rgsigtt(jlat,jlev) =                     scaleFactor(jlev)*rgsigtt(jlat,jlev)
         rgsigq(jlat,jlev)  = scaleFactorLQ(jlev)*scaleFactor(jlev)*rgsigq(jlat,jlev)
-        rgsigtb(jlat,jlev) = scaleFactor(jlev)*rgsigtb(jlat,jlev)
+        rgsigtb(jlat,jlev) =                     scaleFactor(jlev)*rgsigtb(jlat,jlev)
       enddo
     enddo
     do jlat = 1, nj_l
