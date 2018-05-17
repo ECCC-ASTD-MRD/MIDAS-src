@@ -28,7 +28,6 @@
 module multi_ir_bgck_mod
   use rttov_interfaces_mod
   use tovs_nl_mod
-  use hirChannels_mod
   use rttov_const, only : inst_id_iasi
   use utilities_mod
   use obsSpaceData_mod
@@ -1009,7 +1008,7 @@ contains
     integer       :: IMODTOP
     integer       :: count
     real(8)       :: T_EFFECTIVE
-    integer       :: alloc_status(27)
+    integer       :: alloc_status(28)
 
     real(8) :: ZTG,ZPS,ZTS,ptop_T,ZLQS
     real(8), allocatable :: ZT(:),ZHT(:,:),ZVLEV(:)
@@ -1022,7 +1021,7 @@ contains
     real(8), allocatable :: RCLD_AVHRR(:,:)
     integer, allocatable :: REJFLAG(:,:) 
     integer, allocatable :: NTOP_BT(:),NTOP_RD(:)
-    integer, allocatable :: MINP(:),FATE(:)
+    integer, allocatable :: MINP(:),FATE(:), channelIndex(:)
     real(8), allocatable :: xpres(:)
 
     real(8) :: CLFR,SUNZA,SATAZIM,SATZEN,SUNAZIM
@@ -1062,7 +1061,7 @@ contains
     integer :: isatzen
     integer :: chan_indx,ILIST_SUN,ilist_co2(NCO2),ilist_co2_pair(NCO2),ilist_he(NCH_HE)
 !***************************************************************************************
-    integer :: nlv_T,nch_sel,id,KRTID, QCID
+    integer :: nlv_T,id,KRTID, QCID, nchannels
     logical :: liasi,lairs,lcris
 !****************************************
     write (*,*) "Entering irbg_doQualityControl"
@@ -1106,26 +1105,6 @@ contains
     ! ** find number of channels and RTTOV levels
 
     NCHN = tvs_coefs(id)%coef%fmv_chn
-    nch_sel = hir_get_nchan_selected(cinst)
-
-    if (NCHN /= nch_sel) then
-      write(*,*) "irbg_doQualityControl: Skipping ... Invalid NCHN: ",NCHN,nch_sel,CINST
-      call obs_set_current_header_list(lobsSpaceData,'TO')
-      HEADER3: do
-        index_header = obs_getHeaderIndex(lobsSpaceData)
-        if (index_header < 0) exit HEADER3
-        idatyp = obs_headElem_i(lobsSpaceData,OBS_ITY,index_header)
-        if ( tvs_isIdBurpInst(IDATYP,CINST) .and. tvs_lsensor(tvs_ltovsno (index_header))==id ) THEN
-          idata   = obs_headElem_i(lobsSpaceData,OBS_RLN,index_header)
-          idatend = obs_headElem_i(lobsSpaceData,OBS_NLV,index_header) + idata - 1
-          do index_body = idata, idatend
-            ! on allume le bit 9; ca devrait etre suffisant
-            call obs_bodySet_i(lobsSpaceData,OBS_FLG,index_body,ibset(obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY),9))
-          end do
-        end if
-      end do HEADER3
-      return
-    end if
 
     NLEV = tvs_coefs(id) % coef % nlevels 
     allocate (xpres(NLEV))
@@ -1162,14 +1141,14 @@ contains
 ! ZT(nlv_T) -- temperature profiles on NWP model levels (deg K)
 ! ZHT(nlv_T,1) -- height profiles on NWP model levels (m)
 ! ZLQS -- surface specific humidity in ln q (kg/kg)
-! BTOBSERR(nch_sel) -- observation error standard deviation
-! BTOBS(nch_sel) -- observed brightness temperatures (deg K)
-! BTCALC(nch_sel) -- computed brightness temperatures (deg K)
-! RCAL_CLR(nch_sel) -- computed clear radiances (mw/m2/sr/cm-1)
-! SFCTAU(nch_sel) -- surface to space transmittances (0-1)
-! RCLD(nch_sel,NLEV) -- overcast cloudy radiances (mw/m2/sr/cm-1)
-! TRANSM(nch_sel,NLEV) -- layer to space transmittances (0-1)
-! EMI_SFC(nch_sel) -- surface emissivities (0-1)
+! BTOBSERR(nchn) -- observation error standard deviation
+! BTOBS(nchn) -- observed brightness temperatures (deg K)
+! BTCALC(nchn) -- computed brightness temperatures (deg K)
+! RCAL_CLR(nchn) -- computed clear radiances (mw/m2/sr/cm-1)
+! SFCTAU(nchn) -- surface to space transmittances (0-1)
+! RCLD(nchn,NLEV) -- overcast cloudy radiances (mw/m2/sr/cm-1)
+! TRANSM(nchn,NLEV) -- layer to space transmittances (0-1)
+! EMI_SFC(nchn) -- surface emissivities (0-1)
 ! KSURF -- surface type in obs file (0, 1)
 ! CLFR -- cloud fraction (%)
 ! TOEXT(NLEV) -- temperature profiles on RT model levels (deg K)
@@ -1182,36 +1161,37 @@ contains
 ! LTYPE -- surface type (1,...,20)
 ! PCNT_WAT -- water fraction (0-1)
 ! PCNT_REG -- water fraction in the area (0-1)
-! ROBS(nch_sel) -- observed radiances (mW/m2/sr/cm-1)
+! ROBS(nchn) -- observed radiances (mW/m2/sr/cm-1)
 
     alloc_status(:) = 0
  
-    allocate ( BTOBSERR(nch_sel),         stat= alloc_status(1))
-    allocate ( BTOBS(nch_sel),            stat= alloc_status(2))
-    allocate ( BTCALC(nch_sel),           stat= alloc_status(3))
-    allocate ( RCAL_CLR(nch_sel),         stat= alloc_status(4))
-    allocate ( SFCTAU(nch_sel),           stat= alloc_status(5))
-    allocate ( RCLD(nch_sel,NLEVB),       stat= alloc_status(6))
-    allocate ( TRANSM(nch_sel,NLEVB),     stat= alloc_status(7))
-    allocate ( EMI_SFC(nch_sel),          stat= alloc_status(8))
-    allocate ( TOEXT(NLEVB),              stat= alloc_status(9))
-    allocate ( ZHOEXT(NLEVB,1),           stat= alloc_status(10))
-    allocate ( ROBS(nch_sel),             stat= alloc_status(11))
-    allocate ( REJFLAG(nch_sel,0:BITFLAG),stat= alloc_status(12))
-    allocate ( NTOP_BT(nch_sel),          stat= alloc_status(13))
-    allocate ( NTOP_RD(nch_sel),          stat= alloc_status(14))
-    allocate ( PTOP_BT(nch_sel),          stat= alloc_status(15))
-    allocate ( PTOP_RD(nch_sel),          stat= alloc_status(16))
-    allocate ( MINP(nch_sel),             stat= alloc_status(17))
-    allocate ( PMIN(nch_sel),             stat= alloc_status(18))
-    allocate ( DTAUDP1(nch_sel),          stat= alloc_status(19))
-    allocate ( FATE(nch_sel),             stat= alloc_status(20))
+    allocate ( BTOBSERR(nchn),                   stat= alloc_status(1))
+    allocate ( BTOBS(nchn),                      stat= alloc_status(2))
+    allocate ( BTCALC(nchn),                     stat= alloc_status(3))
+    allocate ( RCAL_CLR(nchn),                   stat= alloc_status(4))
+    allocate ( SFCTAU(nchn),                     stat= alloc_status(5))
+    allocate ( RCLD(nchn,NLEVB),                 stat= alloc_status(6))
+    allocate ( TRANSM(nchn,NLEVB),               stat= alloc_status(7))
+    allocate ( EMI_SFC(nchn),                    stat= alloc_status(8))
+    allocate ( TOEXT(NLEVB),                     stat= alloc_status(9))
+    allocate ( ZHOEXT(NLEVB,1),                  stat= alloc_status(10))
+    allocate ( ROBS(nchn),                       stat= alloc_status(11))
+    allocate ( REJFLAG(nchn,0:BITFLAG),          stat= alloc_status(12))
+    allocate ( NTOP_BT(nchn),                    stat= alloc_status(13))
+    allocate ( NTOP_RD(nchn),                    stat= alloc_status(14))
+    allocate ( PTOP_BT(nchn),                    stat= alloc_status(15))
+    allocate ( PTOP_RD(nchn),                    stat= alloc_status(16))
+    allocate ( MINP(nchn),                       stat= alloc_status(17))
+    allocate ( PMIN(nchn),                       stat= alloc_status(18))
+    allocate ( DTAUDP1(nchn),                    stat= alloc_status(19))
+    allocate ( FATE(nchn),                       stat= alloc_status(20))
     if (liasi) allocate ( RCLD_AVHRR(NIR,NLEVB), stat= alloc_status(21))
-    allocate ( maxwf(nch_sel),            stat= alloc_status(22))
-    allocate ( ZVLEV(NLEVB),              stat= alloc_status(23))
-    allocate ( ZLEVMOD(nlv_T,1),          stat= alloc_status(24))
-    allocate ( ZT(nlv_T),                 stat= alloc_status(25))
-    allocate ( ZHT(nlv_T,1),              stat= alloc_status(26))
+    allocate ( maxwf(nchn),                      stat= alloc_status(22))
+    allocate ( ZVLEV(NLEVB),                     stat= alloc_status(23))
+    allocate ( ZLEVMOD(nlv_T,1),                 stat= alloc_status(24))
+    allocate ( ZT(nlv_T),                        stat= alloc_status(25))
+    allocate ( ZHT(nlv_T,1),                     stat= alloc_status(26))
+    allocate ( channelIndex(nchn),               stat= alloc_status(27))
     call utl_checkAllocationStatus(alloc_status, " irbg_doQualityControl 1")
 
     do JL = 1, NLEVB
@@ -1260,6 +1240,7 @@ contains
         TRANSM(:,:) = -1.d0
         EMI_SFC(:)  = -1.d0
         REJFLAG(:,:) = 0
+        channelIndex(:) = -1
 
         if (liasi) then
           INDX = index_header
@@ -1312,11 +1293,16 @@ contains
         if (liasi) BAD=( obs_headElem_i(lobsSpaceData,OBS_GQF,index_header)/=0 .or. &
              obs_headElem_i(lobsSpaceData,OBS_GQL,index_header) >1) 
 
+
+        nchannels = 0 ! number of channels available at that observation point
         do INDEX_BODY= IDATA, IDATEND
           if ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY)==1 ) then
             ICHN = nint(obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY))
             ICHN = max( 0,min( ICHN,tvs_maxChannelNumber + 1 ) )
-            chan_indx = hir_get_chindx_fr_chn(CINST,ichn)
+            call tvs_getChannelIndexFromChannelNumber(id,chan_indx,ichn)
+            nchannels = nchannels + 1
+            channelIndex(nchannels) = chan_indx
+!            channelNumber(nchannels) = ICHN
             BTOBSERR(chan_indx) = obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)
             BTOBS(chan_indx) = obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY)
 
@@ -1330,17 +1316,17 @@ contains
           end if
         end do
 
-        do JC = 1, NCHN
-          ICHN = tvs_ichan(JC,ID)
-          chan_indx = hir_get_chindx_fr_chn(CINST,ichn)
-          BTCALC(chan_indx) = tvs_radiance(tvs_nobtov) % bt(jc)
-          RCAL_CLR(chan_indx) = tvs_radiance(tvs_nobtov) % clear(jc)
-          SFCTAU(chan_indx) = tvs_transmission(tvs_nobtov) % tau_total(jc)
+        if (nchannels==0) cycle HEADER_2
+        do JC = 1, nchannels
+          chan_indx = channelIndex(jc)
+          BTCALC(chan_indx) = tvs_radiance(tvs_nobtov) % bt(chan_indx)
+          RCAL_CLR(chan_indx) = tvs_radiance(tvs_nobtov) % clear(chan_indx)
+          SFCTAU(chan_indx) = tvs_transmission(tvs_nobtov) % tau_total(chan_indx)
           do JL = 1, NLEVB
-            RCLD(chan_indx,JL) = tvs_radiance(tvs_nobtov) % overcast(jl + iextr - 1,jc)
-            TRANSM(chan_indx,JL) = tvs_transmission(tvs_nobtov) % tau_levels(jl + iextr,jc)
+            RCLD(chan_indx,JL) = tvs_radiance(tvs_nobtov) % overcast(jl + iextr - 1,chan_indx)
+            TRANSM(chan_indx,JL) = tvs_transmission(tvs_nobtov) % tau_levels(jl + iextr,chan_indx)
           end do
-          EMI_SFC(chan_indx) = tvs_emissivity(JC,tvs_nobtov)
+          EMI_SFC(chan_indx) = tvs_emissivity(chan_indx,tvs_nobtov)
 ! *** Gross check on computed BTs ***
           if (BTCALC(chan_indx) < 150.d0) REJFLAG(chan_indx,9) = 1
           if (BTCALC(chan_indx) > 350.d0) REJFLAG(chan_indx,9) = 1
@@ -1352,11 +1338,7 @@ contains
         isatzen= obs_headElem_i(lobsSpaceData,OBS_SZA,INDEX_HEADER)
         if ( isatzen < 9000 .or. &
              isatzen > 16500 ) then
-          do JC = 1, NCHN
-            ICHN = tvs_ichan(JC,ID)
-            chan_indx = hir_get_chindx_fr_chn(CINST,ichn)
-            REJFLAG(chan_indx,9) = 1
-          end do
+          REJFLAG(:,9) = 1
         end if
 !**************************************************************
         CLFR = 0.
@@ -1382,14 +1364,13 @@ contains
 
         ROBS(:) = -1.d0
         
-        channels: do JC = 1, NCHN
-          ICHN = tvs_ichan(JC,ID)
-          chan_indx = hir_get_chindx_fr_chn(CINST,ichn)
+        channels: do JC = 1, nchannels
+          chan_indx=channelIndex(JC)
           if ( REJFLAG(chan_indx,9) == 1 ) cycle channels
-          t_effective =  tvs_coefs(id) % coef % ff_bco(jc) &
-               + tvs_coefs(id) % coef % ff_bcs(jc) * BTOBS(chan_indx)
-          ROBS(chan_indx) =  tvs_coefs(id) % coef % planck1(jc) / &
-               ( exp( tvs_coefs(id) % coef % planck2(jc) / t_effective ) - 1.d0 )
+          t_effective =  tvs_coefs(id) % coef % ff_bco(chan_indx) &
+               + tvs_coefs(id) % coef % ff_bcs(chan_indx) * BTOBS(chan_indx)
+          ROBS(chan_indx) =  tvs_coefs(id) % coef % planck1(chan_indx) / &
+               ( exp( tvs_coefs(id) % coef % planck2(chan_indx) / t_effective ) - 1.d0 )
         end do channels
 
 ! ** set height fields to 'height above ground' fields
@@ -1407,9 +1388,8 @@ contains
         CLDFLAG = 0
         
 !* -- REFERENCE FOR WINDOW CHANNEL
-           
-        IWINDO = hir_get_chindx_fr_chn(CINST,IWINDOW(QCID))
-        IWINDO_ALT = hir_get_chindx_fr_chn(CINST,IWINDOW_ALT(QCID))
+        call tvs_getChannelIndexFromChannelNumber(id, IWINDO, IWINDOW(QCID) )
+        call tvs_getChannelIndexFromChannelNumber(id, IWINDO_ALT, IWINDOW_ALT(QCID) )
         ICHREF = IWINDO
            
         if ( REJFLAG(IWINDO,9) == 1 ) then
@@ -1433,16 +1413,17 @@ contains
 
 !iopt2=1 : calcul de la hauteur en hPa PTOP_MB et du NTOP_MB correspondant
         call CLOUD_HEIGHT (PTOP_MB,NTOP_MB, btobs,cldflag,zt, &
-             zht(:,1),zps,zlevmod(:,1),nlv_T,nch_sel,ichref,lev_start,iopt2)
+             zht(:,1),zps,zlevmod(:,1),nlv_T,nchn,ichref,lev_start,iopt2)
 
 !iopt1=2 : calcul de la hauteur em metres PTOP_EQ et du NTOP_EQ correspondant
         call CLOUD_HEIGHT (PTOP_EQ,NTOP_EQ, btobs,cldflag,zt, &
-             zht(:,1),zps,zlevmod(:,1),nlv_T,nch_sel,ichref,lev_start,iopt1)
+             zht(:,1),zps,zlevmod(:,1),nlv_T,nchn,ichref,lev_start,iopt1)
 
         if (liasi) then
 ! appel de RTTOV pour calculer les radiances des 3 canaux IR (3b, 4 et 5) de AVHRR 3
            
-          call get_avhrr_emiss(emi_sfc,tvs_coefs(id) % coef % ff_cwn, tvs_coefs(id) % coef % fmv_chn,avhrr_surfem1)
+          call get_avhrr_emiss(emi_sfc(channelIndex(1:nchannels)),tvs_coefs(id) % coef % ff_cwn(channelIndex(1:nchannels)), &
+               nchannels,avhrr_surfem1)
 
           call tovs_rttov_AVHRR_for_IASI(indx,avhrr_surfem1,tvs_satellites(id))
                  
@@ -1481,7 +1462,7 @@ contains
 !* -- CLEAR/CLOUDY PROFILE DETECTION USING THE GARAND & NADON ALGORITHM
 
         call GARAND1998NADON (CLDFLAG, btobs,ztg,zt, &
-             zht(:,1),nlv_T,nch_sel,ptop_eq,ntop_eq,ichref)
+             zht(:,1),nlv_T,nchn,ptop_eq,ntop_eq,ichref)
 
         if (liasi) then
           do JC=1,nClassAVHRR
@@ -1624,12 +1605,12 @@ contains
         LEV_START = 0
 
         do JCH = 1, NCH_HE
-          ILIST_HE(JCH) = hir_get_chindx_fr_chn(CINST,ILIST1(QCID,JCH))
+          call tvs_getChannelIndexFromChannelNumber(id,ILIST_HE(JCH),ILIST1(QCID,JCH))
         end do
 
         call CLOUD_TOP ( PTOP_BT,PTOP_RD,NTOP_BT,NTOP_RD, &
              btobs,toext,zhoext(:,1),rcal_clr,zps,robs,rcld,zvlev,nlevb, &
-             nch_sel,cldflag,rejflag,lev_start,iopt2,ihgt,ichref,nch_he,ilist_he)
+             nchn,cldflag,rejflag,lev_start,iopt2,ihgt,ichref,nch_he,ilist_he)
 
         if (liasi) then
           LEV_START_AVHRR(:) = 0
@@ -1644,8 +1625,8 @@ contains
 !* -- REFERENCE CHANNEL FOR CO2-SLICING
 
         do JCH = 1, NCO2
-          ILIST_CO2(JCH) = hir_get_chindx_fr_chn(CINST,ILIST2(QCID,JCH))
-          ILIST_CO2_PAIR(JCH) = hir_get_chindx_fr_chn(CINST,ILIST2_PAIR(QCID,JCH))
+          call tvs_getChannelIndexFromChannelNumber(id, ILIST_CO2(JCH), ILIST2(QCID,JCH)  )
+          call tvs_getChannelIndexFromChannelNumber(id, ILIST_CO2_PAIR(JCH), ILIST2_PAIR(QCID,JCH)  )
         end do
 
         cpt = 0
@@ -1664,19 +1645,21 @@ contains
         end if
 
 !* -- EQUIVALENT HEIGHT OF SELECTED WINDOW CHANNEL
-
-        HEFF = PTOP_RD( hir_get_chindx_fr_chn(CINST,ILIST1(QCID,2)))
+        call tvs_getChannelIndexFromChannelNumber(id,chan_indx,ILIST1(QCID,2))
+        HEFF = PTOP_RD( chan_indx )
 
               
-        if (ICHREF == IWINDO_ALT) HEFF = PTOP_RD( hir_get_chindx_fr_chn(CINST,ILIST1(QCID,3)) )
-              
+        if (ICHREF == IWINDO_ALT) then
+          call tvs_getChannelIndexFromChannelNumber(id,chan_indx,ILIST1(QCID,3))
+          HEFF = PTOP_RD( chan_indx )
+        end if
 !* -- CLOUD TOP BASED ON CO2 SLICING 
 
         
         LEV_START = max( min(LEV_START,CO2MAX(1)), CO2MIN(1) )
 
         call CO2_SLICING ( PTOP_CO2,NTOP_CO2,FCLOUD_CO2, &
-             rcal_clr,rcld,robs,zps,zvlev,nlevb,nch_sel,cldflag,rejflag, &
+             rcal_clr,rcld,robs,zps,zvlev,nlevb,nchn,cldflag,rejflag, &
              lev_start,ichref,ilist_co2,ilist_co2_pair)
 
 !* -- FIND CONSENSUS CLOUD TOP AND FRACTION
@@ -1734,7 +1717,7 @@ contains
         end if
 
         !* -- FIND MINIMUM LEVEL OF SENSITIVITY FOR CHANNEL ASSIMILATION NOT SENSIBLE TO CLOUDS        
-        call MIN_PRES_new (MAXWF, MINP,PMIN,DTAUDP1, zps,transm,zvlev,cldflag,nlevb,nch_sel,imodtop )
+        call MIN_PRES_new (MAXWF, MINP,PMIN,DTAUDP1, zps,transm,zvlev,cldflag,nlevb,nchn,imodtop )
 !* -- ASSIMILATION OF OBSERVATIONS WHEN CLOUDY PROFILES
 
 ! *** TEST # 3 ***
@@ -1743,7 +1726,7 @@ contains
 
         TAMPON = max(50.d0, 2.d0*VTOP)                                                          
 
-        do JC = 1, nch_sel        
+        do JC = 1, nchn        
           if ( REJFLAG(JC,11) == 1 .and. REJFLAG(JC,23) == 1 .and. ETOP - TAMPON > PMIN(JC) ) then
             REJFLAG(JC,11) = 0
             REJFLAG(JC,23) = 0
@@ -1751,15 +1734,13 @@ contains
         end do
 
 !     LOOK AT THE FATE OF THE OBSERVATIONS
-
         FATE(:) = sum(REJFLAG(:,:), DIM=2)            
-
 
 !     FURTHER REASONS TO REJECT OBSERVATIONS
 
-        ILIST_SUN = hir_get_chindx_fr_chn(CINST,ICHN_SUN(QCID))
+        call  tvs_getChannelIndexFromChannelNumber(id,ILIST_SUN,ICHN_SUN(QCID))
 
-        do JC = 1, nch_sel
+        do JC = 1, nchn
 
           if ( FATE(JC) == 0 ) then
 
@@ -1839,11 +1820,14 @@ contains
             end if
           end if
 
-! *** TEST # 10 ***
-! *** Do not assimilate blacklisted channels ***
-                 
-          if ( hir_get_assim_chan(CINST,JC) == 0 ) REJFLAG(JC,8) = 1
+        end do
 
+        nchannels =0 
+        do INDEX_BODY= IDATA, IDATEND
+          if ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY)==1 ) then
+            nchannels =  nchannels + 1
+            if (btest(obs_bodyElem_i(lobsSpaceData,OBS_FLG,INDEX_BODY),8)) REJFLAG(channelIndex(nchannels),8) = 1
+          end if
         end do
 
 !* -- FOR EACH PROFILE, ARE ALL NON-BLACKLISTED CHANNELS ASSIMILATED
@@ -1851,7 +1835,7 @@ contains
         ASSIM_ALL = .true.
         FATE(:) = sum(REJFLAG(:,:),DIM=2)            
         
-        chn: do JC = 1, nch_sel
+        chn: do JC = 1, nchn
           if ( REJFLAG(JC,8) == 0 ) then
             if ( FATE(JC) /= 0 ) then
               ASSIM_ALL = .false.
@@ -1882,7 +1866,7 @@ contains
         do INDEX_BODY= IDATA, IDATEND
           ICHN = nint(obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY))
           ICHN = max(0, min(ICHN, tvs_maxChannelNumber + 1))
-          chan_indx = hir_get_chindx_fr_chn(CINST,ichn)
+          call tvs_getChannelIndexFromChannelNumber(id,chan_indx,ICHN)
           call obs_bodySet_r(lobsSpaceData,OBS_SEM,INDEX_BODY,EMI_SFC(chan_indx))
           do NFLG = 0, BITFLAG
             if ( REJFLAG(chan_indx,NFLG) == 1 ) &
@@ -1894,33 +1878,34 @@ contains
 
     end do HEADER_2
 
-    deallocate ( ZHT,       stat= alloc_status(1))
-    deallocate ( ZT,        stat= alloc_status(2))
-    deallocate ( ZLEVMOD,   stat= alloc_status(3))
-    deallocate ( ZVLEV,     stat= alloc_status(4))
-    deallocate ( maxwf,     stat= alloc_status(5))
-    if (liasi) deallocate ( RCLD_AVHRR , stat= alloc_status(6))
-    deallocate ( FATE,      stat= alloc_status(7))
-    deallocate ( DTAUDP1,   stat= alloc_status(8))
-    deallocate ( PMIN,      stat= alloc_status(9))
-    deallocate ( MINP,      stat= alloc_status(10))
-    deallocate ( PTOP_RD,   stat= alloc_status(11))
-    deallocate ( PTOP_BT,   stat= alloc_status(12))
-    deallocate ( NTOP_RD,   stat= alloc_status(13))
-    deallocate ( NTOP_BT,   stat= alloc_status(14))
-    deallocate ( REJFLAG,   stat= alloc_status(15))
-    deallocate ( ROBS,      stat= alloc_status(16))
-    deallocate ( ZHOEXT,    stat= alloc_status(17))
-    deallocate ( TOEXT,     stat= alloc_status(18))
-    deallocate ( EMI_SFC,   stat= alloc_status(19))
-    deallocate ( TRANSM,    stat= alloc_status(20))
-    deallocate ( RCLD,      stat= alloc_status(21))
-    deallocate ( SFCTAU,    stat= alloc_status(22))
-    deallocate ( RCAL_CLR,  stat= alloc_status(23))
-    deallocate ( BTCALC,    stat= alloc_status(24))
-    deallocate ( BTOBS,     stat= alloc_status(25))
-    deallocate ( BTOBSERR,  stat= alloc_status(26))
-    deallocate ( XPRES,     stat= alloc_status(27))
+    deallocate ( channelIndex, stat= alloc_status(1))
+    deallocate ( ZHT,       stat= alloc_status(2))
+    deallocate ( ZT,        stat= alloc_status(3))
+    deallocate ( ZLEVMOD,   stat= alloc_status(4))
+    deallocate ( ZVLEV,     stat= alloc_status(5))
+    deallocate ( maxwf,     stat= alloc_status(6))
+    if (liasi) deallocate ( RCLD_AVHRR , stat= alloc_status(7))
+    deallocate ( FATE,      stat= alloc_status(8))
+    deallocate ( DTAUDP1,   stat= alloc_status(9))
+    deallocate ( PMIN,      stat= alloc_status(10))
+    deallocate ( MINP,      stat= alloc_status(11))
+    deallocate ( PTOP_RD,   stat= alloc_status(12))
+    deallocate ( PTOP_BT,   stat= alloc_status(13))
+    deallocate ( NTOP_RD,   stat= alloc_status(14))
+    deallocate ( NTOP_BT,   stat= alloc_status(15))
+    deallocate ( REJFLAG,   stat= alloc_status(16))
+    deallocate ( ROBS,      stat= alloc_status(17))
+    deallocate ( ZHOEXT,    stat= alloc_status(18))
+    deallocate ( TOEXT,     stat= alloc_status(19))
+    deallocate ( EMI_SFC,   stat= alloc_status(20))
+    deallocate ( TRANSM,    stat= alloc_status(21))
+    deallocate ( RCLD,      stat= alloc_status(22))
+    deallocate ( SFCTAU,    stat= alloc_status(23))
+    deallocate ( RCAL_CLR,  stat= alloc_status(24))
+    deallocate ( BTCALC,    stat= alloc_status(25))
+    deallocate ( BTOBS,     stat= alloc_status(26))
+    deallocate ( BTOBSERR,  stat= alloc_status(27))
+    deallocate ( XPRES,     stat= alloc_status(28))
     call utl_checkAllocationStatus(alloc_status, " irbg_doQualityControl", .false.)
         
   end subroutine irbg_doQualityControl
