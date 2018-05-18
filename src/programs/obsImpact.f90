@@ -125,6 +125,9 @@ program midas_obsimpact
   ! Perform forecast sensitivity to observation calculation using ensemble approach 
   call fso_ensemble(trlColumnOnAnlLev,obsSpaceData)
 
+  ! Deallocate memory related to B matrices
+  call bmat_finalize()
+
   ! Now write out the observation data files
   if ( .not. obsf_filesSplit() ) then
     write(*,*) 'We read/write global observation files'
@@ -551,6 +554,8 @@ contains
         ,/,20X,"              Minimization ended with MODE:",I4  &
         ,/,20X,"                Total number of iterations:",I4  &
         ,/,20X,"               Total number of simulations:",I4)' ) imode,itermax,isimmax
+
+    if (mpi_myid == 0) write(*,*) 'end of fso_minimize'
 
     deallocate(vatra)
     deallocate(gradJ)
