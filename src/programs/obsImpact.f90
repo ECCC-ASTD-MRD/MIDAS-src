@@ -319,7 +319,7 @@ contains
     
     !for Observation space 
     integer                         :: index_header, IDATA, IDATEND,  index_body
-    real(8)                         :: fso_ori
+    real(8)                         :: fso_ori, fso_fin
 
 
     if (mpi_myid == 0) write(*,*) 'fso_ensemble: starting'
@@ -388,7 +388,8 @@ contains
       IDATEND = obs_headElem_i(obsSpaceData,OBS_NLV,INDEX_HEADER) + IDATA - 1
       do index_body=idata,idatend
         fso_ori = obs_bodyElem_r(obsSpaceData,OBS_FSO,index_body)
-        call obs_bodySet_r(obsSpaceData,OBS_FSO,index_body, fso_ori*1e6)
+        fso_fin = fso_ori * obs_bodyElem_r(obsSpaceData,OBS_OMP,index_body)
+        call obs_bodySet_r(obsSpaceData,OBS_FSO,index_body, fso_fin*1e6)
       end do
     end do
 
