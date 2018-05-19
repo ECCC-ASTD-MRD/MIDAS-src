@@ -588,34 +588,69 @@ CONTAINS
 
     real(4), pointer     :: ptr4d_r4(:,:,:,:)
     real(8) :: multFactor
-    integer :: stepIndex,levIndex,lev,waveBandIndex,memberIndex,varIndex,nVar,jvar
+    integer :: stepIndex,levIndex,lev,waveBandIndex,memberIndex
+    integer :: ierr,varIndex,nVar,jvar
     logical :: makeBiPeriodic
     character(len=4) :: varName,varNames(vnl_numvarmax)
     character(len=4), allocatable :: varNames_opt(:)
+    character(len=256) :: ensFileName
 
     write(*,*) 'setupEnsemble: Start'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     !- 1. Memory allocation
     allocate(ensPerts(nWaveBand))
+    
+    ! Check availability of ensembles for each variable (use member 1)
+    
+    if (mpi_myid == 0) then
+       call fln_ensFileName(ensFileName, ensPathName, 1)
+       nVar=nExclude_ANLVAR
+       LOOP1: do varIndex=1,vnl_numvarmax
+         varName=vnl_varNameList(varIndex)
+         if (.not.gsv_varExist(varName=trim(varName))) cycle
+         if (.not.utl_varNamePresentInFile(ensFileName,vnl_varNameList(varIndex))) then
+           if (nVar == 0) then
+             nExclude_ANLVAR=nExclude_ANLVAR+1
+             exclude_ANLVAR(nExclude_ANLVAR)=varName
+           else
+             nVar=-1
+             do jvar=1,nExclude_ANLVAR
+               if (trim(varName) == trim(exclude_ANLVAR(jvar))) nVar=1
+             end do
+             if (nVar == -1) then 
+               nExclude_ANLVAR=nExclude_ANLVAR+1
+               exclude_ANLVAR(nExclude_ANLVAR)=varName
+             end if
+           end if
+           write(*,*) ' Ensemble for analysis variable NOT FOUND : ', trim(varName)
+         end if
+       end do LOOP1
+    end if
+    call rpn_comm_bcast(nExclude_ANLVAR, 1, 'MPI_INTEGER'  , 0, 'GRID', ierr)
+    do varIndex = 1, nExclude_ANLVAR
+      call rpn_comm_bcastc(exclude_ANLVAR(varIndex) , 4, 'MPI_CHARACTER', 0, 'GRID', ierr)
+    end do
+       
+    ! Set ensemble set dimension and related list of variables
     if (nExclude_ANLVAR == 0) then
        do waveBandIndex = 1, nWaveBand
           call ens_allocate(ensPerts(waveBandIndex), nEns, numStep, hco_ens, vco_ens, dateStampList)
        end do
     else
        nVar=0
-       LOOP: do varIndex=1,vnl_numvarmax
+       LOOP2: do varIndex=1,vnl_numvarmax
           varName=vnl_varNameList(varIndex)
           if (.not.gsv_varExist(varName=trim(varName))) cycle
           do jvar=1,nExclude_ANLVAR
              if (trim(varName) == trim(exclude_ANLVAR(jvar))) then
                 write(*,*) 'setupEnsemble: Excluding ensembles for ',trim(varName)
-                cycle LOOP
+                cycle LOOP2
              end if
           end do
           nVar=nVar+1
           varNames(nVar)=varName
-       end do LOOP
+       end do LOOP2
        if (nVar.eq.0) then
          call utl_abort('setupEnsemble : Variable set requested for ensembles is null.')
        else
