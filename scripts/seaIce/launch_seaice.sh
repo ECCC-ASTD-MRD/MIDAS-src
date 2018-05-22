@@ -7,7 +7,7 @@ set -ex
 #
 #machine=hare
 machine=eccc-ppp2
-abs="${HOME}/data_maestro/ords/oavar_abs/seaice_ubuntu-14.04-amd64-64-m_2.2.3-2-g69c1bf1_M.Abs"
+abs="${HOME}/data_maestro/ords/compiledir/compiledir-seaIce-ubuntu-14.04-amd64-64_m_3.1.0-97-g3f891fc_M/midas-seaIce_ubuntu-14.04-amd64-64-m_3.1.0-97-g3f891fc_M.Abs"
 npex=1
 npey=1
 openmp=44
@@ -15,8 +15,17 @@ maxcputime=3000
 run_in_parallel="/fs/ssm/eccc/mrd/rpn/utils/16.2/all/bin/r.run_in_parallel_1.1.28c"
 #analysisgrid="/home/sanl000/ANAL_shared/datafiles/constants/arma/oavar/2.1.2/analysis_grid_prototype_glb_1080x540_south-to-north_80L_vcode5002"
 #analysisgrid="/home/mab001/constants/analysis_grid_prototype_glb_1080x540_south-to-north_sfc_vcode5002"
-analysisgrid="/home/alc001/constants/analgrid.std"
-diff_norm_fact="/home/alc001/constants/diffusmod.std"
+analysisgrid="/home/alc001/constants/cmde/icea/v2.2.5/arctic/analgrid.std"
+implicit=T
+if [ ${implicit} = F ] ; then
+    diff_norm_fact=/home/alc001/constants/cmde/icea/v2.2.5/arctic/diffusmod_explicit.std
+elif [ ${implicit} = T ] ; then
+    diff_norm_fact=/home/alc001/constants/cmde/icea/v2.2.5/arctic/diffusmod_implicit.std
+else
+    echo "Variable implicit has to be either T or F."
+    exit 1
+fi
+
 #
 # Don't modify below ...
 #
@@ -42,6 +51,7 @@ cat << EOF > $TMPDIR/flnml
   corr_len = 200*10.0
   stab     = 200*0.2
   nsamp    = 200*10000
+  limplicit = 200*${implicit}
   SCALEFACTOR = 200*1.0
   stddevMode = 'HOMO'
   homogeneous_std = 200*0.1
@@ -70,7 +80,9 @@ ssh $machine rm -rf $gest
 ssh $machine mkdir -p $gest
 scp $TMPDIR/flnml ${machine}:${gest}/flnml
 scp ${analysisgrid} ${machine}:${gest}/analysisgrid
-scp ${diff_norm_fact} ${machine}:${gest}/
+if [ -e ${diff_norm_fact} ] ; then
+    scp  ${diff_norm_fact} ${machine}:${gest}/diffusmod.std
+fi
 scp $abs ${machine}:${gest}/seaice.abs
 ssh $machine ls -l $gest
 

@@ -32,7 +32,7 @@
 !!
 !! Author: Alain Caya (alain.caya@canada.ca)
 !!
-!! *Origin*: diffus_mod.f from the 3D-Var sea ice analysis system
+!! *Origin*: diffus_mod.f from the envar experiments by Anna Shlyaeva
 !!
 !--------------------------------------------------------------------------
 module diffusion_mod
@@ -55,6 +55,11 @@ module diffusion_mod
      ! These are used in subroutines diff_Csqrt and diff_Csqrtadj
      real(8), allocatable :: Winv(:,:), Wsqrt(:,:), Winvsqrt(:,:)
      real(8), allocatable :: Lambda(:,:)
+     real(8), allocatable :: diff1x_ap(:,:),diff1x_bp_inv(:,:)
+     real(8), allocatable :: diff1x_c(:,:)
+     real(8), allocatable :: diff1y_ap(:,:),diff1y_bp_inv(:,:)
+     real(8), allocatable :: diff1y_c(:,:)
+     logical :: limplicit
   end type struct_diff
 
   integer, parameter :: nMaxDiff = 10
@@ -65,7 +70,7 @@ module diffusion_mod
 
 contains
 
-  integer function diff_setup(hco, corr_len, stab, nsamp)
+  integer function diff_setup(hco, corr_len, stab, nsamp, limplicit)
 
     use horizontalCoord_mod
     use EarthConstants_mod, only : rayt
@@ -85,6 +90,10 @@ contains
     ! Number of samples in the estimation of the normalization factors by randomization.
     integer, intent(in) :: nsamp
 
+    ! Indicate to use the implicit formulation of the diffusion operator (.true.) or
+    ! the explicit version (.false.).
+    logical, intent(in) :: limplicit
+
 
     ! Local Variables
 
@@ -94,9 +103,11 @@ contains
     real, allocatable :: buf2d(:,:)
     integer, allocatable :: mask(:,:)
 
-    integer :: i, j, isamp, k, l
+    integer :: i, j, isamp, k, l, t
 
     real(8) :: mindxy, maxL
+
+    real(8) :: a,b
 
     real(8), allocatable :: Lcorr(:,:)
     real(8), allocatable :: kappa(:,:)
@@ -130,7 +141,7 @@ contains
 
     integer  :: diffID
 
-    integer :: ni, nj
+    integer :: NI, NJ
 
 
     if(nDiffAlreadyAllocated == nMaxDiff) then
@@ -145,6 +156,7 @@ contains
     NJ = hco%nj
     diff(diffID)%dlon = hco%dlon
     diff(diffID)%dlat = hco%dlat
+    diff(diffID)%limplicit = limplicit
 
     allocate(diff(diffID)%cosyhalf(NJ), diff(diffID)%cosyinv(NJ), diff(diffID)%cosyinvsq(NJ))
     allocate(diff(diffID)%Winv(NI,NJ), diff(diffID)%Wsqrt(NI,NJ), diff(diffID)%Winvsqrt(NI,NJ))
@@ -158,6 +170,13 @@ contains
     allocate(W(NI,NJ))
     allocate(m(NI,NJ))
     allocate(xin(NI,NJ))
+
+    allocate(diff(diffID)%diff1x_ap(NI,NJ))
+    allocate(diff(diffID)%diff1x_bp_inv(NI,NJ))
+    allocate(diff(diffID)%diff1x_c(NI,NJ))
+    allocate(diff(diffID)%diff1y_ap(NJ,NI))
+    allocate(diff(diffID)%diff1y_bp_inv(NJ,NI))
+    allocate(diff(diffID)%diff1y_c(NJ,NI))
 
     latr(:) = hco%lat(:)
 
@@ -193,10 +212,12 @@ contains
     end do
 
     ! print this stuff in listing file for user information:
-    write(*,*)
-    write(*,*) 'Number of timesteps = ',diff(diffID)%numt 
-    write(*,*) 'Stability           = ',maxval(kappa)*diff(diffID)%dt/(mindxy**2)
-    write(*,*)
+    if ( .not. limplicit) then
+       write(*,*)
+       write(*,*) 'Number of timesteps = ',diff(diffID)%numt 
+       write(*,*) 'Stability           = ',maxval(kappa)*diff(diffID)%dt/(mindxy**2)
+       write(*,*)
+    end if
 
     ! this is the matrix necessary for defining the inner product: for lat-lon grid, only cos(y)
     ! Actually, only the diagonal of the matrix is stored in the array W, since the matrix is diagonal.
@@ -274,7 +295,72 @@ contains
     diff(diffID)%ni = ni
     diff(diffID)%nj = nj
 
-    write (etiket, FMT='(''KM'',i3.3,''STAB'',f3.1)') int(corr_len), stab
+    ! specify number of timesteps and timestep length for implicit 1D diffusion
+    if (limplicit) then
+       diff(diffID)%numt = 5
+       diff(diffID)%dt = 1.0d0/(2.0d0*dble(2*diff(diffID)%numt)-3.0d0)
+    end if
+
+    ! compute the LU decomposition for the implicit 1D diffusion
+    diff(diffID)%diff1x_ap(:,:) = 0.0d0
+    diff(diffID)%diff1x_bp_inv(:,:) = 0.0d0      
+    diff(diffID)%diff1x_c(:,:) = 0.0d0
+    diff(diffID)%diff1y_ap(:,:) = 0.0d0
+    diff(diffID)%diff1y_bp_inv(:,:) = 0.0d0      
+    diff(diffID)%diff1y_c(:,:) = 0.0d0
+
+!$OMP PARALLEL DEFAULT(SHARED)
+!$OMP DO PRIVATE(j,i,a,b)
+    do j=2,NJ-1
+       i=2
+       diff(diffID)%diff1x_bp_inv(i,j)= 1.0d0/(1.0d0 + &
+            diff(diffID)%dt*diff(diffID)%cosyinvsq(j)*(diff(diffID)%mhalfx(i,j)*diff(diffID)%khalfx(i,j) + &
+            diff(diffID)%mhalfx(i-1,j)*diff(diffID)%khalfx(i-1,j))/(diff(diffID)%dlon*diff(diffID)%dlon))
+       do i=3,NI-1
+          ! elements of the tri-diagonal coefficient matrix
+          a = - diff(diffID)%dt*diff(diffID)%cosyinvsq(j)*diff(diffID)%mhalfx(i-1,j)*diff(diffID)%khalfx(i-1,j)/(diff(diffID)%dlon*diff(diffID)%dlon)
+          b = 1 + diff(diffID)%dt*diff(diffID)%cosyinvsq(j)*(diff(diffID)%mhalfx(i,j)*diff(diffID)%khalfx(i,j) + &
+               diff(diffID)%mhalfx(i-1,j)*diff(diffID)%khalfx(i-1,j))/(diff(diffID)%dlon*diff(diffID)%dlon)
+          diff(diffID)%diff1x_c(i,j) = -diff(diffID)%dt*diff(diffID)%cosyinvsq(j)*diff(diffID)%mhalfx(i,j)*diff(diffID)%khalfx(i,j)/(diff(diffID)%dlon*diff(diffID)%dlon)
+          diff(diffID)%diff1x_ap(i,j)=a*diff(diffID)%diff1x_bp_inv(i-1,j)
+          diff(diffID)%diff1x_bp_inv(i,j)=1.0d0/(b-a*diff(diffID)%diff1x_c(i-1,j) &
+               *diff(diffID)%diff1x_bp_inv(i-1,j))
+       end do
+    end do
+!$OMP END DO
+!$OMP END PARALLEL
+
+!$OMP PARALLEL DEFAULT(SHARED)
+!$OMP DO PRIVATE(j,i,a,b)
+    do i=2,NI-1
+       j=2
+       diff(diffID)%diff1y_bp_inv(j,i)= 1.0d0/(1.0d0 + &
+            diff(diffID)%dt*diff(diffID)%cosyinvsq(j)*(diff(diffID)%cosyhalf(j)*diff(diffID)%mhalfy(i,j) &
+            *diff(diffID)%khalfy(i,j) + &
+            diff(diffID)%cosyhalf(j-1)*diff(diffID)%mhalfy(i,j-1)*diff(diffID)%khalfy(i,j-1))/(diff(diffID)%dlat*diff(diffID)%dlat))
+       do j=3,NJ-1
+          ! elements of the tri-diagonal coefficient matrix
+          a = - diff(diffID)%dt*diff(diffID)%cosyinv(j)*diff(diffID)%cosyhalf(j-1)* &
+               diff(diffID)%mhalfy(i,j-1)*diff(diffID)%khalfy(i,j-1)/(diff(diffID)%dlat*diff(diffID)%dlat)
+          b = 1 + diff(diffID)%dt*diff(diffID)%cosyinv(j)*(diff(diffID)%cosyhalf(j)*diff(diffID)%mhalfy(i,j)* &
+               diff(diffID)%khalfy(i,j) + &
+               diff(diffID)%cosyhalf(j-1)*diff(diffID)%mhalfy(i,j-1)*diff(diffID)%khalfy(i,j-1)) &
+               /(diff(diffID)%dlat*diff(diffID)%dlat)
+          diff(diffID)%diff1y_c(j,i) = - diff(diffID)%dt*diff(diffID)%cosyinv(j)*diff(diffID)%cosyhalf(j)* &
+               diff(diffID)%mhalfy(i,j)*diff(diffID)%khalfy(i,j)/(diff(diffID)%dlat*diff(diffID)%dlat)
+          diff(diffID)%diff1y_ap(j,i) = a*diff(diffID)%diff1y_bp_inv(j-1,i)
+          diff(diffID)%diff1y_bp_inv(j,i) = 1.0d0/(b-a*diff(diffID)%diff1y_c(j-1,i) &
+               *diff(diffID)%diff1y_bp_inv(j-1,i))
+       end do
+    end do
+!$OMP END DO
+!$OMP END PARALLEL
+
+    if (limplicit) then
+       write (etiket, FMT='(''KM'',i3.3,''IMPLICI'')') int(corr_len)
+    else
+       write (etiket, FMT='(''KM'',i3.3,''STAB'',f3.1)') int(corr_len), stab
+    end if
 
     std_unit = 0
 
@@ -319,10 +405,15 @@ contains
                    xin(i,j) = diff(diffID)%Winvsqrt(i,j)*rng_gaussian()
                 end do
              end do
-             call diffusion(diffID,xin,xin)
+             if(limplicit) then
+                do t=1,diff(diffID)%numt
+                   call diffusion1x_implicit(diffID,xin,xin)
+                   call diffusion1y_implicit(diffID,xin,xin)
+                end do
+             else
+                call diffusion_explicit(diffID,xin,xin)
+             end if
              diff(diffID)%Lambda = diff(diffID)%Lambda + xin*xin
-
-             write(*,*) 'Sample ',isamp,' done.'
 
           end do
 
@@ -348,7 +439,14 @@ contains
 
                 xin = 0.0d0
                 xin(i,j) = 1.0d0
-                call diffusion(diffID,xin,xin)
+                if(limplicit) then
+                   do t=1,diff(diffID)%numt
+                      call diffusion1x_implicit(diffID,xin,xin)
+                      call diffusion1y_implicit(diffID,xin,xin)
+                   end do
+                else
+                   call diffusion_explicit(diffID,xin,xin)
+                end if
                 xin = diff(diffID)%Winvsqrt*xin
                 diff(diffID)%Lambda(i,j) = 0.0d0
                 do l=1,NJ
@@ -468,6 +566,13 @@ contains
 
     integer, intent(in)  :: diffID
 
+    deallocate(diff(diffID)%diff1y_c)
+    deallocate(diff(diffID)%diff1y_bp_inv)
+    deallocate(diff(diffID)%diff1y_ap)
+    deallocate(diff(diffID)%diff1x_c)
+    deallocate(diff(diffID)%diff1x_bp_inv)
+    deallocate(diff(diffID)%diff1x_ap)
+
     deallocate(diff(diffID)%Lambda)
     deallocate(diff(diffID)%mhalfy, diff(diffID)%mhalfx)
     deallocate(diff(diffID)%khalfy, diff(diffID)%khalfx)
@@ -478,7 +583,7 @@ contains
 
 !**********************************************************
 
-  subroutine diffusion(diffID, xin, xout)
+  subroutine diffusion_explicit(diffID, xin, xout)
 
 !-----------------------------------------------------------------------
 !
@@ -500,7 +605,7 @@ contains
 
     real(8) :: xlast(diff(diffID)%ni,diff(diffID)%nj)
 
-    call tmg_start(2,'diffusion')
+    call tmg_start(2,'diffusion_explicit')
 
     xlast(:,:) = xin(:,:)
     ! iterate difference equations
@@ -533,7 +638,7 @@ contains
 
     call tmg_stop(2)
 
-  end subroutine diffusion
+  end subroutine diffusion_explicit
 
 !**********************************************************
 
@@ -545,11 +650,20 @@ contains
     real(8), intent(in)  :: xin(diff(diffID)%ni,diff(diffID)%nj)
     real(8), intent(out) :: xout(diff(diffID)%ni,diff(diffID)%nj)
 
+    integer :: t
+
     ! compute Csqrt
 
     ! this is the C^1/2 required for the forward model: Csqrt = Lambda * Diffuse * W^-1/2
     xout(:,:) = diff(diffID)%Winvsqrt(:,:) * xin(:,:)
-    call diffusion(diffID,xout,xout)
+    if (diff(diffID)%limplicit) then
+       do t=1,diff(diffID)%numt
+          call diffusion1x_implicit(diffID,xout,xout)
+          call diffusion1y_implicit(diffID,xout,xout)
+       end do
+    else
+       call diffusion_explicit(diffID,xout,xout)
+    end if
     xout(:,:) = diff(diffID)%Lambda(:,:) * xout(:,:)
 
   end subroutine diff_Csqrt
@@ -564,14 +678,174 @@ contains
     real(8), intent(in)  :: xin(diff(diffID)%ni,diff(diffID)%nj)
     real(8), intent(out) :: xout(diff(diffID)%ni,diff(diffID)%nj)
 
+    integer :: t
+
     ! compute Csqrtadj
 
     ! this is the (C^1/2)^T required for the adjoint: Csqrt^T = W^1/2 * Diffuse * W^-1 * Lambda
     xout(:,:) = diff(diffID)%Lambda(:,:) * xin(:,:)
     xout(:,:) = diff(diffID)%Winv(:,:) * xout(:,:)
-    call diffusion(diffID,xout,xout)
+    if(diff(diffID)%limplicit) then
+       do t=1,diff(diffID)%numt
+          call diffusion1y_implicit(diffID,xout,xout)
+          call diffusion1x_implicit(diffID,xout,xout)
+       end do
+    else
+       call diffusion_explicit(diffID,xout,xout)
+    end if
     xout(:,:) = diff(diffID)%Wsqrt(:,:) * xout(:,:)
 
   end subroutine diff_Csqrtadj
+
+!**********************************************************
+
+  subroutine diffusion1x_implicit(diffID, xin, xout)
+
+!-----------------------------------------------------------------------
+!
+! Purpose:
+! compute Lsqrt*xin (diffusion over 1 timestep, loop over timesteps is external to the subroutine)
+! specify initial conditions
+!
+! Author: Mark Buehner (mark.buehner@canada.ca)
+!
+!-----------------------------------------------------------------------
+
+    implicit none
+
+    integer, intent(in)  :: diffID
+    real(8), intent(in)  :: xin(diff(diffID)%ni,diff(diffID)%nj)
+    real(8), intent(out) :: xout(diff(diffID)%ni,diff(diffID)%nj)
+
+    integer :: t, j, i
+
+    real(8) :: xlast(diff(diffID)%ni,diff(diffID)%nj)
+    real(8) :: dp(diff(diffID)%ni)
+
+!$OMP PARALLEL DEFAULT(SHARED)
+!$OMP DO PRIVATE(j,i)
+    do j=1,diff(diffID)%nj
+       do i=1,diff(diffID)%ni
+          xlast(i,j) = xin(i,j)
+       end do
+    end do
+!$OMP END DO
+!$OMP END PARALLEL
+
+    do t=1,1
+!$OMP PARALLEL DEFAULT(SHARED)
+!$OMP DO PRIVATE(j,i,dp)
+       do j=2,diff(diffID)%nj-1
+          i=2
+          dp(i)=xlast(i,j)
+          do i=3,diff(diffID)%ni-1
+             dp(i)=xlast(i,j) - diff(diffID)%diff1x_ap(i,j)*dp(i-1)
+          end do
+          i=diff(diffID)%ni-1
+          xout(i,j)=dp(i)*diff(diffID)%diff1x_bp_inv(i,j)
+          do i=diff(diffID)%ni-2,2,-1
+             xout(i,j)=(dp(i)-diff(diffID)%diff1x_c(i,j)*xout(i+1,j)) &
+                  *diff(diffID)%diff1x_bp_inv(i,j)
+          end do
+       end do
+!$OMP END DO
+!$OMP END PARALLEL
+    end do  ! do t
+
+    do j=1,diff(diffID)%nj
+       xout(1,j) = xin(1,j)
+       xout(diff(diffID)%ni,j) = xin(diff(diffID)%ni,j)
+    end do
+
+  end subroutine diffusion1x_implicit
+!**********************************************************
+
+  subroutine diffusion1y_implicit(diffID, xin, xout)
+
+!-----------------------------------------------------------------------
+!
+! Purpose:
+! compute Lsqrt*xin (diffusion over 1 timestep, loop over timesteps is external to the subroutine)
+! specify initial conditions
+!
+! Author: Mark Buehner (mark.buehner@canada.ca)
+!
+!-----------------------------------------------------------------------
+
+    implicit none
+
+    integer, intent(in)  :: diffID
+    real(8), intent(in)  :: xin(diff(diffID)%ni,diff(diffID)%nj)
+    real(8), intent(out) :: xout(diff(diffID)%ni,diff(diffID)%nj)
+
+    integer :: t, j, i
+
+    real(8) :: xlast(diff(diffID)%nj,diff(diffID)%ni)
+    real(8) :: dp(diff(diffID)%nj)
+
+! NOTE:for improved efficiency, the 2D fields used internally are !
+!      ordered (diff(diffID)%nj,diff(diffID)%ni) and NOT (diff(diffID)%ni,diff(diffID)%nj) as in the rest of the code !
+
+!$OMP PARALLEL DEFAULT(SHARED)
+!$OMP DO PRIVATE(j,i)
+    do j=1,diff(diffID)%nj
+       do i=1,diff(diffID)%ni
+          xlast(j,i) = xin(i,j)
+       end do
+    end do
+!$OMP END DO
+!$OMP END PARALLEL
+
+    do t=1,1
+!$OMP PARALLEL DEFAULT(SHARED)
+!$OMP DO PRIVATE(j,i,dp)
+       do i=2,diff(diffID)%ni-1
+          j=2
+          dp(j)=xlast(j,i)
+          do j=3,diff(diffID)%nj-1
+             dp(j)=xlast(j,i) - diff(diffID)%diff1y_ap(j,i)*dp(j-1)
+          end do
+          j=diff(diffID)%nj-1
+          xout(i,j)=dp(j)*diff(diffID)%diff1y_bp_inv(j,i)
+          do j=diff(diffID)%nj-2,2,-1
+             xout(i,j)=(dp(j)-diff(diffID)%diff1y_c(j,i)*xout(i,j+1)) &
+                  *diff(diffID)%diff1y_bp_inv(j,i)
+          end do
+       end do
+!$OMP END DO
+!$OMP END PARALLEL
+    end do  ! do t
+
+    do i=1,diff(diffID)%ni
+       xout(i,1) = xin(i,1)
+       xout(i,diff(diffID)%nj) = xin(i,diff(diffID)%nj)
+    end do
+
+  end subroutine diffusion1y_implicit
+
+
+!**********************************************************
+
+  subroutine diffusion(diffID, xin, xout)
+
+    implicit none
+
+    integer, intent(in)  :: diffID
+    real(8), intent(in)  :: xin(diff(diffID)%ni,diff(diffID)%nj)
+    real(8), intent(out) :: xout(diff(diffID)%ni,diff(diffID)%nj)
+
+    integer :: t
+
+    xout(:,:) = xin(:,:)
+    if (diff(diffID)%limplicit) then
+       do t=1,diff(diffID)%numt
+          call diffusion1x_implicit(diffID,xout,xout)
+          call diffusion1y_implicit(diffID,xout,xout)
+       end do
+    else
+       call diffusion_explicit(diffID,xout,xout)
+    end if
+
+  end subroutine diffusion
 
 end module diffusion_mod
