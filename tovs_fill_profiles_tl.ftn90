@@ -57,7 +57,7 @@ subroutine tovs_fill_profiles_tl(column,columng)
   integer, allocatable :: iptobs    (:) 
   integer, allocatable :: iptobscma (:) 
 
-  integer :: alloc_status(40)
+  integer :: alloc_status(9)
   logical :: diagTtop,TopNotAt10hPa
   integer :: omp_get_num_threads, nthreads
   integer :: istride, ilen, imodulo
@@ -107,9 +107,6 @@ subroutine tovs_fill_profiles_tl(column,columng)
   status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode)
   diagTtop = (Vcode.eq.5002)
  
-  nlevels=coefs(1) %coef%  nlevels
-  allocate (xpres(nlevels))
-  xpres(1:nlevels) = coefs(1)% coef % ref_prfl_p(1:nlevels)
 
   ! find model level top, within 0.000001 mbs.
   zptop    = col_getPressure(columng,1,1,'TH')
@@ -118,15 +115,6 @@ subroutine tovs_fill_profiles_tl(column,columng)
 
   TopNotAt10hPa = ( abs( zptopmbs - 10.0d0 ) > .1d0 ) !could be replaced by another logical test
 
-  jpmotop = 1
-  do jl = 2, nlevels
-     if ( zptopmbs .ge. xpres(jl-1) .and.       &
-          zptopmbs .lt. xpres(jl)        ) then
-        jpmotop = jl
-        exit
-     endif
-  enddo
-  jpmolev = (nlevels-jpmotop+1)
 
 !     1.1   Number of threads and memory allocation
 !     .     ---------------------------------------
@@ -136,40 +124,32 @@ subroutine tovs_fill_profiles_tl(column,columng)
 !$omp end parallel
 
   alloc_status(:) = 0
-  allocate (iptobs    (jppf*nthreads)          ,stat= alloc_status(1) )
-  allocate (iptobscma (jppf*nthreads)          ,stat= alloc_status(2) )
-  allocate (to_tl     (jpmolev,jppf*nthreads)  ,stat= alloc_status(3) )
-  allocate (lqo_tl    (jpmolev,jppf*nthreads)  ,stat= alloc_status(4) )
-  allocate (toext_tl  (nlevels  ,jppf*nthreads),stat= alloc_status(5) )
-  allocate (qoext_tl  (nlevels  ,jppf*nthreads),stat= alloc_status(6) )
-  allocate (zvlev     (nlv_T,jppf*nthreads)    ,stat= alloc_status(7) )
-  allocate (dPdPs     (nlv_T,jppf*nthreads)    ,stat= alloc_status(8) )
-  allocate (zt_tl     (nlv_T,jppf*nthreads)    ,stat= alloc_status(9) )
-  allocate (zlq_tl    (nlv_T,jppf*nthreads)    ,stat= alloc_status(10))
-  allocate (zt        (nlv_T,jppf*nthreads)    ,stat= alloc_status(11))
-  allocate (zlq       (nlv_T,jppf*nthreads)    ,stat= alloc_status(12))
-  allocate (qoext     (nlevels,jppf*nthreads)  ,stat= alloc_status(13))
+  allocate (iptobs    (jppf*nthreads)        ,stat= alloc_status(1) )
+  allocate (iptobscma (jppf*nthreads)        ,stat= alloc_status(2) )
+  allocate (zvlev     (nlv_T,jppf*nthreads)  ,stat= alloc_status(3) )
+  allocate (dPdPs     (nlv_T,jppf*nthreads)  ,stat= alloc_status(4) )
+  allocate (zt_tl     (nlv_T,jppf*nthreads)  ,stat= alloc_status(5) )
+  allocate (zlq_tl    (nlv_T,jppf*nthreads)  ,stat= alloc_status(6) )
+  allocate (zt        (nlv_T,jppf*nthreads)  ,stat= alloc_status(7) )
+  allocate (zlq       (nlv_T,jppf*nthreads)  ,stat= alloc_status(8) )
+  allocate (zps_tl    (jppf*nthreads)        ,stat= alloc_status(9) )
 
-  allocate (zps_tl    (jppf*nthreads)          ,stat= alloc_status(14))
-
-  if( any(alloc_status /= 0) ) then
+  if( any(alloc_status(1:9) /= 0) ) then
      write(*,*) ' tovs_fill_profiles_tl : memory allocation error'
-     call abort3d('tovs_fill_profiles_tl     ')
+     call abort3d('tovs_fill_profiles_tl')
   end if
 
   iptobs   (:) = 0 
   iptobscma(:) = 0 
-  toext_tl (:,:) = 0.0d0
+ 
   zvlev    (:,:) = 0.0d0
   dPdPs    (:,:) = 0.0d0
   zt_tl    (:,:) = 0.0d0
   zlq_tl   (:,:) = 0.0d0
   zt       (:,:) = 0.0d0
   zlq      (:,:) = 0.0d0
-  qoext    (:,:) = 0.0d0
   zps_tl   (:)   = 0.0d0
-  to_tl    (:,:) = 0.0d0
-  lqo_tl   (:,:) = 0.0d0
+  
 
 !
 !     2.  Fill profiles structure
@@ -177,32 +157,61 @@ subroutine tovs_fill_profiles_tl(column,columng)
 ! loop over all instruments
   binst: do krtid=1,nsensors
 ! loop over all obs.
-     knpf = 0
-     xpres(1:nlevels) = coefs(krtid)% coef % ref_prfl_p(1:nlevels)
 
-     bb: do iobs = NOBTOV,1,-1
-        if (lsensor(iobs)==krtid) then
-           NOBMAX=iobs
-           exit bb
-        endif
-     enddo bb
+    nlevels=coefs(krtid) %coef%  nlevels
+    allocate (xpres(nlevels))
+    xpres(1:nlevels) = coefs(krtid)% coef % ref_prfl_p(1:nlevels)
 
-     bobs: do iobs = 1, NOBTOV
-        if (lsensor(iobs)/=krtid) cycle bobs
+    jpmotop = 1
+    do jl = 2, nlevels
+      if ( zptopmbs .ge. xpres(jl-1) .and.       &
+           zptopmbs .lt. xpres(jl)        ) then
+        jpmotop = jl
+        exit
+      end if
+    end do
+    jpmolev = (nlevels-jpmotop+1)
 
-        jo = lobsno(iobs)
+    allocate (to_tl     (jpmolev,jppf*nthreads)  ,stat= alloc_status(1) )
+    allocate (lqo_tl    (jpmolev,jppf*nthreads)  ,stat= alloc_status(2) )
+    allocate (toext_tl  (nlevels  ,jppf*nthreads),stat= alloc_status(3) )
+    allocate (qoext_tl  (nlevels  ,jppf*nthreads),stat= alloc_status(4) )
+    allocate (qoext     (nlevels,jppf*nthreads)  ,stat= alloc_status(5) )
+    if( any(alloc_status(1:5) /= 0) ) then
+      write(*,*) ' tovs_fill_profiles_tl : memory allocation error b'
+      call abort3d('tovs_fill_profiles_tl')
+    end if
+
+    to_tl    (:,:) = 0.0d0
+    lqo_tl   (:,:) = 0.0d0
+    toext_tl (:,:) = 0.0d0
+    qoext    (:,:) = 0.0d0
+
+    bb: do iobs = NOBTOV,1,-1
+      if (lsensor(iobs)==krtid) then
+        NOBMAX=iobs
+        exit bb
+      end if
+    end do bb
+
+    knpf = 0
+
+    bobs: do iobs = 1, NOBTOV
+      if (lsensor(iobs)/=krtid) cycle bobs
+
+      jo = lobsno(iobs)
        
-        knpf = knpf + 1
+      knpf = knpf + 1
 
-        zps_tl  (knpf) = col_getElem(column,1,jo,'P0')*MPC_MBAR_PER_PA_R8
-        do jl = 1, nlv_T
-           zt_tl   (jl,knpf) = col_getElem(column,jl,jo,'TT')
-           zlq_tl  (jl,knpf) = col_getElem(column,jl,jo,'HU')
-           zt   (jl,knpf) = col_getElem(columng,jl,jo,'TT')
-           zlq  (jl,knpf) = col_getElem(columng,jl,jo,'HU')
-           zvlev(jl,knpf) = col_getPressure(columng,jl,jo,'TH') *MPC_MBAR_PER_PA_R8
-           dPdPs(jl,knpf) = col_getPressureDeriv(columng,jl,jo,'TH')
-        enddo
+      zps_tl  (knpf) = col_getElem(column,1,jo,'P0')*MPC_MBAR_PER_PA_R8
+      do jl = 1, nlv_T
+        zt_tl   (jl,knpf) = col_getElem(column,jl,jo,'TT')
+        zlq_tl  (jl,knpf) = col_getElem(column,jl,jo,'HU')
+        zt   (jl,knpf) = col_getElem(columng,jl,jo,'TT')
+        zlq  (jl,knpf) = col_getElem(columng,jl,jo,'HU')
+        zvlev(jl,knpf) = col_getPressure(columng,jl,jo,'TH') *MPC_MBAR_PER_PA_R8
+        dPdPs(jl,knpf) = col_getPressureDeriv(columng,jl,jo,'TH')
+      end do
 
         ! Fix pour eviter probleme au toit avec GEM 4
         ! (grosse varibilite temperature au dernier niveau thermo due 
@@ -355,36 +364,36 @@ subroutine tovs_fill_profiles_tl(column,columng)
 
      enddo bobs
 
+     deallocate (to_tl     ,stat= alloc_status(1) )
+     deallocate (lqo_tl    ,stat= alloc_status(2) )
+     deallocate (toext_tl  ,stat= alloc_status(3) )
+     deallocate (qoext_tl  ,stat= alloc_status(4) )
+     deallocate (qoext     ,stat= alloc_status(5) )
+     deallocate (xpres     ,stat= alloc_status(6) )
+     if( any(alloc_status(1:6) /= 0) ) then
+       write(*,*) ' tovs_fill_profiles_tl : memory deallocation error b'
+       call abort3d('tovs_fill_profiles_tl')
+     end if
+
   enddo binst
 
-  alloc_status(:) = 0
   deallocate (iptobs    ,stat= alloc_status(1) )
   deallocate (iptobscma ,stat= alloc_status(2) )
-  deallocate (to_tl     ,stat= alloc_status(3) )
-  deallocate (lqo_tl    ,stat= alloc_status(4) )
-  deallocate (toext_tl  ,stat= alloc_status(5) )
-  deallocate (qoext_tl  ,stat= alloc_status(6) )
-  deallocate (zvlev     ,stat= alloc_status(7) )
-  deallocate (dPdPs     ,stat= alloc_status(8) )
-  deallocate (zt_tl     ,stat= alloc_status(9) )
-  deallocate (zlq_tl    ,stat= alloc_status(10))
-  deallocate (zt        ,stat= alloc_status(11))
-  deallocate (zlq       ,stat= alloc_status(12))
-  deallocate (qoext     ,stat= alloc_status(13))
-  deallocate (zps_tl    ,stat= alloc_status(14))
-  deallocate (xpres     ,stat= alloc_status(15))
+  deallocate (zvlev     ,stat= alloc_status(3) )
+  deallocate (dPdPs     ,stat= alloc_status(4) )
+  deallocate (zt_tl     ,stat= alloc_status(5) )
+  deallocate (zlq_tl    ,stat= alloc_status(6) )
+  deallocate (zt        ,stat= alloc_status(7) )
+  deallocate (zlq       ,stat= alloc_status(8) )
+  deallocate (zps_tl    ,stat= alloc_status(9) )
+ 
 
-  if( any(alloc_status /= 0) ) then
+  if( any(alloc_status(1:9) /= 0) ) then
      write(*,*) ' tovs_fill_profiles_tl : memory deallocation error'
      call abort3d('tovs_fill_profiles_tl        ')
   end if
 
   9263 format(1x,10f8.4)
 
-
-!     3.  Close up
-!     .   --------
-
-  return
 
 end subroutine tovs_fill_profiles_tl

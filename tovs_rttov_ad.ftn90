@@ -120,10 +120,10 @@ subroutine tovs_rttov_ad(lobsSpaceData)
   allocate ( nchannels_th   (max_nthreads)      ,stat=alloc_status(4)) 
   allocate ( iptobs         (jppf*max_nthreads) ,stat=alloc_status(5)) 
  
-  if( any(alloc_status /= 0) ) then
+  if( any(alloc_status(1:5) /= 0) ) then
      write(*,*) ' tovs_rttov_ad: alloc_status = ', alloc_status(:)
      write(*,'(" tovs_rttov_ad: arrays #1 memory allocation error")')
-     call abort3d('tovs_rttov_ad        ')
+     call abort3d('tovs_rttov_ad')
   end if
 !
 !     2.  Computation of adjoint hx for tovs data only
@@ -189,7 +189,7 @@ subroutine tovs_rttov_ad(lobsSpaceData)
 !     compute max possible values for nchannels using knpf, i.e. maximum number of profiles.
 
       nchannels_max=SUM(ncan(1:KNPF))
-      alloc_status(:)=0
+      
       allocate ( surfem1_th      (nchannels_max,nthreads)    ,stat=alloc_status(2))
       allocate ( chanprof_th     (nchannels_max,nthreads)    ,stat=alloc_status(3))
       allocate ( emissivity_th   (nchannels_max,nthreads)    ,stat=alloc_status(4))
@@ -285,10 +285,10 @@ subroutine tovs_rttov_ad(lobsSpaceData)
       allocate ( profilesdata_th(istride,nthreads)   ,stat=alloc_status(16))  ! profilesdata
       allocate ( profilesdata_ad_th(istride,nthreads),stat=alloc_status(17))  ! profilesdata ad
 
-      if( any(alloc_status /= 0) ) then
-         write(*,*) ' tovs_rttov_ad: alloc_status = ', alloc_status(:)
+      if( any(alloc_status(1:17) /= 0) ) then
+         write(*,*) ' tovs_rttov_ad: alloc_status = ', alloc_status(1:17)
          write(*,'(" tovs_rttov_ad:  arrays #2 memory allocation error")')
-         call abort3d('tovs_rttov_ad ')
+         call abort3d('tovs_rttov_ad')
       end if
 
       do ith = 1, nthreads
@@ -300,13 +300,13 @@ subroutine tovs_rttov_ad(lobsSpaceData)
               nchannels=nchannels_th(ith),asw=asw,init=init)
          if (rttov_err_stat/=0) THEN
             Write(*,*) "Error in transmittance allocation",rttov_err_stat
-            call abort3d('tovs_rttov_ad        ')
+            call abort3d('tovs_rttov_ad')
          endif
          call rttov_alloc_transmission(rttov_err_stat,transmission_ad_th(ith),nlayers=nlevels-1,      &
               nchannels=nchannels_th(ith),asw=asw,init=init)
          if (rttov_err_stat/=0) THEN
             Write(*,*) "Error in transmittance_ad allocation",rttov_err_stat
-            call abort3d('tovs_rttov_ad        ')
+            call abort3d('tovs_rttov_ad')
          endif
 
          ! allocate radiance structures
@@ -314,12 +314,12 @@ subroutine tovs_rttov_ad(lobsSpaceData)
          call rttov_alloc_rad (rttov_err_stat,nchannels_th(ith),radiancedata_d_th(ith),nlevels-1,asw)
          if (rttov_err_stat/=0) THEN
             Write(*,*) "Error in radiance allocation",rttov_err_stat
-            call abort3d('tovs_rttov_ad        ')
+            call abort3d('tovs_rttov_ad')
          endif
          call rttov_alloc_rad (rttov_err_stat,nchannels_th(ith),radiancedata_ad_th(ith),nlevels-1,asw)
          if (rttov_err_stat/=0) THEN
             Write(*,*) "Error in radiance ad allocation",rttov_err_stat
-            call abort3d('tovs_rttov_ad        ')
+            call abort3d('tovs_rttov_ad')
          endif
 
          ! allocate profile structures
@@ -328,13 +328,13 @@ subroutine tovs_rttov_ad(lobsSpaceData)
               opts(krtid),asw=asw,init=init)
          if (rttov_err_stat/=0) THEN
             Write(*,*) "Error in profiles allocation",rttov_err_stat
-            call abort3d('tovs_rttov_ad        ')
+            call abort3d('tovs_rttov_ad')
          endif
          call rttov_alloc_prof (rttov_err_stat,knpf_th(ith),profilesdata_ad_th(:,ith),nlevels, &
               opts(krtid),asw=asw,init=init)
          if (rttov_err_stat/=0) THEN
             Write(*,*) "Error in profiles ad allocation",rttov_err_stat
-            call abort3d('tovs_rttov_ad        ')
+            call abort3d('tovs_rttov_ad')
          endif
     
          
@@ -381,9 +381,7 @@ subroutine tovs_rttov_ad(lobsSpaceData)
           profilesdata_th(j,ith) % s2m % p          =  profiles(jj) % s2m % p 
           profilesdata_th(j,ith) % s2m % u          =  profiles(jj) % s2m % u 
           profilesdata_th(j,ith) % s2m % v          =  profiles(jj) % s2m % v
- !          profilesdata_th(j,ith) % s2m % o          =  profiles(jj) % s2m % o !surface ozone not used
           profilesdata_th(j,ith) % s2m % wfetc      =  profiles(jj) % s2m % wfetc!
-!          profilesdata_th(j,ith) % clw(:)           =  profiles(jj)% clw(:)
           profilesdata_th(j,ith) % idg              =  profiles(jj)% idg
           profilesdata_th(j,ith) % ish              =  profiles(jj)% ish
           profilesdata_th(j,ith) % snow_frac        =  profiles(jj)% snow_frac
@@ -416,9 +414,6 @@ subroutine tovs_rttov_ad(lobsSpaceData)
           jj=iptobs_th(j,ith)
           profilesdata_ad_th(j,ith) % nlevels          =  profiles(jj) % nlevels
           profilesdata_ad_th(j,ith) % nlayers          =  profiles(jj) % nlayers
-!          profilesdata_ad_th(j,ith) % id               =  profiles(jj) % id
-!          profilesdata_ad_th(j,ith) % date             =  profiles(jj) % date
-!          profilesdata_ad_th(j,ith) % time             =  profiles(jj) % time
           profilesdata_ad_th(j,ith) % p(:)             =  0.d0
           profilesdata_ad_th(j,ith) % t(:)             =  0.d0
           profilesdata_ad_th(j,ith) % q(:)             =  0.d0
@@ -437,15 +432,6 @@ subroutine tovs_rttov_ad(lobsSpaceData)
           endif
           profilesdata_ad_th(j,ith) % ctp              =  0.d0
           profilesdata_ad_th(j,ith) % cfraction        =  0.d0
-!          profilesdata_ad_th(j,ith) % zenangle         =  profiles(jj) % zenangle
-!          profilesdata_ad_th(j,ith) % azangle          =  profiles(jj) % azangle
-!          profilesdata_ad_th(j,ith) % sunzenangle      =  profiles(jj) % sunzenangle
-!          profilesdata_ad_th(j,ith) % sunazangle       =  profiles(jj) % sunazangle
-!          profilesdata_ad_th(j,ith) % latitude         =  profiles(jj) % latitude
-!          profilesdata_ad_th(j,ith) % longitude        =  profiles(jj) % longitude
-!          profilesdata_ad_th(j,ith) % elevation        =  profiles(jj) % elevation
-!          profilesdata_ad_th(j,ith) % skin % surftype  =  profiles(jj) % skin % surftype
-!          profilesdata_ad_th(j,ith) % skin % watertype =  profiles(jj) % skin % watertype
           profilesdata_ad_th(j,ith) % skin % t         =  0.d0      
           profilesdata_ad_th(j,ith) % skin % fastem(:) =  0.d0
           profilesdata_ad_th(j,ith) % skin % salinity  =  0.d0
@@ -455,13 +441,6 @@ subroutine tovs_rttov_ad(lobsSpaceData)
           profilesdata_ad_th(j,ith) % s2m % u          =  0.d0
           profilesdata_ad_th(j,ith) % s2m % v          =  0.d0
           profilesdata_ad_th(j,ith) % s2m % wfetc      =  0.d0
-!          profilesdata_ad_th(j,ith) % clw(:)           =  profiles(jj) % clw(:)
-!          profilesdata_ad_th(j,ith) % idg              =  profiles(jj) % idg
-!          profilesdata_ad_th(j,ith) % ish              =  profiles(jj) % ish
-!          profilesdata_ad_th(j,ith) % snow_frac        =  profiles(jj) % snow_frac
-!          profilesdata_ad_th(j,ith) % soil_moisture    =  profiles(jj) % soil_moisture
-!          profilesdata_ad_th(j,ith) % Be               =  profiles(jj) % Be
-!          profilesdata_ad_th(j,ith) % cosbk            =  profiles(jj) % cosbk
        end do
     enddo
 
@@ -528,7 +507,7 @@ subroutine tovs_rttov_ad(lobsSpaceData)
 
        if (errorstatus_th(ith)/=0) then
           Write(*,*) "Error in rttov_ad2",ith,errorstatus_th(ith)
-          call abort3d('tovs_rttov_ad      ')
+          call abort3d('tovs_rttov_ad')
        endif
 
     enddo
@@ -583,45 +562,44 @@ subroutine tovs_rttov_ad(lobsSpaceData)
               nchannels=nchannels_th(ith),asw=asw)
          if (rttov_err_stat/=0) THEN
             Write(*,*) "Error in transmittance deallocation",rttov_err_stat
-            call abort3d('tovs_rttov_ad        ')
+            call abort3d('tovs_rttov_ad')
          endif
 
          call rttov_alloc_transmission(rttov_err_stat,transmission_ad_th(ith),nlayers=nlevels-1,   &
               nchannels=nchannels_th(ith),asw=asw)
          if (rttov_err_stat/=0) THEN
             Write(*,*) "Error in transmittance ad allocation",rttov_err_stat
-            call abort3d('tovs_rttov_ad        ')
+            call abort3d('tovs_rttov_ad')
          endif
          
          call rttov_alloc_rad (rttov_err_stat,nchannels_th(ith),radiancedata_d_th(ith),nlevels-1,asw)
          if (rttov_err_stat/=0) THEN
             Write(*,*) "Error in radiance deallocation",rttov_err_stat
-            call abort3d('tovs_rttov_ad        ')
+            call abort3d('tovs_rttov_ad')
          endif
 
          call rttov_alloc_rad (rttov_err_stat,nchannels_th(ith),radiancedata_ad_th(ith),nlevels-1,asw)
          if (rttov_err_stat/=0) THEN
             Write(*,*) "Error in radiance ad deallocation",rttov_err_stat
-            call abort3d('tovs_rttov_ad        ')
+            call abort3d('tovs_rttov_ad')
          endif
 
          call rttov_alloc_prof (rttov_err_stat,knpf_th(ith),profilesdata_th(:,ith),nlevels, &
               opts(krtid),asw=asw)
          if (rttov_err_stat/=0) THEN
             Write(*,*) "Error in profiles deallocation",rttov_err_stat
-            call abort3d('tovs_rttov_ad        ')
+            call abort3d('tovs_rttov_ad')
          endif
 
          call rttov_alloc_prof (rttov_err_stat,knpf_th(ith),profilesdata_ad_th(:,ith),nlevels, &
               opts(krtid),asw=asw)
          if (rttov_err_stat/=0) THEN
             Write(*,*) "Error in profiles ad deallocation",rttov_err_stat
-            call abort3d('tovs_rttov_ad        ')
+            call abort3d('tovs_rttov_ad')
          endif
 
       enddo
 
-      alloc_status(:) = 0
       deallocate ( profilesdata_th   ,stat=alloc_status(1) )
       deallocate ( profilesdata_ad_th,stat=alloc_status(2) )
       deallocate ( radiancedata_d_th ,stat=alloc_status(3) )      ! radiances full structure buffer used in rttov calls
@@ -640,10 +618,10 @@ subroutine tovs_rttov_ad(lobsSpaceData)
       deallocate ( cloudemissivity_th ,stat=alloc_status(16))
       deallocate ( cloudemissivity_ad_th,stat=alloc_status(17))
 
-      if( any(alloc_status /= 0) ) then
-         write(*,*) ' tovs_rttov_ad: alloc_status = ', alloc_status(:)
-         write(*,'(" tovs_rttov_ad: arrays #2 memory deallocation error")')
-         call abort3d('tovs_rttov_ad ')
+      if( any(alloc_status(1:17) /= 0) ) then
+        write(*,*) ' tovs_rttov_ad: alloc_status = ', alloc_status(1:17)
+        write(*,'(" tovs_rttov_ad: arrays #2 memory deallocation error")')
+        call abort3d('tovs_rttov_ad ')
       end if
 
 !   next bunch !
@@ -660,19 +638,17 @@ enddo
 
 ! deallocate memory
 
-alloc_status(:) = 0
 deallocate ( knpf_th        ,stat=alloc_status(1))
 deallocate ( iptobs_th      ,stat=alloc_status(2)) 
 deallocate ( errorstatus_th ,stat=alloc_status(3)) 
 deallocate ( nchannels_th   ,stat=alloc_status(4)) 
 deallocate ( iptobs         ,stat=alloc_status(5)) 
 
-if( any(alloc_status /= 0) ) then
-   write(*,*) ' tovs_rttov_ad: alloc_status = ', alloc_status(:)
+if( any(alloc_status(1:5) /= 0) ) then
+   write(*,*) ' tovs_rttov_ad: alloc_status = ', alloc_status(1:5)
    write(*,'(" tovs_rttov_ad: arrays #1 memory deallocation error")')
-   call abort3d('tovs_rttov_ad        ')
+   call abort3d('tovs_rttov_ad')
 end if
 
-return
 
 end subroutine tovs_rttov_ad

@@ -62,7 +62,7 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
   integer :: nchannels
   integer :: len_nchannels
   integer :: nchannels_max
-  integer :: alloc_status(40)
+  integer :: alloc_status(11)
   integer :: errorstatus(jppf)                     ! rttov error return code
   integer :: rttov_err_stat
   integer :: omp_get_num_threads
@@ -119,10 +119,10 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
   allocate ( nchannels_th   (max_nthreads)      ,stat=alloc_status(4))  
   allocate ( iptobs         (jppf*max_nthreads) ,stat=alloc_status(5)) 
 
-  if( any(alloc_status /= 0) ) then
-     write(*,*) ' tovs_rttov: alloc_status = ', alloc_status(:)
+  if( any(alloc_status(1:5) /= 0) ) then
+     write(*,*) ' tovs_rttov: alloc_status = ', alloc_status(1:5)
      write(*,'(" tovs_rttov: arrays #1 memory allocation error")')
-     call abort3d('tovs_rttov        ')
+     call abort3d('tovs_rttov')
   end if
 
 !     1.1   Read surface information
@@ -233,10 +233,10 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
       allocate ( radiancedata_d_th(nthreads)      ,stat=alloc_status(9) )  ! radiances full structure buffer used in rttov calls
       allocate ( transmission_th  (nthreads)      ,stat=alloc_status(10))  ! transmission
       allocate ( profilesdata_th(istride,nthreads),stat=alloc_status(11))  ! profilesdata
-      if( any(alloc_status /= 0) ) then
-         write(*,*) ' tovs_rttov: alloc_status = ', alloc_status(:)
-         write(*,'(" tovs_rttov: arrays #2 memory allocation error")')
-         call abort3d('tovs_rttov        ')
+      if( any(alloc_status(1:11) /= 0) ) then
+        write(*,*) ' tovs_rttov: alloc_status = ', alloc_status(:)
+        write(*,'(" tovs_rttov: arrays #2 memory allocation error")')
+        call abort3d('tovs_rttov')
       end if
       
 !     loop on threads
@@ -483,7 +483,7 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
             call abort3d('tovs_rttov        ')
          ENDIF
       enddo
-      alloc_status(:) = 0
+
       deallocate ( profilesdata_th   ,stat=alloc_status(1) )
       deallocate ( radiancedata_d_th ,stat=alloc_status(2) )      ! radiances full structure buffer used in rttov calls
       deallocate ( transmission_th   ,stat=alloc_status(3) )      ! transmission
@@ -496,10 +496,10 @@ subroutine tovs_rttov(lcolumnhr,lobsSpaceData,bgckMode)
       deallocate ( surfem1           ,stat=alloc_status(10))
       deallocate ( cloudemissivity_th,stat=alloc_status(11) )
 
-      if( any(alloc_status /= 0) ) then
-         write(*,*) ' tovs_rttov: alloc_status = ', alloc_status(:)
-         write(*,'(" tovs_rttov: arrays #2 memory deallocation error")')
-         call abort3d('tovs_rttov        ')
+      if( any(alloc_status(1:11) /= 0) ) then
+        write(*,*) ' tovs_rttov: alloc_status = ', alloc_status(1:11)
+        write(*,'(" tovs_rttov: arrays #2 memory deallocation error")')
+        call abort3d('tovs_rttov')
       end if
 
 !   next bunch !
@@ -520,19 +520,16 @@ enddo
 
 ! deallocate memory
 
-  alloc_status(:) = 0
   deallocate ( knpf_th        ,stat=alloc_status(1))
   deallocate ( iptobs_th      ,stat=alloc_status(2)) 
   deallocate ( errorstatus_th ,stat=alloc_status(3)) 
   deallocate ( nchannels_th   ,stat=alloc_status(4)) 
   deallocate ( iptobs         ,stat=alloc_status(5)) 
 
-  if( any(alloc_status /= 0) ) then
-     write(*,*) ' tovs_rttov: alloc_status = ', alloc_status(:)
+  if( any(alloc_status(1:5) /= 0) ) then
+     write(*,*) ' tovs_rttov: alloc_status = ', alloc_status(1:5)
      write(*,'(" tovs_rttov: arrays #1 memory deallocation error")')
-     call abort3d('tovs_rttov        ')
+     call abort3d('tovs_rttov')
   end if
-
-  return
 
 end subroutine tovs_rttov
