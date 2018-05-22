@@ -216,7 +216,7 @@ CONTAINS
        do k = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
           do j = statevector%myLatBeg, statevector%myLatEnd
              do i = statevector%myLonBeg, statevector%myLonEnd       
-               hu_ptr(i,j,k,stepIndex) =  lq_ptr(i,j,k,stepIndex)*hu_trial(i,j,k,stepIndex)
+               hu_ptr(i,j,k,stepIndex) =  lq_ptr(i,j,k,stepIndex)*max(hu_trial(i,j,k,stepIndex),MPC_MINIMUM_HU_R8)
              end do
           end do
        end do
@@ -247,7 +247,7 @@ CONTAINS
        do k = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname('HU'))
           do j = statevector%myLatBeg, statevector%myLatEnd
              do i = statevector%myLonBeg, statevector%myLonEnd
-               lq_ptr(i,j,k,stepIndex) = hu_ptr(i,j,k,stepIndex)/hu_trial(i,j,k,stepIndex)
+               lq_ptr(i,j,k,stepIndex) = hu_ptr(i,j,k,stepIndex)/max(hu_trial(i,j,k,stepIndex),MPC_MINIMUM_HU_R8)
              end do
           end do
        end do

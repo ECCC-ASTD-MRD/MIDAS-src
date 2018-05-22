@@ -3104,7 +3104,7 @@ contains
     real(8) :: husat, td, es
 
     ! get the saturated vapor pressure from lq (log of specific humidity)
-    husat = foefq8(max(hu,1.d-12),pressure)
+    husat = foefq8(hu,pressure)
 
     ! now the dewpoint temperature
     td = fotw8(husat)
@@ -3142,7 +3142,7 @@ contains
     dESdP0 = - ZQBRANCH*FOEFQPSA(1.0d0,dTDdE,HU_trial,dPdPsfc)-  &
                (1.D0-ZQBRANCH)*(dTDdE*dPdPsfc)
 
-    ES_inc =  dESdLQ*HU_inc/max(HU_trial,1.d-12) + dESdP0*P0_inc + dESdTT*TT_inc
+    ES_inc =  dESdLQ*HU_inc/HU_trial + dESdP0*P0_inc + dESdTT*TT_inc
 
   end function HUtoES_tl
 
@@ -3177,7 +3177,7 @@ contains
 
     ! TLM: ES_inc =  dESdLQ*HU_inc/HU_trial + dESdP0*P0_inc + dESdTT*TT_inc
     ! ADJOINT:
-    HU_inc = HU_inc + dESdLQ*ES_inc/max(HU_trial,1.d-12)
+    HU_inc = HU_inc + dESdLQ*ES_inc/HU_trial
     P0_inc = P0_inc + dESdP0*ES_inc
     TT_inc = TT_inc + dESdTT*ES_inc
 
