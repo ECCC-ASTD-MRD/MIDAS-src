@@ -686,8 +686,7 @@ contains
     integer :: JN, JI, INDEX_BODY, INDEX_HEADER, ITYP, IFLG, IASS, IDATA, IDATEND, IDBURP
     integer :: ISAT, ICHN, IPLATF, INSTR, IPLATFORM, INSTRUM
     integer :: ILEV,ISTNID,JINT,NLEV,IDATE,ITIME
-    integer :: ielem,icodtyp
-    integer :: header_prev=-1
+    integer :: ielem,icodtyp,header_prev
     real(8) :: ZLAT, ZLON, ZLEV, ZVAL, zwb, zwt, obs_err_stddev
     logical :: IFIRST
 
@@ -702,6 +701,8 @@ contains
     WRITE(*,'(10X,"***********************************")')
     WRITE(*,'(10X,"Fill_obs_errors:",/)')
     WRITE(*,'(10X,"***********************************")')
+
+    header_prev=-1
 
     !
     !     SET STANDARD DEVIATION ERRORS FOR EACH DATA FAMILY
