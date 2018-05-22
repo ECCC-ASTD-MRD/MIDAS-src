@@ -51,6 +51,7 @@ module gridStateVector_mod
   public :: gsv_horizSubSample, gsv_interpolateAndAdd, gsv_interpolate
   public :: gsv_varKindExist, gsv_varExist
   public :: gsv_multEnergyNorm, gsv_dotProduct
+  public :: gsv_field3d_hbilin
   ! public entities accessed through inheritance
   public :: struct_vco, vco_setupFromFile
   public :: vnl_varnameFromVarnum, vnl_varLevelFromVarnum, vnl_varLevelFromVarname
@@ -4481,5 +4482,164 @@ module gridStateVector_mod
     call mpi_allreduce_sumreal8scalar(dotsum,"GRID")
 
   END SUBROUTINE gsv_dotProduct
+
+  !--------------------------------------------------------------------------
+  ! GSV_FIELD3D_HBILIN  
+  !--------------------------------------------------------------------------
+  subroutine gsv_field3d_hbilin(field,nlong,nlat,nlev,xlong,xlat,vlev, &
+                              fieldout,nlongout,nlatout,nlevout,xlongout,xlatout,vlevout)
+  !
+  ! Author:  Y. Rochon, May 2018 
+  !
+  ! Purpose: Horizontal bilinear interpolation from a 3D regular gridded field to 
+  !          another 3D regular gridded field.
+  !
+  !          This version can be used with fields that are not part of the background state,
+  !          such as climatologies.
+  !
+  !          This version does not depend on gridstatevector data types/structures.
+  !
+  ! Arguments:
+  !
+  !   Input
+  !      
+  !     field(nlong,nlat,nlev)  3D field
+  !     nlong         number or latitudes
+  !     nlat          number of longitudes
+  !     nlev          number of vertical levels
+  !     xlong         longitudes (radians)
+  !     xlat          latitudes (radians)
+  !     vlev          vertical levels of input field (in pressure)
+  !     nlongout      number or latitudes
+  !     nlatout       number of target longitudes
+  !     xlatout       target of target latitudes (radians)
+  !     xlongout      target longitudes (radians) 
+  !     nlevout       Number of target vertical levels
+  !     vlevout       Target vertical levels (in pressure)
+  !
+  !   Output
+  !
+  !     fieldout(nlongout,nlatout,nlevout)   3D field
+  !
+  !-------------------------------------------------------------------------------------------  
+
+    implicit none
+
+    integer, intent(in) :: nlong,nlat,nlev,nlevout,nlongout,nlatout
+    real(8), intent(in) :: field(nlong,nlat,nlev),vlev(nlev),xlong(nlong),xlat(nlat)
+    real(8), intent(in) :: vlevout(nlevout),xlongout(nlongout),xlatout(nlatout)
+    real(8), intent(out) :: fieldout(nlongout,nlatout,nlevout)
+    
+    real(8) :: lnvlev(nlev),lnvlevout(nlevout),plong2
+    integer :: ilev,ilon,ilat,i,j,ilongout,ilatout
+    logical :: same_vlev
+
+    real(8) :: DLDX, DLDY, DLDP, DLW1, DLW2, DLW3, DLW4
+
+    ! Check if vertical interpolation needed
+    if (nlev /= nlevout) then
+       same_vlev=.false.
+    else
+       if (any(abs(vlev-vlevout) > 0.01*vlev)) then
+          same_vlev=.false.
+       else
+          same_vlev=.true.
+       end if
+    end if 
+    
+    ! Find near lat/long grid points
+    
+    do ilongout=1,nlongout
+
+      if (nlongout.gt.1) then    
+         plong2 = xlongout(ilongout)
+         if (plong2 < 0.0) plong2 = 2.D0*MPC_PI_R8 + plong2
+         do ilon = 2,nlong
+            if  (xlong(ilon-1) < xlong(ilon)) then
+               if (plong2 >= xlong(ilon-1) .and. plong2 <= xlong(ilon)) exit
+            else 
+               ! Assumes this is a transition between 360 to 0 (if it exists). Skip over.
+            end if
+         end do
+         ilon = ilon-1
+      else
+          ilon=1
+      end if
+      
+      do ilatout=1,nlatout
+         
+        do ilat = 2,nlat
+          if (xlatout(ilatout) <= xlat(ilat)) exit
+        end do
+        ilat = ilat-1
+    
+        ! Set lat/long interpolation weights
+    
+        if (nlongout.gt.1) then
+           DLDX = (xlongout(ilongout) - xlong(ilon))/(xlong(ilon+1)-xlong(ilon))
+           DLDY = (xlatout(ilatout) - xlat(ilat))/(xlat(ilat+1)-xlat(ilat))
+
+           DLW1 = (1.d0-DLDX) * (1.d0-DLDY)
+           DLW2 =       DLDX  * (1.d0-DLDY)
+           DLW3 = (1.d0-DLDX) *       DLDY
+           DLW4 =       DLDX  *       DLDY
+        else
+           DLDY = (xlatout(ilatout) - xlat(ilat))/(xlat(ilat+1)-xlat(ilat))
+
+           DLW1 = (1.d0-DLDY)
+           DLW3 = DLDY        
+        end if
+        
+        ! Set vertical interpolation weights (assumes pressure vertical coordinate)
+    
+        if (.not.same_vlev) then
+          lnvlevout(:) = log(vlevout(:))    
+          lnvlev(:) = log(vlev(:))    
+!          lnvlev(:) = DLW1 * log(vlev(ilon,ilat,:)) &
+!                    + DLW2 * log(vlev(ilon+1,ilat,:)) &
+!                    + DLW3 * log(vlev(ilon,ilat+1,:)) &
+!                    + DLW4 * log(vlev(ilon+1,ilat+1,:)) 
+         
+          
+          ilev = 1
+          do i = 1, nlevout
+            do j = ilev, nlev          
+               if (lnvlevout(i) < lnvlev(j)) exit    ! assumes both lnvlevout and lnvlev increase with increasing index value
+            end do
+            ilev = j-1
+            if (ilev < 1) then
+               ilev = 1
+            else if (ilev >= nlev) then
+               ilev = nlev-1
+            end if
+       
+            DLDP = (lnvlev(ilev+1)-lnvlevout(i))/(lnvlev(ilev+1)-lnvlev(ilev))
+            
+            fieldout(ilongout,ilatout,i) = DLDP* (DLW1 * field(ilon,ilat,ilev) &
+                           + DLW2 * field(ilon+1,ilat,ilev) &
+                           + DLW3 * field(ilon,ilat+1,ilev) &
+                           + DLW4 * field(ilon+1,ilat+1,ilev)) &
+             + (1.d0-DLDP)* (DLW1 * field(ilon,ilat,ilev+1) &
+                           + DLW2 * field(ilon+1,ilat,ilev+1) &
+                           + DLW3 * field(ilon,ilat+1,ilev+1) &
+                           + DLW4 * field(ilon+1,ilat+1,ilev+1))                               
+          end do
+        else if (nlongout.gt.1) then
+          do ilev = 1, nlevout           
+            fieldout(ilongout,ilatout,ilev) = DLW1 * field(ilon,ilat,ilev) &
+                           + DLW2 * field(ilon+1,ilat,ilev) &
+                           + DLW3 * field(ilon,ilat+1,ilev) &
+                           + DLW4 * field(ilon+1,ilat+1,ilev)
+          end do
+        else 
+          do ilev = 1, nlevout           
+            fieldout(ilongout,ilatout,ilev) = DLW1 * field(ilon,ilat,ilev) &
+                           + DLW3 * field(ilon,ilat+1,ilev) 
+          end do
+        end if 
+      end do
+    end do
+        
+  end subroutine gsv_field3d_hbilin   
 
 end module gridStateVector_mod

@@ -1212,12 +1212,11 @@ CONTAINS
   ! Author:  Y. Rochon, Nov 2015 
   !
   ! Purpose: Horizontal bilinear interpolation from a 3D field to a profile at (plong,plat).
-  !          Assumes vertical interpolation not needed or already done.
   !
   !          This version can be used with fields that are not part of the background state,
   !          such as climatologies.
   !
-  !          This version does not depend in column_data and gridstatevector modules.
+  !          This version does not depend on column_data and gridstatevector data types/structures.
   !
   ! Arguments:
   !
@@ -1285,10 +1284,10 @@ CONTAINS
     
     lnvlevout(:) = log(vlevout(:))    
     lnvlev(:) = log(vlev(:))    
-!    lnvlev(:) = DLW1 * log(vlev(ilon,:,ilat)) &
-!               + DLW2 * log(vlev(ilon+1,:,ilat)) &
-!               + DLW3 * log(vlev(ilon,:,ilat+1)) &
-!               + DLW4 * log(vlev(ilon+1,:,ilat+1)) 
+!    lnvlev(:) = DLW1 * log(vlev(ilon,ilat,:))) &
+!               + DLW2 * log(vlev(ilon+1,ilat,:)) &
+!               + DLW3 * log(vlev(ilon,ilat+1,:)) &
+!               + DLW4 * log(vlev(ilon+1,ilat+1,:)) 
          
     ilev = 1
     do i = 1, nlevout
@@ -1304,14 +1303,14 @@ CONTAINS
        
        DLDP = (lnvlev(ilev+1)-lnvlevout(i))/(lnvlev(ilev+1)-lnvlev(ilev))
           
-       vprof(i) = DLDP* (DLW1 * field(ilon,ilev,ilat) &
-                       + DLW2 * field(ilon+1,ilev,ilat) &
-                       + DLW3 * field(ilon,ilev,ilat+1) &
-                       + DLW4 * field(ilon+1,ilev,ilat+1)) &
-         + (1.d0-DLDP)* (DLW1 * field(ilon,ilev+1,ilat) &
-                       + DLW2 * field(ilon+1,ilev+1,ilat) &
-                       + DLW3 * field(ilon,ilev+1,ilat+1) &
-                       + DLW4 * field(ilon+1,ilev+1,ilat+1))                               
+       vprof(i) = DLDP* (DLW1 * field(ilon,ilat,ilev) &
+                       + DLW2 * field(ilon+1,ilat,ilev) &
+                       + DLW3 * field(ilon,ilat+1,ilev) &
+                       + DLW4 * field(ilon+1,ilat+1,ilev)) &
+         + (1.d0-DLDP)* (DLW1 * field(ilon,ilat,ilev+1) &
+                       + DLW2 * field(ilon+1,ilat,ilev+1) &
+                       + DLW3 * field(ilon,ilat+1,ilev+1) &
+                       + DLW4 * field(ilon+1,ilat+1,ilev+1))                               
     end do
         
   end subroutine s2c_column_hbilin   

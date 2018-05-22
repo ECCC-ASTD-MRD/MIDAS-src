@@ -129,7 +129,7 @@ MODULE BmatrixChem_mod
   integer             :: cvDim_mpilocal,cvDim_mpiglobal           
   integer             :: gstID, gstID2          
   integer             :: nlev_bdl    
-  real(8), allocatable   :: rlat(:),rlong(:)     
+  real(8), allocatable   :: rlat(:),rlong(:),rlatr(:),rlongr(:)     
   type(struct_vco),pointer :: vco_anl          
 
   real(8), pointer    :: pressureProfile_M(:),pressureProfile_T(:)
@@ -392,10 +392,13 @@ CONTAINS
     if (allocated(rlong)) deallocate(rlong)
     allocate(rlat(nj_l))
     allocate(rlong(ni_l+1))
-    rlong(1)=0.0
-    do jn=1,ni_l+1
-       rlong(jn)=2*MPC_PI_R8/(ni_l)*(jn-1)
-    end do
+    rlat(1:nj_l)=hco_in%lat(1:nj_l)
+    rlong(1:ni_l)=hco_in%lon(1:ni_l)
+    rlong(ni_l+1)=2*MPC_PI_R8
+    ! rlong(1)=0.0
+    ! do jn=1,ni_l+1
+    !    rlong(jn)=2*MPC_PI_R8/(ni_l)*(jn-1)
+    ! end do
     
     ! Begin calcs.
     
@@ -855,7 +858,7 @@ CONTAINS
           
           istdkey = utl_fstlir(ZSTDSRC,nulbgst,INI,INJ,INK,idateo,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
           
-          if (istdkey.lt.0) then
+          if (istdkey.lt.0.and.ip2.lt.10) then
              write(*,*) 'BCHM_READCORNS2: RSTDDEV ',ip2,jnum,clnomvar
              call utl_abort('BCHM_READCORNS2: Problem with constituents background stat file')
           end if
@@ -863,20 +866,29 @@ CONTAINS
 
           ! Looking for FST record parameters..
 
-          idateo = -1
-          cletiket = 'CORRNS'
-          ip1 = -1
-          ip2 = jn
-          ip3 = -1
-          cltypvar = 'X'
-          icornskey = utl_fstlir(ZCORNSSRC,nulbgst,INI,INJ,INK,idateo,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+          if (istdkey.ge.0) then
+             idateo = -1
+             cletiket = 'CORRNS'
+             ip1 = -1
+             ip2 = jn
+             ip3 = -1
+             cltypvar = 'X'
+             icornskey = utl_fstlir(ZCORNSSRC,nulbgst,INI,INJ,INK,idateo,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
 
-          if (icornskey.lt.0) then
-             write(*,*) 'BCHM_READCORNS2: CORRNS ',ip2,jnum,clnomvar
-             call utl_abort('BCHM_READCORNS2: Problem with constituents background stat file')
+             if (icornskey.lt.0) then
+                write(*,*) 'BCHM_READCORNS2: CORRNS ',ip2,jnum,clnomvar
+                call utl_abort('BCHM_READCORNS2: Problem with constituents background stat file')
+             end if
+             if (ini.ne.jnum.and.inj.ne.jnum) call utl_abort('BCHM_READCORNS2: Constituents BG stat levels inconsistencies')
+          else
+             write(*,*) 'WARNING from BCHM_READCORNS2: Setting RSDTDDEV to 1.D-15 for NOMVAR and JN: ',clnomvar,' ',jn
+             zstdsrc(1:jnum)=1.D-15
+             zcornssrc(1:jnum,1:jnum)=0.0D0
+             do jrow=1,jnum
+                zcornssrc(jrow,jrow)=1.0D0
+             end do
           end if
-          if (ini.ne.jnum.and.inj.ne.jnum) call utl_abort('BCHM_READCORNS2: Constituents BG stat levels inconsistencies')
-
+          
           rstddev(jstart:jstart+jnum-1,jn) = zstdsrc(1:jnum)
           corns(jstart:jstart+jnum-1,jstart:jstart+jnum-1,jn)=zcornssrc(1:jnum,1:jnum)
           
@@ -1112,24 +1124,35 @@ CONTAINS
     ikey = utl_fstlir(rcoord,nulbgst,ini,inj,ink, &
                          idate(1),' ',ip1,ip2,ip3,' ','^^')
                          
-    if (ikey.ge.0.and.inj == nj_l) then
-       rlat(1:nj_l)=rcoord(1:nj_l) 
-       rlat(1:nj_l)=rlat(1:nj_l)*MPC_RADIANS_PER_DEGREE_R8
-    else
-       write(*,*) 'BCHM_RDSTDDEV: latitudes not read. ',ikey,inj,nj_l
-       call utl_abort('BCHM_RDSTDDEV')
+    if (ikey.ge.0) then
+       if (allocated(rlatr)) deallocate(rlatr)
+       allocate(rlatr(inj))
+       rlatr(1:inj)=rcoord(1:inj) 
+       rlatr(1:inj)=rlatr(1:inj)*MPC_RADIANS_PER_DEGREE_R8
+    else 
+       ! Assume same as rlat 
+       if (allocated(rlatr)) deallocate(rlatr)
+       allocate(rlatr(nj_l))
+       inj=nj_l
+       rlatr(1:inj)=rlat(1:inj) 
     end if    
 
     ikey = utl_fstlir(rcoord,nulbgst,ini,inj,ink, &
                          idate(1),' ',ip1,ip2,ip3,' ','>>')
-    if (ikey.ge.0.and.ini == ni_l) then
-        rlong(1:ni_l)=rcoord(1:ni_l)
-        rlong(1:ni_l)=rlong(1:ni_l)*MPC_RADIANS_PER_DEGREE_R8
-    else
-       write(*,*) 'BCHM_RDSTDDEV: longitudes not read. ',ikey,ini,ni_l
-       call utl_abort('BCHM_RDSTDDEV')
+                         
+    if (ikey.ge.0) then
+       if (allocated(rlongr)) deallocate(rlongr)
+       allocate(rlongr(ini+1))
+       rlongr(1:ini)=rcoord(1:ini) 
+       rlongr(1:ini)=rlongr(1:ini)*MPC_RADIANS_PER_DEGREE_R8
+    else if (stddevMode /= 'SP2D') then
+       ! Assume same as rlong
+       if (allocated(rlongr)) deallocate(rlongr)
+       allocate(rlongr(ni_l+1))
+       ini=ni_l
+       rlongr(1:ini)=rlong(1:ini) 
     end if 
-    rlong(ni_l+1)=360.*MPC_RADIANS_PER_DEGREE_R8
+    rlongr(ini+1)=360.*MPC_RADIANS_PER_DEGREE_R8
     
     ! Read specified input type for error std. dev.
     
@@ -1138,7 +1161,7 @@ CONTAINS
     elseif(stddevMode == 'GD2D') then
       call BCHM_rdstd
     elseif(stddevMode == 'SP2D') then
-      call BCHM_rdspstd_newfmt
+      call BCHM_rdspstd
     else
       call utl_abort('BCHM_RDSTDDEV: unknown stddevMode')
     endif
@@ -1195,8 +1218,16 @@ CONTAINS
           zspbuf(:) = 0.0d0
         endif
 
-        if (ini.ne.nlev_MT) call utl_abort('CHM_RDSPSTD: Constituents background stats levels inconsistency')
-
+        if (ini.ne.nlev_MT) then
+            if (ini.eq.nlev_MT-1) then
+              zspbuf(nlev_MT)=zspbuf(ini)
+              write(*,*) 'WARNING in CHM_RDSPSTD: ini and nlev_MT not same size - ',ini,nlev_MT
+            else
+              write(*,*) 'JN, INI, nlev_MT, NOMVAR: ',jn,ini,nlev_MT,' ',clnomvar
+              call utl_abort('CHM_RDSPSTD: Constituents background stats levels inconsistency')
+            end if    
+        end if
+        
         do jlevo = 1, nlev_MT
           zsp(jn,jlevo) = zspbuf(jlevo)
         enddo
@@ -1320,7 +1351,7 @@ CONTAINS
 
     integer :: jvar,in
     integer :: ikey,jlevo
-    real(8), allocatable :: rgsig2d(:,:)
+    real(8), allocatable :: rgsig3d(:,:,:)
     
     ! standard file variables
     integer :: ini,inj,ink, inpas, inbits, idatyp, ideet
@@ -1331,6 +1362,9 @@ CONTAINS
     character(len=2)  :: cltypvar
     character(len=4)  :: clnomvar
     character(len=12) :: cletiket
+    integer :: fstinf
+    
+    real(8), allocatable  :: vlev(:),vlevout(:)
 
     rgsig(:,:,:) = 0.0d0
 
@@ -1352,10 +1386,19 @@ CONTAINS
 
       !write(*,*) 'Reading ',clnomvar
  
-      allocate(rgsig2d(nj_l,nlev_MT))
-      rgsig2d(:,:)=0.0D0
+      ikey = fstinf(nulbgst,ini,inj,ink,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+      if (ikey.lt.0.or.ini.gt.1.or.ink.ne.nlev_MT) then
+          write(*,*) 'BCHM_RDSTD: ',jvar,clnomvar,ikey,ini,ink,nlev_MT
+          call utl_abort(': BCHM_RDSTD record not found or incorrect')          
+      end if
       
-      ikey = utl_fstlir(rgsig2d(:,:),nulbgst,ini,inj,ink, &
+      allocate(rgsig3d(1,inj,ink))
+      rgsig3d(1,:,:)=0.0D0
+      allocate(vlev(ink),vlevout(nlev_MT))
+      vlev(:)=1.0D0
+      vlevout(:)=1.0D0
+      
+      ikey = utl_fstlir(rgsig3d(1,:,:),nulbgst,ini,inj,ink, &
                          idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
 
       if (ikey.lt.0) then
@@ -1364,13 +1407,17 @@ CONTAINS
       endif
         
       ! Extend to 3D
-      
-      do in=2,ni_l+1
-         rgsig(in,:,nsposit(jvar):nsposit(jvar+1)-1)=rgsig2d(:,:) 
-      end do
-
-      deallocate(rgsig2d)
-      
+      if (inj.eq.nj_l) then
+         do in=1,ni_l+1
+            rgsig(in,:,nsposit(jvar):nsposit(jvar+1)-1)=rgsig3d(1,:,:) 
+         end do
+      else
+         ! Interpolate in lat
+         call gsv_field3d_hbilin(rgsig3d,1,inj,ink,rlongr,rlatr,vlev, &
+              rgsig(:,:,nsposit(jvar):nsposit(jvar+1)-1),ni_l+1,nj_l,nlev_MT,rlong,rlat,vlevout)
+      end if
+      deallocate(rgsig3d,vlev,vlevout)
+       
     enddo
 
   END SUBROUTINE BCHM_RDSTD
@@ -1389,6 +1436,7 @@ CONTAINS
 
     integer :: jvar
     integer :: ikey,jlevo
+    real(8), allocatable :: rgsig3d(:,:,:)
     
     ! standard file variables
     integer :: ini,inj,ink, inpas, inbits, idatyp, ideet
@@ -1399,8 +1447,13 @@ CONTAINS
     character(len=2)  :: cltypvar
     character(len=4)  :: clnomvar
     character(len=12) :: cletiket
+    integer :: fstinf
+
+    real(8) :: vlev(1),vlevout(1)
 
     rgsig(:,:,:) = 0.0d0
+    vlev(:)=1.0D0
+    vlevout(:)=1.0D0
 
 !   Reading the data
 
@@ -1428,16 +1481,35 @@ CONTAINS
            ip1 = vco_anl%ip1_T(jlevo)
         endif
         
-        ikey = utl_fstlir(rgsig(1:ni_l,:,nsposit(jvar)+(jlevo-1)),nulbgst,ini,inj,ink, &
+        ikey = fstinf(nulbgst,ini,inj,ink,idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+        if (ikey.lt.0) then
+            write(*,*) 'BCHM_RDSTD: ',jvar,clnomvar,ikey,jlevo
+            call utl_abort(': BCHM_RDSTD record not foun0d')          
+        end if
+      
+        allocate(rgsig3d(ini+1,inj,1))
+        rgsig3d(:,:,1)=0.0D0
+        
+        ikey = utl_fstlir(rgsig3d(1:ini,:,1),nulbgst,ini,inj,ink, &
                          idate(1),cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
         if (ikey.lt.0) then
           write(*,*) 'BCHM_RDSTD3D: ',jvar,clnomvar,nlev_MT,jlevo,ikey,ip1
           call utl_abort(': BCHM_RDSTD3D record not found')
         endif
         
-        ! Add strip at 360 degrees.
-        
-        rgsig(ni_l+1,:,nsposit(jvar)+(jlevo-1))=rgsig(1,:,nsposit(jvar)+(jlevo-1)) 
+        ! Move to rgsig
+        if (inj.eq.nj_l.and.ini.eq.ni_l) then
+           rgsig(1:ni_l,:,nsposit(jvar)+(jlevo-1))=rgsig3d(:,:,1) 
+           rgsig(ni_l+1,:,nsposit(jvar)+(jlevo-1))=rgsig3d(1,:,1)
+        else
+           ! Interpolate in lat and long
+           rgsig3d(ini+1,:,1)=rgsig3d(1,:,1)
+           call gsv_field3d_hbilin(rgsig3d,ini+1,inj,1,rlongr,rlatr,vlev, &
+               rgsig(:,:,nsposit(jvar)+(jlevo-1)),ni_l+1,nj_l,1,rlong,rlat,vlevout)
+       end if
+       ! write(*,*) 'STDDDEV ',jlevo,rgsig(1,1,nsposit(jvar)+(jlevo-1)),rgsig(ni_l+1,1,nsposit(jvar)+(jlevo-1)),rgsig(ni_l/2,nj_l/2,nsposit(jvar)+(jlevo-1)),rgsig(ni_l+1,nj_l,nsposit(jvar)+(jlevo-1))
+       deallocate(rgsig3d)
+
       enddo
     enddo
 

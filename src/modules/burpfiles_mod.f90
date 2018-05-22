@@ -233,15 +233,18 @@ contains
 
     write(*,*) 'brpf_updateFile: Starting'
       
-    ! CH family: Scaling of the obs related values to be stored in the BURP files
+    if (familytype == 'CH') then  
 
-    call obs_set_current_header_list(obsSpaceData,'CH')
-    HEADER: do
-      headerIndex = obs_getHeaderIndex(obsSpaceData)
-      if (headerIndex < 0) exit HEADER
-      call set_scale_chm(obsSpaceData,headerIndex,forward=.false.)
-    end do HEADER
+       ! CH family: Scaling of the obs related values to be stored in the BURP files
 
+       call obs_set_current_header_list(obsSpaceData,'CH')
+       HEADER: do
+         headerIndex = obs_getHeaderIndex(obsSpaceData)
+         if (headerIndex < 0) exit HEADER
+         call set_scale_chm(obsSpaceData,headerIndex,forward=.false.)
+       end do HEADER
+    end if
+    
     call brpr_updateBurp(obsSpaceData,familyType,fileName,fileIndex)
 
     write(*,*) 'brpf_updateFile: Done'
