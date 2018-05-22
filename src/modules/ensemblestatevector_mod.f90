@@ -703,7 +703,7 @@ CONTAINS
 
 
   subroutine ens_readEnsemble(ens, ensPathName, biPeriodic, ctrlVarHumidity, &
-                              vco_file_opt)
+                              vco_file_opt, varNames_opt)
     implicit none
 
     ! arguments
@@ -711,6 +711,7 @@ CONTAINS
     character(len=*) :: ensPathName
     logical          :: biPeriodic
     character(len=*) :: ctrlVarHumidity
+    character(len=*), optional :: varNames_opt(:)
     type(struct_vco), pointer, optional :: vco_file_opt
 
     ! locals
@@ -817,23 +818,38 @@ CONTAINS
     verticalInterpNeeded   = (.not. vco_equal(vco_ens, vco_file))
 
     ! Setup the list of variables to be read (use member 1)
+    ! It assumes that a matching 'ens' allocation has already been done in ben_setup  
+    ! (calling routine setupEnsemble) according to the available and desired list of variables.
     if (mpi_myid == 0) then
-      call fln_ensFileName(ensFileName, ensPathName, 1)
-      nEnsVarNamesWanted=0
       write(*,*)
-      write(*,*) 'ens_readEnsemble: Listing the analysis variables present in ensemble file'
-      write(*,*) trim(ensFileName)
-      do varIndex = 1, vnl_numVarMax
-        if (gsv_varExist(varName=vnl_varNameList(varIndex))) then
-          if (utl_varNamePresentInFile(ensFileName,vnl_varNameList(varIndex))) then
-            write(*,*) ' Analysis variable found     : ', trim(vnl_varNameList(varIndex))
-            nEnsVarNamesWanted = nEnsVarNamesWanted + 1
-            ensVarNamesWanted_dummy(nEnsVarNamesWanted) = trim(vnl_varNameList(varIndex))
-          else
-            write(*,*) ' Analysis variable NOT FOUND : ', trim(vnl_varNameList(varIndex))
-          end if
-        end if
-      end do
+      write(*,*) 'ens_readEnsemble: Listing the analysis variables for which ensembles are used'
+      call fln_ensFileName(ensFileName, ensPathName, 1)
+      if (present(varNames_opt)) then
+        nEnsVarNamesWanted=size(varNames_opt)
+        ensVarNamesWanted_dummy(1:nEnsVarNamesWanted)=varNames_opt
+        do varIndex = 1,nEnsVarNamesWanted
+            if (utl_varNamePresentInFile(ensFileName,varNames_opt(varIndex))) then
+              write(*,*) trim(varNames_opt(varIndex))
+            else
+              write(*,*) ' Ensemble not found for variable: ', trim(varNames_opt(varIndex))
+              call utl_abort('ens_readEnsemble: Missing ensemble!')
+            end if
+        end do
+      else
+        nEnsVarNamesWanted=0
+        do varIndex = 1, vnl_numVarMax
+           if (.not.gsv_varExist(varName=vnl_varNameList(varIndex))) cycle
+           if (utl_varNamePresentInFile(ensFileName,vnl_varNameList(varIndex))) then
+             write(*,*) trim(vnl_varNameList(varIndex))
+             nEnsVarNamesWanted = nEnsVarNamesWanted + 1
+             ensVarNamesWanted_dummy(nEnsVarNamesWanted) = trim(vnl_varNameList(varIndex))
+           else
+             write(*,*) ' Ensemble not found for variable: ', trim(vnl_varNameList(varIndex))
+             call utl_abort('ens_readEnsemble: Missing ensemble!')
+           end if
+         end do
+      end if
+      write(*,*)
     end if
     call rpn_comm_bcast(nEnsVarNamesWanted, 1, 'MPI_INTEGER'  , 0, 'GRID', ierr)
     do varIndex = 1, nEnsVarNamesWanted
