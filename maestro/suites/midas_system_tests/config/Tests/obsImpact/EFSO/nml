@@ -15,23 +15,8 @@
 /
  &NAMFSO
    LEADTIME = 24.0D0
-   NVAMAJ = 6,
-   NITERMAX = 100,
-   NSIMMAX  = 110,
-   REPSG    = 1D-5,
    FORECASTPATH='./forecasts/',
    FSOMODE='EFSO'
-/
- &NAMMIN
-   NVAMAJ = 25,
-   NITERMAX = 70,
-   NSIMMAX  = 110,
-   REPSG    = 1.0D-5,
-   LGRTEST  = .FALSE.,
-   LWRTHESS = .TRUE.,
-   LVARQC=.TRUE.,
-   NWOQCV=5
-   CETIKINC ='XXXXXX'
 /
  &NAMDIMO
    NMXOBS=80000,

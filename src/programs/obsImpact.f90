@@ -88,7 +88,7 @@ program midas_obsimpact
 
   call tmg_start(1,'MAIN')
 
-  if(mpi_myid == 0) then
+  if (mpi_myid == 0) then
     call utl_writeStatus('VAR3D_BEG')
   end if
 
@@ -147,7 +147,7 @@ program midas_obsimpact
   !
   istamp = exfin('OBSIMPACT','FIN','NON')
 
-  if(mpi_myid == 0) then
+  if (mpi_myid == 0) then
     call utl_writeStatus('VAR3D_END')
   endif
 
@@ -222,13 +222,13 @@ contains
     !
     !- Initialize constants
     !
-    if(mpi_myid.eq.0) call mpc_printConstants(6)
+    if (mpi_myid.eq.0) call mpc_printConstants(6)
 
     !
     !- Set vertical coordinate parameters from !! record in trial file
     !
-    if(mpi_myid.eq.0) write(*,*)''
-    if(mpi_myid.eq.0) write(*,*)'var_setup: Set vcoord parameters for trial grid'
+    if (mpi_myid.eq.0) write(*,*)''
+    if (mpi_myid.eq.0) write(*,*)'var_setup: Set vcoord parameters for trial grid'
     call vco_SetupFromFile( vco_trl,     & ! OUT
                             './trlm_01')   ! IN
     call col_setVco(trlColumnOnTrlLev,vco_trl)
@@ -241,8 +241,8 @@ contains
     !
     !- Initialize the Analysis grid
     !
-    if(mpi_myid.eq.0) write(*,*)''
-    if(mpi_myid.eq.0) write(*,*)'var_setup : Set hco parameters for analysis grid'
+    if (mpi_myid.eq.0) write(*,*)''
+    if (mpi_myid.eq.0) write(*,*)'var_setup : Set hco parameters for analysis grid'
     call hco_SetupFromFile(hco_anl, './analysisgrid', 'ANALYSIS', 'Analysis' ) ! IN
 
     if ( hco_anl % global ) then
@@ -321,7 +321,7 @@ contains
     integer                         :: dateStamp_fcst
     
     !for Observation space 
-    integer                         :: index_header, IDATA, IDATEND,  index_body
+    integer                         :: headerIndex, bodyIndexBeg, bodyIndexEnd, index_body
     real(8)                         :: fso_ori
 
 
@@ -368,7 +368,7 @@ contains
     ! compute vhat = B_t^T/2 * C * (error_t^fa + error_t^fb)  
     call bmat_sqrtBT(vhat, nvadim_mpilocal, statevector_FcstErr, useFSOFcst_opt = .true.)
 
-    if(mpi_myid == 0) write(*,*) maxval(vhat),minval(vhat)
+    if (mpi_myid == 0) write(*,*) maxval(vhat),minval(vhat)
 
     if( trim(fsoMode) == 'HFSO' ) then
       call fso_minimize(vhat, nvadim_mpilocal, zhat, column, columng, obsSpaceData)
@@ -386,10 +386,10 @@ contains
 
     ! Due to the very small value of FSO, here it is enlarged by 1e6
     ! therefore in the script file to extract FSO it should be divided by 1e6
-    do index_header =1, obs_numHeader(obsSpaceData)
-      IDATA   = obs_headElem_i(obsSpaceData,OBS_RLN,INDEX_HEADER)
-      IDATEND = obs_headElem_i(obsSpaceData,OBS_NLV,INDEX_HEADER) + IDATA - 1
-      do index_body=idata,idatend
+    do headerIndex = 1, obs_numHeader(obsSpaceData)
+      bodyIndexBeg = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
+      bodyIndexEnd = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + bodyIndexBeg - 1
+      do index_body = bodyIndexBeg, bodyIndexEnd
         fso_ori = obs_bodyElem_r(obsSpaceData,OBS_FSO,index_body)
         call obs_bodySet_r(obsSpaceData,OBS_FSO,index_body, fso_ori*1e6)
       end do
@@ -402,7 +402,7 @@ contains
     deallocate(zhat)
     call col_deallocate(column)
 
-    if(mpi_myid == 0) write(*,*) 'end of fso_ensemble'
+    if (mpi_myid == 0) write(*,*) 'end of fso_ensemble'
 
   end subroutine fso_ensemble
 
@@ -513,7 +513,7 @@ contains
     
     ! Compute zhat by performing variational minimization
     ! Set-up for the minimization
-    if(mpi_myid == 0) then
+    if (mpi_myid == 0) then
       impres = 5
     else
       impres = 0
@@ -596,7 +596,7 @@ contains
     if (indic /= 1) then ! No action taken if indic == 1
       fso_nsim = fso_nsim + 1
 
-      if(mpi_myid == 0) then
+      if (mpi_myid == 0) then
         write(*,*) 'Entering simvar for simulation ',fso_nsim
         write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
         call flush(6)
@@ -634,10 +634,10 @@ contains
       Jtotal = Jb + Jobs
       if (indic == 3) then
         Jtotal = Jobs
-        if(mpi_myid == 0) write(*,FMT='(6X,"SIMVAR:  JO = ",G23.16,6X)') Jobs
+        if (mpi_myid == 0) write(*,FMT='(6X,"SIMVAR:  JO = ",G23.16,6X)') Jobs
       else
         Jtotal = Jb + Jobs
-        if(mpi_myid == 0) write(*,FMT='(6X,"SIMVAR:  Jb = ",G23.16,6X,"JO = ",G23.16,6X,"Jt = ",G23.16)') Jb,Jobs,Jtotal
+        if (mpi_myid == 0) write(*,FMT='(6X,"SIMVAR:  Jb = ",G23.16,6X,"JO = ",G23.16,6X,"Jt = ",G23.16)') Jb,Jobs,Jtotal
       end if
 
       call cfn_RsqrtInverse(obsSpaceData_ptr,OBS_WORK,OBS_WORK)  ! Modify OBS_WORK : R**-1 (Hdx)
@@ -663,7 +663,7 @@ contains
     call tmg_stop(80)
     if (indic == 1 .or. indic == 4) call tmg_start(70,'QN')
 
-    if(mpi_myid == 0) write(*,*) 'end of simvar'
+    if (mpi_myid == 0) write(*,*) 'end of simvar'
 
   end subroutine simvar
 
