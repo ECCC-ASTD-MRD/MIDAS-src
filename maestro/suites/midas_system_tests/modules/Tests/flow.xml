@@ -137,9 +137,18 @@
   </FAMILY>
 
   <FAMILY  name="obsImpact">
-    <SUBMITS sub_name="UnitTest"/>
-    <MODULE  name="UnitTest"/>
+    <SUBMITS sub_name="HFSO"/>
+    <FAMILY  name="HFSO">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
+    <SUBMITS sub_name="EFSO"/>
+    <FAMILY  name="EFSO">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
   </FAMILY>
+
   <FAMILY  name="diagHBHt">
     <SUBMITS sub_name="UnitTest"/>
     <MODULE  name="UnitTest"/>
