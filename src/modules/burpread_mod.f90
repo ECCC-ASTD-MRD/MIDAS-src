@@ -3093,7 +3093,7 @@ CONTAINS
         INSTRUMENT=0
       END IF
     ELSE
-      INSTRUMENT = cvt_obs_instrum(sensor)
+      INSTRUMENT = obsu_cvt_obs_instrum(sensor)
     END IF
 
     ! AIRS

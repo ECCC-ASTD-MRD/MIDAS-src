@@ -166,96 +166,49 @@ contains
     integer :: fileINdex
 
     ! locals
-    integer :: ibeg, iend, nstn1, nstn2
+    integer :: bodyIndex, bodyIndexBegin, bodyIndexEnd, headerIndexBegin, headerIndexEnd, headerIndex
     logical :: burp_chem
     integer :: jo
-    real(obs_real)  :: misg
-
-
-  ! debug:******************************  
-  logical, parameter :: ldebug =.false.
-  integer :: bodyIndex,headerIndex,varno,iqiv,igav,ilansea,azimuth,inst,ifov,clf,saz,idsat,roqc,id_obs
-  character*9 :: stid_l
-  real    :: lat,lon,alt,var,channel,ealoc,geoun,sigmao,omp,oma
-  !*************************************
+    real(obs_real)  :: missingValue
 
     write(*,*) ' '
     write(*,*) 'brpf_readFile: Starting'
     write(*,*) ' '
-    misg = real(MPC_missingValue_R8,OBS_REAL)
-
-    ibeg = obs_numbody(obsdat) + 1
-    Nstn1 = obs_numheader(obsdat)
-
+    missingValue = real(MPC_missingValue_R8,OBS_REAL)
+    
+    bodyIndexBegin   = obs_numbody(obsdat) + 1
+    headerIndexBegin = obs_numheader(obsdat) + 1
     call brpr_readBurp(obsdat,familyType,fileName,fileIndex)
-    
-    Nstn2 = obs_numheader(obsdat)
-    iend = obs_numbody(obsdat)
-  
-    if(ldebug) then
-      ! debug ###################################################################
-      write(*,*)'SSN: debug!!! iend numproc', iend, mpi_myid
-      call filt_sethind_util(obsdat)
-      do bodyIndex = 1, iend
-        headerIndex = obs_bodyElem_i(obsdat, OBS_HIND,   bodyIndex)      
-        call obs_prnthdr(obsdat,headerIndex,100+mpi_myid)
-        call obs_prntbdy(obsdat,headerIndex,100+mpi_myid)
-        stid_l      = obs_Elem_c(obsdat, 'STID',  headerIndex)
-        lat         = obs_headElem_r(obsdat, OBS_LAT,  headerIndex)
-        lon         = obs_headElem_r(obsdat, OBS_LON,  headerIndex)
-        alt         = obs_headElem_r(obsdat, OBS_ALT,  headerIndex)
-        channel     = obs_bodyElem_r(obsdat, OBS_PPP,    bodyIndex)
-        var         = obs_bodyElem_r(obsdat, OBS_VAR,    bodyIndex)
-        varno       = obs_bodyElem_i(obsdat, OBS_VNM,    bodyIndex)
-        iqiv        = obs_headElem_i(obsdat, OBS_SZA,  headerIndex)
-        igav        = obs_headElem_i(obsdat, OBS_SUN,  headerIndex)
-        ilansea     = obs_headElem_i(obsdat, OBS_OFL,  headerIndex)
-        azimuth     = obs_headElem_i(obsdat, OBS_AZA,  headerIndex)
-        inst        = obs_headElem_i(obsdat, OBS_INS,  headerIndex)
-        clf         = obs_headElem_i(obsdat, OBS_CLF,  headerIndex)
-        saz         = obs_headElem_i(obsdat, OBS_SAZ,  headerIndex)
-        idsat       = obs_headElem_i(obsdat, OBS_SAT,  headerIndex) 
-        roqc        = obs_headElem_i(obsdat, OBS_ROQF, headerIndex) 
-        geoun       = obs_headElem_r(obsdat, OBS_GEOI, headerIndex)
-        ealoc       = obs_headElem_r(obsdat, OBS_TRAD, headerIndex)     
-        id_obs      = obs_headElem_i(obsdat, OBS_IDO,  headerIndex)
-        !write(*,'(a12,7f12.4,3i8)') trim(stid_l),lon,lat,alt,channel,var,omp,oma,varno,id_obs,headerIndex
-        !!!write(100+mpi_myid,'(a12,8f12.4,3i8)') trim(stid_l),lon,lat,alt,channel,var,sigmao,omp,oma,varno,id_obs,headerIndex
-        !write(100+mpi_myid,'(a6,5f12.4,10i8)') trim(stid_l),lon,lat,alt,channel,var,varno,iqiv,igav,ilansea,azimuth,inst,clf,saz,idsat,roqc
-        !write(100+mpi_myid,'(a6,5f12.4,10i8,2f12.4)') trim(stid_l),lon,lat,alt,channel,var,varno,iqiv,igav,ilansea,azimuth,inst,clf,saz,idsat,roqc,ealoc,geoun
-        !write(100+mpi_myid,'(a6,7f12.4,3i8)') trim(stid_l),lon,lat,alt,channel,var,ealoc,geoun,azimuth,idsat,roqc
-      enddo
-      write(*,*)'SSN: DONE', mpi_myid
-      ! ### FIN debug ##########################################################
-    endif  
-    
+    bodyIndexEnd   = obs_numbody(obsdat)
+    headerIndexEnd = obs_numheader(obsdat)
+ 
     burp_chem = trim(familyType) == 'CH'
 
-    if ( trim(familyType) /= 'TO' .and. .not.burp_chem) then
-      call FDTOUV_OBSDAT(  obsdat,Nstn1+1,Nstn2,MPC_missingValue_R4)
-      call ADJUST_HUM_GZ(  obsdat,Nstn1+1,Nstn2)
-      call ADJUST_SFVCOORD(obsdat,Nstn1+1,Nstn2)
-    end if
-    do jo = nstn1+1, nstn2
-      call obs_headSet_i(obsdat,OBS_OTP,jo,fileIndex)
-      call obs_setFamily(obsdat,trim(familyType),jo)
-       ! For CH family, apply scaling from the element BUFR_SCALE_EXPONENT when present.
-       if (burp_chem) call set_scale_chm(obsdat,jo,forward=.true.)
+    if ( trim(familyType) /= 'TO' .and. .not.burp_chem ) then
+      call obsu_windDirectionToUV       (obsdat, headerIndexBegin, headerIndexEnd, MPC_missingValue_R4 )
+      call obsu_adjustHumGZ             (obsdat, headerIndexBegin, headerIndexEnd )
+      call obsu_computeVertCoordSurfObs (obsdat, headerIndexBegin, headerIndexEnd )
+    end if  
+    do headerIndex = headerIndexBegin, headerIndexEnd
+      call obs_headSet_i(obsdat, OBS_OTP, headerIndex, fileIndex)
+      call obs_setFamily(obsdat, trim(familyType), headerIndex)
+      ! For CH family, apply scaling from the element BUFR_SCALE_EXPONENT when present.
+      if (burp_chem) call set_scale_chm(obsdat, headerIndex, forward=.true.)
     end do
-    !    initializations
-    do jo = ibeg, iend
-      if ( obs_columnActive_RB(obsdat,OBS_OMA) )  call obs_bodySet_r(obsdat,OBS_OMA ,jo,MISG)
-      if ( obs_columnActive_RB(obsdat,OBS_OMP) )  call obs_bodySet_r(obsdat,OBS_OMP ,jo,MISG)
-      if ( obs_columnActive_RB(obsdat,OBS_OER) )  call obs_bodySet_r(obsdat,OBS_OER ,jo,MISG)
-      if ( obs_columnActive_RB(obsdat,OBS_HPHT) ) call obs_bodySet_r(obsdat,OBS_HPHT,jo,MISG)
-      if ( obs_columnActive_RB(obsdat,OBS_WORK) ) call obs_bodySet_r(obsdat,OBS_WORK,jo,MISG)
+    ! initializations
+    do bodyIndex = bodyIndexBegin, bodyIndexEnd
+      if ( obs_columnActive_RB(obsdat, OBS_OMA) )  call obs_bodySet_r(obsdat, OBS_OMA , bodyIndex, missingValue )
+      if ( obs_columnActive_RB(obsdat, OBS_OMP) )  call obs_bodySet_r(obsdat, OBS_OMP , bodyIndex, missingValue )
+      if ( obs_columnActive_RB(obsdat, OBS_OER) )  call obs_bodySet_r(obsdat, OBS_OER , bodyIndex, missingValue )
+      if ( obs_columnActive_RB(obsdat, OBS_HPHT) ) call obs_bodySet_r(obsdat, OBS_HPHT, bodyIndex, missingValue )
+      if ( obs_columnActive_RB(obsdat, OBS_WORK) ) call obs_bodySet_r(obsdat, OBS_WORK, bodyIndex, missingValue )
     end do
 
     ! For GP family, initialize OBS_OER to element 15032 (ZTD formal error) 
     ! for all ZTD data (element 15031)
     if ( trim(familyType) == 'GP') then
       write(*,*)' Initializing OBS_OER for GB-GPS ZTD to formal error (ele 15032)'
-      call set_err_gbgps(obsdat,Nstn1+1,Nstn2)
+      call obsu_setGbgpsError(obsdat, headerIndexBegin, headerIndexEnd )
     end if
 
     write(*,*) 'brpf_readFile: obs_numheader(obsdat)', obs_numheader(obsdat)
