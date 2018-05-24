@@ -60,7 +60,7 @@ module BMatrix_mod
   integer, parameter :: numBmat = 5
   character(len=4) :: bmatTypeList(numBmat) = (/'HI','LATB','ENS','CHM','DIFF'/)
   character(len=8) :: bmatLabelList(numBmat) = (/'B_HI','B_LATB','B_ENS','B_CHM','B_DIFF'/)
-  logical :: bmatIs3dList(numBmat) = (/.true.,.true.,.false.,.true.,.false./)
+  logical :: bmatIs3dList(numBmat) = (/.true.,.true.,.false.,.true.,.true./)
 
 contains
 
