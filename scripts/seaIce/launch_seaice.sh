@@ -7,7 +7,8 @@ set -ex
 #
 #machine=hare
 machine=eccc-ppp2
-abs="${HOME}/data_maestro/ords/compiledir/compiledir-seaIce-ubuntu-14.04-amd64-64_m_3.1.0-97-g3f891fc_M/midas-seaIce_ubuntu-14.04-amd64-64-m_3.1.0-97-g3f891fc_M.Abs"
+abs=/home/alc001/midas_issue_89/compiledir/midas_abs/midas-seaIce_ubuntu-14.04-amd64-64-m_3.1.0-99-gc5af702_M.Abs
+#abs="${HOME}/data_maestro/ords/compiledir/compiledir-seaIce-ubuntu-14.04-amd64-64_m_3.1.0-97-g3f891fc_M/midas-seaIce_ubuntu-14.04-amd64-64-m_3.1.0-97-g3f891fc_M.Abs"
 npex=1
 npey=1
 openmp=44
@@ -42,7 +43,7 @@ cat << EOF > $TMPDIR/flnml
   ONEOBS_LATS = 200,250,300,350
 /
  &NAMTIME
-  DSTEPOBSINC = 1.0d0
+  DSTEPOBSINC = 6.0d0
 /
  &NAMSTATE
   ANLVAR(1) = 'GL'
