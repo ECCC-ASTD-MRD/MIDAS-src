@@ -1,0 +1,19 @@
+ &NAMCT0
+/
+ &NAMENSMANIP
+   ENSEMBLECENTER = '_enkfmean'
+   ENSPATHNAME = '.'
+   NENS = 4
+   RECENTER = T
+   RECENTERING_COEFF = 1.0
+/
+ &NAMTIME
+  DSTEPOBSINC = 6.0d0
+/
+ &NAMSTATE
+   ANLVAR(1)   ='UU'
+   ANLVAR(2)   ='VV'
+   ANLVAR(3)   ='TT'
+   ANLVAR(4)   ='HU'
+   ANLVAR(5)   ='P0'
+/
