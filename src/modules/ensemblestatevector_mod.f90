@@ -45,7 +45,8 @@ MODULE ensembleStateVector_mod
   public :: ens_computeMean, ens_removeMean, ens_copyEnsMean, ens_copyMember, ens_recenter, ens_recenterControlMember
   public :: ens_computeStdDev, ens_copyEnsStdDev
   public :: ens_getOneLev_r4, ens_getOneLev_r8
-  public :: ens_getOffsetFromVarName, ens_getLevFromK, ens_getVarNameFromK, ens_getNumK, ens_getKFromLevVarName
+  public :: ens_getOffsetFromVarName, ens_getLevFromK, ens_getVarNameFromK 
+  public :: ens_getNumK, ens_getKFromLevVarName, ens_getDataKind
 
   integer,external   :: get_max_rss
 
@@ -627,6 +628,20 @@ CONTAINS
     numK = 1 + ens%statevector_work%mykEnd - ens%statevector_work%mykBeg
 
   end function ens_getNumK
+
+  !--------------------------------------------------------------------------
+  ! ens_getDataKing
+  !--------------------------------------------------------------------------
+  function ens_getDataKind(ens) result(dataKind)
+    implicit none
+
+    ! arguments
+    type(struct_ens), intent(in)  :: ens
+    integer                       :: dataKind
+
+    dataKind = ens%dataKind
+
+  end function ens_getDataKind
 
   !--------------------------------------------------------------------------
   ! ens_getOffsetFromVarName

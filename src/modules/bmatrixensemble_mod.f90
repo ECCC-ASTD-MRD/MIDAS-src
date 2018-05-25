@@ -68,9 +68,9 @@ MODULE BmatrixEnsemble_mod
   integer             :: numStepAmplitudeFSOFcst, numStepAmplitudeAssimWindow, numStepAdvectAssimWindow
   integer             :: numSubEns
   integer,allocatable :: dateStampList(:)
-  integer,allocatable :: dateStampListAmplitude(:)
+  integer,allocatable :: dateStampListAdvectedFields(:)
 
-  character(len=32)   :: direction
+  character(len=32)   :: direction, directionEnsPerts, directionAnlInc
 
   integer,external    :: get_max_rss, omp_get_thread_num
   integer             :: numIncludeAnlVar
@@ -128,7 +128,8 @@ MODULE BmatrixEnsemble_mod
   logical             :: diagnostic
   character(len=2)    :: ctrlVarHumidity
   logical             :: advectAmplitudeFSOFcst
-  logical             :: advectAmplitudeAssimWindow
+  logical             :: advectAmplitudeAssimWindow = .false.
+  logical             :: advectEnsPertAnlInc        = .false.
   logical             :: removeSubEnsMeans
   logical             :: keepAmplitude
   character(len=4)    :: IncludeAnlVar(vnl_numvarmax)
@@ -141,8 +142,8 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! ben_setup
   !--------------------------------------------------------------------------
-  SUBROUTINE ben_setup(hco_anl_in,vco_anl_in,cvDim_out,&
-       mode_opt)
+  SUBROUTINE ben_setup(hco_anl_in, vco_anl_in, cvDim_out, &
+                       mode_opt)
     implicit none
 
     type(struct_hco), pointer, intent(in) :: hco_anl_in
@@ -151,9 +152,8 @@ CONTAINS
     character(len=*), intent(in), optional :: mode_opt
 
     character(len=15) :: ben_mode
-    !character(len=32) :: advectType, advectStartingTimeIndex
 
-    type(struct_gsv) :: ensMean4D
+    type(struct_gsv) :: ensMean4D, oneEnsPert4D
 
     real(8) :: pSurfRef, delT_hour
     real(8) :: advectFactorFSOFcst
@@ -164,7 +164,7 @@ CONTAINS
     integer        :: cvDim_out, myMemberBeg,myMemberEnd,myMemberCount,maxMyMemberCount
     integer        :: levIndex,nIndex,mIndex,jvar,ila,return_code,status
     integer        :: fnom,fclos,ierr,nulnam
-    integer        :: waveBandIndex,locID
+    integer        :: waveBandIndex,locID, stepIndex
     integer        :: stamp_last,newdate,ndate,ntime
     character(len=256) :: ensFileName
     integer        :: dateStampFSO
@@ -473,6 +473,8 @@ CONTAINS
         locIDs(waveBandIndex) = locID
       end do
 
+      cvDim_out = cvDim_mpilocal
+
       deallocate(pressureProfileEns_M)
       deallocate(pressureProfileInc_M)
     end if
@@ -497,8 +499,7 @@ CONTAINS
     !- 3.  Read/Process the Ensemble
     !
     
-    !- 3.1 Identify set of variables for which ensembles are required
-    
+    !- 3.1 Identify set of variables for which ensembles are required    
     do jvar = 1, vnl_numvarmax
       if (trim(includeAnlVar(jvar)) == '') exit
       if (.not.gsv_varExist(varName = trim(includeAnlVar(jvar)))) then
@@ -520,6 +521,13 @@ CONTAINS
     !- 3.2 Read the ensemble data
     call setupEnsemble()
 
+    if ( trim(ben_mode) /= 'Analysis' ) then
+      cvDim_out = 9999 ! Dummy value > 0 to indicate to the background check (s/r compute_HBHT_ensemble)
+      initialized = .true.
+      call tmg_stop(12)
+      return
+    end if
+
     !- 3.3 Pre-compute everything for advection in FSO mode
     if (fsoLeadTime > 0.0D0) then
       amp3dStepIndexFSOFcst = 1
@@ -532,42 +540,45 @@ CONTAINS
         advectAmplitudeFSOFcst = .true.
         numStepAmplitudeFSOFcst = 2
         numStepAdvectFSOFcst = nint(fsoLeadTime/6.0D0) + 1
-        allocate(dateStampListAmplitude(numStepAmplitudeFSOFcst))
-        dateStampListAmplitude(1) = tim_getDatestamp()
-        dateStampListAmplitude(2) = dateStampList(numStep)
+        allocate(dateStampListAdvectedFields(numStepAmplitudeFSOFcst))
+        dateStampListAdvectedFields(1) = tim_getDatestamp()
+        dateStampListAdvectedFields(2) = dateStampList(numStep)
         delT_hour = fsoLeadTime/real(numStepAdvectFSOFcst-1,8) ! time between winds
         call tmg_start(135,'BEN_SETUP_ADVEC_FSO')
         call adv_setup( adv_amplitudeFSOFcst,                                   & ! OUT
                         'fromFirstTimeIndex', hco_ens, vco_ens,                 & ! IN
-                        numStepAmplitudeFSOFcst, dateStampListAmplitude,        & ! IN
+                        numStepAmplitudeFSOFcst, dateStampListAdvectedFields,   & ! IN
                         numStepAdvectFSOFcst, delT_hour, advectFactorFSOFcst,   & ! IN
-                        referenceFlowFilename_opt=trim(enspathname)//'/forecast_for_advection' ) ! IN
+                        'MMLevsOnly', referenceFlowFilename_opt=trim(enspathname)//'/forecast_for_advection' ) ! IN
         call tmg_stop(135)
       end if
     end if
 
-    !- 3.3 Pre-compute everything for advection in ANALYSIS mode
+    !- 3.4 Pre-compute everything for advection in ANALYSIS mode
     if ( advectFactorAssimWindow == 0.0D0 .or. numStep == 1) then
       if (mpi_myid == 0) write(*,*) 'ben_setup: advection not activated in ANALYSIS mode'
+
       advectAmplitudeAssimWindow = .false.
       numStepAmplitudeAssimWindow = 1
       amp3dStepIndexAssimWindow   = 1
+
     else
       if (mpi_myid == 0) write(*,*) 'ben_setup: advection activated in ANALYSIS mode'
-      if ( trim(advectTypeAssimWindow) /= 'amplitude' ) then
-        call utl_abort('ben_setup: only type=AMPLITUDE is currently supported')
-      end if
+
       delT_hour                 = tim_dstepobsinc
-      allocate(dateStampListAmplitude(numStep))
-      dateStampListAmplitude(:) = dateStampList(:)
+      allocate(dateStampListAdvectedFields(numStep))
+      dateStampListAdvectedFields(:) = dateStampList(:)
       call gsv_allocate(ensMean4D, numStep, hco_ens, vco_ens, &
-                        datestampList_opt=dateStampListAmplitude,     &
+                        datestampList_opt=dateStampListAdvectedFields,     &
                         mpi_local_opt=.true.)
       call ens_copyEnsMean(ensPerts(1), & ! IN
                            ensMean4D  )   ! OUT
 
       call tmg_start(136,'BEN_SETUP_ADVEC_ANL')
-      if ( trim(advectTypeAssimWindow) == 'amplitude' ) then
+
+      select case(trim(advectTypeAssimWindow))
+      case ('amplitude')
+        if (mpi_myid == 0) write(*,*) '         amplitude fields will be advected'
         advectAmplitudeAssimWindow  = .true.
         numStepAmplitudeAssimWindow = numStep
         numStepAdvectAssimWindow    = numStep
@@ -584,37 +595,94 @@ CONTAINS
           write(*,*) 'Unsupported starting timeIndex : ', trim(advectStartTimeIndexAssimWindow)
           call utl_abort('adv_setup')
         end select
-        call adv_setup( adv_amplitudeAssimWindow,                                   & ! OUT
-                        direction, hco_ens, vco_ens,                              & ! IN
-                        numStepAmplitudeAssimWindow, dateStampListAmplitude,        & ! IN
+        call adv_setup( adv_amplitudeAssimWindow,                                     & ! OUT
+                        direction, hco_ens, vco_ens,                                  & ! IN
+                        numStepAmplitudeAssimWindow, dateStampListAdvectedFields,     & ! IN
                         numStepAdvectAssimWindow, delT_hour, advectFactorAssimWindow, & ! IN
-                        statevector_referenceFlow_opt = ensMean4D )                 ! IN
-      end if
+                        'MMLevsOnly', statevector_referenceFlow_opt = ensMean4D )       ! IN
+
+      case('ensPertAnlInc')
+        if (mpi_myid == 0) write(*,*) '         ensPerts and AnalInc will be advected'
+
+        advectEnsPertAnlInc         = .true.
+        amp3dStepIndexAssimWindow   = 1
+        numStepAmplitudeAssimWindow = 1
+        numStepAdvectAssimWindow    = numStep
+        
+        select case(trim(advectStartTimeIndexAssimWindow))
+        case ('first')
+          directionEnsPerts='towardFirstTimeIndex'
+          directionAnlInc  ='towardFirstTimeIndexInverse'
+        case ('middle')
+          directionEnsPerts='towardMiddleTimeIndex'
+          directionAnlInc  ='towardMiddleTimeIndexInverse'
+        case default
+          write(*,*)
+          write(*,*) 'Unsupported starting timeIndex : ', trim(advectStartTimeIndexAssimWindow)
+          call utl_abort('adv_setup')
+        end select
+
+        call adv_setup( adv_ensPerts,                                                 & ! OUT
+                        directionEnsPerts, hco_ens, vco_ens,                          & ! IN
+                        numStepAdvectAssimWindow, dateStampListAdvectedFields,        & ! IN
+                        numStepAdvectAssimWindow, delT_hour, advectFactorAssimWindow, & ! IN
+                        'allLevs', statevector_referenceFlow_opt = ensMean4D )          ! IN
+
+        call adv_setup( adv_analInc,                                                  & ! OUT
+                        directionAnlInc, hco_ens, vco_ens,                            & ! IN
+                        numStepAdvectAssimWindow, dateStampListAdvectedFields,        & ! IN
+                        numStepAdvectAssimWindow, delT_hour, advectFactorAssimWindow, & ! IN
+                        'allLevs', statevector_referenceFlow_opt = ensMean4D )          ! IN
+
+      case default
+        write(*,*)
+        write(*,*) 'Unsupported advectTypeAssimWindow : ', trim(advectTypeAssimWindow)
+        call utl_abort('adv_setup')
+      end select
+
       call tmg_stop(136)
 
       call gsv_writeToFile(ensMean4D,'./ens_mean.fst','ENSMEAN4D', & ! IN
                            HUcontainsLQ_opt=HUcontainsLQ_gsv )    ! IN
       call gsv_deallocate(ensMean4D)
+
     end if
 
     !- 3.5 Compute and write Std. Dev.
     if (diagnostic) call EnsembleDiagnostic('FullPerturbations')
 
-    if ( trim(ben_mode) == 'Analysis' ) then
+    !- 3.6 Ensemble perturbations advection
+    if ( advectEnsPertAnlInc ) then
 
-      ! Partitioned the ensemble perturbations into wave bands
-      if (trim(LocalizationType) == 'ScaleDependent') then
-        call EnsembleScaleDecomposition()
-        if (diagnostic) call EnsembleDiagnostic('WaveBandPerturbations')
-      end if
+      call ens_copyMember(ensPerts(1), oneEnsPert4D, 1)
+      do stepIndex = 1, tim_nstepobsinc
+        call gsv_writeToFile(oneEnsPert4D,'./ens_pert1.fst','ORIGINAL', & ! IN
+             stepIndex_opt=stepIndex, HUcontainsLQ_opt=HUcontainsLQ_gsv )    ! IN
+      end do
 
-      cvDim_out = cvDim_mpilocal
-    else
-      cvDim_out = 9999 ! Dummy value > 0 to indicate to the background check (s/r compute_HBHT_ensemble) 
-      ! that Bens is used
+      call tmg_start(137,'BEN_ADVEC_ENSPERT_TL')
+      call adv_ensemble_tl( ensPerts(1), &       ! INOUT
+                            adv_ensPerts, nEns ) ! IN
+      call tmg_stop(137)
+
+      call ens_copyMember(ensPerts(1), oneEnsPert4D, 1)
+      do stepIndex = 1, tim_nstepobsinc
+        call gsv_writeToFile(oneEnsPert4D,'./ens_pert1_advected.fst','ADVECTED', & ! IN
+             stepIndex_opt=stepIndex,HUcontainsLQ_opt=HUcontainsLQ_gsv )    ! IN
+      end do
+
     end if
 
-    !- 3.6 Setup en ensGridStateVector to store the amplitude fields (for writing)
+    !- 3.7 Compute and write Std. Dev.
+    if (diagnostic) call EnsembleDiagnostic('FullPerturbations')
+
+    !- 3.6 Partitioned the ensemble perturbations into wave bands
+    if (trim(LocalizationType) == 'ScaleDependent') then
+      call EnsembleScaleDecomposition()
+      if (diagnostic) call EnsembleDiagnostic('WaveBandPerturbations')
+    end if
+
+    !- 3.8 Setup en ensGridStateVector to store the amplitude fields (for writing)
     if (keepAmplitude) then
       write(*,*)
       write(*,*) 'ben_setup: ensAmplitude fields will be store for potential write to file'
@@ -1357,6 +1425,14 @@ CONTAINS
 
     call ens_deallocate(ensAmplitude_M)
 
+    ! 2.4 Advect Increments
+    if ( advectEnsPertAnlInc ) then
+      call tmg_start(138,'BEN_ADVEC_ANLINC_TL')
+      call adv_statevector_tl( statevector,  & ! INOUT
+                               adv_analInc )   ! IN
+      call tmg_stop(138)
+    end if
+
     !
     !- 3.  Variable transforms
     !
@@ -1417,14 +1493,23 @@ CONTAINS
     !- 3.  Variable transforms
     !
     if ( ctrlVarHumidity == 'HU') then
-       ! convert HU to LQ
-       call vtr_transform( statevector, & ! INOUT
-                           'HUtoLQ_tlm' ) ! IN
+      ! convert HU to LQ
+      call vtr_transform( statevector, & ! INOUT
+                          'HUtoLQ_tlm' ) ! IN
     end if
 
     !
     !- 2.  Compute the analysis increment from Bens
     !
+
+    ! 2.4 Advect Increments
+    if ( advectEnsPertAnlInc ) then
+      call tmg_start(139,'BEN_ADVEC_ANLINC_AD')
+      call adv_statevector_ad( statevector,  & ! INOUT
+                               adv_analInc )   ! IN
+      call tmg_stop(139)
+    end if
+
     if (verbose) write(*,*) 'ben_bsqrtAd: allocating ensAmplitude_M'
     if (useFSOFcst) then
       numStepAmplitude = numStepAmplitudeFSOFcst
