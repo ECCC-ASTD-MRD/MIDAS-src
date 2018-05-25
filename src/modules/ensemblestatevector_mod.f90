@@ -656,7 +656,7 @@ CONTAINS
   end subroutine ens_removeMean
 
 
-  subroutine ens_recenter(ens,recenteringMean,recenteringCoeff)
+  subroutine ens_recenter(ens,recenteringMean,recenteringCoeff,ensembleCenter_opt)
     implicit none
 
     !! We want to compute:
@@ -665,10 +665,11 @@ CONTAINS
     ! arguments
     type(struct_ens) :: ens
     type(struct_gsv) :: recenteringMean
+    type(struct_gsv), optional :: ensembleCenter_opt
     real(8)          :: recenteringCoeff
 
     ! locals
-    real(8), pointer :: ptr4d_r8(:,:,:,:)
+    real(8), pointer :: ptr4d_r8(:,:,:,:), ensembleCenter_r8(:,:,:,:)
     real(8) :: increment
     integer :: lon1, lon2, lat1, lat2, k1, k2, numStep
     integer :: jk, jj, ji, stepIndex, memberIndex
@@ -682,13 +683,22 @@ CONTAINS
     numStep = ens%statevector_work%numStep
 
     ptr4d_r8 => gsv_getField_r8(recenteringMean)
+    if(present(ensembleCenter_opt)) then
+      ensembleCenter_r8 => gsv_getField_r8(ensembleCenter_opt)
+    else
+      nullify(ensembleCenter_r8)
+    end if
 
 !$OMP PARALLEL DO PRIVATE (jk,jj,ji,stepIndex,memberIndex,increment)
     do jk = k1, k2
       do jj = lat1, lat2
         do ji = lon1, lon2
           do stepIndex = 1, numStep
-            increment = ptr4d_r8(ji,jj,jk,stepIndex) - ens%repack_ensMean_r8(jk)%onelevel(1,stepIndex,ji,jj)
+            if(present(ensembleCenter_opt)) then
+              increment = ptr4d_r8(ji,jj,jk,stepIndex) - ensembleCenter_r8(ji,jj,jk,stepIndex)
+            else
+              increment = ptr4d_r8(ji,jj,jk,stepIndex) - ens%repack_ensMean_r8(jk)%onelevel(1,stepIndex,ji,jj)
+            end if
             do memberIndex = 1, ens%numMembers
               ens%repack_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj) =  &
                    real( real(ens%repack_r4(jk)%onelevel(memberIndex,stepIndex,ji,jj),8) + recenteringCoeff*increment, 4)
