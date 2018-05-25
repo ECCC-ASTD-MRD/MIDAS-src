@@ -61,17 +61,17 @@ program midas_ensManip
 
   character(len=256)  :: ensFileName, ensFileBaseName, recenteringMeanFileName
 
-  logical             :: makeBiPeriodic
+  logical             :: makeBiPeriodic, HUcontainsLQ
 
   real(4), pointer    :: ensOneLevel(:,:,:,:)
 
   ! namelist variables
   character(len=2)   :: ctrlVarHumidity
   character(len=256) :: ensPathName
-  logical  :: write_mpi, output_ensemble_mean, output_ensemble_stddev, output_ensemble_perturbations, recenter
+  logical  :: output_ensemble_mean, output_ensemble_stddev, output_ensemble_perturbations, recenter
   real(8)  :: recentering_coeff
   integer  :: nEns, numBits
-  NAMELIST /NAMENSMANIP/nEns, ensPathName, ctrlVarHumidity, write_mpi,  &
+  NAMELIST /NAMENSMANIP/nEns, ensPathName, ctrlVarHumidity,  &
                         output_ensemble_mean, output_ensemble_stddev, output_ensemble_perturbations, &
                         recenter, recentering_coeff, numBits
 
@@ -103,7 +103,6 @@ program midas_ensManip
 
   !- 1.1 Setting default values
   nEns                          = 10
-  write_mpi                     = .false.
   ensPathName                   = 'ensemble'
   ctrlVarHumidity               = 'HU'
   output_ensemble_mean          = .false.
@@ -179,11 +178,8 @@ program midas_ensManip
 
     do stepIndex = 1, numStep
       if ( mpi_myid == 0 ) write(*,*) 'midas-ensManip: writing time step ', stepIndex
-      if ( write_mpi ) then
-        call gsv_writeToFileMPI( statevector_mean, ensFileName, 'ENSMEAN', stepIndex_opt = stepIndex, typvar_opt = 'P')
-      else
-        call gsv_writeToFile( statevector_mean, ensFileName, 'ENSMEAN', stepIndex_opt = stepIndex, typvar_opt = 'P', numBits_opt = numBits)
-      end if
+      call gsv_writeToFile( statevector_mean, ensFileName, 'ENSMEAN',  &
+           stepIndex_opt = stepIndex, typvar_opt = 'P', numBits_opt = numBits)
     end do
 
     call tmg_stop(4)
@@ -205,11 +201,8 @@ program midas_ensManip
     ! Output the ensemble stddev
     do stepIndex = 1, numStep
       if ( mpi_myid == 0 ) write(*,*) 'midas-ensManip: writing time step ', stepIndex
-      if ( write_mpi ) then
-        call gsv_writeToFileMPI( statevector_stddev, ensFileName, 'ENSMEAN', stepIndex_opt = stepIndex, typvar_opt = 'P')
-      else
-        call gsv_writeToFile( statevector_stddev, ensFileName, 'ENSMEAN', stepIndex_opt = stepIndex, typvar_opt = 'P' , numBits_opt = numBits)
-      end if
+      call gsv_writeToFile( statevector_stddev, ensFileName, 'ENSSTDDEV',   &
+           stepIndex_opt = stepIndex, typvar_opt = 'P' , numBits_opt = numBits)
     end do
 
     call tmg_stop(7)
@@ -241,7 +234,9 @@ program midas_ensManip
       dateStamp = datestamplist(stepIndex)
       if(mpi_myid == 0) write(*,*) ''
       if(mpi_myid == 0) write(*,*) 'midas-ensManip: reading recentering mean for time step: ',stepIndex, dateStamp
-      call gsv_readFromFile(statevector_recenteringMean, trim(recenteringMeanFileName), ' ', ' ', stepIndex)
+      HUcontainsLQ = ( ctrlVarHumidity == 'LQ' )
+      call gsv_readFromFile(statevector_recenteringMean, trim(recenteringMeanFileName), ' ', ' ',  &
+           stepIndex_opt=stepIndex, unitConversion_opt=.true., HUcontainsLQ_opt=HUcontainsLQ )
     end do
 
     call tmg_stop(10)
