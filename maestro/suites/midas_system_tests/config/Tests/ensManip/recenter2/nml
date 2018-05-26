@@ -3,6 +3,7 @@
  &NAMENSMANIP
    ENSEMBLECENTER = '_enkfmean'
    ENSPATHNAME = '.'
+   ensembleTypvarOutput = 'A'
    NENS = 4
    RECENTER = T
    RECENTERING_COEFF = 1.0

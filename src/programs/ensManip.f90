@@ -67,12 +67,14 @@ program midas_ensManip
   real(4), pointer    :: ensOneLevel(:,:,:,:)
 
   ! namelist variables
+  character(len=1)   :: ensembleTypVarOutput
+  character(len=14)  :: ensembleEtiketOutput
   character(len=2)   :: ctrlVarHumidity
   character(len=256) :: ensPathName, ensembleCenter
   logical  :: output_ensemble_mean, output_ensemble_stddev, output_ensemble_perturbations, recenter
   real(8)  :: recentering_coeff
   integer  :: nEns, numBits
-  NAMELIST /NAMENSMANIP/nEns, ensPathName, ctrlVarHumidity, ensembleCenter, &
+  NAMELIST /NAMENSMANIP/nEns, ensPathName, ctrlVarHumidity, ensembleCenter, ensembleEtiketOutput, ensembleTypVarOutput, &
                         output_ensemble_mean, output_ensemble_stddev, output_ensemble_perturbations, &
                         recenter, recentering_coeff, numBits
 
@@ -106,6 +108,8 @@ program midas_ensManip
   nEns                          = 10
   ensPathName                   = 'ensemble'
   ensembleCenter                = ''
+  ensembleTypVarOutput          = 'P'
+  ensembleEtiketOutput          = 'ENSRECENTER'
   ctrlVarHumidity               = 'HU'
   output_ensemble_mean          = .false.
   output_ensemble_stddev        = .false.
@@ -277,7 +281,7 @@ program midas_ensManip
     end if
 
     call tmg_start(130,'OUTPUT_RECENTER_MEMBERS')
-    call ens_writeEnsemble( ensemble, '.', 'recentered_', ctrlVarHumidity, 'ENSRECENTER', 'P', numBits_opt = numBits)
+    call ens_writeEnsemble( ensemble, '.', 'recentered_', ctrlVarHumidity, ensembleEtiketOutput, ensembleTypVarOutput, numBits_opt = numBits)
     call tmg_stop(130)
   end if
 
