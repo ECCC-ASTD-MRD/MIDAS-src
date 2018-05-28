@@ -853,35 +853,19 @@ CONTAINS
       write(*,*) 'ens_readEnsemble: starting to read time level ', stepIndex
 
       ! allocate the needed statevector objects
-      if (present(varNames_opt)) then 
-        call gsv_allocate(statevector_member_r4, 1, hco_ens, vco_ens,  &
-                          datestamp_opt = dateStampList(stepIndex), mpi_local_opt = .false., &
+      call gsv_allocate(statevector_member_r4, 1, hco_ens, vco_ens,  &
+                        datestamp_opt = dateStampList(stepIndex), mpi_local_opt = .false., &
                           varNames_opt = varNames_opt, dataKind_opt = 4)
         if (horizontalInterpNeeded .or. verticalInterpNeeded .or. horizontalPaddingNeeded) then
           call gsv_allocate(statevector_file_r4, 1, hco_file, vco_file,  &
+                            datestamp_opt = dateStampList(stepIndex), mpi_local_opt = .false., &
+                            varNames_opt = varNames_opt, dataKind_opt = 4)
+      end if
+      if (verticalInterpNeeded) then
+        call gsv_allocate(statevector_hint_r4, 1, hco_ens, vco_file,  &
                           datestamp_opt = dateStampList(stepIndex), mpi_local_opt = .false., &
                           varNames_opt = varNames_opt, dataKind_opt = 4)
-        end if
-        if (verticalInterpNeeded) then
-          call gsv_allocate(statevector_hint_r4, 1, hco_ens, vco_file,  &
-                         datestamp_opt = dateStampList(stepIndex), mpi_local_opt = .false., &
-                         varNames_opt = varNames_opt, dataKind_opt = 4)
-        end if
-      else
-        call gsv_allocate(statevector_member_r4, 1, hco_ens, vco_ens,  &
-                          datestamp_opt = dateStampList(stepIndex), mpi_local_opt = .false., &
-                          dataKind_opt = 4)
-        if (horizontalInterpNeeded .or. verticalInterpNeeded .or. horizontalPaddingNeeded) then
-          call gsv_allocate(statevector_file_r4, 1, hco_file, vco_file,  &
-                          datestamp_opt = dateStampList(stepIndex), mpi_local_opt = .false., &
-                          dataKind_opt = 4)
-        end if
-        if (verticalInterpNeeded) then
-          call gsv_allocate(statevector_hint_r4, 1, hco_ens, vco_file,  &
-                         datestamp_opt = dateStampList(stepIndex), mpi_local_opt = .false., &
-                         dataKind_opt = 4)
-        end if
-      end if 
+      end if
       
       do memberIndex = 1, ens%numMembers
 
