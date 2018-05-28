@@ -121,9 +121,9 @@ MODULE BmatrixEnsemble_mod
   logical             :: advectAmplitude
   logical             :: removeSubEnsMeans
   logical             :: keepAmplitude
-  character(len=4)    :: Include_ANLVAR(vnl_numvarmax)
-
-  integer             :: nInclude_ANLVAR
+  character(len=4)    :: IncludeAnlVar(vnl_numvarmax)
+  
+  integer             :: numIncludeAnlVar
   
 CONTAINS
 
@@ -160,7 +160,7 @@ CONTAINS
     NAMELIST /NAMBEN/nEns,scaleFactor,scaleFactorHumidity,ntrunc,enspathname, &
          hLocalize,vLocalize,LocalizationType,waveBandPeaks, &
          diagnostic,ctrlVarHumidity,advectAmplitudeFactor,removeSubEnsMeans, &
-         keepAmplitude,Include_ANLVAR
+         keepAmplitude,IncludeAnlVar
 
     call tmg_start(12,'BEN_SETUP')
 
@@ -185,7 +185,9 @@ CONTAINS
     advectAmplitudeFactor = 0.0D0
     removeSubEnsMeans= .false.
     keepAmplitude    = .false. 
-    include_ANLVAR(:)= ''
+
+    includeAnlVar(:) = ''
+    numIncludeAnlVar = 0
 
     nulnam = 0
     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -193,22 +195,6 @@ CONTAINS
     if (ierr.ne.0) call utl_abort('ben_setup: Error reading namelist')
     if (mpi_myid == 0) write(*,nml=namben)
     ierr = fclos(nulnam)
-
-    ! Identify number of variables for which to include ensembles.
-    ! The default, if include_ANLVAR is empty, is to include available 
-    ! ensembles, when present, for all ANLVAR variables.
-    ! This distinction is done in routine setupEnsemble.
-    ! Note: include_ANLVAR must be numbered from one upwards.
-    nInclude_ANLVAR=0
-    do jvar=1,vnl_numvarmax
-       if (trim(include_ANLVAR(jvar)) == '') exit
-       if (.not.gsv_varExist(varName=trim(include_ANLVAR(jvar)))) then
-          write(*,*) 'ben_setup: This variable is not a member of ANLVAR: ', trim(include_ANLVAR(jvar))
-          call utl_abort('ben_setup: Invalid variable in include_ANLVAR')
-       else
-          nInclude_ANLVAR=nInclude_ANLVAR+1
-       end if
-    end do
  
     ! If zero weight, skip rest of setup
     if ( sum(scaleFactor(:)) == 0.0d0 ) then
@@ -489,8 +475,29 @@ CONTAINS
     !
     !- 3.  Read/Process the Ensemble
     !
-
+    
+    ! Identify set of variables for which ensembles are required
+    
+    do jvar = 1, vnl_numvarmax
+      if (trim(includeAnlVar(jvar)) == '') exit
+      if (.not.gsv_varExist(varName = trim(includeAnlVar(jvar)))) then
+        write(*,*) 'ben_setup: This variable is not a member of ANLVAR: ', trim(includeAnlVar(jvar))
+        call utl_abort('ben_setup: Invalid variable in includeAnlVar')
+      else
+        numIncludeAnlVar = numIncludeAnlVar+1
+      end if
+    end do
+    if (numIncludeAnlVar == 0) then
+      do jvar = 1, vnl_numvarmax
+        if (.not.gsv_varExist(varName = trim(vnl_varNamelist(jvar)))) cycle
+        numIncludeAnlVar = numIncludeAnlVar+1
+        includeAnlVar(numIncludeAnlVar) = vnl_varNamelist(jvar)
+      end do
+    end if
+    if (numIncludeAnlVar == 0) call utl_abort('ben_setup: Ensembles not being requested for any variable')
+     
     ! Read the ensemble data
+
     call setupEnsemble()
 
     ! Pre-compute everything for advectAmplitude (only if numStep > 1)
@@ -599,71 +606,26 @@ CONTAINS
     real(4), pointer     :: ptr4d_r4(:,:,:,:)
     real(8) :: multFactor
     integer :: stepIndex,levIndex,lev,waveBandIndex,memberIndex
-    integer :: ierr,varIndex,nVar,jvar
+    integer :: ierr,varIndex
     logical :: makeBiPeriodic
-    character(len=4) :: varName,varNames_opt(vnl_numvarmax)
+    character(len=4) :: varName
     character(len=256) :: ensFileName
 
     write(*,*) 'setupEnsemble: Start'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     !- 1. Memory allocation
-    allocate(ensPerts(nWaveBand))
-    
-    ! Check availability of ensembles for each variable (use member 1)
-    
-    if (mpi_myid == 0) then
-       call fln_ensFileName(ensFileName, ensPathName, 1)
-       if (nInclude_ANLVAR == 0) then
-         ! To use available ensembles over all ANLVAR variables
-         do varIndex=1,vnl_numvarmax
-           varName=vnl_varNameList(varIndex)
-           if (.not.gsv_varExist(varName=trim(varName))) cycle
-           if (.not.utl_varNamePresentInFile(ensFileName,varName)) then
-             write(*,*) ' Ensemble for analysis variable NOT FOUND : ', trim(varName)
-           else
-             nInclude_ANLVAR=nInclude_ANLVAR+1
-             include_ANLVAR(nInclude_ANLVAR)=varName
-           end if
-         end do
-         if (nInclude_ANLVAR == 0) call utl_abort('setupEnsemble: No variable with available ensemble')
-       else
-         ! To use available ensembles only over the specified ANLVAR variables
-         nVar=0
-         do varIndex=1,nInclude_ANLVAR
-           varName=include_ANLVAR(varIndex)
-           if (utl_varNamePresentInFile(ensFileName,varName)) cycle
-           include_ANLVAR(jvar)=''
-           nVar=nVar+1
-           write(*,*) ' Ensemble for analysis variable NOT FOUND : ', trim(varName)
-         end do
-         if (nInclude_ANLVAR-nVar == 0) call utl_abort('setupEnsemble: No variable with available ensemble')
-       end if
-    end if
-    call rpn_comm_bcast(nInclude_ANLVAR, 1, 'MPI_INTEGER'  , 0, 'GRID', ierr)
-    do varIndex = 1, nInclude_ANLVAR
-      call rpn_comm_bcastc(include_ANLVAR(varIndex) , 4, 'MPI_CHARACTER', 0, 'GRID', ierr)
-    end do
-       
-    ! Set ensemble dimension and related list of variables
-    nVar=0
-    do varIndex=1,nInclude_ANLVAR
-      varName=include_ANLVAR(varIndex)
-      if (gsv_varExist(varName=trim(varName))) then
-        nVar=nVar+1
-        varNames_opt(nVar)=trim(varName)
-      end if
-    end do
-    
+    allocate(ensPerts(nWaveBand))    
     do waveBandIndex = 1, nWaveBand
-       call ens_allocate(ensPerts(waveBandIndex), nEns, numStep, hco_ens, vco_ens, dateStampList, &
-                         varNames_opt=varNames_opt(1:nVar))
+      call ens_allocate(ensPerts(waveBandIndex), nEns, numStep, hco_ens, vco_ens, dateStampList, &
+                         varNames_opt = includeAnlVar(1:numIncludeAnlVar))
     end do
     
     !- 2. Read ensemble
     makeBiPeriodic = (trim(LocalizationType) == 'ScaleDependent')
     call ens_readEnsemble(ensPerts(1), ensPathName, makeBiPeriodic, &
-                          ctrlVarHumidity, vco_file_opt = vco_file, varNames_opt = varNames_opt(1:nVar))
+                          ctrlVarHumidity, vco_file_opt = vco_file, &
+                          varNames_opt = includeAnlVar(1:numIncludeAnlVar))
 
     !- 3. From ensemble FORECASTS to ensemble PERTURBATIONS
 

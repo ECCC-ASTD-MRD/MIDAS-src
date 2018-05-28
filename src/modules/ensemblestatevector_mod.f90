@@ -730,7 +730,6 @@ CONTAINS
     integer :: length_envVariable
     integer :: lonPerPEmax, latPerPEmax, ni, nj, nk, numStep, numlevelstosend, numlevelstosend2
     integer :: memberIndex, memberIndex2, fileMemberIndex, stepIndex, jvar, jk, jk2, jk3
-    integer :: nEnsVarNamesWanted, varIndex
     character(len=256) :: ensFileName
     character(len=32)  :: envVariable
     character(len=2)   :: typvar
@@ -817,50 +816,6 @@ CONTAINS
     horizontalInterpNeeded = (.not. hco_equal(hco_ens, hco_file))
     verticalInterpNeeded   = (.not. vco_equal(vco_ens, vco_file))
 
-    ! Setup the list of variables to be read (use member 1)
-    ! It assumes that a matching 'ens' allocation has already been done in ben_setup  
-    ! (calling routine setupEnsemble) according to the available and desired list of variables.
-    if (mpi_myid == 0) then
-      write(*,*)
-      write(*,*) 'ens_readEnsemble: Listing the analysis variables for which ensembles are used'
-      call fln_ensFileName(ensFileName, ensPathName, 1)
-      if (present(varNames_opt)) then
-        nEnsVarNamesWanted=size(varNames_opt)
-        ensVarNamesWanted_dummy(1:nEnsVarNamesWanted)=varNames_opt
-        do varIndex = 1,nEnsVarNamesWanted
-            if (utl_varNamePresentInFile(ensFileName,varNames_opt(varIndex))) then
-              write(*,*) trim(varNames_opt(varIndex))
-            else
-              write(*,*) ' Ensemble not found for variable: ', trim(varNames_opt(varIndex))
-              call utl_abort('ens_readEnsemble: Missing ensemble!')
-            end if
-        end do
-      else
-        nEnsVarNamesWanted=0
-        do varIndex = 1, vnl_numVarMax
-           if (.not.gsv_varExist(varName=vnl_varNameList(varIndex))) cycle
-           if (utl_varNamePresentInFile(ensFileName,vnl_varNameList(varIndex))) then
-             write(*,*) trim(vnl_varNameList(varIndex))
-             nEnsVarNamesWanted = nEnsVarNamesWanted + 1
-             ensVarNamesWanted_dummy(nEnsVarNamesWanted) = trim(vnl_varNameList(varIndex))
-           else
-             write(*,*) ' Ensemble not found for variable: ', trim(vnl_varNameList(varIndex))
-             call utl_abort('ens_readEnsemble: Missing ensemble!')
-           end if
-         end do
-      end if
-      write(*,*)
-    end if
-    call rpn_comm_bcast(nEnsVarNamesWanted, 1, 'MPI_INTEGER'  , 0, 'GRID', ierr)
-    do varIndex = 1, nEnsVarNamesWanted
-      call rpn_comm_bcastc(ensVarNamesWanted_dummy(varIndex) , 4, 'MPI_CHARACTER', 0, 'GRID', ierr)
-    end do
-
-    allocate(ensVarNamesWanted(nEnsVarNamesWanted))
-    do varIndex = 1, nEnsVarNamesWanted
-      ensVarNamesWanted(varIndex) = trim(ensVarNamesWanted_dummy(varIndex))
-    end do
-
     ! More efficient handling of common case where input is on Z grid, analysis in on G grid
     if ( hco_file%grtyp == 'Z' .and. hco_ens%grtyp == 'G' ) then
       if ( hco_file%ni == (hco_ens%ni+1) ) then
@@ -898,20 +853,36 @@ CONTAINS
       write(*,*) 'ens_readEnsemble: starting to read time level ', stepIndex
 
       ! allocate the needed statevector objects
-      call gsv_allocate(statevector_member_r4, 1, hco_ens, vco_ens,  &
-                        datestamp_opt=dateStampList(stepIndex), mpi_local_opt=.false., &
-                        varNames_opt=ensVarNamesWanted, dataKind_opt=4)
-      if (horizontalInterpNeeded .or. verticalInterpNeeded .or. horizontalPaddingNeeded) then
-        call gsv_allocate(statevector_file_r4, 1, hco_file, vco_file,  &
-                          datestamp_opt=dateStampList(stepIndex), mpi_local_opt=.false., &
-                          varNames_opt=ensVarNamesWanted, dataKind_opt=4)
-      end if
-      if (verticalInterpNeeded) then
-        call gsv_allocate(statevector_hint_r4, 1, hco_ens, vco_file,  &
-                         datestamp_opt=dateStampList(stepIndex), mpi_local_opt=.false., &
-                         varNames_opt=ensVarNamesWanted, dataKind_opt=4)
-      end if
-
+      if (present(varNames_opt)) then 
+        call gsv_allocate(statevector_member_r4, 1, hco_ens, vco_ens,  &
+                          datestamp_opt = dateStampList(stepIndex), mpi_local_opt = .false., &
+                          varNames_opt = varNames_opt, dataKind_opt = 4)
+        if (horizontalInterpNeeded .or. verticalInterpNeeded .or. horizontalPaddingNeeded) then
+          call gsv_allocate(statevector_file_r4, 1, hco_file, vco_file,  &
+                          datestamp_opt = dateStampList(stepIndex), mpi_local_opt = .false., &
+                          varNames_opt = varNames_opt, dataKind_opt = 4)
+        end if
+        if (verticalInterpNeeded) then
+          call gsv_allocate(statevector_hint_r4, 1, hco_ens, vco_file,  &
+                         datestamp_opt = dateStampList(stepIndex), mpi_local_opt = .false., &
+                         varNames_opt = varNames_opt, dataKind_opt = 4)
+        end if
+      else
+        call gsv_allocate(statevector_member_r4, 1, hco_ens, vco_ens,  &
+                          datestamp_opt = dateStampList(stepIndex), mpi_local_opt = .false., &
+                          dataKind_opt = 4)
+        if (horizontalInterpNeeded .or. verticalInterpNeeded .or. horizontalPaddingNeeded) then
+          call gsv_allocate(statevector_file_r4, 1, hco_file, vco_file,  &
+                          datestamp_opt = dateStampList(stepIndex), mpi_local_opt = .false., &
+                          dataKind_opt = 4)
+        end if
+        if (verticalInterpNeeded) then
+          call gsv_allocate(statevector_hint_r4, 1, hco_ens, vco_file,  &
+                         datestamp_opt = dateStampList(stepIndex), mpi_local_opt = .false., &
+                         dataKind_opt = 4)
+        end if
+      end if 
+      
       do memberIndex = 1, ens%numMembers
 
         if (mpi_myid == readFilePE(memberIndex)) then
@@ -1047,7 +1018,6 @@ CONTAINS
     deallocate(gd_send_r4)
     deallocate(gd_recv_r4)
     deallocate(datestamplist)
-    deallocate(ensVarNamesWanted)
     call hco_deallocate(hco_file)
     if ( .not. present(vco_file_opt) ) then
       call vco_deallocate(vco_file)
