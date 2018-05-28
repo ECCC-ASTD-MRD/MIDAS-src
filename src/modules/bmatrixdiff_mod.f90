@@ -98,8 +98,11 @@ CONTAINS
     real :: stab(maxNumVars)
     ! Number of samples in the estimation of the normalization factors by randomization.
     integer :: nsamp(maxNumVars)
+    ! Indicate to use the implicit formulation of the diffusion operator (.true.) or
+    ! the explicit version (.false.).
+    logical :: limplicit(maxNumVars)
 
-    NAMELIST /NAMBDIFF/ corr_len, stab, nsamp, scaleFactor, stddevMode, homogeneous_std
+    NAMELIST /NAMBDIFF/ corr_len, stab, nsamp, limplicit, scaleFactor, stddevMode, homogeneous_std
 
     call tmg_start(17,'BDIFF_SETUP')
     if(mpi_myid == 0) write(*,*) 'bdiff_setup: starting'
@@ -162,6 +165,7 @@ CONTAINS
     corr_len(:) = 10.0
     stab(:)     = 0.2
     nsamp(:)    = 10000
+    limplicit(:) = .false.
     scaleFactor(:) = 0.0d0
     stddevMode  = 'GD2D'
     homogeneous_std(:) = -1.0
@@ -202,7 +206,7 @@ CONTAINS
 
     allocate(diffID(numvar2d))
     do jvar = 1, numvar2d
-       diffID(jvar) = diff_setup(hco_in, corr_len(jvar), stab(jvar), nsamp(jvar))
+       diffID(jvar) = diff_setup(hco_in, corr_len(jvar), stab(jvar), nsamp(jvar), limplicit(jvar))
     end do
 
     call mpivar_setup_latbands(nj_l, latPerPE, latPerPEmax, myLatBeg, myLatEnd)
