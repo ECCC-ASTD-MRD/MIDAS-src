@@ -288,8 +288,8 @@ contains
         if (ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
         if (mpi_myid == 0) write(*, nml =  NAMSQLcsr )
       case DEFAULT
-        write(*,*) myError//' Unsupported  SCHEMA ---> ',trim(rdbSchema), ' exit '
-        return
+        write(*,*) myError//' Unsupported  SCHEMA ---> ',trim(rdbSchema), ' ABORT!!! '
+        call utl_abort( myName//': Unsupported  SCHEMA in SQLITE file!' )
     end select
     ierr=fclos( nulnam )
 
