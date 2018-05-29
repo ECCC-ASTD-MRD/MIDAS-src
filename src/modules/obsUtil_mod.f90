@@ -29,6 +29,7 @@ module obsUtil_mod
   use mathPhysConstants_mod
   use codePrecision_mod
   use earthConstants_mod, only:  grav
+  use codtyp_mod
 
   implicit none
   save
@@ -40,7 +41,9 @@ module obsUtil_mod
 
   subroutine obsu_updateFlagWindDirectionSpeed(obsSpaceData)
     implicit none
+    ! argument
     type(struct_obs) :: obsSpaceData
+    ! locals
     integer          :: iuu, ivv, iff, idd, flagu, flagv, newflag
     integer          :: headerIndex, headerIndexStart, headerIndexEnd, jWindType, bodyIndex, bodyIndex2
     real(obs_real)   :: zlevu
@@ -59,7 +62,9 @@ module obsUtil_mod
         idd=bufr_neds
         iff=bufr_nefs
       end if
+
       BODY: do bodyIndex = 1, obs_numBody(obsSpaceData)
+
         llok = ( obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex) == iuu )
         flagu=-1
         if ( llok ) then
@@ -68,14 +73,16 @@ module obsUtil_mod
           headerIndexEnd   = obs_headElem_i(obsSpaceData, OBS_NLV , headerIndex ) + headerIndexStart - 1
           stid             = obs_elem_c    (obsSpaceData, 'STID'  , headerIndex )
           zlevu            = obs_bodyElem_r(obsSpaceData, OBS_PPP , bodyIndex   )
-          flagu=obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex) !  GET FLAG OF U COMPONENT
-          BODY_2: do bodyIndex2=headerIndexStart,headerIndexEnd
+          flagu            = obs_bodyElem_i(obsSpaceData, OBS_FLG , bodyIndex   ) !  GET FLAG OF U COMPONENT
+
+          BODY_2: do bodyIndex2 = headerIndexStart, headerIndexEnd
             if  ( obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2 ) == ivv &
             .and. obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2 ) == zlevu ) then
               flagv = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex2 ) !  GET FLAG OF V COMPONENT
               newflag = ior(flagu, flagv)
             end if
           end do BODY_2
+
           ! UPDATE FLAGS OF DIRECTION AN SPEED
           BODY_2_2: do bodyIndex2 = headerIndexStart, headerIndexEnd
             if (  obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex2) == idd &
@@ -89,62 +96,68 @@ module obsUtil_mod
               call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex2, newflag)
             end if
           end do BODY_2_2
+
         end if ! llok
       end do BODY
     end do WIND_TYPE
+
   end subroutine obsu_updateFlagWindDirectionSpeed
 
 
   subroutine obsu_computeDirectionSpeedResiduals(elem_i,obsSpaceData)
     implicit none
-    type(struct_obs) :: obsSpaceData
+    ! arguments
+    type(struct_obs)    :: obsSpaceData
     integer, intent(in) :: elem_i
-    integer iuu,ivv,iff,idd
-    integer headerIndex,headerIndexStart,headerIndexEnd,jWindType
-    integer bodyIndex,bodyIndex2
-    real(obs_real) zlevu
-    real(obs_real) module, ang, uu, vv
+    ! locals
+    integer :: iuu, ivv, iff, idd
+    integer :: headerIndex, headerIndexStart, headerIndexEnd, jWindType, bodyIndex, bodyIndex2
+    real(obs_real) :: zlevu, module, ang, uu, vv
     logical :: llok
-    WIND_TYPE: do jWindType = 1,2
+
+    WIND_TYPE: do jWindType = 1, 2
       if (jWindType == 1) then
-        iuu=bufr_neuu
-        ivv=bufr_nevv
-        idd=bufr_nedd
-        iff=bufr_neff
+        iuu = bufr_neuu
+        ivv = bufr_nevv
+        idd = bufr_nedd
+        iff = bufr_neff
       else
-        iuu=bufr_neus
-        ivv=bufr_nevs
-        idd=bufr_neds
-        iff=bufr_nefs
+        iuu = bufr_neus
+        ivv = bufr_nevs
+        idd = bufr_neds
+        iff = bufr_nefs
       end if
+
       ! Process all data within the domain of the model
       BODY: do bodyIndex = 1, obs_numBody(obsSpaceData)
-        llok= ( obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex ) == 1 .and. obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex) == iuu )
+        llok = ( obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex ) == 1 .and. obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex) == iuu )
         if ( llok ) then
           headerIndex      = obs_bodyElem_i(obsSpaceData, OBS_HIND, bodyIndex  )
-          headerIndexStart = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex )
-          headerIndexEnd   = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex ) + headerIndexStart - 1
-          zlevu = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex )
-          uu=-obs_bodyElem_r(obsSpaceData, elem_i, bodyIndex ) + obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex )
-          BODY_2: do bodyIndex2=headerIndexStart,headerIndexEnd
+          headerIndexStart = obs_headElem_i(obsSpaceData, OBS_RLN , headerIndex )
+          headerIndexEnd   = obs_headElem_i(obsSpaceData, OBS_NLV , headerIndex ) + headerIndexStart - 1
+          zlevu            = obs_bodyElem_r(obsSpaceData, OBS_PPP , bodyIndex )
+          uu = - obs_bodyElem_r(obsSpaceData, elem_i, bodyIndex ) + obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex )
+         
+           BODY_2: do bodyIndex2 = headerIndexStart, headerIndexEnd
             if  ( obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2 ) == ivv  &
             .and. obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2 ) == zlevu ) then
-              vv=-obs_bodyElem_r(obsSpaceData, elem_i, bodyIndex2 ) + obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2 )
+              vv = -obs_bodyElem_r(obsSpaceData, elem_i, bodyIndex2 ) + obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2 )
               ! 1-calculate angle
-              module=SQRT((uu**2)+(vv**2))
+              module = sqrt((uu**2)+(vv**2))
               if (module == 0.) then
-                ang=0.0d0
+                ang = 0.0d0
               else
-                ang=atan2(vv,uu)
-                ang= (270.0d0 - ang  * MPC_DEGREES_PER_RADIAN_R8 )
+                ang = atan2(vv,uu)
+                ang = (270.0d0 - ang  * MPC_DEGREES_PER_RADIAN_R8 )
                 ! 2-Change to meteorological definition of wind direction.
                 if (ang > 360.0d0 ) ang = ang - 360.0d0
-                if (ang <= 0.0d0 ) ang = ang + 360.0d0
+                if (ang <= 0.0d0  ) ang = ang + 360.0d0
               end if
             end if
           end do BODY_2
+          
           ! insert resduals into obsSpaceData
-          BODY_2_2: do bodyIndex2=headerIndexStart,headerIndexEnd
+          BODY_2_2: do bodyIndex2 = headerIndexStart, headerIndexEnd
             if  ( obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2 ) == idd &
             .and. obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex2 ) == zlevu ) then
               call obs_bodySet_r(obsSpaceData, elem_i, bodyIndex2, obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2 ) - ang )
@@ -165,9 +178,12 @@ module obsUtil_mod
               call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex2, 0)
             end if
           end do BODY_2_2
+
         end if
       end do BODY
+
     end do WIND_TYPE
+
   end subroutine obsu_computeDirectionSpeedResiduals
 
 
@@ -175,13 +191,17 @@ module obsUtil_mod
     ! Purpose:  Set banco quality control bit #12 for all data assimilated
     !           by current analysis.
     implicit none
+    ! argument
     type(struct_obs) :: obsSpaceData
+    ! local
     integer :: bodyIndex
+
     ! Process all data
-    do bodyIndex=1,obs_numBody(obsSpaceData)
+    do bodyIndex = 1, obs_numBody(obsSpaceData)
       if (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex ) == 1 ) &
       call obs_bodySet_i(obsSpaceData,OBS_FLG,bodyIndex,ibset( obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex), 12 ))
     end do
+
   end subroutine obsu_setassflg
 
 
@@ -192,9 +212,9 @@ module obsUtil_mod
     integer          , intent(in)    :: headerIndexStart, headerIndexEnd
     real             , intent(in)    :: missingValue
     ! locals
-    integer        :: varno,varno2,varno4
+    integer        :: varno, varno2, varno4
     real           :: obsuv
-    integer        :: headerIndex, rln, nlv, bodyIndex, j2, j4, jpos, ilem
+    integer        :: headerIndex, bodyIndex, bodyIndexStart, bodyIndexEnd, bodyIndex2,jpos, ilem
     integer        :: ddflag, ffflag, newflag, uuflag, vvflag
     integer        :: ilemf, ilemu, ilemv, indu_misg, indv_misg, indum, indvm
     logical        :: llmisdd, llmisff, llmis, lluv_misg, llu_misg, llv_misg
@@ -209,14 +229,18 @@ module obsUtil_mod
     write(*,'(a,2i8)')   my_name//': first and last observations: ', headerIndexStart, headerIndexEnd
     write(*,'(a,f12.4)') my_name//': missing value: ', missingValue
     write(*,*)'****************************************************' 
+   
     HEADER1: do headerIndex = headerIndexStart, headerIndexEnd
-      rln = obs_headElem_i(obsdat, OBS_RLN, headerIndex )
-      nlv = obs_headElem_i(obsdat, OBS_NLV, headerIndex )
-      BODY1: do bodyIndex = rln, nlv + rln - 1
+      
+      bodyIndexStart = obs_headElem_i(obsdat, OBS_RLN, headerIndex )
+      bodyIndexEnd   = obs_headElem_i(obsdat, OBS_NLV, headerIndex ) + bodyIndexStart - 1
+      
+      BODY1: do bodyIndex = bodyIndexStart, bodyIndexEnd 
         dd = missingValue
         ff = missingValue
         varno = obs_bodyElem_i(obsdat, OBS_VNM, bodyIndex)
         llmisdd = .true.
+      
         if ( varno /= bufr_nedd .and. varno /= bufr_neds ) cycle BODY1
         if( varno == bufr_neds) then
           ilemf = bufr_nefs
@@ -227,6 +251,7 @@ module obsUtil_mod
           ilemu = bufr_neuu
           ilemv = bufr_nevv
         end if
+      
         dd       = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex )
         ddflag   = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex )
         level_dd = obs_bodyElem_r(obsdat, OBS_PPP, bodyIndex )
@@ -236,48 +261,50 @@ module obsUtil_mod
         llv_present = .false.
         indum = -1
         indvm = -1
+      
         ! FIND IF  U AND V ARE ALREADY IN CMA
-        UVINOBSDAT: do j4 = bodyIndex, nlv + rln -1
-          level4 = obs_bodyElem_r(obsdat, OBS_PPP,j4)
+        UVINOBSDAT: do bodyIndex2 = bodyIndex, bodyIndexEnd
+          level4 = obs_bodyElem_r(obsdat, OBS_PPP, bodyIndex2 )
           if (level4 == level_dd) then
-            varno4 = obs_bodyElem_i(obsdat, OBS_VNM, j4)
+            varno4 = obs_bodyElem_i(obsdat, OBS_VNM, bodyIndex2 )
             select case (varno4)
-              case (11003,11004,11002,11001,11215,11216,11011,11012)
-                obsuv = obs_bodyElem_r(obsdat, OBS_VAR,j4)
+              case (bufr_neuu, bufr_nevv, bufr_neff, bufr_nedd, bufr_neus, bufr_nevs, bufr_neds, bufr_nefs )
+                obsuv = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex2 )
                 if ( varno4 == ilemu .and. obsuv /= missingValue ) then
                   llu_present = .true.
-                  indum = j4
+                  indum = bodyIndex2
                 else if ( varno4 == ilemv .and. obsuv /= missingValue ) then
                   llv_present = .true.
-                  indvm = j4
+                  indvm = bodyIndex2
                 end if
                 if ( varno4 == ilemu .and. obsuv == missingValue ) then
                   llu_misg = .true.
-                  indu_misg = j4
+                  indu_misg = bodyIndex2
                 else if ( varno4 == ilemv .and. obsuv == missingValue ) then
                   llv_misg = .true.
-                  indv_misg = j4
+                  indv_misg = bodyIndex2
                 end if
             end select
           end if
         end do UVINOBSDAT
+
         lluv_misg = (llu_misg .and. llv_misg)
         lluv_present = (llu_present .and. llv_present)
         if ( lluv_misg ) then
-          CALCUV: do j2 = bodyIndex, nlv + rln -1
+          CALCUV: do bodyIndex2 = bodyIndex, bodyIndexEnd
             llmisff = .true.
             llmisdd = .true.
             llmis   = .true.
-            level = obs_bodyElem_r(obsdat, OBS_PPP, j2)
+            level = obs_bodyElem_r(obsdat, OBS_PPP, bodyIndex2 )
             if ( level /= level_dd) cycle
-            varno2 = obs_bodyElem_i(obsdat, OBS_VNM, j2)
+            varno2 = obs_bodyElem_i(obsdat, OBS_VNM, bodyIndex2 )
             if ( varno2 == ilemf ) then
-              ff = obs_bodyElem_r(obsdat, OBS_VAR,j2)
-              ffflag = obs_bodyElem_i(obsdat, OBS_FLG, j2)
+              ff = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex2 )
+              ffflag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex2 )
               if ( dd == 0.d0 .and. ff > 0. .or. dd > 360. .or. dd < 0. ) then
                 llmisdd = .true.
                 llmisff = .true.
-              else if ( dd == missingValue .or. ff == missingValue) then
+              else if ( dd == missingValue .or. ff == missingValue ) then
                 llmisdd = .true.
                 llmisff = .true.
               else
@@ -295,14 +322,14 @@ module obsUtil_mod
               if ( llmisdd == .true. .or. llmisff == .true. ) then
                 llmis = .true.
                 if ( indu_misg > 0 .or. indv_misg > 0 ) then
-                  call obs_bodySet_i(obsdat,OBS_VNM,INDU_MISG,-1)
-                  call obs_bodySet_i(obsdat,OBS_VNM,INDV_MISG,-1)
+                  call obs_bodySet_i(obsdat, OBS_VNM, indu_misg, -1 )
+                  call obs_bodySet_i(obsdat, OBS_VNM, indv_misg, -1 )
                 end if
               else
                 llmis = .false.
               end if
             end if
-            newflag = ior(ddflag,ffflag)
+            newflag = ior(ddflag, ffflag )
             if ( indum > 0 .or. indvm > 0 ) then
               call obs_bodySet_i(obsdat, OBS_VNM, indu_misg, -1 )
               call obs_bodySet_i(obsdat, OBS_VNM, indv_misg, -1 )
@@ -319,7 +346,9 @@ module obsUtil_mod
               call obs_bodySet_i(obsdat, OBS_FLG, indv_misg, newflag )
             end if
           end do CALCUV
-        else                       
+
+        else      
+                 
           if ( lluv_present ) then
             call obs_bodySet_i(obsdat, OBS_VNM, indu_misg, -1 )
             call obs_bodySet_i(obsdat, OBS_VNM, indv_misg, -1 )
@@ -332,12 +361,17 @@ module obsUtil_mod
             end if
           end if
         end if
+
       end do BODY1
+
     end do HEADER1
+
     do headerIndex = headerIndexStart, headerIndexEnd
-      rln = obs_headElem_i(obsdat, OBS_RLN, headerIndex )
-      nlv = obs_headElem_i(obsdat, OBS_NLV, headerIndex )
-      do bodyIndex = rln, nlv + rln - 1
+
+      bodyIndexStart = obs_headElem_i(obsdat, OBS_RLN, headerIndex )
+      bodyIndexEnd   = obs_headElem_i(obsdat, OBS_NLV, headerIndex ) + bodyIndexStart - 1
+      
+      do bodyIndex = bodyIndexStart, bodyIndexEnd
         llmisdd = .true.
         varno = obs_bodyElem_i(obsdat, OBS_VNM, bodyIndex )
         level = obs_bodyElem_r(obsdat, OBS_PPP, bodyIndex )
@@ -350,25 +384,27 @@ module obsUtil_mod
             cycle
         end select
         Jpos = -1
+
         ! TRANSFER THE FLAG BITS  FROM ONE WIND COMPONENT TO THE OTHER
-        do j4 = rln, nlv + rln - 1
-          uu       = obs_bodyElem_r(obsdat, OBS_VAR, j4 )
-          level_uu = obs_bodyElem_r(obsdat, OBS_PPP, j4 )
+        do bodyIndex2 = bodyIndexStart, bodyIndexEnd
+          uu       = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex2 )
+          level_uu = obs_bodyElem_r(obsdat, OBS_PPP, bodyIndex2 )
           Jpos = -1
-          if ( level_uu == level .and. uu == missingValue ) call obs_bodySet_i(obsdat, OBS_VNM, j4, -1 )
+          if ( level_uu == level .and. uu == missingValue ) call obs_bodySet_i(obsdat, OBS_VNM, bodyIndex2, -1 )
           if ( level_uu == level .and. uu /= missingValue ) then
-            uuflag = obs_bodyElem_i(obsdat, OBS_FLG, j4 )
-            varno2 = obs_bodyElem_i(obsdat, OBS_VNM, j4 )
+            uuflag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex2 )
+            varno2 = obs_bodyElem_i(obsdat, OBS_VNM, bodyIndex2 )
             if ( ilem == varno2 ) then
               vvflag  = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex )
               newflag = ior( uuflag, vvflag )
               call obs_bodySet_i(obsdat, OBS_FLG, bodyIndex, newflag)
-              call obs_bodySet_i(obsdat, OBS_FLG, j4, newflag)
-              jpos = j4
+              call obs_bodySet_i(obsdat, OBS_FLG, bodyIndex2, newflag)
+              jpos = bodyIndex2
               exit
             end if
           end if
-        end do !j4
+        end do ! bodyIndex2
+
         ! ELIMINATE ENTRIES WHERE ONE COMPONENT OF WIND (UU OR VV) IS MISSING
         if (jpos < 0) then
           write(*,*) ' eliminate winds for station : ', obs_elem_c(obsdat,'STID',headerIndex ),  &
@@ -377,191 +413,217 @@ module obsUtil_mod
         end if
       end do ! bodyIndex
     end do ! headerIndex
+
   end subroutine obsu_windDirectionToUV
 
-  real function surfvcord(ilem,idtyp)
+  real function surfvcord(ilem, codtyp)
     implicit none
-    integer :: ilem,idtyp,type
-    real :: vcordsf2
-    vcordsf2=0.
-    select case(idtyp)
-      case(135,136,137,138,32,34,35,37,38,159,160,161,162)
-        ! UPPER AIR LAND
-        type=3
-      case(139,140,141,142,33,36)
-        ! UPPER AIR SHIP
-        type=4
-      case(12,14,146)
-        ! SYNOPS
-        type=1
-      case(13,18,145,147)
-        ! SHIPS
-        type=2
-      case(254)
-        ! SCATTEROMETER WINDS
-        type=5
-      case default
-        type=-99
-    end select
+    ! arguments
+    integer :: ilem,codtyp
+    ! locals
+    integer :: type
+    real    :: vcordsf2
+
+    vcordsf2 = 0.
+    if ( codtyp == codtyp_get_codtyp('temppilot') .or. codtyp == codtyp_get_codtyp('tempsynop') &
+    .or. codtyp == codtyp_get_codtyp('pilotsynop') .or. codtyp == codtyp_get_codtyp('temppilotsynop') &
+    .or. codtyp == codtyp_get_codtyp('pilot').or. codtyp == codtyp_get_codtyp('pilotmobil') &
+    .or. codtyp == codtyp_get_codtyp('temp').or. codtyp == codtyp_get_codtyp('tempdrop') &
+    .or. codtyp == codtyp_get_codtyp('tempmobil').or. codtyp == codtyp_get_codtyp('temppilotmobil') &
+    .or. codtyp == codtyp_get_codtyp('tempsynopmobil').or. codtyp == codtyp_get_codtyp('pilotsynopmobil') &
+    .or. codtyp == codtyp_get_codtyp('temppilotsynopmobil') ) type = 3  ! UPPER AIR LAND
+    
+    if ( codtyp == codtyp_get_codtyp('temppilotship') .or. codtyp == codtyp_get_codtyp('tempshipship') &
+    .or. codtyp == codtyp_get_codtyp('tempsshipship') .or. codtyp == codtyp_get_codtyp('pilotshipship') &
+    .or. codtyp == codtyp_get_codtyp('pilotship') .or. codtyp == codtyp_get_codtyp('tempship') ) type = 4 ! UPPER AIR SHIP
+ 
+    if ( codtyp == codtyp_get_codtyp('synopnonauto') .or. codtyp == codtyp_get_codtyp('synopmobil') &    
+    .or. codtyp == codtyp_get_codtyp('asynopauto') ) type = 1 ! SYNOPS
+
+    if ( codtyp == codtyp_get_codtyp('shipnonauto') .or. codtyp == codtyp_get_codtyp('drifter') &    
+    .or. codtyp == codtyp_get_codtyp('synoppatrol') .or. codtyp == codtyp_get_codtyp('ashipauto') ) type = 2 ! SHIPS
+
+    if ( codtyp == codtyp_get_codtyp('ascat') ) type = 5 ! SCATTEROMETER WINDS
+
     select case(type)
       case (1)
         select case(ilem)
-          case (bufr_neds,bufr_nefs,bufr_neus,bufr_nevs)
+          case (bufr_neds, bufr_nefs, bufr_neus, bufr_nevs)
             ! us,vs,ffs,dds
-            vcordsf2=10.0
+            vcordsf2 = 10.0
           case (bufr_nepn)
-            vcordsf2=0.0
+            vcordsf2 = 0.0
           case (bufr_neps)
-            vcordsf2=0.0
+            vcordsf2 = 0.0
           case (bufr_nets)
-            vcordsf2=1.5
-          case (bufr_nees,bufr_ness)
-            vcordsf2=1.5
+            vcordsf2 = 1.5
+          case (bufr_nees, bufr_ness)
+            vcordsf2 = 1.5
         end select
       case (2)
         select case(ilem)
           ! us,vs,ffs,dds
-          case (bufr_neds,bufr_nefs,bufr_neus,bufr_nevs)
-            vcordsf2=20.0
+          case (bufr_neds, bufr_nefs, bufr_neus, bufr_nevs)
+            vcordsf2 = 20.0
           case (bufr_nepn)
-            vcordsf2=0.0
+            vcordsf2 = 0.0
           case (bufr_neps)
-            vcordsf2=0.0
+            vcordsf2 = 0.0
           case (bufr_nets)
-            vcordsf2=11.5
-          case (bufr_nees,bufr_ness)
-            vcordsf2=11.5
+            vcordsf2 = 11.5
+          case (bufr_nees, bufr_ness)
+            vcordsf2 = 11.5
        end select
      case (3)
        select case(ilem)
-         case (bufr_neds,bufr_nefs,bufr_neus,bufr_nevs)
-           vcordsf2=10.0
+         case (bufr_neds, bufr_nefs, bufr_neus, bufr_nevs)
+           vcordsf2 = 10.0
          case (bufr_nepn)
-           vcordsf2=0.0
+           vcordsf2 = 0.0
          case (bufr_neps)
-           vcordsf2=0.0
+           vcordsf2 = 0.0
          case (bufr_nets)
-           vcordsf2=1.5
+           vcordsf2 = 1.5
          case (bufr_nees)
-           vcordsf2=0.0
+           vcordsf2 = 0.0
          case (bufr_ness)
-           vcordsf2=1.5
+           vcordsf2 = 1.5
        end select
      case (4)
        select case(ilem)
-         case (bufr_neds,bufr_nefs,bufr_neus,bufr_nevs)
-           vcordsf2=20.0
+         case (bufr_neds, bufr_nefs, bufr_neus, bufr_nevs)
+           vcordsf2 = 20.0
          case (bufr_nepn)
-           vcordsf2=0.0
+           vcordsf2 = 0.0
          case (bufr_neps)
-           vcordsf2=0.0
+           vcordsf2 = 0.0
          case (bufr_nets)
-           vcordsf2=1.5
+           vcordsf2 = 1.5
          case (bufr_nees)
-           vcordsf2=0.0
+           vcordsf2 = 0.0
          case (bufr_ness)
-           vcordsf2=1.5
+           vcordsf2 = 1.5
         end select
       case (5)
+
       select case(ilem)
-        case (bufr_neds,bufr_nefs,bufr_neus,bufr_nevs)
-          vcordsf2=10.0
+        case (bufr_neds, bufr_nefs, bufr_neus, bufr_nevs)
+          vcordsf2 = 10.0
       end select
     end select
+
     surfvcord = vcordsf2
+
   end function  surfvcord
 
 
   subroutine  obsu_computeVertCoordSurfObs(obsdat, headerIndexStart, headerIndexEnd )
     implicit none
-    integer  :: headerIndexStart, headerIndexEnd
-    integer  :: bodyIndex, headerIndex, rln, nlv
-    integer  :: varno,codtyp,ity
-    real     :: sfc_vco,elev
+    ! arguments
+    type (struct_obs), intent(inout) :: obsdat
+    integer          , intent(in)    :: headerIndexStart, headerIndexEnd
+    ! locals
+    integer  :: bodyIndex, headerIndex, bodyIndexStart, bodyIndexEnd
+    integer  :: varno, codtyp
+    real           :: sfc_vco, elev
     real(obs_real) :: ppp
-    type (struct_obs), intent(inout):: obsdat
+
     do headerIndex = headerIndexStart, headerIndexEnd
-        rln = obs_headElem_i(obsdat, OBS_RLN, headerIndex )
-        nlv = obs_headElem_i(obsdat, OBS_NLV, headerIndex )
-        ity = obs_headElem_i(obsdat, OBS_ITY, headerIndex )
-        codtyp = ity
-        elev = obs_headElem_r(obsdat, OBS_ALT, headerIndex )
-        do bodyIndex = rln, nlv + rln - 1
-          varno = obs_bodyElem_i(obsdat, OBS_VNM, bodyIndex )
-          select case(varno)
-            case(bufr_neds,bufr_nefs,bufr_neus,bufr_nevs,bufr_nets,bufr_ness,bufr_nepn,bufr_neps,bufr_nehs,bufr_nezd)
-              sfc_vco= surfvcord(varno,codtyp)
-              if ( varno /= bufr_nepn) then
-                ppp = elev + sfc_vco
-                call obs_bodySet_r(obsdat, OBS_PPP, bodyIndex, ppp )
-                call obs_bodySet_i(obsdat, OBS_VCO, bodyIndex, 1 )
-              else
-                ppp = 0.
-                call obs_bodySet_r(obsdat,OBS_PPP, bodyIndex, ppp )
-                call obs_bodySet_i(obsdat,OBS_VCO, bodyIndex, 1 )
-              end if
-          end select
-        end do
+        
+      bodyIndexStart = obs_headElem_i(obsdat, OBS_RLN, headerIndex )
+      bodyIndexEnd   = obs_headElem_i(obsdat, OBS_NLV, headerIndex ) + bodyIndexStart - 1
+      codtyp = obs_headElem_i(obsdat, OBS_ITY, headerIndex )
+      elev = obs_headElem_r(obsdat, OBS_ALT, headerIndex )
+      do bodyIndex = bodyIndexStart, bodyIndexEnd
+        varno = obs_bodyElem_i(obsdat, OBS_VNM, bodyIndex )
+        select case(varno)
+          case(bufr_neds, bufr_nefs, bufr_neus, bufr_nevs, bufr_nets, bufr_ness, bufr_nepn, bufr_neps, bufr_nehs, bufr_nezd )
+            sfc_vco = surfvcord(varno, codtyp )
+            if ( varno /= bufr_nepn) then
+              ppp = elev + sfc_vco
+              call obs_bodySet_r(obsdat, OBS_PPP, bodyIndex, ppp )
+              call obs_bodySet_i(obsdat, OBS_VCO, bodyIndex, 1 )
+            else
+              ppp = 0.
+              call obs_bodySet_r(obsdat,OBS_PPP, bodyIndex, ppp )
+              call obs_bodySet_i(obsdat,OBS_VCO, bodyIndex, 1 )
+            end if
+        end select
       end do
+    end do
+
   end subroutine obsu_computeVertCoordSurfObs
 
 
   subroutine  obsu_adjustHumGZ(obsdat, headerIndexStart, headerIndexEnd )
     implicit none
-    integer  :: headerIndexStart, headerIndexEnd
-    integer  :: bodyIndex, headerIndex, rln, nlv
+    ! arguments
+    type (struct_obs), intent(inout) :: obsdat
+    integer          , intent(in)    :: headerIndexStart, headerIndexEnd
+    ! locals
+    integer  :: bodyIndex, headerIndex, bodyIndexStart, bodyIndexEnd
     integer  :: varno
-    type (struct_obs), intent(inout):: obsdat
     real(obs_real)    :: zesmax,gz,obsv
     real              :: rmin
+
     zesmax = 30.0
     do headerIndex = headerIndexStart, headerIndexEnd 
-      rln = obs_headElem_i(obsdat, OBS_RLN, headerIndex )
-      nlv = obs_headElem_i(obsdat, OBS_NLV, headerIndex )
-      do bodyIndex = rln, nlv + rln - 1
+      bodyIndexStart = obs_headElem_i(obsdat, OBS_RLN, headerIndex )
+      bodyIndexEnd   = obs_headElem_i(obsdat, OBS_NLV, headerIndex ) + bodyIndexStart - 1
+      
+      do bodyIndex = bodyIndexStart, bodyIndexEnd
         varno = obs_bodyElem_i(obsdat, OBS_VNM, bodyIndex )
-        select case(varno)
-          case(bufr_nees,bufr_ness)
+        select case(varno )
+          case(bufr_nees, bufr_ness )
             obsv = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex )
-            if ( obsv > zesmax) obsv = zesmax
+            if ( obsv > zesmax ) obsv = zesmax
             call obs_bodySet_r(obsdat, OBS_VAR, bodyIndex, obsv )
-          case(bufr_negz)
+          case(bufr_negz )
             obsv = obs_bodyElem_r(obsdat,OBS_VAR, bodyIndex )
             gz = obsv * grav
             call obs_bodySet_r(obsdat, OBS_VAR, bodyIndex, gz )
         end select
       end do
     end do
+
   end subroutine obsu_adjustHumGZ
 
 
-  subroutine  obsu_setGbgpsError(obsdat, headerIndexStart, headerIndexEnd)
+  subroutine  obsu_setGbgpsError(obsdat, headerIndexStart, headerIndexEnd )
     implicit none
+    ! arguments
+    type (struct_obs), intent(inout) :: obsdat
+    integer          , intent(in)    :: headerIndexStart, headerIndexEnd
+    ! locals
     real(obs_real)    :: obsv
-    integer  :: headerIndexStart, headerIndexEnd
-    integer  :: bodyIndex, headerIndex,rln,nlv
+    integer  :: bodyIndex, headerIndex,bodyIndexStart, bodyIndexEnd
     integer  :: varno
-    type (struct_obs), intent(inout):: obsdat
+
     do headerIndex = headerIndexStart, headerIndexEnd
-      rln = obs_headElem_i(obsdat, OBS_RLN, headerIndex )
-      nlv = obs_headElem_i(obsdat, OBS_NLV, headerIndex )
-      obsv = real(MPC_missingValue_R8,obs_real)
-      do bodyIndex = rln, nlv + rln - 1
+ 
+      bodyIndexStart = obs_headElem_i(obsdat, OBS_RLN, headerIndex )
+      bodyIndexEnd   = obs_headElem_i(obsdat, OBS_NLV, headerIndex ) + bodyIndexStart - 1
+      obsv = real(MPC_missingValue_R8, obs_real)
+      
+      do bodyIndex = bodyIndexStart, bodyIndexEnd 
         varno = obs_bodyElem_i(obsdat,OBS_VNM,bodyIndex )
-        if ( varno == 15032 ) then
+        if ( varno == bufr_nefe ) then
           obsv = obs_bodyElem_r(obsdat,OBS_VAR, bodyIndex )
           call obs_bodySet_i(obsdat, OBS_VNM, bodyIndex, 999 )
           exit
         end if
       end do
-      do bodyIndex = rln, nlv + rln -1
+
+      do bodyIndex = bodyIndexStart, bodyIndexEnd
         varno = obs_bodyElem_i(obsdat, OBS_VNM, bodyIndex )
-        if ( varno == 15031 .and. obsv /= real(MPC_missingValue_R8,obs_real)) then
+        if ( varno == bufr_nezd .and. obsv /= real(MPC_missingValue_R8, obs_real)) then
           call obs_bodySet_r(obsdat, OBS_OER, bodyIndex, obsv )
           exit
         end if
       end do
+
     end do
+
   end subroutine obsu_setGbgpsError
 
   
@@ -597,20 +659,23 @@ module obsUtil_mod
     implicit none
     integer :: sensor      ! BURP satellite sensor indicator (element #2048)
     integer :: instrument  ! BURP satellite instrument       (element #2019)
+
     select case (sensor)
-      case (000);   instrument=606  ! HIRS
-      case (001);   instrument=623  ! MSU
-      case (002);   instrument=627  ! SSU
-      case (003);   instrument=570  ! AMSUA
-      case (004);   instrument=574  ! AMSUB
-      case (005);   instrument=591  ! AVHRR
-      case (006);   instrument=905  ! SSMI
-      case (007);   instrument=312  ! NSCAT
-      case (008);   instrument=313  ! SEAWINDS
-      case (015);   instrument=2047 ! Missing value
-      case default; instrument=2047 ! Unrecognized value
+      case (000);   instrument = 606  ! HIRS
+      case (001);   instrument = 623  ! MSU
+      case (002);   instrument = 627  ! SSU
+      case (003);   instrument = 570  ! AMSUA
+      case (004);   instrument = 574  ! AMSUB
+      case (005);   instrument = 591  ! AVHRR
+      case (006);   instrument = 905  ! SSMI
+      case (007);   instrument = 312  ! NSCAT
+      case (008);   instrument = 313  ! SEAWINDS
+      case (015);   instrument = 2047 ! Missing value
+      case default; instrument = 2047 ! Unrecognized value
     end select
+
     obsu_cvt_obs_instrum = instrument
-    return
+
   end function obsu_cvt_obs_instrum
+
 end module obsUtil_mod

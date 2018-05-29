@@ -30,12 +30,14 @@ use fSQLite
 use mathPhysConstants_mod
 use mpiVar_mod
 use obsUtil_mod
+use utilities_mod
+use bufr_mod
 
 implicit none
 save
 
 private
-public  :: sqlr_insertSqlite, sqlr_updateSqlite, sqlr_readSqlite, sqlr_query, sqlr_readNamelistSqlite
+public  :: sqlr_insertSqlite, sqlr_updateSqlite, sqlr_readSqlite, sqlr_query
 
 integer          :: itemInsertList(15), numberInsertItems, numberUpdateItems
 character(len=3) :: itemUpdateList(15)
@@ -49,11 +51,13 @@ contains
     type (struct_obs), intent(inout) :: obsdat
     real(obs_real)   , intent(in)    :: vertCoord, obsValue
     integer          , intent(in)    :: obsVarno, obsFlag, vertCoordType, numberData
+
     call obs_bodySet_r(obsdat, OBS_PPP, numberData, vertCoord     )
     call obs_bodySet_r(obsdat, OBS_VAR, numberData, obsValue      )
     call obs_bodySet_i(obsdat, OBS_VNM, numberData, obsVarno      )
     call obs_bodySet_i(obsdat, OBS_FLG, numberData, obsFlag       )
     call obs_bodySet_i(obsdat, OBS_VCO, numberData, vertCoordType )
+
   end subroutine sqlr_initData
 
 
@@ -68,6 +72,7 @@ contains
     integer          , intent(in)    :: headerIndex, obsIdo, codeType, obsDate, obsTime, obsStatus, azimuth, landSea, roQcFlag
     integer          , intent(in)    :: obsSat, instrument, zenith, cloudCover, solarZenith, solarAzimuth
     real(obs_real)   , intent(in)    :: geoidUndulation, earthLocRadCurv, elev, obsLat, obsLon
+
     call obs_setFamily( obsdat, trim(familyType), headerIndex       )
     call obs_headSet_i( obsdat, OBS_IDO, headerIndex, obsIdo        )       
     call obs_headSet_i( obsdat, OBS_ONM, headerIndex, headerIndex   )
@@ -78,6 +83,7 @@ contains
     call obs_headSet_i( obsdat, OBS_ETM, headerIndex, obsTime       )
     call obs_headSet_i( obsdat, OBS_ST1, headerIndex, obsStatus     )
     call     obs_set_c( obsdat, 'STID' , headerIndex, trim(idStation) )
+
     if ( trim(familyType) == 'TO' ) then
       call obs_headSet_i( obsdat, OBS_SAT , headerIndex, obsSat      )
       call obs_headSet_i( obsdat, OBS_OFL , headerIndex, landSea     )
@@ -103,35 +109,8 @@ contains
         call obs_headSet_i( obsdat, OBS_AZA , headerIndex, azimuth         )
       end if
     end if
+
   end subroutine sqlr_initHeader
-
-
-  subroutine sqlr_readNamelistSqlite(sectionNml)
-    implicit none
-    !argument
-    character(len=*), intent(in) :: sectionNml
-    !locals
-    integer                      :: nulName
-    character(len=256)           :: fileName
-    namelist/namSQLInsert/ numberInsertItems, itemInsertList
-    namelist/namSQLUpdate/ numberUpdateItems, itemUpdateList 
-    fileName=trim("flnml")
-    write(*,*) ' Read namelist section: ', trim(sectionNml)
-    select case(trim(sectionNml))
-      case( 'namSQLInsert' )
-        nulName=4014
-        open(nulName,FILE=fileName)
-        read(nulName,NML=namSQLInsert)
-      case( 'namSQLUpdate')
-        nulName=4017
-        open(nulName,FILE=fileName)
-        read(nulName,NML=namSQLUpdate)
-      case default
-        write(*,*) ' WRONG NAMELIST SECTION: ',trim(sectionNml), ' EXIT ROUTINE sqlr_sqlObsNml'
-        return
-    end select
-    close(nulName)
-  end subroutine sqlr_readNamelistSqlite
 
 
   subroutine sqlr_readSqlite(obsdat,familyType,fileName,FileNumb)
@@ -142,16 +121,15 @@ contains
     character(len=*) , intent(in)    :: fileName   ! SQLITE filename
     integer          , intent(in)    :: FileNumb   ! Stdout file unit number
     ! locals
-    integer, parameter       :: nulName=4000
     character(len=9)         :: rdbSchema,idStation
     integer                  :: obsIdo, obsIdd, codeType, obsDate, obsTime, obsStatus, obsFlag, obsVarno
     real(obs_real)           :: elevReal, xlat, xlon, vertCoord
     real                     :: elev    , obsLat, obsLon, elevFact
-    integer                  :: azimuth, vertCoordType, vertCoordFact
+    integer                  :: azimuth, vertCoordType, vertCoordFact, fnom, fclos, nulnam, ierr 
     real                     :: zenithReal, solarZenithReal, CloudCoverReal, solarAzimuthReal
     integer                  :: zenith    , solarZenith    , CloudCover    , solarAzimuth    , roQcFlag
     real(obs_real)           :: geoidUndulation, earthLocRadCurv, azimuthReal, obsValue, surfEmiss
-    integer                  :: obsSat, landSea, terrainType, instrument, sensor
+    integer                  :: obsSat, landSea, terrainType, instrument, sensor, numberElem
     integer                  :: i, rowIndex, obsNlv, headerIndex, headerIndexStart, bodyIndex, bitsFlagOn, bitsFlagOff, reportLocation
     real(obs_real),parameter :: zemFact = 0.01
     character(len=10)        :: timeCharacter
@@ -167,22 +145,23 @@ contains
     character(len=*), parameter :: myName = 'sqlr_readSqlite'
     character(len=*), parameter :: myWarning = '****** '// myName //' WARNING: '
     character(len=*), parameter :: myError   = '******** '// myName //' ERROR: '
-    namelist /NAMSQLamsua/listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
-    namelist /NAMSQLamsub/listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
-    namelist /NAMSQLairs/ listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
-    namelist /NAMSQLiasi/ listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
-    namelist /NAMSQLcris/ listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
-    namelist /NAMSQLssmi/ listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
-    namelist /NAMSQLgo/   listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
-    namelist /NAMSQLcsr/  listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
-    namelist /NAMSQLatms/ listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
-    namelist /NAMSQLua/   listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
-    namelist /NAMSQLai/   listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
-    namelist /NAMSQLsw/   listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
-    namelist /NAMSQLro/   listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
-    namelist /NAMSQLsfc/  listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
-    namelist /NAMSQLsc/   listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
-    namelist /NAMSQLpr/   listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
+    namelist /NAMSQLamsua/numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
+    namelist /NAMSQLamsub/numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
+    namelist /NAMSQLairs/ numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
+    namelist /NAMSQLiasi/ numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
+    namelist /NAMSQLcris/ numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
+    namelist /NAMSQLssmi/ numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
+    namelist /NAMSQLgo/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
+    namelist /NAMSQLcsr/  numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
+    namelist /NAMSQLatms/ numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
+    namelist /NAMSQLua/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
+    namelist /NAMSQLai/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
+    namelist /NAMSQLsw/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
+    namelist /NAMSQLro/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
+    namelist /NAMSQLsfc/  numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
+    namelist /NAMSQLsc/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
+    namelist /NAMSQLpr/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
+    
     write(*,*) 'Subroutine '//myName
     write(*,*) myName//': fileName   : ', trim(fileName)
     write(*,*) myName//': familyType : ', trim(familyType)
@@ -191,22 +170,25 @@ contains
       write(*,*) myError//'fSQL_open: ', fSQL_errmsg(stat)
       call qqexit(2)
     end if
+
     timeCharacter = sqlr_query(db,"select time('now')")
     query = "select schema from rdb4_schema ;"
     rdbSchema = sqlr_query(db,trim(query))
     write(*,*) myName//' START OF QUERY TIME IS = ', timeCharacter, 'rdbSchema is ---> ', trim(rdbSchema)
-    !--- DEFAULT VALUES----------------------------------------------
-    sqlExtraHeader = ""
-    sqlExtraDat    = ""
-    sqlLimit       = ""
-    sqlNull        = ""
+
+    sqlExtraHeader = ''
+    sqlExtraDat    = ''
+    sqlLimit       = ''
+    sqlNull        = ''
+    listElem       = ''
+    numberElem = 0; numberBitsOff = 0; bitsOff =  0; numberBitsOn = 0; bitsOn = 0
+
     if ( trim(familyType) == 'TO' ) then
-      listElem = " 12163 "
+      write(listElem,*) bufr_nbt3
     else
-      listElem = " 11001, 11002 "
+      write(listElem,'(i5.5,",",i5.5)') bufr_nedd, bufr_neff
     end if
-    numberBitsOn  = 0
-    numberBitsOff = 0
+
     vertCoordfact  = 1
     columnsData = " id_data, id_obs, vcoord, varno, obsvalue, flag "
     if ( trim(familyType) == 'TO' ) then      
@@ -214,87 +196,103 @@ contains
       vertCoordType = 3
     else
       columnsHeader = " id_obs, lat, lon, codtyp, date, time, status, id_stn, elev"  
-    end if 
-    namelistFileName = trim("flnml")
-    open( nulName,file = namelistFileName )
+    end if
+    
+    nulnam = 0
+    ierr=fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0 )
     select case(trim(rdbSchema))
       case ( 'ua' )
-        sqlNull = " and obsvalue is not null "
         vertCoordFact = 1
         vertCoordType = 2
         columnsData = trim(columnsData)//", hlat, hlon, strftime('%Y%m%d', tsonde), strftime('%H%M', tsonde)"
-        listElem = " 12004, 12203, 10051, 10004, 11011, 11012, 12001, 11001, 11002, 12192, 10194 "
-        read(nulName, NML = NAMSQLua )
+        read(nulnam, nml = NAMSQLua, iostat = ierr )
+        if (ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
+        if (mpi_myid == 0) write(*, nml = NAMSQLua )
       case ( 'ai' )
-        sqlNull = " and obsvalue is not null and vcoord is not null "
         vertCoordFact = 1
         vertCoordType = 2
-        listElem = " 12001, 11001, 11002, 12192 "
-        read(nulName, NML = NAMSQLai )
+        read(nulnam, nml = NAMSQLai, iostat = ierr )
+        if (ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
+        if (mpi_myid == 0) write(*, nml = NAMSQLai )
       case ( 'sw' )
-        sqlNull = " and obsvalue is not null and vcoord is not null "
         vertCoordFact = 1
         vertCoordType = 2
-        listElem = "11001,11002"
-        read(nulName, NML = NAMSQLsw )
+        read(nulnam, nml = NAMSQLsw, iostat = ierr )
+        if (ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
+        if (mpi_myid == 0) write(*, nml = NAMSQLsw )
       case ( 'pr' )
-        sqlNull = " and obsvalue is not null and vcoord is not null "
         vertCoordFact = 1
         vertCoordType = 1
-        listElem = " 11001, 11002 "
-        read(nulName, NML = NAMSQLpr )
+        read(nulnam, nml = NAMSQLpr, iostat = ierr )
+        if (ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
+        if (mpi_myid == 0) write(*, nml =  NAMSQLpr )
       case ( 'ro' )     
         columnsHeader = trim(columnsHeader)//",ro_qc_flag, geoid_undulation, earth_local_rad_curv, id_sat, azimuth"
-        sqlNull = " and obsvalue is not null and vcoord is not null "
         vertCoordFact = 1
         vertCoordType = 1
-        listElem = " 15036, 15037 "
-        read(nulName, NML = NAMSQLro )
+        read(nulnam, nml = NAMSQLro, iostat = ierr )
+        if (ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
+        if (mpi_myid == 0) write(*, nml = NAMSQLro )
       case ( 'sf' )
-        sqlNull = " and obsvalue is not null "
-        sqlExtraDat = " order by id_obs "
         vertCoordFact = 0
         vertCoordType = 1
-        listElem = " 11011, 11012, 12004, 12203, 10051, 10004, 15031, 15032, 15035, 22192, 7025 "
-        read(nulName, NML = NAMSQLsfc )
+        read(nulnam, nml = NAMSQLsfc, iostat = ierr )
+        if (ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
+        if (mpi_myid == 0) write(*, nml = NAMSQLsfc )
       case ( 'scat' )
-        sqlNull = " and obsvalue is not null "
-        sqlExtraDat = " order by id_obs, varno "
         vertCoordFact = 0
         vertCoordType = 1
-        listElem = " 11011, 11012 "
-        read(nulName, NML = NAMSQLsc )
+        read(nulnam, nml = NAMSQLsc, iostat = ierr )
+        if (ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
+        if (mpi_myid == 0) write(*, nml = NAMSQLsc )
       case( 'airs' )
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, cloud_cover, solar_azimuth "
         columnsData = trim(columnsData)//", surf_emiss "
-        read(nulName, NML = NAMSQLairs )
+        read(nulnam, nml = NAMSQLairs, iostat = ierr )
+        if (ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
+        if (mpi_myid == 0) write(*, nml = NAMSQLairs )
       case( 'iasi' )
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, cloud_cover, solar_azimuth "
         columnsData = trim(columnsData)//", surf_emiss "
-        read(nulName, NML = NAMSQLiasi )
+        read(nulnam, nml = NAMSQLiasi, iostat = ierr )
+        if (ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
+        if (mpi_myid == 0) write(*, nml = NAMSQLiasi )
       case( 'cris' )
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, cloud_cover, solar_azimuth "
         columnsData = trim(columnsData)//", surf_emiss "
-        read(nulName,NML = NAMSQLcris )
+        read(nulnam, nml = NAMSQLcris, iostat = ierr )
+        if (ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
+        if (mpi_myid == 0) write(*, nml = NAMSQLcris )
       case( 'amsua' )
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, sensor, solar_azimuth "
-        read(nulName, NML = NAMSQLamsua )
+        read(nulnam, nml = NAMSQLamsua, iostat = ierr )
+        if (ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
+        if (mpi_myid == 0) write(*, nml = NAMSQLamsua )
       case( 'amsub' )
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, sensor, solar_azimuth "
-        read(nulName,NML=NAMSQLamsub)
+        read(nulnam, nml = NAMSQLamsub, iostat = ierr )
+        if (ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
+        if (mpi_myid == 0) write(*, nml = NAMSQLamsub )
       case( 'atms')
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, sensor, solar_azimuth "
-        read(nulName, NML = NAMSQLatms )
+        read(nulnam, nml = NAMSQLatms, iostat = ierr )
+        if (ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
+        if (mpi_myid == 0) write(*, nml = NAMSQLatms )
       case( 'ssmi' )
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type "
-        read(nulName, NML = NAMSQLssmi )
+        read(nulnam, nml = NAMSQLssmi, iostat = ierr )
+        if (ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
+        if (mpi_myid == 0) write(*, nml = NAMSQLssmi )
       case( 'csr' )
-        read(nulName, NML = NAMSQLcsr )
+        read(nulnam, nml = NAMSQLcsr, iostat = ierr )
+        if (ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
+        if (mpi_myid == 0) write(*, nml =  NAMSQLcsr )
       case DEFAULT
         write(*,*) myError//' Unsupported  SCHEMA ---> ',trim(rdbSchema), ' exit '
         return
     end select
-    close(nulName)
+    ierr=fclos( nulnam )
+
     ! Compose SQL queries
     bitsFlagOff=0
     do i = 1, numberBitsOff
@@ -328,6 +326,7 @@ contains
     call fSQL_prepare( db, trim(queryData), stmt2, stat2)
     if ( fSQL_error(stat)  /= FSQL_OK ) call sqlr_handleError(stat ,'fSQL_prepare hdr: ')
     if ( fSQL_error(stat2) /= FSQL_OK ) call sqlr_handleError(stat2,'fSQL_prepare dat: ')
+
     headerIndex  = obs_numHeader(obsdat)
     bodyIndex = obs_numBody(obsdat)
     headerIndexStart = headerIndex
@@ -340,6 +339,7 @@ contains
     call fSQL_fill_matrix ( stmt2, matdata )
     call fSQL_free_mem    ( stmt2 )
     call fSQL_finalize    ( stmt2 )
+
     obsNlv = 0
     lastId = 1
     HEADER:   do
@@ -352,7 +352,6 @@ contains
         exit
       end if
       ! The query result is inserted into variables
-      !=========================================================================================
       terrainType = MPC_missingValue_INT
       landSea     = MPC_missingValue_INT
       sensor      = MPC_missingValue_INT
@@ -371,6 +370,7 @@ contains
       call fSQL_get_column( stmt, COL_INDEX = 6, INT_VAR   = obsTime      )
       call fSQL_get_column( stmt, COL_INDEX = 7, INT_VAR   = obsStatus    )
       call fSQL_get_column( stmt, COL_INDEX = 8, CHAR_VAR  = idStation )
+
       if ( trim(familyType) == 'TO' ) then
         call fSQL_get_column( stmt, COL_INDEX = 9,  INT_VAR   = obsSat )
         call fSQL_get_column( stmt, COL_INDEX = 10, INT_VAR   = landSea ,   INT_MISSING=MPC_missingValue_INT  )
@@ -413,10 +413,12 @@ contains
           azimuth = nint( azimuthReal * 100 )
         end if
       end if  ! TOVS or CONV
+
       if ( obsLon < 0. ) obsLon = obsLon + 360.
       xlat = obsLat * MPC_RADIANS_PER_DEGREE_R8
       xlon = obsLon * MPC_RADIANS_PER_DEGREE_R8
       headerIndex = headerIndex + 1 
+      
       obsNlv = 0
       DATA: do rowIndex = lastId,numberRows
         ! ---------------------------------------------------
@@ -444,21 +446,21 @@ contains
             call sqlr_initData(obsdat, vertCoord, obsValue, obsVarno, obsFlag, vertCoordType, bodyIndex)
           else ! CONV
             call sqlr_initData(obsdat, vertCoord * vertCoordFact + elevReal * elevFact, obsValue, obsVarno, obsFlag,vertCoordType, bodyIndex)
-            if ( obsVarno == 11001 .or. obsVarno == 11011) then ! ALLOW EXTRA SPACE FOR U V COMPONENTS
-              if ( obsVarno == 11001 ) then
+            if ( obsVarno == bufr_nedd .or. obsVarno == bufr_neds ) then ! ALLOW EXTRA SPACE FOR U V COMPONENTS
+              if ( obsVarno == bufr_nedd ) then
                 ! U COMPONENT
                 call obs_bodySet_i(obsdat, OBS_IDD, bodyIndex + 1, -1)
-                call sqlr_initData(obsdat, vertCoord * vertCoordFact + elevReal * elevFact, MPC_missingValue_R8, 11003, 0, vertCoordType, bodyIndex+1)
+                call sqlr_initData(obsdat, vertCoord * vertCoordFact + elevReal * elevFact, MPC_missingValue_R8, bufr_neuu, 0, vertCoordType, bodyIndex+1)
                 ! V COMPONENT
                 call obs_bodySet_i(obsdat, OBS_IDD, bodyIndex + 2, -1)
-                call sqlr_initData(obsdat, vertCoord * vertCoordFact + elevReal * elevFact, MPC_missingValue_R8, 11004, 0, vertCoordType, bodyIndex+2)
-              else if ( obsVarno == 11011) then
+                call sqlr_initData(obsdat, vertCoord * vertCoordFact + elevReal * elevFact, MPC_missingValue_R8, bufr_nevv, 0, vertCoordType, bodyIndex+2)
+              else if ( obsVarno == bufr_neds) then
                 ! Us COMPONENT
                 call obs_bodySet_i(obsdat, OBS_IDD, bodyIndex + 1, -1)
-                call sqlr_initData(obsdat, vertCoord * vertCoordFact + elevReal * elevFact, MPC_missingValue_R8, 11215, 0, vertCoordType, bodyIndex+1)
+                call sqlr_initData(obsdat, vertCoord * vertCoordFact + elevReal * elevFact, MPC_missingValue_R8, bufr_neus, 0, vertCoordType, bodyIndex+1)
                 ! Vs COMPONENT
                 call obs_bodySet_i(obsdat, OBS_IDD, bodyIndex + 2, -1)
-                call sqlr_initData(obsdat, vertCoord * vertCoordFact + elevReal * elevFact, MPC_missingValue_R8, 11216, 0, vertCoordType, bodyIndex+2)
+                call sqlr_initData(obsdat, vertCoord * vertCoordFact + elevReal * elevFact, MPC_missingValue_R8, bufr_nevs, 0, vertCoordType, bodyIndex+2)
               end if
               bodyIndex = bodyIndex + 2
               obsNlv = obsNlv + 2
@@ -481,7 +483,9 @@ contains
       else
         headerIndex = headerIndex - 1
       end if
+
     end do HEADER ! HEADER
+
     deallocate(matdata)
     write(*,*)  myName//' FIN numheader  =', obs_numHeader(obsdat)                    
     write(*,*)  myName//' FIN numbody    =', obs_numBody(obsdat)
@@ -491,6 +495,7 @@ contains
     call fSQL_finalize( stmt )
     call fSQL_close( db, stat ) 
     write(*,*) myName//' end subroutine: ', rdbSchema
+
   end subroutine sqlr_readSqlite
 
 
@@ -504,17 +509,20 @@ contains
     logical finished
     type(fSQL_STATEMENT) :: stmt !  prepared statement for  SQLite
     type(fSQL_STATUS)    :: stat !type error status
+
     result=''
     call fSQL_prepare( db, trim(query), stmt, stat)
     if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError(stat,'fSQL_prepare: ')
     finished=.false.
     call fSQL_get_row( stmt, finished )
+
     ! Put result of query into variable
     call fSQL_get_column( stmt, COL_INDEX = 1, CHAR_VAR = result )
     call fSQL_get_row( stmt, finished )
     if ( .not. finished ) write(*,*)' SQL QUERY ---> QUERY RETURNS MORE THAN ONE ROW...  '
     call fSQL_finalize( stmt )
     sqlr_query = trim(result)
+
   end function sqlr_query
 
 
@@ -542,25 +550,41 @@ contains
     integer                          :: ibegin, ilast, ibeginob, ilastob, headerIndex, bodyIndex
     character*10                     :: timeCharacter
     character(len  =   3)            :: item
-    integer                          :: itemId, updateList(20)
+    integer                          :: itemId, updateList(20), fnom, fclos, nulnam, ierr
     character(len  =   9)            :: item2
     character(len  = 128)            :: query
     character(len  = 356)            :: itemChar,item2Char
     logical                          :: back
     real                             :: romp, obsValue
-    write(*,*) '  ======================================================================= '
-    write(*,*) '  ==============BEGIN UPDATE============================================== '
-    write(*,*) '  ======================================================================= '
-    write(*,*) '  ------- sqlr_updateSQL ------ '
-    write(*,*) '  Family Type   = ', trim(familyType), ' number of items to update: ', numberUpdateItems
-    write(*,*) '  File Name     = ', trim(fileName)
-    write(*,*) '  Missing Value = ', MPC_missingValue_R8
-    !    CREATE QUERY  
+    character(len=*), parameter      :: myName = 'sqlr_updateSqlite'
+    character(len=*), parameter      :: myWarning = '****** '// myName //' WARNING: '
+    character(len=*), parameter      :: myError   = '******** '// myName //' ERROR: '
+    namelist/namSQLUpdate/ numberUpdateItems, itemUpdateList
+
+    write(*,*) myName//' Starting ===================  '
+
+    ! set default values of namelist variables
+    itemUpdateList(:) = ''
+    numberUpdateItems = 0
+
+    nulnam = 0
+    ierr   = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0 )
+    read(nulnam,nml = namSQLUpdate, iostat = ierr )
+    if ( ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
+    if ( mpi_myid == 0 ) write(*, nml = namSQLUpdate )
+    ierr = fclos( nulnam )
+
+    write(*,'(3a,i8)') myName//': Family Type   = ', trim(familyType), ' number of items to update: ', numberUpdateItems
+    write(*,*)         myName//': File Name     = ', trim(fileName)
+    write(*,*)         myName//': Missing Value = ', MPC_missingValue_R8    
+
+    ! CREATE QUERY  
     itemChar='  '
     if ( numberUpdateItems == 0) then
       write(*,*) ' NO UPDATES TO DO : ---- RETURN'
       return
     end if
+
     do itemId = 1, numberUpdateItems
       item = itemUpdateList(itemId)
       write(*,*)'Updating ', itemId, item
@@ -588,7 +612,6 @@ contains
           return
       end select
       itemChar = trim(itemChar)//trim(item2)//trim(' = ? ,')
-      write(*, "(A9)") trim(item2)
     end do
     back=.true.
     last_comma  = scan(itemChar, ',', back); item2Char   = itemChar(1:last_comma-1); itemChar    = item2Char
@@ -622,11 +645,13 @@ contains
         end if
       end do
     end do
+    
     call fSQL_finalize( stmt )
     ! UPDATES FOR THE STATUS FLAGS IN THE HEADER TABBLE
     query = ' update header set status  = ? where id_obs = ? '
     call fSQL_prepare( db, query , stmt, stat)
     if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError(stat,'fSQL_prepare : ')
+    
     do headerIndex = 1,obs_numHeader(obsdat)
       obsIdf = obs_headElem_i(obsdat, OBS_IDF, headerIndex )
       if ( obsIdf /= fileNumber ) cycle
@@ -636,9 +661,11 @@ contains
       call fSQL_bind_param( stmt, PARAM_INDEX = 2, INT_VAR  = obsIdo )
       call fSQL_exec_stmt ( stmt)
     end do
+    
     call fSQL_finalize( stmt )
     call fSQL_commit(db)
-    write(*,*) '  ===============END UPDATE============================================== '
+    write(*,*) myName//' End ===================  ', trim(familyType)
+
   end subroutine sqlr_updateSqlite
 
 
@@ -653,14 +680,31 @@ contains
     ! locals
     type(fSQL_STATEMENT)   :: stmt ! type for precompiled SQLite statements
     type(fSQL_STATUS)      :: stat !type for error status
-    integer                :: obsVarno, obsFlag, vertCoordType 
+    integer                :: obsVarno, obsFlag, vertCoordType, fnom, fclos, nulnam, ierr 
     real                   :: obsValue, OMA, OMP, OER, FGE, PPP
-    integer                :: numberInsert, idata, headerIndex, bodyIndex, ierr, obsNlv, obsRln, obsIdd, obsIdo, ilast, obsIdf, insertItem
+    integer                :: numberInsert, idata, headerIndex, bodyIndex, obsNlv, obsRln, obsIdd, obsIdo, ilast, obsIdf, insertItem
     character(len  = 256)  :: query
-    logical                :: llok
-    write(*,*)  ' ---sqlr_insertSQL ---   '
+    logical                :: llok    
+    character(len=*), parameter :: myName = 'sqlr_insertSqlite'
+    character(len=*), parameter :: myWarning = '****** '// myName //' WARNING: '
+    character(len=*), parameter :: myError   = '******** '// myName //' ERROR: '
+    namelist/namSQLInsert/ numberInsertItems, itemInsertList
+
+    write(*,*)  myName//' --- Starting ---   '
     write(*,*)' FAMILY ---> ', trim(familyType), '  headerIndex  ----> ', obs_numHeader(obsdat)
-    write(*,*)' fileName -> ', trim(fileName)
+    write(*,*)' fileName -> ', trim(fileName)   
+   
+    ! set default values of namelist variables
+    numberInsertItems = 0
+    itemInsertList(:) = ''
+
+    nulnam = 0
+    ierr=fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0 )
+    read(nulnam, nml = namSQLInsert, iostat = ierr )
+    if (ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
+    if (mpi_myid == 0) write(*, nml = namSQLInsert )
+    ierr=fclos( nulnam )
+
     write(*,*)' INSERT INTO SQLITE FILE ELEMENTS :--> ',( itemInsertList(insertItem), insertItem = 1, numberInsertItems )
     select case(trim(familyType))
       case('SF','SC','GP')
@@ -671,16 +715,20 @@ contains
     query=trim(query)
     write(*,*) ' Insert query = ', trim(query)
     write(*,*) ' FAMILLE  = ',trim(familyType)
+
     call fSQL_begin(db)
     call fSQL_prepare( db, query , stmt, stat)
     if ( fSQL_error(stat) /= FSQL_OK ) call sqlr_handleError(stat, 'fSQL_prepare : ')
+
     numberInsert=0
     do headerIndex = 1, obs_numHeader(obsdat)
+
       obsIdf = obs_headElem_i(obsdat, OBS_IDF, headerIndex )
       if ( obsIdf /= fileNumber ) cycle
       obsIdo = obs_headElem_i(obsdat, OBS_IDO, headerIndex )
       obsRln = obs_headElem_i(obsdat, OBS_RLN, headerIndex )
       obsNlv = obs_headElem_i(obsdat, OBS_NLV, headerIndex )
+
       do bodyIndex = obsRln, obsNlv + obsRln -1
         obsIdd        = obs_bodyElem_i(obsdat, OBS_IDD, bodyIndex )
         obsVarno      = obs_bodyElem_i(obsdat, OBS_VNM, bodyIndex )
@@ -693,9 +741,11 @@ contains
         FGE           = obs_bodyElem_r(obsdat, OBS_HPHT, bodyIndex )
         PPP           = obs_bodyElem_r(obsdat, OBS_PPP, bodyIndex )
         llok = .false.
+
         do insertItem = 1, numberInsertItems
           if ( obsVarno == itemInsertList(insertItem) ) llok=.true.
         end do
+
         if ( obsIdd == -1 ) then
           if ( llok ) then
             select case(trim(familyType))
@@ -728,8 +778,11 @@ contains
         end if
       end do
     end do
+
     call fSQL_finalize( stmt )
     call fSQL_commit(db)
-    write(*,*)' FAMILY ---> ' ,trim(familyType), '  NUMBER OF INSERTIONS ----> ', numberInsert
+    write(*,'(3a,i8)') myName//' FAMILY ---> ' ,trim(familyType), '  NUMBER OF INSERTIONS ----> ', numberInsert
+
   end subroutine sqlr_insertSqlite
+
 end module sqliteRead_mod

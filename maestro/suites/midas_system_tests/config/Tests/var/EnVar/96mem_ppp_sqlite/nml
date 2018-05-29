@@ -417,6 +417,9 @@
  &NAMSQLairs
 /
  &NAMSQLai
+  numberElem=4
+  listElem="12001,11001,11002,12192"
+  sqlNull=" and obsvalue is not null and vcoord is not null "
 /
  &NAMSQLcris
 /
@@ -425,12 +428,35 @@
  &NAMSQLiasi
 /
  &NAMSQLro
+  numberElem=2
+  listElem="15036,15037"
+  sqlNull=" and obsvalue is not null and vcoord is not null "
 /
  &NAMSQLsc
+   numberElem=2
+   listElem="11011,11012"
+   sqlExtraDat=" order by id_obs, varno "
+   sqlNull = " and obsvalue is not null "
 /
  &NAMSQLsfc
+   numberElem=11
+   listElem="11011,11012,12004,12203,10051,10004,15031,15032,15035,22192,7025"
+   sqlExtraDat=" order by id_obs "
+   sqlNull=" and obsvalue is not null "  
 /
  &NAMSQLsw
+  numberElem=2
+  listElem="11001,11002"
+  sqlNull=" and obsvalue is not null and vcoord is not null "
 /
  &NAMSQLua
+  numberElem=11   
+  listElem="12004,12203,10051,10004,11011,11012,12001,11001,11002,12192,10194"
+  sqlNull=" and obsvalue is not null "
 /
+ &NAMSQLpr
+  numberElem=2
+  listElem="11001,11002"
+  sqlNull=" and obsvalue is not null and vcoord is not null "
+/
+

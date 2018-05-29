@@ -55,11 +55,13 @@ module sqliteFiles_mod
     integer        :: inrecs, mrfopc
     real(obs_real) :: delhh
     integer        :: nbrpdate, nbrphh, istampobs, inewhh, newdate
+
     ier = mrfopc('MSGLVL','FATAL')
     ivals = 8
     kdate = MPC_missingValue_INT 
     ktime = MPC_missingValue_INT 
     inquire(file = trim(sqliteFileName), exist = isExistLogical )
+
     if ( isExistLogical ) then
       write(*,*)' Open File : ', trim(sqliteFileName)
       call fSQL_open( db, trim(sqliteFileName), statusSqlite )
@@ -74,15 +76,17 @@ module sqliteFiles_mod
       write(*,*) ' DATE and TIME in Sqlite file = ', dateSqlite, timeSqlite
       call fSQL_close( db, statusSqlite )
     end if
+
     ! Make sure all mpi tasks have a valid date (important for split sqlite files)
     call rpn_comm_allreduce(kdate, kdate_recv, 1, "MPI_INTEGER", "MPI_MAX", "GRID", ier)
     call rpn_comm_allreduce(ktime, ktime_recv, 1, "MPI_INTEGER", "MPI_MAX", "GRID", ier)
+
     kdate = kdate_recv
     ktime = ktime_recv
-    ier = newdate(istampobs,kdate,ktime,3)
+    ier = newdate(istampobs, kdate, ktime, 3)
     delhh = 3.0d0
     call INCDATR (datestamp, istampobs, delhh)
-    ier = newdate(datestamp,nbrpdate,inewhh,-3)
+    ier = newdate(datestamp, nbrpdate, inewhh, -3)
     nbrphh = ktime / 100
     if (nbrphh >= 21 .or. nbrphh < 3 ) then
       nbrphh = 0
@@ -97,6 +101,7 @@ module sqliteFiles_mod
     write(*,*)' SQLITE FILES VALID DATE (YYYYMMDD) : ', nbrpdate
     write(*,*)' SQLITE FILES VALID TIME       (HH) : ', nbrphh
     write(*,*)' SQLITE FILES DATESTAMP             : ', datestamp
+
   end subroutine sqlf_getDateStamp
 
 
@@ -114,27 +119,32 @@ module sqliteFiles_mod
     character(len=*), parameter :: my_warning = '****** '// my_name //' WARNING: '
     character(len=*), parameter :: my_error   = '******** '// my_name //' ERROR: '
     real(obs_real)  :: missingValue
+
     write(*,*)' '
     write(*,*)'                '//trim(my_name)//': Starting          '
     write(*,*)' '
     missingValue = real(MPC_missingValue_R8,OBS_REAL)
-    write(*,*) my_name//': FileName   : ', trim(FileName), mpi_myid
-    write(*,*) my_name//': FamilyType : ', FamilyType, mpi_myid
+    write(*,*) my_name//': FileName   : ', trim(FileName)
+    write(*,*) my_name//': FamilyType : ', FamilyType
+
     bodyIndexBegin   = obs_numbody(obsdat) + 1
     headerIndexBegin = obs_numheader(obsdat) + 1
     call sqlr_readSqlite(obsdat, trim(familyType), trim(fileName), fileIndex )
     bodyIndexEnd   = obs_numbody(obsdat)
     headerIndexEnd = obs_numheader(obsdat)
+
     if ( trim(familyType) /= 'TO' ) then
       call obsu_windDirectionToUV     (obsdat, headerIndexBegin, headerIndexEnd, MPC_missingValue_R4 )
       call obsu_adjustHumGZ             (obsdat, headerIndexBegin, headerIndexEnd )
       call obsu_computeVertCoordSurfObs (obsdat, headerIndexBegin, headerIndexEnd )
     end if             
+
     do headerIndex = headerIndexBegin, headerIndexEnd
       call obs_headSet_i(obsdat, OBS_OTP, headerIndex, fileIndex)
       call obs_headSet_i(obsdat, OBS_IDF, headerIndex, fileIndex)
       call obs_setFamily(obsdat, trim(familyType), headerIndex)
     end do
+
     do bodyIndex = bodyIndexBegin, bodyIndexEnd
       if ( obs_columnActive_RB(obsdat, OBS_OMA) )  call obs_bodySet_r(obsdat, OBS_OMA , bodyIndex, missingValue )
       if ( obs_columnActive_RB(obsdat, OBS_OMP) )  call obs_bodySet_r(obsdat, OBS_OMP , bodyIndex, missingValue )
@@ -142,17 +152,20 @@ module sqliteFiles_mod
       if ( obs_columnActive_RB(obsdat, OBS_HPHT) ) call obs_bodySet_r(obsdat, OBS_HPHT, bodyIndex, missingValue )
       if ( obs_columnActive_RB(obsdat, OBS_WORK) ) call obs_bodySet_r(obsdat, OBS_WORK, bodyIndex, missingValue )
     end do
+
     ! For GP family, initialize OBS_OER to element 15032 (ZTD formal error) 
     ! for all ZTD data (element 15031)
     if ( trim(familyType) == 'GP') then
       write(*,*)' Initializing OBS_OER for GB-GPS ZTD to formal error (ele 15032)'
       call obsu_setGbgpsError(obsdat, headerIndexBegin, headerIndexEnd )
     end if
+
     write(*,*) my_name//': obs_numheader(obsdat)', trim(familyType), obs_numheader(obsdat)
     write(*,*) my_name//': obs_numbody(obsdat)  ', trim(familyType), obs_numbody  (obsdat)
     write(*,*)' '
     write(*,*)'      '//trim(my_name)//'     END                   '
     write(*,*)' '
+
   end subroutine  sqlf_readFile
 
   
@@ -167,33 +180,33 @@ module sqliteFiles_mod
     integer             :: headerIndex
     type(fSQL_DATABASE) :: db
     type(FSQL_STATUS)   :: statusSqlite
-    character(len=*), parameter :: my_name = 'sqlf_updateFile'
-    character(len=*), parameter :: my_warning = '****** '// my_name //' WARNING: '
-    character(len=*), parameter :: my_error   = '******** '// my_name //' ERROR: '
-    call tmg_start(97,'POST_UPDATESQL')
-    write(*,*) my_name//' Starting'
-    write(*,*) my_name//': FileName   : ',trim(fileName)
-    write(*,*) my_name//': FamilyType : ',FamilyType
-    call sqlr_readNamelistSqlite('namSQLUpdate')
-    call sqlr_readNamelistSqlite('namSQLInsert')
+    character(len=*), parameter :: myName = 'sqlf_updateFile'
+    character(len=*), parameter :: myWarning = '****** '// myName //' WARNING: '
+    character(len=*), parameter :: myError   = '******** '// myName //' ERROR: '
 
-    call fSQL_open( db, fileName,statusSqlite )
+    call tmg_start(97,'POST_UPDATESQL')
+    write(*,*) myName//' Starting'
+    write(*,*) myName//': FileName   : ',trim(fileName)
+    write(*,*) myName//': FamilyType : ',FamilyType
+    
+    call fSQL_open( db, fileName, statusSqlite )
     if ( fSQL_error(statusSqlite) /= FSQL_OK ) then
       write(*,*) 'fSQL_open: ', fSQL_errmsg(statusSqlite )
-      write(*,*) my_error, fSQL_errmsg(statusSqlite )
+      write(*,*) myError, fSQL_errmsg(statusSqlite )
     end if
   
-    if (trim(familyType) /='TO' ) then
-      call sqlr_updateSqlite(db,obsSpaceData,familyType,fileName,fileIndex)
-      call sqlr_insertSqlite(db,obsSpaceData,familyType,fileName,fileIndex)
-    end if    
+    call sqlr_updateSqlite(db,obsSpaceData,familyType,fileName,fileIndex)
+    call sqlr_insertSqlite(db,obsSpaceData,familyType,fileName,fileIndex)
+
     write(*,*)'  closed database -->', trim(FileName)
     call fSQL_close( db, statusSqlite )
     write(*,*)' '
     write(*,*)'================================================='
-    write(*,*)'                '//trim(my_name)//'    END               '
+    write(*,*)'                '//trim(myName)//'    END               '
     write(*,*)'================================================='
     write(*,*)' '
     call tmg_stop(97)
+
   end subroutine sqlf_updateFile
+
 end module sqliteFiles_mod
