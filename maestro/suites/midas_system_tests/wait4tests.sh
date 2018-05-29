@@ -41,6 +41,8 @@ findTestsWhoAborted () {
 
     local __findTestsWhoAborted_abort__=0
 
+    __findTestsWhoAborted_known_aborts__=${__findTestsWhoAborted_known_aborts__}
+
     findTestsWhoAborted_node=$1
     findTestsWhoAborted_nodes="$(nodeinfo -n ${findTestsWhoAborted_node} | grep '^node\.submit=' | cut -d= -f2)"
     if [[ "${findTestsWhoAborted_nodes}" = /*/UnitTest ]]; then
@@ -52,9 +54,25 @@ findTestsWhoAborted () {
                 __abortn__=1
                 nodehistory -n ${findTestsWhoAborted_nodes}/${__node__} -history 0 -edate ${logdate} | grep -v '^[[:space:]]*$' | tail -1 | grep -E '^TIMESTAMP=.* MESSAGE=abortx?' 1>/dev/null || __abortn__=0
                 if [ "${__abortn__}" -ne 0 ]; then
-                    echo "The test '${findTestsWhoAborted_node}' aborted"
-                    printf "\tSEQ_EXP_HOME=${suite} nodelister -n ${findTestsWhoAborted_nodes}/${__node__} -type abort\n"
-                    __findTestsWhoAborted_abort__=1
+                    __known_aborted_node_found__=no
+                    for __known_aborted_node__ in ${__findTestsWhoAborted_known_aborts__}; do
+                        if [ "${findTestsWhoAborted_nodes}/${__node__}" = "${__known_aborted_node__}" ]; then
+                            __known_aborted_node_found__=yes
+                            break
+                        fi
+                    done
+                    unset __known_aborted_node__
+                    if [ "${__known_aborted_node_found__}" != yes ]; then
+                        echo "The test '${findTestsWhoAborted_node}' aborted"
+                        printf "\tSEQ_EXP_HOME=${suite} nodelister -n ${findTestsWhoAborted_nodes}/${__node__} -type abort\n"
+                        if [ -n "${__findTestsWhoAborted_known_aborts__}" ]; then
+                            __findTestsWhoAborted_known_aborts__="${__findTestsWhoAborted_known_aborts__} ${findTestsWhoAborted_nodes}/${__node__}"
+                        else
+                            __findTestsWhoAborted_known_aborts__=${findTestsWhoAborted_nodes}/${__node__}
+                        fi
+                        __findTestsWhoAborted_abort__=1
+                    fi
+                    unset __known_aborted_node_found__
                 fi
                 unset __abortn__
             done
