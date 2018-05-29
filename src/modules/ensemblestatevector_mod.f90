@@ -856,8 +856,8 @@ CONTAINS
       call gsv_allocate(statevector_member_r4, 1, hco_ens, vco_ens,  &
                         datestamp_opt = dateStampList(stepIndex), mpi_local_opt = .false., &
                           varNames_opt = varNames_opt, dataKind_opt = 4)
-        if (horizontalInterpNeeded .or. verticalInterpNeeded .or. horizontalPaddingNeeded) then
-          call gsv_allocate(statevector_file_r4, 1, hco_file, vco_file,  &
+      if (horizontalInterpNeeded .or. verticalInterpNeeded .or. horizontalPaddingNeeded) then
+        call gsv_allocate(statevector_file_r4, 1, hco_file, vco_file,  &
                             datestamp_opt = dateStampList(stepIndex), mpi_local_opt = .false., &
                             varNames_opt = varNames_opt, dataKind_opt = 4)
       end if
