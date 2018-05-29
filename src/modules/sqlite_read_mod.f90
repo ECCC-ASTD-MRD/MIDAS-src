@@ -317,7 +317,7 @@ contains
     write(*,'(4a)') myName//': ',trim(rdbSchema),' queryData    --> ', trim(queryData)
     write(*,'(4a)') myName//': ',trim(rdbSchema),' queryHeader --> ', trim(queryHeader)
     write(*,*)' ========================================== '
-    if (  trim(rdbSchema)=='pr' .or. trim(rdbSchema)=='sf' ) then
+    if ( trim(rdbSchema)=='pr' .or. trim(rdbSchema)=='sf' ) then
       elevFact=1.
     else
       elevFact=0.
@@ -433,8 +433,12 @@ contains
                               , earthLocRadCurv, roQcFlag, instrument, zenith, cloudCover, solarZenith &
                               , solarAzimuth, landSea, obsIdo, xlat, xlon, codeType, obsDate, obsTime/100, obsStatus, idStation )
           lastId = rowIndex + 1
-          obsIdd = int(matdata(rowIndex,1)); obsFlag = int(matdata(rowIndex,6));  obsVarno = int(matdata(rowIndex,4))
-          vertCoord = matdata(rowIndex,3); obsValue = matdata(rowIndex,5)
+          obsIdd = int(matdata(rowIndex,1))
+          vertCoord = matdata(rowIndex,3)
+          obsVarno = int(matdata(rowIndex,4))
+          obsValue = matdata(rowIndex,5)
+          obsFlag = int(matdata(rowIndex,6))
+
           bodyIndex = bodyIndex + 1
           obsNlv   = obsNlv + 1
           call obs_bodySet_i(obsdat, OBS_IDD, bodyIndex, obsIdd)
@@ -614,7 +618,9 @@ contains
       itemChar = trim(itemChar)//trim(item2)//trim(' = ? ,')
     end do
     back=.true.
-    last_comma  = scan(itemChar, ',', back); item2Char   = itemChar(1:last_comma-1); itemChar    = item2Char
+    last_comma  = scan(itemChar, ',', back)
+    item2Char   = itemChar(1:last_comma-1)
+    itemChar    = item2Char
     query = ' update data set flag = ? , '//trim(itemChar); query=trim(query)//' where id_data = ?  ;'
     write(*,*) ' Update query --->  ', query
     call fSQL_prepare( db, query , stmt, stat )
