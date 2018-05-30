@@ -71,12 +71,12 @@ program midas_ensManip
   character(len=14)  :: ensembleEtiketOutput
   character(len=2)   :: ctrlVarHumidity
   character(len=256) :: ensPathName, ensembleCenter
-  logical  :: output_ensemble_mean, output_ensemble_stddev, output_ensemble_perturbations, recenter
+  logical  :: output_ensemble_mean, output_ensemble_stddev, output_ensemble_perturbations, recenter, ensembleEtiketOutputAppendMemberNumber
   real(8)  :: recentering_coeff
   integer  :: nEns, numBits
   NAMELIST /NAMENSMANIP/nEns, ensPathName, ctrlVarHumidity, ensembleCenter, ensembleEtiketOutput, ensembleTypVarOutput, &
                         output_ensemble_mean, output_ensemble_stddev, output_ensemble_perturbations, &
-                        recenter, recentering_coeff, numBits
+                        recenter, recentering_coeff, numBits, ensembleEtiketOutputAppendMemberNumber
 
   write(*,'(/,' //  &
         '3(" *****************"),/,' //                   &
@@ -110,6 +110,7 @@ program midas_ensManip
   ensembleCenter                = ''
   ensembleTypVarOutput          = 'P'
   ensembleEtiketOutput          = 'ENSRECENTER'
+  ensembleEtiketOutputAppendMemberNumber = .false.
   ctrlVarHumidity               = 'HU'
   output_ensemble_mean          = .false.
   output_ensemble_stddev        = .false.
@@ -122,8 +123,8 @@ program midas_ensManip
   nulnam = 0
   ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
   read(nulnam, nml=namensmanip, iostat=ierr)
-  if ( ierr /= 0) call utl_abort('midas-ensManip: Error reading namelist')
   if ( mpi_myid == 0 ) write(*,nml=namensmanip)
+  if ( ierr /= 0) call utl_abort('midas-ensManip: Error reading namelist')
   ierr = fclos(nulnam)
 
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
@@ -281,7 +282,7 @@ program midas_ensManip
     end if
 
     call tmg_start(130,'OUTPUT_RECENTER_MEMBERS')
-    call ens_writeEnsemble( ensemble, '.', 'recentered_', ctrlVarHumidity, ensembleEtiketOutput, ensembleTypVarOutput, numBits_opt = numBits)
+    call ens_writeEnsemble( ensemble, '.', 'recentered_', ctrlVarHumidity, ensembleEtiketOutput, ensembleTypVarOutput, numBits_opt = numBits, etiketAppendMemberNumber_opt = ensembleEtiketOutputAppendMemberNumber)
     call tmg_stop(130)
   end if
 

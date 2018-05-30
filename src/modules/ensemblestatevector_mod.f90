@@ -1024,7 +1024,7 @@ CONTAINS
 
 
   subroutine ens_writeEnsemble(ens, ensPathName, ensFileNamePrefix, ctrlVarHumidity, etiket, &
-                               typvar, varNames_opt, ip3_opt, numBits_opt)
+                               typvar, etiketAppendMemberNumber_opt, varNames_opt, ip3_opt, numBits_opt)
     implicit none
 
     ! arguments
@@ -1036,6 +1036,7 @@ CONTAINS
     character(len=*)  :: typvar
     character(len=*), optional :: varNames_opt(:)  ! allow specification of variables
     integer, optional :: ip3_opt, numBits_opt
+    logical, optional :: etiketAppendMemberNumber_opt
 
     ! locals
     type(struct_gsv) :: statevector_member_r4
@@ -1052,6 +1053,8 @@ CONTAINS
     integer :: lonPerPE, lonPerPEmax, latPerPE, latPerPEmax, ni, nj, nk, numStep, numlevelstosend, numlevelstosend2
     integer :: memberIndex, memberIndex2, stepIndex, jvar, jk, jk2, jk3, ip3
     character(len=256) :: ensFileName
+    character(len=12) :: etiketStr
+    character(len=4) :: memberIndexStr
 
     write(*,*) 'ens_writeEnsemble: starting'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -1170,9 +1173,23 @@ CONTAINS
 
           write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
+          write(*,*) 'Writing member ', memberIndex, ' with base etiket ', etiket
+
+          etiketStr = etiket
           !  Write the file
+          if (present(etiketAppendMemberNumber_opt)) then
+            if (etiketAppendMemberNumber_opt) then
+              write(memberIndexStr,"(I0.4)") memberIndex
+              if ( len(trim(etiket)) >= 8 ) then
+                etiketStr = etiket(1:8) // trim(memberIndexStr)
+              else
+                etiketStr = trim(etiket) // trim(memberIndexStr)
+              end if
+            end if
+          end if
+          write(*,*) 'The etiket to file for member ', memberIndex, ' is ', etiketStr
           call fln_ensFileName( ensFileName, ensPathName, memberIndex, ensFileNamePrefix_opt = ensFileNamePrefix, shouldExist_opt = .false. )
-          call gsv_writeToFile( statevector_member_r4, ensFileName, etiket, ip3_opt = ip3, typvar_opt = typvar , numBits_opt = numBits_opt)
+          call gsv_writeToFile( statevector_member_r4, ensFileName, etiketStr, ip3_opt = ip3, typvar_opt = typvar , numBits_opt = numBits_opt)
         end if ! locally written one member
 
 
