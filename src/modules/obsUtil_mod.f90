@@ -221,7 +221,7 @@ module obsUtil_mod
     logical        :: lluv_present, llu_present, llv_present
     real(obs_real) :: uu, vv, dd, ff
     real(obs_real) :: level_dd, level4, level, level_uu
-    character(len=*), parameter :: my_name = 'fdtouv_obsdat'
+    character(len=*), parameter :: my_name = 'obsu_windDirectionToUV'
     character(len=*), parameter :: my_warning = '****** '// my_name //' WARNING: '
     character(len=*), parameter :: my_error   = '******** '// my_name //' ERROR: '
 

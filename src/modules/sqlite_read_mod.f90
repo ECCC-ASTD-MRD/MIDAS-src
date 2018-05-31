@@ -204,7 +204,6 @@ contains
       case ( 'ua' )
         vertCoordFact = 1
         vertCoordType = 2
-        columnsData = trim(columnsData)//", hlat, hlon, strftime('%Y%m%d', tsonde), strftime('%H%M', tsonde)"
         read(nulnam, nml = NAMSQLua, iostat = ierr )
         if (ierr /= 0 ) call utl_abort( myName//': Error reading namelist' )
         if (mpi_myid == 0) write(*, nml = NAMSQLua )
