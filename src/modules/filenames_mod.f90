@@ -35,7 +35,7 @@ contains
  !--------------------------------------------------------------------------
  ! fln_ensFileName
  !--------------------------------------------------------------------------
-  subroutine fln_ensFileName(ensFileName, ensPathName, memberIndex, ensFileNamePrefix_opt, ensFileBaseName_opt, shouldExist_opt)
+  subroutine fln_ensFileName(ensFileName, ensPathName, memberIndex, ensFileNamePrefix_opt, ensFileBaseName_opt, shouldExist_opt, ensembleFileExtLength_opt)
     implicit none
 
     ! arguments
@@ -44,6 +44,7 @@ contains
     integer           :: memberIndex
     character(len=*),optional  :: ensFileBaseName_opt, ensFileNamePrefix_opt
     logical, optional :: shouldExist_opt
+    integer, optional :: ensembleFileExtLength_opt
 
     ! locals
     integer          :: numFiles, returnCode, totalLength, ensembleBaseFileNameLength
@@ -136,6 +137,7 @@ contains
     if ( shouldExist ) ensFileName = ram_fullWorkingPath(ensFileName)
 
     if (present(ensFileBaseName_opt)) ensFileBaseName_opt = trim(ensFileBaseName)
+    if (present(ensembleFileExtLength_opt)) ensembleFileExtLength_opt = ensembleFileExtLength
 
   end subroutine fln_ensFileName
 
