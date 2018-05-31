@@ -394,11 +394,13 @@ contains
                 ptrVV4d_r4 => gsv_getField_r4(stateVector, 'VV')
                 ierr = utl_ezuvint( cols_hint_r4(1:yourNumHeader,stepIndex,procIndex),  &
                                     cols_hint_VV_r4(1:yourNumHeader,stepIndex,procIndex),  &
-                                    ptrUU4d_r4(:,:,levIndex,stepIndex), ptrVV4d_r4(:,:,levIndex,stepIndex) )
+                                    ptrUU4d_r4(:,:,levIndex,stepIndex), ptrVV4d_r4(:,:,levIndex,stepIndex),  &
+                                    interpDegree='LINEAR' )
               else
                 ptr4d_r4 => gsv_getField_r4(stateVector, varName)
                 ierr = utl_ezsint( cols_hint_r4(1:yourNumHeader,stepIndex,procIndex),  &
-                                   ptr4d_r4(:,:,levIndex,stepIndex) )
+                                   ptr4d_r4(:,:,levIndex,stepIndex), &
+                                   interpDegree='LINEAR' )
               end if
             end if
           end do PROC_LOOP
@@ -499,7 +501,7 @@ contains
           ptr2d_r8 => gsv_getGZsfc(stateVector)
           gzSfc_r4(:,:) = real(ptr2d_r8(:,:),4)
           ierr = utl_ezsint( cols_hint_r4(1:yourNumHeader,stepIndex,procIndex),  &
-                             gzSfc_r4(:,:) )
+                             gzSfc_r4(:,:), interpDegree='LINEAR' )
         end if
       end do PROC_LOOP_GZ
 

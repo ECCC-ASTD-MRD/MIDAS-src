@@ -1109,10 +1109,10 @@ contains
 
                      ierr = utl_ezuvint(varInterp_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile),  &
                                         varInterp_VV_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile),  &
-                                        varTrial_r4,varTrial_zero_r4)
+                                        varTrial_r4,varTrial_zero_r4, interpDegree='LINEAR')
                      ierr = utl_ezuvint(varInterp2_r4(1:nobs_mpiglobal(jstep,jlatlontile)),  &
                                         varInterp2_VV_r4(1:nobs_mpiglobal(jstep,jlatlontile)),  &
-                                        varTrial_zero_r4,varTrial_VV_r4)
+                                        varTrial_zero_r4,varTrial_VV_r4, interpDegree='LINEAR')
 
                      varInterp_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile) =  &
                           real(varInterp_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile),8) +  &
@@ -1128,7 +1128,7 @@ contains
                      !                    nobs_mpiglobal(jstep,jlatlontile),ni*nj)
                   else
                      ierr = utl_ezsint(varInterp_r4(1:nobs_mpiglobal(jstep,jlatlontile),jstep,jlatlontile),  &
-                                       varTrial_r4)
+                                       varTrial_r4, interpDegree='LINEAR')
                   endif
                endif
             enddo

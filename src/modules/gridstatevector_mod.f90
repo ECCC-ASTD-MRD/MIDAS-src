@@ -98,7 +98,7 @@ module gridStateVector_mod
     character(len=8)    :: mpi_distribution='None'  ! or "Tiles" or "VarsLevs"
     integer             :: horizSubSample
     logical             :: varExistList(vnl_numVarMax)
-    character(len=12)   :: hInterpolateDegree='Empty' ! or "CUBIC" or "NEAREST"
+    character(len=12)   :: hInterpolateDegree='UNSPECIFIED' ! or "LINEAR" or "CUBIC" or "NEAREST"
   end type struct_gsv  
 
   logical :: varExistList(vnl_numVarMax)
@@ -381,11 +381,8 @@ module gridStateVector_mod
     end if
 
     if ( present(hInterpolateDegree_opt) ) then
-      ! set the horizontal interpolation degree
+      ! set the horizontal interpolation degree (intentionally no default value)
       statevector%hInterpolateDegree = trim(hInterpolateDegree_opt)
-    else
-      ! default is linear horizontal interpolation
-      statevector%hInterpolateDegree = 'LINEAR'
     end if
 
     ! compute the number of global grid points for a given subSample level
@@ -775,7 +772,8 @@ module gridStateVector_mod
                       mpi_local_opt=statevector_inout%mpi_local, mpi_distribution_opt='Tiles',  &
                       dataKind_opt=statevector_inout%dataKind,                                  &
                       allocGZsfc_opt=statevector_inout%gzSfcPresent,                            &
-                      varNames_opt=varNamesToInterpolate)
+                      varNames_opt=varNamesToInterpolate,                                       &
+                      hInterpolateDegree_opt=statevector_inout%hInterpolateDegree)
 
     call gsv_interpolate(statevector_in,statevector_in_hvInterp,PsfcReference_opt=PsfcReference_opt)
 
@@ -827,7 +825,8 @@ module gridStateVector_mod
                       mpi_local_opt=statevector_in%mpi_local, mpi_distribution_opt='VarsLevs',  &
                       dataKind_opt=statevector_in%dataKind,                                     &
                       allocGZsfc_opt=statevector_in%gzSfcPresent, &
-                      varNames_opt=varNamesToInterpolate)
+                      varNames_opt=varNamesToInterpolate, &
+                      hInterpolateDegree_opt=statevector_out%hInterpolateDegree)
 
     call transposeLatLonToVarsLevs( statevector_in, statevector_in_VarLevs )
 
@@ -836,7 +835,8 @@ module gridStateVector_mod
                       mpi_local_opt=statevector_out%mpi_local, mpi_distribution_opt='VarsLevs', &
                       dataKind_opt=statevector_out%dataKind,                                    &
                       allocGZsfc_opt=statevector_out%gzSfcPresent, &
-                      varNames_opt=varNamesToInterpolate)
+                      varNames_opt=varNamesToInterpolate, &
+                      hInterpolateDegree_opt=statevector_out%hInterpolateDegree)
 
     if (statevector_in_VarLevs%dataKind == 4) then
       call gsv_hInterpolate_r4(statevector_in_VarLevs, statevector_in_VarLevs_hInterp)
@@ -2102,7 +2102,8 @@ module gridStateVector_mod
                       dateStamp_opt=statevector_out%datestamplist(stepIndex), &
                       mpi_local_opt=.true., mpi_distribution_opt='VarsLevs',  &
                       dataKind_opt=4, allocGZsfc_opt=readGZsfc,               &
-                      varNames_opt=varNamesToRead)
+                      varNames_opt=varNamesToRead,                            &
+                      hInterpolateDegree_opt=statevector_out%hInterpolateDegree)
 
     call gsv_readFile(statevector_file, filename, etiket_in, typvar_in,  &
                       readGZsfc_opt=readGZsfc)
@@ -2114,7 +2115,8 @@ module gridStateVector_mod
                       dateStamp_opt=statevector_out%datestamplist(stepIndex), &
                       mpi_local_opt=.true., mpi_distribution_opt='VarsLevs',  &
                       dataKind_opt=4, allocGZsfc_opt=readGZsfc,               &
-                      varNames_opt=varNamesToRead)
+                      varNames_opt=varNamesToRead,                            &
+                      hInterpolateDegree_opt=statevector_out%hInterpolateDegree)
 
     call gsv_hInterpolate_r4(statevector_file, statevector_hinterp)
 
@@ -2383,7 +2385,7 @@ module gridStateVector_mod
                      typvar_in,varName)
 
           ierr = ezdefset(hco_file%EZscintID,EZscintID_var)
-          ierr = utl_ezsint( gd2d_file_r4, gd2d_var_r4, interpDegree_opt='NEAREST', extrapDegree_opt='NEUTRAL' )
+          ierr = utl_ezsint( gd2d_file_r4, gd2d_var_r4, interpDegree='NEAREST', extrapDegree_opt='NEUTRAL' )
 
           deallocate(gd2d_var_r4)
         end if
@@ -2872,7 +2874,7 @@ module gridStateVector_mod
             do levIndex = 1, nlev
               ierr = utl_ezuvint( fieldUU_out_r8_ptr(:,:,levIndex,stepIndex), fieldVV_out_r8_ptr(:,:,levIndex,stepIndex), &
                                   fieldUU_in_r8_ptr(:,:,levIndex,stepIndex),  fieldVV_in_r8_ptr(:,:,levIndex,stepIndex),  & 
-                                  interpDegree_opt=trim(interpolationDegree) ) 
+                                  interpDegree=trim(interpolationDegree) ) 
             end do
           else
             ! interpolate scalar variable
@@ -2880,7 +2882,7 @@ module gridStateVector_mod
             field_out_r8_ptr => gsv_getField_r8(statevector_out, varName)
             do levIndex = 1, nlev
               ierr = utl_ezsint( field_out_r8_ptr(:,:,levIndex,stepIndex), field_in_r8_ptr(:,:,levIndex,stepIndex),  &
-                                 interpDegree_opt=trim(interpolationDegree) )
+                                 interpDegree=trim(interpolationDegree) )
             end do
           end if
         end do VAR_LOOP
@@ -2912,7 +2914,7 @@ module gridStateVector_mod
             allocate( field2dVV_out_r8(statevector_out%ni, statevector_out%nj) )
             ierr = utl_ezuvint( fieldUU_out_r8_ptr(:,:,kIndex,stepIndex), field2dVV_out_r8(:,:),   &
                                 fieldUU_in_r8_ptr(:,:,kIndex,stepIndex),  fieldVV_in_r8_ptr(:,:,kIndex,stepIndex), &
-                                interpDegree_opt=trim(interpolationDegree) ) 
+                                interpDegree=trim(interpolationDegree) ) 
             deallocate( field2dVV_out_r8 )
           else if ( trim(varName) == 'VV' ) then
             ! interpolate both UV components and keep VV
@@ -2922,14 +2924,14 @@ module gridStateVector_mod
             fieldVV_out_r8_ptr => gsv_getField_r8(statevector_out)
             ierr = utl_ezuvint( field2dUU_out_r8(:,:), fieldVV_out_r8_ptr(:,:,kIndex,stepIndex),   &
                                 fieldUU_in_r8_ptr(:,:,kIndex,stepIndex), fieldVV_in_r8_ptr(:,:,kIndex,stepIndex), &
-                                interpDegree_opt=trim(interpolationDegree) ) 
+                                interpDegree=trim(interpolationDegree) ) 
             deallocate( field2dUU_out_r8 )
           else
             ! interpolate scalar variable
             field_in_r8_ptr => gsv_getField_r8(statevector_in)
             field_out_r8_ptr => gsv_getField_r8(statevector_out)
             ierr = utl_ezsint( field_out_r8_ptr(:,:,kIndex,stepIndex), field_in_r8_ptr(:,:,kIndex,stepIndex), &
-                               interpDegree_opt=trim(interpolationDegree) )
+                               interpDegree=trim(interpolationDegree) )
           end if
         end do K_LOOP
 
@@ -2941,7 +2943,7 @@ module gridStateVector_mod
       write(*,*) 'gsv_hInterpolate: interpolating surface GZ'
       ierr = ezdefset(statevector_out%hco%EZscintID, statevector_in%hco%EZscintID)
       ierr = utl_ezsint( statevector_out%GZsfc(:,:), statevector_in%GZsfc(:,:), &
-                         interpDegree_opt=trim(interpolationDegree) )
+                         interpDegree=trim(interpolationDegree) )
     end if
 
   end subroutine gsv_hInterpolate
@@ -3011,7 +3013,7 @@ module gridStateVector_mod
             do levIndex = 1, nlev
               ierr = utl_ezuvint( fieldUU_out_r4_ptr(:,:,levIndex,stepIndex), fieldVV_out_r4_ptr(:,:,levIndex,stepIndex),   &
                                   fieldUU_in_r4_ptr(:,:,levIndex,stepIndex),  fieldVV_in_r4_ptr(:,:,levIndex,stepIndex),    &
-                                  interpDegree_opt=trim(InterpolationDegree) ) 
+                                  interpDegree=trim(InterpolationDegree) ) 
             end do
           else
             ! interpolate scalar variable
@@ -3019,7 +3021,7 @@ module gridStateVector_mod
             field_out_r4_ptr => gsv_getField_r4(statevector_out, varName)
             do levIndex = 1, nlev
               ierr = utl_ezsint( field_out_r4_ptr(:,:,levIndex,stepIndex), field_in_r4_ptr(:,:,levIndex,stepIndex),  &
-                                 interpDegree_opt=trim(InterpolationDegree) )
+                                 interpDegree=trim(InterpolationDegree) )
             end do
           end if
         end do VAR_LOOP
@@ -3051,7 +3053,7 @@ module gridStateVector_mod
             allocate( field2dVV_out_r4(statevector_out%ni, statevector_out%nj) )
             ierr = utl_ezuvint( fieldUU_out_r4_ptr(:,:,kIndex,stepIndex), field2dVV_out_r4(:,:),   &
                                 fieldUU_in_r4_ptr(:,:,kIndex,stepIndex),  fieldVV_in_r4_ptr(:,:,kIndex,stepIndex), &
-                                interpDegree_opt=trim(InterpolationDegree) ) 
+                                interpDegree=trim(InterpolationDegree) ) 
             deallocate( field2dVV_out_r4 )
           else if ( trim(varName) == 'VV' ) then
             ! interpolate both UV components and keep VV
@@ -3061,14 +3063,14 @@ module gridStateVector_mod
             fieldVV_out_r4_ptr => gsv_getField_r4(statevector_out)
             ierr = utl_ezuvint( field2dUU_out_r4(:,:), fieldVV_out_r4_ptr(:,:,kIndex,stepIndex),   &
                                 fieldUU_in_r4_ptr(:,:,kIndex,stepIndex),  fieldVV_in_r4_ptr(:,:,kIndex,stepIndex),  &
-                                interpDegree_opt=trim(InterpolationDegree) ) 
+                                interpDegree=trim(InterpolationDegree) ) 
             deallocate( field2dUU_out_r4 )
           else
             ! interpolate scalar variable
             field_in_r4_ptr => gsv_getField_r4(statevector_in)
             field_out_r4_ptr => gsv_getField_r4(statevector_out)
             ierr = utl_ezsint( field_out_r4_ptr(:,:,kIndex,stepIndex), field_in_r4_ptr(:,:,kIndex,stepIndex),  &
-                               interpDegree_opt=trim(InterpolationDegree) )
+                               interpDegree=trim(InterpolationDegree) )
           end if
         end do K_LOOP
 
@@ -3080,7 +3082,7 @@ module gridStateVector_mod
       write(*,*) 'gsv_hInterpolate_r4: interpolating surface GZ'
       ierr = ezdefset(statevector_out%hco%EZscintID, statevector_in%hco%EZscintID)
       ierr = utl_ezsint( statevector_out%GZsfc(:,:), statevector_in%GZsfc(:,:),  &
-                         interpDegree_opt=trim(InterpolationDegree) )
+                         interpDegree=trim(InterpolationDegree) )
     end if
 
   end subroutine gsv_hInterpolate_r4
@@ -4109,11 +4111,11 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   subroutine gsv_readTrials(hco_in, vco_in,statevector_trial, HUcontainsLQ_opt, &
                             hInterpolateDegree_opt)
-  !
-  ! Author: Y. Rochon, Feb 2017 (addition recommended by Mark Buehner)
-  !         Bulk of content originally in vtr_setupTrials.
-  ! 
-  !---------------------------------------------------------------------------
+    !
+    ! Author: Y. Rochon, Feb 2017 (addition recommended by Mark Buehner)
+    !         Bulk of content originally in vtr_setupTrials.
+    ! 
+    !---------------------------------------------------------------------------
     implicit none
 
     type(struct_hco), pointer :: hco_in
@@ -4129,6 +4131,7 @@ module gridStateVector_mod
     character(len=2)     :: fileNumber
     character(len=30)    :: fileName
     logical              :: fileExists, HUcontainsLQ
+    character(len=12)    :: hInterpolateDegree
 
     if ( present(HUcontainsLQ_opt) ) then
       HUcontainsLQ = HUcontainsLQ_opt
@@ -4136,10 +4139,16 @@ module gridStateVector_mod
       HUcontainsLQ = .true.
     end if
 
+    if ( present(hInterpolateDegree_opt) ) then
+      hInterpolateDegree = trim(hInterpolateDegree_opt)
+    else
+      hInterpolateDegree = 'LINEAR'
+    end if
+
     ! initialize statevector_trial
     call gsv_allocate(statevector_trial, tim_nstepobsinc, hco_in, vco_in,     &
                       dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                      allocGZsfc_opt=.true., hInterpolateDegree_opt=hInterpolateDegree_opt)
+                      allocGZsfc_opt=.true., hInterpolateDegree_opt=hInterpolateDegree)
 
     ! initialize list of dates for the 4D analysis increment
     allocate(datestamplist(tim_nStepObsInc))

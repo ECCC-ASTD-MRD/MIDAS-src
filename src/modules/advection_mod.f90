@@ -293,7 +293,8 @@ CONTAINS
 
       call gsv_allocate(statevector_steeringFlow,numStepSteeringFlow, hco, vco_in, &
                         dateStampList_opt=dateStampListSteeringFlow, &
-                        varNames_opt=(/'UU','VV','P0'/), mpi_local_opt=.true.)
+                        varNames_opt=(/'UU','VV','P0'/), mpi_local_opt=.true., &
+                        hInterpolateDegree_opt='LINEAR')
       
       fileName = ram_fullWorkingPath(trim(steeringFlowFilename_opt))
       inquire(file=trim(fileName),exist=AdvectFileExists)

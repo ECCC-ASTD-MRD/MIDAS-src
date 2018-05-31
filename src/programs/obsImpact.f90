@@ -441,7 +441,8 @@ contains
     inquire(file=trim(fileName_fa),exist=faExists)
     write(*,*) 'faExists', faExists
     call gsv_allocate(statevector_fa, 1, hco_anl, vco_anl, &
-                      datestamp_opt=datestamp_fcst, mpi_local_opt=.true.)
+                      datestamp_opt=datestamp_fcst, mpi_local_opt=.true., &
+                      hInterpolateDegree_opt='LINEAR')
     call gsv_readFromFile(statevector_fa, fileName_fa, ' ', 'P')
 
     !for statevecotr_tempfa
@@ -451,7 +452,8 @@ contains
     !for statevector_fb
     fileName_fb = trim(forecastPath) // '/forecast_b'
     call gsv_allocate(statevector_fb, 1, hco_anl, vco_anl, &
-                      datestamp_opt=datestamp_fcst, mpi_local_opt=.true.)
+                      datestamp_opt=datestamp_fcst, mpi_local_opt=.true., &
+                      hInterpolateDegree_opt='LINEAR')
     call gsv_readFromFile(statevector_fb, fileName_fb, ' ', 'P')
 
     !for statevecotr_tempfb
@@ -461,7 +463,8 @@ contains
     ! read verifying analysis
     fileName_a = trim(forecastPath) // '/analysis'
     call gsv_allocate(statevector_a, 1,hco_anl, vco_anl, &
-                      datestamp_opt=datestamp_fcst, mpi_local_opt=.true.)
+                      datestamp_opt=datestamp_fcst, mpi_local_opt=.true., &
+                      hInterpolateDegree_opt='LINEAR')
     call gsv_readFromFile(statevector_a, fileName_a, ' ', 'A')
 
     ! compute error of both forecasts (overwrite forecasts with error)
