@@ -4,6 +4,7 @@
    ENSEMBLECENTER = '_enkfmean'
    ENSPATHNAME = '.'
    ensembleTypvarOutput = 'A'
+   ensembleEtiketOutput = '1234'
    ensembleEtiketOutputAppendMemberNumber = T
    NENS = 4
    RECENTER = T

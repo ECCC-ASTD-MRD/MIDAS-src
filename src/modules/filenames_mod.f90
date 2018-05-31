@@ -119,8 +119,6 @@ contains
       ensFileBasename = ensFileName((totalLength-ensembleBaseFileNameLength+1):(totalLength-ensembleFileExtLength-1))
 
       firstTime = .false.
-
-      write(*,*) 'fln_ensFileName: ensFileBasename = ', trim(ensFileBasename)
     end if
 
     write(ensembleFileExtLengthStr,'(i1.1)') ensembleFileExtLength

@@ -1051,10 +1051,11 @@ CONTAINS
     integer :: yourid, youridx, youridy
     integer :: writeFilePE(1000)
     integer :: lonPerPE, lonPerPEmax, latPerPE, latPerPEmax, ni, nj, nk, numStep, numlevelstosend, numlevelstosend2
-    integer :: memberIndex, memberIndex2, stepIndex, jvar, jk, jk2, jk3, ip3
+    integer :: memberIndex, memberIndex2, stepIndex, jvar, jk, jk2, jk3, ip3, ensFileExtLength, maximumBaseEtiketLength
     character(len=256) :: ensFileName
-    character(len=12) :: etiketStr
-    character(len=4) :: memberIndexStr
+    character(len=12) :: etiketStr  ! this is the etiket that will be used to write files
+    character(len=6) :: memberIndexStrFormat  !  will contain the character string '(I0.4)' to have 4 characters in the member extension
+    character(len=10), allocatable :: memberIndexStr ! this is the member number in a character string
 
     write(*,*) 'ens_writeEnsemble: starting'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -1173,22 +1174,28 @@ CONTAINS
 
           write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-          write(*,*) 'Writing member ', memberIndex, ' with base etiket ', etiket
+          call fln_ensFileName( ensFileName, ensPathName, memberIndex, ensFileNamePrefix_opt = ensFileNamePrefix, &
+               shouldExist_opt = .false., ensembleFileExtLength_opt = ensFileExtLength )
 
           etiketStr = etiket
           !  Write the file
           if (present(etiketAppendMemberNumber_opt)) then
             if (etiketAppendMemberNumber_opt) then
-              write(memberIndexStr,"(I0.4)") memberIndex
-              if ( len(trim(etiket)) >= 8 ) then
-                etiketStr = etiket(1:8) // trim(memberIndexStr)
+              allocate(character(len=ensFileExtLength) :: memberIndexStr)
+              write(memberIndexStr,"(I1)") ensFileExtLength
+              memberIndexStrFormat = '(I0.' // trim(memberIndexStr) // ')'
+              write(memberIndexStr,memberIndexStrFormat) memberIndex
+              !! 12 is the maximum length of an etiket for RPN fstd files
+              maximumBaseEtiketLength = 12 - ensFileExtLength
+              if ( len(trim(etiket)) >= maximumBaseEtiketLength ) then
+                etiketStr = etiket(1:maximumBaseEtiketLength) // trim(memberIndexStr)
               else
                 etiketStr = trim(etiket) // trim(memberIndexStr)
               end if
+              deallocate(memberIndexStr)
             end if
           end if
-          write(*,*) 'The etiket to file for member ', memberIndex, ' is ', etiketStr
-          call fln_ensFileName( ensFileName, ensPathName, memberIndex, ensFileNamePrefix_opt = ensFileNamePrefix, shouldExist_opt = .false. )
+
           call gsv_writeToFile( statevector_member_r4, ensFileName, etiketStr, ip3_opt = ip3, typvar_opt = typvar , numBits_opt = numBits_opt)
         end if ! locally written one member
 
