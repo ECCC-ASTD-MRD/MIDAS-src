@@ -1256,17 +1256,17 @@ CONTAINS
     
     plong2 = plong
     if (plong2 < 0.0) plong2 = 2.D0*MPC_PI_R8 + plong2
-    do ilon = 2,nlong
-       if  (xlong(ilon-1) < xlong(ilon)) then
-           if (plong2 >= xlong(ilon-1) .and. plong2 <= xlong(ilon)) exit
-       else 
-           ! Assumes this is a transition between 360 to 0 (if it exists). Skip over.
-       end if
+    do ilon = 2, nlong
+      if  (xlong(ilon-1) < xlong(ilon)) then
+        if (plong2 >= xlong(ilon-1) .and. plong2 <= xlong(ilon)) exit
+      else 
+        ! Assumes this is a transition between 360 to 0 (if it exists). Skip over.
+      end if
     end do
     ilon = ilon-1
        
-    do ilat = 2,nlat
-       if (plat <= xlat(ilat)) exit
+    do ilat = 2, nlat
+      if (plat <= xlat(ilat)) exit
     end do
     ilat = ilat-1
     
@@ -1291,19 +1291,19 @@ CONTAINS
          
     ilev = 1
     do i = 1, nlevout
-       do j = ilev, nlev          
-          if (lnvlevout(i) < lnvlev(j)) exit    ! assumes both lnvlevout and lnvlev increase with increasing index value
-       end do
-       ilev = j-1
-       if (ilev < 1) then
-          ilev = 1
-       else if (ilev >= nlev) then
-           ilev = nlev-1
-       end if
+      do j = ilev, nlev          
+        if (lnvlevout(i) < lnvlev(j)) exit    ! assumes both lnvlevout and lnvlev increase with increasing index value
+      end do
+      ilev = j-1
+      if (ilev < 1) then
+        ilev = 1
+      else if (ilev >= nlev) then
+        ilev = nlev-1
+      end if
        
-       DLDP = (lnvlev(ilev+1)-lnvlevout(i))/(lnvlev(ilev+1)-lnvlev(ilev))
+      DLDP = (lnvlev(ilev+1)-lnvlevout(i))/(lnvlev(ilev+1)-lnvlev(ilev))
           
-       vprof(i) = DLDP* (DLW1 * field(ilon,ilat,ilev) &
+      vprof(i) = DLDP* (DLW1 * field(ilon,ilat,ilev) &
                        + DLW2 * field(ilon+1,ilat,ilev) &
                        + DLW3 * field(ilon,ilat+1,ilev) &
                        + DLW4 * field(ilon+1,ilat+1,ilev)) &

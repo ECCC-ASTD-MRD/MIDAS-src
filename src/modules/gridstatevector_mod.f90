@@ -4538,56 +4538,56 @@ module gridStateVector_mod
 
     ! Check if vertical interpolation needed
     if (nlev /= nlevout) then
-       same_vlev=.false.
+      same_vlev = .false.
     else
-       if (any(abs(vlev-vlevout) > 0.01*vlev)) then
-          same_vlev=.false.
-       else
-          same_vlev=.true.
-       end if
+      if (any(abs(vlev-vlevout) > 0.01*vlev)) then
+        same_vlev = .false.
+      else
+        same_vlev = .true.
+      end if
     end if 
     
     ! Find near lat/long grid points
     
-    do ilongout=1,nlongout
+    do ilongout = 1, nlongout
 
-      if (nlongout.gt.1) then    
-         plong2 = xlongout(ilongout)
-         if (plong2 < 0.0) plong2 = 2.D0*MPC_PI_R8 + plong2
-         do ilon = 2,nlong
-            if  (xlong(ilon-1) < xlong(ilon)) then
-               if (plong2 >= xlong(ilon-1) .and. plong2 <= xlong(ilon)) exit
-            else 
-               ! Assumes this is a transition between 360 to 0 (if it exists). Skip over.
-            end if
-         end do
-         ilon = ilon-1
+      if (nlongout > 1) then    
+        plong2 = xlongout(ilongout)
+        if (plong2 < 0.0) plong2 = 2.D0*MPC_PI_R8 + plong2
+        do ilon = 2,nlong
+          if  (xlong(ilon-1) < xlong(ilon)) then
+            if (plong2 >= xlong(ilon-1) .and. plong2 <= xlong(ilon)) exit
+          else 
+            ! Assumes this is a transition between 360 to 0 (if it exists). Skip over.
+          end if
+        end do
+        ilon = ilon-1
       else
-          ilon=1
+        ilon = 1
       end if
       
-      do ilatout=1,nlatout
+      do ilatout = 1, nlatout
          
-        do ilat = 2,nlat
+        do ilat = 2, nlat
           if (xlatout(ilatout) <= xlat(ilat)) exit
         end do
         ilat = ilat-1
     
         ! Set lat/long interpolation weights
     
-        if (nlongout.gt.1) then
-           DLDX = (xlongout(ilongout) - xlong(ilon))/(xlong(ilon+1)-xlong(ilon))
-           DLDY = (xlatout(ilatout) - xlat(ilat))/(xlat(ilat+1)-xlat(ilat))
+        if (nlongout > 1) then
+          DLDX = (xlongout(ilongout) - xlong(ilon))/(xlong(ilon+1)-xlong(ilon))
+          DLDY = (xlatout(ilatout) - xlat(ilat))/(xlat(ilat+1)-xlat(ilat))
 
-           DLW1 = (1.d0-DLDX) * (1.d0-DLDY)
-           DLW2 =       DLDX  * (1.d0-DLDY)
-           DLW3 = (1.d0-DLDX) *       DLDY
-           DLW4 =       DLDX  *       DLDY
+          DLW1 = (1.d0-DLDX) * (1.d0-DLDY)
+          DLW2 =       DLDX  * (1.d0-DLDY)
+          DLW3 = (1.d0-DLDX) *       DLDY
+          DLW4 =       DLDX  *       DLDY
         else
-           DLDY = (xlatout(ilatout) - xlat(ilat))/(xlat(ilat+1)-xlat(ilat))
+          DLDY = (xlatout(ilatout) - xlat(ilat))/(xlat(ilat+1)-xlat(ilat))
 
-           DLW1 = (1.d0-DLDY)
-           DLW3 = DLDY        
+          DLW1 = (1.d0-DLDY)
+          DLW3 = DLDY        
         end if
         
         ! Set vertical interpolation weights (assumes pressure vertical coordinate)
@@ -4624,7 +4624,7 @@ module gridStateVector_mod
                            + DLW3 * field(ilon,ilat+1,ilev+1) &
                            + DLW4 * field(ilon+1,ilat+1,ilev+1))                               
           end do
-        else if (nlongout.gt.1) then
+        else if (nlongout > 1) then
           do ilev = 1, nlevout           
             fieldout(ilongout,ilatout,ilev) = DLW1 * field(ilon,ilat,ilev) &
                            + DLW2 * field(ilon+1,ilat,ilev) &
