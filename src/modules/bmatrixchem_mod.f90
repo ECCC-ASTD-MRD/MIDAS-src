@@ -283,25 +283,25 @@ CONTAINS
     nChmVars=0
     BChmVars(:)=''
     if (trim(IncludeAnlVarCH(1)) == '') then
-      do jvar = 1, vnl_numvarmax 
+      do jvar = 1, vnl_numvarmax
         if (.not. gsv_varExist(varName = vnl_varNameList(jvar))) cycle
         if (vnl_varKindFromVarname(vnl_varNameList(jvar)) /= 'CH') cycle
         nChmVars = nChmVars+1
-        BchmVars(nChmVars) = trim(vnl_varNameList(jvar))      
-      end do 
+        BchmVars(nChmVars) = trim(vnl_varNameList(jvar))
+      end do
     else
-      do jvar = 1, vnl_numvarmax 
+      do jvar = 1, vnl_numvarmax
         if (.not. gsv_varExist(varName = vnl_varNameList(jvar))) cycle
         if (vnl_varKindFromVarname(vnl_varNameList(jvar)) /= 'CH') cycle
         do jvar2 = 1, vnl_numvarmax
           if (trim(IncludeAnlVarCH(jvar2)) == '') exit
           if (trim(vnl_varNameList(jvar)) == trim(IncludeAnlVarCH(jvar2))) then
             nChmVars = nChmVars+1
-            BchmVars(nChmVars) = trim(vnl_varNameList(jvar))      
+            BchmVars(nChmVars) = trim(vnl_varNameList(jvar))
             exit
           end if
         end do
-      end do 
+      end do
     end if
 
     if (nChmVars.eq.0) then 
