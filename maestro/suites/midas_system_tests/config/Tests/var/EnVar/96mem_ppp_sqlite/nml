@@ -452,7 +452,8 @@
  &NAMSQLua
   numberElem=11   
   listElem="12004,12203,10051,10004,11011,11012,12001,11001,11002,12192,10194"
-  sqlNull=" and obsvalue is not null "
+  sqlExtraDat=" order by id_obs "
+  sqlNull=" and obsvalue is not null " 
 /
  &NAMSQLpr
   numberElem=2
