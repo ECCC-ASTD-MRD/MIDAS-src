@@ -42,7 +42,7 @@ MODULE ensembleStateVector_mod
   public :: ens_readEnsemble, ens_writeEnsemble
   public :: ens_copyToStateWork, ens_getRepackMean_r8
   public :: ens_varExist, ens_getNumLev
-  public :: ens_computeMean, ens_removeMean, ens_copyEnsMean, ens_copyMember, ens_recenter
+  public :: ens_computeMean, ens_removeMean, ens_copyEnsMean, ens_copyMember, ens_recenter, ens_shiftEnsembleControlMember
   public :: ens_computeStdDev, ens_copyEnsStdDev
   public :: ens_getRepack_r4
   public :: ens_getOffsetFromVarName, ens_getLevFromK, ens_getVarNameFromK, ens_getNumK, ens_getKFromLevVarName
@@ -710,6 +710,80 @@ CONTAINS
 !$OMP END PARALLEL DO
 
   end subroutine ens_recenter
+
+
+  subroutine ens_shiftEnsembleControlMember(ens,hco_ens,vco_ens,ensFileName,ensPathName,recenteringMean,recenteringCoeff,HUcontainsLQ,ensembleCenter_opt)
+    implicit none
+
+    !! We want to compute:
+    !!    x_recentered = x_original + recenteringCoeff*(x_recenteringMean - x_ensembleMean)
+
+    ! arguments
+    type(struct_ens) :: ens
+    type(struct_vco), pointer :: vco_ens
+    type(struct_hco), pointer :: hco_ens
+    character(len=*) :: ensFileName, ensPathName
+    type(struct_gsv) :: recenteringMean
+    real(8)          :: recenteringCoeff
+    logical          :: HUcontainsLQ
+    type(struct_gsv), optional :: ensembleCenter_opt
+
+    ! locals
+    type(struct_gsv) :: statevector_ensembleControlMember
+    real(8), pointer :: ptr4d_r8(:,:,:,:), ensembleCenter_r8(:,:,:,:), ptr4d_ensembleControlmember_r8(:,:,:,:)
+    real(8) :: increment
+    integer :: lon1, lon2, lat1, lat2, k1, k2, numStep
+    integer :: jk, jj, ji, stepIndex
+
+    lon1 = ens%statevector_work%myLonBeg
+    lon2 = ens%statevector_work%myLonEnd
+    lat1 = ens%statevector_work%myLatBeg
+    lat2 = ens%statevector_work%myLatEnd
+    k1 = ens%statevector_work%mykBeg
+    k2 = ens%statevector_work%mykEnd
+    numStep = ens%statevector_work%numStep
+
+    ptr4d_r8 => gsv_getField_r8(recenteringMean)
+    if(present(ensembleCenter_opt)) then
+      ensembleCenter_r8 => gsv_getField_r8(ensembleCenter_opt)
+    else
+      nullify(ensembleCenter_r8)
+    end if
+
+    call fln_ensFileName( ensFileName, ensPathName, memberIndex = 0)
+
+    call gsv_allocate(statevector_ensembleControlMember, numStep, hco_ens, vco_ens, &
+         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.)
+
+    do stepIndex = 1, numStep
+      if(mpi_myid == 0) write(*,*) ''
+      if(mpi_myid == 0) write(*,*) 'ens_shiftEnsembleControlMember: reading ensemble control member for time step: ',stepIndex
+      call gsv_readFromFile(statevector_ensembleControlMember, trim(ensFileName), ' ', ' ',  &
+           stepIndex_opt=stepIndex, unitConversion_opt=.true., HUcontainsLQ_opt=HUcontainsLQ )
+    end do
+
+    ptr4d_ensembleControlmember_r8 => gsv_getField_r8(statevector_ensembleControlMember)
+
+!$OMP PARALLEL DO PRIVATE (jk,jj,ji,stepIndex,increment)
+    do jk = k1, k2
+      do jj = lat1, lat2
+        do ji = lon1, lon2
+          do stepIndex = 1, numStep
+            if(present(ensembleCenter_opt)) then
+              increment = ptr4d_r8(ji,jj,jk,stepIndex) - ensembleCenter_r8(ji,jj,jk,stepIndex)
+            else
+              increment = ptr4d_r8(ji,jj,jk,stepIndex) - ens%repack_ensMean_r8(jk)%onelevel(1,stepIndex,ji,jj)
+            end if
+            ptr4d_ensembleControlMember_r8(ji,jj,jk,stepIndex) = ptr4d_ensembleControlMember_r8(ji,jj,jk,stepIndex) + recenteringCoeff*increment
+          end do
+        end do
+      end do
+    end do
+!$OMP END PARALLEL DO
+
+    call gsv_deallocate(statevector_ensembleControlMember)
+
+  end subroutine ens_shiftEnsembleControlMember
 
 
   subroutine ens_readEnsemble(ens, ensPathName, biPeriodic, ctrlVarHumidity, &
