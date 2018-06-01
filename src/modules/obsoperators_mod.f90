@@ -28,6 +28,7 @@ module obsOperators_mod
   use columnData_mod 
   use bufr_mod
   use physicsFunctions_mod
+  use aladin_mod
   use gps_mod
   use mpi_mod
   use mpivar_mod
@@ -46,7 +47,8 @@ module obsOperators_mod
 
   ! public procedures
   public :: oop_setup
-  public :: oop_ppp_nl, oop_sfc_nl, oop_zzz_nl, oop_gpsro_nl, oop_gpsgb_nl, oop_tovs_nl, oop_chm_nl, oop_sst_nl
+  public :: oop_ppp_nl, oop_geomht_nl, oop_sfc_nl, oop_zzz_nl, oop_gpsro_nl
+  public :: oop_gpsgb_nl, oop_tovs_nl, oop_chm_nl, oop_sst_nl
   public :: oop_Htl, oop_Had, oop_vobslyrs
 
   character(len=48) :: obsoperMode
@@ -359,6 +361,105 @@ contains
     jobs = 0.5d0 * jobs
 
   end subroutine oop_ppp_nl
+
+
+  subroutine oop_geomht_nl(columnhr,obsSpaceData,jobs_out,cdfam)
+    !
+    !**s/r oop_geomht_nl - Computation of Jobs and y - H(x)
+    !                      for geometric-height observations
+    !
+    !Author  :  J.W. Blezius, Jan 2018 (inspired by oop_zzz_nl and oop_ppp_nl)
+    !
+    !Revision :
+    !
+    !     Purpose:  - Interpolate vertically columnhr to
+    !                 the geometric heights (in meters) of the observations.
+    !                 Then compute Jobs.
+    !                 A linear interpolation in z is performed.
+    !
+    !Arguments
+    !     jobs_out:  contribution to Jobs
+    !     cdfam: family of observation
+    !
+    !Notes:
+    !     As a first approximation, use the geopotential height.  Once this is
+    !     working, this should be changed for a calculation of the geometric
+    !     height.
+    !
+    implicit none
+    type(struct_columnData),    intent(in)    :: columnhr
+    type(struct_obs),           intent(inout) :: obsSpaceData
+    real(8),          optional, intent(out)   :: jobs_out
+    character(len=*), optional, intent(in)    :: cdfam
+
+    integer :: headerIndex,bodyIndex,ilyr,ivnm
+    real(8) :: zvar,zoer,jobs
+    real(8) :: zwb,zwt
+    real(8) :: zlev,zpt,zpb,zomp,azimuth
+    real(8) :: columnVarB,columnVarT
+    character(len=4) :: varName
+    character(len=2) :: varLevel
+    real(8) :: uu_lyr, vv_lyr   ! wind on layer, OBS_LYR
+    real(8) :: uu_lyr1,vv_lyr1  ! wind on layer plus 1
+
+    Write(*,*) "Entering subroutine oop_geomht_nl"
+
+    jobs=0.d0
+
+    if(present(cdfam)) then
+       call obs_set_current_body_list(obsSpaceData, cdfam)
+    else
+       write(*,*) 'oop_geomht_nl: WARNING, no family specified, assuming AL'
+       call obs_set_current_body_list(obsSpaceData, 'AL')
+    endif
+
+    BODY: do
+       bodyIndex = obs_getBodyIndex(obsSpaceData)
+       if (bodyIndex < 0) exit BODY
+
+       ! Process all geometric-height data within the domain of the model
+       if( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) .ne. 1 .or.  &
+           obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) .ne. 0 .or.  &
+           obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) .ne. 1 ) &
+          cycle BODY
+
+       ivnm=obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
+       zvar=obs_bodyElem_r(obsSpaceData,OBS_VAR,bodyIndex)
+       zlev=obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
+       zoer=obs_bodyElem_r(obsSpaceData,OBS_OER,bodyIndex)
+       headerIndex=obs_bodyElem_i(obsSpaceData,OBS_HIND,bodyIndex)
+
+       ilyr  =obs_bodyElem_i(obsSpaceData,OBS_LYR,bodyIndex)
+       varName = vnl_varnameFromVarnum(ivnm)
+       varLevel = vnl_varLevelFromVarnum(ivnm)
+       zpt= col_getHeight(columnhr,ilyr  ,headerIndex,varLevel)/RG
+       zpb= col_getHeight(columnhr,ilyr+1,headerIndex,varLevel)/RG
+       zwb  = (zpt-zlev)/(zpt-zpb)
+       zwt  = 1.d0 - zwb
+
+       if(ivnm == BUFR_NEAL) then
+          uu_lyr =col_getElem(columnhr,ilyr,  headerIndex,'UU') &
+                                                        * MPC_M_PER_S_PER_KNOT_R8
+          uu_lyr1=col_getElem(columnhr,ilyr+1,headerIndex,'UU') &
+                                                        * MPC_M_PER_S_PER_KNOT_R8
+          vv_lyr =col_getElem(columnhr,ilyr,  headerIndex,'VV') &
+                                                        * MPC_M_PER_S_PER_KNOT_R8
+          vv_lyr1=col_getElem(columnhr,ilyr+1,headerIndex,'VV') &
+                                                        * MPC_M_PER_S_PER_KNOT_R8
+          azimuth=obs_headElem_i(obsSpaceData,OBS_AZA,headerIndex)
+          columnVarB=aladin(uu_lyr1, vv_lyr1, azimuth)
+          columnVarT=aladin(uu_lyr,  vv_lyr,  azimuth)
+       end if
+
+       zomp = zvar-(zwb*columnVarB+zwt*columnVarT)
+       jobs = jobs + zomp*zomp/(zoer*zoer)
+       call obs_bodySet_r(obsSpaceData,OBS_OMP,bodyIndex,zomp)
+
+    enddo BODY
+
+    if(present(jobs_out)) jobs_out=0.5d0*jobs
+
+  end subroutine oop_geomht_nl
 
 
   subroutine oop_sfc_nl(columnhr,obsSpaceData,jobs,cdfam)
