@@ -279,7 +279,7 @@ program midas_ensManip
       call tmg_stop(12)
 
       if (shiftEnsembleControlMember) then
-        call ens_shiftEnsembleControlMember(ensemble,hco_ens,vco_ens,ensFileBaseName,'.', statevector_recenteringMean, &
+        call ens_recenterControlMember(ensemble,hco_ens,vco_ens,ensFileBaseName,'.', statevector_recenteringMean, &
              recentering_coeff, HUcontainsLQ, ensembleCenter_opt=statevector_ensembleCenter)
       end if
     else
@@ -288,7 +288,7 @@ program midas_ensManip
       call tmg_stop(12)
 
       if (shiftEnsembleControlMember) then
-        call ens_shiftEnsembleControlMember(ensemble,hco_ens,vco_ens,ensFileBaseName,'.', statevector_recenteringMean, &
+        call ens_recenterControlMember(ensemble,hco_ens,vco_ens,ensFileBaseName,'.', statevector_recenteringMean, &
              recentering_coeff, HUcontainsLQ)
       end if
     end if ! end of 'else' related to 'if (trim(ensembleCenter) /= '')'
