@@ -102,6 +102,7 @@ if [[ ${MIDAS_TESTS_SUITE} = */* ]]; then
     mkdir -p $(dirname ${MIDAS_TESTS_SUITE})
 fi
 
+[ -L ~/.suites/${MIDAS_TESTS_SUITE} ] && rm ~/.suites/${MIDAS_TESTS_SUITE}
 ln -s $PWD ~/.suites/${MIDAS_TESTS_SUITE}
 export MAKE_LINKS_START_DATE=$(date +%Y%m%d000000)
 make_links ${MIDAS_TESTS_SUITE}
