@@ -722,7 +722,8 @@ CONTAINS
   end subroutine ens_recenter
 
 
-  subroutine ens_recenterControlMember(ens,hco_ens,vco_ens,ensFileName,ensPathName,recenteringMean,recenteringCoeff,HUcontainsLQ,ensembleCenter_opt)
+  subroutine ens_recenterControlMember(ens,hco_ens,vco_ens,ensFileName,ensPathName,ensFileNamePrefix,recenteringMean,recenteringCoeff, &
+       HUcontainsLQ,etiket,typvar,ensembleCenter_opt,numBits_opt)
     implicit none
 
     !! We want to compute:
@@ -732,15 +733,19 @@ CONTAINS
     type(struct_ens) :: ens
     type(struct_vco), pointer :: vco_ens
     type(struct_hco), pointer :: hco_ens
-    character(len=*) :: ensFileName, ensPathName
+    character(len=*) :: ensFileName, ensPathName, ensFileNamePrefix
     type(struct_gsv) :: recenteringMean
     real(8)          :: recenteringCoeff
     logical          :: HUcontainsLQ
+    character(len=*)  :: etiket
+    character(len=*)  :: typvar
     type(struct_gsv), optional :: ensembleCenter_opt
+    integer, optional :: numBits_opt
 
     ! locals
     type(struct_gsv) :: statevector_ensembleControlMember
-    integer          :: stepIndex, numStep
+    integer          :: stepIndex, numStep, ensFileExtLength
+    character(len=256) :: ensFileNameOutput
 
     numStep = ens%statevector_work%numStep
 
@@ -750,7 +755,6 @@ CONTAINS
          dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.)
 
     do stepIndex = 1, numStep
-      if(mpi_myid == 0) write(*,*) ''
       if(mpi_myid == 0) write(*,*) 'ens_shiftEnsembleControlMember: reading ensemble control member for time step: ',stepIndex
       call gsv_readFromFile(statevector_ensembleControlMember, trim(ensFileName), ' ', ' ',  &
            stepIndex_opt=stepIndex, unitConversion_opt=.true., HUcontainsLQ_opt=HUcontainsLQ )
@@ -758,6 +762,17 @@ CONTAINS
 
     call ens_recenter(ens,recenteringMean,recenteringCoeff,ensembleCenter_opt = ensembleCenter_opt, &
          ensembleControlMember_opt = statevector_ensembleControlMember)
+
+    call fln_ensFileName( ensFileName, ensPathName, memberIndex = 0, ensFileNamePrefix_opt = ensFileNamePrefix, &
+         shouldExist_opt = .false.)
+
+    ensFileNameOutput = 'recentered_' // trim(ensFileName)
+    ! Output the shifted ensemble control member
+    do stepIndex = 1, numStep
+      if(mpi_myid == 0) write(*,*) 'ens_shiftEnsembleControlMember: write shifted ensemble control member for time step: ',stepIndex
+      call gsv_writeToFile( statevector_ensembleControlMember, ensFileName, etiket, &
+           stepIndex_opt = stepIndex, typvar_opt = typvar , numBits_opt = numBits_opt)
+    end do
 
     call gsv_deallocate(statevector_ensembleControlMember)
 
